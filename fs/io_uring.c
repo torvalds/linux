@@ -6950,10 +6950,6 @@ static void io_queue_sqe_arm_apoll(struct io_kiocb *req)
 
 	switch (io_arm_poll_handler(req)) {
 	case IO_APOLL_READY:
-		if (linked_timeout) {
-			io_queue_linked_timeout(linked_timeout);
-			linked_timeout = NULL;
-		}
 		io_req_task_queue(req);
 		break;
 	case IO_APOLL_ABORTED:
@@ -10144,7 +10140,7 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	for (i = 0; i < sq_entries; i++) {
 		unsigned int entry = i + sq_head;
 		unsigned int sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
-		struct io_uring_sqe *sqe = &ctx->sq_sqes[sq_idx];
+		struct io_uring_sqe *sqe;
 
 		if (sq_idx > sq_mask)
 			continue;
@@ -10795,10 +10791,11 @@ static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 
 	BUILD_BUG_ON(sizeof(new_count) != sizeof(ctx->iowq_limits));
 
-	memcpy(ctx->iowq_limits, new_count, sizeof(new_count));
+	for (i = 0; i < ARRAY_SIZE(new_count); i++)
+		if (new_count[i])
+			ctx->iowq_limits[i] = new_count[i];
 	ctx->iowq_limits_set = true;
 
-	ret = -EINVAL;
 	if (tctx && tctx->io_wq) {
 		ret = io_wq_max_workers(tctx->io_wq, new_count);
 		if (ret)
