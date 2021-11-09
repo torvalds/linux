@@ -552,15 +552,73 @@ static void snd_dma_noncontig_sync(struct snd_dma_buffer *dmab,
 	}
 }
 
+static inline void snd_dma_noncontig_iter_set(struct snd_dma_buffer *dmab,
+					      struct sg_page_iter *piter,
+					      size_t offset)
+{
+	struct sg_table *sgt = dmab->private_data;
+
+	__sg_page_iter_start(piter, sgt->sgl, sgt->orig_nents,
+			     offset >> PAGE_SHIFT);
+}
+
+static dma_addr_t snd_dma_noncontig_get_addr(struct snd_dma_buffer *dmab,
+					     size_t offset)
+{
+	struct sg_dma_page_iter iter;
+
+	snd_dma_noncontig_iter_set(dmab, &iter.base, offset);
+	__sg_page_iter_dma_next(&iter);
+	return sg_page_iter_dma_address(&iter) + offset % PAGE_SIZE;
+}
+
+static struct page *snd_dma_noncontig_get_page(struct snd_dma_buffer *dmab,
+					       size_t offset)
+{
+	struct sg_page_iter iter;
+
+	snd_dma_noncontig_iter_set(dmab, &iter, offset);
+	__sg_page_iter_next(&iter);
+	return sg_page_iter_page(&iter);
+}
+
+static unsigned int
+snd_dma_noncontig_get_chunk_size(struct snd_dma_buffer *dmab,
+				 unsigned int ofs, unsigned int size)
+{
+	struct sg_dma_page_iter iter;
+	unsigned int start, end;
+	unsigned long addr;
+
+	start = ALIGN_DOWN(ofs, PAGE_SIZE);
+	end = ofs + size - 1; /* the last byte address */
+	snd_dma_noncontig_iter_set(dmab, &iter.base, start);
+	if (!__sg_page_iter_dma_next(&iter))
+		return 0;
+	/* check page continuity */
+	addr = sg_page_iter_dma_address(&iter);
+	for (;;) {
+		start += PAGE_SIZE;
+		if (start > end)
+			break;
+		addr += PAGE_SIZE;
+		if (!__sg_page_iter_dma_next(&iter) ||
+		    sg_page_iter_dma_address(&iter) != addr)
+			return start - ofs;
+	}
+	/* ok, all on continuous pages */
+	return size;
+}
+
 static const struct snd_malloc_ops snd_dma_noncontig_ops = {
 	.alloc = snd_dma_noncontig_alloc,
 	.free = snd_dma_noncontig_free,
 	.mmap = snd_dma_noncontig_mmap,
 	.sync = snd_dma_noncontig_sync,
 	/* re-use vmalloc helpers for get_* ops */
-	.get_addr = snd_dma_vmalloc_get_addr,
-	.get_page = snd_dma_vmalloc_get_page,
-	.get_chunk_size = snd_dma_vmalloc_get_chunk_size,
+	.get_addr = snd_dma_noncontig_get_addr,
+	.get_page = snd_dma_noncontig_get_page,
+	.get_chunk_size = snd_dma_noncontig_get_chunk_size,
 };
 
 /*
