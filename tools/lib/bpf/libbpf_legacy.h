@@ -52,8 +52,17 @@ enum libbpf_strict_mode {
 	 * allowed, with LIBBPF_STRICT_SEC_PREFIX this will become
 	 * unrecognized by libbpf and would have to be just SEC("xdp") and
 	 * SEC("xdp") and SEC("perf_event").
+	 *
+	 * Note, in this mode the program pin path will be based on the
+	 * function name instead of section name.
 	 */
 	LIBBPF_STRICT_SEC_NAME = 0x04,
+	/*
+	 * Disable the global 'bpf_objects_list'. Maintaining this list adds
+	 * a race condition to bpf_object__open() and bpf_object__close().
+	 * Clients can maintain it on their own if it is valuable for them.
+	 */
+	LIBBPF_STRICT_NO_OBJECT_LIST = 0x08,
 
 	__LIBBPF_STRICT_LAST,
 };

@@ -78,6 +78,12 @@ void serial_test_get_branch_snapshot(void)
 	struct get_branch_snapshot *skel = NULL;
 	int err;
 
+	/* Skip the test before we fix LBR snapshot for hypervisor. */
+	if (is_hypervisor()) {
+		test__skip();
+		return;
+	}
+
 	if (create_perf_events()) {
 		test__skip();  /* system doesn't support LBR */
 		goto cleanup;
@@ -91,9 +97,10 @@ void serial_test_get_branch_snapshot(void)
 	if (!ASSERT_OK(err, "kallsyms_find"))
 		goto cleanup;
 
-	err = kallsyms_find_next("bpf_testmod_loop_test", &skel->bss->address_high);
-	if (!ASSERT_OK(err, "kallsyms_find_next"))
-		goto cleanup;
+	/* Just a guess for the end of this function, as module functions
+	 * in /proc/kallsyms could come in any order.
+	 */
+	skel->bss->address_high = skel->bss->address_low + 128;
 
 	err = get_branch_snapshot__attach(skel);
 	if (!ASSERT_OK(err, "get_branch_snapshot__attach"))
@@ -103,16 +110,6 @@ void serial_test_get_branch_snapshot(void)
 
 	if (skel->bss->total_entries < 16) {
 		/* too few entries for the hit/waste test */
-		test__skip();
-		goto cleanup;
-	}
-
-	if (is_hypervisor()) {
-		/* As of today, LBR in hypervisor cannot be stopped before
-		 * too many entries are flushed. Skip the hit/waste test
-		 * for now in hypervisor until we optimize the LBR in
-		 * hypervisor.
-		 */
 		test__skip();
 		goto cleanup;
 	}

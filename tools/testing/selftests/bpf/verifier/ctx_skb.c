@@ -502,7 +502,7 @@
 	"check skb->hash byte load permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash)),
 #else
@@ -537,7 +537,7 @@
 	"check skb->hash byte load permitted 3",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash) + 3),
 #else
@@ -646,7 +646,7 @@
 	"check skb->hash half load permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash)),
 #else
@@ -661,7 +661,7 @@
 	"check skb->hash half load permitted 2",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash) + 2),
 #else
@@ -676,7 +676,7 @@
 	"check skb->hash half load not permitted, unaligned 1",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash) + 1),
 #else
@@ -693,7 +693,7 @@
 	"check skb->hash half load not permitted, unaligned 3",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, hash) + 3),
 #else
@@ -951,7 +951,7 @@
 	"check skb->data half load not permitted",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 		    offsetof(struct __sk_buff, data)),
 #else

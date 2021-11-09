@@ -285,7 +285,7 @@ struct bpf_program {
 	size_t sub_insn_off;
 
 	char *name;
-	/* sec_name with / replaced by _; makes recursive pinning
+	/* name with / replaced by _; makes recursive pinning
 	 * in bpf_object__pin_programs easier
 	 */
 	char *pin_name;
@@ -618,7 +618,16 @@ static char *__bpf_program__pin_name(struct bpf_program *prog)
 {
 	char *name, *p;
 
-	name = p = strdup(prog->sec_name);
+	if (libbpf_mode & LIBBPF_STRICT_SEC_NAME)
+		name = strdup(prog->name);
+	else
+		name = strdup(prog->sec_name);
+
+	if (!name)
+		return NULL;
+
+	p = name;
+
 	while ((p = strchr(p, '/')))
 		*p = '_';
 
@@ -1139,6 +1148,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 					  size_t obj_buf_sz,
 					  const char *obj_name)
 {
+	bool strict = (libbpf_mode & LIBBPF_STRICT_NO_OBJECT_LIST);
 	struct bpf_object *obj;
 	char *end;
 
@@ -1179,7 +1189,8 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->loaded = false;
 
 	INIT_LIST_HEAD(&obj->list);
-	list_add(&obj->list, &bpf_objects_list);
+	if (!strict)
+		list_add(&obj->list, &bpf_objects_list);
 	return obj;
 }
 
@@ -1290,10 +1301,10 @@ errout:
 
 static int bpf_object__check_endianness(struct bpf_object *obj)
 {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	if (obj->efile.ehdr->e_ident[EI_DATA] == ELFDATA2LSB)
 		return 0;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	if (obj->efile.ehdr->e_ident[EI_DATA] == ELFDATA2MSB)
 		return 0;
 #else
@@ -5396,7 +5407,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 	 * relocated, so it's enough to just subtract in-section offset
 	 */
 	insn_idx = insn_idx - prog->sec_insn_off;
-	if (insn_idx > prog->insns_cnt)
+	if (insn_idx >= prog->insns_cnt)
 		return -EINVAL;
 	insn = &prog->insns[insn_idx];
 
@@ -6644,8 +6655,6 @@ int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 out:
 	if (err)
 		pr_warn("failed to load program '%s'\n", prog->name);
-	zfree(&prog->insns);
-	prog->insns_cnt = 0;
 	return libbpf_err(err);
 }
 
@@ -7352,8 +7361,7 @@ static int check_path(const char *path)
 	return err;
 }
 
-int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
-			      int instance)
+static int bpf_program_pin_instance(struct bpf_program *prog, const char *path, int instance)
 {
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int err;
@@ -7388,8 +7396,7 @@ int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
 	return 0;
 }
 
-int bpf_program__unpin_instance(struct bpf_program *prog, const char *path,
-				int instance)
+static int bpf_program_unpin_instance(struct bpf_program *prog, const char *path, int instance)
 {
 	int err;
 
@@ -7417,6 +7424,12 @@ int bpf_program__unpin_instance(struct bpf_program *prog, const char *path,
 	return 0;
 }
 
+__attribute__((alias("bpf_program_pin_instance")))
+int bpf_object__pin_instance(struct bpf_program *prog, const char *path, int instance);
+
+__attribute__((alias("bpf_program_unpin_instance")))
+int bpf_program__unpin_instance(struct bpf_program *prog, const char *path, int instance);
+
 int bpf_program__pin(struct bpf_program *prog, const char *path)
 {
 	int i, err;
@@ -7441,7 +7454,7 @@ int bpf_program__pin(struct bpf_program *prog, const char *path)
 
 	if (prog->instances.nr == 1) {
 		/* don't create subdirs when pinning single instance */
-		return bpf_program__pin_instance(prog, path, 0);
+		return bpf_program_pin_instance(prog, path, 0);
 	}
 
 	for (i = 0; i < prog->instances.nr; i++) {
@@ -7457,7 +7470,7 @@ int bpf_program__pin(struct bpf_program *prog, const char *path)
 			goto err_unpin;
 		}
 
-		err = bpf_program__pin_instance(prog, buf, i);
+		err = bpf_program_pin_instance(prog, buf, i);
 		if (err)
 			goto err_unpin;
 	}
@@ -7475,7 +7488,7 @@ err_unpin:
 		else if (len >= PATH_MAX)
 			continue;
 
-		bpf_program__unpin_instance(prog, buf, i);
+		bpf_program_unpin_instance(prog, buf, i);
 	}
 
 	rmdir(path);
@@ -7503,7 +7516,7 @@ int bpf_program__unpin(struct bpf_program *prog, const char *path)
 
 	if (prog->instances.nr == 1) {
 		/* don't create subdirs when pinning single instance */
-		return bpf_program__unpin_instance(prog, path, 0);
+		return bpf_program_unpin_instance(prog, path, 0);
 	}
 
 	for (i = 0; i < prog->instances.nr; i++) {
@@ -7516,7 +7529,7 @@ int bpf_program__unpin(struct bpf_program *prog, const char *path)
 		else if (len >= PATH_MAX)
 			return libbpf_err(-ENAMETOOLONG);
 
-		err = bpf_program__unpin_instance(prog, buf, i);
+		err = bpf_program_unpin_instance(prog, buf, i);
 		if (err)
 			return err;
 	}
@@ -7925,6 +7938,10 @@ struct bpf_object *
 bpf_object__next(struct bpf_object *prev)
 {
 	struct bpf_object *next;
+	bool strict = (libbpf_mode & LIBBPF_STRICT_NO_OBJECT_LIST);
+
+	if (strict)
+		return NULL;
 
 	if (!prev)
 		next = list_first_entry(&bpf_objects_list,
@@ -8133,6 +8150,16 @@ int bpf_program__fd(const struct bpf_program *prog)
 size_t bpf_program__size(const struct bpf_program *prog)
 {
 	return prog->insns_cnt * BPF_INSN_SZ;
+}
+
+const struct bpf_insn *bpf_program__insns(const struct bpf_program *prog)
+{
+	return prog->insns;
+}
+
+size_t bpf_program__insn_cnt(const struct bpf_program *prog)
+{
+	return prog->insns_cnt;
 }
 
 int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,

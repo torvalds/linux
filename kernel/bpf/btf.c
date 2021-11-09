@@ -468,7 +468,7 @@ static bool btf_type_is_decl_tag(const struct btf_type *t)
 static bool btf_type_is_decl_tag_target(const struct btf_type *t)
 {
 	return btf_type_is_func(t) || btf_type_is_struct(t) ||
-	       btf_type_is_var(t);
+	       btf_type_is_var(t) || btf_type_is_typedef(t);
 }
 
 u32 btf_nr_types(const struct btf *btf)
@@ -3885,7 +3885,7 @@ static int btf_decl_tag_resolve(struct btf_verifier_env *env,
 
 	component_idx = btf_type_decl_tag(t)->component_idx;
 	if (component_idx != -1) {
-		if (btf_type_is_var(next_type)) {
+		if (btf_type_is_var(next_type) || btf_type_is_typedef(next_type)) {
 			btf_verifier_log_type(env, v->t, "Invalid component_idx");
 			return -EINVAL;
 		}

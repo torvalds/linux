@@ -474,7 +474,7 @@ No additional type data follow ``btf_type``.
  * ``info.kind_flag``: 0
  * ``info.kind``: BTF_KIND_DECL_TAG
  * ``info.vlen``: 0
- * ``type``: ``struct``, ``union``, ``func`` or ``var``
+ * ``type``: ``struct``, ``union``, ``func``, ``var`` or ``typedef``
 
 ``btf_type`` is followed by ``struct btf_decl_tag``.::
 
@@ -483,8 +483,8 @@ No additional type data follow ``btf_type``.
     };
 
 The ``name_off`` encodes btf_decl_tag attribute string.
-The ``type`` should be ``struct``, ``union``, ``func`` or ``var``.
-For ``var`` type, ``btf_decl_tag.component_idx`` must be ``-1``.
+The ``type`` should be ``struct``, ``union``, ``func``, ``var`` or ``typedef``.
+For ``var`` or ``typedef`` type, ``btf_decl_tag.component_idx`` must be ``-1``.
 For the other three types, if the btf_decl_tag attribute is
 applied to the ``struct``, ``union`` or ``func`` itself,
 ``btf_decl_tag.component_idx`` must be ``-1``. Otherwise,
