@@ -233,8 +233,9 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 				return dma_direct_alloc_from_pool(dev, size,
 						dma_handle, gfp);
 		} else {
-			if (IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED))
-				set_uncached = true;
+			if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED))
+				return NULL;
+			set_uncached = true;
 		}
 	}
 
