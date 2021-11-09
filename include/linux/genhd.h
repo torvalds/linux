@@ -250,7 +250,7 @@ static inline sector_t bdev_nr_sectors(struct block_device *bdev)
 
 static inline loff_t bdev_nr_bytes(struct block_device *bdev)
 {
-	return bdev_nr_sectors(bdev) << SECTOR_SHIFT;
+	return (loff_t)bdev_nr_sectors(bdev) << SECTOR_SHIFT;
 }
 
 static inline sector_t get_capacity(struct gendisk *disk)

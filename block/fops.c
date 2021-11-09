@@ -527,7 +527,7 @@ static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct block_device *bdev = iocb->ki_filp->private_data;
 	struct inode *bd_inode = bdev->bd_inode;
-	loff_t size = i_size_read(bd_inode);
+	loff_t size = bdev_nr_bytes(bdev);
 	struct blk_plug plug;
 	size_t shorted = 0;
 	ssize_t ret;
@@ -565,7 +565,7 @@ static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct block_device *bdev = iocb->ki_filp->private_data;
-	loff_t size = i_size_read(bdev->bd_inode);
+	loff_t size = bdev_nr_bytes(bdev);
 	loff_t pos = iocb->ki_pos;
 	size_t shorted = 0;
 	ssize_t ret;
