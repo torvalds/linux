@@ -301,6 +301,12 @@ void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev);
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
 void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 				struct amdgpu_vm *vm);
+
+/**
+ * @amdgpu_amdkfd_release_notify() - Notify KFD when GEM object is released
+ *
+ * Allows KFD to release its resources associated with the GEM object.
+ */
 void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo);
 void amdgpu_amdkfd_reserve_system_mem(uint64_t size);
 #else

@@ -120,8 +120,19 @@ static size_t amdgpu_amdkfd_acc_size(uint64_t size)
 		PAGE_ALIGN(size);
 }
 
+/**
+ * @amdgpu_amdkfd_reserve_mem_limit() - Decrease available memory by size
+ * of buffer including any reserved for control structures
+ *
+ * @adev: Device to which allocated BO belongs to
+ * @size: Size of buffer, in bytes, encapsulated by B0. This should be
+ * equivalent to amdgpu_bo_size(BO)
+ * @alloc_flag: Flag used in allocating a BO as noted above
+ *
+ * Return: returns -ENOMEM in case of error, ZERO otherwise
+ */
 static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
-		uint64_t size, u32 domain, bool sg)
+		uint64_t size, u32 alloc_flag)
 {
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
@@ -131,20 +142,24 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	acc_size = amdgpu_amdkfd_acc_size(size);
 
 	vram_needed = 0;
-	if (domain == AMDGPU_GEM_DOMAIN_GTT) {
-		/* TTM GTT memory */
+	if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_GTT) {
 		system_mem_needed = acc_size + size;
 		ttm_mem_needed = acc_size + size;
-	} else if (domain == AMDGPU_GEM_DOMAIN_CPU && !sg) {
-		/* Userptr */
-		system_mem_needed = acc_size + size;
-		ttm_mem_needed = acc_size;
-	} else {
-		/* VRAM and SG */
+	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
 		system_mem_needed = acc_size;
 		ttm_mem_needed = acc_size;
-		if (domain == AMDGPU_GEM_DOMAIN_VRAM)
-			vram_needed = size;
+		vram_needed = size;
+	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
+		system_mem_needed = acc_size + size;
+		ttm_mem_needed = acc_size;
+	} else if (alloc_flag &
+		   (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
+		    KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {
+		system_mem_needed = acc_size;
+		ttm_mem_needed = acc_size;
+	} else {
+		pr_err("%s: Invalid BO type %#x\n", __func__, alloc_flag);
+		return -ENOMEM;
 	}
 
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
@@ -160,63 +175,71 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	    (adev->kfd.vram_used + vram_needed >
 	     adev->gmc.real_vram_size - reserved_for_pt)) {
 		ret = -ENOMEM;
-	} else {
-		kfd_mem_limit.system_mem_used += system_mem_needed;
-		kfd_mem_limit.ttm_mem_used += ttm_mem_needed;
-		adev->kfd.vram_used += vram_needed;
+		goto release;
 	}
 
+	/* Update memory accounting by decreasing available system
+	 * memory, TTM memory and GPU memory as computed above
+	 */
+	adev->kfd.vram_used += vram_needed;
+	kfd_mem_limit.system_mem_used += system_mem_needed;
+	kfd_mem_limit.ttm_mem_used += ttm_mem_needed;
+
+release:
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 	return ret;
 }
 
 static void unreserve_mem_limit(struct amdgpu_device *adev,
-		uint64_t size, u32 domain, bool sg)
+		uint64_t size, u32 alloc_flag)
 {
 	size_t acc_size;
 
 	acc_size = amdgpu_amdkfd_acc_size(size);
 
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
-	if (domain == AMDGPU_GEM_DOMAIN_GTT) {
+
+	if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_GTT) {
 		kfd_mem_limit.system_mem_used -= (acc_size + size);
 		kfd_mem_limit.ttm_mem_used -= (acc_size + size);
-	} else if (domain == AMDGPU_GEM_DOMAIN_CPU && !sg) {
-		kfd_mem_limit.system_mem_used -= (acc_size + size);
-		kfd_mem_limit.ttm_mem_used -= acc_size;
-	} else {
+	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
 		kfd_mem_limit.system_mem_used -= acc_size;
 		kfd_mem_limit.ttm_mem_used -= acc_size;
-		if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
-			adev->kfd.vram_used -= size;
-			WARN_ONCE(adev->kfd.vram_used < 0,
-				  "kfd VRAM memory accounting unbalanced");
-		}
+		adev->kfd.vram_used -= size;
+	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
+		kfd_mem_limit.system_mem_used -= (acc_size + size);
+		kfd_mem_limit.ttm_mem_used -= acc_size;
+	} else if (alloc_flag &
+		   (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
+		    KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {
+		kfd_mem_limit.system_mem_used -= acc_size;
+		kfd_mem_limit.ttm_mem_used -= acc_size;
+	} else {
+		pr_err("%s: Invalid BO type %#x\n", __func__, alloc_flag);
+		goto release;
 	}
-	WARN_ONCE(kfd_mem_limit.system_mem_used < 0,
-		  "kfd system memory accounting unbalanced");
-	WARN_ONCE(kfd_mem_limit.ttm_mem_used < 0,
-		  "kfd TTM memory accounting unbalanced");
 
+	WARN_ONCE(adev->kfd.vram_used < 0,
+		  "KFD VRAM memory accounting unbalanced");
+	WARN_ONCE(kfd_mem_limit.ttm_mem_used < 0,
+		  "KFD TTM memory accounting unbalanced");
+	WARN_ONCE(kfd_mem_limit.system_mem_used < 0,
+		  "KFD system memory accounting unbalanced");
+
+release:
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 }
 
 void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	u32 domain = bo->preferred_domains;
-	bool sg = (bo->preferred_domains == AMDGPU_GEM_DOMAIN_CPU);
+	u32 alloc_flags = bo->kfd_bo->alloc_flags;
+	u64 size = amdgpu_bo_size(bo);
 
-	if (bo->flags & AMDGPU_AMDKFD_CREATE_USERPTR_BO) {
-		domain = AMDGPU_GEM_DOMAIN_CPU;
-		sg = false;
-	}
-
-	unreserve_mem_limit(adev, amdgpu_bo_size(bo), domain, sg);
+	unreserve_mem_limit(adev, size, alloc_flags);
 
 	kfree(bo->kfd_bo);
 }
-
 
 /* amdgpu_amdkfd_remove_eviction_fence - Removes eviction fence from BO's
  *  reservation object.
@@ -1452,7 +1475,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 
 	amdgpu_sync_create(&(*mem)->sync);
 
-	ret = amdgpu_amdkfd_reserve_mem_limit(adev, size, alloc_domain, !!sg);
+	ret = amdgpu_amdkfd_reserve_mem_limit(adev, size, flags);
 	if (ret) {
 		pr_debug("Insufficient memory\n");
 		goto err_reserve_limit;
@@ -1508,7 +1531,7 @@ err_node_allow:
 	/* Don't unreserve system mem limit twice */
 	goto err_reserve_limit;
 err_bo_create:
-	unreserve_mem_limit(adev, size, alloc_domain, !!sg);
+	unreserve_mem_limit(adev, size, flags);
 err_reserve_limit:
 	mutex_destroy(&(*mem)->lock);
 	kfree(*mem);
