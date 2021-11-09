@@ -299,6 +299,7 @@ enum hnae3_dbg_cmd {
 	HNAE3_DBG_CMD_SERV_INFO,
 	HNAE3_DBG_CMD_UMV_INFO,
 	HNAE3_DBG_CMD_PAGE_POOL_INFO,
+	HNAE3_DBG_CMD_COAL_INFO,
 	HNAE3_DBG_CMD_UNKNOWN,
 };
 
@@ -348,6 +349,7 @@ struct hnae3_dev_specs {
 	u16 max_qset_num;
 	u16 umv_size;
 	u16 mc_mac_size;
+	u32 mac_stats_num;
 };
 
 struct hnae3_client_ops {

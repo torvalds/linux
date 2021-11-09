@@ -2336,7 +2336,6 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
 					false, 0);
 		ret = 1;
-		mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 		goto err;
 	}
 
@@ -2385,6 +2384,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		}
 	}
 
+	/* after the successful handshake, we're out of D3 */
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 
 	/*
@@ -2454,6 +2454,9 @@ out:
 	 * 2. We are using a unified image but had an error while exiting D3
 	 */
 	set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
+
+	/* regardless of what happened, we're now out of D3 */
+	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 
 	return 1;
 }

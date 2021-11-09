@@ -9936,6 +9936,11 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 		}
 	}
 
+	if ((features & NETIF_F_GRO_HW) && (features & NETIF_F_LRO)) {
+		netdev_dbg(dev, "Dropping LRO feature since HW-GRO is requested.\n");
+		features &= ~NETIF_F_LRO;
+	}
+
 	if (features & NETIF_F_HW_TLS_TX) {
 		bool ip_csum = (features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)) ==
 			(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);

@@ -892,12 +892,11 @@ liquidio_probe(struct pci_dev *pdev, const struct pci_device_id __maybe_unused *
 			bus = pdev->bus->number;
 			device = PCI_SLOT(pdev->devfn);
 			function = PCI_FUNC(pdev->devfn);
-			oct_dev->watchdog_task = kthread_create(
-			    liquidio_watchdog, oct_dev,
-			    "liowd/%02hhx:%02hhx.%hhx", bus, device, function);
-			if (!IS_ERR(oct_dev->watchdog_task)) {
-				wake_up_process(oct_dev->watchdog_task);
-			} else {
+			oct_dev->watchdog_task = kthread_run(liquidio_watchdog,
+							     oct_dev,
+							     "liowd/%02hhx:%02hhx.%hhx",
+							     bus, device, function);
+			if (IS_ERR(oct_dev->watchdog_task)) {
 				oct_dev->watchdog_task = NULL;
 				dev_err(&oct_dev->pci_dev->dev,
 					"failed to create kernel_thread\n");

@@ -39,6 +39,7 @@
 #include <linux/in.h>
 #include <net/ip.h>
 #include <linux/bitmap.h>
+#include <linux/mii.h>
 
 #include "mlx4_en.h"
 #include "en_port.h"
@@ -651,10 +652,8 @@ static unsigned long *ptys2ethtool_link_mode(struct ptys2ethtool_config *cfg,
 		unsigned int i;						\
 		cfg = &ptys2ethtool_map[reg_];				\
 		cfg->speed = speed_;					\
-		bitmap_zero(cfg->supported,				\
-			    __ETHTOOL_LINK_MODE_MASK_NBITS);		\
-		bitmap_zero(cfg->advertised,				\
-			    __ETHTOOL_LINK_MODE_MASK_NBITS);		\
+		linkmode_zero(cfg->supported);				\
+		linkmode_zero(cfg->advertised);				\
 		for (i = 0 ; i < ARRAY_SIZE(modes) ; ++i) {		\
 			__set_bit(modes[i], cfg->supported);		\
 			__set_bit(modes[i], cfg->advertised);		\
@@ -710,10 +709,8 @@ static void ptys2ethtool_update_link_modes(unsigned long *link_modes,
 	int i;
 	for (i = 0; i < MLX4_LINK_MODES_SZ; i++) {
 		if (eth_proto & MLX4_PROT_MASK(i))
-			bitmap_or(link_modes, link_modes,
-				  ptys2ethtool_link_mode(&ptys2ethtool_map[i],
-							 report),
-				  __ETHTOOL_LINK_MODE_MASK_NBITS);
+			linkmode_or(link_modes, link_modes,
+				    ptys2ethtool_link_mode(&ptys2ethtool_map[i], report));
 	}
 }
 
@@ -724,11 +721,9 @@ static u32 ethtool2ptys_link_modes(const unsigned long *link_modes,
 	u32 ptys_modes = 0;
 
 	for (i = 0; i < MLX4_LINK_MODES_SZ; i++) {
-		if (bitmap_intersects(
-			    ptys2ethtool_link_mode(&ptys2ethtool_map[i],
-						   report),
-			    link_modes,
-			    __ETHTOOL_LINK_MODE_MASK_NBITS))
+		ulong *map_mode = ptys2ethtool_link_mode(&ptys2ethtool_map[i],
+							 report);
+		if (linkmode_intersects(map_mode, link_modes))
 			ptys_modes |= 1 << i;
 	}
 	return ptys_modes;

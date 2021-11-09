@@ -1202,17 +1202,19 @@ static void tbnet_generate_mac(struct net_device *dev)
 {
 	const struct tbnet *net = netdev_priv(dev);
 	const struct tb_xdomain *xd = net->xd;
+	u8 addr[ETH_ALEN];
 	u8 phy_port;
 	u32 hash;
 
 	phy_port = tb_phy_port_from_link(TBNET_L0_PORT_NUM(xd->route));
 
 	/* Unicast and locally administered MAC */
-	dev->dev_addr[0] = phy_port << 4 | 0x02;
+	addr[0] = phy_port << 4 | 0x02;
 	hash = jhash2((u32 *)xd->local_uuid, 4, 0);
-	memcpy(dev->dev_addr + 1, &hash, sizeof(hash));
+	memcpy(addr + 1, &hash, sizeof(hash));
 	hash = jhash2((u32 *)xd->local_uuid, 4, hash);
-	dev->dev_addr[5] = hash & 0xff;
+	addr[5] = hash & 0xff;
+	eth_hw_addr_set(dev, addr);
 }
 
 static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)

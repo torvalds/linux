@@ -73,6 +73,7 @@ CHECK_TC="yes"
 lib_dir=$(dirname $0)/../../../net/forwarding
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
+source mlxsw_lib.sh
 source qos_lib.sh
 
 ipaddr()
@@ -479,10 +480,7 @@ do_ecn_test_perband()
 	local vlan=$1; shift
 	local limit=$1; shift
 
-	# Per-band ECN counters are not supported on Spectrum-1 and Spectrum-2.
-	[[ "$DEVLINK_VIDDID" == "15b3:cb84" ||
-	   "$DEVLINK_VIDDID" == "15b3:cf6c" ]] && return
-
+	mlxsw_only_on_spectrum 3+ || return
 	__do_ecn_test get_qdisc_nmarked "$vlan" "$limit" "per-band ECN"
 }
 
@@ -584,6 +582,8 @@ do_mark_test()
 	local should_fail=$1; shift
 	local base
 
+	mlxsw_only_on_spectrum 2+ || return
+
 	RET=0
 
 	start_tcp_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 3 $vlan) \
@@ -631,6 +631,8 @@ do_drop_test()
 	local fetch_counter=$1; shift
 	local base
 	local now
+
+	mlxsw_only_on_spectrum 2+ || return
 
 	RET=0
 

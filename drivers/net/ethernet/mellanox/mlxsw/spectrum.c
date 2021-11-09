@@ -3282,6 +3282,30 @@ static int mlxsw_sp_resources_span_register(struct mlxsw_core *mlxsw_core)
 					 &span_size_params);
 }
 
+static int
+mlxsw_sp_resources_rif_mac_profile_register(struct mlxsw_core *mlxsw_core)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
+	struct devlink_resource_size_params size_params;
+	u8 max_rif_mac_profiles;
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_core, MAX_RIF_MAC_PROFILES))
+		return -EIO;
+
+	max_rif_mac_profiles = MLXSW_CORE_RES_GET(mlxsw_core,
+						  MAX_RIF_MAC_PROFILES);
+	devlink_resource_size_params_init(&size_params, max_rif_mac_profiles,
+					  max_rif_mac_profiles, 1,
+					  DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	return devlink_resource_register(devlink,
+					 "rif_mac_profiles",
+					 max_rif_mac_profiles,
+					 MLXSW_SP_RESOURCE_RIF_MAC_PROFILES,
+					 DEVLINK_RESOURCE_ID_PARENT_TOP,
+					 &size_params);
+}
+
 static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
 {
 	int err;
@@ -3300,10 +3324,16 @@ static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
 
 	err = mlxsw_sp_policer_resources_register(mlxsw_core);
 	if (err)
-		goto err_resources_counter_register;
+		goto err_policer_resources_register;
+
+	err = mlxsw_sp_resources_rif_mac_profile_register(mlxsw_core);
+	if (err)
+		goto err_resources_rif_mac_profile_register;
 
 	return 0;
 
+err_resources_rif_mac_profile_register:
+err_policer_resources_register:
 err_resources_counter_register:
 err_resources_span_register:
 	devlink_resources_unregister(priv_to_devlink(mlxsw_core), NULL);
@@ -3328,10 +3358,16 @@ static int mlxsw_sp2_resources_register(struct mlxsw_core *mlxsw_core)
 
 	err = mlxsw_sp_policer_resources_register(mlxsw_core);
 	if (err)
-		goto err_resources_counter_register;
+		goto err_policer_resources_register;
+
+	err = mlxsw_sp_resources_rif_mac_profile_register(mlxsw_core);
+	if (err)
+		goto err_resources_rif_mac_profile_register;
 
 	return 0;
 
+err_resources_rif_mac_profile_register:
+err_policer_resources_register:
 err_resources_counter_register:
 err_resources_span_register:
 	devlink_resources_unregister(priv_to_devlink(mlxsw_core), NULL);

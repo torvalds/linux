@@ -134,6 +134,7 @@ enum {
 	MLX5_REG_MCIA		 = 0x9014,
 	MLX5_REG_MFRL		 = 0x9028,
 	MLX5_REG_MLCR		 = 0x902b,
+	MLX5_REG_MRTC		 = 0x902d,
 	MLX5_REG_MTRC_CAP	 = 0x9040,
 	MLX5_REG_MTRC_CONF	 = 0x9041,
 	MLX5_REG_MTRC_STDB	 = 0x9042,
@@ -356,22 +357,6 @@ struct mlx5_core_sig_ctx {
 	u32			sigerr_count;
 };
 
-enum {
-	MLX5_MKEY_MR = 1,
-	MLX5_MKEY_MW,
-	MLX5_MKEY_INDIRECT_DEVX,
-};
-
-struct mlx5_core_mkey {
-	u64			iova;
-	u64			size;
-	u32			key;
-	u32			pd;
-	u32			type;
-	struct wait_queue_head wait;
-	refcount_t usecount;
-};
-
 #define MLX5_24BIT_MASK		((1 << 24) - 1)
 
 enum mlx5_res_type {
@@ -440,6 +425,7 @@ struct mlx5_core_health {
 	struct work_struct		report_work;
 	struct devlink_health_reporter *fw_reporter;
 	struct devlink_health_reporter *fw_fatal_reporter;
+	struct delayed_work		update_fw_log_ts_work;
 };
 
 struct mlx5_qp_table {
@@ -652,7 +638,7 @@ struct mlx5e_resources {
 	struct mlx5e_hw_objs {
 		u32                        pdn;
 		struct mlx5_td             td;
-		struct mlx5_core_mkey      mkey;
+		u32			   mkey;
 		struct mlx5_sq_bfreg       bfreg;
 	} hw_objs;
 	struct devlink_port dl_port;
@@ -1005,8 +991,6 @@ void mlx5_cmd_mbox_status(void *out, u8 *status, u32 *syndrome);
 bool mlx5_cmd_is_down(struct mlx5_core_dev *dev);
 
 int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type);
-int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn);
-int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn);
 void mlx5_health_flush(struct mlx5_core_dev *dev);
 void mlx5_health_cleanup(struct mlx5_core_dev *dev);
 int mlx5_health_init(struct mlx5_core_dev *dev);
@@ -1024,13 +1008,11 @@ struct mlx5_cmd_mailbox *mlx5_alloc_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 						      gfp_t flags, int npages);
 void mlx5_free_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 				 struct mlx5_cmd_mailbox *head);
-int mlx5_core_create_mkey(struct mlx5_core_dev *dev,
-			  struct mlx5_core_mkey *mkey,
-			  u32 *in, int inlen);
-int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev,
-			   struct mlx5_core_mkey *mkey);
-int mlx5_core_query_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *mkey,
-			 u32 *out, int outlen);
+int mlx5_core_create_mkey(struct mlx5_core_dev *dev, u32 *mkey, u32 *in,
+			  int inlen);
+int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev, u32 mkey);
+int mlx5_core_query_mkey(struct mlx5_core_dev *dev, u32 mkey, u32 *out,
+			 int outlen);
 int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn);
 int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn);
 int mlx5_pagealloc_init(struct mlx5_core_dev *dev);

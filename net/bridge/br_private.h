@@ -767,8 +767,8 @@ struct net_bridge_fdb_entry *br_fdb_find_rcu(struct net_bridge *br,
 int br_fdb_test_addr(struct net_device *dev, unsigned char *addr);
 int br_fdb_fillbuf(struct net_bridge *br, void *buf, unsigned long count,
 		   unsigned long off);
-int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
-		  const unsigned char *addr, u16 vid);
+int br_fdb_add_local(struct net_bridge *br, struct net_bridge_port *source,
+		     const unsigned char *addr, u16 vid);
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr, u16 vid, unsigned long flags);
 
@@ -792,8 +792,6 @@ int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      bool swdev_notify);
 void br_fdb_offloaded_set(struct net_bridge *br, struct net_bridge_port *p,
 			  const unsigned char *addr, u16 vid, bool offloaded);
-int br_fdb_replay(const struct net_device *br_dev, const void *ctx, bool adding,
-		  struct notifier_block *nb);
 
 /* br_forward.c */
 enum br_pkt_type {

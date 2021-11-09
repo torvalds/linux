@@ -610,8 +610,8 @@ static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
 	/* devres manages the calibration values release on shutdown */
 	ah->nvmem_blob = (u16 *)devm_kmemdup(sc->dev, buf, len, GFP_KERNEL);
 	kfree(buf);
-	if (IS_ERR(ah->nvmem_blob))
-		return PTR_ERR(ah->nvmem_blob);
+	if (!ah->nvmem_blob)
+		return -ENOMEM;
 
 	ah->nvmem_blob_len = len;
 	ah->ah_flags &= ~AH_USE_EEPROM;
@@ -1093,6 +1093,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		IEEE80211_TPT_LEDTRIG_FL_RADIO, ath9k_tpt_blink,
 		ARRAY_SIZE(ath9k_tpt_blink));
 #endif
+
+	wiphy_read_of_freq_limits(hw->wiphy);
 
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);

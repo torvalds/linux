@@ -336,7 +336,7 @@ EXPORT_SYMBOL(ethtool_intersect_link_masks);
 void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
 					     u32 legacy_u32)
 {
-	bitmap_zero(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_zero(dst);
 	dst[0] = legacy_u32;
 }
 EXPORT_SYMBOL(ethtool_convert_legacy_u32_to_link_mode);
@@ -351,11 +351,10 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 	if (__ETHTOOL_LINK_MODE_MASK_NBITS > 32) {
 		__ETHTOOL_DECLARE_LINK_MODE_MASK(ext);
 
-		bitmap_zero(ext, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(ext);
 		bitmap_fill(ext, 32);
 		bitmap_complement(ext, ext, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		if (bitmap_intersects(ext, src,
-				      __ETHTOOL_LINK_MODE_MASK_NBITS)) {
+		if (linkmode_intersects(ext, src)) {
 			/* src mask goes beyond bit 31 */
 			retval = false;
 		}

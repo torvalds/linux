@@ -1371,14 +1371,6 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 			"Could not get device information: err=%d\n", err);
 		goto err;
 	}
-	if (gve_is_gqi(priv) && priv->dev->max_mtu > PAGE_SIZE) {
-		priv->dev->max_mtu = PAGE_SIZE;
-		err = gve_adminq_set_mtu(priv, priv->dev->mtu);
-		if (err) {
-			dev_err(&priv->pdev->dev, "Could not set mtu");
-			goto err;
-		}
-	}
 	priv->dev->mtu = priv->dev->max_mtu;
 	num_ntfy = pci_msix_vec_count(priv->pdev);
 	if (num_ntfy <= 0) {

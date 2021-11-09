@@ -352,6 +352,30 @@ int mdiobus_modify(struct mii_bus *bus, int addr, u32 regnum, u16 mask,
 int mdiobus_modify_changed(struct mii_bus *bus, int addr, u32 regnum,
 			   u16 mask, u16 set);
 
+static inline int mdiodev_read(struct mdio_device *mdiodev, u32 regnum)
+{
+	return mdiobus_read(mdiodev->bus, mdiodev->addr, regnum);
+}
+
+static inline int mdiodev_write(struct mdio_device *mdiodev, u32 regnum,
+				u16 val)
+{
+	return mdiobus_write(mdiodev->bus, mdiodev->addr, regnum, val);
+}
+
+static inline int mdiodev_modify(struct mdio_device *mdiodev, u32 regnum,
+				 u16 mask, u16 set)
+{
+	return mdiobus_modify(mdiodev->bus, mdiodev->addr, regnum, mask, set);
+}
+
+static inline int mdiodev_modify_changed(struct mdio_device *mdiodev,
+					 u32 regnum, u16 mask, u16 set)
+{
+	return mdiobus_modify_changed(mdiodev->bus, mdiodev->addr, regnum,
+				      mask, set);
+}
+
 static inline u32 mdiobus_c45_addr(int devad, u16 regnum)
 {
 	return MII_ADDR_C45 | devad << MII_DEVADDR_C45_SHIFT | regnum;

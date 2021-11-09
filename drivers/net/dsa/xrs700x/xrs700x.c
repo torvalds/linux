@@ -456,7 +456,7 @@ static void xrs700x_phylink_validate(struct dsa_switch *ds, int port,
 		phylink_set(mask, 1000baseT_Full);
 		break;
 	default:
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		dev_err(ds->dev, "Unsupported port: %i\n", port);
 		return;
 	}
@@ -467,10 +467,8 @@ static void xrs700x_phylink_validate(struct dsa_switch *ds, int port,
 	phylink_set(mask, 10baseT_Full);
 	phylink_set(mask, 100baseT_Full);
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static void xrs700x_mac_link_up(struct dsa_switch *ds, int port,

@@ -1487,10 +1487,6 @@ void psched_ppscfg_precompute(struct psched_pktrate *r, u64 pktrate64)
 }
 EXPORT_SYMBOL(psched_ppscfg_precompute);
 
-static void mini_qdisc_rcu_func(struct rcu_head *head)
-{
-}
-
 void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 			  struct tcf_proto *tp_head)
 {
@@ -1503,28 +1499,30 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 
 	if (!tp_head) {
 		RCU_INIT_POINTER(*miniqp->p_miniq, NULL);
-		/* Wait for flying RCU callback before it is freed. */
-		rcu_barrier();
-		return;
+	} else {
+		miniq = miniq_old != &miniqp->miniq1 ?
+			&miniqp->miniq1 : &miniqp->miniq2;
+
+		/* We need to make sure that readers won't see the miniq
+		 * we are about to modify. So ensure that at least one RCU
+		 * grace period has elapsed since the miniq was made
+		 * inactive.
+		 */
+		if (IS_ENABLED(CONFIG_PREEMPT_RT))
+			cond_synchronize_rcu(miniq->rcu_state);
+		else if (!poll_state_synchronize_rcu(miniq->rcu_state))
+			synchronize_rcu_expedited();
+
+		miniq->filter_list = tp_head;
+		rcu_assign_pointer(*miniqp->p_miniq, miniq);
 	}
 
-	miniq = !miniq_old || miniq_old == &miniqp->miniq2 ?
-		&miniqp->miniq1 : &miniqp->miniq2;
-
-	/* We need to make sure that readers won't see the miniq
-	 * we are about to modify. So wait until previous call_rcu callback
-	 * is done.
-	 */
-	rcu_barrier();
-	miniq->filter_list = tp_head;
-	rcu_assign_pointer(*miniqp->p_miniq, miniq);
-
 	if (miniq_old)
-		/* This is counterpart of the rcu barriers above. We need to
+		/* This is counterpart of the rcu sync above. We need to
 		 * block potential new user of miniq_old until all readers
 		 * are not seeing it.
 		 */
-		call_rcu(&miniq_old->rcu, mini_qdisc_rcu_func);
+		miniq_old->rcu_state = start_poll_synchronize_rcu();
 }
 EXPORT_SYMBOL(mini_qdisc_pair_swap);
 
@@ -1543,6 +1541,8 @@ void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
 	miniqp->miniq1.cpu_qstats = qdisc->cpu_qstats;
 	miniqp->miniq2.cpu_bstats = qdisc->cpu_bstats;
 	miniqp->miniq2.cpu_qstats = qdisc->cpu_qstats;
+	miniqp->miniq1.rcu_state = get_state_synchronize_rcu();
+	miniqp->miniq2.rcu_state = miniqp->miniq1.rcu_state;
 	miniqp->p_miniq = p_miniq;
 }
 EXPORT_SYMBOL(mini_qdisc_pair_init);

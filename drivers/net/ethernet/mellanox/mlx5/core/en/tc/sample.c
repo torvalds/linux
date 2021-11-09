@@ -509,13 +509,6 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	if (IS_ERR_OR_NULL(tc_psample))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	/* If slow path flag is set, eg. when the neigh is invalid for encap,
-	 * don't offload sample action.
-	 */
-	esw = tc_psample->esw;
-	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
-		return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
-
 	sample_flow = kzalloc(sizeof(*sample_flow), GFP_KERNEL);
 	if (!sample_flow)
 		return ERR_PTR(-ENOMEM);
@@ -527,6 +520,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	 * Only match the fte id instead of the same match in the
 	 * original flow table.
 	 */
+	esw = tc_psample->esw;
 	if (MLX5_CAP_GEN(esw->dev, reg_c_preserve) ||
 	    attr->action & MLX5_FLOW_CONTEXT_ACTION_DECAP) {
 		struct mlx5_flow_table *ft;
@@ -633,15 +627,6 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 
 	if (IS_ERR_OR_NULL(tc_psample))
 		return;
-
-	/* If slow path flag is set, sample action is not offloaded.
-	 * No need to delete sample rule.
-	 */
-	esw = tc_psample->esw;
-	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) {
-		mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
-		return;
-	}
 
 	/* The following delete order can't be changed, otherwise,
 	 * will hit fw syndromes.

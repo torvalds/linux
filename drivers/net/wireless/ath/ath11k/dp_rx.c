@@ -4828,15 +4828,13 @@ ath11k_dp_rx_mon_merg_msdus(struct ath11k *ar,
 			    struct ieee80211_rx_status *rxs)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct sk_buff *msdu, *mpdu_buf, *prev_buf;
+	struct sk_buff *msdu, *prev_buf;
 	u32 wifi_hdr_len;
 	struct hal_rx_desc *rx_desc;
 	char *hdr_desc;
 	u8 *dest, decap_format;
 	struct ieee80211_hdr_3addr *wh;
 	struct rx_attention *rx_attention;
-
-	mpdu_buf = NULL;
 
 	if (!head_msdu)
 		goto err_merge_fail;
@@ -4920,12 +4918,6 @@ ath11k_dp_rx_mon_merg_msdus(struct ath11k *ar,
 	return head_msdu;
 
 err_merge_fail:
-	if (mpdu_buf && decap_format != DP_RX_DECAP_TYPE_RAW) {
-		ath11k_dbg(ab, ATH11K_DBG_DATA,
-			   "err_merge_fail mpdu_buf %pK", mpdu_buf);
-		/* Free the head buffer */
-		dev_kfree_skb_any(mpdu_buf);
-	}
 	return NULL;
 }
 

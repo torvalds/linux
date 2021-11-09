@@ -293,7 +293,7 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags,
 
 	/* Add the dev mac and count the vlan only if it's usable */
 	if (br_vlan_should_use(v)) {
-		err = br_fdb_insert(br, p, dev->dev_addr, v->vid);
+		err = br_fdb_add_local(br, p, dev->dev_addr, v->vid);
 		if (err) {
 			br_err(br, "failed insert local address into bridge forwarding table\n");
 			goto out_filt;
@@ -683,8 +683,7 @@ static int br_vlan_add_existing(struct net_bridge *br,
 			goto err_flags;
 		}
 		/* It was only kept for port vlans, now make it real */
-		err = br_fdb_insert(br, NULL, br->dev->dev_addr,
-				    vlan->vid);
+		err = br_fdb_add_local(br, NULL, br->dev->dev_addr, vlan->vid);
 		if (err) {
 			br_err(br, "failed to insert local address into bridge forwarding table\n");
 			goto err_fdb_insert;

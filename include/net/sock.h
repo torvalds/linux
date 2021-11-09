@@ -259,6 +259,8 @@ struct bpf_local_storage;
   *	@sk_rcvbuf: size of receive buffer in bytes
   *	@sk_wq: sock wait queue and async head
   *	@sk_rx_dst: receive input route used by early demux
+  *	@sk_rx_dst_ifindex: ifindex for @sk_rx_dst
+  *	@sk_rx_dst_cookie: cookie for @sk_rx_dst
   *	@sk_dst_cache: destination cache
   *	@sk_dst_pending_confirm: need to confirm neighbour
   *	@sk_policy: flow policy
@@ -430,6 +432,9 @@ struct sock {
 	struct xfrm_policy __rcu *sk_policy[2];
 #endif
 	struct dst_entry	*sk_rx_dst;
+	int			sk_rx_dst_ifindex;
+	u32			sk_rx_dst_cookie;
+
 	struct dst_entry __rcu	*sk_dst_cache;
 	atomic_t		sk_omem_alloc;
 	int			sk_sndbuf;
@@ -1205,6 +1210,8 @@ struct proto {
 	unsigned int		inuse_idx;
 #endif
 
+	int			(*forward_alloc_get)(const struct sock *sk);
+
 	bool			(*stream_memory_free)(const struct sock *sk, int wake);
 	bool			(*sock_is_readable)(struct sock *sk);
 	/* Memory pressure */
@@ -1212,6 +1219,7 @@ struct proto {
 	void			(*leave_memory_pressure)(struct sock *sk);
 	atomic_long_t		*memory_allocated;	/* Current allocated memory. */
 	struct percpu_counter	*sockets_allocated;	/* Current number of sockets. */
+
 	/*
 	 * Pressure flag: try to collapse.
 	 * Technical note: it is used by multiple contexts non atomically.
@@ -1289,20 +1297,22 @@ static inline void sk_refcnt_debug_release(const struct sock *sk)
 
 INDIRECT_CALLABLE_DECLARE(bool tcp_stream_memory_free(const struct sock *sk, int wake));
 
+static inline int sk_forward_alloc_get(const struct sock *sk)
+{
+	if (!sk->sk_prot->forward_alloc_get)
+		return sk->sk_forward_alloc;
+
+	return sk->sk_prot->forward_alloc_get(sk);
+}
+
 static inline bool __sk_stream_memory_free(const struct sock *sk, int wake)
 {
 	if (READ_ONCE(sk->sk_wmem_queued) >= READ_ONCE(sk->sk_sndbuf))
 		return false;
 
-#ifdef CONFIG_INET
 	return sk->sk_prot->stream_memory_free ?
-		INDIRECT_CALL_1(sk->sk_prot->stream_memory_free,
-			        tcp_stream_memory_free,
-				sk, wake) : true;
-#else
-	return sk->sk_prot->stream_memory_free ?
-		sk->sk_prot->stream_memory_free(sk, wake) : true;
-#endif
+		INDIRECT_CALL_INET_1(sk->sk_prot->stream_memory_free,
+				     tcp_stream_memory_free, sk, wake) : true;
 }
 
 static inline bool sk_stream_memory_free(const struct sock *sk)
@@ -1568,6 +1578,11 @@ static inline void sk_mem_charge(struct sock *sk, int size)
 	sk->sk_forward_alloc -= size;
 }
 
+/* the following macros control memory reclaiming in sk_mem_uncharge()
+ */
+#define SK_RECLAIM_THRESHOLD	(1 << 21)
+#define SK_RECLAIM_CHUNK	(1 << 20)
+
 static inline void sk_mem_uncharge(struct sock *sk, int size)
 {
 	int reclaimable;
@@ -1584,8 +1599,8 @@ static inline void sk_mem_uncharge(struct sock *sk, int size)
 	 * If we reach 2 MBytes, reclaim 1 MBytes right now, there is
 	 * no need to hold that much forward allocation anyway.
 	 */
-	if (unlikely(reclaimable >= 1 << 21))
-		__sk_mem_reclaim(sk, 1 << 20);
+	if (unlikely(reclaimable >= SK_RECLAIM_THRESHOLD))
+		__sk_mem_reclaim(sk, SK_RECLAIM_CHUNK);
 }
 
 static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
@@ -1911,10 +1926,8 @@ static inline void sk_rx_queue_set(struct sock *sk, const struct sk_buff *skb)
 	if (skb_rx_queue_recorded(skb)) {
 		u16 rx_queue = skb_get_rx_queue(skb);
 
-		if (WARN_ON_ONCE(rx_queue == NO_QUEUE_MAPPING))
-			return;
-
-		sk->sk_rx_queue_mapping = rx_queue;
+		if (unlikely(READ_ONCE(sk->sk_rx_queue_mapping) != rx_queue))
+			WRITE_ONCE(sk->sk_rx_queue_mapping, rx_queue);
 	}
 #endif
 }
@@ -1922,15 +1935,19 @@ static inline void sk_rx_queue_set(struct sock *sk, const struct sk_buff *skb)
 static inline void sk_rx_queue_clear(struct sock *sk)
 {
 #ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
-	sk->sk_rx_queue_mapping = NO_QUEUE_MAPPING;
+	WRITE_ONCE(sk->sk_rx_queue_mapping, NO_QUEUE_MAPPING);
 #endif
 }
 
 static inline int sk_rx_queue_get(const struct sock *sk)
 {
 #ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
-	if (sk && sk->sk_rx_queue_mapping != NO_QUEUE_MAPPING)
-		return sk->sk_rx_queue_mapping;
+	if (sk) {
+		int res = READ_ONCE(sk->sk_rx_queue_mapping);
+
+		if (res != NO_QUEUE_MAPPING)
+			return res;
+	}
 #endif
 
 	return -1;
@@ -2414,9 +2431,6 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 
 	WRITE_ONCE(sk->sk_sndbuf, max_t(u32, val, SOCK_MIN_SNDBUF));
 }
-
-struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
-				    bool force_schedule);
 
 /**
  * sk_page_frag - return an appropriate page_frag

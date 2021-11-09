@@ -380,6 +380,8 @@ void dsa_port_pre_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	switchdev_bridge_port_unoffload(brport_dev, dp,
 					&dsa_slave_switchdev_notifier,
 					&dsa_slave_switchdev_blocking_notifier);
+
+	dsa_flush_workqueue();
 }
 
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)

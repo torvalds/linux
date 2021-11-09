@@ -46,7 +46,7 @@ MODULE_DEVICE_TABLE(pci, vmxnet3_pciid_table);
 static int enable_mq = 1;
 
 static void
-vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac);
+vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, const u8 *mac);
 
 /*
  *    Enable/Disable the given intr
@@ -2806,7 +2806,7 @@ vmxnet3_quiesce_dev(struct vmxnet3_adapter *adapter)
 
 
 static void
-vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac)
+vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, const u8 *mac)
 {
 	u32 tmp;
 

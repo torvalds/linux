@@ -2413,7 +2413,6 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 
 	dp = dsa_to_port(ds, switchdev_work->port);
 
-	rtnl_lock();
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		if (switchdev_work->host_addr)
@@ -2448,9 +2447,7 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 
 		break;
 	}
-	rtnl_unlock();
 
-	dev_put(switchdev_work->dev);
 	kfree(switchdev_work);
 }
 
@@ -2471,10 +2468,9 @@ static bool dsa_foreign_dev_check(const struct net_device *dev,
 }
 
 static int dsa_slave_fdb_event(struct net_device *dev,
-			       const struct net_device *orig_dev,
-			       const void *ctx,
-			       const struct switchdev_notifier_fdb_info *fdb_info,
-			       unsigned long event)
+			       struct net_device *orig_dev,
+			       unsigned long event, const void *ctx,
+			       const struct switchdev_notifier_fdb_info *fdb_info)
 {
 	struct dsa_switchdev_event_work *switchdev_work;
 	struct dsa_port *dp = dsa_slave_to_port(dev);
@@ -2523,29 +2519,9 @@ static int dsa_slave_fdb_event(struct net_device *dev,
 	switchdev_work->vid = fdb_info->vid;
 	switchdev_work->host_addr = host_addr;
 
-	/* Hold a reference for dsa_fdb_offload_notify */
-	dev_hold(dev);
 	dsa_schedule_work(&switchdev_work->work);
 
 	return 0;
-}
-
-static int
-dsa_slave_fdb_add_to_device(struct net_device *dev,
-			    const struct net_device *orig_dev, const void *ctx,
-			    const struct switchdev_notifier_fdb_info *fdb_info)
-{
-	return dsa_slave_fdb_event(dev, orig_dev, ctx, fdb_info,
-				   SWITCHDEV_FDB_ADD_TO_DEVICE);
-}
-
-static int
-dsa_slave_fdb_del_to_device(struct net_device *dev,
-			    const struct net_device *orig_dev, const void *ctx,
-			    const struct switchdev_notifier_fdb_info *fdb_info)
-{
-	return dsa_slave_fdb_event(dev, orig_dev, ctx, fdb_info,
-				   SWITCHDEV_FDB_DEL_TO_DEVICE);
 }
 
 /* Called under rcu_read_lock() */
@@ -2562,18 +2538,12 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 						     dsa_slave_port_attr_set);
 		return notifier_from_errno(err);
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
-		err = switchdev_handle_fdb_add_to_device(dev, ptr,
-							 dsa_slave_dev_check,
-							 dsa_foreign_dev_check,
-							 dsa_slave_fdb_add_to_device,
-							 NULL);
-		return notifier_from_errno(err);
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
-		err = switchdev_handle_fdb_del_to_device(dev, ptr,
-							 dsa_slave_dev_check,
-							 dsa_foreign_dev_check,
-							 dsa_slave_fdb_del_to_device,
-							 NULL);
+		err = switchdev_handle_fdb_event_to_device(dev, event, ptr,
+							   dsa_slave_dev_check,
+							   dsa_foreign_dev_check,
+							   dsa_slave_fdb_event,
+							   NULL);
 		return notifier_from_errno(err);
 	default:
 		return NOTIFY_DONE;

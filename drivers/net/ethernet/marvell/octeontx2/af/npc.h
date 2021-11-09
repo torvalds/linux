@@ -8,6 +8,8 @@
 #ifndef NPC_H
 #define NPC_H
 
+#define NPC_KEX_CHAN_MASK	0xFFFULL
+
 enum NPC_LID_E {
 	NPC_LID_LA = 0,
 	NPC_LID_LB,
@@ -25,10 +27,7 @@ enum npc_kpu_la_ltype {
 	NPC_LT_LA_8023 = 1,
 	NPC_LT_LA_ETHER,
 	NPC_LT_LA_IH_NIX_ETHER,
-	NPC_LT_LA_IH_8_ETHER,
-	NPC_LT_LA_IH_4_ETHER,
-	NPC_LT_LA_IH_2_ETHER,
-	NPC_LT_LA_HIGIG2_ETHER,
+	NPC_LT_LA_HIGIG2_ETHER = 7,
 	NPC_LT_LA_IH_NIX_HIGIG2_ETHER,
 	NPC_LT_LA_CUSTOM_L2_90B_ETHER,
 	NPC_LT_LA_CPT_HDR,
@@ -554,7 +553,7 @@ struct npc_kpu_profile_fwdata {
 #define KPU_SIGN	0x00666f727075706b
 #define KPU_NAME_LEN	32
 /** Maximum number of custom KPU entries supported by the built-in profile. */
-#define KPU_MAX_CST_ENT	2
+#define KPU_MAX_CST_ENT	6
 	/* KPU Profle Header */
 	__le64	signature; /* "kpuprof\0" (8 bytes/ASCII characters) */
 	u8	name[KPU_NAME_LEN]; /* KPU Profile name */
@@ -594,6 +593,8 @@ struct rvu_npc_mcam_rule {
 	u8 default_rule;
 	bool enable;
 	bool vfvlan_cfg;
+	u16 chan;
+	u16 chan_mask;
 };
 
 #endif /* NPC_H */
