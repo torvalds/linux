@@ -149,7 +149,7 @@ struct blk_mq_alloc_data {
 	blk_mq_req_flags_t flags;
 	unsigned int shallow_depth;
 	unsigned int cmd_flags;
-	unsigned int rq_flags;
+	req_flags_t rq_flags;
 
 	/* allocate multiple requests/tags in one go */
 	unsigned int nr_tags;
