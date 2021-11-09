@@ -10,6 +10,7 @@
 
 #include <asm/kvm.h>
 #include <asm/kvm_para.h>
+#include <sys/eventfd.h>
 #include <linux/sizes.h>
 
 #include "processor.h"
@@ -31,6 +32,8 @@ struct test_args {
 	uint32_t nr_irqs; /* number of KVM supported IRQs. */
 	bool eoi_split; /* 1 is eoir+dir, 0 is eoir only */
 	bool level_sensitive; /* 1 is level, 0 is edge */
+	int kvm_max_routes; /* output of KVM_CAP_IRQ_ROUTING */
+	bool kvm_supports_irqfd; /* output of KVM_CAP_IRQFD */
 };
 
 /*
@@ -61,6 +64,7 @@ typedef enum {
 	KVM_SET_IRQ_LINE,
 	KVM_SET_IRQ_LINE_HIGH,
 	KVM_SET_LEVEL_INFO_HIGH,
+	KVM_INJECT_IRQFD,
 } kvm_inject_cmd;
 
 struct kvm_inject_args {
@@ -100,6 +104,7 @@ struct kvm_inject_desc {
 static struct kvm_inject_desc inject_edge_fns[] = {
 	/*                                      sgi    ppi    spi */
 	{ KVM_INJECT_EDGE_IRQ_LINE,		false, false, true },
+	{ KVM_INJECT_IRQFD,			false, false, true },
 	{ 0, },
 };
 
@@ -107,11 +112,16 @@ static struct kvm_inject_desc inject_level_fns[] = {
 	/*                                      sgi    ppi    spi */
 	{ KVM_SET_IRQ_LINE_HIGH,		false, true,  true },
 	{ KVM_SET_LEVEL_INFO_HIGH,		false, true,  true },
+	{ KVM_INJECT_IRQFD,			false, false, true },
 	{ 0, },
 };
 
 #define for_each_inject_fn(t, f)						\
 	for ((f) = (t); (f)->cmd; (f)++)
+
+#define for_each_supported_inject_fn(args, t, f)				\
+	for_each_inject_fn(t, f)						\
+		if ((args)->kvm_supports_irqfd || (f)->cmd != KVM_INJECT_IRQFD)
 
 /* Shared between the guest main thread and the IRQ handlers. */
 volatile uint64_t irq_handled;
@@ -403,7 +413,7 @@ static void guest_code(struct test_args args)
 	local_irq_enable();
 
 	/* Start the tests. */
-	for_each_inject_fn(inject_fns, f) {
+	for_each_supported_inject_fn(&args, inject_fns, f) {
 		test_injection(&args, f);
 		test_preemption(&args, f);
 		test_injection_failure(&args, f);
@@ -455,6 +465,88 @@ void kvm_irq_set_level_info_check(int gic_fd, uint32_t intid, int level,
 	}
 }
 
+static void kvm_set_gsi_routing_irqchip_check(struct kvm_vm *vm,
+		uint32_t intid, uint32_t num, uint32_t kvm_max_routes,
+		bool expect_failure)
+{
+	struct kvm_irq_routing *routing;
+	int ret;
+	uint64_t i;
+
+	assert(num <= kvm_max_routes && kvm_max_routes <= KVM_MAX_IRQ_ROUTES);
+
+	routing = kvm_gsi_routing_create();
+	for (i = intid; i < (uint64_t)intid + num; i++)
+		kvm_gsi_routing_irqchip_add(routing, i - MIN_SPI, i - MIN_SPI);
+
+	if (!expect_failure) {
+		kvm_gsi_routing_write(vm, routing);
+	} else {
+		ret = _kvm_gsi_routing_write(vm, routing);
+		/* The kernel only checks for KVM_IRQCHIP_NUM_PINS. */
+		if (intid >= KVM_IRQCHIP_NUM_PINS)
+			TEST_ASSERT(ret != 0 && errno == EINVAL,
+				"Bad intid %u did not cause KVM_SET_GSI_ROUTING "
+				"error: rc: %i errno: %i", intid, ret, errno);
+		else
+			TEST_ASSERT(ret == 0, "KVM_SET_GSI_ROUTING "
+				"for intid %i failed, rc: %i errno: %i",
+				intid, ret, errno);
+	}
+}
+
+static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
+		uint32_t intid, uint32_t num, uint32_t kvm_max_routes,
+		bool expect_failure)
+{
+	int fd[MAX_SPI];
+	uint64_t val;
+	int ret, f;
+	uint64_t i;
+
+	/*
+	 * There is no way to try injecting an SGI or PPI as the interface
+	 * starts counting from the first SPI (above the private ones), so just
+	 * exit.
+	 */
+	if (INTID_IS_SGI(intid) || INTID_IS_PPI(intid))
+		return;
+
+	kvm_set_gsi_routing_irqchip_check(vm, intid, num,
+			kvm_max_routes, expect_failure);
+
+	/*
+	 * If expect_failure, then just to inject anyway. These
+	 * will silently fail. And in any case, the guest will check
+	 * that no actual interrupt was injected for those cases.
+	 */
+
+	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++) {
+		fd[f] = eventfd(0, 0);
+		TEST_ASSERT(fd[f] != -1,
+			"eventfd failed, errno: %i\n", errno);
+	}
+
+	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++) {
+		struct kvm_irqfd irqfd = {
+			.fd  = fd[f],
+			.gsi = i - MIN_SPI,
+		};
+		assert(i <= (uint64_t)UINT_MAX);
+		vm_ioctl(vm, KVM_IRQFD, &irqfd);
+	}
+
+	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++) {
+		val = 1;
+		ret = write(fd[f], &val, sizeof(uint64_t));
+		TEST_ASSERT(ret == sizeof(uint64_t),
+			"Write to KVM_IRQFD failed with ret: %d\n", ret);
+	}
+
+	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++)
+		close(fd[f]);
+}
+
 /* handles the valid case: intid=0xffffffff num=1 */
 #define for_each_intid(first, num, tmp, i)					\
 	for ((tmp) = (i) = (first);						\
@@ -500,6 +592,11 @@ static void run_guest_cmd(struct kvm_vm *vm, int gic_fd,
 			kvm_irq_set_level_info_check(gic_fd, i, 1,
 					expect_failure);
 		break;
+	case KVM_INJECT_IRQFD:
+		kvm_routing_and_irqfd_check(vm, intid, num,
+					test_args->kvm_max_routes,
+					expect_failure);
+		break;
 	default:
 		break;
 	}
@@ -534,6 +631,8 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 		.nr_irqs = nr_irqs,
 		.level_sensitive = level_sensitive,
 		.eoi_split = eoi_split,
+		.kvm_max_routes = kvm_check_cap(KVM_CAP_IRQ_ROUTING),
+		.kvm_supports_irqfd = kvm_check_cap(KVM_CAP_IRQFD),
 	};
 
 	print_args(&args);

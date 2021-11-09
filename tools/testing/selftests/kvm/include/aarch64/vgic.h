@@ -29,4 +29,6 @@ int _kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level);
 void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, uint32_t vcpu);
 void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, uint32_t vcpu);
 
+#define KVM_IRQCHIP_NUM_PINS	(1020 - 32)
+
 #endif // SELFTEST_KVM_VGIC_H
