@@ -229,11 +229,38 @@ static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
 	wait_rcu_gp(rtp->call_func);
 }
 
+// Advance callbacks and indicate whether either a grace period or
+// callback invocation is needed.
+static int rcu_tasks_need_gpcb(struct rcu_tasks *rtp)
+{
+	int cpu;
+	unsigned long flags;
+	int needgpcb = 0;
+
+	for (cpu = 0; cpu < rtp->percpu_enqueue_lim; cpu++) {
+		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
+
+		/* Advance and accelerate any new callbacks. */
+		if (rcu_segcblist_empty(&rtpcp->cblist))
+			continue;
+		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+		rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
+		(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
+		if (rcu_segcblist_pend_cbs(&rtpcp->cblist))
+			needgpcb |= 0x3;
+		if (!rcu_segcblist_empty(&rtpcp->cblist))
+			needgpcb |= 0x1;
+		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+	}
+	return needgpcb;
+}
+
 /* RCU-tasks kthread that detects grace periods and invokes callbacks. */
 static int __noreturn rcu_tasks_kthread(void *arg)
 {
 	unsigned long flags;
 	int len;
+	int needgpcb;
 	struct rcu_cblist rcl = RCU_CBLIST_INITIALIZER(rcl);
 	struct rcu_head *rhp;
 	struct rcu_tasks *rtp = arg;
@@ -249,37 +276,25 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	 * This loop is terminated by the system going down.  ;-)
 	 */
 	for (;;) {
-		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, 0);  // for_each...
+		struct rcu_tasks_percpu *rtpcp;
 
 		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
 
-		/* Pick up any new callbacks. */
-		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
-		rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
-		(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
-		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
-
 		/* If there were none, wait a bit and start over. */
-		if (!rcu_segcblist_pend_cbs(&rtpcp->cblist)) {
-			wait_event_interruptible(rtp->cbs_wq,
-						 rcu_segcblist_pend_cbs(&rtpcp->cblist));
-			if (!rcu_segcblist_pend_cbs(&rtpcp->cblist)) {
-				WARN_ON(signal_pending(current));
-				set_tasks_gp_state(rtp, RTGS_WAIT_WAIT_CBS);
-				schedule_timeout_idle(HZ/10);
-			}
-			continue;
-		}
+		wait_event_idle(rtp->cbs_wq, (needgpcb = rcu_tasks_need_gpcb(rtp)));
 
-		// Wait for one grace period.
-		set_tasks_gp_state(rtp, RTGS_WAIT_GP);
-		rtp->gp_start = jiffies;
-		rcu_seq_start(&rtp->tasks_gp_seq);
-		rtp->gp_func(rtp);
-		rcu_seq_end(&rtp->tasks_gp_seq);
+		if (needgpcb & 0x2) {
+			// Wait for one grace period.
+			set_tasks_gp_state(rtp, RTGS_WAIT_GP);
+			rtp->gp_start = jiffies;
+			rcu_seq_start(&rtp->tasks_gp_seq);
+			rtp->gp_func(rtp);
+			rcu_seq_end(&rtp->tasks_gp_seq);
+		}
 
 		/* Invoke the callbacks. */
 		set_tasks_gp_state(rtp, RTGS_INVOKE_CBS);
+		rtpcp = per_cpu_ptr(rtp->rtpcpu, 0);
 		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 		rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
 		rcu_segcblist_extract_done_cbs(&rtpcp->cblist, &rcl);
