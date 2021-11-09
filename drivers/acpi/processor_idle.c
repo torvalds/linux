@@ -20,6 +20,7 @@
 #include <linux/tick.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu.h>
+#include <linux/minmax.h>
 #include <acpi/processor.h>
 
 /*
@@ -400,13 +401,10 @@ static int acpi_cst_latency_cmp(const void *a, const void *b)
 static void acpi_cst_latency_swap(void *a, void *b, int n)
 {
 	struct acpi_processor_cx *x = a, *y = b;
-	u32 tmp;
 
 	if (!(x->valid && y->valid))
 		return;
-	tmp = x->latency;
-	x->latency = y->latency;
-	y->latency = tmp;
+	swap(x->latency, y->latency);
 }
 
 static int acpi_processor_power_verify(struct acpi_processor *pr)
