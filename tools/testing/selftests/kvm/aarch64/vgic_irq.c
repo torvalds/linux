@@ -57,9 +57,27 @@ struct kvm_inject_args {
 /* Used on the guest side to perform the hypercall. */
 static void kvm_inject_call(kvm_inject_cmd cmd, uint32_t intid);
 
+#define KVM_INJECT(cmd, intid)							\
+	kvm_inject_call(cmd, intid)
+
 /* Used on the host side to get the hypercall info. */
 static void kvm_inject_get_call(struct kvm_vm *vm, struct ucall *uc,
 		struct kvm_inject_args *args);
+
+struct kvm_inject_desc {
+	kvm_inject_cmd cmd;
+	/* can inject PPIs, PPIs, and/or SPIs. */
+	bool sgi, ppi, spi;
+};
+
+static struct kvm_inject_desc inject_edge_fns[] = {
+	/*                                      sgi    ppi    spi */
+	{ KVM_INJECT_EDGE_IRQ_LINE,		false, false, true },
+	{ 0, },
+};
+
+#define for_each_inject_fn(t, f)						\
+	for ((f) = (t); (f)->cmd; (f)++)
 
 /* Shared between the guest main thread and the IRQ handlers. */
 volatile uint64_t irq_handled;
@@ -120,12 +138,12 @@ do { 										\
 	GUEST_ASSERT(_intid == 0 || _intid == IAR_SPURIOUS);			\
 } while (0)
 
-static void test_kvm_irq_line(uint32_t intid)
+static void guest_inject(uint32_t intid, kvm_inject_cmd cmd)
 {
 	reset_stats();
 
 	asm volatile("msr daifset, #2" : : : "memory");
-	kvm_inject_call(KVM_INJECT_EDGE_IRQ_LINE, intid);
+	KVM_INJECT(cmd, intid);
 
 	while (irq_handled < 1) {
 		asm volatile("wfi\n"
@@ -141,10 +159,23 @@ static void test_kvm_irq_line(uint32_t intid)
 	GUEST_ASSERT_IAR_EMPTY();
 }
 
+static void test_injection(struct kvm_inject_desc *f)
+{
+	if (f->sgi)
+		guest_inject(MIN_SGI, f->cmd);
+
+	if (f->ppi)
+		guest_inject(MIN_PPI, f->cmd);
+
+	if (f->spi)
+		guest_inject(MIN_SPI, f->cmd);
+}
+
 static void guest_code(void)
 {
 	uint32_t i;
 	uint32_t nr_irqs = 64; /* absolute minimum number of IRQs supported. */
+	struct kvm_inject_desc *f;
 
 	gic_init(GIC_V3, 1, dist, redist);
 
@@ -157,7 +188,9 @@ static void guest_code(void)
 
 	local_irq_enable();
 
-	test_kvm_irq_line(MIN_SPI);
+	/* Start the tests. */
+	for_each_inject_fn(inject_edge_fns, f)
+		test_injection(f);
 
 	GUEST_DONE();
 }
