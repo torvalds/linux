@@ -31,7 +31,7 @@
  * redistributor regions of the guest. Since it depends on the number of
  * vCPUs for the VM, it must be called after all the vCPUs have been created.
  */
-int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus,
+int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs,
 		uint64_t gicd_base_gpa, uint64_t gicr_base_gpa)
 {
 	int gic_fd;
@@ -53,6 +53,13 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus,
 
 	/* Distributor setup */
 	gic_fd = kvm_create_device(vm, KVM_DEV_TYPE_ARM_VGIC_V3, false);
+
+	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS,
+			0, &nr_irqs, true);
+
+	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
+
 	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 			KVM_VGIC_V3_ADDR_TYPE_DIST, &gicd_base_gpa, true);
 	nr_gic_pages = vm_calc_num_guest_pages(vm->mode, KVM_VGIC_V3_DIST_SIZE);
