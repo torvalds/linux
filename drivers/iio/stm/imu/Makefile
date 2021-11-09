@@ -12,3 +12,4 @@ obj-y += st_lsm6dso32x/
 obj-y += st_lsm6dso/
 obj-y += st_imu68/
 obj-y += st_ism330dlc/
+obj-y += st_lsm6dsm/
