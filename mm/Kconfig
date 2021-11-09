@@ -109,6 +109,13 @@ config NUMA_KEEP_MEMINFO
 config MEMORY_ISOLATION
 	bool
 
+# IORESOURCE_SYSTEM_RAM regions in the kernel resource tree that are marked
+# IORESOURCE_EXCLUSIVE cannot be mapped to user space, for example, via
+# /dev/mem.
+config EXCLUSIVE_SYSTEM_RAM
+	def_bool y
+	depends on !DEVMEM || STRICT_DEVMEM
+
 #
 # Only be set on architectures that have completely implemented memory hotplug
 # feature. If you are not sure, don't touch it.
