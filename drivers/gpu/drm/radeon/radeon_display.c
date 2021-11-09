@@ -533,7 +533,8 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 		DRM_ERROR("failed to pin new rbo buffer before flip\n");
 		goto cleanup;
 	}
-	r = dma_resv_get_singleton(new_rbo->tbo.base.resv, false, &work->fence);
+	r = dma_resv_get_singleton(new_rbo->tbo.base.resv, DMA_RESV_USAGE_WRITE,
+				   &work->fence);
 	if (r) {
 		radeon_bo_unreserve(new_rbo);
 		DRM_ERROR("failed to get new rbo buffer fences\n");

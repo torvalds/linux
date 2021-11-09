@@ -408,6 +408,9 @@ struct dma_buf {
 	 *   pipelining across drivers. These do not set any fences for their
 	 *   access. An example here is v4l.
 	 *
+	 * - Driver should use dma_resv_usage_rw() when retrieving fences as
+	 *   dependency for implicit synchronization.
+	 *
 	 * DYNAMIC IMPORTER RULES:
 	 *
 	 * Dynamic importers, see dma_buf_attachment_is_dynamic(), have
@@ -423,8 +426,9 @@ struct dma_buf {
 	 *
 	 * IMPORTANT:
 	 *
-	 * All drivers must obey the struct dma_resv rules, specifically the
-	 * rules for updating and obeying fences.
+	 * All drivers and memory management related functions must obey the
+	 * struct dma_resv rules, specifically the rules for updating and
+	 * obeying fences. See enum dma_resv_usage for further descriptions.
 	 */
 	struct dma_resv *resv;
 

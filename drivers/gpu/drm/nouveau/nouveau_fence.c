@@ -350,14 +350,16 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
 	if (ret)
 		return ret;
 
-	/* Waiting for the exclusive fence first causes performance regressions
-	 * under some circumstances. So manually wait for the shared ones first.
+	/* Waiting for the writes first causes performance regressions
+	 * under some circumstances. So manually wait for the reads first.
 	 */
 	for (i = 0; i < 2; ++i) {
 		struct dma_resv_iter cursor;
 		struct dma_fence *fence;
 
-		dma_resv_for_each_fence(&cursor, resv, exclusive, fence) {
+		dma_resv_for_each_fence(&cursor, resv,
+					dma_resv_usage_rw(exclusive),
+					fence) {
 			struct nouveau_fence *f;
 
 			if (i == 0 && dma_resv_iter_is_exclusive(&cursor))

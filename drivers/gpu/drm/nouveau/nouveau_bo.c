@@ -962,11 +962,11 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 	struct dma_fence *fence;
 	int ret;
 
-	/* TODO: This is actually a memory management dependency */
-	ret = dma_resv_get_singleton(bo->base.resv, false, &fence);
+	ret = dma_resv_get_singleton(bo->base.resv, DMA_RESV_USAGE_WRITE,
+				     &fence);
 	if (ret)
-		dma_resv_wait_timeout(bo->base.resv, false, false,
-				      MAX_SCHEDULE_TIMEOUT);
+		dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_WRITE,
+				      false, MAX_SCHEDULE_TIMEOUT);
 
 	nv10_bo_put_tile_region(dev, *old_tile, fence);
 	*old_tile = new_tile;

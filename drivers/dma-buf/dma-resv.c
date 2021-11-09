@@ -384,7 +384,7 @@ static void dma_resv_iter_restart_unlocked(struct dma_resv_iter *cursor)
 	cursor->seq = read_seqcount_begin(&cursor->obj->seq);
 	cursor->index = -1;
 	cursor->shared_count = 0;
-	if (cursor->all_fences) {
+	if (cursor->usage >= DMA_RESV_USAGE_READ) {
 		cursor->fences = dma_resv_shared_list(cursor->obj);
 		if (cursor->fences)
 			cursor->shared_count = cursor->fences->shared_count;
@@ -496,7 +496,7 @@ struct dma_fence *dma_resv_iter_first(struct dma_resv_iter *cursor)
 	dma_resv_assert_held(cursor->obj);
 
 	cursor->index = 0;
-	if (cursor->all_fences)
+	if (cursor->usage >= DMA_RESV_USAGE_READ)
 		cursor->fences = dma_resv_shared_list(cursor->obj);
 	else
 		cursor->fences = NULL;
@@ -551,7 +551,7 @@ int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src)
 	list = NULL;
 	excl = NULL;
 
-	dma_resv_iter_begin(&cursor, src, true);
+	dma_resv_iter_begin(&cursor, src, DMA_RESV_USAGE_READ);
 	dma_resv_for_each_fence_unlocked(&cursor, f) {
 
 		if (dma_resv_iter_is_restarted(&cursor)) {
@@ -597,7 +597,7 @@ EXPORT_SYMBOL(dma_resv_copy_fences);
  * dma_resv_get_fences - Get an object's shared and exclusive
  * fences without update side lock held
  * @obj: the reservation object
- * @write: true if we should return all fences
+ * @usage: controls which fences to include, see enum dma_resv_usage.
  * @num_fences: the number of fences returned
  * @fences: the array of fence ptrs returned (array is krealloc'd to the
  * required size, and must be freed by caller)
@@ -605,7 +605,7 @@ EXPORT_SYMBOL(dma_resv_copy_fences);
  * Retrieve all fences from the reservation object.
  * Returns either zero or -ENOMEM.
  */
-int dma_resv_get_fences(struct dma_resv *obj, bool write,
+int dma_resv_get_fences(struct dma_resv *obj, enum dma_resv_usage usage,
 			unsigned int *num_fences, struct dma_fence ***fences)
 {
 	struct dma_resv_iter cursor;
@@ -614,7 +614,7 @@ int dma_resv_get_fences(struct dma_resv *obj, bool write,
 	*num_fences = 0;
 	*fences = NULL;
 
-	dma_resv_iter_begin(&cursor, obj, write);
+	dma_resv_iter_begin(&cursor, obj, usage);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 
 		if (dma_resv_iter_is_restarted(&cursor)) {
@@ -646,7 +646,7 @@ EXPORT_SYMBOL_GPL(dma_resv_get_fences);
 /**
  * dma_resv_get_singleton - Get a single fence for all the fences
  * @obj: the reservation object
- * @write: true if we should return all fences
+ * @usage: controls which fences to include, see enum dma_resv_usage.
  * @fence: the resulting fence
  *
  * Get a single fence representing all the fences inside the resv object.
@@ -658,7 +658,7 @@ EXPORT_SYMBOL_GPL(dma_resv_get_fences);
  *
  * Returns 0 on success and negative error values on failure.
  */
-int dma_resv_get_singleton(struct dma_resv *obj, bool write,
+int dma_resv_get_singleton(struct dma_resv *obj, enum dma_resv_usage usage,
 			   struct dma_fence **fence)
 {
 	struct dma_fence_array *array;
@@ -666,7 +666,7 @@ int dma_resv_get_singleton(struct dma_resv *obj, bool write,
 	unsigned count;
 	int r;
 
-	r = dma_resv_get_fences(obj, write, &count, &fences);
+	r = dma_resv_get_fences(obj, usage, &count, &fences);
         if (r)
 		return r;
 
@@ -700,7 +700,7 @@ EXPORT_SYMBOL_GPL(dma_resv_get_singleton);
  * dma_resv_wait_timeout - Wait on reservation's objects
  * shared and/or exclusive fences.
  * @obj: the reservation object
- * @wait_all: if true, wait on all fences, else wait on just exclusive fence
+ * @usage: controls which fences to include, see enum dma_resv_usage.
  * @intr: if true, do interruptible wait
  * @timeout: timeout value in jiffies or zero to return immediately
  *
@@ -710,14 +710,14 @@ EXPORT_SYMBOL_GPL(dma_resv_get_singleton);
  * Returns -ERESTARTSYS if interrupted, 0 if the wait timed out, or
  * greater than zer on success.
  */
-long dma_resv_wait_timeout(struct dma_resv *obj, bool wait_all, bool intr,
-			   unsigned long timeout)
+long dma_resv_wait_timeout(struct dma_resv *obj, enum dma_resv_usage usage,
+			   bool intr, unsigned long timeout)
 {
 	long ret = timeout ? timeout : 1;
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 
-	dma_resv_iter_begin(&cursor, obj, wait_all);
+	dma_resv_iter_begin(&cursor, obj, usage);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 
 		ret = dma_fence_wait_timeout(fence, intr, ret);
@@ -737,8 +737,7 @@ EXPORT_SYMBOL_GPL(dma_resv_wait_timeout);
  * dma_resv_test_signaled - Test if a reservation object's fences have been
  * signaled.
  * @obj: the reservation object
- * @test_all: if true, test all fences, otherwise only test the exclusive
- * fence
+ * @usage: controls which fences to include, see enum dma_resv_usage.
  *
  * Callers are not required to hold specific locks, but maybe hold
  * dma_resv_lock() already.
@@ -747,12 +746,12 @@ EXPORT_SYMBOL_GPL(dma_resv_wait_timeout);
  *
  * True if all fences signaled, else false.
  */
-bool dma_resv_test_signaled(struct dma_resv *obj, bool test_all)
+bool dma_resv_test_signaled(struct dma_resv *obj, enum dma_resv_usage usage)
 {
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 
-	dma_resv_iter_begin(&cursor, obj, test_all);
+	dma_resv_iter_begin(&cursor, obj, usage);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 		dma_resv_iter_end(&cursor);
 		return false;
@@ -775,7 +774,7 @@ void dma_resv_describe(struct dma_resv *obj, struct seq_file *seq)
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 
-	dma_resv_for_each_fence(&cursor, obj, true, fence) {
+	dma_resv_for_each_fence(&cursor, obj, DMA_RESV_USAGE_READ, fence) {
 		seq_printf(seq, "\t%s fence:",
 			   dma_resv_iter_is_exclusive(&cursor) ?
 				"Exclusive" : "Shared");

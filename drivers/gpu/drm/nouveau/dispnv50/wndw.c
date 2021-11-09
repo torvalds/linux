@@ -558,7 +558,8 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 			asyw->image.handle[0] = ctxdma->object.handle;
 	}
 
-	ret = dma_resv_get_singleton(nvbo->bo.base.resv, false,
+	ret = dma_resv_get_singleton(nvbo->bo.base.resv,
+				     DMA_RESV_USAGE_WRITE,
 				     &asyw->state.fence);
 	if (ret)
 		return ret;
