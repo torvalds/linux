@@ -110,7 +110,7 @@ static int perf_env__fetch_btf(struct perf_env *env,
 	u32 data_size;
 	const void *data;
 
-	data = btf__get_raw_data(btf, &data_size);
+	data = btf__raw_data(btf, &data_size);
 
 	node = malloc(data_size + sizeof(struct btf_node));
 	if (!node)

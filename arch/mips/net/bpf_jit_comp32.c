@@ -1315,7 +1315,7 @@ static int emit_tail_call(struct jit_context *ctx)
 	/* if (TCC-- <= 0) goto out */
 	emit(ctx, lw, t2, ctx->stack_size, MIPS_R_SP);  /* t2 = *(SP + size) */
 	emit_load_delay(ctx);                     /* Load delay slot         */
-	emit(ctx, blez, t2, get_offset(ctx, 1));  /* PC += off(1) if t2 < 0  */
+	emit(ctx, blez, t2, get_offset(ctx, 1));  /* PC += off(1) if t2 <= 0 */
 	emit(ctx, addiu, t2, t2, -1);             /* t2-- (delay slot)       */
 	emit(ctx, sw, t2, ctx->stack_size, MIPS_R_SP);  /* *(SP + size) = t2 */
 

@@ -325,7 +325,6 @@ int main(int argc, char **argv)
 	int add_cpu = -1;
 	int ifindex = -1;
 	int *cpu, i, opt;
-	char *ifname;
 	__u32 qsize;
 	int n_cpus;
 
@@ -393,9 +392,8 @@ int main(int argc, char **argv)
 				fprintf(stderr, "-d/--dev name too long\n");
 				goto end_cpu;
 			}
-			ifname = (char *)&ifname_buf;
-			safe_strncpy(ifname, optarg, sizeof(ifname));
-			ifindex = if_nametoindex(ifname);
+			safe_strncpy(ifname_buf, optarg, strlen(ifname_buf));
+			ifindex = if_nametoindex(ifname_buf);
 			if (!ifindex)
 				ifindex = strtoul(optarg, NULL, 0);
 			if (!ifindex) {

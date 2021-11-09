@@ -1853,7 +1853,8 @@ static void bpf_prog_show_fdinfo(struct seq_file *m, struct file *filp)
 		   "prog_id:\t%u\n"
 		   "run_time_ns:\t%llu\n"
 		   "run_cnt:\t%llu\n"
-		   "recursion_misses:\t%llu\n",
+		   "recursion_misses:\t%llu\n"
+		   "verified_insns:\t%u\n",
 		   prog->type,
 		   prog->jited,
 		   prog_tag,
@@ -1861,7 +1862,8 @@ static void bpf_prog_show_fdinfo(struct seq_file *m, struct file *filp)
 		   prog->aux->id,
 		   stats.nsecs,
 		   stats.cnt,
-		   stats.misses);
+		   stats.misses,
+		   prog->aux->verified_insns);
 }
 #endif
 
@@ -3629,6 +3631,8 @@ static int bpf_prog_get_info_by_fd(struct file *file,
 	info.run_time_ns = stats.nsecs;
 	info.run_cnt = stats.cnt;
 	info.recursion_misses = stats.misses;
+
+	info.verified_insns = prog->aux->verified_insns;
 
 	if (!bpf_capable()) {
 		info.jited_prog_len = 0;

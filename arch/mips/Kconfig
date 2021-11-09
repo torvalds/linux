@@ -1213,15 +1213,6 @@ config SYS_SUPPORTS_RELOCATABLE
 	  The platform must provide plat_get_fdt() if it selects CONFIG_USE_OF
 	  to allow access to command line and entropy sources.
 
-config MIPS_CBPF_JIT
-	def_bool y
-	depends on BPF_JIT && HAVE_CBPF_JIT
-
-config MIPS_EBPF_JIT
-	def_bool y
-	depends on BPF_JIT && HAVE_EBPF_JIT
-
-
 #
 # Endianness selection.  Sufficiently obscure so many users don't know what to
 # answer,so we try hard to limit the available choices.  Also the use of a

@@ -394,5 +394,7 @@ LIBBPF_0.6.0 {
 		bpf_object__prev_map;
 		bpf_object__prev_program;
 		btf__add_btf;
-		btf__add_tag;
+		btf__add_decl_tag;
+		btf__raw_data;
+		btf__type_cnt;
 } LIBBPF_0.5.0;

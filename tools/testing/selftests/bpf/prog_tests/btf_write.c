@@ -277,26 +277,26 @@ static void gen_btf(struct btf *btf)
 		     "[17] DATASEC 'datasec1' size=12 vlen=1\n"
 		     "\ttype_id=1 offset=4 size=8", "raw_dump");
 
-	/* TAG */
-	id = btf__add_tag(btf, "tag1", 16, -1);
+	/* DECL_TAG */
+	id = btf__add_decl_tag(btf, "tag1", 16, -1);
 	ASSERT_EQ(id, 18, "tag_id");
 	t = btf__type_by_id(btf, 18);
 	ASSERT_STREQ(btf__str_by_offset(btf, t->name_off), "tag1", "tag_value");
-	ASSERT_EQ(btf_kind(t), BTF_KIND_TAG, "tag_kind");
+	ASSERT_EQ(btf_kind(t), BTF_KIND_DECL_TAG, "tag_kind");
 	ASSERT_EQ(t->type, 16, "tag_type");
-	ASSERT_EQ(btf_tag(t)->component_idx, -1, "tag_component_idx");
+	ASSERT_EQ(btf_decl_tag(t)->component_idx, -1, "tag_component_idx");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 18),
-		     "[18] TAG 'tag1' type_id=16 component_idx=-1", "raw_dump");
+		     "[18] DECL_TAG 'tag1' type_id=16 component_idx=-1", "raw_dump");
 
-	id = btf__add_tag(btf, "tag2", 14, 1);
+	id = btf__add_decl_tag(btf, "tag2", 14, 1);
 	ASSERT_EQ(id, 19, "tag_id");
 	t = btf__type_by_id(btf, 19);
 	ASSERT_STREQ(btf__str_by_offset(btf, t->name_off), "tag2", "tag_value");
-	ASSERT_EQ(btf_kind(t), BTF_KIND_TAG, "tag_kind");
+	ASSERT_EQ(btf_kind(t), BTF_KIND_DECL_TAG, "tag_kind");
 	ASSERT_EQ(t->type, 14, "tag_type");
-	ASSERT_EQ(btf_tag(t)->component_idx, 1, "tag_component_idx");
+	ASSERT_EQ(btf_decl_tag(t)->component_idx, 1, "tag_component_idx");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 19),
-		     "[19] TAG 'tag2' type_id=14 component_idx=1", "raw_dump");
+		     "[19] DECL_TAG 'tag2' type_id=14 component_idx=1", "raw_dump");
 }
 
 static void test_btf_add()
@@ -336,8 +336,8 @@ static void test_btf_add()
 		"[16] VAR 'var1' type_id=1, linkage=global-alloc",
 		"[17] DATASEC 'datasec1' size=12 vlen=1\n"
 		"\ttype_id=1 offset=4 size=8",
-		"[18] TAG 'tag1' type_id=16 component_idx=-1",
-		"[19] TAG 'tag2' type_id=14 component_idx=1");
+		"[18] DECL_TAG 'tag1' type_id=16 component_idx=-1",
+		"[19] DECL_TAG 'tag2' type_id=14 component_idx=1");
 
 	btf__free(btf);
 }
@@ -389,8 +389,8 @@ static void test_btf_add_btf()
 		"[16] VAR 'var1' type_id=1, linkage=global-alloc",
 		"[17] DATASEC 'datasec1' size=12 vlen=1\n"
 		"\ttype_id=1 offset=4 size=8",
-		"[18] TAG 'tag1' type_id=16 component_idx=-1",
-		"[19] TAG 'tag2' type_id=14 component_idx=1",
+		"[18] DECL_TAG 'tag1' type_id=16 component_idx=-1",
+		"[19] DECL_TAG 'tag2' type_id=14 component_idx=1",
 
 		/* types appended from the second BTF */
 		"[20] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
@@ -418,8 +418,8 @@ static void test_btf_add_btf()
 		"[35] VAR 'var1' type_id=20, linkage=global-alloc",
 		"[36] DATASEC 'datasec1' size=12 vlen=1\n"
 		"\ttype_id=20 offset=4 size=8",
-		"[37] TAG 'tag1' type_id=35 component_idx=-1",
-		"[38] TAG 'tag2' type_id=33 component_idx=1");
+		"[37] DECL_TAG 'tag1' type_id=35 component_idx=-1",
+		"[38] DECL_TAG 'tag2' type_id=33 component_idx=1");
 
 cleanup:
 	btf__free(btf1);

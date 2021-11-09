@@ -1727,8 +1727,10 @@ static struct btf *__find_kfunc_desc_btf(struct bpf_verifier_env *env,
 			return ERR_PTR(-EFAULT);
 
 		btf = btf_get_by_fd(btf_fd);
-		if (IS_ERR(btf))
+		if (IS_ERR(btf)) {
+			verbose(env, "invalid module BTF fd specified\n");
 			return btf;
+		}
 
 		if (!btf_is_module(btf)) {
 			verbose(env, "BTF fd for kfunc is not a module BTF\n");
@@ -1771,8 +1773,6 @@ static struct btf *find_kfunc_desc_btf(struct bpf_verifier_env *env,
 				       u32 func_id, s16 offset,
 				       struct module **btf_modp)
 {
-	struct btf *kfunc_btf;
-
 	if (offset) {
 		if (offset < 0) {
 			/* In the future, this can be allowed to increase limit
@@ -1782,12 +1782,7 @@ static struct btf *find_kfunc_desc_btf(struct bpf_verifier_env *env,
 			return ERR_PTR(-EINVAL);
 		}
 
-		kfunc_btf = __find_kfunc_desc_btf(env, offset, btf_modp);
-		if (IS_ERR_OR_NULL(kfunc_btf)) {
-			verbose(env, "cannot find module BTF for func_id %u\n", func_id);
-			return kfunc_btf ?: ERR_PTR(-ENOENT);
-		}
-		return kfunc_btf;
+		return __find_kfunc_desc_btf(env, offset, btf_modp);
 	}
 	return btf_vmlinux ?: ERR_PTR(-ENOENT);
 }
@@ -14038,6 +14033,7 @@ skip_full_check:
 
 	env->verification_time = ktime_get_ns() - start_time;
 	print_verification_stats(env);
+	env->prog->aux->verified_insns = env->insn_processed;
 
 	if (log->level && bpf_verifier_log_full(log))
 		ret = -ENOSPC;

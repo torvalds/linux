@@ -43,7 +43,7 @@ struct btf_type {
 	 * "size" tells the size of the type it is describing.
 	 *
 	 * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
-	 * FUNC, FUNC_PROTO, VAR and TAG.
+	 * FUNC, FUNC_PROTO, VAR and DECL_TAG.
 	 * "type" is a type_id referring to another type.
 	 */
 	union {
@@ -74,7 +74,7 @@ enum {
 	BTF_KIND_VAR		= 14,	/* Variable	*/
 	BTF_KIND_DATASEC	= 15,	/* Section	*/
 	BTF_KIND_FLOAT		= 16,	/* Floating point	*/
-	BTF_KIND_TAG		= 17,	/* Tag */
+	BTF_KIND_DECL_TAG	= 17,	/* Decl Tag */
 
 	NR_BTF_KINDS,
 	BTF_KIND_MAX		= NR_BTF_KINDS - 1,
@@ -174,14 +174,14 @@ struct btf_var_secinfo {
 	__u32	size;
 };
 
-/* BTF_KIND_TAG is followed by a single "struct btf_tag" to describe
+/* BTF_KIND_DECL_TAG is followed by a single "struct btf_decl_tag" to describe
  * additional information related to the tag applied location.
  * If component_idx == -1, the tag is applied to a struct, union,
  * variable or function. Otherwise, it is applied to a struct/union
  * member or a func argument, and component_idx indicates which member
  * or argument (0 ... vlen-1).
  */
-struct btf_tag {
+struct btf_decl_tag {
        __s32   component_idx;
 };
 

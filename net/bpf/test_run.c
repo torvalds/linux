@@ -358,13 +358,9 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 		return -EINVAL;
 
 	if (ctx_size_in) {
-		info.ctx = kzalloc(ctx_size_in, GFP_USER);
-		if (!info.ctx)
-			return -ENOMEM;
-		if (copy_from_user(info.ctx, ctx_in, ctx_size_in)) {
-			err = -EFAULT;
-			goto out;
-		}
+		info.ctx = memdup_user(ctx_in, ctx_size_in);
+		if (IS_ERR(info.ctx))
+			return PTR_ERR(info.ctx);
 	} else {
 		info.ctx = NULL;
 	}
@@ -392,7 +388,6 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 	    copy_to_user(&uattr->test.retval, &info.retval, sizeof(u32)))
 		err = -EFAULT;
 
-out:
 	kfree(info.ctx);
 	return err;
 }
@@ -1052,13 +1047,9 @@ int bpf_prog_test_run_syscall(struct bpf_prog *prog,
 		return -EINVAL;
 
 	if (ctx_size_in) {
-		ctx = kzalloc(ctx_size_in, GFP_USER);
-		if (!ctx)
-			return -ENOMEM;
-		if (copy_from_user(ctx, ctx_in, ctx_size_in)) {
-			err = -EFAULT;
-			goto out;
-		}
+		ctx = memdup_user(ctx_in, ctx_size_in);
+		if (IS_ERR(ctx))
+			return PTR_ERR(ctx);
 	}
 
 	rcu_read_lock_trace();

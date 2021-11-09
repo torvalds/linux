@@ -123,6 +123,7 @@ LIBBPF_API struct btf *btf__load_from_kernel_by_id_split(__u32 id, struct btf *b
 LIBBPF_DEPRECATED_SINCE(0, 6, "use btf__load_from_kernel_by_id instead")
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 
+LIBBPF_DEPRECATED_SINCE(0, 6, "intended for internal libbpf use only")
 LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_DEPRECATED_SINCE(0, 6, "use btf__load_into_kernel instead")
 LIBBPF_API int btf__load(struct btf *btf);
@@ -131,7 +132,9 @@ LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
 LIBBPF_API __s32 btf__find_by_name_kind(const struct btf *btf,
 					const char *type_name, __u32 kind);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use btf__type_cnt() instead; note that btf__get_nr_types() == btf__type_cnt() - 1")
 LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
+LIBBPF_API __u32 btf__type_cnt(const struct btf *btf);
 LIBBPF_API const struct btf *btf__base_btf(const struct btf *btf);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
@@ -144,7 +147,9 @@ LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__align_of(const struct btf *btf, __u32 id);
 LIBBPF_API int btf__fd(const struct btf *btf);
 LIBBPF_API void btf__set_fd(struct btf *btf, int fd);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use btf__raw_data() instead")
 LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
+LIBBPF_API const void *btf__raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API const char *btf__str_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
@@ -236,7 +241,7 @@ LIBBPF_API int btf__add_datasec_var_info(struct btf *btf, int var_type_id,
 					 __u32 offset, __u32 byte_sz);
 
 /* tag construction API */
-LIBBPF_API int btf__add_tag(struct btf *btf, const char *value, int ref_type_id,
+LIBBPF_API int btf__add_decl_tag(struct btf *btf, const char *value, int ref_type_id,
 			    int component_idx);
 
 struct btf_dedup_opts {
@@ -426,9 +431,9 @@ static inline bool btf_is_float(const struct btf_type *t)
 	return btf_kind(t) == BTF_KIND_FLOAT;
 }
 
-static inline bool btf_is_tag(const struct btf_type *t)
+static inline bool btf_is_decl_tag(const struct btf_type *t)
 {
-	return btf_kind(t) == BTF_KIND_TAG;
+	return btf_kind(t) == BTF_KIND_DECL_TAG;
 }
 
 static inline __u8 btf_int_encoding(const struct btf_type *t)
@@ -499,10 +504,10 @@ btf_var_secinfos(const struct btf_type *t)
 	return (struct btf_var_secinfo *)(t + 1);
 }
 
-struct btf_tag;
-static inline struct btf_tag *btf_tag(const struct btf_type *t)
+struct btf_decl_tag;
+static inline struct btf_decl_tag *btf_decl_tag(const struct btf_type *t)
 {
-	return (struct btf_tag *)(t + 1);
+	return (struct btf_decl_tag *)(t + 1);
 }
 
 #ifdef __cplusplus
