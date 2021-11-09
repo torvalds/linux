@@ -29,6 +29,7 @@
  */
 struct test_args {
 	uint32_t nr_irqs; /* number of KVM supported IRQs. */
+	bool eoi_split; /* 1 is eoir+dir, 0 is eoir only */
 };
 
 /*
@@ -112,7 +113,7 @@ static uint64_t gic_read_ap1r0(void)
 	return reg;
 }
 
-static void guest_irq_handler(struct ex_regs *regs)
+static void guest_irq_generic_handler(bool eoi_split)
 {
 	uint32_t intid = gic_get_and_ack_irq();
 
@@ -129,6 +130,8 @@ static void guest_irq_handler(struct ex_regs *regs)
 
 	gic_set_eoi(intid);
 	GUEST_ASSERT_EQ(gic_read_ap1r0(), 0);
+	if (eoi_split)
+		gic_set_dir(intid);
 
 	GUEST_ASSERT(!gic_irq_get_active(intid));
 	GUEST_ASSERT(!gic_irq_get_pending(intid));
@@ -150,6 +153,24 @@ do { 										\
 	_intid = gic_get_and_ack_irq();						\
 	GUEST_ASSERT(_intid == 0 || _intid == IAR_SPURIOUS);			\
 } while (0)
+
+#define CAT_HELPER(a, b) a ## b
+#define CAT(a, b) CAT_HELPER(a, b)
+#define PREFIX guest_irq_handler_
+#define GUEST_IRQ_HANDLER_NAME(split) CAT(PREFIX, split)
+#define GENERATE_GUEST_IRQ_HANDLER(split)					\
+static void CAT(PREFIX, split)(struct ex_regs *regs)				\
+{										\
+	guest_irq_generic_handler(split);					\
+}
+
+GENERATE_GUEST_IRQ_HANDLER(0);
+GENERATE_GUEST_IRQ_HANDLER(1);
+
+static void (*guest_irq_handlers[2])(struct ex_regs *) = {
+	GUEST_IRQ_HANDLER_NAME(0),
+	GUEST_IRQ_HANDLER_NAME(1),
+};
 
 static void reset_priorities(struct test_args *args)
 {
@@ -220,6 +241,8 @@ static void guest_code(struct test_args args)
 	for (i = 0; i < nr_irqs; i++)
 		gic_irq_enable(i);
 
+	gic_set_eoi_split(args.eoi_split);
+
 	reset_priorities(&args);
 	gic_set_priority_mask(CPU_PRIO_MASK);
 
@@ -268,10 +291,11 @@ static void kvm_inject_get_call(struct kvm_vm *vm, struct ucall *uc,
 
 static void print_args(struct test_args *args)
 {
-	printf("nr-irqs=%d\n", args->nr_irqs);
+	printf("nr-irqs=%d eoi-split=%d\n",
+			args->nr_irqs, args->eoi_split);
 }
 
-static void test_vgic(uint32_t nr_irqs)
+static void test_vgic(uint32_t nr_irqs, bool eoi_split)
 {
 	struct ucall uc;
 	int gic_fd;
@@ -280,6 +304,7 @@ static void test_vgic(uint32_t nr_irqs)
 
 	struct test_args args = {
 		.nr_irqs = nr_irqs,
+		.eoi_split = eoi_split,
 	};
 
 	print_args(&args);
@@ -297,7 +322,7 @@ static void test_vgic(uint32_t nr_irqs)
 			GICD_BASE_GPA, GICR_BASE_GPA);
 
 	vm_install_exception_handler(vm, VECTOR_IRQ_CURRENT,
-			guest_irq_handler);
+			guest_irq_handlers[args.eoi_split]);
 
 	while (1) {
 		vcpu_run(vm, VCPU_ID);
@@ -328,8 +353,11 @@ static void help(const char *name)
 {
 	printf(
 	"\n"
-	"usage: %s [-n num_irqs]\n", name);
-	printf(" -n: specify the number of IRQs to configure the vgic with.\n");
+	"usage: %s [-n num_irqs] [-e eoi_split]\n", name);
+	printf(" -n: specify the number of IRQs to configure the vgic with. "
+		"It has to be a multiple of 32 and between 64 and 1024.\n");
+	printf(" -e: if 1 then EOI is split into a write to DIR on top "
+		"of writing EOI.\n");
 	puts("");
 	exit(1);
 }
@@ -337,17 +365,23 @@ static void help(const char *name)
 int main(int argc, char **argv)
 {
 	uint32_t nr_irqs = 64;
+	bool default_args = true;
 	int opt;
+	bool eoi_split = false;
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
-	while ((opt = getopt(argc, argv, "hg:n:")) != -1) {
+	while ((opt = getopt(argc, argv, "hn:e:")) != -1) {
 		switch (opt) {
 		case 'n':
 			nr_irqs = atoi(optarg);
 			if (nr_irqs > 1024 || nr_irqs % 32)
 				help(argv[0]);
+			break;
+		case 'e':
+			eoi_split = (bool)atoi(optarg);
+			default_args = false;
 			break;
 		case 'h':
 		default:
@@ -356,7 +390,15 @@ int main(int argc, char **argv)
 		}
 	}
 
-	test_vgic(nr_irqs);
+	/* If the user just specified nr_irqs and/or gic_version, then run all
+	 * combinations.
+	 */
+	if (default_args) {
+		test_vgic(nr_irqs, false /* eoi_split */);
+		test_vgic(nr_irqs, true /* eoi_split */);
+	} else {
+		test_vgic(nr_irqs, eoi_split);
+	}
 
 	return 0;
 }
