@@ -52,6 +52,7 @@ struct rcu_tasks_percpu {
  * @call_func: This flavor's call_rcu()-equivalent function.
  * @rtpcpu: This flavor's rcu_tasks_percpu structure.
  * @percpu_enqueue_shift: Shift down CPU ID this much when enqueuing callbacks.
+ * @percpu_enqueue_lim: Number of per-CPU callback queues in use.
  * @name: This flavor's textual name.
  * @kname: This flavor's kthread name.
  */
@@ -76,6 +77,7 @@ struct rcu_tasks {
 	call_rcu_func_t call_func;
 	struct rcu_tasks_percpu __percpu *rtpcpu;
 	int percpu_enqueue_shift;
+	int percpu_enqueue_lim;
 	char *name;
 	char *kname;
 };
@@ -93,6 +95,7 @@ static struct rcu_tasks rt_name =							\
 	.rtpcpu = &rt_name ## __percpu,							\
 	.name = n,									\
 	.percpu_enqueue_shift = ilog2(CONFIG_NR_CPUS),					\
+	.percpu_enqueue_lim = 1,							\
 	.kname = #rt_name,								\
 }
 
@@ -172,6 +175,7 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 
 	raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
 	rtp->percpu_enqueue_shift = ilog2(nr_cpu_ids);
+	rtp->percpu_enqueue_lim = 1;
 	for_each_possible_cpu(cpu) {
 		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
 
