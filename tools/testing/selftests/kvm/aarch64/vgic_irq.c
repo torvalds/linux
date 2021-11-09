@@ -60,6 +60,7 @@ typedef enum {
 	KVM_INJECT_EDGE_IRQ_LINE = 1,
 	KVM_SET_IRQ_LINE,
 	KVM_SET_IRQ_LINE_HIGH,
+	KVM_SET_LEVEL_INFO_HIGH,
 } kvm_inject_cmd;
 
 struct kvm_inject_args {
@@ -98,6 +99,7 @@ static struct kvm_inject_desc inject_edge_fns[] = {
 static struct kvm_inject_desc inject_level_fns[] = {
 	/*                                      sgi    ppi    spi */
 	{ KVM_SET_IRQ_LINE_HIGH,		false, true,  true },
+	{ KVM_SET_LEVEL_INFO_HIGH,		false, true,  true },
 	{ 0, },
 };
 
@@ -405,6 +407,10 @@ static void run_guest_cmd(struct kvm_vm *vm, int gic_fd,
 	case KVM_SET_IRQ_LINE_HIGH:
 		for (i = intid; i < intid + num; i++)
 			kvm_arm_irq_line(vm, i, 1);
+		break;
+	case KVM_SET_LEVEL_INFO_HIGH:
+		for (i = intid; i < intid + num; i++)
+			kvm_irq_set_level_info(gic_fd, i, 1);
 		break;
 	default:
 		break;
