@@ -929,9 +929,17 @@ struct hl_cs_out {
 
 	/*
 	 * SOB base address offset
-	 * Valid only when HL_CS_FLAGS_RESERVE_SIGNALS_ONLY is set
+	 * Valid only when HL_CS_FLAGS_RESERVE_SIGNALS_ONLY or HL_CS_FLAGS_SIGNAL is set
 	 */
 	__u32 sob_base_addr_offset;
+
+	/*
+	 * Count of completed signals in SOB before current signal submission.
+	 * Valid only when (HL_CS_FLAGS_ENCAP_SIGNALS & HL_CS_FLAGS_STAGED_SUBMISSION)
+	 * or HL_CS_FLAGS_SIGNAL is set
+	 */
+	__u16 sob_count_before_submission;
+	__u16 pad[3];
 };
 
 union hl_cs_args {

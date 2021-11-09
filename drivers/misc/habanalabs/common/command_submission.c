@@ -1277,7 +1277,8 @@ static u32 get_stream_master_qid_mask(struct hl_device *hdev, u32 qid)
 
 static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 				u32 num_chunks, u64 *cs_seq, u32 flags,
-				u32 encaps_signals_handle, u32 timeout)
+				u32 encaps_signals_handle, u32 timeout,
+				u16 *signal_initial_sob_count)
 {
 	bool staged_mid, int_queues_only = true;
 	struct hl_device *hdev = hpriv->hdev;
@@ -1444,6 +1445,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		goto free_cs_object;
 	}
 
+	*signal_initial_sob_count = cs->initial_sob_count;
+
 	rc = HL_CS_STATUS_SUCCESS;
 	goto put_cs;
 
@@ -1472,6 +1475,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 	int rc = 0, do_ctx_switch;
 	void __user *chunks;
 	u32 num_chunks, tmp;
+	u16 sob_count;
 	int ret;
 
 	do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
@@ -1512,7 +1516,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 			rc = 0;
 		} else {
 			rc = cs_ioctl_default(hpriv, chunks, num_chunks,
-					cs_seq, 0, 0, hdev->timeout_jiffies);
+					cs_seq, 0, 0, hdev->timeout_jiffies, &sob_count);
 		}
 
 		mutex_unlock(&hpriv->restore_phase_mutex);
@@ -1963,7 +1967,8 @@ out:
 
 static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				void __user *chunks, u32 num_chunks,
-				u64 *cs_seq, u32 flags, u32 timeout)
+				u64 *cs_seq, u32 flags, u32 timeout,
+				u32 *signal_sob_addr_offset, u16 *signal_initial_sob_count)
 {
 	struct hl_cs_encaps_sig_handle *encaps_sig_hdl = NULL;
 	bool handle_found = false, is_wait_cs = false,
@@ -2195,6 +2200,9 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		goto free_cs_object;
 	}
 
+	*signal_sob_addr_offset = cs->sob_addr_offset;
+	*signal_initial_sob_count = cs->initial_sob_count;
+
 	rc = HL_CS_STATUS_SUCCESS;
 	if (is_wait_cs)
 		wait_cs_submitted = true;
@@ -2225,6 +2233,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	void __user *chunks;
 	u32 num_chunks, flags, timeout,
 		signals_count = 0, sob_addr = 0, handle_id = 0;
+	u16 sob_initial_count = 0;
 	int rc;
 
 	rc = hl_cs_sanity_checks(hpriv, args);
@@ -2255,7 +2264,8 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	case CS_TYPE_WAIT:
 	case CS_TYPE_COLLECTIVE_WAIT:
 		rc = cs_ioctl_signal_wait(hpriv, cs_type, chunks, num_chunks,
-					&cs_seq, args->in.cs_flags, timeout);
+					&cs_seq, args->in.cs_flags, timeout,
+					&sob_addr, &sob_initial_count);
 		break;
 	case CS_RESERVE_SIGNALS:
 		rc = cs_ioctl_reserve_signals(hpriv,
@@ -2271,20 +2281,33 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,
 						args->in.cs_flags,
 						args->in.encaps_sig_handle_id,
-						timeout);
+						timeout, &sob_initial_count);
 		break;
 	}
 out:
 	if (rc != -EAGAIN) {
 		memset(args, 0, sizeof(*args));
 
-		if (cs_type == CS_RESERVE_SIGNALS) {
+		switch (cs_type) {
+		case CS_RESERVE_SIGNALS:
 			args->out.handle_id = handle_id;
 			args->out.sob_base_addr_offset = sob_addr;
 			args->out.count = signals_count;
-		} else {
+			break;
+		case CS_TYPE_SIGNAL:
+			args->out.sob_base_addr_offset = sob_addr;
+			args->out.sob_count_before_submission = sob_initial_count;
 			args->out.seq = cs_seq;
+			break;
+		case CS_TYPE_DEFAULT:
+			args->out.sob_count_before_submission = sob_initial_count;
+			args->out.seq = cs_seq;
+			break;
+		default:
+			args->out.seq = cs_seq;
+			break;
 		}
+
 		args->out.status = rc;
 	}
 

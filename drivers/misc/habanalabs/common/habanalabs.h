@@ -1545,6 +1545,9 @@ struct hl_userptr {
  * @submission_time_jiffies: submission time of the cs
  * @type: CS_TYPE_*.
  * @encaps_sig_hdl_id: encaps signals handle id, set for the first staged cs.
+ * @sob_addr_offset: sob offset from the configuration base address.
+ * @initial_sob_count: count of completed signals in SOB before current submission of signal or
+ *                     cs with encaps signals.
  * @submitted: true if CS was submitted to H/W.
  * @completed: true if CS was completed by device.
  * @timedout : true if CS was timedout.
@@ -1580,6 +1583,8 @@ struct hl_cs {
 	u64			submission_time_jiffies;
 	enum hl_cs_type		type;
 	u32			encaps_sig_hdl_id;
+	u32			sob_addr_offset;
+	u16			initial_sob_count;
 	u8			submitted;
 	u8			completed;
 	u8			timedout;

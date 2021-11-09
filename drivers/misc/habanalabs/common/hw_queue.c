@@ -429,6 +429,9 @@ static int init_signal_cs(struct hl_device *hdev,
 	rc = hl_cs_signal_sob_wraparound_handler(hdev, q_idx, &hw_sob, 1,
 								false);
 
+	job->cs->sob_addr_offset = hw_sob->sob_addr;
+	job->cs->initial_sob_count = prop->next_sob_val - 1;
+
 	return rc;
 }
 
