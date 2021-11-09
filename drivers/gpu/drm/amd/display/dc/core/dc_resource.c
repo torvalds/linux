@@ -2078,7 +2078,6 @@ static void mark_seamless_boot_stream(
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 
-	/* TODO: Check Linux */
 	if (dc->config.allow_seamless_boot_optimization &&
 			!dcb->funcs->is_accelerated_mode(dcb)) {
 		if (dc_validate_seamless_boot_timing(dc, stream->sink, &stream->timing))

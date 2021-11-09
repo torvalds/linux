@@ -1454,6 +1454,12 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.flags.power_down_display_on_boot = true;
 
+	if (check_seamless_boot_capability(adev)) {
+		init_data.flags.power_down_display_on_boot = false;
+		init_data.flags.allow_seamless_boot_optimization = true;
+		DRM_INFO("Seamless boot condition check passed\n");
+	}
+
 	INIT_LIST_HEAD(&adev->dm.da_list);
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
@@ -11615,4 +11621,25 @@ int amdgpu_dm_process_dmub_aux_transfer_sync(bool is_cmd_aux, struct dc_context 
 	return amdgpu_dm_set_dmub_async_sync_status(is_cmd_aux,
 			ctx, DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS,
 			(uint32_t *)operation_result);
+}
+
+/*
+ * Check whether seamless boot is supported.
+ *
+ * So far we only support seamless boot on CHIP_VANGOGH.
+ * If everything goes well, we may consider expanding
+ * seamless boot to other ASICs.
+ */
+bool check_seamless_boot_capability(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_VANGOGH:
+		if (!adev->mman.keep_stolen_vga_memory)
+			return true;
+		break;
+	default:
+		break;
+	}
+
+	return false;
 }
