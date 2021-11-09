@@ -353,8 +353,6 @@ int perf_mmap__read_self(struct perf_mmap *map, struct perf_counts_values *count
 		count->ena += delta;
 		if (idx)
 			count->run += delta;
-
-		cnt = mul_u64_u64_div64(cnt, count->ena, count->run);
 	}
 
 	count->val = cnt;
