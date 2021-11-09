@@ -80,14 +80,13 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 		offset += va_block->size;
 	}
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, false,
-		MMU_OP_USERPTR | MMU_OP_SKIP_LOW_CACHE_INV);
+	rc = hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR | MMU_OP_SKIP_LOW_CACHE_INV);
 
 	mutex_unlock(&ctx->mmu_lock);
 
 	cb->is_mmu_mapped = true;
 
-	return 0;
+	return rc;
 
 err_va_umap:
 	list_for_each_entry(va_block, &cb->va_block_list, node) {
@@ -98,7 +97,7 @@ err_va_umap:
 		offset -= va_block->size;
 	}
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
+	rc = hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -127,7 +126,7 @@ static void cb_unmap_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 					"Failed to unmap CB's va 0x%llx\n",
 					va_block->start);
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
 
 	mutex_unlock(&ctx->mmu_lock);
 

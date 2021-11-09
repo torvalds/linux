@@ -8366,12 +8366,6 @@ static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 
 	WREG32(mmSTLB_INV_SET, 0);
 
-	if (rc) {
-		dev_err_ratelimited(hdev->dev,
-					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, HL_DRV_RESET_HARD);
-	}
-
 	return rc;
 }
 

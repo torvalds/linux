@@ -5258,12 +5258,6 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 		1000,
 		timeout_usec);
 
-	if (rc) {
-		dev_err_ratelimited(hdev->dev,
-					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, HL_DRV_RESET_HARD);
-	}
-
 	return rc;
 }
 

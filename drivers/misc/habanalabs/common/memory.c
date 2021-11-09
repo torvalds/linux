@@ -1201,18 +1201,13 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto map_err;
 	}
 
-	rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, false,
-		*vm_type | MMU_OP_SKIP_LOW_CACHE_INV,
-		ctx->asid, ret_vaddr, phys_pg_pack->total_size);
+	rc = hl_mmu_invalidate_cache_range(hdev, false, *vm_type | MMU_OP_SKIP_LOW_CACHE_INV,
+				ctx->asid, ret_vaddr, phys_pg_pack->total_size);
 
 	mutex_unlock(&ctx->mmu_lock);
 
-	if (rc) {
-		dev_err(hdev->dev,
-			"mapping handle %u failed due to MMU cache invalidation\n",
-			handle);
+	if (rc)
 		goto map_err;
-	}
 
 	ret_vaddr += phys_pg_pack->offset;
 
@@ -1350,9 +1345,8 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	 * at the loop end rather than for each iteration
 	 */
 	if (!ctx_free)
-		rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, true,
-				*vm_type, ctx->asid, vaddr,
-				phys_pg_pack->total_size);
+		rc = hl_mmu_invalidate_cache_range(hdev, true, *vm_type, ctx->asid, vaddr,
+							phys_pg_pack->total_size);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -1364,11 +1358,6 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	 */
 	if (!ctx_free) {
 		int tmp_rc;
-
-		if (rc)
-			dev_err(hdev->dev,
-				"unmapping vaddr 0x%llx failed due to MMU cache invalidation\n",
-				vaddr);
 
 		tmp_rc = add_va_block(hdev, va_range, vaddr,
 					vaddr + phys_pg_pack->total_size - 1);
@@ -2640,8 +2629,8 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	mutex_lock(&ctx->mmu_lock);
 
 	/* invalidate the cache once after the unmapping loop */
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, MMU_OP_PHYS_PACK);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_PHYS_PACK);
 
 	mutex_unlock(&ctx->mmu_lock);
 

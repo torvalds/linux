@@ -2993,6 +2993,9 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 int hl_mmu_map_contiguous(struct hl_ctx *ctx, u64 virt_addr,
 					u64 phys_addr, u32 size);
 int hl_mmu_unmap_contiguous(struct hl_ctx *ctx, u64 virt_addr, u32 size);
+int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags);
+int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
+					u32 flags, u32 asid, u64 va, u64 size);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
