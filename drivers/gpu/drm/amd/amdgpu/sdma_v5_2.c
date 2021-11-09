@@ -51,6 +51,7 @@ MODULE_FIRMWARE("amdgpu/beige_goby_sdma.bin");
 
 MODULE_FIRMWARE("amdgpu/vangogh_sdma.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_sdma.bin");
+MODULE_FIRMWARE("amdgpu/sdma_5_2_7.bin");
 
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA3_REG_OFFSET 0x400
@@ -155,6 +156,10 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 	case IP_VERSION(5, 2, 3):
 		chip_name = "yellow_carp_sdma";
 		break;
+	case IP_VERSION(5, 2, 7):
+		chip_name = "sdma_5_2_7";
+		break;
+
 	default:
 		BUG();
 	}
