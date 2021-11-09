@@ -9,8 +9,17 @@
 #ifndef __LINUX_SCALE_BITMAP_H
 #define __LINUX_SCALE_BITMAP_H
 
-#include <linux/kernel.h>
+#include <linux/atomic.h>
+#include <linux/bitops.h>
+#include <linux/cache.h>
+#include <linux/list.h>
+#include <linux/log2.h>
+#include <linux/minmax.h>
+#include <linux/percpu.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/types.h>
+#include <linux/wait.h>
 
 struct seq_file;
 
