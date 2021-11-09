@@ -100,7 +100,7 @@ static void arm_spe_dump(struct arm_spe *spe __maybe_unused,
 	const char *color = PERF_COLOR_BLUE;
 
 	color_fprintf(stdout, color,
-		      ". ... ARM SPE data: size %zu bytes\n",
+		      ". ... ARM SPE data: size %#zx bytes\n",
 		      len);
 
 	while (len) {
