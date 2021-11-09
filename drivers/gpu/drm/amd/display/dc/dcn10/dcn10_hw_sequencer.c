@@ -2626,7 +2626,7 @@ static void dcn10_update_dchubp_dpp(
 		/* new calculated dispclk, dppclk are stored in
 		 * context->bw_ctx.bw.dcn.clk.dispclk_khz / dppclk_khz. current
 		 * dispclk, dppclk are from dc->clk_mgr->clks.dispclk_khz.
-		 * dcn_validate_bandwidth compute new dispclk, dppclk.
+		 * dcn10_validate_bandwidth compute new dispclk, dppclk.
 		 * dispclk will put in use after optimize_bandwidth when
 		 * ramp_up_dispclk_with_dpp is called.
 		 * there are two places for dppclk be put in use. One location
@@ -2640,7 +2640,7 @@ static void dcn10_update_dchubp_dpp(
 		 * for example, eDP + external dp,  change resolution of DP from
 		 * 1920x1080x144hz to 1280x960x60hz.
 		 * before change: dispclk = 337889 dppclk = 337889
-		 * change mode, dcn_validate_bandwidth calculate
+		 * change mode, dcn10_validate_bandwidth calculate
 		 *                dispclk = 143122 dppclk = 143122
 		 * update_dchubp_dpp be executed before dispclk be updated,
 		 * dispclk = 337889, but dppclk use new value dispclk /2 =
