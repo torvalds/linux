@@ -19,7 +19,8 @@ struct gicv3_data {
 	unsigned int nr_spis;
 };
 
-#define sgi_base_from_redist(redist_base) (redist_base + SZ_64K)
+#define sgi_base_from_redist(redist_base) 	(redist_base + SZ_64K)
+#define DIST_BIT				(1U << 31)
 
 enum gicv3_intid_range {
 	SGI_RANGE,
@@ -48,6 +49,14 @@ static void gicv3_gicr_wait_for_rwp(void *redist_base)
 		GUEST_ASSERT(count--);
 		udelay(10);
 	}
+}
+
+static void gicv3_wait_for_rwp(uint32_t cpu_or_dist)
+{
+	if (cpu_or_dist & DIST_BIT)
+		gicv3_gicd_wait_for_rwp();
+	else
+		gicv3_gicr_wait_for_rwp(gicv3_data.redist_base[cpu_or_dist]);
 }
 
 static enum gicv3_intid_range get_intid_range(unsigned int intid)
@@ -81,39 +90,108 @@ static void gicv3_write_eoir(uint32_t irq)
 	isb();
 }
 
-static void
-gicv3_config_irq(unsigned int intid, unsigned int offset)
+uint32_t gicv3_reg_readl(uint32_t cpu_or_dist, uint64_t offset)
+{
+	void *base = cpu_or_dist & DIST_BIT ? gicv3_data.dist_base
+		: sgi_base_from_redist(gicv3_data.redist_base[cpu_or_dist]);
+	return readl(base + offset);
+}
+
+void gicv3_reg_writel(uint32_t cpu_or_dist, uint64_t offset, uint32_t reg_val)
+{
+	void *base = cpu_or_dist & DIST_BIT ? gicv3_data.dist_base
+		: sgi_base_from_redist(gicv3_data.redist_base[cpu_or_dist]);
+	writel(reg_val, base + offset);
+}
+
+uint32_t gicv3_getl_fields(uint32_t cpu_or_dist, uint64_t offset, uint32_t mask)
+{
+	return gicv3_reg_readl(cpu_or_dist, offset) & mask;
+}
+
+void gicv3_setl_fields(uint32_t cpu_or_dist, uint64_t offset,
+		uint32_t mask, uint32_t reg_val)
+{
+	uint32_t tmp = gicv3_reg_readl(cpu_or_dist, offset) & ~mask;
+
+	tmp |= (reg_val & mask);
+	gicv3_reg_writel(cpu_or_dist, offset, tmp);
+}
+
+/*
+ * We use a single offset for the distributor and redistributor maps as they
+ * have the same value in both. The only exceptions are registers that only
+ * exist in one and not the other, like GICR_WAKER that doesn't exist in the
+ * distributor map. Such registers are conveniently marked as reserved in the
+ * map that doesn't implement it; like GICR_WAKER's offset of 0x0014 being
+ * marked as "Reserved" in the Distributor map.
+ */
+static void gicv3_access_reg(uint32_t intid, uint64_t offset,
+		uint32_t reg_bits, uint32_t bits_per_field,
+		bool write, uint32_t *val)
 {
 	uint32_t cpu = guest_get_vcpuid();
-	uint32_t mask = 1 << (intid % 32);
 	enum gicv3_intid_range intid_range = get_intid_range(intid);
-	void *reg;
+	uint32_t fields_per_reg, index, mask, shift;
+	uint32_t cpu_or_dist;
 
-	/* We care about 'cpu' only for SGIs or PPIs */
-	if (intid_range == SGI_RANGE || intid_range == PPI_RANGE) {
-		GUEST_ASSERT(cpu < gicv3_data.nr_cpus);
+	GUEST_ASSERT(bits_per_field <= reg_bits);
+	GUEST_ASSERT(*val < (1U << bits_per_field));
+	/* Some registers like IROUTER are 64 bit long. Those are currently not
+	 * supported by readl nor writel, so just asserting here until then.
+	 */
+	GUEST_ASSERT(reg_bits == 32);
 
-		reg = sgi_base_from_redist(gicv3_data.redist_base[cpu]) +
-			offset;
-		writel(mask, reg);
-		gicv3_gicr_wait_for_rwp(gicv3_data.redist_base[cpu]);
-	} else if (intid_range == SPI_RANGE) {
-		reg = gicv3_data.dist_base + offset + (intid / 32) * 4;
-		writel(mask, reg);
-		gicv3_gicd_wait_for_rwp();
-	} else {
-		GUEST_ASSERT(0);
-	}
+	fields_per_reg = reg_bits / bits_per_field;
+	index = intid % fields_per_reg;
+	shift = index * bits_per_field;
+	mask = ((1U << bits_per_field) - 1) << shift;
+
+	/* Set offset to the actual register holding intid's config. */
+	offset += (intid / fields_per_reg) * (reg_bits / 8);
+
+	cpu_or_dist = (intid_range == SPI_RANGE) ? DIST_BIT : cpu;
+
+	if (write)
+		gicv3_setl_fields(cpu_or_dist, offset, mask, *val << shift);
+	*val = gicv3_getl_fields(cpu_or_dist, offset, mask) >> shift;
+}
+
+static void gicv3_write_reg(uint32_t intid, uint64_t offset,
+		uint32_t reg_bits, uint32_t bits_per_field, uint32_t val)
+{
+	gicv3_access_reg(intid, offset, reg_bits,
+			bits_per_field, true, &val);
+}
+
+static uint32_t gicv3_read_reg(uint32_t intid, uint64_t offset,
+		uint32_t reg_bits, uint32_t bits_per_field)
+{
+	uint32_t val;
+
+	gicv3_access_reg(intid, offset, reg_bits,
+			bits_per_field, false, &val);
+	return val;
 }
 
 static void gicv3_irq_enable(unsigned int intid)
 {
-	gicv3_config_irq(intid, GICD_ISENABLER);
+	bool is_spi = get_intid_range(intid) == SPI_RANGE;
+	unsigned int val = 1;
+	uint32_t cpu = guest_get_vcpuid();
+
+	gicv3_write_reg(intid, GICD_ISENABLER, 32, 1, val);
+	gicv3_wait_for_rwp(is_spi ? DIST_BIT : cpu);
 }
 
 static void gicv3_irq_disable(unsigned int intid)
 {
-	gicv3_config_irq(intid, GICD_ICENABLER);
+	bool is_spi = get_intid_range(intid) == SPI_RANGE;
+	uint32_t val = 1;
+	uint32_t cpu = guest_get_vcpuid();
+
+	gicv3_write_reg(intid, GICD_ICENABLER, 32, 1, val);
+	gicv3_wait_for_rwp(is_spi ? DIST_BIT : cpu);
 }
 
 static void gicv3_enable_redist(void *redist_base)
