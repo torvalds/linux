@@ -50,6 +50,7 @@ program using kcov:
     #include <sys/mman.h>
     #include <unistd.h>
     #include <fcntl.h>
+    #include <linux/types.h>
 
     #define KCOV_INIT_TRACE			_IOR('c', 1, unsigned long)
     #define KCOV_ENABLE			_IO('c', 100)
@@ -250,6 +251,8 @@ task_struct. However non common handles allow to collect coverage
 selectively from different subsystems.
 
 .. code-block:: c
+
+    /* Same includes and defines as above. */
 
     struct kcov_remote_arg {
 	__u32		trace_mode;
