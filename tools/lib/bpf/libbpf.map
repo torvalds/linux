@@ -389,6 +389,8 @@ LIBBPF_0.5.0 {
 
 LIBBPF_0.6.0 {
 	global:
+		bpf_map__map_extra;
+		bpf_map__set_map_extra;
 		bpf_object__next_map;
 		bpf_object__next_program;
 		bpf_object__prev_map;

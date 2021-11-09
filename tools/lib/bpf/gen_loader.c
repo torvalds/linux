@@ -431,7 +431,7 @@ void bpf_gen__load_btf(struct bpf_gen *gen, const void *btf_raw_data,
 }
 
 void bpf_gen__map_create(struct bpf_gen *gen,
-			 struct bpf_create_map_attr *map_attr, int map_idx)
+			 struct bpf_create_map_params *map_attr, int map_idx)
 {
 	int attr_size = offsetofend(union bpf_attr, btf_vmlinux_value_type_id);
 	bool close_inner_map_fd = false;
@@ -443,6 +443,7 @@ void bpf_gen__map_create(struct bpf_gen *gen,
 	attr.key_size = map_attr->key_size;
 	attr.value_size = map_attr->value_size;
 	attr.map_flags = map_attr->map_flags;
+	attr.map_extra = map_attr->map_extra;
 	memcpy(attr.map_name, map_attr->name,
 	       min((unsigned)strlen(map_attr->name), BPF_OBJ_NAME_LEN - 1));
 	attr.numa_node = map_attr->numa_node;
