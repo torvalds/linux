@@ -3475,7 +3475,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 	u64 last_objectid = 0;
 	int ret = 0, nr_unlink = 0;
 
-	if (cmpxchg(&root->orphan_cleanup_state, 0, ORPHAN_CLEANUP_STARTED))
+	if (test_and_set_bit(BTRFS_ROOT_ORPHAN_CLEANUP, &root->state))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -3632,8 +3632,6 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 	}
 	/* release the path since we're done with it */
 	btrfs_release_path(path);
-
-	root->orphan_cleanup_state = ORPHAN_CLEANUP_DONE;
 
 	if (test_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state)) {
 		trans = btrfs_join_transaction(root);

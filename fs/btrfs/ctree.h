@@ -511,11 +511,6 @@ struct btrfs_discard_ctl {
 	atomic64_t discard_bytes_saved;
 };
 
-enum btrfs_orphan_cleanup_state {
-	ORPHAN_CLEANUP_STARTED	= 1,
-	ORPHAN_CLEANUP_DONE	= 2,
-};
-
 void btrfs_init_async_reclaim_work(struct btrfs_fs_info *fs_info);
 
 /* fs_info */
@@ -1110,6 +1105,8 @@ enum {
 	BTRFS_ROOT_HAS_LOG_TREE,
 	/* Qgroup flushing is in progress */
 	BTRFS_ROOT_QGROUP_FLUSHING,
+	/* We started the orphan cleanup for this root. */
+	BTRFS_ROOT_ORPHAN_CLEANUP,
 };
 
 /*
@@ -1177,8 +1174,6 @@ struct btrfs_root {
 
 	spinlock_t log_extents_lock[2];
 	struct list_head logged_list[2];
-
-	int orphan_cleanup_state;
 
 	spinlock_t inode_lock;
 	/* red-black tree that keeps track of in-memory inodes */
