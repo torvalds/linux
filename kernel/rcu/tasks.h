@@ -1132,25 +1132,50 @@ static void rcu_tasks_trace_postscan(struct list_head *hop)
 	// Any tasks that exit after this point will set ->trc_reader_checked.
 }
 
+/* Communicate task state back to the RCU tasks trace stall warning request. */
+struct trc_stall_chk_rdr {
+	int nesting;
+	int ipi_to_cpu;
+	u8 needqs;
+};
+
+static int trc_check_slow_task(struct task_struct *t, void *arg)
+{
+	struct trc_stall_chk_rdr *trc_rdrp = arg;
+
+	if (task_curr(t))
+		return false; // It is running, so decline to inspect it.
+	trc_rdrp->nesting = READ_ONCE(t->trc_reader_nesting);
+	trc_rdrp->ipi_to_cpu = READ_ONCE(t->trc_ipi_to_cpu);
+	trc_rdrp->needqs = READ_ONCE(t->trc_reader_special.b.need_qs);
+	return true;
+}
+
 /* Show the state of a task stalling the current RCU tasks trace GP. */
 static void show_stalled_task_trace(struct task_struct *t, bool *firstreport)
 {
 	int cpu;
+	struct trc_stall_chk_rdr trc_rdr;
+	bool is_idle_tsk = is_idle_task(t);
 
 	if (*firstreport) {
 		pr_err("INFO: rcu_tasks_trace detected stalls on tasks:\n");
 		*firstreport = false;
 	}
-	// FIXME: This should attempt to use try_invoke_on_nonrunning_task().
 	cpu = task_cpu(t);
-	pr_alert("P%d: %c%c%c nesting: %d%c cpu: %d\n",
-		 t->pid,
-		 ".I"[READ_ONCE(t->trc_ipi_to_cpu) >= 0],
-		 ".i"[is_idle_task(t)],
-		 ".N"[cpu >= 0 && tick_nohz_full_cpu(cpu)],
-		 READ_ONCE(t->trc_reader_nesting),
-		 " N"[!!READ_ONCE(t->trc_reader_special.b.need_qs)],
-		 cpu);
+	if (!task_call_func(t, trc_check_slow_task, &trc_rdr))
+		pr_alert("P%d: %c\n",
+			 t->pid,
+			 ".i"[is_idle_tsk]);
+	else
+		pr_alert("P%d: %c%c%c nesting: %d%c cpu: %d\n",
+			 t->pid,
+			 ".I"[trc_rdr.ipi_to_cpu >= 0],
+			 ".i"[is_idle_tsk],
+			 ".N"[cpu >= 0 && tick_nohz_full_cpu(cpu)],
+			 trc_rdr.nesting,
+			 " N"[!!trc_rdr.needqs],
+			 cpu);
 	sched_show_task(t);
 }
 
