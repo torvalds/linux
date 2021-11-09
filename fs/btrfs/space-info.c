@@ -1289,13 +1289,17 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 		}
 	}
 
+	/* Attempt to steal from the global rsv if we can. */
+	if (!steal_from_global_rsv(fs_info, space_info, ticket)) {
+		ticket->error = -ENOSPC;
+		remove_ticket(space_info, ticket);
+	}
+
 	/*
 	 * We must run try_granting_tickets here because we could be a large
 	 * ticket in front of a smaller ticket that can now be satisfied with
 	 * the available space.
 	 */
-	ticket->error = -ENOSPC;
-	remove_ticket(space_info, ticket);
 	btrfs_try_granting_tickets(fs_info, space_info);
 	spin_unlock(&space_info->lock);
 }
@@ -1449,6 +1453,12 @@ static inline void maybe_clamp_preempt(struct btrfs_fs_info *fs_info,
 		space_info->clamp = min(space_info->clamp + 1, 8);
 }
 
+static inline bool can_steal(enum btrfs_reserve_flush_enum flush)
+{
+	return (flush == BTRFS_RESERVE_FLUSH_ALL_STEAL ||
+		flush == BTRFS_RESERVE_FLUSH_EVICT);
+}
+
 /**
  * Try to reserve bytes from the block_rsv's space
  *
@@ -1522,7 +1532,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 		ticket.error = 0;
 		space_info->reclaim_size += ticket.bytes;
 		init_waitqueue_head(&ticket.wait);
-		ticket.steal = (flush == BTRFS_RESERVE_FLUSH_ALL_STEAL);
+		ticket.steal = can_steal(flush);
 		if (trace_btrfs_reserve_ticket_enabled())
 			start_ns = ktime_get_ns();
 
