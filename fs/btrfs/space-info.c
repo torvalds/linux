@@ -1260,7 +1260,7 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 				int states_nr)
 {
 	u64 to_reclaim;
-	int flush_state;
+	int flush_state = 0;
 
 	spin_lock(&space_info->lock);
 	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info, space_info);
@@ -1268,10 +1268,9 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 		spin_unlock(&space_info->lock);
 		return;
 	}
-	spin_unlock(&space_info->lock);
 
-	flush_state = 0;
-	do {
+	while (flush_state < states_nr) {
+		spin_unlock(&space_info->lock);
 		flush_space(fs_info, space_info, to_reclaim, states[flush_state],
 			    false);
 		flush_state++;
@@ -1280,23 +1279,38 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 			spin_unlock(&space_info->lock);
 			return;
 		}
-		spin_unlock(&space_info->lock);
-	} while (flush_state < states_nr);
+	}
+
+	/*
+	 * We must run try_granting_tickets here because we could be a large
+	 * ticket in front of a smaller ticket that can now be satisfied with
+	 * the available space.
+	 */
+	ticket->error = -ENOSPC;
+	remove_ticket(space_info, ticket);
+	btrfs_try_granting_tickets(fs_info, space_info);
+	spin_unlock(&space_info->lock);
 }
 
 static void priority_reclaim_data_space(struct btrfs_fs_info *fs_info,
 					struct btrfs_space_info *space_info,
 					struct reserve_ticket *ticket)
 {
+	spin_lock(&space_info->lock);
 	while (!space_info->full) {
+		spin_unlock(&space_info->lock);
 		flush_space(fs_info, space_info, U64_MAX, ALLOC_CHUNK_FORCE, false);
 		spin_lock(&space_info->lock);
 		if (ticket->bytes == 0) {
 			spin_unlock(&space_info->lock);
 			return;
 		}
-		spin_unlock(&space_info->lock);
 	}
+
+	ticket->error = -ENOSPC;
+	remove_ticket(space_info, ticket);
+	btrfs_try_granting_tickets(fs_info, space_info);
+	spin_unlock(&space_info->lock);
 }
 
 static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
@@ -1378,25 +1392,7 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 		break;
 	}
 
-	spin_lock(&space_info->lock);
 	ret = ticket->error;
-	if (ticket->bytes || ticket->error) {
-		/*
-		 * We were a priority ticket, so we need to delete ourselves
-		 * from the list.  Because we could have other priority tickets
-		 * behind us that require less space, run
-		 * btrfs_try_granting_tickets() to see if their reservations can
-		 * now be made.
-		 */
-		if (!list_empty(&ticket->list)) {
-			remove_ticket(space_info, ticket);
-			btrfs_try_granting_tickets(fs_info, space_info);
-		}
-
-		if (!ret)
-			ret = -ENOSPC;
-	}
-	spin_unlock(&space_info->lock);
 	ASSERT(list_empty(&ticket->list));
 	/*
 	 * Check that we can't have an error set if the reservation succeeded,
