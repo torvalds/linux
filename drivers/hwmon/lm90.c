@@ -356,7 +356,7 @@ static const struct lm90_params lm90_params[] = {
 	[adt7461] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
-		  | LM90_HAVE_CRIT,
+		  | LM90_HAVE_CRIT | LM90_HAVE_PARTIAL_PEC,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},

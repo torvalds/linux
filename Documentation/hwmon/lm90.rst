@@ -322,6 +322,7 @@ ADM1032:
 ADT7461, ADT7461A, NCT1008:
   * Extended temperature range (breaks compatibility)
   * Lower resolution for remote temperature
+  * SMBus PEC support for Write Byte and Receive Byte transactions.
 
 MAX6654:
   * Better local resolution
