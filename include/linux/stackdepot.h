@@ -25,6 +25,8 @@ depot_stack_handle_t stack_depot_save(unsigned long *entries,
 unsigned int stack_depot_fetch(depot_stack_handle_t handle,
 			       unsigned long **entries);
 
+void stack_depot_print(depot_stack_handle_t stack);
+
 #ifdef CONFIG_STACKDEPOT
 int stack_depot_init(void);
 #else
