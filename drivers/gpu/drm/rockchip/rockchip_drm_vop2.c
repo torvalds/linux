@@ -3638,20 +3638,25 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	}
 
 	/*
-	 * This is workaround solution for IC design:
-	 * esmart can't support scale down when actual_w % 16 == 1.
+	 * Workaround only for rk3568 vop
 	 */
-	if (!(win->feature & WIN_FEATURE_AFBDC)) {
-		if (actual_w > dsp_w && (actual_w & 0xf) == 1) {
-			DRM_WARN("vp%d %s act_w[%d] MODE 16 == 1\n", vp->id, win->name, actual_w);
-			actual_w -= 1;
+	if (vop2->version == VOP_VERSION_RK3568) {
+		/*
+		 * This is workaround solution for IC design:
+		 * esmart can't support scale down when actual_w % 16 == 1.
+		 */
+		if (!(win->feature & WIN_FEATURE_AFBDC)) {
+			if (actual_w > dsp_w && (actual_w & 0xf) == 1) {
+				DRM_WARN("vp%d %s act_w[%d] MODE 16 == 1\n", vp->id, win->name, actual_w);
+				actual_w -= 1;
+			}
 		}
-	}
 
-	if (vpstate->afbc_en && actual_w % 4) {
-		DRM_ERROR("vp%d %s actual_w[%d] should align as 4 pixel when enable afbc\n",
-			  vp->id, win->name, actual_w);
-		actual_w = ALIGN_DOWN(actual_w, 4);
+		if (vpstate->afbc_en && actual_w % 4) {
+			DRM_ERROR("vp%d %s actual_w[%d] should align as 4 pixel when enable afbc\n",
+				  vp->id, win->name, actual_w);
+			actual_w = ALIGN_DOWN(actual_w, 4);
+		}
 	}
 
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
