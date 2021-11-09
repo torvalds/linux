@@ -476,7 +476,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 			   const char *devname,
 			   void *data)
 {
-	int ret = -EINVAL;
+	int ret;
 	struct super_block *sb = ERR_PTR(-EINVAL);
 	struct orangefs_kernel_op_s *new_op;
 	struct dentry *d = ERR_PTR(-EINVAL);
@@ -527,7 +527,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	sb->s_fs_info = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
 	if (!ORANGEFS_SB(sb)) {
 		d = ERR_PTR(-ENOMEM);
-		goto free_op;
+		goto free_sb_and_op;
 	}
 
 	ret = orangefs_fill_sb(sb,
