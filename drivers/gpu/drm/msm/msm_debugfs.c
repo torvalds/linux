@@ -134,8 +134,10 @@ DEFINE_SIMPLE_ATTRIBUTE(shrink_fops,
 			"0x%08llx\n");
 
 
-static int msm_gem_show(struct drm_device *dev, struct seq_file *m)
+static int msm_gem_show(struct seq_file *m, void *arg)
 {
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
 
@@ -150,8 +152,10 @@ static int msm_gem_show(struct drm_device *dev, struct seq_file *m)
 	return 0;
 }
 
-static int msm_mm_show(struct drm_device *dev, struct seq_file *m)
+static int msm_mm_show(struct seq_file *m, void *arg)
 {
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
@@ -159,8 +163,10 @@ static int msm_mm_show(struct drm_device *dev, struct seq_file *m)
 	return 0;
 }
 
-static int msm_fb_show(struct drm_device *dev, struct seq_file *m)
+static int msm_fb_show(struct seq_file *m, void *arg)
 {
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb, *fbdev_fb = NULL;
 
@@ -183,29 +189,10 @@ static int msm_fb_show(struct drm_device *dev, struct seq_file *m)
 	return 0;
 }
 
-static int show_locked(struct seq_file *m, void *arg)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	int (*show)(struct drm_device *dev, struct seq_file *m) =
-			node->info_ent->data;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	ret = show(dev, m);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
-}
-
 static struct drm_info_list msm_debugfs_list[] = {
-		{"gem", show_locked, 0, msm_gem_show},
-		{ "mm", show_locked, 0, msm_mm_show },
-		{ "fb", show_locked, 0, msm_fb_show },
+		{"gem", msm_gem_show},
+		{ "mm", msm_mm_show },
+		{ "fb", msm_fb_show },
 };
 
 static int late_init_minor(struct drm_minor *minor)
