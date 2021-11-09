@@ -1476,25 +1476,6 @@ void evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
 	count->run = count->run - tmp.run;
 }
 
-void perf_counts_values__scale(struct perf_counts_values *count,
-			       bool scale, s8 *pscaled)
-{
-	s8 scaled = 0;
-
-	if (scale) {
-		if (count->run == 0) {
-			scaled = -1;
-			count->val = 0;
-		} else if (count->run < count->ena) {
-			scaled = 1;
-			count->val = (u64)((double) count->val * count->ena / count->run);
-		}
-	}
-
-	if (pscaled)
-		*pscaled = scaled;
-}
-
 static int evsel__read_one(struct evsel *evsel, int cpu, int thread)
 {
 	struct perf_counts_values *count = perf_counts(evsel->counts, cpu, thread);
