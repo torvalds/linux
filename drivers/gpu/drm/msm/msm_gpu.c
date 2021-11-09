@@ -150,7 +150,7 @@ int msm_gpu_hw_init(struct msm_gpu *gpu)
 {
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&gpu->dev->struct_mutex));
+	WARN_ON(!mutex_is_locked(&gpu->lock));
 
 	if (!gpu->needs_hw_init)
 		return 0;
@@ -361,7 +361,7 @@ static void recover_worker(struct kthread_work *work)
 	char *comm = NULL, *cmd = NULL;
 	int i;
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&gpu->lock);
 
 	DRM_DEV_ERROR(dev->dev, "%s: hangcheck recover!\n", gpu->name);
 
@@ -442,7 +442,7 @@ static void recover_worker(struct kthread_work *work)
 		}
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&gpu->lock);
 
 	msm_gpu_retire(gpu);
 }
@@ -450,12 +450,11 @@ static void recover_worker(struct kthread_work *work)
 static void fault_worker(struct kthread_work *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, fault_work);
-	struct drm_device *dev = gpu->dev;
 	struct msm_gem_submit *submit;
 	struct msm_ringbuffer *cur_ring = gpu->funcs->active_ring(gpu);
 	char *comm = NULL, *cmd = NULL;
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&gpu->lock);
 
 	submit = find_submit(cur_ring, cur_ring->memptrs->fence + 1);
 	if (submit && submit->fault_dumped)
@@ -490,7 +489,7 @@ resume_smmu:
 	memset(&gpu->fault_info, 0, sizeof(gpu->fault_info));
 	gpu->aspace->mmu->funcs->resume_translation(gpu->aspace->mmu);
 
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&gpu->lock);
 }
 
 static void hangcheck_timer_reset(struct msm_gpu *gpu)
@@ -733,7 +732,7 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	struct msm_ringbuffer *ring = submit->ring;
 	unsigned long flags;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!mutex_is_locked(&gpu->lock));
 
 	pm_runtime_get_sync(&gpu->pdev->dev);
 
@@ -848,6 +847,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	INIT_LIST_HEAD(&gpu->active_list);
 	mutex_init(&gpu->active_lock);
+	mutex_init(&gpu->lock);
 	kthread_init_work(&gpu->retire_work, retire_worker);
 	kthread_init_work(&gpu->recover_work, recover_worker);
 	kthread_init_work(&gpu->fault_work, fault_worker);
