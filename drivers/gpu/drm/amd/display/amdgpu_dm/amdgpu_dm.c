@@ -2561,6 +2561,20 @@ static int dm_resume(void *handle)
 	if (amdgpu_in_reset(adev)) {
 		dc_state = dm->cached_dc_state;
 
+		/*
+		 * The dc->current_state is backed up into dm->cached_dc_state
+		 * before we commit 0 streams.
+		 *
+		 * DC will clear link encoder assignments on the real state
+		 * but the changes won't propagate over to the copy we made
+		 * before the 0 streams commit.
+		 *
+		 * DC expects that link encoder assignments are *not* valid
+		 * when committing a state, so as a workaround it needs to be
+		 * cleared here.
+		 */
+		link_enc_cfg_init(dm->dc, dc_state);
+
 		amdgpu_dm_outbox_init(adev);
 
 		r = dm_dmub_hw_init(adev);
