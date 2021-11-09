@@ -251,6 +251,30 @@ void blk_mq_quiesce_queue_nowait(struct request_queue *q)
 EXPORT_SYMBOL_GPL(blk_mq_quiesce_queue_nowait);
 
 /**
+ * blk_mq_wait_quiesce_done() - wait until in-progress quiesce is done
+ * @q: request queue.
+ *
+ * Note: it is driver's responsibility for making sure that quiesce has
+ * been started.
+ */
+void blk_mq_wait_quiesce_done(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx;
+	unsigned int i;
+	bool rcu = false;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (hctx->flags & BLK_MQ_F_BLOCKING)
+			synchronize_srcu(hctx->srcu);
+		else
+			rcu = true;
+	}
+	if (rcu)
+		synchronize_rcu();
+}
+EXPORT_SYMBOL_GPL(blk_mq_wait_quiesce_done);
+
+/**
  * blk_mq_quiesce_queue() - wait until all ongoing dispatches have finished
  * @q: request queue.
  *
@@ -261,20 +285,8 @@ EXPORT_SYMBOL_GPL(blk_mq_quiesce_queue_nowait);
  */
 void blk_mq_quiesce_queue(struct request_queue *q)
 {
-	struct blk_mq_hw_ctx *hctx;
-	unsigned int i;
-	bool rcu = false;
-
 	blk_mq_quiesce_queue_nowait(q);
-
-	queue_for_each_hw_ctx(q, hctx, i) {
-		if (hctx->flags & BLK_MQ_F_BLOCKING)
-			synchronize_srcu(hctx->srcu);
-		else
-			rcu = true;
-	}
-	if (rcu)
-		synchronize_rcu();
+	blk_mq_wait_quiesce_done(q);
 }
 EXPORT_SYMBOL_GPL(blk_mq_quiesce_queue);
 
@@ -405,12 +417,15 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data,
 	for (i = 0; tag_mask; i++) {
 		if (!(tag_mask & (1UL << i)))
 			continue;
-		prefetch(tags->static_rqs[tag]);
 		tag = tag_offset + i;
+		prefetch(tags->static_rqs[tag]);
 		tag_mask &= ~(1UL << i);
 		rq = blk_mq_rq_ctx_init(data, tags, tag, alloc_time_ns);
 		rq_list_add(data->cached_rq, rq);
+		nr++;
 	}
+	/* caller already holds a reference, add for remainder */
+	percpu_ref_get_many(&data->q->q_usage_counter, nr - 1);
 	data->nr_tags -= nr;
 
 	return rq_list_pop(data->cached_rq);
@@ -419,7 +434,6 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data,
 static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 {
 	struct request_queue *q = data->q;
-	struct elevator_queue *e = q->elevator;
 	u64 alloc_time_ns = 0;
 	struct request *rq;
 	unsigned int tag;
@@ -431,7 +445,11 @@ static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 	if (data->cmd_flags & REQ_NOWAIT)
 		data->flags |= BLK_MQ_REQ_NOWAIT;
 
-	if (e) {
+	if (q->elevator) {
+		struct elevator_queue *e = q->elevator;
+
+		data->rq_flags |= RQF_ELV;
+
 		/*
 		 * Flush/passthrough requests are special and go directly to the
 		 * dispatch list. Don't include reserved tags in the
@@ -447,7 +465,7 @@ static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 retry:
 	data->ctx = blk_mq_get_ctx(q);
 	data->hctx = blk_mq_map_queue(q, data->cmd_flags, data->ctx);
-	if (!e)
+	if (!(data->rq_flags & RQF_ELV))
 		blk_mq_tag_busy(data->hctx);
 
 	/*
@@ -490,7 +508,6 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 		.q		= q,
 		.flags		= flags,
 		.cmd_flags	= op,
-		.rq_flags	= q->elevator ? RQF_ELV : 0,
 		.nr_tags	= 1,
 	};
 	struct request *rq;
@@ -520,7 +537,6 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 		.q		= q,
 		.flags		= flags,
 		.cmd_flags	= op,
-		.rq_flags	= q->elevator ? RQF_ELV : 0,
 		.nr_tags	= 1,
 	};
 	u64 alloc_time_ns = 0;
@@ -561,6 +577,8 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 
 	if (!q->elevator)
 		blk_mq_tag_busy(data.hctx);
+	else
+		data.rq_flags |= RQF_ELV;
 
 	ret = -EWOULDBLOCK;
 	tag = blk_mq_get_tag(&data);
@@ -627,10 +645,8 @@ void blk_mq_free_plug_rqs(struct blk_plug *plug)
 {
 	struct request *rq;
 
-	while ((rq = rq_list_pop(&plug->cached_rq)) != NULL) {
-		percpu_ref_get(&rq->q->q_usage_counter);
+	while ((rq = rq_list_pop(&plug->cached_rq)) != NULL)
 		blk_mq_free_request(rq);
-	}
 }
 
 static void req_bio_endio(struct request *rq, struct bio *bio,
@@ -814,6 +830,13 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 					  int *tag_array, int nr_tags)
 {
 	struct request_queue *q = hctx->queue;
+
+	/*
+	 * All requests should have been marked as RQF_MQ_INFLIGHT, so
+	 * update hctx->nr_active in batch
+	 */
+	if (hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED)
+		__blk_mq_sub_active_requests(hctx, nr_tags);
 
 	blk_mq_put_tags(hctx->tags, tag_array, nr_tags);
 	percpu_ref_put_many(&q->q_usage_counter, nr_tags);
@@ -2232,7 +2255,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	plug->rq_count = 0;
 
 	if (!plug->multiple_queues && !plug->has_elevator && !from_schedule) {
-		blk_mq_plug_issue_direct(plug, from_schedule);
+		blk_mq_plug_issue_direct(plug, false);
 		if (rq_list_empty(plug->mq_list))
 			return;
 	}
@@ -2472,6 +2495,83 @@ static inline unsigned short blk_plug_max_rq_count(struct blk_plug *plug)
 	return BLK_MAX_REQUEST_COUNT;
 }
 
+static bool blk_attempt_bio_merge(struct request_queue *q, struct bio *bio,
+				  unsigned int nr_segs, bool *same_queue_rq)
+{
+	if (!blk_queue_nomerges(q) && bio_mergeable(bio)) {
+		if (blk_attempt_plug_merge(q, bio, nr_segs, same_queue_rq))
+			return true;
+		if (blk_mq_sched_bio_merge(q, bio, nr_segs))
+			return true;
+	}
+	return false;
+}
+
+static struct request *blk_mq_get_new_requests(struct request_queue *q,
+					       struct blk_plug *plug,
+					       struct bio *bio,
+					       unsigned int nsegs,
+					       bool *same_queue_rq)
+{
+	struct blk_mq_alloc_data data = {
+		.q		= q,
+		.nr_tags	= 1,
+		.cmd_flags	= bio->bi_opf,
+	};
+	struct request *rq;
+
+	if (unlikely(bio_queue_enter(bio)))
+		return NULL;
+	if (unlikely(!submit_bio_checks(bio)))
+		goto put_exit;
+	if (blk_attempt_bio_merge(q, bio, nsegs, same_queue_rq))
+		goto put_exit;
+
+	rq_qos_throttle(q, bio);
+
+	if (plug) {
+		data.nr_tags = plug->nr_ios;
+		plug->nr_ios = 1;
+		data.cached_rq = &plug->cached_rq;
+	}
+
+	rq = __blk_mq_alloc_requests(&data);
+	if (rq)
+		return rq;
+
+	rq_qos_cleanup(q, bio);
+	if (bio->bi_opf & REQ_NOWAIT)
+		bio_wouldblock_error(bio);
+put_exit:
+	blk_queue_exit(q);
+	return NULL;
+}
+
+static inline struct request *blk_mq_get_request(struct request_queue *q,
+						 struct blk_plug *plug,
+						 struct bio *bio,
+						 unsigned int nsegs,
+						 bool *same_queue_rq)
+{
+	if (plug) {
+		struct request *rq;
+
+		rq = rq_list_peek(&plug->cached_rq);
+		if (rq && rq->q == q) {
+			if (unlikely(!submit_bio_checks(bio)))
+				return NULL;
+			if (blk_attempt_bio_merge(q, bio, nsegs, same_queue_rq))
+				return NULL;
+			plug->cached_rq = rq_list_next(rq);
+			INIT_LIST_HEAD(&rq->queuelist);
+			rq_qos_throttle(q, bio);
+			return rq;
+		}
+	}
+
+	return blk_mq_get_new_requests(q, plug, bio, nsegs, same_queue_rq);
+}
+
 /**
  * blk_mq_submit_bio - Create and send a request to block device.
  * @bio: Bio pointer.
@@ -2495,47 +2595,20 @@ void blk_mq_submit_bio(struct bio *bio)
 	unsigned int nr_segs = 1;
 	blk_status_t ret;
 
+	if (unlikely(!blk_crypto_bio_prep(&bio)))
+		return;
+
 	blk_queue_bounce(q, &bio);
 	if (blk_may_split(q, bio))
 		__blk_queue_split(q, &bio, &nr_segs);
 
 	if (!bio_integrity_prep(bio))
-		goto queue_exit;
-
-	if (!blk_queue_nomerges(q) && bio_mergeable(bio)) {
-		if (blk_attempt_plug_merge(q, bio, nr_segs, &same_queue_rq))
-			goto queue_exit;
-		if (blk_mq_sched_bio_merge(q, bio, nr_segs))
-			goto queue_exit;
-	}
-
-	rq_qos_throttle(q, bio);
+		return;
 
 	plug = blk_mq_plug(q, bio);
-	if (plug && plug->cached_rq) {
-		rq = rq_list_pop(&plug->cached_rq);
-		INIT_LIST_HEAD(&rq->queuelist);
-	} else {
-		struct blk_mq_alloc_data data = {
-			.q		= q,
-			.nr_tags	= 1,
-			.cmd_flags	= bio->bi_opf,
-			.rq_flags	= q->elevator ? RQF_ELV : 0,
-		};
-
-		if (plug) {
-			data.nr_tags = plug->nr_ios;
-			plug->nr_ios = 1;
-			data.cached_rq = &plug->cached_rq;
-		}
-		rq = __blk_mq_alloc_requests(&data);
-		if (unlikely(!rq)) {
-			rq_qos_cleanup(q, bio);
-			if (bio->bi_opf & REQ_NOWAIT)
-				bio_wouldblock_error(bio);
-			goto queue_exit;
-		}
-	}
+	rq = blk_mq_get_request(q, plug, bio, nr_segs, &same_queue_rq);
+	if (unlikely(!rq))
+		return;
 
 	trace_block_getrq(bio);
 
@@ -2616,10 +2689,6 @@ void blk_mq_submit_bio(struct bio *bio)
 		/* Default case. */
 		blk_mq_sched_insert_request(rq, false, true, true);
 	}
-
-	return;
-queue_exit:
-	blk_queue_exit(q);
 }
 
 static size_t order_to_size(unsigned int order)
@@ -3605,7 +3674,6 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 		struct blk_mq_hw_ctx *hctx = hctxs[j];
 
 		if (hctx) {
-			__blk_mq_free_map_and_rqs(set, j);
 			blk_mq_exit_hctx(q, set, hctx, j);
 			hctxs[j] = NULL;
 		}
@@ -4113,8 +4181,13 @@ fallback:
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_realloc_hw_ctxs(set, q);
 		if (q->nr_hw_queues != set->nr_hw_queues) {
+			int i = prev_nr_hw_queues;
+
 			pr_warn("Increasing nr_hw_queues to %d fails, fallback to %d\n",
 					nr_hw_queues, prev_nr_hw_queues);
+			for (; i < set->nr_hw_queues; i++)
+				__blk_mq_free_map_and_rqs(set, i);
+
 			set->nr_hw_queues = prev_nr_hw_queues;
 			blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
 			goto fallback;

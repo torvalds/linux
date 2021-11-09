@@ -225,12 +225,18 @@ static inline void __blk_mq_inc_active_requests(struct blk_mq_hw_ctx *hctx)
 		atomic_inc(&hctx->nr_active);
 }
 
-static inline void __blk_mq_dec_active_requests(struct blk_mq_hw_ctx *hctx)
+static inline void __blk_mq_sub_active_requests(struct blk_mq_hw_ctx *hctx,
+		int val)
 {
 	if (blk_mq_is_shared_tags(hctx->flags))
-		atomic_dec(&hctx->queue->nr_active_requests_shared_tags);
+		atomic_sub(val, &hctx->queue->nr_active_requests_shared_tags);
 	else
-		atomic_dec(&hctx->nr_active);
+		atomic_sub(val, &hctx->nr_active);
+}
+
+static inline void __blk_mq_dec_active_requests(struct blk_mq_hw_ctx *hctx)
+{
+	__blk_mq_sub_active_requests(hctx, 1);
 }
 
 static inline int __blk_mq_active_requests(struct blk_mq_hw_ctx *hctx)

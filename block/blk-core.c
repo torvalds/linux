@@ -386,30 +386,6 @@ void blk_cleanup_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
 
-static bool blk_try_enter_queue(struct request_queue *q, bool pm)
-{
-	rcu_read_lock();
-	if (!percpu_ref_tryget_live_rcu(&q->q_usage_counter))
-		goto fail;
-
-	/*
-	 * The code that increments the pm_only counter must ensure that the
-	 * counter is globally visible before the queue is unfrozen.
-	 */
-	if (blk_queue_pm_only(q) &&
-	    (!pm || queue_rpm_status(q) == RPM_SUSPENDED))
-		goto fail_put;
-
-	rcu_read_unlock();
-	return true;
-
-fail_put:
-	blk_queue_exit(q);
-fail:
-	rcu_read_unlock();
-	return false;
-}
-
 /**
  * blk_queue_enter() - try to increase q->q_usage_counter
  * @q: request queue pointer
@@ -442,10 +418,8 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 	return 0;
 }
 
-static inline int bio_queue_enter(struct bio *bio)
+int __bio_queue_enter(struct request_queue *q, struct bio *bio)
 {
-	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-
 	while (!blk_try_enter_queue(q, false)) {
 		struct gendisk *disk = bio->bi_bdev->bd_disk;
 
@@ -742,7 +716,7 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 	return BLK_STS_OK;
 }
 
-static noinline_for_stack bool submit_bio_checks(struct bio *bio)
+noinline_for_stack bool submit_bio_checks(struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
@@ -860,22 +834,23 @@ end_io:
 	return false;
 }
 
+static void __submit_bio_fops(struct gendisk *disk, struct bio *bio)
+{
+	if (unlikely(bio_queue_enter(bio) != 0))
+		return;
+	if (submit_bio_checks(bio) && blk_crypto_bio_prep(&bio))
+		disk->fops->submit_bio(bio);
+	blk_queue_exit(disk->queue);
+}
+
 static void __submit_bio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
 
-	if (unlikely(bio_queue_enter(bio) != 0))
-		return;
-
-	if (!submit_bio_checks(bio) || !blk_crypto_bio_prep(&bio))
-		goto queue_exit;
-	if (!disk->fops->submit_bio) {
+	if (!disk->fops->submit_bio)
 		blk_mq_submit_bio(bio);
-		return;
-	}
-	disk->fops->submit_bio(bio);
-queue_exit:
-	blk_queue_exit(disk->queue);
+	else
+		__submit_bio_fops(disk, bio);
 }
 
 /*
@@ -1615,7 +1590,13 @@ void blk_flush_plug(struct blk_plug *plug, bool from_schedule)
 		flush_plug_callbacks(plug, from_schedule);
 	if (!rq_list_empty(plug->mq_list))
 		blk_mq_flush_plug_list(plug, from_schedule);
-	if (unlikely(!from_schedule && plug->cached_rq))
+	/*
+	 * Unconditionally flush out cached requests, even if the unplug
+	 * event came from schedule. Since we know hold references to the
+	 * queue for cached requests, we don't want a blocked task holding
+	 * up a queue freeze/quiesce event.
+	 */
+	if (unlikely(!rq_list_empty(plug->cached_rq)))
 		blk_mq_free_plug_rqs(plug);
 }
 

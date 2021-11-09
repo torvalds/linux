@@ -1101,9 +1101,11 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		 * the same queue, there should be only one such rq in a queue
 		 */
 		*same_queue_rq = true;
+
+		if (blk_attempt_bio_merge(q, rq, bio, nr_segs, false) ==
+				BIO_MERGE_OK)
+			return true;
 	}
-	if (blk_attempt_bio_merge(q, rq, bio, nr_segs, false) == BIO_MERGE_OK)
-		return true;
 	return false;
 }
 
