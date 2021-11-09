@@ -116,7 +116,7 @@ u64 entry_attr_timeout(struct fuse_entry_out *o)
 	return time_to_jiffies(o->attr_valid, o->attr_valid_nsec);
 }
 
-static void fuse_invalidate_attr_mask(struct inode *inode, u32 mask)
+void fuse_invalidate_attr_mask(struct inode *inode, u32 mask)
 {
 	set_mask_bits(&get_fuse_inode(inode)->inval_mask, 0, mask);
 }
@@ -738,12 +738,49 @@ static int fuse_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 	return create_new_entry(fm, &args, dir, entry, S_IFLNK);
 }
 
-void fuse_update_ctime(struct inode *inode)
+void fuse_flush_time_update(struct inode *inode)
+{
+	int err = sync_inode_metadata(inode, 1);
+
+	mapping_set_error(inode->i_mapping, err);
+}
+
+static void fuse_update_ctime_in_cache(struct inode *inode)
 {
 	if (!IS_NOCMTIME(inode)) {
 		inode->i_ctime = current_time(inode);
 		mark_inode_dirty_sync(inode);
+		fuse_flush_time_update(inode);
 	}
+}
+
+void fuse_update_ctime(struct inode *inode)
+{
+	fuse_invalidate_attr_mask(inode, STATX_CTIME);
+	fuse_update_ctime_in_cache(inode);
+}
+
+static void fuse_entry_unlinked(struct dentry *entry)
+{
+	struct inode *inode = d_inode(entry);
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
+	spin_lock(&fi->lock);
+	fi->attr_version = atomic64_inc_return(&fc->attr_version);
+	/*
+	 * If i_nlink == 0 then unlink doesn't make sense, yet this can
+	 * happen if userspace filesystem is careless.  It would be
+	 * difficult to enforce correct nlink usage so just ignore this
+	 * condition here
+	 */
+	if (S_ISDIR(inode->i_mode))
+		clear_nlink(inode);
+	else if (inode->i_nlink > 0)
+		drop_nlink(inode);
+	spin_unlock(&fi->lock);
+	fuse_invalidate_entry_cache(entry);
+	fuse_update_ctime(inode);
 }
 
 static int fuse_unlink(struct inode *dir, struct dentry *entry)
@@ -762,24 +799,8 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 	args.in_args[0].value = entry->d_name.name;
 	err = fuse_simple_request(fm, &args);
 	if (!err) {
-		struct inode *inode = d_inode(entry);
-		struct fuse_inode *fi = get_fuse_inode(inode);
-
-		spin_lock(&fi->lock);
-		fi->attr_version = atomic64_inc_return(&fm->fc->attr_version);
-		/*
-		 * If i_nlink == 0 then unlink doesn't make sense, yet this can
-		 * happen if userspace filesystem is careless.  It would be
-		 * difficult to enforce correct nlink usage so just ignore this
-		 * condition here
-		 */
-		if (inode->i_nlink > 0)
-			drop_nlink(inode);
-		spin_unlock(&fi->lock);
-		fuse_invalidate_attr(inode);
 		fuse_dir_changed(dir);
-		fuse_invalidate_entry_cache(entry);
-		fuse_update_ctime(inode);
+		fuse_entry_unlinked(entry);
 	} else if (err == -EINTR)
 		fuse_invalidate_entry(entry);
 	return err;
@@ -801,9 +822,8 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	args.in_args[0].value = entry->d_name.name;
 	err = fuse_simple_request(fm, &args);
 	if (!err) {
-		clear_nlink(d_inode(entry));
 		fuse_dir_changed(dir);
-		fuse_invalidate_entry_cache(entry);
+		fuse_entry_unlinked(entry);
 	} else if (err == -EINTR)
 		fuse_invalidate_entry(entry);
 	return err;
@@ -833,24 +853,18 @@ static int fuse_rename_common(struct inode *olddir, struct dentry *oldent,
 	err = fuse_simple_request(fm, &args);
 	if (!err) {
 		/* ctime changes */
-		fuse_invalidate_attr(d_inode(oldent));
 		fuse_update_ctime(d_inode(oldent));
 
-		if (flags & RENAME_EXCHANGE) {
-			fuse_invalidate_attr(d_inode(newent));
+		if (flags & RENAME_EXCHANGE)
 			fuse_update_ctime(d_inode(newent));
-		}
 
 		fuse_dir_changed(olddir);
 		if (olddir != newdir)
 			fuse_dir_changed(newdir);
 
 		/* newent will end up negative */
-		if (!(flags & RENAME_EXCHANGE) && d_really_is_positive(newent)) {
-			fuse_invalidate_attr(d_inode(newent));
-			fuse_invalidate_entry_cache(newent);
-			fuse_update_ctime(d_inode(newent));
-		}
+		if (!(flags & RENAME_EXCHANGE) && d_really_is_positive(newent))
+			fuse_entry_unlinked(newent);
 	} else if (err == -EINTR) {
 		/* If request was interrupted, DEITY only knows if the
 		   rename actually took place.  If the invalidation
@@ -916,25 +930,11 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 	args.in_args[1].size = newent->d_name.len + 1;
 	args.in_args[1].value = newent->d_name.name;
 	err = create_new_entry(fm, &args, newdir, newent, inode->i_mode);
-	/* Contrary to "normal" filesystems it can happen that link
-	   makes two "logical" inodes point to the same "physical"
-	   inode.  We invalidate the attributes of the old one, so it
-	   will reflect changes in the backing inode (link count,
-	   etc.)
-	*/
-	if (!err) {
-		struct fuse_inode *fi = get_fuse_inode(inode);
+	if (!err)
+		fuse_update_ctime_in_cache(inode);
+	else if (err == -EINTR)
+		fuse_invalidate_attr(inode);
 
-		spin_lock(&fi->lock);
-		fi->attr_version = atomic64_inc_return(&fm->fc->attr_version);
-		if (likely(inode->i_nlink < UINT_MAX))
-			inc_nlink(inode);
-		spin_unlock(&fi->lock);
-		fuse_invalidate_attr(inode);
-		fuse_update_ctime(inode);
-	} else if (err == -EINTR) {
-		fuse_invalidate_attr(inode);
-	}
 	return err;
 }
 
@@ -943,15 +943,6 @@ static void fuse_fillattr(struct inode *inode, struct fuse_attr *attr,
 {
 	unsigned int blkbits;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-
-	/* see the comment in fuse_change_attributes() */
-	if (fc->writeback_cache && S_ISREG(inode->i_mode)) {
-		attr->size = i_size_read(inode);
-		attr->mtime = inode->i_mtime.tv_sec;
-		attr->mtimensec = inode->i_mtime.tv_nsec;
-		attr->ctime = inode->i_ctime.tv_sec;
-		attr->ctimensec = inode->i_ctime.tv_nsec;
-	}
 
 	stat->dev = inode->i_sb->s_dev;
 	stat->ino = attr->ino;
@@ -1030,12 +1021,14 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	int err = 0;
 	bool sync;
+	u32 inval_mask = READ_ONCE(fi->inval_mask);
+	u32 cache_mask = fuse_get_cache_mask(inode);
 
 	if (flags & AT_STATX_FORCE_SYNC)
 		sync = true;
 	else if (flags & AT_STATX_DONT_SYNC)
 		sync = false;
-	else if (request_mask & READ_ONCE(fi->inval_mask))
+	else if (request_mask & inval_mask & ~cache_mask)
 		sync = true;
 	else
 		sync = time_before64(fi->i_time, get_jiffies_64());
@@ -1052,11 +1045,9 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 	return err;
 }
 
-int fuse_update_attributes(struct inode *inode, struct file *file)
+int fuse_update_attributes(struct inode *inode, struct file *file, u32 mask)
 {
-	/* Do *not* need to get atime for internal purposes */
-	return fuse_update_get_attr(inode, file, NULL,
-				    STATX_BASIC_STATS & ~STATX_ATIME, 0);
+	return fuse_update_get_attr(inode, file, NULL, mask, 0);
 }
 
 int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
@@ -1071,7 +1062,7 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 	if (!parent)
 		return -ENOENT;
 
-	inode_lock(parent);
+	inode_lock_nested(parent, I_MUTEX_PARENT);
 	if (!S_ISDIR(parent->i_mode))
 		goto unlock;
 
@@ -1561,10 +1552,10 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	struct fuse_setattr_in inarg;
 	struct fuse_attr_out outarg;
 	bool is_truncate = false;
-	bool is_wb = fc->writeback_cache;
+	bool is_wb = fc->writeback_cache && S_ISREG(inode->i_mode);
 	loff_t oldsize;
 	int err;
-	bool trust_local_cmtime = is_wb && S_ISREG(inode->i_mode);
+	bool trust_local_cmtime = is_wb;
 	bool fault_blocked = false;
 
 	if (!fc->default_permissions)
@@ -1608,7 +1599,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	}
 
 	/* Flush dirty data/metadata before non-truncate SETATTR */
-	if (is_wb && S_ISREG(inode->i_mode) &&
+	if (is_wb &&
 	    attr->ia_valid &
 			(ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_MTIME_SET |
 			 ATTR_TIMES_SET)) {
@@ -1676,10 +1667,11 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	}
 
 	fuse_change_attributes_common(inode, &outarg.attr,
-				      attr_timeout(&outarg));
+				      attr_timeout(&outarg),
+				      fuse_get_cache_mask(inode));
 	oldsize = inode->i_size;
 	/* see the comment in fuse_change_attributes() */
-	if (!is_wb || is_truncate || !S_ISREG(inode->i_mode))
+	if (!is_wb || is_truncate)
 		i_size_write(inode, outarg.attr.size);
 
 	if (is_truncate) {

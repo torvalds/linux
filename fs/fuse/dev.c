@@ -756,7 +756,7 @@ static int fuse_copy_do(struct fuse_copy_state *cs, void **val, unsigned *size)
 {
 	unsigned ncpy = min(*size, cs->len);
 	if (val) {
-		void *pgaddr = kmap_atomic(cs->pg);
+		void *pgaddr = kmap_local_page(cs->pg);
 		void *buf = pgaddr + cs->offset;
 
 		if (cs->write)
@@ -764,7 +764,7 @@ static int fuse_copy_do(struct fuse_copy_state *cs, void **val, unsigned *size)
 		else
 			memcpy(*val, buf, ncpy);
 
-		kunmap_atomic(pgaddr);
+		kunmap_local(pgaddr);
 		*val += ncpy;
 	}
 	*size -= ncpy;
@@ -846,6 +846,12 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 		goto out_fallback_unlock;
 
 	replace_page_cache_page(oldpage, newpage);
+
+	/*
+	 * Release while we have extra ref on stolen page.  Otherwise
+	 * anon_pipe_buf_release() might think the page can be reused.
+	 */
+	pipe_buf_release(cs->pipe, buf);
 
 	get_page(newpage);
 
@@ -949,10 +955,10 @@ static int fuse_copy_page(struct fuse_copy_state *cs, struct page **pagep,
 			}
 		}
 		if (page) {
-			void *mapaddr = kmap_atomic(page);
+			void *mapaddr = kmap_local_page(page);
 			void *buf = mapaddr + offset;
 			offset += fuse_copy_do(cs, &buf, &count);
-			kunmap_atomic(mapaddr);
+			kunmap_local(mapaddr);
 		} else
 			offset += fuse_copy_do(cs, NULL, &count);
 	}
@@ -1591,7 +1597,7 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 	end = outarg.offset + outarg.size;
 	if (end > file_size) {
 		file_size = end;
-		fuse_write_update_size(inode, file_size);
+		fuse_write_update_attr(inode, file_size, outarg.size);
 	}
 
 	num = outarg.size;
@@ -2031,8 +2037,12 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 
 	pipe_lock(pipe);
 out_free:
-	for (idx = 0; idx < nbuf; idx++)
-		pipe_buf_release(pipe, &bufs[idx]);
+	for (idx = 0; idx < nbuf; idx++) {
+		struct pipe_buffer *buf = &bufs[idx];
+
+		if (buf->ops)
+			pipe_buf_release(pipe, buf);
+	}
 	pipe_unlock(pipe);
 
 	kvfree(bufs);

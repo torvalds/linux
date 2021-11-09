@@ -649,7 +649,7 @@ static void virtio_fs_vq_done(struct virtqueue *vq)
 static void virtio_fs_init_vq(struct virtio_fs_vq *fsvq, char *name,
 			      int vq_type)
 {
-	strncpy(fsvq->name, name, VQ_NAME_LEN);
+	strscpy(fsvq->name, name, VQ_NAME_LEN);
 	spin_lock_init(&fsvq->lock);
 	INIT_LIST_HEAD(&fsvq->queued_reqs);
 	INIT_LIST_HEAD(&fsvq->end_reqs);
