@@ -53,8 +53,9 @@ config SPARC32
 	def_bool !64BIT
 	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
-	select GENERIC_ATOMIC64
 	select CLZ_TAB
+	select DMA_DIRECT_REMAP
+	select GENERIC_ATOMIC64
 	select HAVE_UID16
 	select OLD_SIGACTION
 	select ZONE_DMA
