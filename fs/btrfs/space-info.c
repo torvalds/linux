@@ -1264,7 +1264,13 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 
 	spin_lock(&space_info->lock);
 	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info, space_info);
-	if (!to_reclaim) {
+	/*
+	 * This is the priority reclaim path, so to_reclaim could be >0 still
+	 * because we may have only satisified the priority tickets and still
+	 * left non priority tickets on the list.  We would then have
+	 * to_reclaim but ->bytes == 0.
+	 */
+	if (ticket->bytes == 0) {
 		spin_unlock(&space_info->lock);
 		return;
 	}
@@ -1297,6 +1303,13 @@ static void priority_reclaim_data_space(struct btrfs_fs_info *fs_info,
 					struct reserve_ticket *ticket)
 {
 	spin_lock(&space_info->lock);
+
+	/* We could have been granted before we got here. */
+	if (ticket->bytes == 0) {
+		spin_unlock(&space_info->lock);
+		return;
+	}
+
 	while (!space_info->full) {
 		spin_unlock(&space_info->lock);
 		flush_space(fs_info, space_info, U64_MAX, ALLOC_CHUNK_FORCE, false);
