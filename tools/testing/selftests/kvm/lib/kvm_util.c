@@ -2087,6 +2087,27 @@ int vcpu_access_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 }
 
 /*
+ * IRQ related functions.
+ */
+
+int _kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level)
+{
+	struct kvm_irq_level irq_level = {
+		.irq    = irq,
+		.level  = level,
+	};
+
+	return _vm_ioctl(vm, KVM_IRQ_LINE, &irq_level);
+}
+
+void kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level)
+{
+	int ret = _kvm_irq_line(vm, irq, level);
+
+	TEST_ASSERT(ret >= 0, "KVM_IRQ_LINE failed, rc: %i errno: %i", ret, errno);
+}
+
+/*
  * VM Dump
  *
  * Input Args:
