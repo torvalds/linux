@@ -1170,11 +1170,11 @@ config I2C_XLR
 	  will be called i2c-xlr.
 
 config I2C_XLP9XX
-	tristate "XLP9XX I2C support"
-	depends on CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST
+	tristate "Cavium ThunderX2 I2C support"
+	depends on ARCH_THUNDER2 || COMPILE_TEST
 	help
 	  This driver enables support for the on-chip I2C interface of
-	  the Broadcom XLP9xx/XLP5xx MIPS and Vulcan ARM64 processors.
+	  the Cavium ThunderX2 processors. (Originally on Netlogic XLP SoCs.)
 
 	  This driver can also be built as a module.  If so, the module will
 	  be called i2c-xlp9xx.
