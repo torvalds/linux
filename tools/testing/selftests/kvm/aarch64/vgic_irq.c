@@ -65,6 +65,7 @@ typedef enum {
 	KVM_SET_IRQ_LINE_HIGH,
 	KVM_SET_LEVEL_INFO_HIGH,
 	KVM_INJECT_IRQFD,
+	KVM_WRITE_ISPENDR,
 } kvm_inject_cmd;
 
 struct kvm_inject_args {
@@ -105,6 +106,7 @@ static struct kvm_inject_desc inject_edge_fns[] = {
 	/*                                      sgi    ppi    spi */
 	{ KVM_INJECT_EDGE_IRQ_LINE,		false, false, true },
 	{ KVM_INJECT_IRQFD,			false, false, true },
+	{ KVM_WRITE_ISPENDR,			true,  false, true },
 	{ 0, },
 };
 
@@ -113,6 +115,7 @@ static struct kvm_inject_desc inject_level_fns[] = {
 	{ KVM_SET_IRQ_LINE_HIGH,		false, true,  true },
 	{ KVM_SET_LEVEL_INFO_HIGH,		false, true,  true },
 	{ KVM_INJECT_IRQFD,			false, false, true },
+	{ KVM_WRITE_ISPENDR,			false, true,  true },
 	{ 0, },
 };
 
@@ -495,6 +498,20 @@ static void kvm_set_gsi_routing_irqchip_check(struct kvm_vm *vm,
 	}
 }
 
+static void kvm_irq_write_ispendr_check(int gic_fd, uint32_t intid,
+			uint32_t vcpu, bool expect_failure)
+{
+	/*
+	 * Ignore this when expecting failure as invalid intids will lead to
+	 * either trying to inject SGIs when we configured the test to be
+	 * level_sensitive (or the reverse), or inject large intids which
+	 * will lead to writing above the ISPENDR register space (and we
+	 * don't want to do that either).
+	 */
+	if (!expect_failure)
+		kvm_irq_write_ispendr(gic_fd, intid, vcpu);
+}
+
 static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 		uint32_t intid, uint32_t num, uint32_t kvm_max_routes,
 		bool expect_failure)
@@ -596,6 +613,11 @@ static void run_guest_cmd(struct kvm_vm *vm, int gic_fd,
 		kvm_routing_and_irqfd_check(vm, intid, num,
 					test_args->kvm_max_routes,
 					expect_failure);
+		break;
+	case KVM_WRITE_ISPENDR:
+		for (i = intid; i < intid + num; i++)
+			kvm_irq_write_ispendr_check(gic_fd, i,
+					VCPU_ID, expect_failure);
 		break;
 	default:
 		break;
