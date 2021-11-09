@@ -58,37 +58,6 @@ static struct rk_alg_ctx *rk_alg_ctx_cast(struct crypto_async_request *async_req
 	return &ctx->algs_ctx;
 }
 
-static void dump_alg_ctx(struct crypto_async_request *async_req)
-{
-	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(async_req);
-	struct scatterlist *cur_sg = NULL;
-	unsigned int i;
-
-	CRYPTO_TRACE("\n");
-
-	CRYPTO_TRACE("------ req_src addr = %llx, nents = %zu ------",
-		     (long long)alg_ctx->req_src, alg_ctx->src_nents);
-
-	for_each_sg(alg_ctx->req_src, cur_sg, alg_ctx->src_nents, i)
-		CRYPTO_TRACE("sg %llx: virt = %llx, off = %u, len = %u",
-			     (long long)cur_sg, (long long)sg_virt(cur_sg),
-			     cur_sg->offset, cur_sg->length);
-
-	CRYPTO_TRACE("\n");
-
-	if (!alg_ctx->req_dst)
-		return;
-
-	CRYPTO_TRACE("------ req_dst addr = %llx, nents = %zu ------",
-		     (long long)alg_ctx->req_dst, alg_ctx->dst_nents);
-
-	for_each_sg(alg_ctx->req_dst, cur_sg, alg_ctx->dst_nents, i)
-		CRYPTO_TRACE("sg %llx: virt = %llx, off = %u, len = %u\n",
-			     (long long)cur_sg, (long long)sg_virt(cur_sg),
-			     cur_sg->offset, cur_sg->length);
-	CRYPTO_TRACE("\n");
-}
-
 static int rk_crypto_enable_clk(struct rk_crypto_dev *rk_dev)
 {
 	int ret;
@@ -110,9 +79,9 @@ static void rk_crypto_disable_clk(struct rk_crypto_dev *rk_dev)
 	clk_bulk_disable_unprepare(rk_dev->clks_num, rk_dev->clk_bulks);
 }
 
-static int check_alignment(struct scatterlist *sg_src,
-			   struct scatterlist *sg_dst,
-			   int align_mask)
+static int check_scatter_align(struct scatterlist *sg_src,
+			       struct scatterlist *sg_dst,
+			       int align_mask)
 {
 	int in, out, align;
 
@@ -127,6 +96,34 @@ static int check_alignment(struct scatterlist *sg_src,
 	return (align && (sg_src->length == sg_dst->length));
 }
 
+static bool check_scatterlist_align(struct crypto_async_request *async_req,
+				    int align_mask)
+{
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(async_req);
+	struct scatterlist *src_tmp = NULL;
+	struct scatterlist *dst_tmp = NULL;
+	unsigned int i;
+
+	if (alg_ctx->src_nents != alg_ctx->dst_nents)
+		return false;
+
+	src_tmp = alg_ctx->req_src;
+	dst_tmp = alg_ctx->req_dst;
+
+	for (i = 0; i < alg_ctx->src_nents; i++) {
+		if (!src_tmp || !dst_tmp)
+			return false;
+
+		if (!check_scatter_align(src_tmp, dst_tmp, align_mask))
+			return false;
+
+		src_tmp = sg_next(src_tmp);
+		dst_tmp = sg_next(dst_tmp);
+	}
+
+	return true;
+}
+
 static int rk_load_data(struct rk_crypto_dev *rk_dev,
 			struct scatterlist *sg_src,
 			struct scatterlist *sg_dst)
@@ -136,9 +133,9 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 	struct device *dev = rk_dev->dev;
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
-	mutex_lock(&rk_dev->mutex);
-
-	alg_ctx->aligned = check_alignment(sg_src, sg_dst, alg_ctx->align_size);
+	if (alg_ctx->left_bytes == alg_ctx->total)
+		alg_ctx->aligned = check_scatterlist_align(rk_dev->async_req,
+							   alg_ctx->align_size);
 
 	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
 		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);
@@ -208,7 +205,6 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 	alg_ctx->count = count;
 	return 0;
 error:
-	mutex_unlock(&rk_dev->mutex);
 	return ret;
 }
 
@@ -220,6 +216,9 @@ static int rk_unload_data(struct rk_crypto_dev *rk_dev)
 
 	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
 		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);
+
+	if (alg_ctx->count == 0)
+		return 0;
 
 	sg_in = alg_ctx->aligned ? alg_ctx->sg_src : &alg_ctx->sg_tmp;
 	dma_unmap_sg(rk_dev->dev, sg_in, 1, DMA_TO_DEVICE);
@@ -240,8 +239,21 @@ static int rk_unload_data(struct rk_crypto_dev *rk_dev)
 	}
 
 exit:
-	mutex_unlock(&rk_dev->mutex);
 	return ret;
+}
+
+static void start_irq_timer(struct rk_crypto_dev *rk_dev)
+{
+	mod_timer(&rk_dev->timer, jiffies + msecs_to_jiffies(3000));
+}
+
+/* use timer to avoid crypto irq timeout */
+static void rk_crypto_irq_timer_handle(struct timer_list *t)
+{
+	struct rk_crypto_dev *rk_dev = from_timer(rk_dev, t, timer);
+
+	rk_dev->err = -ETIMEDOUT;
+	tasklet_schedule(&rk_dev->done_task);
 }
 
 static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
@@ -258,6 +270,49 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 
 	spin_unlock(&rk_dev->lock);
 	return IRQ_HANDLED;
+}
+
+static int rk_start_op(struct rk_crypto_dev *rk_dev)
+{
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
+	int ret;
+
+	if (!alg_ctx || !alg_ctx->ops.start)
+		return -EINVAL;
+
+	alg_ctx->aligned = false;
+
+	start_irq_timer(rk_dev);
+
+	ret = alg_ctx->ops.start(rk_dev);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int rk_update_op(struct rk_crypto_dev *rk_dev)
+{
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
+
+	if (!alg_ctx || !alg_ctx->ops.update)
+		return -EINVAL;
+
+	return alg_ctx->ops.update(rk_dev);
+}
+
+static void rk_complete_op(struct rk_crypto_dev *rk_dev, int err)
+{
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
+
+	del_timer(&rk_dev->timer);
+
+	if (!alg_ctx || !alg_ctx->ops.complete)
+		return;
+
+	alg_ctx->ops.complete(rk_dev->async_req, err);
+
+	tasklet_schedule(&rk_dev->queue_task);
 }
 
 static int rk_crypto_enqueue(struct rk_crypto_dev *rk_dev,
@@ -283,9 +338,7 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 {
 	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
 	struct crypto_async_request *async_req, *backlog;
-	struct rk_alg_ctx *alg_ctx;
 	unsigned long flags;
-	int err = 0;
 
 	rk_dev->err = 0;
 	spin_lock_irqsave(&rk_dev->lock, flags);
@@ -304,14 +357,10 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 		backlog = NULL;
 	}
 
-	alg_ctx = rk_alg_ctx_cast(async_req);
-
 	rk_dev->async_req = async_req;
-	err = alg_ctx->ops.start(rk_dev);
-	if (err)
-		alg_ctx->ops.complete(rk_dev->async_req, err);
-
-	dump_alg_ctx(async_req);
+	rk_dev->err = rk_start_op(rk_dev);
+	if (rk_dev->err)
+		rk_complete_op(rk_dev, rk_dev->err);
 }
 
 static void rk_crypto_done_task_cb(unsigned long data)
@@ -319,14 +368,19 @@ static void rk_crypto_done_task_cb(unsigned long data)
 	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
-	if (rk_dev->err) {
-		alg_ctx->ops.complete(rk_dev->async_req, rk_dev->err);
-		return;
-	}
-
-	rk_dev->err = alg_ctx->ops.update(rk_dev);
 	if (rk_dev->err)
-		alg_ctx->ops.complete(rk_dev->async_req, rk_dev->err);
+		goto exit;
+
+	rk_dev->err = rk_update_op(rk_dev);
+	if (rk_dev->err)
+		goto exit;
+
+	if (alg_ctx->total && alg_ctx->left_bytes == 0)
+		goto exit;
+
+	return;
+exit:
+	rk_complete_op(rk_dev, rk_dev->err);
 }
 
 static struct rk_crypto_algt *rk_crypto_find_algs(struct rk_crypto_dev *rk_dev,
@@ -373,10 +427,18 @@ static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 		tmp_algs->rk_dev = rk_dev;
 
 		if (tmp_algs->type == ALG_TYPE_CIPHER) {
-			if (tmp_algs->algo == CIPHER_ALGO_AES &&
-			    tmp_algs->mode != CIPHER_MODE_XTS &&
-			    soc_data->use_soft_aes192)
-				tmp_algs->alg.crypto.base.cra_flags |= CRYPTO_ALG_NEED_FALLBACK;
+			if (tmp_algs->mode == CIPHER_MODE_CTR ||
+			    tmp_algs->mode == CIPHER_MODE_CFB ||
+			    tmp_algs->mode == CIPHER_MODE_OFB)
+				tmp_algs->alg.crypto.base.cra_blocksize = 1;
+
+			if (tmp_algs->mode == CIPHER_MODE_ECB)
+				tmp_algs->alg.crypto.ivsize = 0;
+
+			/* rv1126 is not support aes192 */
+			if (soc_data->use_soft_aes192 &&
+			    tmp_algs->algo == CIPHER_ALGO_AES)
+				tmp_algs->use_soft_aes192 = true;
 
 			err = crypto_register_skcipher(&tmp_algs->alg.crypto);
 		} else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC) {
@@ -685,7 +747,7 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		     rk_crypto_done_task_cb, (unsigned long)rk_dev);
 	crypto_init_queue(&rk_dev->queue, 50);
 
-	mutex_init(&rk_dev->mutex);
+	timer_setup(&rk_dev->timer, rk_crypto_irq_timer_handle, 0);
 
 	rk_dev->request_crypto = rk_crypto_request;
 	rk_dev->release_crypto = rk_crypto_release;
@@ -704,7 +766,6 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_alg:
-	mutex_destroy(&rk_dev->mutex);
 	tasklet_kill(&rk_dev->queue_task);
 	tasklet_kill(&rk_dev->done_task);
 err_crypto:
@@ -715,6 +776,8 @@ static int rk_crypto_remove(struct platform_device *pdev)
 {
 	struct rk_crypto_dev *rk_dev = platform_get_drvdata(pdev);
 
+	del_timer_sync(&rk_dev->timer);
+
 	rk_crypto_unregister(rk_dev);
 	tasklet_kill(&rk_dev->done_task);
 	tasklet_kill(&rk_dev->queue_task);
@@ -723,8 +786,6 @@ static int rk_crypto_remove(struct platform_device *pdev)
 		free_page((unsigned long)rk_dev->addr_vir);
 
 	rk_dev->soc_data->hw_deinit(&pdev->dev, rk_dev->hw_info);
-
-	mutex_destroy(&rk_dev->mutex);
 
 	return 0;
 }

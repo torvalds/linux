@@ -298,8 +298,6 @@ static int rk_ahash_crypto_rx(struct rk_crypto_dev *rk_dev)
 		tfm = crypto_ahash_reqtfm(req);
 		memcpy_fromio(req->result, rk_dev->reg + RK_CRYPTO_HASH_DOUT_0,
 			      crypto_ahash_digestsize(tfm));
-		alg_ctx->ops.complete(rk_dev->async_req, 0);
-		tasklet_schedule(&rk_dev->queue_task);
 	}
 
 out_rx:

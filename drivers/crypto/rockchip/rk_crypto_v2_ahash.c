@@ -19,43 +19,6 @@
 #define RK_HASH_CTX_MAGIC	0x1A1A1A1A
 #define RK_POLL_PERIOD_US	100
 #define RK_POLL_TIMEOUT_US	50000
-#define HASH_MAX_SIZE		PAGE_SIZE
-
-static const u8 null_hash_md5_value[] = {
-	0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
-	0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e
-};
-
-static const u8 null_hash_sha1_value[] = {
-	0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
-	0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
-	0xaf, 0xd8, 0x07, 0x09
-};
-
-static const u8 null_hash_sha256_value[] = {
-	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
-	0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
-	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
-	0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
-};
-
-static const u8 null_hash_sha512_value[] = {
-	0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd,
-	0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d, 0x80, 0x07,
-	0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc,
-	0x83, 0xf4, 0xa9, 0x21, 0xd3, 0x6c, 0xe9, 0xce,
-	0x47, 0xd0, 0xd1, 0x3c, 0x5d, 0x85, 0xf2, 0xb0,
-	0xff, 0x83, 0x18, 0xd2, 0x87, 0x7e, 0xec, 0x2f,
-	0x63, 0xb9, 0x31, 0xbd, 0x47, 0x41, 0x7a, 0x81,
-	0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e
-};
-
-static const u8 null_hash_sm3_value[] = {
-	0x1a, 0xb2, 0x1d, 0x83, 0x55, 0xcf, 0xa1, 0x7f,
-	0x8e, 0x61, 0x19, 0x48, 0x31, 0xe8, 0x1a, 0x8f,
-	0x22, 0xbe, 0xc8, 0xc7, 0x28, 0xfe, 0xfb, 0x74,
-	0x7e, 0xd0, 0x35, 0xeb, 0x50, 0x82, 0xaa, 0x2b
-};
 
 static const u32 hash_algo2bc[] = {
 	[HASH_ALGO_MD5]    = CRYPTO_MD5,
@@ -106,35 +69,6 @@ static struct rk_crypto_algt *rk_ahash_get_algt(struct crypto_ahash *tfm)
 	return container_of(alg, struct rk_crypto_algt, alg.hash);
 }
 
-static int zero_message_process(struct ahash_request *req)
-{
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	int rk_digest_size = crypto_ahash_digestsize(tfm);
-	struct rk_crypto_algt *algt = rk_ahash_get_algt(tfm);
-
-	switch (algt->algo) {
-	case HASH_ALGO_MD5:
-		memcpy(req->result, null_hash_md5_value, rk_digest_size);
-		break;
-	case HASH_ALGO_SHA1:
-		memcpy(req->result, null_hash_sha1_value, rk_digest_size);
-		break;
-	case HASH_ALGO_SHA256:
-		memcpy(req->result, null_hash_sha256_value, rk_digest_size);
-		break;
-	case HASH_ALGO_SHA512:
-		memcpy(req->result, null_hash_sha512_value, rk_digest_size);
-		break;
-	case HASH_ALGO_SM3:
-		memcpy(req->result, null_hash_sm3_value, rk_digest_size);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_dev *rk_dev  = platform_get_drvdata(dev_id);
@@ -179,6 +113,10 @@ static int rk_crypto_irq_handle(int irq, void *dev_id)
 
 static void rk_ahash_crypto_complete(struct crypto_async_request *base, int err)
 {
+	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(base->tfm);
+
+	CRYPTO_WRITE(ctx->rk_dev, CRYPTO_HASH_CTL, 0xffff0000);
+
 	if (base->complete)
 		base->complete(base, err);
 }
@@ -304,19 +242,25 @@ static int rk_ahash_export(struct ahash_request *req, void *out)
 
 static int rk_ahash_digest(struct ahash_request *req)
 {
-	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct rk_crypto_algt *algt = rk_ahash_get_algt(tfm);
-	struct rk_crypto_dev *rk_dev = tctx->rk_dev;
+	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct rk_crypto_dev *rk_dev = ctx->rk_dev;
 
 	CRYPTO_TRACE("calc data %u bytes.", req->nbytes);
 
-	if (!req->nbytes)
-		return IS_TYPE_HMAC(algt->type) ?
-		       crypto_ahash_digest(req) :
-		       zero_message_process(req);
-	else
+	if (!req->nbytes || req->nbytes > rk_dev->vir_max) {
+		ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+		rctx->fallback_req.base.flags = req->base.flags &
+						CRYPTO_TFM_REQ_MAY_SLEEP;
+
+		rctx->fallback_req.nbytes = req->nbytes;
+		rctx->fallback_req.src    = req->src;
+		rctx->fallback_req.result = req->result;
+
+		return crypto_ahash_digest(&rctx->fallback_req);
+	} else {
 		return rk_dev->enqueue(rk_dev, &req->base);
+	}
 }
 
 static int rk_ahash_calc_digest(const char *alg_name, const u8 *key, u32 keylen,
@@ -484,7 +428,7 @@ static int rk_ahash_start(struct rk_crypto_dev *rk_dev)
 	return rk_ahash_set_data_start(rk_dev);
 exit:
 	CRYPTO_WRITE(rk_dev, CRYPTO_HASH_CTL, CRYPTO_WRITE_MASK_ALL | 0);
-	return -1;
+	return -EINVAL;
 }
 
 static int rk_ahash_get_result(struct rk_crypto_dev *rk_dev,
@@ -554,9 +498,6 @@ static int rk_ahash_crypto_rx(struct rk_crypto_dev *rk_dev)
 
 		err = rk_ahash_get_result(rk_dev, req->result,
 					  crypto_ahash_digestsize(tfm));
-
-		alg_ctx->ops.complete(rk_dev->async_req, err);
-		tasklet_schedule(&rk_dev->queue_task);
 	}
 
 out_rx:
@@ -582,7 +523,7 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 
 	rk_dev->request_crypto(rk_dev, alg_name);
 
-	alg_ctx->align_size     = 4;
+	alg_ctx->align_size     = 64;
 
 	alg_ctx->ops.start      = rk_ahash_start;
 	alg_ctx->ops.update     = rk_ahash_crypto_rx;

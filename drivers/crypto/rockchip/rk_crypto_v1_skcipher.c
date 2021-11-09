@@ -363,9 +363,6 @@ static int rk_ablk_rx(struct rk_crypto_dev *rk_dev)
 		err = rk_set_data_start(rk_dev);
 	} else {
 		rk_iv_copyback(rk_dev);
-		/* here show the calculation is over without any err */
-		alg_ctx->ops.complete(rk_dev->async_req, 0);
-		tasklet_schedule(&rk_dev->queue_task);
 	}
 out_rx:
 	return err;
