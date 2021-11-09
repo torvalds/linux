@@ -959,7 +959,7 @@ static void gve_tx_timeout(struct net_device *dev, unsigned int txqueue)
 		goto reset;
 
 	ntfy_idx = gve_tx_idx_to_ntfy(priv, txqueue);
-	if (ntfy_idx > priv->num_ntfy_blks)
+	if (ntfy_idx >= priv->num_ntfy_blks)
 		goto reset;
 
 	block = &priv->ntfy_blocks[ntfy_idx];
