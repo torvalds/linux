@@ -501,17 +501,7 @@ static char *px30_algs_name[] = {
 	"sha1", "sha256", "sha512", "md5",
 };
 
-static char *rv1126_algs_name[] = {
-	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)", "xts(sm4)",
-	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ctr(aes)", "xts(aes)",
-	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
-	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
-	"sha1", "sha256", "sha512", "md5", "sm3",
-	"hmac(sha1)", "hmac(sha256)", "hmac(sha512)", "hmac(md5)", "hmac(sm3)",
-	"rsa"
-};
-
-static char *rk3568_algs_name[] = {
+static char *crypto_full_algs_name[] = {
 	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)", "xts(sm4)",
 	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ctr(aes)", "xts(aes)",
 	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
@@ -525,10 +515,10 @@ static const struct rk_crypto_soc_data px30_soc_data =
 	RK_CRYPTO_V2_SOC_DATA_INIT(px30_algs_name, false);
 
 static const struct rk_crypto_soc_data rv1126_soc_data =
-	RK_CRYPTO_V2_SOC_DATA_INIT(rv1126_algs_name, true);
+	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_full_algs_name, true);
 
-static const struct rk_crypto_soc_data rk3568_soc_data =
-	RK_CRYPTO_V2_SOC_DATA_INIT(rk3568_algs_name, false);
+static const struct rk_crypto_soc_data full_soc_data =
+	RK_CRYPTO_V2_SOC_DATA_INIT(crypto_full_algs_name, false);
 
 static const char * const crypto_v1_rsts[] = {
 	"crypto-rst",
@@ -571,7 +561,11 @@ static const struct of_device_id crypto_of_id_table[] = {
 	},
 	{
 		.compatible = "rockchip,rk3568-crypto",
-		.data = (void *)&rk3568_soc_data,
+		.data = (void *)&full_soc_data,
+	},
+	{
+		.compatible = "rockchip,rk3588-crypto",
+		.data = (void *)&full_soc_data,
 	},
 	/* crypto v1 in belows */
 	{
