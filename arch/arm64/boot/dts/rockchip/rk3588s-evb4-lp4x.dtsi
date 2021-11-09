@@ -435,6 +435,8 @@
 
 &pwm13 {
 	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm13m1_pins>;
 };
 
 &spdif_tx1 {
