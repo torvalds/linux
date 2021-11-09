@@ -65,7 +65,7 @@
 &i2c0 {
 	status = "okay";
 
-	vdd_cpu_big0_s0: rk8602@42 {
+	vdd_cpu_big0_s0: vdd_cpu_big0_mem_s0: rk8602@42 {
 		compatible = "rockchip,rk860x";
 		reg = <0x42>;
 		vin-supply = <&vcc5v0_sys>;
@@ -85,7 +85,7 @@
 		};
 	};
 
-	vdd_cpu_big1_s0: rk8603@43 {
+	vdd_cpu_big1_s0: vdd_cpu_big1_mem_s0: rk8603@43 {
 		compatible = "rockchip,rk860x";
 		reg = <0x43>;
 		vin-supply = <&vcc5v0_sys>;
@@ -109,7 +109,7 @@
 &i2c2 {
 	status = "okay";
 
-	vdd_npu_s0: rk8602@42 {
+	vdd_npu_s0: vdd_npu_mem_s0: rk8602@42 {
 		compatible = "rockchip,rk860x";
 		reg = <0x42>;
 		vin-supply = <&vcc5v0_sys>;
@@ -268,7 +268,7 @@
 		};
 
 		regulators {
-			vdd_gpu_s0: DCDC_REG1 {
+			vdd_gpu_s0: vdd_gpu_mem_s0: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <550000>;
@@ -280,7 +280,7 @@
 				};
 			};
 
-			vdd_cpu_lit_s0: DCDC_REG2 {
+			vdd_cpu_lit_s0: vdd_cpu_lit_mem_s0: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <550000>;
@@ -304,7 +304,7 @@
 				};
 			};
 
-			vdd_vdenc_s0: DCDC_REG4 {
+			vdd_vdenc_s0: vdd_vdenc_mem_s0: DCDC_REG4 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <550000>;
