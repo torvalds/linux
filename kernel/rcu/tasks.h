@@ -6,6 +6,7 @@
  */
 
 #ifdef CONFIG_TASKS_RCU_GENERIC
+#include "rcu_segcblist.h"
 
 ////////////////////////////////////////////////////////////////////////
 //
@@ -21,13 +22,11 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
 
 /**
  * struct rcu_tasks_percpu - Per-CPU component of definition for a Tasks-RCU-like mechanism.
- * @cbs_head: Head of callback list.
- * @cbs_tail: Tail pointer for callback list.
+ * @cblist: Callback list.
  * @cbs_pcpu_lock: Lock protecting per-CPU callback list.
  */
 struct rcu_tasks_percpu {
-	struct rcu_head *cbs_head;
-	struct rcu_head **cbs_tail;
+	struct rcu_segcblist cblist;
 	raw_spinlock_t cbs_pcpu_lock;
 };
 
@@ -180,8 +179,8 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 		if (cpu)
 			raw_spin_lock_init(&rtpcp->cbs_pcpu_lock);
 		raw_spin_lock(&rtpcp->cbs_pcpu_lock); // irqs already disabled.
-		if (!WARN_ON_ONCE(rtpcp->cbs_tail))
-			rtpcp->cbs_tail = &rtpcp->cbs_head;
+		if (rcu_segcblist_empty(&rtpcp->cblist))
+			rcu_segcblist_init(&rtpcp->cblist);
 		raw_spin_unlock(&rtpcp->cbs_pcpu_lock); // irqs remain disabled.
 	}
 	raw_spin_unlock_irqrestore(&rtp->cbs_gbl_lock, flags);
@@ -202,14 +201,13 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	rtpcp = per_cpu_ptr(rtp->rtpcpu,
 			    smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift));
 	raw_spin_lock(&rtpcp->cbs_pcpu_lock);
-	if (!rtpcp->cbs_tail) {
+	if (!rcu_segcblist_is_enabled(&rtpcp->cblist)) {
 		raw_spin_unlock(&rtpcp->cbs_pcpu_lock); // irqs remain disabled.
 		cblist_init_generic(rtp);
 		raw_spin_lock(&rtpcp->cbs_pcpu_lock); // irqs already disabled.
 	}
-	needwake = !rtpcp->cbs_head;
-	WRITE_ONCE(*rtpcp->cbs_tail, rhp);
-	rtpcp->cbs_tail = &rhp->next;
+	needwake = rcu_segcblist_empty(&rtpcp->cblist);
+	rcu_segcblist_enqueue(&rtpcp->cblist, rhp);
 	raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
 	/* We can't create the thread unless interrupts are enabled. */
 	if (needwake && READ_ONCE(rtp->kthread_ptr))
@@ -231,8 +229,9 @@ static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
 static int __noreturn rcu_tasks_kthread(void *arg)
 {
 	unsigned long flags;
-	struct rcu_head *list;
-	struct rcu_head *next;
+	int len;
+	struct rcu_cblist rcl = RCU_CBLIST_INITIALIZER(rcl);
+	struct rcu_head *rhp;
 	struct rcu_tasks *rtp = arg;
 
 	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
@@ -253,16 +252,15 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		/* Pick up any new callbacks. */
 		raw_spin_lock_irqsave(&rtpcp->cbs_pcpu_lock, flags);
 		smp_mb__after_spinlock(); // Order updates vs. GP.
-		list = rtpcp->cbs_head;
-		rtpcp->cbs_head = NULL;
-		rtpcp->cbs_tail = &rtpcp->cbs_head;
+		rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
+		(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
 		raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
 
 		/* If there were none, wait a bit and start over. */
-		if (!list) {
+		if (!rcu_segcblist_pend_cbs(&rtpcp->cblist)) {
 			wait_event_interruptible(rtp->cbs_wq,
-						 READ_ONCE(rtpcp->cbs_head));
-			if (!rtpcp->cbs_head) {
+						 rcu_segcblist_pend_cbs(&rtpcp->cblist));
+			if (!rcu_segcblist_pend_cbs(&rtpcp->cblist)) {
 				WARN_ON(signal_pending(current));
 				set_tasks_gp_state(rtp, RTGS_WAIT_WAIT_CBS);
 				schedule_timeout_idle(HZ/10);
@@ -279,14 +277,22 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 
 		/* Invoke the callbacks. */
 		set_tasks_gp_state(rtp, RTGS_INVOKE_CBS);
-		while (list) {
-			next = list->next;
+		raw_spin_lock_irqsave(&rtpcp->cbs_pcpu_lock, flags);
+		smp_mb__after_spinlock(); // Order updates vs. GP.
+		rcu_segcblist_advance(&rtpcp->cblist, rcu_seq_current(&rtp->tasks_gp_seq));
+		rcu_segcblist_extract_done_cbs(&rtpcp->cblist, &rcl);
+		raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
+		len = rcl.len;
+		for (rhp = rcu_cblist_dequeue(&rcl); rhp; rhp = rcu_cblist_dequeue(&rcl)) {
 			local_bh_disable();
-			list->func(list);
+			rhp->func(rhp);
 			local_bh_enable();
-			list = next;
 			cond_resched();
 		}
+		raw_spin_lock_irqsave(&rtpcp->cbs_pcpu_lock, flags);
+		rcu_segcblist_add_len(&rtpcp->cblist, -len);
+		(void)rcu_segcblist_accelerate(&rtpcp->cblist, rcu_seq_snap(&rtp->tasks_gp_seq));
+		raw_spin_unlock_irqrestore(&rtpcp->cbs_pcpu_lock, flags);
 		/* Paranoid sleep to keep this from entering a tight loop */
 		schedule_timeout_idle(rtp->gp_sleep);
 	}
@@ -339,7 +345,7 @@ static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 		data_race(rcu_seq_current(&rtp->tasks_gp_seq)),
 		data_race(rtp->n_ipis_fails), data_race(rtp->n_ipis),
 		".k"[!!data_race(rtp->kthread_ptr)],
-		".C"[!!data_race(rtpcp->cbs_head)],
+		".C"[!data_race(rcu_segcblist_empty(&rtpcp->cblist))],
 		s);
 }
 #endif // #ifndef CONFIG_TINY_RCU

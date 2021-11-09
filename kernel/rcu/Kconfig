@@ -112,7 +112,7 @@ config RCU_STALL_COMMON
 	  making these warnings mandatory for the tree variants.
 
 config RCU_NEED_SEGCBLIST
-	def_bool ( TREE_RCU || TREE_SRCU )
+	def_bool ( TREE_RCU || TREE_SRCU || TASKS_RCU_GENERIC )
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
