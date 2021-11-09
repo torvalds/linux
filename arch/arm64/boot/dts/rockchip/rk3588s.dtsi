@@ -90,6 +90,7 @@
 			reg = <0x0>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <530>;
+			clocks = <&cru ARMCLK_L>;
 		};
 
 		cpu_l1: cpu@100 {
@@ -98,6 +99,7 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <530>;
+			clocks = <&cru ARMCLK_L>;
 		};
 
 		cpu_l2: cpu@200 {
@@ -106,6 +108,7 @@
 			reg = <0x200>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <530>;
+			clocks = <&cru ARMCLK_L>;
 		};
 
 		cpu_l3: cpu@300 {
@@ -114,6 +117,7 @@
 			reg = <0x300>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <530>;
+			clocks = <&cru ARMCLK_L>;
 		};
 
 		cpu_b0: cpu@400 {
@@ -122,6 +126,7 @@
 			reg = <0x400>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
+			clocks = <&cru ARMCLK_B01>;
 		};
 
 		cpu_b1: cpu@500 {
@@ -130,6 +135,7 @@
 			reg = <0x500>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
+			clocks = <&cru ARMCLK_B01>;
 		};
 
 		cpu_b2: cpu@600 {
@@ -138,6 +144,7 @@
 			reg = <0x600>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
+			clocks = <&cru ARMCLK_B23>;
 		};
 
 		cpu_b3: cpu@700 {
@@ -146,6 +153,7 @@
 			reg = <0x700>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
+			clocks = <&cru ARMCLK_B23>;
 		};
 	};
 
