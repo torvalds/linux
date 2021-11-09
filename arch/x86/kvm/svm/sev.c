@@ -1775,7 +1775,12 @@ int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd)
 	mutex_unlock(&source_kvm->lock);
 	mutex_lock(&kvm->lock);
 
-	if (sev_guest(kvm)) {
+	/*
+	 * Disallow out-of-band SEV/SEV-ES init if the target is already an
+	 * SEV guest, or if vCPUs have been created.  KVM relies on vCPUs being
+	 * created after SEV/SEV-ES initialization, e.g. to init intercepts.
+	 */
+	if (sev_guest(kvm) || kvm->created_vcpus) {
 		ret = -EINVAL;
 		goto e_mirror_unlock;
 	}
