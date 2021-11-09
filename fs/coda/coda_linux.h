@@ -83,6 +83,9 @@ static __inline__ void coda_flag_inode(struct inode *inode, int flag)
 {
 	struct coda_inode_info *cii = ITOC(inode);
 
+	if (!inode)
+		return;
+
 	spin_lock(&cii->c_lock);
 	cii->c_flags |= flag;
 	spin_unlock(&cii->c_lock);
