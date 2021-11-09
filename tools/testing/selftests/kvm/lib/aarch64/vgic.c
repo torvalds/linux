@@ -110,12 +110,13 @@ int _kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level)
 {
 	uint32_t irq = intid & KVM_ARM_IRQ_NUM_MASK;
 
+	TEST_ASSERT(!INTID_IS_SGI(intid), "KVM_IRQ_LINE's interface itself "
+		"doesn't allow injecting SGIs. There's no mask for it.");
+
 	if (INTID_IS_PPI(intid))
 		irq |= KVM_ARM_IRQ_TYPE_PPI << KVM_ARM_IRQ_TYPE_SHIFT;
-	else if (INTID_IS_SPI(intid))
-		irq |= KVM_ARM_IRQ_TYPE_SPI << KVM_ARM_IRQ_TYPE_SHIFT;
 	else
-		TEST_FAIL("KVM_IRQ_LINE can't be used with SGIs.");
+		irq |= KVM_ARM_IRQ_TYPE_SPI << KVM_ARM_IRQ_TYPE_SHIFT;
 
 	return _kvm_irq_line(vm, irq, level);
 }

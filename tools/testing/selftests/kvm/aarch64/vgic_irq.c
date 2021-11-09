@@ -68,21 +68,28 @@ struct kvm_inject_args {
 	uint32_t first_intid;
 	uint32_t num;
 	int level;
+	bool expect_failure;
 };
 
 /* Used on the guest side to perform the hypercall. */
 static void kvm_inject_call(kvm_inject_cmd cmd, uint32_t first_intid,
-			uint32_t num, int level);
+		uint32_t num, int level, bool expect_failure);
 
 /* Used on the host side to get the hypercall info. */
 static void kvm_inject_get_call(struct kvm_vm *vm, struct ucall *uc,
 		struct kvm_inject_args *args);
 
-#define KVM_INJECT(cmd, intid)							\
-	kvm_inject_call(cmd, intid, 1, -1 /* not used */)
+#define _KVM_INJECT_MULTI(cmd, intid, num, expect_failure)			\
+	kvm_inject_call(cmd, intid, num, -1 /* not used */, expect_failure)
 
 #define KVM_INJECT_MULTI(cmd, intid, num)					\
-	kvm_inject_call(cmd, intid, num, -1 /* not used */)
+	_KVM_INJECT_MULTI(cmd, intid, num, false)
+
+#define _KVM_INJECT(cmd, intid, expect_failure)					\
+	_KVM_INJECT_MULTI(cmd, intid, 1, expect_failure)
+
+#define KVM_INJECT(cmd, intid)							\
+	_KVM_INJECT_MULTI(cmd, intid, 1, false)
 
 struct kvm_inject_desc {
 	kvm_inject_cmd cmd;
@@ -158,13 +165,14 @@ static void guest_irq_generic_handler(bool eoi_split, bool level_sensitive)
 }
 
 static void kvm_inject_call(kvm_inject_cmd cmd, uint32_t first_intid,
-			uint32_t num, int level)
+		uint32_t num, int level, bool expect_failure)
 {
 	struct kvm_inject_args args = {
 		.cmd = cmd,
 		.first_intid = first_intid,
 		.num = num,
 		.level = level,
+		.expect_failure = expect_failure,
 	};
 	GUEST_SYNC(&args);
 }
@@ -206,7 +214,19 @@ static void reset_priorities(struct test_args *args)
 
 static void guest_set_irq_line(uint32_t intid, uint32_t level)
 {
-	kvm_inject_call(KVM_SET_IRQ_LINE, intid, 1, level);
+	kvm_inject_call(KVM_SET_IRQ_LINE, intid, 1, level, false);
+}
+
+static void test_inject_fail(struct test_args *args,
+		uint32_t intid, kvm_inject_cmd cmd)
+{
+	reset_stats();
+
+	_KVM_INJECT(cmd, intid, true);
+	/* no IRQ to handle on entry */
+
+	GUEST_ASSERT_EQ(irq_handled, 0);
+	GUEST_ASSERT_IAR_EMPTY();
 }
 
 static void guest_inject(struct test_args *args,
@@ -330,6 +350,16 @@ static void test_injection(struct test_args *args, struct kvm_inject_desc *f)
 	}
 }
 
+static void test_injection_failure(struct test_args *args,
+		struct kvm_inject_desc *f)
+{
+	uint32_t bad_intid[] = { args->nr_irqs, 1020, 1024, 1120, 5120, ~0U, };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bad_intid); i++)
+		test_inject_fail(args, bad_intid[i], f->cmd);
+}
+
 static void test_preemption(struct test_args *args, struct kvm_inject_desc *f)
 {
 	/*
@@ -376,10 +406,60 @@ static void guest_code(struct test_args args)
 	for_each_inject_fn(inject_fns, f) {
 		test_injection(&args, f);
 		test_preemption(&args, f);
+		test_injection_failure(&args, f);
 	}
 
 	GUEST_DONE();
 }
+
+static void kvm_irq_line_check(struct kvm_vm *vm, uint32_t intid, int level,
+			struct test_args *test_args, bool expect_failure)
+{
+	int ret;
+
+	if (!expect_failure) {
+		kvm_arm_irq_line(vm, intid, level);
+	} else {
+		/* The interface doesn't allow larger intid's. */
+		if (intid > KVM_ARM_IRQ_NUM_MASK)
+			return;
+
+		ret = _kvm_arm_irq_line(vm, intid, level);
+		TEST_ASSERT(ret != 0 && errno == EINVAL,
+				"Bad intid %i did not cause KVM_IRQ_LINE "
+				"error: rc: %i errno: %i", intid, ret, errno);
+	}
+}
+
+void kvm_irq_set_level_info_check(int gic_fd, uint32_t intid, int level,
+			bool expect_failure)
+{
+	if (!expect_failure) {
+		kvm_irq_set_level_info(gic_fd, intid, level);
+	} else {
+		int ret = _kvm_irq_set_level_info(gic_fd, intid, level);
+		/*
+		 * The kernel silently fails for invalid SPIs and SGIs (which
+		 * are not level-sensitive). It only checks for intid to not
+		 * spill over 1U << 10 (the max reserved SPI). Also, callers
+		 * are supposed to mask the intid with 0x3ff (1023).
+		 */
+		if (intid > VGIC_MAX_RESERVED)
+			TEST_ASSERT(ret != 0 && errno == EINVAL,
+				"Bad intid %i did not cause VGIC_GRP_LEVEL_INFO "
+				"error: rc: %i errno: %i", intid, ret, errno);
+		else
+			TEST_ASSERT(!ret, "KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO "
+				"for intid %i failed, rc: %i errno: %i",
+				intid, ret, errno);
+	}
+}
+
+/* handles the valid case: intid=0xffffffff num=1 */
+#define for_each_intid(first, num, tmp, i)					\
+	for ((tmp) = (i) = (first);						\
+		(tmp) < (uint64_t)(first) + (uint64_t)(num);			\
+		(tmp)++, (i)++)
 
 static void run_guest_cmd(struct kvm_vm *vm, int gic_fd,
 		struct kvm_inject_args *inject_args,
@@ -389,28 +469,36 @@ static void run_guest_cmd(struct kvm_vm *vm, int gic_fd,
 	uint32_t intid = inject_args->first_intid;
 	uint32_t num = inject_args->num;
 	int level = inject_args->level;
+	bool expect_failure = inject_args->expect_failure;
+	uint64_t tmp;
 	uint32_t i;
 
-	assert(intid < UINT_MAX - num);
+	/* handles the valid case: intid=0xffffffff num=1 */
+	assert(intid < UINT_MAX - num || num == 1);
 
 	switch (cmd) {
 	case KVM_INJECT_EDGE_IRQ_LINE:
-		for (i = intid; i < intid + num; i++)
-			kvm_arm_irq_line(vm, i, 1);
-		for (i = intid; i < intid + num; i++)
-			kvm_arm_irq_line(vm, i, 0);
+		for_each_intid(intid, num, tmp, i)
+			kvm_irq_line_check(vm, i, 1, test_args,
+					expect_failure);
+		for_each_intid(intid, num, tmp, i)
+			kvm_irq_line_check(vm, i, 0, test_args,
+					expect_failure);
 		break;
 	case KVM_SET_IRQ_LINE:
-		for (i = intid; i < intid + num; i++)
-			kvm_arm_irq_line(vm, i, level);
+		for_each_intid(intid, num, tmp, i)
+			kvm_irq_line_check(vm, i, level, test_args,
+					expect_failure);
 		break;
 	case KVM_SET_IRQ_LINE_HIGH:
-		for (i = intid; i < intid + num; i++)
-			kvm_arm_irq_line(vm, i, 1);
+		for_each_intid(intid, num, tmp, i)
+			kvm_irq_line_check(vm, i, 1, test_args,
+					expect_failure);
 		break;
 	case KVM_SET_LEVEL_INFO_HIGH:
-		for (i = intid; i < intid + num; i++)
-			kvm_irq_set_level_info(gic_fd, i, 1);
+		for_each_intid(intid, num, tmp, i)
+			kvm_irq_set_level_info_check(gic_fd, i, 1,
+					expect_failure);
 		break;
 	default:
 		break;
