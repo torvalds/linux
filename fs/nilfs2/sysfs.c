@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * sysfs.c - sysfs support implementation.
+ * Sysfs support implementation.
  *
  * Copyright (C) 2005-2014 Nippon Telegraph and Telephone Corporation.
  * Copyright (C) 2014 HGST, Inc., a Western Digital Company.
