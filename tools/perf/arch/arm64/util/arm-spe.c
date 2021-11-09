@@ -84,6 +84,55 @@ static int arm_spe_info_fill(struct auxtrace_record *itr,
 	return 0;
 }
 
+static void
+arm_spe_snapshot_resolve_auxtrace_defaults(struct record_opts *opts,
+					   bool privileged)
+{
+	/*
+	 * The default snapshot size is the auxtrace mmap size. If neither auxtrace mmap size nor
+	 * snapshot size is specified, then the default is 4MiB for privileged users, 128KiB for
+	 * unprivileged users.
+	 *
+	 * The default auxtrace mmap size is 4MiB/page_size for privileged users, 128KiB for
+	 * unprivileged users. If an unprivileged user does not specify mmap pages, the mmap pages
+	 * will be reduced from the default 512KiB/page_size to 256KiB/page_size, otherwise the
+	 * user is likely to get an error as they exceed their mlock limmit.
+	 */
+
+	/*
+	 * No size were given to '-S' or '-m,', so go with the default
+	 */
+	if (!opts->auxtrace_snapshot_size && !opts->auxtrace_mmap_pages) {
+		if (privileged) {
+			opts->auxtrace_mmap_pages = MiB(4) / page_size;
+		} else {
+			opts->auxtrace_mmap_pages = KiB(128) / page_size;
+			if (opts->mmap_pages == UINT_MAX)
+				opts->mmap_pages = KiB(256) / page_size;
+		}
+	} else if (!opts->auxtrace_mmap_pages && !privileged && opts->mmap_pages == UINT_MAX) {
+		opts->mmap_pages = KiB(256) / page_size;
+	}
+
+	/*
+	 * '-m,xyz' was specified but no snapshot size, so make the snapshot size as big as the
+	 * auxtrace mmap area.
+	 */
+	if (!opts->auxtrace_snapshot_size)
+		opts->auxtrace_snapshot_size = opts->auxtrace_mmap_pages * (size_t)page_size;
+
+	/*
+	 * '-Sxyz' was specified but no auxtrace mmap area, so make the auxtrace mmap area big
+	 * enough to fit the requested snapshot size.
+	 */
+	if (!opts->auxtrace_mmap_pages) {
+		size_t sz = opts->auxtrace_snapshot_size;
+
+		sz = round_up(sz, page_size) / page_size;
+		opts->auxtrace_mmap_pages = roundup_pow_of_two(sz);
+	}
+}
+
 static int arm_spe_recording_options(struct auxtrace_record *itr,
 				     struct evlist *evlist,
 				     struct record_opts *opts)
@@ -115,6 +164,36 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	if (!opts->full_auxtrace)
 		return 0;
 
+	/*
+	 * we are in snapshot mode.
+	 */
+	if (opts->auxtrace_snapshot_mode) {
+		/*
+		 * Command arguments '-Sxyz' and/or '-m,xyz' are missing, so fill those in with
+		 * default values.
+		 */
+		if (!opts->auxtrace_snapshot_size || !opts->auxtrace_mmap_pages)
+			arm_spe_snapshot_resolve_auxtrace_defaults(opts, privileged);
+
+		/*
+		 * Snapshot size can't be bigger than the auxtrace area.
+		 */
+		if (opts->auxtrace_snapshot_size > opts->auxtrace_mmap_pages * (size_t)page_size) {
+			pr_err("Snapshot size %zu must not be greater than AUX area tracing mmap size %zu\n",
+			       opts->auxtrace_snapshot_size,
+			       opts->auxtrace_mmap_pages * (size_t)page_size);
+			return -EINVAL;
+		}
+
+		/*
+		 * Something went wrong somewhere - this shouldn't happen.
+		 */
+		if (!opts->auxtrace_snapshot_size || !opts->auxtrace_mmap_pages) {
+			pr_err("Failed to calculate default snapshot size and/or AUX area tracing mmap pages\n");
+			return -EINVAL;
+		}
+	}
+
 	/* We are in full trace mode but '-m,xyz' wasn't specified */
 	if (!opts->auxtrace_mmap_pages) {
 		if (privileged) {
@@ -138,6 +217,9 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 		}
 	}
 
+	if (opts->auxtrace_snapshot_mode)
+		pr_debug2("%sx snapshot size: %zu\n", ARM_SPE_PMU_NAME,
+			  opts->auxtrace_snapshot_size);
 
 	/*
 	 * To obtain the auxtrace buffer file descriptor, the auxtrace event
@@ -170,6 +252,51 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 		evsel__set_sample_bit(tracking_evsel, TIME);
 
 	return 0;
+}
+
+static int arm_spe_parse_snapshot_options(struct auxtrace_record *itr __maybe_unused,
+					 struct record_opts *opts,
+					 const char *str)
+{
+	unsigned long long snapshot_size = 0;
+	char *endptr;
+
+	if (str) {
+		snapshot_size = strtoull(str, &endptr, 0);
+		if (*endptr || snapshot_size > SIZE_MAX)
+			return -1;
+	}
+
+	opts->auxtrace_snapshot_mode = true;
+	opts->auxtrace_snapshot_size = snapshot_size;
+
+	return 0;
+}
+
+static int arm_spe_snapshot_start(struct auxtrace_record *itr)
+{
+	struct arm_spe_recording *ptr =
+			container_of(itr, struct arm_spe_recording, itr);
+	struct evsel *evsel;
+
+	evlist__for_each_entry(ptr->evlist, evsel) {
+		if (evsel->core.attr.type == ptr->arm_spe_pmu->type)
+			return evsel__disable(evsel);
+	}
+	return -EINVAL;
+}
+
+static int arm_spe_snapshot_finish(struct auxtrace_record *itr)
+{
+	struct arm_spe_recording *ptr =
+			container_of(itr, struct arm_spe_recording, itr);
+	struct evsel *evsel;
+
+	evlist__for_each_entry(ptr->evlist, evsel) {
+		if (evsel->core.attr.type == ptr->arm_spe_pmu->type)
+			return evsel__enable(evsel);
+	}
+	return -EINVAL;
 }
 
 static u64 arm_spe_reference(struct auxtrace_record *itr __maybe_unused)
@@ -207,6 +334,9 @@ struct auxtrace_record *arm_spe_recording_init(int *err,
 
 	sper->arm_spe_pmu = arm_spe_pmu;
 	sper->itr.pmu = arm_spe_pmu;
+	sper->itr.snapshot_start = arm_spe_snapshot_start;
+	sper->itr.snapshot_finish = arm_spe_snapshot_finish;
+	sper->itr.parse_snapshot_options = arm_spe_parse_snapshot_options;
 	sper->itr.recording_options = arm_spe_recording_options;
 	sper->itr.info_priv_size = arm_spe_info_priv_size;
 	sper->itr.info_fill = arm_spe_info_fill;
