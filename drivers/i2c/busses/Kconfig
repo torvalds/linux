@@ -1159,16 +1159,6 @@ config I2C_XILINX
 	  This driver can also be built as a module.  If so, the module
 	  will be called xilinx_i2c.
 
-config I2C_XLR
-	tristate "Netlogic XLR I2C support"
-	depends on CPU_XLR || COMPILE_TEST
-	help
-	  This driver enables support for the on-chip I2C interface of
-	  the Netlogic XLR/XLS MIPS processors and Sigma Designs SOCs.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-xlr.
-
 config I2C_XLP9XX
 	tristate "Cavium ThunderX2 I2C support"
 	depends on ARCH_THUNDER2 || COMPILE_TEST
