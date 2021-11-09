@@ -302,7 +302,10 @@ static void handle_break(struct pt_regs *regs)
 		parisc_kprobe_break_handler(regs);
 		return;
 	}
-
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2)) {
+		parisc_kprobe_ss_handler(regs);
+		return;
+	}
 #endif
 
 #ifdef CONFIG_KGDB
@@ -538,11 +541,6 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case  3:
 		/* Recovery counter trap */
 		regs->gr[0] &= ~PSW_R;
-
-#ifdef CONFIG_KPROBES
-		if (parisc_kprobe_ss_handler(regs))
-			return;
-#endif
 
 #ifdef CONFIG_KGDB
 		if (kgdb_single_step) {
