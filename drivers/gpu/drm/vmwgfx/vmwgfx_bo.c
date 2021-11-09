@@ -758,7 +758,8 @@ void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 
 	ret = dma_resv_reserve_fences(bo->base.resv, 1);
 	if (!ret)
-		dma_resv_add_excl_fence(bo->base.resv, &fence->base);
+		dma_resv_add_fence(bo->base.resv, &fence->base,
+				   DMA_RESV_USAGE_WRITE);
 	else
 		/* Last resort fallback when we are OOM */
 		dma_fence_wait(&fence->base, false);

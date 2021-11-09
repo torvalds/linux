@@ -637,9 +637,8 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 	if (IS_ERR_OR_NULL(copy_fence))
 		return PTR_ERR_OR_ZERO(copy_fence);
 
-	dma_resv_add_excl_fence(dst_bo->base.resv, copy_fence);
-	dma_resv_add_shared_fence(src_bo->base.resv, copy_fence);
-
+	dma_resv_add_fence(dst_bo->base.resv, copy_fence, DMA_RESV_USAGE_WRITE);
+	dma_resv_add_fence(src_bo->base.resv, copy_fence, DMA_RESV_USAGE_READ);
 	dma_fence_put(copy_fence);
 
 	return 0;

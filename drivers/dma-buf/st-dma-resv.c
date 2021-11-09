@@ -58,8 +58,9 @@ static int sanitycheck(void *arg)
 	return r;
 }
 
-static int test_signaling(void *arg, enum dma_resv_usage usage)
+static int test_signaling(void *arg)
 {
+	enum dma_resv_usage usage = (unsigned long)arg;
 	struct dma_resv resv;
 	struct dma_fence *f;
 	int r;
@@ -81,11 +82,7 @@ static int test_signaling(void *arg, enum dma_resv_usage usage)
 		goto err_unlock;
 	}
 
-	if (usage >= DMA_RESV_USAGE_READ)
-		dma_resv_add_shared_fence(&resv, f);
-	else
-		dma_resv_add_excl_fence(&resv, f);
-
+	dma_resv_add_fence(&resv, f, usage);
 	if (dma_resv_test_signaled(&resv, usage)) {
 		pr_err("Resv unexpectedly signaled\n");
 		r = -EINVAL;
@@ -105,18 +102,9 @@ err_free:
 	return r;
 }
 
-static int test_excl_signaling(void *arg)
+static int test_for_each(void *arg)
 {
-	return test_signaling(arg, DMA_RESV_USAGE_WRITE);
-}
-
-static int test_shared_signaling(void *arg)
-{
-	return test_signaling(arg, DMA_RESV_USAGE_READ);
-}
-
-static int test_for_each(void *arg, enum dma_resv_usage usage)
-{
+	enum dma_resv_usage usage = (unsigned long)arg;
 	struct dma_resv_iter cursor;
 	struct dma_fence *f, *fence;
 	struct dma_resv resv;
@@ -139,10 +127,7 @@ static int test_for_each(void *arg, enum dma_resv_usage usage)
 		goto err_unlock;
 	}
 
-	if (usage >= DMA_RESV_USAGE_READ)
-		dma_resv_add_shared_fence(&resv, f);
-	else
-		dma_resv_add_excl_fence(&resv, f);
+	dma_resv_add_fence(&resv, f, usage);
 
 	r = -ENOENT;
 	dma_resv_for_each_fence(&cursor, &resv, usage, fence) {
@@ -156,8 +141,7 @@ static int test_for_each(void *arg, enum dma_resv_usage usage)
 			r = -EINVAL;
 			goto err_unlock;
 		}
-		if (dma_resv_iter_is_exclusive(&cursor) !=
-		    (usage >= DMA_RESV_USAGE_READ)) {
+		if (dma_resv_iter_usage(&cursor) != usage) {
 			pr_err("Unexpected fence usage\n");
 			r = -EINVAL;
 			goto err_unlock;
@@ -177,18 +161,9 @@ err_free:
 	return r;
 }
 
-static int test_excl_for_each(void *arg)
+static int test_for_each_unlocked(void *arg)
 {
-	return test_for_each(arg, DMA_RESV_USAGE_WRITE);
-}
-
-static int test_shared_for_each(void *arg)
-{
-	return test_for_each(arg, DMA_RESV_USAGE_READ);
-}
-
-static int test_for_each_unlocked(void *arg, enum dma_resv_usage usage)
-{
+	enum dma_resv_usage usage = (unsigned long)arg;
 	struct dma_resv_iter cursor;
 	struct dma_fence *f, *fence;
 	struct dma_resv resv;
@@ -212,10 +187,7 @@ static int test_for_each_unlocked(void *arg, enum dma_resv_usage usage)
 		goto err_free;
 	}
 
-	if (usage >= DMA_RESV_USAGE_READ)
-		dma_resv_add_shared_fence(&resv, f);
-	else
-		dma_resv_add_excl_fence(&resv, f);
+	dma_resv_add_fence(&resv, f, usage);
 	dma_resv_unlock(&resv);
 
 	r = -ENOENT;
@@ -235,8 +207,7 @@ static int test_for_each_unlocked(void *arg, enum dma_resv_usage usage)
 			r = -EINVAL;
 			goto err_iter_end;
 		}
-		if (dma_resv_iter_is_exclusive(&cursor) !=
-		    (usage >= DMA_RESV_USAGE_READ)) {
+		if (dma_resv_iter_usage(&cursor) != usage) {
 			pr_err("Unexpected fence usage\n");
 			r = -EINVAL;
 			goto err_iter_end;
@@ -262,18 +233,9 @@ err_free:
 	return r;
 }
 
-static int test_excl_for_each_unlocked(void *arg)
+static int test_get_fences(void *arg)
 {
-	return test_for_each_unlocked(arg, DMA_RESV_USAGE_WRITE);
-}
-
-static int test_shared_for_each_unlocked(void *arg)
-{
-	return test_for_each_unlocked(arg, DMA_RESV_USAGE_READ);
-}
-
-static int test_get_fences(void *arg, enum dma_resv_usage usage)
-{
+	enum dma_resv_usage usage = (unsigned long)arg;
 	struct dma_fence *f, **fences = NULL;
 	struct dma_resv resv;
 	int r, i;
@@ -296,10 +258,7 @@ static int test_get_fences(void *arg, enum dma_resv_usage usage)
 		goto err_resv;
 	}
 
-	if (usage >= DMA_RESV_USAGE_READ)
-		dma_resv_add_shared_fence(&resv, f);
-	else
-		dma_resv_add_excl_fence(&resv, f);
+	dma_resv_add_fence(&resv, f, usage);
 	dma_resv_unlock(&resv);
 
 	r = dma_resv_get_fences(&resv, usage, &i, &fences);
@@ -324,30 +283,24 @@ err_resv:
 	return r;
 }
 
-static int test_excl_get_fences(void *arg)
-{
-	return test_get_fences(arg, DMA_RESV_USAGE_WRITE);
-}
-
-static int test_shared_get_fences(void *arg)
-{
-	return test_get_fences(arg, DMA_RESV_USAGE_READ);
-}
-
 int dma_resv(void)
 {
 	static const struct subtest tests[] = {
 		SUBTEST(sanitycheck),
-		SUBTEST(test_excl_signaling),
-		SUBTEST(test_shared_signaling),
-		SUBTEST(test_excl_for_each),
-		SUBTEST(test_shared_for_each),
-		SUBTEST(test_excl_for_each_unlocked),
-		SUBTEST(test_shared_for_each_unlocked),
-		SUBTEST(test_excl_get_fences),
-		SUBTEST(test_shared_get_fences),
+		SUBTEST(test_signaling),
+		SUBTEST(test_for_each),
+		SUBTEST(test_for_each_unlocked),
+		SUBTEST(test_get_fences),
 	};
+	enum dma_resv_usage usage;
+	int r;
 
 	spin_lock_init(&fence_lock);
-	return subtests(tests, NULL);
+	for (usage = DMA_RESV_USAGE_WRITE; usage <= DMA_RESV_USAGE_READ;
+	     ++usage) {
+		r = subtests(tests, (void *)(unsigned long)usage);
+		if (r)
+			return r;
+	}
+	return 0;
 }

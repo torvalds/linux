@@ -364,10 +364,9 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 	fence = lima_sched_context_queue_task(submit->task);
 
 	for (i = 0; i < submit->nr_bos; i++) {
-		if (submit->bos[i].flags & LIMA_SUBMIT_BO_WRITE)
-			dma_resv_add_excl_fence(lima_bo_resv(bos[i]), fence);
-		else
-			dma_resv_add_shared_fence(lima_bo_resv(bos[i]), fence);
+		dma_resv_add_fence(lima_bo_resv(bos[i]), fence,
+				   submit->bos[i].flags & LIMA_SUBMIT_BO_WRITE ?
+				   DMA_RESV_USAGE_WRITE : DMA_RESV_USAGE_READ);
 	}
 
 	drm_gem_unlock_reservations((struct drm_gem_object **)bos,

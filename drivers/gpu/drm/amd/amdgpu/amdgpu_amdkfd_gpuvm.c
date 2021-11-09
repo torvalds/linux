@@ -263,7 +263,7 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 	 */
 	replacement = dma_fence_get_stub();
 	dma_resv_replace_fences(bo->tbo.base.resv, ef->base.context,
-				replacement);
+				replacement, DMA_RESV_USAGE_READ);
 	dma_fence_put(replacement);
 	return 0;
 }

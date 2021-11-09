@@ -234,14 +234,14 @@ EXPORT_SYMBOL(dma_resv_reserve_fences);
 
 #ifdef CONFIG_DEBUG_MUTEXES
 /**
- * dma_resv_reset_shared_max - reset shared fences for debugging
+ * dma_resv_reset_max_fences - reset shared fences for debugging
  * @obj: the dma_resv object to reset
  *
  * Reset the number of pre-reserved shared slots to test that drivers do
  * correct slot allocation using dma_resv_reserve_fences(). See also
  * &dma_resv_list.shared_max.
  */
-void dma_resv_reset_shared_max(struct dma_resv *obj)
+void dma_resv_reset_max_fences(struct dma_resv *obj)
 {
 	struct dma_resv_list *fences = dma_resv_shared_list(obj);
 
@@ -251,7 +251,7 @@ void dma_resv_reset_shared_max(struct dma_resv *obj)
 	if (fences)
 		fences->shared_max = fences->shared_count;
 }
-EXPORT_SYMBOL(dma_resv_reset_shared_max);
+EXPORT_SYMBOL(dma_resv_reset_max_fences);
 #endif
 
 /**
@@ -264,7 +264,8 @@ EXPORT_SYMBOL(dma_resv_reset_shared_max);
  *
  * See also &dma_resv.fence for a discussion of the semantics.
  */
-void dma_resv_add_shared_fence(struct dma_resv *obj, struct dma_fence *fence)
+static void dma_resv_add_shared_fence(struct dma_resv *obj,
+				      struct dma_fence *fence)
 {
 	struct dma_resv_list *fobj;
 	struct dma_fence *old;
@@ -305,13 +306,13 @@ replace:
 	write_seqcount_end(&obj->seq);
 	dma_fence_put(old);
 }
-EXPORT_SYMBOL(dma_resv_add_shared_fence);
 
 /**
  * dma_resv_replace_fences - replace fences in the dma_resv obj
  * @obj: the reservation object
  * @context: the context of the fences to replace
  * @replacement: the new fence to use instead
+ * @usage: how the new fence is used, see enum dma_resv_usage
  *
  * Replace fences with a specified context with a new fence. Only valid if the
  * operation represented by the original fence has no longer access to the
@@ -321,11 +322,15 @@ EXPORT_SYMBOL(dma_resv_add_shared_fence);
  * update fence which makes the resource inaccessible.
  */
 void dma_resv_replace_fences(struct dma_resv *obj, uint64_t context,
-			     struct dma_fence *replacement)
+			     struct dma_fence *replacement,
+			     enum dma_resv_usage usage)
 {
 	struct dma_resv_list *list;
 	struct dma_fence *old;
 	unsigned int i;
+
+	/* Only readers supported for now */
+	WARN_ON(usage != DMA_RESV_USAGE_READ);
 
 	dma_resv_assert_held(obj);
 
@@ -360,7 +365,8 @@ EXPORT_SYMBOL(dma_resv_replace_fences);
  * Add a fence to the exclusive slot. @obj must be locked with dma_resv_lock().
  * See also &dma_resv.fence_excl for a discussion of the semantics.
  */
-void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
+static void dma_resv_add_excl_fence(struct dma_resv *obj,
+				    struct dma_fence *fence)
 {
 	struct dma_fence *old_fence = dma_resv_excl_fence(obj);
 
@@ -375,7 +381,27 @@ void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
 
 	dma_fence_put(old_fence);
 }
-EXPORT_SYMBOL(dma_resv_add_excl_fence);
+
+/**
+ * dma_resv_add_fence - Add a fence to the dma_resv obj
+ * @obj: the reservation object
+ * @fence: the fence to add
+ * @usage: how the fence is used, see enum dma_resv_usage
+ *
+ * Add a fence to a slot, @obj must be locked with dma_resv_lock(), and
+ * dma_resv_reserve_fences() has been called.
+ *
+ * See also &dma_resv.fence for a discussion of the semantics.
+ */
+void dma_resv_add_fence(struct dma_resv *obj, struct dma_fence *fence,
+			enum dma_resv_usage usage)
+{
+	if (usage == DMA_RESV_USAGE_WRITE)
+		dma_resv_add_excl_fence(obj, fence);
+	else
+		dma_resv_add_shared_fence(obj, fence);
+}
+EXPORT_SYMBOL(dma_resv_add_fence);
 
 /* Restart the iterator by initializing all the necessary fields, but not the
  * relation to the dma_resv object. */
@@ -574,7 +600,7 @@ int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src)
 		}
 
 		dma_fence_get(f);
-		if (dma_resv_iter_is_exclusive(&cursor))
+		if (dma_resv_iter_usage(&cursor) == DMA_RESV_USAGE_WRITE)
 			excl = f;
 		else
 			RCU_INIT_POINTER(list->shared[list->shared_count++], f);
@@ -771,13 +797,13 @@ EXPORT_SYMBOL_GPL(dma_resv_test_signaled);
  */
 void dma_resv_describe(struct dma_resv *obj, struct seq_file *seq)
 {
+	static const char *usage[] = { "write", "read" };
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 
 	dma_resv_for_each_fence(&cursor, obj, DMA_RESV_USAGE_READ, fence) {
 		seq_printf(seq, "\t%s fence:",
-			   dma_resv_iter_is_exclusive(&cursor) ?
-				"Exclusive" : "Shared");
+			   usage[dma_resv_iter_usage(&cursor)]);
 		dma_fence_describe(fence, seq);
 	}
 }
