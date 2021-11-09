@@ -157,7 +157,7 @@ static int allocate_doorbell(struct qcm_process_device *qpd, struct queue *q)
 {
 	struct kfd_dev *dev = qpd->dqm->dev;
 
-	if (!KFD_IS_SOC15(dev->device_info->asic_family)) {
+	if (!KFD_IS_SOC15(dev)) {
 		/* On pre-SOC15 chips we need to use the queue ID to
 		 * preserve the user mode ABI.
 		 */
@@ -202,7 +202,7 @@ static void deallocate_doorbell(struct qcm_process_device *qpd,
 	unsigned int old;
 	struct kfd_dev *dev = qpd->dqm->dev;
 
-	if (!KFD_IS_SOC15(dev->device_info->asic_family) ||
+	if (!KFD_IS_SOC15(dev) ||
 	    q->properties.type == KFD_QUEUE_TYPE_SDMA ||
 	    q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)
 		return;

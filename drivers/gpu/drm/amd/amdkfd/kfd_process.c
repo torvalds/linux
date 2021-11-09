@@ -1431,7 +1431,7 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 	int range_start = dev->shared_resources.non_cp_doorbells_start;
 	int range_end = dev->shared_resources.non_cp_doorbells_end;
 
-	if (!KFD_IS_SOC15(dev->device_info->asic_family))
+	if (!KFD_IS_SOC15(dev))
 		return 0;
 
 	qpd->doorbell_bitmap =
