@@ -17,4 +17,16 @@
 int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus,
 		uint64_t gicd_base_gpa, uint64_t gicr_base_gpa);
 
-#endif /* SELFTEST_KVM_VGIC_H */
+#define VGIC_MAX_RESERVED	1023
+
+void kvm_irq_set_level_info(int gic_fd, uint32_t intid, int level);
+int _kvm_irq_set_level_info(int gic_fd, uint32_t intid, int level);
+
+void kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level);
+int _kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level);
+
+/* The vcpu arg only applies to private interrupts. */
+void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, uint32_t vcpu);
+void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, uint32_t vcpu);
+
+#endif // SELFTEST_KVM_VGIC_H
