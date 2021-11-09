@@ -2264,14 +2264,13 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	raw_spin_lock_init(&wc->endio_list_lock);
 	INIT_LIST_HEAD(&wc->endio_list);
-	wc->endio_thread = kthread_create(writecache_endio_thread, wc, "writecache_endio");
+	wc->endio_thread = kthread_run(writecache_endio_thread, wc, "writecache_endio");
 	if (IS_ERR(wc->endio_thread)) {
 		r = PTR_ERR(wc->endio_thread);
 		wc->endio_thread = NULL;
 		ti->error = "Couldn't spawn endio thread";
 		goto bad;
 	}
-	wake_up_process(wc->endio_thread);
 
 	/*
 	 * Parse the mode (pmem or ssd)
@@ -2493,14 +2492,13 @@ invalid_optional:
 		wc->memory_map_size -= (uint64_t)wc->start_sector << SECTOR_SHIFT;
 
 		bio_list_init(&wc->flush_list);
-		wc->flush_thread = kthread_create(writecache_flush_thread, wc, "dm_writecache_flush");
+		wc->flush_thread = kthread_run(writecache_flush_thread, wc, "dm_writecache_flush");
 		if (IS_ERR(wc->flush_thread)) {
 			r = PTR_ERR(wc->flush_thread);
 			wc->flush_thread = NULL;
 			ti->error = "Couldn't spawn flush thread";
 			goto bad;
 		}
-		wake_up_process(wc->flush_thread);
 
 		r = calculate_memory_size(wc->memory_map_size, wc->block_size,
 					  &n_blocks, &n_metadata_blocks);

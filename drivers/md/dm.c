@@ -1792,7 +1792,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	format_dev_t(md->name, MKDEV(_major, minor));
 
-	md->wq = alloc_workqueue("kdmflush", WQ_MEM_RECLAIM, 0);
+	md->wq = alloc_workqueue("kdmflush/%s", WQ_MEM_RECLAIM, 0, md->name);
 	if (!md->wq)
 		goto bad;
 

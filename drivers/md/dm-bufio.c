@@ -2082,7 +2082,6 @@ static void __exit dm_bufio_exit(void)
 	int bug = 0;
 
 	cancel_delayed_work_sync(&dm_bufio_cleanup_old_work);
-	flush_workqueue(dm_bufio_wq);
 	destroy_workqueue(dm_bufio_wq);
 
 	if (dm_bufio_client_count) {

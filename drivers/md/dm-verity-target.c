@@ -428,14 +428,14 @@ int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,
 		unsigned len;
 		struct bio_vec bv = bio_iter_iovec(bio, *iter);
 
-		page = kmap_atomic(bv.bv_page);
+		page = bvec_kmap_local(&bv);
 		len = bv.bv_len;
 
 		if (likely(len >= todo))
 			len = todo;
 
-		r = process(v, io, page + bv.bv_offset, len);
-		kunmap_atomic(page);
+		r = process(v, io, page, len);
+		kunmap_local(page);
 
 		if (r < 0)
 			return r;
