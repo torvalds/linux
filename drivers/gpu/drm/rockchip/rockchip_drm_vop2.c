@@ -3246,8 +3246,10 @@ static int vop2_plane_splice_check(struct drm_plane *plane, struct drm_plane_sta
 		return -EINVAL;
 	}
 
-	if ((pstate->rotation & DRM_MODE_ROTATE_270) || (pstate->rotation & DRM_MODE_ROTATE_90)) {
-		DRM_ERROR("%s can't rotate 270/90 in splice mode\n", win->name);
+	if ((pstate->rotation & DRM_MODE_ROTATE_270) ||
+	    (pstate->rotation & DRM_MODE_ROTATE_90) ||
+	    (pstate->rotation & DRM_MODE_REFLECT_X)) {
+		DRM_ERROR("%s can't rotate 270/90 and xmirror in splice mode\n", win->name);
 		return -EINVAL;
 	}
 
