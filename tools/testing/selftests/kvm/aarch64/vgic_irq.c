@@ -41,6 +41,7 @@ struct test_args {
  */
 #define KVM_NUM_PRIOS		32
 #define KVM_PRIO_SHIFT		3 /* steps of 8 = 1 << 3 */
+#define KVM_PRIO_STEPS		(1 << KVM_PRIO_SHIFT) /* 8 */
 #define LOWEST_PRIO		(KVM_NUM_PRIOS - 1)
 #define CPU_PRIO_MASK		(LOWEST_PRIO << KVM_PRIO_SHIFT)	/* 0xf8 */
 #define IRQ_DEFAULT_PRIO	(LOWEST_PRIO - 1)
@@ -212,6 +213,74 @@ static void guest_inject(struct test_args *args,
 	reset_priorities(args);
 }
 
+/*
+ * Polls the IAR until it's not a spurious interrupt.
+ *
+ * This function should only be used in test_inject_preemption (with IRQs
+ * masked).
+ */
+static uint32_t wait_for_and_activate_irq(void)
+{
+	uint32_t intid;
+
+	do {
+		asm volatile("wfi" : : : "memory");
+		intid = gic_get_and_ack_irq();
+	} while (intid == IAR_SPURIOUS);
+
+	return intid;
+}
+
+/*
+ * Inject multiple concurrent IRQs (num IRQs starting at first_intid) and
+ * handle them without handling the actual exceptions.  This is done by masking
+ * interrupts for the whole test.
+ */
+static void test_inject_preemption(struct test_args *args,
+		uint32_t first_intid, int num,
+		kvm_inject_cmd cmd)
+{
+	uint32_t intid, prio, step = KVM_PRIO_STEPS;
+	int i;
+
+	/* Set the priorities of the first (KVM_NUM_PRIOS - 1) IRQs
+	 * in descending order, so intid+1 can preempt intid.
+	 */
+	for (i = 0, prio = (num - 1) * step; i < num; i++, prio -= step) {
+		GUEST_ASSERT(prio >= 0);
+		intid = i + first_intid;
+		gic_set_priority(intid, prio);
+	}
+
+	local_irq_disable();
+
+	for (i = 0; i < num; i++) {
+		uint32_t tmp;
+		intid = i + first_intid;
+		kvm_inject_call(cmd, intid, 1);
+		/* Each successive IRQ will preempt the previous one. */
+		tmp = wait_for_and_activate_irq();
+		GUEST_ASSERT_EQ(tmp, intid);
+	}
+
+	/* finish handling the IRQs starting with the highest priority one. */
+	for (i = 0; i < num; i++) {
+		intid = num - i - 1 + first_intid;
+		gic_set_eoi(intid);
+		if (args->eoi_split)
+			gic_set_dir(intid);
+	}
+
+	local_irq_enable();
+
+	for (i = 0; i < num; i++)
+		GUEST_ASSERT(!gic_irq_get_active(i + first_intid));
+	GUEST_ASSERT_EQ(gic_read_ap1r0(), 0);
+	GUEST_ASSERT_IAR_EMPTY();
+
+	reset_priorities(args);
+}
+
 static void test_injection(struct test_args *args, struct kvm_inject_desc *f)
 {
 	uint32_t nr_irqs = args->nr_irqs;
@@ -229,6 +298,24 @@ static void test_injection(struct test_args *args, struct kvm_inject_desc *f)
 		guest_inject(args, nr_irqs - 1, 1, f->cmd);
 		guest_inject(args, MIN_SPI, nr_irqs - MIN_SPI, f->cmd);
 	}
+}
+
+static void test_preemption(struct test_args *args, struct kvm_inject_desc *f)
+{
+	/*
+	 * Test up to 4 levels of preemption. The reason is that KVM doesn't
+	 * currently implement the ability to have more than the number-of-LRs
+	 * number of concurrently active IRQs. The number of LRs implemented is
+	 * IMPLEMENTATION DEFINED, however, it seems that most implement 4.
+	 */
+	if (f->sgi)
+		test_inject_preemption(args, MIN_SGI, 4, f->cmd);
+
+	if (f->ppi)
+		test_inject_preemption(args, MIN_PPI, 4, f->cmd);
+
+	if (f->spi)
+		test_inject_preemption(args, MIN_SPI, 4, f->cmd);
 }
 
 static void guest_code(struct test_args args)
@@ -249,8 +336,10 @@ static void guest_code(struct test_args args)
 	local_irq_enable();
 
 	/* Start the tests. */
-	for_each_inject_fn(inject_edge_fns, f)
+	for_each_inject_fn(inject_edge_fns, f) {
 		test_injection(&args, f);
+		test_preemption(&args, f);
+	}
 
 	GUEST_DONE();
 }
