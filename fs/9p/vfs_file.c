@@ -114,7 +114,6 @@ out_error:
 
 static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	int res = 0;
 	struct inode *inode = file_inode(filp);
 
 	p9_debug(P9_DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
@@ -124,7 +123,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 		invalidate_mapping_pages(&inode->i_data, 0, -1);
 	}
 
-	return res;
+	return 0;
 }
 
 static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
