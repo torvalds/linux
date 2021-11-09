@@ -432,8 +432,12 @@ static int aspeed_jtag_status_set(struct jtag *jtag,
 						     JTAG_STATE_TLRESET);
 		ret = aspeed_jtag_sw_set_tap_state(aspeed_jtag,
 						   tapstate->endstate);
-		for (i = 0; i < tapstate->tck; i++)
-			TCK_Cycle(aspeed_jtag, 0, 0);
+		if (tapstate->endstate == JTAG_STATE_TLRESET ||
+		    tapstate->endstate == JTAG_STATE_IDLE ||
+		    tapstate->endstate == JTAG_STATE_PAUSEDR ||
+		    tapstate->endstate == JTAG_STATE_PAUSEIR)
+			for (i = 0; i < tapstate->tck; i++)
+				TCK_Cycle(aspeed_jtag, 0, 0);
 	}
 	if (ret)
 		return ret;
