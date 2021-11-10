@@ -25,10 +25,12 @@ struct slab {
 	union {
 		struct list_head slab_list;
 		struct rcu_head rcu_head;
+#ifdef CONFIG_SLUB_CPU_PARTIAL
 		struct {
 			struct slab *next;
 			int slabs;	/* Nr of slabs left */
 		};
+#endif
 	};
 	struct kmem_cache *slab_cache;
 	/* Double-word boundary */
