@@ -24,60 +24,6 @@ noinstr void xen_force_evtchn_callback(void)
 	(void)HYPERVISOR_xen_version(0, NULL);
 }
 
-asmlinkage __visible noinstr unsigned long xen_save_fl(void)
-{
-	struct vcpu_info *vcpu;
-	unsigned long flags;
-
-	vcpu = this_cpu_read(xen_vcpu);
-
-	/* flag has opposite sense of mask */
-	flags = !vcpu->evtchn_upcall_mask;
-
-	/* convert to IF type flag
-	   -0 -> 0x00000000
-	   -1 -> 0xffffffff
-	*/
-	return (-flags) & X86_EFLAGS_IF;
-}
-__PV_CALLEE_SAVE_REGS_THUNK(xen_save_fl, ".noinstr.text");
-
-asmlinkage __visible noinstr void xen_irq_disable(void)
-{
-	/* There's a one instruction preempt window here.  We need to
-	   make sure we're don't switch CPUs between getting the vcpu
-	   pointer and updating the mask. */
-	preempt_disable();
-	this_cpu_read(xen_vcpu)->evtchn_upcall_mask = 1;
-	preempt_enable_no_resched();
-}
-__PV_CALLEE_SAVE_REGS_THUNK(xen_irq_disable, ".noinstr.text");
-
-asmlinkage __visible noinstr void xen_irq_enable(void)
-{
-	struct vcpu_info *vcpu;
-
-	/*
-	 * We may be preempted as soon as vcpu->evtchn_upcall_mask is
-	 * cleared, so disable preemption to ensure we check for
-	 * events on the VCPU we are still running on.
-	 */
-	preempt_disable();
-
-	vcpu = this_cpu_read(xen_vcpu);
-	vcpu->evtchn_upcall_mask = 0;
-
-	/* Doesn't matter if we get preempted here, because any
-	   pending event will get dealt with anyway. */
-
-	barrier(); /* unmask then check (avoid races) */
-	if (unlikely(vcpu->evtchn_upcall_pending))
-		xen_force_evtchn_callback();
-
-	preempt_enable();
-}
-__PV_CALLEE_SAVE_REGS_THUNK(xen_irq_enable, ".noinstr.text");
-
 static void xen_safe_halt(void)
 {
 	/* Blocking includes an implicit local_irq_enable(). */
@@ -96,10 +42,10 @@ static void xen_halt(void)
 
 static const typeof(pv_ops) xen_irq_ops __initconst = {
 	.irq = {
-
-		.save_fl = PV_CALLEE_SAVE(xen_save_fl),
-		.irq_disable = PV_CALLEE_SAVE(xen_irq_disable),
-		.irq_enable = PV_CALLEE_SAVE(xen_irq_enable),
+		/* Initial interrupt flag handling only called while interrupts off. */
+		.save_fl = __PV_IS_CALLEE_SAVE(paravirt_ret0),
+		.irq_disable = __PV_IS_CALLEE_SAVE(paravirt_nop),
+		.irq_enable = __PV_IS_CALLEE_SAVE(paravirt_BUG),
 
 		.safe_halt = xen_safe_halt,
 		.halt = xen_halt,

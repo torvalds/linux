@@ -46,6 +46,17 @@ asm (".pushsection .entry.text, \"ax\"\n"
      ".type _paravirt_nop, @function\n\t"
      ".popsection");
 
+/* stub always returning 0. */
+asm (".pushsection .entry.text, \"ax\"\n"
+     ".global paravirt_ret0\n"
+     "paravirt_ret0:\n\t"
+     "xor %" _ASM_AX ", %" _ASM_AX ";\n\t"
+     "ret\n\t"
+     ".size paravirt_ret0, . - paravirt_ret0\n\t"
+     ".type paravirt_ret0, @function\n\t"
+     ".popsection");
+
+
 void __init default_banner(void)
 {
 	printk(KERN_INFO "Booting paravirtualized kernel on %s\n",
@@ -53,7 +64,7 @@ void __init default_banner(void)
 }
 
 /* Undefined instruction for dealing with missing ops pointers. */
-static void paravirt_BUG(void)
+noinstr void paravirt_BUG(void)
 {
 	BUG();
 }

@@ -248,6 +248,7 @@ privcmd_call(unsigned int call,
 	return res;
 }
 
+#ifdef CONFIG_XEN_PV
 static inline int
 HYPERVISOR_set_trap_table(struct trap_info *table)
 {
@@ -281,6 +282,107 @@ HYPERVISOR_callback_op(int cmd, void *arg)
 }
 
 static inline int
+HYPERVISOR_set_debugreg(int reg, unsigned long value)
+{
+	return _hypercall2(int, set_debugreg, reg, value);
+}
+
+static inline unsigned long
+HYPERVISOR_get_debugreg(int reg)
+{
+	return _hypercall1(unsigned long, get_debugreg, reg);
+}
+
+static inline int
+HYPERVISOR_update_descriptor(u64 ma, u64 desc)
+{
+	return _hypercall2(int, update_descriptor, ma, desc);
+}
+
+static inline int
+HYPERVISOR_update_va_mapping(unsigned long va, pte_t new_val,
+			     unsigned long flags)
+{
+	return _hypercall3(int, update_va_mapping, va, new_val.pte, flags);
+}
+
+static inline int
+HYPERVISOR_set_segment_base(int reg, unsigned long value)
+{
+	return _hypercall2(int, set_segment_base, reg, value);
+}
+
+static inline void
+MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)
+{
+	mcl->op = __HYPERVISOR_fpu_taskswitch;
+	mcl->args[0] = set;
+
+	trace_xen_mc_entry(mcl, 1);
+}
+
+static inline void
+MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
+			pte_t new_val, unsigned long flags)
+{
+	mcl->op = __HYPERVISOR_update_va_mapping;
+	mcl->args[0] = va;
+	mcl->args[1] = new_val.pte;
+	mcl->args[2] = flags;
+
+	trace_xen_mc_entry(mcl, 3);
+}
+
+static inline void
+MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
+			struct desc_struct desc)
+{
+	mcl->op = __HYPERVISOR_update_descriptor;
+	mcl->args[0] = maddr;
+	mcl->args[1] = *(unsigned long *)&desc;
+
+	trace_xen_mc_entry(mcl, 2);
+}
+
+static inline void
+MULTI_mmu_update(struct multicall_entry *mcl, struct mmu_update *req,
+		 int count, int *success_count, domid_t domid)
+{
+	mcl->op = __HYPERVISOR_mmu_update;
+	mcl->args[0] = (unsigned long)req;
+	mcl->args[1] = count;
+	mcl->args[2] = (unsigned long)success_count;
+	mcl->args[3] = domid;
+
+	trace_xen_mc_entry(mcl, 4);
+}
+
+static inline void
+MULTI_mmuext_op(struct multicall_entry *mcl, struct mmuext_op *op, int count,
+		int *success_count, domid_t domid)
+{
+	mcl->op = __HYPERVISOR_mmuext_op;
+	mcl->args[0] = (unsigned long)op;
+	mcl->args[1] = count;
+	mcl->args[2] = (unsigned long)success_count;
+	mcl->args[3] = domid;
+
+	trace_xen_mc_entry(mcl, 4);
+}
+
+static inline void
+MULTI_stack_switch(struct multicall_entry *mcl,
+		   unsigned long ss, unsigned long esp)
+{
+	mcl->op = __HYPERVISOR_stack_switch;
+	mcl->args[0] = ss;
+	mcl->args[1] = esp;
+
+	trace_xen_mc_entry(mcl, 2);
+}
+#endif
+
+static inline int
 HYPERVISOR_sched_op(int cmd, void *arg)
 {
 	return _hypercall2(int, sched_op, cmd, arg);
@@ -308,26 +410,6 @@ HYPERVISOR_platform_op(struct xen_platform_op *op)
 	return _hypercall1(int, platform_op, op);
 }
 
-static __always_inline int
-HYPERVISOR_set_debugreg(int reg, unsigned long value)
-{
-	return _hypercall2(int, set_debugreg, reg, value);
-}
-
-static __always_inline unsigned long
-HYPERVISOR_get_debugreg(int reg)
-{
-	return _hypercall1(unsigned long, get_debugreg, reg);
-}
-
-static inline int
-HYPERVISOR_update_descriptor(u64 ma, u64 desc)
-{
-	if (sizeof(u64) == sizeof(long))
-		return _hypercall2(int, update_descriptor, ma, desc);
-	return _hypercall4(int, update_descriptor, ma, ma>>32, desc, desc>>32);
-}
-
 static inline long
 HYPERVISOR_memory_op(unsigned int cmd, void *arg)
 {
@@ -338,18 +420,6 @@ static inline int
 HYPERVISOR_multicall(void *call_list, uint32_t nr_calls)
 {
 	return _hypercall2(int, multicall, call_list, nr_calls);
-}
-
-static inline int
-HYPERVISOR_update_va_mapping(unsigned long va, pte_t new_val,
-			     unsigned long flags)
-{
-	if (sizeof(new_val) == sizeof(long))
-		return _hypercall3(int, update_va_mapping, va,
-				   new_val.pte, flags);
-	else
-		return _hypercall4(int, update_va_mapping, va,
-				   new_val.pte, new_val.pte >> 32, flags);
 }
 
 static inline int
@@ -394,14 +464,6 @@ HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args)
 	return _hypercall3(int, vcpu_op, cmd, vcpuid, extra_args);
 }
 
-#ifdef CONFIG_X86_64
-static inline int
-HYPERVISOR_set_segment_base(int reg, unsigned long value)
-{
-	return _hypercall2(int, set_segment_base, reg, value);
-}
-#endif
-
 static inline int
 HYPERVISOR_suspend(unsigned long start_info_mfn)
 {
@@ -423,13 +485,6 @@ HYPERVISOR_hvm_op(int op, void *arg)
 }
 
 static inline int
-HYPERVISOR_tmem_op(
-	struct tmem_op *op)
-{
-	return _hypercall1(int, tmem_op, op);
-}
-
-static inline int
 HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
 {
 	return _hypercall2(int, xenpmu_op, op, arg);
@@ -444,90 +499,6 @@ HYPERVISOR_dm_op(
 	ret = _hypercall3(int, dm_op, dom, nr_bufs, bufs);
 	__xen_clac();
 	return ret;
-}
-
-static inline void
-MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)
-{
-	mcl->op = __HYPERVISOR_fpu_taskswitch;
-	mcl->args[0] = set;
-
-	trace_xen_mc_entry(mcl, 1);
-}
-
-static inline void
-MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
-			pte_t new_val, unsigned long flags)
-{
-	mcl->op = __HYPERVISOR_update_va_mapping;
-	mcl->args[0] = va;
-	if (sizeof(new_val) == sizeof(long)) {
-		mcl->args[1] = new_val.pte;
-		mcl->args[2] = flags;
-	} else {
-		mcl->args[1] = new_val.pte;
-		mcl->args[2] = new_val.pte >> 32;
-		mcl->args[3] = flags;
-	}
-
-	trace_xen_mc_entry(mcl, sizeof(new_val) == sizeof(long) ? 3 : 4);
-}
-
-static inline void
-MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
-			struct desc_struct desc)
-{
-	mcl->op = __HYPERVISOR_update_descriptor;
-	if (sizeof(maddr) == sizeof(long)) {
-		mcl->args[0] = maddr;
-		mcl->args[1] = *(unsigned long *)&desc;
-	} else {
-		u32 *p = (u32 *)&desc;
-
-		mcl->args[0] = maddr;
-		mcl->args[1] = maddr >> 32;
-		mcl->args[2] = *p++;
-		mcl->args[3] = *p;
-	}
-
-	trace_xen_mc_entry(mcl, sizeof(maddr) == sizeof(long) ? 2 : 4);
-}
-
-static inline void
-MULTI_mmu_update(struct multicall_entry *mcl, struct mmu_update *req,
-		 int count, int *success_count, domid_t domid)
-{
-	mcl->op = __HYPERVISOR_mmu_update;
-	mcl->args[0] = (unsigned long)req;
-	mcl->args[1] = count;
-	mcl->args[2] = (unsigned long)success_count;
-	mcl->args[3] = domid;
-
-	trace_xen_mc_entry(mcl, 4);
-}
-
-static inline void
-MULTI_mmuext_op(struct multicall_entry *mcl, struct mmuext_op *op, int count,
-		int *success_count, domid_t domid)
-{
-	mcl->op = __HYPERVISOR_mmuext_op;
-	mcl->args[0] = (unsigned long)op;
-	mcl->args[1] = count;
-	mcl->args[2] = (unsigned long)success_count;
-	mcl->args[3] = domid;
-
-	trace_xen_mc_entry(mcl, 4);
-}
-
-static inline void
-MULTI_stack_switch(struct multicall_entry *mcl,
-		   unsigned long ss, unsigned long esp)
-{
-	mcl->op = __HYPERVISOR_stack_switch;
-	mcl->args[0] = ss;
-	mcl->args[1] = esp;
-
-	trace_xen_mc_entry(mcl, 2);
 }
 
 #endif /* _ASM_X86_XEN_HYPERCALL_H */
