@@ -195,7 +195,7 @@ static ssize_t rfi_restriction_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	u16 cmd_id = 0x0008;
-	u32 cmd_resp;
+	u64 cmd_resp;
 	u32 input;
 	int ret;
 
@@ -215,14 +215,14 @@ static ssize_t rfi_restriction_show(struct device *dev,
 				    char *buf)
 {
 	u16 cmd_id = 0x0007;
-	u32 cmd_resp;
+	u64 cmd_resp;
 	int ret;
 
 	ret = processor_thermal_send_mbox_cmd(to_pci_dev(dev), cmd_id, 0, &cmd_resp);
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%u\n", cmd_resp);
+	return sprintf(buf, "%llu\n", cmd_resp);
 }
 
 static ssize_t ddr_data_rate_show(struct device *dev,
@@ -230,14 +230,14 @@ static ssize_t ddr_data_rate_show(struct device *dev,
 				  char *buf)
 {
 	u16 cmd_id = 0x0107;
-	u32 cmd_resp;
+	u64 cmd_resp;
 	int ret;
 
 	ret = processor_thermal_send_mbox_cmd(to_pci_dev(dev), cmd_id, 0, &cmd_resp);
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%u\n", cmd_resp);
+	return sprintf(buf, "%llu\n", cmd_resp);
 }
 
 static DEVICE_ATTR_RW(rfi_restriction);
