@@ -1287,7 +1287,7 @@ out_nolock:
 	list_del(&waiter.list);
 
 	if (unlikely(wstate == WRITER_HANDOFF))
-		atomic_long_add(-RWSEM_FLAG_HANDOFF,  &sem->count);
+		atomic_long_andnot(RWSEM_FLAG_HANDOFF,  &sem->count);
 
 	if (list_empty(&sem->wait_list))
 		atomic_long_andnot(RWSEM_FLAG_WAITERS, &sem->count);
