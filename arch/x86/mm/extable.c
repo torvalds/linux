@@ -99,6 +99,18 @@ static bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
 	return ex_handler_default(fixup, regs);
 }
 
+static bool ex_handler_pop_zero(const struct exception_table_entry *fixup,
+				struct pt_regs *regs)
+{
+	/*
+	 * Typically used for when "pop %seg" traps, in which case we'll clear
+	 * the stack slot and re-try the instruction, which will then succeed
+	 * to pop zero.
+	 */
+	*((unsigned long *)regs->sp) = 0;
+	return ex_handler_default(fixup, regs);
+}
+
 int ex_get_fixup_type(unsigned long ip)
 {
 	const struct exception_table_entry *e = search_exception_tables(ip);
@@ -156,6 +168,8 @@ int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
 	case EX_TYPE_WRMSR_IN_MCE:
 		ex_handler_msr_mce(regs, true);
 		break;
+	case EX_TYPE_POP_ZERO:
+		return ex_handler_pop_zero(e, regs);
 	}
 	BUG();
 }
