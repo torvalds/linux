@@ -398,7 +398,7 @@
 &pinctrl {
 	hym8563 {
 		hym8563_int: hym8563-int {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
