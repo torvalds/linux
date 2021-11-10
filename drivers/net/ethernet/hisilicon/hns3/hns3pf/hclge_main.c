@@ -8949,8 +8949,11 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 
 err_no_space:
 	/* if already overflow, not to print each time */
-	if (!(vport->overflow_promisc_flags & HNAE3_OVERFLOW_MPE))
+	if (!(vport->overflow_promisc_flags & HNAE3_OVERFLOW_MPE)) {
+		vport->overflow_promisc_flags |= HNAE3_OVERFLOW_MPE;
 		dev_err(&hdev->pdev->dev, "mc mac vlan table is full\n");
+	}
+
 	return -ENOSPC;
 }
 
@@ -9006,11 +9009,16 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 
 static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 				      struct list_head *list,
-				      int (*sync)(struct hclge_vport *,
-						  const unsigned char *))
+				      enum HCLGE_MAC_ADDR_TYPE mac_type)
 {
+	int (*sync)(struct hclge_vport *vport, const unsigned char *addr);
 	struct hclge_mac_node *mac_node, *tmp;
 	int ret;
+
+	if (mac_type == HCLGE_MAC_ADDR_UC)
+		sync = hclge_add_uc_addr_common;
+	else
+		sync = hclge_add_mc_addr_common;
 
 	list_for_each_entry_safe(mac_node, tmp, list, node) {
 		ret = sync(vport, mac_node->mac_addr);
@@ -9023,8 +9031,13 @@ static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 			/* If one unicast mac address is existing in hardware,
 			 * we need to try whether other unicast mac addresses
 			 * are new addresses that can be added.
+			 * Multicast mac address can be reusable, even though
+			 * there is no space to add new multicast mac address,
+			 * we should check whether other mac addresses are
+			 * existing in hardware for reuse.
 			 */
-			if (ret != -EEXIST)
+			if ((mac_type == HCLGE_MAC_ADDR_UC && ret != -EEXIST) ||
+			    (mac_type == HCLGE_MAC_ADDR_MC && ret != -ENOSPC))
 				break;
 		}
 	}
@@ -9032,11 +9045,16 @@ static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 
 static void hclge_unsync_vport_mac_list(struct hclge_vport *vport,
 					struct list_head *list,
-					int (*unsync)(struct hclge_vport *,
-						      const unsigned char *))
+					enum HCLGE_MAC_ADDR_TYPE mac_type)
 {
+	int (*unsync)(struct hclge_vport *vport, const unsigned char *addr);
 	struct hclge_mac_node *mac_node, *tmp;
 	int ret;
+
+	if (mac_type == HCLGE_MAC_ADDR_UC)
+		unsync = hclge_rm_uc_addr_common;
+	else
+		unsync = hclge_rm_mc_addr_common;
 
 	list_for_each_entry_safe(mac_node, tmp, list, node) {
 		ret = unsync(vport, mac_node->mac_addr);
@@ -9168,17 +9186,8 @@ stop_traverse:
 	spin_unlock_bh(&vport->mac_list_lock);
 
 	/* delete first, in order to get max mac table space for adding */
-	if (mac_type == HCLGE_MAC_ADDR_UC) {
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_uc_addr_common);
-		hclge_sync_vport_mac_list(vport, &tmp_add_list,
-					  hclge_add_uc_addr_common);
-	} else {
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_mc_addr_common);
-		hclge_sync_vport_mac_list(vport, &tmp_add_list,
-					  hclge_add_mc_addr_common);
-	}
+	hclge_unsync_vport_mac_list(vport, &tmp_del_list, mac_type);
+	hclge_sync_vport_mac_list(vport, &tmp_add_list, mac_type);
 
 	/* if some mac addresses were added/deleted fail, move back to the
 	 * mac_list, and retry at next time.
@@ -9337,12 +9346,7 @@ static void hclge_uninit_vport_mac_list(struct hclge_vport *vport,
 
 	spin_unlock_bh(&vport->mac_list_lock);
 
-	if (mac_type == HCLGE_MAC_ADDR_UC)
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_uc_addr_common);
-	else
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_mc_addr_common);
+	hclge_unsync_vport_mac_list(vport, &tmp_del_list, mac_type);
 
 	if (!list_empty(&tmp_del_list))
 		dev_warn(&hdev->pdev->dev,
