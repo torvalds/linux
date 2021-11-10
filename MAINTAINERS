@@ -5961,10 +5961,17 @@ F:	drivers/gpu/drm/panel/panel-novatek-nt36672a.c
 
 DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
 M:	Ben Skeggs <bskeggs@redhat.com>
+M:	Karol Herbst <kherbst@redhat.com>
+M:	Lyude Paul <lyude@redhat.com>
 L:	dri-devel@lists.freedesktop.org
 L:	nouveau@lists.freedesktop.org
 S:	Supported
-T:	git git://github.com/skeggsb/linux
+W:	https://nouveau.freedesktop.org/
+Q:	https://patchwork.freedesktop.org/project/nouveau/
+Q:	https://gitlab.freedesktop.org/drm/nouveau/-/merge_requests
+B:	https://gitlab.freedesktop.org/drm/nouveau/-/issues
+C:	irc://irc.oftc.net/nouveau
+T:	git https://gitlab.freedesktop.org/drm/nouveau.git
 F:	drivers/gpu/drm/nouveau/
 F:	include/uapi/drm/nouveau_drm.h
 
