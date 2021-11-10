@@ -424,6 +424,39 @@ done:
 	return ret;
 }
 
+static u32 rzg2l_read_pin_config(struct rzg2l_pinctrl *pctrl, u32 offset,
+				 u8 bit, u32 mask)
+{
+	void __iomem *addr = pctrl->base + offset;
+
+	/* handle _L/_H for 32-bit register read/write */
+	if (bit >= 4) {
+		bit -= 4;
+		addr += 4;
+	}
+
+	return (readl(addr) >> (bit * 8)) & mask;
+}
+
+static void rzg2l_rmw_pin_config(struct rzg2l_pinctrl *pctrl, u32 offset,
+				 u8 bit, u32 mask, u32 val)
+{
+	void __iomem *addr = pctrl->base + offset;
+	unsigned long flags;
+	u32 reg;
+
+	/* handle _L/_H for 32-bit register read/write */
+	if (bit >= 4) {
+		bit -= 4;
+		addr += 4;
+	}
+
+	spin_lock_irqsave(&pctrl->lock, flags);
+	reg = readl(addr) & ~(mask << (bit * 8));
+	writel(reg | (val << (bit * 8)), addr);
+	spin_unlock_irqrestore(&pctrl->lock, flags);
+}
+
 static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 				     unsigned int _pin,
 				     unsigned long *config)
@@ -432,8 +465,8 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	const struct pinctrl_pin_desc *pin = &pctrl->desc.pins[_pin];
 	unsigned int *pin_data = pin->drv_data;
-	u32 port_offset = 0, reg;
 	unsigned int arg = 0;
+	u32 port_offset = 0;
 	unsigned long flags;
 	void __iomem *addr;
 	u32 cfg = 0;
@@ -452,17 +485,7 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_INPUT_ENABLE:
 		if (!(cfg & PIN_CFG_IEN))
 			return -EINVAL;
-		spin_lock_irqsave(&pctrl->lock, flags);
-		/* handle _L/_H for 32-bit register read/write */
-		addr = pctrl->base + IEN(port_offset);
-		if (bit >= 4) {
-			bit -= 4;
-			addr += 4;
-		}
-
-		reg = readl(addr) & (IEN_MASK << (bit * 8));
-		arg = (reg >> (bit * 8)) & 0x1;
-		spin_unlock_irqrestore(&pctrl->lock, flags);
+		arg = rzg2l_read_pin_config(pctrl, IEN(port_offset), bit, IEN_MASK);
 		break;
 
 	case PIN_CONFIG_POWER_SOURCE: {
@@ -502,7 +525,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 	const struct pinctrl_pin_desc *pin = &pctrl->desc.pins[_pin];
 	unsigned int *pin_data = pin->drv_data;
 	enum pin_config_param param;
-	u32 port_offset = 0, reg;
+	u32 port_offset = 0;
 	unsigned long flags;
 	void __iomem *addr;
 	unsigned int i;
@@ -528,17 +551,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			if (!(cfg & PIN_CFG_IEN))
 				return -EINVAL;
 
-			/* handle _L/_H for 32-bit register read/write */
-			addr = pctrl->base + IEN(port_offset);
-			if (bit >= 4) {
-				bit -= 4;
-				addr += 4;
-			}
-
-			spin_lock_irqsave(&pctrl->lock, flags);
-			reg = readl(addr) & ~(IEN_MASK << (bit * 8));
-			writel(reg | (arg << (bit * 8)), addr);
-			spin_unlock_irqrestore(&pctrl->lock, flags);
+			rzg2l_rmw_pin_config(pctrl, IEN(port_offset), bit, IEN_MASK, !!arg);
 			break;
 		}
 
