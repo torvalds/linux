@@ -5529,8 +5529,8 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 				  unsigned int padding_w, unsigned int padding_h,
 				  unsigned int dvs_env_w, unsigned int dvs_env_h)
 {
-	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
+	struct atomisp_sub_device *asd = pipe->asd;
 	const struct atomisp_format_bridge *format;
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
@@ -5541,7 +5541,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 	};
 	struct v4l2_mbus_framefmt *ffmt = &vformat.format;
 	struct v4l2_mbus_framefmt *req_ffmt;
-	struct atomisp_device *isp = asd->isp;
+	struct atomisp_device *isp;
 	struct atomisp_input_stream_info *stream_info =
 	    (struct atomisp_input_stream_info *)ffmt->reserved;
 	u16 stream_index = ATOMISP_INPUT_STREAM_GENERAL;
@@ -5554,6 +5554,8 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 			__func__, vdev->name);
 		return -EINVAL;
 	}
+
+	isp = asd->isp;
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
