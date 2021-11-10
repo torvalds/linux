@@ -168,25 +168,23 @@ int ia_css_frame_map(struct ia_css_frame **frame,
 	if (err)
 		return err;
 
-	if (!err) {
-		if (pgnr < ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
-			dev_err(atomisp_dev,
-				"user space memory size is less than the expected size..\n");
-			err = -ENOMEM;
-			goto error;
-		} else if (pgnr > ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
-			dev_err(atomisp_dev,
-				"user space memory size is large than the expected size..\n");
-			err = -ENOMEM;
-			goto error;
-		}
-
-		me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
-				     attribute & ATOMISP_MAP_FLAG_CACHED);
-
-		if (me->data == mmgr_NULL)
-			err = -EINVAL;
+	if (pgnr < ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
+		dev_err(atomisp_dev,
+			"user space memory size is less than the expected size..\n");
+		err = -ENOMEM;
+		goto error;
+	} else if (pgnr > ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
+		dev_err(atomisp_dev,
+			"user space memory size is large than the expected size..\n");
+		err = -ENOMEM;
+		goto error;
 	}
+
+	me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
+			     attribute & ATOMISP_MAP_FLAG_CACHED);
+
+	if (me->data == mmgr_NULL)
+		err = -EINVAL;
 
 error:
 	if (err) {
