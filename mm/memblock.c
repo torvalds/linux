@@ -287,7 +287,7 @@ static phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
 {
 	/* pump up @end */
 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE ||
-	    end == MEMBLOCK_ALLOC_KASAN)
+	    end == MEMBLOCK_ALLOC_NOLEAKTRACE)
 		end = memblock.current_limit;
 
 	/* avoid allocating the first page */
@@ -1387,8 +1387,11 @@ again:
 	return 0;
 
 done:
-	/* Skip kmemleak for kasan_init() due to high volume. */
-	if (end != MEMBLOCK_ALLOC_KASAN)
+	/*
+	 * Skip kmemleak for those places like kasan_init() and
+	 * early_pgtable_alloc() due to high volume.
+	 */
+	if (end != MEMBLOCK_ALLOC_NOLEAKTRACE)
 		/*
 		 * The min_count is set to 0 so that memblock allocated
 		 * blocks are never reported as leaks. This is because many
