@@ -1313,18 +1313,13 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 int cpu_to_core_id(int cpu)
 {
 	struct device_node *np;
-	const __be32 *reg;
 	int id = -1;
 
 	np = of_get_cpu_node(cpu, NULL);
 	if (!np)
 		goto out;
 
-	reg = of_get_property(np, "reg", NULL);
-	if (!reg)
-		goto out;
-
-	id = be32_to_cpup(reg);
+	id = of_get_cpu_hwid(np, 0);
 out:
 	of_node_put(np);
 	return id;

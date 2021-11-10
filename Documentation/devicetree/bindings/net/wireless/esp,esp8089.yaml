@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/wireless/esp,esp8089.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Espressif ESP8089 Device Tree Bindings
+
+maintainers:
+  - Hans de Goede <hdegoede@redhat.com>
+
+properties:
+  compatible:
+    const: esp,esp8089
+
+  reg:
+    maxItems: 1
+
+  esp,crystal-26M-en:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: >
+      Value for the crystal_26M_en firmware parameter
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+      mmc {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          wifi@1 {
+              compatible = "esp,esp8089";
+              reg = <1>;
+              esp,crystal-26M-en = <2>;
+          };
+      };
+
+...

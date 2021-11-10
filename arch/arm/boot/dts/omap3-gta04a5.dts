@@ -79,7 +79,7 @@
 
 /*
  * for WL183x module see
- * Documentation/devicetree/bindings/net/wireless/ti,wlcore.txt
+ * Documentation/devicetree/bindings/net/wireless/ti,wlcore.yaml
  */
 
 &wifi_pwrseq {
