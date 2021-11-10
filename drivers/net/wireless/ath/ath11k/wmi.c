@@ -6399,6 +6399,7 @@ static void ath11k_peer_sta_kickout_event(struct ath11k_base *ab, struct sk_buff
 	struct ieee80211_sta *sta;
 	struct ath11k_peer *peer;
 	struct ath11k *ar;
+	u32 vdev_id;
 
 	if (ath11k_pull_peer_sta_kickout_ev(ab, skb, &arg) != 0) {
 		ath11k_warn(ab, "failed to extract peer sta kickout event");
@@ -6414,10 +6415,15 @@ static void ath11k_peer_sta_kickout_event(struct ath11k_base *ab, struct sk_buff
 	if (!peer) {
 		ath11k_warn(ab, "peer not found %pM\n",
 			    arg.mac_addr);
+		spin_unlock_bh(&ab->base_lock);
 		goto exit;
 	}
 
-	ar = ath11k_mac_get_ar_by_vdev_id(ab, peer->vdev_id);
+	vdev_id = peer->vdev_id;
+
+	spin_unlock_bh(&ab->base_lock);
+
+	ar = ath11k_mac_get_ar_by_vdev_id(ab, vdev_id);
 	if (!ar) {
 		ath11k_warn(ab, "invalid vdev id in peer sta kickout ev %d",
 			    peer->vdev_id);
@@ -6438,7 +6444,6 @@ static void ath11k_peer_sta_kickout_event(struct ath11k_base *ab, struct sk_buff
 	ieee80211_report_low_ack(sta, 10);
 
 exit:
-	spin_unlock_bh(&ab->base_lock);
 	rcu_read_unlock();
 }
 
