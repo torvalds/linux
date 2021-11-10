@@ -1850,8 +1850,10 @@ static int joycon_leds_create(struct joycon_ctlr *ctlr)
 				      d_name,
 				      "green",
 				      joycon_player_led_names[i]);
-		if (!name)
+		if (!name) {
+			mutex_unlock(&joycon_input_num_mutex);
 			return -ENOMEM;
+		}
 
 		led = &ctlr->leds[i];
 		led->name = name;
@@ -1864,6 +1866,7 @@ static int joycon_leds_create(struct joycon_ctlr *ctlr)
 		ret = devm_led_classdev_register(&hdev->dev, led);
 		if (ret) {
 			hid_err(hdev, "Failed registering %s LED\n", led->name);
+			mutex_unlock(&joycon_input_num_mutex);
 			return ret;
 		}
 	}
