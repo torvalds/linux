@@ -26,6 +26,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <linux/proc_fs.h>
+#include <linux/extcon.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -33,6 +34,7 @@
 
 #define ES8323_CODEC_SET_SPK	1
 #define ES8323_CODEC_SET_HP	2
+#define ES8323_EXTCON_ID EXTCON_JACK_HEADPHONE
 
 #define es8323_DEF_VOL	0x1b
 
@@ -95,8 +97,11 @@ struct es8323_priv {
 	struct snd_soc_component *component;
 	struct regmap *regmap;
 
+	struct gpio_desc *hp_ctl_gpio;
 	struct gpio_desc *spk_ctl_gpio;
 	struct gpio_desc *hp_det_gpio;
+	bool hp_inserted;
+	struct notifier_block extcon_nb;
 
 	bool muted;
 };
@@ -106,7 +111,24 @@ static int es8323_set_gpio(struct es8323_priv *es8323, int gpio, bool level)
 	if ((gpio & ES8323_CODEC_SET_SPK) && es8323->spk_ctl_gpio)
 		gpiod_set_value(es8323->spk_ctl_gpio, level);
 
+	if ((gpio & ES8323_CODEC_SET_HP) && es8323->hp_ctl_gpio)
+		gpiod_set_value(es8323->hp_ctl_gpio, level);
 	return 0;
+}
+
+static int es8323_extcon_notifier(struct notifier_block *self, unsigned long event, void *ptr)
+{
+	struct es8323_priv *es8323 = container_of(self, struct es8323_priv,
+						  extcon_nb);
+	/* Note: Don't enable speaker or headset here
+	 * If headset removed or insert, The system will close sound card
+	 * And Then reopening, those enable steps will be done in es8323_mute
+	 */
+	if (event)
+		es8323->hp_inserted = true;
+	else
+		es8323->hp_inserted = false;
+	return NOTIFY_DONE;
 }
 
 static irqreturn_t hp_det_irq_handler(int irq, void *dev_id)
@@ -114,10 +136,13 @@ static irqreturn_t hp_det_irq_handler(int irq, void *dev_id)
 	struct es8323_priv *es8323 = dev_id;
 
 	if (es8323->muted == 0) {
-		if (gpiod_get_value(es8323->hp_det_gpio))
+		if (gpiod_get_value(es8323->hp_det_gpio)) {
 			es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 0);
-		else
+			es8323_set_gpio(es8323, ES8323_CODEC_SET_HP, 1);
+		} else {
 			es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 1);
+			es8323_set_gpio(es8323, ES8323_CODEC_SET_HP, 0);
+		}
 	}
 	return IRQ_HANDLED;
 }
@@ -661,6 +686,7 @@ static int es8323_mute(struct snd_soc_dai *dai, int mute, int stream)
 	es8323->muted = mute;
 	if (mute) {
 		es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 0);
+		es8323_set_gpio(es8323, ES8323_CODEC_SET_HP, 0);
 		usleep_range(18000, 20000);
 		snd_soc_component_write(component, ES8323_DACCONTROL3, 0x06);
 	} else {
@@ -668,8 +694,10 @@ static int es8323_mute(struct snd_soc_dai *dai, int mute, int stream)
 		snd_soc_component_write(component, 0x30, es8323_DEF_VOL);
 		snd_soc_component_write(component, 0x31, es8323_DEF_VOL);
 		msleep(50);
-		if (!gpiod_get_value(es8323->hp_det_gpio))
+		if (!es8323->hp_inserted)
 			es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 1);
+		else
+			es8323_set_gpio(es8323, ES8323_CODEC_SET_HP, 1);
 		usleep_range(18000, 20000);
 	}
 	return 0;
@@ -806,6 +834,7 @@ static int es8323_probe(struct snd_soc_component *component)
 	ret = clk_prepare_enable(es8323->mclk);
 	if (ret)
 		return ret;
+	es8323->component = component;
 
 	ret = es8323_reset(component);
 	if (ret < 0) {
@@ -896,6 +925,7 @@ static int es8323_i2c_probe(struct i2c_client *i2c,
 	int hp_irq = 0;
 	struct i2c_adapter *adapter = to_i2c_adapter(i2c->dev.parent);
 	char reg;
+	struct extcon_dev *edev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		dev_warn(&adapter->dev,
@@ -926,9 +956,35 @@ static int es8323_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(es8323->spk_ctl_gpio))
 		return PTR_ERR(es8323->spk_ctl_gpio);
 
+	es8323->hp_ctl_gpio = devm_gpiod_get_optional(&i2c->dev,
+						      "hp-con",
+						      GPIOD_OUT_LOW);
+	if (IS_ERR(es8323->hp_ctl_gpio))
+		return PTR_ERR(es8323->hp_ctl_gpio);
+
 	es8323->hp_det_gpio = devm_gpiod_get_optional(&i2c->dev, "hp-det-gpio", GPIOD_IN);
 	if (IS_ERR(es8323->hp_det_gpio))
 		return PTR_ERR(es8323->hp_det_gpio);
+
+
+	if (device_property_read_bool(&i2c->dev, "extcon")) {
+		edev = extcon_get_edev_by_phandle(&i2c->dev, 0);
+		if (IS_ERR(edev)) {
+			if (PTR_ERR(edev) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			dev_err(&i2c->dev, "Invalid or missing extcon\n");
+			return PTR_ERR(edev);
+		}
+		es8323->extcon_nb.notifier_call = es8323_extcon_notifier;
+		ret = devm_extcon_register_notifier(&i2c->dev, edev,
+						ES8323_EXTCON_ID,
+						&es8323->extcon_nb);
+		if (ret < 0) {
+			dev_err(&i2c->dev, "register notifier fail\n");
+			return ret;
+		}
+		es8323->hp_inserted = extcon_get_state(edev, ES8323_EXTCON_ID);
+	}
 
 	hp_irq = gpiod_to_irq(es8323->hp_det_gpio);
 
@@ -957,12 +1013,13 @@ static const struct i2c_device_id es8323_i2c_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, es8323_i2c_id);
 
-void es8323_i2c_shutdown(struct i2c_client *client)
+static void es8323_i2c_shutdown(struct i2c_client *client)
 {
 	struct es8323_priv *es8323 = i2c_get_clientdata(client);
 	struct snd_soc_component *component = es8323->component;
 
 	es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 0);
+	es8323_set_gpio(es8323, ES8323_CODEC_SET_HP, 0);
 	mdelay(20);
 	snd_soc_component_write(component, ES8323_CONTROL2, 0x58);
 	snd_soc_component_write(component, ES8323_CONTROL1, 0x32);
