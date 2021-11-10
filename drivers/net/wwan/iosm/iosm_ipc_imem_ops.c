@@ -394,12 +394,10 @@ void ipc_imem_sys_devlink_close(struct iosm_devlink *ipc_devlink)
 	int boot_check_timeout = BOOT_CHECK_DEFAULT_TIMEOUT;
 	enum ipc_mem_exec_stage exec_stage;
 	struct ipc_mem_channel *channel;
-	enum ipc_phase curr_phase;
 	int status = 0;
 	u32 tail = 0;
 
 	channel = ipc_imem->ipc_devlink->devlink_sio.channel;
-	curr_phase = ipc_imem->phase;
 	/* Increase the total wait time to boot_check_timeout */
 	do {
 		exec_stage = ipc_mmio_get_exec_stage(ipc_imem->mmio);
