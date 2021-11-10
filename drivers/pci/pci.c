@@ -972,61 +972,67 @@ static void pci_restore_bars(struct pci_dev *dev)
 		pci_update_resource(dev, i);
 }
 
-static const struct pci_platform_pm_ops *pci_platform_pm;
-
-int pci_set_platform_pm(const struct pci_platform_pm_ops *ops)
-{
-	if (!ops->is_manageable || !ops->set_state  || !ops->get_state ||
-	    !ops->choose_state  || !ops->set_wakeup || !ops->need_resume)
-		return -EINVAL;
-	pci_platform_pm = ops;
-	return 0;
-}
-
 static inline bool platform_pci_power_manageable(struct pci_dev *dev)
 {
-	return pci_platform_pm ? pci_platform_pm->is_manageable(dev) : false;
+	if (pci_use_mid_pm())
+		return true;
+
+	return acpi_pci_power_manageable(dev);
 }
 
 static inline int platform_pci_set_power_state(struct pci_dev *dev,
 					       pci_power_t t)
 {
-	return pci_platform_pm ? pci_platform_pm->set_state(dev, t) : -ENOSYS;
+	if (pci_use_mid_pm())
+		return mid_pci_set_power_state(dev, t);
+
+	return acpi_pci_set_power_state(dev, t);
 }
 
 static inline pci_power_t platform_pci_get_power_state(struct pci_dev *dev)
 {
-	return pci_platform_pm ? pci_platform_pm->get_state(dev) : PCI_UNKNOWN;
+	if (pci_use_mid_pm())
+		return mid_pci_get_power_state(dev);
+
+	return acpi_pci_get_power_state(dev);
 }
 
 static inline void platform_pci_refresh_power_state(struct pci_dev *dev)
 {
-	if (pci_platform_pm && pci_platform_pm->refresh_state)
-		pci_platform_pm->refresh_state(dev);
+	if (!pci_use_mid_pm())
+		acpi_pci_refresh_power_state(dev);
 }
 
 static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
 {
-	return pci_platform_pm ?
-			pci_platform_pm->choose_state(dev) : PCI_POWER_ERROR;
+	if (pci_use_mid_pm())
+		return PCI_POWER_ERROR;
+
+	return acpi_pci_choose_state(dev);
 }
 
 static inline int platform_pci_set_wakeup(struct pci_dev *dev, bool enable)
 {
-	return pci_platform_pm ?
-			pci_platform_pm->set_wakeup(dev, enable) : -ENODEV;
+	if (pci_use_mid_pm())
+		return PCI_POWER_ERROR;
+
+	return acpi_pci_wakeup(dev, enable);
 }
 
 static inline bool platform_pci_need_resume(struct pci_dev *dev)
 {
-	return pci_platform_pm ? pci_platform_pm->need_resume(dev) : false;
+	if (pci_use_mid_pm())
+		return false;
+
+	return acpi_pci_need_resume(dev);
 }
 
 static inline bool platform_pci_bridge_d3(struct pci_dev *dev)
 {
-	if (pci_platform_pm && pci_platform_pm->bridge_d3)
-		return pci_platform_pm->bridge_d3(dev);
-	return false;
+	if (pci_use_mid_pm())
+		return false;
+
+	return acpi_pci_bridge_d3(dev);
 }
 
 /**
@@ -1185,9 +1191,7 @@ void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
  */
 void pci_refresh_power_state(struct pci_dev *dev)
 {
-	if (platform_pci_power_manageable(dev))
-		platform_pci_refresh_power_state(dev);
-
+	platform_pci_refresh_power_state(dev);
 	pci_update_current_state(dev, dev->current_state);
 }
 
@@ -1200,14 +1204,10 @@ int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 {
 	int error;
 
-	if (platform_pci_power_manageable(dev)) {
-		error = platform_pci_set_power_state(dev, state);
-		if (!error)
-			pci_update_current_state(dev, state);
-	} else
-		error = -ENODEV;
-
-	if (error && !dev->pm_cap) /* Fall back to PCI_D0 */
+	error = platform_pci_set_power_state(dev, state);
+	if (!error)
+		pci_update_current_state(dev, state);
+	else if (!dev->pm_cap) /* Fall back to PCI_D0 */
 		dev->current_state = PCI_D0;
 
 	return error;
@@ -1387,44 +1387,6 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return 0;
 }
 EXPORT_SYMBOL(pci_set_power_state);
-
-/**
- * pci_choose_state - Choose the power state of a PCI device
- * @dev: PCI device to be suspended
- * @state: target sleep state for the whole system. This is the value
- *	   that is passed to suspend() function.
- *
- * Returns PCI power state suitable for given device and given system
- * message.
- */
-pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
-{
-	pci_power_t ret;
-
-	if (!dev->pm_cap)
-		return PCI_D0;
-
-	ret = platform_pci_choose_state(dev);
-	if (ret != PCI_POWER_ERROR)
-		return ret;
-
-	switch (state.event) {
-	case PM_EVENT_ON:
-		return PCI_D0;
-	case PM_EVENT_FREEZE:
-	case PM_EVENT_PRETHAW:
-		/* REVISIT both freeze and pre-thaw "should" use D0 */
-	case PM_EVENT_SUSPEND:
-	case PM_EVENT_HIBERNATE:
-		return PCI_D3hot;
-	default:
-		pci_info(dev, "unrecognized suspend event %d\n",
-			 state.event);
-		BUG();
-	}
-	return PCI_D0;
-}
-EXPORT_SYMBOL(pci_choose_state);
 
 #define PCI_EXP_SAVE_REGS	7
 
@@ -2577,8 +2539,6 @@ EXPORT_SYMBOL(pci_wake_from_d3);
  */
 static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 {
-	pci_power_t target_state = PCI_D3hot;
-
 	if (platform_pci_power_manageable(dev)) {
 		/*
 		 * Call the platform to find the target state for the device.
@@ -2588,21 +2548,16 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 		switch (state) {
 		case PCI_POWER_ERROR:
 		case PCI_UNKNOWN:
-			break;
+			return PCI_D3hot;
+
 		case PCI_D1:
 		case PCI_D2:
 			if (pci_no_d1d2(dev))
-				break;
-			fallthrough;
-		default:
-			target_state = state;
+				return PCI_D3hot;
 		}
 
-		return target_state;
+		return state;
 	}
-
-	if (!dev->pm_cap)
-		target_state = PCI_D0;
 
 	/*
 	 * If the device is in D3cold even though it's not power-manageable by
@@ -2610,10 +2565,12 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 	 * Best to let it slumber.
 	 */
 	if (dev->current_state == PCI_D3cold)
-		target_state = PCI_D3cold;
+		return PCI_D3cold;
+	else if (!dev->pm_cap)
+		return PCI_D0;
 
 	if (wakeup && dev->pme_support) {
-		pci_power_t state = target_state;
+		pci_power_t state = PCI_D3hot;
 
 		/*
 		 * Find the deepest state from which the device can generate
@@ -2628,7 +2585,7 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 			return PCI_D0;
 	}
 
-	return target_state;
+	return PCI_D3hot;
 }
 
 /**
@@ -2681,8 +2638,13 @@ EXPORT_SYMBOL(pci_prepare_to_sleep);
  */
 int pci_back_from_sleep(struct pci_dev *dev)
 {
+	int ret = pci_set_power_state(dev, PCI_D0);
+
+	if (ret)
+		return ret;
+
 	pci_enable_wake(dev, PCI_D0, false);
-	return pci_set_power_state(dev, PCI_D0);
+	return 0;
 }
 EXPORT_SYMBOL(pci_back_from_sleep);
 
@@ -2841,6 +2803,22 @@ void pci_dev_complete_resume(struct pci_dev *pci_dev)
 
 	spin_unlock_irq(&dev->power.lock);
 }
+
+/**
+ * pci_choose_state - Choose the power state of a PCI device.
+ * @dev: Target PCI device.
+ * @state: Target state for the whole system.
+ *
+ * Returns PCI power state suitable for @dev and @state.
+ */
+pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
+{
+	if (state.event == PM_EVENT_ON)
+		return PCI_D0;
+
+	return pci_target_state(dev, false);
+}
+EXPORT_SYMBOL(pci_choose_state);
 
 void pci_config_pm_runtime_get(struct pci_dev *pdev)
 {

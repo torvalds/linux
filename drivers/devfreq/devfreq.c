@@ -827,7 +827,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_dev;
 	}
 
-	if (!devfreq->profile->max_state && !devfreq->profile->freq_table) {
+	if (!devfreq->profile->max_state || !devfreq->profile->freq_table) {
 		mutex_unlock(&devfreq->lock);
 		err = set_freq_table(devfreq);
 		if (err < 0)
