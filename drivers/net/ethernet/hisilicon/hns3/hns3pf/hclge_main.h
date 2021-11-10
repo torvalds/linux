@@ -404,7 +404,7 @@ struct hclge_tm_info {
 };
 
 /* max number of mac statistics on each version */
-#define HCLGE_MAC_STATS_MAX_NUM_V1		84
+#define HCLGE_MAC_STATS_MAX_NUM_V1		87
 #define HCLGE_MAC_STATS_MAX_NUM_V2		105
 
 struct hclge_comm_stats_str {

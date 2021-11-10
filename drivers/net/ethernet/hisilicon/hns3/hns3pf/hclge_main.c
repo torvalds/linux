@@ -566,6 +566,16 @@ static int hclge_mac_query_reg_num(struct hclge_dev *hdev, u32 *reg_num)
 	struct hclge_desc desc;
 	int ret;
 
+	/* Driver needs total register number of both valid registers and
+	 * reserved registers, but the old firmware only returns number
+	 * of valid registers in device V2. To be compatible with these
+	 * devices, driver uses a fixed value.
+	 */
+	if (hdev->ae_dev->dev_version == HNAE3_DEVICE_VERSION_V2) {
+		*reg_num = HCLGE_MAC_STATS_MAX_NUM_V1;
+		return 0;
+	}
+
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_MAC_REG_NUM, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
