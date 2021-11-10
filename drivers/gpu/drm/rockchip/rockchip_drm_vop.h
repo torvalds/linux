@@ -117,6 +117,20 @@ enum vop2_win_dly_mode {
 #define VOP2_PD_DSC_8K		BIT(5)
 #define VOP2_PD_DSC_4K		BIT(6)
 
+/*
+ * vop2 submem power gate,
+ * should be all none zero, 0 will be
+ * treat as invalid;
+ */
+#define VOP2_MEM_PG_VP0		BIT(0)
+#define VOP2_MEM_PG_VP1		BIT(1)
+#define VOP2_MEM_PG_VP2		BIT(2)
+#define VOP2_MEM_PG_VP3		BIT(3)
+#define VOP2_MEM_PG_DB0		BIT(4)
+#define VOP2_MEM_PG_DB1		BIT(5)
+#define VOP2_MEM_PG_DB2		BIT(6)
+#define VOP2_MEM_PG_WB		BIT(7)
+
 #define DSP_BG_SWAP		0x1
 #define DSP_RB_SWAP		0x2
 #define DSP_RG_SWAP		0x4
@@ -1027,6 +1041,7 @@ struct vop2_data {
 	uint8_t nr_gammas;
 	uint8_t nr_conns;
 	uint8_t nr_pds;
+	uint8_t nr_mem_pgs;
 	bool delayed_pd;
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
@@ -1039,6 +1054,7 @@ struct vop2_data {
 	const struct vop2_wb_data *wb;
 	const struct vop2_layer_data *layer;
 	const struct vop2_power_domain_data *pd;
+	const struct vop2_power_domain_data *mem_pg;
 	const struct vop_csc_table *csc_table;
 	const struct vop_hdr_table *hdr_table;
 	const struct vop_grf_ctrl *sys_grf;

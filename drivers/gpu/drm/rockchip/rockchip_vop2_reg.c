@@ -1974,13 +1974,13 @@ static const struct vop2_power_domain_data rk3588_vop_pd_data[] = {
 	{
 	  .id = VOP2_PD_CLUSTER2,
 	  .parent_id = VOP2_PD_CLUSTER0,
-	  .regs = &rk3588_cluster0_pd_regs,
+	  .regs = &rk3588_cluster2_pd_regs,
 	},
 
 	{
 	  .id = VOP2_PD_CLUSTER3,
 	  .parent_id = VOP2_PD_CLUSTER0,
-	  .regs = &rk3588_cluster1_pd_regs,
+	  .regs = &rk3588_cluster3_pd_regs,
 	},
 
 	{
@@ -1996,6 +1996,98 @@ static const struct vop2_power_domain_data rk3588_vop_pd_data[] = {
 	{
 	  .id = VOP2_PD_DSC_4K,
 	  .regs = &rk3588_dsc_4k_pd_regs,
+	},
+};
+
+const struct vop2_power_domain_regs rk3588_mem_pg_vp0_regs = {
+	.pd = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_CON1, 0x1, 15),
+	.status = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_STATUS, 0x1, 19),
+};
+
+const struct vop2_power_domain_regs rk3588_mem_pg_vp1_regs = {
+	.pd = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_CON2, 0x1, 0),
+	.status = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_STATUS, 0x1, 20),
+};
+
+const struct vop2_power_domain_regs rk3588_mem_pg_vp2_regs = {
+	.pd = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_CON2, 0x1, 1),
+	.status = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_STATUS, 0x1, 21),
+};
+
+const struct vop2_power_domain_regs rk3588_mem_pg_vp3_regs = {
+	.pd = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_CON2, 0x1, 2),
+	.status = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_STATUS, 0x1, 22),
+};
+
+const struct vop2_power_domain_regs rk3588_mem_pg_db0_regs = {
+	.pd = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_CON2, 0x1, 3),
+	.status = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_STATUS, 0x1, 23),
+};
+
+const struct vop2_power_domain_regs rk3588_mem_pg_db1_regs = {
+	.pd = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_CON2, 0x1, 4),
+	.status = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_STATUS, 0x1, 24),
+};
+
+const struct vop2_power_domain_regs rk3588_mem_pg_db2_regs = {
+	.pd = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_CON2, 0x1, 5),
+	.status = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_STATUS, 0x1, 25),
+};
+
+const struct vop2_power_domain_regs rk3588_mem_pg_wb_regs = {
+	.pd = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_CON2, 0x1, 6),
+	.status = VOP_REG(RK3588_PMU_SUBMEM_PWR_GATE_STATUS, 0x1, 26),
+};
+
+/*
+ * All power gates will power on when PD_VOP is turn on.
+ * Corresponding mem_pwr_ack_bypass bit should be enabled
+ * if power gate powe down before PD_VOP.
+ * power gates take effect immediately, this means there
+ * is no synchronization between vop frame scanout, so
+ * we can only enable a power gate before we enable
+ * a module, and turn off power gate after the module
+ * is actually disabled.
+ */
+static const struct vop2_power_domain_data rk3588_vop_mem_pg_data[] = {
+	{
+	  .id = VOP2_MEM_PG_VP0,
+	  .regs = &rk3588_mem_pg_vp0_regs,
+	},
+
+	{
+	  .id = VOP2_MEM_PG_VP1,
+	  .regs = &rk3588_mem_pg_vp1_regs,
+	},
+
+	{
+	  .id = VOP2_MEM_PG_VP2,
+	  .regs = &rk3588_mem_pg_vp2_regs,
+	},
+
+	{
+	  .id = VOP2_MEM_PG_VP3,
+	  .regs = &rk3588_mem_pg_vp3_regs,
+	},
+
+	{
+	  .id = VOP2_MEM_PG_DB0,
+	  .regs = &rk3588_mem_pg_db0_regs,
+	},
+
+	{
+	  .id = VOP2_MEM_PG_DB1,
+	  .regs = &rk3588_mem_pg_db1_regs,
+	},
+
+	{
+	  .id = VOP2_MEM_PG_DB2,
+	  .regs = &rk3588_mem_pg_db2_regs,
+	},
+
+	{
+	  .id = VOP2_MEM_PG_WB,
+	  .regs = &rk3588_mem_pg_wb_regs,
 	},
 };
 
@@ -2511,6 +2603,8 @@ static const struct vop2_data rk3588_vop = {
 	.win_size = ARRAY_SIZE(rk3588_vop_win_data),
 	.pd = rk3588_vop_pd_data,
 	.nr_pds = ARRAY_SIZE(rk3588_vop_pd_data),
+	.mem_pg = rk3588_vop_mem_pg_data,
+	.nr_mem_pgs = ARRAY_SIZE(rk3588_vop_mem_pg_data),
 };
 
 static const struct of_device_id vop2_dt_match[] = {

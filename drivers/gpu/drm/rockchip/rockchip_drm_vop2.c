@@ -655,6 +655,7 @@ struct vop2 {
 	struct regmap *sys_grf;
 	struct regmap *vo0_grf;
 	struct regmap *vo1_grf;
+	struct regmap *pmu;
 
 	/* physical map length of vop2 register */
 	uint32_t len;
@@ -2946,7 +2947,7 @@ static void rk3588_vop2_regsbak(struct vop2 *vop2)
 	/*
 	 * No need to backup DSC/GAMMA_LUT/BPP_LUT/MMU
 	 */
-	for (i = 0; i < (RK3588_DSC_8K_PPS0_3 >> 2); i++)
+	for (i = 0; i < (0x2000 >> 2); i++)
 		vop2->regsbak[i] = base[i];
 
 	for (i = 0; i < vop2_data->nr_dscs; i++) {
@@ -7071,7 +7072,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 	do { \
 		if (active_irqs & x##_INTR) {\
 			if (x##_INTR == POST_BUF_EMPTY_INTR) \
-				DRM_DEV_ERROR_RATELIMITED(vop2->dev, #x " irq err at vp%d\n", vp->id); \
+				printk(KERN_DEBUG #x " irq err at vp%d\n", vp->id); \
 			else \
 				DRM_DEV_ERROR_RATELIMITED(vop2->dev, #x " irq err\n"); \
 			active_irqs &= ~x##_INTR; \
@@ -7922,6 +7923,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 	vop2->grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vop-grf");
 	vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo1-grf");
+	vop2->pmu = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pmu");
 
 	vop2->hclk = devm_clk_get(vop2->dev, "hclk_vop");
 	if (IS_ERR(vop2->hclk)) {
