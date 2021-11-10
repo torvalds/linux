@@ -20,21 +20,21 @@ void drm_fb_memcpy_toio(void __iomem *dst, unsigned int dst_pitch, const void *v
 void drm_fb_swab(void *dst, unsigned int dst_pitch, const void *src,
 		 const struct drm_framebuffer *fb, const struct drm_rect *clip,
 		 bool cached);
-void drm_fb_xrgb8888_to_rgb332(void *dst, void *vaddr, struct drm_framebuffer *fb,
-			       struct drm_rect *clip);
-void drm_fb_xrgb8888_to_rgb565(void *dst, void *vaddr,
-			       struct drm_framebuffer *fb,
-			       struct drm_rect *clip, bool swab);
-void drm_fb_xrgb8888_to_rgb565_dstclip(void __iomem *dst, unsigned int dst_pitch,
-				       void *vaddr, struct drm_framebuffer *fb,
-				       struct drm_rect *clip, bool swab);
-void drm_fb_xrgb8888_to_rgb888(void *dst, void *src, struct drm_framebuffer *fb,
-			       struct drm_rect *clip);
-void drm_fb_xrgb8888_to_rgb888_dstclip(void __iomem *dst, unsigned int dst_pitch,
-				       void *vaddr, struct drm_framebuffer *fb,
-				       struct drm_rect *clip);
-void drm_fb_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
-			      struct drm_rect *clip);
+void drm_fb_xrgb8888_to_rgb332(void *dst, unsigned int dst_pitch, const void *vaddr,
+			       const struct drm_framebuffer *fb, const struct drm_rect *clip);
+void drm_fb_xrgb8888_to_rgb565(void *dst, unsigned int dst_pitch, const void *vaddr,
+			       const struct drm_framebuffer *fb, const struct drm_rect *clip,
+			       bool swab);
+void drm_fb_xrgb8888_to_rgb565_toio(void __iomem *dst, unsigned int dst_pitch,
+				    const void *vaddr, const struct drm_framebuffer *fb,
+				    const struct drm_rect *clip, bool swab);
+void drm_fb_xrgb8888_to_rgb888(void *dst, unsigned int dst_pitch, const void *src,
+			       const struct drm_framebuffer *fb, const struct drm_rect *clip);
+void drm_fb_xrgb8888_to_rgb888_toio(void __iomem *dst, unsigned int dst_pitch,
+				    const void *vaddr, const struct drm_framebuffer *fb,
+				    const struct drm_rect *clip);
+void drm_fb_xrgb8888_to_gray8(void *dst, unsigned int dst_pitch, const void *vaddr,
+			      const struct drm_framebuffer *fb, const struct drm_rect *clip);
 
 int drm_fb_blit_rect_dstclip(void __iomem *dst, unsigned int dst_pitch,
 			     uint32_t dst_format, void *vmap,

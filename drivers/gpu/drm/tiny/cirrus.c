@@ -329,14 +329,12 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb, const struct dma_buf_
 		drm_fb_memcpy_toio(dst, fb->pitches[0], vmap, fb, rect);
 
 	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 2) {
-		drm_fb_xrgb8888_to_rgb565_dstclip(cirrus->vram,
-						  cirrus->pitch,
-						  vmap, fb, rect, false);
+		dst += drm_fb_clip_offset(cirrus->pitch, fb->format, rect);
+		drm_fb_xrgb8888_to_rgb565_toio(dst, cirrus->pitch, vmap, fb, rect, false);
 
 	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 3) {
-		drm_fb_xrgb8888_to_rgb888_dstclip(cirrus->vram,
-						  cirrus->pitch,
-						  vmap, fb, rect);
+		dst += drm_fb_clip_offset(cirrus->pitch, fb->format, rect);
+		drm_fb_xrgb8888_to_rgb888_toio(dst, cirrus->pitch, vmap, fb, rect);
 
 	} else {
 		WARN_ON_ONCE("cpp mismatch");
