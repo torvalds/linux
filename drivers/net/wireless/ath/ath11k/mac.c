@@ -5613,7 +5613,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 	u32 param_id, param_value;
 	u16 nss;
 	int i;
-	int ret;
+	int ret, fbret;
 	int bit;
 
 	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
@@ -5816,17 +5816,17 @@ err_peer_del:
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
 		reinit_completion(&ar->peer_delete_done);
 
-		ret = ath11k_wmi_send_peer_delete_cmd(ar, vif->addr,
-						      arvif->vdev_id);
-		if (ret) {
+		fbret = ath11k_wmi_send_peer_delete_cmd(ar, vif->addr,
+							arvif->vdev_id);
+		if (fbret) {
 			ath11k_warn(ar->ab, "failed to delete peer vdev_id %d addr %pM\n",
 				    arvif->vdev_id, vif->addr);
 			goto err;
 		}
 
-		ret = ath11k_wait_for_peer_delete_done(ar, arvif->vdev_id,
-						       vif->addr);
-		if (ret)
+		fbret = ath11k_wait_for_peer_delete_done(ar, arvif->vdev_id,
+							 vif->addr);
+		if (fbret)
 			goto err;
 
 		ar->num_peers--;
