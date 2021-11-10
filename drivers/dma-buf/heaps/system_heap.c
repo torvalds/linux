@@ -550,6 +550,12 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 	struct list_head pages;
 	struct page *page, *tmp_page;
 	int i, ret = -ENOMEM;
+	struct list_head lists[8];
+	unsigned int block_index[8] = {0};
+	unsigned int block_1M = 0;
+	unsigned int block_64K = 0;
+	unsigned int maximum;
+	int j;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
@@ -562,6 +568,8 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 	buffer->uncached = uncached;
 
 	INIT_LIST_HEAD(&pages);
+	for (i = 0; i < 8; i++)
+		INIT_LIST_HEAD(&lists[i]);
 	i = 0;
 	while (size_remaining > 0) {
 		/*
@@ -575,9 +583,21 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 		if (!page)
 			goto free_buffer;
 
-		list_add_tail(&page->lru, &pages);
 		size_remaining -= page_size(page);
 		max_order = compound_order(page);
+		if (max_order) {
+			if (max_order == 8)
+				block_1M++;
+			if (max_order == 4)
+				block_64K++;
+			list_add_tail(&page->lru, &pages);
+		} else {
+			dma_addr_t phys = page_to_phys(page);
+			unsigned int bit12_14 = (phys >> 12) & 0x7;
+
+			list_add_tail(&page->lru, &lists[bit12_14]);
+			block_index[bit12_14]++;
+		}
 		i++;
 	}
 
@@ -585,11 +605,24 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 	if (sg_alloc_table(table, i, GFP_KERNEL))
 		goto free_buffer;
 
+	maximum = block_index[0];
+	for (i = 1; i < 8; i++)
+		maximum = max(maximum, block_index[i]);
 	sg = table->sgl;
 	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
 		sg_set_page(sg, page, page_size(page), 0);
 		sg = sg_next(sg);
 		list_del(&page->lru);
+	}
+	for (i = 0; i < maximum; i++) {
+		for (j = 0; j < 8; j++) {
+			if (!list_empty(&lists[j])) {
+				page = list_first_entry(&lists[j], struct page, lru);
+				sg_set_page(sg, page, PAGE_SIZE, 0);
+				sg = sg_next(sg);
+				list_del(&page->lru);
+			}
+		}
 	}
 
 	/* create the dmabuf */
@@ -627,6 +660,10 @@ free_pages:
 free_buffer:
 	list_for_each_entry_safe(page, tmp_page, &pages, lru)
 		__free_pages(page, compound_order(page));
+	for (i = 0; i < 8; i++) {
+		list_for_each_entry_safe(page, tmp_page, &lists[i], lru)
+			__free_pages(page, compound_order(page));
+	}
 	kfree(buffer);
 
 	return ERR_PTR(ret);
