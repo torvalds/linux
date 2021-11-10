@@ -122,6 +122,21 @@ struct mmc_fixup {
 		   _vendor, _device,					\
 		   _fixup, _data, EXT_CSD_REV_ANY)			\
 
+#define SDIO_FIXUP_COMPATIBLE(_compatible, _fixup, _data)		\
+	{						\
+		.name = CID_NAME_ANY,			\
+		.manfid = CID_MANFID_ANY,		\
+		.oemid = CID_OEMID_ANY,			\
+		.rev_start = 0,				\
+		.rev_end = -1ull,			\
+		.cis_vendor = SDIO_ANY_ID,		\
+		.cis_device = SDIO_ANY_ID,		\
+		.vendor_fixup = (_fixup),		\
+		.data = (_data),			\
+		.ext_csd_rev = EXT_CSD_REV_ANY,		\
+		.of_compatible = _compatible,	\
+	}
+
 #define cid_rev(hwrev, fwrev, year, month)	\
 	(((u64) hwrev) << 40 |			\
 	 ((u64) fwrev) << 32 |			\

@@ -707,6 +707,7 @@ try_again:
 	 */
 	if (host->ops->init_card)
 		host->ops->init_card(host, card);
+	mmc_fixup_device(card, sdio_card_init_methods);
 
 	/*
 	 * If the host and card support UHS-I mode request the card
