@@ -886,7 +886,6 @@ struct mlx5dr_matcher {
 	struct mlx5dr_match_param mask;
 	u8 match_criteria;
 	refcount_t refcount;
-	struct mlx5dv_flow_matcher *dv_matcher;
 };
 
 struct mlx5dr_ste_action_modify_field {
