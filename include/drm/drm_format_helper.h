@@ -36,12 +36,8 @@ void drm_fb_xrgb8888_to_rgb888_toio(void __iomem *dst, unsigned int dst_pitch,
 void drm_fb_xrgb8888_to_gray8(void *dst, unsigned int dst_pitch, const void *vaddr,
 			      const struct drm_framebuffer *fb, const struct drm_rect *clip);
 
-int drm_fb_blit_rect_dstclip(void __iomem *dst, unsigned int dst_pitch,
-			     uint32_t dst_format, void *vmap,
-			     struct drm_framebuffer *fb,
-			     struct drm_rect *rect);
-int drm_fb_blit_dstclip(void __iomem *dst, unsigned int dst_pitch,
-			uint32_t dst_format, void *vmap,
-			struct drm_framebuffer *fb);
+int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_format,
+		     const void *vmap, const struct drm_framebuffer *fb,
+		     const struct drm_rect *rect);
 
 #endif /* __LINUX_DRM_FORMAT_HELPER_H */

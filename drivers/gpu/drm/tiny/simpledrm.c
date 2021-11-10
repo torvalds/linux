@@ -641,6 +641,8 @@ simpledrm_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_framebuffer *fb = plane_state->fb;
 	void *vmap = shadow_plane_state->data[0].vaddr; /* TODO: Use mapping abstraction */
 	struct drm_device *dev = &sdev->dev;
+	void __iomem *dst = sdev->screen_base;
+	struct drm_rect clip;
 	int idx;
 
 	if (!fb)
@@ -649,8 +651,11 @@ simpledrm_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	if (!drm_dev_enter(dev, &idx))
 		return;
 
-	drm_fb_blit_dstclip(sdev->screen_base, sdev->pitch,
-			    sdev->format->format, vmap, fb);
+	drm_rect_init(&clip, 0, 0, fb->width, fb->height);
+
+	dst += drm_fb_clip_offset(sdev->pitch, sdev->format, &clip);
+	drm_fb_blit_toio(dst, sdev->pitch, sdev->format->format, vmap, fb, &clip);
+
 	drm_dev_exit(idx);
 }
 
@@ -680,6 +685,7 @@ simpledrm_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	void *vmap = shadow_plane_state->data[0].vaddr; /* TODO: Use mapping abstraction */
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_device *dev = &sdev->dev;
+	void __iomem *dst = sdev->screen_base;
 	struct drm_rect clip;
 	int idx;
 
@@ -692,8 +698,8 @@ simpledrm_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	if (!drm_dev_enter(dev, &idx))
 		return;
 
-	drm_fb_blit_rect_dstclip(sdev->screen_base, sdev->pitch,
-				 sdev->format->format, vmap, fb, &clip);
+	dst += drm_fb_clip_offset(sdev->pitch, sdev->format, &clip);
+	drm_fb_blit_toio(dst, sdev->pitch, sdev->format->format, vmap, fb, &clip);
 
 	drm_dev_exit(idx);
 }
