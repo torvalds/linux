@@ -131,10 +131,10 @@ static void wd_lockup_ipi(struct pt_regs *regs)
 	/* Do not panic from here because that can recurse into NMI IPI layer */
 }
 
-static void set_cpumask_stuck(const struct cpumask *cpumask, u64 tb)
+static bool set_cpu_stuck(int cpu, u64 tb)
 {
-	cpumask_or(&wd_smp_cpus_stuck, &wd_smp_cpus_stuck, cpumask);
-	cpumask_andnot(&wd_smp_cpus_pending, &wd_smp_cpus_pending, cpumask);
+	cpumask_set_cpu(cpu, &wd_smp_cpus_stuck);
+	cpumask_clear_cpu(cpu, &wd_smp_cpus_pending);
 	/*
 	 * See wd_smp_clear_cpu_pending()
 	 */
@@ -144,11 +144,9 @@ static void set_cpumask_stuck(const struct cpumask *cpumask, u64 tb)
 		cpumask_andnot(&wd_smp_cpus_pending,
 				&wd_cpus_enabled,
 				&wd_smp_cpus_stuck);
+		return true;
 	}
-}
-static void set_cpu_stuck(int cpu, u64 tb)
-{
-	set_cpumask_stuck(cpumask_of(cpu), tb);
+	return false;
 }
 
 static void watchdog_smp_panic(int cpu, u64 tb)
@@ -177,14 +175,16 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 		 * get a backtrace on all of them anyway.
 		 */
 		for_each_cpu(c, &wd_smp_cpus_pending) {
+			bool empty;
 			if (c == cpu)
 				continue;
+			/* Take the stuck CPUs out of the watch group */
+			empty = set_cpu_stuck(c, tb);
 			smp_send_nmi_ipi(c, wd_lockup_ipi, 1000000);
+			if (empty)
+				break;
 		}
 	}
-
-	/* Take the stuck CPUs out of the watch group */
-	set_cpumask_stuck(&wd_smp_cpus_pending, tb);
 
 	wd_smp_unlock(&flags);
 
@@ -243,6 +243,22 @@ static void wd_smp_clear_cpu_pending(int cpu, u64 tb)
 		return;
 	}
 
+	/*
+	 * All other updates to wd_smp_cpus_pending are performed under
+	 * wd_smp_lock. All of them are atomic except the case where the
+	 * mask becomes empty and is reset. This will not happen here because
+	 * cpu was tested to be in the bitmap (above), and a CPU only clears
+	 * its own bit. _Except_ in the case where another CPU has detected a
+	 * hard lockup on our CPU and takes us out of the pending mask. So in
+	 * normal operation there will be no race here, no problem.
+	 *
+	 * In the lockup case, this atomic clear-bit vs a store that refills
+	 * other bits in the accessed word wll not be a problem. The bit clear
+	 * is atomic so it will not cause the store to get lost, and the store
+	 * will never set this bit so it will not overwrite the bit clear. The
+	 * only way for a stuck CPU to return to the pending bitmap is to
+	 * become unstuck itself.
+	 */
 	cpumask_clear_cpu(cpu, &wd_smp_cpus_pending);
 
 	/*
