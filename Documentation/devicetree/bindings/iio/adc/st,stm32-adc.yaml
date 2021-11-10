@@ -19,7 +19,7 @@ description: |
   Each STM32 ADC block can have up to 3 ADC instances.
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 properties:
   compatible:
