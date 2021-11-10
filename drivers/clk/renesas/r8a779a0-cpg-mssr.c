@@ -479,10 +479,8 @@ static struct clk * __init rcar_r8a779a0_cpg_clk_register(struct device *dev,
 					   __clk_get_name(parent), notifiers);
 
 	case CLK_TYPE_R8A779A0_SD:
-		return cpg_sd_clk_register(core->name, base, core->offset,
-					   __clk_get_name(parent), notifiers,
-					   false);
-		break;
+		return cpg_sd_clk_register(core->name, base + core->offset,
+					   __clk_get_name(parent));
 
 	case CLK_TYPE_R8A779A0_MDSEL:
 		/*

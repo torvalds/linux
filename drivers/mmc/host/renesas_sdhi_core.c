@@ -127,10 +127,12 @@ static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
 }
 
 static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
-					    unsigned int new_clock)
+					    unsigned int wanted_clock)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
+	struct clk *ref_clk = priv->clk;
 	unsigned int freq, diff, best_freq = 0, diff_min = ~0;
+	unsigned int new_clock, clkh_shift = 0;
 	int i;
 
 	/*
@@ -141,6 +143,16 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2) || mmc_doing_tune(host->mmc))
 		return clk_get_rate(priv->clk);
 
+	if (priv->clkh) {
+		bool use_4tap = priv->quirks && priv->quirks->hs400_4taps;
+		bool need_slow_clkh = (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104) ||
+				      (host->mmc->ios.timing == MMC_TIMING_MMC_HS400);
+		clkh_shift = use_4tap && need_slow_clkh ? 1 : 2;
+		ref_clk = priv->clkh;
+	}
+
+	new_clock = wanted_clock << clkh_shift;
+
 	/*
 	 * We want the bus clock to be as close as possible to, but no
 	 * greater than, new_clock.  As we can divide by 1 << i for
@@ -148,11 +160,10 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 	 * possible, but no greater than, new_clock << i.
 	 */
 	for (i = min(9, ilog2(UINT_MAX / new_clock)); i >= 0; i--) {
-		freq = clk_round_rate(priv->clk, new_clock << i);
+		freq = clk_round_rate(ref_clk, new_clock << i);
 		if (freq > (new_clock << i)) {
 			/* Too fast; look for a slightly slower option */
-			freq = clk_round_rate(priv->clk,
-					      (new_clock << i) / 4 * 3);
+			freq = clk_round_rate(ref_clk, (new_clock << i) / 4 * 3);
 			if (freq > (new_clock << i))
 				continue;
 		}
@@ -164,7 +175,10 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 		}
 	}
 
-	clk_set_rate(priv->clk, best_freq);
+	clk_set_rate(ref_clk, best_freq);
+
+	if (priv->clkh)
+		clk_set_rate(priv->clk, best_freq >> clkh_shift);
 
 	return clk_get_rate(priv->clk);
 }
@@ -947,6 +961,10 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		mmc_data->max_segs = of_data->max_segs;
 		dma_priv->dma_buswidth = of_data->dma_buswidth;
 		host->bus_shift = of_data->bus_shift;
+		/* Fallback for old DTs */
+		if (of_data->sdhi_flags & SDHI_FLAG_NEED_CLKH_FALLBACK)
+			priv->clkh = clk_get_parent(clk_get_parent(priv->clk));
+
 	}
 
 	host->write16_hook	= renesas_sdhi_write16_hook;
