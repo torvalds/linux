@@ -10,6 +10,7 @@
 #include <asm/traps.h>
 #include <asm/kdebug.h>
 #include <asm/insn-eval.h>
+#include <asm/sgx.h>
 
 static inline unsigned long *pt_regs_nr(struct pt_regs *regs, int nr)
 {
@@ -44,6 +45,13 @@ static bool ex_handler_fault(const struct exception_table_entry *fixup,
 			     struct pt_regs *regs, int trapnr)
 {
 	regs->ax = trapnr;
+	return ex_handler_default(fixup, regs);
+}
+
+static bool ex_handler_sgx(const struct exception_table_entry *fixup,
+			   struct pt_regs *regs, int trapnr)
+{
+	regs->ax = trapnr | SGX_ENCLS_FAULT_FLAG;
 	return ex_handler_default(fixup, regs);
 }
 
@@ -207,6 +215,8 @@ int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
 		return ex_handler_pop_zero(e, regs);
 	case EX_TYPE_IMM_REG:
 		return ex_handler_imm_reg(e, regs, reg, imm);
+	case EX_TYPE_FAULT_SGX:
+		return ex_handler_sgx(e, regs, trapnr);
 	}
 	BUG();
 }

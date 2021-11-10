@@ -48,4 +48,6 @@
 #define	EX_TYPE_ZERO_REG		(EX_TYPE_IMM_REG | EX_DATA_IMM(0))
 #define	EX_TYPE_ONE_REG			(EX_TYPE_IMM_REG | EX_DATA_IMM(1))
 
+#define	EX_TYPE_FAULT_SGX		18
+
 #endif
