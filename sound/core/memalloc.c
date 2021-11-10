@@ -615,7 +615,6 @@ static const struct snd_malloc_ops snd_dma_noncontig_ops = {
 	.free = snd_dma_noncontig_free,
 	.mmap = snd_dma_noncontig_mmap,
 	.sync = snd_dma_noncontig_sync,
-	/* re-use vmalloc helpers for get_* ops */
 	.get_addr = snd_dma_noncontig_get_addr,
 	.get_page = snd_dma_noncontig_get_page,
 	.get_chunk_size = snd_dma_noncontig_get_chunk_size,
