@@ -529,6 +529,15 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_exists = true;
 	}
 
+	if (err_val & CPU_BOOT_ERR0_TPM_FAIL) {
+		dev_warn(hdev->dev,
+			"Device boot warning - TPM failure\n");
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_TPM_FAIL;
+	}
+
 	/* return error only if it's in the predefined mask */
 	if (err_exists && ((err_val & ~CPU_BOOT_ERR0_ENABLED) &
 				lower_32_bits(hdev->boot_error_status_mask)))
