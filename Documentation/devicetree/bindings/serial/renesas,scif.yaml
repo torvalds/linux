@@ -153,6 +153,7 @@ if:
         enum:
           - renesas,rcar-gen2-scif
           - renesas,rcar-gen3-scif
+          - renesas,scif-r9a07g044
 then:
   required:
     - resets
