@@ -584,6 +584,7 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 		else
 			intel_encoder->enable = g4x_enable_hdmi;
 	}
+	intel_encoder->shutdown = intel_hdmi_encoder_shutdown;
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
 	intel_encoder->power_domain = intel_port_to_power_domain(port);
