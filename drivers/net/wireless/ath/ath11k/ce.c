@@ -953,6 +953,7 @@ int ath11k_ce_init_pipes(struct ath11k_base *ab)
 void ath11k_ce_free_pipes(struct ath11k_base *ab)
 {
 	struct ath11k_ce_pipe *pipe;
+	struct ath11k_ce_ring *ce_ring;
 	int desc_sz;
 	int i;
 
@@ -964,22 +965,24 @@ void ath11k_ce_free_pipes(struct ath11k_base *ab)
 
 		if (pipe->src_ring) {
 			desc_sz = ath11k_hal_ce_get_desc_size(HAL_CE_DESC_SRC);
+			ce_ring = pipe->src_ring;
 			dma_free_coherent(ab->dev,
 					  pipe->src_ring->nentries * desc_sz +
 					  CE_DESC_RING_ALIGN,
-					  pipe->src_ring->base_addr_owner_space,
-					  pipe->src_ring->base_addr_ce_space);
+					  ce_ring->base_addr_owner_space_unaligned,
+					  ce_ring->base_addr_ce_space_unaligned);
 			kfree(pipe->src_ring);
 			pipe->src_ring = NULL;
 		}
 
 		if (pipe->dest_ring) {
 			desc_sz = ath11k_hal_ce_get_desc_size(HAL_CE_DESC_DST);
+			ce_ring = pipe->dest_ring;
 			dma_free_coherent(ab->dev,
 					  pipe->dest_ring->nentries * desc_sz +
 					  CE_DESC_RING_ALIGN,
-					  pipe->dest_ring->base_addr_owner_space,
-					  pipe->dest_ring->base_addr_ce_space);
+					  ce_ring->base_addr_owner_space_unaligned,
+					  ce_ring->base_addr_ce_space_unaligned);
 			kfree(pipe->dest_ring);
 			pipe->dest_ring = NULL;
 		}
@@ -987,11 +990,12 @@ void ath11k_ce_free_pipes(struct ath11k_base *ab)
 		if (pipe->status_ring) {
 			desc_sz =
 			  ath11k_hal_ce_get_desc_size(HAL_CE_DESC_DST_STATUS);
+			ce_ring = pipe->status_ring;
 			dma_free_coherent(ab->dev,
 					  pipe->status_ring->nentries * desc_sz +
 					  CE_DESC_RING_ALIGN,
-					  pipe->status_ring->base_addr_owner_space,
-					  pipe->status_ring->base_addr_ce_space);
+					  ce_ring->base_addr_owner_space_unaligned,
+					  ce_ring->base_addr_ce_space_unaligned);
 			kfree(pipe->status_ring);
 			pipe->status_ring = NULL;
 		}
