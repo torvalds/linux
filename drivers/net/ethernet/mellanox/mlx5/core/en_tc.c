@@ -3424,10 +3424,10 @@ actions_prepare_mod_hdr_actions(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	/* In case all pedit actions are skipped, remove the MOD_HDR flag. */
 	if (parse_attr->mod_hdr_acts.num_actions > 0)
 		return 0;
 
+	/* In case all pedit actions are skipped, remove the MOD_HDR flag. */
 	attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	mlx5e_mod_hdr_dealloc(&parse_attr->mod_hdr_acts);
 
