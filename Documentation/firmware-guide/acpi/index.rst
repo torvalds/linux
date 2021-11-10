@@ -26,5 +26,6 @@ ACPI Support
    acpi-lid
    lpit
    video_extension
+   non-d0-probe
    extcon-intel-int3496
    intel-pmc-mux

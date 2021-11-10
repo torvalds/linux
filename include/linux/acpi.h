@@ -1016,6 +1016,7 @@ int acpi_subsys_runtime_suspend(struct device *dev);
 int acpi_subsys_runtime_resume(struct device *dev);
 int acpi_dev_pm_attach(struct device *dev, bool power_on);
 bool acpi_storage_d3(struct device *dev);
+bool acpi_dev_state_d0(struct device *dev);
 #else
 static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
@@ -1026,6 +1027,10 @@ static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 static inline bool acpi_storage_d3(struct device *dev)
 {
 	return false;
+}
+static inline bool acpi_dev_state_d0(struct device *dev)
+{
+	return true;
 }
 #endif
 

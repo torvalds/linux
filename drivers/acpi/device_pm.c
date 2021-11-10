@@ -1400,4 +1400,30 @@ bool acpi_storage_d3(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(acpi_storage_d3);
 
+/**
+ * acpi_dev_state_d0 - Tell if the device is in D0 power state
+ * @dev: Physical device the ACPI power state of which to check
+ *
+ * On a system without ACPI, return true. On a system with ACPI, return true if
+ * the current ACPI power state of the device is D0, or false otherwise.
+ *
+ * Note that the power state of a device is not well-defined after it has been
+ * passed to acpi_device_set_power() and before that function returns, so it is
+ * not valid to ask for the ACPI power state of the device in that time frame.
+ *
+ * This function is intended to be used in a driver's probe or remove
+ * function. See Documentation/firmware-guide/acpi/low-power-probe.rst for
+ * more information.
+ */
+bool acpi_dev_state_d0(struct device *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	if (!adev)
+		return true;
+
+	return adev->power.state == ACPI_STATE_D0;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_state_d0);
+
 #endif /* CONFIG_PM */
