@@ -65,6 +65,15 @@ void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
 /*
  * SDn Clock
  */
+
+struct clk * __init cpg_sdh_clk_register(const char *name,
+	void __iomem *sdnckcr, const char *parent_name,
+	struct raw_notifier_head *notifiers)
+{
+	/* placeholder during transition */
+	return clk_register_fixed_factor(NULL, name, parent_name, 0, 1, 1);
+}
+
 #define CPG_SD_STP_HCK		BIT(9)
 #define CPG_SD_STP_CK		BIT(8)
 

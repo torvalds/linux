@@ -401,6 +401,10 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 			mult *= 2;
 		break;
 
+	case CLK_TYPE_GEN3_SDH:
+		return cpg_sdh_clk_register(core->name, base + core->offset,
+					   __clk_get_name(parent), notifiers);
+
 	case CLK_TYPE_GEN3_SD:
 		return cpg_sd_clk_register(core->name, base, core->offset,
 					   __clk_get_name(parent), notifiers,
