@@ -71,6 +71,7 @@ static void dcs_set_backlight(const struct drm_connector_state *conn_state, u32 
 	u8 data[2] = {};
 	enum port port;
 	size_t len = panel->backlight.max > U8_MAX ? 2 : 1;
+	unsigned long mode_flags;
 
 	if (len == 1) {
 		data[0] = level;
@@ -81,8 +82,11 @@ static void dcs_set_backlight(const struct drm_connector_state *conn_state, u32 
 
 	for_each_dsi_port(port, intel_dsi->dcs_backlight_ports) {
 		dsi_device = intel_dsi->dsi_hosts[port]->device;
+		mode_flags = dsi_device->mode_flags;
+		dsi_device->mode_flags &= ~MIPI_DSI_MODE_LPM;
 		mipi_dsi_dcs_write(dsi_device, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
 				   &data, len);
+		dsi_device->mode_flags = mode_flags;
 	}
 }
 
