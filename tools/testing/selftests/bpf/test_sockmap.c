@@ -139,6 +139,7 @@ struct sockmap_options {
 	bool sendpage;
 	bool data_test;
 	bool drop_expected;
+	bool check_recved_len;
 	int iov_count;
 	int iov_length;
 	int rate;
@@ -556,8 +557,12 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 	int err, i, flags = MSG_NOSIGNAL;
 	bool drop = opt->drop_expected;
 	bool data = opt->data_test;
+	int iov_alloc_length = iov_length;
 
-	err = msg_alloc_iov(&msg, iov_count, iov_length, data, tx);
+	if (!tx && opt->check_recved_len)
+		iov_alloc_length *= 2;
+
+	err = msg_alloc_iov(&msg, iov_count, iov_alloc_length, data, tx);
 	if (err)
 		goto out_errno;
 	if (peek_flag) {
@@ -665,6 +670,13 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 
 			s->bytes_recvd += recv;
 
+			if (opt->check_recved_len && s->bytes_recvd > total_bytes) {
+				errno = EMSGSIZE;
+				fprintf(stderr, "recv failed(), bytes_recvd:%zd, total_bytes:%f\n",
+						s->bytes_recvd, total_bytes);
+				goto out_errno;
+			}
+
 			if (data) {
 				int chunk_sz = opt->sendpage ?
 						iov_length * cnt :
@@ -744,7 +756,8 @@ static int sendmsg_test(struct sockmap_options *opt)
 
 	rxpid = fork();
 	if (rxpid == 0) {
-		iov_buf -= (txmsg_pop - txmsg_start_pop + 1);
+		if (txmsg_pop || txmsg_start_pop)
+			iov_buf -= (txmsg_pop - txmsg_start_pop + 1);
 		if (opt->drop_expected || txmsg_ktls_skb_drop)
 			_exit(0);
 
@@ -1680,10 +1693,25 @@ static void test_txmsg_ingress_parser(int cgrp, struct sockmap_options *opt)
 {
 	txmsg_pass = 1;
 	skb_use_parser = 512;
+	if (ktls == 1)
+		skb_use_parser = 570;
 	opt->iov_length = 256;
 	opt->iov_count = 1;
 	opt->rate = 2;
 	test_exec(cgrp, opt);
+}
+
+static void test_txmsg_ingress_parser2(int cgrp, struct sockmap_options *opt)
+{
+	if (ktls == 1)
+		return;
+	skb_use_parser = 10;
+	opt->iov_length = 20;
+	opt->iov_count = 1;
+	opt->rate = 1;
+	opt->check_recved_len = true;
+	test_exec(cgrp, opt);
+	opt->check_recved_len = false;
 }
 
 char *map_names[] = {
@@ -1784,7 +1812,8 @@ struct _test test[] = {
 	{"txmsg test pull-data", test_txmsg_pull},
 	{"txmsg test pop-data", test_txmsg_pop},
 	{"txmsg test push/pop data", test_txmsg_push_pop},
-	{"txmsg text ingress parser", test_txmsg_ingress_parser},
+	{"txmsg test ingress parser", test_txmsg_ingress_parser},
+	{"txmsg test ingress parser2", test_txmsg_ingress_parser2},
 };
 
 static int check_whitelist(struct _test *t, struct sockmap_options *opt)

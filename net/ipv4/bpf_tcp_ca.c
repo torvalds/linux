@@ -81,14 +81,7 @@ static bool bpf_tcp_ca_is_valid_access(int off, int size,
 				       const struct bpf_prog *prog,
 				       struct bpf_insn_access_aux *info)
 {
-	if (off < 0 || off >= sizeof(__u64) * MAX_BPF_FUNC_ARGS)
-		return false;
-	if (type != BPF_READ)
-		return false;
-	if (off % size != 0)
-		return false;
-
-	if (!btf_ctx_access(off, size, type, prog, info))
+	if (!bpf_tracing_btf_ctx_access(off, size, type, prog, info))
 		return false;
 
 	if (info->reg_type == PTR_TO_BTF_ID && info->btf_id == sock_id)

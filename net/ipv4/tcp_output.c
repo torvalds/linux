@@ -1677,8 +1677,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 	if (delta_truesize) {
 		skb->truesize	   -= delta_truesize;
 		sk_wmem_queued_add(sk, -delta_truesize);
-		if (!skb_zcopy_pure(skb))
-			sk_mem_uncharge(sk, delta_truesize);
+		sk_mem_uncharge(sk, delta_truesize);
 	}
 
 	/* Any change of skb->len requires recalculation of tso factor. */
@@ -2296,9 +2295,7 @@ static bool tcp_can_coalesce_send_queue_head(struct sock *sk, int len)
 		if (len <= skb->len)
 			break;
 
-		if (unlikely(TCP_SKB_CB(skb)->eor) ||
-		    tcp_has_tx_tstamp(skb) ||
-		    !skb_pure_zcopy_same(skb, next))
+		if (unlikely(TCP_SKB_CB(skb)->eor) || tcp_has_tx_tstamp(skb))
 			return false;
 
 		len -= skb->len;

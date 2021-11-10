@@ -202,3 +202,8 @@ void test_verif_scale_seg6_loop()
 {
 	scale_test("test_seg6_loop.o", BPF_PROG_TYPE_LWT_SEG6LOCAL, false);
 }
+
+void test_verif_twfw()
+{
+	scale_test("twfw.o", BPF_PROG_TYPE_CGROUP_SKB, false);
+}

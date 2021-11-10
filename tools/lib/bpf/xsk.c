@@ -300,7 +300,7 @@ int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
 	if (!umem)
 		return -ENOMEM;
 
-	umem->fd = socket(AF_XDP, SOCK_RAW, 0);
+	umem->fd = socket(AF_XDP, SOCK_RAW | SOCK_CLOEXEC, 0);
 	if (umem->fd < 0) {
 		err = -errno;
 		goto out_umem_alloc;
@@ -549,7 +549,7 @@ static int xsk_get_max_queues(struct xsk_socket *xsk)
 	struct ifreq ifr = {};
 	int fd, err, ret;
 
-	fd = socket(AF_LOCAL, SOCK_DGRAM, 0);
+	fd = socket(AF_LOCAL, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (fd < 0)
 		return -errno;
 
@@ -1046,7 +1046,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 	}
 
 	if (umem->refcount++ > 0) {
-		xsk->fd = socket(AF_XDP, SOCK_RAW, 0);
+		xsk->fd = socket(AF_XDP, SOCK_RAW | SOCK_CLOEXEC, 0);
 		if (xsk->fd < 0) {
 			err = -errno;
 			goto out_xsk_alloc;

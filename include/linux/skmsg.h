@@ -509,8 +509,22 @@ static inline bool sk_psock_strp_enabled(struct sk_psock *psock)
 
 #if IS_ENABLED(CONFIG_NET_SOCK_MSG)
 
-/* We only have one bit so far. */
-#define BPF_F_PTR_MASK ~(BPF_F_INGRESS)
+#define BPF_F_STRPARSER	(1UL << 1)
+
+/* We only have two bits so far. */
+#define BPF_F_PTR_MASK ~(BPF_F_INGRESS | BPF_F_STRPARSER)
+
+static inline bool skb_bpf_strparser(const struct sk_buff *skb)
+{
+	unsigned long sk_redir = skb->_sk_redir;
+
+	return sk_redir & BPF_F_STRPARSER;
+}
+
+static inline void skb_bpf_set_strparser(struct sk_buff *skb)
+{
+	skb->_sk_redir |= BPF_F_STRPARSER;
+}
 
 static inline bool skb_bpf_ingress(const struct sk_buff *skb)
 {

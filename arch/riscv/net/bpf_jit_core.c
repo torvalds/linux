@@ -11,7 +11,7 @@
 #include "bpf_jit.h"
 
 /* Number of iterations to try until offsets converge. */
-#define NR_JIT_ITERATIONS	16
+#define NR_JIT_ITERATIONS	32
 
 static int build_body(struct rv_jit_context *ctx, bool extra_pass, int *offset)
 {

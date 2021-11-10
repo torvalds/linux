@@ -40,7 +40,7 @@ static u32 hash(struct bpf_bloom_filter *bloom, void *value,
 	return h & bloom->bitset_mask;
 }
 
-static int peek_elem(struct bpf_map *map, void *value)
+static int bloom_map_peek_elem(struct bpf_map *map, void *value)
 {
 	struct bpf_bloom_filter *bloom =
 		container_of(map, struct bpf_bloom_filter, map);
@@ -55,7 +55,7 @@ static int peek_elem(struct bpf_map *map, void *value)
 	return 0;
 }
 
-static int push_elem(struct bpf_map *map, void *value, u64 flags)
+static int bloom_map_push_elem(struct bpf_map *map, void *value, u64 flags)
 {
 	struct bpf_bloom_filter *bloom =
 		container_of(map, struct bpf_bloom_filter, map);
@@ -72,12 +72,17 @@ static int push_elem(struct bpf_map *map, void *value, u64 flags)
 	return 0;
 }
 
-static int pop_elem(struct bpf_map *map, void *value)
+static int bloom_map_pop_elem(struct bpf_map *map, void *value)
 {
 	return -EOPNOTSUPP;
 }
 
-static struct bpf_map *map_alloc(union bpf_attr *attr)
+static int bloom_map_delete_elem(struct bpf_map *map, void *value)
+{
+	return -EOPNOTSUPP;
+}
+
+static struct bpf_map *bloom_map_alloc(union bpf_attr *attr)
 {
 	u32 bitset_bytes, bitset_mask, nr_hash_funcs, nr_bits;
 	int numa_node = bpf_map_attr_numa_node(attr);
@@ -90,11 +95,13 @@ static struct bpf_map *map_alloc(union bpf_attr *attr)
 	    attr->max_entries == 0 ||
 	    attr->map_flags & ~BLOOM_CREATE_FLAG_MASK ||
 	    !bpf_map_flags_access_ok(attr->map_flags) ||
+	    /* The lower 4 bits of map_extra (0xF) specify the number
+	     * of hash functions
+	     */
 	    (attr->map_extra & ~0xF))
 		return ERR_PTR(-EINVAL);
 
-	/* The lower 4 bits of map_extra specify the number of hash functions */
-	nr_hash_funcs = attr->map_extra & 0xF;
+	nr_hash_funcs = attr->map_extra;
 	if (nr_hash_funcs == 0)
 		/* Default to using 5 hash functions if unspecified */
 		nr_hash_funcs = 5;
@@ -150,7 +157,7 @@ static struct bpf_map *map_alloc(union bpf_attr *attr)
 	return &bloom->map;
 }
 
-static void map_free(struct bpf_map *map)
+static void bloom_map_free(struct bpf_map *map)
 {
 	struct bpf_bloom_filter *bloom =
 		container_of(map, struct bpf_bloom_filter, map);
@@ -158,38 +165,40 @@ static void map_free(struct bpf_map *map)
 	bpf_map_area_free(bloom);
 }
 
-static void *lookup_elem(struct bpf_map *map, void *key)
+static void *bloom_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	/* The eBPF program should use map_peek_elem instead */
 	return ERR_PTR(-EINVAL);
 }
 
-static int update_elem(struct bpf_map *map, void *key,
-		       void *value, u64 flags)
+static int bloom_map_update_elem(struct bpf_map *map, void *key,
+				 void *value, u64 flags)
 {
 	/* The eBPF program should use map_push_elem instead */
 	return -EINVAL;
 }
 
-static int check_btf(const struct bpf_map *map, const struct btf *btf,
-		     const struct btf_type *key_type,
-		     const struct btf_type *value_type)
+static int bloom_map_check_btf(const struct bpf_map *map,
+			       const struct btf *btf,
+			       const struct btf_type *key_type,
+			       const struct btf_type *value_type)
 {
 	/* Bloom filter maps are keyless */
 	return btf_type_is_void(key_type) ? 0 : -EINVAL;
 }
 
-static int bpf_bloom_btf_id;
+static int bpf_bloom_map_btf_id;
 const struct bpf_map_ops bloom_filter_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
-	.map_alloc = map_alloc,
-	.map_free = map_free,
-	.map_push_elem = push_elem,
-	.map_peek_elem = peek_elem,
-	.map_pop_elem = pop_elem,
-	.map_lookup_elem = lookup_elem,
-	.map_update_elem = update_elem,
-	.map_check_btf = check_btf,
+	.map_alloc = bloom_map_alloc,
+	.map_free = bloom_map_free,
+	.map_push_elem = bloom_map_push_elem,
+	.map_peek_elem = bloom_map_peek_elem,
+	.map_pop_elem = bloom_map_pop_elem,
+	.map_lookup_elem = bloom_map_lookup_elem,
+	.map_update_elem = bloom_map_update_elem,
+	.map_delete_elem = bloom_map_delete_elem,
+	.map_check_btf = bloom_map_check_btf,
 	.map_btf_name = "bpf_bloom_filter",
-	.map_btf_id = &bpf_bloom_btf_id,
+	.map_btf_id = &bpf_bloom_map_btf_id,
 };

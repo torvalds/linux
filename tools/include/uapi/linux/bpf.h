@@ -4923,6 +4923,21 @@ union bpf_attr {
  *		Dynamically cast a *sk* pointer to a *unix_sock* pointer.
  *	Return
  *		*sk* if casting is valid, or **NULL** otherwise.
+ *
+ * long bpf_kallsyms_lookup_name(const char *name, int name_sz, int flags, u64 *res)
+ *	Description
+ *		Get the address of a kernel symbol, returned in *res*. *res* is
+ *		set to 0 if the symbol is not found.
+ *	Return
+ *		On success, zero. On error, a negative value.
+ *
+ *		**-EINVAL** if *flags* is not zero.
+ *
+ *		**-EINVAL** if string *name* is not the same size as *name_sz*.
+ *
+ *		**-ENOENT** if symbol is not found.
+ *
+ *		**-EPERM** if caller does not have permission to obtain kernel address.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5104,6 +5119,7 @@ union bpf_attr {
 	FN(get_branch_snapshot),	\
 	FN(trace_vprintk),		\
 	FN(skc_to_unix_sock),		\
+	FN(kallsyms_lookup_name),	\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
@@ -5646,6 +5662,7 @@ struct bpf_map_info {
 	__u32 btf_id;
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
+	__u32 :32;	/* alignment pad */
 	__u64 map_extra;
 } __attribute__((aligned(8)));
 
