@@ -494,7 +494,6 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 
 	mpp_write(mpp, RKVENC_INT_MSK_BASE, 0x100);
 	mpp_write(mpp, RKVENC_INT_CLR_BASE, 0xffffffff);
-	udelay(5);
 	mpp_write(mpp, RKVENC_INT_STATUS_BASE, 0);
 
 	mpp_debug_leave();

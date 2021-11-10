@@ -78,6 +78,7 @@ enum MPP_DRIVER_TYPE {
 	MPP_DRIVER_IEP2,
 	MPP_DRIVER_JPGDEC,
 	MPP_DRIVER_RKVDEC2,
+	MPP_DRIVER_RKVENC2,
 	MPP_DRIVER_BUTT,
 };
 
@@ -765,5 +766,6 @@ extern struct platform_driver rockchip_vepu22_driver;
 extern struct platform_driver rockchip_iep2_driver;
 extern struct platform_driver rockchip_jpgdec_driver;
 extern struct platform_driver rockchip_rkvdec2_driver;
+extern struct platform_driver rockchip_rkvenc2_driver;
 
 #endif

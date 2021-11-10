@@ -360,6 +360,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 	MPP_REGISTER_DRIVER(srv, IEP2, iep2);
 	MPP_REGISTER_DRIVER(srv, JPGDEC, jpgdec);
 	MPP_REGISTER_DRIVER(srv, RKVDEC2, rkvdec2);
+	MPP_REGISTER_DRIVER(srv, RKVENC2, rkvenc2);
 
 	dev_info(dev, "probe success\n");
 
