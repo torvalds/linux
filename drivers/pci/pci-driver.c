@@ -457,7 +457,7 @@ static int pci_device_probe(struct device *dev)
 static void pci_device_remove(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = to_pci_driver(dev->driver);
+	struct pci_driver *drv = pci_dev->driver;
 
 	if (drv->remove) {
 		pm_runtime_get_sync(dev);
@@ -493,7 +493,7 @@ static void pci_device_remove(struct device *dev)
 static void pci_device_shutdown(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = to_pci_driver(dev->driver);
+	struct pci_driver *drv = pci_dev->driver;
 
 	pm_runtime_resume(dev);
 
@@ -589,7 +589,7 @@ static int pci_pm_reenable_device(struct pci_dev *pci_dev)
 static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = to_pci_driver(dev->driver);
+	struct pci_driver *drv = pci_dev->driver;
 
 	if (drv && drv->suspend) {
 		pci_power_t prev = pci_dev->current_state;
@@ -630,7 +630,7 @@ static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 static int pci_legacy_resume(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct pci_driver *drv = to_pci_driver(dev->driver);
+	struct pci_driver *drv = pci_dev->driver;
 
 	pci_fixup_device(pci_fixup_resume, pci_dev);
 
@@ -649,7 +649,7 @@ static void pci_pm_default_suspend(struct pci_dev *pci_dev)
 
 static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
 {
-	struct pci_driver *drv = to_pci_driver(pci_dev->dev.driver);
+	struct pci_driver *drv = pci_dev->driver;
 	bool ret = drv && (drv->suspend || drv->resume);
 
 	/*
@@ -1242,11 +1242,11 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	int error;
 
 	/*
-	 * If the device has no driver, we leave it in D0, but it may go to
-	 * D3cold when the bridge above it runtime suspends.  Save its
-	 * config space in case that happens.
+	 * If pci_dev->driver is not set (unbound), we leave the device in D0,
+	 * but it may go to D3cold when the bridge above it runtime suspends.
+	 * Save its config space in case that happens.
 	 */
-	if (!to_pci_driver(dev->driver)) {
+	if (!pci_dev->driver) {
 		pci_save_state(pci_dev);
 		return 0;
 	}
@@ -1303,7 +1303,7 @@ static int pci_pm_runtime_resume(struct device *dev)
 	 */
 	pci_restore_standard_config(pci_dev);
 
-	if (!to_pci_driver(dev->driver))
+	if (!pci_dev->driver)
 		return 0;
 
 	pci_fixup_device(pci_fixup_resume_early, pci_dev);
@@ -1322,13 +1322,14 @@ static int pci_pm_runtime_resume(struct device *dev)
 
 static int pci_pm_runtime_idle(struct device *dev)
 {
+	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	/*
-	 * If the device has no driver, it should always remain in D0
-	 * regardless of the runtime PM status
+	 * If pci_dev->driver is not set (unbound), the device should
+	 * always remain in D0 regardless of the runtime PM status
 	 */
-	if (!to_pci_driver(dev->driver))
+	if (!pci_dev->driver)
 		return 0;
 
 	if (!pm)
@@ -1435,10 +1436,8 @@ static struct pci_driver pci_compat_driver = {
  */
 struct pci_driver *pci_dev_driver(const struct pci_dev *dev)
 {
-	struct pci_driver *drv = to_pci_driver(dev->dev.driver);
-
-	if (drv)
-		return drv;
+	if (dev->driver)
+		return dev->driver;
 	else {
 		int i;
 		for (i = 0; i <= PCI_ROM_RESOURCE; i++)
