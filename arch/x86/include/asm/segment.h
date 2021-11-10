@@ -307,14 +307,7 @@ do {									\
 									\
 	asm volatile("						\n"	\
 		     "1:	movl %k0,%%" #seg "		\n"	\
-									\
-		     ".section .fixup,\"ax\"			\n"	\
-		     "2:	xorl %k0,%k0			\n"	\
-		     "		jmp 1b				\n"	\
-		     ".previous					\n"	\
-									\
-		     _ASM_EXTABLE(1b, 2b)				\
-									\
+		     _ASM_EXTABLE_TYPE_REG(1b, 1b, EX_TYPE_ZERO_REG, %k0)\
 		     : "+r" (__val) : : "memory");			\
 } while (0)
 
