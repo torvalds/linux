@@ -1093,7 +1093,6 @@ static int cmac_func_en(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 static int dmac_func_en(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
-	u32 ret = 0;
 
 	val32 = (B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN | B_AX_MAC_SEC_EN |
 		 B_AX_DISPATCHER_EN | B_AX_DLE_CPUIO_EN | B_AX_PKT_IN_EN |
@@ -1107,7 +1106,7 @@ static int dmac_func_en(struct rtw89_dev *rtwdev)
 		 B_AX_WD_RLS_CLK_EN);
 	rtw89_write32(rtwdev, R_AX_DMAC_CLK_EN, val32);
 
-	return ret;
+	return 0;
 }
 
 static int chip_func_en(struct rtw89_dev *rtwdev)
