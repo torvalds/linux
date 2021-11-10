@@ -10,6 +10,7 @@
  *
  */
 
+#include <linux/of.h>
 #include <linux/mmc/sdio_ids.h>
 
 #include "card.h"
@@ -145,6 +146,19 @@ static const struct mmc_fixup __maybe_unused sdio_fixup_methods[] = {
 	END_FIXUP
 };
 
+static inline bool mmc_fixup_of_compatible_match(struct mmc_card *card,
+						 const char *compatible)
+{
+	struct device_node *np;
+
+	for_each_child_of_node(mmc_dev(card->host)->of_node, np) {
+		if (of_device_is_compatible(np, compatible))
+			return true;
+	}
+
+	return false;
+}
+
 static inline void mmc_fixup_device(struct mmc_card *card,
 				    const struct mmc_fixup *table)
 {
@@ -172,6 +186,9 @@ static inline void mmc_fixup_device(struct mmc_card *card,
 		    f->ext_csd_rev != card->ext_csd.rev)
 			continue;
 		if (rev < f->rev_start || rev > f->rev_end)
+			continue;
+		if (f->of_compatible &&
+		    !mmc_fixup_of_compatible_match(card, f->of_compatible))
 			continue;
 
 		dev_dbg(&card->dev, "calling %ps\n", f->vendor_fixup);
