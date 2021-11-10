@@ -321,6 +321,7 @@ struct io_submit_state {
 
 	bool			plug_started;
 	bool			need_plug;
+	bool			flush_cqes;
 	unsigned short		submit_nr;
 	struct blk_plug		plug;
 };
@@ -1525,8 +1526,11 @@ static void io_prep_async_link(struct io_kiocb *req)
 
 static inline void io_req_add_compl_list(struct io_kiocb *req)
 {
+	struct io_ring_ctx *ctx = req->ctx;
 	struct io_submit_state *state = &req->ctx->submit_state;
 
+	if (!(req->flags & REQ_F_CQE_SKIP))
+		ctx->submit_state.flush_cqes = true;
 	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
 
@@ -2386,18 +2390,22 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	struct io_wq_work_node *node, *prev;
 	struct io_submit_state *state = &ctx->submit_state;
 
-	spin_lock(&ctx->completion_lock);
-	wq_list_for_each(node, prev, &state->compl_reqs) {
-		struct io_kiocb *req = container_of(node, struct io_kiocb,
+	if (state->flush_cqes) {
+		spin_lock(&ctx->completion_lock);
+		wq_list_for_each(node, prev, &state->compl_reqs) {
+			struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    comp_list);
 
-		if (!(req->flags & REQ_F_CQE_SKIP))
-			__io_fill_cqe(ctx, req->user_data, req->result,
-				      req->cflags);
+			if (!(req->flags & REQ_F_CQE_SKIP))
+				__io_fill_cqe(ctx, req->user_data, req->result,
+					      req->cflags);
+		}
+
+		io_commit_cqring(ctx);
+		spin_unlock(&ctx->completion_lock);
+		io_cqring_ev_posted(ctx);
+		state->flush_cqes = false;
 	}
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
 
 	io_free_batch_list(ctx, state->compl_reqs.first);
 	INIT_WQ_LIST(&state->compl_reqs);
