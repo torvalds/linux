@@ -579,28 +579,22 @@ void acpi_dev_remove_driver_gpios(struct acpi_device *adev)
 }
 EXPORT_SYMBOL_GPL(acpi_dev_remove_driver_gpios);
 
-static void devm_acpi_dev_release_driver_gpios(struct device *dev, void *res)
+static void acpi_dev_release_driver_gpios(void *adev)
 {
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(dev));
+	acpi_dev_remove_driver_gpios(adev);
 }
 
 int devm_acpi_dev_add_driver_gpios(struct device *dev,
 				   const struct acpi_gpio_mapping *gpios)
 {
-	void *res;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	int ret;
 
-	res = devres_alloc(devm_acpi_dev_release_driver_gpios, 0, GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), gpios);
-	if (ret) {
-		devres_free(res);
+	ret = acpi_dev_add_driver_gpios(adev, gpios);
+	if (ret)
 		return ret;
-	}
-	devres_add(dev, res);
-	return 0;
+
+	return devm_add_action_or_reset(dev, acpi_dev_release_driver_gpios, adev);
 }
 EXPORT_SYMBOL_GPL(devm_acpi_dev_add_driver_gpios);
 
