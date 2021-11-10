@@ -852,6 +852,9 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&avi_frame.avi,
 						       &nv_connector->base, mode);
 	if (!ret) {
+		drm_hdmi_avi_infoframe_quant_range(&avi_frame.avi,
+						   &nv_connector->base, mode,
+						   HDMI_QUANTIZATION_RANGE_FULL);
 		/* We have an AVI InfoFrame, populate it to the display */
 		args.pwr.avi_infoframe_length
 			= hdmi_infoframe_pack(&avi_frame, args.infoframes, 17);
