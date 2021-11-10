@@ -50,4 +50,9 @@
 
 #define	EX_TYPE_FAULT_SGX		18
 
+#define	EX_TYPE_UCOPY_LEN		19 /* cx := reg + imm*cx */
+#define	EX_TYPE_UCOPY_LEN1		(EX_TYPE_UCOPY_LEN | EX_DATA_IMM(1))
+#define	EX_TYPE_UCOPY_LEN4		(EX_TYPE_UCOPY_LEN | EX_DATA_IMM(4))
+#define	EX_TYPE_UCOPY_LEN8		(EX_TYPE_UCOPY_LEN | EX_DATA_IMM(8))
+
 #endif

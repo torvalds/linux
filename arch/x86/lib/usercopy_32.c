@@ -42,11 +42,7 @@ do {									\
 		"	movl %2,%0\n"					\
 		"1:	rep; stosb\n"					\
 		"2: " ASM_CLAC "\n"					\
-		".section .fixup,\"ax\"\n"				\
-		"3:	lea 0(%2,%0,4),%0\n"				\
-		"	jmp 2b\n"					\
-		".previous\n"						\
-		_ASM_EXTABLE_UA(0b, 3b)					\
+		_ASM_EXTABLE_TYPE_REG(0b, 2b, EX_TYPE_UCOPY_LEN4, %2)	\
 		_ASM_EXTABLE_UA(1b, 2b)					\
 		: "=&c"(size), "=&D" (__d0)				\
 		: "r"(size & 3), "0"(size / 4), "1"(addr), "a"(0));	\
@@ -148,10 +144,6 @@ __copy_user_intel(void __user *to, const void *from, unsigned long size)
 		       "36:    movl %%eax, %0\n"
 		       "37:    rep; movsb\n"
 		       "100:\n"
-		       ".section .fixup,\"ax\"\n"
-		       "101:   lea 0(%%eax,%0,4),%0\n"
-		       "       jmp 100b\n"
-		       ".previous\n"
 		       _ASM_EXTABLE_UA(1b, 100b)
 		       _ASM_EXTABLE_UA(2b, 100b)
 		       _ASM_EXTABLE_UA(3b, 100b)
@@ -189,7 +181,7 @@ __copy_user_intel(void __user *to, const void *from, unsigned long size)
 		       _ASM_EXTABLE_UA(35b, 100b)
 		       _ASM_EXTABLE_UA(36b, 100b)
 		       _ASM_EXTABLE_UA(37b, 100b)
-		       _ASM_EXTABLE_UA(99b, 101b)
+		       _ASM_EXTABLE_TYPE_REG(99b, 100b, EX_TYPE_UCOPY_LEN4, %%eax)
 		       : "=&c"(size), "=&D" (d0), "=&S" (d1)
 		       :  "1"(to), "2"(from), "0"(size)
 		       : "eax", "edx", "memory");
@@ -254,10 +246,6 @@ static unsigned long __copy_user_intel_nocache(void *to,
 	       "        movl %%eax,%0\n"
 	       "7:      rep; movsb\n"
 	       "8:\n"
-	       ".section .fixup,\"ax\"\n"
-	       "9:      lea 0(%%eax,%0,4),%0\n"
-	       "        jmp 8b\n"
-	       ".previous\n"
 	       _ASM_EXTABLE_UA(0b, 8b)
 	       _ASM_EXTABLE_UA(1b, 8b)
 	       _ASM_EXTABLE_UA(2b, 8b)
@@ -276,7 +264,7 @@ static unsigned long __copy_user_intel_nocache(void *to,
 	       _ASM_EXTABLE_UA(81b, 8b)
 	       _ASM_EXTABLE_UA(14b, 8b)
 	       _ASM_EXTABLE_UA(91b, 8b)
-	       _ASM_EXTABLE_UA(6b, 9b)
+	       _ASM_EXTABLE_TYPE_REG(6b, 8b, EX_TYPE_UCOPY_LEN4, %%eax)
 	       _ASM_EXTABLE_UA(7b, 8b)
 	       : "=&c"(size), "=&D" (d0), "=&S" (d1)
 	       :  "1"(to), "2"(from), "0"(size)
@@ -314,14 +302,8 @@ do {									\
 		"	movl %3,%0\n"					\
 		"1:	rep; movsb\n"					\
 		"2:\n"							\
-		".section .fixup,\"ax\"\n"				\
-		"5:	addl %3,%0\n"					\
-		"	jmp 2b\n"					\
-		"3:	lea 0(%3,%0,4),%0\n"				\
-		"	jmp 2b\n"					\
-		".previous\n"						\
-		_ASM_EXTABLE_UA(4b, 5b)					\
-		_ASM_EXTABLE_UA(0b, 3b)					\
+		_ASM_EXTABLE_TYPE_REG(4b, 2b, EX_TYPE_UCOPY_LEN1, %3)	\
+		_ASM_EXTABLE_TYPE_REG(0b, 2b, EX_TYPE_UCOPY_LEN4, %3)	\
 		_ASM_EXTABLE_UA(1b, 2b)					\
 		: "=&c"(size), "=&D" (__d0), "=&S" (__d1), "=r"(__d2)	\
 		: "3"(size), "0"(size), "1"(to), "2"(from)		\
