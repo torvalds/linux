@@ -6,8 +6,12 @@
 #ifndef __LINUX_DRM_FORMAT_HELPER_H
 #define __LINUX_DRM_FORMAT_HELPER_H
 
+struct drm_format_info;
 struct drm_framebuffer;
 struct drm_rect;
+
+unsigned int drm_fb_clip_offset(unsigned int pitch, const struct drm_format_info *format,
+				const struct drm_rect *clip);
 
 void drm_fb_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
 		   struct drm_rect *clip);

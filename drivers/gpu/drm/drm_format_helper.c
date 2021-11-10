@@ -17,11 +17,26 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_rect.h>
 
-static unsigned int clip_offset(struct drm_rect *clip,
-				unsigned int pitch, unsigned int cpp)
+static unsigned int clip_offset(const struct drm_rect *clip, unsigned int pitch, unsigned int cpp)
 {
 	return clip->y1 * pitch + clip->x1 * cpp;
 }
+
+/**
+ * drm_fb_clip_offset - Returns the clipping rectangles byte-offset in a framebuffer
+ * @pitch: Framebuffer line pitch in byte
+ * @format: Framebuffer format
+ * @clip: Clip rectangle
+ *
+ * Returns:
+ * The byte offset of the clip rectangle's top-left corner within the framebuffer.
+ */
+unsigned int drm_fb_clip_offset(unsigned int pitch, const struct drm_format_info *format,
+				const struct drm_rect *clip)
+{
+	return clip_offset(clip, pitch, format->cpp[0]);
+}
+EXPORT_SYMBOL(drm_fb_clip_offset);
 
 /**
  * drm_fb_memcpy - Copy clip buffer
