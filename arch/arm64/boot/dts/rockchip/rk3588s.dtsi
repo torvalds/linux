@@ -796,8 +796,34 @@
 		clocks = <&cru CLK_GPU_COREGROUP>, <&cru CLK_GPU_STACKS>, <&cru CLK_GPU>;
 		clock-names = "clk_gpu_coregroup", "clk_gpu_stacks", "clk_gpu";
 		power-domains = <&power RK3588_PD_GPU>;
+		operating-points-v2 = <&gpu_opp_table>;
 
 		status = "disabled";
+	};
+
+	gpu_opp_table: gpu-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-198000000 {
+			opp-hz = /bits/ 64 <198000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+		};
+		opp-297000000 {
+			opp-hz = /bits/ 64 <297000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+		};
+		opp-396000000 {
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+		};
+		opp-594000000 {
+			opp-hz = /bits/ 64 <594000000>;
+			opp-microvolt = <750000 750000 950000>,
+					<750000 750000 950000>;
+		};
 	};
 
 	usbdrd3_0: usbdrd3_0 {
