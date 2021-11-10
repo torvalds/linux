@@ -2640,8 +2640,8 @@
 		dmas = <&dmac1 15>, <&dmac1 16>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi2m0_cs0 &spi2m0_cs1 &spi2m0_pins>;
-		pinctrl-1 = <&spi2m0_cs0 &spi2m0_cs1 &spi2m0_pins_hs>;
+		pinctrl-0 = <&spi2m2_cs0 &spi2m2_cs1 &spi2m2_pins>;
+		pinctrl-1 = <&spi2m2_cs0 &spi2m2_cs1 &spi2m2_pins_hs>;
 		num-cs = <2>;
 		status = "disabled";
 	};
