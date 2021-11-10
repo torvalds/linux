@@ -869,11 +869,11 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		dev_err(&client->dev,
 			"ov2680 write resolution register err: %d\n", ret);
 
+	vts = dev->res->lines_per_frame;
+
 	/* If necessary increase the VTS to match exposure + MARGIN */
 	if (dev->exposure > vts - OV2680_INTEGRATION_TIME_MARGIN)
 		vts = dev->exposure + OV2680_INTEGRATION_TIME_MARGIN;
-	else
-		vts = dev->res->lines_per_frame;
 
 	ret = ov2680_write_reg(client, 2, OV2680_TIMING_VTS_H, vts);
 	if (ret)
