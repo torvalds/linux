@@ -261,7 +261,7 @@ _bpftool()
     # Deal with options
     if [[ ${words[cword]} == -* ]]; then
         local c='--version --json --pretty --bpffs --mapcompat --debug \
-	       --use-loader --base-btf'
+	       --use-loader --base-btf --legacy'
         COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
         return 0
     fi

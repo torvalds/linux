@@ -31,6 +31,7 @@ bool block_mount;
 bool verifier_logs;
 bool relaxed_maps;
 bool use_loader;
+bool legacy_libbpf;
 struct btf *base_btf;
 struct hashmap *refs_table;
 
@@ -396,6 +397,7 @@ int main(int argc, char **argv)
 		{ "debug",	no_argument,	NULL,	'd' },
 		{ "use-loader",	no_argument,	NULL,	'L' },
 		{ "base-btf",	required_argument, NULL, 'B' },
+		{ "legacy",	no_argument,	NULL,	'l' },
 		{ 0 }
 	};
 	int opt, ret;
@@ -408,7 +410,7 @@ int main(int argc, char **argv)
 	bin_name = argv[0];
 
 	opterr = 0;
-	while ((opt = getopt_long(argc, argv, "VhpjfLmndB:",
+	while ((opt = getopt_long(argc, argv, "VhpjfLmndB:l",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
@@ -454,6 +456,9 @@ int main(int argc, char **argv)
 		case 'L':
 			use_loader = true;
 			break;
+		case 'l':
+			legacy_libbpf = true;
+			break;
 		default:
 			p_err("unrecognized option '%s'", argv[optind - 1]);
 			if (json_output)
@@ -461,6 +466,12 @@ int main(int argc, char **argv)
 			else
 				usage();
 		}
+	}
+
+	if (!legacy_libbpf) {
+		ret = libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
+		if (ret)
+			p_err("failed to enable libbpf strict mode: %d", ret);
 	}
 
 	argc -= optind;
