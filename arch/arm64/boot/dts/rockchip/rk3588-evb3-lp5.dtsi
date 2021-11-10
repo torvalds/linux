@@ -748,6 +748,10 @@
 	status = "okay";
 };
 
+&hdmi1_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -903,6 +907,10 @@
 		compatible = "ES7202_PDM_ADC_1";
 		reg = <0x32>;
 	};
+};
+
+&i2s6_8ch {
+	status = "okay";
 };
 
 &mipi_dcphy0 {

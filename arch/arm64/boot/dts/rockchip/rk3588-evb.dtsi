@@ -84,6 +84,36 @@
 		default-brightness-level = <200>;
 	};
 
+	hdmi0_sound: hdmi0-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip,hdmi0";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s5_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi0>;
+		};
+	};
+
+	hdmi1_sound: hdmi1-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip,hdmi1";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s6_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi1>;
+		};
+	};
+
 	leds: leds {
 		compatible = "gpio-leds";
 		work_led: work {

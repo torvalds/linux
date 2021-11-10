@@ -221,6 +221,10 @@
 	status = "okay";
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
+
 &i2c2 {
 	status = "okay";
 
@@ -314,6 +318,10 @@
 		hp-con-gpio = <&gpio1 RK_PD2 GPIO_ACTIVE_HIGH>;
 		extcon = <&rk_headset>;
 	};
+};
+
+&i2s5_8ch {
+	status = "okay";
 };
 
 &mdio0 {

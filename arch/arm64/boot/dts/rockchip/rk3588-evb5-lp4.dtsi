@@ -128,10 +128,18 @@
 	status = "okay";
 };
 
+&hdmi1_sound {
+	status = "okay";
+};
+
 &i2s3_2ch {
 	status = "okay";
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
+};
+
+&i2s6_8ch {
+	status = "okay";
 };
 
 &mipi_dcphy0 {
