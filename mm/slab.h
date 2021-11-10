@@ -27,11 +27,7 @@ struct slab {
 		struct rcu_head rcu_head;
 		struct {
 			struct slab *next;
-#ifdef CONFIG_64BIT
 			int slabs;	/* Nr of slabs left */
-#else
-			short int slabs;
-#endif
 		};
 	};
 	struct kmem_cache *slab_cache;
