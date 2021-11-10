@@ -162,6 +162,12 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 	struct btrfs_root *root, *tmp;
 	struct btrfs_caching_control *caching_ctl, *next;
 
+	/*
+	 * At this point no one can be using this transaction to modify any tree
+	 * and no one can start another transaction to modify any tree either.
+	 */
+	ASSERT(cur_trans->state == TRANS_STATE_COMMIT_DOING);
+
 	down_write(&fs_info->commit_root_sem);
 	list_for_each_entry_safe(root, tmp, &cur_trans->switch_commits,
 				 dirty_list) {
@@ -1236,6 +1242,12 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 	struct extent_buffer *eb;
 	int ret;
 
+	/*
+	 * At this point no one can be using this transaction to modify any tree
+	 * and no one can start another transaction to modify any tree either.
+	 */
+	ASSERT(trans->transaction->state == TRANS_STATE_COMMIT_DOING);
+
 	eb = btrfs_lock_root_node(fs_info->tree_root);
 	ret = btrfs_cow_block(trans, fs_info->tree_root, eb, NULL,
 			      0, &eb, BTRFS_NESTING_COW);
@@ -1327,7 +1339,8 @@ void btrfs_add_dead_root(struct btrfs_root *root)
 }
 
 /*
- * update all the cowonly tree roots on disk
+ * Update each subvolume root and its relocation root, if it exists, in the tree
+ * of tree roots. Also free log roots if they exist.
  */
 static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 {
@@ -1335,6 +1348,12 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 	struct btrfs_root *gang[8];
 	int i;
 	int ret;
+
+	/*
+	 * At this point no one can be using this transaction to modify any tree
+	 * and no one can start another transaction to modify any tree either.
+	 */
+	ASSERT(trans->transaction->state == TRANS_STATE_COMMIT_DOING);
 
 	spin_lock(&fs_info->fs_roots_radix_lock);
 	while (1) {
@@ -1347,6 +1366,14 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 		for (i = 0; i < ret; i++) {
 			struct btrfs_root *root = gang[i];
 			int ret2;
+
+			/*
+			 * At this point we can neither have tasks logging inodes
+			 * from a root nor trying to commit a log tree.
+			 */
+			ASSERT(atomic_read(&root->log_writers) == 0);
+			ASSERT(atomic_read(&root->log_commit[0]) == 0);
+			ASSERT(atomic_read(&root->log_commit[1]) == 0);
 
 			radix_tree_tag_clear(&fs_info->fs_roots_radix,
 					(unsigned long)root->root_key.objectid,
@@ -1472,12 +1499,6 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	/*
-	 * We are going to commit transaction, see btrfs_commit_transaction()
-	 * comment for reason locking tree_log_mutex
-	 */
-	mutex_lock(&fs_info->tree_log_mutex);
-
 	ret = commit_fs_roots(trans);
 	if (ret)
 		goto out;
@@ -1513,8 +1534,6 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 			"Error while writing out transaction for qgroup");
 
 out:
-	mutex_unlock(&fs_info->tree_log_mutex);
-
 	/*
 	 * Force parent root to be updated, as we recorded it before so its
 	 * last_trans == cur_transid.
@@ -2246,24 +2265,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	WARN_ON(cur_trans != trans->transaction);
 
-	/* btrfs_commit_tree_roots is responsible for getting the
-	 * various roots consistent with each other.  Every pointer
-	 * in the tree of tree roots has to point to the most up to date
-	 * root for every subvolume and other tree.  So, we have to keep
-	 * the tree logging code from jumping in and changing any
-	 * of the trees.
-	 *
-	 * At this point in the commit, there can't be any tree-log
-	 * writers, but a little lower down we drop the trans mutex
-	 * and let new people in.  By holding the tree_log_mutex
-	 * from now until after the super is written, we avoid races
-	 * with the tree-log code.
-	 */
-	mutex_lock(&fs_info->tree_log_mutex);
-
 	ret = commit_fs_roots(trans);
 	if (ret)
-		goto unlock_tree_log;
+		goto unlock_reloc;
 
 	/*
 	 * Since the transaction is done, we can apply the pending changes
@@ -2282,11 +2286,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 */
 	ret = btrfs_qgroup_account_extents(trans);
 	if (ret < 0)
-		goto unlock_tree_log;
+		goto unlock_reloc;
 
 	ret = commit_cowonly_roots(trans);
 	if (ret)
-		goto unlock_tree_log;
+		goto unlock_reloc;
 
 	/*
 	 * The tasks which save the space cache and inode cache may also
@@ -2294,7 +2298,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 */
 	if (TRANS_ABORTED(cur_trans)) {
 		ret = cur_trans->aborted;
-		goto unlock_tree_log;
+		goto unlock_reloc;
 	}
 
 	cur_trans = fs_info->running_transaction;
@@ -2327,6 +2331,16 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	btrfs_trans_release_chunk_metadata(trans);
 
+	/*
+	 * Before changing the transaction state to TRANS_STATE_UNBLOCKED and
+	 * setting fs_info->running_transaction to NULL, lock tree_log_mutex to
+	 * make sure that before we commit our superblock, no other task can
+	 * start a new transaction and commit a log tree before we commit our
+	 * superblock. Anyone trying to commit a log tree locks this mutex before
+	 * writing its superblock.
+	 */
+	mutex_lock(&fs_info->tree_log_mutex);
+
 	spin_lock(&fs_info->trans_lock);
 	cur_trans->state = TRANS_STATE_UNBLOCKED;
 	fs_info->running_transaction = NULL;
@@ -2339,10 +2353,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (ret) {
 		btrfs_handle_fs_error(fs_info, ret,
 				      "Error while writing out transaction");
-		/*
-		 * reloc_mutex has been unlocked, tree_log_mutex is still held
-		 * but we can't jump to unlock_tree_log causing double unlock
-		 */
 		mutex_unlock(&fs_info->tree_log_mutex);
 		goto scrub_continue;
 	}
@@ -2404,8 +2414,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	return ret;
 
-unlock_tree_log:
-	mutex_unlock(&fs_info->tree_log_mutex);
 unlock_reloc:
 	mutex_unlock(&fs_info->reloc_mutex);
 scrub_continue:
