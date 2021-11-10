@@ -13,7 +13,7 @@ SYNOPSIS
 	**bpftool** [*OPTIONS*] **gen** *COMMAND*
 
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-d** | **--debug** } |
-		{ **-L** | **--use-loader** } }
+	{ **-L** | **--use-loader** } }
 
 	*COMMAND* := { **object** | **skeleton** | **help** }
 
