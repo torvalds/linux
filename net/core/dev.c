@@ -6928,7 +6928,7 @@ void napi_disable(struct napi_struct *n)
 	might_sleep();
 	set_bit(NAPI_STATE_DISABLE, &n->state);
 
-	do {
+	for ( ; ; ) {
 		val = READ_ONCE(n->state);
 		if (val & (NAPIF_STATE_SCHED | NAPIF_STATE_NPSVC)) {
 			usleep_range(20, 200);
@@ -6937,7 +6937,10 @@ void napi_disable(struct napi_struct *n)
 
 		new = val | NAPIF_STATE_SCHED | NAPIF_STATE_NPSVC;
 		new &= ~(NAPIF_STATE_THREADED | NAPIF_STATE_PREFER_BUSY_POLL);
-	} while (cmpxchg(&n->state, val, new) != val);
+
+		if (cmpxchg(&n->state, val, new) == val)
+			break;
+	}
 
 	hrtimer_cancel(&n->timer);
 
