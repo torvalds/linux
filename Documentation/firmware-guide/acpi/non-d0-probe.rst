@@ -62,7 +62,7 @@ objects not relevant from the example point of view have been omitted.
 .. code-block:: text
 
 	Device (CAM0)
-        {
+	{
 		Name (_HID, "SONY319A")
 		Name (_UID, Zero)
 		Name (_CRS, ResourceTemplate ()
@@ -71,8 +71,8 @@ objects not relevant from the example point of view have been omitted.
 				     AddressingMode7Bit, "\\_SB.PCI0.I2C0",
 				     0x00, ResourceConsumer)
 		})
-		Name (_DSC, 0, NotSerialized)
+		Method (_DSC, 0, NotSerialized)
 		{
 			Return (0x4)
-                }
+		}
 	}
