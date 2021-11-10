@@ -206,7 +206,7 @@ retry:
 		/* can compress directly from the framebuffer */
 		buf = vaddr + rect->y1 * pitch;
 	} else {
-		drm_fb_memcpy(buf, vaddr, fb, rect);
+		drm_fb_memcpy(buf, 0, vaddr, fb, rect);
 	}
 
 	memset(req, 0, sizeof(*req));

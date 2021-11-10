@@ -41,58 +41,62 @@ EXPORT_SYMBOL(drm_fb_clip_offset);
 /**
  * drm_fb_memcpy - Copy clip buffer
  * @dst: Destination buffer
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @vaddr: Source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
  * This function does not apply clipping on dst, i.e. the destination
- * is a small buffer containing the clip rect only.
+ * is at the top-left corner.
  */
-void drm_fb_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
-		   struct drm_rect *clip)
+void drm_fb_memcpy(void *dst, unsigned int dst_pitch, const void *vaddr,
+		   const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	unsigned int cpp = fb->format->cpp[0];
 	size_t len = (clip->x2 - clip->x1) * cpp;
 	unsigned int y, lines = clip->y2 - clip->y1;
 
+	if (!dst_pitch)
+		dst_pitch = len;
+
 	vaddr += clip_offset(clip, fb->pitches[0], cpp);
 	for (y = 0; y < lines; y++) {
 		memcpy(dst, vaddr, len);
 		vaddr += fb->pitches[0];
-		dst += len;
+		dst += dst_pitch;
 	}
 }
 EXPORT_SYMBOL(drm_fb_memcpy);
 
 /**
- * drm_fb_memcpy_dstclip - Copy clip buffer
+ * drm_fb_memcpy_toio - Copy clip buffer
  * @dst: Destination buffer (iomem)
  * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @vaddr: Source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
- * This function applies clipping on dst, i.e. the destination is a
- * full (iomem) framebuffer but only the clip rect content is copied over.
+ * This function does not apply clipping on dst, i.e. the destination
+ * is at the top-left corner.
  */
-void drm_fb_memcpy_dstclip(void __iomem *dst, unsigned int dst_pitch,
-			   void *vaddr, struct drm_framebuffer *fb,
-			   struct drm_rect *clip)
+void drm_fb_memcpy_toio(void __iomem *dst, unsigned int dst_pitch, const void *vaddr,
+			const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	unsigned int cpp = fb->format->cpp[0];
-	unsigned int offset = clip_offset(clip, dst_pitch, cpp);
 	size_t len = (clip->x2 - clip->x1) * cpp;
 	unsigned int y, lines = clip->y2 - clip->y1;
 
-	vaddr += offset;
-	dst += offset;
+	if (!dst_pitch)
+		dst_pitch = len;
+
+	vaddr += clip_offset(clip, fb->pitches[0], cpp);
 	for (y = 0; y < lines; y++) {
 		memcpy_toio(dst, vaddr, len);
 		vaddr += fb->pitches[0];
 		dst += dst_pitch;
 	}
 }
-EXPORT_SYMBOL(drm_fb_memcpy_dstclip);
+EXPORT_SYMBOL(drm_fb_memcpy_toio);
 
 /**
  * drm_fb_swab - Swap bytes into clip buffer
@@ -481,7 +485,8 @@ int drm_fb_blit_rect_dstclip(void __iomem *dst, unsigned int dst_pitch,
 		dst_format = DRM_FORMAT_XRGB8888;
 
 	if (dst_format == fb_format) {
-		drm_fb_memcpy_dstclip(dst, dst_pitch, vmap, fb, clip);
+		dst += clip_offset(clip, dst_pitch, fb->format->cpp[0]);
+		drm_fb_memcpy_toio(dst, dst_pitch, vmap, fb, clip);
 		return 0;
 
 	} else if (dst_format == DRM_FORMAT_RGB565) {

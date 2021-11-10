@@ -13,11 +13,10 @@ struct drm_rect;
 unsigned int drm_fb_clip_offset(unsigned int pitch, const struct drm_format_info *format,
 				const struct drm_rect *clip);
 
-void drm_fb_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
-		   struct drm_rect *clip);
-void drm_fb_memcpy_dstclip(void __iomem *dst, unsigned int dst_pitch, void *vaddr,
-			   struct drm_framebuffer *fb,
-			   struct drm_rect *clip);
+void drm_fb_memcpy(void *dst, unsigned int dst_pitch, const void *vaddr,
+		   const struct drm_framebuffer *fb, const struct drm_rect *clip);
+void drm_fb_memcpy_toio(void __iomem *dst, unsigned int dst_pitch, const void *vaddr,
+			const struct drm_framebuffer *fb, const struct drm_rect *clip);
 void drm_fb_swab(void *dst, void *src, struct drm_framebuffer *fb,
 		 struct drm_rect *clip, bool cached);
 void drm_fb_xrgb8888_to_rgb332(void *dst, void *vaddr, struct drm_framebuffer *fb,
