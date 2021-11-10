@@ -2661,11 +2661,9 @@ ice_cfg_agg(struct ice_port_info *pi, u32 agg_id, enum ice_agg_type agg_type,
 	int status;
 
 	mutex_lock(&pi->sched_lock);
-	status = ice_sched_cfg_agg(pi, agg_id, agg_type,
-				   (unsigned long *)&bitmap);
+	status = ice_sched_cfg_agg(pi, agg_id, agg_type, &bitmap);
 	if (!status)
-		status = ice_save_agg_tc_bitmap(pi, agg_id,
-						(unsigned long *)&bitmap);
+		status = ice_save_agg_tc_bitmap(pi, agg_id, &bitmap);
 	mutex_unlock(&pi->sched_lock);
 	return status;
 }
