@@ -76,6 +76,8 @@
 #define LPC18XX_PWM_EVENT_PERIOD	0
 #define LPC18XX_PWM_EVENT_MAX		16
 
+#define LPC18XX_NUM_PWMS		16
+
 /* SCT conflict resolution */
 enum lpc18xx_pwm_res_action {
 	LPC18XX_PWM_RES_NONE,
@@ -101,6 +103,7 @@ struct lpc18xx_pwm_chip {
 	unsigned long event_map;
 	struct mutex res_lock;
 	struct mutex period_lock;
+	struct lpc18xx_pwm_data channeldata[LPC18XX_NUM_PWMS];
 };
 
 static inline struct lpc18xx_pwm_chip *
@@ -370,7 +373,7 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 
 	lpc18xx_pwm->chip.dev = &pdev->dev;
 	lpc18xx_pwm->chip.ops = &lpc18xx_pwm_ops;
-	lpc18xx_pwm->chip.npwm = 16;
+	lpc18xx_pwm->chip.npwm = LPC18XX_NUM_PWMS;
 
 	/* SCT counter must be in unify (32 bit) mode */
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_CONFIG,
@@ -400,12 +403,7 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 
 		pwm = &lpc18xx_pwm->chip.pwms[i];
 
-		data = devm_kzalloc(lpc18xx_pwm->dev, sizeof(*data),
-				    GFP_KERNEL);
-		if (!data) {
-			ret = -ENOMEM;
-			goto disable_pwmclk;
-		}
+		data = &lpc18xx_pwm->channeldata[i];
 
 		pwm_set_chip_data(pwm, data);
 	}
