@@ -249,6 +249,82 @@ static void mt7615_mac_fill_tm_rx(struct mt7615_phy *phy, __le32 *rxv)
 #endif
 }
 
+/* The HW does not translate the mac header to 802.3 for mesh point */
+static int mt7615_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct mt7615_sta *msta = (struct mt7615_sta *)status->wcid;
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif;
+	struct ieee80211_hdr hdr;
+	struct ethhdr eth_hdr;
+	__le32 *rxd = (__le32 *)skb->data;
+	__le32 qos_ctrl, ht_ctrl;
+
+	if (FIELD_GET(MT_RXD1_NORMAL_ADDR_TYPE, le32_to_cpu(rxd[1])) !=
+	    MT_RXD1_NORMAL_U2M)
+		return -EINVAL;
+
+	if (!(le32_to_cpu(rxd[0]) & MT_RXD0_NORMAL_GROUP_4))
+		return -EINVAL;
+
+	if (!msta || !msta->vif)
+		return -EINVAL;
+
+	sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
+	vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
+
+	/* store the info from RXD and ethhdr to avoid being overridden */
+	memcpy(&eth_hdr, skb->data + hdr_gap, sizeof(eth_hdr));
+	hdr.frame_control = FIELD_GET(MT_RXD4_FRAME_CONTROL, rxd[4]);
+	hdr.seq_ctrl = FIELD_GET(MT_RXD6_SEQ_CTRL, rxd[6]);
+	qos_ctrl = FIELD_GET(MT_RXD6_QOS_CTL, rxd[6]);
+	ht_ctrl = FIELD_GET(MT_RXD7_HT_CONTROL, rxd[7]);
+
+	hdr.duration_id = 0;
+	ether_addr_copy(hdr.addr1, vif->addr);
+	ether_addr_copy(hdr.addr2, sta->addr);
+	switch (le16_to_cpu(hdr.frame_control) &
+		(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
+	case 0:
+		ether_addr_copy(hdr.addr3, vif->bss_conf.bssid);
+		break;
+	case IEEE80211_FCTL_FROMDS:
+		ether_addr_copy(hdr.addr3, eth_hdr.h_source);
+		break;
+	case IEEE80211_FCTL_TODS:
+		ether_addr_copy(hdr.addr3, eth_hdr.h_dest);
+		break;
+	case IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS:
+		ether_addr_copy(hdr.addr3, eth_hdr.h_dest);
+		ether_addr_copy(hdr.addr4, eth_hdr.h_source);
+		break;
+	default:
+		break;
+	}
+
+	skb_pull(skb, hdr_gap + sizeof(struct ethhdr) - 2);
+	if (eth_hdr.h_proto == htons(ETH_P_AARP) ||
+	    eth_hdr.h_proto == htons(ETH_P_IPX))
+		ether_addr_copy(skb_push(skb, ETH_ALEN), bridge_tunnel_header);
+	else if (eth_hdr.h_proto >= htons(ETH_P_802_3_MIN))
+		ether_addr_copy(skb_push(skb, ETH_ALEN), rfc1042_header);
+	else
+		skb_pull(skb, 2);
+
+	if (ieee80211_has_order(hdr.frame_control))
+		memcpy(skb_push(skb, 2), &ht_ctrl, 2);
+	if (ieee80211_is_data_qos(hdr.frame_control))
+		memcpy(skb_push(skb, 2), &qos_ctrl, 2);
+	if (ieee80211_has_a4(hdr.frame_control))
+		memcpy(skb_push(skb, sizeof(hdr)), &hdr, sizeof(hdr));
+	else
+		memcpy(skb_push(skb, sizeof(hdr) - 6), &hdr, sizeof(hdr) - 6);
+
+	status->flag &= ~(RX_FLAG_RADIOTAP_HE | RX_FLAG_RADIOTAP_HE_MU);
+	return 0;
+}
+
 static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -263,6 +339,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	u32 rxd2 = le32_to_cpu(rxd[2]);
 	u32 csum_mask = MT_RXD0_NORMAL_IP_SUM | MT_RXD0_NORMAL_UDP_TCP_SUM;
 	bool unicast, hdr_trans, remove_pad, insert_ccmp_hdr = false;
+	u16 hdr_gap;
 	int phy_idx;
 	int i, idx;
 	u8 chfreq, amsdu_info, qos_ctl = 0;
@@ -503,14 +580,21 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 	}
 
-	skb_pull(skb, (u8 *)rxd - skb->data + 2 * remove_pad);
-
 	amsdu_info = FIELD_GET(MT_RXD1_NORMAL_PAYLOAD_FORMAT, rxd1);
 	status->amsdu = !!amsdu_info;
 	if (status->amsdu) {
 		status->first_amsdu = amsdu_info == MT_RXD1_FIRST_AMSDU_FRAME;
 		status->last_amsdu = amsdu_info == MT_RXD1_LAST_AMSDU_FRAME;
-		if (!hdr_trans) {
+	}
+
+	hdr_gap = (u8 *)rxd - skb->data + 2 * remove_pad;
+	if (hdr_trans && ieee80211_has_morefrags(fc)) {
+		if (mt7615_reverse_frag0_hdr_trans(skb, hdr_gap))
+			return -EINVAL;
+		hdr_trans = false;
+	} else {
+		skb_pull(skb, hdr_gap);
+		if (!hdr_trans && status->amsdu) {
 			memmove(skb->data + 2, skb->data,
 				ieee80211_get_hdrlen_from_skb(skb));
 			skb_pull(skb, 2);
