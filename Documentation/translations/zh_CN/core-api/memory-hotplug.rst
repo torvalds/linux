@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/core-api/memory_hotplug.rst
+:Original: Documentation/core-api/memory-hotplug.rst
 
 :翻译:
 

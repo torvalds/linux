@@ -40,10 +40,11 @@ discard_max_hw_bytes (RO)
 -------------------------
 Devices that support discard functionality may have internal limits on
 the number of bytes that can be trimmed or unmapped in a single operation.
-The discard_max_bytes parameter is set by the device driver to the maximum
-number of bytes that can be discarded in a single operation. Discard
-requests issued to the device must not exceed this limit. A discard_max_bytes
-value of 0 means that the device does not support discard functionality.
+The `discard_max_hw_bytes` parameter is set by the device driver to the
+maximum number of bytes that can be discarded in a single operation.
+Discard requests issued to the device must not exceed this limit.
+A `discard_max_hw_bytes` value of 0 means that the device does not support
+discard functionality.
 
 discard_max_bytes (RW)
 ----------------------
