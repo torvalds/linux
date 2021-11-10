@@ -9,7 +9,6 @@
 static int
 add_vlan_prio_tag_rewrite_action(struct mlx5e_priv *priv,
 				 struct mlx5e_tc_flow_parse_attr *parse_attr,
-				 struct pedit_headers_action *hdrs,
 				 u32 *action, struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry prio_tag_act = {
@@ -26,7 +25,7 @@ add_vlan_prio_tag_rewrite_action(struct mlx5e_priv *priv,
 	};
 
 	return mlx5e_tc_act_vlan_add_rewrite_action(priv, MLX5_FLOW_NAMESPACE_FDB,
-						    &prio_tag_act, parse_attr, hdrs, action,
+						    &prio_tag_act, parse_attr, action,
 						    extack);
 }
 
@@ -170,8 +169,8 @@ tc_act_parse_vlan(struct mlx5e_tc_act_parse_state *parse_state,
 		/* Replace vlan pop+push with vlan modify */
 		attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
 		err = mlx5e_tc_act_vlan_add_rewrite_action(priv, MLX5_FLOW_NAMESPACE_FDB, act,
-							   attr->parse_attr, parse_state->hdrs,
-							   &attr->action, parse_state->extack);
+							   attr->parse_attr, &attr->action,
+							   parse_state->extack);
 	} else {
 		err = parse_tc_vlan_action(priv, act, esw_attr, &attr->action,
 					   parse_state->extack);
@@ -191,7 +190,6 @@ tc_act_post_parse_vlan(struct mlx5e_tc_act_parse_state *parse_state,
 		       struct mlx5_flow_attr *attr)
 {
 	struct mlx5e_tc_flow_parse_attr *parse_attr = attr->parse_attr;
-	struct pedit_headers_action *hdrs = parse_state->hdrs;
 	struct netlink_ext_ack *extack = parse_state->extack;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	int err;
@@ -202,7 +200,7 @@ tc_act_post_parse_vlan(struct mlx5e_tc_act_parse_state *parse_state,
 		 * tag rewrite.
 		 */
 		attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
-		err = add_vlan_prio_tag_rewrite_action(priv, parse_attr, hdrs,
+		err = add_vlan_prio_tag_rewrite_action(priv, parse_attr,
 						       &attr->action, extack);
 		if (err)
 			return err;
