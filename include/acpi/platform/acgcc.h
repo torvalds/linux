@@ -10,25 +10,12 @@
 #ifndef __ACGCC_H__
 #define __ACGCC_H__
 
-/*
- * Use compiler specific <stdarg.h> is a good practice for even when
- * -nostdinc is specified (i.e., ACPI_USE_STANDARD_HEADERS undefined.
- */
 #ifndef va_arg
-#ifdef ACPI_USE_BUILTIN_STDARG
-typedef __builtin_va_list va_list;
-#define va_start(v, l)          __builtin_va_start(v, l)
-#define va_end(v)               __builtin_va_end(v)
-#define va_arg(v, l)            __builtin_va_arg(v, l)
-#define va_copy(d, s)           __builtin_va_copy(d, s)
-#else
 #ifdef __KERNEL__
 #include <linux/stdarg.h>
 #else
-/* Used to build acpi tools */
 #include <stdarg.h>
 #endif /* __KERNEL__ */
-#endif /* ACPI_USE_BUILTIN_STDARG */
 #endif /* ! va_arg */
 
 #define ACPI_INLINE             __inline__
