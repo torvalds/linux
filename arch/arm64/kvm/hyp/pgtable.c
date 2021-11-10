@@ -732,6 +732,13 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
 		if (!stage2_pte_needs_update(old, new))
 			return -EAGAIN;
 
+		/*
+		 * If we're only changing software bits, then we don't need to
+		 * do anything else/
+		 */
+		if (!((old ^ new) & ~KVM_PTE_LEAF_ATTR_HI_SW))
+			goto out_set_pte;
+
 		stage2_put_pte(ptep, data->mmu, addr, level, mm_ops);
 	}
 
@@ -742,9 +749,11 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
 	if (mm_ops->icache_inval_pou && stage2_pte_executable(new))
 		mm_ops->icache_inval_pou(kvm_pte_follow(new, mm_ops), granule);
 
-	smp_store_release(ptep, new);
 	if (stage2_pte_is_counted(new))
 		mm_ops->get_page(ptep);
+
+out_set_pte:
+	smp_store_release(ptep, new);
 	if (kvm_phys_is_valid(phys))
 		data->phys += granule;
 	return 0;
