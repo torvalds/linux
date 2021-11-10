@@ -918,11 +918,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	dma_priv = &priv->dma_priv;
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		ret = PTR_ERR(priv->clk);
-		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk), "cannot get clock");
 
 	/*
 	 * Some controllers provide a 2nd clock just to run the internal card
