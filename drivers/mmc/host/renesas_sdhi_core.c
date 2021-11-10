@@ -921,6 +921,10 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk), "cannot get clock");
 
+	priv->clkh = devm_clk_get_optional(&pdev->dev, "clkh");
+	if (IS_ERR(priv->clkh))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clkh), "cannot get clkh");
+
 	/*
 	 * Some controllers provide a 2nd clock just to run the internal card
 	 * detection logic. Unfortunately, the existing driver architecture does
@@ -959,7 +963,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		dma_priv->dma_buswidth = of_data->dma_buswidth;
 		host->bus_shift = of_data->bus_shift;
 		/* Fallback for old DTs */
-		if (of_data->sdhi_flags & SDHI_FLAG_NEED_CLKH_FALLBACK)
+		if (!priv->clkh && of_data->sdhi_flags & SDHI_FLAG_NEED_CLKH_FALLBACK)
 			priv->clkh = clk_get_parent(clk_get_parent(priv->clk));
 
 	}
