@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
-#define ILI2XXX_POLL_PERIOD	20
+#define ILI2XXX_POLL_PERIOD	15
 
 #define ILI210X_DATA_SIZE	64
 #define ILI211X_DATA_SIZE	43
