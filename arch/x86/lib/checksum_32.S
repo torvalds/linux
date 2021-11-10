@@ -260,9 +260,9 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst,
  * Copy from ds while checksumming, otherwise like csum_partial
  */
 
-#define EXC(y...)			\
-	9999: y;			\
-	_ASM_EXTABLE_UA(9999b, 6001f)
+#define EXC(y...)						\
+	9999: y;						\
+	_ASM_EXTABLE_TYPE(9999b, 7f, EX_TYPE_UACCESS | EX_FLAG_CLEAR_AX)
 
 #ifndef CONFIG_X86_USE_PPRO_CHECKSUM
 
@@ -358,15 +358,6 @@ EXC(	movb %cl, (%edi)	)
 	adcl $0, %eax
 7:
 
-# Exception handler:
-.section .fixup, "ax"							
-
-6001:
-	xorl %eax, %eax
-	jmp 7b
-
-.previous
-
 	popl %ebx
 	popl %esi
 	popl %edi
@@ -439,10 +430,6 @@ EXC(	movb %dl, (%edi)         )
 6:	addl %edx, %eax
 	adcl $0, %eax
 7:
-.section .fixup, "ax"
-6001:	xorl %eax, %eax
-	jmp  7b			
-.previous				
 
 	popl %esi
 	popl %edi
