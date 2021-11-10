@@ -30,6 +30,7 @@
 	es8388_sound: es8388-sound {
 		status = "okay";
 		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,es8388-codec";
 		simple-audio-card,dai-link@0 {
 			format = "i2s";
