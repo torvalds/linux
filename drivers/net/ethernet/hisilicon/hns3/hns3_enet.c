@@ -4210,6 +4210,13 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 	}
 
 out:
+	/* sync head pointer before exiting, since hardware will calculate
+	 * FBD number with head pointer
+	 */
+	if (unused_count > 0)
+		failure = failure ||
+			  hns3_nic_alloc_rx_buffers(ring, unused_count);
+
 	return failure ? budget : recv_pkts;
 }
 

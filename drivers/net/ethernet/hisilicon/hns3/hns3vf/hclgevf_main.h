@@ -109,6 +109,8 @@
 #define HCLGEVF_VF_RST_ING		0x07008
 #define HCLGEVF_VF_RST_ING_BIT		BIT(16)
 
+#define HCLGEVF_WAIT_RESET_DONE		100
+
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
 #define HCLGEVF_RSS_SET_BITMAP_MSK	0xffff
 #define HCLGEVF_RSS_KEY_SIZE		40
@@ -308,8 +310,6 @@ struct hclgevf_dev {
 	u16 num_nic_msix;	/* Num of nic vectors for this VF */
 	u16 num_roce_msix;	/* Num of roce vectors for this VF */
 	u16 roce_base_msix_offset;
-	int roce_base_vector;
-	u32 base_msi_vector;
 	u16 *vector_status;
 	int *vector_irq;
 
