@@ -904,12 +904,10 @@ struct hclge_dev {
 	u16 num_msi;
 	u16 num_msi_left;
 	u16 num_msi_used;
-	u32 base_msi_vector;
 	u16 *vector_status;
 	int *vector_irq;
 	u16 num_nic_msi;	/* Num of nic vectors for this PF */
 	u16 num_roce_msi;	/* Num of roce vectors for this PF */
-	int roce_base_vector;
 
 	unsigned long service_timer_period;
 	unsigned long service_timer_previous;
