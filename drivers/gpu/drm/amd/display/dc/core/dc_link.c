@@ -4285,7 +4285,8 @@ void core_link_enable_stream(
 		/* eDP lit up by bios already, no need to enable again. */
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
 					apply_edp_fast_boot_optimization &&
-					!pipe_ctx->stream->timing.flags.DSC) {
+					!pipe_ctx->stream->timing.flags.DSC &&
+					!pipe_ctx->next_odm_pipe) {
 			pipe_ctx->stream->dpms_off = false;
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 			update_psp_stream_config(pipe_ctx, false);
