@@ -771,18 +771,29 @@ void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj)
 	 *
 	 * TODO: consider maybe also bumping the shrinker list here when we have
 	 * already unpinned it, which should give us something more like an LRU.
+	 *
+	 * TODO: There is a small window of opportunity for this function to
+	 * get called from eviction after we've dropped the last GEM refcount,
+	 * but before the TTM deleted flag is set on the object. Avoid
+	 * adjusting the shrinker list in such cases, since the object is
+	 * not available to the shrinker anyway due to its zero refcount.
+	 * To fix this properly we should move to a TTM shrinker LRU list for
+	 * these objects.
 	 */
-	if (shrinkable != obj->mm.ttm_shrinkable) {
-		if (shrinkable) {
-			if (obj->mm.madv == I915_MADV_WILLNEED)
-				__i915_gem_object_make_shrinkable(obj);
-			else
-				__i915_gem_object_make_purgeable(obj);
-		} else {
-			i915_gem_object_make_unshrinkable(obj);
-		}
+	if (kref_get_unless_zero(&obj->base.refcount)) {
+		if (shrinkable != obj->mm.ttm_shrinkable) {
+			if (shrinkable) {
+				if (obj->mm.madv == I915_MADV_WILLNEED)
+					__i915_gem_object_make_shrinkable(obj);
+				else
+					__i915_gem_object_make_purgeable(obj);
+			} else {
+				i915_gem_object_make_unshrinkable(obj);
+			}
 
-		obj->mm.ttm_shrinkable = shrinkable;
+			obj->mm.ttm_shrinkable = shrinkable;
+		}
+		i915_gem_object_put(obj);
 	}
 
 	/*
