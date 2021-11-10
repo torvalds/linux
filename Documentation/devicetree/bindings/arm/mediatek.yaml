@@ -165,6 +165,12 @@ properties:
           - const: google,kakadu-rev2
           - const: google,kakadu
           - const: mediatek,mt8183
+      - description: Google Kakadu (ASUS Chromebook Detachable CM3)
+        items:
+          - const: google,kakadu-rev3-sku22
+          - const: google,kakadu-rev2-sku22
+          - const: google,kakadu
+          - const: mediatek,mt8183
       - description: Google Kappa (HP Chromebook 11a)
         items:
           - const: google,kappa
