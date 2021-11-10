@@ -149,8 +149,7 @@ static int rt9120_codec_probe(struct snd_soc_component *comp)
 	snd_soc_component_init_regmap(comp, data->regmap);
 
 	/* Internal setting */
-	snd_soc_component_write(comp, RT9120_REG_INTERNAL1, 0x03);
-	snd_soc_component_write(comp, RT9120_REG_INTERNAL0, 0x69);
+	snd_soc_component_write(comp, RT9120_REG_INTERNAL0, 0x04);
 	return 0;
 }
 
