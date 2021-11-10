@@ -604,12 +604,6 @@ int devm_acpi_dev_add_driver_gpios(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_acpi_dev_add_driver_gpios);
 
-void devm_acpi_dev_remove_driver_gpios(struct device *dev)
-{
-	WARN_ON(devres_release(dev, devm_acpi_dev_release_driver_gpios, NULL, NULL));
-}
-EXPORT_SYMBOL_GPL(devm_acpi_dev_remove_driver_gpios);
-
 static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 				      const char *name, int index,
 				      struct fwnode_reference_args *args,
