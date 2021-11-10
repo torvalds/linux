@@ -334,10 +334,13 @@ static irqreturn_t ili210x_irq(int irq, void *irq_data)
 	const struct ili2xxx_chip *chip = priv->chip;
 	u8 touchdata[ILI210X_DATA_SIZE] = { 0 };
 	bool keep_polling;
+	ktime_t time_next;
+	s64 time_delta;
 	bool touch;
 	int error;
 
 	do {
+		time_next = ktime_add_ms(ktime_get(), ILI2XXX_POLL_PERIOD);
 		error = chip->get_touch_data(client, touchdata);
 		if (error) {
 			dev_err(&client->dev,
@@ -347,8 +350,11 @@ static irqreturn_t ili210x_irq(int irq, void *irq_data)
 
 		touch = ili210x_report_events(priv, touchdata);
 		keep_polling = chip->continue_polling(touchdata, touch);
-		if (keep_polling)
-			msleep(ILI2XXX_POLL_PERIOD);
+		if (keep_polling) {
+			time_delta = ktime_us_delta(time_next, ktime_get());
+			if (time_delta > 0)
+				usleep_range(time_delta, time_delta + 1000);
+		}
 	} while (!priv->stop && keep_polling);
 
 	return IRQ_HANDLED;
