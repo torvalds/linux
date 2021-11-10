@@ -308,8 +308,6 @@ struct hclgevf_dev {
 	u16 num_nic_msix;	/* Num of nic vectors for this VF */
 	u16 num_roce_msix;	/* Num of roce vectors for this VF */
 	u16 roce_base_msix_offset;
-	int roce_base_vector;
-	u32 base_msi_vector;
 	u16 *vector_status;
 	int *vector_irq;
 

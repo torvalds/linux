@@ -2557,7 +2557,7 @@ static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
 	    hdev->num_msi_left == 0)
 		return -EINVAL;
 
-	roce->rinfo.base_vector = hdev->roce_base_vector;
+	roce->rinfo.base_vector = hdev->roce_base_msix_offset;
 
 	roce->rinfo.netdev = nic->kinfo.netdev;
 	roce->rinfo.roce_io_base = hdev->hw.io_base;
@@ -2822,9 +2822,6 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 
 	hdev->num_msi = vectors;
 	hdev->num_msi_left = vectors;
-
-	hdev->base_msi_vector = pdev->irq;
-	hdev->roce_base_vector = pdev->irq + hdev->roce_base_msix_offset;
 
 	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
 					   sizeof(u16), GFP_KERNEL);
