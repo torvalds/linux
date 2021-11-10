@@ -101,6 +101,7 @@ EXPORT_SYMBOL(drm_fb_memcpy_toio);
 /**
  * drm_fb_swab - Swap bytes into clip buffer
  * @dst: Destination buffer
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @src: Source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
@@ -110,20 +111,26 @@ EXPORT_SYMBOL(drm_fb_memcpy_toio);
  * time to speed up slow uncached reads.
  *
  * This function does not apply clipping on dst, i.e. the destination
- * is a small buffer containing the clip rect only.
+ * is at the top-left corner.
  */
-void drm_fb_swab(void *dst, void *src, struct drm_framebuffer *fb,
-		 struct drm_rect *clip, bool cached)
+void drm_fb_swab(void *dst, unsigned int dst_pitch, const void *src,
+		 const struct drm_framebuffer *fb, const struct drm_rect *clip,
+		 bool cached)
 {
 	u8 cpp = fb->format->cpp[0];
 	size_t len = drm_rect_width(clip) * cpp;
-	u16 *src16, *dst16 = dst;
-	u32 *src32, *dst32 = dst;
+	const u16 *src16;
+	const u32 *src32;
+	u16 *dst16;
+	u32 *dst32;
 	unsigned int x, y;
 	void *buf = NULL;
 
 	if (WARN_ON_ONCE(cpp != 2 && cpp != 4))
 		return;
+
+	if (!dst_pitch)
+		dst_pitch = len;
 
 	if (!cached)
 		buf = kmalloc(len, GFP_KERNEL);
@@ -140,6 +147,9 @@ void drm_fb_swab(void *dst, void *src, struct drm_framebuffer *fb,
 			src32 = src;
 		}
 
+		dst16 = dst;
+		dst32 = dst;
+
 		for (x = clip->x1; x < clip->x2; x++) {
 			if (cpp == 4)
 				*dst32++ = swab32(*src32++);
@@ -148,6 +158,7 @@ void drm_fb_swab(void *dst, void *src, struct drm_framebuffer *fb,
 		}
 
 		src += fb->pitches[0];
+		dst += dst_pitch;
 	}
 
 	kfree(buf);
