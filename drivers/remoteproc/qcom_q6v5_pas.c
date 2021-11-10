@@ -37,9 +37,9 @@ struct adsp_data {
 	bool has_aggre2_clk;
 	bool auto_boot;
 
-	char **active_pd_names;
 	char **proxy_pd_names;
 
+	const char *load_state;
 	const char *ssr_name;
 	const char *sysmon_name;
 	int ssctl_id;
@@ -57,10 +57,8 @@ struct qcom_adsp {
 	struct regulator *cx_supply;
 	struct regulator *px_supply;
 
-	struct device *active_pds[1];
 	struct device *proxy_pds[3];
 
-	int active_pd_count;
 	int proxy_pd_count;
 
 	int pas_id;
@@ -149,15 +147,13 @@ static int adsp_start(struct rproc *rproc)
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 	int ret;
 
-	qcom_q6v5_prepare(&adsp->q6v5);
-
-	ret = adsp_pds_enable(adsp, adsp->active_pds, adsp->active_pd_count);
-	if (ret < 0)
-		goto disable_irqs;
+	ret = qcom_q6v5_prepare(&adsp->q6v5);
+	if (ret)
+		return ret;
 
 	ret = adsp_pds_enable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 	if (ret < 0)
-		goto disable_active_pds;
+		goto disable_irqs;
 
 	ret = clk_prepare_enable(adsp->xo);
 	if (ret)
@@ -201,8 +197,6 @@ disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
 disable_proxy_pds:
 	adsp_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
-disable_active_pds:
-	adsp_pds_disable(adsp, adsp->active_pds, adsp->active_pd_count);
 disable_irqs:
 	qcom_q6v5_unprepare(&adsp->q6v5);
 
@@ -234,7 +228,6 @@ static int adsp_stop(struct rproc *rproc)
 	if (ret)
 		dev_err(adsp->dev, "failed to shutdown: %d\n", ret);
 
-	adsp_pds_disable(adsp, adsp->active_pds, adsp->active_pd_count);
 	handover = qcom_q6v5_unprepare(&adsp->q6v5);
 	if (handover)
 		qcom_pas_handover(&adsp->q6v5);
@@ -456,19 +449,13 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
-	ret = adsp_pds_attach(&pdev->dev, adsp->active_pds,
-			      desc->active_pd_names);
-	if (ret < 0)
-		goto free_rproc;
-	adsp->active_pd_count = ret;
-
 	ret = adsp_pds_attach(&pdev->dev, adsp->proxy_pds,
 			      desc->proxy_pd_names);
 	if (ret < 0)
-		goto detach_active_pds;
+		goto free_rproc;
 	adsp->proxy_pd_count = ret;
 
-	ret = qcom_q6v5_init(&adsp->q6v5, pdev, rproc, desc->crash_reason_smem,
+	ret = qcom_q6v5_init(&adsp->q6v5, pdev, rproc, desc->crash_reason_smem, desc->load_state,
 			     qcom_pas_handover);
 	if (ret)
 		goto detach_proxy_pds;
@@ -492,8 +479,6 @@ static int adsp_probe(struct platform_device *pdev)
 
 detach_proxy_pds:
 	adsp_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
-detach_active_pds:
-	adsp_pds_detach(adsp, adsp->active_pds, adsp->active_pd_count);
 free_rproc:
 	rproc_free(rproc);
 
@@ -506,6 +491,7 @@ static int adsp_remove(struct platform_device *pdev)
 
 	rproc_del(adsp->rproc);
 
+	qcom_q6v5_deinit(&adsp->q6v5);
 	qcom_remove_glink_subdev(adsp->rproc, &adsp->glink_subdev);
 	qcom_remove_sysmon_subdev(adsp->sysmon);
 	qcom_remove_smd_subdev(adsp->rproc, &adsp->smd_subdev);
@@ -526,20 +512,29 @@ static const struct adsp_data adsp_resource_init = {
 		.ssctl_id = 0x14,
 };
 
+static const struct adsp_data sdm845_adsp_resource_init = {
+		.crash_reason_smem = 423,
+		.firmware_name = "adsp.mdt",
+		.pas_id = 1,
+		.has_aggre2_clk = false,
+		.auto_boot = true,
+		.load_state = "adsp",
+		.ssr_name = "lpass",
+		.sysmon_name = "adsp",
+		.ssctl_id = 0x14,
+};
+
 static const struct adsp_data sm8150_adsp_resource = {
 		.crash_reason_smem = 423,
 		.firmware_name = "adsp.mdt",
 		.pas_id = 1,
 		.has_aggre2_clk = false,
 		.auto_boot = true,
-		.active_pd_names = (char*[]){
-			"load_state",
-			NULL
-		},
 		.proxy_pd_names = (char*[]){
 			"cx",
 			NULL
 		},
+		.load_state = "adsp",
 		.ssr_name = "lpass",
 		.sysmon_name = "adsp",
 		.ssctl_id = 0x14,
@@ -551,15 +546,12 @@ static const struct adsp_data sm8250_adsp_resource = {
 	.pas_id = 1,
 	.has_aggre2_clk = false,
 	.auto_boot = true,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
 	.proxy_pd_names = (char*[]){
 		"lcx",
 		"lmx",
 		NULL
 	},
+	.load_state = "adsp",
 	.ssr_name = "lpass",
 	.sysmon_name = "adsp",
 	.ssctl_id = 0x14,
@@ -571,21 +563,18 @@ static const struct adsp_data sm8350_adsp_resource = {
 	.pas_id = 1,
 	.has_aggre2_clk = false,
 	.auto_boot = true,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
 	.proxy_pd_names = (char*[]){
 		"lcx",
 		"lmx",
 		NULL
 	},
+	.load_state = "adsp",
 	.ssr_name = "lpass",
 	.sysmon_name = "adsp",
 	.ssctl_id = 0x14,
 };
 
-static const struct adsp_data msm8998_adsp_resource = {
+static const struct adsp_data msm8996_adsp_resource = {
 		.crash_reason_smem = 423,
 		.firmware_name = "adsp.mdt",
 		.pas_id = 1,
@@ -611,20 +600,29 @@ static const struct adsp_data cdsp_resource_init = {
 	.ssctl_id = 0x17,
 };
 
+static const struct adsp_data sdm845_cdsp_resource_init = {
+	.crash_reason_smem = 601,
+	.firmware_name = "cdsp.mdt",
+	.pas_id = 18,
+	.has_aggre2_clk = false,
+	.auto_boot = true,
+	.load_state = "cdsp",
+	.ssr_name = "cdsp",
+	.sysmon_name = "cdsp",
+	.ssctl_id = 0x17,
+};
+
 static const struct adsp_data sm8150_cdsp_resource = {
 	.crash_reason_smem = 601,
 	.firmware_name = "cdsp.mdt",
 	.pas_id = 18,
 	.has_aggre2_clk = false,
 	.auto_boot = true,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
 	.proxy_pd_names = (char*[]){
 		"cx",
 		NULL
 	},
+	.load_state = "cdsp",
 	.ssr_name = "cdsp",
 	.sysmon_name = "cdsp",
 	.ssctl_id = 0x17,
@@ -636,14 +634,11 @@ static const struct adsp_data sm8250_cdsp_resource = {
 	.pas_id = 18,
 	.has_aggre2_clk = false,
 	.auto_boot = true,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
 	.proxy_pd_names = (char*[]){
 		"cx",
 		NULL
 	},
+	.load_state = "cdsp",
 	.ssr_name = "cdsp",
 	.sysmon_name = "cdsp",
 	.ssctl_id = 0x17,
@@ -655,14 +650,11 @@ static const struct adsp_data sm8350_cdsp_resource = {
 	.pas_id = 18,
 	.has_aggre2_clk = false,
 	.auto_boot = true,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
 	.proxy_pd_names = (char*[]){
 		"cx",
 		NULL
 	},
+	.load_state = "cdsp",
 	.ssr_name = "cdsp",
 	.sysmon_name = "cdsp",
 	.ssctl_id = 0x17,
@@ -675,15 +667,12 @@ static const struct adsp_data mpss_resource_init = {
 	.minidump_id = 3,
 	.has_aggre2_clk = false,
 	.auto_boot = false,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
 	.proxy_pd_names = (char*[]){
 		"cx",
 		"mss",
 		NULL
 	},
+	.load_state = "modem",
 	.ssr_name = "mpss",
 	.sysmon_name = "modem",
 	.ssctl_id = 0x12,
@@ -695,91 +684,17 @@ static const struct adsp_data sc8180x_mpss_resource = {
 	.pas_id = 4,
 	.has_aggre2_clk = false,
 	.auto_boot = false,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
 	.proxy_pd_names = (char*[]){
 		"cx",
 		NULL
 	},
+	.load_state = "modem",
 	.ssr_name = "mpss",
 	.sysmon_name = "modem",
 	.ssctl_id = 0x12,
 };
 
 static const struct adsp_data slpi_resource_init = {
-		.crash_reason_smem = 424,
-		.firmware_name = "slpi.mdt",
-		.pas_id = 12,
-		.has_aggre2_clk = true,
-		.auto_boot = true,
-		.ssr_name = "dsps",
-		.sysmon_name = "slpi",
-		.ssctl_id = 0x16,
-};
-
-static const struct adsp_data sm8150_slpi_resource = {
-		.crash_reason_smem = 424,
-		.firmware_name = "slpi.mdt",
-		.pas_id = 12,
-		.has_aggre2_clk = false,
-		.auto_boot = true,
-		.active_pd_names = (char*[]){
-			"load_state",
-			NULL
-		},
-		.proxy_pd_names = (char*[]){
-			"lcx",
-			"lmx",
-			NULL
-		},
-		.ssr_name = "dsps",
-		.sysmon_name = "slpi",
-		.ssctl_id = 0x16,
-};
-
-static const struct adsp_data sm8250_slpi_resource = {
-	.crash_reason_smem = 424,
-	.firmware_name = "slpi.mdt",
-	.pas_id = 12,
-	.has_aggre2_clk = false,
-	.auto_boot = true,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
-	.proxy_pd_names = (char*[]){
-		"lcx",
-		"lmx",
-		NULL
-	},
-	.ssr_name = "dsps",
-	.sysmon_name = "slpi",
-	.ssctl_id = 0x16,
-};
-
-static const struct adsp_data sm8350_slpi_resource = {
-	.crash_reason_smem = 424,
-	.firmware_name = "slpi.mdt",
-	.pas_id = 12,
-	.has_aggre2_clk = false,
-	.auto_boot = true,
-	.active_pd_names = (char*[]){
-		"load_state",
-		NULL
-	},
-	.proxy_pd_names = (char*[]){
-		"lcx",
-		"lmx",
-		NULL
-	},
-	.ssr_name = "dsps",
-	.sysmon_name = "slpi",
-	.ssctl_id = 0x16,
-};
-
-static const struct adsp_data msm8998_slpi_resource = {
 		.crash_reason_smem = 424,
 		.firmware_name = "slpi.mdt",
 		.pas_id = 12,
@@ -792,6 +707,57 @@ static const struct adsp_data msm8998_slpi_resource = {
 		.ssr_name = "dsps",
 		.sysmon_name = "slpi",
 		.ssctl_id = 0x16,
+};
+
+static const struct adsp_data sm8150_slpi_resource = {
+		.crash_reason_smem = 424,
+		.firmware_name = "slpi.mdt",
+		.pas_id = 12,
+		.has_aggre2_clk = false,
+		.auto_boot = true,
+		.proxy_pd_names = (char*[]){
+			"lcx",
+			"lmx",
+			NULL
+		},
+		.load_state = "slpi",
+		.ssr_name = "dsps",
+		.sysmon_name = "slpi",
+		.ssctl_id = 0x16,
+};
+
+static const struct adsp_data sm8250_slpi_resource = {
+	.crash_reason_smem = 424,
+	.firmware_name = "slpi.mdt",
+	.pas_id = 12,
+	.has_aggre2_clk = false,
+	.auto_boot = true,
+	.proxy_pd_names = (char*[]){
+		"lcx",
+		"lmx",
+		NULL
+	},
+	.load_state = "slpi",
+	.ssr_name = "dsps",
+	.sysmon_name = "slpi",
+	.ssctl_id = 0x16,
+};
+
+static const struct adsp_data sm8350_slpi_resource = {
+	.crash_reason_smem = 424,
+	.firmware_name = "slpi.mdt",
+	.pas_id = 12,
+	.has_aggre2_clk = false,
+	.auto_boot = true,
+	.proxy_pd_names = (char*[]){
+		"lcx",
+		"lmx",
+		NULL
+	},
+	.load_state = "slpi",
+	.ssr_name = "dsps",
+	.sysmon_name = "slpi",
+	.ssctl_id = 0x16,
 };
 
 static const struct adsp_data wcss_resource_init = {
@@ -822,20 +788,21 @@ static const struct adsp_data sdx55_mpss_resource = {
 
 static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,msm8974-adsp-pil", .data = &adsp_resource_init},
-	{ .compatible = "qcom,msm8996-adsp-pil", .data = &adsp_resource_init},
+	{ .compatible = "qcom,msm8996-adsp-pil", .data = &msm8996_adsp_resource},
 	{ .compatible = "qcom,msm8996-slpi-pil", .data = &slpi_resource_init},
-	{ .compatible = "qcom,msm8998-adsp-pas", .data = &msm8998_adsp_resource},
-	{ .compatible = "qcom,msm8998-slpi-pas", .data = &msm8998_slpi_resource},
+	{ .compatible = "qcom,msm8998-adsp-pas", .data = &msm8996_adsp_resource},
+	{ .compatible = "qcom,msm8998-slpi-pas", .data = &slpi_resource_init},
 	{ .compatible = "qcom,qcs404-adsp-pas", .data = &adsp_resource_init },
 	{ .compatible = "qcom,qcs404-cdsp-pas", .data = &cdsp_resource_init },
 	{ .compatible = "qcom,qcs404-wcss-pas", .data = &wcss_resource_init },
 	{ .compatible = "qcom,sc7180-mpss-pas", .data = &mpss_resource_init},
+	{ .compatible = "qcom,sc7280-mpss-pas", .data = &mpss_resource_init},
 	{ .compatible = "qcom,sc8180x-adsp-pas", .data = &sm8150_adsp_resource},
 	{ .compatible = "qcom,sc8180x-cdsp-pas", .data = &sm8150_cdsp_resource},
 	{ .compatible = "qcom,sc8180x-mpss-pas", .data = &sc8180x_mpss_resource},
 	{ .compatible = "qcom,sdm660-adsp-pas", .data = &adsp_resource_init},
-	{ .compatible = "qcom,sdm845-adsp-pas", .data = &adsp_resource_init},
-	{ .compatible = "qcom,sdm845-cdsp-pas", .data = &cdsp_resource_init},
+	{ .compatible = "qcom,sdm845-adsp-pas", .data = &sdm845_adsp_resource_init},
+	{ .compatible = "qcom,sdm845-cdsp-pas", .data = &sdm845_cdsp_resource_init},
 	{ .compatible = "qcom,sdx55-mpss-pas", .data = &sdx55_mpss_resource},
 	{ .compatible = "qcom,sm8150-adsp-pas", .data = &sm8150_adsp_resource},
 	{ .compatible = "qcom,sm8150-cdsp-pas", .data = &sm8150_cdsp_resource},
