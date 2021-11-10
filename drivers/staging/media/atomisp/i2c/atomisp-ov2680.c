@@ -356,7 +356,7 @@ static int ov2680_set_exposure(struct v4l2_subdev *sd, int exposure,
 			       int gain, int digitgain)
 {
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&dev->input_lock);
 
