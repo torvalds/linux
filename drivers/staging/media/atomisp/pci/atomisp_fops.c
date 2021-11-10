@@ -1094,7 +1094,7 @@ static int frame_mmap(struct atomisp_device *isp,
 
 	host_virt = vma->vm_start;
 	isp_virt = frame->data;
-	atomisp_get_frame_pgnr(isp, frame, &pgnr);
+	pgnr = DIV_ROUND_UP(frame->data_bytes, PAGE_SIZE);
 
 	if (do_isp_mm_remap(isp, vma, isp_virt, host_virt, pgnr))
 		return -EAGAIN;

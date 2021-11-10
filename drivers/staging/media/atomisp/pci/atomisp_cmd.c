@@ -1932,22 +1932,6 @@ out:
 }
 
 /*
- * utils for buffer allocation/free
- */
-
-int atomisp_get_frame_pgnr(struct atomisp_device *isp,
-			   const struct ia_css_frame *frame, u32 *p_pgnr)
-{
-	if (!frame) {
-		dev_err(isp->dev, "%s: NULL frame pointer ERROR.\n", __func__);
-		return -EINVAL;
-	}
-
-	*p_pgnr = DIV_ROUND_UP(frame->data_bytes, PAGE_SIZE);
-	return 0;
-}
-
-/*
  * Get internal fmt according to V4L2 fmt
  */
 static enum ia_css_frame_format
