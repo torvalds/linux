@@ -293,6 +293,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
 		spk-con-gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+		hp-con-gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		extcon = <&rk_headset>;
 	};
 
 	es7202: es7202@32 {
@@ -397,6 +399,12 @@
 };
 
 &pinctrl {
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
 	hym8563 {
 		hym8563_int: hym8563-int {
 			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
