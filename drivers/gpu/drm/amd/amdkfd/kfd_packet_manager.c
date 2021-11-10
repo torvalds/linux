@@ -223,7 +223,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 {
-	switch (dqm->dev->device_info->asic_family) {
+	switch (dqm->dev->adev->asic_type) {
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
 		/* PM4 packet structures on CIK are the same as on VI */
@@ -243,7 +243,7 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 			pm->pmf = &kfd_v9_pm_funcs;
 		else {
 			WARN(1, "Unexpected ASIC family %u",
-			     dqm->dev->device_info->asic_family);
+			     dqm->dev->adev->asic_type);
 			return -EINVAL;
 		}
 	}

@@ -55,7 +55,6 @@ extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
 
 #ifdef KFD_SUPPORT_IOMMU_V2
 static const struct kfd_device_info kaveri_device_info = {
-	.asic_family = CHIP_KAVERI,
 	.asic_name = "kaveri",
 	.gfx_target_version = 70000,
 	.max_pasid_bits = 16,
@@ -75,7 +74,6 @@ static const struct kfd_device_info kaveri_device_info = {
 };
 
 static const struct kfd_device_info carrizo_device_info = {
-	.asic_family = CHIP_CARRIZO,
 	.asic_name = "carrizo",
 	.gfx_target_version = 80001,
 	.max_pasid_bits = 16,
@@ -95,7 +93,6 @@ static const struct kfd_device_info carrizo_device_info = {
 };
 
 static const struct kfd_device_info raven_device_info = {
-	.asic_family = CHIP_RAVEN,
 	.asic_name = "raven",
 	.gfx_target_version = 90002,
 	.max_pasid_bits = 16,
@@ -116,7 +113,6 @@ static const struct kfd_device_info raven_device_info = {
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 static const struct kfd_device_info hawaii_device_info = {
-	.asic_family = CHIP_HAWAII,
 	.asic_name = "hawaii",
 	.gfx_target_version = 70001,
 	.max_pasid_bits = 16,
@@ -137,7 +133,6 @@ static const struct kfd_device_info hawaii_device_info = {
 #endif
 
 static const struct kfd_device_info tonga_device_info = {
-	.asic_family = CHIP_TONGA,
 	.asic_name = "tonga",
 	.gfx_target_version = 80002,
 	.max_pasid_bits = 16,
@@ -156,7 +151,6 @@ static const struct kfd_device_info tonga_device_info = {
 };
 
 static const struct kfd_device_info fiji_device_info = {
-	.asic_family = CHIP_FIJI,
 	.asic_name = "fiji",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -175,7 +169,6 @@ static const struct kfd_device_info fiji_device_info = {
 };
 
 static const struct kfd_device_info fiji_vf_device_info = {
-	.asic_family = CHIP_FIJI,
 	.asic_name = "fiji",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -195,7 +188,6 @@ static const struct kfd_device_info fiji_vf_device_info = {
 
 
 static const struct kfd_device_info polaris10_device_info = {
-	.asic_family = CHIP_POLARIS10,
 	.asic_name = "polaris10",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -214,7 +206,6 @@ static const struct kfd_device_info polaris10_device_info = {
 };
 
 static const struct kfd_device_info polaris10_vf_device_info = {
-	.asic_family = CHIP_POLARIS10,
 	.asic_name = "polaris10",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -233,7 +224,6 @@ static const struct kfd_device_info polaris10_vf_device_info = {
 };
 
 static const struct kfd_device_info polaris11_device_info = {
-	.asic_family = CHIP_POLARIS11,
 	.asic_name = "polaris11",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -252,7 +242,6 @@ static const struct kfd_device_info polaris11_device_info = {
 };
 
 static const struct kfd_device_info polaris12_device_info = {
-	.asic_family = CHIP_POLARIS12,
 	.asic_name = "polaris12",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -271,7 +260,6 @@ static const struct kfd_device_info polaris12_device_info = {
 };
 
 static const struct kfd_device_info vegam_device_info = {
-	.asic_family = CHIP_VEGAM,
 	.asic_name = "vegam",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -290,7 +278,6 @@ static const struct kfd_device_info vegam_device_info = {
 };
 
 static const struct kfd_device_info vega10_device_info = {
-	.asic_family = CHIP_VEGA10,
 	.asic_name = "vega10",
 	.gfx_target_version = 90000,
 	.max_pasid_bits = 16,
@@ -309,7 +296,6 @@ static const struct kfd_device_info vega10_device_info = {
 };
 
 static const struct kfd_device_info vega10_vf_device_info = {
-	.asic_family = CHIP_VEGA10,
 	.asic_name = "vega10",
 	.gfx_target_version = 90000,
 	.max_pasid_bits = 16,
@@ -328,7 +314,6 @@ static const struct kfd_device_info vega10_vf_device_info = {
 };
 
 static const struct kfd_device_info vega12_device_info = {
-	.asic_family = CHIP_VEGA12,
 	.asic_name = "vega12",
 	.gfx_target_version = 90004,
 	.max_pasid_bits = 16,
@@ -347,7 +332,6 @@ static const struct kfd_device_info vega12_device_info = {
 };
 
 static const struct kfd_device_info vega20_device_info = {
-	.asic_family = CHIP_VEGA20,
 	.asic_name = "vega20",
 	.gfx_target_version = 90006,
 	.max_pasid_bits = 16,
@@ -366,7 +350,6 @@ static const struct kfd_device_info vega20_device_info = {
 };
 
 static const struct kfd_device_info arcturus_device_info = {
-	.asic_family = CHIP_ARCTURUS,
 	.asic_name = "arcturus",
 	.gfx_target_version = 90008,
 	.max_pasid_bits = 16,
@@ -385,7 +368,6 @@ static const struct kfd_device_info arcturus_device_info = {
 };
 
 static const struct kfd_device_info aldebaran_device_info = {
-	.asic_family = CHIP_ALDEBARAN,
 	.asic_name = "aldebaran",
 	.gfx_target_version = 90010,
 	.max_pasid_bits = 16,
@@ -404,7 +386,6 @@ static const struct kfd_device_info aldebaran_device_info = {
 };
 
 static const struct kfd_device_info renoir_device_info = {
-	.asic_family = CHIP_RENOIR,
 	.asic_name = "renoir",
 	.gfx_target_version = 90012,
 	.max_pasid_bits = 16,
@@ -423,7 +404,6 @@ static const struct kfd_device_info renoir_device_info = {
 };
 
 static const struct kfd_device_info navi10_device_info = {
-	.asic_family = CHIP_NAVI10,
 	.asic_name = "navi10",
 	.gfx_target_version = 100100,
 	.max_pasid_bits = 16,
@@ -443,7 +423,6 @@ static const struct kfd_device_info navi10_device_info = {
 };
 
 static const struct kfd_device_info navi12_device_info = {
-	.asic_family = CHIP_NAVI12,
 	.asic_name = "navi12",
 	.gfx_target_version = 100101,
 	.max_pasid_bits = 16,
@@ -463,7 +442,6 @@ static const struct kfd_device_info navi12_device_info = {
 };
 
 static const struct kfd_device_info navi14_device_info = {
-	.asic_family = CHIP_NAVI14,
 	.asic_name = "navi14",
 	.gfx_target_version = 100102,
 	.max_pasid_bits = 16,
@@ -483,7 +461,6 @@ static const struct kfd_device_info navi14_device_info = {
 };
 
 static const struct kfd_device_info sienna_cichlid_device_info = {
-	.asic_family = CHIP_SIENNA_CICHLID,
 	.asic_name = "sienna_cichlid",
 	.gfx_target_version = 100300,
 	.max_pasid_bits = 16,
@@ -503,7 +480,6 @@ static const struct kfd_device_info sienna_cichlid_device_info = {
 };
 
 static const struct kfd_device_info navy_flounder_device_info = {
-	.asic_family = CHIP_NAVY_FLOUNDER,
 	.asic_name = "navy_flounder",
 	.gfx_target_version = 100301,
 	.max_pasid_bits = 16,
@@ -523,7 +499,6 @@ static const struct kfd_device_info navy_flounder_device_info = {
 };
 
 static const struct kfd_device_info vangogh_device_info = {
-	.asic_family = CHIP_VANGOGH,
 	.asic_name = "vangogh",
 	.gfx_target_version = 100303,
 	.max_pasid_bits = 16,
@@ -543,7 +518,6 @@ static const struct kfd_device_info vangogh_device_info = {
 };
 
 static const struct kfd_device_info dimgrey_cavefish_device_info = {
-	.asic_family = CHIP_DIMGREY_CAVEFISH,
 	.asic_name = "dimgrey_cavefish",
 	.gfx_target_version = 100302,
 	.max_pasid_bits = 16,
@@ -563,7 +537,6 @@ static const struct kfd_device_info dimgrey_cavefish_device_info = {
 };
 
 static const struct kfd_device_info beige_goby_device_info = {
-	.asic_family = CHIP_BEIGE_GOBY,
 	.asic_name = "beige_goby",
 	.gfx_target_version = 100304,
 	.max_pasid_bits = 16,
@@ -583,7 +556,6 @@ static const struct kfd_device_info beige_goby_device_info = {
 };
 
 static const struct kfd_device_info yellow_carp_device_info = {
-	.asic_family = CHIP_YELLOW_CARP,
 	.asic_name = "yellow_carp",
 	.gfx_target_version = 100305,
 	.max_pasid_bits = 16,
@@ -603,7 +575,6 @@ static const struct kfd_device_info yellow_carp_device_info = {
 };
 
 static const struct kfd_device_info cyan_skillfish_device_info = {
-	.asic_family = CHIP_CYAN_SKILLFISH,
 	.asic_name = "cyan_skillfish",
 	.gfx_target_version = 100103,
 	.max_pasid_bits = 16,

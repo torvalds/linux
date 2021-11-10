@@ -394,7 +394,7 @@ int kfd_init_apertures(struct kfd_process *process)
 			pdd->gpuvm_base = pdd->gpuvm_limit = 0;
 			pdd->scratch_base = pdd->scratch_limit = 0;
 		} else {
-			switch (dev->device_info->asic_family) {
+			switch (dev->adev->asic_type) {
 			case CHIP_KAVERI:
 			case CHIP_HAWAII:
 			case CHIP_CARRIZO:
@@ -411,7 +411,7 @@ int kfd_init_apertures(struct kfd_process *process)
 					kfd_init_apertures_v9(pdd, id);
 				else {
 					WARN(1, "Unexpected ASIC family %u",
-					     dev->device_info->asic_family);
+					     dev->adev->asic_type);
 					return -EINVAL;
 				}
 			}

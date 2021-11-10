@@ -515,7 +515,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 				HSA_CAP_WATCH_POINTS_TOTALBITS_MASK);
 		}
 
-		if (dev->gpu->device_info->asic_family == CHIP_TONGA)
+		if (dev->gpu->adev->asic_type == CHIP_TONGA)
 			dev->node_props.capability |=
 					HSA_CAP_AQL_QUEUE_DOUBLE_MAP;
 
@@ -1217,8 +1217,7 @@ static void kfd_set_iolink_no_atomics(struct kfd_topology_device *dev,
 	/* set gpu (dev) flags. */
 	} else {
 		if (!dev->gpu->pci_atomic_requested ||
-				dev->gpu->device_info->asic_family ==
-							CHIP_HAWAII)
+				dev->gpu->adev->asic_type == CHIP_HAWAII)
 			link->flags |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
 				CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
 	}
@@ -1406,7 +1405,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	kfd_fill_mem_clk_max_info(dev);
 	kfd_fill_iolink_non_crat_info(dev);
 
-	switch (dev->gpu->device_info->asic_family) {
+	switch (dev->gpu->adev->asic_type) {
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
 	case CHIP_TONGA:
@@ -1432,7 +1431,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 				HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		else
 			WARN(1, "Unexpected ASIC family %u",
-			     dev->gpu->device_info->asic_family);
+			     dev->gpu->adev->asic_type);
 	}
 
 	/*
@@ -1449,7 +1448,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	 *		because it doesn't consider masked out CUs
 	 * max_waves_per_simd: Carrizo reports wrong max_waves_per_simd
 	 */
-	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
+	if (dev->gpu->adev->asic_type == CHIP_CARRIZO) {
 		dev->node_props.simd_count =
 			cu_info.simd_per_cu * cu_info.cu_active_number;
 		dev->node_props.max_waves_per_simd = 10;

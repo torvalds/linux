@@ -91,7 +91,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
 
 	/* For CIK family asics, kq->eop_mem is not needed */
-	if (dev->device_info->asic_family > CHIP_MULLINS) {
+	if (dev->adev->asic_type > CHIP_MULLINS) {
 		retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
 		if (retval != 0)
 			goto err_eop_allocate_vidmem;

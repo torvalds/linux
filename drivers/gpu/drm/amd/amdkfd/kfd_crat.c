@@ -1340,7 +1340,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	int ret;
 	unsigned int num_cu_shared;
 
-	switch (kdev->device_info->asic_family) {
+	switch (kdev->adev->asic_type) {
 	case CHIP_KAVERI:
 		pcache_info = kaveri_cache_info;
 		num_of_cache_types = ARRAY_SIZE(kaveri_cache_info);
