@@ -91,6 +91,21 @@ config PEAQ_WMI
 	help
 	 Say Y here if you want to support WMI-based hotkeys on PEAQ 2-in-1s.
 
+config NVIDIA_WMI_EC_BACKLIGHT
+	tristate "EC Backlight Driver for Hybrid Graphics Notebook Systems"
+	depends on ACPI_WMI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  This driver provides a sysfs backlight interface for notebook systems
+	  which are equipped with NVIDIA hybrid graphics and drive LCD backlight
+	  levels through the Embedded Controller (EC).
+
+	  Say Y or M here if you want to control the backlight on a notebook
+	  system with an EC-driven backlight.
+
+	  If you choose to compile this driver as a module the module will be
+	  called nvidia-wmi-ec-backlight.
+
 config XIAOMI_WMI
 	tristate "Xiaomi WMI key driver"
 	depends on ACPI_WMI
@@ -426,6 +441,7 @@ config HP_WMI
 	depends on RFKILL || RFKILL = n
 	select INPUT_SPARSEKMAP
 	select ACPI_PLATFORM_PROFILE
+	select HWMON
 	help
 	 Say Y here if you want to support WMI-based hotkeys on HP laptops and
 	 to read data from WMI such as docking or ambient light sensor state.
@@ -713,6 +729,16 @@ config PCENGINES_APU2
 	  To compile this driver as a module, choose M here: the module
 	  will be called pcengines-apuv2.
 
+config BARCO_P50_GPIO
+	tristate "Barco P50 GPIO driver for identify LED/button"
+	depends on GPIOLIB
+	help
+	  This driver provides access to the GPIOs for the identify button
+	  and led present on Barco P50 board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called barco-p50-gpio.
+
 config SAMSUNG_LAPTOP
 	tristate "Samsung Laptop driver"
 	depends on RFKILL || RFKILL = n
@@ -905,6 +931,9 @@ config SONYPI_COMPAT
 config SYSTEM76_ACPI
 	tristate "System76 ACPI Driver"
 	depends on ACPI
+	depends on ACPI_BATTERY
+	depends on HWMON
+	depends on INPUT
 	select NEW_LEDS
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
