@@ -498,6 +498,9 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 	int ret = 0;
 	struct generic_pm_domain *genpd = &pd->genpd;
 
+	if (pm_domain_always_on && !power_on)
+		return 0;
+
 	rockchip_pmu_lock(pd);
 
 	if (rockchip_pmu_domain_is_on(pd) != power_on) {
@@ -910,7 +913,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (pd_info->active_wakeup)
 		pd->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
 #ifndef MODULE
-	if (pd_info->keepon_startup || pm_domain_always_on) {
+	if (pd_info->keepon_startup) {
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		if (!rockchip_pmu_domain_is_on(pd)) {
 			error = rockchip_pd_power(pd, true);
@@ -1088,7 +1091,7 @@ static int __init rockchip_pd_keepon_release(void)
 	struct rockchip_pm_domain *pd;
 	int i;
 
-	if (!g_pmu || pm_domain_always_on)
+	if (!g_pmu)
 		return 0;
 
 	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
