@@ -77,9 +77,13 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 		    "Guest memory cannot be evenly divided into %d slots.",
 		    slots);
 
+	/*
+	 * Pass guest_num_pages to populate the page tables for test memory.
+	 * The memory is also added to memslot 0, but that's a benign side
+	 * effect as KVM allows aliasing HVAs in meslots.
+	 */
 	vm = vm_create_with_vcpus(mode, vcpus, DEFAULT_GUEST_PHY_PAGES,
-				  (vcpus * vcpu_memory_bytes) / pta->guest_page_size,
-				  0, guest_code, NULL);
+				  guest_num_pages, 0, guest_code, NULL);
 
 	pta->vm = vm;
 
