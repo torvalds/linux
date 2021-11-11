@@ -2086,8 +2086,8 @@ static void rk3568_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 			*bit -= RK3568_DRV_BITS_PER_PIN;
 }
 
-#define PMU0_IOC_REG		(0x0000)
-#define PMU1_IOC_REG		(0x4000)
+#define PMU1_IOC_REG		(0x0000)
+#define PMU2_IOC_REG		(0x4000)
 #define BUS_IOC_REG		(0x8000)
 #define VCCIO1_4_IOC_REG	(0x9000)
 #define VCCIO3_5_IOC_REG	(0xA000)
@@ -2096,8 +2096,8 @@ static void rk3568_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 #define EMMC_IOC_REG		(0xD000)
 
 static const u32 rk3588_ds_regs[][2] = {
-	{RK_GPIO0_B3, PMU0_IOC_REG + 0x10},
-	{RK_GPIO0_D7, PMU1_IOC_REG + 0x8},
+	{RK_GPIO0_B3, PMU1_IOC_REG + 0x10},
+	{RK_GPIO0_D7, PMU2_IOC_REG + 0x8},
 	{RK_GPIO1_D7, VCCIO1_4_IOC_REG},
 	{RK_GPIO2_A3, EMMC_IOC_REG},
 	{RK_GPIO2_C7, VCCIO3_5_IOC_REG},
@@ -2109,9 +2109,9 @@ static const u32 rk3588_ds_regs[][2] = {
 };
 
 static const u32 rk3588_p_regs[][2] = {
-	{RK_GPIO0_B3, PMU0_IOC_REG + 0x0020},
-	{RK_GPIO0_B7, PMU1_IOC_REG + 0x0024},
-	{RK_GPIO0_D7, PMU1_IOC_REG + 0x0024},
+	{RK_GPIO0_B3, PMU1_IOC_REG + 0x0020},
+	{RK_GPIO0_B7, PMU2_IOC_REG + 0x0024},
+	{RK_GPIO0_D7, PMU2_IOC_REG + 0x0024},
 	{RK_GPIO1_D7, VCCIO1_4_IOC_REG + 0x0100},
 	{RK_GPIO2_C7, VCCIO3_5_IOC_REG + 0x0100},
 	{RK_GPIO2_D7, EMMC_IOC_REG + 0x0100},
@@ -2121,9 +2121,9 @@ static const u32 rk3588_p_regs[][2] = {
 };
 
 static const u32 rk3588_smt_regs[][2] = {
-	{RK_GPIO0_B3, PMU0_IOC_REG + 0x0030},
-	{RK_GPIO0_B7, PMU1_IOC_REG + 0x003C},
-	{RK_GPIO0_D7, PMU1_IOC_REG + 0x003C},
+	{RK_GPIO0_B3, PMU1_IOC_REG + 0x0030},
+	{RK_GPIO0_B7, PMU2_IOC_REG + 0x003C},
+	{RK_GPIO0_D7, PMU2_IOC_REG + 0x003C},
 	{RK_GPIO1_D7, VCCIO1_4_IOC_REG + 0x0200},
 	{RK_GPIO2_C7, VCCIO3_5_IOC_REG + 0x0200},
 	{RK_GPIO2_D7, EMMC_IOC_REG + 0x0200},
@@ -4057,7 +4057,7 @@ static struct rockchip_pin_bank rk3588_pin_banks[] = {
 			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
 	RK3588_PIN_BANK_FLAGS(3, 32, "gpio3",
 			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
-	RK3588_PIN_BANK_FLAGS(4, 20, "gpio4",
+	RK3588_PIN_BANK_FLAGS(4, 32, "gpio4",
 			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
 };
 
