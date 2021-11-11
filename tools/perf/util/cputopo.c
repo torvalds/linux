@@ -14,7 +14,9 @@
 #include "env.h"
 #include "pmu-hybrid.h"
 
-#define CORE_SIB_FMT \
+#define PACKAGE_CPUS_FMT \
+	"%s/devices/system/cpu/cpu%d/topology/package_cpus_list"
+#define PACKAGE_CPUS_FMT_OLD \
 	"%s/devices/system/cpu/cpu%d/topology/core_siblings_list"
 #define DIE_SIB_FMT \
 	"%s/devices/system/cpu/cpu%d/topology/die_cpus_list"
@@ -39,8 +41,12 @@ static int build_cpu_topology(struct cpu_topology *tp, int cpu)
 	u32 i = 0;
 	int ret = -1;
 
-	scnprintf(filename, MAXPATHLEN, CORE_SIB_FMT,
+	scnprintf(filename, MAXPATHLEN, PACKAGE_CPUS_FMT,
 		  sysfs__mountpoint(), cpu);
+	if (access(filename, F_OK) == -1) {
+		scnprintf(filename, MAXPATHLEN, PACKAGE_CPUS_FMT_OLD,
+			sysfs__mountpoint(), cpu);
+	}
 	fp = fopen(filename, "r");
 	if (!fp)
 		goto try_dies;
@@ -54,13 +60,13 @@ static int build_cpu_topology(struct cpu_topology *tp, int cpu)
 	if (p)
 		*p = '\0';
 
-	for (i = 0; i < tp->core_sib; i++) {
-		if (!strcmp(buf, tp->core_siblings[i]))
+	for (i = 0; i < tp->package_cpus_lists; i++) {
+		if (!strcmp(buf, tp->package_cpus_list[i]))
 			break;
 	}
-	if (i == tp->core_sib) {
-		tp->core_siblings[i] = buf;
-		tp->core_sib++;
+	if (i == tp->package_cpus_lists) {
+		tp->package_cpus_list[i] = buf;
+		tp->package_cpus_lists++;
 		buf = NULL;
 		len = 0;
 	}
@@ -139,8 +145,8 @@ void cpu_topology__delete(struct cpu_topology *tp)
 	if (!tp)
 		return;
 
-	for (i = 0 ; i < tp->core_sib; i++)
-		zfree(&tp->core_siblings[i]);
+	for (i = 0 ; i < tp->package_cpus_lists; i++)
+		zfree(&tp->package_cpus_list[i]);
 
 	if (tp->die_sib) {
 		for (i = 0 ; i < tp->die_sib; i++)
@@ -205,7 +211,7 @@ struct cpu_topology *cpu_topology__new(void)
 
 	tp = addr;
 	addr += sizeof(*tp);
-	tp->core_siblings = addr;
+	tp->package_cpus_list = addr;
 	addr += sz;
 	if (has_die) {
 		tp->die_siblings = addr;

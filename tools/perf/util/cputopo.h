@@ -5,10 +5,17 @@
 #include <linux/types.h>
 
 struct cpu_topology {
-	u32	  core_sib;
+	/* The number of unique package_cpus_lists below. */
+	u32	  package_cpus_lists;
 	u32	  die_sib;
 	u32	  thread_sib;
-	char	**core_siblings;
+	/*
+	 * An array of strings where each string is unique and read from
+	 * /sys/devices/system/cpu/cpuX/topology/package_cpus_list. From the ABI
+	 * each of these is a human-readable list of CPUs sharing the same
+	 * physical_package_id. The format is like 0-3, 8-11, 14,17.
+	 */
+	const char **package_cpus_list;
 	char	**die_siblings;
 	char	**thread_siblings;
 };
