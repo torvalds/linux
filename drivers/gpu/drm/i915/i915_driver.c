@@ -29,8 +29,8 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
-#include <linux/oom.h>
 #include <linux/module.h>
+#include <linux/oom.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -48,8 +48,8 @@
 #include "display/intel_acpi.h"
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
-#include "display/intel_dmc.h"
 #include "display/intel_display_types.h"
+#include "display/intel_dmc.h"
 #include "display/intel_dp.h"
 #include "display/intel_dpt.h"
 #include "display/intel_fbdev.h"
@@ -72,6 +72,7 @@
 #include "pxp/intel_pxp_pm.h"
 
 #include "i915_debugfs.h"
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_ioc32.h"
 #include "i915_irq.h"

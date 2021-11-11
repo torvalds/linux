@@ -30,7 +30,7 @@ subdir-ccflags-y += -I$(srctree)/$(src)
 # Please keep these build lists sorted!
 
 # core driver code
-i915-y += i915_drv.o \
+i915-y += i915_driver.o \
 	  i915_config.o \
 	  i915_irq.o \
 	  i915_getparam.o \

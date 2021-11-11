@@ -5,6 +5,7 @@
 
 #include <linux/vga_switcheroo.h>
 
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_switcheroo.h"
 
