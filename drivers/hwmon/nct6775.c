@@ -1527,7 +1527,7 @@ static u16 nct6775_wmi_read_value(struct nct6775_data *data, u16 reg)
 
 	nct6775_wmi_set_bank(data, reg);
 
-	err = nct6775_asuswmi_read(data->bank, reg, &tmp);
+	err = nct6775_asuswmi_read(data->bank, reg & 0xff, &tmp);
 	if (err)
 		return 0;
 
