@@ -42,10 +42,9 @@ static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 static size_t demand_paging_size;
 static char *guest_data_prototype;
 
-static void *vcpu_worker(void *data)
+static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 {
 	int ret;
-	struct perf_test_vcpu_args *vcpu_args = (struct perf_test_vcpu_args *)data;
 	int vcpu_id = vcpu_args->vcpu_id;
 	struct kvm_vm *vm = perf_test_args.vm;
 	struct kvm_run *run;
@@ -68,8 +67,6 @@ static void *vcpu_worker(void *data)
 	ts_diff = timespec_elapsed(start);
 	PER_VCPU_DEBUG("vCPU %d execution time: %ld.%.9lds\n", vcpu_id,
 		       ts_diff.tv_sec, ts_diff.tv_nsec);
-
-	return NULL;
 }
 
 static int handle_uffd_page_request(int uffd_mode, int uffd, uint64_t addr)
@@ -282,7 +279,6 @@ struct test_params {
 static void run_test(enum vm_guest_mode mode, void *arg)
 {
 	struct test_params *p = arg;
-	pthread_t *vcpu_threads;
 	pthread_t *uffd_handler_threads = NULL;
 	struct uffd_handler_args *uffd_args = NULL;
 	struct timespec start;
@@ -301,9 +297,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	TEST_ASSERT(guest_data_prototype,
 		    "Failed to allocate buffer for guest data pattern");
 	memset(guest_data_prototype, 0xAB, demand_paging_size);
-
-	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
-	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
 
 	if (p->uffd_mode) {
 		uffd_handler_threads =
@@ -346,22 +339,11 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	pr_info("Finished creating vCPUs and starting uffd threads\n");
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-		pthread_create(&vcpu_threads[vcpu_id], NULL, vcpu_worker,
-			       &perf_test_args.vcpu_args[vcpu_id]);
-	}
-
+	perf_test_start_vcpu_threads(nr_vcpus, vcpu_worker);
 	pr_info("Started all vCPUs\n");
 
-	/* Wait for the vcpu threads to quit */
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-		pthread_join(vcpu_threads[vcpu_id], NULL);
-		PER_VCPU_DEBUG("Joined thread for vCPU %d\n", vcpu_id);
-	}
-
+	perf_test_join_vcpu_threads(nr_vcpus);
 	ts_diff = timespec_elapsed(start);
-
 	pr_info("All vCPU threads joined\n");
 
 	if (p->uffd_mode) {
@@ -385,7 +367,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	perf_test_destroy_vm(vm);
 
 	free(guest_data_prototype);
-	free(vcpu_threads);
 	if (p->uffd_mode) {
 		free(uffd_handler_threads);
 		free(uffd_args);

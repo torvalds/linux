@@ -215,9 +215,8 @@ static bool spin_wait_for_next_iteration(int *current_iteration)
 	return true;
 }
 
-static void *vcpu_thread_main(void *arg)
+static void vcpu_thread_main(struct perf_test_vcpu_args *vcpu_args)
 {
-	struct perf_test_vcpu_args *vcpu_args = arg;
 	struct kvm_vm *vm = perf_test_args.vm;
 	int vcpu_id = vcpu_args->vcpu_id;
 	int current_iteration = 0;
@@ -235,8 +234,6 @@ static void *vcpu_thread_main(void *arg)
 
 		vcpu_last_completed_iteration[vcpu_id] = current_iteration;
 	}
-
-	return NULL;
 }
 
 static void spin_wait_for_vcpu(int vcpu_id, int target_iteration)
@@ -295,43 +292,16 @@ static void mark_memory_idle(struct kvm_vm *vm, int vcpus)
 	run_iteration(vm, vcpus, "Mark memory idle");
 }
 
-static pthread_t *create_vcpu_threads(int vcpus)
-{
-	pthread_t *vcpu_threads;
-	int i;
-
-	vcpu_threads = malloc(vcpus * sizeof(vcpu_threads[0]));
-	TEST_ASSERT(vcpu_threads, "Failed to allocate vcpu_threads.");
-
-	for (i = 0; i < vcpus; i++)
-		pthread_create(&vcpu_threads[i], NULL, vcpu_thread_main,
-			       &perf_test_args.vcpu_args[i]);
-
-	return vcpu_threads;
-}
-
-static void terminate_vcpu_threads(pthread_t *vcpu_threads, int vcpus)
-{
-	int i;
-
-	/* Set done to signal the vCPU threads to exit */
-	done = true;
-
-	for (i = 0; i < vcpus; i++)
-		pthread_join(vcpu_threads[i], NULL);
-}
-
 static void run_test(enum vm_guest_mode mode, void *arg)
 {
 	struct test_params *params = arg;
 	struct kvm_vm *vm;
-	pthread_t *vcpu_threads;
 	int vcpus = params->vcpus;
 
 	vm = perf_test_create_vm(mode, vcpus, params->vcpu_memory_bytes, 1,
 				 params->backing_src, !overlap_memory_access);
 
-	vcpu_threads = create_vcpu_threads(vcpus);
+	perf_test_start_vcpu_threads(vcpus, vcpu_thread_main);
 
 	pr_info("\n");
 	access_memory(vm, vcpus, ACCESS_WRITE, "Populating memory");
@@ -346,8 +316,10 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	mark_memory_idle(vm, vcpus);
 	access_memory(vm, vcpus, ACCESS_READ, "Reading from idle memory");
 
-	terminate_vcpu_threads(vcpu_threads, vcpus);
-	free(vcpu_threads);
+	/* Set done to signal the vCPU threads to exit */
+	done = true;
+
+	perf_test_join_vcpu_threads(vcpus);
 	perf_test_destroy_vm(vm);
 }
 

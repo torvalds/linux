@@ -16,6 +16,20 @@ struct perf_test_args perf_test_args;
  */
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
+struct vcpu_thread {
+	/* The id of the vCPU. */
+	int vcpu_id;
+
+	/* The pthread backing the vCPU. */
+	pthread_t thread;
+};
+
+/* The vCPU threads involved in this test. */
+static struct vcpu_thread vcpu_threads[KVM_MAX_VCPUS];
+
+/* The function run by each vCPU thread, as provided by the test. */
+static void (*vcpu_thread_fn)(struct perf_test_vcpu_args *);
+
 /*
  * Continuously write to the first 8 bytes of each page in the
  * specified region.
@@ -176,4 +190,36 @@ void perf_test_set_wr_fract(struct kvm_vm *vm, int wr_fract)
 {
 	perf_test_args.wr_fract = wr_fract;
 	sync_global_to_guest(vm, perf_test_args);
+}
+
+static void *vcpu_thread_main(void *data)
+{
+	struct vcpu_thread *vcpu = data;
+
+	vcpu_thread_fn(&perf_test_args.vcpu_args[vcpu->vcpu_id]);
+
+	return NULL;
+}
+
+void perf_test_start_vcpu_threads(int vcpus, void (*vcpu_fn)(struct perf_test_vcpu_args *))
+{
+	int vcpu_id;
+
+	vcpu_thread_fn = vcpu_fn;
+
+	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
+		struct vcpu_thread *vcpu = &vcpu_threads[vcpu_id];
+
+		vcpu->vcpu_id = vcpu_id;
+
+		pthread_create(&vcpu->thread, NULL, vcpu_thread_main, vcpu);
+	}
+}
+
+void perf_test_join_vcpu_threads(int vcpus)
+{
+	int vcpu_id;
+
+	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++)
+		pthread_join(vcpu_threads[vcpu_id].thread, NULL);
 }
