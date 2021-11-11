@@ -282,7 +282,6 @@ static struct ov2680_reg const ov2680_global_setting[] = {
 	{}
 };
 
-#if 0 /* None of the definitions below are used currently */
 /*
  * 176x144 30fps  VBlanking 1lane 10Bit (binning)
  */
@@ -442,7 +441,7 @@ static struct ov2680_reg const ov2680_656x496_30fps[] = {
 };
 
 /*
- * 800x600 30fps  VBlanking 1lane 10Bit (binning)
+ * 720x592 30fps  VBlanking 1lane 10Bit (binning)
  */
 static struct ov2680_reg const ov2680_720x592_30fps[] = {
 	{0x3086, 0x01},
@@ -637,7 +636,6 @@ static struct ov2680_reg const ov2680_1456x1096_30fps[] = {
 	// {0x5090, 0x0c},
 	{}
 };
-#endif
 
 /*
  *1616x916  30fps  VBlanking 1lane 10bit
@@ -680,9 +678,8 @@ static struct ov2680_reg const ov2680_1616x916_30fps[] = {
 };
 
 /*
- * 1612x1212 30fps VBlanking 1lane 10Bit
+ * 1616x1082 30fps VBlanking 1lane 10Bit
  */
-#if 0
 static struct ov2680_reg const ov2680_1616x1082_30fps[] = {
 	{0x3086, 0x00},
 	{0x370a, 0x21},
@@ -718,7 +715,7 @@ static struct ov2680_reg const ov2680_1616x1082_30fps[] = {
 	{0x5081, 0x41},
 	{}
 };
-#endif
+
 /*
  * 1616x1216 30fps VBlanking 1lane 10Bit
  */
@@ -775,6 +772,21 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_1616x1216_30fps,
 	},
 	{
+		.desc = "ov2680_1616x1082_30fps",
+		.width = 1616,
+		.height = 1082,
+		.pix_clk_freq = 66,
+		.fps = 30,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_1616x1082_30fps,
+	},
+	{
 		.desc = "ov2680_1616x916_30fps",
 		.width = 1616,
 		.height = 916,
@@ -788,6 +800,141 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.bin_mode = 0,
 		.skip_frames = 3,
 		.regs = ov2680_1616x916_30fps,
+	},
+	{
+		.desc = "ov2680_1456x1096_30fps",
+		.width = 1456,
+		.height = 1096,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_1456x1096_30fps,
+	},
+	{
+		.desc = "ov2680_1296x976_30fps",
+		.width = 1296,
+		.height = 976,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_1296x976_30fps,
+	},
+	{
+		.desc = "ov2680_720p_30fps",
+		.width = 1280,
+		.height = 720,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_720p_30fps,
+	},
+	{
+		.desc = "ov2680_800x600_30fps",
+		.width = 800,
+		.height = 600,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_800x600_30fps,
+	},
+	{
+		.desc = "ov2680_720x592_30fps",
+		.width = 720,
+		.height = 592,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_720x592_30fps,
+	},
+	{
+		.desc = "ov2680_656x496_30fps",
+		.width = 656,
+		.height = 496,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_656x496_30fps,
+	},
+	{
+		.desc = "ov2680_QVGA_30fps",
+		.width = 336,
+		.height = 256,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_QVGA_30fps,
+	},
+	{
+		.desc = "ov2680_CIF_30fps",
+		.width = 352,
+		.height = 288,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_CIF_30fps,
+	},
+	{
+		.desc = "ov2680_QCIF_30fps",
+		.width = 176,
+		.height = 144,
+		.fps = 30,
+		.pix_clk_freq = 66,
+		.used = 0,
+		.pixels_per_line = 1698,//1704,
+		.lines_per_frame = 1294,
+		.bin_factor_x = 0,
+		.bin_factor_y = 0,
+		.bin_mode = 0,
+		.skip_frames = 3,
+		.regs = ov2680_QCIF_30fps,
 	},
 };
 
