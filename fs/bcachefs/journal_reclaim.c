@@ -640,6 +640,9 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 		if (fifo_free(&j->pin) <= 32)
 			min_nr = 1;
 
+		if (atomic_read(&c->btree_cache.dirty) * 2 > c->btree_cache.used)
+			min_nr = 1;
+
 		min_key_cache = min(bch2_nr_btree_keys_need_flush(c), (size_t) 128);
 
 		trace_and_count(c, journal_reclaim_start, c,
