@@ -424,9 +424,7 @@ struct dma_buf {
 	 * IMPORTANT:
 	 *
 	 * All drivers must obey the struct dma_resv rules, specifically the
-	 * rules for updating fences, see &dma_resv.fence_excl and
-	 * &dma_resv.fence. If these dependency rules are broken access tracking
-	 * can be lost resulting in use after free issues.
+	 * rules for updating and obeying fences.
 	 */
 	struct dma_resv *resv;
 

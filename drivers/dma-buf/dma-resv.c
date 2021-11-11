@@ -351,34 +351,20 @@ EXPORT_SYMBOL(dma_resv_replace_fences);
  * @fence: the exclusive fence to add
  *
  * Add a fence to the exclusive slot. @obj must be locked with dma_resv_lock().
- * Note that this function replaces all fences attached to @obj, see also
- * &dma_resv.fence_excl for a discussion of the semantics.
+ * See also &dma_resv.fence_excl for a discussion of the semantics.
  */
 void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
 {
 	struct dma_fence *old_fence = dma_resv_excl_fence(obj);
-	struct dma_resv_list *old;
-	u32 i = 0;
 
 	dma_resv_assert_held(obj);
-
-	old = dma_resv_shared_list(obj);
-	if (old)
-		i = old->shared_count;
 
 	dma_fence_get(fence);
 
 	write_seqcount_begin(&obj->seq);
 	/* write_seqcount_begin provides the necessary memory barrier */
 	RCU_INIT_POINTER(obj->fence_excl, fence);
-	if (old)
-		old->shared_count = 0;
 	write_seqcount_end(&obj->seq);
-
-	/* inplace update, no shared fences */
-	while (i--)
-		dma_fence_put(rcu_dereference_protected(old->shared[i],
-						dma_resv_held(obj)));
 
 	dma_fence_put(old_fence);
 }

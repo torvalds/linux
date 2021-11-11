@@ -93,23 +93,11 @@ struct dma_resv {
 	 *
 	 * The exclusive fence, if there is one currently.
 	 *
-	 * There are two ways to update this fence:
-	 *
-	 * - First by calling dma_resv_add_excl_fence(), which replaces all
-	 *   fences attached to the reservation object. To guarantee that no
-	 *   fences are lost, this new fence must signal only after all previous
-	 *   fences, both shared and exclusive, have signalled. In some cases it
-	 *   is convenient to achieve that by attaching a struct dma_fence_array
-	 *   with all the new and old fences.
-	 *
-	 * - Alternatively the fence can be set directly, which leaves the
-	 *   shared fences unchanged. To guarantee that no fences are lost, this
-	 *   new fence must signal only after the previous exclusive fence has
-	 *   signalled. Since the shared fences are staying intact, it is not
-	 *   necessary to maintain any ordering against those. If semantically
-	 *   only a new access is added without actually treating the previous
-	 *   one as a dependency the exclusive fences can be strung together
-	 *   using struct dma_fence_chain.
+	 * To guarantee that no fences are lost, this new fence must signal
+	 * only after the previous exclusive fence has signalled. If
+	 * semantically only a new access is added without actually treating the
+	 * previous one as a dependency the exclusive fences can be strung
+	 * together using struct dma_fence_chain.
 	 *
 	 * Note that actual semantics of what an exclusive or shared fence mean
 	 * is defined by the user, for reservation objects shared across drivers
