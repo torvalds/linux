@@ -34,6 +34,27 @@
 
 #define WIDTH_4K 3840
 
+#define amdgpu_dpm_pre_set_power_state(adev) \
+		((adev)->powerplay.pp_funcs->pre_set_power_state((adev)->powerplay.pp_handle))
+
+#define amdgpu_dpm_post_set_power_state(adev) \
+		((adev)->powerplay.pp_funcs->post_set_power_state((adev)->powerplay.pp_handle))
+
+#define amdgpu_dpm_display_configuration_changed(adev) \
+		((adev)->powerplay.pp_funcs->display_configuration_changed((adev)->powerplay.pp_handle))
+
+#define amdgpu_dpm_print_power_state(adev, ps) \
+		((adev)->powerplay.pp_funcs->print_power_state((adev)->powerplay.pp_handle, (ps)))
+
+#define amdgpu_dpm_vblank_too_short(adev) \
+		((adev)->powerplay.pp_funcs->vblank_too_short((adev)->powerplay.pp_handle))
+
+#define amdgpu_dpm_enable_bapm(adev, e) \
+		((adev)->powerplay.pp_funcs->enable_bapm((adev)->powerplay.pp_handle, (e)))
+
+#define amdgpu_dpm_check_state_equal(adev, cps, rps, equal) \
+		((adev)->powerplay.pp_funcs->check_state_equal((adev)->powerplay.pp_handle, (cps), (rps), (equal)))
+
 void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 {
 	const char *s;
@@ -120,7 +141,7 @@ void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 	pr_cont("\n");
 }
 
-void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev)
+static void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev)
 {
 	struct drm_device *ddev = adev_to_drm(adev);
 	struct drm_crtc *crtc;
@@ -168,7 +189,7 @@ u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev)
 	return vblank_time_us;
 }
 
-u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev)
+static u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_crtc *crtc;
