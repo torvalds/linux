@@ -9,9 +9,11 @@
 #include "expr.h"
 #include "expr-bison.h"
 #include "expr-flex.h"
+#include "smt.h"
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 #include <ctype.h>
+#include <math.h>
 
 #ifdef PARSER_DEBUG
 extern int expr_debug;
@@ -369,4 +371,13 @@ double expr_id_data__value(const struct expr_id_data *data)
 		return data->val;
 	assert(data->kind == EXPR_ID_DATA__REF_VALUE);
 	return data->ref.val;
+}
+
+double expr__get_literal(const char *literal)
+{
+	if (!strcmp("#smt_on", literal))
+		return smt_on() > 0 ? 1.0 : 0.0;
+
+	pr_err("Unrecognized literal '%s'", literal);
+	return NAN;
 }

@@ -4,7 +4,6 @@
 #include <assert.h>
 #include <math.h>
 #include "util/debug.h"
-#include "smt.h"
 #define IN_EXPR_Y 1
 #include "expr.h"
 %}
@@ -37,7 +36,7 @@
 	} ids;
 }
 
-%token ID NUMBER MIN MAX IF ELSE SMT_ON D_RATIO EXPR_ERROR
+%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO EXPR_ERROR
 %left MIN MAX IF
 %left '|'
 %left '^'
@@ -46,7 +45,7 @@
 %left '-' '+'
 %left '*' '/' '%'
 %left NEG NOT
-%type <num> NUMBER
+%type <num> NUMBER LITERAL
 %type <str> ID
 %destructor { free ($$); } <str>
 %type <ids> expr if_expr
@@ -280,9 +279,9 @@ expr: NUMBER
 		$$ = union_expr($3, $5);
 	}
 }
-| SMT_ON
+| LITERAL
 {
-	$$.val = smt_on() > 0 ? 1.0 : 0.0;
+	$$.val = $1;
 	$$.ids = NULL;
 }
 ;

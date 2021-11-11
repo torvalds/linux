@@ -55,5 +55,6 @@ int expr__find_ids(const char *expr, const char *one,
 		   struct expr_parse_ctx *ids);
 
 double expr_id_data__value(const struct expr_id_data *data);
+double expr__get_literal(const char *literal);
 
 #endif
