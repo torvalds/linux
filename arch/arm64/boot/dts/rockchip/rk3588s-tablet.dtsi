@@ -78,6 +78,7 @@
 
 	es8388_sound: es8388-sound {
 		status = "okay";
+		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,es8388-codec";
@@ -228,6 +229,8 @@
 		reg = <0x10>;
 		clocks = <&cru I2S0_8CH_MCLKOUT>;
 		clock-names = "mclk";
+		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
+		assigned-clock-rates = <12288000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
 		spk-con-gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
