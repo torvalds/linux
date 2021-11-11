@@ -121,7 +121,7 @@ static int vvop_enable_vblank(struct drm_crtc *crtc)
 
 	hrtimer_init(&vvop->vblank_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	vvop->vblank_hrtimer.function = &vvop_vblank_simulate;
-	vvop->period_ns = ktime_set(-1, vblank->framedur_ns);
+	vvop->period_ns = ktime_set(0, vblank->framedur_ns);
 	hrtimer_start(&vvop->vblank_hrtimer, vvop->period_ns, HRTIMER_MODE_REL);
 
 	return 0;
