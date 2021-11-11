@@ -438,8 +438,8 @@ static bool rockchip_pmu_domain_is_on(struct rockchip_pm_domain *pd)
 
 	if (pd->info->repair_status_mask) {
 		regmap_read(pmu->regmap, pmu->info->repair_status_offset, &val);
-		/* 1'b0: power on, 1'b1: power off */
-		return !(val & pd->info->repair_status_mask);
+		/* 1'b1: power on, 1'b0: power off */
+		return val & pd->info->repair_status_mask;
 	}
 
 	/* check idle status for idle-only domains */
