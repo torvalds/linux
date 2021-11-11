@@ -455,7 +455,7 @@ static ap_func_t *ap_jumptable[NR_AP_SM_STATES][NR_AP_SM_EVENTS] = {
 
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event)
 {
-	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+	if (aq->config && aq->dev_state > AP_DEV_STATE_UNINITIATED)
 		return ap_jumptable[aq->sm_state][event](aq);
 	else
 		return AP_SM_WAIT_NONE;
@@ -915,6 +915,7 @@ void ap_queue_init_state(struct ap_queue *aq)
 	spin_lock_bh(&aq->lock);
 	aq->dev_state = AP_DEV_STATE_OPERATING;
 	aq->sm_state = AP_SM_STATE_RESET_START;
+	aq->last_err_rc = 0;
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);
 }

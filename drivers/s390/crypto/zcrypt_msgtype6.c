@@ -714,17 +714,31 @@ static int convert_type86_xcrb(bool userspace, struct zcrypt_queue *zq,
 	char *data = reply->msg;
 
 	/* Copy CPRB to user */
+	if (xcRB->reply_control_blk_length < msg->fmt2.count1) {
+		ZCRYPT_DBF_DBG("%s reply_control_blk_length %u < required %u => EMSGSIZE\n",
+			       __func__, xcRB->reply_control_blk_length,
+			       msg->fmt2.count1);
+		return -EMSGSIZE;
+	}
 	if (z_copy_to_user(userspace, xcRB->reply_control_blk_addr,
 			   data + msg->fmt2.offset1, msg->fmt2.count1))
 		return -EFAULT;
 	xcRB->reply_control_blk_length = msg->fmt2.count1;
 
 	/* Copy data buffer to user */
-	if (msg->fmt2.count2)
+	if (msg->fmt2.count2) {
+		if (xcRB->reply_data_length < msg->fmt2.count2) {
+			ZCRYPT_DBF_DBG("%s reply_data_length %u < required %u => EMSGSIZE\n",
+				       __func__, xcRB->reply_data_length,
+				       msg->fmt2.count2);
+			return -EMSGSIZE;
+		}
 		if (z_copy_to_user(userspace, xcRB->reply_data_addr,
 				   data + msg->fmt2.offset2, msg->fmt2.count2))
 			return -EFAULT;
+	}
 	xcRB->reply_data_length = msg->fmt2.count2;
+
 	return 0;
 }
 
@@ -744,8 +758,12 @@ static int convert_type86_ep11_xcrb(bool userspace, struct zcrypt_queue *zq,
 	struct type86_fmt2_msg *msg = reply->msg;
 	char *data = reply->msg;
 
-	if (xcRB->resp_len < msg->fmt2.count1)
-		return -EINVAL;
+	if (xcRB->resp_len < msg->fmt2.count1) {
+		ZCRYPT_DBF_DBG("%s resp_len %u < required %u => EMSGSIZE\n",
+			       __func__, (unsigned int)xcRB->resp_len,
+			       msg->fmt2.count1);
+		return -EMSGSIZE;
+	}
 
 	/* Copy response CPRB to user */
 	if (z_copy_to_user(userspace, (char __force __user *)xcRB->resp,
@@ -1167,6 +1185,10 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 out:
+	if (rc)
+		ZCRYPT_DBF_DBG("%s send cprb at dev=%02x.%04x rc=%d\n",
+			       __func__, AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
 
@@ -1272,6 +1294,10 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 out:
+	if (rc)
+		ZCRYPT_DBF_DBG("%s send cprb at dev=%02x.%04x rc=%d\n",
+			       __func__, AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
 

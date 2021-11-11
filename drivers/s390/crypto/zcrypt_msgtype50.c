@@ -497,6 +497,10 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_queue *zq,
 		ap_cancel_message(zq->queue, ap_msg);
 out:
 	ap_msg->private = NULL;
+	if (rc)
+		ZCRYPT_DBF_DBG("%s send me cprb at dev=%02x.%04x rc=%d\n",
+			       __func__, AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
 
@@ -542,6 +546,10 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_queue *zq,
 		ap_cancel_message(zq->queue, ap_msg);
 out:
 	ap_msg->private = NULL;
+	if (rc)
+		ZCRYPT_DBF_DBG("%s send crt cprb at dev=%02x.%04x rc=%d\n",
+			       __func__, AP_QID_CARD(zq->queue->qid),
+			       AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
 
