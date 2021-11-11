@@ -233,7 +233,7 @@
 	PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, ROCKCHIP_ROUTE_PMU)
 
 #define RK3588_PIN_BANK_FLAGS(ID, PIN, LABEL, M, P)			\
-	PIN_BANK_DRV_FLAGS_PULL_FLAGS(ID, PIN, LABEL, M, M, M, M, P, P, P, P)
+	PIN_BANK_IOMUX_FLAGS_PULL_FLAGS(ID, PIN, LABEL, M, M, M, M, P, P, P, P)
 
 static struct regmap_config rockchip_regmap_config = {
 	.reg_bits = 32,
@@ -1178,28 +1178,35 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 		rockchip_get_recalced_mux(bank, pin, &reg, &bit, &mask);
 
 	if (ctrl->type == RK3588) {
-		if (bank->bank_num == 0 && pin >= RK_PB4 && pin <= RK_PD7) {
-			if (mux < 8) {
-				reg += 0x4000; /* PMU1_IOC_BASE */
+		if (bank->bank_num == 0) {
+			if ((pin >= RK_PB4) && (pin <= RK_PD7)) {
+				if (mux < 8) {
+					reg += 0x4000 - 0xC; /* PMU2_IOC_BASE */
+					data = (mask << (bit + 16));
+					rmask = data | (data >> 16);
+					data |= (mux & mask) << bit;
+					ret = regmap_update_bits(regmap, reg, rmask, data);
+				} else {
+					u32 reg0 = 0;
+
+					reg0 = reg + 0x4000 - 0xC; /* PMU2_IOC_BASE */
+					data = (mask << (bit + 16));
+					rmask = data | (data >> 16);
+					data |= 8 << bit;
+					ret = regmap_update_bits(regmap, reg0, rmask, data);
+
+					reg0 = reg + 0x8000; /* BUS_IOC_BASE */
+					data = (mask << (bit + 16));
+					rmask = data | (data >> 16);
+					data |= mux << bit;
+					regmap = info->regmap_base;
+					ret |= regmap_update_bits(regmap, reg0, rmask, data);
+				}
+			} else {
 				data = (mask << (bit + 16));
 				rmask = data | (data >> 16);
 				data |= (mux & mask) << bit;
 				ret = regmap_update_bits(regmap, reg, rmask, data);
-			} else {
-				u32 reg0 = 0;
-
-				reg0 = reg + 0x4000; /* PMU1_IOC_BASE */
-				data = (mask << (bit + 16));
-				rmask = data | (data >> 16);
-				data |= 8 << bit;
-				ret = regmap_update_bits(regmap, reg0, rmask, data);
-
-				reg0 = reg + 0x8000; /* BUS_IOC_BASE */
-				data = (mask << (bit + 16));
-				rmask = data | (data >> 16);
-				data |= mux << bit;
-				regmap = info->regmap_base;
-				ret |= regmap_update_bits(regmap, reg0, rmask, data);
 			}
 			return ret;
 		} else if (bank->bank_num > 0) {
