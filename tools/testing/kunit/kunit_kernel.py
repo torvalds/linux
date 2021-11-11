@@ -266,15 +266,17 @@ class LinuxSourceTree(object):
 	def validate_config(self, build_dir) -> bool:
 		kconfig_path = get_kconfig_path(build_dir)
 		validated_kconfig = kunit_config.parse_file(kconfig_path)
-		if not self._kconfig.is_subset_of(validated_kconfig):
-			invalid = self._kconfig.entries() - validated_kconfig.entries()
-			message = 'Provided Kconfig is not contained in validated .config. Following fields found in kunitconfig, ' \
-					  'but not in .config: %s' % (
-					', '.join([str(e) for e in invalid])
-			)
-			logging.error(message)
-			return False
-		return True
+		if self._kconfig.is_subset_of(validated_kconfig):
+			return True
+		invalid = self._kconfig.entries() - validated_kconfig.entries()
+		message = 'Not all Kconfig options selected in kunitconfig were in the generated .config.\n' \
+			  'This is probably due to unsatisfied dependencies.\n' \
+			  'Missing: ' + ', '.join([str(e) for e in invalid])
+		if self._arch == 'um':
+			message += '\nNote: many Kconfig options aren\'t available on UML. You can try running ' \
+				   'on a different architecture with something like "--arch=x86_64".'
+		logging.error(message)
+		return False
 
 	def build_config(self, build_dir, make_options) -> bool:
 		kconfig_path = get_kconfig_path(build_dir)
