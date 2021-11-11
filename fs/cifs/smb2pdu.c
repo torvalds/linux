@@ -2668,7 +2668,18 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 		goto err_free_rsp_buf;
 	}
 
+	/*
+	 * Although unlikely to be possible for rsp to be null and rc not set,
+	 * adding check below is slightly safer long term (and quiets Coverity
+	 * warning)
+	 */
 	rsp = (struct smb2_create_rsp *)rsp_iov.iov_base;
+	if (rsp == NULL) {
+		rc = -EIO;
+		kfree(pc_buf);
+		goto err_free_req;
+	}
+
 	trace_smb3_posix_mkdir_done(xid, le64_to_cpu(rsp->PersistentFileId),
 				    tcon->tid,
 				    ses->Suid, CREATE_NOT_FILE,
