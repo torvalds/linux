@@ -1100,6 +1100,16 @@ static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr
 	walt_cfs_insert_mvp_task(wrq, wts, false);
 }
 
+static void walt_cfs_mvp_do_sched_yield(void *unused, struct rq *rq)
+{
+	struct task_struct *curr = rq->curr;
+	int mvp_prio = walt_get_mvp_task_prio(curr);
+
+	lockdep_assert_held(&rq->__lock);
+	if (mvp_prio != WALT_NOT_MVP)
+		walt_cfs_deactivate_mvp_task(curr);
+}
+
 void walt_cfs_enqueue_task(struct rq *rq, struct task_struct *p)
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
@@ -1282,4 +1292,6 @@ void walt_cfs_init(void)
 
 	register_trace_android_rvh_check_preempt_wakeup(walt_cfs_check_preempt_wakeup, NULL);
 	register_trace_android_rvh_replace_next_task_fair(walt_cfs_replace_next_task_fair, NULL);
+
+	register_trace_android_rvh_do_sched_yield(walt_cfs_mvp_do_sched_yield, NULL);
 }
