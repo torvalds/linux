@@ -358,6 +358,8 @@ err_media_reg:
 	if (dev->vdec_pdata->uses_stateless_api)
 		v4l2_m2m_unregister_media_controller(dev->m2m_dev_dec);
 err_reg_cont:
+	if (dev->vdec_pdata->uses_stateless_api)
+		media_device_cleanup(&dev->mdev_dec);
 	destroy_workqueue(dev->decode_workqueue);
 err_event_workq:
 	v4l2_m2m_release(dev->m2m_dev_dec);
