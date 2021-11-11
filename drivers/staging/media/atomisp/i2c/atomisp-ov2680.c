@@ -1075,6 +1075,26 @@ static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct v4l2_fract fract;
+
+	if (fie->index >= N_RES_PREVIEW ||
+	    fie->width > ov2680_res_preview[0].width ||
+	    fie->height > ov2680_res_preview[0].height ||
+	    fie->which > V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
+	fract.denominator = ov2680_res_preview[fie->index].fps;
+	fract.numerator = 1;
+
+	fie->interval = fract;
+
+	return 0;
+}
+
 static int ov2680_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 {
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
@@ -1103,6 +1123,7 @@ static const struct v4l2_subdev_core_ops ov2680_core_ops = {
 static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 	.enum_mbus_code = ov2680_enum_mbus_code,
 	.enum_frame_size = ov2680_enum_frame_size,
+	.enum_frame_interval = ov2680_enum_frame_interval,
 	.get_fmt = ov2680_get_fmt,
 	.set_fmt = ov2680_set_fmt,
 };
