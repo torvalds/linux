@@ -243,7 +243,7 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 	addr_cam->sec_ent[key_idx] = sec_cam->sec_cam_idx;
 	addr_cam->sec_entries[key_idx] = sec_cam;
 	set_bit(key_idx, addr_cam->sec_cam_map);
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to update addr cam sec entry: %d\n",
 			  ret);
@@ -394,7 +394,7 @@ int rtw89_cam_sec_key_del(struct rtw89_dev *rtwdev,
 	clear_bit(key_idx, addr_cam->sec_cam_map);
 	addr_cam->sec_entries[key_idx] = NULL;
 	if (inform_fw) {
-		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif);
+		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL);
 		if (ret)
 			rtw89_err(rtwdev, "failed to update cam del key: %d\n", ret);
 	}
@@ -593,7 +593,7 @@ int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-static u8 rtw89_cam_addr_hash(u8 start, u8 *addr)
+static u8 rtw89_cam_addr_hash(u8 start, const u8 *addr)
 {
 	u8 hash = 0;
 	u8 i;
@@ -606,12 +606,14 @@ static u8 rtw89_cam_addr_hash(u8 start, u8 *addr)
 
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *rtwvif,
+				  const u8 *scan_mac_addr,
 				  u8 *cmd)
 {
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	struct ieee80211_sta *sta;
 	struct rtw89_sta *rtwsta;
 	struct rtw89_addr_cam_entry *addr_cam = &rtwvif->addr_cam;
+	const u8 *sma = scan_mac_addr ? scan_mac_addr : rtwvif->mac_addr;
 	u8 sma_hash, tma_hash, addr_msk_start;
 	u8 sma_start = 0;
 	u8 tma_start = 0;
@@ -623,7 +625,7 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 		else if (addr_cam->mask_sel == RTW89_TMA)
 			tma_start = addr_msk_start;
 	}
-	sma_hash = rtw89_cam_addr_hash(sma_start, rtwvif->mac_addr);
+	sma_hash = rtw89_cam_addr_hash(sma_start, sma);
 	tma_hash = rtw89_cam_addr_hash(tma_start, addr_cam->tma);
 
 	FWCMD_SET_ADDR_IDX(cmd, addr_cam->addr_cam_idx);
@@ -642,12 +644,12 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 
 	FWCMD_SET_ADDR_BSSID_CAM_IDX(cmd, addr_cam->bssid_cam_idx);
 
-	FWCMD_SET_ADDR_SMA0(cmd, rtwvif->mac_addr[0]);
-	FWCMD_SET_ADDR_SMA1(cmd, rtwvif->mac_addr[1]);
-	FWCMD_SET_ADDR_SMA2(cmd, rtwvif->mac_addr[2]);
-	FWCMD_SET_ADDR_SMA3(cmd, rtwvif->mac_addr[3]);
-	FWCMD_SET_ADDR_SMA4(cmd, rtwvif->mac_addr[4]);
-	FWCMD_SET_ADDR_SMA5(cmd, rtwvif->mac_addr[5]);
+	FWCMD_SET_ADDR_SMA0(cmd, sma[0]);
+	FWCMD_SET_ADDR_SMA1(cmd, sma[1]);
+	FWCMD_SET_ADDR_SMA2(cmd, sma[2]);
+	FWCMD_SET_ADDR_SMA3(cmd, sma[3]);
+	FWCMD_SET_ADDR_SMA4(cmd, sma[4]);
+	FWCMD_SET_ADDR_SMA5(cmd, sma[5]);
 
 	FWCMD_SET_ADDR_TMA0(cmd, addr_cam->tma[0]);
 	FWCMD_SET_ADDR_TMA1(cmd, addr_cam->tma[1]);

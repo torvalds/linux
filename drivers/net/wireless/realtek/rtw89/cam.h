@@ -347,7 +347,8 @@ static inline void FWCMD_SET_ADDR_BSSID_BSSID5(void *cmd, u32 value)
 int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *vif, u8 *cmd);
+				  struct rtw89_vif *vif,
+				  const u8 *scan_mac_addr, u8 *cmd);
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *vif, u8 *cmd);
 int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
