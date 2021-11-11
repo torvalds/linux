@@ -20,10 +20,10 @@
 	"%s/devices/system/cpu/cpu%d/topology/core_siblings_list"
 #define DIE_CPUS_FMT \
 	"%s/devices/system/cpu/cpu%d/topology/die_cpus_list"
-#define THRD_SIB_FMT \
-	"%s/devices/system/cpu/cpu%d/topology/thread_siblings_list"
-#define THRD_SIB_FMT_NEW \
+#define CORE_CPUS_FMT \
 	"%s/devices/system/cpu/cpu%d/topology/core_cpus_list"
+#define CORE_CPUS_FMT_OLD \
+	"%s/devices/system/cpu/cpu%d/topology/thread_siblings_list"
 #define NODE_ONLINE_FMT \
 	"%s/devices/system/node/online"
 #define NODE_MEMINFO_FMT \
@@ -104,10 +104,10 @@ try_dies:
 	ret = 0;
 
 try_threads:
-	scnprintf(filename, MAXPATHLEN, THRD_SIB_FMT_NEW,
+	scnprintf(filename, MAXPATHLEN, CORE_CPUS_FMT,
 		  sysfs__mountpoint(), cpu);
 	if (access(filename, F_OK) == -1) {
-		scnprintf(filename, MAXPATHLEN, THRD_SIB_FMT,
+		scnprintf(filename, MAXPATHLEN, CORE_CPUS_FMT_OLD,
 			  sysfs__mountpoint(), cpu);
 	}
 	fp = fopen(filename, "r");
@@ -121,13 +121,13 @@ try_threads:
 	if (p)
 		*p = '\0';
 
-	for (i = 0; i < tp->thread_sib; i++) {
-		if (!strcmp(buf, tp->thread_siblings[i]))
+	for (i = 0; i < tp->core_cpus_lists; i++) {
+		if (!strcmp(buf, tp->core_cpus_list[i]))
 			break;
 	}
-	if (i == tp->thread_sib) {
-		tp->thread_siblings[i] = buf;
-		tp->thread_sib++;
+	if (i == tp->core_cpus_lists) {
+		tp->core_cpus_list[i] = buf;
+		tp->core_cpus_lists++;
 		buf = NULL;
 	}
 	ret = 0;
@@ -151,8 +151,8 @@ void cpu_topology__delete(struct cpu_topology *tp)
 	for (i = 0 ; i < tp->die_cpus_lists; i++)
 		zfree(&tp->die_cpus_list[i]);
 
-	for (i = 0 ; i < tp->thread_sib; i++)
-		zfree(&tp->thread_siblings[i]);
+	for (i = 0 ; i < tp->core_cpus_lists; i++)
+		zfree(&tp->core_cpus_list[i]);
 
 	free(tp);
 }
@@ -215,7 +215,7 @@ struct cpu_topology *cpu_topology__new(void)
 		tp->die_cpus_list = addr;
 		addr += sz;
 	}
-	tp->thread_siblings = addr;
+	tp->core_cpus_list = addr;
 
 	for (i = 0; i < nr; i++) {
 		if (!cpu_map__has(map, i))

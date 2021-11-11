@@ -9,7 +9,8 @@ struct cpu_topology {
 	u32	  package_cpus_lists;
 	/* The number of unique die_cpu_lists below. */
 	u32	  die_cpus_lists;
-	u32	  thread_sib;
+	/* The number of unique core_cpu_lists below. */
+	u32	  core_cpus_lists;
 	/*
 	 * An array of strings where each string is unique and read from
 	 * /sys/devices/system/cpu/cpuX/topology/package_cpus_list. From the ABI
@@ -24,7 +25,13 @@ struct cpu_topology {
 	 * The format is like 0-3, 8-11, 14,17.
 	 */
 	const char **die_cpus_list;
-	char	**thread_siblings;
+	/*
+	 * An array of string where each string is unique and from
+	 * /sys/devices/system/cpu/cpuX/topology/core_cpus_list. From the ABI
+	 * each of these is a human-readable list of CPUs within the same
+	 * core. The format is like 0-3, 8-11, 14,17.
+	 */
+	const char **core_cpus_list;
 };
 
 struct numa_topology_node {
