@@ -96,6 +96,19 @@ union pplib_clock_info {
 	struct _ATOM_PPLIB_SI_CLOCK_INFO si;
 };
 
+enum si_dpm_auto_throttle_src {
+	SI_DPM_AUTO_THROTTLE_SRC_THERMAL,
+	SI_DPM_AUTO_THROTTLE_SRC_EXTERNAL
+};
+
+enum si_dpm_event_src {
+	SI_DPM_EVENT_SRC_ANALOG = 0,
+	SI_DPM_EVENT_SRC_EXTERNAL = 1,
+	SI_DPM_EVENT_SRC_DIGITAL = 2,
+	SI_DPM_EVENT_SRC_ANALOG_OR_EXTERNAL = 3,
+	SI_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL = 4
+};
+
 static const u32 r600_utc[R600_PM_NUMBER_OF_TC] =
 {
 	R600_UTC_DFLT_00,
@@ -3718,25 +3731,25 @@ static void si_set_dpm_event_sources(struct amdgpu_device *adev, u32 sources)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(adev);
 	bool want_thermal_protection;
-	enum amdgpu_dpm_event_src dpm_event_src;
+	enum si_dpm_event_src dpm_event_src;
 
 	switch (sources) {
 	case 0:
 	default:
 		want_thermal_protection = false;
 		break;
-	case (1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL):
+	case (1 << SI_DPM_AUTO_THROTTLE_SRC_THERMAL):
 		want_thermal_protection = true;
-		dpm_event_src = AMDGPU_DPM_EVENT_SRC_DIGITAL;
+		dpm_event_src = SI_DPM_EVENT_SRC_DIGITAL;
 		break;
-	case (1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_EXTERNAL):
+	case (1 << SI_DPM_AUTO_THROTTLE_SRC_EXTERNAL):
 		want_thermal_protection = true;
-		dpm_event_src = AMDGPU_DPM_EVENT_SRC_EXTERNAL;
+		dpm_event_src = SI_DPM_EVENT_SRC_EXTERNAL;
 		break;
-	case ((1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_EXTERNAL) |
-	      (1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL)):
+	case ((1 << SI_DPM_AUTO_THROTTLE_SRC_EXTERNAL) |
+	      (1 << SI_DPM_AUTO_THROTTLE_SRC_THERMAL)):
 		want_thermal_protection = true;
-		dpm_event_src = AMDGPU_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL;
+		dpm_event_src = SI_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL;
 		break;
 	}
 
@@ -3750,7 +3763,7 @@ static void si_set_dpm_event_sources(struct amdgpu_device *adev, u32 sources)
 }
 
 static void si_enable_auto_throttle_source(struct amdgpu_device *adev,
-					   enum amdgpu_dpm_auto_throttle_src source,
+					   enum si_dpm_auto_throttle_src source,
 					   bool enable)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(adev);
@@ -4927,6 +4940,31 @@ static int si_populate_smc_initial_state(struct amdgpu_device *adev,
 	return 0;
 }
 
+static enum si_pcie_gen si_gen_pcie_gen_support(struct amdgpu_device *adev,
+						u32 sys_mask,
+						enum si_pcie_gen asic_gen,
+						enum si_pcie_gen default_gen)
+{
+	switch (asic_gen) {
+	case SI_PCIE_GEN1:
+		return SI_PCIE_GEN1;
+	case SI_PCIE_GEN2:
+		return SI_PCIE_GEN2;
+	case SI_PCIE_GEN3:
+		return SI_PCIE_GEN3;
+	default:
+		if ((sys_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) &&
+		    (default_gen == SI_PCIE_GEN3))
+			return SI_PCIE_GEN3;
+		else if ((sys_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) &&
+			 (default_gen == SI_PCIE_GEN2))
+			return SI_PCIE_GEN2;
+		else
+			return SI_PCIE_GEN1;
+	}
+	return SI_PCIE_GEN1;
+}
+
 static int si_populate_smc_acpi_state(struct amdgpu_device *adev,
 				      SISLANDS_SMC_STATETABLE *table)
 {
@@ -4989,10 +5027,10 @@ static int si_populate_smc_acpi_state(struct amdgpu_device *adev,
 							      &table->ACPIState.level.std_vddc);
 		}
 		table->ACPIState.level.gen2PCIE =
-			(u8)amdgpu_get_pcie_gen_support(adev,
-							si_pi->sys_pcie_mask,
-							si_pi->boot_pcie_gen,
-							AMDGPU_PCIE_GEN1);
+			(u8)si_gen_pcie_gen_support(adev,
+						    si_pi->sys_pcie_mask,
+						    si_pi->boot_pcie_gen,
+						    SI_PCIE_GEN1);
 
 		if (si_pi->vddc_phase_shed_control)
 			si_populate_phase_shedding_value(adev,
@@ -5430,7 +5468,7 @@ static int si_convert_power_level_to_smc(struct amdgpu_device *adev,
 	bool gmc_pg = false;
 
 	if (eg_pi->pcie_performance_request &&
-	    (si_pi->force_pcie_gen != AMDGPU_PCIE_GEN_INVALID))
+	    (si_pi->force_pcie_gen != SI_PCIE_GEN_INVALID))
 		level->gen2PCIE = (u8)si_pi->force_pcie_gen;
 	else
 		level->gen2PCIE = (u8)pl->pcie_gen;
@@ -6147,8 +6185,8 @@ static void si_enable_voltage_control(struct amdgpu_device *adev, bool enable)
 		WREG32_P(GENERAL_PWRMGT, 0, ~VOLT_PWRMGT_EN);
 }
 
-static enum amdgpu_pcie_gen si_get_maximum_link_speed(struct amdgpu_device *adev,
-						      struct amdgpu_ps *amdgpu_state)
+static enum si_pcie_gen si_get_maximum_link_speed(struct amdgpu_device *adev,
+						  struct amdgpu_ps *amdgpu_state)
 {
 	struct si_ps *state = si_get_ps(amdgpu_state);
 	int i;
@@ -6177,27 +6215,27 @@ static void si_request_link_speed_change_before_state_change(struct amdgpu_devic
 							     struct amdgpu_ps *amdgpu_current_state)
 {
 	struct si_power_info *si_pi = si_get_pi(adev);
-	enum amdgpu_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
-	enum amdgpu_pcie_gen current_link_speed;
+	enum si_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
+	enum si_pcie_gen current_link_speed;
 
-	if (si_pi->force_pcie_gen == AMDGPU_PCIE_GEN_INVALID)
+	if (si_pi->force_pcie_gen == SI_PCIE_GEN_INVALID)
 		current_link_speed = si_get_maximum_link_speed(adev, amdgpu_current_state);
 	else
 		current_link_speed = si_pi->force_pcie_gen;
 
-	si_pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
+	si_pi->force_pcie_gen = SI_PCIE_GEN_INVALID;
 	si_pi->pspp_notify_required = false;
 	if (target_link_speed > current_link_speed) {
 		switch (target_link_speed) {
 #if defined(CONFIG_ACPI)
-		case AMDGPU_PCIE_GEN3:
+		case SI_PCIE_GEN3:
 			if (amdgpu_acpi_pcie_performance_request(adev, PCIE_PERF_REQ_PECI_GEN3, false) == 0)
 				break;
-			si_pi->force_pcie_gen = AMDGPU_PCIE_GEN2;
-			if (current_link_speed == AMDGPU_PCIE_GEN2)
+			si_pi->force_pcie_gen = SI_PCIE_GEN2;
+			if (current_link_speed == SI_PCIE_GEN2)
 				break;
 			fallthrough;
-		case AMDGPU_PCIE_GEN2:
+		case SI_PCIE_GEN2:
 			if (amdgpu_acpi_pcie_performance_request(adev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
 			fallthrough;
@@ -6217,13 +6255,13 @@ static void si_notify_link_speed_change_after_state_change(struct amdgpu_device 
 							   struct amdgpu_ps *amdgpu_current_state)
 {
 	struct si_power_info *si_pi = si_get_pi(adev);
-	enum amdgpu_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
+	enum si_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
 	u8 request;
 
 	if (si_pi->pspp_notify_required) {
-		if (target_link_speed == AMDGPU_PCIE_GEN3)
+		if (target_link_speed == SI_PCIE_GEN3)
 			request = PCIE_PERF_REQ_PECI_GEN3;
-		else if (target_link_speed == AMDGPU_PCIE_GEN2)
+		else if (target_link_speed == SI_PCIE_GEN2)
 			request = PCIE_PERF_REQ_PECI_GEN2;
 		else
 			request = PCIE_PERF_REQ_PECI_GEN1;
@@ -6864,7 +6902,7 @@ static int si_dpm_enable(struct amdgpu_device *adev)
 	si_enable_sclk_control(adev, true);
 	si_start_dpm(adev);
 
-	si_enable_auto_throttle_source(adev, AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
+	si_enable_auto_throttle_source(adev, SI_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 	si_thermal_start_thermal_controller(adev);
 
 	ni_update_current_ps(adev, boot_ps);
@@ -6904,7 +6942,7 @@ static void si_dpm_disable(struct amdgpu_device *adev)
 	si_enable_power_containment(adev, boot_ps, false);
 	si_enable_smc_cac(adev, boot_ps, false);
 	si_enable_spread_spectrum(adev, false);
-	si_enable_auto_throttle_source(adev, AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL, false);
+	si_enable_auto_throttle_source(adev, SI_DPM_AUTO_THROTTLE_SRC_THERMAL, false);
 	si_stop_dpm(adev);
 	si_reset_to_default(adev);
 	si_dpm_stop_smc(adev);
@@ -7148,10 +7186,10 @@ static void si_parse_pplib_clock_info(struct amdgpu_device *adev,
 	pl->vddc = le16_to_cpu(clock_info->si.usVDDC);
 	pl->vddci = le16_to_cpu(clock_info->si.usVDDCI);
 	pl->flags = le32_to_cpu(clock_info->si.ulFlags);
-	pl->pcie_gen = amdgpu_get_pcie_gen_support(adev,
-						   si_pi->sys_pcie_mask,
-						   si_pi->boot_pcie_gen,
-						   clock_info->si.ucPCIEGen);
+	pl->pcie_gen = si_gen_pcie_gen_support(adev,
+					       si_pi->sys_pcie_mask,
+					       si_pi->boot_pcie_gen,
+					       clock_info->si.ucPCIEGen);
 
 	/* patch up vddc if necessary */
 	ret = si_get_leakage_voltage_from_leakage_index(adev, pl->vddc,
@@ -7318,7 +7356,7 @@ static int si_dpm_init(struct amdgpu_device *adev)
 
 	si_pi->sys_pcie_mask =
 		adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK;
-	si_pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
+	si_pi->force_pcie_gen = SI_PCIE_GEN_INVALID;
 	si_pi->boot_pcie_gen = si_get_current_pcie_speed(adev);
 
 	si_set_max_cu_value(adev);

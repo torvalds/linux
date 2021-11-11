@@ -595,13 +595,20 @@ struct rv7xx_power_info {
 	RV770_SMC_STATETABLE smc_statetable;
 };
 
+enum si_pcie_gen {
+	SI_PCIE_GEN1 = 0,
+	SI_PCIE_GEN2 = 1,
+	SI_PCIE_GEN3 = 2,
+	SI_PCIE_GEN_INVALID = 0xffff
+};
+
 struct rv7xx_pl {
 	u32 sclk;
 	u32 mclk;
 	u16 vddc;
 	u16 vddci; /* eg+ only */
 	u32 flags;
-	enum amdgpu_pcie_gen pcie_gen; /* si+ only */
+	enum si_pcie_gen pcie_gen; /* si+ only */
 };
 
 struct rv7xx_ps {
@@ -967,9 +974,9 @@ struct si_power_info {
 	struct si_ulv_param ulv;
 	u32 max_cu;
 	/* pcie gen */
-	enum amdgpu_pcie_gen force_pcie_gen;
-	enum amdgpu_pcie_gen boot_pcie_gen;
-	enum amdgpu_pcie_gen acpi_pcie_gen;
+	enum si_pcie_gen force_pcie_gen;
+	enum si_pcie_gen boot_pcie_gen;
+	enum si_pcie_gen acpi_pcie_gen;
 	u32 sys_pcie_mask;
 	/* flags */
 	bool enable_dte;
