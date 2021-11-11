@@ -51,9 +51,15 @@ struct cxl_nvdimm_bridge *to_cxl_nvdimm_bridge(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_nvdimm_bridge, CXL);
 
-__mock int match_nvdimm_bridge(struct device *dev, const void *data)
+bool is_cxl_nvdimm_bridge(struct device *dev)
 {
 	return dev->type == &cxl_nvdimm_bridge_type;
+}
+EXPORT_SYMBOL_NS_GPL(is_cxl_nvdimm_bridge, CXL);
+
+__mock int match_nvdimm_bridge(struct device *dev, const void *data)
+{
+	return is_cxl_nvdimm_bridge(dev);
 }
 
 struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_nvdimm *cxl_nvd)

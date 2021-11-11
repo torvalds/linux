@@ -196,6 +196,13 @@ struct cxl_decoder {
 };
 
 
+/**
+ * enum cxl_nvdimm_brige_state - state machine for managing bus rescans
+ * @CXL_NVB_NEW: Set at bridge create and after cxl_pmem_wq is destroyed
+ * @CXL_NVB_DEAD: Set at brige unregistration to preclude async probing
+ * @CXL_NVB_ONLINE: Target state after successful ->probe()
+ * @CXL_NVB_OFFLINE: Target state after ->remove() or failed ->probe()
+ */
 enum cxl_nvdimm_brige_state {
 	CXL_NVB_NEW,
 	CXL_NVB_DEAD,
@@ -308,6 +315,7 @@ struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
 						     struct cxl_port *port);
 struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm(struct device *dev);
+bool is_cxl_nvdimm_bridge(struct device *dev);
 int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd);
 struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_nvdimm *cxl_nvd);
 

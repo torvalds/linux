@@ -315,6 +315,31 @@ static struct cxl_driver cxl_nvdimm_bridge_driver = {
 	.id = CXL_DEVICE_NVDIMM_BRIDGE,
 };
 
+/*
+ * Return all bridges to the CXL_NVB_NEW state to invalidate any
+ * ->state_work referring to the now destroyed cxl_pmem_wq.
+ */
+static int cxl_nvdimm_bridge_reset(struct device *dev, void *data)
+{
+	struct cxl_nvdimm_bridge *cxl_nvb;
+
+	if (!is_cxl_nvdimm_bridge(dev))
+		return 0;
+
+	cxl_nvb = to_cxl_nvdimm_bridge(dev);
+	device_lock(dev);
+	cxl_nvb->state = CXL_NVB_NEW;
+	device_unlock(dev);
+
+	return 0;
+}
+
+static void destroy_cxl_pmem_wq(void)
+{
+	destroy_workqueue(cxl_pmem_wq);
+	bus_for_each_dev(&cxl_bus_type, NULL, NULL, cxl_nvdimm_bridge_reset);
+}
+
 static __init int cxl_pmem_init(void)
 {
 	int rc;
@@ -340,7 +365,7 @@ static __init int cxl_pmem_init(void)
 err_nvdimm:
 	cxl_driver_unregister(&cxl_nvdimm_bridge_driver);
 err_bridge:
-	destroy_workqueue(cxl_pmem_wq);
+	destroy_cxl_pmem_wq();
 	return rc;
 }
 
@@ -348,7 +373,7 @@ static __exit void cxl_pmem_exit(void)
 {
 	cxl_driver_unregister(&cxl_nvdimm_driver);
 	cxl_driver_unregister(&cxl_nvdimm_bridge_driver);
-	destroy_workqueue(cxl_pmem_wq);
+	destroy_cxl_pmem_wq();
 }
 
 MODULE_LICENSE("GPL v2");
