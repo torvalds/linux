@@ -2495,8 +2495,9 @@ static inline unsigned short blk_plug_max_rq_count(struct blk_plug *plug)
 	return BLK_MAX_REQUEST_COUNT;
 }
 
-static bool blk_attempt_bio_merge(struct request_queue *q, struct bio *bio,
-				  unsigned int nr_segs, bool *same_queue_rq)
+static bool blk_mq_attempt_bio_merge(struct request_queue *q,
+				     struct bio *bio, unsigned int nr_segs,
+				     bool *same_queue_rq)
 {
 	if (!blk_queue_nomerges(q) && bio_mergeable(bio)) {
 		if (blk_attempt_plug_merge(q, bio, nr_segs, same_queue_rq))
@@ -2524,7 +2525,7 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 		return NULL;
 	if (unlikely(!submit_bio_checks(bio)))
 		goto put_exit;
-	if (blk_attempt_bio_merge(q, bio, nsegs, same_queue_rq))
+	if (blk_mq_attempt_bio_merge(q, bio, nsegs, same_queue_rq))
 		goto put_exit;
 
 	rq_qos_throttle(q, bio);
@@ -2560,7 +2561,8 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 		if (rq && rq->q == q) {
 			if (unlikely(!submit_bio_checks(bio)))
 				return NULL;
-			if (blk_attempt_bio_merge(q, bio, nsegs, same_queue_rq))
+			if (blk_mq_attempt_bio_merge(q, bio, nsegs,
+						same_queue_rq))
 				return NULL;
 			plug->cached_rq = rq_list_next(rq);
 			INIT_LIST_HEAD(&rq->queuelist);
