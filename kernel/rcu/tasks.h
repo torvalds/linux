@@ -25,11 +25,15 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
  * @cblist: Callback list.
  * @lock: Lock protecting per-CPU callback list.
  * @rtp_work: Work queue for invoking callbacks.
+ * @barrier_q_head: RCU callback for barrier operation.
+ * @cpu: CPU number corresponding to this entry.
+ * @rtpp: Pointer to the rcu_tasks structure.
  */
 struct rcu_tasks_percpu {
 	struct rcu_segcblist cblist;
 	raw_spinlock_t __private lock;
 	struct work_struct rtp_work;
+	struct rcu_head barrier_q_head;
 	int cpu;
 	struct rcu_tasks *rtpp;
 };
@@ -57,6 +61,10 @@ struct rcu_tasks_percpu {
  * @rtpcpu: This flavor's rcu_tasks_percpu structure.
  * @percpu_enqueue_shift: Shift down CPU ID this much when enqueuing callbacks.
  * @percpu_enqueue_lim: Number of per-CPU callback queues in use.
+ * @barrier_q_mutex: Serialize barrier operations.
+ * @barrier_q_count: Number of queues being waited on.
+ * @barrier_q_completion: Barrier wait/wakeup mechanism.
+ * @barrier_q_seq: Sequence number for barrier operations.
  * @name: This flavor's textual name.
  * @kname: This flavor's kthread name.
  */
@@ -82,6 +90,10 @@ struct rcu_tasks {
 	struct rcu_tasks_percpu __percpu *rtpcpu;
 	int percpu_enqueue_shift;
 	int percpu_enqueue_lim;
+	struct mutex barrier_q_mutex;
+	atomic_t barrier_q_count;
+	struct completion barrier_q_completion;
+	unsigned long barrier_q_seq;
 	char *name;
 	char *kname;
 };
@@ -100,6 +112,8 @@ static struct rcu_tasks rt_name =							\
 	.name = n,									\
 	.percpu_enqueue_shift = ilog2(CONFIG_NR_CPUS),					\
 	.percpu_enqueue_lim = 1,							\
+	.barrier_q_mutex = __MUTEX_INITIALIZER(rt_name.barrier_q_mutex),		\
+	.barrier_q_seq = (0UL - 50UL) << RCU_SEQ_CTR_SHIFT,				\
 	.kname = #rt_name,								\
 }
 
@@ -236,6 +250,53 @@ static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
 
 	/* Wait for the grace period. */
 	wait_rcu_gp(rtp->call_func);
+}
+
+// RCU callback function for rcu_barrier_tasks_generic().
+static void rcu_barrier_tasks_generic_cb(struct rcu_head *rhp)
+{
+	struct rcu_tasks *rtp;
+	struct rcu_tasks_percpu *rtpcp;
+
+	rtpcp = container_of(rhp, struct rcu_tasks_percpu, barrier_q_head);
+	rtp = rtpcp->rtpp;
+	if (atomic_dec_and_test(&rtp->barrier_q_count))
+		complete(&rtp->barrier_q_completion);
+}
+
+// Wait for all in-flight callbacks for the specified RCU Tasks flavor.
+// Operates in a manner similar to rcu_barrier().
+static void rcu_barrier_tasks_generic(struct rcu_tasks *rtp)
+{
+	int cpu;
+	unsigned long flags;
+	struct rcu_tasks_percpu *rtpcp;
+	unsigned long s = rcu_seq_snap(&rtp->barrier_q_seq);
+
+	mutex_lock(&rtp->barrier_q_mutex);
+	if (rcu_seq_done(&rtp->barrier_q_seq, s)) {
+		smp_mb();
+		mutex_unlock(&rtp->barrier_q_mutex);
+		return;
+	}
+	rcu_seq_start(&rtp->barrier_q_seq);
+	init_completion(&rtp->barrier_q_completion);
+	atomic_set(&rtp->barrier_q_count, 2);
+	for_each_possible_cpu(cpu) {
+		if (cpu >= smp_load_acquire(&rtp->percpu_enqueue_lim))
+			break;
+		rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
+		rtpcp->barrier_q_head.func = rcu_barrier_tasks_generic_cb;
+		raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
+		if (rcu_segcblist_entrain(&rtpcp->cblist, &rtpcp->barrier_q_head))
+			atomic_inc(&rtp->barrier_q_count);
+		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+	}
+	if (atomic_sub_and_test(2, &rtp->barrier_q_count))
+		complete(&rtp->barrier_q_completion);
+	wait_for_completion(&rtp->barrier_q_completion);
+	rcu_seq_end(&rtp->barrier_q_seq);
+	mutex_unlock(&rtp->barrier_q_mutex);
 }
 
 // Advance callbacks and indicate whether either a grace period or
@@ -703,8 +764,7 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_tasks);
  */
 void rcu_barrier_tasks(void)
 {
-	/* There is only one callback queue, so this is easy.  ;-) */
-	synchronize_rcu_tasks();
+	rcu_barrier_tasks_generic(&rcu_tasks);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_tasks);
 
@@ -842,8 +902,7 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_tasks_rude);
  */
 void rcu_barrier_tasks_rude(void)
 {
-	/* There is only one callback queue, so this is easy.  ;-) */
-	synchronize_rcu_tasks_rude();
+	rcu_barrier_tasks_generic(&rcu_tasks_rude);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_tasks_rude);
 
@@ -1401,8 +1460,7 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_tasks_trace);
  */
 void rcu_barrier_tasks_trace(void)
 {
-	/* There is only one callback queue, so this is easy.  ;-) */
-	synchronize_rcu_tasks_trace();
+	rcu_barrier_tasks_generic(&rcu_tasks_trace);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_tasks_trace);
 
