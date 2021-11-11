@@ -1345,7 +1345,6 @@ Current IOREG MAP
 #define	EEPROM_DEFAULT_BT_OPTION		0x10
 
 /*  For debug */
-#define EEPROM_Default_SubCustomerID		0xCD
 #define EEPROM_Default_Version			0
 
 #define EEPROM_CHANNEL_PLAN_FCC			0x0

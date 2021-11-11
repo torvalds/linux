@@ -1584,14 +1584,6 @@ void rtl8188e_EfuseParseChnlPlan(struct adapter *padapter, u8 *hwinfo, bool Auto
 	DBG_88E("mlmepriv.ChannelPlan = 0x%02x\n", padapter->mlmepriv.ChannelPlan);
 }
 
-void Hal_EfuseParseCustomerID88E(struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-
-	if (AutoLoadFail)
-		pHalData->EEPROMSubCustomerID = 0;
-}
-
 void Hal_ReadAntennaDiversity88E(struct adapter *pAdapter, u8 *PROMContent, bool AutoLoadFail)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
