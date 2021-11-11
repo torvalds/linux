@@ -485,6 +485,60 @@ static int rs5c372_rtc_proc(struct device *dev, struct seq_file *seq)
 #define	rs5c372_rtc_proc	NULL
 #endif
 
+#ifdef CONFIG_RTC_INTF_DEV
+static int rs5c372_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+{
+	struct rs5c372	*rs5c = i2c_get_clientdata(to_i2c_client(dev));
+	unsigned char	ctrl2;
+	int		addr;
+	unsigned int	flags;
+
+	dev_dbg(dev, "%s: cmd=%x\n", __func__, cmd);
+
+	addr = RS5C_ADDR(RS5C_REG_CTRL2);
+	ctrl2 = i2c_smbus_read_byte_data(rs5c->client, addr);
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		flags = 0;
+
+		switch (rs5c->type) {
+		case rtc_r2025sd:
+		case rtc_r2221tl:
+			if ((rs5c->type == rtc_r2025sd && !(ctrl2 & R2x2x_CTRL2_XSTP)) ||
+				(rs5c->type == rtc_r2221tl &&  (ctrl2 & R2x2x_CTRL2_XSTP))) {
+				flags |= RTC_VL_DATA_INVALID;
+			}
+			if (ctrl2 & R2x2x_CTRL2_VDET)
+				flags |= RTC_VL_BACKUP_LOW;
+			break;
+		default:
+			if (ctrl2 & RS5C_CTRL2_XSTP)
+				flags |= RTC_VL_DATA_INVALID;
+			break;
+		}
+
+		return put_user(flags, (unsigned int __user *)arg);
+	case RTC_VL_CLR:
+		/* clear VDET bit */
+		if (rs5c->type == rtc_r2025sd || rs5c->type == rtc_r2221tl) {
+			ctrl2 &= ~R2x2x_CTRL2_VDET;
+			if (i2c_smbus_write_byte_data(rs5c->client, addr, ctrl2) < 0) {
+				dev_dbg(&rs5c->client->dev, "%s: write error in line %i\n",
+						__func__, __LINE__);
+				return -EIO;
+			}
+		}
+		return 0;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return 0;
+}
+#else
+#define rs5c372_ioctl	NULL
+#endif
+
 static const struct rtc_class_ops rs5c372_rtc_ops = {
 	.proc		= rs5c372_rtc_proc,
 	.read_time	= rs5c372_rtc_read_time,
@@ -492,6 +546,7 @@ static const struct rtc_class_ops rs5c372_rtc_ops = {
 	.read_alarm	= rs5c_read_alarm,
 	.set_alarm	= rs5c_set_alarm,
 	.alarm_irq_enable = rs5c_rtc_alarm_irq_enable,
+	.ioctl		= rs5c372_ioctl,
 };
 
 #if IS_ENABLED(CONFIG_RTC_INTF_SYSFS)
