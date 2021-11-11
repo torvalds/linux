@@ -120,16 +120,26 @@ static bool __sev_recycle_asids(int min_asid, int max_asid)
 	return true;
 }
 
+static int sev_misc_cg_try_charge(struct kvm_sev_info *sev)
+{
+	enum misc_res_type type = sev->es_active ? MISC_CG_RES_SEV_ES : MISC_CG_RES_SEV;
+	return misc_cg_try_charge(type, sev->misc_cg, 1);
+}
+
+static void sev_misc_cg_uncharge(struct kvm_sev_info *sev)
+{
+	enum misc_res_type type = sev->es_active ? MISC_CG_RES_SEV_ES : MISC_CG_RES_SEV;
+	misc_cg_uncharge(type, sev->misc_cg, 1);
+}
+
 static int sev_asid_new(struct kvm_sev_info *sev)
 {
 	int asid, min_asid, max_asid, ret;
 	bool retry = true;
-	enum misc_res_type type;
 
-	type = sev->es_active ? MISC_CG_RES_SEV_ES : MISC_CG_RES_SEV;
 	WARN_ON(sev->misc_cg);
 	sev->misc_cg = get_current_misc_cg();
-	ret = misc_cg_try_charge(type, sev->misc_cg, 1);
+	ret = sev_misc_cg_try_charge(sev);
 	if (ret) {
 		put_misc_cg(sev->misc_cg);
 		sev->misc_cg = NULL;
@@ -162,7 +172,7 @@ again:
 
 	return asid;
 e_uncharge:
-	misc_cg_uncharge(type, sev->misc_cg, 1);
+	sev_misc_cg_uncharge(sev);
 	put_misc_cg(sev->misc_cg);
 	sev->misc_cg = NULL;
 	return ret;
@@ -179,7 +189,6 @@ static void sev_asid_free(struct kvm_sev_info *sev)
 {
 	struct svm_cpu_data *sd;
 	int cpu;
-	enum misc_res_type type;
 
 	mutex_lock(&sev_bitmap_lock);
 
@@ -192,8 +201,7 @@ static void sev_asid_free(struct kvm_sev_info *sev)
 
 	mutex_unlock(&sev_bitmap_lock);
 
-	type = sev->es_active ? MISC_CG_RES_SEV_ES : MISC_CG_RES_SEV;
-	misc_cg_uncharge(type, sev->misc_cg, 1);
+	sev_misc_cg_uncharge(sev);
 	put_misc_cg(sev->misc_cg);
 	sev->misc_cg = NULL;
 }
