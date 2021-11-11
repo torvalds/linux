@@ -22,6 +22,9 @@ struct vcpu_thread {
 
 	/* The pthread backing the vCPU. */
 	pthread_t thread;
+
+	/* Set to true once the vCPU thread is up and running. */
+	bool running;
 };
 
 /* The vCPU threads involved in this test. */
@@ -29,6 +32,9 @@ static struct vcpu_thread vcpu_threads[KVM_MAX_VCPUS];
 
 /* The function run by each vCPU thread, as provided by the test. */
 static void (*vcpu_thread_fn)(struct perf_test_vcpu_args *);
+
+/* Set to true once all vCPU threads are up and running. */
+static bool all_vcpu_threads_running;
 
 /*
  * Continuously write to the first 8 bytes of each page in the
@@ -196,6 +202,17 @@ static void *vcpu_thread_main(void *data)
 {
 	struct vcpu_thread *vcpu = data;
 
+	WRITE_ONCE(vcpu->running, true);
+
+	/*
+	 * Wait for all vCPU threads to be up and running before calling the test-
+	 * provided vCPU thread function. This prevents thread creation (which
+	 * requires taking the mmap_sem in write mode) from interfering with the
+	 * guest faulting in its memory.
+	 */
+	while (!READ_ONCE(all_vcpu_threads_running))
+		;
+
 	vcpu_thread_fn(&perf_test_args.vcpu_args[vcpu->vcpu_id]);
 
 	return NULL;
@@ -206,14 +223,23 @@ void perf_test_start_vcpu_threads(int vcpus, void (*vcpu_fn)(struct perf_test_vc
 	int vcpu_id;
 
 	vcpu_thread_fn = vcpu_fn;
+	WRITE_ONCE(all_vcpu_threads_running, false);
 
 	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
 		struct vcpu_thread *vcpu = &vcpu_threads[vcpu_id];
 
 		vcpu->vcpu_id = vcpu_id;
+		WRITE_ONCE(vcpu->running, false);
 
 		pthread_create(&vcpu->thread, NULL, vcpu_thread_main, vcpu);
 	}
+
+	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
+		while (!READ_ONCE(vcpu_threads[vcpu_id].running))
+			;
+	}
+
+	WRITE_ONCE(all_vcpu_threads_running, true);
 }
 
 void perf_test_join_vcpu_threads(int vcpus)
