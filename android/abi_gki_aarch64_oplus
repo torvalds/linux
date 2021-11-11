@@ -974,6 +974,7 @@
   get_user_pages
   get_user_pages_remote
   get_vaddr_frames
+  get_wchan
   get_zeroed_page
   gic_nonsecure_priorities
   gov_attr_set_get
