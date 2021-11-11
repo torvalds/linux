@@ -886,7 +886,7 @@
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_sd_s0>;
 	vqmmc-supply = <&vccio_sd_s0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &u2phy0 {
