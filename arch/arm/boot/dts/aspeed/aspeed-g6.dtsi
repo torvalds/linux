@@ -468,6 +468,14 @@
 					interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
 					aspeed,scu = <&syscon>;
+					aspeed,espi-mmbi = <&espi_mmbi>;
+					status = "disabled";
+				};
+
+				espi_mmbi: espi-mmbi@800 {
+					compatible = "aspeed,ast2600-espi-mmbi";
+					reg = <0x800 0x50>;
+					interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 					status = "disabled";
 				};
 			};

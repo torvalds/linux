@@ -90,9 +90,15 @@ config ASPEED_ESPI
 	  the eSPI interface. The four eSPI channels, namely peripheral,
 	  virtual wire, out-of-band, and flash are supported.
 
+config ASPEED_ESPI_MMBI
+	tristate "Aspeed eSPI MMBI Driver"
+	depends on ASPEED_ESPI
+	help
+	  Control Aspeed eSPI MMBI driver
+
 config ASPEED_LPC_PCC
 	tristate "Aspeed Post Code Capture support"
-	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+	depends on ARCH_ASPEED && REGMAP && MFD_SYSCON
 	help
 	  Provides a driver to control the LPC PCC interface,
 	  allowing the BMC to snoop data bytes written by the
