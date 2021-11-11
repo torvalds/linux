@@ -69,6 +69,10 @@ struct mptcp_out_options {
 		struct {
 			u64 sndr_key;
 			u64 rcvr_key;
+			u64 data_seq;
+			u32 subflow_seq;
+			u16 data_len;
+			__sum16 csum;
 		};
 		struct {
 			struct mptcp_addr_info addr;

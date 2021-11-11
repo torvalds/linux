@@ -1339,7 +1339,6 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 		goto err_2;
 	}
 	mr->mmkey.type = MLX5_MKEY_MR;
-	mr->desc_size = sizeof(struct mlx5_mtt);
 	mr->umem = umem;
 	set_mr_fields(dev, mr, umem->length, access_flags);
 	kvfree(in);
@@ -1533,6 +1532,7 @@ static struct ib_mr *create_user_odp_mr(struct ib_pd *pd, u64 start, u64 length,
 		ib_umem_release(&odp->umem);
 		return ERR_CAST(mr);
 	}
+	xa_init(&mr->implicit_children);
 
 	odp->private = mr;
 	err = mlx5r_store_odp_mkey(dev, &mr->mmkey);

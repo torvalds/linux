@@ -1092,12 +1092,12 @@ irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq, struct irdma_cq_poll_info *info)
 		if (cq->avoid_mem_cflct) {
 			ext_cqe = (__le64 *)((u8 *)cqe + 32);
 			get_64bit_val(ext_cqe, 24, &qword7);
-			polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword3);
+			polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword7);
 		} else {
 			peek_head = (cq->cq_ring.head + 1) % cq->cq_ring.size;
 			ext_cqe = cq->cq_base[peek_head].buf;
 			get_64bit_val(ext_cqe, 24, &qword7);
-			polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword3);
+			polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword7);
 			if (!peek_head)
 				polarity ^= 1;
 		}

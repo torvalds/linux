@@ -1312,8 +1312,10 @@ static __always_inline bool free_pages_prepare(struct page *page,
 
 		VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
 
-		if (compound)
+		if (compound) {
 			ClearPageDoubleMap(page);
+			ClearPageHasHWPoisoned(page);
+		}
 		for (i = 1; i < (1 << order); i++) {
 			if (compound)
 				bad += free_tail_pages_check(page, page + i);
@@ -5222,6 +5224,10 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
 	/* Already populated array? */
 	if (unlikely(page_array && nr_pages - nr_populated == 0))
 		goto out;
+
+	/* Bulk allocator does not support memcg accounting. */
+	if (memcg_kmem_enabled() && (gfp & __GFP_ACCOUNT))
+		goto failed;
 
 	/* Use the single page allocator for one page. */
 	if (nr_pages - nr_populated == 1)

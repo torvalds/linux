@@ -2208,7 +2208,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 }
 
 /**
- * ftrace_update_record, set a record that now is tracing or not
+ * ftrace_update_record - set a record that now is tracing or not
  * @rec: the record to update
  * @enable: set to true if the record is tracing, false to force disable
  *
@@ -2221,7 +2221,7 @@ int ftrace_update_record(struct dyn_ftrace *rec, bool enable)
 }
 
 /**
- * ftrace_test_record, check if the record has been enabled or not
+ * ftrace_test_record - check if the record has been enabled or not
  * @rec: the record to test
  * @enable: set to true to check if enabled, false if it is disabled
  *
@@ -2574,7 +2574,7 @@ struct ftrace_rec_iter {
 };
 
 /**
- * ftrace_rec_iter_start, start up iterating over traced functions
+ * ftrace_rec_iter_start - start up iterating over traced functions
  *
  * Returns an iterator handle that is used to iterate over all
  * the records that represent address locations where functions
@@ -2605,7 +2605,7 @@ struct ftrace_rec_iter *ftrace_rec_iter_start(void)
 }
 
 /**
- * ftrace_rec_iter_next, get the next record to process.
+ * ftrace_rec_iter_next - get the next record to process.
  * @iter: The handle to the iterator.
  *
  * Returns the next iterator after the given iterator @iter.
@@ -2630,7 +2630,7 @@ struct ftrace_rec_iter *ftrace_rec_iter_next(struct ftrace_rec_iter *iter)
 }
 
 /**
- * ftrace_rec_iter_record, get the record at the iterator location
+ * ftrace_rec_iter_record - get the record at the iterator location
  * @iter: The current iterator location
  *
  * Returns the record that the current @iter is at.
@@ -2733,7 +2733,7 @@ static int __ftrace_modify_code(void *data)
 }
 
 /**
- * ftrace_run_stop_machine, go back to the stop machine method
+ * ftrace_run_stop_machine - go back to the stop machine method
  * @command: The command to tell ftrace what to do
  *
  * If an arch needs to fall back to the stop machine method, the
@@ -2745,7 +2745,7 @@ void ftrace_run_stop_machine(int command)
 }
 
 /**
- * arch_ftrace_update_code, modify the code to trace or not trace
+ * arch_ftrace_update_code - modify the code to trace or not trace
  * @command: The command that needs to be done
  *
  * Archs can override this function if it does not need to
@@ -7525,7 +7525,9 @@ void ftrace_kill(void)
 }
 
 /**
- * Test if ftrace is dead or not.
+ * ftrace_is_dead - Test if ftrace is dead or not.
+ *
+ * Returns 1 if ftrace is "dead", zero otherwise.
  */
 int ftrace_is_dead(void)
 {

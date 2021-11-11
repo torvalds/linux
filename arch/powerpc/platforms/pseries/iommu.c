@@ -1302,6 +1302,12 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		struct property *default_win;
 		int reset_win_ext;
 
+		/* DDW + IOMMU on single window may fail if there is any allocation */
+		if (iommu_table_in_use(tbl)) {
+			dev_warn(&dev->dev, "current IOMMU table in use, can't be replaced.\n");
+			goto out_failed;
+		}
+
 		default_win = of_find_property(pdn, "ibm,dma-window", NULL);
 		if (!default_win)
 			goto out_failed;
@@ -1356,12 +1362,6 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 			query.largest_available_block,
 			1ULL << page_shift);
 
-		/* DDW + IOMMU on single window may fail if there is any allocation */
-		if (default_win_removed && iommu_table_in_use(tbl)) {
-			dev_dbg(&dev->dev, "current IOMMU table in use, can't be replaced.\n");
-			goto out_failed;
-		}
-
 		len = order_base_2(query.largest_available_block << page_shift);
 		win_name = DMA64_PROPNAME;
 	} else {
@@ -1411,17 +1411,18 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	} else {
 		struct iommu_table *newtbl;
 		int i;
+		unsigned long start = 0, end = 0;
 
 		for (i = 0; i < ARRAY_SIZE(pci->phb->mem_resources); i++) {
 			const unsigned long mask = IORESOURCE_MEM_64 | IORESOURCE_MEM;
 
 			/* Look for MMIO32 */
-			if ((pci->phb->mem_resources[i].flags & mask) == IORESOURCE_MEM)
+			if ((pci->phb->mem_resources[i].flags & mask) == IORESOURCE_MEM) {
+				start = pci->phb->mem_resources[i].start;
+				end = pci->phb->mem_resources[i].end;
 				break;
+			}
 		}
-
-		if (i == ARRAY_SIZE(pci->phb->mem_resources))
-			goto out_del_list;
 
 		/* New table for using DDW instead of the default DMA window */
 		newtbl = iommu_pseries_alloc_table(pci->phb->node);
@@ -1432,15 +1433,15 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 
 		iommu_table_setparms_common(newtbl, pci->phb->bus->number, create.liobn, win_addr,
 					    1UL << len, page_shift, NULL, &iommu_table_lpar_multi_ops);
-		iommu_init_table(newtbl, pci->phb->node, pci->phb->mem_resources[i].start,
-				 pci->phb->mem_resources[i].end);
+		iommu_init_table(newtbl, pci->phb->node, start, end);
 
 		pci->table_group->tables[1] = newtbl;
 
 		/* Keep default DMA window stuct if removed */
 		if (default_win_removed) {
 			tbl->it_size = 0;
-			kfree(tbl->it_map);
+			vfree(tbl->it_map);
+			tbl->it_map = NULL;
 		}
 
 		set_iommu_table_base(&dev->dev, newtbl);

@@ -218,8 +218,8 @@ SYSCALL_DEFINE1(memfd_secret, unsigned int, flags)
 
 	file->f_flags |= O_LARGEFILE;
 
-	fd_install(fd, file);
 	atomic_inc(&secretmem_users);
+	fd_install(fd, file);
 	return fd;
 
 err_put_fd:

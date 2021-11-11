@@ -5459,6 +5459,19 @@ F:	include/net/devlink.h
 F:	include/uapi/linux/devlink.h
 F:	net/core/devlink.c
 
+DH ELECTRONICS IMX6 DHCOM BOARD SUPPORT
+M:	Christoph Niedermaier <cniedermaier@dh-electronics.com>
+L:	kernel@dh-electronics.com
+S:	Maintained
+F:	arch/arm/boot/dts/imx6*-dhcom-*
+
+DH ELECTRONICS STM32MP1 DHCOM/DHCOR BOARD SUPPORT
+M:	Marek Vasut <marex@denx.de>
+L:	kernel@dh-electronics.com
+S:	Maintained
+F:	arch/arm/boot/dts/stm32mp1*-dhcom-*
+F:	arch/arm/boot/dts/stm32mp1*-dhcor-*
+
 DIALOG SEMICONDUCTOR DRIVERS
 M:	Support Opensource <support.opensource@diasemi.com>
 S:	Supported
@@ -11292,7 +11305,6 @@ F:	Documentation/networking/device_drivers/ethernet/marvell/octeontx2.rst
 F:	drivers/net/ethernet/marvell/octeontx2/af/
 
 MARVELL PRESTERA ETHERNET SWITCH DRIVER
-M:	Vadym Kochan <vkochan@marvell.com>
 M:	Taras Chornyi <tchornyi@marvell.com>
 S:	Supported
 W:	https://github.com/Marvell-switching/switchdev-prestera
