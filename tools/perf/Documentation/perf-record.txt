@@ -469,7 +469,7 @@ This option sets the time out limit. The default value is 500 ms.
 
 --switch-events::
 Record context switch events i.e. events of type PERF_RECORD_SWITCH or
-PERF_RECORD_SWITCH_CPU_WIDE. In some cases (e.g. Intel PT or CoreSight)
+PERF_RECORD_SWITCH_CPU_WIDE. In some cases (e.g. Intel PT, CoreSight or Arm SPE)
 switch events will be enabled automatically, which can be suppressed by
 by the option --no-switch-events.
 

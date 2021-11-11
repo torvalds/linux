@@ -254,8 +254,10 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	if (!perf_cpu_map__empty(cpus)) {
 		evsel__set_sample_bit(tracking_evsel, TIME);
 		evsel__set_sample_bit(tracking_evsel, CPU);
+
 		/* also track task context switch */
-		tracking_evsel->core.attr.context_switch = 1;
+		if (!record_opts__no_switch_events(opts))
+			tracking_evsel->core.attr.context_switch = 1;
 	}
 
 	return 0;
