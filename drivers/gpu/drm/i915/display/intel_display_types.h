@@ -428,10 +428,6 @@ struct intel_hdcp_shim {
 	int (*hdcp_2_2_capable)(struct intel_digital_port *dig_port,
 				bool *capable);
 
-	/* Detects whether a HDCP 1.4 sink connected in MST topology */
-	int (*streams_type1_capable)(struct intel_connector *connector,
-				     bool *capable);
-
 	/* Write HDCP2.2 messages */
 	int (*write_2_2_msg)(struct intel_digital_port *dig_port,
 			     void *buf, size_t size);
@@ -1684,6 +1680,8 @@ struct intel_digital_port {
 	bool hdcp_auth_status;
 	/* HDCP port data need to pass to security f/w */
 	struct hdcp_port_data hdcp_port_data;
+	/* Whether the MST topology supports HDCP Type 1 Content */
+	bool hdcp_mst_type1_capable;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -2033,28 +2031,6 @@ static inline struct intel_frontbuffer *
 to_intel_frontbuffer(struct drm_framebuffer *fb)
 {
 	return fb ? to_intel_framebuffer(fb)->frontbuffer : NULL;
-}
-
-static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
-{
-	if (dev_priv->params.panel_use_ssc >= 0)
-		return dev_priv->params.panel_use_ssc != 0;
-	return dev_priv->vbt.lvds_use_ssc
-		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
-}
-
-static inline u32 i9xx_dpll_compute_fp(struct dpll *dpll)
-{
-	return dpll->n << 16 | dpll->m1 << 8 | dpll->m2;
-}
-
-static inline u32 intel_fdi_link_freq(struct drm_i915_private *dev_priv,
-				      const struct intel_crtc_state *pipe_config)
-{
-	if (HAS_DDI(dev_priv))
-		return pipe_config->port_clock; /* SPLL */
-	else
-		return dev_priv->fdi_pll_freq;
 }
 
 static inline bool is_ccs_modifier(u64 modifier)

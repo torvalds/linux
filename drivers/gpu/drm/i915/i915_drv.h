@@ -352,8 +352,7 @@ struct drm_i915_display_funcs {
 				struct intel_crtc_state *);
 	void (*get_initial_plane_config)(struct intel_crtc *,
 					 struct intel_initial_plane_config *);
-	int (*crtc_compute_clock)(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state);
+	int (*crtc_compute_clock)(struct intel_crtc_state *crtc_state);
 	void (*crtc_enable)(struct intel_atomic_state *state,
 			    struct intel_crtc *crtc);
 	void (*crtc_disable)(struct intel_atomic_state *state,
@@ -454,7 +453,7 @@ struct intel_fbc {
 		} fb;
 
 		unsigned int fence_y_offset;
-		u16 gen9_wa_cfb_stride;
+		u16 override_cfb_stride;
 		u16 interval;
 		s8 fence_id;
 		bool psr2_active;
@@ -481,7 +480,7 @@ struct intel_fbc {
 
 		int cfb_size;
 		unsigned int fence_y_offset;
-		u16 gen9_wa_cfb_stride;
+		u16 override_cfb_stride;
 		u16 interval;
 		s8 fence_id;
 		bool plane_visible;
@@ -636,22 +635,6 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 /* Amount of PSF GV points, BSpec precisely defines this */
 #define I915_NUM_PSF_GV_POINTS 3
 
-struct ddi_vbt_port_info {
-	/* Non-NULL if port present. */
-	struct intel_bios_encoder_data *devdata;
-
-	int max_tmds_clock;
-
-	/* This is an index in the HDMI/DVI DDI buffer translation table. */
-	u8 hdmi_level_shift;
-	u8 hdmi_level_shift_set:1;
-
-	u8 alternate_aux_channel;
-	u8 alternate_ddc_pin;
-
-	int dp_max_link_rate;		/* 0 for not limited by VBT */
-};
-
 enum psr_lines_to_wait {
 	PSR_0_LINES_TO_WAIT = 0,
 	PSR_1_LINE_TO_WAIT,
@@ -706,6 +689,7 @@ struct intel_vbt_data {
 
 	struct {
 		u16 pwm_freq_hz;
+		u16 brightness_precision_bits;
 		bool present;
 		bool active_low_pwm;
 		u8 min_brightness;	/* min_brightness/255 of max */
@@ -732,7 +716,7 @@ struct intel_vbt_data {
 
 	struct list_head display_devices;
 
-	struct ddi_vbt_port_info ddi_port_info[I915_MAX_PORTS];
+	struct intel_bios_encoder_data *ports[I915_MAX_PORTS]; /* Non-NULL if port present. */
 	struct sdvo_device_mapping sdvo_mappings[2];
 };
 
@@ -886,8 +870,6 @@ struct drm_i915_private {
 	 */
 	u32 gpio_mmio_base;
 
-	u32 hsw_psr_mmio_adjust;
-
 	/* MMIO base address for MIPI regs */
 	u32 mipi_mmio_base;
 
@@ -1015,12 +997,6 @@ struct drm_i915_private {
 	} dpll;
 
 	struct list_head global_obj_list;
-
-	/*
-	 * For reading active_pipes holding any crtc lock is
-	 * sufficient, for writing must hold all of them.
-	 */
-	u8 active_pipes;
 
 	struct i915_wa_list gt_wa_list;
 
@@ -1720,6 +1696,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_DISPLAY(dev_priv) (INTEL_INFO(dev_priv)->pipe_mask != 0)
 
 #define HAS_VRR(i915)	(GRAPHICS_VER(i915) >= 12)
+
+#define HAS_ASYNC_FLIPS(i915)		(DISPLAY_VER(i915) >= 5)
 
 /* Only valid when HAS_DISPLAY() is true */
 #define INTEL_DISPLAY_ENABLED(dev_priv) \

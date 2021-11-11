@@ -45,12 +45,19 @@ struct tgl_dkl_phy_ddi_buf_trans {
 	u32 dkl_de_emphasis_control;
 };
 
+struct dg2_snps_phy_buf_trans {
+	u8 snps_vswing;
+	u8 snps_pre_cursor;
+	u8 snps_post_cursor;
+};
+
 union intel_ddi_buf_trans_entry {
 	struct hsw_ddi_buf_trans hsw;
 	struct bxt_ddi_buf_trans bxt;
 	struct icl_ddi_buf_trans icl;
 	struct icl_mg_phy_ddi_buf_trans mg;
 	struct tgl_dkl_phy_ddi_buf_trans dkl;
+	struct dg2_snps_phy_buf_trans snps;
 };
 
 struct intel_ddi_buf_trans {

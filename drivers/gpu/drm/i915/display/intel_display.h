@@ -548,8 +548,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv);
 unsigned int intel_fb_xy_to_linear(int x, int y,
 				   const struct intel_plane_state *state,
 				   int plane);
-unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
-				   int color_plane, unsigned int height);
 void intel_add_fb_offsets(int *x, int *y,
 			  const struct intel_plane_state *state, int plane);
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
@@ -629,10 +627,6 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
 struct intel_encoder *
 intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 			   const struct intel_crtc_state *crtc_state);
-
-unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
-				  int color_plane);
-unsigned int intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane);
 
 void intel_display_driver_register(struct drm_i915_private *i915);
 void intel_display_driver_unregister(struct drm_i915_private *i915);

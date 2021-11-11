@@ -13,6 +13,7 @@
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
+#include "intel_drrs.h"
 #include "intel_fbc.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
@@ -1323,9 +1324,6 @@ static int i915_drrs_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
-#define LPSP_STATUS(COND) (COND ? seq_puts(m, "LPSP: enabled\n") : \
-				seq_puts(m, "LPSP: disabled\n"))
-
 static bool
 intel_lpsp_power_well_enabled(struct drm_i915_private *i915,
 			      enum i915_power_well_id power_well_id)
@@ -1344,32 +1342,20 @@ intel_lpsp_power_well_enabled(struct drm_i915_private *i915,
 static int i915_lpsp_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+	bool lpsp_enabled = false;
 
-	if (DISPLAY_VER(i915) >= 13) {
-		LPSP_STATUS(!intel_lpsp_power_well_enabled(i915,
-							   SKL_DISP_PW_2));
+	if (DISPLAY_VER(i915) >= 13 || IS_DISPLAY_VER(i915, 9, 10)) {
+		lpsp_enabled = !intel_lpsp_power_well_enabled(i915, SKL_DISP_PW_2);
+	} else if (IS_DISPLAY_VER(i915, 11, 12)) {
+		lpsp_enabled = !intel_lpsp_power_well_enabled(i915, ICL_DISP_PW_3);
+	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
+		lpsp_enabled = !intel_lpsp_power_well_enabled(i915, HSW_DISP_PW_GLOBAL);
+	} else {
+		seq_puts(m, "LPSP: not supported\n");
 		return 0;
 	}
 
-	switch (DISPLAY_VER(i915)) {
-	case 12:
-	case 11:
-		LPSP_STATUS(!intel_lpsp_power_well_enabled(i915, ICL_DISP_PW_3));
-		break;
-	case 10:
-	case 9:
-		LPSP_STATUS(!intel_lpsp_power_well_enabled(i915, SKL_DISP_PW_2));
-		break;
-	default:
-		/*
-		 * Apart from HASWELL/BROADWELL other legacy platform doesn't
-		 * support lpsp.
-		 */
-		if (IS_HASWELL(i915) || IS_BROADWELL(i915))
-			LPSP_STATUS(!intel_lpsp_power_well_enabled(i915, HSW_DISP_PW_GLOBAL));
-		else
-			seq_puts(m, "LPSP: not supported\n");
-	}
+	seq_printf(m, "LPSP: %s\n", enableddisabled(lpsp_enabled));
 
 	return 0;
 }
@@ -2044,11 +2030,9 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 
 			intel_dp = enc_to_intel_dp(encoder);
 			if (val)
-				intel_edp_drrs_enable(intel_dp,
-						      crtc_state);
+				intel_drrs_enable(intel_dp, crtc_state);
 			else
-				intel_edp_drrs_disable(intel_dp,
-						       crtc_state);
+				intel_drrs_disable(intel_dp, crtc_state);
 		}
 		drm_connector_list_iter_end(&conn_iter);
 
@@ -2240,14 +2224,12 @@ static int i915_psr_status_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(i915_psr_status);
 
-#define LPSP_CAPABLE(COND) (COND ? seq_puts(m, "LPSP: capable\n") : \
-				seq_puts(m, "LPSP: incapable\n"))
-
 static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_encoder *encoder;
+	bool lpsp_capable = false;
 
 	encoder = intel_attached_encoder(to_intel_connector(connector));
 	if (!encoder)
@@ -2256,35 +2238,27 @@ static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
 
-	if (DISPLAY_VER(i915) >= 13) {
-		LPSP_CAPABLE(encoder->port <= PORT_B);
-		return 0;
-	}
-
-	switch (DISPLAY_VER(i915)) {
-	case 12:
+	if (DISPLAY_VER(i915) >= 13)
+		lpsp_capable = encoder->port <= PORT_B;
+	else if (DISPLAY_VER(i915) >= 12)
 		/*
 		 * Actually TGL can drive LPSP on port till DDI_C
 		 * but there is no physical connected DDI_C on TGL sku's,
 		 * even driver is not initilizing DDI_C port for gen12.
 		 */
-		LPSP_CAPABLE(encoder->port <= PORT_B);
-		break;
-	case 11:
-		LPSP_CAPABLE(connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
-			     connector->connector_type == DRM_MODE_CONNECTOR_eDP);
-		break;
-	case 10:
-	case 9:
-		LPSP_CAPABLE(encoder->port == PORT_A &&
-			     (connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
-			     connector->connector_type == DRM_MODE_CONNECTOR_eDP  ||
-			     connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort));
-		break;
-	default:
-		if (IS_HASWELL(i915) || IS_BROADWELL(i915))
-			LPSP_CAPABLE(connector->connector_type == DRM_MODE_CONNECTOR_eDP);
-	}
+		lpsp_capable = encoder->port <= PORT_B;
+	else if (DISPLAY_VER(i915) == 11)
+		lpsp_capable = (connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
+				connector->connector_type == DRM_MODE_CONNECTOR_eDP);
+	else if (IS_DISPLAY_VER(i915, 9, 10))
+		lpsp_capable = (encoder->port == PORT_A &&
+				(connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
+				 connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+				 connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort));
+	else if (IS_HASWELL(i915) || IS_BROADWELL(i915))
+		lpsp_capable = connector->connector_type == DRM_MODE_CONNECTOR_eDP;
+
+	seq_printf(m, "LPSP: %s\n", lpsp_capable ? "capable" : "incapable");
 
 	return 0;
 }

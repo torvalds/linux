@@ -32,6 +32,7 @@
 
 #include "i915_drv.h"
 #include "intel_atomic.h"
+#include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -278,12 +279,9 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	if (fixed_mode) {
-		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+		intel_panel_fixed_mode(fixed_mode, adjusted_mode);
 
-		if (HAS_GMCH(dev_priv))
-			ret = intel_gmch_panel_fitting(pipe_config, conn_state);
-		else
-			ret = intel_pch_panel_fitting(pipe_config, conn_state);
+		ret = intel_panel_fitting(pipe_config, conn_state);
 		if (ret)
 			return ret;
 	}
@@ -883,7 +881,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 		intel_dsi_port_enable(encoder, pipe_config);
 	}
 
-	intel_panel_enable_backlight(pipe_config, conn_state);
+	intel_backlight_enable(pipe_config, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
@@ -913,7 +911,7 @@ static void intel_dsi_disable(struct intel_atomic_state *state,
 	drm_dbg_kms(&i915->drm, "\n");
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
-	intel_panel_disable_backlight(old_conn_state);
+	intel_backlight_disable(old_conn_state);
 
 	/*
 	 * According to the spec we should send SHUTDOWN before
@@ -1876,7 +1874,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
 	intel_encoder->get_config = intel_dsi_get_config;
-	intel_encoder->update_pipe = intel_panel_update_backlight;
+	intel_encoder->update_pipe = intel_backlight_update;
 	intel_encoder->shutdown = intel_dsi_shutdown;
 
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
@@ -1964,7 +1962,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
-	intel_panel_setup_backlight(connector, INVALID_PIPE);
+	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	vlv_dsi_add_properties(intel_connector);
 

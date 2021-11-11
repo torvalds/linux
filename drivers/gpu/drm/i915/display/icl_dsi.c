@@ -29,6 +29,7 @@
 #include <drm/drm_mipi_dsi.h>
 
 #include "intel_atomic.h"
+#include "intel_backlight.h"
 #include "intel_combo_phy.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
@@ -54,20 +55,28 @@ static int payload_credits_available(struct drm_i915_private *dev_priv,
 		>> FREE_PLOAD_CREDIT_SHIFT;
 }
 
-static void wait_for_header_credits(struct drm_i915_private *dev_priv,
-				    enum transcoder dsi_trans)
+static bool wait_for_header_credits(struct drm_i915_private *dev_priv,
+				    enum transcoder dsi_trans, int hdr_credit)
 {
 	if (wait_for_us(header_credits_available(dev_priv, dsi_trans) >=
-			MAX_HEADER_CREDIT, 100))
+			hdr_credit, 100)) {
 		drm_err(&dev_priv->drm, "DSI header credits not released\n");
+		return false;
+	}
+
+	return true;
 }
 
-static void wait_for_payload_credits(struct drm_i915_private *dev_priv,
-				     enum transcoder dsi_trans)
+static bool wait_for_payload_credits(struct drm_i915_private *dev_priv,
+				     enum transcoder dsi_trans, int payld_credit)
 {
 	if (wait_for_us(payload_credits_available(dev_priv, dsi_trans) >=
-			MAX_PLOAD_CREDIT, 100))
+			payld_credit, 100)) {
 		drm_err(&dev_priv->drm, "DSI payload credits not released\n");
+		return false;
+	}
+
+	return true;
 }
 
 static enum transcoder dsi_port_to_transcoder(enum port port)
@@ -90,8 +99,8 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 	/* wait for header/payload credits to be released */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		wait_for_header_credits(dev_priv, dsi_trans);
-		wait_for_payload_credits(dev_priv, dsi_trans);
+		wait_for_header_credits(dev_priv, dsi_trans, MAX_HEADER_CREDIT);
+		wait_for_payload_credits(dev_priv, dsi_trans, MAX_PLOAD_CREDIT);
 	}
 
 	/* send nop DCS command */
@@ -108,7 +117,7 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 	/* wait for header credits to be released */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		wait_for_header_credits(dev_priv, dsi_trans);
+		wait_for_header_credits(dev_priv, dsi_trans, MAX_HEADER_CREDIT);
 	}
 
 	/* wait for LP TX in progress bit to be cleared */
@@ -126,18 +135,13 @@ static bool add_payld_to_queue(struct intel_dsi_host *host, const u8 *data,
 	struct intel_dsi *intel_dsi = host->intel_dsi;
 	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
 	enum transcoder dsi_trans = dsi_port_to_transcoder(host->port);
-	int free_credits;
 	int i, j;
 
 	for (i = 0; i < len; i += 4) {
 		u32 tmp = 0;
 
-		free_credits = payload_credits_available(dev_priv, dsi_trans);
-		if (free_credits < 1) {
-			drm_err(&dev_priv->drm,
-				"Payload credit not available\n");
+		if (!wait_for_payload_credits(dev_priv, dsi_trans, 1))
 			return false;
-		}
 
 		for (j = 0; j < min_t(u32, len - i, 4); j++)
 			tmp |= *data++ << 8 * j;
@@ -155,15 +159,10 @@ static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
 	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
 	enum transcoder dsi_trans = dsi_port_to_transcoder(host->port);
 	u32 tmp;
-	int free_credits;
 
 	/* check if header credit available */
-	free_credits = header_credits_available(dev_priv, dsi_trans);
-	if (free_credits < 1) {
-		drm_err(&dev_priv->drm,
-			"send pkt header failed, not enough hdr credits\n");
+	if (!wait_for_header_credits(dev_priv, dsi_trans, 1))
 		return -1;
-	}
 
 	tmp = intel_de_read(dev_priv, DSI_CMD_TXHDR(dsi_trans));
 
@@ -1270,6 +1269,26 @@ static void icl_apply_kvmr_pipe_a_wa(struct intel_encoder *encoder,
 			     IGNORE_KVMR_PIPE_A,
 			     enable ? IGNORE_KVMR_PIPE_A : 0);
 }
+
+/*
+ * Wa_16012360555:adl-p
+ * SW will have to program the "LP to HS Wakeup Guardband"
+ * to account for the repeaters on the HS Request/Ready
+ * PPI signaling between the Display engine and the DPHY.
+ */
+static void adlp_set_lp_hs_wakeup_gb(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	enum port port;
+
+	if (DISPLAY_VER(i915) == 13) {
+		for_each_dsi_port(port, intel_dsi->ports)
+			intel_de_rmw(i915, TGL_DSI_CHKN_REG(port),
+				     TGL_DSI_CHKN_LSHS_GB, 0x4);
+	}
+}
+
 static void gen11_dsi_enable(struct intel_atomic_state *state,
 			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state,
@@ -1283,11 +1302,14 @@ static void gen11_dsi_enable(struct intel_atomic_state *state,
 	/* Wa_1409054076:icl,jsl,ehl */
 	icl_apply_kvmr_pipe_a_wa(encoder, crtc->pipe, true);
 
+	/* Wa_16012360555:adl-p */
+	adlp_set_lp_hs_wakeup_gb(encoder);
+
 	/* step6d: enable dsi transcoder */
 	gen11_dsi_enable_transcoder(encoder);
 
 	/* step7: enable backlight */
-	intel_panel_enable_backlight(crtc_state, conn_state);
+	intel_backlight_enable(crtc_state, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 
 	intel_crtc_vblank_on(crtc_state);
@@ -1440,7 +1462,7 @@ static void gen11_dsi_disable(struct intel_atomic_state *state,
 
 	/* step1: turn off backlight */
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
-	intel_panel_disable_backlight(old_conn_state);
+	intel_backlight_disable(old_conn_state);
 
 	/* step2d,e: disable transcoder and wait */
 	gen11_dsi_disable_transcoder(encoder);
@@ -1657,9 +1679,9 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	int ret;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
-	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+	intel_panel_fixed_mode(fixed_mode, adjusted_mode);
 
-	ret = intel_pch_panel_fitting(pipe_config, conn_state);
+	ret = intel_panel_fitting(pipe_config, conn_state);
 	if (ret)
 		return ret;
 
@@ -1815,17 +1837,17 @@ static ssize_t gen11_dsi_host_transfer(struct mipi_dsi_host *host,
 	if (msg->flags & MIPI_DSI_MSG_USE_LPM)
 		enable_lpdt = true;
 
-	/* send packet header */
-	ret  = dsi_send_pkt_hdr(intel_dsi_host, dsi_pkt, enable_lpdt);
-	if (ret < 0)
-		return ret;
-
 	/* only long packet contains payload */
 	if (mipi_dsi_packet_format_is_long(msg->type)) {
 		ret = dsi_send_pkt_payld(intel_dsi_host, dsi_pkt);
 		if (ret < 0)
 			return ret;
 	}
+
+	/* send packet header */
+	ret  = dsi_send_pkt_hdr(intel_dsi_host, dsi_pkt, enable_lpdt);
+	if (ret < 0)
+		return ret;
 
 	//TODO: add payload receive code if needed
 
@@ -2014,7 +2036,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->port = port;
 	encoder->get_config = gen11_dsi_get_config;
 	encoder->sync_state = gen11_dsi_sync_state;
-	encoder->update_pipe = intel_panel_update_backlight;
+	encoder->update_pipe = intel_backlight_update;
 	encoder->compute_config = gen11_dsi_compute_config;
 	encoder->get_hw_state = gen11_dsi_get_hw_state;
 	encoder->initial_fastset_check = gen11_dsi_initial_fastset_check;
@@ -2048,7 +2070,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
-	intel_panel_setup_backlight(connector, INVALID_PIPE);
+	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	if (dev_priv->vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_B);

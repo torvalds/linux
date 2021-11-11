@@ -2237,10 +2237,14 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define SNPS_PHY_MPLLB_DIV(phy)			_MMIO_SNPS(phy, 0x168004)
 #define   SNPS_PHY_MPLLB_FORCE_EN		REG_BIT(31)
+#define   SNPS_PHY_MPLLB_DIV_CLK_EN		REG_BIT(30)
 #define   SNPS_PHY_MPLLB_DIV5_CLK_EN		REG_BIT(29)
 #define   SNPS_PHY_MPLLB_V2I			REG_GENMASK(27, 26)
 #define   SNPS_PHY_MPLLB_FREQ_VCO		REG_GENMASK(25, 24)
+#define   SNPS_PHY_MPLLB_DIV_MULTIPLIER		REG_GENMASK(23, 16)
 #define   SNPS_PHY_MPLLB_PMIX_EN		REG_BIT(10)
+#define   SNPS_PHY_MPLLB_DP2_MODE		REG_BIT(9)
+#define   SNPS_PHY_MPLLB_WORD_DIV2_EN		REG_BIT(8)
 #define   SNPS_PHY_MPLLB_TX_CLK_DIV		REG_GENMASK(7, 5)
 
 #define SNPS_PHY_MPLLB_FRACN1(phy)		_MMIO_SNPS(phy, 0x168008)
@@ -4509,11 +4513,9 @@ enum {
  * HSW PSR registers are relative to DDIA(_DDI_BUF_CTL_A + 0x800) with just one
  * instance of it
  */
-#define _HSW_EDP_PSR_BASE			0x64800
 #define _SRD_CTL_A				0x60800
 #define _SRD_CTL_EDP				0x6f800
-#define _PSR_ADJ(tran, reg)			(_TRANS2(tran, reg) - dev_priv->hsw_psr_mmio_adjust)
-#define EDP_PSR_CTL(tran)			_MMIO(_PSR_ADJ(tran, _SRD_CTL_A))
+#define EDP_PSR_CTL(tran)			_MMIO(_TRANS2(tran, _SRD_CTL_A))
 #define   EDP_PSR_ENABLE			(1 << 31)
 #define   BDW_PSR_SINGLE_FRAME			(1 << 30)
 #define   EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK	(1 << 29) /* SW can't modify */
@@ -4557,22 +4559,13 @@ enum {
 #define   EDP_PSR_POST_EXIT(trans)		(0x2 << _EDP_PSR_TRANS_SHIFT(trans))
 #define   EDP_PSR_PRE_ENTRY(trans)		(0x1 << _EDP_PSR_TRANS_SHIFT(trans))
 
-#define _SRD_AUX_CTL_A				0x60810
-#define _SRD_AUX_CTL_EDP			0x6f810
-#define EDP_PSR_AUX_CTL(tran)			_MMIO(_PSR_ADJ(tran, _SRD_AUX_CTL_A))
-#define   EDP_PSR_AUX_CTL_TIME_OUT_MASK		(3 << 26)
-#define   EDP_PSR_AUX_CTL_MESSAGE_SIZE_MASK	(0x1f << 20)
-#define   EDP_PSR_AUX_CTL_PRECHARGE_2US_MASK	(0xf << 16)
-#define   EDP_PSR_AUX_CTL_ERROR_INTERRUPT	(1 << 11)
-#define   EDP_PSR_AUX_CTL_BIT_CLOCK_2X_MASK	(0x7ff)
-
 #define _SRD_AUX_DATA_A				0x60814
 #define _SRD_AUX_DATA_EDP			0x6f814
-#define EDP_PSR_AUX_DATA(tran, i)		_MMIO(_PSR_ADJ(tran, _SRD_AUX_DATA_A) + (i) + 4) /* 5 registers */
+#define EDP_PSR_AUX_DATA(tran, i)		_MMIO(_TRANS2(tran, _SRD_AUX_DATA_A) + (i) + 4) /* 5 registers */
 
 #define _SRD_STATUS_A				0x60840
 #define _SRD_STATUS_EDP				0x6f840
-#define EDP_PSR_STATUS(tran)			_MMIO(_PSR_ADJ(tran, _SRD_STATUS_A))
+#define EDP_PSR_STATUS(tran)			_MMIO(_TRANS2(tran, _SRD_STATUS_A))
 #define   EDP_PSR_STATUS_STATE_MASK		(7 << 29)
 #define   EDP_PSR_STATUS_STATE_SHIFT		29
 #define   EDP_PSR_STATUS_STATE_IDLE		(0 << 29)
@@ -4599,13 +4592,13 @@ enum {
 
 #define _SRD_PERF_CNT_A			0x60844
 #define _SRD_PERF_CNT_EDP		0x6f844
-#define EDP_PSR_PERF_CNT(tran)		_MMIO(_PSR_ADJ(tran, _SRD_PERF_CNT_A))
+#define EDP_PSR_PERF_CNT(tran)		_MMIO(_TRANS2(tran, _SRD_PERF_CNT_A))
 #define   EDP_PSR_PERF_CNT_MASK		0xffffff
 
 /* PSR_MASK on SKL+ */
 #define _SRD_DEBUG_A				0x60860
 #define _SRD_DEBUG_EDP				0x6f860
-#define EDP_PSR_DEBUG(tran)			_MMIO(_PSR_ADJ(tran, _SRD_DEBUG_A))
+#define EDP_PSR_DEBUG(tran)			_MMIO(_TRANS2(tran, _SRD_DEBUG_A))
 #define   EDP_PSR_DEBUG_MASK_MAX_SLEEP         (1 << 28)
 #define   EDP_PSR_DEBUG_MASK_LPSP              (1 << 27)
 #define   EDP_PSR_DEBUG_MASK_MEMUP             (1 << 26)
@@ -8176,8 +8169,9 @@ enum {
 #define  GLK_CL0_PWR_DOWN	(1 << 10)
 
 #define CHICKEN_MISC_4		_MMIO(0x4208c)
-#define   FBC_STRIDE_OVERRIDE	(1 << 13)
-#define   FBC_STRIDE_MASK	0x1FFF
+#define   CHICKEN_FBC_STRIDE_OVERRIDE	REG_BIT(13)
+#define   CHICKEN_FBC_STRIDE_MASK	REG_GENMASK(12, 0)
+#define   CHICKEN_FBC_STRIDE(x)		REG_FIELD_PREP(CHICKEN_FBC_STRIDE_MASK, (x))
 
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
@@ -9100,6 +9094,29 @@ enum {
 #define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1 << 3)
 #define  TRANS_DP_HSYNC_ACTIVE_LOW	0
 #define  TRANS_DP_SYNC_MASK	(3 << 3)
+
+#define _TRANS_DP2_CTL_A			0x600a0
+#define _TRANS_DP2_CTL_B			0x610a0
+#define _TRANS_DP2_CTL_C			0x620a0
+#define _TRANS_DP2_CTL_D			0x630a0
+#define TRANS_DP2_CTL(trans)			_MMIO_TRANS(trans, _TRANS_DP2_CTL_A, _TRANS_DP2_CTL_B)
+#define  TRANS_DP2_128B132B_CHANNEL_CODING	REG_BIT(31)
+#define  TRANS_DP2_PANEL_REPLAY_ENABLE		REG_BIT(30)
+#define  TRANS_DP2_DEBUG_ENABLE			REG_BIT(23)
+
+#define _TRANS_DP2_VFREQHIGH_A			0x600a4
+#define _TRANS_DP2_VFREQHIGH_B			0x610a4
+#define _TRANS_DP2_VFREQHIGH_C			0x620a4
+#define _TRANS_DP2_VFREQHIGH_D			0x630a4
+#define TRANS_DP2_VFREQHIGH(trans)		_MMIO_TRANS(trans, _TRANS_DP2_VFREQHIGH_A, _TRANS_DP2_VFREQHIGH_B)
+#define  TRANS_DP2_VFREQ_PIXEL_CLOCK_MASK	REG_GENMASK(31, 8)
+#define  TRANS_DP2_VFREQ_PIXEL_CLOCK(clk_hz)	REG_FIELD_PREP(TRANS_DP2_VFREQ_PIXEL_CLOCK_MASK, (clk_hz))
+
+#define _TRANS_DP2_VFREQLOW_A			0x600a8
+#define _TRANS_DP2_VFREQLOW_B			0x610a8
+#define _TRANS_DP2_VFREQLOW_C			0x620a8
+#define _TRANS_DP2_VFREQLOW_D			0x630a8
+#define TRANS_DP2_VFREQLOW(trans)		_MMIO_TRANS(trans, _TRANS_DP2_VFREQLOW_A, _TRANS_DP2_VFREQLOW_B)
 
 /* SNB eDP training params */
 /* SNB A-stepping */
@@ -11607,6 +11624,14 @@ enum skl_power_gate {
 						    _ICL_DSI_IO_MODECTL_0, \
 						    _ICL_DSI_IO_MODECTL_1)
 #define  COMBO_PHY_MODE_DSI				(1 << 0)
+
+/* TGL DSI Chicken register */
+#define _TGL_DSI_CHKN_REG_0			0x6B0C0
+#define _TGL_DSI_CHKN_REG_1			0x6B8C0
+#define TGL_DSI_CHKN_REG(port)		_MMIO_PORT(port,	\
+						    _TGL_DSI_CHKN_REG_0, \
+						    _TGL_DSI_CHKN_REG_1)
+#define TGL_DSI_CHKN_LSHS_GB			REG_GENMASK(15, 12)
 
 /* Display Stream Splitter Control */
 #define DSS_CTL1				_MMIO(0x67400)
