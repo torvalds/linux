@@ -54,6 +54,8 @@
   __bitmap_set
   blk_alloc_queue
   blk_bio_list_merge
+  blkcg_policy_register
+  blkcg_policy_unregister
   blk_cleanup_queue
   blk_execute_rq
   blk_execute_rq_nowait
@@ -1001,6 +1003,7 @@
   of_count_phandle_with_args
   of_cpufreq_cooling_register
   of_cpu_node_to_id
+  of_css
   of_devfreq_cooling_register
   of_device_get_match_data
   of_device_is_available
@@ -1711,6 +1714,8 @@
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
+  __traceiter_android_vh_blk_alloc_rqs
+  __traceiter_android_vh_blk_rq_ctx_init
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_filemap_fault_cache_page
@@ -1728,6 +1733,7 @@
   __traceiter_android_vh_mmc_blk_mq_rw_recovery
   __traceiter_android_vh_mmc_blk_reset
   __traceiter_android_vh_mmc_gpio_cd_irqt
+  __traceiter_android_vh_mm_dirty_limits
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_sdhci_get_cd
@@ -1806,6 +1812,8 @@
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_trans
   __tracepoint_android_vh_binder_wakeup_ilocked
+  __tracepoint_android_vh_blk_alloc_rqs
+  __tracepoint_android_vh_blk_rq_ctx_init
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_dup_task_struct
@@ -1825,6 +1833,7 @@
   __tracepoint_android_vh_mmc_blk_mq_rw_recovery
   __tracepoint_android_vh_mmc_blk_reset
   __tracepoint_android_vh_mmc_gpio_cd_irqt
+  __tracepoint_android_vh_mm_dirty_limits
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_sdhci_get_cd

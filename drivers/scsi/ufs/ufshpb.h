@@ -32,7 +32,7 @@
 /* hpb support chunk size */
 #define HPB_LEGACY_CHUNK_HIGH			1
 #define HPB_MULTI_CHUNK_LOW			7
-#define HPB_MULTI_CHUNK_HIGH			256
+#define HPB_MULTI_CHUNK_HIGH			255
 
 /* hpb vender defined opcode */
 #define UFSHPB_READ				0xF8
@@ -237,7 +237,9 @@ struct ufshpb_lu {
 	struct ufshpb_req *pre_req;
 	int num_inflight_pre_req;
 	int throttle_pre_req;
-	int num_inflight_map_req;
+	int num_inflight_map_req; /* hold param_lock */
+	spinlock_t param_lock;
+
 	struct list_head lh_pre_req_free;
 	int cur_read_id;
 	int pre_req_min_tr_len;

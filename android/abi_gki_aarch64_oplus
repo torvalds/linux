@@ -134,6 +134,7 @@
   cdev_device_del
   cdev_init
   __cfi_slowpath
+  cgroup_add_legacy_cftypes
   cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
@@ -1421,6 +1422,7 @@
   memblock_end_of_DRAM
   __memcat_p
   memcg_kmem_enabled_key
+  mem_cgroup_from_id
   memchr
   memchr_inv
   memcmp
@@ -1430,6 +1432,8 @@
   memdup_user
   memmove
   memory_block_size_bytes
+  memory_cgrp_subsys
+  memory_cgrp_subsys_enabled_key
   memory_read_from_buffer
   memparse
   mempool_alloc
@@ -1575,6 +1579,7 @@
   of_count_phandle_with_args
   of_cpufreq_cooling_register
   of_cpu_node_to_id
+  of_css
   of_devfreq_cooling_register
   of_device_get_match_data
   of_device_is_available
@@ -2898,6 +2903,7 @@
   trace_seq_putc
   tracing_off
   try_module_get
+  try_to_free_mem_cgroup_pages
   try_wait_for_completion
   tty_flip_buffer_push
   __tty_insert_flip_char
@@ -2991,6 +2997,7 @@
   unregister_inetaddr_notifier
   unregister_kprobe
   unregister_kretprobe
+  unregister_memory_notifier
   unregister_module_notifier
   unregister_netdev
   unregister_netdevice_many

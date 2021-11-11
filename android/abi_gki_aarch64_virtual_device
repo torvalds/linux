@@ -34,6 +34,9 @@
   bpf_trace_run4
   bpf_trace_run5
   bpf_trace_run6
+  bt_err
+  bt_info
+  bt_warn
   bus_register
   bus_unregister
   cancel_delayed_work
@@ -90,6 +93,7 @@
   device_create
   device_del
   device_initialize
+  device_init_wakeup
   device_register
   device_release_driver
   device_unregister
@@ -145,6 +149,12 @@
   get_random_bytes
   get_unused_fd_flags
   gic_nonsecure_priorities
+  hci_alloc_dev
+  __hci_cmd_sync
+  hci_free_dev
+  hci_recv_frame
+  hci_register_dev
+  hci_unregister_dev
   hwrng_register
   hwrng_unregister
   ida_alloc_range
@@ -313,6 +323,7 @@
   pm_runtime_set_autosuspend_delay
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
+  pm_wakeup_dev_event
   preempt_schedule
   preempt_schedule_notrace
   prepare_to_wait
@@ -490,6 +501,15 @@
   unregister_virtio_driver
   up_read
   up_write
+  usb_alloc_urb
+  usb_anchor_urb
+  usb_control_msg
+  usb_deregister
+  usb_free_urb
+  usb_kill_anchored_urbs
+  usb_register_driver
+  usb_submit_urb
+  usb_unanchor_urb
   __usecs_to_jiffies
   usleep_range
   vabits_actual
@@ -561,6 +581,46 @@
   sg_miter_next
   sg_miter_start
   sg_miter_stop
+
+# required by btintel.ko
+  bt_to_errno
+  hci_cmd_sync
+  request_firmware_direct
+
+# required by btusb.ko
+  bit_wait_timeout
+  btbcm_set_bdaddr
+  btbcm_setup_apple
+  btbcm_setup_patchram
+  device_wakeup_disable
+  disable_irq
+  disable_irq_nosync
+  enable_irq
+  gpiod_get_optional
+  gpiod_put
+  gpiod_set_value_cansleep
+  __hci_cmd_sync_ev
+  hci_recv_diag
+  irq_modify_status
+  irq_set_irq_wake
+  of_irq_get_byname
+  of_match_device
+  of_property_read_variable_u16_array
+  out_of_line_wait_on_bit_timeout
+  pm_system_wakeup
+  usb_autopm_get_interface
+  usb_autopm_put_interface
+  usb_bulk_msg
+  usb_driver_claim_interface
+  usb_driver_release_interface
+  usb_enable_autosuspend
+  usb_get_from_anchor
+  usb_ifnum_to_if
+  usb_match_id
+  usb_queue_reset_device
+  usb_scuttle_anchored_urbs
+  usb_set_interface
+  wake_up_bit
 
 # required by cfg80211.ko
   bpf_trace_run10
@@ -669,25 +729,10 @@
   register_candev
   unregister_candev
   usb_alloc_coherent
-  usb_alloc_urb
-  usb_anchor_urb
-  usb_control_msg
-  usb_deregister
   usb_free_coherent
-  usb_free_urb
-  usb_kill_anchored_urbs
-  usb_register_driver
-  usb_submit_urb
-  usb_unanchor_urb
 
 # required by hci_vhci.ko
-  bt_err
   _copy_from_iter_full
-  hci_alloc_dev
-  hci_free_dev
-  hci_recv_frame
-  hci_register_dev
-  hci_unregister_dev
 
 # required by ledtrig-audio.ko
   led_set_brightness_nosleep
@@ -901,7 +946,6 @@
   input_mt_sync_frame
   input_set_capability
   kstrtou8
-  pm_wakeup_dev_event
   ps2_begin_command
   ps2_cmd_aborted
   ps2_command
@@ -930,7 +974,6 @@
 
 # required by rtc-test.ko
   add_timer
-  device_init_wakeup
   devm_rtc_allocate_device
   platform_device_add
   platform_device_alloc
