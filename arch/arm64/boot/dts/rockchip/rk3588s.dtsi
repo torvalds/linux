@@ -726,34 +726,6 @@
 					 <&qos_gpu_m2>,
 					 <&qos_gpu_m3>;
 			};
-
-			/* These power domains are grouped by VD_LOGIC */
-			power-domain@RK3588_PD_VDPU {
-				reg = <RK3588_PD_VDPU>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				clocks = <&cru HCLK_VDPU_ROOT>;
-				pm_qos = <&qos_iep>,
-					 <&qos_jpeg_dec>,
-					 <&qos_jpeg_enc0>,
-					 <&qos_jpeg_enc1>,
-					 <&qos_jpeg_enc2>,
-					 <&qos_jpeg_enc3>,
-					 <&qos_rga2_mro>,
-					 <&qos_rga2_mwo>;
-
-				power-domain@RK3588_PD_AV1 {
-					reg = <RK3588_PD_AV1>;
-					clocks = <&cru PCLK_AV1_ROOT>,
-						 <&cru HCLK_VDPU_ROOT>;
-					pm_qos = <&qos_av1>;
-				};
-				power-domain@RK3588_PD_RGA30 {
-					reg = <RK3588_PD_RGA30>;
-					clocks = <&cru HCLK_VDPU_ROOT>;
-					pm_qos = <&qos_rga3_0>;
-				};
-			};
 			/* These power domains are grouped by VD_VCODEC */
 			power-domain@RK3588_PD_VCODEC {
 				reg = <RK3588_PD_VCODEC>;
@@ -791,7 +763,45 @@
 					};
 				};
 			};
+			/* These power domains are grouped by VD_LOGIC */
+			power-domain@RK3588_PD_VDPU {
+				reg = <RK3588_PD_VDPU>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&cru HCLK_VDPU_ROOT>;
+				pm_qos = <&qos_iep>,
+					 <&qos_jpeg_dec>,
+					 <&qos_jpeg_enc0>,
+					 <&qos_jpeg_enc1>,
+					 <&qos_jpeg_enc2>,
+					 <&qos_jpeg_enc3>,
+					 <&qos_rga2_mro>,
+					 <&qos_rga2_mwo>;
 
+				power-domain@RK3588_PD_AV1 {
+					reg = <RK3588_PD_AV1>;
+					clocks = <&cru PCLK_AV1_ROOT>,
+						 <&cru HCLK_VDPU_ROOT>;
+					pm_qos = <&qos_av1>;
+				};
+				power-domain@RK3588_PD_RKVDEC0 {
+					reg = <RK3588_PD_RKVDEC0>;
+					clocks = <&cru HCLK_RKVDEC0>,
+						 <&cru HCLK_VDPU_ROOT>;
+					pm_qos = <&qos_rkvdec0>;
+				};
+				power-domain@RK3588_PD_RKVDEC1 {
+					reg = <RK3588_PD_RKVDEC1>;
+					clocks = <&cru HCLK_RKVDEC1>,
+						 <&cru HCLK_VDPU_ROOT>;
+					pm_qos = <&qos_rkvdec1>;
+				};
+				power-domain@RK3588_PD_RGA30 {
+					reg = <RK3588_PD_RGA30>;
+					clocks = <&cru HCLK_VDPU_ROOT>;
+					pm_qos = <&qos_rga3_0>;
+				};
+			};
 			power-domain@RK3588_PD_VOP {
 				reg = <RK3588_PD_VOP>;
 				#address-cells = <1>;
