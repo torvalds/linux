@@ -1004,6 +1004,7 @@ int nfs_reconfigure(struct fs_context *fc)
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct super_block *sb = fc->root->d_sb;
 	struct nfs_server *nfss = sb->s_fs_info;
+	int ret;
 
 	sync_filesystem(sb);
 
@@ -1028,7 +1029,11 @@ int nfs_reconfigure(struct fs_context *fc)
 	}
 
 	/* compare new mount options with old ones */
-	return nfs_compare_remount_data(nfss, ctx);
+	ret = nfs_compare_remount_data(nfss, ctx);
+	if (ret)
+		return ret;
+
+	return nfs_probe_server(nfss, NFS_FH(d_inode(fc->root)));
 }
 EXPORT_SYMBOL_GPL(nfs_reconfigure);
 

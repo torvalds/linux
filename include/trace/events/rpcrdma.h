@@ -14,7 +14,9 @@
 #include <linux/sunrpc/rpc_rdma_cid.h>
 #include <linux/tracepoint.h>
 #include <rdma/ib_cm.h>
+
 #include <trace/events/rdma.h>
+#include <trace/events/sunrpc_base.h>
 
 /**
  ** Event classes
@@ -279,7 +281,8 @@ DECLARE_EVENT_CLASS(xprtrdma_rdch_event,
 		__entry->nsegs = nsegs;
 	),
 
-	TP_printk("task:%u@%u pos=%u %u@0x%016llx:0x%08x (%s)",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		  " pos=%u %u@0x%016llx:0x%08x (%s)",
 		__entry->task_id, __entry->client_id,
 		__entry->pos, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle,
@@ -326,7 +329,8 @@ DECLARE_EVENT_CLASS(xprtrdma_wrch_event,
 		__entry->nsegs = nsegs;
 	),
 
-	TP_printk("task:%u@%u %u@0x%016llx:0x%08x (%s)",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		  " %u@0x%016llx:0x%08x (%s)",
 		__entry->task_id, __entry->client_id,
 		__entry->length, (unsigned long long)__entry->offset,
 		__entry->handle,
@@ -375,10 +379,16 @@ DECLARE_EVENT_CLASS(xprtrdma_mr_class,
 
 	TP_fast_assign(
 		const struct rpcrdma_req *req = mr->mr_req;
-		const struct rpc_task *task = req->rl_slot.rq_task;
 
-		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client->cl_clid;
+		if (req) {
+			const struct rpc_task *task = req->rl_slot.rq_task;
+
+			__entry->task_id = task->tk_pid;
+			__entry->client_id = task->tk_client->cl_clid;
+		} else {
+			__entry->task_id = 0;
+			__entry->client_id = -1;
+		}
 		__entry->mr_id  = mr->mr_ibmr->res.id;
 		__entry->nents  = mr->mr_nents;
 		__entry->handle = mr->mr_handle;
@@ -387,7 +397,8 @@ DECLARE_EVENT_CLASS(xprtrdma_mr_class,
 		__entry->dir    = mr->mr_dir;
 	),
 
-	TP_printk("task:%u@%u mr.id=%u nents=%d %u@0x%016llx:0x%08x (%s)",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		  " mr.id=%u nents=%d %u@0x%016llx:0x%08x (%s)",
 		__entry->task_id, __entry->client_id,
 		__entry->mr_id, __entry->nents, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle,
@@ -630,15 +641,16 @@ TRACE_EVENT(xprtrdma_nomrs_err,
 		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
 
-	TP_printk("peer=[%s]:%s task:%u@%u",
-		__get_str(addr), __get_str(port),
-		__entry->task_id, __entry->client_id
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " peer=[%s]:%s",
+		__entry->task_id, __entry->client_id,
+		__get_str(addr), __get_str(port)
 	)
 );
 
 DEFINE_RDCH_EVENT(read);
 DEFINE_WRCH_EVENT(write);
 DEFINE_WRCH_EVENT(reply);
+DEFINE_WRCH_EVENT(wp);
 
 TRACE_DEFINE_ENUM(rpcrdma_noch);
 TRACE_DEFINE_ENUM(rpcrdma_noch_pullup);
@@ -693,7 +705,8 @@ TRACE_EVENT(xprtrdma_marshal,
 		__entry->wtype = wtype;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x: hdr=%u xdr=%u/%u/%u %s/%s",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		  " xid=0x%08x hdr=%u xdr=%u/%u/%u %s/%s",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__entry->hdrlen,
 		__entry->headlen, __entry->pagelen, __entry->taillen,
@@ -723,7 +736,7 @@ TRACE_EVENT(xprtrdma_marshal_failed,
 		__entry->ret = ret;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x: ret=%d",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " xid=0x%08x ret=%d",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__entry->ret
 	)
@@ -750,7 +763,7 @@ TRACE_EVENT(xprtrdma_prepsend_failed,
 		__entry->ret = ret;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x: ret=%d",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " xid=0x%08x ret=%d",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__entry->ret
 	)
@@ -785,7 +798,7 @@ TRACE_EVENT(xprtrdma_post_send,
 		__entry->signaled = req->rl_wr.send_flags & IB_SEND_SIGNALED;
 	),
 
-	TP_printk("task:%u@%u cq.id=%u cid=%d (%d SGE%s) %s",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " cq.id=%u cid=%d (%d SGE%s) %s",
 		__entry->task_id, __entry->client_id,
 		__entry->cq_id, __entry->completion_id,
 		__entry->num_sge, (__entry->num_sge == 1 ? "" : "s"),
@@ -820,7 +833,7 @@ TRACE_EVENT(xprtrdma_post_send_err,
 		__entry->rc = rc;
 	),
 
-	TP_printk("task:%u@%u cq.id=%u rc=%d",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " cq.id=%u rc=%d",
 		__entry->task_id, __entry->client_id,
 		__entry->cq_id, __entry->rc
 	)
@@ -932,7 +945,7 @@ TRACE_EVENT(xprtrdma_post_linv_err,
 		__entry->status = status;
 	),
 
-	TP_printk("task:%u@%u status=%d",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " status=%d",
 		__entry->task_id, __entry->client_id, __entry->status
 	)
 );
@@ -1120,7 +1133,7 @@ TRACE_EVENT(xprtrdma_reply,
 		__entry->credits = credits;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x credits=%u",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " xid=0x%08x credits=%u",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__entry->credits
 	)
@@ -1156,7 +1169,7 @@ TRACE_EVENT(xprtrdma_err_vers,
 		__entry->max = be32_to_cpup(max);
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x versions=[%u, %u]",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " xid=0x%08x versions=[%u, %u]",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__entry->min, __entry->max
 	)
@@ -1181,7 +1194,7 @@ TRACE_EVENT(xprtrdma_err_chunk,
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " xid=0x%08x",
 		__entry->task_id, __entry->client_id, __entry->xid
 	)
 );
@@ -1207,7 +1220,7 @@ TRACE_EVENT(xprtrdma_err_unrecognized,
 		__entry->procedure = be32_to_cpup(procedure);
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x procedure=%u",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " xid=0x%08x procedure=%u",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__entry->procedure
 	)
@@ -1239,7 +1252,7 @@ TRACE_EVENT(xprtrdma_fixup,
 		__entry->taillen = rqst->rq_rcv_buf.tail[0].iov_len;
 	),
 
-	TP_printk("task:%u@%u fixup=%lu xdr=%zu/%u/%zu",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " fixup=%lu xdr=%zu/%u/%zu",
 		__entry->task_id, __entry->client_id, __entry->fixup,
 		__entry->headlen, __entry->pagelen, __entry->taillen
 	)
@@ -1289,7 +1302,7 @@ TRACE_EVENT(xprtrdma_mrs_zap,
 		__entry->client_id = task->tk_client->cl_clid;
 	),
 
-	TP_printk("task:%u@%u",
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER,
 		__entry->task_id, __entry->client_id
 	)
 );
