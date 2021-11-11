@@ -55,11 +55,16 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 {
 	struct kvm_vm *vm;
 	uint64_t guest_num_pages;
+	uint64_t backing_src_pagesz = get_backing_src_pagesz(backing_src);
 	int i;
 
 	pr_info("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
 	perf_test_args.host_page_size = getpagesize();
+	/*
+	 * Snapshot the non-huge page size.  This is used by the guest code to
+	 * access/dirty pages at the logging granularity.
+	 */
 	perf_test_args.guest_page_size = vm_guest_mode_params[mode].page_size;
 
 	guest_num_pages = vm_adjust_num_guest_pages(mode,
@@ -92,7 +97,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 
 	guest_test_phys_mem = (vm_get_max_gfn(vm) - guest_num_pages) *
 			      perf_test_args.guest_page_size;
-	guest_test_phys_mem = align_down(guest_test_phys_mem, perf_test_args.host_page_size);
+	guest_test_phys_mem = align_down(guest_test_phys_mem, backing_src_pagesz);
 #ifdef __s390x__
 	/* Align to 1M (segment size) */
 	guest_test_phys_mem = align_down(guest_test_phys_mem, 1 << 20);
