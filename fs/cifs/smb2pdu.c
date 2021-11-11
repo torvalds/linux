@@ -3162,6 +3162,16 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	if ((plen == NULL) || (out_data == NULL))
 		goto ioctl_exit;
 
+	/*
+	 * Although unlikely to be possible for rsp to be null and rc not set,
+	 * adding check below is slightly safer long term (and quiets Coverity
+	 * warning)
+	 */
+	if (rsp == NULL) {
+		rc = -EIO;
+		goto ioctl_exit;
+	}
+
 	*plen = le32_to_cpu(rsp->OutputCount);
 
 	/* We check for obvious errors in the output buffer length and offset */
