@@ -186,7 +186,17 @@ static void vvop_crtc_atomic_enable(struct drm_crtc *crtc,
 static void vvop_crtc_atomic_disable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
+	unsigned long flags;
+
 	drm_crtc_vblank_off(crtc);
+	if (crtc->state->event && !crtc->state->active) {
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+		crtc->state->event = NULL;
+	}
+
 }
 
 static void vvop_crtc_atomic_flush(struct drm_crtc *crtc,
