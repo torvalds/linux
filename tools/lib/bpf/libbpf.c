@@ -8262,6 +8262,20 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	prog->expected_attach_type = type;
 }
 
+__u32 bpf_program__flags(const struct bpf_program *prog)
+{
+	return prog->prog_flags;
+}
+
+int bpf_program__set_extra_flags(struct bpf_program *prog, __u32 extra_flags)
+{
+	if (prog->obj->loaded)
+		return libbpf_err(-EBUSY);
+
+	prog->prog_flags |= extra_flags;
+	return 0;
+}
+
 #define SEC_DEF(sec_pfx, ptype, atype, flags, ...) {			    \
 	.sec = sec_pfx,							    \
 	.prog_type = BPF_PROG_TYPE_##ptype,				    \
