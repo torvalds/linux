@@ -300,7 +300,7 @@
 
 	gpu: gpu@fb000000 {
 		compatible = "arm,mali-bifrost";
-		reg = <0x0 0xfb000000 0x0 0x80000>;
+		reg = <0x0 0xfb000000 0x0 0x200000>;
 		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
