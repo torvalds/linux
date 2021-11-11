@@ -23,25 +23,25 @@
 		vol-up-key {
 			label = "volume up";
 			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <1750>;
+			press-threshold-microvolt = <17000>;
 		};
 
 		vol-down-key {
 			label = "volume down";
 			linux,code = <KEY_VOLUMEDOWN>;
-			press-threshold-microvolt = <297500>;
+			press-threshold-microvolt = <417000>;
 		};
 
 		menu-key {
 			label = "menu";
 			linux,code = <KEY_MENU>;
-			press-threshold-microvolt = <980000>;
+			press-threshold-microvolt = <890000>;
 		};
 
 		back-key {
 			label = "back";
 			linux,code = <KEY_BACK>;
-			press-threshold-microvolt = <1305500>;
+			press-threshold-microvolt = <1235000>;
 		};
 	};
 
