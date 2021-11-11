@@ -360,6 +360,7 @@ struct tcpm_port {
 	unsigned long delay_ms;
 
 	spinlock_t pd_event_lock;
+	struct mutex pd_handler_lock;
 	u32 pd_events;
 
 	struct kthread_work event_work;
@@ -1463,9 +1464,16 @@ static void tcpm_queue_vdm(struct tcpm_port *port, const u32 header,
 static void tcpm_queue_vdm_unlocked(struct tcpm_port *port, const u32 header,
 				    const u32 *data, int cnt)
 {
+	mutex_lock(&port->pd_handler_lock);
+	if (tcpm_port_is_disconnected(port))
+		goto unlock;
+
 	mutex_lock(&port->lock);
 	tcpm_queue_vdm(port, header, data, cnt);
 	mutex_unlock(&port->lock);
+
+unlock:
+	mutex_unlock(&port->pd_handler_lock);
 }
 
 static void svdm_consume_identity(struct tcpm_port *port, const u32 *p, int cnt)
@@ -5388,6 +5396,7 @@ static void tcpm_pd_event_handler(struct kthread_work *work)
 					      event_work);
 	u32 events;
 
+	mutex_lock(&port->pd_handler_lock);
 	mutex_lock(&port->lock);
 
 	spin_lock(&port->pd_event_lock);
@@ -5450,6 +5459,7 @@ static void tcpm_pd_event_handler(struct kthread_work *work)
 	}
 	spin_unlock(&port->pd_event_lock);
 	mutex_unlock(&port->lock);
+	mutex_unlock(&port->pd_handler_lock);
 }
 
 void tcpm_cc_change(struct tcpm_port *port)
@@ -6457,6 +6467,7 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 
 	mutex_init(&port->lock);
 	mutex_init(&port->swap_lock);
+	mutex_init(&port->pd_handler_lock);
 
 	port->wq = kthread_create_worker(0, dev_name(dev));
 	if (IS_ERR(port->wq))
