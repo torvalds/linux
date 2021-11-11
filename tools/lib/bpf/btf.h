@@ -267,15 +267,58 @@ LIBBPF_API int btf__dedup_deprecated(struct btf *btf, struct btf_ext *btf_ext, c
 struct btf_dump;
 
 struct btf_dump_opts {
-	void *ctx;
+	union {
+		size_t sz;
+		void *ctx; /* DEPRECATED: will be gone in v1.0 */
+	};
 };
 
 typedef void (*btf_dump_printf_fn_t)(void *ctx, const char *fmt, va_list args);
 
 LIBBPF_API struct btf_dump *btf_dump__new(const struct btf *btf,
-					  const struct btf_ext *btf_ext,
-					  const struct btf_dump_opts *opts,
-					  btf_dump_printf_fn_t printf_fn);
+					  btf_dump_printf_fn_t printf_fn,
+					  void *ctx,
+					  const struct btf_dump_opts *opts);
+
+LIBBPF_API struct btf_dump *btf_dump__new_v0_6_0(const struct btf *btf,
+						 btf_dump_printf_fn_t printf_fn,
+						 void *ctx,
+						 const struct btf_dump_opts *opts);
+
+LIBBPF_API struct btf_dump *btf_dump__new_deprecated(const struct btf *btf,
+						     const struct btf_ext *btf_ext,
+						     const struct btf_dump_opts *opts,
+						     btf_dump_printf_fn_t printf_fn);
+
+/* Choose either btf_dump__new() or btf_dump__new_deprecated() based on the
+ * type of 4th argument. If it's btf_dump's print callback, use deprecated
+ * API; otherwise, choose the new btf_dump__new(). ___libbpf_override()
+ * doesn't work here because both variants have 4 input arguments.
+ *
+ * (void *) casts are necessary to avoid compilation warnings about type
+ * mismatches, because even though __builtin_choose_expr() only ever evaluates
+ * one side the other side still has to satisfy type constraints (this is
+ * compiler implementation limitation which might be lifted eventually,
+ * according to the documentation). So passing struct btf_ext in place of
+ * btf_dump_printf_fn_t would be generating compilation warning.  Casting to
+ * void * avoids this issue.
+ *
+ * Also, two type compatibility checks for a function and function pointer are
+ * required because passing function reference into btf_dump__new() as
+ * btf_dump__new(..., my_callback, ...) and as btf_dump__new(...,
+ * &my_callback, ...) (not explicit ampersand in the latter case) actually
+ * differs as far as __builtin_types_compatible_p() is concerned. Thus two
+ * checks are combined to detect callback argument.
+ *
+ * The rest works just like in case of ___libbpf_override() usage with symbol
+ * versioning.
+ */
+#define btf_dump__new(a1, a2, a3, a4) __builtin_choose_expr(				\
+	__builtin_types_compatible_p(typeof(a4), btf_dump_printf_fn_t) ||		\
+	__builtin_types_compatible_p(typeof(a4), void(void *, const char *, va_list)),	\
+	btf_dump__new_deprecated((void *)a1, (void *)a2, (void *)a3, (void *)a4),	\
+	btf_dump__new((void *)a1, (void *)a2, (void *)a3, (void *)a4))
+
 LIBBPF_API void btf_dump__free(struct btf_dump *d);
 
 LIBBPF_API int btf_dump__dump_type(struct btf_dump *d, __u32 id);

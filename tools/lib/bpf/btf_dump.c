@@ -77,9 +77,8 @@ struct btf_dump_data {
 
 struct btf_dump {
 	const struct btf *btf;
-	const struct btf_ext *btf_ext;
 	btf_dump_printf_fn_t printf_fn;
-	struct btf_dump_opts opts;
+	void *cb_ctx;
 	int ptr_sz;
 	bool strip_mods;
 	bool skip_anon_defs;
@@ -138,29 +137,32 @@ static void btf_dump_printf(const struct btf_dump *d, const char *fmt, ...)
 	va_list args;
 
 	va_start(args, fmt);
-	d->printf_fn(d->opts.ctx, fmt, args);
+	d->printf_fn(d->cb_ctx, fmt, args);
 	va_end(args);
 }
 
 static int btf_dump_mark_referenced(struct btf_dump *d);
 static int btf_dump_resize(struct btf_dump *d);
 
-struct btf_dump *btf_dump__new(const struct btf *btf,
-			       const struct btf_ext *btf_ext,
-			       const struct btf_dump_opts *opts,
-			       btf_dump_printf_fn_t printf_fn)
+DEFAULT_VERSION(btf_dump__new_v0_6_0, btf_dump__new, LIBBPF_0.6.0)
+struct btf_dump *btf_dump__new_v0_6_0(const struct btf *btf,
+				      btf_dump_printf_fn_t printf_fn,
+				      void *ctx,
+				      const struct btf_dump_opts *opts)
 {
 	struct btf_dump *d;
 	int err;
+
+	if (!printf_fn)
+		return libbpf_err_ptr(-EINVAL);
 
 	d = calloc(1, sizeof(struct btf_dump));
 	if (!d)
 		return libbpf_err_ptr(-ENOMEM);
 
 	d->btf = btf;
-	d->btf_ext = btf_ext;
 	d->printf_fn = printf_fn;
-	d->opts.ctx = opts ? opts->ctx : NULL;
+	d->cb_ctx = ctx;
 	d->ptr_sz = btf__pointer_size(btf) ? : sizeof(void *);
 
 	d->type_names = hashmap__new(str_hash_fn, str_equal_fn, NULL);
@@ -184,6 +186,17 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 err:
 	btf_dump__free(d);
 	return libbpf_err_ptr(err);
+}
+
+COMPAT_VERSION(btf_dump__new_deprecated, btf_dump__new, LIBBPF_0.0.4)
+struct btf_dump *btf_dump__new_deprecated(const struct btf *btf,
+					  const struct btf_ext *btf_ext,
+					  const struct btf_dump_opts *opts,
+					  btf_dump_printf_fn_t printf_fn)
+{
+	if (!printf_fn)
+		return libbpf_err_ptr(-EINVAL);
+	return btf_dump__new_v0_6_0(btf, printf_fn, opts ? opts->ctx : NULL, opts);
 }
 
 static int btf_dump_resize(struct btf_dump *d)
