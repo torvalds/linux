@@ -24,7 +24,8 @@ static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
  */
 static void guest_code(uint32_t vcpu_id)
 {
-	struct perf_test_vcpu_args *vcpu_args = &perf_test_args.vcpu_args[vcpu_id];
+	struct perf_test_args *pta = &perf_test_args;
+	struct perf_test_vcpu_args *vcpu_args = &pta->vcpu_args[vcpu_id];
 	uint64_t gva;
 	uint64_t pages;
 	int i;
@@ -37,9 +38,9 @@ static void guest_code(uint32_t vcpu_id)
 
 	while (true) {
 		for (i = 0; i < pages; i++) {
-			uint64_t addr = gva + (i * perf_test_args.guest_page_size);
+			uint64_t addr = gva + (i * pta->guest_page_size);
 
-			if (i % perf_test_args.wr_fract == 0)
+			if (i % pta->wr_fract == 0)
 				*(uint64_t *)addr = 0x0123456789ABCDEF;
 			else
 				READ_ONCE(*(uint64_t *)addr);
@@ -53,6 +54,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 				   uint64_t vcpu_memory_bytes, int slots,
 				   enum vm_mem_backing_src_type backing_src)
 {
+	struct perf_test_args *pta = &perf_test_args;
 	struct kvm_vm *vm;
 	uint64_t guest_num_pages;
 	uint64_t backing_src_pagesz = get_backing_src_pagesz(backing_src);
@@ -60,29 +62,29 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 
 	pr_info("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
-	perf_test_args.host_page_size = getpagesize();
+	pta->host_page_size = getpagesize();
 	/*
 	 * Snapshot the non-huge page size.  This is used by the guest code to
 	 * access/dirty pages at the logging granularity.
 	 */
-	perf_test_args.guest_page_size = vm_guest_mode_params[mode].page_size;
+	pta->guest_page_size = vm_guest_mode_params[mode].page_size;
 
 	guest_num_pages = vm_adjust_num_guest_pages(mode,
-				(vcpus * vcpu_memory_bytes) / perf_test_args.guest_page_size);
+				(vcpus * vcpu_memory_bytes) / pta->guest_page_size);
 
-	TEST_ASSERT(vcpu_memory_bytes % perf_test_args.host_page_size == 0,
+	TEST_ASSERT(vcpu_memory_bytes % pta->host_page_size == 0,
 		    "Guest memory size is not host page size aligned.");
-	TEST_ASSERT(vcpu_memory_bytes % perf_test_args.guest_page_size == 0,
+	TEST_ASSERT(vcpu_memory_bytes % pta->guest_page_size == 0,
 		    "Guest memory size is not guest page size aligned.");
 	TEST_ASSERT(guest_num_pages % slots == 0,
 		    "Guest memory cannot be evenly divided into %d slots.",
 		    slots);
 
 	vm = vm_create_with_vcpus(mode, vcpus, DEFAULT_GUEST_PHY_PAGES,
-				  (vcpus * vcpu_memory_bytes) / perf_test_args.guest_page_size,
+				  (vcpus * vcpu_memory_bytes) / pta->guest_page_size,
 				  0, guest_code, NULL);
 
-	perf_test_args.vm = vm;
+	pta->vm = vm;
 
 	/*
 	 * If there should be more memory in the guest test region than there
@@ -96,7 +98,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 		    vcpu_memory_bytes);
 
 	guest_test_phys_mem = (vm_get_max_gfn(vm) - guest_num_pages) *
-			      perf_test_args.guest_page_size;
+			      pta->guest_page_size;
 	guest_test_phys_mem = align_down(guest_test_phys_mem, backing_src_pagesz);
 #ifdef __s390x__
 	/* Align to 1M (segment size) */
@@ -108,7 +110,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 	for (i = 0; i < slots; i++) {
 		uint64_t region_pages = guest_num_pages / slots;
 		vm_paddr_t region_start = guest_test_phys_mem +
-			region_pages * perf_test_args.guest_page_size * i;
+			region_pages * pta->guest_page_size * i;
 
 		vm_userspace_mem_region_add(vm, backing_src, region_start,
 					    PERF_TEST_MEM_SLOT_INDEX + i,
@@ -133,25 +135,26 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,
 			   uint64_t vcpu_memory_bytes,
 			   bool partition_vcpu_memory_access)
 {
+	struct perf_test_args *pta = &perf_test_args;
 	vm_paddr_t vcpu_gpa;
 	struct perf_test_vcpu_args *vcpu_args;
 	int vcpu_id;
 
 	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
-		vcpu_args = &perf_test_args.vcpu_args[vcpu_id];
+		vcpu_args = &pta->vcpu_args[vcpu_id];
 
 		vcpu_args->vcpu_id = vcpu_id;
 		if (partition_vcpu_memory_access) {
 			vcpu_args->gva = guest_test_virt_mem +
 					 (vcpu_id * vcpu_memory_bytes);
 			vcpu_args->pages = vcpu_memory_bytes /
-					   perf_test_args.guest_page_size;
+					   pta->guest_page_size;
 			vcpu_gpa = guest_test_phys_mem +
 				   (vcpu_id * vcpu_memory_bytes);
 		} else {
 			vcpu_args->gva = guest_test_virt_mem;
 			vcpu_args->pages = (vcpus * vcpu_memory_bytes) /
-					   perf_test_args.guest_page_size;
+					   pta->guest_page_size;
 			vcpu_gpa = guest_test_phys_mem;
 		}
 
@@ -159,6 +162,6 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,
 
 		pr_debug("Added VCPU %d with test mem gpa [%lx, %lx)\n",
 			 vcpu_id, vcpu_gpa, vcpu_gpa +
-			 (vcpu_args->pages * perf_test_args.guest_page_size));
+			 (vcpu_args->pages * pta->guest_page_size));
 	}
 }
