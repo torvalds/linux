@@ -242,6 +242,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	hal->current_band_width = bandwidth;
 	hal->current_channel = center_chan;
+	hal->prev_primary_channel = hal->current_primary_channel;
 	hal->current_primary_channel = ch_param.primary_chan;
 	hal->current_band_type = band_type;
 
@@ -881,8 +882,11 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev, u8 *addr,
 {
 	s16 cfo;
 
+	phy_ppdu->chan_idx = RTW89_GET_PHY_STS_IE01_CH_IDX(addr);
+	if (phy_ppdu->rate < RTW89_HW_RATE_OFDM6)
+		return;
 	/* sign conversion for S(12,2) */
-	cfo = sign_extend32(RTW89_GET_PHY_STS_IE0_CFO(addr), 11);
+	cfo = sign_extend32(RTW89_GET_PHY_STS_IE01_CFO(addr), 11);
 	rtw89_phy_cfo_parse(rtwdev, cfo, phy_ppdu);
 }
 
@@ -908,6 +912,7 @@ static void rtw89_core_update_phy_ppdu(struct rtw89_rx_phy_ppdu *phy_ppdu)
 	s8 *rssi = phy_ppdu->rssi;
 	u8 *buf = phy_ppdu->buf;
 
+	phy_ppdu->ie = RTW89_GET_PHY_STS_IE_MAP(buf);
 	phy_ppdu->rssi_avg = RTW89_GET_PHY_STS_RSSI_AVG(buf);
 	rssi[RF_PATH_A] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_A(buf));
 	rssi[RF_PATH_B] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_B(buf));
@@ -936,8 +941,9 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 	u16 ie_len;
 	u8 *pos, *end;
 
-	if (!phy_ppdu->to_self)
-		return 0;
+	/* mark invalid reports and bypass them */
+	if (phy_ppdu->ie < RTW89_CCK_PKT)
+		return -EINVAL;
 
 	pos = (u8 *)phy_ppdu->buf + PHY_STS_HDR_LEN;
 	end = (u8 *)phy_ppdu->buf + phy_ppdu->len;
@@ -1000,9 +1006,7 @@ static bool rtw89_core_rx_ppdu_match(struct rtw89_dev *rtwdev,
 	data_rate_mode = GET_DATA_RATE_MODE(data_rate);
 	if (data_rate_mode == DATA_RATE_MODE_NON_HT) {
 		rate_idx = GET_DATA_RATE_NOT_HT_IDX(data_rate);
-		/* No 4 CCK rates for 5G */
-		if (status->band == NL80211_BAND_5GHZ)
-			rate_idx -= 4;
+		/* rate_idx is still hardware value here */
 	} else if (data_rate_mode == DATA_RATE_MODE_HT) {
 		rate_idx = GET_DATA_RATE_HT_IDX(data_rate);
 	} else if (data_rate_mode == DATA_RATE_MODE_VHT) {
@@ -1081,6 +1085,29 @@ static void rtw89_core_rx_stats(struct rtw89_dev *rtwdev,
 	rtw89_iterate_vifs_bh(rtwdev, rtw89_vif_rx_stats_iter, &iter_data);
 }
 
+static void rtw89_correct_cck_chan(struct rtw89_dev *rtwdev,
+				   struct ieee80211_rx_status *status)
+{
+	u16 chan = rtwdev->hal.prev_primary_channel;
+	u8 band = chan <= 14 ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+
+	if (status->band != NL80211_BAND_2GHZ &&
+	    status->encoding == RX_ENC_LEGACY &&
+	    status->rate_idx < RTW89_HW_RATE_OFDM6) {
+		status->freq = ieee80211_channel_to_frequency(chan, band);
+		status->band = band;
+	}
+}
+
+static void rtw89_core_hw_to_sband_rate(struct ieee80211_rx_status *rx_status)
+{
+	if (rx_status->band == NL80211_BAND_2GHZ ||
+	    rx_status->encoding != RX_ENC_LEGACY)
+		return;
+	/* No 4 CCK rates for non-2G */
+	rx_status->rate_idx -= 4;
+}
+
 static void rtw89_core_rx_pending_skb(struct rtw89_dev *rtwdev,
 				      struct rtw89_rx_phy_ppdu *phy_ppdu,
 				      struct rtw89_rx_desc_info *desc_info,
@@ -1099,6 +1126,8 @@ static void rtw89_core_rx_pending_skb(struct rtw89_dev *rtwdev,
 		rx_status = IEEE80211_SKB_RXCB(skb_ppdu);
 		if (rtw89_core_rx_ppdu_match(rtwdev, desc_info, rx_status))
 			rtw89_chip_query_ppdu(rtwdev, phy_ppdu, rx_status);
+		rtw89_correct_cck_chan(rtwdev, rx_status);
+		rtw89_core_hw_to_sband_rate(rx_status);
 		rtw89_core_rx_stats(rtwdev, phy_ppdu, desc_info, skb_ppdu);
 		ieee80211_rx_napi(rtwdev->hw, NULL, skb_ppdu, &rtwdev->napi);
 		rtwdev->napi_budget_countdown--;
@@ -1112,6 +1141,7 @@ static void rtw89_core_rx_process_ppdu_sts(struct rtw89_dev *rtwdev,
 	struct rtw89_rx_phy_ppdu phy_ppdu = {.buf = skb->data, .valid = false,
 					     .len = skb->len,
 					     .to_self = desc_info->addr1_match,
+					     .rate = desc_info->data_rate,
 					     .mac_id = desc_info->mac_id};
 	int ret;
 
@@ -1267,12 +1297,7 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 	if (data_rate_mode == DATA_RATE_MODE_NON_HT) {
 		rx_status->encoding = RX_ENC_LEGACY;
 		rx_status->rate_idx = GET_DATA_RATE_NOT_HT_IDX(data_rate);
-		/* No 4 CCK rates for 5G */
-		if (rx_status->band == NL80211_BAND_5GHZ)
-			rx_status->rate_idx -= 4;
-		if (rtwdev->scanning)
-			rx_status->rate_idx = min_t(u8, rx_status->rate_idx,
-						    ARRAY_SIZE(rtw89_bitrates) - 5);
+		/* convert rate_idx after we get the correct band */
 	} else if (data_rate_mode == DATA_RATE_MODE_HT) {
 		rx_status->encoding = RX_ENC_HT;
 		rx_status->rate_idx = GET_DATA_RATE_HT_IDX(data_rate);
@@ -1324,10 +1349,13 @@ static void rtw89_core_flush_ppdu_rx_queue(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_ppdu_sts_info *ppdu_sts = &rtwdev->ppdu_sts;
 	u8 band = desc_info->bb_sel ? RTW89_PHY_1 : RTW89_PHY_0;
+	struct ieee80211_rx_status *rx_status;
 	struct sk_buff *skb_ppdu, *tmp;
 
 	skb_queue_walk_safe(&ppdu_sts->rx_queue[band], skb_ppdu, tmp) {
 		skb_unlink(skb_ppdu, &ppdu_sts->rx_queue[band]);
+		rx_status = IEEE80211_SKB_RXCB(skb_ppdu);
+		rtw89_core_hw_to_sband_rate(rx_status);
 		rtw89_core_rx_stats(rtwdev, NULL, desc_info, skb_ppdu);
 		ieee80211_rx_napi(rtwdev->hw, NULL, skb_ppdu, &rtwdev->napi);
 		rtwdev->napi_budget_countdown--;
@@ -1360,6 +1388,7 @@ void rtw89_core_rx(struct rtw89_dev *rtwdev,
 	    BIT(desc_info->frame_type) & PPDU_FILTER_BITMAP) {
 		skb_queue_tail(&ppdu_sts->rx_queue[band], skb);
 	} else {
+		rtw89_core_hw_to_sband_rate(rx_status);
 		rtw89_core_rx_stats(rtwdev, NULL, desc_info, skb);
 		ieee80211_rx_napi(rtwdev->hw, NULL, skb, &rtwdev->napi);
 		rtwdev->napi_budget_countdown--;

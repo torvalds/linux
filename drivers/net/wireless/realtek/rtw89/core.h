@@ -473,6 +473,9 @@ struct rtw89_rx_phy_ppdu {
 	u8 rssi_avg;
 	s8 rssi[RF_PATH_MAX];
 	u8 mac_id;
+	u8 chan_idx;
+	u8 ie;
+	u16 rate;
 	bool to_self;
 	bool valid;
 };
@@ -2355,6 +2358,7 @@ struct rtw89_hal {
 	u32 rx_fltr;
 	u8 cv;
 	u8 current_channel;
+	u8 prev_primary_channel;
 	u8 current_primary_channel;
 	enum rtw89_subband current_subband;
 	u8 current_band_width;
