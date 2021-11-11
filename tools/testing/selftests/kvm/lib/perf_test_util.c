@@ -92,10 +92,10 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 
 	guest_test_phys_mem = (vm_get_max_gfn(vm) - guest_num_pages) *
 			      perf_test_args.guest_page_size;
-	guest_test_phys_mem &= ~(perf_test_args.host_page_size - 1);
+	guest_test_phys_mem = align_down(guest_test_phys_mem, perf_test_args.host_page_size);
 #ifdef __s390x__
 	/* Align to 1M (segment size) */
-	guest_test_phys_mem &= ~((1 << 20) - 1);
+	guest_test_phys_mem = align_down(guest_test_phys_mem, 1 << 20);
 #endif
 	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
