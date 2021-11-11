@@ -522,14 +522,8 @@ static void vmw_ttm_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 	struct vmw_ttm_tt *vmw_be =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm);
 
-	vmw_ttm_unbind(bdev, ttm);
-	ttm_tt_destroy_common(bdev, ttm);
 	vmw_ttm_unmap_dma(vmw_be);
-	if (vmw_be->dev_priv->map_mode == vmw_dma_alloc_coherent)
-		ttm_tt_fini(&vmw_be->dma_ttm);
-	else
-		ttm_tt_fini(ttm);
-
+	ttm_tt_fini(ttm);
 	if (vmw_be->mob)
 		vmw_mob_destroy(vmw_be->mob);
 
@@ -573,6 +567,8 @@ static void vmw_ttm_unpopulate(struct ttm_device *bdev,
 	struct vmw_ttm_tt *vmw_tt = container_of(ttm, struct vmw_ttm_tt,
 						 dma_ttm);
 	unsigned int i;
+
+	vmw_ttm_unbind(bdev, ttm);
 
 	if (vmw_tt->mob) {
 		vmw_mob_destroy(vmw_tt->mob);

@@ -64,17 +64,6 @@ MODULE_PARM_DESC(edid_firmware,
 
 static int __init drm_kms_helper_init(void)
 {
-	/*
-	 * The Kconfig DRM_KMS_HELPER selects FRAMEBUFFER_CONSOLE (if !EXPERT)
-	 * but the module doesn't depend on any fb console symbols.  At least
-	 * attempt to load fbcon to avoid leaving the system without a usable
-	 * console.
-	 */
-	if (IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION) &&
-	    IS_MODULE(CONFIG_FRAMEBUFFER_CONSOLE) &&
-	    !IS_ENABLED(CONFIG_EXPERT))
-		request_module_nowait("fbcon");
-
 	return drm_dp_aux_dev_init();
 }
 
