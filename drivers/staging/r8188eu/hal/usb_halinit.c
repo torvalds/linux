@@ -1028,8 +1028,8 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 
 	/* check system boot selection */
 	eeValue = rtw_read8(Adapter, REG_9346CR);
-	eeprom->EepromOrEfuse		= (eeValue & BOOT_FROM_EEPROM) ? true : false;
-	eeprom->bautoload_fail_flag	= (eeValue & EEPROM_EN) ? false : true;
+	eeprom->EepromOrEfuse		= (eeValue & BOOT_FROM_EEPROM);
+	eeprom->bautoload_fail_flag	= !(eeValue & EEPROM_EN);
 
 	DBG_88E("Boot from %s, Autoload %s !\n", (eeprom->EepromOrEfuse ? "EEPROM" : "EFUSE"),
 		(eeprom->bautoload_fail_flag ? "Fail" : "OK"));
