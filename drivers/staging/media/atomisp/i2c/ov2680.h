@@ -141,7 +141,6 @@ struct regval_list {
 };
 
 struct ov2680_resolution {
-	u8 *desc;
 	const struct ov2680_reg *regs;
 	int res;
 	int width;
@@ -154,7 +153,6 @@ struct ov2680_resolution {
 	u8 bin_factor_x;
 	u8 bin_factor_y;
 	u8 bin_mode;
-	bool used;
 };
 
 struct ov2680_format {
@@ -757,12 +755,10 @@ static struct ov2680_reg const ov2680_1616x1216_30fps[] = {
 
 static struct ov2680_resolution ov2680_res_preview[] = {
 	{
-		.desc = "ov2680_1616x1216_30fps",
 		.width = 1616,
 		.height = 1216,
 		.pix_clk_freq = 66,
 		.fps = 30,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -772,12 +768,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_1616x1216_30fps,
 	},
 	{
-		.desc = "ov2680_1616x1082_30fps",
 		.width = 1616,
 		.height = 1082,
 		.pix_clk_freq = 66,
 		.fps = 30,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -787,12 +781,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_1616x1082_30fps,
 	},
 	{
-		.desc = "ov2680_1616x916_30fps",
 		.width = 1616,
 		.height = 916,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -802,12 +794,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_1616x916_30fps,
 	},
 	{
-		.desc = "ov2680_1456x1096_30fps",
 		.width = 1456,
 		.height = 1096,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -817,12 +807,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_1456x1096_30fps,
 	},
 	{
-		.desc = "ov2680_1296x976_30fps",
 		.width = 1296,
 		.height = 976,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -832,12 +820,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_1296x976_30fps,
 	},
 	{
-		.desc = "ov2680_720p_30fps",
 		.width = 1280,
 		.height = 720,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -847,12 +833,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_720p_30fps,
 	},
 	{
-		.desc = "ov2680_800x600_30fps",
 		.width = 800,
 		.height = 600,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -862,12 +846,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_800x600_30fps,
 	},
 	{
-		.desc = "ov2680_720x592_30fps",
 		.width = 720,
 		.height = 592,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -877,12 +859,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_720x592_30fps,
 	},
 	{
-		.desc = "ov2680_656x496_30fps",
 		.width = 656,
 		.height = 496,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -892,12 +872,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_656x496_30fps,
 	},
 	{
-		.desc = "ov2680_QVGA_30fps",
 		.width = 336,
 		.height = 256,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -907,12 +885,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_QVGA_30fps,
 	},
 	{
-		.desc = "ov2680_CIF_30fps",
 		.width = 352,
 		.height = 288,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
@@ -922,12 +898,10 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 		.regs = ov2680_CIF_30fps,
 	},
 	{
-		.desc = "ov2680_QCIF_30fps",
 		.width = 176,
 		.height = 144,
 		.fps = 30,
 		.pix_clk_freq = 66,
-		.used = 0,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
 		.bin_factor_x = 0,
