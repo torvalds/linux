@@ -765,6 +765,9 @@ struct fuse_conn {
 	/* Propagate syncfs() to server */
 	unsigned int sync_fs:1;
 
+	/* Initialize security xattrs when creating a new inode */
+	unsigned int init_security:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
