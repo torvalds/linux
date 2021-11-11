@@ -889,7 +889,7 @@ unlock:
 static int it66121_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	u32 vendor_ids[2], device_ids[2], revision_id;
+	u32 revision_id, vendor_ids[2] = { 0 }, device_ids[2] = { 0 };
 	struct device_node *ep;
 	int ret;
 	struct it66121_ctx *ctx;
@@ -923,6 +923,9 @@ static int it66121_probe(struct i2c_client *client,
 
 	ctx->next_bridge = of_drm_find_bridge(ep);
 	of_node_put(ep);
+
+	if (!ctx->next_bridge)
+		return -EPROBE_DEFER;
 
 	i2c_set_clientdata(client, ctx);
 	mutex_init(&ctx->lock);
