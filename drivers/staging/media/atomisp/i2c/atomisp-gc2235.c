@@ -570,14 +570,16 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 {
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
-	int ret = -1;
+	int ret;
 
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	ret |= dev->platform_data->gpio1_ctrl(sd, !flag);
+	ret = dev->platform_data->gpio1_ctrl(sd, !flag);
 	usleep_range(60, 90);
-	return dev->platform_data->gpio0_ctrl(sd, flag);
+	ret |= dev->platform_data->gpio0_ctrl(sd, flag);
+
+	return ret;
 }
 
 static int power_up(struct v4l2_subdev *sd)
