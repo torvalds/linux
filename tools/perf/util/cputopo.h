@@ -7,7 +7,8 @@
 struct cpu_topology {
 	/* The number of unique package_cpus_lists below. */
 	u32	  package_cpus_lists;
-	u32	  die_sib;
+	/* The number of unique die_cpu_lists below. */
+	u32	  die_cpus_lists;
 	u32	  thread_sib;
 	/*
 	 * An array of strings where each string is unique and read from
@@ -16,7 +17,13 @@ struct cpu_topology {
 	 * physical_package_id. The format is like 0-3, 8-11, 14,17.
 	 */
 	const char **package_cpus_list;
-	char	**die_siblings;
+	/*
+	 * An array of string where each string is unique and from
+	 * /sys/devices/system/cpu/cpuX/topology/die_cpus_list. From the ABI
+	 * each of these is a human-readable list of CPUs within the same die.
+	 * The format is like 0-3, 8-11, 14,17.
+	 */
+	const char **die_cpus_list;
 	char	**thread_siblings;
 };
 

@@ -18,7 +18,7 @@
 	"%s/devices/system/cpu/cpu%d/topology/package_cpus_list"
 #define PACKAGE_CPUS_FMT_OLD \
 	"%s/devices/system/cpu/cpu%d/topology/core_siblings_list"
-#define DIE_SIB_FMT \
+#define DIE_CPUS_FMT \
 	"%s/devices/system/cpu/cpu%d/topology/die_cpus_list"
 #define THRD_SIB_FMT \
 	"%s/devices/system/cpu/cpu%d/topology/thread_siblings_list"
@@ -73,10 +73,10 @@ static int build_cpu_topology(struct cpu_topology *tp, int cpu)
 	ret = 0;
 
 try_dies:
-	if (!tp->die_siblings)
+	if (!tp->die_cpus_list)
 		goto try_threads;
 
-	scnprintf(filename, MAXPATHLEN, DIE_SIB_FMT,
+	scnprintf(filename, MAXPATHLEN, DIE_CPUS_FMT,
 		  sysfs__mountpoint(), cpu);
 	fp = fopen(filename, "r");
 	if (!fp)
@@ -91,13 +91,13 @@ try_dies:
 	if (p)
 		*p = '\0';
 
-	for (i = 0; i < tp->die_sib; i++) {
-		if (!strcmp(buf, tp->die_siblings[i]))
+	for (i = 0; i < tp->die_cpus_lists; i++) {
+		if (!strcmp(buf, tp->die_cpus_list[i]))
 			break;
 	}
-	if (i == tp->die_sib) {
-		tp->die_siblings[i] = buf;
-		tp->die_sib++;
+	if (i == tp->die_cpus_lists) {
+		tp->die_cpus_list[i] = buf;
+		tp->die_cpus_lists++;
 		buf = NULL;
 		len = 0;
 	}
@@ -148,10 +148,8 @@ void cpu_topology__delete(struct cpu_topology *tp)
 	for (i = 0 ; i < tp->package_cpus_lists; i++)
 		zfree(&tp->package_cpus_list[i]);
 
-	if (tp->die_sib) {
-		for (i = 0 ; i < tp->die_sib; i++)
-			zfree(&tp->die_siblings[i]);
-	}
+	for (i = 0 ; i < tp->die_cpus_lists; i++)
+		zfree(&tp->die_cpus_list[i]);
 
 	for (i = 0 ; i < tp->thread_sib; i++)
 		zfree(&tp->thread_siblings[i]);
@@ -170,7 +168,7 @@ static bool has_die_topology(void)
 	if (strncmp(uts.machine, "x86_64", 6))
 		return false;
 
-	scnprintf(filename, MAXPATHLEN, DIE_SIB_FMT,
+	scnprintf(filename, MAXPATHLEN, DIE_CPUS_FMT,
 		  sysfs__mountpoint(), 0);
 	if (access(filename, F_OK) == -1)
 		return false;
@@ -214,7 +212,7 @@ struct cpu_topology *cpu_topology__new(void)
 	tp->package_cpus_list = addr;
 	addr += sz;
 	if (has_die) {
-		tp->die_siblings = addr;
+		tp->die_cpus_list = addr;
 		addr += sz;
 	}
 	tp->thread_siblings = addr;
