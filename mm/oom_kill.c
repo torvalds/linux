@@ -1150,21 +1150,14 @@ SYSCALL_DEFINE2(process_mrelease, int, pidfd, unsigned int, flags)
 	struct task_struct *p;
 	unsigned int f_flags;
 	bool reap = false;
-	struct pid *pid;
 	long ret = 0;
 
 	if (flags)
 		return -EINVAL;
 
-	pid = pidfd_get_pid(pidfd, &f_flags);
-	if (IS_ERR(pid))
-		return PTR_ERR(pid);
-
-	task = get_pid_task(pid, PIDTYPE_TGID);
-	if (!task) {
-		ret = -ESRCH;
-		goto put_pid;
-	}
+	task = pidfd_get_task(pidfd, &f_flags);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
 
 	/*
 	 * Make sure to choose a thread which still has a reference to mm
@@ -1204,8 +1197,6 @@ drop_mm:
 		mmput(mm);
 put_task:
 	put_task_struct(task);
-put_pid:
-	put_pid(pid);
 	return ret;
 #else
 	return -ENOSYS;
