@@ -857,6 +857,9 @@ static int rockchip_i2s_io_multiplex(struct snd_pcm_substream *substream,
 	if (!i2s_tdm->io_multiplex)
 		return 0;
 
+	if (IS_ERR(i2s_tdm->grf))
+		return 0;
+
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		struct snd_pcm_str *playback_str =
 			&substream->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK];
@@ -1376,6 +1379,9 @@ static int common_soc_init(struct device *dev, u32 addr)
 	u32 reg = 0, val = 0, trcm = i2s_tdm->clk_trcm;
 	int i;
 
+	if (IS_ERR(i2s_tdm->grf))
+		return 0;
+
 	switch (trcm) {
 	case I2S_CKR_TRCM_TXONLY:
 		/* fall through */
@@ -1724,8 +1730,6 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		soc_dai->playback.channels_min = 0;
 
 	i2s_tdm->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
-	if (IS_ERR(i2s_tdm->grf))
-		return PTR_ERR(i2s_tdm->grf);
 
 	sync = of_device_is_compatible(node, "rockchip,px30-i2s-tdm") ||
 	       of_device_is_compatible(node, "rockchip,rk1808-i2s-tdm") ||
