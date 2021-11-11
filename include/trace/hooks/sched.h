@@ -354,6 +354,10 @@ DECLARE_HOOK(android_vh_prepare_update_load_avg_se,
 	TP_PROTO(struct sched_entity *se, int flags),
 	TP_ARGS(se, flags));
 
+DECLARE_HOOK(android_vh_sched_stat_runtime_rt,
+	TP_PROTO(struct task_struct *tsk, u64 delta),
+	TP_ARGS(tsk, delta));
+
 DECLARE_HOOK(android_vh_finish_update_load_avg_se,
 	TP_PROTO(struct sched_entity *se, int flags),
 	TP_ARGS(se, flags));

@@ -24,6 +24,8 @@
 
 #include <trace/hooks/sched.h>
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_runtime);
+
 /*
  * Targeted preemption latency for CPU-bound tasks:
  *
