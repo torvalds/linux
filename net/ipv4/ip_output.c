@@ -672,7 +672,6 @@ struct sk_buff *ip_frag_next(struct sk_buff *skb, struct ip_frag_state *state)
 	struct sk_buff *skb2;
 	struct iphdr *iph;
 
-	len = state->left;
 	/* IF: it doesn't fit, use 'mtu' - the data space left */
 	if (len > state->mtu)
 		len = state->mtu;
