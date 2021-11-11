@@ -931,6 +931,10 @@ static const struct vop2_video_port_regs rk3588_vop_vp0_regs = {
 	.edpi_te_en = VOP_REG(RK3568_VP0_DUAL_CHANNEL_CTRL, 0x1, 28),
 	.edpi_wms_hold_en = VOP_REG(RK3568_VP0_DUAL_CHANNEL_CTRL, 0x1, 30),
 	.edpi_wms_fs = VOP_REG(RK3568_VP0_DUAL_CHANNEL_CTRL, 0x1, 31),
+
+	.cubic_lut_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 0),
+	.cubic_lut_update_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 2),
+	.cubic_lut_mst = VOP_REG(RK3568_VP0_3D_LUT_MST, 0xffffffff, 0),
 };
 
 /*
@@ -1017,6 +1021,10 @@ static const struct vop2_video_port_regs rk3588_vop_vp1_regs = {
 	.edpi_te_en = VOP_REG(RK3568_VP1_DUAL_CHANNEL_CTRL, 0x1, 28),
 	.edpi_wms_hold_en = VOP_REG(RK3568_VP1_DUAL_CHANNEL_CTRL, 0x1, 30),
 	.edpi_wms_fs = VOP_REG(RK3568_VP1_DUAL_CHANNEL_CTRL, 0x1, 31),
+
+	.cubic_lut_en = VOP_REG(RK3588_VP1_3D_LUT_CTRL, 0x1, 0),
+	.cubic_lut_update_en = VOP_REG(RK3588_VP1_3D_LUT_CTRL, 0x1, 2),
+	.cubic_lut_mst = VOP_REG(RK3588_VP1_3D_LUT_MST, 0xffffffff, 0),
 };
 
 static const struct vop2_video_port_regs rk3588_vop_vp2_regs = {
@@ -1069,6 +1077,10 @@ static const struct vop2_video_port_regs rk3588_vop_vp2_regs = {
 	.edpi_te_en = VOP_REG(RK3568_VP2_DUAL_CHANNEL_CTRL, 0x1, 28),
 	.edpi_wms_hold_en = VOP_REG(RK3568_VP2_DUAL_CHANNEL_CTRL, 0x1, 30),
 	.edpi_wms_fs = VOP_REG(RK3568_VP2_DUAL_CHANNEL_CTRL, 0x1, 31),
+
+	.cubic_lut_en = VOP_REG(RK3588_VP2_3D_LUT_CTRL, 0x1, 0),
+	.cubic_lut_update_en = VOP_REG(RK3588_VP2_3D_LUT_CTRL, 0x1, 2),
+	.cubic_lut_mst = VOP_REG(RK3588_VP2_3D_LUT_MST, 0xffffffff, 0),
 };
 
 static const struct vop2_video_port_regs rk3588_vop_vp3_regs = {
@@ -1145,6 +1157,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	 .soc_id = { 0x3588, 0x3588 },
 	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_HDR10,
 	 .gamma_lut_len = 1024,
+	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .dclk_max = 600000000,
 	 .max_output = { 4096, 2304 },
 	 .pre_scan_max_dly = { 76, 65, 53, 54 },
@@ -1158,6 +1171,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	 .soc_id = { 0x3588, 0x3588 },
 	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	 .gamma_lut_len = 1024,
+	 .cubic_lut_len = 4913, /* 17x17x17 */
 	 .dclk_max = 600000000,
 	 .max_output = { 4096, 2304 },
 	 .pre_scan_max_dly = { 52, 52, 52, 52 },
