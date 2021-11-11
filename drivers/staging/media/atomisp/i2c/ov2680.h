@@ -822,7 +822,7 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.width = 1280,
 		.height = 720,
-		.fps = 30,
+		.fps = 60,
 		.pix_clk_freq = 66,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
@@ -835,7 +835,7 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.width = 800,
 		.height = 600,
-		.fps = 30,
+		.fps = 60,
 		.pix_clk_freq = 66,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
@@ -848,7 +848,7 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.width = 720,
 		.height = 592,
-		.fps = 30,
+		.fps = 60,
 		.pix_clk_freq = 66,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
@@ -861,7 +861,7 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.width = 656,
 		.height = 496,
-		.fps = 30,
+		.fps = 60,
 		.pix_clk_freq = 66,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
@@ -874,7 +874,7 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.width = 336,
 		.height = 256,
-		.fps = 30,
+		.fps = 60,
 		.pix_clk_freq = 66,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
@@ -887,7 +887,7 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.width = 352,
 		.height = 288,
-		.fps = 30,
+		.fps = 60,
 		.pix_clk_freq = 66,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
@@ -900,7 +900,7 @@ static struct ov2680_resolution ov2680_res_preview[] = {
 	{
 		.width = 176,
 		.height = 144,
-		.fps = 30,
+		.fps = 60,
 		.pix_clk_freq = 66,
 		.pixels_per_line = 1698,//1704,
 		.lines_per_frame = 1294,
