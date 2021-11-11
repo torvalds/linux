@@ -374,23 +374,9 @@ enum amdgpu_display_gap
     AMDGPU_PM_DISPLAY_GAP_IGNORE       = 3,
 };
 
-void amdgpu_dpm_print_class_info(u32 class, u32 class2);
-void amdgpu_dpm_print_cap_info(u32 caps);
-void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
-				struct amdgpu_ps *rps);
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev);
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
-
-int amdgpu_get_platform_caps(struct amdgpu_device *adev);
-
-int amdgpu_parse_extended_power_table(struct amdgpu_device *adev);
-void amdgpu_free_extended_power_table(struct amdgpu_device *adev);
-
-void amdgpu_add_thermal_controller(struct amdgpu_device *adev);
-
-struct amd_vce_state*
-amdgpu_get_vce_clock_state(void *handle, u32 idx);
 
 int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 				      uint32_t block_type, bool gate);
@@ -442,11 +428,10 @@ int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors senso
 
 void amdgpu_dpm_thermal_work_handler(struct work_struct *work);
 
-void amdgpu_pm_compute_clocks(struct amdgpu_device *adev);
+void amdgpu_dpm_compute_clocks(struct amdgpu_device *adev);
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_jpeg(struct amdgpu_device *adev, bool enable);
-void amdgpu_pm_print_power_states(struct amdgpu_device *adev);
 int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_version);
 int amdgpu_dpm_handle_passthrough_sbr(struct amdgpu_device *adev, bool enable);
 int amdgpu_dpm_send_hbm_bad_pages_num(struct amdgpu_device *adev, uint32_t size);

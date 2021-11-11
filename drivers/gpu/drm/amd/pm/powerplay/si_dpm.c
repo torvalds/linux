@@ -37,6 +37,7 @@
 #include <linux/math64.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
+#include <legacy_dpm.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -7800,7 +7801,7 @@ static int si_dpm_hw_init(void *handle)
 	else
 		adev->pm.dpm_enabled = true;
 	mutex_unlock(&adev->pm.mutex);
-	amdgpu_pm_compute_clocks(adev);
+	amdgpu_dpm_compute_clocks(adev);
 	return ret;
 }
 
@@ -7848,7 +7849,7 @@ static int si_dpm_resume(void *handle)
 			adev->pm.dpm_enabled = true;
 		mutex_unlock(&adev->pm.mutex);
 		if (adev->pm.dpm_enabled)
-			amdgpu_pm_compute_clocks(adev);
+			amdgpu_dpm_compute_clocks(adev);
 	}
 	return 0;
 }
@@ -8101,6 +8102,7 @@ static const struct amd_pm_funcs si_dpm_funcs = {
 	.check_state_equal = &si_check_state_equal,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 	.read_sensor = &si_dpm_read_sensor,
+	.change_power_state = amdgpu_dpm_change_power_state_locked,
 };
 
 static const struct amdgpu_irq_src_funcs si_dpm_irq_funcs = {

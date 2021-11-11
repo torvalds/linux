@@ -404,6 +404,7 @@ struct amd_pm_funcs {
 	int (*get_dpm_clock_table)(void *handle,
 				   struct dpm_clocks *clock_table);
 	int (*get_smu_prv_buf_details)(void *handle, void **addr, size_t *size);
+	int (*change_power_state)(void *handle);
 };
 
 struct metrics_table_header {

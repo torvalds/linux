@@ -101,7 +101,7 @@ bool dm_pp_apply_display_requirements(
 
 		amdgpu_dpm_display_configuration_change(adev, &adev->pm.pm_display_cfg);
 
-		amdgpu_pm_compute_clocks(adev);
+		amdgpu_dpm_compute_clocks(adev);
 	}
 
 	return true;
