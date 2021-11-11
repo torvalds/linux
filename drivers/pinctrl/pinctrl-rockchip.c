@@ -2304,7 +2304,7 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		bank->bank_num, pin_num, strength);
 
 	ctrl->drv_calc_reg(bank, pin_num, &regmap, &reg, &bit);
-	if (ctrl->type == RV1126) {
+	if (ctrl->type == RV1126 || ctrl->type == RK3588) {
 		rmask_bits = RV1126_DRV_BITS_PER_PIN;
 		ret = strength;
 		goto config;
