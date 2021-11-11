@@ -1018,12 +1018,13 @@ readAdapterInfo_8188EU(
 	_ReadLEDSetting(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 }
 
-static void _ReadPROMContent(
-	struct adapter *Adapter
-	)
+void ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
 	struct eeprom_priv *eeprom = &Adapter->eeprompriv;
 	u8 eeValue;
+
+	/*  Read EEPROM size before call any EEPROM function */
+	Adapter->EepromAddressSize = GetEEPROMSize8188E(Adapter);
 
 	/* check system boot selection */
 	eeValue = rtw_read8(Adapter, REG_9346CR);
@@ -1035,21 +1036,6 @@ static void _ReadPROMContent(
 
 	Hal_InitPGData88E(Adapter);
 	readAdapterInfo_8188EU(Adapter);
-}
-
-static int _ReadAdapterInfo8188EU(struct adapter *Adapter)
-{
-	_ReadPROMContent(Adapter);
-
-	return _SUCCESS;
-}
-
-void ReadAdapterInfo8188EU(struct adapter *Adapter)
-{
-	/*  Read EEPROM size before call any EEPROM function */
-	Adapter->EepromAddressSize = GetEEPROMSize8188E(Adapter);
-
-	_ReadAdapterInfo8188EU(Adapter);
 }
 
 static void ResumeTxBeacon(struct adapter *adapt)
