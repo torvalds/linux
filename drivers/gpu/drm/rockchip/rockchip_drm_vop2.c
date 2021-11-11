@@ -2742,7 +2742,9 @@ static void vop2_crtc_load_lut(struct drm_crtc *crtc)
 			vp_enable_gamma_nr++;
 	}
 
-	if (vop2->data->nr_gammas && vp_enable_gamma_nr >= vop2->data->nr_gammas) {
+	if (vop2->data->nr_gammas &&
+	    vp_enable_gamma_nr >= vop2->data->nr_gammas &&
+	    vp->gamma_lut_active == false) {
 		DRM_INFO("only support %d gamma\n", vop2->data->nr_gammas);
 		return;
 	}
@@ -2755,13 +2757,14 @@ static void vop2_crtc_load_lut(struct drm_crtc *crtc)
 #define CTRL_GET(name) VOP_MODULE_GET(vop2, vp, name)
 	readx_poll_timeout(CTRL_GET, dsp_lut_en, dle, !dle, 5, 33333);
 
+	VOP_CTRL_SET(vop2, gamma_port_sel, vp->id);
 	for (i = 0; i < vp->gamma_lut_len; i++)
 		vop2_write_lut(vop2, i << 2, vp->lut[i]);
 
 	spin_lock(&vop2->reg_lock);
 
 	VOP_MODULE_SET(vop2, vp, dsp_lut_en, 1);
-	VOP_CTRL_SET(vop2, gamma_port_sel, vp->id);
+	VOP_MODULE_SET(vop2, vp, gamma_update_en, 1);
 	vop2_cfg_done(crtc);
 	vp->gamma_lut_active = true;
 
@@ -5892,7 +5895,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_GRF_SET(vop2, grf, grf_hdmi0_en, 1);
 		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi0_pin_pol, val);
 
-		VOP_CTRL_SET(vop2, hdmi0_en, 1);
 		VOP_CTRL_SET(vop2, hdmi0_en, 1);
 		VOP_CTRL_SET(vop2, hdmi0_mux, vp_data->id);
 		VOP_CTRL_SET(vop2, hdmi_pin_pol, val);
