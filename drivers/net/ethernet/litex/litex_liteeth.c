@@ -242,10 +242,8 @@ static int liteeth_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 	netdev->irq = irq;
 
 	priv->base = devm_platform_ioremap_resource_byname(pdev, "mac");
@@ -289,7 +287,6 @@ static int liteeth_remove(struct platform_device *pdev)
 	struct net_device *netdev = platform_get_drvdata(pdev);
 
 	unregister_netdev(netdev);
-	free_netdev(netdev);
 
 	return 0;
 }

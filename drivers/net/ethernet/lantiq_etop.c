@@ -262,7 +262,7 @@ ltq_etop_hw_init(struct net_device *dev)
 	/* enable crc generation */
 	ltq_etop_w32(PPE32_CGEN, LQ_PPE32_ENET_MAC_CFG);
 
-	ltq_dma_init_port(DMA_PORT_ETOP, priv->tx_burst_len, rx_burst_len);
+	ltq_dma_init_port(DMA_PORT_ETOP, priv->tx_burst_len, priv->rx_burst_len);
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		int irq = LTQ_DMA_CH0_INT + i;

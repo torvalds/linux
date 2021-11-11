@@ -66,7 +66,7 @@ struct devlink {
 	u8 reload_failed:1;
 	refcount_t refcount;
 	struct completion comp;
-	char priv[0] __aligned(NETDEV_ALIGN);
+	char priv[] __aligned(NETDEV_ALIGN);
 };
 
 void *devlink_priv(struct devlink *devlink)

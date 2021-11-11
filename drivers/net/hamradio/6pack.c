@@ -672,11 +672,13 @@ static void sixpack_close(struct tty_struct *tty)
 	del_timer_sync(&sp->tx_t);
 	del_timer_sync(&sp->resync_t);
 
-	/* Free all 6pack frame buffers. */
+	unregister_netdev(sp->dev);
+
+	/* Free all 6pack frame buffers after unreg. */
 	kfree(sp->rbuff);
 	kfree(sp->xbuff);
 
-	unregister_netdev(sp->dev);
+	free_netdev(sp->dev);
 }
 
 /* Perform I/O control on an active 6pack channel. */

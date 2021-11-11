@@ -1263,7 +1263,6 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 
 		inet_sk(newsk)->pinet6 = tcp_inet6_sk(newsk);
 
-		newinet = inet_sk(newsk);
 		newnp = tcp_inet6_sk(newsk);
 		newtp = tcp_sk(newsk);
 

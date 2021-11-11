@@ -5339,10 +5339,10 @@ static void selinux_sock_graft(struct sock *sk, struct socket *parent)
  * connect(2), sctp_connectx(3) or sctp_sendmsg(3) (with no association
  * already present).
  */
-static int selinux_sctp_assoc_request(struct sctp_endpoint *ep,
+static int selinux_sctp_assoc_request(struct sctp_association *asoc,
 				      struct sk_buff *skb)
 {
-	struct sk_security_struct *sksec = ep->base.sk->sk_security;
+	struct sk_security_struct *sksec = asoc->base.sk->sk_security;
 	struct common_audit_data ad;
 	struct lsm_network_audit net = {0,};
 	u8 peerlbl_active;
@@ -5359,7 +5359,7 @@ static int selinux_sctp_assoc_request(struct sctp_endpoint *ep,
 		/* This will return peer_sid = SECSID_NULL if there are
 		 * no peer labels, see security_net_peersid_resolve().
 		 */
-		err = selinux_skb_peerlbl_sid(skb, ep->base.sk->sk_family,
+		err = selinux_skb_peerlbl_sid(skb, asoc->base.sk->sk_family,
 					      &peer_sid);
 		if (err)
 			return err;
@@ -5383,7 +5383,7 @@ static int selinux_sctp_assoc_request(struct sctp_endpoint *ep,
 		 */
 		ad.type = LSM_AUDIT_DATA_NET;
 		ad.u.net = &net;
-		ad.u.net->sk = ep->base.sk;
+		ad.u.net->sk = asoc->base.sk;
 		err = avc_has_perm(&selinux_state,
 				   sksec->peer_sid, peer_sid, sksec->sclass,
 				   SCTP_SOCKET__ASSOCIATION, &ad);
@@ -5392,7 +5392,7 @@ static int selinux_sctp_assoc_request(struct sctp_endpoint *ep,
 	}
 
 	/* Compute the MLS component for the connection and store
-	 * the information in ep. This will be used by SCTP TCP type
+	 * the information in asoc. This will be used by SCTP TCP type
 	 * sockets and peeled off connections as they cause a new
 	 * socket to be generated. selinux_sctp_sk_clone() will then
 	 * plug this into the new socket.
@@ -5401,11 +5401,11 @@ static int selinux_sctp_assoc_request(struct sctp_endpoint *ep,
 	if (err)
 		return err;
 
-	ep->secid = conn_sid;
-	ep->peer_secid = peer_sid;
+	asoc->secid = conn_sid;
+	asoc->peer_secid = peer_sid;
 
 	/* Set any NetLabel labels including CIPSO/CALIPSO options. */
-	return selinux_netlbl_sctp_assoc_request(ep, skb);
+	return selinux_netlbl_sctp_assoc_request(asoc, skb);
 }
 
 /* Check if sctp IPv4/IPv6 addresses are valid for binding or connecting
@@ -5490,7 +5490,7 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 }
 
 /* Called whenever a new socket is created by accept(2) or sctp_peeloff(3). */
-static void selinux_sctp_sk_clone(struct sctp_endpoint *ep, struct sock *sk,
+static void selinux_sctp_sk_clone(struct sctp_association *asoc, struct sock *sk,
 				  struct sock *newsk)
 {
 	struct sk_security_struct *sksec = sk->sk_security;
@@ -5502,8 +5502,9 @@ static void selinux_sctp_sk_clone(struct sctp_endpoint *ep, struct sock *sk,
 	if (!selinux_policycap_extsockclass())
 		return selinux_sk_clone_security(sk, newsk);
 
-	newsksec->sid = ep->secid;
-	newsksec->peer_sid = ep->peer_secid;
+	if (asoc->secid != SECSID_WILD)
+		newsksec->sid = asoc->secid;
+	newsksec->peer_sid = asoc->peer_secid;
 	newsksec->sclass = sksec->sclass;
 	selinux_netlbl_sctp_sk_clone(sk, newsk);
 }
@@ -5556,6 +5557,16 @@ static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 		family = PF_INET;
 
 	selinux_skb_peerlbl_sid(skb, family, &sksec->peer_sid);
+}
+
+static void selinux_sctp_assoc_established(struct sctp_association *asoc,
+					   struct sk_buff *skb)
+{
+	struct sk_security_struct *sksec = asoc->base.sk->sk_security;
+
+	selinux_inet_conn_established(asoc->base.sk, skb);
+	asoc->peer_secid = sksec->peer_sid;
+	asoc->secid = SECSID_WILD;
 }
 
 static int selinux_secmark_relabel_packet(u32 sid)
@@ -7228,6 +7239,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(sctp_assoc_request, selinux_sctp_assoc_request),
 	LSM_HOOK_INIT(sctp_sk_clone, selinux_sctp_sk_clone),
 	LSM_HOOK_INIT(sctp_bind_connect, selinux_sctp_bind_connect),
+	LSM_HOOK_INIT(sctp_assoc_established, selinux_sctp_assoc_established),
 	LSM_HOOK_INIT(inet_conn_request, selinux_inet_conn_request),
 	LSM_HOOK_INIT(inet_csk_clone, selinux_inet_csk_clone),
 	LSM_HOOK_INIT(inet_conn_established, selinux_inet_conn_established),

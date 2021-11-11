@@ -2367,9 +2367,9 @@ int security_tun_dev_open(void *security)
 }
 EXPORT_SYMBOL(security_tun_dev_open);
 
-int security_sctp_assoc_request(struct sctp_endpoint *ep, struct sk_buff *skb)
+int security_sctp_assoc_request(struct sctp_association *asoc, struct sk_buff *skb)
 {
-	return call_int_hook(sctp_assoc_request, 0, ep, skb);
+	return call_int_hook(sctp_assoc_request, 0, asoc, skb);
 }
 EXPORT_SYMBOL(security_sctp_assoc_request);
 
@@ -2381,12 +2381,19 @@ int security_sctp_bind_connect(struct sock *sk, int optname,
 }
 EXPORT_SYMBOL(security_sctp_bind_connect);
 
-void security_sctp_sk_clone(struct sctp_endpoint *ep, struct sock *sk,
+void security_sctp_sk_clone(struct sctp_association *asoc, struct sock *sk,
 			    struct sock *newsk)
 {
-	call_void_hook(sctp_sk_clone, ep, sk, newsk);
+	call_void_hook(sctp_sk_clone, asoc, sk, newsk);
 }
 EXPORT_SYMBOL(security_sctp_sk_clone);
+
+void security_sctp_assoc_established(struct sctp_association *asoc,
+				     struct sk_buff *skb)
+{
+	call_void_hook(sctp_assoc_established, asoc, skb);
+}
+EXPORT_SYMBOL(security_sctp_assoc_established);
 
 #endif	/* CONFIG_SECURITY_NETWORK */
 

@@ -39,7 +39,7 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 int selinux_netlbl_skbuff_setsid(struct sk_buff *skb,
 				 u16 family,
 				 u32 sid);
-int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
+int selinux_netlbl_sctp_assoc_request(struct sctp_association *asoc,
 				     struct sk_buff *skb);
 int selinux_netlbl_inet_conn_request(struct request_sock *req, u16 family);
 void selinux_netlbl_inet_csk_clone(struct sock *sk, u16 family);
@@ -98,7 +98,7 @@ static inline int selinux_netlbl_skbuff_setsid(struct sk_buff *skb,
 	return 0;
 }
 
-static inline int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
+static inline int selinux_netlbl_sctp_assoc_request(struct sctp_association *asoc,
 						    struct sk_buff *skb)
 {
 	return 0;

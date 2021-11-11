@@ -700,9 +700,9 @@ static int udpv6_queue_rcv_one_skb(struct sock *sk, struct sk_buff *skb)
 
 			ret = encap_rcv(sk, skb);
 			if (ret <= 0) {
-				__UDP_INC_STATS(sock_net(sk),
-						UDP_MIB_INDATAGRAMS,
-						is_udplite);
+				__UDP6_INC_STATS(sock_net(sk),
+						 UDP_MIB_INDATAGRAMS,
+						 is_udplite);
 				return -ret;
 			}
 		}

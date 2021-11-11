@@ -1370,12 +1370,12 @@ out:
 static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 			   struct sk_buff *skb, unsigned int type)
 {
-	u8 *extraction = skb->data - ETH_HLEN - OCELOT_TAG_LEN;
+	u32 tstamp_lo = OCELOT_SKB_CB(skb)->tstamp_lo;
 	struct skb_shared_hwtstamps *shhwtstamps;
 	struct ocelot *ocelot = ds->priv;
-	u32 tstamp_lo, tstamp_hi;
 	struct timespec64 ts;
-	u64 tstamp, val;
+	u32 tstamp_hi;
+	u64 tstamp;
 
 	/* If the "no XTR IRQ" workaround is in use, tell DSA to defer this skb
 	 * for RX timestamping. Then free it, and poll for its copy through
@@ -1389,9 +1389,6 @@ static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 
 	ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
 	tstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
-
-	ocelot_xfh_get_rew_val(extraction, &val);
-	tstamp_lo = (u32)val;
 
 	tstamp_hi = tstamp >> 32;
 	if ((tstamp & 0xffffffff) < tstamp_lo)

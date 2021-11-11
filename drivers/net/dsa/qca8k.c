@@ -1109,6 +1109,14 @@ qca8k_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
+	/* Make sure MAC06 is disabled */
+	ret = qca8k_reg_clear(priv, QCA8K_REG_PORT0_PAD_CTRL,
+			      QCA8K_PORT0_PAD_MAC06_EXCHANGE_EN);
+	if (ret) {
+		dev_err(priv->dev, "failed disabling MAC06 exchange");
+		return ret;
+	}
+
 	/* Enable CPU Port */
 	ret = qca8k_reg_set(priv, QCA8K_REG_GLOBAL_FW_CTRL0,
 			    QCA8K_GLOBAL_FW_CTRL0_CPU_PORT_EN);

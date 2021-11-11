@@ -500,7 +500,8 @@ static struct sk_buff *gve_rx_skb(struct gve_priv *priv, struct gve_rx_ring *rx,
 			rx->rx_copied_pkt++;
 			rx->rx_frag_copy_cnt++;
 			rx->rx_copybreak_pkt++;
-		}	u64_stats_update_end(&rx->statss);
+			u64_stats_update_end(&rx->statss);
+		}
 	} else {
 		if (rx->data.raw_addressing) {
 			int recycle = gve_rx_can_recycle_buffer(page_info);

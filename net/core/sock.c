@@ -976,7 +976,7 @@ static int sock_reserve_memory(struct sock *sk, int bytes)
 	bool charged;
 	int pages;
 
-	if (!mem_cgroup_sockets_enabled || !sk->sk_memcg)
+	if (!mem_cgroup_sockets_enabled || !sk->sk_memcg || !sk_has_account(sk))
 		return -EOPNOTSUPP;
 
 	if (!bytes)

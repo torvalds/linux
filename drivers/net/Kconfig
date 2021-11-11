@@ -294,6 +294,7 @@ config GTP
 config AMT
 	tristate "Automatic Multicast Tunneling (AMT)"
 	depends on INET && IP_MULTICAST
+	depends on IPV6 || !IPV6
 	select NET_UDP_TUNNEL
 	help
 	  This allows one to create AMT(Automatic Multicast Tunneling)

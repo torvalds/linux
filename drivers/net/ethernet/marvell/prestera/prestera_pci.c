@@ -411,7 +411,8 @@ static int prestera_fw_cmd_send(struct prestera_fw *fw, int qid,
 		goto cmd_exit;
 	}
 
-	memcpy_fromio(out_msg, prestera_fw_cmdq_buf(fw, qid) + in_size, ret_size);
+	memcpy_fromio(out_msg,
+		      prestera_fw_cmdq_buf(fw, qid) + in_size, ret_size);
 
 cmd_exit:
 	prestera_fw_write(fw, PRESTERA_CMDQ_REQ_CTL_REG(qid),

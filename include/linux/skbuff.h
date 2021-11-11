@@ -454,9 +454,15 @@ enum {
 	 * all frags to avoid possible bad checksum
 	 */
 	SKBFL_SHARED_FRAG = BIT(1),
+
+	/* segment contains only zerocopy data and should not be
+	 * charged to the kernel memory.
+	 */
+	SKBFL_PURE_ZEROCOPY = BIT(2),
 };
 
 #define SKBFL_ZEROCOPY_FRAG	(SKBFL_ZEROCOPY_ENABLE | SKBFL_SHARED_FRAG)
+#define SKBFL_ALL_ZEROCOPY	(SKBFL_ZEROCOPY_FRAG | SKBFL_PURE_ZEROCOPY)
 
 /*
  * The callback notifies userspace to release buffers when skb DMA is done in
@@ -1464,6 +1470,17 @@ static inline struct ubuf_info *skb_zcopy(struct sk_buff *skb)
 	return is_zcopy ? skb_uarg(skb) : NULL;
 }
 
+static inline bool skb_zcopy_pure(const struct sk_buff *skb)
+{
+	return skb_shinfo(skb)->flags & SKBFL_PURE_ZEROCOPY;
+}
+
+static inline bool skb_pure_zcopy_same(const struct sk_buff *skb1,
+				       const struct sk_buff *skb2)
+{
+	return skb_zcopy_pure(skb1) == skb_zcopy_pure(skb2);
+}
+
 static inline void net_zcopy_get(struct ubuf_info *uarg)
 {
 	refcount_inc(&uarg->refcnt);
@@ -1528,7 +1545,7 @@ static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy_success)
 		if (!skb_zcopy_is_nouarg(skb))
 			uarg->callback(skb, uarg, zerocopy_success);
 
-		skb_shinfo(skb)->flags &= ~SKBFL_ZEROCOPY_FRAG;
+		skb_shinfo(skb)->flags &= ~SKBFL_ALL_ZEROCOPY;
 	}
 }
 
@@ -1672,6 +1689,22 @@ static inline int skb_unclone(struct sk_buff *skb, gfp_t pri)
 	if (skb_cloned(skb))
 		return pskb_expand_head(skb, 0, 0, pri);
 
+	return 0;
+}
+
+/* This variant of skb_unclone() makes sure skb->truesize is not changed */
+static inline int skb_unclone_keeptruesize(struct sk_buff *skb, gfp_t pri)
+{
+	might_sleep_if(gfpflags_allow_blocking(pri));
+
+	if (skb_cloned(skb)) {
+		unsigned int save = skb->truesize;
+		int res;
+
+		res = pskb_expand_head(skb, 0, 0, pri);
+		skb->truesize = save;
+		return res;
+	}
 	return 0;
 }
 

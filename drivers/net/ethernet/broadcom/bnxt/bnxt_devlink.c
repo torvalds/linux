@@ -443,7 +443,7 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT: {
 		if (BNXT_PF(bp) && bp->pf.active_vfs) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "reload is unsupported when VFs are allocated\n");
+					   "reload is unsupported when VFs are allocated");
 			return -EOPNOTSUPP;
 		}
 		rtnl_lock();

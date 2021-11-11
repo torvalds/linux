@@ -26,8 +26,6 @@
 #include "hclge_devlink.h"
 
 #define HCLGE_NAME			"hclge"
-#define HCLGE_STATS_READ(p, offset) (*(u64 *)((u8 *)(p) + (offset)))
-#define HCLGE_MAC_STATS_FIELD_OFF(f) (offsetof(struct hclge_mac_stats, f))
 
 #define HCLGE_BUF_SIZE_UNIT	256U
 #define HCLGE_BUF_MUL_BY	2
@@ -568,6 +566,16 @@ static int hclge_mac_query_reg_num(struct hclge_dev *hdev, u32 *reg_num)
 	struct hclge_desc desc;
 	int ret;
 
+	/* Driver needs total register number of both valid registers and
+	 * reserved registers, but the old firmware only returns number
+	 * of valid registers in device V2. To be compatible with these
+	 * devices, driver uses a fixed value.
+	 */
+	if (hdev->ae_dev->dev_version == HNAE3_DEVICE_VERSION_V2) {
+		*reg_num = HCLGE_MAC_STATS_MAX_NUM_V1;
+		return 0;
+	}
+
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_MAC_REG_NUM, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -587,7 +595,7 @@ static int hclge_mac_query_reg_num(struct hclge_dev *hdev, u32 *reg_num)
 	return 0;
 }
 
-static int hclge_mac_update_stats(struct hclge_dev *hdev)
+int hclge_mac_update_stats(struct hclge_dev *hdev)
 {
 	/* The firmware supports the new statistics acquisition method */
 	if (hdev->ae_dev->dev_specs.mac_stats_num)
@@ -2581,7 +2589,7 @@ static int hclge_init_roce_base_info(struct hclge_vport *vport)
 	if (hdev->num_msi < hdev->num_nic_msi + hdev->num_roce_msi)
 		return -EINVAL;
 
-	roce->rinfo.base_vector = hdev->roce_base_vector;
+	roce->rinfo.base_vector = hdev->num_nic_msi;
 
 	roce->rinfo.netdev = nic->kinfo.netdev;
 	roce->rinfo.roce_io_base = hdev->hw.io_base;
@@ -2616,10 +2624,6 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 
 	hdev->num_msi = vectors;
 	hdev->num_msi_left = vectors;
-
-	hdev->base_msi_vector = pdev->irq;
-	hdev->roce_base_vector = hdev->base_msi_vector +
-				hdev->num_nic_msi;
 
 	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
 					   sizeof(u16), GFP_KERNEL);
@@ -8949,8 +8953,11 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 
 err_no_space:
 	/* if already overflow, not to print each time */
-	if (!(vport->overflow_promisc_flags & HNAE3_OVERFLOW_MPE))
+	if (!(vport->overflow_promisc_flags & HNAE3_OVERFLOW_MPE)) {
+		vport->overflow_promisc_flags |= HNAE3_OVERFLOW_MPE;
 		dev_err(&hdev->pdev->dev, "mc mac vlan table is full\n");
+	}
+
 	return -ENOSPC;
 }
 
@@ -9006,11 +9013,16 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 
 static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 				      struct list_head *list,
-				      int (*sync)(struct hclge_vport *,
-						  const unsigned char *))
+				      enum HCLGE_MAC_ADDR_TYPE mac_type)
 {
+	int (*sync)(struct hclge_vport *vport, const unsigned char *addr);
 	struct hclge_mac_node *mac_node, *tmp;
 	int ret;
+
+	if (mac_type == HCLGE_MAC_ADDR_UC)
+		sync = hclge_add_uc_addr_common;
+	else
+		sync = hclge_add_mc_addr_common;
 
 	list_for_each_entry_safe(mac_node, tmp, list, node) {
 		ret = sync(vport, mac_node->mac_addr);
@@ -9023,8 +9035,13 @@ static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 			/* If one unicast mac address is existing in hardware,
 			 * we need to try whether other unicast mac addresses
 			 * are new addresses that can be added.
+			 * Multicast mac address can be reusable, even though
+			 * there is no space to add new multicast mac address,
+			 * we should check whether other mac addresses are
+			 * existing in hardware for reuse.
 			 */
-			if (ret != -EEXIST)
+			if ((mac_type == HCLGE_MAC_ADDR_UC && ret != -EEXIST) ||
+			    (mac_type == HCLGE_MAC_ADDR_MC && ret != -ENOSPC))
 				break;
 		}
 	}
@@ -9032,11 +9049,16 @@ static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 
 static void hclge_unsync_vport_mac_list(struct hclge_vport *vport,
 					struct list_head *list,
-					int (*unsync)(struct hclge_vport *,
-						      const unsigned char *))
+					enum HCLGE_MAC_ADDR_TYPE mac_type)
 {
+	int (*unsync)(struct hclge_vport *vport, const unsigned char *addr);
 	struct hclge_mac_node *mac_node, *tmp;
 	int ret;
+
+	if (mac_type == HCLGE_MAC_ADDR_UC)
+		unsync = hclge_rm_uc_addr_common;
+	else
+		unsync = hclge_rm_mc_addr_common;
 
 	list_for_each_entry_safe(mac_node, tmp, list, node) {
 		ret = unsync(vport, mac_node->mac_addr);
@@ -9168,17 +9190,8 @@ stop_traverse:
 	spin_unlock_bh(&vport->mac_list_lock);
 
 	/* delete first, in order to get max mac table space for adding */
-	if (mac_type == HCLGE_MAC_ADDR_UC) {
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_uc_addr_common);
-		hclge_sync_vport_mac_list(vport, &tmp_add_list,
-					  hclge_add_uc_addr_common);
-	} else {
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_mc_addr_common);
-		hclge_sync_vport_mac_list(vport, &tmp_add_list,
-					  hclge_add_mc_addr_common);
-	}
+	hclge_unsync_vport_mac_list(vport, &tmp_del_list, mac_type);
+	hclge_sync_vport_mac_list(vport, &tmp_add_list, mac_type);
 
 	/* if some mac addresses were added/deleted fail, move back to the
 	 * mac_list, and retry at next time.
@@ -9337,12 +9350,7 @@ static void hclge_uninit_vport_mac_list(struct hclge_vport *vport,
 
 	spin_unlock_bh(&vport->mac_list_lock);
 
-	if (mac_type == HCLGE_MAC_ADDR_UC)
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_uc_addr_common);
-	else
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_mc_addr_common);
+	hclge_unsync_vport_mac_list(vport, &tmp_del_list, mac_type);
 
 	if (!list_empty(&tmp_del_list))
 		dev_warn(&hdev->pdev->dev,
@@ -9410,36 +9418,6 @@ static int hclge_get_mac_ethertype_cmd_status(struct hclge_dev *hdev,
 	return return_status;
 }
 
-static bool hclge_check_vf_mac_exist(struct hclge_vport *vport, int vf_idx,
-				     u8 *mac_addr)
-{
-	struct hclge_mac_vlan_tbl_entry_cmd req;
-	struct hclge_dev *hdev = vport->back;
-	struct hclge_desc desc;
-	u16 egress_port = 0;
-	int i;
-
-	if (is_zero_ether_addr(mac_addr))
-		return false;
-
-	memset(&req, 0, sizeof(req));
-	hnae3_set_field(egress_port, HCLGE_MAC_EPORT_VFID_M,
-			HCLGE_MAC_EPORT_VFID_S, vport->vport_id);
-	req.egress_port = cpu_to_le16(egress_port);
-	hclge_prepare_mac_addr(&req, mac_addr, false);
-
-	if (hclge_lookup_mac_vlan_tbl(vport, &req, &desc, false) != -ENOENT)
-		return true;
-
-	vf_idx += HCLGE_VF_VPORT_START_NUM;
-	for (i = HCLGE_VF_VPORT_START_NUM; i < hdev->num_alloc_vport; i++)
-		if (i != vf_idx &&
-		    ether_addr_equal(mac_addr, hdev->vport[i].vf_info.mac))
-			return true;
-
-	return false;
-}
-
 static int hclge_set_vf_mac(struct hnae3_handle *handle, int vf,
 			    u8 *mac_addr)
 {
@@ -9455,12 +9433,6 @@ static int hclge_set_vf_mac(struct hnae3_handle *handle, int vf,
 			 "Specified MAC(=%pM) is same as before, no change committed!\n",
 			 mac_addr);
 		return 0;
-	}
-
-	if (hclge_check_vf_mac_exist(vport, vf, mac_addr)) {
-		dev_err(&hdev->pdev->dev, "Specified MAC(=%pM) exists!\n",
-			mac_addr);
-		return -EEXIST;
 	}
 
 	ether_addr_copy(vport->vf_info.mac, mac_addr);

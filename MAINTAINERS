@@ -872,9 +872,10 @@ F:	Documentation/devicetree/bindings/thermal/amazon,al-thermal.txt
 F:	drivers/thermal/thermal_mmio.c
 
 AMAZON ETHERNET DRIVERS
-M:	Netanel Belgazal <netanel@amazon.com>
+M:	Shay Agroskin <shayagr@amazon.com>
 M:	Arthur Kiyanovski <akiyano@amazon.com>
-R:	Guy Tzalik <gtzalik@amazon.com>
+R:	David Arinzon <darinzon@amazon.com>
+R:	Noam Dagan <ndagan@amazon.com>
 R:	Saeed Bishara <saeedb@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Supported

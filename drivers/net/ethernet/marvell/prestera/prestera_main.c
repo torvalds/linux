@@ -405,7 +405,8 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 
 	err = prestera_port_cfg_mac_write(port, &cfg_mac);
 	if (err) {
-		dev_err(prestera_dev(sw), "Failed to set port(%u) mac mode\n", id);
+		dev_err(prestera_dev(sw),
+			"Failed to set port(%u) mac mode\n", id);
 		goto err_port_init;
 	}
 
@@ -418,7 +419,8 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 						    false, 0, 0,
 						    port->cfg_phy.mdix);
 		if (err) {
-			dev_err(prestera_dev(sw), "Failed to set port(%u) phy mode\n", id);
+			dev_err(prestera_dev(sw),
+				"Failed to set port(%u) phy mode\n", id);
 			goto err_port_init;
 		}
 	}
