@@ -207,7 +207,7 @@ static void unreserve_mem_limit(struct amdgpu_device *adev,
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 }
 
-void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
+void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	u32 domain = bo->preferred_domains;
@@ -219,6 +219,8 @@ void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
 	}
 
 	unreserve_mem_limit(adev, amdgpu_bo_size(bo), domain, sg);
+
+	kfree(bo->kfd_bo);
 }
 
 
@@ -734,14 +736,19 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 		}
 
 		/* Add BO to VM internal data structures */
+		ret = amdgpu_bo_reserve(bo[i], false);
+		if (ret) {
+			pr_debug("Unable to reserve BO during memory attach");
+			goto unwind;
+		}
 		attachment[i]->bo_va = amdgpu_vm_bo_add(adev, vm, bo[i]);
+		amdgpu_bo_unreserve(bo[i]);
 		if (unlikely(!attachment[i]->bo_va)) {
 			ret = -ENOMEM;
 			pr_err("Failed to add BO object to VM. ret == %d\n",
 			       ret);
 			goto unwind;
 		}
-
 		attachment[i]->va = va;
 		attachment[i]->pte_flags = get_pte_flags(adev, mem);
 		attachment[i]->adev = adev;
@@ -757,7 +764,9 @@ unwind:
 		if (!attachment[i])
 			continue;
 		if (attachment[i]->bo_va) {
+			amdgpu_bo_reserve(bo[i], true);
 			amdgpu_vm_bo_rmv(adev, attachment[i]->bo_va);
+			amdgpu_bo_unreserve(bo[i]);
 			list_del(&attachment[i]->list);
 		}
 		if (bo[i])
@@ -1568,11 +1577,11 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	pr_debug("Release VA 0x%llx - 0x%llx\n", mem->va,
 		mem->va + bo_size * (1 + mem->aql_queue));
 
-	ret = unreserve_bo_and_vms(&ctx, false, false);
-
 	/* Remove from VM internal data structures */
 	list_for_each_entry_safe(entry, tmp, &mem->attachments, list)
 		kfd_mem_detach(entry);
+
+	ret = unreserve_bo_and_vms(&ctx, false, false);
 
 	/* Free the sync object */
 	amdgpu_sync_free(&mem->sync);
@@ -1600,9 +1609,13 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	drm_vma_node_revoke(&mem->bo->tbo.base.vma_node, drm_priv);
 	if (mem->dmabuf)
 		dma_buf_put(mem->dmabuf);
-	drm_gem_object_put(&mem->bo->tbo.base);
 	mutex_destroy(&mem->lock);
-	kfree(mem);
+
+	/* If this releases the last reference, it will end up calling
+	 * amdgpu_amdkfd_release_notify and kfree the mem struct. That's why
+	 * this needs to be the last call here.
+	 */
+	drm_gem_object_put(&mem->bo->tbo.base);
 
 	return ret;
 }

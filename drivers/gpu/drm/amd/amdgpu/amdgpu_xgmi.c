@@ -806,9 +806,9 @@ static void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
 		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++)
 			pcs_clear_status(adev,
 					 xgmi23_pcs_err_status_reg_aldebaran[i]);
-		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++)
+		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_aldebaran); i++)
 			pcs_clear_status(adev,
-					 xgmi23_pcs_err_status_reg_aldebaran[i]);
+					 xgmi3x16_pcs_err_status_reg_aldebaran[i]);
 		for (i = 0; i < ARRAY_SIZE(walf_pcs_err_status_reg_aldebaran); i++)
 			pcs_clear_status(adev,
 					 walf_pcs_err_status_reg_aldebaran[i]);

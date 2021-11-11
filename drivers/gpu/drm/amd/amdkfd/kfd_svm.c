@@ -1496,9 +1496,11 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 
 		next = min(vma->vm_end, end);
 		npages = (next - addr) >> PAGE_SHIFT;
+		WRITE_ONCE(p->svms.faulting_task, current);
 		r = amdgpu_hmm_range_get_pages(&prange->notifier, mm, NULL,
 					       addr, npages, &hmm_range,
 					       readonly, true, owner);
+		WRITE_ONCE(p->svms.faulting_task, NULL);
 		if (r) {
 			pr_debug("failed %d to get svm range pages\n", r);
 			goto unreserve_out;
@@ -2000,20 +2002,28 @@ static void svm_range_deferred_list_work(struct work_struct *work)
 		pr_debug("prange 0x%p [0x%lx 0x%lx] op %d\n", prange,
 			 prange->start, prange->last, prange->work_item.op);
 
-		/* Make sure no stale retry fault coming after range is freed */
-		if (prange->work_item.op == SVM_OP_UNMAP_RANGE)
-			svm_range_drain_retry_fault(prange->svms);
-
 		mm = prange->work_item.mm;
+retry:
 		mmap_write_lock(mm);
 		mutex_lock(&svms->lock);
 
-		/* Remove from deferred_list must be inside mmap write lock,
+		/* Checking for the need to drain retry faults must be in
+		 * mmap write lock to serialize with munmap notifiers.
+		 *
+		 * Remove from deferred_list must be inside mmap write lock,
 		 * otherwise, svm_range_list_lock_and_flush_work may hold mmap
 		 * write lock, and continue because deferred_list is empty, then
 		 * deferred_list handle is blocked by mmap write lock.
 		 */
 		spin_lock(&svms->deferred_list_lock);
+		if (unlikely(svms->drain_pagefaults)) {
+			svms->drain_pagefaults = false;
+			spin_unlock(&svms->deferred_list_lock);
+			mutex_unlock(&svms->lock);
+			mmap_write_unlock(mm);
+			svm_range_drain_retry_fault(svms);
+			goto retry;
+		}
 		list_del_init(&prange->deferred_list);
 		spin_unlock(&svms->deferred_list_lock);
 
@@ -2046,6 +2056,12 @@ svm_range_add_list_work(struct svm_range_list *svms, struct svm_range *prange,
 			struct mm_struct *mm, enum svm_work_list_ops op)
 {
 	spin_lock(&svms->deferred_list_lock);
+	/* Make sure pending page faults are drained in the deferred worker
+	 * before the range is freed to avoid straggler interrupts on
+	 * unmapped memory causing "phantom faults".
+	 */
+	if (op == SVM_OP_UNMAP_RANGE)
+		svms->drain_pagefaults = true;
 	/* if prange is on the deferred list */
 	if (!list_empty(&prange->deferred_list)) {
 		pr_debug("update exist prange 0x%p work op %d\n", prange, op);

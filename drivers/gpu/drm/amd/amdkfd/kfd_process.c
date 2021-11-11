@@ -1715,7 +1715,11 @@ int kfd_process_evict_queues(struct kfd_process *p)
 
 		r = pdd->dev->dqm->ops.evict_process_queues(pdd->dev->dqm,
 							    &pdd->qpd);
-		if (r) {
+		/* evict return -EIO if HWS is hang or asic is resetting, in this case
+		 * we would like to set all the queues to be in evicted state to prevent
+		 * them been add back since they actually not be saved right now.
+		 */
+		if (r && r != -EIO) {
 			pr_err("Failed to evict process queues\n");
 			goto fail;
 		}

@@ -1430,7 +1430,7 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 
 	if (!dqm->sched_running)
 		return 0;
-	if (dqm->is_hws_hang)
+	if (dqm->is_hws_hang || dqm->is_resetting)
 		return -EIO;
 	if (!dqm->active_runlist)
 		return retval;
