@@ -863,6 +863,10 @@
 
 };
 
+&gpu {
+	status = "okay";
+};
+
 &i2s0_8ch {
 	status = "okay";
 	rockchip,clk-trcm = <1>;
