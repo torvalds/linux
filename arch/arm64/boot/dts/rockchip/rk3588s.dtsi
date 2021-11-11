@@ -2912,8 +2912,8 @@
 		compatible = "rockchip,rk3588-dwcmshc", "rockchip,dwcmshc-sdhci";
 		reg = <0x0 0xfe2e0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
-		assigned-clocks = <&cru BCLK_EMMC>, <&cru TMCLK_EMMC>;
-		assigned-clock-rates = <200000000>, <24000000>;
+		assigned-clocks = <&cru BCLK_EMMC>, <&cru TMCLK_EMMC>, <&cru CCLK_EMMC>;
+		assigned-clock-rates = <200000000>, <24000000>, <200000000>;
 		clocks = <&cru CCLK_EMMC>, <&cru HCLK_EMMC>,
 			 <&cru ACLK_EMMC>, <&cru BCLK_EMMC>,
 			 <&cru TMCLK_EMMC>;
