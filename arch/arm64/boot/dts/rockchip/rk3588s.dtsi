@@ -2437,8 +2437,8 @@
 
 	vop: vop@fdd90000 {
 		compatible = "rockchip,rk3588-vop";
-		reg = <0x0 0xfdd90000 0x0 0x4200>;
-		reg-names = "regs";
+		reg = <0x0 0xfdd90000 0x0 0x4200>, <0x0 0xfdd95000 0x0 0x1000>;
+		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>,
 			 <&cru HCLK_VOP>,
