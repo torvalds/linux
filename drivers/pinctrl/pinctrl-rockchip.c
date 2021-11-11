@@ -119,6 +119,25 @@
 		},							\
 	}
 
+#define PIN_BANK_IOMUX_FLAGS_PULL_FLAGS(id, pins, label, iom0, iom1,	\
+					iom2, iom3, pull0, pull1,	\
+					pull2, pull3)			\
+	{								\
+		.bank_num	= id,					\
+		.nr_pins	= pins,					\
+		.name		= label,				\
+		.iomux		= {					\
+			{ .type = iom0, .offset = -1 },			\
+			{ .type = iom1, .offset = -1 },			\
+			{ .type = iom2, .offset = -1 },			\
+			{ .type = iom3, .offset = -1 },			\
+		},							\
+		.pull_type[0] = pull0,					\
+		.pull_type[1] = pull1,					\
+		.pull_type[2] = pull2,					\
+		.pull_type[3] = pull3,					\
+	}
+
 #define PIN_BANK_DRV_FLAGS_PULL_FLAGS(id, pins, label, drv0, drv1,	\
 				      drv2, drv3, pull0, pull1,		\
 				      pull2, pull3)			\
@@ -212,6 +231,9 @@
 
 #define RK_MUXROUTE_PMU(ID, PIN, FUNC, REG, VAL)	\
 	PIN_BANK_MUX_ROUTE_FLAGS(ID, PIN, FUNC, REG, VAL, ROCKCHIP_ROUTE_PMU)
+
+#define RK3588_PIN_BANK_FLAGS(ID, PIN, LABEL, M, P)			\
+	PIN_BANK_DRV_FLAGS_PULL_FLAGS(ID, PIN, LABEL, M, M, M, M, P, P, P, P)
 
 static struct regmap_config rockchip_regmap_config = {
 	.reg_bits = 32,
@@ -4020,26 +4042,16 @@ static struct rockchip_pin_ctrl rk3568_pin_ctrl = {
 };
 
 static struct rockchip_pin_bank rk3588_pin_banks[] = {
-	PIN_BANK_IOMUX_FLAGS(0, 32, "gpio0", IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT),
-	PIN_BANK_IOMUX_FLAGS(1, 32, "gpio1", IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT),
-	PIN_BANK_IOMUX_FLAGS(2, 32, "gpio2", IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT),
-	PIN_BANK_IOMUX_FLAGS(3, 32, "gpio3", IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT),
-	PIN_BANK_IOMUX_FLAGS(4, 20, "gpio4", IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT,
-					     IOMUX_WIDTH_4BIT),
+	RK3588_PIN_BANK_FLAGS(0, 32, "gpio0",
+			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
+	RK3588_PIN_BANK_FLAGS(1, 32, "gpio1",
+			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
+	RK3588_PIN_BANK_FLAGS(2, 32, "gpio2",
+			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
+	RK3588_PIN_BANK_FLAGS(3, 32, "gpio3",
+			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
+	RK3588_PIN_BANK_FLAGS(4, 20, "gpio4",
+			      IOMUX_WIDTH_4BIT, PULL_TYPE_IO_1V8_ONLY),
 };
 
 static struct rockchip_pin_ctrl rk3588_pin_ctrl = {
