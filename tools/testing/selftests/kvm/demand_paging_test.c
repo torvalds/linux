@@ -322,26 +322,15 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		TEST_ASSERT(pipefds, "Unable to allocate memory for pipefd");
 
 		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-			vm_paddr_t vcpu_gpa;
+			struct perf_test_vcpu_args *vcpu_args;
 			void *vcpu_hva;
 			void *vcpu_alias;
-			uint64_t vcpu_mem_size;
 
-
-			if (p->partition_vcpu_memory_access) {
-				vcpu_gpa = guest_test_phys_mem +
-					   (vcpu_id * guest_percpu_mem_size);
-				vcpu_mem_size = guest_percpu_mem_size;
-			} else {
-				vcpu_gpa = guest_test_phys_mem;
-				vcpu_mem_size = guest_percpu_mem_size * nr_vcpus;
-			}
-			PER_VCPU_DEBUG("Added VCPU %d with test mem gpa [%lx, %lx)\n",
-				       vcpu_id, vcpu_gpa, vcpu_gpa + vcpu_mem_size);
+			vcpu_args = &perf_test_args.vcpu_args[vcpu_id];
 
 			/* Cache the host addresses of the region */
-			vcpu_hva = addr_gpa2hva(vm, vcpu_gpa);
-			vcpu_alias = addr_gpa2alias(vm, vcpu_gpa);
+			vcpu_hva = addr_gpa2hva(vm, vcpu_args->gpa);
+			vcpu_alias = addr_gpa2alias(vm, vcpu_args->gpa);
 
 			/*
 			 * Set up user fault fd to handle demand paging
@@ -355,7 +344,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 					    pipefds[vcpu_id * 2], p->uffd_mode,
 					    p->uffd_delay, &uffd_args[vcpu_id],
 					    vcpu_hva, vcpu_alias,
-					    vcpu_mem_size);
+					    vcpu_args->pages * perf_test_args.guest_page_size);
 		}
 	}
 
