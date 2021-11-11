@@ -92,7 +92,7 @@
 #include "intel_region_ttm.h"
 #include "vlv_suspend.h"
 
-static const struct drm_driver driver;
+static const struct drm_driver i915_drm_driver;
 
 static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 {
@@ -769,7 +769,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *device_info;
 	struct drm_i915_private *i915;
 
-	i915 = devm_drm_dev_alloc(&pdev->dev, &driver,
+	i915 = devm_drm_dev_alloc(&pdev->dev, &i915_drm_driver,
 				  struct drm_i915_private, drm);
 	if (IS_ERR(i915))
 		return i915;
@@ -1803,7 +1803,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_VM_DESTROY, i915_gem_vm_destroy_ioctl, DRM_RENDER_ALLOW),
 };
 
-static const struct drm_driver driver = {
+static const struct drm_driver i915_drm_driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should
 	 * deal with them for Intel hardware.
 	 */
