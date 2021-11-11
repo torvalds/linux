@@ -62,6 +62,74 @@ DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 				),					\
 				TP_ARGS(wc, cid))
 
+DECLARE_EVENT_CLASS(rpcrdma_send_completion_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+	),
+
+	TP_printk("cq.id=%u cid=%d",
+		__entry->cq_id, __entry->completion_id
+	)
+);
+
+#define DEFINE_SEND_COMPLETION_EVENT(name)				\
+		DEFINE_EVENT(rpcrdma_send_completion_class, name,	\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
+DECLARE_EVENT_CLASS(rpcrdma_send_flush_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(unsigned long, status)
+		__field(unsigned int, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->status = wc->status;
+		__entry->vendor_err = wc->vendor_err;
+	),
+
+	TP_printk("cq.id=%u cid=%d status=%s (%lu/0x%x)",
+		__entry->cq_id, __entry->completion_id,
+		rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err
+	)
+);
+
+#define DEFINE_SEND_FLUSH_EVENT(name)					\
+		DEFINE_EVENT(rpcrdma_send_flush_class, name,		\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
 DECLARE_EVENT_CLASS(rpcrdma_mr_completion_class,
 	TP_PROTO(
 		const struct ib_wc *wc,
@@ -141,6 +209,77 @@ DECLARE_EVENT_CLASS(rpcrdma_receive_completion_class,
 
 #define DEFINE_RECEIVE_COMPLETION_EVENT(name)				\
 		DEFINE_EVENT(rpcrdma_receive_completion_class, name,	\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
+DECLARE_EVENT_CLASS(rpcrdma_receive_success_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(u32, received)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->received = wc->byte_len;
+	),
+
+	TP_printk("cq.id=%u cid=%d received=%u",
+		__entry->cq_id, __entry->completion_id,
+		__entry->received
+	)
+);
+
+#define DEFINE_RECEIVE_SUCCESS_EVENT(name)				\
+		DEFINE_EVENT(rpcrdma_receive_success_class, name,	\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
+DECLARE_EVENT_CLASS(rpcrdma_receive_flush_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(unsigned long, status)
+		__field(unsigned int, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->status = wc->status;
+		__entry->vendor_err = wc->vendor_err;
+	),
+
+	TP_printk("cq.id=%u cid=%d status=%s (%lu/0x%x)",
+		__entry->cq_id, __entry->completion_id,
+		rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err
+	)
+);
+
+#define DEFINE_RECEIVE_FLUSH_EVENT(name)				\
+		DEFINE_EVENT(rpcrdma_receive_flush_class, name,		\
 				TP_PROTO(				\
 					const struct ib_wc *wc,		\
 					const struct rpc_rdma_cid *cid	\
@@ -1881,7 +2020,9 @@ TRACE_EVENT(svcrdma_post_send,
 	)
 );
 
-DEFINE_COMPLETION_EVENT(svcrdma_wc_send);
+DEFINE_SEND_COMPLETION_EVENT(svcrdma_wc_send);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_send_flush);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_send_err);
 
 TRACE_EVENT(svcrdma_post_recv,
 	TP_PROTO(
@@ -1905,7 +2046,9 @@ TRACE_EVENT(svcrdma_post_recv,
 	)
 );
 
-DEFINE_RECEIVE_COMPLETION_EVENT(svcrdma_wc_receive);
+DEFINE_RECEIVE_SUCCESS_EVENT(svcrdma_wc_recv);
+DEFINE_RECEIVE_FLUSH_EVENT(svcrdma_wc_recv_flush);
+DEFINE_RECEIVE_FLUSH_EVENT(svcrdma_wc_recv_err);
 
 TRACE_EVENT(svcrdma_rq_post_err,
 	TP_PROTO(
@@ -1969,8 +2112,42 @@ DEFINE_POST_CHUNK_EVENT(read);
 DEFINE_POST_CHUNK_EVENT(write);
 DEFINE_POST_CHUNK_EVENT(reply);
 
-DEFINE_COMPLETION_EVENT(svcrdma_wc_read);
-DEFINE_COMPLETION_EVENT(svcrdma_wc_write);
+TRACE_EVENT(svcrdma_wc_read,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid,
+		unsigned int totalbytes,
+		const ktime_t posttime
+	),
+
+	TP_ARGS(wc, cid, totalbytes, posttime),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(s64, read_latency)
+		__field(unsigned int, totalbytes)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->totalbytes = totalbytes;
+		__entry->read_latency = ktime_us_delta(ktime_get(), posttime);
+	),
+
+	TP_printk("cq.id=%u cid=%d totalbytes=%u latency-us=%lld",
+		__entry->cq_id, __entry->completion_id,
+		__entry->totalbytes, __entry->read_latency
+	)
+);
+
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_flush);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_err);
+
+DEFINE_SEND_COMPLETION_EVENT(svcrdma_wc_write);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_flush);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_err);
 
 TRACE_EVENT(svcrdma_qp_error,
 	TP_PROTO(

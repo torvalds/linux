@@ -3253,12 +3253,26 @@
 			driver. A non-zero value sets the minimum interval
 			in seconds between layoutstats transmissions.
 
+	nfsd.inter_copy_offload_enable =
+			[NFSv4.2] When set to 1, the server will support
+			server-to-server copies for which this server is
+			the destination of the copy.
+
+	nfsd.nfsd4_ssc_umount_timeout =
+			[NFSv4.2] When used as the destination of a
+			server-to-server copy, knfsd temporarily mounts
+			the source server.  It caches the mount in case
+			it will be needed again, and discards it if not
+			used for the number of milliseconds specified by
+			this parameter.
+
 	nfsd.nfs4_disable_idmapping=
 			[NFSv4] When set to the default of '1', the NFSv4
 			server will return only numeric uids and gids to
 			clients using auth_sys, and will accept numeric uids
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
+
 
 	nmi_backtrace.backtrace_idle [KNL]
 			Dump stacks even of idle CPUs in response to an

@@ -64,6 +64,7 @@ DECLARE_EVENT_CLASS(rpc_xdr_buf_class,
 		__field(size_t, head_len)
 		__field(const void *, tail_base)
 		__field(size_t, tail_len)
+		__field(unsigned int, page_base)
 		__field(unsigned int, page_len)
 		__field(unsigned int, msg_len)
 	),
@@ -76,15 +77,18 @@ DECLARE_EVENT_CLASS(rpc_xdr_buf_class,
 		__entry->head_len = xdr->head[0].iov_len;
 		__entry->tail_base = xdr->tail[0].iov_base;
 		__entry->tail_len = xdr->tail[0].iov_len;
+		__entry->page_base = xdr->page_base;
 		__entry->page_len = xdr->page_len;
 		__entry->msg_len = xdr->len;
 	),
 
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		  " head=[%p,%zu] page=%u tail=[%p,%zu] len=%u",
+		  " head=[%p,%zu] page=%u(%u) tail=[%p,%zu] len=%u",
 		__entry->task_id, __entry->client_id,
-		__entry->head_base, __entry->head_len, __entry->page_len,
-		__entry->tail_base, __entry->tail_len, __entry->msg_len
+		__entry->head_base, __entry->head_len,
+		__entry->page_len, __entry->page_base,
+		__entry->tail_base, __entry->tail_len,
+		__entry->msg_len
 	)
 );
 
@@ -1513,6 +1517,7 @@ DECLARE_EVENT_CLASS(svc_xdr_buf_class,
 		__field(size_t, head_len)
 		__field(const void *, tail_base)
 		__field(size_t, tail_len)
+		__field(unsigned int, page_base)
 		__field(unsigned int, page_len)
 		__field(unsigned int, msg_len)
 	),
@@ -1523,14 +1528,17 @@ DECLARE_EVENT_CLASS(svc_xdr_buf_class,
 		__entry->head_len = xdr->head[0].iov_len;
 		__entry->tail_base = xdr->tail[0].iov_base;
 		__entry->tail_len = xdr->tail[0].iov_len;
+		__entry->page_base = xdr->page_base;
 		__entry->page_len = xdr->page_len;
 		__entry->msg_len = xdr->len;
 	),
 
-	TP_printk("xid=0x%08x head=[%p,%zu] page=%u tail=[%p,%zu] len=%u",
+	TP_printk("xid=0x%08x head=[%p,%zu] page=%u(%u) tail=[%p,%zu] len=%u",
 		__entry->xid,
-		__entry->head_base, __entry->head_len, __entry->page_len,
-		__entry->tail_base, __entry->tail_len, __entry->msg_len
+		__entry->head_base, __entry->head_len,
+		__entry->page_len, __entry->page_base,
+		__entry->tail_base, __entry->tail_len,
+		__entry->msg_len
 	)
 );
 
@@ -1874,6 +1882,24 @@ TRACE_EVENT(svc_wake_up,
 	),
 
 	TP_printk("pid=%d", __entry->pid)
+);
+
+TRACE_EVENT(svc_alloc_arg_err,
+	TP_PROTO(
+		unsigned int pages
+	),
+
+	TP_ARGS(pages),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, pages)
+	),
+
+	TP_fast_assign(
+		__entry->pages = pages;
+	),
+
+	TP_printk("pages=%u", __entry->pages)
 );
 
 TRACE_EVENT(svc_handle_xprt,

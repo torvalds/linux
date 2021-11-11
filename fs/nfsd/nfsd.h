@@ -78,8 +78,10 @@ extern const struct seq_operations nfs_exports_op;
  */
 struct nfsd_voidargs { };
 struct nfsd_voidres { };
-int		nfssvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p);
-int		nfssvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p);
+bool		nfssvc_decode_voidarg(struct svc_rqst *rqstp,
+				      struct xdr_stream *xdr);
+bool		nfssvc_encode_voidres(struct svc_rqst *rqstp,
+				      struct xdr_stream *xdr);
 
 /*
  * Function prototypes.
