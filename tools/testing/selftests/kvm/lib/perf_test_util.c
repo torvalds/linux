@@ -136,7 +136,6 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,
 			   bool partition_vcpu_memory_access)
 {
 	struct perf_test_args *pta = &perf_test_args;
-	vm_paddr_t vcpu_gpa;
 	struct perf_test_vcpu_args *vcpu_args;
 	int vcpu_id;
 
@@ -149,19 +148,19 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,
 					 (vcpu_id * vcpu_memory_bytes);
 			vcpu_args->pages = vcpu_memory_bytes /
 					   pta->guest_page_size;
-			vcpu_gpa = guest_test_phys_mem +
-				   (vcpu_id * vcpu_memory_bytes);
+			vcpu_args->gpa = guest_test_phys_mem +
+					 (vcpu_id * vcpu_memory_bytes);
 		} else {
 			vcpu_args->gva = guest_test_virt_mem;
 			vcpu_args->pages = (vcpus * vcpu_memory_bytes) /
 					   pta->guest_page_size;
-			vcpu_gpa = guest_test_phys_mem;
+			vcpu_args->gpa = guest_test_phys_mem;
 		}
 
 		vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
 
 		pr_debug("Added VCPU %d with test mem gpa [%lx, %lx)\n",
-			 vcpu_id, vcpu_gpa, vcpu_gpa +
+			 vcpu_id, vcpu_args->gpa, vcpu_args->gpa +
 			 (vcpu_args->pages * pta->guest_page_size));
 	}
 }

@@ -18,6 +18,7 @@
 #define PERF_TEST_MEM_SLOT_INDEX	1
 
 struct perf_test_vcpu_args {
+	uint64_t gpa;
 	uint64_t gva;
 	uint64_t pages;
 
