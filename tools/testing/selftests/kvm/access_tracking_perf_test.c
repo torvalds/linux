@@ -332,10 +332,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	int vcpus = params->vcpus;
 
 	vm = perf_test_create_vm(mode, vcpus, params->vcpu_memory_bytes, 1,
-				 params->backing_src);
-
-	perf_test_setup_vcpus(vm, vcpus, params->vcpu_memory_bytes,
-			      !overlap_memory_access);
+				 params->backing_src, !overlap_memory_access);
 
 	vcpu_threads = create_vcpu_threads(vcpus);
 

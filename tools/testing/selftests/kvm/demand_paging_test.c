@@ -293,7 +293,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	int r;
 
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
-				 p->src_type);
+				 p->src_type, p->partition_vcpu_memory_access);
 
 	perf_test_args.wr_fract = 1;
 
@@ -306,9 +306,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
-
-	perf_test_setup_vcpus(vm, nr_vcpus, guest_percpu_mem_size,
-			      p->partition_vcpu_memory_access);
 
 	if (p->uffd_mode) {
 		uffd_handler_threads =

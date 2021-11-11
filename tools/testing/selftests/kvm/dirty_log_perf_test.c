@@ -186,7 +186,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct timespec clear_dirty_log_total = (struct timespec){0};
 
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
-				 p->slots, p->backing_src);
+				 p->slots, p->backing_src,
+				 p->partition_vcpu_memory_access);
 
 	perf_test_args.wr_fract = p->wr_fract;
 
@@ -205,9 +206,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
-
-	perf_test_setup_vcpus(vm, nr_vcpus, guest_percpu_mem_size,
-			      p->partition_vcpu_memory_access);
 
 	sync_global_to_guest(vm, perf_test_args);
 
