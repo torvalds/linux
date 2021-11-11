@@ -309,7 +309,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 
 		touched++;
 
-		if (freed >= nr)
+		if (touched >= nr)
 			break;
 
 		if (!btree_node_reclaim(c, b)) {
@@ -323,7 +323,7 @@ restart:
 	list_for_each_entry_safe(b, t, &bc->live, list) {
 		touched++;
 
-		if (freed >= nr) {
+		if (touched >= nr) {
 			/* Save position */
 			if (&t->list != &bc->live)
 				list_move_tail(&bc->live, &t->list);
