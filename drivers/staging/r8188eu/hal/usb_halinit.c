@@ -985,23 +985,15 @@ static void Hal_EfuseParsePIDVID_8188EU(struct adapter *adapt, u8 *hwinfo, bool 
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
 
 	if (!AutoLoadFail) {
-		/*  VID, PID */
-		haldata->EEPROMVID = EF2BYTE(*(__le16 *)&hwinfo[EEPROM_VID_88EU]);
-		haldata->EEPROMPID = EF2BYTE(*(__le16 *)&hwinfo[EEPROM_PID_88EU]);
-
 		/*  Customer ID, 0x00 and 0xff are reserved for Realtek. */
 		haldata->EEPROMCustomerID = *(u8 *)&hwinfo[EEPROM_CUSTOMERID_88E];
 		haldata->EEPROMSubCustomerID = EEPROM_Default_SubCustomerID;
 	} else {
-		haldata->EEPROMVID			= EEPROM_Default_VID;
-		haldata->EEPROMPID			= EEPROM_Default_PID;
-
 		/*  Customer ID, 0x00 and 0xff are reserved for Realtek. */
 		haldata->EEPROMCustomerID		= EEPROM_Default_CustomerID;
 		haldata->EEPROMSubCustomerID	= EEPROM_Default_SubCustomerID;
 	}
 
-	DBG_88E("VID = 0x%04X, PID = 0x%04X\n", haldata->EEPROMVID, haldata->EEPROMPID);
 	DBG_88E("Customer ID: 0x%02X, SubCustomer ID: 0x%02X\n", haldata->EEPROMCustomerID, haldata->EEPROMSubCustomerID);
 }
 

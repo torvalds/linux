@@ -175,8 +175,6 @@ struct hal_data_8188e {
 	u8	BoardType;
 
 	/*  EEPROM setting. */
-	u16	EEPROMVID;
-	u16	EEPROMPID;
 	u16	EEPROMSVID;
 	u16	EEPROMSDID;
 	u8	EEPROMCustomerID;
