@@ -28,7 +28,6 @@ struct perf_test_vcpu_args {
 
 struct perf_test_args {
 	struct kvm_vm *vm;
-	uint64_t host_page_size;
 	uint64_t gpa;
 	uint64_t guest_page_size;
 	int wr_fract;
