@@ -38,7 +38,6 @@
 #define __KVM_HAVE_ARCH_VCPU_DEBUGFS
 
 #define KVM_MAX_VCPUS 1024
-#define KVM_SOFT_MAX_VCPUS 710
 
 /*
  * In x86, the VCPU ID corresponds to the APIC ID, and APIC IDs
@@ -725,6 +724,7 @@ struct kvm_vcpu_arch {
 
 	int cpuid_nent;
 	struct kvm_cpuid_entry2 *cpuid_entries;
+	u32 kvm_cpuid_base;
 
 	u64 reserved_gpa_bits;
 	int maxphyaddr;
@@ -748,7 +748,7 @@ struct kvm_vcpu_arch {
 		u8 preempted;
 		u64 msr_val;
 		u64 last_steal;
-		struct gfn_to_pfn_cache cache;
+		struct gfn_to_hva_cache cache;
 	} st;
 
 	u64 l1_tsc_offset;
@@ -1034,6 +1034,7 @@ struct kvm_x86_msr_filter {
 #define APICV_INHIBIT_REASON_IRQWIN     3
 #define APICV_INHIBIT_REASON_PIT_REINJ  4
 #define APICV_INHIBIT_REASON_X2APIC	5
+#define APICV_INHIBIT_REASON_BLOCKIRQ	6
 
 struct kvm_arch {
 	unsigned long n_used_mmu_pages;
