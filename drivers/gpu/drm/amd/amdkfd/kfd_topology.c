@@ -1285,6 +1285,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	void *crat_image = NULL;
 	size_t image_size = 0;
 	int proximity_domain;
+	int i;
+	const char *asic_name = amdgpu_asic_name[gpu->adev->asic_type];
 
 	INIT_LIST_HEAD(&temp_topology_device_list);
 
@@ -1370,8 +1372,12 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	amdgpu_amdkfd_get_cu_info(dev->gpu->adev, &cu_info);
 
-	strncpy(dev->node_props.name, gpu->device_info->asic_name,
-			KFD_TOPOLOGY_PUBLIC_NAME_SIZE);
+	for (i = 0; i < KFD_TOPOLOGY_PUBLIC_NAME_SIZE-1; i++) {
+		dev->node_props.name[i] = __tolower(asic_name[i]);
+		if (asic_name[i] == '\0')
+			break;
+	}
+	dev->node_props.name[i] = '\0';
 
 	dev->node_props.simd_arrays_per_engine =
 		cu_info.num_shader_arrays_per_engine;
