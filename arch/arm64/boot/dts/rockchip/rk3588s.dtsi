@@ -591,7 +591,7 @@
 			<&cru HCLK_CENTER_ROOT>, <&cru ACLK_CENTER_LOW_ROOT>,
 			<&cru ACLK_TOP_ROOT>, <&cru PCLK_TOP_ROOT>,
 			<&cru ACLK_LOW_TOP_ROOT>, <&cru PCLK_PMU0_ROOT>,
-			<&cru HCLK_PMU_CM0_ROOT>;
+			<&cru HCLK_PMU_CM0_ROOT>, <&cru ACLK_VOP>;
 		assigned-clock-rates =
 			<100000000>,
 			<850000000>,  <1188000000>,
@@ -601,7 +601,7 @@
 			<400000000>, <500000000>,
 			<800000000>, <100000000>,
 			<400000000>, <100000000>,
-			<200000000>;
+			<200000000>, <500000000>;
 	};
 
 	i2c0: i2c@fd880000 {
