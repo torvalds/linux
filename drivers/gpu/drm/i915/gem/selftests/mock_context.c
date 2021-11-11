@@ -23,6 +23,7 @@ mock_context(struct drm_i915_private *i915,
 	kref_init(&ctx->ref);
 	INIT_LIST_HEAD(&ctx->link);
 	ctx->i915 = i915;
+	INIT_WORK(&ctx->release_work, i915_gem_context_release_work);
 
 	mutex_init(&ctx->mutex);
 

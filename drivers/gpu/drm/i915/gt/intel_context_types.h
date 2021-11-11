@@ -112,6 +112,7 @@ struct intel_context {
 #define CONTEXT_FORCE_SINGLE_SUBMISSION	7
 #define CONTEXT_NOPREEMPT		8
 #define CONTEXT_LRCA_DIRTY		9
+#define CONTEXT_GUC_INIT		10
 
 	struct {
 		u64 timeout_us;
@@ -155,49 +156,72 @@ struct intel_context {
 	u8 wa_bb_page; /* if set, page num reserved for context workarounds */
 
 	struct {
-		/** lock: protects everything in guc_state */
+		/** @lock: protects everything in guc_state */
 		spinlock_t lock;
 		/**
-		 * sched_state: scheduling state of this context using GuC
+		 * @sched_state: scheduling state of this context using GuC
 		 * submission
 		 */
-		u16 sched_state;
+		u32 sched_state;
 		/*
-		 * fences: maintains of list of requests that have a submit
-		 * fence related to GuC submission
+		 * @fences: maintains a list of requests that are currently
+		 * being fenced until a GuC operation completes
 		 */
 		struct list_head fences;
+		/**
+		 * @blocked: fence used to signal when the blocking of a
+		 * context's submissions is complete.
+		 */
+		struct i915_sw_fence blocked;
+		/** @number_committed_requests: number of committed requests */
+		int number_committed_requests;
+		/** @requests: list of active requests on this context */
+		struct list_head requests;
+		/** @prio: the context's current guc priority */
+		u8 prio;
+		/**
+		 * @prio_count: a counter of the number requests in flight in
+		 * each priority bucket
+		 */
+		u32 prio_count[GUC_CLIENT_PRIORITY_NUM];
 	} guc_state;
 
 	struct {
-		/** lock: protects everything in guc_active */
-		spinlock_t lock;
-		/** requests: active requests on this context */
-		struct list_head requests;
-	} guc_active;
+		/**
+		 * @id: handle which is used to uniquely identify this context
+		 * with the GuC, protected by guc->contexts_lock
+		 */
+		u16 id;
+		/**
+		 * @ref: the number of references to the guc_id, when
+		 * transitioning in and out of zero protected by
+		 * guc->contexts_lock
+		 */
+		atomic_t ref;
+		/**
+		 * @link: in guc->guc_id_list when the guc_id has no refs but is
+		 * still valid, protected by guc->contexts_lock
+		 */
+		struct list_head link;
+	} guc_id;
 
-	/* GuC scheduling state flags that do not require a lock. */
-	atomic_t guc_sched_state_no_lock;
-
-	/* GuC LRC descriptor ID */
-	u16 guc_id;
-
-	/* GuC LRC descriptor reference count */
-	atomic_t guc_id_ref;
-
-	/*
-	 * GuC ID link - in list when unpinned but guc_id still valid in GuC
+#ifdef CONFIG_DRM_I915_SELFTEST
+	/**
+	 * @drop_schedule_enable: Force drop of schedule enable G2H for selftest
 	 */
-	struct list_head guc_id_link;
+	bool drop_schedule_enable;
 
-	/* GuC context blocked fence */
-	struct i915_sw_fence guc_blocked;
-
-	/*
-	 * GuC priority management
+	/**
+	 * @drop_schedule_disable: Force drop of schedule disable G2H for
+	 * selftest
 	 */
-	u8 guc_prio;
-	u32 guc_prio_count[GUC_CLIENT_PRIORITY_NUM];
+	bool drop_schedule_disable;
+
+	/**
+	 * @drop_deregister: Force drop of deregister G2H for selftest
+	 */
+	bool drop_deregister;
+#endif
 };
 
 #endif /* __INTEL_CONTEXT_TYPES__ */

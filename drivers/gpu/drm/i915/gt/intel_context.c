@@ -395,19 +395,18 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 
 	spin_lock_init(&ce->guc_state.lock);
 	INIT_LIST_HEAD(&ce->guc_state.fences);
+	INIT_LIST_HEAD(&ce->guc_state.requests);
 
-	spin_lock_init(&ce->guc_active.lock);
-	INIT_LIST_HEAD(&ce->guc_active.requests);
-
-	ce->guc_id = GUC_INVALID_LRC_ID;
-	INIT_LIST_HEAD(&ce->guc_id_link);
+	ce->guc_id.id = GUC_INVALID_LRC_ID;
+	INIT_LIST_HEAD(&ce->guc_id.link);
 
 	/*
 	 * Initialize fence to be complete as this is expected to be complete
 	 * unless there is a pending schedule disable outstanding.
 	 */
-	i915_sw_fence_init(&ce->guc_blocked, sw_fence_dummy_notify);
-	i915_sw_fence_commit(&ce->guc_blocked);
+	i915_sw_fence_init(&ce->guc_state.blocked,
+			   sw_fence_dummy_notify);
+	i915_sw_fence_commit(&ce->guc_state.blocked);
 
 	i915_active_init(&ce->active,
 			 __intel_context_active, __intel_context_retire, 0);
@@ -421,7 +420,6 @@ void intel_context_fini(struct intel_context *ce)
 
 	mutex_destroy(&ce->pin_mutex);
 	i915_active_fini(&ce->active);
-	i915_sw_fence_fini(&ce->guc_blocked);
 }
 
 void i915_context_module_exit(void)
@@ -522,15 +520,15 @@ struct i915_request *intel_context_find_active_request(struct intel_context *ce)
 
 	GEM_BUG_ON(!intel_engine_uses_guc(ce->engine));
 
-	spin_lock_irqsave(&ce->guc_active.lock, flags);
-	list_for_each_entry_reverse(rq, &ce->guc_active.requests,
+	spin_lock_irqsave(&ce->guc_state.lock, flags);
+	list_for_each_entry_reverse(rq, &ce->guc_state.requests,
 				    sched.link) {
 		if (i915_request_completed(rq))
 			break;
 
 		active = rq;
 	}
-	spin_unlock_irqrestore(&ce->guc_active.lock, flags);
+	spin_unlock_irqrestore(&ce->guc_state.lock, flags);
 
 	return active;
 }

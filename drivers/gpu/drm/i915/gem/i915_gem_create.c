@@ -347,9 +347,6 @@ static int ext_set_placements(struct i915_user_extension __user *base,
 {
 	struct drm_i915_gem_create_ext_memory_regions ext;
 
-	if (!IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM))
-		return -ENODEV;
-
 	if (copy_from_user(&ext, base, sizeof(ext)))
 		return -EFAULT;
 

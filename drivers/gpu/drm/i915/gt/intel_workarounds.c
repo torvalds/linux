@@ -644,6 +644,72 @@ static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
 		     DG1_HZ_READ_SUPPRESSION_OPTIMIZATION_DISABLE);
 }
 
+static void fakewa_disable_nestedbb_mode(struct intel_engine_cs *engine,
+					 struct i915_wa_list *wal)
+{
+	/*
+	 * This is a "fake" workaround defined by software to ensure we
+	 * maintain reliable, backward-compatible behavior for userspace with
+	 * regards to how nested MI_BATCH_BUFFER_START commands are handled.
+	 *
+	 * The per-context setting of MI_MODE[12] determines whether the bits
+	 * of a nested MI_BATCH_BUFFER_START instruction should be interpreted
+	 * in the traditional manner or whether they should instead use a new
+	 * tgl+ meaning that breaks backward compatibility, but allows nesting
+	 * into 3rd-level batchbuffers.  When this new capability was first
+	 * added in TGL, it remained off by default unless a context
+	 * intentionally opted in to the new behavior.  However Xe_HPG now
+	 * flips this on by default and requires that we explicitly opt out if
+	 * we don't want the new behavior.
+	 *
+	 * From a SW perspective, we want to maintain the backward-compatible
+	 * behavior for userspace, so we'll apply a fake workaround to set it
+	 * back to the legacy behavior on platforms where the hardware default
+	 * is to break compatibility.  At the moment there is no Linux
+	 * userspace that utilizes third-level batchbuffers, so this will avoid
+	 * userspace from needing to make any changes.  using the legacy
+	 * meaning is the correct thing to do.  If/when we have userspace
+	 * consumers that want to utilize third-level batch nesting, we can
+	 * provide a context parameter to allow them to opt-in.
+	 */
+	wa_masked_dis(wal, RING_MI_MODE(engine->mmio_base), TGL_NESTED_BB_EN);
+}
+
+static void gen12_ctx_gt_mocs_init(struct intel_engine_cs *engine,
+				   struct i915_wa_list *wal)
+{
+	u8 mocs;
+
+	/*
+	 * Some blitter commands do not have a field for MOCS, those
+	 * commands will use MOCS index pointed by BLIT_CCTL.
+	 * BLIT_CCTL registers are needed to be programmed to un-cached.
+	 */
+	if (engine->class == COPY_ENGINE_CLASS) {
+		mocs = engine->gt->mocs.uc_index;
+		wa_write_clr_set(wal,
+				 BLIT_CCTL(engine->mmio_base),
+				 BLIT_CCTL_MASK,
+				 BLIT_CCTL_MOCS(mocs, mocs));
+	}
+}
+
+/*
+ * gen12_ctx_gt_fake_wa_init() aren't programmingan official workaround
+ * defined by the hardware team, but it programming general context registers.
+ * Adding those context register programming in context workaround
+ * allow us to use the wa framework for proper application and validation.
+ */
+static void
+gen12_ctx_gt_fake_wa_init(struct intel_engine_cs *engine,
+			  struct i915_wa_list *wal)
+{
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
+		fakewa_disable_nestedbb_mode(engine, wal);
+
+	gen12_ctx_gt_mocs_init(engine, wal);
+}
+
 static void
 __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 			   struct i915_wa_list *wal,
@@ -651,10 +717,18 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (engine->class != RENDER_CLASS)
-		return;
-
 	wa_init_start(wal, name, engine->name);
+
+	/* Applies to all engines */
+	/*
+	 * Fake workarounds are not the actual workaround but
+	 * programming of context registers using workaround framework.
+	 */
+	if (GRAPHICS_VER(i915) >= 12)
+		gen12_ctx_gt_fake_wa_init(engine, wal);
+
+	if (engine->class != RENDER_CLASS)
+		goto done;
 
 	if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
@@ -685,6 +759,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	else
 		MISSING_CASE(GRAPHICS_VER(i915));
 
+done:
 	wa_init_finish(wal);
 }
 
@@ -1604,6 +1679,31 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 				   i915_mmio_reg_offset(RING_NOPID(base)));
 }
 
+/*
+ * engine_fake_wa_init(), a place holder to program the registers
+ * which are not part of an official workaround defined by the
+ * hardware team.
+ * Adding programming of those register inside workaround will
+ * allow utilizing wa framework to proper application and verification.
+ */
+static void
+engine_fake_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	u8 mocs;
+
+	/*
+	 * RING_CMD_CCTL are need to be programed to un-cached
+	 * for memory writes and reads outputted by Command
+	 * Streamers on Gen12 onward platforms.
+	 */
+	if (GRAPHICS_VER(engine->i915) >= 12) {
+		mocs = engine->gt->mocs.uc_index;
+		wa_masked_field_set(wal,
+				    RING_CMD_CCTL(engine->mmio_base),
+				    CMD_CCTL_MOCS_MASK,
+				    CMD_CCTL_MOCS_OVERRIDE(mocs, mocs));
+	}
+}
 static void
 rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
@@ -2044,6 +2144,8 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 	if (I915_SELFTEST_ONLY(GRAPHICS_VER(engine->i915) < 4))
 		return;
 
+	engine_fake_wa_init(engine, wal);
+
 	if (engine->class == RENDER_CLASS)
 		rcs_engine_wa_init(engine, wal);
 	else
@@ -2067,12 +2169,7 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 	wa_list_apply(engine->gt, &engine->wa_list);
 }
 
-struct mcr_range {
-	u32 start;
-	u32 end;
-};
-
-static const struct mcr_range mcr_ranges_gen8[] = {
+static const struct i915_range mcr_ranges_gen8[] = {
 	{ .start = 0x5500, .end = 0x55ff },
 	{ .start = 0x7000, .end = 0x7fff },
 	{ .start = 0x9400, .end = 0x97ff },
@@ -2081,7 +2178,7 @@ static const struct mcr_range mcr_ranges_gen8[] = {
 	{},
 };
 
-static const struct mcr_range mcr_ranges_gen12[] = {
+static const struct i915_range mcr_ranges_gen12[] = {
 	{ .start =  0x8150, .end =  0x815f },
 	{ .start =  0x9520, .end =  0x955f },
 	{ .start =  0xb100, .end =  0xb3ff },
@@ -2090,7 +2187,7 @@ static const struct mcr_range mcr_ranges_gen12[] = {
 	{},
 };
 
-static const struct mcr_range mcr_ranges_xehp[] = {
+static const struct i915_range mcr_ranges_xehp[] = {
 	{ .start =  0x4000, .end =  0x4aff },
 	{ .start =  0x5200, .end =  0x52ff },
 	{ .start =  0x5400, .end =  0x7fff },
@@ -2109,7 +2206,7 @@ static const struct mcr_range mcr_ranges_xehp[] = {
 
 static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
-	const struct mcr_range *mcr_ranges;
+	const struct i915_range *mcr_ranges;
 	int i;
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))

@@ -1265,7 +1265,7 @@ static struct i915_vma *gen7_ctx_vma(struct intel_engine_cs *engine)
 	int size, err;
 
 	if (GRAPHICS_VER(engine->i915) != 7 || engine->class != RENDER_CLASS)
-		return 0;
+		return NULL;
 
 	err = gen7_ctx_switch_bb_setup(engine, NULL /* probe size */);
 	if (err < 0)

@@ -119,6 +119,12 @@ struct intel_forcewake_range {
 	enum forcewake_domains domains;
 };
 
+/* Other register ranges (e.g., shadow tables, MCR tables, etc.) */
+struct i915_range {
+	u32 start;
+	u32 end;
+};
+
 struct intel_uncore {
 	void __iomem *regs;
 

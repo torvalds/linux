@@ -64,7 +64,7 @@ static void mmio_debug_resume(struct intel_uncore_mmio_debug *mmio_debug)
 
 static const char * const forcewake_domain_names[] = {
 	"render",
-	"blitter",
+	"gt",
 	"media",
 	"vdbox0",
 	"vdbox1",
@@ -945,105 +945,92 @@ static const struct intel_forcewake_range __vlv_fw_ranges[] = {
 #define __gen11_fwtable_reg_read_fw_domains(uncore, offset) \
 	find_fw_domain(uncore, offset)
 
-#define __gen12_fwtable_reg_read_fw_domains(uncore, offset) \
-	find_fw_domain(uncore, offset)
-
 /* *Must* be sorted by offset! See intel_shadow_table_check(). */
-static const i915_reg_t gen8_shadowed_regs[] = {
-	RING_TAIL(RENDER_RING_BASE),	/* 0x2000 (base) */
-	GEN6_RPNSWREQ,			/* 0xA008 */
-	GEN6_RC_VIDEO_FREQ,		/* 0xA00C */
-	RING_TAIL(GEN6_BSD_RING_BASE),	/* 0x12000 (base) */
-	RING_TAIL(VEBOX_RING_BASE),	/* 0x1a000 (base) */
-	RING_TAIL(BLT_RING_BASE),	/* 0x22000 (base) */
+static const struct i915_range gen8_shadowed_regs[] = {
+	{ .start =  0x2030, .end =  0x2030 },
+	{ .start =  0xA008, .end =  0xA00C },
+	{ .start = 0x12030, .end = 0x12030 },
+	{ .start = 0x1a030, .end = 0x1a030 },
+	{ .start = 0x22030, .end = 0x22030 },
 	/* TODO: Other registers are not yet used */
 };
 
-static const i915_reg_t gen11_shadowed_regs[] = {
-	RING_TAIL(RENDER_RING_BASE),			/* 0x2000 (base) */
-	RING_EXECLIST_CONTROL(RENDER_RING_BASE),        /* 0x2550 */
-	GEN6_RPNSWREQ,					/* 0xA008 */
-	GEN6_RC_VIDEO_FREQ,				/* 0xA00C */
-	RING_TAIL(BLT_RING_BASE),			/* 0x22000 (base) */
-	RING_EXECLIST_CONTROL(BLT_RING_BASE),		/* 0x22550 */
-	RING_TAIL(GEN11_BSD_RING_BASE),			/* 0x1C0000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD_RING_BASE),	/* 0x1C0550 */
-	RING_TAIL(GEN11_BSD2_RING_BASE),		/* 0x1C4000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD2_RING_BASE),	/* 0x1C4550 */
-	RING_TAIL(GEN11_VEBOX_RING_BASE),		/* 0x1C8000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_VEBOX_RING_BASE),	/* 0x1C8550 */
-	RING_TAIL(GEN11_BSD3_RING_BASE),		/* 0x1D0000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD3_RING_BASE),	/* 0x1D0550 */
-	RING_TAIL(GEN11_BSD4_RING_BASE),		/* 0x1D4000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD4_RING_BASE),	/* 0x1D4550 */
-	RING_TAIL(GEN11_VEBOX2_RING_BASE),		/* 0x1D8000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_VEBOX2_RING_BASE),	/* 0x1D8550 */
-	/* TODO: Other registers are not yet used */
+static const struct i915_range gen11_shadowed_regs[] = {
+	{ .start =   0x2030, .end =   0x2030 },
+	{ .start =   0x2550, .end =   0x2550 },
+	{ .start =   0xA008, .end =   0xA00C },
+	{ .start =  0x22030, .end =  0x22030 },
+	{ .start =  0x22230, .end =  0x22230 },
+	{ .start =  0x22510, .end =  0x22550 },
+	{ .start = 0x1C0030, .end = 0x1C0030 },
+	{ .start = 0x1C0230, .end = 0x1C0230 },
+	{ .start = 0x1C0510, .end = 0x1C0550 },
+	{ .start = 0x1C4030, .end = 0x1C4030 },
+	{ .start = 0x1C4230, .end = 0x1C4230 },
+	{ .start = 0x1C4510, .end = 0x1C4550 },
+	{ .start = 0x1C8030, .end = 0x1C8030 },
+	{ .start = 0x1C8230, .end = 0x1C8230 },
+	{ .start = 0x1C8510, .end = 0x1C8550 },
+	{ .start = 0x1D0030, .end = 0x1D0030 },
+	{ .start = 0x1D0230, .end = 0x1D0230 },
+	{ .start = 0x1D0510, .end = 0x1D0550 },
+	{ .start = 0x1D4030, .end = 0x1D4030 },
+	{ .start = 0x1D4230, .end = 0x1D4230 },
+	{ .start = 0x1D4510, .end = 0x1D4550 },
+	{ .start = 0x1D8030, .end = 0x1D8030 },
+	{ .start = 0x1D8230, .end = 0x1D8230 },
+	{ .start = 0x1D8510, .end = 0x1D8550 },
 };
 
-static const i915_reg_t gen12_shadowed_regs[] = {
-	RING_TAIL(RENDER_RING_BASE),			/* 0x2000 (base) */
-	RING_EXECLIST_CONTROL(RENDER_RING_BASE),	/* 0x2550 */
-	GEN6_RPNSWREQ,					/* 0xA008 */
-	GEN6_RC_VIDEO_FREQ,				/* 0xA00C */
-	RING_TAIL(BLT_RING_BASE),			/* 0x22000 (base) */
-	RING_EXECLIST_CONTROL(BLT_RING_BASE),		/* 0x22550 */
-	RING_TAIL(GEN11_BSD_RING_BASE),			/* 0x1C0000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD_RING_BASE),	/* 0x1C0550 */
-	RING_TAIL(GEN11_BSD2_RING_BASE),		/* 0x1C4000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD2_RING_BASE),	/* 0x1C4550 */
-	RING_TAIL(GEN11_VEBOX_RING_BASE),		/* 0x1C8000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_VEBOX_RING_BASE),	/* 0x1C8550 */
-	RING_TAIL(GEN11_BSD3_RING_BASE),		/* 0x1D0000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD3_RING_BASE),	/* 0x1D0550 */
-	RING_TAIL(GEN11_BSD4_RING_BASE),		/* 0x1D4000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD4_RING_BASE),	/* 0x1D4550 */
-	RING_TAIL(GEN11_VEBOX2_RING_BASE),		/* 0x1D8000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_VEBOX2_RING_BASE),	/* 0x1D8550 */
-	/* TODO: Other registers are not yet used */
+static const struct i915_range gen12_shadowed_regs[] = {
+	{ .start =   0x2030, .end =   0x2030 },
+	{ .start =   0x2510, .end =   0x2550 },
+	{ .start =   0xA008, .end =   0xA00C },
+	{ .start =   0xA188, .end =   0xA188 },
+	{ .start =   0xA278, .end =   0xA278 },
+	{ .start =   0xA540, .end =   0xA56C },
+	{ .start =   0xC4C8, .end =   0xC4C8 },
+	{ .start =   0xC4D4, .end =   0xC4D4 },
+	{ .start =   0xC600, .end =   0xC600 },
+	{ .start =  0x22030, .end =  0x22030 },
+	{ .start =  0x22510, .end =  0x22550 },
+	{ .start = 0x1C0030, .end = 0x1C0030 },
+	{ .start = 0x1C0510, .end = 0x1C0550 },
+	{ .start = 0x1C4030, .end = 0x1C4030 },
+	{ .start = 0x1C4510, .end = 0x1C4550 },
+	{ .start = 0x1C8030, .end = 0x1C8030 },
+	{ .start = 0x1C8510, .end = 0x1C8550 },
+	{ .start = 0x1D0030, .end = 0x1D0030 },
+	{ .start = 0x1D0510, .end = 0x1D0550 },
+	{ .start = 0x1D4030, .end = 0x1D4030 },
+	{ .start = 0x1D4510, .end = 0x1D4550 },
+	{ .start = 0x1D8030, .end = 0x1D8030 },
+	{ .start = 0x1D8510, .end = 0x1D8550 },
+
+	/*
+	 * The rest of these ranges are specific to Xe_HP and beyond, but
+	 * are reserved/unused ranges on earlier gen12 platforms, so they can
+	 * be safely added to the gen12 table.
+	 */
+	{ .start = 0x1E0030, .end = 0x1E0030 },
+	{ .start = 0x1E0510, .end = 0x1E0550 },
+	{ .start = 0x1E4030, .end = 0x1E4030 },
+	{ .start = 0x1E4510, .end = 0x1E4550 },
+	{ .start = 0x1E8030, .end = 0x1E8030 },
+	{ .start = 0x1E8510, .end = 0x1E8550 },
+	{ .start = 0x1F0030, .end = 0x1F0030 },
+	{ .start = 0x1F0510, .end = 0x1F0550 },
+	{ .start = 0x1F4030, .end = 0x1F4030 },
+	{ .start = 0x1F4510, .end = 0x1F4550 },
+	{ .start = 0x1F8030, .end = 0x1F8030 },
+	{ .start = 0x1F8510, .end = 0x1F8550 },
 };
 
-static const i915_reg_t xehp_shadowed_regs[] = {
-	RING_TAIL(RENDER_RING_BASE),			/* 0x2000 (base) */
-	RING_EXECLIST_CONTROL(RENDER_RING_BASE),        /* 0x2550 */
-	GEN6_RPNSWREQ,					/* 0xA008 */
-	GEN6_RC_VIDEO_FREQ,				/* 0xA00C */
-	RING_TAIL(BLT_RING_BASE),			/* 0x22000 (base) */
-	RING_EXECLIST_CONTROL(BLT_RING_BASE),		/* 0x22550 */
-	RING_TAIL(GEN11_BSD_RING_BASE),			/* 0x1C0000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD_RING_BASE),	/* 0x1C0550 */
-	RING_TAIL(GEN11_BSD2_RING_BASE),		/* 0x1C4000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD2_RING_BASE),	/* 0x1C4550 */
-	RING_TAIL(GEN11_VEBOX_RING_BASE),		/* 0x1C8000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_VEBOX_RING_BASE),	/* 0x1C8550 */
-	RING_TAIL(GEN11_BSD3_RING_BASE),		/* 0x1D0000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD3_RING_BASE),	/* 0x1D0550 */
-	RING_TAIL(GEN11_BSD4_RING_BASE),		/* 0x1D4000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_BSD4_RING_BASE),	/* 0x1D4550 */
-	RING_TAIL(GEN11_VEBOX2_RING_BASE),		/* 0x1D8000 (base) */
-	RING_EXECLIST_CONTROL(GEN11_VEBOX2_RING_BASE),	/* 0x1D8550 */
-	RING_TAIL(XEHP_BSD5_RING_BASE),			/* 0x1E0000 (base) */
-	RING_EXECLIST_CONTROL(XEHP_BSD5_RING_BASE),	/* 0x1E0550 */
-	RING_TAIL(XEHP_BSD6_RING_BASE),			/* 0x1E4000 (base) */
-	RING_EXECLIST_CONTROL(XEHP_BSD6_RING_BASE),	/* 0x1E4550 */
-	RING_TAIL(XEHP_VEBOX3_RING_BASE),		/* 0x1E8000 (base) */
-	RING_EXECLIST_CONTROL(XEHP_VEBOX3_RING_BASE),	/* 0x1E8550 */
-	RING_TAIL(XEHP_BSD7_RING_BASE),			/* 0x1F0000 (base) */
-	RING_EXECLIST_CONTROL(XEHP_BSD7_RING_BASE),	/* 0x1F0550 */
-	RING_TAIL(XEHP_BSD8_RING_BASE),			/* 0x1F4000 (base) */
-	RING_EXECLIST_CONTROL(XEHP_BSD8_RING_BASE),	/* 0x1F4550 */
-	RING_TAIL(XEHP_VEBOX4_RING_BASE),		/* 0x1F8000 (base) */
-	RING_EXECLIST_CONTROL(XEHP_VEBOX4_RING_BASE),	/* 0x1F8550 */
-	/* TODO: Other registers are not yet used */
-};
-
-static int mmio_reg_cmp(u32 key, const i915_reg_t *reg)
+static int mmio_range_cmp(u32 key, const struct i915_range *range)
 {
-	u32 offset = i915_mmio_reg_offset(*reg);
-
-	if (key < offset)
+	if (key < range->start)
 		return -1;
-	else if (key > offset)
+	else if (key > range->end)
 		return 1;
 	else
 		return 0;
@@ -1052,15 +1039,14 @@ static int mmio_reg_cmp(u32 key, const i915_reg_t *reg)
 #define __is_X_shadowed(x) \
 static bool is_##x##_shadowed(u32 offset) \
 { \
-	const i915_reg_t *regs = x##_shadowed_regs; \
+	const struct i915_range *regs = x##_shadowed_regs; \
 	return BSEARCH(offset, regs, ARRAY_SIZE(x##_shadowed_regs), \
-		       mmio_reg_cmp); \
+		       mmio_range_cmp); \
 }
 
 __is_X_shadowed(gen8)
 __is_X_shadowed(gen11)
 __is_X_shadowed(gen12)
-__is_X_shadowed(xehp)
 
 static enum forcewake_domains
 gen6_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg)
@@ -1120,15 +1106,6 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 	enum forcewake_domains __fwd = 0; \
 	const u32 __offset = (offset); \
 	if (!is_gen12_shadowed(__offset)) \
-		__fwd = find_fw_domain(uncore, __offset); \
-	__fwd; \
-})
-
-#define __xehp_fwtable_reg_write_fw_domains(uncore, offset) \
-({ \
-	enum forcewake_domains __fwd = 0; \
-	const u32 __offset = (offset); \
-	if (!is_xehp_shadowed(__offset)) \
 		__fwd = find_fw_domain(uncore, __offset); \
 	__fwd; \
 })
@@ -1644,7 +1621,6 @@ __gen_read(func, 16) \
 __gen_read(func, 32) \
 __gen_read(func, 64)
 
-__gen_reg_read_funcs(gen12_fwtable);
 __gen_reg_read_funcs(gen11_fwtable);
 __gen_reg_read_funcs(fwtable);
 __gen_reg_read_funcs(gen6);
@@ -1736,7 +1712,6 @@ __gen_write(func, 8) \
 __gen_write(func, 16) \
 __gen_write(func, 32)
 
-__gen_reg_write_funcs(xehp_fwtable);
 __gen_reg_write_funcs(gen12_fwtable);
 __gen_reg_write_funcs(gen11_fwtable);
 __gen_reg_write_funcs(fwtable);
@@ -2113,16 +2088,16 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __dg2_fw_ranges);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, xehp_fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __xehp_fw_ranges);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, xehp_fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen12_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen12_fwtable);
-		ASSIGN_READ_MMIO_VFUNCS(uncore, gen12_fwtable);
+		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	} else if (GRAPHICS_VER(i915) == 11) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen11_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen11_fwtable);
