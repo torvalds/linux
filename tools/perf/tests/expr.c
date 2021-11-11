@@ -134,6 +134,16 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "EVENT2,param=3@",
 						    (void **)&val_ptr));
 
+	expr__ctx_clear(ctx);
+	TEST_ASSERT_VAL("find ids",
+			expr__find_ids("dash\\-event1 - dash\\-event2",
+				       NULL, ctx) == 0);
+	TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 2);
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "dash-event1",
+						    (void **)&val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "dash-event2",
+						    (void **)&val_ptr));
+
 	/* Only EVENT1 or EVENT2 need be measured depending on the value of smt_on. */
 	expr__ctx_clear(ctx);
 	TEST_ASSERT_VAL("find ids",
