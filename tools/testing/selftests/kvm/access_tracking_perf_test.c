@@ -47,7 +47,7 @@
 #include "guest_modes.h"
 
 /* Global variable used to synchronize all of the vCPU threads. */
-static int iteration = -1;
+static int iteration;
 
 /* Defines what vCPU threads should do during a given iteration. */
 static enum {
@@ -220,7 +220,7 @@ static void *vcpu_thread_main(void *arg)
 	struct perf_test_vcpu_args *vcpu_args = arg;
 	struct kvm_vm *vm = perf_test_args.vm;
 	int vcpu_id = vcpu_args->vcpu_id;
-	int current_iteration = -1;
+	int current_iteration = 0;
 
 	while (spin_wait_for_next_iteration(&current_iteration)) {
 		switch (READ_ONCE(iteration_work)) {
@@ -303,11 +303,9 @@ static pthread_t *create_vcpu_threads(int vcpus)
 	vcpu_threads = malloc(vcpus * sizeof(vcpu_threads[0]));
 	TEST_ASSERT(vcpu_threads, "Failed to allocate vcpu_threads.");
 
-	for (i = 0; i < vcpus; i++) {
-		vcpu_last_completed_iteration[i] = iteration;
+	for (i = 0; i < vcpus; i++)
 		pthread_create(&vcpu_threads[i], NULL, vcpu_thread_main,
 			       &perf_test_args.vcpu_args[i]);
-	}
 
 	return vcpu_threads;
 }
