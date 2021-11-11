@@ -35,18 +35,18 @@ struct bch2_checksum_state {
 static void bch2_checksum_init(struct bch2_checksum_state *state)
 {
 	switch (state->type) {
-	case BCH_CSUM_NONE:
-	case BCH_CSUM_CRC32C:
-	case BCH_CSUM_CRC64:
+	case BCH_CSUM_none:
+	case BCH_CSUM_crc32c:
+	case BCH_CSUM_crc64:
 		state->seed = 0;
 		break;
-	case BCH_CSUM_CRC32C_NONZERO:
+	case BCH_CSUM_crc32c_nonzero:
 		state->seed = U32_MAX;
 		break;
-	case BCH_CSUM_CRC64_NONZERO:
+	case BCH_CSUM_crc64_nonzero:
 		state->seed = U64_MAX;
 		break;
-	case BCH_CSUM_XXHASH:
+	case BCH_CSUM_xxhash:
 		xxh64_reset(&state->h64state, 0);
 		break;
 	default:
@@ -57,15 +57,15 @@ static void bch2_checksum_init(struct bch2_checksum_state *state)
 static u64 bch2_checksum_final(const struct bch2_checksum_state *state)
 {
 	switch (state->type) {
-	case BCH_CSUM_NONE:
-	case BCH_CSUM_CRC32C:
-	case BCH_CSUM_CRC64:
+	case BCH_CSUM_none:
+	case BCH_CSUM_crc32c:
+	case BCH_CSUM_crc64:
 		return state->seed;
-	case BCH_CSUM_CRC32C_NONZERO:
+	case BCH_CSUM_crc32c_nonzero:
 		return state->seed ^ U32_MAX;
-	case BCH_CSUM_CRC64_NONZERO:
+	case BCH_CSUM_crc64_nonzero:
 		return state->seed ^ U64_MAX;
-	case BCH_CSUM_XXHASH:
+	case BCH_CSUM_xxhash:
 		return xxh64_digest(&state->h64state);
 	default:
 		BUG();
@@ -75,17 +75,17 @@ static u64 bch2_checksum_final(const struct bch2_checksum_state *state)
 static void bch2_checksum_update(struct bch2_checksum_state *state, const void *data, size_t len)
 {
 	switch (state->type) {
-	case BCH_CSUM_NONE:
+	case BCH_CSUM_none:
 		return;
-	case BCH_CSUM_CRC32C_NONZERO:
-	case BCH_CSUM_CRC32C:
+	case BCH_CSUM_crc32c_nonzero:
+	case BCH_CSUM_crc32c:
 		state->seed = crc32c(state->seed, data, len);
 		break;
-	case BCH_CSUM_CRC64_NONZERO:
-	case BCH_CSUM_CRC64:
+	case BCH_CSUM_crc64_nonzero:
+	case BCH_CSUM_crc64:
 		state->seed = crc64_be(state->seed, data, len);
 		break;
-	case BCH_CSUM_XXHASH:
+	case BCH_CSUM_xxhash:
 		xxh64_update(&state->h64state, data, len);
 		break;
 	default:
@@ -161,12 +161,12 @@ struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
 			      struct nonce nonce, const void *data, size_t len)
 {
 	switch (type) {
-	case BCH_CSUM_NONE:
-	case BCH_CSUM_CRC32C_NONZERO:
-	case BCH_CSUM_CRC64_NONZERO:
-	case BCH_CSUM_CRC32C:
-	case BCH_CSUM_XXHASH:
-	case BCH_CSUM_CRC64: {
+	case BCH_CSUM_none:
+	case BCH_CSUM_crc32c_nonzero:
+	case BCH_CSUM_crc64_nonzero:
+	case BCH_CSUM_crc32c:
+	case BCH_CSUM_xxhash:
+	case BCH_CSUM_crc64: {
 		struct bch2_checksum_state state;
 
 		state.type = type;
@@ -177,8 +177,8 @@ struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
 		return (struct bch_csum) { .lo = cpu_to_le64(bch2_checksum_final(&state)) };
 	}
 
-	case BCH_CSUM_CHACHA20_POLY1305_80:
-	case BCH_CSUM_CHACHA20_POLY1305_128: {
+	case BCH_CSUM_chacha20_poly1305_80:
+	case BCH_CSUM_chacha20_poly1305_128: {
 		SHASH_DESC_ON_STACK(desc, c->poly1305);
 		u8 digest[POLY1305_DIGEST_SIZE];
 		struct bch_csum ret = { 0 };
@@ -212,13 +212,13 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 	struct bio_vec bv;
 
 	switch (type) {
-	case BCH_CSUM_NONE:
+	case BCH_CSUM_none:
 		return (struct bch_csum) { 0 };
-	case BCH_CSUM_CRC32C_NONZERO:
-	case BCH_CSUM_CRC64_NONZERO:
-	case BCH_CSUM_CRC32C:
-	case BCH_CSUM_XXHASH:
-	case BCH_CSUM_CRC64: {
+	case BCH_CSUM_crc32c_nonzero:
+	case BCH_CSUM_crc64_nonzero:
+	case BCH_CSUM_crc32c:
+	case BCH_CSUM_xxhash:
+	case BCH_CSUM_crc64: {
 		struct bch2_checksum_state state;
 
 		state.type = type;
@@ -238,8 +238,8 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 		return (struct bch_csum) { .lo = cpu_to_le64(bch2_checksum_final(&state)) };
 	}
 
-	case BCH_CSUM_CHACHA20_POLY1305_80:
-	case BCH_CSUM_CHACHA20_POLY1305_128: {
+	case BCH_CSUM_chacha20_poly1305_80:
+	case BCH_CSUM_chacha20_poly1305_128: {
 		SHASH_DESC_ON_STACK(desc, c->poly1305);
 		u8 digest[POLY1305_DIGEST_SIZE];
 		struct bch_csum ret = { 0 };

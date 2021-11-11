@@ -12,9 +12,12 @@ extern const char * const bch2_error_actions[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
 extern const char * const bch2_btree_ids[];
+extern const char * const bch2_csum_types[];
 extern const char * const bch2_csum_opts[];
+extern const char * const bch2_compression_types[];
 extern const char * const bch2_compression_opts[];
 extern const char * const bch2_str_hash_types[];
+extern const char * const bch2_str_hash_opts[];
 extern const char * const bch2_data_types[];
 extern const char * const bch2_cache_replacement_policies[];
 extern const char * const bch2_member_states[];
@@ -140,7 +143,7 @@ enum opt_type {
 	  NULL,		NULL)						\
 	x(str_hash,			u8,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
-	  OPT_STR(bch2_str_hash_types),					\
+	  OPT_STR(bch2_str_hash_opts),					\
 	  BCH_SB_STR_HASH_TYPE,		BCH_STR_HASH_OPT_siphash,	\
 	  NULL,		"Hash function for directory entries and xattrs")\
 	x(metadata_target,		u16,				\

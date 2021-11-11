@@ -2104,7 +2104,7 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 	EBUG_ON(offset_into_extent + bvec_iter_sectors(iter) > k.k->size);
 
 	if (crc_is_compressed(pick.crc) ||
-	    (pick.crc.csum_type != BCH_CSUM_NONE &&
+	    (pick.crc.csum_type != BCH_CSUM_none &&
 	     (bvec_iter_sectors(iter) != pick.crc.uncompressed_size ||
 	      (bch2_csum_type_is_encryption(pick.crc.csum_type) &&
 	       (flags & BCH_READ_USER_MAPPED)) ||

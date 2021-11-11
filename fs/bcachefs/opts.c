@@ -31,8 +31,18 @@ const char * const bch2_btree_ids[] = {
 	NULL
 };
 
+const char * const bch2_csum_types[] = {
+	BCH_CSUM_TYPES()
+	NULL
+};
+
 const char * const bch2_csum_opts[] = {
 	BCH_CSUM_OPTS()
+	NULL
+};
+
+const char * const bch2_compression_types[] = {
+	BCH_COMPRESSION_TYPES()
 	NULL
 };
 
@@ -42,6 +52,11 @@ const char * const bch2_compression_opts[] = {
 };
 
 const char * const bch2_str_hash_types[] = {
+	BCH_STR_HASH_TYPES()
+	NULL
+};
+
+const char * const bch2_str_hash_opts[] = {
 	BCH_STR_HASH_OPTS()
 	NULL
 };

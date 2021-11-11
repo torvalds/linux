@@ -1154,7 +1154,7 @@ static void ec_stripe_key_init(struct bch_fs *c,
 	s->v.nr_blocks			= nr_data + nr_parity;
 	s->v.nr_redundant		= nr_parity;
 	s->v.csum_granularity_bits	= ilog2(c->sb.encoded_extent_max);
-	s->v.csum_type			= BCH_CSUM_CRC32C;
+	s->v.csum_type			= BCH_CSUM_crc32c;
 	s->v.pad			= 0;
 
 	while ((u64s = stripe_val_u64s(&s->v)) > BKEY_VAL_U64s_MAX) {

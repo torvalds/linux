@@ -1447,7 +1447,7 @@ LE64_BITMASK(BCH_SB_INODES_USE_KEY_CACHE,struct bch_sb, flags[3], 29, 30);
  * journal_seq_blacklist_v3:	gates BCH_SB_FIELD_journal_seq_blacklist
  * reflink:			gates KEY_TYPE_reflink
  * inline_data:			gates KEY_TYPE_inline_data
- * new_siphash:			gates BCH_STR_HASH_SIPHASH
+ * new_siphash:			gates BCH_STR_HASH_siphash
  * new_extent_overwrite:	gates BTREE_NODE_NEW_EXTENT_OVERWRITE
  */
 #define BCH_SB_FEATURES()			\
@@ -1523,12 +1523,17 @@ enum bch_error_actions {
 	BCH_ON_ERROR_NR
 };
 
+#define BCH_STR_HASH_TYPES()		\
+	x(crc32c,		0)	\
+	x(crc64,		1)	\
+	x(siphash_old,		2)	\
+	x(siphash,		3)
+
 enum bch_str_hash_type {
-	BCH_STR_HASH_CRC32C		= 0,
-	BCH_STR_HASH_CRC64		= 1,
-	BCH_STR_HASH_SIPHASH_OLD	= 2,
-	BCH_STR_HASH_SIPHASH		= 3,
-	BCH_STR_HASH_NR			= 4,
+#define x(t, n) BCH_STR_HASH_##t = n,
+	BCH_STR_HASH_TYPES()
+#undef x
+	BCH_STR_HASH_NR
 };
 
 #define BCH_STR_HASH_OPTS()		\
@@ -1543,34 +1548,39 @@ enum bch_str_hash_opts {
 	BCH_STR_HASH_OPT_NR
 };
 
+#define BCH_CSUM_TYPES()			\
+	x(none,				0)	\
+	x(crc32c_nonzero,		1)	\
+	x(crc64_nonzero,		2)	\
+	x(chacha20_poly1305_80,		3)	\
+	x(chacha20_poly1305_128,	4)	\
+	x(crc32c,			5)	\
+	x(crc64,			6)	\
+	x(xxhash,			7)
+
 enum bch_csum_type {
-	BCH_CSUM_NONE			= 0,
-	BCH_CSUM_CRC32C_NONZERO		= 1,
-	BCH_CSUM_CRC64_NONZERO		= 2,
-	BCH_CSUM_CHACHA20_POLY1305_80	= 3,
-	BCH_CSUM_CHACHA20_POLY1305_128	= 4,
-	BCH_CSUM_CRC32C			= 5,
-	BCH_CSUM_CRC64			= 6,
-	BCH_CSUM_XXHASH			= 7,
-	BCH_CSUM_NR			= 8,
+#define x(t, n) BCH_CSUM_##t = n,
+	BCH_CSUM_TYPES()
+#undef x
+	BCH_CSUM_NR
 };
 
 static const unsigned bch_crc_bytes[] = {
-	[BCH_CSUM_NONE]				= 0,
-	[BCH_CSUM_CRC32C_NONZERO]		= 4,
-	[BCH_CSUM_CRC32C]			= 4,
-	[BCH_CSUM_CRC64_NONZERO]		= 8,
-	[BCH_CSUM_CRC64]			= 8,
-	[BCH_CSUM_XXHASH]			= 8,
-	[BCH_CSUM_CHACHA20_POLY1305_80]		= 10,
-	[BCH_CSUM_CHACHA20_POLY1305_128]	= 16,
+	[BCH_CSUM_none]				= 0,
+	[BCH_CSUM_crc32c_nonzero]		= 4,
+	[BCH_CSUM_crc32c]			= 4,
+	[BCH_CSUM_crc64_nonzero]		= 8,
+	[BCH_CSUM_crc64]			= 8,
+	[BCH_CSUM_xxhash]			= 8,
+	[BCH_CSUM_chacha20_poly1305_80]		= 10,
+	[BCH_CSUM_chacha20_poly1305_128]	= 16,
 };
 
 static inline _Bool bch2_csum_type_is_encryption(enum bch_csum_type type)
 {
 	switch (type) {
-	case BCH_CSUM_CHACHA20_POLY1305_80:
-	case BCH_CSUM_CHACHA20_POLY1305_128:
+	case BCH_CSUM_chacha20_poly1305_80:
+	case BCH_CSUM_chacha20_poly1305_128:
 		return true;
 	default:
 		return false;

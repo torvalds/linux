@@ -20,13 +20,13 @@ bch2_str_hash_opt_to_type(struct bch_fs *c, enum bch_str_hash_opts opt)
 {
 	switch (opt) {
 	case BCH_STR_HASH_OPT_crc32c:
-		return BCH_STR_HASH_CRC32C;
+		return BCH_STR_HASH_crc32c;
 	case BCH_STR_HASH_OPT_crc64:
-		return BCH_STR_HASH_CRC64;
+		return BCH_STR_HASH_crc64;
 	case BCH_STR_HASH_OPT_siphash:
 		return c->sb.features & (1ULL << BCH_FEATURE_new_siphash)
-			? BCH_STR_HASH_SIPHASH
-			: BCH_STR_HASH_SIPHASH_OLD;
+			? BCH_STR_HASH_siphash
+			: BCH_STR_HASH_siphash_old;
 	default:
 	     BUG();
 	}
@@ -51,7 +51,7 @@ bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 		.siphash_key = { .k0 = bi->bi_hash_seed }
 	};
 
-	if (unlikely(info.type == BCH_STR_HASH_SIPHASH_OLD)) {
+	if (unlikely(info.type == BCH_STR_HASH_siphash_old)) {
 		SHASH_DESC_ON_STACK(desc, c->sha256);
 		u8 digest[SHA256_DIGEST_SIZE];
 
@@ -77,16 +77,16 @@ static inline void bch2_str_hash_init(struct bch_str_hash_ctx *ctx,
 				     const struct bch_hash_info *info)
 {
 	switch (info->type) {
-	case BCH_STR_HASH_CRC32C:
+	case BCH_STR_HASH_crc32c:
 		ctx->crc32c = crc32c(~0, &info->siphash_key.k0,
 				     sizeof(info->siphash_key.k0));
 		break;
-	case BCH_STR_HASH_CRC64:
+	case BCH_STR_HASH_crc64:
 		ctx->crc64 = crc64_be(~0, &info->siphash_key.k0,
 				      sizeof(info->siphash_key.k0));
 		break;
-	case BCH_STR_HASH_SIPHASH_OLD:
-	case BCH_STR_HASH_SIPHASH:
+	case BCH_STR_HASH_siphash_old:
+	case BCH_STR_HASH_siphash:
 		SipHash24_Init(&ctx->siphash, &info->siphash_key);
 		break;
 	default:
@@ -99,14 +99,14 @@ static inline void bch2_str_hash_update(struct bch_str_hash_ctx *ctx,
 				       const void *data, size_t len)
 {
 	switch (info->type) {
-	case BCH_STR_HASH_CRC32C:
+	case BCH_STR_HASH_crc32c:
 		ctx->crc32c = crc32c(ctx->crc32c, data, len);
 		break;
-	case BCH_STR_HASH_CRC64:
+	case BCH_STR_HASH_crc64:
 		ctx->crc64 = crc64_be(ctx->crc64, data, len);
 		break;
-	case BCH_STR_HASH_SIPHASH_OLD:
-	case BCH_STR_HASH_SIPHASH:
+	case BCH_STR_HASH_siphash_old:
+	case BCH_STR_HASH_siphash:
 		SipHash24_Update(&ctx->siphash, data, len);
 		break;
 	default:
@@ -118,12 +118,12 @@ static inline u64 bch2_str_hash_end(struct bch_str_hash_ctx *ctx,
 				   const struct bch_hash_info *info)
 {
 	switch (info->type) {
-	case BCH_STR_HASH_CRC32C:
+	case BCH_STR_HASH_crc32c:
 		return ctx->crc32c;
-	case BCH_STR_HASH_CRC64:
+	case BCH_STR_HASH_crc64:
 		return ctx->crc64 >> 1;
-	case BCH_STR_HASH_SIPHASH_OLD:
-	case BCH_STR_HASH_SIPHASH:
+	case BCH_STR_HASH_siphash_old:
+	case BCH_STR_HASH_siphash:
 		return SipHash24_End(&ctx->siphash) >> 1;
 	default:
 		BUG();
