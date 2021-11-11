@@ -55,20 +55,33 @@ struct reset_bulk_data	{
 };
 
 #define PCIE_DMA_OFFSET			0x380000
+
 #define PCIE_DMA_WR_ENB			0xc
-#define PCIE_DMA_CTRL_LO		0x200
-#define PCIE_DMA_CTRL_HI		0x204
-#define PCIE_DMA_XFERSIZE		0x208
-#define PCIE_DMA_SAR_PTR_LO		0x20c
-#define PCIE_DMA_SAR_PTR_HI		0x210
-#define PCIE_DMA_DAR_PTR_LO		0x214
-#define PCIE_DMA_DAR_PTR_HI		0x218
+#define PCIE_DMA_WR_CTRL_LO		0x200
+#define PCIE_DMA_WR_CTRL_HI		0x204
+#define PCIE_DMA_WR_XFERSIZE		0x208
+#define PCIE_DMA_WR_SAR_PTR_LO		0x20c
+#define PCIE_DMA_WR_SAR_PTR_HI		0x210
+#define PCIE_DMA_WR_DAR_PTR_LO		0x214
+#define PCIE_DMA_WR_DAR_PTR_HI		0x218
 #define PCIE_DMA_WR_WEILO		0x18
 #define PCIE_DMA_WR_WEIHI		0x1c
 #define PCIE_DMA_WR_DOORBELL		0x10
 #define PCIE_DMA_WR_INT_STATUS		0x4c
 #define PCIE_DMA_WR_INT_MASK		0x54
 #define PCIE_DMA_WR_INT_CLEAR		0x58
+
+#define PCIE_DMA_RD_ENB			0x2c
+#define PCIE_DMA_RD_CTRL_LO		0x300
+#define PCIE_DMA_RD_CTRL_HI		0x304
+#define PCIE_DMA_RD_XFERSIZE		0x308
+#define PCIE_DMA_RD_SAR_PTR_LO		0x30c
+#define PCIE_DMA_RD_SAR_PTR_HI		0x310
+#define PCIE_DMA_RD_DAR_PTR_LO		0x314
+#define PCIE_DMA_RD_DAR_PTR_HI		0x318
+#define PCIE_DMA_RD_WEILO		0x38
+#define PCIE_DMA_RD_WEIHI		0x3c
+#define PCIE_DMA_RD_DOORBELL		0x30
 #define PCIE_DMA_RD_INT_STATUS		0xa0
 #define PCIE_DMA_RD_INT_MASK		0xa8
 #define PCIE_DMA_RD_INT_CLEAR		0xac
@@ -1193,64 +1206,119 @@ static int rk_pcie_reset_grant_ctrl(struct rk_pcie *rk_pcie,
 	return ret;
 }
 
-static void rk_pcie_start_dma_dwc(struct dma_trx_obj *obj)
+static void rk_pcie_start_dma_rd(struct dma_trx_obj *obj, int ctr_off)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(obj->dev);
+	struct dma_table *cur = obj->cur;
+
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_ENB,
+			   cur->enb.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_CTRL_LO,
+			   cur->ctx_reg.ctrllo.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_CTRL_HI,
+			   cur->ctx_reg.ctrlhi.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_XFERSIZE,
+			   cur->ctx_reg.xfersize);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_SAR_PTR_LO,
+			   cur->ctx_reg.sarptrlo);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_SAR_PTR_HI,
+			   cur->ctx_reg.sarptrhi);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_DAR_PTR_LO,
+			   cur->ctx_reg.darptrlo);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_DAR_PTR_HI,
+			   cur->ctx_reg.darptrhi);
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_DOORBELL,
+			   cur->start.asdword);
+}
+
+static void rk_pcie_start_dma_wr(struct dma_trx_obj *obj, int ctr_off)
+{
+	struct rk_pcie *rk_pcie = dev_get_drvdata(obj->dev);
+	struct dma_table *cur = obj->cur;
 
 	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_ENB,
-					   obj->cur->wr_enb.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_CTRL_LO,
-					   obj->cur->ctx_reg.ctrllo.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_CTRL_HI,
-					   obj->cur->ctx_reg.ctrlhi.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_XFERSIZE,
-					   obj->cur->ctx_reg.xfersize);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_SAR_PTR_LO,
-					   obj->cur->ctx_reg.sarptrlo);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_SAR_PTR_HI,
-					   obj->cur->ctx_reg.sarptrhi);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_DAR_PTR_LO,
-					   obj->cur->ctx_reg.darptrlo);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_DAR_PTR_HI,
-					   obj->cur->ctx_reg.darptrhi);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_WEILO,
-					   obj->cur->wr_weilo.asdword);
+			   cur->enb.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_CTRL_LO,
+			   cur->ctx_reg.ctrllo.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_CTRL_HI,
+			   cur->ctx_reg.ctrlhi.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_XFERSIZE,
+			   cur->ctx_reg.xfersize);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_SAR_PTR_LO,
+			   cur->ctx_reg.sarptrlo);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_SAR_PTR_HI,
+			   cur->ctx_reg.sarptrhi);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_DAR_PTR_LO,
+			   cur->ctx_reg.darptrlo);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_DAR_PTR_HI,
+			   cur->ctx_reg.darptrhi);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_WEILO,
+			   cur->weilo.asdword);
 	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_DOORBELL,
-					   obj->cur->start.asdword);
+			   cur->start.asdword);
+}
+
+static void rk_pcie_start_dma_dwc(struct dma_trx_obj *obj)
+{
+	int dir = obj->cur->dir;
+	int chn = obj->cur->chn;
+
+	int ctr_off = PCIE_DMA_OFFSET + chn * 0x200;
+
+	if (dir == DMA_FROM_BUS)
+		rk_pcie_start_dma_rd(obj, ctr_off);
+	else if (dir == DMA_TO_BUS)
+		rk_pcie_start_dma_wr(obj, ctr_off);
 }
 
 static void rk_pcie_config_dma_dwc(struct dma_table *table)
 {
-	table->wr_enb.enb = 0x1;
+	table->enb.enb = 0x1;
 	table->ctx_reg.ctrllo.lie = 0x1;
 	table->ctx_reg.ctrllo.rie = 0x0;
 	table->ctx_reg.ctrllo.td = 0x1;
 	table->ctx_reg.ctrlhi.asdword = 0x0;
 	table->ctx_reg.xfersize = table->buf_size;
-	table->ctx_reg.sarptrlo = (u32)(table->local & 0xffffffff);
-	table->ctx_reg.sarptrhi = (u32)(table->local >> 32);
-	table->ctx_reg.darptrlo = (u32)(table->bus & 0xffffffff);
-	table->ctx_reg.darptrhi = (u32)(table->bus >> 32);
-	table->wr_weilo.weight0 = 0x0;
+	if (table->dir == DMA_FROM_BUS) {
+		table->ctx_reg.sarptrlo = (u32)(table->bus & 0xffffffff);
+		table->ctx_reg.sarptrhi = (u32)(table->bus >> 32);
+		table->ctx_reg.darptrlo = (u32)(table->local & 0xffffffff);
+		table->ctx_reg.darptrhi = (u32)(table->local >> 32);
+	} else if (table->dir == DMA_TO_BUS) {
+		table->ctx_reg.sarptrlo = (u32)(table->local & 0xffffffff);
+		table->ctx_reg.sarptrhi = (u32)(table->local >> 32);
+		table->ctx_reg.darptrlo = (u32)(table->bus & 0xffffffff);
+		table->ctx_reg.darptrhi = (u32)(table->bus >> 32);
+	}
+	table->weilo.weight0 = 0x0;
 	table->start.stop = 0x0;
-	table->start.chnl = PCIE_DMA_CHN0;
+	table->start.chnl = table->chn;
 }
 
 static inline void
 rk_pcie_handle_dma_interrupt(struct rk_pcie *rk_pcie)
 {
 	struct dma_trx_obj *obj = rk_pcie->dma_obj;
+	struct dma_table *cur;
 
 	if (!obj)
 		return;
 
+	cur = obj->cur;
+	if (!cur) {
+		pr_err("no pcie dma table\n");
+		return;
+	}
+
 	obj->dma_free = true;
 	obj->irq_num++;
 
-	if (list_empty(&obj->tbl_list)) {
-		if (obj->dma_free &&
-		    obj->loop_count >= obj->loop_count_threshold)
-			complete(&obj->done);
+	if (cur->dir == DMA_TO_BUS) {
+		if (list_empty(&obj->tbl_list)) {
+			if (obj->dma_free &&
+			    obj->loop_count >= obj->loop_count_threshold)
+				complete(&obj->done);
+		}
 	}
 }
 
@@ -1268,18 +1336,35 @@ static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 	if (rk_pcie->dma_obj && rk_pcie->dma_obj->cur)
 		chn = rk_pcie->dma_obj->cur->chn;
 
-	if (status.donesta & BIT(0)) {
+	if (status.donesta & BIT(chn)) {
 		clears.doneclr = 0x1 << chn;
 		dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
 				   PCIE_DMA_WR_INT_CLEAR, clears.asdword);
 		rk_pcie_handle_dma_interrupt(rk_pcie);
 	}
 
-	if (status.abortsta & BIT(0)) {
+	if (status.abortsta & BIT(chn)) {
 		dev_err(rk_pcie->pci->dev, "%s, abort\n", __func__);
 		clears.abortclr = 0x1 << chn;
 		dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
 				   PCIE_DMA_WR_INT_CLEAR, clears.asdword);
+	}
+
+	status.asdword = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
+					   PCIE_DMA_RD_INT_STATUS);
+
+	if (status.donesta & BIT(chn)) {
+		clears.doneclr = 0x1 << chn;
+		dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
+				   PCIE_DMA_RD_INT_CLEAR, clears.asdword);
+		rk_pcie_handle_dma_interrupt(rk_pcie);
+	}
+
+	if (status.abortsta & BIT(chn)) {
+		dev_err(rk_pcie->pci->dev, "%s, abort\n", __func__);
+		clears.abortclr = 0x1 << chn;
+		dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET +
+				   PCIE_DMA_RD_INT_CLEAR, clears.asdword);
 	}
 
 	reg = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_MISC);

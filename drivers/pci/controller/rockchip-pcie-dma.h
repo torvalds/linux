@@ -2,18 +2,23 @@
 /*
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  */
+#ifndef __SOC_ROCKCHIP_PCIE_DMA_TRX_H
+#define __SOC_ROCKCHIP_PCIE_DMA_TRX_H
 
 #include <linux/debugfs.h>
 
-#define PCIE_DMA_TABLE_NUM		24
+#define PCIE_DMA_TABLE_NUM		32
 
 #define PCIE_DMA_TRX_TYPE_NUM		3
 
 #define PCIE_DMA_CHN0			0x0
+#define PCIE_DMA_CHN1			0x1
+#define PCIE_DMA_DEFAULT_CHN		PCIE_DMA_CHN0
 
 #define PCIE_DMA_DATA_SND_TABLE_OFFSET		0x0
 #define PCIE_DMA_DATA_RCV_ACK_TABLE_OFFSET	0x8
 #define PCIE_DMA_DATA_FREE_ACK_TABLE_OFFSET	0x10
+#define PCIE_DMA_DATA_READ_REMOTE_TABLE_OFFSET	0x18
 
 enum dma_dir {
 	DMA_FROM_BUS,
@@ -142,10 +147,10 @@ struct dma_table {
 	u32				dir;
 	u32				type;
 	struct list_head		tbl_node;
-	union enb			wr_enb;
+	union enb			enb;
 	struct ctx_regs			ctx_reg;
-	union weight			wr_weilo;
-	union weight			wr_weihi;
+	union weight			weilo;
+	union weight			weihi;
 	union db			start;
 	phys_addr_t			local;
 	phys_addr_t			bus;
@@ -156,9 +161,13 @@ struct dma_trx_obj {
 	struct device			*dev;
 	int				loop_count;
 	int				loop_count_threshold;
-	void				*mem_base;
-	phys_addr_t			mem_start;
-	size_t				mem_size;
+	void				*local_mem_base;
+	phys_addr_t			local_mem_start;
+	size_t				local_mem_size;
+	phys_addr_t			remote_mem_start;
+	void				*region_base;
+	phys_addr_t			region_start;
+	size_t				region_size;
 	int				dma_free;
 	unsigned long			local_write_available;
 	unsigned long			local_read_available;
@@ -170,7 +179,6 @@ struct dma_trx_obj {
 	struct workqueue_struct		*dma_trx_wq;
 	struct dma_table		*table[PCIE_DMA_TABLE_NUM];
 	struct dma_table		*cur;
-	struct task_struct		*scan_thread;
 	struct hrtimer			scan_timer;
 	int				busno;
 	void				*priv;
@@ -182,9 +190,22 @@ struct dma_trx_obj {
 	struct pcie_misc_dev		*pcie_dev;
 	void 				(*start_dma_func)(struct dma_trx_obj *obj);
 	void				(*config_dma_func)(struct dma_table *table);
+	ktime_t				begin;
+	ktime_t				end;
+	u64				cache_time_total;
+	u64				cache_time_avarage;
+	u32				buffer_size;
+	u32				rd_buf_size;
+	u32				wr_buf_size;
+	u32				ack_base;
+	u32				set_data_check_pos;
+	u32				set_local_idx_pos;
+	u32				set_buf_size_pos;
+	u32				set_chk_sum_pos;
+	u32				version;
 };
 
-#ifdef CONFIG_ROCKCHIP_PCIE_DMA_OBJ
+#if IS_ENABLED(CONFIG_ROCKCHIP_PCIE_DMA_OBJ)
 struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev);
 void rk_pcie_dma_obj_remove(struct dma_trx_obj *obj);
 #else
@@ -196,4 +217,6 @@ static inline struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 static inline void rk_pcie_dma_obj_remove(struct dma_trx_obj *obj)
 {
 }
+#endif
+
 #endif
