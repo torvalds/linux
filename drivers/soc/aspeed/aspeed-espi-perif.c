@@ -415,7 +415,16 @@ void *aspeed_espi_perif_alloc(struct device *dev, struct aspeed_espi_ctrl *espi_
 	mutex_init(&espi_perif->np_tx_mtx);
 
 	espi_perif->mcyc_enable = of_property_read_bool(dev->of_node, "perif,memcyc-enable");
-	if (espi_perif->mcyc_enable) {
+
+	while (0) {
+		if (!espi_perif->mcyc_enable)
+			break;
+
+		if (of_device_is_available(of_parse_phandle(dev->of_node, "aspeed,espi-mmbi", 0))) {
+			dev_warn(dev, "memory cycle is occupied by MMBI\n");
+			break;
+		}
+
 		rc = of_property_read_u32(dev->of_node, "perif,memcyc-src-addr",
 					  &espi_perif->mcyc_saddr);
 		if (rc) {

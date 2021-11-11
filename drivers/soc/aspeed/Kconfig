@@ -83,6 +83,12 @@ config ASPEED_ESPI
 	  the eSPI interface. The four eSPI channels, namely peripheral,
 	  virtual wire, out-of-band, and flash are supported.
 
+config ASPEED_ESPI_MMBI
+	tristate "Aspeed eSPI MMBI Driver"
+	depends on ASPEED_ESPI
+	help
+	  Control Aspeed eSPI MMBI driver
+
 config ASPEED_UDMA
 	tristate "Aspeed UDMA Engine Driver"
 	depends on ARCH_ASPEED && REGMAP && MFD_SYSCON && HAS_DMA
