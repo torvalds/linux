@@ -756,13 +756,6 @@ _PHY_SetBWMode92C(
 	u8 regBwOpMode;
 	u8 regRRSR_RSC;
 
-	if (pHalData->rf_chip == RF_PSEUDO_11N)
-		return;
-
-	/*  There is no 40MHz mode in RF_8225. */
-	if (pHalData->rf_chip == RF_8225)
-		return;
-
 	if (Adapter->bDriverStopped)
 		return;
 
@@ -814,21 +807,7 @@ _PHY_SetBWMode92C(
 	}
 	/* Skip over setting of J-mode in BB register here. Default value is "None J mode". Emily 20070315 */
 
-	/* 3<3>Set RF related register */
-	switch (pHalData->rf_chip) {
-	case RF_8225:
-		break;
-	case RF_8256:
-		/*  Please implement this function in Hal8190PciPhy8256.c */
-		break;
-	case RF_PSEUDO_11N:
-		break;
-	case RF_6052:
-		rtl8188e_PHY_RF6052SetBandwidth(Adapter, pHalData->CurrentChannelBW);
-		break;
-	default:
-		break;
-	}
+	rtl8188e_PHY_RF6052SetBandwidth(Adapter, pHalData->CurrentChannelBW);
 }
 
  /*-----------------------------------------------------------------------------
@@ -884,9 +863,6 @@ void PHY_SwChnl8188E(struct adapter *Adapter, u8 channel)
 {
 	/*  Call after initialization */
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
-
-	if (pHalData->rf_chip == RF_PSEUDO_11N)
-		return;		/* return immediately if it is peudo-phy */
 
 	if (channel == 0)
 		channel = 1;

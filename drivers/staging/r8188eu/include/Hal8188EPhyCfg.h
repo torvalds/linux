@@ -48,16 +48,6 @@ enum rf_radio_path {
 						 * total three groups */
 #define CHANNEL_GROUP_MAX_88E		6
 
-/* BB/RF related */
-enum RF_TYPE_8190P {
-	RF_TYPE_MIN,		/*  0 */
-	RF_8225 = 1,		/*  1 11b/g RF for verification only */
-	RF_8256 = 2,		/*  2 11b/g/n */
-	RF_6052 = 4,		/*  4 11b/g/n RF */
-	/*  TODO: We should remove this psudo PHY RF after we get new RF. */
-	RF_PSEUDO_11N = 5,	/*  5, It is a temporality RF. */
-};
-
 struct bb_reg_def {
 	u32 rfintfs;		/*  set software control: */
 				/*	0x870~0x877[8 bytes] */

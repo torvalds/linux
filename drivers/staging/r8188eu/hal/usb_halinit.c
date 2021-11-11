@@ -1037,16 +1037,8 @@ static void _ReadPROMContent(
 	readAdapterInfo_8188EU(Adapter);
 }
 
-static void _ReadRFType(struct adapter *Adapter)
-{
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
-
-	haldata->rf_chip = RF_6052;
-}
-
 static int _ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
-	_ReadRFType(Adapter);/* rf_chip -> _InitRFType() */
 	_ReadPROMContent(Adapter);
 
 	return _SUCCESS;
