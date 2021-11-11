@@ -295,8 +295,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
 				 p->src_type, p->partition_vcpu_memory_access);
 
-	perf_test_args.wr_fract = 1;
-
 	demand_paging_size = get_backing_src_pagesz(p->src_type);
 
 	guest_data_prototype = malloc(demand_paging_size);
@@ -344,9 +342,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 					    vcpu_args->pages * perf_test_args.guest_page_size);
 		}
 	}
-
-	/* Export the shared variables to the guest */
-	sync_global_to_guest(vm, perf_test_args);
 
 	pr_info("Finished creating vCPUs and starting uffd threads\n");
 

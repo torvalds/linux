@@ -108,13 +108,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 				 VM_MEM_SRC_ANONYMOUS,
 				 p->partition_vcpu_memory_access);
 
-	perf_test_args.wr_fract = 1;
-
 	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
-
-	/* Export the shared variables to the guest */
-	sync_global_to_guest(vm, perf_test_args);
 
 	pr_info("Finished creating vCPUs\n");
 

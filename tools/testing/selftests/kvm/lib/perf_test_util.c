@@ -94,6 +94,9 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 
 	pr_info("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
+	/* By default vCPUs will write to memory. */
+	pta->wr_fract = 1;
+
 	/*
 	 * Snapshot the non-huge page size.  This is used by the guest code to
 	 * access/dirty pages at the logging granularity.
@@ -157,6 +160,9 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 
 	ucall_init(vm, NULL);
 
+	/* Export the shared variables to the guest. */
+	sync_global_to_guest(vm, perf_test_args);
+
 	return vm;
 }
 
@@ -164,4 +170,10 @@ void perf_test_destroy_vm(struct kvm_vm *vm)
 {
 	ucall_uninit(vm);
 	kvm_vm_free(vm);
+}
+
+void perf_test_set_wr_fract(struct kvm_vm *vm, int wr_fract)
+{
+	perf_test_args.wr_fract = wr_fract;
+	sync_global_to_guest(vm, perf_test_args);
 }

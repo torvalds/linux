@@ -189,7 +189,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 				 p->slots, p->backing_src,
 				 p->partition_vcpu_memory_access);
 
-	perf_test_args.wr_fract = p->wr_fract;
+	perf_test_set_wr_fract(vm, p->wr_fract);
 
 	guest_num_pages = (nr_vcpus * guest_percpu_mem_size) >> vm_get_page_shift(vm);
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
@@ -206,8 +206,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
-
-	sync_global_to_guest(vm, perf_test_args);
 
 	/* Start the iterations */
 	iteration = 0;
