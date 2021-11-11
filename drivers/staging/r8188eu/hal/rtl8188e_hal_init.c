@@ -1588,13 +1588,8 @@ void Hal_EfuseParseCustomerID88E(struct adapter *padapter, u8 *hwinfo, bool Auto
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
 
-	if (!AutoLoadFail) {
-		pHalData->EEPROMCustomerID = hwinfo[EEPROM_CUSTOMERID_88E];
-	} else {
-		pHalData->EEPROMCustomerID = 0;
+	if (AutoLoadFail)
 		pHalData->EEPROMSubCustomerID = 0;
-	}
-	DBG_88E("EEPROM Customer ID: 0x%2x\n", pHalData->EEPROMCustomerID);
 }
 
 void Hal_ReadAntennaDiversity88E(struct adapter *pAdapter, u8 *PROMContent, bool AutoLoadFail)
