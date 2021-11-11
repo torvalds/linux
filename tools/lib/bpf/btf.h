@@ -245,12 +245,24 @@ LIBBPF_API int btf__add_decl_tag(struct btf *btf, const char *value, int ref_typ
 			    int component_idx);
 
 struct btf_dedup_opts {
-	unsigned int dedup_table_size;
-	bool dont_resolve_fwds;
+	size_t sz;
+	/* optional .BTF.ext info to dedup along the main BTF info */
+	struct btf_ext *btf_ext;
+	/* force hash collisions (used for testing) */
+	bool force_collisions;
+	size_t :0;
 };
+#define btf_dedup_opts__last_field force_collisions
 
-LIBBPF_API int btf__dedup(struct btf *btf, struct btf_ext *btf_ext,
-			  const struct btf_dedup_opts *opts);
+LIBBPF_API int btf__dedup(struct btf *btf, const struct btf_dedup_opts *opts);
+
+LIBBPF_API int btf__dedup_v0_6_0(struct btf *btf, const struct btf_dedup_opts *opts);
+
+LIBBPF_DEPRECATED_SINCE(0, 7, "use btf__dedup() instead")
+LIBBPF_API int btf__dedup_deprecated(struct btf *btf, struct btf_ext *btf_ext, const void *opts);
+#define btf__dedup(...) ___libbpf_overload(___btf_dedup, __VA_ARGS__)
+#define ___btf_dedup3(btf, btf_ext, opts) btf__dedup_deprecated(btf, btf_ext, opts)
+#define ___btf_dedup2(btf, opts) btf__dedup(btf, opts)
 
 struct btf_dump;
 

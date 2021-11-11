@@ -403,6 +403,8 @@ LIBBPF_0.6.0 {
 		bpf_program__set_extra_flags;
 		btf__add_btf;
 		btf__add_decl_tag;
+		btf__dedup;
+		btf__dedup_deprecated;
 		btf__raw_data;
 		btf__type_cnt;
 } LIBBPF_0.5.0;

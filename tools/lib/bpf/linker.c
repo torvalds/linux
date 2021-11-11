@@ -2650,6 +2650,7 @@ static int emit_elf_data_sec(struct bpf_linker *linker, const char *sec_name,
 
 static int finalize_btf(struct bpf_linker *linker)
 {
+	LIBBPF_OPTS(btf_dedup_opts, opts);
 	struct btf *btf = linker->btf;
 	const void *raw_data;
 	int i, j, id, err;
@@ -2686,7 +2687,8 @@ static int finalize_btf(struct bpf_linker *linker)
 		return err;
 	}
 
-	err = btf__dedup(linker->btf, linker->btf_ext, NULL);
+	opts.btf_ext = linker->btf_ext;
+	err = btf__dedup(linker->btf, &opts);
 	if (err) {
 		pr_warn("BTF dedup failed: %d\n", err);
 		return err;
