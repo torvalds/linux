@@ -3088,19 +3088,25 @@ static void
 isp_cnr_config(struct rkisp_isp_params_vdev *params_vdev,
 	       const struct isp3x_cnr_cfg *arg, u32 id)
 {
-	u32 i, value;
+	u32 i, value, ctrl, gain_ctrl;
 
-	value = isp3_param_read(params_vdev, ISP3X_CNR_CTRL, id);
-	value &= ISP3X_MODULE_EN;
+	gain_ctrl = isp3_param_read(params_vdev, ISP3X_GAIN_CTRL, id);
+	ctrl = isp3_param_read(params_vdev, ISP3X_CNR_CTRL, id);
+	ctrl &= ISP3X_MODULE_EN;
 
-	value |= (arg->thumb_mix_cur_en & 0x1) << 4 |
+	ctrl |= (arg->thumb_mix_cur_en & 0x1) << 4 |
 		 (arg->lq_bila_bypass & 0x1) << 3 |
 		 (arg->hq_bila_bypass & 0x1) << 2 |
 		 (arg->exgain_bypass & 0x1) << 1;
-	isp3_param_write(params_vdev, value, ISP3X_CNR_CTRL, id);
-
 	value = (arg->global_gain & 0x3ff) |
 		(arg->global_gain_alpha & 0xf) << 12;
+	/* gain disable, using global gain for cnr */
+	if (ctrl & ISP3X_MODULE_EN && !(gain_ctrl & ISP3X_MODULE_EN)) {
+		ctrl |= BIT(1);
+		value &= 0x3ff;
+		value |= 0x8000;
+	}
+	isp3_param_write(params_vdev, ctrl, ISP3X_CNR_CTRL, id);
 	isp3_param_write(params_vdev, value, ISP3X_CNR_EXGAIN, id);
 
 	value = ISP_PACK_4BYTE(arg->gain_1sigma, arg->gain_offset,
@@ -3489,13 +3495,6 @@ isp_gain_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 			val |= ISP3X_MODULE_EN;
 	}
 	isp3_param_write(params_vdev, val, ISP3X_GAIN_CTRL, id);
-
-	/* gain disable, using global gain for cnr */
-	if (!val) {
-		isp3_param_set_bits(params_vdev, ISP3X_CNR_CTRL, BIT(1), id);
-		val = isp3_param_read(params_vdev, ISP3X_CNR_EXGAIN, id) & 0x3ff;
-		isp3_param_write(params_vdev, val | 0x8000, ISP3X_CNR_EXGAIN, id);
-	}
 }
 
 static void
@@ -3735,6 +3734,7 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
 	u64 module_en_update = new_params->module_en_update;
 	u64 module_ens = new_params->module_ens;
+	u32 gain_ctrl, cnr_ctrl, val;
 
 	if (type == RKISP_PARAMS_SHD)
 		return;
@@ -3825,6 +3825,16 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (module_en_update & ISP3X_MODULE_GAIN)
 		ops->gain_enable(params_vdev, !!(module_ens & ISP3X_MODULE_GAIN), id);
+
+	/* gain disable, using global gain for cnr */
+	gain_ctrl = isp3_param_read(params_vdev, ISP3X_GAIN_CTRL, id);
+	cnr_ctrl = isp3_param_read(params_vdev, ISP3X_CNR_CTRL, id);
+	if (!(gain_ctrl & ISP3X_MODULE_EN) && cnr_ctrl & ISP3X_MODULE_EN) {
+		cnr_ctrl |= BIT(1);
+		isp3_param_write(params_vdev, cnr_ctrl, ISP3X_CNR_CTRL, id);
+		val = isp3_param_read(params_vdev, ISP3X_CNR_EXGAIN, id) & 0x3ff;
+		isp3_param_write(params_vdev, val | 0x8000, ISP3X_CNR_EXGAIN, id);
+	}
 }
 
 static __maybe_unused
