@@ -10578,11 +10578,18 @@ error:
 static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 					      struct perf_buffer_params *p);
 
-struct perf_buffer *perf_buffer__new(int map_fd, size_t page_cnt,
-				     const struct perf_buffer_opts *opts)
+DEFAULT_VERSION(perf_buffer__new_v0_6_0, perf_buffer__new, LIBBPF_0.6.0)
+struct perf_buffer *perf_buffer__new_v0_6_0(int map_fd, size_t page_cnt,
+					    perf_buffer_sample_fn sample_cb,
+					    perf_buffer_lost_fn lost_cb,
+					    void *ctx,
+					    const struct perf_buffer_opts *opts)
 {
 	struct perf_buffer_params p = {};
-	struct perf_event_attr attr = { 0, };
+	struct perf_event_attr attr = {};
+
+	if (!OPTS_VALID(opts, perf_buffer_opts))
+		return libbpf_err_ptr(-EINVAL);
 
 	attr.config = PERF_COUNT_SW_BPF_OUTPUT;
 	attr.type = PERF_TYPE_SOFTWARE;
@@ -10591,27 +10598,60 @@ struct perf_buffer *perf_buffer__new(int map_fd, size_t page_cnt,
 	attr.wakeup_events = 1;
 
 	p.attr = &attr;
-	p.sample_cb = opts ? opts->sample_cb : NULL;
-	p.lost_cb = opts ? opts->lost_cb : NULL;
-	p.ctx = opts ? opts->ctx : NULL;
+	p.sample_cb = sample_cb;
+	p.lost_cb = lost_cb;
+	p.ctx = ctx;
 
 	return libbpf_ptr(__perf_buffer__new(map_fd, page_cnt, &p));
 }
 
-struct perf_buffer *
-perf_buffer__new_raw(int map_fd, size_t page_cnt,
-		     const struct perf_buffer_raw_opts *opts)
+COMPAT_VERSION(perf_buffer__new_deprecated, perf_buffer__new, LIBBPF_0.0.4)
+struct perf_buffer *perf_buffer__new_deprecated(int map_fd, size_t page_cnt,
+						const struct perf_buffer_opts *opts)
+{
+	return perf_buffer__new_v0_6_0(map_fd, page_cnt,
+				       opts ? opts->sample_cb : NULL,
+				       opts ? opts->lost_cb : NULL,
+				       opts ? opts->ctx : NULL,
+				       NULL);
+}
+
+DEFAULT_VERSION(perf_buffer__new_raw_v0_6_0, perf_buffer__new_raw, LIBBPF_0.6.0)
+struct perf_buffer *perf_buffer__new_raw_v0_6_0(int map_fd, size_t page_cnt,
+						struct perf_event_attr *attr,
+						perf_buffer_event_fn event_cb, void *ctx,
+						const struct perf_buffer_raw_opts *opts)
 {
 	struct perf_buffer_params p = {};
 
-	p.attr = opts->attr;
-	p.event_cb = opts->event_cb;
-	p.ctx = opts->ctx;
-	p.cpu_cnt = opts->cpu_cnt;
-	p.cpus = opts->cpus;
-	p.map_keys = opts->map_keys;
+	if (page_cnt == 0 || !attr)
+		return libbpf_err_ptr(-EINVAL);
+
+	if (!OPTS_VALID(opts, perf_buffer_raw_opts))
+		return libbpf_err_ptr(-EINVAL);
+
+	p.attr = attr;
+	p.event_cb = event_cb;
+	p.ctx = ctx;
+	p.cpu_cnt = OPTS_GET(opts, cpu_cnt, 0);
+	p.cpus = OPTS_GET(opts, cpus, NULL);
+	p.map_keys = OPTS_GET(opts, map_keys, NULL);
 
 	return libbpf_ptr(__perf_buffer__new(map_fd, page_cnt, &p));
+}
+
+COMPAT_VERSION(perf_buffer__new_raw_deprecated, perf_buffer__new_raw, LIBBPF_0.0.4)
+struct perf_buffer *perf_buffer__new_raw_deprecated(int map_fd, size_t page_cnt,
+						    const struct perf_buffer_raw_opts *opts)
+{
+	LIBBPF_OPTS(perf_buffer_raw_opts, inner_opts,
+		.cpu_cnt = opts->cpu_cnt,
+		.cpus = opts->cpus,
+		.map_keys = opts->map_keys,
+	);
+
+	return perf_buffer__new_raw_v0_6_0(map_fd, page_cnt, opts->attr,
+					   opts->event_cb, opts->ctx, &inner_opts);
 }
 
 static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,

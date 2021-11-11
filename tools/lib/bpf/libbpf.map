@@ -409,4 +409,8 @@ LIBBPF_0.6.0 {
 		btf__type_cnt;
 		btf_dump__new;
 		btf_dump__new_deprecated;
+		perf_buffer__new;
+		perf_buffer__new_deprecated;
+		perf_buffer__new_raw;
+		perf_buffer__new_raw_deprecated;
 } LIBBPF_0.5.0;
