@@ -49,8 +49,6 @@ struct	__queue	{
 	spinlock_t lock;
 };
 
-#define thread_exit() complete_and_exit(NULL, 0)
-
 static inline struct list_head *get_list_head(struct __queue *queue)
 {
 	return (&(queue->queue));

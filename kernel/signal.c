@@ -1323,6 +1323,7 @@ force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t, bool 
 	blocked = sigismember(&t->blocked, sig);
 	if (blocked || ignored || sigdfl) {
 		action->sa.sa_handler = SIG_DFL;
+		action->sa.sa_flags |= SA_IMMUTABLE;
 		if (blocked) {
 			sigdelset(&t->blocked, sig);
 			recalc_sigpending_and_wake(t);
@@ -1649,6 +1650,19 @@ void force_sig(int sig)
 }
 EXPORT_SYMBOL(force_sig);
 
+void force_fatal_sig(int sig)
+{
+	struct kernel_siginfo info;
+
+	clear_siginfo(&info);
+	info.si_signo = sig;
+	info.si_errno = 0;
+	info.si_code = SI_KERNEL;
+	info.si_pid = 0;
+	info.si_uid = 0;
+	force_sig_info_to_task(&info, current, true);
+}
+
 /*
  * When things go south during signal handling, we
  * will force a SIGSEGV. And if the signal that caused
@@ -1657,15 +1671,10 @@ EXPORT_SYMBOL(force_sig);
  */
 void force_sigsegv(int sig)
 {
-	struct task_struct *p = current;
-
-	if (sig == SIGSEGV) {
-		unsigned long flags;
-		spin_lock_irqsave(&p->sighand->siglock, flags);
-		p->sighand->action[sig - 1].sa.sa_handler = SIG_DFL;
-		spin_unlock_irqrestore(&p->sighand->siglock, flags);
-	}
-	force_sig(SIGSEGV);
+	if (sig == SIGSEGV)
+		force_fatal_sig(SIGSEGV);
+	else
+		force_sig(SIGSEGV);
 }
 
 int force_sig_fault_to_task(int sig, int code, void __user *addr
@@ -2704,7 +2713,8 @@ relock:
 		if (!signr)
 			break; /* will return 0 */
 
-		if (unlikely(current->ptrace) && signr != SIGKILL) {
+		if (unlikely(current->ptrace) && (signr != SIGKILL) &&
+		    !(sighand->action[signr -1].sa.sa_flags & SA_IMMUTABLE)) {
 			signr = ptrace_signal(signr, &ksig->info);
 			if (!signr)
 				continue;
@@ -4054,6 +4064,10 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 	k = &p->sighand->action[sig-1];
 
 	spin_lock_irq(&p->sighand->siglock);
+	if (k->sa.sa_flags & SA_IMMUTABLE) {
+		spin_unlock_irq(&p->sighand->siglock);
+		return -EINVAL;
+	}
 	if (oact)
 		*oact = *k;
 

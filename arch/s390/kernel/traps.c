@@ -84,7 +84,7 @@ static void default_trap_handler(struct pt_regs *regs)
 {
 	if (user_mode(regs)) {
 		report_user_fault(regs, SIGSEGV, 0);
-		do_exit(SIGSEGV);
+		force_fatal_sig(SIGSEGV);
 	} else
 		die(regs, "Unknown program exception");
 }

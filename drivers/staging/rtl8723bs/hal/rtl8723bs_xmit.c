@@ -435,7 +435,7 @@ int rtl8723bs_xmit_thread(void *context)
 
 	complete(&pxmitpriv->SdioXmitTerminate);
 
-	thread_exit();
+	return 0;
 }
 
 s32 rtl8723bs_mgnt_xmit(

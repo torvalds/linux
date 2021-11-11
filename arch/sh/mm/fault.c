@@ -238,8 +238,6 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	show_fault_oops(regs, address);
 
 	die("Oops", regs, error_code);
-	bust_spinlocks(0);
-	do_exit(SIGKILL);
 }
 
 static void

@@ -323,7 +323,7 @@ post_process:
 
 	complete(&pcmdpriv->stop_cmd_thread);
 
-	thread_exit();
+	return 0;
 }
 
 /*

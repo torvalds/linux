@@ -518,7 +518,7 @@ post_process:
 	complete(&pcmdpriv->terminate_cmdthread_comp);
 	atomic_set(&pcmdpriv->cmdthd_running, false);
 
-	thread_exit();
+	return 0;
 }
 
 /*

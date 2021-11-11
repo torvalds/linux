@@ -433,7 +433,7 @@ struct task_struct *__kthread_create_on_node(int (*threadfn)(void *data),
  * If thread is going to be bound on a particular cpu, give its node
  * in @node, to get NUMA affinity for kthread stack, or else give NUMA_NO_NODE.
  * When woken, the thread will run @threadfn() with @data as its
- * argument. @threadfn() can either call do_exit() directly if it is a
+ * argument. @threadfn() can either return directly if it is a
  * standalone thread for which no one will call kthread_stop(), or
  * return when 'kthread_should_stop()' is true (which means
  * kthread_stop() has been called).  The return value should be zero
