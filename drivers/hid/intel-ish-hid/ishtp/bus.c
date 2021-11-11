@@ -241,7 +241,7 @@ static int ishtp_cl_bus_match(struct device *dev, struct device_driver *drv)
 	struct ishtp_cl_device *device = to_ishtp_cl_device(dev);
 	struct ishtp_cl_driver *driver = to_ishtp_cl_driver(drv);
 
-	return guid_equal(driver->guid,
+	return guid_equal(&driver->id[0].guid,
 			  &device->fw_client->props.protocol_name);
 }
 

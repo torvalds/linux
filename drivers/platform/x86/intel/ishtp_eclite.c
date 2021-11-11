@@ -93,9 +93,12 @@ struct ishtp_opregion_dev {
 };
 
 /* eclite ishtp client UUID: 6a19cc4b-d760-4de3-b14d-f25ebd0fbcd9 */
-static const guid_t ecl_ishtp_guid =
-	GUID_INIT(0x6a19cc4b, 0xd760, 0x4de3,
-		  0xb1, 0x4d, 0xf2, 0x5e, 0xbd, 0xf, 0xbc, 0xd9);
+static const struct ishtp_device_id ecl_ishtp_id_table[] = {
+	{ .guid = GUID_INIT(0x6a19cc4b, 0xd760, 0x4de3,
+		  0xb1, 0x4d, 0xf2, 0x5e, 0xbd, 0xf, 0xbc, 0xd9), },
+	{ }
+};
+MODULE_DEVICE_TABLE(ishtp, ecl_ishtp_id_table);
 
 /* ACPI DSM UUID: 91d936a7-1f01-49c6-a6b4-72f00ad8d8a5 */
 static const guid_t ecl_acpi_guid =
@@ -462,7 +465,7 @@ static int ecl_ishtp_cl_init(struct ishtp_cl *ecl_ishtp_cl)
 	ishtp_set_tx_ring_size(ecl_ishtp_cl, ECL_CL_TX_RING_SIZE);
 	ishtp_set_rx_ring_size(ecl_ishtp_cl, ECL_CL_RX_RING_SIZE);
 
-	fw_client = ishtp_fw_cl_get_client(dev, &ecl_ishtp_guid);
+	fw_client = ishtp_fw_cl_get_client(dev, &ecl_ishtp_id_table[0].guid);
 	if (!fw_client) {
 		dev_err(cl_data_to_dev(opr_dev), "fw client not found\n");
 		return -ENOENT;
@@ -674,18 +677,12 @@ static const struct dev_pm_ops ecl_ishtp_pm_ops = {
 
 static struct ishtp_cl_driver ecl_ishtp_cl_driver = {
 	.name = "ishtp-eclite",
-	.guid = &ecl_ishtp_guid,
+	.id = ecl_ishtp_id_table,
 	.probe = ecl_ishtp_cl_probe,
 	.remove = ecl_ishtp_cl_remove,
 	.reset = ecl_ishtp_cl_reset,
 	.driver.pm = &ecl_ishtp_pm_ops,
 };
-
-static const struct ishtp_device_id ecl_ishtp_id_table[] = {
-	{ ecl_ishtp_guid },
-	{ }
-};
-MODULE_DEVICE_TABLE(ishtp, ecl_ishtp_id_table);
 
 static int __init ecl_ishtp_init(void)
 {

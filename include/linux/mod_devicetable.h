@@ -902,9 +902,11 @@ struct dfl_device_id {
 /**
  * struct ishtp_device_id - ISHTP device identifier
  * @guid: GUID of the device.
+ * @driver_data: pointer to driver specific data
  */
 struct ishtp_device_id {
 	guid_t guid;
+	kernel_ulong_t driver_data;
 };
 
 #endif /* LINUX_MOD_DEVICETABLE_H */
