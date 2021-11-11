@@ -49,7 +49,6 @@ void test_xdp_bpf2bpf(void)
 	struct vip key4 = {.protocol = 6, .family = AF_INET};
 	struct bpf_program *prog;
 	struct perf_buffer *pb = NULL;
-	struct perf_buffer_opts pb_opts = {};
 
 	/* Load XDP program to introspect */
 	pkt_skel = test_xdp__open_and_load();
@@ -86,10 +85,8 @@ void test_xdp_bpf2bpf(void)
 		goto out;
 
 	/* Set up perf buffer */
-	pb_opts.sample_cb = on_sample;
-	pb_opts.ctx = &passed;
-	pb = perf_buffer__new(bpf_map__fd(ftrace_skel->maps.perf_buf_map),
-			      1, &pb_opts);
+	pb = perf_buffer__new(bpf_map__fd(ftrace_skel->maps.perf_buf_map), 1,
+			      on_sample, NULL, &passed, NULL);
 	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto out;
 

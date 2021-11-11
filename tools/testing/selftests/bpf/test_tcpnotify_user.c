@@ -72,7 +72,6 @@ int main(int argc, char **argv)
 {
 	const char *file = "test_tcpnotify_kern.o";
 	struct bpf_map *perf_map, *global_map;
-	struct perf_buffer_opts pb_opts = {};
 	struct tcpnotify_globals g = {0};
 	struct perf_buffer *pb = NULL;
 	const char *cg_path = "/foo";
@@ -117,8 +116,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	pb_opts.sample_cb = dummyfn;
-	pb = perf_buffer__new(bpf_map__fd(perf_map), 8, &pb_opts);
+	pb = perf_buffer__new(bpf_map__fd(perf_map), 8, dummyfn, NULL, NULL, NULL);
 	if (!pb)
 		goto err;
 
