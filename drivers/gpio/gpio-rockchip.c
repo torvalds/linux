@@ -23,6 +23,7 @@
 
 #define GPIO_TYPE_V1	(0)           /* GPIO Version ID reserved */
 #define GPIO_TYPE_V2	(0x01000C2B)  /* GPIO Version ID 0x01000C2B */
+#define GPIO_TYPE_V2_1	(0x0101157C)  /* GPIO Version ID 0x0101157C */
 
 #define GPIO_BANK_PIN_NUM	(32)
 
@@ -620,7 +621,7 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank)
 	id = readl(bank->reg_base + gpio_regs_v2.version_id);
 
 	/* If not gpio v2, that is default to v1. */
-	if (id == GPIO_TYPE_V2) {
+	if (id == GPIO_TYPE_V2 || id == GPIO_TYPE_V2_1) {
 		bank->gpio_regs = &gpio_regs_v2;
 		bank->gpio_type = GPIO_TYPE_V2;
 		bank->db_clk = of_clk_get(bank->of_node, 1);
