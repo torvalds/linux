@@ -80,7 +80,7 @@ static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 	 * Add the dummy memslot just below the perf_test_util memslot, which is
 	 * at the top of the guest physical address space.
 	 */
-	gpa = guest_test_phys_mem - pages * vm_get_page_size(vm);
+	gpa = perf_test_args.gpa - pages * vm_get_page_size(vm);
 
 	for (i = 0; i < nr_modifications; i++) {
 		usleep(delay);

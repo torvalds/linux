@@ -10,8 +10,6 @@
 
 struct perf_test_args perf_test_args;
 
-uint64_t guest_test_phys_mem;
-
 /*
  * Guest virtual memory offset of the testing memory slot.
  * Must not conflict with identity mapped test code.
@@ -97,20 +95,18 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 		    guest_num_pages, vm_get_max_gfn(vm), vcpus,
 		    vcpu_memory_bytes);
 
-	guest_test_phys_mem = (vm_get_max_gfn(vm) - guest_num_pages) *
-			      pta->guest_page_size;
-	guest_test_phys_mem = align_down(guest_test_phys_mem, backing_src_pagesz);
+	pta->gpa = (vm_get_max_gfn(vm) - guest_num_pages) * pta->guest_page_size;
+	pta->gpa = align_down(pta->gpa, backing_src_pagesz);
 #ifdef __s390x__
 	/* Align to 1M (segment size) */
-	guest_test_phys_mem = align_down(guest_test_phys_mem, 1 << 20);
+	pta->gpa = align_down(pta->gpa, 1 << 20);
 #endif
-	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
+	pr_info("guest physical test memory offset: 0x%lx\n", pta->gpa);
 
 	/* Add extra memory slots for testing */
 	for (i = 0; i < slots; i++) {
 		uint64_t region_pages = guest_num_pages / slots;
-		vm_paddr_t region_start = guest_test_phys_mem +
-			region_pages * pta->guest_page_size * i;
+		vm_paddr_t region_start = pta->gpa + region_pages * pta->guest_page_size * i;
 
 		vm_userspace_mem_region_add(vm, backing_src, region_start,
 					    PERF_TEST_MEM_SLOT_INDEX + i,
@@ -118,7 +114,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 	}
 
 	/* Do mapping for the demand paging memory slot */
-	virt_map(vm, guest_test_virt_mem, guest_test_phys_mem, guest_num_pages);
+	virt_map(vm, guest_test_virt_mem, pta->gpa, guest_num_pages);
 
 	ucall_init(vm, NULL);
 
@@ -148,13 +144,12 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int vcpus,
 					 (vcpu_id * vcpu_memory_bytes);
 			vcpu_args->pages = vcpu_memory_bytes /
 					   pta->guest_page_size;
-			vcpu_args->gpa = guest_test_phys_mem +
-					 (vcpu_id * vcpu_memory_bytes);
+			vcpu_args->gpa = pta->gpa + (vcpu_id * vcpu_memory_bytes);
 		} else {
 			vcpu_args->gva = guest_test_virt_mem;
 			vcpu_args->pages = (vcpus * vcpu_memory_bytes) /
 					   pta->guest_page_size;
-			vcpu_args->gpa = guest_test_phys_mem;
+			vcpu_args->gpa = pta->gpa;
 		}
 
 		vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
