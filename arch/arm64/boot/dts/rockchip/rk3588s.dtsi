@@ -1322,6 +1322,8 @@
 		rockchip,grf = <&sys_grf>;
 		rockchip,vop-grf = <&vop_grf>;
 		rockchip,vo1-grf = <&vo1_grf>;
+		rockchip,pmu = <&pmu>;
+
 		status = "disabled";
 
 		vop_out: ports {
