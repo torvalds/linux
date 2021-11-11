@@ -37,7 +37,7 @@
 	} ids;
 }
 
-%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO EXPR_ERROR
+%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO SOURCE_COUNT EXPR_ERROR
 %left MIN MAX IF
 %left '|'
 %left '^'
@@ -84,7 +84,7 @@ static struct ids union_expr(struct ids ids1, struct ids ids2)
 }
 
 static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
-			    bool compute_ids)
+			    bool compute_ids, bool source_count)
 {
 	struct ids result;
 
@@ -96,9 +96,11 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
 		struct expr_id_data *data;
 
 		result.val = NAN;
-		if (expr__resolve_id(ctx, id, &data) == 0)
-			result.val = expr_id_data__value(data);
-
+		if (expr__resolve_id(ctx, id, &data) == 0) {
+			result.val = source_count
+				? expr_id_data__source_count(data)
+				: expr_id_data__value(data);
+		}
 		result.ids = NULL;
 		free(id);
 	} else {
@@ -201,7 +203,8 @@ expr: NUMBER
 	$$.val = $1;
 	$$.ids = NULL;
 }
-| ID		{ $$ = handle_id(ctx, $1, compute_ids); }
+| ID				{ $$ = handle_id(ctx, $1, compute_ids, /*source_count=*/false); }
+| SOURCE_COUNT '(' ID ')'	{ $$ = handle_id(ctx, $3, compute_ids, /*source_count=*/true); }
 | expr '|' expr { BINARY_LONG_OP($$, |, $1, $3); }
 | expr '&' expr { BINARY_LONG_OP($$, &, $1, $3); }
 | expr '^' expr { BINARY_LONG_OP($$, ^, $1, $3); }

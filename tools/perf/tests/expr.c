@@ -171,6 +171,18 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	TEST_ASSERT_VAL("#num_packages", expr__parse(&num_packages, ctx, "#num_packages") == 0);
 	TEST_ASSERT_VAL("#num_dies >= #num_packages", num_dies >= num_packages);
 
+	/*
+	 * Source count returns the number of events aggregating in a leader
+	 * event including the leader. Check parsing yields an id.
+	 */
+	expr__ctx_clear(ctx);
+	TEST_ASSERT_VAL("source count",
+			expr__find_ids("source_count(EVENT1)",
+			NULL, ctx) == 0);
+	TEST_ASSERT_VAL("source count", hashmap__size(ctx->ids) == 1);
+	TEST_ASSERT_VAL("source count", hashmap__find(ctx->ids, "EVENT1",
+							(void **)&val_ptr));
+
 	expr__ctx_free(ctx);
 
 	return 0;
