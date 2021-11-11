@@ -988,7 +988,7 @@ static int es8323_i2c_probe(struct i2c_client *i2c,
 
 	hp_irq = gpiod_to_irq(es8323->hp_det_gpio);
 
-	if (hp_irq) {
+	if (hp_irq > 0) {
 		ret = devm_request_threaded_irq(&i2c->dev, hp_irq, NULL,
 						hp_det_irq_handler,
 						IRQ_TYPE_EDGE_BOTH |
