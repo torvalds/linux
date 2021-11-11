@@ -1144,16 +1144,16 @@ static int __bch2_writepage(struct folio *folio,
 do_io:
 	s = bch2_page_state_create(page, __GFP_NOFAIL);
 
-	ret = bch2_get_page_disk_reservation(c, inode, page, true);
-	if (ret) {
-		SetPageError(page);
-		mapping_set_error(page->mapping, ret);
-		unlock_page(page);
-		return 0;
-	}
+	/*
+	 * Things get really hairy with errors during writeback:
+	 */
+	ret = bch2_get_page_disk_reservation(c, inode, page, false);
+	BUG_ON(ret);
 
 	/* Before unlocking the page, get copy of reservations: */
+	spin_lock(&s->lock);
 	orig = *s;
+	spin_unlock(&s->lock);
 
 	for (i = 0; i < PAGE_SECTORS; i++) {
 		if (s->s[i].state < SECTOR_DIRTY)
@@ -1186,7 +1186,7 @@ do_io:
 
 	offset = 0;
 	while (1) {
-		unsigned sectors = 1, dirty_sectors = 0, reserved_sectors = 0;
+		unsigned sectors = 0, dirty_sectors = 0, reserved_sectors = 0;
 		u64 sector;
 
 		while (offset < PAGE_SECTORS &&
@@ -1196,16 +1196,15 @@ do_io:
 		if (offset == PAGE_SECTORS)
 			break;
 
-		sector = ((u64) page->index << PAGE_SECTOR_SHIFT) + offset;
-
 		while (offset + sectors < PAGE_SECTORS &&
-		       orig.s[offset + sectors].state >= SECTOR_DIRTY)
+		       orig.s[offset + sectors].state >= SECTOR_DIRTY) {
+			reserved_sectors += orig.s[offset + sectors].replicas_reserved;
+			dirty_sectors += orig.s[offset + sectors].state == SECTOR_DIRTY;
 			sectors++;
-
-		for (i = offset; i < offset + sectors; i++) {
-			reserved_sectors += orig.s[i].replicas_reserved;
-			dirty_sectors += orig.s[i].state == SECTOR_DIRTY;
 		}
+		BUG_ON(!sectors);
+
+		sector = ((u64) page->index << PAGE_SECTOR_SHIFT) + offset;
 
 		if (w->io &&
 		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
