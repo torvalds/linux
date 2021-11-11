@@ -143,9 +143,8 @@ int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx)
 
 	rockchip_vpu2_set_src_img_ctrl(vpu, ctx);
 	rockchip_vpu2_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
-	rockchip_vpu2_jpeg_enc_set_qtable(vpu,
-					  hantro_jpeg_get_qtable(0),
-					  hantro_jpeg_get_qtable(1));
+	rockchip_vpu2_jpeg_enc_set_qtable(vpu, jpeg_ctx.hw_luma_qtable,
+					  jpeg_ctx.hw_chroma_qtable);
 
 	reg = VEPU_REG_OUTPUT_SWAP32
 		| VEPU_REG_OUTPUT_SWAP16
