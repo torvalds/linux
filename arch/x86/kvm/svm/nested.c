@@ -219,8 +219,8 @@ static bool nested_svm_check_tlb_ctl(struct kvm_vcpu *vcpu, u8 tlb_ctl)
 	}
 }
 
-static bool nested_vmcb_check_controls(struct kvm_vcpu *vcpu,
-				       struct vmcb_control_area *control)
+static bool __nested_vmcb_check_controls(struct kvm_vcpu *vcpu,
+				         struct vmcb_control_area *control)
 {
 	if (CC(!vmcb_is_intercept(control, INTERCEPT_VMRUN)))
 		return false;
@@ -285,6 +285,14 @@ static bool nested_vmcb_check_save(struct kvm_vcpu *vcpu)
 	struct vmcb_save_area_cached *save = &svm->nested.save;
 
 	return __nested_vmcb_check_save(vcpu, save);
+}
+
+static bool nested_vmcb_check_controls(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb_control_area *ctl = &svm->nested.ctl;
+
+	return __nested_vmcb_check_controls(vcpu, ctl);
 }
 
 static
@@ -691,7 +699,7 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 	nested_copy_vmcb_save_to_cache(svm, &vmcb12->save);
 
 	if (!nested_vmcb_check_save(vcpu) ||
-	    !nested_vmcb_check_controls(vcpu, &svm->nested.ctl)) {
+	    !nested_vmcb_check_controls(vcpu)) {
 		vmcb12->control.exit_code    = SVM_EXIT_ERR;
 		vmcb12->control.exit_code_hi = 0;
 		vmcb12->control.exit_info_1  = 0;
@@ -1379,7 +1387,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 		goto out_free;
 
 	ret = -EINVAL;
-	if (!nested_vmcb_check_controls(vcpu, ctl))
+	if (!__nested_vmcb_check_controls(vcpu, ctl))
 		goto out_free;
 
 	/*
