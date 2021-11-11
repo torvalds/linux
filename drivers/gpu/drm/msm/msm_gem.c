@@ -1120,7 +1120,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 			break;
 		fallthrough;
 	default:
-		DRM_DEV_ERROR(dev->dev, "invalid cache flag: %x\n",
+		DRM_DEV_DEBUG(dev->dev, "invalid cache flag: %x\n",
 				(flags & MSM_BO_CACHE_MASK));
 		return -EINVAL;
 	}
