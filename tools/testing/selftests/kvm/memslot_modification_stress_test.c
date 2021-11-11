@@ -116,8 +116,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	perf_test_join_vcpu_threads(nr_vcpus);
 	pr_info("All vCPU threads joined\n");
 
-	ucall_uninit(vm);
-	kvm_vm_free(vm);
+	perf_test_destroy_vm(vm);
 }
 
 static void help(char *name)
