@@ -5135,14 +5135,13 @@ EXPORT_SYMBOL_GPL(pci_dev_unlock);
 
 static void pci_dev_save_and_disable(struct pci_dev *dev)
 {
-	struct pci_driver *drv = to_pci_driver(dev->dev.driver);
 	const struct pci_error_handlers *err_handler =
-			drv ? drv->err_handler : NULL;
+			dev->driver ? dev->driver->err_handler : NULL;
 
 	/*
-	 * drv->err_handler->reset_prepare() is protected against races
-	 * with ->remove() by the device lock, which must be held by the
-	 * caller.
+	 * dev->driver->err_handler->reset_prepare() is protected against
+	 * races with ->remove() by the device lock, which must be held by
+	 * the caller.
 	 */
 	if (err_handler && err_handler->reset_prepare)
 		err_handler->reset_prepare(dev);
@@ -5167,15 +5166,15 @@ static void pci_dev_save_and_disable(struct pci_dev *dev)
 
 static void pci_dev_restore(struct pci_dev *dev)
 {
-	struct pci_driver *drv = to_pci_driver(dev->dev.driver);
 	const struct pci_error_handlers *err_handler =
-			drv ? drv->err_handler : NULL;
+			dev->driver ? dev->driver->err_handler : NULL;
 
 	pci_restore_state(dev);
 
 	/*
-	 * drv->err_handler->reset_done() is protected against races with
-	 * ->remove() by the device lock, which must be held by the caller.
+	 * dev->driver->err_handler->reset_done() is protected against
+	 * races with ->remove() by the device lock, which must be held by
+	 * the caller.
 	 */
 	if (err_handler && err_handler->reset_done)
 		err_handler->reset_done(dev);
