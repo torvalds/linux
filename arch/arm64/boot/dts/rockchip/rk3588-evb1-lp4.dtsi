@@ -84,6 +84,15 @@
 		pinctrl-0 = <&typec5v_pwren>;
 	};
 
+	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd0_n";
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_1v8_s0>;
+	};
+
 	vcc3v3_pcie30: vcc3v3-pcie30 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie30";
@@ -426,9 +435,4 @@
 
 &usbhost_dwc3_0 {
 	status = "disabled";
-};
-
-&vcc3v3_lcd_n {
-	gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
-	enable-active-high;
 };

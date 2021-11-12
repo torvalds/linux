@@ -64,6 +64,15 @@
 		pinctrl-0 = <&typec5v_pwren>;
 	};
 
+	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd0_n";
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_1v8_s0>;
+	};
+
 	vcc5v0_u2host: vcc5v0-u2host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_u2host";
@@ -883,9 +892,4 @@
 
 &usbdrd_dwc3_0 {
 	maximum-speed = "high-speed";
-};
-
-&vcc3v3_lcd_n {
-	gpio = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
-	enable-active-high;
 };
