@@ -709,13 +709,14 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 	 * Trying to handle/dequeue a mid after the send_recv()
 	 * function has finished processing it is a bug.
 	 */
-	if (mid->mid_flags & MID_DELETED)
+	if (mid->mid_flags & MID_DELETED) {
+		spin_unlock(&GlobalMid_Lock);
 		pr_warn_once("trying to dequeue a deleted mid\n");
-	else {
+	} else {
 		list_del_init(&mid->qhead);
 		mid->mid_flags |= MID_DELETED;
+		spin_unlock(&GlobalMid_Lock);
 	}
-	spin_unlock(&GlobalMid_Lock);
 }
 
 static unsigned int
