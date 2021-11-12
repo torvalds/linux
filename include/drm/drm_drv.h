@@ -601,10 +601,6 @@ static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 
 int drm_dev_set_unique(struct drm_device *dev, const char *name);
 
-#ifdef CONFIG_VGA_CONSOLE
 extern bool drm_firmware_drivers_only(void);
-#else
-static inline bool drm_firmware_drivers_only(void) { return false; }
-#endif
 
 #endif
