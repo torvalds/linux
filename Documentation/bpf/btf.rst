@@ -3,7 +3,7 @@ BPF Type Format (BTF)
 =====================
 
 1. Introduction
-***************
+===============
 
 BTF (BPF Type Format) is the metadata format which encodes the debug info
 related to BPF program/map. The name BTF was used initially to describe data
@@ -30,7 +30,7 @@ sections are discussed in details in :ref:`BTF_Type_String`.
 .. _BTF_Type_String:
 
 2. BTF Type and String Encoding
-*******************************
+===============================
 
 The file ``include/uapi/linux/btf.h`` provides high-level definition of how
 types/strings are encoded.
@@ -57,13 +57,13 @@ little-endian target. The ``btf_header`` is designed to be extensible with
 generated.
 
 2.1 String Encoding
-===================
+-------------------
 
 The first string in the string section must be a null string. The rest of
 string table is a concatenation of other null-terminated strings.
 
 2.2 Type Encoding
-=================
+-----------------
 
 The type id ``0`` is reserved for ``void`` type. The type section is parsed
 sequentially and type id is assigned to each recognized type starting from id
@@ -504,7 +504,7 @@ valid index (starting from 0) pointing to a member or an argument.
  * ``type``: the type with ``btf_type_tag`` attribute
 
 3. BTF Kernel API
-*****************
+=================
 
 The following bpf syscall command involves BTF:
    * BPF_BTF_LOAD: load a blob of BTF data into kernel
@@ -547,14 +547,14 @@ The workflow typically looks like:
 
 
 3.1 BPF_BTF_LOAD
-================
+----------------
 
 Load a blob of BTF data into kernel. A blob of data, described in
 :ref:`BTF_Type_String`, can be directly loaded into the kernel. A ``btf_fd``
 is returned to a userspace.
 
 3.2 BPF_MAP_CREATE
-==================
+------------------
 
 A map can be created with ``btf_fd`` and specified key/value type id.::
 
@@ -581,7 +581,7 @@ automatically.
 .. _BPF_Prog_Load:
 
 3.3 BPF_PROG_LOAD
-=================
+-----------------
 
 During prog_load, func_info and line_info can be passed to kernel with proper
 values for the following attributes:
@@ -631,7 +631,7 @@ For line_info, the line number and column number are defined as below:
     #define BPF_LINE_INFO_LINE_COL(line_col)        ((line_col) & 0x3ff)
 
 3.4 BPF_{PROG,MAP}_GET_NEXT_ID
-==============================
+------------------------------
 
 In kernel, every loaded program, map or btf has a unique id. The id won't
 change during the lifetime of a program, map, or btf.
@@ -641,13 +641,13 @@ each command, to user space, for bpf program or maps, respectively, so an
 inspection tool can inspect all programs and maps.
 
 3.5 BPF_{PROG,MAP}_GET_FD_BY_ID
-===============================
+-------------------------------
 
 An introspection tool cannot use id to get details about program or maps.
 A file descriptor needs to be obtained first for reference-counting purpose.
 
 3.6 BPF_OBJ_GET_INFO_BY_FD
-==========================
+--------------------------
 
 Once a program/map fd is acquired, an introspection tool can get the detailed
 information from kernel about this fd, some of which are BTF-related. For
@@ -656,7 +656,7 @@ example, ``bpf_map_info`` returns ``btf_id`` and key/value type ids.
 bpf byte codes, and jited_line_info.
 
 3.7 BPF_BTF_GET_FD_BY_ID
-========================
+------------------------
 
 With ``btf_id`` obtained in ``bpf_map_info`` and ``bpf_prog_info``, bpf
 syscall command BPF_BTF_GET_FD_BY_ID can retrieve a btf fd. Then, with
@@ -668,10 +668,10 @@ tool has full btf knowledge and is able to pretty print map key/values, dump
 func signatures and line info, along with byte/jit codes.
 
 4. ELF File Format Interface
-****************************
+============================
 
 4.1 .BTF section
-================
+----------------
 
 The .BTF section contains type and string data. The format of this section is
 same as the one describe in :ref:`BTF_Type_String`.
@@ -679,7 +679,7 @@ same as the one describe in :ref:`BTF_Type_String`.
 .. _BTF_Ext_Section:
 
 4.2 .BTF.ext section
-====================
+--------------------
 
 The .BTF.ext section encodes func_info and line_info which needs loader
 manipulation before loading into the kernel.
@@ -743,7 +743,7 @@ bpf_insn``. For ELF API, the ``insn_off`` is the byte offset from the
 beginning of section (``btf_ext_info_sec->sec_name_off``).
 
 4.2 .BTF_ids section
-====================
+--------------------
 
 The .BTF_ids section encodes BTF ID values that are used within the kernel.
 
@@ -804,10 +804,10 @@ All the BTF ID lists and sets are compiled in the .BTF_ids section and
 resolved during the linking phase of kernel build by ``resolve_btfids`` tool.
 
 5. Using BTF
-************
+============
 
 5.1 bpftool map pretty print
-============================
+----------------------------
 
 With BTF, the map key/value can be printed based on fields rather than simply
 raw bytes. This is especially valuable for large structure or if your data
@@ -849,7 +849,7 @@ bpftool is able to pretty print like below:
       ]
 
 5.2 bpftool prog dump
-=====================
+---------------------
 
 The following is an example showing how func_info and line_info can help prog
 dump with better kernel symbol names, function prototypes and line
@@ -883,7 +883,7 @@ information.::
     [...]
 
 5.3 Verifier Log
-================
+----------------
 
 The following is an example of how line_info can help debugging verification
 failure.::
@@ -909,7 +909,7 @@ failure.::
         R2 offset is outside of the packet
 
 6. BTF Generation
-*****************
+=================
 
 You need latest pahole
 
@@ -1016,6 +1016,6 @@ format.::
             .long   8206                    # Line 8 Col 14
 
 7. Testing
-**********
+==========
 
 Kernel bpf selftest `test_btf.c` provides extensive set of BTF-related tests.
