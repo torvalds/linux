@@ -228,7 +228,6 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 	gfs2_rgrp_brelse(rgd);
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
 	truncate_inode_pages_range(mapping, start, end);
-	set_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags);
 }
 
 static void gfs2_rgrp_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
