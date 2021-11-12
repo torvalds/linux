@@ -9,6 +9,7 @@ implementation.
 .. toctree::
    :maxdepth: 2
 
+   arc/index
    arm/index
    arm64/index
    ia64/index
