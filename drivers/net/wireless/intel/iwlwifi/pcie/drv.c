@@ -1422,15 +1422,18 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * first trying to load the firmware etc. and potentially only
 	 * detecting any problems when the first interface is brought up.
 	 */
-	ret = iwl_finish_nic_init(iwl_trans);
-	if (ret)
-		goto out_free_trans;
-	if (iwl_trans_grab_nic_access(iwl_trans)) {
-		/* all good */
-		iwl_trans_release_nic_access(iwl_trans);
-	} else {
-		ret = -EIO;
-		goto out_free_trans;
+	ret = iwl_pcie_prepare_card_hw(iwl_trans);
+	if (!ret) {
+		ret = iwl_finish_nic_init(iwl_trans);
+		if (ret)
+			goto out_free_trans;
+		if (iwl_trans_grab_nic_access(iwl_trans)) {
+			/* all good */
+			iwl_trans_release_nic_access(iwl_trans);
+		} else {
+			ret = -EIO;
+			goto out_free_trans;
+		}
 	}
 
 	iwl_trans->hw_rf_id = iwl_read32(iwl_trans, CSR_HW_RF_ID);
@@ -1563,6 +1566,10 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_trans;
 
 	pci_set_drvdata(pdev, iwl_trans);
+
+	/* try to get ownership so that we'll know if we don't own it */
+	iwl_pcie_prepare_card_hw(iwl_trans);
+
 	iwl_trans->drv = iwl_drv_start(iwl_trans);
 
 	if (IS_ERR(iwl_trans->drv)) {
