@@ -138,8 +138,10 @@ extern const struct snd_motu_spec snd_motu_spec_8pre;
 
 extern const struct snd_motu_spec snd_motu_spec_828mk3_fw;
 extern const struct snd_motu_spec snd_motu_spec_828mk3_hybrid;
+extern const struct snd_motu_spec snd_motu_spec_traveler_mk3;
 extern const struct snd_motu_spec snd_motu_spec_ultralite_mk3;
 extern const struct snd_motu_spec snd_motu_spec_audio_express;
+extern const struct snd_motu_spec snd_motu_spec_track16;
 extern const struct snd_motu_spec snd_motu_spec_4pre;
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
