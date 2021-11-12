@@ -184,7 +184,7 @@ config UIO_DFL
 	  If you compile this as a module, it will be called uio_dfl.
 
 config UIO_MSM_SHAREDMEM
-	bool "MSM shared memory driver"
+	tristate "MSM shared memory driver"
 	default n
 	help
 	  Provides the clients with their respective alloted shared memory
