@@ -646,23 +646,8 @@ static const struct rockchip_pvtm_data rk3588_litcore_pvtm = {
 	},
 };
 
-static const struct rockchip_pvtm_info rk3588_gpu_pvtm_infos[] = {
-	PVTM(3, "gpu", 2, 0, 1, 0x4, 0, 0x4),
-};
-
-static const struct rockchip_pvtm_data rk3588_gpu_pvtm = {
-	.con = 0x4,
-	.sta = 0x80,
-	.num_pvtms = ARRAY_SIZE(rk3588_gpu_pvtm_infos),
-	.infos = rk3588_gpu_pvtm_infos,
-	.ops = {
-		.get_value = rv1126_pvtm_get_value,
-		.set_ring_sel = rv1126_pvtm_set_ring_sel,
-	},
-};
-
 static const struct rockchip_pvtm_info rk3588_npu_pvtm_infos[] = {
-	PVTM(4, "npu", 2, 0, 1, 0x4, 0, 0x4),
+	PVTM(3, "npu", 2, 0, 1, 0x4, 0, 0x4),
 };
 
 static const struct rockchip_pvtm_data rk3588_npu_pvtm = {
@@ -670,6 +655,21 @@ static const struct rockchip_pvtm_data rk3588_npu_pvtm = {
 	.sta = 0x80,
 	.num_pvtms = ARRAY_SIZE(rk3588_npu_pvtm_infos),
 	.infos = rk3588_npu_pvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+		.set_ring_sel = rv1126_pvtm_set_ring_sel,
+	},
+};
+
+static const struct rockchip_pvtm_info rk3588_gpu_pvtm_infos[] = {
+	PVTM(4, "gpu", 2, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rk3588_gpu_pvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rk3588_gpu_pvtm_infos),
+	.infos = rk3588_gpu_pvtm_infos,
 	.ops = {
 		.get_value = rv1126_pvtm_get_value,
 		.set_ring_sel = rv1126_pvtm_set_ring_sel,
