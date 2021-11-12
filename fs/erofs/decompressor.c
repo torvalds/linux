@@ -195,8 +195,8 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq,
 	inputmargin = 0;
 	support_0padding = false;
 
-	/* decompression inplace is only safe when 0padding is enabled */
-	if (erofs_sb_has_lz4_0padding(EROFS_SB(rq->sb))) {
+	/* decompression inplace is only safe when zero_padding is enabled */
+	if (erofs_sb_has_zero_padding(EROFS_SB(rq->sb))) {
 		support_0padding = true;
 
 		while (!headpage[inputmargin & ~PAGE_MASK])
