@@ -206,6 +206,7 @@ struct core_data {
 	unsigned int core_temp_c;
 	unsigned int core_energy;	/* MSR_CORE_ENERGY_STAT */
 	unsigned int core_id;
+	unsigned long long core_throt_cnt;
 	unsigned long long counter[MAX_ADDED_COUNTERS];
 } *core_even, *core_odd;
 
@@ -611,6 +612,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "Die" },
 	{ 0x0, "GFXAMHz" },
 	{ 0x0, "IPC" },
+	{ 0x0, "CoreThr" },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -667,6 +669,7 @@ struct msr_counter bic[] = {
 #define	BIC_Die		(1ULL << 50)
 #define	BIC_GFXACTMHz	(1ULL << 51)
 #define	BIC_IPC		(1ULL << 52)
+#define	BIC_CORE_THROT_CNT	(1ULL << 53)
 
 #define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
 #define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
@@ -888,6 +891,9 @@ void print_header(char *delim)
 	if (DO_BIC(BIC_CoreTmp))
 		outp += sprintf(outp, "%sCoreTmp", (printed++ ? delim : ""));
 
+	if (DO_BIC(BIC_CORE_THROT_CNT))
+		outp += sprintf(outp, "%sCoreThr", (printed++ ? delim : ""));
+
 	if (do_rapl && !rapl_joules) {
 		if (DO_BIC(BIC_CorWatt) && (do_rapl & RAPL_PER_CORE_ENERGY))
 			outp += sprintf(outp, "%sCorWatt", (printed++ ? delim : ""));
@@ -1027,6 +1033,7 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		outp += sprintf(outp, "c6: %016llX\n", c->c6);
 		outp += sprintf(outp, "c7: %016llX\n", c->c7);
 		outp += sprintf(outp, "DTS: %dC\n", c->core_temp_c);
+		outp += sprintf(outp, "cpu_throt_count: %016llX\n", c->core_throt_cnt);
 		outp += sprintf(outp, "Joules: %0X\n", c->core_energy);
 
 		for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
@@ -1241,6 +1248,10 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	if (DO_BIC(BIC_CoreTmp))
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), c->core_temp_c);
 
+	/* Core throttle count */
+	if (DO_BIC(BIC_CORE_THROT_CNT))
+		outp += sprintf(outp, "%s%lld", (printed++ ? delim : ""), c->core_throt_cnt);
+
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 32)
@@ -1327,6 +1338,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	if (DO_BIC(BIC_PkgWatt))
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_pkg * rapl_energy_units / interval_float);
+
 	if (DO_BIC(BIC_CorWatt) && !(do_rapl & RAPL_PER_CORE_ENERGY))
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""), p->energy_cores * rapl_energy_units / interval_float);
@@ -1483,6 +1495,7 @@ void delta_core(struct core_data *new, struct core_data *old)
 	old->c6 = new->c6 - old->c6;
 	old->c7 = new->c7 - old->c7;
 	old->core_temp_c = new->core_temp_c;
+	old->core_throt_cnt = new->core_throt_cnt;
 	old->mc6_us = new->mc6_us - old->mc6_us;
 
 	DELTA_WRAP32(new->core_energy, old->core_energy);
@@ -1642,6 +1655,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	c->mc6_us = 0;
 	c->core_temp_c = 0;
 	c->core_energy = 0;
+	c->core_throt_cnt = 0;
 
 	p->pkg_wtd_core_c0 = 0;
 	p->pkg_any_core_c0 = 0;
@@ -1726,6 +1740,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	average.cores.mc6_us += c->mc6_us;
 
 	average.cores.core_temp_c = MAX(average.cores.core_temp_c, c->core_temp_c);
+	average.cores.core_throt_cnt = MAX(average.cores.core_throt_cnt, c->core_throt_cnt);
 
 	average.cores.core_energy += c->core_energy;
 
@@ -2003,6 +2018,26 @@ void get_apic_id(struct thread_data *t)
 		fprintf(outf, "cpu%d: BIOS BUG: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
 }
 
+int get_core_throt_cnt(int cpu, unsigned long long *cnt)
+{
+	char path[128 + PATH_BYTES];
+	unsigned long long tmp;
+	FILE *fp;
+	int ret;
+
+	sprintf(path, "/sys/devices/system/cpu/cpu%d/thermal_throttle/core_throttle_count", cpu);
+	fp = fopen(path, "r");
+	if (!fp)
+		return -1;
+	ret = fscanf(fp, "%lld", &tmp);
+	if (ret != 1)
+		return -1;
+	fclose(fp);
+	*cnt = tmp;
+
+	return 0;
+}
+
 /*
  * get_counters(...)
  * migrate to cpu
@@ -2144,6 +2179,9 @@ retry:
 			return -9;
 		c->core_temp_c = tj_max - ((msr >> 16) & 0x7F);
 	}
+
+	if (DO_BIC(BIC_CORE_THROT_CNT))
+		get_core_throt_cnt(cpu, &c->core_throt_cnt);
 
 	if (do_rapl & RAPL_AMD_F17H) {
 		if (get_msr(cpu, MSR_CORE_ENERGY_STAT, &msr))
@@ -5596,6 +5634,11 @@ void process_cpuid()
 		BIC_PRESENT(BIC_CPU_LPI);
 	else
 		BIC_NOT_PRESENT(BIC_CPU_LPI);
+
+	if (!access("/sys/devices/system/cpu/cpu0/thermal_throttle/core_throttle_count", R_OK))
+		BIC_PRESENT(BIC_CORE_THROT_CNT);
+	else
+		BIC_NOT_PRESENT(BIC_CORE_THROT_CNT);
 
 	if (!access(sys_lpi_file_sysfs, R_OK)) {
 		sys_lpi_file = sys_lpi_file_sysfs;
