@@ -62,6 +62,15 @@
 		};
 	};
 
+	hall_sensor: hall-mh248 {
+		compatible = "hall-mh248";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mh248_irq_gpio>;
+		irq-gpio = <&gpio0 RK_PD4 IRQ_TYPE_EDGE_BOTH>;
+		hall-active = <1>;
+		status = "okay";
+	};
+
 	rk_headset: rk-headset {
 		status = "okay";
 		compatible = "rockchip_headset";
@@ -316,20 +325,32 @@
 &i2c5 {
 	status = "okay";
 
-	mpu6500@68 {
+	ls_stk3332: light@47 {
+		compatible = "ls_stk3332";
 		status = "disabled";
-		compatible = "invensense,mpu6500";
-		reg = <0x68>;
-		irq-gpio = <&gpio3 RK_PB4 IRQ_TYPE_EDGE_RISING>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mpu6500_irq_gpio>;
-		mpu-int_config = <0x10>;
-		mpu-level_shifter = <0>;
-		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
-		orientation-x= <0>;
-		orientation-y= <0>;
-		orientation-z= <0>;
-		mpu-debug = <1>;
+		reg = <0x47>;
+		type = <SENSOR_TYPE_LIGHT>;
+		irq_enable = <0>;
+		als_threshold_high = <100>;
+		als_threshold_low = <10>;
+		als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
+		poll_delay_ms = <100>;
+	};
+
+	ps_stk3332: proximity@47 {
+		compatible = "ps_stk3332";
+		status = "disabled";
+		reg = <0x47>;
+		type = <SENSOR_TYPE_PROXIMITY>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&gpio3_c6>;
+		//irq-gpio = <&gpio3 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
+		//irq_enable = <1>;
+		ps_threshold_high = <0x200>;
+		ps_threshold_low = <0x100>;
+		ps_ctrl_gain = <3>; /* 0:x1 1:x2 2:x5 3:x8 */
+		ps_led_current = <4>; /* 0:3.125mA 1:6.25mA 2:12.5mA 3:25mA 4:50mA 5:100mA*/
+		poll_delay_ms = <100>;
 	};
 
 	mpu6500_acc: mpu_acc@68 {
@@ -459,8 +480,12 @@
 		};
 	};
 
-	mpu6500 {
-		mpu6500_irq_gpio: mpu6500-irq-gpio {
+	sensor {
+		mh248_irq_gpio: mh248_irq_gpio {
+			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		mpu6500_irq_gpio: mpu6500_irq_gpio {
 			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
