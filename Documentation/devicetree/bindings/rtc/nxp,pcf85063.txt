@@ -13,10 +13,19 @@ Optional property:
   expressed in femto Farad (fF). Valid values are 7000 and 12500.
   Default value (if no value is specified) is 7000fF.
 
+Optional child node:
+- clock: Provide this if the square wave pin is used as boot-enabled fixed clock.
+
 Example:
 
 pcf85063: rtc@51 {
 	compatible = "nxp,pcf85063";
 	reg = <0x51>;
 	quartz-load-femtofarads = <12500>;
+
+		clock {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 };
