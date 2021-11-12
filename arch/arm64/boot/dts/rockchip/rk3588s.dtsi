@@ -603,7 +603,7 @@
 		#reset-cells = <1>;
 
 		assigned-clocks =
-			<&cru PLL_PPLL>,
+			<&cru PLL_PPLL>, <&cru PLL_AUPLL>,
 			<&cru PLL_NPLL>, <&cru PLL_GPLL>,
 			<&cru ARMCLK_L>, <&cru ARMCLK_B01>,
 			<&cru ARMCLK_B23>,
@@ -613,8 +613,8 @@
 			<&cru ACLK_LOW_TOP_ROOT>, <&cru PCLK_PMU0_ROOT>,
 			<&cru HCLK_PMU_CM0_ROOT>, <&cru ACLK_VOP>;
 		assigned-clock-rates =
-			<100000000>,
-			<850000000>,  <1188000000>,
+			<100000000>, <786000000>,
+			<850000000>, <1188000000>,
 			<816000000>, <1008000000>,
 			<1008000000>,
 			<600000000>, <200000000>,
