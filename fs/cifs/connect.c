@@ -4141,14 +4141,13 @@ static int target_share_matches_server(struct TCP_Server_Info *server, const cha
 }
 
 static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tcon,
-			      struct cifs_sb_info *cifs_sb, char *tree,
-			      struct dfs_cache_tgt_list *tl, struct dfs_info3_param *ref)
+				     struct cifs_sb_info *cifs_sb, char *tree, bool islink,
+				     struct dfs_cache_tgt_list *tl)
 {
 	int rc;
 	struct TCP_Server_Info *server = tcon->ses->server;
 	const struct smb_version_operations *ops = server->ops;
 	struct cifs_tcon *ipc = tcon->ses->tcon_ipc;
-	bool islink;
 	char *share = NULL, *prefix = NULL;
 	const char *tcp_host;
 	size_t tcp_host_len;
@@ -4156,9 +4155,6 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 	bool target_match;
 
 	extract_unc_hostname(server->hostname, &tcp_host, &tcp_host_len);
-
-	islink = ref->server_type == DFS_TYPE_LINK;
-	free_dfs_info_param(ref);
 
 	tit = dfs_cache_get_tgt_iterator(tl);
 	if (!tit) {
@@ -4173,6 +4169,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 
 		kfree(share);
 		kfree(prefix);
+		share = prefix = NULL;
 
 		/* Check if share matches with tcp ses */
 		rc = dfs_cache_get_tgt_share(server->current_fullpath + 1, tit, &share, &prefix);
@@ -4209,25 +4206,23 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 		 * newly resolved target.
 		 */
 		if (dfs_cache_find(xid, tcon->ses, cifs_sb->local_nls, cifs_remap(cifs_sb), target,
-				   ref, &ntl)) {
+				   NULL, &ntl)) {
 			rc = ops->tree_connect(xid, tcon->ses, tree, tcon, cifs_sb->local_nls);
 			if (rc)
 				continue;
 			rc = dfs_cache_noreq_update_tgthint(server->current_fullpath + 1, tit);
 			if (!rc)
 				rc = cifs_update_super_prepath(cifs_sb, prefix);
-			break;
-		}
-		/* Target is another dfs share */
-		rc = update_server_fullpath(server, cifs_sb, target);
-		dfs_cache_free_tgts(tl);
-
-		if (!rc) {
-			rc = -EREMOTE;
-			list_replace_init(&ntl.tl_list, &tl->tl_list);
 		} else {
-			dfs_cache_free_tgts(&ntl);
-			free_dfs_info_param(ref);
+			/* Target is another dfs share */
+			rc = update_server_fullpath(server, cifs_sb, target);
+			dfs_cache_free_tgts(tl);
+
+			if (!rc) {
+				rc = -EREMOTE;
+				list_replace_init(&ntl.tl_list, &tl->tl_list);
+			} else
+				dfs_cache_free_tgts(&ntl);
 		}
 		break;
 	}
@@ -4240,15 +4235,15 @@ out:
 }
 
 static int tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tcon,
-			    struct cifs_sb_info *cifs_sb, char *tree,
-			    struct dfs_cache_tgt_list *tl, struct dfs_info3_param *ref)
+				   struct cifs_sb_info *cifs_sb, char *tree, bool islink,
+				   struct dfs_cache_tgt_list *tl)
 {
 	int rc;
 	int num_links = 0;
 	struct TCP_Server_Info *server = tcon->ses->server;
 
 	do {
-		rc = __tree_connect_dfs_target(xid, tcon, cifs_sb, tree, tl, ref);
+		rc = __tree_connect_dfs_target(xid, tcon, cifs_sb, tree, islink, tl);
 		if (!rc || rc != -EREMOTE)
 			break;
 	} while (rc = -ELOOP, ++num_links < MAX_NESTED_LINKS);
@@ -4302,7 +4297,9 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 		goto out;
 	}
 
-	rc = tree_connect_dfs_target(xid, tcon, cifs_sb, tree, &tl, &ref);
+	rc = tree_connect_dfs_target(xid, tcon, cifs_sb, tree, ref.server_type == DFS_TYPE_LINK,
+				     &tl);
+	free_dfs_info_param(&ref);
 
 out:
 	kfree(tree);
