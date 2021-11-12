@@ -184,7 +184,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 
 		for_each_pipe(dev_priv, pipe) {
 			vgpu_vreg_t(vgpu, PIPECONF(pipe)) &=
-				~(PIPECONF_ENABLE | I965_PIPECONF_ACTIVE);
+				~(PIPECONF_ENABLE | PIPECONF_STATE_ENABLE);
 			vgpu_vreg_t(vgpu, DSPCNTR(pipe)) &= ~DISP_ENABLE;
 			vgpu_vreg_t(vgpu, SPRCTL(pipe)) &= ~SPRITE_ENABLE;
 			vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~MCURSOR_MODE_MASK;
@@ -245,7 +245,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 		 *   setup_virtual_dp_monitor.
 		 */
 		vgpu_vreg_t(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_ENABLE;
-		vgpu_vreg_t(vgpu, PIPECONF(PIPE_A)) |= I965_PIPECONF_ACTIVE;
+		vgpu_vreg_t(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_STATE_ENABLE;
 
 		/*
 		 * Golden M/N are calculated based on:

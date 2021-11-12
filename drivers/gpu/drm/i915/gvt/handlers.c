@@ -702,11 +702,11 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	data = vgpu_vreg(vgpu, offset);
 
 	if (data & PIPECONF_ENABLE) {
-		vgpu_vreg(vgpu, offset) |= I965_PIPECONF_ACTIVE;
+		vgpu_vreg(vgpu, offset) |= PIPECONF_STATE_ENABLE;
 		vgpu_update_refresh_rate(vgpu);
 		vgpu_update_vblank_emulation(vgpu, true);
 	} else {
-		vgpu_vreg(vgpu, offset) &= ~I965_PIPECONF_ACTIVE;
+		vgpu_vreg(vgpu, offset) &= ~PIPECONF_STATE_ENABLE;
 		vgpu_update_vblank_emulation(vgpu, false);
 	}
 	return 0;

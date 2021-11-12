@@ -157,13 +157,13 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 		 */
 		val &= ~PIPECONF_BPC_MASK;
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-			val |= PIPECONF_8BPC;
+			val |= PIPECONF_BPC_8;
 		else
 			val |= pipeconf_val & PIPECONF_BPC_MASK;
 	}
 
 	val &= ~TRANS_INTERLACE_MASK;
-	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK) {
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_ILK) == PIPECONF_INTERLACE_IF_ID_ILK) {
 		if (HAS_PCH_IBX(dev_priv) &&
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
 			val |= TRANS_LEGACY_INTERLACED_ILK;
@@ -436,8 +436,7 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val = TRANS_ENABLE;
 	pipeconf_val = intel_de_read(dev_priv, PIPECONF(cpu_transcoder));
 
-	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_HSW) ==
-	    PIPECONF_INTERLACED_ILK)
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_HSW) == PIPECONF_INTERLACE_IF_ID_ILK)
 		val |= TRANS_INTERLACED;
 	else
 		val |= TRANS_PROGRESSIVE;
