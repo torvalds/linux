@@ -939,7 +939,7 @@ static void *dispatch_thread(void *ctx)
 {
 	struct dispatch_data *data = ctx;
 	int sock_fd;
-	FILE *log_fd = NULL;
+	FILE *log_fp = NULL;
 
 	sock_fd = data->sock_fd;
 
@@ -1002,8 +1002,8 @@ static void *dispatch_thread(void *ctx)
 
 			/* collect all logs */
 			if (msg_test_done.test_done.have_log) {
-				log_fd = open_memstream(&result->log_buf, &result->log_cnt);
-				if (!log_fd)
+				log_fp = open_memstream(&result->log_buf, &result->log_cnt);
+				if (!log_fp)
 					goto error;
 
 				while (true) {
@@ -1014,12 +1014,12 @@ static void *dispatch_thread(void *ctx)
 					if (msg_log.type != MSG_TEST_LOG)
 						goto error;
 
-					fprintf(log_fd, "%s", msg_log.test_log.log_buf);
+					fprintf(log_fp, "%s", msg_log.test_log.log_buf);
 					if (msg_log.test_log.is_last)
 						break;
 				}
-				fclose(log_fd);
-				log_fd = NULL;
+				fclose(log_fp);
+				log_fp = NULL;
 			}
 			/* output log */
 			{
@@ -1045,8 +1045,8 @@ error:
 	if (env.debug)
 		fprintf(stderr, "[%d]: Protocol/IO error: %s.\n", data->worker_id, strerror(errno));
 
-	if (log_fd)
-		fclose(log_fd);
+	if (log_fp)
+		fclose(log_fp);
 done:
 	{
 		struct msg msg_exit;
