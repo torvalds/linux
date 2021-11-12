@@ -259,6 +259,11 @@ static int opp_summary_show(struct seq_file *s, void *data)
 				   opp->supplies[0].u_volt,
 				   opp->supplies[0].u_volt_min,
 				   opp->supplies[0].u_volt_max);
+			if (opp_table->regulator_count > 1)
+				seq_printf(s, "%44lu %11lu %11lu\n",
+					   opp->supplies[1].u_volt,
+					   opp->supplies[1].u_volt_min,
+					   opp->supplies[1].u_volt_max);
 		}
 		mutex_unlock(&opp_table->lock);
 	}
