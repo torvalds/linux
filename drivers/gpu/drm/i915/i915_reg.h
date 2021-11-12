@@ -5341,8 +5341,8 @@ enum {
 
 /* Skylake+ pipe bottom (background) color */
 #define _SKL_BOTTOM_COLOR_A		0x70034
-#define   SKL_BOTTOM_COLOR_GAMMA_ENABLE	(1 << 31)
-#define   SKL_BOTTOM_COLOR_CSC_ENABLE	(1 << 30)
+#define   SKL_BOTTOM_COLOR_GAMMA_ENABLE		REG_BIT(31)
+#define   SKL_BOTTOM_COLOR_CSC_ENABLE		REG_BIT(30)
 #define SKL_BOTTOM_COLOR(pipe)		_MMIO_PIPE2(pipe, _SKL_BOTTOM_COLOR_A)
 
 #define _ICL_PIPE_A_STATUS			0x70058
