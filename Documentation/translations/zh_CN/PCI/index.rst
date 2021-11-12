@@ -22,10 +22,10 @@ Linux PCI总线子系统
    :numbered:
 
    pci
+   pciebus-howto
 
 Todolist:
 
-   pciebus-howto
    pci-iov-howto
    msi-howto
    sysfs-pci
