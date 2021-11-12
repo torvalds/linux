@@ -35,6 +35,10 @@
 #define ES8323_CODEC_SET_SPK	1
 #define ES8323_CODEC_SET_HP	2
 #define ES8323_EXTCON_ID EXTCON_JACK_HEADPHONE
+#define NR_SUPPORTED_MCLK_LRCK_RATIOS 5
+static const unsigned int supported_mclk_lrck_ratios[NR_SUPPORTED_MCLK_LRCK_RATIOS] = {
+	256, 384, 512, 768, 1024
+};
 
 #define es8323_DEF_VOL	0x1b
 
@@ -92,8 +96,9 @@ static struct reg_default es8323_reg_defaults[] = {
 /* codec private data */
 struct es8323_priv {
 	unsigned int sysclk;
+	unsigned int allowed_rates[NR_SUPPORTED_MCLK_LRCK_RATIOS];
 	struct clk *mclk;
-	struct snd_pcm_hw_constraint_list *sysclk_constraints;
+	struct snd_pcm_hw_constraint_list sysclk_constraints;
 	struct snd_soc_component *component;
 	struct regmap *regmap;
 
@@ -460,35 +465,6 @@ static inline int get_coeff(int mclk, int rate)
 	return -EINVAL;
 }
 
-/* The set of rates we can generate from the above for each SYSCLK */
-static unsigned int rates_12288[] = {
-	8000, 12000, 16000, 24000, 24000, 32000, 48000, 96000,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_12288 = {
-	.count = ARRAY_SIZE(rates_12288),
-	.list = rates_12288,
-};
-
-static unsigned int rates_112896[] = {
-	8000, 11025, 22050, 44100,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_112896 = {
-	.count = ARRAY_SIZE(rates_112896),
-	.list = rates_112896,
-};
-
-static unsigned int rates_12[] = {
-	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000,
-	48000, 88235, 96000,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_12 = {
-	.count = ARRAY_SIZE(rates_12),
-	.list = rates_12,
-};
-
 /*
  * Note that this should be called from init rather than from hw_params.
  */
@@ -497,31 +473,35 @@ static int es8323_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
+	int i, ret;
+	int count = 0;
 
-	switch (freq) {
-	case 11289600:
-	case 18432000:
-	case 22579200:
-	case 36864000:
-		es8323->sysclk_constraints = &constraints_112896;
-		es8323->sysclk = freq;
-		return 0;
+	es8323->sysclk = freq;
+	if (freq == 0) {
+		es8323->sysclk_constraints.list = NULL;
+		es8323->sysclk_constraints.count = 0;
 
-	case 12288000:
-	case 16934400:
-	case 24576000:
-	case 33868800:
-		es8323->sysclk_constraints = &constraints_12288;
-		es8323->sysclk = freq;
-		return 0;
-
-	case 12000000:
-	case 24000000:
-		es8323->sysclk_constraints = &constraints_12;
-		es8323->sysclk = freq;
 		return 0;
 	}
-	return -EINVAL;
+
+	ret = clk_set_rate(es8323->mclk, freq);
+	if (ret)
+		return ret;
+
+	/* Limit supported sample rates to ones that can be autodetected
+	 * by the codec running in slave mode.
+	 */
+	for (i = 0; i < NR_SUPPORTED_MCLK_LRCK_RATIOS; i++) {
+		const unsigned int ratio = supported_mclk_lrck_ratios[i];
+
+		if (freq % ratio == 0)
+			es8323->allowed_rates[count++] = freq / ratio;
+	}
+
+	es8323->sysclk_constraints.list = es8323->allowed_rates;
+	es8323->sysclk_constraints.count = count;
+
+	return 0;
 }
 
 static int es8323_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
@@ -601,22 +581,6 @@ static int es8323_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 static int es8323_pcm_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_component *component = dai->component;
-	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
-
-	/* The set of sample rates that can be supported depends on the
-	 * MCLK supplied to the CODEC - enforce this.
-	 */
-	if (!es8323->sysclk) {
-		dev_err(component->dev,
-			"No MCLK configured, call set_sysclk() on init\n");
-		return -EINVAL;
-	}
-
-	snd_pcm_hw_constraint_list(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_RATE,
-				   es8323->sysclk_constraints);
-
 	return 0;
 }
 
@@ -630,7 +594,23 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 	u16 adciface = snd_soc_component_read(component, ES8323_ADC_IFACE) & 0xE3;
 	u16 daciface = snd_soc_component_read(component, ES8323_DAC_IFACE) & 0xC7;
 	int coeff;
+	int i;
 
+	/* Validate supported sample rates that are autodetected from MCLK */
+	for (i = 0; i < NR_SUPPORTED_MCLK_LRCK_RATIOS; i++) {
+		const unsigned int ratio = supported_mclk_lrck_ratios[i];
+
+		if (es8323->sysclk % ratio != 0)
+			continue;
+		if (es8323->sysclk / ratio == params_rate(params))
+			break;
+	}
+	if (i == NR_SUPPORTED_MCLK_LRCK_RATIOS) {
+		dev_err(component->dev,
+			"Unsupported sample rate %dHz with %dHz MCLK\n",
+			params_rate(params), es8323->sysclk);
+		return -EINVAL;
+	}
 	coeff = get_coeff(es8323->sysclk, params_rate(params));
 	if (coeff < 0) {
 		coeff = get_coeff(es8323->sysclk / 2, params_rate(params));
