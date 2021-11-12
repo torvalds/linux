@@ -851,16 +851,6 @@
 		     &i2s0_sdo0>;
 };
 
-&pinctrl {
-	touch {
-		touch_gpio: touch-gpio {
-			rockchip,pins =
-				<0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>,
-				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-};
-
 &saradc {
 	status = "okay";
 	vref-supply = <&vcc_1v8_s0>;
