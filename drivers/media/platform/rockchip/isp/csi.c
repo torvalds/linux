@@ -456,7 +456,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 				}
 			}
 
-			/* normal read back mode */
+			/* normal read back mode for V2X */
 			if (dev->hdr.op_mode == HDR_NORMAL)
 				dev->hdr.op_mode = HDR_RDBK_FRAME1;
 
@@ -465,7 +465,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 			v4l2_subdev_call(mipi_sensor, core, ioctl,
 					 RKISP_VICAP_CMD_MODE, &mode);
 			/* vicap direct to isp */
-			if (dev->isp_ver == ISP_V30 && dev->hw_dev->is_single) {
+			if (dev->isp_ver == ISP_V30 && !mode.is_rdbk) {
 				switch (dev->hdr.op_mode) {
 				case HDR_RDBK_FRAME3:
 					dev->hdr.op_mode = HDR_LINEX3_DDR;
