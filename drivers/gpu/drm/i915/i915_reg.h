@@ -2798,12 +2798,12 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN12_AUX_ERR_DBG		_MMIO(0x43f4)
 
 #define FPGA_DBG		_MMIO(0x42300)
-#define   FPGA_DBG_RM_NOCLAIM	(1 << 31)
+#define   FPGA_DBG_RM_NOCLAIM	REG_BIT(31)
 
 #define CLAIM_ER		_MMIO(VLV_DISPLAY_BASE + 0x2028)
-#define   CLAIM_ER_CLR		(1 << 31)
-#define   CLAIM_ER_OVERFLOW	(1 << 16)
-#define   CLAIM_ER_CTR_MASK	0xffff
+#define   CLAIM_ER_CLR		REG_BIT(31)
+#define   CLAIM_ER_OVERFLOW	REG_BIT(16)
+#define   CLAIM_ER_CTR_MASK	REG_GENMASK(15, 0)
 
 #define DERRMR		_MMIO(0x44050)
 /* Note that HBLANK events are reserved on bdw+ */
