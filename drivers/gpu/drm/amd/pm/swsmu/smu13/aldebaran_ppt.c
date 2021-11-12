@@ -1765,6 +1765,41 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v1_3);
 }
 
+static int aldebaran_mode1_reset(struct smu_context *smu)
+{
+	u32 smu_version, fatal_err, param;
+	int ret = 0;
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	fatal_err = 0;
+	param = SMU_RESET_MODE_1;
+
+	/*
+	* PM FW support SMU_MSG_GfxDeviceDriverReset from 68.07
+	*/
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version < 0x00440700) {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+	}
+	else {
+		/* fatal error triggered by ras, PMFW supports the flag
+		   from 68.44.0 */
+		if ((smu_version >= 0x00442c00) && ras &&
+		    atomic_read(&ras->in_recovery))
+			fatal_err = 1;
+
+		param |= (fatal_err << 16);
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+					SMU_MSG_GfxDeviceDriverReset, param, NULL);
+	}
+
+	if (!ret)
+		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
+
+	return ret;
+}
+
 static int aldebaran_mode2_reset(struct smu_context *smu)
 {
 	u32 smu_version;
@@ -1925,7 +1960,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.get_gpu_metrics = aldebaran_get_gpu_metrics,
 	.mode1_reset_is_support = aldebaran_is_mode1_reset_supported,
 	.mode2_reset_is_support = aldebaran_is_mode2_reset_supported,
-	.mode1_reset = smu_v13_0_mode1_reset,
+	.mode1_reset = aldebaran_mode1_reset,
 	.set_mp1_state = aldebaran_set_mp1_state,
 	.mode2_reset = aldebaran_mode2_reset,
 	.wait_for_event = smu_v13_0_wait_for_event,
