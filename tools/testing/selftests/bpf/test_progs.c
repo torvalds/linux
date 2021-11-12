@@ -473,11 +473,11 @@ static struct prog_test_def prog_test_defs[] = {
 #include <prog_tests/tests.h>
 #undef DEFINE_TEST
 };
-const int prog_test_cnt = ARRAY_SIZE(prog_test_defs);
+static const int prog_test_cnt = ARRAY_SIZE(prog_test_defs);
 
 const char *argp_program_version = "test_progs 0.1";
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
-const char argp_program_doc[] = "BPF selftests test runner";
+static const char argp_program_doc[] = "BPF selftests test runner";
 
 enum ARG_KEYS {
 	ARG_TEST_NUM = 'n',
