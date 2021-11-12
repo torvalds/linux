@@ -183,10 +183,14 @@ static int slpc_unset_param(struct intel_guc_slpc *slpc,
 static int slpc_force_min_freq(struct intel_guc_slpc *slpc, u32 freq)
 {
 	struct drm_i915_private *i915 = slpc_to_i915(slpc);
+	struct intel_guc *guc = slpc_to_guc(slpc);
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
 	lockdep_assert_held(&slpc->lock);
+
+	if (!intel_guc_is_ready(guc))
+		return -ENODEV;
 
 	/*
 	 * This function is a little different as compared to
