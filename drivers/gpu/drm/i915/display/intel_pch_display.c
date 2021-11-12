@@ -166,11 +166,11 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_ILK) == PIPECONF_INTERLACE_IF_ID_ILK) {
 		if (HAS_PCH_IBX(dev_priv) &&
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
-			val |= TRANS_LEGACY_INTERLACED_ILK;
+			val |= TRANS_INTERLACE_LEGACY_VSYNC_IBX;
 		else
-			val |= TRANS_INTERLACED;
+			val |= TRANS_INTERLACE_INTERLACED;
 	} else {
-		val |= TRANS_PROGRESSIVE;
+		val |= TRANS_INTERLACE_PROGRESSIVE;
 	}
 
 	intel_de_write(dev_priv, reg, val | TRANS_ENABLE);
@@ -293,7 +293,8 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 
 		temp = intel_de_read(dev_priv, reg);
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
-			  TRANS_DP_SYNC_MASK |
+			  TRANS_DP_VSYNC_ACTIVE_HIGH |
+			  TRANS_DP_HSYNC_ACTIVE_HIGH |
 			  TRANS_DP_BPC_MASK);
 		temp |= TRANS_DP_OUTPUT_ENABLE;
 		temp |= bpc << 9; /* same format but at 11:9 */
@@ -437,9 +438,9 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	pipeconf_val = intel_de_read(dev_priv, PIPECONF(cpu_transcoder));
 
 	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_HSW) == PIPECONF_INTERLACE_IF_ID_ILK)
-		val |= TRANS_INTERLACED;
+		val |= TRANS_INTERLACE_INTERLACED;
 	else
-		val |= TRANS_PROGRESSIVE;
+		val |= TRANS_INTERLACE_PROGRESSIVE;
 
 	intel_de_write(dev_priv, LPT_TRANSCONF, val);
 	if (intel_de_wait_for_set(dev_priv, LPT_TRANSCONF,
