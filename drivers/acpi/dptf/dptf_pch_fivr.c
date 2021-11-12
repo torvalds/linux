@@ -46,7 +46,7 @@ release_buffer:
 }
 
 /*
- * Presentation of attributes which are defined for INT1045
+ * Presentation of attributes which are defined for INTC10xx
  * They are:
  * freq_mhz_low_clock : Set PCH FIVR switching freq for
  *			FIVR clock 19.2MHz and 24MHz
