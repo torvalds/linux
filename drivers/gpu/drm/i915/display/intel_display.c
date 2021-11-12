@@ -3764,18 +3764,18 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 
 	switch (crtc_state->pipe_bpp) {
 	case 18:
-		val |= PIPEMISC_6_BPC;
+		val |= PIPEMISC_BPC_6;
 		break;
 	case 24:
-		val |= PIPEMISC_8_BPC;
+		val |= PIPEMISC_BPC_8;
 		break;
 	case 30:
-		val |= PIPEMISC_10_BPC;
+		val |= PIPEMISC_BPC_10;
 		break;
 	case 36:
 		/* Port output 12BPC defined for ADLP+ */
 		if (DISPLAY_VER(dev_priv) > 12)
-			val |= PIPEMISC_12_BPC_ADLP;
+			val |= PIPEMISC_BPC_12_ADLP;
 		break;
 	default:
 		MISSING_CASE(crtc_state->pipe_bpp);
@@ -3811,7 +3811,7 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 		}
 
 		intel_de_rmw(dev_priv, PIPE_MISC2(crtc->pipe),
-			     PIPE_MISC2_UNDERRUN_BUBBLE_COUNTER_MASK,
+			     PIPE_MISC2_BUBBLE_COUNTER_MASK,
 			     scaler_in_use ? PIPE_MISC2_BUBBLE_COUNTER_SCALER_EN :
 			     PIPE_MISC2_BUBBLE_COUNTER_SCALER_DIS);
 	}
@@ -3827,11 +3827,11 @@ int bdw_get_pipemisc_bpp(struct intel_crtc *crtc)
 	tmp = intel_de_read(dev_priv, PIPEMISC(crtc->pipe));
 
 	switch (tmp & PIPEMISC_BPC_MASK) {
-	case PIPEMISC_6_BPC:
+	case PIPEMISC_BPC_6:
 		return 18;
-	case PIPEMISC_8_BPC:
+	case PIPEMISC_BPC_8:
 		return 24;
-	case PIPEMISC_10_BPC:
+	case PIPEMISC_BPC_10:
 		return 30;
 	/*
 	 * PORT OUTPUT 12 BPC defined for ADLP+.
@@ -3843,7 +3843,7 @@ int bdw_get_pipemisc_bpp(struct intel_crtc *crtc)
 	 * on older platforms, need to find a workaround for 12 BPC
 	 * MIPI DSI HW readout.
 	 */
-	case PIPEMISC_12_BPC_ADLP:
+	case PIPEMISC_BPC_12_ADLP:
 		if (DISPLAY_VER(dev_priv) > 12)
 			return 36;
 		fallthrough;
