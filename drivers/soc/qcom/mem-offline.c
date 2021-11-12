@@ -62,11 +62,14 @@ static bool is_rpm_controller;
 static DECLARE_BITMAP(movable_bitmap, 1024);
 static bool has_pend_offline_req;
 static struct workqueue_struct *migrate_wq;
+static struct timer_list mem_offline_timeout_timer;
+static struct task_struct *offline_trig_task;
 #define MODULE_CLASS_NAME	"mem-offline"
 #define MEMBLOCK_NAME		"memory%lu"
 #define SEGMENT_NAME		"segment%lu"
 #define BUF_LEN			100
 #define MIGRATE_TIMEOUT_SEC	20
+#define OFFLINE_TIMEOUT_SEC	7
 
 struct section_stat {
 	unsigned long success_count;
@@ -508,6 +511,12 @@ static unsigned long get_section_allocated_memory(unsigned long sec_nr)
 	return used;
 }
 
+static void mem_offline_timeout_cb(struct timer_list *timer)
+{
+	pr_info("mem-offline: SIGALRM is raised to stop the offline operation\n");
+	send_sig_info(SIGALRM, SEND_SIG_PRIV, offline_trig_task);
+}
+
 static int mem_event_callback(struct notifier_block *self,
 				unsigned long action, void *arg)
 {
@@ -572,6 +581,8 @@ static int mem_event_callback(struct notifier_block *self,
 			   idx) / sections_per_block].fail_count;
 		has_pend_offline_req = true;
 		cancel_work_sync(&fill_movable_zone_work);
+		offline_trig_task = current;
+		mod_timer(&mem_offline_timeout_timer, jiffies + (OFFLINE_TIMEOUT_SEC * HZ));
 		cur = ktime_get();
 		break;
 	case MEM_OFFLINE:
@@ -592,6 +603,14 @@ static int mem_event_callback(struct notifier_block *self,
 		pr_debug("mem-offline: Segment %d memblk_bitmap 0x%lx\n",
 				seg_idx, segment_infos[seg_idx].bitmask_kernel_blk);
 		totalram_pages_add(memory_block_size_bytes()/PAGE_SIZE);
+		del_timer_sync(&mem_offline_timeout_timer);
+		offline_trig_task = NULL;
+		break;
+	case MEM_CANCEL_OFFLINE:
+		pr_debug("mem-offline: MEM_CANCEL_OFFLINE : start = 0x%llx end = 0x%llx\n",
+				start_addr, end_addr);
+		del_timer_sync(&mem_offline_timeout_timer);
+		offline_trig_task = NULL;
 		break;
 	case MEM_CANCEL_ONLINE:
 		pr_info("mem-offline: MEM_CANCEL_ONLINE: start = 0x%llx end = 0x%llx\n",
@@ -1832,12 +1851,14 @@ static struct platform_driver mem_offline_driver = {
 
 static int __init mem_module_init(void)
 {
+	timer_setup(&mem_offline_timeout_timer, mem_offline_timeout_cb, 0);
 	return platform_driver_register(&mem_offline_driver);
 }
 subsys_initcall(mem_module_init);
 
 static void __exit mem_module_exit(void)
 {
+	del_timer_sync(&mem_offline_timeout_timer);
 	platform_driver_unregister(&mem_offline_driver);
 }
 module_exit(mem_module_exit);
