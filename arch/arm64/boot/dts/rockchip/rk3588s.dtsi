@@ -373,6 +373,12 @@
 		status = "disabled";
 	};
 
+	rockchip_system_monitor: rockchip-system-monitor {
+		compatible = "rockchip,system-monitor";
+
+		rockchip,thermal-zone = "soc-thermal";
+	};
+
 	spll: spll {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
