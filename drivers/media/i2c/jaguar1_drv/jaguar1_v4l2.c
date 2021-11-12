@@ -3,6 +3,7 @@
  * jaguar1 driver
  * V0.0X01.0X00 first version.
  * V0.0X01.0X01 fix kernel5.10 compile error.
+ * V0.0X01.0X02 add workqueue to detect ahd state.
  *
  */
 
@@ -41,7 +42,19 @@
 #include "jaguar1_drv.h"
 #include "jaguar1_v4l2.h"
 
-#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x1)
+#define WORK_QUEUE
+
+#ifdef WORK_QUEUE
+#include <linux/workqueue.h>
+
+struct sensor_state_check_work {
+	struct workqueue_struct *state_check_wq;
+	struct delayed_work d_work;
+};
+
+#endif
+
+#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x2)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN			V4L2_CID_GAIN
@@ -104,6 +117,12 @@ struct jaguar1_default_rect {
 	unsigned int height;
 };
 
+enum jaguar1_hot_plug_state {
+	PLUG_IN = 0,
+	PLUG_OUT,
+	PLUG_STATE_MAX,
+};
+
 struct jaguar1 {
 	struct i2c_client	*client;
 	struct clk		*xvclk;
@@ -134,6 +153,16 @@ struct jaguar1 {
 	const struct jaguar1_framesize *frame_size;
 	int streaming;
 	struct jaguar1_default_rect defrect;
+#ifdef WORK_QUEUE
+	struct sensor_state_check_work plug_state_check;
+	u8 cur_detect_status;
+	u8 last_detect_status;
+	u64 timestamp0;
+	u64 timestamp1;
+#endif
+	bool hot_plug;
+	u8 is_reset;
+	struct semaphore reg_sem;
 };
 
 #define to_jaguar1(sd) container_of(sd, struct jaguar1, subdev)
@@ -212,6 +241,63 @@ static const struct jaguar1_pixfmt jaguar1_formats[] = {
 static const s64 link_freq_menu_items[] = {
 	JAGUAR1_LINK_FREQ
 };
+
+/* sensor register write */
+static int jaguar1_write(struct i2c_client *client, u8 reg, u8 val)
+{
+	struct i2c_msg msg;
+	u8 buf[2];
+	int ret;
+
+	dev_dbg(&client->dev, "write reg(0x%x val:0x%x)!\n", reg, val);
+	buf[0] = reg & 0xFF;
+	buf[1] = val;
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.buf = buf;
+	msg.len = sizeof(buf);
+
+	ret = i2c_transfer(client->adapter, &msg, 1);
+	if (ret >= 0)
+		return 0;
+
+	dev_err(&client->dev,
+		"jaguar1 write reg(0x%x val:0x%x) failed !\n", reg, val);
+
+	return ret;
+}
+
+/* sensor register read */
+static int jaguar1_read(struct i2c_client *client, u8 reg, u8 *val)
+{
+	struct i2c_msg msg[2];
+	u8 buf[1];
+	int ret;
+
+	buf[0] = reg & 0xFF;
+
+	msg[0].addr = client->addr;
+	msg[0].flags = client->flags;
+	msg[0].buf = buf;
+	msg[0].len = sizeof(buf);
+
+	msg[1].addr = client->addr;
+	msg[1].flags = client->flags | I2C_M_RD;
+	msg[1].buf = buf;
+	msg[1].len = 1;
+
+	ret = i2c_transfer(client->adapter, msg, 2);
+	if (ret >= 0) {
+		*val = buf[0];
+		return 0;
+	}
+
+	dev_err(&client->dev, "jaguar1 read reg(0x%x) failed !\n", reg);
+
+	return ret;
+}
+
 static int __jaguar1_power_on(struct jaguar1 *jaguar1)
 {
 	u32 i;
@@ -340,7 +426,7 @@ static int jaguar1_power(struct v4l2_subdev *sd, int on)
 	struct jaguar1 *jaguar1 = to_jaguar1(sd);
 	int ret = 0;
 
-	dev_dbg(&client->dev, "%s: on %d\n", __func__, on);
+	dev_info(&client->dev, "%s: on %d\n", __func__, on);
 	mutex_lock(&jaguar1->mutex);
 
 	/* If the power state is not modified - no work to do. */
@@ -351,11 +437,12 @@ static int jaguar1_power(struct v4l2_subdev *sd, int on)
 		ret = __jaguar1_power_on(jaguar1);
 		if (ret < 0)
 			goto exit;
-
 		jaguar1->power_on = true;
+
 	} else {
 		__jaguar1_power_off(jaguar1);
 		jaguar1->power_on = false;
+
 	}
 
 exit:
@@ -430,6 +517,7 @@ static void jaguar1_get_default_format(struct jaguar1 *jaguar1)
 	format->field = match->field;
 }
 
+static inline bool jaguar1_no_signal(struct v4l2_subdev *sd, u8 *novid);
 static int jaguar1_stream(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -438,7 +526,7 @@ static int jaguar1_stream(struct v4l2_subdev *sd, int on)
 	enum NC_VIVO_CH_FORMATDEF fmt_idx;
 	int ch;
 
-	dev_dbg(&client->dev, "%s: on %d\n", __func__, on);
+	dev_info(&client->dev, "%s: on %d\n", __func__, on);
 	mutex_lock(&jaguar1->mutex);
 	on = !!on;
 
@@ -455,8 +543,35 @@ static int jaguar1_stream(struct v4l2_subdev *sd, int on)
 			video_init.ch_param[ch].interface = YUV_422;
 		}
 		jaguar1_start(&video_init);
+#ifdef WORK_QUEUE
+		jaguar1->hot_plug = false;
+		jaguar1->is_reset = 0;
+		usleep_range(20000, 21000);
+		/* get power on state first*/
+		jaguar1_no_signal(sd, &jaguar1->last_detect_status);
+		/* check hot plug state */
+		if (jaguar1->plug_state_check.state_check_wq) {
+			dev_info(&client->dev, "%s queue_delayed_work 1000ms", __func__);
+			queue_delayed_work(jaguar1->plug_state_check.state_check_wq,
+					   &jaguar1->plug_state_check.d_work,
+					   msecs_to_jiffies(1000));
+		}
+		jaguar1->timestamp0 = ktime_get_ns();
+#endif
 	} else {
 		jaguar1_stop();
+#ifdef WORK_QUEUE
+		jaguar1->timestamp1 = ktime_get_ns();
+		/* if stream off & on interval too short, do repower */
+		if (div_u64((jaguar1->timestamp1 - jaguar1->timestamp0), 1000000) < 1200) {
+			dev_info(&client->dev, "stream on/off too short, do power off & on!");
+			__jaguar1_power_off(jaguar1);
+			usleep_range(40000, 41000);
+			__jaguar1_power_on(jaguar1);
+		}
+		cancel_delayed_work_sync(&jaguar1->plug_state_check.d_work);
+		dev_info(&client->dev, "cancle_queue_delayed_work");
+#endif
 	}
 
 	jaguar1->streaming = on;
@@ -505,12 +620,144 @@ static int jaguar1_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
+/* indicate N4 no signal channel */
+static inline bool jaguar1_no_signal(struct v4l2_subdev *sd, u8 *novid)
+{
+	struct jaguar1 *jaguar1 = to_jaguar1(sd);
+	struct i2c_client *client = jaguar1->client;
+	u8 videoloss = 0;
+	u8 temp = 0;
+	int ch, ret;
+	bool no_signal = false;
+
+	jaguar1_write(client, 0xff, 0x00);
+	for (ch = 0 ; ch < 4; ch++) {
+		ret = jaguar1_read(client, 0xa4 + ch, &temp);
+		if (ret < 0)
+			dev_err(&client->dev, "Failed to read videoloss state!\n");
+		videoloss |= (temp << ch);
+	}
+	*novid = videoloss;
+	dev_dbg(&client->dev, "%s: video loss status:0x%x.\n", __func__, videoloss);
+	if (videoloss == 0xf) {
+		dev_dbg(&client->dev, "%s: all channels No Video detected.\n", __func__);
+		no_signal = true;
+	} else {
+		dev_dbg(&client->dev, "%s: channel has some video detection.\n", __func__);
+		no_signal = false;
+	}
+	return no_signal;
+}
+
+/* indicate N4 channel locked status */
+static inline bool jaguar1_sync(struct v4l2_subdev *sd, u8 *lock_st)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u8 video_lock_status = 0;
+	u8 temp = 0;
+	int ch, ret;
+	bool has_sync = false;
+
+	jaguar1_write(client, 0xff, 0x00);
+	for (ch = 0 ; ch < 4; ch++) {
+		ret = jaguar1_read(client, 0xd0 + ch, &temp);
+		if (ret < 0)
+			dev_err(&client->dev, "Failed to read LOCK status!\n");
+		video_lock_status |= (temp << ch);
+	}
+
+	dev_dbg(&client->dev, "%s: video AGC LOCK status:0x%x.\n",
+			__func__, video_lock_status);
+	*lock_st = video_lock_status;
+	if (video_lock_status) {
+		dev_dbg(&client->dev, "%s: channel has AGC LOCK.\n", __func__);
+		has_sync = true;
+	} else {
+		dev_dbg(&client->dev, "%s: channel has no AGC LOCK.\n", __func__);
+		has_sync = false;
+	}
+	return has_sync;
+}
+
+#ifdef WORK_QUEUE
+static void jaguar1_plug_state_check_work(struct work_struct *work)
+{
+	struct sensor_state_check_work *params_check =
+		container_of(work, struct sensor_state_check_work, d_work.work);
+	struct jaguar1 *jaguar1 =
+		container_of(params_check, struct jaguar1, plug_state_check);
+	struct i2c_client *client = jaguar1->client;
+	struct v4l2_subdev *sd = &jaguar1->subdev;
+	u8 novid_status = 0x00;
+	u8 sync_status = 0x00;
+
+	down(&jaguar1->reg_sem);
+	jaguar1_no_signal(sd, &novid_status);
+	jaguar1_sync(sd, &sync_status);
+	up(&jaguar1->reg_sem);
+	jaguar1->cur_detect_status = novid_status;
+
+	/* detect state change to determine is there has plug motion */
+	novid_status = jaguar1->cur_detect_status ^ jaguar1->last_detect_status;
+	if (novid_status)
+		jaguar1->hot_plug = true;
+	else
+		jaguar1->hot_plug = false;
+	jaguar1->last_detect_status = jaguar1->cur_detect_status;
+
+	if (jaguar1->hot_plug)
+		dev_info(&client->dev, "%s has plug motion? (%s)", __func__,
+				jaguar1->hot_plug ? "true" : "false");
+	if (jaguar1->hot_plug) {
+		dev_dbg(&client->dev, "queue_delayed_work 1500ms, if has hot plug motion.");
+		queue_delayed_work(jaguar1->plug_state_check.state_check_wq,
+				   &jaguar1->plug_state_check.d_work, msecs_to_jiffies(1500));
+		jaguar1_write(client, 0xFF, 0x20);
+		jaguar1_write(client, 0x00, 0x00);
+		//jaguar1_write(client, 0x00, (sync_status << 4) | sync_status);
+		usleep_range(3000, 5000);
+		jaguar1_write(client, 0x00, 0xFF);
+	} else {
+		dev_dbg(&client->dev, "queue_delayed_work 100ms, if no hot plug motion.");
+		queue_delayed_work(jaguar1->plug_state_check.state_check_wq,
+				   &jaguar1->plug_state_check.d_work, msecs_to_jiffies(100));
+	}
+}
+#endif
+
+static int jaguar1_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct jaguar1 *jaguar1 = to_jaguar1(sd);
+	int ret;
+	u8 temp_novid;
+	u8 temp_lock_st;
+
+	if (!jaguar1->power_on) {
+		ret = __jaguar1_power_on(jaguar1);
+		if (ret < 0)
+			goto exit;
+		usleep_range(40000, 50000);
+		jaguar1->power_on = true;
+	}
+
+	*status = 0;
+	*status |= jaguar1_no_signal(sd, &temp_novid) ? V4L2_IN_ST_NO_SIGNAL : 0;
+	*status |= jaguar1_sync(sd, &temp_lock_st) ? 0 : V4L2_IN_ST_NO_SYNC;
+
+	dev_info(&client->dev, "%s: status = 0x%x\n", __func__, *status);
+
+exit:
+	return 0;
+}
+
 static int jaguar1_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_mbus_config *cfg)
 {
 	cfg->type = V4L2_MBUS_CSI2_DPHY;
 	cfg->flags = V4L2_MBUS_CSI2_4_LANE |
-		     V4L2_MBUS_CSI2_CHANNELS;
+		     V4L2_MBUS_CSI2_CHANNELS |
+		     V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
 	return 0;
 }
@@ -660,17 +907,67 @@ static void jaguar1_get_module_inf(struct jaguar1 *jaguar1,
 	strlcpy(inf->base.lens, jaguar1->len_name, sizeof(inf->base.lens));
 }
 
+static void jaguar1_get_vicap_rst_inf(struct jaguar1 *jaguar1,
+				   struct rkmodule_vicap_reset_info *rst_info)
+{
+	struct i2c_client *client = jaguar1->client;
+
+	rst_info->is_reset = jaguar1->hot_plug;
+	jaguar1->hot_plug = false;
+	rst_info->src = RKCIF_RESET_SRC_ERR_HOTPLUG;
+	if (rst_info->is_reset)
+		dev_info(&client->dev, "%s: rst_info->is_reset:%d.\n",
+				 __func__, rst_info->is_reset);
+}
+
+static void jaguar1_set_vicap_rst_inf(struct jaguar1 *jaguar1,
+				   struct rkmodule_vicap_reset_info rst_info)
+{
+	jaguar1->is_reset = rst_info.is_reset;
+	jaguar1->hot_plug = rst_info.is_reset;
+}
+
+static void jaguar1_set_streaming(struct jaguar1 *jaguar1, int on)
+{
+	struct i2c_client *client = jaguar1->client;
+
+
+	dev_info(&client->dev, "%s: on: %d\n", __func__, on);
+	down(&jaguar1->reg_sem);
+	if (on) {
+		/* enter mipi clk normal operation */
+		jaguar1_write(client, 0xff, 0x21);
+		jaguar1_write(client, 0x46, 0x00);
+	} else {
+		/* enter mipi clk powerdown */
+		jaguar1_write(client, 0xff, 0x21);
+		jaguar1_write(client, 0x46, 0x01);
+	}
+	up(&jaguar1->reg_sem);
+}
+
 static long jaguar1_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct jaguar1 *jaguar1 = to_jaguar1(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		jaguar1_get_module_inf(jaguar1, (struct rkmodule_inf *)arg);
 		break;
+	case RKMODULE_GET_VICAP_RST_INFO:
+		jaguar1_get_vicap_rst_inf(jaguar1, (struct rkmodule_vicap_reset_info *)arg);
+		break;
+	case RKMODULE_SET_VICAP_RST_INFO:
+		jaguar1_set_vicap_rst_inf(jaguar1, *(struct rkmodule_vicap_reset_info *)arg);
+		break;
 	case RKMODULE_GET_START_STREAM_SEQ:
 		*(int *)arg = RKMODULE_START_STREAM_FRONT;
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		stream = *((u32 *)arg);
+		jaguar1_set_streaming(jaguar1, !!stream);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -687,8 +984,10 @@ static long jaguar1_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
+	struct rkmodule_vicap_reset_info *vicap_rst_inf;
 	long ret;
 	int *seq;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -720,6 +1019,35 @@ static long jaguar1_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -EFAULT;
 		kfree(cfg);
 		break;
+	case RKMODULE_GET_VICAP_RST_INFO:
+		vicap_rst_inf = kzalloc(sizeof(*vicap_rst_inf), GFP_KERNEL);
+		if (!vicap_rst_inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = jaguar1_ioctl(sd, cmd, vicap_rst_inf);
+		if (!ret) {
+			ret = copy_to_user(up, vicap_rst_inf, sizeof(*vicap_rst_inf));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(vicap_rst_inf);
+		break;
+	case RKMODULE_SET_VICAP_RST_INFO:
+		vicap_rst_inf = kzalloc(sizeof(*vicap_rst_inf), GFP_KERNEL);
+		if (!vicap_rst_inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(vicap_rst_inf, up, sizeof(*vicap_rst_inf));
+		if (!ret)
+			ret = jaguar1_ioctl(sd, cmd, vicap_rst_inf);
+		else
+			ret = -EFAULT;
+		kfree(vicap_rst_inf);
+		break;
 	case RKMODULE_GET_START_STREAM_SEQ:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
 		if (!seq) {
@@ -734,6 +1062,13 @@ static long jaguar1_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(seq);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = jaguar1_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -770,6 +1105,7 @@ static const struct dev_pm_ops jaguar1_pm_ops = {
 };
 
 static const struct v4l2_subdev_video_ops jaguar1_video_ops = {
+	.g_input_status = jaguar1_g_input_status,
 	.s_stream = jaguar1_stream,
 	.g_frame_interval = jaguar1_g_frame_interval,
 };
@@ -984,7 +1320,7 @@ static int jaguar1_probe(struct i2c_client *client,
 	}
 
 	__jaguar1_power_on(jaguar1);
-	ret = jaguar1_init(i2c_adapter_id(client->adapter));
+	ret |= jaguar1_init(i2c_adapter_id(client->adapter));
 	if (ret) {
 		dev_err(dev, "Failed to init jaguar1\n");
 		__jaguar1_power_off(jaguar1);
@@ -992,7 +1328,7 @@ static int jaguar1_probe(struct i2c_client *client,
 
 		return ret;
 	}
-
+	sema_init(&jaguar1->reg_sem, 1);
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 #endif
@@ -1034,6 +1370,22 @@ static int jaguar1_probe(struct i2c_client *client,
 
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 			client->addr << 1, client->adapter->name);
+#ifdef WORK_QUEUE
+	/* init work_queue for state_check */
+	INIT_DELAYED_WORK(&jaguar1->plug_state_check.d_work, jaguar1_plug_state_check_work);
+	jaguar1->plug_state_check.state_check_wq =
+		create_singlethread_workqueue("jaguar1_work_queue");
+	if (jaguar1->plug_state_check.state_check_wq == NULL) {
+		dev_err(dev, "%s(%d): %s create failed.\n", __func__, __LINE__,
+			"jaguar1_work_queue");
+	}
+	jaguar1->cur_detect_status = 0x0;
+	jaguar1->last_detect_status = 0x0;
+	jaguar1->hot_plug = false;
+	jaguar1->is_reset = 0;
+
+#endif
+
 	return 0;
 
 err_power_off:
@@ -1060,7 +1412,10 @@ static int jaguar1_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		__jaguar1_power_off(jaguar1);
 	pm_runtime_set_suspended(&client->dev);
-
+#ifdef WORK_QUEUE
+	if (jaguar1->plug_state_check.state_check_wq != NULL)
+		destroy_workqueue(jaguar1->plug_state_check.state_check_wq);
+#endif
 	return 0;
 }
 
