@@ -1113,8 +1113,8 @@
   init_uts_ns
   init_wait_entry
   __init_waitqueue_head
-  inode_permission
   inode_owner_or_capable
+  inode_permission
   input_alloc_absinfo
   input_allocate_device
   input_close_device
@@ -2605,6 +2605,9 @@
   __traceiter_android_vh_clear_reserved_fmt_fields
   __traceiter_android_vh_commit_creds
   __traceiter_android_vh_cpufreq_acct_update_power
+  __traceiter_android_vh_cpufreq_fast_switch
+  __traceiter_android_vh_cpufreq_resolve_freq
+  __traceiter_android_vh_cpufreq_target
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpu_up
@@ -2652,6 +2655,7 @@
   __traceiter_android_vh_rwsem_write_finished
   __traceiter_android_vh_save_track_hash
   __traceiter_android_vh_save_vmalloc_stack
+  __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_selinux_avc_insert
   __traceiter_android_vh_selinux_avc_lookup
@@ -2695,6 +2699,7 @@
   __traceiter_sched_overutilized_tp
   __traceiter_sched_stat_blocked
   __traceiter_sched_stat_iowait
+  __traceiter_sched_stat_runtime
   __traceiter_sched_stat_sleep
   __traceiter_sched_stat_wait
   __traceiter_sched_switch
@@ -2791,6 +2796,9 @@
   __tracepoint_android_vh_clear_reserved_fmt_fields
   __tracepoint_android_vh_commit_creds
   __tracepoint_android_vh_cpufreq_acct_update_power
+  __tracepoint_android_vh_cpufreq_fast_switch
+  __tracepoint_android_vh_cpufreq_resolve_freq
+  __tracepoint_android_vh_cpufreq_target
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpu_up
@@ -2838,6 +2846,7 @@
   __tracepoint_android_vh_rwsem_write_finished
   __tracepoint_android_vh_save_track_hash
   __tracepoint_android_vh_save_vmalloc_stack
+  __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_selinux_avc_insert
   __tracepoint_android_vh_selinux_avc_lookup
@@ -2884,6 +2893,7 @@
   __tracepoint_sched_overutilized_tp
   __tracepoint_sched_stat_blocked
   __tracepoint_sched_stat_iowait
+  __tracepoint_sched_stat_runtime
   __tracepoint_sched_stat_sleep
   __tracepoint_sched_stat_wait
   __tracepoint_sched_switch
