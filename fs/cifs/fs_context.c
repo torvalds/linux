@@ -308,6 +308,7 @@ smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx
 	new_ctx->nodename = NULL;
 	new_ctx->username = NULL;
 	new_ctx->password = NULL;
+	new_ctx->server_hostname = NULL;
 	new_ctx->domainname = NULL;
 	new_ctx->workstation_name = NULL;
 	new_ctx->UNC = NULL;
@@ -461,6 +462,7 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 		return -EINVAL;
 
 	/* record the server hostname */
+	kfree(ctx->server_hostname);
 	ctx->server_hostname = kstrndup(devname + 2, pos - devname - 2, GFP_KERNEL);
 	if (!ctx->server_hostname)
 		return -ENOMEM;
