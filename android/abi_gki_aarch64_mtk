@@ -292,6 +292,7 @@
   destroy_workqueue
   dev_alloc_name
   dev_base_lock
+  dev_change_flags
   dev_change_net_namespace
   dev_close
   dev_driver_string
