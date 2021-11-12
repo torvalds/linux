@@ -323,7 +323,7 @@ const struct bpf_func_proto bpf_task_storage_get_proto = {
 	.ret_type = RET_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg1_type = ARG_CONST_MAP_PTR,
 	.arg2_type = ARG_PTR_TO_BTF_ID,
-	.arg2_btf_id = &btf_task_struct_ids[0],
+	.arg2_btf_id = &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 	.arg3_type = ARG_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg4_type = ARG_ANYTHING,
 };
@@ -334,5 +334,5 @@ const struct bpf_func_proto bpf_task_storage_delete_proto = {
 	.ret_type = RET_INTEGER,
 	.arg1_type = ARG_CONST_MAP_PTR,
 	.arg2_type = ARG_PTR_TO_BTF_ID,
-	.arg2_btf_id = &btf_task_struct_ids[0],
+	.arg2_btf_id = &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 };

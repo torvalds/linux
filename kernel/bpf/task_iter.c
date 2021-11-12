@@ -622,7 +622,7 @@ const struct bpf_func_proto bpf_find_vma_proto = {
 	.func		= bpf_find_vma,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
-	.arg1_btf_id	= &btf_task_struct_ids[0],
+	.arg1_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_FUNC,
 	.arg4_type	= ARG_PTR_TO_STACK_OR_NULL,
@@ -652,19 +652,19 @@ static int __init task_iter_init(void)
 		init_irq_work(&work->irq_work, do_mmap_read_unlock);
 	}
 
-	task_reg_info.ctx_arg_info[0].btf_id = btf_task_struct_ids[0];
+	task_reg_info.ctx_arg_info[0].btf_id = btf_tracing_ids[BTF_TRACING_TYPE_TASK];
 	ret = bpf_iter_reg_target(&task_reg_info);
 	if (ret)
 		return ret;
 
-	task_file_reg_info.ctx_arg_info[0].btf_id = btf_task_struct_ids[0];
-	task_file_reg_info.ctx_arg_info[1].btf_id = btf_task_struct_ids[1];
+	task_file_reg_info.ctx_arg_info[0].btf_id = btf_tracing_ids[BTF_TRACING_TYPE_TASK];
+	task_file_reg_info.ctx_arg_info[1].btf_id = btf_tracing_ids[BTF_TRACING_TYPE_FILE];
 	ret =  bpf_iter_reg_target(&task_file_reg_info);
 	if (ret)
 		return ret;
 
-	task_vma_reg_info.ctx_arg_info[0].btf_id = btf_task_struct_ids[0];
-	task_vma_reg_info.ctx_arg_info[1].btf_id = btf_task_struct_ids[2];
+	task_vma_reg_info.ctx_arg_info[0].btf_id = btf_tracing_ids[BTF_TRACING_TYPE_TASK];
+	task_vma_reg_info.ctx_arg_info[1].btf_id = btf_tracing_ids[BTF_TRACING_TYPE_VMA];
 	return bpf_iter_reg_target(&task_vma_reg_info);
 }
 late_initcall(task_iter_init);
