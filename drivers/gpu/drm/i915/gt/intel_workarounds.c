@@ -2019,11 +2019,18 @@ engine_fake_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 				    CMD_CCTL_MOCS_OVERRIDE(mocs, mocs));
 	}
 }
+
+static bool needs_wa_1308578152(struct intel_engine_cs *engine)
+{
+	u64 dss_mask = intel_sseu_get_subslices(&engine->gt->info.sseu, 0);
+
+	return (dss_mask & GENMASK(GEN_DSS_PER_GSLICE - 1, 0)) == 0;
+}
+
 static void
 rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	u64 dss_mask = intel_sseu_get_subslices(&engine->gt->info.sseu, 0);
 
 	if (IS_DG2_GRAPHICS_STEP(engine->i915, G11, STEP_A0, STEP_B0)) {
 		/* Wa_14013392000:dg2_g11 */
@@ -2057,7 +2064,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 	/* Wa_1308578152:dg2_g10 when first gslice is fused off */
 	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_B0, STEP_C0) &&
-	    (dss_mask & GENMASK(GEN_DSS_PER_GSLICE - 1, 0)) == 0) {
+	    needs_wa_1308578152(engine)) {
 		wa_masked_dis(wal, GEN12_CS_DEBUG_MODE1_CCCSUNIT_BE_COMMON,
 			      GEN12_REPLAY_MODE_GRANULARITY);
 	}
