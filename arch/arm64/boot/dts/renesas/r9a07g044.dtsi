@@ -42,11 +42,6 @@
 		clock-frequency = <0>;
 	};
 
-	psci {
-		compatible = "arm,psci-1.0", "arm,psci-0.2";
-		method = "smc";
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -83,6 +78,11 @@
 			cache-unified;
 			cache-size = <0x40000>;
 		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0", "arm,psci-0.2";
+		method = "smc";
 	};
 
 	soc: soc {
