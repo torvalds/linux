@@ -134,9 +134,9 @@ static inline long regs_return_value(struct pt_regs *regs)
   extern void ia64_decrement_ip (struct pt_regs *pt);
 
   extern void ia64_ptrace_stop(void);
-  #define arch_ptrace_stop(code, info) \
+  #define arch_ptrace_stop() \
 	ia64_ptrace_stop()
-  #define arch_ptrace_stop_needed(code, info) \
+  #define arch_ptrace_stop_needed() \
 	(!test_thread_flag(TIF_RESTORE_RSE))
 
   extern void ptrace_attach_sync_user_rbs (struct task_struct *);
