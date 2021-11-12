@@ -1054,8 +1054,8 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	plane_config->base = base;
 
 	val = intel_de_read(dev_priv, PIPESRC(pipe));
-	fb->width = ((val >> 16) & 0xfff) + 1;
-	fb->height = ((val >> 0) & 0xfff) + 1;
+	fb->width = REG_FIELD_GET(PIPESRC_WIDTH_MASK, val) + 1;
+	fb->height = REG_FIELD_GET(PIPESRC_HEIGHT_MASK, val) + 1;
 
 	val = intel_de_read(dev_priv, DSPSTRIDE(i9xx_plane));
 	fb->pitches[0] = val & 0xffffffc0;
