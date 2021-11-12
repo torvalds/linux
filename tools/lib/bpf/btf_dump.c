@@ -330,6 +330,7 @@ static int btf_dump_mark_referenced(struct btf_dump *d)
 		case BTF_KIND_FUNC:
 		case BTF_KIND_VAR:
 		case BTF_KIND_DECL_TAG:
+		case BTF_KIND_TYPE_TAG:
 			d->type_states[t->type].referenced = 1;
 			break;
 
@@ -573,6 +574,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPE_TAG:
 		return btf_dump_order_type(d, t->type, through_ptr);
 
 	case BTF_KIND_FUNC_PROTO: {
@@ -747,6 +749,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPE_TAG:
 		btf_dump_emit_type(d, t->type, cont_id);
 		break;
 	case BTF_KIND_ARRAY:
@@ -1167,6 +1170,7 @@ skip_mod:
 		case BTF_KIND_CONST:
 		case BTF_KIND_RESTRICT:
 		case BTF_KIND_FUNC_PROTO:
+		case BTF_KIND_TYPE_TAG:
 			id = t->type;
 			break;
 		case BTF_KIND_ARRAY:
@@ -1334,6 +1338,11 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			break;
 		case BTF_KIND_RESTRICT:
 			btf_dump_printf(d, " restrict");
+			break;
+		case BTF_KIND_TYPE_TAG:
+			btf_dump_emit_mods(d, decls);
+			name = btf_name_of(d, t->name_off);
+			btf_dump_printf(d, " __attribute__((btf_type_tag(\"%s\")))", name);
 			break;
 		case BTF_KIND_ARRAY: {
 			const struct btf_array *a = btf_array(t);

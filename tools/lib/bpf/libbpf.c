@@ -197,6 +197,8 @@ enum kern_feature_id {
 	FEAT_PERF_LINK,
 	/* BTF_KIND_DECL_TAG support */
 	FEAT_BTF_DECL_TAG,
+	/* BTF_KIND_TYPE_TAG support */
+	FEAT_BTF_TYPE_TAG,
 	__FEAT_CNT,
 };
 
@@ -2076,6 +2078,7 @@ static const char *__btf_kind_str(__u16 kind)
 	case BTF_KIND_DATASEC: return "datasec";
 	case BTF_KIND_FLOAT: return "float";
 	case BTF_KIND_DECL_TAG: return "decl_tag";
+	case BTF_KIND_TYPE_TAG: return "type_tag";
 	default: return "unknown";
 	}
 }
@@ -2588,8 +2591,10 @@ static bool btf_needs_sanitization(struct bpf_object *obj)
 	bool has_float = kernel_supports(obj, FEAT_BTF_FLOAT);
 	bool has_func = kernel_supports(obj, FEAT_BTF_FUNC);
 	bool has_decl_tag = kernel_supports(obj, FEAT_BTF_DECL_TAG);
+	bool has_type_tag = kernel_supports(obj, FEAT_BTF_TYPE_TAG);
 
-	return !has_func || !has_datasec || !has_func_global || !has_float || !has_decl_tag;
+	return !has_func || !has_datasec || !has_func_global || !has_float ||
+	       !has_decl_tag || !has_type_tag;
 }
 
 static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
@@ -2599,6 +2604,7 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 	bool has_float = kernel_supports(obj, FEAT_BTF_FLOAT);
 	bool has_func = kernel_supports(obj, FEAT_BTF_FUNC);
 	bool has_decl_tag = kernel_supports(obj, FEAT_BTF_DECL_TAG);
+	bool has_type_tag = kernel_supports(obj, FEAT_BTF_TYPE_TAG);
 	struct btf_type *t;
 	int i, j, vlen;
 
@@ -2657,6 +2663,10 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 			 */
 			t->name_off = 0;
 			t->info = BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 0);
+		} else if (!has_type_tag && btf_is_type_tag(t)) {
+			/* replace TYPE_TAG with a CONST */
+			t->name_off = 0;
+			t->info = BTF_INFO_ENC(BTF_KIND_CONST, 0, 0);
 		}
 	}
 }
@@ -4460,6 +4470,22 @@ static int probe_kern_btf_decl_tag(void)
 					     strs, sizeof(strs)));
 }
 
+static int probe_kern_btf_type_tag(void)
+{
+	static const char strs[] = "\0tag";
+	__u32 types[] = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		/* attr */
+		BTF_TYPE_TYPE_TAG_ENC(1, 1),				/* [2] */
+		/* ptr */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 2),	/* [3] */
+	};
+
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
+}
+
 static int probe_kern_array_mmap(void)
 {
 	struct bpf_create_map_attr attr = {
@@ -4656,6 +4682,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_BTF_DECL_TAG] = {
 		"BTF_KIND_DECL_TAG support", probe_kern_btf_decl_tag,
+	},
+	[FEAT_BTF_TYPE_TAG] = {
+		"BTF_KIND_TYPE_TAG support", probe_kern_btf_type_tag,
 	},
 };
 
