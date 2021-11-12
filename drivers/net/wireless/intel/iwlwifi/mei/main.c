@@ -11,6 +11,7 @@
 #include <linux/moduleparam.h>
 #include <linux/mei_cl_bus.h>
 #include <linux/rcupdate.h>
+#include <linux/debugfs.h>
 #include <linux/skbuff.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
@@ -149,6 +150,7 @@ struct iwl_mei_filters {
  *	accessed without the mutex.
  * @sap_seq_no: the sequence number for the SAP messages
  * @seq_no: the sequence number for the SAP messages
+ * @dbgfs_dir: the debugfs dir entry
  */
 struct iwl_mei {
 	wait_queue_head_t get_nvm_wq;
@@ -167,6 +169,8 @@ struct iwl_mei {
 
 	atomic_t sap_seq_no;
 	atomic_t seq_no;
+
+	struct dentry *dbgfs_dir;
 };
 
 /**
@@ -1695,6 +1699,78 @@ void iwl_mei_unregister_complete(void)
 }
 EXPORT_SYMBOL_GPL(iwl_mei_unregister_complete);
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+
+static ssize_t
+iwl_mei_dbgfs_send_start_message_write(struct file *file,
+				       const char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	int ret;
+
+	mutex_lock(&iwl_mei_mutex);
+
+	if (!iwl_mei_global_cldev) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	ret = iwl_mei_send_start(iwl_mei_global_cldev);
+
+out:
+	mutex_unlock(&iwl_mei_mutex);
+	return ret ?: count;
+}
+
+static const struct file_operations iwl_mei_dbgfs_send_start_message_ops = {
+	.write = iwl_mei_dbgfs_send_start_message_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
+static ssize_t iwl_mei_dbgfs_req_ownership_write(struct file *file,
+						 const char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	iwl_mei_get_ownership();
+
+	return count;
+}
+
+static const struct file_operations iwl_mei_dbgfs_req_ownership_ops = {
+	.write = iwl_mei_dbgfs_req_ownership_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
+static void iwl_mei_dbgfs_register(struct iwl_mei *mei)
+{
+	mei->dbgfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+
+	if (!mei->dbgfs_dir)
+		return;
+
+	debugfs_create_ulong("status", S_IRUSR,
+			     mei->dbgfs_dir, &iwl_mei_status);
+	debugfs_create_file("send_start_message", S_IWUSR, mei->dbgfs_dir,
+			    mei, &iwl_mei_dbgfs_send_start_message_ops);
+	debugfs_create_file("req_ownserhip", S_IWUSR, mei->dbgfs_dir,
+			    mei, &iwl_mei_dbgfs_req_ownership_ops);
+}
+
+static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei)
+{
+	debugfs_remove_recursive(mei->dbgfs_dir);
+	mei->dbgfs_dir = NULL;
+}
+
+#else
+
+static void iwl_mei_dbgfs_register(struct iwl_mei *mei) {}
+static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei) {}
+
+#endif /* CONFIG_DEBUG_FS */
+
 /**
  * iwl_mei_probe - the probe function called by the mei bus enumeration
  *
@@ -1733,6 +1809,8 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 	if (ret)
 		goto free_shared_mem;
 
+	iwl_mei_dbgfs_register(mei);
+
 	/*
 	 * We now have a Rx function in place, start the SAP procotol
 	 * we expect to get the SAP_ME_MSG_START_OK response later on.
@@ -1741,14 +1819,15 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 	ret = iwl_mei_send_start(cldev);
 	mutex_unlock(&iwl_mei_mutex);
 	if (ret)
-		goto disable;
+		goto debugfs_unregister;
 
 	/* must be last */
 	iwl_mei_global_cldev = cldev;
 
 	return 0;
 
-disable:
+debugfs_unregister:
+	iwl_mei_dbgfs_unregister(mei);
 	mei_cldev_disable(cldev);
 free_shared_mem:
 	iwl_mei_free_shared_mem(cldev);
@@ -1867,6 +1946,8 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 	wake_up_all(&mei->get_nvm_wq);
 
 	iwl_mei_free_shared_mem(cldev);
+
+	iwl_mei_dbgfs_unregister(mei);
 
 	mei_cldev_set_drvdata(cldev, NULL);
 
