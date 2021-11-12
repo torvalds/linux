@@ -860,7 +860,8 @@ static const struct dccg_mask dccg_mask = {
 	SR(D6VGA_CONTROL), \
 	SR(DC_IP_REQUEST_CNTL), \
 	SR(AZALIA_AUDIO_DTO), \
-	SR(AZALIA_CONTROLLER_CLOCK_GATING)
+	SR(AZALIA_CONTROLLER_CLOCK_GATING), \
+	SR(HPO_TOP_HW_CONTROL)
 
 static const struct dce_hwseq_registers hwseq_reg = {
 		HWSEQ_DCN31_REG_LIST()
@@ -898,7 +899,8 @@ static const struct dce_hwseq_registers hwseq_reg = {
 	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_UNASSIGNED_PWR_MODE, mask_sh), \
 	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_VBLANK_PWR_MODE, mask_sh), \
 	HWS_SF(, MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, mask_sh), \
-	HWS_SF(, DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh)
+	HWS_SF(, DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh), \
+	HWS_SF(, HPO_TOP_HW_CONTROL, HPO_IO_EN, mask_sh)
 
 static const struct dce_hwseq_shift hwseq_shift = {
 		HWSEQ_DCN31_MASK_SH_LIST(__SHIFT)

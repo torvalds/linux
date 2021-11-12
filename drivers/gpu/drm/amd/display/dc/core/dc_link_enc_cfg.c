@@ -236,6 +236,23 @@ static struct link_encoder *get_link_enc_used_by_link(
 
 	return link_enc;
 }
+/* Clear all link encoder assignments. */
+static void clear_enc_assignments(struct dc_state *state)
+{
+	int i;
+	enum engine_id eng_id;
+	struct dc_stream_state *stream;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].valid = false;
+		eng_id = state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].eng_id;
+		stream = state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i].stream;
+		if (eng_id != ENGINE_ID_UNKNOWN)
+			state->res_ctx.link_enc_cfg_ctx.link_enc_avail[eng_id - ENGINE_ID_DIGA] = eng_id;
+		if (stream)
+			stream->link_enc = NULL;
+	}
+}
 
 void link_enc_cfg_init(
 		struct dc *dc,
@@ -249,6 +266,8 @@ void link_enc_cfg_init(
 		else
 			state->res_ctx.link_enc_cfg_ctx.link_enc_avail[i] = ENGINE_ID_UNKNOWN;
 	}
+
+	clear_enc_assignments(state);
 
 	state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
 }
@@ -264,6 +283,9 @@ void link_enc_cfg_link_encs_assign(
 	int j;
 
 	ASSERT(state->stream_count == stream_count);
+
+	if (stream_count == 0)
+		clear_enc_assignments(state);
 
 	/* Release DIG link encoder resources before running assignment algorithm. */
 	for (i = 0; i < stream_count; i++)

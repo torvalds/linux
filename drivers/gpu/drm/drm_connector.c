@@ -625,6 +625,8 @@ int drm_connector_register_all(struct drm_device *dev)
  *
  * In contrast to the other drm_get_*_name functions this one here returns a
  * const pointer and hence is threadsafe.
+ *
+ * Returns: connector status string
  */
 const char *drm_get_connector_status_name(enum drm_connector_status status)
 {
@@ -707,7 +709,7 @@ __drm_connector_put_safe(struct drm_connector *conn)
  * drm_connector_list_iter_next - return next connector
  * @iter: connector_list iterator
  *
- * Returns the next connector for @iter, or NULL when the list walk has
+ * Returns: the next connector for @iter, or NULL when the list walk has
  * completed.
  */
 struct drm_connector *
@@ -780,6 +782,8 @@ static const struct drm_prop_enum_list drm_subpixel_enum_list[] = {
  *
  * Note you could abuse this and return something out of bounds, but that
  * would be a caller error.  No unscrubbed user data should make it here.
+ *
+ * Returns: string describing an enumerated subpixel property
  */
 const char *drm_get_subpixel_order_name(enum subpixel_order order)
 {
@@ -809,6 +813,9 @@ static const struct drm_prop_enum_list drm_link_status_enum_list[] = {
  * Store the supported bus formats in display info structure.
  * See MEDIA_BUS_FMT_* definitions in include/uapi/linux/media-bus-format.h for
  * a full list of available formats.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
 				     const u32 *formats,
@@ -1326,6 +1333,8 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
  * @dev: DRM device
  *
  * Called by a driver the first time a DVI-I connector is made.
+ *
+ * Returns: %0
  */
 int drm_mode_create_dvi_i_properties(struct drm_device *dev)
 {
@@ -1397,6 +1406,8 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
  *	Game:
  *		Content type is game
  *
+ *	The meaning of each content type is defined in CTA-861-G table 15.
+ *
  *	Drivers can set up this property by calling
  *	drm_connector_attach_content_type_property(). Decoding to
  *	infoframe values is done through drm_hdmi_avi_infoframe_content_type().
@@ -1407,6 +1418,8 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
  * @connector: connector to attach content type property on.
  *
  * Called by a driver the first time a HDMI connector is made.
+ *
+ * Returns: %0
  */
 int drm_connector_attach_content_type_property(struct drm_connector *connector)
 {
@@ -1487,6 +1500,9 @@ EXPORT_SYMBOL(drm_connector_attach_tv_margin_properties);
  * creates the TV margin properties for a given device. No need to call this
  * function for an SDTV connector, it's already called from
  * drm_mode_create_tv_properties().
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
 int drm_mode_create_tv_margin_properties(struct drm_device *dev)
 {
@@ -1527,6 +1543,9 @@ EXPORT_SYMBOL(drm_mode_create_tv_margin_properties);
  * the TV specific connector properties for a given device.  Caller is
  * responsible for allocating a list of format names and passing them to
  * this routine.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
 int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
@@ -1622,6 +1641,8 @@ EXPORT_SYMBOL(drm_mode_create_tv_properties);
  * Atomic drivers should use drm_connector_attach_scaling_mode_property()
  * instead to correctly assign &drm_connector_state.scaling_mode
  * in the atomic state.
+ *
+ * Returns: %0
  */
 int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 {
@@ -1939,6 +1960,9 @@ EXPORT_SYMBOL(drm_mode_create_content_type_property);
  * @dev: DRM device
  *
  * Create the suggested x/y offset property for connectors.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev)
 {
@@ -2312,8 +2336,8 @@ int drm_connector_set_panel_orientation(
 EXPORT_SYMBOL(drm_connector_set_panel_orientation);
 
 /**
- * drm_connector_set_panel_orientation_with_quirk -
- *	set the connector's panel_orientation after checking for quirks
+ * drm_connector_set_panel_orientation_with_quirk - set the
+ *	connector's panel_orientation after checking for quirks
  * @connector: connector for which to init the panel-orientation property.
  * @panel_orientation: drm_panel_orientation value to set
  * @width: width in pixels of the panel, used for panel quirk detection
@@ -2597,7 +2621,7 @@ struct drm_connector *drm_connector_find_by_fwnode(struct fwnode_handle *fwnode)
 
 /**
  * drm_connector_oob_hotplug_event - Report out-of-band hotplug event to connector
- * @connector: connector to report the event on
+ * @connector_fwnode: fwnode_handle to report the event on
  *
  * On some hardware a hotplug event notification may come from outside the display
  * driver / device. An example of this is some USB Type-C setups where the hardware

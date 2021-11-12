@@ -238,6 +238,7 @@ struct dmub_srv_hw_params {
 	bool load_inst_const;
 	bool skip_panel_power_sequence;
 	bool disable_z10;
+	bool power_optimization;
 	bool dpia_supported;
 	bool disable_dpia;
 };

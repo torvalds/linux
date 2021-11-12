@@ -217,6 +217,7 @@ static const struct drm_format_info *
 amd_get_format_info(const struct drm_mode_fb_cmd2 *cmd);
 
 static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector);
+static void handle_hpd_rx_irq(void *param);
 
 static bool
 is_timing_unchanged_for_freesync(struct drm_crtc_state *old_crtc_state,
@@ -619,7 +620,7 @@ static void dm_dcn_vertical_interrupt0_high_irq(void *interrupt_params)
 
 	amdgpu_dm_crtc_handle_crc_window_irq(&acrtc->base);
 }
-#endif
+#endif /* CONFIG_DRM_AMD_SECURE_DISPLAY */
 
 /**
  * dmub_aux_setconfig_reply_callback - Callback for AUX or SET_CONFIG command.
@@ -669,10 +670,7 @@ void dmub_hpd_callback(struct amdgpu_device *adev, struct dmub_notification *not
 		return;
 	}
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-
 	link_index = notify->link_index;
-
 	link = adev->dm.dc->links[link_index];
 
 	drm_connector_list_iter_begin(dev, &iter);
@@ -685,10 +683,13 @@ void dmub_hpd_callback(struct amdgpu_device *adev, struct dmub_notification *not
 		}
 	}
 	drm_connector_list_iter_end(&iter);
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
-	if (hpd_aconnector)
-		handle_hpd_irq_helper(hpd_aconnector);
+	if (hpd_aconnector) {
+		if (notify->type == DMUB_NOTIFICATION_HPD)
+			handle_hpd_irq_helper(hpd_aconnector);
+		else if (notify->type == DMUB_NOTIFICATION_HPD_IRQ)
+			handle_hpd_rx_irq(hpd_aconnector);
+	}
 }
 
 /**
@@ -764,6 +765,10 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 				DRM_ERROR("DM: notify type %d invalid!", notify.type);
 				continue;
 			}
+			if (!dm->dmub_callback[notify.type]) {
+				DRM_DEBUG_DRIVER("DMUB notification skipped, no handler: type=%d\n", notify.type);
+				continue;
+			}
 			if (dm->dmub_thread_offload[notify.type] == true) {
 				dmub_hpd_wrk = kzalloc(sizeof(*dmub_hpd_wrk), GFP_ATOMIC);
 				if (!dmub_hpd_wrk) {
@@ -813,7 +818,7 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 	if (count > DMUB_TRACE_MAX_READ)
 		DRM_DEBUG_DRIVER("Warning : count > DMUB_TRACE_MAX_READ");
 }
-#endif
+#endif /* CONFIG_DRM_AMD_DC_DCN */
 
 static int dm_set_clockgating_state(void *handle,
 		  enum amd_clockgating_state state)
@@ -1410,7 +1415,15 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		switch (adev->ip_versions[DCE_HWIP][0]) {
 		case IP_VERSION(2, 1, 0):
 			init_data.flags.gpu_vm_support = true;
-			init_data.flags.disable_dmcu = true;
+			switch (adev->dm.dmcub_fw_version) {
+			case 0: /* development */
+			case 0x1: /* linux-firmware.git hash 6d9f399 */
+			case 0x01000000: /* linux-firmware.git hash 9a0b0f4 */
+				init_data.flags.disable_dmcu = false;
+				break;
+			default:
+				init_data.flags.disable_dmcu = true;
+			}
 			break;
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
@@ -1556,7 +1569,11 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 			DRM_ERROR("amdgpu: fail to register dmub hpd callback");
 			goto error;
 		}
-#endif
+		if (!register_dmub_notify_callback(adev, DMUB_NOTIFICATION_HPD_IRQ, dmub_hpd_callback, true)) {
+			DRM_ERROR("amdgpu: fail to register dmub hpd callback");
+			goto error;
+		}
+#endif /* CONFIG_DRM_AMD_DC_DCN */
 	}
 
 	if (amdgpu_dm_initialize_drm_device(adev)) {
@@ -4565,7 +4582,8 @@ static void get_min_max_dc_plane_scaling(struct drm_device *dev,
 }
 
 
-static int fill_dc_scaling_info(const struct drm_plane_state *state,
+static int fill_dc_scaling_info(struct amdgpu_device *adev,
+				const struct drm_plane_state *state,
 				struct dc_scaling_info *scaling_info)
 {
 	int scale_w, scale_h, min_downscale, max_upscale;
@@ -4579,7 +4597,8 @@ static int fill_dc_scaling_info(const struct drm_plane_state *state,
 	/*
 	 * For reasons we don't (yet) fully understand a non-zero
 	 * src_y coordinate into an NV12 buffer can cause a
-	 * system hang. To avoid hangs (and maybe be overly cautious)
+	 * system hang on DCN1x.
+	 * To avoid hangs (and maybe be overly cautious)
 	 * let's reject both non-zero src_x and src_y.
 	 *
 	 * We currently know of only one use-case to reproduce a
@@ -4587,10 +4606,10 @@ static int fill_dc_scaling_info(const struct drm_plane_state *state,
 	 * is to gesture the YouTube Android app into full screen
 	 * on ChromeOS.
 	 */
-	if (state->fb &&
-	    state->fb->format->format == DRM_FORMAT_NV12 &&
-	    (scaling_info->src_rect.x != 0 ||
-	     scaling_info->src_rect.y != 0))
+	if (((adev->ip_versions[DCE_HWIP][0] == IP_VERSION(1, 0, 0)) ||
+	    (adev->ip_versions[DCE_HWIP][0] == IP_VERSION(1, 0, 1))) &&
+	    (state->fb && state->fb->format->format == DRM_FORMAT_NV12 &&
+	    (scaling_info->src_rect.x != 0 || scaling_info->src_rect.y != 0)))
 		return -EINVAL;
 
 	scaling_info->src_rect.width = state->src_w >> 16;
@@ -5496,7 +5515,7 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	int ret;
 	bool force_disable_dcc = false;
 
-	ret = fill_dc_scaling_info(plane_state, &scaling_info);
+	ret = fill_dc_scaling_info(adev, plane_state, &scaling_info);
 	if (ret)
 		return ret;
 
@@ -6070,7 +6089,7 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 	if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_bits_per_pixel)
 		stream->timing.dsc_cfg.bits_per_pixel = aconnector->dsc_settings.dsc_bits_per_pixel;
 }
-#endif
+#endif /* CONFIG_DRM_AMD_DC_DCN */
 
 /**
  * DOC: FreeSync Video
@@ -7241,8 +7260,8 @@ static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
 	struct drm_connector_state *new_con_state;
 	struct amdgpu_dm_connector *aconnector;
 	struct dm_connector_state *dm_conn_state;
-	int i, j, clock;
-	int vcpi, pbn_div, pbn = 0;
+	int i, j;
+	int vcpi, pbn_div, pbn, slot_num = 0;
 
 	for_each_new_connector_in_state(state, connector, new_con_state, i) {
 
@@ -7270,23 +7289,30 @@ static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
 		if (!stream)
 			continue;
 
-		if (stream->timing.flags.DSC != 1) {
-			drm_dp_mst_atomic_enable_dsc(state,
-						     aconnector->port,
-						     dm_conn_state->pbn,
-						     0,
-						     false);
-			continue;
-		}
-
 		pbn_div = dm_mst_get_pbn_divider(stream->link);
-		clock = stream->timing.pix_clk_100hz / 10;
 		/* pbn is calculated by compute_mst_dsc_configs_for_state*/
 		for (j = 0; j < dc_state->stream_count; j++) {
 			if (vars[j].aconnector == aconnector) {
 				pbn = vars[j].pbn;
 				break;
 			}
+		}
+
+		if (j == dc_state->stream_count)
+			continue;
+
+		slot_num = DIV_ROUND_UP(pbn, pbn_div);
+
+		if (stream->timing.flags.DSC != 1) {
+			dm_conn_state->pbn = pbn;
+			dm_conn_state->vcpi_slots = slot_num;
+
+			drm_dp_mst_atomic_enable_dsc(state,
+						     aconnector->port,
+						     dm_conn_state->pbn,
+						     0,
+						     false);
+			continue;
 		}
 
 		vcpi = drm_dp_mst_atomic_enable_dsc(state,
@@ -7552,7 +7578,7 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	ret = fill_dc_scaling_info(new_plane_state, &scaling_info);
+	ret = fill_dc_scaling_info(adev, new_plane_state, &scaling_info);
 	if (ret)
 		return ret;
 
@@ -9000,7 +9026,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			bundle->surface_updates[planes_count].gamut_remap_matrix = &dc_plane->gamut_remap_matrix;
 		}
 
-		fill_dc_scaling_info(new_plane_state,
+		fill_dc_scaling_info(dm->adev, new_plane_state,
 				     &bundle->scaling_infos[planes_count]);
 
 		bundle->surface_updates[planes_count].scaling_info =
@@ -10787,7 +10813,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 		ret = drm_atomic_add_affected_connectors(state, crtc);
 		if (ret)
-			return ret;
+			goto fail;
 
 		ret = drm_atomic_add_affected_planes(state, crtc);
 		if (ret)

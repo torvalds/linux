@@ -1468,7 +1468,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 			dev_err(adev->dev, "Failed to disable smu features.\n");
 	}
 
-	if (adev->ip_versions[MP1_HWIP][0] >= IP_VERSION(11, 0, 0) &&
+	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 0, 0) &&
 	    adev->gfx.rlc.funcs->stop)
 		adev->gfx.rlc.funcs->stop(adev);
 
@@ -2534,13 +2534,15 @@ static int smu_get_power_profile_mode(void *handle, char *buf)
 	struct smu_context *smu = handle;
 	int ret = 0;
 
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
+	    !smu->ppt_funcs->get_power_profile_mode)
 		return -EOPNOTSUPP;
+	if (!buf)
+		return -EINVAL;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_power_profile_mode)
-		ret = smu->ppt_funcs->get_power_profile_mode(smu, buf);
+	ret = smu->ppt_funcs->get_power_profile_mode(smu, buf);
 
 	mutex_unlock(&smu->mutex);
 
@@ -2554,7 +2556,8 @@ static int smu_set_power_profile_mode(void *handle,
 	struct smu_context *smu = handle;
 	int ret = 0;
 
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
+	    !smu->ppt_funcs->set_power_profile_mode)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);

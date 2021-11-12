@@ -2094,6 +2094,10 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	} else if (DEVICE_ATTR_IS(pp_dpm_dclk)) {
 		if (!(asic_type == CHIP_VANGOGH || asic_type == CHIP_SIENNA_CICHLID))
 			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(pp_power_profile_mode)) {
+		if (!adev->powerplay.pp_funcs->get_power_profile_mode ||
+		    amdgpu_dpm_get_power_profile_mode(adev, NULL) == -EOPNOTSUPP)
+			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
 	switch (asic_type) {

@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.159"
+#define DC_VER "3.2.160"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -675,6 +675,7 @@ struct dc_debug_options {
 #endif
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
+	bool hpo_optimization;
 	bool force_vblank_alignment;
 
 	/* Enable dmub aux for legacy ddc */

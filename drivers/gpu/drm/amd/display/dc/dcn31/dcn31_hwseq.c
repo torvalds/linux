@@ -66,6 +66,45 @@
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
 
+static void enable_memory_low_power(struct dc *dc)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	int i;
+
+	if (dc->debug.enable_mem_low_power.bits.dmcu) {
+		// Force ERAM to shutdown if DMCU is not enabled
+		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
+			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
+		}
+	}
+
+	// Set default OPTC memory power states
+	if (dc->debug.enable_mem_low_power.bits.optc) {
+		// Shutdown when unassigned and light sleep in VBLANK
+		REG_SET_2(ODM_MEM_PWR_CTRL3, 0, ODM_MEM_UNASSIGNED_PWR_MODE, 3, ODM_MEM_VBLANK_PWR_MODE, 1);
+	}
+
+	if (dc->debug.enable_mem_low_power.bits.vga) {
+		// Power down VGA memory
+		REG_UPDATE(MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, 1);
+	}
+
+	if (dc->debug.enable_mem_low_power.bits.mpc)
+		dc->res_pool->mpc->funcs->set_mpc_mem_lp_mode(dc->res_pool->mpc);
+
+
+	if (dc->debug.enable_mem_low_power.bits.vpg && dc->res_pool->stream_enc[0]->vpg->funcs->vpg_powerdown) {
+		// Power down VPGs
+		for (i = 0; i < dc->res_pool->stream_enc_count; i++)
+			dc->res_pool->stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->stream_enc[i]->vpg);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++)
+			dc->res_pool->hpo_dp_stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->hpo_dp_stream_enc[i]->vpg);
+#endif
+	}
+
+}
+
 void dcn31_init_hw(struct dc *dc)
 {
 	struct abm **abms = dc->res_pool->multiple_abms;
@@ -108,35 +147,7 @@ void dcn31_init_hw(struct dc *dc)
 	if (res_pool->dccg->funcs->dccg_init)
 		res_pool->dccg->funcs->dccg_init(res_pool->dccg);
 
-	if (dc->debug.enable_mem_low_power.bits.dmcu) {
-		// Force ERAM to shutdown if DMCU is not enabled
-		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
-			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
-		}
-	}
-
-	// Set default OPTC memory power states
-	if (dc->debug.enable_mem_low_power.bits.optc) {
-		// Shutdown when unassigned and light sleep in VBLANK
-		REG_SET_2(ODM_MEM_PWR_CTRL3, 0, ODM_MEM_UNASSIGNED_PWR_MODE, 3, ODM_MEM_VBLANK_PWR_MODE, 1);
-	}
-
-	if (dc->debug.enable_mem_low_power.bits.vga) {
-		// Power down VGA memory
-		REG_UPDATE(MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, 1);
-	}
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (dc->debug.enable_mem_low_power.bits.vpg && dc->res_pool->stream_enc[0]->vpg->funcs->vpg_powerdown) {
-		// Power down VPGs
-		for (i = 0; i < dc->res_pool->stream_enc_count; i++)
-			dc->res_pool->stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->stream_enc[i]->vpg);
-#if defined(CONFIG_DRM_AMD_DC_DP2_0)
-		for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++)
-			dc->res_pool->hpo_dp_stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->hpo_dp_stream_enc[i]->vpg);
-#endif
-	}
-#endif
+	enable_memory_low_power(dc);
 
 	if (dc->ctx->dc_bios->fw_info_valid) {
 		res_pool->ref_clocks.xtalin_clock_inKhz =
@@ -263,6 +274,9 @@ void dcn31_init_hw(struct dc *dc)
 	// Set i2c to light sleep until engine is setup
 	if (dc->debug.enable_mem_low_power.bits.i2c)
 		REG_UPDATE(DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, 1);
+
+	if (hws->funcs.setup_hpo_hw_control)
+		hws->funcs.setup_hpo_hw_control(hws, false);
 
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
@@ -596,4 +610,10 @@ void dcn31_reset_hw_ctx_wrap(
 
 	/* New dc_state in the process of being applied to hardware. */
 	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
+}
+
+void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)
+{
+	if (hws->ctx->dc->debug.hpo_optimization)
+		REG_UPDATE(HPO_TOP_HW_CONTROL, HPO_IO_EN, !!enable);
 }

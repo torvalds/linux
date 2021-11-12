@@ -11,15 +11,6 @@
 #ifndef _FBCON_ROTATE_H
 #define _FBCON_ROTATE_H
 
-#define GETVYRES(s,i) ({                           \
-        (s == SCROLL_REDRAW || s == SCROLL_MOVE) ? \
-        (i)->var.yres : (i)->var.yres_virtual; })
-
-#define GETVXRES(s,i) ({                           \
-        (s == SCROLL_REDRAW || s == SCROLL_MOVE || !(i)->fix.xpanstep) ? \
-        (i)->var.xres : (i)->var.xres_virtual; })
-
-
 static inline int pattern_test_bit(u32 x, u32 y, u32 pitch, const char *pat)
 {
 	u32 tmp = (y * pitch) + x, index = tmp / 8,  bit = tmp % 8;

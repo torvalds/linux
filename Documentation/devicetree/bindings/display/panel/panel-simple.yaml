@@ -166,6 +166,8 @@ properties:
       - innolux,at070tn92
         # Innolux G070Y2-L01 7" WVGA (800x480) TFT LCD panel
       - innolux,g070y2-l01
+        # Innolux G070Y2-T02 7" WVGA (800x480) TFT LCD TTL panel
+      - innolux,g070y2-t02
         # Innolux Corporation 10.1" G101ICE-L01 WXGA (1280x800) LVDS panel
       - innolux,g101ice-l01
         # Innolux Corporation 12.1" WXGA (1280x800) TFT LCD panel
@@ -309,6 +311,8 @@ properties:
       - urt,umsh-8596md-11t
       - urt,umsh-8596md-19t
       - urt,umsh-8596md-20t
+        # Vivax TPC-9150 tablet 9.0" WSVGA TFT LCD panel
+      - vivax,tpc9150-panel
         # VXT 800x480 color TFT LCD panel
       - vxt,vl050-8048nt-c01
         # Winstar Display Corporation 3.5" QVGA (320x240) TFT LCD panel
@@ -317,6 +321,7 @@ properties:
       - yes-optoelectronics,ytc700tlag-05-201c
 
   backlight: true
+  ddc-i2c-bus: true
   enable-gpios: true
   port: true
   power-supply: true

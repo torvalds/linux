@@ -4914,6 +4914,8 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 	int size = 0;
 	uint32_t i, now, clock, pcie_speed;
 
+	phm_get_sysfs_buf(&buf, &size);
+
 	switch (type) {
 	case PP_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetSclkFrequency, &clock);
@@ -4963,7 +4965,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case OD_SCLK:
 		if (hwmgr->od_enabled) {
-			size = sysfs_emit(buf, "%s:\n", "OD_SCLK");
+			size += sysfs_emit_at(buf, size, "%s:\n", "OD_SCLK");
 			for (i = 0; i < odn_sclk_table->num_of_pl; i++)
 				size += sysfs_emit_at(buf, size, "%d: %10uMHz %10umV\n",
 					i, odn_sclk_table->entries[i].clock/100,
@@ -4972,7 +4974,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case OD_MCLK:
 		if (hwmgr->od_enabled) {
-			size = sysfs_emit(buf, "%s:\n", "OD_MCLK");
+			size += sysfs_emit_at(buf, size, "%s:\n", "OD_MCLK");
 			for (i = 0; i < odn_mclk_table->num_of_pl; i++)
 				size += sysfs_emit_at(buf, size, "%d: %10uMHz %10umV\n",
 					i, odn_mclk_table->entries[i].clock/100,
@@ -4981,7 +4983,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case OD_RANGE:
 		if (hwmgr->od_enabled) {
-			size = sysfs_emit(buf, "%s:\n", "OD_RANGE");
+			size += sysfs_emit_at(buf, size, "%s:\n", "OD_RANGE");
 			size += sysfs_emit_at(buf, size, "SCLK: %7uMHz %10uMHz\n",
 				data->golden_dpm_table.sclk_table.dpm_levels[0].value/100,
 				hwmgr->platform_descriptor.overdriveLimit.engineClock/100);
@@ -5517,6 +5519,8 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 
 	if (!buf)
 		return -EINVAL;
+
+	phm_get_sysfs_buf(&buf, &size);
 
 	size += sysfs_emit_at(buf, size, "%s %16s %16s %16s %16s %16s %16s %16s\n",
 			title[0], title[1], title[2], title[3],
