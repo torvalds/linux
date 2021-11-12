@@ -1216,12 +1216,10 @@ int vsc73xx_probe(struct vsc73xx *vsc)
 }
 EXPORT_SYMBOL(vsc73xx_probe);
 
-int vsc73xx_remove(struct vsc73xx *vsc)
+void vsc73xx_remove(struct vsc73xx *vsc)
 {
 	dsa_unregister_switch(vsc->ds);
 	gpiod_set_value(vsc->reset, 1);
-
-	return 0;
 }
 EXPORT_SYMBOL(vsc73xx_remove);
 
