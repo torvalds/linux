@@ -63,6 +63,24 @@
 #include "braille.h"
 #include "internal.h"
 
+#ifdef CONFIG_PRINTK_TIME_FROM_ARM_ARCH_TIMER
+#include <clocksource/arm_arch_timer.h>
+static u64 get_local_clock(void)
+{
+	u64 ns;
+
+	ns = arch_timer_read_counter() * 1000;
+	do_div(ns, 24);
+
+	return ns;
+}
+#else
+static inline u64 get_local_clock(void)
+{
+	return local_clock();
+}
+#endif
+
 int console_printk[4] = {
 	CONSOLE_LOGLEVEL_DEFAULT,	/* console_loglevel */
 	MESSAGE_LOGLEVEL_DEFAULT,	/* default_message_loglevel */
@@ -528,7 +546,7 @@ static int log_store(u32 caller_id, int facility, int level,
 	if (ts_nsec > 0)
 		r.info->ts_nsec = ts_nsec;
 	else
-		r.info->ts_nsec = local_clock();
+		r.info->ts_nsec = get_local_clock();
 	r.info->caller_id = caller_id;
 	if (dev_info)
 		memcpy(&r.info->dev_info, dev_info, sizeof(r.info->dev_info));

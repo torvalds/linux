@@ -18,6 +18,10 @@ config PRINTK_TIME
 	  The behavior is also controlled by the kernel command line
 	  parameter printk.time=1. See Documentation/admin-guide/kernel-parameters.rst
 
+config PRINTK_TIME_FROM_ARM_ARCH_TIMER
+	bool "Timing from ARM architected timer"
+	depends on PRINTK_TIME && ARM_ARCH_TIMER && NO_GKI
+
 config PRINTK_CALLER
 	bool "Show caller information on printks"
 	depends on PRINTK
