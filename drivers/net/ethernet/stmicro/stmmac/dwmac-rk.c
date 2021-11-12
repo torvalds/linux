@@ -1496,19 +1496,19 @@ static void rk3588_set_gmac_speed(struct rk_priv_data *bsp_priv, int speed)
 
 	switch (speed) {
 	case 10:
-		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII)
-			val = RK3588_GMAC_CLK_RGMII_DIV50(id);
-		else
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII)
 			val = RK3588_GMA_CLK_RMII_DIV20(id);
+		else
+			val = RK3588_GMAC_CLK_RGMII_DIV50(id);
 		break;
 	case 100:
-		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII)
-			val = RK3588_GMAC_CLK_RGMII_DIV5(id);
-		else
+		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII)
 			val = RK3588_GMA_CLK_RMII_DIV2(id);
+		else
+			val = RK3588_GMAC_CLK_RGMII_DIV5(id);
 		break;
 	case 1000:
-		if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII)
+		if (bsp_priv->phy_iface != PHY_INTERFACE_MODE_RMII)
 			val = RK3588_GMAC_CLK_RGMII_DIV1(id);
 		else
 			goto err;
@@ -1519,6 +1519,7 @@ static void rk3588_set_gmac_speed(struct rk_priv_data *bsp_priv, int speed)
 
 	regmap_write(bsp_priv->php_grf, RK3588_GRF_CLK_CON1, val);
 
+	return;
 err:
 	dev_err(dev, "unknown speed value for GMAC speed=%d", speed);
 }
