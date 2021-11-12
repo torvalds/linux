@@ -786,6 +786,21 @@ config SND_SOC_ES7134
 config SND_SOC_ES7202
 	tristate "Everest Semi ES7202 PDM 2CH ADC"
 
+config SND_SOC_ES7202_MIC_MAX_CHANNELS
+	int "the maximum channels of es7202's microphone"
+	depends on SND_SOC_ES7202
+	default 2
+	range 2 16
+	help
+	  Should be one of MIC_CHN_* of sound/soc/codecs/es7202.h.
+
+config SND_SOC_ES7202_I2C_BUS
+	int "i2c bus number"
+	depends on SND_SOC_ES7202
+	default 1
+	help
+	  Used to hard code an i2c bus number.
+
 config SND_SOC_ES7210
 	tristate "Everest Semi ES7210 CODEC"
 	depends on I2C

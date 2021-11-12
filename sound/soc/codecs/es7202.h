@@ -56,7 +56,7 @@
 #define MIC_CHN_4       4
 #define MIC_CHN_2       2
 
-#define ES7202_CHANNELS_MAX     MIC_CHN_4
+#define ES7202_CHANNELS_MAX     CONFIG_SND_SOC_ES7202_MIC_MAX_CHANNELS
 
 #if ES7202_CHANNELS_MAX == MIC_CHN_2
 #define ADC_DEV_MAXNUM  1
@@ -84,7 +84,7 @@
 #endif
 
 /* select I2C bus number for es7202 */
-#define ES7202_I2C_BUS_NUM    1
+#define ES7202_I2C_BUS_NUM	CONFIG_SND_SOC_ES7202_I2C_BUS
 
 /* 
 * select DTS or I2C Detect method for es7202 
