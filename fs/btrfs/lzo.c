@@ -125,12 +125,16 @@ static inline size_t read_compress_length(const char *buf)
 static int copy_compressed_data_to_page(char *compressed_data,
 					size_t compressed_size,
 					struct page **out_pages,
+					unsigned long max_nr_page,
 					u32 *cur_out,
 					const u32 sectorsize)
 {
 	u32 sector_bytes_left;
 	u32 orig_out;
 	struct page *cur_page;
+
+	if ((*cur_out / PAGE_SIZE) >= max_nr_page)
+		return -E2BIG;
 
 	/*
 	 * We never allow a segment header crossing sector boundary, previous
@@ -157,6 +161,9 @@ static int copy_compressed_data_to_page(char *compressed_data,
 	while (*cur_out - orig_out < compressed_size) {
 		u32 copy_len = min_t(u32, sectorsize - *cur_out % sectorsize,
 				     orig_out + compressed_size - *cur_out);
+
+		if ((*cur_out / PAGE_SIZE) >= max_nr_page)
+			return -E2BIG;
 
 		cur_page = out_pages[*cur_out / PAGE_SIZE];
 		/* Allocate a new page */
@@ -195,6 +202,7 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	const u32 sectorsize = btrfs_sb(mapping->host->i_sb)->sectorsize;
 	struct page *page_in = NULL;
+	const unsigned long max_nr_page = *out_pages;
 	int ret = 0;
 	/* Points to the file offset of input data */
 	u64 cur_in = start;
@@ -202,6 +210,7 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 	u32 cur_out = 0;
 	u32 len = *total_out;
 
+	ASSERT(max_nr_page > 0);
 	*out_pages = 0;
 	*total_out = 0;
 	*total_in = 0;
@@ -237,7 +246,8 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 		}
 
 		ret = copy_compressed_data_to_page(workspace->cbuf, out_len,
-						   pages, &cur_out, sectorsize);
+						   pages, max_nr_page,
+						   &cur_out, sectorsize);
 		if (ret < 0)
 			goto out;
 
