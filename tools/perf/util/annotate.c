@@ -3132,7 +3132,7 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	notes->nr_events = nr_pcnt;
 
 	annotation__update_column_widths(notes);
-	sym->annotate2 = true;
+	sym->annotate2 = 1;
 
 	return 0;
 

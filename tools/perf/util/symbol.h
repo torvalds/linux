@@ -62,10 +62,10 @@ struct symbol {
 	u8		ignore:1;
 	/** Symbol for an inlined function. */
 	u8		inlined:1;
+	/** Has symbol__annotate2 been performed. */
+	u8		annotate2:1;
 	/** Architecture specific. Unused except on PPC where it holds st_other. */
 	u8		arch_sym;
-	/** Has symbol__annotate2 been performed. */
-	bool		annotate2;
 	/** The name of length namelen associated with the symbol. */
 	char		name[];
 };
