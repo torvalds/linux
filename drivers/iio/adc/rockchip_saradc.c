@@ -38,7 +38,9 @@
 #define SARADC_MAX_CHANNELS		8
 
 /* v2 registers */
-#define SARADC2_CONV_CON			0x0
+#define SARADC2_CONV_CON		0x0
+#define SARADC_T_PD_SOC			0x4
+#define SARADC_T_DAS_SOC		0xc
 #define SARADC2_END_INT_EN		0x104
 #define SARADC2_ST_CON			0x108
 #define SARADC2_STATUS			0x10c
@@ -95,6 +97,8 @@ static void rockchip_saradc_start_v2(struct rockchip_saradc *info,
 {
 	int val;
 
+	writel_relaxed(0xc, info->regs + SARADC_T_DAS_SOC);
+	writel_relaxed(0x20, info->regs + SARADC_T_PD_SOC);
 	val = SARADC2_EN_END_INT << 16 | SARADC2_EN_END_INT;
 	writel_relaxed(val, info->regs + SARADC2_END_INT_EN);
 	val = SARADC2_START | SARADC2_SINGLE_MODE | chn;
