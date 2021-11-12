@@ -639,9 +639,9 @@ struct qla_els_pt_arg {
 	u8 els_opcode;
 	u8 vp_idx;
 	__le16 nport_handle;
-	u16 control_flags;
+	u16 control_flags, ox_id;
 	__le32 rx_xchg_address;
-	port_id_t did;
+	port_id_t did, sid;
 	u32 tx_len, tx_byte_count, rx_len, rx_byte_count;
 	dma_addr_t tx_addr, rx_addr;
 
