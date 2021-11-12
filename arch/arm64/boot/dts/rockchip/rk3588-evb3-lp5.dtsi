@@ -926,6 +926,9 @@
 
 &pdm0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdm0m0_clk
+		     &pdm0m0_sdi0>;
 };
 
 &pinctrl {
