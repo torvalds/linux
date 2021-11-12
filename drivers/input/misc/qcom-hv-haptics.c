@@ -64,6 +64,10 @@
 #define AUTO_RES_ERROR_BIT			BIT(1)
 #define HPRW_RDY_FAULT_BIT			BIT(0)
 
+/* Only for HAP525_HV */
+#define HAP_CFG_REAL_TIME_LRA_IMPEDANCE_REG	0x0E
+#define LRA_IMPEDANCE_MOHMS_LSB			200
+
 #define HAP_CFG_INT_RT_STS_REG			0x10
 #define FIFO_EMPTY_BIT				BIT(1)
 
@@ -152,6 +156,15 @@
 #define EN_HW_RECOVERY_BIT			BIT(1)
 #define SW_ERR_DRV_FREQ_BIT			BIT(0)
 
+#define HAP_CFG_ISC_CFG_REG			0x65
+#define ILIM_CC_EN_BIT				BIT(7)
+/* Following bits are only for HAP525_HV */
+#define EN_SC_DET_P_HAP525_HV_BIT		BIT(6)
+#define EN_SC_DET_N_HAP525_HV_BIT		BIT(5)
+#define EN_IMP_DET_HAP525_HV_BIT		BIT(4)
+#define ILIM_PULSE_DENSITY_MASK			GENMASK(3, 2)
+#define ILIM_DENSITY_8_OVER_64_CYCLES		0
+
 #define HAP_CFG_FAULT_CLR_REG			0x66
 #define SC_CLR_BIT				BIT(2)
 #define AUTO_RES_ERR_CLR_BIT			BIT(1)
@@ -176,6 +189,16 @@
 #define CAL_RC_CLK_AUTO_VAL			1
 #define CAL_RC_CLK_MANUAL_VAL			2
 
+/* For HAP520_MV and HAP525_HV */
+#define HAP_CFG_ISC_CFG2_REG			0x77
+#define EN_SC_DET_P_HAP520_MV_BIT		BIT(6)
+#define EN_SC_DET_N_HAP520_MV_BIT		BIT(5)
+#define ISC_THRESH_HAP520_MV_MASK		GENMASK(2, 0)
+#define ISC_THRESH_HAP520_MV_140MA		0x01
+#define ISC_THRESH_HAP525_HV_MASK		GENMASK(4, 0)
+#define ISC_THRESH_HAP525_HV_125MA		0x11
+#define ISC_THRESH_HAP525_HV_250MA		0x12
+
 /* These registers are only applicable for HAP520_MV */
 #define HAP_CFG_HW_CONFIG_REG			0x0D
 #define HV_HAP_DRIVER_BIT			BIT(1)
@@ -187,6 +210,13 @@
 
 #define HAP_CFG_VHPWR_REG			0x84
 #define VHPWR_STEP_MV				32
+
+/* Only for HAP525_HV */
+#define HAP_CFG_RT_LRA_IMPD_MEAS_CFG_REG	0xA4
+#define LRA_IMPEDANCE_MEAS_EN_BIT		BIT(7)
+#define LRA_IMPEDANCE_MEAS_CURRENT_SEL_BIT	BIT(0)
+#define CURRENT_SEL_VAL_125MA			0
+#define CURRENT_SEL_VAL_250MA			1
 
 /* version register definitions for HAPTICS_PATTERN module */
 #define HAP_PTN_REVISION2_REG			0x01
@@ -274,6 +304,11 @@
 
 #define HAP_BOOST_CLAMP_REG			0x70
 #define CLAMP_5V_BIT				BIT(0)
+
+/* haptics SDAM registers offset definition */
+#define HAP_STATUS_DATA_MSB_SDAM_OFFSET		0x46
+#define HAP_LRA_NOMINAL_OHM_SDAM_OFFSET		0x75
+#define HAP_LRA_DETECTED_OHM_SDAM_OFFSET	0x76
 
 /* constant parameters */
 #define SAMPLES_PER_PATTERN			8
@@ -517,11 +552,13 @@ struct haptics_hw_config {
 	u32			lra_min_mohms;
 	u32			lra_max_mohms;
 	u32			lra_open_mohms;
+	u32			lra_measured_mohms;
 	u32			preload_effect;
 	u32			fifo_empty_thresh;
 	u16			rc_clk_cal_count;
 	enum drv_sig_shape	drv_wf;
 	bool			is_erm;
+	bool			measure_lra_impedance;
 };
 
 struct custom_fifo_data {
@@ -955,9 +992,6 @@ static int haptics_adjust_lra_period(struct haptics_chip *chip, u32 *t_lra_us)
 
 	return 0;
 }
-
-/* The offset of SDAM register which saves STATUS_DATA_MSB value */
-#define HAP_STATUS_DATA_MSB_SDAM_OFFSET		0x46
 
 /* constant definitions for calculating TLRA */
 #define TLRA_AUTO_RES_ERR_NO_CAL_STEP_PSEC	1667000
@@ -4086,6 +4120,10 @@ static int haptics_parse_lra_dt(struct haptics_chip *chip)
 		}
 	}
 
+	if (chip->hw_type == HAP525_HV)
+		config->measure_lra_impedance = of_property_read_bool(node,
+				"qcom,rt-imp-detect");
+
 	return 0;
 }
 
@@ -4478,23 +4516,162 @@ static int haptics_pbs_trigger_isc_config(struct haptics_chip *chip)
 }
 
 #define MAX_SWEEP_STEPS		5
-#define MAX_IMPEDANCE_MOHM	40000
-#define MIN_ISC_MA		250
 #define MIN_DUTY_MILLI_PCT	0
 #define MAX_DUTY_MILLI_PCT	100000
 #define LRA_CONFIG_REGS		3
 static u32 get_lra_impedance_capable_max(struct haptics_chip *chip)
 {
-	u32 mohms = MAX_IMPEDANCE_MOHM;
+	u32 mohms;
+	u32 max_vmax_mv, min_isc_ma;
 
-	if (chip->clamp_at_5v)
-		mohms = MAX_IMPEDANCE_MOHM / 2;
+	switch (chip->hw_type) {
+	case HAP520:
+		min_isc_ma = 250;
+		if (chip->clamp_at_5v)
+			max_vmax_mv = 5000;
+		else
+			max_vmax_mv = 10000;
+		break;
+	case HAP520_MV:
+		max_vmax_mv = 5000;
+		min_isc_ma = 140;
+		break;
+	case HAP525_HV:
+		if (chip->clamp_at_5v) {
+			max_vmax_mv = 5000;
+			min_isc_ma = 125;
+		} else {
+			max_vmax_mv = 10000;
+			min_isc_ma = 250;
+		}
+		break;
+	default:
+		return 0;
+	}
 
+	mohms = (max_vmax_mv * 1000) / min_isc_ma;
 	if (is_haptics_external_powered(chip))
-		mohms = (chip->hpwr_voltage_mv * 1000) / MIN_ISC_MA;
+		mohms = (chip->hpwr_voltage_mv * 1000) / min_isc_ma;
 
 	dev_dbg(chip->dev, "LRA impedance capable max: %u mohms\n", mohms);
 	return mohms;
+}
+
+#define RT_IMPD_DET_VMAX_DEFAULT_MV		4500
+static int haptics_measure_realtime_lra_impedance(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val, current_sel;
+	u32 vmax_mv, nominal_ohm, current_ma, vmax_margin_mv;
+	struct pattern_cfg pattern = {
+		.samples = {
+			    {0xff, T_LRA, false},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			   },
+		.play_rate_us = chip->config.t_lra_us + 2000, /* drive off resonance of the LRA */
+		.play_length_us = chip->config.t_lra_us + 2000, /* drive it at least 1 cycle */
+		.preload = false,
+	};
+
+	/* calculate Vmax according to nominal resistance */
+	vmax_mv = RT_IMPD_DET_VMAX_DEFAULT_MV;
+	current_sel = chip->clamp_at_5v ? CURRENT_SEL_VAL_125MA : CURRENT_SEL_VAL_250MA;
+	if (chip->hap_cfg_nvmem != NULL) {
+		rc = nvmem_device_read(chip->hap_cfg_nvmem,
+				HAP_LRA_NOMINAL_OHM_SDAM_OFFSET, 1, &val);
+		if (!rc && val) {
+			nominal_ohm = val;
+			/*
+			 * use 250mA current_sel when nominal impedance is lower than 15 Ohms
+			 * and use 125mA detection when nominal impedance is higher than 40 Ohms
+			 */
+			if (nominal_ohm < 15)
+				current_sel = CURRENT_SEL_VAL_250MA;
+			else if (nominal_ohm > 40)
+				current_sel = CURRENT_SEL_VAL_125MA;
+
+			/*
+			 * give 8 Ohms margin (1000mV / 125mA, or 2000mV / 250mA) for wider
+			 * detectability
+			 */
+			if (current_sel == CURRENT_SEL_VAL_125MA) {
+				current_ma = 125;
+				vmax_margin_mv = 1000;
+			} else {
+				current_ma = 250;
+				vmax_margin_mv = 2000;
+			}
+
+			vmax_mv = max(vmax_mv, nominal_ohm * current_ma + vmax_margin_mv);
+		}
+	}
+
+	dev_dbg(chip->dev, "Set %u mV Vmax for impedance detection\n", vmax_mv);
+	rc = haptics_set_vmax_mv(chip, vmax_mv);
+	if (rc < 0)
+		return rc;
+
+	/* set current for imp_det comparator and enable it */
+	val = LRA_IMPEDANCE_MEAS_EN_BIT | current_sel;
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_RT_LRA_IMPD_MEAS_CFG_REG,
+			LRA_IMPEDANCE_MEAS_EN_BIT |
+			LRA_IMPEDANCE_MEAS_CURRENT_SEL_BIT, val);
+	if (rc < 0)
+		return rc;
+
+	/* disconnect imp_det comparator to avoid it impact SC behavior */
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_ISC_CFG_REG, EN_IMP_DET_HAP525_HV_BIT, 0);
+	if (rc < 0)
+		goto restore;
+
+	/* play 1 drive cycle using PATTERN1 source */
+	rc = haptics_set_pattern(chip, &pattern, PATTERN1);
+	if (rc < 0)
+		goto restore;
+
+	chip->play.pattern_src = PATTERN1;
+	rc = haptics_enable_play(chip, true);
+	if (rc < 0)
+		goto restore;
+
+	usleep_range(pattern.play_length_us, pattern.play_length_us + 1);
+
+	rc = haptics_enable_play(chip, false);
+	if (rc < 0)
+		goto restore;
+
+	/* read the measured LRA impedance */
+	rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_REAL_TIME_LRA_IMPEDANCE_REG, &val, 1);
+	if (rc < 0)
+		goto restore;
+
+	chip->config.lra_measured_mohms = val * LRA_IMPEDANCE_MOHMS_LSB;
+	dev_dbg(chip->dev, "measured LRA impedance: %u mohm",
+			chip->config.lra_measured_mohms);
+	/* store the detected LRA impedance into SDAM for future usage */
+	if (chip->hap_cfg_nvmem != NULL) {
+		rc = nvmem_device_write(chip->hap_cfg_nvmem, HAP_LRA_DETECTED_OHM_SDAM_OFFSET, 1,
+				&chip->config.lra_measured_mohms);
+		if (rc < 0)
+			dev_err(chip->dev, "write measured impedance value into SDAM failed, rc=%d\n",
+					rc);
+	}
+restore:
+	if (rc < 0)
+		dev_err(chip->dev, "measure LRA impedance failed, rc=%d\n", rc);
+
+	return haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_RT_LRA_IMPD_MEAS_CFG_REG,
+			LRA_IMPEDANCE_MEAS_EN_BIT, 0);
 }
 
 static int haptics_detect_lra_impedance(struct haptics_chip *chip)
@@ -4506,7 +4683,7 @@ static int haptics_detect_lra_impedance(struct haptics_chip *chip)
 		{ HAP_CFG_VMAX_HDRM_REG, 0x00 },
 	};
 	struct haptics_reg_info backup[LRA_CONFIG_REGS];
-	u8 val;
+	u8 val, cfg1, cfg2, reg1, reg2, mask1, mask2, val1, val2;
 	u32 duty_milli_pct, low_milli_pct, high_milli_pct;
 	u32 amplitude, lra_min_mohms, lra_max_mohms, capability_mohms;
 
@@ -4519,10 +4696,61 @@ static int haptics_detect_lra_impedance(struct haptics_chip *chip)
 			return rc;
 	}
 
-	/* Trigger PBS to config 250mA ISC setting */
-	rc = haptics_pbs_trigger_isc_config(chip);
-	if (rc < 0)
-		return rc;
+	if (chip->hw_type == HAP520) {
+		/* Trigger PBS to config 250mA ISC setting */
+		rc = haptics_pbs_trigger_isc_config(chip);
+		if (rc < 0)
+			return rc;
+	} else {
+		 /* Config ISC_CFG settings for LRA impedance_detection */
+		switch (chip->hw_type) {
+		case HAP520_MV:
+			reg1 = HAP_CFG_ISC_CFG_REG;
+			mask1 = ILIM_CC_EN_BIT;
+			val1 = ILIM_CC_EN_BIT;
+			reg2 = HAP_CFG_ISC_CFG2_REG;
+			mask2 = EN_SC_DET_P_HAP520_MV_BIT |
+				EN_SC_DET_N_HAP520_MV_BIT |
+				ISC_THRESH_HAP520_MV_MASK;
+			val2 = EN_SC_DET_P_HAP520_MV_BIT|
+				EN_SC_DET_N_HAP520_MV_BIT|
+				ISC_THRESH_HAP520_MV_140MA;
+			break;
+		case HAP525_HV:
+			reg1 = HAP_CFG_ISC_CFG_REG;
+			mask1 = EN_SC_DET_P_HAP525_HV_BIT | EN_SC_DET_N_HAP525_HV_BIT |
+				EN_IMP_DET_HAP525_HV_BIT | ILIM_PULSE_DENSITY_MASK;
+			val1 = EN_IMP_DET_HAP525_HV_BIT |
+				FIELD_PREP(ILIM_PULSE_DENSITY_MASK, ILIM_DENSITY_8_OVER_64_CYCLES);
+			reg2 = HAP_CFG_RT_LRA_IMPD_MEAS_CFG_REG;
+			mask2 = LRA_IMPEDANCE_MEAS_EN_BIT | LRA_IMPEDANCE_MEAS_CURRENT_SEL_BIT;
+			val2 = chip->clamp_at_5v ? CURRENT_SEL_VAL_125MA : CURRENT_SEL_VAL_250MA;
+			val2 |= LRA_IMPEDANCE_MEAS_EN_BIT;
+			break;
+		default:
+			dev_err(chip->dev, "unsupported HW type: %d\n",
+					chip->hw_type);
+			return -EOPNOTSUPP;
+		}
+
+		 /* save ISC_CFG default settings */
+		rc = haptics_read(chip, chip->cfg_addr_base, reg1, &cfg1, 1);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_read(chip, chip->cfg_addr_base, reg2, &cfg2, 1);
+		if (rc < 0)
+			return rc;
+
+		/* update ISC_CFG settings for the detection */
+		rc = haptics_masked_write(chip, chip->cfg_addr_base, reg1, mask1, val1);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_masked_write(chip, chip->cfg_addr_base, reg2, mask2, val2);
+		if (rc < 0)
+			goto restore;
+	}
 
 	/* Set square drive waveform, 10V Vmax, no HDRM */
 	for (i = 0; i < LRA_CONFIG_REGS; i++) {
@@ -4599,10 +4827,21 @@ restore:
 	if (rc < 0)
 		return rc;
 
-	/* Trigger PBS to restore 1500mA ISC setting */
-	rc = haptics_pbs_trigger_isc_config(chip);
-	if (rc < 0)
-		return rc;
+	if (chip->hw_type == HAP520) {
+		/* Trigger PBS to restore 1500mA ISC setting */
+		rc = haptics_pbs_trigger_isc_config(chip);
+		if (rc < 0)
+			return rc;
+	} else {
+		/* restore ISC_CFG settings to default */
+		rc = haptics_write(chip, chip->cfg_addr_base, reg1, &cfg1, 1);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_write(chip, chip->cfg_addr_base, reg2, &cfg2, 1);
+		if (rc < 0)
+			return rc;
+	}
 
 	/* Restore driver waveform, Vmax, HDRM settings */
 	for (i = 0; i < LRA_CONFIG_REGS; i++) {
@@ -4736,7 +4975,10 @@ static int haptics_start_lra_calibrate(struct haptics_chip *chip)
 
 	/* Sleep at least 4ms to stabilize the LRA from frequency detection */
 	usleep_range(4000, 5000);
-	rc = haptics_detect_lra_impedance(chip);
+	if (chip->config.measure_lra_impedance)
+		rc = haptics_measure_realtime_lra_impedance(chip);
+	else
+		rc = haptics_detect_lra_impedance(chip);
 	if (rc < 0) {
 		dev_err(chip->dev, "Detect LRA impedance failed, rc=%d\n", rc);
 		goto unlock;
@@ -4789,6 +5031,10 @@ static ssize_t lra_impedance_show(struct class *c,
 {
 	struct haptics_chip *chip = container_of(c,
 			struct haptics_chip, hap_class);
+
+	if (chip->config.measure_lra_impedance)
+		return scnprintf(buf, PAGE_SIZE, "measured %u mohms\n",
+				chip->config.lra_measured_mohms);
 
 	if (chip->config.lra_min_mohms == 0 && chip->config.lra_max_mohms == 0)
 		return -EINVAL;
