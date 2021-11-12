@@ -3248,14 +3248,14 @@ static int IMX464_remove(struct i2c_client *client)
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id IMX464_of_match[] = {
-	{ .compatible = "sony,IMX464" },
+	{ .compatible = "sony,imx464" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, IMX464_of_match);
 #endif
 
 static const struct i2c_device_id IMX464_match_id[] = {
-	{ "sony,IMX464", 0 },
+	{ "sony,imx464", 0 },
 	{ },
 };
 
