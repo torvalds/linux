@@ -14,7 +14,7 @@ void rkisp_unregister_stream_v30(struct rkisp_device *dev);
 void rkisp_mi_v30_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp_mipi_v30_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev);
 #else
-static inline int rkisp_register_stream_v30(struct rkisp_device *dev) { return 0; }
+static inline int rkisp_register_stream_v30(struct rkisp_device *dev) { return -EINVAL; }
 static inline void rkisp_unregister_stream_v30(struct rkisp_device *dev) {}
 static inline void rkisp_mi_v30_isr(u32 mis_val, struct rkisp_device *dev) {}
 static inline void rkisp_mipi_v30_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev) {}

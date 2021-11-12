@@ -25,7 +25,7 @@ int rkisp_start_spstream(struct rkisp_stream *stream);
 void rkisp_stop_spstream(struct rkisp_stream *stream);
 void rkisp_update_spstream_buf(struct rkisp_stream *stream);
 #else
-static inline int rkisp_register_stream_v20(struct rkisp_device *dev) { return 0; }
+static inline int rkisp_register_stream_v20(struct rkisp_device *dev) { return -EINVAL; }
 static inline void rkisp_unregister_stream_v20(struct rkisp_device *dev) {}
 static inline void rkisp_mi_v20_isr(u32 mis_val, struct rkisp_device *dev) {}
 static inline void rkisp_mipi_v20_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev) {}
@@ -39,7 +39,7 @@ void rkisp_unregister_stream_v21(struct rkisp_device *dev);
 void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp_mipi_v21_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev);
 #else
-static inline int rkisp_register_stream_v21(struct rkisp_device *dev) { return 0; }
+static inline int rkisp_register_stream_v21(struct rkisp_device *dev) { return -EINVAL; }
 static inline void rkisp_unregister_stream_v21(struct rkisp_device *dev) {}
 static inline void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev) {}
 static inline void rkisp_mipi_v21_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev) {}

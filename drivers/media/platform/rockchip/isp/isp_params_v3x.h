@@ -199,7 +199,7 @@ struct rkisp_isp_params_val_v3x {
 int rkisp_init_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev);
 void rkisp_uninit_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev);
 #else
-static inline int rkisp_init_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev) { return 0; }
+static inline int rkisp_init_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev) { return -EINVAL; }
 static inline void rkisp_uninit_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev) {}
 #endif
 
