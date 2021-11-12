@@ -128,11 +128,9 @@ static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	duty = DIV_ROUND_UP(timebase * duty_ns, period_ns);
 
-	ret = pm_runtime_get_sync(chip->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(chip->dev);
+	ret = pm_runtime_resume_and_get(chip->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	val = img_pwm_readl(pwm_chip, PWM_CTRL_CFG);
 	val &= ~(PWM_CTRL_CFG_DIV_MASK << PWM_CTRL_CFG_DIV_SHIFT(pwm->hwpwm));
