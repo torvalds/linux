@@ -418,7 +418,7 @@ static int dump_btf_c(const struct btf *btf,
 	struct btf_dump *d;
 	int err = 0, i;
 
-	d = btf_dump__new(btf, NULL, NULL, btf_dump_printf);
+	d = btf_dump__new(btf, btf_dump_printf, NULL, NULL);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 

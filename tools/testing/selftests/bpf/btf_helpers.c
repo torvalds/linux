@@ -238,7 +238,6 @@ const char *btf_type_c_dump(const struct btf *btf)
 	static char buf[16 * 1024];
 	FILE *buf_file;
 	struct btf_dump *d = NULL;
-	struct btf_dump_opts opts = {};
 	int err, i;
 
 	buf_file = fmemopen(buf, sizeof(buf) - 1, "w");
@@ -247,8 +246,7 @@ const char *btf_type_c_dump(const struct btf *btf)
 		return NULL;
 	}
 
-	opts.ctx = buf_file;
-	d = btf_dump__new(btf, NULL, &opts, btf_dump_printf);
+	d = btf_dump__new(btf, btf_dump_printf, buf_file, NULL);
 	if (libbpf_get_error(d)) {
 		fprintf(stderr, "Failed to create btf_dump instance: %ld\n", libbpf_get_error(d));
 		goto err_out;

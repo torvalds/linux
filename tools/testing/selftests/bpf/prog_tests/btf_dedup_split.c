@@ -92,7 +92,7 @@ struct s2 {\n\
 	int *f3;\n\
 };\n\n", "c_dump");
 
-	err = btf__dedup(btf2, NULL, NULL);
+	err = btf__dedup(btf2, NULL);
 	if (!ASSERT_OK(err, "btf_dedup"))
 		goto cleanup;
 
@@ -186,7 +186,7 @@ static void test_split_fwd_resolve() {
 		"\t'f1' type_id=7 bits_offset=0\n"
 		"\t'f2' type_id=9 bits_offset=64");
 
-	err = btf__dedup(btf2, NULL, NULL);
+	err = btf__dedup(btf2, NULL);
 	if (!ASSERT_OK(err, "btf_dedup"))
 		goto cleanup;
 
@@ -283,7 +283,7 @@ static void test_split_struct_duped() {
 		"[13] STRUCT 's3' size=8 vlen=1\n"
 		"\t'f1' type_id=12 bits_offset=0");
 
-	err = btf__dedup(btf2, NULL, NULL);
+	err = btf__dedup(btf2, NULL);
 	if (!ASSERT_OK(err, "btf_dedup"))
 		goto cleanup;
 

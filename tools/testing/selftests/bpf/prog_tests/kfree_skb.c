@@ -66,7 +66,6 @@ void serial_test_kfree_skb(void)
 	struct bpf_map *perf_buf_map, *global_data;
 	struct bpf_program *prog, *fentry, *fexit;
 	struct bpf_object *obj, *obj2 = NULL;
-	struct perf_buffer_opts pb_opts = {};
 	struct perf_buffer *pb = NULL;
 	int err, kfree_skb_fd;
 	bool passed = false;
@@ -112,9 +111,8 @@ void serial_test_kfree_skb(void)
 		goto close_prog;
 
 	/* set up perf buffer */
-	pb_opts.sample_cb = on_sample;
-	pb_opts.ctx = &passed;
-	pb = perf_buffer__new(bpf_map__fd(perf_buf_map), 1, &pb_opts);
+	pb = perf_buffer__new(bpf_map__fd(perf_buf_map), 1,
+			      on_sample, NULL, &passed, NULL);
 	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto close_prog;
 

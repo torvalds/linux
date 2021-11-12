@@ -394,11 +394,6 @@ static void perfbuf_libbpf_setup()
 {
 	struct perfbuf_libbpf_ctx *ctx = &perfbuf_libbpf_ctx;
 	struct perf_event_attr attr;
-	struct perf_buffer_raw_opts pb_opts = {
-		.event_cb = perfbuf_process_sample_raw,
-		.ctx = (void *)(long)0,
-		.attr = &attr,
-	};
 	struct bpf_link *link;
 
 	ctx->skel = perfbuf_setup_skeleton();
@@ -423,7 +418,8 @@ static void perfbuf_libbpf_setup()
 	}
 
 	ctx->perfbuf = perf_buffer__new_raw(bpf_map__fd(ctx->skel->maps.perfbuf),
-					    args.perfbuf_sz, &pb_opts);
+					    args.perfbuf_sz, &attr,
+					    perfbuf_process_sample_raw, NULL, NULL);
 	if (!ctx->perfbuf) {
 		fprintf(stderr, "failed to create perfbuf\n");
 		exit(1);

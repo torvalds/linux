@@ -6627,7 +6627,7 @@ struct btf_dedup_test {
 	struct btf_dedup_opts opts;
 };
 
-const struct btf_dedup_test dedup_tests[] = {
+static struct btf_dedup_test dedup_tests[] = {
 
 {
 	.descr = "dedup: unused strings filtering",
@@ -6646,9 +6646,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0int\0long"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 {
@@ -6671,9 +6668,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0int\0long int"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 {
@@ -6755,9 +6749,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0a\0b\0c\0d\0int\0float\0next\0s"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: struct <-> fwd resolution w/ hash collision",
@@ -6800,8 +6791,7 @@ const struct btf_dedup_test dedup_tests[] = {
 		BTF_STR_SEC("\0s\0x"),
 	},
 	.opts = {
-		.dont_resolve_fwds = false,
-		.dedup_table_size = 1, /* force hash collisions */
+		.force_collisions = true, /* force hash collisions */
 	},
 },
 {
@@ -6847,8 +6837,7 @@ const struct btf_dedup_test dedup_tests[] = {
 		BTF_STR_SEC("\0s\0x"),
 	},
 	.opts = {
-		.dont_resolve_fwds = false,
-		.dedup_table_size = 1, /* force hash collisions */
+		.force_collisions = true, /* force hash collisions */
 	},
 },
 {
@@ -6911,9 +6900,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: no int/float duplicates",
@@ -6965,9 +6951,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0int\0some other int\0float"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: enum fwd resolution",
@@ -7008,9 +6991,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0e1\0e1_val\0e2\0e2_val"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 {
@@ -7054,8 +7034,7 @@ const struct btf_dedup_test dedup_tests[] = {
 		BTF_STR_SEC("\0.bss\0t"),
 	},
 	.opts = {
-		.dont_resolve_fwds = false,
-		.dedup_table_size = 1
+		.force_collisions = true
 	},
 },
 {
@@ -7098,9 +7077,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0t\0a1\0a2\0f\0tag"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 {
@@ -7152,9 +7128,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0a1\0a2\0f\0tag1\0tag2\0tag3"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: struct/struct_member tags",
@@ -7200,9 +7173,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0t\0m1\0m2\0tag1\0tag2\0tag3"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: typedef tags",
@@ -7232,9 +7202,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0t\0tag1\0tag2\0tag3"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 
@@ -7293,7 +7260,7 @@ static void dump_btf_strings(const char *strs, __u32 len)
 
 static void do_test_dedup(unsigned int test_num)
 {
-	const struct btf_dedup_test *test = &dedup_tests[test_num - 1];
+	struct btf_dedup_test *test = &dedup_tests[test_num - 1];
 	__u32 test_nr_types, expect_nr_types, test_btf_size, expect_btf_size;
 	const struct btf_header *test_hdr, *expect_hdr;
 	struct btf *test_btf = NULL, *expect_btf = NULL;
@@ -7337,7 +7304,8 @@ static void do_test_dedup(unsigned int test_num)
 		goto done;
 	}
 
-	err = btf__dedup(test_btf, NULL, &test->opts);
+	test->opts.sz = sizeof(test->opts);
+	err = btf__dedup(test_btf, &test->opts);
 	if (CHECK(err, "btf_dedup failed errno:%d", err)) {
 		err = -1;
 		goto done;
