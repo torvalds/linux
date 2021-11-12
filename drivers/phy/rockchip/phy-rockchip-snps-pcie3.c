@@ -30,10 +30,9 @@ struct rockchip_p3phy_priv {
 	int mode;
 	struct regmap *phy_grf;
 	struct reset_control *p30phy;
-	struct clk *ref_clk_m;
-	struct clk *ref_clk_n;
-	struct clk *pclk;
 	struct phy *phy;
+	struct clk_bulk_data *clks;
+	int num_clks;
 	bool is_bifurcation;
 };
 
@@ -66,17 +65,11 @@ static int rochchip_p3phy_init(struct phy *phy)
 	int ret;
 	u32 reg;
 
-	ret = clk_prepare_enable(priv->ref_clk_m);
-	if (ret < 0)
+	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
+	if (ret) {
+		pr_err("failed to enable PCIe bulk clks %d\n", ret);
 		return ret;
-
-	ret = clk_prepare_enable(priv->ref_clk_n);
-	if (ret < 0)
-		goto err_ref;
-
-	ret = clk_prepare_enable(priv->pclk);
-	if (ret < 0)
-		goto err_pclk;
+	}
 
 	reset_control_assert(priv->p30phy);
 	udelay(1);
@@ -101,23 +94,19 @@ static int rochchip_p3phy_init(struct phy *phy)
 	if (ret) {
 		pr_err("%s: lock failed 0x%x, check input refclk and power supply\n",
 		       __func__, reg);
-		goto err_pclk;
+		goto err_disable_clks;
 	}
 
 	return 0;
-err_pclk:
-	clk_disable_unprepare(priv->ref_clk_n);
-err_ref:
-	clk_disable_unprepare(priv->ref_clk_m);
+err_disable_clks:
+	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
 	return ret;
 }
 
 static int rochchip_p3phy_exit(struct phy *phy)
 {
 	struct rockchip_p3phy_priv *priv = phy_get_drvdata(phy);
-	clk_disable_unprepare(priv->ref_clk_m);
-	clk_disable_unprepare(priv->ref_clk_n);
-	clk_disable_unprepare(priv->pclk);
+	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
 	reset_control_assert(priv->p30phy);
 	return 0;
 }
@@ -167,23 +156,9 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		priv->p30phy = NULL;
 	}
 
-	priv->ref_clk_m = devm_clk_get(dev, "refclk_m");
-	if (IS_ERR(priv->ref_clk_m)) {
-		dev_err(dev, "failed to find ref clock M\n");
-		return PTR_ERR(priv->ref_clk_m);
-	}
-
-	priv->ref_clk_n = devm_clk_get(dev, "refclk_n");
-	if (IS_ERR(priv->ref_clk_n)) {
-		dev_err(dev, "failed to find ref clock N\n");
-		return PTR_ERR(priv->ref_clk_n);
-	}
-
-	priv->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(priv->pclk)) {
-		dev_err(dev, "failed to find pclk\n");
-		return PTR_ERR(priv->pclk);
-	}
+	priv->num_clks = devm_clk_bulk_get_all(dev, &priv->clks);
+	if (priv->num_clks < 1)
+		return -ENODEV;
 
 	dev_set_drvdata(dev, priv);
 	phy_set_drvdata(priv->phy, priv);
