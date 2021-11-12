@@ -254,7 +254,7 @@ static const struct dc_plane_cap plane_cap = {
 				.argb8888 = true,
 				.nv12 = true,
 				.fp16 = true,
-				.p010 = false,
+				.p010 = true,
 				.ayuv = false,
 		},
 		.max_upscale_factor = {
