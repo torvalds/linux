@@ -127,10 +127,5 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason);
 void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
 		      u8 reason);
 
-static inline void hci_update_background_scan(struct hci_dev *hdev)
-{
-	queue_work(hdev->req_workqueue, &hdev->bg_scan_update);
-}
-
 void hci_request_setup(struct hci_dev *hdev);
 void hci_request_cancel_all(struct hci_dev *hdev);
