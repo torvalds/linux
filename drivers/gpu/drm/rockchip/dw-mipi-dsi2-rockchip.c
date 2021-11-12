@@ -542,18 +542,7 @@ static void dw_mipi_dsi2_phy_ratio_cfg(struct dw_mipi_dsi2 *dsi2)
 	u64 pixel_clk, ipi_clk, phy_hsclk;
 	u64 tmp;
 
-	/* IPI_RATIO_MAN_CFG = IPI_Clock_Freq / SYS_Clock_Freq */
-	pixel_clk = mode->clock;
-	ipi_clk = pixel_clk / 4;
-
-	tmp = ipi_clk << 16;
-	tmp = DIV_ROUND_CLOSEST_ULL(tmp, sys_clk);
-	regmap_write(dsi2->regmap, DSI2_PHY_IPI_RATIO_MAN_CFG,
-		     PHY_IPI_RATIO(tmp));
-
 	/*
-	 * SYS_RATIO_MAN_CFG = MIPI_DCPHY_HSCLK_Freq / MIPI_DCPHY_HSCLK_Freq
-	 *
 	 * in DPHY mode, the phy_hstx_clk is exactly 1/16 the Lane high-speed
 	 * data rate; In CPHY mode, the phy_hstx_clk is exactly 1/7 the trio
 	 * high speed symbol rate.
@@ -563,8 +552,18 @@ static void dw_mipi_dsi2_phy_ratio_cfg(struct dw_mipi_dsi2 *dsi2)
 	else
 		phy_hsclk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * MSEC_PER_SEC, 16);
 
-	tmp = phy_hsclk << 16;
-	tmp = DIV_ROUND_CLOSEST_ULL(tmp, sys_clk);
+	/* IPI_RATIO_MAN_CFG = PHY_HSTX_CLK / IPI_CLK */
+	pixel_clk = mode->clock;
+	ipi_clk = pixel_clk / 4;
+
+	tmp = DIV_ROUND_CLOSEST_ULL(phy_hsclk << 16, ipi_clk);
+	regmap_write(dsi2->regmap, DSI2_PHY_IPI_RATIO_MAN_CFG,
+		     PHY_IPI_RATIO(tmp));
+
+	/*
+	 * SYS_RATIO_MAN_CFG = MIPI_DCPHY_HSCLK_Freq / MIPI_DCPHY_HSCLK_Freq
+	 */
+	tmp = DIV_ROUND_CLOSEST_ULL(phy_hsclk << 16, sys_clk);
 	regmap_write(dsi2->regmap, DSI2_PHY_SYS_RATIO_MAN_CFG,
 		     PHY_SYS_RATIO(tmp));
 }
@@ -1192,7 +1191,7 @@ static ssize_t dw_mipi_dsi2_transfer(struct dw_mipi_dsi2 *dsi2,
 	struct mipi_dsi_packet packet;
 	int ret;
 	u32 val;
-	u8 mode;
+	u32 mode;
 
 	regmap_update_bits(dsi2->regmap, DSI2_DSI_VID_TX_CFG,
 			   LPDT_DISPLAY_CMD_EN,
