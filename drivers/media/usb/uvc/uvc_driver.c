@@ -256,7 +256,7 @@ static struct uvc_format_desc *uvc_format_by_guid(const u8 guid[16])
 static enum v4l2_colorspace uvc_colorspace(const u8 primaries)
 {
 	static const enum v4l2_colorspace colorprimaries[] = {
-		V4L2_COLORSPACE_DEFAULT,  /* Unspecified */
+		V4L2_COLORSPACE_SRGB,  /* Unspecified */
 		V4L2_COLORSPACE_SRGB,
 		V4L2_COLORSPACE_470_SYSTEM_M,
 		V4L2_COLORSPACE_470_SYSTEM_BG,
@@ -267,7 +267,7 @@ static enum v4l2_colorspace uvc_colorspace(const u8 primaries)
 	if (primaries < ARRAY_SIZE(colorprimaries))
 		return colorprimaries[primaries];
 
-	return V4L2_COLORSPACE_DEFAULT;  /* Reserved */
+	return V4L2_COLORSPACE_SRGB;  /* Reserved */
 }
 
 static enum v4l2_xfer_func uvc_xfer_func(const u8 transfer_characteristics)
@@ -769,6 +769,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		buflen -= buffer[0];
 		buffer += buffer[0];
+	} else {
+		format->colorspace = V4L2_COLORSPACE_SRGB;
 	}
 
 	return buffer - start;
