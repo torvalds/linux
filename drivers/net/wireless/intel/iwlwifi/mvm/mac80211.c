@@ -1148,6 +1148,8 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 	ret = __iwl_mvm_mac_start(mvm);
 	mutex_unlock(&mvm->mutex);
 
+	iwl_mvm_mei_set_sw_rfkill_state(mvm);
+
 	return ret;
 }
 
@@ -1264,6 +1266,8 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	 * ROC time event stops just as we get here.
 	 */
 	flush_work(&mvm->roc_done_wk);
+
+	iwl_mvm_mei_set_sw_rfkill_state(mvm);
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_mac_stop(mvm);
