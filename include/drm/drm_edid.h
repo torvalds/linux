@@ -510,21 +510,23 @@ static inline u8 drm_eld_get_conn_type(const uint8_t *eld)
 
 /**
  * drm_edid_encode_panel_id - Encode an ID for matching against drm_edid_get_panel_id()
- * @vend: 3-character vendor string
+ * @vend_chr_0: First character of the vendor string.
+ * @vend_chr_2: Second character of the vendor string.
+ * @vend_chr_3: Third character of the vendor string.
  * @product_id: The 16-bit product ID.
  *
  * This is a macro so that it can be calculated at compile time and used
  * as an initializer.
  *
  * For instance:
- *   drm_edid_encode_panel_id("BOE", 0x2d08) => 0x09e52d08
+ *   drm_edid_encode_panel_id('B', 'O', 'E', 0x2d08) => 0x09e52d08
  *
  * Return: a 32-bit ID per panel.
  */
-#define drm_edid_encode_panel_id(vend, product_id) \
-	((((u32)((vend)[0]) - '@') & 0x1f) << 26 | \
-	 (((u32)((vend)[1]) - '@') & 0x1f) << 21 | \
-	 (((u32)((vend)[2]) - '@') & 0x1f) << 16 | \
+#define drm_edid_encode_panel_id(vend_chr_0, vend_chr_1, vend_chr_2, product_id) \
+	((((u32)(vend_chr_0) - '@') & 0x1f) << 26 | \
+	 (((u32)(vend_chr_1) - '@') & 0x1f) << 21 | \
+	 (((u32)(vend_chr_2) - '@') & 0x1f) << 16 | \
 	 ((product_id) & 0xffff))
 
 /**

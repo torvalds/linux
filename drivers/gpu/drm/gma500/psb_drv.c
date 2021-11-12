@@ -454,7 +454,7 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_priv = devm_drm_dev_alloc(&pdev->dev, &driver, struct drm_psb_private, dev);
 	if (IS_ERR(dev_priv))
-		return PTR_ERR(dev);
+		return PTR_ERR(dev_priv);
 	dev = &dev_priv->dev;
 
 	pci_set_drvdata(pdev, dev);

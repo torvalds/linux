@@ -1745,10 +1745,11 @@ static const struct panel_delay delay_200_500_e50 = {
 	.enable = 50,
 };
 
-#define EDP_PANEL_ENTRY(vend, product_id, _delay, _name) \
+#define EDP_PANEL_ENTRY(vend_chr_0, vend_chr_1, vend_chr_2, product_id, _delay, _name) \
 { \
 	.name = _name, \
-	.panel_id = drm_edid_encode_panel_id(vend, product_id), \
+	.panel_id = drm_edid_encode_panel_id(vend_chr_0, vend_chr_1, vend_chr_2, \
+					     product_id), \
 	.delay = _delay \
 }
 
@@ -1760,19 +1761,19 @@ static const struct panel_delay delay_200_500_e50 = {
  * Sort first by vendor, then by product ID.
  */
 static const struct edp_panel_entry edp_panels[] = {
-	EDP_PANEL_ENTRY("AUO", 0x405c, &auo_b116xak01.delay, "B116XAK01"),
-	EDP_PANEL_ENTRY("AUO", 0x615c, &delay_200_500_e50, "B116XAN06.1"),
+	EDP_PANEL_ENTRY('A', 'U', 'O', 0x405c, &auo_b116xak01.delay, "B116XAK01"),
+	EDP_PANEL_ENTRY('A', 'U', 'O', 0x615c, &delay_200_500_e50, "B116XAN06.1"),
 
-	EDP_PANEL_ENTRY("BOE", 0x0786, &delay_200_500_p2e80, "NV116WHM-T01"),
-	EDP_PANEL_ENTRY("BOE", 0x07d1, &boe_nv133fhm_n61.delay, "NV133FHM-N61"),
-	EDP_PANEL_ENTRY("BOE", 0x082d, &boe_nv133fhm_n61.delay, "NV133FHM-N62"),
-	EDP_PANEL_ENTRY("BOE", 0x098d, &boe_nv110wtm_n61.delay, "NV110WTM-N61"),
+	EDP_PANEL_ENTRY('B', 'O', 'E', 0x0786, &delay_200_500_p2e80, "NV116WHM-T01"),
+	EDP_PANEL_ENTRY('B', 'O', 'E', 0x07d1, &boe_nv133fhm_n61.delay, "NV133FHM-N61"),
+	EDP_PANEL_ENTRY('B', 'O', 'E', 0x082d, &boe_nv133fhm_n61.delay, "NV133FHM-N62"),
+	EDP_PANEL_ENTRY('B', 'O', 'E', 0x098d, &boe_nv110wtm_n61.delay, "NV110WTM-N61"),
 
-	EDP_PANEL_ENTRY("CMN", 0x114c, &innolux_n116bca_ea1.delay, "N116BCA-EA1"),
+	EDP_PANEL_ENTRY('C', 'M', 'N', 0x114c, &innolux_n116bca_ea1.delay, "N116BCA-EA1"),
 
-	EDP_PANEL_ENTRY("KDB", 0x0624, &kingdisplay_kd116n21_30nv_a010.delay, "116N21-30NV-A010"),
+	EDP_PANEL_ENTRY('K', 'D', 'B', 0x0624, &kingdisplay_kd116n21_30nv_a010.delay, "116N21-30NV-A010"),
 
-	EDP_PANEL_ENTRY("SHP", 0x154c, &delay_200_500_p2e100, "LQ116M1JW10"),
+	EDP_PANEL_ENTRY('S', 'H', 'P', 0x154c, &delay_200_500_p2e100, "LQ116M1JW10"),
 
 	{ /* sentinal */ }
 };
