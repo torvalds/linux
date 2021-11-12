@@ -49,7 +49,7 @@ static void hdp_v4_0_flush_hdp(struct amdgpu_device *adev,
 static void hdp_v4_0_invalidate_hdp(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring)
 {
-	if (adev->asic_type == CHIP_ALDEBARAN)
+	if (adev->ip_versions[HDP_HWIP][0] == IP_VERSION(4, 4, 0))
 		return;
 
 	if (!ring || !ring->funcs->emit_wreg)
@@ -79,7 +79,7 @@ static void hdp_v4_0_reset_ras_error_count(struct amdgpu_device *adev)
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__HDP))
 		return;
 
-	if (adev->asic_type >= CHIP_ALDEBARAN)
+	if (adev->ip_versions[HDP_HWIP][0] >= IP_VERSION(4, 4, 0))
 		WREG32_SOC15(HDP, 0, mmHDP_EDC_CNT, 0);
 	else
 		/*read back hdp ras counter to reset it to 0 */
@@ -91,9 +91,10 @@ static void hdp_v4_0_update_clock_gating(struct amdgpu_device *adev,
 {
 	uint32_t def, data;
 
-	if (adev->asic_type == CHIP_VEGA10 ||
-	    adev->asic_type == CHIP_VEGA12 ||
-	    adev->asic_type == CHIP_RAVEN) {
+	if (adev->ip_versions[HDP_HWIP][0] == IP_VERSION(4, 0, 0) ||
+	    adev->ip_versions[HDP_HWIP][0] == IP_VERSION(4, 0, 1) ||
+	    adev->ip_versions[HDP_HWIP][0] == IP_VERSION(4, 1, 1) ||
+	    adev->ip_versions[HDP_HWIP][0] == IP_VERSION(4, 1, 0)) {
 		def = data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_LS));
 
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
@@ -135,8 +136,8 @@ static void hdp_v4_0_get_clockgating_state(struct amdgpu_device *adev,
 
 static void hdp_v4_0_init_registers(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_ARCTURUS:
+	switch (adev->ip_versions[HDP_HWIP][0]) {
+	case IP_VERSION(4, 2, 1):
 		WREG32_FIELD15(HDP, 0, HDP_MMHUB_CNTL, HDP_MMHUB_GCC, 1);
 		break;
 	default:

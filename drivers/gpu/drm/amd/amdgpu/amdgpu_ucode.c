@@ -416,10 +416,11 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 		else
 			return AMDGPU_FW_LOAD_PSP;
 	default:
-		DRM_ERROR("Unknown firmware load type\n");
+		if (!load_type)
+			return AMDGPU_FW_LOAD_DIRECT;
+		else
+			return AMDGPU_FW_LOAD_PSP;
 	}
-
-	return AMDGPU_FW_LOAD_DIRECT;
 }
 
 const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)

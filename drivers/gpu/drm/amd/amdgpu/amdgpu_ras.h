@@ -351,6 +351,9 @@ struct amdgpu_ras {
 	/* disable ras error count harvest in recovery */
 	bool disable_ras_err_cnt_harvest;
 
+	/* is poison mode supported */
+	bool poison_supported;
+
 	/* RAS count errors delayed work */
 	struct delayed_work ras_counte_delay_work;
 	atomic_t ras_ue_count;
@@ -645,5 +648,7 @@ void amdgpu_release_ras_context(struct amdgpu_device *adev);
 int amdgpu_persistent_edc_harvesting_supported(struct amdgpu_device *adev);
 
 const char *get_ras_block_str(struct ras_common_if *ras_block);
+
+bool amdgpu_ras_is_poison_mode_supported(struct amdgpu_device *adev);
 
 #endif

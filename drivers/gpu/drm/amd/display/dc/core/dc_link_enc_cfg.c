@@ -1,5 +1,4 @@
-/*
- * Copyright 2021 Advanced Micro Devices, Inc.
+/* Copyright 2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -177,13 +176,27 @@ static enum engine_id find_first_avail_link_enc(
 	return eng_id;
 }
 
-static bool is_avail_link_enc(struct dc_state *state, enum engine_id eng_id)
+/* Check for availability of link encoder eng_id. */
+static bool is_avail_link_enc(struct dc_state *state, enum engine_id eng_id, struct dc_stream_state *stream)
 {
 	bool is_avail = false;
 	int eng_idx = eng_id - ENGINE_ID_DIGA;
 
-	if (eng_id != ENGINE_ID_UNKNOWN && state->res_ctx.link_enc_cfg_ctx.link_enc_avail[eng_idx] != ENGINE_ID_UNKNOWN)
+	/* An encoder is available if it is still in the availability pool. */
+	if (eng_id != ENGINE_ID_UNKNOWN && state->res_ctx.link_enc_cfg_ctx.link_enc_avail[eng_idx] != ENGINE_ID_UNKNOWN) {
 		is_avail = true;
+	} else {
+		struct dc_stream_state *stream_assigned = NULL;
+
+		/* MST streams share the same link and should share the same encoder.
+		 * If a stream that has already been assigned a link encoder uses as the
+		 * same link as the stream checking for availability, it is an MST stream
+		 * and should use the same link encoder.
+		 */
+		stream_assigned = get_stream_using_link_enc(state, eng_id);
+		if (stream_assigned && stream != stream_assigned && stream->link == stream_assigned->link)
+			is_avail = true;
+	}
 
 	return is_avail;
 }
@@ -296,7 +309,7 @@ void link_enc_cfg_link_encs_assign(
 				if (stream == prev_stream && stream->link == prev_stream->link &&
 						prev_state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[j].valid) {
 					eng_id = prev_state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[j].eng_id;
-					if (is_avail_link_enc(state, eng_id))
+					if (is_avail_link_enc(state, eng_id, stream))
 						add_link_enc_assignment(state, stream, eng_id);
 				}
 			}

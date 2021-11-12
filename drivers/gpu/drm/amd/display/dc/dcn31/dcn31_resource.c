@@ -1013,7 +1013,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.i2c = true,
 			.dmcu = false, // This is previously known to cause hang on S3 cycles if enabled
 			.dscl = true,
-			.cm = false, // visible flicker on OLED eDPs
+			.cm = true,
 			.mpc = true,
 			.optc = true,
 			.vpg = true,
@@ -2438,6 +2438,13 @@ static bool dcn31_resource_construct(
 			goto create_fail;
 		}
 		pool->base.sw_i2cs[i] = NULL;
+	}
+
+	if (dc->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP &&
+	    dc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0 &&
+	    !dc->debug.dpia_debug.bits.disable_dpia) {
+		/* YELLOW CARP B0 has 4 DPIA's */
+		pool->base.usb4_dpia_count = 4;
 	}
 
 	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */

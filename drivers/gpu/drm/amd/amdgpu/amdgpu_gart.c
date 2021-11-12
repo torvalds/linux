@@ -238,7 +238,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 		return -EINVAL;
 	}
 
-	if (!drm_dev_enter(&adev->ddev, &idx))
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
 		return 0;
 
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
@@ -289,7 +289,7 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
 		return -EINVAL;
 	}
 
-	if (!drm_dev_enter(&adev->ddev, &idx))
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
 		return 0;
 
 	t = offset / AMDGPU_GPU_PAGE_SIZE;

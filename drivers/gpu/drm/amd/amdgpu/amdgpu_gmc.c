@@ -745,7 +745,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	u64 gart_ptb_gpu_pa = amdgpu_gmc_vram_pa(adev, adev->gart.bo);
 	int idx;
 
-	if (!drm_dev_enter(&adev->ddev, &idx))
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
 		return;
 
 	flags |= AMDGPU_PTE_VALID | AMDGPU_PTE_READABLE;

@@ -647,6 +647,12 @@ void enc1_stream_encoder_set_throttled_vcp_size(
 				x),
 			26));
 
+	// If y rounds up to integer, carry it over to x.
+	if (y >> 26) {
+		x += 1;
+		y = 0;
+	}
+
 	REG_SET_2(DP_MSE_RATE_CNTL, 0,
 		DP_MSE_RATE_X, x,
 		DP_MSE_RATE_Y, y);
@@ -1401,11 +1407,6 @@ static void enc1_se_disable_dp_audio(
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	uint32_t value = 0;
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (enc->afmt && enc->afmt->funcs->afmt_powerdown)
-		enc->afmt->funcs->afmt_powerdown(enc->afmt);
-#endif
 
 	/* Disable Audio packets */
 	REG_UPDATE_5(DP_SEC_CNTL,

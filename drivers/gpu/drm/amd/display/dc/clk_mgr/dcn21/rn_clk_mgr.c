@@ -152,7 +152,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			display_count = rn_get_active_display_cnt_wa(dc, context);
 
 			for (irq_src = DC_IRQ_SOURCE_HPD1; irq_src <= DC_IRQ_SOURCE_HPD5; irq_src++) {
-				hpd_state = dal_get_hpd_state_dcn21(dc->res_pool->irqs, irq_src);
+				hpd_state = dc_get_hpd_state_dcn21(dc->res_pool->irqs, irq_src);
 				if (hpd_state)
 					break;
 			}

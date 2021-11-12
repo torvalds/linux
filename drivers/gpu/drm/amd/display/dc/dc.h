@@ -44,8 +44,10 @@
 
 /* forward declaration */
 struct aux_payload;
+struct set_config_cmd_payload;
+struct dmub_notification;
 
-#define DC_VER "3.2.154"
+#define DC_VER "3.2.156"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -477,6 +479,33 @@ union mem_low_power_enable_options {
 	uint32_t u32All;
 };
 
+union root_clock_optimization_options {
+	struct {
+		bool dpp: 1;
+		bool dsc: 1;
+		bool hdmistream: 1;
+		bool hdmichar: 1;
+		bool dpstream: 1;
+		bool symclk32_se: 1;
+		bool symclk32_le: 1;
+		bool symclk_fe: 1;
+		bool physymclk: 1;
+		bool dpiasymclk: 1;
+		uint32_t reserved: 22;
+	} bits;
+	uint32_t u32All;
+};
+
+union dpia_debug_options {
+	struct {
+		uint32_t disable_dpia:1;
+		uint32_t force_non_lttpr:1;
+		uint32_t extend_aux_rd_interval:1;
+		uint32_t reserved:29;
+	} bits;
+	uint32_t raw;
+};
+
 struct dc_debug_data {
 	uint32_t ltFailCount;
 	uint32_t i2cErrorCount;
@@ -565,6 +594,7 @@ struct dc_debug_options {
 	enum wm_report_mode pplib_wm_report_mode;
 	unsigned int min_disp_clk_khz;
 	unsigned int min_dpp_clk_khz;
+	unsigned int min_dram_clk_khz;
 	int sr_exit_time_dpm0_ns;
 	int sr_enter_plus_exit_time_dpm0_ns;
 	int sr_exit_time_ns;
@@ -636,6 +666,7 @@ struct dc_debug_options {
 	bool legacy_dp2_lt;
 #endif
 	union mem_low_power_enable_options enable_mem_low_power;
+	union root_clock_optimization_options root_clock_optimization;
 	bool force_vblank_alignment;
 
 	/* Enable dmub aux for legacy ddc */
@@ -647,6 +678,7 @@ struct dc_debug_options {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_z10;
 	bool enable_sw_cntl_psr;
+	union dpia_debug_options dpia_debug;
 #endif
 };
 
@@ -1165,6 +1197,7 @@ struct dpcd_caps {
 	struct dpcd_dsc_capabilities dsc_caps;
 	struct dc_lttpr_caps lttpr_caps;
 	struct psr_caps psr_caps;
+	struct dpcd_usb4_dp_tunneling_info usb4_dp_tun_info;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	union dp_128b_132b_supported_link_rates dp_128b_132b_supported_link_rates;
@@ -1313,6 +1346,8 @@ void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src);
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 		struct dc *dc, uint32_t link_index);
 
+void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable);
+
 /*******************************************************************************
  * Power Interfaces
  ******************************************************************************/
@@ -1373,6 +1408,14 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 				uint32_t link_index,
 				struct aux_payload *payload);
 
+/* Get dc link index from dpia port index */
+uint8_t get_link_index_from_dpia_port_index(const struct dc *dc,
+				uint8_t dpia_port_index);
+
+bool dc_process_dmub_set_config_async(struct dc *dc,
+				uint32_t link_index,
+				struct set_config_cmd_payload *payload,
+				struct dmub_notification *notify);
 /*******************************************************************************
  * DSC Interfaces
  ******************************************************************************/
