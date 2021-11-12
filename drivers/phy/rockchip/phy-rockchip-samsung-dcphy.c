@@ -1222,32 +1222,28 @@ static void samsung_mipi_dphy_lane_enable(struct samsung_mipi_dcphy *samsung)
 	regmap_update_bits(samsung->regmap, DPHY_MD3_GNR_CON0,
 			   PHY_ENABLE, PHY_ENABLE);
 
-	/*
-	 * 200us is needed for stablizing the bias and the ready counter
-	 * operates with Reference Clocks.
-	 */
 	ret = regmap_read_poll_timeout(samsung->regmap, DPHY_MC_GNR_CON0,
-				       sts, (sts & PHY_READY), 0, 200);
+				       sts, (sts & PHY_READY), 200, 2000);
 	if (ret < 0)
 		dev_err(samsung->dev, "D-PHY clk lane is not locked\n");
 
 	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD0_GNR_CON0,
-				       sts, (sts & PHY_READY), 0, 200);
+				       sts, (sts & PHY_READY), 200, 2000);
 	if (ret < 0)
 		dev_err(samsung->dev, "D-PHY Data0 lane is not locked\n");
 
 	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD1_GNR_CON0,
-				       sts, (sts & PHY_READY), 0, 200);
+				       sts, (sts & PHY_READY), 200, 2000);
 	if (ret < 0)
 		dev_err(samsung->dev, "D-PHY Data1 lane is not locked\n");
 
 	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD2_GNR_CON0,
-				       sts, (sts & PHY_READY), 0, 200);
+				       sts, (sts & PHY_READY), 200, 2000);
 	if (ret < 0)
 		dev_err(samsung->dev, "D-PHY Data2 lane is not locked\n");
 
 	ret = regmap_read_poll_timeout(samsung->regmap, DPHY_MD3_GNR_CON0,
-				       sts, (sts & PHY_READY), 0, 200);
+				       sts, (sts & PHY_READY), 200, 2000);
 	if (ret < 0)
 		dev_err(samsung->dev, "D-PHY Data3 lane is not locked\n");
 }
@@ -1339,9 +1335,8 @@ static void samsung_mipi_dcphy_pll_enable(struct samsung_mipi_dcphy *samsung)
 
 	regmap_update_bits(samsung->regmap, PLL_CON0, PLL_EN, PLL_EN);
 
-	/* 200us is needed for locking the PLL */
 	ret = regmap_read_poll_timeout(samsung->regmap, PLL_STAT0,
-				       sts, (sts & PLL_LOCK), 0, 200);
+				       sts, (sts & PLL_LOCK), 1000, 20000);
 	if (ret < 0)
 		dev_err(samsung->dev, "DC-PHY pll is not locked\n");
 }
