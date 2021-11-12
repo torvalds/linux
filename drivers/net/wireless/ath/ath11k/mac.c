@@ -2474,6 +2474,8 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 	struct ath11k_vif *arvif = (void *)vif->drv_priv;
 	struct peer_assoc_params peer_arg;
 	struct ieee80211_sta *ap_sta;
+	struct ath11k_peer *peer;
+	bool is_auth = false;
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
@@ -2536,13 +2538,22 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 		   "mac vdev %d up (associated) bssid %pM aid %d\n",
 		   arvif->vdev_id, bss_conf->bssid, bss_conf->aid);
 
-	/* Authorize BSS Peer */
-	ret = ath11k_wmi_set_peer_param(ar, arvif->bssid,
-					arvif->vdev_id,
-					WMI_PEER_AUTHORIZE,
-					1);
-	if (ret)
-		ath11k_warn(ar->ab, "Unable to authorize BSS peer: %d\n", ret);
+	spin_lock_bh(&ar->ab->base_lock);
+
+	peer = ath11k_peer_find(ar->ab, arvif->vdev_id, arvif->bssid);
+	if (peer && peer->is_authorized)
+		is_auth = true;
+
+	spin_unlock_bh(&ar->ab->base_lock);
+
+	if (is_auth) {
+		ret = ath11k_wmi_set_peer_param(ar, arvif->bssid,
+						arvif->vdev_id,
+						WMI_PEER_AUTHORIZE,
+						1);
+		if (ret)
+			ath11k_warn(ar->ab, "Unable to authorize BSS peer: %d\n", ret);
+	}
 
 	ret = ath11k_wmi_send_obss_spr_cmd(ar, arvif->vdev_id,
 					   &bss_conf->he_obss_pd);
@@ -4220,6 +4231,34 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 		if (ret)
 			ath11k_warn(ar->ab, "Failed to associate station: %pM\n",
 				    sta->addr);
+	} else if (old_state == IEEE80211_STA_ASSOC &&
+		   new_state == IEEE80211_STA_AUTHORIZED) {
+		spin_lock_bh(&ar->ab->base_lock);
+
+		peer = ath11k_peer_find(ar->ab, arvif->vdev_id, sta->addr);
+		if (peer)
+			peer->is_authorized = true;
+
+		spin_unlock_bh(&ar->ab->base_lock);
+
+		if (vif->type == NL80211_IFTYPE_STATION && arvif->is_up) {
+			ret = ath11k_wmi_set_peer_param(ar, sta->addr,
+							arvif->vdev_id,
+							WMI_PEER_AUTHORIZE,
+							1);
+			if (ret)
+				ath11k_warn(ar->ab, "Unable to authorize peer %pM vdev %d: %d\n",
+					    sta->addr, arvif->vdev_id, ret);
+		}
+	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
+		   new_state == IEEE80211_STA_ASSOC) {
+		spin_lock_bh(&ar->ab->base_lock);
+
+		peer = ath11k_peer_find(ar->ab, arvif->vdev_id, sta->addr);
+		if (peer)
+			peer->is_authorized = false;
+
+		spin_unlock_bh(&ar->ab->base_lock);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTH &&
 		   (vif->type == NL80211_IFTYPE_AP ||
