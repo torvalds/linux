@@ -2521,12 +2521,8 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	};
 	struct request *rq;
 
-	if (unlikely(bio_queue_enter(bio)))
-		return NULL;
-	if (unlikely(!submit_bio_checks(bio)))
-		goto put_exit;
 	if (blk_mq_attempt_bio_merge(q, bio, nsegs, same_queue_rq))
-		goto put_exit;
+		return NULL;
 
 	rq_qos_throttle(q, bio);
 
@@ -2543,9 +2539,20 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	rq_qos_cleanup(q, bio);
 	if (bio->bi_opf & REQ_NOWAIT)
 		bio_wouldblock_error(bio);
-put_exit:
-	blk_queue_exit(q);
+
 	return NULL;
+}
+
+static inline bool blk_mq_can_use_cached_rq(struct request *rq,
+		struct bio *bio)
+{
+	if (blk_mq_get_hctx_type(bio->bi_opf) != rq->mq_hctx->type)
+		return false;
+
+	if (op_is_flush(rq->cmd_flags) != op_is_flush(bio->bi_opf))
+		return false;
+
+	return true;
 }
 
 static inline struct request *blk_mq_get_request(struct request_queue *q,
@@ -2554,8 +2561,10 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 						 unsigned int nsegs,
 						 bool *same_queue_rq)
 {
+	struct request *rq;
+	bool checked = false;
+
 	if (plug) {
-		struct request *rq;
 
 		rq = rq_list_peek(&plug->cached_rq);
 		if (rq && rq->q == q) {
@@ -2564,6 +2573,10 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 			if (blk_mq_attempt_bio_merge(q, bio, nsegs,
 						same_queue_rq))
 				return NULL;
+			checked = true;
+			if (!blk_mq_can_use_cached_rq(rq, bio))
+				goto fallback;
+			rq->cmd_flags = bio->bi_opf;
 			plug->cached_rq = rq_list_next(rq);
 			INIT_LIST_HEAD(&rq->queuelist);
 			rq_qos_throttle(q, bio);
@@ -2571,7 +2584,15 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 		}
 	}
 
-	return blk_mq_get_new_requests(q, plug, bio, nsegs, same_queue_rq);
+fallback:
+	if (unlikely(bio_queue_enter(bio)))
+		return NULL;
+	if (!checked && !submit_bio_checks(bio))
+		return NULL;
+	rq = blk_mq_get_new_requests(q, plug, bio, nsegs, same_queue_rq);
+	if (!rq)
+		blk_queue_exit(q);
+	return rq;
 }
 
 /**
