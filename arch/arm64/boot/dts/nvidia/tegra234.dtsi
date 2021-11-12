@@ -93,6 +93,8 @@
 			reg = <0x0c2a0000 0x10000>;
 			interrupt-parent = <&pmc>;
 			interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_CLK_32K>;
+			clock-names = "rtc";
 			status = "disabled";
 		};
 
