@@ -7,7 +7,6 @@
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
-#include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/vt_kern.h>
@@ -193,7 +192,7 @@ static const struct drm_driver driver = {
 
 static int __init vbox_init(void)
 {
-	if (vgacon_text_force() && vbox_modeset == -1)
+	if (drm_firmware_drivers_only() && vbox_modeset == -1)
 		return -EINVAL;
 
 	if (vbox_modeset == 0)

@@ -31,7 +31,6 @@
 #include "amdgpu_drv.h"
 
 #include <drm/drm_pciids.h>
-#include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
@@ -2516,7 +2515,7 @@ static int __init amdgpu_init(void)
 {
 	int r;
 
-	if (vgacon_text_force())
+	if (drm_firmware_drivers_only())
 		return -EINVAL;
 
 	r = amdgpu_sync_init();
