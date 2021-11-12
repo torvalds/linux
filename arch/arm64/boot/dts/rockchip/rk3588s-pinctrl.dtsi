@@ -3082,6 +3082,8 @@
 		/omit-if-no-ref/
 		uart8m0_xfer: uart8m0-xfer {
 			rockchip,pins =
+				/* uart8_rx_m0 */
+				<4 RK_PB1 10 &pcfg_pull_up>,
 				/* uart8_tx_m0 */
 				<4 RK_PB0 10 &pcfg_pull_up>;
 		};
