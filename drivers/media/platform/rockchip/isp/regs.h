@@ -1900,7 +1900,7 @@ static inline void force_cfg_update(struct rkisp_device *dev)
 	bool is_unite = dev->hw_dev->is_unite;
 
 	dev->hw_dev->is_mi_update = true;
-	rkisp_unite_set_bits(dev, CIF_MI_CTRL, 0, val, true, is_unite);
+	rkisp_unite_set_bits(dev, CIF_MI_CTRL, 0, val, false, is_unite);
 	val = CIF_MI_INIT_SOFT_UPD;
 	rkisp_unite_write(dev, CIF_MI_INIT, val, true, is_unite);
 }

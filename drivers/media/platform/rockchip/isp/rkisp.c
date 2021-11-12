@@ -2519,7 +2519,7 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 	if (dev->hw_dev->is_single) {
 		for (i = 0; i < RKISP_MAX_STREAM; i++) {
 			stream = &dev->cap_dev.stream[i];
-			if (stream->streaming && !stream->next_buf)
+			if (stream->streaming)
 				stream->ops->frame_end(stream);
 		}
 	}

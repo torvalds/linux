@@ -682,7 +682,7 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		CIF_ICCL_SRSZ_CLK | CIF_ICCL_JPEG_CLK | CIF_ICCL_MI_CLK |
 		CIF_ICCL_IE_CLK | CIF_ICCL_MIPI_CLK | CIF_ICCL_DCROP_CLK;
 
-	if (dev->isp_ver == ISP_V20 && on)
+	if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30) && on)
 		val |= ICCL_MPFBC_CLK;
 
 	writel(val, dev->base_addr + CIF_ICCL);
