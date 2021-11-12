@@ -1198,10 +1198,10 @@ static int server_main(void)
 		env.sub_succ_cnt += result->sub_succ_cnt;
 	}
 
+	print_all_error_logs();
+
 	fprintf(stdout, "Summary: %d/%d PASSED, %d SKIPPED, %d FAILED\n",
 		env.succ_cnt, env.sub_succ_cnt, env.skip_cnt, env.fail_cnt);
-
-	print_all_error_logs();
 
 	/* reap all workers */
 	for (i = 0; i < env.workers; i++) {
@@ -1484,10 +1484,10 @@ int main(int argc, char **argv)
 	if (env.list_test_names)
 		goto out;
 
+	print_all_error_logs();
+
 	fprintf(stdout, "Summary: %d/%d PASSED, %d SKIPPED, %d FAILED\n",
 		env.succ_cnt, env.sub_succ_cnt, env.skip_cnt, env.fail_cnt);
-
-	print_all_error_logs();
 
 	close(env.saved_netns_fd);
 out:
