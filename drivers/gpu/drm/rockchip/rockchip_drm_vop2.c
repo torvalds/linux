@@ -6259,6 +6259,9 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 	else
 		pre_scan_dly = bg_dly + (hdisplay >> 1) - 1;
 
+	if (vop2->version == VOP_VERSION_RK3588 && hsync_len < 8)
+		hsync_len = 8;
+
 	pre_scan_dly = (pre_scan_dly << 16) | hsync_len;
 
 	VOP_MODULE_SET(vop2, vp, bg_dly, bg_dly);
