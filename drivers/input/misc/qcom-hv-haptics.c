@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/atomic.h>
@@ -2376,6 +2377,145 @@ static int haptics_config_openloop_lra_period(struct haptics_chip *chip,
 			HAP_CFG_TLRA_OL_HIGH_REG, val, 2);
 }
 
+static int haptics_init_preload_pattern_effect(struct haptics_chip *chip)
+{
+	struct haptics_hw_config *config = &chip->config;
+	struct haptics_effect *effect;
+	int i;
+
+	if (config->preload_effect == -EINVAL)
+		return 0;
+
+	for (i = 0; i < chip->effects_count; i++)
+		if (chip->effects[i].id == config->preload_effect)
+			break;
+
+	if (i == chip->effects_count) {
+		dev_err(chip->dev, "preload effect %d is not found\n",
+				config->preload_effect);
+		return -EINVAL;
+	}
+
+	effect = &chip->effects[i];
+	return haptics_set_pattern(chip, effect->pattern, effect->src);
+}
+
+static int haptics_init_lra_period_config(struct haptics_chip *chip)
+{
+	int rc = 0;
+	u8 val;
+	u32 t_lra_us;
+
+	/* set AUTO_mode RC CLK calibration by default */
+	val = FIELD_PREP(CAL_RC_CLK_MASK, CAL_RC_CLK_AUTO_VAL);
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK, val);
+	if (rc < 0)
+		return rc;
+
+	/* get calibrated close loop period */
+	rc = haptics_get_closeloop_lra_period(chip, true);
+	if (rc < 0)
+		return rc;
+
+	/* Config T_LRA */
+	t_lra_us = chip->config.t_lra_us;
+	if (chip->config.cl_t_lra_us != 0)
+		t_lra_us = chip->config.cl_t_lra_us;
+
+	return haptics_config_openloop_lra_period(chip, t_lra_us);
+}
+
+static int haptics_init_hpwr_config(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val;
+
+	if ((chip->hw_type == HAP520_MV) && !chip->hpwr_vreg) {
+		/* Indicates if HPWR is BOB or Bharger */
+		rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_HPWR_INTF_CTL_REG, &val, 1);
+		if (rc < 0)
+			return rc;
+
+		chip->hpwr_intf_ctl = val & INTF_CTL_MASK;
+
+		/* Read HPWR voltage to adjust the VMAX */
+		if (chip->hpwr_voltage_mv == 0 &&
+				chip->hpwr_intf_ctl == INTF_CTL_BOB) {
+			rc = haptics_read(chip, chip->cfg_addr_base,
+				HAP_CFG_VHPWR_REG, &val, 1);
+			if (rc < 0)
+				return rc;
+
+			chip->hpwr_voltage_mv = val * VHPWR_STEP_MV;
+		}
+	}
+
+	/* Force VREG_RDY if non-HBoost is used for powering haptics */
+	if (is_haptics_external_powered(chip))
+		return haptics_masked_write(chip, chip->cfg_addr_base,
+				HAP_CFG_VSET_CFG_REG, FORCE_VREG_RDY_BIT,
+				FORCE_VREG_RDY_BIT);
+
+	return 0;
+}
+
+static int haptics_init_drive_config(struct haptics_chip *chip)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc;
+	u8 val;
+
+	/* Config driver waveform shape and use 2's complement data format */
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_DRV_WF_SEL_REG,
+			DRV_WF_SEL_MASK | DRV_WF_FMT_BIT, config->drv_wf);
+	if (rc < 0)
+		return rc;
+
+	/* Config brake mode and waveform shape */
+	val = FIELD_PREP(BRAKE_MODE_MASK, config->brake.mode);
+	val |= FIELD_PREP(BRAKE_SINE_GAIN_MASK, config->brake.sine_gain);
+	val |= FIELD_PREP(BRAKE_WF_SEL_MASK, config->brake.brake_wf);
+
+	return haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_BRAKE_MODE_CFG_REG,
+			BRAKE_MODE_MASK | BRAKE_SINE_GAIN_MASK
+			| BRAKE_WF_SEL_MASK, val);
+}
+
+static int haptics_init_vmax_config(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val;
+
+	if (!is_haptics_external_powered(chip)) {
+		rc = haptics_read(chip, chip->hbst_addr_base,
+				HAP_BOOST_CLAMP_REG, &val, 1);
+		if (rc < 0)
+			return rc;
+
+		chip->clamp_at_5v = val & CLAMP_5V_BIT;
+	}
+
+	chip->is_hv_haptics = true;
+	chip->max_vmax_mv = MAX_VMAX_MV;
+	if (chip->hw_type == HAP520_MV) {
+		rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_HW_CONFIG_REG, &val, 1);
+		if (rc < 0)
+			return rc;
+
+		chip->is_hv_haptics = val & HV_HAP_DRIVER_BIT;
+		chip->max_vmax_mv = (chip->is_hv_haptics) ?
+					MAX_HV_VMAX_MV : MAX_MV_VMAX_MV;
+	}
+
+	/* Config VMAX */
+	return haptics_set_vmax_mv(chip, chip->config.vmax_mv);
+}
+
 static int haptics_config_wa(struct haptics_chip *chip)
 {
 	switch (chip->hw_type) {
@@ -2396,150 +2536,36 @@ static int haptics_config_wa(struct haptics_chip *chip)
 
 static int haptics_hw_init(struct haptics_chip *chip)
 {
-	struct haptics_hw_config *config = &chip->config;
-	struct haptics_effect *effect;
-	int rc = 0, i;
-	u8 val[2];
-	u32 t_lra_us;
+	int rc;
 
 	rc = haptics_config_wa(chip);
 	if (rc < 0)
 		return rc;
 
-	/* Store CL brake settings */
 	rc = haptics_store_cl_brake_settings(chip);
 	if (rc < 0)
 		return rc;
 
-	if (!is_haptics_external_powered(chip)) {
-		rc = haptics_read(chip, chip->hbst_addr_base,
-				HAP_BOOST_CLAMP_REG, val, 1);
-		if (rc < 0)
-			return rc;
-
-		chip->clamp_at_5v = val[0] & CLAMP_5V_BIT;
-	}
-
-	chip->is_hv_haptics = true;
-	chip->max_vmax_mv = MAX_VMAX_MV;
-
-	if (chip->hw_type == HAP520_MV) {
-		rc = haptics_read(chip, chip->cfg_addr_base,
-			HAP_CFG_HW_CONFIG_REG, val, 1);
-		if (rc < 0)
-			return rc;
-
-		chip->is_hv_haptics = val[0] & HV_HAP_DRIVER_BIT;
-		chip->max_vmax_mv = (chip->is_hv_haptics) ?
-					MAX_HV_VMAX_MV : MAX_MV_VMAX_MV;
-	}
-
-	/* Config VMAX */
-	rc = haptics_set_vmax_mv(chip, config->vmax_mv);
+	rc = haptics_init_vmax_config(chip);
 	if (rc < 0)
 		return rc;
 
-	/* Config driver waveform shape */
-	rc = haptics_masked_write(chip, chip->cfg_addr_base,
-			HAP_CFG_DRV_WF_SEL_REG,
-			DRV_WF_SEL_MASK, config->drv_wf);
+	rc = haptics_init_drive_config(chip);
 	if (rc < 0)
 		return rc;
 
-	/* Config brake mode and waveform shape */
-	val[0] = (config->brake.mode << BRAKE_MODE_SHIFT)
-		| config->brake.sine_gain << BRAKE_SINE_GAIN_SHIFT
-		| config->brake.brake_wf;
-	rc = haptics_masked_write(chip, chip->cfg_addr_base,
-			HAP_CFG_BRAKE_MODE_CFG_REG,
-			BRAKE_MODE_MASK | BRAKE_SINE_GAIN_MASK
-			| BRAKE_WF_SEL_MASK, val[0]);
+	rc = haptics_init_hpwr_config(chip);
 	if (rc < 0)
 		return rc;
 
-	if ((chip->hw_type == HAP520_MV) && !chip->hpwr_vreg) {
-		/* Indicates if HPWR is BOB or Bharger */
-		rc = haptics_read(chip, chip->cfg_addr_base,
-			HAP_CFG_HPWR_INTF_CTL_REG, val, 1);
-		if (rc < 0)
-			return rc;
-
-		chip->hpwr_intf_ctl = val[0] & INTF_CTL_MASK;
-
-		/* Read HPWR voltage to adjust the VMAX */
-		if (chip->hpwr_voltage_mv == 0 &&
-				chip->hpwr_intf_ctl == INTF_CTL_BOB) {
-			rc = haptics_read(chip, chip->cfg_addr_base,
-				HAP_CFG_VHPWR_REG, val, 1);
-			if (rc < 0)
-				return rc;
-
-			chip->hpwr_voltage_mv = val[0] * VHPWR_STEP_MV;
-		}
-	}
-
-	if (is_haptics_external_powered(chip)) {
-		/* Force VREG_RDY if non-HBoost is used for powering haptics */
-		rc = haptics_masked_write(chip, chip->cfg_addr_base,
-				HAP_CFG_VSET_CFG_REG, FORCE_VREG_RDY_BIT,
-				FORCE_VREG_RDY_BIT);
-		if (rc < 0)
-			return rc;
-	}
-
-	if (config->is_erm)
+	if (chip->config.is_erm)
 		return 0;
 
-	/* set AUTO_mode RC CLK calibration by default */
-	val[0] = CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT;
-	rc = haptics_masked_write(chip, chip->cfg_addr_base,
-			HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK, val[0]);
+	rc = haptics_init_lra_period_config(chip);
 	if (rc < 0)
 		return rc;
 
-	/* get calibrated close loop period */
-	rc = haptics_get_closeloop_lra_period(chip, true);
-	if (rc < 0)
-		return rc;
-
-	/* Config T_LRA */
-	t_lra_us = chip->config.t_lra_us;
-	if (chip->config.cl_t_lra_us != 0)
-		t_lra_us = chip->config.cl_t_lra_us;
-
-	rc = haptics_config_openloop_lra_period(chip, t_lra_us);
-	if (rc < 0)
-		return rc;
-
-	/* Config to use 2's complement values for sample data */
-	rc = haptics_masked_write(chip, chip->cfg_addr_base,
-			HAP_CFG_DRV_WF_SEL_REG, DRV_WF_FMT_BIT, 0);
-	if (rc < 0)
-		return rc;
-
-	/* preload effect */
-	if (config->preload_effect != -EINVAL) {
-		for (i = 0; i < chip->effects_count; i++)
-			if (chip->effects[i].id == config->preload_effect)
-				break;
-
-		if (i == chip->effects_count) {
-			dev_err(chip->dev, "preload effect %d is not found\n",
-					config->preload_effect);
-			return -EINVAL;
-		}
-
-		effect = &chip->effects[i];
-
-		rc = haptics_set_pattern(chip, effect->pattern, effect->src);
-		if (rc < 0) {
-			dev_err(chip->dev, "Preload effect failed, rc=%d\n",
-					rc);
-			return rc;
-		}
-	}
-
-	return rc;
+	return haptics_init_preload_pattern_effect(chip);
 }
 
 static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
