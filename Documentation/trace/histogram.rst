@@ -1766,7 +1766,8 @@ using the same key and variable from yet another event::
 Expressions support the use of addition, subtraction, multiplication and
 division operators (+-\*/).
 
-Note that division by zero always returns -1.
+Note if division by zero cannot be detected at parse time (i.e. the
+divisor is not a constant), the result will be -1.
 
 Numeric constants can also be used directly in an expression::
 
