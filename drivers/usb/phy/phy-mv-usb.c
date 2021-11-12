@@ -648,10 +648,8 @@ static int mv_otg_remove(struct platform_device *pdev)
 {
 	struct mv_otg *mvotg = platform_get_drvdata(pdev);
 
-	if (mvotg->qwork) {
-		flush_workqueue(mvotg->qwork);
+	if (mvotg->qwork)
 		destroy_workqueue(mvotg->qwork);
-	}
 
 	mv_otg_disable(mvotg);
 
@@ -825,7 +823,6 @@ static int mv_otg_probe(struct platform_device *pdev)
 err_disable_clk:
 	mv_otg_disable_internal(mvotg);
 err_destroy_workqueue:
-	flush_workqueue(mvotg->qwork);
 	destroy_workqueue(mvotg->qwork);
 
 	return retval;
