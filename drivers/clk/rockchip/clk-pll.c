@@ -1268,9 +1268,6 @@ static int rockchip_rk3588_pll_wait_lock(struct rockchip_clk_pll *pll)
 	u32 pllcon;
 	int ret;
 
-	for (ret = 0; ret < 1000; ret++)
-		asm("nop");
-	return 0;
 	/*
 	 * Lock time typical 250, max 500 input clock cycles @24MHz
 	 * So define a very safe maximum of 1000us, meaning 24000 cycles.
