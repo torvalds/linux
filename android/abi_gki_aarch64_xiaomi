@@ -40,6 +40,7 @@
   scsi_print_command
   scsi_dma_map
   scsi_host_alloc
+  scsi_normalize_sense
   sg_copy_from_buffer
   sg_copy_to_buffer
   ufshcd_alloc_host
@@ -58,6 +59,9 @@
   blk_queue_update_dma_alignment
   blk_queue_update_dma_pad
   blk_ksm_get_slot_idx
+  mempool_resize
+  mempool_alloc_pages
+  mempool_free_pages
 
 #required by cs35l41 module
   regmap_raw_write_async
