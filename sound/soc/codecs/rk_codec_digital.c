@@ -1024,7 +1024,8 @@ static int rk_codec_digital_platform_probe(struct platform_device *pdev)
 
 	rcd->rc = devm_reset_control_get(&pdev->dev, "reset");
 
-	rcd->clk_adc = devm_clk_get(&pdev->dev, "adc");
+	/* optional on some platform */
+	rcd->clk_adc = devm_clk_get_optional(&pdev->dev, "adc");
 	if (IS_ERR(rcd->clk_adc))
 		return PTR_ERR(rcd->clk_adc);
 
