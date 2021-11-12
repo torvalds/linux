@@ -139,5 +139,14 @@ properties:
       - items:
           - const: nvidia,tegra234-vdk
           - const: nvidia,tegra234
+      - description: Jetson AGX Orin
+        items:
+          - const: nvidia,p3701-0000
+          - const: nvidia,tegra234
+      - description: Jetson AGX Orin Developer Kit
+        items:
+          - const: nvidia,p3737-0000+p3701-0000
+          - const: nvidia,p3701-0000
+          - const: nvidia,tegra234
 
 additionalProperties: true
