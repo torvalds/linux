@@ -6878,15 +6878,16 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_RESTRICT_ENC(8),						/* [11] restrict */
 			BTF_FUNC_PROTO_ENC(1, 2),					/* [12] func_proto */
 				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
-				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 8),
+				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 18),
 			BTF_FUNC_ENC(NAME_TBD, 12),					/* [13] func */
 			BTF_TYPE_FLOAT_ENC(NAME_TBD, 2),				/* [14] float */
 			BTF_DECL_TAG_ENC(NAME_TBD, 13, -1),				/* [15] decl_tag */
 			BTF_DECL_TAG_ENC(NAME_TBD, 13, 1),				/* [16] decl_tag */
 			BTF_DECL_TAG_ENC(NAME_TBD, 7, -1),				/* [17] decl_tag */
+			BTF_TYPE_TAG_ENC(NAME_TBD, 8),					/* [18] type_tag */
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q"),
+		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q\0R"),
 	},
 	.expect = {
 		.raw_types = {
@@ -6907,15 +6908,16 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_RESTRICT_ENC(8),						/* [11] restrict */
 			BTF_FUNC_PROTO_ENC(1, 2),					/* [12] func_proto */
 				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
-				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 8),
+				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 18),
 			BTF_FUNC_ENC(NAME_TBD, 12),					/* [13] func */
 			BTF_TYPE_FLOAT_ENC(NAME_TBD, 2),				/* [14] float */
 			BTF_DECL_TAG_ENC(NAME_TBD, 13, -1),				/* [15] decl_tag */
 			BTF_DECL_TAG_ENC(NAME_TBD, 13, 1),				/* [16] decl_tag */
 			BTF_DECL_TAG_ENC(NAME_TBD, 7, -1),				/* [17] decl_tag */
+			BTF_TYPE_TAG_ENC(NAME_TBD, 8),					/* [18] type_tag */
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q"),
+		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q\0R"),
 	},
 },
 {
@@ -7219,6 +7221,135 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0t\0tag1\0tag2\0tag3"),
+	},
+},
+{
+	.descr = "dedup: btf_type_tag #1",
+	.input = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [5] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 5),		/* [6] */
+			BTF_PTR_ENC(6),					/* [7] */
+			/* ptr -> tag1 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [8] */
+			BTF_PTR_ENC(8),					/* [9] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+	.expect = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag1 -> int */
+			BTF_PTR_ENC(2),					/* [5] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+},
+{
+	.descr = "dedup: btf_type_tag #2",
+	.input = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag2 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 1),		/* [5] */
+			BTF_PTR_ENC(5),					/* [6] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+	.expect = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag2 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 1),		/* [5] */
+			BTF_PTR_ENC(5),					/* [6] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+},
+{
+	.descr = "dedup: btf_type_tag #3",
+	.input = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag1 -> tag2 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 1),		/* [5] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 5),		/* [6] */
+			BTF_PTR_ENC(6),					/* [7] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+	.expect = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag1 -> tag2 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 1),		/* [5] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 5),		/* [6] */
+			BTF_PTR_ENC(6),					/* [7] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+},
+{
+	.descr = "dedup: btf_type_tag #4",
+	.input = {
+		.raw_types = {
+			/* ptr -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_PTR_ENC(2),					/* [3] */
+			/* ptr -> tag1 -> long */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 64, 8),	/* [4] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 4),		/* [5] */
+			BTF_PTR_ENC(5),					/* [6] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1"),
+	},
+	.expect = {
+		.raw_types = {
+			/* ptr -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_PTR_ENC(2),					/* [3] */
+			/* ptr -> tag1 -> long */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 64, 8),	/* [4] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 4),		/* [5] */
+			BTF_PTR_ENC(5),					/* [6] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1"),
 	},
 },
 
