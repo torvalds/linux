@@ -1691,20 +1691,26 @@ get_prefetchable_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 
 	xa_lock(&dev->odp_mkeys);
 	mmkey = xa_load(&dev->odp_mkeys, mlx5_base_mkey(lkey));
-	if (!mmkey || mmkey->key != lkey || mmkey->type != MLX5_MKEY_MR)
+	if (!mmkey || mmkey->key != lkey) {
+		mr = ERR_PTR(-ENOENT);
 		goto end;
+	}
+	if (mmkey->type != MLX5_MKEY_MR) {
+		mr = ERR_PTR(-EINVAL);
+		goto end;
+	}
 
 	mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 
 	if (mr->ibmr.pd != pd) {
-		mr = NULL;
+		mr = ERR_PTR(-EPERM);
 		goto end;
 	}
 
 	/* prefetch with write-access must be supported by the MR */
 	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE &&
 	    !mr->umem->writable) {
-		mr = NULL;
+		mr = ERR_PTR(-EPERM);
 		goto end;
 	}
 
@@ -1736,7 +1742,7 @@ static void mlx5_ib_prefetch_mr_work(struct work_struct *w)
 	destroy_prefetch_work(work);
 }
 
-static bool init_prefetch_work(struct ib_pd *pd,
+static int init_prefetch_work(struct ib_pd *pd,
 			       enum ib_uverbs_advise_mr_advice advice,
 			       u32 pf_flags, struct prefetch_mr_work *work,
 			       struct ib_sge *sg_list, u32 num_sge)
@@ -1747,17 +1753,19 @@ static bool init_prefetch_work(struct ib_pd *pd,
 	work->pf_flags = pf_flags;
 
 	for (i = 0; i < num_sge; ++i) {
+		struct mlx5_ib_mr *mr;
+
+		mr = get_prefetchable_mr(pd, advice, sg_list[i].lkey);
+		if (IS_ERR(mr)) {
+			work->num_sge = i;
+			return PTR_ERR(mr);
+		}
 		work->frags[i].io_virt = sg_list[i].addr;
 		work->frags[i].length = sg_list[i].length;
-		work->frags[i].mr =
-			get_prefetchable_mr(pd, advice, sg_list[i].lkey);
-		if (!work->frags[i].mr) {
-			work->num_sge = i;
-			return false;
-		}
+		work->frags[i].mr = mr;
 	}
 	work->num_sge = num_sge;
-	return true;
+	return 0;
 }
 
 static int mlx5_ib_prefetch_sg_list(struct ib_pd *pd,
@@ -1773,8 +1781,8 @@ static int mlx5_ib_prefetch_sg_list(struct ib_pd *pd,
 		struct mlx5_ib_mr *mr;
 
 		mr = get_prefetchable_mr(pd, advice, sg_list[i].lkey);
-		if (!mr)
-			return -ENOENT;
+		if (IS_ERR(mr))
+			return PTR_ERR(mr);
 		ret = pagefault_mr(mr, sg_list[i].addr, sg_list[i].length,
 				   &bytes_mapped, pf_flags);
 		if (ret < 0) {
@@ -1794,6 +1802,7 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 {
 	u32 pf_flags = 0;
 	struct prefetch_mr_work *work;
+	int rc;
 
 	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH)
 		pf_flags |= MLX5_PF_FLAGS_DOWNGRADE;
@@ -1809,9 +1818,10 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 	if (!work)
 		return -ENOMEM;
 
-	if (!init_prefetch_work(pd, advice, pf_flags, work, sg_list, num_sge)) {
+	rc = init_prefetch_work(pd, advice, pf_flags, work, sg_list, num_sge);
+	if (rc) {
 		destroy_prefetch_work(work);
-		return -EINVAL;
+		return rc;
 	}
 	queue_work(system_unbound_wq, &work->work);
 	return 0;

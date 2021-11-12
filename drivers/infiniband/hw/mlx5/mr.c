@@ -605,29 +605,21 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 /* Return a MR already available in the cache */
 static struct mlx5_ib_mr *get_cache_mr(struct mlx5_cache_ent *req_ent)
 {
-	struct mlx5_ib_dev *dev = req_ent->dev;
 	struct mlx5_ib_mr *mr = NULL;
 	struct mlx5_cache_ent *ent = req_ent;
 
-	/* Try larger MR pools from the cache to satisfy the allocation */
-	for (; ent != &dev->cache.ent[MR_CACHE_LAST_STD_ENTRY + 1]; ent++) {
-		mlx5_ib_dbg(dev, "order %u, cache index %zu\n", ent->order,
-			    ent - dev->cache.ent);
-
-		spin_lock_irq(&ent->lock);
-		if (!list_empty(&ent->head)) {
-			mr = list_first_entry(&ent->head, struct mlx5_ib_mr,
-					      list);
-			list_del(&mr->list);
-			ent->available_mrs--;
-			queue_adjust_cache_locked(ent);
-			spin_unlock_irq(&ent->lock);
-			mlx5_clear_mr(mr);
-			return mr;
-		}
+	spin_lock_irq(&ent->lock);
+	if (!list_empty(&ent->head)) {
+		mr = list_first_entry(&ent->head, struct mlx5_ib_mr, list);
+		list_del(&mr->list);
+		ent->available_mrs--;
 		queue_adjust_cache_locked(ent);
 		spin_unlock_irq(&ent->lock);
+		mlx5_clear_mr(mr);
+		return mr;
 	}
+	queue_adjust_cache_locked(ent);
+	spin_unlock_irq(&ent->lock);
 	req_ent->miss++;
 	return NULL;
 }

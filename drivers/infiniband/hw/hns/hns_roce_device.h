@@ -225,11 +225,24 @@ struct hns_roce_uar {
 	unsigned long	logic_idx;
 };
 
+enum hns_roce_mmap_type {
+	HNS_ROCE_MMAP_TYPE_DB = 1,
+	HNS_ROCE_MMAP_TYPE_TPTR,
+};
+
+struct hns_user_mmap_entry {
+	struct rdma_user_mmap_entry rdma_entry;
+	enum hns_roce_mmap_type mmap_type;
+	u64 address;
+};
+
 struct hns_roce_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct hns_roce_uar	uar;
 	struct list_head	page_list;
 	struct mutex		page_mutex;
+	struct hns_user_mmap_entry *db_mmap_entry;
+	struct hns_user_mmap_entry *tptr_mmap_entry;
 };
 
 struct hns_roce_pd {
@@ -898,7 +911,8 @@ struct hns_roce_hw {
 	bool (*chk_mbox_avail)(struct hns_roce_dev *hr_dev, bool *is_busy);
 	int (*set_gid)(struct hns_roce_dev *hr_dev, u32 port, int gid_index,
 		       const union ib_gid *gid, const struct ib_gid_attr *attr);
-	int (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
+	int (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port,
+		       const u8 *addr);
 	void (*set_mtu)(struct hns_roce_dev *hr_dev, u8 phy_port,
 			enum ib_mtu mtu);
 	int (*write_mtpt)(struct hns_roce_dev *hr_dev, void *mb_buf,
@@ -1047,6 +1061,12 @@ static inline struct hns_roce_cq *to_hr_cq(struct ib_cq *ib_cq)
 static inline struct hns_roce_srq *to_hr_srq(struct ib_srq *ibsrq)
 {
 	return container_of(ibsrq, struct hns_roce_srq, ibsrq);
+}
+
+static inline struct hns_user_mmap_entry *
+to_hns_mmap(struct rdma_user_mmap_entry *rdma_entry)
+{
+	return container_of(rdma_entry, struct hns_user_mmap_entry, rdma_entry);
 }
 
 static inline void hns_roce_write64_k(__le32 val[2], void __iomem *dest)
@@ -1259,4 +1279,8 @@ int hns_roce_init(struct hns_roce_dev *hr_dev);
 void hns_roce_exit(struct hns_roce_dev *hr_dev);
 int hns_roce_fill_res_cq_entry(struct sk_buff *msg,
 			       struct ib_cq *ib_cq);
+struct hns_user_mmap_entry *
+hns_roce_user_mmap_entry_insert(struct ib_ucontext *ucontext, u64 address,
+				size_t length,
+				enum hns_roce_mmap_type mmap_type);
 #endif /* _HNS_ROCE_DEVICE_H */
