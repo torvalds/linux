@@ -19,13 +19,23 @@
 #include <linux/reset.h>
 #include <dt-bindings/phy/phy.h>
 
+/* Register for RK3568 */
 #define GRF_PCIE30PHY_CON1 0x4
 #define GRF_PCIE30PHY_CON6 0x18
 #define GRF_PCIE30PHY_CON9 0x24
 #define GRF_PCIE30PHY_STATUS0 0x80
 #define SRAM_INIT_DONE(reg) (reg & BIT(14))
 
+/* Register for RK3588 */
+#define RK3588_PCIE3PHY_GRF_CMN_CON0 0x0
+#define RK3588_PCIE3PHY_GRF_PHY0_STATUS1 0x904
+#define RK3588_PCIE3PHY_GRF_PHY1_STATUS1 0xa04
+#define RK3588_SRAM_INIT_DONE(reg) (reg & BIT(0))
+
+struct rockchip_p3phy_ops;
+
 struct rockchip_p3phy_priv {
+	const struct rockchip_p3phy_ops *ops;
 	void __iomem *mmio;
 	int mode;
 	struct regmap *phy_grf;
@@ -34,6 +44,10 @@ struct rockchip_p3phy_priv {
 	struct clk_bulk_data *clks;
 	int num_clks;
 	bool is_bifurcation;
+};
+
+struct rockchip_p3phy_ops {
+	int (*phy_init)(struct rockchip_p3phy_priv *priv);
 };
 
 static int rockchip_p3phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
@@ -59,20 +73,10 @@ static int rockchip_p3phy_set_mode(struct phy *phy, enum phy_mode mode, int subm
 	return 0;
 }
 
-static int rochchip_p3phy_init(struct phy *phy)
+static int rockchip_p3phy_rk3568_init(struct rockchip_p3phy_priv *priv)
 {
-	struct rockchip_p3phy_priv *priv = phy_get_drvdata(phy);
-	int ret;
+	int ret = 0;
 	u32 reg;
-
-	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
-	if (ret) {
-		pr_err("failed to enable PCIe bulk clks %d\n", ret);
-		return ret;
-	}
-
-	reset_control_assert(priv->p30phy);
-	udelay(1);
 
 	/* Deassert PCIe PMA output clamp mode */
 	regmap_write(priv->phy_grf, GRF_PCIE30PHY_CON9,
@@ -91,15 +95,65 @@ static int rochchip_p3phy_init(struct phy *phy)
 				       GRF_PCIE30PHY_STATUS0,
 				       reg, SRAM_INIT_DONE(reg),
 				       0, 500);
-	if (ret) {
+	if (ret)
 		pr_err("%s: lock failed 0x%x, check input refclk and power supply\n",
 		       __func__, reg);
-		goto err_disable_clks;
+	return ret;
+}
+
+static const struct rockchip_p3phy_ops rk3568_ops = {
+	.phy_init = rockchip_p3phy_rk3568_init,
+};
+
+static int rockchip_p3phy_rk3588_init(struct rockchip_p3phy_priv *priv)
+{
+	int ret = 0;
+	u32 reg;
+
+	/* Deassert PCIe PMA output clamp mode */
+	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
+		     (0x1 << 8) | (0x1 << 24));
+
+	reset_control_deassert(priv->p30phy);
+
+	ret = regmap_read_poll_timeout(priv->phy_grf,
+				       RK3588_PCIE3PHY_GRF_PHY0_STATUS1,
+				       reg, RK3588_SRAM_INIT_DONE(reg),
+				       0, 500);
+	ret |= regmap_read_poll_timeout(priv->phy_grf,
+					RK3588_PCIE3PHY_GRF_PHY1_STATUS1,
+					reg, RK3588_SRAM_INIT_DONE(reg),
+					0, 500);
+	if (ret)
+		pr_err("%s: lock failed 0x%x, check input refclk and power supply\n",
+		       __func__, reg);
+	return ret;
+}
+
+static const struct rockchip_p3phy_ops rk3588_ops = {
+	.phy_init = rockchip_p3phy_rk3588_init,
+};
+
+static int rochchip_p3phy_init(struct phy *phy)
+{
+	struct rockchip_p3phy_priv *priv = phy_get_drvdata(phy);
+	int ret;
+
+	ret = clk_bulk_prepare_enable(priv->num_clks, priv->clks);
+	if (ret) {
+		pr_err("failed to enable PCIe bulk clks %d\n", ret);
+		return ret;
 	}
 
-	return 0;
-err_disable_clks:
-	clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
+	reset_control_assert(priv->p30phy);
+	udelay(1);
+
+	if (priv->ops->phy_init) {
+		ret = priv->ops->phy_init(priv);
+		if (ret)
+			clk_bulk_disable_unprepare(priv->num_clks, priv->clks);
+	};
+
 	return ret;
 }
 
@@ -138,6 +192,12 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	priv->ops = of_device_get_match_data(&pdev->dev);
+	if (!priv->ops) {
+		dev_err(&pdev->dev, "no of match data provided\n");
+		return -EINVAL;
+	}
+
 	priv->phy_grf = syscon_regmap_lookup_by_phandle(np, "rockchip,phy-grf");
 	if (IS_ERR(priv->phy_grf)) {
 		dev_err(dev, "failed to find rockchip,phy_grf regmap\n");
@@ -167,8 +227,8 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_p3phy_of_match[] = {
-	{ .compatible = "rockchip,rk3568-pcie3-phy" },
-	{ .compatible = "rockchip,rk3588-pcie3-phy" },
+	{ .compatible = "rockchip,rk3568-pcie3-phy", .data = &rk3568_ops },
+	{ .compatible = "rockchip,rk3588-pcie3-phy", .data = &rk3588_ops },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, rockchip_p3phy_of_match);
