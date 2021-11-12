@@ -1614,12 +1614,6 @@ static void sev_migrate_from(struct kvm_sev_info *dst,
 	src->handle = 0;
 	src->pages_locked = 0;
 
-	if (dst->misc_cg != src->misc_cg)
-		sev_misc_cg_uncharge(src);
-
-	put_misc_cg(src->misc_cg);
-	src->misc_cg = NULL;
-
 	INIT_LIST_HEAD(&dst->regions_list);
 	list_replace_init(&src->regions_list, &dst->regions_list);
 }
@@ -1667,9 +1661,10 @@ static int sev_es_migrate_from(struct kvm *dst, struct kvm *src)
 int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd)
 {
 	struct kvm_sev_info *dst_sev = &to_kvm_svm(kvm)->sev_info;
-	struct kvm_sev_info *src_sev;
+	struct kvm_sev_info *src_sev, *cg_cleanup_sev;
 	struct file *source_kvm_file;
 	struct kvm *source_kvm;
+	bool charged = false;
 	int ret;
 
 	ret = sev_lock_for_migration(kvm);
@@ -1699,10 +1694,12 @@ int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd)
 
 	src_sev = &to_kvm_svm(source_kvm)->sev_info;
 	dst_sev->misc_cg = get_current_misc_cg();
+	cg_cleanup_sev = dst_sev;
 	if (dst_sev->misc_cg != src_sev->misc_cg) {
 		ret = sev_misc_cg_try_charge(dst_sev);
 		if (ret)
-			goto out_dst_put_cgroup;
+			goto out_dst_cgroup;
+		charged = true;
 	}
 
 	ret = sev_lock_vcpus_for_migration(kvm);
@@ -1719,6 +1716,7 @@ int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd)
 	}
 	sev_migrate_from(dst_sev, src_sev);
 	kvm_vm_dead(source_kvm);
+	cg_cleanup_sev = src_sev;
 	ret = 0;
 
 out_source_vcpu:
@@ -1726,12 +1724,11 @@ out_source_vcpu:
 out_dst_vcpu:
 	sev_unlock_vcpus_for_migration(kvm);
 out_dst_cgroup:
-	if (ret < 0) {
-		sev_misc_cg_uncharge(dst_sev);
-out_dst_put_cgroup:
-		put_misc_cg(dst_sev->misc_cg);
-		dst_sev->misc_cg = NULL;
-	}
+	/* Operates on the source on success, on the destination on failure.  */
+	if (charged)
+		sev_misc_cg_uncharge(cg_cleanup_sev);
+	put_misc_cg(cg_cleanup_sev->misc_cg);
+	cg_cleanup_sev->misc_cg = NULL;
 out_source:
 	sev_unlock_after_migration(source_kvm);
 out_fput:
