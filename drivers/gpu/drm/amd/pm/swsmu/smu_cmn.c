@@ -568,6 +568,7 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 	case IP_VERSION(11, 5, 0):
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 3):
+	case IP_VERSION(13, 0, 8):
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						      SMU_MSG_GetEnabledSmuFeatures,
 						      0,
