@@ -471,7 +471,7 @@
 				hactive = <1080>;
 				vactive = <1920>;
 				hfront-porch = <15>;
-				hsync-len = <2>;
+				hsync-len = <4>;
 				hback-porch = <30>;
 				vfront-porch = <15>;
 				vsync-len = <2>;
@@ -803,7 +803,7 @@
 				hactive = <1080>;
 				vactive = <1920>;
 				hfront-porch = <15>;
-				hsync-len = <2>;
+				hsync-len = <4>;
 				hback-porch = <30>;
 				vfront-porch = <15>;
 				vsync-len = <2>;
