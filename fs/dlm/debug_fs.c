@@ -640,7 +640,7 @@ static ssize_t table_write2(struct file *file, const char __user *user_buf,
 {
 	struct seq_file *seq = file->private_data;
 	int n, len, lkb_nodeid, lkb_status, error;
-	char name[DLM_RESNAME_MAXLEN] = {};
+	char name[DLM_RESNAME_MAXLEN + 1] = {};
 	struct dlm_ls *ls = seq->private;
 	unsigned int lkb_flags;
 	char buf[256] = {};
