@@ -44,6 +44,10 @@ properties:
               - fsl,imx8qm-usdhc
               - fsl,imx8qxp-usdhc
           - const: fsl,imx7d-usdhc
+      - items:
+          - enum:
+              - fsl,imx8ulp-usdhc
+          - const: fsl,imx8mm-usdhc
 
   reg:
     maxItems: 1
