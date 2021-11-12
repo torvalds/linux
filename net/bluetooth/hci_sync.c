@@ -1699,7 +1699,6 @@ static int hci_resume_advertising_sync(struct hci_dev *hdev)
 	hdev->advertising_paused = false;
 	if (hdev->advertising_old_state) {
 		hci_dev_set_flag(hdev, HCI_ADVERTISING);
-		queue_work(hdev->req_workqueue, &hdev->discoverable_update);
 		hdev->advertising_old_state = 0;
 	}
 
@@ -4390,6 +4389,95 @@ int hci_set_powered_sync(struct hci_dev *hdev, u8 val)
 		return hci_power_on_sync(hdev);
 
 	return hci_power_off_sync(hdev);
+}
+
+static int hci_write_iac_sync(struct hci_dev *hdev)
+{
+	struct hci_cp_write_current_iac_lap cp;
+
+	if (!hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
+		return 0;
+
+	memset(&cp, 0, sizeof(cp));
+
+	if (hci_dev_test_flag(hdev, HCI_LIMITED_DISCOVERABLE)) {
+		/* Limited discoverable mode */
+		cp.num_iac = min_t(u8, hdev->num_iac, 2);
+		cp.iac_lap[0] = 0x00;	/* LIAC */
+		cp.iac_lap[1] = 0x8b;
+		cp.iac_lap[2] = 0x9e;
+		cp.iac_lap[3] = 0x33;	/* GIAC */
+		cp.iac_lap[4] = 0x8b;
+		cp.iac_lap[5] = 0x9e;
+	} else {
+		/* General discoverable mode */
+		cp.num_iac = 1;
+		cp.iac_lap[0] = 0x33;	/* GIAC */
+		cp.iac_lap[1] = 0x8b;
+		cp.iac_lap[2] = 0x9e;
+	}
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_WRITE_CURRENT_IAC_LAP,
+				     (cp.num_iac * 3) + 1, &cp,
+				     HCI_CMD_TIMEOUT);
+}
+
+int hci_update_discoverable_sync(struct hci_dev *hdev)
+{
+	int err = 0;
+
+	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
+		err = hci_write_iac_sync(hdev);
+		if (err)
+			return err;
+
+		err = hci_update_scan_sync(hdev);
+		if (err)
+			return err;
+
+		err = hci_update_class_sync(hdev);
+		if (err)
+			return err;
+	}
+
+	/* Advertising instances don't use the global discoverable setting, so
+	 * only update AD if advertising was enabled using Set Advertising.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
+		err = hci_update_adv_data_sync(hdev, 0x00);
+		if (err)
+			return err;
+
+		/* Discoverable mode affects the local advertising
+		 * address in limited privacy mode.
+		 */
+		if (hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY)) {
+			if (ext_adv_capable(hdev))
+				err = hci_start_ext_adv_sync(hdev, 0x00);
+			else
+				err = hci_enable_advertising_sync(hdev);
+		}
+	}
+
+	return err;
+}
+
+static int update_discoverable_sync(struct hci_dev *hdev, void *data)
+{
+	return hci_update_discoverable_sync(hdev);
+}
+
+int hci_update_discoverable(struct hci_dev *hdev)
+{
+	/* Only queue if it would have any effect */
+	if (hdev_is_powered(hdev) &&
+	    hci_dev_test_flag(hdev, HCI_ADVERTISING) &&
+	    hci_dev_test_flag(hdev, HCI_DISCOVERABLE) &&
+	    hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY))
+		return hci_cmd_sync_queue(hdev, update_discoverable_sync, NULL,
+					  NULL);
+
+	return 0;
 }
 
 static int hci_inquiry_sync(struct hci_dev *hdev, u8 length)

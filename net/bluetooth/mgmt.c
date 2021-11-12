@@ -1370,23 +1370,20 @@ static u8 mgmt_le_support(struct hci_dev *hdev)
 		return MGMT_STATUS_SUCCESS;
 }
 
-void mgmt_set_discoverable_complete(struct hci_dev *hdev, u8 status)
+static void mgmt_set_discoverable_complete(struct hci_dev *hdev, void *data,
+					   int err)
 {
-	struct mgmt_pending_cmd *cmd;
+	struct mgmt_pending_cmd *cmd = data;
 
-	bt_dev_dbg(hdev, "status 0x%02x", status);
+	bt_dev_dbg(hdev, "err %d", err);
 
 	hci_dev_lock(hdev);
 
-	cmd = pending_find(MGMT_OP_SET_DISCOVERABLE, hdev);
-	if (!cmd)
-		goto unlock;
-
-	if (status) {
-		u8 mgmt_err = mgmt_status(status);
+	if (err) {
+		u8 mgmt_err = mgmt_status(err);
 		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
 		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
-		goto remove_cmd;
+		goto done;
 	}
 
 	if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE) &&
@@ -1398,11 +1395,16 @@ void mgmt_set_discoverable_complete(struct hci_dev *hdev, u8 status)
 	send_settings_rsp(cmd->sk, MGMT_OP_SET_DISCOVERABLE, hdev);
 	new_settings(hdev, cmd->sk);
 
-remove_cmd:
-	mgmt_pending_remove(cmd);
-
-unlock:
+done:
+	mgmt_pending_free(cmd);
 	hci_dev_unlock(hdev);
+}
+
+static int set_discoverable_sync(struct hci_dev *hdev, void *data)
+{
+	BT_DBG("%s", hdev->name);
+
+	return hci_update_discoverable_sync(hdev);
 }
 
 static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -1503,7 +1505,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_SET_DISCOVERABLE, hdev, data, len);
+	cmd = mgmt_pending_new(sk, MGMT_OP_SET_DISCOVERABLE, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
@@ -1527,8 +1529,8 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	else
 		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 
-	queue_work(hdev->req_workqueue, &hdev->discoverable_update);
-	err = 0;
+	err = hci_cmd_sync_queue(hdev, set_discoverable_sync, cmd,
+				 mgmt_set_discoverable_complete);
 
 failed:
 	hci_dev_unlock(hdev);
@@ -1677,12 +1679,7 @@ static int set_bondable(struct sock *sk, struct hci_dev *hdev, void *data,
 		/* In limited privacy mode the change of bondable mode
 		 * may affect the local advertising address.
 		 */
-		if (hdev_is_powered(hdev) &&
-		    hci_dev_test_flag(hdev, HCI_ADVERTISING) &&
-		    hci_dev_test_flag(hdev, HCI_DISCOVERABLE) &&
-		    hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY))
-			queue_work(hdev->req_workqueue,
-				   &hdev->discoverable_update);
+		hci_update_discoverable(hdev);
 
 		err = new_settings(hdev, sk);
 	}
