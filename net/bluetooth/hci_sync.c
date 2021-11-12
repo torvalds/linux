@@ -4480,6 +4480,37 @@ int hci_update_discoverable(struct hci_dev *hdev)
 	return 0;
 }
 
+int hci_update_connectable_sync(struct hci_dev *hdev)
+{
+	int err;
+
+	err = hci_update_scan_sync(hdev);
+	if (err)
+		return err;
+
+	/* If BR/EDR is not enabled and we disable advertising as a
+	 * by-product of disabling connectable, we need to update the
+	 * advertising flags.
+	 */
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		err = hci_update_adv_data_sync(hdev, hdev->cur_adv_instance);
+
+	/* Update the advertising parameters if necessary */
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
+	    !list_empty(&hdev->adv_instances)) {
+		if (ext_adv_capable(hdev))
+			err = hci_start_ext_adv_sync(hdev,
+						     hdev->cur_adv_instance);
+		else
+			err = hci_enable_advertising_sync(hdev);
+
+		if (err)
+			return err;
+	}
+
+	return hci_update_passive_scan_sync(hdev);
+}
+
 static int hci_inquiry_sync(struct hci_dev *hdev, u8 length)
 {
 	const u8 giac[3] = { 0x33, 0x8b, 0x9e };

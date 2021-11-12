@@ -1537,31 +1537,26 @@ failed:
 	return err;
 }
 
-void mgmt_set_connectable_complete(struct hci_dev *hdev, u8 status)
+static void mgmt_set_connectable_complete(struct hci_dev *hdev, void *data,
+					  int err)
 {
-	struct mgmt_pending_cmd *cmd;
+	struct mgmt_pending_cmd *cmd = data;
 
-	bt_dev_dbg(hdev, "status 0x%02x", status);
+	bt_dev_dbg(hdev, "err %d", err);
 
 	hci_dev_lock(hdev);
 
-	cmd = pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
-	if (!cmd)
-		goto unlock;
-
-	if (status) {
-		u8 mgmt_err = mgmt_status(status);
+	if (err) {
+		u8 mgmt_err = mgmt_status(err);
 		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
-		goto remove_cmd;
+		goto done;
 	}
 
 	send_settings_rsp(cmd->sk, MGMT_OP_SET_CONNECTABLE, hdev);
 	new_settings(hdev, cmd->sk);
 
-remove_cmd:
-	mgmt_pending_remove(cmd);
-
-unlock:
+done:
+	mgmt_pending_free(cmd);
 	hci_dev_unlock(hdev);
 }
 
@@ -1592,6 +1587,13 @@ static int set_connectable_update_settings(struct hci_dev *hdev,
 	}
 
 	return 0;
+}
+
+static int set_connectable_sync(struct hci_dev *hdev, void *data)
+{
+	BT_DBG("%s", hdev->name);
+
+	return hci_update_connectable_sync(hdev);
 }
 
 static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -1626,7 +1628,7 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_SET_CONNECTABLE, hdev, data, len);
+	cmd = mgmt_pending_new(sk, MGMT_OP_SET_CONNECTABLE, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
@@ -1643,8 +1645,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		hci_dev_clear_flag(hdev, HCI_CONNECTABLE);
 	}
 
-	queue_work(hdev->req_workqueue, &hdev->connectable_update);
-	err = 0;
+	err = hci_cmd_sync_queue(hdev, set_connectable_sync, cmd,
+				 mgmt_set_connectable_complete);
 
 failed:
 	hci_dev_unlock(hdev);
