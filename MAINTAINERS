@@ -4468,6 +4468,17 @@ L:	patches@opensource.cirrus.com
 S:	Maintained
 F:	sound/soc/codecs/cs*
 
+CIRRUS LOGIC DSP FIRMWARE DRIVER
+M:	Simon Trimmer <simont@opensource.cirrus.com>
+M:	Charles Keepax <ckeepax@opensource.cirrus.com>
+M:	Richard Fitzgerald <rf@opensource.cirrus.com>
+L:	patches@opensource.cirrus.com
+S:	Supported
+W:	https://github.com/CirrusLogic/linux-drivers/wiki
+T:	git https://github.com/CirrusLogic/linux-drivers.git
+F:	drivers/firmware/cirrus/*
+F:	include/linux/firmware/cirrus/*
+
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
 L:	netdev@vger.kernel.org
@@ -16239,6 +16250,13 @@ W:	http://sourceforge.net/projects/roccat/
 F:	Documentation/ABI/*/sysfs-driver-hid-roccat*
 F:	drivers/hid/hid-roccat*
 F:	include/linux/hid-roccat*
+
+ROCKCHIP I2S TDM DRIVER
+M:	Nicolas Frattaroli <frattaroli.nicolas@gmail.com>
+L:	linux-rockchip@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/rockchip,i2s-tdm.yaml
+F:	sound/soc/rockchip/rockchip_i2s_tdm.*
 
 ROCKCHIP ISP V1 DRIVER
 M:	Helen Koike <helen.koike@collabora.com>

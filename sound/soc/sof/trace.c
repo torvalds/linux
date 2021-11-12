@@ -417,7 +417,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 			"error: fail in snd_sof_dma_trace_init %d\n", ret);
 		return ret;
 	}
-	dev_dbg(sdev->dev, "stream_tag: %d\n", params.stream_tag);
+	dev_dbg(sdev->dev, "%s: stream_tag: %d\n", __func__, params.stream_tag);
 
 	/* send IPC to the DSP */
 	ret = sof_ipc_tx_message(sdev->ipc,
@@ -480,7 +480,8 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 		goto table_err;
 
 	sdev->dma_trace_pages = ret;
-	dev_dbg(sdev->dev, "dma_trace_pages: %d\n", sdev->dma_trace_pages);
+	dev_dbg(sdev->dev, "%s: dma_trace_pages: %d\n",
+		__func__, sdev->dma_trace_pages);
 
 	if (sdev->first_boot) {
 		ret = trace_debugfs_create(sdev);

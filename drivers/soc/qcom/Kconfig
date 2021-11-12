@@ -199,7 +199,7 @@ config QCOM_WCNSS_CTRL
 	  firmware to a newly booted WCNSS chip.
 
 config QCOM_APR
-	tristate "Qualcomm APR Bus (Asynchronous Packet Router)"
+	tristate "Qualcomm APR/GPR Bus (Asynchronous/Generic Packet Router)"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on RPMSG
 	depends on NET

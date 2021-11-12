@@ -108,6 +108,54 @@ config SND_SOC_TEGRA210_ADMAIF
 	  channel. Buffer size is configurable for each ADMAIIF channel.
 	  Say Y or M if you want to add support for Tegra210 ADMAIF module.
 
+config SND_SOC_TEGRA210_MVC
+	tristate "Tegra210 MVC module"
+	help
+	  Config to enable the digital Master Volume Controller (MVC) which
+	  provides gain or attenuation to a digital signal path. It can be
+	  used in input or output signal path. It can be used either for
+	  per-stream volume control or for master volume control.
+	  Say Y or M if you want to add support for Tegra210 MVC module.
+
+config SND_SOC_TEGRA210_SFC
+	tristate "Tegra210 SFC module"
+	help
+	  Config to enable the Sampling Frequency Converter (SFC) which
+	  converts the sampling frequency of input signal to another
+	  frequency. It supports sampling frequency conversion of streams
+	  upto 2 channels (stereo).
+	  Say Y or M if you want to add support for Tegra210 SFC module.
+
+config SND_SOC_TEGRA210_AMX
+	tristate "Tegra210 AMX module"
+	help
+	  Config to enable the Audio Multiplexer (AMX) which can multiplex
+	  four input streams (each of up to 16 channels) and generate
+	  output stream (of up to 16 channels). A byte RAM helps to form an
+	  output frame by any combination of bytes from the input frames.
+	  Say Y or M if you want to add support for Tegra210 AMX module.
+
+config SND_SOC_TEGRA210_ADX
+	tristate "Tegra210 ADX module"
+	help
+	  Config to enable the Audio Demultiplexer (ADX) which takes an
+	  input stream (up to 16 channels) and demultiplexes it into four
+	  output streams (each of up to 16 channels). A byte RAM helps to
+	  form output frames by any combination of bytes from the input
+	  frame. Its design is identical to that of byte RAM in the AMX
+	  except that the data flow direction is reversed.
+	  Say Y or M if you want to add support for Tegra210 ADX module.
+
+config SND_SOC_TEGRA210_MIXER
+	tristate "Tegra210 Mixer module"
+	help
+	  Config to enable the Mixer module which can help to mix multiple
+	  audio streams. It supports mixing of upto 10 input streams,
+	  where each stream can contain maximum of 8 channels. It supports
+	  5 output each of which can be a mix of any combination of 10
+	  input streams.
+	  Say Y or M if you want to add support for Tegra210 Mixer module.
+
 config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
 	tristate "Audio Graph Card based Tegra driver"
 	depends on SND_AUDIO_GRAPH_CARD

@@ -70,7 +70,7 @@ static struct snd_soc_dai_link snappercl15_dai = {
 	.name		= "tlv320aic23",
 	.stream_name	= "AIC23",
 	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			  SND_SOC_DAIFMT_CBS_CFS,
+			  SND_SOC_DAIFMT_CBC_CFC,
 	.ops		= &snappercl15_ops,
 	SND_SOC_DAILINK_REG(aic23),
 };

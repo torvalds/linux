@@ -100,6 +100,15 @@ amidi_map
     MIDI device number maps assigned to the 2st OSS device;
     Default: 1
 
+Module snd-soc-core
+-------------------
+
+The soc core module. It is used by all ALSA card drivers.
+It takes the following options which have global effects.
+
+prealloc_buffer_size_kbytes
+    Specify prealloc buffer size in kbytes (default: 512).
+
 Common parameters for top sound card modules
 --------------------------------------------
 
