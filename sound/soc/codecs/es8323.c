@@ -1016,21 +1016,20 @@ MODULE_DEVICE_TABLE(i2c, es8323_i2c_id);
 static void es8323_i2c_shutdown(struct i2c_client *client)
 {
 	struct es8323_priv *es8323 = i2c_get_clientdata(client);
-	struct snd_soc_component *component = es8323->component;
 
 	es8323_set_gpio(es8323, ES8323_CODEC_SET_SPK, 0);
 	es8323_set_gpio(es8323, ES8323_CODEC_SET_HP, 0);
 	mdelay(20);
-	snd_soc_component_write(component, ES8323_CONTROL2, 0x58);
-	snd_soc_component_write(component, ES8323_CONTROL1, 0x32);
-	snd_soc_component_write(component, ES8323_CHIPPOWER, 0xf3);
-	snd_soc_component_write(component, ES8323_DACPOWER, 0xc0);
+	regmap_write(es8323->regmap, ES8323_CONTROL2, 0x58);
+	regmap_write(es8323->regmap, ES8323_CONTROL1, 0x32);
+	regmap_write(es8323->regmap, ES8323_CHIPPOWER, 0xf3);
+	regmap_write(es8323->regmap, ES8323_DACPOWER, 0xc0);
 	mdelay(50);
-	snd_soc_component_write(component, ES8323_DACCONTROL26, 0x00);
-	snd_soc_component_write(component, ES8323_DACCONTROL27, 0x00);
+	regmap_write(es8323->regmap, ES8323_DACCONTROL26, 0x00);
+	regmap_write(es8323->regmap, ES8323_DACCONTROL27, 0x00);
 	mdelay(50);
-	snd_soc_component_write(component, ES8323_CONTROL1, 0x30);
-	snd_soc_component_write(component, ES8323_CONTROL1, 0x34);
+	regmap_write(es8323->regmap, ES8323_CONTROL1, 0x30);
+	regmap_write(es8323->regmap, ES8323_CONTROL1, 0x34);
 }
 
 static const struct of_device_id es8323_of_match[] = {
