@@ -108,14 +108,17 @@ properties:
               - nvidia,p2571
               - nvidia,p2894-0050-a08
           - const: nvidia,tegra210
-      - items:
-          - enum:
-              - nvidia,p2771-0000
-              - nvidia,p3509-0000+p3636-0001
+      - description: Jetson TX2 Developer Kit
+        items:
+          - const: nvidia,p2771-0000
           - const: nvidia,tegra186
-      - items:
-          - enum:
-              - nvidia,p2972-0000
+      - description: Jetson TX2 NX Developer Kit
+        items:
+          - const: nvidia,p3509-0000+p3636-0001
+          - const: nvidia,tegra186
+      - description: Jetson AGX Xavier Developer Kit
+        items:
+          - const: nvidia,p2972-0000
           - const: nvidia,tegra194
       - description: Jetson Xavier NX
         items:
@@ -134,8 +137,7 @@ properties:
           - const: nvidia,p3509-0000+p3668-0001
           - const: nvidia,tegra194
       - items:
-          - enum:
-              - nvidia,tegra234-vdk
+          - const: nvidia,tegra234-vdk
           - const: nvidia,tegra234
 
 additionalProperties: true
