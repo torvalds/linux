@@ -234,7 +234,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->set_outbox0_rptr = dmub_dcn31_set_outbox0_rptr;
 
 		funcs->get_diagnostic_data = dmub_dcn31_get_diagnostic_data;
-
+		funcs->should_detect = dmub_dcn31_should_detect;
 		funcs->get_current_time = dmub_dcn31_get_current_time;
 
 		break;
@@ -815,4 +815,12 @@ bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_
 		return false;
 	dmub->hw_funcs.get_diagnostic_data(dmub, diag_data);
 	return true;
+}
+
+bool dmub_srv_should_detect(struct dmub_srv *dmub)
+{
+	if (!dmub->hw_init || !dmub->hw_funcs.should_detect)
+		return false;
+
+	return dmub->hw_funcs.should_detect(dmub);
 }

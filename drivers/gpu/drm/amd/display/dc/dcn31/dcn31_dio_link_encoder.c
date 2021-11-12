@@ -325,6 +325,10 @@ void dcn31_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
 		enc10->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
+		enc10->base.features.flags.bits.IS_DP2_CAPABLE = bp_cap_info.IS_DP2_CAPABLE;
+		enc10->base.features.flags.bits.IS_UHBR10_CAPABLE = bp_cap_info.DP_UHBR10_EN;
+		enc10->base.features.flags.bits.IS_UHBR13_5_CAPABLE = bp_cap_info.DP_UHBR13_5_EN;
+		enc10->base.features.flags.bits.IS_UHBR20_CAPABLE = bp_cap_info.DP_UHBR20_EN;
 		enc10->base.features.flags.bits.DP_IS_USB_C =
 				bp_cap_info.DP_IS_USB_C;
 	} else {
@@ -368,7 +372,7 @@ void dcn31_link_encoder_enable_dp_output(
 	enum clock_source_id clock_source)
 {
 	/* Enable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn20_link_encoder_enable_dp_output(enc, link_settings, clock_source);
 
@@ -384,7 +388,7 @@ void dcn31_link_encoder_enable_dp_mst_output(
 	enum clock_source_id clock_source)
 {
 	/* Enable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn10_link_encoder_enable_dp_mst_output(enc, link_settings, clock_source);
 
@@ -399,7 +403,7 @@ void dcn31_link_encoder_disable_output(
 	enum signal_type signal)
 {
 	/* Disable transmitter and encoder. */
-	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc->current_state, enc)) {
+	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
 		dcn10_link_encoder_disable_output(enc, signal);
 

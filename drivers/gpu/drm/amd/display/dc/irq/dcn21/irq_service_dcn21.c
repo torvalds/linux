@@ -135,6 +135,31 @@ enum dc_irq_source to_dal_irq_source_dcn21(
 	return DC_IRQ_SOURCE_INVALID;
 }
 
+uint32_t dal_get_hpd_state_dcn21(struct irq_service *irq_service, enum dc_irq_source source)
+{
+	const struct irq_source_info *info;
+	uint32_t addr;
+	uint32_t value;
+	uint32_t current_status;
+
+	info = find_irq_source_info(irq_service, source);
+	if (!info)
+		return 0;
+
+	addr = info->status_reg;
+	if (!addr)
+		return 0;
+
+	value = dm_read_reg(irq_service->ctx, addr);
+	current_status =
+		get_reg_field_value(
+			value,
+			HPD0_DC_HPD_INT_STATUS,
+			DC_HPD_SENSE);
+
+	return current_status;
+}
+
 static bool hpd_ack(
 	struct irq_service *irq_service,
 	const struct irq_source_info *info)

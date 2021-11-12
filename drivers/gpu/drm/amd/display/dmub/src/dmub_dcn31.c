@@ -432,3 +432,11 @@ void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
 	diag_data->is_cw6_enabled = is_cw6_enabled;
 }
+
+bool dmub_dcn31_should_detect(struct dmub_srv *dmub)
+{
+	uint32_t fw_boot_status = REG_READ(DMCUB_SCRATCH0);
+	bool should_detect = fw_boot_status & DMUB_FW_BOOT_STATUS_BIT_DETECTION_REQUIRED;
+	return should_detect;
+}
+

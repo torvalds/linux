@@ -48,6 +48,7 @@
 #include "dc_link_dp.h"
 #include "inc/link_dpcd.h"
 #include "dcn10/dcn10_hw_sequencer.h"
+#include "inc/link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -156,6 +157,9 @@ void dcn31_init_hw(struct dc *dc)
 		 */
 		struct dc_link *link = dc->links[i];
 
+		if (link->ep_type != DISPLAY_ENDPOINT_PHY)
+			continue;
+
 		link->link_enc->funcs->hw_init(link->link_enc);
 
 		/* Check for enabled DIG to identify enabled display */
@@ -183,7 +187,8 @@ void dcn31_init_hw(struct dc *dc)
 						     &dpcd_power_state, sizeof(dpcd_power_state));
 			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
 				/* blank dp stream before power off receiver*/
-				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
+				if (dc->links[i]->ep_type == DISPLAY_ENDPOINT_PHY &&
+						dc->links[i]->link_enc->funcs->get_dig_frontend) {
 					unsigned int fe;
 
 					fe = dc->links[i]->link_enc->funcs->get_dig_frontend(
@@ -193,7 +198,7 @@ void dcn31_init_hw(struct dc *dc)
 
 					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
 						if (fe == dc->res_pool->stream_enc[j]->id) {
-							dc->res_pool->stream_enc[j]->funcs->dp_blank(
+							dc->res_pool->stream_enc[j]->funcs->dp_blank(dc->links[i],
 										dc->res_pool->stream_enc[j]);
 							break;
 						}
@@ -247,7 +252,8 @@ void dcn31_init_hw(struct dc *dc)
 			for (i = 0; i < dc->link_count; i++) {
 				struct dc_link *link = dc->links[i];
 
-				if (link->link_enc->funcs->is_dig_enabled &&
+				if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
+						link->link_enc->funcs->is_dig_enabled &&
 						link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
 						dc->hwss.power_down) {
 					dc->hwss.power_down(dc);
@@ -419,7 +425,7 @@ void dcn31_z10_save_init(struct dc *dc)
 	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 }
 
-void dcn31_z10_restore(struct dc *dc)
+void dcn31_z10_restore(const struct dc *dc)
 {
 	union dmub_rb_cmd cmd;
 
@@ -593,19 +599,7 @@ void dcn31_reset_hw_ctx_wrap(
 				old_clk->funcs->cs_power_down(old_clk);
 		}
 	}
-}
 
-bool dcn31_is_abm_supported(struct dc *dc,
-		struct dc_state *context, struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == stream &&
-				(pipe_ctx->prev_odm_pipe == NULL && pipe_ctx->next_odm_pipe == NULL))
-			return true;
-	}
-	return false;
+	/* New dc_state in the process of being applied to hardware. */
+	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
 }

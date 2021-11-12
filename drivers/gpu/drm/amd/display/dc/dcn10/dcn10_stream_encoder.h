@@ -627,9 +627,11 @@ void enc1_stream_encoder_stop_dp_info_packets(
 	struct stream_encoder *enc);
 
 void enc1_stream_encoder_dp_blank(
+	struct dc_link *link,
 	struct stream_encoder *enc);
 
 void enc1_stream_encoder_dp_unblank(
+	struct dc_link *link,
 	struct stream_encoder *enc,
 	const struct encoder_unblank_param *param);
 

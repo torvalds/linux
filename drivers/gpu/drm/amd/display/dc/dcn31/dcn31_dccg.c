@@ -42,6 +42,155 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
+void dccg31_set_dpstreamclk(
+		struct dccg *dccg,
+		enum hdmistreamclk_source src,
+		int otg_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* enabled to select one of the DTBCLKs for pipe */
+	switch (otg_inst) {
+	case 0:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE0_EN, (src == REFCLK) ? 0 : 1);
+		break;
+	case 1:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE1_EN, (src == REFCLK) ? 0 : 1);
+		break;
+	case 2:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE2_EN, (src == REFCLK) ? 0 : 1);
+		break;
+	case 3:
+		REG_UPDATE(DPSTREAMCLK_CNTL,
+				DPSTREAMCLK_PIPE3_EN, (src == REFCLK) ? 0 : 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_enable_symclk32_se(
+		struct dccg *dccg,
+		int hpo_se_inst,
+		enum phyd32clk_clock_source phyd32clk)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* select one of the PHYD32CLKs as the source for symclk32_se */
+	switch (hpo_se_inst) {
+	case 0:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE0_SRC_SEL, phyd32clk,
+				SYMCLK32_SE0_EN, 1);
+		break;
+	case 1:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE1_SRC_SEL, phyd32clk,
+				SYMCLK32_SE1_EN, 1);
+		break;
+	case 2:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE2_SRC_SEL, phyd32clk,
+				SYMCLK32_SE2_EN, 1);
+		break;
+	case 3:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE3_SRC_SEL, phyd32clk,
+				SYMCLK32_SE3_EN, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_disable_symclk32_se(
+		struct dccg *dccg,
+		int hpo_se_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* set refclk as the source for symclk32_se */
+	switch (hpo_se_inst) {
+	case 0:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE0_SRC_SEL, 0,
+				SYMCLK32_SE0_EN, 0);
+		break;
+	case 1:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE1_SRC_SEL, 0,
+				SYMCLK32_SE1_EN, 0);
+		break;
+	case 2:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE2_SRC_SEL, 0,
+				SYMCLK32_SE2_EN, 0);
+		break;
+	case 3:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE3_SRC_SEL, 0,
+				SYMCLK32_SE3_EN, 0);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_enable_symclk32_le(
+		struct dccg *dccg,
+		int hpo_le_inst,
+		enum phyd32clk_clock_source phyd32clk)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* select one of the PHYD32CLKs as the source for symclk32_le */
+	switch (hpo_le_inst) {
+	case 0:
+		REG_UPDATE_2(SYMCLK32_LE_CNTL,
+				SYMCLK32_LE0_SRC_SEL, phyd32clk,
+				SYMCLK32_LE0_EN, 1);
+		break;
+	case 1:
+		REG_UPDATE_2(SYMCLK32_LE_CNTL,
+				SYMCLK32_LE1_SRC_SEL, phyd32clk,
+				SYMCLK32_LE1_EN, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg31_disable_symclk32_le(
+		struct dccg *dccg,
+		int hpo_le_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* set refclk as the source for symclk32_le */
+	switch (hpo_le_inst) {
+	case 0:
+		REG_UPDATE_2(SYMCLK32_LE_CNTL,
+				SYMCLK32_LE0_SRC_SEL, 0,
+				SYMCLK32_LE0_EN, 0);
+		break;
+	case 1:
+		REG_UPDATE_2(SYMCLK32_LE_CNTL,
+				SYMCLK32_LE1_SRC_SEL, 0,
+				SYMCLK32_LE1_EN, 0);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
 void dccg31_set_physymclk(
 		struct dccg *dccg,
 		int phy_inst,
@@ -241,12 +390,25 @@ static void dccg31_set_dispclk_change_mode(
 
 void dccg31_init(struct dccg *dccg)
 {
+	/* Set HPO stream encoder to use refclk to avoid case where PHY is
+	 * disabled and SYMCLK32 for HPO SE is sourced from PHYD32CLK which
+	 * will cause DCN to hang.
+	 */
+	dccg31_disable_symclk32_se(dccg, 0);
+	dccg31_disable_symclk32_se(dccg, 1);
+	dccg31_disable_symclk32_se(dccg, 2);
+	dccg31_disable_symclk32_se(dccg, 3);
 }
 
 static const struct dccg_funcs dccg31_funcs = {
 	.update_dpp_dto = dccg2_update_dpp_dto,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
 	.dccg_init = dccg31_init,
+	.set_dpstreamclk = dccg31_set_dpstreamclk,
+	.enable_symclk32_se = dccg31_enable_symclk32_se,
+	.disable_symclk32_se = dccg31_disable_symclk32_se,
+	.enable_symclk32_le = dccg31_enable_symclk32_le,
+	.disable_symclk32_le = dccg31_disable_symclk32_le,
 	.set_physymclk = dccg31_set_physymclk,
 	.set_dtbclk_dto = dccg31_set_dtbclk_dto,
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
