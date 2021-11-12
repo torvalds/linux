@@ -189,6 +189,18 @@ MAX_BTF_SOCK_TYPE,
 extern u32 btf_sock_ids[];
 #endif
 
-extern u32 btf_task_struct_ids[];
+#define BTF_TRACING_TYPE_xxx	\
+	BTF_TRACING_TYPE(BTF_TRACING_TYPE_TASK, task_struct)	\
+	BTF_TRACING_TYPE(BTF_TRACING_TYPE_FILE, file)		\
+	BTF_TRACING_TYPE(BTF_TRACING_TYPE_VMA, vm_area_struct)
+
+enum {
+#define BTF_TRACING_TYPE(name, type) name,
+BTF_TRACING_TYPE_xxx
+#undef BTF_TRACING_TYPE
+MAX_BTF_TRACING_TYPE,
+};
+
+extern u32 btf_tracing_ids[];
 
 #endif

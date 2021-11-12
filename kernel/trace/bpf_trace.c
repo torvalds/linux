@@ -764,7 +764,7 @@ const struct bpf_func_proto bpf_get_current_task_btf_proto = {
 	.func		= bpf_get_current_task_btf,
 	.gpl_only	= true,
 	.ret_type	= RET_PTR_TO_BTF_ID,
-	.ret_btf_id	= &btf_task_struct_ids[0],
+	.ret_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 };
 
 BPF_CALL_1(bpf_task_pt_regs, struct task_struct *, task)
@@ -779,7 +779,7 @@ const struct bpf_func_proto bpf_task_pt_regs_proto = {
 	.func		= bpf_task_pt_regs,
 	.gpl_only	= true,
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
-	.arg1_btf_id	= &btf_task_struct_ids[0],
+	.arg1_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 	.ret_type	= RET_PTR_TO_BTF_ID,
 	.ret_btf_id	= &bpf_task_pt_regs_ids[0],
 };
