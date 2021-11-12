@@ -4424,12 +4424,6 @@ static enum ia_css_event_type convert_event_sp_to_host_domain[] = {
 };
 
 int
-ia_css_dequeue_event(struct ia_css_event *event)
-{
-	return ia_css_dequeue_psys_event(event);
-}
-
-int
 ia_css_dequeue_psys_event(struct ia_css_event *event)
 {
 	enum ia_css_pipe_id pipe_id = 0;

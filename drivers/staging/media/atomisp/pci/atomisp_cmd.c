@@ -1881,7 +1881,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	/*
 	 * The standard CSS2.0 API tells the following calling sequence of
 	 * dequeue ready buffers:
-	 * while (ia_css_dequeue_event(...)) {
+	 * while (ia_css_dequeue_psys_event(...)) {
 	 *	switch (event.type) {
 	 *	...
 	 *	ia_css_pipe_dequeue_buffer()
