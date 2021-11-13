@@ -1377,7 +1377,7 @@
 		rockchip,normal-rates = <594000000>, <0>;
 		assigned-clocks = <&cru ACLK_VPU>;
 		assigned-clock-rates = <594000000>;
-		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
+		resets = <&cru SRST_A_JPEG_ENCODER0>, <&cru SRST_H_JPEG_ENCODER0>;
 		reset-names = "video_a", "video_h";
 		iommus = <&jpege0_mmu>;
 		rockchip,srv = <&mpp_srv>;
@@ -1409,7 +1409,7 @@
 		rockchip,normal-rates = <594000000>, <0>;
 		assigned-clocks = <&cru ACLK_VPU>;
 		assigned-clock-rates = <594000000>;
-		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
+		resets = <&cru SRST_A_JPEG_ENCODER1>, <&cru SRST_H_JPEG_ENCODER1>;
 		reset-names = "video_a", "video_h";
 		iommus = <&jpege1_mmu>;
 		rockchip,srv = <&mpp_srv>;
@@ -1441,7 +1441,7 @@
 		rockchip,normal-rates = <594000000>, <0>;
 		assigned-clocks = <&cru ACLK_VPU>;
 		assigned-clock-rates = <594000000>;
-		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
+		resets = <&cru SRST_A_JPEG_ENCODER2>, <&cru SRST_H_JPEG_ENCODER2>;
 		reset-names = "video_a", "video_h";
 		iommus = <&jpege2_mmu>;
 		rockchip,srv = <&mpp_srv>;
@@ -1473,7 +1473,7 @@
 		rockchip,normal-rates = <594000000>, <0>;
 		assigned-clocks = <&cru ACLK_VPU>;
 		assigned-clock-rates = <594000000>;
-		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
+		resets = <&cru SRST_A_JPEG_ENCODER3>, <&cru SRST_H_JPEG_ENCODER3>;
 		reset-names = "video_a", "video_h";
 		iommus = <&jpege3_mmu>;
 		rockchip,srv = <&mpp_srv>;
