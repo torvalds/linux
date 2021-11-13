@@ -757,6 +757,7 @@ extern void sched_update_hyst_times(void);
 extern void walt_rt_init(void);
 extern void walt_cfs_init(void);
 extern void walt_pause_init(void);
+extern void walt_halt_init(void);
 extern void walt_fixup_init(void);
 extern int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 					int sync, int sibling_count_hint);
@@ -901,10 +902,21 @@ struct compute_energy_output {
 	unsigned int	cluster_first_cpu[MAX_CLUSTERS];
 };
 
+extern struct cpumask __cpu_halt_mask;
+#define cpu_halt_mask ((struct cpumask *)&__cpu_halt_mask)
+#define cpu_halted(cpu) cpumask_test_cpu((cpu), cpu_halt_mask)
+
+extern struct cpumask __cpu_can_halt_mask;
+#define cpu_can_halt_mask ((struct cpumask *)&__cpu_can_halt_mask)
+#define cpu_can_halt(cpu) cpumask_test_cpu((cpu), cpu_can_halt_mask)
+
 extern void walt_task_dump(struct task_struct *p);
 extern void walt_rq_dump(int cpu);
 extern void walt_dump(void);
 extern int in_sched_bug;
+
+extern struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
+				 struct task_struct *p, int dest_cpu);
 
 #define WALT_PANIC(condition)				\
 ({							\
@@ -930,5 +942,6 @@ extern int in_sched_bug;
 		WALT_PANIC(1);						\
 	}								\
 })
+
 
 #endif /* _WALT_H */
