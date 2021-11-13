@@ -5120,6 +5120,14 @@ static u32 rkcif_lvds_get_sof(struct rkcif_device *dev)
 	return 0;
 }
 
+static u32 rkcif_lvds_set_sof(struct rkcif_device *dev, u32 seq)
+{
+	if (dev)
+		atomic_set(&dev->lvds_subdev.frm_sync_seq, seq);
+
+	return 0;
+}
+
 int rkcif_register_lvds_subdev(struct rkcif_device *dev)
 {
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
@@ -5201,6 +5209,14 @@ static u32 rkcif_dvp_get_sof(struct rkcif_device *dev)
 {
 	if (dev)
 		return atomic_read(&dev->dvp_sof_subdev.frm_sync_seq) - 1;
+
+	return 0;
+}
+
+static u32 rkcif_dvp_set_sof(struct rkcif_device *dev, u32 seq)
+{
+	if (dev)
+		atomic_set(&dev->dvp_sof_subdev.frm_sync_seq, seq);
 
 	return 0;
 }
@@ -6169,21 +6185,40 @@ static void rkcif_update_stream_toisp(struct rkcif_device *cif_dev,
 	stream->frame_idx++;
 }
 
-u32 rkcif_get_sof(struct rkcif_device *cif_dev)
+static u32 rkcif_get_sof(struct rkcif_device *cif_dev)
 {
 	u32 val = 0x0;
 	struct rkcif_sensor_info *sensor = cif_dev->active_sensor;
+	struct csi2_dev *csi;
 
 	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
-	    sensor->mbus.type == V4L2_MBUS_CSI2_CPHY)
-		val = rkcif_csi2_get_sof();
-	else if (sensor->mbus.type == V4L2_MBUS_CCP2)
+	    sensor->mbus.type == V4L2_MBUS_CSI2_CPHY) {
+		csi = container_of(sensor->sd, struct csi2_dev, sd);
+		val = rkcif_csi2_get_sof(csi);
+	} else if (sensor->mbus.type == V4L2_MBUS_CCP2) {
 		val = rkcif_lvds_get_sof(cif_dev);
-	else if (sensor->mbus.type == V4L2_MBUS_PARALLEL ||
-		 sensor->mbus.type == V4L2_MBUS_BT656)
+	} else if (sensor->mbus.type == V4L2_MBUS_PARALLEL ||
+		 sensor->mbus.type == V4L2_MBUS_BT656) {
 		val = rkcif_dvp_get_sof(cif_dev);
-
+	}
 	return val;
+}
+
+static void rkcif_set_sof(struct rkcif_device *cif_dev, u32 seq)
+{
+	struct rkcif_sensor_info *sensor = cif_dev->active_sensor;
+	struct csi2_dev *csi;
+
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
+	    sensor->mbus.type == V4L2_MBUS_CSI2_CPHY) {
+		csi = container_of(sensor->sd, struct csi2_dev, sd);
+		rkcif_csi2_set_sof(csi, seq);
+	} else if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+		rkcif_lvds_set_sof(cif_dev, seq);
+	} else if (sensor->mbus.type == V4L2_MBUS_PARALLEL ||
+		   sensor->mbus.type == V4L2_MBUS_BT656) {
+		rkcif_dvp_set_sof(cif_dev, seq);
+	}
 }
 
 static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
@@ -6247,7 +6282,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 			v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 				 "%s stop stream[%d] in streaming, frm_id:%d, csi_sof:%d\n",
-				 __func__, stream->id, stream->frame_idx, rkcif_csi2_get_sof());
+				 __func__, stream->id, stream->frame_idx, rkcif_get_sof(cif_dev));
 
 		}
 	}
@@ -6317,7 +6352,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 			 "resume stream[%d], frm_idx:%d, csi_sof:%d\n",
 			 stream->id, stream->frame_idx,
-			 rkcif_csi2_get_sof());
+			 rkcif_get_sof(cif_dev));
 	}
 
 	rockchip_set_system_status(SYS_STATUS_CIF0);
@@ -6327,7 +6362,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 		if (p->subdevs[i] == terminal_sensor->sd) {
 
-			rkcif_csi2_set_sof(resume_info->frm_sync_seq);
+			rkcif_set_sof(cif_dev, resume_info->frm_sync_seq);
 
 			if (reset_src == RKCIF_RESET_SRC_ERR_CSI2 ||
 			    reset_src == RKCIF_RESET_SRC_ERR_HOTPLUG ||
@@ -6341,7 +6376,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 			}
 		} else {
 			if (p->subdevs[i] == terminal_sensor->sd)
-				rkcif_csi2_set_sof(resume_info->frm_sync_seq);
+				rkcif_set_sof(cif_dev, resume_info->frm_sync_seq);
 
 			ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 		}
@@ -6948,15 +6983,18 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 {
 	struct rkcif_stream *detect_stream = &cif_dev->stream[0];
 	struct v4l2_mbus_config *mbus = &cif_dev->active_sensor->mbus;
+	struct csi2_dev *csi;
 	unsigned long flags;
 
 	if (mbus->type == V4L2_MBUS_CSI2_DPHY ||
-	    mbus->type == V4L2_MBUS_CSI2_CPHY)
-		rkcif_csi2_event_inc_sof();
-	else if (mbus->type == V4L2_MBUS_CCP2)
+	    mbus->type == V4L2_MBUS_CSI2_CPHY) {
+		csi = container_of(cif_dev->active_sensor->sd, struct csi2_dev, sd);
+		rkcif_csi2_event_inc_sof(csi);
+	} else if (mbus->type == V4L2_MBUS_CCP2) {
 		rkcif_lvds_event_inc_sof(cif_dev);
-	else
+	} else {
 		rkcif_dvp_event_inc_sof(cif_dev);
+	}
 
 	detect_stream->fs_cnt_in_single_frame++;
 	spin_lock_irqsave(&detect_stream->fps_lock, flags);

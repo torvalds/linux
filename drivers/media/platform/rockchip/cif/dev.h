@@ -115,11 +115,6 @@ enum rkcif_state {
 	RKCIF_STATE_RESET_IN_STREAMING,
 };
 
-enum host_type_t {
-	RK_CSI_RXHOST,
-	RK_DSI_RXHOST
-};
-
 enum rkcif_lvds_pad {
 	RKCIF_LVDS_PAD_SINK = 0x0,
 	RKCIF_LVDS_PAD_SRC_ID0,
@@ -760,7 +755,6 @@ void rkcif_unregister_lvds_subdev(struct rkcif_device *dev);
 int rkcif_register_dvp_sof_subdev(struct rkcif_device *dev);
 void rkcif_unregister_dvp_sof_subdev(struct rkcif_device *dev);
 void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev);
-u32 rkcif_get_sof(struct rkcif_device *cif_dev);
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id);
 int rkcif_plat_uninit(struct rkcif_device *cif_dev);
 int rkcif_attach_hw(struct rkcif_device *cif_dev);
