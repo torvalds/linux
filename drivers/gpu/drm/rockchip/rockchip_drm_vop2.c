@@ -211,7 +211,7 @@ struct vop2_power_domain {
 	 * send a power on request.
 	 *
 	 */
-	struct mutex lock;
+	spinlock_t lock;
 	unsigned int ref_count;
 	bool on;
 	const struct vop2_power_domain_data *data;
@@ -1303,7 +1303,7 @@ static void vop2_wait_power_domain_off(struct vop2_power_domain *pd)
 	int val;
 	int ret;
 
-	ret = readx_poll_timeout(vop2_power_domain_status, pd, val, val, 100, 50 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, val, 0, 50 * 1000);
 
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait pd off timeout\n");
@@ -1350,21 +1350,22 @@ static void vop2_power_domain_off(struct vop2_power_domain *pd)
 
 static void vop2_power_domain_get(struct vop2_power_domain *pd)
 {
-	mutex_lock(&pd->lock);
 	if (pd->parent)
 		vop2_power_domain_get(pd->parent);
+
+	spin_lock(&pd->lock);
 	if (pd->ref_count == 0) {
 		if (pd->vop2->data->delayed_pd)
 			cancel_delayed_work(&pd->power_off_work);
 		vop2_power_domain_on(pd);
 	}
 	pd->ref_count++;
-	mutex_unlock(&pd->lock);
+	spin_unlock(&pd->lock);
 }
 
 static void vop2_power_domain_put(struct vop2_power_domain *pd)
 {
-	mutex_lock(&pd->lock);
+	spin_lock(&pd->lock);
 	if (--pd->ref_count == 0) {
 		if (pd->vop2->data->delayed_pd)
 			schedule_delayed_work(&pd->power_off_work, msecs_to_jiffies(2500));
@@ -1372,9 +1373,9 @@ static void vop2_power_domain_put(struct vop2_power_domain *pd)
 			vop2_power_domain_off(pd);
 	}
 
+	spin_unlock(&pd->lock);
 	if (pd->parent)
 		vop2_power_domain_put(pd->parent);
-	mutex_unlock(&pd->lock);
 }
 
 /*
@@ -1387,10 +1388,10 @@ static void vop2_power_domain_off_work(struct work_struct *work)
 
 	pd = container_of(to_delayed_work(work), struct vop2_power_domain, power_off_work);
 
-	mutex_lock(&pd->lock);
+	spin_lock(&pd->lock);
 	if (pd->ref_count == 0)
 		vop2_power_domain_off(pd);
-	mutex_unlock(&pd->lock);
+	spin_unlock(&pd->lock);
 }
 
 static void vop2_win_enable(struct vop2_win *win)
@@ -7742,7 +7743,7 @@ static int vop2_pd_data_init(struct vop2 *vop2)
 			return -ENOMEM;
 		pd->vop2 = vop2;
 		pd->data = pd_data;
-		mutex_init(&pd->lock);
+		spin_lock_init(&pd->lock);
 		list_add_tail(&pd->list, &vop2->pd_list_head);
 		INIT_DELAYED_WORK(&pd->power_off_work, vop2_power_domain_off_work);
 		if (pd_data->parent_id) {
