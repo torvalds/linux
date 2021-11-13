@@ -693,6 +693,9 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	if (!cpu_active(this_cpu))
 		return;
 
+	if (cpu_halted(this_cpu))
+		return;
+
 	rq_unpin_lock(this_rq, rf);
 
 	/*
