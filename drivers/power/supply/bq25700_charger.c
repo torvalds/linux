@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TI BQ257000 charger driver
+
+ * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
  *
- * Copyright (C) 2016 Rockchip Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
+ * Author: shengfeixu <xsf@rock-chips.com>
  */
 
 #include <linux/power/bq25700-charge.h>
@@ -168,7 +160,10 @@ struct bq25700_device {
 	bool				charger_health_valid;
 	bool				battery_health_valid;
 	bool				battery_status_valid;
-
+	int				automode;
+	struct notifier_block		nb;
+	struct bq2570x_platform_data	plat_data;
+	struct device_node		*notify_node;
 	struct workqueue_struct		*usb_charger_wq;
 	struct workqueue_struct		*dc_charger_wq;
 	struct workqueue_struct		*finish_sig_wq;
@@ -816,7 +811,7 @@ static int bq25703_dump_regs(struct bq25700_device *charger)
 	return 0;
 }
 
-ssize_t bq25700_charge_info_show(struct device *dev,
+static ssize_t bq25700_charge_info_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct bq25700_device *charger = dev_get_drvdata(dev);
@@ -1231,6 +1226,7 @@ static int bq25700_power_supply_init(struct bq25700_device *charger)
 
 	psy_cfg.supplied_to = bq25700_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq25700_charger_supplied_to);
+	psy_cfg.of_node = charger->dev->of_node;
 
 	charger->supply_charger =
 		power_supply_register(charger->dev,
@@ -1238,6 +1234,70 @@ static int bq25700_power_supply_init(struct bq25700_device *charger)
 				      &psy_cfg);
 
 	return PTR_ERR_OR_ZERO(charger->supply_charger);
+}
+
+static void bq25700_discnt(struct bq25700_device *charger, enum tpyec_port_t port);
+
+static int bq2570x_pd_notifier_call(struct notifier_block *nb,
+		unsigned long val, void *v)
+{
+	struct bq25700_device *bq =
+		container_of(nb, struct bq25700_device, nb);
+	struct power_supply *psy = v;
+	union power_supply_propval prop;
+	struct bq25700_state state;
+	int ret;
+	int vol_idx, cur_idx, chr_idx;
+
+	if (val != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_OK;
+
+	/* Ignore event if it was not send by notify_node/notify_device */
+	if (bq->notify_node) {
+		if (!psy->dev.parent ||
+		    psy->dev.parent->of_node != bq->notify_node)
+			return NOTIFY_OK;
+	} else if (bq->plat_data.notify_device) {
+		if (strcmp(psy->desc->name, bq->plat_data.notify_device) != 0)
+			return NOTIFY_OK;
+	}
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE, &prop);
+	if (ret != 0)
+		return NOTIFY_OK;
+	/* online=0: USB out */
+	if (prop.intval == 0) {
+		bq25700_discnt(bq, USB_TYPEC_0);
+		return NOTIFY_OK;
+	}
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &prop);
+	if (ret != 0)
+		return NOTIFY_OK;
+	if (prop.intval > 0) {
+		cur_idx = bq25700_find_idx(prop.intval, TBL_INPUTCUR);
+		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
+						&prop);
+		if (ret != 0)
+			return NOTIFY_OK;
+		vol_idx = bq25700_find_idx((prop.intval - 1280), TBL_INPUTVOL);
+		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW,
+						&prop);
+		if (ret != 0)
+			return NOTIFY_OK;
+		chr_idx = bq25700_find_idx(prop.intval, TBL_ICHG);
+
+		bq25700_field_write(bq, INPUT_CURRENT, cur_idx);
+		bq25700_field_write(bq, INPUT_VOLTAGE, vol_idx);
+		bq25700_field_write(bq, CHARGE_CURRENT, chr_idx);
+		dev_info(bq->dev, "INPUT_CURRENT:%d, INPUT_VOLTAGE:%d, CHARGE_CURRENT:%d\n",
+			 cur_idx, vol_idx, chr_idx);
+
+		bq25700_get_chip_state(bq, &state);
+		bq->state = state;
+		power_supply_changed(bq->supply_charger);
+	}
+	return NOTIFY_OK;
 }
 
 static irqreturn_t bq25700_irq_handler_thread(int irq, void *private)
@@ -1481,6 +1541,7 @@ static void bq25700_charger_evt_worker(struct work_struct *work)
 	struct bq25700_device *charger = container_of(work,
 				struct bq25700_device, usb_work.work);
 	struct extcon_dev *edev = charger->cable_edev;
+
 	if (charger->usb_bc == 0)
 		bq25700_charger_evt_handel(charger, edev, USB_TYPEC_0);
 	else
@@ -1771,20 +1832,75 @@ static int bq25700_register_discnt_nb(struct bq25700_device *charger)
 
 static int bq25700_register_pd_nb(struct bq25700_device *charger)
 {
-	if (charger->cable_edev) {
-		INIT_DELAYED_WORK(&charger->pd_work, bq25700_pd_evt_worker);
-		charger->cable_pd_nb.notifier_call = bq25700_pd_evt_notifier;
-		extcon_register_notifier(charger->cable_edev,
-					 EXTCON_CHG_USB_FAST,
-					 &charger->cable_pd_nb);
+	struct power_supply *notify_psy = NULL;
+	int vol_idx, cur_idx;
+	int ret;
+	union power_supply_propval prop;
+
+	if (!charger->notify_node) {
+		if (charger->cable_edev) {
+			INIT_DELAYED_WORK(&charger->pd_work, bq25700_pd_evt_worker);
+			charger->cable_pd_nb.notifier_call = bq25700_pd_evt_notifier;
+			extcon_register_notifier(charger->cable_edev,
+						 EXTCON_CHG_USB_FAST,
+						 &charger->cable_pd_nb);
+		}
+		if (charger->cable_edev_1) {
+			INIT_DELAYED_WORK(&charger->pd_work1, bq25700_pd_evt_worker1);
+			charger->cable_pd_nb1.notifier_call = bq25700_pd_evt_notifier1;
+			extcon_register_notifier(charger->cable_edev_1,
+						 EXTCON_CHG_USB_FAST,
+						 &charger->cable_pd_nb1);
+		}
+		return 0;
 	}
 
-	if (charger->cable_edev_1) {
-		INIT_DELAYED_WORK(&charger->pd_work1, bq25700_pd_evt_worker1);
-		charger->cable_pd_nb1.notifier_call = bq25700_pd_evt_notifier1;
-		extcon_register_notifier(charger->cable_edev_1,
-					 EXTCON_CHG_USB_FAST,
-					 &charger->cable_pd_nb1);
+	if (charger->notify_node || charger->plat_data.notify_device) {
+		charger->nb.notifier_call = bq2570x_pd_notifier_call;
+		ret = power_supply_reg_notifier(&charger->nb);
+		if (ret) {
+			dev_err(charger->dev, "failed to reg notifier: %d\n", ret);
+			return ret;
+		}
+		charger->automode = 1;
+		dev_info(charger->dev, "automode supported, waiting for events\n");
+	} else {
+		charger->automode = -1;
+		dev_info(charger->dev, "automode not supported\n");
+	}
+
+	if (charger->nb.notifier_call) {
+		if (charger->dev->of_node) {
+			notify_psy = power_supply_get_by_phandle(charger->dev->of_node,
+							"ti,usb-charger-detection");
+			if (IS_ERR_OR_NULL(notify_psy)) {
+				dev_info(charger->dev, "bq25700 notify_psy is error\n");
+				notify_psy = NULL;
+			}
+		} else if (charger->plat_data.notify_device) {
+			notify_psy = power_supply_get_by_name(
+						charger->plat_data.notify_device);
+		}
+	}
+
+	if (notify_psy) {
+		ret = power_supply_get_property(notify_psy,
+					POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
+		if (ret != 0)
+			return ret;
+		ret = power_supply_get_property(notify_psy,
+					POWER_SUPPLY_PROP_VOLTAGE_MAX, &prop);
+		if (ret != 0)
+			return ret;
+
+		cur_idx = bq25700_find_idx(prop.intval, TBL_INPUTCUR);
+		vol_idx = bq25700_find_idx((prop.intval - 1280), TBL_INPUTVOL);
+		bq25700_field_write(charger, INPUT_CURRENT, cur_idx);
+		bq25700_field_write(charger, INPUT_VOLTAGE, vol_idx);
+		bq25700_field_write(charger, CHARGE_CURRENT,
+				    charger->init_data.ichg);
+		dev_info(charger->dev, "INPUT_CURRENT:%d, INPUT_VOLTAGE:%d, CHARGE_CURRENT:%d\n",
+				 cur_idx, vol_idx, charger->init_data.ichg);
 	}
 
 	return 0;
@@ -1854,6 +1970,10 @@ static long bq25700_init_usb(struct bq25700_device *charger)
 	} else {
 		charger->cable_edev_1 = edev1;
 	}
+	/*set power_on input current*/
+	bq25700_field_write(charger, INPUT_CURRENT,
+			    charger->init_data.input_current_sdp);
+
 	if (!charger->pd_charge_only)
 		bq25700_register_cg_nb(charger);
 	bq25700_register_host_nb(charger);
@@ -1918,7 +2038,11 @@ static int bq25700_parse_dt(struct bq25700_device *charger)
 		charger->usb_bc = 0;
 	else
 		charger->usb_bc = 1;
+	of_node_put(temp_np);
 
+	if (np)
+		charger->notify_node = of_parse_phandle(np,
+						"ti,usb-charger-detection", 0);
 	return 0;
 }
 
@@ -1944,6 +2068,8 @@ static int bq25700_probe(struct i2c_client *client,
 	charger->dev = dev;
 
 	charger_np = of_find_compatible_node(NULL, NULL, "ti,bq25700");
+	if (!charger_np)
+		charger_np = of_find_compatible_node(NULL, NULL, "southchip,sc8885");
 	if (charger_np) {
 		charger->regmap = devm_regmap_init_i2c(client,
 						       &bq25700_regmap_config);
@@ -2044,7 +2170,7 @@ irq_fail:
 	return ret;
 }
 
-void bq25700_shutdown(struct i2c_client *client)
+static void bq25700_shutdown(struct i2c_client *client)
 {
 	int vol_idx;
 	struct bq25700_device *charger = i2c_get_clientdata(client);
@@ -2079,6 +2205,8 @@ MODULE_DEVICE_TABLE(i2c, bq25700_i2c_ids);
 static const struct of_device_id bq25700_of_match[] = {
 	{ .compatible = "ti,bq25700", },
 	{ .compatible = "ti,bq25703", },
+	{ .compatible = "southchip,sc8885", },
+	{ .compatible = "southchip,sc8886", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq25700_of_match);

@@ -15,6 +15,16 @@
 #define CHARGER_CURRENT_EVENT	0x01
 #define INPUT_CURRENT_EVENT	0x02
 
+struct bq2570x_platform_data {
+	int current_limit;		/* mA */
+	int weak_battery_voltage;	/* mV */
+	int battery_regulation_voltage;	/* mV */
+	int charge_current;		/* mA */
+	int termination_current;	/* mA */
+	int resistor_sense;		/* m ohm */
+	const char *notify_device;	/* name */
+};
+
 void bq25700_charger_set_current(unsigned long event, int current_value);
 
 #endif /* __CHARGER_BQ25700_H_ */
