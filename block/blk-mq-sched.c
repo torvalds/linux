@@ -24,6 +24,10 @@ void blk_mq_sched_assign_ioc(struct request *rq)
 	struct io_context *ioc;
 	struct io_cq *icq;
 
+	/* create task io_context, if we don't have one already */
+	if (unlikely(!current->io_context))
+		create_task_io_context(current, GFP_ATOMIC, q->node);
+
 	/*
 	 * May not have an IO context if it's a passthrough request
 	 */
@@ -43,6 +47,7 @@ void blk_mq_sched_assign_ioc(struct request *rq)
 	get_io_context(icq->ioc);
 	rq->elv.icq = icq;
 }
+EXPORT_SYMBOL_GPL(blk_mq_sched_assign_ioc);
 
 /*
  * Mark a hardware queue as needing a restart. For shared queues, maintain
