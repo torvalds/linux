@@ -216,35 +216,6 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
 }
 
 /*-----------------------------------------------------------------------------
- * Function:	Efuse_ReadAllMap
- *
- * Overview:	Read All Efuse content
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/11/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 *Efuse)
-{
-	u16 mapLen = 0;
-
-	rtl8188e_EfusePowerSwitch(pAdapter, true);
-
-	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
-
-	rtl8188e_ReadEFuse(pAdapter, 0, mapLen, Efuse);
-
-	rtl8188e_EfusePowerSwitch(pAdapter, false);
-}
-
-/*-----------------------------------------------------------------------------
  * Function:	EFUSE_ShadowMapUpdate
  *
  * Overview:	Transfer current EFUSE content to shadow init and modify map.
@@ -267,8 +238,13 @@ void EFUSE_ShadowMapUpdate(struct adapter *pAdapter)
 
 	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
 
-	if (pEEPROM->bautoload_fail_flag)
+	if (pEEPROM->bautoload_fail_flag) {
 		memset(pEEPROM->efuse_eeprom_data, 0xFF, mapLen);
-	else
-		Efuse_ReadAllMap(pAdapter, pEEPROM->efuse_eeprom_data);
-} /*  EFUSE_ShadowMapUpdate */
+		return;
+	}
+
+	rtl8188e_EfusePowerSwitch(pAdapter, true);
+	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
+	rtl8188e_ReadEFuse(pAdapter, 0, mapLen, pEEPROM->efuse_eeprom_data);
+	rtl8188e_EfusePowerSwitch(pAdapter, false);
+}
