@@ -90,7 +90,7 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(cxl_probe_component_regs);
+EXPORT_SYMBOL_NS_GPL(cxl_probe_component_regs, CXL);
 
 /**
  * cxl_probe_device_regs() - Detect CXL Device register blocks
@@ -156,7 +156,7 @@ void cxl_probe_device_regs(struct device *dev, void __iomem *base,
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(cxl_probe_device_regs);
+EXPORT_SYMBOL_NS_GPL(cxl_probe_device_regs, CXL);
 
 static void __iomem *devm_cxl_iomap_block(struct device *dev,
 					  resource_size_t addr,
@@ -199,7 +199,7 @@ int cxl_map_component_regs(struct pci_dev *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cxl_map_component_regs);
+EXPORT_SYMBOL_NS_GPL(cxl_map_component_regs, CXL);
 
 int cxl_map_device_regs(struct pci_dev *pdev,
 			struct cxl_device_regs *regs,
@@ -246,4 +246,4 @@ int cxl_map_device_regs(struct pci_dev *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cxl_map_device_regs);
+EXPORT_SYMBOL_NS_GPL(cxl_map_device_regs, CXL);

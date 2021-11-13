@@ -150,7 +150,7 @@ void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds
 		  CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
-EXPORT_SYMBOL_GPL(set_exclusive_cxl_commands);
+EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, CXL);
 
 /**
  * clear_exclusive_cxl_commands() - atomically enable user cxl commands
@@ -164,7 +164,7 @@ void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cm
 		      CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
-EXPORT_SYMBOL_GPL(clear_exclusive_cxl_commands);
+EXPORT_SYMBOL_NS_GPL(clear_exclusive_cxl_commands, CXL);
 
 static void cxl_memdev_shutdown(struct device *dev)
 {
@@ -317,7 +317,7 @@ err:
 	put_device(dev);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_GPL(devm_cxl_add_memdev);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_memdev, CXL);
 
 __init int cxl_memdev_init(void)
 {

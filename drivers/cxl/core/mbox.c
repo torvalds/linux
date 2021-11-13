@@ -182,7 +182,7 @@ int cxl_mbox_send_cmd(struct cxl_dev_state *cxlds, u16 opcode, void *in,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cxl_mbox_send_cmd);
+EXPORT_SYMBOL_NS_GPL(cxl_mbox_send_cmd, CXL);
 
 static bool cxl_mem_raw_command_allowed(u16 opcode)
 {
@@ -624,7 +624,7 @@ out:
 	kvfree(gsl);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(cxl_enumerate_cmds);
+EXPORT_SYMBOL_NS_GPL(cxl_enumerate_cmds, CXL);
 
 /**
  * cxl_mem_get_partition_info - Get partition info
@@ -709,7 +709,7 @@ int cxl_dev_state_identify(struct cxl_dev_state *cxlds)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cxl_dev_state_identify);
+EXPORT_SYMBOL_NS_GPL(cxl_dev_state_identify, CXL);
 
 int cxl_mem_create_range_info(struct cxl_dev_state *cxlds)
 {
@@ -748,7 +748,7 @@ int cxl_mem_create_range_info(struct cxl_dev_state *cxlds)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cxl_mem_create_range_info);
+EXPORT_SYMBOL_NS_GPL(cxl_mem_create_range_info, CXL);
 
 struct cxl_dev_state *cxl_dev_state_create(struct device *dev)
 {
@@ -765,7 +765,7 @@ struct cxl_dev_state *cxl_dev_state_create(struct device *dev)
 
 	return cxlds;
 }
-EXPORT_SYMBOL_GPL(cxl_dev_state_create);
+EXPORT_SYMBOL_NS_GPL(cxl_dev_state_create, CXL);
 
 static struct dentry *cxl_debugfs;
 
