@@ -903,68 +903,6 @@ void rtl8188e_EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 type, void *
 	Hal_EFUSEGetEfuseDefinition88E(pAdapter, type, pOut);
 }
 
-static u16 hal_EfuseGetCurrentSize_8188e(struct adapter *pAdapter, bool bPseudoTest)
-{
-	int	bContinual = true;
-	u16	efuse_addr = 0;
-	u8 hworden = 0;
-	u8 efuse_data, word_cnts = 0;
-
-	if (bPseudoTest)
-		efuse_addr = (u16)(fakeEfuseUsedBytes);
-	else
-		GetHwReg8188EU(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
-
-	while (bContinual &&
-	       efuse_OneByteRead(pAdapter, efuse_addr, &efuse_data, bPseudoTest) &&
-	       AVAILABLE_EFUSE_ADDR(efuse_addr)) {
-		if (efuse_data != 0xFF) {
-			if ((efuse_data & 0x1F) == 0x0F) {		/* extended header */
-				efuse_addr++;
-				efuse_OneByteRead(pAdapter, efuse_addr, &efuse_data, bPseudoTest);
-				if ((efuse_data & 0x0F) == 0x0F) {
-					efuse_addr++;
-					continue;
-				} else {
-					hworden = efuse_data & 0x0F;
-				}
-			} else {
-				hworden =  efuse_data & 0x0F;
-			}
-			word_cnts = Efuse_CalculateWordCnts(hworden);
-			/* read next header */
-			efuse_addr = efuse_addr + (word_cnts * 2) + 1;
-		} else {
-			bContinual = false;
-		}
-	}
-
-	if (bPseudoTest)
-		fakeEfuseUsedBytes = efuse_addr;
-	else
-		SetHwReg8188EU(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
-
-	return efuse_addr;
-}
-
-static u16 Hal_EfuseGetCurrentSize_Pseudo(struct adapter *pAdapter, bool bPseudoTest)
-{
-	u16	ret = 0;
-
-	ret = hal_EfuseGetCurrentSize_8188e(pAdapter, bPseudoTest);
-	return ret;
-}
-
-u16 rtl8188e_EfuseGetCurrentSize(struct adapter *pAdapter, u8 efuseType, bool bPseudoTest)
-{
-	u16	ret = 0;
-
-	if (bPseudoTest)
-		ret = Hal_EfuseGetCurrentSize_Pseudo(pAdapter, bPseudoTest);
-	else
-		ret = hal_EfuseGetCurrentSize_8188e(pAdapter, bPseudoTest);
-	return ret;
-}
 
 static int hal_EfusePgPacketRead_8188e(struct adapter *pAdapter, u8 offset, u8 *data, bool bPseudoTest)
 {
