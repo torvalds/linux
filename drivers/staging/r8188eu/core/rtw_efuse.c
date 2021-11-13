@@ -6,6 +6,7 @@
 #include "../include/osdep_service.h"
 #include "../include/drv_types.h"
 #include "../include/rtw_efuse.h"
+#include "../include/rtl8188e_hal.h"
 
 /*------------------------Define local variable------------------------------*/
 u8 fakeEfuseBank;
@@ -234,17 +235,13 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
 void EFUSE_ShadowMapUpdate(struct adapter *pAdapter)
 {
 	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
-	u16 mapLen = 0;
-
-	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
 
 	if (pEEPROM->bautoload_fail_flag) {
-		memset(pEEPROM->efuse_eeprom_data, 0xFF, mapLen);
+		memset(pEEPROM->efuse_eeprom_data, 0xFF, EFUSE_MAP_LEN_88E);
 		return;
 	}
 
 	rtl8188e_EfusePowerSwitch(pAdapter, true);
-	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
-	rtl8188e_ReadEFuse(pAdapter, 0, mapLen, pEEPROM->efuse_eeprom_data);
+	rtl8188e_ReadEFuse(pAdapter, 0, EFUSE_MAP_LEN_88E, pEEPROM->efuse_eeprom_data);
 	rtl8188e_EfusePowerSwitch(pAdapter, false);
 }
