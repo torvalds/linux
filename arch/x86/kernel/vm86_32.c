@@ -106,7 +106,7 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	 */
 	local_irq_enable();
 
-	BUG_ON(!vm86 || !vm86->user_vm86);
+	BUG_ON(!vm86);
 
 	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->veflags_mask);
 	user = vm86->user_vm86;
