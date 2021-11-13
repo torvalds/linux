@@ -550,7 +550,10 @@ int bch2_journal_flush_seq_async(struct journal *j, u64 seq,
 
 	spin_lock(&j->lock);
 
-	BUG_ON(seq > journal_cur_seq(j));
+	if (WARN_ONCE(seq > journal_cur_seq(j),
+		      "requested to flush journal seq %llu, but currently at %llu",
+		      seq, journal_cur_seq(j)))
+		goto out;
 
 	/* Recheck under lock: */
 	if (j->err_seq && seq >= j->err_seq) {
