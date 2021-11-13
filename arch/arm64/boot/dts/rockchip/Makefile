@@ -92,6 +92,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb2-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb2-lp4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb3-lp5-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb3-lp5-v10-edp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb3-lp5-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb4-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb4-lp4-v10-linux.dtb

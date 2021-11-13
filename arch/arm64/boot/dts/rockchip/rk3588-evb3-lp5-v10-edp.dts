@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+
+/dts-v1/;
+
+#include "rk3588-evb3-lp5.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB3 LP5 V10 EDP Board";
+	compatible = "rockchip,rk3588-evb3-lp5-v10-edp", "rockchip,rk3588";
+
+	panel-edp0 {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_lcd>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+		width-mm = <129>;
+		height-mm = <171>;
+
+		panel-timing {
+			clock-frequency = <200000000>;
+			hactive = <1536>;
+			vactive = <2048>;
+			hfront-porch = <12>;
+			hsync-len = <16>;
+			hback-porch = <48>;
+			vfront-porch = <8>;
+			vsync-len = <4>;
+			vback-porch = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel_in_edp0: endpoint {
+				remote-endpoint = <&edp0_out_panel>;
+			};
+		};
+	};
+
+	vcc3v3_lcd: vcc3v3-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd";
+		vin-supply = <&vcc_3v3_s0>;
+	};
+};
+
+&backlight {
+	enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&edp0 {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp0>;
+			};
+		};
+	};
+};
+
+&edp0_in_vp2 {
+	status = "okay";
+};
+
+&gt1x {
+	status = "disabled";
+};
+
+&hdptxphy0 {
+	lane-polarity-invert = <0 1 0 0>;
+	status = "okay";
+};
+
+&i2c5 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	gsl3673@40 {
+		compatible = "GSL,GSL3673";
+		reg = <0x40>;
+		screen_max_x = <1536>;
+		screen_max_y = <2048>;
+		irq_gpio_number = <&gpio4 RK_PB1 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&pwm15 {
+	pinctrl-0 = <&pwm15m1_pins>;
+};
+
+&vcc3v3_lcd_n {
+	/delete-property/ gpio;
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP0_SRC>,
+			  <&cru DCLK_VOP1_SRC>,
+			  <&cru DCLK_VOP2_SRC>,
+			  <&cru DCLK_VOP3>;
+	assigned-clock-parents = <0>, <0>, <&cru PLL_V0PLL>, <0>;
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
