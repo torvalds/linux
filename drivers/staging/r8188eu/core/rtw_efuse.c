@@ -29,19 +29,6 @@ u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 #define REG_EFUSE_CTRL		0x0030
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 
-static bool
-Efuse_Write1ByteToFakeContent(u16 Offset, u8 Value)
-{
-	if (Offset >= EFUSE_MAX_HW_SIZE)
-		return false;
-	if (fakeEfuseBank == 0) {
-		fakeEfuseContent[Offset] = Value;
-	} else {
-		fakeBTEfuseContent[fakeEfuseBank - 1][Offset] = Value;
-	}
-	return true;
-}
-
 /*  11/16/2008 MH Add description. Get current efuse area enabled word!!. */
 u8
 Efuse_CalculateWordCnts(u8 word_en)
@@ -104,38 +91,6 @@ ReadEFuseByte(
 	value32 = rtw_read32(Adapter, EFUSE_CTRL);
 
 	*pbuf = (u8)(value32 & 0xff);
-}
-
-/*  11/16/2008 MH Write one byte to reald Efuse. */
-u8 efuse_OneByteWrite(struct adapter *pAdapter, u16 addr, u8 data, bool pseudo)
-{
-	u8 tmpidx = 0;
-	u8 result;
-
-	if (pseudo) {
-		result = Efuse_Write1ByteToFakeContent(addr, data);
-		return result;
-	}
-
-	/*  -----------------e-fuse reg ctrl --------------------------------- */
-	/* address */
-	rtw_write8(pAdapter, EFUSE_CTRL + 1, (u8)(addr & 0xff));
-	rtw_write8(pAdapter, EFUSE_CTRL + 2,
-		   (rtw_read8(pAdapter, EFUSE_CTRL + 2) & 0xFC) |
-		   (u8)((addr >> 8) & 0x03));
-	rtw_write8(pAdapter, EFUSE_CTRL, data);/* data */
-
-	rtw_write8(pAdapter, EFUSE_CTRL + 3, 0xF2);/* write cmd */
-
-	while ((0x80 &  rtw_read8(pAdapter, EFUSE_CTRL + 3)) && (tmpidx < 100))
-		tmpidx++;
-
-	if (tmpidx < 100)
-		result = true;
-	else
-		result = false;
-
-	return result;
 }
 
 /*-----------------------------------------------------------------------------
