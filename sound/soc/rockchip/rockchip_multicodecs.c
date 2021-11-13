@@ -48,9 +48,9 @@ static struct snd_soc_jack mc_hp_jack;
 static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(rtd->card);
 	unsigned int mclk;
 	int ret;
@@ -88,7 +88,7 @@ static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
 
 #ifdef CONFIG_SND_SOC_RK3308
 		if (rk3308_codec_set_jack_detect_cb)
-			rk3308_codec_set_jack_detect_cb(rtd->codec_dai->component, &mc_hp_jack);
+			rk3308_codec_set_jack_detect_cb(asoc_rtd_to_codec(rtd, 0)->component, &mc_hp_jack);
 #endif
 	}
 
@@ -212,6 +212,8 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	struct snd_soc_card *card;
 	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_dai_link *link;
+	struct snd_soc_dai_link_component *cpus;
+	struct snd_soc_dai_link_component *platforms;
 	struct snd_soc_dai_link_component *codecs;
 	struct multicodecs_data *mc_data;
 	struct of_phandle_args args;
@@ -231,6 +233,14 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	if (!mc_data)
 		return -ENOMEM;
 
+	cpus = devm_kzalloc(&pdev->dev, sizeof(*cpus), GFP_KERNEL);
+	if (!cpus)
+		return -ENOMEM;
+
+	platforms = devm_kzalloc(&pdev->dev, sizeof(*platforms), GFP_KERNEL);
+	if (!platforms)
+		return -ENOMEM;
+
 	card = &mc_data->snd_card;
 	card->dev = &pdev->dev;
 
@@ -244,6 +254,10 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	link->stream_name = link->name;
 	link->init = rk_dailink_init;
 	link->ops = &rk_ops;
+	link->cpus = cpus;
+	link->platforms	= platforms;
+	link->num_cpus	= 1;
+	link->num_platforms = 1;
 
 	card->dai_link = link;
 	card->num_links = 1;
@@ -292,11 +306,11 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	/* Only reference the codecs[0].of_node which maybe as master. */
 	rk_multicodecs_parse_daifmt(np, codecs[0].of_node, mc_data, prefix);
 
-	link->cpu_of_node = of_parse_phandle(np, "rockchip,cpu", 0);
-	if (!link->cpu_of_node)
+	link->cpus->of_node = of_parse_phandle(np, "rockchip,cpu", 0);
+	if (!link->cpus->of_node)
 		return -ENODEV;
 
-	link->platform_of_node = link->cpu_of_node;
+	link->platforms->of_node = link->cpus->of_node;
 
 	mc_data->mclk_fs = DEFAULT_MCLK_FS;
 	if (!of_property_read_u32(np, "rockchip,mclk-fs", &val))
