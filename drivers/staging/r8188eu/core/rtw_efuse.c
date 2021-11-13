@@ -8,15 +8,6 @@
 #include "../include/rtw_efuse.h"
 #include "../include/rtl8188e_hal.h"
 
-/*------------------------Define local variable------------------------------*/
-u8 fakeEfuseBank;
-u32 fakeEfuseUsedBytes;
-u8 fakeEfuseContent[EFUSE_MAX_HW_SIZE] = {0};
-u8 fakeEfuseInitMap[EFUSE_MAX_MAP_LEN] = {0};
-u8 fakeEfuseModifiedMap[EFUSE_MAX_MAP_LEN] = {0};
-
-/*------------------------Define local variable------------------------------*/
-
 #define REG_EFUSE_CTRL		0x0030
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 
