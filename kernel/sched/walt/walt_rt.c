@@ -10,8 +10,8 @@
 
 static DEFINE_PER_CPU(cpumask_var_t, walt_local_cpu_mask);
 
-static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task,
-				struct cpumask *lowest_mask, int ret, int *best_cpu)
+static void walt_rt_energy_aware_wake_cpu(struct task_struct *task, struct cpumask *lowest_mask,
+					  int ret, int *best_cpu)
 {
 	int cpu;
 	unsigned long util, best_cpu_util = ULONG_MAX;
@@ -205,7 +205,7 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	ret = cpupri_find_fitness(&task_rq(task)->rd->cpupri, task,
 				lowest_mask, walt_rt_task_fits_capacity);
 
-	walt_rt_energy_aware_wake_cpu(NULL, task, lowest_mask, ret, &target);
+	walt_rt_energy_aware_wake_cpu(task, lowest_mask, ret, &target);
 
 	/*
 	 * If cpu is non-preemptible, prefer remote cpu
@@ -218,6 +218,22 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 		*new_cpu = target;
 
 	rcu_read_unlock();
+}
+
+
+static void walt_rt_find_lowest_rq(void *unused, struct task_struct *task,
+				   struct cpumask *lowest_mask, int ret, int *best_cpu)
+
+{
+	walt_rt_energy_aware_wake_cpu(task, lowest_mask, ret, best_cpu);
+
+	/*
+	 * Walt was not able to find a non-halted best cpu. Ensure that
+	 * find_lowest_rq doesn't use a halted cpu going forward, but
+	 * does a best effort itself to find a good CPU.
+	 */
+	if (*best_cpu == -1)
+		cpumask_andnot(lowest_mask, lowest_mask, cpu_halt_mask);
 }
 
 void walt_rt_init(void)
@@ -233,5 +249,5 @@ void walt_rt_init(void)
 	}
 
 	register_trace_android_rvh_select_task_rq_rt(walt_select_task_rq_rt, NULL);
-	register_trace_android_rvh_find_lowest_rq(walt_rt_energy_aware_wake_cpu, NULL);
+	register_trace_android_rvh_find_lowest_rq(walt_rt_find_lowest_rq, NULL);
 }
