@@ -543,7 +543,9 @@ static void hl_device_heartbeat(struct work_struct *work)
 	if (!hdev->asic_funcs->send_heartbeat(hdev))
 		goto reschedule;
 
-	dev_err(hdev->dev, "Device heartbeat failed!\n");
+	if (hl_device_operational(hdev, NULL))
+		dev_err(hdev->dev, "Device heartbeat failed!\n");
+
 	hl_device_reset(hdev, HL_DRV_RESET_HARD | HL_DRV_RESET_HEARTBEAT);
 
 	return;
