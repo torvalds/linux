@@ -168,6 +168,8 @@ struct cec_adap_ops {
  *			invalidated while the transmit is ongoing. In that
  *			case the transmit will finish, but will not retransmit
  *			and be marked as ABORTED.
+ * @xfer_timeout_ms:	the transfer timeout in ms.
+ *			If 0, then timeout after 2.1 ms.
  * @kthread_config:	kthread used to configure a CEC adapter
  * @config_completion:	used to signal completion of the config kthread
  * @kthread:		main CEC processing thread
@@ -224,6 +226,7 @@ struct cec_adapter {
 	struct cec_data *transmitting;
 	bool transmit_in_progress;
 	bool transmit_in_progress_aborted;
+	unsigned int xfer_timeout_ms;
 
 	struct task_struct *kthread_config;
 	struct completion config_completion;

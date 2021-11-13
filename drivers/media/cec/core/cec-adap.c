@@ -27,18 +27,6 @@ static void cec_fill_msg_report_features(struct cec_adapter *adap,
 					 struct cec_msg *msg,
 					 unsigned int la_idx);
 
-/*
- * 400 ms is the time it takes for one 16 byte message to be
- * transferred and 5 is the maximum number of retries. Add
- * another 100 ms as a margin. So if the transmit doesn't
- * finish before that time something is really wrong and we
- * have to time out.
- *
- * This is a sign that something it really wrong and a warning
- * will be issued.
- */
-#define CEC_XFER_TIMEOUT_MS (5 * 400 + 100)
-
 static int cec_log_addr2idx(const struct cec_adapter *adap, u8 log_addr)
 {
 	int i;
@@ -483,7 +471,7 @@ int cec_thread_func(void *_adap)
 				kthread_should_stop() ||
 				(!adap->transmit_in_progress &&
 				 !list_empty(&adap->transmit_queue)),
-				msecs_to_jiffies(CEC_XFER_TIMEOUT_MS));
+				msecs_to_jiffies(adap->xfer_timeout_ms));
 			timeout = err == 0;
 		} else {
 			/* Otherwise we just wait for something to happen. */
@@ -509,7 +497,8 @@ int cec_thread_func(void *_adap)
 			 * adapter driver, or the CEC bus is in some weird
 			 * state. On rare occasions it can happen if there is
 			 * so much traffic on the bus that the adapter was
-			 * unable to transmit for CEC_XFER_TIMEOUT_MS (2.1s).
+			 * unable to transmit for xfer_timeout_ms (2.1s by
+			 * default).
 			 */
 			if (adap->transmitting) {
 				pr_warn("cec-%s: message %*ph timed out\n", adap->name,

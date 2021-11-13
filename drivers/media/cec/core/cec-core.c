@@ -20,6 +20,18 @@
 #define CEC_NUM_DEVICES	256
 #define CEC_NAME	"cec"
 
+/*
+ * 400 ms is the time it takes for one 16 byte message to be
+ * transferred and 5 is the maximum number of retries. Add
+ * another 100 ms as a margin. So if the transmit doesn't
+ * finish before that time something is really wrong and we
+ * have to time out.
+ *
+ * This is a sign that something it really wrong and a warning
+ * will be issued.
+ */
+#define CEC_XFER_TIMEOUT_MS (5 * 400 + 100)
+
 int cec_debug;
 module_param_named(debug, cec_debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
@@ -331,6 +343,8 @@ int cec_register_adapter(struct cec_adapter *adap,
 
 	adap->owner = parent->driver->owner;
 	adap->devnode.dev.parent = parent;
+	if (!adap->xfer_timeout_ms)
+		adap->xfer_timeout_ms = CEC_XFER_TIMEOUT_MS;
 
 #ifdef CONFIG_MEDIA_CEC_RC
 	if (adap->capabilities & CEC_CAP_RC) {
