@@ -725,7 +725,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 	     wbc->sync_mode == WB_SYNC_NONE ? "NONE" :
 	     (wbc->sync_mode == WB_SYNC_ALL ? "ALL" : "HOLD"));
 
-	if (READ_ONCE(fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
+	if (ceph_inode_is_shutdown(inode)) {
 		if (ci->i_wrbuffer_ref > 0) {
 			pr_warn_ratelimited(
 				"writepage_start %p %lld forced umount\n",
@@ -1146,12 +1146,12 @@ static struct ceph_snap_context *
 ceph_find_incompatible(struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	if (READ_ONCE(fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
-		dout(" page %p forced umount\n", page);
-		return ERR_PTR(-EIO);
+	if (ceph_inode_is_shutdown(inode)) {
+		dout(" page %p %llx:%llx is shutdown\n", page,
+		     ceph_vinop(inode));
+		return ERR_PTR(-ESTALE);
 	}
 
 	for (;;) {
@@ -1312,17 +1312,6 @@ out:
 	return copied;
 }
 
-/*
- * we set .direct_IO to indicate direct io is supported, but since we
- * intercept O_DIRECT reads and writes early, this function should
- * never get called.
- */
-static ssize_t ceph_direct_io(struct kiocb *iocb, struct iov_iter *iter)
-{
-	WARN_ON(1);
-	return -EINVAL;
-}
-
 const struct address_space_operations ceph_aops = {
 	.readpage = ceph_readpage,
 	.readahead = ceph_readahead,
@@ -1333,7 +1322,7 @@ const struct address_space_operations ceph_aops = {
 	.set_page_dirty = ceph_set_page_dirty,
 	.invalidatepage = ceph_invalidatepage,
 	.releasepage = ceph_releasepage,
-	.direct_IO = ceph_direct_io,
+	.direct_IO = noop_direct_IO,
 };
 
 static void ceph_block_sigs(sigset_t *oldset)
@@ -1361,6 +1350,9 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 	int want, got, err;
 	sigset_t oldset;
 	vm_fault_t ret = VM_FAULT_SIGBUS;
+
+	if (ceph_inode_is_shutdown(inode))
+		return ret;
 
 	ceph_block_sigs(&oldset);
 
@@ -1452,6 +1444,9 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 	int want, got, err;
 	sigset_t oldset;
 	vm_fault_t ret = VM_FAULT_SIGBUS;
+
+	if (ceph_inode_is_shutdown(inode))
+		return ret;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
