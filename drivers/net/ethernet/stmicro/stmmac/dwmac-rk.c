@@ -1404,10 +1404,10 @@ static const struct rk_gmac_ops rk3568_ops = {
 #define RK3588_GRF_GMAC_CON8			0X0320
 #define RK3588_GRF_GMAC_CON9			0X0324
 
-#define RK3588_GMAC_RXCLK_DLY_ENABLE(id)	GRF_BIT(3 + (id))
-#define RK3588_GMAC_RXCLK_DLY_DISABLE(id)	GRF_CLR_BIT(3 + (id))
-#define RK3588_GMAC_TXCLK_DLY_ENABLE(id)	GRF_BIT(2 + (id))
-#define RK3588_GMAC_TXCLK_DLY_DISABLE(id)	GRF_CLR_BIT(2 + (id))
+#define RK3588_GMAC_RXCLK_DLY_ENABLE(id)	GRF_BIT(2 * (id) + 3)
+#define RK3588_GMAC_RXCLK_DLY_DISABLE(id)	GRF_CLR_BIT(2 * (id) + 3)
+#define RK3588_GMAC_TXCLK_DLY_ENABLE(id)	GRF_BIT(2 * (id) + 2)
+#define RK3588_GMAC_TXCLK_DLY_DISABLE(id)	GRF_CLR_BIT(2 * (id) + 2)
 
 #define RK3588_GMAC_CLK_RX_DL_CFG(val)		HIWORD_UPDATE(val, 0xFF, 8)
 #define RK3588_GMAC_CLK_TX_DL_CFG(val)		HIWORD_UPDATE(val, 0xFF, 0)
