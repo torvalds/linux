@@ -23,10 +23,6 @@
 
 #define		EFUSE_REPEAT_THRESHOLD_			3
 
-/*	The following is for BT Efuse definition */
-#define		EFUSE_BT_MAX_MAP_LEN		1024
-#define		EFUSE_MAX_BANK			4
-#define		EFUSE_MAX_BT_BANK		(EFUSE_MAX_BANK-1)
 /*--------------------------Define Parameters-------------------------------*/
 #define		EFUSE_MAX_WORD_UNIT			4
 
@@ -37,17 +33,6 @@ struct efuse_hal {
 	u8 fakeEfuseContent[EFUSE_MAX_HW_SIZE];
 	u8 fakeEfuseInitMap[EFUSE_MAX_MAP_LEN];
 	u8 fakeEfuseModifiedMap[EFUSE_MAX_MAP_LEN];
-
-	u16 BTEfuseUsedBytes;
-	u8 BTEfuseUsedPercentage;
-	u8 BTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
-	u8 BTEfuseInitMap[EFUSE_BT_MAX_MAP_LEN];
-	u8 BTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN];
-
-	u16 fakeBTEfuseUsedBytes;
-	u8 fakeBTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
-	u8 fakeBTEfuseInitMap[EFUSE_BT_MAX_MAP_LEN];
-	u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN];
 };
 
 /*------------------------Export global variable----------------------------*/
@@ -57,15 +42,6 @@ extern u8 fakeEfuseContent[];
 extern u8 fakeEfuseInitMap[];
 extern u8 fakeEfuseModifiedMap[];
 
-extern u32 BTEfuseUsedBytes;
-extern u8 BTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
-extern u8 BTEfuseInitMap[];
-extern u8 BTEfuseModifiedMap[];
-
-extern u32 fakeBTEfuseUsedBytes;
-extern u8 fakeBTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
-extern u8 fakeBTEfuseInitMap[];
-extern u8 fakeBTEfuseModifiedMap[];
 /*------------------------Export global variable----------------------------*/
 
 u8 Efuse_CalculateWordCnts(u8 word_en);
