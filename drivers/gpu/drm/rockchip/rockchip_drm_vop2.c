@@ -5948,6 +5948,11 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 	bool premulti_en = false;
 	bool swap = false;
 
+	if (cluster->main->phys_id == ROCKCHIP_VOP2_CLUSTER2)
+		offset = 0x20;
+	else if (cluster->main->phys_id == ROCKCHIP_VOP2_CLUSTER3)
+		offset = 0x30;
+
 	if (!sub_win) {
 		/* At one win mode, win0 is dst/bottom win, and win1 is a all zero src/top win */
 		plane = &main_win->base;
