@@ -135,8 +135,8 @@
 		compatible = "rockchip,rk3588-i2s-tdm";
 		reg = <0x0 0xfddf4000 0x0 0x1000>;
 		interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru MCLK_I2S6_8CH_TX>, <&cru HCLK_I2S6_8CH>;
-		clock-names = "mclk_tx", "hclk";
+		clocks = <&cru MCLK_I2S6_8CH_TX>, <&cru MCLK_I2S6_8CH_TX>, <&cru HCLK_I2S6_8CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac2 4>;
 		dma-names = "tx";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -151,8 +151,8 @@
 		compatible = "rockchip,rk3588-i2s-tdm";
 		reg = <0x0 0xfddf8000 0x0 0x1000>;
 		interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru MCLK_I2S7_8CH_RX>, <&cru HCLK_I2S7_8CH>;
-		clock-names = "mclk_rx", "hclk";
+		clocks = <&cru MCLK_I2S7_8CH_RX>, <&cru MCLK_I2S7_8CH_RX>, <&cru HCLK_I2S7_8CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac2 21>;
 		dma-names = "rx";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -167,8 +167,8 @@
 		compatible = "rockchip,rk3588-i2s-tdm";
 		reg = <0x0 0xfde00000 0x0 0x1000>;
 		interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru MCLK_I2S10_8CH_RX>, <&cru HCLK_I2S10_8CH>;
-		clock-names = "mclk_rx", "hclk";
+		clocks = <&cru MCLK_I2S10_8CH_RX>, <&cru MCLK_I2S10_8CH_RX>, <&cru HCLK_I2S10_8CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac2 24>;
 		dma-names = "rx";
 		power-domains = <&power RK3588_PD_VO1>;
