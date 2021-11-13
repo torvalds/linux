@@ -1178,22 +1178,35 @@ static int dw_mipi_dsi2_read_from_fifo(struct dw_mipi_dsi2 *dsi2,
 				      const struct mipi_dsi_msg *msg)
 {
 	u8 *payload = msg->rx_buf;
+	u8 data_type;
+	u16 wc;
 	int i, j, ret, len = msg->rx_len;
 	unsigned int vrefresh = drm_mode_vrefresh(&dsi2->mode);
 	u32 val;
 
-	/* Receive payload */
-	for (i = 0; i < len; i += 4) {
-		ret = regmap_read_poll_timeout(dsi2->regmap, DSI2_CORE_STATUS,
-					       val, val & CRI_RD_DATA_AVAIL,
-					       0, DIV_ROUND_UP(1000000, vrefresh));
-		if (ret) {
-			DRM_DEV_ERROR(dsi2->dev, "CRI has no available read data\n");
-			return ret;
-		}
+	ret = regmap_read_poll_timeout(dsi2->regmap, DSI2_CORE_STATUS,
+				       val, val & CRI_RD_DATA_AVAIL,
+				       0, DIV_ROUND_UP(1000000, vrefresh));
+	if (ret) {
+		DRM_DEV_ERROR(dsi2->dev, "CRI has no available read data\n");
+		return ret;
+	}
 
+	regmap_read(dsi2->regmap, DSI2_CRI_RX_HDR, &val);
+	data_type = val & 0x3f;
+
+	if (mipi_dsi_packet_format_is_short(data_type)) {
+		for (i = 0; i < len && i < 2; i++)
+			payload[i] = (val >> (8 * (i + 1))) & 0xff;
+
+		return 0;
+	}
+
+	wc = (val >> 8) & 0xffff;
+	/* Receive payload */
+	for (i = 0; i < len && i < wc; i += 4) {
 		regmap_read(dsi2->regmap, DSI2_CRI_RX_PLD, &val);
-		for (j = 0; j < 4 && j + i < len; j++)
+		for (j = 0; j < 4 && j + i < len && j + i < wc; j++)
 			payload[i + j] = val >> (8 * j);
 	}
 
@@ -1220,13 +1233,13 @@ static ssize_t dw_mipi_dsi2_transfer(struct dw_mipi_dsi2 *dsi2,
 		return ret;
 	}
 
+	ret = cri_fifos_wait_avail(dsi2);
+	if (ret)
+		return ret;
+
 	/* Send payload */
 	while (DIV_ROUND_UP(packet.payload_length, 4)) {
 		/* check cri interface is not busy */
-		ret = cri_fifos_wait_avail(dsi2);
-		if (ret)
-			return ret;
-
 		if (packet.payload_length < 4) {
 			/* send residu payload */
 			val = 0;
@@ -1240,10 +1253,6 @@ static ssize_t dw_mipi_dsi2_transfer(struct dw_mipi_dsi2 *dsi2,
 			packet.payload_length -= 4;
 		}
 	}
-
-	ret = cri_fifos_wait_avail(dsi2);
-	if (ret)
-		return ret;
 
 	/* Send packet header */
 	mode = CMD_TX_MODE(msg->flags & MIPI_DSI_MSG_USE_LPM ? 1 : 0);
