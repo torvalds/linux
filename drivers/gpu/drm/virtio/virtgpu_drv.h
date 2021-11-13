@@ -259,12 +259,13 @@ struct virtio_gpu_device {
 
 struct virtio_gpu_fpriv {
 	uint32_t ctx_id;
+	uint32_t context_init;
 	bool context_created;
 	struct mutex context_lock;
 };
 
 /* virtgpu_ioctl.c */
-#define DRM_VIRTIO_NUM_IOCTLS 11
+#define DRM_VIRTIO_NUM_IOCTLS 12
 extern struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS];
 void virtio_gpu_create_context(struct drm_device *dev, struct drm_file *file);
 
@@ -342,7 +343,8 @@ int virtio_gpu_cmd_get_capset(struct virtio_gpu_device *vgdev,
 			      struct virtio_gpu_drv_cap_cache **cache_p);
 int virtio_gpu_cmd_get_edids(struct virtio_gpu_device *vgdev);
 void virtio_gpu_cmd_context_create(struct virtio_gpu_device *vgdev, uint32_t id,
-				   uint32_t nlen, const char *name);
+				   uint32_t context_init, uint32_t nlen,
+				   const char *name);
 void virtio_gpu_cmd_context_destroy(struct virtio_gpu_device *vgdev,
 				    uint32_t id);
 void virtio_gpu_cmd_context_attach_resource(struct virtio_gpu_device *vgdev,
