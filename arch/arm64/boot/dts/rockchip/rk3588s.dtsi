@@ -2658,7 +2658,7 @@
 		num-ib-windows = <8>;
 		num-ob-windows = <8>;
 		max-link-speed = <2>;
-		msi-map = <0x3000 &its 0x3000 0x1000>;
+		msi-map = <0x3000 &its0 0x3000 0x1000>;
 		num-lanes = <1>;
 		phys = <&combphy2_psu PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy";
@@ -2709,7 +2709,7 @@
 		num-ib-windows = <8>;
 		num-ob-windows = <8>;
 		max-link-speed = <2>;
-		msi-map = <0x4000 &its 0x4000 0x1000>;
+		msi-map = <0x4000 &its0 0x4000 0x1000>;
 		num-lanes = <1>;
 		phys = <&combphy0_ps PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy";
@@ -3099,11 +3099,17 @@
 		reg = <0x0 0xfe600000 0 0x10000>, /* GICD */
 		      <0x0 0xfe680000 0 0x100000>; /* GICR */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
-		its: interrupt-controller@fe640000 {
+		its0: msi-controller@fe640000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0xfe640000 0x0 0x20000>;
+		};
+		its1: msi-controller@fe660000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x0 0xfe660000 0x0 0x20000>;
 		};
 	};
 
