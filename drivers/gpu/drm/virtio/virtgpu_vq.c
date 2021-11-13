@@ -199,7 +199,7 @@ void virtio_gpu_dequeue_ctrl_func(struct work_struct *work)
 	struct list_head reclaim_list;
 	struct virtio_gpu_vbuffer *entry, *tmp;
 	struct virtio_gpu_ctrl_hdr *resp;
-	u64 fence_id = 0;
+	u64 fence_id;
 
 	INIT_LIST_HEAD(&reclaim_list);
 	spin_lock(&vgdev->ctrlq.qlock);
@@ -226,22 +226,13 @@ void virtio_gpu_dequeue_ctrl_func(struct work_struct *work)
 				DRM_DEBUG("response 0x%x\n", le32_to_cpu(resp->type));
 		}
 		if (resp->flags & cpu_to_le32(VIRTIO_GPU_FLAG_FENCE)) {
-			u64 f = le64_to_cpu(resp->fence_id);
-
-			if (fence_id > f) {
-				DRM_ERROR("%s: Oops: fence %llx -> %llx\n",
-					  __func__, fence_id, f);
-			} else {
-				fence_id = f;
-			}
+			fence_id = le64_to_cpu(resp->fence_id);
+			virtio_gpu_fence_event_process(vgdev, fence_id);
 		}
 		if (entry->resp_cb)
 			entry->resp_cb(vgdev, entry);
 	}
 	wake_up(&vgdev->ctrlq.ack_queue);
-
-	if (fence_id)
-		virtio_gpu_fence_event_process(vgdev, fence_id);
 
 	list_for_each_entry_safe(entry, tmp, &reclaim_list, list) {
 		if (entry->objs)
