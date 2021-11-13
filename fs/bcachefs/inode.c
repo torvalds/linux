@@ -220,6 +220,7 @@ int bch2_inode_unpack(struct bkey_s_c k,
 		struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
 
 		unpacked->bi_inum	= inode.k->p.offset;
+		unpacked->bi_journal_seq= 0;
 		unpacked->bi_hash_seed	= inode.v->bi_hash_seed;
 		unpacked->bi_flags	= le32_to_cpu(inode.v->bi_flags);
 		unpacked->bi_mode	= le16_to_cpu(inode.v->bi_mode);
