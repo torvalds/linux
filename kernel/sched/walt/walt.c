@@ -4225,6 +4225,23 @@ static void android_rvh_set_cpus_allowed_ptr_locked(void *unused,
 	}
 }
 
+static void android_rvh_rto_next_cpu(void *unused,
+				     int rto_cpu,
+				     struct cpumask *rto_mask,
+				     int *cpu)
+{
+	cpumask_t allowed_cpus;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	if (cpu_halted(*cpu)) {
+		/* remove halted cpus from the valid mask, and store locally */
+		cpumask_andnot(&allowed_cpus, rto_mask, cpu_halt_mask);
+		*cpu = cpumask_next(rto_cpu, &allowed_cpus);
+	}
+}
+
 static void register_walt_hooks(void)
 {
 	register_trace_android_rvh_wake_up_new_task(android_rvh_wake_up_new_task, NULL);
@@ -4255,6 +4272,7 @@ static void register_walt_hooks(void)
 	register_trace_android_vh_dump_throttled_rt_tasks(dump_throttled_rt_tasks, NULL);
 	register_trace_android_rvh_set_cpus_allowed_ptr_locked(
 						android_rvh_set_cpus_allowed_ptr_locked, NULL);
+	register_trace_android_rvh_rto_next_cpu(android_rvh_rto_next_cpu, NULL);
 }
 
 atomic64_t walt_irq_work_lastq_ws;
