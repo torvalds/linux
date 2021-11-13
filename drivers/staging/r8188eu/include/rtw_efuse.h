@@ -102,12 +102,12 @@ extern u8 fakeBTEfuseModifiedMap[];
 /*------------------------Export global variable----------------------------*/
 
 u8 Efuse_CalculateWordCnts(u8 word_en);
-void ReadEFuseByte(struct adapter *adapter, u16 _offset, u8 *pbuf, bool test);
+void ReadEFuseByte(struct adapter *adapter, u16 _offset, u8 *pbuf);
 u8 efuse_OneByteRead(struct adapter *adapter, u16 addr, u8 *data, bool test);
 u8 efuse_OneByteWrite(struct adapter *adapter, u16 addr, u8 data, bool	test);
 
 void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata);
 
-void EFUSE_ShadowMapUpdate(struct adapter *adapter, bool test);
+void EFUSE_ShadowMapUpdate(struct adapter *adapter);
 
 #endif

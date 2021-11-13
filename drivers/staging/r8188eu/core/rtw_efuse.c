@@ -83,17 +83,11 @@ void
 ReadEFuseByte(
 		struct adapter *Adapter,
 		u16 _offset,
-		u8 *pbuf,
-		bool pseudo)
+		u8 *pbuf)
 {
 	u32 value32;
 	u8 readbyte;
 	u16 retry;
-
-	if (pseudo) {
-		Efuse_Read1ByteFromFakeContent(_offset, pbuf);
-		return;
-	}
 
 	/* Write Address */
 	rtw_write8(Adapter, EFUSE_CTRL + 1, (_offset & 0xff));
@@ -237,15 +231,15 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
  * 11/11/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 *Efuse, bool pseudo)
+static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 *Efuse)
 {
 	u16 mapLen = 0;
 
 	rtl8188e_EfusePowerSwitch(pAdapter, true);
 
-	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen, pseudo);
+	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
 
-	rtl8188e_ReadEFuse(pAdapter, 0, mapLen, Efuse, pseudo);
+	rtl8188e_ReadEFuse(pAdapter, 0, mapLen, Efuse);
 
 	rtl8188e_EfusePowerSwitch(pAdapter, false);
 }
@@ -266,17 +260,15 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 *Efuse, bool pseudo)
  * 11/13/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-void EFUSE_ShadowMapUpdate(
-	struct adapter *pAdapter,
-	bool pseudo)
+void EFUSE_ShadowMapUpdate(struct adapter *pAdapter)
 {
 	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
 	u16 mapLen = 0;
 
-	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen, pseudo);
+	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
 
 	if (pEEPROM->bautoload_fail_flag)
 		memset(pEEPROM->efuse_eeprom_data, 0xFF, mapLen);
 	else
-		Efuse_ReadAllMap(pAdapter, pEEPROM->efuse_eeprom_data, pseudo);
+		Efuse_ReadAllMap(pAdapter, pEEPROM->efuse_eeprom_data);
 } /*  EFUSE_ShadowMapUpdate */

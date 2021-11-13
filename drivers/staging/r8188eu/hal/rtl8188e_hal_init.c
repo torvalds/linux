@@ -685,9 +685,7 @@ void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState)
 static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 	u16			_offset,
 	u16			_size_byte,
-	u8 *pbuf,
-		bool bPseudoTest
-	)
+	u8 *pbuf)
 {
 	u8 *efuseTbl = NULL;
 	u8 rtemp8[1];
@@ -727,7 +725,7 @@ static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 	/*  1. Read the first byte to check if efuse is empty!!! */
 	/*  */
 	/*  */
-	ReadEFuseByte(Adapter, eFuse_Addr, rtemp8, bPseudoTest);
+	ReadEFuseByte(Adapter, eFuse_Addr, rtemp8);
 	if (*rtemp8 != 0xFF) {
 		efuse_utilized++;
 		eFuse_Addr++;
@@ -744,11 +742,11 @@ static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 		if ((*rtemp8 & 0x1F) == 0x0F) {		/* extended header */
 			u1temp = ((*rtemp8 & 0xE0) >> 5);
 
-			ReadEFuseByte(Adapter, eFuse_Addr, rtemp8, bPseudoTest);
+			ReadEFuseByte(Adapter, eFuse_Addr, rtemp8);
 
 			if ((*rtemp8 & 0x0F) == 0x0F) {
 				eFuse_Addr++;
-				ReadEFuseByte(Adapter, eFuse_Addr, rtemp8, bPseudoTest);
+				ReadEFuseByte(Adapter, eFuse_Addr, rtemp8);
 
 				if (*rtemp8 != 0xFF && (eFuse_Addr < EFUSE_REAL_CONTENT_LEN_88E))
 					eFuse_Addr++;
@@ -769,13 +767,13 @@ static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 			for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
 				/*  Check word enable condition in the section */
 				if (!(wren & 0x01)) {
-					ReadEFuseByte(Adapter, eFuse_Addr, rtemp8, bPseudoTest);
+					ReadEFuseByte(Adapter, eFuse_Addr, rtemp8);
 					eFuse_Addr++;
 					efuse_utilized++;
 					eFuseWord[offset][i] = (*rtemp8 & 0xff);
 					if (eFuse_Addr >= EFUSE_REAL_CONTENT_LEN_88E)
 						break;
-					ReadEFuseByte(Adapter, eFuse_Addr, rtemp8, bPseudoTest);
+					ReadEFuseByte(Adapter, eFuse_Addr, rtemp8);
 					eFuse_Addr++;
 					efuse_utilized++;
 					eFuseWord[offset][i] |= (((u16)*rtemp8 << 8) & 0xff00);
@@ -787,7 +785,7 @@ static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 		}
 
 		/*  Read next PG header */
-		ReadEFuseByte(Adapter, eFuse_Addr, rtemp8, bPseudoTest);
+		ReadEFuseByte(Adapter, eFuse_Addr, rtemp8);
 
 		if (*rtemp8 != 0xFF && (eFuse_Addr < EFUSE_REAL_CONTENT_LEN_88E)) {
 			efuse_utilized++;
@@ -815,38 +813,26 @@ exit:
 	kfree(eFuseWord);
 }
 
-static void ReadEFuseByIC(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
+static void ReadEFuseByIC(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf)
 {
-	if (!bPseudoTest) {
-		int ret = _FAIL;
-		if (rtw_IOL_applied(Adapter)) {
-			rtl8188eu_InitPowerOn(Adapter);
+	int ret = _FAIL;
+	if (rtw_IOL_applied(Adapter)) {
+		rtl8188eu_InitPowerOn(Adapter);
 
-			iol_mode_enable(Adapter, 1);
-			ret = iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);
-			iol_mode_enable(Adapter, 0);
+		iol_mode_enable(Adapter, 1);
+		ret = iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);
+		iol_mode_enable(Adapter, 0);
 
-			if (_SUCCESS == ret)
-				goto exit;
-		}
+		if (_SUCCESS == ret)
+			return;
 	}
-	Hal_EfuseReadEFuse88E(Adapter, _offset, _size_byte, pbuf, bPseudoTest);
 
-exit:
-	return;
+	Hal_EfuseReadEFuse88E(Adapter, _offset, _size_byte, pbuf);
 }
 
-static void ReadEFuse_Pseudo(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
+void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf)
 {
-	Hal_EfuseReadEFuse88E(Adapter, _offset, _size_byte, pbuf, bPseudoTest);
-}
-
-void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
-{
-	if (bPseudoTest)
-		ReadEFuse_Pseudo(Adapter, _offset, _size_byte, pbuf, bPseudoTest);
-	else
-		ReadEFuseByIC(Adapter, _offset, _size_byte, pbuf, bPseudoTest);
+	ReadEFuseByIC(Adapter, _offset, _size_byte, pbuf);
 }
 
 /* Do not support BT */
@@ -912,74 +898,9 @@ static void Hal_EFUSEGetEfuseDefinition88E(struct adapter *pAdapter, u8 type, vo
 	}
 }
 
-static void Hal_EFUSEGetEfuseDefinition_Pseudo88E(struct adapter *pAdapter, u8 type, void *pOut)
+void rtl8188e_EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 type, void *pOut)
 {
-	switch (type) {
-	case TYPE_EFUSE_MAX_SECTION:
-		{
-			u8 *pMax_section;
-			pMax_section = (u8 *)pOut;
-			*pMax_section = EFUSE_MAX_SECTION_88E;
-		}
-		break;
-	case TYPE_EFUSE_REAL_CONTENT_LEN:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
-			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_88E;
-		}
-		break;
-	case TYPE_EFUSE_CONTENT_LEN_BANK:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
-			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_88E;
-		}
-		break;
-	case TYPE_AVAILABLE_EFUSE_BYTES_BANK:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
-			*pu2Tmp = (u16)(EFUSE_REAL_CONTENT_LEN_88E - EFUSE_OOB_PROTECT_BYTES_88E);
-		}
-		break;
-	case TYPE_AVAILABLE_EFUSE_BYTES_TOTAL:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
-			*pu2Tmp = (u16)(EFUSE_REAL_CONTENT_LEN_88E - EFUSE_OOB_PROTECT_BYTES_88E);
-		}
-		break;
-	case TYPE_EFUSE_MAP_LEN:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
-			*pu2Tmp = (u16)EFUSE_MAP_LEN_88E;
-		}
-		break;
-	case TYPE_EFUSE_PROTECT_BYTES_BANK:
-		{
-			u8 *pu1Tmp;
-			pu1Tmp = (u8 *)pOut;
-			*pu1Tmp = (u8)(EFUSE_OOB_PROTECT_BYTES_88E);
-		}
-		break;
-	default:
-		{
-			u8 *pu1Tmp;
-			pu1Tmp = (u8 *)pOut;
-			*pu1Tmp = 0;
-		}
-		break;
-	}
-}
-
-void rtl8188e_EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 type, void *pOut, bool bPseudoTest)
-{
-	if (bPseudoTest)
-		Hal_EFUSEGetEfuseDefinition_Pseudo88E(pAdapter, type, pOut);
-	else
-		Hal_EFUSEGetEfuseDefinition88E(pAdapter, type, pOut);
+	Hal_EFUSEGetEfuseDefinition88E(pAdapter, type, pOut);
 }
 
 static u16 hal_EfuseGetCurrentSize_8188e(struct adapter *pAdapter, bool bPseudoTest)
@@ -1058,7 +979,7 @@ static int hal_EfusePgPacketRead_8188e(struct adapter *pAdapter, u8 offset, u8 *
 	u8 max_section = 0;
 	u8 tmp_header = 0;
 
-	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAX_SECTION, (void *)&max_section, bPseudoTest);
+	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAX_SECTION, (void *)&max_section);
 
 	if (!data)
 		return false;
@@ -1311,7 +1232,7 @@ void
 Hal_InitPGData88E(struct adapter *padapter)
 {
 	if (!is_boot_from_eeprom(padapter))
-		EFUSE_ShadowMapUpdate(padapter, false);
+		EFUSE_ShadowMapUpdate(padapter);
 }
 
 void
