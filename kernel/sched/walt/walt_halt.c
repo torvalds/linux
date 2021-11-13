@@ -289,6 +289,12 @@ unlock:
 }
 EXPORT_SYMBOL(walt_halt_cpus);
 
+int walt_pause_cpus(struct cpumask *cpus)
+{
+	return walt_halt_cpus(cpus);
+}
+EXPORT_SYMBOL(walt_pause_cpus);
+
 /* cpus will be modified */
 int walt_start_cpus(struct cpumask *cpus)
 {
@@ -314,6 +320,12 @@ int walt_start_cpus(struct cpumask *cpus)
 	return ret;
 }
 EXPORT_SYMBOL(walt_start_cpus);
+
+int walt_resume_cpus(struct cpumask *cpus)
+{
+	return walt_start_cpus(cpus);
+}
+EXPORT_SYMBOL(walt_resume_cpus);
 
 void walt_halt_init(void)
 {

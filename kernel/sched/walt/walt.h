@@ -756,7 +756,6 @@ extern void sched_update_hyst_times(void);
 
 extern void walt_rt_init(void);
 extern void walt_cfs_init(void);
-extern void walt_pause_init(void);
 extern void walt_halt_init(void);
 extern void walt_fixup_init(void);
 extern int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
