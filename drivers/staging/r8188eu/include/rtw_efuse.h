@@ -8,9 +8,6 @@
 
 #define	EFUSE_ERROE_HANDLE		1
 
-#define	EFUSE_WIFI				0
-#define	EFUSE_BT				1
-
 /* E-Fuse */
 #define EFUSE_MAP_SIZE      512
 #define EFUSE_MAX_SIZE      256
