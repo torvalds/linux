@@ -1229,13 +1229,6 @@ s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 }
 
 void
-Hal_InitPGData88E(struct adapter *padapter)
-{
-	if (!is_boot_from_eeprom(padapter))
-		EFUSE_ShadowMapUpdate(padapter);
-}
-
-void
 Hal_EfuseParseIDCode88E(
 		struct adapter *padapter,
 		u8 *hwinfo
