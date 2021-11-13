@@ -558,7 +558,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 				complete(dev->done);
 		} else if (status & DATA_DONE_INT) {
 			dev->trans_result = TRANS_NOT_READY;
-			if (dev->done && (dev->trans_state == STATE_TRANS_SG))
+			if (dev->done && dev->trans_state == STATE_TRANS_SG)
 				complete(dev->done);
 		}
 	}

@@ -14,12 +14,15 @@ instances [1].
 For example, an application that processes sensitive data and runs in a VM,
 can be separated from other applications running in the same VM. This
 application then runs in a separate VM than the primary VM, namely an enclave.
+It runs alongside the VM that spawned it. This setup matches low latency
+applications needs.
 
-An enclave runs alongside the VM that spawned it. This setup matches low latency
-applications needs. The resources that are allocated for the enclave, such as
-memory and CPUs, are carved out of the primary VM. Each enclave is mapped to a
-process running in the primary VM, that communicates with the NE driver via an
-ioctl interface.
+The current supported architectures for the NE kernel driver, available in the
+upstream Linux kernel, are x86 and ARM64.
+
+The resources that are allocated for the enclave, such as memory and CPUs, are
+carved out of the primary VM. Each enclave is mapped to a process running in the
+primary VM, that communicates with the NE kernel driver via an ioctl interface.
 
 In this sense, there are two components:
 
@@ -43,8 +46,8 @@ for the enclave VM. An enclave does not have persistent storage attached.
 The memory regions carved out of the primary VM and given to an enclave need to
 be aligned 2 MiB / 1 GiB physically contiguous memory regions (or multiple of
 this size e.g. 8 MiB). The memory can be allocated e.g. by using hugetlbfs from
-user space [2][3]. The memory size for an enclave needs to be at least 64 MiB.
-The enclave memory and CPUs need to be from the same NUMA node.
+user space [2][3][7]. The memory size for an enclave needs to be at least
+64 MiB. The enclave memory and CPUs need to be from the same NUMA node.
 
 An enclave runs on dedicated cores. CPU 0 and its CPU siblings need to remain
 available for the primary VM. A CPU pool has to be set for NE purposes by an
@@ -61,7 +64,7 @@ device is placed in memory below the typical 4 GiB.
 The application that runs in the enclave needs to be packaged in an enclave
 image together with the OS ( e.g. kernel, ramdisk, init ) that will run in the
 enclave VM. The enclave VM has its own kernel and follows the standard Linux
-boot protocol [6].
+boot protocol [6][8].
 
 The kernel bzImage, the kernel command line, the ramdisk(s) are part of the
 Enclave Image Format (EIF); plus an EIF header including metadata such as magic
@@ -93,3 +96,5 @@ enclave process can exit.
 [4] https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html
 [5] https://man7.org/linux/man-pages/man7/vsock.7.html
 [6] https://www.kernel.org/doc/html/latest/x86/boot.html
+[7] https://www.kernel.org/doc/html/latest/arm64/hugetlbpage.html
+[8] https://www.kernel.org/doc/html/latest/arm64/booting.html

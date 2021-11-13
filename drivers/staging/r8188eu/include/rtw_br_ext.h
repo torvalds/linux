@@ -4,7 +4,6 @@
 #ifndef _RTW_BR_EXT_H_
 #define _RTW_BR_EXT_H_
 
-#define MACADDRLEN		6
 #define _DEBUG_ERR		DBG_88E
 #define _DEBUG_INFO		DBG_88E
 #define DEBUG_WARN		DBG_88E
@@ -40,7 +39,7 @@ struct br_ext_info {
 	unsigned int	macclone_enable;
 	unsigned int	dhcp_bcst_disable;
 	int	addPPPoETag;		/* 1: Add PPPoE relay-SID, 0: disable */
-	unsigned char	nat25_dmzMac[MACADDRLEN];
+	unsigned char	nat25_dmzMac[ETH_ALEN];
 	unsigned int	nat25sc_disable;
 };
 

@@ -197,13 +197,6 @@ static struct iio_map rn5t618_maps[] = {
 	{ /* sentinel */ }
 };
 
-static void unregister_map(void *data)
-{
-	struct iio_dev *iio_dev = (struct iio_dev *) data;
-
-	iio_map_array_unregister(iio_dev);
-}
-
 static int rn5t618_adc_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -254,11 +247,7 @@ static int rn5t618_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = iio_map_array_register(iio_dev, rn5t618_maps);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_add_action_or_reset(adc->dev, unregister_map, iio_dev);
+	ret = devm_iio_map_array_register(adc->dev, iio_dev, rn5t618_maps);
 	if (ret < 0)
 		return ret;
 

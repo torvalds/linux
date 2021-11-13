@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
 
 #ifndef _UAPI_LINUX_NITRO_ENCLAVES_H_
@@ -60,7 +60,7 @@
  *
  * Context: Process context.
  * Return:
- * * 0					- Logic succesfully completed.
+ * * 0					- Logic successfully completed.
  * *  -1				- There was a failure in the ioctl logic.
  * On failure, errno is set to:
  * * EFAULT				- copy_from_user() / copy_to_user() failure.
@@ -95,7 +95,7 @@
  *
  * Context: Process context.
  * Return:
- * * 0				- Logic succesfully completed.
+ * * 0				- Logic successfully completed.
  * *  -1			- There was a failure in the ioctl logic.
  * On failure, errno is set to:
  * * EFAULT			- copy_from_user() / copy_to_user() failure.
@@ -118,7 +118,7 @@
  *
  * Context: Process context.
  * Return:
- * * 0					- Logic succesfully completed.
+ * * 0					- Logic successfully completed.
  * *  -1				- There was a failure in the ioctl logic.
  * On failure, errno is set to:
  * * EFAULT				- copy_from_user() failure.
@@ -161,7 +161,7 @@
  *
  * Context: Process context.
  * Return:
- * * 0					- Logic succesfully completed.
+ * * 0					- Logic successfully completed.
  * *  -1				- There was a failure in the ioctl logic.
  * On failure, errno is set to:
  * * EFAULT				- copy_from_user() / copy_to_user() failure.

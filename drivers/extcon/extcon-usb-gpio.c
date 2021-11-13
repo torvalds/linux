@@ -7,18 +7,17 @@
  */
 
 #include <linux/extcon-provider.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/mod_devicetable.h>
 
 #define USB_GPIO_DEBOUNCE_MS	20	/* ms */
 

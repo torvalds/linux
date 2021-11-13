@@ -41,6 +41,7 @@
 #include <linux/swiotlb.h>
 #include <linux/dma-buf.h>
 #include <linux/sizes.h>
+#include <linux/module.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
@@ -58,6 +59,8 @@
 #include "amdgpu_atomfirmware.h"
 #include "amdgpu_res_cursor.h"
 #include "bif/bif_4_1_d.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 #define AMDGPU_TTM_VRAM_MAX_DW_READ	(size_t)128
 

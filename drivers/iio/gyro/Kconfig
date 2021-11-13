@@ -126,7 +126,6 @@ config MPU3050
 
 config MPU3050_I2C
 	tristate "Invensense MPU3050 devices on I2C"
-	depends on !(INPUT_MPU3050=y || INPUT_MPU3050=m)
 	depends on I2C
 	select MPU3050
 	select REGMAP_I2C

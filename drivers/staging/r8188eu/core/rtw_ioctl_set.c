@@ -13,29 +13,6 @@
 
 extern void indicate_wx_scan_complete_event(struct adapter *padapter);
 
-u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid)
-{
-	u8	 i;
-	u8	ret = true;
-
-	if (ssid->SsidLength > 32) {
-		ret = false;
-		goto exit;
-	}
-
-	for (i = 0; i < ssid->SsidLength; i++) {
-		/* wifi, printable ascii code must be supported */
-		if (!((ssid->Ssid[i] >= 0x20) && (ssid->Ssid[i] <= 0x7e))) {
-			ret = false;
-			break;
-		}
-	}
-
-exit:
-
-	return ret;
-}
-
 u8 rtw_do_join(struct adapter *padapter)
 {
 	struct list_head *plist, *phead;
@@ -74,7 +51,7 @@ u8 rtw_do_join(struct adapter *padapter)
 			ret = _FAIL;
 		}
 
-		goto exit;
+		return ret;
 	} else {
 		int select_ret;
 
@@ -101,10 +78,9 @@ u8 rtw_do_join(struct adapter *padapter)
 
 				rtw_generate_random_ibss(pibss);
 
-				if (rtw_createbss_cmd(padapter) != _SUCCESS) {
-					ret =  false;
-					goto exit;
-				}
+				if (rtw_createbss_cmd(padapter) != _SUCCESS)
+					return false;
+
 				pmlmepriv->to_join = false;
 			} else {
 				/*  can't associate ; reset under-linking */
@@ -124,8 +100,6 @@ u8 rtw_do_join(struct adapter *padapter)
 			}
 		}
 	}
-
-exit:
 
 	return ret;
 }
@@ -312,9 +286,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 			/* change to other mode from Ndis802_11APMode */
 			cur_network->join_res = -1;
 
-#ifdef CONFIG_88EU_AP_MODE
 			stop_ap_mode(padapter);
-#endif
 		}
 
 		if ((check_fwstate(pmlmepriv, _FW_LINKED)) ||
@@ -343,9 +315,6 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 			break;
 		case Ndis802_11APMode:
 			set_fwstate(pmlmepriv, WIFI_AP_STATE);
-#ifdef CONFIG_88EU_AP_MODE
-			start_ap_mode(padapter);
-#endif
 			break;
 		case Ndis802_11AutoUnknown:
 		case Ndis802_11InfrastructureMax:
@@ -472,298 +441,6 @@ exit:
 	return ret;
 }
 
-u8 rtw_set_802_11_remove_wep(struct adapter *padapter, u32 keyindex)
-{
-	u8 ret = _SUCCESS;
-
-	if (keyindex >= 0x80000000 || !padapter) {
-		ret = false;
-		goto exit;
-	} else {
-		int res;
-		struct security_priv *psecuritypriv = &padapter->securitypriv;
-		if (keyindex < 4) {
-			memset(&psecuritypriv->dot11DefKey[keyindex], 0, 16);
-			res = rtw_set_key(padapter, psecuritypriv, keyindex, 0);
-			psecuritypriv->dot11DefKeylen[keyindex] = 0;
-			if (res == _FAIL)
-				ret = _FAIL;
-		} else {
-			ret = _FAIL;
-		}
-	}
-exit:
-
-	return ret;
-}
-
-u8 rtw_set_802_11_add_key(struct adapter *padapter, struct ndis_802_11_key *key)
-{
-	uint	encryptionalgo;
-	u8 *pbssid;
-	struct sta_info *stainfo;
-	u8	bgroup = false;
-	u8	bgrouptkey = false;/* can be removed later */
-	u8	ret = _SUCCESS;
-
-	if (((key->KeyIndex & 0x80000000) == 0) && ((key->KeyIndex & 0x40000000) > 0)) {
-		/*  It is invalid to clear bit 31 and set bit 30. If the miniport driver encounters this combination, */
-		/*  it must fail the request and return NDIS_STATUS_INVALID_DATA. */
-		ret = _FAIL;
-		goto exit;
-	}
-
-	if (key->KeyIndex & 0x40000000) {
-		/*  Pairwise key */
-
-		pbssid = get_bssid(&padapter->mlmepriv);
-		stainfo = rtw_get_stainfo(&padapter->stapriv, pbssid);
-
-		if (stainfo && padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X)
-			encryptionalgo = stainfo->dot118021XPrivacy;
-		else
-			encryptionalgo = padapter->securitypriv.dot11PrivacyAlgrthm;
-
-		if (key->KeyIndex & 0x000000FF) {
-			/*  The key index is specified in the lower 8 bits by values of zero to 255. */
-			/*  The key index should be set to zero for a Pairwise key, and the driver should fail with */
-			/*  NDIS_STATUS_INVALID_DATA if the lower 8 bits is not zero */
-			ret = _FAIL;
-			goto exit;
-		}
-
-		/*  check BSSID */
-		if (is_broadcast_ether_addr(key->BSSID)) {
-			ret = false;
-			goto exit;
-		}
-
-		/*  Check key length for TKIP. */
-		if ((encryptionalgo == _TKIP_) && (key->KeyLength != 32)) {
-			ret = _FAIL;
-			goto exit;
-		}
-
-		/*  Check key length for AES. */
-		if ((encryptionalgo == _AES_) && (key->KeyLength != 16)) {
-			/*  For our supplicant, EAPPkt9x.vxd, cannot differentiate TKIP and AES case. */
-			if (key->KeyLength == 32) {
-				key->KeyLength = 16;
-			} else {
-				ret = _FAIL;
-				goto exit;
-			}
-		}
-
-		/*  Check key length for WEP. For NDTEST, 2005.01.27, by rcnjko. */
-		if ((encryptionalgo == _WEP40_ || encryptionalgo == _WEP104_) &&
-		    (key->KeyLength != 5 && key->KeyLength != 13)) {
-			ret = _FAIL;
-			goto exit;
-		}
-
-		bgroup = false;
-	} else {
-		/*  Group key - KeyIndex(BIT(30) == 0) */
-		/*  when add wep key through add key and didn't assigned encryption type before */
-		if ((padapter->securitypriv.ndisauthtype <= 3) &&
-		    (padapter->securitypriv.dot118021XGrpPrivacy == 0)) {
-			switch (key->KeyLength) {
-			case 5:
-				padapter->securitypriv.dot11PrivacyAlgrthm = _WEP40_;
-				break;
-			case 13:
-				padapter->securitypriv.dot11PrivacyAlgrthm = _WEP104_;
-				break;
-			default:
-				padapter->securitypriv.dot11PrivacyAlgrthm = _NO_PRIVACY_;
-				break;
-			}
-
-			encryptionalgo = padapter->securitypriv.dot11PrivacyAlgrthm;
-		} else {
-			encryptionalgo = padapter->securitypriv.dot118021XGrpPrivacy;
-		}
-
-		if (check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE) && !is_broadcast_ether_addr(key->BSSID)) {
-			ret = _FAIL;
-			goto exit;
-		}
-
-		/*  Check key length for TKIP */
-		if ((encryptionalgo == _TKIP_) && (key->KeyLength != 32)) {
-			ret = _FAIL;
-			goto exit;
-		} else if (encryptionalgo == _AES_ && (key->KeyLength != 16 && key->KeyLength != 32)) {
-			/*  Check key length for AES */
-			/*  For NDTEST, we allow keylen = 32 in this case. 2005.01.27, by rcnjko. */
-			ret = _FAIL;
-			goto exit;
-		}
-
-		/*  Change the key length for EAPPkt9x.vxd. Added by Annie, 2005-11-03. */
-		if ((encryptionalgo ==  _AES_) && (key->KeyLength == 32))
-			key->KeyLength = 16;
-
-		if (key->KeyIndex & 0x8000000) {/* error ??? 0x8000_0000 */
-			bgrouptkey = true;
-		}
-
-		if ((check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE)) &&
-		    (check_fwstate(&padapter->mlmepriv, _FW_LINKED)))
-			bgrouptkey = true;
-		bgroup = true;
-	}
-
-	/*  If WEP encryption algorithm, just call rtw_set_802_11_add_wep(). */
-	if ((padapter->securitypriv.dot11AuthAlgrthm != dot11AuthAlgrthm_8021X) &&
-	    (encryptionalgo == _WEP40_ || encryptionalgo == _WEP104_)) {
-		u32 keyindex;
-		u32 len = FIELD_OFFSET(struct ndis_802_11_key, KeyMaterial) + key->KeyLength;
-		struct ndis_802_11_wep *wep = &padapter->securitypriv.ndiswep;
-
-		wep->Length = len;
-		keyindex = key->KeyIndex & 0x7fffffff;
-		wep->KeyIndex = keyindex;
-		wep->KeyLength = key->KeyLength;
-
-		memcpy(wep->KeyMaterial, key->KeyMaterial, key->KeyLength);
-		memcpy(&padapter->securitypriv.dot11DefKey[keyindex].skey[0], key->KeyMaterial, key->KeyLength);
-
-		padapter->securitypriv.dot11DefKeylen[keyindex] = key->KeyLength;
-		padapter->securitypriv.dot11PrivacyKeyIndex = keyindex;
-
-		ret = rtw_set_802_11_add_wep(padapter, wep);
-		goto exit;
-	}
-	if (key->KeyIndex & 0x20000000) {
-		/*  SetRSC */
-		if (bgroup) {
-			unsigned long long keysrc = key->KeyRSC & 0x00FFFFFFFFFFFFULL;
-			memcpy(&padapter->securitypriv.dot11Grprxpn, &keysrc, 8);
-		} else {
-			unsigned long long keysrc = key->KeyRSC & 0x00FFFFFFFFFFFFULL;
-			memcpy(&padapter->securitypriv.dot11Grptxpn, &keysrc, 8);
-		}
-	}
-
-	/*  Indicate this key idx is used for TX */
-	/*  Save the key in KeyMaterial */
-	if (bgroup) { /*  Group transmit key */
-		int res;
-
-		if (bgrouptkey)
-			padapter->securitypriv.dot118021XGrpKeyid = (u8)key->KeyIndex;
-		if ((key->KeyIndex & 0x3) == 0) {
-			ret = _FAIL;
-			goto exit;
-		}
-		memset(&padapter->securitypriv.dot118021XGrpKey[(u8)((key->KeyIndex) & 0x03)], 0, 16);
-		memset(&padapter->securitypriv.dot118021XGrptxmickey[(u8)((key->KeyIndex) & 0x03)], 0, 16);
-		memset(&padapter->securitypriv.dot118021XGrprxmickey[(u8)((key->KeyIndex) & 0x03)], 0, 16);
-
-		if ((key->KeyIndex & 0x10000000)) {
-			memcpy(&padapter->securitypriv.dot118021XGrptxmickey[(u8)((key->KeyIndex) & 0x03)], key->KeyMaterial + 16, 8);
-			memcpy(&padapter->securitypriv.dot118021XGrprxmickey[(u8)((key->KeyIndex) & 0x03)], key->KeyMaterial + 24, 8);
-		} else {
-			memcpy(&padapter->securitypriv.dot118021XGrptxmickey[(u8)((key->KeyIndex) & 0x03)], key->KeyMaterial + 24, 8);
-			memcpy(&padapter->securitypriv.dot118021XGrprxmickey[(u8)((key->KeyIndex) & 0x03)], key->KeyMaterial + 16, 8);
-		}
-
-		/* set group key by index */
-		memcpy(&padapter->securitypriv.dot118021XGrpKey[(u8)((key->KeyIndex) & 0x03)], key->KeyMaterial, key->KeyLength);
-
-		key->KeyIndex = key->KeyIndex & 0x03;
-
-		padapter->securitypriv.binstallGrpkey = true;
-
-		padapter->securitypriv.bcheck_grpkey = false;
-
-		res = rtw_set_key(padapter, &padapter->securitypriv, key->KeyIndex, 1);
-
-		if (res == _FAIL)
-			ret = _FAIL;
-
-		goto exit;
-
-	} else { /*  Pairwise Key */
-		u8 res;
-
-		pbssid = get_bssid(&padapter->mlmepriv);
-		stainfo = rtw_get_stainfo(&padapter->stapriv, pbssid);
-
-		if (stainfo) {
-			memset(&stainfo->dot118021x_UncstKey, 0, 16);/*  clear keybuffer */
-
-			memcpy(&stainfo->dot118021x_UncstKey, key->KeyMaterial, 16);
-
-			if (encryptionalgo == _TKIP_) {
-				padapter->securitypriv.busetkipkey = false;
-
-				/* _set_timer(&padapter->securitypriv.tkip_timer, 50); */
-
-				/*  if TKIP, save the Receive/Transmit MIC key in KeyMaterial[128-255] */
-				if ((key->KeyIndex & 0x10000000)) {
-					memcpy(&stainfo->dot11tkiptxmickey, key->KeyMaterial + 16, 8);
-					memcpy(&stainfo->dot11tkiprxmickey, key->KeyMaterial + 24, 8);
-
-				} else {
-					memcpy(&stainfo->dot11tkiptxmickey, key->KeyMaterial + 24, 8);
-					memcpy(&stainfo->dot11tkiprxmickey, key->KeyMaterial + 16, 8);
-				}
-			}
-
-			/* Set key to CAM through H2C command */
-			if (bgrouptkey) /* never go to here */
-				res = rtw_setstakey_cmd(padapter, (unsigned char *)stainfo, false);
-			else
-				res = rtw_setstakey_cmd(padapter, (unsigned char *)stainfo, true);
-			if (!res)
-				ret = _FAIL;
-		}
-	}
-exit:
-
-	return ret;
-}
-
-u8 rtw_set_802_11_remove_key(struct adapter *padapter, struct ndis_802_11_remove_key *key)
-{
-	u8 *pbssid;
-	struct sta_info *stainfo;
-	u8	bgroup = (key->KeyIndex & 0x4000000) > 0 ? false : true;
-	u8	keyIndex = (u8)key->KeyIndex & 0x03;
-	u8	ret = _SUCCESS;
-
-	if ((key->KeyIndex & 0xbffffffc) > 0) {
-		ret = _FAIL;
-		goto exit;
-	}
-
-	if (bgroup) {
-		/*  clear group key by index */
-
-		memset(&padapter->securitypriv.dot118021XGrpKey[keyIndex], 0, 16);
-
-		/*  \todo Send a H2C Command to Firmware for removing this Key in CAM Entry. */
-	} else {
-		pbssid = get_bssid(&padapter->mlmepriv);
-		stainfo = rtw_get_stainfo(&padapter->stapriv, pbssid);
-		if (stainfo) {
-			/*  clear key by BSSID */
-			memset(&stainfo->dot118021x_UncstKey, 0, 16);
-
-			/*  \todo Send a H2C Command to Firmware for disable this Key in CAM Entry. */
-		} else {
-			ret = _FAIL;
-			goto exit;
-		}
-	}
-exit:
-
-	return ret;
-}
-
 /*
 * rtw_get_cur_max_rate -
 * @adapter: pointer to struct adapter structure
@@ -786,11 +463,6 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	u16	mcs_rate = 0;
 	u32	ht_ielen = 0;
 
-	if (adapter->registrypriv.mp_mode == 1) {
-		if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
-			return 0;
-	}
-
 	if ((!check_fwstate(pmlmepriv, _FW_LINKED)) &&
 	    (!check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)))
 		return 0;
@@ -808,7 +480,7 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 			short_GI_20 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_20) ? 1 : 0;
 			short_GI_40 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_40) ? 1 : 0;
 
-			rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
+			GetHwReg8188EU(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 			max_rate = rtw_mcs_rate(
 				rf_type,
 				bw_40MHz & (pregistrypriv->cbw40_enable),
@@ -829,63 +501,4 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	}
 
 	return max_rate;
-}
-
-/*
-* rtw_set_scan_mode -
-* @adapter: pointer to struct adapter structure
-* @scan_mode:
-*
-* Return _SUCCESS or _FAIL
-*/
-int rtw_set_scan_mode(struct adapter *adapter, enum rt_scan_type scan_mode)
-{
-	if (scan_mode != SCAN_ACTIVE && scan_mode != SCAN_PASSIVE)
-		return _FAIL;
-
-	adapter->mlmepriv.scan_mode = scan_mode;
-
-	return _SUCCESS;
-}
-
-/*
-* rtw_set_channel_plan -
-* @adapter: pointer to struct adapter structure
-* @channel_plan:
-*
-* Return _SUCCESS or _FAIL
-*/
-int rtw_set_channel_plan(struct adapter *adapter, u8 channel_plan)
-{
-	/* handle by cmd_thread to sync with scan operation */
-	return rtw_set_chplan_cmd(adapter, channel_plan, 1);
-}
-
-/*
-* rtw_set_country -
-* @adapter: pointer to struct adapter structure
-* @country_code: string of country code
-*
-* Return _SUCCESS or _FAIL
-*/
-int rtw_set_country(struct adapter *adapter, const char *country_code)
-{
-	int channel_plan = RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN_2G;
-
-	DBG_88E("%s country_code:%s\n", __func__, country_code);
-
-	/* TODO: should have a table to match country code and RT_CHANNEL_DOMAIN */
-	/* TODO: should consider 2-character and 3-character country code */
-	if (0 == strcmp(country_code, "US"))
-		channel_plan = RT_CHANNEL_DOMAIN_FCC;
-	else if (0 == strcmp(country_code, "EU"))
-		channel_plan = RT_CHANNEL_DOMAIN_ETSI;
-	else if (0 == strcmp(country_code, "JP"))
-		channel_plan = RT_CHANNEL_DOMAIN_MKK;
-	else if (0 == strcmp(country_code, "CN"))
-		channel_plan = RT_CHANNEL_DOMAIN_CHINA;
-	else
-		DBG_88E("%s unknown country_code:%s\n", __func__, country_code);
-
-	return rtw_set_channel_plan(adapter, channel_plan);
 }
