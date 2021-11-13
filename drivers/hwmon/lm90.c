@@ -42,7 +42,8 @@
  * accordingly, and is done during initialization. Extended precision is only
  * available at conversion rates of 1 Hz and slower. Note that extended
  * precision is not enabled by default, as this driver initializes all chips
- * to 2 Hz by design.
+ * to 2 Hz by design. The driver also supports MAX6690, which is practically
+ * identical to MAX6654.
  *
  * This driver also supports the MAX6646, MAX6647, MAX6648, MAX6649 and
  * MAX6692 chips made by Maxim.  These are again similar to the LM86,
@@ -237,6 +238,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6659", max6659 },
 	{ "max6680", max6680 },
 	{ "max6681", max6680 },
+	{ "max6690", max6654 },
 	{ "max6692", max6648 },
 	{ "max6695", max6696 },
 	{ "max6696", max6696 },
@@ -1717,6 +1719,19 @@ static const char *lm90_detect_maxim(struct i2c_client *client, int chip_id,
 		 */
 		if (!(config1 & 0x07) && convrate <= 0x07)
 			name = "max6654";
+		break;
+	case 0x09:
+		/*
+		 * The chip_id of the MAX6690 holds the revision of the chip.
+		 * The lowest 3 bits of the config1 register are unused and
+		 * should return zero when read.
+		 * Note that MAX6654 and MAX6690 are practically the same chips.
+		 * The only diference is the rated accuracy. Rev. 1 of the
+		 * MAX6690 datasheet lists a chip ID of 0x08, and a chip labeled
+		 * MAX6654 was observed to have a chip ID of 0x09.
+		 */
+		if (!(config1 & 0x07) && convrate <= 0x07)
+			name = "max6690";
 		break;
 	case 0x4d:
 		/*

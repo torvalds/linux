@@ -370,7 +370,7 @@ MAX6648, MAX6692:
   * Better local resolution
   * Unsigned temperature
 
-MAX6654:
+MAX6654, MAX6690:
   * Better local resolution
   * Selectable address
   * Remote sensor type selection
