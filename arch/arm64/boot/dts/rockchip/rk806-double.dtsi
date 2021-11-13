@@ -421,6 +421,10 @@
 		vcc14-supply = <&vcc_2v0_pldo_s3>;
 		vcca-supply = <&vcc5v0_sys>;
 
+		pwrkey {
+			status = "disabled";
+		};
+
 		regulators {
 			vdd_cpu_big1_s0: DCDC_REG1 {
 				regulator-always-on;
