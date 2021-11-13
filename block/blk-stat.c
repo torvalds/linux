@@ -219,3 +219,21 @@ void blk_free_queue_stats(struct blk_queue_stats *stats)
 
 	kfree(stats);
 }
+
+bool blk_stats_alloc_enable(struct request_queue *q)
+{
+	struct blk_rq_stat *poll_stat;
+
+	poll_stat = kcalloc(BLK_MQ_POLL_STATS_BKTS, sizeof(*poll_stat),
+				GFP_ATOMIC);
+	if (!poll_stat)
+		return false;
+
+	if (cmpxchg(&q->poll_stat, NULL, poll_stat) != NULL) {
+		kfree(poll_stat);
+		return true;
+	}
+
+	blk_stat_add_callback(q, q->poll_cb);
+	return false;
+}

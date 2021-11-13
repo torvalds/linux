@@ -4581,11 +4581,10 @@ EXPORT_SYMBOL_GPL(blk_mq_update_nr_hw_queues);
 /* Enable polling stats and return whether they were already enabled. */
 static bool blk_poll_stats_enable(struct request_queue *q)
 {
-	if (test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags) ||
-	    blk_queue_flag_test_and_set(QUEUE_FLAG_POLL_STATS, q))
+	if (q->poll_stat)
 		return true;
-	blk_stat_add_callback(q, q->poll_cb);
-	return false;
+
+	return blk_stats_alloc_enable(q);
 }
 
 static void blk_mq_poll_stats_start(struct request_queue *q)
@@ -4594,8 +4593,7 @@ static void blk_mq_poll_stats_start(struct request_queue *q)
 	 * We don't arm the callback if polling stats are not enabled or the
 	 * callback is already active.
 	 */
-	if (!test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags) ||
-	    blk_stat_is_active(q->poll_cb))
+	if (!q->poll_stat || blk_stat_is_active(q->poll_cb))
 		return;
 
 	blk_stat_activate_msecs(q->poll_cb, 100);
