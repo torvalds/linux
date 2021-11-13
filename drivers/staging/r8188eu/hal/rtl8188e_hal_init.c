@@ -852,7 +852,7 @@ void rtl8188e_ReadEFuse(struct adapter *Adapter, u8 efuseType,
 }
 
 /* Do not support BT */
-static void Hal_EFUSEGetEfuseDefinition88E(struct adapter *pAdapter, u8 efuseType, u8 type, void *pOut)
+static void Hal_EFUSEGetEfuseDefinition88E(struct adapter *pAdapter, u8 type, void *pOut)
 {
 	switch (type) {
 	case TYPE_EFUSE_MAX_SECTION:
@@ -914,7 +914,7 @@ static void Hal_EFUSEGetEfuseDefinition88E(struct adapter *pAdapter, u8 efuseTyp
 	}
 }
 
-static void Hal_EFUSEGetEfuseDefinition_Pseudo88E(struct adapter *pAdapter, u8 efuseType, u8 type, void *pOut)
+static void Hal_EFUSEGetEfuseDefinition_Pseudo88E(struct adapter *pAdapter, u8 type, void *pOut)
 {
 	switch (type) {
 	case TYPE_EFUSE_MAX_SECTION:
@@ -976,12 +976,12 @@ static void Hal_EFUSEGetEfuseDefinition_Pseudo88E(struct adapter *pAdapter, u8 e
 	}
 }
 
-void rtl8188e_EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 efuseType, u8 type, void *pOut, bool bPseudoTest)
+void rtl8188e_EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 type, void *pOut, bool bPseudoTest)
 {
 	if (bPseudoTest)
-		Hal_EFUSEGetEfuseDefinition_Pseudo88E(pAdapter, efuseType, type, pOut);
+		Hal_EFUSEGetEfuseDefinition_Pseudo88E(pAdapter, type, pOut);
 	else
-		Hal_EFUSEGetEfuseDefinition88E(pAdapter, efuseType, type, pOut);
+		Hal_EFUSEGetEfuseDefinition88E(pAdapter, type, pOut);
 }
 
 static u16 hal_EfuseGetCurrentSize_8188e(struct adapter *pAdapter, bool bPseudoTest)
@@ -1060,7 +1060,7 @@ static int hal_EfusePgPacketRead_8188e(struct adapter *pAdapter, u8 offset, u8 *
 	u8 max_section = 0;
 	u8 tmp_header = 0;
 
-	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAX_SECTION, (void *)&max_section, bPseudoTest);
+	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAX_SECTION, (void *)&max_section, bPseudoTest);
 
 	if (!data)
 		return false;
