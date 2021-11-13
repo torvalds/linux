@@ -1669,6 +1669,8 @@ got_sb:
 		sb->s_flags	|= SB_POSIXACL;
 #endif
 
+	sb->s_shrink.seeks = 0;
+
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	if (IS_ERR(vinode)) {
 		bch_err(c, "error mounting: error getting root inode %i",
