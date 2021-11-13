@@ -528,13 +528,13 @@ static vm_fault_t
 v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 {
 	struct v9fs_inode *v9inode;
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	struct file *filp = vmf->vma->vm_file;
 	struct inode *inode = file_inode(filp);
 
 
-	p9_debug(P9_DEBUG_VFS, "page %p fid %lx\n",
-		 page, (unsigned long)filp->private_data);
+	p9_debug(P9_DEBUG_VFS, "folio %p fid %lx\n",
+		 folio, (unsigned long)filp->private_data);
 
 	v9inode = V9FS_I(inode);
 
@@ -542,24 +542,24 @@ v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 	 * be modified.  We then assume the entire page will need writing back.
 	 */
 #ifdef CONFIG_9P_FSCACHE
-	if (PageFsCache(page) &&
-	    wait_on_page_fscache_killable(page) < 0)
-		return VM_FAULT_RETRY;
+	if (folio_test_fscache(folio) &&
+	    folio_wait_fscache_killable(folio) < 0)
+		return VM_FAULT_NOPAGE;
 #endif
 
 	/* Update file times before taking page lock */
 	file_update_time(filp);
 
 	BUG_ON(!v9inode->writeback_fid);
-	if (lock_page_killable(page) < 0)
+	if (folio_lock_killable(folio) < 0)
 		return VM_FAULT_RETRY;
-	if (page->mapping != inode->i_mapping)
+	if (folio_mapping(folio) != inode->i_mapping)
 		goto out_unlock;
-	wait_for_stable_page(page);
+	folio_wait_stable(folio);
 
 	return VM_FAULT_LOCKED;
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	return VM_FAULT_NOPAGE;
 }
 
