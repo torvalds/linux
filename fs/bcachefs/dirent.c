@@ -418,16 +418,15 @@ int __bch2_dirent_lookup_trans(struct btree_trans *trans,
 
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
-	if (ret) {
-		bch2_trans_iter_exit(trans, iter);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	d = bkey_s_c_to_dirent(k);
 
 	ret = bch2_dirent_read_target(trans, dir, d, inum);
 	if (ret > 0)
 		ret = -ENOENT;
+err:
 	if (ret)
 		bch2_trans_iter_exit(trans, iter);
 
@@ -448,10 +447,10 @@ retry:
 
 	ret = __bch2_dirent_lookup_trans(&trans, &iter, dir, hash_info,
 					  name, inum, 0);
-
-	bch2_trans_iter_exit(&trans, &iter);
 	if (ret == -EINTR)
 		goto retry;
+	if (!ret)
+		bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 	return ret;
 }
