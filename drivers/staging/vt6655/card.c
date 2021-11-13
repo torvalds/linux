@@ -404,7 +404,7 @@ bool CARDbSetBeaconPeriod(struct vnt_private *priv,
  */
 void CARDbRadioPowerOff(struct vnt_private *priv)
 {
-	if (priv->bRadioOff)
+	if (priv->radio_off)
 		return;
 
 	switch (priv->byRFType) {
@@ -429,7 +429,7 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 
 	bb_set_deep_sleep(priv, priv->local_id);
 
-	priv->bRadioOff = true;
+	priv->radio_off = true;
 	pr_debug("chester power off\n");
 	MACvRegBitsOn(priv->port_offset, MAC_REG_GPIOCTL0,
 		      LED_ACTSET);  /* LED issue */

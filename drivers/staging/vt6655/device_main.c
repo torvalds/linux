@@ -369,7 +369,7 @@ static void device_init_registers(struct vnt_private *priv)
 	/* Set Short Slot Time, xIFS, and RSPINF. */
 	priv->wCurrentRate = RATE_54M;
 
-	priv->bRadioOff = false;
+	priv->radio_off = false;
 
 	priv->byRadioCtl = SROMbyReadEmbedded(priv->port_offset,
 					      EEP_OFS_RADIOCTL);

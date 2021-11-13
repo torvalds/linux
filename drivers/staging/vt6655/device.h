@@ -221,7 +221,7 @@ struct vnt_private {
 	bool bBarkerPreambleMd;
 
 	bool bRadioControlOff;
-	bool bRadioOff;
+	bool radio_off;
 	bool bEnablePSMode;
 	unsigned short wListenInterval;
 	bool bPWBitOn;
