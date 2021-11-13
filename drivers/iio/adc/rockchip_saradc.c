@@ -82,6 +82,8 @@ struct rockchip_saradc {
 #endif
 };
 
+static void rockchip_saradc_reset_controller(struct reset_control *reset);
+
 static void rockchip_saradc_start_v1(struct rockchip_saradc *info,
 					int chn)
 {
@@ -96,6 +98,12 @@ static void rockchip_saradc_start_v2(struct rockchip_saradc *info,
 					int chn)
 {
 	int val;
+
+	/* If read other chn at anytime, then chn1 will error, assert
+	 * controller as a workaround.
+	 */
+	if (info->reset)
+		rockchip_saradc_reset_controller(info->reset);
 
 	writel_relaxed(0xc, info->regs + SARADC_T_DAS_SOC);
 	writel_relaxed(0x20, info->regs + SARADC_T_PD_SOC);
@@ -149,8 +157,9 @@ static int rockchip_saradc_conversion(struct rockchip_saradc *info,
 {
 	reinit_completion(&info->completion);
 
-	rockchip_saradc_start(info, chan->channel);
+	/* prevent isr get NULL last_chan */
 	info->last_chan = chan;
+	rockchip_saradc_start(info, chan->channel);
 
 	if (!wait_for_completion_timeout(&info->completion, SARADC_TIMEOUT))
 		return -ETIMEDOUT;
