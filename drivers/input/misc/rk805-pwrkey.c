@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 static irqreturn_t pwrkey_fall_irq(int irq, void *_pwr)
@@ -39,7 +40,14 @@ static int rk805_pwrkey_probe(struct platform_device *pdev)
 {
 	struct input_dev *pwr;
 	int fall_irq, rise_irq;
+	struct device_node *np;
 	int err;
+
+	np = of_get_child_by_name(pdev->dev.parent->of_node, "pwrkey");
+	if (np && !of_device_is_available(np)) {
+		dev_info(&pdev->dev, "device is disabled\n");
+		return -EINVAL;
+	}
 
 	pwr = devm_input_allocate_device(&pdev->dev);
 	if (!pwr) {
