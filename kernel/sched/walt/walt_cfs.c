@@ -873,9 +873,6 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 					NULL);
 		}
 
-		trace_sched_compute_energy(p, cpu, cur_energy,
-			prev_energy, best_energy, best_energy_cpu, &output);
-
 		if (cur_energy < best_energy) {
 			best_energy = cur_energy;
 			best_energy_cpu = cpu;
@@ -886,6 +883,9 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 				best_energy_cpu = cpu;
 			}
 		}
+
+		trace_sched_compute_energy(p, cpu, cur_energy,
+			prev_energy, best_energy, best_energy_cpu, &output);
 	}
 
 	/*
