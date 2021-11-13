@@ -237,7 +237,7 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
  * 11/11/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse, bool pseudo)
+static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 *Efuse, bool pseudo)
 {
 	u16 mapLen = 0;
 
@@ -245,7 +245,7 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse, 
 
 	rtl8188e_EFUSE_GetEfuseDefinition(pAdapter, TYPE_EFUSE_MAP_LEN, (void *)&mapLen, pseudo);
 
-	rtl8188e_ReadEFuse(pAdapter, efuseType, 0, mapLen, Efuse, pseudo);
+	rtl8188e_ReadEFuse(pAdapter, 0, mapLen, Efuse, pseudo);
 
 	rtl8188e_EfusePowerSwitch(pAdapter, false);
 }
@@ -268,7 +268,6 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse, 
  *---------------------------------------------------------------------------*/
 void EFUSE_ShadowMapUpdate(
 	struct adapter *pAdapter,
-	u8 efuseType,
 	bool pseudo)
 {
 	struct eeprom_priv *pEEPROM = &pAdapter->eeprompriv;
@@ -279,5 +278,5 @@ void EFUSE_ShadowMapUpdate(
 	if (pEEPROM->bautoload_fail_flag)
 		memset(pEEPROM->efuse_eeprom_data, 0xFF, mapLen);
 	else
-		Efuse_ReadAllMap(pAdapter, efuseType, pEEPROM->efuse_eeprom_data, pseudo);
+		Efuse_ReadAllMap(pAdapter, pEEPROM->efuse_eeprom_data, pseudo);
 } /*  EFUSE_ShadowMapUpdate */

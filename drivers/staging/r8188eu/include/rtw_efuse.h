@@ -108,6 +108,6 @@ u8 efuse_OneByteWrite(struct adapter *adapter, u16 addr, u8 data, bool	test);
 
 void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata);
 
-void EFUSE_ShadowMapUpdate(struct adapter *adapter, u8 efusetype, bool test);
+void EFUSE_ShadowMapUpdate(struct adapter *adapter, bool test);
 
 #endif

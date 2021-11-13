@@ -815,7 +815,7 @@ exit:
 	kfree(eFuseWord);
 }
 
-static void ReadEFuseByIC(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
+static void ReadEFuseByIC(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
 {
 	if (!bPseudoTest) {
 		int ret = _FAIL;
@@ -836,19 +836,17 @@ exit:
 	return;
 }
 
-static void ReadEFuse_Pseudo(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
+static void ReadEFuse_Pseudo(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
 {
 	Hal_EfuseReadEFuse88E(Adapter, _offset, _size_byte, pbuf, bPseudoTest);
 }
 
-void rtl8188e_ReadEFuse(struct adapter *Adapter, u8 efuseType,
-			u16 _offset, u16 _size_byte, u8 *pbuf,
-			bool bPseudoTest)
+void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
 {
 	if (bPseudoTest)
-		ReadEFuse_Pseudo(Adapter, efuseType, _offset, _size_byte, pbuf, bPseudoTest);
+		ReadEFuse_Pseudo(Adapter, _offset, _size_byte, pbuf, bPseudoTest);
 	else
-		ReadEFuseByIC(Adapter, efuseType, _offset, _size_byte, pbuf, bPseudoTest);
+		ReadEFuseByIC(Adapter, _offset, _size_byte, pbuf, bPseudoTest);
 }
 
 /* Do not support BT */
@@ -1313,7 +1311,7 @@ void
 Hal_InitPGData88E(struct adapter *padapter)
 {
 	if (!is_boot_from_eeprom(padapter))
-		EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI, false);
+		EFUSE_ShadowMapUpdate(padapter, false);
 }
 
 void
