@@ -351,7 +351,7 @@ config ARCH_EP93XX
 	select CLKSRC_MMIO
 	select CPU_ARM920T
 	select GPIOLIB
-	select HAVE_LEGACY_CLK
+	select COMMON_CLK
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -480,7 +480,6 @@ config ARCH_S3C24XX
 	select GPIOLIB
 	select GENERIC_IRQ_MULTI_HANDLER
 	select HAVE_S3C2410_I2C if I2C
-	select HAVE_S3C_RTC if RTC_CLASS
 	select NEED_MACH_IO_H
 	select S3C2410_WATCHDOG
 	select SAMSUNG_ATAGS

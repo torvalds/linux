@@ -298,3 +298,90 @@ default_timings:
 	return NULL;
 }
 EXPORT_SYMBOL(of_lpddr3_get_ddr_timings);
+
+/**
+ * of_lpddr2_get_info() - extracts information about the lpddr2 chip.
+ * @np: Pointer to device tree node containing lpddr2 info
+ * @dev: Device requesting info
+ *
+ * Populates lpddr2_info structure by extracting data from device
+ * tree node. Returns pointer to populated structure. If error
+ * happened while populating, returns NULL. If property is missing
+ * in a device-tree, then the corresponding value is set to -ENOENT.
+ */
+const struct lpddr2_info
+*of_lpddr2_get_info(struct device_node *np, struct device *dev)
+{
+	struct lpddr2_info *ret_info, info = {};
+	struct property *prop;
+	const char *cp;
+	int err;
+
+	err = of_property_read_u32(np, "revision-id1", &info.revision_id1);
+	if (err)
+		info.revision_id1 = -ENOENT;
+
+	err = of_property_read_u32(np, "revision-id2", &info.revision_id2);
+	if (err)
+		info.revision_id2 = -ENOENT;
+
+	err = of_property_read_u32(np, "io-width", &info.io_width);
+	if (err)
+		return NULL;
+
+	info.io_width = 32 / info.io_width - 1;
+
+	err = of_property_read_u32(np, "density", &info.density);
+	if (err)
+		return NULL;
+
+	info.density = ffs(info.density) - 7;
+
+	if (of_device_is_compatible(np, "jedec,lpddr2-s4"))
+		info.arch_type = LPDDR2_TYPE_S4;
+	else if (of_device_is_compatible(np, "jedec,lpddr2-s2"))
+		info.arch_type = LPDDR2_TYPE_S2;
+	else if (of_device_is_compatible(np, "jedec,lpddr2-nvm"))
+		info.arch_type = LPDDR2_TYPE_NVM;
+	else
+		return NULL;
+
+	prop = of_find_property(np, "compatible", NULL);
+	for (cp = of_prop_next_string(prop, NULL); cp;
+	     cp = of_prop_next_string(prop, cp)) {
+
+#define OF_LPDDR2_VENDOR_CMP(compat, ID) \
+		if (!of_compat_cmp(cp, compat ",", strlen(compat ","))) { \
+			info.manufacturer_id = LPDDR2_MANID_##ID; \
+			break; \
+		}
+
+		OF_LPDDR2_VENDOR_CMP("samsung", SAMSUNG)
+		OF_LPDDR2_VENDOR_CMP("qimonda", QIMONDA)
+		OF_LPDDR2_VENDOR_CMP("elpida", ELPIDA)
+		OF_LPDDR2_VENDOR_CMP("etron", ETRON)
+		OF_LPDDR2_VENDOR_CMP("nanya", NANYA)
+		OF_LPDDR2_VENDOR_CMP("hynix", HYNIX)
+		OF_LPDDR2_VENDOR_CMP("mosel", MOSEL)
+		OF_LPDDR2_VENDOR_CMP("winbond", WINBOND)
+		OF_LPDDR2_VENDOR_CMP("esmt", ESMT)
+		OF_LPDDR2_VENDOR_CMP("spansion", SPANSION)
+		OF_LPDDR2_VENDOR_CMP("sst", SST)
+		OF_LPDDR2_VENDOR_CMP("zmos", ZMOS)
+		OF_LPDDR2_VENDOR_CMP("intel", INTEL)
+		OF_LPDDR2_VENDOR_CMP("numonyx", NUMONYX)
+		OF_LPDDR2_VENDOR_CMP("micron", MICRON)
+
+#undef OF_LPDDR2_VENDOR_CMP
+	}
+
+	if (!info.manufacturer_id)
+		info.manufacturer_id = -ENOENT;
+
+	ret_info = devm_kzalloc(dev, sizeof(*ret_info), GFP_KERNEL);
+	if (ret_info)
+		*ret_info = info;
+
+	return ret_info;
+}
+EXPORT_SYMBOL(of_lpddr2_get_info);

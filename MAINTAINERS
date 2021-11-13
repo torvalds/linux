@@ -1721,13 +1721,17 @@ B:	https://github.com/AsahiLinux/linux/issues
 C:	irc://irc.oftc.net/asahi-dev
 T:	git https://github.com/AsahiLinux/linux.git
 F:	Documentation/devicetree/bindings/arm/apple.yaml
+F:	Documentation/devicetree/bindings/i2c/apple,i2c.yaml
 F:	Documentation/devicetree/bindings/interrupt-controller/apple,aic.yaml
 F:	Documentation/devicetree/bindings/mailbox/apple,mailbox.yaml
 F:	Documentation/devicetree/bindings/pci/apple,pcie.yaml
 F:	Documentation/devicetree/bindings/pinctrl/apple,pinctrl.yaml
 F:	arch/arm64/boot/dts/apple/
+F:	drivers/i2c/busses/i2c-pasemi-core.c
+F:	drivers/i2c/busses/i2c-pasemi-platform.c
 F:	drivers/irqchip/irq-apple-aic.c
 F:	drivers/mailbox/apple-mailbox.c
+F:	drivers/pinctrl/pinctrl-apple-gpio.c
 F:	include/dt-bindings/interrupt-controller/apple-aic.h
 F:	include/dt-bindings/pinctrl/apple.h
 F:	include/linux/apple-mailbox.h
@@ -2314,6 +2318,14 @@ F:	Documentation/devicetree/bindings/*/*wpcm*
 F:	arch/arm/boot/dts/nuvoton-wpcm450*
 F:	arch/arm/mach-npcm/wpcm450.c
 F:	drivers/*/*wpcm*
+
+ARM/NXP S32G ARCHITECTURE
+M:	Chester Lin <clin@suse.com>
+R:	Andreas Färber <afaerber@suse.de>
+R:	Matthias Brugger <mbrugger@suse.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm64/boot/dts/freescale/s32g*.dts*
 
 ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
 L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
@@ -3633,6 +3645,8 @@ F:	arch/arm/mm/cache-b15-rac.c
 F:	drivers/bus/brcmstb_gisb.c
 F:	drivers/pci/controller/pcie-brcmstb.c
 N:	brcmstb
+N:	bcm7038
+N:	bcm7120
 
 BROADCOM BDC DRIVER
 M:	Al Cooper <alcooperx@gmail.com>
@@ -6338,6 +6352,7 @@ L:	linux-tegra@vger.kernel.org
 S:	Supported
 T:	git git://anongit.freedesktop.org/tegra/linux.git
 F:	Documentation/devicetree/bindings/display/tegra/nvidia,tegra20-host1x.txt
+F:	Documentation/devicetree/bindings/gpu/host1x/
 F:	drivers/gpu/drm/tegra/
 F:	drivers/gpu/host1x/
 F:	include/linux/host1x.h
@@ -11984,6 +11999,14 @@ M:	Sean Wang <sean.wang@mediatek.com>
 S:	Maintained
 F:	drivers/char/hw_random/mtk-rng.c
 
+MEDIATEK SMI DRIVER
+M:	Yong Wu <yong.wu@mediatek.com>
+L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	Documentation/devicetree/bindings/memory-controllers/mediatek,smi*
+F:	drivers/memory/mtk-smi.c
+F:	include/soc/mediatek/smi.h
+
 MEDIATEK SWITCH DRIVER
 M:	Sean Wang <sean.wang@mediatek.com>
 M:	Landen Chao <Landen.Chao@mediatek.com>
@@ -15000,13 +15023,6 @@ L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/pinctrl/pinctrl-single.c
 
-PIN CONTROLLER - ST SPEAR
-M:	Viresh Kumar <vireshk@kernel.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://www.st.com/spear
-F:	drivers/pinctrl/spear/
-
 PKTCDVD DRIVER
 M:	linux-block@vger.kernel.org
 S:	Orphan
@@ -17784,21 +17800,17 @@ W:	https://github.com/linux-speakup/speakup
 B:	https://github.com/linux-speakup/speakup/issues
 F:	drivers/accessibility/speakup/
 
-SPEAR CLOCK FRAMEWORK SUPPORT
-M:	Viresh Kumar <vireshk@kernel.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://www.st.com/spear
-F:	drivers/clk/spear/
-
-SPEAR PLATFORM SUPPORT
+SPEAR PLATFORM/CLOCK/PINCTRL SUPPORT
 M:	Viresh Kumar <vireshk@kernel.org>
 M:	Shiraz Hashim <shiraz.linux.kernel@gmail.com>
+M:	soc@kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	http://www.st.com/spear
 F:	arch/arm/boot/dts/spear*
 F:	arch/arm/mach-spear/
+F:	drivers/clk/spear/
+F:	drivers/pinctrl/spear/
 
 SPI NOR SUBSYSTEM
 M:	Tudor Ambarus <tudor.ambarus@microchip.com>

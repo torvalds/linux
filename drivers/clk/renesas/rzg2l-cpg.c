@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -54,6 +55,14 @@
 #define GET_REG_OFFSET(val)		((val >> 20) & 0xfff)
 #define GET_REG_SAMPLL_CLK1(val)	((val >> 22) & 0xfff)
 #define GET_REG_SAMPLL_CLK2(val)	((val >> 12) & 0xfff)
+
+struct sd_hw_data {
+	struct clk_hw hw;
+	u32 conf;
+	struct rzg2l_cpg_priv *priv;
+};
+
+#define to_sd_hw_data(_hw)	container_of(_hw, struct sd_hw_data, hw)
 
 /**
  * struct rzg2l_cpg_priv - Clock Pulse Generator Private Data
@@ -126,6 +135,132 @@ rzg2l_cpg_div_clk_register(const struct cpg_core_clk *core,
 
 	if (IS_ERR(clk_hw))
 		return ERR_CAST(clk_hw);
+
+	return clk_hw->clk;
+}
+
+static struct clk * __init
+rzg2l_cpg_mux_clk_register(const struct cpg_core_clk *core,
+			   void __iomem *base,
+			   struct rzg2l_cpg_priv *priv)
+{
+	const struct clk_hw *clk_hw;
+
+	clk_hw = devm_clk_hw_register_mux(priv->dev, core->name,
+					  core->parent_names, core->num_parents,
+					  core->flag,
+					  base + GET_REG_OFFSET(core->conf),
+					  GET_SHIFT(core->conf),
+					  GET_WIDTH(core->conf),
+					  core->mux_flags, &priv->rmw_lock);
+	if (IS_ERR(clk_hw))
+		return ERR_CAST(clk_hw);
+
+	return clk_hw->clk;
+}
+
+static int rzg2l_cpg_sd_clk_mux_determine_rate(struct clk_hw *hw,
+					       struct clk_rate_request *req)
+{
+	return clk_mux_determine_rate_flags(hw, req, 0);
+}
+
+static int rzg2l_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct sd_hw_data *hwdata = to_sd_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = hwdata->priv;
+	u32 off = GET_REG_OFFSET(hwdata->conf);
+	u32 shift = GET_SHIFT(hwdata->conf);
+	const u32 clk_src_266 = 2;
+	u32 bitmask;
+
+	/*
+	 * As per the HW manual, we should not directly switch from 533 MHz to
+	 * 400 MHz and vice versa. To change the setting from 2’b01 (533 MHz)
+	 * to 2’b10 (400 MHz) or vice versa, Switch to 2’b11 (266 MHz) first,
+	 * and then switch to the target setting (2’b01 (533 MHz) or 2’b10
+	 * (400 MHz)).
+	 * Setting a value of '0' to the SEL_SDHI0_SET or SEL_SDHI1_SET clock
+	 * switching register is prohibited.
+	 * The clock mux has 3 input clocks(533 MHz, 400 MHz, and 266 MHz), and
+	 * the index to value mapping is done by adding 1 to the index.
+	 */
+	bitmask = (GENMASK(GET_WIDTH(hwdata->conf) - 1, 0) << shift) << 16;
+	if (index != clk_src_266) {
+		u32 msk, val;
+		int ret;
+
+		writel(bitmask | ((clk_src_266 + 1) << shift), priv->base + off);
+
+		msk = off ? CPG_CLKSTATUS_SELSDHI1_STS : CPG_CLKSTATUS_SELSDHI0_STS;
+
+		ret = readl_poll_timeout(priv->base + CPG_CLKSTATUS, val,
+					 !(val & msk), 100,
+					 CPG_SDHI_CLK_SWITCH_STATUS_TIMEOUT_US);
+		if (ret) {
+			dev_err(priv->dev, "failed to switch clk source\n");
+			return ret;
+		}
+	}
+
+	writel(bitmask | ((index + 1) << shift), priv->base + off);
+
+	return 0;
+}
+
+static u8 rzg2l_cpg_sd_clk_mux_get_parent(struct clk_hw *hw)
+{
+	struct sd_hw_data *hwdata = to_sd_hw_data(hw);
+	struct rzg2l_cpg_priv *priv = hwdata->priv;
+	u32 val = readl(priv->base + GET_REG_OFFSET(hwdata->conf));
+
+	val >>= GET_SHIFT(hwdata->conf);
+	val &= GENMASK(GET_WIDTH(hwdata->conf) - 1, 0);
+	if (val) {
+		val--;
+	} else {
+		/* Prohibited clk source, change it to 533 MHz(reset value) */
+		rzg2l_cpg_sd_clk_mux_set_parent(hw, 0);
+	}
+
+	return val;
+}
+
+static const struct clk_ops rzg2l_cpg_sd_clk_mux_ops = {
+	.determine_rate = rzg2l_cpg_sd_clk_mux_determine_rate,
+	.set_parent	= rzg2l_cpg_sd_clk_mux_set_parent,
+	.get_parent	= rzg2l_cpg_sd_clk_mux_get_parent,
+};
+
+static struct clk * __init
+rzg2l_cpg_sd_mux_clk_register(const struct cpg_core_clk *core,
+			      void __iomem *base,
+			      struct rzg2l_cpg_priv *priv)
+{
+	struct sd_hw_data *clk_hw_data;
+	struct clk_init_data init;
+	struct clk_hw *clk_hw;
+	int ret;
+
+	clk_hw_data = devm_kzalloc(priv->dev, sizeof(*clk_hw_data), GFP_KERNEL);
+	if (!clk_hw_data)
+		return ERR_PTR(-ENOMEM);
+
+	clk_hw_data->priv = priv;
+	clk_hw_data->conf = core->conf;
+
+	init.name = GET_SHIFT(core->conf) ? "sd1" : "sd0";
+	init.ops = &rzg2l_cpg_sd_clk_mux_ops;
+	init.flags = 0;
+	init.num_parents = core->num_parents;
+	init.parent_names = core->parent_names;
+
+	clk_hw = &clk_hw_data->hw;
+	clk_hw->init = &init;
+
+	ret = devm_clk_hw_register(priv->dev, clk_hw);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return clk_hw->clk;
 }
@@ -288,6 +423,12 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		clk = rzg2l_cpg_div_clk_register(core, priv->clks,
 						 priv->base, priv);
 		break;
+	case CLK_TYPE_MUX:
+		clk = rzg2l_cpg_mux_clk_register(core, priv->base, priv);
+		break;
+	case CLK_TYPE_SD_MUX:
+		clk = rzg2l_cpg_sd_mux_clk_register(core, priv->base, priv);
+		break;
 	default:
 		goto fail;
 	}
@@ -310,13 +451,17 @@ fail:
  * @hw: handle between common and hardware-specific interfaces
  * @off: register offset
  * @bit: ON/MON bit
+ * @enabled: soft state of the clock, if it is coupled with another clock
  * @priv: CPG/MSTP private data
+ * @sibling: pointer to the other coupled clock
  */
 struct mstp_clock {
 	struct clk_hw hw;
 	u16 off;
 	u8 bit;
+	bool enabled;
 	struct rzg2l_cpg_priv *priv;
+	struct mstp_clock *sibling;
 };
 
 #define to_mod_clock(_hw) container_of(_hw, struct mstp_clock, hw)
@@ -369,11 +514,41 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 
 static int rzg2l_mod_clock_enable(struct clk_hw *hw)
 {
+	struct mstp_clock *clock = to_mod_clock(hw);
+
+	if (clock->sibling) {
+		struct rzg2l_cpg_priv *priv = clock->priv;
+		unsigned long flags;
+		bool enabled;
+
+		spin_lock_irqsave(&priv->rmw_lock, flags);
+		enabled = clock->sibling->enabled;
+		clock->enabled = true;
+		spin_unlock_irqrestore(&priv->rmw_lock, flags);
+		if (enabled)
+			return 0;
+	}
+
 	return rzg2l_mod_clock_endisable(hw, true);
 }
 
 static void rzg2l_mod_clock_disable(struct clk_hw *hw)
 {
+	struct mstp_clock *clock = to_mod_clock(hw);
+
+	if (clock->sibling) {
+		struct rzg2l_cpg_priv *priv = clock->priv;
+		unsigned long flags;
+		bool enabled;
+
+		spin_lock_irqsave(&priv->rmw_lock, flags);
+		enabled = clock->sibling->enabled;
+		clock->enabled = false;
+		spin_unlock_irqrestore(&priv->rmw_lock, flags);
+		if (enabled)
+			return;
+	}
+
 	rzg2l_mod_clock_endisable(hw, false);
 }
 
@@ -389,6 +564,9 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 		return 1;
 	}
 
+	if (clock->sibling)
+		return clock->enabled;
+
 	value = readl(priv->base + CLK_MON_R(clock->off));
 
 	return value & bitmask;
@@ -399,6 +577,28 @@ static const struct clk_ops rzg2l_mod_clock_ops = {
 	.disable = rzg2l_mod_clock_disable,
 	.is_enabled = rzg2l_mod_clock_is_enabled,
 };
+
+static struct mstp_clock
+*rzg2l_mod_clock__get_sibling(struct mstp_clock *clock,
+			      struct rzg2l_cpg_priv *priv)
+{
+	struct clk_hw *hw;
+	unsigned int i;
+
+	for (i = 0; i < priv->num_mod_clks; i++) {
+		struct mstp_clock *clk;
+
+		if (priv->clks[priv->num_core_clks + i] == ERR_PTR(-ENOENT))
+			continue;
+
+		hw = __clk_get_hw(priv->clks[priv->num_core_clks + i]);
+		clk = to_mod_clock(hw);
+		if (clock->off == clk->off && clock->bit == clk->bit)
+			return clk;
+	}
+
+	return NULL;
+}
 
 static void __init
 rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
@@ -461,6 +661,18 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 
 	dev_dbg(dev, "Module clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
 	priv->clks[id] = clk;
+
+	if (mod->is_coupled) {
+		struct mstp_clock *sibling;
+
+		clock->enabled = rzg2l_mod_clock_is_enabled(&clock->hw);
+		sibling = rzg2l_mod_clock__get_sibling(clock, priv);
+		if (sibling) {
+			clock->sibling = sibling;
+			sibling->sibling = clock;
+		}
+	}
+
 	return;
 
 fail:

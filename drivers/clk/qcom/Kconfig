@@ -324,6 +324,14 @@ config MSM_MMCC_8998
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config QCM_GCC_2290
+	tristate "QCM2290 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on QCM2290 devices.
+	  Say Y if you want to use multimedia devices or peripheral
+	  devices such as UART, SPI, I2C, USB, SD/eMMC etc.
+
 config QCS_GCC_404
 	tristate "QCS404 Global Clock Controller"
 	help
@@ -337,6 +345,15 @@ config SC_CAMCC_7180
 	help
 	  Support for the camera clock controller on Qualcomm Technologies, Inc
 	  SC7180 devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
+config SC_CAMCC_7280
+	tristate "SC7280 Camera Clock Controller"
+	select SC_GCC_7280
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  SC7280 devices.
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
@@ -385,15 +402,6 @@ config SC_GCC_8180X
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  I2C, USB, UFS, SDCC, etc.
 
-config SC_LPASS_CORECC_7180
-	tristate "SC7180 LPASS Core Clock Controller"
-	select SC_GCC_7180
-	help
-	  Support for the LPASS(Low Power Audio Subsystem) core clock controller
-	  on SC7180 devices.
-	  Say Y if you want to use LPASS clocks and power domains of the LPASS
-	  core clock controller.
-
 config SC_GPUCC_7180
 	tristate "SC7180 Graphics Clock Controller"
 	select SC_GCC_7180
@@ -409,6 +417,23 @@ config SC_GPUCC_7280
 	  Support for the graphics clock controller on SC7280 devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
+
+config SC_LPASSCC_7280
+	tristate "SC7280 Low Power Audio Subsystem (LPASS) Clock Controller"
+	select SC_GCC_7280
+	help
+	  Support for the LPASS clock controller on SC7280 devices.
+	  Say Y if you want to use the LPASS branch clocks of the LPASS clock
+	  controller to reset the LPASS subsystem.
+
+config SC_LPASS_CORECC_7180
+	tristate "SC7180 LPASS Core Clock Controller"
+	select SC_GCC_7180
+	help
+	  Support for the LPASS(Low Power Audio Subsystem) core clock controller
+	  on SC7180 devices.
+	  Say Y if you want to use LPASS clocks and power domains of the LPASS
+	  core clock controller.
 
 config SC_MSS_7180
 	tristate "SC7180 Modem Clock Controller"

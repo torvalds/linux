@@ -139,6 +139,8 @@
 			#size-cells = <0>;
 
 			port@0 {
+				reg = <0>;
+
 				anx6345_in: endpoint {
 					remote-endpoint = <&tcon0_out_anx6345>;
 				};
@@ -206,7 +208,6 @@
 		reg = <0x3a3>;
 		interrupt-parent = <&r_intc>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
-		wakeup-source;
 	};
 };
 

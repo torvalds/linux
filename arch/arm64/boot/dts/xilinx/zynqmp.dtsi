@@ -2,7 +2,7 @@
 /*
  * dts file for Xilinx ZynqMP
  *
- * (C) Copyright 2014 - 2019, Xilinx, Inc.
+ * (C) Copyright 2014 - 2021, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  *
@@ -156,21 +156,6 @@
 				mbox-names = "tx", "rx";
 			};
 
-			zynqmp_clk: clock-controller {
-				#clock-cells = <1>;
-				compatible = "xlnx,zynqmp-clk";
-				clocks = <&pss_ref_clk>,
-					 <&video_clk>,
-					 <&pss_alt_ref_clk>,
-					 <&aux_ref_clk>,
-					 <&gt_crx_ref_clk>;
-				clock-names = "pss_ref_clk",
-					      "video_clk",
-					      "pss_alt_ref_clk",
-					      "aux_ref_clk",
-					      "gt_crx_ref_clk";
-			};
-
 			nvmem_firmware {
 				compatible = "xlnx,zynqmp-nvmem-fw";
 				#address-cells = <1>;
@@ -192,6 +177,11 @@
 			zynqmp_reset: reset-controller {
 				compatible = "xlnx,zynqmp-reset";
 				#reset-cells = <1>;
+			};
+
+			pinctrl0: pinctrl {
+				compatible = "xlnx,zynqmp-pinctrl";
+				status = "disabled";
 			};
 		};
 	};
@@ -245,6 +235,7 @@
 
 		cci: cci@fd6e0000 {
 			compatible = "arm,cci-400";
+			status = "disabled";
 			reg = <0x0 0xfd6e0000 0x0 0x9000>;
 			ranges = <0x0 0x0 0xfd6e0000 0x10000>;
 			#address-cells = <1>;
@@ -630,6 +621,8 @@
 					<0x0 0x0 0x0 0x2 &pcie_intc 0x2>,
 					<0x0 0x0 0x0 0x3 &pcie_intc 0x3>,
 					<0x0 0x0 0x0 0x4 &pcie_intc 0x4>;
+			#stream-id-cells = <1>;
+			iommus = <&smmu 0x4d0>;
 			power-domains = <&zynqmp_firmware PD_PCIE>;
 			pcie_intc: legacy-interrupt-controller {
 				interrupt-controller;
@@ -670,7 +663,7 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 26 4>, <0 27 4>;
 			interrupt-names = "alarm", "sec";
-			calibration = <0x8000>;
+			calibration = <0x7FFF>;
 		};
 
 		sata: ahci@fd0c0000 {
@@ -680,6 +673,7 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 133 4>;
 			power-domains = <&zynqmp_firmware PD_SATA>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_SATA>;
 			#stream-id-cells = <4>;
 			iommus = <&smmu 0x4c0>, <&smmu 0x4c1>,
 				 <&smmu 0x4c2>, <&smmu 0x4c3>;
@@ -792,7 +786,7 @@
 		};
 
 		uart0: serial@ff000000 {
-			compatible = "cdns,uart-r1p12", "xlnx,xuartps";
+			compatible = "xlnx,zynqmp-uart", "cdns,uart-r1p12";
 			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <0 21 4>;
@@ -802,7 +796,7 @@
 		};
 
 		uart1: serial@ff010000 {
-			compatible = "cdns,uart-r1p12", "xlnx,xuartps";
+			compatible = "xlnx,zynqmp-uart", "cdns,uart-r1p12";
 			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <0 22 4>;
@@ -811,24 +805,58 @@
 			power-domains = <&zynqmp_firmware PD_UART_1>;
 		};
 
-		usb0: usb@fe200000 {
-			compatible = "snps,dwc3";
+		usb0: usb@ff9d0000 {
+			#address-cells = <2>;
+			#size-cells = <2>;
 			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 65 4>;
-			reg = <0x0 0xfe200000 0x0 0x40000>;
-			clock-names = "clk_xin", "clk_ahb";
+			compatible = "xlnx,zynqmp-dwc3";
+			reg = <0x0 0xff9d0000 0x0 0x100>;
+			clock-names = "bus_clk", "ref_clk";
 			power-domains = <&zynqmp_firmware PD_USB_0>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_USB0_CORERESET>,
+				 <&zynqmp_reset ZYNQMP_RESET_USB0_HIBERRESET>,
+				 <&zynqmp_reset ZYNQMP_RESET_USB0_APB>;
+			reset-names = "usb_crst", "usb_hibrst", "usb_apbrst";
+			ranges;
+
+			dwc3_0: usb@fe200000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xfe200000 0x0 0x40000>;
+				interrupt-parent = <&gic>;
+				interrupt-names = "dwc_usb3", "otg";
+				interrupts = <0 65 4>, <0 69 4>;
+				#stream-id-cells = <1>;
+				iommus = <&smmu 0x860>;
+				snps,quirk-frame-length-adjustment = <0x20>;
+				/* dma-coherent; */
+			};
 		};
 
-		usb1: usb@fe300000 {
-			compatible = "snps,dwc3";
+		usb1: usb@ff9e0000 {
+			#address-cells = <2>;
+			#size-cells = <2>;
 			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 70 4>;
-			reg = <0x0 0xfe300000 0x0 0x40000>;
-			clock-names = "clk_xin", "clk_ahb";
+			compatible = "xlnx,zynqmp-dwc3";
+			reg = <0x0 0xff9e0000 0x0 0x100>;
+			clock-names = "bus_clk", "ref_clk";
 			power-domains = <&zynqmp_firmware PD_USB_1>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_USB1_CORERESET>,
+				 <&zynqmp_reset ZYNQMP_RESET_USB1_HIBERRESET>,
+				 <&zynqmp_reset ZYNQMP_RESET_USB1_APB>;
+			reset-names = "usb_crst", "usb_hibrst", "usb_apbrst";
+			ranges;
+
+			dwc3_1: usb@fe300000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xfe300000 0x0 0x40000>;
+				interrupt-parent = <&gic>;
+				interrupt-names = "dwc_usb3", "otg";
+				interrupts = <0 70 4>, <0 74 4>;
+				#stream-id-cells = <1>;
+				iommus = <&smmu 0x861>;
+				snps,quirk-frame-length-adjustment = <0x20>;
+				/* dma-coherent; */
+			};
 		};
 
 		watchdog0: watchdog@fd4d0000 {
@@ -837,7 +865,8 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 113 1>;
 			reg = <0x0 0xfd4d0000 0x0 0x1000>;
-			timeout-sec = <10>;
+			timeout-sec = <60>;
+			reset-on-timeout;
 		};
 
 		lpd_watchdog: watchdog@ff150000 {

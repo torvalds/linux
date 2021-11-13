@@ -4,6 +4,7 @@
 #include "bcm2836-rpi.dtsi"
 #include "bcm283x-rpi-lan7515.dtsi"
 #include "bcm283x-rpi-usb-host.dtsi"
+#include "bcm283x-rpi-wifi-bt.dtsi"
 
 / {
 	compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
@@ -31,11 +32,10 @@
 			linux,default-trigger = "default-on";
 		};
 	};
+};
 
-	wifi_pwrseq: wifi-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&expgpio 1 GPIO_ACTIVE_LOW>;
-	};
+&bt {
+	shutdown-gpios = <&expgpio 0 GPIO_ACTIVE_HIGH>;
 };
 
 &firmware {
@@ -137,23 +137,6 @@
 	status = "okay";
 };
 
-/* SDHCI is used to control the SDIO for wireless */
-&sdhci {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&emmc_gpio34>;
-	status = "okay";
-	bus-width = <4>;
-	non-removable;
-	mmc-pwrseq = <&wifi_pwrseq>;
-
-	brcmf: wifi@1 {
-		reg = <1>;
-		compatible = "brcm,bcm4329-fmac";
-	};
-};
-
 /* SDHOST is used to drive the SD card */
 &sdhost {
 	pinctrl-names = "default";
@@ -166,13 +149,6 @@
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_ctsrts_gpio30 &uart0_gpio32 &gpclk2_gpio43>;
-	status = "okay";
-
-	bluetooth {
-		compatible = "brcm,bcm43438-bt";
-		max-speed = <2000000>;
-		shutdown-gpios = <&expgpio 0 GPIO_ACTIVE_HIGH>;
-	};
 };
 
 /* uart1 is mapped to the pin header */
@@ -180,4 +156,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_gpio14>;
 	status = "okay";
+};
+
+&wifi_pwrseq {
+	reset-gpios = <&expgpio 1 GPIO_ACTIVE_LOW>;
 };

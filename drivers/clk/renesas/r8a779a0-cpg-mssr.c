@@ -33,9 +33,13 @@ enum rcar_r8a779a0_clk_types {
 	CLK_TYPE_R8A779A0_PLL1,
 	CLK_TYPE_R8A779A0_PLL2X_3X,	/* PLL[23][01] */
 	CLK_TYPE_R8A779A0_PLL5,
+	CLK_TYPE_R8A779A0_Z,
 	CLK_TYPE_R8A779A0_SD,
 	CLK_TYPE_R8A779A0_MDSEL,	/* Select parent/divider using mode pin */
 	CLK_TYPE_R8A779A0_OSC,	/* OSC EXTAL predivider and fixed divider */
+	CLK_TYPE_R8A779A0_RPCSRC,
+	CLK_TYPE_R8A779A0_RPC,
+	CLK_TYPE_R8A779A0_RPCD2,
 };
 
 struct rcar_r8a779a0_cpg_pll_config {
@@ -84,6 +88,10 @@ enum clk_ids {
 	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_PLL2X_3X, CLK_MAIN, \
 		 .offset = _offset)
 
+#define DEF_Z(_name, _id, _parent, _div, _offset)	\
+	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_Z, _parent, .div = _div,	\
+		 .offset = _offset)
+
 #define DEF_SD(_name, _id, _parent, _offset)   \
 	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_SD, _parent, .offset = _offset)
 
@@ -120,8 +128,14 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_FIXED(".s3",		CLK_S3,		CLK_PLL1_DIV2,	4, 1),
 	DEF_FIXED(".sdsrc",		CLK_SDSRC,	CLK_PLL5_DIV4,	1, 1),
 	DEF_RATE(".oco",		CLK_OCO,	32768),
+	DEF_BASE(".rpcsrc",	 CLK_RPCSRC,	   CLK_TYPE_R8A779A0_RPCSRC, CLK_PLL5),
+	DEF_BASE("rpc",		 R8A779A0_CLK_RPC, CLK_TYPE_R8A779A0_RPC, CLK_RPCSRC),
+	DEF_BASE("rpcd2",	 R8A779A0_CLK_RPCD2, CLK_TYPE_R8A779A0_RPCD2,
+		 R8A779A0_CLK_RPC),
 
 	/* Core Clock Outputs */
+	DEF_Z("z0",		R8A779A0_CLK_Z0,	CLK_PLL20,	2, 0),
+	DEF_Z("z1",		R8A779A0_CLK_Z1,	CLK_PLL21,	2, 8),
 	DEF_FIXED("zx",		R8A779A0_CLK_ZX,	CLK_PLL20_DIV2,	2, 1),
 	DEF_FIXED("s1d1",	R8A779A0_CLK_S1D1,	CLK_S1,		1, 1),
 	DEF_FIXED("s1d2",	R8A779A0_CLK_S1D2,	CLK_S1,		2, 1),
@@ -193,6 +207,7 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("msi3",		621,	R8A779A0_CLK_MSO),
 	DEF_MOD("msi4",		622,	R8A779A0_CLK_MSO),
 	DEF_MOD("msi5",		623,	R8A779A0_CLK_MSO),
+	DEF_MOD("rpc-if",	629,	R8A779A0_CLK_RPCD2),
 	DEF_MOD("scif0",	702,	R8A779A0_CLK_S1D8),
 	DEF_MOD("scif1",	703,	R8A779A0_CLK_S1D8),
 	DEF_MOD("scif3",	704,	R8A779A0_CLK_S1D8),
@@ -205,6 +220,7 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("tmu2",		715,	R8A779A0_CLK_S1D4),
 	DEF_MOD("tmu3",		716,	R8A779A0_CLK_S1D4),
 	DEF_MOD("tmu4",		717,	R8A779A0_CLK_S1D4),
+	DEF_MOD("tpu0",		718,	R8A779A0_CLK_S1D8),
 	DEF_MOD("vin00",	730,	R8A779A0_CLK_S1D1),
 	DEF_MOD("vin01",	731,	R8A779A0_CLK_S1D1),
 	DEF_MOD("vin02",	800,	R8A779A0_CLK_S1D1),
@@ -259,6 +275,162 @@ static const struct rcar_r8a779a0_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_clk_extalr __initdata;
 static u32 cpg_mode __initdata;
 
+/*
+ * Z0 Clock & Z1 Clock
+ */
+#define CPG_FRQCRB			0x00000804
+#define CPG_FRQCRB_KICK			BIT(31)
+#define CPG_FRQCRC			0x00000808
+
+struct cpg_z_clk {
+	struct clk_hw hw;
+	void __iomem *reg;
+	void __iomem *kick_reg;
+	unsigned long max_rate;		/* Maximum rate for normal mode */
+	unsigned int fixed_div;
+	u32 mask;
+};
+
+#define to_z_clk(_hw)	container_of(_hw, struct cpg_z_clk, hw)
+
+static unsigned long cpg_z_clk_recalc_rate(struct clk_hw *hw,
+					   unsigned long parent_rate)
+{
+	struct cpg_z_clk *zclk = to_z_clk(hw);
+	unsigned int mult;
+	u32 val;
+
+	val = readl(zclk->reg) & zclk->mask;
+	mult = 32 - (val >> __ffs(zclk->mask));
+
+	return DIV_ROUND_CLOSEST_ULL((u64)parent_rate * mult,
+				     32 * zclk->fixed_div);
+}
+
+static int cpg_z_clk_determine_rate(struct clk_hw *hw,
+				    struct clk_rate_request *req)
+{
+	struct cpg_z_clk *zclk = to_z_clk(hw);
+	unsigned int min_mult, max_mult, mult;
+	unsigned long rate, prate;
+
+	rate = min(req->rate, req->max_rate);
+	if (rate <= zclk->max_rate) {
+		/* Set parent rate to initial value for normal modes */
+		prate = zclk->max_rate;
+	} else {
+		/* Set increased parent rate for boost modes */
+		prate = rate;
+	}
+	req->best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
+						  prate * zclk->fixed_div);
+
+	prate = req->best_parent_rate / zclk->fixed_div;
+	min_mult = max(div64_ul(req->min_rate * 32ULL, prate), 1ULL);
+	max_mult = min(div64_ul(req->max_rate * 32ULL, prate), 32ULL);
+	if (max_mult < min_mult)
+		return -EINVAL;
+
+	mult = DIV_ROUND_CLOSEST_ULL(rate * 32ULL, prate);
+	mult = clamp(mult, min_mult, max_mult);
+
+	req->rate = DIV_ROUND_CLOSEST_ULL((u64)prate * mult, 32);
+	return 0;
+}
+
+static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+			      unsigned long parent_rate)
+{
+	struct cpg_z_clk *zclk = to_z_clk(hw);
+	unsigned int mult;
+	unsigned int i;
+
+	mult = DIV64_U64_ROUND_CLOSEST(rate * 32ULL * zclk->fixed_div,
+				       parent_rate);
+	mult = clamp(mult, 1U, 32U);
+
+	if (readl(zclk->kick_reg) & CPG_FRQCRB_KICK)
+		return -EBUSY;
+
+	cpg_reg_modify(zclk->reg, zclk->mask, (32 - mult) << __ffs(zclk->mask));
+
+	/*
+	 * Set KICK bit in FRQCRB to update hardware setting and wait for
+	 * clock change completion.
+	 */
+	cpg_reg_modify(zclk->kick_reg, 0, CPG_FRQCRB_KICK);
+
+	/*
+	 * Note: There is no HW information about the worst case latency.
+	 *
+	 * Using experimental measurements, it seems that no more than
+	 * ~10 iterations are needed, independently of the CPU rate.
+	 * Since this value might be dependent on external xtal rate, pll1
+	 * rate or even the other emulation clocks rate, use 1000 as a
+	 * "super" safe value.
+	 */
+	for (i = 1000; i; i--) {
+		if (!(readl(zclk->kick_reg) & CPG_FRQCRB_KICK))
+			return 0;
+
+		cpu_relax();
+	}
+
+	return -ETIMEDOUT;
+}
+
+static const struct clk_ops cpg_z_clk_ops = {
+	.recalc_rate = cpg_z_clk_recalc_rate,
+	.determine_rate = cpg_z_clk_determine_rate,
+	.set_rate = cpg_z_clk_set_rate,
+};
+
+static struct clk * __init cpg_z_clk_register(const char *name,
+					      const char *parent_name,
+					      void __iomem *reg,
+					      unsigned int div,
+					      unsigned int offset)
+{
+	struct clk_init_data init = {};
+	struct cpg_z_clk *zclk;
+	struct clk *clk;
+
+	zclk = kzalloc(sizeof(*zclk), GFP_KERNEL);
+	if (!zclk)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = name;
+	init.ops = &cpg_z_clk_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	zclk->reg = reg + CPG_FRQCRC;
+	zclk->kick_reg = reg + CPG_FRQCRB;
+	zclk->hw.init = &init;
+	zclk->mask = GENMASK(offset + 4, offset);
+	zclk->fixed_div = div; /* PLLVCO x 1/div x SYS-CPU divider */
+
+	clk = clk_register(NULL, &zclk->hw);
+	if (IS_ERR(clk)) {
+		kfree(zclk);
+		return clk;
+	}
+
+	zclk->max_rate = clk_hw_get_rate(clk_hw_get_parent(&zclk->hw)) /
+			 zclk->fixed_div;
+	return clk;
+}
+
+/*
+ * RPC Clocks
+ */
+#define CPG_RPCCKCR 0x874
+
+static const struct clk_div_table cpg_rpcsrc_div_table[] = {
+	{ 0, 4 }, { 1, 6 }, { 2, 5 }, { 3, 6 }, { 0, 0 },
+};
+
 static struct clk * __init rcar_r8a779a0_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
@@ -293,6 +465,10 @@ static struct clk * __init rcar_r8a779a0_cpg_clk_register(struct device *dev,
 		div = cpg_pll_config->pll5_div;
 		break;
 
+	case CLK_TYPE_R8A779A0_Z:
+		return cpg_z_clk_register(core->name, __clk_get_name(parent),
+					  base, core->div, core->offset);
+
 	case CLK_TYPE_R8A779A0_SD:
 		return cpg_sd_clk_register(core->name, base, core->offset,
 					   __clk_get_name(parent), notifiers,
@@ -321,6 +497,21 @@ static struct clk * __init rcar_r8a779a0_cpg_clk_register(struct device *dev,
 		 */
 		div = cpg_pll_config->osc_prediv * core->div;
 		break;
+
+	case CLK_TYPE_R8A779A0_RPCSRC:
+		return clk_register_divider_table(NULL, core->name,
+						  __clk_get_name(parent), 0,
+						  base + CPG_RPCCKCR, 3, 2, 0,
+						  cpg_rpcsrc_div_table,
+						  &cpg_lock);
+
+	case CLK_TYPE_R8A779A0_RPC:
+		return cpg_rpc_clk_register(core->name, base + CPG_RPCCKCR,
+					    __clk_get_name(parent), notifiers);
+
+	case CLK_TYPE_R8A779A0_RPCD2:
+		return cpg_rpcd2_clk_register(core->name, base + CPG_RPCCKCR,
+					      __clk_get_name(parent));
 
 	default:
 		return ERR_PTR(-EINVAL);

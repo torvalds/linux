@@ -45,7 +45,7 @@
 		pinctrl-0 = <&pinctrl_spi4>;
 		gpio-sck = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpio1 9 GPIO_ACTIVE_HIGH>;
-		cs-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;

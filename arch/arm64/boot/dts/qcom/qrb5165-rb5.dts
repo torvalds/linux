@@ -16,6 +16,8 @@
 / {
 	model = "Qualcomm Technologies, Inc. Robotics RB5";
 	compatible = "qcom,qrb5165-rb5", "qcom,sm8250";
+	qcom,msm-id = <455 0x20001>;
+	qcom,board-id = <11 3>;
 
 	aliases {
 		serial0 = &uart12;
@@ -1222,9 +1224,7 @@
 	status = "okay";
 
 	vdda-phy-supply = <&vreg_l5a_0p88>;
-	vdda-max-microamp = <89900>;
 	vdda-pll-supply = <&vreg_l9a_1p2>;
-	vdda-pll-max-microamp = <18800>;
 };
 
 &usb_1 {
