@@ -266,6 +266,7 @@ struct virtio_gpu_fpriv {
 	bool context_created;
 	uint32_t num_rings;
 	uint64_t base_fence_ctx;
+	uint64_t ring_idx_mask;
 	struct mutex context_lock;
 };
 
