@@ -456,7 +456,7 @@ static void dw_mipi_dsi2_set_lane_rate(struct dw_mipi_dsi2 *dsi2)
 			 dsi2->pdata->cphy_max_symbol_rate_per_lane :
 			 dsi2->pdata->dphy_max_bit_rate_per_lane;
 
-	lanes = dsi2->slave ? dsi2->lanes * 2 : dsi2->lanes;
+	lanes = (dsi2->slave || dsi2->master) ? dsi2->lanes * 2 : dsi2->lanes;
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi2->format);
 	if (bpp < 0)
 		bpp = 24;
@@ -664,9 +664,14 @@ static void dw_mipi_dsi2_ipi_set(struct dw_mipi_dsi2 *dsi2)
 	u64 hline_time, hsa_time, hbp_time, hact_time, tmp;
 	u32 vact, vsa, vfp, vbp;
 	u32 pixel_clk, phy_hs_clk;
+	u16 val;
 
-	regmap_write(dsi2->regmap, DSI2_IPI_PIX_PKT_CFG,
-		     MAX_PIX_PKT(mode->hdisplay));
+	if (dsi2->slave || dsi2->master)
+		val = mode->hdisplay / 2;
+	else
+		val = mode->hdisplay;
+
+	regmap_write(dsi2->regmap, DSI2_IPI_PIX_PKT_CFG, MAX_PIX_PKT(val));
 
 	dw_mipi_dsi2_ipi_color_coding_cfg(dsi2);
 
@@ -736,6 +741,8 @@ dw_mipi_dsi2_work_mode(struct dw_mipi_dsi2 *dsi2, u32 mode)
 
 static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 {
+	pm_runtime_get_sync(dsi2->dev);
+
 	dw_mipi_dsi2_host_softrst(dsi2);
 	regmap_write(dsi2->regmap, DSI2_PWR_UP, RESET);
 
@@ -748,6 +755,9 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 	mipi_dcphy_power_on(dsi2);
 	regmap_write(dsi2->regmap, DSI2_PWR_UP, POWER_UP);
 	dw_mipi_dsi2_set_cmd_mode(dsi2);
+
+	if (dsi2->slave)
+		dw_mipi_dsi2_pre_enable(dsi2->slave);
 }
 
 static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
@@ -761,6 +771,9 @@ static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 		dw_mipi_dsi2_set_vid_mode(dsi2);
 	else
 		dw_mipi_dsi2_set_data_stream_mode(dsi2);
+
+	if (dsi2->slave)
+		dw_mipi_dsi2_enable(dsi2->slave);
 }
 
 static void dw_mipi_dsi2_encoder_enable(struct drm_encoder *encoder)
@@ -770,7 +783,9 @@ static void dw_mipi_dsi2_encoder_enable(struct drm_encoder *encoder)
 	if (dsi2->dcphy)
 		dw_mipi_dsi2_set_lane_rate(dsi2);
 
-	pm_runtime_get_sync(dsi2->dev);
+	if (dsi2->slave && dsi2->slave->dcphy)
+		dw_mipi_dsi2_set_lane_rate(dsi2->slave);
+
 	dw_mipi_dsi2_pre_enable(dsi2);
 
 	if (dsi2->panel)
