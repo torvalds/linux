@@ -145,7 +145,7 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	struct task_struct *curr;
 	struct rq *rq, *this_cpu_rq;
 	bool may_not_preempt;
-	bool sync = !!(wake_flags && WF_SYNC);
+	bool sync = !!(wake_flags & WF_SYNC);
 	int ret, target = -1, this_cpu;
 	struct cpumask *lowest_mask;
 
