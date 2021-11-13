@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * clk-si5351.c: Silicon Laboratories Si5351A/B/C I2C Clock Generator
+ * clk-si5351.c: Skyworks / Silicon Labs Si5351A/B/C I2C Clock Generator
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Rabeeh Khoury <rabeeh@solid-run.com>
  *
  * References:
  * [1] "Si5351A/B/C Data Sheet"
- *     https://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
- * [2] "Manually Generating an Si5351 Register Map"
- *     https://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
+ *     https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/data-sheets/Si5351-B.pdf
+ * [2] "AN619: Manually Generating an Si5351 Register Map"
+ *     https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-notes/AN619.pdf
  */
 
 #include <linux/module.h>

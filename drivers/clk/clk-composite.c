@@ -97,6 +97,7 @@ static int clk_composite_determine_rate(struct clk_hw *hw,
 				return ret;
 
 			req->rate = tmp_req.rate;
+			req->best_parent_hw = tmp_req.best_parent_hw;
 			req->best_parent_rate = tmp_req.best_parent_rate;
 
 			return 0;
