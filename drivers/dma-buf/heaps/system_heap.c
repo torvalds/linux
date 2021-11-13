@@ -25,6 +25,8 @@
 #include "page_pool.h"
 #include "deferred-free-helper.h"
 
+#define CONFIG_SYSTEM_HEAP_FORCE_DMA_SYNC
+
 static struct dma_heap *sys_heap;
 static struct dma_heap *sys_uncached_heap;
 
@@ -214,6 +216,141 @@ static int system_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return 0;
 }
 
+static int system_heap_sgl_sync_range(struct device *dev,
+				      struct scatterlist *sgl,
+				      unsigned int nents,
+				      unsigned int offset,
+				      unsigned int length,
+				      enum dma_data_direction dir,
+				      bool for_cpu)
+{
+	struct scatterlist *sg;
+	unsigned int len = 0;
+	dma_addr_t sg_dma_addr;
+	int i;
+
+	for_each_sg(sgl, sg, nents, i) {
+		unsigned int sg_offset, sg_left, size = 0;
+
+		sg_dma_addr = sg_dma_address(sg);
+
+		len += sg->length;
+		if (len <= offset)
+			continue;
+
+		sg_left = len - offset;
+		sg_offset = sg->length - sg_left;
+
+		size = (length < sg_left) ? length : sg_left;
+		if (for_cpu)
+			dma_sync_single_range_for_cpu(dev, sg_dma_addr,
+						      sg_offset, size, dir);
+		else
+			dma_sync_single_range_for_device(dev, sg_dma_addr,
+							 sg_offset, size, dir);
+
+		offset += size;
+		length -= size;
+
+		if (length == 0)
+			break;
+	}
+
+	return 0;
+}
+
+static int
+system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
+					     enum dma_data_direction direction,
+					     unsigned int offset,
+					     unsigned int len)
+{
+	struct system_heap_buffer *buffer = dmabuf->priv;
+	struct sg_table *table = &buffer->sg_table;
+	struct dma_heap_attachment *a;
+	int ret = 0;
+
+	if (direction == DMA_TO_DEVICE)
+		return 0;
+
+	mutex_lock(&buffer->lock);
+	if (IS_ENABLED(CONFIG_SYSTEM_HEAP_FORCE_DMA_SYNC)) {
+		struct dma_heap *heap = buffer->heap;
+
+		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap),
+						 table->sgl,
+						 table->nents,
+						 offset, len,
+						 direction, true);
+		goto unlock;
+	}
+
+	if (buffer->vmap_cnt)
+		invalidate_kernel_vmap_range(buffer->vaddr, buffer->len);
+
+	if (!buffer->uncached)
+		goto unlock;
+
+	list_for_each_entry(a, &buffer->attachments, list) {
+		if (!a->mapped)
+			continue;
+
+		ret = system_heap_sgl_sync_range(a->dev, a->table->sgl,
+						 a->table->nents,
+						 offset, len,
+						 direction, true);
+	}
+
+unlock:
+	mutex_unlock(&buffer->lock);
+
+	return ret;
+}
+
+static int
+system_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
+					   enum dma_data_direction direction,
+					   unsigned int offset,
+					   unsigned int len)
+{
+	struct system_heap_buffer *buffer = dmabuf->priv;
+	struct sg_table *table = &buffer->sg_table;
+	struct dma_heap_attachment *a;
+	int ret = 0;
+
+	mutex_lock(&buffer->lock);
+	if (IS_ENABLED(CONFIG_SYSTEM_HEAP_FORCE_DMA_SYNC)) {
+		struct dma_heap *heap = buffer->heap;
+
+		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap),
+						 table->sgl,
+						 table->nents,
+						 offset, len,
+						 direction, false);
+		goto unlock;
+	}
+
+	if (buffer->vmap_cnt)
+		flush_kernel_vmap_range(buffer->vaddr, buffer->len);
+
+	if (!buffer->uncached)
+		goto unlock;
+
+	list_for_each_entry(a, &buffer->attachments, list) {
+		if (!a->mapped)
+			continue;
+
+		ret = system_heap_sgl_sync_range(a->dev, a->table->sgl,
+						 a->table->nents,
+						 offset, len,
+						 direction, false);
+	}
+unlock:
+	mutex_unlock(&buffer->lock);
+
+	return ret;
+}
+
 static int system_heap_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
@@ -370,6 +507,8 @@ static const struct dma_buf_ops system_heap_buf_ops = {
 	.unmap_dma_buf = system_heap_unmap_dma_buf,
 	.begin_cpu_access = system_heap_dma_buf_begin_cpu_access,
 	.end_cpu_access = system_heap_dma_buf_end_cpu_access,
+	.begin_cpu_access_partial = system_heap_dma_buf_begin_cpu_access_partial,
+	.end_cpu_access_partial = system_heap_dma_buf_end_cpu_access_partial,
 	.mmap = system_heap_mmap,
 	.vmap = system_heap_vmap,
 	.vunmap = system_heap_vunmap,
