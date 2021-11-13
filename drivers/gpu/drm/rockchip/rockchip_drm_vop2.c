@@ -7079,7 +7079,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 	do { \
 		if (active_irqs & x##_INTR) {\
 			if (x##_INTR == POST_BUF_EMPTY_INTR) \
-				printk(KERN_DEBUG #x " irq err at vp%d\n", vp->id); \
+				DRM_DEV_ERROR_RATELIMITED(vop2->dev, #x " irq err at vp%d\n", vp->id); \
 			else \
 				DRM_DEV_ERROR_RATELIMITED(vop2->dev, #x " irq err\n"); \
 			active_irqs &= ~x##_INTR; \
