@@ -250,6 +250,10 @@ static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 	if (wrq->push_task == p)
 		return false;
 
+	/* Don't detach task if dest cpu is halted */
+	if (cpu_halted(dst_cpu))
+		return false;
+
 	return true;
 }
 
