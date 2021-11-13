@@ -104,8 +104,8 @@ static struct kobj_type blk_ia_ranges_ktype = {
 };
 
 /**
- * disk_register_ia_ranges - register with sysfs a set of independent
- *			    access ranges
+ * disk_register_independent_access_ranges - register with sysfs a set of
+ *		independent access ranges
  * @disk:	Target disk
  * @new_iars:	New set of independent access ranges
  *

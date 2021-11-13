@@ -89,15 +89,7 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *
 	return q->queue_hw_ctx[q->tag_set->map[type].mq_map[cpu]];
 }
 
-/*
- * blk_mq_map_queue() - map (cmd_flags,type) to hardware queue
- * @q: request queue
- * @flags: request command flags
- * @ctx: software queue cpu ctx
- */
-static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
-						     unsigned int flags,
-						     struct blk_mq_ctx *ctx)
+static inline enum hctx_type blk_mq_get_hctx_type(unsigned int flags)
 {
 	enum hctx_type type = HCTX_TYPE_DEFAULT;
 
@@ -108,8 +100,20 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
 		type = HCTX_TYPE_POLL;
 	else if ((flags & REQ_OP_MASK) == REQ_OP_READ)
 		type = HCTX_TYPE_READ;
-	
-	return ctx->hctxs[type];
+	return type;
+}
+
+/*
+ * blk_mq_map_queue() - map (cmd_flags,type) to hardware queue
+ * @q: request queue
+ * @flags: request command flags
+ * @ctx: software queue cpu ctx
+ */
+static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
+						     unsigned int flags,
+						     struct blk_mq_ctx *ctx)
+{
+	return ctx->hctxs[blk_mq_get_hctx_type(flags)];
 }
 
 /*
@@ -149,7 +153,7 @@ struct blk_mq_alloc_data {
 	blk_mq_req_flags_t flags;
 	unsigned int shallow_depth;
 	unsigned int cmd_flags;
-	unsigned int rq_flags;
+	req_flags_t rq_flags;
 
 	/* allocate multiple requests/tags in one go */
 	unsigned int nr_tags;

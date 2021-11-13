@@ -370,9 +370,6 @@ bool blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 	bool ret = false;
 	enum hctx_type type;
 
-	if (bio_queue_enter(bio))
-		return false;
-
 	if (e && e->type->ops.bio_merge) {
 		ret = e->type->ops.bio_merge(q, bio, nr_segs);
 		goto out_put;
@@ -397,7 +394,6 @@ bool blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 
 	spin_unlock(&ctx->lock);
 out_put:
-	blk_queue_exit(q);
 	return ret;
 }
 
