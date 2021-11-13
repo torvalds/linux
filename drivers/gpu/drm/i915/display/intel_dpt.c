@@ -121,32 +121,42 @@ struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
 	intel_wakeref_t wakeref;
 	struct i915_vma *vma;
 	void __iomem *iomem;
+	struct i915_gem_ww_ctx ww;
+	int err;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	atomic_inc(&i915->gpu_error.pending_fb_pin);
 
-	vma = i915_gem_object_ggtt_pin(dpt->obj, NULL, 0, 4096,
-				       HAS_LMEM(i915) ? 0 : PIN_MAPPABLE);
-	if (IS_ERR(vma))
-		goto err;
+	for_i915_gem_ww(&ww, err, true) {
+		err = i915_gem_object_lock(dpt->obj, &ww);
+		if (err)
+			continue;
 
-	iomem = i915_vma_pin_iomap(vma);
-	i915_vma_unpin(vma);
-	if (IS_ERR(iomem)) {
-		vma = ERR_CAST(iomem);
-		goto err;
+		vma = i915_gem_object_ggtt_pin_ww(dpt->obj, &ww, NULL, 0, 4096,
+						  HAS_LMEM(i915) ? 0 : PIN_MAPPABLE);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			continue;
+		}
+
+		iomem = i915_vma_pin_iomap(vma);
+		i915_vma_unpin(vma);
+
+		if (IS_ERR(iomem)) {
+			err = PTR_ERR(iomem);
+			continue;
+		}
+
+		dpt->vma = vma;
+		dpt->iomem = iomem;
+
+		i915_vma_get(vma);
 	}
 
-	dpt->vma = vma;
-	dpt->iomem = iomem;
-
-	i915_vma_get(vma);
-
-err:
 	atomic_dec(&i915->gpu_error.pending_fb_pin);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
-	return vma;
+	return err ? ERR_PTR(err) : vma;
 }
 
 void intel_dpt_unpin(struct i915_address_space *vm)

@@ -26,6 +26,7 @@
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
+#include "intel_tc.h"
 
 /**
  * DOC: Display PLLs
@@ -3101,8 +3102,8 @@ static void icl_update_active_dpll(struct intel_atomic_state *state,
 		enc_to_dig_port(encoder);
 
 	if (primary_port &&
-	    (primary_port->tc_mode == TC_PORT_DP_ALT ||
-	     primary_port->tc_mode == TC_PORT_LEGACY))
+	    (intel_tc_port_in_dp_alt_mode(primary_port) ||
+	     intel_tc_port_in_legacy_mode(primary_port)))
 		port_dpll_id = ICL_PORT_DPLL_MG_PHY;
 
 	icl_set_active_port_dpll(crtc_state, port_dpll_id);

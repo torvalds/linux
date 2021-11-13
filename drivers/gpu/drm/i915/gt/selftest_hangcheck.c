@@ -1596,7 +1596,7 @@ static int igt_reset_evict_ppgtt(void *arg)
 	if (INTEL_PPGTT(gt->i915) < INTEL_PPGTT_FULL)
 		return 0;
 
-	ppgtt = i915_ppgtt_create(gt);
+	ppgtt = i915_ppgtt_create(gt, 0);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 

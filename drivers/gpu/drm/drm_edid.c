@@ -1926,13 +1926,15 @@ int drm_add_override_edid_modes(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_add_override_edid_modes);
 
-static struct edid *drm_do_get_edid_base_block(
+static struct edid *drm_do_get_edid_base_block(struct drm_connector *connector,
 	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
 			      size_t len),
-	void *data, bool *edid_corrupt, int *null_edid_counter)
+	void *data)
 {
-	int i;
+	int *null_edid_counter = connector ? &connector->null_edid_counter : NULL;
+	bool *edid_corrupt = connector ? &connector->edid_corrupt : NULL;
 	void *edid;
+	int i;
 
 	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (edid == NULL)
@@ -1956,9 +1958,8 @@ static struct edid *drm_do_get_edid_base_block(
 	return edid;
 
 carp:
-	kfree(edid);
-	return ERR_PTR(-EINVAL);
-
+	if (connector)
+		connector_bad_edid(connector, edid, 1);
 out:
 	kfree(edid);
 	return NULL;
@@ -1997,14 +1998,9 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	if (override)
 		return override;
 
-	edid = (u8 *)drm_do_get_edid_base_block(get_edid_block, data,
-						&connector->edid_corrupt,
-						&connector->null_edid_counter);
-	if (IS_ERR_OR_NULL(edid)) {
-		if (IS_ERR(edid))
-			connector_bad_edid(connector, edid, 1);
+	edid = (u8 *)drm_do_get_edid_base_block(connector, get_edid_block, data);
+	if (!edid)
 		return NULL;
-	}
 
 	/* if there's no extensions or no connector, we're done */
 	valid_extensions = edid[0x7e];
@@ -2157,14 +2153,13 @@ u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
 	struct edid *edid;
 	u32 panel_id;
 
-	edid = drm_do_get_edid_base_block(drm_do_probe_ddc_edid, adapter,
-					  NULL, NULL);
+	edid = drm_do_get_edid_base_block(NULL, drm_do_probe_ddc_edid, adapter);
 
 	/*
 	 * There are no manufacturer IDs of 0, so if there is a problem reading
 	 * the EDID then we'll just return 0.
 	 */
-	if (IS_ERR_OR_NULL(edid))
+	if (!edid)
 		return 0;
 
 	panel_id = edid_extract_panel_id(edid);

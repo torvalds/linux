@@ -88,7 +88,7 @@ live_context(struct drm_i915_private *i915, struct file *file)
 		return ERR_CAST(pc);
 
 	ctx = i915_gem_create_context(i915, pc);
-	proto_context_close(pc);
+	proto_context_close(i915, pc);
 	if (IS_ERR(ctx))
 		return ctx;
 
@@ -163,7 +163,7 @@ kernel_context(struct drm_i915_private *i915,
 	}
 
 	ctx = i915_gem_create_context(i915, pc);
-	proto_context_close(pc);
+	proto_context_close(i915, pc);
 	if (IS_ERR(ctx))
 		return ctx;
 

@@ -60,6 +60,13 @@ enum msm_mdp_plane_property {
 	PLANE_PROP_MAX_NUM
 };
 
+enum msm_dp_controller {
+	MSM_DP_CONTROLLER_0,
+	MSM_DP_CONTROLLER_1,
+	MSM_DP_CONTROLLER_2,
+	MSM_DP_CONTROLLER_COUNT,
+};
+
 #define MSM_GPU_MAX_RINGS 4
 #define MAX_H_TILES_PER_DISPLAY 2
 
@@ -153,7 +160,7 @@ struct msm_drm_private {
 	/* DSI is shared by mdp4 and mdp5 */
 	struct msm_dsi *dsi[2];
 
-	struct msm_dp *dp;
+	struct msm_dp *dp[MSM_DP_CONTROLLER_COUNT];
 
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
@@ -479,6 +486,28 @@ void __iomem *msm_ioremap_quiet(struct platform_device *pdev, const char *name,
 void msm_writel(u32 data, void __iomem *addr);
 u32 msm_readl(const void __iomem *addr);
 void msm_rmw(void __iomem *addr, u32 mask, u32 or);
+
+/**
+ * struct msm_hrtimer_work - a helper to combine an hrtimer with kthread_work
+ *
+ * @timer: hrtimer to control when the kthread work is triggered
+ * @work:  the kthread work
+ * @worker: the kthread worker the work will be scheduled on
+ */
+struct msm_hrtimer_work {
+	struct hrtimer timer;
+	struct kthread_work work;
+	struct kthread_worker *worker;
+};
+
+void msm_hrtimer_queue_work(struct msm_hrtimer_work *work,
+			    ktime_t wakeup_time,
+			    enum hrtimer_mode mode);
+void msm_hrtimer_work_init(struct msm_hrtimer_work *work,
+			   struct kthread_worker *worker,
+			   kthread_work_func_t fn,
+			   clockid_t clock_id,
+			   enum hrtimer_mode mode);
 
 #define DBG(fmt, ...) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)

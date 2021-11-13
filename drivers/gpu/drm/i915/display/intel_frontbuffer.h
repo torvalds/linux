@@ -37,6 +37,7 @@ enum fb_op_origin {
 	ORIGIN_CS,
 	ORIGIN_FLIP,
 	ORIGIN_DIRTYFB,
+	ORIGIN_CURSOR_UPDATE,
 };
 
 struct intel_frontbuffer {

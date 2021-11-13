@@ -3839,9 +3839,9 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 
 	amdgpu_fbdev_fini(adev);
 
-	amdgpu_irq_fini_hw(adev);
-
 	amdgpu_device_ip_fini_early(adev);
+
+	amdgpu_irq_fini_hw(adev);
 
 	ttm_device_clear_dma_mappings(&adev->mman.bdev);
 
@@ -3852,8 +3852,8 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 
 void amdgpu_device_fini_sw(struct amdgpu_device *adev)
 {
-	amdgpu_device_ip_fini(adev);
 	amdgpu_fence_driver_sw_fini(adev);
+	amdgpu_device_ip_fini(adev);
 	release_firmware(adev->firmware.gpu_info_fw);
 	adev->firmware.gpu_info_fw = NULL;
 	adev->accel_working = false;

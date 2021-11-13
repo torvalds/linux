@@ -147,7 +147,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	bool clear;
 	int ret = 0;
 
-	if (ttm && ((ttm->page_flags & TTM_PAGE_FLAG_SWAPPED) ||
+	if (ttm && ((ttm->page_flags & TTM_TT_FLAG_SWAPPED) ||
 		    dst_man->use_tt)) {
 		ret = ttm_tt_populate(bdev, ttm, ctx);
 		if (ret)
@@ -169,7 +169,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	}
 
 	clear = src_iter->ops->maps_tt && (!ttm || !ttm_tt_is_populated(ttm));
-	if (!(clear && ttm && !(ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)))
+	if (!(clear && ttm && !(ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC)))
 		ttm_move_memcpy(clear, dst_mem->num_pages, dst_iter, src_iter);
 
 	if (!src_iter->ops->maps_tt)

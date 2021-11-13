@@ -19,15 +19,6 @@ struct reset_control;
 
 #define GMP_GRANULARITY (128 * 1024)
 
-/* Enum for each of the V3D queues. */
-enum v3d_queue {
-	V3D_BIN,
-	V3D_RENDER,
-	V3D_TFU,
-	V3D_CSD,
-	V3D_CACHE_CLEAN,
-};
-
 #define V3D_MAX_QUEUES (V3D_CACHE_CLEAN + 1)
 
 struct v3d_queue_state {
@@ -292,6 +283,21 @@ struct v3d_csd_job {
 	u32 timedout_batches;
 
 	struct drm_v3d_submit_csd args;
+};
+
+struct v3d_submit_outsync {
+	struct drm_syncobj *syncobj;
+};
+
+struct v3d_submit_ext {
+	u32 flags;
+	u32 wait_stage;
+
+	u32 in_sync_count;
+	u64 in_syncs;
+
+	u32 out_sync_count;
+	struct v3d_submit_outsync *out_syncs;
 };
 
 /**

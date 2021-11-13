@@ -371,7 +371,7 @@ int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 	WARN_ON(!num_pages || ttm_tt_is_populated(tt));
 	WARN_ON(dma_addr && !pool->dev);
 
-	if (tt->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
+	if (tt->page_flags & TTM_TT_FLAG_ZERO_ALLOC)
 		gfp_flags |= __GFP_ZERO;
 
 	if (ctx->gfp_retry_mayfail)

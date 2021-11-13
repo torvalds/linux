@@ -1241,11 +1241,13 @@ static int aldebaran_get_power_limit(struct smu_context *smu,
 	return 0;
 }
 
-static int aldebaran_set_power_limit(struct smu_context *smu, uint32_t n)
+static int aldebaran_set_power_limit(struct smu_context *smu,
+				     enum smu_ppt_limit_type limit_type,
+				     uint32_t limit)
 {
 	/* Power limit can be set only through primary die */
 	if (aldebaran_is_primary(smu))
-		return smu_v13_0_set_power_limit(smu, n);
+		return smu_v13_0_set_power_limit(smu, limit_type, limit);
 
 	return -EINVAL;
 }

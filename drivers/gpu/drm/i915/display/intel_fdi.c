@@ -8,7 +8,106 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
-#include "intel_sideband.h"
+#include "intel_sbi.h"
+
+static void assert_fdi_tx(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	if (HAS_DDI(dev_priv)) {
+		/*
+		 * DDI does not have a specific FDI_TX register.
+		 *
+		 * FDI is never fed from EDP transcoder
+		 * so pipe->transcoder cast is fine here.
+		 */
+		enum transcoder cpu_transcoder = (enum transcoder)pipe;
+		cur_state = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
+	} else {
+		cur_state = intel_de_read(dev_priv, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
+	}
+	I915_STATE_WARN(cur_state != state,
+			"FDI TX state assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_tx_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_tx(i915, pipe, true);
+}
+
+void assert_fdi_tx_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_tx(i915, pipe, false);
+}
+
+static void assert_fdi_rx(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	cur_state = intel_de_read(dev_priv, FDI_RX_CTL(pipe)) & FDI_RX_ENABLE;
+	I915_STATE_WARN(cur_state != state,
+			"FDI RX state assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_rx_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx(i915, pipe, true);
+}
+
+void assert_fdi_rx_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx(i915, pipe, false);
+}
+
+void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915,
+			       enum pipe pipe)
+{
+	bool cur_state;
+
+	/* ILK FDI PLL is always enabled */
+	if (IS_IRONLAKE(i915))
+		return;
+
+	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
+	if (HAS_DDI(i915))
+		return;
+
+	cur_state = intel_de_read(i915, FDI_TX_CTL(pipe)) & FDI_TX_PLL_ENABLE;
+	I915_STATE_WARN(!cur_state, "FDI TX PLL assertion failure, should be active but is disabled\n");
+}
+
+static void assert_fdi_rx_pll(struct drm_i915_private *i915,
+			      enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	cur_state = intel_de_read(i915, FDI_RX_CTL(pipe)) & FDI_RX_PLL_ENABLE;
+	I915_STATE_WARN(cur_state != state,
+			"FDI RX PLL assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_rx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx_pll(i915, pipe, true);
+}
+
+void assert_fdi_rx_pll_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx_pll(i915, pipe, false);
+}
+
+void intel_fdi_link_train(struct intel_crtc *crtc,
+			  const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	dev_priv->fdi_funcs->fdi_link_train(crtc, crtc_state);
+}
 
 /* units of 100MHz */
 static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
@@ -168,7 +267,7 @@ retry:
 	}
 
 	if (needs_recompute)
-		return I915_DISPLAY_CONFIG_RETRY;
+		return -EAGAIN;
 
 	return ret;
 }
@@ -281,7 +380,7 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* FDI needs bits from pipe first */
-	assert_pipe_enabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_enabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -1005,15 +1104,27 @@ void lpt_fdi_program_mphy(struct drm_i915_private *dev_priv)
 	intel_sbi_write(dev_priv, 0x21EC, tmp, SBI_MPHY);
 }
 
+static const struct intel_fdi_funcs ilk_funcs = {
+	.fdi_link_train = ilk_fdi_link_train,
+};
+
+static const struct intel_fdi_funcs gen6_funcs = {
+	.fdi_link_train = gen6_fdi_link_train,
+};
+
+static const struct intel_fdi_funcs ivb_funcs = {
+	.fdi_link_train = ivb_manual_fdi_link_train,
+};
+
 void
 intel_fdi_init_hook(struct drm_i915_private *dev_priv)
 {
 	if (IS_IRONLAKE(dev_priv)) {
-		dev_priv->display.fdi_link_train = ilk_fdi_link_train;
+		dev_priv->fdi_funcs = &ilk_funcs;
 	} else if (IS_SANDYBRIDGE(dev_priv)) {
-		dev_priv->display.fdi_link_train = gen6_fdi_link_train;
+		dev_priv->fdi_funcs = &gen6_funcs;
 	} else if (IS_IVYBRIDGE(dev_priv)) {
 		/* FIXME: detect B0+ stepping and use auto training */
-		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
+		dev_priv->fdi_funcs = &ivb_funcs;
 	}
 }

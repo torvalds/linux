@@ -1250,7 +1250,7 @@ nouveau_ttm_tt_populate(struct ttm_device *bdev,
 	struct ttm_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
 	struct device *dev;
-	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
+	bool slave = !!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL);
 
 	if (ttm_tt_is_populated(ttm))
 		return 0;
@@ -1273,7 +1273,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_device *bdev,
 {
 	struct nouveau_drm *drm;
 	struct device *dev;
-	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
+	bool slave = !!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL);
 
 	if (slave)
 		return;

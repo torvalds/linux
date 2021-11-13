@@ -5,6 +5,7 @@
 
 #include <linux/util_macros.h>
 
+#include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -51,27 +52,25 @@ void intel_snps_phy_update_psr_power_state(struct drm_i915_private *dev_priv,
 			 SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR, val);
 }
 
-void intel_snps_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
-					const struct intel_crtc_state *crtc_state,
-					int level)
+void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
+				      const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct intel_ddi_buf_trans *ddi_translations;
+	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+	int level = intel_ddi_level(encoder, crtc_state, 0);
 	int n_entries, ln;
 
-	ddi_translations = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !ddi_translations))
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
 		return;
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, level < 0 || level >= n_entries))
-		level = n_entries - 1;
 
 	for (ln = 0; ln < 4; ln++) {
 		u32 val = 0;
 
-		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, ddi_translations->entries[level].snps.snps_vswing);
-		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_PRE, ddi_translations->entries[level].snps.snps_pre_cursor);
-		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, ddi_translations->entries[level].snps.snps_post_cursor);
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, trans->entries[level].snps.vswing);
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_PRE, trans->entries[level].snps.pre_cursor);
+		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, trans->entries[level].snps.post_cursor);
 
 		intel_de_write(dev_priv, SNPS_PHY_TX_EQ(ln, phy), val);
 	}

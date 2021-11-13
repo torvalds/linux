@@ -455,6 +455,10 @@ static int smu_get_power_num_states(void *handle,
 
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
+	/* vega20 is 11.0.2, but it's supported via the powerplay code */
+	if (adev->asic_type == CHIP_VEGA20)
+		return false;
+
 	if (adev->ip_versions[MP1_HWIP][0] >= IP_VERSION(11, 0, 0))
 		return true;
 
@@ -2344,9 +2348,10 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
 
 	mutex_lock(&smu->mutex);
 
+	limit &= (1<<24)-1;
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
 		if (smu->ppt_funcs->set_power_limit) {
-			ret = smu->ppt_funcs->set_power_limit(smu, limit);
+			ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
 			goto out;
 		}
 
@@ -2362,7 +2367,7 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
 		limit = smu->current_power_limit;
 
 	if (smu->ppt_funcs->set_power_limit) {
-		ret = smu->ppt_funcs->set_power_limit(smu, limit);
+		ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
 		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
 			smu->user_dpm_profile.power_limit = limit;
 	}

@@ -616,7 +616,7 @@ static u32 global_mocs_offset(void)
 	return i915_mmio_reg_offset(GEN12_GLOBAL_MOCS(0));
 }
 
-void set_mocs_index(struct intel_gt *gt)
+void intel_set_mocs_index(struct intel_gt *gt)
 {
 	struct drm_i915_mocs_table table;
 

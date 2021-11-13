@@ -78,18 +78,6 @@ struct dpu_irq_callback {
 	void *arg;
 };
 
-/**
- * struct dpu_irq: IRQ structure contains callback registration info
- * @total_irq:    total number of irq_idx obtained from HW interrupts mapping
- * @irq_cb_tbl:   array of IRQ callbacks setting
- * @debugfs_file: debugfs file for irq statistics
- */
-struct dpu_irq {
-	u32 total_irqs;
-	struct list_head *irq_cb_tbl;
-	atomic_t *irq_counts;
-};
-
 struct dpu_kms {
 	struct msm_kms base;
 	struct drm_device *dev;
@@ -104,7 +92,6 @@ struct dpu_kms {
 	struct regulator *venus;
 
 	struct dpu_hw_intr *hw_intr;
-	struct dpu_irq irq_obj;
 
 	struct dpu_core_perf perf;
 

@@ -42,7 +42,7 @@
 
 static bool dpu_encoder_phys_cmd_is_master(struct dpu_encoder_phys *phys_enc)
 {
-	return (phys_enc->split_role != ENC_ROLE_SLAVE) ? true : false;
+	return (phys_enc->split_role != ENC_ROLE_SLAVE);
 }
 
 static bool dpu_encoder_phys_cmd_mode_fixup(

@@ -269,6 +269,13 @@ struct intel_engine_cs {
 	unsigned int guc_id;
 
 	intel_engine_mask_t mask;
+	/**
+	 * @logical_mask: logical mask of engine, reported to user space via
+	 * query IOCTL and used to communicate with the GuC in logical space.
+	 * The logical instance of a physical engine can change based on product
+	 * and fusing.
+	 */
+	intel_engine_mask_t logical_mask;
 
 	u8 class;
 	u8 instance;
@@ -306,6 +313,13 @@ struct intel_engine_cs {
 	struct llist_head barrier_tasks;
 
 	struct intel_context *kernel_context; /* pinned */
+
+	/**
+	 * pinned_contexts_list: List of pinned contexts. This list is only
+	 * assumed to be manipulated during driver load- or unload time and
+	 * does therefore not have any additional protection.
+	 */
+	struct list_head pinned_contexts_list;
 
 	intel_engine_mask_t saturated; /* submitting semaphores too late? */
 
@@ -549,7 +563,7 @@ intel_engine_has_semaphores(const struct intel_engine_cs *engine)
 static inline bool
 intel_engine_has_timeslices(const struct intel_engine_cs *engine)
 {
-	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
 		return false;
 
 	return engine->flags & I915_ENGINE_HAS_TIMESLICES;

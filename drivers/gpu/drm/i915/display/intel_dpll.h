@@ -36,4 +36,7 @@ bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 			struct dpll *best_clock);
 int chv_calc_dpll_params(int refclk, struct dpll *pll_clock);
 
+void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_pll_disabled(struct drm_i915_private *i915, enum pipe pipe);
+
 #endif

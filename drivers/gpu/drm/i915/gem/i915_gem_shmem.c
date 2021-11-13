@@ -182,22 +182,7 @@ rebuild_st:
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj, st);
 
-	/*
-	 * EHL and JSL add the 'Bypass LLC' MOCS entry, which should make it
-	 * possible for userspace to bypass the GTT caching bits set by the
-	 * kernel, as per the given object cache_level. This is troublesome
-	 * since the heavy flush we apply when first gathering the pages is
-	 * skipped if the kernel thinks the object is coherent with the GPU. As
-	 * a result it might be possible to bypass the cache and read the
-	 * contents of the page directly, which could be stale data. If it's
-	 * just a case of userspace shooting themselves in the foot then so be
-	 * it, but since i915 takes the stance of always zeroing memory before
-	 * handing it to userspace, we need to prevent this.
-	 *
-	 * By setting cache_dirty here we make the clflush in set_pages
-	 * unconditional on such platforms.
-	 */
-	if (IS_JSL_EHL(i915) && obj->flags & I915_BO_ALLOC_USER)
+	if (i915_gem_object_can_bypass_llc(obj))
 		obj->cache_dirty = true;
 
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
@@ -301,6 +286,8 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				struct sg_table *pages,
 				bool needs_clflush)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
 	GEM_BUG_ON(obj->mm.madv == __I915_MADV_PURGED);
 
 	if (obj->mm.madv == I915_MADV_DONTNEED)
@@ -312,6 +299,16 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 		drm_clflush_sg(pages);
 
 	__start_cpu_write(obj);
+	/*
+	 * On non-LLC platforms, force the flush-on-acquire if this is ever
+	 * swapped-in. Our async flush path is not trust worthy enough yet(and
+	 * happens in the wrong order), and with some tricks it's conceivable
+	 * for userspace to change the cache-level to I915_CACHE_NONE after the
+	 * pages are swapped-in, and since execbuf binds the object before doing
+	 * the async flush, we have a race window.
+	 */
+	if (!HAS_LLC(i915))
+		obj->cache_dirty = true;
 }
 
 void i915_gem_object_put_pages_shmem(struct drm_i915_gem_object *obj, struct sg_table *pages)

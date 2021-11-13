@@ -10,6 +10,7 @@
 #include "intel_uc_fw_abi.h"
 #include "intel_device_info.h"
 #include "i915_gem.h"
+#include "i915_vma.h"
 
 struct drm_printer;
 struct drm_i915_private;
@@ -75,6 +76,14 @@ struct intel_uc_fw {
 	bool user_overridden;
 	size_t size;
 	struct drm_i915_gem_object *obj;
+	/**
+	 * @dummy: A vma used in binding the uc fw to ggtt. We can't define this
+	 * vma on the stack as it can lead to a stack overflow, so we define it
+	 * here. Safe to have 1 copy per uc fw because the binding is single
+	 * threaded as it done during driver load (inherently single threaded)
+	 * or during a GT reset (mutex guarantees single threaded).
+	 */
+	struct i915_vma dummy;
 
 	/*
 	 * The firmware build process will generate a version header file with major and

@@ -554,6 +554,7 @@ bool dal_ddc_service_query_ddc_data(
 		payload.address = address;
 		payload.reply = NULL;
 		payload.defer_delay = get_defer_delay(ddc);
+		payload.write_status_update = false;
 
 		if (write_size != 0) {
 			payload.write = true;
@@ -625,24 +626,24 @@ bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
 	do {
 		struct aux_payload current_payload;
 		bool is_end_of_payload = (retrieved + DEFAULT_AUX_MAX_DATA_SIZE) >=
-			payload->length;
+				payload->length ? true : false;
+		uint32_t payload_length = is_end_of_payload ?
+				payload->length - retrieved : DEFAULT_AUX_MAX_DATA_SIZE;
 
 		current_payload.address = payload->address;
 		current_payload.data = &payload->data[retrieved];
 		current_payload.defer_delay = payload->defer_delay;
 		current_payload.i2c_over_aux = payload->i2c_over_aux;
-		current_payload.length = is_end_of_payload ?
-			payload->length - retrieved : DEFAULT_AUX_MAX_DATA_SIZE;
-		/* set mot (middle of transaction) to false
-		 * if it is the last payload
-		 */
+		current_payload.length = payload_length;
+		/* set mot (middle of transaction) to false if it is the last payload */
 		current_payload.mot = is_end_of_payload ? payload->mot:true;
+		current_payload.write_status_update = false;
 		current_payload.reply = payload->reply;
 		current_payload.write = payload->write;
 
 		ret = dc_link_aux_transfer_with_retries(ddc, &current_payload);
 
-		retrieved += current_payload.length;
+		retrieved += payload_length;
 	} while (retrieved < payload->length && ret == true);
 
 	return ret;
@@ -763,7 +764,7 @@ void dal_ddc_service_read_scdc_data(struct ddc_service *ddc_service)
 	dal_ddc_service_query_ddc_data(ddc_service, slave_address, &offset,
 			sizeof(offset), &tmds_config, sizeof(tmds_config));
 	if (tmds_config & 0x1) {
-		union hdmi_scdc_status_flags_data status_data = { {0} };
+		union hdmi_scdc_status_flags_data status_data = {0};
 		uint8_t scramble_status = 0;
 
 		offset = HDMI_SCDC_SCRAMBLER_STATUS;

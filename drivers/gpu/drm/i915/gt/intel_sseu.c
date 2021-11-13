@@ -514,10 +514,9 @@ static void hsw_sseu_info_init(struct intel_gt *gt)
 	}
 
 	fuse1 = intel_uncore_read(gt->uncore, HSW_PAVP_FUSE1);
-	switch ((fuse1 & HSW_F1_EU_DIS_MASK) >> HSW_F1_EU_DIS_SHIFT) {
+	switch (REG_FIELD_GET(HSW_F1_EU_DIS_MASK, fuse1)) {
 	default:
-		MISSING_CASE((fuse1 & HSW_F1_EU_DIS_MASK) >>
-			     HSW_F1_EU_DIS_SHIFT);
+		MISSING_CASE(REG_FIELD_GET(HSW_F1_EU_DIS_MASK, fuse1));
 		fallthrough;
 	case HSW_F1_EU_DIS_10EUS:
 		sseu->eu_per_subslice = 10;

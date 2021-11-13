@@ -65,7 +65,7 @@ struct ttm_device_funcs {
 	 * ttm_tt_create
 	 *
 	 * @bo: The buffer object to create the ttm for.
-	 * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
+	 * @page_flags: Page flags as identified by TTM_TT_FLAG_XX flags.
 	 *
 	 * Create a struct ttm_tt to back data with system memory pages.
 	 * No pages are actually allocated.

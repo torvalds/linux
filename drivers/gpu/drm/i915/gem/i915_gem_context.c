@@ -77,6 +77,8 @@
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 
+#include "pxp/intel_pxp.h"
+
 #include "i915_gem_context.h"
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
@@ -186,10 +188,13 @@ static int validate_priority(struct drm_i915_private *i915,
 	return 0;
 }
 
-static void proto_context_close(struct i915_gem_proto_context *pc)
+static void proto_context_close(struct drm_i915_private *i915,
+				struct i915_gem_proto_context *pc)
 {
 	int i;
 
+	if (pc->pxp_wakeref)
+		intel_runtime_pm_put(&i915->runtime_pm, pc->pxp_wakeref);
 	if (pc->vm)
 		i915_vm_put(pc->vm);
 	if (pc->user_engines) {
@@ -241,6 +246,35 @@ static int proto_context_set_persistence(struct drm_i915_private *i915,
 	return 0;
 }
 
+static int proto_context_set_protected(struct drm_i915_private *i915,
+				       struct i915_gem_proto_context *pc,
+				       bool protected)
+{
+	int ret = 0;
+
+	if (!protected) {
+		pc->uses_protected_content = false;
+	} else if (!intel_pxp_is_enabled(&i915->gt.pxp)) {
+		ret = -ENODEV;
+	} else if ((pc->user_flags & BIT(UCONTEXT_RECOVERABLE)) ||
+		   !(pc->user_flags & BIT(UCONTEXT_BANNABLE))) {
+		ret = -EPERM;
+	} else {
+		pc->uses_protected_content = true;
+
+		/*
+		 * protected context usage requires the PXP session to be up,
+		 * which in turn requires the device to be active.
+		 */
+		pc->pxp_wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+		if (!intel_pxp_is_active(&i915->gt.pxp))
+			ret = intel_pxp_start(&i915->gt.pxp);
+	}
+
+	return ret;
+}
+
 static struct i915_gem_proto_context *
 proto_context_create(struct drm_i915_private *i915, unsigned int flags)
 {
@@ -269,7 +303,7 @@ proto_context_create(struct drm_i915_private *i915, unsigned int flags)
 	return pc;
 
 proto_close:
-	proto_context_close(pc);
+	proto_context_close(i915, pc);
 	return err;
 }
 
@@ -522,9 +556,147 @@ set_proto_ctx_engines_bond(struct i915_user_extension __user *base, void *data)
 	return 0;
 }
 
+static int
+set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
+				      void *data)
+{
+	struct i915_context_engines_parallel_submit __user *ext =
+		container_of_user(base, typeof(*ext), base);
+	const struct set_proto_ctx_engines *set = data;
+	struct drm_i915_private *i915 = set->i915;
+	u64 flags;
+	int err = 0, n, i, j;
+	u16 slot, width, num_siblings;
+	struct intel_engine_cs **siblings = NULL;
+	intel_engine_mask_t prev_mask;
+
+	/* FIXME: This is NIY for execlists */
+	if (!(intel_uc_uses_guc_submission(&i915->gt.uc)))
+		return -ENODEV;
+
+	if (get_user(slot, &ext->engine_index))
+		return -EFAULT;
+
+	if (get_user(width, &ext->width))
+		return -EFAULT;
+
+	if (get_user(num_siblings, &ext->num_siblings))
+		return -EFAULT;
+
+	if (slot >= set->num_engines) {
+		drm_dbg(&i915->drm, "Invalid placement value, %d >= %d\n",
+			slot, set->num_engines);
+		return -EINVAL;
+	}
+
+	if (set->engines[slot].type != I915_GEM_ENGINE_TYPE_INVALID) {
+		drm_dbg(&i915->drm,
+			"Invalid placement[%d], already occupied\n", slot);
+		return -EINVAL;
+	}
+
+	if (get_user(flags, &ext->flags))
+		return -EFAULT;
+
+	if (flags) {
+		drm_dbg(&i915->drm, "Unknown flags 0x%02llx", flags);
+		return -EINVAL;
+	}
+
+	for (n = 0; n < ARRAY_SIZE(ext->mbz64); n++) {
+		err = check_user_mbz(&ext->mbz64[n]);
+		if (err)
+			return err;
+	}
+
+	if (width < 2) {
+		drm_dbg(&i915->drm, "Width (%d) < 2\n", width);
+		return -EINVAL;
+	}
+
+	if (num_siblings < 1) {
+		drm_dbg(&i915->drm, "Number siblings (%d) < 1\n",
+			num_siblings);
+		return -EINVAL;
+	}
+
+	siblings = kmalloc_array(num_siblings * width,
+				 sizeof(*siblings),
+				 GFP_KERNEL);
+	if (!siblings)
+		return -ENOMEM;
+
+	/* Create contexts / engines */
+	for (i = 0; i < width; ++i) {
+		intel_engine_mask_t current_mask = 0;
+		struct i915_engine_class_instance prev_engine;
+
+		for (j = 0; j < num_siblings; ++j) {
+			struct i915_engine_class_instance ci;
+
+			n = i * num_siblings + j;
+			if (copy_from_user(&ci, &ext->engines[n], sizeof(ci))) {
+				err = -EFAULT;
+				goto out_err;
+			}
+
+			siblings[n] =
+				intel_engine_lookup_user(i915, ci.engine_class,
+							 ci.engine_instance);
+			if (!siblings[n]) {
+				drm_dbg(&i915->drm,
+					"Invalid sibling[%d]: { class:%d, inst:%d }\n",
+					n, ci.engine_class, ci.engine_instance);
+				err = -EINVAL;
+				goto out_err;
+			}
+
+			if (n) {
+				if (prev_engine.engine_class !=
+				    ci.engine_class) {
+					drm_dbg(&i915->drm,
+						"Mismatched class %d, %d\n",
+						prev_engine.engine_class,
+						ci.engine_class);
+					err = -EINVAL;
+					goto out_err;
+				}
+			}
+
+			prev_engine = ci;
+			current_mask |= siblings[n]->logical_mask;
+		}
+
+		if (i > 0) {
+			if (current_mask != prev_mask << 1) {
+				drm_dbg(&i915->drm,
+					"Non contiguous logical mask 0x%x, 0x%x\n",
+					prev_mask, current_mask);
+				err = -EINVAL;
+				goto out_err;
+			}
+		}
+		prev_mask = current_mask;
+	}
+
+	set->engines[slot].type = I915_GEM_ENGINE_TYPE_PARALLEL;
+	set->engines[slot].num_siblings = num_siblings;
+	set->engines[slot].width = width;
+	set->engines[slot].siblings = siblings;
+
+	return 0;
+
+out_err:
+	kfree(siblings);
+
+	return err;
+}
+
 static const i915_user_extension_fn set_proto_ctx_engines_extensions[] = {
 	[I915_CONTEXT_ENGINES_EXT_LOAD_BALANCE] = set_proto_ctx_engines_balance,
 	[I915_CONTEXT_ENGINES_EXT_BOND] = set_proto_ctx_engines_bond,
+	[I915_CONTEXT_ENGINES_EXT_PARALLEL_SUBMIT] =
+		set_proto_ctx_engines_parallel_submit,
 };
 
 static int set_proto_ctx_engines(struct drm_i915_file_private *fpriv,
@@ -693,6 +865,8 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 			ret = -EPERM;
 		else if (args->value)
 			pc->user_flags |= BIT(UCONTEXT_BANNABLE);
+		else if (pc->uses_protected_content)
+			ret = -EPERM;
 		else
 			pc->user_flags &= ~BIT(UCONTEXT_BANNABLE);
 		break;
@@ -700,10 +874,12 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 	case I915_CONTEXT_PARAM_RECOVERABLE:
 		if (args->size)
 			ret = -EINVAL;
-		else if (args->value)
-			pc->user_flags |= BIT(UCONTEXT_RECOVERABLE);
-		else
+		else if (!args->value)
 			pc->user_flags &= ~BIT(UCONTEXT_RECOVERABLE);
+		else if (pc->uses_protected_content)
+			ret = -EPERM;
+		else
+			pc->user_flags |= BIT(UCONTEXT_RECOVERABLE);
 		break;
 
 	case I915_CONTEXT_PARAM_PRIORITY:
@@ -731,6 +907,11 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 						    args->value);
 		break;
 
+	case I915_CONTEXT_PARAM_PROTECTED_CONTENT:
+		ret = proto_context_set_protected(fpriv->dev_priv, pc,
+						  args->value);
+		break;
+
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	case I915_CONTEXT_PARAM_RINGSIZE:
@@ -751,6 +932,7 @@ static int intel_context_set_gem(struct intel_context *ce,
 	GEM_BUG_ON(rcu_access_pointer(ce->gem_context));
 	RCU_INIT_POINTER(ce->gem_context, ctx);
 
+	GEM_BUG_ON(intel_context_is_pinned(ce));
 	ce->ring_size = SZ_16K;
 
 	i915_vm_put(ce->vm);
@@ -761,7 +943,7 @@ static int intel_context_set_gem(struct intel_context *ce,
 	    intel_engine_has_semaphores(ce->engine))
 		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
 
-	if (IS_ACTIVE(CONFIG_DRM_I915_REQUEST_TIMEOUT) &&
+	if (CONFIG_DRM_I915_REQUEST_TIMEOUT &&
 	    ctx->i915->params.request_timeout_ms) {
 		unsigned int timeout_ms = ctx->i915->params.request_timeout_ms;
 
@@ -773,6 +955,25 @@ static int intel_context_set_gem(struct intel_context *ce,
 		ret = intel_context_reconfigure_sseu(ce, sseu);
 
 	return ret;
+}
+
+static void __unpin_engines(struct i915_gem_engines *e, unsigned int count)
+{
+	while (count--) {
+		struct intel_context *ce = e->engines[count], *child;
+
+		if (!ce || !test_bit(CONTEXT_PERMA_PIN, &ce->flags))
+			continue;
+
+		for_each_child(ce, child)
+			intel_context_unpin(child);
+		intel_context_unpin(ce);
+	}
+}
+
+static void unpin_engines(struct i915_gem_engines *e)
+{
+	__unpin_engines(e, e->num_engines);
 }
 
 static void __free_engines(struct i915_gem_engines *e, unsigned int count)
@@ -890,6 +1091,40 @@ free_engines:
 	return err;
 }
 
+static int perma_pin_contexts(struct intel_context *ce)
+{
+	struct intel_context *child;
+	int i = 0, j = 0, ret;
+
+	GEM_BUG_ON(!intel_context_is_parent(ce));
+
+	ret = intel_context_pin(ce);
+	if (unlikely(ret))
+		return ret;
+
+	for_each_child(ce, child) {
+		ret = intel_context_pin(child);
+		if (unlikely(ret))
+			goto unwind;
+		++i;
+	}
+
+	set_bit(CONTEXT_PERMA_PIN, &ce->flags);
+
+	return 0;
+
+unwind:
+	intel_context_unpin(ce);
+	for_each_child(ce, child) {
+		if (j++ < i)
+			intel_context_unpin(child);
+		else
+			break;
+	}
+
+	return ret;
+}
+
 static struct i915_gem_engines *user_engines(struct i915_gem_context *ctx,
 					     unsigned int num_engines,
 					     struct i915_gem_proto_engine *pe)
@@ -903,7 +1138,7 @@ static struct i915_gem_engines *user_engines(struct i915_gem_context *ctx,
 	e->num_engines = num_engines;
 
 	for (n = 0; n < num_engines; n++) {
-		struct intel_context *ce;
+		struct intel_context *ce, *child;
 		int ret;
 
 		switch (pe[n].type) {
@@ -913,7 +1148,13 @@ static struct i915_gem_engines *user_engines(struct i915_gem_context *ctx,
 
 		case I915_GEM_ENGINE_TYPE_BALANCED:
 			ce = intel_engine_create_virtual(pe[n].siblings,
-							 pe[n].num_siblings);
+							 pe[n].num_siblings, 0);
+			break;
+
+		case I915_GEM_ENGINE_TYPE_PARALLEL:
+			ce = intel_engine_create_parallel(pe[n].siblings,
+							  pe[n].num_siblings,
+							  pe[n].width);
 			break;
 
 		case I915_GEM_ENGINE_TYPE_INVALID:
@@ -933,6 +1174,30 @@ static struct i915_gem_engines *user_engines(struct i915_gem_context *ctx,
 		if (ret) {
 			err = ERR_PTR(ret);
 			goto free_engines;
+		}
+		for_each_child(ce, child) {
+			ret = intel_context_set_gem(child, ctx, pe->sseu);
+			if (ret) {
+				err = ERR_PTR(ret);
+				goto free_engines;
+			}
+		}
+
+		/*
+		 * XXX: Must be done after calling intel_context_set_gem as that
+		 * function changes the ring size. The ring is allocated when
+		 * the context is pinned. If the ring size is changed after
+		 * allocation we have a mismatch of the ring size and will cause
+		 * the context to hang. Presumably with a bit of reordering we
+		 * could move the perma-pin step to the backend function
+		 * intel_engine_create_parallel.
+		 */
+		if (pe[n].type == I915_GEM_ENGINE_TYPE_PARALLEL) {
+			ret = perma_pin_contexts(ce);
+			if (ret) {
+				err = ERR_PTR(ret);
+				goto free_engines;
+			}
 		}
 	}
 
@@ -958,6 +1223,9 @@ static void i915_gem_context_release_work(struct work_struct *work)
 	vm = ctx->vm;
 	if (vm)
 		i915_vm_put(vm);
+
+	if (ctx->pxp_wakeref)
+		intel_runtime_pm_put(&ctx->i915->runtime_pm, ctx->pxp_wakeref);
 
 	mutex_destroy(&ctx->engines_mutex);
 	mutex_destroy(&ctx->lut_mutex);
@@ -1173,6 +1441,7 @@ static void context_close(struct i915_gem_context *ctx)
 
 	/* Flush any concurrent set_engines() */
 	mutex_lock(&ctx->engines_mutex);
+	unpin_engines(__context_engines_static(ctx));
 	engines_idle_release(ctx, rcu_replace_pointer(ctx->engines, NULL, 1));
 	i915_gem_context_set_closed(ctx);
 	mutex_unlock(&ctx->engines_mutex);
@@ -1290,7 +1559,7 @@ i915_gem_create_context(struct drm_i915_private *i915,
 	} else if (HAS_FULL_PPGTT(i915)) {
 		struct i915_ppgtt *ppgtt;
 
-		ppgtt = i915_ppgtt_create(&i915->gt);
+		ppgtt = i915_ppgtt_create(&i915->gt, 0);
 		if (IS_ERR(ppgtt)) {
 			drm_dbg(&i915->drm, "PPGTT setup failed (%ld)\n",
 				PTR_ERR(ppgtt));
@@ -1339,6 +1608,11 @@ i915_gem_create_context(struct drm_i915_private *i915,
 					 NULL);
 		if (err)
 			goto err_engines;
+	}
+
+	if (pc->uses_protected_content) {
+		ctx->pxp_wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+		ctx->uses_protected_content = true;
 	}
 
 	trace_i915_context_create(ctx);
@@ -1412,7 +1686,7 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	}
 
 	ctx = i915_gem_create_context(i915, pc);
-	proto_context_close(pc);
+	proto_context_close(i915, pc);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto err;
@@ -1439,7 +1713,7 @@ void i915_gem_context_close(struct drm_file *file)
 	unsigned long idx;
 
 	xa_for_each(&file_priv->proto_context_xa, idx, pc)
-		proto_context_close(pc);
+		proto_context_close(file_priv->dev_priv, pc);
 	xa_destroy(&file_priv->proto_context_xa);
 	mutex_destroy(&file_priv->proto_context_lock);
 
@@ -1468,7 +1742,7 @@ int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags)
 		return -EINVAL;
 
-	ppgtt = i915_ppgtt_create(&i915->gt);
+	ppgtt = i915_ppgtt_create(&i915->gt, 0);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 
@@ -1734,6 +2008,15 @@ static int set_priority(struct i915_gem_context *ctx,
 	return 0;
 }
 
+static int get_protected(struct i915_gem_context *ctx,
+			 struct drm_i915_gem_context_param *args)
+{
+	args->size = 0;
+	args->value = i915_gem_context_uses_protected_content(ctx);
+
+	return 0;
+}
+
 static int ctx_setparam(struct drm_i915_file_private *fpriv,
 			struct i915_gem_context *ctx,
 			struct drm_i915_gem_context_param *args)
@@ -1757,6 +2040,8 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 			ret = -EPERM;
 		else if (args->value)
 			i915_gem_context_set_bannable(ctx);
+		else if (i915_gem_context_uses_protected_content(ctx))
+			ret = -EPERM; /* can't clear this for protected contexts */
 		else
 			i915_gem_context_clear_bannable(ctx);
 		break;
@@ -1764,10 +2049,12 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 	case I915_CONTEXT_PARAM_RECOVERABLE:
 		if (args->size)
 			ret = -EINVAL;
-		else if (args->value)
-			i915_gem_context_set_recoverable(ctx);
-		else
+		else if (!args->value)
 			i915_gem_context_clear_recoverable(ctx);
+		else if (i915_gem_context_uses_protected_content(ctx))
+			ret = -EPERM; /* can't set this for protected contexts */
+		else
+			i915_gem_context_set_recoverable(ctx);
 		break;
 
 	case I915_CONTEXT_PARAM_PRIORITY:
@@ -1782,6 +2069,7 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 		ret = set_persistence(ctx, args);
 		break;
 
+	case I915_CONTEXT_PARAM_PROTECTED_CONTENT:
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 	case I915_CONTEXT_PARAM_RINGSIZE:
@@ -1860,7 +2148,7 @@ finalize_create_context_locked(struct drm_i915_file_private *file_priv,
 
 	old = xa_erase(&file_priv->proto_context_xa, id);
 	GEM_BUG_ON(old != pc);
-	proto_context_close(pc);
+	proto_context_close(file_priv->dev_priv, pc);
 
 	/* One for the xarray and one for the caller */
 	return i915_gem_context_get(ctx);
@@ -1946,7 +2234,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 			goto err_pc;
 		}
 
-		proto_context_close(ext_data.pc);
+		proto_context_close(i915, ext_data.pc);
 		gem_context_register(ctx, ext_data.fpriv, id);
 	} else {
 		ret = proto_context_register(ext_data.fpriv, ext_data.pc, &id);
@@ -1960,7 +2248,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 err_pc:
-	proto_context_close(ext_data.pc);
+	proto_context_close(i915, ext_data.pc);
 	return ret;
 }
 
@@ -1991,7 +2279,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	GEM_WARN_ON(ctx && pc);
 
 	if (pc)
-		proto_context_close(pc);
+		proto_context_close(file_priv->dev_priv, pc);
 
 	if (ctx)
 		context_close(ctx);
@@ -2107,6 +2395,10 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_CONTEXT_PARAM_PERSISTENCE:
 		args->size = 0;
 		args->value = i915_gem_context_is_persistent(ctx);
+		break;
+
+	case I915_CONTEXT_PARAM_PROTECTED_CONTENT:
+		ret = get_protected(ctx, args);
 		break;
 
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:

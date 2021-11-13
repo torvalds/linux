@@ -202,6 +202,10 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	new_stream->stream_id = new_stream->ctx->dc_stream_id_count;
 	new_stream->ctx->dc_stream_id_count++;
 
+	/* If using dynamic encoder assignment, wait till stream committed to assign encoder. */
+	if (new_stream->ctx->dc->res_pool->funcs->link_encs_assign)
+		new_stream->link_enc = NULL;
+
 	kref_init(&new_stream->refcount);
 
 	return new_stream;

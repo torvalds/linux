@@ -201,7 +201,8 @@ static struct virtual_engine *to_virtual_engine(struct intel_engine_cs *engine)
 }
 
 static struct intel_context *
-execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count);
+execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
+			 unsigned long flags);
 
 static struct i915_request *
 __active_request(const struct intel_timeline * const tl,
@@ -2787,6 +2788,8 @@ static void execlists_sanitize(struct intel_engine_cs *engine)
 
 	/* And scrub the dirty cachelines for the HWSP */
 	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
+
+	intel_engine_reset_pinned_contexts(engine);
 }
 
 static void enable_error_interrupt(struct intel_engine_cs *engine)
@@ -3337,7 +3340,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
 		if (can_preempt(engine)) {
 			engine->flags |= I915_ENGINE_HAS_PREEMPTION;
-			if (IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+			if (CONFIG_DRM_I915_TIMESLICE_DURATION)
 				engine->flags |= I915_ENGINE_HAS_TIMESLICES;
 		}
 	}
@@ -3782,7 +3785,8 @@ unlock:
 }
 
 static struct intel_context *
-execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count)
+execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
+			 unsigned long flags)
 {
 	struct virtual_engine *ve;
 	unsigned int n;
@@ -3875,6 +3879,7 @@ execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count)
 
 		ve->siblings[ve->num_siblings++] = sibling;
 		ve->base.mask |= sibling->mask;
+		ve->base.logical_mask |= sibling->logical_mask;
 
 		/*
 		 * All physical engines must be compatible for their emission
