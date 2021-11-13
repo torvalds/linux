@@ -41,6 +41,9 @@ static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task
 			if (!cpu_active(cpu))
 				continue;
 
+			if (cpu_halted(cpu))
+				continue;
+
 			if (sched_cpu_high_irqload(cpu))
 				continue;
 
@@ -162,7 +165,7 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	/*
 	 * Respect the sync flag as long as the task can run on this CPU.
 	 */
-	if (sysctl_sched_sync_hint_enable && cpu_active(this_cpu) &&
+	if (sysctl_sched_sync_hint_enable && cpu_active(this_cpu) && !cpu_halted(this_cpu) &&
 	    cpumask_test_cpu(this_cpu, task->cpus_ptr) &&
 	    walt_should_honor_rt_sync(this_cpu_rq, task, sync)) {
 		*new_cpu = this_cpu;
