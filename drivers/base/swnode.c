@@ -413,9 +413,6 @@ software_node_get_name(const struct fwnode_handle *fwnode)
 {
 	const struct swnode *swnode = to_swnode(fwnode);
 
-	if (!swnode)
-		return "(null)";
-
 	return kobject_name(&swnode->kobj);
 }
 
@@ -506,9 +503,6 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 	u32 nargs_prop_val;
 	int error;
 	int i;
-
-	if (!swnode)
-		return -ENOENT;
 
 	prop = property_entry_get(swnode->node->properties, propname);
 	if (!prop)

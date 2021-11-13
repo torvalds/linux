@@ -6,7 +6,7 @@ Description:
 		The mei/ class sub-directory belongs to mei device class
 
 
-What:		/sys/class/mei/meiN/
+What:		/sys/class/mei/mei<N>/
 Date:		May 2014
 KernelVersion:	3.17
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
@@ -14,7 +14,7 @@ Description:
 		The /sys/class/mei/meiN directory is created for
 		each probed mei device
 
-What:		/sys/class/mei/meiN/fw_status
+What:		/sys/class/mei/mei<N>/fw_status
 Date:		Nov 2014
 KernelVersion:	3.19
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
@@ -29,7 +29,7 @@ Description:	Display fw status registers content
 		Also number of registers varies between 1 and 6
 		depending on generation.
 
-What:		/sys/class/mei/meiN/hbm_ver
+What:		/sys/class/mei/mei<N>/hbm_ver
 Date:		Aug 2016
 KernelVersion:	4.9
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
@@ -38,7 +38,7 @@ Description:	Display the negotiated HBM protocol version.
 		The HBM protocol version negotiated
 		between the driver and the device.
 
-What:		/sys/class/mei/meiN/hbm_ver_drv
+What:		/sys/class/mei/mei<N>/hbm_ver_drv
 Date:		Aug 2016
 KernelVersion:	4.9
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
@@ -46,7 +46,7 @@ Description:	Display the driver HBM protocol version.
 
 		The HBM protocol version supported by the driver.
 
-What:		/sys/class/mei/meiN/tx_queue_limit
+What:		/sys/class/mei/mei<N>/tx_queue_limit
 Date:		Jan 2018
 KernelVersion:	4.16
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
@@ -55,7 +55,7 @@ Description:	Configure tx queue limit
 		Set maximal number of pending writes
 		per opened session.
 
-What:		/sys/class/mei/meiN/fw_ver
+What:		/sys/class/mei/mei<N>/fw_ver
 Date:		May 2018
 KernelVersion:	4.18
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
@@ -66,7 +66,7 @@ Description:	Display the ME firmware version.
 		There can be up to three such blocks for different
 		FW components.
 
-What:		/sys/class/mei/meiN/dev_state
+What:		/sys/class/mei/mei<N>/dev_state
 Date:		Mar 2019
 KernelVersion:	5.1
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
@@ -81,7 +81,7 @@ Description:	Display the ME device state.
 		POWER_DOWN
 		POWER_UP
 
-What:		/sys/class/mei/meiN/trc
+What:		/sys/class/mei/mei<N>/trc
 Date:		Nov 2019
 KernelVersion:	5.5
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
@@ -91,7 +91,7 @@ Description:	Display trc status register content
 		status information into trc status register
 		for BIOS and OS to monitor fw health.
 
-What:		/sys/class/mei/meiN/kind
+What:		/sys/class/mei/mei<N>/kind
 Date:		Jul 2020
 KernelVersion:	5.8
 Contact:	Tomas Winkler <tomas.winkler@intel.com>

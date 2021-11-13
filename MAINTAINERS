@@ -8317,6 +8317,7 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 W:	http://hwmon.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
+F:	Documentation/ABI/testing/sysfs-class-hwmon
 F:	Documentation/devicetree/bindings/hwmon/
 F:	Documentation/hwmon/
 F:	drivers/hwmon/
@@ -20570,6 +20571,8 @@ M:	Tony Luck <tony.luck@intel.com>
 M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/sysfs-mce
+F:	Documentation/x86/x86_64/machinecheck.rst
 F:	arch/x86/kernel/cpu/mce/*
 
 X86 MICROCODE UPDATE SUPPORT

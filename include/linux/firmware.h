@@ -20,23 +20,19 @@ struct firmware {
 struct module;
 struct device;
 
-struct builtin_fw {
-	char *name;
-	void *data;
-	unsigned long size;
-};
-
-/* We have to play tricks here much like stringify() to get the
-   __COUNTER__ macro to be expanded as we want it */
-#define __fw_concat1(x, y) x##y
-#define __fw_concat(x, y) __fw_concat1(x, y)
-
-#define DECLARE_BUILTIN_FIRMWARE(name, blob)				     \
-	DECLARE_BUILTIN_FIRMWARE_SIZE(name, &(blob), sizeof(blob))
-
-#define DECLARE_BUILTIN_FIRMWARE_SIZE(name, blob, size)			     \
-	static const struct builtin_fw __fw_concat(__builtin_fw,__COUNTER__) \
-	__used __section(".builtin_fw") = { name, blob, size }
+/*
+ * Built-in firmware functionality is only available if FW_LOADER=y, but not
+ * FW_LOADER=m
+ */
+#ifdef CONFIG_FW_LOADER
+bool firmware_request_builtin(struct firmware *fw, const char *name);
+#else
+static inline bool firmware_request_builtin(struct firmware *fw,
+					    const char *name)
+{
+	return false;
+}
+#endif
 
 #if defined(CONFIG_FW_LOADER) || (defined(CONFIG_FW_LOADER_MODULE) && defined(MODULE))
 int request_firmware(const struct firmware **fw, const char *name,
