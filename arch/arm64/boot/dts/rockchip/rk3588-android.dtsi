@@ -86,3 +86,6 @@
 	};
 };
 
+&vop {
+	support-multi-area;
+};
