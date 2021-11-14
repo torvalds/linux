@@ -218,10 +218,9 @@ mt7921_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 }
 
 static void
-mt7921_mac_decode_he_mu_radiotap(struct sk_buff *skb,
-				 struct mt76_rx_status *status,
-				 __le32 *rxv)
+mt7921_mac_decode_he_mu_radiotap(struct sk_buff *skb, __le32 *rxv)
 {
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	static const struct ieee80211_radiotap_he_mu mu_known = {
 		.flags1 = HE_BITS(MU_FLAGS1_SIG_B_MCS_KNOWN) |
 			  HE_BITS(MU_FLAGS1_SIG_B_DCM_KNOWN) |
@@ -232,6 +231,8 @@ mt7921_mac_decode_he_mu_radiotap(struct sk_buff *skb,
 			  HE_BITS(MU_FLAGS2_PUNC_FROM_SIG_A_BW_KNOWN),
 	};
 	struct ieee80211_radiotap_he_mu *he_mu;
+
+	status->flag |= RX_FLAG_RADIOTAP_HE_MU;
 
 	he_mu = skb_push(skb, sizeof(mu_known));
 	memcpy(he_mu, &mu_known, sizeof(mu_known));
@@ -263,10 +264,9 @@ mt7921_mac_decode_he_mu_radiotap(struct sk_buff *skb,
 }
 
 static void
-mt7921_mac_decode_he_radiotap(struct sk_buff *skb,
-			      struct mt76_rx_status *status,
-			      __le32 *rxv, u32 phy)
+mt7921_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u32 mode)
 {
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	static const struct ieee80211_radiotap_he known = {
 		.data1 = HE_BITS(DATA1_DATA_MCS_KNOWN) |
 			 HE_BITS(DATA1_DATA_DCM_KNOWN) |
@@ -284,6 +284,8 @@ mt7921_mac_decode_he_radiotap(struct sk_buff *skb,
 	struct ieee80211_radiotap_he *he = NULL;
 	u32 ltf_size = le32_get_bits(rxv[2], MT_CRXV_HE_LTF_SIZE) + 1;
 
+	status->flag |= RX_FLAG_RADIOTAP_HE;
+
 	he = skb_push(skb, sizeof(known));
 	memcpy(he, &known, sizeof(known));
 
@@ -298,7 +300,7 @@ mt7921_mac_decode_he_radiotap(struct sk_buff *skb,
 	he->data6 = HE_PREP(DATA6_TXOP, TXOP_DUR, rxv[14]) |
 		    HE_PREP(DATA6_DOPPLER, DOPPLER, rxv[14]);
 
-	switch (phy) {
+	switch (mode) {
 	case MT_PHY_TYPE_HE_SU:
 		he->data1 |= HE_BITS(DATA1_FORMAT_SU) |
 			     HE_BITS(DATA1_UL_DL_KNOWN) |
@@ -322,6 +324,7 @@ mt7921_mac_decode_he_radiotap(struct sk_buff *skb,
 		he->data4 |= HE_PREP(DATA4_MU_STA_ID, MU_AID, rxv[7]);
 
 		mt7921_mac_decode_he_radiotap_ru(status, he, rxv);
+		mt7921_mac_decode_he_mu_radiotap(skb, rxv);
 		break;
 	case MT_PHY_TYPE_HE_TB:
 		he->data1 |= HE_BITS(DATA1_FORMAT_TRIG) |
@@ -467,7 +470,6 @@ static int mt7921_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 	else
 		memcpy(skb_push(skb, sizeof(hdr) - 6), &hdr, sizeof(hdr) - 6);
 
-	status->flag &= ~(RX_FLAG_RADIOTAP_HE | RX_FLAG_RADIOTAP_HE_MU);
 	return 0;
 }
 
@@ -483,7 +485,6 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt7921_phy *phy = &dev->phy;
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_hdr *hdr;
 	u32 rxd0 = le32_to_cpu(rxd[0]);
 	u32 rxd1 = le32_to_cpu(rxd[1]);
 	u32 rxd2 = le32_to_cpu(rxd[2]);
@@ -689,15 +690,12 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 				return -EINVAL;
 			break;
 		case MT_PHY_TYPE_HE_MU:
-			status->flag |= RX_FLAG_RADIOTAP_HE_MU;
-			fallthrough;
 		case MT_PHY_TYPE_HE_SU:
 		case MT_PHY_TYPE_HE_EXT_SU:
 		case MT_PHY_TYPE_HE_TB:
 			status->nss =
 				FIELD_GET(MT_PRXV_NSTS, v0) + 1;
 			status->encoding = RX_ENC_HE;
-			status->flag |= RX_FLAG_RADIOTAP_HE;
 			i &= GENMASK(3, 0);
 
 			if (gi <= NL80211_RATE_INFO_HE_GI_3_2)
@@ -767,6 +765,8 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 	}
 
 	if (!hdr_trans) {
+		struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
+
 		if (insert_ccmp_hdr) {
 			u8 key_id = FIELD_GET(MT_RXD1_NORMAL_KEY_ID, rxd1);
 
@@ -780,19 +780,13 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 			qos_ctl = *ieee80211_get_qos_ctl(hdr);
 		}
 	} else {
-		status->flag &= ~(RX_FLAG_RADIOTAP_HE |
-				  RX_FLAG_RADIOTAP_HE_MU);
 		status->flag |= RX_FLAG_8023;
 	}
 
 	mt7921_mac_assoc_rssi(dev, skb);
 
-	if (rxv && status->flag & RX_FLAG_RADIOTAP_HE) {
-		mt7921_mac_decode_he_radiotap(skb, status, rxv, mode);
-
-		if (status->flag & RX_FLAG_RADIOTAP_HE_MU)
-			mt7921_mac_decode_he_mu_radiotap(skb, status, rxv);
-	}
+	if (rxv && mode >= MT_PHY_TYPE_HE_SU && !(status->flag & RX_FLAG_8023))
+		mt7921_mac_decode_he_radiotap(skb, rxv, mode);
 
 	if (!status->wcid || !ieee80211_is_data_qos(fc))
 		return 0;
