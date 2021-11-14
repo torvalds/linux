@@ -81,6 +81,10 @@
 	vref-supply = <&vcc_1v8_cam_s0>;
 };
 
+&tsadc {
+	status = "okay";
+};
+
 &vdpu {
 	status = "okay";
 };
