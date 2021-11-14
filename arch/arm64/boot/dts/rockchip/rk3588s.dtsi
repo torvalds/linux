@@ -3846,6 +3846,7 @@
 		reset-names = "combphy-apb", "combphy";
 		rockchip,pipe-grf = <&php_grf>;
 		rockchip,pipe-phy-grf = <&pipe_phy0_grf>;
+		rockchip,pcie1ln-sel-bits = <0x100 0 0 0>;
 		status = "disabled";
 	};
 
