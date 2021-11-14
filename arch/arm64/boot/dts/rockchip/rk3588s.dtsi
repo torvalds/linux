@@ -670,6 +670,8 @@
 			resets = <&cru SRST_A_USB3OTG2>;
 			reset-names = "usb3-host";
 			dr_mode = "host";
+			phys = <&combphy2_psu PHY_TYPE_USB3>;
+			phy-names = "usb3-phy";
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
 			snps,dis-u2-freeclk-exists-quirk;
