@@ -1261,8 +1261,8 @@ static int rk3588_dp_phy_set_voltages(struct rockchip_udphy *udphy,
 			break;
 		}
 
-		rk3588_dp_phy_set_voltage(udphy, dp->voltage[lane],
-					  dp->pre[lane], lane);
+		rk3588_dp_phy_set_voltage(udphy, dp->voltage[i],
+					  dp->pre[i], lane);
 	}
 
 	return 0;
