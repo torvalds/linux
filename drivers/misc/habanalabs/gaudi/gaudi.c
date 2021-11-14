@@ -881,6 +881,11 @@ static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 	int rc;
 
 	if (hdev->asic_prop.fw_security_enabled) {
+		struct gaudi_device *gaudi = hdev->asic_specific;
+
+		if (!(gaudi->hw_cap_initialized & HW_CAP_CPU_Q))
+			return 0;
+
 		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GAUDI_CPU_PLL, pll_freq_arr);
 
 		if (rc)

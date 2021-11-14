@@ -739,6 +739,11 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 	int rc;
 
 	if (hdev->asic_prop.fw_security_enabled) {
+		struct goya_device *goya = hdev->asic_specific;
+
+		if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
+			return;
+
 		rc = hl_fw_cpucp_pll_info_get(hdev, HL_GOYA_PCI_PLL,
 				pll_freq_arr);
 
