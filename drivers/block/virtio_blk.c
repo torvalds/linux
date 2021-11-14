@@ -572,7 +572,7 @@ static int init_vq(struct virtio_blk *vblk)
 	if (err)
 		num_vqs = 1;
 	if (!err && !num_vqs) {
-		dev_err(&vdev->dev, "MQ advertisted but zero queues reported\n");
+		dev_err(&vdev->dev, "MQ advertised but zero queues reported\n");
 		return -EINVAL;
 	}
 
