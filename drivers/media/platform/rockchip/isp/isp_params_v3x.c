@@ -1024,6 +1024,7 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 i, var, ctrl;
 	u16 h_size, v_size;
 	u16 h_offs, v_offs;
+	u8 gaus_en, viir_en, v1_fir_sel;
 	size_t num_of_win = min_t(size_t, ARRAY_SIZE(arg->win),
 				  arg->num_afm_win);
 
@@ -1093,6 +1094,14 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	isp3_param_write(params_vdev, arg->highlit_thresh, ISP3X_RAWAF_HIGHLIT_THRESH, id);
 
+	viir_en = arg->viir_en;
+	gaus_en = arg->gaus_en;
+	v1_fir_sel = arg->v1_fir_sel;
+	if (gaus_en == 0)
+		viir_en = 0;
+	if (viir_en == 0)
+		v1_fir_sel = 0;
+
 	ctrl = isp3_param_read(params_vdev, ISP3X_RAWAF_CTRL, id);
 	ctrl &= ISP3X_RAWAF_EN;
 	if (arg->hiir_en) {
@@ -1108,7 +1117,7 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 			isp3_param_write(params_vdev, var, ISP3X_RAWAF_H2_IIR2_COE01 + i * 4, id);
 		}
 	}
-	if (arg->viir_en) {
+	if (viir_en) {
 		ctrl |= ISP3X_RAWAF_VIIR_EN;
 		for (i = 0; i < ISP3X_RAWAF_V2IIR_COE_NUM; i++) {
 			var = ISP_PACK_2SHORT(arg->v1iir_coe[i], arg->v2iir_coe[i]);
@@ -1134,6 +1143,7 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 					 ISP3X_RAWAF_V_CURVEL + i * 16, id);
 		}
 	}
+
 	ctrl |= (arg->y_mode & 0x1) << 13 |
 		(arg->ae_mode & 0x1) << 12 |
 		(arg->v2_fv_mode & 0x1) << 11 |
@@ -1141,8 +1151,8 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->h2_fv_mode & 0x1) << 9 |
 		(arg->h1_fv_mode & 0x1) << 8 |
 		(arg->accu_8bit_mode & 0x1) << 6 |
-		(arg->v1_fir_sel & 0x1) << 3 |
-		(arg->gaus_en & 0x1) << 2 |
+		(v1_fir_sel & 0x1) << 3 |
+		(gaus_en & 0x1) << 2 |
 		(arg->gamma_en & 0x1) << 1;
 	isp3_param_write(params_vdev, ctrl, ISP3X_RAWAF_CTRL, id);
 
