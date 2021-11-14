@@ -75,6 +75,93 @@
 	};
 };
 
+&i2c1 {
+	status = "okay";
+	clock-frequency = <1000000>;
+
+	/* Some subset of SONY IMX663 camera sensor @ 38 */
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* Richwave RTC6226 FM Radio Receiver @ 64 */
+};
+
+&i2c4 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* Samsung Touchscreen (needs I2C GPI DMA) @ 48 */
+};
+
+&i2c11 {
+	status = "okay";
+	clock-frequency = <1000000>;
+
+	cs35l41_l: cs35l41@40 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x40>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <36 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,gpio2-src-select = <2>;
+		cirrus,gpio2-output-enable;
+		#sound-dai-cells = <1>;
+	};
+
+	cs35l41_r: cs35l41@41 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x41>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <36 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,gpio2-src-select = <2>;
+		cirrus,gpio2-output-enable;
+		#sound-dai-cells = <1>;
+	};
+};
+
+&i2c12 {
+	status = "okay";
+	/* Clock frequency was not specified downstream, let's park it to 100 KHz */
+	clock-frequency = <100000>;
+
+	/* AMS TCS3490 RGB+IR color sensor @ 72 */
+};
+
+&i2c13 {
+	status = "okay";
+	/* Clock frequency was not specified downstream, let's park it to 100 KHz */
+	clock-frequency = <100000>;
+
+	/* Qualcomm PM8008i/PM8008j (?) @ 8, 9, c, d */
+	/* Dialog SLG51000 CMIC @ 75 */
+};
+
+&i2c15 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* NXP SN1X0 NFC @ 28 */
+};
+
+&i2c17 {
+	status = "okay";
+	clock-frequency = <1000000>;
+
+	/* Cirrus Logic CS40L25A boosted haptics driver @ 40 */
+};
+
 &pmk8350_rtc {
 	status = "okay";
 };
@@ -100,8 +187,22 @@
 	status = "okay";
 };
 
+&spi14 {
+	status = "okay";
+
+	/* NXP SN1X0 NFC Secure Element @ 0 */
+};
+
 &tlmm {
 	gpio-reserved-ranges = <44 4>;
+
+	ts_int_default: ts-int-default {
+		pin = "gpio23";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
 };
 
 /* BIG WARNING! DO NOT TOUCH UFS, YOUR DEVICE WILL DIE! */
