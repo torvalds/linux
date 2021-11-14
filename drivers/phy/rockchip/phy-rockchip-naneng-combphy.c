@@ -289,6 +289,7 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 {
 	const struct rockchip_combphy_cfg *phy_cfg = priv->cfg;
 	int ret, mac_id;
+	u32 vals[4];
 
 	ret = devm_clk_bulk_get(dev, priv->num_clks, priv->clks);
 	if (ret == -EPROBE_DEFER)
@@ -321,6 +322,11 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 	    (mac_id > 0))
 		param_write(priv->pipe_grf, &phy_cfg->grfcfg->pipe_sgmii_mac_sel,
 			    true);
+
+	if (!device_property_read_u32_array(dev, "rockchip,pcie1ln-sel-bits",
+					    vals, ARRAY_SIZE(vals)))
+		regmap_write(priv->pipe_grf, vals[0],
+			     (GENMASK(vals[2], vals[1]) << 16) | vals[3]);
 
 	priv->apb_rst = devm_reset_control_get_optional(dev, "combphy-apb");
 	if (IS_ERR(priv->apb_rst)) {
