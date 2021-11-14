@@ -46,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xcd0e1e7a
+#define DMUB_FW_VERSION_GIT_HASH 0x465e619a
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 93
+#define DMUB_FW_VERSION_REVISION 94
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -171,13 +171,6 @@ extern "C" {
 #ifndef dmub_udelay
 #define dmub_udelay(microseconds) udelay(microseconds)
 #endif
-
-/**
- * Number of nanoseconds per DMUB tick.
- * DMCUB_TIMER_CURRENT increments in DMUB ticks, which are 10ns by default.
- * If DMCUB_TIMER_WINDOW is non-zero this will no longer be true.
- */
-#define NS_PER_DMUB_TICK 10
 
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
