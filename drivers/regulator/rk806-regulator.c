@@ -821,49 +821,93 @@ static int rk806_set_voltage(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int rk806_regulator_enable_regmap(struct regulator_dev *rdev)
+static int rk806_regulator_is_enabled_regmap(struct regulator_dev *rdev)
 {
+	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
+	struct rk806 *rk806 = pdata->rk806;
 	int rid = rdev_get_id(rdev);
-	int enable_reg;
+	int gpio_level, pid;
 	unsigned int val;
 	int mode;
 
 	mode = get_dvs_mode(rdev);
-	if (mode == RK806_DVS_NOT_SUPPORT)
-		return regulator_enable_regmap(rdev);
 
 	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
 	    (mode <= RK806_DVS_BY_CTR_PIN3)) {
-		enable_reg = rdev->desc->enable_reg + 6 + rid / 8;
-		val = BIT(rid % 8);
+		pid = get_gpio_id(rdev);
+		gpio_level = gpio_get_value(pdata->dvs_gpios[pid]);
 
-		regmap_update_bits(rdev->regmap, enable_reg, val, val);
+		if (gpio_level == 1) {
+			return rk806_field_read(rk806, pdata->dvs_field[rid].sleep_en);
+		} else {
+			val = rk806_field_read(rk806,  pdata->dvs_field[rid].en_reg);
+			return val & rdev->desc->enable_val;
+		}
 	}
 
-	return regulator_enable_regmap(rdev);
+	val = rk806_field_read(rk806,  pdata->dvs_field[rid].en_reg);
+
+	return val & rdev->desc->enable_val;
+}
+
+static int rk806_regulator_enable_regmap(struct regulator_dev *rdev)
+{
+	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
+	struct rk806 *rk806 = pdata->rk806;
+	int rid = rdev_get_id(rdev);
+	int gpio_level, pid;
+	int mode;
+
+	mode = get_dvs_mode(rdev);
+
+	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
+	    (mode <= RK806_DVS_BY_CTR_PIN3)) {
+		pid = get_gpio_id(rdev);
+		gpio_level = gpio_get_value(pdata->dvs_gpios[pid]);
+
+		if (gpio_level == 1)
+			return rk806_field_write(rk806,
+						 pdata->dvs_field[rid].sleep_en,
+						 0x01);
+		else
+			return rk806_field_write(rk806,
+						 pdata->dvs_field[rid].en_reg,
+						 rdev->desc->enable_val);
+	}
+
+	return rk806_field_write(rk806,
+				 pdata->dvs_field[rid].en_reg,
+				 rdev->desc->enable_val);
 }
 
 static int rk806_regulator_disable_regmap(struct regulator_dev *rdev)
 {
+	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
+	struct rk806 *rk806 = pdata->rk806;
 	int rid = rdev_get_id(rdev);
-	int enable_reg;
-	unsigned int val;
-
+	int gpio_level, pid;
 	int mode;
 
 	mode = get_dvs_mode(rdev);
-	if (mode == RK806_DVS_NOT_SUPPORT)
-		return regulator_disable_regmap(rdev);
 
 	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
 	    (mode <= RK806_DVS_BY_CTR_PIN3)) {
-		enable_reg = rdev->desc->enable_reg + 6 + rid / 8;
-		val = BIT(rid % 8);
+		pid = get_gpio_id(rdev);
+		gpio_level = gpio_get_value(pdata->dvs_gpios[pid]);
 
-		regmap_update_bits(rdev->regmap, enable_reg, val, 0);
+		if (gpio_level == 1)
+			return rk806_field_write(rk806,
+						 pdata->dvs_field[rid].sleep_en,
+						 0x00);
+		else
+			return rk806_field_write(rk806,
+						 pdata->dvs_field[rid].en_reg,
+						 rdev->desc->disable_val);
 	}
 
-	return regulator_disable_regmap(rdev);
+	return rk806_field_write(rk806,
+				 pdata->dvs_field[rid].en_reg,
+				 rdev->desc->disable_val);
 }
 
 static int rk806_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
@@ -956,7 +1000,7 @@ static const struct regulator_ops rk806_ops_dcdc = {
 
 	.enable			= rk806_regulator_enable_regmap,
 	.disable		= rk806_regulator_disable_regmap,
-	.is_enabled		= regulator_is_enabled_regmap,
+	.is_enabled		= rk806_regulator_is_enabled_regmap,
 
 	.set_suspend_mode	= rk806_set_mode,
 	.set_ramp_delay		= rk806_set_ramp_delay,
@@ -977,7 +1021,7 @@ static const struct regulator_ops rk806_ops_ldo = {
 
 	.enable			= rk806_regulator_enable_regmap,
 	.disable		= rk806_regulator_disable_regmap,
-	.is_enabled		= regulator_is_enabled_regmap,
+	.is_enabled		= rk806_regulator_is_enabled_regmap,
 
 	.set_suspend_mode	= rk806_set_mode,
 	.set_ramp_delay		= rk806_set_ramp_delay,
