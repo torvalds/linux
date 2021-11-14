@@ -289,6 +289,15 @@
 	status = "okay";
 };
 
+&pon_pwrkey {
+	status = "okay";
+};
+
+&pon_resin {
+	status = "okay";
+	linux,code = <KEY_VOLUMEDOWN>;
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
