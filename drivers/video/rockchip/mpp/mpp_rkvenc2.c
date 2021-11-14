@@ -220,6 +220,7 @@ static struct rkvenc_hw_info rkvenc_v2_hw_info = {
 		.base_fmt = RKVENC_FMT_OSD_BASE,
 	},
 	.fmt_reg = {
+		.class = RKVENC_CLASS_PIC,
 		.base = 0x0300,
 		.bitpos = 0,
 		.bitlen = 1,
