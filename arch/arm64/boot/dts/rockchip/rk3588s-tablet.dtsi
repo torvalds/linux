@@ -343,42 +343,26 @@
 &i2c5 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c5m2_xfer>;
-
-	mpu6500@68 {
-		status = "disabled";
-		compatible = "invensense,mpu6500";
-		reg = <0x68>;
-		irq-gpio = <&gpio3 RK_PB4 IRQ_TYPE_EDGE_RISING>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mpu6500_irq_gpio>;
-		mpu-int_config = <0x10>;
-		mpu-level_shifter = <0>;
-		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
-		orientation-x= <0>;
-		orientation-y= <0>;
-		orientation-z= <0>;
-		mpu-debug = <1>;
-	};
+	pinctrl-0 = <&i2c5m0_xfer>;
 
 	mpu6500_acc: mpu_acc@68 {
-		status = "disabled";
+		status = "okay";
 		compatible = "mpu6500_acc";
 		reg = <0x68>;
 		irq-gpio = <&gpio3 RK_PB4 IRQ_TYPE_EDGE_RISING>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_ACCEL>;
-		layout = <8>;
+		layout = <5>;
 	};
 
 	mpu6500_gyro: mpu_gyro@68 {
-		status = "disabled";
+		status = "okay";
 		compatible = "mpu6500_gyro";
 		reg = <0x68>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_GYROSCOPE>;
-		layout = <8>;
+		layout = <5>;
 	};
 };
 
