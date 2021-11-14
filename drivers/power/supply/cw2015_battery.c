@@ -76,6 +76,8 @@ struct cw_battery {
 	u32 poll_interval_ms;
 	u8 alert_level;
 
+	bool dual_cell;
+
 	unsigned int read_errors;
 	unsigned int charge_stuck_cnt;
 };
@@ -323,6 +325,8 @@ static int cw_get_voltage(struct cw_battery *cw_bat)
 	 * Negligible error of 0.1%
 	 */
 	voltage_mv = avg * 312 / 1024;
+	if (cw_bat->dual_cell)
+		voltage_mv *= 2;
 
 	dev_dbg(cw_bat->dev, "Read voltage: %d mV, raw=0x%04x\n",
 		voltage_mv, reg_val);
@@ -579,6 +583,8 @@ static int cw2015_parse_properties(struct cw_battery *cw_bat)
 		if (ret)
 			return ret;
 	}
+
+	cw_bat->dual_cell = device_property_read_bool(dev, "cellwise,dual-cell");
 
 	ret = device_property_read_u32(dev, "cellwise,monitor-interval-ms",
 				       &cw_bat->poll_interval_ms);
