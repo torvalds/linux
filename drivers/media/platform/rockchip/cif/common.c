@@ -7,7 +7,7 @@
 #include "dev.h"
 #include "common.h"
 
-static int rkcif_alloc_buffer(struct rkcif_device *dev,
+int rkcif_alloc_buffer(struct rkcif_device *dev,
 		       struct rkcif_dummy_buffer *buf)
 {
 	unsigned long attrs = buf->is_need_vaddr ? 0 : DMA_ATTR_NO_KERNEL_MAPPING;
@@ -62,7 +62,7 @@ err:
 	return ret;
 }
 
-static void rkcif_free_buffer(struct rkcif_device *dev,
+void rkcif_free_buffer(struct rkcif_device *dev,
 			struct rkcif_dummy_buffer *buf)
 {
 	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;

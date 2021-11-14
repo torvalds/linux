@@ -203,6 +203,8 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkisp_vicap_mode *mode;
 	struct v4l2_subdev_format fmt;
+	struct rkcif_device *cif_dev = priv->cif_dev;
+	struct v4l2_subdev *sensor_sd;
 	int *pbuf_num = NULL;
 	int ret = 0;
 
@@ -218,6 +220,15 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		sditf_get_set_fmt(&priv->sd, NULL, &fmt);
 		ret = sditf_init_buf(priv);
 		return ret;
+	case RKMODULE_GET_HDR_CFG:
+		if (!cif_dev->terminal_sensor.sd)
+			rkcif_update_sensor_info(&cif_dev->stream[0]);
+
+		if (cif_dev->terminal_sensor.sd) {
+			sensor_sd = cif_dev->terminal_sensor.sd;
+			return v4l2_subdev_call(sensor_sd, core, ioctl, cmd, arg);
+		}
+		break;
 	default:
 		break;
 	}

@@ -2007,9 +2007,9 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
 					   channel->cmd_mode_en);
 
-	if ((dev->hdr.hdr_mode == NO_HDR && stream->vc >= 0) ||
-	    (dev->hdr.hdr_mode == HDR_X2 && stream->vc > 1) ||
-	    (dev->hdr.hdr_mode == HDR_X3 && stream->vc > 2))
+	if (dev->hdr.hdr_mode == NO_HDR ||
+	    (dev->hdr.hdr_mode == HDR_X2 && stream->id > 1) ||
+	    (dev->hdr.hdr_mode == HDR_X3 && stream->id > 2))
 		channel->vc = stream->vc;
 	else
 		channel->vc = channel->id;
@@ -2244,7 +2244,6 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 	struct sditf_priv *priv = dev->sditf;
 	unsigned int wait_line = 0x3fff;
 	unsigned int dma_en = 0;
-	u8 vc = 0;
 
 	if (channel->id >= 4)
 		return -EINVAL;
@@ -2312,7 +2311,7 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 	    mbus_type  == V4L2_MBUS_CSI2_CPHY) {
 		val = CSI_ENABLE_CAPTURE | dma_en |
 		      channel->cmd_mode_en << 26 | CSI_ENABLE_CROP_V1 |
-		      vc << 8 | channel->data_type << 10;
+		      channel->vc << 8 | channel->data_type << 10;
 
 		if (stream->cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB888)
 			val |= CSI_WRDDR_TYPE_RAW8;
@@ -2736,7 +2735,7 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 	}
 	for (i = 0; i < buf_num; i++) {
 		buf = &stream->rx_buf[i];
-		rkcif_free_common_dummy_buf(dev, &buf->dummy);
+		rkcif_free_buffer(dev, &buf->dummy);
 	}
 	stream->dma_en &= ~RKCIF_DMAEN_BY_ISP;
 	v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
@@ -2768,7 +2767,7 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 		dummy->size = pixm->plane_fmt[0].sizeimage;
 		dummy->is_need_vaddr = true;
 		dummy->is_need_dbuf = true;
-		ret = rkcif_alloc_common_dummy_buf(dev, dummy);
+		ret = rkcif_alloc_buffer(dev, dummy);
 		if (ret)
 			goto alloc_rx_buf_err;
 		buf->dbufs.is_init = false;

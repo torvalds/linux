@@ -15,6 +15,11 @@
 #include <media/v4l2-mc.h>
 #include "dev.h"
 
+int rkcif_alloc_buffer(struct rkcif_device *dev,
+		       struct rkcif_dummy_buffer *buf);
+void rkcif_free_buffer(struct rkcif_device *dev,
+			struct rkcif_dummy_buffer *buf);
+
 int rkcif_alloc_common_dummy_buf(struct rkcif_device *dev, struct rkcif_dummy_buffer *buf);
 void rkcif_free_common_dummy_buf(struct rkcif_device *dev, struct rkcif_dummy_buffer *buf);
 
