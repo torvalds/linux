@@ -600,6 +600,9 @@ struct vop2_win_regs {
 	struct vop_reg color_key;
 	struct vop_reg color_key_en;
 	struct vop_reg dither_up;
+	struct vop_reg axi_id;
+	struct vop_reg axi_yrgb_id;
+	struct vop_reg axi_uv_id;
 };
 
 struct vop2_video_port_regs {
@@ -784,6 +787,9 @@ struct vop2_win_data {
 	uint8_t phys_id;
 	uint8_t splice_win_id;
 	uint8_t pd_id;
+	uint8_t axi_id;
+	uint8_t axi_yrgb_id;
+	uint8_t axi_uv_id;
 
 	uint32_t base;
 	enum drm_plane_type type;

@@ -1638,6 +1638,9 @@ static const struct vop2_win_regs rk3568_cluster0_win_data = {
 	.y2r_en = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 8),
 	.r2y_en = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 9),
 	.csc_mode = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x3, 10),
+	.axi_yrgb_id = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL2, 0x1f, 0),
+	.axi_uv_id = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL2, 0x1f, 5),
+	.axi_id = VOP_REG(RK3568_CLUSTER0_CTRL, 0x1, 13),
 };
 
 static const struct vop2_win_regs rk3568_cluster1_win_data = {
@@ -1658,6 +1661,9 @@ static const struct vop2_win_regs rk3568_cluster1_win_data = {
 	.y2r_en = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 8),
 	.r2y_en = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 9),
 	.csc_mode = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x3, 10),
+	.axi_yrgb_id = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL2, 0x1f, 0),
+	.axi_uv_id = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL2, 0x1f, 5),
+	.axi_id = VOP_REG(RK3568_CLUSTER1_CTRL, 0x1, 13),
 };
 
 static const struct vop2_win_regs rk3588_cluster2_win_data = {
@@ -1677,6 +1683,9 @@ static const struct vop2_win_regs rk3588_cluster2_win_data = {
 	.y2r_en = VOP_REG(RK3588_CLUSTER2_WIN0_CTRL0, 0x1, 8),
 	.r2y_en = VOP_REG(RK3588_CLUSTER2_WIN0_CTRL0, 0x1, 9),
 	.csc_mode = VOP_REG(RK3588_CLUSTER2_WIN0_CTRL0, 0x3, 10),
+	.axi_yrgb_id = VOP_REG(RK3588_CLUSTER2_WIN0_CTRL2, 0x1f, 0),
+	.axi_uv_id = VOP_REG(RK3588_CLUSTER2_WIN0_CTRL2, 0x1f, 5),
+	.axi_id = VOP_REG(RK3588_CLUSTER2_CTRL, 0x1, 13),
 };
 
 static const struct vop2_win_regs rk3588_cluster3_win_data = {
@@ -1696,10 +1705,16 @@ static const struct vop2_win_regs rk3588_cluster3_win_data = {
 	.y2r_en = VOP_REG(RK3588_CLUSTER3_WIN0_CTRL0, 0x1, 8),
 	.r2y_en = VOP_REG(RK3588_CLUSTER3_WIN0_CTRL0, 0x1, 9),
 	.csc_mode = VOP_REG(RK3588_CLUSTER3_WIN0_CTRL0, 0x3, 10),
+	.axi_yrgb_id = VOP_REG(RK3588_CLUSTER3_WIN0_CTRL2, 0x1f, 0),
+	.axi_uv_id = VOP_REG(RK3588_CLUSTER3_WIN0_CTRL2, 0x1f, 5),
+	.axi_id = VOP_REG(RK3588_CLUSTER3_CTRL, 0x1, 13),
 };
 
 static const struct vop2_win_regs rk3568_esmart_win_data = {
 	.scl = &rk3568_esmart_win_scl,
+	.axi_yrgb_id = VOP_REG(RK3568_ESMART0_CTRL1, 0x1f, 4),
+	.axi_uv_id = VOP_REG(RK3568_ESMART0_CTRL1, 0x1f, 12),
+	.axi_id = VOP_REG(RK3568_ESMART0_AXI_CTRL, 0x1, 1),
 	.enable = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 0),
 	.format = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1f, 1),
 	.dither_up = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 12),
@@ -2105,6 +2120,19 @@ static const struct vop2_power_domain_data rk3588_vop_mem_pg_data[] = {
  *    * nearest-neighbor/bilinear/bicubic for scale up
  *    * nearest-neighbor/bilinear/average for scale down
  *
+ * AXI Read ID assignment:
+ * Two AXI bus:
+ * AXI0 is a read/write bus with a higher performance.
+ * AXI1 is a read only bus.
+ *
+ * Every window on a AXI bus must assigned two unique
+ * read id(yrgb_id/uv_id, valid id are 0x1~0xe).
+ *
+ * AXI0:
+ * Cluster0/1, Esmart0/1, WriteBack
+ *
+ * AXI 1:
+ * Cluster2/3, Esmart2/3
  *
  * @TODO describe the wind like cpu-map dt nodes;
  */
@@ -2126,6 +2154,9 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3568_cluster0_win_data,
 	  .pd_id = VOP2_PD_CLUSTER0,
+	  .axi_id = 0,
+	  .axi_yrgb_id = 2,
+	  .axi_uv_id = 3,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
 	  .dly = { 4, 26, 29 },
@@ -2147,6 +2178,9 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsu_filter_mode = VOP2_SCALE_UP_BIL,
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3568_cluster0_win_data,
+	  .axi_id = 0,
+	  .axi_yrgb_id = 4,
+	  .axi_uv_id = 5,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
@@ -2169,6 +2203,9 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3568_cluster1_win_data,
 	  .pd_id = VOP2_PD_CLUSTER1,
+	  .axi_id = 0,
+	  .axi_yrgb_id = 6,
+	  .axi_uv_id = 7,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
@@ -2191,6 +2228,9 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3568_cluster1_win_data,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .axi_id = 0,
+	  .axi_yrgb_id = 8,
+	  .axi_uv_id = 9,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_SUB,
@@ -2214,6 +2254,9 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3588_cluster2_win_data,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .axi_id = 1,
+	  .axi_yrgb_id = 2,
+	  .axi_uv_id = 3,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
 	  .dly = { 4, 26, 29 },
@@ -2235,6 +2278,9 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3588_cluster2_win_data,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .axi_id = 1,
+	  .axi_yrgb_id = 4,
+	  .axi_uv_id = 5,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_SUB,
@@ -2257,6 +2303,9 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3588_cluster3_win_data,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .axi_id = 1,
+	  .axi_yrgb_id = 6,
+	  .axi_uv_id = 7,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
 	  .dly = { 4, 26, 29 },
@@ -2278,6 +2327,9 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .vsd_filter_mode = VOP2_SCALE_DOWN_BIL,
 	  .regs = &rk3588_cluster3_win_data,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .axi_id = 1,
+	  .axi_yrgb_id = 8,
+	  .axi_uv_id = 9,
 	  .max_upscale_factor = 4,
 	  .max_downscale_factor = 4,
 	  .feature = WIN_FEATURE_AFBDC | WIN_FEATURE_CLUSTER_SUB,
@@ -2302,10 +2354,13 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .area = rk3568_area_data,
 	  .area_size = ARRAY_SIZE(rk3568_area_data),
 	  .type = DRM_PLANE_TYPE_PRIMARY,
+	  .axi_id = 0,
+	  .axi_yrgb_id = 0x0a,
+	  .axi_uv_id = 0x0b,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
 	  .dly = { 23, 45, 48 },
-	  .feature = WIN_FEATURE_SPLICE_LEFT,
+	  .feature = WIN_FEATURE_SPLICE_LEFT | WIN_FEATURE_MULTI_AREA,
 	},
 
 	{
@@ -2327,10 +2382,13 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .area = rk3568_area_data,
 	  .area_size = ARRAY_SIZE(rk3568_area_data),
 	  .type = DRM_PLANE_TYPE_PRIMARY,
+	  .axi_id = 1,
+	  .axi_yrgb_id = 0x0a,
+	  .axi_uv_id = 0x0b,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
 	  .dly = { 23, 45, 48 },
-	  .feature = WIN_FEATURE_SPLICE_LEFT,
+	  .feature = WIN_FEATURE_SPLICE_LEFT | WIN_FEATURE_MULTI_AREA,
 	},
 
 	{
@@ -2351,9 +2409,13 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .area = rk3568_area_data,
 	  .area_size = ARRAY_SIZE(rk3568_area_data),
 	  .type = DRM_PLANE_TYPE_PRIMARY,
+	  .axi_id = 0,
+	  .axi_yrgb_id = 0x01,
+	  .axi_uv_id = 0x0d,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
 	  .dly = { 23, 45, 48 },
+	  .feature = WIN_FEATURE_MULTI_AREA,
 	},
 
 	{
@@ -2374,9 +2436,13 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .area = rk3568_area_data,
 	  .area_size = ARRAY_SIZE(rk3568_area_data),
 	  .type = DRM_PLANE_TYPE_PRIMARY,
+	  .axi_id = 1,
+	  .axi_yrgb_id = 0x0c,
+	  .axi_uv_id = 0x0d,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
 	  .dly = { 23, 45, 48 },
+	  .feature = WIN_FEATURE_MULTI_AREA,
 	},
 };
 

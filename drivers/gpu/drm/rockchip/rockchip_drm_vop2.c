@@ -370,6 +370,10 @@ struct vop2_win {
 	uint8_t old_vp_mask;
 	uint8_t zpos;
 	uint32_t offset;
+	uint8_t axi_id;
+	uint8_t axi_yrgb_id;
+	uint8_t axi_uv_id;
+
 	enum drm_plane_type type;
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
@@ -1749,9 +1753,19 @@ static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64
 	return vop2_convert_afbc_format(format) >= 0;
 }
 
+static inline bool vop2_multi_area_sub_window(struct vop2_win *win)
+{
+	return (win->parent && (win->feature & WIN_FEATURE_MULTI_AREA));
+}
+
 static inline bool vop2_cluster_window(struct vop2_win *win)
 {
 	return  (win->feature & (WIN_FEATURE_CLUSTER_MAIN | WIN_FEATURE_CLUSTER_SUB));
+}
+
+static inline bool vop2_cluster_sub_window(struct vop2_win *win)
+{
+	return (win->feature & WIN_FEATURE_CLUSTER_SUB);
 }
 
 static inline bool vop2_has_feature(struct vop2 *vop2, uint64_t feature)
@@ -3583,6 +3597,26 @@ static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
 	right_dst->y2 = dst->y2;
 }
 
+static void rk3588_vop2_win_cfg_axi(struct vop2_win *win)
+{
+	struct vop2 *vop2 = win->vop2;
+
+	/*
+	 * No need to set multi area sub windows as it
+	 * share the same axi bus and read_id with main window.
+	 */
+	if (vop2_multi_area_sub_window(win))
+		return;
+	/*
+	 * No need to set Cluster sub windows axi_id as it
+	 * share the same axi bus with main window.
+	 */
+	if (!vop2_cluster_sub_window(win))
+		VOP_WIN_SET(vop2, win, axi_id, win->axi_id);
+	VOP_WIN_SET(vop2, win, axi_yrgb_id, win->axi_yrgb_id);
+	VOP_WIN_SET(vop2, win, axi_uv_id, win->axi_uv_id);
+}
+
 static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, struct drm_rect *dst,
 				   struct drm_plane_state *pstate)
 {
@@ -3701,6 +3735,9 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		      dsp_stx, dsp_sty,
 		      drm_get_format_name(fb->format->format, &format_name),
 		      vpstate->afbc_en ? "AFBC" : "", &vpstate->yrgb_mst);
+
+	if (vop2->version != VOP_VERSION_RK3568)
+		rk3588_vop2_win_cfg_axi(win);
 
 	if (vpstate->afbc_en) {
 		/* the afbc superblock is 16 x 16 */
@@ -7824,6 +7861,9 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->area_id = 0;
 		win->zpos = i;
 		win->vop2 = vop2;
+		win->axi_id = win_data->axi_id;
+		win->axi_yrgb_id = win_data->axi_yrgb_id;
+		win->axi_uv_id = win_data->axi_uv_id;
 
 		if (win_data->pd_id)
 			win->pd = vop2_find_pd_by_id(vop2, win_data->pd_id);
