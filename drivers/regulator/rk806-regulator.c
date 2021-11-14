@@ -393,8 +393,8 @@ static void rk806_do_gpio_dvs(struct regulator_dev *rdev)
 		pdata->dvs_used[mode] |= BIT(rid);
 		count = get_count(pdata->dvs_used[mode]);
 
-		if ((pdata->dvs_used[mode] != pdata->dvs_flag[mode]) &&
-		    (count == pdata->dvs_count[mode]))
+		if ((pdata->dvs_used[mode] != pdata->dvs_flag[mode]) ||
+		    (count != pdata->dvs_count[mode]))
 			return;
 
 		pdata->dvs_used[mode] = 0;
@@ -431,10 +431,10 @@ static void rk806_do_soft_dvs(struct regulator_dev *rdev)
 	if ((soft_mode >= RK806_DVS_BY_CTR_START1) &&
 	    (soft_mode <= RK806_DVS_BY_CTR_START3)) {
 		pdata->dvs_used[soft_mode] |= BIT(rid);
-		count =  get_count(pdata->dvs_used[soft_mode]);
+		count = get_count(pdata->dvs_used[soft_mode]);
 
-		if ((pdata->dvs_used[soft_mode] != pdata->dvs_flag[soft_mode]) &&
-		    (count == pdata->dvs_count[soft_mode]))
+		if ((pdata->dvs_used[soft_mode] != pdata->dvs_flag[soft_mode]) ||
+		    (count != pdata->dvs_count[soft_mode]))
 			return;
 
 		pdata->dvs_used[soft_mode] = 0;
@@ -1113,7 +1113,7 @@ static void rk806_regulator_dt_parse_pdata(struct rk806 *rk806,
 				REG_DBG("\t%s\n", dn->name);
 				pdata->support_dvs = 1;
 				pdata->dvs_dn[j][i] = dn;
-				pdata->dvs_count[i]++;
+				pdata->dvs_count[j]++;
 
 				of_node_put(dn);
 				if (i >= RK806_ID_END)
@@ -1136,7 +1136,7 @@ static void rk806_regulator_dt_parse_pdata(struct rk806 *rk806,
 	}
 
 	for (i = 0; i < 3; i++) {
-		if (pdata->dvs_gpios[i]) {
+		if (pdata->dvs_gpios[i] >= 0) {
 			gpio_request(pdata->dvs_gpios[i], dvs_pin_name[i]);
 			gpio_direction_output(pdata->dvs_gpios[i], 0);
 		}
