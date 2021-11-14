@@ -4982,7 +4982,7 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	u64 v_pixclk = adjusted_mode->crtc_clock * 1000LL; /* video timing pixclk */
 	unsigned long dclk_core_rate, dclk_out_rate;
 	/*conn_dclk = conn_pixclk or conn_dclk = conn_pixclk / 2 */
-	unsigned long hdmi_edp_pixclk, hdmi_edp_dclk, mipi_pixclk;
+	u64 hdmi_edp_pixclk, hdmi_edp_dclk, mipi_pixclk;
 	char dclk_core_div_shift = 2;
 	char K = 1;
 	char clk_name[32];
@@ -5010,8 +5010,11 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 		if_pixclk->rate = hdmi_edp_pixclk;
 		if_dclk->rate = hdmi_edp_dclk;
 	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_eDP) {
-		hdmi_edp_pixclk = v_pixclk / K;
-		hdmi_edp_dclk = v_pixclk / K;
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)
+			K = 2;
+		hdmi_edp_pixclk = v_pixclk;
+		do_div(hdmi_edp_pixclk, K);
+		hdmi_edp_dclk = hdmi_edp_pixclk;
 
 		if_pixclk->rate = hdmi_edp_pixclk;
 		if_dclk->rate = hdmi_edp_dclk;
