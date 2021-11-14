@@ -252,13 +252,11 @@ static struct rockchip_vad *substream_get_drvdata(struct snd_pcm_substream *subs
 	struct rockchip_vad *vad = NULL;
 	unsigned int i;
 
-	if (PCM_RUNTIME_CHECK(substream))
-		return NULL;
 	if (!rtd)
 		return NULL;
 
 	for (i = 0; i < rtd->num_codecs; i++) {
-		struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
+		struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, i);
 
 		if (strstr(codec_dai->name, "vad"))
 			vad = snd_soc_component_get_drvdata(codec_dai->component);
@@ -661,7 +659,7 @@ static int rockchip_vad_get_audio_src_address(struct rockchip_vad *vad,
 	const struct audio_src_addr_map *map = vad->soc_data->map;
 
 	for (; map->addr; map++) {
-		if ((addr & map->addr) == addr) {
+		if ((map->addr & 0xffff0000) == addr) {
 			vad->audio_src = map->id;
 			vad->audio_src_addr = map->addr;
 			return 0;
@@ -756,7 +754,7 @@ static void rockchip_vad_params_fixup(struct snd_pcm_substream *substream,
 	unsigned int *channel_maps;
 	int i;
 
-	cpu_dai = rtd->cpu_dai;
+	cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	vad->cpu_dai = cpu_dai;
 	vad->substream = substream;
 	np = cpu_dai->dev->of_node;

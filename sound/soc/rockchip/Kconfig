@@ -51,6 +51,13 @@ config SND_SOC_ROCKCHIP_SPDIFRX
 	  Say Y or M if you want to add support for SPDIFRX driver for
 	  Rockchip SPDIF receiver device.
 
+config SND_SOC_ROCKCHIP_VAD
+	tristate "Rockchip Voice Activity Detection Driver"
+	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for VAD driver for
+	  Rockchip VAD device.
+
 config SND_SOC_ROCKCHIP_MAX98090
 	tristate "ASoC support for Rockchip boards using a MAX98090 codec"
 	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && CLKDEV_LOOKUP

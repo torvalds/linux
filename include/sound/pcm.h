@@ -1436,6 +1436,52 @@ static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
 	     (__force int)(f) <= (__force int)SNDRV_PCM_FORMAT_LAST;	\
 	     (f) = (__force snd_pcm_format_t)((__force int)(f) + 1))
 
+#if IS_ENABLED(CONFIG_SND_SOC_ROCKCHIP_VAD)
+/**
+ * snd_pcm_vad_read - Read raw pcm data from vad buffer
+ * @substream: PCM substream instance
+ * @buf: dst buf
+ * @frames: size in frame
+ *
+ * Result is read frames for success or errno for fail
+ */
+snd_pcm_sframes_t snd_pcm_vad_read(struct snd_pcm_substream *substream,
+				   void __user *buf, snd_pcm_uframes_t frames);
+/**
+ * snd_pcm_vad_avail - Get the available (readable) space for vad
+ * @substream: PCM substream instance
+ *
+ * Result is between 0 ... (boundary - 1)
+ */
+snd_pcm_uframes_t snd_pcm_vad_avail(struct snd_pcm_substream *substream);
+/**
+ * snd_pcm_vad_attached - Check whether vad is attached to substream or not
+ * @substream: PCM substream instance
+ *
+ * Result is true for attached or false for detached
+ */
+bool snd_pcm_vad_attached(struct snd_pcm_substream *substream);
+/**
+ * snd_pcm_vad_preprocess - Pre process vad data
+ * @substream: PCM substream instance
+ * @size: size in frame
+ *
+ * Result is zero for success or errno for fail
+ */
+int snd_pcm_vad_preprocess(struct snd_pcm_substream *substream,
+			   void *buf, snd_pcm_uframes_t size);
+/**
+ * snd_pcm_vad_memcpy - Copy vad data to dst
+ * @substream: PCM substream instance
+ * @buf: dst buf
+ * @frames:  size in frame
+ *
+ * Result is copied frames for success or errno for fail
+ */
+snd_pcm_sframes_t snd_pcm_vad_memcpy(struct snd_pcm_substream *substream,
+				     void *buf, snd_pcm_uframes_t frames);
+#endif
+
 /* printk helpers */
 #define pcm_err(pcm, fmt, args...) \
 	dev_err((pcm)->card->dev, fmt, ##args)
