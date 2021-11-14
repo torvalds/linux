@@ -527,3 +527,8 @@
 	dr_mode = "host";
 	status = "okay";
 };
+
+&vdd_vdenc_s0 {
+	regulator-init-microvolt = <750000>;
+};
+
