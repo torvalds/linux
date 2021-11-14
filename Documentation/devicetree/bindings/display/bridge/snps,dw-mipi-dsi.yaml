@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Synopsys DesignWare MIPI DSI host controller
 
 maintainers:
-  - Philippe CORNU <philippe.cornu@st.com>
+  - Philippe CORNU <philippe.cornu@foss.st.com>
 
 description: |
   This document defines device tree properties for the Synopsys DesignWare MIPI

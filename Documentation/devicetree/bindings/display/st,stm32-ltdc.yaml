@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 lcd-tft display controller
 
 maintainers:
-  - Philippe Cornu <philippe.cornu@st.com>
-  - Yannick Fertre <yannick.fertre@st.com>
+  - Philippe Cornu <philippe.cornu@foss.st.com>
+  - Yannick Fertre <yannick.fertre@foss.st.com>
 
 properties:
   compatible:

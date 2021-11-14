@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <dt-bindings/clock/jz4740-cgu.h>
+#include <dt-bindings/clock/ingenic,jz4740-cgu.h>
 #include <dt-bindings/clock/ingenic,tcu.h>
 
 / {
