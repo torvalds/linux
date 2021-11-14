@@ -25,6 +25,7 @@
 #include <soc/rockchip/rockchip-system-status.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
+#include <soc/rockchip/rockchip_iommu.h>
 #include "dev.h"
 #include "common.h"
 
@@ -906,17 +907,14 @@ err:
 
 static void rkcif_iommu_cleanup(struct rkcif_hw *cif_hw)
 {
-	if (cif_hw->domain)
-		iommu_detach_device(cif_hw->domain, cif_hw->dev);
+	if (cif_hw->iommu_en)
+		rockchip_iommu_disable(cif_hw->dev);
 }
 
 static void rkcif_iommu_enable(struct rkcif_hw *cif_hw)
 {
-	if (!cif_hw->domain)
-		cif_hw->domain = iommu_get_domain_for_dev(cif_hw->dev);
-
-	if (cif_hw->domain)
-		iommu_attach_device(cif_hw->domain, cif_hw->dev);
+	if (cif_hw->iommu_en)
+		rockchip_iommu_enable(cif_hw->dev);
 }
 
 static inline bool is_iommu_enable(struct device *dev)

@@ -19,6 +19,7 @@
 #include <media/videobuf2-dma-sg.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 #include "dev.h"
 #include "mipi-csi2.h"
@@ -2869,13 +2870,8 @@ static void rkcif_do_cru_reset(struct rkcif_device *dev)
 			reset_control_deassert(cif_hw->cif_rst[i]);
 
 	if (cif_hw->iommu_en) {
-		struct iommu_domain *domain;
-
-		domain = iommu_get_domain_for_dev(cif_hw->dev);
-		if (domain) {
-			iommu_detach_device(domain, cif_hw->dev);
-			iommu_attach_device(domain, cif_hw->dev);
-		}
+		rockchip_iommu_disable(cif_hw->dev);
+		rockchip_iommu_enable(cif_hw->dev);
 	}
 }
 
