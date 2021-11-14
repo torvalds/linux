@@ -63,3 +63,12 @@ kernel sends SIGILL to the application. If the process has permission then
 the handler allocates a larger xstate buffer for the task so the large
 state can be context switched. In the unlikely cases that the allocation
 fails, the kernel sends SIGSEGV.
+
+Dynamic features in signal frames
+---------------------------------
+
+Dynamcally enabled features are not written to the signal frame upon signal
+entry if the feature is in its initial configuration.  This differs from
+non-dynamic features which are always written regardless of their
+configuration.  Signal handlers can examine the XSAVE buffer's XSTATE_BV
+field to determine if a features was written.
