@@ -61,11 +61,11 @@
 };
 
 &rkvdec0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &rkvdec0_mmu {
-	status = "disabled";
+	status = "okay";
 };
 
 &rkvenc0 {
