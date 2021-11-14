@@ -75,6 +75,16 @@
 	};
 };
 
+&adsp {
+	status = "okay";
+	firmware-name = "qcom/adsp.mbn";
+};
+
+&cdsp {
+	status = "okay";
+	firmware-name = "qcom/cdsp.mbn";
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <1000000>;
@@ -162,6 +172,17 @@
 	/* Cirrus Logic CS40L25A boosted haptics driver @ 40 */
 };
 
+&ipa {
+	status = "okay";
+	memory-region = <&pil_ipa_fw_mem>;
+	firmware-name = "qcom/ipa_fws.mbn";
+};
+
+&mpss {
+	status = "okay";
+	firmware-name = "qcom/modem.mbn";
+};
+
 &pmk8350_rtc {
 	status = "okay";
 };
@@ -185,6 +206,11 @@
 
 &qupv3_id_2 {
 	status = "okay";
+};
+
+&slpi {
+	status = "okay";
+	firmware-name = "qcom/slpi.mbn";
 };
 
 &spi14 {
