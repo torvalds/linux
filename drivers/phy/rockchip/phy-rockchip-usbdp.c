@@ -65,7 +65,6 @@ struct udphy_grf_cfg {
 struct udphy_vogrf_cfg {
 	/* vo-grf */
 	struct udphy_grf_reg hpd_trigger;
-	struct udphy_grf_reg phy_lane_sel;
 };
 
 struct rockchip_udphy;
@@ -1126,18 +1125,27 @@ static int rk3588_udphy_lane_enable(struct rockchip_udphy *udphy, int dp_lanes)
 
 static int rk3588_udphy_lane_select(struct rockchip_udphy *udphy)
 {
-	const struct rockchip_udphy_cfg *cfg = (struct rockchip_udphy_cfg *)udphy->cfgs;
-	struct udphy_grf_reg *lane_sel;
+	u32 value = 0;
 
-	lane_sel = (struct udphy_grf_reg *) (&cfg->vogrfcfg[udphy->id].phy_lane_sel);
+	switch (udphy->mode) {
+	case UDPHY_MODE_DP:
+		value |= 2 << udphy->dp_lane_sel[2] * 2;
+		value |= 3 << udphy->dp_lane_sel[3] * 2;
+		fallthrough;
+	case UDPHY_MODE_DP_USB:
+		value |= 0 << udphy->dp_lane_sel[0] * 2;
+		value |= 1 << udphy->dp_lane_sel[1] * 2;
+		break;
+	case UDPHY_MODE_USB:
+		break;
+	default:
+		break;
+	}
 
-	lane_sel->enable = FIELD_PREP(DP_AUX_DIN_SEL, udphy->dp_aux_din_sel) |
-			   FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel) |
-			   FIELD_PREP(DP_LANE_SEL_N(3), udphy->dp_lane_sel[3]) |
-			   FIELD_PREP(DP_LANE_SEL_N(2), udphy->dp_lane_sel[2]) |
-			   FIELD_PREP(DP_LANE_SEL_N(1), udphy->dp_lane_sel[1]) |
-			   FIELD_PREP(DP_LANE_SEL_N(0), udphy->dp_lane_sel[0]);
-	grfreg_write(udphy->vogrf, lane_sel, true);
+	regmap_write(udphy->vogrf, udphy->id ? RK3588_GRF_VO0_CON2 : RK3588_GRF_VO0_CON0,
+		     ((DP_AUX_DIN_SEL | DP_AUX_DOUT_SEL | DP_LANE_SEL_ALL) << 16) |
+		     FIELD_PREP(DP_AUX_DIN_SEL, udphy->dp_aux_din_sel) |
+		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel) | value);
 
 	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET, CMN_DP_LANE_MUX_ALL,
 			   FIELD_PREP(CMN_DP_LANE_MUX_N(3), udphy->lane_mux_sel[3]) |
@@ -1295,11 +1303,9 @@ static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 	.vogrfcfg = {
 		{
 			.hpd_trigger	= { 0x0000, 11, 10, 1, 3 },
-			.phy_lane_sel	= { 0x0000, 9, 0, 0, 0 },
 		},
 		{
 			.hpd_trigger	= { 0x0008, 11, 10, 1, 3 },
-			.phy_lane_sel	= { 0x0008, 9, 0, 0, 0 },
 		},
 	},
 	.combophy_init = rk3588_udphy_init,
