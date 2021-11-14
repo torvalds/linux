@@ -396,21 +396,34 @@ irq_pool_request_vector(struct mlx5_irq_pool *pool, int vecidx,
 	if (IS_ERR(irq) || !affinity)
 		goto unlock;
 	cpumask_copy(irq->mask, affinity);
-	if (!irq_pool_is_sf_pool(pool) && !pool->xa_num_irqs.max &&
-	    cpumask_empty(irq->mask))
-		cpumask_set_cpu(cpumask_first(cpu_online_mask), irq->mask);
 	irq_set_affinity_hint(irq->irqn, irq->mask);
 unlock:
 	mutex_unlock(&pool->lock);
 	return irq;
 }
 
-static struct mlx5_irq_pool *find_sf_irq_pool(struct mlx5_irq_table *irq_table,
-					      int i, struct cpumask *affinity)
+static struct mlx5_irq_pool *sf_ctrl_irq_pool_get(struct mlx5_irq_table *irq_table)
 {
-	if (cpumask_empty(affinity) && i == MLX5_IRQ_EQ_CTRL)
-		return irq_table->sf_ctrl_pool;
+	return irq_table->sf_ctrl_pool;
+}
+
+static struct mlx5_irq_pool *sf_irq_pool_get(struct mlx5_irq_table *irq_table)
+{
 	return irq_table->sf_comp_pool;
+}
+
+static struct mlx5_irq_pool *ctrl_irq_pool_get(struct mlx5_core_dev *dev)
+{
+	struct mlx5_irq_table *irq_table = mlx5_irq_table_get(dev);
+	struct mlx5_irq_pool *pool = NULL;
+
+	if (mlx5_core_is_sf(dev))
+		pool = sf_ctrl_irq_pool_get(irq_table);
+
+	/* In some configs, there won't be a pool of SFs IRQs. Hence, returning
+	 * the PF IRQs pool in case the SF pool doesn't exist.
+	 */
+	return pool ? pool : irq_table->pf_pool;
 }
 
 /**
@@ -421,6 +434,38 @@ void mlx5_irq_release(struct mlx5_irq *irq)
 {
 	synchronize_irq(irq->irqn);
 	irq_put(irq);
+}
+
+/**
+ * mlx5_ctrl_irq_request - request a ctrl IRQ for mlx5 device.
+ * @dev: mlx5 device that requesting the IRQ.
+ *
+ * This function returns a pointer to IRQ, or ERR_PTR in case of error.
+ */
+struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev)
+{
+	struct mlx5_irq_pool *pool = ctrl_irq_pool_get(dev);
+	cpumask_var_t req_mask;
+	struct mlx5_irq *irq;
+
+	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL))
+		return ERR_PTR(-ENOMEM);
+	cpumask_copy(req_mask, cpu_online_mask);
+	if (!irq_pool_is_sf_pool(pool)) {
+		/* In case we are allocating a control IRQ for PF/VF */
+		if (!pool->xa_num_irqs.max) {
+			cpumask_clear(req_mask);
+			/* In case we only have a single IRQ for PF/VF */
+			cpumask_set_cpu(cpumask_first(cpu_online_mask), req_mask);
+		}
+		/* Allocate the IRQ in the last index of the pool */
+		irq = irq_pool_request_vector(pool, pool->xa_num_irqs.max, req_mask);
+	} else {
+		irq = irq_pool_request_affinity(pool, req_mask);
+	}
+
+	free_cpumask_var(req_mask);
+	return irq;
 }
 
 /**
@@ -440,7 +485,7 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
 	struct mlx5_irq *irq;
 
 	if (mlx5_core_is_sf(dev)) {
-		pool = find_sf_irq_pool(irq_table, vecidx, affinity);
+		pool = sf_irq_pool_get(irq_table);
 		if (!pool)
 			/* we don't have IRQs for SFs, using the PF IRQs */
 			goto pf_irq;
@@ -453,7 +498,6 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
 	}
 pf_irq:
 	pool = irq_table->pf_pool;
-	vecidx = (vecidx == MLX5_IRQ_EQ_CTRL) ? pool->xa_num_irqs.max : vecidx;
 	irq = irq_pool_request_vector(pool, vecidx, affinity);
 out:
 	if (IS_ERR(irq))

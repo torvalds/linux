@@ -22,6 +22,7 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int devfn,
 			    int msix_vec_count);
 int mlx5_get_default_msix_vec_count(struct mlx5_core_dev *dev, int num_vfs);
 
+struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev);
 struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
 				  struct cpumask *affinity);
 void mlx5_irq_release(struct mlx5_irq *irq);

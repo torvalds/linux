@@ -289,7 +289,10 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	mlx5_init_fbc(eq->frag_buf.frags, log_eq_stride, log_eq_size, &eq->fbc);
 	init_eq_buf(eq);
 
-	eq->irq = mlx5_irq_request(dev, vecidx, param->affinity);
+	if (vecidx == MLX5_IRQ_EQ_CTRL)
+		eq->irq = mlx5_ctrl_irq_request(dev);
+	else
+		eq->irq = mlx5_irq_request(dev, vecidx, param->affinity);
 	if (IS_ERR(eq->irq)) {
 		err = PTR_ERR(eq->irq);
 		goto err_buf;
