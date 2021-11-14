@@ -17,7 +17,7 @@
 #include <linux/phy/phy.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
-#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/phy/phy-snps-pcie3.h>
 
 /* Register for RK3568 */
 #define GRF_PCIE30PHY_CON1 0x4
@@ -27,6 +27,7 @@
 #define SRAM_INIT_DONE(reg) (reg & BIT(14))
 
 /* Register for RK3588 */
+#define PHP_GRF_PCIESEL_CON 0x100
 #define RK3588_PCIE3PHY_GRF_CMN_CON0 0x0
 #define RK3588_PCIE3PHY_GRF_PHY0_STATUS1 0x904
 #define RK3588_PCIE3PHY_GRF_PHY1_STATUS1 0xa04
@@ -37,8 +38,12 @@ struct rockchip_p3phy_ops;
 struct rockchip_p3phy_priv {
 	const struct rockchip_p3phy_ops *ops;
 	void __iomem *mmio;
+	/* mode: RC, EP */
 	int mode;
+	/* pcie30_phymode: Aggregation, Bifurcation */
+	int pcie30_phymode;
 	struct regmap *phy_grf;
+	struct regmap *pipe_grf;
 	struct reset_control *p30phy;
 	struct phy *phy;
 	struct clk_bulk_data *clks;
@@ -114,6 +119,25 @@ static int rockchip_p3phy_rk3588_init(struct rockchip_p3phy_priv *priv)
 	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
 		     (0x1 << 8) | (0x1 << 24));
 
+	/* Select correct pcie30_phymode */
+	if (priv->pcie30_phymode > 4)
+		priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
+
+	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
+		     (0x7<<16) | priv->pcie30_phymode);
+
+	/* Set pcie1ln_sel in PHP_GRF_PCIESEL_CON */
+	if (IS_ERR(priv->pipe_grf)) {
+		pr_err("%s failed to find rockchip,pipe_grf regmap\n",
+		       __func__);
+		return PTR_ERR(priv->pipe_grf);
+	};
+
+	reg = priv->pcie30_phymode & 3;
+	if (reg)
+		regmap_write(priv->pipe_grf, PHP_GRF_PCIESEL_CON,
+			     (reg << 16) | reg);
+
 	reset_control_deassert(priv->p30phy);
 
 	ret = regmap_read_poll_timeout(priv->phy_grf,
@@ -180,6 +204,7 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct resource *res;
 	int ret;
+	u32 val;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -203,6 +228,17 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to find rockchip,phy_grf regmap\n");
 		return PTR_ERR(priv->phy_grf);
 	}
+
+	priv->pipe_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+							 "rockchip,pipe-grf");
+	if (IS_ERR(priv->pipe_grf))
+		dev_info(dev, "failed to find rockchip,pipe_grf regmap\n");
+
+	ret = device_property_read_u32(dev, "rockchip,pcie30-phymode", &val);
+	if (!ret)
+		priv->pcie30_phymode = val;
+	else
+		priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
 
 	priv->phy = devm_phy_create(dev, NULL, &rochchip_p3phy_ops);
 	if (IS_ERR(priv->phy)) {
