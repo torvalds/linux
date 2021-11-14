@@ -83,9 +83,9 @@ EXPORT_SYMBOL(flush_cache_all_local);
 #define pfn_va(pfn)	__va(PFN_PHYS(pfn))
 
 void
-update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
+__update_cache(pte_t pte)
 {
-	unsigned long pfn = pte_pfn(*ptep);
+	unsigned long pfn = pte_pfn(pte);
 	struct page *page;
 
 	/* We don't have pte special.  As a result, we can be called with
