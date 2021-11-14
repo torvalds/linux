@@ -78,7 +78,7 @@ static void csky_mpintc_handler(struct pt_regs *regs)
 		readl_relaxed(reg_base + INTCL_RDYIR));
 }
 
-static void csky_mpintc_enable(struct irq_data *d)
+static void csky_mpintc_unmask(struct irq_data *d)
 {
 	void __iomem *reg_base = this_cpu_read(intcl_reg);
 
@@ -87,7 +87,7 @@ static void csky_mpintc_enable(struct irq_data *d)
 	writel_relaxed(d->hwirq, reg_base + INTCL_SENR);
 }
 
-static void csky_mpintc_disable(struct irq_data *d)
+static void csky_mpintc_mask(struct irq_data *d)
 {
 	void __iomem *reg_base = this_cpu_read(intcl_reg);
 
@@ -164,8 +164,8 @@ static int csky_irq_set_affinity(struct irq_data *d,
 static struct irq_chip csky_irq_chip = {
 	.name           = "C-SKY SMP Intc",
 	.irq_eoi	= csky_mpintc_eoi,
-	.irq_enable	= csky_mpintc_enable,
-	.irq_disable	= csky_mpintc_disable,
+	.irq_unmask	= csky_mpintc_unmask,
+	.irq_mask	= csky_mpintc_mask,
 	.irq_set_type	= csky_mpintc_set_type,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = csky_irq_set_affinity,
