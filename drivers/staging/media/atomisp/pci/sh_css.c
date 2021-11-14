@@ -384,10 +384,6 @@ ia_css_get_acc_configs(
     struct ia_css_pipe *pipe,
     struct ia_css_isp_config *config);
 
-#if CONFIG_ON_FRAME_ENQUEUE()
-static int set_config_on_frame_enqueue(struct ia_css_frame_info
-	*info, struct frame_data_wrapper *frame);
-#endif
 
 #ifdef ISP2401
 static unsigned int get_crop_lines_for_bayer_order(const struct
@@ -4071,15 +4067,6 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 				    "ia_css_pipe_enqueue_buffer() buf_type=%d, data(DDR address)=0x%x\n",
 				    buf_type, buffer->data.frame->data);
 
-#if CONFIG_ON_FRAME_ENQUEUE()
-		return_err = set_config_on_frame_enqueue(
-				 &buffer->data.frame->info,
-				 &ddr_buffer.payload.frame);
-		if (return_err) {
-			IA_CSS_LEAVE_ERR(return_err);
-			return return_err;
-		}
-#endif
 	}
 
 	/* start of test for using rmgr for acq/rel memory */
@@ -10311,31 +10298,6 @@ void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map)
 	IA_CSS_LEAVE("");
 }
 
-#if CONFIG_ON_FRAME_ENQUEUE()
-static int set_config_on_frame_enqueue(struct ia_css_frame_info
-	*info, struct frame_data_wrapper *frame)
-{
-	frame->config_on_frame_enqueue.padded_width = 0;
-
-	/* currently we support configuration on frame enqueue only on YUV formats */
-	/* on other formats the padded_width is zeroed for no configuration override */
-	switch (info->format) {
-	case IA_CSS_FRAME_FORMAT_YUV420:
-	case IA_CSS_FRAME_FORMAT_NV12:
-		if (info->padded_width > info->res.width)
-			frame->config_on_frame_enqueue.padded_width = info->padded_width;
-		else if ((info->padded_width < info->res.width) && (info->padded_width > 0))
-			return -EINVAL;
-
-		/* nothing to do if width == padded width or padded width is zeroed (the same) */
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-#endif
 
 int
 ia_css_unlock_raw_frame(struct ia_css_stream *stream, uint32_t exp_id)

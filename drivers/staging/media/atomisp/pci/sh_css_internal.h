@@ -687,8 +687,6 @@ struct sh_css_sp_output {
 	unsigned int		sw_interrupt_value[SH_CSS_NUM_SDW_IRQS];
 };
 
-#define CONFIG_ON_FRAME_ENQUEUE() 0
-
 /**
  * @brief Data structure for the circular buffer.
  * The circular buffer is empty if "start == end". The
@@ -726,9 +724,6 @@ struct sh_css_hmm_buffer {
 			u32	exp_id;
 			u32	isp_parameters_id; /** Unique ID to track which config was
 								actually applied to a particular frame */
-#if CONFIG_ON_FRAME_ENQUEUE()
-			struct sh_css_config_on_frame_enqueue config_on_frame_enqueue;
-#endif
 		} frame;
 		ia_css_ptr ddr_ptrs;
 	} payload;
@@ -744,16 +739,9 @@ struct sh_css_hmm_buffer {
 	clock_value_t isys_eof_clock_tick;
 };
 
-#if CONFIG_ON_FRAME_ENQUEUE()
-#define SIZE_OF_FRAME_STRUCT						\
-	(SIZE_OF_HRT_VADDRESS +						\
-	(3 * sizeof(uint32_t)) +					\
-	sizeof(uint32_t))
-#else
 #define SIZE_OF_FRAME_STRUCT						\
 	(SIZE_OF_HRT_VADDRESS +						\
 	(3 * sizeof(uint32_t)))
-#endif
 
 #define SIZE_OF_PAYLOAD_UNION						\
 	(MAX(MAX(MAX(MAX(						\
