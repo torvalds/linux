@@ -2702,6 +2702,7 @@ static void
 isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 		const struct isp3x_dhaz_cfg *arg, u32 id)
 {
+	struct rkisp_device *dev = params_vdev->dev;
 	u32 i, value, ctrl;
 
 	ctrl = isp3_param_read(params_vdev, ISP3X_DHAZ_CTRL, id);
@@ -2713,9 +2714,12 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 		 (arg->hist_en & 0x1) << 8 |
 		 (arg->dc_en & 0x1) << 4 |
 		 (arg->round_en & 0x1) << 26;
-	if (arg->soft_wr_en) {
+	if (arg->soft_wr_en)
 		ctrl |= (arg->soft_wr_en & 0x1) << 25;
-
+	/* merge dual unite isp params at frame end */
+	if (arg->soft_wr_en &&
+	    (!dev->hw_dev->is_unite ||
+	     (dev->hw_dev->is_unite && !(ctrl & ISP3X_DHAZ_ENMUX)))) {
 		value = ISP_PACK_2SHORT(arg->adp_wt_wr, arg->adp_air_wr);
 		isp3_param_write(params_vdev, value, ISP3X_DHAZ_ADT_WR0, id);
 		value = ISP_PACK_2SHORT(arg->adp_tmax_wr, arg->adp_gratio_wr);
@@ -4075,8 +4079,10 @@ static void rkisp_save_first_param_v3x(struct rkisp_isp_params_vdev *params_vdev
 
 static void rkisp_clear_first_param_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
-	params_vdev->isp3x_params->module_cfg_update = 0;
-	params_vdev->isp3x_params->module_en_update = 0;
+	u32 mult = params_vdev->dev->hw_dev->is_unite ? ISP3_UNITE_MAX : 1;
+	u32 size = sizeof(struct isp3x_isp_params_cfg) * mult;
+
+	memset(params_vdev->isp3x_params, 0, size);
 }
 
 static void rkisp_deinit_mesh_buf(struct rkisp_isp_params_vdev *params_vdev,

@@ -971,8 +971,7 @@ rkisp_merge_dual_dhaz_params(struct rkisp_isp_stats_vdev *stats_vdev,
 	if (!left_stat || !right_stat ||
 	    !(left_stat->meas_type & ISP3X_STAT_DHAZ) ||
 	    !(right_stat->meas_type & ISP3X_STAT_DHAZ) ||
-	    !(isp3_stats_read(stats_vdev, ISP3X_DHAZ_CTRL, 0) & BIT(25)) ||
-	    !(isp3_stats_read(stats_vdev, ISP3X_DHAZ_CTRL, 0) & BIT(4)))
+	    !(isp3_stats_read(stats_vdev, ISP3X_DHAZ_CTRL, 0) & BIT(25)))
 		return;
 
 	dhaz_cfg = &dev->params_vdev.isp3x_params->others.dhaz_cfg;
