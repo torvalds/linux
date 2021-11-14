@@ -10,6 +10,7 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/input/rk-input.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/rockchip_vop.h>
 #include <dt-bindings/sensor-dev.h>
 #include "rk3588s.dtsi"
 #include "rk3588-android.dtsi"
@@ -26,13 +27,13 @@
 		vol-up-key {
 			label = "volume up";
 			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <1750>;
+			press-threshold-microvolt = <17000>;
 		};
 
 		vol-down-key {
 			label = "volume down";
 			linux,code = <KEY_VOLUMEDOWN>;
-			press-threshold-microvolt = <297500>;
+			press-threshold-microvolt = <417000>;
 		};
 	};
 
@@ -102,6 +103,40 @@
 		status = "okay";
 	};
 
+	panel-edp {
+		compatible = "innolux,p120zdg-bf4", "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_lcd_edp>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <500>;
+		disable-delay-ms = <120>;
+		width-mm = <254>;
+		height-mm = <169>;
+
+		panel-timing {
+			clock-frequency = <206000000>;
+			hactive = <2160>;
+			vactive = <1440>;
+			hfront-porch = <48>;
+			hsync-len = <32>;
+			hback-porch = <80>;
+			vfront-porch = <3>;
+			vsync-len = <10>;
+			vback-porch = <27>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+
 	rk_headset: rk-headset {
 		status = "disabled";
 		compatible = "rockchip_headset";
@@ -115,13 +150,21 @@
 		status = "okay";
 	};
 
+	vcc3v3_lcd_edp: vcc3v3-lcd-edp {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd_edp";
+		gpio = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
 	vbus5v0_typec: vbus-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio4 RK_PD0 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_usb>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&typec5v_pwren>;
@@ -160,8 +203,50 @@
 	};
 };
 
+&cpu_l0 {
+	cpu-supply = <&vdd_cpu_lit_s0>;
+	mem-supply = <&vdd_cpu_lit_mem_s0>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&vdd_cpu_big0_s0>;
+	mem-supply = <&vdd_cpu_big0_mem_s0>;
+};
+
+&cpu_b2 {
+	cpu-supply = <&vdd_cpu_big1_s0>;
+	mem-supply = <&vdd_cpu_big1_mem_s0>;
+};
+
+&edp0 {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&edp0_in_vp2 {
+	status = "okay";
+};
+
 &fiq_debugger {
 	pinctrl-0 = <&uart2m1_xfer>;
+};
+
+&gpu {
+	status = "okay";
+};
+
+&hdptxphy0 {
+	status = "okay";
 };
 
 &i2c2 {
@@ -175,7 +260,7 @@
 		pinctrl-0 = <&rtc_int>;
 
 		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PD3 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	cw2015@62 {
@@ -378,7 +463,7 @@
 
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -414,13 +499,18 @@
 
 	usb-typec {
 		usbc0_int: usbc0-int {
-			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		typec5v_pwren: typec5v-pwren {
-			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&pwm12 {
+	pinctrl-0 = <&pwm12m1_pins>;
+	status = "okay";
 };
 
 &saradc {
@@ -571,6 +661,7 @@
 
 &usbdrd_dwc3_0 {
 	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
 	status = "okay";
 
 	usb-role-switch;
@@ -590,4 +681,36 @@
 
 &usbhost_dwc3_0 {
 	status = "disabled";
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP2_SRC>, <&cru DCLK_VOP2_SRC>,
+			  <&cru DCLK_VOP2_SRC>, <&cru DCLK_VOP3>;
+	assigned-clock-parents = <0>, <0>, <&cru PLL_V0PLL>, <0>;
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+/* vp0 & vp1 splice for 8K output */
+&vp0 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART0>;
+};
+
+&vp1 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART1>;
+};
+
+&vp2 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER2 | 1 << ROCKCHIP_VOP2_ESMART2)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART2>;
+};
+
+&vp3 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER3 | 1 << ROCKCHIP_VOP2_ESMART3)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART3>;
 };
