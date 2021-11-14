@@ -979,6 +979,8 @@ static struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [2] = { .scnprintf = SCA_GETRANDOM_FLAGS, /* flags */ }, }, },
 	{ .name	    = "getrlimit",
 	  .arg = { [0] = STRARRAY(resource, rlimit_resources), }, },
+	{ .name	    = "getsockopt",
+	  .arg = { [1] = STRARRAY(level, socket_level), }, },
 	{ .name	    = "gettid",	    .errpid = true, },
 	{ .name	    = "ioctl",
 	  .arg = {
@@ -1121,6 +1123,8 @@ static struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [0] = STRARRAY(which, itimers), }, },
 	{ .name	    = "setrlimit",
 	  .arg = { [0] = STRARRAY(resource, rlimit_resources), }, },
+	{ .name	    = "setsockopt",
+	  .arg = { [1] = STRARRAY(level, socket_level), }, },
 	{ .name	    = "socket",
 	  .arg = { [0] = STRARRAY(family, socket_families),
 		   [1] = { .scnprintf = SCA_SK_TYPE, /* type */ },

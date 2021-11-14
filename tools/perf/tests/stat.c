@@ -47,7 +47,8 @@ static int process_stat_config_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-int test__synthesize_stat_config(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__synthesize_stat_config(struct test_suite *test __maybe_unused,
+					int subtest __maybe_unused)
 {
 	struct perf_stat_config stat_config = {
 		.aggr_mode	= AGGR_CORE,
@@ -77,7 +78,7 @@ static int process_stat_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-int test__synthesize_stat(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__synthesize_stat(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_counts_values count;
 
@@ -103,7 +104,7 @@ static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-int test__synthesize_stat_round(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__synthesize_stat_round(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("failed to synthesize stat_config",
 		!perf_event__synthesize_stat_round(NULL, 0xdeadbeef, PERF_STAT_ROUND_TYPE__INTERVAL,
@@ -111,3 +112,7 @@ int test__synthesize_stat_round(struct test *test __maybe_unused, int subtest __
 
 	return 0;
 }
+
+DEFINE_SUITE("Synthesize stat config", synthesize_stat_config);
+DEFINE_SUITE("Synthesize stat", synthesize_stat);
+DEFINE_SUITE("Synthesize stat round", synthesize_stat_round);

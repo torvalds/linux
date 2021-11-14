@@ -13,7 +13,8 @@
 #include "tests.h"
 #include "util/counts.h"
 
-int test__openat_syscall_event(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__openat_syscall_event(struct test_suite *test __maybe_unused,
+				      int subtest __maybe_unused)
 {
 	int err = -1, fd;
 	struct evsel *evsel;
@@ -66,3 +67,5 @@ out_thread_map_delete:
 	perf_thread_map__put(threads);
 	return err;
 }
+
+DEFINE_SUITE("Detect openat syscall event", openat_syscall_event);

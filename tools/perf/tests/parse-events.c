@@ -2276,7 +2276,7 @@ static int test_pmu_events_alias(char *event, char *alias)
 	return test_event(&e);
 }
 
-int test__parse_events(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__parse_events(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret1, ret2 = 0;
 	char *event, *alias;
@@ -2319,3 +2319,5 @@ do {							\
 
 	return ret2;
 }
+
+DEFINE_SUITE("Parse event definition strings", parse_events);

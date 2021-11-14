@@ -274,7 +274,7 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *
 	if (symbol_conf.priv_size) {
 		if (symbol_conf.init_annotation) {
 			struct annotation *notes = (void *)sym;
-			pthread_mutex_init(&notes->lock, NULL);
+			annotation__init(notes);
 		}
 		sym = ((void *)sym) + symbol_conf.priv_size;
 	}
@@ -294,6 +294,13 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *
 
 void symbol__delete(struct symbol *sym)
 {
+	if (symbol_conf.priv_size) {
+		if (symbol_conf.init_annotation) {
+			struct annotation *notes = symbol__annotation(sym);
+
+			annotation__exit(notes);
+		}
+	}
 	free(((void *)sym) - symbol_conf.priv_size);
 }
 

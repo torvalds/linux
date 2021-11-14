@@ -516,17 +516,17 @@ kvm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/kvm_ioctl.sh
 $(kvm_ioctl_array): $(kvm_hdr_dir)/kvm.h $(kvm_ioctl_tbl)
 	$(Q)$(SHELL) '$(kvm_ioctl_tbl)' $(kvm_hdr_dir) > $@
 
-socket_ipproto_array := $(beauty_outdir)/socket_ipproto_array.c
-socket_ipproto_tbl := $(srctree)/tools/perf/trace/beauty/socket_ipproto.sh
-
-$(socket_ipproto_array): $(linux_uapi_dir)/in.h $(socket_ipproto_tbl)
-	$(Q)$(SHELL) '$(socket_ipproto_tbl)' $(linux_uapi_dir) > $@
-
-socket_arrays := $(beauty_outdir)/socket_arrays.c
+socket_arrays := $(beauty_outdir)/socket.c
 socket_tbl := $(srctree)/tools/perf/trace/beauty/socket.sh
 
-$(socket_arrays): $(beauty_linux_dir)/socket.h $(socket_tbl)
-	$(Q)$(SHELL) '$(socket_tbl)' $(beauty_linux_dir) > $@
+$(socket_arrays): $(linux_uapi_dir)/in.h $(beauty_linux_dir)/socket.h $(socket_tbl)
+	$(Q)$(SHELL) '$(socket_tbl)' $(linux_uapi_dir) $(beauty_linux_dir) > $@
+
+sockaddr_arrays := $(beauty_outdir)/sockaddr.c
+sockaddr_tbl := $(srctree)/tools/perf/trace/beauty/sockaddr.sh
+
+$(sockaddr_arrays): $(beauty_linux_dir)/socket.h $(sockaddr_tbl)
+	$(Q)$(SHELL) '$(sockaddr_tbl)' $(beauty_linux_dir) > $@
 
 vhost_virtio_ioctl_array := $(beauty_ioctl_outdir)/vhost_virtio_ioctl_array.c
 vhost_virtio_hdr_dir := $(srctree)/tools/include/uapi/linux
@@ -736,8 +736,8 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(sndrv_ctl_ioctl_array) \
 	$(kcmp_type_array) \
 	$(kvm_ioctl_array) \
-	$(socket_ipproto_array) \
 	$(socket_arrays) \
+	$(sockaddr_arrays) \
 	$(vhost_virtio_ioctl_array) \
 	$(madvise_behavior_array) \
 	$(mmap_flags_array) \
@@ -1113,8 +1113,8 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)$(sndrv_pcm_ioctl_array) \
 		$(OUTPUT)$(kvm_ioctl_array) \
 		$(OUTPUT)$(kcmp_type_array) \
-		$(OUTPUT)$(socket_ipproto_array) \
 		$(OUTPUT)$(socket_arrays) \
+		$(OUTPUT)$(sockaddr_arrays) \
 		$(OUTPUT)$(vhost_virtio_ioctl_array) \
 		$(OUTPUT)$(perf_ioctl_array) \
 		$(OUTPUT)$(prctl_option_array) \
