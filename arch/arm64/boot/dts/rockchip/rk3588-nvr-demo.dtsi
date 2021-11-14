@@ -118,10 +118,14 @@
 };
 
 &combphy0_ps {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sata0_pm_reset>;
 	status = "okay";
 };
 
 &combphy1_ps {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sata1_pm_reset>;
 	status = "okay";
 };
 
