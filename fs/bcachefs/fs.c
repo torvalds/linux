@@ -1124,46 +1124,230 @@ static const struct address_space_operations bch_address_space_operations = {
 	.error_remove_page = generic_error_remove_page,
 };
 
-#if 0
+struct bcachefs_fid {
+	u64		inum;
+	u32		subvol;
+	u32		gen;
+} __packed;
+
+struct bcachefs_fid_with_parent {
+	struct bcachefs_fid	fid;
+	struct bcachefs_fid	dir;
+} __packed;
+
+static int bcachefs_fid_valid(int fh_len, int fh_type)
+{
+	switch (fh_type) {
+	case FILEID_BCACHEFS_WITHOUT_PARENT:
+		return fh_len == sizeof(struct bcachefs_fid) / sizeof(u32);
+	case FILEID_BCACHEFS_WITH_PARENT:
+		return fh_len == sizeof(struct bcachefs_fid_with_parent) / sizeof(u32);
+	default:
+		return false;
+	}
+}
+
+static struct bcachefs_fid bch2_inode_to_fid(struct bch_inode_info *inode)
+{
+	return (struct bcachefs_fid) {
+		.inum	= inode->ei_inode.bi_inum,
+		.subvol	= inode->ei_subvol,
+		.gen	= inode->ei_inode.bi_generation,
+	};
+}
+
+static int bch2_encode_fh(struct inode *vinode, u32 *fh, int *len,
+			  struct inode *vdir)
+{
+	struct bch_inode_info *inode	= to_bch_ei(vinode);
+	struct bch_inode_info *dir	= to_bch_ei(vdir);
+
+	if (*len < sizeof(struct bcachefs_fid_with_parent) / sizeof(u32))
+		return FILEID_INVALID;
+
+	if (!S_ISDIR(inode->v.i_mode) && dir) {
+		struct bcachefs_fid_with_parent *fid = (void *) fh;
+
+		fid->fid = bch2_inode_to_fid(inode);
+		fid->dir = bch2_inode_to_fid(dir);
+
+		*len = sizeof(*fid) / sizeof(u32);
+		return FILEID_BCACHEFS_WITH_PARENT;
+	} else {
+		struct bcachefs_fid *fid = (void *) fh;
+
+		*fid = bch2_inode_to_fid(inode);
+
+		*len = sizeof(*fid) / sizeof(u32);
+		return FILEID_BCACHEFS_WITHOUT_PARENT;
+	}
+}
+
 static struct inode *bch2_nfs_get_inode(struct super_block *sb,
-		u64 ino, u32 generation)
+					struct bcachefs_fid fid)
 {
 	struct bch_fs *c = sb->s_fs_info;
-	struct inode *vinode;
-
-	if (ino < BCACHEFS_ROOT_INO)
-		return ERR_PTR(-ESTALE);
-
-	vinode = bch2_vfs_inode_get(c, ino);
-	if (IS_ERR(vinode))
-		return ERR_CAST(vinode);
-	if (generation && vinode->i_generation != generation) {
-		/* we didn't find the right inode.. */
+	struct inode *vinode = bch2_vfs_inode_get(c, (subvol_inum) {
+				    .subvol = fid.subvol,
+				    .inum = fid.inum,
+	});
+	if (!IS_ERR(vinode) && vinode->i_generation != fid.gen) {
 		iput(vinode);
-		return ERR_PTR(-ESTALE);
+		vinode = ERR_PTR(-ESTALE);
 	}
 	return vinode;
 }
 
-static struct dentry *bch2_fh_to_dentry(struct super_block *sb, struct fid *fid,
+static struct dentry *bch2_fh_to_dentry(struct super_block *sb, struct fid *_fid,
 		int fh_len, int fh_type)
 {
-	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-				    bch2_nfs_get_inode);
+	struct bcachefs_fid *fid = (void *) _fid;
+
+	if (!bcachefs_fid_valid(fh_len, fh_type))
+		return NULL;
+
+	return d_obtain_alias(bch2_nfs_get_inode(sb, *fid));
 }
 
-static struct dentry *bch2_fh_to_parent(struct super_block *sb, struct fid *fid,
+static struct dentry *bch2_fh_to_parent(struct super_block *sb, struct fid *_fid,
 		int fh_len, int fh_type)
 {
-	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-				    bch2_nfs_get_inode);
+	struct bcachefs_fid_with_parent *fid = (void *) _fid;
+
+	if (!bcachefs_fid_valid(fh_len, fh_type) ||
+	    fh_type != FILEID_BCACHEFS_WITH_PARENT)
+		return NULL;
+
+	return d_obtain_alias(bch2_nfs_get_inode(sb, fid->dir));
 }
-#endif
+
+static struct dentry *bch2_get_parent(struct dentry *child)
+{
+	struct bch_inode_info *inode = to_bch_ei(child->d_inode);
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	subvol_inum parent_inum = {
+		.subvol = inode->ei_inode.bi_parent_subvol ?:
+			inode->ei_subvol,
+		.inum = inode->ei_inode.bi_dir,
+	};
+
+	if (!parent_inum.inum)
+		return NULL;
+
+	return d_obtain_alias(bch2_vfs_inode_get(c, parent_inum));
+}
+
+static int bch2_get_name(struct dentry *parent, char *name, struct dentry *child)
+{
+	struct bch_inode_info *inode	= to_bch_ei(child->d_inode);
+	struct bch_inode_info *dir	= to_bch_ei(parent->d_inode);
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct btree_trans trans;
+	struct btree_iter iter1;
+	struct btree_iter iter2;
+	struct bkey_s_c k;
+	struct bkey_s_c_dirent d;
+	struct bch_inode_unpacked inode_u;
+	subvol_inum target;
+	u32 snapshot;
+	unsigned name_len;
+	int ret;
+
+	if (!S_ISDIR(dir->v.i_mode))
+		return -EINVAL;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	bch2_trans_iter_init(&trans, &iter1, BTREE_ID_dirents,
+			     POS(dir->ei_inode.bi_inum, 0), 0);
+	bch2_trans_iter_init(&trans, &iter2, BTREE_ID_dirents,
+			     POS(dir->ei_inode.bi_inum, 0), 0);
+retry:
+	bch2_trans_begin(&trans);
+
+	ret = bch2_subvolume_get_snapshot(&trans, dir->ei_subvol, &snapshot);
+	if (ret)
+		goto err;
+
+	bch2_btree_iter_set_snapshot(&iter1, snapshot);
+	bch2_btree_iter_set_snapshot(&iter2, snapshot);
+
+	ret = bch2_inode_find_by_inum_trans(&trans, inode_inum(inode), &inode_u);
+	if (ret)
+		goto err;
+
+	if (inode_u.bi_dir == dir->ei_inode.bi_inum) {
+		bch2_btree_iter_set_pos(&iter1, POS(inode_u.bi_dir, inode_u.bi_dir_offset));
+
+		k = bch2_btree_iter_peek_slot(&iter1);
+		ret = bkey_err(k);
+		if (ret)
+			goto err;
+
+		if (k.k->type != KEY_TYPE_dirent) {
+			ret = -ENOENT;
+			goto err;
+		}
+
+		d = bkey_s_c_to_dirent(k);
+		ret = bch2_dirent_read_target(&trans, inode_inum(dir), d, &target);
+		if (ret > 0)
+			ret = -ENOENT;
+		if (ret)
+			goto err;
+
+		if (target.subvol	== inode->ei_subvol &&
+		    target.inum		== inode->ei_inode.bi_inum)
+			goto found;
+	} else {
+		/*
+		 * File with multiple hardlinks and our backref is to the wrong
+		 * directory - linear search:
+		 */
+		for_each_btree_key_continue_norestart(iter2, 0, k, ret) {
+			if (k.k->p.inode > dir->ei_inode.bi_inum)
+				break;
+
+			if (k.k->type != KEY_TYPE_dirent)
+				continue;
+
+			d = bkey_s_c_to_dirent(k);
+			ret = bch2_dirent_read_target(&trans, inode_inum(dir), d, &target);
+			if (ret < 0)
+				break;
+			if (ret)
+				continue;
+
+			if (target.subvol	== inode->ei_subvol &&
+			    target.inum		== inode->ei_inode.bi_inum)
+				goto found;
+		}
+	}
+
+	ret = -ENOENT;
+	goto err;
+found:
+	name_len = min_t(unsigned, bch2_dirent_name_bytes(d), NAME_MAX);
+
+	memcpy(name, d.v->d_name, name_len);
+	name[name_len] = '\0';
+err:
+	if (ret == -EINTR)
+		goto retry;
+
+	bch2_trans_iter_exit(&trans, &iter1);
+	bch2_trans_iter_exit(&trans, &iter2);
+	bch2_trans_exit(&trans);
+
+	return ret;
+}
 
 static const struct export_operations bch_export_ops = {
-	//.fh_to_dentry	= bch2_fh_to_dentry,
-	//.fh_to_parent	= bch2_fh_to_parent,
-	//.get_parent	= bch2_get_parent,
+	.encode_fh	= bch2_encode_fh,
+	.fh_to_dentry	= bch2_fh_to_dentry,
+	.fh_to_parent	= bch2_fh_to_parent,
+	.get_parent	= bch2_get_parent,
+	.get_name	= bch2_get_name,
 };
 
 static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,

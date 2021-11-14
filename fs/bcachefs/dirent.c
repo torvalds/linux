@@ -197,8 +197,8 @@ static void dirent_copy_target(struct bkey_i_dirent *dst,
 	dst->v.d_type = src.v->d_type;
 }
 
-static int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
-				   struct bkey_s_c_dirent d, subvol_inum *target)
+int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
+			    struct bkey_s_c_dirent d, subvol_inum *target)
 {
 	struct bch_subvolume s;
 	int ret = 0;

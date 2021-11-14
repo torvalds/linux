@@ -29,6 +29,9 @@ static inline unsigned dirent_val_u64s(unsigned len)
 			    sizeof(u64));
 }
 
+int bch2_dirent_read_target(struct btree_trans *, subvol_inum,
+			    struct bkey_s_c_dirent, subvol_inum *);
+
 int bch2_dirent_create(struct btree_trans *, subvol_inum,
 		       const struct bch_hash_info *, u8,
 		       const struct qstr *, u64, u64 *, int);
