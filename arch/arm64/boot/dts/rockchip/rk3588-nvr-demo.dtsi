@@ -521,6 +521,5 @@
 
 &usbhost_dwc3_0 {
 	dr_mode = "host";
-	maximum-speed = "high-speed";
 	status = "okay";
 };
