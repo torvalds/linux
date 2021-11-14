@@ -805,16 +805,6 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 		break;
 	}
 
-	if (udphy->sbu1_dc_gpio && udphy->sbu1_dc_gpio) {
-		if (udphy->flip) {
-			gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 1);
-			gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 0);
-		} else {
-			gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 0);
-			gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 1);
-		}
-	}
-
 	if (udphy->mode != mode) {
 		udphy->mode = mode;
 		udphy->mode_change = true;
@@ -823,7 +813,17 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 
 	if (state->alt && state->alt->svid == USB_TYPEC_DP_SID) {
 		struct typec_displayport_data *data = state->data;
-		bool hpd = !!(data->status & DP_STATUS_HPD_STATE);
+		bool hpd = !!(data && (data->status & DP_STATUS_HPD_STATE));
+
+		if (hpd && udphy->sbu1_dc_gpio && udphy->sbu1_dc_gpio) {
+			if (udphy->flip) {
+				gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 1);
+				gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 0);
+			} else {
+				gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 0);
+				gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 1);
+			}
+		}
 
 		if (cfg->hpd_event_trigger)
 			cfg->hpd_event_trigger(udphy, hpd);
