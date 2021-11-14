@@ -51,8 +51,8 @@
 #define Rn	(regs->regs[n])
 #define Rm	(regs->regs[m])
 
-#define WRITE(d,a)	({if(put_user(d, (typeof (d)*)a)) return -EFAULT;})
-#define READ(d,a)	({if(get_user(d, (typeof (d)*)a)) return -EFAULT;})
+#define MWRITE(d,a)	({if(put_user(d, (typeof (d) __user *)a)) return -EFAULT;})
+#define MREAD(d,a)	({if(get_user(d, (typeof (d) __user *)a)) return -EFAULT;})
 
 #define PACK_S(r,f)	FP_PACK_SP(&r,f)
 #define UNPACK_S(f,r)	FP_UNPACK_SP(f,&r)
@@ -157,11 +157,11 @@ fmov_idx_reg(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m,
 {
 	if (FPSCR_SZ) {
 		FMOV_EXT(n);
-		READ(FRn, Rm + R0 + 4);
+		MREAD(FRn, Rm + R0 + 4);
 		n++;
-		READ(FRn, Rm + R0);
+		MREAD(FRn, Rm + R0);
 	} else {
-		READ(FRn, Rm + R0);
+		MREAD(FRn, Rm + R0);
 	}
 
 	return 0;
@@ -173,11 +173,11 @@ fmov_mem_reg(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m,
 {
 	if (FPSCR_SZ) {
 		FMOV_EXT(n);
-		READ(FRn, Rm + 4);
+		MREAD(FRn, Rm + 4);
 		n++;
-		READ(FRn, Rm);
+		MREAD(FRn, Rm);
 	} else {
-		READ(FRn, Rm);
+		MREAD(FRn, Rm);
 	}
 
 	return 0;
@@ -189,12 +189,12 @@ fmov_inc_reg(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m,
 {
 	if (FPSCR_SZ) {
 		FMOV_EXT(n);
-		READ(FRn, Rm + 4);
+		MREAD(FRn, Rm + 4);
 		n++;
-		READ(FRn, Rm);
+		MREAD(FRn, Rm);
 		Rm += 8;
 	} else {
-		READ(FRn, Rm);
+		MREAD(FRn, Rm);
 		Rm += 4;
 	}
 
@@ -207,11 +207,11 @@ fmov_reg_idx(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m,
 {
 	if (FPSCR_SZ) {
 		FMOV_EXT(m);
-		WRITE(FRm, Rn + R0 + 4);
+		MWRITE(FRm, Rn + R0 + 4);
 		m++;
-		WRITE(FRm, Rn + R0);
+		MWRITE(FRm, Rn + R0);
 	} else {
-		WRITE(FRm, Rn + R0);
+		MWRITE(FRm, Rn + R0);
 	}
 
 	return 0;
@@ -223,11 +223,11 @@ fmov_reg_mem(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m,
 {
 	if (FPSCR_SZ) {
 		FMOV_EXT(m);
-		WRITE(FRm, Rn + 4);
+		MWRITE(FRm, Rn + 4);
 		m++;
-		WRITE(FRm, Rn);
+		MWRITE(FRm, Rn);
 	} else {
-		WRITE(FRm, Rn);
+		MWRITE(FRm, Rn);
 	}
 
 	return 0;
@@ -240,12 +240,12 @@ fmov_reg_dec(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m,
 	if (FPSCR_SZ) {
 		FMOV_EXT(m);
 		Rn -= 8;
-		WRITE(FRm, Rn + 4);
+		MWRITE(FRm, Rn + 4);
 		m++;
-		WRITE(FRm, Rn);
+		MWRITE(FRm, Rn);
 	} else {
 		Rn -= 4;
-		WRITE(FRm, Rn);
+		MWRITE(FRm, Rn);
 	}
 
 	return 0;
@@ -445,11 +445,11 @@ id_sys(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, u16 code)
 	case 0x4052:
 	case 0x4062:
 		Rn -= 4;
-		WRITE(*reg, Rn);
+		MWRITE(*reg, Rn);
 		break;
 	case 0x4056:
 	case 0x4066:
-		READ(*reg, Rn);
+		MREAD(*reg, Rn);
 		Rn += 4;
 		break;
 	default:
@@ -465,109 +465,6 @@ static int fpu_emulate(u16 code, struct sh_fpu_soft_struct *fregs, struct pt_reg
 		return id_fnmx(fregs, regs, code);
 	else
 		return id_sys(fregs, regs, code);
-}
-
-/**
- *	denormal_to_double - Given denormalized float number,
- *	                     store double float
- *
- *	@fpu: Pointer to sh_fpu_soft structure
- *	@n: Index to FP register
- */
-static void denormal_to_double(struct sh_fpu_soft_struct *fpu, int n)
-{
-	unsigned long du, dl;
-	unsigned long x = fpu->fpul;
-	int exp = 1023 - 126;
-
-	if (x != 0 && (x & 0x7f800000) == 0) {
-		du = (x & 0x80000000);
-		while ((x & 0x00800000) == 0) {
-			x <<= 1;
-			exp--;
-		}
-		x &= 0x007fffff;
-		du |= (exp << 20) | (x >> 3);
-		dl = x << 29;
-
-		fpu->fp_regs[n] = du;
-		fpu->fp_regs[n+1] = dl;
-	}
-}
-
-/**
- *	ieee_fpe_handler - Handle denormalized number exception
- *
- *	@regs: Pointer to register structure
- *
- *	Returns 1 when it's handled (should not cause exception).
- */
-static int ieee_fpe_handler(struct pt_regs *regs)
-{
-	unsigned short insn = *(unsigned short *)regs->pc;
-	unsigned short finsn;
-	unsigned long nextpc;
-	int nib[4] = {
-		(insn >> 12) & 0xf,
-		(insn >> 8) & 0xf,
-		(insn >> 4) & 0xf,
-		insn & 0xf};
-
-	if (nib[0] == 0xb ||
-	    (nib[0] == 0x4 && nib[2] == 0x0 && nib[3] == 0xb)) /* bsr & jsr */
-		regs->pr = regs->pc + 4;
-
-	if (nib[0] == 0xa || nib[0] == 0xb) { /* bra & bsr */
-		nextpc = regs->pc + 4 + ((short) ((insn & 0xfff) << 4) >> 3);
-		finsn = *(unsigned short *) (regs->pc + 2);
-	} else if (nib[0] == 0x8 && nib[1] == 0xd) { /* bt/s */
-		if (regs->sr & 1)
-			nextpc = regs->pc + 4 + ((char) (insn & 0xff) << 1);
-		else
-			nextpc = regs->pc + 4;
-		finsn = *(unsigned short *) (regs->pc + 2);
-	} else if (nib[0] == 0x8 && nib[1] == 0xf) { /* bf/s */
-		if (regs->sr & 1)
-			nextpc = regs->pc + 4;
-		else
-			nextpc = regs->pc + 4 + ((char) (insn & 0xff) << 1);
-		finsn = *(unsigned short *) (regs->pc + 2);
-	} else if (nib[0] == 0x4 && nib[3] == 0xb &&
-		 (nib[2] == 0x0 || nib[2] == 0x2)) { /* jmp & jsr */
-		nextpc = regs->regs[nib[1]];
-		finsn = *(unsigned short *) (regs->pc + 2);
-	} else if (nib[0] == 0x0 && nib[3] == 0x3 &&
-		 (nib[2] == 0x0 || nib[2] == 0x2)) { /* braf & bsrf */
-		nextpc = regs->pc + 4 + regs->regs[nib[1]];
-		finsn = *(unsigned short *) (regs->pc + 2);
-	} else if (insn == 0x000b) { /* rts */
-		nextpc = regs->pr;
-		finsn = *(unsigned short *) (regs->pc + 2);
-	} else {
-		nextpc = regs->pc + 2;
-		finsn = insn;
-	}
-
-	if ((finsn & 0xf1ff) == 0xf0ad) { /* fcnvsd */
-		struct task_struct *tsk = current;
-
-		if ((tsk->thread.xstate->softfpu.fpscr & (1 << 17))) {
-			/* FPU error */
-			denormal_to_double (&tsk->thread.xstate->softfpu,
-					    (finsn >> 8) & 0xf);
-			tsk->thread.xstate->softfpu.fpscr &=
-				~(FPSCR_CAUSE_MASK | FPSCR_FLAG_MASK);
-			task_thread_info(tsk)->status |= TS_USEDFPU;
-		} else {
-			force_sig_fault(SIGFPE, FPE_FLTINV,
-					(void __user *)regs->pc);
-		}
-
-		regs->pc = nextpc;
-		return 1;
-	}
-
-	return 0;
 }
 
 /**
