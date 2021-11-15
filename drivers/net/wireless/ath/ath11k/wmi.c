@@ -267,20 +267,38 @@ int ath11k_wmi_cmd_send(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
 {
 	struct ath11k_wmi_base *wmi_sc = wmi->wmi_ab;
 	int ret = -EOPNOTSUPP;
+	struct ath11k_base *ab = wmi_sc->ab;
 
 	might_sleep();
 
-	wait_event_timeout(wmi_sc->tx_credits_wq, ({
-		ret = ath11k_wmi_cmd_send_nowait(wmi, skb, cmd_id);
+	if (ab->hw_params.credit_flow) {
+		wait_event_timeout(wmi_sc->tx_credits_wq, ({
+			ret = ath11k_wmi_cmd_send_nowait(wmi, skb, cmd_id);
 
-		if (ret && test_bit(ATH11K_FLAG_CRASH_FLUSH, &wmi_sc->ab->dev_flags))
-			ret = -ESHUTDOWN;
+			if (ret && test_bit(ATH11K_FLAG_CRASH_FLUSH,
+					    &wmi_sc->ab->dev_flags))
+				ret = -ESHUTDOWN;
 
-		(ret != -EAGAIN);
-	}), WMI_SEND_TIMEOUT_HZ);
+			(ret != -EAGAIN);
+			}), WMI_SEND_TIMEOUT_HZ);
+	} else {
+		wait_event_timeout(wmi->tx_ce_desc_wq, ({
+			ret = ath11k_wmi_cmd_send_nowait(wmi, skb, cmd_id);
+
+			if (ret && test_bit(ATH11K_FLAG_CRASH_FLUSH,
+					    &wmi_sc->ab->dev_flags))
+				ret = -ESHUTDOWN;
+
+			(ret != -ENOBUFS);
+			}), WMI_SEND_TIMEOUT_HZ);
+	}
 
 	if (ret == -EAGAIN)
 		ath11k_warn(wmi_sc->ab, "wmi command %d timeout\n", cmd_id);
+
+	if (ret == -ENOBUFS)
+		ath11k_warn(wmi_sc->ab, "ce desc not available for wmi command %d\n",
+			    cmd_id);
 
 	return ret;
 }
@@ -5816,7 +5834,30 @@ static void ath11k_wmi_op_ep_tx_credits(struct ath11k_base *ab)
 static void ath11k_wmi_htc_tx_complete(struct ath11k_base *ab,
 				       struct sk_buff *skb)
 {
+	struct ath11k_pdev_wmi *wmi = NULL;
+	u32 i;
+	u8 wmi_ep_count;
+	u8 eid;
+
+	eid = ATH11K_SKB_CB(skb)->eid;
 	dev_kfree_skb(skb);
+
+	if (eid >= ATH11K_HTC_EP_COUNT)
+		return;
+
+	wmi_ep_count = ab->htc.wmi_ep_count;
+	if (wmi_ep_count > ab->hw_params.max_radios)
+		return;
+
+	for (i = 0; i < ab->htc.wmi_ep_count; i++) {
+		if (ab->wmi_ab.wmi[i].eid == eid) {
+			wmi = &ab->wmi_ab.wmi[i];
+			break;
+		}
+	}
+
+	if (wmi)
+		wake_up(&wmi->tx_ce_desc_wq);
 }
 
 static bool ath11k_reg_is_world_alpha(char *alpha)
@@ -7207,6 +7248,7 @@ static int ath11k_connect_pdev_htc_service(struct ath11k_base *ab,
 	ab->wmi_ab.wmi_endpoint_id[pdev_idx] = conn_resp.eid;
 	ab->wmi_ab.wmi[pdev_idx].eid = conn_resp.eid;
 	ab->wmi_ab.max_msg_len[pdev_idx] = conn_resp.max_msg_len;
+	init_waitqueue_head(&ab->wmi_ab.wmi[pdev_idx].tx_ce_desc_wq);
 
 	return 0;
 }
