@@ -1434,11 +1434,11 @@ struct prot_inuse {
 	int all;
 	int val[PROTO_INUSE_NR];
 };
-/* Called with local bh disabled */
+
 static inline void sock_prot_inuse_add(const struct net *net,
 				       const struct proto *prot, int val)
 {
-	__this_cpu_add(net->core.prot_inuse->val[prot->inuse_idx], val);
+	this_cpu_add(net->core.prot_inuse->val[prot->inuse_idx], val);
 }
 
 static inline void sock_inuse_add(const struct net *net, int val)
