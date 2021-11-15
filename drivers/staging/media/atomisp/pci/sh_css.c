@@ -4154,14 +4154,12 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 		return_err = ia_css_bufq_enqueue_buffer(thread_id,
 							queue_id,
 							(uint32_t)h_vbuf->vptr);
-#if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
 		if (!return_err &&
 		    buf_type == IA_CSS_BUFFER_TYPE_OUTPUT_FRAME) {
 			IA_CSS_LOG("pfp: enqueued OF %d to q %d thread %d",
 				   ddr_buffer.payload.frame.frame_data,
 				   queue_id, thread_id);
 		}
-#endif
 	}
 
 	if (!return_err) {
@@ -4364,12 +4362,10 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 					    sh_css_sp_get_binary_copy_size();
 #endif
 				}
-#if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
 				if (buf_type == IA_CSS_BUFFER_TYPE_OUTPUT_FRAME) {
 					IA_CSS_LOG("pfp: dequeued OF %d with config id %d thread %d",
 						   frame->data, frame->isp_config_id, thread_id);
 				}
-#endif
 
 				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 						    "ia_css_pipe_dequeue_buffer() buf_type=%d, data(DDR address)=0x%x\n",

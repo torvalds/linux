@@ -536,9 +536,7 @@ struct sh_css_sp_pipeline {
 		ia_css_ptr    cont_buf; /* Address of continuous buffer */
 	} metadata;
 #endif
-#if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
 	u32	output_frame_queue_id;
-#endif
 	union {
 		struct {
 			u32	bytes_available;

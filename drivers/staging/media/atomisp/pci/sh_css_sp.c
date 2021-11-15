@@ -1319,14 +1319,12 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	(void)md_info;
 #endif
 
-#if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
 	sh_css_sp_group.pipe[thread_id].output_frame_queue_id = (uint32_t)SH_CSS_INVALID_QUEUE_ID;
 	if (pipe_id != IA_CSS_PIPE_ID_COPY) {
 		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, thread_id,
 					       (enum sh_css_queue_id *)(
 						   &sh_css_sp_group.pipe[thread_id].output_frame_queue_id));
 	}
-#endif
 
 	IA_CSS_LOG("pipe_id %d port_config %08x",
 		   pipe_id, sh_css_sp_group.pipe[thread_id].inout_port_config);

@@ -25,9 +25,6 @@
  * N.B. the 3 input formatters are of 2 different classess
  */
 
-/* per-frame parameter handling support */
-#define SH_CSS_ENABLE_PER_FRAME_PARAMS
-
 #define DMA_DDR_TO_VAMEM_WORKAROUND
 #define DMA_DDR_TO_HMEM_WORKAROUND
 
