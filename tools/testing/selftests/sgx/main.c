@@ -245,6 +245,81 @@ TEST_F(enclave, unclobbered_vdso)
 	EXPECT_EQ(self->run.user_data, 0);
 }
 
+/*
+ * A section metric is concatenated in a way that @low bits 12-31 define the
+ * bits 12-31 of the metric and @high bits 0-19 define the bits 32-51 of the
+ * metric.
+ */
+static unsigned long sgx_calc_section_metric(unsigned int low,
+					     unsigned int high)
+{
+	return (low & GENMASK_ULL(31, 12)) +
+	       ((high & GENMASK_ULL(19, 0)) << 32);
+}
+
+/*
+ * Sum total available physical SGX memory across all EPC sections
+ *
+ * Return: total available physical SGX memory available on system
+ */
+static unsigned long get_total_epc_mem(void)
+{
+	unsigned int eax, ebx, ecx, edx;
+	unsigned long total_size = 0;
+	unsigned int type;
+	int section = 0;
+
+	while (true) {
+		eax = SGX_CPUID;
+		ecx = section + SGX_CPUID_EPC;
+		__cpuid(&eax, &ebx, &ecx, &edx);
+
+		type = eax & SGX_CPUID_EPC_MASK;
+		if (type == SGX_CPUID_EPC_INVALID)
+			break;
+
+		if (type != SGX_CPUID_EPC_SECTION)
+			break;
+
+		total_size += sgx_calc_section_metric(ecx, edx);
+
+		section++;
+	}
+
+	return total_size;
+}
+
+TEST_F(enclave, unclobbered_vdso_oversubscribed)
+{
+	unsigned long total_mem;
+	struct encl_op op;
+
+	total_mem = get_total_epc_mem();
+	ASSERT_NE(total_mem, 0);
+	ASSERT_TRUE(setup_test_encl(total_mem, &self->encl, _metadata));
+
+	memset(&self->run, 0, sizeof(self->run));
+	self->run.tcs = self->encl.encl_base;
+
+	op.type = ENCL_OP_PUT;
+	op.buffer = MAGIC;
+
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, false), 0);
+
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.user_data, 0);
+
+	op.type = ENCL_OP_GET;
+	op.buffer = 0;
+
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, false), 0);
+
+	EXPECT_EQ(op.buffer, MAGIC);
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.user_data, 0);
+
+}
+
 TEST_F(enclave, clobbered_vdso)
 {
 	struct encl_op op;
