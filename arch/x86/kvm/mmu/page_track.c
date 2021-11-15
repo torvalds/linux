@@ -174,8 +174,8 @@ EXPORT_SYMBOL_GPL(kvm_slot_page_track_remove_page);
  * check if the corresponding access on the specified guest page is tracked.
  */
 bool kvm_slot_page_track_is_active(struct kvm *kvm,
-				   struct kvm_memory_slot *slot, gfn_t gfn,
-				   enum kvm_page_track_mode mode)
+				   const struct kvm_memory_slot *slot,
+				   gfn_t gfn, enum kvm_page_track_mode mode)
 {
 	int index;
 
