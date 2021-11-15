@@ -1994,7 +1994,10 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 		/* 8168G family. */
 		{ 0x7cf, 0x5c8,	RTL_GIGA_MAC_VER_44 },
 		{ 0x7cf, 0x509,	RTL_GIGA_MAC_VER_42 },
-		{ 0x7cf, 0x4c1,	RTL_GIGA_MAC_VER_41 },
+		/* It seems this chip version never made it to
+		 * the wild. Let's disable detection.
+		 * { 0x7cf, 0x4c1,	RTL_GIGA_MAC_VER_41 },
+		 */
 		{ 0x7cf, 0x4c0,	RTL_GIGA_MAC_VER_40 },
 
 		/* 8168F family. */
