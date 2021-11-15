@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -1020,8 +1020,8 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
  */
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
-	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false;
+	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	int i, rc;
 
 	if (!hdev->init_done) {
@@ -1039,11 +1039,13 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 		hard_reset = true;
 	}
 
-	if (hdev->reset_upon_device_release &&
-			(flags & HL_DRV_RESET_DEV_RELEASE)) {
-		dev_dbg(hdev->dev,
-			"Perform %s-reset upon device release\n",
-			hard_reset ? "hard" : "soft");
+	if (hdev->reset_upon_device_release && (flags & HL_DRV_RESET_DEV_RELEASE)) {
+		if (hard_reset) {
+			dev_crit(hdev->dev,
+				"Aborting reset because hard-reset is mutually exclusive with reset-on-device-release\n");
+			return -EINVAL;
+		}
+
 		goto do_reset;
 	}
 
