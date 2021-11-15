@@ -459,12 +459,13 @@ static void scmi_vio_remove(struct virtio_device *vdev)
 
 static int scmi_vio_validate(struct virtio_device *vdev)
 {
+#ifdef CONFIG_ARM_SCMI_TRANSPORT_VIRTIO_VERSION1_COMPLIANCE
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
 		dev_err(&vdev->dev,
 			"device does not comply with spec version 1.x\n");
 		return -EINVAL;
 	}
-
+#endif
 	return 0;
 }
 
