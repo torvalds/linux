@@ -76,6 +76,7 @@
 			compatible = "socionext,milbeaut-timer";
 			reg = <0x1e000050 0x20>;
 			interrupts = <0 91 4>;
+			clocks = <&clk 4>;
 		};
 
 		uart1: serial@1e700010 { /* PE4, PE5 */
