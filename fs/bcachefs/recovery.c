@@ -1031,6 +1031,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (c->sb.clean)
 		bch_info(c, "recovering from clean shutdown, journal seq %llu",
 			 le64_to_cpu(clean->journal_seq));
+	else
+		bch_info(c, "recovering from unclean shutdown");
 
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_new_extent_overwrite))) {
 		bch_err(c, "feature new_extent_overwrite not set, filesystem no longer supported");
@@ -1049,7 +1051,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 		bch_err(c, "filesystem may have incompatible bkey formats; run fsck from the compat branch to fix");
 		ret = -EINVAL;
 		goto err;
-
 	}
 
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_alloc_v2))) {
