@@ -330,9 +330,7 @@ sh_css_sp_start_isys_copy(struct ia_css_frame *out_frame,
 	unsigned int thread_id;
 	u8 stage_num = 0;
 	struct sh_css_sp_pipeline *pipe;
-#if defined SH_CSS_ENABLE_METADATA
 	enum sh_css_queue_id queue_id;
-#endif
 
 	assert(out_frame);
 
@@ -372,7 +370,6 @@ sh_css_sp_start_isys_copy(struct ia_css_frame *out_frame,
 
 	set_output_frame_buffer(out_frame, 0);
 
-#if defined SH_CSS_ENABLE_METADATA
 	if (pipe->metadata.height > 0) {
 		ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_METADATA, thread_id,
 					       &queue_id);
@@ -380,7 +377,6 @@ sh_css_sp_start_isys_copy(struct ia_css_frame *out_frame,
 						    queue_id, mmgr_EXCEPTION,
 						    IA_CSS_BUFFER_TYPE_METADATA);
 	}
-#endif
 
 	ia_css_debug_pipe_graph_dump_sp_raw_copy(out_frame);
 }
@@ -904,9 +900,7 @@ initialize_stage_frames(struct ia_css_frames_sp *frames)
 	initialize_frame_buffer_attribute(&frames->out_vf.buf_attr);
 	initialize_frame_buffer_attribute(&frames->s3a_buf);
 	initialize_frame_buffer_attribute(&frames->dvs_buf);
-#if defined SH_CSS_ENABLE_METADATA
 	initialize_frame_buffer_attribute(&frames->metadata_buf);
-#endif
 }
 
 static int
@@ -1032,10 +1026,8 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 						    mmgr_EXCEPTION,
 						    IA_CSS_BUFFER_TYPE_DIS_STATISTICS);
 	}
-#if defined SH_CSS_ENABLE_METADATA
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_METADATA, thread_id, &queue_id);
 	sh_css_copy_buffer_attr_to_spbuffer(&sh_css_sp_stage.frames.metadata_buf, queue_id, mmgr_EXCEPTION, IA_CSS_BUFFER_TYPE_METADATA);
-#endif
 	if (err)
 		return err;
 
@@ -1304,7 +1296,6 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	}
 	sh_css_sp_group.pipe[thread_id].scaler_pp_lut = sh_css_pipe_get_pp_gdc_lut(pipe);
 
-#if defined(SH_CSS_ENABLE_METADATA)
 	if (md_info && md_info->size > 0) {
 		sh_css_sp_group.pipe[thread_id].metadata.width  = md_info->resolution.width;
 		sh_css_sp_group.pipe[thread_id].metadata.height = md_info->resolution.height;
@@ -1314,10 +1305,6 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 		    md_config->data_type, MIPI_PREDICTOR_NONE,
 		    &sh_css_sp_group.pipe[thread_id].metadata.format);
 	}
-#else
-	(void)md_config;
-	(void)md_info;
-#endif
 
 	sh_css_sp_group.pipe[thread_id].output_frame_queue_id = (uint32_t)SH_CSS_INVALID_QUEUE_ID;
 	if (pipe_id != IA_CSS_PIPE_ID_COPY) {

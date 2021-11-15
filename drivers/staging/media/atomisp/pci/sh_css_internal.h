@@ -86,12 +86,6 @@
 #define SH_CSS_MAX_IF_CONFIGS	3 /* Must match with IA_CSS_NR_OF_CONFIGS (not defined yet).*/
 #define SH_CSS_IF_CONFIG_NOT_NEEDED	0xFF
 
-#define SH_CSS_ENABLE_METADATA
-
-#if defined(SH_CSS_ENABLE_METADATA) && !defined(ISP2401)
-#define SH_CSS_ENABLE_METADATA_THREAD
-#endif
-
 /*
  * SH_CSS_MAX_SP_THREADS:
  *	 sp threads visible to host with connected communication queues
@@ -101,7 +95,7 @@
  *	 these threads can't be used as image pipe
  */
 
-#if defined(SH_CSS_ENABLE_METADATA_THREAD)
+#if !defined(ISP2401)
 #define SH_CSS_SP_INTERNAL_METADATA_THREAD	1
 #else
 #define SH_CSS_SP_INTERNAL_METADATA_THREAD	0
@@ -526,7 +520,6 @@ struct sh_css_sp_pipeline {
 				  this struct; needs cleanup */
 	s32 num_execs; /* number of times to run if this is
 			      an acceleration pipe. */
-#if defined(SH_CSS_ENABLE_METADATA)
 	struct {
 		u32        format;   /* Metadata format in hrt format */
 		u32        width;    /* Width of a line */
@@ -535,7 +528,6 @@ struct sh_css_sp_pipeline {
 		u32        size;     /* Total size (in bytes) */
 		ia_css_ptr    cont_buf; /* Address of continuous buffer */
 	} metadata;
-#endif
 	u32	output_frame_queue_id;
 	union {
 		struct {
@@ -570,9 +562,7 @@ struct ia_css_frames_sp {
 	struct ia_css_frame_sp_info internal_frame_info;
 	struct ia_css_buffer_sp s3a_buf;
 	struct ia_css_buffer_sp dvs_buf;
-#if defined SH_CSS_ENABLE_METADATA
 	struct ia_css_buffer_sp metadata_buf;
-#endif
 };
 
 /* Information for a single pipeline stage for an ISP */

@@ -10195,9 +10195,7 @@ void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map)
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PARAMETER_SET, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PER_FRAME_PARAMETER_SET, map);
-#if defined SH_CSS_ENABLE_METADATA
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_METADATA, map);
-#endif
 		if (pipe->pipe_settings.preview.preview_binary.info &&
 		    pipe->pipe_settings.preview.preview_binary.info->sp.enable.s3a)
 			ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_3A_STATISTICS, map);
@@ -10210,9 +10208,7 @@ void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map)
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PARAMETER_SET, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PER_FRAME_PARAMETER_SET, map);
-#if defined SH_CSS_ENABLE_METADATA
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_METADATA, map);
-#endif
 		if (pipe->config.default_capture_config.mode == IA_CSS_CAPTURE_MODE_PRIMARY) {
 			for (i = 0; i < pipe->pipe_settings.capture.num_primary_stage; i++) {
 				if (pipe->pipe_settings.capture.primary_binary[i].info &&
@@ -10237,9 +10233,7 @@ void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map)
 			ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PARAMETER_SET, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PER_FRAME_PARAMETER_SET, map);
-#if defined SH_CSS_ENABLE_METADATA
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_METADATA, map);
-#endif
 		if (pipe->pipe_settings.video.video_binary.info &&
 		    pipe->pipe_settings.video.video_binary.info->sp.enable.s3a)
 			ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_3A_STATISTICS, map);
@@ -10252,18 +10246,14 @@ void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map)
 			ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_INPUT_FRAME, map);
 		if (!pipe->stream->config.continuous)
 			ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, map);
-#if defined SH_CSS_ENABLE_METADATA
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_METADATA, map);
-#endif
 	} else if (pipe->mode == IA_CSS_PIPE_ID_ACC) {
 		if (need_input_queue)
 			ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_INPUT_FRAME, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PARAMETER_SET, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PER_FRAME_PARAMETER_SET, map);
-#if defined SH_CSS_ENABLE_METADATA
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_METADATA, map);
-#endif
 	} else if (pipe->mode == IA_CSS_PIPE_ID_YUVPP) {
 		unsigned int idx;
 
@@ -10275,9 +10265,7 @@ void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map)
 		if (need_input_queue)
 			ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_INPUT_FRAME, map);
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_PARAMETER_SET, map);
-#if defined SH_CSS_ENABLE_METADATA
 		ia_css_queue_map(thread_id, IA_CSS_BUFFER_TYPE_METADATA, map);
-#endif
 	}
 	IA_CSS_LEAVE("");
 }
