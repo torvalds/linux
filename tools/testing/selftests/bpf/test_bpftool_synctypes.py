@@ -242,12 +242,6 @@ class FileExtractor(object):
         end_marker = re.compile('}\\\\n')
         return self.__get_description_list(start_marker, pattern, end_marker)
 
-    def default_options(self):
-        """
-        Return the default options contained in HELP_SPEC_OPTIONS
-        """
-        return { '-j', '--json', '-p', '--pretty', '-d', '--debug' }
-
     def get_bashcomp_list(self, block_name):
         """
         Search for and parse a list of type names from a variable in bash
@@ -274,7 +268,56 @@ class SourceFileExtractor(FileExtractor):
     defined in children classes.
     """
     def get_options(self):
-        return self.default_options().union(self.get_help_list_macro('HELP_SPEC_OPTIONS'))
+        return self.get_help_list_macro('HELP_SPEC_OPTIONS')
+
+class MainHeaderFileExtractor(SourceFileExtractor):
+    """
+    An extractor for bpftool's main.h
+    """
+    filename = os.path.join(BPFTOOL_DIR, 'main.h')
+
+    def get_common_options(self):
+        """
+        Parse the list of common options in main.h (options that apply to all
+        commands), which looks to the lists of options in other source files
+        but has different start and end markers:
+
+            "OPTIONS := { {-j|--json} [{-p|--pretty}] | {-d|--debug} | {-l|--legacy}"
+
+        Return a set containing all options, such as:
+
+            {'-p', '-d', '--legacy', '--pretty', '--debug', '--json', '-l', '-j'}
+        """
+        start_marker = re.compile(f'"OPTIONS :=')
+        pattern = re.compile('([\w-]+) ?(?:\||}[ }\]"])')
+        end_marker = re.compile('#define')
+
+        parser = InlineListParser(self.reader)
+        parser.search_block(start_marker)
+        return parser.parse(pattern, end_marker)
+
+class ManSubstitutionsExtractor(SourceFileExtractor):
+    """
+    An extractor for substitutions.rst
+    """
+    filename = os.path.join(BPFTOOL_DIR, 'Documentation/substitutions.rst')
+
+    def get_common_options(self):
+        """
+        Parse the list of common options in substitutions.rst (options that
+        apply to all commands).
+
+        Return a set containing all options, such as:
+
+            {'-p', '-d', '--legacy', '--pretty', '--debug', '--json', '-l', '-j'}
+        """
+        start_marker = re.compile('\|COMMON_OPTIONS\| replace:: {')
+        pattern = re.compile('\*\*([\w/-]+)\*\*')
+        end_marker = re.compile('}$')
+
+        parser = InlineListParser(self.reader)
+        parser.search_block(start_marker)
+        return parser.parse(pattern, end_marker)
 
 class ProgFileExtractor(SourceFileExtractor):
     """
@@ -579,6 +622,19 @@ def main():
 
     verify(help_main_options, man_main_options,
             f'Comparing {source_main_info.filename} (do_help() OPTIONS) and {man_main_info.filename} (OPTIONS):')
+
+    # Compare common options (options that apply to all commands)
+
+    main_hdr_info = MainHeaderFileExtractor()
+    source_common_options = main_hdr_info.get_common_options()
+    main_hdr_info.close()
+
+    man_substitutions = ManSubstitutionsExtractor()
+    man_common_options = man_substitutions.get_common_options()
+    man_substitutions.close()
+
+    verify(source_common_options, man_common_options,
+            f'Comparing common options from {main_hdr_info.filename} (HELP_SPEC_OPTIONS) and {man_substitutions.filename}:')
 
     sys.exit(retval)
 

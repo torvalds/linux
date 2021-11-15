@@ -9,12 +9,14 @@ tool for inspection of perf related bpf prog attachments
 
 :Manual section: 8
 
+.. include:: substitutions.rst
+
 SYNOPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **perf** *COMMAND*
 
-	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-d** | **--debug** } }
+	*OPTIONS* := { |COMMON_OPTIONS| }
 
 	*COMMANDS* :=
 	{ **show** | **list** | **help** }
