@@ -1957,7 +1957,7 @@ config EFI
 
 config EFI_STUB
 	bool "EFI stub support"
-	depends on EFI && !X86_USE_3DNOW
+	depends on EFI
 	depends on $(cc-option,-mabi=ms) || X86_32
 	select RELOCATABLE
 	help

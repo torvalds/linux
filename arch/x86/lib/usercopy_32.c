@@ -8,7 +8,6 @@
  */
 #include <linux/export.h>
 #include <linux/uaccess.h>
-#include <asm/mmx.h>
 #include <asm/asm.h>
 
 #ifdef CONFIG_X86_INTEL_USERCOPY
