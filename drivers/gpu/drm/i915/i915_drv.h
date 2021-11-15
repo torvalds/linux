@@ -50,7 +50,6 @@
 #include <linux/stackdepot.h>
 #include <linux/xarray.h>
 
-#include <drm/intel-gtt.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_cache.h>

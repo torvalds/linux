@@ -9,6 +9,7 @@
 #include <asm/smp.h>
 
 #include <drm/i915_drm.h>
+#include <drm/intel-gtt.h>
 
 #include "gem/i915_gem_lmem.h"
 
