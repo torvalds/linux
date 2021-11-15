@@ -217,4 +217,5 @@ bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx);
 void reset_dp_hpo_stream_encoders_for_link(struct dc_link *link);
 
 bool dp_retrieve_lttpr_cap(struct dc_link *link);
+void edp_panel_backlight_power_on(struct dc_link *link);
 #endif /* __DC_LINK_DP_H__ */

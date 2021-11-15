@@ -6360,3 +6360,14 @@ bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx)
 			dc_is_dp_signal(pipe_ctx->stream->signal));
 }
 #endif
+
+void edp_panel_backlight_power_on(struct dc_link *link)
+{
+	if (link->connector_signal != SIGNAL_TYPE_EDP)
+		return;
+
+	link->dc->hwss.edp_power_control(link, true);
+	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+	if (link->dc->hwss.edp_backlight_control)
+		link->dc->hwss.edp_backlight_control(link, true);
+}
