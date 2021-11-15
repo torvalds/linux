@@ -49,45 +49,6 @@ static int i2c_mux_gpio_deselect(struct i2c_mux_core *muxc, u32 chan)
 	return 0;
 }
 
-#ifdef CONFIG_ACPI
-
-static int i2c_mux_gpio_get_acpi_adr(struct device *dev,
-				     struct fwnode_handle *fwdev,
-				     unsigned int *adr)
-
-{
-	unsigned long long adr64;
-	acpi_status status;
-
-	status = acpi_evaluate_integer(ACPI_HANDLE_FWNODE(fwdev),
-				       METHOD_NAME__ADR,
-				       NULL, &adr64);
-
-	if (!ACPI_SUCCESS(status)) {
-		dev_err(dev, "Cannot get address\n");
-		return -EINVAL;
-	}
-
-	*adr = adr64;
-	if (*adr != adr64) {
-		dev_err(dev, "Address out of range\n");
-		return -ERANGE;
-	}
-
-	return 0;
-}
-
-#else
-
-static int i2c_mux_gpio_get_acpi_adr(struct device *dev,
-				     struct fwnode_handle *fwdev,
-				     unsigned int *adr)
-{
-	return -EINVAL;
-}
-
-#endif
-
 static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 				 struct platform_device *pdev)
 {
@@ -141,9 +102,9 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 			fwnode_property_read_u32(child, "reg", values + i);
 
 		} else if (is_acpi_node(child)) {
-			rc = i2c_mux_gpio_get_acpi_adr(dev, child, values + i);
+			rc = acpi_get_local_address(ACPI_HANDLE_FWNODE(child), values + i);
 			if (rc)
-				return rc;
+				return dev_err_probe(dev, rc, "Cannot get address\n");
 		}
 
 		i++;
