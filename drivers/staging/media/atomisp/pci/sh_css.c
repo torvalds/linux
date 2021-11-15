@@ -3884,6 +3884,7 @@ preview_start(struct ia_css_pipe *pipe)
 	enum ia_css_input_mode preview_pipe_input_mode;
 	const struct ia_css_coordinate *coord = NULL;
 	const struct ia_css_isp_parameters *params = NULL;
+	unsigned int thread_id;
 
 	IA_CSS_ENTER_PRIVATE("pipe = %p", pipe);
 	if ((!pipe) || (!pipe->stream) || (pipe->mode != IA_CSS_PIPE_ID_PREVIEW)) {
@@ -3907,17 +3908,13 @@ preview_start(struct ia_css_pipe *pipe)
 	}
 	send_raw_frames(pipe);
 
-	{
-		unsigned int thread_id;
+	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
+	copy_ovrd = 1 << thread_id;
 
-		ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
-		copy_ovrd = 1 << thread_id;
-
-		if (pipe->stream->cont_capt) {
-			ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(capture_pipe),
-							 &thread_id);
-			copy_ovrd |= 1 << thread_id;
-		}
+	if (pipe->stream->cont_capt) {
+		ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(capture_pipe),
+						    &thread_id);
+		copy_ovrd |= 1 << thread_id;
 	}
 
 	if (IS_ISP2401) {
@@ -5653,9 +5650,9 @@ static int video_start(struct ia_css_pipe *pipe)
 	struct ia_css_pipe *copy_pipe, *capture_pipe;
 	enum sh_css_pipe_config_override copy_ovrd;
 	enum ia_css_input_mode video_pipe_input_mode;
-
 	const struct ia_css_coordinate *coord = NULL;
 	const struct ia_css_isp_parameters *params = NULL;
+	unsigned int thread_id;
 
 	IA_CSS_ENTER_PRIVATE("pipe = %p", pipe);
 	if ((!pipe) || (pipe->mode != IA_CSS_PIPE_ID_VIDEO)) {
@@ -5677,17 +5674,14 @@ static int video_start(struct ia_css_pipe *pipe)
 		return err;
 
 	send_raw_frames(pipe);
-	{
-		unsigned int thread_id;
 
-		ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
-		copy_ovrd = 1 << thread_id;
+	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
+	copy_ovrd = 1 << thread_id;
 
-		if (pipe->stream->cont_capt) {
-			ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(capture_pipe),
-							 &thread_id);
-			copy_ovrd |= 1 << thread_id;
-		}
+	if (pipe->stream->cont_capt) {
+		ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(capture_pipe),
+						    &thread_id);
+		copy_ovrd |= 1 << thread_id;
 	}
 
 	if (IS_ISP2401) {
@@ -7254,6 +7248,7 @@ static int yuvpp_start(struct ia_css_pipe *pipe)
 	int err = 0;
 	enum sh_css_pipe_config_override copy_ovrd;
 	enum ia_css_input_mode yuvpp_pipe_input_mode;
+	unsigned int thread_id;
 
 	IA_CSS_ENTER_PRIVATE("pipe = %p", pipe);
 	if ((!pipe) || (pipe->mode != IA_CSS_PIPE_ID_YUVPP)) {
@@ -7273,12 +7268,8 @@ static int yuvpp_start(struct ia_css_pipe *pipe)
 		return err;
 	}
 
-	{
-		unsigned int thread_id;
-
-		ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
-		copy_ovrd = 1 << thread_id;
-	}
+	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
+	copy_ovrd = 1 << thread_id;
 
 	start_pipe(pipe, copy_ovrd, yuvpp_pipe_input_mode);
 
@@ -8105,6 +8096,7 @@ create_host_capture_pipeline(struct ia_css_pipe *pipe)
 static int capture_start(struct ia_css_pipe *pipe)
 {
 	struct ia_css_pipeline *me;
+	unsigned int thread_id;
 
 	int err = 0;
 	enum sh_css_pipe_config_override copy_ovrd;
@@ -8145,12 +8137,9 @@ static int capture_start(struct ia_css_pipe *pipe)
 
 #endif
 
-	{
-		unsigned int thread_id;
+	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
+	copy_ovrd = 1 << thread_id;
 
-		ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
-		copy_ovrd = 1 << thread_id;
-	}
 	start_pipe(pipe, copy_ovrd, pipe->stream->config.mode);
 
 #if !defined(ISP2401)
