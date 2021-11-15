@@ -837,7 +837,7 @@
 &pinctrl {
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

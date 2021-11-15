@@ -138,7 +138,7 @@
 	};
 
 	rk_headset: rk-headset {
-		status = "disabled";
+		status = "okay";
 		compatible = "rockchip_headset";
 		headset_gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -307,11 +307,11 @@
 &i2c3 {
 	status = "okay";
 
-	es8388: es8388@10 {
+	es8388: es8388@11 {
 		status = "okay";
 		#sound-dai-cells = <0>;
-		compatible = "everest,es8388";
-		reg = <0x10>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x11>;
 		clocks = <&cru I2S0_8CH_MCLKOUT>;
 		clock-names = "mclk";
 		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
@@ -319,6 +319,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
 		spk-con-gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+		hp-con-gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		extcon = <&rk_headset>;
 	};
 };
 
@@ -432,6 +434,7 @@
 
 &i2s0_8ch {
 	status = "okay";
+	rockchip,clk-trcm = <1>;
 	pinctrl-0 = <&i2s0_lrck
 		     &i2s0_sclk
 		     &i2s0_sdi0
