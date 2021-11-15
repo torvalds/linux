@@ -1018,12 +1018,18 @@ static inline __must_check int sk_add_backlog(struct sock *sk, struct sk_buff *s
 
 int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 
+INDIRECT_CALLABLE_DECLARE(int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb));
+INDIRECT_CALLABLE_DECLARE(int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb));
+
 static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	if (sk_memalloc_socks() && skb_pfmemalloc(skb))
 		return __sk_backlog_rcv(sk, skb);
 
-	return sk->sk_backlog_rcv(sk, skb);
+	return INDIRECT_CALL_INET(sk->sk_backlog_rcv,
+				  tcp_v6_do_rcv,
+				  tcp_v4_do_rcv,
+				  sk, skb);
 }
 
 static inline void sk_incoming_cpu_update(struct sock *sk)
