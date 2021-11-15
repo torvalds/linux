@@ -177,7 +177,7 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 		bo->validated_shader = NULL;
 	}
 
-	drm_gem_cma_free_object(obj);
+	drm_gem_cma_free(&bo->base);
 }
 
 static void vc4_bo_remove_from_cache(struct vc4_bo *bo)
@@ -720,7 +720,7 @@ static int vc4_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct
 		return -EINVAL;
 	}
 
-	return drm_gem_cma_mmap(obj, vma);
+	return drm_gem_cma_mmap(&bo->base, vma);
 }
 
 static const struct vm_operations_struct vc4_vm_ops = {

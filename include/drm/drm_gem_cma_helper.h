@@ -32,28 +32,23 @@ struct drm_gem_cma_object {
 #define to_drm_gem_cma_obj(gem_obj) \
 	container_of(gem_obj, struct drm_gem_cma_object, base)
 
-/* free GEM object */
-void drm_gem_cma_free_object(struct drm_gem_object *gem_obj);
-
-/* allocate physical memory */
 struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 					      size_t size);
+void drm_gem_cma_free(struct drm_gem_cma_object *cma_obj);
+void drm_gem_cma_print_info(const struct drm_gem_cma_object *cma_obj,
+			    struct drm_printer *p, unsigned int indent);
+struct sg_table *drm_gem_cma_get_sg_table(struct drm_gem_cma_object *cma_obj);
+int drm_gem_cma_vmap(struct drm_gem_cma_object *cma_obj, struct dma_buf_map *map);
+int drm_gem_cma_mmap(struct drm_gem_cma_object *cma_obj, struct vm_area_struct *vma);
 
 extern const struct vm_operations_struct drm_gem_cma_vm_ops;
-
-void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
-			    const struct drm_gem_object *obj);
-
-struct sg_table *drm_gem_cma_get_sg_table(struct drm_gem_object *obj);
-int drm_gem_cma_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
-int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
 /*
  * GEM object functions
  */
 
 /**
- * drm_gem_cma_object_free - GEM object function for drm_gem_cma_free_object()
+ * drm_gem_cma_object_free - GEM object function for drm_gem_cma_free()
  * @obj: GEM object to free
  *
  * This function wraps drm_gem_cma_free_object(). Drivers that employ the CMA helpers
@@ -61,7 +56,9 @@ int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
  */
 static inline void drm_gem_cma_object_free(struct drm_gem_object *obj)
 {
-	drm_gem_cma_free_object(obj);
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+
+	drm_gem_cma_free(cma_obj);
 }
 
 /**
@@ -76,7 +73,9 @@ static inline void drm_gem_cma_object_free(struct drm_gem_object *obj)
 static inline void drm_gem_cma_object_print_info(struct drm_printer *p, unsigned int indent,
 						 const struct drm_gem_object *obj)
 {
-	drm_gem_cma_print_info(p, indent, obj);
+	const struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+
+	drm_gem_cma_print_info(cma_obj, p, indent);
 }
 
 /**
@@ -91,7 +90,9 @@ static inline void drm_gem_cma_object_print_info(struct drm_printer *p, unsigned
  */
 static inline struct sg_table *drm_gem_cma_object_get_sg_table(struct drm_gem_object *obj)
 {
-	return drm_gem_cma_get_sg_table(obj);
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+
+	return drm_gem_cma_get_sg_table(cma_obj);
 }
 
 /*
@@ -107,7 +108,9 @@ static inline struct sg_table *drm_gem_cma_object_get_sg_table(struct drm_gem_ob
  */
 static inline int drm_gem_cma_object_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
-	return drm_gem_cma_vmap(obj, map);
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+
+	return drm_gem_cma_vmap(cma_obj, map);
 }
 
 /**
@@ -123,7 +126,9 @@ static inline int drm_gem_cma_object_vmap(struct drm_gem_object *obj, struct dma
  */
 static inline int drm_gem_cma_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
-	return drm_gem_cma_mmap(obj, vma);
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
+
+	return drm_gem_cma_mmap(cma_obj, vma);
 }
 
 /*
