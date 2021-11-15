@@ -469,7 +469,7 @@ static ssize_t amdgpu_get_pp_force_state(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	if (adev->pp_force_state_enabled)
+	if (adev->pm.pp_force_state_enabled)
 		return amdgpu_get_pp_cur_state(dev, attr, buf);
 	else
 		return sysfs_emit(buf, "\n");
@@ -492,7 +492,7 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	adev->pp_force_state_enabled = false;
+	adev->pm.pp_force_state_enabled = false;
 
 	if (strlen(buf) == 1)
 		return count;
@@ -523,7 +523,7 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 		if (ret)
 			goto err_out;
 
-		adev->pp_force_state_enabled = true;
+		adev->pm.pp_force_state_enabled = true;
 	}
 
 	pm_runtime_mark_last_busy(ddev->dev);
