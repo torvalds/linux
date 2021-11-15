@@ -154,9 +154,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	secondary_data.swapper_pg_dir = get_arch_pgd(swapper_pg_dir);
 #endif
 	secondary_data.task = idle;
-	if (IS_ENABLED(CONFIG_THREAD_INFO_IN_TASK))
-		task_thread_info(idle)->cpu = cpu;
-
 	sync_cache_w(&secondary_data);
 
 	/*
