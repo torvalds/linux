@@ -495,6 +495,7 @@ struct bch_dev {
 
 enum {
 	/* startup: */
+	BCH_FS_INITIALIZED,
 	BCH_FS_ALLOC_READ_DONE,
 	BCH_FS_ALLOC_CLEAN,
 	BCH_FS_ALLOCATOR_RUNNING,

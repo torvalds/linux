@@ -117,6 +117,8 @@ static inline struct bch_dev_usage *dev_usage_ptr(struct bch_dev *ca,
 						  unsigned journal_seq,
 						  bool gc)
 {
+	BUG_ON(!gc && !journal_seq);
+
 	return this_cpu_ptr(gc
 			    ? ca->usage_gc
 			    : ca->usage[journal_seq & JOURNAL_BUF_MASK]);
@@ -142,6 +144,8 @@ static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
 						unsigned journal_seq,
 						bool gc)
 {
+	BUG_ON(!gc && !journal_seq);
+
 	return this_cpu_ptr(gc
 			    ? c->usage_gc
 			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
@@ -363,6 +367,13 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 {
 	struct bch_fs_usage *fs_usage;
 	struct bch_dev_usage *u;
+
+	/*
+	 * Hack for bch2_fs_initialize path, where we're first marking sb and
+	 * journal non-transactionally:
+	 */
+	if (!journal_seq && !test_bit(BCH_FS_INITIALIZED, &c->flags))
+		journal_seq = 1;
 
 	percpu_rwsem_assert_held(&c->mark_lock);
 

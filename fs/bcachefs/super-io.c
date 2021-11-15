@@ -447,8 +447,16 @@ int bch2_sb_to_fs(struct bch_fs *c, struct bch_sb *src)
 
 	if (BCH_SB_HAS_ERRORS(c->disk_sb.sb))
 		set_bit(BCH_FS_ERROR, &c->flags);
+	else
+		clear_bit(BCH_FS_ERROR, &c->flags);
+
 	if (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb))
 		set_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags);
+	else
+		clear_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags);
+
+	if (BCH_SB_INITIALIZED(c->disk_sb.sb))
+		set_bit(BCH_FS_INITIALIZED, &c->flags);
 
 	ret = bch2_sb_replicas_to_cpu_replicas(c);
 	if (ret)
