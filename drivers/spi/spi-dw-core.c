@@ -273,7 +273,7 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 
 	if (!(dws->caps & DW_SPI_CAP_DWC_SSI)) {
 		/* CTRLR0[ 5: 4] Frame Format */
-		cr0 |= SSI_MOTO_SPI << SPI_FRF_OFFSET;
+		cr0 |= SPI_FRF_MOTO_SPI << SPI_FRF_OFFSET;
 
 		/*
 		 * SPI mode (SCPOL|SCPH)
@@ -287,7 +287,7 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 		cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << SPI_SRL_OFFSET;
 	} else {
 		/* CTRLR0[ 7: 6] Frame Format */
-		cr0 |= SSI_MOTO_SPI << DWC_SSI_CTRLR0_FRF_OFFSET;
+		cr0 |= SPI_FRF_MOTO_SPI << DWC_SSI_CTRLR0_FRF_OFFSET;
 
 		/*
 		 * SPI mode (SCPOL|SCPH)

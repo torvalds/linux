@@ -46,9 +46,9 @@
 #define SPI_DFS32_OFFSET		16
 
 #define SPI_FRF_OFFSET			4
-#define SPI_FRF_SPI			0x0
-#define SPI_FRF_SSP			0x1
-#define SPI_FRF_MICROWIRE		0x2
+#define SPI_FRF_MOTO_SPI		0x0
+#define SPI_FRF_TI_SSP			0x1
+#define SPI_FRF_NS_MICROWIRE		0x2
 #define SPI_FRF_RESV			0x3
 
 #define SPI_MODE_OFFSET			6
@@ -113,12 +113,6 @@
 	 sizeof_field(struct spi_mem_op, addr.val) + 256)
 #define SPI_GET_BYTE(_val, _idx) \
 	((_val) >> (BITS_PER_BYTE * (_idx)) & 0xff)
-
-enum dw_ssi_type {
-	SSI_MOTO_SPI = 0,
-	SSI_TI_SSP,
-	SSI_NS_MICROWIRE,
-};
 
 /* DW SPI capabilities */
 #define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
