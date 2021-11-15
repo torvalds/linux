@@ -14,7 +14,7 @@
 #include <net/tcp.h>
 #include <net/route.h>
 
-static siphash_key_t syncookie_secret[2] __read_mostly;
+static siphash_aligned_key_t syncookie_secret[2];
 
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)

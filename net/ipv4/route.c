@@ -602,7 +602,7 @@ static void fnhe_remove_oldest(struct fnhe_hash_bucket *hash)
 
 static u32 fnhe_hashfun(__be32 daddr)
 {
-	static siphash_key_t fnhe_hash_key __read_mostly;
+	static siphash_aligned_key_t fnhe_hash_key;
 	u64 hval;
 
 	net_get_random_once(&fnhe_hash_key, sizeof(fnhe_hash_key));
