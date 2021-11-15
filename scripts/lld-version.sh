@@ -6,15 +6,32 @@
 # Print the linker version of `ld.lld' in a 5 or 6-digit form
 # such as `100001' for ld.lld 10.0.1 etc.
 
-linker_string="$($* --version)"
+set -e
 
-if ! ( echo $linker_string | grep -q LLD ); then
+# Convert the version string x.y.z to a canonical 5 or 6-digit form.
+get_canonical_version()
+{
+	IFS=.
+	set -- $1
+
+	# If the 2nd or 3rd field is missing, fill it with a zero.
+	echo $((10000 * $1 + 100 * ${2:-0} + ${3:-0}))
+}
+
+# Get the first line of the --version output.
+IFS='
+'
+set -- $(LC_ALL=C "$@" --version)
+
+# Split the line on spaces.
+IFS=' '
+set -- $1
+
+while [ $# -gt 1 -a "$1" != "LLD" ]; do
+	shift
+done
+if [ "$1" = LLD ]; then
+	echo $(get_canonical_version ${2%-*})
+else
 	echo 0
-	exit 1
 fi
-
-VERSION=$(echo $linker_string | cut -d ' ' -f 2)
-MAJOR=$(echo $VERSION | cut -d . -f 1)
-MINOR=$(echo $VERSION | cut -d . -f 2)
-PATCHLEVEL=$(echo $VERSION | cut -d . -f 3)
-printf "%d%02d%02d\\n" $MAJOR $MINOR $PATCHLEVEL
