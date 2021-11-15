@@ -2178,6 +2178,9 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 
+	if (!ata_identify_page_supported(dev, ATA_LOG_SATA_SETTINGS))
+		return;
+
 	err_mask = ata_read_log_page(dev,
 				     ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SATA_SETTINGS,
@@ -2454,7 +2457,8 @@ static void ata_dev_config_devslp(struct ata_device *dev)
 	 * Check device sleep capability. Get DevSlp timing variables
 	 * from SATA Settings page of Identify Device Data Log.
 	 */
-	if (!ata_id_has_devslp(dev->id))
+	if (!ata_id_has_devslp(dev->id) ||
+	    !ata_identify_page_supported(dev, ATA_LOG_SATA_SETTINGS))
 		return;
 
 	err_mask = ata_read_log_page(dev,
