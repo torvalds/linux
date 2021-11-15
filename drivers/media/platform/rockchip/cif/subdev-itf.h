@@ -21,7 +21,7 @@
 
 #define RKISP0_DEVNAME "rkisp0"
 #define RKISP1_DEVNAME "rkisp1"
-#define RKISP_UNITE_DEVNAME "rkisp_unite"
+#define RKISP_UNITE_DEVNAME "rkisp-unite"
 
 #define RKCIF_TOISP_CH0	0
 #define RKCIF_TOISP_CH1	1
