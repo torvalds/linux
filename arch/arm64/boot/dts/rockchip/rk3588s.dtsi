@@ -2905,6 +2905,7 @@
 		power-domains = <&power RK3588_PD_AUDIO>;
 		resets = <&cru SRST_M_I2S0_8CH_TX>, <&cru SRST_M_I2S0_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
+		rockchip,clk-trcm = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_lrck
 			     &i2s0_sclk
@@ -2930,6 +2931,7 @@
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_M_I2S1_8CH_TX>, <&cru SRST_M_I2S1_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
+		rockchip,clk-trcm = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1m0_lrck
 			     &i2s1m0_sclk
@@ -2954,6 +2956,7 @@
 		dmas = <&dmac1 0>, <&dmac1 1>;
 		dma-names = "tx", "rx";
 		power-domains = <&power RK3588_PD_AUDIO>;
+		rockchip,clk-trcm = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s2m1_lrck
 			     &i2s2m1_sclk
@@ -2972,6 +2975,7 @@
 		dmas = <&dmac1 2>, <&dmac1 3>;
 		dma-names = "tx", "rx";
 		power-domains = <&power RK3588_PD_AUDIO>;
+		rockchip,clk-trcm = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s3_lrck
 			     &i2s3_sclk
