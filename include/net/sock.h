@@ -1439,11 +1439,21 @@ static inline void sock_prot_inuse_add(const struct net *net,
 {
 	__this_cpu_add(net->core.prot_inuse->val[prot->inuse_idx], val);
 }
+
+static inline void sock_inuse_add(const struct net *net, int val)
+{
+	this_cpu_add(*net->core.sock_inuse, val);
+}
+
 int sock_prot_inuse_get(struct net *net, struct proto *proto);
 int sock_inuse_get(struct net *net);
 #else
 static inline void sock_prot_inuse_add(const struct net *net,
 				       const struct proto *prot, int val)
+{
+}
+
+static inline void sock_inuse_add(const struct net *net, int val)
 {
 }
 #endif
