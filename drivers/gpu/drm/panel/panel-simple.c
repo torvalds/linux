@@ -38,6 +38,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_dsc.h>
 
 #include "panel-simple.h"
 
@@ -144,6 +145,7 @@ struct panel_simple {
 
 	struct drm_display_mode override_mode;
 
+	struct drm_dsc_picture_parameter_set *pps;
 	enum drm_panel_orientation orientation;
 };
 
@@ -216,7 +218,6 @@ static int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
 {
 	struct device *dev = panel->base.dev;
 	struct mipi_dsi_device *dsi = panel->dsi;
-	struct drm_dsc_picture_parameter_set *pps = NULL;
 	unsigned int i;
 	int err;
 
@@ -246,8 +247,16 @@ static int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
 							cmd->header.payload_length);
 			break;
 		case MIPI_DSI_PICTURE_PARAMETER_SET:
-			pps = (struct drm_dsc_picture_parameter_set *)cmd->payload;
-			err = mipi_dsi_picture_parameter_set(dsi, pps);
+			if (!panel->pps) {
+				panel->pps = devm_kzalloc(dev, sizeof(*panel->pps),
+							  GFP_KERNEL);
+				if (!panel->pps)
+					return -ENOMEM;
+
+				memcpy(panel->pps, cmd->payload, cmd->header.payload_length);
+			}
+
+			err = mipi_dsi_picture_parameter_set(dsi, panel->pps);
 			break;
 		default:
 			return -EINVAL;
