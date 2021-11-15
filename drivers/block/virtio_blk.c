@@ -30,20 +30,8 @@
 #define VIRTIO_BLK_INLINE_SG_CNT	2
 #endif
 
-static int virtblk_queue_count_set(const char *val,
-		const struct kernel_param *kp)
-{
-	return param_set_uint_minmax(val, kp, 1, nr_cpu_ids);
-}
-
-static const struct kernel_param_ops queue_count_ops = {
-	.set = virtblk_queue_count_set,
-	.get = param_get_uint,
-};
-
 static unsigned int num_request_queues;
-module_param_cb(num_request_queues, &queue_count_ops, &num_request_queues,
-		0644);
+module_param(num_request_queues, uint, 0644);
 MODULE_PARM_DESC(num_request_queues,
 		 "Limit the number of request queues to use for blk device. "
 		 "0 for no limit. "
