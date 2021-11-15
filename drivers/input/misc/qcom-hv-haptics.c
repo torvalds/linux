@@ -347,6 +347,7 @@ enum haptics_hw_type {
 enum wa_flags {
 	TOGGLE_CAL_RC_CLK = BIT(0),
 	SW_CTRL_HBST = BIT(1),
+	SLEEP_CLK_32K_SCALE = BIT(2),
 };
 
 static const char * const src_str[] = {
@@ -869,15 +870,17 @@ static int haptics_adjust_lra_period(struct haptics_chip *chip, u32 *t_lra_us)
 	int rc;
 	u8 val;
 
-	rc = haptics_read(chip, chip->cfg_addr_base,
-			HAP_CFG_CAL_EN_REG, &val, 1);
-	if (rc < 0)
-		return rc;
+	if (chip->wa_flags & SLEEP_CLK_32K_SCALE) {
+		rc = haptics_read(chip, chip->cfg_addr_base,
+				HAP_CFG_CAL_EN_REG, &val, 1);
+		if (rc < 0)
+			return rc;
 
-	if ((val & CAL_RC_CLK_MASK) ==
-			(CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT))
-		*t_lra_us = div_u64((u64)(*t_lra_us) * AUTO_CAL_CLK_SCALE_NUM,
-				AUTO_CAL_CLK_SCALE_DEN);
+		if ((val & CAL_RC_CLK_MASK) ==
+				(CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT))
+			*t_lra_us = div_u64((u64)(*t_lra_us) * AUTO_CAL_CLK_SCALE_NUM,
+					AUTO_CAL_CLK_SCALE_DEN);
+	}
 
 	return 0;
 }
@@ -888,8 +891,10 @@ static int haptics_adjust_lra_period(struct haptics_chip *chip, u32 *t_lra_us)
 /* constant definitions for calculating TLRA */
 #define TLRA_AUTO_RES_ERR_NO_CAL_STEP_PSEC	1667000
 #define TLRA_AUTO_RES_NO_CAL_STEP_PSEC		3333000
-#define TLRA_AUTO_RES_ERR_AUTO_CAL_STEP_PSEC	1627700
-#define TLRA_AUTO_RES_AUTO_CAL_STEP_PSEC	813850
+#define TLRA_AUTO_RES_ERR_AUTO_CAL_STEP_PSEC	\
+	((chip->wa_flags & SLEEP_CLK_32K_SCALE) ? 1627700 : 1666667)
+#define TLRA_AUTO_RES_AUTO_CAL_STEP_PSEC	\
+	((chip->wa_flags & SLEEP_CLK_32K_SCALE) ? 813850 : 833333)
 static int haptics_get_closeloop_lra_period(
 		struct haptics_chip *chip, bool in_boot)
 {
@@ -959,7 +964,7 @@ static int haptics_get_closeloop_lra_period(
 		/*
 		 * CAL_TLRA_OL = CAL_TLRA_CL_STS;
 		 * TLRA_CL_ERR(us) = TLRA_CL_ERR_STS *
-		 *     (TLRA_OL / CAL_TLRA_OL) * 1.6277 us
+		 *     (TLRA_OL / CAL_TLRA_OL) * TLRA_AUTO_RES_ERR_AUTO_CAL_STEP_US
 		 */
 
 		/* read the TLRA_OL setting */
@@ -992,7 +997,8 @@ static int haptics_get_closeloop_lra_period(
 	} else if (rc_clk_cal == CAL_RC_CLK_AUTO_VAL && auto_res_done) {
 		/*
 		 * CAL_TLRA_CL_STS_W_CAL = CAL_TLRA_CL_STS;
-		 * TLRA_AUTO_RES(us) = LAST_GOOD_TLRA_CL_STS * 0.81385 us *
+		 * TLRA_AUTO_RES(us) = LAST_GOOD_TLRA_CL_STS *
+		 *      TLRA_AUTO_RES_AUTO_CAL_STEP_US *
 		 *     (LAST_GOOD_TLRA_CL_STS / CAL_TLRA_CL_STS_AUTO_CAL)
 		 */
 
@@ -2374,7 +2380,7 @@ static int haptics_config_wa(struct haptics_chip *chip)
 {
 	switch (chip->hw_type) {
 	case HAP520:
-		chip->wa_flags |= TOGGLE_CAL_RC_CLK | SW_CTRL_HBST;
+		chip->wa_flags |= TOGGLE_CAL_RC_CLK | SW_CTRL_HBST | SLEEP_CLK_32K_SCALE;
 		break;
 	case HAP520_MV:
 	case HAP525_HV:
