@@ -614,6 +614,33 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_RESET_COUNT:
 		return get_reset_count(hdev, args);
 
+	case HL_INFO_HW_EVENTS:
+		return hw_events_info(hdev, false, args);
+
+	case HL_INFO_HW_EVENTS_AGGREGATE:
+		return hw_events_info(hdev, true, args);
+
+	case HL_INFO_CS_COUNTERS:
+		return cs_counters_info(hpriv, args);
+
+	case HL_INFO_CLK_THROTTLE_REASON:
+		return clk_throttle_info(hpriv, args);
+
+	case HL_INFO_SYNC_MANAGER:
+		return sync_manager_info(hpriv, args);
+
+	case HL_INFO_OPEN_STATS:
+		return open_stats_info(hpriv, args);
+
+	case HL_INFO_LAST_ERR_OPEN_DEV_TIME:
+		return last_err_open_dev_info(hpriv, args);
+
+	case HL_INFO_CS_TIMEOUT_EVENT:
+		return cs_timeout_info(hpriv, args);
+
+	case HL_INFO_RAZWI_EVENT:
+		return razwi_info(hpriv, args);
+
 	default:
 		break;
 	}
@@ -626,10 +653,6 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	}
 
 	switch (args->op) {
-	case HL_INFO_HW_EVENTS:
-		rc = hw_events_info(hdev, false, args);
-		break;
-
 	case HL_INFO_DRAM_USAGE:
 		rc = dram_usage_info(hpriv, args);
 		break;
@@ -642,10 +665,6 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 		rc = device_utilization(hdev, args);
 		break;
 
-	case HL_INFO_HW_EVENTS_AGGREGATE:
-		rc = hw_events_info(hdev, true, args);
-		break;
-
 	case HL_INFO_CLK_RATE:
 		rc = get_clk_rate(hdev, args);
 		break;
@@ -653,17 +672,8 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_TIME_SYNC:
 		return time_sync_info(hdev, args);
 
-	case HL_INFO_CS_COUNTERS:
-		return cs_counters_info(hpriv, args);
-
 	case HL_INFO_PCI_COUNTERS:
 		return pci_counters_info(hpriv, args);
-
-	case HL_INFO_CLK_THROTTLE_REASON:
-		return clk_throttle_info(hpriv, args);
-
-	case HL_INFO_SYNC_MANAGER:
-		return sync_manager_info(hpriv, args);
 
 	case HL_INFO_TOTAL_ENERGY:
 		return total_energy_consumption_info(hpriv, args);
@@ -674,23 +684,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_POWER:
 		return power_info(hpriv, args);
 
-	case HL_INFO_OPEN_STATS:
-		return open_stats_info(hpriv, args);
 
 	case HL_INFO_DRAM_REPLACED_ROWS:
 		return dram_replaced_rows_info(hpriv, args);
 
 	case HL_INFO_DRAM_PENDING_ROWS:
 		return dram_pending_rows_info(hpriv, args);
-
-	case HL_INFO_LAST_ERR_OPEN_DEV_TIME:
-		return last_err_open_dev_info(hpriv, args);
-
-	case HL_INFO_CS_TIMEOUT_EVENT:
-		return cs_timeout_info(hpriv, args);
-
-	case HL_INFO_RAZWI_EVENT:
-		return razwi_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);
