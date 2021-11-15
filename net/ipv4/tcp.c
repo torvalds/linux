@@ -2399,10 +2399,10 @@ static int tcp_recvmsg_locked(struct sock *sk, struct msghdr *msg, size_t len,
 			break;
 
 		if (copied) {
-			if (sk->sk_err ||
+			if (!timeo ||
+			    sk->sk_err ||
 			    sk->sk_state == TCP_CLOSE ||
 			    (sk->sk_shutdown & RCV_SHUTDOWN) ||
-			    !timeo ||
 			    signal_pending(current))
 				break;
 		} else {
