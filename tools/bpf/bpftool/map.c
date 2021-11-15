@@ -812,7 +812,7 @@ static struct btf *get_map_kv_btf(const struct bpf_map_info *info)
 	if (info->btf_vmlinux_value_type_id) {
 		if (!btf_vmlinux) {
 			btf_vmlinux = libbpf_find_kernel_btf();
-			if (IS_ERR(btf_vmlinux))
+			if (libbpf_get_error(btf_vmlinux))
 				p_err("failed to get kernel btf");
 		}
 		return btf_vmlinux;
@@ -832,13 +832,13 @@ static struct btf *get_map_kv_btf(const struct bpf_map_info *info)
 
 static void free_map_kv_btf(struct btf *btf)
 {
-	if (!IS_ERR(btf) && btf != btf_vmlinux)
+	if (!libbpf_get_error(btf) && btf != btf_vmlinux)
 		btf__free(btf);
 }
 
 static void free_btf_vmlinux(void)
 {
-	if (!IS_ERR(btf_vmlinux))
+	if (!libbpf_get_error(btf_vmlinux))
 		btf__free(btf_vmlinux);
 }
 
@@ -863,8 +863,8 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 
 	if (wtr) {
 		btf = get_map_kv_btf(info);
-		if (IS_ERR(btf)) {
-			err = PTR_ERR(btf);
+		err = libbpf_get_error(btf);
+		if (err) {
 			goto exit_free;
 		}
 
