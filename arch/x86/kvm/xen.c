@@ -282,7 +282,7 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
-		data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_gfn);
+		data->u.shared_info.gfn = kvm->arch.xen.shinfo_gfn;
 		r = 0;
 		break;
 
