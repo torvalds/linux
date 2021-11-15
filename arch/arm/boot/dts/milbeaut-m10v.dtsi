@@ -85,6 +85,7 @@
 			reg = <0x1e700010 0x10>;
 			interrupts = <0 141 0x4>, <0 149 0x4>;
 			interrupt-names = "rx", "tx";
+			clocks = <&clk 2>;
 		};
 
 	};
