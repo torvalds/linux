@@ -238,10 +238,11 @@ config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
 	select SERIAL_CORE
 	help
-	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
-	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
-	  provide all of these ports, depending on how the serial port
-	  pins are configured.
+	  Support for the on-chip UARTs on the Samsung
+	  S3C24xx/S3C64xx/S5Pv210/Exynos and Apple M1 SoCs, providing
+	  /dev/ttySAC0, 1 and 2 (note, some machines may not provide all of
+	  these ports, depending on how the serial port pins are configured.
+	  Choose Y/M here only if you build for such SoC.
 
 config SERIAL_SAMSUNG_UARTS_4
 	bool
