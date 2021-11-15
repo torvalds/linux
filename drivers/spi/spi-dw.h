@@ -41,39 +41,36 @@
 #define DW_SPI_CS_OVERRIDE		0xf4
 
 /* Bit fields in CTRLR0 (DWC APB SSI) */
-#define DW_PSSI_CTRLR0_DFS_OFFSET		0
 #define DW_PSSI_CTRLR0_DFS_MASK			GENMASK(3, 0)
-#define DW_PSSI_CTRLR0_DFS32_OFFSET		16
+#define DW_PSSI_CTRLR0_DFS32_MASK		GENMASK(20, 16)
 
-#define DW_PSSI_CTRLR0_FRF_OFFSET		4
+#define DW_PSSI_CTRLR0_FRF_MASK			GENMASK(5, 4)
 #define DW_SPI_CTRLR0_FRF_MOTO_SPI		0x0
 #define DW_SPI_CTRLR0_FRF_TI_SSP		0x1
 #define DW_SPI_CTRLR0_FRF_NS_MICROWIRE		0x2
 #define DW_SPI_CTRLR0_FRF_RESV			0x3
 
-#define DW_PSSI_CTRLR0_MODE_OFFSET		6
-#define DW_PSSI_CTRLR0_SCPH_OFFSET		6
-#define DW_PSSI_CTRLR0_SCOL_OFFSET		7
+#define DW_PSSI_CTRLR0_MODE_MASK		GENMASK(7, 6)
+#define DW_PSSI_CTRLR0_SCPHA			BIT(6)
+#define DW_PSSI_CTRLR0_SCPOL			BIT(7)
 
-#define DW_PSSI_CTRLR0_TMOD_OFFSET		8
-#define DW_PSSI_CTRLR0_TMOD_MASK		(0x3 << DW_PSSI_CTRLR0_TMOD_OFFSET)
+#define DW_PSSI_CTRLR0_TMOD_MASK		GENMASK(9, 8)
 #define DW_SPI_CTRLR0_TMOD_TR			0x0	/* xmit & recv */
 #define DW_SPI_CTRLR0_TMOD_TO			0x1	/* xmit only */
 #define DW_SPI_CTRLR0_TMOD_RO			0x2	/* recv only */
 #define DW_SPI_CTRLR0_TMOD_EPROMREAD		0x3	/* eeprom read mode */
 
-#define DW_PSSI_CTRLR0_SLVOE_OFFSET		10
-#define DW_PSSI_CTRLR0_SRL_OFFSET		11
-#define DW_PSSI_CTRLR0_CFS_OFFSET		12
+#define DW_PSSI_CTRLR0_SLV_OE			BIT(10)
+#define DW_PSSI_CTRLR0_SRL			BIT(11)
+#define DW_PSSI_CTRLR0_CFS			BIT(12)
 
 /* Bit fields in CTRLR0 (DWC SSI with AHB interface) */
-#define DW_HSSI_CTRLR0_SRL_OFFSET		13
-#define DW_HSSI_CTRLR0_TMOD_OFFSET		10
+#define DW_HSSI_CTRLR0_DFS_MASK			GENMASK(4, 0)
+#define DW_HSSI_CTRLR0_FRF_MASK			GENMASK(7, 6)
+#define DW_HSSI_CTRLR0_SCPHA			BIT(8)
+#define DW_HSSI_CTRLR0_SCPOL			BIT(9)
 #define DW_HSSI_CTRLR0_TMOD_MASK		GENMASK(11, 10)
-#define DW_HSSI_CTRLR0_SCPOL_OFFSET		9
-#define DW_HSSI_CTRLR0_SCPH_OFFSET		8
-#define DW_HSSI_CTRLR0_FRF_OFFSET		6
-#define DW_HSSI_CTRLR0_DFS_OFFSET		0
+#define DW_HSSI_CTRLR0_SRL			BIT(13)
 
 /*
  * For Keem Bay, CTRLR0[31] is used to select controller mode.
@@ -86,26 +83,27 @@
 #define DW_SPI_NDF_MASK				GENMASK(15, 0)
 
 /* Bit fields in SR, 7 bits */
-#define DW_SPI_SR_MASK				0x7f	/* cover 7 bits */
-#define DW_SPI_SR_BUSY				(1 << 0)
-#define DW_SPI_SR_TF_NOT_FULL			(1 << 1)
-#define DW_SPI_SR_TF_EMPT			(1 << 2)
-#define DW_SPI_SR_RF_NOT_EMPT			(1 << 3)
-#define DW_SPI_SR_RF_FULL			(1 << 4)
-#define DW_SPI_SR_TX_ERR			(1 << 5)
-#define DW_SPI_SR_DCOL				(1 << 6)
+#define DW_SPI_SR_MASK				GENMASK(6, 0)
+#define DW_SPI_SR_BUSY				BIT(0)
+#define DW_SPI_SR_TF_NOT_FULL			BIT(1)
+#define DW_SPI_SR_TF_EMPT			BIT(2)
+#define DW_SPI_SR_RF_NOT_EMPT			BIT(3)
+#define DW_SPI_SR_RF_FULL			BIT(4)
+#define DW_SPI_SR_TX_ERR			BIT(5)
+#define DW_SPI_SR_DCOL				BIT(6)
 
 /* Bit fields in ISR, IMR, RISR, 7 bits */
-#define DW_SPI_INT_TXEI				(1 << 0)
-#define DW_SPI_INT_TXOI				(1 << 1)
-#define DW_SPI_INT_RXUI				(1 << 2)
-#define DW_SPI_INT_RXOI				(1 << 3)
-#define DW_SPI_INT_RXFI				(1 << 4)
-#define DW_SPI_INT_MSTI				(1 << 5)
+#define DW_SPI_INT_MASK				GENMASK(5, 0)
+#define DW_SPI_INT_TXEI				BIT(0)
+#define DW_SPI_INT_TXOI				BIT(1)
+#define DW_SPI_INT_RXUI				BIT(2)
+#define DW_SPI_INT_RXOI				BIT(3)
+#define DW_SPI_INT_RXFI				BIT(4)
+#define DW_SPI_INT_MSTI				BIT(5)
 
 /* Bit fields in DMACR */
-#define DW_SPI_DMACR_RDMAE			(1 << 0)
-#define DW_SPI_DMACR_TDMAE			(1 << 1)
+#define DW_SPI_DMACR_RDMAE			BIT(0)
+#define DW_SPI_DMACR_TDMAE			BIT(1)
 
 /* Mem/DMA operations helpers */
 #define DW_SPI_WAIT_RETRIES			5

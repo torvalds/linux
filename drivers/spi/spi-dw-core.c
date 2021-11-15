@@ -5,6 +5,7 @@
  * Copyright (c) 2009, Intel Corporation.
  */
 
+#include <linux/bitfield.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -254,7 +255,7 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 {
 	struct spi_controller *master = dev_id;
 	struct dw_spi *dws = spi_controller_get_devdata(master);
-	u16 irq_status = dw_readl(dws, DW_SPI_ISR) & 0x3f;
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR) & DW_SPI_INT_MASK;
 
 	if (!irq_status)
 		return IRQ_NONE;
@@ -273,32 +274,38 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 
 	if (!(dws->caps & DW_SPI_CAP_DWC_HSSI)) {
 		/* CTRLR0[ 5: 4] Frame Format */
-		cr0 |= DW_SPI_CTRLR0_FRF_MOTO_SPI << DW_PSSI_CTRLR0_FRF_OFFSET;
+		cr0 |= FIELD_PREP(DW_PSSI_CTRLR0_FRF_MASK, DW_SPI_CTRLR0_FRF_MOTO_SPI);
 
 		/*
 		 * SPI mode (SCPOL|SCPH)
 		 * CTRLR0[ 6] Serial Clock Phase
 		 * CTRLR0[ 7] Serial Clock Polarity
 		 */
-		cr0 |= ((spi->mode & SPI_CPOL) ? 1 : 0) << DW_PSSI_CTRLR0_SCOL_OFFSET;
-		cr0 |= ((spi->mode & SPI_CPHA) ? 1 : 0) << DW_PSSI_CTRLR0_SCPH_OFFSET;
+		if (spi->mode & SPI_CPOL)
+			cr0 |= DW_PSSI_CTRLR0_SCPOL;
+		if (spi->mode & SPI_CPHA)
+			cr0 |= DW_PSSI_CTRLR0_SCPHA;
 
 		/* CTRLR0[11] Shift Register Loop */
-		cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << DW_PSSI_CTRLR0_SRL_OFFSET;
+		if (spi->mode & SPI_LOOP)
+			cr0 |= DW_PSSI_CTRLR0_SRL;
 	} else {
 		/* CTRLR0[ 7: 6] Frame Format */
-		cr0 |= DW_SPI_CTRLR0_FRF_MOTO_SPI << DW_HSSI_CTRLR0_FRF_OFFSET;
+		cr0 |= FIELD_PREP(DW_HSSI_CTRLR0_FRF_MASK, DW_SPI_CTRLR0_FRF_MOTO_SPI);
 
 		/*
 		 * SPI mode (SCPOL|SCPH)
 		 * CTRLR0[ 8] Serial Clock Phase
 		 * CTRLR0[ 9] Serial Clock Polarity
 		 */
-		cr0 |= ((spi->mode & SPI_CPOL) ? 1 : 0) << DW_HSSI_CTRLR0_SCPOL_OFFSET;
-		cr0 |= ((spi->mode & SPI_CPHA) ? 1 : 0) << DW_HSSI_CTRLR0_SCPH_OFFSET;
+		if (spi->mode & SPI_CPOL)
+			cr0 |= DW_HSSI_CTRLR0_SCPOL;
+		if (spi->mode & SPI_CPHA)
+			cr0 |= DW_HSSI_CTRLR0_SCPHA;
 
 		/* CTRLR0[13] Shift Register Loop */
-		cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << DW_HSSI_CTRLR0_SRL_OFFSET;
+		if (spi->mode & SPI_LOOP)
+			cr0 |= DW_HSSI_CTRLR0_SRL;
 
 		if (dws->caps & DW_SPI_CAP_KEEMBAY_MST)
 			cr0 |= DW_HSSI_CTRLR0_KEEMBAY_MST;
@@ -320,10 +327,10 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 
 	if (!(dws->caps & DW_SPI_CAP_DWC_HSSI))
 		/* CTRLR0[ 9:8] Transfer Mode */
-		cr0 |= cfg->tmode << DW_PSSI_CTRLR0_TMOD_OFFSET;
+		cr0 |= FIELD_PREP(DW_PSSI_CTRLR0_TMOD_MASK, cfg->tmode);
 	else
 		/* CTRLR0[11:10] Transfer Mode */
-		cr0 |= cfg->tmode << DW_HSSI_CTRLR0_TMOD_OFFSET;
+		cr0 |= FIELD_PREP(DW_HSSI_CTRLR0_TMOD_MASK, cfg->tmode);
 
 	dw_writel(dws, DW_SPI_CTRLR0, cr0);
 
@@ -850,7 +857,7 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 
 		if (!(cr0 & DW_PSSI_CTRLR0_DFS_MASK)) {
 			dws->caps |= DW_SPI_CAP_DFS32;
-			dws->dfs_offset = DW_PSSI_CTRLR0_DFS32_OFFSET;
+			dws->dfs_offset = __bf_shf(DW_PSSI_CTRLR0_DFS32_MASK);
 			dev_dbg(dev, "Detected 32-bits max data frame size\n");
 		}
 	} else {
