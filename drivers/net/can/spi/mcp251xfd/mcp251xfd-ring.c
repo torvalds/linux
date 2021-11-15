@@ -71,6 +71,17 @@ mcp251xfd_ring_init_tef(struct mcp251xfd_priv *priv, u16 *base)
 	/* TEF- and TX-FIFO have same number of objects */
 	*base = mcp251xfd_get_tef_obj_addr(priv->tx->obj_num);
 
+	/* FIFO IRQ enable */
+	addr = MCP251XFD_REG_TEFCON;
+	val = MCP251XFD_REG_TEFCON_TEFOVIE | MCP251XFD_REG_TEFCON_TEFNEIE;
+
+	len = mcp251xfd_cmd_prepare_write_reg(priv, &tef_ring->irq_enable_buf,
+					      addr, val, val);
+	tef_ring->irq_enable_xfer.tx_buf = &tef_ring->irq_enable_buf;
+	tef_ring->irq_enable_xfer.len = len;
+	spi_message_init_with_transfers(&tef_ring->irq_enable_msg,
+					&tef_ring->irq_enable_xfer, 1);
+
 	/* FIFO increment TEF tail pointer */
 	addr = MCP251XFD_REG_TEFCON;
 	val = MCP251XFD_REG_TEFCON_UINC;
@@ -94,6 +105,18 @@ mcp251xfd_ring_init_tef(struct mcp251xfd_priv *priv, u16 *base)
 	 * message.
 	 */
 	xfer->cs_change = 0;
+
+	if (priv->tx_coalesce_usecs_irq || priv->tx_obj_num_coalesce_irq) {
+		val = MCP251XFD_REG_TEFCON_UINC |
+			MCP251XFD_REG_TEFCON_TEFOVIE |
+			MCP251XFD_REG_TEFCON_TEFHIE;
+
+		len = mcp251xfd_cmd_prepare_write_reg(priv,
+						      &tef_ring->uinc_irq_disable_buf,
+						      addr, val, val);
+		xfer->tx_buf = &tef_ring->uinc_irq_disable_buf;
+		xfer->len = len;
+	}
 }
 
 static void
@@ -282,11 +305,29 @@ int mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 	 */
 	priv->regs_status.rxif = BIT(priv->rx[0]->fifo_nr);
 
-	netdev_dbg(priv->ndev,
-		   "FIFO setup: TEF:         0x%03x: %2d*%zu bytes = %4zu bytes\n",
-		   mcp251xfd_get_tef_obj_addr(0),
-		   priv->tx->obj_num, sizeof(struct mcp251xfd_hw_tef_obj),
-		   priv->tx->obj_num * sizeof(struct mcp251xfd_hw_tef_obj));
+	if (priv->tx_obj_num_coalesce_irq) {
+		netdev_dbg(priv->ndev,
+			   "FIFO setup: TEF:         0x%03x: %2d*%zu bytes = %4zu bytes (coalesce)\n",
+			   mcp251xfd_get_tef_obj_addr(0),
+			   priv->tx_obj_num_coalesce_irq,
+			   sizeof(struct mcp251xfd_hw_tef_obj),
+			   priv->tx_obj_num_coalesce_irq *
+			   sizeof(struct mcp251xfd_hw_tef_obj));
+
+		netdev_dbg(priv->ndev,
+			   "                         0x%03x: %2d*%zu bytes = %4zu bytes\n",
+			   mcp251xfd_get_tef_obj_addr(priv->tx_obj_num_coalesce_irq),
+			   priv->tx->obj_num - priv->tx_obj_num_coalesce_irq,
+			   sizeof(struct mcp251xfd_hw_tef_obj),
+			   (priv->tx->obj_num - priv->tx_obj_num_coalesce_irq) *
+			   sizeof(struct mcp251xfd_hw_tef_obj));
+	} else {
+		netdev_dbg(priv->ndev,
+			   "FIFO setup: TEF:         0x%03x: %2d*%zu bytes = %4zu bytes\n",
+			   mcp251xfd_get_tef_obj_addr(0),
+			   priv->tx->obj_num, sizeof(struct mcp251xfd_hw_tef_obj),
+			   priv->tx->obj_num * sizeof(struct mcp251xfd_hw_tef_obj));
+	}
 
 	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
 		if (rx_ring->nr == 0 && priv->rx_obj_num_coalesce_irq) {
@@ -355,6 +396,20 @@ static enum hrtimer_restart mcp251xfd_rx_irq_timer(struct hrtimer *t)
 	struct mcp251xfd_priv *priv = container_of(t, struct mcp251xfd_priv,
 						   rx_irq_timer);
 	struct mcp251xfd_rx_ring *ring = priv->rx[0];
+
+	if (test_bit(MCP251XFD_FLAGS_DOWN, priv->flags))
+		return HRTIMER_NORESTART;
+
+	spi_async(priv->spi, &ring->irq_enable_msg);
+
+	return HRTIMER_NORESTART;
+}
+
+static enum hrtimer_restart mcp251xfd_tx_irq_timer(struct hrtimer *t)
+{
+	struct mcp251xfd_priv *priv = container_of(t, struct mcp251xfd_priv,
+						   tx_irq_timer);
+	struct mcp251xfd_tef_ring *ring = priv->tef;
 
 	if (test_bit(MCP251XFD_FLAGS_DOWN, priv->flags))
 		return HRTIMER_NORESTART;
@@ -448,6 +503,9 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 
 	hrtimer_init(&priv->rx_irq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	priv->rx_irq_timer.function = mcp251xfd_rx_irq_timer;
+
+	hrtimer_init(&priv->tx_irq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	priv->tx_irq_timer.function = mcp251xfd_tx_irq_timer;
 
 	return 0;
 }

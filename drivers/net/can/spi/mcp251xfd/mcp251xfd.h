@@ -518,7 +518,12 @@ struct mcp251xfd_tef_ring {
 	/* u8 obj_num equals tx_ring->obj_num */
 	/* u8 obj_size equals sizeof(struct mcp251xfd_hw_tef_obj) */
 
+	union mcp251xfd_write_reg_buf irq_enable_buf;
+	struct spi_transfer irq_enable_xfer;
+	struct spi_message irq_enable_msg;
+
 	union mcp251xfd_write_reg_buf uinc_buf;
+	union mcp251xfd_write_reg_buf uinc_irq_disable_buf;
 	struct spi_transfer uinc_xfer[MCP251XFD_TX_OBJ_NUM_MAX];
 };
 
@@ -625,9 +630,12 @@ struct mcp251xfd_priv {
 	u8 rx_ring_num;
 	u8 rx_obj_num;
 	u8 rx_obj_num_coalesce_irq;
+	u8 tx_obj_num_coalesce_irq;
 
 	u32 rx_coalesce_usecs_irq;
+	u32 tx_coalesce_usecs_irq;
 	struct hrtimer rx_irq_timer;
+	struct hrtimer tx_irq_timer;
 
 	struct mcp251xfd_ecc ecc;
 	struct mcp251xfd_regs_status regs_status;
