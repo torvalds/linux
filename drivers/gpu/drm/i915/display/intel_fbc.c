@@ -624,7 +624,7 @@ int intel_fbc_set_false_color(struct intel_fbc *fbc, bool enable)
 
 /**
  * intel_fbc_is_active - Is FBC active?
- * @i915: i915 device instance
+ * @fbc: The FBC instance
  *
  * This function is used to verify the current state of FBC.
  *
@@ -1592,7 +1592,7 @@ out:
 
 /*
  * intel_fbc_reset_underrun - reset FBC fifo underrun status.
- * @i915: i915 device instance
+ * @fbc: The FBC instance
  *
  * See intel_fbc_handle_fifo_underrun_irq(). For automated testing we
  * want to re-enable FBC after an underrun to increase test coverage.
@@ -1622,7 +1622,7 @@ int intel_fbc_reset_underrun(struct intel_fbc *fbc)
 
 /**
  * intel_fbc_handle_fifo_underrun_irq - disable FBC when we get a FIFO underrun
- * @i915: i915 device instance
+ * @fbc: The FBC instance
  *
  * Without FBC, most underruns are harmless and don't really cause too many
  * problems, except for an annoying message on dmesg. With FBC, underruns can
