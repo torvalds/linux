@@ -292,7 +292,7 @@ EXPORT_PER_CPU_SYMBOL_GPL(tcp_orphan_count);
 long sysctl_tcp_mem[3] __read_mostly;
 EXPORT_SYMBOL(sysctl_tcp_mem);
 
-atomic_long_t tcp_memory_allocated;	/* Current allocated memory. */
+atomic_long_t tcp_memory_allocated ____cacheline_aligned_in_smp;	/* Current allocated memory. */
 EXPORT_SYMBOL(tcp_memory_allocated);
 
 #if IS_ENABLED(CONFIG_SMC)
@@ -303,7 +303,7 @@ EXPORT_SYMBOL(tcp_have_smc);
 /*
  * Current number of TCP sockets.
  */
-struct percpu_counter tcp_sockets_allocated;
+struct percpu_counter tcp_sockets_allocated ____cacheline_aligned_in_smp;
 EXPORT_SYMBOL(tcp_sockets_allocated);
 
 /*
