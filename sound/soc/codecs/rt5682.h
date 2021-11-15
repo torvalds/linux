@@ -1463,6 +1463,7 @@ struct rt5682_priv {
 
 	int jack_type;
 	int irq_work_delay_time;
+	struct mutex jdet_mutex;
 };
 
 extern const char *rt5682_supply_names[RT5682_NUM_SUPPLIES];
