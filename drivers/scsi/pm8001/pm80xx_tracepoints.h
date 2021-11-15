@@ -75,6 +75,34 @@ TRACE_EVENT(pm80xx_request_complete,
 		    __entry->running_req)
 );
 
+TRACE_EVENT(pm80xx_mpi_build_cmd,
+	    TP_PROTO(u32 id, u32 opc, u32 htag, u32 qi, u32 pi, u32 ci),
+
+	    TP_ARGS(id, opc, htag, qi, pi, ci),
+
+	    TP_STRUCT__entry(
+		    __field(u32, id)
+		    __field(u32, opc)
+		    __field(u32, htag)
+		    __field(u32, qi)
+		    __field(u32, pi)
+		    __field(u32, ci)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->id = id;
+		    __entry->opc = opc;
+		    __entry->htag = htag;
+		    __entry->qi = qi;
+		    __entry->pi = pi;
+		    __entry->ci = ci;
+		    ),
+
+	    TP_printk("ctlr_id = %u opc = %#x htag = %#x QI = %u PI = %u CI = %u",
+		    __entry->id, __entry->opc, __entry->htag, __entry->qi,
+		    __entry->pi, __entry->ci)
+);
+
 #endif /* _TRACE_PM80XX_H_ */
 
 #undef TRACE_INCLUDE_PATH

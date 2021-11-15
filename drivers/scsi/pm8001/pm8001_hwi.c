@@ -42,6 +42,7 @@
  #include "pm8001_hwi.h"
  #include "pm8001_chips.h"
  #include "pm8001_ctl.h"
+ #include "pm80xx_tracepoints.h"
 
 /**
  * read_main_config_table - read the configure table and save it.
@@ -1324,6 +1325,10 @@ int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 	unsigned long flags;
 	int q_index = circularQ - pm8001_ha->inbnd_q_tbl;
 	int rv;
+	u32 htag = le32_to_cpu(*(__le32 *)payload);
+
+	trace_pm80xx_mpi_build_cmd(pm8001_ha->id, opCode, htag, q_index,
+		circularQ->producer_idx, le32_to_cpu(circularQ->consumer_index));
 
 	if (WARN_ON(q_index >= pm8001_ha->max_q_num))
 		return -EINVAL;
