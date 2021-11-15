@@ -207,7 +207,7 @@ static int dw_spi_pssi_init(struct platform_device *pdev,
 static int dw_spi_hssi_init(struct platform_device *pdev,
 			    struct dw_spi_mmio *dwsmmio)
 {
-	dwsmmio->dws.caps = DW_SPI_CAP_DWC_HSSI;
+	dwsmmio->dws.ip = DW_HSSI_ID;
 
 	dw_spi_dma_setup_generic(&dwsmmio->dws);
 
@@ -217,7 +217,8 @@ static int dw_spi_hssi_init(struct platform_device *pdev,
 static int dw_spi_keembay_init(struct platform_device *pdev,
 			       struct dw_spi_mmio *dwsmmio)
 {
-	dwsmmio->dws.caps = DW_SPI_CAP_KEEMBAY_MST | DW_SPI_CAP_DWC_HSSI;
+	dwsmmio->dws.ip = DW_HSSI_ID;
+	dwsmmio->dws.caps = DW_SPI_CAP_KEEMBAY_MST;
 
 	return 0;
 }

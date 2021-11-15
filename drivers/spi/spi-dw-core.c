@@ -272,7 +272,7 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 {
 	u32 cr0 = 0;
 
-	if (!(dws->caps & DW_SPI_CAP_DWC_HSSI)) {
+	if (dw_spi_ip_is(dws, PSSI)) {
 		/* CTRLR0[ 5: 4] Frame Format */
 		cr0 |= FIELD_PREP(DW_PSSI_CTRLR0_FRF_MASK, DW_SPI_CTRLR0_FRF_MOTO_SPI);
 
@@ -325,7 +325,7 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 	/* CTRLR0[ 4/3: 0] or CTRLR0[ 20: 16] Data Frame Size */
 	cr0 |= (cfg->dfs - 1) << dws->dfs_offset;
 
-	if (!(dws->caps & DW_SPI_CAP_DWC_HSSI))
+	if (dw_spi_ip_is(dws, PSSI))
 		/* CTRLR0[ 9:8] Transfer Mode */
 		cr0 |= FIELD_PREP(DW_PSSI_CTRLR0_TMOD_MASK, cfg->tmode);
 	else
@@ -832,7 +832,7 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 		dws->ver = dw_readl(dws, DW_SPI_VERSION);
 
 		dev_dbg(dev, "Synopsys DWC%sSSI v%c.%c%c\n",
-			(dws->caps & DW_SPI_CAP_DWC_HSSI) ? " " : " APB ",
+			dw_spi_ip_is(dws, PSSI) ? " APB " : " ",
 			DW_SPI_GET_BYTE(dws->ver, 3), DW_SPI_GET_BYTE(dws->ver, 2),
 			DW_SPI_GET_BYTE(dws->ver, 1));
 	}
@@ -860,7 +860,7 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 	 * writability. Note DWC SSI controller also has the extended DFS, but
 	 * with zero offset.
 	 */
-	if (!(dws->caps & DW_SPI_CAP_DWC_HSSI)) {
+	if (dw_spi_ip_is(dws, PSSI)) {
 		u32 cr0, tmp = dw_readl(dws, DW_SPI_CTRLR0);
 
 		dw_spi_enable_chip(dws, 0);
