@@ -3769,10 +3769,12 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	tcp_get_info_chrono_stats(tp, info);
 
 	info->tcpi_segs_out = tp->segs_out;
-	info->tcpi_segs_in = tp->segs_in;
+
+	/* segs_in and data_segs_in can be updated from tcp_segs_in() from BH */
+	info->tcpi_segs_in = READ_ONCE(tp->segs_in);
+	info->tcpi_data_segs_in = READ_ONCE(tp->data_segs_in);
 
 	info->tcpi_min_rtt = tcp_min_rtt(tp);
-	info->tcpi_data_segs_in = tp->data_segs_in;
 	info->tcpi_data_segs_out = tp->data_segs_out;
 
 	info->tcpi_delivery_rate_app_limited = tp->rate_app_limited ? 1 : 0;
