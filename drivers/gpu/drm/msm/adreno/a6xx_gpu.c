@@ -1068,6 +1068,8 @@ static int hw_init(struct msm_gpu *gpu)
 
 			if (IS_ERR(a6xx_gpu->shadow))
 				return PTR_ERR(a6xx_gpu->shadow);
+
+			msm_gem_object_set_name(a6xx_gpu->shadow_bo, "shadow");
 		}
 
 		gpu_write64(gpu, REG_A6XX_CP_RB_RPTR_ADDR_LO,
