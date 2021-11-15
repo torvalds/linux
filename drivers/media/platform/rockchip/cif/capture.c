@@ -2491,7 +2491,7 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 			rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS, 0x0);
 		}
 	}
-
+	stream->cifdev->id_use_cnt--;
 	stream->state = RKCIF_STATE_READY;
 }
 
