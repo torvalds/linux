@@ -670,33 +670,39 @@ static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 static void nested_cache_shadow_vmcs12(struct kvm_vcpu *vcpu,
 				       struct vmcs12 *vmcs12)
 {
-	struct kvm_host_map map;
-	struct vmcs12 *shadow;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct gfn_to_hva_cache *ghc = &vmx->nested.shadow_vmcs12_cache;
 
 	if (!nested_cpu_has_shadow_vmcs(vmcs12) ||
 	    vmcs12->vmcs_link_pointer == INVALID_GPA)
 		return;
 
-	shadow = get_shadow_vmcs12(vcpu);
-
-	if (kvm_vcpu_map(vcpu, gpa_to_gfn(vmcs12->vmcs_link_pointer), &map))
+	if (ghc->gpa != vmcs12->vmcs_link_pointer &&
+	    kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc,
+				      vmcs12->vmcs_link_pointer, VMCS12_SIZE))
 		return;
 
-	memcpy(shadow, map.hva, VMCS12_SIZE);
-	kvm_vcpu_unmap(vcpu, &map, false);
+	kvm_read_guest_cached(vmx->vcpu.kvm, ghc, get_shadow_vmcs12(vcpu),
+			      VMCS12_SIZE);
 }
 
 static void nested_flush_cached_shadow_vmcs12(struct kvm_vcpu *vcpu,
 					      struct vmcs12 *vmcs12)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct gfn_to_hva_cache *ghc = &vmx->nested.shadow_vmcs12_cache;
 
 	if (!nested_cpu_has_shadow_vmcs(vmcs12) ||
 	    vmcs12->vmcs_link_pointer == INVALID_GPA)
 		return;
 
-	kvm_write_guest(vmx->vcpu.kvm, vmcs12->vmcs_link_pointer,
-			get_shadow_vmcs12(vcpu), VMCS12_SIZE);
+	if (ghc->gpa != vmcs12->vmcs_link_pointer &&
+	    kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc,
+				      vmcs12->vmcs_link_pointer, VMCS12_SIZE))
+		return;
+
+	kvm_write_guest_cached(vmx->vcpu.kvm, ghc, get_shadow_vmcs12(vcpu),
+			       VMCS12_SIZE);
 }
 
 /*
