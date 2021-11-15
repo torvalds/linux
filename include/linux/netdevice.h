@@ -2902,7 +2902,6 @@ struct net_device *dev_get_by_index_rcu(struct net *net, int ifindex);
 struct net_device *dev_get_by_napi_id(unsigned int napi_id);
 int netdev_get_name(struct net *net, char *name, int ifindex);
 int dev_restart(struct net_device *dev);
-int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb);
 
 
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,

@@ -414,4 +414,6 @@ static inline __wsum ip6_gro_compute_pseudo(struct sk_buff *skb, int proto)
 					    skb_gro_len(skb), proto, 0));
 }
 
+int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb);
+
 #endif /* _NET_IPV6_GRO_H */
