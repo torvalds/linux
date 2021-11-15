@@ -7352,6 +7352,32 @@ static struct btf_dedup_test dedup_tests[] = {
 		BTF_STR_SEC("\0tag1"),
 	},
 },
+{
+	.descr = "dedup: btf_type_tag #5, struct",
+	.input = {
+		.raw_types = {
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),				/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),					/* [2] */
+			BTF_TYPE_ENC(NAME_NTH(2), BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 1), 4),	/* [3] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 2, BTF_MEMBER_OFFSET(0, 0)),
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),					/* [4] */
+			BTF_TYPE_ENC(NAME_NTH(2), BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 1), 4),	/* [5] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 4, BTF_MEMBER_OFFSET(0, 0)),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0t\0m"),
+	},
+	.expect = {
+		.raw_types = {
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),				/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),					/* [2] */
+			BTF_TYPE_ENC(NAME_NTH(2), BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 1), 4),	/* [3] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 2, BTF_MEMBER_OFFSET(0, 0)),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0t\0m"),
+	},
+},
 
 };
 
