@@ -129,15 +129,35 @@ allOf:
         - clock-names
         - resets
     else:
-      properties:
-        clocks:
-          minItems: 1
-          maxItems: 2
-        clock-names:
-          minItems: 1
-          items:
-            - const: core
-            - const: cd
+      if:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - renesas,rcar-gen2-sdhi
+                - renesas,rcar-gen3-sdhi
+      then:
+        properties:
+          clocks:
+            minItems: 1
+            maxItems: 3
+          clock-names:
+            minItems: 1
+            uniqueItems: true
+            items:
+              - const: core
+              - enum: [ clkh, cd ]
+              - const: cd
+      else:
+        properties:
+          clocks:
+            minItems: 1
+            maxItems: 2
+          clock-names:
+            minItems: 1
+            items:
+              - const: core
+              - const: cd
 
   - if:
       properties:
