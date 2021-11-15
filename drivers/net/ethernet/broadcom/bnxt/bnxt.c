@@ -37,6 +37,7 @@
 #include <linux/if_bridge.h>
 #include <linux/rtc.h>
 #include <linux/bpf.h>
+#include <net/gro.h>
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/udp.h>

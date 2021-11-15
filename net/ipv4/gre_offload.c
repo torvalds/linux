@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <net/protocol.h>
 #include <net/gre.h>
+#include <net/gro.h>
 
 static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				       netdev_features_t features)

@@ -64,6 +64,7 @@
 
 #include <net/protocol.h>
 #include <net/dst.h>
+#include <net/gro.h>
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
