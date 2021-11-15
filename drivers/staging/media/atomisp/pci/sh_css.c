@@ -208,8 +208,6 @@ ia_css_pipe_check_format(struct ia_css_pipe *pipe,
 
 /* ISP 2401 */
 static int
-check_pipe_resolutions(const struct ia_css_pipe *pipe);
-
 static int
 ia_css_pipe_load_extension(struct ia_css_pipe *pipe,
 			   struct ia_css_fw_info *firmware);
@@ -8689,49 +8687,6 @@ metadata_info_init(const struct ia_css_metadata_config *mdc,
 	return 0;
 }
 
-/* ISP2401 */
-static int check_pipe_resolutions(const struct ia_css_pipe *pipe)
-{
-	int err = 0;
-
-	IA_CSS_ENTER_PRIVATE("");
-
-	if (!pipe || !pipe->stream) {
-		IA_CSS_ERROR("null arguments");
-		err = -EINVAL;
-		goto EXIT;
-	}
-
-	if (ia_css_util_check_res(pipe->config.input_effective_res.width,
-				  pipe->config.input_effective_res.height) != 0) {
-		IA_CSS_ERROR("effective resolution not supported");
-		err = -EINVAL;
-		goto EXIT;
-	}
-	if (!ia_css_util_resolution_is_zero(
-		pipe->stream->config.input_config.input_res)) {
-		if (!ia_css_util_res_leq(pipe->config.input_effective_res,
-					 pipe->stream->config.input_config.input_res)) {
-			IA_CSS_ERROR("effective resolution is larger than input resolution");
-			err = -EINVAL;
-			goto EXIT;
-		}
-	}
-	if (!ia_css_util_resolution_is_even(pipe->config.output_info[0].res)) {
-		IA_CSS_ERROR("output resolution must be even");
-		err = -EINVAL;
-		goto EXIT;
-	}
-	if (!ia_css_util_resolution_is_even(pipe->config.vf_output_info[0].res)) {
-		IA_CSS_ERROR("VF resolution must be even");
-		err = -EINVAL;
-		goto EXIT;
-	}
-EXIT:
-	IA_CSS_LEAVE_ERR_PRIVATE(err);
-	return err;
-}
-
 int
 ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		     int num_pipes,
@@ -8939,17 +8894,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		IA_CSS_LOG("effective_res=%dx%d",
 			   effective_res.width,
 			   effective_res.height);
-	}
-
-	if (IS_ISP2401) {
-		for (i = 0; i < num_pipes; i++) {
-			if (pipes[i]->config.mode != IA_CSS_PIPE_MODE_ACC &&
-			    pipes[i]->config.mode != IA_CSS_PIPE_MODE_COPY) {
-				err = check_pipe_resolutions(pipes[i]);
-				if (err)
-					goto ERR;
-			}
-		}
 	}
 
 	err = ia_css_stream_isp_parameters_init(curr_stream);
