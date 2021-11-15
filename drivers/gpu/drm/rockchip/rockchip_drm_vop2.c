@@ -5360,6 +5360,21 @@ static int vop2_get_mipi_port_mux(struct vop2 *vop2, int vp_id)
 	}
 }
 
+static u32 vop2_get_hdmi_pol(struct vop2 *vop2, u32 flags)
+{
+	u32 val;
+
+	if (vop2->version == VOP_VERSION_RK3588) {
+		val = (flags & DRM_MODE_FLAG_NHSYNC) ? BIT(HSYNC_POSITIVE) : 0;
+		val |= (flags & DRM_MODE_FLAG_NVSYNC) ? BIT(VSYNC_POSITIVE) : 0;
+	} else {
+		val = (flags & DRM_MODE_FLAG_NHSYNC) ? 0 : BIT(HSYNC_POSITIVE);
+		val |= (flags & DRM_MODE_FLAG_NVSYNC) ? 0 : BIT(VSYNC_POSITIVE);
+	}
+
+	return val;
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -5598,6 +5613,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		if (vcstate->dsc_enable)
 			VOP_GRF_SET(vop2, grf, grf_hdmi0_dsc_en, 1);
 
+		val = vop2_get_hdmi_pol(vop2, adjusted_mode->flags);
 		VOP_GRF_SET(vop2, grf, grf_hdmi0_en, 1);
 		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi0_pin_pol, val);
 
@@ -5621,6 +5637,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		if (vcstate->dsc_enable)
 			VOP_GRF_SET(vop2, grf, grf_hdmi1_dsc_en, 1);
 
+		val = vop2_get_hdmi_pol(vop2, adjusted_mode->flags);
 		VOP_GRF_SET(vop2, grf, grf_hdmi1_en, 1);
 		VOP_GRF_SET(vop2, vo1_grf, grf_hdmi1_pin_pol, val);
 
