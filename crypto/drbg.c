@@ -100,6 +100,7 @@
 #include <crypto/drbg.h>
 #include <crypto/internal/cipher.h>
 #include <linux/kernel.h>
+#include <linux/jiffies.h>
 
 /***************************************************************
  * Backend cipher definitions available to DRBG
@@ -1044,6 +1045,7 @@ static inline int __drbg_seed(struct drbg_state *drbg, struct list_head *seed,
 		return ret;
 
 	drbg->seeded = new_seed_state;
+	drbg->last_seed_time = jiffies;
 	/* 10.1.1.2 / 10.1.1.3 step 5 */
 	drbg->reseed_ctr = 1;
 
@@ -1110,6 +1112,26 @@ static int drbg_seed_from_random(struct drbg_state *drbg)
 out:
 	memzero_explicit(entropy, entropylen);
 	return ret;
+}
+
+static bool drbg_nopr_reseed_interval_elapsed(struct drbg_state *drbg)
+{
+	unsigned long next_reseed;
+
+	/* Don't ever reseed from get_random_bytes() in test mode. */
+	if (list_empty(&drbg->test_data.list))
+		return false;
+
+	/*
+	 * Obtain fresh entropy for the nopr DRBGs after 300s have
+	 * elapsed in order to still achieve sort of partial
+	 * prediction resistance over the time domain at least. Note
+	 * that the period of 300s has been chosen to match the
+	 * CRNG_RESEED_INTERVAL of the get_random_bytes()' chacha
+	 * rngs.
+	 */
+	next_reseed = drbg->last_seed_time + 300 * HZ;
+	return time_after(jiffies, next_reseed);
 }
 
 /*
@@ -1413,7 +1435,8 @@ static int drbg_generate(struct drbg_state *drbg,
 		/* 9.3.1 step 7.4 */
 		addtl = NULL;
 	} else if (rng_is_initialized() &&
-		   drbg->seeded == DRBG_SEED_STATE_PARTIAL) {
+		   (drbg->seeded == DRBG_SEED_STATE_PARTIAL ||
+		    drbg_nopr_reseed_interval_elapsed(drbg))) {
 		len = drbg_seed_from_random(drbg);
 		if (len)
 			goto err;
@@ -1569,6 +1592,7 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 		drbg->core = &drbg_cores[coreref];
 		drbg->pr = pr;
 		drbg->seeded = DRBG_SEED_STATE_UNSEEDED;
+		drbg->last_seed_time = 0;
 		drbg->reseed_threshold = drbg_max_requests(drbg);
 
 		ret = drbg_alloc_state(drbg);

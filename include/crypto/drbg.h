@@ -134,6 +134,7 @@ struct drbg_state {
 	struct scatterlist sg_in, sg_out;	/* CTR mode SGLs */
 
 	enum drbg_seed_state seeded;		/* DRBG fully seeded? */
+	unsigned long last_seed_time;
 	bool pr;		/* Prediction resistance enabled? */
 	bool fips_primed;	/* Continuous test primed? */
 	unsigned char *prev;	/* FIPS 140-2 continuous test value */
