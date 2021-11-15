@@ -489,6 +489,7 @@ struct sock {
 	u16			sk_busy_poll_budget;
 #endif
 	spinlock_t		sk_peer_lock;
+	int			sk_bind_phc;
 	struct pid		*sk_peer_pid;
 	const struct cred	*sk_peer_cred;
 
@@ -498,7 +499,6 @@ struct sock {
 	seqlock_t		sk_stamp_seq;
 #endif
 	u16			sk_tsflags;
-	int			sk_bind_phc;
 	u8			sk_shutdown;
 	u32			sk_tskey;
 	atomic_t		sk_zckey;
