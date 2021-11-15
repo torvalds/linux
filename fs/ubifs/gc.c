@@ -758,6 +758,8 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 				err = ubifs_return_leb(c, lp.lnum);
 				if (err)
 					ret = err;
+				/*  Maybe double return LEB if goto out */
+				lp.lnum = -1;
 				break;
 			}
 			goto out;
