@@ -1182,7 +1182,7 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 		if (!md5sig)
 			return -ENOMEM;
 
-		sk_nocaps_add(sk, NETIF_F_GSO_MASK);
+		sk_gso_disable(sk);
 		INIT_HLIST_HEAD(&md5sig->head);
 		rcu_assign_pointer(tp->md5sig_info, md5sig);
 	}
@@ -1620,7 +1620,7 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 		 */
 		tcp_md5_do_add(newsk, addr, AF_INET, 32, l3index, key->flags,
 			       key->key, key->keylen, GFP_ATOMIC);
-		sk_nocaps_add(newsk, NETIF_F_GSO_MASK);
+		sk_gso_disable(newsk);
 	}
 #endif
 

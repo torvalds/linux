@@ -284,7 +284,7 @@ struct bpf_local_storage;
   *	@sk_no_check_tx: %SO_NO_CHECK setting, set checksum in TX packets
   *	@sk_no_check_rx: allow zero checksum in RX packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
-  *	@sk_route_nocaps: forbidden route capabilities (e.g NETIF_F_GSO_MASK)
+  *	@sk_gso_disabled: if set, NETIF_F_GSO_MASK is forbidden.
   *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
   *	@sk_gso_max_size: Maximum GSO segment size to build
   *	@sk_gso_max_segs: Maximum number of GSO segments
@@ -458,7 +458,6 @@ struct sock {
 	unsigned long		sk_max_pacing_rate;
 	struct page_frag	sk_frag;
 	netdev_features_t	sk_route_caps;
-	netdev_features_t	sk_route_nocaps;
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
 	gfp_t			sk_allocation;
@@ -468,7 +467,7 @@ struct sock {
 	 * Because of non atomicity rules, all
 	 * changes are protected by socket lock.
 	 */
-	u8			sk_padding : 1,
+	u8			sk_gso_disabled : 1,
 				sk_kern_sock : 1,
 				sk_no_check_tx : 1,
 				sk_no_check_rx : 1,
@@ -2121,10 +2120,10 @@ static inline bool sk_can_gso(const struct sock *sk)
 
 void sk_setup_caps(struct sock *sk, struct dst_entry *dst);
 
-static inline void sk_nocaps_add(struct sock *sk, netdev_features_t flags)
+static inline void sk_gso_disable(struct sock *sk)
 {
-	sk->sk_route_nocaps |= flags;
-	sk->sk_route_caps &= ~flags;
+	sk->sk_gso_disabled = 1;
+	sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
 }
 
 static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
