@@ -106,7 +106,12 @@ void bch2_journal_halt(struct journal *j)
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
-	j->err_seq = journal_cur_seq(j);
+	/*
+	 * XXX: we're not using j->lock here because this can be called from
+	 * interrupt context, this can race with journal_write_done()
+	 */
+	if (!j->err_seq)
+		j->err_seq = journal_cur_seq(j);
 	journal_wake(j);
 	closure_wake_up(&journal_cur_buf(j)->wait);
 }

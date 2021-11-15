@@ -1480,7 +1480,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	}
 
 	err = "error writing first journal entry";
-	ret = bch2_journal_meta(&c->journal);
+	ret = bch2_journal_flush(&c->journal);
 	if (ret)
 		goto err;
 
