@@ -285,14 +285,14 @@ static inline u32 rk_mk_dte_v2(dma_addr_t pt_dma)
  *  11:9 - Page address bit 34:32
  *   8:4 - Page address bit 39:35
  *     3 - Security
- *     2 - Readable
- *     1 - Writable
+ *     2 - Writable
+ *     1 - Readable
  *     0 - 1 if Page @ Page address is valid
  */
 #define RK_PTE_PAGE_ADDRESS_MASK_V2  0xfffffff0
 #define RK_PTE_PAGE_FLAGS_MASK_V2    0x0000000e
-#define RK_PTE_PAGE_READABLE_V2      BIT(2)
-#define RK_PTE_PAGE_WRITABLE_V2      BIT(1)
+#define RK_PTE_PAGE_READABLE_V2      BIT(1)
+#define RK_PTE_PAGE_WRITABLE_V2      BIT(2)
 
 static inline phys_addr_t rk_pte_page_address(u32 pte)
 {
