@@ -17,7 +17,6 @@
 */
 
 #include <linux/module.h>
-#include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>

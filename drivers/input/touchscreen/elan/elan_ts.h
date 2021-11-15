@@ -10,6 +10,7 @@
 #ifndef _LINUX_ELAN_TS_H
 #define _LINUX_ELAN_TS_H
 
+#include <linux/i2c.h>
 #include <linux/miscdevice.h>
 #include <linux/regulator/consumer.h>
 #include <linux/uaccess.h>
