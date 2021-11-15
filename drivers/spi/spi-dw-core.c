@@ -824,6 +824,20 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 	dw_spi_reset_chip(dws);
 
 	/*
+	 * Retrieve the Synopsys component version if it hasn't been specified
+	 * by the platform. CoreKit version ID is encoded as a 3-chars ASCII
+	 * code enclosed with '*' (typical for the most of Synopsys IP-cores).
+	 */
+	if (!dws->ver) {
+		dws->ver = dw_readl(dws, DW_SPI_VERSION);
+
+		dev_dbg(dev, "Synopsys DWC%sSSI v%c.%c%c\n",
+			(dws->caps & DW_SPI_CAP_DWC_HSSI) ? " " : " APB ",
+			DW_SPI_GET_BYTE(dws->ver, 3), DW_SPI_GET_BYTE(dws->ver, 2),
+			DW_SPI_GET_BYTE(dws->ver, 1));
+	}
+
+	/*
 	 * Try to detect the FIFO depth if not set by interface driver,
 	 * the depth could be from 2 to 256 from HW spec
 	 */

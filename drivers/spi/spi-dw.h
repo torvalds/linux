@@ -11,6 +11,30 @@
 #include <linux/spi/spi-mem.h>
 #include <linux/bitfield.h>
 
+/* Synopsys DW SSI IP-core virtual IDs */
+#define DW_PSSI_ID			0
+#define DW_HSSI_ID			1
+
+/* Synopsys DW SSI component versions (FourCC sequence) */
+#define DW_HSSI_102A			0x3130322a
+
+/* DW SSI IP-core ID and version check helpers */
+#define dw_spi_ip_is(_dws, _ip) \
+	((_dws)->ip == DW_ ## _ip ## _ID)
+
+#define __dw_spi_ver_cmp(_dws, _ip, _ver, _op) \
+	(dw_spi_ip_is(_dws, _ip) && (_dws)->ver _op DW_ ## _ip ## _ver)
+
+#define dw_spi_ver_is(_dws, _ip, _ver) __dw_spi_ver_cmp(_dws, _ip, _ver, ==)
+
+#define dw_spi_ver_is_ge(_dws, _ip, _ver) __dw_spi_ver_cmp(_dws, _ip, _ver, >=)
+
+/* DW SPI controller capabilities */
+#define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
+#define DW_SPI_CAP_KEEMBAY_MST		BIT(1)
+#define DW_SPI_CAP_DWC_HSSI		BIT(2)
+#define DW_SPI_CAP_DFS32		BIT(3)
+
 /* Register offsets (Generic for both DWC APB SSI and DWC SSI IP-cores) */
 #define DW_SPI_CTRLR0			0x00
 #define DW_SPI_CTRLR1			0x04
@@ -113,12 +137,6 @@
 #define DW_SPI_GET_BYTE(_val, _idx) \
 	((_val) >> (BITS_PER_BYTE * (_idx)) & 0xff)
 
-/* DW SPI capabilities */
-#define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
-#define DW_SPI_CAP_KEEMBAY_MST		BIT(1)
-#define DW_SPI_CAP_DWC_HSSI		BIT(2)
-#define DW_SPI_CAP_DFS32		BIT(3)
-
 /* Slave spi_transfer/spi_mem_op related */
 struct dw_spi_cfg {
 	u8 tmode;
@@ -141,6 +159,10 @@ struct dw_spi_dma_ops {
 struct dw_spi {
 	struct spi_controller	*master;
 
+	u32			ip;		/* Synopsys DW SSI IP-core ID */
+	u32			ver;		/* Synopsys component version */
+	u32			caps;		/* DW SPI capabilities */
+
 	void __iomem		*regs;
 	unsigned long		paddr;
 	int			irq;
@@ -148,8 +170,6 @@ struct dw_spi {
 	unsigned int		dfs_offset;     /* CTRLR0 DFS field offset */
 	u32			max_mem_freq;	/* max mem-ops bus freq */
 	u32			max_freq;	/* max bus freq supported */
-
-	u32			caps;		/* DW SPI capabilities */
 
 	u32			reg_io_width;	/* DR I/O width in bytes */
 	u16			bus_num;
