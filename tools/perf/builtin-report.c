@@ -1378,18 +1378,9 @@ int cmd_report(int argc, const char **argv)
 	if (quiet)
 		perf_quiet_option();
 
-	if (symbol_conf.vmlinux_name &&
-	    access(symbol_conf.vmlinux_name, R_OK)) {
-		pr_err("Invalid file: %s\n", symbol_conf.vmlinux_name);
-		ret = -EINVAL;
+	ret = symbol__validate_sym_arguments();
+	if (ret)
 		goto exit;
-	}
-	if (symbol_conf.kallsyms_name &&
-	    access(symbol_conf.kallsyms_name, R_OK)) {
-		pr_err("Invalid file: %s\n", symbol_conf.kallsyms_name);
-		ret = -EINVAL;
-		goto exit;
-	}
 
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;

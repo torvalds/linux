@@ -30,18 +30,18 @@
 #include <linux/reset.h>
 #include <linux/sys_soc.h>
 
-/* MediaTek specific configuration registers */
+/* MediaTek-specific configuration registers */
 #define PCIE_FTS_NUM			0x70c
 #define PCIE_FTS_NUM_MASK		GENMASK(15, 8)
 #define PCIE_FTS_NUM_L0(x)		(((x) & 0xff) << 8)
 
 /* Host-PCI bridge registers */
 #define RALINK_PCI_PCICFG_ADDR		0x0000
-#define RALINK_PCI_PCIMSK_ADDR		0x000C
+#define RALINK_PCI_PCIMSK_ADDR		0x000c
 #define RALINK_PCI_CONFIG_ADDR		0x0020
 #define RALINK_PCI_CONFIG_DATA		0x0024
 #define RALINK_PCI_MEMBASE		0x0028
-#define RALINK_PCI_IOBASE		0x002C
+#define RALINK_PCI_IOBASE		0x002c
 
 /* PCIe RC control registers */
 #define RALINK_PCI_ID			0x0030
@@ -132,7 +132,7 @@ static inline void pcie_port_write(struct mt7621_pcie_port *port,
 static inline u32 mt7621_pci_get_cfgaddr(unsigned int bus, unsigned int slot,
 					 unsigned int func, unsigned int where)
 {
-	return (((where & 0xF00) >> 8) << 24) | (bus << 16) | (slot << 11) |
+	return (((where & 0xf00) >> 8) << 24) | (bus << 16) | (slot << 11) |
 		(func << 8) | (where & 0xfc) | 0x80000000;
 }
 
@@ -217,7 +217,7 @@ static int setup_cm_memory_region(struct pci_host_bridge *host)
 
 	entry = resource_list_first_type(&host->windows, IORESOURCE_MEM);
 	if (!entry) {
-		dev_err(dev, "Cannot get memory resource\n");
+		dev_err(dev, "cannot get memory resource\n");
 		return -EINVAL;
 	}
 
@@ -280,7 +280,7 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 	port->gpio_rst = devm_gpiod_get_index_optional(dev, "reset", slot,
 						       GPIOD_OUT_LOW);
 	if (IS_ERR(port->gpio_rst)) {
-		dev_err(dev, "Failed to get GPIO for PCIe%d\n", slot);
+		dev_err(dev, "failed to get GPIO for PCIe%d\n", slot);
 		err = PTR_ERR(port->gpio_rst);
 		goto remove_reset;
 	}
@@ -409,7 +409,7 @@ static int mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 
 		err = mt7621_pcie_init_port(port);
 		if (err) {
-			dev_err(dev, "Initiating port %d failed\n", slot);
+			dev_err(dev, "initializing port %d failed\n", slot);
 			list_del(&port->list);
 		}
 	}
@@ -476,7 +476,7 @@ static int mt7621_pcie_enable_ports(struct pci_host_bridge *host)
 
 	entry = resource_list_first_type(&host->windows, IORESOURCE_IO);
 	if (!entry) {
-		dev_err(dev, "Cannot get io resource\n");
+		dev_err(dev, "cannot get io resource\n");
 		return -EINVAL;
 	}
 
@@ -541,25 +541,25 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	err = mt7621_pcie_parse_dt(pcie);
 	if (err) {
-		dev_err(dev, "Parsing DT failed\n");
+		dev_err(dev, "parsing DT failed\n");
 		return err;
 	}
 
 	err = mt7621_pcie_init_ports(pcie);
 	if (err) {
-		dev_err(dev, "Nothing connected in virtual bridges\n");
+		dev_err(dev, "nothing connected in virtual bridges\n");
 		return 0;
 	}
 
 	err = mt7621_pcie_enable_ports(bridge);
 	if (err) {
-		dev_err(dev, "Error enabling pcie ports\n");
+		dev_err(dev, "error enabling pcie ports\n");
 		goto remove_resets;
 	}
 
 	err = setup_cm_memory_region(bridge);
 	if (err) {
-		dev_err(dev, "Error setting up iocu mem regions\n");
+		dev_err(dev, "error setting up iocu mem regions\n");
 		goto remove_resets;
 	}
 

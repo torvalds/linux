@@ -561,7 +561,7 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 	zdev->has_resources = 0;
 }
 
-int pcibios_add_device(struct pci_dev *pdev)
+int pcibios_device_add(struct pci_dev *pdev)
 {
 	struct zpci_dev *zdev = to_zpci(pdev);
 	struct resource *res;

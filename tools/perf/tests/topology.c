@@ -49,7 +49,9 @@ static int session_write_header(char *path)
 
 		session->evlist = evlist__new();
 		TEST_ASSERT_VAL("can't get evlist", session->evlist);
+		parse_events_error__init(&err);
 		parse_events(session->evlist, "cpu_core/cycles/", &err);
+		parse_events_error__exit(&err);
 	}
 
 	perf_header__set_feat(&session->header, HEADER_CPU_TOPOLOGY);

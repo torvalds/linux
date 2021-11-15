@@ -16,6 +16,7 @@ struct perf_env perf_env;
 
 #ifdef HAVE_LIBBPF_SUPPORT
 #include "bpf-event.h"
+#include "bpf-utils.h"
 #include <bpf/libbpf.h>
 
 void perf_env__insert_bpf_prog_info(struct perf_env *env,

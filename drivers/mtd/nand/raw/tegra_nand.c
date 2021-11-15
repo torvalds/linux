@@ -1144,7 +1144,6 @@ static int tegra_nand_probe(struct platform_device *pdev)
 {
 	struct reset_control *rst;
 	struct tegra_nand_controller *ctrl;
-	struct resource *res;
 	int err = 0;
 
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
@@ -1155,8 +1154,7 @@ static int tegra_nand_probe(struct platform_device *pdev)
 	nand_controller_init(&ctrl->controller);
 	ctrl->controller.ops = &tegra_nand_controller_ops;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctrl->regs = devm_ioremap_resource(&pdev->dev, res);
+	ctrl->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctrl->regs))
 		return PTR_ERR(ctrl->regs);
 

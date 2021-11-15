@@ -30,6 +30,7 @@ struct nvdimm_drvdata {
 	int nslabel_size;
 	struct nd_cmd_get_config_size nsarea;
 	void *data;
+	bool cxl;
 	int ns_current, ns_next;
 	struct resource dpa;
 	struct kref kref;
@@ -38,13 +39,17 @@ struct nvdimm_drvdata {
 static inline const u8 *nsl_ref_name(struct nvdimm_drvdata *ndd,
 				     struct nd_namespace_label *nd_label)
 {
-	return nd_label->name;
+	if (ndd->cxl)
+		return nd_label->cxl.name;
+	return nd_label->efi.name;
 }
 
 static inline u8 *nsl_get_name(struct nvdimm_drvdata *ndd,
 			       struct nd_namespace_label *nd_label, u8 *name)
 {
-	return memcpy(name, nd_label->name, NSLABEL_NAME_LEN);
+	if (ndd->cxl)
+		return memcpy(name, nd_label->cxl.name, NSLABEL_NAME_LEN);
+	return memcpy(name, nd_label->efi.name, NSLABEL_NAME_LEN);
 }
 
 static inline u8 *nsl_set_name(struct nvdimm_drvdata *ndd,
@@ -52,129 +57,242 @@ static inline u8 *nsl_set_name(struct nvdimm_drvdata *ndd,
 {
 	if (!name)
 		return NULL;
-	return memcpy(nd_label->name, name, NSLABEL_NAME_LEN);
+	if (ndd->cxl)
+		return memcpy(nd_label->cxl.name, name, NSLABEL_NAME_LEN);
+	return memcpy(nd_label->efi.name, name, NSLABEL_NAME_LEN);
 }
 
 static inline u32 nsl_get_slot(struct nvdimm_drvdata *ndd,
 			       struct nd_namespace_label *nd_label)
 {
-	return __le32_to_cpu(nd_label->slot);
+	if (ndd->cxl)
+		return __le32_to_cpu(nd_label->cxl.slot);
+	return __le32_to_cpu(nd_label->efi.slot);
 }
 
 static inline void nsl_set_slot(struct nvdimm_drvdata *ndd,
 				struct nd_namespace_label *nd_label, u32 slot)
 {
-	nd_label->slot = __cpu_to_le32(slot);
+	if (ndd->cxl)
+		nd_label->cxl.slot = __cpu_to_le32(slot);
+	else
+		nd_label->efi.slot = __cpu_to_le32(slot);
 }
 
 static inline u64 nsl_get_checksum(struct nvdimm_drvdata *ndd,
 				   struct nd_namespace_label *nd_label)
 {
-	return __le64_to_cpu(nd_label->checksum);
+	if (ndd->cxl)
+		return __le64_to_cpu(nd_label->cxl.checksum);
+	return __le64_to_cpu(nd_label->efi.checksum);
 }
 
 static inline void nsl_set_checksum(struct nvdimm_drvdata *ndd,
 				    struct nd_namespace_label *nd_label,
 				    u64 checksum)
 {
-	nd_label->checksum = __cpu_to_le64(checksum);
+	if (ndd->cxl)
+		nd_label->cxl.checksum = __cpu_to_le64(checksum);
+	else
+		nd_label->efi.checksum = __cpu_to_le64(checksum);
 }
 
 static inline u32 nsl_get_flags(struct nvdimm_drvdata *ndd,
 				struct nd_namespace_label *nd_label)
 {
-	return __le32_to_cpu(nd_label->flags);
+	if (ndd->cxl)
+		return __le32_to_cpu(nd_label->cxl.flags);
+	return __le32_to_cpu(nd_label->efi.flags);
 }
 
 static inline void nsl_set_flags(struct nvdimm_drvdata *ndd,
 				 struct nd_namespace_label *nd_label, u32 flags)
 {
-	nd_label->flags = __cpu_to_le32(flags);
+	if (ndd->cxl)
+		nd_label->cxl.flags = __cpu_to_le32(flags);
+	else
+		nd_label->efi.flags = __cpu_to_le32(flags);
 }
 
 static inline u64 nsl_get_dpa(struct nvdimm_drvdata *ndd,
 			      struct nd_namespace_label *nd_label)
 {
-	return __le64_to_cpu(nd_label->dpa);
+	if (ndd->cxl)
+		return __le64_to_cpu(nd_label->cxl.dpa);
+	return __le64_to_cpu(nd_label->efi.dpa);
 }
 
 static inline void nsl_set_dpa(struct nvdimm_drvdata *ndd,
 			       struct nd_namespace_label *nd_label, u64 dpa)
 {
-	nd_label->dpa = __cpu_to_le64(dpa);
+	if (ndd->cxl)
+		nd_label->cxl.dpa = __cpu_to_le64(dpa);
+	else
+		nd_label->efi.dpa = __cpu_to_le64(dpa);
 }
 
 static inline u64 nsl_get_rawsize(struct nvdimm_drvdata *ndd,
 				  struct nd_namespace_label *nd_label)
 {
-	return __le64_to_cpu(nd_label->rawsize);
+	if (ndd->cxl)
+		return __le64_to_cpu(nd_label->cxl.rawsize);
+	return __le64_to_cpu(nd_label->efi.rawsize);
 }
 
 static inline void nsl_set_rawsize(struct nvdimm_drvdata *ndd,
 				   struct nd_namespace_label *nd_label,
 				   u64 rawsize)
 {
-	nd_label->rawsize = __cpu_to_le64(rawsize);
+	if (ndd->cxl)
+		nd_label->cxl.rawsize = __cpu_to_le64(rawsize);
+	else
+		nd_label->efi.rawsize = __cpu_to_le64(rawsize);
 }
 
 static inline u64 nsl_get_isetcookie(struct nvdimm_drvdata *ndd,
 				     struct nd_namespace_label *nd_label)
 {
-	return __le64_to_cpu(nd_label->isetcookie);
+	/* WARN future refactor attempts that break this assumption */
+	if (dev_WARN_ONCE(ndd->dev, ndd->cxl,
+			  "CXL labels do not use the isetcookie concept\n"))
+		return 0;
+	return __le64_to_cpu(nd_label->efi.isetcookie);
 }
 
 static inline void nsl_set_isetcookie(struct nvdimm_drvdata *ndd,
 				      struct nd_namespace_label *nd_label,
 				      u64 isetcookie)
 {
-	nd_label->isetcookie = __cpu_to_le64(isetcookie);
+	if (!ndd->cxl)
+		nd_label->efi.isetcookie = __cpu_to_le64(isetcookie);
 }
 
 static inline bool nsl_validate_isetcookie(struct nvdimm_drvdata *ndd,
 					   struct nd_namespace_label *nd_label,
 					   u64 cookie)
 {
-	return cookie == __le64_to_cpu(nd_label->isetcookie);
+	/*
+	 * Let the EFI and CXL validation comingle, where fields that
+	 * don't matter to CXL always validate.
+	 */
+	if (ndd->cxl)
+		return true;
+	return cookie == __le64_to_cpu(nd_label->efi.isetcookie);
 }
 
 static inline u16 nsl_get_position(struct nvdimm_drvdata *ndd,
 				   struct nd_namespace_label *nd_label)
 {
-	return __le16_to_cpu(nd_label->position);
+	if (ndd->cxl)
+		return __le16_to_cpu(nd_label->cxl.position);
+	return __le16_to_cpu(nd_label->efi.position);
 }
 
 static inline void nsl_set_position(struct nvdimm_drvdata *ndd,
 				    struct nd_namespace_label *nd_label,
 				    u16 position)
 {
-	nd_label->position = __cpu_to_le16(position);
+	if (ndd->cxl)
+		nd_label->cxl.position = __cpu_to_le16(position);
+	else
+		nd_label->efi.position = __cpu_to_le16(position);
 }
-
 
 static inline u16 nsl_get_nlabel(struct nvdimm_drvdata *ndd,
 				 struct nd_namespace_label *nd_label)
 {
-	return __le16_to_cpu(nd_label->nlabel);
+	if (ndd->cxl)
+		return 0;
+	return __le16_to_cpu(nd_label->efi.nlabel);
 }
 
 static inline void nsl_set_nlabel(struct nvdimm_drvdata *ndd,
 				  struct nd_namespace_label *nd_label,
 				  u16 nlabel)
 {
-	nd_label->nlabel = __cpu_to_le16(nlabel);
+	if (!ndd->cxl)
+		nd_label->efi.nlabel = __cpu_to_le16(nlabel);
+}
+
+static inline u16 nsl_get_nrange(struct nvdimm_drvdata *ndd,
+				 struct nd_namespace_label *nd_label)
+{
+	if (ndd->cxl)
+		return __le16_to_cpu(nd_label->cxl.nrange);
+	return 1;
+}
+
+static inline void nsl_set_nrange(struct nvdimm_drvdata *ndd,
+				  struct nd_namespace_label *nd_label,
+				  u16 nrange)
+{
+	if (ndd->cxl)
+		nd_label->cxl.nrange = __cpu_to_le16(nrange);
 }
 
 static inline u64 nsl_get_lbasize(struct nvdimm_drvdata *ndd,
 				  struct nd_namespace_label *nd_label)
 {
-	return __le64_to_cpu(nd_label->lbasize);
+	/*
+	 * Yes, for some reason the EFI labels convey a massive 64-bit
+	 * lbasize, that got fixed for CXL.
+	 */
+	if (ndd->cxl)
+		return __le16_to_cpu(nd_label->cxl.lbasize);
+	return __le64_to_cpu(nd_label->efi.lbasize);
 }
 
 static inline void nsl_set_lbasize(struct nvdimm_drvdata *ndd,
 				   struct nd_namespace_label *nd_label,
 				   u64 lbasize)
 {
-	nd_label->lbasize = __cpu_to_le64(lbasize);
+	if (ndd->cxl)
+		nd_label->cxl.lbasize = __cpu_to_le16(lbasize);
+	else
+		nd_label->efi.lbasize = __cpu_to_le64(lbasize);
+}
+
+static inline const uuid_t *nsl_get_uuid(struct nvdimm_drvdata *ndd,
+					 struct nd_namespace_label *nd_label,
+					 uuid_t *uuid)
+{
+	if (ndd->cxl)
+		import_uuid(uuid, nd_label->cxl.uuid);
+	else
+		import_uuid(uuid, nd_label->efi.uuid);
+	return uuid;
+}
+
+static inline const uuid_t *nsl_set_uuid(struct nvdimm_drvdata *ndd,
+					 struct nd_namespace_label *nd_label,
+					 const uuid_t *uuid)
+{
+	if (ndd->cxl)
+		export_uuid(nd_label->cxl.uuid, uuid);
+	else
+		export_uuid(nd_label->efi.uuid, uuid);
+	return uuid;
+}
+
+static inline bool nsl_uuid_equal(struct nvdimm_drvdata *ndd,
+				  struct nd_namespace_label *nd_label,
+				  const uuid_t *uuid)
+{
+	uuid_t tmp;
+
+	if (ndd->cxl)
+		import_uuid(&tmp, nd_label->cxl.uuid);
+	else
+		import_uuid(&tmp, nd_label->efi.uuid);
+	return uuid_equal(&tmp, uuid);
+}
+
+static inline const u8 *nsl_uuid_raw(struct nvdimm_drvdata *ndd,
+				     struct nd_namespace_label *nd_label)
+{
+	if (ndd->cxl)
+		return nd_label->cxl.uuid;
+	return nd_label->efi.uuid;
 }
 
 bool nsl_validate_blk_isetcookie(struct nvdimm_drvdata *ndd,
@@ -233,8 +351,8 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 
 unsigned sizeof_namespace_label(struct nvdimm_drvdata *ndd);
 
-#define namespace_label_has(ndd, field) \
-	(offsetof(struct nd_namespace_label, field) \
+#define efi_namespace_label_has(ndd, field) \
+	(!ndd->cxl && offsetof(struct nvdimm_efi_label, field) \
 		< sizeof_namespace_label(ndd))
 
 #define nd_dbg_dpa(r, d, res, fmt, arg...) \
@@ -310,6 +428,15 @@ struct nd_region {
 	struct nd_mapping mapping[];
 };
 
+static inline bool nsl_validate_nlabel(struct nd_region *nd_region,
+				       struct nvdimm_drvdata *ndd,
+				       struct nd_namespace_label *nd_label)
+{
+	if (ndd->cxl)
+		return true;
+	return nsl_get_nlabel(ndd, nd_label) == nd_region->ndr_mappings;
+}
+
 struct nd_blk_region {
 	int (*enable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 	int (*do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
@@ -335,7 +462,7 @@ struct nd_btt {
 	struct btt *btt;
 	unsigned long lbasize;
 	u64 size;
-	u8 *uuid;
+	uuid_t *uuid;
 	int id;
 	int initial_offset;
 	u16 version_major;
@@ -350,7 +477,7 @@ enum nd_pfn_mode {
 
 struct nd_pfn {
 	int id;
-	u8 *uuid;
+	uuid_t *uuid;
 	struct device dev;
 	unsigned long align;
 	unsigned long npfns;
@@ -378,7 +505,7 @@ void wait_nvdimm_bus_probe_idle(struct device *dev);
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);
 void nd_device_notify(struct device *dev, enum nvdimm_event event);
-int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
+int nd_uuid_store(struct device *dev, uuid_t **uuid_out, const char *buf,
 		size_t len);
 ssize_t nd_size_select_show(unsigned long current_size,
 		const unsigned long *supported, char *buf);
@@ -561,6 +688,6 @@ static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
 	return false;
 }
 resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
-const u8 *nd_dev_to_uuid(struct device *dev);
+const uuid_t *nd_dev_to_uuid(struct device *dev);
 bool pmem_should_map_pages(struct device *dev);
 #endif /* __ND_H__ */

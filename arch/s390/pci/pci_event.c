@@ -52,6 +52,8 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
 	struct pci_dev *pdev = NULL;
 
+	zpci_dbg(3, "err fid:%x, fh:%x, pec:%x\n",
+		 ccdf->fid, ccdf->fh, ccdf->pec);
 	zpci_err("error CCDF:\n");
 	zpci_err_hex(ccdf, sizeof(*ccdf));
 
@@ -96,6 +98,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
 	enum zpci_state state;
 
+	zpci_dbg(3, "avl fid:%x, fh:%x, pec:%x\n",
+		 ccdf->fid, ccdf->fh, ccdf->pec);
 	zpci_err("avail CCDF:\n");
 	zpci_err_hex(ccdf, sizeof(*ccdf));
 

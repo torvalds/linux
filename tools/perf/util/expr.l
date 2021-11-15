@@ -41,11 +41,9 @@ static char *normalize(char *str, int runtime)
 	char *dst = str;
 
 	while (*str) {
-		if (*str == '@')
-			*dst++ = '/';
-		else if (*str == '\\')
+		if (*str == '\\')
 			*dst++ = *++str;
-		 else if (*str == '?') {
+		else if (*str == '?') {
 			char *paramval;
 			int i = 0;
 			int size = asprintf(&paramval, "%d", runtime);
@@ -90,15 +88,6 @@ symbol		({spec}|{sym})+
 
 %%
 	struct expr_scanner_ctx *sctx = expr_get_extra(yyscanner);
-
-	{
-		int start_token = sctx->start_token;
-
-		if (sctx->start_token) {
-			sctx->start_token = 0;
-			return start_token;
-		}
-	}
 
 d_ratio		{ return D_RATIO; }
 max		{ return MAX; }

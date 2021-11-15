@@ -302,7 +302,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 
 	/*
 	 * MSIINTn (n is 0..F) indicates if there is a pending MSI interrupt
-	 * If bit x of this register is set (x is 0..7), one or more interupts
+	 * If bit x of this register is set (x is 0..7), one or more interrupts
 	 * corresponding to MSInIRx is set.
 	 */
 	grp_select = xgene_msi_int_read(xgene_msi, msi_grp);

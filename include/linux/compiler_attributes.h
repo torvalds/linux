@@ -113,7 +113,6 @@
 #define __deprecated
 
 /*
- * Optional: only supported since gcc >= 5.1
  * Optional: not supported by clang
  * Optional: not supported by icc
  *

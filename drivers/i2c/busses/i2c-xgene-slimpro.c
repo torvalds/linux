@@ -487,7 +487,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 		pcc_chan = pcc_mbox_request_channel(cl, ctx->mbox_idx);
 		if (IS_ERR(pcc_chan)) {
 			dev_err(&pdev->dev, "PCC mailbox channel request failed\n");
-			return PTR_ERR(ctx->pcc_chan);
+			return PTR_ERR(pcc_chan);
 		}
 
 		ctx->pcc_chan = pcc_chan;

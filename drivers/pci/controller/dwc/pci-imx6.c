@@ -1132,7 +1132,7 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 
 	/* Limit link speed */
 	pci->link_gen = 1;
-	ret = of_property_read_u32(node, "fsl,max-link-speed", &pci->link_gen);
+	of_property_read_u32(node, "fsl,max-link-speed", &pci->link_gen);
 
 	imx6_pcie->vpcie = devm_regulator_get_optional(&pdev->dev, "vpcie");
 	if (IS_ERR(imx6_pcie->vpcie)) {
