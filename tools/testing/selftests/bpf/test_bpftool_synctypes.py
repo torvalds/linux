@@ -9,7 +9,15 @@ import os, sys
 
 LINUX_ROOT = os.path.abspath(os.path.join(__file__,
     os.pardir, os.pardir, os.pardir, os.pardir, os.pardir))
-BPFTOOL_DIR = os.path.join(LINUX_ROOT, 'tools/bpf/bpftool')
+BPFTOOL_DIR = os.getenv('BPFTOOL_DIR',
+    os.path.join(LINUX_ROOT, 'tools/bpf/bpftool'))
+BPFTOOL_BASHCOMP_DIR = os.getenv('BPFTOOL_BASHCOMP_DIR',
+    os.path.join(BPFTOOL_DIR, 'bash-completion'))
+BPFTOOL_DOC_DIR = os.getenv('BPFTOOL_DOC_DIR',
+    os.path.join(BPFTOOL_DIR, 'Documentation'))
+INCLUDE_DIR = os.getenv('INCLUDE_DIR',
+    os.path.join(LINUX_ROOT, 'tools/include'))
+
 retval = 0
 
 class BlockParser(object):
@@ -300,7 +308,7 @@ class ManSubstitutionsExtractor(SourceFileExtractor):
     """
     An extractor for substitutions.rst
     """
-    filename = os.path.join(BPFTOOL_DIR, 'Documentation/substitutions.rst')
+    filename = os.path.join(BPFTOOL_DOC_DIR, 'substitutions.rst')
 
     def get_common_options(self):
         """
@@ -393,7 +401,7 @@ class BpfHeaderExtractor(FileExtractor):
     """
     An extractor for the UAPI BPF header.
     """
-    filename = os.path.join(LINUX_ROOT, 'tools/include/uapi/linux/bpf.h')
+    filename = os.path.join(INCLUDE_DIR, 'uapi/linux/bpf.h')
 
     def get_prog_types(self):
         return self.get_enum('bpf_prog_type')
@@ -417,7 +425,7 @@ class ManProgExtractor(ManPageExtractor):
     """
     An extractor for bpftool-prog.rst.
     """
-    filename = os.path.join(BPFTOOL_DIR, 'Documentation/bpftool-prog.rst')
+    filename = os.path.join(BPFTOOL_DOC_DIR, 'bpftool-prog.rst')
 
     def get_attach_types(self):
         return self.get_rst_list('ATTACH_TYPE')
@@ -426,7 +434,7 @@ class ManMapExtractor(ManPageExtractor):
     """
     An extractor for bpftool-map.rst.
     """
-    filename = os.path.join(BPFTOOL_DIR, 'Documentation/bpftool-map.rst')
+    filename = os.path.join(BPFTOOL_DOC_DIR, 'bpftool-map.rst')
 
     def get_map_types(self):
         return self.get_rst_list('TYPE')
@@ -435,7 +443,7 @@ class ManCgroupExtractor(ManPageExtractor):
     """
     An extractor for bpftool-cgroup.rst.
     """
-    filename = os.path.join(BPFTOOL_DIR, 'Documentation/bpftool-cgroup.rst')
+    filename = os.path.join(BPFTOOL_DOC_DIR, 'bpftool-cgroup.rst')
 
     def get_attach_types(self):
         return self.get_rst_list('ATTACH_TYPE')
@@ -454,7 +462,7 @@ class BashcompExtractor(FileExtractor):
     """
     An extractor for bpftool's bash completion file.
     """
-    filename = os.path.join(BPFTOOL_DIR, 'bash-completion/bpftool')
+    filename = os.path.join(BPFTOOL_BASHCOMP_DIR, 'bpftool')
 
     def get_prog_attach_types(self):
         return self.get_bashcomp_list('BPFTOOL_PROG_ATTACH_TYPES')
@@ -605,7 +613,7 @@ def main():
         help_cmd_options = source_info.get_options()
         source_info.close()
 
-        man_cmd_info = ManGenericExtractor(os.path.join('Documentation', 'bpftool-' + cmd + '.rst'))
+        man_cmd_info = ManGenericExtractor(os.path.join(BPFTOOL_DOC_DIR, 'bpftool-' + cmd + '.rst'))
         man_cmd_options = man_cmd_info.get_options()
         man_cmd_info.close()
 
@@ -616,7 +624,7 @@ def main():
     help_main_options = source_main_info.get_options()
     source_main_info.close()
 
-    man_main_info = ManGenericExtractor(os.path.join('Documentation', 'bpftool.rst'))
+    man_main_info = ManGenericExtractor(os.path.join(BPFTOOL_DOC_DIR, 'bpftool.rst'))
     man_main_options = man_main_info.get_options()
     man_main_info.close()
 
