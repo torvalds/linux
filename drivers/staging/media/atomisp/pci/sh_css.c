@@ -8198,15 +8198,6 @@ sh_css_init_host_sp_control_vars(void)
 #endif
 	HIVE_ADDR_host_sp_com = fw->info.sp.host_sp_com;
 
-	(void)HIVE_ADDR_ia_css_ispctrl_sp_isp_started; /* Suppres warnings in CRUN */
-
-	(void)HIVE_ADDR_sp_sleep_mode;
-	(void)HIVE_ADDR_ia_css_dmaproxy_sp_invalidate_tlb;
-#ifndef ISP2401
-	(void)HIVE_ADDR_sp_stop_copy_preview;
-#endif
-	(void)HIVE_ADDR_host_sp_com;
-
 	sp_dmem_store_uint32(SP0_ID,
 			     (unsigned int)sp_address_of(ia_css_ispctrl_sp_isp_started),
 			     (uint32_t)(0));
