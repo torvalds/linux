@@ -1572,9 +1572,29 @@ intel_connector_primary_encoder(struct intel_connector *connector)
 
 static void intel_encoders_update_prepare(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
+	struct intel_crtc *crtc;
 	struct drm_connector_state *new_conn_state;
 	struct drm_connector *connector;
 	int i;
+
+	/*
+	 * Make sure the DPLL state is up-to-date for fastset TypeC ports after non-blocking commits.
+	 * TODO: Update the DPLL state for all cases in the encoder->update_prepare() hook.
+	 */
+	if (i915->dpll.mgr) {
+		for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+			if (intel_crtc_needs_modeset(new_crtc_state))
+				continue;
+
+			new_crtc_state->shared_dpll = old_crtc_state->shared_dpll;
+			new_crtc_state->dpll_hw_state = old_crtc_state->dpll_hw_state;
+		}
+	}
+
+	if (!state->modeset)
+		return;
 
 	for_each_new_connector_in_state(&state->base, connector, new_conn_state,
 					i) {
@@ -1601,6 +1621,9 @@ static void intel_encoders_update_complete(struct intel_atomic_state *state)
 	struct drm_connector_state *new_conn_state;
 	struct drm_connector *connector;
 	int i;
+
+	if (!state->modeset)
+		return;
 
 	for_each_new_connector_in_state(&state->base, connector, new_conn_state,
 					i) {
@@ -8670,8 +8693,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		}
 	}
 
-	if (state->modeset)
-		intel_encoders_update_prepare(state);
+	intel_encoders_update_prepare(state);
 
 	intel_dbuf_pre_plane_update(state);
 
@@ -8683,11 +8705,10 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display->commit_modeset_enables(state);
 
-	if (state->modeset) {
-		intel_encoders_update_complete(state);
+	intel_encoders_update_complete(state);
 
+	if (state->modeset)
 		intel_set_cdclk_post_plane_update(state);
-	}
 
 	intel_wait_for_vblank_workers(state);
 
