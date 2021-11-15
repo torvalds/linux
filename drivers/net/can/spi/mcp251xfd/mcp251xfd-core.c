@@ -1652,12 +1652,15 @@ static int mcp251xfd_handle_rxovif(struct mcp251xfd_priv *priv)
 
 		/* If SERRIF is active, there was a RX MAB overflow. */
 		if (priv->regs_status.intf & MCP251XFD_REG_INT_SERRIF) {
-			netdev_info(priv->ndev,
-				    "RX-%d: MAB overflow detected.\n",
-				    ring->nr);
+			if (net_ratelimit())
+				netdev_dbg(priv->ndev,
+					   "RX-%d: MAB overflow detected.\n",
+					   ring->nr);
 		} else {
-			netdev_info(priv->ndev,
-				    "RX-%d: FIFO overflow.\n", ring->nr);
+			if (net_ratelimit())
+				netdev_dbg(priv->ndev,
+					   "RX-%d: FIFO overflow.\n",
+					   ring->nr);
 		}
 
 		err = regmap_update_bits(priv->map_reg,
