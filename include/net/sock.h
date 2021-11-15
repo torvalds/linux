@@ -63,6 +63,7 @@
 #include <linux/indirect_call_wrapper.h>
 #include <linux/atomic.h>
 #include <linux/refcount.h>
+#include <linux/llist.h>
 #include <net/dst.h>
 #include <net/checksum.h>
 #include <net/tcp_states.h>
@@ -408,6 +409,8 @@ struct sock {
 		struct sk_buff	*head;
 		struct sk_buff	*tail;
 	} sk_backlog;
+	struct llist_head defer_list;
+
 #define sk_rmem_alloc sk_backlog.rmem_alloc
 
 	int			sk_forward_alloc;
