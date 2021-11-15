@@ -1535,10 +1535,15 @@ static int wled_configure(struct wled *wled)
 			return -EINVAL;
 		}
 
-		of_property_read_u32_array(dev->of_node,
+		rc = of_property_read_u32_array(dev->of_node,
 						"qcom,enabled-strings",
 						wled->cfg.enabled_strings,
-						sizeof(u32));
+						string_len);
+		if (rc) {
+			dev_err(dev, "Failed to read %d elements from qcom,enabled-strings: %d\n",
+				string_len, rc);
+			return rc;
+		}
 
 		for (i = 0; i < string_len; ++i) {
 			if (wled->cfg.enabled_strings[i] >= wled->max_string_count) {
