@@ -427,6 +427,9 @@ static int pmic_gpio_config_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = 1;
 		break;
+	case PIN_CONFIG_OUTPUT_ENABLE:
+		arg = pad->output_enabled;
+		break;
 	case PIN_CONFIG_OUTPUT:
 		arg = pad->out_value;
 		break;
@@ -505,6 +508,9 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 		case PIN_CONFIG_INPUT_ENABLE:
 			pad->input_enabled = arg ? true : false;
+			break;
+		case PIN_CONFIG_OUTPUT_ENABLE:
+			pad->output_enabled = arg ? true : false;
 			break;
 		case PIN_CONFIG_OUTPUT:
 			pad->output_enabled = true;
@@ -1141,6 +1147,7 @@ static const struct of_device_id pmic_gpio_of_match[] = {
 	{ .compatible = "qcom,pm660l-gpio", .data = (void *) 12 },
 	{ .compatible = "qcom,pm6150-gpio", .data = (void *) 10 },
 	{ .compatible = "qcom,pm6150l-gpio", .data = (void *) 12 },
+	{ .compatible = "qcom,pm6350-gpio", .data = (void *) 9 },
 	{ .compatible = "qcom,pm7325-gpio", .data = (void *) 10 },
 	{ .compatible = "qcom,pm8005-gpio", .data = (void *) 4 },
 	{ .compatible = "qcom,pm8008-gpio", .data = (void *) 2 },

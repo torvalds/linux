@@ -128,7 +128,6 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_LPAR)
 	 * stack pointer on the stack like a real stackframe */
 	addi	r1,r1,-128
 
-	bl _iommu_save
 	bl swsusp_save
 
 	/* restore LR */

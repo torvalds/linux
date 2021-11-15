@@ -43,6 +43,7 @@ properties:
               - renesas,ipmmu-r8a77980 # R-Car V3H
               - renesas,ipmmu-r8a77990 # R-Car E3
               - renesas,ipmmu-r8a77995 # R-Car D3
+              - renesas,ipmmu-r8a779a0 # R-Car V3U
 
   reg:
     maxItems: 1

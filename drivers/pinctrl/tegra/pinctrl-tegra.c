@@ -275,6 +275,28 @@ static int tegra_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *pctldev,
+					unsigned int offset)
+{
+	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
+	unsigned int group, num_pins, j;
+	const unsigned int *pins;
+	int ret;
+
+	for (group = 0; group < pmx->soc->ngroups; ++group) {
+		ret = tegra_pinctrl_get_group_pins(pctldev, group, &pins, &num_pins);
+		if (ret < 0)
+			continue;
+		for (j = 0; j < num_pins; j++) {
+			if (offset == pins[j])
+				return (struct tegra_pingroup *)&pmx->soc->groups[group];
+		}
+	}
+
+	dev_err(pctldev->dev, "Pingroup not found for pin %u\n", offset);
+	return NULL;
+}
+
 static int tegra_pinctrl_gpio_request_enable(struct pinctrl_dev *pctldev,
 					     struct pinctrl_gpio_range *range,
 					     unsigned int offset)
@@ -286,7 +308,10 @@ static int tegra_pinctrl_gpio_request_enable(struct pinctrl_dev *pctldev,
 	if (!pmx->soc->sfsel_in_mux)
 		return 0;
 
-	group = &pmx->soc->groups[offset];
+	group = tegra_pinctrl_get_group(pctldev, offset);
+
+	if (!group)
+		return -EINVAL;
 
 	if (group->mux_reg < 0 || group->sfsel_bit < 0)
 		return -EINVAL;
@@ -309,7 +334,10 @@ static void tegra_pinctrl_gpio_disable_free(struct pinctrl_dev *pctldev,
 	if (!pmx->soc->sfsel_in_mux)
 		return;
 
-	group = &pmx->soc->groups[offset];
+	group = tegra_pinctrl_get_group(pctldev, offset);
+
+	if (!group)
+		return;
 
 	if (group->mux_reg < 0 || group->sfsel_bit < 0)
 		return;

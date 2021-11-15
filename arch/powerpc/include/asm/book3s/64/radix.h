@@ -316,5 +316,8 @@ int radix__create_section_mapping(unsigned long start, unsigned long end,
 				  int nid, pgprot_t prot);
 int radix__remove_section_mapping(unsigned long start, unsigned long end);
 #endif /* CONFIG_MEMORY_HOTPLUG */
+
+void radix__kernel_map_pages(struct page *page, int numpages, int enable);
+
 #endif /* __ASSEMBLY__ */
 #endif

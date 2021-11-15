@@ -339,8 +339,6 @@ int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	const struct cpuinfo_parisc *p = &per_cpu(cpu_data, cpuid);
 	long timeout;
 
-	idle->cpu = cpuid;
-
 	/* Let _start know what logical CPU we're booting
 	** (offset into init_tasks[],cpu_data[])
 	*/

@@ -597,13 +597,11 @@ cas_nocontend:
 # endif
 /* ENABLE_LWS_DEBUG */
 
-	rsm	PSW_SM_I, %r0				/* Disable interrupts */
 	/* COW breaks can cause contention on UP systems */
 	LDCW	0(%sr2,%r20), %r28			/* Try to acquire the lock */
 	cmpb,<>,n	%r0, %r28, cas_action		/* Did we get it? */
 cas_wouldblock:
 	ldo	2(%r0), %r28				/* 2nd case */
-	ssm	PSW_SM_I, %r0
 	b	lws_exit				/* Contended... */
 	ldo	-EAGAIN(%r0), %r21			/* Spin in userspace */
 
@@ -639,8 +637,6 @@ cas_action:
 	/* Clear thread register indicator */
 	stw	%r0, 4(%sr2,%r20)
 #endif
-	/* Enable interrupts */
-	ssm	PSW_SM_I, %r0
 	/* Return to userspace, set no error */
 	b	lws_exit
 	copy	%r0, %r21
@@ -652,7 +648,6 @@ cas_action:
 #if ENABLE_LWS_DEBUG
 	stw	%r0, 4(%sr2,%r20)
 #endif
-	ssm	PSW_SM_I, %r0
 	b	lws_exit
 	ldo	-EFAULT(%r0),%r21	/* set errno */
 	nop
@@ -764,13 +759,11 @@ cas2_lock_start:
 	shlw	%r20, 4, %r20
 	add	%r20, %r28, %r20
 
-	rsm	PSW_SM_I, %r0			/* Disable interrupts */
 	/* COW breaks can cause contention on UP systems */
 	LDCW	0(%sr2,%r20), %r28		/* Try to acquire the lock */
 	cmpb,<>,n	%r0, %r28, cas2_action	/* Did we get it? */
 cas2_wouldblock:
 	ldo	2(%r0), %r28			/* 2nd case */
-	ssm	PSW_SM_I, %r0
 	b	lws_exit			/* Contended... */
 	ldo	-EAGAIN(%r0), %r21		/* Spin in userspace */
 
@@ -850,8 +843,6 @@ cas2_action:
 cas2_end:
 	/* Free lock */
 	stw,ma	%r20, 0(%sr2,%r20)
-	/* Enable interrupts */
-	ssm	PSW_SM_I, %r0
 	/* Return to userspace, set no error */
 	b	lws_exit
 	copy	%r0, %r21
@@ -860,7 +851,6 @@ cas2_end:
 	/* Error occurred on load or store */
 	/* Free lock */
 	stw,ma	%r20, 0(%sr2,%r20)
-	ssm	PSW_SM_I, %r0
 	ldo	1(%r0),%r28
 	b	lws_exit
 	ldo	-EFAULT(%r0),%r21	/* set errno */

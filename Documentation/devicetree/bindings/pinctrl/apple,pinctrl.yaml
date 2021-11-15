@@ -34,6 +34,10 @@ properties:
   gpio-ranges:
     maxItems: 1
 
+  apple,npins:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The number of pins in this GPIO controller.
+
   interrupts:
     description: One interrupt for each of the (up to 7) interrupt
       groups supported by the controller sorted by interrupt group
@@ -42,6 +46,9 @@ properties:
     maxItems: 7
 
   interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
 
 patternProperties:
   '-pins$':
@@ -66,6 +73,7 @@ required:
   - gpio-controller
   - '#gpio-cells'
   - gpio-ranges
+  - apple,npins
 
 additionalProperties: false
 
@@ -86,8 +94,10 @@ examples:
         gpio-controller;
         #gpio-cells = <2>;
         gpio-ranges = <&pinctrl 0 0 212>;
+        apple,npins = <212>;
 
         interrupt-controller;
+        #interrupt-cells = <2>;
         interrupt-parent = <&aic>;
         interrupts = <AIC_IRQ 16 IRQ_TYPE_LEVEL_HIGH>,
                      <AIC_IRQ 17 IRQ_TYPE_LEVEL_HIGH>,
