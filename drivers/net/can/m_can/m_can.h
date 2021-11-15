@@ -85,6 +85,9 @@ struct m_can_classdev {
 	struct sk_buff *tx_skb;
 	struct phy *transceiver;
 
+	struct can_bittiming_const *bit_timing;
+	struct can_bittiming_const *data_timing;
+
 	struct m_can_ops *ops;
 
 	int version;
