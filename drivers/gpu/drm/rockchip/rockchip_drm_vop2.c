@@ -2973,22 +2973,13 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 static void rk3588_vop2_regsbak(struct vop2 *vop2)
 {
 	uint32_t *base = vop2->regs;
-	const struct vop2_data *vop2_data = vop2->data;
-	int i = 0, offset = 0;
-	struct vop2_dsc *dsc;
+	int i;
 
 	/*
 	 * No need to backup DSC/GAMMA_LUT/BPP_LUT/MMU
 	 */
 	for (i = 0; i < (0x2000 >> 2); i++)
 		vop2->regsbak[i] = base[i];
-
-	for (i = 0; i < vop2_data->nr_dscs; i++) {
-		dsc = &vop2->dscs[i];
-		offset = dsc->regs->dsc_en.offset;
-
-		vop2->regsbak[offset >> 2] = base[offset >> 2];
-	}
 }
 
 static void vop2_power_domain_init(struct vop2 *vop2)
