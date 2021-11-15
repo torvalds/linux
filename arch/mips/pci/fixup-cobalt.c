@@ -36,6 +36,21 @@
 #define VIA_COBALT_BRD_ID_REG  0x94
 #define VIA_COBALT_BRD_REG_to_ID(reg)	((unsigned char)(reg) >> 4)
 
+/*
+ * Default value of PCI Class Code on GT64111 is PCI_CLASS_MEMORY_OTHER (0x0580)
+ * instead of PCI_CLASS_BRIDGE_HOST (0x0600). Galileo explained this choice in
+ * document "GT-64111 System Controller for RC4640, RM523X and VR4300 CPUs",
+ * section "6.5.3 PCI Autoconfiguration at RESET":
+ *
+ *   Some PCs refuse to configure host bridges if they are found plugged into
+ *   a PCI slot (ask the BIOS vendors why...). The "Memory Controller" Class
+ *   Code does not cause a problem for these non-compliant BIOSes, so we used
+ *   this as the default in the GT-64111.
+ *
+ * So fix the incorrect default value of PCI Class Code. More details are on:
+ * https://lore.kernel.org/r/20211102154831.xtrlgrmrizl5eidl@pali/
+ * https://lore.kernel.org/r/20211102150201.GA11675@alpha.franken.de/
+ */
 static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
 {
 	if (dev->devfn == PCI_DEVFN(0, 0) &&

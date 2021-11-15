@@ -38,7 +38,7 @@ static int __init nospec_report(void)
 {
 	if (test_facility(156))
 		pr_info("Spectre V2 mitigation: etokens\n");
-	if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable)
+	if (nospec_uses_trampoline())
 		pr_info("Spectre V2 mitigation: execute trampolines\n");
 	if (__test_facility(82, alt_stfle_fac_list))
 		pr_info("Spectre V2 mitigation: limited branch prediction\n");

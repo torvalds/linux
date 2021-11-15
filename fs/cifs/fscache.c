@@ -87,6 +87,14 @@ void cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 	char *sharename;
 	struct cifs_fscache_super_auxdata auxdata;
 
+	/*
+	 * Check if cookie was already initialized so don't reinitialize it.
+	 * In the future, as we integrate with newer fscache features,
+	 * we may want to instead add a check if cookie has changed
+	 */
+	if (tcon->fscache == NULL)
+		return;
+
 	sharename = extract_sharename(tcon->treeName);
 	if (IS_ERR(sharename)) {
 		cifs_dbg(FYI, "%s: couldn't extract sharename\n", __func__);

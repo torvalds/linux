@@ -6,17 +6,12 @@
 
 static bool CheckCondition(const u32  Condition, const u32  Hex)
 {
-	u32 _board     = (Hex & 0x000000FF);
 	u32 _interface = (Hex & 0x0000FF00) >> 8;
 	u32 _platform  = (Hex & 0x00FF0000) >> 16;
 	u32 cond = Condition;
 
 	if (Condition == 0xCDCDCDCD)
 		return true;
-
-	cond = Condition & 0x000000FF;
-	if ((_board == cond) && cond != 0x00)
-		return false;
 
 	cond = Condition & 0x0000FF00;
 	cond = cond >> 8;
@@ -144,9 +139,6 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 
 	u32     hex         = 0;
 	u32     i           = 0;
-	u8     platform    = pDM_Odm->SupportPlatform;
-	u8     interfaceValue   = pDM_Odm->SupportInterface;
-	u8     board       = pDM_Odm->BoardType;
 	u32     ArrayLen    = sizeof(Array_RadioA_1T_8188E) / sizeof(u32);
 	u32    *Array       = Array_RadioA_1T_8188E;
 	bool		biol = false;
@@ -155,9 +147,8 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 	u8 bndy_cnt = 1;
 	enum HAL_STATUS rst = HAL_STATUS_SUCCESS;
 
-	hex += board;
-	hex += interfaceValue << 8;
-	hex += platform << 16;
+	hex += ODM_ITRF_USB << 8;
+	hex += ODM_CE << 16;
 	hex += 0xFF000000;
 	biol = rtw_IOL_applied(Adapter);
 
@@ -241,7 +232,7 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 		}
 	}
 	if (biol) {
-		if (!rtw_IOL_exec_cmds_sync(pDM_Odm->Adapter, pxmit_frame, 1000, bndy_cnt)) {
+		if (!rtl8188e_IOL_exec_cmds_sync(pDM_Odm->Adapter, pxmit_frame, 1000, bndy_cnt)) {
 			rst = HAL_STATUS_FAILURE;
 			pr_info("~~~ IOL Config %s Failed !!!\n", __func__);
 		}

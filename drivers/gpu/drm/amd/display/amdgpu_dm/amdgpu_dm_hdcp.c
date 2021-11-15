@@ -448,6 +448,8 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	struct mod_hdcp_display *display = &hdcp_work[link_index].display;
 	struct mod_hdcp_link *link = &hdcp_work[link_index].link;
 	struct drm_connector_state *conn_state;
+	struct dc_sink *sink = NULL;
+	bool link_is_hdcp14 = false;
 
 	if (config->dpms_off) {
 		hdcp_remove_display(hdcp_work, link_index, aconnector);
@@ -460,8 +462,13 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	display->index = aconnector->base.index;
 	display->state = MOD_HDCP_DISPLAY_ACTIVE;
 
-	if (aconnector->dc_sink != NULL)
-		link->mode = mod_hdcp_signal_type_to_operation_mode(aconnector->dc_sink->sink_signal);
+	if (aconnector->dc_sink)
+		sink = aconnector->dc_sink;
+	else if (aconnector->dc_em_sink)
+		sink = aconnector->dc_em_sink;
+
+	if (sink != NULL)
+		link->mode = mod_hdcp_signal_type_to_operation_mode(sink->sink_signal);
 
 	display->controller = CONTROLLER_ID_D0 + config->otg_inst;
 	display->dig_fe = config->dig_fe;
@@ -470,8 +477,9 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	display->stream_enc_idx = config->stream_enc_idx;
 	link->link_enc_idx = config->link_enc_idx;
 	link->phy_idx = config->phy_idx;
-	link->hdcp_supported_informational = dc_link_is_hdcp14(aconnector->dc_link,
-			aconnector->dc_sink->sink_signal) ? 1 : 0;
+	if (sink)
+		link_is_hdcp14 = dc_link_is_hdcp14(aconnector->dc_link, sink->sink_signal);
+	link->hdcp_supported_informational = link_is_hdcp14;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
 	link->dp.assr_enabled = config->assr_enabled;
 	link->dp.mst_enabled = config->mst_enabled;

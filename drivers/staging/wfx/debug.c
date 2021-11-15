@@ -82,33 +82,37 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 		   le32_to_cpu(counters[0].count_##name), \
 		   le32_to_cpu(counters[1].count_##name))
 
-	PUT_COUNTER(tx_packets);
-	PUT_COUNTER(tx_multicast_frames);
+	PUT_COUNTER(tx_frames);
+	PUT_COUNTER(tx_frames_multicast);
 	PUT_COUNTER(tx_frames_success);
-	PUT_COUNTER(tx_frame_failures);
 	PUT_COUNTER(tx_frames_retried);
 	PUT_COUNTER(tx_frames_multi_retried);
+	PUT_COUNTER(tx_frames_failed);
 
+	PUT_COUNTER(ack_failed);
 	PUT_COUNTER(rts_success);
-	PUT_COUNTER(rts_failures);
-	PUT_COUNTER(ack_failures);
+	PUT_COUNTER(rts_failed);
 
-	PUT_COUNTER(rx_packets);
+	PUT_COUNTER(rx_frames);
+	PUT_COUNTER(rx_frames_multicast);
 	PUT_COUNTER(rx_frames_success);
-	PUT_COUNTER(rx_packet_errors);
-	PUT_COUNTER(plcp_errors);
-	PUT_COUNTER(fcs_errors);
-	PUT_COUNTER(rx_decryption_failures);
-	PUT_COUNTER(rx_mic_failures);
-	PUT_COUNTER(rx_no_key_failures);
-	PUT_COUNTER(rx_frame_duplicates);
-	PUT_COUNTER(rx_multicast_frames);
-	PUT_COUNTER(rx_cmacicv_errors);
-	PUT_COUNTER(rx_cmac_replays);
-	PUT_COUNTER(rx_mgmt_ccmp_replays);
+	PUT_COUNTER(rx_frames_failed);
+	PUT_COUNTER(drop_plcp);
+	PUT_COUNTER(drop_fcs);
+	PUT_COUNTER(drop_no_key);
+	PUT_COUNTER(drop_decryption);
+	PUT_COUNTER(drop_tkip_mic);
+	PUT_COUNTER(drop_bip_mic);
+	PUT_COUNTER(drop_cmac_icv);
+	PUT_COUNTER(drop_cmac_replay);
+	PUT_COUNTER(drop_ccmp_replay);
+	PUT_COUNTER(drop_duplicate);
 
-	PUT_COUNTER(rx_beacon);
-	PUT_COUNTER(miss_beacon);
+	PUT_COUNTER(rx_bcn_miss);
+	PUT_COUNTER(rx_bcn_success);
+	PUT_COUNTER(rx_bcn_dtim);
+	PUT_COUNTER(rx_bcn_dtim_aid0_clr);
+	PUT_COUNTER(rx_bcn_dtim_aid0_set);
 
 #undef PUT_COUNTER
 
@@ -252,9 +256,10 @@ static ssize_t wfx_send_hif_msg_write(struct file *file,
 	if (count < sizeof(struct hif_msg))
 		return -EINVAL;
 
-	// wfx_cmd_send() checks that reply buffer is wide enough, but does not
-	// return precise length read. User have to know how many bytes should
-	// be read. Filling reply buffer with a memory pattern may help user.
+	/* wfx_cmd_send() checks that reply buffer is wide enough, but does not
+	 * return precise length read. User have to know how many bytes should
+	 * be read. Filling reply buffer with a memory pattern may help user.
+	 */
 	memset(context->reply, 0xFF, sizeof(context->reply));
 	request = memdup_user(user_buf, count);
 	if (IS_ERR(request))
@@ -284,8 +289,9 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 		return ret;
 	if (context->ret < 0)
 		return context->ret;
-	// Be careful, write() is waiting for a full message while read()
-	// only returns a payload
+	/* Be careful, write() is waiting for a full message while read()
+	 * only returns a payload
+	 */
 	if (copy_to_user(user_buf, context->reply, count))
 		return -EFAULT;
 

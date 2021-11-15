@@ -1,34 +1,8 @@
 #!/bin/bash
 
+source ./benchs/run_common.sh
+
 set -eufo pipefail
-
-RUN_BENCH="sudo ./bench -w3 -d10 -a"
-
-function hits()
-{
-	echo "$*" | sed -E "s/.*hits\s+([0-9]+\.[0-9]+ ± [0-9]+\.[0-9]+M\/s).*/\1/"
-}
-
-function drops()
-{
-	echo "$*" | sed -E "s/.*drops\s+([0-9]+\.[0-9]+ ± [0-9]+\.[0-9]+M\/s).*/\1/"
-}
-
-function header()
-{
-	local len=${#1}
-
-	printf "\n%s\n" "$1"
-	for i in $(seq 1 $len); do printf '='; done
-	printf '\n'
-}
-
-function summarize()
-{
-	bench="$1"
-	summary=$(echo $2 | tail -n1)
-	printf "%-20s %s (drops %s)\n" "$bench" "$(hits $summary)" "$(drops $summary)"
-}
 
 header "Single-producer, parallel producer"
 for b in rb-libbpf rb-custom pb-libbpf pb-custom; do

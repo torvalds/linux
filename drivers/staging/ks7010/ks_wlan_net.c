@@ -2490,7 +2490,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	if (netif_running(dev))
 		return -EBUSY;
-	memcpy(dev->dev_addr, mac_addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, mac_addr->sa_data);
 	ether_addr_copy(priv->eth_addr, mac_addr->sa_data);
 
 	priv->mac_address_valid = false;
@@ -2625,7 +2625,7 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* dummy address set */
 	ether_addr_copy(priv->eth_addr, dummy_addr);
-	ether_addr_copy(dev->dev_addr, priv->eth_addr);
+	eth_hw_addr_set(dev, priv->eth_addr);
 
 	/* The ks_wlan-specific entries in the device structure. */
 	dev->netdev_ops = &ks_wlan_netdev_ops;

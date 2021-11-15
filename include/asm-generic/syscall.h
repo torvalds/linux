@@ -118,22 +118,6 @@ void syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 			   unsigned long *args);
 
 /**
- * syscall_set_arguments - change system call parameter value
- * @task:	task of interest, must be in system call entry tracing
- * @regs:	task_pt_regs() of @task
- * @args:	array of argument values to store
- *
- * Changes 6 arguments to the system call.
- * The first argument gets value @args[0], and so on.
- *
- * It's only valid to call this when @task is stopped for tracing on
- * entry to a system call, due to %SYSCALL_WORK_SYSCALL_TRACE or
- * %SYSCALL_WORK_SYSCALL_AUDIT.
- */
-void syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
-			   const unsigned long *args);
-
-/**
  * syscall_get_arch - return the AUDIT_ARCH for the current system call
  * @task:	task of interest, must be blocked
  *

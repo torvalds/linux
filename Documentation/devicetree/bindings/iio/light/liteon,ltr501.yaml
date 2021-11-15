@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/liteon,ltr501.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: LiteON LTR501 I2C Proximity and Light sensor
+
+maintainers:
+  - Nikita Travkin <nikita@trvn.ru>
+
+properties:
+  compatible:
+    enum:
+      - liteon,ltr501
+      - liteon,ltr559
+      - liteon,ltr301
+
+  reg:
+    maxItems: 1
+
+  vdd-supply: true
+  vddio-supply: true
+
+  interrupts:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        light-sensor@23 {
+            compatible = "liteon,ltr559";
+            reg = <0x23>;
+            vdd-supply = <&pm8916_l17>;
+            vddio-supply = <&pm8916_l6>;
+
+            interrupt-parent = <&msmgpio>;
+            interrupts = <115 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };

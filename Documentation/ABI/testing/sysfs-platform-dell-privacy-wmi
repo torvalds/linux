@@ -1,55 +1,71 @@
 What:		/sys/bus/wmi/devices/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_supported_type
 Date:		Apr 2021
 KernelVersion:	5.13
-Contact:	"perry.yuan@dell.com>"
+Contact:	"<perry.yuan@dell.com>"
 Description:
 		Display which dell hardware level privacy devices are supported
 		“Dell Privacy” is a set of HW, FW, and SW features to enhance
 		Dell’s commitment to platform privacy for MIC, Camera, and
 		ePrivacy screens.
 		The supported hardware privacy devices are:
-Attributes:
-		Microphone Mute:
+
+		Attributes:
+			Microphone Mute:
 				Identifies the local microphone can be muted by hardware, no applications
 				is available to capture system mic sound
 
-		Camera Shutter:
+			Camera Shutter:
 				Identifies camera shutter controlled by hardware, which is a micromechanical
 				shutter assembly that is built onto the camera module to block capturing images
 				from outside the laptop
 
-		supported:
+		Values:
+
+			supported:
 				The privacy device is supported by this system
 
-		unsupported:
+			unsupported:
 				The privacy device is not supported on this system
 
-		For example to check which privacy devices are supported:
+		For example to check which privacy devices are supported::
 
-		# cat /sys/bus/wmi/drivers/dell-privacy/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_supported_type
-		[Microphone Mute] [supported]
-		[Camera Shutter] [supported]
-		[ePrivacy Screen] [unsupported]
+		    # cat /sys/bus/wmi/drivers/dell-privacy/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_supported_type
+		    [Microphone Mute] [supported]
+		    [Camera Shutter] [supported]
+		    [ePrivacy Screen] [unsupported]
 
 What:		/sys/bus/wmi/devices/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_current_state
 Date:		Apr 2021
 KernelVersion:	5.13
-Contact:	"perry.yuan@dell.com>"
+Contact:	"<perry.yuan@dell.com>"
 Description:
 		Allow user space to check current dell privacy device state.
 		Describes the Device State class exposed by BIOS which can be
 		consumed by various applications interested in knowing the Privacy
 		feature capabilities
-Attributes:
-		muted:
-			Identifies the privacy device is turned off and cannot send stream to OS applications
 
-		unmuted:
-			Identifies the privacy device is turned on ,audio or camera driver can get
-			stream from mic and camera module to OS applications
+		Attributes:
+			Microphone:
+				Identifies the local microphone can be muted by hardware, no applications
+				is available to capture system mic sound
 
-		For example to check all supported current privacy device states:
+			Camera Shutter:
+				Identifies camera shutter controlled by hardware, which is a micromechanical
+				shutter assembly that is built onto the camera module to block capturing images
+				from outside the laptop
 
-		# cat /sys/bus/wmi/drivers/dell-privacy/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_current_state
-		[Microphone] [unmuted]
-		[Camera Shutter] [unmuted]
+		Values:
+			muted:
+				Identifies the privacy device is turned off
+				and cannot send stream to OS applications
+
+			unmuted:
+				Identifies the privacy device is turned on,
+				audio or camera driver can get stream from mic
+				and camera module to OS applications
+
+		For example to check all supported current privacy device states::
+
+		    # cat /sys/bus/wmi/drivers/dell-privacy/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_current_state
+		    [Microphone] [unmuted]
+		    [Camera Shutter] [unmuted]

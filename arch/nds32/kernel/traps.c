@@ -118,7 +118,7 @@ DEFINE_SPINLOCK(die_lock);
 /*
  * This function is protected against re-entrancy.
  */
-void die(const char *str, struct pt_regs *regs, int err)
+void __noreturn die(const char *str, struct pt_regs *regs, int err)
 {
 	struct task_struct *tsk = current;
 	static int die_counter;

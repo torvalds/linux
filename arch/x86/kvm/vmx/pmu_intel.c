@@ -118,16 +118,15 @@ static struct kvm_pmc *intel_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 	}
 }
 
-/* returns 0 if idx's corresponding MSR exists; otherwise returns 1. */
-static int intel_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
+static bool intel_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fixed = idx & (1u << 30);
 
 	idx &= ~(3u << 30);
 
-	return (!fixed && idx >= pmu->nr_arch_gp_counters) ||
-		(fixed && idx >= pmu->nr_arch_fixed_counters);
+	return fixed ? idx < pmu->nr_arch_fixed_counters
+		     : idx < pmu->nr_arch_gp_counters;
 }
 
 static struct kvm_pmc *intel_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
@@ -365,7 +364,7 @@ static int intel_pmu_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = pmu->global_ctrl;
 		return 0;
 	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
-		msr_info->data = pmu->global_ovf_ctrl;
+		msr_info->data = 0;
 		return 0;
 	default:
 		if ((pmc = get_gp_pmc(pmu, msr, MSR_IA32_PERFCTR0)) ||
@@ -423,7 +422,6 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!(data & pmu->global_ovf_ctrl_mask)) {
 			if (!msr_info->host_initiated)
 				pmu->global_status &= ~data;
-			pmu->global_ovf_ctrl = data;
 			return 0;
 		}
 		break;
@@ -588,8 +586,7 @@ static void intel_pmu_reset(struct kvm_vcpu *vcpu)
 		pmc->counter = 0;
 	}
 
-	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status =
-		pmu->global_ovf_ctrl = 0;
+	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status = 0;
 
 	intel_pmu_release_guest_lbr_event(vcpu);
 }

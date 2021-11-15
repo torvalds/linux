@@ -1296,7 +1296,7 @@ spider_net_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(netdev, addr->sa_data);
 
 	/* switch off GMACTPE and GMACRPE */
 	regvalue = spider_net_read_reg(card, SPIDER_NET_GMACOPEMD);

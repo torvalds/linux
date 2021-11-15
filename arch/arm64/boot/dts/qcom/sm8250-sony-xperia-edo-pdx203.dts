@@ -10,6 +10,7 @@
 / {
 	model = "Sony Xperia 1 II";
 	compatible = "sony,pdx203-generic", "qcom,sm8250";
+	chassis-type = "handset";
 };
 
 /delete-node/ &vreg_l7f_1p8;

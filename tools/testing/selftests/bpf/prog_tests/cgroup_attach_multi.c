@@ -74,7 +74,7 @@ static int prog_load_cnt(int verdict, int val)
 	return ret;
 }
 
-void test_cgroup_attach_multi(void)
+void serial_test_cgroup_attach_multi(void)
 {
 	__u32 prog_ids[4], prog_cnt = 0, attach_flags, saved_prog_id;
 	int cg1 = 0, cg2 = 0, cg3 = 0, cg4 = 0, cg5 = 0, key = 0;

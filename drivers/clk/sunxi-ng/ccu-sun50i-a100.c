@@ -1247,7 +1247,7 @@ static int sun50i_a100_ccu_probe(struct platform_device *pdev)
 		writel(val, reg + sun50i_a100_usb2_clk_regs[i]);
 	}
 
-	ret = sunxi_ccu_probe(pdev->dev.of_node, reg, &sun50i_a100_ccu_desc);
+	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, &sun50i_a100_ccu_desc);
 	if (ret)
 		return ret;
 
@@ -1270,6 +1270,7 @@ static struct platform_driver sun50i_a100_ccu_driver = {
 	.probe	= sun50i_a100_ccu_probe,
 	.driver	= {
 		.name	= "sun50i-a100-ccu",
+		.suppress_bind_attrs = true,
 		.of_match_table	= sun50i_a100_ccu_ids,
 	},
 };

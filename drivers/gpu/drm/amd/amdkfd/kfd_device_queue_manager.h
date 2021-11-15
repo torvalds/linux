@@ -93,7 +93,7 @@ struct device_queue_manager_ops {
 				struct queue *q);
 
 	int	(*update_queue)(struct device_queue_manager *dqm,
-				struct queue *q);
+				struct queue *q, struct mqd_update_info *minfo);
 
 	int	(*register_process)(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);

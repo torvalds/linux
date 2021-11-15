@@ -16,21 +16,6 @@
 #include <asm/types.h>
 #include "fbcon.h"
 
-static void tile_bmove(struct vc_data *vc, struct fb_info *info, int sy,
-		       int sx, int dy, int dx, int height, int width)
-{
-	struct fb_tilearea area;
-
-	area.sx = sx;
-	area.sy = sy;
-	area.dx = dx;
-	area.dy = dy;
-	area.height = height;
-	area.width = width;
-
-	info->tileops->fb_tilecopy(info, &area);
-}
-
 static void tile_clear(struct vc_data *vc, struct fb_info *info, int sy,
 		       int sx, int height, int width)
 {
@@ -133,7 +118,6 @@ void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info)
 	struct fb_tilemap map;
 	struct fbcon_ops *ops = info->fbcon_par;
 
-	ops->bmove = tile_bmove;
 	ops->clear = tile_clear;
 	ops->putcs = tile_putcs;
 	ops->clear_margins = tile_clear_margins;

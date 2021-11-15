@@ -2767,6 +2767,7 @@ static int velocity_probe(struct device *dev, int irq,
 	struct velocity_info *vptr;
 	struct mac_regs __iomem *regs;
 	int ret = -ENOMEM;
+	u8 addr[ETH_ALEN];
 
 	/* FIXME: this driver, like almost all other ethernet drivers,
 	 * can support more than MAX_UNITS.
@@ -2820,7 +2821,8 @@ static int velocity_probe(struct device *dev, int irq,
 	mac_wol_reset(regs);
 
 	for (i = 0; i < 6; i++)
-		netdev->dev_addr[i] = readb(&regs->PAR[i]);
+		addr[i] = readb(&regs->PAR[i]);
+	eth_hw_addr_set(netdev, addr);
 
 
 	velocity_get_options(&vptr->options, velocity_nics);

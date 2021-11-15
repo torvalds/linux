@@ -6,7 +6,7 @@
  * Written by: Martin K. Petersen <martin.petersen@oracle.com>
  */
 
-#include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/mempool.h>
 #include <linux/export.h>
 #include <linux/bio.h>
@@ -134,7 +134,7 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 	iv = bip->bip_vec + bip->bip_vcnt;
 
 	if (bip->bip_vcnt &&
-	    bvec_gap_to_prev(bio->bi_bdev->bd_disk->queue,
+	    bvec_gap_to_prev(bdev_get_queue(bio->bi_bdev),
 			     &bip->bip_vec[bip->bip_vcnt - 1], offset))
 		return 0;
 

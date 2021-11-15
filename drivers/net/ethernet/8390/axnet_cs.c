@@ -187,6 +187,7 @@ static int get_prom(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     unsigned int ioaddr = dev->base_addr;
+    u8 addr[ETH_ALEN];
     int i, j;
 
     /* This is based on drivers/net/ethernet/8390/ne.c */
@@ -220,9 +221,11 @@ static int get_prom(struct pcmcia_device *link)
 
     for (i = 0; i < 6; i += 2) {
 	j = inw(ioaddr + AXNET_DATAPORT);
-	dev->dev_addr[i] = j & 0xff;
-	dev->dev_addr[i+1] = j >> 8;
+	addr[i] = j & 0xff;
+	addr[i+1] = j >> 8;
     }
+    eth_hw_addr_set(dev, addr);
+
     return 1;
 } /* get_prom */
 

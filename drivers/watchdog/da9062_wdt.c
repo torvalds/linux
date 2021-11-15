@@ -117,6 +117,13 @@ static int da9062_wdt_ping(struct watchdog_device *wdd)
 	struct da9062_watchdog *wdt = watchdog_get_drvdata(wdd);
 	int ret;
 
+	/*
+	 * Prevent pings from occurring late in system poweroff/reboot sequence
+	 * and possibly locking out restart handler from accessing i2c bus.
+	 */
+	if (system_state > SYSTEM_RUNNING)
+		return 0;
+
 	ret = da9062_reset_watchdog_timer(wdt);
 	if (ret)
 		dev_err(wdt->hw->dev, "Failed to ping the watchdog (err = %d)\n",

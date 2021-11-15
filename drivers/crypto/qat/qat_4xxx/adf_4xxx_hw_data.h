@@ -62,6 +62,16 @@
 #define ADF_4XXX_ADMINMSGLR_OFFSET	(0x500578)
 #define ADF_4XXX_MAILBOX_BASE_OFFSET	(0x600970)
 
+/* Power management */
+#define ADF_4XXX_PM_POLL_DELAY_US	20
+#define ADF_4XXX_PM_POLL_TIMEOUT_US	USEC_PER_SEC
+#define ADF_4XXX_PM_STATUS		(0x50A00C)
+#define ADF_4XXX_PM_INTERRUPT		(0x50A028)
+#define ADF_4XXX_PM_DRV_ACTIVE		BIT(20)
+#define ADF_4XXX_PM_INIT_STATE		BIT(21)
+/* Power management source in ERRSOU2 and ERRMSK2 */
+#define ADF_4XXX_PM_SOU			BIT(18)
+
 /* Firmware Binaries */
 #define ADF_4XXX_FW		"qat_4xxx.bin"
 #define ADF_4XXX_MMP		"qat_4xxx_mmp.bin"

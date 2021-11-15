@@ -28,6 +28,13 @@
 /* Max HashMap Order for PM API feature check (1<<7 = 128) */
 #define PM_API_FEATURE_CHECK_MAX_ORDER  7
 
+/* CRL registers and bitfields */
+#define CRL_APB_BASE			0xFF5E0000U
+/* BOOT_PIN_CTRL- Used to control the mode pins after boot */
+#define CRL_APB_BOOT_PIN_CTRL		(CRL_APB_BASE + (0x250U))
+/* BOOT_PIN_CTRL_MASK- out_val[11:8], out_en[3:0] */
+#define CRL_APB_BOOTPIN_CTRL_MASK	0xF0FU
+
 static bool feature_check_enabled;
 static DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
 
@@ -648,6 +655,23 @@ int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type)
 EXPORT_SYMBOL_GPL(zynqmp_pm_sd_dll_reset);
 
 /**
+ * zynqmp_pm_ospi_mux_select() - OSPI Mux selection
+ *
+ * @dev_id:	Device Id of the OSPI device.
+ * @select:	OSPI Mux select value.
+ *
+ * This function select the OSPI Mux.
+ *
+ * Return:	Returns status, either success or error+reason
+ */
+int zynqmp_pm_ospi_mux_select(u32 dev_id, u32 select)
+{
+	return zynqmp_pm_invoke_fn(PM_IOCTL, dev_id, IOCTL_OSPI_MUX_SELECT,
+				   select, 0, NULL);
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_ospi_mux_select);
+
+/**
  * zynqmp_pm_write_ggs() - PM API for writing global general storage (ggs)
  * @index:	GGS register index
  * @value:	Register value to be written
@@ -924,6 +948,45 @@ int zynqmp_pm_pinctrl_set_config(const u32 pin, const u32 param,
 				   param, value, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_pinctrl_set_config);
+
+/**
+ * zynqmp_pm_bootmode_read() - PM Config API for read bootpin status
+ * @ps_mode: Returned output value of ps_mode
+ *
+ * This API function is to be used for notify the power management controller
+ * to read bootpin status.
+ *
+ * Return: status, either success or error+reason
+ */
+unsigned int zynqmp_pm_bootmode_read(u32 *ps_mode)
+{
+	unsigned int ret;
+	u32 ret_payload[PAYLOAD_ARG_CNT];
+
+	ret = zynqmp_pm_invoke_fn(PM_MMIO_READ, CRL_APB_BOOT_PIN_CTRL, 0,
+				  0, 0, ret_payload);
+
+	*ps_mode = ret_payload[1];
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_bootmode_read);
+
+/**
+ * zynqmp_pm_bootmode_write() - PM Config API for Configure bootpin
+ * @ps_mode: Value to be written to the bootpin ctrl register
+ *
+ * This API function is to be used for notify the power management controller
+ * to configure bootpin.
+ *
+ * Return: Returns status, either success or error+reason
+ */
+int zynqmp_pm_bootmode_write(u32 ps_mode)
+{
+	return zynqmp_pm_invoke_fn(PM_MMIO_WRITE, CRL_APB_BOOT_PIN_CTRL,
+				   CRL_APB_BOOTPIN_CTRL_MASK, ps_mode, 0, NULL);
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_bootmode_write);
 
 /**
  * zynqmp_pm_init_finalize() - PM call to inform firmware that the caller

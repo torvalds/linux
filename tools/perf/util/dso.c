@@ -14,6 +14,7 @@
 #ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/libbpf.h>
 #include "bpf-event.h"
+#include "bpf-utils.h"
 #endif
 #include "compress.h"
 #include "env.h"

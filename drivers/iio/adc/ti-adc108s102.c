@@ -75,9 +75,9 @@ struct adc108s102_state {
 	 *  rx_buf: |XX|R0|R1|R2|R3|R4|R5|R6|R7|tt|tt|tt|tt|
 	 *
 	 *  tx_buf: 8 channel read commands, plus 1 dummy command
-	 *  rx_buf: 1 dummy response, 8 channel responses, plus 64-bit timestamp
+	 *  rx_buf: 1 dummy response, 8 channel responses
 	 */
-	__be16				rx_buf[13] ____cacheline_aligned;
+	__be16				rx_buf[9] ____cacheline_aligned;
 	__be16				tx_buf[9] ____cacheline_aligned;
 };
 
@@ -149,9 +149,10 @@ static irqreturn_t adc108s102_trigger_handler(int irq, void *p)
 		goto out_notify;
 
 	/* Skip the dummy response in the first slot */
-	iio_push_to_buffers_with_timestamp(indio_dev,
-					   (u8 *)&st->rx_buf[1],
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts_unaligned(indio_dev,
+					      &st->rx_buf[1],
+					      st->ring_xfer.len - sizeof(st->rx_buf[1]),
+					      iio_get_time_ns(indio_dev));
 
 out_notify:
 	iio_trigger_notify_done(indio_dev->trig);

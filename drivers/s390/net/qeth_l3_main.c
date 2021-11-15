@@ -492,7 +492,7 @@ int qeth_l3_setrouting_v6(struct qeth_card *card)
  * IP address takeover related functions
  */
 
-/**
+/*
  * qeth_l3_update_ipato() - Update 'takeover' property, for all NORMAL IPs.
  *
  * Caller must hold ip_lock.
@@ -913,8 +913,7 @@ static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
 	if (!is_valid_ether_addr(cmd->data.create_destroy_addr.mac_addr))
 		return -EADDRNOTAVAIL;
 
-	ether_addr_copy(card->dev->dev_addr,
-			cmd->data.create_destroy_addr.mac_addr);
+	eth_hw_addr_set(card->dev, cmd->data.create_destroy_addr.mac_addr);
 	return 0;
 }
 
@@ -1512,7 +1511,8 @@ static int qeth_l3_arp_flush_cache(struct qeth_card *card)
 	return rc;
 }
 
-static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, void __user *data, int cmd)
+static int qeth_l3_ndo_siocdevprivate(struct net_device *dev, struct ifreq *rq,
+				      void __user *data, int cmd)
 {
 	struct qeth_card *card = dev->ml_priv;
 	struct qeth_arp_cache_entry arp_entry;
@@ -1553,7 +1553,7 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, void __use
 		rc = qeth_l3_arp_flush_cache(card);
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = qeth_siocdevprivate(dev, rq, data, cmd);
 	}
 	return rc;
 }
@@ -1842,7 +1842,7 @@ static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
 	.ndo_eth_ioctl		= qeth_do_ioctl,
-	.ndo_siocdevprivate	= qeth_siocdevprivate,
+	.ndo_siocdevprivate	= qeth_l3_ndo_siocdevprivate,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
 	.ndo_tx_timeout		= qeth_tx_timeout,
@@ -1858,7 +1858,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
 	.ndo_eth_ioctl		= qeth_do_ioctl,
-	.ndo_siocdevprivate	= qeth_siocdevprivate,
+	.ndo_siocdevprivate	= qeth_l3_ndo_siocdevprivate,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
 	.ndo_tx_timeout		= qeth_tx_timeout,
@@ -2072,7 +2072,6 @@ const struct qeth_discipline qeth_l3_discipline = {
 	.remove = qeth_l3_remove_device,
 	.set_online = qeth_l3_set_online,
 	.set_offline = qeth_l3_set_offline,
-	.do_ioctl = qeth_l3_do_ioctl,
 	.control_event_handler = qeth_l3_control_event,
 };
 EXPORT_SYMBOL_GPL(qeth_l3_discipline);

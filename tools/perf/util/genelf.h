@@ -42,7 +42,7 @@ int jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_ent
 #error "unsupported architecture"
 #endif
 
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define GEN_ELF_ENDIAN	ELFDATA2MSB
 #else
 #define GEN_ELF_ENDIAN	ELFDATA2LSB

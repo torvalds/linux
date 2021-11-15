@@ -434,7 +434,7 @@ extern int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu);
 #define SPLIT_HACK_OFFS			0xfb000000
 
 /*
- * This packs a VCPU ID from the [0..KVM_MAX_VCPU_ID) space down to the
+ * This packs a VCPU ID from the [0..KVM_MAX_VCPU_IDS) space down to the
  * [0..KVM_MAX_VCPUS) space, using knowledge of the guest's core stride
  * (but not its actual threading mode, which is not available) to avoid
  * collisions.

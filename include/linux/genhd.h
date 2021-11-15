@@ -12,12 +12,10 @@
 
 #include <linux/types.h>
 #include <linux/kdev_t.h>
-#include <linux/rcupdate.h>
-#include <linux/slab.h>
-#include <linux/percpu-refcount.h>
 #include <linux/uuid.h>
 #include <linux/blk_types.h>
-#include <asm/local.h>
+#include <linux/device.h>
+#include <linux/xarray.h>
 
 extern const struct device_type disk_type;
 extern struct device_type part_type;
@@ -25,14 +23,6 @@ extern struct class block_class;
 
 #define DISK_MAX_PARTS			256
 #define DISK_NAME_LEN			32
-
-#include <linux/major.h>
-#include <linux/device.h>
-#include <linux/smp.h>
-#include <linux/string.h>
-#include <linux/fs.h>
-#include <linux/workqueue.h>
-#include <linux/xarray.h>
 
 #define PARTITION_META_INFO_VOLNAMELTH	64
 /*
@@ -215,13 +205,15 @@ static inline dev_t disk_devt(struct gendisk *disk)
 void disk_uevent(struct gendisk *disk, enum kobject_action action);
 
 /* block/genhd.c */
-int device_add_disk(struct device *parent, struct gendisk *disk,
-		const struct attribute_group **groups);
-static inline int add_disk(struct gendisk *disk)
+int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups);
+static inline int __must_check add_disk(struct gendisk *disk)
 {
 	return device_add_disk(NULL, disk, NULL);
 }
 extern void del_gendisk(struct gendisk *gp);
+
+void invalidate_disk(struct gendisk *disk);
 
 void set_disk_ro(struct gendisk *disk, bool read_only);
 
@@ -229,6 +221,11 @@ static inline int get_disk_ro(struct gendisk *disk)
 {
 	return disk->part0->bd_read_only ||
 		test_bit(GD_READ_ONLY, &disk->state);
+}
+
+static inline int bdev_read_only(struct block_device *bdev)
+{
+	return bdev->bd_read_only || get_disk_ro(bdev->bd_disk);
 }
 
 extern void disk_block_events(struct gendisk *disk);
@@ -248,12 +245,23 @@ static inline sector_t get_start_sect(struct block_device *bdev)
 
 static inline sector_t bdev_nr_sectors(struct block_device *bdev)
 {
-	return i_size_read(bdev->bd_inode) >> 9;
+	return bdev->bd_nr_sectors;
+}
+
+static inline loff_t bdev_nr_bytes(struct block_device *bdev)
+{
+	return (loff_t)bdev_nr_sectors(bdev) << SECTOR_SHIFT;
 }
 
 static inline sector_t get_capacity(struct gendisk *disk)
 {
 	return bdev_nr_sectors(disk->part0);
+}
+
+static inline u64 sb_bdev_nr_blocks(struct super_block *sb)
+{
+	return bdev_nr_sectors(sb->s_bdev) >>
+		(sb->s_blocksize_bits - SECTOR_SHIFT);
 }
 
 int bdev_disk_changed(struct gendisk *disk, bool invalidate);
@@ -290,10 +298,6 @@ void unregister_blkdev(unsigned int major, const char *name);
 bool bdev_check_media_change(struct block_device *bdev);
 int __invalidate_device(struct block_device *bdev, bool kill_dirty);
 void set_capacity(struct gendisk *disk, sector_t size);
-
-/* for drivers/char/raw.c: */
-int blkdev_ioctl(struct block_device *, fmode_t, unsigned, unsigned long);
-long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
 
 #ifdef CONFIG_BLOCK_HOLDER_DEPRECATED
 int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk);

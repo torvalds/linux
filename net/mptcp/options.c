@@ -485,11 +485,11 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 		mpext = mptcp_get_ext(skb);
 		data_len = mpext ? mpext->data_len : 0;
 
-		/* we will check ext_copy.data_len in mptcp_write_options() to
+		/* we will check ops->data_len in mptcp_write_options() to
 		 * discriminate between TCPOLEN_MPTCP_MPC_ACK_DATA and
 		 * TCPOLEN_MPTCP_MPC_ACK
 		 */
-		opts->ext_copy.data_len = data_len;
+		opts->data_len = data_len;
 		opts->suboptions = OPTION_MPTCP_MPC_ACK;
 		opts->sndr_key = subflow->local_key;
 		opts->rcvr_key = subflow->remote_key;
@@ -505,9 +505,9 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 			len = TCPOLEN_MPTCP_MPC_ACK_DATA;
 			if (opts->csum_reqd) {
 				/* we need to propagate more info to csum the pseudo hdr */
-				opts->ext_copy.data_seq = mpext->data_seq;
-				opts->ext_copy.subflow_seq = mpext->subflow_seq;
-				opts->ext_copy.csum = mpext->csum;
+				opts->data_seq = mpext->data_seq;
+				opts->subflow_seq = mpext->subflow_seq;
+				opts->csum = mpext->csum;
 				len += TCPOLEN_MPTCP_DSS_CHECKSUM;
 			}
 			*size = ALIGN(len, 4);
@@ -748,9 +748,7 @@ static bool mptcp_established_options_mp_prio(struct sock *sk,
 	/* can't send MP_PRIO with MPC, as they share the same option space:
 	 * 'backup'. Also it makes no sense at all
 	 */
-	if (!subflow->send_mp_prio ||
-	    ((OPTION_MPTCP_MPC_SYN | OPTION_MPTCP_MPC_SYNACK |
-	      OPTION_MPTCP_MPC_ACK) & opts->suboptions))
+	if (!subflow->send_mp_prio || (opts->suboptions & OPTIONS_MPTCP_MPC))
 		return false;
 
 	/* account for the trailing 'nop' option */
@@ -1019,11 +1017,9 @@ static void ack_update_msk(struct mptcp_sock *msk,
 	old_snd_una = msk->snd_una;
 	new_snd_una = mptcp_expand_seq(old_snd_una, mp_opt->data_ack, mp_opt->ack64);
 
-	/* ACK for data not even sent yet and even above recovery bound? Ignore.*/
-	if (unlikely(after64(new_snd_una, snd_nxt))) {
-		if (!msk->recovery || after64(new_snd_una, msk->recovery_snd_nxt))
-			new_snd_una = old_snd_una;
-	}
+	/* ACK for data not even sent yet? Ignore.*/
+	if (unlikely(after64(new_snd_una, snd_nxt)))
+		new_snd_una = old_snd_una;
 
 	new_wnd_end = new_snd_una + tcp_sk(ssk)->snd_wnd;
 
@@ -1227,7 +1223,7 @@ static void mptcp_set_rwin(const struct tcp_sock *tp)
 		WRITE_ONCE(msk->rcv_wnd_sent, ack_seq);
 }
 
-static u16 mptcp_make_csum(const struct mptcp_ext *mpext)
+static u16 __mptcp_make_csum(u64 data_seq, u32 subflow_seq, u16 data_len, __sum16 sum)
 {
 	struct csum_pseudo_header header;
 	__wsum csum;
@@ -1237,13 +1233,19 @@ static u16 mptcp_make_csum(const struct mptcp_ext *mpext)
 	 * always the 64-bit value, irrespective of what length is used in the
 	 * DSS option itself.
 	 */
-	header.data_seq = cpu_to_be64(mpext->data_seq);
-	header.subflow_seq = htonl(mpext->subflow_seq);
-	header.data_len = htons(mpext->data_len);
+	header.data_seq = cpu_to_be64(data_seq);
+	header.subflow_seq = htonl(subflow_seq);
+	header.data_len = htons(data_len);
 	header.csum = 0;
 
-	csum = csum_partial(&header, sizeof(header), ~csum_unfold(mpext->csum));
+	csum = csum_partial(&header, sizeof(header), ~csum_unfold(sum));
 	return (__force u16)csum_fold(csum);
+}
+
+static u16 mptcp_make_csum(const struct mptcp_ext *mpext)
+{
+	return __mptcp_make_csum(mpext->data_seq, mpext->subflow_seq, mpext->data_len,
+				 mpext->csum);
 }
 
 void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
@@ -1329,15 +1331,14 @@ void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
 						   TCPOPT_NOP << 8 | TCPOPT_NOP, ptr);
 			}
 		}
-	} else if ((OPTION_MPTCP_MPC_SYN | OPTION_MPTCP_MPC_SYNACK |
-		    OPTION_MPTCP_MPC_ACK) & opts->suboptions) {
+	} else if (OPTIONS_MPTCP_MPC & opts->suboptions) {
 		u8 len, flag = MPTCP_CAP_HMAC_SHA256;
 
 		if (OPTION_MPTCP_MPC_SYN & opts->suboptions) {
 			len = TCPOLEN_MPTCP_MPC_SYN;
 		} else if (OPTION_MPTCP_MPC_SYNACK & opts->suboptions) {
 			len = TCPOLEN_MPTCP_MPC_SYNACK;
-		} else if (opts->ext_copy.data_len) {
+		} else if (opts->data_len) {
 			len = TCPOLEN_MPTCP_MPC_ACK_DATA;
 			if (opts->csum_reqd)
 				len += TCPOLEN_MPTCP_DSS_CHECKSUM;
@@ -1366,14 +1367,17 @@ void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
 
 		put_unaligned_be64(opts->rcvr_key, ptr);
 		ptr += 2;
-		if (!opts->ext_copy.data_len)
+		if (!opts->data_len)
 			goto mp_capable_done;
 
 		if (opts->csum_reqd) {
-			put_unaligned_be32(opts->ext_copy.data_len << 16 |
-					   mptcp_make_csum(&opts->ext_copy), ptr);
+			put_unaligned_be32(opts->data_len << 16 |
+					   __mptcp_make_csum(opts->data_seq,
+							     opts->subflow_seq,
+							     opts->data_len,
+							     opts->csum), ptr);
 		} else {
-			put_unaligned_be32(opts->ext_copy.data_len << 16 |
+			put_unaligned_be32(opts->data_len << 16 |
 					   TCPOPT_NOP << 8 | TCPOPT_NOP, ptr);
 		}
 		ptr += 1;

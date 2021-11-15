@@ -2,6 +2,8 @@
 #
 # Phy drivers for Broadcom platforms
 #
+menu "PHY drivers for Broadcom platforms"
+
 config PHY_BCM63XX_USBH
 	tristate "BCM63xx USBH PHY driver"
 	depends on BMIPS_GENERIC || COMPILE_TEST
@@ -112,3 +114,5 @@ config PHY_BCM_SR_PCIE
 	help
 	  Enable this to support the Broadcom Stingray PCIe PHY
 	  If unsure, say N.
+
+endmenu

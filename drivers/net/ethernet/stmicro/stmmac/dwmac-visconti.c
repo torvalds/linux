@@ -171,10 +171,9 @@ static int visconti_eth_clock_probe(struct platform_device *pdev,
 	int err;
 
 	dwmac->phy_ref_clk = devm_clk_get(&pdev->dev, "phy_ref_clk");
-	if (IS_ERR(dwmac->phy_ref_clk)) {
-		dev_err(&pdev->dev, "phy_ref_clk clock not found.\n");
-		return PTR_ERR(dwmac->phy_ref_clk);
-	}
+	if (IS_ERR(dwmac->phy_ref_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dwmac->phy_ref_clk),
+				     "phy_ref_clk clock not found.\n");
 
 	err = clk_prepare_enable(dwmac->phy_ref_clk);
 	if (err < 0) {

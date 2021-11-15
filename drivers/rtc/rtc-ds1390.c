@@ -219,12 +219,19 @@ static const struct of_device_id ds1390_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ds1390_of_match);
 
+static const struct spi_device_id ds1390_spi_ids[] = {
+	{ .name = "ds1390" },
+	{}
+};
+MODULE_DEVICE_TABLE(spi, ds1390_spi_ids);
+
 static struct spi_driver ds1390_driver = {
 	.driver = {
 		.name	= "rtc-ds1390",
 		.of_match_table = of_match_ptr(ds1390_of_match),
 	},
 	.probe	= ds1390_probe,
+	.id_table = ds1390_spi_ids,
 };
 
 module_spi_driver(ds1390_driver);

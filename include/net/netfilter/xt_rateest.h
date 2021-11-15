@@ -6,7 +6,7 @@
 
 struct xt_rateest {
 	/* keep lock and bstats on same cache line to speedup xt_rateest_tg() */
-	struct gnet_stats_basic_packed	bstats;
+	struct gnet_stats_basic_sync	bstats;
 	spinlock_t			lock;
 
 

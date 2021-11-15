@@ -14,6 +14,7 @@
 
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
+#include <linux/if_bridge.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
@@ -42,9 +43,12 @@
 /* Port Enable Control register */
 #define RTL8366RB_PECR				0x0001
 
-/* Switch Security Control registers */
-#define RTL8366RB_SSCR0				0x0002
-#define RTL8366RB_SSCR1				0x0003
+/* Switch per-port learning disablement register */
+#define RTL8366RB_PORT_LEARNDIS_CTRL		0x0002
+
+/* Security control, actually aging register */
+#define RTL8366RB_SECURITY_CTRL			0x0003
+
 #define RTL8366RB_SSCR2				0x0004
 #define RTL8366RB_SSCR2_DROP_UNKNOWN_DA		BIT(0)
 
@@ -106,6 +110,18 @@
 
 #define RTL8366RB_POWER_SAVING_REG	0x0021
 
+/* Spanning tree status (STP) control, two bits per port per FID */
+#define RTL8366RB_STP_STATE_BASE	0x0050 /* 0x0050..0x0057 */
+#define RTL8366RB_STP_STATE_DISABLED	0x0
+#define RTL8366RB_STP_STATE_BLOCKING	0x1
+#define RTL8366RB_STP_STATE_LEARNING	0x2
+#define RTL8366RB_STP_STATE_FORWARDING	0x3
+#define RTL8366RB_STP_MASK		GENMASK(1, 0)
+#define RTL8366RB_STP_STATE(port, state) \
+	((state) << ((port) * 2))
+#define RTL8366RB_STP_STATE_MASK(port) \
+	RTL8366RB_STP_STATE((port), RTL8366RB_STP_MASK)
+
 /* CPU port control reg */
 #define RTL8368RB_CPU_CTRL_REG		0x0061
 #define RTL8368RB_CPU_PORTS_MSK		0x00FF
@@ -143,6 +159,21 @@
 #define RTL8366RB_PHY_NO_OFFSET			9
 #define RTL8366RB_PHY_NO_MASK			(0x1f << 9)
 
+/* VLAN Ingress Control Register 1, one bit per port.
+ * bit 0 .. 5 will make the switch drop ingress frames without
+ * VID such as untagged or priority-tagged frames for respective
+ * port.
+ * bit 6 .. 11 will make the switch drop ingress frames carrying
+ * a C-tag with VID != 0 for respective port.
+ */
+#define RTL8366RB_VLAN_INGRESS_CTRL1_REG	0x037E
+#define RTL8366RB_VLAN_INGRESS_CTRL1_DROP(port)	(BIT((port)) | BIT((port) + 6))
+
+/* VLAN Ingress Control Register 2, one bit per port.
+ * bit0 .. bit5 will make the switch drop all ingress frames with
+ * a VLAN classification that does not include the port is in its
+ * member set.
+ */
 #define RTL8366RB_VLAN_INGRESS_CTRL2_REG	0x037f
 
 /* LED control registers */
@@ -215,6 +246,7 @@
 #define RTL8366RB_NUM_LEDGROUPS		4
 #define RTL8366RB_NUM_VIDS		4096
 #define RTL8366RB_PRIORITYMAX		7
+#define RTL8366RB_NUM_FIDS		8
 #define RTL8366RB_FIDMAX		7
 
 #define RTL8366RB_PORT_1		BIT(0) /* In userspace port 0 */
@@ -300,6 +332,13 @@
 #define RTL8366RB_INTERRUPT_STATUS_REG	0x0442
 #define RTL8366RB_NUM_INTERRUPT		14 /* 0..13 */
 
+/* Port isolation registers */
+#define RTL8366RB_PORT_ISO_BASE		0x0F08
+#define RTL8366RB_PORT_ISO(pnum)	(RTL8366RB_PORT_ISO_BASE + (pnum))
+#define RTL8366RB_PORT_ISO_EN		BIT(0)
+#define RTL8366RB_PORT_ISO_PORTS_MASK	GENMASK(7, 1)
+#define RTL8366RB_PORT_ISO_PORTS(pmask)	((pmask) << 1)
+
 /* bits 0..5 enable force when cleared */
 #define RTL8366RB_MAC_FORCE_CTRL_REG	0x0F11
 
@@ -314,9 +353,11 @@
 /**
  * struct rtl8366rb - RTL8366RB-specific data
  * @max_mtu: per-port max MTU setting
+ * @pvid_enabled: if PVID is set for respective port
  */
 struct rtl8366rb {
 	unsigned int max_mtu[RTL8366RB_NUM_PORTS];
+	bool pvid_enabled[RTL8366RB_NUM_PORTS];
 };
 
 static struct rtl8366_mib_counter rtl8366rb_mib_counters[] = {
@@ -835,6 +876,21 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
+	/* Isolate all user ports so they can only send packets to itself and the CPU port */
+	for (i = 0; i < RTL8366RB_PORT_NUM_CPU; i++) {
+		ret = regmap_write(smi->map, RTL8366RB_PORT_ISO(i),
+				   RTL8366RB_PORT_ISO_PORTS(BIT(RTL8366RB_PORT_NUM_CPU)) |
+				   RTL8366RB_PORT_ISO_EN);
+		if (ret)
+			return ret;
+	}
+	/* CPU port can send packets to all ports */
+	ret = regmap_write(smi->map, RTL8366RB_PORT_ISO(RTL8366RB_PORT_NUM_CPU),
+			   RTL8366RB_PORT_ISO_PORTS(dsa_user_ports(ds)) |
+			   RTL8366RB_PORT_ISO_EN);
+	if (ret)
+		return ret;
+
 	/* Set up the "green ethernet" feature */
 	ret = rtl8366rb_jam_table(rtl8366rb_green_jam,
 				  ARRAY_SIZE(rtl8366rb_green_jam), smi, false);
@@ -888,13 +944,14 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		/* layer 2 size, see rtl8366rb_change_mtu() */
 		rb->max_mtu[i] = 1532;
 
-	/* Enable learning for all ports */
-	ret = regmap_write(smi->map, RTL8366RB_SSCR0, 0);
+	/* Disable learning for all ports */
+	ret = regmap_write(smi->map, RTL8366RB_PORT_LEARNDIS_CTRL,
+			   RTL8366RB_PORT_ALL);
 	if (ret)
 		return ret;
 
 	/* Enable auto ageing for all ports */
-	ret = regmap_write(smi->map, RTL8366RB_SSCR1, 0);
+	ret = regmap_write(smi->map, RTL8366RB_SECURITY_CTRL, 0);
 	if (ret)
 		return ret;
 
@@ -911,11 +968,13 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Discard VLAN tagged packets if the port is not a member of
-	 * the VLAN with which the packets is associated.
-	 */
+	/* Accept all packets by default, we enable filtering on-demand */
+	ret = regmap_write(smi->map, RTL8366RB_VLAN_INGRESS_CTRL1_REG,
+			   0);
+	if (ret)
+		return ret;
 	ret = regmap_write(smi->map, RTL8366RB_VLAN_INGRESS_CTRL2_REG,
-			   RTL8366RB_PORT_ALL);
+			   0);
 	if (ret)
 		return ret;
 
@@ -963,7 +1022,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 			return ret;
 	}
 
-	ret = rtl8366_init_vlan(smi);
+	ret = rtl8366_reset_vlan(smi);
 	if (ret)
 		return ret;
 
@@ -976,8 +1035,6 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		dev_info(smi->dev, "could not set up MDIO bus\n");
 		return -ENODEV;
 	}
-
-	ds->configure_vlan_while_not_filtering = false;
 
 	return 0;
 }
@@ -1125,6 +1182,190 @@ rtl8366rb_port_disable(struct dsa_switch *ds, int port)
 		return;
 
 	rb8366rb_set_port_led(smi, port, false);
+}
+
+static int
+rtl8366rb_port_bridge_join(struct dsa_switch *ds, int port,
+			   struct net_device *bridge)
+{
+	struct realtek_smi *smi = ds->priv;
+	unsigned int port_bitmap = 0;
+	int ret, i;
+
+	/* Loop over all other ports than the current one */
+	for (i = 0; i < RTL8366RB_PORT_NUM_CPU; i++) {
+		/* Current port handled last */
+		if (i == port)
+			continue;
+		/* Not on this bridge */
+		if (dsa_to_port(ds, i)->bridge_dev != bridge)
+			continue;
+		/* Join this port to each other port on the bridge */
+		ret = regmap_update_bits(smi->map, RTL8366RB_PORT_ISO(i),
+					 RTL8366RB_PORT_ISO_PORTS(BIT(port)),
+					 RTL8366RB_PORT_ISO_PORTS(BIT(port)));
+		if (ret)
+			dev_err(smi->dev, "failed to join port %d\n", port);
+
+		port_bitmap |= BIT(i);
+	}
+
+	/* Set the bits for the ports we can access */
+	return regmap_update_bits(smi->map, RTL8366RB_PORT_ISO(port),
+				  RTL8366RB_PORT_ISO_PORTS(port_bitmap),
+				  RTL8366RB_PORT_ISO_PORTS(port_bitmap));
+}
+
+static void
+rtl8366rb_port_bridge_leave(struct dsa_switch *ds, int port,
+			    struct net_device *bridge)
+{
+	struct realtek_smi *smi = ds->priv;
+	unsigned int port_bitmap = 0;
+	int ret, i;
+
+	/* Loop over all other ports than this one */
+	for (i = 0; i < RTL8366RB_PORT_NUM_CPU; i++) {
+		/* Current port handled last */
+		if (i == port)
+			continue;
+		/* Not on this bridge */
+		if (dsa_to_port(ds, i)->bridge_dev != bridge)
+			continue;
+		/* Remove this port from any other port on the bridge */
+		ret = regmap_update_bits(smi->map, RTL8366RB_PORT_ISO(i),
+					 RTL8366RB_PORT_ISO_PORTS(BIT(port)), 0);
+		if (ret)
+			dev_err(smi->dev, "failed to leave port %d\n", port);
+
+		port_bitmap |= BIT(i);
+	}
+
+	/* Clear the bits for the ports we can not access, leave ourselves */
+	regmap_update_bits(smi->map, RTL8366RB_PORT_ISO(port),
+			   RTL8366RB_PORT_ISO_PORTS(port_bitmap), 0);
+}
+
+/**
+ * rtl8366rb_drop_untagged() - make the switch drop untagged and C-tagged frames
+ * @smi: SMI state container
+ * @port: the port to drop untagged and C-tagged frames on
+ * @drop: whether to drop or pass untagged and C-tagged frames
+ */
+static int rtl8366rb_drop_untagged(struct realtek_smi *smi, int port, bool drop)
+{
+	return regmap_update_bits(smi->map, RTL8366RB_VLAN_INGRESS_CTRL1_REG,
+				  RTL8366RB_VLAN_INGRESS_CTRL1_DROP(port),
+				  drop ? RTL8366RB_VLAN_INGRESS_CTRL1_DROP(port) : 0);
+}
+
+static int rtl8366rb_vlan_filtering(struct dsa_switch *ds, int port,
+				    bool vlan_filtering,
+				    struct netlink_ext_ack *extack)
+{
+	struct realtek_smi *smi = ds->priv;
+	struct rtl8366rb *rb;
+	int ret;
+
+	rb = smi->chip_data;
+
+	dev_dbg(smi->dev, "port %d: %s VLAN filtering\n", port,
+		vlan_filtering ? "enable" : "disable");
+
+	/* If the port is not in the member set, the frame will be dropped */
+	ret = regmap_update_bits(smi->map, RTL8366RB_VLAN_INGRESS_CTRL2_REG,
+				 BIT(port), vlan_filtering ? BIT(port) : 0);
+	if (ret)
+		return ret;
+
+	/* If VLAN filtering is enabled and PVID is also enabled, we must
+	 * not drop any untagged or C-tagged frames. If we turn off VLAN
+	 * filtering on a port, we need to accept any frames.
+	 */
+	if (vlan_filtering)
+		ret = rtl8366rb_drop_untagged(smi, port, !rb->pvid_enabled[port]);
+	else
+		ret = rtl8366rb_drop_untagged(smi, port, false);
+
+	return ret;
+}
+
+static int
+rtl8366rb_port_pre_bridge_flags(struct dsa_switch *ds, int port,
+				struct switchdev_brport_flags flags,
+				struct netlink_ext_ack *extack)
+{
+	/* We support enabling/disabling learning */
+	if (flags.mask & ~(BR_LEARNING))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+rtl8366rb_port_bridge_flags(struct dsa_switch *ds, int port,
+			    struct switchdev_brport_flags flags,
+			    struct netlink_ext_ack *extack)
+{
+	struct realtek_smi *smi = ds->priv;
+	int ret;
+
+	if (flags.mask & BR_LEARNING) {
+		ret = regmap_update_bits(smi->map, RTL8366RB_PORT_LEARNDIS_CTRL,
+					 BIT(port),
+					 (flags.val & BR_LEARNING) ? 0 : BIT(port));
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void
+rtl8366rb_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
+{
+	struct realtek_smi *smi = ds->priv;
+	u32 val;
+	int i;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+		val = RTL8366RB_STP_STATE_DISABLED;
+		break;
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		val = RTL8366RB_STP_STATE_BLOCKING;
+		break;
+	case BR_STATE_LEARNING:
+		val = RTL8366RB_STP_STATE_LEARNING;
+		break;
+	case BR_STATE_FORWARDING:
+		val = RTL8366RB_STP_STATE_FORWARDING;
+		break;
+	default:
+		dev_err(smi->dev, "unknown bridge state requested\n");
+		return;
+	}
+
+	/* Set the same status for the port on all the FIDs */
+	for (i = 0; i < RTL8366RB_NUM_FIDS; i++) {
+		regmap_update_bits(smi->map, RTL8366RB_STP_STATE_BASE + i,
+				   RTL8366RB_STP_STATE_MASK(port),
+				   RTL8366RB_STP_STATE(port, val));
+	}
+}
+
+static void
+rtl8366rb_port_fast_age(struct dsa_switch *ds, int port)
+{
+	struct realtek_smi *smi = ds->priv;
+
+	/* This will age out any learned L2 entries */
+	regmap_update_bits(smi->map, RTL8366RB_SECURITY_CTRL,
+			   BIT(port), BIT(port));
+	/* Restore the normal state of things */
+	regmap_update_bits(smi->map, RTL8366RB_SECURITY_CTRL,
+			   BIT(port), 0);
 }
 
 static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
@@ -1338,24 +1579,44 @@ static int rtl8366rb_get_mc_index(struct realtek_smi *smi, int port, int *val)
 
 static int rtl8366rb_set_mc_index(struct realtek_smi *smi, int port, int index)
 {
+	struct rtl8366rb *rb;
+	bool pvid_enabled;
+	int ret;
+
+	rb = smi->chip_data;
+	pvid_enabled = !!index;
+
 	if (port >= smi->num_ports || index >= RTL8366RB_NUM_VLANS)
 		return -EINVAL;
 
-	return regmap_update_bits(smi->map, RTL8366RB_PORT_VLAN_CTRL_REG(port),
+	ret = regmap_update_bits(smi->map, RTL8366RB_PORT_VLAN_CTRL_REG(port),
 				RTL8366RB_PORT_VLAN_CTRL_MASK <<
 					RTL8366RB_PORT_VLAN_CTRL_SHIFT(port),
 				(index & RTL8366RB_PORT_VLAN_CTRL_MASK) <<
 					RTL8366RB_PORT_VLAN_CTRL_SHIFT(port));
+	if (ret)
+		return ret;
+
+	rb->pvid_enabled[port] = pvid_enabled;
+
+	/* If VLAN filtering is enabled and PVID is also enabled, we must
+	 * not drop any untagged or C-tagged frames. Make sure to update the
+	 * filtering setting.
+	 */
+	if (dsa_port_is_vlan_filtering(dsa_to_port(smi->ds, port)))
+		ret = rtl8366rb_drop_untagged(smi, port, !pvid_enabled);
+
+	return ret;
 }
 
 static bool rtl8366rb_is_vlan_valid(struct realtek_smi *smi, unsigned int vlan)
 {
-	unsigned int max = RTL8366RB_NUM_VLANS;
+	unsigned int max = RTL8366RB_NUM_VLANS - 1;
 
 	if (smi->vlan4k_enabled)
 		max = RTL8366RB_NUM_VIDS - 1;
 
-	if (vlan == 0 || vlan > max)
+	if (vlan > max)
 		return false;
 
 	return true;
@@ -1510,11 +1771,17 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.get_strings = rtl8366_get_strings,
 	.get_ethtool_stats = rtl8366_get_ethtool_stats,
 	.get_sset_count = rtl8366_get_sset_count,
-	.port_vlan_filtering = rtl8366_vlan_filtering,
+	.port_bridge_join = rtl8366rb_port_bridge_join,
+	.port_bridge_leave = rtl8366rb_port_bridge_leave,
+	.port_vlan_filtering = rtl8366rb_vlan_filtering,
 	.port_vlan_add = rtl8366_vlan_add,
 	.port_vlan_del = rtl8366_vlan_del,
 	.port_enable = rtl8366rb_port_enable,
 	.port_disable = rtl8366rb_port_disable,
+	.port_pre_bridge_flags = rtl8366rb_port_pre_bridge_flags,
+	.port_bridge_flags = rtl8366rb_port_bridge_flags,
+	.port_stp_state_set = rtl8366rb_port_stp_state_set,
+	.port_fast_age = rtl8366rb_port_fast_age,
 	.port_change_mtu = rtl8366rb_change_mtu,
 	.port_max_mtu = rtl8366rb_max_mtu,
 };

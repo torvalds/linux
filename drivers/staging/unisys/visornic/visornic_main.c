@@ -1782,6 +1782,7 @@ static int visornic_probe(struct visor_device *dev)
 	struct net_device *netdev = NULL;
 	int err;
 	int channel_offset = 0;
+	u8 addr[ETH_ALEN];
 	u64 features;
 
 	netdev = alloc_etherdev(sizeof(struct visornic_devdata));
@@ -1798,14 +1799,14 @@ static int visornic_probe(struct visor_device *dev)
 	/* Get MAC address from channel and read it into the device. */
 	netdev->addr_len = ETH_ALEN;
 	channel_offset = offsetof(struct visor_io_channel, vnic.macaddr);
-	err = visorbus_read_channel(dev, channel_offset, netdev->dev_addr,
-				    ETH_ALEN);
+	err = visorbus_read_channel(dev, channel_offset, addr, ETH_ALEN);
 	if (err < 0) {
 		dev_err(&dev->device,
 			"%s failed to get mac addr from chan (%d)\n",
 			__func__, err);
 		goto cleanup_netdev;
 	}
+	eth_hw_addr_set(netdev, addr);
 
 	devdata = devdata_initialize(netdev_priv(netdev), dev);
 	if (!devdata) {

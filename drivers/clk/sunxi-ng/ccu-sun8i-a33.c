@@ -805,7 +805,7 @@ static void __init sun8i_a33_ccu_setup(struct device_node *node)
 	val &= ~BIT(16);
 	writel(val, reg + SUN8I_A33_PLL_MIPI_REG);
 
-	sunxi_ccu_probe(node, reg, &sun8i_a33_ccu_desc);
+	of_sunxi_ccu_probe(node, reg, &sun8i_a33_ccu_desc);
 
 	/* Gate then ungate PLL CPU after any rate changes */
 	ccu_pll_notifier_register(&sun8i_a33_pll_cpu_nb);

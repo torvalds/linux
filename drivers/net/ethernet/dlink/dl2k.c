@@ -349,8 +349,7 @@ parse_eeprom (struct net_device *dev)
 	}
 
 	/* Set MAC address */
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = psrom->mac_addr[i];
+	eth_hw_addr_set(dev, psrom->mac_addr);
 
 	if (np->chip_id == CHIP_IP1000A) {
 		np->led_mode = psrom->led_mode;
@@ -567,7 +566,7 @@ static void rio_hw_init(struct net_device *dev)
 	 */
 	for (i = 0; i < 3; i++)
 		dw16(StationAddr0 + 2 * i,
-		     cpu_to_le16(((u16 *)dev->dev_addr)[i]));
+		     cpu_to_le16(((const u16 *)dev->dev_addr)[i]));
 
 	set_multicast (dev);
 	if (np->coalesce) {

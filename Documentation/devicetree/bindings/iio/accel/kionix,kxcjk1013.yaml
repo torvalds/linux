@@ -21,6 +21,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   vdd-supply: true
   vddio-supply: true
 

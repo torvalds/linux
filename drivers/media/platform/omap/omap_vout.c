@@ -277,7 +277,7 @@ static int video_mode_to_dss_mode(struct omap_vout_device *vout)
  */
 static int omapvid_setup_overlay(struct omap_vout_device *vout,
 		struct omap_overlay *ovl, int posx, int posy, int outw,
-		int outh, u32 addr)
+		int outh, dma_addr_t addr)
 {
 	int ret = 0;
 	struct omap_overlay_info info;
@@ -352,7 +352,7 @@ setup_ovl_err:
 /*
  * Initialize the overlay structure
  */
-static int omapvid_init(struct omap_vout_device *vout, u32 addr)
+static int omapvid_init(struct omap_vout_device *vout, dma_addr_t addr)
 {
 	int ret = 0, i;
 	struct v4l2_window *win;
@@ -479,7 +479,8 @@ err:
 static void omap_vout_isr(void *arg, unsigned int irqstatus)
 {
 	int ret, fid, mgr_id;
-	u32 addr, irq;
+	dma_addr_t addr;
+	u32 irq;
 	struct omap_overlay *ovl;
 	u64 ts;
 	struct omapvideo_info *ovid;
@@ -543,7 +544,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 			struct omap_vout_buffer, queue);
 	list_del(&vout->next_frm->queue);
 
-	addr = (unsigned long)vout->queued_buf_addr[vout->next_frm->vbuf.vb2_buf.index]
+	addr = vout->queued_buf_addr[vout->next_frm->vbuf.vb2_buf.index]
 		+ vout->cropped_offset;
 
 	/* First save the configuration in ovelray structure */
@@ -976,7 +977,7 @@ static int omap_vout_vb2_prepare(struct vb2_buffer *vb)
 	vb2_set_plane_payload(vb, 0, vout->pix.sizeimage);
 	voutbuf->vbuf.field = V4L2_FIELD_NONE;
 
-	vout->queued_buf_addr[vb->index] = (u8 *)buf_phy_addr;
+	vout->queued_buf_addr[vb->index] = buf_phy_addr;
 	if (ovid->rotation_type == VOUT_ROT_VRFB)
 		return omap_vout_prepare_vrfb(vout, vb);
 	return 0;
@@ -995,7 +996,8 @@ static int omap_vout_vb2_start_streaming(struct vb2_queue *vq, unsigned int coun
 	struct omap_vout_device *vout = vb2_get_drv_priv(vq);
 	struct omapvideo_info *ovid = &vout->vid_info;
 	struct omap_vout_buffer *buf, *tmp;
-	u32 addr = 0, mask = 0;
+	dma_addr_t addr = 0;
+	u32 mask = 0;
 	int ret, j;
 
 	/* Get the next frame from the buffer queue */
@@ -1018,7 +1020,7 @@ static int omap_vout_vb2_start_streaming(struct vb2_queue *vq, unsigned int coun
 			goto out;
 		}
 
-	addr = (unsigned long)vout->queued_buf_addr[vout->cur_frm->vbuf.vb2_buf.index]
+	addr = vout->queued_buf_addr[vout->cur_frm->vbuf.vb2_buf.index]
 		+ vout->cropped_offset;
 
 	mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD
@@ -1476,7 +1478,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		 * To be precise: fbuf.base should match smem_start of
 		 * struct fb_fix_screeninfo.
 		 */
-		vout->fbuf.base = (void *)info.paddr;
+		vout->fbuf.base = (void *)(uintptr_t)info.paddr;
 
 		/* Set VRFB as rotation_type for omap2 and omap3 */
 		if (omap_vout_dss_omap24xx() || omap_vout_dss_omap34xx())

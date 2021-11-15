@@ -34,10 +34,15 @@
 #include <linux/if_bridge.h>
 #include <linux/ctype.h>
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/auxiliary_bus.h>
 #include <linux/avf/virtchnl.h>
 #include <linux/cpu_rmap.h>
 #include <linux/dim.h>
+#include <net/pkt_cls.h>
+#include <net/tc_act/tc_mirred.h>
+#include <net/tc_act/tc_gact.h>
+#include <net/ip.h>
 #include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock.h>
@@ -55,6 +60,7 @@
 #include "ice_dcb.h"
 #include "ice_switch.h"
 #include "ice_common.h"
+#include "ice_flow.h"
 #include "ice_sched.h"
 #include "ice_idc_int.h"
 #include "ice_virtchnl_pf.h"
@@ -63,6 +69,8 @@
 #include "ice_fdir.h"
 #include "ice_xsk.h"
 #include "ice_arfs.h"
+#include "ice_repr.h"
+#include "ice_eswitch.h"
 #include "ice_lag.h"
 
 #define ICE_BAR0		0
@@ -84,6 +92,7 @@
 #define ICE_FDIR_MSIX		2
 #define ICE_RDMA_NUM_AEQ_MSIX	4
 #define ICE_MIN_RDMA_MSIX	2
+#define ICE_ESWITCH_MSIX	1
 #define ICE_NO_VSI		0xffff
 #define ICE_VSI_MAP_CONTIG	0
 #define ICE_VSI_MAP_SCATTER	1
@@ -101,6 +110,10 @@
 #define ICE_INVAL_VFID		256
 
 #define ICE_MAX_RXQS_PER_TC		256	/* Used when setting VSI context per TC Rx queues */
+
+#define ICE_CHNL_START_TC		1
+#define ICE_CHNL_MAX_TC			16
+
 #define ICE_MAX_RESET_WAIT		20
 
 #define ICE_VSIQF_HKEY_ARRAY_SIZE	((VSIQF_HKEY_MAX_INDEX + 1) *	4)
@@ -118,13 +131,23 @@
 #define ICE_TX_CTX_DESC(R, i) (&(((struct ice_tx_ctx_desc *)((R)->desc))[i]))
 #define ICE_TX_FDIRDESC(R, i) (&(((struct ice_fltr_desc *)((R)->desc))[i]))
 
+/* Minimum BW limit is 500 Kbps for any scheduler node */
+#define ICE_MIN_BW_LIMIT		500
+/* User can specify BW in either Kbit/Mbit/Gbit and OS converts it in bytes.
+ * use it to convert user specified BW limit into Kbps
+ */
+#define ICE_BW_KBPS_DIVISOR		125
+
 /* Macro for each VSI in a PF */
 #define ice_for_each_vsi(pf, i) \
 	for ((i) = 0; (i) < (pf)->num_alloc_vsi; (i)++)
 
-/* Macros for each Tx/Rx ring in a VSI */
+/* Macros for each Tx/Xdp/Rx ring in a VSI */
 #define ice_for_each_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_txq; (i)++)
+
+#define ice_for_each_xdp_txq(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->num_xdp_txq; (i)++)
 
 #define ice_for_each_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
@@ -139,13 +162,13 @@
 #define ice_for_each_q_vector(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_q_vectors; (i)++)
 
-#define ICE_UCAST_PROMISC_BITS (ICE_PROMISC_UCAST_TX | ICE_PROMISC_MCAST_TX | \
-				ICE_PROMISC_UCAST_RX | ICE_PROMISC_MCAST_RX)
+#define ice_for_each_chnl_tc(i)	\
+	for ((i) = ICE_CHNL_START_TC; (i) < ICE_CHNL_MAX_TC; (i)++)
+
+#define ICE_UCAST_PROMISC_BITS (ICE_PROMISC_UCAST_TX | ICE_PROMISC_UCAST_RX)
 
 #define ICE_UCAST_VLAN_PROMISC_BITS (ICE_PROMISC_UCAST_TX | \
-				     ICE_PROMISC_MCAST_TX | \
 				     ICE_PROMISC_UCAST_RX | \
-				     ICE_PROMISC_MCAST_RX | \
 				     ICE_PROMISC_VLAN_TX  | \
 				     ICE_PROMISC_VLAN_RX)
 
@@ -157,6 +180,29 @@
 				     ICE_PROMISC_VLAN_RX)
 
 #define ice_pf_to_dev(pf) (&((pf)->pdev->dev))
+
+enum ice_feature {
+	ICE_F_DSCP,
+	ICE_F_SMA_CTRL,
+	ICE_F_MAX
+};
+
+DECLARE_STATIC_KEY_FALSE(ice_xdp_locking_key);
+
+struct ice_channel {
+	struct list_head list;
+	u8 type;
+	u16 sw_id;
+	u16 base_q;
+	u16 num_rxq;
+	u16 num_txq;
+	u16 vsi_num;
+	u8 ena_tc;
+	struct ice_aqc_vsi_props info;
+	u64 max_tx_rate;
+	u64 min_tx_rate;
+	struct ice_vsi *ch_vsi;
+};
 
 struct ice_txq_meta {
 	u32 q_teid;	/* Tx-scheduler element identifier */
@@ -175,7 +221,7 @@ struct ice_tc_info {
 
 struct ice_tc_cfg {
 	u8 numtc; /* Total number of enabled TCs */
-	u8 ena_tc; /* Tx map */
+	u16 ena_tc; /* Tx map */
 	struct ice_tc_info tc_info[ICE_MAX_TRAFFIC_CLASS];
 };
 
@@ -266,8 +312,8 @@ struct ice_vsi {
 	struct ice_sw *vsw;		 /* switch this VSI is on */
 	struct ice_pf *back;		 /* back pointer to PF */
 	struct ice_port_info *port_info; /* back pointer to port_info */
-	struct ice_ring **rx_rings;	 /* Rx ring array */
-	struct ice_ring **tx_rings;	 /* Tx ring array */
+	struct ice_rx_ring **rx_rings;	 /* Rx ring array */
+	struct ice_tx_ring **tx_rings;	 /* Tx ring array */
 	struct ice_q_vector **q_vectors; /* q_vector array */
 
 	irqreturn_t (*irq_handler)(int irq, void *data);
@@ -306,10 +352,6 @@ struct ice_vsi {
 	spinlock_t arfs_lock;	/* protects aRFS hash table and filter state */
 	atomic_t *arfs_last_fltr_id;
 
-	/* devlink port data */
-	struct devlink_port devlink_port;
-	bool devlink_port_registered;
-
 	u16 max_frame;
 	u16 rx_buf_len;
 
@@ -344,10 +386,41 @@ struct ice_vsi {
 	u16 qset_handle[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_tc_cfg tc_cfg;
 	struct bpf_prog *xdp_prog;
-	struct ice_ring **xdp_rings;	 /* XDP ring array */
+	struct ice_tx_ring **xdp_rings;	 /* XDP ring array */
 	unsigned long *af_xdp_zc_qps;	 /* tracks AF_XDP ZC enabled qps */
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
+
+	struct net_device **target_netdevs;
+
+	struct tc_mqprio_qopt_offload mqprio_qopt; /* queue parameters */
+
+	/* Channel Specific Fields */
+	struct ice_vsi *tc_map_vsi[ICE_CHNL_MAX_TC];
+	u16 cnt_q_avail;
+	u16 next_base_q;	/* next queue to be used for channel setup */
+	struct list_head ch_list;
+	u16 num_chnl_rxq;
+	u16 num_chnl_txq;
+	u16 ch_rss_size;
+	u16 num_chnl_fltr;
+	/* store away rss size info before configuring ADQ channels so that,
+	 * it can be used after tc-qdisc delete, to get back RSS setting as
+	 * they were before
+	 */
+	u16 orig_rss_size;
+	/* this keeps tracks of all enabled TC with and without DCB
+	 * and inclusive of ADQ, vsi->mqprio_opt keeps track of queue
+	 * information
+	 */
+	u8 all_numtc;
+	u16 all_enatc;
+
+	/* store away TC info, to be used for rebuild logic */
+	u8 old_numtc;
+	u16 old_ena_tc;
+
+	struct ice_channel *ch;
 
 	/* setup back reference, to which aggregator node this VSI
 	 * corresponds to
@@ -377,6 +450,8 @@ struct ice_q_vector {
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
 
+	struct ice_channel *ch;
+
 	char name[ICE_INT_NAME_STR_LEN];
 
 	u16 total_events;	/* net_dim(): number of interrupts processed */
@@ -395,17 +470,26 @@ enum ice_pf_flags {
 	ICE_FLAG_PTP,			/* PTP is enabled by software */
 	ICE_FLAG_AUX_ENA,
 	ICE_FLAG_ADV_FEATURES,
+	ICE_FLAG_TC_MQPRIO,		/* support for Multi queue TC */
+	ICE_FLAG_CLS_FLOWER,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_FLAG_TOTAL_PORT_SHUTDOWN_ENA,
 	ICE_FLAG_NO_MEDIA,
 	ICE_FLAG_FW_LLDP_AGENT,
 	ICE_FLAG_MOD_POWER_UNSUPPORTED,
+	ICE_FLAG_PHY_FW_LOAD_FAILED,
 	ICE_FLAG_ETHTOOL_CTXT,		/* set when ethtool holds RTNL lock */
 	ICE_FLAG_LEGACY_RX,
 	ICE_FLAG_VF_TRUE_PROMISC_ENA,
 	ICE_FLAG_MDD_AUTO_RESET_VF,
 	ICE_FLAG_LINK_LENIENT_MODE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
+};
+
+struct ice_switchdev_info {
+	struct ice_vsi *control_vsi;
+	struct ice_vsi *uplink_vsi;
+	bool is_running;
 };
 
 struct ice_agg_node {
@@ -421,6 +505,9 @@ struct ice_pf {
 	struct devlink_region *nvm_region;
 	struct devlink_region *devcaps_region;
 
+	/* devlink port data */
+	struct devlink_port devlink_port;
+
 	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
 	struct ice_res_tracker *irq_tracker;
@@ -434,6 +521,7 @@ struct ice_pf {
 
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
+	u16 eswitch_mode;		/* current mode of eswitch */
 	/* Virtchnl/SR-IOV config info */
 	struct ice_vf *vf;
 	u16 num_alloc_vfs;		/* actual number of VFs allocated */
@@ -443,6 +531,7 @@ struct ice_pf {
 	/* used to ratelimit the MDD event logging */
 	unsigned long last_printed_mdd_jiffies;
 	DECLARE_BITMAP(malvfs, ICE_MAX_VF_COUNT);
+	DECLARE_BITMAP(features, ICE_F_MAX);
 	DECLARE_BITMAP(state, ICE_STATE_NBITS);
 	DECLARE_BITMAP(flags, ICE_PF_FLAGS_NBITS);
 	unsigned long *avail_txqs;	/* bitmap to track PF Tx queue usage */
@@ -495,11 +584,18 @@ struct ice_pf {
 	struct auxiliary_device *adev;
 	int aux_idx;
 	u32 sw_int_count;
+	/* count of tc_flower filters specific to channel (aka where filter
+	 * action is "hw_tc <tc_num>")
+	 */
+	u16 num_dmac_chnl_fltrs;
+	struct hlist_head tc_flower_fltr_list;
 
 	__le64 nvm_phy_type_lo; /* NVM PHY type low */
 	__le64 nvm_phy_type_hi; /* NVM PHY type high */
 	struct ice_link_default_override_tlv link_dflt_override;
 	struct ice_lag *lag; /* Link Aggregation information */
+
+	struct ice_switchdev_info switchdev;
 
 #define ICE_INVALID_AGG_NODE_ID		0
 #define ICE_PF_AGG_NODE_ID_START	1
@@ -512,7 +608,26 @@ struct ice_pf {
 
 struct ice_netdev_priv {
 	struct ice_vsi *vsi;
+	struct ice_repr *repr;
+	/* indirect block callbacks on registered higher level devices
+	 * (e.g. tunnel devices)
+	 *
+	 * tc_indr_block_cb_priv_list is used to look up indirect callback
+	 * private data
+	 */
+	struct list_head tc_indr_block_priv_list;
 };
+
+/**
+ * ice_vector_ch_enabled
+ * @qv: pointer to q_vector, can be NULL
+ *
+ * This function returns true if vector is channel enabled otherwise false
+ */
+static inline bool ice_vector_ch_enabled(struct ice_q_vector *qv)
+{
+	return !!qv->ch; /* Enable it to run with TC */
+}
 
 /**
  * ice_irq_dynamic_ena - Enable default interrupt generation settings
@@ -556,25 +671,42 @@ static inline bool ice_is_xdp_ena_vsi(struct ice_vsi *vsi)
 	return !!vsi->xdp_prog;
 }
 
-static inline void ice_set_ring_xdp(struct ice_ring *ring)
+static inline void ice_set_ring_xdp(struct ice_tx_ring *ring)
 {
 	ring->flags |= ICE_TX_FLAGS_RING_XDP;
 }
 
 /**
  * ice_xsk_pool - get XSK buffer pool bound to a ring
- * @ring: ring to use
+ * @ring: Rx ring to use
  *
  * Returns a pointer to xdp_umem structure if there is a buffer pool present,
  * NULL otherwise.
  */
-static inline struct xsk_buff_pool *ice_xsk_pool(struct ice_ring *ring)
+static inline struct xsk_buff_pool *ice_xsk_pool(struct ice_rx_ring *ring)
 {
 	struct ice_vsi *vsi = ring->vsi;
 	u16 qid = ring->q_index;
 
-	if (ice_ring_is_xdp(ring))
-		qid -= vsi->num_xdp_txq;
+	if (!ice_is_xdp_ena_vsi(vsi) || !test_bit(qid, vsi->af_xdp_zc_qps))
+		return NULL;
+
+	return xsk_get_pool_from_qid(vsi->netdev, qid);
+}
+
+/**
+ * ice_tx_xsk_pool - get XSK buffer pool bound to a ring
+ * @ring: Tx ring to use
+ *
+ * Returns a pointer to xdp_umem structure if there is a buffer pool present,
+ * NULL otherwise. Tx equivalent of ice_xsk_pool.
+ */
+static inline struct xsk_buff_pool *ice_tx_xsk_pool(struct ice_tx_ring *ring)
+{
+	struct ice_vsi *vsi = ring->vsi;
+	u16 qid;
+
+	qid = ring->q_index - vsi->num_xdp_txq;
 
 	if (!ice_is_xdp_ena_vsi(vsi) || !test_bit(qid, vsi->af_xdp_zc_qps))
 		return NULL;
@@ -597,6 +729,19 @@ static inline struct ice_vsi *ice_get_main_vsi(struct ice_pf *pf)
 }
 
 /**
+ * ice_get_netdev_priv_vsi - return VSI associated with netdev priv.
+ * @np: private netdev structure
+ */
+static inline struct ice_vsi *ice_get_netdev_priv_vsi(struct ice_netdev_priv *np)
+{
+	/* In case of port representor return source port VSI. */
+	if (np->repr)
+		return np->repr->src_vsi;
+	else
+		return np->vsi;
+}
+
+/**
  * ice_get_ctrl_vsi - Get the control VSI
  * @pf: PF instance
  */
@@ -607,6 +752,18 @@ static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
 		return NULL;
 
 	return pf->vsi[pf->ctrl_vsi_idx];
+}
+
+/**
+ * ice_is_switchdev_running - check if switchdev is configured
+ * @pf: pointer to PF structure
+ *
+ * Returns true if eswitch mode is set to DEVLINK_ESWITCH_MODE_SWITCHDEV
+ * and switchdev is configured, false otherwise.
+ */
+static inline bool ice_is_switchdev_running(struct ice_pf *pf)
+{
+	return pf->switchdev.is_running;
 }
 
 /**
@@ -633,11 +790,37 @@ static inline void ice_clear_sriov_cap(struct ice_pf *pf)
 			((base_idx) * ICE_FD_STAT_CTR_BLOCK_COUNT)
 #define ICE_FD_SB_STAT_IDX(base_idx) ICE_FD_STAT_PF_IDX(base_idx)
 
+/**
+ * ice_is_adq_active - any active ADQs
+ * @pf: pointer to PF
+ *
+ * This function returns true if there are any ADQs configured (which is
+ * determined by looking at VSI type (which should be VSI_PF), numtc, and
+ * TC_MQPRIO flag) otherwise return false
+ */
+static inline bool ice_is_adq_active(struct ice_pf *pf)
+{
+	struct ice_vsi *vsi;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return false;
+
+	/* is ADQ configured */
+	if (vsi->tc_cfg.numtc > ICE_CHNL_START_TC &&
+	    test_bit(ICE_FLAG_TC_MQPRIO, pf->flags))
+		return true;
+
+	return false;
+}
+
 bool netif_is_ice(struct net_device *dev);
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 int ice_vsi_open_ctrl(struct ice_vsi *vsi);
+int ice_vsi_open(struct ice_vsi *vsi);
 void ice_set_ethtool_ops(struct net_device *netdev);
+void ice_set_ethtool_repr_ops(struct net_device *netdev);
 void ice_set_ethtool_safe_mode_ops(struct net_device *netdev);
 u16 ice_get_avail_txq_count(struct ice_pf *pf);
 u16 ice_get_avail_rxq_count(struct ice_pf *pf);
@@ -648,6 +831,7 @@ int ice_up(struct ice_vsi *vsi);
 int ice_down(struct ice_vsi *vsi);
 int ice_vsi_cfg(struct ice_vsi *vsi);
 struct ice_vsi *ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi);
+int ice_vsi_determine_xdp_res(struct ice_vsi *vsi);
 int ice_prepare_xdp_rings(struct ice_vsi *vsi, struct bpf_prog *prog);
 int ice_destroy_xdp_rings(struct ice_vsi *vsi);
 int

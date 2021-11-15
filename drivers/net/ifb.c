@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
+#include <linux/netfilter_netdev.h>
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
 
@@ -75,8 +76,12 @@ static void ifb_ri_tasklet(struct tasklet_struct *t)
 	}
 
 	while ((skb = __skb_dequeue(&txp->tq)) != NULL) {
+		/* Skip tc and netfilter to prevent redirection loop. */
 		skb->redirected = 0;
+#ifdef CONFIG_NET_CLS_ACT
 		skb->tc_skip_classify = 1;
+#endif
+		nf_skip_egress(skb, true);
 
 		u64_stats_update_begin(&txp->tsync);
 		txp->tx_packets++;

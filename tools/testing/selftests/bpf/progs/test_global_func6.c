@@ -24,7 +24,7 @@ int f3(int val, struct __sk_buff *skb)
 	return skb->ifindex * val;
 }
 
-SEC("classifier/test")
+SEC("tc")
 int test_cls(struct __sk_buff *skb)
 {
 	return f1(skb) + f2(2, skb) + f3(3, skb);

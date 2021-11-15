@@ -103,6 +103,7 @@ static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
 	/* we'll recheck under lock if there's anything to look in */
 	if (!ret && dentry->d_fsdata) {
 		struct hlist_head *h = (struct hlist_head *)&dentry->d_fsdata;
+
 		spin_lock(&dentry->d_lock);
 		hlist_for_each_entry(fid, h, dlist) {
 			if (any || uid_eq(fid->uid, uid)) {
@@ -185,7 +186,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 			return ERR_PTR(-EPERM);
 
 		if (v9fs_proto_dotu(v9ses) || v9fs_proto_dotl(v9ses))
-				uname = NULL;
+			uname = NULL;
 		else
 			uname = v9ses->uname;
 

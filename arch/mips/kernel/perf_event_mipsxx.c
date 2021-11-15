@@ -1002,15 +1002,6 @@ static const struct mips_perf_event bmips5000_event_map
 	[PERF_COUNT_HW_BRANCH_MISSES] = { 0x02, CNTR_ODD, T },
 };
 
-static const struct mips_perf_event xlp_event_map[PERF_COUNT_HW_MAX] = {
-	[PERF_COUNT_HW_CPU_CYCLES] = { 0x01, CNTR_ALL },
-	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x18, CNTR_ALL }, /* PAPI_TOT_INS */
-	[PERF_COUNT_HW_CACHE_REFERENCES] = { 0x04, CNTR_ALL }, /* PAPI_L1_ICA */
-	[PERF_COUNT_HW_CACHE_MISSES] = { 0x07, CNTR_ALL }, /* PAPI_L1_ICM */
-	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = { 0x1b, CNTR_ALL }, /* PAPI_BR_CN */
-	[PERF_COUNT_HW_BRANCH_MISSES] = { 0x1c, CNTR_ALL }, /* PAPI_BR_MSP */
-};
-
 /* 24K/34K/1004K/interAptiv/loongson1 cores share the same cache event map. */
 static const struct mips_perf_event mipsxxcore_cache_map
 				[PERF_COUNT_HW_CACHE_MAX]
@@ -1477,63 +1468,6 @@ static const struct mips_perf_event octeon_cache_map
 },
 };
 
-static const struct mips_perf_event xlp_cache_map
-				[PERF_COUNT_HW_CACHE_MAX]
-				[PERF_COUNT_HW_CACHE_OP_MAX]
-				[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
-[C(L1D)] = {
-	[C(OP_READ)] = {
-		[C(RESULT_ACCESS)]	= { 0x31, CNTR_ALL }, /* PAPI_L1_DCR */
-		[C(RESULT_MISS)]	= { 0x30, CNTR_ALL }, /* PAPI_L1_LDM */
-	},
-	[C(OP_WRITE)] = {
-		[C(RESULT_ACCESS)]	= { 0x2f, CNTR_ALL }, /* PAPI_L1_DCW */
-		[C(RESULT_MISS)]	= { 0x2e, CNTR_ALL }, /* PAPI_L1_STM */
-	},
-},
-[C(L1I)] = {
-	[C(OP_READ)] = {
-		[C(RESULT_ACCESS)]	= { 0x04, CNTR_ALL }, /* PAPI_L1_ICA */
-		[C(RESULT_MISS)]	= { 0x07, CNTR_ALL }, /* PAPI_L1_ICM */
-	},
-},
-[C(LL)] = {
-	[C(OP_READ)] = {
-		[C(RESULT_ACCESS)]	= { 0x35, CNTR_ALL }, /* PAPI_L2_DCR */
-		[C(RESULT_MISS)]	= { 0x37, CNTR_ALL }, /* PAPI_L2_LDM */
-	},
-	[C(OP_WRITE)] = {
-		[C(RESULT_ACCESS)]	= { 0x34, CNTR_ALL }, /* PAPI_L2_DCA */
-		[C(RESULT_MISS)]	= { 0x36, CNTR_ALL }, /* PAPI_L2_DCM */
-	},
-},
-[C(DTLB)] = {
-	/*
-	 * Only general DTLB misses are counted use the same event for
-	 * read and write.
-	 */
-	[C(OP_READ)] = {
-		[C(RESULT_MISS)]	= { 0x2d, CNTR_ALL }, /* PAPI_TLB_DM */
-	},
-	[C(OP_WRITE)] = {
-		[C(RESULT_MISS)]	= { 0x2d, CNTR_ALL }, /* PAPI_TLB_DM */
-	},
-},
-[C(ITLB)] = {
-	[C(OP_READ)] = {
-		[C(RESULT_MISS)]	= { 0x08, CNTR_ALL }, /* PAPI_TLB_IM */
-	},
-	[C(OP_WRITE)] = {
-		[C(RESULT_MISS)]	= { 0x08, CNTR_ALL }, /* PAPI_TLB_IM */
-	},
-},
-[C(BPU)] = {
-	[C(OP_READ)] = {
-		[C(RESULT_MISS)]	= { 0x25, CNTR_ALL },
-	},
-},
-};
-
 static int __hw_perf_event_init(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
@@ -1953,20 +1887,6 @@ static const struct mips_perf_event *octeon_pmu_map_raw_event(u64 config)
 	return &raw_event;
 }
 
-static const struct mips_perf_event *xlp_pmu_map_raw_event(u64 config)
-{
-	unsigned int raw_id = config & 0xff;
-
-	/* Only 1-63 are defined */
-	if ((raw_id < 0x01) || (raw_id > 0x3f))
-		return ERR_PTR(-EOPNOTSUPP);
-
-	raw_event.cntr_mask = CNTR_ALL;
-	raw_event.event_id = raw_id;
-
-	return &raw_event;
-}
-
 static int __init
 init_hw_perf_events(void)
 {
@@ -2090,12 +2010,6 @@ init_hw_perf_events(void)
 		mipspmu.name = "BMIPS5000";
 		mipspmu.general_event_map = &bmips5000_event_map;
 		mipspmu.cache_event_map = &bmips5000_cache_map;
-		break;
-	case CPU_XLP:
-		mipspmu.name = "xlp";
-		mipspmu.general_event_map = &xlp_event_map;
-		mipspmu.cache_event_map = &xlp_cache_map;
-		mipspmu.map_raw_event = xlp_pmu_map_raw_event;
 		break;
 	default:
 		pr_cont("Either hardware does not support performance "

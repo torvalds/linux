@@ -31,7 +31,7 @@ static inline int rcu_read_lock_trace_held(void)
 
 #ifdef CONFIG_TASKS_TRACE_RCU
 
-void rcu_read_unlock_trace_special(struct task_struct *t, int nesting);
+void rcu_read_unlock_trace_special(struct task_struct *t);
 
 /**
  * rcu_read_lock_trace - mark beginning of RCU-trace read-side critical section
@@ -80,7 +80,8 @@ static inline void rcu_read_unlock_trace(void)
 		WRITE_ONCE(t->trc_reader_nesting, nesting);
 		return;  // We assume shallow reader nesting.
 	}
-	rcu_read_unlock_trace_special(t, nesting);
+	WARN_ON_ONCE(nesting != 0);
+	rcu_read_unlock_trace_special(t);
 }
 
 void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func);

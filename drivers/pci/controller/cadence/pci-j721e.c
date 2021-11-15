@@ -474,7 +474,7 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(clk);
 		if (ret) {
 			dev_err(dev, "failed to enable pcie_refclk\n");
-			goto err_get_sync;
+			goto err_pcie_setup;
 		}
 		pcie->refclk = clk;
 

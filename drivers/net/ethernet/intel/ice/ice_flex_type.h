@@ -13,6 +13,8 @@ struct ice_fv_word {
 	u8 resvrd;
 } __packed;
 
+#define ICE_MAX_NUM_PROFILES 256
+
 #define ICE_MAX_FV_WORDS 48
 struct ice_fv {
 	struct ice_fv_word ew[ICE_MAX_FV_WORDS];
@@ -279,6 +281,12 @@ struct ice_sw_fv_section {
 	struct ice_fv fv[];
 };
 
+struct ice_sw_fv_list_entry {
+	struct list_head list_entry;
+	u32 profile_id;
+	struct ice_fv *fv_ptr;
+};
+
 /* The BOOST TCAM stores the match packet header in reverse order, meaning
  * the fields are reversed; in addition, this means that the normally big endian
  * fields of the packet are now little endian.
@@ -365,6 +373,7 @@ struct ice_pkg_enum {
 enum ice_tunnel_type {
 	TNL_VXLAN = 0,
 	TNL_GENEVE,
+	TNL_GRETAP,
 	__TNL_TYPE_CNT,
 	TNL_LAST = 0xFF,
 	TNL_ALL = 0xFF,
@@ -603,4 +612,12 @@ struct ice_chs_chg {
 };
 
 #define ICE_FLOW_PTYPE_MAX		ICE_XLT1_CNT
+
+enum ice_prof_type {
+	ICE_PROF_NON_TUN = 0x1,
+	ICE_PROF_TUN_UDP = 0x2,
+	ICE_PROF_TUN_GRE = 0x4,
+	ICE_PROF_TUN_ALL = 0x6,
+	ICE_PROF_ALL = 0xFF,
+};
 #endif /* _ICE_FLEX_TYPE_H_ */

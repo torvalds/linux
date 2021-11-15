@@ -1218,7 +1218,7 @@ static int cxgb4vf_set_mac_addr(struct net_device *dev, void *_addr)
 	if (ret < 0)
 		return ret;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return 0;
 }
 
@@ -2902,10 +2902,8 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Initialize generic PCI device state.
 	 */
 	err = pci_enable_device(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "cannot enable PCI device\n");
 
 	/*
 	 * Reserve PCI resources for the device.  If we can't get them some

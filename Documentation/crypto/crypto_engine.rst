@@ -69,6 +69,8 @@ the crypto engine via one of:
 
 * crypto_transfer_hash_request_to_engine()
 
+* crypto_transfer_kpp_request_to_engine()
+
 * crypto_transfer_skcipher_request_to_engine()
 
 At the end of the request process, a call to one of the following functions is needed:
@@ -78,5 +80,7 @@ At the end of the request process, a call to one of the following functions is n
 * crypto_finalize_akcipher_request()
 
 * crypto_finalize_hash_request()
+
+* crypto_finalize_kpp_request()
 
 * crypto_finalize_skcipher_request()

@@ -350,7 +350,7 @@ static void dr_fill_data_segs(struct mlx5dr_send_ring *send_ring,
 	send_info->read.length = send_info->write.length;
 	/* Read into the same write area */
 	send_info->read.addr = (uintptr_t)send_info->write.addr;
-	send_info->read.lkey = send_ring->mr->mkey.key;
+	send_info->read.lkey = send_ring->mr->mkey;
 
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
 		send_info->read.send_flags = IB_SEND_SIGNALED;
@@ -388,7 +388,7 @@ static int dr_postsend_icm_data(struct mlx5dr_domain *dmn,
 		       (void *)(uintptr_t)send_info->write.addr,
 		       send_info->write.length);
 		send_info->write.addr = (uintptr_t)send_ring->mr->dma_addr + buff_offset;
-		send_info->write.lkey = send_ring->mr->mkey.key;
+		send_info->write.lkey = send_ring->mr->mkey;
 	}
 
 	send_ring->tx_head++;
@@ -848,8 +848,7 @@ static void dr_destroy_cq(struct mlx5_core_dev *mdev, struct mlx5dr_cq *cq)
 	kfree(cq);
 }
 
-static int
-dr_create_mkey(struct mlx5_core_dev *mdev, u32 pdn, struct mlx5_core_mkey *mkey)
+static int dr_create_mkey(struct mlx5_core_dev *mdev, u32 pdn, u32 *mkey)
 {
 	u32 in[MLX5_ST_SZ_DW(create_mkey_in)] = {};
 	void *mkc;
@@ -908,7 +907,7 @@ static struct mlx5dr_mr *dr_reg_mr(struct mlx5_core_dev *mdev,
 
 static void dr_dereg_mr(struct mlx5_core_dev *mdev, struct mlx5dr_mr *mr)
 {
-	mlx5_core_destroy_mkey(mdev, &mr->mkey);
+	mlx5_core_destroy_mkey(mdev, mr->mkey);
 	dma_unmap_single(mlx5_core_dma_dev(mdev), mr->dma_addr, mr->size,
 			 DMA_BIDIRECTIONAL);
 	kfree(mr);
@@ -1039,7 +1038,7 @@ int mlx5dr_send_ring_force_drain(struct mlx5dr_domain *dmn)
 	send_info.write.lkey = 0;
 	/* Using the sync_mr in order to write/read */
 	send_info.remote_addr = (uintptr_t)send_ring->sync_mr->addr;
-	send_info.rkey = send_ring->sync_mr->mkey.key;
+	send_info.rkey = send_ring->sync_mr->mkey;
 
 	for (i = 0; i < num_of_sends_req; i++) {
 		ret = dr_postsend_icm_data(dmn, &send_info);

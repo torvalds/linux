@@ -223,6 +223,7 @@ static long aac_build_sghba(struct scsi_cmnd *scsicmd,
 				int sg_max, u64 sg_address);
 static int aac_convert_sgraw2(struct aac_raw_io2 *rio2,
 				int pages, int nseg, int nseg_new);
+static void aac_probe_container_scsi_done(struct scsi_cmnd *scsi_cmnd);
 static int aac_send_srb_fib(struct scsi_cmnd* scsicmd);
 static int aac_send_hba_fib(struct scsi_cmnd *scsicmd);
 #ifdef AAC_DETAILED_STATUS_INFO
@@ -332,7 +333,7 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 		struct fib *fibptr) {
 	struct scsi_device *device;
 
-	if (unlikely(!scsicmd || !scsicmd->scsi_done)) {
+	if (unlikely(!scsicmd)) {
 		dprintk((KERN_WARNING "aac_valid_context: scsi command corrupt\n"));
 		aac_fib_complete(fibptr);
 		return 0;
@@ -517,6 +518,17 @@ int aac_get_containers(struct aac_dev *dev)
 	return status;
 }
 
+static void aac_scsi_done(struct scsi_cmnd *scmd)
+{
+	if (scmd->device->request_queue) {
+		/* SCSI command has been submitted by the SCSI mid-layer. */
+		scsi_done(scmd);
+	} else {
+		/* SCSI command has been submitted by aac_probe_container(). */
+		aac_probe_container_scsi_done(scmd);
+	}
+}
+
 static void get_container_name_callback(void *context, struct fib * fibptr)
 {
 	struct aac_get_name_resp * get_name_reply;
@@ -558,7 +570,7 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 	scsicmd->result = DID_OK << 16 | SAM_STAT_GOOD;
 
 	aac_fib_complete(fibptr);
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 }
 
 /*
@@ -614,7 +626,7 @@ static int aac_probe_container_callback2(struct scsi_cmnd * scsicmd)
 		return aac_scsi_cmd(scsicmd);
 
 	scsicmd->result = DID_NO_CONNECT << 16;
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 	return 0;
 }
 
@@ -804,8 +816,8 @@ static void aac_probe_container_scsi_done(struct scsi_cmnd *scsi_cmnd)
 
 int aac_probe_container(struct aac_dev *dev, int cid)
 {
-	struct scsi_cmnd *scsicmd = kmalloc(sizeof(*scsicmd), GFP_KERNEL);
-	struct scsi_device *scsidev = kmalloc(sizeof(*scsidev), GFP_KERNEL);
+	struct scsi_cmnd *scsicmd = kzalloc(sizeof(*scsicmd), GFP_KERNEL);
+	struct scsi_device *scsidev = kzalloc(sizeof(*scsidev), GFP_KERNEL);
 	int status;
 
 	if (!scsicmd || !scsidev) {
@@ -813,7 +825,6 @@ int aac_probe_container(struct aac_dev *dev, int cid)
 		kfree(scsidev);
 		return -ENOMEM;
 	}
-	scsicmd->scsi_done = aac_probe_container_scsi_done;
 
 	scsicmd->device = scsidev;
 	scsidev->sdev_state = 0;
@@ -1094,7 +1105,7 @@ static void get_container_serial_callback(void *context, struct fib * fibptr)
 	scsicmd->result = DID_OK << 16 | SAM_STAT_GOOD;
 
 	aac_fib_complete(fibptr);
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 }
 
 /*
@@ -1197,7 +1208,7 @@ static int aac_bounds_32(struct aac_dev * dev, struct scsi_cmnd * cmd, u64 lba)
 		memcpy(cmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
-		cmd->scsi_done(cmd);
+		aac_scsi_done(cmd);
 		return 1;
 	}
 	return 0;
@@ -2392,7 +2403,7 @@ static void io_callback(void *context, struct fib * fibptr)
 	}
 	aac_fib_complete(fibptr);
 
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 }
 
 static int aac_read(struct scsi_cmnd * scsicmd)
@@ -2463,7 +2474,7 @@ static int aac_read(struct scsi_cmnd * scsicmd)
 		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
-		scsicmd->scsi_done(scsicmd);
+		aac_scsi_done(scsicmd);
 		return 0;
 	}
 
@@ -2489,7 +2500,7 @@ static int aac_read(struct scsi_cmnd * scsicmd)
 	 *	For some reason, the Fib didn't queue, return QUEUE_FULL
 	 */
 	scsicmd->result = DID_OK << 16 | SAM_STAT_TASK_SET_FULL;
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 	aac_fib_complete(cmd_fibcontext);
 	aac_fib_free(cmd_fibcontext);
 	return 0;
@@ -2554,7 +2565,7 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
-		scsicmd->scsi_done(scsicmd);
+		aac_scsi_done(scsicmd);
 		return 0;
 	}
 
@@ -2580,7 +2591,7 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 	 *	For some reason, the Fib didn't queue, return QUEUE_FULL
 	 */
 	scsicmd->result = DID_OK << 16 | SAM_STAT_TASK_SET_FULL;
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 
 	aac_fib_complete(cmd_fibcontext);
 	aac_fib_free(cmd_fibcontext);
@@ -2621,7 +2632,7 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 
 	aac_fib_complete(fibptr);
 	aac_fib_free(fibptr);
-	cmd->scsi_done(cmd);
+	aac_scsi_done(cmd);
 }
 
 static int aac_synchronize(struct scsi_cmnd *scsicmd)
@@ -2688,7 +2699,7 @@ static void aac_start_stop_callback(void *context, struct fib *fibptr)
 
 	aac_fib_complete(fibptr);
 	aac_fib_free(fibptr);
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 }
 
 static int aac_start_stop(struct scsi_cmnd *scsicmd)
@@ -2702,7 +2713,7 @@ static int aac_start_stop(struct scsi_cmnd *scsicmd)
 	if (!(aac->supplement_adapter_info.supported_options2 &
 	      AAC_OPTION_POWER_MANAGEMENT)) {
 		scsicmd->result = DID_OK << 16 | SAM_STAT_GOOD;
-		scsicmd->scsi_done(scsicmd);
+		aac_scsi_done(scsicmd);
 		return 0;
 	}
 
@@ -3237,7 +3248,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 
 scsi_done_ret:
 
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 	return 0;
 }
 
@@ -3546,7 +3557,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 	scsicmd->result |= le32_to_cpu(srbreply->scsi_status);
 
 	aac_fib_complete(fibptr);
-	scsicmd->scsi_done(scsicmd);
+	aac_scsi_done(scsicmd);
 }
 
 static void hba_resp_task_complete(struct aac_dev *dev,
@@ -3686,7 +3697,7 @@ out:
 	if (fibptr->flags & FIB_CONTEXT_FLAG_NATIVE_HBA_TMF)
 		scsicmd->SCp.sent_command = 1;
 	else
-		scsicmd->scsi_done(scsicmd);
+		aac_scsi_done(scsicmd);
 }
 
 /**
@@ -3706,7 +3717,7 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 	if (scmd_id(scsicmd) >= dev->maximum_num_physicals ||
 			scsicmd->device->lun > 7) {
 		scsicmd->result = DID_NO_CONNECT << 16;
-		scsicmd->scsi_done(scsicmd);
+		aac_scsi_done(scsicmd);
 		return 0;
 	}
 
@@ -3747,7 +3758,7 @@ static int aac_send_hba_fib(struct scsi_cmnd *scsicmd)
 	if (scmd_id(scsicmd) >= dev->maximum_num_physicals ||
 			scsicmd->device->lun > AAC_MAX_LUN - 1) {
 		scsicmd->result = DID_NO_CONNECT << 16;
-		scsicmd->scsi_done(scsicmd);
+		aac_scsi_done(scsicmd);
 		return 0;
 	}
 

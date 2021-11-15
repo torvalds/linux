@@ -22,6 +22,7 @@
 #include "smc_tx.h" /* smc_tx_consumer_update() */
 #include "smc_rx.h"
 #include "smc_stats.h"
+#include "smc_tracepoint.h"
 
 /* callback implementation to wakeup consumers blocked with smc_rx_wait().
  * indirectly called by smc_cdc_msg_recv_action().
@@ -438,6 +439,8 @@ copy:
 			if (msg && smc_rx_update_consumer(smc, cons, copylen))
 				goto out;
 		}
+
+		trace_smc_rx_recvmsg(smc, copylen);
 	} while (read_remaining);
 out:
 	return read_done;

@@ -52,7 +52,7 @@ struct page *ksm_might_need_to_copy(struct page *page,
 			struct vm_area_struct *vma, unsigned long address);
 
 void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
-void ksm_migrate_page(struct page *newpage, struct page *oldpage);
+void folio_migrate_ksm(struct folio *newfolio, struct folio *folio);
 
 #else  /* !CONFIG_KSM */
 
@@ -83,7 +83,7 @@ static inline void rmap_walk_ksm(struct page *page,
 {
 }
 
-static inline void ksm_migrate_page(struct page *newpage, struct page *oldpage)
+static inline void folio_migrate_ksm(struct folio *newfolio, struct folio *old)
 {
 }
 #endif /* CONFIG_MMU */

@@ -31,7 +31,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
-#include "intel_sideband.h"
+#include "vlv_sideband.h"
 
 static const u16 lfsr_converts[] = {
 	426, 469, 234, 373, 442, 221, 110, 311, 411,		/* 62 - 70 */
@@ -567,4 +567,27 @@ void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 		intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV2, tmp);
 	}
 	intel_de_write(dev_priv, MIPI_EOT_DISABLE(port), CLOCKSTOP);
+}
+
+static void assert_dsi_pll(struct drm_i915_private *i915, bool state)
+{
+	bool cur_state;
+
+	vlv_cck_get(i915);
+	cur_state = vlv_cck_read(i915, CCK_REG_DSI_PLL_CONTROL) & DSI_PLL_VCO_EN;
+	vlv_cck_put(i915);
+
+	I915_STATE_WARN(cur_state != state,
+			"DSI PLL state assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_dsi_pll_enabled(struct drm_i915_private *i915)
+{
+	assert_dsi_pll(i915, true);
+}
+
+void assert_dsi_pll_disabled(struct drm_i915_private *i915)
+{
+	assert_dsi_pll(i915, false);
 }

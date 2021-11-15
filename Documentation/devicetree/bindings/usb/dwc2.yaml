@@ -9,6 +9,9 @@ title: DesignWare HS OTG USB 2.0 controller Bindings
 maintainers:
   - Rob Herring <robh@kernel.org>
 
+allOf:
+  - $ref: usb-drd.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -101,12 +104,15 @@ properties:
     description: reference to the VBUS and ID sensing comparators supply, in
       order to perform OTG operation, used on STM32MP15 SoCs.
 
-  dr_mode:
-    enum: [host, peripheral, otg]
+  dr_mode: true
 
-  usb-role-switch:
-    $ref: /schemas/types.yaml#/definitions/flag
-    description: Support role switch.
+  otg-rev: true
+
+  hnp-disable: true
+
+  srp-disable: true
+
+  usb-role-switch: true
 
   g-rx-fifo-size:
     $ref: /schemas/types.yaml#/definitions/uint32

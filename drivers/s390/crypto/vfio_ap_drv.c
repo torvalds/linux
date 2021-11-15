@@ -42,10 +42,13 @@ static struct ap_device_id ap_queue_ids[] = {
 MODULE_DEVICE_TABLE(vfio_ap, ap_queue_ids);
 
 /**
- * vfio_ap_queue_dev_probe:
+ * vfio_ap_queue_dev_probe: Allocate a vfio_ap_queue structure and associate it
+ *			    with the device as driver_data.
  *
- * Allocate a vfio_ap_queue structure and associate it
- * with the device as driver_data.
+ * @apdev: the AP device being probed
+ *
+ * Return: returns 0 if the probe succeeded; otherwise, returns -ENOMEM if
+ *	   storage could not be allocated for a vfio_ap_queue object.
  */
 static int vfio_ap_queue_dev_probe(struct ap_device *apdev)
 {
@@ -61,10 +64,11 @@ static int vfio_ap_queue_dev_probe(struct ap_device *apdev)
 }
 
 /**
- * vfio_ap_queue_dev_remove:
+ * vfio_ap_queue_dev_remove: Free the associated vfio_ap_queue structure.
  *
- * Takes the matrix lock to avoid actions on this device while removing
- * Free the associated vfio_ap_queue structure
+ * @apdev: the AP device being removed
+ *
+ * Takes the matrix lock to avoid actions on this device while doing the remove.
  */
 static void vfio_ap_queue_dev_remove(struct ap_device *apdev)
 {

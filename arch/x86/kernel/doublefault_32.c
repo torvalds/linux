@@ -77,9 +77,6 @@ asmlinkage noinstr void __noreturn doublefault_shim(void)
 	 * some way to reconstruct CR3.  We could make a credible guess based
 	 * on cpu_tlbstate, but that would be racy and would not account for
 	 * PTI.
-	 *
-	 * Instead, don't bother.  We can return through
-	 * rewind_stack_do_exit() instead.
 	 */
 	panic("cannot return from double fault\n");
 }

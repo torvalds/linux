@@ -52,16 +52,16 @@ __cmpxchg_u32(volatile int *p, int old, int new)
 	return new;
 #else
 	__asm__ __volatile__(
-			"       rsil    a15, "__stringify(TOPLEVEL)"\n"
+			"       rsil    a14, "__stringify(TOPLEVEL)"\n"
 			"       l32i    %[old], %[mem]\n"
 			"       bne     %[old], %[cmp], 1f\n"
 			"       s32i    %[new], %[mem]\n"
 			"1:\n"
-			"       wsr     a15, ps\n"
+			"       wsr     a14, ps\n"
 			"       rsync\n"
 			: [old] "=&a" (old), [mem] "+m" (*p)
 			: [cmp] "a" (old), [new] "r" (new)
-			: "a15", "memory");
+			: "a14", "memory");
 	return old;
 #endif
 }
@@ -116,10 +116,10 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 /*
  * xchg_u32
  *
- * Note that a15 is used here because the register allocation
+ * Note that a14 is used here because the register allocation
  * done by the compiler is not guaranteed and a window overflow
  * may not occur between the rsil and wsr instructions. By using
- * a15 in the rsil, the machine is guaranteed to be in a state
+ * a14 in the rsil, the machine is guaranteed to be in a state
  * where no register reference will cause an overflow.
  */
 
@@ -157,14 +157,14 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 #else
 	unsigned long tmp;
 	__asm__ __volatile__(
-			"       rsil    a15, "__stringify(TOPLEVEL)"\n"
+			"       rsil    a14, "__stringify(TOPLEVEL)"\n"
 			"       l32i    %[tmp], %[mem]\n"
 			"       s32i    %[val], %[mem]\n"
-			"       wsr     a15, ps\n"
+			"       wsr     a14, ps\n"
 			"       rsync\n"
 			: [tmp] "=&a" (tmp), [mem] "+m" (*m)
 			: [val] "a" (val)
-			: "a15", "memory");
+			: "a14", "memory");
 	return tmp;
 #endif
 }

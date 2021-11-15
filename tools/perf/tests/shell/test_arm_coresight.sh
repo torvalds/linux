@@ -9,8 +9,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Leo Yan <leo.yan@linaro.org>, 2020
 
-perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
-file=$(mktemp /tmp/temporary_file.XXXXX)
 glb_err=0
 
 skip_if_no_cs_etm_event() {
@@ -22,13 +20,20 @@ skip_if_no_cs_etm_event() {
 
 skip_if_no_cs_etm_event || exit 2
 
+perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
+file=$(mktemp /tmp/temporary_file.XXXXX)
+
 cleanup_files()
 {
 	rm -f ${perfdata}
 	rm -f ${file}
+	rm -f "${perfdata}.old"
+	trap - exit term int
+	kill -2 $$
+	exit $glb_err
 }
 
-trap cleanup_files exit
+trap cleanup_files exit term int
 
 record_touch_file() {
 	echo "Recording trace (only user mode) with path: CPU$2 => $1"

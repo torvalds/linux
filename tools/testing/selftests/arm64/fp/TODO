@@ -1,4 +1,7 @@
 - Test unsupported values in the ABIs.
-- More coverage for ptrace (eg, vector length conversions).
-- Coverage for signals.
-- Test PR_SVE_VL_INHERITY after a double fork.
+- More coverage for ptrace:
+ - Get/set of FFR.
+ - Ensure ptraced processes actually see the register state visible through
+   the ptrace interface.
+ - Big endian.
+- Test PR_SVE_VL_INHERIT after a double fork.

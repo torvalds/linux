@@ -10,6 +10,7 @@
 / {
 	model = "Xiaomi Redmi Note 7";
 	compatible = "xiaomi,lavender", "qcom,sdm660";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart2;

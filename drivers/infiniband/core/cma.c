@@ -453,7 +453,7 @@ static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 	id_priv->id.device = cma_dev->device;
 	id_priv->id.route.addr.dev_addr.transport =
 		rdma_node_get_transport(cma_dev->device->node_type);
-	list_add_tail(&id_priv->list, &cma_dev->id_list);
+	list_add_tail(&id_priv->device_item, &cma_dev->id_list);
 
 	trace_cm_id_attach(id_priv, cma_dev->device);
 }
@@ -470,7 +470,7 @@ static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 static void cma_release_dev(struct rdma_id_private *id_priv)
 {
 	mutex_lock(&lock);
-	list_del(&id_priv->list);
+	list_del_init(&id_priv->device_item);
 	cma_dev_put(id_priv->cma_dev);
 	id_priv->cma_dev = NULL;
 	id_priv->id.device = NULL;
@@ -854,6 +854,7 @@ __rdma_create_id(struct net *net, rdma_cm_event_handler event_handler,
 	init_completion(&id_priv->comp);
 	refcount_set(&id_priv->refcount, 1);
 	mutex_init(&id_priv->handler_mutex);
+	INIT_LIST_HEAD(&id_priv->device_item);
 	INIT_LIST_HEAD(&id_priv->listen_list);
 	INIT_LIST_HEAD(&id_priv->mc_list);
 	get_random_bytes(&id_priv->seq_num, sizeof id_priv->seq_num);
@@ -1647,7 +1648,7 @@ static struct rdma_id_private *cma_find_listener(
 				return id_priv;
 			list_for_each_entry(id_priv_dev,
 					    &id_priv->listen_list,
-					    listen_list) {
+					    listen_item) {
 				if (id_priv_dev->id.device == cm_id->device &&
 				    cma_match_net_dev(&id_priv_dev->id,
 						      net_dev, req))
@@ -1756,14 +1757,15 @@ static void _cma_cancel_listens(struct rdma_id_private *id_priv)
 	 * Remove from listen_any_list to prevent added devices from spawning
 	 * additional listen requests.
 	 */
-	list_del(&id_priv->list);
+	list_del_init(&id_priv->listen_any_item);
 
 	while (!list_empty(&id_priv->listen_list)) {
-		dev_id_priv = list_entry(id_priv->listen_list.next,
-					 struct rdma_id_private, listen_list);
+		dev_id_priv =
+			list_first_entry(&id_priv->listen_list,
+					 struct rdma_id_private, listen_item);
 		/* sync with device removal to avoid duplicate destruction */
-		list_del_init(&dev_id_priv->list);
-		list_del(&dev_id_priv->listen_list);
+		list_del_init(&dev_id_priv->device_item);
+		list_del_init(&dev_id_priv->listen_item);
 		mutex_unlock(&lock);
 
 		rdma_destroy_id(&dev_id_priv->id);
@@ -2564,7 +2566,7 @@ static int cma_listen_on_dev(struct rdma_id_private *id_priv,
 	ret = rdma_listen(&dev_id_priv->id, id_priv->backlog);
 	if (ret)
 		goto err_listen;
-	list_add_tail(&dev_id_priv->listen_list, &id_priv->listen_list);
+	list_add_tail(&dev_id_priv->listen_item, &id_priv->listen_list);
 	return 0;
 err_listen:
 	/* Caller must destroy this after releasing lock */
@@ -2580,13 +2582,13 @@ static int cma_listen_on_all(struct rdma_id_private *id_priv)
 	int ret;
 
 	mutex_lock(&lock);
-	list_add_tail(&id_priv->list, &listen_any_list);
+	list_add_tail(&id_priv->listen_any_item, &listen_any_list);
 	list_for_each_entry(cma_dev, &dev_list, list) {
 		ret = cma_listen_on_dev(id_priv, cma_dev, &to_destroy);
 		if (ret) {
 			/* Prevent racing with cma_process_remove() */
 			if (to_destroy)
-				list_del_init(&to_destroy->list);
+				list_del_init(&to_destroy->device_item);
 			goto err_listen;
 		}
 	}
@@ -4895,7 +4897,7 @@ static int cma_netdev_callback(struct notifier_block *self, unsigned long event,
 
 	mutex_lock(&lock);
 	list_for_each_entry(cma_dev, &dev_list, list)
-		list_for_each_entry(id_priv, &cma_dev->id_list, list) {
+		list_for_each_entry(id_priv, &cma_dev->id_list, device_item) {
 			ret = cma_netdev_change(ndev, id_priv);
 			if (ret)
 				goto out;
@@ -4955,10 +4957,10 @@ static void cma_process_remove(struct cma_device *cma_dev)
 	mutex_lock(&lock);
 	while (!list_empty(&cma_dev->id_list)) {
 		struct rdma_id_private *id_priv = list_first_entry(
-			&cma_dev->id_list, struct rdma_id_private, list);
+			&cma_dev->id_list, struct rdma_id_private, device_item);
 
-		list_del(&id_priv->listen_list);
-		list_del_init(&id_priv->list);
+		list_del_init(&id_priv->listen_item);
+		list_del_init(&id_priv->device_item);
 		cma_id_get(id_priv);
 		mutex_unlock(&lock);
 
@@ -5035,7 +5037,7 @@ static int cma_add_one(struct ib_device *device)
 
 	mutex_lock(&lock);
 	list_add_tail(&cma_dev->list, &dev_list);
-	list_for_each_entry(id_priv, &listen_any_list, list) {
+	list_for_each_entry(id_priv, &listen_any_list, listen_any_item) {
 		ret = cma_listen_on_dev(id_priv, cma_dev, &to_destroy);
 		if (ret)
 			goto free_listen;

@@ -228,7 +228,6 @@
 			compatible = "qcom,sdx55-qmp-usb3-uni-phy";
 			reg = <0x00ff6000 0x1c0>;
 			status = "disabled";
-			#clock-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;

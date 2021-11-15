@@ -2768,6 +2768,10 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (c2c.stats_only)
 		c2c.use_stdio = true;
 
+	err = symbol__validate_sym_arguments();
+	if (err)
+		goto out;
+
 	if (!input_name || !strlen(input_name))
 		input_name = "perf.data";
 

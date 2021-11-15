@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/core-api/memory_hotplug.rst
+:Original: Documentation/core-api/memory-hotplug.rst
 
 :翻译:
 
@@ -63,7 +63,6 @@ memory_notify结构体的指针::
 		unsigned long start_pfn;
 		unsigned long nr_pages;
 		int status_change_nid_normal;
-		int status_change_nid_high;
 		int status_change_nid;
 	}
 
@@ -73,9 +72,6 @@ memory_notify结构体的指针::
 
 - status_change_nid_normal是当nodemask的N_NORMAL_MEMORY被设置/清除时设置节
   点id，如果是-1，则nodemask状态不改变。
-
-- status_change_nid_high是当nodemask的N_HIGH_MEMORY被设置/清除时设置的节点
-  id，如果这个值为-1，那么nodemask状态不会改变。
 
 - status_change_nid是当nodemask的N_MEMORY被（将）设置/清除时设置的节点id。这
   意味着一个新的（没上线的）节点通过联机获得新的内存，而一个节点失去了所有的内

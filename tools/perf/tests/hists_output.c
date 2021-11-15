@@ -575,7 +575,7 @@ out:
 	return err;
 }
 
-int test__hists_output(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__hists_output(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct machines machines;
@@ -623,3 +623,5 @@ out:
 
 	return err;
 }
+
+DEFINE_SUITE("Sort output of hist entries", hists_output);

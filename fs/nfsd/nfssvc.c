@@ -1004,9 +1004,6 @@ out:
 int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
 	const struct svc_procedure *proc = rqstp->rq_procinfo;
-	struct kvec *argv = &rqstp->rq_arg.head[0];
-	struct kvec *resv = &rqstp->rq_res.head[0];
-	__be32 *p;
 
 	/*
 	 * Give the xdr decoder a chance to change this if it wants
@@ -1015,7 +1012,7 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	rqstp->rq_cachetype = proc->pc_cachetype;
 
 	svcxdr_init_decode(rqstp);
-	if (!proc->pc_decode(rqstp, argv->iov_base))
+	if (!proc->pc_decode(rqstp, &rqstp->rq_arg_stream))
 		goto out_decode_err;
 
 	switch (nfsd_cache_lookup(rqstp)) {
@@ -1031,14 +1028,13 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 * Need to grab the location to store the status, as
 	 * NFSv4 does some encoding while processing
 	 */
-	p = resv->iov_base + resv->iov_len;
 	svcxdr_init_encode(rqstp);
 
 	*statp = proc->pc_func(rqstp);
 	if (*statp == rpc_drop_reply || test_bit(RQ_DROPME, &rqstp->rq_flags))
 		goto out_update_drop;
 
-	if (!proc->pc_encode(rqstp, p))
+	if (!proc->pc_encode(rqstp, &rqstp->rq_res_stream))
 		goto out_encode_err;
 
 	nfsd_cache_update(rqstp, rqstp->rq_cachetype, statp + 1);
@@ -1065,29 +1061,29 @@ out_encode_err:
 /**
  * nfssvc_decode_voidarg - Decode void arguments
  * @rqstp: Server RPC transaction context
- * @p: buffer containing arguments to decode
+ * @xdr: XDR stream positioned at arguments to decode
  *
  * Return values:
- *   %0: Arguments were not valid
- *   %1: Decoding was successful
+ *   %false: Arguments were not valid
+ *   %true: Decoding was successful
  */
-int nfssvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
+bool nfssvc_decode_voidarg(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	return 1;
+	return true;
 }
 
 /**
  * nfssvc_encode_voidres - Encode void results
  * @rqstp: Server RPC transaction context
- * @p: buffer in which to encode results
+ * @xdr: XDR stream into which to encode results
  *
  * Return values:
- *   %0: Local error while encoding
- *   %1: Encoding was successful
+ *   %false: Local error while encoding
+ *   %true: Encoding was successful
  */
-int nfssvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
+bool nfssvc_encode_voidres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
-	return 1;
+	return true;
 }
 
 int nfsd_pool_stats_open(struct inode *inode, struct file *file)

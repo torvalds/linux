@@ -163,9 +163,9 @@ static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 		per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
 	else
 		per_cpu(xen_vcpu_id, cpu) = cpu;
-	rc = xen_vcpu_setup(cpu);
-	if (rc || !xen_have_vector_callback)
-		return rc;
+	xen_vcpu_setup(cpu);
+	if (!xen_have_vector_callback)
+		return 0;
 
 	if (xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_setup_timer(cpu);

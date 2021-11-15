@@ -999,7 +999,7 @@ static void vsc9953_phylink_validate(struct ocelot *ocelot, int port,
 
 	if (state->interface != PHY_INTERFACE_MODE_NA &&
 	    state->interface != ocelot_port->phy_mode) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		return;
 	}
 
@@ -1018,10 +1018,8 @@ static void vsc9953_phylink_validate(struct ocelot *ocelot, int port,
 		phylink_set(mask, 2500baseX_Full);
 	}
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static int vsc9953_prevalidate_phy_mode(struct ocelot *ocelot, int port,

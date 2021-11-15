@@ -176,7 +176,7 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
@@ -276,6 +276,7 @@ static int mt76x0e_resume(struct pci_dev *pdev)
 
 	mt76_worker_enable(&mdev->tx_worker);
 
+	local_bh_disable();
 	mt76_for_each_q_rx(mdev, i) {
 		mt76_queue_rx_reset(dev, i);
 		napi_enable(&mdev->napi[i]);
@@ -284,6 +285,7 @@ static int mt76x0e_resume(struct pci_dev *pdev)
 
 	napi_enable(&mdev->tx_napi);
 	napi_schedule(&mdev->tx_napi);
+	local_bh_enable();
 
 	return mt76x0e_init_hardware(dev, true);
 }

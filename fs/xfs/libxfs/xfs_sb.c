@@ -495,7 +495,7 @@ xfs_sb_quota_from_disk(struct xfs_sb *sbp)
 static void
 __xfs_sb_from_disk(
 	struct xfs_sb	*to,
-	xfs_dsb_t	*from,
+	struct xfs_dsb	*from,
 	bool		convert_xquota)
 {
 	to->sb_magicnum = be32_to_cpu(from->sb_magicnum);
@@ -571,7 +571,7 @@ __xfs_sb_from_disk(
 void
 xfs_sb_from_disk(
 	struct xfs_sb	*to,
-	xfs_dsb_t	*from)
+	struct xfs_dsb	*from)
 {
 	__xfs_sb_from_disk(to, from, true);
 }

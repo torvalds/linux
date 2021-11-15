@@ -66,7 +66,7 @@ reference_lists_init(struct intel_gt *gt, struct wa_lists *lists)
 	memset(lists, 0, sizeof(*lists));
 
 	wa_init_start(&lists->gt_wa_list, "GT_REF", "global");
-	gt_init_workarounds(gt->i915, &lists->gt_wa_list);
+	gt_init_workarounds(gt, &lists->gt_wa_list);
 	wa_init_finish(&lists->gt_wa_list);
 
 	for_each_engine(engine, gt, id) {

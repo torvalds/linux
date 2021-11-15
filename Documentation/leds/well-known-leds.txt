@@ -16,6 +16,20 @@ but then try the legacy ones, too.
 
 Notice there's a list of functions in include/dt-bindings/leds/common.h .
 
+* Gamepads and joysticks
+
+Game controllers may feature LEDs to indicate a player number. This is commonly
+used on game consoles in which multiple controllers can be connected to a system.
+The "player LEDs" are then programmed with a pattern to indicate a particular
+player. For example, a game controller with 4 LEDs, may be programmed with "x---"
+to indicate player 1, "-x--" to indicate player 2 etcetera where "x" means on.
+Input drivers can utilize the LED class to expose the individual player LEDs
+of a game controller using the function "player".
+Note: tracking and management of Player IDs is the responsibility of user space,
+though drivers may pick a default value.
+
+Good: "input*:*:player-{1,2,3,4,5}
+
 * Keyboards
   
 Good: "input*:*:capslock"

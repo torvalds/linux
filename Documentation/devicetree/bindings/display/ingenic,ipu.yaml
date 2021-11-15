@@ -45,7 +45,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4770-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4770-cgu.h>
     ipu@13080000 {
       compatible = "ingenic,jz4770-ipu", "ingenic,jz4760-ipu";
       reg = <0x13080000 0x800>;

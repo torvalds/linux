@@ -117,7 +117,7 @@ static struct i915_request *
 hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 {
 	struct intel_gt *gt = h->gt;
-	struct i915_address_space *vm = i915_gem_context_get_vm_rcu(h->ctx);
+	struct i915_address_space *vm = i915_gem_context_get_eb_vm(h->ctx);
 	struct drm_i915_gem_object *obj;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
@@ -789,7 +789,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 				if (err)
 					pr_err("[%s] Wait for request %lld:%lld [0x%04X] failed: %d!\n",
 					       engine->name, rq->fence.context,
-					       rq->fence.seqno, rq->context->guc_id, err);
+					       rq->fence.seqno, rq->context->guc_id.id, err);
 			}
 
 skip:
@@ -1098,7 +1098,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 				if (err)
 					pr_err("[%s] Wait for request %lld:%lld [0x%04X] failed: %d!\n",
 					       engine->name, rq->fence.context,
-					       rq->fence.seqno, rq->context->guc_id, err);
+					       rq->fence.seqno, rq->context->guc_id.id, err);
 			}
 
 			count++;
@@ -1108,7 +1108,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 					pr_err("i915_reset_engine(%s:%s): failed to reset request %lld:%lld [0x%04X]\n",
 					       engine->name, test_name,
 					       rq->fence.context,
-					       rq->fence.seqno, rq->context->guc_id);
+					       rq->fence.seqno, rq->context->guc_id.id);
 					i915_request_put(rq);
 
 					GEM_TRACE_DUMP();
@@ -1596,7 +1596,7 @@ static int igt_reset_evict_ppgtt(void *arg)
 	if (INTEL_PPGTT(gt->i915) < INTEL_PPGTT_FULL)
 		return 0;
 
-	ppgtt = i915_ppgtt_create(gt);
+	ppgtt = i915_ppgtt_create(gt, 0);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 

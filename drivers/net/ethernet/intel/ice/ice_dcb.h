@@ -22,6 +22,14 @@
 
 #define ICE_CEE_DCBX_OUI		0x001B21
 #define ICE_CEE_DCBX_TYPE		2
+
+#define ICE_DSCP_OUI			0xFFFFFF
+#define ICE_DSCP_SUBTYPE_DSCP2UP	0x41
+#define ICE_DSCP_SUBTYPE_ENFORCE	0x42
+#define ICE_DSCP_SUBTYPE_TCBW		0x43
+#define ICE_DSCP_SUBTYPE_PFC		0x44
+#define ICE_DSCP_IPV6_OFFSET		80
+
 #define ICE_CEE_SUBTYPE_PG_CFG		2
 #define ICE_CEE_SUBTYPE_PFC_CFG		3
 #define ICE_CEE_SUBTYPE_APP_PRI		4
@@ -78,10 +86,19 @@
 #define ICE_IEEE_TLV_ID_APP_PRI		6
 #define ICE_TLV_ID_END_OF_LLDPPDU	7
 #define ICE_TLV_ID_START		ICE_IEEE_TLV_ID_ETS_CFG
+#define ICE_TLV_ID_DSCP_UP		3
+#define ICE_TLV_ID_DSCP_ENF		4
+#define ICE_TLV_ID_DSCP_TC_BW		5
+#define ICE_TLV_ID_DSCP_TO_PFC		6
 
 #define ICE_IEEE_ETS_TLV_LEN		25
 #define ICE_IEEE_PFC_TLV_LEN		6
 #define ICE_IEEE_APP_TLV_LEN		11
+
+#define ICE_DSCP_UP_TLV_LEN		148
+#define ICE_DSCP_ENF_TLV_LEN		132
+#define ICE_DSCP_TC_BW_TLV_LEN		25
+#define ICE_DSCP_PFC_TLV_LEN		6
 
 /* IEEE 802.1AB LLDP Organization specific TLV */
 struct ice_lldp_org_tlv {
@@ -120,6 +137,7 @@ struct ice_cee_app_prio {
 	u8 prio_map;
 } __packed;
 
+int ice_aq_set_pfc_mode(struct ice_hw *hw, u8 pfc_mode, struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
 		   struct ice_dcbx_cfg *dcbcfg);

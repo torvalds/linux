@@ -39,6 +39,9 @@ mlxsw_sp_fib_entry_op_ctx_clear(struct mlxsw_sp_fib_entry_op_ctx *op_ctx)
 struct mlxsw_sp_router {
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_rif **rifs;
+	struct idr rif_mac_profiles_idr;
+	atomic_t rif_mac_profiles_count;
+	u8 max_rif_mac_profile;
 	struct mlxsw_sp_vr *vrs;
 	struct rhashtable neigh_ht;
 	struct rhashtable nexthop_group_ht;
@@ -65,8 +68,6 @@ struct mlxsw_sp_router {
 	struct notifier_block inet6addr_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
-	u32 adj_discard_index;
-	bool adj_discard_index_valid;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
 	struct mutex lock; /* Protects shared router resources */
 	struct work_struct fib_event_work;
@@ -82,6 +83,8 @@ struct mlxsw_sp_router {
 	struct delayed_work nh_grp_activity_dw;
 	struct list_head nh_res_grp_list;
 	bool inc_parsing_depth;
+	refcount_t num_groups;
+	u32 adj_trap_index;
 };
 
 struct mlxsw_sp_fib_entry_priv {
@@ -226,6 +229,8 @@ static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 
 int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
+struct net_device *
+mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev);
 
 extern const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops;
 

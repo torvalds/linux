@@ -631,7 +631,7 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 				    struct ioam6_namespace *ns,
 				    struct ioam6_trace_hdr *trace,
 				    struct ioam6_schema *sc,
-				    u8 sclen)
+				    u8 sclen, bool is_input)
 {
 	struct __kernel_sock_timeval ts;
 	u64 raw64;
@@ -645,7 +645,7 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 	/* hop_lim and node_id */
 	if (trace->type.bit0) {
 		byte = ipv6_hdr(skb)->hop_limit;
-		if (skb->dev)
+		if (is_input)
 			byte--;
 
 		raw32 = dev_net(skb_dst(skb)->dev)->ipv6.sysctl.ioam6_id;
@@ -730,7 +730,7 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 	/* hop_lim and node_id (wide) */
 	if (trace->type.bit8) {
 		byte = ipv6_hdr(skb)->hop_limit;
-		if (skb->dev)
+		if (is_input)
 			byte--;
 
 		raw64 = dev_net(skb_dst(skb)->dev)->ipv6.sysctl.ioam6_id_wide;
@@ -846,7 +846,8 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 /* called with rcu_read_lock() */
 void ioam6_fill_trace_data(struct sk_buff *skb,
 			   struct ioam6_namespace *ns,
-			   struct ioam6_trace_hdr *trace)
+			   struct ioam6_trace_hdr *trace,
+			   bool is_input)
 {
 	struct ioam6_schema *sc;
 	u8 sclen = 0;
@@ -876,7 +877,7 @@ void ioam6_fill_trace_data(struct sk_buff *skb,
 		return;
 	}
 
-	__ioam6_fill_trace_data(skb, ns, trace, sc, sclen);
+	__ioam6_fill_trace_data(skb, ns, trace, sc, sclen, is_input);
 	trace->remlen -= trace->nodelen + sclen;
 }
 

@@ -22,6 +22,9 @@ ppc64*)
 ppc*)
   ARG1=%r3
 ;;
+s390*)
+  ARG1=%r2
+;;
 *)
   echo "Please implement other architecture here"
   exit_untested

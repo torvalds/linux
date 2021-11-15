@@ -12,8 +12,6 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-int _version SEC("version") = 1;
-
 SEC("redirect_to_111")
 int xdp_redirect_to_111(struct xdp_md *xdp)
 {

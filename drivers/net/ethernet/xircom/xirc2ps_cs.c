@@ -671,7 +671,6 @@ static int pcmcia_get_mac_ce(struct pcmcia_device *p_dev,
 			     void *priv)
 {
 	struct net_device *dev = priv;
-	int i;
 
 	if (tuple->TupleDataLen != 13)
 		return -EINVAL;
@@ -679,8 +678,7 @@ static int pcmcia_get_mac_ce(struct pcmcia_device *p_dev,
 		(tuple->TupleData[2] != 6))
 		return -EINVAL;
 	/* another try	(James Lehmer's CE2 version 4.1)*/
-	for (i = 2; i < 6; i++)
-		dev->dev_addr[i] = tuple->TupleData[i+2];
+	dev_addr_mod(dev, 2, &tuple->TupleData[2], 4);
 	return 0;
 };
 
@@ -742,11 +740,9 @@ xirc2ps_config(struct pcmcia_device * link)
 	    len = pcmcia_get_tuple(link, 0x89, &buf);
 	    /* data layout looks like tuple 0x22 */
 	    if (buf && len == 8) {
-		    if (*buf == CISTPL_FUNCE_LAN_NODE_ID) {
-			    int i;
-			    for (i = 2; i < 6; i++)
-				    dev->dev_addr[i] = buf[i+2];
-		    } else
+		    if (*buf == CISTPL_FUNCE_LAN_NODE_ID)
+			    dev_addr_mod(dev, 2, &buf[2], 4);
+		    else
 			    err = -1;
 	    }
 	    kfree(buf);
@@ -1271,7 +1267,7 @@ struct set_address_info {
 	unsigned int ioaddr;
 };
 
-static void set_address(struct set_address_info *sa_info, char *addr)
+static void set_address(struct set_address_info *sa_info, const char *addr)
 {
 	unsigned int ioaddr = sa_info->ioaddr;
 	int i;

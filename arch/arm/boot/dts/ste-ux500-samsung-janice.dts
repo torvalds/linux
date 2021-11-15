@@ -20,6 +20,10 @@
 		stdout-path = &serial2;
 	};
 
+	battery: battery {
+		compatible = "samsung,eb535151vu";
+	};
+
 	/* External LDO for eMMC LDO VMEM_3V3 controlled by GPIO6 */
 	ldo_3v3_reg: regulator-gpio-ldo-3v3 {
 		compatible = "regulator-fixed";
@@ -266,6 +270,9 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&panel_default_mode>;
 			spi-3wire;
+			/* TYPE 3: inverse clock polarity and phase */
+			spi-cpha;
+			spi-cpol;
 
 			port {
 				panel_in: endpoint {

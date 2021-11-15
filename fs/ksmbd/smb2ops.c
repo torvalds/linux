@@ -6,7 +6,6 @@
 
 #include <linux/slab.h>
 #include "glob.h"
-#include "smb2pdu.h"
 
 #include "auth.h"
 #include "connection.h"
@@ -199,7 +198,7 @@ void init_smb2_1_server(struct ksmbd_conn *conn)
 	conn->cmds = smb2_0_server_cmds;
 	conn->max_cmds = ARRAY_SIZE(smb2_0_server_cmds);
 	conn->max_credits = SMB2_MAX_CREDITS;
-	conn->signing_algorithm = SIGNING_ALG_HMAC_SHA256;
+	conn->signing_algorithm = SIGNING_ALG_HMAC_SHA256_LE;
 
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_SMB2_LEASES)
 		conn->vals->capabilities |= SMB2_GLOBAL_CAP_LEASING;
@@ -217,7 +216,7 @@ void init_smb3_0_server(struct ksmbd_conn *conn)
 	conn->cmds = smb2_0_server_cmds;
 	conn->max_cmds = ARRAY_SIZE(smb2_0_server_cmds);
 	conn->max_credits = SMB2_MAX_CREDITS;
-	conn->signing_algorithm = SIGNING_ALG_AES_CMAC;
+	conn->signing_algorithm = SIGNING_ALG_AES_CMAC_LE;
 
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_SMB2_LEASES)
 		conn->vals->capabilities |= SMB2_GLOBAL_CAP_LEASING;
@@ -242,7 +241,7 @@ void init_smb3_02_server(struct ksmbd_conn *conn)
 	conn->cmds = smb2_0_server_cmds;
 	conn->max_cmds = ARRAY_SIZE(smb2_0_server_cmds);
 	conn->max_credits = SMB2_MAX_CREDITS;
-	conn->signing_algorithm = SIGNING_ALG_AES_CMAC;
+	conn->signing_algorithm = SIGNING_ALG_AES_CMAC_LE;
 
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_SMB2_LEASES)
 		conn->vals->capabilities |= SMB2_GLOBAL_CAP_LEASING;
@@ -267,7 +266,7 @@ int init_smb3_11_server(struct ksmbd_conn *conn)
 	conn->cmds = smb2_0_server_cmds;
 	conn->max_cmds = ARRAY_SIZE(smb2_0_server_cmds);
 	conn->max_credits = SMB2_MAX_CREDITS;
-	conn->signing_algorithm = SIGNING_ALG_AES_CMAC;
+	conn->signing_algorithm = SIGNING_ALG_AES_CMAC_LE;
 
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_SMB2_LEASES)
 		conn->vals->capabilities |= SMB2_GLOBAL_CAP_LEASING;
@@ -284,6 +283,7 @@ int init_smb3_11_server(struct ksmbd_conn *conn)
 
 void init_smb2_max_read_size(unsigned int sz)
 {
+	sz = clamp_val(sz, SMB3_MIN_IOSIZE, SMB3_MAX_IOSIZE);
 	smb21_server_values.max_read_size = sz;
 	smb30_server_values.max_read_size = sz;
 	smb302_server_values.max_read_size = sz;
@@ -292,6 +292,7 @@ void init_smb2_max_read_size(unsigned int sz)
 
 void init_smb2_max_write_size(unsigned int sz)
 {
+	sz = clamp_val(sz, SMB3_MIN_IOSIZE, SMB3_MAX_IOSIZE);
 	smb21_server_values.max_write_size = sz;
 	smb30_server_values.max_write_size = sz;
 	smb302_server_values.max_write_size = sz;
@@ -300,6 +301,7 @@ void init_smb2_max_write_size(unsigned int sz)
 
 void init_smb2_max_trans_size(unsigned int sz)
 {
+	sz = clamp_val(sz, SMB3_MIN_IOSIZE, SMB3_MAX_IOSIZE);
 	smb21_server_values.max_trans_size = sz;
 	smb30_server_values.max_trans_size = sz;
 	smb302_server_values.max_trans_size = sz;

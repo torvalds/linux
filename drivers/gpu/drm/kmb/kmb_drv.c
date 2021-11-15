@@ -380,7 +380,7 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 		if (val & LAYER3_DMA_FIFO_UNDERFLOW)
 			drm_dbg(&kmb->drm,
 				"LAYER3:GL1 DMA UNDERFLOW val = 0x%lx", val);
-		if (val & LAYER3_DMA_FIFO_UNDERFLOW)
+		if (val & LAYER3_DMA_FIFO_OVERFLOW)
 			drm_dbg(&kmb->drm,
 				"LAYER3:GL1 DMA OVERFLOW val = 0x%lx", val);
 	}

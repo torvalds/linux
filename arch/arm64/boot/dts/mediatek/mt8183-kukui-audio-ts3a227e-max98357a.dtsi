@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Google Kukui (and derivatives) ts3a227e-max98357a sound card.
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+#include "mt8183-kukui-audio-max98357a.dtsi"
+#include "mt8183-kukui-audio-ts3a227e.dtsi"
+
+&sound {
+	compatible = "mediatek,mt8183_mt6358_ts3a227_max98357";
+};

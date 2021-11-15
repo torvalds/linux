@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * WFx hardware interface definitions
+ * WF200 hardware interface definitions
  *
  * Copyright (c) 2018-2020, Silicon Laboratories Inc.
  */
@@ -133,58 +133,61 @@ struct hif_mib_bcn_filter_enable {
 } __packed;
 
 struct hif_mib_extended_count_table {
-	__le32 count_plcp_errors;
-	__le32 count_fcs_errors;
-	__le32 count_tx_packets;
-	__le32 count_rx_packets;
-	__le32 count_rx_packet_errors;
-	__le32 count_rx_decryption_failures;
-	__le32 count_rx_mic_failures;
-	__le32 count_rx_no_key_failures;
-	__le32 count_tx_multicast_frames;
+	__le32 count_drop_plcp;
+	__le32 count_drop_fcs;
+	__le32 count_tx_frames;
+	__le32 count_rx_frames;
+	__le32 count_rx_frames_failed;
+	__le32 count_drop_decryption;
+	__le32 count_drop_tkip_mic;
+	__le32 count_drop_no_key;
+	__le32 count_tx_frames_multicast;
 	__le32 count_tx_frames_success;
-	__le32 count_tx_frame_failures;
+	__le32 count_tx_frames_failed;
 	__le32 count_tx_frames_retried;
 	__le32 count_tx_frames_multi_retried;
-	__le32 count_rx_frame_duplicates;
+	__le32 count_drop_duplicate;
 	__le32 count_rts_success;
-	__le32 count_rts_failures;
-	__le32 count_ack_failures;
-	__le32 count_rx_multicast_frames;
+	__le32 count_rts_failed;
+	__le32 count_ack_failed;
+	__le32 count_rx_frames_multicast;
 	__le32 count_rx_frames_success;
-	__le32 count_rx_cmacicv_errors;
-	__le32 count_rx_cmac_replays;
-	__le32 count_rx_mgmt_ccmp_replays;
-	__le32 count_rx_bipmic_errors;
-	__le32 count_rx_beacon;
-	__le32 count_miss_beacon;
-	__le32 reserved[15];
+	__le32 count_drop_cmac_icv;
+	__le32 count_drop_cmac_replay;
+	__le32 count_drop_ccmp_replay;
+	__le32 count_drop_bip_mic;
+	__le32 count_rx_bcn_success;
+	__le32 count_rx_bcn_miss;
+	__le32 count_rx_bcn_dtim;
+	__le32 count_rx_bcn_dtim_aid0_clr;
+	__le32 count_rx_bcn_dtim_aid0_set;
+	__le32 reserved[12];
 } __packed;
 
 struct hif_mib_count_table {
-	__le32 count_plcp_errors;
-	__le32 count_fcs_errors;
-	__le32 count_tx_packets;
-	__le32 count_rx_packets;
-	__le32 count_rx_packet_errors;
-	__le32 count_rx_decryption_failures;
-	__le32 count_rx_mic_failures;
-	__le32 count_rx_no_key_failures;
-	__le32 count_tx_multicast_frames;
+	__le32 count_drop_plcp;
+	__le32 count_drop_fcs;
+	__le32 count_tx_frames;
+	__le32 count_rx_frames;
+	__le32 count_rx_frames_failed;
+	__le32 count_drop_decryption;
+	__le32 count_drop_tkip_mic;
+	__le32 count_drop_no_key;
+	__le32 count_tx_frames_multicast;
 	__le32 count_tx_frames_success;
-	__le32 count_tx_frame_failures;
+	__le32 count_tx_frames_failed;
 	__le32 count_tx_frames_retried;
 	__le32 count_tx_frames_multi_retried;
-	__le32 count_rx_frame_duplicates;
+	__le32 count_drop_duplicate;
 	__le32 count_rts_success;
-	__le32 count_rts_failures;
-	__le32 count_ack_failures;
-	__le32 count_rx_multicast_frames;
+	__le32 count_rts_failed;
+	__le32 count_ack_failed;
+	__le32 count_rx_frames_multicast;
 	__le32 count_rx_frames_success;
-	__le32 count_rx_cmacicv_errors;
-	__le32 count_rx_cmac_replays;
-	__le32 count_rx_mgmt_ccmp_replays;
-	__le32 count_rx_bipmic_errors;
+	__le32 count_drop_cmac_icv;
+	__le32 count_drop_cmac_replay;
+	__le32 count_drop_ccmp_replay;
+	__le32 count_drop_bip_mic;
 } __packed;
 
 struct hif_mib_mac_address {
@@ -206,7 +209,7 @@ struct hif_mib_slot_time {
 } __packed;
 
 struct hif_mib_current_tx_power_level {
-	__le32 power_level; // signed value
+	__le32 power_level; /* signed value */
 } __packed;
 
 struct hif_mib_non_erp_protection {
