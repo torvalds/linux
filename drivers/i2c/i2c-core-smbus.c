@@ -303,8 +303,7 @@ static void i2c_smbus_try_get_dmabuf(struct i2c_msg *msg, u8 init_val)
 	bool is_read = msg->flags & I2C_M_RD;
 	unsigned char *dma_buf;
 
-	dma_buf = kzalloc(I2C_SMBUS_V3_BLOCK_MAX + (is_read ? 2 : 3),
-		GFP_KERNEL);
+	dma_buf = kzalloc(I2C_SMBUS_BLOCK_MAX + (is_read ? 2 : 3), GFP_KERNEL);
 	if (!dma_buf)
 		return;
 
@@ -330,10 +329,9 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 	 * initialize most things with sane defaults, to keep the code below
 	 * somewhat simpler.
 	 */
-	unsigned char msgbuf0[I2C_SMBUS_V3_BLOCK_MAX+3];
-	unsigned char msgbuf1[I2C_SMBUS_V3_BLOCK_MAX+2];
+	unsigned char msgbuf0[I2C_SMBUS_BLOCK_MAX+3];
+	unsigned char msgbuf1[I2C_SMBUS_BLOCK_MAX+2];
 	int nmsgs = read_write == I2C_SMBUS_READ ? 2 : 1;
-	u16 block_max;
 	u8 partial_pec = 0;
 	int status;
 	struct i2c_msg msg[2] = {
@@ -351,10 +349,6 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 	};
 	bool wants_pec = ((flags & I2C_CLIENT_PEC) && size != I2C_SMBUS_QUICK
 			  && size != I2C_SMBUS_I2C_BLOCK_DATA);
-
-	/* Drivers must opt in to 255 byte max block size */
-	block_max = i2c_check_functionality(adapter, I2C_FUNC_SMBUS_V3_BLOCK)
-			? I2C_SMBUS_V3_BLOCK_MAX : I2C_SMBUS_BLOCK_MAX;
 
 	msgbuf0[0] = command;
 	switch (size) {
@@ -405,7 +399,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			i2c_smbus_try_get_dmabuf(&msg[1], 0);
 		} else {
 			msg[0].len = data->block[0] + 2;
-			if (msg[0].len > block_max + 2) {
+			if (msg[0].len > I2C_SMBUS_BLOCK_MAX + 2) {
 				dev_err(&adapter->dev,
 					"Invalid block write size %d\n",
 					data->block[0]);
@@ -419,7 +413,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 	case I2C_SMBUS_BLOCK_PROC_CALL:
 		nmsgs = 2; /* Another special case */
 		read_write = I2C_SMBUS_READ;
-		if (data->block[0] > block_max) {
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
 			dev_err(&adapter->dev,
 				"Invalid block write size %d\n",
 				data->block[0]);
@@ -436,7 +430,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 		i2c_smbus_try_get_dmabuf(&msg[1], 0);
 		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
-		if (data->block[0] > block_max) {
+		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
 			dev_err(&adapter->dev, "Invalid block %s size %d\n",
 				read_write == I2C_SMBUS_READ ? "read" : "write",
 				data->block[0]);
@@ -504,7 +498,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 			break;
 		case I2C_SMBUS_BLOCK_DATA:
 		case I2C_SMBUS_BLOCK_PROC_CALL:
-			if (msg[1].buf[0] > block_max) {
+			if (msg[1].buf[0] > I2C_SMBUS_BLOCK_MAX) {
 				dev_err(&adapter->dev,
 					"Invalid block size returned: %d\n",
 					msg[1].buf[0]);

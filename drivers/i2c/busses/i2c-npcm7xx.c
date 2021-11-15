@@ -1399,7 +1399,7 @@ static void npcm_i2c_irq_master_handler_read(struct npcm_i2c *bus)
 		if (bus->read_block_use) {
 			/* first byte in block protocol is the size: */
 			data = npcm_i2c_rd_byte(bus);
-			data = clamp_val(data, 1, I2C_SMBUS_V3_BLOCK_MAX);
+			data = clamp_val(data, 1, I2C_SMBUS_BLOCK_MAX);
 			bus->rd_size = data + block_extra_bytes_size;
 			bus->rd_buf[bus->rd_ind++] = data;
 
@@ -2187,7 +2187,6 @@ static u32 npcm_i2c_functionality(struct i2c_adapter *adap)
 	       I2C_FUNC_SMBUS_EMUL |
 	       I2C_FUNC_SMBUS_BLOCK_DATA |
 	       I2C_FUNC_SMBUS_PEC |
-	       I2C_FUNC_SMBUS_V3_BLOCK |
 	       I2C_FUNC_SLAVE;
 }
 
