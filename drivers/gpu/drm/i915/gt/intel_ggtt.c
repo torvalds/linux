@@ -3,6 +3,7 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/agp_backend.h>
 #include <linux/stop_machine.h>
 
 #include <asm/set_memory.h>

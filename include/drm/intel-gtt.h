@@ -4,10 +4,9 @@
 #ifndef _DRM_INTEL_GTT_H
 #define	_DRM_INTEL_GTT_H
 
-#include <linux/agp_backend.h>
-#include <linux/intel-iommu.h>
 #include <linux/types.h>
 
+struct agp_bridge_data;
 struct pci_dev;
 struct sg_table;
 
