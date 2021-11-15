@@ -410,6 +410,38 @@ TEST_F(enclave, clobbered_vdso_and_user_function)
 }
 
 /*
+ * Sanity check that it is possible to enter either of the two hardcoded TCS
+ */
+TEST_F(enclave, tcs_entry)
+{
+	struct encl_op_header op;
+
+	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
+
+	memset(&self->run, 0, sizeof(self->run));
+	self->run.tcs = self->encl.encl_base;
+
+	op.type = ENCL_OP_NOP;
+
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, true), 0);
+
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.exception_vector, 0);
+	EXPECT_EQ(self->run.exception_error_code, 0);
+	EXPECT_EQ(self->run.exception_addr, 0);
+
+	/* Move to the next TCS. */
+	self->run.tcs = self->encl.encl_base + PAGE_SIZE;
+
+	EXPECT_EQ(ENCL_CALL(&op, &self->run, true), 0);
+
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.exception_vector, 0);
+	EXPECT_EQ(self->run.exception_error_code, 0);
+	EXPECT_EQ(self->run.exception_addr, 0);
+}
+
+/*
  * Second page of .data segment is used to test changing PTE permissions.
  * This spans the local encl_buffer within the test enclave.
  *

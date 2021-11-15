@@ -49,6 +49,11 @@ static void do_encl_op_get_from_addr(void *_op)
 	memcpy(&op->value, (void *)op->addr, 8);
 }
 
+static void do_encl_op_nop(void *_op)
+{
+
+}
+
 void encl_body(void *rdi,  void *rsi)
 {
 	const void (*encl_op_array[ENCL_OP_MAX])(void *) = {
@@ -56,6 +61,7 @@ void encl_body(void *rdi,  void *rsi)
 		do_encl_op_get_from_buf,
 		do_encl_op_put_to_addr,
 		do_encl_op_get_from_addr,
+		do_encl_op_nop,
 	};
 
 	struct encl_op_header *op = (struct encl_op_header *)rdi;
