@@ -10,6 +10,7 @@
 #include <linux/dmaengine.h>
 #include <linux/irqreturn.h>
 #include <linux/jiffies.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_data/dma-dw.h>
 #include <linux/spi/spi.h>
@@ -638,7 +639,7 @@ void dw_spi_dma_setup_mfld(struct dw_spi *dws)
 {
 	dws->dma_ops = &dw_spi_dma_mfld_ops;
 }
-EXPORT_SYMBOL_GPL(dw_spi_dma_setup_mfld);
+EXPORT_SYMBOL_NS_GPL(dw_spi_dma_setup_mfld, SPI_DW_CORE);
 
 static const struct dw_spi_dma_ops dw_spi_dma_generic_ops = {
 	.dma_init	= dw_spi_dma_init_generic,
@@ -653,4 +654,4 @@ void dw_spi_dma_setup_generic(struct dw_spi *dws)
 {
 	dws->dma_ops = &dw_spi_dma_generic_ops;
 }
-EXPORT_SYMBOL_GPL(dw_spi_dma_setup_generic);
+EXPORT_SYMBOL_NS_GPL(dw_spi_dma_setup_generic, SPI_DW_CORE);

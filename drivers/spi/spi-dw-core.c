@@ -106,7 +106,7 @@ void dw_spi_set_cs(struct spi_device *spi, bool enable)
 	else
 		dw_writel(dws, DW_SPI_SER, 0);
 }
-EXPORT_SYMBOL_GPL(dw_spi_set_cs);
+EXPORT_SYMBOL_NS_GPL(dw_spi_set_cs, SPI_DW_CORE);
 
 /* Return the max entries we can fill into tx fifo */
 static inline u32 tx_max(struct dw_spi *dws)
@@ -210,7 +210,7 @@ int dw_spi_check_status(struct dw_spi *dws, bool raw)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dw_spi_check_status);
+EXPORT_SYMBOL_NS_GPL(dw_spi_check_status, SPI_DW_CORE);
 
 static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 {
@@ -345,7 +345,7 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 		dws->cur_rx_sample_dly = chip->rx_sample_dly;
 	}
 }
-EXPORT_SYMBOL_GPL(dw_spi_update_config);
+EXPORT_SYMBOL_NS_GPL(dw_spi_update_config, SPI_DW_CORE);
 
 static void dw_spi_irq_setup(struct dw_spi *dws)
 {
@@ -945,7 +945,7 @@ err_free_master:
 	spi_controller_put(master);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dw_spi_add_host);
+EXPORT_SYMBOL_NS_GPL(dw_spi_add_host, SPI_DW_CORE);
 
 void dw_spi_remove_host(struct dw_spi *dws)
 {
@@ -960,7 +960,7 @@ void dw_spi_remove_host(struct dw_spi *dws)
 
 	free_irq(dws->irq, dws->master);
 }
-EXPORT_SYMBOL_GPL(dw_spi_remove_host);
+EXPORT_SYMBOL_NS_GPL(dw_spi_remove_host, SPI_DW_CORE);
 
 int dw_spi_suspend_host(struct dw_spi *dws)
 {
@@ -973,14 +973,14 @@ int dw_spi_suspend_host(struct dw_spi *dws)
 	spi_shutdown_chip(dws);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dw_spi_suspend_host);
+EXPORT_SYMBOL_NS_GPL(dw_spi_suspend_host, SPI_DW_CORE);
 
 int dw_spi_resume_host(struct dw_spi *dws)
 {
 	spi_hw_init(&dws->master->dev, dws);
 	return spi_controller_resume(dws->master);
 }
-EXPORT_SYMBOL_GPL(dw_spi_resume_host);
+EXPORT_SYMBOL_NS_GPL(dw_spi_resume_host, SPI_DW_CORE);
 
 MODULE_AUTHOR("Feng Tang <feng.tang@intel.com>");
 MODULE_DESCRIPTION("Driver for DesignWare SPI controller core");
