@@ -10,8 +10,6 @@
 #include "dax-private.h"
 #include "bus.h"
 
-static struct class *dax_class;
-
 static DEFINE_MUTEX(dax_bus_lock);
 
 #define DAX_NAME_LEN 30
@@ -1343,10 +1341,7 @@ struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data)
 
 	inode = dax_inode(dax_dev);
 	dev->devt = inode->i_rdev;
-	if (data->subsys == DEV_DAX_BUS)
-		dev->bus = &dax_bus_type;
-	else
-		dev->class = dax_class;
+	dev->bus = &dax_bus_type;
 	dev->parent = parent;
 	dev->type = &dev_dax_type;
 
@@ -1445,22 +1440,10 @@ EXPORT_SYMBOL_GPL(dax_driver_unregister);
 
 int __init dax_bus_init(void)
 {
-	int rc;
-
-	if (IS_ENABLED(CONFIG_DEV_DAX_PMEM_COMPAT)) {
-		dax_class = class_create(THIS_MODULE, "dax");
-		if (IS_ERR(dax_class))
-			return PTR_ERR(dax_class);
-	}
-
-	rc = bus_register(&dax_bus_type);
-	if (rc)
-		class_destroy(dax_class);
-	return rc;
+	return bus_register(&dax_bus_type);
 }
 
 void __exit dax_bus_exit(void)
 {
 	bus_unregister(&dax_bus_type);
-	class_destroy(dax_class);
 }
