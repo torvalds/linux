@@ -467,7 +467,7 @@ static bool probe_bpf_syscall(const char *define_prefix)
 {
 	bool res;
 
-	bpf_load_program(BPF_PROG_TYPE_UNSPEC, NULL, 0, NULL, 0, NULL, 0);
+	bpf_prog_load(BPF_PROG_TYPE_UNSPEC, NULL, NULL, NULL, 0, NULL);
 	res = (errno != ENOSYS);
 
 	print_bool_feature("have_bpf_syscall",

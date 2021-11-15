@@ -12,7 +12,7 @@ void test_stacktrace_map_raw_tp(void)
 	struct bpf_object *obj;
 	struct bpf_link *link = NULL;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
 		return;
 

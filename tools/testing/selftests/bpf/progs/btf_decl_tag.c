@@ -4,10 +4,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-#ifndef __has_attribute
-#define __has_attribute(x) 0
-#endif
-
 #if __has_attribute(btf_decl_tag)
 #define __tag1 __attribute__((btf_decl_tag("tag1")))
 #define __tag2 __attribute__((btf_decl_tag("tag2")))

@@ -498,8 +498,7 @@ static int create_prog_dummy_simple(enum bpf_prog_type prog_type, int ret)
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(prog_type, prog,
-				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	return bpf_prog_load(prog_type, NULL, "GPL", prog, ARRAY_SIZE(prog), NULL);
 }
 
 static int create_prog_dummy_loop(enum bpf_prog_type prog_type, int mfd,
@@ -514,8 +513,7 @@ static int create_prog_dummy_loop(enum bpf_prog_type prog_type, int mfd,
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(prog_type, prog,
-				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	return bpf_prog_load(prog_type, NULL, "GPL", prog, ARRAY_SIZE(prog), NULL);
 }
 
 static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
@@ -1045,7 +1043,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	int fd_prog, expected_ret, alignment_prevented_execution;
 	int prog_len, prog_type = test->prog_type;
 	struct bpf_insn *prog = test->insns;
-	struct bpf_load_program_attr attr;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
 	int run_errs, run_successes;
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
@@ -1085,32 +1083,34 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		       test->result_unpriv : test->result;
 	expected_err = unpriv && test->errstr_unpriv ?
 		       test->errstr_unpriv : test->errstr;
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = prog_type;
-	attr.expected_attach_type = test->expected_attach_type;
-	attr.insns = prog;
-	attr.insns_cnt = prog_len;
-	attr.license = "GPL";
+
+	opts.expected_attach_type = test->expected_attach_type;
 	if (verbose)
-		attr.log_level = 1;
+		opts.log_level = 1;
 	else if (expected_ret == VERBOSE_ACCEPT)
-		attr.log_level = 2;
+		opts.log_level = 2;
 	else
-		attr.log_level = 4;
-	attr.prog_flags = pflags;
+		opts.log_level = 4;
+	opts.prog_flags = pflags;
 
 	if (prog_type == BPF_PROG_TYPE_TRACING && test->kfunc) {
-		attr.attach_btf_id = libbpf_find_vmlinux_btf_id(test->kfunc,
-						attr.expected_attach_type);
-		if (attr.attach_btf_id < 0) {
+		int attach_btf_id;
+
+		attach_btf_id = libbpf_find_vmlinux_btf_id(test->kfunc,
+						opts.expected_attach_type);
+		if (attach_btf_id < 0) {
 			printf("FAIL\nFailed to find BTF ID for '%s'!\n",
 				test->kfunc);
 			(*errors)++;
 			return;
 		}
+
+		opts.attach_btf_id = attach_btf_id;
 	}
 
-	fd_prog = bpf_load_program_xattr(&attr, bpf_vlog, sizeof(bpf_vlog));
+	opts.log_buf = bpf_vlog;
+	opts.log_size = sizeof(bpf_vlog);
+	fd_prog = bpf_prog_load(prog_type, NULL, "GPL", prog, prog_len, &opts);
 	saved_errno = errno;
 
 	/* BPF_PROG_TYPE_TRACING requires more setup and

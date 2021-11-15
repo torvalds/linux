@@ -13,12 +13,12 @@ SYNOPSIS
 	**bpftool** [*OPTIONS*] **prog** *COMMAND*
 
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-d** | **--debug** } |
-		{ **-f** | **--bpffs** } | { **-m** | **--mapcompat** } | { **-n** | **--nomount** } |
-		{ **-L** | **--use-loader** } }
+	{ **-f** | **--bpffs** } | { **-m** | **--mapcompat** } | { **-n** | **--nomount** } |
+	{ **-L** | **--use-loader** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load**
-	| **loadall** | **help** }
+	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load** |
+	**loadall** | **help** }
 
 PROG COMMANDS
 =============

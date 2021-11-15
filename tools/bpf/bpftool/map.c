@@ -53,6 +53,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_RINGBUF]			= "ringbuf",
 	[BPF_MAP_TYPE_INODE_STORAGE]		= "inode_storage",
 	[BPF_MAP_TYPE_TASK_STORAGE]		= "task_storage",
+	[BPF_MAP_TYPE_BLOOM_FILTER]		= "bloom_filter",
 };
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
@@ -811,7 +812,7 @@ static struct btf *get_map_kv_btf(const struct bpf_map_info *info)
 	if (info->btf_vmlinux_value_type_id) {
 		if (!btf_vmlinux) {
 			btf_vmlinux = libbpf_find_kernel_btf();
-			if (IS_ERR(btf_vmlinux))
+			if (libbpf_get_error(btf_vmlinux))
 				p_err("failed to get kernel btf");
 		}
 		return btf_vmlinux;
@@ -831,13 +832,13 @@ static struct btf *get_map_kv_btf(const struct bpf_map_info *info)
 
 static void free_map_kv_btf(struct btf *btf)
 {
-	if (!IS_ERR(btf) && btf != btf_vmlinux)
+	if (!libbpf_get_error(btf) && btf != btf_vmlinux)
 		btf__free(btf);
 }
 
 static void free_btf_vmlinux(void)
 {
-	if (!IS_ERR(btf_vmlinux))
+	if (!libbpf_get_error(btf_vmlinux))
 		btf__free(btf_vmlinux);
 }
 
@@ -862,8 +863,8 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 
 	if (wtr) {
 		btf = get_map_kv_btf(info);
-		if (IS_ERR(btf)) {
-			err = PTR_ERR(btf);
+		err = libbpf_get_error(btf);
+		if (err) {
 			goto exit_free;
 		}
 
@@ -1477,7 +1478,7 @@ static int do_help(int argc, char **argv)
 		"                 devmap | devmap_hash | sockmap | cpumap | xskmap | sockhash |\n"
 		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage |\n"
 		"                 queue | stack | sk_storage | struct_ops | ringbuf | inode_storage |\n"
-		"                 task_storage }\n"
+		"                 task_storage | bloom_filter }\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
 		"                    {-f|--bpffs} | {-n|--nomount} }\n"
 		"",

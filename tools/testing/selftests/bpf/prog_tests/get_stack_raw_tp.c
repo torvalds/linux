@@ -85,7 +85,6 @@ void test_get_stack_raw_tp(void)
 	const char *file_err = "./test_get_stack_rawtp_err.o";
 	const char *prog_name = "raw_tracepoint/sys_enter";
 	int i, err, prog_fd, exp_cnt = MAX_CNT_RAWTP;
-	struct perf_buffer_opts pb_opts = {};
 	struct perf_buffer *pb = NULL;
 	struct bpf_link *link = NULL;
 	struct timespec tv = {0, 10};
@@ -94,11 +93,11 @@ void test_get_stack_raw_tp(void)
 	struct bpf_map *map;
 	cpu_set_t cpu_set;
 
-	err = bpf_prog_load(file_err, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	err = bpf_prog_test_load(file_err, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err >= 0, "prog_load raw tp", "err %d errno %d\n", err, errno))
 		return;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
 		return;
 
@@ -124,8 +123,8 @@ void test_get_stack_raw_tp(void)
 	if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 		goto close_prog;
 
-	pb_opts.sample_cb = get_stack_print_output;
-	pb = perf_buffer__new(bpf_map__fd(map), 8, &pb_opts);
+	pb = perf_buffer__new(bpf_map__fd(map), 8, get_stack_print_output,
+			      NULL, NULL, NULL);
 	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto close_prog;
 

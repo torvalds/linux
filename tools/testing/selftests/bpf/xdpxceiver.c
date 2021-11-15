@@ -744,7 +744,6 @@ static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *
 	struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream);
 	struct xsk_umem_info *umem = xsk->umem;
 	u32 idx_rx = 0, idx_fq = 0, rcvd, i;
-	u32 total = 0;
 	int ret;
 
 	while (pkt) {
@@ -799,7 +798,6 @@ static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *
 
 		pthread_mutex_lock(&pacing_mutex);
 		pkts_in_flight -= rcvd;
-		total += rcvd;
 		if (pkts_in_flight < umem->num_frames)
 			pthread_cond_signal(&pacing_cond);
 		pthread_mutex_unlock(&pacing_mutex);
