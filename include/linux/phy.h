@@ -99,7 +99,7 @@ extern const int phy_10gbit_features_array[1];
  * @PHY_INTERFACE_MODE_RGMII_RXID: RGMII with Internal RX delay
  * @PHY_INTERFACE_MODE_RGMII_TXID: RGMII with Internal RX delay
  * @PHY_INTERFACE_MODE_RTBI: Reduced TBI
- * @PHY_INTERFACE_MODE_SMII: ??? MII
+ * @PHY_INTERFACE_MODE_SMII: Serial MII
  * @PHY_INTERFACE_MODE_XGMII: 10 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_XLGMII:40 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_MOCA: Multimedia over Coax
