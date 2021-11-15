@@ -2565,7 +2565,8 @@ static int ptrace_signal(int signr, kernel_siginfo_t *info, enum pid_type type)
 	}
 
 	/* If the (new) signal is now blocked, requeue it.  */
-	if (sigismember(&current->blocked, signr)) {
+	if (sigismember(&current->blocked, signr) ||
+	    fatal_signal_pending(current)) {
 		send_signal(signr, info, current, type);
 		signr = 0;
 	}
