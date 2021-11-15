@@ -508,7 +508,8 @@ union dpia_debug_options {
 		uint32_t disable_dpia:1;
 		uint32_t force_non_lttpr:1;
 		uint32_t extend_aux_rd_interval:1;
-		uint32_t reserved:29;
+		uint32_t disable_mst_dsc_work_around:1;
+		uint32_t reserved:28;
 	} bits;
 	uint32_t raw;
 };
