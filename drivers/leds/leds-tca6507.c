@@ -242,9 +242,7 @@ static int choose_times(int msec, int *c1p, int *c2p)
 	if (diff < 65536) {
 		int actual;
 		if (msec & 1) {
-			c1 = *c2p;
-			*c2p = *c1p;
-			*c1p = c1;
+			swap(*c2p, *c1p);
 		}
 		actual = time_codes[*c1p] + time_codes[*c2p];
 		if (*c1p < *c2p)
