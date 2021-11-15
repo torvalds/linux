@@ -162,7 +162,7 @@
 #define PCI_BUS_NUM_SHIFT	5
 #define PCI_BUS_NUM_MASK	GENMASK(12, PCI_BUS_NUM_SHIFT)
 #define GET_PCI_DEV_NUM(x)	((x) & PCI_DEV_NUM_MASK)
-#define GET_PCI_BUS_NUM(x)	(((x) & PCI_BUS_NUM_MASK) >> PCI_BUS_NUM_SHIFT)
+#define GET_PCI_BUS_NUM(x)	((((x) & PCI_BUS_NUM_MASK) >> PCI_BUS_NUM_SHIFT) + 1)
 
 /* MCTP header definitions */
 #define MCTP_HDR_SRC_EID_OFFSET		14
