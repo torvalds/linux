@@ -67,7 +67,7 @@ static int iio_dmaengine_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 	dma_cookie_t cookie;
 
 	block->bytes_used = min(block->size, dmaengine_buffer->max_size);
-	block->bytes_used = rounddown(block->bytes_used,
+	block->bytes_used = round_down(block->bytes_used,
 			dmaengine_buffer->align);
 
 	desc = dmaengine_prep_slave_single(dmaengine_buffer->chan,
