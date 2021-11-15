@@ -400,17 +400,7 @@ static unsigned int get_crop_columns_for_bayer_order(const struct
 	ia_css_stream_config *config);
 static void get_pipe_extra_pixel(struct ia_css_pipe *pipe,
 				 unsigned int *extra_row, unsigned int *extra_column);
-static int
-aspect_ratio_crop_init(struct ia_css_stream *curr_stream,
-		       struct ia_css_pipe *pipes[],
-		       bool *do_crop_status);
 
-static bool
-aspect_ratio_crop_check(bool enabled, struct ia_css_pipe *curr_pipe);
-
-static int
-aspect_ratio_crop(struct ia_css_pipe *curr_pipe,
-		  struct ia_css_resolution *effective_res);
 #endif
 
 static void
@@ -8999,9 +8989,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	int err = -EINVAL;
 	struct ia_css_metadata_info md_info;
 	struct ia_css_resolution effective_res;
-#ifdef ISP2401
-	bool aspect_ratio_crop_enabled = false;
-#endif
 
 	IA_CSS_ENTER("num_pipes=%d", num_pipes);
 	ia_css_debug_dump_stream_config(stream_config, num_pipes);
@@ -9178,14 +9165,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		IA_CSS_LOG("mode sensor/default");
 	}
 
-#ifdef ISP2401
-	err = aspect_ratio_crop_init(curr_stream, pipes,
-				     &aspect_ratio_crop_enabled);
-	if (err) {
-		IA_CSS_LEAVE_ERR(err);
-		goto ERR;
-	}
-#endif
 	for (i = 0; i < num_pipes; i++) {
 		struct ia_css_resolution effective_res;
 
@@ -9198,22 +9177,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		if (effective_res.height == 0 || effective_res.width == 0) {
 			effective_res = curr_pipe->stream->config.input_config.effective_res;
 
-#if defined(ISP2401)
-			/* The aspect ratio cropping is currently only
-			    * supported on the new input system. */
-			if (aspect_ratio_crop_check(aspect_ratio_crop_enabled, curr_pipe)) {
-				struct ia_css_resolution crop_res;
-
-				err = aspect_ratio_crop(curr_pipe, &crop_res);
-				if (!err) {
-					effective_res = crop_res;
-				} else {
-					/* in case of error fallback to default
-					    * effective resolution from driver. */
-					IA_CSS_LOG("aspect_ratio_crop() failed with err(%d)", err);
-				}
-			}
-#endif
 			curr_pipe->config.input_effective_res = effective_res;
 		}
 		IA_CSS_LOG("effective_res=%dx%d",
@@ -10469,133 +10432,6 @@ ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe,
 	IA_CSS_LEAVE("err:%d handle:%u", err, fw_handle);
 	return err;
 }
-
-#ifdef ISP2401
-static int
-aspect_ratio_crop_init(struct ia_css_stream *curr_stream,
-		       struct ia_css_pipe *pipes[],
-		       bool *do_crop_status)
-{
-	int err = 0;
-	int i;
-	struct ia_css_pipe *curr_pipe;
-	u32 pipe_mask = 0;
-
-	if ((!curr_stream) ||
-	    (curr_stream->num_pipes == 0) ||
-	    (!pipes) ||
-	    (!do_crop_status)) {
-		err = -EINVAL;
-		IA_CSS_LEAVE_ERR(err);
-		return err;
-	}
-
-	for (i = 0; i < curr_stream->num_pipes; i++) {
-		curr_pipe = pipes[i];
-		pipe_mask |= (1 << curr_pipe->config.mode);
-	}
-
-	*do_crop_status =
-	(((pipe_mask & (1 << IA_CSS_PIPE_MODE_PREVIEW)) ||
-	    (pipe_mask & (1 << IA_CSS_PIPE_MODE_VIDEO))) &&
-	    (pipe_mask & (1 << IA_CSS_PIPE_MODE_CAPTURE)) &&
-	    curr_stream->config.continuous);
-	return 0;
-}
-
-static bool
-aspect_ratio_crop_check(bool enabled, struct ia_css_pipe *curr_pipe)
-{
-	bool status = false;
-
-	if ((curr_pipe) && enabled) {
-		if ((curr_pipe->config.mode == IA_CSS_PIPE_MODE_PREVIEW) ||
-		    (curr_pipe->config.mode == IA_CSS_PIPE_MODE_VIDEO) ||
-		    (curr_pipe->config.mode == IA_CSS_PIPE_MODE_CAPTURE))
-			status = true;
-	}
-
-	return status;
-}
-
-static int
-aspect_ratio_crop(struct ia_css_pipe *curr_pipe,
-		  struct ia_css_resolution *effective_res)
-{
-	int err = 0;
-	struct ia_css_resolution crop_res;
-	struct ia_css_resolution *in_res = NULL;
-	struct ia_css_resolution *out_res = NULL;
-	bool use_bds_output_info = false;
-	bool use_vf_pp_in_res = false;
-	bool use_capt_pp_in_res = false;
-
-	if ((!curr_pipe) ||
-	    (!effective_res)) {
-		err = -EINVAL;
-		IA_CSS_LEAVE_ERR(err);
-		return err;
-	}
-
-	if ((curr_pipe->config.mode != IA_CSS_PIPE_MODE_PREVIEW) &&
-	    (curr_pipe->config.mode != IA_CSS_PIPE_MODE_VIDEO) &&
-	    (curr_pipe->config.mode != IA_CSS_PIPE_MODE_CAPTURE)) {
-		err = -EINVAL;
-		IA_CSS_LEAVE_ERR(err);
-		return err;
-	}
-
-	use_bds_output_info =
-	((curr_pipe->bds_output_info.res.width != 0) &&
-	    (curr_pipe->bds_output_info.res.height != 0));
-
-	use_vf_pp_in_res =
-	((curr_pipe->config.vf_pp_in_res.width != 0) &&
-	    (curr_pipe->config.vf_pp_in_res.height != 0));
-
-	use_capt_pp_in_res =
-	((curr_pipe->config.capt_pp_in_res.width != 0) &&
-	    (curr_pipe->config.capt_pp_in_res.height != 0));
-
-	in_res = &curr_pipe->stream->config.input_config.effective_res;
-	out_res = &curr_pipe->output_info[0].res;
-
-	switch (curr_pipe->config.mode) {
-	case IA_CSS_PIPE_MODE_PREVIEW:
-		if (use_bds_output_info)
-			out_res = &curr_pipe->bds_output_info.res;
-		else if (use_vf_pp_in_res)
-			out_res = &curr_pipe->config.vf_pp_in_res;
-		break;
-	case IA_CSS_PIPE_MODE_VIDEO:
-		if (use_bds_output_info)
-			out_res = &curr_pipe->bds_output_info.res;
-		break;
-	case IA_CSS_PIPE_MODE_CAPTURE:
-		if (use_capt_pp_in_res)
-			out_res = &curr_pipe->config.capt_pp_in_res;
-		break;
-	case IA_CSS_PIPE_MODE_ACC:
-	case IA_CSS_PIPE_MODE_COPY:
-	case IA_CSS_PIPE_MODE_YUVPP:
-	default:
-		IA_CSS_ERROR("aspect ratio cropping invalid args: mode[%d]\n",
-			     curr_pipe->config.mode);
-		assert(0);
-		break;
-	}
-
-	err = ia_css_frame_find_crop_resolution(in_res, out_res, &crop_res);
-	if (!err)
-		*effective_res = crop_res;
-	else
-		/* in case of error fallback to default
-		    * effective resolution from driver. */
-		IA_CSS_LOG("ia_css_frame_find_crop_resolution() failed with err(%d)", err);
-
-	return err;
-}
-#endif
 
 static void
 sh_css_hmm_buffer_record_init(void)
