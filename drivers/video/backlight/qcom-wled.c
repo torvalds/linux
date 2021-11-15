@@ -235,7 +235,7 @@ static int wled3_set_brightness(struct wled *wled, u16 brightness)
 
 	v = cpu_to_le16(brightness & WLED3_SINK_REG_BRIGHT_MAX);
 
-	for (i = 0;  i < wled->cfg.num_strings; ++i) {
+	for (i = 0; i < wled->cfg.num_strings; ++i) {
 		rc = regmap_bulk_write(wled->regmap, wled->ctrl_addr +
 				       WLED3_SINK_REG_BRIGHT(i),
 				       &v, sizeof(v));
@@ -258,7 +258,7 @@ static int wled4_set_brightness(struct wled *wled, u16 brightness)
 
 	v = cpu_to_le16(brightness & WLED3_SINK_REG_BRIGHT_MAX);
 
-	for (i = 0;  i < wled->cfg.num_strings; ++i) {
+	for (i = 0; i < wled->cfg.num_strings; ++i) {
 		rc = regmap_bulk_write(wled->regmap, wled->sink_addr +
 				       WLED4_SINK_REG_BRIGHT(i),
 				       &v, sizeof(v));
