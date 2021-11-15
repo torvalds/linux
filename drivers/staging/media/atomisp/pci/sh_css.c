@@ -1426,19 +1426,10 @@ static void start_pipe(
     enum sh_css_pipe_config_override copy_ovrd,
     enum ia_css_input_mode input_mode)
 {
-	const struct ia_css_coordinate *coord = NULL;
-	const struct ia_css_isp_parameters *params = NULL;
-
-
 	IA_CSS_ENTER_PRIVATE("me = %p, copy_ovrd = %d, input_mode = %d",
 			     me, copy_ovrd, input_mode);
 
 	assert(me); /* all callers are in this file and call with non null argument */
-
-	if (IS_ISP2401) {
-		coord = &me->config.internal_frame_origin_bqs_on_sctbl;
-		params = me->stream->isp_params_configs;
-	}
 
 	sh_css_sp_init_pipeline(&me->pipeline,
 				me->mode,
@@ -1454,9 +1445,7 @@ static void start_pipe(
 				&me->stream->info.metadata_info
 				, (input_mode == IA_CSS_INPUT_MODE_MEMORY) ?
 				(enum mipi_port_id)0 :
-				me->stream->config.source.port.port,
-				coord,
-				params);
+				me->stream->config.source.port.port);
 
 	if (me->config.mode != IA_CSS_PIPE_MODE_COPY) {
 		struct ia_css_pipeline_stage *stage;
@@ -3882,8 +3871,6 @@ preview_start(struct ia_css_pipe *pipe)
 	struct ia_css_pipe *acc_pipe;
 	enum sh_css_pipe_config_override copy_ovrd;
 	enum ia_css_input_mode preview_pipe_input_mode;
-	const struct ia_css_coordinate *coord = NULL;
-	const struct ia_css_isp_parameters *params = NULL;
 	unsigned int thread_id;
 
 	IA_CSS_ENTER_PRIVATE("pipe = %p", pipe);
@@ -3913,13 +3900,8 @@ preview_start(struct ia_css_pipe *pipe)
 
 	if (pipe->stream->cont_capt) {
 		ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(capture_pipe),
-						    &thread_id);
+						 &thread_id);
 		copy_ovrd |= 1 << thread_id;
-	}
-
-	if (IS_ISP2401) {
-		coord = &pipe->config.internal_frame_origin_bqs_on_sctbl;
-		params = pipe->stream->isp_params_configs;
 	}
 
 	/* Construct and load the copy pipe */
@@ -3934,9 +3916,7 @@ preview_start(struct ia_css_pipe *pipe)
 					pipe->stream->config.mode,
 					&pipe->stream->config.metadata_config,
 					&pipe->stream->info.metadata_info,
-					pipe->stream->config.source.port.port,
-					coord,
-					params);
+					pipe->stream->config.source.port.port);
 
 		/*
 		 * make the preview pipe start with mem mode input, copy handles
@@ -3959,9 +3939,7 @@ preview_start(struct ia_css_pipe *pipe)
 					IA_CSS_INPUT_MODE_MEMORY,
 					&pipe->stream->config.metadata_config,
 					&pipe->stream->info.metadata_info,
-					(enum mipi_port_id)0,
-					coord,
-					params);
+					(enum mipi_port_id)0);
 	}
 
 	if (acc_pipe) {
@@ -3977,9 +3955,7 @@ preview_start(struct ia_css_pipe *pipe)
 					IA_CSS_INPUT_MODE_MEMORY,
 					NULL,
 					NULL,
-					(enum mipi_port_id)0,
-					coord,
-					params);
+					(enum mipi_port_id)0);
 	}
 
 	start_pipe(pipe, copy_ovrd, preview_pipe_input_mode);
@@ -5650,8 +5626,6 @@ static int video_start(struct ia_css_pipe *pipe)
 	struct ia_css_pipe *copy_pipe, *capture_pipe;
 	enum sh_css_pipe_config_override copy_ovrd;
 	enum ia_css_input_mode video_pipe_input_mode;
-	const struct ia_css_coordinate *coord = NULL;
-	const struct ia_css_isp_parameters *params = NULL;
 	unsigned int thread_id;
 
 	IA_CSS_ENTER_PRIVATE("pipe = %p", pipe);
@@ -5684,11 +5658,6 @@ static int video_start(struct ia_css_pipe *pipe)
 		copy_ovrd |= 1 << thread_id;
 	}
 
-	if (IS_ISP2401) {
-		coord = &pipe->config.internal_frame_origin_bqs_on_sctbl;
-		params = pipe->stream->isp_params_configs;
-	}
-
 	/* Construct and load the copy pipe */
 	if (pipe->stream->config.continuous) {
 		sh_css_sp_init_pipeline(&copy_pipe->pipeline,
@@ -5701,9 +5670,7 @@ static int video_start(struct ia_css_pipe *pipe)
 					pipe->stream->config.mode,
 					&pipe->stream->config.metadata_config,
 					&pipe->stream->info.metadata_info,
-					pipe->stream->config.source.port.port,
-					coord,
-					params);
+					pipe->stream->config.source.port.port);
 
 		/*
 		 * make the video pipe start with mem mode input, copy handles
@@ -5726,9 +5693,7 @@ static int video_start(struct ia_css_pipe *pipe)
 					IA_CSS_INPUT_MODE_MEMORY,
 					&pipe->stream->config.metadata_config,
 					&pipe->stream->info.metadata_info,
-					(enum mipi_port_id)0,
-					coord,
-					params);
+					(enum mipi_port_id)0);
 	}
 
 	start_pipe(pipe, copy_ovrd, video_pipe_input_mode);
