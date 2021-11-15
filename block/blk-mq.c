@@ -2543,8 +2543,7 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	return NULL;
 }
 
-static inline bool blk_mq_can_use_cached_rq(struct request *rq,
-		struct bio *bio)
+static inline bool blk_mq_can_use_cached_rq(struct request *rq, struct bio *bio)
 {
 	if (blk_mq_get_hctx_type(bio->bi_opf) != rq->mq_hctx->type)
 		return false;
@@ -2565,7 +2564,6 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 	bool checked = false;
 
 	if (plug) {
-
 		rq = rq_list_peek(&plug->cached_rq);
 		if (rq && rq->q == q) {
 			if (unlikely(!submit_bio_checks(bio)))
@@ -2587,12 +2585,14 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 fallback:
 	if (unlikely(bio_queue_enter(bio)))
 		return NULL;
-	if (!checked && !submit_bio_checks(bio))
-		return NULL;
+	if (unlikely(!checked && !submit_bio_checks(bio)))
+		goto out_put;
 	rq = blk_mq_get_new_requests(q, plug, bio, nsegs, same_queue_rq);
-	if (!rq)
-		blk_queue_exit(q);
-	return rq;
+	if (rq)
+		return rq;
+out_put:
+	blk_queue_exit(q);
+	return NULL;
 }
 
 /**
