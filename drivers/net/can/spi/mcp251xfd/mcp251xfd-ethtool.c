@@ -58,7 +58,7 @@ static int mcp251xfd_ring_get_coalesce(struct net_device *ndev,
 				       struct netlink_ext_ack *ext_ack)
 {
 	struct mcp251xfd_priv *priv = netdev_priv(ndev);
-	u32 rx_max_frames;
+	u32 rx_max_frames, tx_max_frames;
 
 	/* The ethtool doc says:
 	 * To disable coalescing, set usecs = 0 and max_frames = 1.
@@ -70,6 +70,14 @@ static int mcp251xfd_ring_get_coalesce(struct net_device *ndev,
 
 	ec->rx_max_coalesced_frames_irq = rx_max_frames;
 	ec->rx_coalesce_usecs_irq = priv->rx_coalesce_usecs_irq;
+
+	if (priv->tx_obj_num_coalesce_irq == 0)
+		tx_max_frames = 1;
+	else
+		tx_max_frames = priv->tx_obj_num_coalesce_irq;
+
+	ec->tx_max_coalesced_frames_irq = tx_max_frames;
+	ec->tx_coalesce_usecs_irq = priv->tx_coalesce_usecs_irq;
 
 	return 0;
 }
@@ -90,21 +98,28 @@ static int mcp251xfd_ring_set_coalesce(struct net_device *ndev,
 	can_ram_get_layout(&layout, &mcp251xfd_ram_config, &ring, ec, fd_mode);
 
 	if ((layout.rx_coalesce != priv->rx_obj_num_coalesce_irq ||
-	     ec->rx_coalesce_usecs_irq != priv->rx_coalesce_usecs_irq) &&
+	     ec->rx_coalesce_usecs_irq != priv->rx_coalesce_usecs_irq ||
+	     layout.tx_coalesce != priv->tx_obj_num_coalesce_irq ||
+	     ec->tx_coalesce_usecs_irq != priv->tx_coalesce_usecs_irq) &&
 	    netif_running(ndev))
 		return -EBUSY;
 
 	priv->rx_obj_num = layout.cur_rx;
 	priv->rx_obj_num_coalesce_irq = layout.rx_coalesce;
 	priv->rx_coalesce_usecs_irq = ec->rx_coalesce_usecs_irq;
+
 	priv->tx->obj_num = layout.cur_tx;
+	priv->tx_obj_num_coalesce_irq = layout.tx_coalesce;
+	priv->tx_coalesce_usecs_irq = ec->tx_coalesce_usecs_irq;
 
 	return 0;
 }
 
 static const struct ethtool_ops mcp251xfd_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS_IRQ |
-		ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ,
+		ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ |
+		ETHTOOL_COALESCE_TX_USECS_IRQ |
+		ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ,
 	.get_ringparam = mcp251xfd_ring_get_ringparam,
 	.set_ringparam = mcp251xfd_ring_set_ringparam,
 	.get_coalesce = mcp251xfd_ring_get_coalesce,
@@ -122,5 +137,7 @@ void mcp251xfd_ethtool_init(struct mcp251xfd_priv *priv)
 	priv->tx->obj_num = layout.default_tx;
 
 	priv->rx_obj_num_coalesce_irq = 0;
+	priv->tx_obj_num_coalesce_irq = 0;
 	priv->rx_coalesce_usecs_irq = 0;
+	priv->tx_coalesce_usecs_irq = 0;
 }

@@ -442,6 +442,7 @@ const struct can_ram_config mcp251xfd_ram_config = {
 		.def[CAN_RAM_MODE_CANFD] = MCP251XFD_TX_OBJ_NUM_CANFD_DEFAULT,
 		.fifo_num = MCP251XFD_FIFO_TX_NUM,
 		.fifo_depth_min = MCP251XFD_TX_FIFO_DEPTH_MIN,
+		.fifo_depth_coalesce_min = MCP251XFD_TX_FIFO_DEPTH_COALESCE_MIN,
 	},
 	.size = MCP251XFD_RAM_SIZE,
 	.fifo_depth = MCP251XFD_FIFO_DEPTH,
