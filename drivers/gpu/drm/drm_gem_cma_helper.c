@@ -35,11 +35,11 @@
  */
 
 static const struct drm_gem_object_funcs drm_gem_cma_default_funcs = {
-	.free = drm_gem_cma_free_object,
-	.print_info = drm_gem_cma_print_info,
-	.get_sg_table = drm_gem_cma_get_sg_table,
-	.vmap = drm_gem_cma_vmap,
-	.mmap = drm_gem_cma_mmap,
+	.free = drm_gem_cma_object_free,
+	.print_info = drm_gem_cma_object_print_info,
+	.get_sg_table = drm_gem_cma_object_get_sg_table,
+	.vmap = drm_gem_cma_object_vmap,
+	.mmap = drm_gem_cma_object_mmap,
 	.vm_ops = &drm_gem_cma_vm_ops,
 };
 
@@ -198,8 +198,6 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
  * This function frees the backing memory of the CMA GEM object, cleans up the
  * GEM object state and frees the memory used to store the object itself.
  * If the buffer is imported and the virtual address is set, it is released.
- * Drivers using the CMA helpers should set this as their
- * &drm_gem_object_funcs.free callback.
  */
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
@@ -388,9 +386,8 @@ EXPORT_SYMBOL(drm_gem_cma_print_info);
  *     pages for a CMA GEM object
  * @obj: GEM object
  *
- * This function exports a scatter/gather table by
- * calling the standard DMA mapping API. Drivers using the CMA helpers should
- * set this as their &drm_gem_object_funcs.get_sg_table callback.
+ * This function exports a scatter/gather table by calling the standard
+ * DMA mapping API.
  *
  * Returns:
  * A pointer to the scatter/gather table of pinned pages or NULL on failure.
@@ -470,8 +467,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_import_sg_table);
  * This function maps a buffer into the kernel's
  * virtual address space. Since the CMA buffers are already mapped into the
  * kernel virtual address space this simply returns the cached virtual
- * address. Drivers using the CMA helpers should set this as their DRM
- * driver's &drm_gem_object_funcs.vmap callback.
+ * address.
  *
  * Returns:
  * 0 on success, or a negative error code otherwise.
@@ -493,8 +489,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_vmap);
  *
  * This function maps a buffer into a userspace process's address space.
  * In addition to the usual GEM VMA setup it immediately faults in the entire
- * object instead of using on-demand faulting. Drivers that use the CMA
- * helpers should set this as their &drm_gem_object_funcs.mmap callback.
+ * object instead of using on-demand faulting.
  *
  * Returns:
  * 0 on success or a negative error code on failure.

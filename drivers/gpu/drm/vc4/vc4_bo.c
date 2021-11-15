@@ -732,8 +732,8 @@ static const struct vm_operations_struct vc4_vm_ops = {
 static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
 	.free = vc4_free_object,
 	.export = vc4_prime_export,
-	.get_sg_table = drm_gem_cma_get_sg_table,
-	.vmap = drm_gem_cma_vmap,
+	.get_sg_table = drm_gem_cma_object_get_sg_table,
+	.vmap = drm_gem_cma_object_vmap,
 	.mmap = vc4_gem_object_mmap,
 	.vm_ops = &vc4_vm_ops,
 };

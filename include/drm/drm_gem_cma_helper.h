@@ -49,6 +49,84 @@ int drm_gem_cma_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
 int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
 /*
+ * GEM object functions
+ */
+
+/**
+ * drm_gem_cma_object_free - GEM object function for drm_gem_cma_free_object()
+ * @obj: GEM object to free
+ *
+ * This function wraps drm_gem_cma_free_object(). Drivers that employ the CMA helpers
+ * should use it as their &drm_gem_object_funcs.free handler.
+ */
+static inline void drm_gem_cma_object_free(struct drm_gem_object *obj)
+{
+	drm_gem_cma_free_object(obj);
+}
+
+/**
+ * drm_gem_cma_object_print_info() - Print &drm_gem_cma_object info for debugfs
+ * @p: DRM printer
+ * @indent: Tab indentation level
+ * @obj: GEM object
+ *
+ * This function wraps drm_gem_cma_print_info(). Drivers that employ the CMA helpers
+ * should use this function as their &drm_gem_object_funcs.print_info handler.
+ */
+static inline void drm_gem_cma_object_print_info(struct drm_printer *p, unsigned int indent,
+						 const struct drm_gem_object *obj)
+{
+	drm_gem_cma_print_info(p, indent, obj);
+}
+
+/**
+ * drm_gem_cma_object_get_sg_table - GEM object function for drm_gem_cma_get_sg_table()
+ * @obj: GEM object
+ *
+ * This function wraps drm_gem_cma_get_sg_table(). Drivers that employ the CMA helpers should
+ * use it as their &drm_gem_object_funcs.get_sg_table handler.
+ *
+ * Returns:
+ * A pointer to the scatter/gather table of pinned pages or NULL on failure.
+ */
+static inline struct sg_table *drm_gem_cma_object_get_sg_table(struct drm_gem_object *obj)
+{
+	return drm_gem_cma_get_sg_table(obj);
+}
+
+/*
+ * drm_gem_cma_object_vmap - GEM object function for drm_gem_cma_vmap()
+ * @obj: GEM object
+ * @map: Returns the kernel virtual address of the CMA GEM object's backing store.
+ *
+ * This function wraps drm_gem_cma_vmap(). Drivers that employ the CMA helpers should
+ * use it as their &drm_gem_object_funcs.vmap handler.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+static inline int drm_gem_cma_object_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+{
+	return drm_gem_cma_vmap(obj, map);
+}
+
+/**
+ * drm_gem_cma_object_mmap - GEM object function for drm_gem_cma_mmap()
+ * @obj: GEM object
+ * @vma: VMA for the area to be mapped
+ *
+ * This function wraps drm_gem_cma_mmap(). Drivers that employ the cma helpers should
+ * use it as their &drm_gem_object_funcs.mmap handler.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+static inline int drm_gem_cma_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	return drm_gem_cma_mmap(obj, vma);
+}
+
+/*
  * Driver ops
  */
 
