@@ -202,15 +202,6 @@ int
 ia_css_stream_get_info(const struct ia_css_stream *stream,
 		       struct ia_css_stream_info *stream_info);
 
-/* @brief load (rebuild) a stream that was unloaded.
- * @param[in]	stream The stream
- * @return		0 or the error code
- *
- * Rebuild a stream, including allocating structs, setting configuration and
- * building the required pipes.
- */
-int
-ia_css_stream_load(struct ia_css_stream *stream);
 
 /* @brief Starts the stream.
  * @param[in]	stream The stream.
