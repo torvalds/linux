@@ -21,6 +21,7 @@
 #include "main.h"
 
 static const uint64_t MAGIC = 0x1122334455667788ULL;
+static const uint64_t MAGIC2 = 0x8877665544332211ULL;
 vdso_sgx_enter_enclave_t vdso_sgx_enter_enclave;
 
 struct vdso_symtab {
@@ -105,6 +106,25 @@ static Elf64_Sym *vdso_symtab_get(struct vdso_symtab *symtab, const char *name)
 	}
 
 	return NULL;
+}
+
+/*
+ * Return the offset in the enclave where the data segment can be found.
+ * The first RW segment loaded is the TCS, skip that to get info on the
+ * data segment.
+ */
+static off_t encl_get_data_offset(struct encl *encl)
+{
+	int i;
+
+	for (i = 1; i < encl->nr_segments; i++) {
+		struct encl_segment *seg = &encl->segment_tbl[i];
+
+		if (seg->prot == (PROT_READ | PROT_WRITE))
+			return seg->offset;
+	}
+
+	return -1;
 }
 
 FIXTURE(enclave) {
@@ -387,6 +407,120 @@ TEST_F(enclave, clobbered_vdso_and_user_function)
 	EXPECT_EQ(get_op.value, MAGIC);
 	EXPECT_EEXIT(&self->run);
 	EXPECT_EQ(self->run.user_data, 0);
+}
+
+/*
+ * Second page of .data segment is used to test changing PTE permissions.
+ * This spans the local encl_buffer within the test enclave.
+ *
+ * 1) Start with a sanity check: a value is written to the target page within
+ *    the enclave and read back to ensure target page can be written to.
+ * 2) Change PTE permissions (RW -> RO) of target page within enclave.
+ * 3) Repeat (1) - this time expecting a regular #PF communicated via the
+ *    vDSO.
+ * 4) Change PTE permissions of target page within enclave back to be RW.
+ * 5) Repeat (1) by resuming enclave, now expected to be possible to write to
+ *    and read from target page within enclave.
+ */
+TEST_F(enclave, pte_permissions)
+{
+	struct encl_op_get_from_addr get_addr_op;
+	struct encl_op_put_to_addr put_addr_op;
+	unsigned long data_start;
+	int ret;
+
+	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
+
+	memset(&self->run, 0, sizeof(self->run));
+	self->run.tcs = self->encl.encl_base;
+
+	data_start = self->encl.encl_base +
+		     encl_get_data_offset(&self->encl) +
+		     PAGE_SIZE;
+
+	/*
+	 * Sanity check to ensure it is possible to write to page that will
+	 * have its permissions manipulated.
+	 */
+
+	/* Write MAGIC to page */
+	put_addr_op.value = MAGIC;
+	put_addr_op.addr = data_start;
+	put_addr_op.header.type = ENCL_OP_PUT_TO_ADDRESS;
+
+	EXPECT_EQ(ENCL_CALL(&put_addr_op, &self->run, true), 0);
+
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.exception_vector, 0);
+	EXPECT_EQ(self->run.exception_error_code, 0);
+	EXPECT_EQ(self->run.exception_addr, 0);
+
+	/*
+	 * Read memory that was just written to, confirming that it is the
+	 * value previously written (MAGIC).
+	 */
+	get_addr_op.value = 0;
+	get_addr_op.addr = data_start;
+	get_addr_op.header.type = ENCL_OP_GET_FROM_ADDRESS;
+
+	EXPECT_EQ(ENCL_CALL(&get_addr_op, &self->run, true), 0);
+
+	EXPECT_EQ(get_addr_op.value, MAGIC);
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.exception_vector, 0);
+	EXPECT_EQ(self->run.exception_error_code, 0);
+	EXPECT_EQ(self->run.exception_addr, 0);
+
+	/* Change PTE permissions of target page within the enclave */
+	ret = mprotect((void *)data_start, PAGE_SIZE, PROT_READ);
+	if (ret)
+		perror("mprotect");
+
+	/*
+	 * PTE permissions of target page changed to read-only, EPCM
+	 * permissions unchanged (EPCM permissions are RW), attempt to
+	 * write to the page, expecting a regular #PF.
+	 */
+
+	put_addr_op.value = MAGIC2;
+
+	EXPECT_EQ(ENCL_CALL(&put_addr_op, &self->run, true), 0);
+
+	EXPECT_EQ(self->run.exception_vector, 14);
+	EXPECT_EQ(self->run.exception_error_code, 0x7);
+	EXPECT_EQ(self->run.exception_addr, data_start);
+
+	self->run.exception_vector = 0;
+	self->run.exception_error_code = 0;
+	self->run.exception_addr = 0;
+
+	/*
+	 * Change PTE permissions back to enable enclave to write to the
+	 * target page and resume enclave - do not expect any exceptions this
+	 * time.
+	 */
+	ret = mprotect((void *)data_start, PAGE_SIZE, PROT_READ | PROT_WRITE);
+	if (ret)
+		perror("mprotect");
+
+	EXPECT_EQ(vdso_sgx_enter_enclave((unsigned long)&put_addr_op, 0,
+					 0, ERESUME, 0, 0, &self->run),
+		 0);
+
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.exception_vector, 0);
+	EXPECT_EQ(self->run.exception_error_code, 0);
+	EXPECT_EQ(self->run.exception_addr, 0);
+
+	get_addr_op.value = 0;
+
+	EXPECT_EQ(ENCL_CALL(&get_addr_op, &self->run, true), 0);
+
+	EXPECT_EQ(get_addr_op.value, MAGIC2);
+	EXPECT_EEXIT(&self->run);
+	EXPECT_EQ(self->run.exception_vector, 0);
+	EXPECT_EQ(self->run.exception_error_code, 0);
+	EXPECT_EQ(self->run.exception_addr, 0);
 }
 
 TEST_HARNESS_MAIN
