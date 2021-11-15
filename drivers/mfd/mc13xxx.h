@@ -44,6 +44,6 @@ struct mc13xxx {
 };
 
 int mc13xxx_common_init(struct device *dev);
-int mc13xxx_common_exit(struct device *dev);
+void mc13xxx_common_exit(struct device *dev);
 
 #endif /* __DRIVERS_MFD_MC13XXX_H */

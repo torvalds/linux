@@ -477,8 +477,7 @@ static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
 extern const struct file_operations hugetlbfs_file_operations;
 extern const struct vm_operations_struct hugetlb_vm_ops;
 struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
-				struct ucounts **ucounts, int creat_flags,
-				int page_size_log);
+				int creat_flags, int page_size_log);
 
 static inline bool is_file_hugepages(struct file *file)
 {
@@ -497,8 +496,7 @@ static inline struct hstate *hstate_inode(struct inode *i)
 #define is_file_hugepages(file)			false
 static inline struct file *
 hugetlb_file_setup(const char *name, size_t size, vm_flags_t acctflag,
-		struct ucounts **ucounts, int creat_flags,
-		int page_size_log)
+		int creat_flags, int page_size_log)
 {
 	return ERR_PTR(-ENOSYS);
 }
