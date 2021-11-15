@@ -1370,9 +1370,8 @@ static int rockchip_rk3588_pll_set_params(struct rockchip_clk_pll *pll,
 						     RK3588_PLLCON1_S_SHIFT),
 		       pll->reg_base + RK3399_PLLCON(1));
 
-	if (rate->k)
-		writel_relaxed(HIWORD_UPDATE(rate->k, RK3588_PLLCON2_K_MASK,
-						  RK3588_PLLCON2_K_SHIFT),
+	writel_relaxed(HIWORD_UPDATE(rate->k, RK3588_PLLCON2_K_MASK,
+				     RK3588_PLLCON2_K_SHIFT),
 		       pll->reg_base + RK3399_PLLCON(2));
 
 	/* set pll power up */
