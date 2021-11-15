@@ -571,11 +571,9 @@ void ia_css_pipe_get_primary_binarydesc(
 	in_info->res = pipe->config.input_effective_res;
 	in_info->padded_width = in_info->res.width;
 
-#if !defined(HAS_NO_PACKED_RAW_PIXELS)
 	if (pipe->stream->config.pack_raw_pixels)
 		in_info->format = IA_CSS_FRAME_FORMAT_RAW_PACKED;
 	else
-#endif
 		in_info->format = IA_CSS_FRAME_FORMAT_RAW;
 
 	in_info->raw_bit_depth = ia_css_pipe_util_pipe_input_format_bpp(pipe);

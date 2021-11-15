@@ -133,15 +133,11 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 		break;
 	case ATOMISP_INPUT_FORMAT_YUV420_10:		/* odd 4p, 5B, 40bits, even 4p, 10B, 80bits */
 	case ATOMISP_INPUT_FORMAT_RAW_10:		/* 4p, 5B, 40bits */
-#if !defined(HAS_NO_PACKED_RAW_PIXELS)
 		/* The changes will be reverted as soon as RAW
 		 * Buffers are deployed by the 2401 Input System
 		 * in the non-continuous use scenario.
 		 */
 		bits_per_pixel = 10;
-#else
-		bits_per_pixel = 16;
-#endif
 		break;
 	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:	/* 2p, 3B, 24bits */
 	case ATOMISP_INPUT_FORMAT_RAW_12:		/* 2p, 3B, 24bits */
