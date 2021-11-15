@@ -2925,9 +2925,9 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 static int nested_vmx_check_vmcs_link_ptr(struct kvm_vcpu *vcpu,
 					  struct vmcs12 *vmcs12)
 {
-	int r = 0;
-	struct vmcs12 *shadow;
-	struct kvm_host_map map;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct gfn_to_hva_cache *ghc = &vmx->nested.shadow_vmcs12_cache;
+	struct vmcs_hdr hdr;
 
 	if (vmcs12->vmcs_link_pointer == INVALID_GPA)
 		return 0;
@@ -2935,17 +2935,21 @@ static int nested_vmx_check_vmcs_link_ptr(struct kvm_vcpu *vcpu,
 	if (CC(!page_address_valid(vcpu, vmcs12->vmcs_link_pointer)))
 		return -EINVAL;
 
-	if (CC(kvm_vcpu_map(vcpu, gpa_to_gfn(vmcs12->vmcs_link_pointer), &map)))
+	if (ghc->gpa != vmcs12->vmcs_link_pointer &&
+	    CC(kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc,
+					 vmcs12->vmcs_link_pointer, VMCS12_SIZE)))
+                return -EINVAL;
+
+	if (CC(kvm_read_guest_offset_cached(vcpu->kvm, ghc, &hdr,
+					    offsetof(struct vmcs12, hdr),
+					    sizeof(hdr))))
 		return -EINVAL;
 
-	shadow = map.hva;
+	if (CC(hdr.revision_id != VMCS12_REVISION) ||
+	    CC(hdr.shadow_vmcs != nested_cpu_has_shadow_vmcs(vmcs12)))
+		return -EINVAL;
 
-	if (CC(shadow->hdr.revision_id != VMCS12_REVISION) ||
-	    CC(shadow->hdr.shadow_vmcs != nested_cpu_has_shadow_vmcs(vmcs12)))
-		r = -EINVAL;
-
-	kvm_vcpu_unmap(vcpu, &map, false);
-	return r;
+	return 0;
 }
 
 /*
