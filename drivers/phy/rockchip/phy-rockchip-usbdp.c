@@ -328,9 +328,9 @@ static int udphy_lane_enable(struct rockchip_udphy *udphy, int dp_lanes)
 	return ret;
 }
 
-static int udphy_lane_configure(struct rockchip_udphy *udphy)
+static int udphy_dplane_get(struct rockchip_udphy *udphy)
 {
-	int ret, dp_lanes;
+	int dp_lanes;
 
 	switch (udphy->mode) {
 	case UDPHY_MODE_DP:
@@ -346,11 +346,18 @@ static int udphy_lane_configure(struct rockchip_udphy *udphy)
 		break;
 	}
 
+	return dp_lanes;
+}
+
+static int udphy_lane_configure(struct rockchip_udphy *udphy)
+{
+	int ret;
+
 	ret = udphy_dplane_select(udphy);
 	if (ret)
 		return ret;
 
-	return udphy_lane_enable(udphy, dp_lanes);
+	return udphy_lane_enable(udphy, udphy_dplane_get(udphy));
 }
 
 static int upphy_set_typec_default_mapping(struct rockchip_udphy *udphy)
@@ -639,6 +646,7 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
 
+	phy_set_bus_width(phy, udphy_dplane_get(udphy));
 	return udphy_power_on(udphy, UDPHY_MODE_DP);
 }
 
