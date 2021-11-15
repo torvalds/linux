@@ -3553,7 +3553,7 @@ int sock_inuse_get(struct net *net)
 	int cpu, res = 0;
 
 	for_each_possible_cpu(cpu)
-		res += *per_cpu_ptr(net->core.sock_inuse, cpu);
+		res += per_cpu_ptr(net->core.prot_inuse, cpu)->all;
 
 	return res;
 }
@@ -3565,22 +3565,12 @@ static int __net_init sock_inuse_init_net(struct net *net)
 	net->core.prot_inuse = alloc_percpu(struct prot_inuse);
 	if (net->core.prot_inuse == NULL)
 		return -ENOMEM;
-
-	net->core.sock_inuse = alloc_percpu(int);
-	if (net->core.sock_inuse == NULL)
-		goto out;
-
 	return 0;
-
-out:
-	free_percpu(net->core.prot_inuse);
-	return -ENOMEM;
 }
 
 static void __net_exit sock_inuse_exit_net(struct net *net)
 {
 	free_percpu(net->core.prot_inuse);
-	free_percpu(net->core.sock_inuse);
 }
 
 static struct pernet_operations net_inuse_ops = {

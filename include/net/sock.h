@@ -1431,6 +1431,7 @@ proto_memory_pressure(struct proto *prot)
 #ifdef CONFIG_PROC_FS
 #define PROTO_INUSE_NR	64	/* should be enough for the first time */
 struct prot_inuse {
+	int all;
 	int val[PROTO_INUSE_NR];
 };
 /* Called with local bh disabled */
@@ -1442,7 +1443,7 @@ static inline void sock_prot_inuse_add(const struct net *net,
 
 static inline void sock_inuse_add(const struct net *net, int val)
 {
-	this_cpu_add(*net->core.sock_inuse, val);
+	this_cpu_add(net->core.prot_inuse->all, val);
 }
 
 int sock_prot_inuse_get(struct net *net, struct proto *proto);
