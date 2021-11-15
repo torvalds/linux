@@ -1521,6 +1521,8 @@ static int wled_configure(struct wled *wled)
 				return -EINVAL;
 			}
 		}
+
+		cfg->num_strings = string_len;
 	}
 
 	rc = of_property_read_u32(dev->of_node, "qcom,num-strings", &val);
@@ -1531,9 +1533,13 @@ static int wled_configure(struct wled *wled)
 			return -EINVAL;
 		}
 
-		if (string_len > 0 && val > string_len) {
-			dev_err(dev, "qcom,num-strings exceeds qcom,enabled-strings\n");
-			return -EINVAL;
+		if (string_len > 0) {
+			dev_warn(dev, "Only one of qcom,num-strings or qcom,enabled-strings"
+				      " should be set\n");
+			if (val > string_len) {
+				dev_err(dev, "qcom,num-strings exceeds qcom,enabled-strings\n");
+				return -EINVAL;
+			}
 		}
 
 		cfg->num_strings = val;
