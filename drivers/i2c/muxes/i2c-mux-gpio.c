@@ -53,6 +53,7 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 				 struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct device_node *np = dev->of_node;
 	struct device_node *adapter_np;
 	struct i2c_adapter *adapter = NULL;
@@ -60,7 +61,7 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 	unsigned *values;
 	int rc, i = 0;
 
-	if (is_of_node(dev->fwnode)) {
+	if (is_of_node(fwnode)) {
 		if (!np)
 			return -ENODEV;
 
@@ -72,7 +73,7 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 		adapter = of_find_i2c_adapter_by_node(adapter_np);
 		of_node_put(adapter_np);
 
-	} else if (is_acpi_node(dev->fwnode)) {
+	} else if (is_acpi_node(fwnode)) {
 		/*
 		 * In ACPI land the mux should be a direct child of the i2c
 		 * bus it muxes.
@@ -111,7 +112,7 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 	}
 	mux->data.values = values;
 
-	if (fwnode_property_read_u32(dev->fwnode, "idle-state", &mux->data.idle))
+	if (device_property_read_u32(dev, "idle-state", &mux->data.idle))
 		mux->data.idle = I2C_MUX_GPIO_NO_IDLE;
 
 	return 0;
