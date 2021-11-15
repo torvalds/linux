@@ -1868,7 +1868,7 @@ static int bnxt_tc_setup_indr_block_cb(enum tc_setup_type type,
 	struct flow_cls_offload *flower = type_data;
 	struct bnxt *bp = priv->bp;
 
-	if (flower->common.chain_index)
+	if (!tc_cls_can_offload_and_chain0(bp->dev, type_data))
 		return -EOPNOTSUPP;
 
 	switch (type) {
