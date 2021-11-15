@@ -6,6 +6,7 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
@@ -146,7 +147,7 @@ static int rockchip_clk_link_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
 
-	priv->base = devm_platform_ioremap_resource(pdev, 0);
+	priv->base = of_iomap(node, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
