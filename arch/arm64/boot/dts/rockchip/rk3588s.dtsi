@@ -2851,6 +2851,8 @@
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		max-frequency = <200000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdiom1_pins>;
 		power-domains = <&power RK3588_PD_SDIO>;
 		status = "disabled";
 	};
