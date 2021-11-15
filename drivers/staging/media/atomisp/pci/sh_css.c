@@ -1742,9 +1742,8 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 			return err;
 		}
 		fw_explicitly_loaded = false;
-#ifndef ISP2401
+
 		my_css_save.loaded_fw = (struct ia_css_fw *)fw;
-#endif
 	}
 	if (!sh_css_setup_spctrl_config(&sh_css_sp_fw, SP_PROG_NAME, &spctrl_cfg))
 		return -EINVAL;
