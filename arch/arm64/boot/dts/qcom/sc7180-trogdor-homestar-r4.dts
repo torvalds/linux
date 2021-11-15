@@ -15,3 +15,7 @@
 	model = "Google Homestar (rev4+)";
 	compatible = "google,homestar", "qcom,sc7180";
 };
+
+&pp3300_brij_ps8640 {
+	regulator-enable-ramp-delay = <4000>;
+};
