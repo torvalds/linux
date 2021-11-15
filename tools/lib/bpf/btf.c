@@ -610,6 +610,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 		case BTF_KIND_RESTRICT:
 		case BTF_KIND_VAR:
 		case BTF_KIND_DECL_TAG:
+		case BTF_KIND_TYPE_TAG:
 			type_id = t->type;
 			break;
 		case BTF_KIND_ARRAY:
@@ -4023,6 +4024,7 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 	case BTF_KIND_PTR:
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_FUNC:
+	case BTF_KIND_TYPE_TAG:
 		if (cand_type->info != canon_type->info)
 			return 0;
 		return btf_dedup_is_equiv(d, cand_type->type, canon_type->type);
