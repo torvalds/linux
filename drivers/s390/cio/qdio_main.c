@@ -669,8 +669,8 @@ static void qdio_handle_activate_check(struct qdio_irq *irq_ptr,
 		goto no_handler;
 	}
 
-	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE,
-		   q->nr, q->first_to_check, 0, irq_ptr->int_parm);
+	q->handler(irq_ptr->cdev, QDIO_ERROR_ACTIVATE, 0, q->first_to_check,
+		   0, irq_ptr->int_parm);
 no_handler:
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 	/*
