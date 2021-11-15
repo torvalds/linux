@@ -52,6 +52,19 @@ typedef int (*i2c_slave_cb_t)(struct i2c_client *client,
 struct module;
 struct property_entry;
 
+/* SMBus 3.0 extends the maximum block read/write size to 255 (from 32).
+ * The larger size is only supported by some drivers, indicated by
+ * the I2C_FUNC_SMBUS_V3_BLOCK functionality bit.
+ */
+#define I2C_SMBUS_V3_BLOCK_MAX	255	/* As specified in SMBus 3.0 standard */
+
+/* Note compatibility definition in uapi header with 32 byte block */
+union i2c_smbus_data {
+	__u8 byte;
+	__u16 word;
+	__u8 block[I2C_SMBUS_V3_BLOCK_MAX + 1]; /* block[0] is used for length */
+};
+
 #if IS_ENABLED(CONFIG_I2C)
 /* Return the Frequency mode string based on the bus frequency */
 const char *i2c_freq_mode_string(u32 bus_freq_hz);
