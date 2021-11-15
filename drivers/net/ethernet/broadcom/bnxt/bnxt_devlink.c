@@ -360,7 +360,7 @@ bnxt_dl_livepatch_report_err(struct bnxt *bp, struct netlink_ext_ack *extack,
 		NL_SET_ERR_MSG_MOD(extack, "Live patch already applied");
 		break;
 	default:
-		netdev_err(bp->dev, "Unexpected live patch error: %hhd\n", err);
+		netdev_err(bp->dev, "Unexpected live patch error: %d\n", err);
 		NL_SET_ERR_MSG_MOD(extack, "Failed to activate live patch");
 		break;
 	}
