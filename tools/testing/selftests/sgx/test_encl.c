@@ -16,16 +16,16 @@ static void *memcpy(void *dest, const void *src, size_t n)
 	return dest;
 }
 
-static void do_encl_op_put(void *op)
+static void do_encl_op_put_to_buf(void *op)
 {
-	struct encl_op_put *op2 = op;
+	struct encl_op_put_to_buf *op2 = op;
 
 	memcpy(&encl_buffer[0], &op2->value, 8);
 }
 
-static void do_encl_op_get(void *op)
+static void do_encl_op_get_from_buf(void *op)
 {
-	struct encl_op_get *op2 = op;
+	struct encl_op_get_from_buf *op2 = op;
 
 	memcpy(&op2->value, &encl_buffer[0], 8);
 }
@@ -33,8 +33,8 @@ static void do_encl_op_get(void *op)
 void encl_body(void *rdi,  void *rsi)
 {
 	const void (*encl_op_array[ENCL_OP_MAX])(void *) = {
-		do_encl_op_put,
-		do_encl_op_get,
+		do_encl_op_put_to_buf,
+		do_encl_op_get_from_buf,
 	};
 
 	struct encl_op_header *op = (struct encl_op_header *)rdi;
