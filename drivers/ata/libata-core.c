@@ -2031,8 +2031,9 @@ retry:
 			dev->horkage |= ATA_HORKAGE_NO_DMA_LOG;
 			goto retry;
 		}
-		ata_dev_err(dev, "Read log page 0x%02x failed, Emask 0x%x\n",
-			    (unsigned int)page, err_mask);
+		ata_dev_err(dev,
+			    "Read log 0x%02x page 0x%02x failed, Emask 0x%x\n",
+			    (unsigned int)log, (unsigned int)page, err_mask);
 	}
 
 	return err_mask;
