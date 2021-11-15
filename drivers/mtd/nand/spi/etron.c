@@ -78,7 +78,7 @@ static int em73c044vcf_oh_ecc_get_status(struct spinand_device *spinand,
 
 static const struct spinand_info etron_spinand_table[] = {
 	SPINAND_INFO("EM73C044VCF-0H",
-		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x36),
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x36),
 		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
 		     NAND_ECCREQ(4, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
