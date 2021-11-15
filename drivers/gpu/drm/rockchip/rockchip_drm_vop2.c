@@ -214,6 +214,10 @@ struct vop2_power_domain {
 	spinlock_t lock;
 	unsigned int ref_count;
 	bool on;
+	/*
+	 * If the module powered by this power domain was enabled.
+	 */
+	bool module_on;
 	const struct vop2_power_domain_data *data;
 	struct list_head list;
 	struct delayed_work power_off_work;
@@ -1310,7 +1314,7 @@ static void vop2_wait_power_domain_off(struct vop2_power_domain *pd)
 	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, val, 0, 50 * 1000);
 
 	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "wait pd off timeout\n");
+		DRM_DEV_ERROR(vop2->dev, "wait pd%d off timeout\n", ffs(pd->data->id) - 1);
 }
 
 static void vop2_wait_power_domain_on(struct vop2_power_domain *pd)
@@ -1321,7 +1325,7 @@ static void vop2_wait_power_domain_on(struct vop2_power_domain *pd)
 
 	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, !val, 0, 50 * 1000);
 	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "wait pd on timeout\n");
+		DRM_DEV_ERROR(vop2->dev, "wait pd%d on timeout\n", ffs(pd->data->id) - 1);
 }
 
 /*
@@ -1332,11 +1336,11 @@ static void vop2_power_domain_on(struct vop2_power_domain *pd)
 	struct vop2 *vop2 = pd->vop2;
 
 	if (!pd->on) {
+		dev_dbg(vop2->dev, "pd%d on\n", ffs(pd->data->id) - 1);
 		vop2_wait_power_domain_off(pd);
 		VOP_MODULE_SET(vop2, pd->data, pd, 0);
 		vop2_wait_power_domain_on(pd);
 		pd->on = true;
-		dev_dbg(vop2->dev, "pd%d on\n", pd->data->id);
 	}
 }
 
@@ -1347,7 +1351,7 @@ static void vop2_power_domain_off(struct vop2_power_domain *pd)
 {
 	struct vop2 *vop2 = pd->vop2;
 
-	dev_dbg(vop2->dev, "pd%d off\n", pd->data->id);
+	dev_dbg(vop2->dev, "pd%d off\n", ffs(pd->data->id) - 1);
 	pd->on = false;
 	VOP_MODULE_SET(vop2, pd->data, pd, 1);
 }
@@ -1370,7 +1374,24 @@ static void vop2_power_domain_get(struct vop2_power_domain *pd)
 static void vop2_power_domain_put(struct vop2_power_domain *pd)
 {
 	spin_lock(&pd->lock);
-	if (--pd->ref_count == 0) {
+
+	/*
+	 * For a nested power domain(PD_Cluster0 is the parent of PD_CLuster1/2/3)
+	 * the parent powe domain must be enabled before child power domain
+	 * is on.
+	 *
+	 * So we may met this condition: Cluster0 is not enabled, but PD_Cluster0
+	 * must enabled as one of the child PD_CLUSTER1/2/3 is enabled.
+	 * when all child PD is disabled, we want disable the parent
+	 * PD(PD_CLUSTER0), but as module CLUSTER0 is not enabled,
+	 * the turn down configuration will never take effect.
+	 * so we will see a "wait pd0 off timeout" log when we
+	 * turn on PD_CLUSTER0 next time.
+	 *
+	 * So don't try to turn off a power domain when the module is not
+	 * enabled.
+	 */
+	if (--pd->ref_count == 0 && pd->module_on) {
 		if (pd->vop2->data->delayed_pd)
 			schedule_delayed_work(&pd->power_off_work, msecs_to_jiffies(2500));
 		else
@@ -1401,8 +1422,10 @@ static void vop2_power_domain_off_work(struct work_struct *work)
 static void vop2_win_enable(struct vop2_win *win)
 {
 	if (!win->enabled) {
-		if (win->pd)
+		if (win->pd) {
 			vop2_power_domain_get(win->pd);
+			win->pd->module_on = true;
+		}
 		win->enabled = true;
 	}
 }
@@ -1450,8 +1473,10 @@ static void vop2_win_disable(struct vop2_win *win)
 		 */
 		if (!win->parent && (win->feature & WIN_FEATURE_MULTI_AREA))
 			vop2_win_multi_area_disable(win);
-		if (win->pd)
+		if (win->pd) {
 			vop2_power_domain_put(win->pd);
+			win->pd->module_on = false;
+		}
 		win->enabled = false;
 	}
 }
@@ -2982,15 +3007,6 @@ static void rk3588_vop2_regsbak(struct vop2 *vop2)
 		vop2->regsbak[i] = base[i];
 }
 
-static void vop2_power_domain_init(struct vop2 *vop2)
-{
-	struct vop2_power_domain *pd, *n;
-
-	list_for_each_entry_safe(pd, n, &vop2->pd_list_head, list) {
-		vop2_power_domain_on(pd);
-	}
-}
-
 static void vop2_initial(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -3018,8 +3034,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		if (vop2_soc_is_rk3566())
 			VOP_CTRL_SET(vop2, otp_en, 1);
-
-		vop2_power_domain_init(vop2);
 
 		/* dsc must deassert rst before its register can accessed */
 		for (i = 0; i < vop2_data->nr_dscs; i++) {
@@ -3059,7 +3073,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		vop2_layer_map_initial(vop2, current_vp_id);
 		vop2_axi_irqs_enable(vop2);
-
 		vop2->is_enabled = true;
 	}
 
@@ -7796,6 +7809,7 @@ static int vop2_pd_data_init(struct vop2 *vop2)
 			return -ENOMEM;
 		pd->vop2 = vop2;
 		pd->data = pd_data;
+		pd->module_on = false;
 		spin_lock_init(&pd->lock);
 		list_add_tail(&pd->list, &vop2->pd_list_head);
 		INIT_DELAYED_WORK(&pd->power_off_work, vop2_power_domain_off_work);

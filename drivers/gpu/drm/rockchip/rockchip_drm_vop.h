@@ -113,9 +113,9 @@ enum vop2_win_dly_mode {
 #define VOP2_PD_CLUSTER1	BIT(1)
 #define VOP2_PD_CLUSTER2	BIT(2)
 #define VOP2_PD_CLUSTER3	BIT(3)
-#define VOP2_PD_ESMART0		BIT(4)
 #define VOP2_PD_DSC_8K		BIT(5)
 #define VOP2_PD_DSC_4K		BIT(6)
+#define VOP2_PD_ESMART0		BIT(7)
 
 /*
  * vop2 submem power gate,
