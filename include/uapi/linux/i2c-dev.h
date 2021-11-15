@@ -39,12 +39,14 @@
 
 
 /* This is the structure as used in the I2C_SMBUS ioctl call */
+#ifndef __KERNEL__
 struct i2c_smbus_ioctl_data {
 	__u8 read_write;
 	__u8 command;
 	__u32 size;
 	union i2c_smbus_data __user *data;
 };
+#endif
 
 /* This is the structure as used in the I2C_RDWR ioctl call */
 struct i2c_rdwr_ioctl_data {
