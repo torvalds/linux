@@ -20,6 +20,29 @@ enum {
 	MLO_AN_PHY = 0,	/* Conventional PHY */
 	MLO_AN_FIXED,	/* Fixed-link mode */
 	MLO_AN_INBAND,	/* In-band protocol */
+
+	MAC_SYM_PAUSE	= BIT(0),
+	MAC_ASYM_PAUSE	= BIT(1),
+	MAC_10HD	= BIT(2),
+	MAC_10FD	= BIT(3),
+	MAC_10		= MAC_10HD | MAC_10FD,
+	MAC_100HD	= BIT(4),
+	MAC_100FD	= BIT(5),
+	MAC_100		= MAC_100HD | MAC_100FD,
+	MAC_1000HD	= BIT(6),
+	MAC_1000FD	= BIT(7),
+	MAC_1000	= MAC_1000HD | MAC_1000FD,
+	MAC_2500FD	= BIT(8),
+	MAC_5000FD	= BIT(9),
+	MAC_10000FD	= BIT(10),
+	MAC_20000FD	= BIT(11),
+	MAC_25000FD	= BIT(12),
+	MAC_40000FD	= BIT(13),
+	MAC_50000FD	= BIT(14),
+	MAC_56000FD	= BIT(15),
+	MAC_100000FD	= BIT(16),
+	MAC_200000FD	= BIT(17),
+	MAC_400000FD	= BIT(18),
 };
 
 static inline bool phylink_autoneg_inband(unsigned int mode)
@@ -69,6 +92,7 @@ enum phylink_op_type {
  *		     if MAC link is at %MLO_AN_FIXED mode.
  * @supported_interfaces: bitmap describing which PHY_INTERFACE_MODE_xxx
  *                        are supported by the MAC/PCS.
+ * @mac_capabilities: MAC pause/speed/duplex capabilities.
  */
 struct phylink_config {
 	struct device *dev;
@@ -79,6 +103,7 @@ struct phylink_config {
 	void (*get_fixed_state)(struct phylink_config *config,
 				struct phylink_link_state *state);
 	DECLARE_PHY_INTERFACE_MASK(supported_interfaces);
+	unsigned long mac_capabilities;
 };
 
 /**
@@ -441,6 +466,12 @@ void pcs_an_restart(struct phylink_pcs *pcs);
 void pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 		 phy_interface_t interface, int speed, int duplex);
 #endif
+
+void phylink_get_linkmodes(unsigned long *linkmodes, phy_interface_t interface,
+			   unsigned long mac_capabilities);
+void phylink_generic_validate(struct phylink_config *config,
+			      unsigned long *supported,
+			      struct phylink_link_state *state);
 
 struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
 			       phy_interface_t iface,
