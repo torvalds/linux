@@ -312,7 +312,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @qib_rflags: rflags to set
  * @no_input_qs: number of input queues
  * @no_output_qs: number of output queues
- * @input_handler: handler to be called for input queues
+ * @input_handler: handler to be called for input queues, and device-wide errors
  * @output_handler: handler to be called for output queues
  * @irq_poll: Data IRQ polling handler
  * @scan_threshold: # of in-use buffers that triggers scan on output queue

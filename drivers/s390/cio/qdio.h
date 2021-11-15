@@ -240,6 +240,7 @@ struct qdio_irq {
 
 	struct qdio_ssqd_desc ssqd_desc;
 	void (*orig_handler) (struct ccw_device *, unsigned long, struct irb *);
+	qdio_handler_t (*error_handler);
 
 	int perf_stat_enabled;
 

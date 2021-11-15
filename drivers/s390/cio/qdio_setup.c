@@ -362,6 +362,7 @@ void qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	irq_ptr->debugfs_dev = NULL;
 	irq_ptr->sch_token = irq_ptr->perf_stat_enabled = 0;
 	irq_ptr->state = QDIO_IRQ_STATE_INACTIVE;
+	irq_ptr->error_handler = init_data->input_handler;
 
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;

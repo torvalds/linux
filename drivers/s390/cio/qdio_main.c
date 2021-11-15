@@ -654,24 +654,18 @@ static void qdio_handle_activate_check(struct qdio_irq *irq_ptr,
 				       unsigned long intparm, int cstat,
 				       int dstat)
 {
-	struct qdio_q *q;
+	unsigned int first_to_check = 0;
 
 	DBF_ERROR("%4x ACT CHECK", irq_ptr->schid.sch_no);
 	DBF_ERROR("intp :%lx", intparm);
 	DBF_ERROR("ds: %2x cs:%2x", dstat, cstat);
 
-	if (irq_ptr->nr_input_qs) {
-		q = irq_ptr->input_qs[0];
-	} else if (irq_ptr->nr_output_qs) {
-		q = irq_ptr->output_qs[0];
-	} else {
-		dump_stack();
-		goto no_handler;
-	}
+	/* zfcp wants this: */
+	if (irq_ptr->nr_input_qs)
+		first_to_check = irq_ptr->input_qs[0]->first_to_check;
 
-	q->handler(irq_ptr->cdev, QDIO_ERROR_ACTIVATE, 0, q->first_to_check,
-		   0, irq_ptr->int_parm);
-no_handler:
+	irq_ptr->error_handler(irq_ptr->cdev, QDIO_ERROR_ACTIVATE, 0,
+			       first_to_check, 0, irq_ptr->int_parm);
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 	/*
 	 * In case of z/VM LGR (Live Guest Migration) QDIO recovery will happen.
@@ -996,8 +990,11 @@ int qdio_establish(struct ccw_device *cdev,
 	    init_data->no_output_qs > irq_ptr->max_output_qs)
 		return -EINVAL;
 
-	if ((init_data->no_input_qs && !init_data->input_handler) ||
-	    (init_data->no_output_qs && !init_data->output_handler))
+	/* Needed as error_handler: */
+	if (!init_data->input_handler)
+		return -EINVAL;
+
+	if (init_data->no_output_qs && !init_data->output_handler)
 		return -EINVAL;
 
 	if (!init_data->input_sbal_addr_array ||
