@@ -632,13 +632,7 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 			void *svc_sp)
 {
 	bool signal_helper = false;
-	unsigned long va_start;
 
-#ifdef CONFIG_ARM64
-	va_start = PAGE_END;
-#else
-	va_start = PAGE_OFFSET;
-#endif
 	if (!strcmp(cmd, "help") || !strcmp(cmd, "?")) {
 		fiq_debugger_help(state);
 	} else if (!strcmp(cmd, "pc")) {
@@ -649,9 +643,14 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 		fiq_debugger_dump_allregs(&state->output, regs);
 #ifndef CONFIG_FIQ_DEBUGGER_MODULE
 	} else if (!strcmp(cmd, "bt")) {
+		/*
+		 * ARM64:
+		 * Cpu is at ELx(1 or 2), but EL0_SP(svc_sp) may be user space.
+		 * If EL0_SP.63 is 0, use TTBR0.
+		 */
 		if (user_mode((struct pt_regs *)regs) ||
-		    ((unsigned long)svc_sp < va_start) ||
-		    ((unsigned long)svc_sp > -256UL))
+		    (IS_ENABLED(CONFIG_ARM64) && (((unsigned long)svc_sp & 0x8000000000000000) == 0)) ||
+		    (IS_ENABLED(CONFIG_ARM) && (((unsigned long)svc_sp < PAGE_OFFSET) || ((unsigned long)svc_sp > -256UL))))
 			fiq_debugger_printf(&state->output, "User mode\n");
 		else
 			fiq_debugger_dump_stacktrace(&state->output, regs,
