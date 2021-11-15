@@ -96,9 +96,6 @@
 
 #include "xnr/xnr_3.0/ia_css_xnr3.host.h"
 
-#if defined(HAS_OUTPUT_SYSTEM)
-#include <components/output_system/sc_output_system_1.0/host/output_system.host.h>
-#endif
 
 #include "sh_css_frac.h"
 #include "ia_css_bufq.h"

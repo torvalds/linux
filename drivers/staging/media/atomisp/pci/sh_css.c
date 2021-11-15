@@ -5507,7 +5507,6 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 	(void)continuous;
 #endif
 
-#if !defined(HAS_OUTPUT_SYSTEM)
 	if (pipe->enable_viewfinder[IA_CSS_PIPE_OUTPUT_STAGE_0] && need_vf_pp) {
 		struct ia_css_binary_descr vf_pp_descr;
 
@@ -5533,7 +5532,6 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 		if (err)
 			return err;
 	}
-#endif
 
 	err = allocate_delay_frames(pipe);
 
