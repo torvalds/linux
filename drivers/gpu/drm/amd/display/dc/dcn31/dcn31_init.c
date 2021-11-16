@@ -137,6 +137,7 @@ static const struct hwseq_private_funcs dcn31_private_funcs = {
 	.dccg_init = dcn20_dccg_init,
 	.set_blend_lut = dcn30_set_blend_lut,
 	.set_shaper_3dlut = dcn20_set_shaper_3dlut,
+	.setup_hpo_hw_control = dcn31_setup_hpo_hw_control,
 };
 
 void dcn31_hw_sequencer_construct(struct dc *dc)

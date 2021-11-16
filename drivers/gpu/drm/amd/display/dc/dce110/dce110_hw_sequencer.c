@@ -1244,6 +1244,12 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 #endif
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISCONNECT_DIG_FE_BE);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (dc->hwseq->funcs.setup_hpo_hw_control && is_dp_128b_132b_signal(pipe_ctx))
+		dc->hwseq->funcs.setup_hpo_hw_control(dc->hwseq, false);
+#endif
+
 }
 
 void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
