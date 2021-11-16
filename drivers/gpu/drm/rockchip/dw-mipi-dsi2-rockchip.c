@@ -786,10 +786,7 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 
 static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 {
-	regmap_write(dsi2->regmap, DSI2_PWR_UP, RESET);
-
 	dw_mipi_dsi2_ipi_set(dsi2);
-	regmap_write(dsi2->regmap, DSI2_PWR_UP, POWER_UP);
 
 	if (dsi2->mode_flags & MIPI_DSI_MODE_VIDEO)
 		dw_mipi_dsi2_set_vid_mode(dsi2);
