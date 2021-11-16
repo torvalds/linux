@@ -6,10 +6,11 @@
 #ifndef __INTEL_DISPLAY_POWER_H__
 #define __INTEL_DISPLAY_POWER_H__
 
-#include "intel_display.h"
 #include "intel_runtime_pm.h"
 #include "i915_reg.h"
 
+enum dpio_channel;
+enum dpio_phy;
 struct drm_i915_private;
 struct i915_power_well;
 struct intel_encoder;
