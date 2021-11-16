@@ -1205,12 +1205,14 @@
 
 					power-domain@RK3588_PD_NPU1 {
 						reg = <RK3588_PD_NPU1>;
-						clocks = <&cru HCLK_NPU_ROOT>;
+						clocks = <&cru HCLK_NPU_ROOT>,
+							 <&cru PCLK_NPU_ROOT>;
 						pm_qos = <&qos_npu1>;
 					};
 					power-domain@RK3588_PD_NPU2 {
 						reg = <RK3588_PD_NPU2>;
-						clocks = <&cru HCLK_NPU_ROOT>;
+						clocks = <&cru HCLK_NPU_ROOT>,
+							 <&cru PCLK_NPU_ROOT>;
 						pm_qos = <&qos_npu2>;
 					};
 				};
@@ -1219,7 +1221,9 @@
 			power-domain@RK3588_PD_GPU {
 				reg = <RK3588_PD_GPU>;
 				clocks = <&cru PCLK_GPU_ROOT>,
-					 <&cru CLK_GPU>;
+					 <&cru CLK_GPU>,
+					 <&cru CLK_GPU_COREGROUP>,
+					 <&cru CLK_GPU_STACKS>;
 				pm_qos = <&qos_gpu_m0>,
 					 <&qos_gpu_m1>,
 					 <&qos_gpu_m2>,
@@ -1234,28 +1238,36 @@
 				power-domain@RK3588_PD_RKVDEC0 {
 					reg = <RK3588_PD_RKVDEC0>;
 					clocks = <&cru HCLK_RKVDEC0>,
-						 <&cru HCLK_VDPU_ROOT>;
+						 <&cru HCLK_VDPU_ROOT>,
+						 <&cru ACLK_VDPU_ROOT>,
+						 <&cru ACLK_RKVDEC0>,
+						 <&cru ACLK_RKVDEC_CCU>;
 					pm_qos = <&qos_rkvdec0>;
 				};
 				power-domain@RK3588_PD_RKVDEC1 {
 					reg = <RK3588_PD_RKVDEC1>;
 					clocks = <&cru HCLK_RKVDEC1>,
-						 <&cru HCLK_VDPU_ROOT>;
+						 <&cru HCLK_VDPU_ROOT>,
+						 <&cru ACLK_VDPU_ROOT>,
+						 <&cru ACLK_RKVDEC1>;
 					pm_qos = <&qos_rkvdec1>;
 				};
 				power-domain@RK3588_PD_VENC0 {
 					reg = <RK3588_PD_VENC0>;
 					#address-cells = <1>;
 					#size-cells = <0>;
-					clocks = <&cru HCLK_RKVENC0_ROOT>;
+					clocks = <&cru HCLK_RKVENC0>,
+						 <&cru ACLK_RKVENC0>;
 					pm_qos = <&qos_rkvenc0_m0ro>,
 						 <&qos_rkvenc0_m1ro>,
 						 <&qos_rkvenc0_m2wo>;
 
 					power-domain@RK3588_PD_VENC1 {
 						reg = <RK3588_PD_VENC1>;
-						clocks = <&cru HCLK_RKVENC1_ROOT>,
-							 <&cru HCLK_RKVENC0_ROOT>;
+						clocks = <&cru HCLK_RKVENC1>,
+							 <&cru HCLK_RKVENC0>,
+							 <&cru ACLK_RKVENC0>,
+							 <&cru ACLK_RKVENC1>;
 						pm_qos = <&qos_rkvenc1_m0ro>,
 							 <&qos_rkvenc1_m1ro>,
 							 <&qos_rkvenc1_m2wo>;
@@ -1267,7 +1279,24 @@
 				reg = <RK3588_PD_VDPU>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&cru HCLK_VDPU_ROOT>;
+				clocks = <&cru HCLK_VDPU_ROOT>,
+					 <&cru ACLK_VDPU_LOW_ROOT>,
+					 <&cru ACLK_VDPU_ROOT>,
+					 <&cru ACLK_JPEG_DECODER_ROOT>,
+					 <&cru ACLK_IEP2P0>,
+					 <&cru HCLK_IEP2P0>,
+					 <&cru ACLK_JPEG_ENCODER0>,
+					 <&cru HCLK_JPEG_ENCODER0>,
+					 <&cru ACLK_JPEG_ENCODER1>,
+					 <&cru HCLK_JPEG_ENCODER1>,
+					 <&cru ACLK_JPEG_ENCODER2>,
+					 <&cru HCLK_JPEG_ENCODER2>,
+					 <&cru ACLK_JPEG_ENCODER3>,
+					 <&cru HCLK_JPEG_ENCODER3>,
+					 <&cru ACLK_JPEG_DECODER>,
+					 <&cru HCLK_JPEG_DECODER>,
+					 <&cru ACLK_RGA2>,
+					 <&cru HCLK_RGA2>;
 				pm_qos = <&qos_iep>,
 					 <&qos_jpeg_dec>,
 					 <&qos_jpeg_enc0>,
@@ -1279,25 +1308,30 @@
 
 				power-domain@RK3588_PD_AV1 {
 					reg = <RK3588_PD_AV1>;
-					clocks = <&cru PCLK_AV1_ROOT>,
+					clocks = <&cru PCLK_AV1>,
+						 <&cru ACLK_AV1>,
 						 <&cru HCLK_VDPU_ROOT>;
 					pm_qos = <&qos_av1>;
 				};
 				power-domain@RK3588_PD_RKVDEC0 {
 					reg = <RK3588_PD_RKVDEC0>;
 					clocks = <&cru HCLK_RKVDEC0>,
-						 <&cru HCLK_VDPU_ROOT>;
+						 <&cru HCLK_VDPU_ROOT>,
+						 <&cru ACLK_VDPU_ROOT>,
+						 <&cru ACLK_RKVDEC0>;
 					pm_qos = <&qos_rkvdec0>;
 				};
 				power-domain@RK3588_PD_RKVDEC1 {
 					reg = <RK3588_PD_RKVDEC1>;
 					clocks = <&cru HCLK_RKVDEC1>,
-						 <&cru HCLK_VDPU_ROOT>;
+						 <&cru HCLK_VDPU_ROOT>,
+						 <&cru ACLK_VDPU_ROOT>;
 					pm_qos = <&qos_rkvdec1>;
 				};
 				power-domain@RK3588_PD_RGA30 {
 					reg = <RK3588_PD_RGA30>;
-					clocks = <&cru HCLK_VDPU_ROOT>;
+					clocks = <&cru ACLK_RGA3_0>,
+						 <&cru HCLK_RGA3_0>;
 					pm_qos = <&qos_rga3_0>;
 				};
 			};
@@ -1313,7 +1347,11 @@
 				power-domain@RK3588_PD_VO0 {
 					reg = <RK3588_PD_VO0>;
 					clocks = <&cru PCLK_VO0_ROOT>,
-						 <&cru HCLK_VO0_ROOT>,
+						 <&cru PCLK_VO0_S_ROOT>,
+						 <&cru HCLK_VO0_S_ROOT>,
+						 <&cru ACLK_VO0_ROOT>,
+						 <&cru HCLK_HDCP0>,
+						 <&cru ACLK_HDCP0>,
 						 <&cru HCLK_VOP_ROOT>;
 					pm_qos = <&qos_hdcp0>;
 				};
@@ -1321,7 +1359,11 @@
 			power-domain@RK3588_PD_VO1 {
 				reg = <RK3588_PD_VO1>;
 				clocks = <&cru PCLK_VO1_ROOT>,
-					 <&cru HCLK_VO1_ROOT>,
+					 <&cru PCLK_VO1_S_ROOT>,
+					 <&cru HCLK_VO1_S_ROOT>,
+					 <&cru HCLK_HDCP1>,
+					 <&cru ACLK_HDCP1>,
+					 <&cru ACLK_HDMIRX_ROOT>,
 					 <&cru HCLK_VO1USB_TOP_ROOT>;
 				pm_qos = <&qos_hdcp1>,
 					 <&qos_hdmirx>;
@@ -1331,7 +1373,11 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&cru HCLK_VI_ROOT>,
-					 <&cru PCLK_VI_ROOT>;
+					 <&cru PCLK_VI_ROOT>,
+					 <&cru HCLK_ISP0>,
+					 <&cru ACLK_ISP0>,
+					 <&cru HCLK_VICAP>,
+					 <&cru ACLK_VICAP>;
 				pm_qos = <&qos_isp0_mro>,
 					 <&qos_isp0_mwo>,
 					 <&qos_vicap_m0>,
@@ -1339,28 +1385,37 @@
 
 				power-domain@RK3588_PD_ISP1 {
 					reg = <RK3588_PD_ISP1>;
-					clocks = <&cru HCLK_ISP1_ROOT>,
+					clocks = <&cru HCLK_ISP1>,
+						 <&cru ACLK_ISP1>,
 						 <&cru HCLK_VI_ROOT>;
 					pm_qos = <&qos_isp1_mwo>,
 						 <&qos_isp1_mro>;
 				};
 				power-domain@RK3588_PD_FEC {
 					reg = <RK3588_PD_FEC>;
-					clocks = <&cru HCLK_VI_ROOT>;
+					clocks = <&cru HCLK_FISHEYE0>,
+						 <&cru ACLK_FISHEYE0>,
+						 <&cru HCLK_FISHEYE1>,
+						 <&cru ACLK_FISHEYE1>;
 					pm_qos = <&qos_fisheye0>,
 						 <&qos_fisheye1>;
 				};
 			};
 			power-domain@RK3588_PD_RGA31 {
 				reg = <RK3588_PD_RGA31>;
-				clocks = <&cru HCLK_RGA3_ROOT>;
+				clocks = <&cru HCLK_RGA3_1>,
+					 <&cru ACLK_RGA3_1>;
 				pm_qos = <&qos_rga3_1>;
 			};
 			power-domain@RK3588_PD_USB {
 				reg = <RK3588_PD_USB>;
-				clocks = <&cru HCLK_USB_ROOT>,
+				clocks = <&cru PCLK_PHP_ROOT>,
 					 <&cru ACLK_USB_ROOT>,
-					 <&cru HCLK_VO1USB_TOP_ROOT>;
+					 <&cru HCLK_USB_ROOT>,
+					 <&cru HCLK_HOST0>,
+					 <&cru HCLK_HOST_ARB0>,
+					 <&cru HCLK_HOST1>,
+					 <&cru HCLK_HOST_ARB1>;
 				pm_qos = <&qos_usb3_0>,
 					 <&qos_usb3_1>,
 					 <&qos_usb2host_0>,
@@ -1371,8 +1426,10 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&cru PCLK_PHP_ROOT>,
-					 <&cru ACLK_PCIE_ROOT>,
-					 <&cru ACLK_PHP_ROOT>;
+					 <&cru ACLK_MMU_PCIE>,
+					 <&cru ACLK_MMU_PHP>,
+					 <&cru ACLK_PCIE_BRIDGE>,
+					 <&cru ACLK_PHP_GIC_ITS>;
 				pm_qos = <&qos_gic600_m0>,
 					 <&qos_gic600_m1>,
 					 <&qos_mmu600pcie_tcu>,
@@ -1381,9 +1438,15 @@
 
 				power-domain@RK3588_PD_GMAC {
 					reg = <RK3588_PD_GMAC>;
+					clocks = <&cru PCLK_PHP_ROOT>,
+						 <&cru ACLK_PCIE_ROOT>,
+						 <&cru ACLK_PHP_ROOT>;
 				};
 				power-domain@RK3588_PD_PCIE {
 					reg = <RK3588_PD_PCIE>;
+					clocks = <&cru PCLK_PHP_ROOT>,
+						 <&cru ACLK_PCIE_ROOT>,
+						 <&cru ACLK_PHP_ROOT>;
 				};
 			};
 			power-domain@RK3588_PD_NVM {
@@ -1393,7 +1456,10 @@
 
 				power-domain@RK3588_PD_NVM0 {
 					reg = <RK3588_PD_NVM0>;
-					clocks = <&cru HCLK_NVM_ROOT>;
+					clocks = <&cru HCLK_EMMC>,
+						 <&cru ACLK_EMMC>,
+						 <&cru HCLK_SFC>,
+						 <&cru HCLK_SFC_XIP>;
 					pm_qos = <&qos_emmc>,
 						 <&qos_fspi>;
 				};
@@ -1406,6 +1472,8 @@
 			};
 			power-domain@RK3588_PD_AUDIO {
 				reg = <RK3588_PD_AUDIO>;
+				clocks = <&cru HCLK_AUDIO_ROOT>,
+					 <&cru PCLK_AUDIO_ROOT>;
 			};
 			power-domain@RK3588_PD_SDMMC {
 				reg = <RK3588_PD_SDMMC>;
@@ -1873,7 +1941,7 @@
 		reg = <0x0 0xfdc38700 0x0 0x40>, <0x0 0xfdc38740 0x0 0x40>;
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_rkvdec0_mmu";
-		locks = <&cru ACLK_RKVDEC0>, <&cru HCLK_RKVDEC0>;
+		clocks = <&cru ACLK_RKVDEC0>, <&cru HCLK_RKVDEC0>;
 		clock-names = "aclk", "iface";
 		rockchip,disable-mmu-reset;
 		rockchip,enable-cmd-retry;
@@ -3099,6 +3167,7 @@
 			 <&cru TMCLK_EMMC>;
 		clock-names = "core", "bus", "axi", "block", "timer";
 		max-frequency = <200000000>;
+		power-domains = <&power RK3588_PD_NVM0>;
 		status = "disabled";
 	};
 
