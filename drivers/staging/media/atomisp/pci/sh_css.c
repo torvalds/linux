@@ -20,6 +20,8 @@
 
 #include "hmm.h"
 
+#include "atomisp_internal.h"
+
 #include "ia_css.h"
 #include "sh_css_hrt.h"		/* only for file 2 MIPI */
 #include "ia_css_buffer.h"
@@ -2286,7 +2288,9 @@ ia_css_uninit(void)
 	sh_css_params_free_default_gdc_lut();
 
 	/* TODO: JB: implement decent check and handling of freeing mipi frames */
-	//assert(ref_count_mipi_allocation == 0); //mipi frames are not freed
+	if (!mipi_is_free())
+		dev_warn(atomisp_dev, "mipi frames are not freed.\n");
+
 	/* cleanup generic data */
 	sh_css_params_uninit();
 	ia_css_refcount_uninit();

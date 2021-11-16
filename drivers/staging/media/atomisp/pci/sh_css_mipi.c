@@ -261,6 +261,17 @@ mipi_init(void)
 		ref_count_mipi_allocation[i] = 0;
 }
 
+bool mipi_is_free(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < N_CSI_PORTS; i++)
+		if (ref_count_mipi_allocation[i])
+			return false;
+
+	return true;
+}
+
 int
 calculate_mipi_buff_size(
     struct ia_css_stream_config *stream_cfg,
