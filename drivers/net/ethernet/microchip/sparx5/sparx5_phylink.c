@@ -30,7 +30,6 @@ static void sparx5_phylink_validate(struct phylink_config *config,
 				    unsigned long *supported,
 				    struct phylink_link_state *state)
 {
-	struct sparx5_port *port = netdev_priv(to_net_dev(config->dev));
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
 	phylink_set(mask, Autoneg);
@@ -40,34 +39,23 @@ static void sparx5_phylink_validate(struct phylink_config *config,
 
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_5GBASER:
+		phylink_set(mask, 5000baseT_Full);
+		break;
+
 	case PHY_INTERFACE_MODE_10GBASER:
+		phylink_set(mask, 10000baseT_Full);
+		phylink_set(mask, 10000baseCR_Full);
+		phylink_set(mask, 10000baseSR_Full);
+		phylink_set(mask, 10000baseLR_Full);
+		phylink_set(mask, 10000baseLRM_Full);
+		phylink_set(mask, 10000baseER_Full);
+		break;
+
 	case PHY_INTERFACE_MODE_25GBASER:
-	case PHY_INTERFACE_MODE_NA:
-		if (port->conf.bandwidth == SPEED_5000)
-			phylink_set(mask, 5000baseT_Full);
-		if (port->conf.bandwidth == SPEED_10000) {
-			phylink_set(mask, 5000baseT_Full);
-			phylink_set(mask, 10000baseT_Full);
-			phylink_set(mask, 10000baseCR_Full);
-			phylink_set(mask, 10000baseSR_Full);
-			phylink_set(mask, 10000baseLR_Full);
-			phylink_set(mask, 10000baseLRM_Full);
-			phylink_set(mask, 10000baseER_Full);
-		}
-		if (port->conf.bandwidth == SPEED_25000) {
-			phylink_set(mask, 5000baseT_Full);
-			phylink_set(mask, 10000baseT_Full);
-			phylink_set(mask, 10000baseCR_Full);
-			phylink_set(mask, 10000baseSR_Full);
-			phylink_set(mask, 10000baseLR_Full);
-			phylink_set(mask, 10000baseLRM_Full);
-			phylink_set(mask, 10000baseER_Full);
-			phylink_set(mask, 25000baseCR_Full);
-			phylink_set(mask, 25000baseSR_Full);
-		}
-		if (state->interface != PHY_INTERFACE_MODE_NA)
-			break;
-		fallthrough;
+		phylink_set(mask, 25000baseCR_Full);
+		phylink_set(mask, 25000baseSR_Full);
+		break;
+
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
 		phylink_set(mask, 10baseT_Half);
@@ -76,21 +64,18 @@ static void sparx5_phylink_validate(struct phylink_config *config,
 		phylink_set(mask, 100baseT_Full);
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
-		if (state->interface != PHY_INTERFACE_MODE_NA)
-			break;
-		fallthrough;
-	case PHY_INTERFACE_MODE_1000BASEX:
-	case PHY_INTERFACE_MODE_2500BASEX:
-		if (state->interface != PHY_INTERFACE_MODE_2500BASEX) {
-			phylink_set(mask, 1000baseT_Full);
-			phylink_set(mask, 1000baseX_Full);
-		}
-		if (state->interface == PHY_INTERFACE_MODE_2500BASEX ||
-		    state->interface == PHY_INTERFACE_MODE_NA) {
-			phylink_set(mask, 2500baseT_Full);
-			phylink_set(mask, 2500baseX_Full);
-		}
 		break;
+
+	case PHY_INTERFACE_MODE_1000BASEX:
+		phylink_set(mask, 1000baseT_Full);
+		phylink_set(mask, 1000baseX_Full);
+		break;
+
+	case PHY_INTERFACE_MODE_2500BASEX:
+		phylink_set(mask, 2500baseT_Full);
+		phylink_set(mask, 2500baseX_Full);
+		break;
+
 	default:
 		linkmode_zero(supported);
 		return;
