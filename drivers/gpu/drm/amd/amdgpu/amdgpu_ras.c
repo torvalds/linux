@@ -1935,9 +1935,11 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 	if (!con || !con->eh_data)
 		return 0;
 
+	mutex_lock(&con->recovery_lock);
 	control = &con->eeprom_control;
 	data = con->eh_data;
 	save_count = data->count - control->ras_num_recs;
+	mutex_unlock(&con->recovery_lock);
 	/* only new entries are saved */
 	if (save_count > 0) {
 		if (amdgpu_ras_eeprom_append(control,
