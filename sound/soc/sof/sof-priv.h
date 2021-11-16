@@ -326,6 +326,10 @@ struct snd_sof_dfsentry {
 #if ENABLE_DEBUGFS_CACHEBUF
 	char *cache_buf; /* buffer to cache the contents of debugfs memory */
 #endif
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR)
+	void *msg_inject_tx;
+	void *msg_inject_rx;
+#endif
 	struct snd_sof_dev *sdev;
 	struct list_head list;  /* list in sdev dfsentry list */
 	union {

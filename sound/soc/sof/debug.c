@@ -336,6 +336,104 @@ static int sof_debug_ipc_flood_test(struct snd_sof_dev *sdev,
 }
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR)
+static ssize_t msg_inject_read(struct file *file, char __user *buffer,
+			       size_t count, loff_t *ppos)
+{
+	struct snd_sof_dfsentry *dfse = file->private_data;
+	struct sof_ipc_reply *rhdr = dfse->msg_inject_rx;
+
+	if (!rhdr->hdr.size || !count || *ppos)
+		return 0;
+
+	if (count > rhdr->hdr.size)
+		count = rhdr->hdr.size;
+
+	if (copy_to_user(buffer, dfse->msg_inject_rx, count))
+		return -EFAULT;
+
+	*ppos += count;
+	return count;
+}
+
+static ssize_t msg_inject_write(struct file *file, const char __user *buffer,
+				size_t count, loff_t *ppos)
+{
+	struct snd_sof_dfsentry *dfse = file->private_data;
+	struct snd_sof_dev *sdev = dfse->sdev;
+	struct sof_ipc_cmd_hdr *hdr = dfse->msg_inject_tx;
+	size_t size;
+	int ret, err;
+
+	if (*ppos)
+		return 0;
+
+	size = simple_write_to_buffer(dfse->msg_inject_tx, SOF_IPC_MSG_MAX_SIZE,
+				      ppos, buffer, count);
+	if (size != count)
+		return size > 0 ? -EFAULT : size;
+
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0 && ret != -EACCES) {
+		dev_err_ratelimited(sdev->dev, "%s: DSP resume failed: %d\n",
+				    __func__, ret);
+		pm_runtime_put_noidle(sdev->dev);
+		goto out;
+	}
+
+	/* send the message */
+	memset(dfse->msg_inject_rx, 0, SOF_IPC_MSG_MAX_SIZE);
+	ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd, dfse->msg_inject_tx, count,
+				 dfse->msg_inject_rx, SOF_IPC_MSG_MAX_SIZE);
+
+	pm_runtime_mark_last_busy(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err_ratelimited(sdev->dev, "%s: DSP idle failed: %d\n",
+				    __func__, err);
+
+	/* return size if test is successful */
+	if (ret >= 0)
+		ret = size;
+
+out:
+	return ret;
+}
+
+static const struct file_operations msg_inject_fops = {
+	.open = simple_open,
+	.read = msg_inject_read,
+	.write = msg_inject_write,
+	.llseek = default_llseek,
+};
+
+static int snd_sof_debugfs_msg_inject_item(struct snd_sof_dev *sdev,
+					   const char *name, mode_t mode,
+					   const struct file_operations *fops)
+{
+	struct snd_sof_dfsentry *dfse;
+
+	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	if (!dfse)
+		return -ENOMEM;
+
+	/* pre allocate the tx and rx buffers */
+	dfse->msg_inject_tx = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	dfse->msg_inject_rx = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	if (!dfse->msg_inject_tx || !dfse->msg_inject_rx)
+		return -ENOMEM;
+
+	dfse->type = SOF_DFSENTRY_TYPE_BUF;
+	dfse->sdev = sdev;
+
+	debugfs_create_file(name, mode, sdev->debugfs_root, dfse, fops);
+	/* add to dfsentry list */
+	list_add(&dfse->list, &sdev->dfsentry_list);
+
+	return 0;
+}
+#endif
+
 static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *ppos)
 {
@@ -806,6 +904,15 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 	/* create read-write ipc_flood_duration_ms debugfs entry */
 	err = snd_sof_debugfs_buf_item(sdev, NULL, 0,
 				       "ipc_flood_duration_ms", 0666);
+
+	/* errors are only due to memory allocation, not debugfs */
+	if (err < 0)
+		return err;
+#endif
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR)
+	err = snd_sof_debugfs_msg_inject_item(sdev, "ipc_msg_inject", 0644,
+					      &msg_inject_fops);
 
 	/* errors are only due to memory allocation, not debugfs */
 	if (err < 0)
