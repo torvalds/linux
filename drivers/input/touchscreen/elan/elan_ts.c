@@ -587,7 +587,7 @@ static int elan_ts_recv_data(struct elan_ts_data *ts, uint8_t *buf)
 			report->stylus.pbutton_value		= 0;//rbuf[13];
 			report->stylus.preport_idx			= 3;
 			report->stylus.tip_status			= (rbuf[3] & 0x33) >> 1;
-			report->stylus.inrange_status		= rbuf[3] & 0x01;
+			report->stylus.inrange_status		= rbuf[3] & 0x02;
 			report->stylus.key					= rbuf[3] >> 1;
 //			report->stylus.eraser				= rbuf[3] >> 1;
 //			report->stylus.inver				= rbuf[3] >> 1;
@@ -826,34 +826,29 @@ static void elants_slot_report(struct elan_ts_data *ts, uint8_t *buf)
 		
 
 		if (finger.fid ==  HID_FID) {  /*hid over i2c protocol*/
-		
-		dev_err(&ts->client->dev, "[elan] elants_slot_report4\n");
 			for (reportid = 0; reportid < finger.fvalid_num; reportid++ ) {
 				active = (buf[finger.freport_idx] & 0x03);	
-				id = (((buf[finger.freport_idx] & 0xfc) >> 2) -1);
+				/*id = (((buf[finger.freport_idx] & 0xfc) >> 2) -1);*/
+				id = (((buf[finger.freport_idx] & 0xfc) >> 2));
 				elan_ts_fparse_xy(&buf[finger.freport_idx], &x, &y, finger.fid); //lcm x :y = 720 : 1280 tp x: y = 1296:720
-				dev_info(&ts->client->dev, "<[elan]>:x= %d,y= %d\n", x,y);
-				dev_info(&ts->client->dev, "finger_yres=%d, finger_xres=%d\n",
-					 ts->fw_info.finger_yres,ts->fw_info.finger_xres);
 				x = ts->hw_info.screen_x * x / ts->fw_info.finger_xres;
 				y = ts->hw_info.screen_y * y / ts->fw_info.finger_yres;
-				
 				//x = ts->hw_info.screen_x - x;
 				//y = ts->hw_info.screen_y - y;
 	
 				if (active) { /*finger contact*/
 					input_mt_slot(ts->finger_idev, id);
-					input_mt_report_slot_state(ts->finger_idev, MT_TOOL_FINGER, true);
-					input_report_key(ts->finger_idev, BTN_TOUCH, 1);
 					//input_report_abs(ts->finger_idev, ABS_MT_PRESSURE, 100);
-					//input_report_abs(ts->finger_idev, ABS_MT_TOUCH_MAJOR, 100);
+					input_report_abs(ts->finger_idev, ABS_MT_TOUCH_MAJOR, 100);
 					input_report_abs(ts->finger_idev, ABS_MT_POSITION_X, x);
 					input_report_abs(ts->finger_idev, ABS_MT_POSITION_Y, y);
-					dev_info(&ts->client->dev, "[elan] finger X:Y ====%d:%d\n",x,y);
+					input_mt_report_slot_state(ts->finger_idev, MT_TOOL_FINGER, true);
+					input_report_key(ts->finger_idev, BTN_TOUCH, 1);
+					//dev_info(&ts->client->dev, "[elan] finger X:Y ====%d:%d\n",x,y);
 				} else {     /*finger leave*/
 					input_mt_slot(ts->finger_idev, id);
-					//input_report_key(ts->finger_idev, BTN_TOUCH, 0);
 					input_mt_report_slot_state(ts->finger_idev, MT_TOOL_FINGER, false);
+					//input_report_key(ts->finger_idev, BTN_TOUCH, 0);
 					num--;
 				}
 
@@ -887,8 +882,6 @@ static void elants_slot_report(struct elan_ts_data *ts, uint8_t *buf)
 			input_sync(ts->finger_idev);
 		}
 	} else if (report->tool_type == ELAN_PEN) {
-		
-		print_log(ts->level,"[elan] stylus.key %d, pkey %d\n",stylus.key,pkey);
 		if (stylus.key > 0 || !pkey) {
 			switch(stylus.key) {
 				case 2:
@@ -919,7 +912,7 @@ static void elants_slot_report(struct elan_ts_data *ts, uint8_t *buf)
 			}
 		}
 		
-		print_log(ts->level, "[elan] stylus.inrange_status = %d, stylus.barrel_tip = %d\n", \
+		print_log(ts->level, "[elan] stylus.inrange_status = %d, stylus.barrel_tip = %d", \
 				stylus.inrange_status,stylus.barrel_tip);
 		if(stylus.inrange_status) {
 			 elan_ts_pparse_xy(&buf[0],&x,&y,&p);
@@ -944,7 +937,8 @@ static void elants_slot_report(struct elan_ts_data *ts, uint8_t *buf)
 			 input_report_abs(ts->pen_idev, ABS_MT_POSITION_Y, y);
 			 input_report_abs(ts->pen_idev, ABS_TILT_X, x_tilt);
 			 input_report_abs(ts->pen_idev, ABS_TILT_Y, y_tilt);
-			 dev_info(&ts->client->dev, "[elan] pen X:Y:P:TX:TY ====%d:%d:%d:%d:%d\n",x,y,p,x_tilt,y_tilt);
+			 print_log(ts->level, "[elan] pen X:Y:P:TX:TY ====%d:%d:%d:%d:%d\n",
+				   x, y, p, x_tilt, y_tilt);
 		} else {
 			input_mt_slot(ts->pen_idev, 0);
 			input_mt_report_slot_state(ts->pen_idev, MT_TOOL_PEN, false);
