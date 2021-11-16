@@ -3072,6 +3072,20 @@ int smu_set_light_sbr(struct smu_context *smu, bool enable)
 	return ret;
 }
 
+int smu_get_ecc_info(struct smu_context *smu, void *umc_ecc)
+{
+	int ret = -EOPNOTSUPP;
+
+	mutex_lock(&smu->mutex);
+	if (smu->ppt_funcs &&
+		smu->ppt_funcs->get_ecc_info)
+		ret = smu->ppt_funcs->get_ecc_info(smu, umc_ecc);
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+
+}
+
 static int smu_get_prv_buffer_details(void *handle, void **addr, size_t *size)
 {
 	struct smu_context *smu = handle;

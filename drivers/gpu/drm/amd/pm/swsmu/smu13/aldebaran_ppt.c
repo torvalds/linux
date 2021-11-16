@@ -78,6 +78,12 @@
 
 #define smnPCIE_ESM_CTRL			0x111003D0
 
+/*
+ * SMU support ECCTABLE since version 68.42.0,
+ * use this to check ECCTALE feature whether support
+ */
+#define SUPPORT_ECCTABLE_SMU_VERSION 0x00442a00
+
 static const struct smu_temperature_range smu13_thermal_policy[] =
 {
 	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
@@ -190,6 +196,7 @@ static const struct cmn2asic_mapping aldebaran_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(SMU_METRICS),
 	TAB_MAP(DRIVER_SMU_CONFIG),
 	TAB_MAP(I2C_COMMANDS),
+	TAB_MAP(ECCINFO),
 };
 
 static const uint8_t aldebaran_throttler_map[] = {
@@ -223,6 +230,9 @@ static int aldebaran_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_I2C_COMMANDS, sizeof(SwI2cRequest_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
+	SMU_TABLE_INIT(tables, SMU_TABLE_ECCINFO, sizeof(EccInfoTable_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+
 	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		return -ENOMEM;
@@ -234,6 +244,10 @@ static int aldebaran_tables_init(struct smu_context *smu)
 		kfree(smu_table->metrics_table);
 		return -ENOMEM;
 	}
+
+	smu_table->ecc_table = kzalloc(tables[SMU_TABLE_ECCINFO].size, GFP_KERNEL);
+	if (!smu_table->ecc_table)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -1765,6 +1779,63 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v1_3);
 }
 
+static int aldebaran_check_ecc_table_support(struct smu_context *smu)
+{
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	int ret = 0;
+
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
+	if (ret) {
+		/* return not support if failed get smu_version */
+		ret = -EOPNOTSUPP;
+	}
+
+	if (smu_version < SUPPORT_ECCTABLE_SMU_VERSION)
+		ret = -EOPNOTSUPP;
+
+	return ret;
+}
+
+static ssize_t aldebaran_get_ecc_info(struct smu_context *smu,
+					 void *table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	EccInfoTable_t *ecc_table = NULL;
+	struct ecc_info_per_ch *ecc_info_per_channel = NULL;
+	int i, ret = 0;
+	struct umc_ecc_info *eccinfo = (struct umc_ecc_info *)table;
+
+	ret = aldebaran_check_ecc_table_support(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_cmn_update_table(smu,
+			       SMU_TABLE_ECCINFO,
+			       0,
+			       smu_table->ecc_table,
+			       false);
+	if (ret) {
+		dev_info(smu->adev->dev, "Failed to export SMU ecc table!\n");
+		return ret;
+	}
+
+	ecc_table = (EccInfoTable_t *)smu_table->ecc_table;
+
+	for (i = 0; i < ALDEBARAN_UMC_CHANNEL_NUM; i++) {
+		ecc_info_per_channel = &(eccinfo->ecc[i]);
+		ecc_info_per_channel->ce_count_lo_chip =
+			ecc_table->EccInfo[i].ce_count_lo_chip;
+		ecc_info_per_channel->ce_count_hi_chip =
+			ecc_table->EccInfo[i].ce_count_hi_chip;
+		ecc_info_per_channel->mca_umc_status =
+			ecc_table->EccInfo[i].mca_umc_status;
+		ecc_info_per_channel->mca_umc_addr =
+			ecc_table->EccInfo[i].mca_umc_addr;
+	}
+
+	return ret;
+}
+
 static int aldebaran_mode1_reset(struct smu_context *smu)
 {
 	u32 smu_version, fatal_err, param;
@@ -1967,6 +2038,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.i2c_init = aldebaran_i2c_control_init,
 	.i2c_fini = aldebaran_i2c_control_fini,
 	.send_hbm_bad_pages_num = aldebaran_smu_send_hbm_bad_page_num,
+	.get_ecc_info = aldebaran_get_ecc_info,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)

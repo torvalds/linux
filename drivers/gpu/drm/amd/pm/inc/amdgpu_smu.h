@@ -324,6 +324,7 @@ enum smu_table_id
 	SMU_TABLE_OVERDRIVE,
 	SMU_TABLE_I2C_COMMANDS,
 	SMU_TABLE_PACE,
+	SMU_TABLE_ECCINFO,
 	SMU_TABLE_COUNT,
 };
 
@@ -340,6 +341,7 @@ struct smu_table_context
 	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;
 	void                            *driver_pptable;
+	void                            *ecc_table;
 	struct smu_table		tables[SMU_TABLE_COUNT];
 	/*
 	 * The driver table is just a staging buffer for
@@ -1261,6 +1263,11 @@ struct pptable_funcs {
 	 *										of SMUBUS table.
 	 */
 	int (*send_hbm_bad_pages_num)(struct smu_context *smu, uint32_t size);
+
+	/**
+	 * @get_ecc_table:  message SMU to get ECC INFO table.
+	 */
+	ssize_t (*get_ecc_info)(struct smu_context *smu, void *table);
 };
 
 typedef enum {
@@ -1397,6 +1404,7 @@ int smu_set_light_sbr(struct smu_context *smu, bool enable);
 
 int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
 		       uint64_t event_arg);
+int smu_get_ecc_info(struct smu_context *smu, void *umc_ecc);
 
 #endif
 #endif
