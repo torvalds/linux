@@ -312,4 +312,6 @@ void hantro_vp8_dec_exit(struct hantro_ctx *ctx);
 void hantro_vp8_prob_update(struct hantro_ctx *ctx,
 			    const struct v4l2_ctrl_vp8_frame *hdr);
 
+void hantro_g2_check_idle(struct hantro_dev *vpu);
+
 #endif /* HANTRO_HW_H_ */

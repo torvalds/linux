@@ -27,6 +27,13 @@
 #define G2_REG_INTERRUPT_DEC_IRQ_DIS	BIT(4)
 #define G2_REG_INTERRUPT_DEC_E		BIT(0)
 
+#define HEVC_DEC_MODE			0xc
+
+#define BUS_WIDTH_32			0
+#define BUS_WIDTH_64			1
+#define BUS_WIDTH_128			2
+#define BUS_WIDTH_256			3
+
 #define g2_strm_swap		G2_DEC_REG(2, 28, 0xf)
 #define g2_dirmv_swap		G2_DEC_REG(2, 20, 0xf)
 
