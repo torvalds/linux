@@ -3833,38 +3833,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 	}
 
 	buf_type = buffer->type;
-	/* following code will be enabled when IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME
-	   is removed */
-#if 0
-	if (buf_type == IA_CSS_BUFFER_TYPE_OUTPUT_FRAME) {
-		bool found_pipe = false;
 
-		for (i = 0; i < IA_CSS_PIPE_MAX_OUTPUT_STAGE; i++) {
-			if ((buffer->data.frame->info.res.width == pipe->output_info[i].res.width) &&
-			    (buffer->data.frame->info.res.height == pipe->output_info[i].res.height)) {
-				buf_type += i;
-				found_pipe = true;
-				break;
-			}
-		}
-		if (!found_pipe)
-			return -EINVAL;
-	}
-	if (buf_type == IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME) {
-		bool found_pipe = false;
-
-		for (i = 0; i < IA_CSS_PIPE_MAX_OUTPUT_STAGE; i++) {
-			if ((buffer->data.frame->info.res.width == pipe->vf_output_info[i].res.width) &&
-			    (buffer->data.frame->info.res.height == pipe->vf_output_info[i].res.height)) {
-				buf_type += i;
-				found_pipe = true;
-				break;
-			}
-		}
-		if (!found_pipe)
-			return -EINVAL;
-	}
-#endif
 	pipe_id = pipe->mode;
 
 	IA_CSS_LOG("pipe_id=%d, buf_type=%d", pipe_id, buf_type);
