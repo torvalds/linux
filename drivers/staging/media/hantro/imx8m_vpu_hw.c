@@ -134,7 +134,7 @@ static const struct hantro_fmt imx8m_vpu_dec_fmts[] = {
 
 static const struct hantro_fmt imx8m_vpu_g2_dec_fmts[] = {
 	{
-		.fourcc = V4L2_PIX_FMT_NV12,
+		.fourcc = V4L2_PIX_FMT_NV12_4L4,
 		.codec_mode = HANTRO_MODE_NONE,
 	},
 	{

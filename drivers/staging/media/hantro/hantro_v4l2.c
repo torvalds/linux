@@ -151,6 +151,20 @@ static int vidioc_enum_fmt(struct file *file, void *priv,
 	bool skip_mode_none;
 
 	/*
+	 * The HEVC decoder on the G2 core needs a little quirk to offer NV12
+	 * only on the capture side. Once the post-processor logic is used,
+	 * we will be able to expose NV12_4L4 and NV12 as the other cases,
+	 * and therefore remove this quirk.
+	 */
+	if (capture && ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_HEVC_SLICE) {
+		if (f->index == 0) {
+			f->pixelformat = V4L2_PIX_FMT_NV12;
+			return 0;
+		}
+		return -EINVAL;
+	}
+
+	/*
 	 * When dealing with an encoder:
 	 *  - on the capture side we want to filter out all MODE_NONE formats.
 	 *  - on the output side we want to filter out all formats that are
