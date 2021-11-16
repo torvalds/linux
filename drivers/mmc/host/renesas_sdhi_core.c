@@ -936,9 +936,9 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	 * to the card detect circuit. That leaves us with if separate clocks
 	 * are presented, we must treat them both as virtually 1 clock.
 	 */
-	priv->clk_cd = devm_clk_get(&pdev->dev, "cd");
+	priv->clk_cd = devm_clk_get_optional(&pdev->dev, "cd");
 	if (IS_ERR(priv->clk_cd))
-		priv->clk_cd = NULL;
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk_cd), "cannot get cd clock");
 
 	priv->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (!IS_ERR(priv->pinctrl)) {
