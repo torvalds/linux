@@ -4149,7 +4149,7 @@
 
 	mipi_dcphy0: phy@feda0000 {
 		compatible = "rockchip,rk3588-mipi-dcphy";
-		reg = <0x0 0xfeda0000 0x0 0x10000>;
+		reg = <0x0 0xfeda0000 0x0 0xb00>;
 		rockchip,grf = <&mipidcphy0_grf>;
 		clocks = <&cru PCLK_MIPI_DCPHY0>,
 			 <&cru CLK_USBDPPHY_MIPIDCPPHY_REF>;
@@ -4162,9 +4162,9 @@
 		status = "disabled";
 	};
 
-	csi2_dcphy0_hw: csi2-dcphy0-hw@feda0000 {
+	csi2_dcphy0_hw: csi2-dcphy0-hw@feda0b00 {
 		compatible = "rockchip,rk3588-csi2-dcphy-hw";
-		reg = <0x0 0xfeda0000 0x0 0x10000>;
+		reg = <0x0 0xfeda0b00 0x0 0xf500>;
 		clocks = <&cru PCLK_MIPI_DCPHY0>;
 		clock-names = "pclk";
 		resets = <&cru SRST_S_MIPI_DCPHY0>;
@@ -4175,7 +4175,7 @@
 
 	mipi_dcphy1: phy@fedb0000 {
 		compatible = "rockchip,rk3588-mipi-dcphy";
-		reg = <0x0 0xfedb0000 0x0 0x10000>;
+		reg = <0x0 0xfedb0000 0x0 0xb00>;
 		rockchip,grf = <&mipidcphy1_grf>;
 		clocks = <&cru PCLK_MIPI_DCPHY1>,
 			 <&cru CLK_USBDPPHY_MIPIDCPPHY_REF>;
@@ -4188,9 +4188,9 @@
 		status = "disabled";
 	};
 
-	csi2_dcphy1_hw: csi2-dcphy1-hw@fedb0000 {
+	csi2_dcphy1_hw: csi2-dcphy1-hw@fedb0b00 {
 		compatible = "rockchip,rk3588-csi2-dcphy-hw";
-		reg = <0x0 0xfedb0000 0x0 0x10000>;
+		reg = <0x0 0xfedb0b00 0x0 0xf500>;
 		clocks = <&cru PCLK_MIPI_DCPHY1>;
 		clock-names = "pclk";
 		resets = <&cru SRST_S_MIPI_DCPHY1>;
