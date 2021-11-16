@@ -1655,6 +1655,9 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 	priv->phylink_config.dev = &priv->dev->dev;
 	priv->phylink_config.type = PHYLINK_NETDEV;
 
+	__set_bit(ocelot_port->phy_mode,
+		  priv->phylink_config.supported_interfaces);
+
 	phylink = phylink_create(&priv->phylink_config,
 				 of_fwnode_handle(portnp),
 				 phy_mode, &ocelot_phylink_ops);
