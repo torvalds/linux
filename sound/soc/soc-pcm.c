@@ -1098,7 +1098,9 @@ static snd_pcm_uframes_t soc_pcm_pointer(struct snd_pcm_substream *substream)
 	/* base delay if assigned in pointer callback */
 	delay = runtime->delay;
 
+	/* should be called *after* snd_soc_pcm_component_pointer() */
 	snd_soc_pcm_dai_delay(substream, &cpu_delay, &codec_delay);
+	snd_soc_pcm_component_delay(substream, &cpu_delay, &codec_delay);
 
 	runtime->delay = delay + cpu_delay + codec_delay;
 
