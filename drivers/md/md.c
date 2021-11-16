@@ -6271,7 +6271,8 @@ static void __md_stop(struct mddev *mddev)
 	spin_lock(&mddev->lock);
 	mddev->pers = NULL;
 	spin_unlock(&mddev->lock);
-	pers->free(mddev, mddev->private);
+	if (mddev->private)
+		pers->free(mddev, mddev->private);
 	mddev->private = NULL;
 	if (pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;
