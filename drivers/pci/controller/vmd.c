@@ -501,6 +501,40 @@ static inline void vmd_acpi_begin(void) { }
 static inline void vmd_acpi_end(void) { }
 #endif /* CONFIG_ACPI */
 
+static void vmd_domain_reset(struct vmd_dev *vmd)
+{
+	u16 bus, max_buses = resource_size(&vmd->resources[0]);
+	u8 dev, functions, fn, hdr_type;
+	char __iomem *base;
+
+	for (bus = 0; bus < max_buses; bus++) {
+		for (dev = 0; dev < 32; dev++) {
+			base = vmd->cfgbar + PCIE_ECAM_OFFSET(bus,
+						PCI_DEVFN(dev, 0), 0);
+
+			hdr_type = readb(base + PCI_HEADER_TYPE) &
+					 PCI_HEADER_TYPE_MASK;
+
+			functions = (hdr_type & 0x80) ? 8 : 1;
+			for (fn = 0; fn < functions; fn++) {
+				base = vmd->cfgbar + PCIE_ECAM_OFFSET(bus,
+						PCI_DEVFN(dev, fn), 0);
+
+				hdr_type = readb(base + PCI_HEADER_TYPE) &
+						PCI_HEADER_TYPE_MASK;
+
+				if (hdr_type != PCI_HEADER_TYPE_BRIDGE ||
+				    (readw(base + PCI_CLASS_DEVICE) !=
+				     PCI_CLASS_BRIDGE_PCI))
+					continue;
+
+				memset_io(base + PCI_IO_BASE, 0,
+					  PCI_ROM_ADDRESS1 - PCI_IO_BASE);
+			}
+		}
+	}
+}
+
 static void vmd_attach_resources(struct vmd_dev *vmd)
 {
 	vmd->dev->resource[VMD_MEMBAR1].child = &vmd->resources[1];
@@ -805,6 +839,9 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	vmd_acpi_begin();
 
 	pci_scan_child_bus(vmd->bus);
+	vmd_domain_reset(vmd);
+	list_for_each_entry(child, &vmd->bus->children, node)
+		pci_reset_bus(child->self);
 	pci_assign_unassigned_bus_resources(vmd->bus);
 
 	/*
