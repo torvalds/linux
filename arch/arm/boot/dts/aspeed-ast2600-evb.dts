@@ -193,14 +193,6 @@
 	status = "okay";
 };
 
-&i2c2 {
-	status = "okay";
-};
-
-&i2c3 {
-	status = "okay";
-};
-
 &i2c4 {
 	status = "okay";
 };
@@ -215,35 +207,34 @@
 
 &i2c7 {
 	status = "okay";
+
+	temp@2e {
+		compatible = "adi,adt7490";
+		reg = <0x2e>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
 };
 
 &i2c8 {
 	status = "okay";
+
+	lm75@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
+
 };
 
 &i2c9 {
 	status = "okay";
 };
 
-&i2c12 {
-	status = "okay";
-};
-
-&i2c13 {
-	status = "okay";
-};
-
-&i2c14 {
-	status = "okay";
-};
-
-&i2c15 {
-	status = "okay";
-};
-
-&fsim0 {
-	status = "okay";
-};
 
 &ehci1 {
 	status = "okay";
