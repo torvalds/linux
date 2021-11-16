@@ -1990,43 +1990,42 @@ static void svm_range_deferred_list_work(struct work_struct *work)
 	struct svm_range_list *svms;
 	struct svm_range *prange;
 	struct mm_struct *mm;
+	struct kfd_process *p;
 
 	svms = container_of(work, struct svm_range_list, deferred_list_work);
 	pr_debug("enter svms 0x%p\n", svms);
+
+	p = container_of(svms, struct kfd_process, svms);
+	/* Avoid mm is gone when inserting mmu notifier */
+	mm = get_task_mm(p->lead_thread);
+	if (!mm) {
+		pr_debug("svms 0x%p process mm gone\n", svms);
+		return;
+	}
+retry:
+	mmap_write_lock(mm);
+
+	/* Checking for the need to drain retry faults must be inside
+	 * mmap write lock to serialize with munmap notifiers.
+	 */
+	if (unlikely(READ_ONCE(svms->drain_pagefaults))) {
+		WRITE_ONCE(svms->drain_pagefaults, false);
+		mmap_write_unlock(mm);
+		svm_range_drain_retry_fault(svms);
+		goto retry;
+	}
 
 	spin_lock(&svms->deferred_list_lock);
 	while (!list_empty(&svms->deferred_range_list)) {
 		prange = list_first_entry(&svms->deferred_range_list,
 					  struct svm_range, deferred_list);
-		spin_unlock(&svms->deferred_list_lock);
-		pr_debug("prange 0x%p [0x%lx 0x%lx] op %d\n", prange,
-			 prange->start, prange->last, prange->work_item.op);
-
-		mm = prange->work_item.mm;
-retry:
-		mmap_write_lock(mm);
-		mutex_lock(&svms->lock);
-
-		/* Checking for the need to drain retry faults must be in
-		 * mmap write lock to serialize with munmap notifiers.
-		 *
-		 * Remove from deferred_list must be inside mmap write lock,
-		 * otherwise, svm_range_list_lock_and_flush_work may hold mmap
-		 * write lock, and continue because deferred_list is empty, then
-		 * deferred_list handle is blocked by mmap write lock.
-		 */
-		spin_lock(&svms->deferred_list_lock);
-		if (unlikely(svms->drain_pagefaults)) {
-			svms->drain_pagefaults = false;
-			spin_unlock(&svms->deferred_list_lock);
-			mutex_unlock(&svms->lock);
-			mmap_write_unlock(mm);
-			svm_range_drain_retry_fault(svms);
-			goto retry;
-		}
 		list_del_init(&prange->deferred_list);
 		spin_unlock(&svms->deferred_list_lock);
 
+		pr_debug("prange 0x%p [0x%lx 0x%lx] op %d\n", prange,
+			 prange->start, prange->last, prange->work_item.op);
+
+		mutex_lock(&svms->lock);
 		mutex_lock(&prange->migrate_mutex);
 		while (!list_empty(&prange->child_list)) {
 			struct svm_range *pchild;
@@ -2042,12 +2041,13 @@ retry:
 
 		svm_range_handle_list_op(svms, prange);
 		mutex_unlock(&svms->lock);
-		mmap_write_unlock(mm);
 
 		spin_lock(&svms->deferred_list_lock);
 	}
 	spin_unlock(&svms->deferred_list_lock);
 
+	mmap_write_unlock(mm);
+	mmput(mm);
 	pr_debug("exit svms 0x%p\n", svms);
 }
 
@@ -2600,7 +2600,7 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	p = kfd_lookup_process_by_pasid(pasid);
 	if (!p) {
 		pr_debug("kfd process not founded pasid 0x%x\n", pasid);
-		return -ESRCH;
+		return 0;
 	}
 	if (!p->xnack_enabled) {
 		pr_debug("XNACK not enabled for pasid 0x%x\n", pasid);
@@ -2611,10 +2611,12 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 
 	pr_debug("restoring svms 0x%p fault address 0x%llx\n", svms, addr);
 
+	/* p->lead_thread is available as kfd_process_wq_release flush the work
+	 * before releasing task ref.
+	 */
 	mm = get_task_mm(p->lead_thread);
 	if (!mm) {
 		pr_debug("svms 0x%p failed to get mm\n", svms);
-		r = -ESRCH;
 		goto out;
 	}
 
@@ -2740,6 +2742,13 @@ void svm_range_list_fini(struct kfd_process *p)
 
 	/* Ensure list work is finished before process is destroyed */
 	flush_work(&p->svms.deferred_list_work);
+
+	/*
+	 * Ensure no retry fault comes in afterwards, as page fault handler will
+	 * not find kfd process and take mm lock to recover fault.
+	 */
+	svm_range_drain_retry_fault(&p->svms);
+
 
 	list_for_each_entry_safe(prange, next, &p->svms.list, list) {
 		svm_range_unlink(prange);
