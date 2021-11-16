@@ -363,25 +363,19 @@ mpp_dma_session_create(struct device *dev, u32 max_buffers)
 
 int mpp_iommu_detach(struct mpp_iommu_info *info)
 {
-	struct iommu_domain *domain = info->domain;
-	struct iommu_group *group = info->group;
+	if (!info)
+		return 0;
 
-	iommu_detach_group(domain, group);
-
+	iommu_detach_group(info->domain, info->group);
 	return 0;
 }
 
 int mpp_iommu_attach(struct mpp_iommu_info *info)
 {
-	struct iommu_domain *domain = info->domain;
-	struct iommu_group *group = info->group;
-	int ret;
+	if (!info)
+		return 0;
 
-	ret = iommu_attach_group(domain, group);
-	if (ret)
-		return ret;
-
-	return 0;
+	return iommu_attach_group(info->domain, info->group);
 }
 
 struct mpp_iommu_info *
@@ -391,13 +385,11 @@ mpp_iommu_probe(struct device *dev)
 	struct device_node *np = NULL;
 	struct platform_device *pdev = NULL;
 	struct mpp_iommu_info *info = NULL;
+	struct iommu_domain *domain = NULL;
+	struct iommu_group *group = NULL;
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping *mapping;
 #endif
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return ERR_PTR(-ENOMEM);
-
 	np = of_parse_phandle(dev->of_node, "iommus", 0);
 	if (!np || !of_device_is_available(np)) {
 		mpp_err("failed to get device node\n");
@@ -411,8 +403,8 @@ mpp_iommu_probe(struct device *dev)
 		return ERR_PTR(-ENODEV);
 	}
 
-	info->group = iommu_group_get(dev);
-	if (!info->group) {
+	group = iommu_group_get(dev);
+	if (!group) {
 		ret = -EINVAL;
 		goto err_put_pdev;
 	}
@@ -423,36 +415,49 @@ mpp_iommu_probe(struct device *dev)
 	 * we re-attach domain here
 	 */
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
-	if (!iommu_group_default_domain(info->group)) {
+	if (!iommu_group_default_domain(group)) {
 		mapping = to_dma_iommu_mapping(dev);
 		WARN_ON(!mapping);
-		info->domain = mapping->domain;
+		domain = mapping->domain;
 	}
 #endif
-	if (!info->domain) {
-		info->domain = iommu_get_domain_for_dev(dev);
-		if (!info->domain) {
+	if (!domain) {
+		domain = iommu_get_domain_for_dev(dev);
+		if (!domain) {
 			ret = -EINVAL;
 			goto err_put_group;
 		}
 	}
 
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		ret = -ENOMEM;
+		goto err_put_group;
+	}
+
+	init_rwsem(&info->rw_sem);
 	info->dev = dev;
 	info->pdev = pdev;
-	init_rwsem(&info->rw_sem);
+	info->group = group;
+	info->domain = domain;
 
 	return info;
 
 err_put_group:
-	iommu_group_put(info->group);
+	if (group)
+		iommu_group_put(group);
 err_put_pdev:
-	platform_device_put(pdev);
+	if (pdev)
+		platform_device_put(pdev);
 
 	return ERR_PTR(ret);
 }
 
 int mpp_iommu_remove(struct mpp_iommu_info *info)
 {
+	if (!info)
+		return 0;
+
 	iommu_group_put(info->group);
 	platform_device_put(info->pdev);
 
@@ -462,6 +467,9 @@ int mpp_iommu_remove(struct mpp_iommu_info *info)
 int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev)
 {
 	int ret;
+
+	if (!info)
+		return 0;
 
 	/* disable iommu */
 	ret = rockchip_iommu_disable(dev);
@@ -473,10 +481,11 @@ int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev)
 
 int mpp_iommu_flush_tlb(struct mpp_iommu_info *info)
 {
-	struct iommu_domain *domain = info->domain;
+	if (!info)
+		return 0;
 
-	if (domain && domain->ops)
-		iommu_flush_iotlb_all(domain);
+	if (info->domain && info->domain->ops)
+		iommu_flush_iotlb_all(info->domain);
 
 	return 0;
 }

@@ -1887,8 +1887,8 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	 */
 	mpp->iommu_info = mpp_iommu_probe(dev);
 	if (IS_ERR(mpp->iommu_info)) {
-		dev_err(dev, "failed to attach iommu: %ld\n",
-			PTR_ERR(mpp->iommu_info));
+		dev_err(dev, "failed to attach iommu\n");
+		mpp->iommu_info = NULL;
 	}
 	if (mpp->hw_ops->init) {
 		ret = mpp->hw_ops->init(mpp);
@@ -1896,7 +1896,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 			goto failed_init;
 	}
 	/* set iommu fault handler */
-	if (!IS_ERR(mpp->iommu_info))
+	if (mpp->iommu_info)
 		iommu_set_fault_handler(mpp->iommu_info->domain,
 					mpp_iommu_handle, mpp->queue);
 
