@@ -53,13 +53,6 @@ struct gfn_to_hva_cache {
 	struct kvm_memory_slot *memslot;
 };
 
-struct gfn_to_pfn_cache {
-	u64 generation;
-	gfn_t gfn;
-	kvm_pfn_t pfn;
-	bool dirty;
-};
-
 #ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE
 /*
  * Memory caches are used to preallocate memory ahead of various MMU flows,
