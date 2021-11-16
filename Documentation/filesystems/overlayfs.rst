@@ -195,7 +195,7 @@ handle it in two different ways:
 
 1. return EXDEV error: this error is returned by rename(2) when trying to
    move a file or directory across filesystem boundaries.  Hence
-   applications are usually prepared to hande this error (mv(1) for example
+   applications are usually prepared to handle this error (mv(1) for example
    recursively copies the directory tree).  This is the default behavior.
 
 2. If the "redirect_dir" feature is enabled, then the directory will be
@@ -324,6 +324,30 @@ and
 The resulting access permissions should be the same.  The difference is in
 the time of copy (on-demand vs. up-front).
 
+### Non overlapping credentials
+
+As noted above, all access to the upper, lower and work directories is the
+recorded mounter's MAC and DAC credentials.  The incoming accesses are
+checked against the caller's credentials.
+
+In the case where caller MAC or DAC credentials do not overlap the mounter, a
+use case available in older versions of the driver, the override_creds mount
+flag can be turned off.  For when the use pattern has caller with legitimate
+credentials where the mounter does not.  For example init may have been the
+mounter, but the caller would have execute or read MAC permissions where
+init would not.  override_creds off means all access, incoming, upper, lower
+or working, will be tested against the caller.
+
+Several unintended side effects will occur though.  The caller without certain
+key capabilities or lower privilege will not always be able to delete files or
+directories, create nodes, or search some restricted directories.  The ability
+to search and read a directory entry is spotty as a result of the cache
+mechanism not re-testing the credentials because of the assumption, a
+privileged caller can fill cache, then a lower privilege can read the directory
+cache.  The uneven security model where cache, upperdir and workdir are opened
+at privilege, but accessed without creating a form of privilege escalation,
+should only be used with strict understanding of the side effects and of the
+security policies.
 
 Multiple lower layers
 ---------------------
