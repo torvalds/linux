@@ -9764,7 +9764,7 @@ static __cold void io_uring_clean_tctx(struct io_uring_task *tctx)
 	}
 	if (wq) {
 		/*
-		 * Must be after io_uring_del_task_file() (removes nodes under
+		 * Must be after io_uring_del_tctx_node() (removes nodes under
 		 * uring_lock) to avoid race with io_uring_try_cancel_iowq().
 		 */
 		io_wq_put_and_exit(wq);
