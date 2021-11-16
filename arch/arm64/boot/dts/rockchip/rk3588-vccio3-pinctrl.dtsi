@@ -150,13 +150,23 @@
 
 	hdmi {
 		/omit-if-no-ref/
-		hdmim0_pins: hdmim0-pins {
+		hdmim0_tx1_cec: hdmim0-tx1-cec {
 			rockchip,pins =
-				/* hdmi_tx1_cec_m0 */
-				<2 RK_PC4 4 &pcfg_pull_none>,
-				/* hdmi_tx1_scl_m0 */
-				<2 RK_PB5 4 &pcfg_pull_none>,
-				/* hdmi_tx1_sda_m0 */
+				/* hdmim0_tx1_cec */
+				<2 RK_PC4 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		hdmim0_tx1_scl: hdmim0-tx1-scl {
+			rockchip,pins =
+				/* hdmim0_tx1_scl */
+				<2 RK_PB5 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		hdmim0_tx1_sda: hdmim0-tx1-sda {
+			rockchip,pins =
+				/* hdmim0_tx1_sda */
 				<2 RK_PB4 4 &pcfg_pull_none>;
 		};
 	};

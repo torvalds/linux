@@ -355,8 +355,6 @@
 		rockchip,vo1_grf = <&vo1_grf>;
 		phys = <&hdptxphy1>;
 		phy-names = "hdmi";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdmim0_pins>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 
