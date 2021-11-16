@@ -1080,29 +1080,22 @@ start_err:
 /*
  * soc level wrapper for pointer callback
  * If cpu_dai, codec_dai, component driver has the delay callback, then
- * the runtime->delay will be updated accordingly.
+ * the runtime->delay will be updated via snd_soc_pcm_component/dai_delay().
  */
 static snd_pcm_uframes_t soc_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t offset = 0;
-	snd_pcm_sframes_t delay = 0;
 	snd_pcm_sframes_t codec_delay = 0;
 	snd_pcm_sframes_t cpu_delay = 0;
 
-	/* clearing the previous total delay */
-	runtime->delay = 0;
-
 	offset = snd_soc_pcm_component_pointer(substream);
-
-	/* base delay if assigned in pointer callback */
-	delay = runtime->delay;
 
 	/* should be called *after* snd_soc_pcm_component_pointer() */
 	snd_soc_pcm_dai_delay(substream, &cpu_delay, &codec_delay);
 	snd_soc_pcm_component_delay(substream, &cpu_delay, &codec_delay);
 
-	runtime->delay = delay + cpu_delay + codec_delay;
+	runtime->delay = cpu_delay + codec_delay;
 
 	return offset;
 }
