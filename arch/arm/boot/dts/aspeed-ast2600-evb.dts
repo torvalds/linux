@@ -180,19 +180,6 @@
 	};
 };
 
-&i2c0 {
-	status = "okay";
-
-	temp@2e {
-		compatible = "adi,adt7490";
-		reg = <0x2e>;
-	};
-};
-
-&i2c1 {
-	status = "okay";
-};
-
 &i2c4 {
 	status = "okay";
 };
