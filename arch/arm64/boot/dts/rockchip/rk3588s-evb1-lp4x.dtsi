@@ -212,42 +212,42 @@
 		0a 31 58 11 00 00 89 30 80 06 18 02 d0 00 34 01 68 01 68 02 00 01 b4 00 20 04 04 00 05 00 0C 01 e2 02 ef 18 00 10 F0 03 0C 20 00 06 0B 0B 33 0E 1C 2A 38 46 54 62 69 70 77 79 7B 7D 7E 01 02 01 00 09 40 09 BE 19 FC 19 FA 19 F8 1A 38 1A 78 1A B6 2A F6 2B 34 2B 74 3B 74 6B F4
 		29 10 03 f0 a5 a5
 		/* Sleep Out */
-		05 00 01 11
+		05 10 01 11
 		/* 4 Common Setting */
 		/* 4.1 TE(Vync) ON/OFF */
-		15 00 02 35 00
+		15 10 02 35 00
 		/* 4.2 CASET/PASET Setting */
-		39 00 05 2a 00 00 02 cf
-		39 00 05 2b 00 00 06 17
+		39 10 05 2a 00 00 02 cf
+		39 10 05 2b 00 00 06 17
 		/* 4.3 TSP SYNC Setting */
-		39 00 03 f0 5a 5a
-		39 00 0a B9 01 c0 3c 0b 00 00 00 11 03
-		39 00 03 f0 a5 a5
+		39 10 03 f0 5a 5a
+		39 10 0a B9 01 c0 3c 0b 00 00 00 11 03
+		39 10 03 f0 a5 a5
 		/* FD(Fast Discharge) Setting */
-		39 00 03 F0 5A 5A
-		15 00 02 b0 45
-		15 00 02 b5 48
-		39 00 03 F0 A5 A5
+		39 10 03 F0 5A 5A
+		15 10 02 b0 45
+		15 10 02 b5 48
+		39 10 03 F0 A5 A5
 		/* 4.6 FFC Setting (MIPI CLK 529MHz) */
-		39 00 03 f0 5a 5a
-		39 00 03 fc 5a 5a
-		15 00 02 b0 1E
-		39 00 06 c5 09 10 b4 24 fb
-		39 00 03 f0 a5 a5
-		39 00 03 fc a5 a5
+		39 10 03 f0 5a 5a
+		39 10 03 fc 5a 5a
+		15 10 02 b0 1E
+		39 10 06 c5 09 10 b4 24 fb
+		39 10 03 f0 a5 a5
+		39 10 03 fc a5 a5
 		/* OSC Spread Setting */
-		39 00 03 f0 5a 5a
-		39 00 03 fc 5a 5a
-		15 00 02 b0 37
-		39 00 06 c5 04 ff 00 01 64
-		39 00 03 f0 a5 a5
-		39 00 03 fc a5 a5
+		39 10 03 f0 5a 5a
+		39 10 03 fc 5a 5a
+		15 10 02 b0 37
+		39 10 06 c5 04 ff 00 01 64
+		39 10 03 f0 a5 a5
+		39 10 03 fc a5 a5
 		/* Memory access & Image Data Write(2Ch/3Ch) */
 		/* Dither IP Setting */
-		39 00 03 fc 5a 5a
-		15 00 02 b0 b6
-		15 00 02 eb 01
-		39 00 03 fc a5 a5
+		39 10 03 fc 5a 5a
+		15 10 02 b0 b6
+		15 10 02 eb 01
+		39 10 03 fc a5 a5
 		/* 5 Brightness Control */
 		/* 5.1 Dimming Setting */
 		39 10 03 f0 5a 5a
