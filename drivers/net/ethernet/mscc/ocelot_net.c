@@ -1502,16 +1502,7 @@ static void vsc7514_phylink_validate(struct phylink_config *config,
 				     unsigned long *supported,
 				     struct phylink_link_state *state)
 {
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct ocelot_port_private *priv = netdev_priv(ndev);
-	struct ocelot_port *ocelot_port = &priv->port;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = {};
-
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    state->interface != ocelot_port->phy_mode) {
-		linkmode_zero(supported);
-		return;
-	}
 
 	phylink_set_port_modes(mask);
 
