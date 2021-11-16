@@ -761,6 +761,7 @@ static const struct imx415_mode supported_modes[] = {
 		.hdr_mode = NO_HDR,
 		.mipi_freq_idx = 1,
 		.bpp = 10,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
@@ -854,6 +855,7 @@ static const struct imx415_mode supported_modes[] = {
 		.hdr_mode = NO_HDR,
 		.mipi_freq_idx = 1,
 		.bpp = 12,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
@@ -921,6 +923,7 @@ static const struct imx415_mode supported_modes[] = {
 		.hdr_mode = NO_HDR,
 		.mipi_freq_idx = 0,
 		.bpp = 12,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
@@ -1642,10 +1645,22 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 	return ret;
 }
 
+static int imx415_get_channel_info(struct imx415 *imx415, struct rkmodule_channel_info *ch_info)
+{
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+	ch_info->vc = imx415->cur_mode->vc[ch_info->index];
+	ch_info->width = imx415->cur_mode->width;
+	ch_info->height = imx415->cur_mode->height;
+	ch_info->bus_fmt = imx415->cur_mode->bus_fmt;
+	return 0;
+}
+
 static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct imx415 *imx415 = to_imx415(sd);
 	struct rkmodule_hdr_cfg *hdr;
+	struct rkmodule_channel_info *ch_info;
 	u32 i, h, w, stream;
 	long ret = 0;
 	const struct imx415_mode *mode;
@@ -1725,6 +1740,10 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		else
 			*((u32 *)arg) = BRL_BINNING;
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = imx415_get_channel_info(imx415, ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1742,6 +1761,7 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
+	struct rkmodule_channel_info *ch_info;
 	long ret;
 	u32  stream;
 	u32 brl = 0;
@@ -1832,6 +1852,21 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 			if (copy_to_user(up, &brl, sizeof(u32)))
 				return -EFAULT;
 		}
+		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = imx415_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
