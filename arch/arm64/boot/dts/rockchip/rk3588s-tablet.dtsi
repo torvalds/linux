@@ -429,6 +429,203 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7m2_xfer>;
+
+	aw8601: aw8601@c {
+		compatible = "awinic,aw8601";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,vcm-start-current = <56>;
+		rockchip,vcm-rated-current = <96>;
+		rockchip,vcm-step-mode = <4>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	ov13855: ov13855@10 {
+		compatible = "ovti,ov13855";
+		status = "okay";
+		reg = <0x10>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipim1_camera2_clk>;
+		rockchip,grf = <&sys_grf>;
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "CMK-OT2016-FV1";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			ov13855_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	ov50c40: ov50c40@36 {
+		compatible = "ovti,ov50c40";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipim1_camera1_clk>;
+		rockchip,grf = <&sys_grf>;
+		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HZGA06";
+		rockchip,camera-module-lens-name = "ZE0082C1";
+		eeprom-ctrl = <&otp_eeprom>;
+		lens-focus = <&aw8601>;
+		port {
+			ov50c40_out: endpoint {
+				remote-endpoint = <&mipi_in_ov50c40>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	otp_eeprom: otp_eeprom@50 {
+		compatible = "rk,otp_eeprom";
+		status = "okay";
+		reg = <0x50>;
+	};
+};
+
+&csi2_dcphy0_hw {
+	status = "okay";
+};
+
+&csi2_dcphy1_hw {
+	status = "okay";
+};
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ov50c40: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov50c40_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dcphy1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov13855_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in0>;
+			};
+		};
+	};
+};
+
+&mipi1_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy1_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in1>;
+			};
+		};
+	};
 };
 
 &i2c8 {
@@ -632,6 +829,85 @@
 &pwm12 {
 	pinctrl-0 = <&pwm12m1_pins>;
 	status = "okay";
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp1_in1>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "okay";
+
+	port {
+		cif_mipi_in1: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1_sditf {
+	status = "okay";
+
+	port {
+		mipi1_lvds_sditf: endpoint {
+			remote-endpoint = <&isp1_in2>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp_unite {
+	status = "okay";
+
+};
+
+&rkisp_unite_mmu {
+	status = "okay";
+};
+
+&rkisp0_vir0 {
+	status = "okay";
+	/*
+	 * dual isp process image case
+	 * other rkisp hw and virtual nodes should disabled
+	 */
+	rockchip,hw = <&rkisp_unite>;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_in1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+		isp1_in2: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&mipi1_lvds_sditf>;
+		};
+	};
 };
 
 &rkvdec0 {
