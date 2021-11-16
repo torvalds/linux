@@ -145,6 +145,7 @@ static inline void check_mapped_dB(const struct usbmix_name_map *p,
 	if (p && p->dB) {
 		cval->dBmin = p->dB->min;
 		cval->dBmax = p->dB->max;
+		cval->min_mute = p->dB->min_mute;
 		cval->initialized = 1;
 	}
 }

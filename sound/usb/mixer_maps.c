@@ -8,6 +8,7 @@
 struct usbmix_dB_map {
 	int min;
 	int max;
+	bool min_mute;
 };
 
 struct usbmix_name_map {
