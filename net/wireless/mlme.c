@@ -905,19 +905,22 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 }
 
 
-void cfg80211_radar_event(struct wiphy *wiphy,
-			  struct cfg80211_chan_def *chandef,
-			  gfp_t gfp)
+void __cfg80211_radar_event(struct wiphy *wiphy,
+			    struct cfg80211_chan_def *chandef,
+			    bool offchan, gfp_t gfp)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
-	trace_cfg80211_radar_event(wiphy, chandef);
+	trace_cfg80211_radar_event(wiphy, chandef, offchan);
 
 	/* only set the chandef supplied channel to unavailable, in
 	 * case the radar is detected on only one of multiple channels
 	 * spanned by the chandef.
 	 */
 	cfg80211_set_dfs_state(wiphy, chandef, NL80211_DFS_UNAVAILABLE);
+
+	if (offchan)
+		queue_work(cfg80211_wq, &rdev->offchan_cac_abort_wk);
 
 	cfg80211_sched_dfs_chan_update(rdev);
 
@@ -926,7 +929,7 @@ void cfg80211_radar_event(struct wiphy *wiphy,
 	memcpy(&rdev->radar_chandef, chandef, sizeof(struct cfg80211_chan_def));
 	queue_work(cfg80211_wq, &rdev->propagate_radar_detect_wk);
 }
-EXPORT_SYMBOL(cfg80211_radar_event);
+EXPORT_SYMBOL(__cfg80211_radar_event);
 
 void cfg80211_cac_event(struct net_device *netdev,
 			const struct cfg80211_chan_def *chandef,
@@ -998,7 +1001,8 @@ __cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
 		rdev->offchan_radar_wdev = NULL;
 		break;
 	case NL80211_RADAR_CAC_ABORTED:
-		cancel_delayed_work(&rdev->offchan_cac_done_wk);
+		if (!cancel_delayed_work(&rdev->offchan_cac_done_wk))
+			return;
 		wdev = rdev->offchan_radar_wdev;
 		rdev->offchan_radar_wdev = NULL;
 		break;
