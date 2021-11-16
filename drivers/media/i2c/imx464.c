@@ -2271,6 +2271,7 @@ static long IMX464_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 i, h, w, stream;
 	long ret = 0;
 	u64 pixel_rate = 0;
+	u32 *sync_mode = NULL;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -2339,6 +2340,14 @@ static long IMX464_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ch_info = (struct rkmodule_channel_info *)arg;
 		ret = IMX464_get_channel_info(IMX464, ch_info);
 		break;
+	case RKMODULE_GET_SYNC_MODE:
+		sync_mode = (u32 *)arg;
+		*sync_mode = IMX464->sync_mode;
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		sync_mode = (u32 *)arg;
+		IMX464->sync_mode = *sync_mode;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -2360,6 +2369,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 	long ret;
 	u32 cg = 0;
 	u32  stream;
+	u32 sync_mode;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2464,6 +2474,21 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(ch_info);
 		break;
+	case RKMODULE_GET_SYNC_MODE:
+		ret = IMX464_ioctl(sd, cmd, &sync_mode);
+		if (!ret) {
+			ret = copy_to_user(up, &sync_mode, sizeof(u32));
+			if (ret)
+				ret = -EFAULT;
+		}
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		ret = copy_from_user(&sync_mode, up, sizeof(u32));
+		if (!ret)
+			ret = IMX464_ioctl(sd, cmd, &sync_mode);
+		else
+			ret = -EFAULT;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -2549,7 +2574,6 @@ static int __IMX464_stop_stream(struct IMX464 *IMX464)
 		ret |= IMX464_write_array(IMX464->client, IMX464_external_sync_master_stop_regs);
 	else if (IMX464->sync_mode == INTERNAL_MASTER_MODE)
 		ret |= IMX464_write_array(IMX464->client, IMX464_interal_sync_master_stop_regs);
-
 	return ret;
 }
 
@@ -2668,6 +2692,7 @@ static int __IMX464_power_on(struct IMX464 *IMX464)
 		goto disable_clk;
 	}
 
+	usleep_range(10000, 11000);
 	if (!IS_ERR(IMX464->reset_gpio))
 		gpiod_set_value_cansleep(IMX464->reset_gpio, 1);
 
@@ -2704,6 +2729,7 @@ static void __IMX464_power_off(struct IMX464 *IMX464)
 			dev_err(dev, "could not set pins\n");
 	}
 	regulator_bulk_disable(IMX464_NUM_SUPPLIES, IMX464->supplies);
+	usleep_range(10000, 11000);
 }
 
 static int IMX464_runtime_resume(struct device *dev)
