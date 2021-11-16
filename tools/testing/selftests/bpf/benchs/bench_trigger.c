@@ -2,6 +2,7 @@
 /* Copyright (c) 2020 Facebook */
 #include "bench.h"
 #include "trigger_bench.skel.h"
+#include "trace_helpers.h"
 
 /* BPF triggering benchmarks */
 static struct trigger_ctx {
@@ -107,6 +108,101 @@ static void *trigger_consumer(void *input)
 	return NULL;
 }
 
+/* make sure call is not inlined and not avoided by compiler, so __weak and
+ * inline asm volatile in the body of the function
+ *
+ * There is a performance difference between uprobing at nop location vs other
+ * instructions. So use two different targets, one of which starts with nop
+ * and another doesn't.
+ *
+ * GCC doesn't generate stack setup preample for these functions due to them
+ * having no input arguments and doing nothing in the body.
+ */
+__weak void uprobe_target_with_nop(void)
+{
+	asm volatile ("nop");
+}
+
+__weak void uprobe_target_without_nop(void)
+{
+	asm volatile ("");
+}
+
+static void *uprobe_base_producer(void *input)
+{
+	while (true) {
+		uprobe_target_with_nop();
+		atomic_inc(&base_hits.value);
+	}
+	return NULL;
+}
+
+static void *uprobe_producer_with_nop(void *input)
+{
+	while (true)
+		uprobe_target_with_nop();
+	return NULL;
+}
+
+static void *uprobe_producer_without_nop(void *input)
+{
+	while (true)
+		uprobe_target_without_nop();
+	return NULL;
+}
+
+static void usetup(bool use_retprobe, bool use_nop)
+{
+	size_t uprobe_offset;
+	ssize_t base_addr;
+	struct bpf_link *link;
+
+	setup_libbpf();
+
+	ctx.skel = trigger_bench__open_and_load();
+	if (!ctx.skel) {
+		fprintf(stderr, "failed to open skeleton\n");
+		exit(1);
+	}
+
+	base_addr = get_base_addr();
+	if (use_nop)
+		uprobe_offset = get_uprobe_offset(&uprobe_target_with_nop, base_addr);
+	else
+		uprobe_offset = get_uprobe_offset(&uprobe_target_without_nop, base_addr);
+
+	link = bpf_program__attach_uprobe(ctx.skel->progs.bench_trigger_uprobe,
+					  use_retprobe,
+					  -1 /* all PIDs */,
+					  "/proc/self/exe",
+					  uprobe_offset);
+	if (!link) {
+		fprintf(stderr, "failed to attach uprobe!\n");
+		exit(1);
+	}
+	ctx.skel->links.bench_trigger_uprobe = link;
+}
+
+static void uprobe_setup_with_nop()
+{
+	usetup(false, true);
+}
+
+static void uretprobe_setup_with_nop()
+{
+	usetup(true, true);
+}
+
+static void uprobe_setup_without_nop()
+{
+	usetup(false, false);
+}
+
+static void uretprobe_setup_without_nop()
+{
+	usetup(true, false);
+}
+
 const struct bench bench_trig_base = {
 	.name = "trig-base",
 	.validate = trigger_validate,
@@ -177,6 +273,56 @@ const struct bench bench_trig_fmodret = {
 	.validate = trigger_validate,
 	.setup = trigger_fmodret_setup,
 	.producer_thread = trigger_producer,
+	.consumer_thread = trigger_consumer,
+	.measure = trigger_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
+const struct bench bench_trig_uprobe_base = {
+	.name = "trig-uprobe-base",
+	.setup = NULL, /* no uprobe/uretprobe is attached */
+	.producer_thread = uprobe_base_producer,
+	.consumer_thread = trigger_consumer,
+	.measure = trigger_base_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
+const struct bench bench_trig_uprobe_with_nop = {
+	.name = "trig-uprobe-with-nop",
+	.setup = uprobe_setup_with_nop,
+	.producer_thread = uprobe_producer_with_nop,
+	.consumer_thread = trigger_consumer,
+	.measure = trigger_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
+const struct bench bench_trig_uretprobe_with_nop = {
+	.name = "trig-uretprobe-with-nop",
+	.setup = uretprobe_setup_with_nop,
+	.producer_thread = uprobe_producer_with_nop,
+	.consumer_thread = trigger_consumer,
+	.measure = trigger_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
+const struct bench bench_trig_uprobe_without_nop = {
+	.name = "trig-uprobe-without-nop",
+	.setup = uprobe_setup_without_nop,
+	.producer_thread = uprobe_producer_without_nop,
+	.consumer_thread = trigger_consumer,
+	.measure = trigger_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
+const struct bench bench_trig_uretprobe_without_nop = {
+	.name = "trig-uretprobe-without-nop",
+	.setup = uretprobe_setup_without_nop,
+	.producer_thread = uprobe_producer_without_nop,
 	.consumer_thread = trigger_consumer,
 	.measure = trigger_measure,
 	.report_progress = hits_drops_report_progress,
