@@ -24,16 +24,33 @@ properties:
               - allwinner,sun50i-a100-wdt
               - allwinner,sun50i-h6-wdt
               - allwinner,sun50i-h616-wdt
+              - allwinner,sun50i-r329-wdt
+              - allwinner,sun50i-r329-wdt-reset
           - const: allwinner,sun6i-a31-wdt
       - items:
           - const: allwinner,suniv-f1c100s-wdt
           - const: allwinner,sun4i-a10-wdt
+      - const: allwinner,sun20i-d1-wdt
+      - items:
+          - const: allwinner,sun20i-d1-wdt-reset
+          - const: allwinner,sun20i-d1-wdt
 
   reg:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+    items:
+      - description: High-frequency oscillator input, divided internally
+      - description: Low-frequency oscillator input, only found on some variants
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      - const: hosc
+      - const: losc
 
   interrupts:
     maxItems: 1
@@ -43,6 +60,35 @@ required:
   - reg
   - clocks
   - interrupts
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - allwinner,sun20i-d1-wdt
+          - allwinner,sun20i-d1-wdt-reset
+          - allwinner,sun50i-r329-wdt
+          - allwinner,sun50i-r329-wdt-reset
+
+then:
+  properties:
+    clocks:
+      minItems: 2
+
+    clock-names:
+      minItems: 2
+
+  required:
+    - clock-names
+
+else:
+  properties:
+    clocks:
+      maxItems: 1
+
+    clock-names:
+      maxItems: 1
 
 unevaluatedProperties: false
 

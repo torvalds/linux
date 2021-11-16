@@ -1308,7 +1308,9 @@ int io_wq_cpu_affinity(struct io_wq *wq, cpumask_var_t mask)
  */
 int io_wq_max_workers(struct io_wq *wq, int *new_count)
 {
-	int i, node, prev = 0;
+	int prev[IO_WQ_ACCT_NR];
+	bool first_node = true;
+	int i, node;
 
 	BUILD_BUG_ON((int) IO_WQ_ACCT_BOUND   != (int) IO_WQ_BOUND);
 	BUILD_BUG_ON((int) IO_WQ_ACCT_UNBOUND != (int) IO_WQ_UNBOUND);
@@ -1319,6 +1321,9 @@ int io_wq_max_workers(struct io_wq *wq, int *new_count)
 			new_count[i] = task_rlimit(current, RLIMIT_NPROC);
 	}
 
+	for (i = 0; i < IO_WQ_ACCT_NR; i++)
+		prev[i] = 0;
+
 	rcu_read_lock();
 	for_each_node(node) {
 		struct io_wqe *wqe = wq->wqes[node];
@@ -1327,14 +1332,19 @@ int io_wq_max_workers(struct io_wq *wq, int *new_count)
 		raw_spin_lock(&wqe->lock);
 		for (i = 0; i < IO_WQ_ACCT_NR; i++) {
 			acct = &wqe->acct[i];
-			prev = max_t(int, acct->max_workers, prev);
+			if (first_node)
+				prev[i] = max_t(int, acct->max_workers, prev[i]);
 			if (new_count[i])
 				acct->max_workers = new_count[i];
-			new_count[i] = prev;
 		}
 		raw_spin_unlock(&wqe->lock);
+		first_node = false;
 	}
 	rcu_read_unlock();
+
+	for (i = 0; i < IO_WQ_ACCT_NR; i++)
+		new_count[i] = prev[i];
+
 	return 0;
 }
 

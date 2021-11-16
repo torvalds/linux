@@ -1927,16 +1927,6 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 
 	dm_table_event_callback(t, event_callback, md);
 
-	/*
-	 * The queue hasn't been stopped yet, if the old table type wasn't
-	 * for request-based during suspension.  So stop it to prevent
-	 * I/O mapping before resume.
-	 * This must be done before setting the queue restrictions,
-	 * because request-based dm may be run just after the setting.
-	 */
-	if (request_based)
-		dm_stop_queue(q);
-
 	if (request_based) {
 		/*
 		 * Leverage the fact that request-based DM targets are

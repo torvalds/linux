@@ -41,7 +41,6 @@
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 #include <linux/sched/mm.h>
-#include <linux/highmem.h>
 #include <linux/debugfs.h>
 #include <linux/bug.h>
 #include <linux/vmalloc.h>
@@ -86,8 +85,10 @@
 #include "mmu.h"
 #include "debugfs.h"
 
+#ifdef CONFIG_X86_VSYSCALL_EMULATION
 /* l3 pud for userspace vsyscall mapping */
 static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
+#endif
 
 /*
  * Protects atomic reservation decrease/increase against concurrent increases.
@@ -241,9 +242,11 @@ static void xen_set_pmd(pmd_t *ptr, pmd_t val)
  * Associate a virtual page frame with a given physical page frame
  * and protection flags for that frame.
  */
-void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
+void __init set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 {
-	set_pte_vaddr(vaddr, mfn_pte(mfn, flags));
+	if (HYPERVISOR_update_va_mapping(vaddr, mfn_pte(mfn, flags),
+					 UVMF_INVLPG))
+		BUG();
 }
 
 static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
@@ -789,7 +792,9 @@ static void __init xen_mark_pinned(struct mm_struct *mm, struct page *page,
 static void __init xen_after_bootmem(void)
 {
 	static_branch_enable(&xen_struct_pages_ready);
+#ifdef CONFIG_X86_VSYSCALL_EMULATION
 	SetPagePinned(virt_to_page(level3_user_vsyscall));
+#endif
 	xen_pgd_walk(&init_mm, xen_mark_pinned, FIXADDR_TOP);
 }
 
@@ -1192,6 +1197,13 @@ static void __init xen_pagetable_p2m_setup(void)
 
 static void __init xen_pagetable_init(void)
 {
+	/*
+	 * The majority of further PTE writes is to pagetables already
+	 * announced as such to Xen. Hence it is more efficient to use
+	 * hypercalls for these updates.
+	 */
+	pv_ops.mmu.set_pte = __xen_set_pte;
+
 	paging_init();
 	xen_post_allocator_init();
 
@@ -1421,10 +1433,18 @@ static void xen_pgd_free(struct mm_struct *mm, pgd_t *pgd)
  *
  * Many of these PTE updates are done on unpinned and writable pages
  * and doing a hypercall for these is unnecessary and expensive.  At
- * this point it is not possible to tell if a page is pinned or not,
- * so always write the PTE directly and rely on Xen trapping and
+ * this point it is rarely possible to tell if a page is pinned, so
+ * mostly write the PTE directly and rely on Xen trapping and
  * emulating any updates as necessary.
  */
+static void __init xen_set_pte_init(pte_t *ptep, pte_t pte)
+{
+	if (unlikely(is_early_ioremap_ptep(ptep)))
+		__xen_set_pte(ptep, pte);
+	else
+		native_set_pte(ptep, pte);
+}
+
 __visible pte_t xen_make_pte_init(pteval_t pte)
 {
 	unsigned long pfn;
@@ -1445,11 +1465,6 @@ __visible pte_t xen_make_pte_init(pteval_t pte)
 	return native_make_pte(pte);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte_init);
-
-static void __init xen_set_pte_init(pte_t *ptep, pte_t pte)
-{
-	__xen_set_pte(ptep, pte);
-}
 
 /* Early in boot, while setting up the initial pagetable, assume
    everything is pinned. */
@@ -1750,7 +1765,6 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	set_page_prot(init_top_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_ident_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_kernel_pgt, PAGE_KERNEL_RO);
-	set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
 	set_page_prot(level2_ident_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level2_kernel_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level2_fixmap_pgt, PAGE_KERNEL_RO);
@@ -1766,6 +1780,13 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 
 	/* Unpin Xen-provided one */
 	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
+
+#ifdef CONFIG_X86_VSYSCALL_EMULATION
+	/* Pin user vsyscall L3 */
+	set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
+	pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE,
+			  PFN_DOWN(__pa_symbol(level3_user_vsyscall)));
+#endif
 
 	/*
 	 * At this stage there can be no user pgd, and no page structure to
@@ -1999,6 +2020,7 @@ static unsigned char dummy_mapping[PAGE_SIZE] __page_aligned_bss;
 static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 {
 	pte_t pte;
+	unsigned long vaddr;
 
 	phys >>= PAGE_SHIFT;
 
@@ -2039,15 +2061,15 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 		break;
 	}
 
-	__native_set_fixmap(idx, pte);
+	vaddr = __fix_to_virt(idx);
+	if (HYPERVISOR_update_va_mapping(vaddr, pte, UVMF_INVLPG))
+		BUG();
 
 #ifdef CONFIG_X86_VSYSCALL_EMULATION
 	/* Replicate changes to map the vsyscall page into the user
 	   pagetable vsyscall mapping. */
-	if (idx == VSYSCALL_PAGE) {
-		unsigned long vaddr = __fix_to_virt(idx);
+	if (idx == VSYSCALL_PAGE)
 		set_pte_vaddr_pud(level3_user_vsyscall, vaddr, pte);
-	}
 #endif
 }
 

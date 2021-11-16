@@ -55,6 +55,41 @@ void blk_free_flush_queue(struct blk_flush_queue *q);
 void blk_freeze_queue(struct request_queue *q);
 void __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic);
 void blk_queue_start_drain(struct request_queue *q);
+int __bio_queue_enter(struct request_queue *q, struct bio *bio);
+bool submit_bio_checks(struct bio *bio);
+
+static inline bool blk_try_enter_queue(struct request_queue *q, bool pm)
+{
+	rcu_read_lock();
+	if (!percpu_ref_tryget_live_rcu(&q->q_usage_counter))
+		goto fail;
+
+	/*
+	 * The code that increments the pm_only counter must ensure that the
+	 * counter is globally visible before the queue is unfrozen.
+	 */
+	if (blk_queue_pm_only(q) &&
+	    (!pm || queue_rpm_status(q) == RPM_SUSPENDED))
+		goto fail_put;
+
+	rcu_read_unlock();
+	return true;
+
+fail_put:
+	blk_queue_exit(q);
+fail:
+	rcu_read_unlock();
+	return false;
+}
+
+static inline int bio_queue_enter(struct bio *bio)
+{
+	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+
+	if (blk_try_enter_queue(q, false))
+		return 0;
+	return __bio_queue_enter(q, bio);
+}
 
 #define BIO_INLINE_VECS 4
 struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,

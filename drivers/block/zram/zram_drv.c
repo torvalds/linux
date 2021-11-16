@@ -1734,12 +1734,13 @@ static void zram_reset_device(struct zram *zram)
 	set_capacity_and_notify(zram->disk, 0);
 	part_stat_set_all(zram->disk->part0, 0);
 
-	up_write(&zram->init_lock);
 	/* I/O operation under all of CPU are done so let's free */
 	zram_meta_free(zram, disksize);
 	memset(&zram->stats, 0, sizeof(zram->stats));
 	zcomp_destroy(comp);
 	reset_bdev(zram);
+
+	up_write(&zram->init_lock);
 }
 
 static ssize_t disksize_store(struct device *dev,
@@ -1819,7 +1820,7 @@ static ssize_t reset_store(struct device *dev,
 	mutex_unlock(&bdev->bd_disk->open_mutex);
 
 	/* Make sure all the pending I/O are finished */
-	fsync_bdev(bdev);
+	sync_blockdev(bdev);
 	zram_reset_device(zram);
 
 	mutex_lock(&bdev->bd_disk->open_mutex);
@@ -1979,7 +1980,9 @@ static int zram_add(void)
 		blk_queue_max_write_zeroes_sectors(zram->disk->queue, UINT_MAX);
 
 	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, zram->disk->queue);
-	device_add_disk(NULL, zram->disk, zram_disk_attr_groups);
+	ret = device_add_disk(NULL, zram->disk, zram_disk_attr_groups);
+	if (ret)
+		goto out_cleanup_disk;
 
 	strlcpy(zram->compressor, default_compressor, sizeof(zram->compressor));
 
@@ -1987,6 +1990,8 @@ static int zram_add(void)
 	pr_info("Added device: %s\n", zram->disk->disk_name);
 	return device_id;
 
+out_cleanup_disk:
+	blk_cleanup_disk(zram->disk);
 out_free_idr:
 	idr_remove(&zram_index_idr, device_id);
 out_free_dev:
@@ -1997,25 +2002,47 @@ out_free_dev:
 static int zram_remove(struct zram *zram)
 {
 	struct block_device *bdev = zram->disk->part0;
+	bool claimed;
 
 	mutex_lock(&bdev->bd_disk->open_mutex);
-	if (bdev->bd_openers || zram->claim) {
+	if (bdev->bd_openers) {
 		mutex_unlock(&bdev->bd_disk->open_mutex);
 		return -EBUSY;
 	}
 
-	zram->claim = true;
+	claimed = zram->claim;
+	if (!claimed)
+		zram->claim = true;
 	mutex_unlock(&bdev->bd_disk->open_mutex);
 
 	zram_debugfs_unregister(zram);
 
-	/* Make sure all the pending I/O are finished */
-	fsync_bdev(bdev);
-	zram_reset_device(zram);
+	if (claimed) {
+		/*
+		 * If we were claimed by reset_store(), del_gendisk() will
+		 * wait until reset_store() is done, so nothing need to do.
+		 */
+		;
+	} else {
+		/* Make sure all the pending I/O are finished */
+		sync_blockdev(bdev);
+		zram_reset_device(zram);
+	}
 
 	pr_info("Removed device: %s\n", zram->disk->disk_name);
 
 	del_gendisk(zram->disk);
+
+	/* del_gendisk drains pending reset_store */
+	WARN_ON_ONCE(claimed && zram->claim);
+
+	/*
+	 * disksize_store() may be called in between zram_reset_device()
+	 * and del_gendisk(), so run the last reset to avoid leaking
+	 * anything allocated with disksize_store()
+	 */
+	zram_reset_device(zram);
+
 	blk_cleanup_disk(zram->disk);
 	kfree(zram);
 	return 0;
@@ -2092,7 +2119,7 @@ static struct class zram_control_class = {
 
 static int zram_remove_cb(int id, void *ptr, void *data)
 {
-	zram_remove(ptr);
+	WARN_ON_ONCE(zram_remove(ptr));
 	return 0;
 }
 

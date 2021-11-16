@@ -32,7 +32,7 @@ pmd_t tmp_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
 static __init void *kasan_alloc_block(size_t size)
 {
 	return memblock_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
-				      MEMBLOCK_ALLOC_KASAN, NUMA_NO_NODE);
+				      MEMBLOCK_ALLOC_NOLEAKTRACE, NUMA_NO_NODE);
 }
 
 static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
