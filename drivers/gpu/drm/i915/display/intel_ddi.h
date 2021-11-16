@@ -6,11 +6,11 @@
 #ifndef __INTEL_DDI_H__
 #define __INTEL_DDI_H__
 
-#include "intel_display.h"
 #include "i915_reg.h"
 
 struct drm_connector_state;
 struct drm_i915_private;
+struct intel_atomic_state;
 struct intel_connector;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -18,6 +18,8 @@ struct intel_dp;
 struct intel_dpll_hw_state;
 struct intel_encoder;
 struct intel_shared_dpll;
+enum pipe;
+enum port;
 enum transcoder;
 
 i915_reg_t dp_tp_ctl_reg(struct intel_encoder *encoder,
