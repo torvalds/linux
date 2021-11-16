@@ -2251,6 +2251,7 @@
   smp_call_function
   smp_call_function_any
   smp_call_function_single
+  smp_call_function_single_async
   snd_card_free
   snd_card_new
   snd_card_register
