@@ -1209,7 +1209,7 @@ kill_processes:
 
 		hl_set_max_power(hdev);
 	} else {
-		rc = hdev->asic_funcs->soft_reset_late_init(hdev);
+		rc = hdev->asic_funcs->non_hard_reset_late_init(hdev);
 		if (rc) {
 			if (reset_upon_device_release)
 				dev_err(hdev->dev,

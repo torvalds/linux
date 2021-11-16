@@ -1153,7 +1153,7 @@ struct fw_load_mgr {
  * @disable_clock_gating: disable clock gating completely
  * @debug_coresight: perform certain actions on Coresight for debugging.
  * @is_device_idle: return true if device is idle, false otherwise.
- * @soft_reset_late_init: perform certain actions needed after soft reset.
+ * @non_hard_reset_late_init: perform certain actions needed after a reset which is not hard-reset
  * @hw_queues_lock: acquire H/W queues lock.
  * @hw_queues_unlock: release H/W queues lock.
  * @get_pci_id: retrieve PCI ID.
@@ -1289,7 +1289,7 @@ struct hl_asic_funcs {
 	int (*debug_coresight)(struct hl_device *hdev, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, u64 *mask_arr,
 					u8 mask_len, struct seq_file *s);
-	int (*soft_reset_late_init)(struct hl_device *hdev);
+	int (*non_hard_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
 	u32 (*get_pci_id)(struct hl_device *hdev);

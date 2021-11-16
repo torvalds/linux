@@ -7819,7 +7819,7 @@ static void gaudi_print_fw_alive_info(struct hl_device *hdev,
 		fw_alive->thread_id, fw_alive->uptime_seconds);
 }
 
-static int gaudi_soft_reset_late_init(struct hl_device *hdev)
+static int gaudi_non_hard_reset_late_init(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
@@ -9591,7 +9591,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.disable_clock_gating = gaudi_disable_clock_gating,
 	.debug_coresight = gaudi_debug_coresight,
 	.is_device_idle = gaudi_is_device_idle,
-	.soft_reset_late_init = gaudi_soft_reset_late_init,
+	.non_hard_reset_late_init = gaudi_non_hard_reset_late_init,
 	.hw_queues_lock = gaudi_hw_queues_lock,
 	.hw_queues_unlock = gaudi_hw_queues_unlock,
 	.get_pci_id = gaudi_get_pci_id,
