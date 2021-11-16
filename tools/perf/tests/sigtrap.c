@@ -5,9 +5,11 @@
  * Copyright (C) 2021, Google LLC.
  */
 
+#include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/string.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/ioctl.h>
@@ -117,6 +119,7 @@ static int test__sigtrap(struct test_suite *test __maybe_unused, int subtest __m
 	struct sigaction oldact;
 	pthread_t threads[NUM_THREADS];
 	pthread_barrier_t barrier;
+	char sbuf[STRERR_BUFSIZE];
 	int i, fd, ret = TEST_FAIL;
 
 	pthread_barrier_init(&barrier, NULL, NUM_THREADS + 1);
@@ -125,19 +128,19 @@ static int test__sigtrap(struct test_suite *test __maybe_unused, int subtest __m
 	action.sa_sigaction = sigtrap_handler;
 	sigemptyset(&action.sa_mask);
 	if (sigaction(SIGTRAP, &action, &oldact)) {
-		pr_debug("FAILED sigaction()\n");
+		pr_debug("FAILED sigaction(): %s\n", str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 
 	fd = sys_perf_event_open(&attr, 0, -1, -1, perf_event_open_cloexec_flag());
 	if (fd < 0) {
-		pr_debug("FAILED sys_perf_event_open()\n");
+		pr_debug("FAILED sys_perf_event_open(): %s\n", str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_restore_sigaction;
 	}
 
 	for (i = 0; i < NUM_THREADS; i++) {
 		if (pthread_create(&threads[i], NULL, test_thread, &barrier)) {
-			pr_debug("FAILED pthread_create()");
+			pr_debug("FAILED pthread_create(): %s\n", str_error_r(errno, sbuf, sizeof(sbuf)));
 			goto out_close_perf_event;
 		}
 	}
