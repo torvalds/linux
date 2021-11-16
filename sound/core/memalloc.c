@@ -620,6 +620,52 @@ static const struct snd_malloc_ops snd_dma_noncontig_ops = {
 	.get_chunk_size = snd_dma_noncontig_get_chunk_size,
 };
 
+/* x86-specific SG-buffer with WC pages */
+#ifdef CONFIG_SND_DMA_SGBUF
+#define sg_wc_address(it) ((unsigned long)page_address(sg_page_iter_page(it)))
+
+static void *snd_dma_sg_wc_alloc(struct snd_dma_buffer *dmab, size_t size)
+{
+	void *p = snd_dma_noncontig_alloc(dmab, size);
+	struct sg_table *sgt = dmab->private_data;
+	struct sg_page_iter iter;
+
+	if (!p)
+		return NULL;
+	for_each_sgtable_page(sgt, &iter, 0)
+		set_memory_wc(sg_wc_address(&iter), 1);
+	return p;
+}
+
+static void snd_dma_sg_wc_free(struct snd_dma_buffer *dmab)
+{
+	struct sg_table *sgt = dmab->private_data;
+	struct sg_page_iter iter;
+
+	for_each_sgtable_page(sgt, &iter, 0)
+		set_memory_wb(sg_wc_address(&iter), 1);
+	snd_dma_noncontig_free(dmab);
+}
+
+static int snd_dma_sg_wc_mmap(struct snd_dma_buffer *dmab,
+			      struct vm_area_struct *area)
+{
+	area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+	return dma_mmap_noncontiguous(dmab->dev.dev, area,
+				      dmab->bytes, dmab->private_data);
+}
+
+static const struct snd_malloc_ops snd_dma_sg_wc_ops = {
+	.alloc = snd_dma_sg_wc_alloc,
+	.free = snd_dma_sg_wc_free,
+	.mmap = snd_dma_sg_wc_mmap,
+	.sync = snd_dma_noncontig_sync,
+	.get_addr = snd_dma_noncontig_get_addr,
+	.get_page = snd_dma_noncontig_get_page,
+	.get_chunk_size = snd_dma_noncontig_get_chunk_size,
+};
+#endif /* CONFIG_SND_DMA_SGBUF */
+
 /*
  * Non-coherent pages allocator
  */
@@ -679,14 +725,13 @@ static const struct snd_malloc_ops *dma_ops[] = {
 	[SNDRV_DMA_TYPE_DEV_WC] = &snd_dma_wc_ops,
 	[SNDRV_DMA_TYPE_NONCONTIG] = &snd_dma_noncontig_ops,
 	[SNDRV_DMA_TYPE_NONCOHERENT] = &snd_dma_noncoherent_ops,
+#ifdef CONFIG_SND_DMA_SGBUF
+	[SNDRV_DMA_TYPE_DEV_WC_SG] = &snd_dma_sg_wc_ops,
+#endif
 #ifdef CONFIG_GENERIC_ALLOCATOR
 	[SNDRV_DMA_TYPE_DEV_IRAM] = &snd_dma_iram_ops,
 #endif /* CONFIG_GENERIC_ALLOCATOR */
 #endif /* CONFIG_HAS_DMA */
-#ifdef CONFIG_SND_DMA_SGBUF
-	[SNDRV_DMA_TYPE_DEV_SG] = &snd_dma_sg_ops,
-	[SNDRV_DMA_TYPE_DEV_WC_SG] = &snd_dma_sg_ops,
-#endif
 };
 
 static const struct snd_malloc_ops *snd_dma_get_ops(struct snd_dma_buffer *dmab)
