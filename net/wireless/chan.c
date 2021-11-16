@@ -712,6 +712,19 @@ static bool cfg80211_is_wiphy_oper_chan(struct wiphy *wiphy,
 	return false;
 }
 
+static bool
+cfg80211_offchan_chain_is_active(struct cfg80211_registered_device *rdev,
+				 struct ieee80211_channel *channel)
+{
+	if (!rdev->offchan_radar_wdev)
+		return false;
+
+	if (!cfg80211_chandef_valid(&rdev->offchan_radar_chandef))
+		return false;
+
+	return cfg80211_is_sub_chan(&rdev->offchan_radar_chandef, channel);
+}
+
 bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 				  struct ieee80211_channel *chan)
 {
@@ -727,6 +740,9 @@ bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 			continue;
 
 		if (cfg80211_is_wiphy_oper_chan(&rdev->wiphy, chan))
+			return true;
+
+		if (cfg80211_offchan_chain_is_active(rdev, chan))
 			return true;
 	}
 

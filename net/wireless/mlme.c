@@ -988,7 +988,7 @@ __cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
 	if (!cfg80211_chandef_valid(chandef))
 		return;
 
-	if (event != NL80211_RADAR_CAC_STARTED && !rdev->offchan_radar_wdev)
+	if (!rdev->offchan_radar_wdev)
 		return;
 
 	switch (event) {
@@ -998,17 +998,13 @@ __cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
 		queue_work(cfg80211_wq, &rdev->propagate_cac_done_wk);
 		cfg80211_sched_dfs_chan_update(rdev);
 		wdev = rdev->offchan_radar_wdev;
-		rdev->offchan_radar_wdev = NULL;
 		break;
 	case NL80211_RADAR_CAC_ABORTED:
 		if (!cancel_delayed_work(&rdev->offchan_cac_done_wk))
 			return;
 		wdev = rdev->offchan_radar_wdev;
-		rdev->offchan_radar_wdev = NULL;
 		break;
 	case NL80211_RADAR_CAC_STARTED:
-		WARN_ON(!wdev);
-		rdev->offchan_radar_wdev = wdev;
 		break;
 	default:
 		return;
@@ -1024,7 +1020,8 @@ cfg80211_offchan_cac_event(struct cfg80211_registered_device *rdev,
 			   enum nl80211_radar_event event)
 {
 	wiphy_lock(&rdev->wiphy);
-	__cfg80211_offchan_cac_event(rdev, NULL, chandef, event);
+	__cfg80211_offchan_cac_event(rdev, rdev->offchan_radar_wdev,
+				     chandef, event);
 	wiphy_unlock(&rdev->wiphy);
 }
 
@@ -1071,7 +1068,13 @@ cfg80211_start_offchan_radar_detection(struct cfg80211_registered_device *rdev,
 				     NL80211_EXT_FEATURE_RADAR_OFFCHAN))
 		return -EOPNOTSUPP;
 
-	if (rdev->offchan_radar_wdev)
+	/* Offchannel chain already locked by another wdev */
+	if (rdev->offchan_radar_wdev && rdev->offchan_radar_wdev != wdev)
+		return -EBUSY;
+
+	/* CAC already in progress on the offchannel chain */
+	if (rdev->offchan_radar_wdev == wdev &&
+	    delayed_work_pending(&rdev->offchan_cac_done_wk))
 		return -EBUSY;
 
 	err = rdev_set_radar_offchan(rdev, chandef);
@@ -1083,6 +1086,8 @@ cfg80211_start_offchan_radar_detection(struct cfg80211_registered_device *rdev,
 		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
 
 	rdev->offchan_radar_chandef = *chandef;
+	rdev->offchan_radar_wdev = wdev; /* Get offchain ownership */
+
 	__cfg80211_offchan_cac_event(rdev, wdev, chandef,
 				     NL80211_RADAR_CAC_STARTED);
 	queue_delayed_work(cfg80211_wq, &rdev->offchan_cac_done_wk,
@@ -1102,6 +1107,7 @@ void cfg80211_stop_offchan_radar_detection(struct wireless_dev *wdev)
 		return;
 
 	rdev_set_radar_offchan(rdev, NULL);
+	rdev->offchan_radar_wdev = NULL; /* Release offchain ownership */
 
 	__cfg80211_offchan_cac_event(rdev, wdev, &rdev->offchan_radar_chandef,
 				     NL80211_RADAR_CAC_ABORTED);
