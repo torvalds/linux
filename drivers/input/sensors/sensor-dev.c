@@ -1739,6 +1739,20 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
 		pdata->orientation[8] = -1;
 		break;
 
+	case 9:
+		pdata->orientation[0] = -1;
+		pdata->orientation[1] = 0;
+		pdata->orientation[2] = 0;
+
+		pdata->orientation[3] = 0;
+		pdata->orientation[4] = -1;
+		pdata->orientation[5] = 0;
+
+		pdata->orientation[6] = 0;
+		pdata->orientation[7] = 0;
+		pdata->orientation[8] = -1;
+		break;
+
 	default:
 		pdata->orientation[0] = 1;
 		pdata->orientation[1] = 0;
