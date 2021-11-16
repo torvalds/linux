@@ -1019,18 +1019,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 					link->type != dc_connection_mst_branch)
 				dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 
-
-			// For seamless boot, to skip verify link cap, we read UEFI settings and set them as verified.
-			if (reason == DETECT_REASON_BOOT &&
-					!dc_ctx->dc->config.power_down_display_on_boot &&
-					link->link_status.link_active)
-				perform_dp_seamless_boot = true;
-
-			if (perform_dp_seamless_boot) {
-				read_current_link_settings_on_detect(link);
-				link->verified_link_cap = link->reported_link_cap;
-			}
-
 			break;
 		}
 

@@ -1496,10 +1496,10 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		init_data.flags.allow_lttpr_non_transparent_mode.bits.DP2_0 = true;
 #endif
 
-	init_data.flags.power_down_display_on_boot = true;
+	init_data.flags.seamless_boot_edp_requested = false;
 
 	if (check_seamless_boot_capability(adev)) {
-		init_data.flags.power_down_display_on_boot = false;
+		init_data.flags.seamless_boot_edp_requested = true;
 		init_data.flags.allow_seamless_boot_optimization = true;
 		DRM_INFO("Seamless boot condition check passed\n");
 	}

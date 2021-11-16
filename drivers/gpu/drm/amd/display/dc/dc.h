@@ -322,7 +322,7 @@ struct dc_config {
 	bool fbc_support;
 	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
-	bool power_down_display_on_boot;
+	bool seamless_boot_edp_requested;
 	bool edp_not_connected;
 	bool edp_no_power_sequencing;
 	bool force_enum_edp;
