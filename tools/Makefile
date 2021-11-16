@@ -24,7 +24,6 @@ help:
 	@echo '  intel-speed-select     - Intel Speed Select tool'
 	@echo '  kvm_stat               - top-like utility for displaying kvm statistics'
 	@echo '  leds                   - LEDs  tools'
-	@echo '  liblockdep             - user-space wrapper for kernel locking-validator'
 	@echo '  objtool                - an ELF object analysis tool'
 	@echo '  pci                    - PCI tools'
 	@echo '  perf                   - Linux performance measurement and analysis tool'
@@ -72,9 +71,6 @@ cgroup counter firewire hv guest bootconfig spi usb virtio vm bpf iio gpio objto
 bpf/%: FORCE
 	$(call descend,$@)
 
-liblockdep: FORCE
-	$(call descend,lib/lockdep)
-
 libapi: FORCE
 	$(call descend,lib/api)
 
@@ -101,7 +97,7 @@ freefall: FORCE
 kvm_stat: FORCE
 	$(call descend,kvm/$@)
 
-all: acpi cgroup counter cpupower gpio hv firewire liblockdep \
+all: acpi cgroup counter cpupower gpio hv firewire \
 		perf selftests bootconfig spi turbostat usb \
 		virtio vm bpf x86_energy_perf_policy \
 		tmon freefall iio objtool kvm_stat wmi \
@@ -115,9 +111,6 @@ cpupower_install:
 
 cgroup_install counter_install firewire_install gpio_install hv_install iio_install perf_install bootconfig_install spi_install usb_install virtio_install vm_install bpf_install objtool_install wmi_install pci_install debugging_install tracing_install:
 	$(call descend,$(@:_install=),install)
-
-liblockdep_install:
-	$(call descend,lib/lockdep,install)
 
 selftests_install:
 	$(call descend,testing/$(@:_install=),install)
@@ -135,7 +128,7 @@ kvm_stat_install:
 	$(call descend,kvm/$(@:_install=),install)
 
 install: acpi_install cgroup_install counter_install cpupower_install gpio_install \
-		hv_install firewire_install iio_install liblockdep_install \
+		hv_install firewire_install iio_install \
 		perf_install selftests_install turbostat_install usb_install \
 		virtio_install vm_install bpf_install x86_energy_perf_policy_install \
 		tmon_install freefall_install objtool_install kvm_stat_install \
@@ -150,9 +143,6 @@ cpupower_clean:
 
 cgroup_clean counter_clean hv_clean firewire_clean bootconfig_clean spi_clean usb_clean virtio_clean vm_clean wmi_clean bpf_clean iio_clean gpio_clean objtool_clean leds_clean pci_clean firmware_clean debugging_clean tracing_clean:
 	$(call descend,$(@:_clean=),clean)
-
-liblockdep_clean:
-	$(call descend,lib/lockdep,clean)
 
 libapi_clean:
 	$(call descend,lib/api,clean)
@@ -185,7 +175,7 @@ build_clean:
 clean: acpi_clean cgroup_clean counter_clean cpupower_clean hv_clean firewire_clean \
 		perf_clean selftests_clean turbostat_clean bootconfig_clean spi_clean usb_clean virtio_clean \
 		vm_clean bpf_clean iio_clean x86_energy_perf_policy_clean tmon_clean \
-		freefall_clean build_clean libbpf_clean libsubcmd_clean liblockdep_clean \
+		freefall_clean build_clean libbpf_clean libsubcmd_clean \
 		gpio_clean objtool_clean leds_clean wmi_clean pci_clean firmware_clean debugging_clean \
 		intel-speed-select_clean tracing_clean
 

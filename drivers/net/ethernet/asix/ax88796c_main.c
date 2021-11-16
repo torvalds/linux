@@ -934,7 +934,7 @@ static const struct net_device_ops ax88796c_netdev_ops = {
 	.ndo_stop		= ax88796c_close,
 	.ndo_start_xmit		= ax88796c_start_xmit,
 	.ndo_get_stats64	= ax88796c_get_stats64,
-	.ndo_do_ioctl		= ax88796c_ioctl,
+	.ndo_eth_ioctl		= ax88796c_ioctl,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_features	= ax88796c_set_features,
 };
@@ -1114,11 +1114,13 @@ static int ax88796c_remove(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id ax88796c_dt_ids[] = {
 	{ .compatible = "asix,ax88796c" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ax88796c_dt_ids);
+#endif
 
 static const struct spi_device_id asix_id[] = {
 	{ "ax88796c", 0 },

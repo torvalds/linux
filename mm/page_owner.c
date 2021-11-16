@@ -125,7 +125,7 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 	return handle;
 }
 
-void __reset_page_owner(struct page *page, unsigned int order)
+void __reset_page_owner(struct page *page, unsigned short order)
 {
 	int i;
 	struct page_ext *page_ext;
@@ -149,7 +149,7 @@ void __reset_page_owner(struct page *page, unsigned int order)
 
 static inline void __set_page_owner_handle(struct page_ext *page_ext,
 					depot_stack_handle_t handle,
-					unsigned int order, gfp_t gfp_mask)
+					unsigned short order, gfp_t gfp_mask)
 {
 	struct page_owner *page_owner;
 	int i;
@@ -169,7 +169,7 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 	}
 }
 
-noinline void __set_page_owner(struct page *page, unsigned int order,
+noinline void __set_page_owner(struct page *page, unsigned short order,
 					gfp_t gfp_mask)
 {
 	struct page_ext *page_ext = lookup_page_ext(page);

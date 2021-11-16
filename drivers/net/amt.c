@@ -12,7 +12,6 @@
 #include <linux/igmp.h>
 #include <linux/workqueue.h>
 #include <net/net_namespace.h>
-#include <net/protocol.h>
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
@@ -23,7 +22,6 @@
 #include <linux/security.h>
 #include <net/gro_cells.h>
 #include <net/ipv6.h>
-#include <net/protocol.h>
 #include <net/if_inet6.h>
 #include <net/ndisc.h>
 #include <net/addrconf.h>
@@ -2767,7 +2765,7 @@ static int amt_err_lookup(struct sock *sk, struct sk_buff *skb)
 	rcu_read_lock_bh();
 	amt = rcu_dereference_sk_user_data(sk);
 	if (!amt)
-		goto drop;
+		goto out;
 
 	if (amt->mode != AMT_MODE_GATEWAY)
 		goto drop;
@@ -2789,6 +2787,7 @@ static int amt_err_lookup(struct sock *sk, struct sk_buff *skb)
 	default:
 		goto drop;
 	}
+out:
 	rcu_read_unlock_bh();
 	return 0;
 drop:
@@ -3259,8 +3258,10 @@ static int __init amt_init(void)
 		goto unregister_notifier;
 
 	amt_wq = alloc_workqueue("amt", WQ_UNBOUND, 1);
-	if (!amt_wq)
+	if (!amt_wq) {
+		err = -ENOMEM;
 		goto rtnl_unregister;
+	}
 
 	spin_lock_init(&source_gc_lock);
 	spin_lock_bh(&source_gc_lock);
@@ -3285,7 +3286,7 @@ static void __exit amt_fini(void)
 {
 	rtnl_link_unregister(&amt_link_ops);
 	unregister_netdevice_notifier(&amt_notifier_block);
-	flush_delayed_work(&source_gc_wq);
+	cancel_delayed_work(&source_gc_wq);
 	__amt_source_gc_work();
 	destroy_workqueue(amt_wq);
 }

@@ -131,7 +131,7 @@ const struct attribute_group *ahci_shost_groups[] = {
 };
 EXPORT_SYMBOL_GPL(ahci_shost_groups);
 
-struct attribute *ahci_sdev_attrs[] = {
+static struct attribute *ahci_sdev_attrs[] = {
 	&dev_attr_sw_activity.attr,
 	&dev_attr_unload_heads.attr,
 	&dev_attr_ncq_prio_supported.attr,

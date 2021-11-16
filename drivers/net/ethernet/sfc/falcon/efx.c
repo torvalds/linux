@@ -817,9 +817,7 @@ ef4_realloc_channels(struct ef4_nic *efx, u32 rxq_entries, u32 txq_entries)
 	efx->rxq_entries = rxq_entries;
 	efx->txq_entries = txq_entries;
 	for (i = 0; i < efx->n_channels; i++) {
-		channel = efx->channel[i];
-		efx->channel[i] = other_channel[i];
-		other_channel[i] = channel;
+		swap(efx->channel[i], other_channel[i]);
 	}
 
 	/* Restart buffer table allocation */
@@ -863,9 +861,7 @@ rollback:
 	efx->rxq_entries = old_rxq_entries;
 	efx->txq_entries = old_txq_entries;
 	for (i = 0; i < efx->n_channels; i++) {
-		channel = efx->channel[i];
-		efx->channel[i] = other_channel[i];
-		other_channel[i] = channel;
+		swap(efx->channel[i], other_channel[i]);
 	}
 	goto out;
 }

@@ -872,9 +872,10 @@ F:	Documentation/devicetree/bindings/thermal/amazon,al-thermal.txt
 F:	drivers/thermal/thermal_mmio.c
 
 AMAZON ETHERNET DRIVERS
-M:	Netanel Belgazal <netanel@amazon.com>
+M:	Shay Agroskin <shayagr@amazon.com>
 M:	Arthur Kiyanovski <akiyano@amazon.com>
-R:	Guy Tzalik <gtzalik@amazon.com>
+R:	David Arinzon <darinzon@amazon.com>
+R:	Noam Dagan <ndagan@amazon.com>
 R:	Saeed Bishara <saeedb@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -2282,6 +2283,7 @@ F:	arch/arm/boot/dts/mstar-*
 F:	arch/arm/mach-mstar/
 F:	drivers/clk/mstar/
 F:	drivers/gpio/gpio-msc313.c
+F:	drivers/rtc/rtc-msc313.c
 F:	drivers/watchdog/msc313e_wdt.c
 F:	include/dt-bindings/clock/mstar-*
 F:	include/dt-bindings/gpio/msc313-gpio.h
@@ -4457,7 +4459,7 @@ CHIPONE ICN8318 I2C TOUCHSCREEN DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/input/touchscreen/chipone_icn8318.txt
+F:	Documentation/devicetree/bindings/input/touchscreen/chipone,icn8318.yaml
 F:	drivers/input/touchscreen/chipone_icn8318.c
 
 CHIPONE ICN8505 I2C TOUCHSCREEN DRIVER
@@ -5202,6 +5204,13 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/input/touchscreen/cy8ctma140.c
+
+CYPRESS STREETFIGHTER TOUCHKEYS DRIVER
+M:	Yassine Oudjana <y.oudjana@protonmail.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/input/cypress-sf.yaml
+F:	drivers/input/keyboard/cypress-sf.c
 
 CYTTSP TOUCHSCREEN DRIVER
 M:	Linus Walleij <linus.walleij@linaro.org>
@@ -8061,9 +8070,10 @@ F:	drivers/media/usb/go7007/
 
 GOODIX TOUCHSCREEN
 M:	Bastien Nocera <hadess@hadess.net>
+M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
-F:	drivers/input/touchscreen/goodix.c
+F:	drivers/input/touchscreen/goodix*
 
 GOOGLE ETHERNET DRIVERS
 M:	Jeroen de Borst <jeroendb@google.com>
@@ -10804,11 +10814,6 @@ F:	Documentation/devicetree/bindings/ata/
 F:	drivers/ata/
 F:	include/linux/ata.h
 F:	include/linux/libata.h
-
-LIBLOCKDEP
-M:	Sasha Levin <alexander.levin@microsoft.com>
-S:	Maintained
-F:	tools/lib/lockdep/
 
 LIBNVDIMM BLK: MMIO-APERTURE DRIVER
 M:	Dan Williams <dan.j.williams@intel.com>
