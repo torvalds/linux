@@ -60,20 +60,20 @@
 #define CSI2_DPHY_CLK1_WR_THS_SETTLE	(0x3e0)
 #define CSI2_DPHY_CLK1_CALIB_EN		(0x3e8)
 
-#define CSI2_DCPHY_CLK_WR_THS_SETTLE		(0xB30)
-#define CSI2_DCPHY_LANE0_WR_THS_SETTLE		(0xC30)
-#define CSI2_DCPHY_LANE0_WR_ERR_SOT_SYNC	(0xC34)
-#define CSI2_DCPHY_LANE1_WR_THS_SETTLE		(0xD30)
-#define CSI2_DCPHY_LANE1_WR_ERR_SOT_SYNC	(0xD34)
-#define CSI2_DCPHY_LANE2_WR_THS_SETTLE		(0xE30)
-#define CSI2_DCPHY_LANE2_WR_ERR_SOT_SYNC	(0xE34)
-#define CSI2_DCPHY_LANE3_WR_THS_SETTLE		(0xF30)
-#define CSI2_DCPHY_LANE3_WR_ERR_SOT_SYNC	(0xF34)
-#define CSI2_DCPHY_CLK_LANE_ENABLE		(0xB00)
-#define CSI2_DCPHY_DATA_LANE0_ENABLE		(0xC00)
-#define CSI2_DCPHY_DATA_LANE1_ENABLE		(0xD00)
-#define CSI2_DCPHY_DATA_LANE2_ENABLE		(0xE00)
-#define CSI2_DCPHY_DATA_LANE3_ENABLE		(0xF00)
+#define CSI2_DCPHY_CLK_WR_THS_SETTLE		(0x030)
+#define CSI2_DCPHY_LANE0_WR_THS_SETTLE		(0x130)
+#define CSI2_DCPHY_LANE0_WR_ERR_SOT_SYNC	(0x134)
+#define CSI2_DCPHY_LANE1_WR_THS_SETTLE		(0x230)
+#define CSI2_DCPHY_LANE1_WR_ERR_SOT_SYNC	(0x234)
+#define CSI2_DCPHY_LANE2_WR_THS_SETTLE		(0x330)
+#define CSI2_DCPHY_LANE2_WR_ERR_SOT_SYNC	(0x334)
+#define CSI2_DCPHY_LANE3_WR_THS_SETTLE		(0x430)
+#define CSI2_DCPHY_LANE3_WR_ERR_SOT_SYNC	(0x434)
+#define CSI2_DCPHY_CLK_LANE_ENABLE		(0x000)
+#define CSI2_DCPHY_DATA_LANE0_ENABLE		(0x100)
+#define CSI2_DCPHY_DATA_LANE1_ENABLE		(0x200)
+#define CSI2_DCPHY_DATA_LANE2_ENABLE		(0x300)
+#define CSI2_DCPHY_DATA_LANE3_ENABLE		(0x400)
 
 /* PHY REG BIT DEFINE */
 #define CSI2_DPHY_LANE_MODE_FULL	(0x4)
@@ -249,6 +249,7 @@ static inline void write_csi2_dphy_reg(struct csi2_dphy_hw *hw,
 	const struct csi2dphy_reg *reg = &hw->csi2dphy_regs[index];
 
 	if ((index == CSI2PHY_REG_CTRL_LANE_ENABLE) ||
+	    (index == CSI2PHY_CLK_LANE_ENABLE) ||
 	    (index != CSI2PHY_REG_CTRL_LANE_ENABLE &&
 	     reg->offset != 0x0))
 		writel(value, hw->hw_base_addr + reg->offset);
@@ -272,6 +273,7 @@ static inline void read_csi2_dphy_reg(struct csi2_dphy_hw *hw,
 	const struct csi2dphy_reg *reg = &hw->csi2dphy_regs[index];
 
 	if ((index == CSI2PHY_REG_CTRL_LANE_ENABLE) ||
+	    (index == CSI2PHY_CLK_LANE_ENABLE) ||
 	    (index != CSI2PHY_REG_CTRL_LANE_ENABLE &&
 	     reg->offset != 0x0))
 		*value = readl(hw->hw_base_addr + reg->offset);
