@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include "jsmn.h"
+#define JSMN_STRICT
 
 /*
  * Allocates a fresh unused token from the token pool.
@@ -176,6 +177,14 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 	jsmnerr_t r;
 	int i;
 	jsmntok_t *token;
+#ifdef JSMN_STRICT
+	/*
+	 * Keeps track of whether a new object/list/primitive is expected. New items are only
+	 * allowed after an opening brace, comma or colon. A closing brace after a comma is not
+	 * valid JSON.
+	 */
+	int expecting_item = 1;
+#endif
 
 	for (; parser->pos < len; parser->pos++) {
 		char c;
@@ -185,6 +194,10 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 		switch (c) {
 		case '{':
 		case '[':
+#ifdef JSMN_STRICT
+			if (!expecting_item)
+				return JSMN_ERROR_INVAL;
+#endif
 			token = jsmn_alloc_token(parser, tokens, num_tokens);
 			if (token == NULL)
 				return JSMN_ERROR_NOMEM;
@@ -196,6 +209,10 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 			break;
 		case '}':
 		case ']':
+#ifdef JSMN_STRICT
+			if (expecting_item)
+				return JSMN_ERROR_INVAL;
+#endif
 			type = (c == '}' ? JSMN_OBJECT : JSMN_ARRAY);
 			for (i = parser->toknext - 1; i >= 0; i--) {
 				token = &tokens[i];
@@ -219,6 +236,11 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 			}
 			break;
 		case '\"':
+#ifdef JSMN_STRICT
+			if (!expecting_item)
+				return JSMN_ERROR_INVAL;
+			expecting_item = 0;
+#endif
 			r = jsmn_parse_string(parser, js, len, tokens,
 					      num_tokens);
 			if (r < 0)
@@ -229,11 +251,15 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 		case '\t':
 		case '\r':
 		case '\n':
-		case ':':
-		case ',':
 		case ' ':
 			break;
 #ifdef JSMN_STRICT
+		case ':':
+		case ',':
+			if (expecting_item)
+				return JSMN_ERROR_INVAL;
+			expecting_item = 1;
+			break;
 			/*
 			 * In strict mode primitives are:
 			 * numbers and booleans.
@@ -253,12 +279,21 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 		case 'f':
 		case 'n':
 #else
+		case ':':
+		case ',':
+			break;
 			/*
 			 * In non-strict mode every unquoted value
 			 * is a primitive.
 			 */
 			/*FALL THROUGH */
 		default:
+#endif
+
+#ifdef JSMN_STRICT
+			if (!expecting_item)
+				return JSMN_ERROR_INVAL;
+			expecting_item = 0;
 #endif
 			r = jsmn_parse_primitive(parser, js, len, tokens,
 						 num_tokens);
@@ -282,7 +317,11 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 			return JSMN_ERROR_PART;
 	}
 
+#ifdef JSMN_STRICT
+	return expecting_item ? JSMN_ERROR_INVAL : JSMN_SUCCESS;
+#else
 	return JSMN_SUCCESS;
+#endif
 }
 
 /*

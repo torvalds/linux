@@ -45,7 +45,7 @@ static const Dwfl_Callbacks offline_callbacks = {
  */
 static int check_return_reg(int ra_regno, Dwarf_Frame *frame)
 {
-	Dwarf_Op ops_mem[2];
+	Dwarf_Op ops_mem[3];
 	Dwarf_Op dummy;
 	Dwarf_Op *ops = &dummy;
 	size_t nops;

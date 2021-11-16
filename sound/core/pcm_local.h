@@ -73,4 +73,11 @@ void snd_pcm_sync_stop(struct snd_pcm_substream *substream, bool sync_irq);
 		for ((subs) = (pcm)->streams[str].substream; (subs); \
 		     (subs) = (subs)->next)
 
+static inline void snd_pcm_dma_buffer_sync(struct snd_pcm_substream *substream,
+					   enum snd_dma_sync_mode mode)
+{
+	if (substream->runtime->info & SNDRV_PCM_INFO_EXPLICIT_SYNC)
+		snd_dma_buffer_sync(snd_pcm_get_dma_buf(substream), mode);
+}
+
 #endif	/* __SOUND_CORE_PCM_LOCAL_H */

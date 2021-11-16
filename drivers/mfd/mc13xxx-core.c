@@ -496,15 +496,13 @@ int mc13xxx_common_init(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(mc13xxx_common_init);
 
-int mc13xxx_common_exit(struct device *dev)
+void mc13xxx_common_exit(struct device *dev)
 {
 	struct mc13xxx *mc13xxx = dev_get_drvdata(dev);
 
 	mfd_remove_devices(dev);
 	regmap_del_irq_chip(mc13xxx->irq, mc13xxx->irq_data);
 	mutex_destroy(&mc13xxx->lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(mc13xxx_common_exit);
 

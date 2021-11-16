@@ -103,8 +103,6 @@ struct intel_fb_view {
 	 * in the rotated and remapped GTT view all no-CCS formats (up to 2
 	 * color planes) are supported.
 	 *
-	 * TODO: add support for CCS formats in the remapped GTT view.
-	 *
 	 * The view information shared by all FB color planes in the FB,
 	 * like dst x/y and src/dst width, is stored separately in
 	 * intel_plane_state.
@@ -271,6 +269,9 @@ struct intel_encoder {
 	const struct intel_ddi_buf_trans *(*get_buf_trans)(struct intel_encoder *encoder,
 							   const struct intel_crtc_state *crtc_state,
 							   int *n_entries);
+	void (*set_signal_levels)(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state);
+
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
@@ -427,10 +428,6 @@ struct intel_hdcp_shim {
 	/* Detects whether sink is HDCP2.2 capable */
 	int (*hdcp_2_2_capable)(struct intel_digital_port *dig_port,
 				bool *capable);
-
-	/* Detects whether a HDCP 1.4 sink connected in MST topology */
-	int (*streams_type1_capable)(struct intel_connector *connector,
-				     bool *capable);
 
 	/* Write HDCP2.2 messages */
 	int (*write_2_2_msg)(struct intel_digital_port *dig_port,
@@ -628,6 +625,12 @@ struct intel_plane_state {
 #define PLANE_HAS_FENCE BIT(0)
 
 	struct intel_fb_view view;
+
+	/* Plane pxp decryption state */
+	bool decrypt;
+
+	/* Plane state to display black pixels when pxp is borked */
+	bool force_black;
 
 	/* plane control register */
 	u32 ctl;
@@ -1060,12 +1063,14 @@ struct intel_crtc_state {
 	struct intel_link_m_n dp_m2_n2;
 	bool has_drrs;
 
+	/* PSR is supported but might not be enabled due the lack of enabled planes */
 	bool has_psr;
 	bool has_psr2;
 	bool enable_psr2_sel_fetch;
 	bool req_psr2_sdp_prior_scanline;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
+	struct drm_dp_vsc_sdp psr_vsc;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
@@ -1529,7 +1534,6 @@ struct intel_psr {
 	u32 dc3co_exitline;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
-	struct drm_dp_vsc_sdp vsc;
 };
 
 struct intel_dp {
@@ -1576,7 +1580,6 @@ struct intel_dp {
 
 	struct intel_pps pps;
 
-	bool can_mst; /* this port supports mst */
 	bool is_mst;
 	int active_mst_links;
 
@@ -1606,8 +1609,6 @@ struct intel_dp {
 			       u8 dp_train_pat);
 	void (*set_idle_link_train)(struct intel_dp *intel_dp,
 				    const struct intel_crtc_state *crtc_state);
-	void (*set_signal_levels)(struct intel_dp *intel_dp,
-				  const struct intel_crtc_state *crtc_state);
 
 	u8 (*preemph_max)(struct intel_dp *intel_dp);
 	u8 (*voltage_max)(struct intel_dp *intel_dp,
@@ -1667,8 +1668,11 @@ struct intel_digital_port {
 	enum intel_display_power_domain ddi_io_power_domain;
 	intel_wakeref_t ddi_io_wakeref;
 	intel_wakeref_t aux_wakeref;
+
 	struct mutex tc_lock;	/* protects the TypeC port mode */
 	intel_wakeref_t tc_lock_wakeref;
+	enum intel_display_power_domain tc_lock_power_domain;
+	struct delayed_work tc_disconnect_phy_work;
 	int tc_link_refcount;
 	bool tc_legacy_port:1;
 	char tc_port_name[8];
@@ -1684,6 +1688,8 @@ struct intel_digital_port {
 	bool hdcp_auth_status;
 	/* HDCP port data need to pass to security f/w */
 	struct hdcp_port_data hdcp_port_data;
+	/* Whether the MST topology supports HDCP Type 1 Content */
+	bool hdcp_mst_type1_capable;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -2033,28 +2039,6 @@ static inline struct intel_frontbuffer *
 to_intel_frontbuffer(struct drm_framebuffer *fb)
 {
 	return fb ? to_intel_framebuffer(fb)->frontbuffer : NULL;
-}
-
-static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
-{
-	if (dev_priv->params.panel_use_ssc >= 0)
-		return dev_priv->params.panel_use_ssc != 0;
-	return dev_priv->vbt.lvds_use_ssc
-		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
-}
-
-static inline u32 i9xx_dpll_compute_fp(struct dpll *dpll)
-{
-	return dpll->n << 16 | dpll->m1 << 8 | dpll->m2;
-}
-
-static inline u32 intel_fdi_link_freq(struct drm_i915_private *dev_priv,
-				      const struct intel_crtc_state *pipe_config)
-{
-	if (HAS_DDI(dev_priv))
-		return pipe_config->port_clock; /* SPLL */
-	else
-		return dev_priv->fdi_pll_freq;
 }
 
 static inline bool is_ccs_modifier(u64 modifier)

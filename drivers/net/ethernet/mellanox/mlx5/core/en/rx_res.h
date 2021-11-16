@@ -25,7 +25,7 @@ enum mlx5e_rx_res_features {
 struct mlx5e_rx_res *mlx5e_rx_res_alloc(void);
 int mlx5e_rx_res_init(struct mlx5e_rx_res *res, struct mlx5_core_dev *mdev,
 		      enum mlx5e_rx_res_features features, unsigned int max_nch,
-		      u32 drop_rqn, const struct mlx5e_lro_param *init_lro_param,
+		      u32 drop_rqn, const struct mlx5e_packet_merge_param *init_pkt_merge_param,
 		      unsigned int init_nch);
 void mlx5e_rx_res_destroy(struct mlx5e_rx_res *res);
 void mlx5e_rx_res_free(struct mlx5e_rx_res *res);
@@ -57,7 +57,8 @@ int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
 u8 mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt);
 int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt,
 				     u8 rx_hash_fields);
-int mlx5e_rx_res_lro_set_param(struct mlx5e_rx_res *res, struct mlx5e_lro_param *lro_param);
+int mlx5e_rx_res_packet_merge_set_param(struct mlx5e_rx_res *res,
+					struct mlx5e_packet_merge_param *pkt_merge_param);
 
 int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int init_nch);
 int mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res, u32 rss_idx);

@@ -237,8 +237,8 @@ static void tc589_detach(struct pcmcia_device *link)
 static int tc589_config(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
-	__be16 *phys_addr;
 	int ret, i, j, multi = 0, fifo;
+	__be16 addr[ETH_ALEN / 2];
 	unsigned int ioaddr;
 	static const char * const ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 	u8 *buf;
@@ -246,7 +246,6 @@ static int tc589_config(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "3c589_config\n");
 
-	phys_addr = (__be16 *)dev->dev_addr;
 	/* Is this a 3c562? */
 	if (link->manf_id != MANFID_3COM)
 		dev_info(&link->dev, "hmmm, is this really a 3Com card??\n");
@@ -285,18 +284,19 @@ static int tc589_config(struct pcmcia_device *link)
 	len = pcmcia_get_tuple(link, 0x88, &buf);
 	if (buf && len >= 6) {
 		for (i = 0; i < 3; i++)
-			phys_addr[i] = htons(le16_to_cpu(buf[i*2]));
+			addr[i] = htons(le16_to_cpu(buf[i*2]));
 		kfree(buf);
 	} else {
 		kfree(buf); /* 0 < len < 6 */
 		for (i = 0; i < 3; i++)
-			phys_addr[i] = htons(read_eeprom(ioaddr, i));
-		if (phys_addr[0] == htons(0x6060)) {
+			addr[i] = htons(read_eeprom(ioaddr, i));
+		if (addr[0] == htons(0x6060)) {
 			dev_err(&link->dev, "IO port conflict at 0x%03lx-0x%03lx\n",
 					dev->base_addr, dev->base_addr+15);
 			goto failed;
 		}
 	}
+	eth_hw_addr_set(dev, (u8 *)addr);
 
 	/* The address and resource configuration register aren't loaded from
 	 * the EEPROM and *must* be set to 0 and IRQ3 for the PCMCIA version.

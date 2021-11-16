@@ -64,6 +64,7 @@
  * Cannon Lake-LP (PCH)		0x9da3	32	hard	yes	yes	yes
  * Cedar Fork (PCH)		0x18df	32	hard	yes	yes	yes
  * Ice Lake-LP (PCH)		0x34a3	32	hard	yes	yes	yes
+ * Ice Lake-N (PCH)		0x38a3	32	hard	yes	yes	yes
  * Comet Lake (PCH)		0x02a3	32	hard	yes	yes	yes
  * Comet Lake-H (PCH)		0x06a3	32	hard	yes	yes	yes
  * Elkhart Lake (PCH)		0x4b23	32	hard	yes	yes	yes
@@ -218,6 +219,7 @@
 #define PCI_DEVICE_ID_INTEL_COLETOCREEK_SMBUS		0x23b0
 #define PCI_DEVICE_ID_INTEL_GEMINILAKE_SMBUS		0x31d4
 #define PCI_DEVICE_ID_INTEL_ICELAKE_LP_SMBUS		0x34a3
+#define PCI_DEVICE_ID_INTEL_ICELAKE_N_SMBUS		0x38a3
 #define PCI_DEVICE_ID_INTEL_5_3400_SERIES_SMBUS		0x3b30
 #define PCI_DEVICE_ID_INTEL_TIGERLAKE_H_SMBUS		0x43a3
 #define PCI_DEVICE_ID_INTEL_ELKHART_LAKE_SMBUS		0x4b23
@@ -1042,6 +1044,7 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICELAKE_LP_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICELAKE_N_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COMETLAKE_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COMETLAKE_H_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COMETLAKE_V_SMBUS) },
@@ -1192,7 +1195,7 @@ static acpi_status check_acpi_smo88xx_device(acpi_handle obj_handle,
 
 	kfree(info);
 
-	*((bool *)return_value) = true;
+	*return_value = NULL;
 	return AE_CTRL_TERMINATE;
 
 smo88xx_not_found:
@@ -1202,11 +1205,9 @@ smo88xx_not_found:
 
 static bool is_dell_system_with_lis3lv02d(void)
 {
-	bool found;
-	const char *vendor;
+	void *err = ERR_PTR(-ENOENT);
 
-	vendor = dmi_get_system_info(DMI_SYS_VENDOR);
-	if (!vendor || strcmp(vendor, "Dell Inc."))
+	if (!dmi_match(DMI_SYS_VENDOR, "Dell Inc."))
 		return false;
 
 	/*
@@ -1217,11 +1218,9 @@ static bool is_dell_system_with_lis3lv02d(void)
 	 * accelerometer but unfortunately ACPI does not provide any other
 	 * information (like I2C address).
 	 */
-	found = false;
-	acpi_get_devices(NULL, check_acpi_smo88xx_device, NULL,
-			 (void **)&found);
+	acpi_get_devices(NULL, check_acpi_smo88xx_device, NULL, &err);
 
-	return found;
+	return !IS_ERR(err);
 }
 
 /*
@@ -1395,7 +1394,7 @@ static const struct dmi_system_id mux_dmi_table[] = {
 };
 
 /* Setup multiplexing if needed */
-static int i801_add_mux(struct i801_priv *priv)
+static void i801_add_mux(struct i801_priv *priv)
 {
 	struct device *dev = &priv->adapter.dev;
 	const struct i801_mux_config *mux_config;
@@ -1404,7 +1403,7 @@ static int i801_add_mux(struct i801_priv *priv)
 	int i;
 
 	if (!priv->mux_drvdata)
-		return 0;
+		return;
 	mux_config = priv->mux_drvdata;
 
 	/* Prepare the platform data */
@@ -1420,13 +1419,11 @@ static int i801_add_mux(struct i801_priv *priv)
 			      struct_size(lookup, table, mux_config->n_gpios + 1),
 			      GFP_KERNEL);
 	if (!lookup)
-		return -ENOMEM;
+		return;
 	lookup->dev_id = "i2c-mux-gpio";
-	for (i = 0; i < mux_config->n_gpios; i++) {
-		lookup->table[i] = (struct gpiod_lookup)
-			GPIO_LOOKUP(mux_config->gpio_chip,
-				    mux_config->gpios[i], "mux", 0);
-	}
+	for (i = 0; i < mux_config->n_gpios; i++)
+		lookup->table[i] = GPIO_LOOKUP(mux_config->gpio_chip,
+					       mux_config->gpios[i], "mux", 0);
 	gpiod_add_lookup_table(lookup);
 	priv->lookup = lookup;
 
@@ -1444,8 +1441,6 @@ static int i801_add_mux(struct i801_priv *priv)
 		gpiod_remove_lookup_table(lookup);
 		dev_err(dev, "Failed to register i2c-mux-gpio device\n");
 	}
-
-	return PTR_ERR_OR_ZERO(priv->mux_pdev);
 }
 
 static void i801_del_mux(struct i801_priv *priv)
@@ -1475,7 +1470,7 @@ static unsigned int i801_get_adapter_class(struct i801_priv *priv)
 	return class;
 }
 #else
-static inline int i801_add_mux(struct i801_priv *priv) { return 0; }
+static inline void i801_add_mux(struct i801_priv *priv) { }
 static inline void i801_del_mux(struct i801_priv *priv) { }
 
 static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
@@ -1493,7 +1488,6 @@ static struct platform_device *
 i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 		 struct resource *tco_res)
 {
-	static DEFINE_MUTEX(p2sb_mutex);
 	struct resource *res;
 	unsigned int devfn;
 	u64 base64_addr;
@@ -1506,7 +1500,7 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 	 * enumerated by the PCI subsystem, so we need to unhide/hide it
 	 * to lookup the P2SB BAR.
 	 */
-	mutex_lock(&p2sb_mutex);
+	pci_lock_rescan_remove();
 
 	devfn = PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 1);
 
@@ -1524,7 +1518,7 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 	/* Hide the P2SB device, if it was hidden before */
 	if (hidden)
 		pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, hidden);
-	mutex_unlock(&p2sb_mutex);
+	pci_unlock_rescan_remove();
 
 	res = &tco_res[1];
 	if (pci_dev->device == PCI_DEVICE_ID_INTEL_DNV_SMBUS)
@@ -1624,7 +1618,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 		 * BIOS is accessing the host controller so prevent it from
 		 * suspending automatically from now on.
 		 */
-		pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
+		pm_runtime_get_sync(&pdev->dev);
 	}
 
 	if ((function & ACPI_IO_MASK) == ACPI_READ)
@@ -1639,31 +1633,22 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 
 static int i801_acpi_probe(struct i801_priv *priv)
 {
-	struct acpi_device *adev;
+	acpi_handle ah = ACPI_HANDLE(&priv->pci_dev->dev);
 	acpi_status status;
 
-	adev = ACPI_COMPANION(&priv->pci_dev->dev);
-	if (adev) {
-		status = acpi_install_address_space_handler(adev->handle,
-				ACPI_ADR_SPACE_SYSTEM_IO, i801_acpi_io_handler,
-				NULL, priv);
-		if (ACPI_SUCCESS(status))
-			return 0;
-	}
+	status = acpi_install_address_space_handler(ah, ACPI_ADR_SPACE_SYSTEM_IO,
+						    i801_acpi_io_handler, NULL, priv);
+	if (ACPI_SUCCESS(status))
+		return 0;
 
 	return acpi_check_resource_conflict(&priv->pci_dev->resource[SMBBAR]);
 }
 
 static void i801_acpi_remove(struct i801_priv *priv)
 {
-	struct acpi_device *adev;
+	acpi_handle ah = ACPI_HANDLE(&priv->pci_dev->dev);
 
-	adev = ACPI_COMPANION(&priv->pci_dev->dev);
-	if (!adev)
-		return;
-
-	acpi_remove_address_space_handler(adev->handle,
-		ACPI_ADR_SPACE_SYSTEM_IO, i801_acpi_io_handler);
+	acpi_remove_address_space_handler(ah, ACPI_ADR_SPACE_SYSTEM_IO, i801_acpi_io_handler);
 }
 #else
 static inline int i801_acpi_probe(struct i801_priv *priv) { return 0; }
@@ -1675,7 +1660,6 @@ static void i801_setup_hstcfg(struct i801_priv *priv)
 	unsigned char hstcfg = priv->original_hstcfg;
 
 	hstcfg &= ~SMBHSTCFG_I2C_EN;	/* SMBus timing */
-	hstcfg &= ~SMBHSTCNT_PEC_EN;	/* Disable software PEC */
 	hstcfg |= SMBHSTCFG_HST_EN;
 	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, hstcfg);
 }
@@ -1720,6 +1704,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	case PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS:
 	case PCI_DEVICE_ID_INTEL_CDF_SMBUS:
 	case PCI_DEVICE_ID_INTEL_ICELAKE_LP_SMBUS:
+	case PCI_DEVICE_ID_INTEL_ICELAKE_N_SMBUS:
 	case PCI_DEVICE_ID_INTEL_COMETLAKE_SMBUS:
 	case PCI_DEVICE_ID_INTEL_COMETLAKE_H_SMBUS:
 	case PCI_DEVICE_ID_INTEL_ELKHART_LAKE_SMBUS:
@@ -1831,19 +1816,12 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		priv->features &= ~FEATURE_IRQ;
 
 	if (priv->features & FEATURE_IRQ) {
-		u16 pcictl, pcists;
+		u16 pcists;
 
 		/* Complain if an interrupt is already pending */
 		pci_read_config_word(priv->pci_dev, PCI_STATUS, &pcists);
 		if (pcists & PCI_STATUS_INTERRUPT)
 			dev_warn(&dev->dev, "An interrupt is pending!\n");
-
-		/* Check if interrupts have been disabled */
-		pci_read_config_word(priv->pci_dev, PCI_COMMAND, &pcictl);
-		if (pcictl & PCI_COMMAND_INTX_DISABLE) {
-			dev_info(&dev->dev, "Interrupts are disabled\n");
-			priv->features &= ~FEATURE_IRQ;
-		}
 	}
 
 	if (priv->features & FEATURE_IRQ) {
@@ -1891,9 +1869,6 @@ static void i801_remove(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
 
-	pm_runtime_forbid(&dev->dev);
-	pm_runtime_get_noresume(&dev->dev);
-
 	i801_disable_host_notify(priv);
 	i801_del_mux(priv);
 	i2c_del_adapter(&priv->adapter);
@@ -1901,6 +1876,10 @@ static void i801_remove(struct pci_dev *dev)
 	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
 
 	platform_device_unregister(priv->tco_pdev);
+
+	/* if acpi_reserved is set then usage_count is incremented already */
+	if (!priv->acpi_reserved)
+		pm_runtime_get_noresume(&dev->dev);
 
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on

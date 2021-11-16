@@ -668,14 +668,15 @@ static void i_usx2y_04int(struct urb *urb)
 
 static int usx2y_rate_set(struct usx2ydev *usx2y, int rate)
 {
-	int			err = 0, i;
-	struct snd_usx2y_urb_seq	*us = NULL;
-	int			*usbdata = NULL;
-	const struct s_c2	*ra = rate == 48000 ? setrate_48000 : setrate_44100;
+	int err = 0, i;
+	struct snd_usx2y_urb_seq *us = NULL;
+	int *usbdata = NULL;
+	const struct s_c2 *ra = rate == 48000 ? setrate_48000 : setrate_44100;
 	struct urb *urb;
 
 	if (usx2y->rate != rate) {
-		us = kzalloc(sizeof(*us) + sizeof(struct urb *) * NOOF_SETRATE_URBS, GFP_KERNEL);
+		us = kzalloc(struct_size(us, urb, NOOF_SETRATE_URBS),
+			     GFP_KERNEL);
 		if (!us) {
 			err = -ENOMEM;
 			goto cleanup;

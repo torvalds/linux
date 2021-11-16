@@ -936,7 +936,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 
 		while ((scb = ips_removeq_scb_head(&ha->scb_activelist))) {
 			scb->scsi_cmd->result = DID_ERROR << 16;
-			scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+			scsi_done(scb->scsi_cmd);
 			ips_freescb(ha, scb);
 		}
 
@@ -946,7 +946,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 
 		while ((scsi_cmd = ips_removeq_wait_head(&ha->scb_waitlist))) {
 			scsi_cmd->result = DID_ERROR;
-			scsi_cmd->scsi_done(scsi_cmd);
+			scsi_done(scsi_cmd);
 		}
 
 		ha->active = FALSE;
@@ -965,7 +965,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 
 		while ((scb = ips_removeq_scb_head(&ha->scb_activelist))) {
 			scb->scsi_cmd->result = DID_ERROR << 16;
-			scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+			scsi_done(scb->scsi_cmd);
 			ips_freescb(ha, scb);
 		}
 
@@ -975,7 +975,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 
 		while ((scsi_cmd = ips_removeq_wait_head(&ha->scb_waitlist))) {
 			scsi_cmd->result = DID_ERROR << 16;
-			scsi_cmd->scsi_done(scsi_cmd);
+			scsi_done(scsi_cmd);
 		}
 
 		ha->active = FALSE;
@@ -994,7 +994,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 
 	while ((scb = ips_removeq_scb_head(&ha->scb_activelist))) {
 		scb->scsi_cmd->result = DID_RESET << 16;
-		scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+		scsi_done(scb->scsi_cmd);
 		ips_freescb(ha, scb);
 	}
 
@@ -1035,8 +1035,9 @@ static int ips_eh_reset(struct scsi_cmnd *SC)
 /*    Linux obtains io_request_lock before calling this function            */
 /*                                                                          */
 /****************************************************************************/
-static int ips_queue_lck(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *))
+static int ips_queue_lck(struct scsi_cmnd *SC)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	ips_ha_t *ha;
 	ips_passthru_t *pt;
 
@@ -1063,8 +1064,6 @@ static int ips_queue_lck(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *)
 
 		return (0);
 	}
-
-	SC->scsi_done = done;
 
 	DEBUG_VAR(2, "(%s%d): ips_queue: cmd 0x%X (%d %d %d)",
 		  ips_name,
@@ -1099,7 +1098,7 @@ static int ips_queue_lck(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *)
 			ha->ioctl_reset = 1;	/* This reset request is from an IOCTL */
 			__ips_eh_reset(SC);
 			SC->result = DID_OK << 16;
-			SC->scsi_done(SC);
+			scsi_done(SC);
 			return (0);
 		}
 
@@ -2579,7 +2578,7 @@ ips_next(ips_ha_t * ha, int intr)
 		case IPS_FAILURE:
 			if (scb->scsi_cmd) {
 				scb->scsi_cmd->result = DID_ERROR << 16;
-				scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+				scsi_done(scb->scsi_cmd);
 			}
 
 			ips_freescb(ha, scb);
@@ -2587,7 +2586,7 @@ ips_next(ips_ha_t * ha, int intr)
 		case IPS_SUCCESS_IMM:
 			if (scb->scsi_cmd) {
 				scb->scsi_cmd->result = DID_OK << 16;
-				scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+				scsi_done(scb->scsi_cmd);
 			}
 
 			ips_freescb(ha, scb);
@@ -2712,7 +2711,7 @@ ips_next(ips_ha_t * ha, int intr)
 		case IPS_FAILURE:
 			if (scb->scsi_cmd) {
 				scb->scsi_cmd->result = DID_ERROR << 16;
-				scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+				scsi_done(scb->scsi_cmd);
 			}
 
 			if (scb->bus)
@@ -2723,7 +2722,7 @@ ips_next(ips_ha_t * ha, int intr)
 			break;
 		case IPS_SUCCESS_IMM:
 			if (scb->scsi_cmd)
-				scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+				scsi_done(scb->scsi_cmd);
 
 			if (scb->bus)
 				ha->dcdb_active[scb->bus - 1] &=
@@ -3206,7 +3205,7 @@ ips_done(ips_ha_t * ha, ips_scb_t * scb)
 			case IPS_FAILURE:
 				if (scb->scsi_cmd) {
 					scb->scsi_cmd->result = DID_ERROR << 16;
-					scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+					scsi_done(scb->scsi_cmd);
 				}
 
 				ips_freescb(ha, scb);
@@ -3214,7 +3213,7 @@ ips_done(ips_ha_t * ha, ips_scb_t * scb)
 			case IPS_SUCCESS_IMM:
 				if (scb->scsi_cmd) {
 					scb->scsi_cmd->result = DID_ERROR << 16;
-					scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+					scsi_done(scb->scsi_cmd);
 				}
 
 				ips_freescb(ha, scb);
@@ -3231,7 +3230,7 @@ ips_done(ips_ha_t * ha, ips_scb_t * scb)
 		ha->dcdb_active[scb->bus - 1] &= ~(1 << scb->target_id);
 	}
 
-	scb->scsi_cmd->scsi_done(scb->scsi_cmd);
+	scsi_done(scb->scsi_cmd);
 
 	ips_freescb(ha, scb);
 }

@@ -315,9 +315,9 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
-				    void (*done)(struct scsi_cmnd *))
+static int aha1740_queuecommand_lck(struct scsi_cmnd *SCpnt)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	unchar direction;
 	unchar *cmd = (unchar *) SCpnt->cmnd;
 	unchar target = scmd_id(SCpnt);

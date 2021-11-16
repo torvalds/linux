@@ -3108,7 +3108,10 @@ static int clk_rate_get(void *data, u64 *val)
 {
 	struct clk_core *core = data;
 
-	*val = core->rate;
+	clk_prepare_lock();
+	*val = clk_core_get_rate_recalc(core);
+	clk_prepare_unlock();
+
 	return 0;
 }
 

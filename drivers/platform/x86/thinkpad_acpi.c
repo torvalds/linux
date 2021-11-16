@@ -1001,79 +1001,6 @@ static struct platform_driver tpacpi_hwmon_pdriver = {
  * sysfs support helpers
  */
 
-struct attribute_set {
-	unsigned int members, max_members;
-	struct attribute_group group;
-};
-
-struct attribute_set_obj {
-	struct attribute_set s;
-	struct attribute *a;
-} __attribute__((packed));
-
-static struct attribute_set *create_attr_set(unsigned int max_members,
-						const char *name)
-{
-	struct attribute_set_obj *sobj;
-
-	if (max_members == 0)
-		return NULL;
-
-	/* Allocates space for implicit NULL at the end too */
-	sobj = kzalloc(sizeof(struct attribute_set_obj) +
-		    max_members * sizeof(struct attribute *),
-		    GFP_KERNEL);
-	if (!sobj)
-		return NULL;
-	sobj->s.max_members = max_members;
-	sobj->s.group.attrs = &sobj->a;
-	sobj->s.group.name = name;
-
-	return &sobj->s;
-}
-
-#define destroy_attr_set(_set) \
-	kfree(_set)
-
-/* not multi-threaded safe, use it in a single thread per set */
-static int add_to_attr_set(struct attribute_set *s, struct attribute *attr)
-{
-	if (!s || !attr)
-		return -EINVAL;
-
-	if (s->members >= s->max_members)
-		return -ENOMEM;
-
-	s->group.attrs[s->members] = attr;
-	s->members++;
-
-	return 0;
-}
-
-static int add_many_to_attr_set(struct attribute_set *s,
-			struct attribute **attr,
-			unsigned int count)
-{
-	int i, res;
-
-	for (i = 0; i < count; i++) {
-		res = add_to_attr_set(s, attr[i]);
-		if (res)
-			return res;
-	}
-
-	return 0;
-}
-
-static void delete_attr_set(struct attribute_set *s, struct kobject *kobj)
-{
-	sysfs_remove_group(kobj, &s->group);
-	destroy_attr_set(s);
-}
-
-#define register_attr_set_with_sysfs(_attr_set, _kobj) \
-	sysfs_create_group(_kobj, &_attr_set->group)
-
 static int parse_strtoul(const char *buf,
 		unsigned long max, unsigned long *value)
 {
@@ -1348,7 +1275,7 @@ static ssize_t tpacpi_rfk_sysfs_enable_show(const enum tpacpi_rfk_id id,
 			return status;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 			(status == TPACPI_RFK_RADIO_ON) ? 1 : 0);
 }
 
@@ -1441,14 +1368,14 @@ static int tpacpi_rfk_procfs_write(const enum tpacpi_rfk_id id, char *buf)
 /* interface_version --------------------------------------------------- */
 static ssize_t interface_version_show(struct device_driver *drv, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", TPACPI_SYSFS_VERSION);
+	return sysfs_emit(buf, "0x%08x\n", TPACPI_SYSFS_VERSION);
 }
 static DRIVER_ATTR_RO(interface_version);
 
 /* debug_level --------------------------------------------------------- */
 static ssize_t debug_level_show(struct device_driver *drv, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", dbg_level);
+	return sysfs_emit(buf, "0x%04x\n", dbg_level);
 }
 
 static ssize_t debug_level_store(struct device_driver *drv, const char *buf,
@@ -1468,7 +1395,7 @@ static DRIVER_ATTR_RW(debug_level);
 /* version ------------------------------------------------------------- */
 static ssize_t version_show(struct device_driver *drv, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s v%s\n",
+	return sysfs_emit(buf, "%s v%s\n",
 			TPACPI_DESC, TPACPI_VERSION);
 }
 static DRIVER_ATTR_RO(version);
@@ -1480,7 +1407,7 @@ static DRIVER_ATTR_RO(version);
 /* wlsw_emulstate ------------------------------------------------------ */
 static ssize_t wlsw_emulstate_show(struct device_driver *drv, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", !!tpacpi_wlsw_emulstate);
+	return sysfs_emit(buf, "%d\n", !!tpacpi_wlsw_emulstate);
 }
 
 static ssize_t wlsw_emulstate_store(struct device_driver *drv, const char *buf,
@@ -1503,7 +1430,7 @@ static DRIVER_ATTR_RW(wlsw_emulstate);
 /* bluetooth_emulstate ------------------------------------------------- */
 static ssize_t bluetooth_emulstate_show(struct device_driver *drv, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", !!tpacpi_bluetooth_emulstate);
+	return sysfs_emit(buf, "%d\n", !!tpacpi_bluetooth_emulstate);
 }
 
 static ssize_t bluetooth_emulstate_store(struct device_driver *drv,
@@ -1523,7 +1450,7 @@ static DRIVER_ATTR_RW(bluetooth_emulstate);
 /* wwan_emulstate ------------------------------------------------- */
 static ssize_t wwan_emulstate_show(struct device_driver *drv, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", !!tpacpi_wwan_emulstate);
+	return sysfs_emit(buf, "%d\n", !!tpacpi_wwan_emulstate);
 }
 
 static ssize_t wwan_emulstate_store(struct device_driver *drv, const char *buf,
@@ -1543,7 +1470,7 @@ static DRIVER_ATTR_RW(wwan_emulstate);
 /* uwb_emulstate ------------------------------------------------- */
 static ssize_t uwb_emulstate_show(struct device_driver *drv, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", !!tpacpi_uwb_emulstate);
+	return sysfs_emit(buf, "%d\n", !!tpacpi_uwb_emulstate);
 }
 
 static ssize_t uwb_emulstate_store(struct device_driver *drv, const char *buf,
@@ -2041,8 +1968,6 @@ static u32 hotkey_user_mask;		/* events visible to userspace */
 static u32 hotkey_acpi_mask;		/* events enabled in firmware */
 
 static u16 *hotkey_keycode_map;
-
-static struct attribute_set *hotkey_dev_attributes;
 
 static void tpacpi_driver_event(const unsigned int hkey_event);
 static void hotkey_driver_event(const unsigned int scancode);
@@ -2753,7 +2678,7 @@ static ssize_t hotkey_enable_show(struct device *dev,
 	if (res)
 		return res;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", status);
+	return sysfs_emit(buf, "%d\n", status);
 }
 
 static ssize_t hotkey_enable_store(struct device *dev,
@@ -2781,7 +2706,7 @@ static ssize_t hotkey_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_user_mask);
+	return sysfs_emit(buf, "0x%08x\n", hotkey_user_mask);
 }
 
 static ssize_t hotkey_mask_store(struct device *dev,
@@ -2829,7 +2754,7 @@ static ssize_t hotkey_bios_mask_show(struct device *dev,
 {
 	printk_deprecated_attribute("hotkey_bios_mask",
 			"This attribute is useless.");
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_orig_mask);
+	return sysfs_emit(buf, "0x%08x\n", hotkey_orig_mask);
 }
 
 static DEVICE_ATTR_RO(hotkey_bios_mask);
@@ -2839,7 +2764,7 @@ static ssize_t hotkey_all_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n",
+	return sysfs_emit(buf, "0x%08x\n",
 				hotkey_all_mask | hotkey_source_mask);
 }
 
@@ -2850,7 +2775,7 @@ static ssize_t hotkey_adaptive_all_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n",
+	return sysfs_emit(buf, "0x%08x\n",
 			hotkey_adaptive_all_mask | hotkey_source_mask);
 }
 
@@ -2861,7 +2786,7 @@ static ssize_t hotkey_recommended_mask_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n",
+	return sysfs_emit(buf, "0x%08x\n",
 			(hotkey_all_mask | hotkey_source_mask)
 			& ~hotkey_reserved_mask);
 }
@@ -2875,7 +2800,7 @@ static ssize_t hotkey_source_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_source_mask);
+	return sysfs_emit(buf, "0x%08x\n", hotkey_source_mask);
 }
 
 static ssize_t hotkey_source_mask_store(struct device *dev,
@@ -2926,7 +2851,7 @@ static ssize_t hotkey_poll_freq_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_poll_freq);
+	return sysfs_emit(buf, "%d\n", hotkey_poll_freq);
 }
 
 static ssize_t hotkey_poll_freq_store(struct device *dev,
@@ -2968,7 +2893,7 @@ static ssize_t hotkey_radio_sw_show(struct device *dev,
 	/* Opportunistic update */
 	tpacpi_rfk_update_hwblock_state((res == TPACPI_RFK_RADIO_OFF));
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 			(res == TPACPI_RFK_RADIO_OFF) ? 0 : 1);
 }
 
@@ -2991,7 +2916,7 @@ static ssize_t hotkey_tablet_mode_show(struct device *dev,
 	if (res < 0)
 		return res;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", !!s);
+	return sysfs_emit(buf, "%d\n", !!s);
 }
 
 static DEVICE_ATTR_RO(hotkey_tablet_mode);
@@ -3008,7 +2933,7 @@ static ssize_t hotkey_wakeup_reason_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_wakeup_reason);
+	return sysfs_emit(buf, "%d\n", hotkey_wakeup_reason);
 }
 
 static DEVICE_ATTR(wakeup_reason, S_IRUGO, hotkey_wakeup_reason_show, NULL);
@@ -3024,7 +2949,7 @@ static ssize_t hotkey_wakeup_hotunplug_complete_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_autosleep_ack);
+	return sysfs_emit(buf, "%d\n", hotkey_autosleep_ack);
 }
 
 static DEVICE_ATTR(wakeup_hotunplug_complete, S_IRUGO,
@@ -3059,7 +2984,7 @@ static ssize_t adaptive_kbd_mode_show(struct device *dev,
 	if (current_mode < 0)
 		return current_mode;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", current_mode);
+	return sysfs_emit(buf, "%d\n", current_mode);
 }
 
 static ssize_t adaptive_kbd_mode_store(struct device *dev,
@@ -3089,7 +3014,7 @@ static const struct attribute_group adaptive_kbd_attr_group = {
 
 /* --------------------------------------------------------------------- */
 
-static struct attribute *hotkey_attributes[] __initdata = {
+static struct attribute *hotkey_attributes[] = {
 	&dev_attr_hotkey_enable.attr,
 	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
@@ -3103,6 +3028,26 @@ static struct attribute *hotkey_attributes[] __initdata = {
 	&dev_attr_hotkey_source_mask.attr,
 	&dev_attr_hotkey_poll_freq.attr,
 #endif
+	NULL
+};
+
+static umode_t hotkey_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	if (attr == &dev_attr_hotkey_tablet_mode.attr) {
+		if (!tp_features.hotkey_tablet)
+			return 0;
+	} else if (attr == &dev_attr_hotkey_radio_sw.attr) {
+		if (!tp_features.hotkey_wlsw)
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+static const struct attribute_group hotkey_attr_group = {
+	.is_visible = hotkey_attr_is_visible,
+	.attrs = hotkey_attributes,
 };
 
 /*
@@ -3161,9 +3106,7 @@ static void hotkey_exit(void)
 	hotkey_poll_stop_sync();
 	mutex_unlock(&hotkey_mutex);
 #endif
-
-	if (hotkey_dev_attributes)
-		delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &hotkey_attr_group);
 
 	dbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_HKEY,
 		   "restoring original HKEY status and mask\n");
@@ -3248,11 +3191,6 @@ static int hotkey_init_tablet_mode(void)
 
 	pr_info("Tablet mode switch found (type: %s), currently in %s mode\n",
 		type, in_tablet_mode ? "tablet" : "laptop");
-
-	res = add_to_attr_set(hotkey_dev_attributes,
-			      &dev_attr_hotkey_tablet_mode.attr);
-	if (res)
-		return -1;
 
 	return in_tablet_mode;
 }
@@ -3515,19 +3453,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 	tpacpi_disable_brightness_delay();
 
-	/* MUST have enough space for all attributes to be added to
-	 * hotkey_dev_attributes */
-	hotkey_dev_attributes = create_attr_set(
-					ARRAY_SIZE(hotkey_attributes) + 2,
-					NULL);
-	if (!hotkey_dev_attributes)
-		return -ENOMEM;
-	res = add_many_to_attr_set(hotkey_dev_attributes,
-			hotkey_attributes,
-			ARRAY_SIZE(hotkey_attributes));
-	if (res)
-		goto err_exit;
-
 	/* mask not supported on 600e/x, 770e, 770x, A21e, A2xm/p,
 	   A30, R30, R31, T20-22, X20-21, X22-24.  Detected by checking
 	   for HKEY interface version 0x100 */
@@ -3636,18 +3561,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		pr_info("radio switch found; radios are %s\n",
 			enabled(status, 0));
 	}
-	if (tp_features.hotkey_wlsw)
-		res = add_to_attr_set(hotkey_dev_attributes,
-				&dev_attr_hotkey_radio_sw.attr);
 
-	res = hotkey_init_tablet_mode();
-	if (res < 0)
-		goto err_exit;
-
-	tabletsw_state = res;
-
-	res = register_attr_set_with_sysfs(hotkey_dev_attributes,
-					   &tpacpi_pdev->dev.kobj);
+	tabletsw_state = hotkey_init_tablet_mode();
+	res = sysfs_create_group(&tpacpi_pdev->dev.kobj, &hotkey_attr_group);
 	if (res)
 		goto err_exit;
 
@@ -3746,11 +3662,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	return 0;
 
 err_exit:
-	delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
-	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
-			&adaptive_kbd_attr_group);
-
-	hotkey_dev_attributes = NULL;
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &hotkey_attr_group);
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &adaptive_kbd_attr_group);
 
 	return (res < 0) ? res : 1;
 }
@@ -6421,7 +6334,7 @@ static ssize_t thermal_temp_input_show(struct device *dev,
 	if (value == TPACPI_THERMAL_SENSOR_NA)
 		return -ENXIO;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 #define THERMAL_SENSOR_ATTR_TEMP(_idxA, _idxB) \
@@ -8654,7 +8567,7 @@ static ssize_t fan_pwm1_enable_show(struct device *dev,
 	} else
 		mode = 1;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
+	return sysfs_emit(buf, "%d\n", mode);
 }
 
 static ssize_t fan_pwm1_enable_store(struct device *dev,
@@ -8720,7 +8633,7 @@ static ssize_t fan_pwm1_show(struct device *dev,
 	if (status > 7)
 		status = 7;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", (status * 255) / 7);
+	return sysfs_emit(buf, "%u\n", (status * 255) / 7);
 }
 
 static ssize_t fan_pwm1_store(struct device *dev,
@@ -8773,7 +8686,7 @@ static ssize_t fan_fan1_input_show(struct device *dev,
 	if (res < 0)
 		return res;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", speed);
+	return sysfs_emit(buf, "%u\n", speed);
 }
 
 static DEVICE_ATTR(fan1_input, S_IRUGO, fan_fan1_input_show, NULL);
@@ -8790,7 +8703,7 @@ static ssize_t fan_fan2_input_show(struct device *dev,
 	if (res < 0)
 		return res;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", speed);
+	return sysfs_emit(buf, "%u\n", speed);
 }
 
 static DEVICE_ATTR(fan2_input, S_IRUGO, fan_fan2_input_show, NULL);
@@ -8798,7 +8711,7 @@ static DEVICE_ATTR(fan2_input, S_IRUGO, fan_fan2_input_show, NULL);
 /* sysfs fan fan_watchdog (hwmon driver) ------------------------------- */
 static ssize_t fan_watchdog_show(struct device_driver *drv, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%u\n", fan_watchdog_maxinterval);
+	return sysfs_emit(buf, "%u\n", fan_watchdog_maxinterval);
 }
 
 static ssize_t fan_watchdog_store(struct device_driver *drv, const char *buf,
@@ -9145,7 +9058,7 @@ static int fan_write_cmd_level(const char *cmd, int *rc)
 
 	if (strlencmp(cmd, "level auto") == 0)
 		level = TP_EC_FAN_AUTO;
-	else if ((strlencmp(cmd, "level disengaged") == 0) |
+	else if ((strlencmp(cmd, "level disengaged") == 0) ||
 			(strlencmp(cmd, "level full-speed") == 0))
 		level = TP_EC_FAN_FULLSPEED;
 	else if (sscanf(cmd, "level %d", &level) != 1)

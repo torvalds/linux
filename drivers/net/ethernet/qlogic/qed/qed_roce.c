@@ -792,7 +792,6 @@ static int qed_roce_sp_destroy_qp_requester(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err;
 
-
 	/* Free ORQ - only if ramrod succeeded, in case FW is still using it */
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  qp->orq_num_pages * RDMA_RING_PAGE_SIZE,

@@ -35,7 +35,7 @@
 #include "include/irq_service_interface.h"
 #include "dcn20/dcn20_resource.h"
 
-#include "dml/dcn2x/dcn2x.h"
+#include "dml/dcn20/dcn20_fpu.h"
 
 #include "dcn10/dcn10_hubp.h"
 #include "dcn10/dcn10_ipp.h"
@@ -63,6 +63,7 @@
 #include "dcn20_dccg.h"
 #include "dcn20_vmid.h"
 #include "dc_link_ddc.h"
+#include "dc_link_dp.h"
 #include "dce/dce_panel_cntl.h"
 
 #include "navi10_ip_offset.h"
@@ -86,6 +87,7 @@
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 #include "vm_helper.h"
+#include "link_enc_cfg.h"
 
 #include "amdgpu_socbb.h"
 
@@ -1595,15 +1597,32 @@ static void get_pixel_clock_parameters(
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
+	struct dc_link *link = stream->link;
+	struct link_encoder *link_enc = NULL;
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		opp_cnt++;
 
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
-	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
+
+	/* Links supporting dynamically assigned link encoder will be assigned next
+	 * available encoder if one not already assigned.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign) {
+		link_enc = link_enc_cfg_get_link_enc_used_by_stream(stream->ctx->dc, stream);
+		if (link_enc == NULL)
+			link_enc = link_enc_cfg_get_next_avail_link_enc(stream->ctx->dc);
+	} else
+		link_enc = stream->link->link_enc;
+	ASSERT(link_enc);
+
+	if (link_enc)
+		pixel_clk_params->encoder_object_id = link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/
+	/* TODO - DP2.0 HW: calculate requested_sym_clk for UHBR rates */
 	pixel_clk_params->requested_sym_clk = LINK_RATE_LOW *
 		LINK_RATE_REF_FREQ_IN_KHZ;
 	pixel_clk_params->flags.ENABLE_SS = 0;
@@ -1854,7 +1873,9 @@ static void swizzle_to_dml_params(
 	case DC_SW_VAR_D_X:
 		*sw_mode = dm_sw_var_d_x;
 		break;
-
+	case DC_SW_VAR_R_X:
+		*sw_mode = dm_sw_var_r_x;
+		break;
 	default:
 		ASSERT(0); /* Not supported */
 		break;
@@ -3044,6 +3065,8 @@ static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
+		if (is_dp_128b_132b_signal(&context->res_ctx.pipe_ctx[i]))
+			return true;
 	}
 	return false;
 }
@@ -3094,6 +3117,10 @@ void dcn20_calculate_dlg_params(
 	context->bw_ctx.bw.dcn.clk.dcfclk_khz = context->bw_ctx.dml.vba.DCFCLK * 1000;
 	context->bw_ctx.bw.dcn.clk.socclk_khz = context->bw_ctx.dml.vba.SOCCLK * 1000;
 	context->bw_ctx.bw.dcn.clk.dramclk_khz = context->bw_ctx.dml.vba.DRAMSpeed * 1000 / 16;
+
+	if (dc->debug.min_dram_clk_khz > context->bw_ctx.bw.dcn.clk.dramclk_khz)
+		context->bw_ctx.bw.dcn.clk.dramclk_khz = dc->debug.min_dram_clk_khz;
+
 	context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = context->bw_ctx.dml.vba.DCFCLKDeepSleep * 1000;
 	context->bw_ctx.bw.dcn.clk.fclk_khz = context->bw_ctx.dml.vba.FabricClock * 1000;
 	context->bw_ctx.bw.dcn.clk.p_state_change_support =
@@ -3140,6 +3167,9 @@ void dcn20_calculate_dlg_params(
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
 
+		if (dc->ctx->dce_version == DCN_VERSION_2_01)
+			cstate_en = false;
+
 		context->bw_ctx.dml.funcs.rq_dlg_get_dlg_reg(&context->bw_ctx.dml,
 				&context->res_ctx.pipe_ctx[i].dlg_regs,
 				&context->res_ctx.pipe_ctx[i].ttu_regs,
@@ -3152,7 +3182,7 @@ void dcn20_calculate_dlg_params(
 
 		context->bw_ctx.dml.funcs.rq_dlg_get_rq_reg(&context->bw_ctx.dml,
 				&context->res_ctx.pipe_ctx[i].rq_regs,
-				pipes[pipe_idx].pipe);
+				&pipes[pipe_idx].pipe);
 		pipe_idx++;
 	}
 }
@@ -3630,9 +3660,6 @@ static enum dml_project get_dml_project_version(uint32_t hw_internal_rev)
 	return DML_PROJECT_NAVI10v2;
 }
 
-#define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
-
 static bool init_soc_bounding_box(struct dc *dc,
 				  struct dcn20_resource_pool *pool)
 {
@@ -3668,16 +3695,22 @@ static bool init_soc_bounding_box(struct dc *dc,
 			clock_limits_available = (status == PP_SMU_RESULT_OK);
 		}
 
-		if (clock_limits_available && uclk_states_available && num_states)
+		if (clock_limits_available && uclk_states_available && num_states) {
+			DC_FP_START();
 			dcn20_update_bounding_box(dc, loaded_bb, &max_clocks, uclk_states, num_states);
-		else if (clock_limits_available)
+			DC_FP_END();
+		} else if (clock_limits_available) {
+			DC_FP_START();
 			dcn20_cap_soc_clocks(loaded_bb, max_clocks);
+			DC_FP_END();
+		}
 	}
 
 	loaded_ip->max_num_otg = pool->base.res_cap->num_timing_generator;
 	loaded_ip->max_num_dpp = pool->base.pipe_count;
+	DC_FP_START();
 	dcn20_patch_bounding_box(dc, loaded_bb);
-
+	DC_FP_END();
 	return true;
 }
 
@@ -3696,8 +3729,6 @@ static bool dcn20_resource_construct(
 			get_asic_rev_ip_params(ctx->asic_id.hw_internal_rev);
 	enum dml_project dml_project_version =
 			get_dml_project_version(ctx->asic_id.hw_internal_rev);
-
-	DC_FP_START();
 
 	ctx->dc_bios->regs = &bios_regs;
 	pool->base.funcs = &dcn20_res_pool_funcs;
@@ -4047,12 +4078,10 @@ static bool dcn20_resource_construct(
 		pool->base.oem_device = NULL;
 	}
 
-	DC_FP_END();
 	return true;
 
 create_fail:
 
-	DC_FP_END();
 	dcn20_resource_destruct(pool);
 
 	return false;

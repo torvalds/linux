@@ -112,6 +112,13 @@ struct msm_gpu_devfreq {
 	 * it is inactive.
 	 */
 	unsigned long idle_freq;
+
+	/**
+	 * idle_work:
+	 *
+	 * Used to delay clamping to idle freq on active->idle transition.
+	 */
+	struct msm_hrtimer_work idle_work;
 };
 
 struct msm_gpu {
@@ -203,6 +210,10 @@ struct msm_gpu {
 	uint32_t suspend_count;
 
 	struct msm_gpu_state *crashstate;
+
+	/* Enable clamping to idle freq when inactive: */
+	bool clamp_to_idle;
+
 	/* True if the hardware supports expanded apriv (a650 and newer) */
 	bool hw_apriv;
 

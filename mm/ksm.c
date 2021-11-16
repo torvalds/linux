@@ -751,7 +751,7 @@ stale:
 	/*
 	 * We come here from above when page->mapping or !PageSwapCache
 	 * suggests that the node is stale; but it might be under migration.
-	 * We need smp_rmb(), matching the smp_wmb() in ksm_migrate_page(),
+	 * We need smp_rmb(), matching the smp_wmb() in folio_migrate_ksm(),
 	 * before checking whether node->kpfn has been changed.
 	 */
 	smp_rmb();
@@ -852,9 +852,14 @@ static int unmerge_ksm_pages(struct vm_area_struct *vma,
 	return err;
 }
 
+static inline struct stable_node *folio_stable_node(struct folio *folio)
+{
+	return folio_test_ksm(folio) ? folio_raw_mapping(folio) : NULL;
+}
+
 static inline struct stable_node *page_stable_node(struct page *page)
 {
-	return PageKsm(page) ? page_rmapping(page) : NULL;
+	return folio_stable_node(page_folio(page));
 }
 
 static inline void set_page_stable_node(struct page *page,
@@ -2578,7 +2583,8 @@ struct page *ksm_might_need_to_copy(struct page *page,
 		return page;		/* let do_swap_page report the error */
 
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-	if (new_page && mem_cgroup_charge(new_page, vma->vm_mm, GFP_KERNEL)) {
+	if (new_page &&
+	    mem_cgroup_charge(page_folio(new_page), vma->vm_mm, GFP_KERNEL)) {
 		put_page(new_page);
 		new_page = NULL;
 	}
@@ -2658,26 +2664,26 @@ again:
 }
 
 #ifdef CONFIG_MIGRATION
-void ksm_migrate_page(struct page *newpage, struct page *oldpage)
+void folio_migrate_ksm(struct folio *newfolio, struct folio *folio)
 {
 	struct stable_node *stable_node;
 
-	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
-	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
-	VM_BUG_ON_PAGE(newpage->mapping != oldpage->mapping, newpage);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
+	VM_BUG_ON_FOLIO(!folio_test_locked(newfolio), newfolio);
+	VM_BUG_ON_FOLIO(newfolio->mapping != folio->mapping, newfolio);
 
-	stable_node = page_stable_node(newpage);
+	stable_node = folio_stable_node(folio);
 	if (stable_node) {
-		VM_BUG_ON_PAGE(stable_node->kpfn != page_to_pfn(oldpage), oldpage);
-		stable_node->kpfn = page_to_pfn(newpage);
+		VM_BUG_ON_FOLIO(stable_node->kpfn != folio_pfn(folio), folio);
+		stable_node->kpfn = folio_pfn(newfolio);
 		/*
-		 * newpage->mapping was set in advance; now we need smp_wmb()
+		 * newfolio->mapping was set in advance; now we need smp_wmb()
 		 * to make sure that the new stable_node->kpfn is visible
-		 * to get_ksm_page() before it can see that oldpage->mapping
-		 * has gone stale (or that PageSwapCache has been cleared).
+		 * to get_ksm_page() before it can see that folio->mapping
+		 * has gone stale (or that folio_test_swapcache has been cleared).
 		 */
 		smp_wmb();
-		set_page_stable_node(oldpage, NULL);
+		set_page_stable_node(&folio->page, NULL);
 	}
 }
 #endif /* CONFIG_MIGRATION */

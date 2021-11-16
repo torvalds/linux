@@ -97,6 +97,8 @@
 #define WILC_SPI_WAKEUP_REG		0x1
 #define WILC_SPI_WAKEUP_BIT		BIT(1)
 
+#define WILC_SPI_CLK_STATUS_REG        0x0f
+#define WILC_SPI_CLK_STATUS_BIT        BIT(2)
 #define WILC_SPI_HOST_TO_FW_REG		0x0b
 #define WILC_SPI_HOST_TO_FW_BIT		BIT(0)
 
@@ -300,7 +302,7 @@
 #define ENABLE_RX_VMM		(SEL_VMM_TBL1 | EN_VMM)
 #define ENABLE_TX_VMM		(SEL_VMM_TBL0 | EN_VMM)
 /* time for expiring the completion of cfg packets */
-#define WILC_CFG_PKTS_TIMEOUT	msecs_to_jiffies(2000)
+#define WILC_CFG_PKTS_TIMEOUT	msecs_to_jiffies(3000)
 
 #define IS_MANAGMEMENT		0x100
 #define IS_MANAGMEMENT_CALLBACK	0x080
@@ -371,6 +373,7 @@ struct wilc_hif_func {
 	int (*hif_sync_ext)(struct wilc *wilc, int nint);
 	int (*enable_interrupt)(struct wilc *nic);
 	void (*disable_interrupt)(struct wilc *nic);
+	int (*hif_reset)(struct wilc *wilc);
 };
 
 #define WILC_MAX_CFG_FRAME_SIZE		1468

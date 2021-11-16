@@ -358,7 +358,7 @@ static int aq_fw2x_get_phy_temp(struct aq_hw_s *self, int *temp)
 	return 0;
 }
 
-static int aq_fw2x_set_wol(struct aq_hw_s *self, u8 *mac)
+static int aq_fw2x_set_wol(struct aq_hw_s *self, const u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *rpc = NULL;
 	struct offload_info *info = NULL;
@@ -404,7 +404,7 @@ err_exit:
 }
 
 static int aq_fw2x_set_power(struct aq_hw_s *self, unsigned int power_state,
-			     u8 *mac)
+			     const u8 *mac)
 {
 	int err = 0;
 

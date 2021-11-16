@@ -28,7 +28,7 @@ static int fdarray__fprintf_prefix(struct fdarray *fda, const char *prefix, FILE
 	return printed + fdarray__fprintf(fda, fp);
 }
 
-int test__fdarray__filter(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__fdarray__filter(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int nr_fds, err = TEST_FAIL;
 	struct fdarray *fda = fdarray__new(5, 5);
@@ -89,7 +89,7 @@ out:
 	return err;
 }
 
-int test__fdarray__add(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__fdarray__add(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct fdarray *fda = fdarray__new(2, 2);
@@ -158,3 +158,6 @@ out_delete:
 out:
 	return err;
 }
+
+DEFINE_SUITE("Filter fds with revents mask in a fdarray", fdarray__filter);
+DEFINE_SUITE("Add fd to a fdarray, making it autogrow", fdarray__add);

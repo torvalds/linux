@@ -414,10 +414,10 @@ struct smscore_registry_entry_t {
 
 static struct list_head g_smscore_notifyees;
 static struct list_head g_smscore_devices;
-static struct mutex g_smscore_deviceslock;
+static DEFINE_MUTEX(g_smscore_deviceslock);
 
 static struct list_head g_smscore_registry;
-static struct mutex g_smscore_registrylock;
+static DEFINE_MUTEX(g_smscore_registrylock);
 
 static int default_mode = DEVICE_MODE_NONE;
 
@@ -2119,10 +2119,7 @@ static int __init smscore_module_init(void)
 {
 	INIT_LIST_HEAD(&g_smscore_notifyees);
 	INIT_LIST_HEAD(&g_smscore_devices);
-	mutex_init(&g_smscore_deviceslock);
-
 	INIT_LIST_HEAD(&g_smscore_registry);
-	mutex_init(&g_smscore_registrylock);
 
 	return 0;
 }

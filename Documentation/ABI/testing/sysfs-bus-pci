@@ -1,4 +1,5 @@
 What:		/sys/bus/pci/drivers/.../bind
+What:		/sys/devices/pciX/.../bind
 Date:		December 2003
 Contact:	linux-pci@vger.kernel.org
 Description:
@@ -14,6 +15,7 @@ Description:
 		(Note: kernels before 2.6.28 may require echo -n).
 
 What:		/sys/bus/pci/drivers/.../unbind
+What:		/sys/devices/pciX/.../unbind
 Date:		December 2003
 Contact:	linux-pci@vger.kernel.org
 Description:
@@ -29,6 +31,7 @@ Description:
 		(Note: kernels before 2.6.28 may require echo -n).
 
 What:		/sys/bus/pci/drivers/.../new_id
+What:		/sys/devices/pciX/.../new_id
 Date:		December 2003
 Contact:	linux-pci@vger.kernel.org
 Description:
@@ -47,6 +50,7 @@ Description:
 		  # echo "8086 10f5" > /sys/bus/pci/drivers/foo/new_id
 
 What:		/sys/bus/pci/drivers/.../remove_id
+What:		/sys/devices/pciX/.../remove_id
 Date:		February 2009
 Contact:	Chris Wright <chrisw@sous-sol.org>
 Description:
@@ -95,6 +99,17 @@ Contact:	Neil Horman <nhorman@tuxdriver.com>
 Description:
 		This attribute indicates the mode that the irq vector named by
 		the file is in (msi vs. msix)
+
+What:		/sys/bus/pci/devices/.../irq
+Date:		August 2021
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		If a driver has enabled MSI (not MSI-X), "irq" contains the
+		IRQ of the first MSI vector. Otherwise "irq" contains the
+		IRQ of the legacy INTx interrupt.
+
+		"irq" being set to 0 indicates that the device isn't
+		capable of generating legacy INTx interrupts.
 
 What:		/sys/bus/pci/devices/.../remove
 Date:		January 2009
@@ -160,7 +175,7 @@ Description:
 		If the underlying VPD has a writable section then the
 		corresponding section of this file will be writable.
 
-What:		/sys/bus/pci/devices/.../virtfnN
+What:		/sys/bus/pci/devices/.../virtfn<N>
 Date:		March 2009
 Contact:	Yu Zhao <yu.zhao@intel.com>
 Description:
@@ -186,6 +201,24 @@ Description:
 		This symbolic link appears when a device is a Virtual Function.
 		The symbolic link points to the PCI device sysfs entry of the
 		Physical Function this device associates with.
+
+What:		/sys/bus/pci/devices/.../modalias
+Date:		May 2005
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Description:
+		This attribute indicates the PCI ID of the device object.
+
+		That is in the format:
+		pci:vXXXXXXXXdXXXXXXXXsvXXXXXXXXsdXXXXXXXXbcXXscXXiXX,
+		where:
+
+		    - vXXXXXXXX contains the vendor ID;
+		    - dXXXXXXXX contains the device ID;
+		    - svXXXXXXXX contains the sub-vendor ID;
+		    - sdXXXXXXXX contains the subsystem device ID;
+		    - bcXX contains the device class;
+		    - scXX contains the device subclass;
+		    - iXX contains the device class programming interface.
 
 What:		/sys/bus/pci/slots/.../module
 Date:		June 2009

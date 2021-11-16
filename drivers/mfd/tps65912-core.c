@@ -115,11 +115,9 @@ int tps65912_device_init(struct tps65912 *tps)
 }
 EXPORT_SYMBOL_GPL(tps65912_device_init);
 
-int tps65912_device_exit(struct tps65912 *tps)
+void tps65912_device_exit(struct tps65912 *tps)
 {
 	regmap_del_irq_chip(tps->irq, tps->irq_data);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(tps65912_device_exit);
 

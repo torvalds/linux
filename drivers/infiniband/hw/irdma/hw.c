@@ -1057,7 +1057,7 @@ static enum irdma_status_code irdma_alloc_set_mac(struct irdma_device *iwdev)
 					     &iwdev->mac_ip_table_idx);
 	if (!status) {
 		status = irdma_add_local_mac_entry(iwdev->rf,
-						   (u8 *)iwdev->netdev->dev_addr,
+						   (const u8 *)iwdev->netdev->dev_addr,
 						   (u8)iwdev->mac_ip_table_idx);
 		if (status)
 			irdma_del_local_mac_entry(iwdev->rf,
@@ -2191,7 +2191,7 @@ void irdma_del_local_mac_entry(struct irdma_pci_f *rf, u16 idx)
  * @mac_addr: pointer to mac address
  * @idx: the index of the mac ip address to add
  */
-int irdma_add_local_mac_entry(struct irdma_pci_f *rf, u8 *mac_addr, u16 idx)
+int irdma_add_local_mac_entry(struct irdma_pci_f *rf, const u8 *mac_addr, u16 idx)
 {
 	struct irdma_local_mac_entry_info *info;
 	struct irdma_cqp *iwcqp = &rf->cqp;
@@ -2362,7 +2362,8 @@ void irdma_del_apbvt(struct irdma_device *iwdev,
  * @ipv4: flag inicating IPv4
  * @action: add, delete or modify
  */
-void irdma_manage_arp_cache(struct irdma_pci_f *rf, unsigned char *mac_addr,
+void irdma_manage_arp_cache(struct irdma_pci_f *rf,
+			    const unsigned char *mac_addr,
 			    u32 *ip_addr, bool ipv4, u32 action)
 {
 	struct irdma_add_arp_cache_entry_info *info;

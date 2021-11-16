@@ -248,6 +248,7 @@ xfs_initialize_perag(
 		spin_unlock(&mp->m_perag_lock);
 		radix_tree_preload_end();
 
+#ifdef __KERNEL__
 		/* Place kernel structure only init below this point. */
 		spin_lock_init(&pag->pag_ici_lock);
 		spin_lock_init(&pag->pagb_lock);
@@ -257,6 +258,7 @@ xfs_initialize_perag(
 		init_waitqueue_head(&pag->pagb_wait);
 		pag->pagb_count = 0;
 		pag->pagb_tree = RB_ROOT;
+#endif /* __KERNEL__ */
 
 		error = xfs_buf_hash_init(pag);
 		if (error)
@@ -850,7 +852,7 @@ xfs_ag_shrink_space(
 		if (err2 != -ENOSPC)
 			goto resv_err;
 
-		__xfs_bmap_add_free(*tpp, args.fsbno, delta, NULL, true);
+		__xfs_free_extent_later(*tpp, args.fsbno, delta, NULL, true);
 
 		/*
 		 * Roll the transaction before trying to re-init the per-ag

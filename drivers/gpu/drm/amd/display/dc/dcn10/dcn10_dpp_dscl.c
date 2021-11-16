@@ -205,9 +205,17 @@ static void dpp1_power_on_dscl(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	if (dpp->tf_regs->DSCL_MEM_PWR_CTRL) {
-		REG_UPDATE(DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, power_on ? 0 : 3);
-		if (power_on)
+		if (power_on) {
+			REG_UPDATE(DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, 0);
 			REG_WAIT(DSCL_MEM_PWR_STATUS, LUT_MEM_PWR_STATE, 0, 1, 5);
+		} else {
+			if (dpp->base.ctx->dc->debug.enable_mem_low_power.bits.dscl) {
+				dpp->base.ctx->dc->optimized_required = true;
+				dpp->base.deferred_reg_writes.bits.disable_dscl = true;
+			} else {
+				REG_UPDATE(DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, 3);
+			}
+		}
 	}
 }
 

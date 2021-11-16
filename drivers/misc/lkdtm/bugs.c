@@ -151,6 +151,83 @@ void lkdtm_REPORT_STACK(void)
 	pr_info("Stack offset: %d\n", (int)(stack_addr - (uintptr_t)&magic));
 }
 
+static pid_t stack_canary_pid;
+static unsigned long stack_canary;
+static unsigned long stack_canary_offset;
+
+static noinline void __lkdtm_REPORT_STACK_CANARY(void *stack)
+{
+	int i = 0;
+	pid_t pid = task_pid_nr(current);
+	unsigned long *canary = (unsigned long *)stack;
+	unsigned long current_offset = 0, init_offset = 0;
+
+	/* Do our best to find the canary in a 16 word window ... */
+	for (i = 1; i < 16; i++) {
+		canary = (unsigned long *)stack + i;
+#ifdef CONFIG_STACKPROTECTOR
+		if (*canary == current->stack_canary)
+			current_offset = i;
+		if (*canary == init_task.stack_canary)
+			init_offset = i;
+#endif
+	}
+
+	if (current_offset == 0) {
+		/*
+		 * If the canary doesn't match what's in the task_struct,
+		 * we're either using a global canary or the stack frame
+		 * layout changed.
+		 */
+		if (init_offset != 0) {
+			pr_err("FAIL: global stack canary found at offset %ld (canary for pid %d matches init_task's)!\n",
+			       init_offset, pid);
+		} else {
+			pr_warn("FAIL: did not correctly locate stack canary :(\n");
+			pr_expected_config(CONFIG_STACKPROTECTOR);
+		}
+
+		return;
+	} else if (init_offset != 0) {
+		pr_warn("WARNING: found both current and init_task canaries nearby?!\n");
+	}
+
+	canary = (unsigned long *)stack + current_offset;
+	if (stack_canary_pid == 0) {
+		stack_canary = *canary;
+		stack_canary_pid = pid;
+		stack_canary_offset = current_offset;
+		pr_info("Recorded stack canary for pid %d at offset %ld\n",
+			stack_canary_pid, stack_canary_offset);
+	} else if (pid == stack_canary_pid) {
+		pr_warn("ERROR: saw pid %d again -- please use a new pid\n", pid);
+	} else {
+		if (current_offset != stack_canary_offset) {
+			pr_warn("ERROR: canary offset changed from %ld to %ld!?\n",
+				stack_canary_offset, current_offset);
+			return;
+		}
+
+		if (*canary == stack_canary) {
+			pr_warn("FAIL: canary identical for pid %d and pid %d at offset %ld!\n",
+				stack_canary_pid, pid, current_offset);
+		} else {
+			pr_info("ok: stack canaries differ between pid %d and pid %d at offset %ld.\n",
+				stack_canary_pid, pid, current_offset);
+			/* Reset the test. */
+			stack_canary_pid = 0;
+		}
+	}
+}
+
+void lkdtm_REPORT_STACK_CANARY(void)
+{
+	/* Use default char array length that triggers stack protection. */
+	char data[8] __aligned(sizeof(void *)) = { };
+
+	__lkdtm_REPORT_STACK_CANARY((void *)&data);
+}
+
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
 {
 	static u8 data[5] __attribute__((aligned(4))) = {1, 2, 3, 4, 5};

@@ -57,4 +57,3 @@ int bpf_prog1(struct bpf_cgroup_dev_ctx *ctx)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = LINUX_VERSION_CODE;

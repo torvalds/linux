@@ -20,7 +20,7 @@
 		bootargs = " console=ttyS0,115200n8 earlycon";
 	};
 
-	memory {
+	memory@0 {
 		reg = <0x00000000 0x08000000>;
 		device_type = "memory";
 	};
@@ -110,6 +110,12 @@
 			reg = <0x50>;
 			pagesize = <32>;
 			read-only;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac_address: mac-address@66 {
+				reg = <0x66 0x6>;
+			};
 		};
 	};
 };
@@ -131,6 +137,11 @@
 	 *	enable-gpios = <&chipcommon 20 GPIO_ACTIVE_HIGH>;
 	 *};
 	 */
+};
+
+&gmac0 {
+	nvmem-cell-names = "mac-address";
+	nvmem-cells = <&mac_address>;
 };
 
 &gmac1 {
@@ -192,6 +203,28 @@
 		partition4@800000 {
 			label = "ubi";
 			reg = <0x800000 0x7780000>;
+		};
+	};
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			label = "poe";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac0>;
+
+			fixed-link {
+				speed = <1000>;
+				duplex-full;
+			};
 		};
 	};
 };

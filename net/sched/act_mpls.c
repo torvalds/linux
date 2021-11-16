@@ -59,7 +59,7 @@ static int tcf_mpls_act(struct sk_buff *skb, const struct tc_action *a,
 	int ret, mac_len;
 
 	tcf_lastuse_update(&m->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
+	bstats_update(this_cpu_ptr(m->common.cpu_bstats), skb);
 
 	/* Ensure 'data' points at mac_header prior calling mpls manipulating
 	 * functions.

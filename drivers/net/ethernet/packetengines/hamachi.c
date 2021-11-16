@@ -592,6 +592,7 @@ static int hamachi_init_one(struct pci_dev *pdev,
 	void *ring_space;
 	dma_addr_t ring_dma;
 	int ret = -ENOMEM;
+	u8 addr[ETH_ALEN];
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -628,8 +629,8 @@ static int hamachi_init_one(struct pci_dev *pdev,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = 1 ? read_eeprom(ioaddr, 4 + i)
-			: readb(ioaddr + StationAddr + i);
+		addr[i] = read_eeprom(ioaddr, 4 + i);
+	eth_hw_addr_set(dev, addr);
 
 #if ! defined(final_version)
 	if (hamachi_debug > 4)

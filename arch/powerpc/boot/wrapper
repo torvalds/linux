@@ -26,6 +26,8 @@
 # Stop execution if any command fails
 set -e
 
+export LC_ALL=C
+
 # Allow for verbose output
 if [ "$V" = 1 ]; then
     set -x

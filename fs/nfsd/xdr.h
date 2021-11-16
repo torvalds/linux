@@ -33,7 +33,7 @@ struct nfsd_writeargs {
 	svc_fh			fh;
 	__u32			offset;
 	int			len;
-	struct kvec		first;
+	struct xdr_buf		payload;
 };
 
 struct nfsd_createargs {
@@ -141,23 +141,24 @@ union nfsd_xdrstore {
 #define NFS2_SVC_XDRSIZE	sizeof(union nfsd_xdrstore)
 
 
-int nfssvc_decode_fhandleargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_sattrargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_diropargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_readargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_writeargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_createargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_renameargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_linkargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_symlinkargs(struct svc_rqst *, __be32 *);
-int nfssvc_decode_readdirargs(struct svc_rqst *, __be32 *);
-int nfssvc_encode_statres(struct svc_rqst *, __be32 *);
-int nfssvc_encode_attrstatres(struct svc_rqst *, __be32 *);
-int nfssvc_encode_diropres(struct svc_rqst *, __be32 *);
-int nfssvc_encode_readlinkres(struct svc_rqst *, __be32 *);
-int nfssvc_encode_readres(struct svc_rqst *, __be32 *);
-int nfssvc_encode_statfsres(struct svc_rqst *, __be32 *);
-int nfssvc_encode_readdirres(struct svc_rqst *, __be32 *);
+bool nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_sattrargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_diropargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_readargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_writeargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_createargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_renameargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_linkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_decode_readdirargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+
+bool nfssvc_encode_statres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_attrstatres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_diropres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_readlinkres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_readres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_statfsres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool nfssvc_encode_readdirres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset);
 int nfssvc_encode_entry(void *data, const char *name, int namlen,

@@ -36,7 +36,6 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
-#include <linux/platform_data/ux500_wdt.h>
 #include "db8500-prcmu-regs.h"
 
 /* Index of different voltages to be used when accessing AVSData */
@@ -2939,18 +2938,8 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 	},
 };
 
-static struct ux500_wdt_data db8500_wdt_pdata = {
-	.timeout = 600, /* 10 minutes */
-	.has_28_bits_resolution = true,
-};
-
 static const struct mfd_cell common_prcmu_devs[] = {
-	{
-		.name = "ux500_wdt",
-		.platform_data = &db8500_wdt_pdata,
-		.pdata_size = sizeof(db8500_wdt_pdata),
-		.id = -1,
-	},
+	MFD_CELL_NAME("db8500_wdt"),
 	MFD_CELL_NAME("db8500-cpuidle"),
 };
 

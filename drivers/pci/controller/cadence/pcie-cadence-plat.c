@@ -127,6 +127,8 @@ static int cdns_plat_pcie_probe(struct platform_device *pdev)
 			goto err_init;
 	}
 
+	return 0;
+
  err_init:
  err_get_sync:
 	pm_runtime_put_sync(dev);

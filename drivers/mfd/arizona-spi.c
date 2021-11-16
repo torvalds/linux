@@ -225,11 +225,22 @@ static const struct spi_device_id arizona_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, arizona_spi_ids);
 
+#ifdef CONFIG_OF
+const struct of_device_id arizona_spi_of_match[] = {
+	{ .compatible = "wlf,wm5102", .data = (void *)WM5102 },
+	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
+	{ .compatible = "wlf,wm8280", .data = (void *)WM8280 },
+	{ .compatible = "wlf,wm1831", .data = (void *)WM1831 },
+	{ .compatible = "cirrus,cs47l24", .data = (void *)CS47L24 },
+	{},
+};
+#endif
+
 static struct spi_driver arizona_spi_driver = {
 	.driver = {
 		.name	= "arizona",
 		.pm	= &arizona_pm_ops,
-		.of_match_table	= of_match_ptr(arizona_of_match),
+		.of_match_table	= of_match_ptr(arizona_spi_of_match),
 		.acpi_match_table = ACPI_PTR(arizona_acpi_match),
 	},
 	.probe		= arizona_spi_probe,

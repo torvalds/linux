@@ -20,7 +20,7 @@
 
 static int oaktrail_output_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	if (dev_priv->iLVDS_enable)
 		oaktrail_lvds_init(dev, &dev_priv->mode_dev);
 	else
@@ -51,7 +51,7 @@ static int oaktrail_brightness;
 static int oaktrail_set_brightness(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(oaktrail_backlight_device);
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int level = bd->props.brightness;
 	u32 blc_pwm_ctl;
 	u32 max_pwm_blc;
@@ -96,7 +96,7 @@ static int oaktrail_get_brightness(struct backlight_device *bd)
 
 static int device_backlight_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long core_clock;
 	u16 bl_max_freq;
 	uint32_t value;
@@ -133,7 +133,7 @@ static const struct backlight_ops oaktrail_ops = {
 
 static int oaktrail_backlight_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int ret;
 	struct backlight_properties props;
 
@@ -175,7 +175,7 @@ static int oaktrail_backlight_init(struct drm_device *dev)
  */
 static int oaktrail_save_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_save_area *regs = &dev_priv->regs;
 	struct psb_pipe *p = &regs->pipe[0];
 	int i;
@@ -289,7 +289,7 @@ static int oaktrail_save_display_registers(struct drm_device *dev)
  */
 static int oaktrail_restore_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_save_area *regs = &dev_priv->regs;
 	struct psb_pipe *p = &regs->pipe[0];
 	u32 pp_stat;
@@ -404,7 +404,7 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
  */
 static int oaktrail_power_down(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 pwr_mask ;
 	u32 pwr_sts;
 
@@ -428,7 +428,7 @@ static int oaktrail_power_down(struct drm_device *dev)
  */
 static int oaktrail_power_up(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 pwr_mask = PSB_PWRGT_DISPLAY_MASK;
 	u32 pwr_sts, pwr_cnt;
 
@@ -500,7 +500,7 @@ static const struct psb_offset oaktrail_regmap[2] = {
 
 static int oaktrail_chip_setup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 
@@ -524,7 +524,7 @@ static int oaktrail_chip_setup(struct drm_device *dev)
 
 static void oaktrail_teardown(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	gma_intel_teardown_gmbus(dev);
 	oaktrail_hdmi_teardown(dev);

@@ -3,9 +3,7 @@
 # s390/Makefile
 #
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" and "archdep" for cleaning up and making dependencies for
-# this architecture
+# architecture-specific flags and dependencies.
 #
 # Copyright (C) 1994 by Linus Torvalds
 #
@@ -146,10 +144,6 @@ zfcpdump:
 
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso64 $@
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
-	$(Q)$(MAKE) $(clean)=$(tools)
 
 archheaders:
 	$(Q)$(MAKE) $(build)=$(syscalls) uapi

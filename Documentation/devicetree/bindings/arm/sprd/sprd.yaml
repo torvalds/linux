@@ -30,6 +30,11 @@ properties:
               - sprd,sp9863a-1h10
           - const: sprd,sc9863a
 
+      - items:
+          - enum:
+              - sprd,ums512-1h10
+          - const: sprd,ums512
+
 additionalProperties: true
 
 ...

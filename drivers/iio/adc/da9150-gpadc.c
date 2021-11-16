@@ -330,7 +330,6 @@ static int da9150_gpadc_probe(struct platform_device *pdev)
 	}
 	gpadc = iio_priv(indio_dev);
 
-	platform_set_drvdata(pdev, indio_dev);
 	gpadc->da9150 = da9150;
 	gpadc->dev = dev;
 	mutex_init(&gpadc->lock);
@@ -347,7 +346,7 @@ static int da9150_gpadc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = iio_map_array_register(indio_dev, da9150_gpadc_default_maps);
+	ret = devm_iio_map_array_register(&pdev->dev, indio_dev, da9150_gpadc_default_maps);
 	if (ret) {
 		dev_err(dev, "Failed to register IIO maps: %d\n", ret);
 		return ret;
@@ -359,28 +358,7 @@ static int da9150_gpadc_probe(struct platform_device *pdev)
 	indio_dev->channels = da9150_gpadc_channels;
 	indio_dev->num_channels = ARRAY_SIZE(da9150_gpadc_channels);
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(dev, "Failed to register IIO device: %d\n", ret);
-		goto iio_map_unreg;
-	}
-
-	return 0;
-
-iio_map_unreg:
-	iio_map_array_unregister(indio_dev);
-
-	return ret;
-}
-
-static int da9150_gpadc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-	iio_map_array_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
 static struct platform_driver da9150_gpadc_driver = {
@@ -388,7 +366,6 @@ static struct platform_driver da9150_gpadc_driver = {
 		.name = "da9150-gpadc",
 	},
 	.probe = da9150_gpadc_probe,
-	.remove = da9150_gpadc_remove,
 };
 
 module_platform_driver(da9150_gpadc_driver);

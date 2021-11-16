@@ -9,7 +9,7 @@ title: STMicroelectonics STPMIC1 Power Management IC bindings
 description: STMicroelectronics STPMIC1 Power Management IC
 
 maintainers:
-  - pascal Paillet <p.paillet@st.com>
+  - pascal Paillet <p.paillet@foss.st.com>
 
 properties:
   compatible:

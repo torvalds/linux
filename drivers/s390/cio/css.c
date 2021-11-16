@@ -437,8 +437,8 @@ static ssize_t dev_busid_show(struct device *dev,
 	struct subchannel *sch = to_subchannel(dev);
 	struct pmcw *pmcw = &sch->schib.pmcw;
 
-	if ((pmcw->st == SUBCHANNEL_TYPE_IO ||
-	     pmcw->st == SUBCHANNEL_TYPE_MSG) && pmcw->dnv)
+	if ((pmcw->st == SUBCHANNEL_TYPE_IO && pmcw->dnv) ||
+	    (pmcw->st == SUBCHANNEL_TYPE_MSG && pmcw->w))
 		return sysfs_emit(buf, "0.%x.%04x\n", sch->schid.ssid,
 				  pmcw->dev);
 	else
@@ -792,10 +792,13 @@ static int __unset_online(struct device *dev, void *data)
 {
 	struct idset *set = data;
 	struct subchannel *sch = to_subchannel(dev);
-	struct ccw_device *cdev = sch_get_cdev(sch);
+	struct ccw_device *cdev;
 
-	if (cdev && cdev->online)
-		idset_sch_del(set, sch->schid);
+	if (sch->st == SUBCHANNEL_TYPE_IO) {
+		cdev = sch_get_cdev(sch);
+		if (cdev && cdev->online)
+			idset_sch_del(set, sch->schid);
+	}
 
 	return 0;
 }

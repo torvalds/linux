@@ -1882,11 +1882,6 @@ static int validate_code(struct jit_ctx *ctx)
 	return 0;
 }
 
-void bpf_jit_compile(struct bpf_prog *prog)
-{
-	/* Nothing to do here. We support Internal BPF. */
-}
-
 bool bpf_jit_needs_zext(void)
 {
 	return true;

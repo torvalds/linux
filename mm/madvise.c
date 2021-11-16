@@ -1235,7 +1235,6 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 	struct iovec iovstack[UIO_FASTIOV], iovec;
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
-	struct pid *pid;
 	struct task_struct *task;
 	struct mm_struct *mm;
 	size_t total_len;
@@ -1250,16 +1249,10 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 	if (ret < 0)
 		goto out;
 
-	pid = pidfd_get_pid(pidfd, &f_flags);
-	if (IS_ERR(pid)) {
-		ret = PTR_ERR(pid);
+	task = pidfd_get_task(pidfd, &f_flags);
+	if (IS_ERR(task)) {
+		ret = PTR_ERR(task);
 		goto free_iov;
-	}
-
-	task = get_pid_task(pid, PIDTYPE_PID);
-	if (!task) {
-		ret = -ESRCH;
-		goto put_pid;
 	}
 
 	if (!process_madvise_behavior_valid(behavior)) {
@@ -1301,8 +1294,6 @@ release_mm:
 	mmput(mm);
 release_task:
 	put_task_struct(task);
-put_pid:
-	put_pid(pid);
 free_iov:
 	kfree(iov);
 out:

@@ -20,6 +20,11 @@
 
 #define FSCRYPT_FILE_NONCE_SIZE	16
 
+/*
+ * Minimum size of an fscrypt master key.  Note: a longer key will be required
+ * if ciphers with a 256-bit security strength are used.  This is just the
+ * absolute minimum, which applies when only 128-bit encryption is used.
+ */
 #define FSCRYPT_MIN_KEY_SIZE	16
 
 #define FSCRYPT_CONTEXT_V1	1
@@ -413,7 +418,11 @@ struct fscrypt_master_key_secret {
 	 */
 	struct fscrypt_hkdf	hkdf;
 
-	/* Size of the raw key in bytes.  Set even if ->raw isn't set. */
+	/*
+	 * Size of the raw key in bytes.  This remains set even if ->raw was
+	 * zeroized due to no longer being needed.  I.e. we still remember the
+	 * size of the key even if we don't need to remember the key itself.
+	 */
 	u32			size;
 
 	/* For v1 policy keys: the raw key.  Wiped for v2 policy keys. */
@@ -549,8 +558,9 @@ int __init fscrypt_init_keyring(void);
 struct fscrypt_mode {
 	const char *friendly_name;
 	const char *cipher_str;
-	int keysize;
-	int ivsize;
+	int keysize;		/* key size in bytes */
+	int security_strength;	/* security strength in bytes */
+	int ivsize;		/* IV size in bytes */
 	int logged_impl_name;
 	enum blk_crypto_mode_num blk_crypto_mode;
 };

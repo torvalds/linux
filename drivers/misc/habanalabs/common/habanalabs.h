@@ -26,6 +26,7 @@
 #include <linux/sched/signal.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/coresight.h>
+#include <linux/dma-buf.h>
 
 #define HL_NAME				"habanalabs"
 
@@ -67,6 +68,9 @@
 #define HL_COMMON_USER_INTERRUPT_ID	0xFFF
 
 #define HL_STATE_DUMP_HIST_LEN		5
+
+/* Default value for device reset trigger , an invalid value */
+#define HL_RESET_TRIGGER_DEFAULT	0xFF
 
 #define OBJ_NAMES_HASH_TABLE_BITS	7 /* 1 << 7 buckets */
 #define SYNC_TO_ENGINE_HASH_TABLE_BITS	7 /* 1 << 7 buckets */
@@ -132,13 +136,18 @@ enum hl_mmu_page_table_location {
  * - HL_RESET_FW
  *       F/W will perform the reset. No need to ask it to reset the device. This is relevant
  *       only when running with secured f/w
+ *
+ * - HL_RESET_FW_FATAL_ERR
+ *       Set if reset is due to a fatal error from FW
  */
+
 #define HL_RESET_HARD			(1 << 0)
 #define HL_RESET_FROM_RESET_THREAD	(1 << 1)
 #define HL_RESET_HEARTBEAT		(1 << 2)
 #define HL_RESET_TDR			(1 << 3)
 #define HL_RESET_DEVICE_RELEASE		(1 << 4)
 #define HL_RESET_FW			(1 << 5)
+#define HL_RESET_FW_FATAL_ERR		(1 << 6)
 
 #define HL_MAX_SOBS_PER_MONITOR	8
 
@@ -447,6 +456,9 @@ struct hl_hints_range {
  *                  for hints validity check.
  * device_dma_offset_for_host_access: the offset to add to host DMA addresses
  *                                    to enable the device to access them.
+ * @max_freq_value: current max clk frequency.
+ * @clk_pll_index: clock PLL index that specify which PLL determines the clock
+ *                 we display to the user
  * @mmu_pgt_size: MMU page tables total size.
  * @mmu_pte_size: PTE size in MMU page tables.
  * @mmu_hop_table_size: MMU hop table size.
@@ -543,6 +555,8 @@ struct asic_fixed_properties {
 	u64				cb_va_end_addr;
 	u64				dram_hints_align_mask;
 	u64				device_dma_offset_for_host_access;
+	u64				max_freq_value;
+	u32				clk_pll_index;
 	u32				mmu_pgt_size;
 	u32				mmu_pte_size;
 	u32				mmu_hop_table_size;
@@ -601,6 +615,9 @@ struct asic_fixed_properties {
  *                         masters QIDs that multi cs is waiting on
  * @error: mark this fence with error
  * @timestamp: timestamp upon completion
+ * @mcs_handling_done: indicates that corresponding command submission has
+ *                     finished msc handling, this does not mean it was part
+ *                     of the mcs
  */
 struct hl_fence {
 	struct completion	completion;
@@ -609,6 +626,7 @@ struct hl_fence {
 	u32			stream_master_qid_map;
 	int			error;
 	ktime_t			timestamp;
+	u8			mcs_handling_done;
 };
 
 /**
@@ -1353,6 +1371,23 @@ struct hl_cs_counters_atomic {
 };
 
 /**
+ * struct hl_dmabuf_priv - a dma-buf private object.
+ * @dmabuf: pointer to dma-buf object.
+ * @ctx: pointer to the dma-buf owner's context.
+ * @phys_pg_pack: pointer to physical page pack if the dma-buf was exported for
+ *                memory allocation handle.
+ * @device_address: physical address of the device's memory. Relevant only
+ *                  if phys_pg_pack is NULL (dma-buf was exported from address).
+ *                  The total size can be taken from the dmabuf object.
+ */
+struct hl_dmabuf_priv {
+	struct dma_buf			*dmabuf;
+	struct hl_ctx			*ctx;
+	struct hl_vm_phys_pg_pack	*phys_pg_pack;
+	uint64_t			device_address;
+};
+
+/**
  * struct hl_ctx - user/kernel context.
  * @mem_hash: holds mapping from virtual address to virtual memory area
  *		descriptor (hl_vm_phys_pg_list or hl_userptr).
@@ -1662,6 +1697,7 @@ struct hl_vm_hw_block_list_node {
  * @npages: num physical pages in the pack.
  * @total_size: total size of all the pages in this list.
  * @mapping_cnt: number of shared mappings.
+ * @exporting_cnt: number of dma-buf exporting.
  * @asid: the context related to this list.
  * @page_size: size of each page in the pack.
  * @flags: HL_MEM_* flags related to this list.
@@ -1676,6 +1712,7 @@ struct hl_vm_phys_pg_pack {
 	u64			npages;
 	u64			total_size;
 	atomic_t		mapping_cnt;
+	u32			exporting_cnt;
 	u32			asid;
 	u32			page_size;
 	u32			flags;
@@ -2396,6 +2433,7 @@ struct multi_cs_data {
  *                          the error will be ignored by the driver during
  *                          device initialization. Mainly used to debug and
  *                          workaround firmware bugs
+ * @dram_pci_bar_start: start bus address of PCIe bar towards DRAM.
  * @last_successful_open_jif: timestamp (jiffies) of the last successful
  *                            device open.
  * @last_open_session_duration_jif: duration (jiffies) of the last device open
@@ -2440,8 +2478,12 @@ struct multi_cs_data {
  * @collective_mon_idx: helper index for collective initialization
  * @supports_coresight: is CoreSight supported.
  * @supports_soft_reset: is soft reset supported.
- * @allow_external_soft_reset: true if soft reset initiated by user or TDR is
- *                             allowed.
+ * @allow_inference_soft_reset: true if the ASIC supports soft reset that is
+ *                              initiated by user or TDR. This is only true
+ *                              in inference ASICs, as there is no real-world
+ *                              use-case of doing soft-reset in training (due
+ *                              to the fact that training runs on multiple
+ *                              devices)
  * @supports_cb_mapping: is mapping a CB to the device's MMU supported.
  * @needs_reset: true if reset_on_lockup is false and device should be reset
  *               due to lockup.
@@ -2452,6 +2494,10 @@ struct multi_cs_data {
  * @supports_staged_submission: true if staged submissions are supported
  * @curr_reset_cause: saves an enumerated reset cause when a hard reset is
  *                    triggered, and cleared after it is shared with preboot.
+ * @prev_reset_trigger: saves the previous trigger which caused a reset, overidden
+ *                      with a new value on next reset
+ * @reset_trigger_repeated: set if device reset is triggered more than once with
+ *                          same cause.
  * @skip_reset_on_timeout: Skip device reset if CS has timed out, wait for it to
  *                         complete instead.
  * @device_cpu_is_halted: Flag to indicate whether the device CPU was already
@@ -2537,6 +2583,7 @@ struct hl_device {
 	u64				max_power;
 	u64				clock_gating_mask;
 	u64				boot_error_status_mask;
+	u64				dram_pci_bar_start;
 	u64				last_successful_open_jif;
 	u64				last_open_session_duration_jif;
 	u64				open_counter;
@@ -2572,13 +2619,15 @@ struct hl_device {
 	u8				collective_mon_idx;
 	u8				supports_coresight;
 	u8				supports_soft_reset;
-	u8				allow_external_soft_reset;
+	u8				allow_inference_soft_reset;
 	u8				supports_cb_mapping;
 	u8				needs_reset;
 	u8				process_kill_trial_cnt;
 	u8				device_fini_pending;
 	u8				supports_staged_submission;
 	u8				curr_reset_cause;
+	u8				prev_reset_trigger;
+	u8				reset_trigger_repeated;
 	u8				skip_reset_on_timeout;
 	u8				device_cpu_is_halted;
 	u8				supports_wait_for_multi_cs;
@@ -2956,6 +3005,15 @@ int hl_set_voltage(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 int hl_set_current(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
+int hl_set_power(struct hl_device *hdev,
+			int sensor_index, u32 attr, long value);
+int hl_get_power(struct hl_device *hdev,
+			int sensor_index, u32 attr, long *value);
+int hl_get_clk_rate(struct hl_device *hdev,
+			u32 *cur_clk, u32 *max_clk);
+void hl_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
+void hl_add_device_attr(struct hl_device *hdev,
+			struct attribute_group *dev_attr_grp);
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);
 void hl_encaps_handle_do_release(struct kref *ref);

@@ -1015,9 +1015,11 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	int error = -ENOMEM;
 	int i, length;
 	unsigned int maxpacket, num_packets;
+	size_t size;
 
 	/* instance init */
-	instance = kzalloc(sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
+	size = struct_size(instance, urbs, num_rcv_urbs + num_snd_urbs);
+	instance = kzalloc(size, GFP_KERNEL);
 	if (!instance)
 		return -ENOMEM;
 

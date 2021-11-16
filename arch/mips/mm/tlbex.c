@@ -325,13 +325,7 @@ static unsigned int kscratch_used_mask;
 
 static inline int __maybe_unused c0_kscratch(void)
 {
-	switch (current_cpu_type()) {
-	case CPU_XLP:
-	case CPU_XLR:
-		return 22;
-	default:
-		return 31;
-	}
+	return 31;
 }
 
 static int allocate_kscratch(void)
@@ -553,7 +547,6 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_5KC:
 	case CPU_TX49XX:
 	case CPU_PR4450:
-	case CPU_XLR:
 		uasm_i_nop(p);
 		tlbw(p);
 		break;

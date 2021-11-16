@@ -98,9 +98,8 @@ static inline int convert_error(struct zcrypt_queue *zq,
 	case REP88_ERROR_MESSAGE_MALFORMD:	 /* 0x22 */
 	case REP88_ERROR_KEY_TYPE:		 /* 0x34 */
 		/* RY indicates malformed request */
-		ZCRYPT_DBF(DBF_WARN,
-			   "dev=%02x.%04x RY=0x%02x => rc=EINVAL\n",
-			   card, queue, ehdr->reply_code);
+		ZCRYPT_DBF_WARN("%s dev=%02x.%04x RY=0x%02x => rc=EINVAL\n",
+				__func__, card, queue, ehdr->reply_code);
 		return -EINVAL;
 	case REP82_ERROR_MACHINE_FAILURE:	 /* 0x10 */
 	case REP82_ERROR_MESSAGE_TYPE:		 /* 0x20 */
@@ -119,19 +118,18 @@ static inline int convert_error(struct zcrypt_queue *zq,
 			} __packed * head = reply->msg;
 			unsigned int apfs = *((u32 *)head->fmt2.apfs);
 
-			ZCRYPT_DBF(DBF_WARN,
-				   "dev=%02x.%04x RY=0x%02x apfs=0x%x => bus rescan, rc=EAGAIN\n",
-				   card, queue, ehdr->reply_code, apfs);
+			ZCRYPT_DBF_WARN(
+				"%s dev=%02x.%04x RY=0x%02x apfs=0x%x => bus rescan, rc=EAGAIN\n",
+				__func__, card, queue, ehdr->reply_code, apfs);
 		} else
-			ZCRYPT_DBF(DBF_WARN,
-				   "dev=%02x.%04x RY=0x%02x => bus rescan, rc=EAGAIN\n",
-				   card, queue, ehdr->reply_code);
+			ZCRYPT_DBF_WARN("%s dev=%02x.%04x RY=0x%02x => bus rescan, rc=EAGAIN\n",
+					__func__, card, queue,
+					ehdr->reply_code);
 		return -EAGAIN;
 	default:
 		/* Assume request is valid and a retry will be worth it */
-		ZCRYPT_DBF(DBF_WARN,
-			   "dev=%02x.%04x RY=0x%02x => rc=EAGAIN\n",
-			   card, queue, ehdr->reply_code);
+		ZCRYPT_DBF_WARN("%s dev=%02x.%04x RY=0x%02x => rc=EAGAIN\n",
+				__func__, card, queue, ehdr->reply_code);
 		return -EAGAIN;
 	}
 }

@@ -29,15 +29,15 @@
 		i2c-parent = <&i2c1>;
 		mux-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
 
-		/* Q7_GPO_I2C */
-		i2c@0 {
+		/* Q7_GP0_I2C */
+		i2c_gp0: i2c@0 {
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
 
 		/* Q7_SMB */
-		i2c@1 {
+		i2c_smb: i2c@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -52,7 +52,7 @@
 		mux-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
 
 		/* Q7_LVDS_BLC_I2C */
-		i2c@0 {
+		i2c_lvds_blc: i2c@0 {
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -69,8 +69,8 @@
 			};
 		};
 
-		/* Q7_GP2_I2C */
-		i2c@1 {
+		/* Q7_GP2_I2C = LVDS_DID_CLK/DAT */
+		i2c_gp2: i2c@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -144,7 +144,7 @@
 	mmc-hs200-1_8v;
 	non-removable;
 	vmmc-supply = <&vcc33_io>;
-	vqmmc-supply = <&vcc18_io>;
+	vqmmc-supply = <&vcc_18>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_bus8>;
 	status = "okay";
@@ -238,19 +238,20 @@
 				regulator-boot-on;
 			};
 
-			vcc18_io: LDO_REG4 {
-				regulator-name = "vcc18_io";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-boot-on;
-			};
-
 			vdd10_video: LDO_REG6 {
 				regulator-name = "vdd10_video";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
 				regulator-boot-on;
+			};
+
+			vcc_18: LDO_REG7 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-name = "vcc_18";
 			};
 
 			vcc18_video: LDO_REG8 {
@@ -272,6 +273,18 @@
 	status = "okay";
 };
 
+/* The RK3368-uQ7 "Lion" has most IO voltages hardwired to 3.3V. */
+&io_domains {
+	audio-supply = <&vcc33_io>;
+	dvp-supply = <&vcc33_io>;
+	flash0-supply = <&vcc_18>;
+	gpio30-supply = <&vcc33_io>;
+	gpio1830-supply = <&vcc33_io>;
+	sdcard-supply = <&vcc33_io>;
+	wifi-supply = <&vcc33_io>;
+	status = "okay";
+};
+
 &pinctrl {
 	leds {
 		module_led_pins: module-led-pins {
@@ -289,6 +302,12 @@
 			rockchip,pins = <0 RK_PA0 2 &pcfg_pull_none>;
 		};
 	};
+};
+
+&pmu_io_domains {
+	pmu-supply = <&vcc33_io>;
+	vop-supply = <&vcc33_io>;
+	status = "okay";
 };
 
 &spi1 {

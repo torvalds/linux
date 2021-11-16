@@ -334,8 +334,8 @@ int rvu_set_channels_base(struct rvu *rvu)
 	/* Out of 4096 channels start CPT from 2048 so
 	 * that MSB for CPT channels is always set
 	 */
-	if (cpt_chan_base <= 0x800) {
-		hw->cpt_chan_base = 0x800;
+	if (cpt_chan_base <= NIX_CHAN_CPT_CH_START) {
+		hw->cpt_chan_base = NIX_CHAN_CPT_CH_START;
 	} else {
 		dev_err(rvu->dev,
 			"CPT channels could not fit in the range 2048-4095\n");

@@ -133,7 +133,7 @@ efi_crc32(const void *buf, unsigned long len)
  */
 static u64 last_lba(struct gendisk *disk)
 {
-	return div_u64(disk->part0->bd_inode->i_size,
+	return div_u64(bdev_nr_bytes(disk->part0),
 		       queue_logical_block_size(disk->queue)) - 1ULL;
 }
 

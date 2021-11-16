@@ -154,7 +154,7 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	termios->c_ospeed = obaud;
 
 #ifdef IBSHIFT
-	if ((termios->c_cflag >> IBSHIFT) & CBAUD)
+	if (((termios->c_cflag >> IBSHIFT) & CBAUD) != B0)
 		ibinput = 1;	/* An input speed was specified */
 #endif
 #ifdef BOTHER

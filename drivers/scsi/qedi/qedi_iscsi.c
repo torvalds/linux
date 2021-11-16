@@ -58,7 +58,7 @@ struct scsi_host_template qedi_host_template = {
 	.max_sectors = 0xffff,
 	.dma_boundary = QEDI_HW_DMA_BOUNDARY,
 	.cmd_per_lun = 128,
-	.shost_attrs = qedi_shost_attrs,
+	.shost_groups = qedi_shost_groups,
 };
 
 static void qedi_conn_free_login_resources(struct qedi_ctx *qedi,

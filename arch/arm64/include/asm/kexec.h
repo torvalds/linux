@@ -90,12 +90,24 @@ static inline void crash_prepare_suspend(void) {}
 static inline void crash_post_resume(void) {}
 #endif
 
+#if defined(CONFIG_KEXEC_CORE)
+void cpu_soft_restart(unsigned long el2_switch, unsigned long entry,
+		      unsigned long arg0, unsigned long arg1,
+		      unsigned long arg2);
+#endif
+
 #define ARCH_HAS_KIMAGE_ARCH
 
 struct kimage_arch {
 	void *dtb;
 	phys_addr_t dtb_mem;
 	phys_addr_t kern_reloc;
+	phys_addr_t el2_vectors;
+	phys_addr_t ttbr0;
+	phys_addr_t ttbr1;
+	phys_addr_t zero_page;
+	unsigned long phys_offset;
+	unsigned long t0sz;
 };
 
 #ifdef CONFIG_KEXEC_FILE

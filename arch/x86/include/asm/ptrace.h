@@ -181,7 +181,7 @@ static inline bool any_64bit_mode(struct pt_regs *regs)
 #define current_user_stack_pointer()	current_pt_regs()->sp
 #define compat_user_stack_pointer()	current_pt_regs()->sp
 
-static inline bool ip_within_syscall_gap(struct pt_regs *regs)
+static __always_inline bool ip_within_syscall_gap(struct pt_regs *regs)
 {
 	bool ret = (regs->ip >= (unsigned long)entry_SYSCALL_64 &&
 		    regs->ip <  (unsigned long)entry_SYSCALL_64_safe_stack);

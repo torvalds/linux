@@ -18,7 +18,6 @@
 #include <linux/secretmem.h>
 #include <linux/set_memory.h>
 #include <linux/sched/signal.h>
-#include <linux/refcount.h>
 
 #include <uapi/linux/magic.h>
 
@@ -41,11 +40,11 @@ module_param_named(enable, secretmem_enable, bool, 0400);
 MODULE_PARM_DESC(secretmem_enable,
 		 "Enable secretmem and memfd_secret(2) system call");
 
-static refcount_t secretmem_users;
+static atomic_t secretmem_users;
 
 bool secretmem_active(void)
 {
-	return !!refcount_read(&secretmem_users);
+	return !!atomic_read(&secretmem_users);
 }
 
 static vm_fault_t secretmem_fault(struct vm_fault *vmf)
@@ -104,7 +103,7 @@ static const struct vm_operations_struct secretmem_vm_ops = {
 
 static int secretmem_release(struct inode *inode, struct file *file)
 {
-	refcount_dec(&secretmem_users);
+	atomic_dec(&secretmem_users);
 	return 0;
 }
 
@@ -204,6 +203,8 @@ SYSCALL_DEFINE1(memfd_secret, unsigned int, flags)
 
 	if (flags & ~(SECRETMEM_FLAGS_MASK | O_CLOEXEC))
 		return -EINVAL;
+	if (atomic_read(&secretmem_users) < 0)
+		return -ENFILE;
 
 	fd = get_unused_fd_flags(flags & O_CLOEXEC);
 	if (fd < 0)
@@ -217,8 +218,8 @@ SYSCALL_DEFINE1(memfd_secret, unsigned int, flags)
 
 	file->f_flags |= O_LARGEFILE;
 
+	atomic_inc(&secretmem_users);
 	fd_install(fd, file);
-	refcount_inc(&secretmem_users);
 	return fd;
 
 err_put_fd:

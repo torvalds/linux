@@ -530,7 +530,7 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 
 	bdev = pgpath->path.dev->bdev;
 	q = bdev_get_queue(bdev);
-	clone = blk_get_request(q, rq->cmd_flags | REQ_NOMERGE,
+	clone = blk_mq_alloc_request(q, rq->cmd_flags | REQ_NOMERGE,
 			BLK_MQ_REQ_NOWAIT);
 	if (IS_ERR(clone)) {
 		/* EBUSY, ENODEV or EWOULDBLOCK: requeue */
@@ -579,7 +579,7 @@ static void multipath_release_clone(struct request *clone,
 						    clone->io_start_time_ns);
 	}
 
-	blk_put_request(clone);
+	blk_mq_free_request(clone);
 }
 
 /*
@@ -2061,7 +2061,7 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
-	if (!r && ti->len != i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+	if (!r && ti->len != bdev_nr_sectors((*bdev)))
 		return 1;
 	return r;
 }

@@ -131,6 +131,8 @@
 			 * have instead assumed that they are rotated (swizzled) like
 			 * this with 11, 10, 9, 8 for the 4 pins on IDSEL 1 etc.
 			 */
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map =
 			/* IDSEL 1 */
 			<0x0800 0 0 1 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 1 is irq 11 */

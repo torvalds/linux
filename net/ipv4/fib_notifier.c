@@ -6,7 +6,6 @@
 #include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/fib_notifier.h>
-#include <net/netns/ipv4.h>
 #include <net/ip_fib.h>
 
 int call_fib4_notifier(struct notifier_block *nb,

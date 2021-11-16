@@ -245,4 +245,6 @@ uint32_t dmub_dcn31_get_current_time(struct dmub_srv *dmub);
 
 void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
 
+bool dmub_dcn31_should_detect(struct dmub_srv *dmub);
+
 #endif /* _DMUB_DCN31_H_ */

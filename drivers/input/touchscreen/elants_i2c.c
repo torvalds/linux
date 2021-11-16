@@ -1439,11 +1439,11 @@ static int elants_i2c_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
-	error = devm_add_action(&client->dev, elants_i2c_power_off, ts);
+	error = devm_add_action_or_reset(&client->dev,
+					 elants_i2c_power_off, ts);
 	if (error) {
 		dev_err(&client->dev,
 			"failed to install power off action: %d\n", error);
-		elants_i2c_power_off(ts);
 		return error;
 	}
 

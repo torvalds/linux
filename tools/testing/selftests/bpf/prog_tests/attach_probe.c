@@ -5,6 +5,11 @@
 /* this is how USDT semaphore is actually defined, except volatile modifier */
 volatile unsigned short uprobe_ref_ctr __attribute__((unused)) __attribute((section(".probes")));
 
+/* attach point */
+static void method(void) {
+	return ;
+}
+
 void test_attach_probe(void)
 {
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, uprobe_opts);
@@ -14,12 +19,26 @@ void test_attach_probe(void)
 	struct test_attach_probe* skel;
 	size_t uprobe_offset;
 	ssize_t base_addr, ref_ctr_offset;
+	bool legacy;
+
+	/* Check if new-style kprobe/uprobe API is supported.
+	 * Kernels that support new FD-based kprobe and uprobe BPF attachment
+	 * through perf_event_open() syscall expose
+	 * /sys/bus/event_source/devices/kprobe/type and
+	 * /sys/bus/event_source/devices/uprobe/type files, respectively. They
+	 * contain magic numbers that are passed as "type" field of
+	 * perf_event_attr. Lack of such file in the system indicates legacy
+	 * kernel with old-style kprobe/uprobe attach interface through
+	 * creating per-probe event through tracefs. For such cases
+	 * ref_ctr_offset feature is not supported, so we don't test it.
+	 */
+	legacy = access("/sys/bus/event_source/devices/kprobe/type", F_OK) != 0;
 
 	base_addr = get_base_addr();
 	if (CHECK(base_addr < 0, "get_base_addr",
 		  "failed to find base addr: %zd", base_addr))
 		return;
-	uprobe_offset = get_uprobe_offset(&get_base_addr, base_addr);
+	uprobe_offset = get_uprobe_offset(&method, base_addr);
 
 	ref_ctr_offset = get_rel_offset((uintptr_t)&uprobe_ref_ctr);
 	if (!ASSERT_GE(ref_ctr_offset, 0, "ref_ctr_offset"))
@@ -45,10 +64,11 @@ void test_attach_probe(void)
 		goto cleanup;
 	skel->links.handle_kretprobe = kretprobe_link;
 
-	ASSERT_EQ(uprobe_ref_ctr, 0, "uprobe_ref_ctr_before");
+	if (!legacy)
+		ASSERT_EQ(uprobe_ref_ctr, 0, "uprobe_ref_ctr_before");
 
 	uprobe_opts.retprobe = false;
-	uprobe_opts.ref_ctr_offset = ref_ctr_offset;
+	uprobe_opts.ref_ctr_offset = legacy ? 0 : ref_ctr_offset;
 	uprobe_link = bpf_program__attach_uprobe_opts(skel->progs.handle_uprobe,
 						      0 /* self pid */,
 						      "/proc/self/exe",
@@ -58,11 +78,12 @@ void test_attach_probe(void)
 		goto cleanup;
 	skel->links.handle_uprobe = uprobe_link;
 
-	ASSERT_GT(uprobe_ref_ctr, 0, "uprobe_ref_ctr_after");
+	if (!legacy)
+		ASSERT_GT(uprobe_ref_ctr, 0, "uprobe_ref_ctr_after");
 
 	/* if uprobe uses ref_ctr, uretprobe has to use ref_ctr as well */
 	uprobe_opts.retprobe = true;
-	uprobe_opts.ref_ctr_offset = ref_ctr_offset;
+	uprobe_opts.ref_ctr_offset = legacy ? 0 : ref_ctr_offset;
 	uretprobe_link = bpf_program__attach_uprobe_opts(skel->progs.handle_uretprobe,
 							 -1 /* any pid */,
 							 "/proc/self/exe",
@@ -82,7 +103,7 @@ void test_attach_probe(void)
 		goto cleanup;
 
 	/* trigger & validate uprobe & uretprobe */
-	get_base_addr();
+	method();
 
 	if (CHECK(skel->bss->uprobe_res != 3, "check_uprobe_res",
 		  "wrong uprobe res: %d\n", skel->bss->uprobe_res))

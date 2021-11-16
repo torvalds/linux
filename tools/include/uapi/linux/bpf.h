@@ -906,6 +906,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_RINGBUF,
 	BPF_MAP_TYPE_INODE_STORAGE,
 	BPF_MAP_TYPE_TASK_STORAGE,
+	BPF_MAP_TYPE_BLOOM_FILTER,
 };
 
 /* Note that tracing related programs such as
@@ -1274,6 +1275,13 @@ union bpf_attr {
 						   * struct stored as the
 						   * map value
 						   */
+		/* Any per-map-type extra fields
+		 *
+		 * BPF_MAP_TYPE_BLOOM_FILTER - the lowest 4 bits indicate the
+		 * number of hash functions (if 0, the bloom filter will default
+		 * to using 5 hash functions).
+		 */
+		__u64	map_extra;
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
@@ -1629,7 +1637,7 @@ union bpf_attr {
  * u32 bpf_get_smp_processor_id(void)
  * 	Description
  * 		Get the SMP (symmetric multiprocessing) processor id. Note that
- * 		all programs run with preemption disabled, which means that the
+ * 		all programs run with migration disabled, which means that the
  * 		SMP processor id is stable during all the execution of the
  * 		program.
  * 	Return
@@ -4046,7 +4054,7 @@ union bpf_attr {
  * 		arguments. The *data* are a **u64** array and corresponding format string
  * 		values are stored in the array. For strings and pointers where pointees
  * 		are accessed, only the pointer values are stored in the *data* array.
- * 		The *data_len* is the size of *data* in bytes.
+ * 		The *data_len* is the size of *data* in bytes - must be a multiple of 8.
  *
  *		Formats **%s**, **%p{i,I}{4,6}** requires to read kernel memory.
  *		Reading kernel memory may fail due to either invalid address or
@@ -4751,7 +4759,8 @@ union bpf_attr {
  *		Each format specifier in **fmt** corresponds to one u64 element
  *		in the **data** array. For strings and pointers where pointees
  *		are accessed, only the pointer values are stored in the *data*
- *		array. The *data_len* is the size of *data* in bytes.
+ *		array. The *data_len* is the size of *data* in bytes - must be
+ *		a multiple of 8.
  *
  *		Formats **%s** and **%p{i,I}{4,6}** require to read kernel
  *		memory. Reading kernel memory may fail due to either invalid
@@ -4877,6 +4886,58 @@ union bpf_attr {
  *		Get the struct pt_regs associated with **task**.
  *	Return
  *		A pointer to struct pt_regs.
+ *
+ * long bpf_get_branch_snapshot(void *entries, u32 size, u64 flags)
+ *	Description
+ *		Get branch trace from hardware engines like Intel LBR. The
+ *		hardware engine is stopped shortly after the helper is
+ *		called. Therefore, the user need to filter branch entries
+ *		based on the actual use case. To capture branch trace
+ *		before the trigger point of the BPF program, the helper
+ *		should be called at the beginning of the BPF program.
+ *
+ *		The data is stored as struct perf_branch_entry into output
+ *		buffer *entries*. *size* is the size of *entries* in bytes.
+ *		*flags* is reserved for now and must be zero.
+ *
+ *	Return
+ *		On success, number of bytes written to *buf*. On error, a
+ *		negative value.
+ *
+ *		**-EINVAL** if *flags* is not zero.
+ *
+ *		**-ENOENT** if architecture does not support branch records.
+ *
+ * long bpf_trace_vprintk(const char *fmt, u32 fmt_size, const void *data, u32 data_len)
+ *	Description
+ *		Behaves like **bpf_trace_printk**\ () helper, but takes an array of u64
+ *		to format and can handle more format args as a result.
+ *
+ *		Arguments are to be used as in **bpf_seq_printf**\ () helper.
+ *	Return
+ *		The number of bytes written to the buffer, or a negative error
+ *		in case of failure.
+ *
+ * struct unix_sock *bpf_skc_to_unix_sock(void *sk)
+ * 	Description
+ *		Dynamically cast a *sk* pointer to a *unix_sock* pointer.
+ *	Return
+ *		*sk* if casting is valid, or **NULL** otherwise.
+ *
+ * long bpf_kallsyms_lookup_name(const char *name, int name_sz, int flags, u64 *res)
+ *	Description
+ *		Get the address of a kernel symbol, returned in *res*. *res* is
+ *		set to 0 if the symbol is not found.
+ *	Return
+ *		On success, zero. On error, a negative value.
+ *
+ *		**-EINVAL** if *flags* is not zero.
+ *
+ *		**-EINVAL** if string *name* is not the same size as *name_sz*.
+ *
+ *		**-ENOENT** if symbol is not found.
+ *
+ *		**-EPERM** if caller does not have permission to obtain kernel address.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5055,6 +5116,10 @@ union bpf_attr {
 	FN(get_func_ip),		\
 	FN(get_attach_cookie),		\
 	FN(task_pt_regs),		\
+	FN(get_branch_snapshot),	\
+	FN(trace_vprintk),		\
+	FN(skc_to_unix_sock),		\
+	FN(kallsyms_lookup_name),	\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
@@ -5284,6 +5349,8 @@ struct __sk_buff {
 	__u32 gso_segs;
 	__bpf_md_ptr(struct bpf_sock *, sk);
 	__u32 gso_size;
+	__u32 :32;		/* Padding, future use. */
+	__u64 hwtstamp;
 };
 
 struct bpf_tunnel_key {
@@ -5577,6 +5644,7 @@ struct bpf_prog_info {
 	__u64 run_time_ns;
 	__u64 run_cnt;
 	__u64 recursion_misses;
+	__u32 verified_insns;
 } __attribute__((aligned(8)));
 
 struct bpf_map_info {
@@ -5594,6 +5662,8 @@ struct bpf_map_info {
 	__u32 btf_id;
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
+	__u32 :32;	/* alignment pad */
+	__u64 map_extra;
 } __attribute__((aligned(8)));
 
 struct bpf_btf_info {

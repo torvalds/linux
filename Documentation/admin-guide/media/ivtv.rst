@@ -159,7 +159,7 @@ whatever). Otherwise the device numbers can get confusing. The ivtv
   Read-only
 
   The raw YUV video output from the current video input. The YUV format
-  is non-standard (V4L2_PIX_FMT_HM12).
+  is a 16x16 linear tiled NV12 format (V4L2_PIX_FMT_NV12_16L16)
 
   Note that the YUV and PCM streams are not synchronized, so they are of
   limited use.

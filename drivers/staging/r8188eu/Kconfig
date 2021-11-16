@@ -14,13 +14,3 @@ config R8188EU
 	sources for version v4.1.4_6773.20130222, and contains modifications for
 	newer kernel features. If built as a module, it will be called r8188eu.
 
-if R8188EU
-
-config 88EU_AP_MODE
-	bool "Realtek RTL8188EU AP mode"
-	help
-	This option enables Access Point mode. Unless you know that your system
-	will never be used as an AP, or the target system has limited memory,
-	"Y" should be selected.
-
-endif

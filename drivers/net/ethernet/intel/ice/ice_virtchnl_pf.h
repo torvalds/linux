@@ -70,9 +70,40 @@ struct ice_mdd_vf_events {
 	u16 last_printed;
 };
 
+struct ice_vf;
+
+struct ice_vc_vf_ops {
+	int (*get_ver_msg)(struct ice_vf *vf, u8 *msg);
+	int (*get_vf_res_msg)(struct ice_vf *vf, u8 *msg);
+	void (*reset_vf)(struct ice_vf *vf);
+	int (*add_mac_addr_msg)(struct ice_vf *vf, u8 *msg);
+	int (*del_mac_addr_msg)(struct ice_vf *vf, u8 *msg);
+	int (*cfg_qs_msg)(struct ice_vf *vf, u8 *msg);
+	int (*ena_qs_msg)(struct ice_vf *vf, u8 *msg);
+	int (*dis_qs_msg)(struct ice_vf *vf, u8 *msg);
+	int (*request_qs_msg)(struct ice_vf *vf, u8 *msg);
+	int (*cfg_irq_map_msg)(struct ice_vf *vf, u8 *msg);
+	int (*config_rss_key)(struct ice_vf *vf, u8 *msg);
+	int (*config_rss_lut)(struct ice_vf *vf, u8 *msg);
+	int (*get_stats_msg)(struct ice_vf *vf, u8 *msg);
+	int (*cfg_promiscuous_mode_msg)(struct ice_vf *vf, u8 *msg);
+	int (*add_vlan_msg)(struct ice_vf *vf, u8 *msg);
+	int (*remove_vlan_msg)(struct ice_vf *vf, u8 *msg);
+	int (*ena_vlan_stripping)(struct ice_vf *vf);
+	int (*dis_vlan_stripping)(struct ice_vf *vf);
+	int (*handle_rss_cfg_msg)(struct ice_vf *vf, u8 *msg, bool add);
+	int (*add_fdir_fltr_msg)(struct ice_vf *vf, u8 *msg);
+	int (*del_fdir_fltr_msg)(struct ice_vf *vf, u8 *msg);
+};
+
 /* VF information structure */
 struct ice_vf {
 	struct ice_pf *pf;
+
+	/* Used during virtchnl message handling and NDO ops against the VF
+	 * that will trigger a VFR
+	 */
+	struct mutex cfg_lock;
 
 	u16 vf_id;			/* VF ID in the PF space */
 	u16 lan_vsi_idx;		/* index into PF struct */
@@ -99,7 +130,8 @@ struct ice_vf {
 	 * the main LAN VSI for the PF.
 	 */
 	u16 lan_vsi_num;		/* ID as used by firmware */
-	unsigned int tx_rate;		/* Tx bandwidth limit in Mbps */
+	unsigned int min_tx_rate;	/* Minimum Tx bandwidth limit in Mbps */
+	unsigned int max_tx_rate;	/* Maximum Tx bandwidth limit in Mbps */
 	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
 
 	u64 num_inval_msgs;		/* number of continuous invalid msgs */
@@ -111,9 +143,17 @@ struct ice_vf {
 	struct ice_mdd_vf_events mdd_rx_events;
 	struct ice_mdd_vf_events mdd_tx_events;
 	DECLARE_BITMAP(opcodes_allowlist, VIRTCHNL_OP_MAX);
+
+	struct ice_repr *repr;
+
+	struct ice_vc_vf_ops vc_ops;
+
+	/* devlink port data */
+	struct devlink_port devlink_port;
 };
 
 #ifdef CONFIG_PCI_IOV
+struct ice_vsi *ice_get_vf_vsi(struct ice_vf *vf);
 void ice_process_vflr_event(struct ice_pf *pf);
 int ice_sriov_configure(struct pci_dev *pdev, int num_vfs);
 int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac);
@@ -124,6 +164,9 @@ void ice_free_vfs(struct ice_pf *pf);
 void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
 void ice_vc_notify_link_state(struct ice_pf *pf);
 void ice_vc_notify_reset(struct ice_pf *pf);
+void ice_vc_notify_vf_link_state(struct ice_vf *vf);
+void ice_vc_change_ops_to_repr(struct ice_vc_vf_ops *ops);
+void ice_vc_set_dflt_vf_ops(struct ice_vc_vf_ops *ops);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 bool ice_reset_vf(struct ice_vf *vf, bool is_vflr);
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
@@ -135,9 +178,17 @@ int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 		     __be16 vlan_proto);
 
+int
+ice_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
+	      int max_tx_rate);
+
 int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted);
 
 int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state);
+
+int ice_check_vf_ready_for_cfg(struct ice_vf *vf);
+
+bool ice_is_vf_disabled(struct ice_vf *vf);
 
 int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
 
@@ -164,12 +215,30 @@ static inline
 void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event) { }
 static inline void ice_vc_notify_link_state(struct ice_pf *pf) { }
 static inline void ice_vc_notify_reset(struct ice_pf *pf) { }
+static inline void ice_vc_notify_vf_link_state(struct ice_vf *vf) { }
+static inline void ice_vc_change_ops_to_repr(struct ice_vc_vf_ops *ops) { }
+static inline void ice_vc_set_dflt_vf_ops(struct ice_vc_vf_ops *ops) { }
 static inline void ice_set_vf_state_qs_dis(struct ice_vf *vf) { }
 static inline
 void ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event) { }
 static inline void ice_print_vfs_mdd_events(struct ice_pf *pf) { }
 static inline void ice_print_vf_rx_mdd_event(struct ice_vf *vf) { }
 static inline void ice_restore_all_vfs_msi_state(struct pci_dev *pdev) { }
+
+static inline int ice_check_vf_ready_for_cfg(struct ice_vf *vf)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline bool ice_is_vf_disabled(struct ice_vf *vf)
+{
+	return true;
+}
+
+static inline struct ice_vsi *ice_get_vf_vsi(struct ice_vf *vf)
+{
+	return NULL;
+}
 
 static inline bool
 ice_is_malicious_vf(struct ice_pf __always_unused *pf,
@@ -240,6 +309,14 @@ ice_set_vf_spoofchk(struct net_device __always_unused *netdev,
 static inline int
 ice_set_vf_link_state(struct net_device __always_unused *netdev,
 		      int __always_unused vf_id, int __always_unused link_state)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_set_vf_bw(struct net_device __always_unused *netdev,
+	      int __always_unused vf_id, int __always_unused min_tx_rate,
+	      int __always_unused max_tx_rate)
 {
 	return -EOPNOTSUPP;
 }

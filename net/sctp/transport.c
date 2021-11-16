@@ -269,7 +269,7 @@ bool sctp_transport_pl_send(struct sctp_transport *t)
 		if (t->pl.probe_size == SCTP_BASE_PLPMTU) { /* BASE_PLPMTU Confirmation Failed */
 			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
 
-			t->pl.pmtu = SCTP_MIN_PLPMTU;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
 			sctp_assoc_sync_pmtu(t->asoc);
 		}
@@ -366,8 +366,9 @@ static bool sctp_transport_pl_toobig(struct sctp_transport *t, u32 pmtu)
 		if (pmtu >= SCTP_MIN_PLPMTU && pmtu < SCTP_BASE_PLPMTU) {
 			t->pl.state = SCTP_PL_ERROR; /* Base -> Error */
 
-			t->pl.pmtu = SCTP_MIN_PLPMTU;
+			t->pl.pmtu = SCTP_BASE_PLPMTU;
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			return true;
 		}
 	} else if (t->pl.state == SCTP_PL_SEARCH) {
 		if (pmtu >= SCTP_BASE_PLPMTU && pmtu < t->pl.pmtu) {
@@ -378,11 +379,10 @@ static bool sctp_transport_pl_toobig(struct sctp_transport *t, u32 pmtu)
 			t->pl.probe_high = 0;
 			t->pl.pmtu = SCTP_BASE_PLPMTU;
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			return true;
 		} else if (pmtu > t->pl.pmtu && pmtu < t->pl.probe_size) {
 			t->pl.probe_size = pmtu;
 			t->pl.probe_count = 0;
-
-			return false;
 		}
 	} else if (t->pl.state == SCTP_PL_COMPLETE) {
 		if (pmtu >= SCTP_BASE_PLPMTU && pmtu < t->pl.pmtu) {
@@ -393,10 +393,11 @@ static bool sctp_transport_pl_toobig(struct sctp_transport *t, u32 pmtu)
 			t->pl.probe_high = 0;
 			t->pl.pmtu = SCTP_BASE_PLPMTU;
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
+			return true;
 		}
 	}
 
-	return true;
+	return false;
 }
 
 bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)

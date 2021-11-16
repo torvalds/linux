@@ -14,6 +14,8 @@
 
 #define XSTATE_CPUID		0x0000000d
 
+#define TILE_CPUID		0x0000001d
+
 #define FXSAVE_SIZE	512
 
 #define XSAVE_HDR_SIZE	    64
@@ -33,7 +35,8 @@
 				      XFEATURE_MASK_Hi16_ZMM	 | \
 				      XFEATURE_MASK_PKRU | \
 				      XFEATURE_MASK_BNDREGS | \
-				      XFEATURE_MASK_BNDCSR)
+				      XFEATURE_MASK_BNDCSR | \
+				      XFEATURE_MASK_XTILE)
 
 /*
  * Features which are restored when returning to user space.
@@ -42,6 +45,9 @@
  */
 #define XFEATURE_MASK_USER_RESTORE	\
 	(XFEATURE_MASK_USER_SUPPORTED & ~XFEATURE_MASK_PKRU)
+
+/* Features which are dynamically enabled for a process on request */
+#define XFEATURE_MASK_USER_DYNAMIC	XFEATURE_MASK_XTILE_DATA
 
 /* All currently supported supervisor features */
 #define XFEATURE_MASK_SUPERVISOR_SUPPORTED (XFEATURE_MASK_PASID)
@@ -78,78 +84,49 @@
 				      XFEATURE_MASK_INDEPENDENT | \
 				      XFEATURE_MASK_SUPERVISOR_UNSUPPORTED)
 
-#ifdef CONFIG_X86_64
-#define REX_PREFIX	"0x48, "
-#else
-#define REX_PREFIX
-#endif
-
-extern u64 xfeatures_mask_all;
-
-static inline u64 xfeatures_mask_supervisor(void)
-{
-	return xfeatures_mask_all & XFEATURE_MASK_SUPERVISOR_SUPPORTED;
-}
+/*
+ * The feature mask required to restore FPU state:
+ * - All user states which are not eagerly switched in switch_to()/exec()
+ * - The suporvisor states
+ */
+#define XFEATURE_MASK_FPSTATE	(XFEATURE_MASK_USER_RESTORE | \
+				 XFEATURE_MASK_SUPERVISOR_SUPPORTED)
 
 /*
- * The xfeatures which are enabled in XCR0 and expected to be in ptrace
- * buffers and signal frames.
+ * Features in this mask have space allocated in the signal frame, but may not
+ * have that space initialized when the feature is in its init state.
  */
-static inline u64 xfeatures_mask_uabi(void)
-{
-	return xfeatures_mask_all & XFEATURE_MASK_USER_SUPPORTED;
-}
-
-/*
- * The xfeatures which are restored by the kernel when returning to user
- * mode. This is not necessarily the same as xfeatures_mask_uabi() as the
- * kernel does not manage all XCR0 enabled features via xsave/xrstor as
- * some of them have to be switched eagerly on context switch and exec().
- */
-static inline u64 xfeatures_mask_restore_user(void)
-{
-	return xfeatures_mask_all & XFEATURE_MASK_USER_RESTORE;
-}
-
-/*
- * Like xfeatures_mask_restore_user() but additionally restors the
- * supported supervisor states.
- */
-static inline u64 xfeatures_mask_fpstate(void)
-{
-	return xfeatures_mask_all & \
-		(XFEATURE_MASK_USER_RESTORE | XFEATURE_MASK_SUPERVISOR_SUPPORTED);
-}
-
-static inline u64 xfeatures_mask_independent(void)
-{
-	if (!boot_cpu_has(X86_FEATURE_ARCH_LBR))
-		return XFEATURE_MASK_INDEPENDENT & ~XFEATURE_MASK_LBR;
-
-	return XFEATURE_MASK_INDEPENDENT;
-}
+#define XFEATURE_MASK_SIGFRAME_INITOPT	(XFEATURE_MASK_XTILE | \
+					 XFEATURE_MASK_USER_DYNAMIC)
 
 extern u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 
 extern void __init update_regset_xstate_info(unsigned int size,
 					     u64 xstate_mask);
 
-void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr);
 int xfeature_size(int xfeature_nr);
-int copy_uabi_from_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf);
-int copy_sigframe_from_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf);
 
 void xsaves(struct xregs_state *xsave, u64 mask);
 void xrstors(struct xregs_state *xsave, u64 mask);
 
-enum xstate_copy_mode {
-	XSTATE_COPY_FP,
-	XSTATE_COPY_FX,
-	XSTATE_COPY_XSAVE,
-};
+int xfd_enable_feature(u64 xfd_err);
 
-struct membuf;
-void copy_xstate_to_uabi_buf(struct membuf to, struct task_struct *tsk,
-			     enum xstate_copy_mode mode);
+#ifdef CONFIG_X86_64
+DECLARE_STATIC_KEY_FALSE(__fpu_state_size_dynamic);
+#endif
+
+#ifdef CONFIG_X86_64
+DECLARE_STATIC_KEY_FALSE(__fpu_state_size_dynamic);
+
+static __always_inline __pure bool fpu_state_size_dynamic(void)
+{
+	return static_branch_unlikely(&__fpu_state_size_dynamic);
+}
+#else
+static __always_inline __pure bool fpu_state_size_dynamic(void)
+{
+	return false;
+}
+#endif
 
 #endif

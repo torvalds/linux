@@ -1243,6 +1243,9 @@ static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 		.module_id = MODULE_MASTER,
 		.msg = "MODULE_MASTER"
 	}, {
+		.module_id = MODULE_HIMAC,
+		.msg = "MODULE_HIMAC"
+	}, {
 		.module_id = MODULE_ROCEE_TOP,
 		.msg = "MODULE_ROCEE_TOP"
 	}, {
@@ -1316,12 +1319,21 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 		.type_id = GLB_ERROR,
 		.msg = "glb_error"
 	}, {
+		.type_id = LINK_ERROR,
+		.msg = "link_error"
+	}, {
+		.type_id = PTP_ERROR,
+		.msg = "ptp_error"
+	}, {
 		.type_id = ROCEE_NORMAL_ERR,
 		.msg = "rocee_normal_error"
 	}, {
 		.type_id = ROCEE_OVF_ERR,
 		.msg = "rocee_ovf_error"
-	}
+	}, {
+		.type_id = ROCEE_BUS_ERR,
+		.msg = "rocee_bus_error"
+	},
 };
 
 static void hclge_log_error(struct device *dev, char *reg,
@@ -1560,8 +1572,11 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 
 	/* configure TM QCN hw errors */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_TM_QCN_MEM_INT_CFG, false);
-	if (en)
+	desc.data[0] = cpu_to_le32(HCLGE_TM_QCN_ERR_INT_TYPE);
+	if (en) {
+		desc.data[0] |= cpu_to_le32(HCLGE_TM_QCN_FIFO_INT_EN);
 		desc.data[1] = cpu_to_le32(HCLGE_TM_QCN_MEM_ERR_INT_EN);
+	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)

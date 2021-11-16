@@ -889,7 +889,7 @@ mlx5_tc_ct_counter_create(struct mlx5_tc_ct_priv *ct_priv)
 		return ERR_PTR(-ENOMEM);
 
 	counter->is_shared = false;
-	counter->counter = mlx5_fc_create(ct_priv->dev, true);
+	counter->counter = mlx5_fc_create_ex(ct_priv->dev, true);
 	if (IS_ERR(counter->counter)) {
 		ct_dbg("Failed to create counter for ct entry");
 		ret = PTR_ERR(counter->counter);
@@ -2039,25 +2039,36 @@ mlx5_tc_ct_init_check_esw_support(struct mlx5_eswitch *esw,
 static int
 mlx5_tc_ct_init_check_support(struct mlx5e_priv *priv,
 			      enum mlx5_flow_namespace_type ns_type,
-			      struct mlx5e_post_act *post_act,
-			      const char **err_msg)
+			      struct mlx5e_post_act *post_act)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	const char *err_msg = NULL;
+	int err = 0;
 
 #if !IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
 	/* cannot restore chain ID on HW miss */
 
-	*err_msg = "tc skb extension missing";
-	return -EOPNOTSUPP;
+	err_msg = "tc skb extension missing";
+	err = -EOPNOTSUPP;
+	goto out_err;
 #endif
 	if (IS_ERR_OR_NULL(post_act)) {
-		*err_msg = "tc ct offload not supported, post action is missing";
-		return -EOPNOTSUPP;
+		/* Ignore_flow_level support isn't supported by default for VFs and so post_act
+		 * won't be supported. Skip showing error msg.
+		 */
+		if (priv->mdev->coredev_type != MLX5_COREDEV_VF)
+			err_msg = "post action is missing";
+		err = -EOPNOTSUPP;
+		goto out_err;
 	}
 
 	if (ns_type == MLX5_FLOW_NAMESPACE_FDB)
-		return mlx5_tc_ct_init_check_esw_support(esw, err_msg);
-	return 0;
+		err = mlx5_tc_ct_init_check_esw_support(esw, &err_msg);
+
+out_err:
+	if (err && err_msg)
+		netdev_dbg(priv->netdev, "tc ct offload not supported, %s\n", err_msg);
+	return err;
 }
 
 #define INIT_ERR_PREFIX "tc ct offload init failed"
@@ -2070,16 +2081,13 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 {
 	struct mlx5_tc_ct_priv *ct_priv;
 	struct mlx5_core_dev *dev;
-	const char *msg;
 	u64 mapping_id;
 	int err;
 
 	dev = priv->mdev;
-	err = mlx5_tc_ct_init_check_support(priv, ns_type, post_act, &msg);
-	if (err) {
-		mlx5_core_warn(dev, "tc ct offload not supported, %s\n", msg);
+	err = mlx5_tc_ct_init_check_support(priv, ns_type, post_act);
+	if (err)
 		goto err_support;
-	}
 
 	ct_priv = kzalloc(sizeof(*ct_priv), GFP_KERNEL);
 	if (!ct_priv)
@@ -2127,12 +2135,21 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 
 	ct_priv->post_act = post_act;
 	mutex_init(&ct_priv->control_lock);
-	rhashtable_init(&ct_priv->zone_ht, &zone_params);
-	rhashtable_init(&ct_priv->ct_tuples_ht, &tuples_ht_params);
-	rhashtable_init(&ct_priv->ct_tuples_nat_ht, &tuples_nat_ht_params);
+	if (rhashtable_init(&ct_priv->zone_ht, &zone_params))
+		goto err_ct_zone_ht;
+	if (rhashtable_init(&ct_priv->ct_tuples_ht, &tuples_ht_params))
+		goto err_ct_tuples_ht;
+	if (rhashtable_init(&ct_priv->ct_tuples_nat_ht, &tuples_nat_ht_params))
+		goto err_ct_tuples_nat_ht;
 
 	return ct_priv;
 
+err_ct_tuples_nat_ht:
+	rhashtable_destroy(&ct_priv->ct_tuples_ht);
+err_ct_tuples_ht:
+	rhashtable_destroy(&ct_priv->zone_ht);
+err_ct_zone_ht:
+	mlx5_chains_destroy_global_table(chains, ct_priv->ct_nat);
 err_ct_nat_tbl:
 	mlx5_chains_destroy_global_table(chains, ct_priv->ct);
 err_ct_tbl:

@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 		kvm_max_vcpu_id = kvm_max_vcpus;
 
 	TEST_ASSERT(kvm_max_vcpu_id >= kvm_max_vcpus,
-		    "KVM_MAX_VCPU_ID (%d) must be at least as large as KVM_MAX_VCPUS (%d).",
+		    "KVM_MAX_VCPU_IDS (%d) must be at least as large as KVM_MAX_VCPUS (%d).",
 		    kvm_max_vcpu_id, kvm_max_vcpus);
 
 	test_vcpu_creation(0, kvm_max_vcpus);

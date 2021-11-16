@@ -7,6 +7,8 @@ lib-y += delay.o string.o uaccess.o find.o spinlock.o
 obj-y += mem.o xor.o
 lib-$(CONFIG_KPROBES) += probes.o
 lib-$(CONFIG_UPROBES) += probes.o
+obj-$(CONFIG_S390_KPROBES_SANITY_TEST) += test_kprobes_s390.o
+test_kprobes_s390-objs += test_kprobes_asm.o test_kprobes.o
 
 # Instrumenting memory accesses to __user data (in different address space)
 # produce false positives

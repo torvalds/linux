@@ -6,6 +6,7 @@
 
 #include "osdep_service.h"
 #include "drv_types.h"
+#include <crypto/arc4.h>
 
 #define _NO_PRIVACY_			0x0
 #define _WEP40_				0x1
@@ -106,7 +107,10 @@ struct security_priv {
 	union Keytype	dot118021XGrprxmickey[4];
 	union pn48	dot11Grptxpn;		/* PN48 used for Grp Key xmit.*/
 	union pn48	dot11Grprxpn;		/* PN48 used for Grp Key recv.*/
-#ifdef CONFIG_88EU_AP_MODE
+
+	struct arc4_ctx xmit_arc4_ctx;
+	struct arc4_ctx recv_arc4_ctx;
+
 	/* extend security capabilities for AP_MODE */
 	unsigned int dot8021xalg;/* 0:disable, 1:psk, 2:802.1x */
 	unsigned int wpa_psk;/* 0:disable, bit(0): WPA, bit(1):WPA2 */
@@ -114,7 +118,6 @@ struct security_priv {
 	unsigned int wpa2_group_cipher;
 	unsigned int wpa_pairwise_cipher;
 	unsigned int wpa2_pairwise_cipher;
-#endif
 	u8 wps_ie[MAX_WPS_IE_LEN];/* added in assoc req */
 	int wps_ie_len;
 	u8	binstallGrpkey;
@@ -330,12 +333,11 @@ void rtw_secmicappend(struct mic_data *pmicdata, u8 *src, u32 nBytes);
 void rtw_secgetmic(struct mic_data *pmicdata, u8 *dst);
 void rtw_seccalctkipmic(u8 *key, u8 *header, u8 *data, u32 data_len,
 			u8 *Miccode, u8   priority);
-u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe);
-u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe);
-void rtw_wep_encrypt(struct adapter *padapter, u8  *pxmitframe);
-u32 rtw_aes_decrypt(struct adapter *padapter, u8  *precvframe);
-u32 rtw_tkip_decrypt(struct adapter *padapter, u8  *precvframe);
-void rtw_wep_decrypt(struct adapter *padapter, u8  *precvframe);
-void rtw_use_tkipkey_handler(void *FunctionContext);
+u32 rtw_aes_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe);
+u32 rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe);
+void rtw_wep_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe);
+u32 rtw_aes_decrypt(struct adapter *padapter, struct recv_frame *precvframe);
+u32 rtw_tkip_decrypt(struct adapter *padapter, struct recv_frame *precvframe);
+void rtw_wep_decrypt(struct adapter *padapter, struct recv_frame *precvframe);
 
 #endif	/* __RTL871X_SECURITY_H_ */

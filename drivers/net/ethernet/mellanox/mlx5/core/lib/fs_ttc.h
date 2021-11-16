@@ -43,7 +43,9 @@ struct ttc_params {
 	struct mlx5_flow_namespace *ns;
 	struct mlx5_flow_table_attr ft_attr;
 	struct mlx5_flow_destination dests[MLX5_NUM_TT];
+	DECLARE_BITMAP(ignore_dests, MLX5_NUM_TT);
 	bool   inner_ttc;
+	DECLARE_BITMAP(ignore_tunnel_dests, MLX5_NUM_TUNNEL_TT);
 	struct mlx5_flow_destination tunnel_dests[MLX5_NUM_TUNNEL_TT];
 };
 

@@ -16,7 +16,7 @@ void test_global_data_init(void)
 	if (CHECK_FAIL(err))
 		return;
 
-	map = bpf_object__find_map_by_name(obj, "test_glo.rodata");
+	map = bpf_object__find_map_by_name(obj, ".rodata");
 	if (CHECK_FAIL(!map || !bpf_map__is_internal(map)))
 		goto out;
 

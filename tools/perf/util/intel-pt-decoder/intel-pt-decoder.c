@@ -608,6 +608,7 @@ static inline void intel_pt_update_sample_time(struct intel_pt_decoder *decoder)
 {
 	decoder->sample_timestamp = decoder->timestamp;
 	decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
+	decoder->state.cycles = decoder->tot_cyc_cnt;
 }
 
 static void intel_pt_reposition(struct intel_pt_decoder *decoder)

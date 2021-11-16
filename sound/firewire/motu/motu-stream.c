@@ -255,6 +255,16 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 		if (err < 0)
 			return err;
 
+		if (motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP) {
+			err = snd_motu_register_dsp_message_parser_init(motu);
+			if (err < 0)
+				return err;
+		} else if (motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP) {
+			err = snd_motu_command_dsp_message_parser_init(motu, motu->tx_stream.sfc);
+			if (err < 0)
+				return err;
+		}
+
 		err = begin_session(motu);
 		if (err < 0) {
 			dev_err(&motu->unit->device,

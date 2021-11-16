@@ -67,6 +67,7 @@ Todolist:
    cpu-load
    lockup-watchdogs
    unicode
+   sysrq
 
 Todolist:
 
@@ -118,7 +119,6 @@ Todolist:
    rtc
    serial-console
    svga
-   sysrq
    thunderbolt
    ufs
    vga-softcursor

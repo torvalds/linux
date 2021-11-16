@@ -111,7 +111,7 @@ static ssize_t trng_counter_show(struct device *dev,
 #if IS_ENABLED(CONFIG_ARCH_RANDOM)
 	u64 arch_counter = atomic64_read(&s390_arch_random_counter);
 
-	return snprintf(buf, PAGE_SIZE,
+	return sysfs_emit(buf,
 			"trng:  %llu\n"
 			"hwrng: %llu\n"
 			"arch:  %llu\n"
@@ -119,7 +119,7 @@ static ssize_t trng_counter_show(struct device *dev,
 			dev_counter, hwrng_counter, arch_counter,
 			dev_counter + hwrng_counter + arch_counter);
 #else
-	return snprintf(buf, PAGE_SIZE,
+	return sysfs_emit(buf,
 			"trng:  %llu\n"
 			"hwrng: %llu\n"
 			"total: %llu\n",

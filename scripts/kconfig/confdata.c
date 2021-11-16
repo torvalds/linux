@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -129,40 +130,21 @@ static size_t depfile_prefix_len;
 /* touch depfile for symbol 'name' */
 static int conf_touch_dep(const char *name)
 {
-	int fd, ret;
-	char *d;
+	int fd;
 
 	/* check overflow: prefix + name + '\0' must fit in buffer. */
 	if (depfile_prefix_len + strlen(name) + 1 > sizeof(depfile_path))
 		return -1;
 
-	d = depfile_path + depfile_prefix_len;
-	strcpy(d, name);
+	strcpy(depfile_path + depfile_prefix_len, name);
 
-	/* Assume directory path already exists. */
 	fd = open(depfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (fd == -1) {
-		if (errno != ENOENT)
-			return -1;
-
-		ret = make_parent_dir(depfile_path);
-		if (ret)
-			return ret;
-
-		/* Try it again. */
-		fd = open(depfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (fd == -1)
-			return -1;
-	}
+	if (fd == -1)
+		return -1;
 	close(fd);
 
 	return 0;
 }
-
-struct conf_printer {
-	void (*print_symbol)(FILE *, struct symbol *, const char *, void *);
-	void (*print_comment)(FILE *, const char *, void *);
-};
 
 static void conf_warning(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
@@ -225,6 +207,13 @@ static const char *conf_get_autoconfig_name(void)
 	char *name = getenv("KCONFIG_AUTOCONFIG");
 
 	return name ? name : "include/config/auto.conf";
+}
+
+static const char *conf_get_autoheader_name(void)
+{
+	char *name = getenv("KCONFIG_AUTOHEADER");
+
+	return name ? name : "include/generated/autoconf.h";
 }
 
 static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
@@ -594,169 +583,171 @@ int conf_read(const char *name)
 	return 0;
 }
 
+struct comment_style {
+	const char *decoration;
+	const char *prefix;
+	const char *postfix;
+};
+
+static const struct comment_style comment_style_pound = {
+	.decoration = "#",
+	.prefix = "#",
+	.postfix = "#",
+};
+
+static const struct comment_style comment_style_c = {
+	.decoration = " *",
+	.prefix = "/*",
+	.postfix = " */",
+};
+
+static void conf_write_heading(FILE *fp, const struct comment_style *cs)
+{
+	fprintf(fp, "%s\n", cs->prefix);
+
+	fprintf(fp, "%s Automatically generated file; DO NOT EDIT.\n",
+		cs->decoration);
+
+	fprintf(fp, "%s %s\n", cs->decoration, rootmenu.prompt->text);
+
+	fprintf(fp, "%s\n", cs->postfix);
+}
+
+/* The returned pointer must be freed on the caller side */
+static char *escape_string_value(const char *in)
+{
+	const char *p;
+	char *out;
+	size_t len;
+
+	len = strlen(in) + strlen("\"\"") + 1;
+
+	p = in;
+	while (1) {
+		p += strcspn(p, "\"\\");
+
+		if (p[0] == '\0')
+			break;
+
+		len++;
+		p++;
+	}
+
+	out = xmalloc(len);
+	out[0] = '\0';
+
+	strcat(out, "\"");
+
+	p = in;
+	while (1) {
+		len = strcspn(p, "\"\\");
+		strncat(out, p, len);
+		p += len;
+
+		if (p[0] == '\0')
+			break;
+
+		strcat(out, "\\");
+		strncat(out, p++, 1);
+	}
+
+	strcat(out, "\"");
+
+	return out;
+}
+
 /*
  * Kconfig configuration printer
  *
  * This printer is used when generating the resulting configuration after
  * kconfig invocation and `defconfig' files. Unset symbol might be omitted by
  * passing a non-NULL argument to the printer.
- *
  */
-static void
-kconfig_print_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
+enum output_n { OUTPUT_N, OUTPUT_N_AS_UNSET, OUTPUT_N_NONE };
+
+static void __print_symbol(FILE *fp, struct symbol *sym, enum output_n output_n,
+			   bool escape_string)
 {
+	const char *val;
+	char *escaped = NULL;
+
+	if (sym->type == S_UNKNOWN)
+		return;
+
+	val = sym_get_string_value(sym);
+
+	if ((sym->type == S_BOOLEAN || sym->type == S_TRISTATE) &&
+	    output_n != OUTPUT_N && *val == 'n') {
+		if (output_n == OUTPUT_N_AS_UNSET)
+			fprintf(fp, "# %s%s is not set\n", CONFIG_, sym->name);
+		return;
+	}
+
+	if (sym->type == S_STRING && escape_string) {
+		escaped = escape_string_value(val);
+		val = escaped;
+	}
+
+	fprintf(fp, "%s%s=%s\n", CONFIG_, sym->name, val);
+
+	free(escaped);
+}
+
+static void print_symbol_for_dotconfig(FILE *fp, struct symbol *sym)
+{
+	__print_symbol(fp, sym, OUTPUT_N_AS_UNSET, true);
+}
+
+static void print_symbol_for_autoconf(FILE *fp, struct symbol *sym)
+{
+	__print_symbol(fp, sym, OUTPUT_N_NONE, true);
+}
+
+void print_symbol_for_listconfig(struct symbol *sym)
+{
+	__print_symbol(stdout, sym, OUTPUT_N, true);
+}
+
+static void print_symbol_for_c(FILE *fp, struct symbol *sym)
+{
+	const char *val;
+	const char *sym_suffix = "";
+	const char *val_prefix = "";
+	char *escaped = NULL;
+
+	if (sym->type == S_UNKNOWN)
+		return;
+
+	val = sym_get_string_value(sym);
 
 	switch (sym->type) {
 	case S_BOOLEAN:
 	case S_TRISTATE:
-		if (*value == 'n') {
-			bool skip_unset = (arg != NULL);
-
-			if (!skip_unset)
-				fprintf(fp, "# %s%s is not set\n",
-				    CONFIG_, sym->name);
-			return;
-		}
-		break;
-	default:
-		break;
-	}
-
-	fprintf(fp, "%s%s=%s\n", CONFIG_, sym->name, value);
-}
-
-static void
-kconfig_print_comment(FILE *fp, const char *value, void *arg)
-{
-	const char *p = value;
-	size_t l;
-
-	for (;;) {
-		l = strcspn(p, "\n");
-		fprintf(fp, "#");
-		if (l) {
-			fprintf(fp, " ");
-			xfwrite(p, l, 1, fp);
-			p += l;
-		}
-		fprintf(fp, "\n");
-		if (*p++ == '\0')
-			break;
-	}
-}
-
-static struct conf_printer kconfig_printer_cb =
-{
-	.print_symbol = kconfig_print_symbol,
-	.print_comment = kconfig_print_comment,
-};
-
-/*
- * Header printer
- *
- * This printer is used when generating the `include/generated/autoconf.h' file.
- */
-static void
-header_print_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
-{
-
-	switch (sym->type) {
-	case S_BOOLEAN:
-	case S_TRISTATE: {
-		const char *suffix = "";
-
-		switch (*value) {
+		switch (*val) {
 		case 'n':
-			break;
+			return;
 		case 'm':
-			suffix = "_MODULE";
+			sym_suffix = "_MODULE";
 			/* fall through */
 		default:
-			fprintf(fp, "#define %s%s%s 1\n",
-			    CONFIG_, sym->name, suffix);
+			val = "1";
 		}
 		break;
-	}
-	case S_HEX: {
-		const char *prefix = "";
-
-		if (value[0] != '0' || (value[1] != 'x' && value[1] != 'X'))
-			prefix = "0x";
-		fprintf(fp, "#define %s%s %s%s\n",
-		    CONFIG_, sym->name, prefix, value);
+	case S_HEX:
+		if (val[0] != '0' || (val[1] != 'x' && val[1] != 'X'))
+			val_prefix = "0x";
 		break;
-	}
 	case S_STRING:
-	case S_INT:
-		fprintf(fp, "#define %s%s %s\n",
-		    CONFIG_, sym->name, value);
-		break;
+		escaped = escape_string_value(val);
+		val = escaped;
 	default:
 		break;
 	}
 
-}
+	fprintf(fp, "#define %s%s%s %s%s\n", CONFIG_, sym->name, sym_suffix,
+		val_prefix, val);
 
-static void
-header_print_comment(FILE *fp, const char *value, void *arg)
-{
-	const char *p = value;
-	size_t l;
-
-	fprintf(fp, "/*\n");
-	for (;;) {
-		l = strcspn(p, "\n");
-		fprintf(fp, " *");
-		if (l) {
-			fprintf(fp, " ");
-			xfwrite(p, l, 1, fp);
-			p += l;
-		}
-		fprintf(fp, "\n");
-		if (*p++ == '\0')
-			break;
-	}
-	fprintf(fp, " */\n");
-}
-
-static struct conf_printer header_printer_cb =
-{
-	.print_symbol = header_print_symbol,
-	.print_comment = header_print_comment,
-};
-
-static void conf_write_symbol(FILE *fp, struct symbol *sym,
-			      struct conf_printer *printer, void *printer_arg)
-{
-	const char *str;
-
-	switch (sym->type) {
-	case S_UNKNOWN:
-		break;
-	case S_STRING:
-		str = sym_get_string_value(sym);
-		str = sym_escape_string_value(str);
-		printer->print_symbol(fp, sym, str, printer_arg);
-		free((void *)str);
-		break;
-	default:
-		str = sym_get_string_value(sym);
-		printer->print_symbol(fp, sym, str, printer_arg);
-	}
-}
-
-static void
-conf_write_heading(FILE *fp, struct conf_printer *printer, void *printer_arg)
-{
-	char buf[256];
-
-	snprintf(buf, sizeof(buf),
-	    "\n"
-	    "Automatically generated file; DO NOT EDIT.\n"
-	    "%s\n",
-	    rootmenu.prompt->text);
-
-	printer->print_comment(fp, buf, printer_arg);
+	free(escaped);
 }
 
 /*
@@ -815,7 +806,7 @@ int conf_write_defconfig(const char *filename)
 						goto next_menu;
 				}
 			}
-			conf_write_symbol(out, sym, &kconfig_printer_cb, NULL);
+			print_symbol_for_dotconfig(out, sym);
 		}
 next_menu:
 		if (menu->list != NULL) {
@@ -875,7 +866,7 @@ int conf_write(const char *name)
 	if (!out)
 		return 1;
 
-	conf_write_heading(out, &kconfig_printer_cb, NULL);
+	conf_write_heading(out, &comment_style_pound);
 
 	if (!conf_get_changed())
 		sym_clear_all_valid();
@@ -902,7 +893,7 @@ int conf_write(const char *name)
 				need_newline = false;
 			}
 			sym->flags |= SYMBOL_WRITTEN;
-			conf_write_symbol(out, sym, &kconfig_printer_cb, NULL);
+			print_symbol_for_dotconfig(out, sym);
 		}
 
 next:
@@ -952,32 +943,50 @@ next:
 }
 
 /* write a dependency file as used by kbuild to track dependencies */
-static int conf_write_dep(const char *name)
+static int conf_write_autoconf_cmd(const char *autoconf_name)
 {
+	char name[PATH_MAX], tmp[PATH_MAX];
 	struct file *file;
 	FILE *out;
+	int ret;
 
-	out = fopen("..config.tmp", "w");
-	if (!out)
-		return 1;
-	fprintf(out, "deps_config := \\\n");
-	for (file = file_list; file; file = file->next) {
-		if (file->next)
-			fprintf(out, "\t%s \\\n", file->name);
-		else
-			fprintf(out, "\t%s\n", file->name);
-	}
-	fprintf(out, "\n%s: \\\n"
-		     "\t$(deps_config)\n\n", conf_get_autoconfig_name());
-
-	env_write_dep(out, conf_get_autoconfig_name());
-
-	fprintf(out, "\n$(deps_config): ;\n");
-	fclose(out);
+	ret = snprintf(name, sizeof(name), "%s.cmd", autoconf_name);
+	if (ret >= sizeof(name)) /* check truncation */
+		return -1;
 
 	if (make_parent_dir(name))
-		return 1;
-	rename("..config.tmp", name);
+		return -1;
+
+	ret = snprintf(tmp, sizeof(tmp), "%s.cmd.tmp", autoconf_name);
+	if (ret >= sizeof(tmp)) /* check truncation */
+		return -1;
+
+	out = fopen(tmp, "w");
+	if (!out) {
+		perror("fopen");
+		return -1;
+	}
+
+	fprintf(out, "deps_config := \\\n");
+	for (file = file_list; file; file = file->next)
+		fprintf(out, "\t%s \\\n", file->name);
+
+	fprintf(out, "\n%s: $(deps_config)\n\n", autoconf_name);
+
+	env_write_dep(out, autoconf_name);
+
+	fprintf(out, "\n$(deps_config): ;\n");
+
+	if (ferror(out)) /* error check for all fprintf() calls */
+		return -1;
+
+	fclose(out);
+
+	if (rename(tmp, name)) {
+		perror("rename");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -1053,63 +1062,83 @@ static int conf_touch_deps(void)
 	return 0;
 }
 
+static int __conf_write_autoconf(const char *filename,
+				 void (*print_symbol)(FILE *, struct symbol *),
+				 const struct comment_style *comment_style)
+{
+	char tmp[PATH_MAX];
+	FILE *file;
+	struct symbol *sym;
+	int ret, i;
+
+	if (make_parent_dir(filename))
+		return -1;
+
+	ret = snprintf(tmp, sizeof(tmp), "%s.tmp", filename);
+	if (ret >= sizeof(tmp)) /* check truncation */
+		return -1;
+
+	file = fopen(tmp, "w");
+	if (!file) {
+		perror("fopen");
+		return -1;
+	}
+
+	conf_write_heading(file, comment_style);
+
+	for_all_symbols(i, sym)
+		if ((sym->flags & SYMBOL_WRITE) && sym->name)
+			print_symbol(file, sym);
+
+	/* check possible errors in conf_write_heading() and print_symbol() */
+	if (ferror(file))
+		return -1;
+
+	fclose(file);
+
+	if (rename(tmp, filename)) {
+		perror("rename");
+		return -1;
+	}
+
+	return 0;
+}
+
 int conf_write_autoconf(int overwrite)
 {
 	struct symbol *sym;
-	const char *name;
 	const char *autoconf_name = conf_get_autoconfig_name();
-	FILE *out, *out_h;
-	int i;
+	int ret, i;
 
 	if (!overwrite && is_present(autoconf_name))
 		return 0;
 
-	conf_write_dep("include/config/auto.conf.cmd");
+	ret = conf_write_autoconf_cmd(autoconf_name);
+	if (ret)
+		return -1;
 
 	if (conf_touch_deps())
 		return 1;
 
-	out = fopen(".tmpconfig", "w");
-	if (!out)
-		return 1;
-
-	out_h = fopen(".tmpconfig.h", "w");
-	if (!out_h) {
-		fclose(out);
-		return 1;
-	}
-
-	conf_write_heading(out, &kconfig_printer_cb, NULL);
-	conf_write_heading(out_h, &header_printer_cb, NULL);
-
-	for_all_symbols(i, sym) {
+	for_all_symbols(i, sym)
 		sym_calc_value(sym);
-		if (!(sym->flags & SYMBOL_WRITE) || !sym->name)
-			continue;
 
-		/* write symbols to auto.conf and autoconf.h */
-		conf_write_symbol(out, sym, &kconfig_printer_cb, (void *)1);
-		conf_write_symbol(out_h, sym, &header_printer_cb, NULL);
-	}
-	fclose(out);
-	fclose(out_h);
+	ret = __conf_write_autoconf(conf_get_autoheader_name(),
+				    print_symbol_for_c,
+				    &comment_style_c);
+	if (ret)
+		return ret;
 
-	name = getenv("KCONFIG_AUTOHEADER");
-	if (!name)
-		name = "include/generated/autoconf.h";
-	if (make_parent_dir(name))
-		return 1;
-	if (rename(".tmpconfig.h", name))
-		return 1;
-
-	if (make_parent_dir(autoconf_name))
-		return 1;
 	/*
-	 * This must be the last step, kbuild has a dependency on auto.conf
-	 * and this marks the successful completion of the previous steps.
+	 * Create include/config/auto.conf. This must be the last step because
+	 * Kbuild has a dependency on auto.conf and this marks the successful
+	 * completion of the previous steps.
 	 */
-	if (rename(".tmpconfig", autoconf_name))
-		return 1;
+	ret = __conf_write_autoconf(conf_get_autoconfig_name(),
+				    print_symbol_for_autoconf,
+				    &comment_style_pound);
+	if (ret)
+		return ret;
 
 	return 0;
 }

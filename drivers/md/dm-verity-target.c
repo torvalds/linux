@@ -18,6 +18,7 @@
 #include "dm-verity-verify-sig.h"
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <linux/scatterlist.h>
 
 #define DM_MSG_PREFIX			"verity"
 
@@ -427,14 +428,14 @@ int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,
 		unsigned len;
 		struct bio_vec bv = bio_iter_iovec(bio, *iter);
 
-		page = kmap_atomic(bv.bv_page);
+		page = bvec_kmap_local(&bv);
 		len = bv.bv_len;
 
 		if (likely(len >= todo))
 			len = todo;
 
-		r = process(v, io, page + bv.bv_offset, len);
-		kunmap_atomic(page);
+		r = process(v, io, page, len);
+		kunmap_local(page);
 
 		if (r < 0)
 			return r;
@@ -833,8 +834,7 @@ static int verity_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 
 	*bdev = v->data_dev->bdev;
 
-	if (v->data_start ||
-	    ti->len != i_size_read(v->data_dev->bdev->bd_inode) >> SECTOR_SHIFT)
+	if (v->data_start || ti->len != bdev_nr_sectors(v->data_dev->bdev))
 		return 1;
 	return 0;
 }

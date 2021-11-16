@@ -103,10 +103,8 @@ static void finish_type(void *event_data, void *data)
 	if (type == NULL_TREE || type == error_mark_node)
 		return;
 
-#if BUILDING_GCC_VERSION >= 5000
 	if (TREE_CODE(type) == ENUMERAL_TYPE)
 		return;
-#endif
 
 	if (TYPE_USERSPACE(type))
 		return;

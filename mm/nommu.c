@@ -27,7 +27,6 @@
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/compiler.h>
 #include <linux/mount.h>
@@ -1638,12 +1637,6 @@ int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 	return 0;
 }
 EXPORT_SYMBOL(remap_vmalloc_range);
-
-unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
-	unsigned long len, unsigned long pgoff, unsigned long flags)
-{
-	return -ENOMEM;
-}
 
 vm_fault_t filemap_fault(struct vm_fault *vmf)
 {

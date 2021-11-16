@@ -56,8 +56,6 @@ void i915_vma_free(struct i915_vma *vma)
 
 static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 {
-	unsigned long *entries;
-	unsigned int nr_entries;
 	char buf[512];
 
 	if (!vma->node.stack) {
@@ -66,8 +64,7 @@ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 		return;
 	}
 
-	nr_entries = stack_depot_fetch(vma->node.stack, &entries);
-	stack_trace_snprint(buf, sizeof(buf), entries, nr_entries, 0);
+	stack_depot_snprint(vma->node.stack, buf, sizeof(buf), 0);
 	DRM_DEBUG_DRIVER("vma.node [%08llx + %08llx] %s: inserted at %s\n",
 			 vma->node.start, vma->node.size, reason, buf);
 }
@@ -1234,9 +1231,10 @@ int __i915_vma_move_to_active(struct i915_vma *vma, struct i915_request *rq)
 	return i915_active_add_request(&vma->active, rq);
 }
 
-int i915_vma_move_to_active(struct i915_vma *vma,
-			    struct i915_request *rq,
-			    unsigned int flags)
+int _i915_vma_move_to_active(struct i915_vma *vma,
+			     struct i915_request *rq,
+			     struct dma_fence *fence,
+			     unsigned int flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 	int err;
@@ -1257,9 +1255,11 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 			intel_frontbuffer_put(front);
 		}
 
-		dma_resv_add_excl_fence(vma->resv, &rq->fence);
-		obj->write_domain = I915_GEM_DOMAIN_RENDER;
-		obj->read_domains = 0;
+		if (fence) {
+			dma_resv_add_excl_fence(vma->resv, fence);
+			obj->write_domain = I915_GEM_DOMAIN_RENDER;
+			obj->read_domains = 0;
+		}
 	} else {
 		if (!(flags & __EXEC_OBJECT_NO_RESERVE)) {
 			err = dma_resv_reserve_shared(vma->resv, 1);
@@ -1267,8 +1267,10 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 				return err;
 		}
 
-		dma_resv_add_shared_fence(vma->resv, &rq->fence);
-		obj->write_domain = 0;
+		if (fence) {
+			dma_resv_add_shared_fence(vma->resv, fence);
+			obj->write_domain = 0;
+		}
 	}
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE && vma->fence)

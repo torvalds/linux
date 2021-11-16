@@ -481,6 +481,34 @@ static void zpci_free_iomap(struct zpci_dev *zdev, int entry)
 	spin_unlock(&zpci_iomap_lock);
 }
 
+static void zpci_do_update_iomap_fh(struct zpci_dev *zdev, u32 fh)
+{
+	int bar, idx;
+
+	spin_lock(&zpci_iomap_lock);
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
+		if (!zdev->bars[bar].size)
+			continue;
+		idx = zdev->bars[bar].map_idx;
+		if (!zpci_iomap_start[idx].count)
+			continue;
+		WRITE_ONCE(zpci_iomap_start[idx].fh, zdev->fh);
+	}
+	spin_unlock(&zpci_iomap_lock);
+}
+
+void zpci_update_fh(struct zpci_dev *zdev, u32 fh)
+{
+	if (!fh || zdev->fh == fh)
+		return;
+
+	zdev->fh = fh;
+	if (zpci_use_mio(zdev))
+		return;
+	if (zdev->has_resources && zdev_enabled(zdev))
+		zpci_do_update_iomap_fh(zdev, fh);
+}
+
 static struct resource *__alloc_res(struct zpci_dev *zdev, unsigned long start,
 				    unsigned long size, unsigned long flags)
 {
@@ -561,7 +589,7 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 	zdev->has_resources = 0;
 }
 
-int pcibios_add_device(struct pci_dev *pdev)
+int pcibios_device_add(struct pci_dev *pdev)
 {
 	struct zpci_dev *zdev = to_zpci(pdev);
 	struct resource *res;
@@ -668,7 +696,7 @@ int zpci_enable_device(struct zpci_dev *zdev)
 	if (clp_enable_fh(zdev, &fh, ZPCI_NR_DMA_SPACES))
 		rc = -EIO;
 	else
-		zdev->fh = fh;
+		zpci_update_fh(zdev, fh);
 	return rc;
 }
 
@@ -679,20 +707,79 @@ int zpci_disable_device(struct zpci_dev *zdev)
 
 	cc = clp_disable_fh(zdev, &fh);
 	if (!cc) {
-		zdev->fh = fh;
+		zpci_update_fh(zdev, fh);
 	} else if (cc == CLP_RC_SETPCIFN_ALRDY) {
 		pr_info("Disabling PCI function %08x had no effect as it was already disabled\n",
 			zdev->fid);
 		/* Function is already disabled - update handle */
 		rc = clp_refresh_fh(zdev->fid, &fh);
 		if (!rc) {
-			zdev->fh = fh;
+			zpci_update_fh(zdev, fh);
 			rc = -EINVAL;
 		}
 	} else {
 		rc = -EIO;
 	}
 	return rc;
+}
+
+/**
+ * zpci_hot_reset_device - perform a reset of the given zPCI function
+ * @zdev: the slot which should be reset
+ *
+ * Performs a low level reset of the zPCI function. The reset is low level in
+ * the sense that the zPCI function can be reset without detaching it from the
+ * common PCI subsystem. The reset may be performed while under control of
+ * either DMA or IOMMU APIs in which case the existing DMA/IOMMU translation
+ * table is reinstated at the end of the reset.
+ *
+ * After the reset the functions internal state is reset to an initial state
+ * equivalent to its state during boot when first probing a driver.
+ * Consequently after reset the PCI function requires re-initialization via the
+ * common PCI code including re-enabling IRQs via pci_alloc_irq_vectors()
+ * and enabling the function via e.g.pci_enablde_device_flags().The caller
+ * must guard against concurrent reset attempts.
+ *
+ * In most cases this function should not be called directly but through
+ * pci_reset_function() or pci_reset_bus() which handle the save/restore and
+ * locking.
+ *
+ * Return: 0 on success and an error value otherwise
+ */
+int zpci_hot_reset_device(struct zpci_dev *zdev)
+{
+	int rc;
+
+	zpci_dbg(3, "rst fid:%x, fh:%x\n", zdev->fid, zdev->fh);
+	if (zdev_enabled(zdev)) {
+		/* Disables device access, DMAs and IRQs (reset state) */
+		rc = zpci_disable_device(zdev);
+		/*
+		 * Due to a z/VM vs LPAR inconsistency in the error state the
+		 * FH may indicate an enabled device but disable says the
+		 * device is already disabled don't treat it as an error here.
+		 */
+		if (rc == -EINVAL)
+			rc = 0;
+		if (rc)
+			return rc;
+	}
+
+	rc = zpci_enable_device(zdev);
+	if (rc)
+		return rc;
+
+	if (zdev->dma_table)
+		rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
+					(u64)zdev->dma_table);
+	else
+		rc = zpci_dma_init_device(zdev);
+	if (rc) {
+		zpci_disable_device(zdev);
+		return rc;
+	}
+
+	return 0;
 }
 
 /**
@@ -776,7 +863,7 @@ int zpci_scan_configured_device(struct zpci_dev *zdev, u32 fh)
 {
 	int rc;
 
-	zdev->fh = fh;
+	zpci_update_fh(zdev, fh);
 	/* the PCI function will be scanned once function 0 appears */
 	if (!zdev->zbus->bus)
 		return 0;
@@ -902,6 +989,59 @@ int zpci_report_error(struct pci_dev *pdev,
 	return sclp_pci_report(report, zdev->fh, zdev->fid);
 }
 EXPORT_SYMBOL(zpci_report_error);
+
+/**
+ * zpci_clear_error_state() - Clears the zPCI error state of the device
+ * @zdev: The zdev for which the zPCI error state should be reset
+ *
+ * Clear the zPCI error state of the device. If clearing the zPCI error state
+ * fails the device is left in the error state. In this case it may make sense
+ * to call zpci_io_perm_failure() on the associated pdev if it exists.
+ *
+ * Returns: 0 on success, -EIO otherwise
+ */
+int zpci_clear_error_state(struct zpci_dev *zdev)
+{
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_RESET_ERROR);
+	struct zpci_fib fib = {0};
+	u8 status;
+	int cc;
+
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc) {
+		zpci_dbg(3, "ces fid:%x, cc:%d, status:%x\n", zdev->fid, cc, status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/**
+ * zpci_reset_load_store_blocked() - Re-enables L/S from error state
+ * @zdev: The zdev for which to unblock load/store access
+ *
+ * Re-enables load/store access for a PCI function in the error state while
+ * keeping DMA blocked. In this state drivers can poke MMIO space to determine
+ * if error recovery is possible while catching any rogue DMA access from the
+ * device.
+ *
+ * Returns: 0 on success, -EIO otherwise
+ */
+int zpci_reset_load_store_blocked(struct zpci_dev *zdev)
+{
+	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_RESET_BLOCK);
+	struct zpci_fib fib = {0};
+	u8 status;
+	int cc;
+
+	cc = zpci_mod_fc(req, &fib, &status);
+	if (cc) {
+		zpci_dbg(3, "rls fid:%x, cc:%d, status:%x\n", zdev->fid, cc, status);
+		return -EIO;
+	}
+
+	return 0;
+}
 
 static int zpci_mem_init(void)
 {

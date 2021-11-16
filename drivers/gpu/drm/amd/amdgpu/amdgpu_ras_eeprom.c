@@ -1077,6 +1077,13 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 		if (res)
 			DRM_ERROR("RAS table incorrect checksum or error:%d\n",
 				  res);
+
+		/* Warn if we are at 90% of the threshold or above
+		 */
+		if (10 * control->ras_num_recs >= 9 * ras->bad_page_cnt_threshold)
+			dev_warn(adev->dev, "RAS records:%u exceeds 90%% of threshold:%d",
+					control->ras_num_recs,
+					ras->bad_page_cnt_threshold);
 	} else if (hdr->header == RAS_TABLE_HDR_BAD &&
 		   amdgpu_bad_page_threshold != 0) {
 		res = __verify_ras_table_checksum(control);
@@ -1098,11 +1105,18 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 			res = amdgpu_ras_eeprom_correct_header_tag(control,
 								   RAS_TABLE_HDR_VAL);
 		} else {
-			*exceed_err_limit = true;
-			dev_err(adev->dev,
-				"RAS records:%d exceed threshold:%d, "
-				"maybe retire this GPU?",
+			dev_err(adev->dev, "RAS records:%d exceed threshold:%d",
 				control->ras_num_recs, ras->bad_page_cnt_threshold);
+			if (amdgpu_bad_page_threshold == -2) {
+				dev_warn(adev->dev, "GPU will be initialized due to bad_page_threshold = -2.");
+				res = 0;
+			} else {
+				*exceed_err_limit = true;
+				dev_err(adev->dev,
+					"RAS records:%d exceed threshold:%d, "
+					"GPU will not be initialized. Replace this GPU or increase the threshold",
+					control->ras_num_recs, ras->bad_page_cnt_threshold);
+			}
 		}
 	} else {
 		DRM_INFO("Creating a new EEPROM table");

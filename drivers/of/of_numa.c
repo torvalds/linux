@@ -111,6 +111,8 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
 			return -EINVAL;
 		}
 
+		node_set(nodea, numa_nodes_parsed);
+
 		numa_set_distance(nodea, nodeb, distance);
 
 		/* Set default distance of node B->A same as A->B */

@@ -36,6 +36,7 @@ ktime_t mlx5e_cqe_ts_to_ns(cqe_ts_to_ns func, struct mlx5_clock *clock, u64 cqe_
 enum mlx5e_icosq_wqe_type {
 	MLX5E_ICOSQ_WQE_NOP,
 	MLX5E_ICOSQ_WQE_UMR_RX,
+	MLX5E_ICOSQ_WQE_SHAMPO_HD_UMR,
 #ifdef CONFIG_MLX5_EN_TLS
 	MLX5E_ICOSQ_WQE_UMR_TLS,
 	MLX5E_ICOSQ_WQE_SET_PSV_TLS,
@@ -166,6 +167,10 @@ static inline u16 mlx5e_txqsq_get_next_pi(struct mlx5e_txqsq *sq, u16 size)
 	return pi;
 }
 
+struct mlx5e_shampo_umr {
+	u16 len;
+};
+
 struct mlx5e_icosq_wqe_info {
 	u8 wqe_type;
 	u8 num_wqebbs;
@@ -175,6 +180,7 @@ struct mlx5e_icosq_wqe_info {
 		struct {
 			struct mlx5e_rq *rq;
 		} umr;
+		struct mlx5e_shampo_umr shampo;
 #ifdef CONFIG_MLX5_EN_TLS
 		struct {
 			struct mlx5e_ktls_offload_context_rx *priv_rx;

@@ -1311,6 +1311,14 @@ static int rt1011_r0_load_info(struct snd_kcontrol *kcontrol,
 	.put = rt1011_r0_load_mode_put \
 }
 
+static const char * const rt1011_i2s_ref_texts[] = {
+	"Left Channel", "Right Channel"
+};
+
+static SOC_ENUM_SINGLE_DECL(rt1011_i2s_ref_enum,
+			    RT1011_TDM1_SET_1, 7,
+			    rt1011_i2s_ref_texts);
+
 static const struct snd_kcontrol_new rt1011_snd_controls[] = {
 	/* I2S Data In Selection */
 	SOC_ENUM("DIN Source", rt1011_din_source_enum),
@@ -1349,6 +1357,8 @@ static const struct snd_kcontrol_new rt1011_snd_controls[] = {
 	/* R0 temperature */
 	SOC_SINGLE("R0 Temperature", RT1011_STP_INITIAL_RESISTANCE_TEMP,
 		2, 255, 0),
+	/* I2S Reference */
+	SOC_ENUM("I2S Reference", rt1011_i2s_ref_enum),
 };
 
 static int rt1011_is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,

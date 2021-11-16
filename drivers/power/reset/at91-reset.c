@@ -193,7 +193,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	reset->rstc_base = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 0, NULL);
-	if (!reset->rstc_base) {
+	if (IS_ERR(reset->rstc_base)) {
 		dev_err(&pdev->dev, "Could not map reset controller address\n");
 		return -ENODEV;
 	}
@@ -203,7 +203,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 		for_each_matching_node_and_match(np, at91_ramc_of_match, &match) {
 			reset->ramc_lpr = (u32)match->data;
 			reset->ramc_base[idx] = devm_of_iomap(&pdev->dev, np, 0, NULL);
-			if (!reset->ramc_base[idx]) {
+			if (IS_ERR(reset->ramc_base[idx])) {
 				dev_err(&pdev->dev, "Could not map ram controller address\n");
 				of_node_put(np);
 				return -ENODEV;

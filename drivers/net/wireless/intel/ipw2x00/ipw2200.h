@@ -1945,7 +1945,7 @@ struct host_cmd {
 	u8 cmd;
 	u8 len;
 	u16 reserved;
-	u32 *param;
+	const u32 *param;
 } __packed;	/* XXX */
 
 struct cmdlog_host_cmd {

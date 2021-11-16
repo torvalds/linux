@@ -159,6 +159,7 @@ static int cm3605_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	enum iio_chan_type ch_type;
 	u32 rset;
+	int irq;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*cm3605));
@@ -195,12 +196,9 @@ static int cm3605_probe(struct platform_device *pdev)
 
 	cm3605->aout = devm_iio_channel_get(dev, "aout");
 	if (IS_ERR(cm3605->aout)) {
-		if (PTR_ERR(cm3605->aout) == -ENODEV) {
-			dev_err(dev, "no ADC, deferring...\n");
-			return -EPROBE_DEFER;
-		}
-		dev_err(dev, "failed to get AOUT ADC channel\n");
-		return PTR_ERR(cm3605->aout);
+		ret = PTR_ERR(cm3605->aout);
+		ret = (ret == -ENODEV) ? -EPROBE_DEFER : ret;
+		return dev_err_probe(dev, ret, "failed to get AOUT ADC channel\n");
 	}
 	ret = iio_get_channel_type(cm3605->aout, &ch_type);
 	if (ret < 0)
@@ -211,10 +209,10 @@ static int cm3605_probe(struct platform_device *pdev)
 	}
 
 	cm3605->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(cm3605->vdd)) {
-		dev_err(dev, "failed to get VDD regulator\n");
-		return PTR_ERR(cm3605->vdd);
-	}
+	if (IS_ERR(cm3605->vdd))
+		return dev_err_probe(dev, PTR_ERR(cm3605->vdd),
+				     "failed to get VDD regulator\n");
+
 	ret = regulator_enable(cm3605->vdd);
 	if (ret) {
 		dev_err(dev, "failed to enable VDD regulator\n");
@@ -223,13 +221,16 @@ static int cm3605_probe(struct platform_device *pdev)
 
 	cm3605->aset = devm_gpiod_get(dev, "aset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cm3605->aset)) {
-		dev_err(dev, "no ASET GPIO\n");
-		ret = PTR_ERR(cm3605->aset);
+		ret = dev_err_probe(dev, PTR_ERR(cm3605->aset), "no ASET GPIO\n");
 		goto out_disable_vdd;
 	}
 
-	ret = devm_request_threaded_irq(dev, platform_get_irq(pdev, 0),
-			cm3605_prox_irq, NULL, 0, "cm3605", indio_dev);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return dev_err_probe(dev, irq, "failed to get irq\n");
+
+	ret = devm_request_threaded_irq(dev, irq, cm3605_prox_irq,
+					NULL, 0, "cm3605", indio_dev);
 	if (ret) {
 		dev_err(dev, "unable to request IRQ\n");
 		goto out_disable_aset;

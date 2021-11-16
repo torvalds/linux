@@ -541,11 +541,9 @@ efct_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, efct);
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0 ||
-	    pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) {
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) != 0) {
 		dev_warn(&pdev->dev, "trying DMA_BIT_MASK(32)\n");
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0 ||
-		    pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
+		if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)) != 0) {
 			dev_err(&pdev->dev, "setting DMA_BIT_MASK failed\n");
 			rc = -1;
 			goto dma_mask_out;

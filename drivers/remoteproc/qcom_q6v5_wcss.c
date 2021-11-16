@@ -1044,8 +1044,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
-	ret = qcom_q6v5_init(&wcss->q6v5, pdev, rproc, desc->crash_reason_smem,
-			     NULL);
+	ret = qcom_q6v5_init(&wcss->q6v5, pdev, rproc, desc->crash_reason_smem, NULL, NULL);
 	if (ret)
 		goto free_rproc;
 
@@ -1074,7 +1073,9 @@ free_rproc:
 static int q6v5_wcss_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
+	struct q6v5_wcss *wcss = rproc->priv;
 
+	qcom_q6v5_deinit(&wcss->q6v5);
 	rproc_del(rproc);
 	rproc_free(rproc);
 

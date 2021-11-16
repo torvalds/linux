@@ -91,12 +91,11 @@
 	/*
 	 * The A10-Lime is known to be unstable when running at 1008 MHz
 	 */
-	operating-points = <
-		/* kHz    uV */
-		912000  1350000
-		864000  1300000
-		624000  1250000
-		>;
+	operating-points =
+		/* kHz	  uV */
+		<912000	1350000>,
+		<864000	1300000>,
+		<624000	1250000>;
 };
 
 &de {

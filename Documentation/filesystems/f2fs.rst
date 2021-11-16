@@ -197,10 +197,29 @@ fault_type=%d		 Support configuring fault injection type, should be
 			 FAULT_DISCARD		  0x000002000
 			 FAULT_WRITE_IO		  0x000004000
 			 FAULT_SLAB_ALLOC	  0x000008000
+			 FAULT_DQUOT_INIT	  0x000010000
 			 ===================	  ===========
 mode=%s			 Control block allocation mode which supports "adaptive"
 			 and "lfs". In "lfs" mode, there should be no random
 			 writes towards main area.
+			 "fragment:segment" and "fragment:block" are newly added here.
+			 These are developer options for experiments to simulate filesystem
+			 fragmentation/after-GC situation itself. The developers use these
+			 modes to understand filesystem fragmentation/after-GC condition well,
+			 and eventually get some insights to handle them better.
+			 In "fragment:segment", f2fs allocates a new segment in ramdom
+			 position. With this, we can simulate the after-GC condition.
+			 In "fragment:block", we can scatter block allocation with
+			 "max_fragment_chunk" and "max_fragment_hole" sysfs nodes.
+			 We added some randomness to both chunk and hole size to make
+			 it close to realistic IO pattern. So, in this mode, f2fs will allocate
+			 1..<max_fragment_chunk> blocks in a chunk and make a hole in the
+			 length of 1..<max_fragment_hole> by turns. With this, the newly
+			 allocated blocks will be scattered throughout the whole partition.
+			 Note that "fragment:block" implicitly enables "fragment:segment"
+			 option for more randomness.
+			 Please, use these options for your experiments and we strongly
+			 recommend to re-format the filesystem after using these options.
 io_bits=%u		 Set the bit size of write IO requests. It should be set
 			 with "mode=lfs".
 usrquota		 Enable plain user disk quota accounting.
@@ -283,7 +302,7 @@ compress_extension=%s	 Support adding specified extension, so that f2fs can enab
 			 For other files, we can still enable compression via ioctl.
 			 Note that, there is one reserved special extension '*', it
 			 can be set to enable compression for all files.
-nocompress_extension=%s	   Support adding specified extension, so that f2fs can disable
+nocompress_extension=%s	 Support adding specified extension, so that f2fs can disable
 			 compression on those corresponding files, just contrary to compression extension.
 			 If you know exactly which files cannot be compressed, you can use this.
 			 The same extension name can't appear in both compress and nocompress

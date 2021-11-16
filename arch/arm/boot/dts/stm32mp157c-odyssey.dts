@@ -22,6 +22,12 @@
 	};
 };
 
+&dcmi {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&dcmi_pins_b>;
+	pinctrl-1 = <&dcmi_sleep_pins_b>;
+};
+
 &ethernet0 {
 	status = "okay";
 	pinctrl-0 = <&ethernet0_rgmii_pins_a>;

@@ -673,8 +673,17 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	struct sun6i_rtc_dev *chip = sun6i_rtc;
 	int ret;
 
-	if (!chip)
-		return -ENODEV;
+	if (!chip) {
+		chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+		if (!chip)
+			return -ENOMEM;
+
+		spin_lock_init(&chip->lock);
+
+		chip->base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(chip->base))
+			return PTR_ERR(chip->base);
+	}
 
 	platform_set_drvdata(pdev, chip);
 

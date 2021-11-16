@@ -124,6 +124,9 @@
 
 #define SO_BUF_LOCK              0x0051
 
+#define SO_RESERVE_MEM           0x0052
+
+
 #if !defined(__KERNEL__)
 
 

@@ -19,7 +19,8 @@
 #include "stat.h"
 #include "util/counts.h"
 
-int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __maybe_unused,
+						  int subtest __maybe_unused)
 {
 	int err = -1, fd, cpu;
 	struct perf_cpu_map *cpus;
@@ -127,3 +128,5 @@ out_thread_map_delete:
 	perf_thread_map__put(threads);
 	return err;
 }
+
+DEFINE_SUITE("Detect openat syscall event on all cpus", openat_syscall_event_on_all_cpus);

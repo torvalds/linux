@@ -553,7 +553,7 @@ static int mbochs_probe(struct mdev_device *mdev)
 	mbochs_create_config_space(mdev_state);
 	mbochs_reset(mdev_state);
 
-	ret = vfio_register_group_dev(&mdev_state->vdev);
+	ret = vfio_register_emulated_iommu_dev(&mdev_state->vdev);
 	if (ret)
 		goto err_mem;
 	dev_set_drvdata(&mdev->dev, mdev_state);
@@ -1493,5 +1493,6 @@ static void __exit mbochs_dev_exit(void)
 	mbochs_class = NULL;
 }
 
+MODULE_IMPORT_NS(DMA_BUF);
 module_init(mbochs_dev_init)
 module_exit(mbochs_dev_exit)

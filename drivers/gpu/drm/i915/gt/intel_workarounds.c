@@ -644,6 +644,72 @@ static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
 		     DG1_HZ_READ_SUPPRESSION_OPTIMIZATION_DISABLE);
 }
 
+static void fakewa_disable_nestedbb_mode(struct intel_engine_cs *engine,
+					 struct i915_wa_list *wal)
+{
+	/*
+	 * This is a "fake" workaround defined by software to ensure we
+	 * maintain reliable, backward-compatible behavior for userspace with
+	 * regards to how nested MI_BATCH_BUFFER_START commands are handled.
+	 *
+	 * The per-context setting of MI_MODE[12] determines whether the bits
+	 * of a nested MI_BATCH_BUFFER_START instruction should be interpreted
+	 * in the traditional manner or whether they should instead use a new
+	 * tgl+ meaning that breaks backward compatibility, but allows nesting
+	 * into 3rd-level batchbuffers.  When this new capability was first
+	 * added in TGL, it remained off by default unless a context
+	 * intentionally opted in to the new behavior.  However Xe_HPG now
+	 * flips this on by default and requires that we explicitly opt out if
+	 * we don't want the new behavior.
+	 *
+	 * From a SW perspective, we want to maintain the backward-compatible
+	 * behavior for userspace, so we'll apply a fake workaround to set it
+	 * back to the legacy behavior on platforms where the hardware default
+	 * is to break compatibility.  At the moment there is no Linux
+	 * userspace that utilizes third-level batchbuffers, so this will avoid
+	 * userspace from needing to make any changes.  using the legacy
+	 * meaning is the correct thing to do.  If/when we have userspace
+	 * consumers that want to utilize third-level batch nesting, we can
+	 * provide a context parameter to allow them to opt-in.
+	 */
+	wa_masked_dis(wal, RING_MI_MODE(engine->mmio_base), TGL_NESTED_BB_EN);
+}
+
+static void gen12_ctx_gt_mocs_init(struct intel_engine_cs *engine,
+				   struct i915_wa_list *wal)
+{
+	u8 mocs;
+
+	/*
+	 * Some blitter commands do not have a field for MOCS, those
+	 * commands will use MOCS index pointed by BLIT_CCTL.
+	 * BLIT_CCTL registers are needed to be programmed to un-cached.
+	 */
+	if (engine->class == COPY_ENGINE_CLASS) {
+		mocs = engine->gt->mocs.uc_index;
+		wa_write_clr_set(wal,
+				 BLIT_CCTL(engine->mmio_base),
+				 BLIT_CCTL_MASK,
+				 BLIT_CCTL_MOCS(mocs, mocs));
+	}
+}
+
+/*
+ * gen12_ctx_gt_fake_wa_init() aren't programmingan official workaround
+ * defined by the hardware team, but it programming general context registers.
+ * Adding those context register programming in context workaround
+ * allow us to use the wa framework for proper application and validation.
+ */
+static void
+gen12_ctx_gt_fake_wa_init(struct intel_engine_cs *engine,
+			  struct i915_wa_list *wal)
+{
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
+		fakewa_disable_nestedbb_mode(engine, wal);
+
+	gen12_ctx_gt_mocs_init(engine, wal);
+}
+
 static void
 __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 			   struct i915_wa_list *wal,
@@ -651,10 +717,18 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (engine->class != RENDER_CLASS)
-		return;
-
 	wa_init_start(wal, name, engine->name);
+
+	/* Applies to all engines */
+	/*
+	 * Fake workarounds are not the actual workaround but
+	 * programming of context registers using workaround framework.
+	 */
+	if (GRAPHICS_VER(i915) >= 12)
+		gen12_ctx_gt_fake_wa_init(engine, wal);
+
+	if (engine->class != RENDER_CLASS)
+		goto done;
 
 	if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
@@ -685,6 +759,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	else
 		MISSING_CASE(GRAPHICS_VER(i915));
 
+done:
 	wa_init_finish(wal);
 }
 
@@ -729,7 +804,7 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 }
 
 static void
-gen4_gt_workarounds_init(struct drm_i915_private *i915,
+gen4_gt_workarounds_init(struct intel_gt *gt,
 			 struct i915_wa_list *wal)
 {
 	/* WaDisable_RenderCache_OperationalFlush:gen4,ilk */
@@ -737,29 +812,29 @@ gen4_gt_workarounds_init(struct drm_i915_private *i915,
 }
 
 static void
-g4x_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+g4x_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	gen4_gt_workarounds_init(i915, wal);
+	gen4_gt_workarounds_init(gt, wal);
 
 	/* WaDisableRenderCachePipelinedFlush:g4x,ilk */
 	wa_masked_en(wal, CACHE_MODE_0, CM0_PIPELINED_RENDER_FLUSH_DISABLE);
 }
 
 static void
-ilk_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+ilk_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	g4x_gt_workarounds_init(i915, wal);
+	g4x_gt_workarounds_init(gt, wal);
 
 	wa_masked_en(wal, _3D_CHICKEN2, _3D_CHICKEN2_WM_READ_PIPELINED);
 }
 
 static void
-snb_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+snb_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 }
 
 static void
-ivb_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+ivb_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	/* Apply the WaDisableRHWOOptimizationForRenderHang:ivb workaround. */
 	wa_masked_dis(wal,
@@ -775,7 +850,7 @@ ivb_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-vlv_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+vlv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	/* WaForceL3Serialization:vlv */
 	wa_write_clr(wal, GEN7_L3SQCREG4, L3SQ_URB_READ_CAM_MATCH_DISABLE);
@@ -788,7 +863,7 @@ vlv_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-hsw_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+hsw_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	/* L3 caching of data atomics doesn't work -- disable it. */
 	wa_write(wal, HSW_SCRATCH1, HSW_SCRATCH1_L3_DATA_ATOMICS_DISABLE);
@@ -803,8 +878,10 @@ hsw_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-gen9_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+gen9_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
+	struct drm_i915_private *i915 = gt->i915;
+
 	/* WaDisableKillLogic:bxt,skl,kbl */
 	if (!IS_COFFEELAKE(i915) && !IS_COMETLAKE(i915))
 		wa_write_or(wal,
@@ -829,9 +906,9 @@ gen9_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal
 }
 
 static void
-skl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+skl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	gen9_gt_workarounds_init(i915, wal);
+	gen9_gt_workarounds_init(gt, wal);
 
 	/* WaDisableGafsUnitClkGating:skl */
 	wa_write_or(wal,
@@ -839,19 +916,19 @@ skl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		    GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaInPlaceDecompressionHang:skl */
-	if (IS_SKL_GT_STEP(i915, STEP_A0, STEP_H0))
+	if (IS_SKL_GT_STEP(gt->i915, STEP_A0, STEP_H0))
 		wa_write_or(wal,
 			    GEN9_GAMT_ECO_REG_RW_IA,
 			    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
 static void
-kbl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+kbl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	gen9_gt_workarounds_init(i915, wal);
+	gen9_gt_workarounds_init(gt, wal);
 
 	/* WaDisableDynamicCreditSharing:kbl */
-	if (IS_KBL_GT_STEP(i915, 0, STEP_C0))
+	if (IS_KBL_GT_STEP(gt->i915, 0, STEP_C0))
 		wa_write_or(wal,
 			    GAMT_CHKN_BIT_REG,
 			    GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING);
@@ -868,15 +945,15 @@ kbl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-glk_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+glk_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	gen9_gt_workarounds_init(i915, wal);
+	gen9_gt_workarounds_init(gt, wal);
 }
 
 static void
-cfl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+cfl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	gen9_gt_workarounds_init(i915, wal);
+	gen9_gt_workarounds_init(gt, wal);
 
 	/* WaDisableGafsUnitClkGating:cfl */
 	wa_write_or(wal,
@@ -901,21 +978,21 @@ static void __set_mcr_steering(struct i915_wa_list *wal,
 	wa_write_clr_set(wal, steering_reg, mcr_mask, mcr);
 }
 
-static void __add_mcr_wa(struct drm_i915_private *i915, struct i915_wa_list *wal,
+static void __add_mcr_wa(struct intel_gt *gt, struct i915_wa_list *wal,
 			 unsigned int slice, unsigned int subslice)
 {
-	drm_dbg(&i915->drm, "MCR slice=0x%x, subslice=0x%x\n", slice, subslice);
+	drm_dbg(&gt->i915->drm, "MCR slice=0x%x, subslice=0x%x\n", slice, subslice);
 
 	__set_mcr_steering(wal, GEN8_MCR_SELECTOR, slice, subslice);
 }
 
 static void
-icl_wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
+icl_wa_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	const struct sseu_dev_info *sseu = &i915->gt.info.sseu;
+	const struct sseu_dev_info *sseu = &gt->info.sseu;
 	unsigned int slice, subslice;
 
-	GEM_BUG_ON(GRAPHICS_VER(i915) < 11);
+	GEM_BUG_ON(GRAPHICS_VER(gt->i915) < 11);
 	GEM_BUG_ON(hweight8(sseu->slice_mask) > 1);
 	slice = 0;
 
@@ -935,16 +1012,15 @@ icl_wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	 * then we can just rely on the default steering and won't need to
 	 * worry about explicitly re-steering L3BANK reads later.
 	 */
-	if (i915->gt.info.l3bank_mask & BIT(subslice))
-		i915->gt.steering_table[L3BANK] = NULL;
+	if (gt->info.l3bank_mask & BIT(subslice))
+		gt->steering_table[L3BANK] = NULL;
 
-	__add_mcr_wa(i915, wal, slice, subslice);
+	__add_mcr_wa(gt, wal, slice, subslice);
 }
 
 static void
 xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	struct drm_i915_private *i915 = gt->i915;
 	const struct sseu_dev_info *sseu = &gt->info.sseu;
 	unsigned long slice, subslice = 0, slice_mask = 0;
 	u64 dss_mask = 0;
@@ -1008,7 +1084,7 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 	WARN_ON(subslice > GEN_DSS_PER_GSLICE);
 	WARN_ON(dss_mask >> (slice * GEN_DSS_PER_GSLICE) == 0);
 
-	__add_mcr_wa(i915, wal, slice, subslice);
+	__add_mcr_wa(gt, wal, slice, subslice);
 
 	/*
 	 * SQIDI ranges are special because they use different steering
@@ -1024,9 +1100,11 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
-icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+icl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	icl_wa_init_mcr(i915, wal);
+	struct drm_i915_private *i915 = gt->i915;
+
+	icl_wa_init_mcr(gt, wal);
 
 	/* WaModifyGamTlbPartitioning:icl */
 	wa_write_clr_set(wal,
@@ -1077,10 +1155,9 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
  * the engine-specific workaround list.
  */
 static void
-wa_14011060649(struct drm_i915_private *i915, struct i915_wa_list *wal)
+wa_14011060649(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct intel_engine_cs *engine;
-	struct intel_gt *gt = &i915->gt;
 	int id;
 
 	for_each_engine(engine, gt, id) {
@@ -1094,22 +1171,23 @@ wa_14011060649(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-gen12_gt_workarounds_init(struct drm_i915_private *i915,
-			  struct i915_wa_list *wal)
+gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	icl_wa_init_mcr(i915, wal);
+	icl_wa_init_mcr(gt, wal);
 
 	/* Wa_14011060649:tgl,rkl,dg1,adl-s,adl-p */
-	wa_14011060649(i915, wal);
+	wa_14011060649(gt, wal);
 
 	/* Wa_14011059788:tgl,rkl,adl-s,dg1,adl-p */
 	wa_write_or(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
 }
 
 static void
-tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+tgl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	gen12_gt_workarounds_init(i915, wal);
+	struct drm_i915_private *i915 = gt->i915;
+
+	gen12_gt_workarounds_init(gt, wal);
 
 	/* Wa_1409420604:tgl */
 	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_B0))
@@ -1130,9 +1208,11 @@ tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-dg1_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+dg1_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	gen12_gt_workarounds_init(i915, wal);
+	struct drm_i915_private *i915 = gt->i915;
+
+	gen12_gt_workarounds_init(gt, wal);
 
 	/* Wa_1607087056:dg1 */
 	if (IS_DG1_GT_STEP(i915, STEP_A0, STEP_B0))
@@ -1154,60 +1234,62 @@ dg1_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-xehpsdv_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	xehp_init_mcr(&i915->gt, wal);
+	xehp_init_mcr(gt, wal);
 }
 
 static void
-gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
+gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 {
+	struct drm_i915_private *i915 = gt->i915;
+
 	if (IS_XEHPSDV(i915))
-		xehpsdv_gt_workarounds_init(i915, wal);
+		xehpsdv_gt_workarounds_init(gt, wal);
 	else if (IS_DG1(i915))
-		dg1_gt_workarounds_init(i915, wal);
+		dg1_gt_workarounds_init(gt, wal);
 	else if (IS_TIGERLAKE(i915))
-		tgl_gt_workarounds_init(i915, wal);
+		tgl_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 12)
-		gen12_gt_workarounds_init(i915, wal);
+		gen12_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 11)
-		icl_gt_workarounds_init(i915, wal);
+		icl_gt_workarounds_init(gt, wal);
 	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
-		cfl_gt_workarounds_init(i915, wal);
+		cfl_gt_workarounds_init(gt, wal);
 	else if (IS_GEMINILAKE(i915))
-		glk_gt_workarounds_init(i915, wal);
+		glk_gt_workarounds_init(gt, wal);
 	else if (IS_KABYLAKE(i915))
-		kbl_gt_workarounds_init(i915, wal);
+		kbl_gt_workarounds_init(gt, wal);
 	else if (IS_BROXTON(i915))
-		gen9_gt_workarounds_init(i915, wal);
+		gen9_gt_workarounds_init(gt, wal);
 	else if (IS_SKYLAKE(i915))
-		skl_gt_workarounds_init(i915, wal);
+		skl_gt_workarounds_init(gt, wal);
 	else if (IS_HASWELL(i915))
-		hsw_gt_workarounds_init(i915, wal);
+		hsw_gt_workarounds_init(gt, wal);
 	else if (IS_VALLEYVIEW(i915))
-		vlv_gt_workarounds_init(i915, wal);
+		vlv_gt_workarounds_init(gt, wal);
 	else if (IS_IVYBRIDGE(i915))
-		ivb_gt_workarounds_init(i915, wal);
+		ivb_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 6)
-		snb_gt_workarounds_init(i915, wal);
+		snb_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 5)
-		ilk_gt_workarounds_init(i915, wal);
+		ilk_gt_workarounds_init(gt, wal);
 	else if (IS_G4X(i915))
-		g4x_gt_workarounds_init(i915, wal);
+		g4x_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 4)
-		gen4_gt_workarounds_init(i915, wal);
+		gen4_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) <= 8)
 		;
 	else
 		MISSING_CASE(GRAPHICS_VER(i915));
 }
 
-void intel_gt_init_workarounds(struct drm_i915_private *i915)
+void intel_gt_init_workarounds(struct intel_gt *gt)
 {
-	struct i915_wa_list *wal = &i915->gt_wa_list;
+	struct i915_wa_list *wal = &gt->wa_list;
 
 	wa_init_start(wal, "GT", "global");
-	gt_init_workarounds(i915, wal);
+	gt_init_workarounds(gt, wal);
 	wa_init_finish(wal);
 }
 
@@ -1278,7 +1360,7 @@ wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 
 void intel_gt_apply_workarounds(struct intel_gt *gt)
 {
-	wa_list_apply(gt, &gt->i915->gt_wa_list);
+	wa_list_apply(gt, &gt->wa_list);
 }
 
 static bool wa_list_verify(struct intel_gt *gt,
@@ -1310,7 +1392,7 @@ static bool wa_list_verify(struct intel_gt *gt,
 
 bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 {
-	return wa_list_verify(gt, &gt->i915->gt_wa_list, from);
+	return wa_list_verify(gt, &gt->wa_list, from);
 }
 
 __maybe_unused
@@ -1604,6 +1686,31 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 				   i915_mmio_reg_offset(RING_NOPID(base)));
 }
 
+/*
+ * engine_fake_wa_init(), a place holder to program the registers
+ * which are not part of an official workaround defined by the
+ * hardware team.
+ * Adding programming of those register inside workaround will
+ * allow utilizing wa framework to proper application and verification.
+ */
+static void
+engine_fake_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	u8 mocs;
+
+	/*
+	 * RING_CMD_CCTL are need to be programed to un-cached
+	 * for memory writes and reads outputted by Command
+	 * Streamers on Gen12 onward platforms.
+	 */
+	if (GRAPHICS_VER(engine->i915) >= 12) {
+		mocs = engine->gt->mocs.uc_index;
+		wa_masked_field_set(wal,
+				    RING_CMD_CCTL(engine->mmio_base),
+				    CMD_CCTL_MOCS_MASK,
+				    CMD_CCTL_MOCS_OVERRIDE(mocs, mocs));
+	}
+}
 static void
 rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
@@ -2044,6 +2151,8 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 	if (I915_SELFTEST_ONLY(GRAPHICS_VER(engine->i915) < 4))
 		return;
 
+	engine_fake_wa_init(engine, wal);
+
 	if (engine->class == RENDER_CLASS)
 		rcs_engine_wa_init(engine, wal);
 	else
@@ -2067,12 +2176,7 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 	wa_list_apply(engine->gt, &engine->wa_list);
 }
 
-struct mcr_range {
-	u32 start;
-	u32 end;
-};
-
-static const struct mcr_range mcr_ranges_gen8[] = {
+static const struct i915_range mcr_ranges_gen8[] = {
 	{ .start = 0x5500, .end = 0x55ff },
 	{ .start = 0x7000, .end = 0x7fff },
 	{ .start = 0x9400, .end = 0x97ff },
@@ -2081,7 +2185,7 @@ static const struct mcr_range mcr_ranges_gen8[] = {
 	{},
 };
 
-static const struct mcr_range mcr_ranges_gen12[] = {
+static const struct i915_range mcr_ranges_gen12[] = {
 	{ .start =  0x8150, .end =  0x815f },
 	{ .start =  0x9520, .end =  0x955f },
 	{ .start =  0xb100, .end =  0xb3ff },
@@ -2090,7 +2194,7 @@ static const struct mcr_range mcr_ranges_gen12[] = {
 	{},
 };
 
-static const struct mcr_range mcr_ranges_xehp[] = {
+static const struct i915_range mcr_ranges_xehp[] = {
 	{ .start =  0x4000, .end =  0x4aff },
 	{ .start =  0x5200, .end =  0x52ff },
 	{ .start =  0x5400, .end =  0x7fff },
@@ -2109,7 +2213,7 @@ static const struct mcr_range mcr_ranges_xehp[] = {
 
 static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
-	const struct mcr_range *mcr_ranges;
+	const struct i915_range *mcr_ranges;
 	int i;
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))

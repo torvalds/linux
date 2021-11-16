@@ -124,6 +124,8 @@ int machine__process_aux_event(struct machine *machine,
 			       union perf_event *event);
 int machine__process_itrace_start_event(struct machine *machine,
 					union perf_event *event);
+int machine__process_aux_output_hw_id_event(struct machine *machine,
+					    union perf_event *event);
 int machine__process_switch_event(struct machine *machine,
 				  union perf_event *event);
 int machine__process_namespaces_event(struct machine *machine,

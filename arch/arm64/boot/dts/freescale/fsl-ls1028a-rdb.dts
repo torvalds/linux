@@ -197,6 +197,10 @@
 };
 
 &enetc_mdio_pf3 {
+	sgmii_phy0: ethernet-phy@2 {
+		reg = <0x2>;
+	};
+
 	/* VSC8514 QSGMII quad PHY */
 	qsgmii_phy0: ethernet-phy@10 {
 		reg = <0x10>;
@@ -217,17 +221,9 @@
 
 &enetc_port0 {
 	phy-handle = <&sgmii_phy0>;
-	phy-connection-type = "sgmii";
+	phy-mode = "sgmii";
 	managed = "in-band-status";
 	status = "okay";
-
-	mdio {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		sgmii_phy0: ethernet-phy@2 {
-			reg = <0x2>;
-		};
-	};
 };
 
 &enetc_port2 {
@@ -287,6 +283,11 @@
 	status = "okay";
 };
 
+&usb0 {
+	status = "okay";
+};
+
 &usb1 {
 	dr_mode = "otg";
+	status = "okay";
 };

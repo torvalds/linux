@@ -340,8 +340,8 @@ static int rv8803_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		}
 	}
 
-	ctrl[1] &= ~RV8803_FLAG_AF;
-	err = rv8803_write_reg(rv8803->client, RV8803_FLAG, ctrl[1]);
+	ctrl[0] &= ~RV8803_FLAG_AF;
+	err = rv8803_write_reg(rv8803->client, RV8803_FLAG, ctrl[0]);
 	mutex_unlock(&rv8803->flags_lock);
 	if (err)
 		return err;

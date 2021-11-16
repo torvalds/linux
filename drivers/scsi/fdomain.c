@@ -206,7 +206,7 @@ static void fdomain_finish_cmd(struct fdomain *fd)
 {
 	outb(0, fd->base + REG_ICTL);
 	fdomain_make_bus_idle(fd);
-	fd->cur_cmd->scsi_done(fd->cur_cmd);
+	scsi_done(fd->cur_cmd);
 	fd->cur_cmd = NULL;
 }
 

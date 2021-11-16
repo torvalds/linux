@@ -296,8 +296,12 @@ static struct kobj_attribute rtrs_clt_remove_path_attr =
 	__ATTR(remove_path, 0644, rtrs_clt_remove_path_show,
 	       rtrs_clt_remove_path_store);
 
-STAT_ATTR(struct rtrs_clt_stats, cpu_migration,
-	  rtrs_clt_stats_migration_cnt_to_str,
+STAT_ATTR(struct rtrs_clt_stats, cpu_migration_from,
+	  rtrs_clt_stats_migration_from_cnt_to_str,
+	  rtrs_clt_reset_cpu_migr_stats);
+
+STAT_ATTR(struct rtrs_clt_stats, cpu_migration_to,
+	  rtrs_clt_stats_migration_to_cnt_to_str,
 	  rtrs_clt_reset_cpu_migr_stats);
 
 STAT_ATTR(struct rtrs_clt_stats, reconnects,
@@ -313,7 +317,8 @@ STAT_ATTR(struct rtrs_clt_stats, reset_all,
 	  rtrs_clt_reset_all_stats);
 
 static struct attribute *rtrs_clt_stats_attrs[] = {
-	&cpu_migration_attr.attr,
+	&cpu_migration_from_attr.attr,
+	&cpu_migration_to_attr.attr,
 	&reconnects_attr.attr,
 	&rdma_attr.attr,
 	&reset_all_attr.attr,

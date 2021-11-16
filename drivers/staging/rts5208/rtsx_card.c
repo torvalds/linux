@@ -165,7 +165,7 @@ void do_reset_sd_card(struct rtsx_chip *chip)
 		chip->card_fail &= ~SD_CARD;
 		chip->rw_card[chip->card2lun[SD_CARD]] = sd_rw;
 	} else {
-		if (chip->sd_io || (chip->sd_reset_counter >= MAX_RESET_CNT)) {
+		if (chip->sd_io || chip->sd_reset_counter >= MAX_RESET_CNT) {
 			clear_bit(SD_NR, &chip->need_reset);
 			chip->sd_reset_counter = 0;
 			chip->sd_show_cnt = 0;
@@ -636,7 +636,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	dev_dbg(rtsx_dev(chip), "Switch SSC clock to %dMHz (cur_clk = %d)\n",
 		clk, chip->cur_clk);
 
-	if ((clk <= 2) || (n > max_n))
+	if (clk <= 2 || n > max_n)
 		return STATUS_FAIL;
 
 	mcu_cnt = (u8)(125 / clk + 3);
@@ -886,7 +886,7 @@ int card_power_on(struct rtsx_chip *chip, u8 card)
 	int retval;
 	u8 mask, val1, val2;
 
-	if (CHECK_LUN_MODE(chip, SD_MS_2LUN) && (card == MS_CARD)) {
+	if (CHECK_LUN_MODE(chip, SD_MS_2LUN) && card == MS_CARD) {
 		mask = MS_POWER_MASK;
 		val1 = MS_PARTIAL_POWER_ON;
 		val2 = MS_POWER_ON;
@@ -920,7 +920,7 @@ int card_power_off(struct rtsx_chip *chip, u8 card)
 	int retval;
 	u8 mask, val;
 
-	if (CHECK_LUN_MODE(chip, SD_MS_2LUN) && (card == MS_CARD)) {
+	if (CHECK_LUN_MODE(chip, SD_MS_2LUN) && card == MS_CARD) {
 		mask = MS_POWER_MASK;
 		val = MS_POWER_OFF;
 	} else {

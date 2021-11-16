@@ -4144,10 +4144,10 @@ static int wcd938x_codec_set_jack(struct snd_soc_component *comp,
 {
 	struct wcd938x_priv *wcd = dev_get_drvdata(comp->dev);
 
-	if (!jack)
+	if (jack)
 		return wcd_mbhc_start(wcd->wcd_mbhc, &wcd->mbhc_cfg, jack);
-
-	wcd_mbhc_stop(wcd->wcd_mbhc);
+	else
+		wcd_mbhc_stop(wcd->wcd_mbhc);
 
 	return 0;
 }

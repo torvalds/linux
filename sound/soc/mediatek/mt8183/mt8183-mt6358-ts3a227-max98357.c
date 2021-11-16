@@ -335,7 +335,7 @@ static void mt8183_mt6358_tdm_shutdown(struct snd_pcm_substream *substream)
 			__func__, ret);
 }
 
-static struct snd_soc_ops mt8183_mt6358_tdm_ops = {
+static const struct snd_soc_ops mt8183_mt6358_tdm_ops = {
 	.startup = mt8183_mt6358_tdm_startup,
 	.shutdown = mt8183_mt6358_tdm_shutdown,
 };

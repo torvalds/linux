@@ -46,6 +46,10 @@ struct cop_vars {
 	struct smb2_file_link_info link_info;
 };
 
+/*
+ * note: If cfile is passed, the reference to it is dropped here.
+ * So make sure that you do not reuse cfile after return from this func.
+ */
 static int
 smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		 struct cifs_sb_info *cifs_sb, const char *full_path,
@@ -536,10 +540,11 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		create_options |= OPEN_REPARSE_POINT;
 
 		/* Failed on a symbolic link - query a reparse point info */
+		cifs_get_readable_path(tcon, full_path, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				      FILE_READ_ATTRIBUTES, FILE_OPEN,
 				      create_options, ACL_NO_MODE,
-				      smb2_data, SMB2_OP_QUERY_INFO, NULL);
+				      smb2_data, SMB2_OP_QUERY_INFO, cfile);
 	}
 	if (rc)
 		goto out;
@@ -587,10 +592,11 @@ smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		create_options |= OPEN_REPARSE_POINT;
 
 		/* Failed on a symbolic link - query a reparse point info */
+		cifs_get_readable_path(tcon, full_path, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				      FILE_READ_ATTRIBUTES, FILE_OPEN,
 				      create_options, ACL_NO_MODE,
-				      smb2_data, SMB2_OP_POSIX_QUERY_INFO, NULL);
+				      smb2_data, SMB2_OP_POSIX_QUERY_INFO, cfile);
 	}
 	if (rc)
 		goto out;
@@ -707,10 +713,12 @@ smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifs_sb_info *cifs_sb, bool set_alloc)
 {
 	__le64 eof = cpu_to_le64(size);
+	struct cifsFileInfo *cfile;
 
+	cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
 	return smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				FILE_WRITE_DATA, FILE_OPEN, 0, ACL_NO_MODE,
-				&eof, SMB2_OP_SET_EOF, NULL);
+				&eof, SMB2_OP_SET_EOF, cfile);
 }
 
 int
@@ -719,6 +727,8 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink;
+	struct cifs_tcon *tcon;
+	struct cifsFileInfo *cfile;
 	int rc;
 
 	if ((buf->CreationTime == 0) && (buf->LastAccessTime == 0) &&
@@ -729,10 +739,12 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
+	tcon = tlink_tcon(tlink);
 
-	rc = smb2_compound_op(xid, tlink_tcon(tlink), cifs_sb, full_path,
+	cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
+	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 			      FILE_WRITE_ATTRIBUTES, FILE_OPEN,
-			      0, ACL_NO_MODE, buf, SMB2_OP_SET_INFO, NULL);
+			      0, ACL_NO_MODE, buf, SMB2_OP_SET_INFO, cfile);
 	cifs_put_tlink(tlink);
 	return rc;
 }

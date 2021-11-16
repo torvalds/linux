@@ -103,11 +103,18 @@ static void test_global_data_struct(struct bpf_object *obj, __u32 duration)
 static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 {
 	int err = -ENOMEM, map_fd, zero = 0;
-	struct bpf_map *map;
+	struct bpf_map *map, *map2;
 	__u8 *buff;
 
 	map = bpf_object__find_map_by_name(obj, "test_glo.rodata");
-	if (CHECK_FAIL(!map || !bpf_map__is_internal(map)))
+	if (!ASSERT_OK_PTR(map, "map"))
+		return;
+	if (!ASSERT_TRUE(bpf_map__is_internal(map), "is_internal"))
+		return;
+
+	/* ensure we can lookup internal maps by their ELF names */
+	map2 = bpf_object__find_map_by_name(obj, ".rodata");
+	if (!ASSERT_EQ(map, map2, "same_maps"))
 		return;
 
 	map_fd = bpf_map__fd(map);

@@ -175,6 +175,6 @@ void print_pgm_check_info(void)
 			    gpregs[12], gpregs[13], gpregs[14], gpregs[15]);
 	print_stacktrace();
 	decompressor_printk("Last Breaking-Event-Address:\n");
-	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)S390_lowcore.breaking_event_addr,
-			    (void *)S390_lowcore.breaking_event_addr);
+	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)S390_lowcore.pgm_last_break,
+			    (void *)S390_lowcore.pgm_last_break);
 }

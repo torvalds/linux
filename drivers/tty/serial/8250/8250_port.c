@@ -1338,7 +1338,7 @@ static void autoconfig(struct uart_8250_port *up)
 	up->tx_loadsz = uart_config[port->type].tx_loadsz;
 
 	if (port->type == PORT_UNKNOWN)
-		goto out_lock;
+		goto out_unlock;
 
 	/*
 	 * Reset the UART.
@@ -1355,7 +1355,7 @@ static void autoconfig(struct uart_8250_port *up)
 	else
 		serial_out(up, UART_IER, 0);
 
-out_lock:
+out_unlock:
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	/*
@@ -2696,21 +2696,32 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
+	struct tty_port *tport = &port->state->port;
 	unsigned int baud, quot, frac = 0;
 	struct ktermios *termios;
+	struct tty_struct *tty;
 	unsigned long flags;
 
-	mutex_lock(&port->state->port.mutex);
+	tty = tty_port_tty_get(tport);
+	if (!tty) {
+		mutex_lock(&tport->mutex);
+		port->uartclk = uartclk;
+		mutex_unlock(&tport->mutex);
+		return;
+	}
+
+	down_write(&tty->termios_rwsem);
+	mutex_lock(&tport->mutex);
 
 	if (port->uartclk == uartclk)
-		goto out_lock;
+		goto out_unlock;
 
 	port->uartclk = uartclk;
 
-	if (!tty_port_initialized(&port->state->port))
-		goto out_lock;
+	if (!tty_port_initialized(tport))
+		goto out_unlock;
 
-	termios = &port->state->port.tty->termios;
+	termios = &tty->termios;
 
 	baud = serial8250_get_baud_rate(port, termios, NULL);
 	quot = serial8250_get_divisor(port, baud, &frac);
@@ -2726,8 +2737,10 @@ void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 	spin_unlock_irqrestore(&port->lock, flags);
 	serial8250_rpm_put(up);
 
-out_lock:
-	mutex_unlock(&port->state->port.mutex);
+out_unlock:
+	mutex_unlock(&tport->mutex);
+	up_write(&tty->termios_rwsem);
+	tty_kref_put(tty);
 }
 EXPORT_SYMBOL_GPL(serial8250_update_uartclk);
 

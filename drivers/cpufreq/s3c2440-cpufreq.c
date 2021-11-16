@@ -173,12 +173,14 @@ static void s3c2440_cpufreq_setdivs(struct s3c_cpufreq_config *cfg)
 
 	case 6:
 		camdiv |= S3C2440_CAMDIVN_HCLK3_HALF;
+		fallthrough;
 	case 3:
 		clkdiv |= S3C2440_CLKDIVN_HDIVN_3_6;
 		break;
 
 	case 8:
 		camdiv |= S3C2440_CAMDIVN_HCLK4_HALF;
+		fallthrough;
 	case 4:
 		clkdiv |= S3C2440_CLKDIVN_HDIVN_4_8;
 		break;

@@ -640,7 +640,10 @@ static void mv88e6393x_phylink_validate(struct mv88e6xxx_chip *chip, int port,
 					unsigned long *mask,
 					struct phylink_link_state *state)
 {
-	if (port == 0 || port == 9 || port == 10) {
+	bool is_6191x =
+		chip->info->prod_num == MV88E6XXX_PORT_SWITCH_ID_PROD_6191X;
+
+	if (((port == 0 || port == 9) && !is_6191x) || port == 10) {
 		phylink_set(mask, 10000baseT_Full);
 		phylink_set(mask, 10000baseKR_Full);
 		phylink_set(mask, 10000baseCR_Full);
@@ -674,9 +677,8 @@ static void mv88e6xxx_validate(struct dsa_switch *ds, int port,
 	if (chip->info->ops->phylink_validate)
 		chip->info->ops->phylink_validate(chip, port, mask, state);
 
-	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 
 	/* We can only operate at 2500BaseX or 1000BaseX.  If requested
 	 * to advertise both, only report advertising at 2500BaseX.

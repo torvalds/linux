@@ -66,16 +66,3 @@ hfi_platform_get_codec_lp_freq(enum hfi_version version, u32 codec, u32 session_
 	return freq;
 }
 
-u8 hfi_platform_num_vpp_pipes(enum hfi_version version)
-{
-	const struct hfi_platform *plat;
-
-	plat = hfi_platform_get(version);
-	if (!plat)
-		return 0;
-
-	if (plat->num_vpp_pipes)
-		return plat->num_vpp_pipes();
-
-	return 0;
-}

@@ -17,7 +17,7 @@ description: |
      - simple counter from IN1 input signal.
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 properties:
   compatible:

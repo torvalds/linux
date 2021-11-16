@@ -32,7 +32,6 @@ void mlx5e_reporter_rq_cqe_err(struct mlx5e_rq *rq);
 void mlx5e_reporter_rx_timeout(struct mlx5e_rq *rq);
 
 #define MLX5E_REPORTER_PER_Q_MAX_LEN 256
-#define MLX5E_REPORTER_FLUSH_TIMEOUT_MSEC 2000
 
 struct mlx5e_err_ctx {
 	int (*recover)(void *ctx);

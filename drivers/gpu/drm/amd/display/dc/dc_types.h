@@ -395,8 +395,26 @@ struct dc_lttpr_caps {
 	uint8_t max_link_rate;
 	uint8_t phy_repeater_cnt;
 	uint8_t max_ext_timeout;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	union dp_main_link_channel_coding_lttpr_cap main_link_channel_coding;
+	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
+#endif
 	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+struct dc_dongle_dfp_cap_ext {
+	bool supported;
+	uint16_t max_pixel_rate_in_mps;
+	uint16_t max_video_h_active_width;
+	uint16_t max_video_v_active_height;
+	struct dp_encoding_format_caps encoding_format_caps;
+	struct dp_color_depth_caps rgb_color_depth_caps;
+	struct dp_color_depth_caps ycbcr444_color_depth_caps;
+	struct dp_color_depth_caps ycbcr422_color_depth_caps;
+	struct dp_color_depth_caps ycbcr420_color_depth_caps;
+};
+#endif
 
 struct dc_dongle_caps {
 	/* dongle type (DP converter, CV smart dongle) */
@@ -411,6 +429,9 @@ struct dc_dongle_caps {
 	bool is_dp_hdmi_ycbcr420_converter;
 	uint32_t dp_hdmi_max_bpc;
 	uint32_t dp_hdmi_max_pixel_clk_in_khz;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
+#endif
 };
 /* Scaling format */
 enum scaling_transformation {
@@ -632,6 +653,7 @@ enum dc_psr_state {
 	PSR_STATE1a,
 	PSR_STATE2,
 	PSR_STATE2a,
+	PSR_STATE2b,
 	PSR_STATE3,
 	PSR_STATE3Init,
 	PSR_STATE4,
@@ -934,6 +956,7 @@ enum dc_psr_version {
 /* Possible values of display_endpoint_id.endpoint */
 enum display_endpoint_type {
 	DISPLAY_ENDPOINT_PHY = 0, /* Physical connector. */
+	DISPLAY_ENDPOINT_USB4_DPIA, /* USB4 DisplayPort tunnel. */
 	DISPLAY_ENDPOINT_UNKNOWN = -1
 };
 

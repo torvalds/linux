@@ -68,8 +68,11 @@
 };
 
 &i2c1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio1 28 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 29 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	clock-frequency = <100000>;
 	status = "okay";
 
@@ -144,6 +147,13 @@
 		fsl,pins = <
 			MX6UL_PAD_UART4_TX_DATA__I2C1_SCL	0x4001b8b0
 			MX6UL_PAD_UART4_RX_DATA__I2C1_SDA	0x4001b8b0
+		>;
+	};
+
+	pinctrl_i2c1_gpio: i2cgpiogrp {
+		fsl,pins = <
+			MX6UL_PAD_UART4_TX_DATA__GPIO1_IO28	0x4001b8b0
+			MX6UL_PAD_UART4_RX_DATA__GPIO1_IO29	0x4001b8b0
 		>;
 	};
 

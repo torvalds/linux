@@ -167,6 +167,27 @@ struct ffa_drv_info {
 
 static struct ffa_drv_info *drv_info;
 
+/*
+ * The driver must be able to support all the versions from the earliest
+ * supported FFA_MIN_VERSION to the latest supported FFA_DRIVER_VERSION.
+ * The specification states that if firmware supports a FFA implementation
+ * that is incompatible with and at a greater version number than specified
+ * by the caller(FFA_DRIVER_VERSION passed as parameter to FFA_VERSION),
+ * it must return the NOT_SUPPORTED error code.
+ */
+static u32 ffa_compatible_version_find(u32 version)
+{
+	u16 major = MAJOR_VERSION(version), minor = MINOR_VERSION(version);
+	u16 drv_major = MAJOR_VERSION(FFA_DRIVER_VERSION);
+	u16 drv_minor = MINOR_VERSION(FFA_DRIVER_VERSION);
+
+	if ((major < drv_major) || (major == drv_major && minor <= drv_minor))
+		return version;
+
+	pr_info("Firmware version higher than driver version, downgrading\n");
+	return FFA_DRIVER_VERSION;
+}
+
 static int ffa_version_check(u32 *version)
 {
 	ffa_value_t ver;
@@ -180,15 +201,20 @@ static int ffa_version_check(u32 *version)
 		return -EOPNOTSUPP;
 	}
 
-	if (ver.a0 < FFA_MIN_VERSION || ver.a0 > FFA_DRIVER_VERSION) {
-		pr_err("Incompatible version %d.%d found\n",
-		       MAJOR_VERSION(ver.a0), MINOR_VERSION(ver.a0));
+	if (ver.a0 < FFA_MIN_VERSION) {
+		pr_err("Incompatible v%d.%d! Earliest supported v%d.%d\n",
+		       MAJOR_VERSION(ver.a0), MINOR_VERSION(ver.a0),
+		       MAJOR_VERSION(FFA_MIN_VERSION),
+		       MINOR_VERSION(FFA_MIN_VERSION));
 		return -EINVAL;
 	}
 
-	*version = ver.a0;
-	pr_info("Version %d.%d found\n", MAJOR_VERSION(ver.a0),
+	pr_info("Driver version %d.%d\n", MAJOR_VERSION(FFA_DRIVER_VERSION),
+		MINOR_VERSION(FFA_DRIVER_VERSION));
+	pr_info("Firmware version %d.%d found\n", MAJOR_VERSION(ver.a0),
 		MINOR_VERSION(ver.a0));
+	*version = ffa_compatible_version_find(ver.a0);
+
 	return 0;
 }
 
@@ -586,6 +612,22 @@ ffa_memory_share(struct ffa_device *dev, struct ffa_mem_ops_args *args)
 	return ffa_memory_ops(FFA_FN_NATIVE(MEM_SHARE), args);
 }
 
+static int
+ffa_memory_lend(struct ffa_device *dev, struct ffa_mem_ops_args *args)
+{
+	/* Note that upon a successful MEM_LEND request the caller
+	 * must ensure that the memory region specified is not accessed
+	 * until a successful MEM_RECALIM call has been made.
+	 * On systems with a hypervisor present this will been enforced,
+	 * however on systems without a hypervisor the responsibility
+	 * falls to the calling kernel driver to prevent access.
+	 */
+	if (dev->mode_32bit)
+		return ffa_memory_ops(FFA_MEM_LEND, args);
+
+	return ffa_memory_ops(FFA_FN_NATIVE(MEM_LEND), args);
+}
+
 static const struct ffa_dev_ops ffa_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
@@ -593,6 +635,7 @@ static const struct ffa_dev_ops ffa_ops = {
 	.sync_send_receive = ffa_sync_send_receive,
 	.memory_reclaim = ffa_memory_reclaim,
 	.memory_share = ffa_memory_share,
+	.memory_lend = ffa_memory_lend,
 };
 
 const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev)
