@@ -17,6 +17,23 @@
 
 #include <asm/sbi.h>
 
+PMU_FORMAT_ATTR(event, "config:0-63");
+
+static struct attribute *riscv_arch_formats_attr[] = {
+	&format_attr_event.attr,
+	NULL,
+};
+
+static struct attribute_group riscv_pmu_format_group = {
+	.name = "format",
+	.attrs = riscv_arch_formats_attr,
+};
+
+static const struct attribute_group *riscv_pmu_attr_groups[] = {
+	&riscv_pmu_format_group,
+	NULL,
+};
+
 static unsigned long csr_read_num(int csr_num)
 {
 #define switchcase_csr_read(__csr_num, __val)		{\
@@ -307,6 +324,7 @@ struct riscv_pmu *riscv_pmu_alloc(void)
 			cpuc->events[i] = NULL;
 	}
 	pmu->pmu = (struct pmu) {
+		.attr_groups	= riscv_pmu_attr_groups,
 		.event_init	= riscv_pmu_event_init,
 		.add		= riscv_pmu_add,
 		.del		= riscv_pmu_del,
