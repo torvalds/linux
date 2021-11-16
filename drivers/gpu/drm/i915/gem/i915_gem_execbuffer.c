@@ -998,11 +998,9 @@ static int eb_validate_vmas(struct i915_execbuffer *eb)
 			}
 		}
 
-		if (!(ev->flags & EXEC_OBJECT_WRITE)) {
-			err = dma_resv_reserve_shared(vma->obj->base.resv, 1);
-			if (err)
-				return err;
-		}
+		err = dma_resv_reserve_fences(vma->obj->base.resv, 1);
+		if (err)
+			return err;
 
 		GEM_BUG_ON(drm_mm_node_allocated(&vma->node) &&
 			   eb_vma_misplaced(&eb->exec[i], vma, ev->flags));
@@ -2303,7 +2301,7 @@ static int eb_parse(struct i915_execbuffer *eb)
 	if (IS_ERR(batch))
 		return PTR_ERR(batch);
 
-	err = dma_resv_reserve_shared(shadow->obj->base.resv, 1);
+	err = dma_resv_reserve_fences(shadow->obj->base.resv, 1);
 	if (err)
 		return err;
 

@@ -108,7 +108,8 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	trace_i915_gem_object_clflush(obj);
 
 	clflush = NULL;
-	if (!(flags & I915_CLFLUSH_SYNC))
+	if (!(flags & I915_CLFLUSH_SYNC) &&
+	    dma_resv_reserve_fences(obj->base.resv, 1) == 0)
 		clflush = clflush_work_create(obj);
 	if (clflush) {
 		i915_sw_fence_await_reservation(&clflush->base.chain,

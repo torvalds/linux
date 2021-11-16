@@ -75,17 +75,16 @@ static int test_signaling(void *arg, bool shared)
 		goto err_free;
 	}
 
-	if (shared) {
-		r = dma_resv_reserve_shared(&resv, 1);
-		if (r) {
-			pr_err("Resv shared slot allocation failed\n");
-			goto err_unlock;
-		}
-
-		dma_resv_add_shared_fence(&resv, f);
-	} else {
-		dma_resv_add_excl_fence(&resv, f);
+	r = dma_resv_reserve_fences(&resv, 1);
+	if (r) {
+		pr_err("Resv shared slot allocation failed\n");
+		goto err_unlock;
 	}
+
+	if (shared)
+		dma_resv_add_shared_fence(&resv, f);
+	else
+		dma_resv_add_excl_fence(&resv, f);
 
 	if (dma_resv_test_signaled(&resv, shared)) {
 		pr_err("Resv unexpectedly signaled\n");
@@ -134,17 +133,16 @@ static int test_for_each(void *arg, bool shared)
 		goto err_free;
 	}
 
-	if (shared) {
-		r = dma_resv_reserve_shared(&resv, 1);
-		if (r) {
-			pr_err("Resv shared slot allocation failed\n");
-			goto err_unlock;
-		}
-
-		dma_resv_add_shared_fence(&resv, f);
-	} else {
-		dma_resv_add_excl_fence(&resv, f);
+	r = dma_resv_reserve_fences(&resv, 1);
+	if (r) {
+		pr_err("Resv shared slot allocation failed\n");
+		goto err_unlock;
 	}
+
+	if (shared)
+		dma_resv_add_shared_fence(&resv, f);
+	else
+		dma_resv_add_excl_fence(&resv, f);
 
 	r = -ENOENT;
 	dma_resv_for_each_fence(&cursor, &resv, shared, fence) {
@@ -206,18 +204,17 @@ static int test_for_each_unlocked(void *arg, bool shared)
 		goto err_free;
 	}
 
-	if (shared) {
-		r = dma_resv_reserve_shared(&resv, 1);
-		if (r) {
-			pr_err("Resv shared slot allocation failed\n");
-			dma_resv_unlock(&resv);
-			goto err_free;
-		}
-
-		dma_resv_add_shared_fence(&resv, f);
-	} else {
-		dma_resv_add_excl_fence(&resv, f);
+	r = dma_resv_reserve_fences(&resv, 1);
+	if (r) {
+		pr_err("Resv shared slot allocation failed\n");
+		dma_resv_unlock(&resv);
+		goto err_free;
 	}
+
+	if (shared)
+		dma_resv_add_shared_fence(&resv, f);
+	else
+		dma_resv_add_excl_fence(&resv, f);
 	dma_resv_unlock(&resv);
 
 	r = -ENOENT;
@@ -290,18 +287,17 @@ static int test_get_fences(void *arg, bool shared)
 		goto err_resv;
 	}
 
-	if (shared) {
-		r = dma_resv_reserve_shared(&resv, 1);
-		if (r) {
-			pr_err("Resv shared slot allocation failed\n");
-			dma_resv_unlock(&resv);
-			goto err_resv;
-		}
-
-		dma_resv_add_shared_fence(&resv, f);
-	} else {
-		dma_resv_add_excl_fence(&resv, f);
+	r = dma_resv_reserve_fences(&resv, 1);
+	if (r) {
+		pr_err("Resv shared slot allocation failed\n");
+		dma_resv_unlock(&resv);
+		goto err_resv;
 	}
+
+	if (shared)
+		dma_resv_add_shared_fence(&resv, f);
+	else
+		dma_resv_add_excl_fence(&resv, f);
 	dma_resv_unlock(&resv);
 
 	r = dma_resv_get_fences(&resv, shared, &i, &fences);
