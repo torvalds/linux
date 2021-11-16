@@ -2691,8 +2691,7 @@ static int __IMX464_power_on(struct IMX464 *IMX464)
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
 	}
-
-	usleep_range(10000, 11000);
+	usleep_range(15000, 16000);
 	if (!IS_ERR(IMX464->reset_gpio))
 		gpiod_set_value_cansleep(IMX464->reset_gpio, 1);
 
@@ -2729,7 +2728,7 @@ static void __IMX464_power_off(struct IMX464 *IMX464)
 			dev_err(dev, "could not set pins\n");
 	}
 	regulator_bulk_disable(IMX464_NUM_SUPPLIES, IMX464->supplies);
-	usleep_range(10000, 11000);
+	usleep_range(15000, 16000);
 }
 
 static int IMX464_runtime_resume(struct device *dev)
@@ -2792,7 +2791,7 @@ static int IMX464_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 #define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
-#define DST_WIDTH 2688
+#define DST_WIDTH 2560
 #define DST_HEIGHT 1520
 
 /*
