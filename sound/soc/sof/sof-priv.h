@@ -515,6 +515,7 @@ void snd_sof_fw_unload(struct snd_sof_dev *sdev);
  */
 struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev);
 void snd_sof_ipc_free(struct snd_sof_dev *sdev);
+void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev);
 void snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id);
 void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev);
 int snd_sof_ipc_stream_pcm_params(struct snd_sof_dev *sdev,
@@ -527,6 +528,11 @@ int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
 			     void *msg_data, size_t msg_bytes,
 			     void *reply_data, size_t reply_bytes);
 int sof_ipc_init_msg_memory(struct snd_sof_dev *sdev);
+static inline void snd_sof_ipc_process_reply(struct snd_sof_dev *sdev, u32 msg_id)
+{
+	snd_sof_ipc_get_reply(sdev);
+	snd_sof_ipc_reply(sdev, msg_id);
+}
 
 /*
  * Trace/debug
