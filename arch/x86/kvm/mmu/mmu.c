@@ -3191,17 +3191,17 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			new_spte |= PT_WRITABLE_MASK;
 
 			/*
-			 * Do not fix write-permission on the large spte.  Since
-			 * we only dirty the first page into the dirty-bitmap in
+			 * Do not fix write-permission on the large spte when
+			 * dirty logging is enabled. Since we only dirty the
+			 * first page into the dirty-bitmap in
 			 * fast_pf_fix_direct_spte(), other pages are missed
 			 * if its slot has dirty logging enabled.
 			 *
 			 * Instead, we let the slow page fault path create a
 			 * normal spte to fix the access.
-			 *
-			 * See the comments in kvm_arch_commit_memory_region().
 			 */
-			if (sp->role.level > PG_LEVEL_4K)
+			if (sp->role.level > PG_LEVEL_4K &&
+			    kvm_slot_dirty_track_enabled(fault->slot))
 				break;
 		}
 

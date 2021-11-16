@@ -2388,13 +2388,6 @@ void security_sctp_sk_clone(struct sctp_association *asoc, struct sock *sk,
 }
 EXPORT_SYMBOL(security_sctp_sk_clone);
 
-void security_sctp_assoc_established(struct sctp_association *asoc,
-				     struct sk_buff *skb)
-{
-	call_void_hook(sctp_assoc_established, asoc, skb);
-}
-EXPORT_SYMBOL(security_sctp_assoc_established);
-
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_INFINIBAND

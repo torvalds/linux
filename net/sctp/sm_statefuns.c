@@ -946,7 +946,7 @@ enum sctp_disposition sctp_sf_do_5_1E_ca(struct net *net,
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_COUNTER_RESET, SCTP_NULL());
 
 	/* Set peer label for connection. */
-	security_sctp_assoc_established((struct sctp_association *)asoc, chunk->skb);
+	security_inet_conn_established(ep->base.sk, chunk->skb);
 
 	/* RFC 2960 5.1 Normal Establishment of an Association
 	 *

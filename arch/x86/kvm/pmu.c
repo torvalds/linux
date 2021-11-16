@@ -319,7 +319,7 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 }
 
 /* check if idx is a valid index to access PMU */
-int kvm_pmu_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
+bool kvm_pmu_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
 {
 	return kvm_x86_ops.pmu_ops->is_valid_rdpmc_ecx(vcpu, idx);
 }

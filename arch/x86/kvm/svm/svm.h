@@ -80,6 +80,7 @@ struct kvm_sev_info {
 	u64 ap_jump_table;	/* SEV-ES AP Jump Table address */
 	struct kvm *enc_context_owner; /* Owner of copied encryption context */
 	struct misc_cg *misc_cg; /* For misc cgroup accounting */
+	atomic_t migration_in_progress;
 };
 
 struct kvm_svm {
@@ -121,6 +122,20 @@ struct svm_nested_state {
 	struct vmcb_control_area ctl;
 
 	bool initialized;
+};
+
+struct vcpu_sev_es_state {
+	/* SEV-ES support */
+	struct vmcb_save_area *vmsa;
+	struct ghcb *ghcb;
+	struct kvm_host_map ghcb_map;
+	bool received_first_sipi;
+
+	/* SEV-ES scratch area support */
+	void *ghcb_sa;
+	u32 ghcb_sa_len;
+	bool ghcb_sa_sync;
+	bool ghcb_sa_free;
 };
 
 struct vcpu_svm {
@@ -186,17 +201,7 @@ struct vcpu_svm {
 		DECLARE_BITMAP(write, MAX_DIRECT_ACCESS_MSRS);
 	} shadow_msr_intercept;
 
-	/* SEV-ES support */
-	struct vmcb_save_area *vmsa;
-	struct ghcb *ghcb;
-	struct kvm_host_map ghcb_map;
-	bool received_first_sipi;
-
-	/* SEV-ES scratch area support */
-	void *ghcb_sa;
-	u32 ghcb_sa_len;
-	bool ghcb_sa_sync;
-	bool ghcb_sa_free;
+	struct vcpu_sev_es_state sev_es;
 
 	bool guest_state_loaded;
 };
@@ -558,6 +563,7 @@ int svm_register_enc_region(struct kvm *kvm,
 int svm_unregister_enc_region(struct kvm *kvm,
 			      struct kvm_enc_region *range);
 int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd);
+int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd);
 void pre_sev_run(struct vcpu_svm *svm, int cpu);
 void __init sev_set_cpu_caps(void);
 void __init sev_hardware_setup(void);

@@ -4676,11 +4676,10 @@ COCCINELLE/Semantic Patches (SmPL)
 M:	Julia Lawall <Julia.Lawall@inria.fr>
 M:	Gilles Muller <Gilles.Muller@inria.fr>
 M:	Nicolas Palix <nicolas.palix@imag.fr>
-M:	Michal Marek <michal.lkml@markovi.net>
-L:	cocci@systeme.lip6.fr (moderated for non-subscribers)
+L:	cocci@inria.fr (moderated for non-subscribers)
 S:	Supported
-W:	http://coccinelle.lip6.fr/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mmarek/kbuild.git misc
+W:	https://coccinelle.gitlabpages.inria.fr/website/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlawall/linux.git
 F:	Documentation/dev-tools/coccinelle.rst
 F:	scripts/coccicheck
 F:	scripts/coccinelle/
