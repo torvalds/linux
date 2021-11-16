@@ -443,15 +443,6 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_exists = true;
 	}
 
-	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
-		dev_warn(hdev->dev,
-			"Device boot warning - Skipped DRAM initialization\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_DRAM_SKIPPED;
-	}
-
 	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
 		if (hdev->bmc_enable) {
 			dev_err(hdev->dev,
@@ -495,15 +486,6 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_exists = true;
 	}
 
-	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL) {
-		dev_warn(hdev->dev,
-			"Device boot warning - Failed to load preboot primary image\n");
-		/* This is a warning so we don't want it to disable the
-		 * device as we have a secondary preboot image
-		 */
-		err_val &= ~CPU_BOOT_ERR0_PRI_IMG_VER_FAIL;
-	}
-
 	if (err_val & CPU_BOOT_ERR0_SEC_IMG_VER_FAIL) {
 		dev_err(hdev->dev, "Device boot error - Failed to load preboot secondary image\n");
 		err_exists = true;
@@ -523,10 +505,23 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
-	if (!err_exists && (err_val & ~CPU_BOOT_ERR0_ENABLED)) {
-		dev_err(hdev->dev,
-			"Device boot error - unknown ERR0 error 0x%08x\n", err_val);
-		err_exists = true;
+	/* All warnings should go here in order not to reach the unknown error validation */
+	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
+		dev_warn(hdev->dev,
+			"Device boot warning - Skipped DRAM initialization\n");
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_DRAM_SKIPPED;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL) {
+		dev_warn(hdev->dev,
+			"Device boot warning - Failed to load preboot primary image\n");
+		/* This is a warning so we don't want it to disable the
+		 * device as we have a secondary preboot image
+		 */
+		err_val &= ~CPU_BOOT_ERR0_PRI_IMG_VER_FAIL;
 	}
 
 	if (err_val & CPU_BOOT_ERR0_TPM_FAIL) {
@@ -536,6 +531,12 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		 * device
 		 */
 		err_val &= ~CPU_BOOT_ERR0_TPM_FAIL;
+	}
+
+	if (!err_exists && (err_val & ~CPU_BOOT_ERR0_ENABLED)) {
+		dev_err(hdev->dev,
+			"Device boot error - unknown ERR0 error 0x%08x\n", err_val);
+		err_exists = true;
 	}
 
 	/* return error only if it's in the predefined mask */
