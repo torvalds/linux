@@ -362,8 +362,9 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 			goto out;
 	}
 
-	truncate_pagecache_range(dst_inode, pos_dst,
-				 pos_dst + res->write_res.count);
+	WARN_ON_ONCE(invalidate_inode_pages2_range(dst_inode->i_mapping,
+					pos_dst >> PAGE_SHIFT,
+					(pos_dst + res->write_res.count - 1) >> PAGE_SHIFT));
 	spin_lock(&dst_inode->i_lock);
 	NFS_I(dst_inode)->cache_validity |= (NFS_INO_REVAL_PAGECACHE |
 			NFS_INO_REVAL_FORCED | NFS_INO_INVALID_SIZE |
