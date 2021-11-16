@@ -1065,7 +1065,7 @@ static int da9121_i2c_remove(struct i2c_client *i2c)
 {
 	struct da9121 *chip = i2c_get_clientdata(i2c);
 	const int mask_all[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-	int ret = 0;
+	int ret;
 
 	free_irq(chip->chip_irq, chip);
 	cancel_delayed_work_sync(&chip->work);
@@ -1073,7 +1073,7 @@ static int da9121_i2c_remove(struct i2c_client *i2c)
 	ret = regmap_bulk_write(chip->regmap, DA9121_REG_SYS_MASK_0, mask_all, 4);
 	if (ret != 0)
 		dev_err(chip->dev, "Failed to set IRQ masks: %d\n", ret);
-	return ret;
+	return 0;
 }
 
 static const struct i2c_device_id da9121_i2c_id[] = {
