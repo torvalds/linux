@@ -75,7 +75,7 @@ struct amdgpu_mec {
 	u32 num_mec;
 	u32 num_pipe_per_mec;
 	u32 num_queue_per_pipe;
-	void			*mqd_backup[AMDGPU_MAX_COMPUTE_RINGS + 1];
+	void			*mqd_backup[AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES];
 };
 
 struct amdgpu_mec_bitmap {
@@ -122,6 +122,7 @@ struct amdgpu_kiq {
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
 	const struct kiq_pm4_funcs *pmf;
+	void			*mqd_backup;
 };
 
 /*
