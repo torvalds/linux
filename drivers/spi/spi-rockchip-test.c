@@ -37,7 +37,7 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 
-#define MAX_SPI_DEV_NUM 8
+#define MAX_SPI_DEV_NUM 10
 #define SPI_MAX_SPEED_HZ	12000000
 
 struct spi_test_data {
