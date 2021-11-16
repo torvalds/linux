@@ -4649,9 +4649,9 @@ remove:
 }
 
 static enum drm_mode_status
-vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
-		     int output_type)
+vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 {
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
@@ -4670,8 +4670,8 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 	/*
 	 * Hdmi or DisplayPort request a Accurate clock.
 	 */
-	if (output_type == DRM_MODE_CONNECTOR_HDMIA ||
-	    output_type == DRM_MODE_CONNECTOR_DisplayPort)
+	if (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA ||
+	    vcstate->output_type == DRM_MODE_CONNECTOR_DisplayPort)
 		if (clock != request_clock)
 			return MODE_CLOCK_RANGE;
 
@@ -4854,7 +4854,6 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.debugfs_init = vop2_crtc_debugfs_init,
 	.debugfs_dump = vop2_crtc_debugfs_dump,
 	.regs_dump = vop2_crtc_regs_dump,
-	.mode_valid = vop2_crtc_mode_valid,
 	.bandwidth = vop2_crtc_bandwidth,
 	.crtc_close = vop2_crtc_close,
 };
@@ -6867,6 +6866,7 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 }
 
 static const struct drm_crtc_helper_funcs vop2_crtc_helper_funcs = {
+	.mode_valid = vop2_crtc_mode_valid,
 	.mode_fixup = vop2_crtc_mode_fixup,
 	.atomic_check = vop2_crtc_atomic_check,
 	.atomic_begin = vop2_crtc_atomic_begin,
