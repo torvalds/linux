@@ -469,10 +469,16 @@ static void aspeed_sw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 
 	while (remain_xfer) {
 		tdi = (xfer_data[index]) >> (shift_bits % 8) & (0x1);
-		if (remain_xfer == 1)
-			tdo = TCK_Cycle(aspeed_jtag, 1, tdi); // go to Exit1-IR
-		else
-			tdo = TCK_Cycle(aspeed_jtag, 0, tdi); // go to IRShift
+		if (remain_xfer == 1 &&
+		    xfer->endstate != (xfer->type == JTAG_SIR_XFER ?
+						     JTAG_STATE_SHIFTIR :
+						     JTAG_STATE_SHIFTDR)) {
+			tdo = TCK_Cycle(aspeed_jtag, 1, tdi); // go to Exit1-XR
+			aspeed_jtag->sts = xfer->type == JTAG_SIR_XFER ?
+							 JTAG_STATE_EXIT1IR :
+							 JTAG_STATE_EXIT1DR;
+		} else
+			tdo = TCK_Cycle(aspeed_jtag, 0, tdi); // go to XRShift
 		tdo_buff |= (tdo << (shift_bits % 8));
 		shift_bits++;
 		remain_xfer--;
@@ -485,11 +491,6 @@ static void aspeed_sw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 	}
 	if (xfer->direction & JTAG_READ_XFER && (shift_bits % 8))
 		xfer_data[index] = tdo_buff;
-	TCK_Cycle(aspeed_jtag, 0, 0);
-	if (xfer->type == JTAG_SIR_XFER)
-		aspeed_jtag->sts = JTAG_STATE_PAUSEIR;
-	else
-		aspeed_jtag->sts = JTAG_STATE_PAUSEDR;
 	aspeed_jtag_sw_set_tap_state(aspeed_jtag, xfer->endstate);
 }
 static int aspeed_hw_ir_scan(struct aspeed_jtag_info *aspeed_jtag,
