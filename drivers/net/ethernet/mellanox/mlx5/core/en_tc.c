@@ -3366,55 +3366,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	hdrs = parse_state->hdrs;
 
 	flow_action_for_each(i, act, flow_action) {
-		switch (act->id) {
-		case FLOW_ACTION_REDIRECT_INGRESS: {
-			struct net_device *out_dev;
-
-			out_dev = act->dev;
-			if (!out_dev)
-				return -EOPNOTSUPP;
-
-			if (!netif_is_ovs_master(out_dev)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "redirect to ingress is supported only for OVS internal ports");
-				return -EOPNOTSUPP;
-			}
-
-			if (netif_is_ovs_master(parse_attr->filter_dev)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "redirect to ingress is not supported from internal port");
-				return -EOPNOTSUPP;
-			}
-
-			if (!parse_state->ptype_host) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "redirect to int port ingress requires ptype=host action");
-				return -EOPNOTSUPP;
-			}
-
-			if (esw_attr->out_count) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "redirect to int port ingress is supported only as single destination");
-				return -EOPNOTSUPP;
-			}
-
-			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-
-			err = mlx5e_set_fwd_to_int_port_actions(priv, attr, out_dev->ifindex,
-								MLX5E_TC_INT_PORT_INGRESS,
-								&attr->action, esw_attr->out_count);
-			if (err)
-				return err;
-
-			esw_attr->out_count++;
-
-			break;
-		}
-		default:
-			break;
-		}
-
 		tc_act = mlx5e_tc_act_get(act->id, ns_type);
 		if (!tc_act) {
 			NL_SET_ERR_MSG_MOD(extack, "Not implemented offload action");

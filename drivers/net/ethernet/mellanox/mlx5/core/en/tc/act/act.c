@@ -13,7 +13,7 @@ static struct mlx5e_tc_act *tc_acts_fdb[NUM_FLOW_ACTIONS] = {
 	&mlx5e_tc_act_goto,
 	&mlx5e_tc_act_mirred,
 	&mlx5e_tc_act_mirred,
-	NULL, /* FLOW_ACTION_REDIRECT_INGRESS, */
+	&mlx5e_tc_act_redirect_ingress,
 	NULL, /* FLOW_ACTION_MIRRED_INGRESS, */
 	&mlx5e_tc_act_vlan,
 	&mlx5e_tc_act_vlan,
