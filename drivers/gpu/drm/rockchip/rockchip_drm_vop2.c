@@ -3221,7 +3221,13 @@ static int vop2_cluster_two_win_mode_check(struct drm_plane_state *pstate)
 
 	main_pstate = drm_atomic_get_new_plane_state(state, &main_win->base);
 
-	if (pstate->fb->modifier == DRM_FORMAT_MOD_LINEAR)
+	if (pstate->fb->modifier != main_pstate->fb->modifier) {
+		DRM_ERROR("%s(fb->modifier: 0x%llx) must use same data layout as %s(fb->modifier: 0x%llx)\n",
+				win->name, pstate->fb->modifier, main_win->name, main_pstate->fb->modifier);
+		return -EINVAL;
+	}
+
+	if (main_pstate->fb->modifier == DRM_FORMAT_MOD_LINEAR)
 		xoffset = 0;
 	else
 		xoffset = main_pstate->src.x1 >> 16;
