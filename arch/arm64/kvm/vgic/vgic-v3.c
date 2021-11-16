@@ -542,13 +542,13 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
 	int ret = 0;
-	int c;
+	unsigned long c;
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
 		if (IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr)) {
-			kvm_debug("vcpu %d redistributor base not set\n", c);
+			kvm_debug("vcpu %ld redistributor base not set\n", c);
 			return -ENXIO;
 		}
 	}

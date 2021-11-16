@@ -185,7 +185,7 @@ void kvm_recalculate_apic_map(struct kvm *kvm)
 {
 	struct kvm_apic_map *new, *old = NULL;
 	struct kvm_vcpu *vcpu;
-	int i;
+	unsigned long i;
 	u32 max_id = 255; /* enough space for any xAPIC ID */
 
 	/* Read kvm->arch.apic_map_dirty before kvm->arch.apic_map.  */
@@ -1172,8 +1172,8 @@ void kvm_bitmap_or_dest_vcpus(struct kvm *kvm, struct kvm_lapic_irq *irq,
 	struct kvm_lapic *src = NULL;
 	struct kvm_apic_map *map;
 	struct kvm_vcpu *vcpu;
-	unsigned long bitmap;
-	int i, vcpu_idx;
+	unsigned long bitmap, i;
+	int vcpu_idx;
 	bool ret;
 
 	rcu_read_lock();

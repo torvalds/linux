@@ -121,8 +121,8 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 
 static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 {
-	int i, matching_cpus = 0;
-	unsigned long mpidr;
+	int matching_cpus = 0;
+	unsigned long i, mpidr;
 	unsigned long target_affinity;
 	unsigned long target_affinity_mask;
 	unsigned long lowest_affinity_level;
@@ -164,7 +164,7 @@ static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 
 static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type)
 {
-	int i;
+	unsigned long i;
 	struct kvm_vcpu *tmp;
 
 	/*

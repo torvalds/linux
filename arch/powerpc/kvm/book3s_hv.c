@@ -1993,7 +1993,7 @@ static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr,
 	 */
 	if ((new_lpcr & LPCR_ILE) != (vc->lpcr & LPCR_ILE)) {
 		struct kvm_vcpu *vcpu;
-		int i;
+		unsigned long i;
 
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			if (vcpu->arch.vcore != vc)
@@ -4786,8 +4786,8 @@ static int kvm_vm_ioctl_get_dirty_log_hv(struct kvm *kvm,
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
-	int i, r;
-	unsigned long n;
+	int r;
+	unsigned long n, i;
 	unsigned long *buf, *p;
 	struct kvm_vcpu *vcpu;
 
@@ -5861,7 +5861,7 @@ static int kvmhv_svm_off(struct kvm *kvm)
 	int mmu_was_ready;
 	int srcu_idx;
 	int ret = 0;
-	int i;
+	unsigned long i;
 
 	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
 		return ret;

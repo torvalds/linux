@@ -170,7 +170,7 @@ static bool vcpu_allowed_register_width(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu *tmp;
 	bool is32bit;
-	int i;
+	unsigned long i;
 
 	is32bit = vcpu_has_feature(vcpu, KVM_ARM_VCPU_EL1_32BIT);
 	if (!cpus_have_const_cap(ARM64_HAS_32BIT_EL1) && is32bit)

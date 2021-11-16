@@ -428,7 +428,7 @@ static int kvmppc_core_check_requests_pr(struct kvm_vcpu *vcpu)
 /************* MMU Notifiers *************/
 static bool do_kvm_unmap_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	long i;
+	unsigned long i;
 	struct kvm_vcpu *vcpu;
 
 	kvm_for_each_vcpu(i, vcpu, kvm)

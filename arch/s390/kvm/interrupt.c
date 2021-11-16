@@ -2659,7 +2659,7 @@ static int flic_ais_mode_set_all(struct kvm *kvm, struct kvm_device_attr *attr)
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
-	unsigned int i;
+	unsigned long i;
 	struct kvm_vcpu *vcpu;
 
 	switch (attr->group) {

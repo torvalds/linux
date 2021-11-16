@@ -33,7 +33,8 @@ int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 {
 	struct kvm_arch *kvm_arch = &kvm->arch;
 	struct kvm_vcpu *vcpu;
-	int ret = 0, i, nr_unique_valid_roots;
+	int ret = 0, nr_unique_valid_roots;
+	unsigned long i;
 	hpa_t root;
 
 	spin_lock(&kvm_arch->hv_root_tdp_lock);

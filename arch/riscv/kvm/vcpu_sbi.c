@@ -60,7 +60,7 @@ int kvm_riscv_vcpu_sbi_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 static void kvm_sbi_system_shutdown(struct kvm_vcpu *vcpu,
 				    struct kvm_run *run, u32 type)
 {
-	int i;
+	unsigned long i;
 	struct kvm_vcpu *tmp;
 
 	kvm_for_each_vcpu(i, tmp, vcpu->kvm)
