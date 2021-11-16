@@ -467,23 +467,7 @@ static void mtk_validate(struct phylink_config *config,
 			 unsigned long *supported,
 			 struct phylink_link_state *state)
 {
-	struct mtk_mac *mac = container_of(config, struct mtk_mac,
-					   phylink_config);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    state->interface != PHY_INTERFACE_MODE_MII &&
-	    state->interface != PHY_INTERFACE_MODE_GMII &&
-	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_RGMII) &&
-	      phy_interface_mode_is_rgmii(state->interface)) &&
-	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_TRGMII) &&
-	      !mac->id && state->interface == PHY_INTERFACE_MODE_TRGMII) &&
-	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_SGMII) &&
-	      (state->interface == PHY_INTERFACE_MODE_SGMII ||
-	       phy_interface_mode_is_8023z(state->interface)))) {
-		linkmode_zero(supported);
-		return;
-	}
 
 	phylink_set_port_modes(mask);
 	phylink_set(mask, Autoneg);
@@ -511,30 +495,12 @@ static void mtk_validate(struct phylink_config *config,
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_RMII:
 	case PHY_INTERFACE_MODE_REVMII:
-	case PHY_INTERFACE_MODE_NA:
 	default:
 		phylink_set(mask, 10baseT_Half);
 		phylink_set(mask, 10baseT_Full);
 		phylink_set(mask, 100baseT_Half);
 		phylink_set(mask, 100baseT_Full);
 		break;
-	}
-
-	if (state->interface == PHY_INTERFACE_MODE_NA) {
-		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_SGMII)) {
-			phylink_set(mask, 1000baseT_Full);
-			phylink_set(mask, 1000baseX_Full);
-			phylink_set(mask, 2500baseX_Full);
-		}
-		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_RGMII)) {
-			phylink_set(mask, 1000baseT_Full);
-			phylink_set(mask, 1000baseT_Half);
-			phylink_set(mask, 1000baseX_Full);
-		}
-		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_GEPHY)) {
-			phylink_set(mask, 1000baseT_Full);
-			phylink_set(mask, 1000baseT_Half);
-		}
 	}
 
 	phylink_set(mask, Pause);
