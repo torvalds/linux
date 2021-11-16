@@ -16,6 +16,11 @@
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <backend/gpu/mali_kbase_pm_defs.h>
 
+#if MALI_USE_CSF
+#include <asm/arch_timer.h>
+#endif
+
+#include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 #include <linux/of.h>
@@ -457,3 +462,47 @@ int kbase_platform_rk_init_opp_table(struct kbase_device *kbdev)
 	return rockchip_init_opp_table(kbdev->dev, NULL,
 				       "gpu_leakage", "mali");
 }
+
+/*---------------------------------------------------------------------------*/
+
+static void *enumerate_gpu_clk(struct kbase_device *kbdev,
+		unsigned int index)
+{
+	if (index >= kbdev->nr_clocks)
+		return NULL;
+
+	return kbdev->clocks[index];
+}
+
+static unsigned long get_gpu_clk_rate(struct kbase_device *kbdev,
+		void *gpu_clk_handle)
+{
+	return clk_get_rate((struct clk *)gpu_clk_handle);
+}
+
+static int gpu_clk_notifier_register(struct kbase_device *kbdev,
+		void *gpu_clk_handle, struct notifier_block *nb)
+{
+	compiletime_assert(offsetof(struct clk_notifier_data, clk) ==
+		offsetof(struct kbase_gpu_clk_notifier_data, gpu_clk_handle),
+		"mismatch in the offset of clk member");
+
+	compiletime_assert(sizeof(((struct clk_notifier_data *)0)->clk) ==
+	     sizeof(((struct kbase_gpu_clk_notifier_data *)0)->gpu_clk_handle),
+	     "mismatch in the size of clk member");
+
+	return clk_notifier_register((struct clk *)gpu_clk_handle, nb);
+}
+
+static void gpu_clk_notifier_unregister(struct kbase_device *kbdev,
+		void *gpu_clk_handle, struct notifier_block *nb)
+{
+	clk_notifier_unregister((struct clk *)gpu_clk_handle, nb);
+}
+
+struct kbase_clk_rate_trace_op_conf clk_rate_trace_ops = {
+	.get_gpu_clk_rate = get_gpu_clk_rate,
+	.enumerate_gpu_clk = enumerate_gpu_clk,
+	.gpu_clk_notifier_register = gpu_clk_notifier_register,
+	.gpu_clk_notifier_unregister = gpu_clk_notifier_unregister,
+};
