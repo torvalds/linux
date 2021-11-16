@@ -1452,8 +1452,10 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	tcp_ses->max_in_flight = 0;
 	tcp_ses->credits = 1;
 	if (primary_server) {
+		spin_lock(&cifs_tcp_ses_lock);
 		++primary_server->srv_count;
 		tcp_ses->primary_server = primary_server;
+		spin_unlock(&cifs_tcp_ses_lock);
 	}
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
