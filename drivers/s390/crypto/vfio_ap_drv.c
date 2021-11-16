@@ -41,6 +41,8 @@ static struct ap_device_id ap_queue_ids[] = {
 	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
 	{ .dev_type = AP_DEVICE_TYPE_CEX7,
 	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
+	{ .dev_type = AP_DEVICE_TYPE_CEX8,
+	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
 	{ /* end of sibling */ },
 };
 
