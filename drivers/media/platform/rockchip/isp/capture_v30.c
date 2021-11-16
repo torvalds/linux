@@ -430,18 +430,21 @@ static int sp_config_mi(struct rkisp_stream *stream)
 
 static int fbc_config_mi(struct rkisp_stream *stream)
 {
+	/* yuv422 is 16*2, yuv420 is 16*1.5 */
+	u32 mult = stream->out_isp_fmt.write_format ? 32 : 24;
 	u32 h = ALIGN(stream->out_fmt.height, 16);
 	u32 w = ALIGN(stream->out_fmt.width, 16);
-	u32 offs = w * h / 16;
+	u32 offs = ALIGN(w * h / 16, RK_MPP_ALIGN);
 	bool is_unite = stream->ispdev->hw_dev->is_unite;
 
 	rkisp_write(stream->ispdev, ISP3X_MPFBC_HEAD_OFFSET, offs, false);
 	rkisp_unite_write(stream->ispdev, ISP3X_MPFBC_VIR_WIDTH, w, false, is_unite);
+	rkisp_unite_write(stream->ispdev, ISP3X_MPFBC_PAYL_WIDTH, w, false, is_unite);
 	rkisp_unite_write(stream->ispdev, ISP3X_MPFBC_VIR_HEIGHT, h, false, is_unite);
 	if (is_unite) {
 		u32 left_w = (stream->out_fmt.width / 2) & ~0xf;
 
-		offs += left_w * 32;
+		offs += left_w * mult;
 		rkisp_next_write(stream->ispdev, ISP3X_MPFBC_HEAD_OFFSET, offs, false);
 	}
 	mi_frame_end_int_enable(stream);
@@ -511,7 +514,8 @@ static void sp_enable_mi(struct rkisp_stream *stream)
 
 static void fbc_enable_mi(struct rkisp_stream *stream)
 {
-	u32 mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_MPFBC_YUV_MASK;
+	u32 mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_MPFBC_YUV_MASK |
+		   ISP3X_MPFBC_SPARSE_MODE;
 	u32 val = stream->out_isp_fmt.write_format |
 		  ISP3X_HEAD_OFFSET_EN | ISP3X_MPFBC_EN;
 	bool is_unite = stream->ispdev->hw_dev->is_unite;
@@ -578,7 +582,8 @@ static void update_mi(struct rkisp_stream *stream)
 		}
 
 		if (dev->hw_dev->is_unite) {
-			u32 mult = stream->id != RKISP_STREAM_FBC ? 1 : 32;
+			u32 mult = stream->id != RKISP_STREAM_FBC ? 1 :
+				   (stream->out_isp_fmt.write_format ? 32 : 24);
 
 			reg = stream->config->mi.y_base_ad_init;
 			val = stream->next_buf->buff_addr[RKISP_PLANE_Y];
