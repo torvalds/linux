@@ -962,13 +962,13 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
  */
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
-	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false;
+	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false,
+								reset_upon_device_release = false;
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	int i, rc;
 
 	if (!hdev->init_done) {
-		dev_err(hdev->dev,
-			"Can't reset before initialization is done\n");
+		dev_err(hdev->dev, "Can't reset before initialization is done\n");
 		return 0;
 	}
 
@@ -987,6 +987,8 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 				"Aborting reset because hard-reset is mutually exclusive with reset-on-device-release\n");
 			return -EINVAL;
 		}
+
+		reset_upon_device_release = true;
 
 		goto do_reset;
 	}
@@ -1024,12 +1026,10 @@ do_reset:
 
 		if (hard_reset)
 			dev_info(hdev->dev, "Going to reset device\n");
-		else if (flags & HL_DRV_RESET_DEV_RELEASE)
-			dev_info(hdev->dev,
-				"Going to reset device after it was released by user\n");
+		else if (reset_upon_device_release)
+			dev_info(hdev->dev, "Going to reset device after release by user\n");
 		else
-			dev_info(hdev->dev,
-				"Going to reset compute engines of inference device\n");
+			dev_info(hdev->dev, "Going to reset engines of inference device\n");
 	}
 
 again:
@@ -1174,16 +1174,14 @@ kill_processes:
 
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
-		dev_err(hdev->dev,
-			"failed to initialize the H/W after reset\n");
+		dev_err(hdev->dev, "failed to initialize the H/W after reset\n");
 		goto out_err;
 	}
 
 	/* If device is not idle fail the reset process */
 	if (!hdev->asic_funcs->is_device_idle(hdev, idle_mask,
 			HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
-		dev_err(hdev->dev,
-			"device is not idle (mask 0x%llx_%llx) after reset\n",
+		dev_err(hdev->dev, "device is not idle (mask 0x%llx_%llx) after reset\n",
 			idle_mask[1], idle_mask[0]);
 		rc = -EIO;
 		goto out_err;
@@ -1192,23 +1190,20 @@ kill_processes:
 	/* Check that the communication with the device is working */
 	rc = hdev->asic_funcs->test_queues(hdev);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to detect if device is alive after reset\n");
+		dev_err(hdev->dev, "Failed to detect if device is alive after reset\n");
 		goto out_err;
 	}
 
 	if (hard_reset) {
 		rc = device_late_init(hdev);
 		if (rc) {
-			dev_err(hdev->dev,
-				"Failed late init after hard reset\n");
+			dev_err(hdev->dev, "Failed late init after hard reset\n");
 			goto out_err;
 		}
 
 		rc = hl_vm_init(hdev);
 		if (rc) {
-			dev_err(hdev->dev,
-				"Failed to init memory module after hard reset\n");
+			dev_err(hdev->dev, "Failed to init memory module after hard reset\n");
 			goto out_err;
 		}
 
@@ -1216,8 +1211,11 @@ kill_processes:
 	} else {
 		rc = hdev->asic_funcs->soft_reset_late_init(hdev);
 		if (rc) {
-			dev_err(hdev->dev,
-				"Failed late init after soft reset\n");
+			if (reset_upon_device_release)
+				dev_err(hdev->dev,
+					"Failed late init in reset after device release\n");
+			else
+				dev_err(hdev->dev, "Failed late init after soft reset\n");
 			goto out_err;
 		}
 	}
@@ -1236,7 +1234,7 @@ kill_processes:
 		 * the device will be operational although it shouldn't be
 		 */
 		hdev->asic_funcs->enable_events_from_fw(hdev);
-	} else {
+	} else if (!reset_upon_device_release) {
 		hdev->soft_reset_cnt++;
 	}
 
@@ -1246,12 +1244,14 @@ out_err:
 	hdev->disabled = true;
 
 	if (hard_reset) {
-		dev_err(hdev->dev,
-			"Failed to reset! Device is NOT usable\n");
+		dev_err(hdev->dev, "Failed to reset! Device is NOT usable\n");
 		hdev->hard_reset_cnt++;
+	} else if (reset_upon_device_release) {
+		dev_err(hdev->dev, "Failed to reset device after user release\n");
+		hard_reset = true;
+		goto again;
 	} else {
-		dev_err(hdev->dev,
-			"Failed to do soft-reset, trying hard reset\n");
+		dev_err(hdev->dev, "Failed to do soft-reset\n");
 		hdev->soft_reset_cnt++;
 		hard_reset = true;
 		goto again;
