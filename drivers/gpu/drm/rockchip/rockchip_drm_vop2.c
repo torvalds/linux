@@ -7782,13 +7782,15 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		if (!find_primary_plane) {
 			DRM_DEV_ERROR(vop2->dev, "No primary plane find for video_port%d\n", i);
 			break;
+		} else {
+			/* give lowest zpos for primary plane */
+			win->zpos = registered_num_crtcs;
+			if (vop2_plane_init(vop2, win, possible_crtcs)) {
+				DRM_DEV_ERROR(vop2->dev, "failed to init primary plane\n");
+				break;
+			}
+			plane = &win->base;
 		}
-
-		if (vop2_plane_init(vop2, win, possible_crtcs)) {
-			DRM_DEV_ERROR(vop2->dev, "failed to init primary plane\n");
-			break;
-		}
-		plane = &win->base;
 
 		/* some times we want a cursor window for some vp */
 		if (vp->cursor_win_id >= 0) {
@@ -7866,10 +7868,15 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		if (win->type != DRM_PLANE_TYPE_OVERLAY)
 			continue;
 		/*
-		 * Only dual display(which need two crtcs) need mirror win
+		 * Only dual display on rk3568(which need two crtcs) need mirror win
 		 */
 		if (registered_num_crtcs < 2 && vop2_is_mirror_win(win))
 			continue;
+		/*
+		 * zpos of overlay plane is higher than primary
+		 * and lower than cursor
+		 */
+		win->zpos = registered_num_crtcs + j;
 
 		if (vop2->disable_win_move) {
 			crtc = vop2_find_crtc_by_plane_mask(vop2, win->phys_id);
