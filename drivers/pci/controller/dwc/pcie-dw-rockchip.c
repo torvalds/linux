@@ -101,6 +101,8 @@ struct reset_bulk_data	{
 #define PCIE_CLIENT_INTR_STATUS_MISC	0x10
 #define PCIE_CLIENT_INTR_MASK_LEGACY	0x1c
 #define UNMASK_ALL_LEGACY_INT		0xffff0000
+#define MASK_LEGACY_INT(x)		(0x00110011 << x)
+#define UNMASK_LEGACY_INT(x)		(0x00110000 << x)
 #define PCIE_CLIENT_INTR_MASK		0x24
 #define PCIE_CLIENT_GENERAL_DEBUG	0x104
 #define PCIE_CLIENT_HOT_RESET_CTRL	0x180
@@ -156,6 +158,7 @@ struct rk_pcie {
 	bool				bifurcation;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
+	raw_spinlock_t			intx_lock;
 };
 
 struct rk_pcie_of_data {
@@ -1490,10 +1493,41 @@ static void rk_pcie_fast_link_setup(struct rk_pcie *rk_pcie)
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL, val);
 }
 
+static void rk_pcie_legacy_irq_mask(struct irq_data *d)
+{
+	struct rk_pcie *rk_pcie = irq_data_get_irq_chip_data(d);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&rk_pcie->intx_lock, flags);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
+			   MASK_LEGACY_INT(d->hwirq));
+	raw_spin_unlock_irqrestore(&rk_pcie->intx_lock, flags);
+}
+
+static void rk_pcie_legacy_irq_unmask(struct irq_data *d)
+{
+	struct rk_pcie *rk_pcie = irq_data_get_irq_chip_data(d);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&rk_pcie->intx_lock, flags);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
+			   UNMASK_LEGACY_INT(d->hwirq));
+	raw_spin_unlock_irqrestore(&rk_pcie->intx_lock, flags);
+}
+
+static struct irq_chip rk_pcie_legacy_irq_chip = {
+	.name		= "rk-pcie-legacy-int",
+	.irq_enable	= rk_pcie_legacy_irq_unmask,
+	.irq_disable	= rk_pcie_legacy_irq_mask,
+	.irq_mask	= rk_pcie_legacy_irq_mask,
+	.irq_unmask	= rk_pcie_legacy_irq_unmask,
+	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND,
+};
+
 static int rk_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 			    irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &rk_pcie_legacy_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
 
 	return 0;
