@@ -43,6 +43,7 @@ Hardware Monitoring Kernel Drivers
    asb100
    asc7621
    aspeed-pwm-tacho
+   asus_wmi_ec_sensors
    bcm54140
    bel-pfe
    bpa-rs600
