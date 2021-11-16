@@ -809,13 +809,13 @@ void rtas_os_term(char *str)
 /**
  * rtas_activate_firmware() - Activate a new version of firmware.
  *
+ * Context: This function may sleep.
+ *
  * Activate a new version of partition firmware. The OS must call this
  * after resuming from a partition hibernation or migration in order
  * to maintain the ability to perform live firmware updates. It's not
  * catastrophic for this method to be absent or to fail; just log the
  * condition in that case.
- *
- * Context: This function may sleep.
  */
 void rtas_activate_firmware(void)
 {
@@ -890,11 +890,12 @@ int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...)
 #endif /* CONFIG_PPC_PSERIES */
 
 /**
- * Find a specific pseries error log in an RTAS extended event log.
+ * get_pseries_errorlog() - Find a specific pseries error log in an RTAS
+ *                          extended event log.
  * @log: RTAS error/event log
  * @section_id: two character section identifier
  *
- * Returns a pointer to the specified errorlog or NULL if not found.
+ * Return: A pointer to the specified errorlog or NULL if not found.
  */
 struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 					      uint16_t section_id)
