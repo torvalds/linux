@@ -5835,10 +5835,13 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 	snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
 	dclk = vop2_clk_get(vop2, clk_name);
-	if (dclk)
+	if (dclk) {
 		clk_set_rate(vp->dclk, dclk->rate);
-	else
+		DRM_DEV_INFO(vop2->dev, "set %s to %ld, get %ld\n",
+			      __clk_get_name(vp->dclk), dclk->rate, clk_get_rate(vp->dclk));
+	} else {
 		clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
+	}
 
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
 		vop2_post_config(crtc);
