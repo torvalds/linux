@@ -33,7 +33,7 @@
 #define VPU_PP_OUT_RGB			0x0
 #define VPU_PP_OUT_YUYV			0x3
 
-const struct hantro_postproc_regs hantro_g1_postproc_regs = {
+static const struct hantro_postproc_regs hantro_g1_postproc_regs = {
 	.pipeline_en = {G1_REG_PP_INTERRUPT, 1, 0x1},
 	.max_burst = {G1_REG_PP_DEV_CONFIG, 0, 0x1f},
 	.clk_gate = {G1_REG_PP_DEV_CONFIG, 1, 0x1},
