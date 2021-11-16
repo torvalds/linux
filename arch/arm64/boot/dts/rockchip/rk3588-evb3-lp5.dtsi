@@ -754,6 +754,7 @@
 
 &i2c0 {
 	status = "okay";
+	pinctrl-0 = <&i2c0m1_xfer>;
 
 	ls_stk3332: light@47 {
 		compatible = "ls_stk3332";
@@ -785,21 +786,23 @@
 
 	mpu6500_acc: mpu_acc@68 {
 		compatible = "mpu6500_acc";
+		status = "okay";
 		reg = <0x68>;
 		irq-gpio = <&gpio2 RK_PB5 IRQ_TYPE_EDGE_RISING>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_ACCEL>;
-		layout = <8>;
+		layout = <9>;
 	};
 
 	mpu6500_gyro: mpu_gyro@68 {
 		compatible = "mpu6500_gyro";
+		status = "okay";
 		reg = <0x68>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_GYROSCOPE>;
-		layout = <8>;
+		layout = <9>;
 	};
 };
 
