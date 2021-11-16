@@ -35,6 +35,8 @@
 #define KVM_VECTOR_PREAMBLE	(2 * AARCH64_INSN_SIZE)
 
 #define __SMCCC_WORKAROUND_1_SMC_SZ 36
+#define __SMCCC_WORKAROUND_3_SMC_SZ 36
+#define __SPECTRE_BHB_LOOP_SZ       44
 
 #define KVM_HOST_SMCCC_ID(id)						\
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
@@ -199,6 +201,10 @@ extern void __vgic_v3_init_lrs(void);
 extern u32 __kvm_get_mdcr_el2(void);
 
 extern char __smccc_workaround_1_smc[__SMCCC_WORKAROUND_1_SMC_SZ];
+extern char __smccc_workaround_3_smc[__SMCCC_WORKAROUND_3_SMC_SZ];
+extern char __spectre_bhb_loop_k8[__SPECTRE_BHB_LOOP_SZ];
+extern char __spectre_bhb_loop_k24[__SPECTRE_BHB_LOOP_SZ];
+extern char __spectre_bhb_loop_k32[__SPECTRE_BHB_LOOP_SZ];
 
 /*
  * Obtain the PC-relative address of a kernel symbol

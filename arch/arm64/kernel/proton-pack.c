@@ -220,9 +220,9 @@ static void __copy_hyp_vect_bpi(int slot, const char *hyp_vecs_start,
 	__flush_icache_range((uintptr_t)dst, (uintptr_t)dst + SZ_2K);
 }
 
+static DEFINE_RAW_SPINLOCK(bp_lock);
 static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 {
-	static DEFINE_RAW_SPINLOCK(bp_lock);
 	int cpu, slot = -1;
 	const char *hyp_vecs_start = __smccc_workaround_1_smc;
 	const char *hyp_vecs_end = __smccc_workaround_1_smc +
@@ -253,6 +253,7 @@ static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 
 	__this_cpu_write(bp_hardening_data.hyp_vectors_slot, slot);
 	__this_cpu_write(bp_hardening_data.fn, fn);
+	__this_cpu_write(bp_hardening_data.template_start, hyp_vecs_start);
 	raw_spin_unlock(&bp_lock);
 }
 #else
@@ -818,4 +819,48 @@ static enum mitigation_state spectre_bhb_state;
 enum mitigation_state arm64_get_spectre_bhb_state(void)
 {
 	return spectre_bhb_state;
+}
+
+static int kvm_bhb_get_vecs_size(const char *start)
+{
+	if (start == __smccc_workaround_3_smc)
+		return __SMCCC_WORKAROUND_3_SMC_SZ;
+	else if (start == __spectre_bhb_loop_k8 ||
+		 start == __spectre_bhb_loop_k24 ||
+		 start == __spectre_bhb_loop_k32)
+		return __SPECTRE_BHB_LOOP_SZ;
+
+	return 0;
+}
+
+void kvm_setup_bhb_slot(const char *hyp_vecs_start)
+{
+	int cpu, slot = -1, size;
+	const char *hyp_vecs_end;
+
+	if (!IS_ENABLED(CONFIG_KVM) || !is_hyp_mode_available())
+		return;
+
+	size = kvm_bhb_get_vecs_size(hyp_vecs_start);
+	if (WARN_ON_ONCE(!hyp_vecs_start || !size))
+		return;
+	hyp_vecs_end = hyp_vecs_start + size;
+
+	raw_spin_lock(&bp_lock);
+	for_each_possible_cpu(cpu) {
+		if (per_cpu(bp_hardening_data.template_start, cpu) == hyp_vecs_start) {
+			slot = per_cpu(bp_hardening_data.hyp_vectors_slot, cpu);
+			break;
+		}
+	}
+
+	if (slot == -1) {
+		slot = atomic_inc_return(&arm64_el2_vector_last_slot);
+		BUG_ON(slot >= BP_HARDEN_EL2_SLOTS);
+		__copy_hyp_vect_bpi(slot, hyp_vecs_start, hyp_vecs_end);
+	}
+
+	__this_cpu_write(bp_hardening_data.hyp_vectors_slot, slot);
+	__this_cpu_write(bp_hardening_data.template_start, hyp_vecs_start);
+	raw_spin_unlock(&bp_lock);
 }
