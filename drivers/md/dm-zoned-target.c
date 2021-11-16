@@ -967,7 +967,6 @@ static void dmz_dtr(struct dm_target *ti)
 	struct dmz_target *dmz = ti->private;
 	int i;
 
-	flush_workqueue(dmz->chunk_wq);
 	destroy_workqueue(dmz->chunk_wq);
 
 	for (i = 0; i < dmz->nr_ddevs; i++)
