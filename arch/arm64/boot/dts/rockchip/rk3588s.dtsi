@@ -2215,7 +2215,7 @@
 		resets = <&cru SRST_A_VICAP>, <&cru SRST_H_VICAP>, <&cru SRST_D_VICAP>;
 		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_d";
 		assigned-clocks = <&cru DCLK_VICAP>;
-		assigned-clock-rates = <300000000>;
+		assigned-clock-rates = <600000000>;
 		power-domains = <&power RK3588_PD_VI>;
 		rockchip,grf = <&sys_grf>;
 		iommus = <&rkcif_mmu>;
