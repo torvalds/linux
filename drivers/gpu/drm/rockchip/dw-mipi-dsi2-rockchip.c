@@ -25,6 +25,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <video/mipi_display.h>
+#include <video/videomode.h>
 #include <asm/unaligned.h>
 #include <uapi/linux/videodev2.h>
 #include <drm/drm_panel.h>
@@ -911,8 +912,41 @@ static int dw_mipi_dsi2_connector_get_modes(struct drm_connector *connector)
 	return drm_panel_get_modes(dsi2->panel, connector);
 }
 
+static int dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
+					     struct drm_display_mode *mode)
+{
+	struct videomode vm;
+
+	drm_display_mode_to_videomode(mode, &vm);
+
+	/*
+	 * the minimum region size (HSA,HBP,HACT,HFP) is 4 pixels
+	 * which is the ip known issues and limitations.
+	 */
+	if (!(vm.hsync_len < 4 || vm.hback_porch < 4 ||
+	    vm.hfront_porch < 4 || vm.hactive < 4))
+		return MODE_OK;
+
+	if (vm.hsync_len < 4)
+		vm.hsync_len = 4;
+
+	if (vm.hback_porch < 4)
+		vm.hback_porch = 4;
+
+	if (vm.hfront_porch < 4)
+		vm.hfront_porch = 4;
+
+	if (vm.hactive < 4)
+		vm.hactive = 4;
+
+	drm_display_mode_from_videomode(&vm, mode);
+
+	return MODE_OK;
+}
+
 static struct drm_connector_helper_funcs dw_mipi_dsi2_connector_helper_funcs = {
 	.get_modes = dw_mipi_dsi2_connector_get_modes,
+	.mode_valid = dw_mipi_dsi2_connector_mode_valid,
 };
 
 static void dw_mipi_dsi2_drm_connector_destroy(struct drm_connector *connector)
