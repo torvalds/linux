@@ -3,8 +3,8 @@
 #define YYDEBUG 1
 #include <assert.h>
 #include <math.h>
+#include <stdlib.h>
 #include "util/debug.h"
-#include "smt.h"
 #define IN_EXPR_Y 1
 #include "expr.h"
 %}
@@ -37,7 +37,7 @@
 	} ids;
 }
 
-%token ID NUMBER MIN MAX IF ELSE SMT_ON D_RATIO EXPR_ERROR
+%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO SOURCE_COUNT EXPR_ERROR
 %left MIN MAX IF
 %left '|'
 %left '^'
@@ -46,7 +46,7 @@
 %left '-' '+'
 %left '*' '/' '%'
 %left NEG NOT
-%type <num> NUMBER
+%type <num> NUMBER LITERAL
 %type <str> ID
 %destructor { free ($$); } <str>
 %type <ids> expr if_expr
@@ -80,6 +80,41 @@ static struct ids union_expr(struct ids ids1, struct ids ids2)
 		.val = BOTTOM,
 		.ids = ids__union(ids1.ids, ids2.ids),
 	};
+	return result;
+}
+
+static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
+			    bool compute_ids, bool source_count)
+{
+	struct ids result;
+
+	if (!compute_ids) {
+		/*
+		 * Compute the event's value from ID. If the ID isn't known then
+		 * it isn't used to compute the formula so set to NAN.
+		 */
+		struct expr_id_data *data;
+
+		result.val = NAN;
+		if (expr__resolve_id(ctx, id, &data) == 0) {
+			result.val = source_count
+				? expr_id_data__source_count(data)
+				: expr_id_data__value(data);
+		}
+		result.ids = NULL;
+		free(id);
+	} else {
+		/*
+		 * Set the value to BOTTOM to show that any value is possible
+		 * when the event is computed. Create a set of just the ID.
+		 */
+		result.val = BOTTOM;
+		result.ids = ids__new();
+		if (!result.ids || ids__insert(result.ids, id)) {
+			pr_err("Error creating IDs for '%s'", id);
+			free(id);
+		}
+	}
 	return result;
 }
 
@@ -168,32 +203,8 @@ expr: NUMBER
 	$$.val = $1;
 	$$.ids = NULL;
 }
-| ID
-{
-	if (!compute_ids) {
-		/*
-		 * Compute the event's value from ID. If the ID isn't known then
-		 * it isn't used to compute the formula so set to NAN.
-		 */
-		struct expr_id_data *data;
-
-		$$.val = NAN;
-		if (expr__resolve_id(ctx, $1, &data) == 0)
-			$$.val = expr_id_data__value(data);
-
-		$$.ids = NULL;
-		free($1);
-	} else {
-		/*
-		 * Set the value to BOTTOM to show that any value is possible
-		 * when the event is computed. Create a set of just the ID.
-		 */
-		$$.val = BOTTOM;
-		$$.ids = ids__new();
-		if (!$$.ids || ids__insert($$.ids, $1))
-			YYABORT;
-	}
-}
+| ID				{ $$ = handle_id(ctx, $1, compute_ids, /*source_count=*/false); }
+| SOURCE_COUNT '(' ID ')'	{ $$ = handle_id(ctx, $3, compute_ids, /*source_count=*/true); }
 | expr '|' expr { BINARY_LONG_OP($$, |, $1, $3); }
 | expr '&' expr { BINARY_LONG_OP($$, &, $1, $3); }
 | expr '^' expr { BINARY_LONG_OP($$, ^, $1, $3); }
@@ -280,9 +291,9 @@ expr: NUMBER
 		$$ = union_expr($3, $5);
 	}
 }
-| SMT_ON
+| LITERAL
 {
-	$$.val = smt_on() > 0 ? 1.0 : 0.0;
+	$$.val = $1;
 	$$.ids = NULL;
 }
 ;

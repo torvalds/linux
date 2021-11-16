@@ -829,10 +829,12 @@ static int prepare_metric(struct evsel **metric_events,
 		struct saved_value *v;
 		struct stats *stats;
 		u64 metric_total = 0;
+		int source_count;
 
 		if (!strcmp(metric_events[i]->name, "duration_time")) {
 			stats = &walltime_nsecs_stats;
 			scale = 1e-9;
+			source_count = 1;
 		} else {
 			v = saved_value_lookup(metric_events[i], cpu, false,
 					       STAT_NONE, 0, st,
@@ -841,6 +843,7 @@ static int prepare_metric(struct evsel **metric_events,
 				break;
 			stats = &v->stats;
 			scale = 1.0;
+			source_count = evsel__source_count(metric_events[i]);
 
 			if (v->metric_other)
 				metric_total = v->metric_total;
@@ -849,7 +852,9 @@ static int prepare_metric(struct evsel **metric_events,
 		if (!n)
 			return -ENOMEM;
 
-		expr__add_id_val(pctx, n, metric_total ? : avg_stats(stats) * scale);
+		expr__add_id_val_source_count(pctx, n,
+					metric_total ? : avg_stats(stats) * scale,
+					source_count);
 	}
 
 	for (j = 0; metric_refs && metric_refs[j].metric_name; j++) {
