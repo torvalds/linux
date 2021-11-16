@@ -63,6 +63,7 @@
 #include <linux/indirect_call_wrapper.h>
 #include <linux/atomic.h>
 #include <linux/refcount.h>
+#include <linux/llist.h>
 #include <net/dst.h>
 #include <net/checksum.h>
 #include <net/tcp_states.h>
@@ -284,9 +285,7 @@ struct bpf_local_storage;
   *	@sk_no_check_tx: %SO_NO_CHECK setting, set checksum in TX packets
   *	@sk_no_check_rx: allow zero checksum in RX packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
-  *	@sk_route_nocaps: forbidden route capabilities (e.g NETIF_F_GSO_MASK)
-  *	@sk_route_forced_caps: static, forced route capabilities
-  *		(set in tcp_init_sock())
+  *	@sk_gso_disabled: if set, NETIF_F_GSO_MASK is forbidden.
   *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
   *	@sk_gso_max_size: Maximum GSO segment size to build
   *	@sk_gso_max_segs: Maximum number of GSO segments
@@ -391,6 +390,11 @@ struct sock {
 #define sk_flags		__sk_common.skc_flags
 #define sk_rxhash		__sk_common.skc_rxhash
 
+	/* early demux fields */
+	struct dst_entry	*sk_rx_dst;
+	int			sk_rx_dst_ifindex;
+	u32			sk_rx_dst_cookie;
+
 	socket_lock_t		sk_lock;
 	atomic_t		sk_drops;
 	int			sk_rcvlowat;
@@ -410,6 +414,8 @@ struct sock {
 		struct sk_buff	*head;
 		struct sk_buff	*tail;
 	} sk_backlog;
+	struct llist_head defer_list;
+
 #define sk_rmem_alloc sk_backlog.rmem_alloc
 
 	int			sk_forward_alloc;
@@ -431,9 +437,6 @@ struct sock {
 #ifdef CONFIG_XFRM
 	struct xfrm_policy __rcu *sk_policy[2];
 #endif
-	struct dst_entry	*sk_rx_dst;
-	int			sk_rx_dst_ifindex;
-	u32			sk_rx_dst_cookie;
 
 	struct dst_entry __rcu	*sk_dst_cache;
 	atomic_t		sk_omem_alloc;
@@ -460,8 +463,6 @@ struct sock {
 	unsigned long		sk_max_pacing_rate;
 	struct page_frag	sk_frag;
 	netdev_features_t	sk_route_caps;
-	netdev_features_t	sk_route_nocaps;
-	netdev_features_t	sk_route_forced_caps;
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
 	gfp_t			sk_allocation;
@@ -471,7 +472,7 @@ struct sock {
 	 * Because of non atomicity rules, all
 	 * changes are protected by socket lock.
 	 */
-	u8			sk_padding : 1,
+	u8			sk_gso_disabled : 1,
 				sk_kern_sock : 1,
 				sk_no_check_tx : 1,
 				sk_no_check_rx : 1,
@@ -493,6 +494,7 @@ struct sock {
 	u16			sk_busy_poll_budget;
 #endif
 	spinlock_t		sk_peer_lock;
+	int			sk_bind_phc;
 	struct pid		*sk_peer_pid;
 	const struct cred	*sk_peer_cred;
 
@@ -502,7 +504,6 @@ struct sock {
 	seqlock_t		sk_stamp_seq;
 #endif
 	u16			sk_tsflags;
-	int			sk_bind_phc;
 	u8			sk_shutdown;
 	u32			sk_tskey;
 	atomic_t		sk_zckey;
@@ -1022,12 +1023,18 @@ static inline __must_check int sk_add_backlog(struct sock *sk, struct sk_buff *s
 
 int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 
+INDIRECT_CALLABLE_DECLARE(int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb));
+INDIRECT_CALLABLE_DECLARE(int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb));
+
 static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	if (sk_memalloc_socks() && skb_pfmemalloc(skb))
 		return __sk_backlog_rcv(sk, skb);
 
-	return sk->sk_backlog_rcv(sk, skb);
+	return INDIRECT_CALL_INET(sk->sk_backlog_rcv,
+				  tcp_v6_do_rcv,
+				  tcp_v4_do_rcv,
+				  sk, skb);
 }
 
 static inline void sk_incoming_cpu_update(struct sock *sk)
@@ -1210,7 +1217,9 @@ struct proto {
 	unsigned int		inuse_idx;
 #endif
 
+#if IS_ENABLED(CONFIG_MPTCP)
 	int			(*forward_alloc_get)(const struct sock *sk);
+#endif
 
 	bool			(*stream_memory_free)(const struct sock *sk, int wake);
 	bool			(*sock_is_readable)(struct sock *sk);
@@ -1299,10 +1308,11 @@ INDIRECT_CALLABLE_DECLARE(bool tcp_stream_memory_free(const struct sock *sk, int
 
 static inline int sk_forward_alloc_get(const struct sock *sk)
 {
-	if (!sk->sk_prot->forward_alloc_get)
-		return sk->sk_forward_alloc;
-
-	return sk->sk_prot->forward_alloc_get(sk);
+#if IS_ENABLED(CONFIG_MPTCP)
+	if (sk->sk_prot->forward_alloc_get)
+		return sk->sk_prot->forward_alloc_get(sk);
+#endif
+	return sk->sk_forward_alloc;
 }
 
 static inline bool __sk_stream_memory_free(const struct sock *sk, int wake)
@@ -2124,10 +2134,10 @@ static inline bool sk_can_gso(const struct sock *sk)
 
 void sk_setup_caps(struct sock *sk, struct dst_entry *dst);
 
-static inline void sk_nocaps_add(struct sock *sk, netdev_features_t flags)
+static inline void sk_gso_disable(struct sock *sk)
 {
-	sk->sk_route_nocaps |= flags;
-	sk->sk_route_caps &= ~flags;
+	sk->sk_gso_disabled = 1;
+	sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
 }
 
 static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
@@ -2636,6 +2646,11 @@ static inline void skb_setup_tx_timestamp(struct sk_buff *skb, __u16 tsflags)
 {
 	_sock_tx_timestamp(skb->sk, tsflags, &skb_shinfo(skb)->tx_flags,
 			   &skb_shinfo(skb)->tskey);
+}
+
+static inline bool sk_is_tcp(const struct sock *sk)
+{
+	return sk->sk_type == SOCK_STREAM && sk->sk_protocol == IPPROTO_TCP;
 }
 
 /**
