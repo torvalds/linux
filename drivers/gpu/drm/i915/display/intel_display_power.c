@@ -6397,3 +6397,28 @@ void intel_display_power_resume(struct drm_i915_private *i915)
 		hsw_disable_pc8(i915);
 	}
 }
+
+void intel_display_power_debug(struct drm_i915_private *i915, struct seq_file *m)
+{
+	struct i915_power_domains *power_domains = &i915->power_domains;
+	int i;
+
+	mutex_lock(&power_domains->lock);
+
+	seq_printf(m, "%-25s %s\n", "Power well/domain", "Use count");
+	for (i = 0; i < power_domains->power_well_count; i++) {
+		struct i915_power_well *power_well;
+		enum intel_display_power_domain power_domain;
+
+		power_well = &power_domains->power_wells[i];
+		seq_printf(m, "%-25s %d\n", power_well->desc->name,
+			   power_well->count);
+
+		for_each_power_domain(power_domain, power_well->desc->domains)
+			seq_printf(m, "  %-23s %d\n",
+				   intel_display_power_domain_str(power_domain),
+				   power_domains->domain_use_count[power_domain]);
+	}
+
+	mutex_unlock(&power_domains->lock);
+}
