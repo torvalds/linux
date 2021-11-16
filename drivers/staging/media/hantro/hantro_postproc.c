@@ -15,14 +15,14 @@
 #define HANTRO_PP_REG_WRITE(vpu, reg_name, val) \
 { \
 	hantro_reg_write(vpu, \
-			 &(vpu)->variant->postproc_regs->reg_name, \
+			 &hantro_g1_postproc_regs.reg_name, \
 			 val); \
 }
 
 #define HANTRO_PP_REG_WRITE_S(vpu, reg_name, val) \
 { \
 	hantro_reg_write_s(vpu, \
-			   &(vpu)->variant->postproc_regs->reg_name, \
+			   &hantro_g1_postproc_regs.reg_name, \
 			   val); \
 }
 
@@ -64,15 +64,12 @@ bool hantro_needs_postproc(const struct hantro_ctx *ctx,
 	return fmt->fourcc != V4L2_PIX_FMT_NV12;
 }
 
-void hantro_postproc_enable(struct hantro_ctx *ctx)
+static void hantro_postproc_g1_enable(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *dst_buf;
 	u32 src_pp_fmt, dst_pp_fmt;
 	dma_addr_t dst_dma;
-
-	if (!vpu->variant->postproc_regs)
-		return;
 
 	/* Turn on pipeline mode. Must be done first. */
 	HANTRO_PP_REG_WRITE_S(vpu, pipeline_en, 0x1);
@@ -154,12 +151,30 @@ int hantro_postproc_alloc(struct hantro_ctx *ctx)
 	return 0;
 }
 
+static void hantro_postproc_g1_disable(struct hantro_ctx *ctx)
+{
+	struct hantro_dev *vpu = ctx->dev;
+
+	HANTRO_PP_REG_WRITE_S(vpu, pipeline_en, 0x0);
+}
+
 void hantro_postproc_disable(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 
-	if (!vpu->variant->postproc_regs)
-		return;
-
-	HANTRO_PP_REG_WRITE_S(vpu, pipeline_en, 0x0);
+	if (vpu->variant->postproc_ops && vpu->variant->postproc_ops->disable)
+		vpu->variant->postproc_ops->disable(ctx);
 }
+
+void hantro_postproc_enable(struct hantro_ctx *ctx)
+{
+	struct hantro_dev *vpu = ctx->dev;
+
+	if (vpu->variant->postproc_ops && vpu->variant->postproc_ops->enable)
+		vpu->variant->postproc_ops->enable(ctx);
+}
+
+const struct hantro_postproc_ops hantro_g1_postproc_ops = {
+	.enable = hantro_postproc_g1_enable,
+	.disable = hantro_postproc_g1_disable,
+};

@@ -175,6 +175,17 @@ struct hantro_postproc_ctx {
 };
 
 /**
+ * struct hantro_postproc_ops - post-processor operations
+ *
+ * @enable:	Enable the post-processor block. Optional.
+ * @disable:	Disable the post-processor block. Optional.
+ */
+struct hantro_postproc_ops {
+	void (*enable)(struct hantro_ctx *ctx);
+	void (*disable)(struct hantro_ctx *ctx);
+};
+
+/**
  * struct hantro_codec_ops - codec mode specific operations
  *
  * @init:	If needed, can be used for initialization.
@@ -221,7 +232,7 @@ extern const struct hantro_variant rk3328_vpu_variant;
 extern const struct hantro_variant rk3399_vpu_variant;
 extern const struct hantro_variant sama5d4_vdec_variant;
 
-extern const struct hantro_postproc_regs hantro_g1_postproc_regs;
+extern const struct hantro_postproc_ops hantro_g1_postproc_ops;
 
 extern const u32 hantro_vp8_dec_mc_filter[8][6];
 

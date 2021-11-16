@@ -28,6 +28,7 @@
 
 struct hantro_ctx;
 struct hantro_codec_ops;
+struct hantro_postproc_ops;
 
 #define HANTRO_JPEG_ENCODER	BIT(0)
 #define HANTRO_ENCODERS		0x0000ffff
@@ -59,6 +60,7 @@ struct hantro_irq {
  * @num_dec_fmts:		Number of decoder formats.
  * @postproc_fmts:		Post-processor formats.
  * @num_postproc_fmts:		Number of post-processor formats.
+ * @postproc_ops:		Post-processor ops.
  * @codec:			Supported codecs
  * @codec_ops:			Codec ops.
  * @init:			Initialize hardware, optional.
@@ -69,7 +71,6 @@ struct hantro_irq {
  * @num_clocks:			number of clocks in the array
  * @reg_names:			array of register range names
  * @num_regs:			number of register range names in the array
- * @postproc_regs:		&struct hantro_postproc_regs pointer
  */
 struct hantro_variant {
 	unsigned int enc_offset;
@@ -80,6 +81,7 @@ struct hantro_variant {
 	unsigned int num_dec_fmts;
 	const struct hantro_fmt *postproc_fmts;
 	unsigned int num_postproc_fmts;
+	const struct hantro_postproc_ops *postproc_ops;
 	unsigned int codec;
 	const struct hantro_codec_ops *codec_ops;
 	int (*init)(struct hantro_dev *vpu);
@@ -90,7 +92,6 @@ struct hantro_variant {
 	int num_clocks;
 	const char * const *reg_names;
 	int num_regs;
-	const struct hantro_postproc_regs *postproc_regs;
 };
 
 /**
