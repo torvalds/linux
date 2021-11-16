@@ -95,9 +95,9 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 	}
 
 	if (!(ses->server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
-		cifs_dbg(VFS, "server %s does not support multichannel\n", ses->server->hostname);
 		ses->chan_max = 1;
 		spin_unlock(&ses->chan_lock);
+		cifs_dbg(VFS, "server %s does not support multichannel\n", ses->server->hostname);
 		return 0;
 	}
 	spin_unlock(&ses->chan_lock);
