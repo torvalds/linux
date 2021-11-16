@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-nvr-demo.dtsi"
+#include "rk3588-linux.dtsi"
+
+/ {
+	model = "Rockchip RK3588 NVR DEMO LP4 SPI NAND Board";
+	compatible = "rockchip,rk3588-nvr-demo-v10-spi-nand", "rockchip,rk3588";
+
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 clk_gate.always_on=1 pm_domains.always_on=1 ubi.mtd=3 root=ubi0:rootfs rootfstype=ubifs rw rootwait";
+	};
+};
+
+&sfc {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <80000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
