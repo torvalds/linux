@@ -693,6 +693,46 @@ static int pmu_sbi_setup_irqs(struct riscv_pmu *pmu, struct platform_device *pde
 	return 0;
 }
 
+static uint64_t pmu_sbi_get_pmu_id(void)
+{
+	union sbi_pmu_id {
+		uint64_t value;
+		struct {
+			uint16_t imp:16;
+			uint16_t arch:16;
+			uint32_t vendor:32;
+		};
+	} pmuid;
+
+	pmuid.value = 0;
+	pmuid.vendor = (uint32_t) sbi_get_mvendorid();
+	pmuid.arch = (sbi_get_marchid() >> (63 - 15) & (1 << 15)) | (sbi_get_marchid() & 0x7FFF);
+	pmuid.imp = (sbi_get_mimpid() >> 16);
+
+	return pmuid.value;
+}
+
+static ssize_t pmu_sbi_id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int len;
+
+	len = sprintf(buf, "0x%llx\n", pmu_sbi_get_pmu_id());
+	if (len <= 0)
+		dev_err(dev, "mydrv: Invalid sprintf len: %dn", len);
+
+	return len;
+}
+
+static DEVICE_ATTR(id, S_IRUGO | S_IWUSR, pmu_sbi_id_show, 0);
+
+static struct attribute *pmu_sbi_attrs[] = {
+	&dev_attr_id.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(pmu_sbi);
+
 static int pmu_sbi_device_probe(struct platform_device *pdev)
 {
 	struct riscv_pmu *pmu = NULL;
@@ -728,6 +768,13 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 	pmu->ctr_get_width = pmu_sbi_ctr_get_width;
 	pmu->ctr_clear_idx = pmu_sbi_ctr_clear_idx;
 	pmu->ctr_read = pmu_sbi_ctr_read;
+
+	ret = sysfs_create_group(&pdev->dev.kobj, &pmu_sbi_group);
+	if (ret) {
+		dev_err(&pdev->dev, "sysfs creation failed\n");
+		return ret;
+	}
+	pdev->dev.groups = pmu_sbi_groups;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_RISCV_STARTING, &pmu->node);
 	if (ret)
