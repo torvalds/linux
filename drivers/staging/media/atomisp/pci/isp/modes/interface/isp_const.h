@@ -36,17 +36,7 @@ more details.
 #define BITS8_ELEMENTS_PER_XMEM_ADDR    CEIL_DIV(XMEM_WIDTH_BITS, 8)
 #define BITS16_ELEMENTS_PER_XMEM_ADDR    CEIL_DIV(XMEM_WIDTH_BITS, 16)
 
-#if ISP_VEC_NELEMS == 64
 #define ISP_NWAY_LOG2  6
-#elif ISP_VEC_NELEMS == 32
-#define ISP_NWAY_LOG2  5
-#elif ISP_VEC_NELEMS == 16
-#define ISP_NWAY_LOG2  4
-#elif ISP_VEC_NELEMS == 8
-#define ISP_NWAY_LOG2  3
-#else
-#error "isp_const.h ISP_VEC_NELEMS must be one of {8, 16, 32, 64}"
-#endif
 
 /* *****************************
  * ISP input/output buffer sizes

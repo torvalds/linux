@@ -117,13 +117,8 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_NUM_INPUT_BUF_LINES        4
 
 /* Left cropping only applicable for sufficiently large nway */
-#if ISP_VEC_NELEMS == 16
-#define SH_CSS_MAX_LEFT_CROPPING          0
-#define SH_CSS_MAX_TOP_CROPPING           0
-#else
 #define SH_CSS_MAX_LEFT_CROPPING          12
 #define SH_CSS_MAX_TOP_CROPPING           12
-#endif
 
 #define	SH_CSS_SP_MAX_WIDTH               1280
 
@@ -137,13 +132,8 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MIN_DVS_ENVELOPE           12U
 
 /* The FPGA system (vec_nelems == 16) only supports upto 5MP */
-#if ISP_VEC_NELEMS == 16
-#define SH_CSS_MAX_SENSOR_WIDTH           2560
-#define SH_CSS_MAX_SENSOR_HEIGHT          1920
-#else
 #define SH_CSS_MAX_SENSOR_WIDTH           4608
 #define SH_CSS_MAX_SENSOR_HEIGHT          3450
-#endif
 
 /* Limited to reduce vmem pressure */
 #if ISP_VMEM_DEPTH >= 3072
