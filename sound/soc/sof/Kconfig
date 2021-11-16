@@ -40,11 +40,13 @@ config SND_SOC_SOF_ACPI_DEV
 config SND_SOC_SOF_OF
 	tristate "SOF OF enumeration support"
 	depends on OF || COMPILE_TEST
-	select SND_SOC_SOF
 	help
 	  This adds support for Device Tree enumeration. This option is
 	  required to enable i.MX8 devices.
 	  Say Y if you need this option. If unsure select "N".
+
+config SND_SOC_SOF_OF_DEV
+	tristate
 
 config SND_SOC_SOF_COMPRESS
 	bool
