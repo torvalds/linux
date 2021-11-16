@@ -42,6 +42,12 @@ struct prm_cmd_request_rsc {
 	struct audio_hw_clk_cfg clock_id;
 } __packed;
 
+struct prm_cmd_release_rsc {
+	struct apm_module_param_data param_data;
+	uint32_t num_clk_id;
+	struct audio_hw_clk_rel_cfg clock_id;
+} __packed;
+
 static int q6prm_send_cmd_sync(struct q6prm *prm, struct gpr_pkt *pkt, uint32_t rsp_opcode)
 {
 	return audioreach_send_cmd_sync(prm->dev, prm->gdev, &prm->result, &prm->lock,
@@ -102,8 +108,8 @@ int q6prm_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id, uint32_
 }
 EXPORT_SYMBOL_GPL(q6prm_unvote_lpass_core_hw);
 
-int q6prm_set_lpass_clock(struct device *dev, int clk_id, int clk_attr, int clk_root,
-			  unsigned int freq)
+static int q6prm_request_lpass_clock(struct device *dev, int clk_id, int clk_attr, int clk_root,
+				     unsigned int freq)
 {
 	struct q6prm *prm = dev_get_drvdata(dev->parent);
 	struct apm_module_param_data *param_data;
@@ -137,6 +143,49 @@ int q6prm_set_lpass_clock(struct device *dev, int clk_id, int clk_attr, int clk_
 	kfree(pkt);
 
 	return rc;
+}
+
+static int q6prm_release_lpass_clock(struct device *dev, int clk_id, int clk_attr, int clk_root,
+			  unsigned int freq)
+{
+	struct q6prm *prm = dev_get_drvdata(dev->parent);
+	struct apm_module_param_data *param_data;
+	struct prm_cmd_release_rsc *rel;
+	gpr_device_t *gdev = prm->gdev;
+	struct gpr_pkt *pkt;
+	int rc;
+
+	pkt = audioreach_alloc_cmd_pkt(sizeof(*rel), PRM_CMD_RELEASE_HW_RSC, 0, gdev->svc.id,
+				       GPR_PRM_MODULE_IID);
+	if (IS_ERR(pkt))
+		return PTR_ERR(pkt);
+
+	rel = (void *)pkt + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
+
+	param_data = &rel->param_data;
+
+	param_data->module_instance_id = GPR_PRM_MODULE_IID;
+	param_data->error_code = 0;
+	param_data->param_id = PARAM_ID_RSC_AUDIO_HW_CLK;
+	param_data->param_size = sizeof(*rel) - APM_MODULE_PARAM_DATA_SIZE;
+
+	rel->num_clk_id = 1;
+	rel->clock_id.clock_id = clk_id;
+
+	rc = q6prm_send_cmd_sync(prm, pkt, PRM_CMD_RSP_RELEASE_HW_RSC);
+
+	kfree(pkt);
+
+	return rc;
+}
+
+int q6prm_set_lpass_clock(struct device *dev, int clk_id, int clk_attr, int clk_root,
+			  unsigned int freq)
+{
+	if (freq)
+		return q6prm_request_lpass_clock(dev, clk_id, clk_attr, clk_attr, freq);
+
+	return q6prm_release_lpass_clock(dev, clk_id, clk_attr, clk_attr, freq);
 }
 EXPORT_SYMBOL_GPL(q6prm_set_lpass_clock);
 
