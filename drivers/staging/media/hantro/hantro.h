@@ -36,6 +36,7 @@ struct hantro_postproc_ops;
 #define HANTRO_VP8_DECODER	BIT(17)
 #define HANTRO_H264_DECODER	BIT(18)
 #define HANTRO_HEVC_DECODER	BIT(19)
+#define HANTRO_VP9_DECODER	BIT(20)
 #define HANTRO_DECODERS		0xffff0000
 
 /**
@@ -102,6 +103,7 @@ struct hantro_variant {
  * @HANTRO_MODE_MPEG2_DEC: MPEG-2 decoder.
  * @HANTRO_MODE_VP8_DEC: VP8 decoder.
  * @HANTRO_MODE_HEVC_DEC: HEVC decoder.
+ * @HANTRO_MODE_VP9_DEC: VP9 decoder.
  */
 enum hantro_codec_mode {
 	HANTRO_MODE_NONE = -1,
@@ -110,6 +112,7 @@ enum hantro_codec_mode {
 	HANTRO_MODE_MPEG2_DEC,
 	HANTRO_MODE_VP8_DEC,
 	HANTRO_MODE_HEVC_DEC,
+	HANTRO_MODE_VP9_DEC,
 };
 
 /*
@@ -223,6 +226,7 @@ struct hantro_dev {
  * @mpeg2_dec:		MPEG-2-decoding context.
  * @vp8_dec:		VP8-decoding context.
  * @hevc_dec:		HEVC-decoding context.
+ * @vp9_dec:		VP9-decoding context.
  */
 struct hantro_ctx {
 	struct hantro_dev *dev;
@@ -250,6 +254,7 @@ struct hantro_ctx {
 		struct hantro_mpeg2_dec_hw_ctx mpeg2_dec;
 		struct hantro_vp8_dec_hw_ctx vp8_dec;
 		struct hantro_hevc_dec_hw_ctx hevc_dec;
+		struct hantro_vp9_dec_hw_ctx vp9_dec;
 	};
 };
 
@@ -297,6 +302,22 @@ struct hantro_postproc_regs {
 	struct hantro_reg output_fmt;
 	struct hantro_reg orig_width;
 	struct hantro_reg display_width;
+};
+
+struct hantro_vp9_decoded_buffer_info {
+	/* Info needed when the decoded frame serves as a reference frame. */
+	unsigned short width;
+	unsigned short height;
+	u32 bit_depth : 4;
+};
+
+struct hantro_decoded_buffer {
+	/* Must be the first field in this struct. */
+	struct v4l2_m2m_buffer base;
+
+	union {
+		struct hantro_vp9_decoded_buffer_info vp9;
+	};
 };
 
 /* Logging helpers */
@@ -434,6 +455,12 @@ hantro_get_dec_buf_addr(struct hantro_ctx *ctx, struct vb2_buffer *vb)
 	if (hantro_needs_postproc(ctx, ctx->vpu_dst_fmt))
 		return ctx->postproc.dec_q[vb->index].dma;
 	return vb2_dma_contig_plane_dma_addr(vb, 0);
+}
+
+static inline struct hantro_decoded_buffer *
+vb2_to_hantro_decoded_buf(struct vb2_buffer *buf)
+{
+	return container_of(buf, struct hantro_decoded_buffer, base.vb.vb2_buf);
 }
 
 void hantro_postproc_disable(struct hantro_ctx *ctx);

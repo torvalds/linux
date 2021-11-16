@@ -10,9 +10,10 @@ hantro-vpu-y += \
 		hantro_g1.o \
 		hantro_g1_h264_dec.o \
 		hantro_g1_mpeg2_dec.o \
-		hantro_g2_hevc_dec.o \
 		hantro_g1_vp8_dec.o \
 		hantro_g2.o \
+		hantro_g2_hevc_dec.o \
+		hantro_g2_vp9_dec.o \
 		rockchip_vpu2_hw_jpeg_enc.o \
 		rockchip_vpu2_hw_h264_dec.o \
 		rockchip_vpu2_hw_mpeg2_dec.o \
@@ -21,7 +22,8 @@ hantro-vpu-y += \
 		hantro_h264.o \
 		hantro_hevc.o \
 		hantro_mpeg2.o \
-		hantro_vp8.o
+		hantro_vp8.o \
+		hantro_vp9.o
 
 hantro-vpu-$(CONFIG_VIDEO_HANTRO_IMX8M) += \
 		imx8m_vpu_hw.o

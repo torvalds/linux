@@ -232,7 +232,7 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	dst_vq->drv_priv = ctx;
 	dst_vq->ops = &hantro_queue_ops;
-	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	dst_vq->buf_struct_size = sizeof(struct hantro_decoded_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->dev->vpu_mutex;
 	dst_vq->dev = ctx->dev->v4l2_dev.dev;
@@ -262,6 +262,12 @@ static int hantro_try_ctrl(struct v4l2_ctrl *ctrl)
 			return -EINVAL;
 		if (sps->bit_depth_luma_minus8 != 0)
 			/* Only 8-bit is supported */
+			return -EINVAL;
+	} else if (ctrl->id == V4L2_CID_STATELESS_VP9_FRAME) {
+		const struct v4l2_ctrl_vp9_frame *dec_params = ctrl->p_new.p_vp9_frame;
+
+		/* We only support profile 0 */
+		if (dec_params->profile != 0)
 			return -EINVAL;
 	}
 	return 0;
@@ -460,6 +466,16 @@ static const struct hantro_ctrl controls[] = {
 			.max = 0x100,
 			.step = 1,
 			.ops = &hantro_hevc_ctrl_ops,
+		},
+	}, {
+		.codec = HANTRO_VP9_DECODER,
+		.cfg = {
+			.id = V4L2_CID_STATELESS_VP9_FRAME,
+		},
+	}, {
+		.codec = HANTRO_VP9_DECODER,
+		.cfg = {
+			.id = V4L2_CID_STATELESS_VP9_COMPRESSED_HDR,
 		},
 	},
 };
