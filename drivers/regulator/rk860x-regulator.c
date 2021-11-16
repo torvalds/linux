@@ -446,8 +446,22 @@ rk860x_parse_dt(struct device *dev, struct device_node *np,
 
 static const struct of_device_id rk860x_dt_ids[] = {
 	{
-		.compatible = "rockchip,rk860x",
+		.compatible = "rockchip,rk8600",
+		.data = (void *)RK860X_CHIP_ID_00
 	},
+	{
+		.compatible = "rockchip,rk8601",
+		.data = (void *)RK860X_CHIP_ID_01
+	},
+	{
+		.compatible = "rockchip,rk8602",
+		.data = (void *)RK860X_CHIP_ID_02
+	},
+	{
+		.compatible = "rockchip,rk8603",
+		.data = (void *)RK860X_CHIP_ID_03
+	},
+
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rk860x_dt_ids);

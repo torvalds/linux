@@ -66,12 +66,9 @@
 	status = "okay";
 
 	vdd_cpu_big0_s0: vdd_cpu_big0_mem_s0: rk8602@42 {
-		compatible = "rockchip,rk860x";
+		compatible = "rockchip,rk8602";
 		reg = <0x42>;
 		vin-supply = <&vcc5v0_sys>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rk860_en_gpio>;
-		en-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 		regulator-compatible = "rk860x-reg";
 		regulator-name = "vdd_cpu_big0_s0";
 		regulator-min-microvolt = <550000>;
@@ -86,12 +83,9 @@
 	};
 
 	vdd_cpu_big1_s0: vdd_cpu_big1_mem_s0: rk8603@43 {
-		compatible = "rockchip,rk860x";
+		compatible = "rockchip,rk8603";
 		reg = <0x43>;
 		vin-supply = <&vcc5v0_sys>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rk860_en_gpio>;
-		en-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 		regulator-compatible = "rk860x-reg";
 		regulator-name = "vdd_cpu_big1_s0";
 		regulator-min-microvolt = <550000>;
@@ -110,12 +104,9 @@
 	status = "okay";
 
 	vdd_npu_s0: vdd_npu_mem_s0: rk8602@42 {
-		compatible = "rockchip,rk860x";
+		compatible = "rockchip,rk8602";
 		reg = <0x42>;
 		vin-supply = <&vcc5v0_sys>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rk860_en_gpio>;
-		en-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 		regulator-compatible = "rk860x-reg";
 		regulator-name = "vdd_npu_s0";
 		regulator-min-microvolt = <550000>;
