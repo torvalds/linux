@@ -7821,12 +7821,8 @@ static void gaudi_print_fw_alive_info(struct hl_device *hdev,
 
 static int gaudi_non_hard_reset_late_init(struct hl_device *hdev)
 {
-	struct gaudi_device *gaudi = hdev->asic_specific;
-
-	/* Unmask all IRQs since some could have been received
-	 * during the soft reset
-	 */
-	return hl_fw_unmask_irq_arr(hdev, gaudi->events, sizeof(gaudi->events));
+	/* GAUDI doesn't support any reset except hard-reset */
+	return -EPERM;
 }
 
 static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
