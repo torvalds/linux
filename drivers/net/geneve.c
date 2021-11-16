@@ -17,6 +17,7 @@
 #include <net/gro_cells.h>
 #include <net/rtnetlink.h>
 #include <net/geneve.h>
+#include <net/gro.h>
 #include <net/protocol.h>
 
 #define GENEVE_NETDEV_VER	"0.6"

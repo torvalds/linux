@@ -37,6 +37,7 @@
 #include <net/ip6_checksum.h>
 #include <net/page_pool.h>
 #include <net/inet_ecn.h>
+#include <net/gro.h>
 #include <net/udp.h>
 #include <net/tcp.h>
 #include "en.h"

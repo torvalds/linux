@@ -17,6 +17,7 @@
 #include <linux/ethtool.h>
 #include <net/arp.h>
 #include <net/ndisc.h>
+#include <net/gro.h>
 #include <net/ipv6_stubs.h>
 #include <net/ip.h>
 #include <net/icmp.h>

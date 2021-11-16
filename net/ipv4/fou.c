@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <net/genetlink.h>
+#include <net/gro.h>
 #include <net/gue.h>
 #include <net/fou.h>
 #include <net/ip.h>

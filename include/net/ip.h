@@ -568,14 +568,6 @@ static inline void iph_to_flow_copy_v4addrs(struct flow_keys *flow,
 	flow->control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 }
 
-static inline __wsum inet_gro_compute_pseudo(struct sk_buff *skb, int proto)
-{
-	const struct iphdr *iph = skb_gro_network_header(skb);
-
-	return csum_tcpudp_nofold(iph->saddr, iph->daddr,
-				  skb_gro_len(skb), proto, 0);
-}
-
 /*
  *	Map a multicast IP onto multicast MAC for type ethernet.
  */

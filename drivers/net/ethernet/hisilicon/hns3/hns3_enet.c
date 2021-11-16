@@ -17,6 +17,7 @@
 #include <linux/skbuff.h>
 #include <linux/sctp.h>
 #include <net/gre.h>
+#include <net/gro.h>
 #include <net/ip6_checksum.h>
 #include <net/pkt_cls.h>
 #include <net/tcp.h>
