@@ -6,8 +6,8 @@
  */
 
 struct usbmix_dB_map {
-	u32 min;
-	u32 max;
+	int min;
+	int max;
 };
 
 struct usbmix_name_map {
