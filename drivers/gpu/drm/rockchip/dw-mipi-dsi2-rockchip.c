@@ -171,7 +171,7 @@
 #define CMD_PKT_STATUS_TIMEOUT_US	20000
 #define PSEC_PER_SEC			1000000000000LL
 
-#define GRF_REG_FIELD(reg, lsb, msb)	(((reg) << 10) | ((lsb) << 5) | (msb))
+#define GRF_REG_FIELD(reg, lsb, msb)	(((reg) << 16) | ((lsb) << 8) | (msb))
 
 enum vid_mode_type {
 	VID_MODE_TYPE_NON_BURST_SYNC_PULSES,
@@ -282,6 +282,25 @@ static inline struct dw_mipi_dsi2 *con_to_dsi2(struct drm_connector *con)
 static inline struct dw_mipi_dsi2 *encoder_to_dsi2(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct dw_mipi_dsi2, encoder);
+}
+
+static void grf_field_write(struct dw_mipi_dsi2 *dsi2, enum grf_reg_fields index,
+			    unsigned int val)
+{
+	const u32 field = dsi2->id ?
+			  dsi2->pdata->dsi1_grf_reg_fields[index] :
+			  dsi2->pdata->dsi0_grf_reg_fields[index];
+	u16 reg;
+	u8 msb, lsb;
+
+	if (!field)
+		return;
+
+	reg = (field >> 16) & 0xffff;
+	lsb = (field >>  8) & 0xff;
+	msb = (field >>  0) & 0xff;
+
+	regmap_write(dsi2->grf, reg, (val << lsb) | (GENMASK(msb, lsb) << 16));
 }
 
 static int cri_fifos_wait_avail(struct dw_mipi_dsi2 *dsi2)
@@ -637,24 +656,29 @@ static void dw_mipi_dsi2_tx_option_set(struct dw_mipi_dsi2 *dsi2)
 
 static void dw_mipi_dsi2_ipi_color_coding_cfg(struct dw_mipi_dsi2 *dsi2)
 {
-	u32 val;
+	u32 val, color_depth;
 
 	switch (dsi2->format) {
 	case MIPI_DSI_FMT_RGB666:
 	case MIPI_DSI_FMT_RGB666_PACKED:
-		val = IPI_DEPTH(IPI_DEPTH_6_BITS);
+		color_depth = IPI_DEPTH_6_BITS;
 		break;
 	case MIPI_DSI_FMT_RGB565:
-		val = IPI_DEPTH(IPI_DEPTH_5_6_5_BITS);
+		color_depth = IPI_DEPTH_5_6_5_BITS;
 		break;
 	case MIPI_DSI_FMT_RGB888:
 	default:
-		val = IPI_DEPTH(IPI_DEPTH_8_BITS);
+		color_depth = IPI_DEPTH_8_BITS;
 		break;
 	}
 
-	val |= IPI_FORMAT(dsi2->dsc_enable ? IPI_FORMAT_DSC : IPI_FORMAT_RGB);
+	val = IPI_DEPTH(color_depth) |
+	      IPI_FORMAT(dsi2->dsc_enable ? IPI_FORMAT_DSC : IPI_FORMAT_RGB);
 	regmap_write(dsi2->regmap, DSI2_IPI_COLOR_MAN_CFG, val);
+	grf_field_write(dsi2, IPI_COLOR_DEPTH, color_depth);
+
+	if (dsi2->dsc_enable)
+		grf_field_write(dsi2, IPI_FORMAT, IPI_FORMAT_DSC);
 }
 
 static void dw_mipi_dsi2_ipi_set(struct dw_mipi_dsi2 *dsi2)
