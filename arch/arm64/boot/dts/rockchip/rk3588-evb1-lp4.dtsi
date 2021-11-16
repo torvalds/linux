@@ -255,6 +255,7 @@
 };
 
 &hdmi0 {
+	enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -263,6 +264,10 @@
 };
 
 &hdmi0_sound {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
 	status = "okay";
 };
 
