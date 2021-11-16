@@ -4530,7 +4530,6 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 {
 	struct hci_ev_sync_conn_complete *ev = (void *) skb->data;
 	struct hci_conn *conn;
-	unsigned int notify_evt;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
 
@@ -4602,22 +4601,18 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 	}
 
 	bt_dev_dbg(hdev, "SCO connected with air mode: %02x", ev->air_mode);
-
-	switch (ev->air_mode) {
-	case 0x02:
-		notify_evt = HCI_NOTIFY_ENABLE_SCO_CVSD;
-		break;
-	case 0x03:
-		notify_evt = HCI_NOTIFY_ENABLE_SCO_TRANSP;
-		break;
-	}
-
 	/* Notify only in case of SCO over HCI transport data path which
 	 * is zero and non-zero value shall be non-HCI transport data path
 	 */
-	if (conn->codec.data_path == 0) {
-		if (hdev->notify)
-			hdev->notify(hdev, notify_evt);
+	if (conn->codec.data_path == 0 && hdev->notify) {
+		switch (ev->air_mode) {
+		case 0x02:
+			hdev->notify(hdev, HCI_NOTIFY_ENABLE_SCO_CVSD);
+			break;
+		case 0x03:
+			hdev->notify(hdev, HCI_NOTIFY_ENABLE_SCO_TRANSP);
+			break;
+		}
 	}
 
 	hci_connect_cfm(conn, ev->status);
