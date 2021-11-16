@@ -120,7 +120,7 @@ static const unsigned short normal_i2c[] = {
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { adm1032, adt7461, adt7461a, adt7481, g781, lm86, lm90, lm99,
-	max6646, max6648, max6654, max6657, max6659, max6680, max6696,
+	max6642, max6646, max6648, max6654, max6657, max6659, max6680, max6696,
 	sa56004, tmp451, tmp461, w83l771,
 };
 
@@ -230,6 +230,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "lm86", lm86 },
 	{ "lm89", lm86 },
 	{ "lm99", lm99 },
+	{ "max6642", max6642 },
 	{ "max6646", max6646 },
 	{ "max6647", max6646 },
 	{ "max6648", max6648 },
@@ -433,6 +434,12 @@ static const struct lm90_params lm90_params[] = {
 		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
+	},
+	[max6642] = {
+		.flags = LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXT_UNSIGNED,
+		.alert_alarms = 0x50,
+		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
+		.resolution = 10,
 	},
 	[max6646] = {
 		.flags = LM90_HAVE_CRIT | LM90_HAVE_BROKEN_ALERT
@@ -1668,18 +1675,18 @@ static const char *lm90_detect_analog(struct i2c_client *client, int chip_id,
 	return name;
 }
 
-static const char *lm90_detect_maxim(struct i2c_client *client, int chip_id,
-				     int config1, int convrate)
+static const char *lm90_detect_maxim(struct i2c_client *client, bool common_address,
+				     int chip_id, int config1, int convrate)
 {
 	int man_id, emerg, emerg2, status2;
 	int address = client->addr;
 	const char *name = NULL;
 
-	if ((address >= 0x48 && address <= 0x4b) || address == 0x4f)
-		return NULL;
-
 	switch (chip_id) {
 	case 0x01:
+		if (!common_address)
+			break;
+
 		/*
 		 * We read MAX6659_REG_REMOTE_EMERG twice, and re-read
 		 * LM90_REG_MAN_ID in between. If MAX6659_REG_REMOTE_EMERG
@@ -1726,7 +1733,7 @@ static const char *lm90_detect_maxim(struct i2c_client *client, int chip_id,
 		 * The lowest 3 bits of the config1 register are unused and
 		 * should return zero when read.
 		 */
-		if (!(config1 & 0x07) && convrate <= 0x07)
+		if (common_address && !(config1 & 0x07) && convrate <= 0x07)
 			name = "max6654";
 		break;
 	case 0x09:
@@ -1739,16 +1746,21 @@ static const char *lm90_detect_maxim(struct i2c_client *client, int chip_id,
 		 * MAX6690 datasheet lists a chip ID of 0x08, and a chip labeled
 		 * MAX6654 was observed to have a chip ID of 0x09.
 		 */
-		if (!(config1 & 0x07) && convrate <= 0x07)
+		if (common_address && !(config1 & 0x07) && convrate <= 0x07)
 			name = "max6690";
 		break;
 	case 0x4d:
 		/*
-		 * The MAX6657, MAX6658 and MAX6659 do NOT have a chip_id
+		 * MAX6642, MAX6657, MAX6658 and MAX6659 do NOT have a chip_id
 		 * register. Reading from that address will return the last
 		 * read value, which in our case is those of the man_id
-		 * register, or 0x4d. Likewise, the config1 register seems to
-		 * lack a low nibble, so the value will be those of the previous
+		 * register, or 0x4d.
+		 * MAX6642 does not have a conversion rate register, nor low
+		 * limit registers. Reading from those registers returns the
+		 * last read value.
+		 *
+		 * For MAX6657, MAX6658 and MAX6659, the config1 register lacks
+		 * a low nibble, so the value will be those of the previous
 		 * read, so in our case again those of the man_id register.
 		 * MAX6659 has a third set of upper temperature limit registers.
 		 * Those registers also return values on MAX6657 and MAX6658,
@@ -1756,8 +1768,40 @@ static const char *lm90_detect_maxim(struct i2c_client *client, int chip_id,
 		 * For this reason it will be mis-detected as MAX6657 if its
 		 * address is 0x4c.
 		 */
-		if ((address == 0x4c || address == 0x4d || address == 0x4e) &&
-		    (config1 & 0x1f) == 0x0d && convrate <= 0x09) {
+		if (address >= 0x48 && address <= 0x4f && config1 == convrate &&
+		    !(config1 & 0x0f)) {
+			int regval;
+
+			/*
+			 * We know that this is not a MAX6657/58/59 because its
+			 * configuration register has the wrong value and it does
+			 * not appear to have a conversion rate register.
+			 */
+
+			/* re-read manufacturer ID to have a good baseline */
+			if (i2c_smbus_read_byte_data(client, LM90_REG_MAN_ID) != 0x4d)
+				break;
+
+			/* check various non-existing registers */
+			if (i2c_smbus_read_byte_data(client, LM90_REG_CONVRATE) != 0x4d ||
+			    i2c_smbus_read_byte_data(client, LM90_REG_LOCAL_LOW) != 0x4d ||
+			    i2c_smbus_read_byte_data(client, LM90_REG_REMOTE_LOWH) != 0x4d)
+				break;
+
+			/* check for unused status register bits */
+			regval = i2c_smbus_read_byte_data(client, LM90_REG_STATUS);
+			if (regval < 0 || (regval & 0x2b))
+				break;
+
+			/* re-check unsupported registers */
+			if (i2c_smbus_read_byte_data(client, LM90_REG_CONVRATE) != regval ||
+			    i2c_smbus_read_byte_data(client, LM90_REG_LOCAL_LOW) != regval ||
+			    i2c_smbus_read_byte_data(client, LM90_REG_REMOTE_LOWH) != regval)
+				break;
+
+			name = "max6642";
+		} else if ((address == 0x4c || address == 0x4d || address == 0x4e) &&
+			   (config1 & 0x1f) == 0x0d && convrate <= 0x09) {
 			if (address == 0x4c)
 				name = "max6657";
 			else
@@ -1929,6 +1973,11 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 	struct i2c_adapter *adapter = client->adapter;
 	int man_id, chip_id, config1, convrate;
 	const char *name = NULL;
+	int address = client->addr;
+	bool common_address =
+			(address >= 0x18 && address <= 0x1a) ||
+			(address >= 0x29 && address <= 0x2b) ||
+			(address >= 0x4c && address <= 0x4e);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -1952,7 +2001,8 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 		name = lm90_detect_gmt(client, chip_id, config1, convrate);
 		break;
 	case 0x4d:	/* Maxim Integrated */
-		name = lm90_detect_maxim(client, chip_id, config1, convrate);
+		name = lm90_detect_maxim(client, common_address, chip_id,
+					 config1, convrate);
 		break;
 	case 0x55:	/* TI */
 		name = lm90_detect_ti(client, chip_id, config1, convrate);

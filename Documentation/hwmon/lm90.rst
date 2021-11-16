@@ -113,6 +113,16 @@ Supported chips:
 
 	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
 
+  * Maxim MAX6642
+
+    Prefix: 'max6642'
+
+    Addresses scanned: I2C 0x48-0x4f
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://datasheets.maxim-ic.com/en/ds/MAX6642.pdf
+
   * Maxim MAX6646
 
     Prefix: 'max6646'
@@ -361,6 +371,12 @@ ADT7481, ADT7482, ADT7483:
   * 10 bit temperature resolution for external sensors
   * Two remote sensors
   * Selectable address (ADT7483)
+
+MAX6642:
+  * No critical limit register
+  * Conversion rate not configurable
+  * Better local resolution (10 bit)
+  * 10 bit external sensor resolution
 
 MAX6646, MAX6647, MAX6649:
   * Better local resolution
