@@ -1084,15 +1084,11 @@ start_err:
  */
 static snd_pcm_uframes_t soc_pcm_pointer(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai;
-	struct snd_soc_dai *codec_dai;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t offset = 0;
 	snd_pcm_sframes_t delay = 0;
 	snd_pcm_sframes_t codec_delay = 0;
 	snd_pcm_sframes_t cpu_delay = 0;
-	int i;
 
 	/* clearing the previous total delay */
 	runtime->delay = 0;
@@ -1102,19 +1098,9 @@ static snd_pcm_uframes_t soc_pcm_pointer(struct snd_pcm_substream *substream)
 	/* base delay if assigned in pointer callback */
 	delay = runtime->delay;
 
-	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-		cpu_delay = max(cpu_delay,
-				snd_soc_dai_delay(cpu_dai, substream));
-	}
-	delay += cpu_delay;
+	snd_soc_pcm_dai_delay(substream, &cpu_delay, &codec_delay);
 
-	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		codec_delay = max(codec_delay,
-				  snd_soc_dai_delay(codec_dai, substream));
-	}
-	delay += codec_delay;
-
-	runtime->delay = delay;
+	runtime->delay = delay + cpu_delay + codec_delay;
 
 	return offset;
 }
