@@ -292,6 +292,9 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	spx5_port->phylink_config.dev = &spx5_port->ndev->dev;
 	spx5_port->phylink_config.type = PHYLINK_NETDEV;
 	spx5_port->phylink_config.pcs_poll = true;
+	spx5_port->phylink_config.mac_capabilities = MAC_ASYM_PAUSE |
+		MAC_SYM_PAUSE | MAC_10 | MAC_100 | MAC_1000FD |
+		MAC_2500FD | MAC_5000FD | MAC_10000FD | MAC_25000FD;
 
 	__set_bit(PHY_INTERFACE_MODE_SGMII,
 		  spx5_port->phylink_config.supported_interfaces);

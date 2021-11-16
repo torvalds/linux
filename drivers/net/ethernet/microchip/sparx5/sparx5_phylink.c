@@ -26,64 +26,6 @@ static bool port_conf_has_changed(struct sparx5_port_config *a, struct sparx5_po
 	return false;
 }
 
-static void sparx5_phylink_validate(struct phylink_config *config,
-				    unsigned long *supported,
-				    struct phylink_link_state *state)
-{
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-
-	phylink_set(mask, Autoneg);
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Pause);
-	phylink_set(mask, Asym_Pause);
-
-	switch (state->interface) {
-	case PHY_INTERFACE_MODE_5GBASER:
-		phylink_set(mask, 5000baseT_Full);
-		break;
-
-	case PHY_INTERFACE_MODE_10GBASER:
-		phylink_set(mask, 10000baseT_Full);
-		phylink_set(mask, 10000baseCR_Full);
-		phylink_set(mask, 10000baseSR_Full);
-		phylink_set(mask, 10000baseLR_Full);
-		phylink_set(mask, 10000baseLRM_Full);
-		phylink_set(mask, 10000baseER_Full);
-		break;
-
-	case PHY_INTERFACE_MODE_25GBASER:
-		phylink_set(mask, 25000baseCR_Full);
-		phylink_set(mask, 25000baseSR_Full);
-		break;
-
-	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_QSGMII:
-		phylink_set(mask, 10baseT_Half);
-		phylink_set(mask, 10baseT_Full);
-		phylink_set(mask, 100baseT_Half);
-		phylink_set(mask, 100baseT_Full);
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseX_Full);
-		break;
-
-	case PHY_INTERFACE_MODE_1000BASEX:
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseX_Full);
-		break;
-
-	case PHY_INTERFACE_MODE_2500BASEX:
-		phylink_set(mask, 2500baseT_Full);
-		phylink_set(mask, 2500baseX_Full);
-		break;
-
-	default:
-		linkmode_zero(supported);
-		return;
-	}
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
-}
-
 static void sparx5_phylink_mac_config(struct phylink_config *config,
 				      unsigned int mode,
 				      const struct phylink_link_state *state)
@@ -187,7 +129,7 @@ const struct phylink_pcs_ops sparx5_phylink_pcs_ops = {
 };
 
 const struct phylink_mac_ops sparx5_phylink_mac_ops = {
-	.validate = sparx5_phylink_validate,
+	.validate = phylink_generic_validate,
 	.mac_config = sparx5_phylink_mac_config,
 	.mac_link_down = sparx5_phylink_mac_link_down,
 	.mac_link_up = sparx5_phylink_mac_link_up,
