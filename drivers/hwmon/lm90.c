@@ -193,6 +193,7 @@ enum chips { adm1032, adt7461, adt7461a, adt7481, g781, lm86, lm90, lm99,
 #define LM90_HAVE_ALARMS	BIT(13)	/* Create 'alarms' attribute	*/
 #define LM90_HAVE_EXT_UNSIGNED	BIT(14)	/* extended unsigned temperature*/
 #define LM90_HAVE_LOW		BIT(15)	/* low limits			*/
+#define LM90_HAVE_CONVRATE	BIT(16)	/* conversion rate		*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	BIT(0)	/* local THERM limit tripped */
@@ -371,7 +372,7 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT
 		  | LM90_HAVE_PARTIAL_PEC | LM90_HAVE_ALARMS
-		  | LM90_HAVE_LOW,
+		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
@@ -384,7 +385,7 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_CRIT | LM90_HAVE_PARTIAL_PEC
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 		.resolution = 10,
@@ -393,7 +394,7 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_CRIT | LM90_HAVE_PEC | LM90_HAVE_ALARMS
-		  | LM90_HAVE_LOW,
+		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
@@ -401,7 +402,8 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_PEC
-		  | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT | LM90_HAVE_LOW,
+		  | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT | LM90_HAVE_LOW
+		  | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x1c7c,
 		.max_convrate = 11,
 		.resolution = 10,
@@ -410,58 +412,61 @@ static const struct lm90_params lm90_params[] = {
 	[g781] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 	},
 	[lm86] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[lm90] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[lm99] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[max6646] = {
 		.flags = LM90_HAVE_CRIT | LM90_HAVE_BROKEN_ALERT
-		  | LM90_HAVE_EXT_UNSIGNED | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_EXT_UNSIGNED | LM90_HAVE_ALARMS | LM90_HAVE_LOW
+		  | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[max6648] = {
 		.flags = LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_CRIT
-		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_LOW,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_LOW
+		  | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[max6654] = {
-		.flags = LM90_HAVE_BROKEN_ALERT | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		.flags = LM90_HAVE_BROKEN_ALERT | LM90_HAVE_ALARMS | LM90_HAVE_LOW
+		  | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[max6657] = {
 		.flags = LM90_PAUSE_FOR_CONFIG | LM90_HAVE_CRIT
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[max6659] = {
 		.flags = LM90_HAVE_EMERGENCY | LM90_HAVE_CRIT
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
@@ -474,14 +479,14 @@ static const struct lm90_params lm90_params[] = {
 		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_CRIT
 		  | LM90_HAVE_CRIT_ALRM_SWP | LM90_HAVE_BROKEN_ALERT
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 	},
 	[max6696] = {
 		.flags = LM90_HAVE_EMERGENCY
 		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x1c7c,
 		.max_convrate = 6,
 		.reg_status2 = MAX6696_REG_STATUS2,
@@ -489,7 +494,7 @@ static const struct lm90_params lm90_params[] = {
 	},
 	[w83l771] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 	},
@@ -500,7 +505,7 @@ static const struct lm90_params lm90_params[] = {
 		 * be set).
 		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 		.reg_local_ext = SA56004_REG_LOCAL_TEMPL,
@@ -508,7 +513,8 @@ static const struct lm90_params lm90_params[] = {
 	[tmp451] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT
-		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_ALARMS | LM90_HAVE_LOW
+		  | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.resolution = 12,
@@ -517,7 +523,7 @@ static const struct lm90_params lm90_params[] = {
 	[tmp461] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT
-		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW,
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.resolution = 12,
@@ -1981,7 +1987,8 @@ static void lm90_restore_conf(void *_data)
 	cancel_delayed_work_sync(&data->alert_work);
 
 	/* Restore initial configuration */
-	lm90_write_convrate(data, data->convrate_orig);
+	if (data->flags & LM90_HAVE_CONVRATE)
+		lm90_write_convrate(data, data->convrate_orig);
 	lm90_write_reg(client, LM90_REG_CONFIG1, data->config_orig);
 }
 
@@ -1990,10 +1997,15 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	struct device_node *np = client->dev.of_node;
 	int config, convrate;
 
-	convrate = lm90_read_reg(client, LM90_REG_CONVRATE);
-	if (convrate < 0)
-		return convrate;
-	data->convrate_orig = convrate;
+	if (data->flags & LM90_HAVE_CONVRATE) {
+		convrate = lm90_read_reg(client, LM90_REG_CONVRATE);
+		if (convrate < 0)
+			return convrate;
+		data->convrate_orig = convrate;
+		lm90_set_convrate(client, data, 500); /* 500ms; 2Hz conversion rate */
+	} else {
+		data->update_interval = 500;
+	}
 
 	/*
 	 * Start the conversions.
@@ -2003,8 +2015,6 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 		return config;
 	data->config_orig = config;
 	data->config = config;
-
-	lm90_set_convrate(client, data, 500); /* 500ms; 2Hz conversion rate */
 
 	/* Check Temperature Range Select */
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP) {
@@ -2156,9 +2166,11 @@ static int lm90_probe(struct i2c_client *client)
 	info->type = hwmon_chip;
 	info->config = data->chip_config;
 
-	data->chip_config[0] = HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL;
+	data->chip_config[0] = HWMON_C_REGISTER_TZ;
 	if (data->flags & LM90_HAVE_ALARMS)
 		data->chip_config[0] |= HWMON_C_ALARMS;
+	if (data->flags & LM90_HAVE_CONVRATE)
+		data->chip_config[0] |= HWMON_C_UPDATE_INTERVAL;
 
 	data->info[1] = &data->temp_info;
 
