@@ -310,6 +310,7 @@ extern const struct hantro_variant rk3399_vpu_variant;
 extern const struct hantro_variant sama5d4_vdec_variant;
 
 extern const struct hantro_postproc_ops hantro_g1_postproc_ops;
+extern const struct hantro_postproc_ops hantro_g2_postproc_ops;
 
 extern const u32 hantro_vp8_dec_mc_filter[8][6];
 

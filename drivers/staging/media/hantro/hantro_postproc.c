@@ -11,6 +11,7 @@
 #include "hantro.h"
 #include "hantro_hw.h"
 #include "hantro_g1_regs.h"
+#include "hantro_g2_regs.h"
 
 #define HANTRO_PP_REG_WRITE(vpu, reg_name, val) \
 { \
@@ -99,6 +100,21 @@ static void hantro_postproc_g1_enable(struct hantro_ctx *ctx)
 	HANTRO_PP_REG_WRITE(vpu, display_width, ctx->dst_fmt.width);
 }
 
+static void hantro_postproc_g2_enable(struct hantro_ctx *ctx)
+{
+	struct hantro_dev *vpu = ctx->dev;
+	struct vb2_v4l2_buffer *dst_buf;
+	size_t chroma_offset = ctx->dst_fmt.width * ctx->dst_fmt.height;
+	dma_addr_t dst_dma;
+
+	dst_buf = hantro_get_dst_buf(ctx);
+	dst_dma = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
+
+	hantro_write_addr(vpu, G2_RS_OUT_LUMA_ADDR, dst_dma);
+	hantro_write_addr(vpu, G2_RS_OUT_CHROMA_ADDR, dst_dma + chroma_offset);
+	hantro_reg_write(vpu, &g2_out_rs_e, 1);
+}
+
 void hantro_postproc_free(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
@@ -127,6 +143,9 @@ int hantro_postproc_alloc(struct hantro_ctx *ctx)
 	if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE)
 		buf_size += hantro_h264_mv_size(ctx->dst_fmt.width,
 						ctx->dst_fmt.height);
+	else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_VP9_FRAME)
+		buf_size += hantro_vp9_mv_size(ctx->dst_fmt.width,
+					       ctx->dst_fmt.height);
 
 	for (i = 0; i < num_buffers; ++i) {
 		struct hantro_aux_buf *priv = &ctx->postproc.dec_q[i];
@@ -152,6 +171,13 @@ static void hantro_postproc_g1_disable(struct hantro_ctx *ctx)
 	HANTRO_PP_REG_WRITE_S(vpu, pipeline_en, 0x0);
 }
 
+static void hantro_postproc_g2_disable(struct hantro_ctx *ctx)
+{
+	struct hantro_dev *vpu = ctx->dev;
+
+	hantro_reg_write(vpu, &g2_out_rs_e, 0);
+}
+
 void hantro_postproc_disable(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
@@ -171,4 +197,9 @@ void hantro_postproc_enable(struct hantro_ctx *ctx)
 const struct hantro_postproc_ops hantro_g1_postproc_ops = {
 	.enable = hantro_postproc_g1_enable,
 	.disable = hantro_postproc_g1_disable,
+};
+
+const struct hantro_postproc_ops hantro_g2_postproc_ops = {
+	.enable = hantro_postproc_g2_enable,
+	.disable = hantro_postproc_g2_disable,
 };

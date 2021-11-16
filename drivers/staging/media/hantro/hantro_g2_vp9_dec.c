@@ -152,7 +152,7 @@ static void config_output(struct hantro_ctx *ctx,
 	hantro_reg_write(ctx->dev, &g2_out_dis, 0);
 	hantro_reg_write(ctx->dev, &g2_output_format, 0);
 
-	luma_addr = vb2_dma_contig_plane_dma_addr(&dst->base.vb.vb2_buf, 0);
+	luma_addr = hantro_get_dec_buf_addr(ctx, &dst->base.vb.vb2_buf);
 	hantro_write_addr(ctx->dev, G2_OUT_LUMA_ADDR, luma_addr);
 
 	chroma_addr = luma_addr + chroma_offset(ctx, dec_params);
@@ -191,7 +191,7 @@ static void config_ref(struct hantro_ctx *ctx,
 	hantro_reg_write(ctx->dev, &ref_reg->hor_scale, (refw << 14) / dst->vp9.width);
 	hantro_reg_write(ctx->dev, &ref_reg->ver_scale, (refh << 14) / dst->vp9.height);
 
-	luma_addr = vb2_dma_contig_plane_dma_addr(&buf->base.vb.vb2_buf, 0);
+	luma_addr = hantro_get_dec_buf_addr(ctx, &buf->base.vb.vb2_buf);
 	hantro_write_addr(ctx->dev, ref_reg->y_base, luma_addr);
 
 	chroma_addr = luma_addr + chroma_offset(ctx, dec_params);
@@ -236,7 +236,7 @@ static void config_ref_registers(struct hantro_ctx *ctx,
 	config_ref(ctx, dst, &ref_regs[1], dec_params, dec_params->golden_frame_ts);
 	config_ref(ctx, dst, &ref_regs[2], dec_params, dec_params->alt_frame_ts);
 
-	mv_addr = vb2_dma_contig_plane_dma_addr(&mv_ref->base.vb.vb2_buf, 0) +
+	mv_addr = hantro_get_dec_buf_addr(ctx, &mv_ref->base.vb.vb2_buf) +
 		  mv_offset(ctx, dec_params);
 	hantro_write_addr(ctx->dev, G2_REF_MV_ADDR(0), mv_addr);
 
