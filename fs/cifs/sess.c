@@ -318,6 +318,19 @@ out:
 	return rc;
 }
 
+/* Mark all session channels for reconnect */
+void cifs_ses_mark_for_reconnect(struct cifs_ses *ses)
+{
+	int i;
+
+	for (i = 0; i < ses->chan_count; i++) {
+		spin_lock(&GlobalMid_Lock);
+		if (ses->chans[i].server->tcpStatus != CifsExiting)
+			ses->chans[i].server->tcpStatus = CifsNeedReconnect;
+		spin_unlock(&GlobalMid_Lock);
+	}
+}
+
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 {
 	__u32 capabilities = 0;
