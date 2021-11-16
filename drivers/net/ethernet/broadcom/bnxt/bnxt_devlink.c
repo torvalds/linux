@@ -442,7 +442,7 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT: {
 		rtnl_lock();
-		if (BNXT_PF(bp) && (bp->pf.active_vfs || bp->sriov_cfg)) {
+		if (bnxt_sriov_cfg(bp)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "reload is unsupported while VFs are allocated or being configured");
 			rtnl_unlock();
