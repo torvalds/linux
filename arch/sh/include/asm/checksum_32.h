@@ -84,7 +84,8 @@ static inline __sum16 csum_fold(__wsum sum)
  */
 static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	unsigned int sum, __dummy0, __dummy1;
+	__wsum sum;
+	unsigned int __dummy0, __dummy1;
 
 	__asm__ __volatile__(
 		"mov.l	@%1+, %0\n\t"
@@ -197,6 +198,6 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 {
 	if (!access_ok(dst, len))
 		return 0;
-	return csum_partial_copy_generic((__force const void *)src, dst, len);
+	return csum_partial_copy_generic(src, (__force void *)dst, len);
 }
 #endif /* __ASM_SH_CHECKSUM_H */
