@@ -1507,28 +1507,7 @@ static void axienet_validate(struct phylink_config *config,
 			     unsigned long *supported,
 			     struct phylink_link_state *state)
 {
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct axienet_local *lp = netdev_priv(ndev);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-
-	/* Only support the mode we are configured for */
-	switch (state->interface) {
-	case PHY_INTERFACE_MODE_NA:
-		break;
-	case PHY_INTERFACE_MODE_1000BASEX:
-	case PHY_INTERFACE_MODE_SGMII:
-		if (lp->switch_x_sgmii)
-			break;
-		fallthrough;
-	default:
-		if (state->interface != lp->phy_mode) {
-			netdev_warn(ndev, "Cannot use PHY mode %s, supported: %s\n",
-				    phy_modes(state->interface),
-				    phy_modes(lp->phy_mode));
-			linkmode_zero(supported);
-			return;
-		}
-	}
 
 	phylink_set(mask, Autoneg);
 	phylink_set_port_modes(mask);
@@ -1537,7 +1516,6 @@ static void axienet_validate(struct phylink_config *config,
 	phylink_set(mask, Pause);
 
 	switch (state->interface) {
-	case PHY_INTERFACE_MODE_NA:
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_GMII:
