@@ -2142,7 +2142,13 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 
 static int sienna_cichlid_run_btc(struct smu_context *smu)
 {
-	return smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
+	int res;
+
+	res = smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
+	if (res)
+		dev_err(smu->adev->dev, "RunDcBtc failed!\n");
+
+	return res;
 }
 
 static int sienna_cichlid_baco_enter(struct smu_context *smu)
