@@ -90,45 +90,11 @@ static int dpaa2_mac_get_if_mode(struct fwnode_handle *dpmac_node,
 	return err;
 }
 
-static bool dpaa2_mac_phy_mode_mismatch(struct dpaa2_mac *mac,
-					phy_interface_t interface)
-{
-	switch (interface) {
-	/* We can switch between SGMII and 1000BASE-X at runtime with
-	 * pcs-lynx
-	 */
-	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_1000BASEX:
-		if (mac->pcs &&
-		    (mac->if_mode == PHY_INTERFACE_MODE_SGMII ||
-		     mac->if_mode == PHY_INTERFACE_MODE_1000BASEX))
-			return false;
-		return interface != mac->if_mode;
-
-	case PHY_INTERFACE_MODE_10GBASER:
-	case PHY_INTERFACE_MODE_USXGMII:
-	case PHY_INTERFACE_MODE_QSGMII:
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		return (interface != mac->if_mode);
-	default:
-		return true;
-	}
-}
-
 static void dpaa2_mac_validate(struct phylink_config *config,
 			       unsigned long *supported,
 			       struct phylink_link_state *state)
 {
-	struct dpaa2_mac *mac = phylink_to_dpaa2_mac(config);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    dpaa2_mac_phy_mode_mismatch(mac, state->interface)) {
-		goto empty_set;
-	}
 
 	phylink_set_port_modes(mask);
 	phylink_set(mask, Autoneg);
@@ -136,7 +102,6 @@ static void dpaa2_mac_validate(struct phylink_config *config,
 	phylink_set(mask, Asym_Pause);
 
 	switch (state->interface) {
-	case PHY_INTERFACE_MODE_NA:
 	case PHY_INTERFACE_MODE_10GBASER:
 	case PHY_INTERFACE_MODE_USXGMII:
 		phylink_set_10g_modes(mask);
