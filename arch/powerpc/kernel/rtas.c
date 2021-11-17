@@ -513,17 +513,77 @@ unsigned int rtas_busy_delay_time(int status)
 }
 EXPORT_SYMBOL(rtas_busy_delay_time);
 
-/* For an RTAS busy status code, perform the hinted delay. */
-unsigned int rtas_busy_delay(int status)
+/**
+ * rtas_busy_delay() - helper for RTAS busy and extended delay statuses
+ *
+ * @status: a value returned from rtas_call() or similar APIs which return
+ *          the status of a RTAS function call.
+ *
+ * Context: Process context. May sleep or schedule.
+ *
+ * Return:
+ * * true  - @status is RTAS_BUSY or an extended delay hint. The
+ *           caller may assume that the CPU has been yielded if necessary,
+ *           and that an appropriate delay for @status has elapsed.
+ *           Generally the caller should reattempt the RTAS call which
+ *           yielded @status.
+ *
+ * * false - @status is not @RTAS_BUSY nor an extended delay hint. The
+ *           caller is responsible for handling @status.
+ */
+bool rtas_busy_delay(int status)
 {
 	unsigned int ms;
+	bool ret;
 
-	might_sleep();
-	ms = rtas_busy_delay_time(status);
-	if (ms && need_resched())
-		msleep(ms);
+	switch (status) {
+	case RTAS_EXTENDED_DELAY_MIN...RTAS_EXTENDED_DELAY_MAX:
+		ret = true;
+		ms = rtas_busy_delay_time(status);
+		/*
+		 * The extended delay hint can be as high as 100 seconds.
+		 * Surely any function returning such a status is either
+		 * buggy or isn't going to be significantly slowed by us
+		 * polling at 1HZ. Clamp the sleep time to one second.
+		 */
+		ms = clamp(ms, 1U, 1000U);
+		/*
+		 * The delay hint is an order-of-magnitude suggestion, not
+		 * a minimum. It is fine, possibly even advantageous, for
+		 * us to pause for less time than hinted. For small values,
+		 * use usleep_range() to ensure we don't sleep much longer
+		 * than actually needed.
+		 *
+		 * See Documentation/timers/timers-howto.rst for
+		 * explanation of the threshold used here. In effect we use
+		 * usleep_range() for 9900 and 9901, msleep() for
+		 * 9902-9905.
+		 */
+		if (ms <= 20)
+			usleep_range(ms * 100, ms * 1000);
+		else
+			msleep(ms);
+		break;
+	case RTAS_BUSY:
+		ret = true;
+		/*
+		 * We should call again immediately if there's no other
+		 * work to do.
+		 */
+		cond_resched();
+		break;
+	default:
+		ret = false;
+		/*
+		 * Not a busy or extended delay status; the caller should
+		 * handle @status itself. Ensure we warn on misuses in
+		 * atomic context regardless.
+		 */
+		might_sleep();
+		break;
+	}
 
-	return ms;
+	return ret;
 }
 EXPORT_SYMBOL(rtas_busy_delay);
 
