@@ -174,6 +174,11 @@ extern void cachefiles_put_object(struct cachefiles_object *object,
 				  enum cachefiles_obj_ref_trace why);
 
 /*
+ * key.c
+ */
+extern bool cachefiles_cook_key(struct cachefiles_object *object);
+
+/*
  * main.c
  */
 extern struct kmem_cache *cachefiles_object_jar;
