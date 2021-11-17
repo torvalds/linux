@@ -116,8 +116,7 @@
 #include <linux/io.h>
 #include <linux/comedi/comedidev.h>
 #include <linux/comedi/comedi_8254.h>
-
-#include "comedi_isadma.h"
+#include <linux/comedi/comedi_isadma.h>
 
 /*
  * Register I/O map

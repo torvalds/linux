@@ -52,8 +52,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/comedi/comedidev.h>
-
-#include "comedi_isadma.h"
+#include <linux/comedi/comedi_isadma.h>
 
 /*
  * Register map

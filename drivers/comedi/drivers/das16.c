@@ -66,8 +66,7 @@
 #include <linux/comedi/comedidev.h>
 #include <linux/comedi/comedi_8255.h>
 #include <linux/comedi/comedi_8254.h>
-
-#include "comedi_isadma.h"
+#include <linux/comedi/comedi_isadma.h>
 
 #define DAS16_DMA_SIZE 0xff00	/*  size in bytes of allocated dma buffer */
 

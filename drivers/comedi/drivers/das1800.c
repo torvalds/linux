@@ -75,8 +75,7 @@
 #include <linux/io.h>
 #include <linux/comedi/comedidev.h>
 #include <linux/comedi/comedi_8254.h>
-
-#include "comedi_isadma.h"
+#include <linux/comedi/comedi_isadma.h>
 
 /* misc. defines */
 #define DAS1800_SIZE           16	/* uses 16 io addresses */

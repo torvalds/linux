@@ -11,8 +11,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_isadma.h>
 
-#include "comedi_isadma.h"
 #include "ni_labpc.h"
 #include "ni_labpc_regs.h"
 #include "ni_labpc_isadma.h"
