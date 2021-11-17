@@ -149,6 +149,8 @@ static void test_sev_migrate_locking(void)
 
 	for (i = 0; i < NR_LOCK_TESTING_THREADS; ++i)
 		pthread_join(pt[i], NULL);
+	for (i = 0; i < NR_LOCK_TESTING_THREADS; ++i)
+		kvm_vm_free(input[i].vm);
 }
 
 static void test_sev_migrate_parameters(void)
@@ -164,7 +166,6 @@ static void test_sev_migrate_parameters(void)
 	sev_es_vm_no_vmsa = vm_create(VM_MODE_DEFAULT, 0, O_RDWR);
 	sev_ioctl(sev_es_vm_no_vmsa->fd, KVM_SEV_ES_INIT, NULL);
 	vm_vcpu_add(sev_es_vm_no_vmsa, 1);
-
 
 	ret = __sev_migrate_from(sev_vm->fd, sev_es_vm->fd);
 	TEST_ASSERT(
@@ -194,6 +195,12 @@ static void test_sev_migrate_parameters(void)
 	TEST_ASSERT(ret == -1 && errno == EINVAL,
 		    "Migrations require SEV enabled. ret %d, errno: %d\n", ret,
 		    errno);
+
+	kvm_vm_free(sev_vm);
+	kvm_vm_free(sev_es_vm);
+	kvm_vm_free(sev_es_vm_no_vmsa);
+	kvm_vm_free(vm_no_vcpu);
+	kvm_vm_free(vm_no_sev);
 }
 
 int main(int argc, char *argv[])
