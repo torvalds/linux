@@ -1587,6 +1587,14 @@ config RTC_DRV_STARFIRE
 	  If you say Y here you will get support for the RTC found on
 	  Starfire systems.
 
+config RTC_DRV_STARFIVE
+	tristate "StarFive 32.768k-RTC"
+	depends on RISCV
+	depends on OF
+	help
+	  If you say Y here you will get support for the RTC found on
+	  StarFive SOCS.
+
 config RTC_DRV_MV
 	tristate "Marvell SoC RTC"
 	depends on ARCH_DOVE || ARCH_MVEBU || COMPILE_TEST
