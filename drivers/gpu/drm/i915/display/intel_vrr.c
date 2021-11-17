@@ -60,7 +60,7 @@ intel_vrr_check_modeset(struct intel_atomic_state *state)
  * Between those two points the vblank exit starts (and hence registers get
  * latched) ASAP after a push is sent.
  *
- * framestart_delay is programmable 0-3.
+ * framestart_delay is programmable 1-4.
  */
 static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_state)
 {
@@ -138,13 +138,13 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 			i915->window2_delay;
 	else
 		/*
-		 * FIXME: s/4/framestart_delay+1/ to get consistent
+		 * FIXME: s/4/framestart_delay/ to get consistent
 		 * earliest/latest points for register latching regardless
 		 * of the framestart_delay used?
 		 *
 		 * FIXME: this really needs the extra scanline to provide consistent
 		 * behaviour for all framestart_delay values. Otherwise with
-		 * framestart_delay==3 we will end up extending the min vblank by
+		 * framestart_delay==4 we will end up extending the min vblank by
 		 * one extra line.
 		 */
 		crtc_state->vrr.pipeline_full =
