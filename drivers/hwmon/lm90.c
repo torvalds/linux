@@ -1143,8 +1143,8 @@ static int lm90_set_temphyst(struct lm90_data *data, long val)
 	else
 		temp = temp_from_s8(data->temp8[LOCAL_CRIT]);
 
-	/* prevent integer underflow */
-	val = max(val, -128000l);
+	/* prevent integer overflow/underflow */
+	val = clamp_val(val, -128000l, 255000l);
 
 	data->temp_hyst = hyst_to_reg(temp - val);
 	err = i2c_smbus_write_byte_data(client, LM90_REG_W_TCRIT_HYST,
