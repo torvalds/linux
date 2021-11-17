@@ -47,6 +47,10 @@
 	mem-supply = <&vdd_cpu_big1_mem_s0>;
 };
 
+&gpu {
+	status = "okay";
+};
+
 &iep {
 	status = "okay";
 };
