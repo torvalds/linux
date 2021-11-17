@@ -1924,9 +1924,10 @@ static struct platform_driver rk_plat_pcie_driver = {
 		.of_match_table = rk_pcie_of_match,
 		.suppress_bind_attrs = true,
 	},
+	.probe = rk_pcie_probe,
 };
 
-module_platform_driver_probe(rk_plat_pcie_driver, rk_pcie_probe);
+module_platform_driver(rk_plat_pcie_driver);
 
 MODULE_AUTHOR("Simon Xue <xxm@rock-chips.com>");
 MODULE_DESCRIPTION("RockChip PCIe Controller driver");
