@@ -947,7 +947,6 @@ struct req_iterator {
  * blk_rq_pos()			: the current sector
  * blk_rq_bytes()		: bytes left in the entire request
  * blk_rq_cur_bytes()		: bytes left in the current segment
- * blk_rq_err_bytes()		: bytes left till the next error boundary
  * blk_rq_sectors()		: sectors left in the entire request
  * blk_rq_cur_sectors()		: sectors left in the current segment
  * blk_rq_stats_sectors()	: sectors of the entire request used for stats
@@ -970,8 +969,6 @@ static inline int blk_rq_cur_bytes(const struct request *rq)
 		return rq->bio->bi_iter.bi_size;
 	return bio_iovec(rq->bio).bv_len;
 }
-
-unsigned int blk_rq_err_bytes(const struct request *rq);
 
 static inline unsigned int blk_rq_sectors(const struct request *rq)
 {
