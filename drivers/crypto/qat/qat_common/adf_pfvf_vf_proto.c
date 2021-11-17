@@ -47,18 +47,19 @@ static u32 adf_recv_pf2vf_msg(struct adf_accel_dev *accel_dev)
  * adf_send_vf2pf_req() - send VF2PF request message
  * @accel_dev:	Pointer to acceleration device.
  * @msg:	Request message to send
+ * @resp:	Returned PF response
  *
  * This function sends a message that requires a response from the VF to the PF
  * and waits for a reply.
  *
  * Return: 0 on success, error code otherwise.
  */
-int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, u32 msg)
+int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, u32 msg, u32 *resp)
 {
 	unsigned long timeout = msecs_to_jiffies(ADF_PFVF_MSG_RESP_TIMEOUT);
 	int ret;
 
-	reinit_completion(&accel_dev->vf.iov_msg_completion);
+	reinit_completion(&accel_dev->vf.msg_received);
 
 	/* Send request from VF to PF */
 	ret = adf_send_vf2pf_msg(accel_dev, msg);
@@ -69,12 +70,18 @@ int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, u32 msg)
 	}
 
 	/* Wait for response */
-	if (!wait_for_completion_timeout(&accel_dev->vf.iov_msg_completion,
+	if (!wait_for_completion_timeout(&accel_dev->vf.msg_received,
 					 timeout)) {
 		dev_err(&GET_DEV(accel_dev),
 			"PFVF request/response message timeout expired\n");
 		return -EIO;
 	}
+
+	if (likely(resp))
+		*resp = accel_dev->vf.response;
+
+	/* Once copied, set to an invalid value */
+	accel_dev->vf.response = 0;
 
 	return 0;
 }
@@ -89,15 +96,8 @@ static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 		adf_pf2vf_handle_pf_restarting(accel_dev);
 		return false;
 	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
-		dev_dbg(&GET_DEV(accel_dev),
-			"Version resp received from PF 0x%x\n", msg);
-		accel_dev->vf.pf_version =
-			(msg & ADF_PF2VF_VERSION_RESP_VERS_MASK) >>
-			ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
-		accel_dev->vf.compatible =
-			(msg & ADF_PF2VF_VERSION_RESP_RESULT_MASK) >>
-			ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
-		complete(&accel_dev->vf.iov_msg_completion);
+		accel_dev->vf.response = msg;
+		complete(&accel_dev->vf.msg_received);
 		return true;
 	default:
 		dev_err(&GET_DEV(accel_dev),

@@ -52,7 +52,10 @@ EXPORT_SYMBOL_GPL(adf_vf2pf_notify_shutdown);
 int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u8 pf_version;
 	u32 msg = 0;
+	int compat;
+	u32 resp;
 	int ret;
 
 	msg = ADF_VF2PF_MSGORIGIN_SYSTEM;
@@ -60,34 +63,38 @@ int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 	msg |= ADF_PFVF_COMPAT_THIS_VERSION << ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
 	BUILD_BUG_ON(ADF_PFVF_COMPAT_THIS_VERSION > 255);
 
-	ret = adf_send_vf2pf_req(accel_dev, msg);
+	ret = adf_send_vf2pf_req(accel_dev, msg, &resp);
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to send Compatibility Version Request.\n");
 		return ret;
 	}
 
+	pf_version = (resp & ADF_PF2VF_VERSION_RESP_VERS_MASK)
+		     >> ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
+	compat = (resp & ADF_PF2VF_VERSION_RESP_RESULT_MASK)
+		 >> ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+
 	/* Response from PF received, check compatibility */
-	switch (accel_dev->vf.compatible) {
+	switch (compat) {
 	case ADF_PF2VF_VF_COMPATIBLE:
 		break;
 	case ADF_PF2VF_VF_COMPAT_UNKNOWN:
 		/* VF is newer than PF and decides whether it is compatible */
-		if (accel_dev->vf.pf_version >= hw_data->min_iov_compat_ver) {
-			accel_dev->vf.compatible = ADF_PF2VF_VF_COMPATIBLE;
+		if (pf_version >= hw_data->min_iov_compat_ver)
 			break;
-		}
 		fallthrough;
 	case ADF_PF2VF_VF_INCOMPATIBLE:
 		dev_err(&GET_DEV(accel_dev),
 			"PF (vers %d) and VF (vers %d) are not compatible\n",
-			accel_dev->vf.pf_version,
-			ADF_PFVF_COMPAT_THIS_VERSION);
+			pf_version, ADF_PFVF_COMPAT_THIS_VERSION);
 		return -EINVAL;
 	default:
 		dev_err(&GET_DEV(accel_dev),
 			"Invalid response from PF; assume not compatible\n");
 		return -EINVAL;
 	}
-	return ret;
+
+	accel_dev->vf.pf_version = pf_version;
+	return 0;
 }

@@ -271,8 +271,8 @@ struct adf_accel_dev {
 			char irq_name[ADF_MAX_MSIX_VECTOR_NAME];
 			struct tasklet_struct pf2vf_bh_tasklet;
 			struct mutex vf2pf_lock; /* protect CSR access */
-			struct completion iov_msg_completion;
-			u8 compatible;
+			struct completion msg_received;
+			u32 response; /* temp field holding pf2vf response */
 			u8 pf_version;
 		} vf;
 	};
