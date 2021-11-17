@@ -46,6 +46,8 @@ static blk_status_t do_blktrans_request(struct mtd_blktrans_ops *tr,
 			       struct mtd_blktrans_dev *dev,
 			       struct request *req)
 {
+	struct req_iterator iter;
+	struct bio_vec bvec;
 	unsigned long block, nsect;
 	char *buf;
 
@@ -76,13 +78,17 @@ static blk_status_t do_blktrans_request(struct mtd_blktrans_ops *tr,
 			}
 		}
 		kunmap(bio_page(req->bio));
-		rq_flush_dcache_pages(req);
+
+		rq_for_each_segment(bvec, req, iter)
+			flush_dcache_page(bvec.bv_page);
 		return BLK_STS_OK;
 	case REQ_OP_WRITE:
 		if (!tr->writesect)
 			return BLK_STS_IOERR;
 
-		rq_flush_dcache_pages(req);
+		rq_for_each_segment(bvec, req, iter)
+			flush_dcache_page(bvec.bv_page);
+
 		buf = kmap(bio_page(req->bio)) + bio_offset(req->bio);
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize) {
 			if (tr->writesect(dev, block, buf)) {
