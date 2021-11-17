@@ -537,15 +537,20 @@ static unsigned int wmfw_convert_flags(unsigned int in, unsigned int len)
 	return out;
 }
 
-static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
+static void wm_adsp_ctl_work(struct work_struct *work)
 {
+	struct wm_coeff_ctl *ctl = container_of(work,
+						struct wm_coeff_ctl,
+						work);
 	struct cs_dsp_coeff_ctl *cs_ctl = ctl->cs_ctl;
+	struct wm_adsp *dsp = container_of(cs_ctl->dsp,
+					   struct wm_adsp,
+					   cs_dsp);
 	struct snd_kcontrol_new *kcontrol;
-	int ret;
 
 	kcontrol = kzalloc(sizeof(*kcontrol), GFP_KERNEL);
 	if (!kcontrol)
-		return -ENOMEM;
+		return;
 
 	kcontrol->name = ctl->name;
 	kcontrol->info = wm_coeff_info;
@@ -571,29 +576,9 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 		break;
 	}
 
-	ret = snd_soc_add_component_controls(dsp->component, kcontrol, 1);
-	if (ret < 0)
-		goto err_kcontrol;
+	snd_soc_add_component_controls(dsp->component, kcontrol, 1);
 
 	kfree(kcontrol);
-
-	return 0;
-
-err_kcontrol:
-	kfree(kcontrol);
-	return ret;
-}
-
-static void wm_adsp_ctl_work(struct work_struct *work)
-{
-	struct wm_coeff_ctl *ctl = container_of(work,
-						struct wm_coeff_ctl,
-						work);
-	struct wm_adsp *dsp = container_of(ctl->cs_ctl->dsp,
-					   struct wm_adsp,
-					   cs_dsp);
-
-	wmfw_add_ctl(dsp, ctl);
 }
 
 static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
