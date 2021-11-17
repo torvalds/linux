@@ -40,7 +40,7 @@ AMD_PM = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/pm/,$(PM_LIBS)))
 
 include $(AMD_PM)
 
-PM_MGR = amdgpu_dpm.o amdgpu_pm.o
+PM_MGR = amdgpu_dpm.o amdgpu_pm.o amdgpu_dpm_internal.o
 
 AMD_PM_POWER = $(addprefix $(AMD_PM_PATH)/,$(PM_MGR))
 

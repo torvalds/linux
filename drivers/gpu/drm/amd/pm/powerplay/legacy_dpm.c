@@ -26,6 +26,8 @@
 #include "atom.h"
 #include "amd_pcie.h"
 #include "legacy_dpm.h"
+#include "amdgpu_dpm_internal.h"
+#include "amdgpu_display.h"
 
 #define amdgpu_dpm_pre_set_power_state(adev) \
 		((adev)->powerplay.pp_funcs->pre_set_power_state((adev)->powerplay.pp_handle))
@@ -949,9 +951,8 @@ restart_search:
 	return NULL;
 }
 
-int amdgpu_dpm_change_power_state_locked(void *handle)
+static int amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ps *ps;
 	enum amd_pm_state_type dpm_state;
 	int ret;
@@ -1021,4 +1022,59 @@ int amdgpu_dpm_change_power_state_locked(void *handle)
 	}
 
 	return 0;
+}
+
+void amdgpu_legacy_dpm_compute_clocks(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i = 0;
+
+	if (adev->mode_info.num_crtc)
+		amdgpu_display_bandwidth_update(adev);
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
+		if (ring && ring->sched.ready)
+			amdgpu_fence_wait_empty(ring);
+	}
+
+	amdgpu_dpm_get_active_displays(adev);
+
+	amdgpu_dpm_change_power_state_locked(adev);
+}
+
+void amdgpu_dpm_thermal_work_handler(struct work_struct *work)
+{
+	struct amdgpu_device *adev =
+		container_of(work, struct amdgpu_device,
+			     pm.dpm.thermal.work);
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	/* switch to the thermal state */
+	enum amd_pm_state_type dpm_state = POWER_STATE_TYPE_INTERNAL_THERMAL;
+	int temp, size = sizeof(temp);
+
+	if (!adev->pm.dpm_enabled)
+		return;
+
+	if (!pp_funcs->read_sensor(adev->powerplay.pp_handle,
+				   AMDGPU_PP_SENSOR_GPU_TEMP,
+				   (void *)&temp,
+				   &size)) {
+		if (temp < adev->pm.dpm.thermal.min_temp)
+			/* switch back the user state */
+			dpm_state = adev->pm.dpm.user_state;
+	} else {
+		if (adev->pm.dpm.thermal.high_to_low)
+			/* switch back the user state */
+			dpm_state = adev->pm.dpm.user_state;
+	}
+
+	if (dpm_state == POWER_STATE_TYPE_INTERNAL_THERMAL)
+		adev->pm.dpm.thermal_active = true;
+	else
+		adev->pm.dpm.thermal_active = false;
+
+	adev->pm.dpm.state = dpm_state;
+
+	amdgpu_legacy_dpm_compute_clocks(adev->powerplay.pp_handle);
 }
