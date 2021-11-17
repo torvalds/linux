@@ -616,7 +616,8 @@ static void cs_dsp_halo_show_fw_status(struct cs_dsp *dsp)
 		   offs[0], offs[1], offs[2], offs[3]);
 }
 
-static int cs_dsp_coeff_base_reg(struct cs_dsp_coeff_ctl *ctl, unsigned int *reg)
+static int cs_dsp_coeff_base_reg(struct cs_dsp_coeff_ctl *ctl, unsigned int *reg,
+				 unsigned int off)
 {
 	const struct cs_dsp_alg_region *alg_region = &ctl->alg_region;
 	struct cs_dsp *dsp = ctl->dsp;
@@ -629,7 +630,7 @@ static int cs_dsp_coeff_base_reg(struct cs_dsp_coeff_ctl *ctl, unsigned int *reg
 		return -EINVAL;
 	}
 
-	*reg = dsp->ops->region_to_reg(mem, ctl->alg_region.base + ctl->offset);
+	*reg = dsp->ops->region_to_reg(mem, ctl->alg_region.base + ctl->offset + off);
 
 	return 0;
 }
@@ -658,7 +659,7 @@ int cs_dsp_coeff_write_acked_control(struct cs_dsp_coeff_ctl *ctl, unsigned int 
 	if (!dsp->running)
 		return -EPERM;
 
-	ret = cs_dsp_coeff_base_reg(ctl, &reg);
+	ret = cs_dsp_coeff_base_reg(ctl, &reg, 0);
 	if (ret)
 		return ret;
 
@@ -712,14 +713,14 @@ int cs_dsp_coeff_write_acked_control(struct cs_dsp_coeff_ctl *ctl, unsigned int 
 EXPORT_SYMBOL_GPL(cs_dsp_coeff_write_acked_control);
 
 static int cs_dsp_coeff_write_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
-				       const void *buf, size_t len)
+				       unsigned int off, const void *buf, size_t len)
 {
 	struct cs_dsp *dsp = ctl->dsp;
 	void *scratch;
 	int ret;
 	unsigned int reg;
 
-	ret = cs_dsp_coeff_base_reg(ctl, &reg);
+	ret = cs_dsp_coeff_base_reg(ctl, &reg, off);
 	if (ret)
 		return ret;
 
@@ -745,6 +746,7 @@ static int cs_dsp_coeff_write_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
 /**
  * cs_dsp_coeff_write_ctrl() - Writes the given buffer to the given coefficient control
  * @ctl: pointer to coefficient control
+ * @off: word offset at which data should be written
  * @buf: the buffer to write to the given control
  * @len: the length of the buffer in bytes
  *
@@ -752,7 +754,8 @@ static int cs_dsp_coeff_write_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
  *
  * Return: Zero for success, a negative number on error.
  */
-int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl, const void *buf, size_t len)
+int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl,
+			    unsigned int off, const void *buf, size_t len)
 {
 	int ret = 0;
 
@@ -761,27 +764,31 @@ int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl, const void *buf, size_
 	if (!ctl)
 		return -ENOENT;
 
+	if (len + off * sizeof(u32) > ctl->len)
+		return -EINVAL;
+
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
 		ret = -EPERM;
 	else if (buf != ctl->cache)
-		memcpy(ctl->cache, buf, len);
+		memcpy(ctl->cache + off * sizeof(u32), buf, len);
 
 	ctl->set = 1;
 	if (ctl->enabled && ctl->dsp->running)
-		ret = cs_dsp_coeff_write_ctrl_raw(ctl, buf, len);
+		ret = cs_dsp_coeff_write_ctrl_raw(ctl, off, buf, len);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cs_dsp_coeff_write_ctrl);
 
-static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl, void *buf, size_t len)
+static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
+				      unsigned int off, void *buf, size_t len)
 {
 	struct cs_dsp *dsp = ctl->dsp;
 	void *scratch;
 	int ret;
 	unsigned int reg;
 
-	ret = cs_dsp_coeff_base_reg(ctl, &reg);
+	ret = cs_dsp_coeff_base_reg(ctl, &reg, off);
 	if (ret)
 		return ret;
 
@@ -807,6 +814,7 @@ static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl, void *buf, s
 /**
  * cs_dsp_coeff_read_ctrl() - Reads the given coefficient control into the given buffer
  * @ctl: pointer to coefficient control
+ * @off: word offset at which data should be read
  * @buf: the buffer to store to the given control
  * @len: the length of the buffer in bytes
  *
@@ -814,7 +822,8 @@ static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl, void *buf, s
  *
  * Return: Zero for success, a negative number on error.
  */
-int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl, void *buf, size_t len)
+int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl,
+			   unsigned int off, void *buf, size_t len)
 {
 	int ret = 0;
 
@@ -823,17 +832,20 @@ int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl, void *buf, size_t len)
 	if (!ctl)
 		return -ENOENT;
 
+	if (len + off * sizeof(u32) > ctl->len)
+		return -EINVAL;
+
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE) {
 		if (ctl->enabled && ctl->dsp->running)
-			return cs_dsp_coeff_read_ctrl_raw(ctl, buf, len);
+			return cs_dsp_coeff_read_ctrl_raw(ctl, off, buf, len);
 		else
 			return -EPERM;
 	} else {
 		if (!ctl->flags && ctl->enabled && ctl->dsp->running)
-			ret = cs_dsp_coeff_read_ctrl_raw(ctl, ctl->cache, ctl->len);
+			ret = cs_dsp_coeff_read_ctrl_raw(ctl, 0, ctl->cache, ctl->len);
 
 		if (buf != ctl->cache)
-			memcpy(buf, ctl->cache, len);
+			memcpy(buf, ctl->cache + off * sizeof(u32), len);
 	}
 
 	return ret;
@@ -857,7 +869,7 @@ static int cs_dsp_coeff_init_control_caches(struct cs_dsp *dsp)
 		 * created so we don't need to do anything.
 		 */
 		if (!ctl->flags || (ctl->flags & WMFW_CTL_FLAG_READABLE)) {
-			ret = cs_dsp_coeff_read_ctrl_raw(ctl, ctl->cache, ctl->len);
+			ret = cs_dsp_coeff_read_ctrl_raw(ctl, 0, ctl->cache, ctl->len);
 			if (ret < 0)
 				return ret;
 		}
@@ -875,7 +887,7 @@ static int cs_dsp_coeff_sync_controls(struct cs_dsp *dsp)
 		if (!ctl->enabled)
 			continue;
 		if (ctl->set && !(ctl->flags & WMFW_CTL_FLAG_VOLATILE)) {
-			ret = cs_dsp_coeff_write_ctrl_raw(ctl, ctl->cache,
+			ret = cs_dsp_coeff_write_ctrl_raw(ctl, 0, ctl->cache,
 							  ctl->len);
 			if (ret < 0)
 				return ret;

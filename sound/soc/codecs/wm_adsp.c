@@ -401,7 +401,7 @@ static int wm_coeff_put(struct snd_kcontrol *kctl,
 	int ret = 0;
 
 	mutex_lock(&cs_ctl->dsp->pwr_lock);
-	ret = cs_dsp_coeff_write_ctrl(cs_ctl, p, cs_ctl->len);
+	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, p, cs_ctl->len);
 	mutex_unlock(&cs_ctl->dsp->pwr_lock);
 
 	return ret;
@@ -421,7 +421,7 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 	if (copy_from_user(cs_ctl->cache, bytes, size))
 		ret = -EFAULT;
 	else
-		ret = cs_dsp_coeff_write_ctrl(cs_ctl, cs_ctl->cache, size);
+		ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, cs_ctl->cache, size);
 
 	mutex_unlock(&cs_ctl->dsp->pwr_lock);
 
@@ -464,7 +464,7 @@ static int wm_coeff_get(struct snd_kcontrol *kctl,
 	int ret;
 
 	mutex_lock(&cs_ctl->dsp->pwr_lock);
-	ret = cs_dsp_coeff_read_ctrl(cs_ctl, p, cs_ctl->len);
+	ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, p, cs_ctl->len);
 	mutex_unlock(&cs_ctl->dsp->pwr_lock);
 
 	return ret;
@@ -481,7 +481,7 @@ static int wm_coeff_tlv_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&cs_ctl->dsp->pwr_lock);
 
-	ret = cs_dsp_coeff_read_ctrl(cs_ctl, cs_ctl->cache, size);
+	ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, cs_ctl->cache, size);
 
 	if (!ret && copy_to_user(bytes, cs_ctl->cache, size))
 		ret = -EFAULT;
@@ -684,7 +684,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 	if (len > cs_ctl->len)
 		return -EINVAL;
 
-	ret = cs_dsp_coeff_write_ctrl(cs_ctl, buf, len);
+	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, buf, len);
 	if (ret)
 		return ret;
 
@@ -723,7 +723,7 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 	if (len > cs_ctl->len)
 		return -EINVAL;
 
-	return cs_dsp_coeff_read_ctrl(cs_ctl, buf, len);
+	return cs_dsp_coeff_read_ctrl(cs_ctl, 0, buf, len);
 }
 EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
@@ -1432,7 +1432,7 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 	int ret, i;
 
 	for (i = 0; i < 5; ++i) {
-		ret = cs_dsp_coeff_read_ctrl(cs_ctl, &coeff_v1, sizeof(coeff_v1));
+		ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, &coeff_v1, sizeof(coeff_v1));
 		if (ret < 0)
 			return ret;
 
