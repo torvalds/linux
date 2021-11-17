@@ -211,19 +211,13 @@ also declared in the perf 'cs_etm' event infrastructure so that they can
 be selected when running trace under perf::
 
     $ ls /sys/devices/cs_etm
-    configurations  format  perf_event_mux_interval_ms  sinks  type
-    events  nr_addr_filters  power
+    cpu0  cpu2  events  nr_addr_filters		power  subsystem  uevent
+    cpu1  cpu3  format  perf_event_mux_interval_ms	sinks  type
 
-Key directories here are 'configurations' - which lists the loaded
-configurations, and 'events' - a generic perf directory which allows
-selection on the perf command line.::
+The key directory here is 'events' - a generic perf directory which allows
+selection on the perf command line. As with the sinks entries, this provides
+a hash of the configuration name.
 
-    $ ls configurations/
-    autofdo
-    $ cat configurations/autofdo
-    0xa7c3dddd
-
-As with the sinks entries, this provides a hash of the configuration name.
 The entry in the 'events' directory uses perfs built in syntax generator
 to substitute the syntax for the name when evaluating the command::
 
