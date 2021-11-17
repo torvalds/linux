@@ -77,6 +77,23 @@
 		default-brightness-level = <200>;
 	};
 
+	es7202_sound_micarray: es7202-sound-micarray {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,sound-micarray";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,dai-link@0 {
+			format = "pdm";
+			cpu {
+				sound-dai = <&pdm0>;
+			};
+			codec {
+				sound-dai = <&es7202>;
+			};
+		};
+	};
+
 	es8388_sound: es8388-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -352,6 +369,14 @@
 		hp-con-gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
 		extcon = <&rk_headset>;
 	};
+
+	es7202: es7202@32 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		power-supply = <&vcc_1v8_s0>;	/* only 1v8 or 3v3, default is 3v3 */
+		reg = <0x32>;
+	};
 };
 
 &i2c4 {
@@ -503,6 +528,11 @@
 
 &pcie2x1l2 {
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&pdm0 {
+	rockchip,path-map = <2 0 1 3>;
 	status = "okay";
 };
 
