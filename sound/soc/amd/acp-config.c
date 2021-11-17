@@ -68,14 +68,4 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 };
 EXPORT_SYMBOL(snd_soc_acpi_amd_sof_machines);
 
-struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines[] = {
-	{
-		.id = "AMDI1019",
-		.drv_name = "renoir-acp",
-		.pdata = (void *)&acp_quirk_data,
-	},
-	{},
-};
-EXPORT_SYMBOL(snd_soc_acpi_amd_acp_machines);
-
 MODULE_LICENSE("Dual BSD/GPL");

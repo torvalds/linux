@@ -18,7 +18,6 @@
 #define ACP_PCI_DEV_ID			0x15E2
 
 extern struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[];
-extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines[];
 
 struct config_entry {
 	u32 flags;
