@@ -676,12 +676,6 @@ vc4_hvs_channels_duplicate_state(struct drm_private_obj *obj)
 
 	for (i = 0; i < HVS_NUM_CHANNELS; i++) {
 		state->fifo_state[i].in_use = old_state->fifo_state[i].in_use;
-
-		if (!old_state->fifo_state[i].pending_commit)
-			continue;
-
-		state->fifo_state[i].pending_commit =
-			drm_crtc_commit_get(old_state->fifo_state[i].pending_commit);
 	}
 
 	return &state->base;
