@@ -194,6 +194,14 @@ config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
 	  Say Y if you want to enable IPC flood test.
 	  If unsure, select "N".
 
+config SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR
+	bool "SOF enable IPC message injector"
+	help
+	  This option enables the IPC message injector which can be used to send
+	  crafted IPC messages to the DSP to test its robustness.
+	  Say Y if you want to enable the IPC message injector.
+	  If unsure, select "N".
+
 config SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT
 	bool "SOF retain DSP context on any FW exceptions"
 	help

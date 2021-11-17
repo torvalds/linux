@@ -70,7 +70,6 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 	struct snd_sof_ipc_msg *msg = sdev->msg;
 	struct sof_ipc_reply reply;
 	struct sof_ipc_cmd_hdr *hdr;
-	int ret = 0;
 
 	/*
 	 * Sometimes, there is unexpected reply ipc arriving. The reply
@@ -94,35 +93,11 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 		reply.hdr.cmd = SOF_IPC_GLB_REPLY;
 		reply.hdr.size = sizeof(reply);
 		memcpy(msg->reply_data, &reply, sizeof(reply));
-		goto out;
-	}
 
-	/* get IPC reply from DSP in the mailbox */
-	sof_mailbox_read(sdev, sdev->host_box.offset, &reply,
-			 sizeof(reply));
-
-	if (reply.error < 0) {
-		memcpy(msg->reply_data, &reply, sizeof(reply));
-		ret = reply.error;
+		msg->reply_error = 0;
 	} else {
-		/* reply correct size ? */
-		if (reply.hdr.size != msg->reply_size &&
-		    /* getter payload is never known upfront */
-		    ((reply.hdr.cmd & SOF_GLB_TYPE_MASK) != SOF_IPC_GLB_PROBE)) {
-			dev_err(sdev->dev, "error: reply expected %zu got %u bytes\n",
-				msg->reply_size, reply.hdr.size);
-			ret = -EINVAL;
-		}
-
-		/* read the message */
-		if (msg->reply_size > 0)
-			sof_mailbox_read(sdev, sdev->host_box.offset,
-					 msg->reply_data, msg->reply_size);
+		snd_sof_ipc_get_reply(sdev);
 	}
-
-out:
-	msg->reply_error = ret;
-
 }
 
 /* IPC handler thread */
