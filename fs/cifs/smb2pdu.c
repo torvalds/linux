@@ -1393,7 +1393,6 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 
 	/* Even if one channel is active, session is in good state */
 	spin_lock(&cifs_tcp_ses_lock);
-	server->tcpStatus = CifsGood;
 	ses->status = CifsGood;
 	spin_unlock(&cifs_tcp_ses_lock);
 

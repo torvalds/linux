@@ -181,16 +181,15 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 	server->maxBuf = 0;
 	server->max_read = 0;
 
-	cifs_dbg(FYI, "Mark tcp session as need reconnect\n");
-	trace_smb3_reconnect(server->CurrentMid, server->conn_id, server->hostname);
 	/*
 	 * before reconnecting the tcp session, mark the smb session (uid) and the tid bad so they
 	 * are not used until reconnected.
 	 */
-	cifs_dbg(FYI, "%s: marking sessions and tcons for reconnect\n", __func__);
+	cifs_dbg(FYI, "%s: marking necessary sessions and tcons for reconnect\n", __func__);
 
 	/* If server is a channel, select the primary channel */
 	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
@@ -218,13 +217,8 @@ next_session:
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	/*
-	 * before reconnecting the tcp session, mark the smb session (uid)
-	 * and the tid bad so they are not used until reconnected
-	 */
-	cifs_dbg(FYI, "%s: marking sessions and tcons for reconnect and tearing down socket\n",
-		 __func__);
 	/* do not want to be sending data on a socket we are freeing */
+	cifs_dbg(FYI, "%s: tearing down socket\n", __func__);
 	mutex_lock(&server->srv_mutex);
 	if (server->ssocket) {
 		cifs_dbg(FYI, "State: 0x%x Flags: 0x%lx\n", server->ssocket->state,
@@ -280,7 +274,12 @@ static bool cifs_tcp_ses_needs_reconnect(struct TCP_Server_Info *server, int num
 		wake_up(&server->response_q);
 		return false;
 	}
+
+	cifs_dbg(FYI, "Mark tcp session as need reconnect\n");
+	trace_smb3_reconnect(server->CurrentMid, server->conn_id,
+			     server->hostname);
 	server->tcpStatus = CifsNeedReconnect;
+
 	spin_unlock(&cifs_tcp_ses_lock);
 	return true;
 }
@@ -634,7 +633,6 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct msghdr *smb_msg)
 
 		if (server->tcpStatus == CifsNeedReconnect) {
 			spin_unlock(&cifs_tcp_ses_lock);
-			cifs_reconnect(server, false);
 			return -ECONNABORTED;
 		}
 		spin_unlock(&cifs_tcp_ses_lock);
@@ -3885,6 +3883,11 @@ cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses,
 		else
 			rc = -EHOSTDOWN;
 		spin_unlock(&cifs_tcp_ses_lock);
+	} else {
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus == CifsInNegotiate)
+			server->tcpStatus = CifsNeedNegotiate;
+		spin_unlock(&cifs_tcp_ses_lock);
 	}
 
 	return rc;
@@ -3931,8 +3934,18 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	if (server->ops->sess_setup)
 		rc = server->ops->sess_setup(xid, ses, server, nls_info);
 
-	if (rc)
+	if (rc) {
 		cifs_server_dbg(VFS, "Send error in SessSetup = %d\n", rc);
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus == CifsInSessSetup)
+			server->tcpStatus = CifsNeedSessSetup;
+		spin_unlock(&cifs_tcp_ses_lock);
+	} else {
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus == CifsInSessSetup)
+			server->tcpStatus = CifsGood;
+		spin_unlock(&cifs_tcp_ses_lock);
+	}
 
 	return rc;
 }
@@ -4279,9 +4292,8 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->ses->status != CifsGood ||
-	    (tcon->tidStatus != CifsNew &&
-	    tcon->tidStatus != CifsNeedTcon)) {
+	if (tcon->tidStatus != CifsNew &&
+	    tcon->tidStatus != CifsNeedTcon) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
