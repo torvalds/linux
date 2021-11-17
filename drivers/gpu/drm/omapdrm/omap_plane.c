@@ -348,6 +348,19 @@ omap_plane_atomic_duplicate_state(struct drm_plane *plane)
 	return &state->base;
 }
 
+static void omap_plane_atomic_print_state(struct drm_printer *p,
+					  const struct drm_plane_state *state)
+{
+	struct omap_plane_state *omap_state = to_omap_plane_state(state);
+
+	if (omap_state->overlay)
+		drm_printf(p, "\toverlay=%s (caps=0x%x)\n",
+			   omap_state->overlay->name,
+			   omap_state->overlay->caps);
+	else
+		drm_printf(p, "\toverlay=None\n");
+}
+
 static int omap_plane_atomic_set_property(struct drm_plane *plane,
 					  struct drm_plane_state *state,
 					  struct drm_property *property,
@@ -387,6 +400,7 @@ static const struct drm_plane_funcs omap_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.atomic_set_property = omap_plane_atomic_set_property,
 	.atomic_get_property = omap_plane_atomic_get_property,
+	.atomic_print_state = omap_plane_atomic_print_state,
 };
 
 static bool omap_plane_supports_yuv(struct drm_plane *plane)
