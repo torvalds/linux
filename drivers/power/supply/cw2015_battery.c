@@ -468,6 +468,20 @@ static bool cw_battery_valid_time_to_empty(struct cw_battery *cw_bat)
 		cw_bat->status == POWER_SUPPLY_STATUS_DISCHARGING;
 }
 
+static int cw_get_capacity_leve(struct cw_battery *cw_bat)
+{
+	if (cw_bat->soc < 1)
+		return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+	else if (cw_bat->soc <= 20)
+		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+	else if (cw_bat->soc <= 70)
+		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	else if (cw_bat->soc <= 90)
+		return POWER_SUPPLY_CAPACITY_LEVEL_HIGH;
+	else
+		return POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+}
+
 static int cw_battery_get_property(struct power_supply *psy,
 				   enum power_supply_property psp,
 				   union power_supply_propval *val)
@@ -478,6 +492,10 @@ static int cw_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = cw_bat->soc;
+		break;
+
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		val->intval = cw_get_capacity_leve(cw_bat);
 		break;
 
 	case POWER_SUPPLY_PROP_STATUS:
@@ -538,6 +556,7 @@ static int cw_battery_get_property(struct power_supply *psy,
 
 static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
