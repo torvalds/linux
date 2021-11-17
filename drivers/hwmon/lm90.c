@@ -178,6 +178,7 @@ enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
 #define LM90_HAVE_CRIT_ALRM_SWP	BIT(10)	/* critical alarm bits swapped	*/
 #define LM90_HAVE_PEC		BIT(11)	/* Chip supports PEC		*/
 #define LM90_HAVE_PARTIAL_PEC	BIT(12)	/* Partial PEC support (adm1032)*/
+#define LM90_HAVE_ALARMS	BIT(13)	/* Create 'alarms' attribute	*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	BIT(0)	/* local THERM limit tripped */
@@ -347,7 +348,7 @@ static const struct lm90_params lm90_params[] = {
 	[adm1032] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT
-		  | LM90_HAVE_PARTIAL_PEC,
+		  | LM90_HAVE_PARTIAL_PEC | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
@@ -359,7 +360,8 @@ static const struct lm90_params lm90_params[] = {
 		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
-		  | LM90_HAVE_CRIT | LM90_HAVE_PARTIAL_PEC,
+		  | LM90_HAVE_CRIT | LM90_HAVE_PARTIAL_PEC
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 		.resolution = 10,
@@ -367,55 +369,58 @@ static const struct lm90_params lm90_params[] = {
 	[adt7461a] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
-		  | LM90_HAVE_CRIT | LM90_HAVE_PEC,
+		  | LM90_HAVE_CRIT | LM90_HAVE_PEC | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
 	[g781] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 	},
 	[lm86] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_CRIT,
+		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[lm90] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_CRIT,
+		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[lm99] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_CRIT,
+		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[max6646] = {
 		.flags = LM90_HAVE_CRIT | LM90_HAVE_BROKEN_ALERT
-		  | LM90_HAVE_UNSIGNED_TEMP,
+		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[max6654] = {
-		.flags = LM90_HAVE_BROKEN_ALERT,
+		.flags = LM90_HAVE_BROKEN_ALERT | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[max6657] = {
-		.flags = LM90_PAUSE_FOR_CONFIG | LM90_HAVE_CRIT,
+		.flags = LM90_PAUSE_FOR_CONFIG | LM90_HAVE_CRIT
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[max6659] = {
-		.flags = LM90_HAVE_EMERGENCY | LM90_HAVE_CRIT,
+		.flags = LM90_HAVE_EMERGENCY | LM90_HAVE_CRIT
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
@@ -427,19 +432,22 @@ static const struct lm90_params lm90_params[] = {
 		 * be set).
 		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_CRIT
-		  | LM90_HAVE_CRIT_ALRM_SWP | LM90_HAVE_BROKEN_ALERT,
+		  | LM90_HAVE_CRIT_ALRM_SWP | LM90_HAVE_BROKEN_ALERT
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 	},
 	[max6696] = {
 		.flags = LM90_HAVE_EMERGENCY
-		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT,
+		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x1c7c,
 		.max_convrate = 6,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[w83l771] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 	},
@@ -449,7 +457,8 @@ static const struct lm90_params lm90_params[] = {
 		 * and treated as negative temperatures (meaning min_alarm will
 		 * be set).
 		 */
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 		.reg_local_ext = SA56004_REG_LOCAL_TEMPL,
@@ -457,7 +466,7 @@ static const struct lm90_params lm90_params[] = {
 	[tmp451] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT
-		  | LM90_HAVE_UNSIGNED_TEMP,
+		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.resolution = 12,
@@ -465,7 +474,8 @@ static const struct lm90_params lm90_params[] = {
 	},
 	[tmp461] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT
+		  | LM90_HAVE_ALARMS,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.resolution = 12,
@@ -505,7 +515,9 @@ enum lm90_temp_reg_index {
 struct lm90_data {
 	struct i2c_client *client;
 	struct device *hwmon_dev;
+	u32 chip_config[2];
 	u32 channel_config[4];
+	struct hwmon_channel_info chip_info;
 	struct hwmon_channel_info temp_info;
 	const struct hwmon_channel_info *info[3];
 	struct hwmon_chip_info chip;
@@ -2030,8 +2042,15 @@ static int lm90_probe(struct i2c_client *client)
 	data->chip.ops = &lm90_ops;
 	data->chip.info = data->info;
 
-	data->info[0] = HWMON_CHANNEL_INFO(chip,
-		HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL | HWMON_C_ALARMS);
+	data->info[0] = &data->chip_info;
+	info = &data->chip_info;
+	info->type = hwmon_chip;
+	info->config = data->chip_config;
+
+	data->chip_config[0] = HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL;
+	if (data->flags & LM90_HAVE_ALARMS)
+		data->chip_config[0] |= HWMON_C_ALARMS;
+
 	data->info[1] = &data->temp_info;
 
 	info = &data->temp_info;
