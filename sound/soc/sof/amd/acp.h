@@ -13,6 +13,8 @@
 
 #include "../sof-priv.h"
 
+#define ACP_MAX_STREAM	8
+
 #define ACP_DSP_BAR	0
 
 #define ACP_REG_POLL_INTERVAL                   500
@@ -114,6 +116,17 @@ struct  scratch_reg_conf {
 	unsigned int    reserve[];
 };
 
+struct acp_dsp_stream {
+	struct list_head list;
+	struct snd_sof_dev *sdev;
+	struct snd_pcm_substream *substream;
+	struct snd_dma_buffer *dmab;
+	int num_pages;
+	int stream_tag;
+	int active;
+	unsigned int reg_offset;
+};
+
 /* Common device data struct for ACP devices */
 struct acp_dev_data {
 	struct snd_sof_dev  *dev;
@@ -125,6 +138,7 @@ struct acp_dev_data {
 	dma_addr_t dma_addr;
 	u8 *data_buf;
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
+	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -164,6 +178,20 @@ int acp_sof_ipc_pcm_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *s
 			   const struct sof_ipc_pcm_params_reply *reply);
 void acp_mailbox_write(struct snd_sof_dev *sdev, u32 offset, void *message, size_t bytes);
 void acp_mailbox_read(struct snd_sof_dev *sdev, u32 offset, void *message, size_t bytes);
+
+/* ACP - DSP  stream callbacks */
+int acp_dsp_stream_config(struct snd_sof_dev *sdev, struct acp_dsp_stream *stream);
+int acp_dsp_stream_init(struct snd_sof_dev *sdev);
+struct acp_dsp_stream *acp_dsp_stream_get(struct snd_sof_dev *sdev, int tag);
+int acp_dsp_stream_put(struct snd_sof_dev *sdev, struct acp_dsp_stream *acp_stream);
+
+/*
+ * DSP PCM Operations.
+ */
+int acp_pcm_open(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream);
+int acp_pcm_close(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream);
+int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
+		      struct snd_pcm_hw_params *params, struct sof_ipc_stream_params *ipc_params);
 
 extern const struct snd_sof_dsp_ops sof_renoir_ops;
 #endif

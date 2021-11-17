@@ -363,6 +363,8 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 
 	acp_memory_init(sdev);
 
+	acp_dsp_stream_init(sdev);
+
 	return 0;
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_probe, SND_SOC_SOF_AMD_COMMON);

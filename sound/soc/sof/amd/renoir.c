@@ -140,6 +140,17 @@ const struct snd_sof_dsp_ops sof_renoir_ops = {
 	/* DAI drivers */
 	.drv			= renoir_sof_dai,
 	.num_drv		= ARRAY_SIZE(renoir_sof_dai),
+
+	/* stream callbacks */
+	.pcm_open		= acp_pcm_open,
+	.pcm_close		= acp_pcm_close,
+	.pcm_hw_params		= acp_pcm_hw_params,
+
+	.hw_info		= SNDRV_PCM_INFO_MMAP |
+				  SNDRV_PCM_INFO_MMAP_VALID |
+				  SNDRV_PCM_INFO_INTERLEAVED |
+				  SNDRV_PCM_INFO_PAUSE |
+				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 };
 EXPORT_SYMBOL(sof_renoir_ops);
 
