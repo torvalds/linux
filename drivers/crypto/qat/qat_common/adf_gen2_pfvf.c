@@ -12,12 +12,12 @@
 #define ADF_GEN2_PF_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_GEN2_VF_PF2VF_OFFSET	0x200
 
-static u32 adf_gen2_pf_get_pf2vf_offset(u32 i)
+static u32 adf_gen2_pf_get_pfvf_offset(u32 i)
 {
 	return ADF_GEN2_PF_PF2VF_OFFSET(i);
 }
 
-static u32 adf_gen2_vf_get_pf2vf_offset(u32 i)
+static u32 adf_gen2_vf_get_pfvf_offset(u32 i)
 {
 	return ADF_GEN2_VF_PF2VF_OFFSET;
 }
@@ -64,7 +64,8 @@ static void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr,
 void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 {
 	pfvf_ops->enable_comms = adf_enable_pf2vf_comms;
-	pfvf_ops->get_pf2vf_offset = adf_gen2_pf_get_pf2vf_offset;
+	pfvf_ops->get_pf2vf_offset = adf_gen2_pf_get_pfvf_offset;
+	pfvf_ops->get_vf2pf_offset = adf_gen2_pf_get_pfvf_offset;
 	pfvf_ops->get_vf2pf_sources = adf_gen2_get_vf2pf_sources;
 	pfvf_ops->enable_vf2pf_interrupts = adf_gen2_enable_vf2pf_interrupts;
 	pfvf_ops->disable_vf2pf_interrupts = adf_gen2_disable_vf2pf_interrupts;
@@ -74,6 +75,7 @@ EXPORT_SYMBOL_GPL(adf_gen2_init_pf_pfvf_ops);
 void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 {
 	pfvf_ops->enable_comms = adf_enable_vf2pf_comms;
-	pfvf_ops->get_pf2vf_offset = adf_gen2_vf_get_pf2vf_offset;
+	pfvf_ops->get_pf2vf_offset = adf_gen2_vf_get_pfvf_offset;
+	pfvf_ops->get_vf2pf_offset = adf_gen2_vf_get_pfvf_offset;
 }
 EXPORT_SYMBOL_GPL(adf_gen2_init_vf_pfvf_ops);
