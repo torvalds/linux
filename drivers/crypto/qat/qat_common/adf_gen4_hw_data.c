@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
 #include "adf_accel_devices.h"
+#include "adf_common_drv.h"
 #include "adf_gen4_hw_data.h"
 
 static u64 build_csr_ring_base_addr(dma_addr_t addr, u32 size)
@@ -139,3 +140,9 @@ void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEH_OFFSET, ssm_wdt_pke_high);
 }
 EXPORT_SYMBOL_GPL(adf_gen4_set_ssm_wdtimer);
+
+int adf_pfvf_comms_disabled(struct adf_accel_dev *accel_dev)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_pfvf_comms_disabled);
