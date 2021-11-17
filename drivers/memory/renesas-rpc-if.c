@@ -259,17 +259,14 @@ EXPORT_SYMBOL(rpcif_sw_init);
 
 static void rpcif_rzg2l_timing_adjust_sdr(struct rpcif *rpc)
 {
-	u32 data;
-
 	regmap_write(rpc->regmap, RPCIF_PHYWR, 0xa5390000);
 	regmap_write(rpc->regmap, RPCIF_PHYADD, 0x80000000);
 	regmap_write(rpc->regmap, RPCIF_PHYWR, 0x00008080);
 	regmap_write(rpc->regmap, RPCIF_PHYADD, 0x80000022);
 	regmap_write(rpc->regmap, RPCIF_PHYWR, 0x00008080);
 	regmap_write(rpc->regmap, RPCIF_PHYADD, 0x80000024);
-
-	regmap_read(rpc->regmap, RPCIF_PHYCNT, &data);
-	regmap_write(rpc->regmap, RPCIF_PHYCNT, data | RPCIF_PHYCNT_CKSEL(3));
+	regmap_update_bits(rpc->regmap, RPCIF_PHYCNT, RPCIF_PHYCNT_CKSEL(3),
+			   RPCIF_PHYCNT_CKSEL(3));
 	regmap_write(rpc->regmap, RPCIF_PHYWR, 0x00000030);
 	regmap_write(rpc->regmap, RPCIF_PHYADD, 0x80000032);
 }
