@@ -42,8 +42,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
 
 #include "plx9052.h"
 #include "comedi_8254.h"

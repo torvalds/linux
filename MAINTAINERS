@@ -4713,6 +4713,8 @@ M:	Ian Abbott <abbotti@mev.co.uk>
 M:	H Hartley Sweeten <hsweeten@visionengravers.com>
 S:	Odd Fixes
 F:	drivers/comedi/
+F:	include/linux/comedi/
+F:	include/uapi/linux/comedi.h
 
 COMMON CLK FRAMEWORK
 M:	Michael Turquette <mturquette@baylibre.com>

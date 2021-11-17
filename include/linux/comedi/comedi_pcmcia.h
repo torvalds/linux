@@ -12,8 +12,7 @@
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
-
-#include "comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *dev);
 

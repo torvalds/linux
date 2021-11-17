@@ -43,8 +43,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
 
 /*
  * PCI BAR0 - dual-ported RAM location definitions (dev->mmio)

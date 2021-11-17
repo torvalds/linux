@@ -9,8 +9,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #include "comedi_isadma.h"
 

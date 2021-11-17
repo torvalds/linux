@@ -51,8 +51,7 @@
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #include "comedi_isadma.h"
 

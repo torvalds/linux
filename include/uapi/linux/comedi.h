@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.0+ */
+/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-note */
 /*
  * comedi.h
  * header file for COMEDI user API

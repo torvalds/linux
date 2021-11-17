@@ -27,8 +27,7 @@
  */
 
 #include <linux/module.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
 
 #include "8255.h"
 

@@ -10,8 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #include "comedi_isadma.h"
 #include "ni_labpc.h"
