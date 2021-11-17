@@ -64,10 +64,10 @@ static u8 get_vendor_flag(struct i2c_client *client)
 	u32 temp = 0;
 
 	for (i = 0; i < 8; i++) {
-		read_reg_otp(client, INFO_FLAG_REG, 1, &temp);
+		read_reg_otp(client, INFO_FLAG_REG + i, 1, &temp);
 		vendor[i] = (u8)temp;
 	}
-	vendor[i] = '\n';
+	vendor[8] = 0;
 	if (strcmp(vendor, "ROCKCHIP") == 0)
 		vendor_flag |= 0x40;
 	else
@@ -845,8 +845,8 @@ static int otp_eeprom_show(struct seq_file *p, void *v)
 			for (i = 0; i < gainmap_h; i++) {
 				for (j = 0; j < gainmap_w; j++) {
 					seq_printf(p, "%d",
-						   (dev->otp->pdaf_data.gainmap[(i * gainmap_w + j) * 2 + 1] << 8) |
-						   dev->otp->pdaf_data.gainmap[(i * gainmap_w + j) * 2]);
+						   (dev->otp->pdaf_data.gainmap[(i * gainmap_w + j) * 2] << 8) |
+						   dev->otp->pdaf_data.gainmap[(i * gainmap_w + j) * 2 + 1]);
 					if (j < gainmap_w)
 						seq_printf(p, " ");
 				}
@@ -861,8 +861,8 @@ static int otp_eeprom_show(struct seq_file *p, void *v)
 			for (i = 0; i < dccmap_h; i++) {
 				for (j = 0; j < dccmap_w; j++) {
 					seq_printf(p, "%d",
-						   (dev->otp->pdaf_data.dccmap[(i * dccmap_w + j) * 2 + 1] << 8) |
-						   dev->otp->pdaf_data.dccmap[(i * dccmap_w + j) * 2]);
+						   (dev->otp->pdaf_data.dccmap[(i * dccmap_w + j) * 2] << 8) |
+						   dev->otp->pdaf_data.dccmap[(i * dccmap_w + j) * 2 + 1]);
 					if (j < dccmap_w)
 						seq_printf(p, " ");
 				}
