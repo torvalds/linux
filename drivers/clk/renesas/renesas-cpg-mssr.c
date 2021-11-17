@@ -590,8 +590,7 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 
 	cpg_mssr_clk_domain = pd;
 
-	of_genpd_add_provider_simple(np, genpd);
-	return 0;
+	return of_genpd_add_provider_simple(np, genpd);
 }
 
 #ifdef CONFIG_RESET_CONTROLLER
