@@ -2627,6 +2627,12 @@ int cs_dsp_run(struct cs_dsp *dsp)
 			goto err;
 	}
 
+	if (dsp->client_ops->pre_run) {
+		ret = dsp->client_ops->pre_run(dsp);
+		if (ret)
+			goto err;
+	}
+
 	/* Sync set controls */
 	ret = cs_dsp_coeff_sync_controls(dsp);
 	if (ret != 0)
