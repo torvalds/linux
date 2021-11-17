@@ -638,10 +638,16 @@ static void rzg2l_cpg_detach_dev(struct generic_pm_domain *unused, struct device
 		pm_clk_destroy(dev);
 }
 
+static void rzg2l_cpg_genpd_remove(void *data)
+{
+	pm_genpd_remove(data);
+}
+
 static int __init rzg2l_cpg_add_clk_domain(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct generic_pm_domain *genpd;
+	int ret;
 
 	genpd = devm_kzalloc(dev, sizeof(*genpd), GFP_KERNEL);
 	if (!genpd)
@@ -652,7 +658,13 @@ static int __init rzg2l_cpg_add_clk_domain(struct device *dev)
 		       GENPD_FLAG_ACTIVE_WAKEUP;
 	genpd->attach_dev = rzg2l_cpg_attach_dev;
 	genpd->detach_dev = rzg2l_cpg_detach_dev;
-	pm_genpd_init(genpd, &pm_domain_always_on_gov, false);
+	ret = pm_genpd_init(genpd, &pm_domain_always_on_gov, false);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, rzg2l_cpg_genpd_remove, genpd);
+	if (ret)
+		return ret;
 
 	of_genpd_add_provider_simple(np, genpd);
 	return 0;
