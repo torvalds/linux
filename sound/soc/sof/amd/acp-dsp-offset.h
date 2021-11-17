@@ -24,6 +24,9 @@
 #define ACP_DMA_CH_GROUP			0xEC
 #define ACP_DMA_CH_RST_STS			0xF0
 
+/* Registers from ACP_DSP_0 block */
+#define ACP_DSP0_RUNSTALL			0x414
+
 /* Registers from ACP_AXI2AXIATU block */
 #define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1		0xC00
 #define ACPAXI2AXI_ATU_BASE_ADDR_GRP_1		0xC04
