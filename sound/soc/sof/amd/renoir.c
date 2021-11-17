@@ -173,6 +173,10 @@ const struct snd_sof_dsp_ops sof_renoir_ops = {
 	.machine_select		= amd_sof_machine_select,
 	.machine_register	= sof_machine_register,
 	.machine_unregister	= sof_machine_unregister,
+
+	/* Trace Logger */
+	.trace_init		= acp_sof_trace_init,
+	.trace_release		= acp_sof_trace_release,
 };
 EXPORT_SYMBOL(sof_renoir_ops);
 

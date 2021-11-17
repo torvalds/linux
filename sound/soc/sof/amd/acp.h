@@ -139,6 +139,7 @@ struct acp_dev_data {
 	u8 *data_buf;
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
+	struct acp_dsp_stream *dtrace_stream;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -197,4 +198,8 @@ extern const struct snd_sof_dsp_ops sof_renoir_ops;
 
 /* Machine configuration */
 int snd_amd_acp_find_config(struct pci_dev *pci);
+
+/* Trace */
+int acp_sof_trace_init(struct snd_sof_dev *sdev, u32 *stream_tag);
+int acp_sof_trace_release(struct snd_sof_dev *sdev);
 #endif
