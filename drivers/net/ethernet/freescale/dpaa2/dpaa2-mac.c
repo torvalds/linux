@@ -90,53 +90,6 @@ static int dpaa2_mac_get_if_mode(struct fwnode_handle *dpmac_node,
 	return err;
 }
 
-static void dpaa2_mac_validate(struct phylink_config *config,
-			       unsigned long *supported,
-			       struct phylink_link_state *state)
-{
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Autoneg);
-	phylink_set(mask, Pause);
-	phylink_set(mask, Asym_Pause);
-
-	switch (state->interface) {
-	case PHY_INTERFACE_MODE_10GBASER:
-	case PHY_INTERFACE_MODE_USXGMII:
-		phylink_set_10g_modes(mask);
-		if (state->interface == PHY_INTERFACE_MODE_10GBASER)
-			break;
-		phylink_set(mask, 5000baseT_Full);
-		phylink_set(mask, 2500baseT_Full);
-		fallthrough;
-	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_QSGMII:
-	case PHY_INTERFACE_MODE_1000BASEX:
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		phylink_set(mask, 1000baseX_Full);
-		phylink_set(mask, 1000baseT_Full);
-		if (state->interface == PHY_INTERFACE_MODE_1000BASEX)
-			break;
-		phylink_set(mask, 100baseT_Full);
-		phylink_set(mask, 10baseT_Full);
-		break;
-	default:
-		goto empty_set;
-	}
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
-
-	return;
-
-empty_set:
-	linkmode_zero(supported);
-}
-
 static void dpaa2_mac_config(struct phylink_config *config, unsigned int mode,
 			     const struct phylink_link_state *state)
 {
@@ -208,7 +161,7 @@ static void dpaa2_mac_link_down(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops dpaa2_mac_phylink_ops = {
-	.validate = dpaa2_mac_validate,
+	.validate = phylink_generic_validate,
 	.mac_config = dpaa2_mac_config,
 	.mac_link_up = dpaa2_mac_link_up,
 	.mac_link_down = dpaa2_mac_link_down,
@@ -304,6 +257,10 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 	memset(&mac->phylink_config, 0, sizeof(mac->phylink_config));
 	mac->phylink_config.dev = &net_dev->dev;
 	mac->phylink_config.type = PHYLINK_NETDEV;
+
+	mac->phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE |
+		MAC_10FD | MAC_100FD | MAC_1000FD | MAC_2500FD | MAC_5000FD |
+		MAC_10000FD;
 
 	/* We support the current interface mode, and if we have a PCS
 	 * similar interface modes that do not require the PLLs to be
