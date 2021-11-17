@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only) */
-/* Copyright(c) 2014 - 2020 Intel Corporation */
+/* Copyright(c) 2014 - 2021 Intel Corporation */
 #ifndef ADF_DRV_H
 #define ADF_DRV_H
 
@@ -62,8 +62,6 @@ int adf_dev_start(struct adf_accel_dev *accel_dev);
 void adf_dev_stop(struct adf_accel_dev *accel_dev);
 void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
 
-void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
-int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev);
 void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
 void adf_clean_vf_map(bool);
 
@@ -199,13 +197,9 @@ void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev);
 bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr);
 int adf_pf2vf_handle_pf_restarting(struct adf_accel_dev *accel_dev);
-int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev);
 void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
 void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
 void adf_schedule_vf2pf_handler(struct adf_accel_vf_info *vf_info);
-int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg);
-int adf_vf2pf_notify_init(struct adf_accel_dev *accel_dev);
-void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev);
 int adf_init_pf_wq(void);
 void adf_exit_pf_wq(void);
 int adf_init_vf_wq(void);
@@ -213,11 +207,6 @@ void adf_exit_vf_wq(void);
 void adf_flush_vf_wq(struct adf_accel_dev *accel_dev);
 #else
 #define adf_sriov_configure NULL
-
-static inline int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
-{
-	return 0;
-}
 
 static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 {
@@ -228,15 +217,6 @@ static inline void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 }
 
 static inline void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
-{
-}
-
-static inline int adf_vf2pf_notify_init(struct adf_accel_dev *accel_dev)
-{
-	return 0;
-}
-
-static inline void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev)
 {
 }
 

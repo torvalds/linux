@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
-/* Copyright(c) 2015 - 2020 Intel Corporation */
+/* Copyright(c) 2015 - 2021 Intel Corporation */
 #include <linux/workqueue.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/iommu.h>
 #include "adf_common_drv.h"
 #include "adf_cfg.h"
-#include "adf_pf2vf_msg.h"
+#include "adf_pfvf_pf_msg.h"
 
 static struct workqueue_struct *pf2vf_resp_wq;
 

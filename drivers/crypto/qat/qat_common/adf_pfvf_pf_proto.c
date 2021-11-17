@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
-/* Copyright(c) 2015 - 2020 Intel Corporation */
+/* Copyright(c) 2015 - 2021 Intel Corporation */
+#include <linux/spinlock.h>
+#include <linux/types.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
-#include "adf_pf2vf_msg.h"
-
-#define ADF_PFVF_MSG_COLLISION_DETECT_DELAY	10
-#define ADF_PFVF_MSG_ACK_DELAY			2
-#define ADF_PFVF_MSG_ACK_MAX_RETRY		100
-#define ADF_PFVF_MSG_RESP_TIMEOUT	(ADF_PFVF_MSG_ACK_DELAY * \
-					 ADF_PFVF_MSG_ACK_MAX_RETRY + \
-					 ADF_PFVF_MSG_COLLISION_DETECT_DELAY)
+#include "adf_pfvf_msg.h"
+#include "adf_pfvf_pf_proto.h"
 
 /**
  * adf_send_pf2vf_msg() - send PF to VF message
@@ -21,23 +17,9 @@
  *
  * Return: 0 on success, error code otherwise.
  */
-static int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, u32 msg)
+int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, u32 msg)
 {
 	return GET_PFVF_OPS(accel_dev)->send_msg(accel_dev, msg, vf_nr);
-}
-
-/**
- * adf_send_vf2pf_msg() - send VF to PF message
- * @accel_dev:	Pointer to acceleration device
- * @msg:	Message to send
- *
- * This function allows the VF to send a message to the PF.
- *
- * Return: 0 on success, error code otherwise.
- */
-int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
-{
-	return GET_PFVF_OPS(accel_dev)->send_msg(accel_dev, msg, 0);
 }
 
 /**
@@ -52,42 +34,6 @@ int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 static u32 adf_recv_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr)
 {
 	return GET_PFVF_OPS(accel_dev)->recv_msg(accel_dev, vf_nr);
-}
-
-/**
- * adf_send_vf2pf_req() - send VF2PF request message
- * @accel_dev:	Pointer to acceleration device.
- * @msg:	Request message to send
- *
- * This function sends a message that requires a response from the VF to the PF
- * and waits for a reply.
- *
- * Return: 0 on success, error code otherwise.
- */
-static int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, u32 msg)
-{
-	unsigned long timeout = msecs_to_jiffies(ADF_PFVF_MSG_RESP_TIMEOUT);
-	int ret;
-
-	reinit_completion(&accel_dev->vf.iov_msg_completion);
-
-	/* Send request from VF to PF */
-	ret = adf_send_vf2pf_msg(accel_dev, msg);
-	if (ret) {
-		dev_err(&GET_DEV(accel_dev),
-			"Failed to send request msg to PF\n");
-		return ret;
-	}
-
-	/* Wait for response */
-	if (!wait_for_completion_timeout(&accel_dev->vf.iov_msg_completion,
-					 timeout)) {
-		dev_err(&GET_DEV(accel_dev),
-			"PFVF request/response message timeout expired\n");
-		return -EIO;
-	}
-
-	return 0;
 }
 
 static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
@@ -192,77 +138,6 @@ bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr)
 
 	return true;
 }
-
-void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
-{
-	struct adf_accel_vf_info *vf;
-	u32 msg = (ADF_PF2VF_MSGORIGIN_SYSTEM |
-		(ADF_PF2VF_MSGTYPE_RESTARTING << ADF_PF2VF_MSGTYPE_SHIFT));
-	int i, num_vfs = pci_num_vf(accel_to_pci_dev(accel_dev));
-
-	for (i = 0, vf = accel_dev->pf.vf_info; i < num_vfs; i++, vf++) {
-		if (vf->init && adf_send_pf2vf_msg(accel_dev, i, msg))
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to send restarting msg to VF%d\n", i);
-	}
-}
-
-static int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
-{
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	u32 msg = 0;
-	int ret;
-
-	msg = ADF_VF2PF_MSGORIGIN_SYSTEM;
-	msg |= ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ << ADF_VF2PF_MSGTYPE_SHIFT;
-	msg |= ADF_PFVF_COMPAT_THIS_VERSION << ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
-	BUILD_BUG_ON(ADF_PFVF_COMPAT_THIS_VERSION > 255);
-
-	ret = adf_send_vf2pf_req(accel_dev, msg);
-	if (ret) {
-		dev_err(&GET_DEV(accel_dev),
-			"Failed to send Compatibility Version Request.\n");
-		return ret;
-	}
-
-	/* Response from PF received, check compatibility */
-	switch (accel_dev->vf.compatible) {
-	case ADF_PF2VF_VF_COMPATIBLE:
-		break;
-	case ADF_PF2VF_VF_COMPAT_UNKNOWN:
-		/* VF is newer than PF and decides whether it is compatible */
-		if (accel_dev->vf.pf_version >= hw_data->min_iov_compat_ver) {
-			accel_dev->vf.compatible = ADF_PF2VF_VF_COMPATIBLE;
-			break;
-		}
-		fallthrough;
-	case ADF_PF2VF_VF_INCOMPATIBLE:
-		dev_err(&GET_DEV(accel_dev),
-			"PF (vers %d) and VF (vers %d) are not compatible\n",
-			accel_dev->vf.pf_version,
-			ADF_PFVF_COMPAT_THIS_VERSION);
-		return -EINVAL;
-	default:
-		dev_err(&GET_DEV(accel_dev),
-			"Invalid response from PF; assume not compatible\n");
-		return -EINVAL;
-	}
-	return ret;
-}
-
-/**
- * adf_enable_vf2pf_comms() - Function enables communication from vf to pf
- *
- * @accel_dev: Pointer to acceleration device virtual function.
- *
- * Return: 0 on success, error code otherwise.
- */
-int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
-{
-	adf_enable_pf2vf_interrupts(accel_dev);
-	return adf_vf2pf_request_version(accel_dev);
-}
-EXPORT_SYMBOL_GPL(adf_enable_vf2pf_comms);
 
 /**
  * adf_enable_pf2vf_comms() - Function enables communication from pf to vf

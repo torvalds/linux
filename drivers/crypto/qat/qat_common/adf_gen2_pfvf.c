@@ -6,7 +6,9 @@
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_gen2_pfvf.h"
-#include "adf_pf2vf_msg.h"
+#include "adf_pfvf_msg.h"
+#include "adf_pfvf_pf_proto.h"
+#include "adf_pfvf_vf_proto.h"
 
  /* VF2PF interrupts */
 #define ADF_GEN2_ERR_REG_VF2PF(vf_src)	(((vf_src) & 0x01FFFE00) >> 9)

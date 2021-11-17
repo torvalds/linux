@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only) */
-/* Copyright(c) 2015 - 2020 Intel Corporation */
-#ifndef ADF_PF2VF_MSG_H
-#define ADF_PF2VF_MSG_H
+/* Copyright(c) 2015 - 2021 Intel Corporation */
+#ifndef ADF_PFVF_MSG_H
+#define ADF_PFVF_MSG_H
 
 /*
  * PF<->VF Messaging
@@ -91,4 +91,4 @@
 /* VF->PF Compatible Version Request */
 #define ADF_VF2PF_COMPAT_VER_REQ_SHIFT		22
 
-#endif /* ADF_IOV_MSG_H */
+#endif /* ADF_PFVF_MSG_H */

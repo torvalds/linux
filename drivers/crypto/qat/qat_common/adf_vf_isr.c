@@ -15,7 +15,6 @@
 #include "adf_cfg_common.h"
 #include "adf_transport_access_macros.h"
 #include "adf_transport_internal.h"
-#include "adf_pf2vf_msg.h"
 
 #define ADF_VINTSOU_OFFSET	0x204
 #define ADF_VINTMSK_OFFSET	0x208
