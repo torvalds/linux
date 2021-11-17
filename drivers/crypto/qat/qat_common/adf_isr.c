@@ -54,52 +54,56 @@ static irqreturn_t adf_msix_isr_bundle(int irq, void *bank_ptr)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_PCI_IOV
+static bool adf_handle_vf2pf_int(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	int bar_id = hw_data->get_misc_bar_id(hw_data);
+	struct adf_bar *pmisc = &GET_BARS(accel_dev)[bar_id];
+	void __iomem *pmisc_addr = pmisc->virt_addr;
+	bool irq_handled = false;
+	unsigned long vf_mask;
+
+	/* Get the interrupt sources triggered by VFs */
+	vf_mask = hw_data->get_vf2pf_sources(pmisc_addr);
+
+	if (vf_mask) {
+		struct adf_accel_vf_info *vf_info;
+		int i;
+
+		/* Disable VF2PF interrupts for VFs with pending ints */
+		adf_disable_vf2pf_interrupts_irq(accel_dev, vf_mask);
+
+		/*
+		 * Handle VF2PF interrupt unless the VF is malicious and
+		 * is attempting to flood the host OS with VF2PF interrupts.
+		 */
+		for_each_set_bit(i, &vf_mask, ADF_MAX_NUM_VFS) {
+			vf_info = accel_dev->pf.vf_info + i;
+
+			if (!__ratelimit(&vf_info->vf2pf_ratelimit)) {
+				dev_info(&GET_DEV(accel_dev),
+					 "Too many ints from VF%d\n",
+					  vf_info->vf_nr + 1);
+				continue;
+			}
+
+			adf_schedule_vf2pf_handler(vf_info);
+			irq_handled = true;
+		}
+	}
+	return irq_handled;
+}
+#endif /* CONFIG_PCI_IOV */
+
 static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 {
 	struct adf_accel_dev *accel_dev = dev_ptr;
 
 #ifdef CONFIG_PCI_IOV
 	/* If SR-IOV is enabled (vf_info is non-NULL), check for VF->PF ints */
-	if (accel_dev->pf.vf_info) {
-		struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-		struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-		void __iomem *pmisc_addr = pmisc->virt_addr;
-		unsigned long vf_mask;
-
-		/* Get the interrupt sources triggered by VFs */
-		vf_mask = hw_data->get_vf2pf_sources(pmisc_addr);
-
-		if (vf_mask) {
-			struct adf_accel_vf_info *vf_info;
-			bool irq_handled = false;
-			int i;
-
-			/* Disable VF2PF interrupts for VFs with pending ints */
-			adf_disable_vf2pf_interrupts_irq(accel_dev, vf_mask);
-
-			/*
-			 * Handle VF2PF interrupt unless the VF is malicious and
-			 * is attempting to flood the host OS with VF2PF interrupts.
-			 */
-			for_each_set_bit(i, &vf_mask, ADF_MAX_NUM_VFS) {
-				vf_info = accel_dev->pf.vf_info + i;
-
-				if (!__ratelimit(&vf_info->vf2pf_ratelimit)) {
-					dev_info(&GET_DEV(accel_dev),
-						 "Too many ints from VF%d\n",
-						  vf_info->vf_nr + 1);
-					continue;
-				}
-
-				adf_schedule_vf2pf_handler(vf_info);
-				irq_handled = true;
-			}
-
-			if (irq_handled)
-				return IRQ_HANDLED;
-		}
-	}
+	if (accel_dev->pf.vf_info && adf_handle_vf2pf_int(accel_dev))
+		return IRQ_HANDLED;
 #endif /* CONFIG_PCI_IOV */
 
 	dev_dbg(&GET_DEV(accel_dev), "qat_dev%d spurious AE interrupt\n",
