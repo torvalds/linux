@@ -133,6 +133,24 @@
 	status = "okay";
 };
 
+&dp0 {
+	pinctrl-0 = <&dp0m2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&dp0_in_vp0 {
+	status = "okay";
+};
+
+&dp0_in_vp1 {
+	status = "okay";
+};
+
+&dp0_in_vp2 {
+	status = "okay";
+};
+
 &gmac0 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rgmii-rxid";
@@ -476,6 +494,7 @@
 };
 
 &usbdp_phy0 {
+	rockchip,dp-lane-mux = < 2 3 >;
 	status = "okay";
 };
 
