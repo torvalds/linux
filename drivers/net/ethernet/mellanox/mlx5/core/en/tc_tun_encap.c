@@ -1153,7 +1153,7 @@ int mlx5e_attach_decap_route(struct mlx5e_priv *priv,
 
 	tbl_time_before = mlx5e_route_tbl_get_last_update(priv);
 	tbl_time_after = tbl_time_before;
-	err = mlx5e_tc_tun_route_lookup(priv, &parse_attr->spec, attr);
+	err = mlx5e_tc_tun_route_lookup(priv, &parse_attr->spec, attr, parse_attr->filter_dev);
 	if (err || !esw_attr->rx_tun_attr->decap_vport)
 		goto out;
 
@@ -1474,7 +1474,7 @@ static void mlx5e_reoffload_decap(struct mlx5e_priv *priv,
 
 		parse_attr = attr->parse_attr;
 		spec = &parse_attr->spec;
-		err = mlx5e_tc_tun_route_lookup(priv, spec, attr);
+		err = mlx5e_tc_tun_route_lookup(priv, spec, attr, parse_attr->filter_dev);
 		if (err) {
 			mlx5_core_warn(priv->mdev, "Failed to lookup route for flow, %d\n",
 				       err);

@@ -308,10 +308,14 @@ struct mlx5_eswitch {
 	atomic64_t user_count;
 
 	struct {
-		bool            enabled;
 		u32             root_tsar_ix;
 		struct mlx5_esw_rate_group *group0;
 		struct list_head groups; /* Protected by esw->state_lock */
+
+		/* Protected by esw->state_lock.
+		 * Initially 0, meaning no QoS users and QoS is disabled.
+		 */
+		refcount_t refcnt;
 	} qos;
 
 	struct mlx5_esw_bridge_offloads *br_offloads;
@@ -515,11 +519,6 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_flow_attr *attr);
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				  u16 vport, u16 vlan, u8 qos, u8 set_flags);
-
-static inline bool mlx5_esw_qos_enabled(struct mlx5_eswitch *esw)
-{
-	return esw->qos.enabled;
-}
 
 static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev,
 						       u8 vlan_depth)
