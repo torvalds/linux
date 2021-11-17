@@ -14,8 +14,7 @@
 #include "clk.h"
 
 #define RK3588_GRF_SOC_STATUS0		0x600
-#define RK3588_FRAC_MAX_PRATE		600000000
-#define RK3588_UART_FRAC_MAX_PRATE	600000000
+#define RK3588_FRAC_MAX_PRATE		1500000000
 
 enum rk3588_plls {
 	b0pll, b1pll, lpll, v0pll, aupll, cpll, gpll, npll, ppll,
@@ -1098,7 +1097,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART1_FRAC, "clk_uart1_frac", "clk_uart1_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(42), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(12), 12, GFLAGS,
-			&rk3588_uart1_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart1_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART1, "sclk_uart1", "clk_uart1", 0,
 			RK3588_CLKGATE_CON(12), 13, GFLAGS),
 	COMPOSITE(CLK_UART2_SRC, "clk_uart2_src", gpll_cpll_p, 0,
@@ -1107,7 +1106,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART2_FRAC, "clk_uart2_frac", "clk_uart2_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(44), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(12), 15, GFLAGS,
-			&rk3588_uart2_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart2_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART2, "sclk_uart2", "clk_uart2", 0,
 			RK3588_CLKGATE_CON(13), 0, GFLAGS),
 	COMPOSITE(CLK_UART3_SRC, "clk_uart3_src", gpll_cpll_p, 0,
@@ -1116,7 +1115,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART3_FRAC, "clk_uart3_frac", "clk_uart3_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(46), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(13), 2, GFLAGS,
-			&rk3588_uart3_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart3_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART3, "sclk_uart3", "clk_uart3", 0,
 			RK3588_CLKGATE_CON(13), 3, GFLAGS),
 	COMPOSITE(CLK_UART4_SRC, "clk_uart4_src", gpll_cpll_p, 0,
@@ -1125,7 +1124,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART4_FRAC, "clk_uart4_frac", "clk_uart4_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(48), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(13), 5, GFLAGS,
-			&rk3588_uart4_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart4_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART4, "sclk_uart4", "clk_uart4", 0,
 			RK3588_CLKGATE_CON(13), 6, GFLAGS),
 	COMPOSITE(CLK_UART5_SRC, "clk_uart5_src", gpll_cpll_p, 0,
@@ -1134,7 +1133,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART5_FRAC, "clk_uart5_frac", "clk_uart5_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(50), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(13), 8, GFLAGS,
-			&rk3588_uart5_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart5_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART5, "sclk_uart5", "clk_uart5", 0,
 			RK3588_CLKGATE_CON(13), 9, GFLAGS),
 	COMPOSITE(CLK_UART6_SRC, "clk_uart6_src", gpll_cpll_p, 0,
@@ -1143,7 +1142,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART6_FRAC, "clk_uart6_frac", "clk_uart6_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(52), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(13), 11, GFLAGS,
-			&rk3588_uart6_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart6_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART6, "sclk_uart6", "clk_uart6", 0,
 			RK3588_CLKGATE_CON(13), 12, GFLAGS),
 	COMPOSITE(CLK_UART7_SRC, "clk_uart7_src", gpll_cpll_p, 0,
@@ -1152,7 +1151,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART7_FRAC, "clk_uart7_frac", "clk_uart7_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(54), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(13), 14, GFLAGS,
-			&rk3588_uart7_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart7_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART7, "sclk_uart7", "clk_uart7", 0,
 			RK3588_CLKGATE_CON(13), 15, GFLAGS),
 	COMPOSITE(CLK_UART8_SRC, "clk_uart8_src", gpll_cpll_p, 0,
@@ -1161,7 +1160,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART8_FRAC, "clk_uart8_frac", "clk_uart8_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(56), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(14), 1, GFLAGS,
-			&rk3588_uart8_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart8_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART8, "sclk_uart8", "clk_uart8", 0,
 			RK3588_CLKGATE_CON(14), 2, GFLAGS),
 	COMPOSITE(CLK_UART9_SRC, "clk_uart9_src", gpll_cpll_p, 0,
@@ -1170,7 +1169,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART9_FRAC, "clk_uart9_frac", "clk_uart9_src", CLK_SET_RATE_PARENT,
 			RK3588_CLKSEL_CON(58), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_CLKGATE_CON(14), 4, GFLAGS,
-			&rk3588_uart9_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart9_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART9, "sclk_uart9", "clk_uart9", 0,
 			RK3588_CLKGATE_CON(14), 5, GFLAGS),
 
@@ -2351,7 +2350,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(CLK_UART0_FRAC, "clk_uart0_frac", "clk_uart0_src", CLK_SET_RATE_PARENT,
 			RK3588_PMU_CLKSEL_CON(4), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3588_PMU_CLKGATE_CON(2), 4, GFLAGS,
-			&rk3588_uart0_fracmux, RK3588_UART_FRAC_MAX_PRATE),
+			&rk3588_uart0_fracmux, RK3588_FRAC_MAX_PRATE),
 	GATE(SCLK_UART0, "sclk_uart0", "clk_uart0", 0,
 			RK3588_PMU_CLKGATE_CON(2), 5, GFLAGS),
 	GATE(PCLK_UART0, "pclk_uart0", "pclk_pmu0_root", 0,
