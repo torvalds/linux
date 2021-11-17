@@ -467,7 +467,7 @@ static void dev_watchdog(struct timer_list *t)
 				    time_after(jiffies, (trans_start +
 							 dev->watchdog_timeo))) {
 					some_queue_timedout = 1;
-					txq->trans_timeout++;
+					atomic_long_inc(&txq->trans_timeout);
 					break;
 				}
 			}

@@ -592,7 +592,7 @@ struct netdev_queue {
 	 * Number of TX timeouts for this queue
 	 * (/sys/class/net/DEV/Q/trans_timeout)
 	 */
-	unsigned long		trans_timeout;
+	atomic_long_t		trans_timeout;
 
 	/* Subordinate device that the queue has been assigned to */
 	struct net_device	*sb_dev;
