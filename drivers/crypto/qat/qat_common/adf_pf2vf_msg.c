@@ -178,21 +178,21 @@ static int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, u32 msg)
 	return 0;
 }
 
-void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
+bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr)
 {
-	struct adf_accel_dev *accel_dev = vf_info->accel_dev;
+	struct adf_accel_vf_info *vf_info = &accel_dev->pf.vf_info[vf_nr];
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	int bar_id = hw_data->get_misc_bar_id(hw_data);
 	struct adf_bar *pmisc = &GET_BARS(accel_dev)[bar_id];
 	void __iomem *pmisc_addr = pmisc->virt_addr;
-	u32 msg, resp = 0, vf_nr = vf_info->vf_nr;
+	u32 msg, resp = 0;
 
 	/* Read message from the VF */
 	msg = ADF_CSR_RD(pmisc_addr, hw_data->get_pf2vf_offset(vf_nr));
 	if (!(msg & ADF_VF2PF_INT)) {
 		dev_info(&GET_DEV(accel_dev),
 			 "Spurious VF2PF interrupt, msg %X. Ignored\n", msg);
-		goto out;
+		return true;
 	}
 
 	/* To ACK, clear the VF2PFINT bit */
@@ -277,14 +277,11 @@ void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 	if (resp && adf_send_pf2vf_msg(accel_dev, vf_nr, resp))
 		dev_err(&GET_DEV(accel_dev), "Failed to send response to VF\n");
 
-out:
-	/* re-enable interrupt on PF from this VF */
-	adf_enable_vf2pf_interrupts(accel_dev, (1 << vf_nr));
-
-	return;
+	return true;
 err:
 	dev_dbg(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%x);\n",
 		vf_nr + 1, msg);
+	return false;
 }
 
 void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)

@@ -19,8 +19,16 @@ static void adf_iov_send_resp(struct work_struct *work)
 {
 	struct adf_pf2vf_resp *pf2vf_resp =
 		container_of(work, struct adf_pf2vf_resp, pf2vf_resp_work);
+	struct adf_accel_vf_info *vf_info = pf2vf_resp->vf_info;
+	struct adf_accel_dev *accel_dev = vf_info->accel_dev;
+	u32 vf_nr = vf_info->vf_nr;
+	bool ret;
 
-	adf_vf2pf_req_hndl(pf2vf_resp->vf_info);
+	ret = adf_recv_and_handle_vf2pf_msg(accel_dev, vf_nr);
+	if (ret)
+		/* re-enable interrupt on PF from this VF */
+		adf_enable_vf2pf_interrupts(accel_dev, 1 << vf_nr);
+
 	kfree(pf2vf_resp);
 }
 
