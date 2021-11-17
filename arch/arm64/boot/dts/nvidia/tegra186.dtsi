@@ -1538,6 +1538,21 @@
 			iommus = <&smmu TEGRA186_SID_VIC>;
 		};
 
+		nvjpg@15380000 {
+			compatible = "nvidia,tegra186-nvjpg";
+			reg = <0x15380000 0x40000>;
+			clocks = <&bpmp TEGRA186_CLK_NVJPG>;
+			clock-names = "nvjpg";
+			resets = <&bpmp TEGRA186_RESET_NVJPG>;
+			reset-names = "nvjpg";
+
+			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_NVJPG>;
+			interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVJPGSRD &emc>,
+					<&mc TEGRA186_MEMORY_CLIENT_NVJPGSWR &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu TEGRA186_SID_NVJPG>;
+		};
+
 		dsib: dsi@15400000 {
 			compatible = "nvidia,tegra186-dsi";
 			reg = <0x15400000 0x10000>;
@@ -1567,6 +1582,21 @@
 					<&mc TEGRA186_MEMORY_CLIENT_NVDECSWR &emc>;
 			interconnect-names = "dma-mem", "read-1", "write";
 			iommus = <&smmu TEGRA186_SID_NVDEC>;
+		};
+
+		nvenc@154c0000 {
+			compatible = "nvidia,tegra186-nvenc";
+			reg = <0x154c0000 0x40000>;
+			clocks = <&bpmp TEGRA186_CLK_NVENC>;
+			clock-names = "nvenc";
+			resets = <&bpmp TEGRA186_RESET_NVENC>;
+			reset-names = "nvenc";
+
+			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_MPE>;
+			interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVENCSRD &emc>,
+					<&mc TEGRA186_MEMORY_CLIENT_NVENCSWR &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu TEGRA186_SID_NVENC>;
 		};
 
 		sor0: sor@15540000 {

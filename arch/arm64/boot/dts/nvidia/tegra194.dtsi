@@ -1739,6 +1739,22 @@
 				iommus = <&smmu TEGRA194_SID_VIC>;
 			};
 
+			nvjpg@15380000 {
+				compatible = "nvidia,tegra194-nvjpg";
+				reg = <0x15380000 0x40000>;
+				clocks = <&bpmp TEGRA194_CLK_NVJPG>;
+				clock-names = "nvjpg";
+				resets = <&bpmp TEGRA194_RESET_NVJPG>;
+				reset-names = "nvjpg";
+
+				power-domains = <&bpmp TEGRA194_POWER_DOMAIN_NVJPG>;
+				interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVJPGSRD &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVJPGSWR &emc>;
+				interconnect-names = "dma-mem", "write";
+				iommus = <&smmu TEGRA194_SID_NVJPG>;
+				dma-coherent;
+			};
+
 			nvdec@15480000 {
 				compatible = "nvidia,tegra194-nvdec";
 				reg = <0x15480000 0x00040000>;
@@ -1756,6 +1772,25 @@
 				dma-coherent;
 
 				nvidia,host1x-class = <0xf0>;
+			};
+
+			nvenc@154c0000 {
+				compatible = "nvidia,tegra194-nvenc";
+				reg = <0x154c0000 0x40000>;
+				clocks = <&bpmp TEGRA194_CLK_NVENC>;
+				clock-names = "nvenc";
+				resets = <&bpmp TEGRA194_RESET_NVENC>;
+				reset-names = "nvenc";
+
+				power-domains = <&bpmp TEGRA194_POWER_DOMAIN_NVENCA>;
+				interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVENCSRD &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVENCSRD1 &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVENCSWR &emc>;
+				interconnect-names = "dma-mem", "read-1", "write";
+				iommus = <&smmu TEGRA194_SID_NVENC>;
+				dma-coherent;
+
+				nvidia,host1x-class = <0x21>;
 			};
 
 			dpaux0: dpaux@155c0000 {
@@ -1892,6 +1927,25 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 				};
+			};
+
+			nvenc@15a80000 {
+				compatible = "nvidia,tegra194-nvenc";
+				reg = <0x15a80000 0x00040000>;
+				clocks = <&bpmp TEGRA194_CLK_NVENC1>;
+				clock-names = "nvenc";
+				resets = <&bpmp TEGRA194_RESET_NVENC1>;
+				reset-names = "nvenc";
+
+				power-domains = <&bpmp TEGRA194_POWER_DOMAIN_NVENCB>;
+				interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVENC1SRD &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVENC1SRD1 &emc>,
+						<&mc TEGRA194_MEMORY_CLIENT_NVENC1SWR &emc>;
+				interconnect-names = "dma-mem", "read-1", "write";
+				iommus = <&smmu TEGRA194_SID_NVENC1>;
+				dma-coherent;
+
+				nvidia,host1x-class = <0x22>;
 			};
 
 			sor0: sor@15b00000 {
