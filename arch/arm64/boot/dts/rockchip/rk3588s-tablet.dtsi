@@ -197,6 +197,34 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 	};
+
+	wireless_bluetooth: wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		clocks = <&hym8563>;
+		clock-names = "ext_clock";
+		uart_rts_gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart7m1_rtsn>, <&bt_wake_host>;
+		pinctrl-1 = <&uart7_gpios>;
+		BT,reset_gpio    = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "ap6275p";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>;
+		WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&combphy0_ps {
+	status = "okay";
 };
 
 &cpu_l0 {
@@ -251,7 +279,9 @@
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
-
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "hym8563";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rtc_int>;
 
@@ -367,7 +397,7 @@
 };
 
 &i2c6 {
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c7 {
@@ -439,6 +469,11 @@
 		     &i2s0_sdo0>;
 };
 
+&pcie2x1l2 {
+	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
 &pinctrl {
 	charger {
 		charger_ok: charger_ok {
@@ -489,6 +524,26 @@
 
 		typec5v_pwren: typec5v-pwren {
 			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart7_gpios: uart7-gpios {
+			rockchip,pins = <3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_wake_host: bt-wake-host {
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		wifi_poweren_gpio: wifi-poweren-gpio {
+			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
@@ -574,6 +629,12 @@
 			};
 		};
 	};
+};
+
+&uart7 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart7m1_xfer &uart7m1_ctsn>;
+	status = "okay";
 };
 
 &u2phy0 {
