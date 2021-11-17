@@ -1659,13 +1659,15 @@ static u16 aspeed_mctp_pcie_setup(struct aspeed_mctp *priv)
 
 	regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
 
+	reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
 	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), GET_PCI_DEV_NUM(reg));
-	if (bdf != 0)
+	if (reg != 0) {
 		cancel_delayed_work(&priv->pcie.rst_dwork);
-	else
+	} else {
 		schedule_delayed_work(&priv->pcie.rst_dwork,
 				      msecs_to_jiffies(1000));
-
+		bdf = 0;
+	}
 	return bdf;
 }
 
