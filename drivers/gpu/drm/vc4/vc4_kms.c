@@ -354,7 +354,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	old_hvs_state = vc4_hvs_get_old_global_state(state);
-	if (!old_hvs_state)
+	if (IS_ERR(old_hvs_state))
 		return;
 
 	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
@@ -410,8 +410,8 @@ static int vc4_atomic_commit_setup(struct drm_atomic_state *state)
 	unsigned int i;
 
 	hvs_state = vc4_hvs_get_new_global_state(state);
-	if (!hvs_state)
-		return -EINVAL;
+	if (WARN_ON(IS_ERR(hvs_state)))
+		return PTR_ERR(hvs_state);
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		struct vc4_crtc_state *vc4_crtc_state =
@@ -762,8 +762,8 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 	unsigned int i;
 
 	hvs_new_state = vc4_hvs_get_global_state(state);
-	if (!hvs_new_state)
-		return -EINVAL;
+	if (IS_ERR(hvs_new_state))
+		return PTR_ERR(hvs_new_state);
 
 	for (i = 0; i < ARRAY_SIZE(hvs_new_state->fifo_state); i++)
 		if (!hvs_new_state->fifo_state[i].in_use)
