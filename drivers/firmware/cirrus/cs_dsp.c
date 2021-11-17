@@ -746,7 +746,7 @@ static int cs_dsp_coeff_write_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
  * cs_dsp_coeff_write_ctrl() - Writes the given buffer to the given coefficient control
  * @ctl: pointer to coefficient control
  * @buf: the buffer to write to the given control
- * @len: the length of the buffer
+ * @len: the length of the buffer in bytes
  *
  * Must be called with pwr_lock held.
  *
@@ -808,7 +808,7 @@ static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl, void *buf, s
  * cs_dsp_coeff_read_ctrl() - Reads the given coefficient control into the given buffer
  * @ctl: pointer to coefficient control
  * @buf: the buffer to store to the given control
- * @len: the length of the buffer
+ * @len: the length of the buffer in bytes
  *
  * Must be called with pwr_lock held.
  *

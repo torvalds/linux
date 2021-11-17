@@ -76,8 +76,8 @@ struct cs_dsp_alg_region {
  * @enabled:		Flag indicating whether control is enabled
  * @list:		List node for internal use
  * @cache:		Cached value of the control
- * @offset:		Offset of control within alg_region
- * @len:		Length of the cached value
+ * @offset:		Offset of control within alg_region in words
+ * @len:		Length of the cached value in bytes
  * @set:		Flag indicating the value has been written by the user
  * @flags:		Bitfield of WMFW_CTL_FLAG_ control flags defined in wmfw.h
  * @type:		One of the WMFW_CTL_TYPE_ control types defined in wmfw.h
