@@ -4268,6 +4268,21 @@ ieee80211_color_change_bss_config_notify(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_HE_BSS_COLOR;
 
 	ieee80211_bss_info_change_notify(sdata, changed);
+
+	if (!sdata->vif.bss_conf.nontransmitted && sdata->vif.mbssid_tx_vif) {
+		struct ieee80211_sub_if_data *child;
+
+		mutex_lock(&sdata->local->iflist_mtx);
+		list_for_each_entry(child, &sdata->local->interfaces, list) {
+			if (child != sdata && child->vif.mbssid_tx_vif == &sdata->vif) {
+				child->vif.bss_conf.he_bss_color.color = color;
+				child->vif.bss_conf.he_bss_color.enabled = enable;
+				ieee80211_bss_info_change_notify(child,
+								 BSS_CHANGED_HE_BSS_COLOR);
+			}
+		}
+		mutex_unlock(&sdata->local->iflist_mtx);
+	}
 }
 
 static int ieee80211_color_change_finalize(struct ieee80211_sub_if_data *sdata)
@@ -4351,6 +4366,9 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 	int err;
 
 	sdata_assert_lock(sdata);
+
+	if (sdata->vif.bss_conf.nontransmitted)
+		return -EINVAL;
 
 	mutex_lock(&local->mtx);
 
