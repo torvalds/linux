@@ -165,7 +165,9 @@ static void csi2_enable(struct csi2_dev *csi2,
 		write_csihost_reg(base, CSIHOST_MSK1, 0xe00000f0);
 		write_csihost_reg(base, CSIHOST_MSK2, 0xff00);
 	} else {
-		val |= SW_DSI_EN(0);
+		val |= SW_DSI_EN(0) | SW_DATATYPE_FS(0x0) |
+		       SW_DATATYPE_FE(0x01) | SW_DATATYPE_LS(0x02) |
+		       SW_DATATYPE_LE(0x03);
 		write_csihost_reg(base, CSIHOST_CONTROL, val);
 		write_csihost_reg(base, CSIHOST_MSK1, 0);
 		write_csihost_reg(base, CSIHOST_MSK2, 0xf000);
