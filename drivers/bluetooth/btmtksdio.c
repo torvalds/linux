@@ -12,7 +12,6 @@
 
 #include <asm/unaligned.h>
 #include <linux/atomic.h>
-#include <linux/firmware.h>
 #include <linux/init.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
@@ -28,11 +27,9 @@
 #include <net/bluetooth/hci_core.h>
 
 #include "h4_recv.h"
+#include "btmtk.h"
 
 #define VERSION "0.1"
-
-#define FIRMWARE_MT7663		"mediatek/mt7663pr2h.bin"
-#define FIRMWARE_MT7668		"mediatek/mt7668pr2h.bin"
 
 #define MTKBTSDIO_AUTOSUSPEND_DELAY	8000
 
@@ -40,14 +37,22 @@ static bool enable_autosuspend;
 
 struct btmtksdio_data {
 	const char *fwname;
+	u16 chipid;
 };
 
 static const struct btmtksdio_data mt7663_data = {
 	.fwname = FIRMWARE_MT7663,
+	.chipid = 0x7663,
 };
 
 static const struct btmtksdio_data mt7668_data = {
 	.fwname = FIRMWARE_MT7668,
+	.chipid = 0x7668,
+};
+
+static const struct btmtksdio_data mt7921_data = {
+	.fwname = FIRMWARE_MT7961,
+	.chipid = 0x7921,
 };
 
 static const struct sdio_device_id btmtksdio_table[] = {
@@ -55,6 +60,8 @@ static const struct sdio_device_id btmtksdio_table[] = {
 	 .driver_data = (kernel_ulong_t)&mt7663_data },
 	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, SDIO_DEVICE_ID_MEDIATEK_MT7668),
 	 .driver_data = (kernel_ulong_t)&mt7668_data },
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, SDIO_DEVICE_ID_MEDIATEK_MT7961),
+	 .driver_data = (kernel_ulong_t)&mt7921_data },
 	{ }	/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
@@ -86,28 +93,11 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 
 #define MTK_REG_CRDR		0x1c
 
+#define MTK_REG_CRPLR		0x24
+
 #define MTK_SDIO_BLOCK_SIZE	256
 
 #define BTMTKSDIO_TX_WAIT_VND_EVT	1
-
-enum {
-	MTK_WMT_PATCH_DWNLD = 0x1,
-	MTK_WMT_TEST = 0x2,
-	MTK_WMT_WAKEUP = 0x3,
-	MTK_WMT_HIF = 0x4,
-	MTK_WMT_FUNC_CTRL = 0x6,
-	MTK_WMT_RST = 0x7,
-	MTK_WMT_SEMAPHORE = 0x17,
-};
-
-enum {
-	BTMTK_WMT_INVALID,
-	BTMTK_WMT_PATCH_UNDONE,
-	BTMTK_WMT_PATCH_DONE,
-	BTMTK_WMT_ON_UNDONE,
-	BTMTK_WMT_ON_DONE,
-	BTMTK_WMT_ON_PROGRESS,
-};
 
 struct mtkbtsdio_hdr {
 	__le16	len;
@@ -115,52 +105,15 @@ struct mtkbtsdio_hdr {
 	u8	bt_type;
 } __packed;
 
-struct mtk_wmt_hdr {
-	u8	dir;
-	u8	op;
-	__le16	dlen;
-	u8	flag;
-} __packed;
-
-struct mtk_hci_wmt_cmd {
-	struct mtk_wmt_hdr hdr;
-	u8 data[256];
-} __packed;
-
-struct btmtk_hci_wmt_evt {
-	struct hci_event_hdr hhdr;
-	struct mtk_wmt_hdr whdr;
-} __packed;
-
-struct btmtk_hci_wmt_evt_funcc {
-	struct btmtk_hci_wmt_evt hwhdr;
-	__be16 status;
-} __packed;
-
-struct btmtk_tci_sleep {
-	u8 mode;
-	__le16 duration;
-	__le16 host_duration;
-	u8 host_wakeup_pin;
-	u8 time_compensation;
-} __packed;
-
-struct btmtk_hci_wmt_params {
-	u8 op;
-	u8 flag;
-	u16 dlen;
-	const void *data;
-	u32 *status;
-};
-
 struct btmtksdio_dev {
 	struct hci_dev *hdev;
 	struct sdio_func *func;
 	struct device *dev;
 
-	struct work_struct tx_work;
+	struct work_struct txrx_work;
 	unsigned long tx_state;
 	struct sk_buff_head txq;
+	bool hw_tx_ready;
 
 	struct sk_buff *evt_skb;
 
@@ -172,29 +125,35 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
 	struct btmtk_hci_wmt_evt_funcc *wmt_evt_funcc;
+	struct btmtk_hci_wmt_evt_reg *wmt_evt_reg;
 	u32 hlen, status = BTMTK_WMT_INVALID;
 	struct btmtk_hci_wmt_evt *wmt_evt;
-	struct mtk_hci_wmt_cmd wc;
-	struct mtk_wmt_hdr *hdr;
+	struct btmtk_hci_wmt_cmd *wc;
+	struct btmtk_wmt_hdr *hdr;
 	int err;
 
+	/* Send the WMT command and wait until the WMT event returns */
 	hlen = sizeof(*hdr) + wmt_params->dlen;
 	if (hlen > 255)
 		return -EINVAL;
 
-	hdr = (struct mtk_wmt_hdr *)&wc;
+	wc = kzalloc(hlen, GFP_KERNEL);
+	if (!wc)
+		return -ENOMEM;
+
+	hdr = &wc->hdr;
 	hdr->dir = 1;
 	hdr->op = wmt_params->op;
 	hdr->dlen = cpu_to_le16(wmt_params->dlen + 1);
 	hdr->flag = wmt_params->flag;
-	memcpy(wc.data, wmt_params->data, wmt_params->dlen);
+	memcpy(wc->data, wmt_params->data, wmt_params->dlen);
 
 	set_bit(BTMTKSDIO_TX_WAIT_VND_EVT, &bdev->tx_state);
 
-	err = __hci_cmd_send(hdev, 0xfc6f, hlen, &wc);
+	err = __hci_cmd_send(hdev, 0xfc6f, hlen, wc);
 	if (err < 0) {
 		clear_bit(BTMTKSDIO_TX_WAIT_VND_EVT, &bdev->tx_state);
-		return err;
+		goto err_free_wc;
 	}
 
 	/* The vendor specific WMT commands are all answered by a vendor
@@ -211,13 +170,14 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 	if (err == -EINTR) {
 		bt_dev_err(hdev, "Execution of wmt command interrupted");
 		clear_bit(BTMTKSDIO_TX_WAIT_VND_EVT, &bdev->tx_state);
-		return err;
+		goto err_free_wc;
 	}
 
 	if (err) {
 		bt_dev_err(hdev, "Execution of wmt command timed out");
 		clear_bit(BTMTKSDIO_TX_WAIT_VND_EVT, &bdev->tx_state);
-		return -ETIMEDOUT;
+		err = -ETIMEDOUT;
+		goto err_free_wc;
 	}
 
 	/* Parse and handle the return WMT event */
@@ -230,13 +190,13 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 	}
 
 	switch (wmt_evt->whdr.op) {
-	case MTK_WMT_SEMAPHORE:
+	case BTMTK_WMT_SEMAPHORE:
 		if (wmt_evt->whdr.flag == 2)
 			status = BTMTK_WMT_PATCH_UNDONE;
 		else
 			status = BTMTK_WMT_PATCH_DONE;
 		break;
-	case MTK_WMT_FUNC_CTRL:
+	case BTMTK_WMT_FUNC_CTRL:
 		wmt_evt_funcc = (struct btmtk_hci_wmt_evt_funcc *)wmt_evt;
 		if (be16_to_cpu(wmt_evt_funcc->status) == 0x404)
 			status = BTMTK_WMT_ON_DONE;
@@ -244,6 +204,19 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 			status = BTMTK_WMT_ON_PROGRESS;
 		else
 			status = BTMTK_WMT_ON_UNDONE;
+		break;
+	case BTMTK_WMT_PATCH_DWNLD:
+		if (wmt_evt->whdr.flag == 2)
+			status = BTMTK_WMT_PATCH_DONE;
+		else if (wmt_evt->whdr.flag == 1)
+			status = BTMTK_WMT_PATCH_PROGRESS;
+		else
+			status = BTMTK_WMT_PATCH_UNDONE;
+		break;
+	case BTMTK_WMT_REGISTER:
+		wmt_evt_reg = (struct btmtk_hci_wmt_evt_reg *)wmt_evt;
+		if (le16_to_cpu(wmt_evt->whdr.dlen) == 12)
+			status = le32_to_cpu(wmt_evt_reg->val);
 		break;
 	}
 
@@ -253,6 +226,8 @@ static int mtk_hci_wmt_sync(struct hci_dev *hdev,
 err_free_skb:
 	kfree_skb(bdev->evt_skb);
 	bdev->evt_skb = NULL;
+err_free_wc:
+	kfree(wc);
 
 	return err;
 }
@@ -279,6 +254,7 @@ static int btmtksdio_tx_packet(struct btmtksdio_dev *bdev,
 	sdio_hdr->reserved = cpu_to_le16(0);
 	sdio_hdr->bt_type = hci_skb_pkt_type(skb);
 
+	bdev->hw_tx_ready = false;
 	err = sdio_writesb(bdev->func, MTK_REG_CTDR, skb->data,
 			   round_up(skb->len, MTK_SDIO_BLOCK_SIZE));
 	if (err < 0)
@@ -299,32 +275,6 @@ err_skb_pull:
 static u32 btmtksdio_drv_own_query(struct btmtksdio_dev *bdev)
 {
 	return sdio_readl(bdev->func, MTK_REG_CHLPCR, NULL);
-}
-
-static void btmtksdio_tx_work(struct work_struct *work)
-{
-	struct btmtksdio_dev *bdev = container_of(work, struct btmtksdio_dev,
-						  tx_work);
-	struct sk_buff *skb;
-	int err;
-
-	pm_runtime_get_sync(bdev->dev);
-
-	sdio_claim_host(bdev->func);
-
-	while ((skb = skb_dequeue(&bdev->txq))) {
-		err = btmtksdio_tx_packet(bdev, skb);
-		if (err < 0) {
-			bdev->hdev->stat.err_tx++;
-			skb_queue_head(&bdev->txq, skb);
-			break;
-		}
-	}
-
-	sdio_release_host(bdev->func);
-
-	pm_runtime_mark_last_busy(bdev->dev);
-	pm_runtime_put_autosuspend(bdev->dev);
 }
 
 static int btmtksdio_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
@@ -477,70 +427,89 @@ err_kfree_skb:
 	return err;
 }
 
-static void btmtksdio_interrupt(struct sdio_func *func)
+static void btmtksdio_txrx_work(struct work_struct *work)
 {
-	struct btmtksdio_dev *bdev = sdio_get_drvdata(func);
-	u32 int_status;
-	u16 rx_size;
-
-	/* It is required that the host gets ownership from the device before
-	 * accessing any register, however, if SDIO host is not being released,
-	 * a potential deadlock probably happens in a circular wait between SDIO
-	 * IRQ work and PM runtime work. So, we have to explicitly release SDIO
-	 * host here and claim again after the PM runtime work is all done.
-	 */
-	sdio_release_host(bdev->func);
+	struct btmtksdio_dev *bdev = container_of(work, struct btmtksdio_dev,
+						  txrx_work);
+	unsigned long txrx_timeout;
+	u32 int_status, rx_size;
+	struct sk_buff *skb;
+	int err;
 
 	pm_runtime_get_sync(bdev->dev);
 
 	sdio_claim_host(bdev->func);
 
 	/* Disable interrupt */
-	sdio_writel(func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
+	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
 
-	int_status = sdio_readl(func, MTK_REG_CHISR, NULL);
+	txrx_timeout = jiffies + 5 * HZ;
 
-	/* Ack an interrupt as soon as possible before any operation on
-	 * hardware.
-	 *
-	 * Note that we don't ack any status during operations to avoid race
-	 * condition between the host and the device such as it's possible to
-	 * mistakenly ack RX_DONE for the next packet and then cause interrupts
-	 * not be raised again but there is still pending data in the hardware
-	 * FIFO.
-	 */
-	sdio_writel(func, int_status, MTK_REG_CHISR, NULL);
+	do {
+		int_status = sdio_readl(bdev->func, MTK_REG_CHISR, NULL);
 
-	if (unlikely(!int_status))
-		bt_dev_err(bdev->hdev, "CHISR is 0");
+		/* Ack an interrupt as soon as possible before any operation on
+		 * hardware.
+		 *
+		 * Note that we don't ack any status during operations to avoid race
+		 * condition between the host and the device such as it's possible to
+		 * mistakenly ack RX_DONE for the next packet and then cause interrupts
+		 * not be raised again but there is still pending data in the hardware
+		 * FIFO.
+		 */
+		sdio_writel(bdev->func, int_status, MTK_REG_CHISR, NULL);
 
-	if (int_status & FW_OWN_BACK_INT)
-		bt_dev_dbg(bdev->hdev, "Get fw own back");
+		if (int_status & FW_OWN_BACK_INT)
+			bt_dev_dbg(bdev->hdev, "Get fw own back");
 
-	if (int_status & TX_EMPTY)
-		schedule_work(&bdev->tx_work);
-	else if (unlikely(int_status & TX_FIFO_OVERFLOW))
-		bt_dev_warn(bdev->hdev, "Tx fifo overflow");
+		if (int_status & TX_EMPTY)
+			bdev->hw_tx_ready = true;
+		else if (unlikely(int_status & TX_FIFO_OVERFLOW))
+			bt_dev_warn(bdev->hdev, "Tx fifo overflow");
 
-	if (int_status & RX_DONE_INT) {
-		rx_size = (int_status & RX_PKT_LEN) >> 16;
+		if (bdev->hw_tx_ready) {
+			skb = skb_dequeue(&bdev->txq);
+			if (skb) {
+				err = btmtksdio_tx_packet(bdev, skb);
+				if (err < 0) {
+					bdev->hdev->stat.err_tx++;
+					skb_queue_head(&bdev->txq, skb);
+				}
+			}
+		}
 
-		if (btmtksdio_rx_packet(bdev, rx_size) < 0)
-			bdev->hdev->stat.err_rx++;
-	}
+		if (int_status & RX_DONE_INT) {
+			rx_size = sdio_readl(bdev->func, MTK_REG_CRPLR, NULL);
+			rx_size = (rx_size & RX_PKT_LEN) >> 16;
+			if (btmtksdio_rx_packet(bdev, rx_size) < 0)
+				bdev->hdev->stat.err_rx++;
+		}
+	} while (int_status || time_is_before_jiffies(txrx_timeout));
 
 	/* Enable interrupt */
-	sdio_writel(func, C_INT_EN_SET, MTK_REG_CHLPCR, NULL);
+	sdio_writel(bdev->func, C_INT_EN_SET, MTK_REG_CHLPCR, 0);
+
+	sdio_release_host(bdev->func);
 
 	pm_runtime_mark_last_busy(bdev->dev);
 	pm_runtime_put_autosuspend(bdev->dev);
 }
 
+static void btmtksdio_interrupt(struct sdio_func *func)
+{
+	struct btmtksdio_dev *bdev = sdio_get_drvdata(func);
+
+	/* Disable interrupt */
+	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
+
+	schedule_work(&bdev->txrx_work);
+}
+
 static int btmtksdio_open(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+	u32 status, val;
 	int err;
-	u32 status;
 
 	sdio_claim_host(bdev->func);
 
@@ -580,13 +549,22 @@ static int btmtksdio_open(struct hci_dev *hdev)
 	/* SDIO CMD 5 allows the SDIO device back to idle state an
 	 * synchronous interrupt is supported in SDIO 4-bit mode
 	 */
-	sdio_writel(bdev->func, SDIO_INT_CTL | SDIO_RE_INIT_EN,
-		    MTK_REG_CSDIOCSR, &err);
+	val = sdio_readl(bdev->func, MTK_REG_CSDIOCSR, &err);
 	if (err < 0)
 		goto err_release_irq;
 
-	/* Setup write-1-clear for CHISR register */
-	sdio_writel(bdev->func, C_INT_CLR_CTRL, MTK_REG_CHCR, &err);
+	val |= SDIO_INT_CTL;
+	sdio_writel(bdev->func, val, MTK_REG_CSDIOCSR, &err);
+	if (err < 0)
+		goto err_release_irq;
+
+	/* Explitly set write-1-clear method */
+	val = sdio_readl(bdev->func, MTK_REG_CHCR, &err);
+	if (err < 0)
+		goto err_release_irq;
+
+	val |= C_INT_CLR_CTRL;
+	sdio_writel(bdev->func, val, MTK_REG_CHCR, &err);
 	if (err < 0)
 		goto err_release_irq;
 
@@ -630,6 +608,8 @@ static int btmtksdio_close(struct hci_dev *hdev)
 
 	sdio_release_irq(bdev->func);
 
+	cancel_work_sync(&bdev->txrx_work);
+
 	/* Return ownership to the device */
 	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, NULL);
 
@@ -651,7 +631,7 @@ static int btmtksdio_flush(struct hci_dev *hdev)
 
 	skb_queue_purge(&bdev->txq);
 
-	cancel_work_sync(&bdev->tx_work);
+	cancel_work_sync(&bdev->txrx_work);
 
 	return 0;
 }
@@ -663,7 +643,7 @@ static int btmtksdio_func_query(struct hci_dev *hdev)
 	u8 param = 0;
 
 	/* Query whether the function is enabled */
-	wmt_params.op = MTK_WMT_FUNC_CTRL;
+	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
 	wmt_params.flag = 4;
 	wmt_params.dlen = sizeof(param);
 	wmt_params.data = &param;
@@ -678,111 +658,16 @@ static int btmtksdio_func_query(struct hci_dev *hdev)
 	return status;
 }
 
-static int mtk_setup_firmware(struct hci_dev *hdev, const char *fwname)
+static int mt76xx_setup(struct hci_dev *hdev, const char *fwname)
 {
 	struct btmtk_hci_wmt_params wmt_params;
-	const struct firmware *fw;
-	const u8 *fw_ptr;
-	size_t fw_size;
-	int err, dlen;
-	u8 flag, param;
-
-	err = request_firmware(&fw, fwname, &hdev->dev);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to load firmware file (%d)", err);
-		return err;
-	}
-
-	/* Power on data RAM the firmware relies on. */
-	param = 1;
-	wmt_params.op = MTK_WMT_FUNC_CTRL;
-	wmt_params.flag = 3;
-	wmt_params.dlen = sizeof(param);
-	wmt_params.data = &param;
-	wmt_params.status = NULL;
-
-	err = mtk_hci_wmt_sync(hdev, &wmt_params);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to power on data RAM (%d)", err);
-		goto free_fw;
-	}
-
-	fw_ptr = fw->data;
-	fw_size = fw->size;
-
-	/* The size of patch header is 30 bytes, should be skip */
-	if (fw_size < 30) {
-		err = -EINVAL;
-		goto free_fw;
-	}
-
-	fw_size -= 30;
-	fw_ptr += 30;
-	flag = 1;
-
-	wmt_params.op = MTK_WMT_PATCH_DWNLD;
-	wmt_params.status = NULL;
-
-	while (fw_size > 0) {
-		dlen = min_t(int, 250, fw_size);
-
-		/* Tell device the position in sequence */
-		if (fw_size - dlen <= 0)
-			flag = 3;
-		else if (fw_size < fw->size - 30)
-			flag = 2;
-
-		wmt_params.flag = flag;
-		wmt_params.dlen = dlen;
-		wmt_params.data = fw_ptr;
-
-		err = mtk_hci_wmt_sync(hdev, &wmt_params);
-		if (err < 0) {
-			bt_dev_err(hdev, "Failed to send wmt patch dwnld (%d)",
-				   err);
-			goto free_fw;
-		}
-
-		fw_size -= dlen;
-		fw_ptr += dlen;
-	}
-
-	wmt_params.op = MTK_WMT_RST;
-	wmt_params.flag = 4;
-	wmt_params.dlen = 0;
-	wmt_params.data = NULL;
-	wmt_params.status = NULL;
-
-	/* Activate funciton the firmware providing to */
-	err = mtk_hci_wmt_sync(hdev, &wmt_params);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send wmt rst (%d)", err);
-		goto free_fw;
-	}
-
-	/* Wait a few moments for firmware activation done */
-	usleep_range(10000, 12000);
-
-free_fw:
-	release_firmware(fw);
-	return err;
-}
-
-static int btmtksdio_setup(struct hci_dev *hdev)
-{
-	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
-	struct btmtk_hci_wmt_params wmt_params;
-	ktime_t calltime, delta, rettime;
 	struct btmtk_tci_sleep tci_sleep;
-	unsigned long long duration;
 	struct sk_buff *skb;
 	int err, status;
 	u8 param = 0x1;
 
-	calltime = ktime_get();
-
 	/* Query whether the firmware is already download */
-	wmt_params.op = MTK_WMT_SEMAPHORE;
+	wmt_params.op = BTMTK_WMT_SEMAPHORE;
 	wmt_params.flag = 1;
 	wmt_params.dlen = 0;
 	wmt_params.data = NULL;
@@ -800,7 +685,7 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 	}
 
 	/* Setup a firmware which the device definitely requires */
-	err = mtk_setup_firmware(hdev, bdev->data->fwname);
+	err = btmtk_setup_firmware(hdev, fwname, mtk_hci_wmt_sync);
 	if (err < 0)
 		return err;
 
@@ -823,7 +708,7 @@ ignore_setup_fw:
 	}
 
 	/* Enable Bluetooth protocol */
-	wmt_params.op = MTK_WMT_FUNC_CTRL;
+	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
 	wmt_params.flag = 0;
 	wmt_params.dlen = sizeof(param);
 	wmt_params.data = &param;
@@ -851,6 +736,113 @@ ignore_func_on:
 		return err;
 	}
 	kfree_skb(skb);
+
+	return 0;
+}
+
+static int mt79xx_setup(struct hci_dev *hdev, const char *fwname)
+{
+	struct btmtk_hci_wmt_params wmt_params;
+	u8 param = 0x1;
+	int err;
+
+	err = btmtk_setup_firmware_79xx(hdev, fwname, mtk_hci_wmt_sync);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to setup 79xx firmware (%d)", err);
+		return err;
+	}
+
+	/* Enable Bluetooth protocol */
+	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
+	wmt_params.flag = 0;
+	wmt_params.dlen = sizeof(param);
+	wmt_params.data = &param;
+	wmt_params.status = NULL;
+
+	err = mtk_hci_wmt_sync(hdev, &wmt_params);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send wmt func ctrl (%d)", err);
+		return err;
+	}
+
+	return err;
+}
+
+static int btsdio_mtk_reg_read(struct hci_dev *hdev, u32 reg, u32 *val)
+{
+	struct btmtk_hci_wmt_params wmt_params;
+	struct reg_read_cmd {
+		u8 type;
+		u8 rsv;
+		u8 num;
+		__le32 addr;
+	} __packed reg_read = {
+		.type = 1,
+		.num = 1,
+	};
+	u32 status;
+	int err;
+
+	reg_read.addr = cpu_to_le32(reg);
+	wmt_params.op = BTMTK_WMT_REGISTER;
+	wmt_params.flag = BTMTK_WMT_REG_READ;
+	wmt_params.dlen = sizeof(reg_read);
+	wmt_params.data = &reg_read;
+	wmt_params.status = &status;
+
+	err = mtk_hci_wmt_sync(hdev, &wmt_params);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to read reg(%d)", err);
+		return err;
+	}
+
+	*val = status;
+
+	return err;
+}
+
+static int btmtksdio_setup(struct hci_dev *hdev)
+{
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+	ktime_t calltime, delta, rettime;
+	unsigned long long duration;
+	char fwname[64];
+	int err, dev_id;
+	u32 fw_version = 0;
+
+	calltime = ktime_get();
+	bdev->hw_tx_ready = true;
+
+	switch (bdev->data->chipid) {
+	case 0x7921:
+		err = btsdio_mtk_reg_read(hdev, 0x70010200, &dev_id);
+		if (err < 0) {
+			bt_dev_err(hdev, "Failed to get device id (%d)", err);
+			return err;
+		}
+
+		err = btsdio_mtk_reg_read(hdev, 0x80021004, &fw_version);
+		if (err < 0) {
+			bt_dev_err(hdev, "Failed to get fw version (%d)", err);
+			return err;
+		}
+
+		snprintf(fwname, sizeof(fwname),
+			 "mediatek/BT_RAM_CODE_MT%04x_1_%x_hdr.bin",
+			 dev_id & 0xffff, (fw_version & 0xff) + 1);
+		err = mt79xx_setup(hdev, fwname);
+		if (err < 0)
+			return err;
+		break;
+	case 0x7663:
+	case 0x7668:
+		err = mt76xx_setup(hdev, bdev->data->fwname);
+		if (err < 0)
+			return err;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
@@ -891,7 +883,7 @@ static int btmtksdio_shutdown(struct hci_dev *hdev)
 	pm_runtime_get_sync(bdev->dev);
 
 	/* Disable the device */
-	wmt_params.op = MTK_WMT_FUNC_CTRL;
+	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
 	wmt_params.flag = 0;
 	wmt_params.dlen = sizeof(param);
 	wmt_params.data = &param;
@@ -932,7 +924,7 @@ static int btmtksdio_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	skb_queue_tail(&bdev->txq, skb);
 
-	schedule_work(&bdev->tx_work);
+	schedule_work(&bdev->txrx_work);
 
 	return 0;
 }
@@ -955,7 +947,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	bdev->dev = &func->dev;
 	bdev->func = func;
 
-	INIT_WORK(&bdev->tx_work, btmtksdio_tx_work);
+	INIT_WORK(&bdev->txrx_work, btmtksdio_txrx_work);
 	skb_queue_head_init(&bdev->txq);
 
 	/* Initialize and register HCI device */
@@ -976,6 +968,8 @@ static int btmtksdio_probe(struct sdio_func *func,
 	hdev->setup    = btmtksdio_setup;
 	hdev->shutdown = btmtksdio_shutdown;
 	hdev->send     = btmtksdio_send_frame;
+	hdev->set_bdaddr = btmtk_set_bdaddr;
+
 	SET_HCIDEV_DEV(hdev, &func->dev);
 
 	hdev->manufacturer = 70;
@@ -1112,5 +1106,3 @@ MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_DESCRIPTION("MediaTek Bluetooth SDIO driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
-MODULE_FIRMWARE(FIRMWARE_MT7663);
-MODULE_FIRMWARE(FIRMWARE_MT7668);

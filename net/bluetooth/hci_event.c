@@ -545,9 +545,7 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 			hdev->features[1][0] &= ~LMP_HOST_SSP;
 	}
 
-	if (hci_dev_test_flag(hdev, HCI_MGMT))
-		mgmt_ssp_enable_complete(hdev, sent->mode, status);
-	else if (!status) {
+	if (!status) {
 		if (sent->mode)
 			hci_dev_set_flag(hdev, HCI_SSP_ENABLED);
 		else
@@ -1239,6 +1237,55 @@ static void hci_cc_le_set_adv_set_random_addr(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cc_le_remove_adv_set(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *)skb->data);
+	u8 *instance;
+	int err;
+
+	if (status)
+		return;
+
+	instance = hci_sent_cmd_data(hdev, HCI_OP_LE_REMOVE_ADV_SET);
+	if (!instance)
+		return;
+
+	hci_dev_lock(hdev);
+
+	err = hci_remove_adv_instance(hdev, *instance);
+	if (!err)
+		mgmt_advertising_removed(hci_skb_sk(hdev->sent_cmd), hdev,
+					 *instance);
+
+	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_le_clear_adv_sets(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *)skb->data);
+	struct adv_info *adv, *n;
+	int err;
+
+	if (status)
+		return;
+
+	if (!hci_sent_cmd_data(hdev, HCI_OP_LE_CLEAR_ADV_SETS))
+		return;
+
+	hci_dev_lock(hdev);
+
+	list_for_each_entry_safe(adv, n, &hdev->adv_instances, list) {
+		u8 instance = adv->instance;
+
+		err = hci_remove_adv_instance(hdev, instance);
+		if (!err)
+			mgmt_advertising_removed(hci_skb_sk(hdev->sent_cmd),
+						 hdev, instance);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cc_le_read_transmit_power(struct hci_dev *hdev,
 					  struct sk_buff *skb)
 {
@@ -1326,8 +1373,10 @@ static void hci_cc_le_set_ext_adv_enable(struct hci_dev *hdev,
 					   &conn->le_conn_timeout,
 					   conn->conn_timeout);
 	} else {
-		if (adv) {
-			adv->enabled = false;
+		if (cp->num_of_sets) {
+			if (adv)
+				adv->enabled = false;
+
 			/* If just one instance was disabled check if there are
 			 * any other instance enabled before clearing HCI_LE_ADV
 			 */
@@ -1463,16 +1512,10 @@ static void le_set_scan_enable_complete(struct hci_dev *hdev, u8 enable)
 
 		/* The HCI_LE_SCAN_INTERRUPTED flag indicates that we
 		 * interrupted scanning due to a connect request. Mark
-		 * therefore discovery as stopped. If this was not
-		 * because of a connect request advertising might have
-		 * been disabled because of active scanning, so
-		 * re-enable it again if necessary.
+		 * therefore discovery as stopped.
 		 */
 		if (hci_dev_test_and_clear_flag(hdev, HCI_LE_SCAN_INTERRUPTED))
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-		else if (!hci_dev_test_flag(hdev, HCI_LE_ADV) &&
-			 hdev->discovery.state == DISCOVERY_FINDING)
-			hci_req_reenable_advertising(hdev);
 
 		break;
 
@@ -2371,9 +2414,14 @@ static void hci_cs_exit_sniff_mode(struct hci_dev *hdev, __u8 status)
 static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_disconnect *cp;
+	struct hci_conn_params *params;
 	struct hci_conn *conn;
+	bool mgmt_conn;
 
-	if (!status)
+	/* Wait for HCI_EV_DISCONN_COMPLETE if status 0x00 and not suspended
+	 * otherwise cleanup the connection immediately.
+	 */
+	if (!status && !hdev->suspended)
 		return;
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_DISCONNECT);
@@ -2383,23 +2431,60 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
-	if (conn) {
+	if (!conn)
+		goto unlock;
+
+	if (status) {
 		mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
 				       conn->dst_type, status);
 
 		if (conn->type == LE_LINK && conn->role == HCI_ROLE_SLAVE) {
 			hdev->cur_adv_instance = conn->adv_instance;
-			hci_req_reenable_advertising(hdev);
+			hci_enable_advertising(hdev);
 		}
 
-		/* If the disconnection failed for any reason, the upper layer
-		 * does not retry to disconnect in current implementation.
-		 * Hence, we need to do some basic cleanup here and re-enable
-		 * advertising if necessary.
-		 */
-		hci_conn_del(conn);
+		goto done;
 	}
 
+	mgmt_conn = test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags);
+
+	if (conn->type == ACL_LINK) {
+		if (test_bit(HCI_CONN_FLUSH_KEY, &conn->flags))
+			hci_remove_link_key(hdev, &conn->dst);
+	}
+
+	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	if (params) {
+		switch (params->auto_connect) {
+		case HCI_AUTO_CONN_LINK_LOSS:
+			if (cp->reason != HCI_ERROR_CONNECTION_TIMEOUT)
+				break;
+			fallthrough;
+
+		case HCI_AUTO_CONN_DIRECT:
+		case HCI_AUTO_CONN_ALWAYS:
+			list_del_init(&params->action);
+			list_add(&params->action, &hdev->pend_le_conns);
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	mgmt_device_disconnected(hdev, &conn->dst, conn->type, conn->dst_type,
+				 cp->reason, mgmt_conn);
+
+	hci_disconn_cfm(conn, cp->reason);
+
+done:
+	/* If the disconnection failed for any reason, the upper layer
+	 * does not retry to disconnect in current implementation.
+	 * Hence, we need to do some basic cleanup here and re-enable
+	 * advertising if necessary.
+	 */
+	hci_conn_del(conn);
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -2977,7 +3062,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		case HCI_AUTO_CONN_ALWAYS:
 			list_del_init(&params->action);
 			list_add(&params->action, &hdev->pend_le_conns);
-			hci_update_background_scan(hdev);
+			hci_update_passive_scan(hdev);
 			break;
 
 		default:
@@ -2986,14 +3071,6 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	hci_disconn_cfm(conn, ev->reason);
-
-	/* The suspend notifier is waiting for all devices to disconnect so
-	 * clear the bit from pending tasks and inform the wait queue.
-	 */
-	if (list_empty(&hdev->conn_hash.list) &&
-	    test_and_clear_bit(SUSPEND_DISCONNECTING, hdev->suspend_tasks)) {
-		wake_up(&hdev->suspend_wait_q);
-	}
 
 	/* Re-enable advertising if necessary, since it might
 	 * have been disabled by the connection. From the
@@ -3007,7 +3084,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 */
 	if (conn->type == LE_LINK && conn->role == HCI_ROLE_SLAVE) {
 		hdev->cur_adv_instance = conn->adv_instance;
-		hci_req_reenable_advertising(hdev);
+		hci_enable_advertising(hdev);
 	}
 
 	hci_conn_del(conn);
@@ -3721,6 +3798,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_LE_SET_ADV_SET_RAND_ADDR:
 		hci_cc_le_set_adv_set_random_addr(hdev, skb);
+		break;
+
+	case HCI_OP_LE_REMOVE_ADV_SET:
+		hci_cc_le_remove_adv_set(hdev, skb);
+		break;
+
+	case HCI_OP_LE_CLEAR_ADV_SETS:
+		hci_cc_le_clear_adv_sets(hdev, skb);
 		break;
 
 	case HCI_OP_LE_READ_TRANSMIT_POWER:
@@ -4445,7 +4530,6 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 {
 	struct hci_ev_sync_conn_complete *ev = (void *) skb->data;
 	struct hci_conn *conn;
-	unsigned int notify_evt;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
 
@@ -4517,22 +4601,18 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 	}
 
 	bt_dev_dbg(hdev, "SCO connected with air mode: %02x", ev->air_mode);
-
-	switch (ev->air_mode) {
-	case 0x02:
-		notify_evt = HCI_NOTIFY_ENABLE_SCO_CVSD;
-		break;
-	case 0x03:
-		notify_evt = HCI_NOTIFY_ENABLE_SCO_TRANSP;
-		break;
-	}
-
 	/* Notify only in case of SCO over HCI transport data path which
 	 * is zero and non-zero value shall be non-HCI transport data path
 	 */
-	if (conn->codec.data_path == 0) {
-		if (hdev->notify)
-			hdev->notify(hdev, notify_evt);
+	if (conn->codec.data_path == 0 && hdev->notify) {
+		switch (ev->air_mode) {
+		case 0x02:
+			hdev->notify(hdev, HCI_NOTIFY_ENABLE_SCO_CVSD);
+			break;
+		case 0x03:
+			hdev->notify(hdev, HCI_NOTIFY_ENABLE_SCO_TRANSP);
+			break;
+		}
 	}
 
 	hci_connect_cfm(conn, ev->status);
@@ -5412,7 +5492,7 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 	}
 
 unlock:
-	hci_update_background_scan(hdev);
+	hci_update_passive_scan(hdev);
 	hci_dev_unlock(hdev);
 }
 
@@ -5441,22 +5521,29 @@ static void hci_le_enh_conn_complete_evt(struct hci_dev *hdev,
 			     le16_to_cpu(ev->interval),
 			     le16_to_cpu(ev->latency),
 			     le16_to_cpu(ev->supervision_timeout));
-
-	if (use_ll_privacy(hdev) &&
-	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
-	    hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION))
-		hci_req_disable_address_resolution(hdev);
 }
 
 static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_evt_le_ext_adv_set_term *ev = (void *) skb->data;
 	struct hci_conn *conn;
-	struct adv_info *adv;
+	struct adv_info *adv, *n;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
 
 	adv = hci_find_adv_instance(hdev, ev->handle);
+
+	/* The Bluetooth Core 5.3 specification clearly states that this event
+	 * shall not be sent when the Host disables the advertising set. So in
+	 * case of HCI_ERROR_CANCELLED_BY_HOST, just ignore the event.
+	 *
+	 * When the Host disables an advertising set, all cleanup is done via
+	 * its command callback and not needed to be duplicated here.
+	 */
+	if (ev->status == HCI_ERROR_CANCELLED_BY_HOST) {
+		bt_dev_warn_ratelimited(hdev, "Unexpected advertising set terminated event");
+		return;
+	}
 
 	if (ev->status) {
 		if (!adv)
@@ -5466,6 +5553,13 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_remove_adv_instance(hdev, ev->handle);
 		mgmt_advertising_removed(NULL, hdev, ev->handle);
 
+		list_for_each_entry_safe(adv, n, &hdev->adv_instances, list) {
+			if (adv->enabled)
+				return;
+		}
+
+		/* We are no longer advertising, clear HCI_LE_ADV */
+		hci_dev_clear_flag(hdev, HCI_LE_ADV);
 		return;
 	}
 
@@ -5529,8 +5623,9 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 	if (adv_type != LE_ADV_IND && adv_type != LE_ADV_DIRECT_IND)
 		return NULL;
 
-	/* Ignore if the device is blocked */
-	if (hci_bdaddr_list_lookup(&hdev->reject_list, addr, addr_type))
+	/* Ignore if the device is blocked or hdev is suspended */
+	if (hci_bdaddr_list_lookup(&hdev->reject_list, addr, addr_type) ||
+	    hdev->suspended)
 		return NULL;
 
 	/* Most controller will fail if we try to create new connections
@@ -5825,7 +5920,8 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		struct hci_ev_le_advertising_info *ev = ptr;
 		s8 rssi;
 
-		if (ev->length <= HCI_MAX_AD_LENGTH) {
+		if (ev->length <= HCI_MAX_AD_LENGTH &&
+		    ev->data + ev->length <= skb_tail_pointer(skb)) {
 			rssi = ev->data[ev->length];
 			process_adv_report(hdev, ev->evt_type, &ev->bdaddr,
 					   ev->bdaddr_type, NULL, 0, rssi,
@@ -5835,6 +5931,11 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 
 		ptr += sizeof(*ev) + ev->length + 1;
+
+		if (ptr > (void *) skb_tail_pointer(skb) - sizeof(*ev)) {
+			bt_dev_err(hdev, "Malicious advertising data. Stopping processing");
+			break;
+		}
 	}
 
 	hci_dev_unlock(hdev);

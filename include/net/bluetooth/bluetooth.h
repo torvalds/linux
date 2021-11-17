@@ -380,6 +380,7 @@ typedef void (*hci_req_complete_skb_t)(struct hci_dev *hdev, u8 status,
 #define HCI_REQ_SKB	BIT(1)
 
 struct hci_ctrl {
+	struct sock *sk;
 	u16 opcode;
 	u8 req_flags;
 	u8 req_event;
@@ -405,6 +406,7 @@ struct bt_skb_cb {
 #define hci_skb_pkt_type(skb) bt_cb((skb))->pkt_type
 #define hci_skb_expect(skb) bt_cb((skb))->expect
 #define hci_skb_opcode(skb) bt_cb((skb))->hci.opcode
+#define hci_skb_sk(skb) bt_cb((skb))->hci.sk
 
 static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 {

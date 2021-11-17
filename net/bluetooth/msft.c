@@ -93,7 +93,7 @@ struct msft_data {
 	struct list_head handle_map;
 	__u16 pending_add_handle;
 	__u16 pending_remove_handle;
-	__u8 reregistering;
+	__u8 resuming;
 	__u8 suspending;
 	__u8 filter_enabled;
 };
@@ -156,7 +156,6 @@ failed:
 	return false;
 }
 
-/* This function requires the caller holds hdev->lock */
 static void reregister_monitor(struct hci_dev *hdev, int handle)
 {
 	struct adv_monitor *monitor;
@@ -166,9 +165,9 @@ static void reregister_monitor(struct hci_dev *hdev, int handle)
 	while (1) {
 		monitor = idr_get_next(&hdev->adv_monitors_idr, &handle);
 		if (!monitor) {
-			/* All monitors have been reregistered */
-			msft->reregistering = false;
-			hci_update_background_scan(hdev);
+			/* All monitors have been resumed */
+			msft->resuming = false;
+			hci_update_passive_scan(hdev);
 			return;
 		}
 
@@ -185,67 +184,317 @@ static void reregister_monitor(struct hci_dev *hdev, int handle)
 	}
 }
 
-/* This function requires the caller holds hdev->lock */
-static void remove_monitor_on_suspend(struct hci_dev *hdev, int handle)
+/* is_mgmt = true matches the handle exposed to userspace via mgmt.
+ * is_mgmt = false matches the handle used by the msft controller.
+ * This function requires the caller holds hdev->lock
+ */
+static struct msft_monitor_advertisement_handle_data *msft_find_handle_data
+				(struct hci_dev *hdev, u16 handle, bool is_mgmt)
 {
+	struct msft_monitor_advertisement_handle_data *entry;
+	struct msft_data *msft = hdev->msft_data;
+
+	list_for_each_entry(entry, &msft->handle_map, list) {
+		if (is_mgmt && entry->mgmt_handle == handle)
+			return entry;
+		if (!is_mgmt && entry->msft_handle == handle)
+			return entry;
+	}
+
+	return NULL;
+}
+
+static void msft_le_monitor_advertisement_cb(struct hci_dev *hdev,
+					     u8 status, u16 opcode,
+					     struct sk_buff *skb)
+{
+	struct msft_rp_le_monitor_advertisement *rp;
 	struct adv_monitor *monitor;
+	struct msft_monitor_advertisement_handle_data *handle_data;
+	struct msft_data *msft = hdev->msft_data;
+
+	hci_dev_lock(hdev);
+
+	monitor = idr_find(&hdev->adv_monitors_idr, msft->pending_add_handle);
+	if (!monitor) {
+		bt_dev_err(hdev, "msft add advmon: monitor %u is not found!",
+			   msft->pending_add_handle);
+		status = HCI_ERROR_UNSPECIFIED;
+		goto unlock;
+	}
+
+	if (status)
+		goto unlock;
+
+	rp = (struct msft_rp_le_monitor_advertisement *)skb->data;
+	if (skb->len < sizeof(*rp)) {
+		status = HCI_ERROR_UNSPECIFIED;
+		goto unlock;
+	}
+
+	handle_data = kmalloc(sizeof(*handle_data), GFP_KERNEL);
+	if (!handle_data) {
+		status = HCI_ERROR_UNSPECIFIED;
+		goto unlock;
+	}
+
+	handle_data->mgmt_handle = monitor->handle;
+	handle_data->msft_handle = rp->handle;
+	INIT_LIST_HEAD(&handle_data->list);
+	list_add(&handle_data->list, &msft->handle_map);
+
+	monitor->state = ADV_MONITOR_STATE_OFFLOADED;
+
+unlock:
+	if (status && monitor)
+		hci_free_adv_monitor(hdev, monitor);
+
+	hci_dev_unlock(hdev);
+
+	if (!msft->resuming)
+		hci_add_adv_patterns_monitor_complete(hdev, status);
+}
+
+static void msft_le_cancel_monitor_advertisement_cb(struct hci_dev *hdev,
+						    u8 status, u16 opcode,
+						    struct sk_buff *skb)
+{
+	struct msft_cp_le_cancel_monitor_advertisement *cp;
+	struct msft_rp_le_cancel_monitor_advertisement *rp;
+	struct adv_monitor *monitor;
+	struct msft_monitor_advertisement_handle_data *handle_data;
 	struct msft_data *msft = hdev->msft_data;
 	int err;
+	bool pending;
 
-	while (1) {
-		monitor = idr_get_next(&hdev->adv_monitors_idr, &handle);
-		if (!monitor) {
-			/* All monitors have been removed */
-			msft->suspending = false;
-			hci_update_background_scan(hdev);
+	if (status)
+		goto done;
+
+	rp = (struct msft_rp_le_cancel_monitor_advertisement *)skb->data;
+	if (skb->len < sizeof(*rp)) {
+		status = HCI_ERROR_UNSPECIFIED;
+		goto done;
+	}
+
+	hci_dev_lock(hdev);
+
+	cp = hci_sent_cmd_data(hdev, hdev->msft_opcode);
+	handle_data = msft_find_handle_data(hdev, cp->handle, false);
+
+	if (handle_data) {
+		monitor = idr_find(&hdev->adv_monitors_idr,
+				   handle_data->mgmt_handle);
+
+		if (monitor && monitor->state == ADV_MONITOR_STATE_OFFLOADED)
+			monitor->state = ADV_MONITOR_STATE_REGISTERED;
+
+		/* Do not free the monitor if it is being removed due to
+		 * suspend. It will be re-monitored on resume.
+		 */
+		if (monitor && !msft->suspending)
+			hci_free_adv_monitor(hdev, monitor);
+
+		list_del(&handle_data->list);
+		kfree(handle_data);
+	}
+
+	/* If remove all monitors is required, we need to continue the process
+	 * here because the earlier it was paused when waiting for the
+	 * response from controller.
+	 */
+	if (msft->pending_remove_handle == 0) {
+		pending = hci_remove_all_adv_monitor(hdev, &err);
+		if (pending) {
+			hci_dev_unlock(hdev);
 			return;
 		}
 
-		msft->pending_remove_handle = (u16)handle;
-		err = __msft_remove_monitor(hdev, monitor, handle);
+		if (err)
+			status = HCI_ERROR_UNSPECIFIED;
+	}
 
-		/* If success, return and wait for monitor removed callback */
-		if (!err)
-			return;
+	hci_dev_unlock(hdev);
 
-		/* Otherwise free the monitor and keep removing */
-		hci_free_adv_monitor(hdev, monitor);
+done:
+	if (!msft->suspending)
+		hci_remove_adv_monitor_complete(hdev, status);
+}
+
+static int msft_remove_monitor_sync(struct hci_dev *hdev,
+				    struct adv_monitor *monitor)
+{
+	struct msft_cp_le_cancel_monitor_advertisement cp;
+	struct msft_monitor_advertisement_handle_data *handle_data;
+	struct sk_buff *skb;
+	u8 status;
+
+	handle_data = msft_find_handle_data(hdev, monitor->handle, true);
+
+	/* If no matched handle, just remove without telling controller */
+	if (!handle_data)
+		return -ENOENT;
+
+	cp.sub_opcode = MSFT_OP_LE_CANCEL_MONITOR_ADVERTISEMENT;
+	cp.handle = handle_data->msft_handle;
+
+	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, sizeof(cp), &cp,
+			     HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	status = skb->data[0];
+	skb_pull(skb, 1);
+
+	msft_le_cancel_monitor_advertisement_cb(hdev, status, hdev->msft_opcode,
+						skb);
+
+	return status;
+}
+
+/* This function requires the caller holds hci_req_sync_lock */
+int msft_suspend_sync(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+	struct adv_monitor *monitor;
+	int handle = 0;
+
+	if (!msft || !msft_monitor_supported(hdev))
+		return 0;
+
+	msft->suspending = true;
+
+	while (1) {
+		monitor = idr_get_next(&hdev->adv_monitors_idr, &handle);
+		if (!monitor)
+			break;
+
+		msft_remove_monitor_sync(hdev, monitor);
+
 		handle++;
 	}
+
+	/* All monitors have been removed */
+	msft->suspending = false;
+
+	return 0;
 }
 
-/* This function requires the caller holds hdev->lock */
-void msft_suspend(struct hci_dev *hdev)
+static bool msft_monitor_rssi_valid(struct adv_monitor *monitor)
 {
-	struct msft_data *msft = hdev->msft_data;
+	struct adv_rssi_thresholds *r = &monitor->rssi;
 
-	if (!msft)
-		return;
+	if (r->high_threshold < MSFT_RSSI_THRESHOLD_VALUE_MIN ||
+	    r->high_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX ||
+	    r->low_threshold < MSFT_RSSI_THRESHOLD_VALUE_MIN ||
+	    r->low_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX)
+		return false;
 
-	if (msft_monitor_supported(hdev)) {
-		msft->suspending = true;
-		/* Quitely remove all monitors on suspend to avoid waking up
-		 * the system.
-		 */
-		remove_monitor_on_suspend(hdev, 0);
-	}
+	/* High_threshold_timeout is not supported,
+	 * once high_threshold is reached, events are immediately reported.
+	 */
+	if (r->high_threshold_timeout != 0)
+		return false;
+
+	if (r->low_threshold_timeout > MSFT_RSSI_LOW_TIMEOUT_MAX)
+		return false;
+
+	/* Sampling period from 0x00 to 0xFF are all allowed */
+	return true;
 }
 
-/* This function requires the caller holds hdev->lock */
-void msft_resume(struct hci_dev *hdev)
+static bool msft_monitor_pattern_valid(struct adv_monitor *monitor)
+{
+	return msft_monitor_rssi_valid(monitor);
+	/* No additional check needed for pattern-based monitor */
+}
+
+static int msft_add_monitor_sync(struct hci_dev *hdev,
+				 struct adv_monitor *monitor)
+{
+	struct msft_cp_le_monitor_advertisement *cp;
+	struct msft_le_monitor_advertisement_pattern_data *pattern_data;
+	struct msft_le_monitor_advertisement_pattern *pattern;
+	struct adv_pattern *entry;
+	size_t total_size = sizeof(*cp) + sizeof(*pattern_data);
+	ptrdiff_t offset = 0;
+	u8 pattern_count = 0;
+	struct sk_buff *skb;
+	u8 status;
+
+	if (!msft_monitor_pattern_valid(monitor))
+		return -EINVAL;
+
+	list_for_each_entry(entry, &monitor->patterns, list) {
+		pattern_count++;
+		total_size += sizeof(*pattern) + entry->length;
+	}
+
+	cp = kmalloc(total_size, GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+
+	cp->sub_opcode = MSFT_OP_LE_MONITOR_ADVERTISEMENT;
+	cp->rssi_high = monitor->rssi.high_threshold;
+	cp->rssi_low = monitor->rssi.low_threshold;
+	cp->rssi_low_interval = (u8)monitor->rssi.low_threshold_timeout;
+	cp->rssi_sampling_period = monitor->rssi.sampling_period;
+
+	cp->cond_type = MSFT_MONITOR_ADVERTISEMENT_TYPE_PATTERN;
+
+	pattern_data = (void *)cp->data;
+	pattern_data->count = pattern_count;
+
+	list_for_each_entry(entry, &monitor->patterns, list) {
+		pattern = (void *)(pattern_data->data + offset);
+		/* the length also includes data_type and offset */
+		pattern->length = entry->length + 2;
+		pattern->data_type = entry->ad_type;
+		pattern->start_byte = entry->offset;
+		memcpy(pattern->pattern, entry->value, entry->length);
+		offset += sizeof(*pattern) + entry->length;
+	}
+
+	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, total_size, cp,
+			     HCI_CMD_TIMEOUT);
+	kfree(cp);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	status = skb->data[0];
+	skb_pull(skb, 1);
+
+	msft_le_monitor_advertisement_cb(hdev, status, hdev->msft_opcode, skb);
+
+	return status;
+}
+
+/* This function requires the caller holds hci_req_sync_lock */
+int msft_resume_sync(struct hci_dev *hdev)
 {
 	struct msft_data *msft = hdev->msft_data;
+	struct adv_monitor *monitor;
+	int handle = 0;
 
-	if (!msft)
-		return;
+	if (!msft || !msft_monitor_supported(hdev))
+		return 0;
 
-	if (msft_monitor_supported(hdev)) {
-		msft->reregistering = true;
-		/* Monitors are removed on suspend, so we need to add all
-		 * monitors on resume.
-		 */
-		reregister_monitor(hdev, 0);
+	msft->resuming = true;
+
+	while (1) {
+		monitor = idr_get_next(&hdev->adv_monitors_idr, &handle);
+		if (!monitor)
+			break;
+
+		msft_add_monitor_sync(hdev, monitor);
+
+		handle++;
 	}
+
+	/* All monitors have been resumed */
+	msft->resuming = false;
+
+	return 0;
 }
 
 void msft_do_open(struct hci_dev *hdev)
@@ -275,7 +524,7 @@ void msft_do_open(struct hci_dev *hdev)
 	}
 
 	if (msft_monitor_supported(hdev)) {
-		msft->reregistering = true;
+		msft->resuming = true;
 		msft_set_filter_enable(hdev, true);
 		/* Monitors get removed on power off, so we need to explicitly
 		 * tell the controller to re-monitor.
@@ -381,151 +630,6 @@ __u64 msft_get_features(struct hci_dev *hdev)
 	return msft ? msft->features : 0;
 }
 
-/* is_mgmt = true matches the handle exposed to userspace via mgmt.
- * is_mgmt = false matches the handle used by the msft controller.
- * This function requires the caller holds hdev->lock
- */
-static struct msft_monitor_advertisement_handle_data *msft_find_handle_data
-				(struct hci_dev *hdev, u16 handle, bool is_mgmt)
-{
-	struct msft_monitor_advertisement_handle_data *entry;
-	struct msft_data *msft = hdev->msft_data;
-
-	list_for_each_entry(entry, &msft->handle_map, list) {
-		if (is_mgmt && entry->mgmt_handle == handle)
-			return entry;
-		if (!is_mgmt && entry->msft_handle == handle)
-			return entry;
-	}
-
-	return NULL;
-}
-
-static void msft_le_monitor_advertisement_cb(struct hci_dev *hdev,
-					     u8 status, u16 opcode,
-					     struct sk_buff *skb)
-{
-	struct msft_rp_le_monitor_advertisement *rp;
-	struct adv_monitor *monitor;
-	struct msft_monitor_advertisement_handle_data *handle_data;
-	struct msft_data *msft = hdev->msft_data;
-
-	hci_dev_lock(hdev);
-
-	monitor = idr_find(&hdev->adv_monitors_idr, msft->pending_add_handle);
-	if (!monitor) {
-		bt_dev_err(hdev, "msft add advmon: monitor %u is not found!",
-			   msft->pending_add_handle);
-		status = HCI_ERROR_UNSPECIFIED;
-		goto unlock;
-	}
-
-	if (status)
-		goto unlock;
-
-	rp = (struct msft_rp_le_monitor_advertisement *)skb->data;
-	if (skb->len < sizeof(*rp)) {
-		status = HCI_ERROR_UNSPECIFIED;
-		goto unlock;
-	}
-
-	handle_data = kmalloc(sizeof(*handle_data), GFP_KERNEL);
-	if (!handle_data) {
-		status = HCI_ERROR_UNSPECIFIED;
-		goto unlock;
-	}
-
-	handle_data->mgmt_handle = monitor->handle;
-	handle_data->msft_handle = rp->handle;
-	INIT_LIST_HEAD(&handle_data->list);
-	list_add(&handle_data->list, &msft->handle_map);
-
-	monitor->state = ADV_MONITOR_STATE_OFFLOADED;
-
-unlock:
-	if (status && monitor)
-		hci_free_adv_monitor(hdev, monitor);
-
-	/* If in restart/reregister sequence, keep registering. */
-	if (msft->reregistering)
-		reregister_monitor(hdev, msft->pending_add_handle + 1);
-
-	hci_dev_unlock(hdev);
-
-	if (!msft->reregistering)
-		hci_add_adv_patterns_monitor_complete(hdev, status);
-}
-
-static void msft_le_cancel_monitor_advertisement_cb(struct hci_dev *hdev,
-						    u8 status, u16 opcode,
-						    struct sk_buff *skb)
-{
-	struct msft_cp_le_cancel_monitor_advertisement *cp;
-	struct msft_rp_le_cancel_monitor_advertisement *rp;
-	struct adv_monitor *monitor;
-	struct msft_monitor_advertisement_handle_data *handle_data;
-	struct msft_data *msft = hdev->msft_data;
-	int err;
-	bool pending;
-
-	if (status)
-		goto done;
-
-	rp = (struct msft_rp_le_cancel_monitor_advertisement *)skb->data;
-	if (skb->len < sizeof(*rp)) {
-		status = HCI_ERROR_UNSPECIFIED;
-		goto done;
-	}
-
-	hci_dev_lock(hdev);
-
-	cp = hci_sent_cmd_data(hdev, hdev->msft_opcode);
-	handle_data = msft_find_handle_data(hdev, cp->handle, false);
-
-	if (handle_data) {
-		monitor = idr_find(&hdev->adv_monitors_idr,
-				   handle_data->mgmt_handle);
-
-		if (monitor && monitor->state == ADV_MONITOR_STATE_OFFLOADED)
-			monitor->state = ADV_MONITOR_STATE_REGISTERED;
-
-		/* Do not free the monitor if it is being removed due to
-		 * suspend. It will be re-monitored on resume.
-		 */
-		if (monitor && !msft->suspending)
-			hci_free_adv_monitor(hdev, monitor);
-
-		list_del(&handle_data->list);
-		kfree(handle_data);
-	}
-
-	/* If in suspend/remove sequence, keep removing. */
-	if (msft->suspending)
-		remove_monitor_on_suspend(hdev,
-					  msft->pending_remove_handle + 1);
-
-	/* If remove all monitors is required, we need to continue the process
-	 * here because the earlier it was paused when waiting for the
-	 * response from controller.
-	 */
-	if (msft->pending_remove_handle == 0) {
-		pending = hci_remove_all_adv_monitor(hdev, &err);
-		if (pending) {
-			hci_dev_unlock(hdev);
-			return;
-		}
-
-		if (err)
-			status = HCI_ERROR_UNSPECIFIED;
-	}
-
-	hci_dev_unlock(hdev);
-
-done:
-	if (!msft->suspending)
-		hci_remove_adv_monitor_complete(hdev, status);
-}
-
 static void msft_le_set_advertisement_filter_enable_cb(struct hci_dev *hdev,
 						       u8 status, u16 opcode,
 						       struct sk_buff *skb)
@@ -558,35 +662,6 @@ static void msft_le_set_advertisement_filter_enable_cb(struct hci_dev *hdev,
 			    cp->enable ? "on" : "off");
 
 	hci_dev_unlock(hdev);
-}
-
-static bool msft_monitor_rssi_valid(struct adv_monitor *monitor)
-{
-	struct adv_rssi_thresholds *r = &monitor->rssi;
-
-	if (r->high_threshold < MSFT_RSSI_THRESHOLD_VALUE_MIN ||
-	    r->high_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX ||
-	    r->low_threshold < MSFT_RSSI_THRESHOLD_VALUE_MIN ||
-	    r->low_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX)
-		return false;
-
-	/* High_threshold_timeout is not supported,
-	 * once high_threshold is reached, events are immediately reported.
-	 */
-	if (r->high_threshold_timeout != 0)
-		return false;
-
-	if (r->low_threshold_timeout > MSFT_RSSI_LOW_TIMEOUT_MAX)
-		return false;
-
-	/* Sampling period from 0x00 to 0xFF are all allowed */
-	return true;
-}
-
-static bool msft_monitor_pattern_valid(struct adv_monitor *monitor)
-{
-	return msft_monitor_rssi_valid(monitor);
-	/* No additional check needed for pattern-based monitor */
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -656,7 +731,7 @@ int msft_add_monitor_pattern(struct hci_dev *hdev, struct adv_monitor *monitor)
 	if (!msft)
 		return -EOPNOTSUPP;
 
-	if (msft->reregistering || msft->suspending)
+	if (msft->resuming || msft->suspending)
 		return -EBUSY;
 
 	return __msft_add_monitor_pattern(hdev, monitor);
@@ -700,7 +775,7 @@ int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor,
 	if (!msft)
 		return -EOPNOTSUPP;
 
-	if (msft->reregistering || msft->suspending)
+	if (msft->resuming || msft->suspending)
 		return -EBUSY;
 
 	return __msft_remove_monitor(hdev, monitor, handle);

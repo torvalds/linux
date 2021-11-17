@@ -38,9 +38,12 @@ struct vhci_data {
 
 	struct mutex open_mutex;
 	struct delayed_work open_timeout;
+	struct work_struct suspend_work;
 
 	bool suspended;
 	bool wakeup;
+	__u16 msft_opcode;
+	bool aosp_capable;
 };
 
 static int vhci_open_dev(struct hci_dev *hdev)
@@ -114,6 +117,17 @@ static ssize_t force_suspend_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
 }
 
+static void vhci_suspend_work(struct work_struct *work)
+{
+	struct vhci_data *data = container_of(work, struct vhci_data,
+					      suspend_work);
+
+	if (data->suspended)
+		hci_suspend_dev(data->hdev);
+	else
+		hci_resume_dev(data->hdev);
+}
+
 static ssize_t force_suspend_write(struct file *file,
 				   const char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -129,15 +143,9 @@ static ssize_t force_suspend_write(struct file *file,
 	if (data->suspended == enable)
 		return -EALREADY;
 
-	if (enable)
-		err = hci_suspend_dev(data->hdev);
-	else
-		err = hci_resume_dev(data->hdev);
-
-	if (err)
-		return err;
-
 	data->suspended = enable;
+
+	schedule_work(&data->suspend_work);
 
 	return count;
 }
@@ -176,6 +184,8 @@ static ssize_t force_wakeup_write(struct file *file,
 	if (data->wakeup == enable)
 		return -EALREADY;
 
+	data->wakeup = enable;
+
 	return count;
 }
 
@@ -185,6 +195,88 @@ static const struct file_operations force_wakeup_fops = {
 	.write		= force_wakeup_write,
 	.llseek		= default_llseek,
 };
+
+static int msft_opcode_set(void *data, u64 val)
+{
+	struct vhci_data *vhci = data;
+
+	if (val > 0xffff || hci_opcode_ogf(val) != 0x3f)
+		return -EINVAL;
+
+	if (vhci->msft_opcode)
+		return -EALREADY;
+
+	vhci->msft_opcode = val;
+
+	return 0;
+}
+
+static int msft_opcode_get(void *data, u64 *val)
+{
+	struct vhci_data *vhci = data;
+
+	*val = vhci->msft_opcode;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(msft_opcode_fops, msft_opcode_get, msft_opcode_set,
+			 "%llu\n");
+
+static ssize_t aosp_capable_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct vhci_data *vhci = file->private_data;
+	char buf[3];
+
+	buf[0] = vhci->aosp_capable ? 'Y' : 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t aosp_capable_write(struct file *file,
+				  const char __user *user_buf, size_t count,
+				  loff_t *ppos)
+{
+	struct vhci_data *vhci = file->private_data;
+	bool enable;
+	int err;
+
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
+
+	if (!enable)
+		return -EINVAL;
+
+	if (vhci->aosp_capable)
+		return -EALREADY;
+
+	vhci->aosp_capable = enable;
+
+	return count;
+}
+
+static const struct file_operations aosp_capable_fops = {
+	.open		= simple_open,
+	.read		= aosp_capable_read,
+	.write		= aosp_capable_write,
+	.llseek		= default_llseek,
+};
+
+static int vhci_setup(struct hci_dev *hdev)
+{
+	struct vhci_data *vhci = hci_get_drvdata(hdev);
+
+	if (vhci->msft_opcode)
+		hci_set_msft_opcode(hdev, vhci->msft_opcode);
+
+	if (vhci->aosp_capable)
+		hci_set_aosp_capable(hdev);
+
+	return 0;
+}
 
 static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 {
@@ -228,6 +320,8 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	hdev->get_data_path_id = vhci_get_data_path_id;
 	hdev->get_codec_config_data = vhci_get_codec_config_data;
 	hdev->wakeup = vhci_wakeup;
+	hdev->setup = vhci_setup;
+	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
 
 	/* bit 6 is for external configuration */
 	if (opcode & 0x40)
@@ -250,6 +344,14 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 
 	debugfs_create_file("force_wakeup", 0644, hdev->debugfs, data,
 			    &force_wakeup_fops);
+
+	if (IS_ENABLED(CONFIG_BT_MSFTEXT))
+		debugfs_create_file("msft_opcode", 0644, hdev->debugfs, data,
+				    &msft_opcode_fops);
+
+	if (IS_ENABLED(CONFIG_BT_AOSPEXT))
+		debugfs_create_file("aosp_capable", 0644, hdev->debugfs, data,
+				    &aosp_capable_fops);
 
 	hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
 
@@ -440,6 +542,7 @@ static int vhci_open(struct inode *inode, struct file *file)
 
 	mutex_init(&data->open_mutex);
 	INIT_DELAYED_WORK(&data->open_timeout, vhci_open_timeout);
+	INIT_WORK(&data->suspend_work, vhci_suspend_work);
 
 	file->private_data = data;
 	nonseekable_open(inode, file);
@@ -455,6 +558,7 @@ static int vhci_release(struct inode *inode, struct file *file)
 	struct hci_dev *hdev;
 
 	cancel_delayed_work_sync(&data->open_timeout);
+	flush_work(&data->suspend_work);
 
 	hdev = data->hdev;
 
