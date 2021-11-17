@@ -1569,7 +1569,7 @@ EXPORT_SYMBOL_GPL(cs_dsp_find_alg_region);
 
 static struct cs_dsp_alg_region *cs_dsp_create_region(struct cs_dsp *dsp,
 						      int type, __be32 id,
-						      __be32 base)
+						      __be32 ver, __be32 base)
 {
 	struct cs_dsp_alg_region *alg_region;
 
@@ -1579,6 +1579,7 @@ static struct cs_dsp_alg_region *cs_dsp_create_region(struct cs_dsp *dsp,
 
 	alg_region->type = type;
 	alg_region->alg = be32_to_cpu(id);
+	alg_region->ver = be32_to_cpu(ver);
 	alg_region->base = be32_to_cpu(base);
 
 	list_add_tail(&alg_region->list, &dsp->alg_regions);
@@ -1628,14 +1629,14 @@ static void cs_dsp_parse_wmfw_v3_id_header(struct cs_dsp *dsp,
 		    nalgs);
 }
 
-static int cs_dsp_create_regions(struct cs_dsp *dsp, __be32 id, int nregions,
-				 const int *type, __be32 *base)
+static int cs_dsp_create_regions(struct cs_dsp *dsp, __be32 id, __be32 ver,
+				 int nregions, const int *type, __be32 *base)
 {
 	struct cs_dsp_alg_region *alg_region;
 	int i;
 
 	for (i = 0; i < nregions; i++) {
-		alg_region = cs_dsp_create_region(dsp, type[i], id, base[i]);
+		alg_region = cs_dsp_create_region(dsp, type[i], id, ver, base[i]);
 		if (IS_ERR(alg_region))
 			return PTR_ERR(alg_region);
 	}
@@ -1670,12 +1671,14 @@ static int cs_dsp_adsp1_setup_algs(struct cs_dsp *dsp)
 	cs_dsp_parse_wmfw_id_header(dsp, &adsp1_id.fw, n_algs);
 
 	alg_region = cs_dsp_create_region(dsp, WMFW_ADSP1_ZM,
-					  adsp1_id.fw.id, adsp1_id.zm);
+					  adsp1_id.fw.id, adsp1_id.fw.ver,
+					  adsp1_id.zm);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
 	alg_region = cs_dsp_create_region(dsp, WMFW_ADSP1_DM,
-					  adsp1_id.fw.id, adsp1_id.dm);
+					  adsp1_id.fw.id, adsp1_id.fw.ver,
+					  adsp1_id.dm);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
@@ -1698,6 +1701,7 @@ static int cs_dsp_adsp1_setup_algs(struct cs_dsp *dsp)
 
 		alg_region = cs_dsp_create_region(dsp, WMFW_ADSP1_DM,
 						  adsp1_alg[i].alg.id,
+						  adsp1_alg[i].alg.ver,
 						  adsp1_alg[i].dm);
 		if (IS_ERR(alg_region)) {
 			ret = PTR_ERR(alg_region);
@@ -1719,6 +1723,7 @@ static int cs_dsp_adsp1_setup_algs(struct cs_dsp *dsp)
 
 		alg_region = cs_dsp_create_region(dsp, WMFW_ADSP1_ZM,
 						  adsp1_alg[i].alg.id,
+						  adsp1_alg[i].alg.ver,
 						  adsp1_alg[i].zm);
 		if (IS_ERR(alg_region)) {
 			ret = PTR_ERR(alg_region);
@@ -1771,17 +1776,20 @@ static int cs_dsp_adsp2_setup_algs(struct cs_dsp *dsp)
 	cs_dsp_parse_wmfw_id_header(dsp, &adsp2_id.fw, n_algs);
 
 	alg_region = cs_dsp_create_region(dsp, WMFW_ADSP2_XM,
-					  adsp2_id.fw.id, adsp2_id.xm);
+					  adsp2_id.fw.id, adsp2_id.fw.ver,
+					  adsp2_id.xm);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
 	alg_region = cs_dsp_create_region(dsp, WMFW_ADSP2_YM,
-					  adsp2_id.fw.id, adsp2_id.ym);
+					  adsp2_id.fw.id, adsp2_id.fw.ver,
+					  adsp2_id.ym);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
 	alg_region = cs_dsp_create_region(dsp, WMFW_ADSP2_ZM,
-					  adsp2_id.fw.id, adsp2_id.zm);
+					  adsp2_id.fw.id, adsp2_id.fw.ver,
+					  adsp2_id.zm);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
@@ -1806,6 +1814,7 @@ static int cs_dsp_adsp2_setup_algs(struct cs_dsp *dsp)
 
 		alg_region = cs_dsp_create_region(dsp, WMFW_ADSP2_XM,
 						  adsp2_alg[i].alg.id,
+						  adsp2_alg[i].alg.ver,
 						  adsp2_alg[i].xm);
 		if (IS_ERR(alg_region)) {
 			ret = PTR_ERR(alg_region);
@@ -1827,6 +1836,7 @@ static int cs_dsp_adsp2_setup_algs(struct cs_dsp *dsp)
 
 		alg_region = cs_dsp_create_region(dsp, WMFW_ADSP2_YM,
 						  adsp2_alg[i].alg.id,
+						  adsp2_alg[i].alg.ver,
 						  adsp2_alg[i].ym);
 		if (IS_ERR(alg_region)) {
 			ret = PTR_ERR(alg_region);
@@ -1848,6 +1858,7 @@ static int cs_dsp_adsp2_setup_algs(struct cs_dsp *dsp)
 
 		alg_region = cs_dsp_create_region(dsp, WMFW_ADSP2_ZM,
 						  adsp2_alg[i].alg.id,
+						  adsp2_alg[i].alg.ver,
 						  adsp2_alg[i].zm);
 		if (IS_ERR(alg_region)) {
 			ret = PTR_ERR(alg_region);
@@ -1873,7 +1884,7 @@ out:
 	return ret;
 }
 
-static int cs_dsp_halo_create_regions(struct cs_dsp *dsp, __be32 id,
+static int cs_dsp_halo_create_regions(struct cs_dsp *dsp, __be32 id, __be32 ver,
 				      __be32 xm_base, __be32 ym_base)
 {
 	static const int types[] = {
@@ -1882,7 +1893,7 @@ static int cs_dsp_halo_create_regions(struct cs_dsp *dsp, __be32 id,
 	};
 	__be32 bases[] = { xm_base, xm_base, ym_base, ym_base };
 
-	return cs_dsp_create_regions(dsp, id, ARRAY_SIZE(types), types, bases);
+	return cs_dsp_create_regions(dsp, id, ver, ARRAY_SIZE(types), types, bases);
 }
 
 static int cs_dsp_halo_setup_algs(struct cs_dsp *dsp)
@@ -1910,7 +1921,7 @@ static int cs_dsp_halo_setup_algs(struct cs_dsp *dsp)
 
 	cs_dsp_parse_wmfw_v3_id_header(dsp, &halo_id.fw, n_algs);
 
-	ret = cs_dsp_halo_create_regions(dsp, halo_id.fw.id,
+	ret = cs_dsp_halo_create_regions(dsp, halo_id.fw.id, halo_id.fw.ver,
 					 halo_id.xm_base, halo_id.ym_base);
 	if (ret)
 		return ret;
@@ -1934,6 +1945,7 @@ static int cs_dsp_halo_setup_algs(struct cs_dsp *dsp)
 			    be32_to_cpu(halo_alg[i].ym_base));
 
 		ret = cs_dsp_halo_create_regions(dsp, halo_alg[i].alg.id,
+						 halo_alg[i].alg.ver,
 						 halo_alg[i].xm_base,
 						 halo_alg[i].ym_base);
 		if (ret)
@@ -1955,7 +1967,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 	const struct cs_dsp_region *mem;
 	struct cs_dsp_alg_region *alg_region;
 	const char *region_name;
-	int ret, pos, blocks, type, offset, reg;
+	int ret, pos, blocks, type, offset, reg, version;
 	struct cs_dsp_buf *buf;
 
 	if (!firmware)
@@ -1999,6 +2011,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 
 		type = le16_to_cpu(blk->type);
 		offset = le16_to_cpu(blk->offset);
+		version = le32_to_cpu(blk->ver) >> 8;
 
 		cs_dsp_dbg(dsp, "%s.%d: %x v%d.%d.%d\n",
 			   file, blocks, le32_to_cpu(blk->id),
@@ -2056,6 +2069,16 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 			alg_region = cs_dsp_find_alg_region(dsp, type,
 							    le32_to_cpu(blk->id));
 			if (alg_region) {
+				if (version != alg_region->ver)
+					cs_dsp_warn(dsp,
+						    "Algorithm coefficient version %d.%d.%d but expected %d.%d.%d\n",
+						   (version >> 16) & 0xFF,
+						   (version >> 8) & 0xFF,
+						   version & 0xFF,
+						   (alg_region->ver >> 16) & 0xFF,
+						   (alg_region->ver >> 8) & 0xFF,
+						   alg_region->ver & 0xFF);
+
 				reg = alg_region->base;
 				reg = dsp->ops->region_to_reg(mem, reg);
 				reg += offset;
