@@ -28,9 +28,6 @@
 #define VDEC_IRQ_CLR	0x10
 #define VDEC_IRQ_CFG_REG	0xa4
 
-module_param(mtk_v4l2_dbg_level, int, 0644);
-module_param(mtk_vcodec_dbg, bool, 0644);
-
 /* Wake up context wait_queue */
 static void wake_up_ctx(struct mtk_vcodec_ctx *ctx)
 {

@@ -23,9 +23,6 @@
 #include "mtk_vcodec_util.h"
 #include "mtk_vcodec_fw.h"
 
-module_param(mtk_v4l2_dbg_level, int, S_IRUGO | S_IWUSR);
-module_param(mtk_vcodec_dbg, bool, S_IRUGO | S_IWUSR);
-
 static const struct mtk_video_fmt mtk_video_formats_output[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12M,

@@ -527,7 +527,7 @@ static int alloc_mv_buf(struct vdec_h264_slice_inst *inst,
 	struct mtk_vcodec_mem *mem = NULL;
 	unsigned int buf_sz = get_mv_buf_size(pic->buf_w, pic->buf_h);
 
-	mtk_v4l2_debug(3, "size = 0x%lx", buf_sz);
+	mtk_v4l2_debug(3, "size = 0x%x", buf_sz);
 	for (i = 0; i < H264_MAX_MV_NUM; i++) {
 		mem = &inst->mv_buf[i];
 		if (mem->va)
@@ -637,7 +637,7 @@ static int vdec_h264_slice_init(struct mtk_vcodec_ctx *ctx)
 	if (err)
 		goto error_deinit;
 
-	mtk_vcodec_debug(inst, "struct size = %d,%d,%d,%d\n",
+	mtk_vcodec_debug(inst, "struct size = %zu,%zu,%zu,%zu\n",
 			 sizeof(struct mtk_h264_sps_param),
 			 sizeof(struct mtk_h264_pps_param),
 			 sizeof(struct mtk_h264_dec_slice_param),
