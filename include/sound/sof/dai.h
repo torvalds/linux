@@ -12,6 +12,7 @@
 #include <sound/sof/header.h>
 #include <sound/sof/dai-intel.h>
 #include <sound/sof/dai-imx.h>
+#include <sound/sof/dai-amd.h>
 
 /*
  * DAI Configuration.
@@ -66,6 +67,9 @@ enum sof_ipc_dai_type {
 	SOF_DAI_INTEL_ALH,		/**< Intel ALH  */
 	SOF_DAI_IMX_SAI,		/**< i.MX SAI */
 	SOF_DAI_IMX_ESAI,		/**< i.MX ESAI */
+	SOF_DAI_AMD_BT,			/**< AMD ACP BT*/
+	SOF_DAI_AMD_SP,			/**< AMD ACP SP */
+	SOF_DAI_AMD_DMIC,		/**< AMD ACP DMIC */
 };
 
 /* general purpose DAI configuration */
@@ -90,6 +94,9 @@ struct sof_ipc_dai_config {
 		struct sof_ipc_dai_alh_params alh;
 		struct sof_ipc_dai_esai_params esai;
 		struct sof_ipc_dai_sai_params sai;
+		struct sof_ipc_dai_acp_params acpbt;
+		struct sof_ipc_dai_acp_params acpsp;
+		struct sof_ipc_dai_acp_params acpdmic;
 	};
 } __packed;
 
