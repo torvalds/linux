@@ -49,20 +49,13 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		u8 compat;
 
 		dev_dbg(&GET_DEV(accel_dev),
-			"Compatibility Version Request from VF%d vers=%u\n",
-			vf_nr, vf_compat_ver);
+			"VersionRequest received from VF%d (vers %d) to PF (vers %d)\n",
+			vf_nr, vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
 
-		if (vf_compat_ver <= ADF_PFVF_COMPAT_THIS_VERSION) {
+		if (vf_compat_ver <= ADF_PFVF_COMPAT_THIS_VERSION)
 			compat = ADF_PF2VF_VF_COMPATIBLE;
-			dev_dbg(&GET_DEV(accel_dev),
-				"VF (vers %d) compatible with PF (vers %d)\n",
-				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
-		} else {
+		else
 			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
-			dev_err(&GET_DEV(accel_dev),
-				"VF (vers %d) compat with PF (vers %d) unkn.\n",
-				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
-		}
 
 		resp =  ADF_PF2VF_MSGORIGIN_SYSTEM;
 		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
@@ -77,8 +70,8 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		u8 compat;
 
 		dev_dbg(&GET_DEV(accel_dev),
-			"Legacy VersionRequest received from VF%d 0x%x\n",
-			vf_nr, msg);
+			"Legacy VersionRequest received from VF%d to PF (vers 1.1)\n",
+			vf_nr);
 
 		/* PF always newer than legacy VF */
 		compat = ADF_PF2VF_VF_COMPATIBLE;
@@ -95,21 +88,19 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 	case ADF_VF2PF_MSGTYPE_INIT:
 		{
 		dev_dbg(&GET_DEV(accel_dev),
-			"Init message received from VF%d 0x%x\n",
-			vf_nr, msg);
+			"Init message received from VF%d\n", vf_nr);
 		vf_info->init = true;
 		}
 		break;
 	case ADF_VF2PF_MSGTYPE_SHUTDOWN:
 		{
 		dev_dbg(&GET_DEV(accel_dev),
-			"Shutdown message received from VF%d 0x%x\n",
-			vf_nr, msg);
+			"Shutdown message received from VF%d\n", vf_nr);
 		vf_info->init = false;
 		}
 		break;
 	default:
-		dev_dbg(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%x)\n",
+		dev_dbg(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%.8x)\n",
 			vf_nr, msg);
 		return -ENOMSG;
 	}
@@ -132,7 +123,8 @@ bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr)
 		return false;
 
 	if (resp && adf_send_pf2vf_msg(accel_dev, vf_nr, resp))
-		dev_err(&GET_DEV(accel_dev), "Failed to send response to VF\n");
+		dev_err(&GET_DEV(accel_dev),
+			"Failed to send response to VF%d\n", vf_nr);
 
 	return true;
 }

@@ -183,14 +183,14 @@ static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev, u8 vf_nr)
 	msg = ADF_CSR_RD(pmisc_addr, pfvf_offset);
 	if (!(msg & int_bit)) {
 		dev_info(&GET_DEV(accel_dev),
-			 "Spurious PFVF interrupt, msg %X. Ignored\n", msg);
+			 "Spurious PFVF interrupt, msg 0x%.8x. Ignored\n", msg);
 		return 0;
 	}
 
 	/* Ignore legacy non-system (non-kernel) VF2PF messages */
 	if (!(msg & msg_origin)) {
 		dev_dbg(&GET_DEV(accel_dev),
-			"Ignored non-system message (0x%x);\n", msg);
+			"Ignored non-system message (0x%.8x);\n", msg);
 		return 0;
 	}
 
