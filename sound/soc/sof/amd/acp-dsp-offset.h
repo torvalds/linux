@@ -47,6 +47,8 @@
 #define ACPAXI2AXI_ATU_CTRL			0xC40
 #define ACP_SOFT_RESET				0x1000
 
+#define ACP_I2S_PIN_CONFIG			0x1400
+
 /* Registers from ACP_PGFSM block */
 #define ACP_PGFSM_CONTROL			0x141C
 #define ACP_PGFSM_STATUS			0x1420
