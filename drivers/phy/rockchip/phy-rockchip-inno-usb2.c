@@ -1314,13 +1314,15 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 		rphy->chg_state = USB_CHG_STATE_DETECTED;
 		fallthrough;
 	case USB_CHG_STATE_DETECTED:
+		if (rphy->phy_cfg->chg_det.chg_mode.offset !=
+		    rport->port_cfg->phy_sus.offset)
+			property_enable(base, &rphy->phy_cfg->chg_det.chg_mode, false);
+
 		/* Restore the PHY suspend configuration */
 		phy_sus_reg = &rport->port_cfg->phy_sus;
 		mask = GENMASK(phy_sus_reg->bitend, phy_sus_reg->bitstart);
 		ret = regmap_write(base, phy_sus_reg->offset,
-				   ((rphy->phy_sus_cfg <<
-				     phy_sus_reg->bitstart) |
-				    (mask << BIT_WRITEABLE_SHIFT)));
+				   (rphy->phy_sus_cfg | (mask << BIT_WRITEABLE_SHIFT)));
 		if (ret)
 			dev_err(&rport->phy->dev,
 				"Fail to set phy_sus reg offset 0x%x, ret %d\n",
