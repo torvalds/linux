@@ -4,7 +4,6 @@
 #include <adf_common_drv.h>
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
-#include <adf_pfvf_msg.h>
 #include <adf_pfvf_vf_msg.h>
 #include "adf_dh895xccvf_hw_data.h"
 
@@ -85,7 +84,6 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 	hw_data->get_misc_bar_id = get_misc_bar_id;
 	hw_data->get_sku = get_sku;
 	hw_data->enable_ints = adf_vf_void_noop;
-	hw_data->min_iov_compat_ver = ADF_PFVF_COMPAT_THIS_VERSION;
 	hw_data->dev_class->instances++;
 	adf_devmgr_update_class_index(hw_data);
 	adf_gen2_init_vf_pfvf_ops(&hw_data->pfvf_ops);

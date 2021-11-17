@@ -4,7 +4,6 @@
 #include <adf_common_drv.h>
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
-#include <adf_pfvf_msg.h>
 #include "adf_c62x_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -139,7 +138,6 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->set_ssm_wdtimer = adf_gen2_set_ssm_wdtimer;
 	hw_data->disable_iov = adf_disable_sriov;
-	hw_data->min_iov_compat_ver = ADF_PFVF_COMPAT_THIS_VERSION;
 
 	adf_gen2_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen2_init_hw_csr_ops(&hw_data->csr_ops);

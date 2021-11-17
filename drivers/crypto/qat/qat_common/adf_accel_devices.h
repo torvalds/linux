@@ -209,7 +209,6 @@ struct adf_hw_device_data {
 	u8 num_accel;
 	u8 num_logical_accel;
 	u8 num_engines;
-	u8 min_iov_compat_ver;
 };
 
 /* CSR write macro */

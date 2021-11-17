@@ -40,7 +40,6 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 				u32 msg, u32 *response)
 {
 	struct adf_accel_vf_info *vf_info = &accel_dev->pf.vf_info[vf_nr];
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u32 resp = 0;
 
 	switch ((msg & ADF_VF2PF_MSGTYPE_MASK) >> ADF_VF2PF_MSGTYPE_SHIFT) {
@@ -53,21 +52,16 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 			"Compatibility Version Request from VF%d vers=%u\n",
 			vf_nr + 1, vf_compat_ver);
 
-		if (vf_compat_ver < hw_data->min_iov_compat_ver) {
-			dev_err(&GET_DEV(accel_dev),
-				"VF (vers %d) incompatible with PF (vers %d)\n",
-				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
-			compat = ADF_PF2VF_VF_INCOMPATIBLE;
-		} else if (vf_compat_ver > ADF_PFVF_COMPAT_THIS_VERSION) {
-			dev_err(&GET_DEV(accel_dev),
-				"VF (vers %d) compat with PF (vers %d) unkn.\n",
-				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
-			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
-		} else {
+		if (vf_compat_ver <= ADF_PFVF_COMPAT_THIS_VERSION) {
+			compat = ADF_PF2VF_VF_COMPATIBLE;
 			dev_dbg(&GET_DEV(accel_dev),
 				"VF (vers %d) compatible with PF (vers %d)\n",
 				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
-			compat = ADF_PF2VF_VF_COMPATIBLE;
+		} else {
+			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
+			dev_err(&GET_DEV(accel_dev),
+				"VF (vers %d) compat with PF (vers %d) unkn.\n",
+				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
 		}
 
 		resp =  ADF_PF2VF_MSGORIGIN_SYSTEM;

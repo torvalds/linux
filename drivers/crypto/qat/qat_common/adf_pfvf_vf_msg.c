@@ -51,7 +51,6 @@ EXPORT_SYMBOL_GPL(adf_vf2pf_notify_shutdown);
 
 int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 {
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u8 pf_version;
 	u32 msg = 0;
 	int compat;
@@ -80,10 +79,8 @@ int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 	case ADF_PF2VF_VF_COMPATIBLE:
 		break;
 	case ADF_PF2VF_VF_COMPAT_UNKNOWN:
-		/* VF is newer than PF and decides whether it is compatible */
-		if (pf_version >= hw_data->min_iov_compat_ver)
-			break;
-		fallthrough;
+		/* VF is newer than PF - compatible for now */
+		break;
 	case ADF_PF2VF_VF_INCOMPATIBLE:
 		dev_err(&GET_DEV(accel_dev),
 			"PF (vers %d) and VF (vers %d) are not compatible\n",
