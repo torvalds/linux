@@ -1,0 +1,93 @@
+Pinctrl-based I2C Bus Mux
+
+This binding describes an I2C bus multiplexer that uses pin multiplexing to
+route the I2C signals, and represents the pin multiplexing configuration
+using the pinctrl device tree bindings.
+
+                                 +-----+  +-----+
+                                 | dev |  | dev |
+    +------------------------+   +-----+  +-----+
+    | SoC                    |      |        |
+    |                   /----|------+--------+
+    |   +---+   +------+     | child bus A, on first set of pins
+    |   |I2C|---|Pinmux|     |
+    |   +---+   +------+     | child bus B, on second set of pins
+    |                   \----|------+--------+--------+
+    |                        |      |        |        |
+    +------------------------+  +-----+  +-----+  +-----+
+                                | dev |  | dev |  | dev |
+                                +-----+  +-----+  +-----+
+
+Required properties:
+- compatible: i2c-mux-pinctrl
+- i2c-parent: The phandle of the I2C bus that this multiplexer's master-side
+  port is connected to.
+
+Also required are:
+
+* Standard pinctrl properties that specify the pin mux state for each child
+  bus. See ../pinctrl/pinctrl-bindings.txt.
+
+* Standard I2C mux properties. See i2c-mux.yaml in this directory.
+
+* I2C child bus nodes. See i2c-mux.yaml in this directory.
+
+For each named state defined in the pinctrl-names property, an I2C child bus
+will be created. I2C child bus numbers are assigned based on the index into
+the pinctrl-names property.
+
+The only exception is that no bus will be created for a state named "idle". If
+such a state is defined, it must be the last entry in pinctrl-names. For
+example:
+
+	pinctrl-names = "ddc", "pta", "idle"  ->  ddc = bus 0, pta = bus 1
+	pinctrl-names = "ddc", "idle", "pta"  ->  Invalid ("idle" not last)
+	pinctrl-names = "idle", "ddc", "pta"  ->  Invalid ("idle" not last)
+
+Whenever an access is made to a device on a child bus, the relevant pinctrl
+state will be programmed into hardware.
+
+If an idle state is defined, whenever an access is not being made to a device
+on a child bus, the idle pinctrl state will be programmed into hardware.
+
+If an idle state is not defined, the most recently used pinctrl state will be
+left programmed into hardware whenever no access is being made of a device on
+a child bus.
+
+Example:
+
+	i2cmux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&i2c1>;
+
+		pinctrl-names = "ddc", "pta", "idle";
+		pinctrl-0 = <&state_i2cmux_ddc>;
+		pinctrl-1 = <&state_i2cmux_pta>;
+		pinctrl-2 = <&state_i2cmux_idle>;
+
+		i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			eeprom {
+				compatible = "eeprom";
+				reg = <0x50>;
+			};
+		};
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			eeprom {
+				compatible = "eeprom";
+				reg = <0x50>;
+			};
+		};
+	};
+

@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: GPL-2.0
+config ACADIA
+	bool "Acadia"
+	depends on 40x
+	select PPC40x_SIMPLE
+	select 405EZ
+	help
+	  This option enables support for the AMCC 405EZ Acadia evaluation board.
+
+config HOTFOOT
+	bool "Hotfoot"
+	depends on 40x
+	select PPC40x_SIMPLE
+	select FORCE_PCI
+	help
+	  This option enables support for the ESTEEM 195E Hotfoot board.
+
+config KILAUEA
+	bool "Kilauea"
+	depends on 40x
+	select 405EX
+	select PPC40x_SIMPLE
+	select PPC4xx_PCI_EXPRESS
+	select FORCE_PCI
+	select PCI_MSI
+	select PPC4xx_MSI
+	help
+	  This option enables support for the AMCC PPC405EX evaluation board.
+
+config MAKALU
+	bool "Makalu"
+	depends on 40x
+	select 405EX
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	select PPC40x_SIMPLE
+	help
+	  This option enables support for the AMCC PPC405EX board.
+
+config OBS600
+	bool "OpenBlockS 600"
+	depends on 40x
+	select 405EX
+	select PPC40x_SIMPLE
+	help
+	  This option enables support for PlatHome OpenBlockS 600 server
+
+config PPC40x_SIMPLE
+	bool "Simple PowerPC 40x board support"
+	depends on 40x
+	help
+	  This option enables the simple PowerPC 40x platform support.
+
+config 405EX
+	bool
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
+
+config 405EZ
+	bool
+	select IBM_EMAC_NO_FLOW_CTRL if IBM_EMAC
+	select IBM_EMAC_MAL_CLR_ICINTSTAT if IBM_EMAC
+	select IBM_EMAC_MAL_COMMON_ERR if IBM_EMAC
+
+config PPC4xx_GPIO
+	bool "PPC4xx GPIO support"
+	depends on 40x
+	select GPIOLIB
+	help
+	  Enable gpiolib support for ppc40x based boards
+
+config APM8018X
+	bool "APM8018X"
+	depends on 40x
+	select PPC40x_SIMPLE
+	help
+	  This option enables support for the AppliedMicro APM8018X evaluation
+	  board.

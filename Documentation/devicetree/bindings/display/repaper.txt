@@ -1,0 +1,52 @@
+Pervasive Displays RePaper branded e-ink displays
+
+Required properties:
+- compatible:		"pervasive,e1144cs021" for 1.44" display
+			"pervasive,e1190cs021" for 1.9" display
+			"pervasive,e2200cs021" for 2.0" display
+			"pervasive,e2271cs021" for 2.7" display
+
+- panel-on-gpios:	Timing controller power control
+- discharge-gpios:	Discharge control
+- reset-gpios:		RESET pin
+- busy-gpios:		BUSY pin
+
+Required property for e2271cs021:
+- border-gpios:		Border control
+
+The node for this driver must be a child node of a SPI controller, hence
+all mandatory properties described in ../spi/spi-bus.txt must be specified.
+
+Optional property:
+- pervasive,thermal-zone:	name of thermometer's thermal zone
+
+Example:
+
+	display_temp: lm75@48 {
+		compatible = "lm75b";
+		reg = <0x48>;
+		#thermal-sensor-cells = <0>;
+	};
+
+	thermal-zones {
+		display {
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+			thermal-sensors = <&display_temp>;
+		};
+	};
+
+	papirus27@0{
+		compatible = "pervasive,e2271cs021";
+		reg = <0>;
+
+		spi-max-frequency = <8000000>;
+
+		panel-on-gpios = <&gpio 23 0>;
+		border-gpios = <&gpio 14 0>;
+		discharge-gpios = <&gpio 15 0>;
+		reset-gpios = <&gpio 24 0>;
+		busy-gpios = <&gpio 25 0>;
+
+		pervasive,thermal-zone = "display";
+	};

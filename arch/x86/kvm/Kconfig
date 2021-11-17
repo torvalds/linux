@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# KVM configuration
+#
+
+source "virt/kvm/Kconfig"
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	depends on HAVE_KVM || X86
+	default y
+	help
+	  Say Y here to get to see options for using your Linux host to run other
+	  operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if VIRTUALIZATION
+
+config KVM
+	tristate "Kernel-based Virtual Machine (KVM) support"
+	depends on HAVE_KVM
+	depends on HIGH_RES_TIMERS
+	depends on X86_LOCAL_APIC
+	select PREEMPT_NOTIFIERS
+	select MMU_NOTIFIER
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQFD
+	select IRQ_BYPASS_MANAGER
+	select HAVE_KVM_IRQ_BYPASS
+	select HAVE_KVM_IRQ_ROUTING
+	select HAVE_KVM_EVENTFD
+	select KVM_ASYNC_PF
+	select USER_RETURN_NOTIFIER
+	select KVM_MMIO
+	select SCHED_INFO
+	select PERF_EVENTS
+	select HAVE_KVM_MSI
+	select HAVE_KVM_CPU_RELAX_INTERCEPT
+	select HAVE_KVM_NO_POLL
+	select KVM_XFER_TO_GUEST_WORK
+	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
+	select KVM_VFIO
+	select SRCU
+	select HAVE_KVM_PM_NOTIFIER if PM
+	help
+	  Support hosting fully virtualized guest machines using hardware
+	  virtualization extensions.  You will need a fairly recent
+	  processor equipped with virtualization extensions. You will also
+	  need to select one or more of the processor modules below.
+
+	  This module provides access to the hardware capabilities through
+	  a character device node named /dev/kvm.
+
+	  To compile this as a module, choose M here: the module
+	  will be called kvm.
+
+	  If unsure, say N.
+
+config KVM_WERROR
+	bool "Compile KVM with -Werror"
+	# KASAN may cause the build to fail due to larger frames
+	default y if X86_64 && !KASAN
+	# We use the dependency on !COMPILE_TEST to not be enabled
+	# blindly in allmodconfig or allyesconfig configurations
+	depends on KVM
+	depends on (X86_64 && !KASAN) || !COMPILE_TEST
+	depends on EXPERT
+	help
+	  Add -Werror to the build flags for KVM.
+
+	  If in doubt, say "N".
+
+config KVM_INTEL
+	tristate "KVM for Intel (and compatible) processors support"
+	depends on KVM && IA32_FEAT_CTL
+	help
+	  Provides support for KVM on processors equipped with Intel's VT
+	  extensions, a.k.a. Virtual Machine Extensions (VMX).
+
+	  To compile this as a module, choose M here: the module
+	  will be called kvm-intel.
+
+config X86_SGX_KVM
+	bool "Software Guard eXtensions (SGX) Virtualization"
+	depends on X86_SGX && KVM_INTEL
+	help
+
+	  Enables KVM guests to create SGX enclaves.
+
+	  This includes support to expose "raw" unreclaimable enclave memory to
+	  guests via a device node, e.g. /dev/sgx_vepc.
+
+	  If unsure, say N.
+
+config KVM_AMD
+	tristate "KVM for AMD processors support"
+	depends on KVM
+	help
+	  Provides support for KVM on AMD processors equipped with the AMD-V
+	  (SVM) extensions.
+
+	  To compile this as a module, choose M here: the module
+	  will be called kvm-amd.
+
+config KVM_AMD_SEV
+	def_bool y
+	bool "AMD Secure Encrypted Virtualization (SEV) support"
+	depends on KVM_AMD && X86_64
+	depends on CRYPTO_DEV_SP_PSP && !(KVM_AMD=y && CRYPTO_DEV_CCP_DD=m)
+	help
+	  Provides support for launching Encrypted VMs (SEV) and Encrypted VMs
+	  with Encrypted State (SEV-ES) on AMD processors.
+
+config KVM_XEN
+	bool "Support for Xen hypercall interface"
+	depends on KVM
+	help
+	  Provides KVM support for the hosting Xen HVM guests and
+	  passing Xen hypercalls to userspace.
+
+	  If in doubt, say "N".
+
+config KVM_MMU_AUDIT
+	bool "Audit KVM MMU"
+	depends on KVM && TRACEPOINTS
+	help
+	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
+	 auditing of KVM MMU events at runtime.
+
+endif # VIRTUALIZATION

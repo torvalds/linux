@@ -1,0 +1,8 @@
+What: /sys/bus/platform/devices/*twl4030-usb/vbus
+Description:
+	Read-only status reporting if VBUS (approx 5V)
+	is being supplied by the USB bus.
+
+	Possible values: "on", "off".
+
+	Changes are notified via select/poll.

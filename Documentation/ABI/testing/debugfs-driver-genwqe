@@ -1,0 +1,91 @@
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/ddcb_info
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    DDCB queue dump used for debugging queueing problems.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/curr_regs
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Dump of the current error registers.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/curr_dbg_uid0
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Internal chip state of UID0 (unit id 0).
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/curr_dbg_uid1
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Internal chip state of UID1.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/curr_dbg_uid2
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Internal chip state of UID2.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/prev_regs
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Dump of the error registers before the last reset of
+                the card occurred.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/prev_dbg_uid0
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Internal chip state of UID0 before card was reset.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/prev_dbg_uid1
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Internal chip state of UID1 before card was reset.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/prev_dbg_uid2
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Internal chip state of UID2 before card was reset.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/info
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Comprehensive summary of bitstream version and software
+                version. Used bitstream and bitstream clocking information.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/err_inject
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Possibility to inject error cases to ensure that the drivers
+                error handling code works well.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/vf<0..14>_jobtimeout_msec
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Default VF timeout 250ms. Testing might require 1000ms.
+                Using 0 will use the cards default value (whatever that is).
+
+                The timeout depends on the max number of available cards
+                in the system and the maximum allowed queue size.
+
+                The driver ensures that the settings are done just before
+                the VFs get enabled. Changing the timeouts in flight is not
+                possible.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/jobtimer
+Date:           Oct 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Dump job timeout register values for PF and VFs.
+                Only available for PF.
+
+What:           /sys/kernel/debug/genwqe/genwqe<n>_card/queue_working_time
+Date:           Dec 2013
+Contact:        haver@linux.vnet.ibm.com
+Description:    Dump queue working time register values for PF and VFs.
+                Only available for PF.

@@ -1,0 +1,288 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SOC_SOF_INTEL_TOPLEVEL
+	bool "SOF support for Intel audio DSPs"
+	depends on X86 || COMPILE_TEST
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+if SND_SOC_SOF_INTEL_TOPLEVEL
+
+config SND_SOC_SOF_INTEL_HIFI_EP_IPC
+	tristate
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
+	tristate
+	select SND_SOC_SOF_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_INTEL_COMMON
+	tristate
+	select SND_SOC_SOF
+	select SND_SOC_ACPI_INTEL_MATCH
+	select SND_SOC_SOF_XTENSA
+	select SND_SOC_INTEL_MACH
+	select SND_SOC_ACPI if ACPI
+	select SND_INTEL_DSP_CONFIG
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+if SND_SOC_SOF_ACPI
+
+config SND_SOC_SOF_BAYTRAIL
+	tristate "SOF support for Baytrail, Braswell and Cherrytrail"
+	default SND_SOC_SOF_ACPI
+	select SND_SOC_SOF_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
+	select SND_SOC_SOF_ACPI_DEV
+	select IOSF_MBI if X86 && PCI
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Baytrail, Braswell or Cherrytrail processors.
+	  This option can coexist in the same build with the Atom legacy
+	  drivers, currently the default but which will be deprecated
+	  at some point.
+	  Existing firmware/topology binaries and UCM configurations
+	  typically located in the root file system are already
+	  compatible with both SOF or Atom/SST legacy drivers.
+	  This is a recommended option for distributions.
+	  Say Y if you want to enable SOF on Baytrail/Cherrytrail.
+	  If unsure select "N".
+
+config SND_SOC_SOF_BROADWELL
+	tristate "SOF support for Broadwell"
+	default SND_SOC_SOF_ACPI
+	select SND_SOC_SOF_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
+	select SND_SOC_SOF_ACPI_DEV
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Broadwell processors.
+	  This option can coexist in the same build with the default 'catpt'
+	  driver.
+	  Existing firmware/topology binaries and UCM configurations typically
+	  located in the root file system are already compatible with both SOF
+	  or catpt drivers.
+	  SOF does not fully support Broadwell and has limitations related to
+	  DMA and suspend-resume, this is not a recommended option for
+	  distributions.
+	  Say Y if you want to enable SOF on Broadwell.
+	  If unsure select "N".
+
+endif ## SND_SOC_SOF_ACPI
+
+if SND_SOC_SOF_PCI
+
+config SND_SOC_SOF_MERRIFIELD
+	tristate "SOF support for Tangier/Merrifield"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Tangier/Merrifield processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_INTEL_APL
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+
+config SND_SOC_SOF_APOLLOLAKE
+	tristate "SOF support for Apollolake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_APL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Apollolake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_GEMINILAKE
+	tristate "SOF support for GeminiLake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_APL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Geminilake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_INTEL_CNL
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+
+config SND_SOC_SOF_CANNONLAKE
+	tristate "SOF support for Cannonlake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_CNL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Cannonlake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_COFFEELAKE
+	tristate "SOF support for CoffeeLake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_CNL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Coffeelake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_COMETLAKE
+	tristate "SOF support for CometLake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_CNL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Cometlake processors.
+	  If unsure select "N".
+
+config SND_SOC_SOF_INTEL_ICL
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+
+config SND_SOC_SOF_ICELAKE
+	tristate "SOF support for Icelake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_ICL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Icelake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_JASPERLAKE
+	tristate "SOF support for JasperLake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_ICL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the JasperLake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_INTEL_TGL
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+
+config SND_SOC_SOF_TIGERLAKE
+	tristate "SOF support for Tigerlake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_TGL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Tigerlake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_ELKHARTLAKE
+	tristate "SOF support for ElkhartLake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_TGL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the ElkhartLake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_ALDERLAKE
+	tristate "SOF support for Alderlake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_TGL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Alderlake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_HDA_COMMON
+	tristate
+	select SND_SOC_SOF_INTEL_COMMON
+	select SND_SOC_SOF_PCI_DEV
+	select SND_INTEL_DSP_CONFIG
+	select SND_SOC_SOF_HDA_LINK_BASELINE
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+if SND_SOC_SOF_HDA_COMMON
+
+config SND_SOC_SOF_HDA_LINK
+	bool "SOF support for HDA Links(HDA/HDMI)"
+	depends on SND_SOC_SOF_NOCODEC=n
+	select SND_SOC_SOF_PROBE_WORK_QUEUE
+	help
+	  This adds support for HDA links(HDA/HDMI) with Sound Open Firmware
+	  for Intel(R) platforms.
+	  Say Y if you want to enable HDA links with SOF.
+	  If unsure select "N".
+
+config SND_SOC_SOF_HDA_AUDIO_CODEC
+	bool "SOF support for HDAudio codecs"
+	depends on SND_SOC_SOF_HDA_LINK
+	help
+	  This adds support for HDAudio codecs with Sound Open Firmware
+	  for Intel(R) platforms.
+	  Say Y if you want to enable HDAudio codecs with SOF.
+	  If unsure select "N".
+
+config SND_SOC_SOF_HDA_PROBES
+	bool "SOF enable probes over HDA"
+	depends on SND_SOC_SOF_DEBUG_PROBES
+	help
+	  This option enables the data probing for Intel(R)
+	  Skylake and newer platforms.
+	  Say Y if you want to enable probes.
+	  If unsure, select "N".
+
+endif ## SND_SOC_SOF_HDA_COMMON
+
+config SND_SOC_SOF_HDA_LINK_BASELINE
+	tristate
+	select SND_SOC_SOF_HDA if SND_SOC_SOF_HDA_LINK
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_HDA
+	tristate
+	select SND_HDA_EXT_CORE if SND_SOC_SOF_HDA_LINK
+	select SND_SOC_HDAC_HDA if SND_SOC_SOF_HDA_AUDIO_CODEC
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level.
+
+config SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	tristate
+	select SOUNDWIRE_INTEL if SND_SOC_SOF_INTEL_SOUNDWIRE
+	select SND_INTEL_SOUNDWIRE_ACPI if SND_SOC_SOF_INTEL_SOUNDWIRE
+
+config SND_SOC_SOF_INTEL_SOUNDWIRE
+	tristate "SOF support for SoundWire"
+	default SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	depends on SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	depends on ACPI && SOUNDWIRE
+	depends on !(SOUNDWIRE=m && SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE=y)
+	help
+	  This adds support for SoundWire with Sound Open Firmware
+	  for Intel(R) platforms.
+	  Say Y if you want to enable SoundWire links with SOF.
+	  If unsure select "N".
+
+endif ## SND_SOC_SOF_PCI
+
+endif ## SND_SOC_SOF_INTEL_TOPLEVEL

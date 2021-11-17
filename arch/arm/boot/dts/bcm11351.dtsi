@@ -1,0 +1,424 @@
+/*
+ * Copyright (C) 2012-2013 Broadcom Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation version 2.
+ *
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#include "dt-bindings/clock/bcm281xx.h"
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "BCM11351 SoC";
+	compatible = "brcm,bcm11351";
+	interrupt-parent = <&gic>;
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			enable-method = "brcm,bcm11351-cpu-method";
+			secondary-boot-reg = <0x3500417c>;
+			reg = <1>;
+		};
+	};
+
+	gic: interrupt-controller@3ff00100 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0x3ff01000 0x1000>,
+		      <0x3ff00100 0x100>;
+	};
+
+	smc@3404c000 {
+		compatible = "brcm,bcm11351-smc", "brcm,kona-smc";
+		reg = <0x3404c000 0x400>; /* 1 KiB in SRAM */
+	};
+
+	uart@3e000000 {
+		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
+		status = "disabled";
+		reg = <0x3e000000 0x1000>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+	uart@3e001000 {
+		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
+		status = "disabled";
+		reg = <0x3e001000 0x1000>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB2>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+	uart@3e002000 {
+		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
+		status = "disabled";
+		reg = <0x3e002000 0x1000>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB3>;
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+	uart@3e003000 {
+		compatible = "brcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
+		status = "disabled";
+		reg = <0x3e003000 0x1000>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_UARTB4>;
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+	L2: l2-cache@3ff20000 {
+		compatible = "brcm,bcm11351-a2-pl310-cache";
+		reg = <0x3ff20000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	watchdog@35002f40 {
+		compatible = "brcm,bcm11351-wdt", "brcm,kona-wdt";
+		reg = <0x35002f40 0x6c>;
+	};
+
+	timer@35006000 {
+		compatible = "brcm,kona-timer";
+		reg = <0x35006000 0x1000>;
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&aon_ccu BCM281XX_AON_CCU_HUB_TIMER>;
+	};
+
+	gpio: gpio@35003000 {
+		compatible = "brcm,bcm11351-gpio", "brcm,kona-gpio";
+		reg = <0x35003000 0x800>;
+		interrupts =
+		       <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+	};
+
+	sdio1: sdio@3f180000 {
+		compatible = "brcm,kona-sdhci";
+		reg = <0x3f180000 0x10000>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&master_ccu BCM281XX_MASTER_CCU_SDIO1>;
+		status = "disabled";
+	};
+
+	sdio2: sdio@3f190000 {
+		compatible = "brcm,kona-sdhci";
+		reg = <0x3f190000 0x10000>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&master_ccu BCM281XX_MASTER_CCU_SDIO2>;
+		status = "disabled";
+	};
+
+	sdio3: sdio@3f1a0000 {
+		compatible = "brcm,kona-sdhci";
+		reg = <0x3f1a0000 0x10000>;
+		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&master_ccu BCM281XX_MASTER_CCU_SDIO3>;
+		status = "disabled";
+	};
+
+	sdio4: sdio@3f1b0000 {
+		compatible = "brcm,kona-sdhci";
+		reg = <0x3f1b0000 0x10000>;
+		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&master_ccu BCM281XX_MASTER_CCU_SDIO4>;
+		status = "disabled";
+	};
+
+	pinctrl@35004800 {
+		compatible = "brcm,bcm11351-pinctrl";
+		reg = <0x35004800 0x430>;
+	};
+
+	i2c@3e016000 {
+		compatible = "brcm,bcm11351-i2c", "brcm,kona-i2c";
+		reg = <0x3e016000 0x80>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_BSC1>;
+		status = "disabled";
+	};
+
+	i2c@3e017000 {
+		compatible = "brcm,bcm11351-i2c", "brcm,kona-i2c";
+		reg = <0x3e017000 0x80>;
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_BSC2>;
+		status = "disabled";
+	};
+
+	i2c@3e018000 {
+		compatible = "brcm,bcm11351-i2c", "brcm,kona-i2c";
+		reg = <0x3e018000 0x80>;
+		interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_BSC3>;
+		status = "disabled";
+	};
+
+	i2c@3500d000 {
+		compatible = "brcm,bcm11351-i2c", "brcm,kona-i2c";
+		reg = <0x3500d000 0x80>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&aon_ccu BCM281XX_AON_CCU_PMU_BSC>;
+		status = "disabled";
+	};
+
+	pwm: pwm@3e01a000 {
+		compatible = "brcm,bcm11351-pwm", "brcm,kona-pwm";
+		reg = <0x3e01a000 0xcc>;
+		clocks = <&slave_ccu BCM281XX_SLAVE_CCU_PWM>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		root_ccu: root_ccu@35001000 {
+			compatible = "brcm,bcm11351-root-ccu";
+			reg = <0x35001000 0x0f00>;
+			#clock-cells = <1>;
+			clock-output-names = "frac_1m";
+		};
+
+		hub_ccu: hub_ccu@34000000 {
+			compatible = "brcm,bcm11351-hub-ccu";
+			reg = <0x34000000 0x0f00>;
+			#clock-cells = <1>;
+			clock-output-names = "tmon_1m";
+		};
+
+		aon_ccu: aon_ccu@35002000 {
+			compatible = "brcm,bcm11351-aon-ccu";
+			reg = <0x35002000 0x0f00>;
+			#clock-cells = <1>;
+			clock-output-names = "hub_timer",
+					     "pmu_bsc",
+					     "pmu_bsc_var";
+		};
+
+		master_ccu: master_ccu@3f001000 {
+			compatible = "brcm,bcm11351-master-ccu";
+			reg = <0x3f001000 0x0f00>;
+			#clock-cells = <1>;
+			clock-output-names = "sdio1",
+					     "sdio2",
+					     "sdio3",
+					     "sdio4",
+					     "usb_ic",
+					     "hsic2_48m",
+					     "hsic2_12m";
+		};
+
+		slave_ccu: slave_ccu@3e011000 {
+			compatible = "brcm,bcm11351-slave-ccu";
+			reg = <0x3e011000 0x0f00>;
+			#clock-cells = <1>;
+			clock-output-names = "uartb",
+					     "uartb2",
+					     "uartb3",
+					     "uartb4",
+					     "ssp0",
+					     "ssp2",
+					     "bsc1",
+					     "bsc2",
+					     "bsc3",
+					     "pwm";
+		};
+
+		ref_1m_clk: ref_1m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <1000000>;
+		};
+
+		ref_32k_clk: ref_32k {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+		};
+
+		bbl_32k_clk: bbl_32k {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+		};
+
+		ref_13m_clk: ref_13m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <13000000>;
+		};
+
+		var_13m_clk: var_13m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <13000000>;
+		};
+
+		dft_19_5m_clk: dft_19_5m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <19500000>;
+		};
+
+		ref_crystal_clk: ref_crystal {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <26000000>;
+		};
+
+		ref_cx40_clk: ref_cx40 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <40000000>;
+		};
+
+		ref_52m_clk: ref_52m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <52000000>;
+		};
+
+		var_52m_clk: var_52m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <52000000>;
+		};
+
+		usb_otg_ahb_clk: usb_otg_ahb {
+			compatible = "fixed-clock";
+			clock-frequency = <52000000>;
+			#clock-cells = <0>;
+		};
+
+		ref_96m_clk: ref_96m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <96000000>;
+		};
+
+		var_96m_clk: var_96m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <96000000>;
+		};
+
+		ref_104m_clk: ref_104m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <104000000>;
+		};
+
+		var_104m_clk: var_104m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <104000000>;
+		};
+
+		ref_156m_clk: ref_156m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <156000000>;
+		};
+
+		var_156m_clk: var_156m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <156000000>;
+		};
+
+		ref_208m_clk: ref_208m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <208000000>;
+		};
+
+		var_208m_clk: var_208m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <208000000>;
+		};
+
+		ref_312m_clk: ref_312m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <312000000>;
+		};
+
+		var_312m_clk: var_312m {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <312000000>;
+		};
+	};
+
+	usbotg: usb@3f120000 {
+		compatible = "snps,dwc2";
+		reg = <0x3f120000 0x10000>;
+		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&usb_otg_ahb_clk>;
+		clock-names = "otg";
+		phys = <&usbphy>;
+		phy-names = "usb2-phy";
+		status = "disabled";
+	};
+
+	usbphy: usb-phy@3f130000 {
+		compatible = "brcm,kona-usb2-phy";
+		reg = <0x3f130000 0x28>;
+		#phy-cells = <0>;
+		status = "disabled";
+	};
+};

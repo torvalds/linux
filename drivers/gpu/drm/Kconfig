@@ -1,0 +1,484 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Drm device configuration
+#
+# This driver provides support for the
+# Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
+#
+menuconfig DRM
+	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
+	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && HAS_DMA
+	select DRM_PANEL_ORIENTATION_QUIRKS
+	select HDMI
+	select FB_CMDLINE
+	select I2C
+	select I2C_ALGOBIT
+	select DMA_SHARED_BUFFER
+	select SYNC_FILE
+# gallium uses SYS_kcmp for os_same_file_description() to de-duplicate
+# device and dmabuf fd. Let's make sure that is available for our userspace.
+	select KCMP
+	help
+	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
+	  introduced in XFree86 4.0. If you say Y here, you need to select
+	  the module that's right for your graphics card from the list below.
+	  These modules provide support for synchronization, security, and
+	  DMA transfers. Please see <http://dri.sourceforge.net/> for more
+	  details.  You should also select and configure AGP
+	  (/dev/agpgart) support if it is available for your platform.
+
+config DRM_MIPI_DBI
+	tristate
+	depends on DRM
+
+config DRM_MIPI_DSI
+	bool
+	depends on DRM
+
+config DRM_DP_AUX_BUS
+	tristate
+	depends on DRM
+	depends on OF
+
+config DRM_DP_AUX_CHARDEV
+	bool "DRM DP AUX Interface"
+	depends on DRM
+	help
+	  Choose this option to enable a /dev/drm_dp_auxN node that allows to
+	  read and write values to arbitrary DPCD registers on the DP aux
+	  channel.
+
+config DRM_DEBUG_MM
+	bool "Insert extra checks and debug info into the DRM range managers"
+	default n
+	depends on DRM=y
+	depends on STACKTRACE_SUPPORT
+	select STACKDEPOT
+	help
+	  Enable allocation tracking of memory manager and leak detection on
+	  shutdown.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_DEBUG_SELFTEST
+	tristate "kselftests for DRM"
+	depends on DRM
+	depends on DEBUG_KERNEL
+	select PRIME_NUMBERS
+	select DRM_LIB_RANDOM
+	select DRM_KMS_HELPER
+	select DRM_EXPORT_FOR_TESTS if m
+	default n
+	help
+	  This option provides kernel modules that can be used to run
+	  various selftests on parts of the DRM api. This option is not
+	  useful for distributions or general kernels, but only for kernel
+	  developers working on DRM and associated drivers.
+
+	  If in doubt, say "N".
+
+config DRM_KMS_HELPER
+	tristate
+	depends on DRM
+	help
+	  CRTC helpers for KMS drivers.
+
+config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
+        bool "Enable refcount backtrace history in the DP MST helpers"
+	depends on STACKTRACE_SUPPORT
+        select STACKDEPOT
+        depends on DRM_KMS_HELPER
+        depends on DEBUG_KERNEL
+        depends on EXPERT
+        help
+          Enables debug tracing for topology refs in DRM's DP MST helpers. A
+          history of each topology reference/dereference will be printed to the
+          kernel log once a port or branch device's topology refcount reaches 0.
+
+          This has the potential to use a lot of memory and print some very
+          large kernel messages. If in doubt, say "N".
+
+config DRM_FBDEV_EMULATION
+	bool "Enable legacy fbdev support for your modesetting driver"
+	depends on DRM
+	depends on FB
+	select DRM_KMS_HELPER
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_DEFERRED_IO
+	select FB_SYS_FOPS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FRAMEBUFFER_CONSOLE if !EXPERT
+	select FRAMEBUFFER_CONSOLE_DETECT_PRIMARY if FRAMEBUFFER_CONSOLE
+	default y
+	help
+	  Choose this option if you have a need for the legacy fbdev
+	  support. Note that this support also provides the linux console
+	  support on top of your modesetting driver.
+
+	  If in doubt, say "Y".
+
+config DRM_FBDEV_OVERALLOC
+	int "Overallocation of the fbdev buffer"
+	depends on DRM_FBDEV_EMULATION
+	default 100
+	help
+	  Defines the fbdev buffer overallocation in percent. Default
+	  is 100. Typical values for double buffering will be 200,
+	  triple buffering 300.
+
+config DRM_FBDEV_LEAK_PHYS_SMEM
+	bool "Shamelessly allow leaking of fbdev physical address (DANGEROUS)"
+	depends on DRM_FBDEV_EMULATION && EXPERT
+	default n
+	help
+	  In order to keep user-space compatibility, we want in certain
+	  use-cases to keep leaking the fbdev physical address to the
+	  user-space program handling the fbdev buffer.
+	  This affects, not only, Amlogic, Allwinner or Rockchip devices
+	  with ARM Mali GPUs using an userspace Blob.
+	  This option is not supported by upstream developers and should be
+	  removed as soon as possible and be considered as a broken and
+	  legacy behaviour from a modern fbdev device driver.
+
+	  Please send any bug reports when using this to your proprietary
+	  software vendor that requires this.
+
+	  If in doubt, say "N" or spread the word to your closed source
+	  library vendor.
+
+config DRM_LOAD_EDID_FIRMWARE
+	bool "Allow to specify an EDID data set instead of probing for it"
+	depends on DRM
+	help
+	  Say Y here, if you want to use EDID data to be loaded from the
+	  /lib/firmware directory or one of the provided built-in
+	  data sets. This may be necessary, if the graphics adapter or
+	  monitor are unable to provide appropriate EDID data. Since this
+	  feature is provided as a workaround for broken hardware, the
+	  default case is N. Details and instructions how to build your own
+	  EDID data are given in Documentation/admin-guide/edid.rst.
+
+config DRM_DP_CEC
+	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
+	depends on DRM
+	select CEC_CORE
+	help
+	  Choose this option if you want to enable HDMI CEC support for
+	  DisplayPort/USB-C to HDMI adapters.
+
+	  Note: not all adapters support this feature, and even for those
+	  that do support this they often do not hook up the CEC pin.
+
+config DRM_TTM
+	tristate
+	depends on DRM && MMU
+	help
+	  GPU memory management subsystem for devices with multiple
+	  GPU memory types. Will be enabled automatically if a device driver
+	  uses it.
+
+config DRM_VRAM_HELPER
+	tristate
+	depends on DRM
+	help
+	  Helpers for VRAM memory management
+
+config DRM_TTM_HELPER
+	tristate
+	depends on DRM
+	select DRM_TTM
+	help
+	  Helpers for ttm-based gem objects
+
+config DRM_GEM_CMA_HELPER
+	bool
+	depends on DRM
+	help
+	  Choose this if you need the GEM CMA helper functions
+
+config DRM_KMS_CMA_HELPER
+	bool
+	depends on DRM
+	select DRM_GEM_CMA_HELPER
+	help
+	  Choose this if you need the KMS CMA helper functions
+
+config DRM_GEM_SHMEM_HELPER
+	bool
+	depends on DRM
+	help
+	  Choose this if you need the GEM shmem helper functions
+
+config DRM_SCHED
+	tristate
+	depends on DRM
+
+source "drivers/gpu/drm/i2c/Kconfig"
+
+source "drivers/gpu/drm/arm/Kconfig"
+
+config DRM_RADEON
+	tristate "ATI Radeon"
+	depends on DRM && PCI && MMU
+	depends on AGP || !AGP
+	select FW_LOADER
+        select DRM_KMS_HELPER
+        select DRM_TTM
+	select DRM_TTM_HELPER
+	select POWER_SUPPLY
+	select HWMON
+	select BACKLIGHT_CLASS_DEVICE
+	select INTERVAL_TREE
+	help
+	  Choose this option if you have an ATI Radeon graphics card.  There
+	  are both PCI and AGP versions.  You don't need to choose this to
+	  run the Radeon in plain VGA mode.
+
+	  If M is selected, the module will be called radeon.
+
+source "drivers/gpu/drm/radeon/Kconfig"
+
+config DRM_AMDGPU
+	tristate "AMD GPU"
+	depends on DRM && PCI && MMU
+	select FW_LOADER
+	select DRM_KMS_HELPER
+	select DRM_SCHED
+	select DRM_TTM
+	select DRM_TTM_HELPER
+	select POWER_SUPPLY
+	select HWMON
+	select BACKLIGHT_CLASS_DEVICE
+	select INTERVAL_TREE
+	help
+	  Choose this option if you have a recent AMD Radeon graphics card.
+
+	  If M is selected, the module will be called amdgpu.
+
+source "drivers/gpu/drm/amd/amdgpu/Kconfig"
+
+source "drivers/gpu/drm/nouveau/Kconfig"
+
+source "drivers/gpu/drm/i915/Kconfig"
+
+source "drivers/gpu/drm/kmb/Kconfig"
+
+config DRM_VGEM
+	tristate "Virtual GEM provider"
+	depends on DRM
+	help
+	  Choose this option to get a virtual graphics memory manager,
+	  as used by Mesa's software renderer for enhanced performance.
+	  If M is selected the module will be called vgem.
+
+config DRM_VKMS
+	tristate "Virtual KMS (EXPERIMENTAL)"
+	depends on DRM
+	select DRM_KMS_HELPER
+	select DRM_GEM_SHMEM_HELPER
+	select CRC32
+	default n
+	help
+	  Virtual Kernel Mode-Setting (VKMS) is used for testing or for
+	  running GPU in a headless machines. Choose this option to get
+	  a VKMS.
+
+	  If M is selected the module will be called vkms.
+
+source "drivers/gpu/drm/exynos/Kconfig"
+
+source "drivers/gpu/drm/rockchip/Kconfig"
+
+source "drivers/gpu/drm/vmwgfx/Kconfig"
+
+source "drivers/gpu/drm/gma500/Kconfig"
+
+source "drivers/gpu/drm/udl/Kconfig"
+
+source "drivers/gpu/drm/ast/Kconfig"
+
+source "drivers/gpu/drm/mgag200/Kconfig"
+
+source "drivers/gpu/drm/armada/Kconfig"
+
+source "drivers/gpu/drm/atmel-hlcdc/Kconfig"
+
+source "drivers/gpu/drm/rcar-du/Kconfig"
+
+source "drivers/gpu/drm/shmobile/Kconfig"
+
+source "drivers/gpu/drm/sun4i/Kconfig"
+
+source "drivers/gpu/drm/omapdrm/Kconfig"
+
+source "drivers/gpu/drm/tilcdc/Kconfig"
+
+source "drivers/gpu/drm/qxl/Kconfig"
+
+source "drivers/gpu/drm/virtio/Kconfig"
+
+source "drivers/gpu/drm/msm/Kconfig"
+
+source "drivers/gpu/drm/fsl-dcu/Kconfig"
+
+source "drivers/gpu/drm/tegra/Kconfig"
+
+source "drivers/gpu/drm/stm/Kconfig"
+
+source "drivers/gpu/drm/panel/Kconfig"
+
+source "drivers/gpu/drm/bridge/Kconfig"
+
+source "drivers/gpu/drm/sti/Kconfig"
+
+source "drivers/gpu/drm/imx/Kconfig"
+
+source "drivers/gpu/drm/ingenic/Kconfig"
+
+source "drivers/gpu/drm/v3d/Kconfig"
+
+source "drivers/gpu/drm/vc4/Kconfig"
+
+source "drivers/gpu/drm/etnaviv/Kconfig"
+
+source "drivers/gpu/drm/hisilicon/Kconfig"
+
+source "drivers/gpu/drm/mediatek/Kconfig"
+
+source "drivers/gpu/drm/zte/Kconfig"
+
+source "drivers/gpu/drm/mxsfb/Kconfig"
+
+source "drivers/gpu/drm/meson/Kconfig"
+
+source "drivers/gpu/drm/tiny/Kconfig"
+
+source "drivers/gpu/drm/pl111/Kconfig"
+
+source "drivers/gpu/drm/tve200/Kconfig"
+
+source "drivers/gpu/drm/xen/Kconfig"
+
+source "drivers/gpu/drm/vboxvideo/Kconfig"
+
+source "drivers/gpu/drm/lima/Kconfig"
+
+source "drivers/gpu/drm/panfrost/Kconfig"
+
+source "drivers/gpu/drm/aspeed/Kconfig"
+
+source "drivers/gpu/drm/mcde/Kconfig"
+
+source "drivers/gpu/drm/tidss/Kconfig"
+
+source "drivers/gpu/drm/xlnx/Kconfig"
+
+source "drivers/gpu/drm/gud/Kconfig"
+
+config DRM_HYPERV
+	tristate "DRM Support for Hyper-V synthetic video device"
+	depends on DRM && PCI && MMU && HYPERV
+	select DRM_KMS_HELPER
+	select DRM_GEM_SHMEM_HELPER
+	help
+	 This is a KMS driver for Hyper-V synthetic video device. Choose this
+	 option if you would like to enable drm driver for Hyper-V virtual
+	 machine. Unselect Hyper-V framebuffer driver (CONFIG_FB_HYPERV) so
+	 that DRM driver is used by default.
+
+	 If M is selected the module will be called hyperv_drm.
+
+# Keep legacy drivers last
+
+menuconfig DRM_LEGACY
+	bool "Enable legacy drivers (DANGEROUS)"
+	depends on DRM && MMU
+	help
+	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous
+	  APIs to user-space, which can be used to circumvent access
+	  restrictions and other security measures. For backwards compatibility
+	  those drivers are still available, but their use is highly
+	  inadvisable and might harm your system.
+
+	  You are recommended to use the safe modeset-only drivers instead, and
+	  perform 3D emulation in user-space.
+
+	  Unless you have strong reasons to go rogue, say "N".
+
+if DRM_LEGACY
+
+config DRM_TDFX
+	tristate "3dfx Banshee/Voodoo3+"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have a 3dfx Banshee or Voodoo3 (or later),
+	  graphics card.  If M is selected, the module will be called tdfx.
+
+config DRM_R128
+	tristate "ATI Rage 128"
+	depends on DRM && PCI
+	select FW_LOADER
+	help
+	  Choose this option if you have an ATI Rage 128 graphics card.  If M
+	  is selected, the module will be called r128.  AGP support for
+	  this card is strongly suggested (unless you have a PCI version).
+
+config DRM_I810
+	tristate "Intel I810"
+	# !PREEMPTION because of missing ioctl locking
+	depends on DRM && AGP && AGP_INTEL && (!PREEMPTION || BROKEN)
+	help
+	  Choose this option if you have an Intel I810 graphics card.  If M is
+	  selected, the module will be called i810.  AGP support is required
+	  for this driver to work.
+
+config DRM_MGA
+	tristate "Matrox g200/g400"
+	depends on DRM && PCI
+	select FW_LOADER
+	help
+	  Choose this option if you have a Matrox G200, G400 or G450 graphics
+	  card.  If M is selected, the module will be called mga.  AGP
+	  support is required for this driver to work.
+
+config DRM_SIS
+	tristate "SiS video cards"
+	depends on DRM && AGP
+	depends on FB_SIS || FB_SIS=n
+	help
+	  Choose this option if you have a SiS 630 or compatible video
+	  chipset. If M is selected the module will be called sis. AGP
+	  support is required for this driver to work.
+
+config DRM_VIA
+	tristate "Via unichrome video cards"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have a Via unichrome or compatible video
+	  chipset. If M is selected the module will be called via.
+
+config DRM_SAVAGE
+	tristate "Savage video cards"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
+	  chipset. If M is selected the module will be called savage.
+
+endif # DRM_LEGACY
+
+config DRM_EXPORT_FOR_TESTS
+	bool
+
+# Separate option because drm_panel_orientation_quirks.c is shared with fbdev
+config DRM_PANEL_ORIENTATION_QUIRKS
+	tristate
+
+config DRM_LIB_RANDOM
+	bool
+	default n

@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "DMABUF options"
+
+config SYNC_FILE
+	bool "Explicit Synchronization Framework"
+	default n
+	select DMA_SHARED_BUFFER
+	help
+	  The Sync File Framework adds explicit synchronization via
+	  userspace. It enables send/receive 'struct dma_fence' objects to/from
+	  userspace via Sync File fds for synchronization between drivers via
+	  userspace components. It has been ported from Android.
+
+	  The first and main user for this is graphics in which a fence is
+	  associated with a buffer. When a job is submitted to the GPU a fence
+	  is attached to the buffer and is transferred via userspace, using Sync
+	  Files fds, to the DRM driver for example. More details at
+	  Documentation/driver-api/sync_file.rst.
+
+config SW_SYNC
+	bool "Sync File Validation Framework"
+	default n
+	depends on SYNC_FILE
+	depends on DEBUG_FS
+	help
+	  A sync object driver that uses a 32bit counter to coordinate
+	  synchronization.  Useful when there is no hardware primitive backing
+	  the synchronization.
+
+	  WARNING: improper use of this can result in deadlocking kernel
+	  drivers from userspace. Intended for test and debug only.
+
+config UDMABUF
+	bool "userspace dmabuf misc driver"
+	default n
+	depends on DMA_SHARED_BUFFER
+	depends on MEMFD_CREATE || COMPILE_TEST
+	help
+	  A driver to let userspace turn memfd regions into dma-bufs.
+	  Qemu can use this to create host dmabufs for guest framebuffers.
+
+config DMABUF_MOVE_NOTIFY
+	bool "Move notify between drivers (EXPERIMENTAL)"
+	default n
+	depends on DMA_SHARED_BUFFER
+	help
+	  Don't pin buffers if the dynamic DMA-buf interface is available on
+	  both the exporter as well as the importer. This fixes a security
+	  problem where userspace is able to pin unrestricted amounts of memory
+	  through DMA-buf.
+	  This is marked experimental because we don't yet have a consistent
+	  execution context and memory management between drivers.
+
+config DMABUF_DEBUG
+	bool "DMA-BUF debug checks"
+	depends on DMA_SHARED_BUFFER
+	default y if DMA_API_DEBUG
+	help
+	  This option enables additional checks for DMA-BUF importers and
+	  exporters. Specifically it validates that importers do not peek at the
+	  underlying struct page when they import a buffer.
+
+config DMABUF_SELFTESTS
+	tristate "Selftests for the dma-buf interfaces"
+	default n
+	depends on DMA_SHARED_BUFFER
+
+menuconfig DMABUF_HEAPS
+	bool "DMA-BUF Userland Memory Heaps"
+	select DMA_SHARED_BUFFER
+	help
+	  Choose this option to enable the DMA-BUF userland memory heaps.
+	  This options creates per heap chardevs in /dev/dma_heap/ which
+	  allows userspace to allocate dma-bufs that can be shared
+	  between drivers.
+
+menuconfig DMABUF_SYSFS_STATS
+	bool "DMA-BUF sysfs statistics"
+	depends on DMA_SHARED_BUFFER
+	help
+	   Choose this option to enable DMA-BUF sysfs statistics
+	   in location /sys/kernel/dmabuf/buffers.
+
+	   /sys/kernel/dmabuf/buffers/<inode_number> will contain
+	   statistics for the DMA-BUF with the unique inode number
+	   <inode_number>.
+
+source "drivers/dma-buf/heaps/Kconfig"
+
+endmenu

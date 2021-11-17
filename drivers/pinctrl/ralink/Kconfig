@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Ralink pinctrl drivers"
+        depends on RALINK
+
+config PINCTRL_RALINK
+        bool "Ralink pin control support"
+        default y if RALINK
+
+config PINCTRL_RT2880
+        bool "RT2880 pinctrl driver for RALINK/Mediatek SOCs"
+        select PINMUX
+        select GENERIC_PINCONF
+
+config PINCTRL_MT7620
+        bool "mt7620 pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_MT7620
+        select PINCTRL_RT2880
+
+config PINCTRL_MT7621
+        bool "mt7621 pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_MT7621
+        select PINCTRL_RT2880
+
+config PINCTRL_RT288X
+        bool "RT288X pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_RT288X
+        select PINCTRL_RT2880
+
+config PINCTRL_RT305X
+        bool "RT305X pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_RT305X
+        select PINCTRL_RT2880
+
+config PINCTRL_RT3883
+        bool "RT3883 pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_RT3883
+        select PINCTRL_RT2880
+
+endmenu

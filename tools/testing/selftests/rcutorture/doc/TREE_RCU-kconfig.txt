@@ -1,0 +1,80 @@
+This document gives a brief rationale for the TREE_RCU-related test
+cases, a group that includes PREEMPT_RCU.
+
+
+Kconfig Parameters:
+
+CONFIG_DEBUG_LOCK_ALLOC -- Do three, covering CONFIG_PROVE_LOCKING & not.
+CONFIG_DEBUG_OBJECTS_RCU_HEAD -- Do one.
+CONFIG_HZ_PERIODIC -- Do one.
+CONFIG_NO_HZ_IDLE -- Do those not otherwise specified. (Groups of two.)
+CONFIG_NO_HZ_FULL -- Do two, one with partial CPU enablement.
+CONFIG_PREEMPT -- Do half.  (First three and #8.)
+CONFIG_PROVE_LOCKING -- Do several, covering CONFIG_DEBUG_LOCK_ALLOC=y and not.
+CONFIG_PROVE_RCU -- Hardwired to CONFIG_PROVE_LOCKING.
+CONFIG_RCU_BOOST -- one of PREEMPT_RCU.
+CONFIG_RCU_FANOUT -- Cover hierarchy, but overlap with others.
+CONFIG_RCU_FANOUT_LEAF -- Do one non-default.
+CONFIG_RCU_FAST_NO_HZ -- Do one, but not with all nohz_full CPUs.
+CONFIG_RCU_NOCB_CPU -- Do three, one with no rcu_nocbs CPUs, one with
+	rcu_nocbs=0, and one with all rcu_nocbs CPUs.
+CONFIG_RCU_TRACE -- Do half.
+CONFIG_SMP -- Need one !SMP for PREEMPT_RCU.
+CONFIG_RCU_EXPERT=n -- Do a few, but these have to be vanilla configurations.
+CONFIG_RCU_EQS_DEBUG -- Do at least one for CONFIG_NO_HZ_FULL and not.
+
+RCU-bh: Do one with PREEMPT and one with !PREEMPT.
+RCU-sched: Do one with PREEMPT but not BOOST.
+
+
+Boot parameters:
+
+nohz_full - do at least one.
+maxcpu -- do at least one.
+rcupdate.rcu_self_test_bh -- Do at least one each, offloaded and not.
+rcupdate.rcu_self_test_sched -- Do at least one each, offloaded and not.
+rcupdate.rcu_self_test -- Do at least one each, offloaded and not.
+rcutree.rcu_fanout_exact -- Do at least one.
+
+
+Kconfig Parameters Ignored:
+
+CONFIG_64BIT
+
+	Used only to check CONFIG_RCU_FANOUT value, inspection suffices.
+
+CONFIG_PREEMPT_COUNT
+CONFIG_PREEMPT_RCU
+
+	Redundant with CONFIG_PREEMPT, ignore.
+
+CONFIG_RCU_BOOST_DELAY
+
+	Inspection suffices, ignore.
+
+CONFIG_RCU_CPU_STALL_TIMEOUT
+
+	Inspection suffices, ignore.
+
+CONFIG_RCU_STALL_COMMON
+
+	Implied by TREE_RCU and PREEMPT_RCU.
+
+CONFIG_RCU_TORTURE_TEST
+CONFIG_RCU_TORTURE_TEST_RUNNABLE
+
+	Always used in KVM testing.
+
+CONFIG_PREEMPT_RCU
+CONFIG_TREE_RCU
+CONFIG_TINY_RCU
+CONFIG_TASKS_RCU
+
+	These are controlled by CONFIG_PREEMPT and/or CONFIG_SMP.
+
+CONFIG_SRCU
+
+	Selected by CONFIG_RCU_TORTURE_TEST, so cannot disable.
+
+
+boot parameters ignored: TBD

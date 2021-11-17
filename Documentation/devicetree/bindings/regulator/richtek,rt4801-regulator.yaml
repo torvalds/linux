@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/richtek,rt4801-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Richtek RT4801 Display Bias regulators
+
+maintainers:
+  - ChiYuan Huang <cy_huang@richtek.com>
+
+description: |
+  Regulator nodes should be named to DSVP and DSVN. The
+  definition for each of these nodes is defined using the standard
+  binding for regulators at
+  Documentation/devicetree/bindings/regulator/regulator.txt.
+  Datasheet is available at
+  https://www.richtek.com/assets/product_file/RT4801H/DS4801H-00.pdf
+
+#The valid names for RT4801 regulator nodes are:
+#DSVP, DSVN
+
+properties:
+  compatible:
+    enum:
+      - richtek,rt4801
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    description: GPIOs to use to enable DSVP/DSVN regulator.
+      The first one is ENP to enable DSVP, and second one is ENM to enable DSVN.
+      Number of GPIO in the array list could be 1 or 2.
+      If only one gpio is specified, only one gpio used to control ENP/ENM.
+      Else both are spefied, DSVP/DSVN could be controlled individually.
+      Othersie, this property not specified. treat both as always-on regulator.
+    minItems: 1
+    maxItems: 2
+
+patternProperties:
+  "^DSV(P|N)$":
+    type: object
+    $ref: regulator.yaml#
+    description:
+      Properties for single display bias regulator.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        rt4801@73 {
+            compatible = "richtek,rt4801";
+            reg = <0x73>;
+            enable-gpios = <&gpio26 2 0>, <&gpio26 3 0>;
+
+            dsvp: DSVP {
+                regulator-name = "rt4801,dsvp";
+                regulator-min-microvolt = <4000000>;
+                regulator-max-microvolt = <6000000>;
+                regulator-boot-on;
+            };
+            dsvn: DSVN {
+                regulator-name = "rt4801,dsvn";
+                regulator-min-microvolt = <4000000>;
+                regulator-max-microvolt = <6000000>;
+                regulator-boot-on;
+            };
+
+        };
+    };

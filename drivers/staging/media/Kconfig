@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig STAGING_MEDIA
+	bool "Media staging drivers"
+	default n
+	help
+	  This option allows you to select a number of media drivers that
+	  don't have the "normal" Linux kernel quality level.
+	  Most of them don't follow properly the V4L, DVB and/or RC API's,
+	  so, they won't likely work fine with the existing applications.
+	  That also means that, once fixed, their API's will change to match
+	  the existing ones.
+
+	  If you wish to work on these drivers, to help improve them, or
+	  to report problems you have with them, please use the
+	  linux-media@vger.kernel.org mailing list.
+
+	  If in doubt, say N here.
+
+
+if STAGING_MEDIA && MEDIA_SUPPORT
+
+# Please keep them in alphabetic order
+source "drivers/staging/media/atomisp/Kconfig"
+
+source "drivers/staging/media/hantro/Kconfig"
+
+source "drivers/staging/media/imx/Kconfig"
+
+source "drivers/staging/media/meson/vdec/Kconfig"
+
+source "drivers/staging/media/omap4iss/Kconfig"
+
+source "drivers/staging/media/rkvdec/Kconfig"
+
+source "drivers/staging/media/sunxi/Kconfig"
+
+source "drivers/staging/media/tegra-vde/Kconfig"
+
+source "drivers/staging/media/zoran/Kconfig"
+
+source "drivers/staging/media/tegra-video/Kconfig"
+
+source "drivers/staging/media/ipu3/Kconfig"
+
+source "drivers/staging/media/av7110/Kconfig"
+
+endif

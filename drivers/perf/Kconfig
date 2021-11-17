@@ -1,0 +1,142 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Performance Monitor Drivers
+#
+
+menu "Performance monitor support"
+	depends on PERF_EVENTS
+
+config ARM_CCI_PMU
+	tristate "ARM CCI PMU driver"
+	depends on (ARM && CPU_V7) || ARM64
+	select ARM_CCI
+	help
+	  Support for PMU events monitoring on the ARM CCI (Cache Coherent
+	  Interconnect) family of products.
+
+	  If compiled as a module, it will be called arm-cci.
+
+config ARM_CCI400_PMU
+	bool "support CCI-400"
+	default y
+	depends on ARM_CCI_PMU
+	select ARM_CCI400_COMMON
+	help
+	  CCI-400 provides 4 independent event counters counting events related
+	  to the connected slave/master interfaces, plus a cycle counter.
+
+config ARM_CCI5xx_PMU
+	bool "support CCI-500/CCI-550"
+	default y
+	depends on ARM_CCI_PMU
+	help
+	  CCI-500/CCI-550 both provide 8 independent event counters, which can
+	  count events pertaining to the slave/master interfaces as well as the
+	  internal events to the CCI.
+
+config ARM_CCN
+	tristate "ARM CCN driver support"
+	depends on ARM || ARM64
+	help
+	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
+	  interconnect.
+
+config ARM_CMN
+	tristate "Arm CMN-600 PMU support"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Support for PMU events monitoring on the Arm CMN-600 Coherent Mesh
+	  Network interconnect.
+
+config ARM_PMU
+	depends on ARM || ARM64
+	bool "ARM PMU framework"
+	default y
+	help
+	  Say y if you want to use CPU performance monitors on ARM-based
+	  systems.
+
+config ARM_PMU_ACPI
+	depends on ARM_PMU && ACPI
+	def_bool y
+
+config ARM_SMMU_V3_PMU
+	 tristate "ARM SMMUv3 Performance Monitors Extension"
+	 depends on ARM64 && ACPI
+	   help
+	   Provides support for the ARM SMMUv3 Performance Monitor Counter
+	   Groups (PMCG), which provide monitoring of transactions passing
+	   through the SMMU and allow the resulting information to be filtered
+	   based on the Stream ID of the corresponding master.
+
+config ARM_DSU_PMU
+	tristate "ARM DynamIQ Shared Unit (DSU) PMU"
+	depends on ARM64
+	  help
+	  Provides support for performance monitor unit in ARM DynamIQ Shared
+	  Unit (DSU). The DSU integrates one or more cores with an L3 memory
+	  system, control logic. The PMU allows counting various events related
+	  to DSU.
+
+config FSL_IMX8_DDR_PMU
+	tristate "Freescale i.MX8 DDR perf monitor"
+	depends on ARCH_MXC
+	  help
+	  Provides support for the DDR performance monitor in i.MX8, which
+	  can give information about memory throughput and other related
+	  events.
+
+config QCOM_L2_PMU
+	bool "Qualcomm Technologies L2-cache PMU"
+	depends on ARCH_QCOM && ARM64 && ACPI
+	select QCOM_KRYO_L2_ACCESSORS
+	  help
+	  Provides support for the L2 cache performance monitor unit (PMU)
+	  in Qualcomm Technologies processors.
+	  Adds the L2 cache PMU into the perf events subsystem for
+	  monitoring L2 cache events.
+
+config QCOM_L3_PMU
+	bool "Qualcomm Technologies L3-cache PMU"
+	depends on ARCH_QCOM && ARM64 && ACPI
+	select QCOM_IRQ_COMBINER
+	help
+	   Provides support for the L3 cache performance monitor unit (PMU)
+	   in Qualcomm Technologies processors.
+	   Adds the L3 cache PMU into the perf events subsystem for
+	   monitoring L3 cache events.
+
+config THUNDERX2_PMU
+	tristate "Cavium ThunderX2 SoC PMU UNCORE"
+	depends on ARCH_THUNDER2 && ARM64 && ACPI && NUMA
+	default m
+	help
+	   Provides support for ThunderX2 UNCORE events.
+	   The SoC has PMU support in its L3 cache controller (L3C) and
+	   in the DDR4 Memory Controller (DMC).
+
+config XGENE_PMU
+        depends on ARCH_XGENE
+        bool "APM X-Gene SoC PMU"
+        default n
+        help
+          Say y if you want to use APM X-Gene SoC performance monitors.
+
+config ARM_SPE_PMU
+	tristate "Enable support for the ARMv8.2 Statistical Profiling Extension"
+	depends on ARM64
+	help
+	  Enable perf support for the ARMv8.2 Statistical Profiling
+	  Extension, which provides periodic sampling of operations in
+	  the CPU pipeline and reports this via the perf AUX interface.
+
+config ARM_DMC620_PMU
+	tristate "Enable PMU support for the ARM DMC-620 memory controller"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	help
+	  Support for PMU events monitoring on the ARM DMC-620 memory
+	  controller.
+
+source "drivers/perf/hisilicon/Kconfig"
+
+endmenu

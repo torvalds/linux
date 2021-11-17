@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+#include "bcm2835.dtsi"
+#include "bcm2835-rpi.dtsi"
+#include "bcm283x-rpi-smsc9512.dtsi"
+#include "bcm283x-rpi-usb-host.dtsi"
+
+/ {
+	compatible = "raspberrypi,model-b", "brcm,bcm2835";
+	model = "Raspberry Pi Model B";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x10000000>;
+	};
+
+	leds {
+		led-act {
+			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&gpio {
+	/*
+	 * Taken from Raspberry-Pi-Rev-1.0-Model-AB-Schematics.pdf
+	 * RPI00021 sheet 02
+	 *
+	 * Legend:
+	 * "NC" = not connected (no rail from the SoC)
+	 * "FOO" = GPIO line named "FOO" on the schematic
+	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
+	 */
+	gpio-line-names = "SDA0",
+			  "SCL0",
+			  "SDA1",
+			  "SCL1",
+			  "GPIO_GCLK",
+			  "CAM_GPIO1",
+			  "LAN_RUN",
+			  "SPI_CE1_N",
+			  "SPI_CE0_N",
+			  "SPI_MISO",
+			  "SPI_MOSI",
+			  "SPI_SCLK",
+			  "NC", /* GPIO12 */
+			  "NC", /* GPIO13 */
+			  /* Serial port */
+			  "TXD0",
+			  "RXD0",
+			  "STATUS_LED_N",
+			  "GPIO17",
+			  "GPIO18",
+			  "NC", /* GPIO19 */
+			  "NC", /* GPIO20 */
+			  "GPIO21",
+			  "GPIO22",
+			  "GPIO23",
+			  "GPIO24",
+			  "GPIO25",
+			  "NC", /* GPIO26 */
+			  "CAM_GPIO0",
+			  /* Binary number representing build/revision */
+			  "CONFIG0",
+			  "CONFIG1",
+			  "CONFIG2",
+			  "CONFIG3",
+			  "NC", /* GPIO32 */
+			  "NC", /* GPIO33 */
+			  "NC", /* GPIO34 */
+			  "NC", /* GPIO35 */
+			  "NC", /* GPIO36 */
+			  "NC", /* GPIO37 */
+			  "NC", /* GPIO38 */
+			  "NC", /* GPIO39 */
+			  "PWM0_OUT",
+			  "NC", /* GPIO41 */
+			  "NC", /* GPIO42 */
+			  "NC", /* GPIO43 */
+			  "NC", /* GPIO44 */
+			  "PWM1_OUT",
+			  "HDMI_HPD_P",
+			  "SD_CARD_DET",
+			  /* Used by SD Card */
+			  "SD_CLK_R",
+			  "SD_CMD_R",
+			  "SD_DATA0_R",
+			  "SD_DATA1_R",
+			  "SD_DATA2_R",
+			  "SD_DATA3_R";
+
+	pinctrl-0 = <&gpioout &alt0>;
+};
+
+&hdmi {
+	hpd-gpios = <&gpio 46 GPIO_ACTIVE_HIGH>;
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_gpio40 &pwm1_gpio45>;
+	status = "okay";
+};
+
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_gpio14>;
+	status = "okay";
+};

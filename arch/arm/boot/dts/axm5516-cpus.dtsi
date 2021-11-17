@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * arch/arm/boot/dts/axm5516-cpus.dtsi
+ *
+ * Copyright (C) 2013 LSI
+ */
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+				core2 {
+					cpu = <&CPU2>;
+				};
+				core3 {
+					cpu = <&CPU3>;
+				};
+			};
+			cluster1 {
+				core0 {
+					cpu = <&CPU4>;
+				};
+				core1 {
+					cpu = <&CPU5>;
+				};
+				core2 {
+					cpu = <&CPU6>;
+				};
+				core3 {
+					cpu = <&CPU7>;
+				};
+			};
+			cluster2 {
+				core0 {
+					cpu = <&CPU8>;
+				};
+				core1 {
+					cpu = <&CPU9>;
+				};
+				core2 {
+					cpu = <&CPU10>;
+				};
+				core3 {
+					cpu = <&CPU11>;
+				};
+			};
+			cluster3 {
+				core0 {
+					cpu = <&CPU12>;
+				};
+				core1 {
+					cpu = <&CPU13>;
+				};
+				core2 {
+					cpu = <&CPU14>;
+				};
+				core3 {
+					cpu = <&CPU15>;
+				};
+			};
+		};
+
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x00>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x01>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x02>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x03>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU4: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x100>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU5: cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x101>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU6: cpu@102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x102>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU7: cpu@103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x103>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU8: cpu@200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x200>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU9: cpu@201 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x201>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU10: cpu@202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x202>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU11: cpu@203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x203>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU12: cpu@300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x300>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU13: cpu@301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x301>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU14: cpu@302 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x302>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+
+		CPU15: cpu@303 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x303>;
+			clock-frequency= <1400000000>;
+			cpu-release-addr = <0>; // Fixed by the boot loader
+		};
+	};
+};

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (c) 2020 thingy.jp.
+ * Author: Daniel Palmer <daniel@thingy.jp>
+ */
+
+#include "mstar-v7.dtsi"
+
+#include <dt-bindings/gpio/msc313-gpio.h>
+
+&imi {
+	reg = <0xa0000000 0x16000>;
+};
+
+&gpio {
+	compatible = "mstar,msc313-gpio";
+	status = "okay";
+};

@@ -1,0 +1,2209 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Hardware monitoring chip drivers configuration
+#
+
+menuconfig HWMON
+	tristate "Hardware Monitoring support"
+	depends on HAS_IOMEM
+	default y
+	help
+	  Hardware monitoring devices let you monitor the hardware health
+	  of a system. Most modern motherboards include such a device. It
+	  can include temperature sensors, voltage sensors, fan speed
+	  sensors and various additional features such as the ability to
+	  control the speed of the fans. If you want this support you
+	  should say Y here and also to the specific driver(s) for your
+	  sensors chip(s) below.
+
+	  To find out which specific driver(s) you need, use the
+	  sensors-detect script from the lm_sensors package.  Read
+	  <file:Documentation/hwmon/userspace-tools.rst> for details.
+
+	  This support can also be built as a module. If so, the module
+	  will be called hwmon.
+
+if HWMON
+
+config HWMON_VID
+	tristate
+
+config HWMON_DEBUG_CHIP
+	bool "Hardware Monitoring Chip debugging messages"
+	help
+	  Say Y here if you want the I2C chip drivers to produce a bunch of
+	  debug messages to the system log.  Select this if you are having
+	  a problem with I2C support and want to see more of what is going
+	  on.
+
+comment "Native drivers"
+
+config SENSORS_ABITUGURU
+	tristate "Abit uGuru (rev 1 & 2)"
+	depends on X86 && DMI
+	help
+	  If you say yes here you get support for the sensor part of the first
+	  and second revision of the Abit uGuru chip. The voltage and frequency
+	  control parts of the Abit uGuru are not supported. The Abit uGuru
+	  chip can be found on Abit uGuru featuring motherboards (most modern
+	  Abit motherboards from before end 2005). For more info and a list
+	  of which motherboards have which revision see
+	  Documentation/hwmon/abituguru.rst
+
+	  This driver can also be built as a module. If so, the module
+	  will be called abituguru.
+
+config SENSORS_ABITUGURU3
+	tristate "Abit uGuru (rev 3)"
+	depends on X86 && DMI
+	help
+	  If you say yes here you get support for the sensor part of the
+	  third revision of the Abit uGuru chip. Only reading the sensors
+	  and their settings is supported. The third revision of the Abit
+	  uGuru chip can be found on recent Abit motherboards (since end
+	  2005). For more info and a list of which motherboards have which
+	  revision see Documentation/hwmon/abituguru3.rst
+
+	  This driver can also be built as a module. If so, the module
+	  will be called abituguru3.
+
+config SENSORS_AD7314
+	tristate "Analog Devices AD7314 and compatibles"
+	depends on SPI
+	help
+	  If you say yes here you get support for the Analog Devices
+	  AD7314, ADT7301 and ADT7302 temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ad7314.
+
+config SENSORS_AD7414
+	tristate "Analog Devices AD7414"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Analog Devices
+	  AD7414 temperature monitoring chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ad7414.
+
+config SENSORS_AD7418
+	tristate "Analog Devices AD7416, AD7417 and AD7418"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Analog Devices
+	  AD7416, AD7417 and AD7418 temperature monitoring chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ad7418.
+
+config SENSORS_ADM1021
+	tristate "Analog Devices ADM1021 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Analog Devices ADM1021
+	  and ADM1023 sensor chips and clones: Maxim MAX1617 and MAX1617A,
+	  Genesys Logic GL523SM, National Semiconductor LM84 and TI THMC10.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adm1021.
+
+config SENSORS_ADM1025
+	tristate "Analog Devices ADM1025 and compatibles"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for Analog Devices ADM1025
+	  and Philips NE1619 sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adm1025.
+
+config SENSORS_ADM1026
+	tristate "Analog Devices ADM1026 and compatibles"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for Analog Devices ADM1026
+	  sensor chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adm1026.
+
+config SENSORS_ADM1029
+	tristate "Analog Devices ADM1029"
+	depends on I2C
+	help
+	  If you say yes here you get support for Analog Devices ADM1029
+	  sensor chip.
+	  Very rare chip, please let us know you use it.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adm1029.
+
+config SENSORS_ADM1031
+	tristate "Analog Devices ADM1031 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Analog Devices ADM1031
+	  and ADM1030 sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adm1031.
+
+config SENSORS_ADM1177
+	tristate "Analog Devices ADM1177 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Analog Devices ADM1177
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called adm1177.
+
+config SENSORS_ADM9240
+	tristate "Analog Devices ADM9240 and compatibles"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for Analog Devices ADM9240,
+	  Dallas DS1780, National Semiconductor LM81 sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adm9240.
+
+config SENSORS_ADT7X10
+	tristate
+	help
+	  This module contains common code shared by the ADT7310/ADT7320 and
+	  ADT7410/ADT7420 temperature monitoring chip drivers.
+
+	  If built as a module, the module will be called adt7x10.
+
+config SENSORS_ADT7310
+	tristate "Analog Devices ADT7310/ADT7320"
+	depends on SPI_MASTER
+	select SENSORS_ADT7X10
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7310 and ADT7320 temperature monitoring chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7310.
+
+config SENSORS_ADT7410
+	tristate "Analog Devices ADT7410/ADT7420"
+	depends on I2C
+	select SENSORS_ADT7X10
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7410 and ADT7420 temperature monitoring chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7410.
+
+config SENSORS_ADT7411
+	tristate "Analog Devices ADT7411"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7411 voltage and temperature monitoring chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7411.
+
+config SENSORS_ADT7462
+	tristate "Analog Devices ADT7462"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7462 temperature monitoring chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7462.
+
+config SENSORS_ADT7470
+	tristate "Analog Devices ADT7470"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7470 temperature monitoring chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7470.
+
+config SENSORS_ADT7475
+	tristate "Analog Devices ADT7473, ADT7475, ADT7476 and ADT7490"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7473, ADT7475, ADT7476 and ADT7490 hardware monitoring
+	  chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7475.
+
+config SENSORS_AHT10
+	tristate "Aosong AHT10"
+	depends on I2C
+	help
+	  If you say yes here, you get support for the Aosong AHT10
+	  temperature and humidity sensors
+
+	  This driver can also be built as a module. If so, the module
+	  will be called aht10.
+
+config SENSORS_AQUACOMPUTER_D5NEXT
+	tristate "Aquacomputer D5 Next watercooling pump"
+	depends on USB_HID
+	help
+	  If you say yes here you get support for the Aquacomputer D5 Next
+	  watercooling pump sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called aquacomputer_d5next.
+
+config SENSORS_AS370
+	tristate "Synaptics AS370 SoC hardware monitoring driver"
+	help
+	  If you say yes here you get support for the PVT sensors of
+	  the Synaptics AS370 SoC
+
+	  This driver can also be built as a module. If so, the module
+	  will be called as370-hwmon.
+
+
+config SENSORS_ASC7621
+	tristate "Andigilog aSC7621"
+	depends on I2C
+	help
+	  If you say yes here you get support for the aSC7621
+	  family of SMBus sensors chip found on most Intel X38, X48, X58,
+	  945, 965 and 975 desktop boards.  Currently supported chips:
+	  aSC7621
+	  aSC7621a
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asc7621.
+
+config SENSORS_AXI_FAN_CONTROL
+	tristate "Analog Devices FAN Control HDL Core driver"
+	help
+	  If you say yes here you get support for the Analog Devices
+	  AXI HDL FAN monitoring core.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called axi-fan-control
+
+config SENSORS_K8TEMP
+	tristate "AMD Athlon64/FX or Opteron temperature sensor"
+	depends on X86 && PCI
+	help
+	  If you say yes here you get support for the temperature
+	  sensor(s) inside your CPU. Supported is whole AMD K8
+	  microarchitecture. Please note that you will need at least
+	  lm-sensors 2.10.1 for proper userspace support.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called k8temp.
+
+config SENSORS_K10TEMP
+	tristate "AMD Family 10h+ temperature sensor"
+	depends on X86 && PCI && AMD_NB
+	help
+	  If you say yes here you get support for the temperature
+	  sensor(s) inside your CPU. Supported are later revisions of
+	  the AMD Family 10h and all revisions of the AMD Family 11h,
+	  12h (Llano), 14h (Brazos), 15h (Bulldozer/Trinity/Kaveri/Carrizo)
+	  and 16h (Kabini/Mullins) microarchitectures.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called k10temp.
+
+config SENSORS_FAM15H_POWER
+	tristate "AMD Family 15h processor power"
+	depends on X86 && PCI && CPU_SUP_AMD
+	help
+	  If you say yes here you get support for processor power
+	  information of your AMD family 15h CPU.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called fam15h_power.
+
+config SENSORS_APPLESMC
+	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"
+	depends on INPUT && X86
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  This driver provides support for the Apple System Management
+	  Controller, which provides an accelerometer (Apple Sudden Motion
+	  Sensor), light sensors, temperature sensors, keyboard backlight
+	  control and fan control.
+
+	  Only Intel-based Apple's computers are supported (MacBook Pro,
+	  MacBook, MacMini).
+
+	  Data from the different sensors, keyboard backlight control and fan
+	  control are accessible via sysfs.
+
+	  This driver also provides an absolute input class device, allowing
+	  the laptop to act as a pinball machine-esque joystick.
+
+	  Say Y here if you have an applicable laptop and want to experience
+	  the awesome power of applesmc.
+
+config SENSORS_ARM_SCMI
+	tristate "ARM SCMI Sensors"
+	depends on ARM_SCMI_PROTOCOL
+	depends on THERMAL || !THERMAL_OF
+	help
+	  This driver provides support for temperature, voltage, current
+	  and power sensors available on SCMI based platforms. The actual
+	  number and type of sensors exported depend on the platform.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called scmi-hwmon.
+
+config SENSORS_ARM_SCPI
+	tristate "ARM SCPI Sensors"
+	depends on ARM_SCPI_PROTOCOL
+	depends on THERMAL || !THERMAL_OF
+	help
+	  This driver provides support for temperature, voltage, current
+	  and power sensors available on ARM Ltd's SCP based platforms. The
+	  actual number and type of sensors exported depend on the platform.
+
+config SENSORS_ASB100
+	tristate "Asus ASB100 Bach"
+	depends on X86 && I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the ASB100 Bach sensor
+	  chip found on some Asus mainboards.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asb100.
+
+config SENSORS_ASPEED
+	tristate "ASPEED AST2400/AST2500 PWM and Fan tach driver"
+	depends on THERMAL || THERMAL=n
+	select REGMAP
+	help
+	  This driver provides support for ASPEED AST2400/AST2500 PWM
+	  and Fan Tacho controllers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called aspeed_pwm_tacho.
+
+config SENSORS_ATXP1
+	tristate "Attansic ATXP1 VID controller"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the Attansic ATXP1 VID
+	  controller.
+
+	  If your board have such a chip, you are able to control your CPU
+	  core and other voltages.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called atxp1.
+
+config SENSORS_BT1_PVT
+	tristate "Baikal-T1 Process, Voltage, Temperature sensor driver"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	help
+	  If you say yes here you get support for Baikal-T1 PVT sensor
+	  embedded into the SoC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called bt1-pvt.
+
+config SENSORS_BT1_PVT_ALARMS
+	bool "Enable Baikal-T1 PVT sensor alarms"
+	depends on SENSORS_BT1_PVT
+	help
+	  Baikal-T1 PVT IP-block provides threshold registers for each
+	  supported sensor. But the corresponding interrupts might be
+	  generated by the thresholds comparator only in synchronization with
+	  a data conversion. Additionally there is only one sensor data can
+	  be converted at a time. All of these makes the interface impossible
+	  to be used for the hwmon alarms implementation without periodic
+	  switch between the PVT sensors. By default the data conversion is
+	  performed on demand from the user-space. If this config is enabled
+	  the data conversion will be periodically performed and the data will be
+	  saved in the internal driver cache.
+
+config SENSORS_CORSAIR_CPRO
+	tristate "Corsair Commander Pro controller"
+	depends on HID
+	help
+	  If you say yes here you get support for the Corsair Commander Pro
+	  controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called corsair-cpro.
+
+config SENSORS_CORSAIR_PSU
+	tristate "Corsair PSU HID controller"
+	depends on HID
+	help
+	  If you say yes here you get support for Corsair PSUs with a HID
+	  interface.
+	  Currently this driver supports the (RM/HX)550i, (RM/HX)650i,
+	  (RM/HX)750i, (RM/HX)850i, (RM/HX)1000i and HX1200i power supplies
+	  by Corsair.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called corsair-psu.
+
+config SENSORS_DRIVETEMP
+	tristate "Hard disk drives with temperature sensors"
+	depends on SCSI && ATA
+	help
+	  If you say yes you get support for the temperature sensor on
+	  hard disk drives.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called drivetemp.
+
+config SENSORS_DS620
+	tristate "Dallas Semiconductor DS620"
+	depends on I2C
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS620 sensor chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ds620.
+
+config SENSORS_DS1621
+	tristate "Dallas Semiconductor DS1621 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Dallas Semiconductor/Maxim
+	  Integrated DS1621 sensor chips and compatible models including:
+
+	  - Dallas Semiconductor DS1625
+	  - Maxim Integrated DS1631
+	  - Maxim Integrated DS1721
+	  - Maxim Integrated DS1731
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ds1621.
+
+config SENSORS_DELL_SMM
+	tristate "Dell laptop SMM BIOS hwmon driver"
+	depends on X86
+	help
+	  This hwmon driver adds support for reporting temperature of different
+	  sensors and controls the fans on Dell laptops via System Management
+	  Mode provided by Dell BIOS.
+
+	  When option I8K is also enabled this driver provides legacy /proc/i8k
+	  userspace interface for i8kutils package.
+
+config SENSORS_DA9052_ADC
+	tristate "Dialog DA9052/DA9053 ADC"
+	depends on PMIC_DA9052
+	help
+	  Say y here to support the ADC found on Dialog Semiconductor
+	  DA9052-BC and DA9053-AA/Bx PMICs.
+
+	  This driver can also be built as module. If so, the module
+	  will be called da9052-hwmon.
+
+config SENSORS_DA9055
+	tristate "Dialog Semiconductor DA9055 ADC"
+	depends on MFD_DA9055
+	help
+	  If you say yes here you get support for ADC on the Dialog
+	  Semiconductor DA9055 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9055-hwmon.
+
+config SENSORS_I5K_AMB
+	tristate "FB-DIMM AMB temperature sensor on Intel 5000 series chipsets"
+	depends on PCI
+	help
+	  If you say yes here you get support for FB-DIMM AMB temperature
+	  monitoring chips on systems with the Intel 5000 series chipset.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i5k_amb.
+
+config SENSORS_SPARX5
+	tristate "Sparx5 SoC temperature sensor"
+	depends on ARCH_SPARX5 || COMPILE_TEST
+	help
+	  If you say yes here you get support for temperature monitoring
+	  with the Microchip Sparx5 SoC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sparx5-temp.
+
+config SENSORS_F71805F
+	tristate "Fintek F71805F/FG, F71806F/FG and F71872F/FG"
+	depends on !PPC
+	help
+	  If you say yes here you get support for hardware monitoring
+	  features of the Fintek F71805F/FG, F71806F/FG and F71872F/FG
+	  Super-I/O chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called f71805f.
+
+config SENSORS_F71882FG
+	tristate "Fintek F71882FG and compatibles"
+	depends on !PPC
+	help
+	  If you say yes here you get support for hardware monitoring
+	  features of many Fintek Super-I/O (LPC) chips. The currently
+	  supported chips are:
+	    F71808E/A
+	    F71858FG
+	    F71862FG
+	    F71863FG
+	    F71869F/E/A
+	    F71882FG
+	    F71883FG
+	    F71889FG/ED/A
+	    F8000
+	    F81801U
+	    F81865F
+
+	  This driver can also be built as a module. If so, the module
+	  will be called f71882fg.
+
+config SENSORS_F75375S
+	tristate "Fintek F75375S/SP, F75373 and F75387"
+	depends on I2C
+	help
+	  If you say yes here you get support for hardware monitoring
+	  features of the Fintek F75375S/SP, F75373 and F75387
+
+	  This driver can also be built as a module. If so, the module
+	  will be called f75375s.
+
+config SENSORS_GSC
+	tristate "Gateworks System Controller ADC"
+	depends on MFD_GATEWORKS_GSC
+	help
+	  Support for the Gateworks System Controller A/D converters.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called gsc-hwmon.
+
+config SENSORS_MC13783_ADC
+        tristate "Freescale MC13783/MC13892 ADC"
+        depends on MFD_MC13XXX
+        help
+          Support for the A/D converter on MC13783 and MC13892 PMIC.
+
+config SENSORS_FSCHMD
+	tristate "Fujitsu Siemens Computers sensor chips"
+	depends on X86 && I2C
+	help
+	  If you say yes here you get support for the following Fujitsu
+	  Siemens Computers (FSC) sensor chips: Poseidon, Scylla, Hermes,
+	  Heimdall, Heracles, Hades and Syleus including support for the
+	  integrated watchdog.
+
+	  This is a merged driver for FSC sensor chips replacing the fscpos,
+	  fscscy and fscher drivers and adding support for several other FSC
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called fschmd.
+
+config SENSORS_FTSTEUTATES
+	tristate "Fujitsu Technology Solutions sensor chip Teutates"
+	depends on I2C && WATCHDOG
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for the Fujitsu Technology
+	  Solutions (FTS) sensor chip "Teutates" including support for
+	  the integrated watchdog.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ftsteutates.
+
+config SENSORS_GL518SM
+	tristate "Genesys Logic GL518SM"
+	depends on I2C
+	help
+	  If you say yes here you get support for Genesys Logic GL518SM
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gl518sm.
+
+config SENSORS_GL520SM
+	tristate "Genesys Logic GL520SM"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for Genesys Logic GL520SM
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gl520sm.
+
+config SENSORS_G760A
+	tristate "GMT G760A"
+	depends on I2C
+	help
+	  If you say yes here you get support for Global Mixed-mode
+	  Technology Inc G760A fan speed PWM controller chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called g760a.
+
+config SENSORS_G762
+	tristate "GMT G762 and G763"
+	depends on I2C
+	help
+	  If you say yes here you get support for Global Mixed-mode
+	  Technology Inc G762 and G763 fan speed PWM controller chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called g762.
+
+config SENSORS_GPIO_FAN
+	tristate "GPIO fan"
+	depends on OF_GPIO
+	depends on GPIOLIB || COMPILE_TEST
+	depends on THERMAL || THERMAL=n
+	help
+	  If you say yes here you get support for fans connected to GPIO lines.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-fan.
+
+config SENSORS_HIH6130
+	tristate "Honeywell Humidicon HIH-6130 humidity/temperature sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for Honeywell Humidicon
+	  HIH-6130 and HIH-6131 Humidicon humidity sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called hih6130.
+
+config SENSORS_IBMAEM
+	tristate "IBM Active Energy Manager temperature/power sensors and control"
+	select IPMI_SI
+	depends on IPMI_HANDLER
+	help
+	  If you say yes here you get support for the temperature and
+	  power sensors and capping hardware in various IBM System X
+	  servers that support Active Energy Manager.  This includes
+	  the x3350, x3550, x3650, x3655, x3755, x3850 M2, x3950 M2,
+	  and certain HC10/HS2x/LS2x/QS2x blades.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ibmaem.
+
+config SENSORS_IBMPEX
+	tristate "IBM PowerExecutive temperature/power sensors"
+	select IPMI_SI
+	depends on IPMI_HANDLER
+	help
+	  If you say yes here you get support for the temperature and
+	  power sensors in various IBM System X servers that support
+	  PowerExecutive.  So far this includes the x3350, x3550, x3650,
+	  x3655, and x3755; the x3800, x3850, and x3950 models that have
+	  PCI Express; and some of the HS2x, LS2x, and QS2x blades.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ibmpex.
+
+config SENSORS_IBMPOWERNV
+	tristate "IBM POWERNV platform sensors"
+	depends on PPC_POWERNV
+	default y
+	help
+	  If you say yes here you get support for the temperature/fan/power
+	  sensors on your PowerNV platform.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ibmpowernv.
+
+config SENSORS_IIO_HWMON
+	tristate "Hwmon driver that uses channels specified via iio maps"
+	depends on IIO
+	help
+	  This is a platform driver that in combination with a suitable
+	  map allows IIO devices to provide basic hwmon functionality
+	  for those channels specified in the map.  This map can be provided
+	  either via platform data or the device tree bindings.
+
+config SENSORS_I5500
+	tristate "Intel 5500/5520/X58 temperature sensor"
+	depends on X86 && PCI
+	help
+	  If you say yes here you get support for the temperature
+	  sensor inside the Intel 5500, 5520 and X58 chipsets.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i5500_temp.
+
+config SENSORS_CORETEMP
+	tristate "Intel Core/Core2/Atom temperature sensor"
+	depends on X86
+	help
+	  If you say yes here you get support for the temperature
+	  sensor inside your CPU. Most of the family 6 CPUs
+	  are supported. Check Documentation/hwmon/coretemp.rst for details.
+
+config SENSORS_IT87
+	tristate "ITE IT87xx and compatibles"
+	depends on !PPC
+	select HWMON_VID
+	help
+	  If you say yes here you get support for ITE IT8705F, IT8712F, IT8716F,
+	  IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8732F, IT8758E,
+	  IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E,
+	  IT8603E, IT8620E, IT8623E, and IT8628E sensor chips, and the SiS950
+	  clone.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called it87.
+
+config SENSORS_JC42
+	tristate "JEDEC JC42.4 compliant memory module temperature sensors"
+	depends on I2C
+	help
+	  If you say yes here, you get support for JEDEC JC42.4 compliant
+	  temperature sensors, which are used on many DDR3 memory modules for
+	  mobile devices and servers.  Support will include, but not be limited
+	  to, ADT7408, AT30TS00, CAT34TS02, CAT6095, MAX6604, MCP9804, MCP9805,
+	  MCP9808, MCP98242, MCP98243, MCP98244, MCP9843, SE97, SE98,
+	  STTS424(E), STTS2002, STTS3000, TSE2002, TSE2004, TS3000, and TS3001.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called jc42.
+
+config SENSORS_POWR1220
+	tristate "Lattice POWR1220 Power Monitoring"
+	depends on I2C
+	help
+	  If you say yes here you get access to the hardware monitoring
+	  functions of the Lattice POWR1220 isp Power Supply Monitoring,
+	  Sequencing and Margining Controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called powr1220.
+
+config SENSORS_LINEAGE
+	tristate "Lineage Compact Power Line Power Entry Module"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Lineage Compact Power Line
+	  series of DC/DC and AC/DC converters such as CP1800, CP2000AC,
+	  CP2000DC, CP2725, and others.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lineage-pem.
+
+config SENSORS_LOCHNAGAR
+	tristate "Lochnagar Hardware Monitor"
+	depends on MFD_LOCHNAGAR
+	help
+	  If you say yes here you get support for Lochnagar 2 temperature,
+	  voltage and current sensors abilities.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lochnagar-hwmon.
+
+config SENSORS_LTC2945
+	tristate "Linear Technology LTC2945"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC2945
+	  I2C System Monitor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2945.
+
+config SENSORS_LTC2947
+	tristate
+
+config SENSORS_LTC2947_I2C
+	tristate "Analog Devices LTC2947 High Precision Power and Energy Monitor over I2C"
+	depends on I2C
+	select REGMAP_I2C
+	select SENSORS_LTC2947
+	help
+	  If you say yes here you get support for Linear Technology LTC2947
+	  I2C High Precision Power and Energy Monitor
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2947-i2c.
+
+config SENSORS_LTC2947_SPI
+	tristate "Analog Devices LTC2947 High Precision Power and Energy Monitor over SPI"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	select SENSORS_LTC2947
+	help
+	  If you say yes here you get support for Linear Technology LTC2947
+	  SPI High Precision Power and Energy Monitor
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2947-spi.
+
+config SENSORS_LTC2990
+	tristate "Linear Technology LTC2990"
+	depends on I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC2990
+	  I2C System Monitor. The LTC2990 supports a combination of voltage,
+	  current and temperature monitoring.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2990.
+
+config SENSORS_LTC2992
+	tristate "Linear Technology LTC2992"
+	depends on I2C
+	depends on GPIOLIB
+	help
+	  If you say yes here you get support for Linear Technology LTC2992
+	  I2C System Monitor. The LTC2992 measures current, voltage, and
+	  power of two supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2992.
+
+config SENSORS_LTC4151
+	tristate "Linear Technology LTC4151"
+	depends on I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC4151
+	  High Voltage I2C Current and Voltage Monitor interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4151.
+
+config SENSORS_LTC4215
+	tristate "Linear Technology LTC4215"
+	depends on I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC4215
+	  Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4215.
+
+config SENSORS_LTC4222
+	tristate "Linear Technology LTC4222"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC4222
+	  Dual Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4222.
+
+config SENSORS_LTC4245
+	tristate "Linear Technology LTC4245"
+	depends on I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC4245
+	  Multiple Supply Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4245.
+
+config SENSORS_LTC4260
+	tristate "Linear Technology LTC4260"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC4260
+	  Positive Voltage Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4260.
+
+config SENSORS_LTC4261
+	tristate "Linear Technology LTC4261"
+	depends on I2C
+	help
+	  If you say yes here you get support for Linear Technology LTC4261
+	  Negative Voltage Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4261.
+
+config SENSORS_LTQ_CPUTEMP
+	bool "Lantiq cpu temperature sensor driver"
+	depends on LANTIQ
+	help
+	  If you say yes here you get support for the temperature
+	  sensor inside your CPU.
+
+config SENSORS_MAX1111
+	tristate "Maxim MAX1111 Serial 8-bit ADC chip and compatibles"
+	depends on SPI_MASTER
+	help
+	  Say y here to support Maxim's MAX1110, MAX1111, MAX1112, and MAX1113
+	  ADC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max1111.
+
+config SENSORS_MAX127
+	tristate "Maxim MAX127 12-bit 8-channel Data Acquisition System"
+	depends on I2C
+	help
+	  Say y here to support Maxim's MAX127 DAS chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max127.
+
+config SENSORS_MAX16065
+	tristate "Maxim MAX16065 System Manager and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for hardware monitoring
+	  capabilities of the following Maxim System Manager chips.
+	    MAX16065
+	    MAX16066
+	    MAX16067
+	    MAX16068
+	    MAX16070
+	    MAX16071
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max16065.
+
+config SENSORS_MAX1619
+	tristate "Maxim MAX1619 sensor chip"
+	depends on I2C
+	help
+	  If you say yes here you get support for MAX1619 sensor chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max1619.
+
+config SENSORS_MAX1668
+	tristate "Maxim MAX1668 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for MAX1668, MAX1989 and
+	  MAX1805 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max1668.
+
+config SENSORS_MAX197
+	tristate "Maxim MAX197 and compatibles"
+	help
+	  Support for the Maxim MAX197 A/D converter.
+	  Support will include, but not be limited to, MAX197, and MAX199.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max197.
+
+config SENSORS_MAX31722
+	tristate "MAX31722 temperature sensor"
+	depends on SPI
+	help
+	  Support for the Maxim Integrated MAX31722/MAX31723 digital
+	  thermometers/thermostats operating over an SPI interface.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31722.
+
+config SENSORS_MAX31730
+	tristate "MAX31730 temperature sensor"
+	depends on I2C
+	help
+	  Support for the Maxim Integrated MAX31730 3-Channel Remote
+	  Temperature Sensor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31730.
+
+config SENSORS_MAX6621
+	tristate "Maxim MAX6621 sensor chip"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for MAX6621 sensor chip.
+	  MAX6621 is a PECI-to-I2C translator provides an efficient,
+	  low-cost solution for PECI-to-SMBus/I2C protocol conversion.
+	  It allows reading the temperature from the PECI-compliant
+	  host directly from up to four PECI-enabled CPUs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max6621.
+
+config SENSORS_MAX6639
+	tristate "Maxim MAX6639 sensor chip"
+	depends on I2C
+	help
+	  If you say yes here you get support for the MAX6639
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max6639.
+
+config SENSORS_MAX6642
+	tristate "Maxim MAX6642 sensor chip"
+	depends on I2C
+	help
+	  If you say yes here you get support for MAX6642 sensor chip.
+	  MAX6642 is a SMBus-Compatible Remote/Local Temperature Sensor
+	  with Overtemperature Alarm from Maxim.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max6642.
+
+config SENSORS_MAX6650
+	tristate "Maxim MAX6650 sensor chip"
+	depends on I2C
+	depends on THERMAL || THERMAL=n
+	help
+	  If you say yes here you get support for the MAX6650 / MAX6651
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max6650.
+
+config SENSORS_MAX6697
+	tristate "Maxim MAX6697 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for MAX6581, MAX6602, MAX6622,
+	  MAX6636, MAX6689, MAX6693, MAX6694, MAX6697, MAX6698, and MAX6699
+	  temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max6697.
+
+config SENSORS_MAX31790
+	tristate "Maxim MAX31790 sensor chip"
+	depends on I2C
+	help
+	  If you say yes here you get support for 6-Channel PWM-Output
+	  Fan RPM Controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31790.
+
+config SENSORS_MCP3021
+	tristate "Microchip MCP3021 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for MCP3021 and MCP3221.
+	  The MCP3021 is a A/D converter (ADC) with 10-bit and the MCP3221
+	  with 12-bit resolution.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called mcp3021.
+
+config SENSORS_MLXREG_FAN
+	tristate "Mellanox FAN driver"
+	depends on MELLANOX_PLATFORM
+	imply THERMAL
+	select REGMAP
+	help
+	  This option enables support for the FAN control on the Mellanox
+	  Ethernet and InfiniBand switches. The driver can be activated by the
+	  platform device add call. Say Y to enable these. To compile this
+	  driver as a module, choose 'M' here: the module will be called
+	  mlxreg-fan.
+
+config SENSORS_TC654
+	tristate "Microchip TC654/TC655 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for TC654 and TC655.
+	  The TC654 and TC655 are PWM mode fan speed controllers with
+	  FanSense technology for use with brushless DC fans.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tc654.
+
+config SENSORS_TPS23861
+	tristate "Texas Instruments TPS23861 PoE PSE"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments
+	  TPS23861 802.3at PoE PSE chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tps23861.
+
+config SENSORS_MENF21BMC_HWMON
+	tristate "MEN 14F021P00 BMC Hardware Monitoring"
+	depends on MFD_MENF21BMC
+	help
+	  Say Y here to include support for the MEN 14F021P00 BMC
+	  hardware monitoring.
+
+	  This driver can also be built as a module. If so the module
+	  will be called menf21bmc_hwmon.
+
+config SENSORS_MR75203
+	tristate "Moortec Semiconductor MR75203 PVT Controller"
+	select REGMAP_MMIO
+	help
+	  If you say yes here you get support for Moortec MR75203
+	  PVT controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called mr75203.
+
+config SENSORS_ADCXX
+	tristate "National Semiconductor ADCxxxSxxx"
+	depends on SPI_MASTER
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  ADC<bb><c>S<sss> chip family, where
+	  * bb  is the resolution in number of bits (8, 10, 12)
+	  * c   is the number of channels (1, 2, 4, 8)
+	  * sss is the maximum conversion speed (021 for 200 kSPS, 051 for 500
+	    kSPS and 101 for 1 MSPS)
+
+	  Examples : ADC081S101, ADC124S501, ...
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adcxx.
+
+config SENSORS_LM63
+	tristate "National Semiconductor LM63 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for the National
+	  Semiconductor LM63, LM64, and LM96163 remote diode digital temperature
+	  sensors with integrated fan control.  Such chips are found
+	  on the Tyan S4882 (Thunder K8QS Pro) motherboard, among
+	  others.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm63.
+
+config SENSORS_LM70
+	tristate "National Semiconductor LM70 and compatibles"
+	depends on SPI_MASTER
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LM70, LM71, LM74 and Texas Instruments TMP121/TMP123 digital tempera-
+	  ture sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm70.
+
+config SENSORS_LM73
+	tristate "National Semiconductor LM73"
+	depends on I2C
+	help
+	  If you say yes here you get support for National Semiconductor LM73
+	  sensor chips.
+	  This driver can also be built as a module. If so, the module
+	  will be called lm73.
+
+config SENSORS_LM75
+	tristate "National Semiconductor LM75 and compatibles"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for one common type of
+	  temperature sensor chip, with models including:
+
+		- Analog Devices ADT75
+		- Dallas Semiconductor DS75, DS1775 and DS7505
+		- Global Mixed-mode Technology (GMT) G751
+		- Maxim MAX6625 and MAX6626
+		- Microchip MCP980x
+		- National Semiconductor LM75, LM75A
+		- NXP's LM75A
+		- ST Microelectronics STDS75
+		- ST Microelectronics STLM75
+		- TelCom (now Microchip) TCN75
+		- Texas Instruments TMP100, TMP101, TMP105, TMP112, TMP75,
+		  TMP175, TMP275
+
+	  This driver supports driver model based binding through board
+	  specific I2C device tables.
+
+	  It also supports the "legacy" style of driver binding.  To use
+	  that with some chips which don't replicate LM75 quirks exactly,
+	  you may need the "force" module parameter.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm75.
+
+config SENSORS_LM77
+	tristate "National Semiconductor LM77"
+	depends on I2C
+	help
+	  If you say yes here you get support for National Semiconductor LM77
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm77.
+
+config SENSORS_LM78
+	tristate "National Semiconductor LM78 and compatibles"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for National Semiconductor LM78,
+	  LM78-J and LM79.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm78.
+
+config SENSORS_LM80
+	tristate "National Semiconductor LM80 and LM96080"
+	depends on I2C
+	help
+	  If you say yes here you get support for National Semiconductor
+	  LM80 and LM96080 sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm80.
+
+config SENSORS_LM83
+	tristate "National Semiconductor LM83 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for National Semiconductor
+	  LM82 and LM83 sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm83.
+
+config SENSORS_LM85
+	tristate "National Semiconductor LM85 and compatibles"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for National Semiconductor LM85
+	  sensor chips and clones: ADM1027, ADT7463, ADT7468, EMC6D100,
+	  EMC6D101, EMC6D102, and EMC6D103.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm85.
+
+config SENSORS_LM87
+	tristate "National Semiconductor LM87 and compatibles"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for National Semiconductor LM87
+	  and Analog Devices ADM1024 sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm87.
+
+config SENSORS_LM90
+	tristate "National Semiconductor LM90 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for National Semiconductor LM90,
+	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
+	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6654, MAX6657, MAX6658,
+	  MAX6659, MAX6680, MAX6681, MAX6692, MAX6695, MAX6696,
+	  ON Semiconductor NCT1008, Winbond/Nuvoton W83L771W/G/AWG/ASG,
+	  Philips SA56004, GMT G781, and Texas Instruments TMP451
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm90.
+
+config SENSORS_LM92
+	tristate "National Semiconductor LM92 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for National Semiconductor LM92
+	  and Maxim MAX6635 sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm92.
+
+config SENSORS_LM93
+	tristate "National Semiconductor LM93 and compatibles"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for National Semiconductor LM93,
+	  LM94, and compatible sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm93.
+
+config SENSORS_LM95234
+	tristate "National Semiconductor LM95234 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for the LM95233 and LM95234
+	  temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm95234.
+
+config SENSORS_LM95241
+	tristate "National Semiconductor LM95241 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for LM95231 and LM95241 sensor
+	  chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm95241.
+
+config SENSORS_LM95245
+	tristate "National Semiconductor LM95245 and compatibles"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for LM95235 and LM95245
+	  temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lm95245.
+
+config SENSORS_PC87360
+	tristate "National Semiconductor PC87360 family"
+	depends on !PPC
+	select HWMON_VID
+	help
+	  If you say yes here you get access to the hardware monitoring
+	  functions of the National Semiconductor PC8736x Super-I/O chips.
+	  The PC87360, PC87363 and PC87364 only have fan monitoring and
+	  control.  The PC87365 and PC87366 additionally have voltage and
+	  temperature monitoring.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pc87360.
+
+config SENSORS_PC87427
+	tristate "National Semiconductor PC87427"
+	depends on !PPC
+	help
+	  If you say yes here you get access to the hardware monitoring
+	  functions of the National Semiconductor PC87427 Super-I/O chip.
+	  The chip has two distinct logical devices, one for fan speed
+	  monitoring and control, and one for voltage and temperature
+	  monitoring. Fan speed monitoring and control are supported, as
+	  well as temperature monitoring. Voltages aren't supported yet.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pc87427.
+
+config SENSORS_NTC_THERMISTOR
+	tristate "NTC thermistor support from Murata"
+	depends on !OF || IIO=n || IIO
+	depends on THERMAL || !THERMAL_OF
+	help
+	  This driver supports NTC thermistors sensor reading and its
+	  interpretation. The driver can also monitor the temperature and
+	  send notifications about the temperature.
+
+	  Currently, this driver supports
+	  NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473, NCP15WL333,
+	  NCP03WF104 and NCP15XH103 from Murata and B57330V2103 and
+	  B57891S0103 from EPCOS.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ntc-thermistor.
+
+config SENSORS_NCT6683
+	tristate "Nuvoton NCT6683D"
+	depends on !PPC
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  functionality of the Nuvoton NCT6683D eSIO chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct6683.
+
+config SENSORS_NCT6775
+	tristate "Nuvoton NCT6775F and compatibles"
+	depends on !PPC
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
+	  NCT6791D, NCT6792D, NCT6793D, NCT6795D, NCT6796D, and compatible
+	  Super-I/O chips. This driver replaces the w83627ehf driver for
+	  NCT6775F and NCT6776F.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct6775.
+
+config SENSORS_NCT7802
+	tristate "Nuvoton NCT7802Y"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Nuvoton NCT7802Y
+	  hardware monitoring chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct7802.
+
+config SENSORS_NCT7904
+	tristate "Nuvoton NCT7904"
+	depends on I2C && WATCHDOG
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for the Nuvoton NCT7904
+	  hardware monitoring chip, including manual fan speed control
+	  and support for the integrated watchdog.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct7904.
+
+config SENSORS_NPCM7XX
+	tristate "Nuvoton NPCM750 and compatible PWM and Fan controllers"
+	imply THERMAL
+	help
+	  This driver provides support for Nuvoton NPCM750/730/715/705 PWM
+          and Fan controllers.
+
+          This driver can also be built as a module. If so, the module
+          will be called npcm750-pwm-fan.
+
+config SENSORS_NSA320
+	tristate "ZyXEL NSA320 and compatible fan speed and temperature sensors"
+	depends on GPIOLIB && OF
+	depends on MACH_KIRKWOOD || COMPILE_TEST
+	help
+	  If you say yes here you get support for hardware monitoring
+	  for the ZyXEL NSA320 Media Server and other compatible devices
+	  (probably the NSA325 and some NSA310 variants).
+
+	  The sensor data is taken from a Holtek HT46R065 microcontroller
+	  connected to GPIO lines.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nsa320-hwmon.
+
+config SENSORS_NZXT_KRAKEN2
+	tristate "NZXT Kraken X42/X51/X62/X72 liquid coolers"
+	depends on USB_HID
+	help
+	  If you say yes here you get support for hardware monitoring for the
+	  NZXT Kraken X42/X52/X62/X72 all-in-one CPU liquid coolers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nzxt-kraken2.
+
+source "drivers/hwmon/occ/Kconfig"
+
+config SENSORS_PCF8591
+	tristate "Philips PCF8591 ADC/DAC"
+	depends on I2C
+	help
+	  If you say yes here you get support for Philips PCF8591 4-channel
+	  ADC, 1-channel DAC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pcf8591.
+
+	  These devices are hard to detect and rarely found on mainstream
+	  hardware. If unsure, say N.
+
+source "drivers/hwmon/pmbus/Kconfig"
+
+config SENSORS_PWM_FAN
+	tristate "PWM fan"
+	depends on (PWM && OF) || COMPILE_TEST
+	depends on THERMAL || THERMAL=n
+	help
+	  If you say yes here you get support for fans connected to PWM lines.
+	  The driver uses the generic PWM interface, thus it will work on a
+	  variety of SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pwm-fan.
+
+config SENSORS_RASPBERRYPI_HWMON
+	tristate "Raspberry Pi voltage monitor"
+	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
+	help
+	  If you say yes here you get support for voltage sensor on the
+	  Raspberry Pi.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called raspberrypi-hwmon.
+
+config SENSORS_SL28CPLD
+	tristate "Kontron sl28cpld hardware monitoring driver"
+	depends on MFD_SL28CPLD || COMPILE_TEST
+	help
+	  If you say yes here you get support for the fan supervisor of the
+	  sl28cpld board management controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sl28cpld-hwmon.
+
+config SENSORS_SBTSI
+	tristate "Emulated SB-TSI temperature sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for emulated temperature
+	  sensors on AMD SoCs with SB-TSI interface connected to a BMC device.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called sbtsi_temp.
+
+config SENSORS_SBRMI
+	tristate "Emulated SB-RMI sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for emulated RMI
+	  sensors on AMD SoCs with APML interface connected to a BMC device.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called sbrmi.
+
+config SENSORS_SHT15
+	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
+	depends on GPIOLIB || COMPILE_TEST
+	select BITREVERSE
+	help
+	  If you say yes here you get support for the Sensiron SHT10, SHT11,
+	  SHT15, SHT71, SHT75 humidity and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sht15.
+
+config SENSORS_SHT21
+	tristate "Sensiron humidity and temperature sensors. SHT21 and compat."
+	depends on I2C
+	help
+	  If you say yes here you get support for the Sensiron SHT21, SHT25
+	  humidity and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sht21.
+
+config SENSORS_SHT3x
+	tristate "Sensiron humidity and temperature sensors. SHT3x and compat."
+	depends on I2C
+	select CRC8
+	help
+	  If you say yes here you get support for the Sensiron SHT30 and SHT31
+	  humidity and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sht3x.
+
+config SENSORS_SHT4x
+	tristate "Sensiron humidity and temperature sensors. SHT4x and compat."
+	depends on I2C
+	select CRC8
+	help
+	  If you say yes here you get support for the Sensiron SHT40, SHT41 and
+	  SHT45 humidity and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sht4x.
+
+config SENSORS_SHTC1
+	tristate "Sensiron humidity and temperature sensors. SHTC1 and compat."
+	depends on I2C
+	help
+	  If you say yes here you get support for the Sensiron SHTC1, SHTW1,
+	  and SHTC3 humidity and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called shtc1.
+
+config SENSORS_S3C
+	tristate "Samsung built-in ADC"
+	depends on S3C_ADC
+	help
+	  If you say yes here you get support for the on-board ADCs of
+	  the Samsung S3C24XX, S3C64XX and other series of SoC
+
+	  This driver can also be built as a module. If so, the module
+	  will be called s3c-hwmon.
+
+config SENSORS_S3C_RAW
+	bool "Include raw channel attributes in sysfs"
+	depends on SENSORS_S3C
+	help
+	  Say Y here if you want to include raw copies of all the ADC
+	  channels in sysfs.
+
+config SENSORS_SIS5595
+	tristate "Silicon Integrated Systems Corp. SiS5595"
+	depends on PCI
+	help
+	  If you say yes here you get support for the integrated sensors in
+	  SiS5595 South Bridges.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sis5595.
+
+config SENSORS_DME1737
+	tristate "SMSC DME1737, SCH311x and compatibles"
+	depends on I2C && !PPC
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  and fan control features of the SMSC DME1737, SCH311x, SCH5027, and
+	  Asus A8000 Super-I/O chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called dme1737.
+
+config SENSORS_EMC1403
+	tristate "SMSC EMC1403/23 thermal sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the SMSC EMC1403/23
+	  temperature monitoring chip.
+
+	  Threshold values can be configured using sysfs.
+	  Data from the different diodes are accessible via sysfs.
+
+config SENSORS_EMC2103
+	tristate "SMSC EMC2103"
+	depends on I2C
+	help
+	  If you say yes here you get support for the temperature
+	  and fan sensors of the SMSC EMC2103 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called emc2103.
+
+config SENSORS_EMC6W201
+	tristate "SMSC EMC6W201"
+	depends on I2C
+	help
+	  If you say yes here you get support for the SMSC EMC6W201
+	  hardware monitoring chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called emc6w201.
+
+config SENSORS_SMSC47M1
+	tristate "SMSC LPC47M10x and compatibles"
+	depends on !PPC
+	help
+	  If you say yes here you get support for the integrated fan
+	  monitoring and control capabilities of the SMSC LPC47B27x,
+	  LPC47M10x, LPC47M112, LPC47M13x, LPC47M14x, LPC47M15x,
+	  LPC47M192, LPC47M292 and LPC47M997 chips.
+
+	  The temperature and voltage sensor features of the LPC47M15x,
+	  LPC47M192, LPC47M292 and LPC47M997 are supported by another
+	  driver, select also "SMSC LPC47M192 and compatibles" below for
+	  those.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called smsc47m1.
+
+config SENSORS_SMSC47M192
+	tristate "SMSC LPC47M192 and compatibles"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the temperature and
+	  voltage sensors of the SMSC LPC47M192, LPC47M15x, LPC47M292
+	  and LPC47M997 chips.
+
+	  The fan monitoring and control capabilities of these chips
+	  are supported by another driver, select
+	  "SMSC LPC47M10x and compatibles" above. You need both drivers
+	  if you want fan control and voltage/temperature sensor support.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called smsc47m192.
+
+config SENSORS_SMSC47B397
+	tristate "SMSC LPC47B397-NC"
+	depends on !PPC
+	help
+	  If you say yes here you get support for the SMSC LPC47B397-NC
+	  sensor chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called smsc47b397.
+
+config SENSORS_SCH56XX_COMMON
+	tristate
+
+config SENSORS_SCH5627
+	tristate "SMSC SCH5627"
+	depends on !PPC && WATCHDOG
+	select SENSORS_SCH56XX_COMMON
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  features of the SMSC SCH5627 Super-I/O chip including support for
+	  the integrated watchdog.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sch5627.
+
+config SENSORS_SCH5636
+	tristate "SMSC SCH5636"
+	depends on !PPC && WATCHDOG
+	select SENSORS_SCH56XX_COMMON
+	select WATCHDOG_CORE
+	help
+	  SMSC SCH5636 Super I/O chips include an embedded microcontroller for
+	  hardware monitoring solutions, allowing motherboard manufacturers to
+	  create their own custom hwmon solution based upon the SCH5636.
+
+	  Currently this driver only supports the Fujitsu Theseus SCH5636 based
+	  hwmon solution. Say yes here if you want support for the Fujitsu
+	  Theseus' hardware monitoring features including support for the
+	  integrated watchdog.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sch5636.
+
+config SENSORS_STTS751
+	tristate "ST Microelectronics STTS751"
+	depends on I2C
+	help
+	  If you say yes here you get support for STTS751
+	  temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called stts751.
+
+config SENSORS_SMM665
+	tristate "Summit Microelectronics SMM665"
+	depends on I2C
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  features of the Summit Microelectronics SMM665/SMM665B Six-Channel
+	  Active DC Output Controller / Monitor.
+
+	  Other supported chips are SMM465, SMM665C, SMM764, and SMM766.
+	  Support for those chips is untested.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called smm665.
+
+config SENSORS_ADC128D818
+	tristate "Texas Instruments ADC128D818"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  ADC128D818 System Monitor with Temperature Sensor chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adc128d818.
+
+config SENSORS_ADS7828
+	tristate "Texas Instruments ADS7828 and compatibles"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments ADS7828 and
+	  ADS7830 8-channel A/D converters. ADS7828 resolution is 12-bit, while
+	  it is 8-bit on ADS7830.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ads7828.
+
+config SENSORS_ADS7871
+	tristate "Texas Instruments ADS7871 A/D converter"
+	depends on SPI
+	help
+	  If you say yes here you get support for TI ADS7871 & ADS7870
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ads7871.
+
+config SENSORS_AMC6821
+	tristate "Texas Instruments AMC6821"
+	depends on I2C 
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  AMC6821 hardware monitoring chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called amc6821.
+
+config SENSORS_INA209
+	tristate "TI / Burr Brown INA209"
+	depends on I2C
+	help
+	  If you say yes here you get support for the TI / Burr Brown INA209
+	  voltage / current / power monitor I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ina209.
+
+config SENSORS_INA2XX
+	tristate "Texas Instruments INA219 and compatibles"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for INA219, INA220, INA226,
+	  INA230, and INA231 power monitor chips.
+
+	  The INA2xx driver is configured for the default configuration of
+	  the part as described in the datasheet.
+	  Default value for Rshunt is 10 mOhms.
+	  This driver can also be built as a module. If so, the module
+	  will be called ina2xx.
+
+config SENSORS_INA3221
+	tristate "Texas Instruments INA3221 Triple Power Monitor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for  the TI INA3221 Triple Power
+	  Monitor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ina3221.
+
+config SENSORS_TC74
+	tristate "Microchip TC74"
+	depends on I2C
+	help
+	  If you say yes here you get support for Microchip TC74 single
+	  input temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tc74.
+
+config SENSORS_THMC50
+	tristate "Texas Instruments THMC50 / Analog Devices ADM1022"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments THMC50
+	  sensor chips and clones: the Analog Devices ADM1022.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called thmc50.
+
+config SENSORS_TMP102
+	tristate "Texas Instruments TMP102"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP102
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp102.
+
+config SENSORS_TMP103
+	tristate "Texas Instruments TMP103"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP103
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp103.
+
+config SENSORS_TMP108
+	tristate "Texas Instruments TMP108"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP108
+	  sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp108.
+
+config SENSORS_TMP401
+	tristate "Texas Instruments TMP401 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP401,
+	  TMP411, TMP431, TMP432, TMP435, and TMP461 temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp401.
+
+config SENSORS_TMP421
+	tristate "Texas Instruments TMP421 and compatible"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP421,
+	  TMP422, TMP423, TMP441, and TMP442 temperature sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp421.
+
+config SENSORS_TMP513
+	tristate "Texas Instruments TMP513 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP512,
+	  and TMP513 temperature and power supply sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tmp513.
+
+config SENSORS_VEXPRESS
+	tristate "Versatile Express"
+	depends on VEXPRESS_CONFIG
+	help
+	  This driver provides support for hardware sensors available on
+	  the ARM Ltd's Versatile Express platform. It can provide wide
+	  range of information like temperature, power, energy.
+
+config SENSORS_VIA_CPUTEMP
+	tristate "VIA CPU temperature sensor"
+	depends on X86
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the temperature
+	  sensor inside your CPU. Supported are all known variants of
+	  the VIA C7 and Nano.
+
+config SENSORS_VIA686A
+	tristate "VIA686A"
+	depends on PCI
+	help
+	  If you say yes here you get support for the integrated sensors in
+	  Via 686A/B South Bridges.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called via686a.
+
+config SENSORS_VT1211
+	tristate "VIA VT1211"
+	depends on !PPC
+	select HWMON_VID
+	help
+	  If you say yes here then you get support for hardware monitoring
+	  features of the VIA VT1211 Super-I/O chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called vt1211.
+
+config SENSORS_VT8231
+	tristate "VIA VT8231"
+	depends on PCI
+	select HWMON_VID
+	help
+	  If you say yes here then you get support for the integrated sensors
+	  in the VIA VT8231 device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called vt8231.
+
+config SENSORS_W83773G
+	tristate "Nuvoton W83773G"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Nuvoton W83773G hardware
+	  monitoring chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83773g.
+
+config SENSORS_W83781D
+	tristate "Winbond W83781D, W83782D, W83783S, Asus AS99127F"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the Winbond W8378x series
+	  of sensor chips: the W83781D, W83782D and W83783S, and the similar
+	  Asus AS99127F.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83781d.
+
+config SENSORS_W83791D
+	tristate "Winbond W83791D"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the Winbond W83791D chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83791d.
+
+config SENSORS_W83792D
+	tristate "Winbond W83792D"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Winbond W83792D chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83792d.
+
+config SENSORS_W83793
+	tristate "Winbond W83793"
+	depends on I2C
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the Winbond W83793
+	  hardware monitoring chip, including support for the integrated
+	  watchdog.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83793.
+
+config SENSORS_W83795
+	tristate "Winbond/Nuvoton W83795G/ADG"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Winbond W83795G and
+	  W83795ADG hardware monitoring chip, including manual fan speed
+	  control.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83795.
+
+config SENSORS_W83795_FANCTRL
+	bool "Include automatic fan control support"
+	depends on SENSORS_W83795
+	help
+	  If you say yes here, support for automatic fan speed control
+	  will be included in the driver.
+
+	  Please also note that this option will create sysfs attribute
+	  files which may change in the future, so you shouldn't rely
+	  on them being stable.
+
+config SENSORS_W83L785TS
+	tristate "Winbond W83L785TS-S"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Winbond W83L785TS-S
+	  sensor chip, which is used on the Asus A7N8X, among other
+	  motherboards.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83l785ts.
+
+config SENSORS_W83L786NG
+	tristate "Winbond W83L786NG, W83L786NR"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Winbond W83L786NG
+	  and W83L786NR sensor chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83l786ng.
+
+config SENSORS_W83627HF
+	tristate "Winbond W83627HF, W83627THF, W83637HF, W83687THF, W83697HF"
+	depends on !PPC
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the Winbond W836X7 series
+	  of sensor chips: the W83627HF, W83627THF, W83637HF, W83687THF and
+	  W83697HF.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83627hf.
+
+config SENSORS_W83627EHF
+	tristate "Winbond W83627EHF/EHG/DHG/UHG, W83667HG"
+	depends on !PPC
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the hardware
+	  monitoring functionality of the Winbond W83627EHF Super-I/O chip.
+
+	  This driver also supports the W83627EHG, which is the lead-free
+	  version of the W83627EHF, and the W83627DHG, which is a similar
+	  chip suited for specific Intel processors that use PECI such as
+	  the Core 2 Duo. And also the W83627UHG, which is a stripped down
+	  version of the W83627DHG (as far as hardware monitoring goes.)
+
+	  This driver also supports Nuvoton W83667HG and W83667HG-B.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called w83627ehf.
+
+config SENSORS_WM831X
+	tristate "WM831x PMICs"
+	depends on MFD_WM831X
+	help
+	  If you say yes here you get support for the hardware
+	  monitoring functionality of the Wolfson Microelectronics
+	  WM831x series of PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called wm831x-hwmon.
+
+config SENSORS_WM8350
+	tristate "Wolfson Microelectronics WM835x"
+	depends on MFD_WM8350
+	help
+	  If you say yes here you get support for the hardware
+	  monitoring features of the WM835x series of PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called wm8350-hwmon.
+
+config SENSORS_ULTRA45
+	tristate "Sun Ultra45 PIC16F747"
+	depends on SPARC64
+	help
+	  This driver provides support for the Ultra45 workstation environmental
+	  sensors.
+
+config SENSORS_XGENE
+	tristate "APM X-Gene SoC hardware monitoring driver"
+	depends on XGENE_SLIMPRO_MBOX || PCC
+	help
+	  If you say yes here you get support for the temperature
+	  and power sensors for APM X-Gene SoC.
+
+config SENSORS_INTEL_M10_BMC_HWMON
+	tristate "Intel MAX10 BMC Hardware Monitoring"
+	depends on MFD_INTEL_M10_BMC
+	help
+	  This driver provides support for the hardware monitoring functionality
+	  on Intel MAX10 BMC chip.
+
+	  This BMC Chip is used on Intel FPGA PCIe Acceleration Cards (PAC). Its
+	  sensors monitor various telemetry data of different components on the
+	  card, e.g. board temperature, FPGA core temperature/voltage/current.
+
+if ACPI
+
+comment "ACPI drivers"
+
+config SENSORS_ACPI_POWER
+	tristate "ACPI 4.0 power meter"
+	help
+	  This driver exposes ACPI 4.0 power meters as hardware monitoring
+	  devices.  Say Y (or M) if you have a computer with ACPI 4.0 firmware
+	  and a power meter.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called acpi_power_meter.
+
+config SENSORS_ATK0110
+	tristate "ASUS ATK0110"
+	depends on X86
+	help
+	  If you say yes here you get support for the ACPI hardware
+	  monitoring interface found in many ASUS motherboards. This
+	  driver will provide readings of fans, voltages and temperatures
+	  through the system firmware.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_atk0110.
+
+endif # ACPI
+
+endif # HWMON

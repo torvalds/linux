@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2020 Arm Ltd.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/perf/arm,cmn.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Arm CMN (Coherent Mesh Network) Performance Monitors
+
+maintainers:
+  - Robin Murphy <robin.murphy@arm.com>
+
+properties:
+  compatible:
+    const: arm,cmn-600
+
+  reg:
+    items:
+      - description: Physical address of the base (PERIPHBASE) and
+          size (up to 64MB) of the configuration address space.
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: Overflow interrupt for DTC0
+      - description: Overflow interrupt for DTC1
+      - description: Overflow interrupt for DTC2
+      - description: Overflow interrupt for DTC3
+    description: One interrupt for each DTC domain implemented must
+      be specified, in order. DTC0 is always present.
+
+  arm,root-node:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Offset from PERIPHBASE of the configuration
+      discovery node (see TRM definition of ROOTNODEBASE).
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - arm,root-node
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    pmu@50000000 {
+        compatible = "arm,cmn-600";
+        reg = <0x50000000 0x4000000>;
+        /* 4x2 mesh with one DTC, and CFG node at 0,1,1,0 */
+        interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+        arm,root-node = <0x104000>;
+    };
+...

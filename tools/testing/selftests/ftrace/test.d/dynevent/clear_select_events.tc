@@ -1,0 +1,41 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Generic dynamic event - selective clear (compatibility)
+# requires: dynamic_events kprobe_events synthetic_events "place: [<module>:]<symbol>":README "place (kretprobe): [<module>:]<symbol>":README "s:[synthetic/]":README
+
+echo 0 > events/enable
+echo > dynamic_events
+
+PLACE=$FUNCTION_FORK
+
+setup_events() {
+echo "p:myevent1 $PLACE" >> dynamic_events
+echo "s:latency1 u64 lat; pid_t pid;" >> dynamic_events
+echo "r:myevent2 $PLACE" >> dynamic_events
+echo "s:latency2 u64 lat; pid_t pid;" >> dynamic_events
+
+grep -q myevent1 dynamic_events
+grep -q myevent2 dynamic_events
+grep -q latency1 dynamic_events
+grep -q latency2 dynamic_events
+}
+
+setup_events
+echo > synthetic_events
+
+grep -q myevent1 dynamic_events
+grep -q myevent2 dynamic_events
+! grep -q latency1 dynamic_events
+! grep -q latency2 dynamic_events
+
+echo > dynamic_events
+
+setup_events
+echo > kprobe_events
+
+! grep -q myevent1 dynamic_events
+! grep -q myevent2 dynamic_events
+grep -q latency1 dynamic_events
+grep -q latency2 dynamic_events
+
+echo > dynamic_events

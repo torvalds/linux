@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/arm,mhu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM MHU Mailbox Controller
+
+maintainers:
+  - Jassi Brar <jaswinder.singh@linaro.org>
+
+description: |
+  The ARM's Message-Handling-Unit (MHU) is a mailbox controller that has 3
+  independent channels/links to communicate with remote processor(s).  MHU links
+  are hardwired on a platform. A link raises interrupt for any received data.
+  However, there is no specified way of knowing if the sent data has been read
+  by the remote. This driver assumes the sender polls STAT register and the
+  remote clears it after having read the data.  The last channel is specified to
+  be a 'Secure' resource, hence can't be used by Linux running NS.
+
+  The MHU hardware also allows operations in doorbell mode. The MHU drives the
+  interrupt signal using a 32-bit register, with all 32-bits logically ORed
+  together. It provides a set of registers to enable software to set, clear and
+  check the status of each of the bits of this register independently. The use
+  of 32 bits per interrupt line enables software to provide more information
+  about the source of the interrupt. For example, each bit of the register can
+  be associated with a type of event that can contribute to raising the
+  interrupt. Each of the 32-bits can be used as "doorbell" to alert the remote
+  processor.
+
+# We need a select here so we don't match all nodes with 'arm,primecell'
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - arm,mhu
+          - arm,mhu-doorbell
+  required:
+    - compatible
+
+properties:
+  compatible:
+    oneOf:
+      - description: Data transfer mode
+        items:
+          - const: arm,mhu
+          - const: arm,primecell
+
+      - description: Doorbell mode
+        items:
+          - const: arm,mhu-doorbell
+          - const: arm,primecell
+
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: low-priority non-secure
+      - description: high-priority non-secure
+      - description: Secure
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: apb_pclk
+
+  '#mbox-cells':
+    description: |
+      Set to 1 in data transfer mode and represents index of the channel.
+      Set to 2 in doorbell mode and represents index of the channel and doorbell
+      number.
+    enum: [ 1, 2 ]
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - '#mbox-cells'
+
+additionalProperties: false
+
+examples:
+  # Data transfer mode.
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        mhuA: mailbox@2b1f0000 {
+            #mbox-cells = <1>;
+            compatible = "arm,mhu", "arm,primecell";
+            reg = <0 0x2b1f0000 0 0x1000>;
+            interrupts = <0 36 4>, /* LP-NonSecure */
+                         <0 35 4>, /* HP-NonSecure */
+                         <0 37 4>; /* Secure */
+            clocks = <&clock 0 2 1>;
+            clock-names = "apb_pclk";
+        };
+    };
+
+    firmware {
+        scpi {
+            compatible = "arm,scpi";
+            mboxes = <&mhuA 1>; /* HP-NonSecure */
+            shmem = <&cpu_scp_hpri>; /* HP-NonSecure */
+
+            scpi_devpd: power-controller {
+                compatible = "arm,scpi-power-domains";
+                num-domains = <2>;
+                #power-domain-cells = <1>;
+            };
+        };
+    };
+
+  # Doorbell mode.
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        mhuB: mailbox@2b2f0000 {
+            #mbox-cells = <2>;
+            compatible = "arm,mhu-doorbell", "arm,primecell";
+            reg = <0 0x2b2f0000 0 0x1000>;
+            interrupts = <0 36 4>, /* LP-NonSecure */
+                         <0 35 4>, /* HP-NonSecure */
+                         <0 37 4>; /* Secure */
+            clocks = <&clock 0 2 1>;
+            clock-names = "apb_pclk";
+        };
+    };
+
+    firmware {
+        scmi {
+            compatible = "arm,scmi";
+            mboxes = <&mhuB 0 0>, /* LP-NonSecure, 1st doorbell */
+                     <&mhuB 0 1>; /* LP-NonSecure, 2nd doorbell */
+            mbox-names = "tx", "rx";
+            shmem = <&cpu_scp_lpri0>,
+                    <&cpu_scp_lpri1>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            scmi_devpd: protocol@11 {
+                reg = <0x11>;
+                #power-domain-cells = <1>;
+            };
+
+            scmi_dvfs: protocol@13 {
+                reg = <0x13>;
+                #clock-cells = <1>;
+
+                mboxes = <&mhuB 1 2>, /* HP-NonSecure, 3rd doorbell */
+                         <&mhuB 1 3>; /* HP-NonSecure, 4th doorbell */
+                mbox-names = "tx", "rx";
+                shmem = <&cpu_scp_hpri0>,
+                        <&cpu_scp_hpri1>;
+            };
+        };
+    };
+
+...

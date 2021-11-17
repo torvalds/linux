@@ -1,0 +1,37 @@
+Hisilicon System Reset Controller
+======================================
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+The reset controller registers are part of the system-ctl block on
+hi6220 SoC.
+
+Required properties:
+- compatible: should be one of the following:
+  - "hisilicon,hi6220-sysctrl", "syscon" : For peripheral reset controller.
+  - "hisilicon,hi6220-mediactrl", "syscon" : For media reset controller.
+  - "hisilicon,hi6220-aoctrl", "syscon" : For ao reset controller.
+- reg: should be register base and length as documented in the
+  datasheet
+- #reset-cells: 1, see below
+
+Example:
+sys_ctrl: sys_ctrl@f7030000 {
+	compatible = "hisilicon,hi6220-sysctrl", "syscon";
+	reg = <0x0 0xf7030000 0x0 0x2000>;
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};
+
+Specifying reset lines connected to IP modules
+==============================================
+example:
+
+        uart1: serial@..... {
+                ...
+                resets = <&sys_ctrl PERIPH_RSTEN3_UART1>;
+                ...
+        };
+
+The index could be found in <dt-bindings/reset/hisi,hi6220-resets.h>.

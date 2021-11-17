@@ -1,0 +1,38 @@
+OMAP SoC and Inside-Secure HWRNG Module
+
+Required properties:
+
+- compatible : Should contain entries for this and backward compatible
+  RNG versions:
+  - "ti,omap2-rng" for OMAP2.
+  - "ti,omap4-rng" for OMAP4, OMAP5 and AM33XX.
+  - "inside-secure,safexcel-eip76" for SoCs with EIP76 IP block
+  Note that these two versions are incompatible.
+- ti,hwmods: Name of the hwmod associated with the RNG module
+- reg : Offset and length of the register set for the module
+- interrupts : the interrupt number for the RNG module.
+		Used for "ti,omap4-rng" and "inside-secure,safexcel-eip76"
+- clocks: the trng clock source. Only mandatory for the
+  "inside-secure,safexcel-eip76" compatible, the second clock is
+  needed for the Armada 7K/8K SoCs
+- clock-names: mandatory if there is a second clock, in this case the
+  name must be "core" for the first clock and "reg" for the second
+  one
+
+
+Example:
+/* AM335x */
+rng: rng@48310000 {
+	compatible = "ti,omap4-rng";
+	ti,hwmods = "rng";
+	reg = <0x48310000 0x2000>;
+	interrupts = <111>;
+};
+
+/* SafeXcel IP-76 */
+trng: rng@f2760000 {
+	compatible = "inside-secure,safexcel-eip76";
+	reg = <0xf2760000 0x7d>;
+	interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&cpm_syscon0 1 25>;
+};

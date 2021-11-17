@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 Texas Instruments Incorporated
+# Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ti,j721e-cpb-ivi-audio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments J721e Common Processor Board Audio Support
+
+maintainers:
+  - Peter Ujfalusi <peter.ujfalusi@gmail.com>
+
+description: |
+  The Infotainment board plugs into the Common Processor Board, the support of the
+  extension board is extending the CPB audio support, decribed in:
+  sound/ti,j721e-cpb-audio.txt
+
+  The audio support on the Infotainment Expansion Board consists of McASP0
+  connected to two pcm3168a codecs with dedicated set of serializers to each.
+  The SCKI for pcm3168a is sourced from j721e AUDIO_REFCLK0 pin.
+
+  In order to support 48KHz and 44.1KHz family of sampling rates the parent clock
+  for AUDIO_REFCLK0 needs to be changed between PLL4 (for 48KHz) and PLL15 (for
+  44.1KHz). The same PLLs are used for McASP0's AUXCLK clock via different
+  HSDIVIDER.
+
+  Note: the same PLL4 and PLL15 is used by the audio support on the CPB!
+
+  Clocking setup for 48KHz family:
+  PLL4 ---> PLL4_HSDIV0 ---> MCASP10_AUXCLK ---> McASP10.auxclk
+        |                |-> MCASP0_AUXCLK  ---> McASP0.auxclk
+        |
+        |-> PLL4_HSDIV2 ---> AUDIO_REFCLK2  ---> pcm3168a.SCKI
+                         |-> AUDIO_REFCLK0  ---> pcm3168a_a/b.SCKI
+
+  Clocking setup for 44.1KHz family:
+  PLL15 ---> PLL15_HSDIV0 ---> MCASP10_AUXCLK ---> McASP10.auxclk
+        |                  |-> MCASP0_AUXCLK  ---> McASP0.auxclk
+        |
+        |-> PLL15_HSDIV2 ---> AUDIO_REFCLK2   ---> pcm3168a.SCKI
+                          |-> AUDIO_REFCLK0   ---> pcm3168a_a/b.SCKI
+
+properties:
+  compatible:
+    items:
+      - const: ti,j721e-cpb-ivi-audio
+
+  model:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: User specified audio sound card name
+
+  ti,cpb-mcasp:
+    description: phandle to McASP used on CPB
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  ti,cpb-codec:
+    description: phandle to the pcm3168a codec used on the CPB
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  ti,ivi-mcasp:
+    description: phandle to McASP used on IVI
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  ti,ivi-codec-a:
+    description: phandle to the pcm3168a-A codec on the expansion board
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  ti,ivi-codec-b:
+    description: phandle to the pcm3168a-B codec on the expansion board
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  clocks:
+    items:
+      - description: AUXCLK clock for McASP used by CPB audio
+      - description: Parent for CPB_McASP auxclk (for 48KHz)
+      - description: Parent for CPB_McASP auxclk (for 44.1KHz)
+      - description: SCKI clock for the pcm3168a codec on CPB
+      - description: Parent for CPB_SCKI clock (for 48KHz)
+      - description: Parent for CPB_SCKI clock (for 44.1KHz)
+      - description: AUXCLK clock for McASP used by IVI audio
+      - description: Parent for IVI_McASP auxclk (for 48KHz)
+      - description: Parent for IVI_McASP auxclk (for 44.1KHz)
+      - description: SCKI clock for the pcm3168a codec on IVI
+      - description: Parent for IVI_SCKI clock (for 48KHz)
+      - description: Parent for IVI_SCKI clock (for 44.1KHz)
+
+  clock-names:
+    items:
+      - const: cpb-mcasp-auxclk
+      - const: cpb-mcasp-auxclk-48000
+      - const: cpb-mcasp-auxclk-44100
+      - const: cpb-codec-scki
+      - const: cpb-codec-scki-48000
+      - const: cpb-codec-scki-44100
+      - const: ivi-mcasp-auxclk
+      - const: ivi-mcasp-auxclk-48000
+      - const: ivi-mcasp-auxclk-44100
+      - const: ivi-codec-scki
+      - const: ivi-codec-scki-48000
+      - const: ivi-codec-scki-44100
+
+required:
+  - compatible
+  - model
+  - ti,cpb-mcasp
+  - ti,cpb-codec
+  - ti,ivi-mcasp
+  - ti,ivi-codec-a
+  - ti,ivi-codec-b
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |+
+    sound {
+        compatible = "ti,j721e-cpb-ivi-audio";
+        model = "j721e-cpb-ivi";
+
+        ti,cpb-mcasp = <&mcasp10>;
+        ti,cpb-codec = <&pcm3168a_1>;
+
+        ti,ivi-mcasp = <&mcasp0>;
+        ti,ivi-codec-a = <&pcm3168a_a>;
+        ti,ivi-codec-b = <&pcm3168a_b>;
+
+        clocks = <&k3_clks 184 1>,
+                 <&k3_clks 184 2>, <&k3_clks 184 4>,
+                 <&k3_clks 157 371>,
+                 <&k3_clks 157 400>, <&k3_clks 157 401>,
+                 <&k3_clks 174 1>,
+                 <&k3_clks 174 2>, <&k3_clks 174 4>,
+                 <&k3_clks 157 301>,
+                 <&k3_clks 157 330>, <&k3_clks 157 331>;
+        clock-names = "cpb-mcasp-auxclk",
+                      "cpb-mcasp-auxclk-48000", "cpb-mcasp-auxclk-44100",
+                      "cpb-codec-scki",
+                      "cpb-codec-scki-48000", "cpb-codec-scki-44100",
+                      "ivi-mcasp-auxclk",
+                      "ivi-mcasp-auxclk-48000", "ivi-mcasp-auxclk-44100",
+                      "ivi-codec-scki",
+                      "ivi-codec-scki-48000", "ivi-codec-scki-44100";
+    };

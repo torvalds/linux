@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/* moxart.dtsi - Device Tree Include file for MOXA ART family SoC
+ *
+ * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "moxa,moxart";
+	model = "MOXART";
+	interrupt-parent = <&intc>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "faraday,fa526";
+			reg = <0>;
+		};
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x90000000 0x10000000>;
+		ranges;
+
+		intc: interrupt-controller@98800000 {
+			compatible = "moxa,moxart-ic", "faraday,ftintc010";
+			reg = <0x98800000 0x100>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-mask = <0x00080000>;
+		};
+
+		clk_pll: clk_pll@98100000 {
+			compatible = "moxa,moxart-pll-clock";
+			#clock-cells = <0>;
+			reg = <0x98100000 0x34>;
+		};
+
+		clk_apb: clk_apb@98100000 {
+			compatible = "moxa,moxart-apb-clock";
+			#clock-cells = <0>;
+			reg = <0x98100000 0x34>;
+			clocks = <&clk_pll>;
+		};
+
+		timer: timer@98400000 {
+			compatible = "moxa,moxart-timer", "faraday,fttmr010";
+			reg = <0x98400000 0x42>;
+			interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
+			clocks = <&clk_apb>;
+			clock-names = "PCLK";
+		};
+
+		gpio: gpio@98700000 {
+			gpio-controller;
+			#gpio-cells = <2>;
+			compatible = "moxa,moxart-gpio", "faraday,ftgpio010";
+			reg = <0x98700000 0x100>;
+		};
+
+		rtc: rtc {
+			compatible = "moxa,moxart-rtc";
+			gpio-rtc-sclk = <&gpio 5 0>;
+			gpio-rtc-data = <&gpio 6 0>;
+			gpio-rtc-reset = <&gpio 7 0>;
+		};
+
+		dma: dma@90500000 {
+			compatible = "moxa,moxart-dma";
+			reg = <0x90500080 0x40>;
+			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+		};
+
+		watchdog: watchdog@98500000 {
+			compatible = "moxa,moxart-watchdog", "faraday,ftwdt010";
+			reg = <0x98500000 0x10>;
+			clocks = <&clk_apb>;
+			clock-names = "PCLK";
+		};
+
+		sdhci: sdhci@98e00000 {
+			compatible = "moxa,moxart-sdhci";
+			reg = <0x98e00000 0x5C>;
+			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_apb>;
+			dmas =  <&dma 5>,
+				<&dma 5>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		mdio0: mdio@90900090 {
+			compatible = "moxa,moxart-mdio";
+			reg = <0x90900090 0x8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mdio1: mdio@92000090 {
+			compatible = "moxa,moxart-mdio";
+			reg = <0x92000090 0x8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mac0: mac@90900000 {
+			compatible = "moxa,moxart-mac";
+			reg = <0x90900000 0x90>;
+			interrupts = <25 IRQ_TYPE_LEVEL_HIGH>;
+			phy-handle = <&ethphy0>;
+			phy-mode = "mii";
+			status = "disabled";
+		};
+
+		mac1: mac@92000000 {
+			compatible = "moxa,moxart-mac";
+			reg = <0x92000000 0x90>;
+			interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+			phy-handle = <&ethphy1>;
+			phy-mode = "mii";
+			status = "disabled";
+		};
+
+		uart0: uart@98200000 {
+			compatible = "ns16550a";
+			reg = <0x98200000 0x20>;
+			interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <14745600>;
+			status = "disabled";
+		};
+	};
+};

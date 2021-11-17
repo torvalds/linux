@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/brcm,bcm2835-hdmi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom VC4 (VideoCore4) HDMI Controller
+
+maintainers:
+  - Eric Anholt <eric@anholt.net>
+
+properties:
+  compatible:
+    const: brcm,bcm2835-hdmi
+
+  reg:
+    items:
+      - description: HDMI register range
+      - description: HD register range
+
+  interrupts:
+    minItems: 2
+
+  clocks:
+    items:
+      - description: The pixel clock
+      - description: The HDMI state machine clock
+
+  clock-names:
+    items:
+      - const: pixel
+      - const: hdmi
+
+  ddc:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: >
+      Phandle of the I2C controller used for DDC EDID probing
+
+  hpd-gpios:
+    maxItems: 1
+    description: >
+      The GPIO pin for the HDMI hotplug detect (if it doesn't appear
+      as an interrupt/status bit in the HDMI controller itself)
+
+  dmas:
+    maxItems: 1
+    description: >
+      Should contain one entry pointing to the DMA channel used to
+      transfer audio data.
+
+  dma-names:
+    const: audio-rx
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - ddc
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/bcm2835.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    hdmi: hdmi@7e902000 {
+        compatible = "brcm,bcm2835-hdmi";
+        reg = <0x7e902000 0x600>,
+              <0x7e808000 0x100>;
+        interrupts = <2 8>, <2 9>;
+        ddc = <&i2c2>;
+        hpd-gpios = <&gpio 46 GPIO_ACTIVE_HIGH>;
+        clocks = <&clocks BCM2835_PLLH_PIX>,
+                 <&clocks BCM2835_CLOCK_HSM>;
+        clock-names = "pixel", "hdmi";
+    };
+
+...

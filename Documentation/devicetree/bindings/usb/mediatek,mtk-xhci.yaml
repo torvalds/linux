@@ -1,0 +1,209 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (c) 2020 MediaTek
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/mediatek,mtk-xhci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek USB3 xHCI Device Tree Bindings
+
+maintainers:
+  - Chunfeng Yun <chunfeng.yun@mediatek.com>
+
+allOf:
+  - $ref: "usb-xhci.yaml"
+
+description: |
+  There are two scenarios:
+  case 1: only supports xHCI driver;
+  case 2: supports dual-role mode, and the host is based on xHCI driver.
+
+properties:
+  # common properties for both case 1 and case 2
+  compatible:
+    items:
+      - enum:
+          - mediatek,mt2701-xhci
+          - mediatek,mt2712-xhci
+          - mediatek,mt7622-xhci
+          - mediatek,mt7623-xhci
+          - mediatek,mt7629-xhci
+          - mediatek,mt8173-xhci
+          - mediatek,mt8183-xhci
+          - mediatek,mt8192-xhci
+          - mediatek,mt8195-xhci
+      - const: mediatek,mtk-xhci
+
+  reg:
+    minItems: 1
+    items:
+      - description: the registers of xHCI MAC
+      - description: the registers of IP Port Control
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: mac
+      - const: ippc  # optional, only needed for case 1.
+
+  interrupts:
+    description:
+      use "interrupts-extended" when the interrupts are connected to the
+      separate interrupt controllers
+    minItems: 1
+    items:
+      - description: xHCI host controller interrupt
+      - description: optional, wakeup interrupt used to support runtime PM
+
+  interrupt-names:
+    items:
+      - const: host
+      - const: wakeup
+
+  power-domains:
+    description: A phandle to USB power domain node to control USB's MTCMOS
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: Controller clock used by normal mode
+      - description: Reference clock used by low power mode etc
+      - description: Mcu bus clock for register access
+      - description: DMA bus clock for data transfer
+      - description: controller clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: sys_ck  # required, the following ones are optional
+      - const: ref_ck
+      - const: mcu_ck
+      - const: dma_ck
+      - const: xhci_ck
+
+  assigned-clocks:
+    minItems: 1
+    maxItems: 5
+
+  assigned-clock-parents:
+    minItems: 1
+    maxItems: 5
+
+  phys:
+    description:
+      List of all PHYs used on this HCD, it's better to keep PHYs in order
+      as the hardware layout
+    minItems: 1
+    items:
+      - description: USB2/HS PHY    # required, others are optional
+      - description: USB3/SS(P) PHY
+      - description: USB2/HS PHY
+      - description: USB3/SS(P) PHY
+      - description: USB2/HS PHY
+      - description: USB3/SS(P) PHY
+      - description: USB2/HS PHY
+      - description: USB3/SS(P) PHY
+      - description: USB2/HS PHY
+
+  vusb33-supply:
+    description: Regulator of USB AVDD3.3v
+
+  vbus-supply:
+    description: Regulator of USB VBUS5v
+
+  usb3-lpm-capable: true
+
+  usb2-lpm-disable: true
+
+  imod-interval-ns:
+    description:
+      Interrupt moderation interval value, it is 8 times as much as that
+      defined in the xHCI spec on MTK's controller.
+    default: 5000
+
+  # the following properties are only used for case 1
+  wakeup-source:
+    description: enable USB remote wakeup, see power/wakeup-source.txt
+    type: boolean
+
+  mediatek,syscon-wakeup:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    maxItems: 1
+    description:
+      A phandle to syscon used to access the register of the USB wakeup glue
+      layer between xHCI and SPM, the field should always be 3 cells long.
+    items:
+      items:
+        - description:
+            The first cell represents a phandle to syscon
+        - description:
+            The second cell represents the register base address of the glue
+            layer in syscon
+        - description: |
+            The third cell represents the hardware version of the glue layer,
+            1 - used by mt8173 etc, revision 1 without following IPM rule;
+            2 - used by mt2712 etc, revision 2 following IPM rule;
+            101 - used by mt8183, specific 1.01;
+            102 - used by mt8192, specific 1.02;
+          enum: [1, 2, 101, 102]
+
+  mediatek,u3p-dis-msk:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The mask to disable u3ports, bit0 for u3port0,
+      bit1 for u3port1, ... etc
+
+  mediatek,u2p-dis-msk:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The mask to disable u2ports, bit0 for u2port0,
+      bit1 for u2port1, ... etc
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "@[0-9a-f]{1}$":
+    type: object
+    description: The hard wired USB devices.
+
+dependencies:
+  wakeup-source: [ 'mediatek,syscon-wakeup' ]
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt8173-clk.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/phy/phy.h>
+    #include <dt-bindings/power/mt8173-power.h>
+
+    usb@11270000 {
+        compatible = "mediatek,mt8173-xhci", "mediatek,mtk-xhci";
+        reg = <0x11270000 0x1000>, <0x11280700 0x0100>;
+        reg-names = "mac", "ippc";
+        interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
+        power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+        clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+        clock-names = "sys_ck", "ref_ck";
+        phys = <&u3port0 PHY_TYPE_USB3>, <&u2port1 PHY_TYPE_USB2>;
+        vusb33-supply = <&mt6397_vusb_reg>;
+        vbus-supply = <&usb_p1_vbus>;
+        imod-interval-ns = <10000>;
+        mediatek,syscon-wakeup = <&pericfg 0x400 1>;
+        wakeup-source;
+        usb3-lpm-capable;
+    };
+...

@@ -1,0 +1,13 @@
+What:		/config/usb-gadget/gadget/functions/hid.name
+Date:		Nov 2014
+KernelVersion:	3.19
+Description:
+		The attributes:
+
+		=============	============================================
+		protocol	HID protocol to use
+		report_desc	blob corresponding to HID report descriptors
+				except the data passed through /dev/hidg<N>
+		report_length	HID report length
+		subclass	HID device subclass to use
+		=============	============================================

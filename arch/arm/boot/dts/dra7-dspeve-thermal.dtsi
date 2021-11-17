@@ -1,0 +1,27 @@
+/*
+ * Device Tree Source for DRA7x SoC DSPEVE thermal
+ *
+ * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include <dt-bindings/thermal/thermal.h>
+
+dspeve_thermal: dspeve_thermal {
+	polling-delay-passive = <250>; /* milliseconds */
+	polling-delay = <500>; /* milliseconds */
+
+			/* sensor       ID */
+	thermal-sensors = <&bandgap     3>;
+
+	trips {
+		dspeve_crit: dspeve_crit {
+			temperature = <125000>; /* milliCelsius */
+			hysteresis = <2000>; /* milliCelsius */
+			type = "critical";
+		};
+	};
+};

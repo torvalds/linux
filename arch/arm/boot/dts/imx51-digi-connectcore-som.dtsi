@@ -1,0 +1,389 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
+ */
+
+/dts-v1/;
+#include "imx51.dtsi"
+
+/ {
+	model = "Digi ConnectCore CC(W)-MX51";
+	compatible = "digi,connectcore-ccxmx51-som", "fsl,imx51";
+
+	memory@90000000 {
+		device_type = "memory";
+		reg = <0x90000000 0x08000000>;
+	};
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	pmic: mc13892@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mc13892>;
+		compatible = "fsl,mc13892";
+		spi-max-frequency = <16000000>;
+		spi-cs-high;
+		reg = <0>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+
+		regulators {
+			sw1_reg: sw1 {
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw2_reg: sw2 {
+				regulator-min-microvolt = <1225000>;
+				regulator-max-microvolt = <1225000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw3_reg: sw3 {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			swbst_reg: swbst { };
+
+			viohi_reg: viohi {
+				regulator-always-on;
+			};
+
+			vpll_reg: vpll {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			vdig_reg: vdig {
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <1250000>;
+				regulator-always-on;
+			};
+
+			vsd_reg: vsd {
+				regulator-min-microvolt = <3150000>;
+				regulator-max-microvolt = <3150000>;
+				regulator-always-on;
+			};
+
+			vusb2_reg: vusb2 {
+				regulator-min-microvolt = <2600000>;
+				regulator-max-microvolt = <2600000>;
+				regulator-always-on;
+			};
+
+			vvideo_reg: vvideo {
+				regulator-min-microvolt = <2775000>;
+				regulator-max-microvolt = <2775000>;
+				regulator-always-on;
+			};
+
+			vaudio_reg: vaudio {
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-always-on;
+			};
+
+			vcam_reg: vcam {
+				regulator-min-microvolt = <2750000>;
+				regulator-max-microvolt = <2750000>;
+				regulator-always-on;
+			};
+
+			vgen1_reg: vgen1 {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+			};
+
+			vgen2_reg: vgen2 {
+				regulator-min-microvolt = <3150000>;
+				regulator-max-microvolt = <3150000>;
+				regulator-always-on;
+			};
+
+			vgen3_reg: vgen3 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			vusb_reg: vusb {
+				regulator-always-on;
+			};
+
+			gpo1_reg: gpo1 { };
+
+			gpo2_reg: gpo2 { };
+
+			gpo3_reg: gpo3 { };
+
+			gpo4_reg: gpo4 { };
+
+			pwgt2spi_reg: pwgt2spi {
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	max-frequency = <50000000>;
+	bus-width = <1>;
+};
+
+&esdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc2>;
+	cap-sdio-irq;
+	wakeup-source;
+	keep-power-in-suspend;
+	max-frequency = <50000000>;
+	no-1-8-v;
+	non-removable;
+	vmmc-supply = <&gpo4_reg>;
+	status = "okay";
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-mode = "mii";
+	phy-supply = <&gpo3_reg>;
+	/* Pins shared with LCD2, keep status disabled */
+};
+
+&i2c2 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
+	clock-frequency = <400000>;
+	scl-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	mma7455l@1d {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mma7455l>;
+		compatible = "fsl,mma7455l";
+		reg = <0x1d>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>, <6 IRQ_TYPE_LEVEL_HIGH>;
+	};
+};
+
+&nfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nfc>;
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&usbotg {
+	phy_type = "utmi_wide";
+	disable-over-current;
+	/* Device role is not known, keep status disabled */
+};
+
+&weim {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim>;
+	status = "okay";
+
+	lan9221: ethernet@5,0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lan9221>;
+		compatible = "smsc,lan9221", "smsc,lan9115";
+		reg = <5 0x00000000 0x1000>;
+		fsl,weim-cs-timing = <
+			0x00420081 0x00000000
+			0x32260000 0x00000000
+			0x72080f00 0x00000000
+		>;
+		clocks = <&clks IMX5_CLK_DUMMY>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
+		phy-mode = "mii";
+		reg-io-width = <2>;
+		smsc,irq-push-pull;
+		vdd33a-supply = <&gpo2_reg>;
+		vddvario-supply = <&gpo2_reg>;
+	};
+};
+
+&iomuxc {
+	imx51-digi-connectcore-som {
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX51_PAD_CSPI1_MISO__ECSPI1_MISO	0x185
+				MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI	0x185
+				MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK	0x185
+				MX51_PAD_CSPI1_SS0__GPIO4_24		0x85 /* CS0 */
+			>;
+		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX51_PAD_SD1_CLK__SD1_CLK		0x400021d5
+				MX51_PAD_SD1_CMD__SD1_CMD		0x400020d5
+				MX51_PAD_SD1_DATA0__SD1_DATA0		0x400020d5
+			>;
+		};
+
+		pinctrl_esdhc2: esdhc2grp {
+			fsl,pins = <
+				MX51_PAD_SD2_CMD__SD2_CMD		0x400020d5
+				MX51_PAD_SD2_CLK__SD2_CLK		0x20d5
+				MX51_PAD_SD2_DATA0__SD2_DATA0		0x20d5
+				MX51_PAD_SD2_DATA1__SD2_DATA1		0x20d5
+				MX51_PAD_SD2_DATA2__SD2_DATA2		0x20d5
+				MX51_PAD_SD2_DATA3__SD2_DATA3		0x20d5
+			>;
+		};
+
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX51_PAD_DI_GP3__FEC_TX_ER		0x80000000
+				MX51_PAD_DI2_PIN4__FEC_CRS		0x80000000
+				MX51_PAD_DI2_PIN2__FEC_MDC		0x80000000
+				MX51_PAD_DI2_PIN3__FEC_MDIO		0x80000000
+				MX51_PAD_DI2_DISP_CLK__FEC_RDATA1	0x80000000
+				MX51_PAD_DI_GP4__FEC_RDATA2		0x80000000
+				MX51_PAD_DISP2_DAT0__FEC_RDATA3		0x80000000
+				MX51_PAD_DISP2_DAT1__FEC_RX_ER		0x80000000
+				MX51_PAD_DISP2_DAT6__FEC_TDATA1		0x80000000
+				MX51_PAD_DISP2_DAT7__FEC_TDATA2		0x80000000
+				MX51_PAD_DISP2_DAT8__FEC_TDATA3		0x80000000
+				MX51_PAD_DISP2_DAT9__FEC_TX_EN		0x80000000
+				MX51_PAD_DISP2_DAT10__FEC_COL		0x80000000
+				MX51_PAD_DISP2_DAT11__FEC_RX_CLK	0x80000000
+				MX51_PAD_DISP2_DAT12__FEC_RX_DV		0x80000000
+				MX51_PAD_DISP2_DAT13__FEC_TX_CLK	0x80000000
+				MX51_PAD_DISP2_DAT14__FEC_RDATA0	0x80000000
+				MX51_PAD_DISP2_DAT15__FEC_TDATA0	0x80000000
+			>;
+		};
+
+		pinctrl_i2c2: i2c2grp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_2__I2C2_SCL		0x400001ed
+				MX51_PAD_GPIO1_3__I2C2_SDA		0x400001ed
+			>;
+		};
+
+		pinctrl_i2c2_gpio: i2c2gpiogrp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_2__GPIO1_2		0x400001ed
+				MX51_PAD_GPIO1_3__GPIO1_3		0x400001ed
+			>;
+		};
+
+		pinctrl_nfc: nfcgrp {
+			fsl,pins = <
+				MX51_PAD_NANDF_D0__NANDF_D0		0x80000000
+				MX51_PAD_NANDF_D1__NANDF_D1		0x80000000
+				MX51_PAD_NANDF_D2__NANDF_D2		0x80000000
+				MX51_PAD_NANDF_D3__NANDF_D3		0x80000000
+				MX51_PAD_NANDF_D4__NANDF_D4		0x80000000
+				MX51_PAD_NANDF_D5__NANDF_D5		0x80000000
+				MX51_PAD_NANDF_D6__NANDF_D6		0x80000000
+				MX51_PAD_NANDF_D7__NANDF_D7		0x80000000
+				MX51_PAD_NANDF_ALE__NANDF_ALE		0x80000000
+				MX51_PAD_NANDF_CLE__NANDF_CLE		0x80000000
+				MX51_PAD_NANDF_RE_B__NANDF_RE_B		0x80000000
+				MX51_PAD_NANDF_WE_B__NANDF_WE_B		0x80000000
+				MX51_PAD_NANDF_WP_B__NANDF_WP_B		0x80000000
+				MX51_PAD_NANDF_CS0__NANDF_CS0		0x80000000
+				MX51_PAD_NANDF_RB0__NANDF_RB0		0x80000000
+			>;
+		};
+
+		pinctrl_lan9221: lan9221grp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_9__GPIO1_9		0xe5 /* IRQ */
+			>;
+		};
+
+		pinctrl_mc13892: mc13892grp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_5__GPIO1_5		0xe5 /* IRQ */
+			>;
+		};
+
+		pinctrl_mma7455l: mma7455lgrp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_7__GPIO1_7		0xe5 /* IRQ1 */
+				MX51_PAD_GPIO1_6__GPIO1_6		0xe5 /* IRQ2 */
+			>;
+		};
+
+		pinctrl_weim: weimgrp {
+			fsl,pins = <
+				MX51_PAD_EIM_DA0__EIM_DA0		0x80000000
+				MX51_PAD_EIM_DA1__EIM_DA1		0x80000000
+				MX51_PAD_EIM_DA2__EIM_DA2		0x80000000
+				MX51_PAD_EIM_DA3__EIM_DA3		0x80000000
+				MX51_PAD_EIM_DA4__EIM_DA4		0x80000000
+				MX51_PAD_EIM_DA5__EIM_DA5		0x80000000
+				MX51_PAD_EIM_DA6__EIM_DA6		0x80000000
+				MX51_PAD_EIM_DA7__EIM_DA7		0x80000000
+				MX51_PAD_EIM_DA8__EIM_DA8		0x80000000
+				MX51_PAD_EIM_DA9__EIM_DA9		0x80000000
+				MX51_PAD_EIM_DA10__EIM_DA10		0x80000000
+				MX51_PAD_EIM_DA11__EIM_DA11		0x80000000
+				MX51_PAD_EIM_DA12__EIM_DA12		0x80000000
+				MX51_PAD_EIM_DA13__EIM_DA13		0x80000000
+				MX51_PAD_EIM_DA14__EIM_DA14		0x80000000
+				MX51_PAD_EIM_DA15__EIM_DA15		0x80000000
+				MX51_PAD_EIM_A16__EIM_A16		0x80000000
+				MX51_PAD_EIM_A17__EIM_A17		0x80000000
+				MX51_PAD_EIM_A18__EIM_A18		0x80000000
+				MX51_PAD_EIM_A19__EIM_A19		0x80000000
+				MX51_PAD_EIM_A20__EIM_A20		0x80000000
+				MX51_PAD_EIM_A21__EIM_A21		0x80000000
+				MX51_PAD_EIM_A22__EIM_A22		0x80000000
+				MX51_PAD_EIM_A23__EIM_A23		0x80000000
+				MX51_PAD_EIM_A24__EIM_A24		0x80000000
+				MX51_PAD_EIM_A25__EIM_A25		0x80000000
+				MX51_PAD_EIM_A26__EIM_A26		0x80000000
+				MX51_PAD_EIM_A27__EIM_A27		0x80000000
+				MX51_PAD_EIM_D16__EIM_D16		0x80000000
+				MX51_PAD_EIM_D17__EIM_D17		0x80000000
+				MX51_PAD_EIM_D18__EIM_D18		0x80000000
+				MX51_PAD_EIM_D19__EIM_D19		0x80000000
+				MX51_PAD_EIM_D20__EIM_D20		0x80000000
+				MX51_PAD_EIM_D21__EIM_D21		0x80000000
+				MX51_PAD_EIM_D22__EIM_D22		0x80000000
+				MX51_PAD_EIM_D23__EIM_D23		0x80000000
+				MX51_PAD_EIM_D24__EIM_D24		0x80000000
+				MX51_PAD_EIM_D25__EIM_D25		0x80000000
+				MX51_PAD_EIM_D26__EIM_D26		0x80000000
+				MX51_PAD_EIM_D27__EIM_D27		0x80000000
+				MX51_PAD_EIM_D28__EIM_D28		0x80000000
+				MX51_PAD_EIM_D29__EIM_D29		0x80000000
+				MX51_PAD_EIM_D30__EIM_D30		0x80000000
+				MX51_PAD_EIM_D31__EIM_D31		0x80000000
+				MX51_PAD_EIM_OE__EIM_OE			0x80000000
+				MX51_PAD_EIM_DTACK__EIM_DTACK		0x80000000
+				MX51_PAD_EIM_LBA__EIM_LBA		0x80000000
+				MX51_PAD_EIM_CS5__EIM_CS5		0x80000000 /* CS5 */
+			>;
+		};
+	};
+};

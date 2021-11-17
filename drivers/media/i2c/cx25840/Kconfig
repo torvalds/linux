@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_CX25840
+	tristate "Conexant CX2584x audio/video decoders"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the Conexant CX2584x audio/video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx25840

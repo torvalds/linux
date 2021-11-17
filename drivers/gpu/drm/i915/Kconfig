@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_I915
+	tristate "Intel 8xx/9xx/G3x/G4x/HD Graphics"
+	depends on DRM
+	depends on X86 && PCI
+	select INTEL_GTT
+	select INTERVAL_TREE
+	# we need shmfs for the swappable backing store, and in particular
+	# the shmem_readpage() which depends upon tmpfs
+	select SHMEM
+	select TMPFS
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	select RELAY
+	select IRQ_WORK
+	# i915 depends on ACPI_VIDEO when ACPI is enabled
+	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
+	select BACKLIGHT_CLASS_DEVICE if ACPI
+	select INPUT if ACPI
+	select ACPI_VIDEO if ACPI
+	select ACPI_BUTTON if ACPI
+	select SYNC_FILE
+	select IOSF_MBI
+	select CRC32
+	select SND_HDA_I915 if SND_HDA_CORE
+	select CEC_CORE if CEC_NOTIFIER
+	select VMAP_PFN
+	select DRM_TTM
+	help
+	  Choose this option if you have a system that has "Intel Graphics
+	  Media Accelerator" or "HD Graphics" integrated graphics,
+	  including 830M, 845G, 852GM, 855GM, 865G, 915G, 945G, 965G,
+	  G35, G41, G43, G45 chipsets and Celeron, Pentium, Core i3,
+	  Core i5, Core i7 as well as Atom CPUs with integrated graphics.
+
+	  This driver is used by the Intel driver in X.org 6.8 and
+	  XFree86 4.4 and above. It replaces the older i830 module that
+	  supported a subset of the hardware in older X.org releases.
+
+	  Note that the older i810/i815 chipsets require the use of the
+	  i810 driver instead, and the Atom z5xx series has an entirely
+	  different implementation.
+
+	  If "M" is selected, the module will be called i915.
+
+config DRM_I915_FORCE_PROBE
+	string "Force probe driver for selected new Intel hardware"
+	depends on DRM_I915
+	help
+	  This is the default value for the i915.force_probe module
+	  parameter. Using the module parameter overrides this option.
+
+	  Force probe the driver for new Intel graphics devices that are
+	  recognized but not properly supported by this kernel version. It is
+	  recommended to upgrade to a kernel version with proper support as soon
+	  as it is available.
+
+	  Use "" to disable force probe. If in doubt, use this.
+
+	  Use "<pci-id>[,<pci-id>,...]" to force probe the driver for listed
+	  devices. For example, "4500" or "4500,4571".
+
+	  Use "*" to force probe the driver for all known devices.
+
+config DRM_I915_CAPTURE_ERROR
+	bool "Enable capturing GPU state following a hang"
+	depends on DRM_I915
+	default y
+	help
+	  This option enables capturing the GPU state when a hang is detected.
+	  This information is vital for triaging hangs and assists in debugging.
+	  Please report any hang for triaging according to:
+	    https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs
+
+	  If in doubt, say "Y".
+
+config DRM_I915_COMPRESS_ERROR
+	bool "Compress GPU error state"
+	depends on DRM_I915_CAPTURE_ERROR
+	select ZLIB_DEFLATE
+	default y
+	help
+	  This option selects ZLIB_DEFLATE if it isn't already
+	  selected and causes any error state captured upon a GPU hang
+	  to be compressed using zlib.
+
+	  If in doubt, say "Y".
+
+config DRM_I915_USERPTR
+	bool "Always enable userptr support"
+	depends on DRM_I915
+	select MMU_NOTIFIER
+	default y
+	help
+	  This option selects CONFIG_MMU_NOTIFIER if it isn't already
+	  selected to enabled full userptr support.
+
+	  If in doubt, say "Y".
+
+config DRM_I915_GVT
+	bool "Enable Intel GVT-g graphics virtualization host support"
+	depends on DRM_I915
+	depends on 64BIT
+	default n
+	help
+	  Choose this option if you want to enable Intel GVT-g graphics
+	  virtualization technology host support with integrated graphics.
+	  With GVT-g, it's possible to have one integrated graphics
+	  device shared by multiple VMs under different hypervisors.
+
+	  Note that at least one hypervisor like Xen or KVM is required for
+	  this driver to work, and it only supports newer device from
+	  Broadwell+. For further information and setup guide, you can
+	  visit: http://01.org/igvt-g.
+
+	  Now it's just a stub to support the modifications of i915 for
+	  GVT device model. It requires at least one MPT modules for Xen/KVM
+	  and other components of GVT device model to work. Use it under
+	  you own risk.
+
+	  If in doubt, say "N".
+
+config DRM_I915_GVT_KVMGT
+	tristate "Enable KVM/VFIO support for Intel GVT-g"
+	depends on DRM_I915_GVT
+	depends on KVM
+	depends on VFIO_MDEV
+	default n
+	help
+	  Choose this option if you want to enable KVMGT support for
+	  Intel GVT-g.
+
+menu "drm/i915 Debugging"
+depends on DRM_I915
+depends on EXPERT
+source "drivers/gpu/drm/i915/Kconfig.debug"
+endmenu
+
+menu "drm/i915 Profile Guided Optimisation"
+	visible if EXPERT
+	depends on DRM_I915
+	source "drivers/gpu/drm/i915/Kconfig.profile"
+endmenu
+
+menu "drm/i915 Unstable Evolution"
+	visible if EXPERT && STAGING && BROKEN
+	depends on DRM_I915
+	source "drivers/gpu/drm/i915/Kconfig.unstable"
+endmenu

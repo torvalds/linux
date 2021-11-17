@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Hardkernel Odroid XU/XU3 LED device tree source
+ *
+ * Copyright (c) 2015,2016 Krzysztof Kozlowski
+ * Copyright (c) 2014 Collabora Ltd.
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	led-controller-1 {
+		compatible = "pwm-leds";
+
+		led-1 {
+			label = "green:mmc0";
+			pwms = <&pwm 1 2000000 0>;
+			pwm-names = "pwm1";
+			/*
+			 * Green LED is much brighter than the others
+			 * so limit its max brightness
+			 */
+			max-brightness = <127>;
+			linux,default-trigger = "mmc0";
+		};
+
+		led-2 {
+			label = "blue:heartbeat";
+			pwms = <&pwm 2 2000000 0>;
+			pwm-names = "pwm2";
+			max-brightness = <255>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	led-controller-2 {
+		compatible = "gpio-leds";
+
+		led-3 {
+			label = "red:microSD";
+			gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "mmc1";
+		};
+	};
+};

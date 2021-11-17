@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: GPL-2.0
+# ===========================================================================
+# Module versions
+# ===========================================================================
+#
+# Stage one of module building created the following:
+# a) The individual .o files used for the module
+# b) A <module>.o file which is the .o files above linked together
+# c) A <module>.mod file, listing the name of the preliminary <module>.o file,
+#    plus all .o files
+# d) modules.order, which lists all the modules
+
+# Stage 2 is handled by this file and does the following
+# 1) Find all modules listed in modules.order
+# 2) modpost is then used to
+# 3)  create one <module>.mod.c file per module
+# 4)  create one Module.symvers file with CRC for all exported symbols
+
+# Step 3 is used to place certain information in the module's ELF
+# section, including information such as:
+#   Version magic (see include/linux/vermagic.h for full details)
+#     - Kernel release
+#     - SMP is CONFIG_SMP
+#     - PREEMPT is CONFIG_PREEMPT[_RT]
+#     - GCC Version
+#   Module info
+#     - Module version (MODULE_VERSION)
+#     - Module alias'es (MODULE_ALIAS)
+#     - Module license (MODULE_LICENSE)
+#     - See include/linux/module.h for more details
+
+# Step 4 is solely used to allow module versioning in external modules,
+# where the CRC of each module is retrieved from the Module.symvers file.
+
+# KBUILD_MODPOST_NOFINAL can be set to skip the final link of modules.
+# This is solely useful to speed up test compiles
+
+PHONY := __modpost
+__modpost:
+
+include include/config/auto.conf
+include $(srctree)/scripts/Kbuild.include
+
+# for mod-prelink-ext
+include $(srctree)/scripts/Makefile.lib
+
+MODPOST = scripts/mod/modpost								\
+	$(if $(CONFIG_MODVERSIONS),-m)							\
+	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
+	$(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)					\
+	-o $@
+
+ifdef MODPOST_VMLINUX
+
+quiet_cmd_modpost = MODPOST $@
+      cmd_modpost = $(MODPOST) $<
+
+vmlinux.symvers: vmlinux.o
+	$(call cmd,modpost)
+
+__modpost: vmlinux.symvers
+
+else
+
+ifeq ($(KBUILD_EXTMOD),)
+
+input-symdump := vmlinux.symvers
+output-symdump := modules-only.symvers
+
+quiet_cmd_cat = GEN     $@
+      cmd_cat = cat $(real-prereqs) > $@
+
+ifneq ($(wildcard vmlinux.symvers),)
+
+__modpost: Module.symvers
+Module.symvers: vmlinux.symvers modules-only.symvers FORCE
+	$(call if_changed,cat)
+
+targets += Module.symvers
+
+endif
+
+else
+
+# set src + obj - they may be used in the modules's Makefile
+obj := $(KBUILD_EXTMOD)
+src := $(obj)
+
+# Include the module's Makefile to find KBUILD_EXTRA_SYMBOLS
+include $(if $(wildcard $(KBUILD_EXTMOD)/Kbuild), \
+             $(KBUILD_EXTMOD)/Kbuild, $(KBUILD_EXTMOD)/Makefile)
+
+# modpost option for external modules
+MODPOST += -e
+
+input-symdump := Module.symvers $(KBUILD_EXTRA_SYMBOLS)
+output-symdump := $(KBUILD_EXTMOD)/Module.symvers
+
+endif
+
+existing-input-symdump := $(wildcard $(input-symdump))
+
+# modpost options for modules (both in-kernel and external)
+MODPOST += \
+	$(addprefix -i ,$(existing-input-symdump)) \
+	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS)) \
+	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N)
+
+# 'make -i -k' ignores compile errors, and builds as many modules as possible.
+ifneq ($(findstring i,$(filter-out --%,$(MAKEFLAGS))),)
+MODPOST += -n
+endif
+
+# Clear VPATH to not search for *.symvers in $(srctree). Check only $(objtree).
+VPATH :=
+$(input-symdump):
+	@echo >&2 'WARNING: Symbol version dump "$@" is missing.'
+	@echo >&2 '         Modules may not have dependencies or modversions.'
+	@echo >&2 '         You may get many unresolved symbol warnings.'
+
+modules := $(sort $(shell cat $(MODORDER)))
+
+# KBUILD_MODPOST_WARN can be set to avoid error out in case of undefined symbols
+ifneq ($(KBUILD_MODPOST_WARN)$(filter-out $(existing-input-symdump), $(input-symdump)),)
+MODPOST += -w
+endif
+
+# Read out modules.order to pass in modpost.
+# Otherwise, allmodconfig would fail with "Argument list too long".
+quiet_cmd_modpost = MODPOST $@
+      cmd_modpost = sed 's/\.ko$$/$(mod-prelink-ext)\.o/' $< | $(MODPOST) -T -
+
+$(output-symdump): $(MODORDER) $(input-symdump) $(modules:.ko=$(mod-prelink-ext).o) FORCE
+	$(call if_changed,modpost)
+
+targets += $(output-symdump)
+
+__modpost: $(output-symdump)
+ifneq ($(KBUILD_MODPOST_NOFINAL),1)
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modfinal
+endif
+
+PHONY += FORCE
+FORCE:
+
+existing-targets := $(wildcard $(sort $(targets)))
+
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+
+endif
+
+.PHONY: $(PHONY)

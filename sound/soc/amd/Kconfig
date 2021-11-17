@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SOC_AMD_ACP
+	tristate "AMD Audio Coprocessor support"
+	help
+	 This option enables ACP DMA support on AMD platform.
+
+config SND_SOC_AMD_CZ_DA7219MX98357_MACH
+	tristate "AMD CZ support for DA7219, RT5682 and MAX9835"
+	select SND_SOC_DA7219
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_MAX98357A
+	select SND_SOC_ADAU7002
+	select REGULATOR
+	depends on SND_SOC_AMD_ACP && I2C && GPIOLIB && ACPI
+	help
+	 This option enables machine driver for DA7219, RT5682 and MAX9835.
+
+config SND_SOC_AMD_CZ_RT5645_MACH
+	tristate "AMD CZ support for RT5645"
+	select SND_SOC_RT5645
+	depends on SND_SOC_AMD_ACP && I2C
+	help
+	 This option enables machine driver for rt5645.
+
+config SND_SOC_AMD_ACP3x
+	tristate "AMD Audio Coprocessor-v3.x support"
+	depends on X86 && PCI
+	help
+	 This option enables ACP v3.x I2S support on AMD platform
+
+config SND_SOC_AMD_RV_RT5682_MACH
+	tristate "AMD RV support for RT5682"
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_MAX98357A
+	select SND_SOC_CROS_EC_CODEC
+	select I2C_CROS_EC_TUNNEL
+	select SND_SOC_RT1015
+	select SND_SOC_RT1015P
+	depends on SND_SOC_AMD_ACP3x && I2C && CROS_EC
+	help
+	 This option enables machine driver for RT5682 and MAX9835.
+
+config SND_SOC_AMD_RENOIR
+	tristate "AMD Audio Coprocessor - Renoir support"
+	depends on X86 && PCI
+	help
+	 This option enables ACP support for Renoir platform
+
+config SND_SOC_AMD_RENOIR_MACH
+	tristate "AMD Renoir support for DMIC"
+	select SND_SOC_DMIC
+	depends on SND_SOC_AMD_RENOIR
+	help
+	 This option enables machine driver for DMIC
+
+config SND_SOC_AMD_ACP5x
+	tristate "AMD Audio Coprocessor-v5.x I2S support"
+	depends on X86 && PCI
+	help
+	 This option enables ACP v5.x support on AMD platform
+
+	 By enabling this flag build will trigger for ACP PCI driver,
+	 ACP DMA driver, CPU DAI driver.

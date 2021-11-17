@@ -1,0 +1,35 @@
+What:		/config/usb-gadget/gadget/functions/mass_storage.name
+Date:		Oct 2013
+KernelVersion:	3.13
+Description:
+		The attributes:
+
+		===========	==============================================
+		stall		Set to permit function to halt bulk endpoints.
+				Disabled on some USB devices known not to work
+				correctly. You should set it to true.
+		num_buffers	Number of pipeline buffers. Valid numbers
+				are 2..4. Available only if
+				CONFIG_USB_GADGET_DEBUG_FILES is set.
+		===========	==============================================
+
+What:		/config/usb-gadget/gadget/functions/mass_storage.name/lun.name
+Date:		Oct 2013
+KernelVersion:	3.13
+Description:
+		The attributes:
+
+		===========	==============================================
+		file		The path to the backing file for the LUN.
+				Required if LUN is not marked as removable.
+		ro		Flag specifying access to the LUN shall be
+				read-only. This is implied if CD-ROM emulation
+				is enabled as well as when it was impossible
+				to open "filename" in R/W mode.
+		removable	Flag specifying that LUN shall be indicated as
+				being removable.
+		cdrom		Flag specifying that LUN shall be reported as
+				being a CD-ROM.
+		nofua		Flag specifying that FUA flag
+				in SCSI WRITE(10,12)
+		===========	==============================================

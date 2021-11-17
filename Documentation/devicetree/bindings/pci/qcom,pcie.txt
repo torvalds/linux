@@ -1,0 +1,376 @@
+* Qualcomm PCI express root complex
+
+- compatible:
+	Usage: required
+	Value type: <stringlist>
+	Definition: Value should contain
+			- "qcom,pcie-ipq8064" for ipq8064
+			- "qcom,pcie-ipq8064-v2" for ipq8064 rev 2 or ipq8065
+			- "qcom,pcie-apq8064" for apq8064
+			- "qcom,pcie-apq8084" for apq8084
+			- "qcom,pcie-msm8996" for msm8996 or apq8096
+			- "qcom,pcie-ipq4019" for ipq4019
+			- "qcom,pcie-ipq8074" for ipq8074
+			- "qcom,pcie-qcs404" for qcs404
+			- "qcom,pcie-sdm845" for sdm845
+			- "qcom,pcie-sm8250" for sm8250
+			- "qcom,pcie-ipq6018" for ipq6018
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: Register ranges as listed in the reg-names property
+
+- reg-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: Must include the following entries
+			- "parf"   Qualcomm specific registers
+			- "dbi"	   DesignWare PCIe registers
+			- "elbi"   External local bus interface registers
+			- "config" PCIe configuration space
+			- "atu"    ATU address space (optional)
+
+- device_type:
+	Usage: required
+	Value type: <string>
+	Definition: Should be "pci". As specified in snps,dw-pcie.yaml
+
+- #address-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: Should be 3. As specified in snps,dw-pcie.yaml
+
+- #size-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: Should be 2. As specified in snps,dw-pcie.yaml
+
+- ranges:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: As specified in snps,dw-pcie.yaml
+
+- interrupts:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: MSI interrupt
+
+- interrupt-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: Should contain "msi"
+
+- #interrupt-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: Should be 1. As specified in snps,dw-pcie.yaml
+
+- interrupt-map-mask:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: As specified in snps,dw-pcie.yaml
+
+- interrupt-map:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: As specified in snps,dw-pcie.yaml
+
+- clocks:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: List of phandle and clock specifier pairs as listed
+		    in clock-names property
+
+- clock-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "iface"	Configuration AHB clock
+
+- clock-names:
+	Usage: required for ipq/apq8064
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "core"	Clocks the pcie hw block
+			- "phy"		Clocks the pcie PHY block
+			- "aux" 	Clocks the pcie AUX block
+			- "ref" 	Clocks the pcie ref block
+- clock-names:
+	Usage: required for apq8084/ipq4019
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "aux"		Auxiliary (AUX) clock
+			- "bus_master"	Master AXI clock
+			- "bus_slave"	Slave AXI clock
+
+- clock-names:
+	Usage: required for msm8996/apq8096
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "pipe"	Pipe Clock driving internal logic
+			- "aux"		Auxiliary (AUX) clock
+			- "cfg"		Configuration clock
+			- "bus_master"	Master AXI clock
+			- "bus_slave"	Slave AXI clock
+
+- clock-names:
+	Usage: required for ipq8074
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "iface"	PCIe to SysNOC BIU clock
+			- "axi_m"	AXI Master clock
+			- "axi_s"	AXI Slave clock
+			- "ahb"		AHB clock
+			- "aux"		Auxiliary clock
+
+- clock-names:
+	Usage: required for ipq6018
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "iface"	PCIe to SysNOC BIU clock
+			- "axi_m"	AXI Master clock
+			- "axi_s"	AXI Slave clock
+			- "axi_bridge"	AXI bridge clock
+			- "rchng"
+
+- clock-names:
+	Usage: required for qcs404
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "iface"	AHB clock
+			- "aux"		Auxiliary clock
+			- "master_bus"	AXI Master clock
+			- "slave_bus"	AXI Slave clock
+
+- clock-names:
+	Usage: required for sdm845
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "aux"		Auxiliary clock
+			- "cfg"		Configuration clock
+			- "bus_master"	Master AXI clock
+			- "bus_slave"	Slave AXI clock
+			- "slave_q2a"	Slave Q2A clock
+			- "tbu"		PCIe TBU clock
+			- "pipe"	PIPE clock
+
+- clock-names:
+	Usage: required for sm8250
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "aux"		Auxiliary clock
+			- "cfg"		Configuration clock
+			- "bus_master"	Master AXI clock
+			- "bus_slave"	Slave AXI clock
+			- "slave_q2a"	Slave Q2A clock
+			- "tbu"		PCIe TBU clock
+			- "ddrss_sf_tbu" PCIe SF TBU clock
+			- "pipe"	PIPE clock
+
+- resets:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: List of phandle and reset specifier pairs as listed
+		    in reset-names property
+
+- reset-names:
+	Usage: required for ipq/apq8064
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "axi"  AXI reset
+			- "ahb"  AHB reset
+			- "por"  POR reset
+			- "pci"  PCI reset
+			- "phy"  PHY reset
+
+- reset-names:
+	Usage: required for apq8084
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "core" Core reset
+
+- reset-names:
+	Usage: required for ipq/apq8064
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "axi_m"		AXI master reset
+			- "axi_s"		AXI slave reset
+			- "pipe"		PIPE reset
+			- "axi_m_vmid"		VMID reset
+			- "axi_s_xpu"		XPU reset
+			- "parf"		PARF reset
+			- "phy"			PHY reset
+			- "axi_m_sticky"	AXI sticky reset
+			- "pipe_sticky"		PIPE sticky reset
+			- "pwr"			PWR reset
+			- "ahb"			AHB reset
+			- "phy_ahb"		PHY AHB reset
+			- "ext"			EXT reset
+
+- reset-names:
+	Usage: required for ipq8074
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "pipe"		PIPE reset
+			- "sleep"		Sleep reset
+			- "sticky"		Core Sticky reset
+			- "axi_m"		AXI Master reset
+			- "axi_s"		AXI Slave reset
+			- "ahb"			AHB Reset
+			- "axi_m_sticky"	AXI Master Sticky reset
+
+- reset-names:
+	Usage: required for ipq6018
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "pipe"		PIPE reset
+			- "sleep"		Sleep reset
+			- "sticky"		Core Sticky reset
+			- "axi_m"		AXI Master reset
+			- "axi_s"		AXI Slave reset
+			- "ahb"			AHB Reset
+			- "axi_m_sticky"	AXI Master Sticky reset
+			- "axi_s_sticky"	AXI Slave Sticky reset
+
+- reset-names:
+	Usage: required for qcs404
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "axi_m"		AXI Master reset
+			- "axi_s"		AXI Slave reset
+			- "axi_m_sticky"	AXI Master Sticky reset
+			- "pipe_sticky"		PIPE sticky reset
+			- "pwr"			PWR reset
+			- "ahb"			AHB reset
+
+- reset-names:
+	Usage: required for sdm845 and sm8250
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "pci"			PCIe core reset
+
+- power-domains:
+	Usage: required for apq8084 and msm8996/apq8096
+	Value type: <prop-encoded-array>
+	Definition: A phandle and power domain specifier pair to the
+		    power domain which is responsible for collapsing
+		    and restoring power to the peripheral
+
+- vdda-supply:
+	Usage: required
+	Value type: <phandle>
+	Definition: A phandle to the core analog power supply
+
+- vdda_phy-supply:
+	Usage: required for ipq/apq8064
+	Value type: <phandle>
+	Definition: A phandle to the analog power supply for PHY
+
+- vdda_refclk-supply:
+	Usage: required for ipq/apq8064
+	Value type: <phandle>
+	Definition: A phandle to the analog power supply for IC which generates
+		    reference clock
+- vddpe-3v3-supply:
+	Usage: optional
+	Value type: <phandle>
+	Definition: A phandle to the PCIe endpoint power supply
+
+- phys:
+	Usage: required for apq8084 and qcs404
+	Value type: <phandle>
+	Definition: List of phandle(s) as listed in phy-names property
+
+- phy-names:
+	Usage: required for apq8084 and qcs404
+	Value type: <stringlist>
+	Definition: Should contain "pciephy"
+
+- <name>-gpios:
+	Usage: optional
+	Value type: <prop-encoded-array>
+	Definition: List of phandle and GPIO specifier pairs. Should contain
+			- "perst-gpios"	PCIe endpoint reset signal line
+			- "wake-gpios"	PCIe endpoint wake signal line
+
+* Example for ipq/apq8064
+	pcie@1b500000 {
+		compatible = "qcom,pcie-apq8064", "qcom,pcie-ipq8064", "snps,dw-pcie";
+		reg = <0x1b500000 0x1000
+		       0x1b502000 0x80
+		       0x1b600000 0x100
+		       0x0ff00000 0x100000>;
+		reg-names = "dbi", "elbi", "parf", "config";
+		device_type = "pci";
+		linux,pci-domain = <0>;
+		bus-range = <0x00 0xff>;
+		num-lanes = <1>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges = <0x81000000 0 0 0x0fe00000 0 0x00100000   /* I/O */
+			  0x82000000 0 0 0x08000000 0 0x07e00000>; /* memory */
+		interrupts = <GIC_SPI 238 IRQ_TYPE_NONE>;
+		interrupt-names = "msi";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		interrupt-map = <0 0 0 1 &intc 0 36 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
+				<0 0 0 2 &intc 0 37 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
+				<0 0 0 3 &intc 0 38 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
+				<0 0 0 4 &intc 0 39 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
+		clocks = <&gcc PCIE_A_CLK>,
+			 <&gcc PCIE_H_CLK>,
+			 <&gcc PCIE_PHY_CLK>,
+			 <&gcc PCIE_AUX_CLK>,
+			 <&gcc PCIE_ALT_REF_CLK>;
+		clock-names = "core", "iface", "phy", "aux", "ref";
+		resets = <&gcc PCIE_ACLK_RESET>,
+			 <&gcc PCIE_HCLK_RESET>,
+			 <&gcc PCIE_POR_RESET>,
+			 <&gcc PCIE_PCI_RESET>,
+			 <&gcc PCIE_PHY_RESET>,
+			 <&gcc PCIE_EXT_RESET>;
+		reset-names = "axi", "ahb", "por", "pci", "phy", "ext";
+		pinctrl-0 = <&pcie_pins_default>;
+		pinctrl-names = "default";
+	};
+
+* Example for apq8084
+	pcie0@fc520000 {
+		compatible = "qcom,pcie-apq8084", "snps,dw-pcie";
+		reg = <0xfc520000 0x2000>,
+		      <0xff000000 0x1000>,
+		      <0xff001000 0x1000>,
+		      <0xff002000 0x2000>;
+		reg-names = "parf", "dbi", "elbi", "config";
+		device_type = "pci";
+		linux,pci-domain = <0>;
+		bus-range = <0x00 0xff>;
+		num-lanes = <1>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges = <0x81000000 0 0          0xff200000 0 0x00100000   /* I/O */
+			  0x82000000 0 0x00300000 0xff300000 0 0x00d00000>; /* memory */
+		interrupts = <GIC_SPI 243 IRQ_TYPE_NONE>;
+		interrupt-names = "msi";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		interrupt-map = <0 0 0 1 &intc 0 244 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
+				<0 0 0 2 &intc 0 245 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
+				<0 0 0 3 &intc 0 247 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
+				<0 0 0 4 &intc 0 248 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
+		clocks = <&gcc GCC_PCIE_0_CFG_AHB_CLK>,
+			 <&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
+			 <&gcc GCC_PCIE_0_SLV_AXI_CLK>,
+			 <&gcc GCC_PCIE_0_AUX_CLK>;
+		clock-names = "iface", "master_bus", "slave_bus", "aux";
+		resets = <&gcc GCC_PCIE_0_BCR>;
+		reset-names = "core";
+		power-domains = <&gcc PCIE0_GDSC>;
+		vdda-supply = <&pma8084_l3>;
+		phys = <&pciephy0>;
+		phy-names = "pciephy";
+		perst-gpio = <&tlmm 70 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&pcie0_pins_default>;
+		pinctrl-names = "default";
+	};

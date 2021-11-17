@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/ti/k3.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments K3 Multicore SoC architecture device tree bindings
+
+maintainers:
+  - Nishanth Menon <nm@ti.com>
+
+description: |
+  Platforms based on Texas Instruments K3 Multicore SoC architecture
+  shall have the following properties.
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+
+      - description: K3 AM654 SoC
+        items:
+          - enum:
+              - ti,am654-evm
+              - siemens,iot2050-basic
+              - siemens,iot2050-advanced
+          - const: ti,am654
+
+      - description: K3 J721E SoC
+        items:
+          - const: ti,j721e
+
+      - description: K3 J7200 SoC
+        items:
+          - const: ti,j7200
+
+      - description: K3 AM642 SoC
+        items:
+          - enum:
+              - ti,am642-evm
+              - ti,am642-sk
+          - const: ti,am642
+
+additionalProperties: true
+
+...

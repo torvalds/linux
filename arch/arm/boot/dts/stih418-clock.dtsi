@@ -1,0 +1,220 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2015 STMicroelectronics R&D Limited
+ */
+#include <dt-bindings/clock/stih418-clks.h>
+/ {
+	/*
+	 * Fixed 30MHz oscillator inputs to SoC
+	 */
+	clk_sysin: clk-sysin {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <30000000>;
+		clock-output-names = "CLK_SYSIN";
+	};
+
+	clk_tmdsout_hdmi: clk-tmdsout-hdmi {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		compatible = "st,stih418-clk", "simple-bus";
+
+		/*
+		 * A9 PLL.
+		 */
+		clockgen-a9@92b0000 {
+			compatible = "st,clkgen-c32";
+			reg = <0x92b0000 0xffff>;
+
+			clockgen_a9_pll: clockgen-a9-pll {
+				#clock-cells = <1>;
+				compatible = "st,stih418-clkgen-plla9";
+
+				clocks = <&clk_sysin>;
+			};
+		};
+
+		/*
+		 * ARM CPU related clocks.
+		 */
+		clk_m_a9: clk-m-a9@92b0000 {
+			#clock-cells = <0>;
+			compatible = "st,stih407-clkgen-a9-mux", "st,clkgen-mux";
+			reg = <0x92b0000 0x10000>;
+
+			clocks = <&clockgen_a9_pll 0>,
+				 <&clockgen_a9_pll 0>,
+				 <&clk_s_c0_flexgen 13>,
+				 <&clk_m_a9_ext2f_div2>;
+
+			/*
+			 * ARM Peripheral clock for timers
+			 */
+			arm_periph_clk: clk-m-a9-periphs {
+				#clock-cells = <0>;
+				compatible = "fixed-factor-clock";
+				clocks = <&clk_m_a9>;
+				clock-div = <2>;
+				clock-mult = <1>;
+			};
+		};
+
+		clockgen-a@90ff000 {
+			compatible = "st,clkgen-c32";
+			reg = <0x90ff000 0x1000>;
+
+			clk_s_a0_pll: clk-s-a0-pll {
+				#clock-cells = <1>;
+				compatible = "st,clkgen-pll0-a0";
+
+				clocks = <&clk_sysin>;
+			};
+
+			clk_s_a0_flexgen: clk-s-a0-flexgen {
+				compatible = "st,flexgen", "st,flexgen-stih410-a0";
+
+				#clock-cells = <1>;
+
+				clocks = <&clk_s_a0_pll 0>,
+					 <&clk_sysin>;
+			};
+		};
+
+		clk_s_c0_quadfs: clk-s-c0-quadfs@9103000 {
+			#clock-cells = <1>;
+			compatible = "st,quadfs-pll";
+			reg = <0x9103000 0x1000>;
+
+			clocks = <&clk_sysin>;
+		};
+
+		clk_s_c0: clockgen-c@9103000 {
+			compatible = "st,clkgen-c32";
+			reg = <0x9103000 0x1000>;
+
+			clk_s_c0_pll0: clk-s-c0-pll0 {
+				#clock-cells = <1>;
+				compatible = "st,clkgen-pll0-c0";
+
+				clocks = <&clk_sysin>;
+			};
+
+			clk_s_c0_pll1: clk-s-c0-pll1 {
+				#clock-cells = <1>;
+				compatible = "st,clkgen-pll1-c0";
+
+				clocks = <&clk_sysin>;
+			};
+
+			clk_s_c0_flexgen: clk-s-c0-flexgen {
+				#clock-cells = <1>;
+				compatible = "st,flexgen", "st,flexgen-stih418-c0";
+
+				clocks = <&clk_s_c0_pll0 0>,
+					 <&clk_s_c0_pll1 0>,
+					 <&clk_s_c0_quadfs 0>,
+					 <&clk_s_c0_quadfs 1>,
+					 <&clk_s_c0_quadfs 2>,
+					 <&clk_s_c0_quadfs 3>,
+					 <&clk_sysin>;
+
+				/*
+				 * ARM Peripheral clock for timers
+				 */
+				clk_m_a9_ext2f_div2: clk-m-a9-ext2f-div2s {
+					#clock-cells = <0>;
+					compatible = "fixed-factor-clock";
+
+					clocks = <&clk_s_c0_flexgen 13>;
+
+					clock-output-names = "clk-m-a9-ext2f-div2";
+
+					clock-div = <2>;
+					clock-mult = <1>;
+				};
+			};
+		};
+
+		clk_s_d0_quadfs: clk-s-d0-quadfs@9104000 {
+			#clock-cells = <1>;
+			compatible = "st,quadfs-d0";
+			reg = <0x9104000 0x1000>;
+
+			clocks = <&clk_sysin>;
+		};
+
+		clockgen-d0@9104000 {
+			compatible = "st,clkgen-c32";
+			reg = <0x9104000 0x1000>;
+
+			clk_s_d0_flexgen: clk-s-d0-flexgen {
+				#clock-cells = <1>;
+				compatible = "st,flexgen", "st,flexgen-stih410-d0";
+
+				clocks = <&clk_s_d0_quadfs 0>,
+					 <&clk_s_d0_quadfs 1>,
+					 <&clk_s_d0_quadfs 2>,
+					 <&clk_s_d0_quadfs 3>,
+					 <&clk_sysin>;
+			};
+		};
+
+		clk_s_d2_quadfs: clk-s-d2-quadfs@9106000 {
+			#clock-cells = <1>;
+			compatible = "st,quadfs-d2";
+			reg = <0x9106000 0x1000>;
+
+			clocks = <&clk_sysin>;
+		};
+
+		clockgen-d2@9106000 {
+			compatible = "st,clkgen-c32";
+			reg = <0x9106000 0x1000>;
+
+			clk_s_d2_flexgen: clk-s-d2-flexgen {
+				#clock-cells = <1>;
+				compatible = "st,flexgen", "st,flexgen-stih418-d2";
+
+				clocks = <&clk_s_d2_quadfs 0>,
+					 <&clk_s_d2_quadfs 1>,
+					 <&clk_s_d2_quadfs 2>,
+					 <&clk_s_d2_quadfs 3>,
+					 <&clk_sysin>,
+					 <&clk_sysin>,
+					 <&clk_tmdsout_hdmi>;
+			};
+		};
+
+		clk_s_d3_quadfs: clk-s-d3-quadfs@9107000 {
+			#clock-cells = <1>;
+			compatible = "st,quadfs-d3";
+			reg = <0x9107000 0x1000>;
+
+			clocks = <&clk_sysin>;
+		};
+
+		clockgen-d3@9107000 {
+			compatible = "st,clkgen-c32";
+			reg = <0x9107000 0x1000>;
+
+			clk_s_d3_flexgen: clk-s-d3-flexgen {
+				#clock-cells = <1>;
+				compatible = "st,flexgen", "st,flexgen-stih407-d3";
+
+				clocks = <&clk_s_d3_quadfs 0>,
+					 <&clk_s_d3_quadfs 1>,
+					 <&clk_s_d3_quadfs 2>,
+					 <&clk_s_d3_quadfs 3>,
+					 <&clk_sysin>;
+			};
+		};
+	};
+};

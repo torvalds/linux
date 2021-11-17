@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+libbpf_version.h
+libbpf.pc
+libbpf.so.*
+TAGS
+tags
+cscope.*
+/bpf_helper_defs.h

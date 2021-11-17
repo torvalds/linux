@@ -1,0 +1,302 @@
+/*
+ * ARM Juno Platform motherboard peripherals
+ *
+ * Copyright (c) 2013-2014 ARM Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
+ */
+
+/ {
+	mb_clk24mhz: clk24mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "juno_mb:clk24mhz";
+	};
+
+	mb_clk25mhz: clk25mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+		clock-output-names = "juno_mb:clk25mhz";
+	};
+
+	v2m_refclk1mhz: refclk1mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <1000000>;
+		clock-output-names = "juno_mb:refclk1mhz";
+	};
+
+	v2m_refclk32khz: refclk32khz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "juno_mb:refclk32khz";
+	};
+
+	mb_fixed_3v3: mcc-sb-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "MCC_SB_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <116>;
+			label = "POWER";
+			gpios = <&iofpga_gpio0 0 0x4>;
+		};
+		home-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <102>;
+			label = "HOME";
+			gpios = <&iofpga_gpio0 1 0x4>;
+		};
+		rlock-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <152>;
+			label = "RLOCK";
+			gpios = <&iofpga_gpio0 2 0x4>;
+		};
+		vol-up-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <115>;
+			label = "VOL+";
+			gpios = <&iofpga_gpio0 3 0x4>;
+		};
+		vol-down-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <114>;
+			label = "VOL-";
+			gpios = <&iofpga_gpio0 4 0x4>;
+		};
+		nmi-button {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <99>;
+			label = "NMI";
+			gpios = <&iofpga_gpio0 5 0x4>;
+		};
+	};
+
+	bus@8000000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0x8000000 0 0x8000000 0x18000000>;
+
+		motherboard-bus@8000000 {
+			compatible = "arm,vexpress,v2p-p1", "simple-bus";
+			#address-cells = <2>;  /* SMB chipselect number and offset */
+			#size-cells = <1>;
+			ranges = <0 0 0 0x08000000 0x04000000>,
+				 <1 0 0 0x14000000 0x04000000>,
+				 <2 0 0 0x18000000 0x04000000>,
+				 <3 0 0 0x1c000000 0x04000000>,
+				 <4 0 0 0x0c000000 0x04000000>,
+				 <5 0 0 0x10000000 0x04000000>;
+			arm,hbi = <0x252>;
+			arm,vexpress,site = <0>;
+
+			flash@0 {
+				/* 2 * 32MiB NOR Flash memory mounted on CS0 */
+				compatible = "arm,vexpress-flash", "cfi-flash";
+				reg = <0 0x00000000 0x04000000>;
+				bank-width = <4>;
+				/*
+				 * Unfortunately, accessing the flash disturbs
+				 * the CPU idle states (suspend) and CPU
+				 * hotplug of the platform. For this reason,
+				 * flash hardware access is disabled by default.
+				 */
+				status = "disabled";
+				partitions {
+					compatible = "arm,arm-firmware-suite";
+				};
+			};
+
+			ethernet@200000000 {
+				compatible = "smsc,lan9118", "smsc,lan9115";
+				reg = <2 0x00000000 0x10000>;
+				interrupts = <3>;
+				phy-mode = "mii";
+				reg-io-width = <4>;
+				smsc,irq-active-high;
+				smsc,irq-push-pull;
+				clocks = <&mb_clk25mhz>;
+				vdd33a-supply = <&mb_fixed_3v3>;
+				vddvario-supply = <&mb_fixed_3v3>;
+			};
+
+			iofpga-bus@300000000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 3 0 0x200000>;
+
+				v2m_sysctl: sysctl@20000 {
+					compatible = "arm,sp810", "arm,primecell";
+					reg = <0x020000 0x1000>;
+					clocks = <&v2m_refclk32khz>, <&v2m_refclk1mhz>, <&mb_clk24mhz>;
+					clock-names = "refclk", "timclk", "apb_pclk";
+					#clock-cells = <1>;
+					clock-output-names = "timerclken0", "timerclken1", "timerclken2", "timerclken3";
+					assigned-clocks = <&v2m_sysctl 0>, <&v2m_sysctl 1>, <&v2m_sysctl 3>, <&v2m_sysctl 3>;
+					assigned-clock-parents = <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>;
+				};
+
+				apbregs@10000 {
+					compatible = "syscon", "simple-mfd";
+					reg = <0x010000 0x1000>;
+
+					led0 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x01>;
+						label = "vexpress:0";
+						linux,default-trigger = "heartbeat";
+						default-state = "on";
+					};
+					led1 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x02>;
+						label = "vexpress:1";
+						linux,default-trigger = "mmc0";
+						default-state = "off";
+					};
+					led2 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x04>;
+						label = "vexpress:2";
+						linux,default-trigger = "cpu0";
+						default-state = "off";
+					};
+					led3 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x08>;
+						label = "vexpress:3";
+						linux,default-trigger = "cpu1";
+						default-state = "off";
+					};
+					led4 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x10>;
+						label = "vexpress:4";
+						linux,default-trigger = "cpu2";
+						default-state = "off";
+					};
+					led5 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x20>;
+						label = "vexpress:5";
+						linux,default-trigger = "cpu3";
+						default-state = "off";
+					};
+					led6 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x40>;
+						label = "vexpress:6";
+						default-state = "off";
+					};
+					led7 {
+						compatible = "register-bit-led";
+						offset = <0x08>;
+						mask = <0x80>;
+						label = "vexpress:7";
+						default-state = "off";
+					};
+				};
+
+				mmc@50000 {
+					compatible = "arm,pl180", "arm,primecell";
+					reg = <0x050000 0x1000>;
+					interrupts = <5>;
+					/* cd-gpios = <&v2m_mmc_gpios 0 0>;
+					wp-gpios = <&v2m_mmc_gpios 1 0>; */
+					max-frequency = <12000000>;
+					vmmc-supply = <&mb_fixed_3v3>;
+					clocks = <&mb_clk24mhz>, <&soc_smc50mhz>;
+					clock-names = "mclk", "apb_pclk";
+				};
+
+				kmi@60000 {
+					compatible = "arm,pl050", "arm,primecell";
+					reg = <0x060000 0x1000>;
+					interrupts = <8>;
+					clocks = <&mb_clk24mhz>, <&soc_smc50mhz>;
+					clock-names = "KMIREFCLK", "apb_pclk";
+				};
+
+				kmi@70000 {
+					compatible = "arm,pl050", "arm,primecell";
+					reg = <0x070000 0x1000>;
+					interrupts = <8>;
+					clocks = <&mb_clk24mhz>, <&soc_smc50mhz>;
+					clock-names = "KMIREFCLK", "apb_pclk";
+				};
+
+				watchdog@f0000 {
+					compatible = "arm,sp805", "arm,primecell";
+					reg = <0x0f0000 0x10000>;
+					interrupts = <7>;
+					clocks = <&mb_clk24mhz>, <&soc_smc50mhz>;
+					clock-names = "wdog_clk", "apb_pclk";
+				};
+
+				v2m_timer01: timer@110000 {
+					compatible = "arm,sp804", "arm,primecell";
+					reg = <0x110000 0x10000>;
+					interrupts = <9>;
+					clocks = <&v2m_sysctl 0>, <&v2m_sysctl 1>, <&mb_clk24mhz>;
+					clock-names = "timclken1", "timclken2", "apb_pclk";
+				};
+
+				v2m_timer23: timer@120000 {
+					compatible = "arm,sp804", "arm,primecell";
+					reg = <0x120000 0x10000>;
+					interrupts = <9>;
+					clocks = <&v2m_sysctl 2>, <&v2m_sysctl 3>, <&mb_clk24mhz>;
+					clock-names = "timclken1", "timclken2", "apb_pclk";
+				};
+
+				rtc@170000 {
+					compatible = "arm,pl031", "arm,primecell";
+					reg = <0x170000 0x10000>;
+					interrupts = <0>;
+					clocks = <&soc_smc50mhz>;
+					clock-names = "apb_pclk";
+				};
+
+				iofpga_gpio0: gpio@1d0000 {
+					compatible = "arm,pl061", "arm,primecell";
+					reg = <0x1d0000 0x1000>;
+					interrupts = <6>;
+					clocks = <&soc_smc50mhz>;
+					clock-names = "apb_pclk";
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+			};
+		};
+	};
+};

@@ -1,0 +1,20 @@
+What:		/sys/devices/.../power_state
+Date:		January 2013
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		The /sys/devices/.../power_state attribute is only present for
+		device objects representing ACPI device nodes that provide power
+		management methods.
+
+		If present, it contains a string representing the current ACPI
+		power state of the given device node.  Its possible values,
+		"D0", "D1", "D2", "D3hot", and "D3cold", reflect the power state
+		names defined by the ACPI specification (ACPI 4 and above).
+
+		If the device node uses shared ACPI power resources, this state
+		determines a list of power resources required not to be turned
+		off.  However, some power resources needed by the device node in
+		higher-power (lower-number) states may also be ON because of
+		some other devices using them at the moment.
+
+		This attribute is read-only.

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig GOOGLE_FIRMWARE
+	bool "Google Firmware Drivers"
+	default n
+	help
+	  These firmware drivers are used by Google's servers.  They are
+	  only useful if you are working directly on one of their
+	  proprietary servers.  If in doubt, say "N".
+
+if GOOGLE_FIRMWARE
+
+config GOOGLE_SMI
+	tristate "SMI interface for Google platforms"
+	depends on X86 && ACPI && DMI
+	help
+	  Say Y here if you want to enable SMI callbacks for Google
+	  platforms.  This provides an interface for writing to and
+	  clearing the event log.  If CONFIG_EFI is also enabled this
+	  driver provides an interface for reading and writing NVRAM
+	  variables.
+
+config GOOGLE_COREBOOT_TABLE
+	tristate "Coreboot Table Access"
+	depends on ACPI || OF
+	help
+	  This option enables the coreboot_table module, which provides other
+	  firmware modules access to the coreboot table. The coreboot table
+	  pointer is accessed through the ACPI "GOOGCB00" object or the
+	  device tree node /firmware/coreboot.
+	  If unsure say N.
+
+config GOOGLE_COREBOOT_TABLE_ACPI
+	tristate
+	select GOOGLE_COREBOOT_TABLE
+
+config GOOGLE_COREBOOT_TABLE_OF
+	tristate
+	select GOOGLE_COREBOOT_TABLE
+
+config GOOGLE_MEMCONSOLE
+	tristate
+	depends on GOOGLE_MEMCONSOLE_X86_LEGACY || GOOGLE_MEMCONSOLE_COREBOOT
+
+config GOOGLE_MEMCONSOLE_X86_LEGACY
+	tristate "Firmware Memory Console - X86 Legacy support"
+	depends on X86 && ACPI && DMI
+	select GOOGLE_MEMCONSOLE
+	help
+	  This option enables the kernel to search for a firmware log in
+	  the EBDA on Google servers.  If found, this log is exported to
+	  userland in the file /sys/firmware/log.
+
+config GOOGLE_FRAMEBUFFER_COREBOOT
+	tristate "Coreboot Framebuffer"
+	depends on FB_SIMPLE
+	depends on GOOGLE_COREBOOT_TABLE
+	help
+	  This option enables the kernel to search for a framebuffer in
+	  the coreboot table.  If found, it is registered with simplefb.
+
+config GOOGLE_MEMCONSOLE_COREBOOT
+	tristate "Firmware Memory Console"
+	depends on GOOGLE_COREBOOT_TABLE
+	select GOOGLE_MEMCONSOLE
+	help
+	  This option enables the kernel to search for a firmware log in
+	  the coreboot table.  If found, this log is exported to userland
+	  in the file /sys/firmware/log.
+
+config GOOGLE_VPD
+	tristate "Vital Product Data"
+	depends on GOOGLE_COREBOOT_TABLE
+	help
+	  This option enables the kernel to expose the content of Google VPD
+	  under /sys/firmware/vpd.
+
+endif # GOOGLE_FIRMWARE

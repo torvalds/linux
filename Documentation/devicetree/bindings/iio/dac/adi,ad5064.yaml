@@ -1,0 +1,268 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5064.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5064 and similar DACs
+
+maintainers:
+  - Lars-Peter Clausen <lars@metafoo.de>
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+   A range of similar DAC devices with between 1 and 12 channels. Some parts
+   have internal references, others require a single shared external reference
+   and the remainder have a separate reference pin for each DAC.
+
+properties:
+  compatible:
+    oneOf:
+      - description: I2C devics
+        enum:
+          - adi,ad5024
+          - adi,ad5025
+          - adi,ad5044
+          - adi,ad5045
+          - adi,ad5064
+          - adi,ad5064-1
+          - adi,ad5065
+          - adi,ad5628-1
+          - adi,ad5628-2
+          - adi,ad5648-1
+          - adi,ad5648-2
+          - adi,ad5666-1
+          - adi,ad5666-2
+          - adi,ad5668-1
+          - adi,ad5668-2
+          - adi,ad5668-3
+      - description: SPI devices
+        enum:
+          - adi,ad5625
+          - adi,ad5625r-1v25
+          - adi,ad5625r-2v5
+          - adi,ad5627
+          - adi,ad5627r-1v25
+          - adi,ad5627r-2v5
+          - adi,ad5629-1
+          - adi,ad5629-2
+          - adi,ad5629-3
+          - adi,ad5645r-1v25
+          - adi,ad5645r-2v5
+          - adi,ad5665
+          - adi,ad5665r-1v25
+          - adi,ad5665r-2v5
+          - adi,ad5667
+          - adi,ad5667r-1v25
+          - adi,ad5667r-2v5
+          - adi,ad5669-1
+          - adi,ad5669-2
+          - adi,ad5669-3
+          - lltc,ltc2606
+          - lltc,ltc2607
+          - lltc,ltc2609
+          - lltc,ltc2616
+          - lltc,ltc2617
+          - lltc,ltc2619
+          - lltc,ltc2626
+          - lltc,ltc2627
+          - lltc,ltc2629
+          - lltc,ltc2631-l12
+          - lltc,ltc2631-h12
+          - lltc,ltc2631-l10
+          - lltc,ltc2631-h10
+          - lltc,ltc2631-l8
+          - lltc,ltc2631-h8
+          - lltc,ltc2633-l12
+          - lltc,ltc2633-h12
+          - lltc,ltc2633-l10
+          - lltc,ltc2633-h10
+          - lltc,ltc2633-l8
+          - lltc,ltc2633-h8
+          - lltc,ltc2635-l12
+          - lltc,ltc2635-h12
+          - lltc,ltc2635-l10
+          - lltc,ltc2635-h10
+          - lltc,ltc2635-l8
+          - lltc,ltc2635-h8
+
+  reg:
+    maxItems: 1
+
+  vrefA-supply: true
+  vrefB-supply: true
+  vrefC-supply: true
+  vrefD-supply: true
+  vref-supply: true
+
+  spi-max-frequency: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - # Shared external vref, no internal reference
+    if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad5064-1
+              - adi,ad5625
+              - adi,ad5627
+              - adi,ad5665
+              - adi,ad5667
+              - lltc,ltc2606
+              - lltc,ltc2607
+              - lltc,ltc2616
+              - lltc,ltc2617
+              - lltc,ltc2626
+              - lltc,ltc2627
+    then:
+      properties:
+        vref-supply: true
+        vrefA-supply: false
+        vrefB-supply: false
+        vrefC-supply: false
+        vrefD-supply: false
+      required:
+        - vref-supply
+  - # Shared external vref, internal reference available
+    if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad5625r-1v25
+              - adi,ad5625r-2v5
+              - adi,ad5627r-1v25
+              - adi,ad5627r-2v5
+              - adi,ad5628-1
+              - adi,ad5628-2
+              - adi,ad5629-1
+              - adi,ad5629-2
+              - adi,ad5629-3
+              - adi,ad5645r-1v25
+              - adi,ad5645r-2v5
+              - adi,ad5647r-1v25
+              - adi,ad5647r-2v5
+              - adi,ad5648-1
+              - adi,ad5648-2
+              - adi,ad5665r-1v25
+              - adi,ad5665r-2v5
+              - adi,ad5666-1
+              - adi,ad5666-2
+              - adi,ad5667r-1v25
+              - adi,ad5667r-2v5
+              - adi,ad5668-1
+              - adi,ad5668-2
+              - adi,ad5668-3
+              - adi,ad5669-1
+              - adi,ad5669-2
+              - adi,ad5669-3
+              - lltc,ltc2631-l12
+              - lltc,ltc2631-h12
+              - lltc,ltc2631-l10
+              - lltc,ltc2631-h10
+              - lltc,ltc2631-l8
+              - lltc,ltc2631-h8
+              - lltc,ltc2633-l12
+              - lltc,ltc2633-h12
+              - lltc,ltc2633-l10
+              - lltc,ltc2633-h10
+              - lltc,ltc2633-l8
+              - lltc,ltc2633-h8
+              - lltc,ltc2635-l12
+              - lltc,ltc2635-h12
+              - lltc,ltc2635-l10
+              - lltc,ltc2635-h10
+              - lltc,ltc2635-l8
+              - lltc,ltc2635-h8
+    then:
+      properties:
+        vref-supply: true
+        vrefA-supply: false
+        vrefB-supply: false
+        vrefC-supply: false
+        vrefD-supply: false
+  - # 4 input devices, separate vrefs, no internal reference
+    if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad5024
+              - adi,ad5044
+              - adi,ad5064
+              - lltc,ltc2609
+              - lltc,ltc2619
+              - lltc,ltc2629
+    then:
+      properties:
+        vrefA-supply: true
+        vrefB-supply: true
+        vrefC-supply: true
+        vrefD-supply: true
+        vref-supply: false
+      required:
+        - vrefA-supply
+        - vrefB-supply
+        - vrefC-supply
+        - vrefD-supply
+  - # 2 input devices, separate vrefs, no internal reference
+    if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad5025
+              - adi,ad5045
+              - adi,ad5065
+    then:
+      properties:
+        vrefA-supply: true
+        vrefB-supply: true
+        vrefC-supply: false
+        vrefD-supply: false
+        vref-supply: false
+      required:
+        - vrefA-supply
+        - vrefB-supply
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+            reg = <0>;
+            compatible = "adi,ad5625";
+            vref-supply = <&dac_vref>;
+        };
+    };
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+            reg = <0>;
+            compatible = "adi,ad5625r-1v25";
+        };
+    };
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@42 {
+            reg = <0x42>;
+            compatible = "adi,ad5024";
+            vrefA-supply = <&dac_vref>;
+            vrefB-supply = <&dac_vref>;
+            vrefC-supply = <&dac_vref2>;
+            vrefD-supply = <&dac_vref2>;
+        };
+    };
+...

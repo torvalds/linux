@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/temperature/ti,tmp007.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: IR thermopile sensor with integrated math engine
+
+maintainers:
+  - Manivannan Sadhasivam <manivannanece23@gmail.com>
+
+description: |
+  http://www.ti.com/lit/ds/symlink/tmp007.pdf
+
+properties:
+  compatible:
+    const: ti,tmp007
+
+  reg:
+    description: |
+      The I2C address of the sensor (changeable via ADR pins)
+      ------------------------------
+      |ADR1 | ADR0 | Device Address|
+      ------------------------------
+         0      0        0x40
+         0      1        0x41
+         0     SDA       0x42
+         0     SCL       0x43
+         1      0        0x44
+         1      1        0x45
+         1     SDA       0x46
+         1     SCL       0x47
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        temp-sensor@40 {
+            compatible = "ti,tmp007";
+            reg = <0x40>;
+            interrupt-parent = <&gpio0>;
+            interrupts = <5 0x08>;
+        };
+    };
+...

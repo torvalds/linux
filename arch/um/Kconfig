@@ -1,0 +1,230 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "UML-specific options"
+
+config UML
+	bool
+	default y
+	select ARCH_EPHEMERAL_INODES
+	select ARCH_HAS_KCOV
+	select ARCH_HAS_STRNCPY_FROM_USER
+	select ARCH_HAS_STRNLEN_USER
+	select ARCH_NO_PREEMPT
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ASM_MODVERSIONS
+	select HAVE_UID16
+	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DEBUG_BUGVERBOSE
+	select NO_DMA if !UML_DMA_EMULATION
+	select GENERIC_IRQ_SHOW
+	select GENERIC_CPU_DEVICES
+	select HAVE_GCC_PLUGINS
+	select SET_FS
+	select TRACE_IRQFLAGS_SUPPORT
+	select TTY # Needed for line.c
+	select HAVE_ARCH_VMAP_STACK
+
+config MMU
+	bool
+	default y
+
+config UML_DMA_EMULATION
+	bool
+
+config NO_IOMEM
+	bool "disable IOMEM" if EXPERT
+	depends on !INDIRECT_IOMEM
+	default y
+
+config UML_IOMEM_EMULATION
+	bool
+	select INDIRECT_IOMEM
+	select GENERIC_PCI_IOMAP
+	select GENERIC_IOMAP
+	select NO_GENERIC_PCI_IOPORT_MAP
+
+config NO_IOPORT_MAP
+	def_bool y
+
+config ISA
+	bool
+
+config SBUS
+	bool
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+	select STACKTRACE
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config HZ
+	int
+	default 100
+
+config NR_CPUS
+	int
+	range 1 1
+	default 1
+
+config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
+source "arch/$(HEADER_ARCH)/um/Kconfig"
+
+config MAY_HAVE_RUNTIME_DEPS
+        bool
+
+config STATIC_LINK
+	bool "Force a static link"
+	depends on CC_CAN_LINK_STATIC_NO_RUNTIME_DEPS || !MAY_HAVE_RUNTIME_DEPS
+	help
+	  This option gives you the ability to force a static link of UML.
+	  Normally, UML is linked as a shared binary.  This is inconvenient for
+	  use in a chroot jail.  So, if you intend to run UML inside a chroot,
+	  you probably want to say Y here.
+	  Additionally, this option enables using higher memory spaces (up to
+	  2.75G) for UML.
+
+	  NOTE: This option is incompatible with some networking features which
+	  depend on features that require being dynamically loaded (like NSS).
+
+config LD_SCRIPT_STATIC
+	bool
+	default y
+	depends on STATIC_LINK
+
+config LD_SCRIPT_DYN
+	bool
+	default y
+	depends on !LD_SCRIPT_STATIC
+	select MODULE_REL_CRCS if MODVERSIONS
+
+config LD_SCRIPT_DYN_RPATH
+	bool "set rpath in the binary" if EXPERT
+	default y
+	depends on LD_SCRIPT_DYN
+	help
+	  Add /lib (and /lib64 for 64-bit) to the linux binary's rpath
+	  explicitly.
+
+	  You may need to turn this off if compiling for nix systems
+	  that have their libraries in random /nix directories and
+	  might otherwise unexpected use libraries from /lib or /lib64
+	  instead of the desired ones.
+
+config HOSTFS
+	tristate "Host filesystem"
+	help
+	  While the User-Mode Linux port uses its own root file system for
+	  booting and normal file access, this module lets the UML user
+	  access files stored on the host.  It does not require any
+	  network connection between the Host and UML.  An example use of
+	  this might be:
+
+	  mount none /tmp/fromhost -t hostfs -o /tmp/umlshare
+
+	  where /tmp/fromhost is an empty directory inside UML and
+	  /tmp/umlshare is a directory on the host with files the UML user
+	  wishes to access.
+
+	  For more information, see
+	  <http://user-mode-linux.sourceforge.net/hostfs.html>.
+
+	  If you'd like to be able to work with files stored on the host,
+	  say Y or M here; otherwise say N.
+
+config MCONSOLE
+	bool "Management console"
+	depends on PROC_FS
+	default y
+	help
+	  The user mode linux management console is a low-level interface to
+	  the kernel, somewhat like the i386 SysRq interface.  Since there is
+	  a full-blown operating system running under every user mode linux
+	  instance, there is much greater flexibility possible than with the
+	  SysRq mechanism.
+
+	  If you answer 'Y' to this option, to use this feature, you need the
+	  mconsole client (called uml_mconsole) which is present in CVS in
+	  2.4.5-9um and later (path /tools/mconsole), and is also in the
+	  distribution RPM package in 2.4.6 and later.
+
+	  It is safe to say 'Y' here.
+
+config MAGIC_SYSRQ
+	bool "Magic SysRq key"
+	depends on MCONSOLE
+	help
+	  If you say Y here, you will have some control over the system even
+	  if the system crashes for example during kernel debugging (e.g., you
+	  will be able to flush the buffer cache to disk, reboot the system
+	  immediately or dump some status information). A key for each of the
+	  possible requests is provided.
+
+	  This is the feature normally accomplished by pressing a key
+	  while holding SysRq (Alt+PrintScreen).
+
+	  On UML, this is accomplished by sending a "sysrq" command with
+	  mconsole, followed by the letter for the requested command.
+
+	  The keys are documented in <file:Documentation/admin-guide/sysrq.rst>. Don't say Y
+	  unless you really know what this hack does.
+
+config KERNEL_STACK_ORDER
+	int "Kernel stack size order"
+	default 2 if 64BIT
+	range 2 10 if 64BIT
+	default 1 if !64BIT
+	help
+	  This option determines the size of UML kernel stacks.  They will
+	  be 1 << order pages.  The default is OK unless you're running Valgrind
+	  on UML, in which case, set this to 3.
+	  It is possible to reduce the stack to 1 for 64BIT and 0 for 32BIT on
+	  older (pre-2017) CPUs. It is not recommended on newer CPUs due to the
+	  increase in the size of the state which needs to be saved when handling
+	  signals.
+
+config MMAPPER
+	tristate "iomem emulation driver"
+	help
+	  This driver allows a host file to be used as emulated IO memory inside
+	  UML.
+
+config PGTABLE_LEVELS
+	int
+	default 3 if 3_LEVEL_PGTABLES
+	default 2
+
+config UML_TIME_TRAVEL_SUPPORT
+	bool
+	prompt "Support time-travel mode (e.g. for test execution)"
+	# inf-cpu mode is incompatible with the benchmarking
+	depends on !RAID6_PQ_BENCHMARK
+	depends on !SMP
+	help
+	  Enable this option to support time travel inside the UML instance.
+
+	  After enabling this option, two modes are accessible at runtime
+	  (selected by the kernel command line), see the kernel's command-
+	  line help for more details.
+
+	  It is safe to say Y, but you probably don't need this.
+
+endmenu
+
+source "arch/um/drivers/Kconfig"
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+
+source "kernel/power/Kconfig"

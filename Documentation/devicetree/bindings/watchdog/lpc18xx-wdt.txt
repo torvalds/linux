@@ -1,0 +1,19 @@
+* NXP LPC18xx Watchdog Timer (WDT)
+
+Required properties:
+- compatible: Should be "nxp,lpc1850-wwdt"
+- reg: Should contain WDT registers location and length
+- clocks: Must contain an entry for each entry in clock-names.
+- clock-names: Should contain "wdtclk" and "reg"; the watchdog counter
+               clock and register interface clock respectively.
+- interrupts: Should contain WDT interrupt
+
+Examples:
+
+watchdog@40080000 {
+	compatible = "nxp,lpc1850-wwdt";
+	reg = <0x40080000 0x24>;
+	clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_WWDT>;
+	clock-names = "wdtclk", "reg";
+	interrupts = <49>;
+};

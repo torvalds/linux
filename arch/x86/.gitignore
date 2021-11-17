@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+boot/compressed/vmlinux
+tools/test_get_len
+tools/insn_sanity
+tools/insn_decoder_test
+purgatory/kexec-purgatory.c
+purgatory/purgatory.ro
+

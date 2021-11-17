@@ -1,0 +1,155 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2020 Renesas Electronics Corp.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/rcar-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car Thermal
+
+maintainers:
+  - Niklas Söderlund <niklas.soderlund@ragnatech.se>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,thermal-r8a73a4 # R-Mobile APE6
+              - renesas,thermal-r8a7779 # R-Car H1
+          - const: renesas,rcar-thermal # Generic without thermal-zone
+      - items:
+          - enum:
+              - renesas,thermal-r8a7742 # RZ/G1H
+              - renesas,thermal-r8a7743 # RZ/G1M
+              - renesas,thermal-r8a7744 # RZ/G1N
+          - const: renesas,rcar-gen2-thermal # Generic thermal-zone
+      - items:
+          - enum:
+              - renesas,thermal-r8a7790 # R-Car H2
+              - renesas,thermal-r8a7791 # R-Car M2-W
+              - renesas,thermal-r8a7792 # R-Car V2H
+              - renesas,thermal-r8a7793 # R-Car M2-N
+          - const: renesas,rcar-gen2-thermal # Generic thermal-zone
+          - const: renesas,rcar-thermal # Generic without thermal-zone
+      - items:
+          - enum:
+              - renesas,thermal-r8a774c0 # RZ/G2E
+              - renesas,thermal-r8a77970 # R-Car V3M
+              - renesas,thermal-r8a77990 # R-Car E3
+              - renesas,thermal-r8a77995 # R-Car D3
+  reg:
+    description:
+      Address ranges of the thermal registers. If more then one range is given
+      the first one must be the common registers followed by each sensor
+      according the the datasheet.
+    minItems: 1
+    maxItems: 4
+
+  interrupts:
+    minItems: 1
+    maxItems: 3
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  "#thermal-sensor-cells":
+    const: 0
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - renesas,thermal-r8a73a4 # R-Mobile APE6
+                - renesas,thermal-r8a7779 # R-Car H1
+    then:
+      required:
+        - resets
+        - '#thermal-sensor-cells'
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: renesas,thermal-r8a7779 # R-Car H1
+    then:
+      required:
+        - interrupts
+        - clocks
+        - power-domains
+
+additionalProperties: false
+
+examples:
+  # Example (non interrupt support)
+  - |
+    thermal@ffc48000 {
+            compatible = "renesas,thermal-r8a7779", "renesas,rcar-thermal";
+            reg = <0xffc48000 0x38>;
+    };
+
+  # Example (interrupt support)
+  - |
+    #include <dt-bindings/clock/r8a73a4-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    thermal@e61f0000 {
+            compatible = "renesas,thermal-r8a73a4", "renesas,rcar-thermal";
+            reg = <0xe61f0000 0x14>, <0xe61f0100 0x38>,
+                  <0xe61f0200 0x38>, <0xe61f0300 0x38>;
+            interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&mstp5_clks R8A73A4_CLK_THERMAL>;
+            power-domains = <&pd_c5>;
+    };
+
+  # Example (with thermal-zone)
+  - |
+    #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7790-sysc.h>
+
+    thermal: thermal@e61f0000 {
+      compatible = "renesas,thermal-r8a7790",
+                   "renesas,rcar-gen2-thermal",
+                   "renesas,rcar-thermal";
+            reg = <0xe61f0000 0x10>, <0xe61f0100 0x38>;
+            interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 522>;
+            power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+            resets = <&cpg 522>;
+            #thermal-sensor-cells = <0>;
+    };
+
+    thermal-zones {
+            cpu_thermal: cpu-thermal {
+                    polling-delay-passive = <1000>;
+                    polling-delay = <5000>;
+
+                    thermal-sensors = <&thermal>;
+
+                    trips {
+                            cpu-crit {
+                                    temperature = <115000>;
+                                    hysteresis = <0>;
+                                    type = "critical";
+                            };
+                    };
+                    cooling-maps {
+                    };
+            };
+    };

@@ -1,0 +1,27 @@
+w1-gpio devicetree bindings
+
+Required properties:
+
+ - compatible: "w1-gpio"
+ - gpios: one or two GPIO specs:
+		- the first one is used as data I/O pin
+		- the second one is optional. If specified, it is used as
+		  enable pin for an external pin pullup.
+
+Optional properties:
+
+ - linux,open-drain: if specified, the data pin is considered in
+		     open-drain mode.
+
+Also refer to the generic w1.txt document.
+
+Examples:
+
+	onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+
+		battery {
+			// ...
+		};
+	};

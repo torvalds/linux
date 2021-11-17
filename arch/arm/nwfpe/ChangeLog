@@ -1,0 +1,91 @@
+2003-03-22  Ralph Siemsen <ralphs@netwinder.org>
+	* Reformat all but softfloat files to get a consistent coding style.
+	  Used "indent -kr -i8 -ts8 -sob -l132 -ss" and a few manual fixups.
+	* Removed dead code and fixed function protypes to match definitions.
+	* Consolidated use of (opcode && MASK_ARITHMETIC_OPCODE) >> 20.
+	* Make 80-bit precision a compile-time option. (1%)
+	* Only initialize FPE state once in repeat-FP situations. (6%)
+
+2002-01-19  Russell King <rmk@arm.linux.org.uk>
+
+	* fpa11.h - Add documentation
+	          - remove userRegisters pointer from this structure.
+	          - add new method to obtain integer register values.
+	* softfloat.c - Remove float128
+	* softfloat.h - Remove float128
+	* softfloat-specialize - Remove float128
+
+	* The FPA11 structure is not a kernel-specific data structure.
+	  It is used by users of ptrace to examine the values of the
+	  floating point registers.  Therefore, any changes to the
+	  FPA11 structure (size or position of elements contained
+	  within) have to be well thought out.
+
+	* Since 128-bit float requires the FPA11 structure to change
+	  size, it has been removed.  128-bit float is currently unused,
+	  and needs various things to be re-worked so that we won't
+	  overflow the available space in the task structure.
+
+	* The changes are designed to break any patch that goes on top
+	  of this code, so that the authors properly review their changes.
+
+1999-08-19  Scott Bambrough  <scottb@netwinder.org>
+
+	* fpmodule.c - Changed version number to 0.95
+	* fpa11.h - modified FPA11, FPREG structures
+	* fpa11.c - Changes due to FPA11, FPREG structure alterations.
+	* fpa11_cpdo.c - Changes due to FPA11, FPREG structure alterations.
+	* fpa11_cpdt.c - Changes due to FPA11, FPREG structure alterations.
+	* fpa11_cprt.c - Changes due to FPA11, FPREG structure alterations.
+	* single_cpdo.c - Changes due to FPA11, FPREG structure alterations.
+	* double_cpdo.c - Changes due to FPA11, FPREG structure alterations.
+	* extended_cpdo.c - Changes due to FPA11, FPREG structure alterations.
+
+	* I discovered several bugs.  First and worst is that the kernel
+	  passes in a pointer to the FPE's state area.	This is defined
+	  as a struct user_fp (see user.h).  This pointer was cast to a
+	  FPA11*.  Unfortunately FPA11 and user_fp are of different sizes;
+	  user_fp is smaller.  This meant that the FPE scribbled on things
+	  below its area, which is bad, as the area is in the thread_struct
+	  embedded in the process task structure.  Thus we were scribbling
+	  over one of the most important structures in the entire OS.
+
+	* user_fp and FPA11 have now been harmonized.  Most of the changes
+	  in the above code were dereferencing problems due to moving the
+	  register type out of FPREG, and getting rid of the union variable
+	  fpvalue.
+
+	* Second I noticed resetFPA11 was not always being called for a
+	  task.  This should happen on the first floating point exception
+	  that occurs.	It is controlled by init_flag in FPA11.  The
+	  comment in the code beside init_flag state the kernel guarantees
+	  this to be zero.  Not so.  I found that the kernel recycles task
+	  structures, and that recycled ones may not have init_flag zeroed.
+	  I couldn't even find anything that guarantees it is zeroed when
+	  when the task structure is initially allocated.  In any case
+	  I now initialize the entire FPE state in the thread structure to
+	  zero when allocated and recycled.  See alloc_task_struct() and
+	  flush_thread() in arch/arm/process.c.  The change to
+	  alloc_task_struct() may not be necessary, but I left it in for
+	  completeness (better safe than sorry).
+
+1998-11-23  Scott Bambrough  <scottb@netwinder.org>
+
+	* README.FPE - fix typo in description of lfm/sfm instructions
+	* NOTES - Added file to describe known bugs/problems
+	* fpmodule.c - Changed version number to 0.94
+
+1998-11-20  Scott Bambrough  <scottb@netwinder.org>
+
+	* README.FPE - fix description of URD, NRM instructions
+	* TODO - remove URD, NRM instructions from TODO list
+	* single_cpdo.c - implement URD, NRM
+	* double_cpdo.c - implement URD, NRM
+	* extended_cpdo.c - implement URD, NRM
+
+1998-11-19  Scott Bambrough  <scottb@netwinder.org>
+
+	* ChangeLog - Added this file to track changes made.
+	* fpa11.c - added code to initialize register types to typeNone
+	* fpa11_cpdt.c - fixed bug in storeExtended (typeExtended changed to
+	  typeDouble in switch statement)

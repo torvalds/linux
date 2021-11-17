@@ -1,0 +1,22 @@
+Texas Instruments pcm1789 DT bindings
+
+PCM1789 is a simple audio codec that can be connected via
+I2C or SPI. Currently, only I2C bus is supported.
+
+Required properties:
+
+ - compatible: "ti,pcm1789"
+
+Required properties on I2C:
+
+ - reg: the I2C address
+ - reset-gpios: GPIO to control the RESET pin
+
+Examples:
+
+	audio-codec@4c {
+		compatible = "ti,pcm1789";
+		reg = <0x4c>;
+		reset-gpios = <&gpio2 14 GPIO_ACTIVE_LOW>;
+		#sound-dai-cells = <0>;
+	};

@@ -1,0 +1,35 @@
+ST SPEAr SoC USB controllers:
+-----------------------------
+
+EHCI:
+-----
+
+Required properties:
+- compatible: "st,spear600-ehci"
+- interrupts: Should contain the EHCI interrupt
+
+Example:
+
+	ehci@e1800000 {
+		compatible = "st,spear600-ehci", "usb-ehci";
+		reg = <0xe1800000 0x1000>;
+		interrupt-parent = <&vic1>;
+		interrupts = <27>;
+	};
+
+
+OHCI:
+-----
+
+Required properties:
+- compatible: "st,spear600-ohci"
+- interrupts: Should contain the OHCI interrupt
+
+Example:
+
+	ohci@e1900000 {
+		compatible = "st,spear600-ohci", "usb-ohci";
+		reg = <0xe1800000 0x1000>;
+		interrupt-parent = <&vic1>;
+		interrupts = <26>;
+	};

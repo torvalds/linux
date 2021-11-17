@@ -1,0 +1,331 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Platform selection"
+
+config ARCH_ACTIONS
+	bool "Actions Semi Platforms"
+	select OWL_TIMER
+	select PINCTRL
+	help
+	  This enables support for the Actions Semiconductor S900 SoC family.
+
+config ARCH_SUNXI
+	bool "Allwinner sunxi 64-bit SoC Family"
+	select ARCH_HAS_RESET_CONTROLLER
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+	select PINCTRL
+	select RESET_CONTROLLER
+	select SUN4I_TIMER
+	help
+	  This enables support for Allwinner sunxi based SoCs like the A64.
+
+config ARCH_ALPINE
+	bool "Annapurna Labs Alpine platform"
+	select ALPINE_MSI if PCI
+	help
+	  This enables support for the Annapurna Labs Alpine
+	  Soc family.
+
+config ARCH_APPLE
+	bool "Apple Silicon SoC family"
+	select APPLE_AIC
+	help
+	  This enables support for Apple's in-house ARM SoC family, starting
+	  with the Apple M1.
+
+config ARCH_BCM2835
+	bool "Broadcom BCM2835 family"
+	select TIMER_OF
+	select GPIOLIB
+	select MFD_CORE
+	select PINCTRL
+	select PINCTRL_BCM2835
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select BRCMSTB_L2_IRQ
+	help
+	  This enables support for the Broadcom BCM2837 and BCM2711 SoC.
+	  These SoCs are used in the Raspberry Pi 3 and 4 devices.
+
+config ARCH_BCM4908
+	bool "Broadcom BCM4908 family"
+	select GPIOLIB
+	help
+	  This enables support for the Broadcom BCM4906, BCM4908 and
+	  BCM49408 SoCs. These SoCs use Brahma-B53 cores and can be
+	  found in home routers.
+
+config ARCH_BCM_IPROC
+	bool "Broadcom iProc SoC Family"
+	select COMMON_CLK_IPROC
+	select GPIOLIB
+	select PINCTRL
+	help
+	  This enables support for Broadcom iProc based SoCs
+
+config ARCH_BERLIN
+	bool "Marvell Berlin SoC Family"
+	select DW_APB_ICTL
+	select DW_APB_TIMER_OF
+	select GPIOLIB
+	select PINCTRL
+	help
+	  This enables support for Marvell Berlin SoC Family
+
+config ARCH_BITMAIN
+	bool "Bitmain SoC Platforms"
+	help
+	  This enables support for the Bitmain SoC Family.
+
+config ARCH_BRCMSTB
+	bool "Broadcom Set-Top-Box SoCs"
+	select ARCH_HAS_RESET_CONTROLLER
+	select BCM7038_L1_IRQ
+	select BRCMSTB_L2_IRQ
+	select GENERIC_IRQ_CHIP
+	select PINCTRL
+	help
+	  This enables support for Broadcom's ARMv8 Set Top Box SoCs
+
+config ARCH_EXYNOS
+	bool "ARMv8 based Samsung Exynos SoC family"
+	select COMMON_CLK_SAMSUNG
+	select EXYNOS_CHIPID
+	select EXYNOS_PM_DOMAINS if PM_GENERIC_DOMAINS
+	select EXYNOS_PMU
+	select HAVE_S3C_RTC if RTC_CLASS
+	select PINCTRL
+	select PINCTRL_EXYNOS
+	select PM_GENERIC_DOMAINS if PM
+	select SOC_SAMSUNG
+	help
+	  This enables support for ARMv8 based Samsung Exynos SoC family.
+
+config ARCH_SPARX5
+	bool "ARMv8 based Microchip Sparx5 SoC family"
+	select PINCTRL
+	select DW_APB_TIMER_OF
+	help
+	  This enables support for the Microchip Sparx5 ARMv8-based
+	  SoC family of TSN-capable gigabit switches.
+
+	  The SparX-5 Ethernet switch family provides a rich set of
+	  switching features such as advanced TCAM-based VLAN and QoS
+	  processing enabling delivery of differentiated services, and
+	  security through TCAM-based frame processing using versatile
+	  content aware processor (VCAP).
+
+config ARCH_K3
+	bool "Texas Instruments Inc. K3 multicore SoC architecture"
+	select PM_GENERIC_DOMAINS if PM
+	select MAILBOX
+	select SOC_TI
+	select TI_MESSAGE_MANAGER
+	select TI_SCI_PROTOCOL
+	select TI_SCI_INTR_IRQCHIP
+	select TI_SCI_INTA_IRQCHIP
+	select TI_K3_SOCINFO
+	help
+	  This enables support for Texas Instruments' K3 multicore SoC
+	  architecture.
+
+config ARCH_LAYERSCAPE
+	bool "ARMv8 based Freescale Layerscape SoC family"
+	select EDAC_SUPPORT
+	help
+	  This enables support for the Freescale Layerscape SoC family.
+
+config ARCH_LG1K
+	bool "LG Electronics LG1K SoC Family"
+	help
+	  This enables support for LG Electronics LG1K SoC Family
+
+config ARCH_HISI
+	bool "Hisilicon SoC Family"
+	select ARM_TIMER_SP804
+	select HISILICON_IRQ_MBIGEN if PCI
+	select PINCTRL
+	help
+	  This enables support for Hisilicon ARMv8 SoC family
+
+config ARCH_KEEMBAY
+	bool "Keem Bay SoC"
+	help
+	  This enables support for Intel Movidius SoC code-named Keem Bay.
+
+config ARCH_MEDIATEK
+	bool "MediaTek SoC Family"
+	select ARM_GIC
+	select PINCTRL
+	select MTK_TIMER
+	help
+	  This enables support for MediaTek MT27xx, MT65xx, MT76xx
+	  & MT81xx ARMv8 SoCs
+
+config ARCH_MESON
+	bool "Amlogic Platforms"
+	select COMMON_CLK
+	select MESON_IRQ_GPIO
+	help
+	  This enables support for the arm64 based Amlogic SoCs
+	  such as the s905, S905X/D, S912, A113X/D or S905X/D2
+
+config ARCH_MVEBU
+	bool "Marvell EBU SoC Family"
+	select ARMADA_AP806_SYSCON
+	select ARMADA_CP110_SYSCON
+	select ARMADA_37XX_CLK
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select MVEBU_GICP
+	select MVEBU_ICU
+	select MVEBU_ODMI
+	select MVEBU_PIC
+	select MVEBU_SEI
+	select OF_GPIO
+	select PINCTRL
+	select PINCTRL_ARMADA_37XX
+	select PINCTRL_ARMADA_AP806
+	select PINCTRL_ARMADA_CP110
+	help
+	  This enables support for Marvell EBU familly, including:
+	   - Armada 3700 SoC Family
+	   - Armada 7K SoC Family
+	   - Armada 8K SoC Family
+
+config ARCH_MXC
+	bool "ARMv8 based NXP i.MX SoC family"
+	select ARM64_ERRATUM_843419
+	select ARM64_ERRATUM_845719 if COMPAT
+	select IMX_GPCV2
+	select IMX_GPCV2_PM_DOMAINS
+	select PM
+	select PM_GENERIC_DOMAINS
+	select SOC_BUS
+	select TIMER_IMX_SYS_CTR
+	help
+	  This enables support for the ARMv8 based SoCs in the
+	  NXP i.MX family.
+
+config ARCH_QCOM
+	bool "Qualcomm Platforms"
+	select GPIOLIB
+	select PINCTRL
+	help
+	  This enables support for the ARMv8 based Qualcomm chipsets.
+
+config ARCH_REALTEK
+	bool "Realtek Platforms"
+	select RESET_CONTROLLER
+	help
+	  This enables support for the ARMv8 based Realtek chipsets,
+	  like the RTD1295.
+
+config ARCH_RENESAS
+	bool "Renesas SoC Platforms"
+	select GPIOLIB
+	select PINCTRL
+	select SOC_BUS
+	help
+	  This enables support for the ARMv8 based Renesas SoCs.
+
+config ARCH_ROCKCHIP
+	bool "Rockchip Platforms"
+	select ARCH_HAS_RESET_CONTROLLER
+	select PINCTRL
+	select PM
+	select ROCKCHIP_TIMER
+	help
+	  This enables support for the ARMv8 based Rockchip chipsets,
+	  like the RK3368.
+
+config ARCH_S32
+	bool "NXP S32 SoC Family"
+	help
+	  This enables support for the NXP S32 family of processors.
+
+config ARCH_SEATTLE
+	bool "AMD Seattle SoC Family"
+	help
+	  This enables support for AMD Seattle SOC Family
+
+config ARCH_INTEL_SOCFPGA
+	bool "Intel's SoCFPGA ARMv8 Families"
+	help
+	  This enables support for Intel's SoCFPGA ARMv8 families:
+	  Stratix 10 (ex. Altera), Agilex and eASIC N5X.
+
+config ARCH_SYNQUACER
+	bool "Socionext SynQuacer SoC Family"
+
+config ARCH_TEGRA
+	bool "NVIDIA Tegra SoC Family"
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_GIC_PM
+	select CLKSRC_MMIO
+	select TIMER_OF
+	select GPIOLIB
+	select PINCTRL
+	select PM
+	select PM_GENERIC_DOMAINS
+	select RESET_CONTROLLER
+	help
+	  This enables support for the NVIDIA Tegra SoC family.
+
+config ARCH_SPRD
+	bool "Spreadtrum SoC platform"
+	help
+	  Support for Spreadtrum ARM based SoCs
+
+config ARCH_THUNDER
+	bool "Cavium Inc. Thunder SoC Family"
+	help
+	  This enables support for Cavium's Thunder Family of SoCs.
+
+config ARCH_THUNDER2
+	bool "Cavium ThunderX2 Server Processors"
+	select GPIOLIB
+	help
+	  This enables support for Cavium's ThunderX2 CN99XX family of
+	  server processors.
+
+config ARCH_UNIPHIER
+	bool "Socionext UniPhier SoC Family"
+	select ARCH_HAS_RESET_CONTROLLER
+	select PINCTRL
+	select RESET_CONTROLLER
+	help
+	  This enables support for Socionext UniPhier SoC family.
+
+config ARCH_VEXPRESS
+	bool "ARMv8 software model (Versatile Express)"
+	select GPIOLIB
+	select PM
+	select PM_GENERIC_DOMAINS
+	help
+	  This enables support for the ARMv8 software model (Versatile
+	  Express).
+
+config ARCH_VISCONTI
+	bool "Toshiba Visconti SoC Family"
+	select PINCTRL
+	select PINCTRL_VISCONTI
+	help
+	  This enables support for Toshiba Visconti SoCs Family.
+
+config ARCH_VULCAN
+	def_bool n
+
+config ARCH_XGENE
+	bool "AppliedMicro X-Gene SOC Family"
+	help
+	  This enables support for AppliedMicro X-Gene SOC Family
+
+config ARCH_ZYNQMP
+	bool "Xilinx ZynqMP Family"
+	help
+	  This enables support for Xilinx ZynqMP Family
+
+endmenu

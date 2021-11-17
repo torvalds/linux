@@ -1,0 +1,84 @@
+Kernel driver max20751
+======================
+
+Supported chips:
+
+  * maxim MAX20751
+
+    Prefix: 'max20751'
+
+    Addresses scanned: -
+
+    Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX20751.pdf
+
+    Application note: https://pdfserv.maximintegrated.com/en/an/AN5941.pdf
+
+Author: Guenter Roeck <linux@roeck-us.net>
+
+
+Description
+-----------
+
+This driver supports MAX20751 Multiphase Master with PMBus Interface
+and Internal Buck Converter.
+
+The driver is a client driver to the core PMBus driver.
+Please see Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
+details.
+
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data.
+
+
+Sysfs entries
+-------------
+
+The following attributes are supported.
+
+======================= =======================================================
+in1_label		"vin1"
+in1_input		Measured voltage.
+in1_min			Minimum input voltage.
+in1_max			Maximum input voltage.
+in1_lcrit		Critical minimum input voltage.
+in1_crit		Critical maximum input voltage.
+in1_min_alarm		Input voltage low alarm.
+in1_lcrit_alarm		Input voltage critical low alarm.
+in1_min_alarm		Input voltage low alarm.
+in1_max_alarm		Input voltage high alarm.
+
+in2_label		"vout1"
+in2_input		Measured voltage.
+in2_min			Minimum output voltage.
+in2_max			Maximum output voltage.
+in2_lcrit		Critical minimum output voltage.
+in2_crit		Critical maximum output voltage.
+in2_min_alarm		Output voltage low alarm.
+in2_lcrit_alarm		Output voltage critical low alarm.
+in2_min_alarm		Output voltage low alarm.
+in2_max_alarm		Output voltage high alarm.
+
+curr1_input		Measured output current.
+curr1_label		"iout1"
+curr1_max		Maximum output current.
+curr1_alarm		Current high alarm.
+
+temp1_input		Measured temperature.
+temp1_max		Maximum temperature.
+temp1_crit		Critical high temperature.
+temp1_max_alarm		Chip temperature high alarm.
+temp1_crit_alarm	Chip temperature critical high alarm.
+
+power1_input		Output power.
+power1_label		"pout1"
+======================= =======================================================

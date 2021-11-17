@@ -1,0 +1,4 @@
+#ifndef _ASM_H8300_VMALLOC_H
+#define _ASM_H8300_VMALLOC_H
+
+#endif /* _ASM_H8300_VMALLOC_H */

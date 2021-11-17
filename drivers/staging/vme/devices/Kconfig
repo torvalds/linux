@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+comment "VME Device Drivers"
+
+config VME_USER
+	tristate "VME user space access driver"
+	depends on STAGING
+	help
+	  If you say Y here you want to be able to access a limited number of
+	  VME windows in a manner at least semi-compatible with the interface
+	  provided with the original driver at <http://www.vmelinux.org/>.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called vme_user. If unsure, say N.

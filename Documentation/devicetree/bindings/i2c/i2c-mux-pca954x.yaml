@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-mux-pca954x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP PCA954x I2C bus switch
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+description:
+  The binding supports NXP PCA954x and PCA984x I2C mux/switch devices.
+
+allOf:
+  - $ref: /schemas/i2c/i2c-mux.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - nxp,pca9540
+          - nxp,pca9542
+          - nxp,pca9543
+          - nxp,pca9544
+          - nxp,pca9545
+          - nxp,pca9546
+          - nxp,pca9547
+          - nxp,pca9548
+          - nxp,pca9846
+          - nxp,pca9847
+          - nxp,pca9848
+          - nxp,pca9849
+      - items:
+          - const: nxp,pca9646
+          - const: nxp,pca9546
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  "#interrupt-cells":
+    const: 2
+
+  interrupt-controller: true
+
+  reset-gpios:
+    maxItems: 1
+
+  i2c-mux-idle-disconnect:
+    type: boolean
+    description: Forces mux to disconnect all children in idle state. This is
+      necessary for example, if there are several multiplexers on the bus and
+      the devices behind them use same I2C addresses.
+
+  idle-state:
+    description: if present, overrides i2c-mux-idle-disconnect
+    $ref: /schemas/mux/mux-controller.yaml#/properties/idle-state
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        i2c-mux@74 {
+            compatible = "nxp,pca9548";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0x74>;
+
+            interrupt-parent = <&ipic>;
+            interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+
+            i2c@2 {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <2>;
+
+                eeprom@54 {
+                    compatible = "atmel,24c08";
+                    reg = <0x54>;
+                };
+            };
+
+            i2c@4 {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <4>;
+
+                rtc@51 {
+                    compatible = "nxp,pcf8563";
+                    reg = <0x51>;
+                };
+            };
+        };
+    };
+...

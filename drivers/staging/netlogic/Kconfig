@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+config NETLOGIC_XLR_NET
+	tristate "Netlogic XLR/XLS network device"
+	depends on CPU_XLR
+	depends on NETDEVICES
+	select PHYLIB
+	help
+	This driver support Netlogic XLR/XLS on chip gigabit
+	Ethernet.

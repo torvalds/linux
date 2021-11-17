@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Western Digital/SMC network device configuration
+#
+
+config NET_VENDOR_SMSC
+	bool "SMC (SMSC)/Western Digital devices"
+	default y
+	depends on ARM || ARM64 || ATARI_ETHERNAT || COLDFIRE || \
+		   ISA || MAC || MIPS || NIOS2 || PCI || \
+		   PCMCIA || SUPERH || XTENSA || H8300 || COMPILE_TEST
+	help
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about SMC/Western Digital cards. If you say Y, you will
+	  be asked for your specific card in the following questions.
+
+if NET_VENDOR_SMSC
+
+config SMC9194
+	tristate "SMC 9194 support"
+	depends on ISA
+	select CRC32
+	select NETDEV_LEGACY_INIT
+	help
+	  This is support for the SMC9xxx based Ethernet cards. Choose this
+	  option if you have a DELL laptop with the docking station, or
+	  another SMC9192/9194 based chipset.  Say Y if you want it compiled
+	  into the kernel, and read the file
+	  <file:Documentation/networking/device_drivers/ethernet/smsc/smc9.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called smc9194.
+
+config SMC91X
+	tristate "SMC 91C9x/91C1xxx support"
+	select CRC32
+	select MII
+	depends on !OF || GPIOLIB
+	depends on ARM || ARM64 || ATARI_ETHERNAT || COLDFIRE || \
+		   MIPS || NIOS2 || SUPERH || XTENSA || H8300 || COMPILE_TEST
+	help
+	  This is a driver for SMC's 91x series of Ethernet chipsets,
+	  including the SMC91C94 and the SMC91C111. Say Y if you want it
+	  compiled into the kernel, and read the file
+	  <file:Documentation/networking/device_drivers/ethernet/smsc/smc9.rst>.
+
+	  This driver is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called smc91x.  If you want to compile it as a
+	  module, say M here and read <file:Documentation/kbuild/modules.rst>.
+
+config PCMCIA_SMC91C92
+	tristate "SMC 91Cxx PCMCIA support"
+	depends on PCMCIA
+	select CRC32
+	select MII
+	help
+	  Say Y here if you intend to attach an SMC 91Cxx compatible PCMCIA
+	  (PC-card) Ethernet or Fast Ethernet card to your computer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called smc91c92_cs.  If unsure, say N.
+
+config EPIC100
+	tristate "SMC EtherPower II"
+	depends on PCI
+	select CRC32
+	select MII
+	help
+	  This driver is for the SMC EtherPower II 9432 PCI Ethernet NIC,
+	  which is based on the SMC83c17x (EPIC/100).
+	  More specific information and updates are available from
+	  <http://www.scyld.com/network/epic100.html>.
+
+config SMC911X
+	tristate "SMSC LAN911[5678] support"
+	select CRC32
+	select MII
+	depends on (ARM || SUPERH || COMPILE_TEST)
+	help
+	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
+	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
+	  Say Y here if you want it compiled into the kernel.
+
+	  This driver is also available as a module. The module will be
+	  called smc911x.  If you want to compile it as a module, say M
+	  here and read <file:Documentation/kbuild/modules.rst>
+
+config SMSC911X
+	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
+	depends on HAS_IOMEM
+	select CRC32
+	select MII
+	select PHYLIB
+	help
+	  Say Y here if you want support for SMSC LAN911x and LAN921x families
+	  of ethernet controllers.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called smsc911x.
+
+config SMSC911X_ARCH_HOOKS
+	def_bool n
+	depends on SMSC911X
+	help
+	  If the arch enables this, it allows the arch to implement various
+	  hooks for more comprehensive interrupt control and also to override
+	  the source of the MAC address.
+
+config SMSC9420
+	tristate "SMSC LAN9420 PCI ethernet adapter support"
+	depends on PCI
+	select CRC32
+	select PHYLIB
+	select SMSC_PHY
+	help
+	  This is a driver for SMSC's LAN9420 PCI ethernet adapter.
+	  Say Y here if you want it compiled into the kernel.
+
+	  This driver is also available as a module. The module will be
+	  called smsc9420.  If you want to compile it as a module, say M
+	  here and read <file:Documentation/kbuild/modules.rst>
+
+endif # NET_VENDOR_SMSC

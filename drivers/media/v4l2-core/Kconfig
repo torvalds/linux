@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Generic video config states
+#
+
+# Enable the V4L2 core and API
+config VIDEO_V4L2
+	tristate
+	depends on (I2C || I2C=n) && VIDEO_DEV
+	select RATIONAL
+	select VIDEOBUF2_V4L2 if VIDEOBUF2_CORE
+	default (I2C || I2C=n) && VIDEO_DEV
+
+config VIDEO_V4L2_I2C
+	bool
+	depends on I2C && VIDEO_V4L2
+	default y
+
+config VIDEO_V4L2_SUBDEV_API
+	bool "V4L2 sub-device userspace API"
+	depends on VIDEO_DEV && MEDIA_CONTROLLER
+	help
+	  Enables the V4L2 sub-device pad-level userspace API used to configure
+	  video format, size and frame rate between hardware blocks.
+
+	  This API is mostly used by camera interfaces in embedded platforms.
+
+config VIDEO_ADV_DEBUG
+	bool "Enable advanced debug functionality on V4L2 drivers"
+	help
+	  Say Y here to enable advanced debugging functionality on some
+	  V4L devices.
+	  In doubt, say N.
+
+config VIDEO_FIXED_MINOR_RANGES
+	bool "Enable old-style fixed minor ranges on drivers/video devices"
+	help
+	  Say Y here to enable the old-style fixed-range minor assignments.
+	  Only useful if you rely on the old behavior and use mknod instead of udev.
+
+	  When in doubt, say N.
+
+# Used by drivers that need tuner.ko
+config VIDEO_TUNER
+	tristate
+
+# Used by drivers that need v4l2-jpeg.ko
+config V4L2_JPEG_HELPER
+	tristate
+
+# Used by drivers that need v4l2-h264.ko
+config V4L2_H264
+	tristate
+
+# Used by drivers that need v4l2-mem2mem.ko
+config V4L2_MEM2MEM_DEV
+	tristate
+	depends on VIDEOBUF2_CORE
+
+# Used by LED subsystem flash drivers
+config V4L2_FLASH_LED_CLASS
+	tristate "V4L2 flash API for LED flash class devices"
+	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on LEDS_CLASS_FLASH
+	select V4L2_ASYNC
+	help
+	  Say Y here to enable V4L2 flash API support for LED flash
+	  class drivers.
+
+	  When in doubt, say N.
+
+config V4L2_FWNODE
+	tristate
+	select V4L2_ASYNC
+
+config V4L2_ASYNC
+	tristate
+
+# Used by drivers that need Videobuf modules
+config VIDEOBUF_GEN
+	tristate
+
+config VIDEOBUF_DMA_SG
+	tristate
+	select VIDEOBUF_GEN
+
+config VIDEOBUF_VMALLOC
+	tristate
+	select VIDEOBUF_GEN
+
+config VIDEOBUF_DMA_CONTIG
+	tristate
+	select VIDEOBUF_GEN

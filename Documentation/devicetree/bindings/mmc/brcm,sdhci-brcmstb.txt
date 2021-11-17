@@ -1,0 +1,53 @@
+* BROADCOM BRCMSTB/BMIPS SDHCI Controller
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the sdhci-brcmstb driver.
+
+NOTE: The driver disables all UHS speed modes by default and depends
+on Device Tree properties to enable them for SoC/Board combinations
+that support them.
+
+Required properties:
+- compatible: should be one of the following
+  - "brcm,bcm7425-sdhci"
+  - "brcm,bcm7445-sdhci"
+  - "brcm,bcm7216-sdhci"
+
+Refer to clocks/clock-bindings.txt for generic clock consumer properties.
+
+Example:
+
+	sdhci@84b0000 {
+		sd-uhs-sdr50;
+		sd-uhs-ddr50;
+		sd-uhs-sdr104;
+		sdhci,auto-cmd12;
+		compatible = "brcm,bcm7216-sdhci",
+			   "brcm,bcm7445-sdhci",
+			   "brcm,sdhci-brcmstb";
+		reg = <0x84b0000 0x260 0x84b0300 0x200>;
+		reg-names = "host", "cfg";
+		interrupts = <0x0 0x26 0x4>;
+		interrupt-names = "sdio0_0";
+		clocks = <&scmi_clk 245>;
+		clock-names = "sw_sdio";
+	};
+
+	sdhci@84b1000 {
+		mmc-ddr-1_8v;
+		mmc-hs200-1_8v;
+		mmc-hs400-1_8v;
+		mmc-hs400-enhanced-strobe;
+		supports-cqe;
+		non-removable;
+		bus-width = <0x8>;
+		compatible = "brcm,bcm7216-sdhci",
+			   "brcm,bcm7445-sdhci",
+			   "brcm,sdhci-brcmstb";
+		reg = <0x84b1000 0x260 0x84b1300 0x200>;
+		reg-names = "host", "cfg";
+		interrupts = <0x0 0x27 0x4>;
+		interrupt-names = "sdio1_0";
+		clocks = <&scmi_clk 245>;
+		clock-names = "sw_sdio";
+	};

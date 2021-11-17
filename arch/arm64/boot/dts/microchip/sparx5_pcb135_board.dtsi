@@ -1,0 +1,752 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Microchip Technology Inc. and its subsidiaries.
+ */
+
+/dts-v1/;
+#include "sparx5_pcb_common.dtsi"
+
+/{
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 37 GPIO_ACTIVE_LOW>;
+		priority = <200>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led@0 {
+			label = "eth60:yellow";
+			gpios = <&sgpio_out1 28 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led@1 {
+			label = "eth60:green";
+			gpios = <&sgpio_out1 28 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led@2 {
+			label = "eth61:yellow";
+			gpios = <&sgpio_out1 29 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led@3 {
+			label = "eth61:green";
+			gpios = <&sgpio_out1 29 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led@4 {
+			label = "eth62:yellow";
+			gpios = <&sgpio_out1 30 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led@5 {
+			label = "eth62:green";
+			gpios = <&sgpio_out1 30 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led@6 {
+			label = "eth63:yellow";
+			gpios = <&sgpio_out1 31 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led@7 {
+			label = "eth63:green";
+			gpios = <&sgpio_out1 31 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+};
+
+&gpio {
+	i2cmux_pins_i: i2cmux-pins-i {
+	       pins = "GPIO_35", "GPIO_36",
+		      "GPIO_50", "GPIO_51";
+		function = "twi_scl_m";
+		output-low;
+	};
+	i2cmux_s29: i2cmux-0 {
+		pins = "GPIO_35";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_s30: i2cmux-1 {
+		pins = "GPIO_36";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_s31: i2cmux-2 {
+		pins = "GPIO_50";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_s32: i2cmux-3 {
+		pins = "GPIO_51";
+		function = "twi_scl_m";
+		output-high;
+	};
+};
+
+&spi0 {
+	status = "okay";
+	spi-flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <8000000>;
+		reg = <0>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+	spi@0 {
+		compatible = "spi-mux";
+		mux-controls = <&mux>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>; /* CS0 */
+		spi-flash@9 {
+			compatible = "jedec,spi-nor";
+			spi-max-frequency = <8000000>;
+			reg = <0x9>; /* SPI */
+		};
+	};
+};
+
+&sgpio1 {
+	status = "okay";
+	microchip,sgpio-port-ranges = <24 31>;
+	gpio@0 {
+		ngpios = <64>;
+	};
+	gpio@1 {
+		ngpios = <64>;
+	};
+};
+
+&sgpio2 {
+	status = "okay";
+	microchip,sgpio-port-ranges = <0 0>, <16 18>, <28 31>;
+};
+
+&axi {
+	i2c0_imux: i2c0-imux@0 {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-parent = <&i2c0>;
+	};
+};
+
+&i2c0_imux {
+	pinctrl-names =
+		"i2c_sfp1", "i2c_sfp2", "i2c_sfp3", "i2c_sfp4",
+		"idle";
+	pinctrl-0 = <&i2cmux_s29>;
+	pinctrl-1 = <&i2cmux_s30>;
+	pinctrl-2 = <&i2cmux_s31>;
+	pinctrl-3 = <&i2cmux_s32>;
+	pinctrl-4 = <&i2cmux_pins_i>;
+	i2c_sfp1: i2c_sfp1 {
+		reg = <0x0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	i2c_sfp2: i2c_sfp2 {
+		reg = <0x1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	i2c_sfp3: i2c_sfp3 {
+		reg = <0x2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	i2c_sfp4: i2c_sfp4 {
+		reg = <0x3>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};
+
+&axi {
+	sfp_eth60: sfp-eth60 {
+		compatible	   = "sff,sfp";
+		i2c-bus            = <&i2c_sfp1>;
+		tx-disable-gpios   = <&sgpio_out2 28 0 GPIO_ACTIVE_LOW>;
+		rate-select0-gpios = <&sgpio_out2 28 1 GPIO_ACTIVE_HIGH>;
+		los-gpios          = <&sgpio_in2 28 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios     = <&sgpio_in2 28 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios     = <&sgpio_in2 28 2 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth61: sfp-eth61 {
+		compatible         = "sff,sfp";
+		i2c-bus            = <&i2c_sfp2>;
+		tx-disable-gpios   = <&sgpio_out2 29 0 GPIO_ACTIVE_LOW>;
+		rate-select0-gpios = <&sgpio_out2 29 1 GPIO_ACTIVE_HIGH>;
+		los-gpios          = <&sgpio_in2 29 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios     = <&sgpio_in2 29 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios     = <&sgpio_in2 29 2 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth62: sfp-eth62 {
+		compatible         = "sff,sfp";
+		i2c-bus            = <&i2c_sfp3>;
+		tx-disable-gpios   = <&sgpio_out2 30 0 GPIO_ACTIVE_LOW>;
+		rate-select0-gpios = <&sgpio_out2 30 1 GPIO_ACTIVE_HIGH>;
+		los-gpios          = <&sgpio_in2 30 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios     = <&sgpio_in2 30 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios     = <&sgpio_in2 30 2 GPIO_ACTIVE_HIGH>;
+	};
+	sfp_eth63: sfp-eth63 {
+		compatible         = "sff,sfp";
+		i2c-bus            = <&i2c_sfp4>;
+		tx-disable-gpios   = <&sgpio_out2 31 0 GPIO_ACTIVE_LOW>;
+		rate-select0-gpios = <&sgpio_out2 31 1 GPIO_ACTIVE_HIGH>;
+		los-gpios          = <&sgpio_in2 31 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios     = <&sgpio_in2 31 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios     = <&sgpio_in2 31 2 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&mdio0 {
+	status = "ok";
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+	phy2: ethernet-phy@2 {
+		reg = <2>;
+	};
+	phy3: ethernet-phy@3 {
+		reg = <3>;
+	};
+	phy4: ethernet-phy@4 {
+		reg = <4>;
+	};
+	phy5: ethernet-phy@5 {
+		reg = <5>;
+	};
+	phy6: ethernet-phy@6 {
+		reg = <6>;
+	};
+	phy7: ethernet-phy@7 {
+		reg = <7>;
+	};
+	phy8: ethernet-phy@8 {
+		reg = <8>;
+	};
+	phy9: ethernet-phy@9 {
+		reg = <9>;
+	};
+	phy10: ethernet-phy@10 {
+		reg = <10>;
+	};
+	phy11: ethernet-phy@11 {
+		reg = <11>;
+	};
+	phy12: ethernet-phy@12 {
+		reg = <12>;
+	};
+	phy13: ethernet-phy@13 {
+		reg = <13>;
+	};
+	phy14: ethernet-phy@14 {
+		reg = <14>;
+	};
+	phy15: ethernet-phy@15 {
+		reg = <15>;
+	};
+	phy16: ethernet-phy@16 {
+		reg = <16>;
+	};
+	phy17: ethernet-phy@17 {
+		reg = <17>;
+	};
+	phy18: ethernet-phy@18 {
+		reg = <18>;
+	};
+	phy19: ethernet-phy@19 {
+		reg = <19>;
+	};
+	phy20: ethernet-phy@20 {
+		reg = <20>;
+	};
+	phy21: ethernet-phy@21 {
+		reg = <21>;
+	};
+	phy22: ethernet-phy@22 {
+		reg = <22>;
+	};
+	phy23: ethernet-phy@23 {
+		reg = <23>;
+	};
+};
+
+&mdio1 {
+	status = "ok";
+	phy24: ethernet-phy@24 {
+		reg = <0>;
+	};
+	phy25: ethernet-phy@25 {
+		reg = <1>;
+	};
+	phy26: ethernet-phy@26 {
+		reg = <2>;
+	};
+	phy27: ethernet-phy@27 {
+		reg = <3>;
+	};
+	phy28: ethernet-phy@28 {
+		reg = <4>;
+	};
+	phy29: ethernet-phy@29 {
+		reg = <5>;
+	};
+	phy30: ethernet-phy@30 {
+		reg = <6>;
+	};
+	phy31: ethernet-phy@31 {
+		reg = <7>;
+	};
+	phy32: ethernet-phy@32 {
+		reg = <8>;
+	};
+	phy33: ethernet-phy@33 {
+		reg = <9>;
+	};
+	phy34: ethernet-phy@34 {
+		reg = <10>;
+	};
+	phy35: ethernet-phy@35 {
+		reg = <11>;
+	};
+	phy36: ethernet-phy@36 {
+		reg = <12>;
+	};
+	phy37: ethernet-phy@37 {
+		reg = <13>;
+	};
+	phy38: ethernet-phy@38 {
+		reg = <14>;
+	};
+	phy39: ethernet-phy@39 {
+		reg = <15>;
+	};
+	phy40: ethernet-phy@40 {
+		reg = <16>;
+	};
+	phy41: ethernet-phy@41 {
+		reg = <17>;
+	};
+	phy42: ethernet-phy@42 {
+		reg = <18>;
+	};
+	phy43: ethernet-phy@43 {
+		reg = <19>;
+	};
+	phy44: ethernet-phy@44 {
+		reg = <20>;
+	};
+	phy45: ethernet-phy@45 {
+		reg = <21>;
+	};
+	phy46: ethernet-phy@46 {
+		reg = <22>;
+	};
+	phy47: ethernet-phy@47 {
+		reg = <23>;
+	};
+};
+
+&mdio3 {
+	status = "ok";
+	phy64: ethernet-phy@64 {
+		reg = <28>;
+	};
+};
+
+&switch {
+	ethernet-ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port0: port@0 {
+			reg = <0>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 13>;
+			phy-handle = <&phy0>;
+			phy-mode = "qsgmii";
+		};
+		port1: port@1 {
+			reg = <1>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 13>;
+			phy-handle = <&phy1>;
+			phy-mode = "qsgmii";
+		};
+		port2: port@2 {
+			reg = <2>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 13>;
+			phy-handle = <&phy2>;
+			phy-mode = "qsgmii";
+		};
+		port3: port@3 {
+			reg = <3>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 13>;
+			phy-handle = <&phy3>;
+			phy-mode = "qsgmii";
+		};
+		port4: port@4 {
+			reg = <4>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 14>;
+			phy-handle = <&phy4>;
+			phy-mode = "qsgmii";
+		};
+		port5: port@5 {
+			reg = <5>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 14>;
+			phy-handle = <&phy5>;
+			phy-mode = "qsgmii";
+		};
+		port6: port@6 {
+			reg = <6>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 14>;
+			phy-handle = <&phy6>;
+			phy-mode = "qsgmii";
+		};
+		port7: port@7 {
+			reg = <7>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 14>;
+			phy-handle = <&phy7>;
+			phy-mode = "qsgmii";
+		};
+		port8: port@8 {
+			reg = <8>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 15>;
+			phy-handle = <&phy8>;
+			phy-mode = "qsgmii";
+		};
+		port9: port@9 {
+			reg = <9>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 15>;
+			phy-handle = <&phy9>;
+			phy-mode = "qsgmii";
+		};
+		port10: port@10 {
+			reg = <10>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 15>;
+			phy-handle = <&phy10>;
+			phy-mode = "qsgmii";
+		};
+		port11: port@11 {
+			reg = <11>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 15>;
+			phy-handle = <&phy11>;
+			phy-mode = "qsgmii";
+		};
+		port12: port@12 {
+			reg = <12>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 16>;
+			phy-handle = <&phy12>;
+			phy-mode = "qsgmii";
+		};
+		port13: port@13 {
+			reg = <13>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 16>;
+			phy-handle = <&phy13>;
+			phy-mode = "qsgmii";
+		};
+		port14: port@14 {
+			reg = <14>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 16>;
+			phy-handle = <&phy14>;
+			phy-mode = "qsgmii";
+		};
+		port15: port@15 {
+			reg = <15>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 16>;
+			phy-handle = <&phy15>;
+			phy-mode = "qsgmii";
+		};
+		port16: port@16 {
+			reg = <16>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 17>;
+			phy-handle = <&phy16>;
+			phy-mode = "qsgmii";
+		};
+		port17: port@17 {
+			reg = <17>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 17>;
+			phy-handle = <&phy17>;
+			phy-mode = "qsgmii";
+		};
+		port18: port@18 {
+			reg = <18>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 17>;
+			phy-handle = <&phy18>;
+			phy-mode = "qsgmii";
+		};
+		port19: port@19 {
+			reg = <19>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 17>;
+			phy-handle = <&phy19>;
+			phy-mode = "qsgmii";
+		};
+		port20: port@20 {
+			reg = <20>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 18>;
+			phy-handle = <&phy20>;
+			phy-mode = "qsgmii";
+		};
+		port21: port@21 {
+			reg = <21>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 18>;
+			phy-handle = <&phy21>;
+			phy-mode = "qsgmii";
+		};
+		port22: port@22 {
+			reg = <22>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 18>;
+			phy-handle = <&phy22>;
+			phy-mode = "qsgmii";
+		};
+		port23: port@23 {
+			reg = <23>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 18>;
+			phy-handle = <&phy23>;
+			phy-mode = "qsgmii";
+		};
+		port24: port@24 {
+			reg = <24>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 19>;
+			phy-handle = <&phy24>;
+			phy-mode = "qsgmii";
+		};
+		port25: port@25 {
+			reg = <25>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 19>;
+			phy-handle = <&phy25>;
+			phy-mode = "qsgmii";
+		};
+		port26: port@26 {
+			reg = <26>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 19>;
+			phy-handle = <&phy26>;
+			phy-mode = "qsgmii";
+		};
+		port27: port@27 {
+			reg = <27>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 19>;
+			phy-handle = <&phy27>;
+			phy-mode = "qsgmii";
+		};
+		port28: port@28 {
+			reg = <28>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 20>;
+			phy-handle = <&phy28>;
+			phy-mode = "qsgmii";
+		};
+		port29: port@29 {
+			reg = <29>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 20>;
+			phy-handle = <&phy29>;
+			phy-mode = "qsgmii";
+		};
+		port30: port@30 {
+			reg = <30>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 20>;
+			phy-handle = <&phy30>;
+			phy-mode = "qsgmii";
+		};
+		port31: port@31 {
+			reg = <31>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 20>;
+			phy-handle = <&phy31>;
+			phy-mode = "qsgmii";
+		};
+		port32: port@32 {
+			reg = <32>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 21>;
+			phy-handle = <&phy32>;
+			phy-mode = "qsgmii";
+		};
+		port33: port@33 {
+			reg = <33>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 21>;
+			phy-handle = <&phy33>;
+			phy-mode = "qsgmii";
+		};
+		port34: port@34 {
+			reg = <34>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 21>;
+			phy-handle = <&phy34>;
+			phy-mode = "qsgmii";
+		};
+		port35: port@35 {
+			reg = <35>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 21>;
+			phy-handle = <&phy35>;
+			phy-mode = "qsgmii";
+		};
+		port36: port@36 {
+			reg = <36>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 22>;
+			phy-handle = <&phy36>;
+			phy-mode = "qsgmii";
+		};
+		port37: port@37 {
+			reg = <37>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 22>;
+			phy-handle = <&phy37>;
+			phy-mode = "qsgmii";
+		};
+		port38: port@38 {
+			reg = <38>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 22>;
+			phy-handle = <&phy38>;
+			phy-mode = "qsgmii";
+		};
+		port39: port@39 {
+			reg = <39>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 22>;
+			phy-handle = <&phy39>;
+			phy-mode = "qsgmii";
+		};
+		port40: port@40 {
+			reg = <40>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 23>;
+			phy-handle = <&phy40>;
+			phy-mode = "qsgmii";
+		};
+		port41: port@41 {
+			reg = <41>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 23>;
+			phy-handle = <&phy41>;
+			phy-mode = "qsgmii";
+		};
+		port42: port@42 {
+			reg = <42>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 23>;
+			phy-handle = <&phy42>;
+			phy-mode = "qsgmii";
+		};
+		port43: port@43 {
+			reg = <43>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 23>;
+			phy-handle = <&phy43>;
+			phy-mode = "qsgmii";
+		};
+		port44: port@44 {
+			reg = <44>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 24>;
+			phy-handle = <&phy44>;
+			phy-mode = "qsgmii";
+		};
+		port45: port@45 {
+			reg = <45>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 24>;
+			phy-handle = <&phy45>;
+			phy-mode = "qsgmii";
+		};
+		port46: port@46 {
+			reg = <46>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 24>;
+			phy-handle = <&phy46>;
+			phy-mode = "qsgmii";
+		};
+		port47: port@47 {
+			reg = <47>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 24>;
+			phy-handle = <&phy47>;
+			phy-mode = "qsgmii";
+		};
+		/* Then the 25G interfaces */
+		port60: port@60 {
+			reg = <60>;
+			microchip,bandwidth = <25000>;
+			phys = <&serdes 29>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth60>;
+			managed = "in-band-status";
+		};
+		port61: port@61 {
+			reg = <61>;
+			microchip,bandwidth = <25000>;
+			phys = <&serdes 30>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth61>;
+			managed = "in-band-status";
+		};
+		port62: port@62 {
+			reg = <62>;
+			microchip,bandwidth = <25000>;
+			phys = <&serdes 31>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth62>;
+			managed = "in-band-status";
+		};
+		port63: port@63 {
+			reg = <63>;
+			microchip,bandwidth = <25000>;
+			phys = <&serdes 32>;
+			phy-mode = "10gbase-r";
+			sfp = <&sfp_eth63>;
+			managed = "in-band-status";
+		};
+		/* Finally the Management interface */
+		port64: port@64 {
+			reg = <64>;
+			microchip,bandwidth = <1000>;
+			phys = <&serdes 0>;
+			phy-handle = <&phy64>;
+			phy-mode = "sgmii";
+		};
+	};
+};

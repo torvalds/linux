@@ -1,0 +1,676 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree Source for AM33xx clock data
+ *
+ * Copyright (C) 2013 Texas Instruments, Inc.
+ */
+&scm_clocks {
+	sys_clkin_ck: sys_clkin_ck@40 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&virt_19200000_ck>, <&virt_24000000_ck>, <&virt_25000000_ck>, <&virt_26000000_ck>;
+		ti,bit-shift = <22>;
+		reg = <0x0040>;
+	};
+
+	adc_tsc_fck: adc_tsc_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	dcan0_fck: dcan0_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	dcan1_fck: dcan1_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	mcasp0_fck: mcasp0_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	mcasp1_fck: mcasp1_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	smartreflex0_fck: smartreflex0_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	smartreflex1_fck: smartreflex1_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	sha0_fck: sha0_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	aes0_fck: aes0_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	rng_fck: rng_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	ehrpwm0_tbclk: ehrpwm0_tbclk@44e10664 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&l4ls_gclk>;
+		ti,bit-shift = <0>;
+		reg = <0x0664>;
+	};
+
+	ehrpwm1_tbclk: ehrpwm1_tbclk@44e10664 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&l4ls_gclk>;
+		ti,bit-shift = <1>;
+		reg = <0x0664>;
+	};
+
+	ehrpwm2_tbclk: ehrpwm2_tbclk@44e10664 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&l4ls_gclk>;
+		ti,bit-shift = <2>;
+		reg = <0x0664>;
+	};
+};
+&prcm_clocks {
+	clk_32768_ck: clk_32768_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+	};
+
+	clk_rc32k_ck: clk_rc32k_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32000>;
+	};
+
+	virt_19200000_ck: virt_19200000_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <19200000>;
+	};
+
+	virt_24000000_ck: virt_24000000_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
+	virt_25000000_ck: virt_25000000_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+	};
+
+	virt_26000000_ck: virt_26000000_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
+	};
+
+	tclkin_ck: tclkin_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <12000000>;
+	};
+
+	dpll_core_ck: dpll_core_ck@490 {
+		#clock-cells = <0>;
+		compatible = "ti,am3-dpll-core-clock";
+		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
+		reg = <0x0490>, <0x045c>, <0x0468>, <0x0460>, <0x0464>;
+	};
+
+	dpll_core_x2_ck: dpll_core_x2_ck {
+		#clock-cells = <0>;
+		compatible = "ti,am3-dpll-x2-clock";
+		clocks = <&dpll_core_ck>;
+	};
+
+	dpll_core_m4_ck: dpll_core_m4_ck@480 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll_core_x2_ck>;
+		ti,max-div = <31>;
+		reg = <0x0480>;
+		ti,index-starts-at-one;
+	};
+
+	dpll_core_m5_ck: dpll_core_m5_ck@484 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll_core_x2_ck>;
+		ti,max-div = <31>;
+		reg = <0x0484>;
+		ti,index-starts-at-one;
+	};
+
+	dpll_core_m6_ck: dpll_core_m6_ck@4d8 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll_core_x2_ck>;
+		ti,max-div = <31>;
+		reg = <0x04d8>;
+		ti,index-starts-at-one;
+	};
+
+	dpll_mpu_ck: dpll_mpu_ck@488 {
+		#clock-cells = <0>;
+		compatible = "ti,am3-dpll-clock";
+		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
+		reg = <0x0488>, <0x0420>, <0x042c>, <0x0424>, <0x0428>;
+	};
+
+	dpll_mpu_m2_ck: dpll_mpu_m2_ck@4a8 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll_mpu_ck>;
+		ti,max-div = <31>;
+		reg = <0x04a8>;
+		ti,index-starts-at-one;
+	};
+
+	dpll_ddr_ck: dpll_ddr_ck@494 {
+		#clock-cells = <0>;
+		compatible = "ti,am3-dpll-no-gate-clock";
+		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
+		reg = <0x0494>, <0x0434>, <0x0440>, <0x0438>, <0x043c>;
+	};
+
+	dpll_ddr_m2_ck: dpll_ddr_m2_ck@4a0 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll_ddr_ck>;
+		ti,max-div = <31>;
+		reg = <0x04a0>;
+		ti,index-starts-at-one;
+	};
+
+	dpll_ddr_m2_div2_ck: dpll_ddr_m2_div2_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_ddr_m2_ck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
+	dpll_disp_ck: dpll_disp_ck@498 {
+		#clock-cells = <0>;
+		compatible = "ti,am3-dpll-no-gate-clock";
+		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
+		reg = <0x0498>, <0x0448>, <0x0454>, <0x044c>, <0x0450>;
+	};
+
+	dpll_disp_m2_ck: dpll_disp_m2_ck@4a4 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll_disp_ck>;
+		ti,max-div = <31>;
+		reg = <0x04a4>;
+		ti,index-starts-at-one;
+		ti,set-rate-parent;
+	};
+
+	dpll_per_ck: dpll_per_ck@48c {
+		#clock-cells = <0>;
+		compatible = "ti,am3-dpll-no-gate-j-type-clock";
+		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
+		reg = <0x048c>, <0x0470>, <0x049c>, <0x0474>, <0x0478>;
+	};
+
+	dpll_per_m2_ck: dpll_per_m2_ck@4ac {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll_per_ck>;
+		ti,max-div = <31>;
+		reg = <0x04ac>;
+		ti,index-starts-at-one;
+	};
+
+	dpll_per_m2_div4_wkupdm_ck: dpll_per_m2_div4_wkupdm_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_per_m2_ck>;
+		clock-mult = <1>;
+		clock-div = <4>;
+	};
+
+	dpll_per_m2_div4_ck: dpll_per_m2_div4_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_per_m2_ck>;
+		clock-mult = <1>;
+		clock-div = <4>;
+	};
+
+	clk_24mhz: clk_24mhz {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_per_m2_ck>;
+		clock-mult = <1>;
+		clock-div = <8>;
+	};
+
+	clkdiv32k_ck: clkdiv32k_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&clk_24mhz>;
+		clock-mult = <1>;
+		clock-div = <732>;
+	};
+
+	l3_gclk: l3_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m4_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	pruss_ocp_gclk: pruss_ocp_gclk@530 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&l3_gclk>, <&dpll_disp_m2_ck>;
+		reg = <0x0530>;
+	};
+
+	mmu_fck: mmu_fck@914 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_core_m4_ck>;
+		ti,bit-shift = <1>;
+		reg = <0x0914>;
+	};
+
+	timer1_fck: timer1_fck@528 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&sys_clkin_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>, <&tclkin_ck>, <&clk_rc32k_ck>, <&clk_32768_ck>;
+		reg = <0x0528>;
+	};
+
+	timer2_fck: timer2_fck@508 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&tclkin_ck>, <&sys_clkin_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
+		reg = <0x0508>;
+	};
+
+	timer3_fck: timer3_fck@50c {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&tclkin_ck>, <&sys_clkin_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
+		reg = <0x050c>;
+	};
+
+	timer4_fck: timer4_fck@510 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&tclkin_ck>, <&sys_clkin_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
+		reg = <0x0510>;
+	};
+
+	timer5_fck: timer5_fck@518 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&tclkin_ck>, <&sys_clkin_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
+		reg = <0x0518>;
+	};
+
+	timer6_fck: timer6_fck@51c {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&tclkin_ck>, <&sys_clkin_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
+		reg = <0x051c>;
+	};
+
+	timer7_fck: timer7_fck@504 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&tclkin_ck>, <&sys_clkin_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
+		reg = <0x0504>;
+	};
+
+	usbotg_fck: usbotg_fck@47c {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_ck>;
+		ti,bit-shift = <8>;
+		reg = <0x047c>;
+	};
+
+	dpll_core_m4_div2_ck: dpll_core_m4_div2_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m4_ck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
+	ieee5000_fck: ieee5000_fck@e4 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_core_m4_div2_ck>;
+		ti,bit-shift = <1>;
+		reg = <0x00e4>;
+	};
+
+	wdt1_fck: wdt1_fck@538 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&clk_rc32k_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
+		reg = <0x0538>;
+	};
+
+	l4_rtc_gclk: l4_rtc_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m4_ck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
+	l4hs_gclk: l4hs_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m4_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	l3s_gclk: l3s_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m4_div2_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	l4fw_gclk: l4fw_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m4_div2_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	l4ls_gclk: l4ls_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m4_div2_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	sysclk_div_ck: sysclk_div_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m4_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	cpsw_125mhz_gclk: cpsw_125mhz_gclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_core_m5_ck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
+	cpsw_cpts_rft_clk: cpsw_cpts_rft_clk@520 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&dpll_core_m5_ck>, <&dpll_core_m4_ck>;
+		reg = <0x0520>;
+	};
+
+	gpio0_dbclk_mux_ck: gpio0_dbclk_mux_ck@53c {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&clk_rc32k_ck>, <&clk_32768_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
+		reg = <0x053c>;
+	};
+
+	lcd_gclk: lcd_gclk@534 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&dpll_disp_m2_ck>, <&dpll_core_m5_ck>, <&dpll_per_m2_ck>;
+		reg = <0x0534>;
+		ti,set-rate-parent;
+	};
+
+	mmc_clk: mmc_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll_per_m2_ck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
+	gfx_fclk_clksel_ck: gfx_fclk_clksel_ck@52c {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&dpll_core_m4_ck>, <&dpll_per_m2_ck>;
+		ti,bit-shift = <1>;
+		reg = <0x052c>;
+	};
+
+	gfx_fck_div_ck: gfx_fck_div_ck@52c {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&gfx_fclk_clksel_ck>;
+		reg = <0x052c>;
+		ti,max-div = <2>;
+	};
+
+	sysclkout_pre_ck: sysclkout_pre_ck@700 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&clk_32768_ck>, <&l3_gclk>, <&dpll_ddr_m2_ck>, <&dpll_per_m2_ck>, <&lcd_gclk>;
+		reg = <0x0700>;
+	};
+
+	clkout2_div_ck: clkout2_div_ck@700 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&sysclkout_pre_ck>;
+		ti,bit-shift = <3>;
+		ti,max-div = <8>;
+		reg = <0x0700>;
+	};
+
+	clkout2_ck: clkout2_ck@700 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&clkout2_div_ck>;
+		ti,bit-shift = <7>;
+		reg = <0x0700>;
+	};
+};
+
+&prcm {
+	per_cm: per-cm@0 {
+		compatible = "ti,omap4-cm";
+		reg = <0x0 0x400>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x400>;
+
+		l4ls_clkctrl: l4ls-clkctrl@38 {
+			compatible = "ti,clkctrl";
+			reg = <0x38 0x2c>, <0x6c 0x28>, <0xac 0xc>, <0xc0 0x1c>, <0xec 0xc>, <0x10c 0x8>, <0x130 0x4>;
+			#clock-cells = <2>;
+		};
+
+		l3s_clkctrl: l3s-clkctrl@1c {
+			compatible = "ti,clkctrl";
+			reg = <0x1c 0x4>, <0x30 0x8>, <0x68 0x4>, <0xf8 0x4>;
+			#clock-cells = <2>;
+		};
+
+		l3_clkctrl: l3-clkctrl@24 {
+			compatible = "ti,clkctrl";
+			reg = <0x24 0xc>, <0x94 0x10>, <0xbc 0x4>, <0xdc 0x8>, <0xfc 0x8>;
+			#clock-cells = <2>;
+		};
+
+		l4hs_clkctrl: l4hs-clkctrl@120 {
+			compatible = "ti,clkctrl";
+			reg = <0x120 0x4>;
+			#clock-cells = <2>;
+		};
+
+		pruss_ocp_clkctrl: pruss-ocp-clkctrl@e8 {
+			compatible = "ti,clkctrl";
+			reg = <0xe8 0x4>;
+			#clock-cells = <2>;
+		};
+
+		cpsw_125mhz_clkctrl: cpsw-125mhz-clkctrl@0 {
+			compatible = "ti,clkctrl";
+			reg = <0x0 0x18>;
+			#clock-cells = <2>;
+		};
+
+		lcdc_clkctrl: lcdc-clkctrl@18 {
+			compatible = "ti,clkctrl";
+			reg = <0x18 0x4>;
+			#clock-cells = <2>;
+		};
+
+		clk_24mhz_clkctrl: clk-24mhz-clkctrl@14c {
+			compatible = "ti,clkctrl";
+			reg = <0x14c 0x4>;
+			#clock-cells = <2>;
+		};
+	};
+
+	wkup_cm: wkup-cm@400 {
+		compatible = "ti,omap4-cm";
+		reg = <0x400 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x400 0x100>;
+
+		l4_wkup_clkctrl: l4-wkup-clkctrl@0 {
+			compatible = "ti,clkctrl";
+			reg = <0x0 0x10>, <0xb4 0x24>;
+			#clock-cells = <2>;
+		};
+
+		l3_aon_clkctrl: l3-aon-clkctrl@14 {
+			compatible = "ti,clkctrl";
+			reg = <0x14 0x4>;
+			#clock-cells = <2>;
+		};
+
+		l4_wkup_aon_clkctrl: l4-wkup-aon-clkctrl@b0 {
+			compatible = "ti,clkctrl";
+			reg = <0xb0 0x4>;
+			#clock-cells = <2>;
+		};
+	};
+
+	mpu_cm: mpu-cm@600 {
+		compatible = "ti,omap4-cm";
+		reg = <0x600 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x600 0x100>;
+
+		mpu_clkctrl: mpu-clkctrl@0 {
+			compatible = "ti,clkctrl";
+			reg = <0x0 0x8>;
+			#clock-cells = <2>;
+		};
+	};
+
+	l4_rtc_cm: l4-rtc-cm@800 {
+		compatible = "ti,omap4-cm";
+		reg = <0x800 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x800 0x100>;
+
+		l4_rtc_clkctrl: l4-rtc-clkctrl@0 {
+			compatible = "ti,clkctrl";
+			reg = <0x0 0x4>;
+			#clock-cells = <2>;
+		};
+	};
+
+	gfx_l3_cm: gfx-l3-cm@900 {
+		compatible = "ti,omap4-cm";
+		reg = <0x900 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x900 0x100>;
+
+		gfx_l3_clkctrl: gfx-l3-clkctrl@0 {
+			compatible = "ti,clkctrl";
+			reg = <0x0 0x8>;
+			#clock-cells = <2>;
+		};
+	};
+
+	l4_cefuse_cm: l4-cefuse-cm@a00 {
+		compatible = "ti,omap4-cm";
+		reg = <0xa00 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xa00 0x100>;
+
+		l4_cefuse_clkctrl: l4-cefuse-clkctrl@0 {
+			compatible = "ti,clkctrl";
+			reg = <0x0 0x24>;
+			#clock-cells = <2>;
+		};
+	};
+};

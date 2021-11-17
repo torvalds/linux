@@ -1,0 +1,861 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier PXs3 SoC
+//
+// Copyright (C) 2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/uniphier-gpio.h>
+#include <dt-bindings/thermal/thermal.h>
+
+/ {
+	compatible = "socionext,uniphier-pxs3";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&gic>;
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+		};
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0 0x000>;
+			clocks = <&sys_clk 33>;
+			enable-method = "psci";
+			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0 0x001>;
+			clocks = <&sys_clk 33>;
+			enable-method = "psci";
+			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
+		};
+
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0 0x002>;
+			clocks = <&sys_clk 33>;
+			enable-method = "psci";
+			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
+		};
+
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0 0x003>;
+			clocks = <&sys_clk 33>;
+			enable-method = "psci";
+			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
+		};
+	};
+
+	cluster0_opp: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-250000000 {
+			opp-hz = /bits/ 64 <250000000>;
+			clock-latency-ns = <300>;
+		};
+		opp-325000000 {
+			opp-hz = /bits/ 64 <325000000>;
+			clock-latency-ns = <300>;
+		};
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			clock-latency-ns = <300>;
+		};
+		opp-650000000 {
+			opp-hz = /bits/ 64 <650000000>;
+			clock-latency-ns = <300>;
+		};
+		opp-666667000 {
+			opp-hz = /bits/ 64 <666667000>;
+			clock-latency-ns = <300>;
+		};
+		opp-866667000 {
+			opp-hz = /bits/ 64 <866667000>;
+			clock-latency-ns = <300>;
+		};
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			clock-latency-ns = <300>;
+		};
+		opp-1300000000 {
+			opp-hz = /bits/ 64 <1300000000>;
+			clock-latency-ns = <300>;
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	clocks {
+		refclk: ref {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio UNIPHIER_GPIO_PORT(5, 7) GPIO_ACTIVE_LOW>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <1 13 4>,
+			     <1 14 4>,
+			     <1 11 4>,
+			     <1 10 4>;
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <250>;	/* 250ms */
+			polling-delay = <1000>;		/* 1000ms */
+			thermal-sensors = <&pvtctl>;
+
+			trips {
+				cpu_crit: cpu-crit {
+					temperature = <110000>;	/* 110C */
+					hysteresis = <2000>;
+					type = "critical";
+				};
+				cpu_alert: cpu-alert {
+					temperature = <100000>;	/* 100C */
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secure-memory@81000000 {
+			reg = <0x0 0x81000000 0x0 0x01000000>;
+			no-map;
+		};
+	};
+
+	soc@0 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0 0xffffffff>;
+
+		spi0: spi@54006000 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 39 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi0>;
+			clocks = <&peri_clk 11>;
+			resets = <&peri_rst 11>;
+		};
+
+		spi1: spi@54006100 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006100 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 216 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi1>;
+			clocks = <&peri_clk 12>;
+			resets = <&peri_rst 12>;
+		};
+
+		serial0: serial@54006800 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006800 0x40>;
+			interrupts = <0 33 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart0>;
+			clocks = <&peri_clk 0>;
+			resets = <&peri_rst 0>;
+		};
+
+		serial1: serial@54006900 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006900 0x40>;
+			interrupts = <0 35 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart1>;
+			clocks = <&peri_clk 1>;
+			resets = <&peri_rst 1>;
+		};
+
+		serial2: serial@54006a00 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006a00 0x40>;
+			interrupts = <0 37 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart2>;
+			clocks = <&peri_clk 2>;
+			resets = <&peri_rst 2>;
+		};
+
+		serial3: serial@54006b00 {
+			compatible = "socionext,uniphier-uart";
+			status = "disabled";
+			reg = <0x54006b00 0x40>;
+			interrupts = <0 177 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart3>;
+			clocks = <&peri_clk 3>;
+			resets = <&peri_rst 3>;
+		};
+
+		gpio: gpio@55000000 {
+			compatible = "socionext,uniphier-gpio";
+			reg = <0x55000000 0x200>;
+			interrupt-parent = <&aidet>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 0>,
+				      <&pinctrl 104 0 0>,
+				      <&pinctrl 168 0 0>;
+			gpio-ranges-group-names = "gpio_range0",
+						  "gpio_range1",
+						  "gpio_range2";
+			ngpios = <286>;
+			socionext,interrupt-ranges = <0 48 16>, <16 154 5>,
+						     <21 217 3>;
+		};
+
+		i2c0: i2c@58780000 {
+			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
+			reg = <0x58780000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 41 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c0>;
+			clocks = <&peri_clk 4>;
+			resets = <&peri_rst 4>;
+			clock-frequency = <100000>;
+		};
+
+		i2c1: i2c@58781000 {
+			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
+			reg = <0x58781000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 42 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c1>;
+			clocks = <&peri_clk 5>;
+			resets = <&peri_rst 5>;
+			clock-frequency = <100000>;
+		};
+
+		i2c2: i2c@58782000 {
+			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
+			reg = <0x58782000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 43 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c2>;
+			clocks = <&peri_clk 6>;
+			resets = <&peri_rst 6>;
+			clock-frequency = <100000>;
+		};
+
+		i2c3: i2c@58783000 {
+			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
+			reg = <0x58783000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 44 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c3>;
+			clocks = <&peri_clk 7>;
+			resets = <&peri_rst 7>;
+			clock-frequency = <100000>;
+		};
+
+		/* chip-internal connection for HDMI */
+		i2c6: i2c@58786000 {
+			compatible = "socionext,uniphier-fi2c";
+			reg = <0x58786000 0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 26 4>;
+			clocks = <&peri_clk 10>;
+			resets = <&peri_rst 10>;
+			clock-frequency = <400000>;
+		};
+
+		system_bus: system-bus@58c00000 {
+			compatible = "socionext,uniphier-system-bus";
+			status = "disabled";
+			reg = <0x58c00000 0x400>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_system_bus>;
+		};
+
+		smpctrl@59801000 {
+			compatible = "socionext,uniphier-smpctrl";
+			reg = <0x59801000 0x400>;
+		};
+
+		sdctrl@59810000 {
+			compatible = "socionext,uniphier-pxs3-sdctrl",
+				     "simple-mfd", "syscon";
+			reg = <0x59810000 0x400>;
+
+			sd_clk: clock {
+				compatible = "socionext,uniphier-pxs3-sd-clock";
+				#clock-cells = <1>;
+			};
+
+			sd_rst: reset {
+				compatible = "socionext,uniphier-pxs3-sd-reset";
+				#reset-cells = <1>;
+			};
+		};
+
+		perictrl@59820000 {
+			compatible = "socionext,uniphier-pxs3-perictrl",
+				     "simple-mfd", "syscon";
+			reg = <0x59820000 0x200>;
+
+			peri_clk: clock {
+				compatible = "socionext,uniphier-pxs3-peri-clock";
+				#clock-cells = <1>;
+			};
+
+			peri_rst: reset {
+				compatible = "socionext,uniphier-pxs3-peri-reset";
+				#reset-cells = <1>;
+			};
+		};
+
+		emmc: mmc@5a000000 {
+			compatible = "socionext,uniphier-sd4hc", "cdns,sd4hc";
+			reg = <0x5a000000 0x400>;
+			interrupts = <0 78 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_emmc>;
+			clocks = <&sys_clk 4>;
+			resets = <&sys_rst 4>;
+			bus-width = <8>;
+			mmc-ddr-1_8v;
+			mmc-hs200-1_8v;
+			mmc-pwrseq = <&emmc_pwrseq>;
+			cdns,phy-input-delay-legacy = <9>;
+			cdns,phy-input-delay-mmc-highspeed = <2>;
+			cdns,phy-input-delay-mmc-ddr = <3>;
+			cdns,phy-dll-delay-sdclk = <21>;
+			cdns,phy-dll-delay-sdclk-hsmmc = <21>;
+		};
+
+		sd: mmc@5a400000 {
+			compatible = "socionext,uniphier-sd-v3.1.1";
+			status = "disabled";
+			reg = <0x5a400000 0x800>;
+			interrupts = <0 76 4>;
+			pinctrl-names = "default", "uhs";
+			pinctrl-0 = <&pinctrl_sd>;
+			pinctrl-1 = <&pinctrl_sd_uhs>;
+			clocks = <&sd_clk 0>;
+			reset-names = "host";
+			resets = <&sd_rst 0>;
+			bus-width = <4>;
+			cap-sd-highspeed;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+		};
+
+		soc_glue: soc-glue@5f800000 {
+			compatible = "socionext,uniphier-pxs3-soc-glue",
+				     "simple-mfd", "syscon";
+			reg = <0x5f800000 0x2000>;
+
+			pinctrl: pinctrl {
+				compatible = "socionext,uniphier-pxs3-pinctrl";
+			};
+		};
+
+		soc-glue@5f900000 {
+			compatible = "socionext,uniphier-pxs3-soc-glue-debug",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x5f900000 0x2000>;
+
+			efuse@100 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x100 0x28>;
+			};
+
+			efuse@200 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x200 0x68>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				/* USB cells */
+				usb_rterm0: trim@54,4 {
+					reg = <0x54 1>;
+					bits = <4 2>;
+				};
+				usb_rterm1: trim@55,4 {
+					reg = <0x55 1>;
+					bits = <4 2>;
+				};
+				usb_rterm2: trim@58,4 {
+					reg = <0x58 1>;
+					bits = <4 2>;
+				};
+				usb_rterm3: trim@59,4 {
+					reg = <0x59 1>;
+					bits = <4 2>;
+				};
+				usb_sel_t0: trim@54,0 {
+					reg = <0x54 1>;
+					bits = <0 4>;
+				};
+				usb_sel_t1: trim@55,0 {
+					reg = <0x55 1>;
+					bits = <0 4>;
+				};
+				usb_sel_t2: trim@58,0 {
+					reg = <0x58 1>;
+					bits = <0 4>;
+				};
+				usb_sel_t3: trim@59,0 {
+					reg = <0x59 1>;
+					bits = <0 4>;
+				};
+				usb_hs_i0: trim@56,0 {
+					reg = <0x56 1>;
+					bits = <0 4>;
+				};
+				usb_hs_i2: trim@5a,0 {
+					reg = <0x5a 1>;
+					bits = <0 4>;
+				};
+			};
+		};
+
+		xdmac: dma-controller@5fc10000 {
+			compatible = "socionext,uniphier-xdmac";
+			reg = <0x5fc10000 0x5300>;
+			interrupts = <0 188 4>;
+			dma-channels = <16>;
+			#dma-cells = <2>;
+		};
+
+		aidet: interrupt-controller@5fc20000 {
+			compatible = "socionext,uniphier-pxs3-aidet";
+			reg = <0x5fc20000 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gic: interrupt-controller@5fe00000 {
+			compatible = "arm,gic-v3";
+			reg = <0x5fe00000 0x10000>,	/* GICD */
+			      <0x5fe80000 0x80000>;	/* GICR */
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			interrupts = <1 9 4>;
+		};
+
+		sysctrl@61840000 {
+			compatible = "socionext,uniphier-pxs3-sysctrl",
+				     "simple-mfd", "syscon";
+			reg = <0x61840000 0x10000>;
+
+			sys_clk: clock {
+				compatible = "socionext,uniphier-pxs3-clock";
+				#clock-cells = <1>;
+			};
+
+			sys_rst: reset {
+				compatible = "socionext,uniphier-pxs3-reset";
+				#reset-cells = <1>;
+			};
+
+			watchdog {
+				compatible = "socionext,uniphier-wdt";
+			};
+
+			pvtctl: pvtctl {
+				compatible = "socionext,uniphier-pxs3-thermal";
+				interrupts = <0 3 4>;
+				#thermal-sensor-cells = <0>;
+				socionext,tmod-calibration = <0x0f22 0x68ee>;
+			};
+		};
+
+		eth0: ethernet@65000000 {
+			compatible = "socionext,uniphier-pxs3-ave4";
+			status = "disabled";
+			reg = <0x65000000 0x8500>;
+			interrupts = <0 66 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ether_rgmii>;
+			clock-names = "ether";
+			clocks = <&sys_clk 6>;
+			reset-names = "ether";
+			resets = <&sys_rst 6>;
+			phy-mode = "rgmii-id";
+			local-mac-address = [00 00 00 00 00 00];
+			socionext,syscon-phy-mode = <&soc_glue 0>;
+
+			mdio0: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		eth1: ethernet@65200000 {
+			compatible = "socionext,uniphier-pxs3-ave4";
+			status = "disabled";
+			reg = <0x65200000 0x8500>;
+			interrupts = <0 67 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ether1_rgmii>;
+			clock-names = "ether";
+			clocks = <&sys_clk 7>;
+			reset-names = "ether";
+			resets = <&sys_rst 7>;
+			phy-mode = "rgmii-id";
+			local-mac-address = [00 00 00 00 00 00];
+			socionext,syscon-phy-mode = <&soc_glue 1>;
+
+			mdio1: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		usb0: usb@65a00000 {
+			compatible = "socionext,uniphier-dwc3", "snps,dwc3";
+			status = "disabled";
+			reg = <0x65a00000 0xcd00>;
+			interrupt-names = "host", "peripheral";
+			interrupts = <0 134 4>, <0 135 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb0>, <&pinctrl_usb2>;
+			clock-names = "ref", "bus_early", "suspend";
+			clocks = <&sys_clk 12>, <&sys_clk 12>, <&sys_clk 12>;
+			resets = <&usb0_rst 15>;
+			phys = <&usb0_hsphy0>, <&usb0_hsphy1>,
+			       <&usb0_ssphy0>, <&usb0_ssphy1>;
+			dr_mode = "host";
+		};
+
+		usb-glue@65b00000 {
+			compatible = "socionext,uniphier-pxs3-dwc3-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65b00000 0x400>;
+
+			usb0_rst: reset@0 {
+				compatible = "socionext,uniphier-pxs3-usb3-reset";
+				reg = <0x0 0x4>;
+				#reset-cells = <1>;
+				clock-names = "link";
+				clocks = <&sys_clk 12>;
+				reset-names = "link";
+				resets = <&sys_rst 12>;
+			};
+
+			usb0_vbus0: regulator@100 {
+				compatible = "socionext,uniphier-pxs3-usb3-regulator";
+				reg = <0x100 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 12>;
+				reset-names = "link";
+				resets = <&sys_rst 12>;
+			};
+
+			usb0_vbus1: regulator@110 {
+				compatible = "socionext,uniphier-pxs3-usb3-regulator";
+				reg = <0x110 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 12>;
+				reset-names = "link";
+				resets = <&sys_rst 12>;
+			};
+
+			usb0_hsphy0: hs-phy@200 {
+				compatible = "socionext,uniphier-pxs3-usb3-hsphy";
+				reg = <0x200 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 12>, <&sys_clk 16>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 12>, <&sys_rst 16>;
+				vbus-supply = <&usb0_vbus0>;
+				nvmem-cell-names = "rterm", "sel_t", "hs_i";
+				nvmem-cells = <&usb_rterm0>, <&usb_sel_t0>,
+					      <&usb_hs_i0>;
+			};
+
+			usb0_hsphy1: hs-phy@210 {
+				compatible = "socionext,uniphier-pxs3-usb3-hsphy";
+				reg = <0x210 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 12>, <&sys_clk 16>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 12>, <&sys_rst 16>;
+				vbus-supply = <&usb0_vbus1>;
+				nvmem-cell-names = "rterm", "sel_t", "hs_i";
+				nvmem-cells = <&usb_rterm1>, <&usb_sel_t1>,
+					      <&usb_hs_i0>;
+			};
+
+			usb0_ssphy0: ss-phy@300 {
+				compatible = "socionext,uniphier-pxs3-usb3-ssphy";
+				reg = <0x300 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 12>, <&sys_clk 17>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 12>, <&sys_rst 17>;
+				vbus-supply = <&usb0_vbus0>;
+			};
+
+			usb0_ssphy1: ss-phy@310 {
+				compatible = "socionext,uniphier-pxs3-usb3-ssphy";
+				reg = <0x310 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 12>, <&sys_clk 18>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 12>, <&sys_rst 18>;
+				vbus-supply = <&usb0_vbus1>;
+			};
+		};
+
+		usb1: usb@65c00000 {
+			compatible = "socionext,uniphier-dwc3", "snps,dwc3";
+			status = "disabled";
+			reg = <0x65c00000 0xcd00>;
+			interrupt-names = "host", "peripheral";
+			interrupts = <0 137 4>, <0 138 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb1>, <&pinctrl_usb3>;
+			clock-names = "ref", "bus_early", "suspend";
+			clocks = <&sys_clk 13>, <&sys_clk 13>, <&sys_clk 13>;
+			resets = <&usb1_rst 15>;
+			phys = <&usb1_hsphy0>, <&usb1_hsphy1>,
+			       <&usb1_ssphy0>;
+			dr_mode = "host";
+		};
+
+		usb-glue@65d00000 {
+			compatible = "socionext,uniphier-pxs3-dwc3-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65d00000 0x400>;
+
+			usb1_rst: reset@0 {
+				compatible = "socionext,uniphier-pxs3-usb3-reset";
+				reg = <0x0 0x4>;
+				#reset-cells = <1>;
+				clock-names = "link";
+				clocks = <&sys_clk 13>;
+				reset-names = "link";
+				resets = <&sys_rst 13>;
+			};
+
+			usb1_vbus0: regulator@100 {
+				compatible = "socionext,uniphier-pxs3-usb3-regulator";
+				reg = <0x100 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 13>;
+				reset-names = "link";
+				resets = <&sys_rst 13>;
+			};
+
+			usb1_vbus1: regulator@110 {
+				compatible = "socionext,uniphier-pxs3-usb3-regulator";
+				reg = <0x110 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 13>;
+				reset-names = "link";
+				resets = <&sys_rst 13>;
+			};
+
+			usb1_hsphy0: hs-phy@200 {
+				compatible = "socionext,uniphier-pxs3-usb3-hsphy";
+				reg = <0x200 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy", "phy-ext";
+				clocks = <&sys_clk 13>, <&sys_clk 20>,
+					 <&sys_clk 14>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 13>, <&sys_rst 20>;
+				vbus-supply = <&usb1_vbus0>;
+				nvmem-cell-names = "rterm", "sel_t", "hs_i";
+				nvmem-cells = <&usb_rterm2>, <&usb_sel_t2>,
+					      <&usb_hs_i2>;
+			};
+
+			usb1_hsphy1: hs-phy@210 {
+				compatible = "socionext,uniphier-pxs3-usb3-hsphy";
+				reg = <0x210 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy", "phy-ext";
+				clocks = <&sys_clk 13>, <&sys_clk 20>,
+					 <&sys_clk 14>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 13>, <&sys_rst 20>;
+				vbus-supply = <&usb1_vbus1>;
+				nvmem-cell-names = "rterm", "sel_t", "hs_i";
+				nvmem-cells = <&usb_rterm3>, <&usb_sel_t3>,
+					      <&usb_hs_i2>;
+			};
+
+			usb1_ssphy0: ss-phy@300 {
+				compatible = "socionext,uniphier-pxs3-usb3-ssphy";
+				reg = <0x300 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy", "phy-ext";
+				clocks = <&sys_clk 13>, <&sys_clk 21>,
+					 <&sys_clk 14>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 13>, <&sys_rst 21>;
+				vbus-supply = <&usb1_vbus0>;
+			};
+		};
+
+		pcie: pcie@66000000 {
+			compatible = "socionext,uniphier-pcie", "snps,dw-pcie";
+			status = "disabled";
+			reg-names = "dbi", "link", "config";
+			reg = <0x66000000 0x1000>, <0x66010000 0x10000>,
+			      <0x2fff0000 0x10000>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			clocks = <&sys_clk 24>;
+			resets = <&sys_rst 24>;
+			num-lanes = <1>;
+			num-viewport = <1>;
+			bus-range = <0x0 0xff>;
+			device_type = "pci";
+			ranges =
+			/* downstream I/O */
+				<0x81000000 0 0x00000000 0x2ffe0000 0 0x00010000>,
+			/* non-prefetchable memory */
+				<0x82000000 0 0x20000000 0x20000000 0 0x0ffe0000>;
+			#interrupt-cells = <1>;
+			interrupt-names = "dma", "msi";
+			interrupts = <0 224 4>, <0 225 4>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc 0>,	/* INTA */
+					<0 0 0 2 &pcie_intc 1>,	/* INTB */
+					<0 0 0 3 &pcie_intc 2>,	/* INTC */
+					<0 0 0 4 &pcie_intc 3>;	/* INTD */
+			phy-names = "pcie-phy";
+			phys = <&pcie_phy>;
+
+			pcie_intc: legacy-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <0 226 4>;
+			};
+		};
+
+		pcie_phy: phy@66038000 {
+			compatible = "socionext,uniphier-pxs3-pcie-phy";
+			reg = <0x66038000 0x4000>;
+			#phy-cells = <0>;
+			clock-names = "link";
+			clocks = <&sys_clk 24>;
+			reset-names = "link";
+			resets = <&sys_rst 24>;
+			socionext,syscon = <&soc_glue>;
+		};
+
+		nand: nand-controller@68000000 {
+			compatible = "socionext,uniphier-denali-nand-v5b";
+			status = "disabled";
+			reg-names = "nand_data", "denali_reg";
+			reg = <0x68000000 0x20>, <0x68100000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0 65 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_nand>;
+			clock-names = "nand", "nand_x", "ecc";
+			clocks = <&sys_clk 2>, <&sys_clk 3>, <&sys_clk 3>;
+			reset-names = "nand", "reg";
+			resets = <&sys_rst 2>, <&sys_rst 2>;
+		};
+	};
+};
+
+#include "uniphier-pinctrl.dtsi"

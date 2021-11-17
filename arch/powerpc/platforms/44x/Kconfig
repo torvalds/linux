@@ -1,0 +1,321 @@
+# SPDX-License-Identifier: GPL-2.0
+config PPC_47x
+	bool "Support for 47x variant"
+	depends on 44x
+	select MPIC
+	help
+	  This option enables support for the 47x family of processors and is
+	  not currently compatible with other 44x or 46x variants
+
+config BAMBOO
+	bool "Bamboo"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 440EP
+	select FORCE_PCI
+	help
+	  This option enables support for the IBM PPC440EP evaluation board.
+
+config BLUESTONE
+	bool "Bluestone"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select APM821xx
+	select FORCE_PCI
+	select PCI_MSI
+	select PPC4xx_MSI
+	select PPC4xx_PCI_EXPRESS
+	select IBM_EMAC_RGMII if IBM_EMAC
+	help
+	  This option enables support for the APM APM821xx Evaluation board.
+
+config EBONY
+	bool "Ebony"
+	depends on 44x
+	default y
+	select 440GP
+	select FORCE_PCI
+	select OF_RTC
+	help
+	  This option enables support for the IBM PPC440GP evaluation board.
+
+config SAM440EP
+	bool "Sam440ep"
+	depends on 44x
+	select 440EP
+	select FORCE_PCI
+	help
+	  This option enables support for the ACube Sam440ep board.
+
+config SEQUOIA
+	bool "Sequoia"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 440EPX
+	help
+	  This option enables support for the AMCC PPC440EPX evaluation board.
+
+config TAISHAN
+	bool "Taishan"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 440GX
+	select FORCE_PCI
+	help
+	  This option enables support for the AMCC PPC440GX "Taishan"
+	  evaluation board.
+
+config KATMAI
+	bool "Katmai"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 440SPe
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_MSI
+	help
+	  This option enables support for the AMCC PPC440SPe evaluation board.
+
+config RAINIER
+	bool "Rainier"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 440GRX
+	select FORCE_PCI
+	help
+	  This option enables support for the AMCC PPC440GRX evaluation board.
+
+config WARP
+	bool "PIKA Warp"
+	depends on 44x
+	select 440EP
+	help
+	  This option enables support for the PIKA Warp(tm) Appliance. The Warp
+	  is a small computer replacement with up to 9 ports of FXO/FXS plus VOIP
+	  stations and trunks.
+
+	  See http://www.pikatechnologies.com/ and follow the "PIKA for Computer
+	  Telephony Developers" link for more information.
+
+config ARCHES
+	bool "Arches"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 460EX # Odd since it uses 460GT but the effects are the same
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the AMCC Dual PPC460GT evaluation board.
+
+config CANYONLANDS
+	bool "Canyonlands"
+	depends on 44x
+	select 460EX
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_MSI
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select IBM_EMAC_ZMII if IBM_EMAC
+	help
+	  This option enables support for the AMCC PPC460EX evaluation board.
+
+config GLACIER
+	bool "Glacier"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 460EX # Odd since it uses 460GT but the effects are the same
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select IBM_EMAC_ZMII if IBM_EMAC
+	help
+	  This option enables support for the AMCC PPC460GT evaluation board.
+
+config REDWOOD
+	bool "Redwood"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 460SX
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_MSI
+	help
+	  This option enables support for the AMCC PPC460SX Redwood board.
+
+config EIGER
+	bool "Eiger"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 460SX
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	select IBM_EMAC_RGMII if IBM_EMAC
+	help
+	  This option enables support for the AMCC PPC460SX evaluation board.
+
+config YOSEMITE
+	bool "Yosemite"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 440EP
+	select FORCE_PCI
+	help
+	  This option enables support for the AMCC PPC440EP evaluation board.
+
+config ISS4xx
+	bool "ISS 4xx Simulator"
+	depends on 44x
+	select 440GP if 44x && !PPC_47x
+	select PPC_FPU
+	select OF_RTC
+	help
+	  This option enables support for the IBM ISS simulation environment
+
+config CURRITUCK
+	bool "IBM Currituck (476fpe) Support"
+	depends on PPC_47x
+	select SWIOTLB
+	select 476FPE
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the IBM Currituck (476fpe) evaluation board
+
+config FSP2
+	bool "IBM FSP2 (476fpe) Support"
+	depends on PPC_47x
+	select 476FPE
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select COMMON_CLK
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the IBM FSP2 (476fpe) board
+
+config AKEBONO
+	bool "IBM Akebono (476gtr) Support"
+	depends on PPC_47x
+	select SWIOTLB
+	select 476FPE
+	select PPC4xx_PCI_EXPRESS
+	select FORCE_PCI
+	select PCI_MSI
+	select PPC4xx_HSTA_MSI
+	select I2C
+	select I2C_IBM_IIC
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select USB if USB_SUPPORT
+	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
+	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
+	help
+	  This option enables support for the IBM Akebono (476gtr) evaluation board
+
+
+config ICON
+	bool "Icon"
+	depends on 44x
+	select PPC44x_SIMPLE
+	select 440SPe
+	select FORCE_PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the AMCC PPC440SPe evaluation board.
+
+config PPC44x_SIMPLE
+	bool "Simple PowerPC 44x board support"
+	depends on 44x
+	help
+	  This option enables the simple PowerPC 44x platform support.
+
+config PPC4xx_GPIO
+	bool "PPC4xx GPIO support"
+	depends on 44x
+	select GPIOLIB
+	help
+	  Enable gpiolib support for ppc440 based boards
+
+# 44x specific CPU modules, selected based on the board above.
+config 440EP
+	bool
+	select PPC_FPU
+	select IBM440EP_ERR42
+	select IBM_EMAC_ZMII if IBM_EMAC
+
+config 440EPX
+	bool
+	select PPC_FPU
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select IBM_EMAC_ZMII if IBM_EMAC
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
+
+config 440GRX
+	bool
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select IBM_EMAC_ZMII if IBM_EMAC
+
+config 440GP
+	bool
+	select IBM_EMAC_ZMII if IBM_EMAC
+
+config 440GX
+	bool
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select IBM_EMAC_ZMII if IBM_EMAC #test only
+	select IBM_EMAC_TAH if IBM_EMAC  #test only
+
+config 440SP
+	bool
+
+config 440SPe
+	bool
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+
+config 460EX
+	bool
+	select PPC_FPU
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_TAH if IBM_EMAC
+
+config 460SX
+	bool
+	select PPC_FPU
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select IBM_EMAC_ZMII if IBM_EMAC
+	select IBM_EMAC_TAH if IBM_EMAC
+
+config 476FPE
+	bool
+	select PPC_FPU
+
+config APM821xx
+	bool
+	select PPC_FPU
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_TAH if IBM_EMAC
+
+config 476FPE_ERR46
+	depends on 476FPE
+	bool "Enable linker work around for PPC476FPE errata #46"
+	help
+	  This option enables a work around for an icache bug on 476
+	  that can cause execution of stale instructions when falling
+	  through pages (IBM errata #46). It requires a recent version
+	  of binutils which supports the --ppc476-workaround option.
+
+	  The work around enables the appropriate linker options and
+	  ensures that all module output sections are aligned to 4K
+	  page boundaries. The work around is only required when
+	  building modules.
+
+# 44x errata/workaround config symbols, selected by the CPU models above
+config IBM440EP_ERR42
+	bool
+

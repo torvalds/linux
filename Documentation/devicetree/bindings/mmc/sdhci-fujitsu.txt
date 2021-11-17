@@ -1,0 +1,32 @@
+* Fujitsu SDHCI controller
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the sdhci_f_sdh30 driver.
+
+Required properties:
+- compatible: "fujitsu,mb86s70-sdhci-3.0"
+- clocks: Must contain an entry for each entry in clock-names. It is a
+  list of phandles and clock-specifier pairs.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: Should contain the following two entries:
+	"iface" - clock used for sdhci interface
+	"core"  - core clock for sdhci controller
+
+Optional properties:
+- vqmmc-supply: phandle to the regulator device tree node, mentioned
+  as the VCCQ/VDD_IO supply in the eMMC/SD specs.
+- fujitsu,cmd-dat-delay-select: boolean property indicating that this host
+  requires the CMD_DAT_DELAY control to be enabled.
+
+Example:
+
+	sdhci1: mmc@36600000 {
+		compatible = "fujitsu,mb86s70-sdhci-3.0";
+		reg = <0 0x36600000 0x1000>;
+		interrupts = <0 172 0x4>,
+			     <0 173 0x4>;
+		bus-width = <4>;
+		vqmmc-supply = <&vccq_sdhci1>;
+		clocks = <&clock 2 2 0>, <&clock 2 3 0>;
+		clock-names = "iface", "core";
+	};

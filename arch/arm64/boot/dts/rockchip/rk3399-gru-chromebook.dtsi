@@ -1,0 +1,400 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Gru-Chromebook shared properties
+ *
+ * Copyright 2018 Google, Inc
+ */
+
+#include "rk3399-gru.dtsi"
+
+/ {
+	pp900_ap: pp900-ap {
+		compatible = "regulator-fixed";
+		regulator-name = "pp900_ap";
+
+		/* EC turns on w/ pp900_ap_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	/* EC turns on w/ pp900_usb_en */
+	pp900_usb: pp900-ap {
+	};
+
+	/* EC turns on w/ pp900_pcie_en */
+	pp900_pcie: pp900-ap {
+	};
+
+	pp3000: pp3000 {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp3000_en>;
+
+		enable-active-high;
+		gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	ppvar_centerlogic_pwm: ppvar-centerlogic-pwm {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_centerlogic_pwm";
+
+		pwms = <&pwm3 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ppvar_centerlogic_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <799434>;
+		regulator-max-microvolt = <1049925>;
+	};
+
+	ppvar_centerlogic: ppvar-centerlogic {
+		compatible = "vctrl-regulator";
+		regulator-name = "ppvar_centerlogic";
+
+		regulator-min-microvolt = <799434>;
+		regulator-max-microvolt = <1049925>;
+
+		ctrl-supply = <&ppvar_centerlogic_pwm>;
+		ctrl-voltage-range = <799434 1049925>;
+
+		regulator-settling-time-up-us = <378>;
+		min-slew-down-rate = <225>;
+		ovp-threshold-percent = <16>;
+	};
+
+	/* Schematics call this PPVAR even though it's fixed */
+	ppvar_logic: ppvar-logic {
+		compatible = "regulator-fixed";
+		regulator-name = "ppvar_logic";
+
+		/* EC turns on w/ ppvar_logic_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp1800_audio: pp1800-audio {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_audio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp1800_audio_en>;
+
+		enable-active-high;
+		gpio = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+
+		regulator-always-on;
+		regulator-boot-on;
+
+		vin-supply = <&pp1800>;
+	};
+
+	/* gpio is shared with pp3300_wifi_bt */
+	pp1800_pcie: pp1800-pcie {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_pcie";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_module_pd_l>;
+
+		enable-active-high;
+		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+
+		/*
+		 * Need to wait 1ms + ramp-up time before we can power on WiFi.
+		 * This has been approximated as 8ms total.
+		 */
+		regulator-enable-ramp-delay = <8000>;
+
+		vin-supply = <&pp1800>;
+	};
+
+	/* Always on; plain and simple */
+	pp3000_ap: pp3000_emmc: pp3000 {
+	};
+
+	pp1500_ap_io: pp1500-ap-io {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1500_ap_io";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp1500_en>;
+
+		enable-active-high;
+		gpio = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+
+		vin-supply = <&pp1800>;
+	};
+
+	pp3300_disp: pp3300-disp {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_disp";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp3300_disp_en>;
+
+		enable-active-high;
+		gpio = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+
+		startup-delay-us = <2000>;
+		vin-supply = <&pp3300>;
+	};
+
+	/* EC turns on w/ pp3300_usb_en_l */
+	pp3300_usb: pp3300 {
+	};
+
+	/* gpio is shared with pp1800_pcie and pinctrl is set there */
+	pp3300_wifi_bt: pp3300-wifi-bt {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_wifi_bt";
+
+		enable-active-high;
+		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+
+		vin-supply = <&pp3300>;
+	};
+
+	/*
+	 * This is a bit of a hack. The WiFi module should be reset at least
+	 * 1ms after its regulators have ramped up (max rampup time is ~7ms).
+	 * With some stretching of the imagination, we can call the 1.8V
+	 * regulator a supply.
+	 */
+	wlan_pd_n: wlan-pd-n {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan_pd_n";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_module_reset_l>;
+
+		enable-active-high;
+		gpio = <&gpio1 11 GPIO_ACTIVE_HIGH>;
+
+		vin-supply = <&pp1800_pcie>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		enable-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+		power-supply = <&pp3300_disp>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bl_en>;
+		pwm-delay-us = <10000>;
+	};
+
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_host_wake_l>;
+
+		wake_on_bt: wake-on-bt {
+			label = "Wake-on-Bluetooth";
+			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
+	};
+};
+
+&ppvar_bigcpu {
+	min-slew-down-rate = <225>;
+	ovp-threshold-percent = <16>;
+};
+
+&ppvar_litcpu {
+	min-slew-down-rate = <225>;
+	ovp-threshold-percent = <16>;
+};
+
+&ppvar_gpu {
+	min-slew-down-rate = <225>;
+	ovp-threshold-percent = <16>;
+};
+
+&cdn_dp {
+	extcon = <&usbc_extcon0>, <&usbc_extcon1>;
+};
+
+&edp {
+	status = "okay";
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+ap_i2c_mic: &i2c1 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	headsetcodec: rt5514@57 {
+		compatible = "realtek,rt5514";
+		reg = <0x57>;
+		realtek,dmic-init-delay-ms = <20>;
+	};
+};
+
+ap_i2c_tp: &i2c5 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	/*
+	 * Note strange pullup enable.  Apparently this avoids leakage but
+	 * still allows us to get nice 4.7K pullups for high speed i2c
+	 * transfers.  Basically we want the pullup on whenever the ap is
+	 * alive, so the "en" pin just gets set to output high.
+	 */
+	pinctrl-0 = <&i2c5_xfer &ap_i2c_tp_pu_en>;
+};
+
+&cros_ec {
+	cros_ec_pwm: ec-pwm {
+		compatible = "google,cros-ec-pwm";
+		#pwm-cells = <1>;
+	};
+
+	usbc_extcon1: extcon1 {
+		compatible = "google,extcon-usbc-cros-ec";
+		google,usb-port-id = <1>;
+	};
+};
+
+&sound {
+	rockchip,codec = <&max98357a &headsetcodec
+			  &codec &wacky_spi_audio &cdn_dp>;
+};
+
+&spi2 {
+	wacky_spi_audio: spi2@0 {
+		compatible = "realtek,rt5514";
+		reg = <0>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mic_int>;
+		/* May run faster once verified. */
+		spi-max-frequency = <10000000>;
+		wakeup-source;
+	};
+};
+
+&pci_rootport {
+	mvl_wifi: wifi@0,0 {
+		compatible = "pci1b4b,2b42";
+		reg = <0x83010000 0x0 0x00000000 0x0 0x00100000
+		       0x83010000 0x0 0x00100000 0x0 0x00100000>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_host_wake_l>;
+		wakeup-source;
+	};
+};
+
+&tcphy1 {
+	status = "okay";
+	extcon = <&usbc_extcon1>;
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&usbdrd3_1 {
+	status = "okay";
+	extcon = <&usbc_extcon1>;
+};
+
+&usbdrd_dwc3_1 {
+	status = "okay";
+	dr_mode = "host";
+};
+
+&pinctrl {
+	discrete-regulators {
+		pp1500_en: pp1500-en {
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		pp1800_audio_en: pp1800-audio-en {
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO
+					 &pcfg_pull_down>;
+		};
+
+		pp3000_en: pp3000-en {
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		pp3300_disp_en: pp3300-disp-en {
+			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		wlan_module_pd_l: wlan-module-pd-l {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO
+					 &pcfg_pull_down>;
+		};
+	};
+};
+
+&wifi {
+	wifi_perst_l: wifi-perst-l {
+		rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+	};
+
+	wlan_host_wake_l: wlan-host-wake-l {
+		rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+	};
+};

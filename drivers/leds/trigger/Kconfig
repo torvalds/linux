@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig LEDS_TRIGGERS
+	bool "LED Trigger support"
+	depends on LEDS_CLASS
+	help
+	  This option enables trigger support for the leds class.
+	  These triggers allow kernel events to drive the LEDs and can
+	  be configured via sysfs. If unsure, say Y.
+
+if LEDS_TRIGGERS
+
+config LEDS_TRIGGER_TIMER
+	tristate "LED Timer Trigger"
+	help
+	  This allows LEDs to be controlled by a programmable timer
+	  via sysfs. Some LED hardware can be programmed to start
+	  blinking the LED without any further software interaction.
+	  For more details read Documentation/leds/leds-class.rst.
+
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_ONESHOT
+	tristate "LED One-shot Trigger"
+	help
+	  This allows LEDs to blink in one-shot pulses with parameters
+	  controlled via sysfs.  It's useful to notify the user on
+	  sporadic events, when there are no clear begin and end trap points,
+	  or on dense events, where this blinks the LED at constant rate if
+	  rearmed continuously.
+
+	  It also shows how to use the led_blink_set_oneshot() function.
+
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_DISK
+	bool "LED Disk Trigger"
+	depends on ATA
+	help
+	  This allows LEDs to be controlled by disk activity.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_MTD
+	bool "LED MTD (NAND/NOR) Trigger"
+	depends on MTD
+	help
+	  This allows LEDs to be controlled by MTD activity.
+	  If unsure, say N.
+
+config LEDS_TRIGGER_HEARTBEAT
+	tristate "LED Heartbeat Trigger"
+	help
+	  This allows LEDs to be controlled by a CPU load average.
+	  The flash frequency is a hyperbolic function of the 1-minute
+	  load average.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_BACKLIGHT
+	tristate "LED backlight Trigger"
+	help
+	  This allows LEDs to be controlled as a backlight device: they
+	  turn off and on when the display is blanked and unblanked.
+
+	  If unsure, say N.
+
+config LEDS_TRIGGER_CPU
+	bool "LED CPU Trigger"
+	help
+	  This allows LEDs to be controlled by active CPUs. This shows
+	  the active CPUs across an array of LEDs so you can see which
+	  CPUs are active on the system at any given moment.
+
+	  If unsure, say N.
+
+config LEDS_TRIGGER_ACTIVITY
+	tristate "LED activity Trigger"
+	help
+	  This allows LEDs to be controlled by an immediate CPU usage.
+	  The flash frequency and duty cycle varies from faint flashes to
+	  intense brightness depending on the instant CPU load.
+	  If unsure, say N.
+
+config LEDS_TRIGGER_GPIO
+	tristate "LED GPIO Trigger"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  This allows LEDs to be controlled by gpio events. It's good
+	  when using gpios as switches and triggering the needed LEDs
+	  from there. One use case is n810's keypad LEDs that could
+	  be triggered by this trigger when user slides up to show
+	  keypad.
+
+	  If unsure, say N.
+
+config LEDS_TRIGGER_DEFAULT_ON
+	tristate "LED Default ON Trigger"
+	help
+	  This allows LEDs to be initialised in the ON state.
+	  If unsure, say Y.
+
+comment "iptables trigger is under Netfilter config (LED target)"
+	depends on LEDS_TRIGGERS
+
+config LEDS_TRIGGER_TRANSIENT
+	tristate "LED Transient Trigger"
+	help
+	  This allows one time activation of a transient state on
+	  GPIO/PWM based hardware.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_CAMERA
+	tristate "LED Camera Flash/Torch Trigger"
+	help
+	  This allows LEDs to be controlled as a camera flash/torch device.
+	  This enables direct flash/torch on/off by the driver, kernel space.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_PANIC
+	bool "LED Panic Trigger"
+	help
+	  This allows LEDs to be configured to blink on a kernel panic.
+	  Enabling this option will allow to mark certain LEDs as panic indicators,
+	  allowing to blink them on a kernel panic, even if they are set to
+	  a different trigger.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_NETDEV
+	tristate "LED Netdev Trigger"
+	depends on NET
+	help
+	  This allows LEDs to be controlled by network device activity.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_PATTERN
+	tristate "LED Pattern Trigger"
+	help
+	  This allows LEDs to be controlled by a software or hardware pattern
+	  which is a series of tuples, of brightness and duration (ms).
+	  If unsure, say N
+
+config LEDS_TRIGGER_AUDIO
+	tristate "Audio Mute LED Trigger"
+	help
+	  This allows LEDs to be controlled by audio drivers for following
+	  the audio mute and mic-mute changes.
+	  If unsure, say N
+
+config LEDS_TRIGGER_TTY
+	tristate "LED Trigger for TTY devices"
+	depends on TTY
+	help
+	  This allows LEDs to be controlled by activity on ttys which includes
+	  serial devices like /dev/ttyS0.
+
+	  When build as a module this driver will be called ledtrig-tty.
+
+endif # LEDS_TRIGGERS

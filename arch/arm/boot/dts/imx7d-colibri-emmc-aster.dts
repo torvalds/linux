@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2017-2020 Toradex AG
+ *
+ */
+
+/dts-v1/;
+#include "imx7d-colibri-emmc.dtsi"
+#include "imx7-colibri-aster.dtsi"
+
+/ {
+	model = "Toradex Colibri iMX7D 1GB (eMMC) on Aster Carrier Board";
+	compatible = "toradex,colibri-imx7d-emmc-aster",
+		     "toradex,colibri-imx7d-emmc", "fsl,imx7d";
+};
+
+&usbotg2 {
+	vbus-supply = <&reg_usbh_vbus>;
+	status = "okay";
+};

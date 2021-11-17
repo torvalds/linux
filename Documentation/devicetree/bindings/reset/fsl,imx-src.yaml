@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/fsl,imx-src.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX System Reset Controller
+
+maintainers:
+  - Philipp Zabel <p.zabel@pengutronix.de>
+
+description: |
+  The system reset controller can be used to reset the GPU, VPU,
+  IPU, and OpenVG IP modules on i.MX5 and i.MX6 ICs. Those device
+  nodes should specify the reset line on the SRC in their resets
+  property, containing a phandle to the SRC device node and a
+  RESET_INDEX specifying which module to reset, as described in
+  reset.txt
+
+  The following RESET_INDEX values are valid for i.MX5:
+    GPU_RESET     0
+    VPU_RESET     1
+    IPU1_RESET    2
+    OPEN_VG_RESET 3
+  The following additional RESET_INDEX value is valid for i.MX6:
+    IPU2_RESET    4
+
+properties:
+  compatible:
+    oneOf:
+      - const: "fsl,imx51-src"
+      - items:
+          - const: "fsl,imx50-src"
+          - const: "fsl,imx51-src"
+      - items:
+          - const: "fsl,imx53-src"
+          - const: "fsl,imx51-src"
+      - items:
+          - const: "fsl,imx6q-src"
+          - const: "fsl,imx51-src"
+      - items:
+          - const: "fsl,imx6sx-src"
+          - const: "fsl,imx51-src"
+      - items:
+          - const: "fsl,imx6sl-src"
+          - const: "fsl,imx51-src"
+      - items:
+          - const: "fsl,imx6ul-src"
+          - const: "fsl,imx51-src"
+      - items:
+          - const: "fsl,imx6sll-src"
+          - const: "fsl,imx51-src"
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: SRC interrupt
+      - description: CPU WDOG interrupts out of SRC
+    minItems: 1
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    reset-controller@73fd0000 {
+        compatible = "fsl,imx51-src";
+        reg = <0x73fd0000 0x4000>;
+        interrupts = <75>;
+        #reset-cells = <1>;
+    };

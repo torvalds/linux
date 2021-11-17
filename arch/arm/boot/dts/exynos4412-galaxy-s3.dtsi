@@ -1,0 +1,214 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's Exynos4412 based Galaxy S3 board device tree source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+/dts-v1/;
+#include "exynos4412-midas.dtsi"
+
+/ {
+	aliases {
+		i2c9 = &i2c_ak8975;
+		i2c10 = &i2c_cm36651;
+	};
+
+	led-controller {
+		compatible = "skyworks,aat1290";
+		flen-gpios = <&gpj1 1 GPIO_ACTIVE_HIGH>;
+		enset-gpios = <&gpj1 2 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default", "host", "isp";
+		pinctrl-0 = <&camera_flash_host>;
+		pinctrl-1 = <&camera_flash_host>;
+		pinctrl-2 = <&camera_flash_isp>;
+
+		flash-led {
+			label = "flash";
+			led-max-microamp = <520833>;
+			flash-max-microamp = <1012500>;
+			flash-max-timeout-us = <1940000>;
+		};
+	};
+
+	lcd_vdd3_reg: voltage-regulator-10 {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD_VDD_2.2V";
+		regulator-min-microvolt = <2200000>;
+		regulator-max-microvolt = <2200000>;
+		gpio = <&gpc0 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	ps_als_reg: voltage-regulator-11 {
+		compatible = "regulator-fixed";
+		regulator-name = "LED_A_3.0V";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		gpio = <&gpj0 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	i2c_ak8975: i2c-gpio-0 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpy2 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpy2 5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		magnetometer@c {
+			compatible = "asahi-kasei,ak8975";
+			reg = <0x0c>;
+			gpios = <&gpj0 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	i2c_cm36651: i2c-gpio-2 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpf0 0 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpf0 1 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		light-sensor@18 {
+			compatible = "capella,cm36651";
+			reg = <0x18>;
+			interrupt-parent = <&gpx0>;
+			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+			vled-supply = <&ps_als_reg>;
+		};
+	};
+};
+
+&buck9_reg {
+	maxim,ena-gpios = <&gpm0 3 GPIO_ACTIVE_HIGH>;
+};
+
+&cam_af_reg {
+	gpio = <&gpm0 4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&cam_io_reg {
+	gpio = <&gpm0 2 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&dsi_0 {
+	status = "okay";
+
+	panel@0 {
+		compatible = "samsung,s6e8aa0";
+		reg = <0>;
+		vdd3-supply = <&lcd_vdd3_reg>;
+		vci-supply = <&ldo25_reg>;
+		reset-gpios = <&gpf2 1 GPIO_ACTIVE_HIGH>;
+		power-on-delay= <50>;
+		reset-delay = <100>;
+		init-delay = <100>;
+		flip-horizontal;
+		flip-vertical;
+		panel-width-mm = <58>;
+		panel-height-mm = <103>;
+
+		display-timings {
+			timing-0 {
+				clock-frequency = <57153600>;
+				hactive = <720>;
+				vactive = <1280>;
+				hfront-porch = <5>;
+				hback-porch = <5>;
+				hsync-len = <5>;
+				vfront-porch = <13>;
+				vback-porch = <1>;
+				vsync-len = <2>;
+			};
+		};
+	};
+};
+
+&i2c_3 {
+	touchscreen@48 {
+		compatible = "melfas,mms114";
+		reg = <0x48>;
+		interrupt-parent = <&gpm2>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
+		avdd-supply = <&ldo23_reg>;
+		vdd-supply = <&ldo24_reg>;
+	};
+};
+
+&ldo25_reg {
+	regulator-name = "LCD_VCC_3.3V";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+};
+
+&pinctrl_0 {
+	camera_flash_host: camera-flash-host {
+		samsung,pins = "gpj1-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-val = <0>;
+	};
+
+	camera_flash_isp: camera-flash-isp {
+		samsung,pins = "gpj1-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-val = <1>;
+	};
+};
+
+&s5c73m3 {
+	standby-gpios = <&gpm0 1 GPIO_ACTIVE_LOW>;   /* ISP_STANDBY */
+	vdda-supply = <&ldo17_reg>;
+	status = "okay";
+};
+
+&sound {
+	samsung,audio-routing =
+		"HP", "HPOUT1L",
+		"HP", "HPOUT1R",
+
+		"SPK", "SPKOUTLN",
+		"SPK", "SPKOUTLP",
+		"SPK", "SPKOUTRN",
+		"SPK", "SPKOUTRP",
+
+		"RCV", "HPOUT2N",
+		"RCV", "HPOUT2P",
+
+		"HDMI", "LINEOUT1N",
+		"HDMI", "LINEOUT1P",
+
+		"LINE", "LINEOUT2N",
+		"LINE", "LINEOUT2P",
+
+		"IN1LP", "MICBIAS1",
+		"IN1LN", "MICBIAS1",
+		"Main Mic", "MICBIAS1",
+
+		"IN1RP", "Sub Mic",
+		"IN1RN", "Sub Mic",
+
+		"IN2LP:VXRN", "MICBIAS2",
+		"Headset Mic", "MICBIAS2",
+
+		"IN2RN", "FM In",
+		"IN2RP:VXRP", "FM In";
+};
+
+&submic_bias_reg {
+	gpio = <&gpf2 0 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&touchkey_reg {
+	gpio = <&gpm0 0 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};

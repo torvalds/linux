@@ -1,0 +1,52 @@
+#
+# Marvell crypto drivers configuration
+#
+
+config CRYPTO_DEV_MARVELL
+	tristate
+
+config CRYPTO_DEV_MARVELL_CESA
+	tristate "Marvell's Cryptographic Engine driver"
+	depends on PLAT_ORION || ARCH_MVEBU
+	select CRYPTO_LIB_AES
+	select CRYPTO_LIB_DES
+	select CRYPTO_SKCIPHER
+	select CRYPTO_HASH
+	select SRAM
+	select CRYPTO_DEV_MARVELL
+	help
+	  This driver allows you to utilize the Cryptographic Engines and
+	  Security Accelerator (CESA) which can be found on MVEBU and ORION
+	  platforms.
+	  This driver supports CPU offload through DMA transfers.
+
+config CRYPTO_DEV_OCTEONTX_CPT
+	tristate "Support for Marvell OcteonTX CPT driver"
+	depends on ARCH_THUNDER || COMPILE_TEST
+	depends on PCI_MSI && 64BIT
+	depends on CRYPTO_LIB_AES
+	select CRYPTO_SKCIPHER
+	select CRYPTO_HASH
+	select CRYPTO_AEAD
+	select CRYPTO_DEV_MARVELL
+	help
+		This driver allows you to utilize the Marvell Cryptographic
+		Accelerator Unit(CPT) found in OcteonTX series of processors.
+
+		To compile this driver as module, choose M here:
+		the modules will be called octeontx-cpt and octeontx-cptvf
+
+config CRYPTO_DEV_OCTEONTX2_CPT
+	tristate "Marvell OcteonTX2 CPT driver"
+	depends on ARCH_THUNDER2 || COMPILE_TEST
+	depends on PCI_MSI && 64BIT
+	depends on CRYPTO_LIB_AES
+	depends on NET_VENDOR_MARVELL
+	select OCTEONTX2_MBOX
+	select CRYPTO_DEV_MARVELL
+	select CRYPTO_SKCIPHER
+	select CRYPTO_HASH
+	select CRYPTO_AEAD
+	help
+		This driver allows you to utilize the Marvell Cryptographic
+		Accelerator Unit(CPT) found in OcteonTX2 series of processors.

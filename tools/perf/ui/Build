@@ -1,0 +1,14 @@
+perf-y += setup.o
+perf-y += helpline.o
+perf-y += progress.o
+perf-y += util.o
+perf-y += hist.o
+perf-y += stdio/hist.o
+
+CFLAGS_setup.o += -DLIBDIR="BUILD_STR($(LIBDIR))"
+
+perf-$(CONFIG_SLANG) += browser.o
+perf-$(CONFIG_SLANG) += browsers/
+perf-$(CONFIG_SLANG) += tui/
+
+CFLAGS_browser.o += -DENABLE_SLFUTURE_CONST

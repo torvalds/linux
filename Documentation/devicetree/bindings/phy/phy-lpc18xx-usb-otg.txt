@@ -1,0 +1,26 @@
+NXP LPC18xx/43xx internal USB OTG PHY binding
+---------------------------------------------
+
+This file contains documentation for the internal USB OTG PHY found
+in NXP LPC18xx and LPC43xx SoCs.
+
+Required properties:
+- compatible	: must be "nxp,lpc1850-usb-otg-phy"
+- clocks	: must be exactly one entry
+See: Documentation/devicetree/bindings/clock/clock-bindings.txt
+- #phy-cells	: must be 0 for this phy
+See: Documentation/devicetree/bindings/phy/phy-bindings.txt
+
+The phy node must be a child of the creg syscon node.
+
+Example:
+creg: syscon@40043000 {
+	compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
+	reg = <0x40043000 0x1000>;
+
+	usb0_otg_phy: phy {
+		compatible = "nxp,lpc1850-usb-otg-phy";
+		clocks = <&ccu1 CLK_USB0>;
+		#phy-cells = <0>;
+	};
+};

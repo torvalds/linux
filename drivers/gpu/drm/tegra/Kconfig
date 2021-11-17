@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_TEGRA
+	tristate "NVIDIA Tegra DRM"
+	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
+	depends on COMMON_CLK
+	depends on DRM
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	select TEGRA_HOST1X
+	select INTERCONNECT
+	select IOMMU_IOVA
+	select CEC_CORE if CEC_NOTIFIER
+	help
+	  Choose this option if you have an NVIDIA Tegra SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tegra-drm.
+
+if DRM_TEGRA
+
+config DRM_TEGRA_DEBUG
+	bool "NVIDIA Tegra DRM debug support"
+	help
+	  Say yes here to enable debugging support.
+
+config DRM_TEGRA_STAGING
+	bool "Enable HOST1X interface"
+	depends on STAGING
+	help
+	  Say yes if HOST1X should be available for userspace DRM users.
+
+	  If unsure, choose N.
+
+endif

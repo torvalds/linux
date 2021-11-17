@@ -1,0 +1,320 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Remoteproc drivers"
+
+config REMOTEPROC
+	bool "Support for Remote Processor subsystem"
+	depends on HAS_DMA
+	select CRC32
+	select FW_LOADER
+	select VIRTIO
+	select WANT_DEV_COREDUMP
+	help
+	  Support for remote processors (such as DSP coprocessors). These
+	  are mainly used on embedded systems.
+
+if REMOTEPROC
+
+config REMOTEPROC_CDEV
+	bool "Remoteproc character device interface"
+	help
+	  Say y here to have a character device interface for the remoteproc
+	  framework. Userspace can boot/shutdown remote processors through
+	  this interface.
+
+	  It's safe to say N if you don't want to use this interface.
+
+config IMX_REMOTEPROC
+	tristate "i.MX remoteproc support"
+	depends on ARCH_MXC
+	depends on HAVE_ARM_SMCCC
+	select MAILBOX
+	help
+	  Say y here to support iMX's remote processors via the remote
+	  processor framework.
+
+	  It's safe to say N here.
+
+config INGENIC_VPU_RPROC
+	tristate "Ingenic JZ47xx VPU remoteproc support"
+	depends on MIPS || COMPILE_TEST
+	help
+	  Say y or m here to support the VPU in the JZ47xx SoCs from Ingenic.
+
+	  This can be either built-in or a loadable module.
+	  If unsure say N.
+
+config MTK_SCP
+	tristate "Mediatek SCP support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select RPMSG_MTK_SCP
+	help
+	  Say y here to support Mediatek's System Companion Processor (SCP) via
+	  the remote processor framework.
+
+	  It's safe to say N here.
+
+config OMAP_REMOTEPROC
+	tristate "OMAP remoteproc support"
+	depends on ARCH_OMAP4 || SOC_OMAP5 || SOC_DRA7XX
+	depends on OMAP_IOMMU
+	select MAILBOX
+	select OMAP2PLUS_MBOX
+	help
+	  Say y here to support OMAP's remote processors (dual M3
+	  and DSP on OMAP4) via the remote processor framework.
+
+	  Currently only supported on OMAP4.
+
+	  Usually you want to say Y here, in order to enable multimedia
+	  use-cases to run on your platform (multimedia codecs are
+	  offloaded to remote DSP processors using this framework).
+
+	  It's safe to say N here if you're not interested in multimedia
+	  offloading or just want a bare minimum kernel.
+
+config OMAP_REMOTEPROC_WATCHDOG
+	bool "OMAP remoteproc watchdog timer"
+	depends on OMAP_REMOTEPROC
+	default n
+	help
+	  Say Y here to enable watchdog timer for remote processors.
+
+	  This option controls the watchdog functionality for the remote
+	  processors in OMAP. Dedicated OMAP DMTimers are used by the remote
+	  processors and triggers the timer interrupt upon a watchdog
+	  detection.
+
+config WKUP_M3_RPROC
+	tristate "AMx3xx Wakeup M3 remoteproc support"
+	depends on SOC_AM33XX || SOC_AM43XX
+	help
+	  Say y here to support Wakeup M3 remote processor on TI AM33xx
+	  and AM43xx family of SoCs.
+
+	  Required for Suspend-to-RAM on AM33xx and AM43xx SoCs. Also needed
+	  for deep CPUIdle states on AM33xx SoCs. Allows for loading of the
+	  firmware onto these remote processors.
+	  If unsure say N.
+
+config DA8XX_REMOTEPROC
+	tristate "DA8xx/OMAP-L13x remoteproc support"
+	depends on ARCH_DAVINCI_DA8XX
+	depends on DMA_CMA
+	help
+	  Say y here to support DA8xx/OMAP-L13x remote processors via the
+	  remote processor framework.
+
+	  You want to say y here in order to enable AMP
+	  use-cases to run on your platform (multimedia codecs are
+	  offloaded to remote DSP processors using this framework).
+
+	  This module controls the name of the firmware file that gets
+	  loaded on the DSP.  This file must reside in the /lib/firmware
+	  directory.  It can be specified via the module parameter
+	  da8xx_fw_name=<filename>, and if not specified will default to
+	  "rproc-dsp-fw".
+
+	  It's safe to say n here if you're not interested in multimedia
+	  offloading.
+
+config KEYSTONE_REMOTEPROC
+	tristate "Keystone Remoteproc support"
+	depends on ARCH_KEYSTONE
+	help
+	  Say Y here here to support Keystone remote processors (DSP)
+	  via the remote processor framework.
+
+	  It's safe to say N here if you're not interested in the Keystone
+	  DSPs or just want to use a bare minimum kernel.
+
+config PRU_REMOTEPROC
+	tristate "TI PRU remoteproc support"
+	depends on TI_PRUSS
+	default TI_PRUSS
+	help
+	  Support for TI PRU remote processors present within a PRU-ICSS
+	  subsystem via the remote processor framework.
+
+	  Say Y or M here to support the Programmable Realtime Unit (PRU)
+	  processors on various TI SoCs. It's safe to say N here if you're
+	  not interested in the PRU or if you are unsure.
+
+config QCOM_PIL_INFO
+	tristate
+
+config QCOM_RPROC_COMMON
+	tristate
+
+config QCOM_Q6V5_COMMON
+	tristate
+	depends on ARCH_QCOM
+	depends on QCOM_SMEM
+
+config QCOM_Q6V5_ADSP
+	tristate "Qualcomm Technology Inc ADSP Peripheral Image Loader"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	select MFD_SYSCON
+	select QCOM_PIL_INFO
+	select QCOM_MDT_LOADER
+	select QCOM_Q6V5_COMMON
+	select QCOM_RPROC_COMMON
+	help
+	  Say y here to support the Peripheral Image Loader
+	  for the non-TrustZone part of Qualcomm Technology Inc. ADSP and CDSP
+	  remote processors. The TrustZone part is handled by QCOM_Q6V5_PAS
+	  driver.
+
+config QCOM_Q6V5_MSS
+	tristate "Qualcomm Hexagon V5 self-authenticating modem subsystem support"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	select MFD_SYSCON
+	select QCOM_MDT_LOADER
+	select QCOM_PIL_INFO
+	select QCOM_Q6V5_COMMON
+	select QCOM_RPROC_COMMON
+	select QCOM_SCM
+	help
+	  Say y here to support the Qualcomm self-authenticating modem
+	  subsystem based on Hexagon V5. The TrustZone based system is
+	  handled by QCOM_Q6V5_PAS driver.
+
+config QCOM_Q6V5_PAS
+	tristate "Qualcomm Hexagon v5 Peripheral Authentication Service support"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	select MFD_SYSCON
+	select QCOM_PIL_INFO
+	select QCOM_MDT_LOADER
+	select QCOM_Q6V5_COMMON
+	select QCOM_RPROC_COMMON
+	select QCOM_SCM
+	help
+	  Say y here to support the TrustZone based Peripheral Image Loader
+	  for the Qualcomm Hexagon v5 based remote processors. This is commonly
+	  used to control subsystems such as ADSP (Audio DSP),
+	  CDSP (Compute DSP), MPSS (Modem Peripheral SubSystem), and
+	  SLPI (Sensor Low Power Island).
+
+config QCOM_Q6V5_WCSS
+	tristate "Qualcomm Hexagon based WCSS Peripheral Image Loader"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	select MFD_SYSCON
+	select QCOM_MDT_LOADER
+	select QCOM_PIL_INFO
+	select QCOM_Q6V5_COMMON
+	select QCOM_RPROC_COMMON
+	select QCOM_SCM
+	help
+	  Say y here to support the Qualcomm Peripheral Image Loader for the
+	  Hexagon V5 based WCSS remote processors on e.g. IPQ8074.  This is
+	  a non-TrustZone wireless subsystem.
+
+config QCOM_SYSMON
+	tristate "Qualcomm sysmon driver"
+	depends on RPMSG
+	depends on ARCH_QCOM
+	depends on NET
+	select QCOM_QMI_HELPERS
+	help
+	  The sysmon driver implements a sysmon QMI client and a handler for
+	  the sys_mon SMD and GLINK channel, which are used for graceful
+	  shutdown, retrieving failure information and propagating information
+	  about other subsystems being shut down.
+
+	  Say y here if your system runs firmware on any other subsystems, e.g.
+	  modem or DSP.
+
+config QCOM_WCNSS_PIL
+	tristate "Qualcomm WCNSS Peripheral Image Loader"
+	depends on OF && ARCH_QCOM
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
+	depends on QCOM_SMEM
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	select QCOM_MDT_LOADER
+	select QCOM_PIL_INFO
+	select QCOM_RPROC_COMMON
+	select QCOM_SCM
+	help
+	  Say y here to support the Peripheral Image Loader for loading WCNSS
+	  firmware and boot the core on e.g. MSM8974, MSM8916. The firmware is
+	  verified and booted with the help of the Peripheral Authentication
+	  System (PAS) in TrustZone.
+
+config ST_REMOTEPROC
+	tristate "ST remoteproc support"
+	depends on ARCH_STI
+	select MAILBOX
+	select STI_MBOX
+	help
+	  Say y here to support ST's adjunct processors via the remote
+	  processor framework.
+	  This can be either built-in or a loadable module.
+
+config ST_SLIM_REMOTEPROC
+	tristate
+
+config STM32_RPROC
+	tristate "STM32 remoteproc support"
+	depends on ARCH_STM32
+	depends on REMOTEPROC
+	select MAILBOX
+	help
+	  Say y here to support STM32 MCU processors via the
+	  remote processor framework.
+
+	  You want to say y here in order to enable AMP
+	  use-cases to run on your platform (dedicated firmware could be
+	  offloaded to remote MCU processors using this framework).
+
+	  This can be either built-in or a loadable module.
+
+config TI_K3_DSP_REMOTEPROC
+	tristate "TI K3 DSP remoteproc support"
+	depends on ARCH_K3
+	select MAILBOX
+	select OMAP2PLUS_MBOX
+	help
+	  Say m here to support TI's C66x and C71x DSP remote processor
+	  subsystems on various TI K3 family of SoCs through the remote
+	  processor framework.
+
+	  It's safe to say N here if you're not interested in utilizing
+	  the DSP slave processors.
+
+config TI_K3_R5_REMOTEPROC
+	tristate "TI K3 R5 remoteproc support"
+	depends on ARCH_K3
+	select MAILBOX
+	select OMAP2PLUS_MBOX
+	help
+	  Say m here to support TI's R5F remote processor subsystems
+	  on various TI K3 family of SoCs through the remote processor
+	  framework.
+
+	  It's safe to say N here if you're not interested in utilizing
+	  a slave processor.
+
+endif # REMOTEPROC
+
+endmenu

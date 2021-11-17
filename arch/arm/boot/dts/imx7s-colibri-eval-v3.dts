@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Copyright 2016-2020 Toradex
+ */
+
+/dts-v1/;
+#include "imx7s-colibri.dtsi"
+#include "imx7-colibri-eval-v3.dtsi"
+
+/ {
+	model = "Toradex Colibri iMX7S on Colibri Evaluation Board V3";
+	compatible = "toradex,colibri-imx7s-eval-v3", "toradex,colibri-imx7s",
+		     "fsl,imx7s";
+};

@@ -1,0 +1,424 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2014 Linaro Ltd.
+ */
+
+#include "ste-ab8500.dtsi"
+
+/ {
+	soc {
+		prcmu@80157000 {
+			ab8500 {
+				ab8500-gpiocontroller {
+					/* Hog a few default settings */
+					pinctrl-names = "default";
+					pinctrl-0 = <&gpio2_default_mode>,
+						    <&gpio4_default_mode>,
+						    <&gpio10_default_mode>,
+						    <&gpio11_default_mode>,
+						    <&gpio12_default_mode>,
+						    <&gpio13_default_mode>,
+						    <&gpio16_default_mode>,
+						    <&gpio24_default_mode>,
+						    <&gpio25_default_mode>,
+						    <&gpio36_default_mode>,
+						    <&gpio37_default_mode>,
+						    <&gpio38_default_mode>,
+						    <&gpio39_default_mode>,
+						    <&gpio42_default_mode>,
+						    <&gpio26_default_mode>,
+						    <&gpio35_default_mode>,
+						    <&ycbcr_default_mode>,
+						    <&pwm_default_mode>,
+						    <&adi1_default_mode>,
+						    <&usbuicc_default_mode>,
+						    <&dmic_default_mode>,
+						    <&extcpena_default_mode>,
+						    <&modsclsda_default_mode>;
+
+					/*
+					 * Pins 2, 4, 10, 11, 12, 13, 16, 24, 25, 36, 37, 38, 39 and 42
+					 * are muxed in as GPIO, and configured as INPUT PULL DOWN
+					 */
+					gpio2 {
+						gpio2_default_mode: gpio2_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio2_a_1";
+							};
+							default_cfg {
+								pins = "GPIO2_T9";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio4 {
+						gpio4_default_mode: gpio4_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio4_a_1";
+							};
+							default_cfg {
+								pins = "GPIO4_W2";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio10 {
+						gpio10_default_mode: gpio10_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio10_d_1";
+							};
+							default_cfg {
+								pins = "GPIO10_U17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio11 {
+						gpio11_default_mode: gpio11_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio11_d_1";
+							};
+							default_cfg {
+								pins = "GPIO11_AA18";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio12 {
+						gpio12_default_mode: gpio12_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio12_d_1";
+							};
+							default_cfg {
+								pins = "GPIO12_U16";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio13 {
+						gpio13_default_mode: gpio13_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio13_d_1";
+							};
+							default_cfg {
+								pins = "GPIO13_W17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio16 {
+						gpio16_default_mode: gpio16_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio16_a_1";
+							};
+							default_cfg {
+								pins = "GPIO16_F15";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio24 {
+						gpio24_default_mode: gpio24_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio24_a_1";
+							};
+							default_cfg {
+								pins = "GPIO24_T14";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio25 {
+						gpio25_default_mode: gpio25_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio25_a_1";
+							};
+							default_cfg {
+								pins = "GPIO25_R16";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio36 {
+						gpio36_default_mode: gpio36_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio36_a_1";
+							};
+							default_cfg {
+								pins = "GPIO36_A17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio37 {
+						gpio37_default_mode: gpio37_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio37_a_1";
+							};
+							default_cfg {
+								pins = "GPIO37_E15";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio38 {
+						gpio38_default_mode: gpio38_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio38_a_1";
+							};
+							default_cfg {
+								pins = "GPIO38_C17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio39 {
+						gpio39_default_mode: gpio39_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio39_a_1";
+							};
+							default_cfg {
+								pins = "GPIO39_E16";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					gpio42 {
+						gpio42_default_mode: gpio42_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio42_a_1";
+							};
+							default_cfg {
+								pins = "GPIO42_U2";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/*
+					 * Pins 26 and 35 muxed in as GPIO, and configured as OUTPUT LOW
+					 */
+					gpio26 {
+						gpio26_default_mode: gpio26_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio26_d_1";
+							};
+							default_cfg {
+								pins = "GPIO26_M16";
+								output-low;
+							};
+						};
+					};
+					gpio35 {
+						gpio35_default_mode: gpio35_default {
+							default_mux {
+								function = "gpio";
+								groups = "gpio35_d_1";
+							};
+							default_cfg {
+								pins = "GPIO35_W15";
+								output-low;
+							};
+						};
+					};
+					/*
+					 * This sets up the YCBCR connector pins, i.e. analog video out.
+					 * Set as input with no bias.
+					 */
+					ycbcr {
+						ycbcr_default_mode: ycbcr_default {
+							default_mux {
+								function = "ycbcr";
+								groups = "ycbcr0123_d_1";
+							};
+							default_cfg {
+								pins = "GPIO6_Y18",
+									 "GPIO7_AA20",
+									 "GPIO8_W18",
+									 "GPIO9_AA19";
+								input-enable;
+								bias-disable;
+							};
+						};
+					};
+					/* This sets up the PWM pins 14 and 15 */
+					pwm {
+						pwm_default_mode: pwm_default {
+							default_mux {
+								function = "pwmout";
+								groups = "pwmout1_d_1", "pwmout2_d_1";
+							};
+							default_cfg {
+								pins = "GPIO14_F14",
+									 "GPIO15_B17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/* This sets up audio interface 1 */
+					adi1 {
+						adi1_default_mode: adi1_default {
+							default_mux {
+								function = "adi1";
+								groups = "adi1_d_1";
+							};
+							default_cfg {
+								pins = "GPIO17_P5",
+									 "GPIO18_R5",
+									 "GPIO19_U5",
+									 "GPIO20_T5";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/* This sets up the USB UICC pins */
+					usbuicc {
+						usbuicc_default_mode: usbuicc_default {
+							default_mux {
+								function = "usbuicc";
+								groups = "usbuicc_d_1";
+							};
+							default_cfg {
+								pins = "GPIO21_H19",
+									 "GPIO22_G20",
+									 "GPIO23_G19";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/* This sets up the microphone pins */
+					dmic {
+						dmic_default_mode: dmic_default {
+							default_mux {
+								function = "dmic";
+								groups = "dmic12_d_1",
+									 "dmic34_d_1",
+									 "dmic56_d_1";
+							};
+							default_cfg {
+								pins = "GPIO27_J6",
+									 "GPIO28_K6",
+									 "GPIO29_G6",
+									 "GPIO30_H6",
+									 "GPIO31_F5",
+									 "GPIO32_G5";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					extcpena {
+						extcpena_default_mode: extcpena_default {
+							default_mux {
+								function = "extcpena";
+								groups = "extcpena_d_1";
+							};
+							default_cfg {
+								pins = "GPIO34_R17";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/* Modem I2C setup (SCL and SDA pins) */
+					modsclsda {
+						modsclsda_default_mode: modsclsda_default {
+							default_mux {
+								function = "modsclsda";
+								groups = "modsclsda_d_1";
+							};
+							default_cfg {
+								pins = "GPIO40_T19",
+									"GPIO41_U19";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					/*
+					 * Clock output pins associated with regulators.
+					 */
+					sysclkreq2 {
+						sysclkreq2_default_mode: sysclkreq2_default {
+							default_mux {
+								function = "sysclkreq";
+								groups = "sysclkreq2_d_1";
+							};
+							default_cfg {
+								pins = "GPIO1_T10";
+								input-enable;
+								bias-disable;
+							};
+						};
+						sysclkreq2_sleep_mode: sysclkreq2_sleep {
+							default_mux {
+								function = "gpio";
+								groups = "gpio1_a_1";
+							};
+							default_cfg {
+								pins = "GPIO1_T10";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+					sysclkreq4 {
+						sysclkreq4_default_mode: sysclkreq4_default {
+							default_mux {
+								function = "sysclkreq";
+								groups = "sysclkreq4_d_1";
+							};
+							default_cfg {
+								pins = "GPIO3_U9";
+								input-enable;
+								bias-disable;
+							};
+						};
+						sysclkreq4_sleep_mode: sysclkreq4_sleep {
+							default_mux {
+								function = "gpio";
+								groups = "gpio3_a_1";
+							};
+							default_cfg {
+								pins = "GPIO3_U9";
+								input-enable;
+								bias-pull-down;
+							};
+						};
+					};
+				};
+			};
+		};
+	};
+};

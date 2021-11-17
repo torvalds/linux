@@ -1,0 +1,6 @@
+What:		/sys/class/leds/<led>/ttyname
+Date:		Dec 2020
+KernelVersion:	5.10
+Contact:	linux-leds@vger.kernel.org
+Description:
+		Specifies the tty device name of the triggering tty

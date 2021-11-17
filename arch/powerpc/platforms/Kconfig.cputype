@@ -1,0 +1,542 @@
+# SPDX-License-Identifier: GPL-2.0
+config PPC32
+	bool
+	default y if !PPC64
+	select KASAN_VMALLOC if KASAN && MODULES
+
+config PPC64
+	bool "64-bit kernel"
+	select ZLIB_DEFLATE
+	help
+	  This option selects whether a 32-bit or a 64-bit kernel
+	  will be built.
+
+menu "Processor support"
+choice
+	prompt "Processor Type"
+	depends on PPC32
+	help
+	  There are five families of 32 bit PowerPC chips supported.
+	  The most common ones are the desktop and server CPUs (603,
+	  604, 740, 750, 74xx) CPUs from Freescale and IBM, with their
+	  embedded 512x/52xx/82xx/83xx/86xx counterparts.
+	  The other embedded parts, namely 4xx, 8xx and e500
+	  (85xx) each form a family of their own that is not compatible
+	  with the others.
+
+	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
+
+config PPC_BOOK3S_32
+	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
+	imply PPC_FPU
+	select PPC_HAVE_PMU_SUPPORT
+	select PPC_HAVE_KUEP
+	select PPC_HAVE_KUAP
+	select HAVE_ARCH_VMAP_STACK
+
+config PPC_85xx
+	bool "Freescale 85xx"
+	select E500
+
+config PPC_8xx
+	bool "Freescale 8xx"
+	select ARCH_SUPPORTS_HUGETLBFS
+	select FSL_SOC
+	select PPC_HAVE_KUEP
+	select PPC_HAVE_KUAP
+	select HAVE_ARCH_VMAP_STACK
+	select HUGETLBFS
+
+config 40x
+	bool "AMCC 40x"
+	select PPC_DCR_NATIVE
+	select PPC_UDBG_16550
+	select 4xx_SOC
+	select HAVE_PCI
+
+config 44x
+	bool "AMCC 44x, 46x or 47x"
+	select PPC_DCR_NATIVE
+	select PPC_UDBG_16550
+	select 4xx_SOC
+	select HAVE_PCI
+	select PHYS_64BIT
+	select PPC_HAVE_KUEP
+
+endchoice
+
+config PPC_BOOK3S_603
+	bool "Support for 603 SW loaded TLB"
+	depends on PPC_BOOK3S_32
+	default y
+	help
+	  Provide support for processors based on the 603 cores. Those
+	  processors don't have a HASH MMU and provide SW TLB loading.
+
+config PPC_BOOK3S_604
+	bool "Support for 604+ HASH MMU" if PPC_BOOK3S_603
+	depends on PPC_BOOK3S_32
+	default y
+	help
+	  Provide support for processors not based on the 603 cores.
+	  Those processors have a HASH MMU.
+
+choice
+	prompt "Processor Type"
+	depends on PPC64
+	help
+	  There are two families of 64 bit PowerPC chips supported.
+	  The most common ones are the desktop and server CPUs
+	  (POWER5, 970, POWER5+, POWER6, POWER7, POWER8, POWER9 ...)
+
+	  The other are the "embedded" processors compliant with the
+	  "Book 3E" variant of the architecture
+
+config PPC_BOOK3S_64
+	bool "Server processors"
+	select PPC_FPU
+	select PPC_HAVE_PMU_SUPPORT
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
+	select ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
+	select ARCH_SUPPORTS_HUGETLBFS
+	select ARCH_SUPPORTS_NUMA_BALANCING
+	select HAVE_MOVE_PMD
+	select HAVE_MOVE_PUD
+	select IRQ_WORK
+	select PPC_MM_SLICES
+	select PPC_HAVE_KUEP
+	select PPC_HAVE_KUAP
+
+config PPC_BOOK3E_64
+	bool "Embedded processors"
+	select PPC_FPU # Make it a choice ?
+	select PPC_SMP_MUXED_IPI
+	select PPC_DOORBELL
+	select ZONE_DMA
+
+endchoice
+
+choice
+	prompt "CPU selection"
+	default GENERIC_CPU
+	help
+	  This will create a kernel which is optimised for a particular CPU.
+	  The resulting kernel may not run on other CPUs, so use this with care.
+
+	  If unsure, select Generic.
+
+config GENERIC_CPU
+	bool "Generic (POWER4 and above)"
+	depends on PPC64 && !CPU_LITTLE_ENDIAN
+
+config GENERIC_CPU
+	bool "Generic (POWER8 and above)"
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	select ARCH_HAS_FAST_MULTIPLIER
+
+config GENERIC_CPU
+	bool "Generic 32 bits powerpc"
+	depends on PPC32 && !PPC_8xx
+
+config CELL_CPU
+	bool "Cell Broadband Engine"
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+
+config POWER5_CPU
+	bool "POWER5"
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+
+config POWER6_CPU
+	bool "POWER6"
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+
+config POWER7_CPU
+	bool "POWER7"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
+
+config POWER8_CPU
+	bool "POWER8"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
+
+config POWER9_CPU
+	bool "POWER9"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
+
+config E5500_CPU
+	bool "Freescale e5500"
+	depends on E500
+
+config E6500_CPU
+	bool "Freescale e6500"
+	depends on E500
+
+config 860_CPU
+	bool "8xx family"
+	depends on PPC_8xx
+
+config E300C2_CPU
+	bool "e300c2 (832x)"
+	depends on PPC_BOOK3S_32
+
+config E300C3_CPU
+	bool "e300c3 (831x)"
+	depends on PPC_BOOK3S_32
+
+config G4_CPU
+	bool "G4 (74xx)"
+	depends on PPC_BOOK3S_32
+	select ALTIVEC
+
+endchoice
+
+config TARGET_CPU_BOOL
+	bool
+	default !GENERIC_CPU
+
+config TARGET_CPU
+	string
+	depends on TARGET_CPU_BOOL
+	default "cell" if CELL_CPU
+	default "power5" if POWER5_CPU
+	default "power6" if POWER6_CPU
+	default "power7" if POWER7_CPU
+	default "power8" if POWER8_CPU
+	default "power9" if POWER9_CPU
+	default "860" if 860_CPU
+	default "e300c2" if E300C2_CPU
+	default "e300c3" if E300C3_CPU
+	default "G4" if G4_CPU
+
+config PPC_BOOK3S
+	def_bool y
+	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64
+
+config PPC_BOOK3E
+	def_bool y
+	depends on PPC_BOOK3E_64
+
+config E500
+	select FSL_EMB_PERFMON
+	select PPC_FSL_BOOK3E
+	bool
+
+config PPC_E500MC
+	bool "e500mc Support"
+	select PPC_FPU
+	select COMMON_CLK
+	depends on E500
+	help
+	  This must be enabled for running on e500mc (and derivatives
+	  such as e5500/e6500), and must be disabled for running on
+	  e500v1 or e500v2.
+
+config PPC_FPU_REGS
+	bool
+
+config PPC_FPU
+	bool "Support for Floating Point Unit (FPU)" if PPC_MPC832x
+	default y if PPC64
+	select PPC_FPU_REGS
+	help
+	  This must be enabled to support the Floating Point Unit
+	  Most 6xx have an FPU but e300c2 core (mpc832x) don't have
+	  an FPU, so when building an embedded kernel for that target
+	  you can disable FPU support.
+
+	  If unsure say Y.
+
+config FSL_EMB_PERFMON
+	bool "Freescale Embedded Perfmon"
+	depends on E500 || PPC_83xx
+	help
+	  This is the Performance Monitor support found on the e500 core
+	  and some e300 cores (c3 and c4).  Select this only if your
+	  core supports the Embedded Performance Monitor APU
+
+config FSL_EMB_PERF_EVENT
+	bool
+	depends on FSL_EMB_PERFMON && PERF_EVENTS && !PPC_PERF_CTRS
+	default y
+
+config FSL_EMB_PERF_EVENT_E500
+	bool
+	depends on FSL_EMB_PERF_EVENT && E500
+	default y
+
+config 4xx
+	bool
+	depends on 40x || 44x
+	default y
+
+config BOOKE
+	bool
+	depends on E500 || 44x || PPC_BOOK3E
+	default y
+
+config FSL_BOOKE
+	bool
+	depends on E500 && PPC32
+	default y
+
+# this is for common code between PPC32 & PPC64 FSL BOOKE
+config PPC_FSL_BOOK3E
+	bool
+	select ARCH_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
+	select FSL_EMB_PERFMON
+	select PPC_SMP_MUXED_IPI
+	select PPC_DOORBELL
+	default y if FSL_BOOKE
+
+config PTE_64BIT
+	bool
+	depends on 44x || E500 || PPC_86xx
+	default y if PHYS_64BIT
+
+config PHYS_64BIT
+	bool 'Large physical address support' if E500 || PPC_86xx
+	depends on (44x || E500 || PPC_86xx) && !PPC_83xx && !PPC_82xx
+	select PHYS_ADDR_T_64BIT
+	help
+	  This option enables kernel support for larger than 32-bit physical
+	  addresses.  This feature may not be available on all cores.
+
+	  If you have more than 3.5GB of RAM or so, you also need to enable
+	  SWIOTLB under Kernel Options for this to work.  The actual number
+	  is platform-dependent.
+
+	  If in doubt, say N here.
+
+config ALTIVEC
+	bool "AltiVec Support"
+	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
+	select PPC_FPU
+	help
+	  This option enables kernel support for the Altivec extensions to the
+	  PowerPC processor. The kernel currently supports saving and restoring
+	  altivec registers, and turning on the 'altivec enable' bit so user
+	  processes can execute altivec instructions.
+
+	  This option is only usefully if you have a processor that supports
+	  altivec (G4, otherwise known as 74xx series), but does not have
+	  any affect on a non-altivec cpu (it does, however add code to the
+	  kernel).
+
+	  If in doubt, say Y here.
+
+config VSX
+	bool "VSX Support"
+	depends on PPC_BOOK3S_64 && ALTIVEC && PPC_FPU
+	help
+
+	  This option enables kernel support for the Vector Scaler extensions
+	  to the PowerPC processor. The kernel currently supports saving and
+	  restoring VSX registers, and turning on the 'VSX enable' bit so user
+	  processes can execute VSX instructions.
+
+	  This option is only useful if you have a processor that supports
+	  VSX (P7 and above), but does not have any affect on a non-VSX
+	  CPUs (it does, however add code to the kernel).
+
+	  If in doubt, say Y here.
+
+config SPE_POSSIBLE
+	def_bool y
+	depends on E500 && !PPC_E500MC
+
+config SPE
+	bool "SPE Support"
+	depends on SPE_POSSIBLE
+	default y
+	help
+	  This option enables kernel support for the Signal Processing
+	  Extensions (SPE) to the PowerPC processor. The kernel currently
+	  supports saving and restoring SPE registers, and turning on the
+	  'spe enable' bit so user processes can execute SPE instructions.
+
+	  This option is only useful if you have a processor that supports
+	  SPE (e500, otherwise known as 85xx series), but does not have any
+	  effect on a non-spe cpu (it does, however add code to the kernel).
+
+	  If in doubt, say Y here.
+
+config PPC_RADIX_MMU
+	bool "Radix MMU Support"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_GIGANTIC_PAGE
+	default y
+	help
+	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
+	  is only implemented by IBM Power9 CPUs, if you don't have one of them
+	  you can probably disable this.
+
+config PPC_RADIX_MMU_DEFAULT
+	bool "Default to using the Radix MMU when possible"
+	depends on PPC_RADIX_MMU
+	default y
+	help
+	  When the hardware supports the Radix MMU, default to using it unless
+	  "disable_radix[=yes]" is specified on the kernel command line.
+
+	  If this option is disabled, the Hash MMU will be used by default,
+	  unless "disable_radix=no" is specified on the kernel command line.
+
+	  If you're unsure, say Y.
+
+config PPC_HAVE_KUEP
+	bool
+
+config PPC_KUEP
+	bool "Kernel Userspace Execution Prevention"
+	depends on PPC_HAVE_KUEP
+	default y
+	help
+	  Enable support for Kernel Userspace Execution Prevention (KUEP)
+
+	  If you're unsure, say Y.
+
+config PPC_HAVE_KUAP
+	bool
+
+config PPC_KUAP
+	bool "Kernel Userspace Access Protection"
+	depends on PPC_HAVE_KUAP
+	default y
+	help
+	  Enable support for Kernel Userspace Access Protection (KUAP)
+
+	  If you're unsure, say Y.
+
+config PPC_KUAP_DEBUG
+	bool "Extra debugging for Kernel Userspace Access Protection"
+	depends on PPC_KUAP && (PPC_RADIX_MMU || PPC32)
+	help
+	  Add extra debugging for Kernel Userspace Access Protection (KUAP)
+	  If you're unsure, say N.
+
+config PPC_PKEY
+	def_bool y
+	depends on PPC_BOOK3S_64
+	depends on PPC_MEM_KEYS || PPC_KUAP || PPC_KUEP
+
+
+config PPC_MMU_NOHASH
+	def_bool y
+	depends on !PPC_BOOK3S
+
+config PPC_BOOK3E_MMU
+	def_bool y
+	depends on FSL_BOOKE || PPC_BOOK3E
+
+config PPC_MM_SLICES
+	bool
+
+config PPC_HAVE_PMU_SUPPORT
+	bool
+
+config PMU_SYSFS
+	bool "Create PMU SPRs sysfs file"
+	default n
+	help
+	  This option enables sysfs file creation for PMU SPRs like MMCR* and PMC*.
+
+config PPC_PERF_CTRS
+	def_bool y
+	depends on PERF_EVENTS && PPC_HAVE_PMU_SUPPORT
+	help
+	 This enables the powerpc-specific perf_event back-end.
+
+config FORCE_SMP
+	# Allow platforms to force SMP=y by selecting this
+	bool
+	select SMP
+
+config SMP
+	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE || PPC_47x
+	select GENERIC_IRQ_MIGRATION
+	bool "Symmetric multi-processing support" if !FORCE_SMP
+	help
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.  Note that the kernel does not currently
+	  support SMP machines with 603/603e/603ev or PPC750 ("G3") processors
+	  since they have inadequate hardware support for multiprocessor
+	  operation.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on single-processor machines.
+	  On a single-processor machine, the kernel will run faster if you say
+	  N here.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-8192)" if SMP
+	range 2 8192 if SMP
+	default "1" if !SMP
+	default "32" if PPC64
+	default "4"
+
+config NOT_COHERENT_CACHE
+	bool
+	depends on 4xx || PPC_8xx || PPC_MPC512x || \
+		GAMECUBE_COMMON || AMIGAONE
+	select ARCH_HAS_DMA_PREP_COHERENT
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select DMA_DIRECT_REMAP
+	default n if PPC_47x
+	default y
+
+config CHECK_CACHE_COHERENCY
+	bool
+
+config PPC_DOORBELL
+	bool
+
+endmenu
+
+config VDSO32
+	def_bool y
+	depends on PPC32 || COMPAT
+	help
+	  This symbol controls whether we build the 32-bit VDSO. We obviously
+	  want to do that if we're building a 32-bit kernel. If we're building
+	  a 64-bit kernel then we only want a 32-bit VDSO if we're also enabling
+	  COMPAT.
+
+choice
+	prompt "Endianness selection"
+	default CPU_BIG_ENDIAN
+	help
+	  This option selects whether a big endian or little endian kernel will
+	  be built.
+
+config CPU_BIG_ENDIAN
+	bool "Build big endian kernel"
+	help
+	  Build a big endian kernel.
+
+	  If unsure, select this option.
+
+config CPU_LITTLE_ENDIAN
+	bool "Build little endian kernel"
+	depends on PPC_BOOK3S_64
+	select PPC64_BOOT_WRAPPER
+	help
+	  Build a little endian kernel.
+
+	  Note that if cross compiling a little endian kernel,
+	  CROSS_COMPILE must point to a toolchain capable of targeting
+	  little endian powerpc.
+
+endchoice
+
+config PPC64_BOOT_WRAPPER
+	def_bool n
+	depends on CPU_LITTLE_ENDIAN

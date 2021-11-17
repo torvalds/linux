@@ -1,0 +1,41 @@
+NVIDIA Legacy Interrupt Controller
+
+All Tegra SoCs contain a legacy interrupt controller that routes
+interrupts to the GIC, and also serves as a wakeup source. It is also
+referred to as "ictlr", hence the name of the binding.
+
+The HW block exposes a number of interrupt controllers, each
+implementing a set of 32 interrupts.
+
+Required properties:
+
+- compatible : should be: "nvidia,tegra<chip>-ictlr". The LIC on
+  subsequent SoCs remained backwards-compatible with Tegra30, so on
+  Tegra generations later than Tegra30 the compatible value should
+  include "nvidia,tegra30-ictlr".	
+- reg : Specifies base physical address and size of the registers.
+  Each controller must be described separately (Tegra20 has 4 of them,
+  whereas Tegra30 and later have 5).
+- interrupt-controller : Identifies the node as an interrupt controller.
+- #interrupt-cells : Specifies the number of cells needed to encode an
+  interrupt source. The value must be 3.
+
+Notes:
+
+- Because this HW ultimately routes interrupts to the GIC, the
+  interrupt specifier must be that of the GIC.
+- Only SPIs can use the ictlr as an interrupt parent. SGIs and PPIs
+  are explicitly forbidden.
+
+Example:
+
+	ictlr: interrupt-controller@60004000 {
+		compatible = "nvidia,tegra20-ictlr", "nvidia,tegra-ictlr";
+		reg = <0x60004000 64>,
+		      <0x60004100 64>,
+		      <0x60004200 64>,
+		      <0x60004300 64>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
+	};

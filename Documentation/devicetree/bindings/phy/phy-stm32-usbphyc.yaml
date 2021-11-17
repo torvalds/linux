@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/phy-stm32-usbphyc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STM32 USB HS PHY controller binding
+
+description:
+
+  The STM32 USBPHYC block contains a dual port High Speed UTMI+ PHY and a UTMI
+  switch. It controls PHY configuration and status, and the UTMI+ switch that
+  selects either OTG or HOST controller for the second PHY port. It also sets
+  PLL configuration.
+
+  USBPHYC
+  |_ PLL
+  |
+  |_ PHY port#1 _________________ HOST controller
+  |                   __                 |
+  |                  / 1|________________|
+  |_ PHY port#2 ----|   |________________
+  |                  \_0|                |
+  |_ UTMI switch_______|          OTG controller
+
+maintainers:
+  - Amelie Delaunay <amelie.delaunay@st.com>
+
+properties:
+  compatible:
+    const: st,stm32mp1-usbphyc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  vdda1v1-supply:
+    description: regulator providing 1V1 power supply to the PLL block
+
+  vdda1v8-supply:
+    description: regulator providing 1V8 power supply to the PLL block
+
+  '#clock-cells':
+    description: number of clock cells for ck_usbo_48m consumer
+    const: 0
+
+#Required child nodes:
+
+patternProperties:
+  "^usb-phy@[0|1]$":
+    type: object
+    description:
+      Each port the controller provides must be represented as a sub-node.
+
+    properties:
+      reg:
+        description: phy port index.
+        maxItems: 1
+
+      phy-supply:
+        description: regulator providing 3V3 power supply to the PHY.
+
+      "#phy-cells":
+        enum: [ 0x0, 0x1 ]
+
+      connector:
+        type: object
+        allOf:
+          - $ref: ../connector/usb-connector.yaml
+        properties:
+          vbus-supply: true
+
+    allOf:
+      - if:
+          properties:
+            reg:
+              const: 0
+        then:
+          properties:
+            "#phy-cells":
+              const: 0
+        else:
+          properties:
+            "#phy-cells":
+              const: 1
+              description:
+                The value is used to select UTMI switch output.
+                0 for OTG controller and 1 for Host controller.
+
+    required:
+      - reg
+      - phy-supply
+      - "#phy-cells"
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - "#address-cells"
+  - "#size-cells"
+  - vdda1v1-supply
+  - vdda1v8-supply
+  - usb-phy@0
+  - usb-phy@1
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+    #include <dt-bindings/reset/stm32mp1-resets.h>
+    usbphyc: usbphyc@5a006000 {
+        compatible = "st,stm32mp1-usbphyc";
+        reg = <0x5a006000 0x1000>;
+        clocks = <&rcc USBPHY_K>;
+        resets = <&rcc USBPHY_R>;
+        vdda1v1-supply = <&reg11>;
+        vdda1v8-supply = <&reg18>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        #clock-cells = <0>;
+
+        usbphyc_port0: usb-phy@0 {
+            reg = <0>;
+            phy-supply = <&vdd_usb>;
+            #phy-cells = <0>;
+            connector {
+                compatible = "usb-a-connector";
+                vbus-supply = <&vbus_sw>;
+            };
+        };
+
+        usbphyc_port1: usb-phy@1 {
+            reg = <1>;
+            phy-supply = <&vdd_usb>;
+            #phy-cells = <1>;
+        };
+    };
+...

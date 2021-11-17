@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DAX_DRIVER
+	select DAX
+	bool
+
+menuconfig DAX
+	tristate "DAX: direct access to differentiated memory"
+	select SRCU
+	default m if NVDIMM_DAX
+
+if DAX
+
+config DEV_DAX
+	tristate "Device DAX: direct access mapping device"
+	depends on TRANSPARENT_HUGEPAGE
+	help
+	  Support raw access to differentiated (persistence, bandwidth,
+	  latency...) memory via an mmap(2) capable character
+	  device.  Platform firmware or a device driver may identify a
+	  platform memory resource that is differentiated from the
+	  baseline memory pool.  Mappings of a /dev/daxX.Y device impose
+	  restrictions that make the mapping behavior deterministic.
+
+config DEV_DAX_PMEM
+	tristate "PMEM DAX: direct access to persistent memory"
+	depends on LIBNVDIMM && NVDIMM_DAX && DEV_DAX
+	default DEV_DAX
+	help
+	  Support raw access to persistent memory.  Note that this
+	  driver consumes memory ranges allocated and exported by the
+	  libnvdimm sub-system.
+
+	  Say M if unsure
+
+config DEV_DAX_HMEM
+	tristate "HMEM DAX: direct access to 'specific purpose' memory"
+	depends on EFI_SOFT_RESERVE
+	select NUMA_KEEP_MEMINFO if (NUMA && X86)
+	default DEV_DAX
+	help
+	  EFI 2.8 platforms, and others, may advertise 'specific purpose'
+	  memory. For example, a high bandwidth memory pool. The
+	  indication from platform firmware is meant to reserve the
+	  memory from typical usage by default. This driver creates
+	  device-dax instances for these memory ranges, and that also
+	  enables the possibility to assign them to the DEV_DAX_KMEM
+	  driver to override the reservation and add them to kernel
+	  "System RAM" pool.
+
+	  Say M if unsure.
+
+config DEV_DAX_HMEM_DEVICES
+	depends on DEV_DAX_HMEM && DAX=y
+	def_bool y
+
+config DEV_DAX_KMEM
+	tristate "KMEM DAX: volatile-use of persistent memory"
+	default DEV_DAX
+	depends on DEV_DAX
+	depends on MEMORY_HOTPLUG # for add_memory() and friends
+	help
+	  Support access to persistent, or other performance
+	  differentiated memory as if it were System RAM. This allows
+	  easier use of persistent memory by unmodified applications, or
+	  adds core kernel memory services to heterogeneous memory types
+	  (HMEM) marked "reserved" by platform firmware.
+
+	  To use this feature, a DAX device must be unbound from the
+	  device_dax driver and bound to this kmem driver on each boot.
+
+	  Say N if unsure.
+
+config DEV_DAX_PMEM_COMPAT
+	tristate "PMEM DAX: support the deprecated /sys/class/dax interface"
+	depends on m && DEV_DAX_PMEM=m
+	default DEV_DAX_PMEM
+	help
+	  Older versions of the libdaxctl library expect to find all
+	  device-dax instances under /sys/class/dax. If libdaxctl in
+	  your distribution is older than v58 say M, otherwise say N.
+
+endif

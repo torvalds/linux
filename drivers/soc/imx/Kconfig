@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "i.MX SoC drivers"
+
+config IMX_GPCV2_PM_DOMAINS
+	bool "i.MX GPCv2 PM domains"
+	depends on ARCH_MXC || (COMPILE_TEST && OF)
+	depends on PM
+	select PM_GENERIC_DOMAINS
+	default y if SOC_IMX7D
+
+config SOC_IMX8M
+	bool "i.MX8M SoC family support"
+	depends on ARCH_MXC || COMPILE_TEST
+	default ARCH_MXC && ARM64
+	select SOC_BUS
+	select ARM_GIC_V3 if ARCH_MXC && ARCH_MULTI_V7
+	help
+	  If you say yes here you get support for the NXP i.MX8M family
+	  support, it will provide the SoC info like SoC family,
+	  ID and revision etc.
+
+endmenu

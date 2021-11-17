@@ -1,0 +1,155 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright 2017 Icenowy Zheng <icenowy@aosc.xyz>
+
+/*
+ * AXP803 Integrated Power Management Chip
+ * http://files.pine64.org/doc/datasheet/pine64/AXP803_Datasheet_V1.0.pdf
+ */
+
+&axp803 {
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+	ac_power_supply: ac-power-supply {
+		compatible = "x-powers,axp803-ac-power-supply",
+			     "x-powers,axp813-ac-power-supply";
+		status = "disabled";
+	};
+
+	axp_adc: adc {
+		compatible = "x-powers,axp803-adc", "x-powers,axp813-adc";
+		#io-channel-cells = <1>;
+	};
+
+	axp_gpio: gpio {
+		compatible = "x-powers,axp803-gpio", "x-powers,axp813-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio0_ldo: gpio0-ldo {
+			pins = "GPIO0";
+			function = "ldo";
+		};
+
+		gpio1_ldo: gpio1-ldo {
+			pins = "GPIO1";
+			function = "ldo";
+		};
+	};
+
+	battery_power_supply: battery-power-supply {
+		compatible = "x-powers,axp803-battery-power-supply",
+			     "x-powers,axp813-battery-power-supply";
+		status = "disabled";
+	};
+
+	regulators {
+		/* Default work frequency for buck regulators */
+		x-powers,dcdc-freq = <3000>;
+
+		reg_aldo1: aldo1 {
+			regulator-name = "aldo1";
+		};
+
+		reg_aldo2: aldo2 {
+			regulator-name = "aldo2";
+		};
+
+		reg_aldo3: aldo3 {
+			regulator-name = "aldo3";
+		};
+
+		reg_dc1sw: dc1sw {
+			regulator-name = "dc1sw";
+		};
+
+		reg_dcdc1: dcdc1 {
+			regulator-name = "dcdc1";
+		};
+
+		reg_dcdc2: dcdc2 {
+			regulator-name = "dcdc2";
+		};
+
+		reg_dcdc3: dcdc3 {
+			regulator-name = "dcdc3";
+		};
+
+		reg_dcdc4: dcdc4 {
+			regulator-name = "dcdc4";
+		};
+
+		reg_dcdc5: dcdc5 {
+			regulator-name = "dcdc5";
+		};
+
+		reg_dcdc6: dcdc6 {
+			regulator-name = "dcdc6";
+		};
+
+		reg_dldo1: dldo1 {
+			regulator-name = "dldo1";
+		};
+
+		reg_dldo2: dldo2 {
+			regulator-name = "dldo2";
+		};
+
+		reg_dldo3: dldo3 {
+			regulator-name = "dldo3";
+		};
+
+		reg_dldo4: dldo4 {
+			regulator-name = "dldo4";
+		};
+
+		reg_eldo1: eldo1 {
+			regulator-name = "eldo1";
+		};
+
+		reg_eldo2: eldo2 {
+			regulator-name = "eldo2";
+		};
+
+		reg_eldo3: eldo3 {
+			regulator-name = "eldo3";
+		};
+
+		reg_fldo1: fldo1 {
+			regulator-name = "fldo1";
+		};
+
+		reg_fldo2: fldo2 {
+			regulator-name = "fldo2";
+		};
+
+		reg_ldo_io0: ldo-io0 {
+			regulator-name = "ldo-io0";
+			status = "disabled";
+		};
+
+		reg_ldo_io1: ldo-io1 {
+			regulator-name = "ldo-io1";
+			status = "disabled";
+		};
+
+		reg_rtc_ldo: rtc-ldo {
+			/* RTC_LDO is a fixed, always-on regulator */
+			regulator-always-on;
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-name = "rtc-ldo";
+		};
+
+		reg_drivevbus: drivevbus {
+			regulator-name = "drivevbus";
+			status = "disabled";
+		};
+	};
+
+	usb_power_supply: usb-power-supply {
+		compatible = "x-powers,axp803-usb-power-supply",
+			     "x-powers,axp813-usb-power-supply";
+		status = "disabled";
+	};
+};

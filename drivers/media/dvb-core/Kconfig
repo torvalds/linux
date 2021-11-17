@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# DVB device configuration
+#
+
+config DVB_MMAP
+	bool "Enable DVB memory-mapped API (EXPERIMENTAL)"
+	depends on DVB_CORE
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_CORE
+	select VIDEOBUF2_VMALLOC
+	help
+	  This option enables DVB experimental memory-mapped API, which
+	  reduces the number of context switches to read DVB buffers, as
+	  the buffers can use mmap() syscalls.
+
+	  Support for it is experimental. Use with care. If unsure,
+	  say N.
+
+config DVB_NET
+	bool "DVB Network Support"
+	default (NET && INET)
+	depends on NET && INET && DVB_CORE
+	help
+	  This option enables DVB Network Support which is a part of the DVB
+	  standard. It is used, for example, by automatic firmware updates used
+	  on Set-Top-Boxes. It can also be used to access the Internet via the
+	  DVB card, if the network provider supports it.
+
+	  You may want to disable the network support on embedded devices. If
+	  unsure say Y.
+
+config DVB_MAX_ADAPTERS
+	int "maximum number of DVB/ATSC adapters"
+	depends on DVB_CORE
+	default 16
+	range 1 255
+	help
+	  Maximum number of DVB/ATSC adapters. Increasing this number
+	  increases the memory consumption of the DVB subsystem even
+	  if a much lower number of DVB/ATSC adapters is present.
+	  Only values in the range 4-32 are tested.
+
+	  If you are unsure about this, use the default value 16
+
+config DVB_DYNAMIC_MINORS
+	bool "Dynamic DVB minor allocation"
+	depends on DVB_CORE
+	default y
+	help
+	  If you say Y here, the DVB subsystem will use dynamic minor
+	  allocation for any device that uses the DVB major number.
+	  This means that you can have more than 4 of a single type
+	  of device (like demuxes and frontends) per adapter, but udev
+	  will be required to manage the device nodes.
+
+	  If you are unsure about this, say N here.
+
+config DVB_DEMUX_SECTION_LOSS_LOG
+	bool "Enable DVB demux section packet loss log"
+	depends on DVB_CORE
+	help
+	  Enable extra log messages meant to detect packet loss
+	  inside the Kernel.
+
+	  Should not be enabled on normal cases, as logs can
+	  be very verbose.
+
+	  If you are unsure about this, say N here.
+
+config DVB_ULE_DEBUG
+	bool "Enable DVB net ULE packet debug messages"
+	depends on DVB_CORE
+	help
+	  Enable extra log messages meant to detect problems while
+	  handling DVB network ULE packet loss inside the Kernel.
+
+	  Should not be enabled on normal cases, as logs can
+	  be very verbose.
+
+	  If you are unsure about this, say N here.

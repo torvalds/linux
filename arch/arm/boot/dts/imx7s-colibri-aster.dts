@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2017-2020 Toradex AG
+ *
+ */
+
+/dts-v1/;
+#include "imx7s-colibri.dtsi"
+#include "imx7-colibri-aster.dtsi"
+
+/ {
+	model = "Toradex Colibri iMX7S on Aster Carrier Board";
+	compatible = "toradex,colibri-imx7s-aster", "toradex,colibri-imx7s",
+		     "fsl,imx7s";
+};

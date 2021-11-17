@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/perf/fsl-imx-ddr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale(NXP) IMX8 DDR performance monitor
+
+maintainers:
+  - Frank Li <frank.li@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx8-ddr-pmu
+          - fsl,imx8m-ddr-pmu
+          - fsl,imx8mq-ddr-pmu
+          - fsl,imx8mm-ddr-pmu
+          - fsl,imx8mn-ddr-pmu
+          - fsl,imx8mp-ddr-pmu
+      - items:
+          - enum:
+              - fsl,imx8mm-ddr-pmu
+              - fsl,imx8mn-ddr-pmu
+              - fsl,imx8mq-ddr-pmu
+              - fsl,imx8mp-ddr-pmu
+          - const: fsl,imx8m-ddr-pmu
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    ddr-pmu@5c020000 {
+        compatible = "fsl,imx8-ddr-pmu";
+        reg = <0x5c020000 0x10000>;
+        interrupt-parent = <&gic>;
+        interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+    };

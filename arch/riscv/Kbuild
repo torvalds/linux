@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+obj-y += kernel/ mm/ net/
+obj-$(CONFIG_BUILTIN_DTB) += boot/dts/

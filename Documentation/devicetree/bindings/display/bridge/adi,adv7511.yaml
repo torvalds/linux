@@ -1,0 +1,240 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/adi,adv7511.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices ADV7511/11W/13 HDMI Encoders
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+description: |
+  The ADV7511, ADV7511W and ADV7513 are HDMI audio and video
+  transmitters compatible with HDMI 1.4 and DVI 1.0. They support color
+  space conversion, S/PDIF, CEC and HDCP. The transmitter input is
+  parallel RGB or YUV data.
+
+properties:
+  compatible:
+    enum:
+      - adi,adv7511
+      - adi,adv7511w
+      - adi,adv7513
+
+  reg:
+    description: |
+      I2C slave addresses.
+
+      The ADV7511/11W/13 internal registers are split into four pages
+      exposed through different I2C addresses, creating four register
+      maps. Each map has it own I2C address and acts as a standard slave
+      device on the I2C bus. The main address is mandatory, others are
+      optional and revert to defaults if not specified.
+    minItems: 1
+    maxItems: 4
+
+  reg-names:
+    description:
+      Names of maps with programmable addresses. It can contain any map
+      needing a non-default address.
+    minItems: 1
+    items:
+      - const: main
+      - const: edid
+      - const: cec
+      - const: packet
+
+  clocks:
+    description: Reference to the CEC clock.
+    maxItems: 1
+
+  clock-names:
+    const: cec
+
+  interrupts:
+    maxItems: 1
+
+  pd-gpios:
+    description: GPIO connected to the power down signal.
+    maxItems: 1
+
+  avdd-supply:
+    description: A 1.8V supply that powers up the AVDD pin.
+
+  dvdd-supply:
+    description: A 1.8V supply that powers up the DVDD pin.
+
+  pvdd-supply:
+    description: A 1.8V supply that powers up the PVDD pin.
+
+  dvdd-3v-supply:
+    description: A 3.3V supply that powers up the DVDD_3V pin.
+
+  bgvdd-supply:
+    description: A 1.8V supply that powers up the BGVDD pin.
+
+  adi,input-depth:
+    description: Number of bits per color component at the input.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - enum: [ 8, 10, 12 ]
+
+  adi,input-colorspace:
+    description: Input color space.
+    enum: [ rgb, yuv422, yuv444 ]
+
+  adi,input-clock:
+    description: |
+      Input clock type.
+        "1x": one clock cycle per pixel
+        "2x": two clock cycles per pixel
+        "dd": one clock cycle per pixel, data driven on both edges
+    enum: [ 1x, 2x, dd ]
+
+  adi,clock-delay:
+    description:
+      Video data clock delay relative to the pixel clock, in ps
+      (-1200ps .. 1600 ps).
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+
+  adi,embedded-sync:
+    description:
+      If defined, the input uses synchronization signals embedded in the
+      data stream (similar to BT.656).
+    type: boolean
+
+  adi,input-style:
+    description:
+      Input components arrangement variant as listed in the input
+      format tables in the datasheet.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 1, 2, 3 ]
+
+  adi,input-justification:
+    description: Input bit justification.
+    enum: [ left, evenly, right ]
+
+  ports:
+    description:
+      The ADV7511(W)/13 has two video ports and one audio port. This node
+      models their connections as documented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
+      Documentation/devicetree/bindings/graph.txt
+    type: object
+    properties:
+      port@0:
+        description: Video port for the RGB or YUV input.
+        type: object
+
+      port@1:
+        description: Video port for the HDMI output.
+        type: object
+
+      port@2:
+        description: Audio port for the HDMI output.
+        type: object
+
+# adi,input-colorspace and adi,input-clock are required except in
+# "rgb 1x" and "yuv444 1x" modes, in which case they must not be
+# specified.
+if:
+  not:
+    properties:
+      adi,input-colorspace:
+        contains:
+          enum: [ rgb, yuv444 ]
+      adi,input-clock:
+        contains:
+          const: 1x
+
+then:
+  required:
+    - adi,input-style
+    - adi,input-justification
+
+else:
+  properties:
+    adi,input-style: false
+    adi,input-justification: false
+
+
+required:
+  - compatible
+  - reg
+  - ports
+  - adi,input-depth
+  - adi,input-colorspace
+  - adi,input-clock
+  - avdd-supply
+  - dvdd-supply
+  - pvdd-supply
+  - dvdd-3v-supply
+  - bgvdd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c@e6500000 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        reg = <0 0xe6500000>;
+
+        adv7511w: hdmi@39 {
+            compatible = "adi,adv7511w";
+            /*
+             * The EDID page will be accessible on address 0x66 on the I2C
+             * bus. All other maps continue to use their default addresses.
+             */
+            reg = <0x39>, <0x66>;
+            reg-names = "main", "edid";
+            interrupt-parent = <&gpio3>;
+            interrupts = <29 IRQ_TYPE_EDGE_FALLING>;
+            clocks = <&cec_clock>;
+            clock-names = "cec";
+            avdd-supply = <&v1v8>;
+            dvdd-supply = <&v1v8>;
+            pvdd-supply = <&v1v8>;
+            dvdd-3v-supply = <&v3v3>;
+            bgvdd-supply = <&v1v8>;
+
+            adi,input-depth = <8>;
+            adi,input-colorspace = "yuv422";
+            adi,input-clock = "1x";
+
+            adi,input-style = <3>;
+            adi,input-justification = "right";
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    adv7511w_in: endpoint {
+                        remote-endpoint = <&dpi_out>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    adv7511_out: endpoint {
+                        remote-endpoint = <&hdmi_connector_in>;
+                    };
+                };
+
+                port@2 {
+                    reg = <2>;
+                    codec_endpoint: endpoint {
+                        remote-endpoint = <&i2s0_cpu_endpoint>;
+                    };
+                };
+            };
+        };
+    };
+
+...

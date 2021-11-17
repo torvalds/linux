@@ -1,0 +1,41 @@
+ST SSC binding, for I2C mode operation
+
+Required properties :
+- compatible : Must be "st,comms-ssc-i2c" or "st,comms-ssc4-i2c"
+- reg : Offset and length of the register set for the device
+- interrupts : the interrupt specifier
+- clock-names: Must contain "ssc".
+- clocks: Must contain an entry for each name in clock-names. See the common
+  clock bindings.
+- A pinctrl state named "default" must be defined to set pins in mode of
+  operation for I2C transfer.
+
+Optional properties :
+- clock-frequency : Desired I2C bus clock frequency in Hz. If not specified,
+  the default 100 kHz frequency will be used. As only Normal and Fast modes
+  are supported, possible values are 100000 and 400000.
+- st,i2c-min-scl-pulse-width-us : The minimum valid SCL pulse width that is
+  allowed through the deglitch circuit. In units of us.
+- st,i2c-min-sda-pulse-width-us : The minimum valid SDA pulse width that is
+  allowed through the deglitch circuit. In units of us.
+- A pinctrl state named "idle" could be defined to set pins in idle state
+  when I2C instance is not performing a transfer.
+- A pinctrl state named "sleep" could be defined to set pins in sleep state
+  when driver enters in suspend.
+
+
+
+Example :
+
+i2c0: i2c@fed40000 {
+	compatible	= "st,comms-ssc4-i2c";
+	reg		= <0xfed40000 0x110>;
+	interrupts	=  <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+	clocks		= <&clk_s_a0_ls CLK_ICN_REG>;
+	clock-names	= "ssc";
+	clock-frequency = <400000>;
+	pinctrl-names	= "default";
+	pinctrl-0	= <&pinctrl_i2c0_default>;
+	st,i2c-min-scl-pulse-width-us = <0>;
+	st,i2c-min-sda-pulse-width-us = <5>;
+};

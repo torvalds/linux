@@ -1,0 +1,197 @@
+/*
+ * Device Tree Source for am3517 SoC
+ *
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include "omap3.dtsi"
+
+/* AM3517 doesn't appear to have the crypto engines defined in omap3.dtsi */
+/delete-node/ &aes1_target;
+/delete-node/ &aes2_target;
+
+/ {
+	aliases {
+		serial3 = &uart4;
+		can = &hecc;
+	};
+
+	cpus {
+		cpu: cpu@0 {
+			/* Based on OMAP3630 variants OPP50 and OPP100 */
+			operating-points-v2 = <&cpu0_opp_table>;
+
+			clock-latency = <300000>; /* From legacy driver */
+		};
+	};
+
+	cpu0_opp_table: opp-table {
+		compatible = "operating-points-v2-ti-cpu";
+		syscon = <&scm_conf>;
+		/*
+		 * AM3517 TRM only lists 600MHz @ 1.2V, but omap36xx
+		 * appear to operate at 300MHz as well. Since AM3517 only
+		 * lists one operating voltage, it will remain fixed at 1.2V
+		 */
+		opp50-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1200000>;
+			opp-supported-hw = <0xffffffff 0xffffffff>;
+			opp-suspend;
+		};
+
+		opp100-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1200000>;
+			opp-supported-hw = <0xffffffff 0xffffffff>;
+		};
+	};
+
+	ocp@68000000 {
+		am35x_otg_hs: am35x_otg_hs@5c040000 {
+			compatible = "ti,omap3-musb";
+			ti,hwmods = "am35x_otg_hs";
+			status = "disabled";
+			reg = <0x5c040000 0x1000>;
+			interrupts = <71>;
+			interrupt-names = "mc";
+		};
+
+		davinci_emac: ethernet@5c000000 {
+			compatible = "ti,am3517-emac";
+			ti,hwmods = "davinci_emac";
+			status = "disabled";
+			reg = <0x5c000000 0x30000>;
+			interrupts = <67 68 69 70>;
+			syscon = <&scm_conf>;
+			ti,davinci-ctrl-reg-offset = <0x10000>;
+			ti,davinci-ctrl-mod-reg-offset = <0>;
+			ti,davinci-ctrl-ram-offset = <0x20000>;
+			ti,davinci-ctrl-ram-size = <0x2000>;
+			ti,davinci-rmii-en = /bits/ 8 <1>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			clocks = <&emac_ick>;
+			clock-names = "ick";
+		};
+
+		davinci_mdio: mdio@5c030000 {
+			compatible = "ti,davinci_mdio";
+			ti,hwmods = "davinci_mdio";
+			status = "disabled";
+			reg = <0x5c030000 0x1000>;
+			bus_freq = <1000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&emac_fck>;
+			clock-names = "fck";
+		};
+
+		uart4: serial@4809e000 {
+			compatible = "ti,omap3-uart";
+			ti,hwmods = "uart4";
+			status = "disabled";
+			reg = <0x4809e000 0x400>;
+			interrupts = <84>;
+			dmas = <&sdma 55 &sdma 54>;
+			dma-names = "tx", "rx";
+			clock-frequency = <48000000>;
+		};
+
+		omap3_pmx_core2: pinmux@480025d8 {
+			compatible = "ti,omap3-padconf", "pinctrl-single";
+			reg = <0x480025d8 0x24>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#pinctrl-cells = <1>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			pinctrl-single,register-width = <16>;
+			pinctrl-single,function-mask = <0xff1f>;
+		};
+
+		hecc: can@5c050000 {
+			compatible = "ti,am3517-hecc";
+			status = "disabled";
+			reg = <0x5c050000 0x80>,
+			      <0x5c053000 0x180>,
+			      <0x5c052000 0x200>;
+			reg-names = "hecc", "hecc-ram", "mbx";
+			interrupts = <24>;
+			clocks = <&hecc_ck>;
+		};
+
+		/*
+		 * On am3517 the OCP registers do not seem to be accessible
+		 * similar to the omap34xx. Maybe SGX is permanently set to
+		 * "OCP bypass mode", or maybe there is OCP_SYSCONFIG that is
+		 * write-only at 0x50000e10. We detect SGX based on the SGX
+		 * revision register instead of the unreadable OCP revision
+		 * register.
+		 */
+		sgx_module: target-module@50000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x50000014 0x4>;
+			reg-names = "rev";
+			clocks = <&sgx_fck>, <&sgx_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x50000000 0x4000>;
+
+			/*
+			 * Closed source PowerVR driver, no child device
+			 * binding or driver in mainline
+			 */
+		};
+	};
+};
+
+/* Not currently working, probably needs at least different clocks */
+&rng_target {
+	status = "disabled";
+	/delete-property/ clocks;
+};
+
+/* Table Table 5-79 of the TRM shows 480ab000 is reserved */
+&usb_otg_hs {
+	status = "disabled";
+};
+
+&iva {
+	status = "disabled";
+};
+
+&mailbox {
+	status = "disabled";
+};
+
+&mmu_isp {
+	status = "disabled";
+};
+
+#include "am35xx-clocks.dtsi"
+#include "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"
+
+/* Preferred always-on timer for clocksource */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt1_fck>;
+		assigned-clock-parents = <&sys_ck>;
+	};
+};
+
+/* Preferred timer for clockevent */
+&timer2_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt2_fck>;
+		assigned-clock-parents = <&sys_ck>;
+	};
+};

@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_XEN
+	bool
+
+config DRM_XEN_FRONTEND
+	tristate "Para-virtualized frontend driver for Xen guest OS"
+	depends on XEN && DRM
+	select DRM_XEN
+	select DRM_KMS_HELPER
+	select VIDEOMODE_HELPERS
+	select XEN_XENBUS_FRONTEND
+	select XEN_FRONT_PGDIR_SHBUF
+	help
+	  Choose this option if you want to enable a para-virtualized
+	  frontend DRM/KMS driver for Xen guest OSes.

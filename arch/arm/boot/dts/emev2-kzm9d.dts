@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the KZM9D board
+ *
+ * Copyright (C) 2013 Renesas Solutions Corp.
+ */
+/dts-v1/;
+
+#include "emev2.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	model = "EMEV2 KZM9D Board";
+	compatible = "renesas,kzm9d", "renesas,emev2";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x8000000>;
+	};
+
+	aliases {
+		serial1 = &uart1;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		stdout-path = "serial1:115200n8";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		one {
+			debounce-interval = <50>;
+			wakeup-source;
+			label = "DSW2-1";
+			linux,code = <KEY_1>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		};
+		two {
+			debounce-interval = <50>;
+			wakeup-source;
+			label = "DSW2-2";
+			linux,code = <KEY_2>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+		};
+		three {
+			debounce-interval = <50>;
+			wakeup-source;
+			label = "DSW2-3";
+			linux,code = <KEY_3>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		};
+		four {
+			debounce-interval = <50>;
+			wakeup-source;
+			label = "DSW2-4";
+			linux,code = <KEY_4>;
+			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	ethernet@20000000 {
+		compatible = "smsc,lan9220", "smsc,lan9115";
+		reg = <0x20000000 0x10000>;
+		phy-mode = "mii";
+		interrupt-parent = <&gpio0>;
+		interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+		reg-io-width = <4>;
+		smsc,irq-active-high;
+		smsc,irq-push-pull;
+		vddvario-supply = <&reg_1p8v>;
+		vdd33a-supply = <&reg_3p3v>;
+	};
+};
+
+&iic0 {
+	status = "okay";
+};
+
+&iic1 {
+	status = "okay";
+};
+
+&pfc {
+	uart1_pins: uart1 {
+		groups = "uart1_ctrl", "uart1_data";
+		function = "uart1";
+	};
+};
+
+&uart1 {
+	pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};

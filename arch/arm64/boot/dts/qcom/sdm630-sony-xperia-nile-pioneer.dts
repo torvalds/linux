@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, Konrad Dybcio
+ */
+
+/dts-v1/;
+
+#include "sdm630.dtsi"
+#include "sdm630-sony-xperia-nile.dtsi"
+
+/ {
+	model = "Sony Xperia XA2";
+	compatible = "sony,pioneer-row", "qcom,sdm630";
+};

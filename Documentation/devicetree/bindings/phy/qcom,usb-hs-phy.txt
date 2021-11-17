@@ -1,0 +1,84 @@
+Qualcomm's USB HS PHY
+
+PROPERTIES
+
+- compatible:
+    Usage: required
+    Value type: <string>
+    Definition: Should contain "qcom,usb-hs-phy" and more specifically one of the
+                following:
+
+                        "qcom,usb-hs-phy-apq8064"
+                        "qcom,usb-hs-phy-msm8916"
+                        "qcom,usb-hs-phy-msm8974"
+
+- #phy-cells:
+    Usage: required
+    Value type: <u32>
+    Definition: Should contain 0
+
+- clocks:
+    Usage: required
+    Value type: <prop-encoded-array>
+    Definition: Should contain clock specifier for the reference and sleep
+                clocks
+
+- clock-names:
+    Usage: required
+    Value type: <stringlist>
+    Definition: Should contain "ref" and "sleep" for the reference and sleep
+                clocks respectively
+
+- resets:
+    Usage: required
+    Value type: <prop-encoded-array>
+    Definition: Should contain the phy and POR resets
+
+- reset-names:
+    Usage: required
+    Value type: <stringlist>
+    Definition: Should contain "phy" and "por" for the phy and POR resets
+                respectively
+
+- v3p3-supply:
+    Usage: required
+    Value type: <phandle>
+    Definition: Should contain a reference to the 3.3V supply
+
+- v1p8-supply:
+    Usage: required
+    Value type: <phandle>
+    Definition: Should contain a reference to the 1.8V supply
+
+- extcon:
+    Usage: optional
+    Value type: <prop-encoded-array>
+    Definition: Should contain the vbus extcon
+
+- qcom,init-seq:
+    Usage: optional
+    Value type: <u8 array>
+    Definition: Should contain a sequence of ULPI address and value pairs to
+                program into the ULPI_EXT_VENDOR_SPECIFIC area. This is related
+                to Device Mode Eye Diagram test. The addresses are offsets
+                from the ULPI_EXT_VENDOR_SPECIFIC address, for example,
+                <0x1 0x53> would mean "write the value 0x53 to address 0x81".
+
+EXAMPLE
+
+otg: usb-controller {
+	ulpi {
+		phy {
+			compatible = "qcom,usb-hs-phy-msm8974", "qcom,usb-hs-phy";
+			#phy-cells = <0>;
+			clocks = <&xo_board>, <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
+			clock-names = "ref", "sleep";
+			resets = <&gcc GCC_USB2A_PHY_BCR>, <&otg 0>;
+			reset-names = "phy", "por";
+			v3p3-supply = <&pm8941_l24>;
+			v1p8-supply = <&pm8941_l6>;
+			extcon = <&smbb>;
+			qcom,init-seq = /bits/ 8 <0x1 0x63>;
+		};
+	};
+};

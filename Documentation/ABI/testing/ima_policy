@@ -1,0 +1,147 @@
+What:		security/ima/policy
+Date:		May 2008
+Contact:	Mimi Zohar <zohar@us.ibm.com>
+Description:
+		The Trusted Computing Group(TCG) runtime Integrity
+		Measurement Architecture(IMA) maintains a list of hash
+		values of executables and other sensitive system files
+		loaded into the run-time of this system.  At runtime,
+		the policy can be constrained based on LSM specific data.
+		Policies are loaded into the securityfs file ima/policy
+		by opening the file, writing the rules one at a time and
+		then closing the file.  The new policy takes effect after
+		the file ima/policy is closed.
+
+		IMA appraisal, if configured, uses these file measurements
+		for local measurement appraisal.
+
+		::
+
+		  rule format: action [condition ...]
+
+		  action: measure | dont_measure | appraise | dont_appraise |
+			  audit | hash | dont_hash
+		  condition:= base | lsm  [option]
+			base:	[[func=] [mask=] [fsmagic=] [fsuuid=] [uid=]
+				[euid=] [fowner=] [fsname=]]
+			lsm:	[[subj_user=] [subj_role=] [subj_type=]
+				 [obj_user=] [obj_role=] [obj_type=]]
+			option:	[[appraise_type=]] [template=] [permit_directio]
+				[appraise_flag=] [appraise_algos=] [keyrings=]
+		  base:
+			func:= [BPRM_CHECK][MMAP_CHECK][CREDS_CHECK][FILE_CHECK][MODULE_CHECK]
+				[FIRMWARE_CHECK]
+				[KEXEC_KERNEL_CHECK] [KEXEC_INITRAMFS_CHECK]
+				[KEXEC_CMDLINE] [KEY_CHECK] [CRITICAL_DATA]
+				[SETXATTR_CHECK]
+			mask:= [[^]MAY_READ] [[^]MAY_WRITE] [[^]MAY_APPEND]
+			       [[^]MAY_EXEC]
+			fsmagic:= hex value
+			fsuuid:= file system UUID (e.g 8bcbe394-4f13-4144-be8e-5aa9ea2ce2f6)
+			uid:= decimal value
+			euid:= decimal value
+			fowner:= decimal value
+		  lsm:  are LSM specific
+		  option:
+			appraise_type:= [imasig] [imasig|modsig]
+			appraise_flag:= [check_blacklist]
+			Currently, blacklist check is only for files signed with appended
+			signature.
+			keyrings:= list of keyrings
+			(eg, .builtin_trusted_keys|.ima). Only valid
+			when action is "measure" and func is KEY_CHECK.
+			template:= name of a defined IMA template type
+			(eg, ima-ng). Only valid when action is "measure".
+			pcr:= decimal value
+			label:= [selinux]|[kernel_info]|[data_label]
+			data_label:= a unique string used for grouping and limiting critical data.
+			For example, "selinux" to measure critical data for SELinux.
+			appraise_algos:= comma-separated list of hash algorithms
+			For example, "sha256,sha512" to only accept to appraise
+			files where the security.ima xattr was hashed with one
+			of these two algorithms.
+
+		  default policy:
+			# PROC_SUPER_MAGIC
+			dont_measure fsmagic=0x9fa0
+			dont_appraise fsmagic=0x9fa0
+			# SYSFS_MAGIC
+			dont_measure fsmagic=0x62656572
+			dont_appraise fsmagic=0x62656572
+			# DEBUGFS_MAGIC
+			dont_measure fsmagic=0x64626720
+			dont_appraise fsmagic=0x64626720
+			# TMPFS_MAGIC
+			dont_measure fsmagic=0x01021994
+			dont_appraise fsmagic=0x01021994
+			# RAMFS_MAGIC
+			dont_appraise fsmagic=0x858458f6
+			# DEVPTS_SUPER_MAGIC
+			dont_measure fsmagic=0x1cd1
+			dont_appraise fsmagic=0x1cd1
+			# BINFMTFS_MAGIC
+			dont_measure fsmagic=0x42494e4d
+			dont_appraise fsmagic=0x42494e4d
+			# SECURITYFS_MAGIC
+			dont_measure fsmagic=0x73636673
+			dont_appraise fsmagic=0x73636673
+			# SELINUX_MAGIC
+			dont_measure fsmagic=0xf97cff8c
+			dont_appraise fsmagic=0xf97cff8c
+			# CGROUP_SUPER_MAGIC
+			dont_measure fsmagic=0x27e0eb
+			dont_appraise fsmagic=0x27e0eb
+			# NSFS_MAGIC
+			dont_measure fsmagic=0x6e736673
+			dont_appraise fsmagic=0x6e736673
+
+			measure func=BPRM_CHECK
+			measure func=FILE_MMAP mask=MAY_EXEC
+			measure func=FILE_CHECK mask=MAY_READ uid=0
+			measure func=MODULE_CHECK
+			measure func=FIRMWARE_CHECK
+			appraise fowner=0
+
+		The default policy measures all executables in bprm_check,
+		all files mmapped executable in file_mmap, and all files
+		open for read by root in do_filp_open.  The default appraisal
+		policy appraises all files owned by root.
+
+		Examples of LSM specific definitions:
+
+		SELinux::
+
+			dont_measure obj_type=var_log_t
+			dont_appraise obj_type=var_log_t
+			dont_measure obj_type=auditd_log_t
+			dont_appraise obj_type=auditd_log_t
+			measure subj_user=system_u func=FILE_CHECK mask=MAY_READ
+			measure subj_role=system_r func=FILE_CHECK mask=MAY_READ
+
+		Smack::
+
+			measure subj_user=_ func=FILE_CHECK mask=MAY_READ
+
+		Example of measure rules using alternate PCRs::
+
+			measure func=KEXEC_KERNEL_CHECK pcr=4
+			measure func=KEXEC_INITRAMFS_CHECK pcr=5
+
+		Example of appraise rule allowing modsig appended signatures:
+
+			appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig
+
+		Example of measure rule using KEY_CHECK to measure all keys:
+
+			measure func=KEY_CHECK
+
+		Example of measure rule using KEY_CHECK to only measure
+		keys added to .builtin_trusted_keys or .ima keyring:
+
+			measure func=KEY_CHECK keyrings=.builtin_trusted_keys|.ima
+
+		Example of the special SETXATTR_CHECK appraise rule, that
+		restricts the hash algorithms allowed when writing to the
+		security.ima xattr of a file:
+
+			appraise func=SETXATTR_CHECK appraise_algos=sha256,sha384,sha512

@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+#include "overlay_common.dtsi"

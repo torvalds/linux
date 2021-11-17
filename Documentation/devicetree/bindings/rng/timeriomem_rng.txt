@@ -1,0 +1,25 @@
+HWRNG support for the timeriomem_rng driver
+
+Required properties:
+- compatible : "timeriomem_rng"
+- reg : base address to sample from
+- period : wait time in microseconds to use between samples
+
+Optional properties:
+- quality : estimated number of bits of true entropy per 1024 bits read from the
+            rng.  Defaults to zero which causes the kernel's default quality to
+            be used instead.  Note that the default quality is usually zero
+            which disables using this rng to automatically fill the kernel's
+            entropy pool.
+
+N.B. currently 'reg' must be at least four bytes wide and 32-bit aligned
+
+Example:
+
+hwrng@44 {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "timeriomem_rng";
+	reg = <0x44 0x04>;
+	period = <1000000>;
+};

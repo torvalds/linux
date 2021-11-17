@@ -1,0 +1,29 @@
+MMC/SD/SDIO slot directly connected to a SPI bus
+
+This file documents differences between the core properties described
+by mmc.txt and the properties used by the mmc_spi driver.
+
+Required properties:
+- spi-max-frequency : maximum frequency for this device (Hz).
+
+Optional properties:
+- voltage-ranges : two cells are required, first cell specifies minimum
+  slot voltage (mV), second cell specifies maximum slot voltage (mV).
+  Several ranges could be specified. If not provided, 3.2v..3.4v is assumed.
+- gpios : may specify GPIOs in this order: Card-Detect GPIO,
+  Write-Protect GPIO. Note that this does not follow the
+  binding from mmc.txt, for historical reasons.
+
+Example:
+
+	mmc-slot@0 {
+		compatible = "fsl,mpc8323rdb-mmc-slot",
+			     "mmc-spi-slot";
+		reg = <0>;
+		gpios = <&qe_pio_d 14 1
+			 &qe_pio_d 15 0>;
+		voltage-ranges = <3300 3300>;
+		spi-max-frequency = <50000000>;
+		interrupts = <42>;
+		interrupt-parent = <&PIC>;
+	};

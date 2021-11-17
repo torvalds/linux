@@ -1,0 +1,10 @@
+*****************************************************************************
+*                                                                           *
+*                           TODO: BCM2835-AUDIO                             *
+*                                                                           *
+*****************************************************************************
+
+1) Revisit multi-cards options and PCM route mixer control (as per comment
+https://lore.kernel.org/lkml/s5hd0to5598.wl-tiwai@suse.de)
+
+2) Fix the remaining checkpatch.pl errors and warnings.

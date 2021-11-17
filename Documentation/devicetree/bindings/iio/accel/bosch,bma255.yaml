@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/accel/bosch,bma255.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Bosch BMA255 and Similar Accelerometers
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+  - Stephan Gerhold <stephan@gerhold.net>
+
+description:
+  3 axis accelerometers with varying range and I2C or SPI
+  4-wire interface.
+
+properties:
+  compatible:
+    enum:
+      # bmc150-accel driver in Linux
+      - bosch,bma222
+      - bosch,bma222e
+      - bosch,bma250e
+      - bosch,bma253
+      - bosch,bma254
+      - bosch,bma255
+      - bosch,bma280
+      - bosch,bmc150_accel
+      - bosch,bmc156_accel
+      - bosch,bmi055_accel
+
+      # bma180 driver in Linux
+      - bosch,bma023
+      - bosch,bma150
+      - bosch,bma180
+      - bosch,bma250
+      - bosch,smb380
+
+  reg:
+    maxItems: 1
+
+  vdd-supply: true
+  vddio-supply: true
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+    description: |
+      Without interrupt-names, the first interrupt listed must be the one
+      connected to the INT1 pin, the second (optional) interrupt listed must be
+      the one connected to the INT2 pin (if available). The type should be
+      IRQ_TYPE_EDGE_RISING.
+
+      BMC156 does not have an INT1 pin, therefore the first interrupt pin is
+      always treated as INT2.
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum:
+        - INT1
+        - INT2
+
+  mount-matrix:
+    description: an optional 3x3 mounting rotation matrix.
+
+  spi-max-frequency:
+    maximum: 10000000
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        accelerometer@8 {
+            compatible = "bosch,bma222";
+            reg = <0x08>;
+            vddio-supply = <&vddio>;
+            vdd-supply = <&vdd>;
+            interrupts = <57 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT1";
+        };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        accelerometer@10 {
+            compatible = "bosch,bmc156_accel";
+            reg = <0x10>;
+            vddio-supply = <&vddio>;
+            vdd-supply = <&vdd>;
+            interrupts = <116 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT2";
+        };
+    };
+  - |
+    # include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        accel@0 {
+            compatible = "bosch,bma222";
+            reg = <0>;
+            spi-max-frequency = <10000000>;
+        };
+    };
+...

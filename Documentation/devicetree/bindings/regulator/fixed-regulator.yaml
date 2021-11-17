@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/fixed-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Fixed Voltage regulators
+
+maintainers:
+  - Liam Girdwood <lgirdwood@gmail.com>
+  - Mark Brown <broonie@kernel.org>
+
+description:
+  Any property defined as part of the core regulator binding, defined in
+  regulator.yaml, can also be used. However a fixed voltage regulator is
+  expected to have the regulator-min-microvolt and regulator-max-microvolt
+  to be the same.
+
+allOf:
+  - $ref: "regulator.yaml#"
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: regulator-fixed-clock
+  required:
+    - clocks
+else:
+  if:
+    properties:
+      compatible:
+        contains:
+          const: regulator-fixed-domain
+    required:
+      - power-domains
+      - required-opps
+
+properties:
+  compatible:
+    enum:
+      - regulator-fixed
+      - regulator-fixed-clock
+      - regulator-fixed-domain
+
+  regulator-name: true
+
+  gpio:
+    description: gpio to use for enable control
+    maxItems: 1
+
+  clocks:
+    description:
+      clock to use for enable control. This binding is only available if
+      the compatible is chosen to regulator-fixed-clock. The clock binding
+      is mandatory if compatible is chosen to regulator-fixed-clock.
+    maxItems: 1
+
+  power-domains:
+    deprecated: true
+    description:
+      Power domain to use for enable control. This binding is only
+      available if the compatible is chosen to regulator-fixed-domain.
+    maxItems: 1
+
+  required-opps:
+    deprecated: true
+    description:
+      Performance state to use for enable control. This binding is only
+      available if the compatible is chosen to regulator-fixed-domain. The
+      power-domain binding is mandatory if compatible is chosen to
+      regulator-fixed-domain.
+    maxItems: 1
+
+  startup-delay-us:
+    description: startup time in microseconds
+
+  off-on-delay-us:
+    description: off delay time in microseconds
+
+  enable-active-high:
+    description:
+      Polarity of GPIO is Active high. If this property is missing,
+      the default assumed is Active low.
+    type: boolean
+
+  gpio-open-drain:
+    description:
+      GPIO is open drain type. If this property is missing then default
+      assumption is false.
+    type: boolean
+
+  vin-supply:
+    description: Input supply phandle.
+
+required:
+  - compatible
+  - regulator-name
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    reg_1v8: regulator-1v8 {
+      compatible = "regulator-fixed";
+      regulator-name = "1v8";
+      regulator-min-microvolt = <1800000>;
+      regulator-max-microvolt = <1800000>;
+      gpio = <&gpio1 16 0>;
+      startup-delay-us = <70000>;
+      enable-active-high;
+      regulator-boot-on;
+      gpio-open-drain;
+      vin-supply = <&parent_reg>;
+    };
+    reg_1v8_clk: regulator-1v8-clk {
+      compatible = "regulator-fixed-clock";
+      regulator-name = "1v8";
+      regulator-min-microvolt = <1800000>;
+      regulator-max-microvolt = <1800000>;
+      clocks = <&clock1>;
+      startup-delay-us = <70000>;
+      enable-active-high;
+      regulator-boot-on;
+      vin-supply = <&parent_reg>;
+    };
+    reg_1v8_domain: regulator-1v8-domain {
+      compatible = "regulator-fixed-domain";
+      regulator-name = "1v8";
+      regulator-min-microvolt = <1800000>;
+      regulator-max-microvolt = <1800000>;
+      power-domains = <&domain1>;
+      required-opps = <&domain1_state1>;
+      startup-delay-us = <70000>;
+      enable-active-high;
+      regulator-boot-on;
+      vin-supply = <&parent_reg>;
+    };
+...

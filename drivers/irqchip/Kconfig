@@ -1,0 +1,605 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "IRQ chip support"
+
+config IRQCHIP
+	def_bool y
+	depends on OF_IRQ
+
+config ARM_GIC
+	bool
+	select IRQ_DOMAIN_HIERARCHY
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+
+config ARM_GIC_PM
+	bool
+	depends on PM
+	select ARM_GIC
+
+config ARM_GIC_MAX_NR
+	int
+	depends on ARM_GIC
+	default 2 if ARCH_REALVIEW
+	default 1
+
+config ARM_GIC_V2M
+	bool
+	depends on PCI
+	select ARM_GIC
+	select PCI_MSI
+
+config GIC_NON_BANKED
+	bool
+
+config ARM_GIC_V3
+	bool
+	select IRQ_DOMAIN_HIERARCHY
+	select PARTITION_PERCPU
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+
+config ARM_GIC_V3_ITS
+	bool
+	select GENERIC_MSI_IRQ_DOMAIN
+	default ARM_GIC_V3
+
+config ARM_GIC_V3_ITS_PCI
+	bool
+	depends on ARM_GIC_V3_ITS
+	depends on PCI
+	depends on PCI_MSI
+	default ARM_GIC_V3_ITS
+
+config ARM_GIC_V3_ITS_FSL_MC
+	bool
+	depends on ARM_GIC_V3_ITS
+	depends on FSL_MC_BUS
+	default ARM_GIC_V3_ITS
+
+config ARM_NVIC
+	bool
+	select IRQ_DOMAIN_HIERARCHY
+	select GENERIC_IRQ_CHIP
+
+config ARM_VIC
+	bool
+	select IRQ_DOMAIN
+
+config ARM_VIC_NR
+	int
+	default 4 if ARCH_S5PV210
+	default 2
+	depends on ARM_VIC
+	help
+	  The maximum number of VICs available in the system, for
+	  power management.
+
+config ARMADA_370_XP_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select PCI_MSI if PCI
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+
+config ALPINE_MSI
+	bool
+	depends on PCI
+	select PCI_MSI
+	select GENERIC_IRQ_CHIP
+
+config AL_FIC
+	bool "Amazon's Annapurna Labs Fabric Interrupt Controller"
+	depends on OF || COMPILE_TEST
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	help
+	  Support Amazon's Annapurna Labs Fabric Interrupt Controller.
+
+config ATMEL_AIC_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select SPARSE_IRQ
+
+config ATMEL_AIC5_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select SPARSE_IRQ
+
+config I8259
+	bool
+	select IRQ_DOMAIN
+
+config BCM6345_L1_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+
+config BCM7038_L1_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+
+config BCM7120_L2_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config BRCMSTB_L2_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config DAVINCI_AINTC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config DAVINCI_CP_INTC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config DW_APB_ICTL
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN_HIERARCHY
+
+config FARADAY_FTINTC010
+	bool
+	select IRQ_DOMAIN
+	select SPARSE_IRQ
+
+config HISILICON_IRQ_MBIGEN
+	bool
+	select ARM_GIC_V3
+	select ARM_GIC_V3_ITS
+
+config IMGPDC_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config IXP4XX_IRQ
+	bool
+	select IRQ_DOMAIN
+	select SPARSE_IRQ
+
+config MADERA_IRQ
+	tristate
+
+config IRQ_MIPS_CPU
+	bool
+	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_IPI if SYS_SUPPORTS_MULTITHREADING
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+
+config CLPS711X_IRQCHIP
+	bool
+	depends on ARCH_CLPS711X
+	select IRQ_DOMAIN
+	select SPARSE_IRQ
+	default y
+
+config OMPIC
+	bool
+
+config OR1K_PIC
+	bool
+	select IRQ_DOMAIN
+
+config OMAP_IRQCHIP
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config ORION_IRQCHIP
+	bool
+	select IRQ_DOMAIN
+
+config PIC32_EVIC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config JCORE_AIC
+	bool "J-Core integrated AIC" if COMPILE_TEST
+	depends on OF
+	select IRQ_DOMAIN
+	help
+	  Support for the J-Core integrated AIC.
+
+config RDA_INTC
+	bool
+	select IRQ_DOMAIN
+
+config RENESAS_INTC_IRQPIN
+	bool "Renesas INTC External IRQ Pin Support" if COMPILE_TEST
+	select IRQ_DOMAIN
+	help
+	  Enable support for the Renesas Interrupt Controller for external
+	  interrupt pins, as found on SH/R-Mobile and R-Car Gen1 SoCs.
+
+config RENESAS_IRQC
+	bool "Renesas R-Mobile APE6, R-Car Gen{2,3} and RZ/G{1,2} IRQC support" if COMPILE_TEST
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	help
+	  Enable support for the Renesas Interrupt Controller for external
+	  devices, as found on R-Mobile APE6, R-Car Gen{2,3} and RZ/G{1,2} SoCs.
+
+config RENESAS_RZA1_IRQC
+	bool "Renesas RZ/A1 IRQC support" if COMPILE_TEST
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Enable support for the Renesas RZ/A1 Interrupt Controller, to use up
+	  to 8 external interrupts with configurable sense select.
+
+config SL28CPLD_INTC
+	bool "Kontron sl28cpld IRQ controller"
+	depends on MFD_SL28CPLD=y || COMPILE_TEST
+	select REGMAP_IRQ
+	help
+	  Interrupt controller driver for the board management controller
+	  found on the Kontron sl28 CPLD.
+
+config ST_IRQCHIP
+	bool
+	select REGMAP
+	select MFD_SYSCON
+	help
+	  Enables SysCfg Controlled IRQs on STi based platforms.
+
+config TB10X_IRQC
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+
+config TS4800_IRQ
+	tristate "TS-4800 IRQ controller"
+	select IRQ_DOMAIN
+	depends on HAS_IOMEM
+	depends on SOC_IMX51 || COMPILE_TEST
+	help
+	  Support for the TS-4800 FPGA IRQ controller
+
+config VERSATILE_FPGA_IRQ
+	bool
+	select IRQ_DOMAIN
+
+config VERSATILE_FPGA_IRQ_NR
+       int
+       default 4
+       depends on VERSATILE_FPGA_IRQ
+
+config XTENSA_MX
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+
+config XILINX_INTC
+	bool "Xilinx Interrupt Controller IP"
+	depends on MICROBLAZE || ARCH_ZYNQ || ARCH_ZYNQMP
+	select IRQ_DOMAIN
+	help
+	  Support for the Xilinx Interrupt Controller IP core.
+	  This is used as a primary controller with MicroBlaze and can also
+	  be used as a secondary chained controller on other platforms.
+
+config IRQ_CROSSBAR
+	bool
+	help
+	  Support for a CROSSBAR ip that precedes the main interrupt controller.
+	  The primary irqchip invokes the crossbar's callback which inturn allocates
+	  a free irq and configures the IP. Thus the peripheral interrupts are
+	  routed to one of the free irqchip interrupt lines.
+
+config KEYSTONE_IRQ
+	tristate "Keystone 2 IRQ controller IP"
+	depends on ARCH_KEYSTONE
+	help
+		Support for Texas Instruments Keystone 2 IRQ controller IP which
+		is part of the Keystone 2 IPC mechanism
+
+config MIPS_GIC
+	bool
+	select GENERIC_IRQ_IPI
+	select MIPS_CM
+
+config INGENIC_IRQ
+	bool
+	depends on MACH_INGENIC
+	default y
+
+config INGENIC_TCU_IRQ
+	bool "Ingenic JZ47xx TCU interrupt controller"
+	default MACH_INGENIC
+	depends on MIPS || COMPILE_TEST
+	select MFD_SYSCON
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for interrupts in the Timer/Counter Unit (TCU) of the Ingenic
+	  JZ47xx SoCs.
+
+	  If unsure, say N.
+
+config RENESAS_H8300H_INTC
+        bool
+	select IRQ_DOMAIN
+
+config RENESAS_H8S_INTC
+	bool "Renesas H8S Interrupt Controller Support" if COMPILE_TEST
+	select IRQ_DOMAIN
+	help
+	  Enable support for the Renesas H8/300 Interrupt Controller, as found
+	  on Renesas H8S SoCs.
+
+config IMX_GPCV2
+	bool
+	select IRQ_DOMAIN
+	help
+	  Enables the wakeup IRQs for IMX platforms with GPCv2 block
+
+config IRQ_MXS
+	def_bool y if MACH_ASM9260 || ARCH_MXS
+	select IRQ_DOMAIN
+	select STMP_DEVICE
+
+config MSCC_OCELOT_IRQ
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+
+config MVEBU_GICP
+	bool
+
+config MVEBU_ICU
+	bool
+
+config MVEBU_ODMI
+	bool
+	select GENERIC_MSI_IRQ_DOMAIN
+
+config MVEBU_PIC
+	bool
+
+config MVEBU_SEI
+        bool
+
+config LS_EXTIRQ
+	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
+	select MFD_SYSCON
+
+config LS_SCFG_MSI
+	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
+	depends on PCI && PCI_MSI
+
+config PARTITION_PERCPU
+	bool
+
+config STM32_EXTI
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+
+config QCOM_IRQ_COMBINER
+	bool "QCOM IRQ combiner support"
+	depends on ARCH_QCOM && ACPI
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say yes here to add support for the IRQ combiner devices embedded
+	  in Qualcomm Technologies chips.
+
+config IRQ_UNIPHIER_AIDET
+	bool "UniPhier AIDET support" if COMPILE_TEST
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	default ARCH_UNIPHIER
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Support for the UniPhier AIDET (ARM Interrupt Detector).
+
+config MESON_IRQ_GPIO
+       bool "Meson GPIO Interrupt Multiplexer"
+       depends on ARCH_MESON
+       select IRQ_DOMAIN_HIERARCHY
+       help
+         Support Meson SoC Family GPIO Interrupt Multiplexer
+
+config GOLDFISH_PIC
+       bool "Goldfish programmable interrupt controller"
+       depends on MIPS && (GOLDFISH || COMPILE_TEST)
+       select GENERIC_IRQ_CHIP
+       select IRQ_DOMAIN
+       help
+         Say yes here to enable Goldfish interrupt controller driver used
+         for Goldfish based virtual platforms.
+
+config QCOM_PDC
+	tristate "QCOM PDC"
+	depends on ARCH_QCOM
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Power Domain Controller driver to manage and configure wakeup
+	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
+
+config CSKY_MPINTC
+	bool
+	depends on CSKY
+	help
+	  Say yes here to enable C-SKY SMP interrupt controller driver used
+	  for C-SKY SMP system.
+	  In fact it's not mmio map in hardware and it uses ld/st to visit the
+	  controller's register inside CPU.
+
+config CSKY_APB_INTC
+	bool "C-SKY APB Interrupt Controller"
+	depends on CSKY
+	help
+	  Say yes here to enable C-SKY APB interrupt controller driver used
+	  by C-SKY single core SOC system. It uses mmio map apb-bus to visit
+	  the controller's register.
+
+config IMX_IRQSTEER
+	bool "i.MX IRQSTEER support"
+	depends on ARCH_MXC || COMPILE_TEST
+	default ARCH_MXC
+	select IRQ_DOMAIN
+	help
+	  Support for the i.MX IRQSTEER interrupt multiplexer/remapper.
+
+config IMX_INTMUX
+	bool "i.MX INTMUX support" if COMPILE_TEST
+	default y if ARCH_MXC
+	select IRQ_DOMAIN
+	help
+	  Support for the i.MX INTMUX interrupt multiplexer.
+
+config LS1X_IRQ
+	bool "Loongson-1 Interrupt Controller"
+	depends on MACH_LOONGSON32
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for the Loongson-1 platform Interrupt Controller.
+
+config TI_SCI_INTR_IRQCHIP
+	bool
+	depends on TI_SCI_PROTOCOL
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  This enables the irqchip driver support for K3 Interrupt router
+	  over TI System Control Interface available on some new TI's SoCs.
+	  If you wish to use interrupt router irq resources managed by the
+	  TI System Controller, say Y here. Otherwise, say N.
+
+config TI_SCI_INTA_IRQCHIP
+	bool
+	depends on TI_SCI_PROTOCOL
+	select IRQ_DOMAIN_HIERARCHY
+	select TI_SCI_INTA_MSI_DOMAIN
+	help
+	  This enables the irqchip driver support for K3 Interrupt aggregator
+	  over TI System Control Interface available on some new TI's SoCs.
+	  If you wish to use interrupt aggregator irq resources managed by the
+	  TI System Controller, say Y here. Otherwise, say N.
+
+config TI_PRUSS_INTC
+	tristate
+	depends on TI_PRUSS
+	default TI_PRUSS
+	select IRQ_DOMAIN
+	help
+	  This enables support for the PRU-ICSS Local Interrupt Controller
+	  present within a PRU-ICSS subsystem present on various TI SoCs.
+	  The PRUSS INTC enables various interrupts to be routed to multiple
+	  different processors within the SoC.
+
+config RISCV_INTC
+	bool "RISC-V Local Interrupt Controller"
+	depends on RISCV
+	default y
+	help
+	   This enables support for the per-HART local interrupt controller
+	   found in standard RISC-V systems.  The per-HART local interrupt
+	   controller handles timer interrupts, software interrupts, and
+	   hardware interrupts. Without a per-HART local interrupt controller,
+	   a RISC-V system will be unable to handle any interrupts.
+
+	   If you don't know what to do here, say Y.
+
+config SIFIVE_PLIC
+	bool "SiFive Platform-Level Interrupt Controller"
+	depends on RISCV
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	   This enables support for the PLIC chip found in SiFive (and
+	   potentially other) RISC-V systems.  The PLIC controls devices
+	   interrupts and connects them to each core's local interrupt
+	   controller.  Aside from timer and software interrupts, all other
+	   interrupt sources are subordinate to the PLIC.
+
+	   If you don't know what to do here, say Y.
+
+config EXYNOS_IRQ_COMBINER
+	bool "Samsung Exynos IRQ combiner support" if COMPILE_TEST
+	depends on (ARCH_EXYNOS && ARM) || COMPILE_TEST
+	help
+	  Say yes here to add support for the IRQ combiner devices embedded
+	  in Samsung Exynos chips.
+
+config LOONGSON_LIOINTC
+	bool "Loongson Local I/O Interrupt Controller"
+	depends on MACH_LOONGSON64
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for the Loongson Local I/O Interrupt Controller.
+
+config LOONGSON_HTPIC
+	bool "Loongson3 HyperTransport PIC Controller"
+	depends on MACH_LOONGSON64
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for the Loongson-3 HyperTransport PIC Controller.
+
+config LOONGSON_HTVEC
+	bool "Loongson3 HyperTransport Interrupt Vector Controller"
+	depends on MACH_LOONGSON64
+	default MACH_LOONGSON64
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Support for the Loongson3 HyperTransport Interrupt Vector Controller.
+
+config LOONGSON_PCH_PIC
+	bool "Loongson PCH PIC Controller"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	default MACH_LOONGSON64
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+	help
+	  Support for the Loongson PCH PIC Controller.
+
+config LOONGSON_PCH_MSI
+	bool "Loongson PCH MSI Controller"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	depends on PCI
+	default MACH_LOONGSON64
+	select IRQ_DOMAIN_HIERARCHY
+	select PCI_MSI
+	help
+	  Support for the Loongson PCH MSI Controller.
+
+config MST_IRQ
+	bool "MStar Interrupt Controller"
+	depends on ARCH_MEDIATEK || ARCH_MSTARV7 || COMPILE_TEST
+	default ARCH_MEDIATEK
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Support MStar Interrupt Controller.
+
+config WPCM450_AIC
+	bool "Nuvoton WPCM450 Advanced Interrupt Controller"
+	depends on ARCH_WPCM450
+	help
+	  Support for the interrupt controller in the Nuvoton WPCM450 BMC SoC.
+
+config IRQ_IDT3243X
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config APPLE_AIC
+	bool "Apple Interrupt Controller (AIC)"
+	depends on ARM64
+	depends on ARCH_APPLE || COMPILE_TEST
+	help
+	  Support for the Apple Interrupt Controller found on Apple Silicon SoCs,
+	  such as the M1.
+
+endmenu

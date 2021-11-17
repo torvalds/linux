@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config WLAN_VENDOR_CISCO
+	bool "Cisco devices"
+	default y
+	help
+	  If you have a wireless card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all the
+	  questions about these cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if WLAN_VENDOR_CISCO
+
+config AIRO
+	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
+	depends on CFG80211 && ISA_DMA_API && (PCI || BROKEN)
+	select WIRELESS_EXT
+	select CRYPTO
+	select CRYPTO_SKCIPHER
+	select WEXT_SPY
+	select WEXT_PRIV
+	help
+	  This is the standard Linux driver to support Cisco/Aironet ISA and
+	  PCI 802.11 wireless cards.
+	  It supports the new 802.11b cards from Cisco (Cisco 34X, Cisco 35X
+	  - with or without encryption) as well as card before the Cisco
+	  acquisition (Aironet 4500, Aironet 4800, Aironet 4800B).
+
+	  This driver support both the standard Linux Wireless Extensions
+	  and Cisco proprietary API, so both the Linux Wireless Tools and the
+	  Cisco Linux utilities can be used to configure the card.
+
+	  The driver can be compiled as a module and will be named "airo".
+
+config AIRO_CS
+	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
+	depends on CFG80211 && PCMCIA
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_CTR
+	help
+	  This is the standard Linux driver to support Cisco/Aironet PCMCIA
+	  802.11 wireless cards.  This driver is the same as the Aironet
+	  driver part of the Linux Pcmcia package.
+	  It supports the new 802.11b cards from Cisco (Cisco 34X, Cisco 35X
+	  - with or without encryption) as well as card before the Cisco
+	  acquisition (Aironet 4500, Aironet 4800, Aironet 4800B). It also
+	  supports OEM of Cisco such as the DELL TrueMobile 4800 and Xircom
+	  802.11b cards.
+
+	  This driver support both the standard Linux Wireless Extensions
+	  and Cisco proprietary API, so both the Linux Wireless Tools and the
+	  Cisco Linux utilities can be used to configure the card.
+
+endif # WLAN_VENDOR_CISCO

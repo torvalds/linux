@@ -1,0 +1,185 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Microsoft Surface Platform-Specific Drivers
+#
+
+menuconfig SURFACE_PLATFORMS
+	bool "Microsoft Surface Platform-Specific Device Drivers"
+	depends on ACPI
+	default y
+	help
+	  Say Y here to get to see options for platform-specific device drivers
+	  for Microsoft Surface devices. This option alone does not add any
+	  kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if SURFACE_PLATFORMS
+
+config SURFACE3_WMI
+	tristate "Surface 3 WMI Driver"
+	depends on ACPI_WMI
+	depends on DMI
+	depends on INPUT
+	depends on SPI
+	help
+	  Say Y here if you have a Surface 3.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called surface3-wmi.
+
+config SURFACE_3_BUTTON
+	tristate "Power/home/volume buttons driver for Microsoft Surface 3 tablet"
+	depends on KEYBOARD_GPIO && I2C
+	help
+	  This driver handles the power/home/volume buttons on the Microsoft Surface 3 tablet.
+
+config SURFACE_3_POWER_OPREGION
+	tristate "Surface 3 battery platform operation region support"
+	depends on I2C
+	help
+	  This driver provides support for ACPI operation
+	  region of the Surface 3 battery platform driver.
+
+config SURFACE_ACPI_NOTIFY
+	tristate "Surface ACPI Notify Driver"
+	depends on SURFACE_AGGREGATOR
+	help
+	  Surface ACPI Notify (SAN) driver for Microsoft Surface devices.
+
+	  This driver provides support for the ACPI interface (called SAN) of
+	  the Surface System Aggregator Module (SSAM) EC. This interface is used
+	  on 5th- and 6th-generation Microsoft Surface devices (including
+	  Surface Pro 5 and 6, Surface Book 2, Surface Laptops 1 and 2, and in
+	  reduced functionality on the Surface Laptop 3) to execute SSAM
+	  requests directly from ACPI code, as well as receive SSAM events and
+	  turn them into ACPI notifications. It essentially acts as a
+	  translation layer between the SSAM controller and ACPI.
+
+	  Specifically, this driver may be needed for battery status reporting,
+	  thermal sensor access, and real-time clock information, depending on
+	  the Surface device in question.
+
+config SURFACE_AGGREGATOR_CDEV
+	tristate "Surface System Aggregator Module User-Space Interface"
+	depends on SURFACE_AGGREGATOR
+	help
+	  Provides a misc-device interface to the Surface System Aggregator
+	  Module (SSAM) controller.
+
+	  This option provides a module (called surface_aggregator_cdev), that,
+	  when loaded, will add a client device (and its respective driver) to
+	  the SSAM controller. Said client device manages a misc-device
+	  interface (/dev/surface/aggregator), which can be used by user-space
+	  tools to directly communicate with the SSAM EC by sending requests and
+	  receiving the corresponding responses.
+
+	  The provided interface is intended for debugging and development only,
+	  and should not be used otherwise.
+
+config SURFACE_AGGREGATOR_REGISTRY
+	tristate "Surface System Aggregator Module Device Registry"
+	depends on SURFACE_AGGREGATOR
+	depends on SURFACE_AGGREGATOR_BUS
+	help
+	  Device-registry and device-hubs for Surface System Aggregator Module
+	  (SSAM) devices.
+
+	  Provides a module and driver which act as a device-registry for SSAM
+	  client devices that cannot be detected automatically, e.g. via ACPI.
+	  Such devices are instead provided via this registry and attached via
+	  device hubs, also provided in this module.
+
+	  Devices provided via this registry are:
+	  - Platform profile (performance-/cooling-mode) device (5th- and later
+	    generations).
+	  - Battery/AC devices (7th-generation).
+	  - HID input devices (7th-generation).
+
+	  Select M (recommended) or Y here if you want support for the above
+	  mentioned devices on the corresponding Surface models. Without this
+	  module, the respective devices will not be instantiated and thus any
+	  functionality provided by them will be missing, even when drivers for
+	  these devices are present. In other words, this module only provides
+	  the respective client devices. Drivers for these devices still need to
+	  be selected via the other options.
+
+config SURFACE_DTX
+	tristate "Surface DTX (Detachment System) Driver"
+	depends on SURFACE_AGGREGATOR
+	depends on INPUT
+	help
+	  Driver for the Surface Book clipboard detachment system (DTX).
+
+	  On the Surface Book series devices, the display part containing the
+	  CPU (called the clipboard) can be detached from the base (containing a
+	  battery, the keyboard, and, optionally, a discrete GPU) by (if
+	  necessary) unlocking and opening the latch connecting both parts.
+
+	  This driver provides a user-space interface that can influence the
+	  behavior of this process, which includes the option to abort it in
+	  case the base is still in use or speed it up in case it is not.
+
+	  Note that this module can be built without support for the Surface
+	  Aggregator Bus (i.e. CONFIG_SURFACE_AGGREGATOR_BUS=n). In that case,
+	  some devices, specifically the Surface Book 3, will not be supported.
+
+config SURFACE_GPE
+	tristate "Surface GPE/Lid Support Driver"
+	depends on DMI
+	help
+	  This driver marks the GPEs related to the ACPI lid device found on
+	  Microsoft Surface devices as wakeup sources and prepares them
+	  accordingly. It is required on those devices to allow wake-ups from
+	  suspend by opening the lid.
+
+config SURFACE_HOTPLUG
+	tristate "Surface Hot-Plug Driver"
+	depends on GPIOLIB
+	help
+	  Driver for out-of-band hot-plug event signaling on Microsoft Surface
+	  devices with hot-pluggable PCIe cards.
+
+	  This driver is used on Surface Book (2 and 3) devices with a
+	  hot-pluggable discrete GPU (dGPU). When not in use, the dGPU on those
+	  devices can enter D3cold, which prevents in-band (standard) PCIe
+	  hot-plug signaling. Thus, without this driver, detaching the base
+	  containing the dGPU will not correctly update the state of the
+	  corresponding PCIe device if it is in D3cold. This driver adds support
+	  for out-of-band hot-plug notifications, ensuring that the device state
+	  is properly updated even when the device in question is in D3cold.
+
+	  Select M or Y here, if you want to (fully) support hot-plugging of
+	  dGPU devices on the Surface Book 2 and/or 3 during D3cold.
+
+config SURFACE_PLATFORM_PROFILE
+	tristate "Surface Platform Profile Driver"
+	depends on SURFACE_AGGREGATOR_REGISTRY
+	select ACPI_PLATFORM_PROFILE
+	help
+	  Provides support for the ACPI platform profile on 5th- and later
+	  generation Microsoft Surface devices.
+
+	  More specifically, this driver provides ACPI platform profile support
+	  on Microsoft Surface devices with a Surface System Aggregator Module
+	  (SSAM) connected via the Surface Serial Hub (SSH / SAM-over-SSH). In
+	  other words, this driver provides platform profile support on the
+	  Surface Pro 5, Surface Book 2, Surface Laptop, Surface Laptop Go and
+	  later. On those devices, the platform profile can significantly
+	  influence cooling behavior, e.g. setting it to 'quiet' (default) or
+	  'low-power' can significantly limit performance of the discrete GPU on
+	  Surface Books, while in turn leading to lower power consumption and/or
+	  less fan noise.
+
+	  Select M or Y here, if you want to include ACPI platform profile
+	  support on the above mentioned devices.
+
+config SURFACE_PRO3_BUTTON
+	tristate "Power/home/volume buttons driver for Microsoft Surface Pro 3/4 tablet"
+	depends on INPUT
+	help
+	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3/4 tablet.
+
+source "drivers/platform/surface/aggregator/Kconfig"
+
+endif # SURFACE_PLATFORMS

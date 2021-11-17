@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config BRCMUTIL
+	tristate
+
+config BRCMSMAC
+	tristate "Broadcom IEEE802.11n PCIe SoftMAC WLAN driver"
+	depends on MAC80211
+	depends on BCMA_POSSIBLE
+	select BCMA
+	select NEW_LEDS if BCMA_DRIVER_GPIO
+	select LEDS_CLASS if BCMA_DRIVER_GPIO
+	select BRCMUTIL
+	select FW_LOADER
+	select CORDIC
+	help
+	  This module adds support for PCIe wireless adapters based on Broadcom
+	  IEEE802.11n SoftMAC chipsets. It also has WLAN led support, which will
+	  be available if you select BCMA_DRIVER_GPIO. If you choose to build a
+	  module, the driver will be called brcmsmac.ko.
+
+source "drivers/net/wireless/broadcom/brcm80211/brcmfmac/Kconfig"
+
+config BRCM_TRACING
+	bool "Broadcom device tracing"
+	depends on BRCMSMAC || BRCMFMAC
+	help
+	  If you say Y here, the Broadcom wireless drivers will register
+	  with ftrace to dump event information into the trace ringbuffer.
+	  Tracing can be enabled at runtime to aid in debugging wireless
+	  issues. This option adds a small amount of overhead when tracing
+	  is disabled. If unsure, say Y to allow developers to better help
+	  you when wireless problems occur.
+
+config BRCMDBG
+	bool "Broadcom driver debug functions"
+	depends on BRCMSMAC || BRCMFMAC
+	select WANT_DEV_COREDUMP if BRCMFMAC
+	help
+	  Selecting this enables additional code for debug purposes.

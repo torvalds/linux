@@ -1,0 +1,171 @@
+# SPDX-License-Identifier: GPL-2.0
+# Intel pin control drivers
+
+if (X86 || COMPILE_TEST)
+
+config PINCTRL_BAYTRAIL
+	bool "Intel Baytrail GPIO pin control"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  driver for memory mapped GPIO functionality on Intel Baytrail
+	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
+	  Most pins are usually muxed to some other functionality by firmware,
+	  so only a small amount is available for gpio use.
+
+	  Requires ACPI device enumeration code to set up a platform device.
+
+config PINCTRL_CHERRYVIEW
+	tristate "Intel Cherryview/Braswell pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  Cherryview/Braswell pinctrl driver provides an interface that
+	  allows configuring of SoC pins and using them as GPIOs.
+
+config PINCTRL_LYNXPOINT
+	tristate "Intel Lynxpoint pinctrl and GPIO driver"
+	depends on ACPI
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	help
+	  Lynxpoint is the PCH of Intel Haswell. This pinctrl driver
+	  provides an interface that allows configuring of PCH pins and
+	  using them as GPIOs.
+
+config PINCTRL_MERRIFIELD
+	tristate "Intel Merrifield pinctrl driver"
+	depends on X86_INTEL_MID
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Merrifield Family-Level Interface Shim (FLIS) driver provides an
+	  interface that allows configuring of SoC pins and using them as
+	  GPIOs.
+
+config PINCTRL_INTEL
+	tristate
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+
+config PINCTRL_ALDERLAKE
+	tristate "Intel Alder Lake pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Alder Lake PCH pins and using them as GPIOs.
+
+config PINCTRL_BROXTON
+	tristate "Intel Broxton pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  Broxton pinctrl driver provides an interface that allows
+	  configuring of SoC pins and using them as GPIOs.
+
+config PINCTRL_CANNONLAKE
+	tristate "Intel Cannon Lake PCH pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Cannon Lake PCH pins and using them as GPIOs.
+
+config PINCTRL_CEDARFORK
+	tristate "Intel Cedar Fork pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Cedar Fork PCH pins and using them as GPIOs.
+
+config PINCTRL_DENVERTON
+	tristate "Intel Denverton pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Denverton SoC pins and using them as GPIOs.
+
+config PINCTRL_ELKHARTLAKE
+	tristate "Intel Elkhart Lake SoC pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Elkhart Lake SoC pins and using them as GPIOs.
+
+config PINCTRL_EMMITSBURG
+	tristate "Intel Emmitsburg pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Emmitsburg pins and using them as GPIOs.
+
+config PINCTRL_GEMINILAKE
+	tristate "Intel Gemini Lake SoC pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Gemini Lake SoC pins and using them as GPIOs.
+
+config PINCTRL_ICELAKE
+	tristate "Intel Ice Lake PCH pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Ice Lake PCH pins and using them as GPIOs.
+
+config PINCTRL_JASPERLAKE
+	tristate "Intel Jasper Lake PCH pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Jasper Lake PCH pins and using them as GPIOs.
+
+config PINCTRL_LAKEFIELD
+	tristate "Intel Lakefield SoC pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Lakefield SoC pins and using them as GPIOs.
+
+config PINCTRL_LEWISBURG
+	tristate "Intel Lewisburg pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Lewisburg pins and using them as GPIOs.
+
+config PINCTRL_SUNRISEPOINT
+	tristate "Intel Sunrisepoint pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  Sunrisepoint is the PCH of Intel Skylake. This pinctrl driver
+	  provides an interface that allows configuring of PCH pins and
+	  using them as GPIOs.
+
+config PINCTRL_TIGERLAKE
+	tristate "Intel Tiger Lake pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Tiger Lake PCH pins and using them as GPIOs.
+
+endif

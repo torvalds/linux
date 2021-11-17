@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config SOC_K210_SYSCTL
+	bool "Canaan Kendryte K210 SoC system controller"
+	depends on RISCV && SOC_CANAAN && OF
+	default SOC_CANAAN
+        select PM
+        select SYSCON
+        select MFD_SYSCON
+	help
+	  Canaan Kendryte K210 SoC system controller driver.

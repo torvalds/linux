@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config DRM_MSM
+	tristate "MSM DRM"
+	depends on DRM
+	depends on ARCH_QCOM || SOC_IMX5 || (ARM && COMPILE_TEST)
+	depends on IOMMU_SUPPORT
+	depends on OF && COMMON_CLK
+	depends on QCOM_OCMEM || QCOM_OCMEM=n
+	depends on QCOM_LLCC || QCOM_LLCC=n
+	depends on QCOM_COMMAND_DB || QCOM_COMMAND_DB=n
+	select IOMMU_IO_PGTABLE
+	select QCOM_MDT_LOADER if ARCH_QCOM
+	select REGULATOR
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	select DRM_SCHED
+	select SHMEM
+	select TMPFS
+	select QCOM_SCM
+	select WANT_DEV_COREDUMP
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	select SYNC_FILE
+	select PM_OPP
+	select NVMEM
+	help
+	  DRM/KMS driver for MSM/snapdragon.
+
+config DRM_MSM_GPU_STATE
+	bool
+	depends on DRM_MSM && (DEBUG_FS || DEV_COREDUMP)
+	default y
+
+config DRM_MSM_REGISTER_LOGGING
+	bool "MSM DRM register logging"
+	depends on DRM_MSM
+	default n
+	help
+	  Compile in support for logging register reads/writes in a format
+	  that can be parsed by envytools demsm tool.  If enabled, register
+	  logging can be switched on via msm.reglog=y module param.
+
+config DRM_MSM_GPU_SUDO
+	bool "Enable SUDO flag on submits"
+	depends on DRM_MSM && EXPERT
+	default n
+	help
+	  Enable userspace that has CAP_SYS_RAWIO to submit GPU commands
+	  that are run from RB instead of IB1.  This essentially gives
+	  userspace kernel level access, but is useful for firmware
+	  debugging.
+
+	  Only use this if you are a driver developer.  This should *not*
+	  be enabled for production kernels.  If unsure, say N.
+
+config DRM_MSM_HDMI_HDCP
+	bool "Enable HDMI HDCP support in MSM DRM driver"
+	depends on DRM_MSM
+	default y
+	help
+	  Choose this option to enable HDCP state machine
+
+config DRM_MSM_DP
+	bool "Enable DisplayPort support in MSM DRM driver"
+	depends on DRM_MSM
+	default y
+	help
+	  Compile in support for DP driver in MSM DRM driver. DP external
+	  display support is enabled through this config option. It can
+	  be primary or secondary display on device.
+
+config DRM_MSM_DSI
+	bool "Enable DSI support in MSM DRM driver"
+	depends on DRM_MSM
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	default y
+	help
+	  Choose this option if you have a need for MIPI DSI connector
+	  support.
+
+config DRM_MSM_DSI_28NM_PHY
+	bool "Enable DSI 28nm PHY driver in MSM DRM"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if the 28nm DSI PHY is used on the platform.
+
+config DRM_MSM_DSI_20NM_PHY
+	bool "Enable DSI 20nm PHY driver in MSM DRM"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if the 20nm DSI PHY is used on the platform.
+
+config DRM_MSM_DSI_28NM_8960_PHY
+	bool "Enable DSI 28nm 8960 PHY driver in MSM DRM"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if the 28nm DSI PHY 8960 variant is used on the
+	  platform.
+
+config DRM_MSM_DSI_14NM_PHY
+	bool "Enable DSI 14nm PHY driver in MSM DRM (used by MSM8996/APQ8096)"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if DSI PHY on 8996 is used on the platform.
+
+config DRM_MSM_DSI_10NM_PHY
+	bool "Enable DSI 10nm PHY driver in MSM DRM (used by SDM845)"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if DSI PHY on SDM845 is used on the platform.
+
+config DRM_MSM_DSI_7NM_PHY
+	bool "Enable DSI 7nm PHY driver in MSM DRM"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if DSI PHY on SM8150/SM8250/SC7280 is used on
+	  the platform.

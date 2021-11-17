@@ -1,0 +1,2 @@
+perf-$(CONFIG_CLANGLLVM) += clang.o
+perf-$(CONFIG_CLANGLLVM) += clang-test.o

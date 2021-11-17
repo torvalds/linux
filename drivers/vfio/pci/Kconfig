@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if PCI && MMU
+config VFIO_PCI_CORE
+	tristate
+	select VFIO_VIRQFD
+	select IRQ_BYPASS_MANAGER
+
+config VFIO_PCI_MMAP
+	def_bool y if !S390
+
+config VFIO_PCI_INTX
+	def_bool y if !S390
+
+config VFIO_PCI
+	tristate "Generic VFIO support for any PCI device"
+	select VFIO_PCI_CORE
+	help
+	  Support for the generic PCI VFIO bus driver which can connect any
+	  PCI device to the VFIO framework.
+
+	  If you don't know what to do here, say N.
+
+if VFIO_PCI
+config VFIO_PCI_VGA
+	bool "Generic VFIO PCI support for VGA devices"
+	depends on X86 && VGA_ARB
+	help
+	  Support for VGA extension to VFIO PCI.  This exposes an additional
+	  region on VGA devices for accessing legacy VGA addresses used by
+	  BIOS and generic video drivers.
+
+	  If you don't know what to do here, say N.
+
+config VFIO_PCI_IGD
+	bool "Generic VFIO PCI extensions for Intel graphics (GVT-d)"
+	depends on X86
+	default y
+	help
+	  Support for Intel IGD specific extensions to enable direct
+	  assignment to virtual machines.  This includes exposing an IGD
+	  specific firmware table and read-only copies of the host bridge
+	  and LPC bridge config space.
+
+	  To enable Intel IGD assignment through vfio-pci, say Y.
+endif
+endif

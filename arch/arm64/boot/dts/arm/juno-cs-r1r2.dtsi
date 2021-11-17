@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: GPL-2.0
+/ {
+	funnel@20130000 { /* cssys1 */
+		compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
+		reg = <0 0x20130000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				csys1_funnel_out_port: endpoint {
+					remote-endpoint = <&etf1_in_port>;
+				};
+			};
+		};
+		in-ports {
+			port {
+				csys1_funnel_in_port0: endpoint {
+				};
+			};
+
+		};
+	};
+
+	etf@20140000 { /* etf1 */
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0 0x20140000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		in-ports {
+			port {
+				etf1_in_port: endpoint {
+					remote-endpoint = <&csys1_funnel_out_port>;
+				};
+			};
+		};
+		out-ports {
+			port {
+				etf1_out_port: endpoint {
+					remote-endpoint = <&csys2_funnel_in_port1>;
+				};
+			};
+		};
+	};
+
+	funnel@20150000 { /* cssys2 */
+		compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
+		reg = <0 0x20150000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		out-ports {
+			port {
+				csys2_funnel_out_port: endpoint {
+					remote-endpoint = <&replicator_in_port0>;
+				};
+			};
+		};
+
+		in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				csys2_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&etf0_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				csys2_funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint = <&etf1_out_port>;
+				};
+			};
+
+		};
+	};
+};

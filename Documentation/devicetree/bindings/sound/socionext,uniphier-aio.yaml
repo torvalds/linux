@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/socionext,uniphier-aio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UniPhier AIO audio system
+
+maintainers:
+  - <alsa-devel@alsa-project.org>
+
+properties:
+  compatible:
+    enum:
+      - socionext,uniphier-ld11-aio
+      - socionext,uniphier-ld20-aio
+      - socionext,uniphier-pxs2-aio
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clock-names:
+    const: aio
+
+  clocks:
+    maxItems: 1
+
+  reset-names:
+    const: aio
+
+  resets:
+    maxItems: 1
+
+  socionext,syscon:
+    description: |
+      Specifies a phandle to soc-glue, which is used for changing mode of S/PDIF
+      signal pin to output from Hi-Z. This property is optional if you use I2S
+      signal pins only.
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+
+  "#sound-dai-cells":
+    const: 1
+
+patternProperties:
+  "^port@[0-9]$":
+    description: FIXME, Need to define what each port is.
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clock-names
+  - clocks
+  - reset-names
+  - resets
+  - "#sound-dai-cells"
+
+examples:
+  - |
+    audio@56000000 {
+        compatible = "socionext,uniphier-ld20-aio";
+        reg = <0x56000000 0x80000>;
+        interrupts = <0 144 4>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_aout>;
+        clock-names = "aio";
+        clocks = <&sys_clk 40>;
+        reset-names = "aio";
+        resets = <&sys_rst 40>;
+        #sound-dai-cells = <1>;
+        socionext,syscon = <&soc_glue>;
+    };

@@ -1,0 +1,84 @@
+Hisilicon mbigen device tree bindings.
+=======================================
+
+Mbigen means: message based interrupt generator.
+
+MBI is kind of msi interrupt only used on Non-PCI devices.
+
+To reduce the wired interrupt number connected to GIC,
+Hisilicon designed mbigen to collect and generate interrupt.
+
+
+Non-pci devices can connect to mbigen and generate the
+interrupt by writing ITS register.
+
+The mbigen chip and devices connect to mbigen have the following properties:
+
+Mbigen main node required properties:
+-------------------------------------------
+- compatible: Should be "hisilicon,mbigen-v2"
+
+- reg: Specifies the base physical address and size of the Mbigen
+  registers.
+
+Mbigen sub node required properties:
+------------------------------------------
+- interrupt controller: Identifies the node as an interrupt controller
+
+- msi-parent: Specifies the MSI controller this mbigen use.
+  For more detail information,please refer to the generic msi-parent binding in
+  Documentation/devicetree/bindings/interrupt-controller/msi.txt.
+
+- num-pins: the total number of pins implemented in this Mbigen
+  instance.
+
+- #interrupt-cells : Specifies the number of cells needed to encode an
+  interrupt source. The value must be 2.
+
+  The 1st cell is hardware pin number of the interrupt.This number is local to
+  each mbigen chip and in the range from 0 to the maximum interrupts number
+  of the mbigen.
+
+  The 2nd cell is the interrupt trigger type.
+	The value of this cell should be:
+	1: rising edge triggered
+	or
+	4: high level triggered
+
+Examples:
+
+	mbigen_chip_dsa {
+			compatible = "hisilicon,mbigen-v2";
+			reg = <0x0 0xc0080000 0x0 0x10000>;
+
+			mbigen_gmac:intc_gmac {
+				interrupt-controller;
+				msi-parent = <&its_dsa 0x40b1c>;
+				num-pins = <9>;
+				#interrupt-cells = <2>;
+			};
+
+			mbigen_i2c:intc_i2c {
+				interrupt-controller;
+				msi-parent = <&its_dsa 0x40b0e>;
+				num-pins = <2>;
+				#interrupt-cells = <2>;
+			};
+	};
+
+Devices connect to mbigen required properties:
+----------------------------------------------------
+-interrupts:Specifies the interrupt source.
+ For the specific information of each cell in this property,please refer to
+ the "interrupt-cells" description mentioned above.
+
+Examples:
+	gmac0: ethernet@c2080000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0 0xc2080000 0 0x20000>,
+		      <0 0xc0000000 0 0x1000>;
+		interrupt-parent  = <&mbigen_device_gmac>;
+		interrupts =	<656 1>,
+				<657 1>;
+	};

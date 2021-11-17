@@ -1,0 +1,899 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "Memory Management options"
+
+config SELECT_MEMORY_MODEL
+	def_bool y
+	depends on ARCH_SELECT_MEMORY_MODEL
+
+choice
+	prompt "Memory model"
+	depends on SELECT_MEMORY_MODEL
+	default SPARSEMEM_MANUAL if ARCH_SPARSEMEM_DEFAULT
+	default FLATMEM_MANUAL
+	help
+	  This option allows you to change some of the ways that
+	  Linux manages its memory internally. Most users will
+	  only have one option here selected by the architecture
+	  configuration. This is normal.
+
+config FLATMEM_MANUAL
+	bool "Flat Memory"
+	depends on !ARCH_SPARSEMEM_ENABLE || ARCH_FLATMEM_ENABLE
+	help
+	  This option is best suited for non-NUMA systems with
+	  flat address space. The FLATMEM is the most efficient
+	  system in terms of performance and resource consumption
+	  and it is the best option for smaller systems.
+
+	  For systems that have holes in their physical address
+	  spaces and for features like NUMA and memory hotplug,
+	  choose "Sparse Memory".
+
+	  If unsure, choose this option (Flat Memory) over any other.
+
+config SPARSEMEM_MANUAL
+	bool "Sparse Memory"
+	depends on ARCH_SPARSEMEM_ENABLE
+	help
+	  This will be the only option for some systems, including
+	  memory hot-plug systems.  This is normal.
+
+	  This option provides efficient support for systems with
+	  holes is their physical address space and allows memory
+	  hot-plug and hot-remove.
+
+	  If unsure, choose "Flat Memory" over this option.
+
+endchoice
+
+config SPARSEMEM
+	def_bool y
+	depends on (!SELECT_MEMORY_MODEL && ARCH_SPARSEMEM_ENABLE) || SPARSEMEM_MANUAL
+
+config FLATMEM
+	def_bool y
+	depends on !SPARSEMEM || FLATMEM_MANUAL
+
+#
+# SPARSEMEM_EXTREME (which is the default) does some bootmem
+# allocations when sparse_init() is called.  If this cannot
+# be done on your architecture, select this option.  However,
+# statically allocating the mem_section[] array can potentially
+# consume vast quantities of .bss, so be careful.
+#
+# This option will also potentially produce smaller runtime code
+# with gcc 3.4 and later.
+#
+config SPARSEMEM_STATIC
+	bool
+
+#
+# Architecture platforms which require a two level mem_section in SPARSEMEM
+# must select this option. This is usually for architecture platforms with
+# an extremely sparse physical address space.
+#
+config SPARSEMEM_EXTREME
+	def_bool y
+	depends on SPARSEMEM && !SPARSEMEM_STATIC
+
+config SPARSEMEM_VMEMMAP_ENABLE
+	bool
+
+config SPARSEMEM_VMEMMAP
+	bool "Sparse Memory virtual memmap"
+	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
+	default y
+	help
+	  SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
+	  pfn_to_page and page_to_pfn operations.  This is the most
+	  efficient option when sufficient kernel resources are available.
+
+config HAVE_MEMBLOCK_PHYS_MAP
+	bool
+
+config HAVE_FAST_GUP
+	depends on MMU
+	bool
+
+# Don't discard allocated memory used to track "memory" and "reserved" memblocks
+# after early boot, so it can still be used to test for validity of memory.
+# Also, memblocks are updated with memory hot(un)plug.
+config ARCH_KEEP_MEMBLOCK
+	bool
+
+# Keep arch NUMA mapping infrastructure post-init.
+config NUMA_KEEP_MEMINFO
+	bool
+
+config MEMORY_ISOLATION
+	bool
+
+#
+# Only be set on architectures that have completely implemented memory hotplug
+# feature. If you are not sure, don't touch it.
+#
+config HAVE_BOOTMEM_INFO_NODE
+	def_bool n
+
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	bool
+
+# eventually, we can have this option just 'select SPARSEMEM'
+config MEMORY_HOTPLUG
+	bool "Allow for memory hot-add"
+	select MEMORY_ISOLATION
+	depends on SPARSEMEM || X86_64_ACPI_NUMA
+	depends on ARCH_ENABLE_MEMORY_HOTPLUG
+	depends on 64BIT || BROKEN
+	select NUMA_KEEP_MEMINFO if NUMA
+
+config MEMORY_HOTPLUG_SPARSE
+	def_bool y
+	depends on SPARSEMEM && MEMORY_HOTPLUG
+
+config MEMORY_HOTPLUG_DEFAULT_ONLINE
+	bool "Online the newly added memory blocks by default"
+	depends on MEMORY_HOTPLUG
+	help
+	  This option sets the default policy setting for memory hotplug
+	  onlining policy (/sys/devices/system/memory/auto_online_blocks) which
+	  determines what happens to newly added memory regions. Policy setting
+	  can always be changed at runtime.
+	  See Documentation/admin-guide/mm/memory-hotplug.rst for more information.
+
+	  Say Y here if you want all hot-plugged memory blocks to appear in
+	  'online' state by default.
+	  Say N here if you want the default policy to keep all hot-plugged
+	  memory blocks in 'offline' state.
+
+config ARCH_ENABLE_MEMORY_HOTREMOVE
+	bool
+
+config MEMORY_HOTREMOVE
+	bool "Allow for memory hot remove"
+	select HAVE_BOOTMEM_INFO_NODE if (X86_64 || PPC64)
+	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+	depends on MIGRATION
+
+config MHP_MEMMAP_ON_MEMORY
+	def_bool y
+	depends on MEMORY_HOTPLUG && SPARSEMEM_VMEMMAP
+	depends on ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
+
+# Heavily threaded applications may benefit from splitting the mm-wide
+# page_table_lock, so that faults on different parts of the user address
+# space can be handled with less contention: split it at this NR_CPUS.
+# Default to 4 for wider testing, though 8 might be more appropriate.
+# ARM's adjust_pte (unused if VIPT) depends on mm-wide page_table_lock.
+# PA-RISC 7xxx's spinlock_t would enlarge struct page from 32 to 44 bytes.
+# SPARC32 allocates multiple pte tables within a single page, and therefore
+# a per-page lock leads to problems when multiple tables need to be locked
+# at the same time (e.g. copy_page_range()).
+# DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC spinlock_t also enlarge struct page.
+#
+config SPLIT_PTLOCK_CPUS
+	int
+	default "999999" if !MMU
+	default "999999" if ARM && !CPU_CACHE_VIPT
+	default "999999" if PARISC && !PA20
+	default "999999" if SPARC32
+	default "4"
+
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	bool
+
+#
+# support for memory balloon
+config MEMORY_BALLOON
+	bool
+
+#
+# support for memory balloon compaction
+config BALLOON_COMPACTION
+	bool "Allow for balloon memory compaction/migration"
+	def_bool y
+	depends on COMPACTION && MEMORY_BALLOON
+	help
+	  Memory fragmentation introduced by ballooning might reduce
+	  significantly the number of 2MB contiguous memory blocks that can be
+	  used within a guest, thus imposing performance penalties associated
+	  with the reduced number of transparent huge pages that could be used
+	  by the guest workload. Allowing the compaction & migration for memory
+	  pages enlisted as being part of memory balloon devices avoids the
+	  scenario aforementioned and helps improving memory defragmentation.
+
+#
+# support for memory compaction
+config COMPACTION
+	bool "Allow for memory compaction"
+	def_bool y
+	select MIGRATION
+	depends on MMU
+	help
+	  Compaction is the only memory management component to form
+	  high order (larger physically contiguous) memory blocks
+	  reliably. The page allocator relies on compaction heavily and
+	  the lack of the feature can lead to unexpected OOM killer
+	  invocations for high order memory requests. You shouldn't
+	  disable this option unless there really is a strong reason for
+	  it and then we would be really interested to hear about that at
+	  linux-mm@kvack.org.
+
+#
+# support for free page reporting
+config PAGE_REPORTING
+	bool "Free page reporting"
+	def_bool n
+	help
+	  Free page reporting allows for the incremental acquisition of
+	  free pages from the buddy allocator for the purpose of reporting
+	  those pages to another entity, such as a hypervisor, so that the
+	  memory can be freed within the host for other uses.
+
+#
+# support for page migration
+#
+config MIGRATION
+	bool "Page migration"
+	def_bool y
+	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
+	help
+	  Allows the migration of the physical location of pages of processes
+	  while the virtual addresses are not changed. This is useful in
+	  two situations. The first is on NUMA systems to put pages nearer
+	  to the processors accessing. The second is when allocating huge
+	  pages as migration can relocate pages to satisfy a huge page
+	  allocation instead of reclaiming.
+
+config ARCH_ENABLE_HUGEPAGE_MIGRATION
+	bool
+
+config ARCH_ENABLE_THP_MIGRATION
+	bool
+
+config HUGETLB_PAGE_SIZE_VARIABLE
+	def_bool n
+	help
+	  Allows the pageblock_order value to be dynamic instead of just standard
+	  HUGETLB_PAGE_ORDER when there are multiple HugeTLB page sizes available
+	  on a platform.
+
+config CONTIG_ALLOC
+	def_bool (MEMORY_ISOLATION && COMPACTION) || CMA
+
+config PHYS_ADDR_T_64BIT
+	def_bool 64BIT
+
+config BOUNCE
+	bool "Enable bounce buffers"
+	default y
+	depends on BLOCK && MMU && HIGHMEM
+	help
+	  Enable bounce buffers for devices that cannot access the full range of
+	  memory available to the CPU. Enabled by default when HIGHMEM is
+	  selected, but you may say n to override this.
+
+config VIRT_TO_BUS
+	bool
+	help
+	  An architecture should select this if it implements the
+	  deprecated interface virt_to_bus().  All new architectures
+	  should probably not select this.
+
+
+config MMU_NOTIFIER
+	bool
+	select SRCU
+	select INTERVAL_TREE
+
+config KSM
+	bool "Enable KSM for page merging"
+	depends on MMU
+	select XXHASH
+	help
+	  Enable Kernel Samepage Merging: KSM periodically scans those areas
+	  of an application's address space that an app has advised may be
+	  mergeable.  When it finds pages of identical content, it replaces
+	  the many instances by a single page with that content, so
+	  saving memory until one or another app needs to modify the content.
+	  Recommended for use with KVM, or with other duplicative applications.
+	  See Documentation/vm/ksm.rst for more information: KSM is inactive
+	  until a program has madvised that an area is MADV_MERGEABLE, and
+	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
+
+config DEFAULT_MMAP_MIN_ADDR
+	int "Low address space to protect from user allocation"
+	depends on MMU
+	default 4096
+	help
+	  This is the portion of low virtual memory which should be protected
+	  from userspace allocation.  Keeping a user from writing to low pages
+	  can help reduce the impact of kernel NULL pointer bugs.
+
+	  For most ia64, ppc64 and x86 users with lots of address space
+	  a value of 65536 is reasonable and should cause no problems.
+	  On arm and other archs it should not be higher than 32768.
+	  Programs which use vm86 functionality or have some need to map
+	  this low address space will need CAP_SYS_RAWIO or disable this
+	  protection by setting the value to 0.
+
+	  This value can be changed after boot using the
+	  /proc/sys/vm/mmap_min_addr tunable.
+
+config ARCH_SUPPORTS_MEMORY_FAILURE
+	bool
+
+config MEMORY_FAILURE
+	depends on MMU
+	depends on ARCH_SUPPORTS_MEMORY_FAILURE
+	bool "Enable recovery from hardware memory errors"
+	select MEMORY_ISOLATION
+	select RAS
+	help
+	  Enables code to recover from some memory failures on systems
+	  with MCA recovery. This allows a system to continue running
+	  even when some of its memory has uncorrected errors. This requires
+	  special hardware support and typically ECC memory.
+
+config HWPOISON_INJECT
+	tristate "HWPoison pages injector"
+	depends on MEMORY_FAILURE && DEBUG_KERNEL && PROC_FS
+	select PROC_PAGE_MONITOR
+
+config NOMMU_INITIAL_TRIM_EXCESS
+	int "Turn on mmap() excess space trimming before booting"
+	depends on !MMU
+	default 1
+	help
+	  The NOMMU mmap() frequently needs to allocate large contiguous chunks
+	  of memory on which to store mappings, but it can only ask the system
+	  allocator for chunks in 2^N*PAGE_SIZE amounts - which is frequently
+	  more than it requires.  To deal with this, mmap() is able to trim off
+	  the excess and return it to the allocator.
+
+	  If trimming is enabled, the excess is trimmed off and returned to the
+	  system allocator, which can cause extra fragmentation, particularly
+	  if there are a lot of transient processes.
+
+	  If trimming is disabled, the excess is kept, but not used, which for
+	  long-term mappings means that the space is wasted.
+
+	  Trimming can be dynamically controlled through a sysctl option
+	  (/proc/sys/vm/nr_trim_pages) which specifies the minimum number of
+	  excess pages there must be before trimming should occur, or zero if
+	  no trimming is to occur.
+
+	  This option specifies the initial value of this option.  The default
+	  of 1 says that all excess pages should be trimmed.
+
+	  See Documentation/admin-guide/mm/nommu-mmap.rst for more information.
+
+config TRANSPARENT_HUGEPAGE
+	bool "Transparent Hugepage Support"
+	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select COMPACTION
+	select XARRAY_MULTI
+	help
+	  Transparent Hugepages allows the kernel to use huge pages and
+	  huge tlb transparently to the applications whenever possible.
+	  This feature can improve computing performance to certain
+	  applications by speeding up page faults during memory
+	  allocation, by reducing the number of tlb misses and by speeding
+	  up the pagetable walking.
+
+	  If memory constrained on embedded, you may want to say N.
+
+choice
+	prompt "Transparent Hugepage Support sysfs defaults"
+	depends on TRANSPARENT_HUGEPAGE
+	default TRANSPARENT_HUGEPAGE_ALWAYS
+	help
+	  Selects the sysfs defaults for Transparent Hugepage Support.
+
+	config TRANSPARENT_HUGEPAGE_ALWAYS
+		bool "always"
+	help
+	  Enabling Transparent Hugepage always, can increase the
+	  memory footprint of applications without a guaranteed
+	  benefit but it will work automatically for all applications.
+
+	config TRANSPARENT_HUGEPAGE_MADVISE
+		bool "madvise"
+	help
+	  Enabling Transparent Hugepage madvise, will only provide a
+	  performance improvement benefit to the applications using
+	  madvise(MADV_HUGEPAGE) but it won't risk to increase the
+	  memory footprint of applications without a guaranteed
+	  benefit.
+endchoice
+
+config ARCH_WANTS_THP_SWAP
+	def_bool n
+
+config THP_SWAP
+	def_bool y
+	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP
+	help
+	  Swap transparent huge pages in one piece, without splitting.
+	  XXX: For now, swap cluster backing transparent huge page
+	  will be split after swapout.
+
+	  For selection by architectures with reasonable THP sizes.
+
+#
+# UP and nommu archs use km based percpu allocator
+#
+config NEED_PER_CPU_KM
+	depends on !SMP
+	bool
+	default y
+
+config CLEANCACHE
+	bool "Enable cleancache driver to cache clean pages if tmem is present"
+	help
+	  Cleancache can be thought of as a page-granularity victim cache
+	  for clean pages that the kernel's pageframe replacement algorithm
+	  (PFRA) would like to keep around, but can't since there isn't enough
+	  memory.  So when the PFRA "evicts" a page, it first attempts to use
+	  cleancache code to put the data contained in that page into
+	  "transcendent memory", memory that is not directly accessible or
+	  addressable by the kernel and is of unknown and possibly
+	  time-varying size.  And when a cleancache-enabled
+	  filesystem wishes to access a page in a file on disk, it first
+	  checks cleancache to see if it already contains it; if it does,
+	  the page is copied into the kernel and a disk access is avoided.
+	  When a transcendent memory driver is available (such as zcache or
+	  Xen transcendent memory), a significant I/O reduction
+	  may be achieved.  When none is available, all cleancache calls
+	  are reduced to a single pointer-compare-against-NULL resulting
+	  in a negligible performance hit.
+
+	  If unsure, say Y to enable cleancache
+
+config FRONTSWAP
+	bool "Enable frontswap to cache swap pages if tmem is present"
+	depends on SWAP
+	help
+	  Frontswap is so named because it can be thought of as the opposite
+	  of a "backing" store for a swap device.  The data is stored into
+	  "transcendent memory", memory that is not directly accessible or
+	  addressable by the kernel and is of unknown and possibly
+	  time-varying size.  When space in transcendent memory is available,
+	  a significant swap I/O reduction may be achieved.  When none is
+	  available, all frontswap calls are reduced to a single pointer-
+	  compare-against-NULL resulting in a negligible performance hit
+	  and swap data is stored as normal on the matching swap device.
+
+	  If unsure, say Y to enable frontswap.
+
+config CMA
+	bool "Contiguous Memory Allocator"
+	depends on MMU
+	select MIGRATION
+	select MEMORY_ISOLATION
+	help
+	  This enables the Contiguous Memory Allocator which allows other
+	  subsystems to allocate big physically-contiguous blocks of memory.
+	  CMA reserves a region of memory and allows only movable pages to
+	  be allocated from it. This way, the kernel can use the memory for
+	  pagecache and when a subsystem requests for contiguous area, the
+	  allocated pages are migrated away to serve the contiguous request.
+
+	  If unsure, say "n".
+
+config CMA_DEBUG
+	bool "CMA debug messages (DEVELOPMENT)"
+	depends on DEBUG_KERNEL && CMA
+	help
+	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+	  messages for every CMA call as well as various messages while
+	  processing calls such as dma_alloc_from_contiguous().
+	  This option does not affect warning and error messages.
+
+config CMA_DEBUGFS
+	bool "CMA debugfs interface"
+	depends on CMA && DEBUG_FS
+	help
+	  Turns on the DebugFS interface for CMA.
+
+config CMA_SYSFS
+	bool "CMA information through sysfs interface"
+	depends on CMA && SYSFS
+	help
+	  This option exposes some sysfs attributes to get information
+	  from CMA.
+
+config CMA_AREAS
+	int "Maximum count of the CMA areas"
+	depends on CMA
+	default 19 if NUMA
+	default 7
+	help
+	  CMA allows to create CMA areas for particular purpose, mainly,
+	  used as device private area. This parameter sets the maximum
+	  number of CMA area in the system.
+
+	  If unsure, leave the default value "7" in UMA and "19" in NUMA.
+
+config MEM_SOFT_DIRTY
+	bool "Track memory changes"
+	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY && PROC_FS
+	select PROC_PAGE_MONITOR
+	help
+	  This option enables memory changes tracking by introducing a
+	  soft-dirty bit on pte-s. This bit it set when someone writes
+	  into a page just as regular dirty bit, but unlike the latter
+	  it can be cleared by hands.
+
+	  See Documentation/admin-guide/mm/soft-dirty.rst for more details.
+
+config ZSWAP
+	bool "Compressed cache for swap pages (EXPERIMENTAL)"
+	depends on FRONTSWAP && CRYPTO=y
+	select ZPOOL
+	help
+	  A lightweight compressed cache for swap pages.  It takes
+	  pages that are in the process of being swapped out and attempts to
+	  compress them into a dynamically allocated RAM-based memory pool.
+	  This can result in a significant I/O reduction on swap device and,
+	  in the case where decompressing from RAM is faster that swap device
+	  reads, can also improve workload performance.
+
+	  This is marked experimental because it is a new feature (as of
+	  v3.11) that interacts heavily with memory reclaim.  While these
+	  interactions don't cause any known issues on simple memory setups,
+	  they have not be fully explored on the large set of potential
+	  configurations and workloads that exist.
+
+choice
+	prompt "Compressed cache for swap pages default compressor"
+	depends on ZSWAP
+	default ZSWAP_COMPRESSOR_DEFAULT_LZO
+	help
+	  Selects the default compression algorithm for the compressed cache
+	  for swap pages.
+
+	  For an overview what kind of performance can be expected from
+	  a particular compression algorithm please refer to the benchmarks
+	  available at the following LWN page:
+	  https://lwn.net/Articles/751795/
+
+	  If in doubt, select 'LZO'.
+
+	  The selection made here can be overridden by using the kernel
+	  command line 'zswap.compressor=' option.
+
+config ZSWAP_COMPRESSOR_DEFAULT_DEFLATE
+	bool "Deflate"
+	select CRYPTO_DEFLATE
+	help
+	  Use the Deflate algorithm as the default compression algorithm.
+
+config ZSWAP_COMPRESSOR_DEFAULT_LZO
+	bool "LZO"
+	select CRYPTO_LZO
+	help
+	  Use the LZO algorithm as the default compression algorithm.
+
+config ZSWAP_COMPRESSOR_DEFAULT_842
+	bool "842"
+	select CRYPTO_842
+	help
+	  Use the 842 algorithm as the default compression algorithm.
+
+config ZSWAP_COMPRESSOR_DEFAULT_LZ4
+	bool "LZ4"
+	select CRYPTO_LZ4
+	help
+	  Use the LZ4 algorithm as the default compression algorithm.
+
+config ZSWAP_COMPRESSOR_DEFAULT_LZ4HC
+	bool "LZ4HC"
+	select CRYPTO_LZ4HC
+	help
+	  Use the LZ4HC algorithm as the default compression algorithm.
+
+config ZSWAP_COMPRESSOR_DEFAULT_ZSTD
+	bool "zstd"
+	select CRYPTO_ZSTD
+	help
+	  Use the zstd algorithm as the default compression algorithm.
+endchoice
+
+config ZSWAP_COMPRESSOR_DEFAULT
+       string
+       depends on ZSWAP
+       default "deflate" if ZSWAP_COMPRESSOR_DEFAULT_DEFLATE
+       default "lzo" if ZSWAP_COMPRESSOR_DEFAULT_LZO
+       default "842" if ZSWAP_COMPRESSOR_DEFAULT_842
+       default "lz4" if ZSWAP_COMPRESSOR_DEFAULT_LZ4
+       default "lz4hc" if ZSWAP_COMPRESSOR_DEFAULT_LZ4HC
+       default "zstd" if ZSWAP_COMPRESSOR_DEFAULT_ZSTD
+       default ""
+
+choice
+	prompt "Compressed cache for swap pages default allocator"
+	depends on ZSWAP
+	default ZSWAP_ZPOOL_DEFAULT_ZBUD
+	help
+	  Selects the default allocator for the compressed cache for
+	  swap pages.
+	  The default is 'zbud' for compatibility, however please do
+	  read the description of each of the allocators below before
+	  making a right choice.
+
+	  The selection made here can be overridden by using the kernel
+	  command line 'zswap.zpool=' option.
+
+config ZSWAP_ZPOOL_DEFAULT_ZBUD
+	bool "zbud"
+	select ZBUD
+	help
+	  Use the zbud allocator as the default allocator.
+
+config ZSWAP_ZPOOL_DEFAULT_Z3FOLD
+	bool "z3fold"
+	select Z3FOLD
+	help
+	  Use the z3fold allocator as the default allocator.
+
+config ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
+	bool "zsmalloc"
+	select ZSMALLOC
+	help
+	  Use the zsmalloc allocator as the default allocator.
+endchoice
+
+config ZSWAP_ZPOOL_DEFAULT
+       string
+       depends on ZSWAP
+       default "zbud" if ZSWAP_ZPOOL_DEFAULT_ZBUD
+       default "z3fold" if ZSWAP_ZPOOL_DEFAULT_Z3FOLD
+       default "zsmalloc" if ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
+       default ""
+
+config ZSWAP_DEFAULT_ON
+	bool "Enable the compressed cache for swap pages by default"
+	depends on ZSWAP
+	help
+	  If selected, the compressed cache for swap pages will be enabled
+	  at boot, otherwise it will be disabled.
+
+	  The selection made here can be overridden by using the kernel
+	  command line 'zswap.enabled=' option.
+
+config ZPOOL
+	tristate "Common API for compressed memory storage"
+	help
+	  Compressed memory storage API.  This allows using either zbud or
+	  zsmalloc.
+
+config ZBUD
+	tristate "Low (Up to 2x) density storage for compressed pages"
+	depends on ZPOOL
+	help
+	  A special purpose allocator for storing compressed pages.
+	  It is designed to store up to two compressed pages per physical
+	  page.  While this design limits storage density, it has simple and
+	  deterministic reclaim properties that make it preferable to a higher
+	  density approach when reclaim will be used.
+
+config Z3FOLD
+	tristate "Up to 3x density storage for compressed pages"
+	depends on ZPOOL
+	help
+	  A special purpose allocator for storing compressed pages.
+	  It is designed to store up to three compressed pages per physical
+	  page. It is a ZBUD derivative so the simplicity and determinism are
+	  still there.
+
+config ZSMALLOC
+	tristate "Memory allocator for compressed pages"
+	depends on MMU
+	help
+	  zsmalloc is a slab-based memory allocator designed to store
+	  compressed RAM pages.  zsmalloc uses virtual memory mapping
+	  in order to reduce fragmentation.  However, this results in a
+	  non-standard allocator interface where a handle, not a pointer, is
+	  returned by an alloc().  This handle must be mapped in order to
+	  access the allocated space.
+
+config ZSMALLOC_STAT
+	bool "Export zsmalloc statistics"
+	depends on ZSMALLOC
+	select DEBUG_FS
+	help
+	  This option enables code in the zsmalloc to collect various
+	  statistics about what's happening in zsmalloc and exports that
+	  information to userspace via debugfs.
+	  If unsure, say N.
+
+config GENERIC_EARLY_IOREMAP
+	bool
+
+config STACK_MAX_DEFAULT_SIZE_MB
+	int "Default maximum user stack size for 32-bit processes (MB)"
+	default 100
+	range 8 2048
+	depends on STACK_GROWSUP && (!64BIT || COMPAT)
+	help
+	  This is the maximum stack size in Megabytes in the VM layout of 32-bit
+	  user processes when the stack grows upwards (currently only on parisc
+	  arch) when the RLIMIT_STACK hard limit is unlimited.
+
+	  A sane initial value is 100 MB.
+
+config DEFERRED_STRUCT_PAGE_INIT
+	bool "Defer initialisation of struct pages to kthreads"
+	depends on SPARSEMEM
+	depends on !NEED_PER_CPU_KM
+	depends on 64BIT
+	select PADATA
+	help
+	  Ordinarily all struct pages are initialised during early boot in a
+	  single thread. On very large machines this can take a considerable
+	  amount of time. If this option is set, large machines will bring up
+	  a subset of memmap at boot and then initialise the rest in parallel.
+	  This has a potential performance impact on tasks running early in the
+	  lifetime of the system until these kthreads finish the
+	  initialisation.
+
+config PAGE_IDLE_FLAG
+	bool
+	select PAGE_EXTENSION if !64BIT
+	help
+	  This adds PG_idle and PG_young flags to 'struct page'.  PTE Accessed
+	  bit writers can set the state of the bit in the flags so that PTE
+	  Accessed bit readers may avoid disturbance.
+
+config IDLE_PAGE_TRACKING
+	bool "Enable idle page tracking"
+	depends on SYSFS && MMU
+	select PAGE_IDLE_FLAG
+	help
+	  This feature allows to estimate the amount of user pages that have
+	  not been touched during a given period of time. This information can
+	  be useful to tune memory cgroup limits and/or for job placement
+	  within a compute cluster.
+
+	  See Documentation/admin-guide/mm/idle_page_tracking.rst for
+	  more details.
+
+config ARCH_HAS_CACHE_LINE_SIZE
+	bool
+
+config ARCH_HAS_PTE_DEVMAP
+	bool
+
+config ARCH_HAS_ZONE_DMA_SET
+	bool
+
+config ZONE_DMA
+	bool "Support DMA zone" if ARCH_HAS_ZONE_DMA_SET
+	default y if ARM64 || X86
+
+config ZONE_DMA32
+	bool "Support DMA32 zone" if ARCH_HAS_ZONE_DMA_SET
+	depends on !X86_32
+	default y if ARM64
+
+config ZONE_DEVICE
+	bool "Device memory (pmem, HMM, etc...) hotplug support"
+	depends on MEMORY_HOTPLUG
+	depends on MEMORY_HOTREMOVE
+	depends on SPARSEMEM_VMEMMAP
+	depends on ARCH_HAS_PTE_DEVMAP
+	select XARRAY_MULTI
+
+	help
+	  Device memory hotplug support allows for establishing pmem,
+	  or other device driver discovered memory regions, in the
+	  memmap. This allows pfn_to_page() lookups of otherwise
+	  "device-physical" addresses which is needed for using a DAX
+	  mapping in an O_DIRECT operation, among other things.
+
+	  If FS_DAX is enabled, then say Y.
+
+config DEV_PAGEMAP_OPS
+	bool
+
+#
+# Helpers to mirror range of the CPU page tables of a process into device page
+# tables.
+#
+config HMM_MIRROR
+	bool
+	depends on MMU
+
+config DEVICE_PRIVATE
+	bool "Unaddressable device memory (GPU memory, ...)"
+	depends on ZONE_DEVICE
+	select DEV_PAGEMAP_OPS
+
+	help
+	  Allows creation of struct pages to represent unaddressable device
+	  memory; i.e., memory that is only accessible from the device (or
+	  group of devices). You likely also want to select HMM_MIRROR.
+
+config VMAP_PFN
+	bool
+
+config ARCH_USES_HIGH_VMA_FLAGS
+	bool
+config ARCH_HAS_PKEYS
+	bool
+
+config PERCPU_STATS
+	bool "Collect percpu memory statistics"
+	help
+	  This feature collects and exposes statistics via debugfs. The
+	  information includes global and per chunk statistics, which can
+	  be used to help understand percpu memory usage.
+
+config GUP_TEST
+	bool "Enable infrastructure for get_user_pages()-related unit tests"
+	depends on DEBUG_FS
+	help
+	  Provides /sys/kernel/debug/gup_test, which in turn provides a way
+	  to make ioctl calls that can launch kernel-based unit tests for
+	  the get_user_pages*() and pin_user_pages*() family of API calls.
+
+	  These tests include benchmark testing of the _fast variants of
+	  get_user_pages*() and pin_user_pages*(), as well as smoke tests of
+	  the non-_fast variants.
+
+	  There is also a sub-test that allows running dump_page() on any
+	  of up to eight pages (selected by command line args) within the
+	  range of user-space addresses. These pages are either pinned via
+	  pin_user_pages*(), or pinned via get_user_pages*(), as specified
+	  by other command line arguments.
+
+	  See tools/testing/selftests/vm/gup_test.c
+
+comment "GUP_TEST needs to have DEBUG_FS enabled"
+	depends on !GUP_TEST && !DEBUG_FS
+
+config GUP_GET_PTE_LOW_HIGH
+	bool
+
+config READ_ONLY_THP_FOR_FS
+	bool "Read-only THP for filesystems (EXPERIMENTAL)"
+	depends on TRANSPARENT_HUGEPAGE && SHMEM
+
+	help
+	  Allow khugepaged to put read-only file-backed pages in THP.
+
+	  This is marked experimental because it is a new feature. Write
+	  support of file THPs will be developed in the next few release
+	  cycles.
+
+config ARCH_HAS_PTE_SPECIAL
+	bool
+
+#
+# Some architectures require a special hugepage directory format that is
+# required to support multiple hugepage sizes. For example a4fe3ce76
+# "powerpc/mm: Allow more flexible layouts for hugepage pagetables"
+# introduced it on powerpc.  This allows for a more flexible hugepage
+# pagetable layouts.
+#
+config ARCH_HAS_HUGEPD
+	bool
+
+config MAPPING_DIRTY_HELPERS
+        bool
+
+config KMAP_LOCAL
+	bool
+
+# struct io_mapping based helper.  Selected by drivers that need them
+config IO_MAPPING
+	bool
+
+config SECRETMEM
+	def_bool ARCH_HAS_SET_DIRECT_MAP && !EMBEDDED
+
+source "mm/damon/Kconfig"
+
+endmenu

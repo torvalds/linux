@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2020 André Hentschel <nerv@dawncrow.de>
+ */
+
+#include "omap36xx.dtsi"
+
+&iva {
+	status = "disabled";
+};

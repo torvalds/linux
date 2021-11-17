@@ -1,0 +1,210 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR BSD-2-Clause)
+# Copyright (C) 2019 Texas Instruments Incorporated
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/tlv320adcx140.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TLV320ADCX140 Quad Channel Analog-to-Digital Converter
+
+maintainers:
+  - Dan Murphy <dmurphy@ti.com>
+
+description: |
+  The TLV320ADCX140 are multichannel (4-ch analog recording or 8-ch digital
+  PDM microphones recording), high-performance audio, analog-to-digital
+  converter (ADC) with analog inputs supporting up to 2V RMS. The TLV320ADCX140
+  family supports line and  microphone Inputs, and offers a programmable
+  microphone bias or supply voltage generation.
+
+  Specifications can be found at:
+    https://www.ti.com/lit/ds/symlink/tlv320adc3140.pdf
+    https://www.ti.com/lit/ds/symlink/tlv320adc5140.pdf
+    https://www.ti.com/lit/ds/symlink/tlv320adc6140.pdf
+
+properties:
+  compatible:
+    enum:
+      - ti,tlv320adc3140
+      - ti,tlv320adc5140
+      - ti,tlv320adc6140
+
+  reg:
+    maxItems: 1
+    description: |
+      I2C addresss of the device can be one of these 0x4c, 0x4d, 0x4e or 0x4f
+
+  reset-gpios:
+    maxItems: 1
+    description: |
+      GPIO used for hardware reset.
+
+  areg-supply:
+    description: |
+      Regulator with AVDD at 3.3V.  If not defined then the internal regulator
+      is enabled.
+
+  ti,mic-bias-source:
+    description: |
+      Indicates the source for MIC Bias.
+      0 - Mic bias is set to VREF
+      1 - Mic bias is set to VREF × 1.096
+      6 - Mic bias is set to AVDD
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 6]
+
+  ti,vref-source:
+    description: |
+      Indicates the source for MIC Bias.
+      0 - Set VREF to 2.75V
+      1 - Set VREF to 2.5V
+      2 - Set VREF to 1.375V
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+
+  ti,pdm-edge-select:
+    description: |
+       Defines the PDMCLK sampling edge configuration for the PDM inputs.  This
+       array is defined as <PDMIN1 PDMIN2 PDMIN3 PDMIN4>.
+
+       0 - (default) Odd channel is latched on the negative edge and even
+       channel is latched on the the positive edge.
+       1 - Odd channel is latched on the positive edge and even channel is
+       latched on the the negative edge.
+
+       PDMIN1 - PDMCLK latching edge used for channel 1 and 2 data
+       PDMIN2 - PDMCLK latching edge used for channel 3 and 4 data
+       PDMIN3 - PDMCLK latching edge used for channel 5 and 6 data
+       PDMIN4 - PDMCLK latching edge used for channel 7 and 8 data
+
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    items:
+      maximum: 1
+    default: [0, 0, 0, 0]
+
+  ti,gpi-config:
+    description: |
+       Defines the configuration for the general purpose input pins (GPI).
+       The array is defined as <GPI1 GPI2 GPI3 GPI4>.
+
+       0 - (default) disabled
+       1 - GPIX is configured as a general-purpose input (GPI)
+       2 - GPIX is configured as a master clock input (MCLK)
+       3 - GPIX is configured as an ASI input for daisy-chain (SDIN)
+       4 - GPIX is configured as a PDM data input for channel 1 and channel
+            (PDMDIN1)
+       5 - GPIX is configured as a PDM data input for channel 3 and channel
+            (PDMDIN2)
+       6 - GPIX is configured as a PDM data input for channel 5 and channel
+            (PDMDIN3)
+       7 - GPIX is configured as a PDM data input for channel 7 and channel
+            (PDMDIN4)
+
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    items:
+      maximum: 7
+    default: [0, 0, 0, 0]
+
+  ti,asi-tx-drive:
+    type: boolean
+    description: |
+      When set the device will set the Tx ASI output to a Hi-Z state for unused
+      data cycles. Default is to drive the output low on unused ASI cycles.
+
+patternProperties:
+  '^ti,gpo-config-[1-4]$':
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+       Defines the configuration and output driver for the general purpose
+       output pins (GPO).  These values are pairs, the first value is for the
+       configuration type and the second value is for the output drive type.
+       The array is defined as <GPO_CFG GPO_DRV>
+
+       GPO output configuration can be one of the following:
+
+       0 - (default) disabled
+       1 - GPOX is configured as a general-purpose output (GPO)
+       2 - GPOX is configured as a device interrupt output (IRQ)
+       3 - GPOX is configured as a secondary ASI output (SDOUT2)
+       4 - GPOX is configured as a PDM clock output (PDMCLK)
+
+       GPO output drive configuration for the GPO pins can be one of the following:
+
+       0d - (default) Hi-Z output
+       1d - Drive active low and active high
+       2d - Drive active low and weak high
+       3d - Drive active low and Hi-Z
+       4d - Drive weak low and active high
+       5d - Drive Hi-Z and active high
+
+  ti,gpio-config:
+    description: |
+       Defines the configuration and output drive for the General Purpose
+       Input and Output pin (GPIO1). Its value is a pair, the first value is for
+       the configuration type and the second value is for the output drive
+       type. The array is defined as <GPIO1_CFG GPIO1_DRV>
+
+       configuration for the GPIO pin can be one of the following:
+       0 - disabled
+       1 - GPIO1 is configured as a general-purpose output (GPO)
+       2 - (default) GPIO1 is configured as a device interrupt output (IRQ)
+       3 - GPIO1 is configured as a secondary ASI output (SDOUT2)
+       4 - GPIO1 is configured as a PDM clock output (PDMCLK)
+       8 - GPIO1 is configured as an input to control when MICBIAS turns on or
+           off (MICBIAS_EN)
+       9 - GPIO1 is configured as a general-purpose input (GPI)
+       10 - GPIO1 is configured as a master clock input (MCLK)
+       11 - GPIO1 is configured as an ASI input for daisy-chain (SDIN)
+       12 - GPIO1 is configured as a PDM data input for channel 1 and channel 2
+            (PDMDIN1)
+       13 - GPIO1 is configured as a PDM data input for channel 3 and channel 4
+            (PDMDIN2)
+       14 - GPIO1 is configured as a PDM data input for channel 5 and channel 6
+            (PDMDIN3)
+       15 - GPIO1 is configured as a PDM data input for channel 7 and channel 8
+            (PDMDIN4)
+
+       output drive type for the GPIO pin can be one of the following:
+       0 - Hi-Z output
+       1 - Drive active low and active high
+       2 - (default) Drive active low and weak high
+       3 - Drive active low and Hi-Z
+       4 - Drive weak low and active high
+       5 - Drive Hi-Z and active high
+
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-array
+      - minItems: 2
+        maxItems: 2
+        items:
+          maximum: 15
+        default: [2, 2]
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      codec: codec@4c {
+        compatible = "ti,tlv320adc5140";
+        reg = <0x4c>;
+        ti,mic-bias-source = <6>;
+        ti,pdm-edge-select = <0 1 0 1>;
+        ti,gpi-config = <4 5 6 7>;
+        ti,gpio-config = <10 2>;
+        ti,gpo-config-1 = <0 0>;
+        ti,gpo-config-2 = <0 0>;
+        reset-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+      };
+    };

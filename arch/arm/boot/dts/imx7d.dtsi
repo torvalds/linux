@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Copyright 2015 Freescale Semiconductor, Inc.
+// Copyright 2016 Toradex AG
+
+#include "imx7s.dtsi"
+#include <dt-bindings/reset/imx7-reset.h>
+
+/ {
+	aliases {
+		usb0 = &usbotg1;
+		usb1 = &usbotg2;
+		usb2 = &usbh;
+	};
+
+	cpus {
+		cpu0: cpu@0 {
+			clock-frequency = <996000000>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+			nvmem-cells = <&fuse_grade>;
+			nvmem-cell-names = "speed_grade";
+		};
+
+		cpu1: cpu@1 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <1>;
+			clock-frequency = <996000000>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_sleep_wait>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupt-parent = <&intc>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	cpu0_opp_table: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-792000000 {
+			opp-hz = /bits/ 64 <792000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <150000>;
+			opp-supported-hw = <0xd>, <0x7>;
+			opp-suspend;
+		};
+
+		opp-996000000 {
+			opp-hz = /bits/ 64 <996000000>;
+			opp-microvolt = <1100000>;
+			clock-latency-ns = <150000>;
+			opp-supported-hw = <0xc>, <0x7>;
+			opp-suspend;
+		};
+
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1225000>;
+			clock-latency-ns = <150000>;
+			opp-supported-hw = <0x8>, <0x3>;
+			opp-suspend;
+		};
+	};
+
+	usbphynop2: usbphynop2 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX7D_USB_PHY2_CLK>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+	};
+
+	soc {
+		etm@3007d000 {
+			compatible = "arm,coresight-etm3x", "arm,primecell";
+			reg = <0x3007d000 0x1000>;
+
+			/*
+			 * System will hang if added nosmp in kernel command line
+			 * without arm,primecell-periphid because amba bus try to
+			 * read id and core1 power off at this time.
+			 */
+			arm,primecell-periphid = <0xbb956>;
+			cpu = <&cpu1>;
+			clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
+			clock-names = "apb_pclk";
+
+			out-ports {
+				port {
+					etm1_out_port: endpoint {
+						remote-endpoint = <&ca_funnel_in_port1>;
+					};
+				};
+			};
+		};
+
+		intc: interrupt-controller@31001000 {
+			compatible = "arm,cortex-a7-gic";
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			interrupt-parent = <&intc>;
+			reg = <0x31001000 0x1000>,
+			      <0x31002000 0x2000>,
+			      <0x31004000 0x2000>,
+			      <0x31006000 0x2000>;
+		};
+	};
+};
+
+&aips2 {
+	pcie_phy: pcie-phy@306d0000 {
+		  compatible = "fsl,imx7d-pcie-phy";
+		  reg = <0x306d0000 0x10000>;
+		  status = "disabled";
+	};
+};
+
+&aips3 {
+	usbotg2: usb@30b20000 {
+		compatible = "fsl,imx7d-usb", "fsl,imx27-usb";
+		reg = <0x30b20000 0x200>;
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clks IMX7D_USB_CTRL_CLK>;
+		fsl,usbphy = <&usbphynop2>;
+		fsl,usbmisc = <&usbmisc2 0>;
+		phy-clkgate-delay-us = <400>;
+		status = "disabled";
+	};
+
+	usbmisc2: usbmisc@30b20200 {
+		#index-cells = <1>;
+		compatible = "fsl,imx7d-usbmisc", "fsl,imx6q-usbmisc";
+		reg = <0x30b20200 0x200>;
+	};
+
+	fec2: ethernet@30bf0000 {
+		compatible = "fsl,imx7d-fec", "fsl,imx6sx-fec";
+		reg = <0x30bf0000 0x10000>;
+		interrupt-names = "int0", "int1", "int2", "pps";
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clks IMX7D_ENET2_IPG_ROOT_CLK>,
+			<&clks IMX7D_ENET_AXI_ROOT_CLK>,
+			<&clks IMX7D_ENET2_TIME_ROOT_CLK>,
+			<&clks IMX7D_PLL_ENET_MAIN_125M_CLK>,
+			<&clks IMX7D_ENET_PHY_REF_ROOT_CLK>;
+		clock-names = "ipg", "ahb", "ptp",
+			"enet_clk_ref", "enet_out";
+		fsl,num-tx-queues = <3>;
+		fsl,num-rx-queues = <3>;
+		fsl,stop-mode = <&gpr 0x10 4>;
+		status = "disabled";
+	};
+
+	pcie: pcie@33800000 {
+		compatible = "fsl,imx7d-pcie", "snps,dw-pcie";
+		reg = <0x33800000 0x4000>,
+		      <0x4ff00000 0x80000>;
+		reg-names = "dbi", "config";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		bus-range = <0x00 0xff>;
+		ranges = <0x81000000 0 0          0x4ff80000 0 0x00010000   /* downstream I/O */
+			  0x82000000 0 0x40000000 0x40000000 0 0x0ff00000>; /* non-prefetchable memory */
+		num-lanes = <1>;
+		num-viewport = <4>;
+		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		/*
+		 * Reference manual lists pci irqs incorrectly
+		 * Real hardware ordering is same as imx6: D+MSI, C, B, A
+		 */
+		interrupt-map = <0 0 0 1 &intc GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &intc GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &intc GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &intc GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clks IMX7D_PCIE_CTRL_ROOT_CLK>,
+			 <&clks IMX7D_PLL_ENET_MAIN_100M_CLK>,
+			 <&clks IMX7D_PCIE_PHY_ROOT_CLK>;
+		clock-names = "pcie", "pcie_bus", "pcie_phy";
+		assigned-clocks = <&clks IMX7D_PCIE_CTRL_ROOT_SRC>,
+				  <&clks IMX7D_PCIE_PHY_ROOT_SRC>;
+		assigned-clock-parents = <&clks IMX7D_PLL_ENET_MAIN_250M_CLK>,
+					 <&clks IMX7D_PLL_ENET_MAIN_100M_CLK>;
+
+		fsl,max-link-speed = <2>;
+		power-domains = <&pgc_pcie_phy>;
+		resets = <&src IMX7_RESET_PCIEPHY>,
+			 <&src IMX7_RESET_PCIE_CTRL_APPS_EN>,
+			 <&src IMX7_RESET_PCIE_CTRL_APPS_TURNOFF>;
+		reset-names = "pciephy", "apps", "turnoff";
+		fsl,imx7d-pcie-phy = <&pcie_phy>;
+		status = "disabled";
+	};
+};
+
+&ca_funnel_in_ports {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port@1 {
+		reg = <1>;
+		ca_funnel_in_port1: endpoint {
+			remote-endpoint = <&etm1_out_port>;
+		};
+	};
+};

@@ -1,0 +1,383 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# PMBus chip drivers configuration
+#
+
+menuconfig PMBUS
+	tristate "PMBus support"
+	depends on I2C
+	help
+	  Say yes here if you want to enable PMBus support.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pmbus_core.
+
+if PMBUS
+
+config SENSORS_PMBUS
+	tristate "Generic PMBus devices"
+	default y
+	help
+	  If you say yes here you get hardware monitoring support for generic
+	  PMBus devices, including but not limited to ADP4000, BMR310, BMR453,
+	  BMR454, BMR456, BMR457, BMR458, BMR480, BMR490, BMR491, BMR492,
+	  MAX20796, MDT040, NCP4200, NCP4208, PDT003, PDT006, PDT012,
+	  TPS40400, TPS544B20, TPS544B25, TPS544C20, TPS544C25, and UDT020.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pmbus.
+
+config SENSORS_ADM1266
+	tristate "Analog Devices ADM1266 Sequencer"
+	select CRC8
+	depends on GPIOLIB
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices ADM1266 Cascadable Super Sequencer.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called adm1266.
+
+config SENSORS_ADM1275
+	tristate "Analog Devices ADM1275 and compatibles"
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices ADM1075, ADM1272, ADM1275, ADM1276, ADM1278, ADM1293,
+	  and ADM1294 Hot-Swap Controller and Digital Power Monitors.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called adm1275.
+
+config SENSORS_BEL_PFE
+	tristate "Bel PFE Compatible Power Supplies"
+	help
+	  If you say yes here you get hardware monitoring support for BEL
+	  PFE1100 and PFE3000 Power Supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called bel-pfe.
+
+config SENSORS_BPA_RS600
+	tristate "BluTek BPA-RS600 Power Supplies"
+	help
+	  If you say yes here you get hardware monitoring support for BluTek
+	  BPA-RS600 Power Supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called bpa-rs600.
+
+config SENSORS_FSP_3Y
+	tristate "FSP/3Y-Power power supplies"
+	help
+	  If you say yes here you get hardware monitoring support for
+	  FSP/3Y-Power hot-swap power supplies.
+	  Supported models: YH-5151E, YM-2151E
+
+	  This driver can also be built as a module. If so, the module will
+	  be called fsp-3y.
+
+config SENSORS_IBM_CFFPS
+	tristate "IBM Common Form Factor Power Supply"
+	depends on LEDS_CLASS
+	help
+	  If you say yes here you get hardware monitoring support for the IBM
+	  Common Form Factor power supply.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ibm-cffps.
+
+config SENSORS_DPS920AB
+	tristate "Delta DPS920AB Power Supply"
+	help
+	  If you say yes here you get hardware monitoring support for Delta
+	  DPS920AB Power Supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called dps920ab.
+
+config SENSORS_INSPUR_IPSPS
+	tristate "INSPUR Power System Power Supply"
+	help
+	  If you say yes here you get hardware monitoring support for the INSPUR
+	  Power System power supply.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called inspur-ipsps.
+
+config SENSORS_IR35221
+	tristate "Infineon IR35221"
+	help
+	  If you say yes here you get hardware monitoring support for the
+	  Infineon IR35221 controller.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ir35221.
+
+config SENSORS_IR36021
+	tristate "Infineon IR36021"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  IR36021.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ir36021.
+
+config SENSORS_IR38064
+	tristate "Infineon IR38064"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  IR38064.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ir38064.
+
+config SENSORS_IRPS5401
+	tristate "Infineon IRPS5401"
+	help
+	  If you say yes here you get hardware monitoring support for the
+	  Infineon IRPS5401 controller.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called irps5401.
+
+config SENSORS_ISL68137
+	tristate "Renesas Digital Multiphase Voltage Regulators"
+	help
+	  If you say yes here you get hardware monitoring support for Renesas
+	  digital multiphase voltage regulators.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called isl68137.
+
+config SENSORS_LM25066
+	tristate "National Semiconductor LM25066 and compatibles"
+	help
+	  If you say yes here you get hardware monitoring support for National
+	  Semiconductor LM25056, LM25066, LM5064, and LM5066.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called lm25066.
+
+config SENSORS_LTC2978
+	tristate "Linear Technologies LTC2978 and compatibles"
+	help
+	  If you say yes here you get hardware monitoring support for Linear
+	  Technology LTC2972, LTC2974, LTC2975, LTC2977, LTC2978, LTC2979,
+	  LTC2980, and LTM2987.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2978.
+
+config SENSORS_LTC2978_REGULATOR
+	bool "Regulator support for LTC2978 and compatibles"
+	depends on SENSORS_LTC2978 && REGULATOR
+	help
+	  If you say yes here you get regulator support for Linear Technology
+	  LTC3880, LTC3883, LTC3884, LTC3886, LTC3887, LTC3889, LTC7880, 
+	  LTM4644, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680, LTM4686, 
+	  and LTM4700.
+
+config SENSORS_LTC3815
+	tristate "Linear Technologies LTC3815"
+	help
+	  If you say yes here you get hardware monitoring support for Linear
+	  Technology LTC3815.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc3815.
+
+config SENSORS_MAX15301
+	tristate "Maxim MAX15301"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX15301, as well as for Flex BMR461.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max15301.
+
+config SENSORS_MAX16064
+	tristate "Maxim MAX16064"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX16064.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max16064.
+
+config SENSORS_MAX16601
+	tristate "Maxim MAX16508, MAX16601"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX16508 and MAX16601.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max16601.
+
+config SENSORS_MAX20730
+	tristate "Maxim MAX20710, MAX20730, MAX20734, MAX20743"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX20710, MAX20730, MAX20734, and MAX20743.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max20730.
+
+config SENSORS_MAX20751
+	tristate "Maxim MAX20751"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX20751.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max20751.
+
+config SENSORS_MAX31785
+	tristate "Maxim MAX31785 and compatibles"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX31785.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max31785.
+
+config SENSORS_MAX34440
+	tristate "Maxim MAX34440 and compatibles"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX34440, MAX34441, MAX34446, MAX34451, MAX34460, and MAX34461.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max34440.
+
+config SENSORS_MAX8688
+	tristate "Maxim MAX8688"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX8688.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max8688.
+
+config SENSORS_MP2888
+	tristate "MPS MP2888"
+	help
+	  If you say yes here you get hardware monitoring support for MPS
+	  MP2888 Digital, Multi-Phase, Pulse-Width Modulation Controller.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called mp2888.
+
+config SENSORS_MP2975
+	tristate "MPS MP2975"
+	help
+	  If you say yes here you get hardware monitoring support for MPS
+	  MP2975 Dual Loop Digital Multi-Phase Controller.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called mp2975.
+
+config SENSORS_PIM4328
+	tristate "Flex PIM4328 and compatibles"
+	help
+	  If you say yes here you get hardware monitoring support for Flex
+	  PIM4328, PIM4820 and PIM4006 Power Interface Modules.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pim4328.
+
+config SENSORS_PM6764TR
+	tristate "ST PM6764TR"
+	help
+	  If you say yes here you get hardware monitoring support for ST
+	  PM6764TR.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pm6764tr.
+
+config SENSORS_PXE1610
+	tristate "Infineon PXE1610"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  PXE1610.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pxe1610.
+
+config SENSORS_Q54SJ108A2
+	tristate "Delta Power Supplies Q54SJ108A2"
+	help
+	  If you say yes here you get hardware monitoring support for Delta
+	  Q54SJ108A2 series Power Supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called q54sj108a2.
+
+config SENSORS_STPDDC60
+	tristate "ST STPDDC60"
+	help
+	  If you say yes here you get hardware monitoring support for ST
+	  STPDDC60 Universal Digital Multicell Controller, as well as for
+	  Flex BMR481.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called stpddc60.
+
+config SENSORS_TPS40422
+	tristate "TI TPS40422"
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  TPS40422.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tps40422.
+
+config SENSORS_TPS53679
+	tristate "TI TPS53647, TPS53667, TPS53676, TPS53679, TPS53681, TPS53688"
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  TPS53647, TPS53667, TPS53676, TPS53679, TPS53681, and TPS53688.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tps53679.
+
+config SENSORS_UCD9000
+	tristate "TI UCD90120, UCD90124, UCD90160, UCD90320, UCD9090, UCD90910"
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  UCD90120, UCD90124, UCD90160, UCD90320, UCD9090, UCD90910, Sequencer
+	  and System Health Controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ucd9000.
+
+config SENSORS_UCD9200
+	tristate "TI UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, UCD9248"
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, and UCD9248
+	  Digital PWM System Controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ucd9200.
+
+config SENSORS_XDPE122
+	tristate "Infineon XDPE122 family"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  XDPE12254, XDPE12284, device.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called xdpe12284.
+
+config SENSORS_ZL6100
+	tristate "Intersil ZL6100 and compatibles"
+	help
+	  If you say yes here you get hardware monitoring support for Intersil
+	  ZL2004, ZL2005, ZL2006, ZL2008, ZL2105, ZL2106, ZL6100, ZL6105,
+	  ZL9101M, and ZL9117M Digital DC/DC Controllers, as well as for
+	  Ericsson BMR450, BMR451, BMR462, BMR463, and BMR464.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called zl6100.
+
+endif # PMBUS

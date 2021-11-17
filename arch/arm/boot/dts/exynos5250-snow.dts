@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google Snow board device tree source
+ *
+ * Copyright (c) 2012 Google, Inc
+ */
+
+/dts-v1/;
+#include "exynos5250-snow-common.dtsi"
+
+/ {
+	model = "Google Snow";
+	compatible = "google,snow-rev4", "google,snow", "samsung,exynos5250",
+		"samsung,exynos5";
+
+	sound {
+		compatible = "google,snow-audio-max98095";
+
+		samsung,model = "Snow-I2S-MAX98095";
+		samsung,audio-codec = <&max98095>;
+
+		cpu {
+			sound-dai = <&i2s0 0>;
+		};
+
+		codec {
+			sound-dai = <&max98095 0>, <&hdmi>;
+		};
+	};
+};
+
+&i2c_7 {
+	max98095: audio-codec@11 {
+		compatible = "maxim,max98095";
+		reg = <0x11>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max98095_en>;
+		clocks = <&pmu_system_controller 0>;
+		clock-names = "mclk";
+		#sound-dai-cells = <1>;
+	};
+};
+
+&pinctrl_0 {
+	max98095_en: max98095-en {
+		samsung,pins = "gpx1-7";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+};

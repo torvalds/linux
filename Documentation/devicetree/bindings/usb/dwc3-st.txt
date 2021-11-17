@@ -1,0 +1,66 @@
+ST DWC3 glue logic
+
+This file documents the parameters for the dwc3-st driver.
+This driver controls the glue logic used to configure the dwc3 core on
+STiH407 based platforms.
+
+Required properties:
+ - compatible	: must be "st,stih407-dwc3"
+ - reg		: glue logic base address and USB syscfg ctrl register offset
+ - reg-names	: should be "reg-glue" and "syscfg-reg"
+ - st,syscon	: should be phandle to system configuration node which
+		  encompasses the glue registers
+ - resets	: list of phandle and reset specifier pairs. There should be two entries, one
+		  for the powerdown and softreset lines of the usb3 IP
+ - reset-names	: list of reset signal names. Names should be "powerdown" and "softreset"
+See: Documentation/devicetree/bindings/reset/st,sti-powerdown.txt
+See: Documentation/devicetree/bindings/reset/reset.txt
+
+ - #address-cells, #size-cells : should be '1' if the device has sub-nodes
+   with 'reg' property
+
+ - pinctl-names	: A pinctrl state named "default" must be defined
+See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+ - pinctrl-0	: Pin control group
+See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+ - ranges	: allows valid 1:1 translation between child's address space and
+		  parent's address space
+
+Sub-nodes:
+The dwc3 core should be added as subnode to ST DWC3 glue as shown in the
+example below. The DT binding details of dwc3 can be found in:
+Documentation/devicetree/bindings/usb/snps,dwc3.yaml
+
+NB: The dr_mode property described in [1] is NOT optional for this driver, as the default value
+is "otg", which isn't supported by this SoC. Valid dr_mode values for dwc3-st are either "host"
+or "device".
+
+[1] Documentation/devicetree/bindings/usb/usb-drd.yaml
+
+Example:
+
+st_dwc3: dwc3@8f94000 {
+	compatible	= "st,stih407-dwc3";
+	reg		= <0x08f94000 0x1000>, <0x110 0x4>;
+	reg-names	= "reg-glue", "syscfg-reg";
+	st,syscfg	= <&syscfg_core>;
+	resets		= <&powerdown STIH407_USB3_POWERDOWN>,
+			  <&softreset STIH407_MIPHY2_SOFTRESET>;
+	reset-names	= "powerdown", "softreset";
+	#address-cells	= <1>;
+	#size-cells	= <1>;
+	pinctrl-names	= "default";
+	pinctrl-0	= <&pinctrl_usb3>;
+	ranges;
+
+	dwc3: dwc3@9900000 {
+		compatible	= "snps,dwc3";
+		reg		= <0x09900000 0x100000>;
+		interrupts	= <GIC_SPI 155 IRQ_TYPE_NONE>;
+		dr_mode		= "host";
+		phy-names	= "usb2-phy", "usb3-phy";
+		phys		= <&usb2_picophy2>, <&phy_port2 PHY_TYPE_USB3>;
+	};
+};

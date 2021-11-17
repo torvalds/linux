@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "qcom-apq8084.dtsi"
+#include "qcom-pma8084.dtsi"
+
+/ {
+	model = "Qualcomm APQ8084/IFC6540";
+	compatible = "qcom,apq8084-sbc", "qcom,apq8084";
+
+	aliases {
+		serial0 = &blsp2_uart2;
+		usid0 = &pma8084_0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	soc {
+		serial@f995e000 {
+			status = "okay";
+		};
+
+		sdhci@f9824900 {
+			bus-width = <8>;
+			non-removable;
+			status = "okay";
+		};
+
+		sdhci@f98a4900 {
+			cd-gpios = <&tlmm 122 GPIO_ACTIVE_LOW>;
+			bus-width = <4>;
+		};
+	};
+};

@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: GPL-2.0
+config M68K
+	bool
+	default y
+	select ARCH_32BIT_OFF_T
+	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_DMA_PREP_COHERENT if HAS_DMA && MMU && !COLDFIRE
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if HAS_DMA
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG if RMW_INSNS
+	select ARCH_MIGHT_HAVE_PC_PARPORT if ISA
+	select ARCH_NO_PREEMPT if !COLDFIRE
+	select ARCH_WANT_IPC_PARSE_VERSION
+	select BINFMT_FLAT_ARGVP_ENVP_ON_STACK
+	select DMA_DIRECT_REMAP if HAS_DMA && MMU && !COLDFIRE
+	select GENERIC_ATOMIC64
+	select GENERIC_CPU_DEVICES
+	select GENERIC_IOMAP
+	select GENERIC_IRQ_SHOW
+	select HAVE_AOUT if MMU
+	select HAVE_ASM_MODVERSIONS
+	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS if !CPU_HAS_NO_UNALIGNED
+	select HAVE_FUTEX_CMPXCHG if MMU && FUTEX
+	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_UID16
+	select MMU_GATHER_NO_RANGE if MMU
+	select MODULES_USE_ELF_REL
+	select MODULES_USE_ELF_RELA
+	select NO_DMA if !MMU && !COLDFIRE
+	select OLD_SIGACTION
+	select OLD_SIGSUSPEND3
+	select UACCESS_MEMCPY if !MMU
+	select VIRT_TO_BUS
+	select ZONE_DMA
+
+config CPU_BIG_ENDIAN
+	def_bool y
+
+config ARCH_HAS_ILOG2_U32
+	bool
+
+config ARCH_HAS_ILOG2_U64
+	bool
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config GENERIC_CSUM
+	bool
+
+config TIME_LOW_RES
+	bool
+	default y
+
+config NO_IOPORT_MAP
+	def_bool y
+
+config HZ
+	int
+	default 1000 if CLEOPATRA
+	default 100
+
+config PGTABLE_LEVELS
+	default 2 if SUN3 || COLDFIRE
+	default 3
+
+config MMU
+	bool "MMU-based Paged Memory Management Support"
+	default y
+	help
+	  Select if you want MMU-based virtualised addressing space
+	  support by paged memory management. If unsure, say 'Y'.
+
+config MMU_MOTOROLA
+	bool
+
+config MMU_COLDFIRE
+	bool
+
+config MMU_SUN3
+	bool
+	depends on MMU && !MMU_MOTOROLA && !MMU_COLDFIRE
+
+config KEXEC
+	bool "kexec system call"
+	depends on M68KCLASSIC
+	select KEXEC_CORE
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is independent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similarity to the exec system call.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  is properly shutdown, so do not be surprised if this code does not
+	  initially work for you.  As of this writing the exact hardware
+	  interface is strongly in flux, so no good recommendation can be
+	  made.
+
+config BOOTINFO_PROC
+	bool "Export bootinfo in procfs"
+	depends on KEXEC && M68KCLASSIC
+	help
+	  Say Y to export the bootinfo used to boot the kernel in a
+	  "bootinfo" file in procfs.  This is useful with kexec.
+
+menu "Platform setup"
+
+source "arch/m68k/Kconfig.cpu"
+
+source "arch/m68k/Kconfig.machine"
+
+source "arch/m68k/Kconfig.bus"
+
+endmenu
+
+menu "Kernel Features"
+
+endmenu
+
+if !MMU
+menu "Power management options"
+
+config PM
+	bool "Power Management support"
+	help
+	  Support processor power management modes
+
+endmenu
+endif
+
+source "arch/m68k/Kconfig.devices"

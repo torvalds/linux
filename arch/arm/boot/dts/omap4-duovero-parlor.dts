@@ -1,0 +1,194 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2014 Florian Vaussard, EPFL Mobots group
+ */
+/dts-v1/;
+
+#include "omap4-duovero.dtsi"
+
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "OMAP4430 Gumstix Duovero on Parlor";
+	compatible = "gumstix,omap4-duovero-parlor", "gumstix,omap4-duovero", "ti,omap4430", "ti,omap4";
+
+	aliases {
+		display0 = &hdmi0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led0 {
+			label = "duovero:blue:led0";
+			gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;	/* gpio_122 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button0 {
+			label = "button0";
+			linux,code = <BTN_0>;
+			gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;	/* gpio_121 */
+			/* Value above 7.95ms for no GPIO hardware debounce */
+			debounce-interval = <10>;
+			wakeup-source;
+		};
+	};
+
+	hdmi0: connector {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "d";
+
+		hpd-gpios = <&gpio2 31 GPIO_ACTIVE_HIGH>;	/* gpio_63 */
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_out>;
+			};
+		};
+	};
+};
+
+&omap4_pmx_core {
+	pinctrl-0 = <
+			&led_pins
+			&button_pins
+			&smsc_pins
+	>;
+
+	led_pins: pinmux_led_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x116, PIN_OUTPUT | MUX_MODE3)		/* abe_dmic_din3.gpio_122 */
+		>;
+	};
+
+	button_pins: pinmux_button_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x114, PIN_INPUT_PULLUP | MUX_MODE3)	/* abe_dmic_din2.gpio_121 */
+		>;
+	};
+
+	i2c2_pins: pinmux_i2c2_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x126, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c2_scl */
+			OMAP4_IOPAD(0x128, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c2_sda */
+		>;
+	};
+
+	i2c3_pins: pinmux_i2c3_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x12a, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_scl */
+			OMAP4_IOPAD(0x12c, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_sda */
+		>;
+	};
+
+	smsc_pins: pinmux_smsc_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x068, PIN_INPUT | MUX_MODE3)		/* gpmc_a20.gpio_44: IRQ */
+			OMAP4_IOPAD(0x06a, PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_a21.gpio_45: nReset */
+			OMAP4_IOPAD(0x070, PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_a24.gpio_48: amdix enabled */
+		>;
+	};
+
+	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x098, PIN_INPUT | MUX_MODE3)		/* hdmi_hpd.gpio_63 */
+			OMAP4_IOPAD(0x09a, PIN_INPUT | MUX_MODE0)		/* hdmi_cec.hdmi_cec */
+			OMAP4_IOPAD(0x09c, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_ddc_scl.hdmi_ddc_scl */
+			OMAP4_IOPAD(0x09e, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_ddc_sda.hdmi_ddc_sda */
+		>;
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+
+	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+
+	clock-frequency = <100000>;
+
+	/* optional 1K EEPROM with revision information */
+	eeprom@51 {
+		compatible = "atmel,24c01";
+		reg = <0x51>;
+		pagesize = <8>;
+	};
+};
+
+&mmc3 {
+	status = "disabled";
+};
+
+#include "omap-gpmc-smsc911x.dtsi"
+
+&gpmc {
+	ranges = <5 0 0x2c000000 0x1000000>;			/* CS5 */
+
+	ethernet@gpmc {
+		reg = <5 0 0xff>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;		/* gpio_44 */
+
+		phy-mode = "mii";
+
+		gpmc,cs-on-ns = <10>;
+		gpmc,cs-rd-off-ns = <50>;
+		gpmc,cs-wr-off-ns = <50>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <10>;
+		gpmc,adv-wr-off-ns = <10>;
+		gpmc,oe-on-ns = <15>;
+		gpmc,oe-off-ns = <50>;
+		gpmc,we-on-ns = <15>;
+		gpmc,we-off-ns = <50>;
+		gpmc,rd-cycle-ns = <50>;
+		gpmc,wr-cycle-ns = <50>;
+		gpmc,access-ns = <50>;
+		gpmc,page-burst-access-ns = <0>;
+		gpmc,bus-turnaround-ns = <35>;
+		gpmc,cycle2cycle-delay-ns = <35>;
+		gpmc,wr-data-mux-bus-ns = <35>;
+		gpmc,wr-access-ns = <50>;
+
+		gpmc,mux-add-data = <2>;
+		gpmc,sync-read;
+		gpmc,sync-write;
+		gpmc,clk-activation-ns = <5>;
+		gpmc,sync-clk-ps = <20000>;
+	};
+};
+
+&dss {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+	vdda-supply = <&vdac>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_hdmi_pins>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&hdmi_connector_in>;
+		};
+	};
+};
+
+&uart3 {
+	interrupts-extended = <&wakeupgen GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART3_RX>;
+};

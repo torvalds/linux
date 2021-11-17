@@ -1,0 +1,231 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for VInCo platform
+ *
+ *  Copyright (C) 2014 Atmel,
+ *                2014 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *   2015 Gregory CLEMENT <gregory.clement@free-electrons.com>
+ */
+/dts-v1/;
+#include "sama5d4.dtsi"
+
+/ {
+	model = "L+G VInCo platform";
+	compatible = "l+g,vinco", "atmel,sama5d4", "atmel,sama5";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@20000000 {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		apb {
+
+			adc0: adc@fc034000 {
+				status = "okay"; /* Enable ADC IIO support */
+			};
+
+			mmc0: mmc@f8000000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0
+					     &pinctrl_mmc0_dat1_3
+					     &pinctrl_mmc0_dat4_7>;
+				vqmmc-supply = <&vcc_3v3_reg>;
+				vmmc-supply = <&vcc_3v3_reg>;
+				no-1-8-v;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <8>;
+					non-removable;
+					broken-cd;
+					status = "okay";
+				};
+			};
+
+			spi0: spi@f8010000 {
+				cs-gpios = <&pioC 3 0>, <0>, <0>, <0>;
+				status = "okay";
+				m25p80@0 {
+					compatible = "n25q32b", "jedec,spi-nor";
+					spi-max-frequency = <50000000>;
+					reg = <0>;
+				};
+			};
+
+			i2c0: i2c@f8014000 {
+				status = "okay";
+			};
+
+			i2c1: i2c@f8018000 {
+				status = "okay";
+				/* kerkey security module */
+			};
+
+			macb0: ethernet@f8020000 {
+				phy-mode = "rmii";
+				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+					reset-gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
+					interrupt-parent = <&pioB>;
+					interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
+				};
+
+			};
+
+			i2c2: i2c@f8024000 {
+				status = "okay";
+
+				rtc1: rtc@32 {
+					compatible = "epson,rx8900";
+					reg = <0x32>;
+				};
+			};
+
+			usart2: serial@fc008000 {
+				/* MBUS */
+				status = "okay";
+			};
+
+			usart3: serial@fc00c000 {
+				/* debug */
+				status = "okay";
+			};
+
+			usart4: serial@fc010000 {
+				/* LMN */
+				pinctrl-0 = <&pinctrl_usart4 &pinctrl_usart4_rts>;
+				linux,rs485-enabled-at-boot-time;
+				status = "okay";
+			};
+
+			tcb2: timer@fc024000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
+			macb1: ethernet@fc028000 {
+				phy-mode = "rmii";
+				status = "okay";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+					interrupt-parent = <&pioB>;
+					interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
+					reset-gpios = <&pioE 6 GPIO_ACTIVE_LOW>;
+				};
+			};
+
+			watchdog@fc068640 {
+				status = "okay";
+			};
+
+			pinctrl@fc06a000 {
+				board {
+					pinctrl_usba_vbus: usba_vbus {
+						atmel,pins =
+						<AT91_PIOE 31 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;
+					};
+				};
+			};
+		};
+
+		usb0: gadget@400000 {
+			atmel,vbus-gpio = <&pioE 31 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usba_vbus>;
+			status = "disable";
+		};
+
+		usb1: ohci@500000 {
+			num-ports = <3>;
+			atmel,vbus-gpio = <0
+					   &pioE 11 GPIO_ACTIVE_LOW
+					   &pioE 12 GPIO_ACTIVE_LOW
+					  >;
+			status = "disable";
+		};
+
+		usb2: ehci@600000 {
+			/* 4G Modem */
+			status = "okay";
+		};
+
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		led_err {
+			label = "err";
+			gpios = <&pioA 7 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led_rssi {
+			label = "rssi";
+			gpios = <&pioA 9 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led_tls {
+			label = "tls";
+			gpios = <&pioA 24 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led_lmc {
+			label = "lmc";
+			gpios = <&pioA 25 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led_wmt {
+			label = "wmt";
+			gpios = <&pioA 29 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led_pwr {
+			label = "pwr";
+			gpios = <&pioA 26 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+
+	};
+
+	vcc_3v3_reg: fixedregulator_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC 3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};

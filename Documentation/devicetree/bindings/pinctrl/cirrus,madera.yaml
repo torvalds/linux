@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/cirrus,madera.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cirrus Logic Madera class audio CODECs pinctrl driver
+
+maintainers:
+  - patches@opensource.cirrus.com
+
+description: |
+  The Cirrus Logic Madera codecs provide a number of GPIO functions for
+  interfacing to external hardware and to provide logic outputs to other devices.
+  Certain groups of GPIO pins also have an alternate function, normally as an
+  audio interface.
+
+  The set of available GPIOs, functions and alternate function groups differs
+  between CODECs so refer to the datasheet for the CODEC for further information
+  on what is supported on that device.
+
+  The properties for this driver exist within the parent MFD driver node.
+
+  See also the core bindings for the parent MFD driver:
+
+    Documentation/devicetree/bindings/mfd/cirrus,madera.yaml
+
+  And the generic pinmix bindings:
+
+    Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+properties:
+  pinctrl-0:
+    description:
+      A phandle to the node containing the subnodes containing default
+      configurations.
+
+  pinctrl-names:
+    description:
+      A pinctrl state named "default" must be defined.
+    const: default
+
+  pin-settings:
+    description:
+      One subnode is required to contain the default settings. It
+      contains an arbitrary number of configuration subnodes, one for
+      each group or pin configuration you want to apply as a default.
+    type: object
+    patternProperties:
+      '-pins$':
+        type: object
+        allOf:
+          - $ref: "pincfg-node.yaml#"
+          - $ref: "pinmux-node.yaml#"
+        properties:
+          groups:
+            description:
+              Name of one pin group to configure.
+            enum: [ aif1, aif2, aif3, aif4, mif1, mif2, mif3, pdmspk1,
+                    pdmspk2, dmic4, dmic5, dmic6, gpio1, gpio2, gpio3,
+                    gpio4, gpio5, gpio6, gpio7, gpio7, gpio8, gpio9,
+                    gpio10, gpio11, gpio12, gpio13, gpio14, gpio15,
+                    gpio16, gpio17, gpio17, gpio18, gpio19, gpio20,
+                    gpio21, gpio22, gpio23, gpio24, gpio25, gpio26,
+                    gpio27, gpio27, gpio28, gpio29, gpio30, gpio31,
+                    gpio32, gpio33, gpio34, gpio35, gpio36, gpio37,
+                    gpio37, gpio38, gpio39 ]
+
+          function:
+            description:
+              Name of function to assign to this group.
+            enum: [ aif1, aif2, aif3, aif4, mif1, mif2, mif3,
+                    pdmspk1, pdmspk2, dmic3, dmic4, dmic5,
+                    dmic6, io, dsp-gpio, irq1, irq2, fll1-clk,
+                    fll1-lock, fll2-clk, fll2-lock, fll3-clk,
+                    fll3-lock, fllao-clk, fllao-lock, opclk,
+                    opclk-async, pwm1, pwm2, spdif, asrc1-in1-lock,
+                    asrc1-in2-lock, asrc2-in1-lock, asrc2-in2-lock,
+                    spkl-short-circuit, spkr-short-circuit,
+                    spk-shutdown, spk-overheat-shutdown,
+                    spk-overheat-warn, timer1-sts, timer2-sts,
+                    timer3-sts, timer4-sts, timer5-sts, timer6-sts,
+                    timer7-sts, timer8-sts, log1-fifo-ne,
+                    log2-fifo-ne, log3-fifo-ne, log4-fifo-ne,
+                    log5-fifo-ne, log6-fifo-ne, log7-fifo-ne,
+                    log8-fifo-ne ]
+
+          bias-disable: true
+
+          bias-bus-hold: true
+
+          bias-pull-up: true
+
+          bias-pull-down: true
+
+          drive-push-pull: true
+
+          drive-open-drain: true
+
+          drive-strength:
+            enum: [ 4, 8 ]
+
+          input-schmitt-enable: true
+
+          input-schmitt-disable: true
+
+          input-debounce: true
+
+          output-low: true
+
+          output-high: true
+
+        additionalProperties: false
+
+        required:
+          - groups
+
+    additionalProperties: false
+
+required:
+  - pinctrl-0
+  - pinctrl-names
+
+additionalProperties: true

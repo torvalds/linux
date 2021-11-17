@@ -1,0 +1,7 @@
+cat <<EOF
+static __always_inline void
+arch_${atomic}_set_release(${atomic}_t *v, ${int} i)
+{
+	smp_store_release(&(v)->counter, i);
+}
+EOF

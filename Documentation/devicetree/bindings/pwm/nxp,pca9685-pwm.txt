@@ -1,0 +1,27 @@
+NXP PCA9685 16-channel 12-bit PWM LED controller
+================================================
+
+Required properties:
+  - compatible: "nxp,pca9685-pwm"
+  - #pwm-cells: Should be 2. See pwm.yaml in this directory for a description of
+    the cells format.
+    The index 16 is the ALLCALL channel, that sets all PWM channels at the same
+    time.
+
+Optional properties:
+  - invert (bool): boolean to enable inverted logic
+  - open-drain (bool): boolean to configure outputs with open-drain structure;
+		       if omitted use totem-pole structure
+
+Example:
+
+For LEDs that are directly connected to the PCA, the following setting is
+applicable:
+
+pca: pca@41 {
+	compatible = "nxp,pca9685-pwm";
+	#pwm-cells = <2>;
+	reg = <0x41>;
+	invert;
+	open-drain;
+};

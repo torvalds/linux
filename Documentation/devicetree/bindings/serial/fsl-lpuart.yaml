@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/fsl-lpuart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale low power universal asynchronous receiver/transmitter (lpuart)
+
+maintainers:
+  - Fugang Duan <fugang.duan@nxp.com>
+
+allOf:
+  - $ref: "rs485.yaml"
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,vf610-lpuart
+          - fsl,ls1021a-lpuart
+          - fsl,ls1028a-lpuart
+          - fsl,imx7ulp-lpuart
+          - fsl,imx8qm-lpuart
+      - items:
+          - const: fsl,imx8qxp-lpuart
+          - const: fsl,imx7ulp-lpuart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: ipg clock
+      - description: baud clock
+    minItems: 1
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: baud
+    minItems: 1
+
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+  rs485-rts-active-low: true
+  linux,rs485-enabled-at-boot-time: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/vf610-clock.h>
+
+    serial@40027000 {
+        compatible = "fsl,vf610-lpuart";
+        reg = <0x40027000 0x1000>;
+        interrupts = <0 61 0x00>;
+        clocks = <&clks VF610_CLK_UART0>;
+        clock-names = "ipg";
+        dmas = <&edma0 0 2>, <&edma0 0 3>;
+        dma-names = "rx","tx";
+    };

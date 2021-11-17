@@ -1,0 +1,28 @@
+* Andestech L2 cache Controller
+
+The level-2 cache controller plays an important role in reducing memory latency
+for high performance systems, such as thoese designs with AndesCore processors.
+Level-2 cache controller in general enhances overall system performance
+signigicantly and the system power consumption might be reduced as well by
+reducing DRAM accesses.
+
+This binding specifies what properties must be available in the device tree
+representation of an Andestech L2 cache controller.
+
+Required properties:
+	- compatible:
+		Usage: required
+		Value type: <string>
+		Definition: "andestech,atl2c"
+	- reg : Physical base address and size of cache controller's memory mapped
+	- cache-unified : Specifies the cache is a unified cache.
+	- cache-level : Should be set to 2 for a level 2 cache.
+
+* Example
+
+	cache-controller@e0500000 {
+		compatible = "andestech,atl2c";
+		reg = <0xe0500000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+	};

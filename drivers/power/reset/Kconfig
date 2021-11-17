@@ -1,0 +1,300 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig POWER_RESET
+	bool "Board level reset or power off"
+	help
+	  Provides a number of drivers which either reset a complete board
+	  or shut it down, by manipulating the main power supply on the board.
+
+	  Say Y here to enable board reset and power off
+
+if POWER_RESET
+
+config POWER_RESET_AS3722
+	bool "ams AS3722 power-off driver"
+	depends on MFD_AS3722
+	help
+	  This driver supports turning off board via a ams AS3722 power-off.
+
+config POWER_RESET_AT91_POWEROFF
+	tristate "Atmel AT91 poweroff driver"
+	depends on ARCH_AT91
+	default SOC_AT91SAM9 || SOC_SAMA5
+	help
+	  This driver supports poweroff for Atmel AT91SAM9 and SAMA5
+	  SoCs
+
+config POWER_RESET_AT91_RESET
+	tristate "Atmel AT91 reset driver"
+	depends on ARCH_AT91
+	default SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAMA5
+	help
+	  This driver supports restart for Atmel AT91SAM9 and SAMA5
+	  SoCs
+
+config POWER_RESET_AT91_SAMA5D2_SHDWC
+	tristate "Atmel AT91 SAMA5D2-Compatible shutdown controller driver"
+	depends on ARCH_AT91
+	default SOC_SAM9X60 || SOC_SAMA5
+	help
+	  This driver supports the alternate shutdown controller for some Atmel
+	  SAMA5 SoCs. It is present for example on SAMA5D2 SoC.
+
+config POWER_RESET_ATC260X
+	tristate "Actions Semi ATC260x PMIC power-off driver"
+	depends on MFD_ATC260X
+	help
+	  This driver provides power-off and restart support for a system
+	  through Actions Semi ATC260x series PMICs.
+
+config POWER_RESET_AXXIA
+	bool "LSI Axxia reset driver"
+	depends on ARCH_AXXIA
+	help
+	  This driver supports restart for Axxia SoC.
+
+	  Say Y if you have an Axxia family SoC.
+
+config POWER_RESET_BRCMKONA
+	bool "Broadcom Kona reset driver"
+	depends on ARM || COMPILE_TEST
+	default ARCH_BCM_MOBILE
+	help
+	  This driver provides restart support for Broadcom Kona chips.
+
+	  Say Y here if you have a Broadcom Kona-based board and you wish
+	  to have restart support.
+
+config POWER_RESET_BRCMSTB
+	bool "Broadcom STB reset driver"
+	depends on ARM || ARM64 || MIPS || COMPILE_TEST
+	depends on MFD_SYSCON
+	default ARCH_BRCMSTB || BMIPS_GENERIC
+	help
+	  This driver provides restart support for Broadcom STB boards.
+
+	  Say Y here if you have a Broadcom STB board and you wish
+	  to have restart support.
+
+config POWER_RESET_GEMINI_POWEROFF
+	bool "Cortina Gemini power-off driver"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	default ARCH_GEMINI
+	help
+	  This driver supports turning off the Cortina Gemini SoC.
+	  Select this if you're building a kernel with Gemini SoC support.
+
+config POWER_RESET_GPIO
+	bool "GPIO power-off driver"
+	depends on OF_GPIO
+	help
+	  This driver supports turning off your board via a GPIO line.
+	  If your board needs a GPIO high/low to power down, say Y and
+	  create a binding in your devicetree.
+
+config POWER_RESET_GPIO_RESTART
+	bool "GPIO restart driver"
+	depends on OF_GPIO
+	help
+	  This driver supports restarting your board via a GPIO line.
+	  If your board needs a GPIO high/low to restart, say Y and
+	  create a binding in your devicetree.
+
+config POWER_RESET_HISI
+	bool "Hisilicon power-off driver"
+	depends on ARCH_HISI
+	help
+	  Reboot support for Hisilicon boards.
+
+config POWER_RESET_LINKSTATION
+	tristate "Buffalo LinkStation power-off driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF_MDIO && PHYLIB
+	help
+	  This driver supports turning off some Buffalo LinkStations by
+	  setting an output pin at the ethernet PHY to the correct state.
+	  It also makes the device compatible with the WoL function.
+
+	  Say Y here if you have a Buffalo LinkStation LS421D/E.
+
+config POWER_RESET_MSM
+	bool "Qualcomm MSM power-off driver"
+	depends on ARCH_QCOM
+	help
+	  Power off and restart support for Qualcomm boards.
+
+config POWER_RESET_QCOM_PON
+	tristate "Qualcomm power-on driver"
+	depends on ARCH_QCOM
+	depends on MFD_SPMI_PMIC
+	select REBOOT_MODE
+	help
+	  Power On support for Qualcomm boards.
+	  If you have a Qualcomm platform and need support for
+	  power-on and reboot reason, Say Y.
+	  If unsure, Say N.
+
+config POWER_RESET_OCELOT_RESET
+	bool "Microsemi Ocelot reset driver"
+	depends on MSCC_OCELOT || ARCH_SPARX5 || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  This driver supports restart for Microsemi Ocelot SoC and similar.
+
+config POWER_RESET_OXNAS
+	bool "OXNAS SoC restart driver"
+	depends on ARCH_OXNAS
+	default MACH_OX820
+	help
+	  Restart support for OXNAS/PLXTECH OX820 SoC.
+
+config POWER_RESET_PIIX4_POWEROFF
+	tristate "Intel PIIX4 power-off driver"
+	depends on PCI
+	depends on MIPS || COMPILE_TEST
+	help
+	  This driver supports powering off a system using the Intel PIIX4
+	  southbridge, for example the MIPS Malta development board. The
+	  southbridge SOff state is entered in response to a request to
+	  power off the system.
+
+config POWER_RESET_LTC2952
+	bool "LTC2952 PowerPath power-off driver"
+	depends on OF_GPIO
+	help
+	  This driver supports an external powerdown trigger and board power
+	  down via the LTC2952. Bindings are made in the device tree.
+
+config POWER_RESET_MT6323
+	bool "MediaTek MT6323 power-off driver"
+	depends on MFD_MT6397
+	help
+	  The power-off driver is responsible for externally shutdown down
+	  the power of a remote MediaTek SoC MT6323 is connected to through
+	  controlling a tiny circuit BBPU inside MT6323 RTC.
+
+	  Say Y if you have a board where MT6323 could be found.
+
+config POWER_RESET_QNAP
+	bool "QNAP power-off driver"
+	depends on OF_GPIO && PLAT_ORION
+	help
+	  This driver supports turning off QNAP NAS devices by sending
+	  commands to the microcontroller which controls the main power.
+
+	  Say Y if you have a QNAP NAS.
+
+config POWER_RESET_REGULATOR
+	bool "Regulator subsystem power-off driver"
+	depends on OF && REGULATOR
+	help
+	  This driver supports turning off your board by disabling a
+	  power regulator defined in the devicetree.
+
+config POWER_RESET_RESTART
+	bool "Restart power-off driver"
+	help
+	  Some boards don't actually have the ability to power off.
+	  Instead they restart, and u-boot holds the SoC until the
+	  user presses a key. u-boot then boots into Linux.
+
+config POWER_RESET_ST
+	bool "ST restart driver"
+	depends on ARCH_STI
+	help
+	  Reset support for STMicroelectronics boards.
+
+config POWER_RESET_TPS65086
+	bool "TPS65086 restart driver"
+	depends on MFD_TPS65086
+	help
+	  This driver adds support for resetting the TPS65086 PMIC on restart.
+
+config POWER_RESET_VERSATILE
+	bool "ARM Versatile family reboot driver"
+	depends on ARM
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Power off and restart support for ARM Versatile family of
+	  reference boards.
+
+config POWER_RESET_VEXPRESS
+	bool "ARM Versatile Express power-off and reset driver"
+	depends on ARM || ARM64
+	depends on VEXPRESS_CONFIG=y
+	help
+	  Power off and reset support for the ARM Ltd. Versatile
+	  Express boards.
+
+config POWER_RESET_XGENE
+	bool "APM SoC X-Gene reset driver"
+	depends on ARM64
+	help
+	  Reboot support for the APM SoC X-Gene Eval boards.
+
+config POWER_RESET_KEYSTONE
+	bool "Keystone reset driver"
+	depends on ARCH_KEYSTONE || COMPILE_TEST
+	depends on HAS_IOMEM
+	select MFD_SYSCON
+	help
+	  Reboot support for the KEYSTONE SoCs.
+
+config POWER_RESET_SYSCON
+	bool "Generic SYSCON regmap reset driver"
+	depends on OF
+	depends on HAS_IOMEM
+	select MFD_SYSCON
+	help
+	  Reboot support for generic SYSCON mapped register reset.
+
+config POWER_RESET_SYSCON_POWEROFF
+	bool "Generic SYSCON regmap poweroff driver"
+	depends on OF
+	depends on HAS_IOMEM
+	select MFD_SYSCON
+	help
+	  Poweroff support for generic SYSCON mapped register poweroff.
+
+config POWER_RESET_RMOBILE
+	tristate "Renesas R-Mobile reset driver"
+	depends on ARCH_RMOBILE || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Reboot support for Renesas R-Mobile and SH-Mobile SoCs.
+
+config REBOOT_MODE
+	tristate
+
+config SYSCON_REBOOT_MODE
+	tristate "Generic SYSCON regmap reboot mode driver"
+	depends on OF
+	depends on MFD_SYSCON
+	select REBOOT_MODE
+	help
+	  Say y here will enable reboot mode driver. This will
+	  get reboot mode arguments and store it in SYSCON mapped
+	  register, then the bootloader can read it to take different
+	  action according to the mode.
+
+config POWER_RESET_SC27XX
+	tristate "Spreadtrum SC27xx PMIC power-off driver"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	  This driver supports powering off a system through
+	  Spreadtrum SC27xx series PMICs. The SC27xx series
+	  PMICs includes the SC2720, SC2721, SC2723, SC2730
+	  and SC2731 chips.
+
+config NVMEM_REBOOT_MODE
+	tristate "Generic NVMEM reboot mode driver"
+	depends on OF
+	select REBOOT_MODE
+	help
+	  Say y here will enable reboot mode driver. This will
+	  get reboot mode arguments and store it in a NVMEM cell,
+	  then the bootloader can read it and take different
+	  action according to the mode.
+
+endif

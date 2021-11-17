@@ -1,0 +1,276 @@
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
+
+#include "imx1-pinfunc.h"
+
+#include <dt-bindings/clock/imx1-clock.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 */
+	chosen {};
+
+	aliases {
+		gpio0 = &gpio1;
+		gpio1 = &gpio2;
+		gpio2 = &gpio3;
+		gpio3 = &gpio4;
+		i2c0 = &i2c;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		spi0 = &cspi1;
+		spi1 = &cspi2;
+	};
+
+	aitc: aitc-interrupt-controller@223000 {
+		compatible = "fsl,imx1-aitc", "fsl,avic";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x00223000 0x1000>;
+	};
+
+	cpus {
+		#size-cells = <0>;
+		#address-cells = <1>;
+
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0>;
+			compatible = "arm,arm920t";
+			operating-points = <200000 1900000>;
+			clock-latency = <62500>;
+			clocks = <&clks IMX1_CLK_MCU>;
+			voltage-tolerance = <5>;
+		};
+	};
+
+	clocks {
+		clk32 {
+			compatible = "fsl,imx-clk32", "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32000>;
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&aitc>;
+		ranges;
+
+		aipi@200000 {
+			compatible = "fsl,aipi-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x00200000 0x10000>;
+			ranges;
+
+			gpt1: timer@202000 {
+				compatible = "fsl,imx1-gpt";
+				reg = <0x00202000 0x1000>;
+				interrupts = <59>;
+				clocks = <&clks IMX1_CLK_HCLK>,
+					 <&clks IMX1_CLK_PER1>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt2: timer@203000 {
+				compatible = "fsl,imx1-gpt";
+				reg = <0x00203000 0x1000>;
+				interrupts = <58>;
+				clocks = <&clks IMX1_CLK_HCLK>,
+					 <&clks IMX1_CLK_PER1>;
+				clock-names = "ipg", "per";
+			};
+
+			fb: fb@205000 {
+				compatible = "fsl,imx1-fb";
+				reg = <0x00205000 0x1000>;
+				interrupts = <14>;
+				clocks = <&clks IMX1_CLK_DUMMY>,
+					 <&clks IMX1_CLK_DUMMY>,
+					 <&clks IMX1_CLK_PER2>;
+				clock-names = "ipg", "ahb", "per";
+				status = "disabled";
+			};
+
+			uart1: serial@206000 {
+				compatible = "fsl,imx1-uart";
+				reg = <0x00206000 0x1000>;
+				interrupts = <30 29 26>;
+				clocks = <&clks IMX1_CLK_HCLK>,
+					 <&clks IMX1_CLK_PER1>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			uart2: serial@207000 {
+				compatible = "fsl,imx1-uart";
+				reg = <0x00207000 0x1000>;
+				interrupts = <24 23 20>;
+				clocks = <&clks IMX1_CLK_HCLK>,
+					 <&clks IMX1_CLK_PER1>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			pwm: pwm@208000 {
+				#pwm-cells = <3>;
+				compatible = "fsl,imx1-pwm";
+				reg = <0x00208000 0x1000>;
+				interrupts = <34>;
+				clocks = <&clks IMX1_CLK_DUMMY>,
+					 <&clks IMX1_CLK_PER1>;
+				clock-names = "ipg", "per";
+			};
+
+			dma: dma@209000 {
+				compatible = "fsl,imx1-dma";
+				reg = <0x00209000 0x1000>;
+				interrupts = <61 60>;
+				clocks = <&clks IMX1_CLK_HCLK>,
+					 <&clks IMX1_CLK_DMA_GATE>;
+				clock-names = "ipg", "ahb";
+				#dma-cells = <1>;
+			};
+
+			uart3: serial@20a000 {
+				compatible = "fsl,imx1-uart";
+				reg = <0x0020a000 0x1000>;
+				interrupts = <54 4 1>;
+				clocks = <&clks IMX1_CLK_UART3_GATE>,
+					 <&clks IMX1_CLK_PER1>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+		};
+
+		aipi@210000 {
+			compatible = "fsl,aipi-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x00210000 0x10000>;
+			ranges;
+
+			cspi1: spi@213000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx1-cspi";
+				reg = <0x00213000 0x1000>;
+				interrupts = <41>;
+				clocks = <&clks IMX1_CLK_DUMMY>,
+					 <&clks IMX1_CLK_PER1>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			i2c: i2c@217000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx1-i2c";
+				reg = <0x00217000 0x1000>;
+				interrupts = <39>;
+				clocks = <&clks IMX1_CLK_HCLK>;
+				status = "disabled";
+			};
+
+			cspi2: spi@219000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx1-cspi";
+				reg = <0x00219000 0x1000>;
+				interrupts = <40>;
+				clocks = <&clks IMX1_CLK_DUMMY>,
+					 <&clks IMX1_CLK_PER1>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			clks: ccm@21b000 {
+				compatible = "fsl,imx1-ccm";
+				reg = <0x0021b000 0x1000>;
+				#clock-cells = <1>;
+			};
+
+			iomuxc: iomuxc@21c000 {
+				compatible = "fsl,imx1-iomuxc";
+				reg = <0x0021c000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+
+				gpio1: gpio@21c000 {
+					compatible = "fsl,imx1-gpio";
+					reg = <0x0021c000 0x100>;
+					interrupts = <11>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio2: gpio@21c100 {
+					compatible = "fsl,imx1-gpio";
+					reg = <0x0021c100 0x100>;
+					interrupts = <12>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio3: gpio@21c200 {
+					compatible = "fsl,imx1-gpio";
+					reg = <0x0021c200 0x100>;
+					interrupts = <13>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio4: gpio@21c300 {
+					compatible = "fsl,imx1-gpio";
+					reg = <0x0021c300 0x100>;
+					interrupts = <62>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+			};
+		};
+
+		weim: weim@220000 {
+			#address-cells = <2>;
+			#size-cells = <1>;
+			compatible = "fsl,imx1-weim";
+			reg = <0x00220000 0x1000>;
+			clocks = <&clks IMX1_CLK_DUMMY>;
+			ranges = <
+				0 0 0x10000000 0x02000000
+				1 0 0x12000000 0x01000000
+				2 0 0x13000000 0x01000000
+				3 0 0x14000000 0x01000000
+				4 0 0x15000000 0x01000000
+				5 0 0x16000000 0x01000000
+			>;
+			status = "disabled";
+		};
+
+		esram: esram@300000 {
+			compatible = "mmio-sram";
+			reg = <0x00300000 0x20000>;
+		};
+	};
+};

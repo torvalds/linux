@@ -1,0 +1,327 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Gru-Kevin Rev 6+ board device tree source
+ *
+ * Copyright 2016-2017 Google, Inc
+ */
+
+/dts-v1/;
+#include "rk3399-gru-chromebook.dtsi"
+#include <dt-bindings/input/linux-event-codes.h>
+
+/*
+ * Kevin-specific things
+ *
+ * Things in this section should use names from Kevin schematic since no
+ * equivalent exists in Gru schematic.  If referring to signals that exist
+ * in Gru we use the Gru names, though.  Confusing enough for you?
+ */
+/ {
+	model = "Google Kevin";
+	compatible = "google,kevin-rev15", "google,kevin-rev14",
+		     "google,kevin-rev13", "google,kevin-rev12",
+		     "google,kevin-rev11", "google,kevin-rev10",
+		     "google,kevin-rev9", "google,kevin-rev8",
+		     "google,kevin-rev7", "google,kevin-rev6",
+		     "google,kevin", "google,gru", "rockchip,rk3399";
+
+	/* Power tree */
+
+	p3_3v_dig: p3-3v-dig {
+		compatible = "regulator-fixed";
+		regulator-name = "p3.3v_dig";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cpu3_pen_pwr_en>;
+
+		enable-active-high;
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&pp3300>;
+	};
+
+	edp_panel: edp-panel {
+		compatible = "sharp,lq123p1jx31";
+		backlight = <&backlight>;
+		power-supply = <&pp3300_disp>;
+
+		panel-timing {
+			clock-frequency = <266666667>;
+			hactive = <2400>;
+			hfront-porch = <48>;
+			hback-porch = <84>;
+			hsync-len = <32>;
+			hsync-active = <0>;
+			vactive = <1600>;
+			vfront-porch = <3>;
+			vback-porch = <120>;
+			vsync-len = <10>;
+			vsync-active = <0>;
+		};
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+
+	thermistor_ppvar_bigcpu: thermistor-ppvar-bigcpu {
+		compatible = "murata,ncp15wb473";
+		pullup-uv = <1800000>;
+		pullup-ohm = <25500>;
+		pulldown-ohm = <0>;
+		io-channels = <&saradc 2>;
+		#thermal-sensor-cells = <0>;
+	};
+
+	thermistor_ppvar_litcpu: thermistor-ppvar-litcpu {
+		compatible = "murata,ncp15wb473";
+		pullup-uv = <1800000>;
+		pullup-ohm = <25500>;
+		pulldown-ohm = <0>;
+		io-channels = <&saradc 3>;
+		#thermal-sensor-cells = <0>;
+	};
+};
+
+&backlight {
+	pwms = <&cros_ec_pwm 1>;
+};
+
+&gpio_keys {
+	pinctrl-names = "default";
+	pinctrl-0 = <&bt_host_wake_l>, <&cpu1_pen_eject>;
+
+	pen-insert {
+		label = "Pen Insert";
+		/* Insert = low, eject = high */
+		gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+		linux,code = <SW_PEN_INSERTED>;
+		linux,input-type = <EV_SW>;
+		wakeup-source;
+	};
+};
+
+&thermal_zones {
+	bigcpu_reg_thermal: bigcpu-reg-thermal {
+		polling-delay-passive = <100>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+		thermal-sensors = <&thermistor_ppvar_bigcpu 0>;
+		sustainable-power = <4000>;
+
+		ppvar_bigcpu_trips: trips {
+			ppvar_bigcpu_on: ppvar-bigcpu-on {
+				temperature = <40000>;	/* millicelsius */
+				hysteresis = <2000>;	/* millicelsius */
+				type = "passive";
+			};
+
+			ppvar_bigcpu_alert: ppvar-bigcpu-alert {
+				temperature = <50000>;	/* millicelsius */
+				hysteresis = <2000>;	/* millicelsius */
+				type = "passive";
+			};
+
+			ppvar_bigcpu_crit: ppvar-bigcpu-crit {
+				temperature = <90000>;	/* millicelsius */
+				hysteresis = <0>;	/* millicelsius */
+				type = "critical";
+			};
+		};
+
+		cooling-maps {
+			map0 {
+				trip = <&ppvar_bigcpu_alert>;
+				cooling-device =
+					<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				contribution = <4096>;
+			};
+			map1 {
+				trip = <&ppvar_bigcpu_alert>;
+				cooling-device =
+					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_b1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				contribution = <1024>;
+			};
+		};
+	};
+
+	litcpu_reg_thermal: litcpu-reg-thermal {
+		polling-delay-passive = <100>; /* milliseconds */
+		polling-delay = <1000>; /* milliseconds */
+		thermal-sensors = <&thermistor_ppvar_litcpu 0>;
+		sustainable-power = <4000>;
+
+		ppvar_litcpu_trips: trips {
+			ppvar_litcpu_on: ppvar-litcpu-on {
+				temperature = <40000>;	/* millicelsius */
+				hysteresis = <2000>;	/* millicelsius */
+				type = "passive";
+			};
+
+			ppvar_litcpu_alert: ppvar-litcpu-alert {
+				temperature = <50000>;	/* millicelsius */
+				hysteresis = <2000>;	/* millicelsius */
+				type = "passive";
+			};
+
+			ppvar_litcpu_crit: ppvar-litcpu-crit {
+				temperature = <90000>;	/* millicelsius */
+				hysteresis = <0>;	/* millicelsius */
+				type = "critical";
+			};
+		};
+	};
+};
+
+ap_i2c_tpm: &i2c0 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times. */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	tpm: tpm@20 {
+		compatible = "infineon,slb9645tt";
+		reg = <0x20>;
+		powered-while-suspended;
+	};
+};
+
+ap_i2c_dig: &i2c2 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times. */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	digitizer: digitizer@9 {
+		/* wacom,w9013 */
+		compatible = "hid-over-i2c";
+		reg = <0x9>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cpu1_dig_irq_l &cpu1_dig_pdct_l>;
+
+		vdd-supply = <&p3_3v_dig>;
+		post-power-on-delay-ms = <100>;
+
+		interrupt-parent = <&gpio2>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+
+		hid-descr-addr = <0x1>;
+	};
+};
+
+/* Adjustments to things in the gru baseboard */
+
+&ap_i2c_tp {
+	trackpad@4a {
+		compatible = "atmel,maxtouch";
+		reg = <0x4a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trackpad_int_l>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		linux,gpio-keymap = <KEY_RESERVED
+				     KEY_RESERVED
+				     KEY_RESERVED
+				     BTN_LEFT>;
+		wakeup-source;
+	};
+};
+
+&ap_i2c_ts {
+	touchscreen@4b {
+		compatible = "atmel,maxtouch";
+		reg = <0x4b>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_int_l>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&ppvar_bigcpu_pwm {
+	regulator-min-microvolt = <798674>;
+	regulator-max-microvolt = <1302172>;
+};
+
+&ppvar_bigcpu {
+	regulator-min-microvolt = <798674>;
+	regulator-max-microvolt = <1302172>;
+	ctrl-voltage-range = <798674 1302172>;
+};
+
+&ppvar_litcpu_pwm {
+	regulator-min-microvolt = <799065>;
+	regulator-max-microvolt = <1303738>;
+};
+
+&ppvar_litcpu {
+	regulator-min-microvolt = <799065>;
+	regulator-max-microvolt = <1303738>;
+	ctrl-voltage-range = <799065 1303738>;
+};
+
+&ppvar_gpu_pwm {
+	regulator-min-microvolt = <785782>;
+	regulator-max-microvolt = <1217729>;
+};
+
+&ppvar_gpu {
+	regulator-min-microvolt = <785782>;
+	regulator-max-microvolt = <1217729>;
+	ctrl-voltage-range = <785782 1217729>;
+};
+
+&ppvar_centerlogic_pwm {
+	regulator-min-microvolt = <800069>;
+	regulator-max-microvolt = <1049692>;
+};
+
+&ppvar_centerlogic {
+	regulator-min-microvolt = <800069>;
+	regulator-max-microvolt = <1049692>;
+	ctrl-voltage-range = <800069 1049692>;
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&pp1800_ap_io>;
+};
+
+&mvl_wifi {
+	marvell,wakeup-pin = <14>; /* GPIO_14 on Marvell */
+};
+
+&pinctrl {
+	digitizer {
+		/* Has external pullup */
+		cpu1_dig_irq_l: cpu1-dig-irq-l {
+			rockchip,pins = <2 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		/* Has external pullup */
+		cpu1_dig_pdct_l: cpu1-dig-pdct-l {
+			rockchip,pins = <2 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	discrete-regulators {
+		cpu3_pen_pwr_en: cpu3-pen-pwr-en {
+			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	pen {
+		cpu1_pen_eject: cpu1-pen-eject {
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};

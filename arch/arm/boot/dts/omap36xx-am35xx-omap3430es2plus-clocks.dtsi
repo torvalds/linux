@@ -1,0 +1,239 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree Source for OMAP36xx/AM35xx/OMAP34xx clock data
+ *
+ * Copyright (C) 2013 Texas Instruments, Inc.
+ */
+&prm_clocks {
+	corex2_d3_fck: corex2_d3_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&corex2_fck>;
+		clock-mult = <1>;
+		clock-div = <3>;
+	};
+
+	corex2_d5_fck: corex2_d5_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&corex2_fck>;
+		clock-mult = <1>;
+		clock-div = <5>;
+	};
+};
+&cm_clocks {
+	dpll5_ck: dpll5_ck@d04 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-dpll-clock";
+		clocks = <&sys_ck>, <&sys_ck>;
+		reg = <0x0d04>, <0x0d24>, <0x0d4c>, <0x0d34>;
+		ti,low-power-stop;
+		ti,lock;
+	};
+
+	dpll5_m2_ck: dpll5_m2_ck@d50 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll5_ck>;
+		ti,max-div = <31>;
+		reg = <0x0d50>;
+		ti,index-starts-at-one;
+	};
+
+	sgx_gate_fck: sgx_gate_fck@b00 {
+		#clock-cells = <0>;
+		compatible = "ti,composite-gate-clock";
+		clocks = <&core_ck>;
+		ti,bit-shift = <1>;
+		reg = <0x0b00>;
+	};
+
+	core_d3_ck: core_d3_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&core_ck>;
+		clock-mult = <1>;
+		clock-div = <3>;
+	};
+
+	core_d4_ck: core_d4_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&core_ck>;
+		clock-mult = <1>;
+		clock-div = <4>;
+	};
+
+	core_d6_ck: core_d6_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&core_ck>;
+		clock-mult = <1>;
+		clock-div = <6>;
+	};
+
+	omap_192m_alwon_fck: omap_192m_alwon_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&dpll4_m2x2_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	core_d2_ck: core_d2_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&core_ck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
+	sgx_mux_fck: sgx_mux_fck@b40 {
+		#clock-cells = <0>;
+		compatible = "ti,composite-mux-clock";
+		clocks = <&core_d3_ck>, <&core_d4_ck>, <&core_d6_ck>, <&cm_96m_fck>, <&omap_192m_alwon_fck>, <&core_d2_ck>, <&corex2_d3_fck>, <&corex2_d5_fck>;
+		reg = <0x0b40>;
+	};
+
+	sgx_fck: sgx_fck {
+		#clock-cells = <0>;
+		compatible = "ti,composite-clock";
+		clocks = <&sgx_gate_fck>, <&sgx_mux_fck>;
+	};
+
+	sgx_ick: sgx_ick@b10 {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&l3_ick>;
+		reg = <0x0b10>;
+		ti,bit-shift = <0>;
+	};
+
+	cpefuse_fck: cpefuse_fck@a08 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&sys_ck>;
+		reg = <0x0a08>;
+		ti,bit-shift = <0>;
+	};
+
+	ts_fck: ts_fck@a08 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&omap_32k_fck>;
+		reg = <0x0a08>;
+		ti,bit-shift = <1>;
+	};
+
+	usbtll_fck: usbtll_fck@a08 {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&dpll5_m2_ck>;
+		reg = <0x0a08>;
+		ti,bit-shift = <2>;
+	};
+
+	usbtll_ick: usbtll_ick@a18 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-interface-clock";
+		clocks = <&core_l4_ick>;
+		reg = <0x0a18>;
+		ti,bit-shift = <2>;
+	};
+
+	mmchs3_ick: mmchs3_ick@a10 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-interface-clock";
+		clocks = <&core_l4_ick>;
+		reg = <0x0a10>;
+		ti,bit-shift = <30>;
+	};
+
+	mmchs3_fck: mmchs3_fck@a00 {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&core_96m_fck>;
+		reg = <0x0a00>;
+		ti,bit-shift = <30>;
+	};
+
+	dss1_alwon_fck: dss1_alwon_fck_3430es2@e00 {
+		#clock-cells = <0>;
+		compatible = "ti,dss-gate-clock";
+		clocks = <&dpll4_m4x2_ck>;
+		ti,bit-shift = <0>;
+		reg = <0x0e00>;
+		ti,set-rate-parent;
+	};
+
+	dss_ick: dss_ick_3430es2@e10 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-dss-interface-clock";
+		clocks = <&l4_ick>;
+		reg = <0x0e10>;
+		ti,bit-shift = <0>;
+	};
+
+	usbhost_120m_fck: usbhost_120m_fck@1400 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll5_m2_ck>;
+		reg = <0x1400>;
+		ti,bit-shift = <1>;
+	};
+
+	usbhost_48m_fck: usbhost_48m_fck@1400 {
+		#clock-cells = <0>;
+		compatible = "ti,dss-gate-clock";
+		clocks = <&omap_48m_fck>;
+		reg = <0x1400>;
+		ti,bit-shift = <0>;
+	};
+
+	usbhost_ick: usbhost_ick@1410 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-dss-interface-clock";
+		clocks = <&l4_ick>;
+		reg = <0x1410>;
+		ti,bit-shift = <0>;
+	};
+};
+
+&cm_clockdomains {
+	dpll5_clkdm: dpll5_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&dpll5_ck>;
+	};
+
+	sgx_clkdm: sgx_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&sgx_ick>;
+	};
+
+	dss_clkdm: dss_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&dss_tv_fck>, <&dss_96m_fck>, <&dss2_alwon_fck>,
+			 <&dss1_alwon_fck>, <&dss_ick>;
+	};
+
+	core_l4_clkdm: core_l4_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&mmchs2_fck>, <&mmchs1_fck>, <&i2c3_fck>, <&i2c2_fck>,
+			 <&i2c1_fck>, <&mcspi4_fck>, <&mcspi3_fck>,
+			 <&mcspi2_fck>, <&mcspi1_fck>, <&uart2_fck>,
+			 <&uart1_fck>, <&hdq_fck>, <&mmchs2_ick>, <&mmchs1_ick>,
+			 <&hdq_ick>, <&mcspi4_ick>, <&mcspi3_ick>,
+			 <&mcspi2_ick>, <&mcspi1_ick>, <&i2c3_ick>, <&i2c2_ick>,
+			 <&i2c1_ick>, <&uart2_ick>, <&uart1_ick>, <&gpt11_ick>,
+			 <&gpt10_ick>, <&mcbsp5_ick>, <&mcbsp1_ick>,
+			 <&omapctrl_ick>, <&aes2_ick>, <&sha12_ick>,
+			 <&cpefuse_fck>, <&ts_fck>, <&usbtll_fck>,
+			 <&usbtll_ick>, <&mmchs3_ick>, <&mmchs3_fck>;
+	};
+
+	usbhost_clkdm: usbhost_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&usbhost_120m_fck>, <&usbhost_48m_fck>,
+			 <&usbhost_ick>;
+	};
+};

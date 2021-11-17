@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
+
+#
+# DMA engine configuration for dw
+#
+
+config DW_DMAC_CORE
+	tristate
+	select DMA_ENGINE
+
+config DW_DMAC
+	tristate "Synopsys DesignWare AHB DMA platform driver"
+	depends on HAS_IOMEM
+	select DW_DMAC_CORE
+	help
+	  Support the Synopsys DesignWare AHB DMA controller. This
+	  can be integrated in chips such as the Intel Cherrytrail.
+
+config DW_DMAC_PCI
+	tristate "Synopsys DesignWare AHB DMA PCI driver"
+	depends on PCI
+	depends on HAS_IOMEM
+	select DW_DMAC_CORE
+	help
+	  Support the Synopsys DesignWare AHB DMA controller on the
+	  platforms that enumerate it as a PCI device. For example,
+	  Intel Medfield has integrated this GPDMA controller.

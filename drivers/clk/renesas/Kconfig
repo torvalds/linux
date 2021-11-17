@@ -1,0 +1,203 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config CLK_RENESAS
+	bool "Renesas SoC clock support" if COMPILE_TEST && !ARCH_RENESAS
+	default y if ARCH_RENESAS
+	select CLK_EMEV2 if ARCH_EMEV2
+	select CLK_RZA1 if ARCH_R7S72100
+	select CLK_R7S9210 if ARCH_R7S9210
+	select CLK_R8A73A4 if ARCH_R8A73A4
+	select CLK_R8A7740 if ARCH_R8A7740
+	select CLK_R8A7742 if ARCH_R8A7742
+	select CLK_R8A7743 if ARCH_R8A7743 || ARCH_R8A7744
+	select CLK_R8A7745 if ARCH_R8A7745
+	select CLK_R8A77470 if ARCH_R8A77470
+	select CLK_R8A774A1 if ARCH_R8A774A1
+	select CLK_R8A774B1 if ARCH_R8A774B1
+	select CLK_R8A774C0 if ARCH_R8A774C0
+	select CLK_R8A774E1 if ARCH_R8A774E1
+	select CLK_R8A7778 if ARCH_R8A7778
+	select CLK_R8A7779 if ARCH_R8A7779
+	select CLK_R8A7790 if ARCH_R8A7790
+	select CLK_R8A7791 if ARCH_R8A7791 || ARCH_R8A7793
+	select CLK_R8A7792 if ARCH_R8A7792
+	select CLK_R8A7794 if ARCH_R8A7794
+	select CLK_R8A7795 if ARCH_R8A77950 || ARCH_R8A77951
+	select CLK_R8A77960 if ARCH_R8A77960
+	select CLK_R8A77961 if ARCH_R8A77961
+	select CLK_R8A77965 if ARCH_R8A77965
+	select CLK_R8A77970 if ARCH_R8A77970
+	select CLK_R8A77980 if ARCH_R8A77980
+	select CLK_R8A77990 if ARCH_R8A77990
+	select CLK_R8A77995 if ARCH_R8A77995
+	select CLK_R8A779A0 if ARCH_R8A779A0
+	select CLK_R9A06G032 if ARCH_R9A06G032
+	select CLK_R9A07G044 if ARCH_R9A07G044
+	select CLK_SH73A0 if ARCH_SH73A0
+
+if CLK_RENESAS
+
+# SoC
+config CLK_EMEV2
+	bool "Emma Mobile EV2 clock support" if COMPILE_TEST
+
+config CLK_RZA1
+	bool "RZ/A1H clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSTP
+
+config CLK_R7S9210
+	bool "RZ/A2 clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSSR
+
+config CLK_R8A73A4
+	bool "R-Mobile APE6 clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSTP
+	select CLK_RENESAS_DIV6
+
+config CLK_R8A7740
+	bool "R-Mobile A1 clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSTP
+	select CLK_RENESAS_DIV6
+
+config CLK_R8A7742
+	bool "RZ/G1H clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7743
+	bool "RZ/G1M clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7745
+	bool "RZ/G1E clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A77470
+	bool "RZ/G1C clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A774A1
+	bool "RZ/G2M clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A774B1
+	bool "RZ/G2N clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A774C0
+	bool "RZ/G2E clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A774E1
+	bool "RZ/G2H clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A7778
+	bool "R-Car M1A clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSTP
+
+config CLK_R8A7779
+	bool "R-Car H1 clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSTP
+
+config CLK_R8A7790
+	bool "R-Car H2 clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7791
+	bool "R-Car M2-W/N clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7792
+	bool "R-Car V2H clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7794
+	bool "R-Car E2 clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7795
+	bool "R-Car H3 clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77960
+	bool "R-Car M3-W clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77961
+	bool "R-Car M3-W+ clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77965
+	bool "R-Car M3-N clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77970
+	bool "R-Car V3M clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77980
+	bool "R-Car V3H clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77990
+	bool "R-Car E3 clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77995
+	bool "R-Car D3 clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A779A0
+	bool "R-Car V3U clock support" if COMPILE_TEST
+	select CLK_RCAR_CPG_LIB
+	select CLK_RENESAS_CPG_MSSR
+
+config CLK_R9A06G032
+	bool "RZ/N1D clock support" if COMPILE_TEST
+
+config CLK_R9A07G044
+	bool "RZ/G2L clock support" if COMPILE_TEST
+	select CLK_RZG2L
+
+config CLK_SH73A0
+	bool "SH-Mobile AG5 clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSTP
+	select CLK_RENESAS_DIV6
+
+
+# Family
+config CLK_RCAR_CPG_LIB
+	bool "CPG/MSSR library functions" if COMPILE_TEST
+
+config CLK_RCAR_GEN2_CPG
+	bool "R-Car Gen2 CPG clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSSR
+
+config CLK_RCAR_GEN3_CPG
+	bool "R-Car Gen3 and RZ/G2 CPG clock support" if COMPILE_TEST
+	select CLK_RCAR_CPG_LIB
+	select CLK_RENESAS_CPG_MSSR
+
+config CLK_RCAR_USB2_CLOCK_SEL
+	bool "Renesas R-Car USB2 clock selector support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select RESET_CONTROLLER
+	help
+	  This is a driver for R-Car USB2 clock selector
+
+config CLK_RZG2L
+	bool "Renesas RZ/G2L family clock support" if COMPILE_TEST
+	select RESET_CONTROLLER
+
+# Generic
+config CLK_RENESAS_CPG_MSSR
+	bool "CPG/MSSR clock support" if COMPILE_TEST
+	select CLK_RENESAS_DIV6
+
+config CLK_RENESAS_CPG_MSTP
+	bool "MSTP clock support" if COMPILE_TEST
+
+config CLK_RENESAS_DIV6
+	bool "DIV6 clock support" if COMPILE_TEST
+
+endif # CLK_RENESAS

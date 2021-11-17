@@ -1,0 +1,50 @@
+Kernel driver adc128d818
+========================
+
+Supported chips:
+
+  * Texas Instruments ADC818D818
+
+    Prefix: 'adc818d818'
+
+    Addresses scanned: I2C 0x1d, 0x1e, 0x1f, 0x2d, 0x2e, 0x2f
+
+    Datasheet: Publicly available at the TI website https://www.ti.com/
+
+Author: Guenter Roeck
+
+Description
+-----------
+
+This driver implements support for the Texas Instruments ADC128D818.
+It is described as 'ADC System Monitor with Temperature Sensor'.
+
+The ADC128D818 implements one temperature sensor and seven voltage sensors.
+
+Temperatures are measured in degrees Celsius. There is one set of limits.
+When the HOT Temperature Limit is crossed, this will cause an alarm that will
+be reasserted until the temperature drops below the HOT Hysteresis.
+Measurements are guaranteed between -55 and +125 degrees. The temperature
+measurement has a resolution of 0.5 degrees; the limits have a resolution
+of 1 degree.
+
+Voltage sensors (also known as IN sensors) report their values in volts.
+An alarm is triggered if the voltage has crossed a programmable minimum
+or maximum limit. Note that minimum in this case always means 'closest to
+zero'; this is important for negative voltage measurements. All voltage
+inputs can measure voltages between 0 and 2.55 volts, with a resolution
+of 0.625 mV.
+
+If an alarm triggers, it will remain triggered until the hardware register
+is read at least once. This means that the cause for the alarm may
+already have disappeared by the time the alarm is read. The driver
+caches the alarm status for each sensor until it is at least reported
+once, to ensure that alarms are reported to user space.
+
+The ADC128D818 only updates its values approximately once per second;
+reading it more often will do no harm, but will return 'old' values.
+
+In addition to the scanned address list, the chip can also be configured for
+addresses 0x35 to 0x37. Those addresses are not scanned. You have to instantiate
+the driver explicitly if the chip is configured for any of those addresses in
+your system.

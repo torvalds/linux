@@ -1,0 +1,37 @@
+* STMicroelectronics SAS. ST21NFCA NFC Controller
+
+Required properties:
+- compatible: Should be "st,st21nfca-i2c".
+- clock-frequency: I²C work frequency.
+- reg: address on the bus
+- enable-gpios: Output GPIO pin used for enabling/disabling the ST21NFCA
+
+Optional SoC Specific Properties:
+- pinctrl-names: Contains only one value - "default".
+- pintctrl-0: Specifies the pin control groups used for this controller.
+- ese-present: Specifies that an ese is physically connected to the nfc
+controller.
+- uicc-present: Specifies that the uicc swp signal can be physically
+connected to the nfc controller.
+
+Example (for ARM-based BeagleBoard xM with ST21NFCA on I2C2):
+
+&i2c2 {
+
+
+	st21nfca: st21nfca@1 {
+
+		compatible = "st,st21nfca-i2c";
+
+		reg = <0x01>;
+		clock-frequency = <400000>;
+
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+
+		enable-gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
+
+		ese-present;
+		uicc-present;
+	};
+};

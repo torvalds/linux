@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig CXL_BUS
+	tristate "CXL (Compute Express Link) Devices Support"
+	depends on PCI
+	help
+	  CXL is a bus that is electrically compatible with PCI Express, but
+	  layers three protocols on that signalling (CXL.io, CXL.cache, and
+	  CXL.mem). The CXL.cache protocol allows devices to hold cachelines
+	  locally, the CXL.mem protocol allows devices to be fully coherent
+	  memory targets, the CXL.io protocol is equivalent to PCI Express.
+	  Say 'y' to enable support for the configuration and management of
+	  devices supporting these protocols.
+
+if CXL_BUS
+
+config CXL_MEM
+	tristate "CXL.mem: Memory Devices"
+	default CXL_BUS
+	help
+	  The CXL.mem protocol allows a device to act as a provider of
+	  "System RAM" and/or "Persistent Memory" that is fully coherent
+	  as if the memory was attached to the typical CPU memory
+	  controller.
+
+	  Say 'y/m' to enable a driver that will attach to CXL.mem devices for
+	  configuration and management primarily via the mailbox interface. See
+	  Chapter 2.3 Type 3 CXL Device in the CXL 2.0 specification for more
+	  details.
+
+	  If unsure say 'm'.
+
+config CXL_MEM_RAW_COMMANDS
+	bool "RAW Command Interface for Memory Devices"
+	depends on CXL_MEM
+	help
+	  Enable CXL RAW command interface.
+
+	  The CXL driver ioctl interface may assign a kernel ioctl command
+	  number for each specification defined opcode. At any given point in
+	  time the number of opcodes that the specification defines and a device
+	  may implement may exceed the kernel's set of associated ioctl function
+	  numbers. The mismatch is either by omission, specification is too new,
+	  or by design. When prototyping new hardware, or developing / debugging
+	  the driver it is useful to be able to submit any possible command to
+	  the hardware, even commands that may crash the kernel due to their
+	  potential impact to memory currently in use by the kernel.
+
+	  If developing CXL hardware or the driver say Y, otherwise say N.
+
+config CXL_ACPI
+	tristate "CXL ACPI: Platform Support"
+	depends on ACPI
+	default CXL_BUS
+	help
+	  Enable support for host managed device memory (HDM) resources
+	  published by a platform's ACPI CXL memory layout description.  See
+	  Chapter 9.14.1 CXL Early Discovery Table (CEDT) in the CXL 2.0
+	  specification, and CXL Fixed Memory Window Structures (CEDT.CFMWS)
+	  (https://www.computeexpresslink.org/spec-landing). The CXL core
+	  consumes these resource to publish the root of a cxl_port decode
+	  hierarchy to map regions that represent System RAM, or Persistent
+	  Memory regions to be managed by LIBNVDIMM.
+
+	  If unsure say 'm'.
+
+config CXL_PMEM
+	tristate "CXL PMEM: Persistent Memory Support"
+	depends on LIBNVDIMM
+	default CXL_BUS
+	help
+	  In addition to typical memory resources a platform may also advertise
+	  support for persistent memory attached via CXL. This support is
+	  managed via a bridge driver from CXL to the LIBNVDIMM system
+	  subsystem. Say 'y/m' to enable support for enumerating and
+	  provisioning the persistent memory capacity of CXL memory expanders.
+
+	  If unsure say 'm'.
+endif

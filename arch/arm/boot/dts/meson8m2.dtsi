@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>.
+ */
+
+#include "meson8.dtsi"
+
+/ {
+	model = "Amlogic Meson8m2 SoC";
+	compatible = "amlogic,meson8m2";
+}; /* end of / */
+
+&clkc {
+	compatible = "amlogic,meson8m2-clkc", "amlogic,meson8-clkc";
+};
+
+&dmcbus {
+	/* the offset of the canvas registers has changed compared to Meson8 */
+	/delete-node/ video-lut@20;
+
+	canvas: video-lut@48 {
+		compatible = "amlogic,meson8m2-canvas", "amlogic,canvas";
+		reg = <0x48 0x14>;
+	};
+};
+
+&ethmac {
+	compatible = "amlogic,meson8m2-dwmac", "snps,dwmac";
+	reg = <0xc9410000 0x10000
+		0xc1108140 0x8>;
+	clocks = <&clkc CLKID_ETH>,
+		 <&clkc CLKID_MPLL2>,
+		 <&clkc CLKID_MPLL2>,
+		 <&clkc CLKID_FCLK_DIV2>;
+	clock-names = "stmmaceth", "clkin0", "clkin1", "timing-adjustment";
+	resets = <&reset RESET_ETHERNET>;
+	reset-names = "stmmaceth";
+};
+
+&pinctrl_aobus {
+	compatible = "amlogic,meson8m2-aobus-pinctrl",
+		     "amlogic,meson8-aobus-pinctrl";
+};
+
+&pinctrl_cbus {
+	compatible = "amlogic,meson8m2-cbus-pinctrl",
+		     "amlogic,meson8-cbus-pinctrl";
+
+	eth_rgmii_pins: ethernet {
+		mux {
+			groups = "eth_tx_clk_50m", "eth_tx_en",
+				 "eth_txd3", "eth_txd2",
+				 "eth_txd1", "eth_txd0",
+				 "eth_rx_clk_in", "eth_rx_dv",
+				 "eth_rxd3", "eth_rxd2",
+				 "eth_rxd1", "eth_rxd0",
+				 "eth_mdio", "eth_mdc";
+			function = "ethernet";
+			bias-disable;
+		};
+	};
+};
+
+&pwrc {
+	compatible = "amlogic,meson8m2-pwrc";
+	resets = <&reset RESET_DBLK>,
+		 <&reset RESET_PIC_DC>,
+		 <&reset RESET_HDMI_APB>,
+		 <&reset RESET_HDMI_SYSTEM_RESET>,
+		 <&reset RESET_VENCI>,
+		 <&reset RESET_VENCP>,
+		 <&reset RESET_VDAC_4>,
+		 <&reset RESET_VENCL>,
+		 <&reset RESET_VIU>,
+		 <&reset RESET_VENC>,
+		 <&reset RESET_RDMA>;
+	reset-names = "dblk", "pic_dc", "hdmi_apb", "hdmi_system", "venci",
+		      "vencp", "vdac", "vencl", "viu", "venc", "rdma";
+	assigned-clocks = <&clkc CLKID_VPU>;
+	assigned-clock-rates = <364000000>;
+};
+
+&saradc {
+	compatible = "amlogic,meson8m2-saradc", "amlogic,meson-saradc";
+};
+
+&sdhc {
+	compatible = "amlogic,meson8m2-sdhc", "amlogic,meson-mx-sdhc";
+};
+
+&usb0_phy {
+	compatible = "amlogic,meson8m2-usb2-phy", "amlogic,meson-mx-usb2-phy";
+};
+
+&usb1_phy {
+	compatible = "amlogic,meson8m2-usb2-phy", "amlogic,meson-mx-usb2-phy";
+};
+
+&wdt {
+	compatible = "amlogic,meson8m2-wdt", "amlogic,meson8b-wdt";
+};

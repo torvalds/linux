@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# 3Com Ethernet device configuration
+#
+
+config NET_VENDOR_3COM
+	bool "3Com devices"
+	default y
+	depends on ISA || EISA || PCI || PCMCIA
+	help
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about 3Com cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_3COM
+
+config EL3
+	tristate "3c509/3c579 \"EtherLink III\" support"
+	depends on (ISA || EISA)
+	help
+	  If you have a network (Ethernet) card belonging to the 3Com
+	  EtherLinkIII series, say Y here.
+
+	  If your card is not working you may need to use the DOS
+	  setup disk to disable Plug & Play mode, and to select the default
+	  media type.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called 3c509.
+
+config 3C515
+	tristate "3c515 ISA \"Fast EtherLink\""
+	depends on ISA && ISA_DMA_API && !PPC32
+	select NETDEV_LEGACY_INIT
+	help
+	  If you have a 3Com ISA EtherLink XL "Corkscrew" 3c515 Fast Ethernet
+	  network card, say Y here.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called 3c515.
+
+config PCMCIA_3C574
+	tristate "3Com 3c574 PCMCIA support"
+	depends on PCMCIA
+	help
+	  Say Y here if you intend to attach a 3Com 3c574 or compatible PCMCIA
+	  (PC-card) Fast Ethernet card to your computer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called 3c574_cs.  If unsure, say N.
+
+config PCMCIA_3C589
+	tristate "3Com 3c589 PCMCIA support"
+	depends on PCMCIA
+	help
+	  Say Y here if you intend to attach a 3Com 3c589 or compatible PCMCIA
+	  (PC-card) Ethernet card to your computer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called 3c589_cs.  If unsure, say N.
+
+config VORTEX
+	tristate "3c590/3c900 series (592/595/597) \"Vortex/Boomerang\" support"
+	depends on (PCI || EISA) && HAS_IOPORT_MAP
+	select MII
+	help
+	  This option enables driver support for a large number of 10Mbps and
+	  10/100Mbps EISA, PCI and Cardbus 3Com network cards:
+
+	  "Vortex"    (Fast EtherLink 3c590/3c592/3c595/3c597) EISA and PCI
+	  "Boomerang" (EtherLink XL 3c900 or 3c905)            PCI
+	  "Cyclone"   (3c540/3c900/3c905/3c980/3c575/3c656)    PCI and Cardbus
+	  "Tornado"   (3c905)                                  PCI
+	  "Hurricane" (3c555/3cSOHO)                           PCI
+
+	  If you have such a card, say Y here.  More specific information is in
+	  <file:Documentation/networking/device_drivers/ethernet/3com/vortex.rst>
+	  and in the comments at the beginning of
+	  <file:drivers/net/ethernet/3com/3c59x.c>.
+
+	  To compile this support as a module, choose M here.
+
+config TYPHOON
+	tristate "3cr990 series \"Typhoon\" support"
+	depends on PCI
+	select CRC32
+	help
+	  This option enables driver support for the 3cr990 series of cards:
+
+	  3C990-TX, 3CR990-TX-95, 3CR990-TX-97, 3CR990-FX-95, 3CR990-FX-97,
+	  3CR990SVR, 3CR990SVR95, 3CR990SVR97, 3CR990-FX-95 Server,
+	  3CR990-FX-97 Server, 3C990B-TX-M, 3C990BSVR
+
+	  If you have a network (Ethernet) card of this type, say Y here.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called typhoon.
+
+endif # NET_VENDOR_3COM

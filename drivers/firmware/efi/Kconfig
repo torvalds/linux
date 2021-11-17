@@ -1,0 +1,286 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "EFI (Extensible Firmware Interface) Support"
+	depends on EFI
+
+config EFI_VARS
+	tristate "EFI Variable Support via sysfs"
+	depends on EFI && (X86 || IA64)
+	default n
+	help
+	  If you say Y here, you are able to get EFI (Extensible Firmware
+	  Interface) variable information via sysfs.  You may read,
+	  write, create, and destroy EFI variables through this interface.
+	  Note that this driver is only retained for compatibility with
+	  legacy users: new users should use the efivarfs filesystem
+	  instead.
+
+config EFI_ESRT
+	bool
+	depends on EFI && !IA64
+	default y
+
+config EFI_VARS_PSTORE
+	tristate "Register efivars backend for pstore"
+	depends on PSTORE
+	default y
+	help
+	  Say Y here to enable use efivars as a backend to pstore. This
+	  will allow writing console messages, crash dumps, or anything
+	  else supported by pstore to EFI variables.
+
+config EFI_VARS_PSTORE_DEFAULT_DISABLE
+	bool "Disable using efivars as a pstore backend by default"
+	depends on EFI_VARS_PSTORE
+	default n
+	help
+	  Saying Y here will disable the use of efivars as a storage
+	  backend for pstore by default. This setting can be overridden
+	  using the efivars module's pstore_disable parameter.
+
+config EFI_RUNTIME_MAP
+	bool "Export efi runtime maps to sysfs"
+	depends on X86 && EFI && KEXEC_CORE
+	default y
+	help
+	  Export efi runtime memory maps to /sys/firmware/efi/runtime-map.
+	  That memory map is used for example by kexec to set up efi virtual
+	  mapping the 2nd kernel, but can also be used for debugging purposes.
+
+	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
+
+config EFI_FAKE_MEMMAP
+	bool "Enable EFI fake memory map"
+	depends on EFI && X86
+	default n
+	help
+	  Saying Y here will enable "efi_fake_mem" boot option.
+	  By specifying this parameter, you can add arbitrary attribute
+	  to specific memory range by updating original (firmware provided)
+	  EFI memmap.
+	  This is useful for debugging of EFI memmap related feature.
+	  e.g. Address Range Mirroring feature.
+
+config EFI_MAX_FAKE_MEM
+	int "maximum allowable number of ranges in efi_fake_mem boot option"
+	depends on EFI_FAKE_MEMMAP
+	range 1 128
+	default 8
+	help
+	  Maximum allowable number of ranges in efi_fake_mem boot option.
+	  Ranges can be set up to this value using comma-separated list.
+	  The default value is 8.
+
+config EFI_SOFT_RESERVE
+	bool "Reserve EFI Specific Purpose Memory"
+	depends on EFI && EFI_STUB && ACPI_HMAT
+	default ACPI_HMAT
+	help
+	  On systems that have mixed performance classes of memory EFI
+	  may indicate specific purpose memory with an attribute (See
+	  EFI_MEMORY_SP in UEFI 2.8). A memory range tagged with this
+	  attribute may have unique performance characteristics compared
+	  to the system's general purpose "System RAM" pool. On the
+	  expectation that such memory has application specific usage,
+	  and its base EFI memory type is "conventional" answer Y to
+	  arrange for the kernel to reserve it as a "Soft Reserved"
+	  resource, and set aside for direct-access (device-dax) by
+	  default. The memory range can later be optionally assigned to
+	  the page allocator by system administrator policy via the
+	  device-dax kmem facility. Say N to have the kernel treat this
+	  memory as "System RAM" by default.
+
+	  If unsure, say Y.
+
+config EFI_PARAMS_FROM_FDT
+	bool
+	help
+	  Select this config option from the architecture Kconfig if
+	  the EFI runtime support gets system table address, memory
+          map address, and other parameters from the device tree.
+
+config EFI_RUNTIME_WRAPPERS
+	bool
+
+config EFI_GENERIC_STUB
+	bool
+
+config EFI_ARMSTUB_DTB_LOADER
+	bool "Enable the DTB loader"
+	depends on EFI_GENERIC_STUB && !RISCV
+	default y
+	help
+	  Select this config option to add support for the dtb= command
+	  line parameter, allowing a device tree blob to be loaded into
+	  memory from the EFI System Partition by the stub.
+
+	  If the device tree is provided by the platform or by
+	  the bootloader this option may not be needed.
+	  But, for various development reasons and to maintain existing
+	  functionality for bootloaders that do not have such support
+	  this option is necessary.
+
+config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
+	bool "Enable the command line initrd loader" if !X86
+	depends on EFI_STUB && (EFI_GENERIC_STUB || X86)
+	default y if X86
+	depends on !RISCV
+	help
+	  Select this config option to add support for the initrd= command
+	  line parameter, allowing an initrd that resides on the same volume
+	  as the kernel image to be loaded into memory.
+
+	  This method is deprecated.
+
+config EFI_BOOTLOADER_CONTROL
+	tristate "EFI Bootloader Control"
+	default n
+	help
+	  This module installs a reboot hook, such that if reboot() is
+	  invoked with a string argument NNN, "NNN" is copied to the
+	  "LoaderEntryOneShot" EFI variable, to be read by the
+	  bootloader. If the string matches one of the boot labels
+	  defined in its configuration, the bootloader will boot once
+	  to that label. The "LoaderEntryRebootReason" EFI variable is
+	  set with the reboot reason: "reboot" or "shutdown". The
+	  bootloader reads this reboot reason and takes particular
+	  action according to its policy.
+
+config EFI_CAPSULE_LOADER
+	tristate "EFI capsule loader"
+	depends on EFI && !IA64
+	help
+	  This option exposes a loader interface "/dev/efi_capsule_loader" for
+	  users to load EFI capsules. This driver requires working runtime
+	  capsule support in the firmware, which many OEMs do not provide.
+
+	  Most users should say N.
+
+config EFI_CAPSULE_QUIRK_QUARK_CSH
+	bool "Add support for Quark capsules with non-standard headers"
+	depends on X86 && !64BIT
+	select EFI_CAPSULE_LOADER
+	default y
+	help
+	  Add support for processing Quark X1000 EFI capsules, whose header
+	  layout deviates from the layout mandated by the UEFI specification.
+
+config EFI_TEST
+	tristate "EFI Runtime Service Tests Support"
+	depends on EFI
+	default n
+	help
+	  This driver uses the efi.<service> function pointers directly instead
+	  of going through the efivar API, because it is not trying to test the
+	  kernel subsystem, just for testing the UEFI runtime service
+	  interfaces which are provided by the firmware. This driver is used
+	  by the Firmware Test Suite (FWTS) for testing the UEFI runtime
+	  interfaces readiness of the firmware.
+	  Details for FWTS are available from:
+	  <https://wiki.ubuntu.com/FirmwareTestSuite>
+
+	  Say Y here to enable the runtime services support via /dev/efi_test.
+	  If unsure, say N.
+
+config APPLE_PROPERTIES
+	bool "Apple Device Properties"
+	depends on EFI_STUB && X86
+	select EFI_DEV_PATH_PARSER
+	select UCS2_STRING
+	help
+	  Retrieve properties from EFI on Apple Macs and assign them to
+	  devices, allowing for improved support of Apple hardware.
+	  Properties that would otherwise be missing include the
+	  Thunderbolt Device ROM and GPU configuration data.
+
+	  If unsure, say Y if you have a Mac.  Otherwise N.
+
+config RESET_ATTACK_MITIGATION
+	bool "Reset memory attack mitigation"
+	depends on EFI_STUB
+	help
+	  Request that the firmware clear the contents of RAM after a reboot
+	  using the TCG Platform Reset Attack Mitigation specification. This
+	  protects against an attacker forcibly rebooting the system while it
+	  still contains secrets in RAM, booting another OS and extracting the
+	  secrets. This should only be enabled when userland is configured to
+	  clear the MemoryOverwriteRequest flag on clean shutdown after secrets
+	  have been evicted, since otherwise it will trigger even on clean
+	  reboots.
+
+config EFI_RCI2_TABLE
+	bool "EFI Runtime Configuration Interface Table Version 2 Support"
+	depends on X86 || COMPILE_TEST
+	help
+	  Displays the content of the Runtime Configuration Interface
+	  Table version 2 on Dell EMC PowerEdge systems as a binary
+	  attribute 'rci2' under /sys/firmware/efi/tables directory.
+
+	  RCI2 table contains BIOS HII in XML format and is used to populate
+	  BIOS setup page in Dell EMC OpenManage Server Administrator tool.
+	  The BIOS setup page contains BIOS tokens which can be configured.
+
+	  Say Y here for Dell EMC PowerEdge systems.
+
+config EFI_DISABLE_PCI_DMA
+       bool "Clear Busmaster bit on PCI bridges during ExitBootServices()"
+       help
+	  Disable the busmaster bit in the control register on all PCI bridges
+	  while calling ExitBootServices() and passing control to the runtime
+	  kernel. System firmware may configure the IOMMU to prevent malicious
+	  PCI devices from being able to attack the OS via DMA. However, since
+	  firmware can't guarantee that the OS is IOMMU-aware, it will tear
+	  down IOMMU configuration when ExitBootServices() is called. This
+	  leaves a window between where a hostile device could still cause
+	  damage before Linux configures the IOMMU again.
+
+	  If you say Y here, the EFI stub will clear the busmaster bit on all
+	  PCI bridges before ExitBootServices() is called. This will prevent
+	  any malicious PCI devices from being able to perform DMA until the
+	  kernel reenables busmastering after configuring the IOMMU.
+
+	  This option will cause failures with some poorly behaved hardware
+	  and should not be enabled without testing. The kernel commandline
+	  options "efi=disable_early_pci_dma" or "efi=no_disable_early_pci_dma"
+	  may be used to override this option.
+
+endmenu
+
+config EFI_EMBEDDED_FIRMWARE
+	bool
+	depends on EFI
+	select CRYPTO_LIB_SHA256
+
+config UEFI_CPER
+	bool
+
+config UEFI_CPER_ARM
+	bool
+	depends on UEFI_CPER && ( ARM || ARM64 )
+	default y
+
+config UEFI_CPER_X86
+	bool
+	depends on UEFI_CPER && X86
+	default y
+
+config EFI_DEV_PATH_PARSER
+	bool
+	depends on ACPI
+	default n
+
+config EFI_EARLYCON
+	def_bool y
+	depends on EFI && SERIAL_EARLYCON && !ARM && !IA64
+	select FONT_SUPPORT
+	select ARCH_USE_MEMREMAP_PROT
+
+config EFI_CUSTOM_SSDT_OVERLAYS
+	bool "Load custom ACPI SSDT overlay from an EFI variable"
+	depends on EFI && ACPI
+	default ACPI_TABLE_UPGRADE
+	help
+	  Allow loading of an ACPI SSDT overlay from an EFI variable specified
+	  by a kernel command line option.
+
+	  See Documentation/admin-guide/acpi/ssdt-overlays.rst for more
+	  information.

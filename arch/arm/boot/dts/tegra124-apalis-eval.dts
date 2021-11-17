@@ -1,0 +1,255 @@
+// SPDX-License-Identifier: GPL-2.0 OR X11
+/*
+ * Copyright 2016-2019 Toradex AG
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include "tegra124-apalis.dtsi"
+
+/ {
+	model = "Toradex Apalis TK1 on Apalis Evaluation Board";
+	compatible = "toradex,apalis-tk1-eval", "toradex,apalis-tk1",
+		     "nvidia,tegra124";
+
+	aliases {
+		rtc0 = "/i2c@7000c000/rtc@68";
+		rtc1 = "/i2c@7000d000/pmic@40";
+		rtc2 = "/rtc@7000e000";
+		serial0 = &uarta;
+		serial1 = &uartb;
+		serial2 = &uartc;
+		serial3 = &uartd;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	pcie@1003000 {
+		pci@1,0 {
+			status = "okay";
+		};
+	};
+
+	host1x@50000000 {
+		hdmi@54280000 {
+			status = "okay";
+			hdmi-supply = <&reg_5v0>;
+		};
+	};
+
+	/* Apalis UART1 */
+	serial@70006000 {
+		status = "okay";
+	};
+
+	/* Apalis UART2 */
+	serial@70006040 {
+		status = "okay";
+	};
+
+	/* Apalis UART3 */
+	serial@70006200 {
+		status = "okay";
+	};
+
+	/* Apalis UART4 */
+	serial@70006300 {
+		status = "okay";
+	};
+
+	pwm@7000a000 {
+		status = "okay";
+	};
+
+	/*
+	 * GEN1_I2C: I2C1_SDA/SCL on MXM3 pin 209/211 (e.g. RTC on carrier
+	 * board)
+	 */
+	i2c@7000c000 {
+		status = "okay";
+		clock-frequency = <400000>;
+
+		pcie-switch@58 {
+			compatible = "plx,pex8605";
+			reg = <0x58>;
+		};
+
+		/* M41T0M6 real time clock on carrier board */
+		rtc@68 {
+			compatible = "st,m41t0";
+			reg = <0x68>;
+		};
+	};
+
+	/*
+	 * GEN2_I2C: I2C2_SDA/SCL (DDC) on MXM3 pin 205/207 (e.g. display EDID)
+	 */
+	i2c@7000c400 {
+		status = "okay";
+	};
+
+	/*
+	 * CAM_I2C: I2C3_SDA/SCL (CAM) on MXM3 pin 201/203 (e.g. camera sensor
+	 * on carrier board)
+	 */
+	i2c@7000c500 {
+		status = "okay";
+		clock-frequency = <400000>;
+	};
+
+	/* I2C4 (DDC): unused */
+
+	/* SPI1: Apalis SPI1 */
+	spi@7000d400 {
+		status = "okay";
+		spi-max-frequency = <50000000>;
+	};
+
+	/* SPI4: Apalis SPI2 */
+	spi@7000da00 {
+		status = "okay";
+		spi-max-frequency = <50000000>;
+	};
+
+	/* Apalis Serial ATA */
+	sata@70020000 {
+		status = "okay";
+		target-5v-supply = <&reg_5v0>;
+		target-12v-supply = <&reg_12v0>;
+	};
+
+	hda@70030000 {
+		status = "okay";
+	};
+
+	usb@70090000 {
+		status = "okay";
+	};
+
+	/* Apalis MMC1 */
+	mmc@700b0000 {
+		status = "okay";
+		bus-width = <4>;
+		/* MMC1_CD# */
+		cd-gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_LOW>;
+		vqmmc-supply = <&vddio_sdmmc1>;
+	};
+
+	/* Apalis SD1 */
+	mmc@700b0400 {
+		status = "okay";
+		bus-width = <4>;
+		/* SD1_CD# */
+		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+		vqmmc-supply = <&vddio_sdmmc3>;
+	};
+
+	/* EHCI instance 0: USB1_DP/N -> USBO1_DP/N */
+	usb@7d000000 {
+		status = "okay";
+		dr_mode = "otg";
+	};
+
+	usb-phy@7d000000 {
+		status = "okay";
+		vbus-supply = <&reg_usbo1_vbus>;
+	};
+
+	/* EHCI instance 1: USB2_DP/N -> USBH2_DP/N */
+	usb@7d004000 {
+		status = "okay";
+	};
+
+	usb-phy@7d004000 {
+		status = "okay";
+		vbus-supply = <&reg_usbh_vbus>;
+	};
+
+	/* EHCI instance 2: USB3_DP/N -> USBH4_DP/N */
+	usb@7d008000 {
+		status = "okay";
+	};
+
+	usb-phy@7d008000 {
+		status = "okay";
+		vbus-supply = <&reg_usbh_vbus>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		brightness-levels = <255 231 223 207 191 159 127 0>;
+		default-brightness-level = <6>;
+		/* BKL1_ON */
+		enable-gpios = <&gpio TEGRA_GPIO(BB, 5) GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_3v3>;
+		pwms = <&pwm 3 5000000>; /* BKL1_PWM */
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		wakeup {
+			label = "WAKE1_MICO";
+			gpios = <&gpio TEGRA_GPIO(DD, 3) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WAKEUP>;
+			debounce-interval = <10>;
+			wakeup-source;
+		};
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3.3V_SW";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_5v0: regulator-5v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "5V_SW";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	reg_12v0: regulator-12v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "12V_SW";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	/* USBO1_EN */
+	reg_usbo1_vbus: regulator-usbo1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_USBO1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio TEGRA_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&reg_5v0>;
+	};
+
+	/* USBH_EN */
+	reg_usbh_vbus: regulator-usbh-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_USBH(2A|2C|2D|3|4)";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio TEGRA_GPIO(N, 5) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&reg_5v0>;
+	};
+};
+
+&gpio {
+	/* Apalis GPIO7 MXM3 pin 15 PLX PEX 8605 PCIe Switch Reset */
+	pex-perst-n {
+		gpio-hog;
+		gpios = <TEGRA_GPIO(DD, 1) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "PEX_PERST_N";
+	};
+};

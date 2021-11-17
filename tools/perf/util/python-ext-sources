@@ -1,0 +1,41 @@
+#
+# List of files needed by perf python extension
+#
+# Each source file must be placed on its own line so that it can be
+# processed by Makefile and util/setup.py accordingly.
+#
+
+util/python.c
+../lib/ctype.c
+util/cap.c
+util/evlist.c
+util/evsel.c
+util/evsel_fprintf.c
+util/perf_event_attr_fprintf.c
+util/cpumap.c
+util/memswap.c
+util/mmap.c
+util/namespaces.c
+../lib/bitmap.c
+../lib/find_bit.c
+../lib/hweight.c
+../lib/string.c
+../lib/vsprintf.c
+util/thread_map.c
+util/util.c
+util/cgroup.c
+util/parse-branch-options.c
+util/rblist.c
+util/counts.c
+util/print_binary.c
+util/strlist.c
+util/trace-event.c
+../lib/rbtree.c
+util/string.c
+util/symbol_fprintf.c
+util/units.c
+util/affinity.c
+util/rwsem.c
+util/hashmap.c
+util/pmu-hybrid.c
+util/fncache.c

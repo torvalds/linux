@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Freescale LS2080a RDB Board.
+ *
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
+ *
+ * Abhimanyu Saini <abhimanyu.saini@nxp.com>
+ * Bhupesh Sharma <bhupesh.sharma@freescale.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "fsl-ls2080a.dtsi"
+#include "fsl-ls208xa-rdb.dtsi"
+
+/ {
+	model = "Freescale Layerscape 2080a RDB Board";
+	compatible = "fsl,ls2080a-rdb", "fsl,ls2080a";
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+};

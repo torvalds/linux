@@ -1,0 +1,280 @@
+Kernel driver NCT6775
+=====================
+
+.. note::
+
+    This driver supersedes the NCT6775F and NCT6776F support in the W83627EHF
+    driver.
+
+Supported chips:
+
+  * Nuvoton NCT6102D/NCT6104D/NCT6106D
+
+    Prefix: 'nct6106'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from the Nuvoton web site
+
+  * Nuvoton NCT5572D/NCT6771F/NCT6772F/NCT6775F/W83677HG-I
+
+    Prefix: 'nct6775'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT5573D/NCT5577D/NCT6776D/NCT6776F
+
+    Prefix: 'nct6776'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT5532D/NCT6779D
+
+    Prefix: 'nct6779'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT6791D
+
+    Prefix: 'nct6791'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT6792D
+
+    Prefix: 'nct6792'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT6793D
+
+    Prefix: 'nct6793'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT6795D
+
+    Prefix: 'nct6795'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT6796D
+
+    Prefix: 'nct6796'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+
+
+Authors:
+
+	Guenter Roeck <linux@roeck-us.net>
+
+Description
+-----------
+
+This driver implements support for the Nuvoton NCT6775F, NCT6776F, and NCT6779D
+and compatible super I/O chips.
+
+The chips support up to 25 temperature monitoring sources. Up to 6 of those are
+direct temperature sensor inputs, the others are special sources such as PECI,
+PCH, and SMBUS. Depending on the chip type, 2 to 6 of the temperature sources
+can be monitored and compared against minimum, maximum, and critical
+temperatures. The driver reports up to 10 of the temperatures to the user.
+There are 4 to 5 fan rotation speed sensors, 8 to 15 analog voltage sensors,
+one VID, alarms with beep warnings (control unimplemented), and some automatic
+fan regulation strategies (plus manual fan control mode).
+
+The temperature sensor sources on all chips are configurable. The configured
+source for each of the temperature sensors is provided in tempX_label.
+
+Temperatures are measured in degrees Celsius and measurement resolution is
+either 1 degC or 0.5 degC, depending on the temperature source and
+configuration. An alarm is triggered when the temperature gets higher than
+the high limit; it stays on until the temperature falls below the hysteresis
+value. Alarms are only supported for temp1 to temp6, depending on the chip type.
+
+Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
+triggered if the rotation speed has dropped below a programmable limit. On
+NCT6775F, fan readings can be divided by a programmable divider (1, 2, 4, 8,
+16, 32, 64 or 128) to give the readings more range or accuracy; the other chips
+do not have a fan speed divider. The driver sets the most suitable fan divisor
+itself; specifically, it increases the divider value each time a fan speed
+reading returns an invalid value, and it reduces it if the fan speed reading
+is lower than optimal. Some fans might not be present because they share pins
+with other functions.
+
+Voltage sensors (also known as IN sensors) report their values in millivolts.
+An alarm is triggered if the voltage has crossed a programmable minimum
+or maximum limit.
+
+The driver supports automatic fan control mode known as Thermal Cruise.
+In this mode, the chip attempts to keep the measured temperature in a
+predefined temperature range. If the temperature goes out of range, fan
+is driven slower/faster to reach the predefined range again.
+
+The mode works for fan1-fan5.
+
+sysfs attributes
+----------------
+
+pwm[1-7]
+    - this file stores PWM duty cycle or DC value (fan speed) in range:
+
+	   0 (lowest speed) to 255 (full)
+
+pwm[1-7]_enable
+    - this file controls mode of fan/temperature control:
+
+	* 0 Fan control disabled (fans set to maximum speed)
+	* 1 Manual mode, write to pwm[0-5] any value 0-255
+	* 2 "Thermal Cruise" mode
+	* 3 "Fan Speed Cruise" mode
+	* 4 "Smart Fan III" mode (NCT6775F only)
+	* 5 "Smart Fan IV" mode
+
+pwm[1-7]_mode
+    - controls if output is PWM or DC level
+
+	* 0 DC output
+	* 1 PWM output
+
+Common fan control attributes
+-----------------------------
+
+pwm[1-7]_temp_sel
+			Temperature source. Value is temperature sensor index.
+			For example, select '1' for temp1_input.
+
+pwm[1-7]_weight_temp_sel
+			Secondary temperature source. Value is temperature
+			sensor index. For example, select '1' for temp1_input.
+			Set to 0 to disable secondary temperature control.
+
+If secondary temperature functionality is enabled, it is controlled with the
+following attributes.
+
+pwm[1-7]_weight_duty_step
+			Duty step size.
+
+pwm[1-7]_weight_temp_step
+			Temperature step size. With each step over
+			temp_step_base, the value of weight_duty_step is added
+			to the current pwm value.
+
+pwm[1-7]_weight_temp_step_base
+			Temperature at which secondary temperature control kicks
+			in.
+
+pwm[1-7]_weight_temp_step_tol
+			Temperature step tolerance.
+
+Thermal Cruise mode (2)
+-----------------------
+
+If the temperature is in the range defined by:
+
+pwm[1-7]_target_temp
+			Target temperature, unit millidegree Celsius
+			(range 0 - 127000)
+
+pwm[1-7]_temp_tolerance
+			Target temperature tolerance, unit millidegree Celsius
+
+There are no changes to fan speed. Once the temperature leaves the interval, fan
+speed increases (if temperature is higher that desired) or decreases (if
+temperature is lower than desired), using the following limits and time
+intervals.
+
+pwm[1-7]_start
+			fan pwm start value (range 1 - 255), to start fan
+			when the temperature is above defined range.
+
+pwm[1-7]_floor
+			lowest fan pwm (range 0 - 255) if temperature is below
+			the defined range. If set to 0, the fan is expected to
+			stop if the temperature is below the defined range.
+
+pwm[1-7]_step_up_time
+			milliseconds before fan speed is increased
+
+pwm[1-7]_step_down_time
+			milliseconds before fan speed is decreased
+
+pwm[1-7]_stop_time
+			how many milliseconds must elapse to switch
+			corresponding fan off (when the temperature was below
+			defined range).
+
+Speed Cruise mode (3)
+---------------------
+
+This modes tries to keep the fan speed constant.
+
+fan[1-7]_target
+			Target fan speed
+
+fan[1-7]_tolerance
+			Target speed tolerance
+
+
+Untested; use at your own risk.
+
+Smart Fan IV mode (5)
+---------------------
+
+This mode offers multiple slopes to control the fan speed. The slopes can be
+controlled by setting the pwm and temperature attributes. When the temperature
+rises, the chip will calculate the DC/PWM output based on the current slope.
+There are up to seven data points depending on the chip type. Subsequent data
+points should be set to higher temperatures and higher pwm values to achieve
+higher fan speeds with increasing temperature. The last data point reflects
+critical temperature mode, in which the fans should run at full speed.
+
+pwm[1-7]_auto_point[1-7]_pwm
+			pwm value to be set if temperature reaches matching
+			temperature range.
+
+pwm[1-7]_auto_point[1-7]_temp
+			Temperature over which the matching pwm is enabled.
+
+pwm[1-7]_temp_tolerance
+			Temperature tolerance, unit millidegree Celsius
+
+pwm[1-7]_crit_temp_tolerance
+			Temperature tolerance for critical temperature,
+			unit millidegree Celsius
+
+pwm[1-7]_step_up_time
+			milliseconds before fan speed is increased
+
+pwm[1-7]_step_down_time
+			milliseconds before fan speed is decreased
+
+Usage Notes
+-----------
+
+On various ASUS boards with NCT6776F, it appears that CPUTIN is not really
+connected to anything and floats, or that it is connected to some non-standard
+temperature measurement device. As a result, the temperature reported on CPUTIN
+will not reflect a usable value. It often reports unreasonably high
+temperatures, and in some cases the reported temperature declines if the actual
+temperature increases (similar to the raw PECI temperature value - see PECI
+specification for details). CPUTIN should therefore be ignored on ASUS
+boards. The CPU temperature on ASUS boards is reported from PECI 0.

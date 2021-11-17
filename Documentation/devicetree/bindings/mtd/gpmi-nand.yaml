@@ -1,0 +1,170 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/gpmi-nand.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale General-Purpose Media Interface (GPMI) binding
+
+maintainers:
+  - Han Xu <han.xu@nxp.com>
+
+description: |
+  The GPMI nand controller provides an interface to control the NAND
+  flash chips. The device tree may optionally contain sub-nodes
+  describing partitions of the address space. See partition.txt for
+  more detail.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx23-gpmi-nand
+          - fsl,imx28-gpmi-nand
+          - fsl,imx6q-gpmi-nand
+          - fsl,imx6sx-gpmi-nand
+          - fsl,imx7d-gpmi-nand
+      - items:
+          - enum:
+              - fsl,imx8mm-gpmi-nand
+              - fsl,imx8mn-gpmi-nand
+          - const: fsl,imx7d-gpmi-nand
+
+  reg:
+    items:
+      - description: Address and length of gpmi block.
+      - description: Address and length of bch block.
+
+  reg-names:
+    items:
+      - const: gpmi-nand
+      - const: bch
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    const: bch
+
+  dmas:
+    maxItems: 1
+
+  dma-names:
+    const: rx-tx
+
+  clocks:
+    minItems: 1
+    maxItems: 5
+
+  clock-names:
+    minItems: 1
+    maxItems: 5
+
+  fsl,use-minimum-ecc:
+    type: boolean
+    description: |
+      Protect this NAND flash with the minimum ECC strength required.
+      The required ECC strength is automatically discoverable for some
+      flash (e.g., according to the ONFI standard). However, note that
+      if this strength is not discoverable or this property is not enabled,
+      the software may chooses an implementation-defined ECC scheme.
+
+  fsl,no-blockmark-swap:
+    type: boolean
+    description: |
+      Don't swap the bad block marker from the OOB area with the byte in
+      the data area but rely on the flash based BBT for identifying bad blocks.
+      NOTE: this is only valid in conjunction with 'nand-on-flash-bbt'.
+      WARNING: on i.MX28 blockmark swapping cannot be disabled for the BootROM
+      in the FCB. Thus, partitions written from Linux with this feature turned
+      on may not be accessible by the BootROM code.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - dmas
+  - dma-names
+
+unevaluatedProperties: false
+
+allOf:
+  - $ref: "nand-controller.yaml"
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx23-gpmi-nand
+              - fsl,imx28-gpmi-nand
+    then:
+      properties:
+        clocks:
+          items:
+            - description: SoC gpmi io clock
+        clock-names:
+          items:
+            - const: gpmi_io
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx6q-gpmi-nand
+              - fsl,imx6sx-gpmi-nand
+    then:
+      properties:
+        clocks:
+          items:
+            - description: SoC gpmi io clock
+            - description: SoC gpmi apb clock
+            - description: SoC gpmi bch clock
+            - description: SoC gpmi bch apb clock
+            - description: SoC per1 bch clock
+        clock-names:
+          items:
+            - const: gpmi_io
+            - const: gpmi_apb
+            - const: gpmi_bch
+            - const: gpmi_bch_apb
+            - const: per1_bch
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx7d-gpmi-nand
+    then:
+      properties:
+        clocks:
+          items:
+            - description: SoC gpmi io clock
+            - description: SoC gpmi bch apb clock
+        clock-names:
+          minItems: 2
+          maxItems: 2
+          items:
+            - const: gpmi_io
+            - const: gpmi_bch_apb
+
+examples:
+  - |
+    nand-controller@8000c000 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "fsl,imx28-gpmi-nand";
+        reg = <0x8000c000 0x2000>, <0x8000a000 0x2000>;
+        reg-names = "gpmi-nand", "bch";
+        interrupts = <41>;
+        interrupt-names = "bch";
+        clocks = <&clks 50>;
+        clock-names = "gpmi_io";
+        dmas = <&dma_apbh 4>;
+        dma-names = "rx-tx";
+    };

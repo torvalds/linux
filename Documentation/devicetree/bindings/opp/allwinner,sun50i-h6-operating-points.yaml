@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/opp/allwinner,sun50i-h6-operating-points.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner H6 CPU OPP Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+description: |
+  For some SoCs, the CPU frequency subset and voltage value of each
+  OPP varies based on the silicon variant in use. Allwinner Process
+  Voltage Scaling Tables defines the voltage and frequency value based
+  on the speedbin blown in the efuse combination. The
+  sun50i-cpufreq-nvmem driver reads the efuse value from the SoC to
+  provide the OPP framework with required information.
+
+allOf:
+  - $ref: opp-v2-base.yaml#
+
+properties:
+  compatible:
+    const: allwinner,sun50i-h6-operating-points
+
+  nvmem-cells:
+    description: |
+      A phandle pointing to a nvmem-cells node representing the efuse
+      registers that has information about the speedbin that is used
+      to select the right frequency/voltage value pair. Please refer
+      the for nvmem-cells bindings
+      Documentation/devicetree/bindings/nvmem/nvmem.txt and also
+      examples below.
+
+  opp-shared: true
+
+required:
+  - compatible
+  - nvmem-cells
+
+patternProperties:
+  "opp-[0-9]+":
+    type: object
+
+    properties:
+      opp-hz: true
+      clock-latency-ns: true
+
+    patternProperties:
+      "opp-microvolt-.*": true
+
+    required:
+      - opp-hz
+      - opp-microvolt-speed0
+      - opp-microvolt-speed1
+      - opp-microvolt-speed2
+
+    unevaluatedProperties: false
+
+additionalProperties: false
+
+examples:
+  - |
+    cpu_opp_table: opp-table {
+        compatible = "allwinner,sun50i-h6-operating-points";
+        nvmem-cells = <&speedbin_efuse>;
+        opp-shared;
+
+        opp-480000000 {
+            clock-latency-ns = <244144>; /* 8 32k periods */
+            opp-hz = /bits/ 64 <480000000>;
+
+            opp-microvolt-speed0 = <880000>;
+            opp-microvolt-speed1 = <820000>;
+            opp-microvolt-speed2 = <800000>;
+        };
+
+        opp-720000000 {
+            clock-latency-ns = <244144>; /* 8 32k periods */
+            opp-hz = /bits/ 64 <720000000>;
+
+            opp-microvolt-speed0 = <880000>;
+            opp-microvolt-speed1 = <820000>;
+            opp-microvolt-speed2 = <800000>;
+        };
+
+        opp-816000000 {
+            clock-latency-ns = <244144>; /* 8 32k periods */
+            opp-hz = /bits/ 64 <816000000>;
+
+            opp-microvolt-speed0 = <880000>;
+            opp-microvolt-speed1 = <820000>;
+            opp-microvolt-speed2 = <800000>;
+        };
+
+        opp-888000000 {
+            clock-latency-ns = <244144>; /* 8 32k periods */
+            opp-hz = /bits/ 64 <888000000>;
+
+            opp-microvolt-speed0 = <940000>;
+            opp-microvolt-speed1 = <820000>;
+            opp-microvolt-speed2 = <800000>;
+        };
+
+        opp-1080000000 {
+            clock-latency-ns = <244144>; /* 8 32k periods */
+            opp-hz = /bits/ 64 <1080000000>;
+
+            opp-microvolt-speed0 = <1060000>;
+            opp-microvolt-speed1 = <880000>;
+            opp-microvolt-speed2 = <840000>;
+        };
+
+        opp-1320000000 {
+            clock-latency-ns = <244144>; /* 8 32k periods */
+            opp-hz = /bits/ 64 <1320000000>;
+
+            opp-microvolt-speed0 = <1160000>;
+            opp-microvolt-speed1 = <940000>;
+            opp-microvolt-speed2 = <900000>;
+        };
+
+        opp-1488000000 {
+            clock-latency-ns = <244144>; /* 8 32k periods */
+            opp-hz = /bits/ 64 <1488000000>;
+
+            opp-microvolt-speed0 = <1160000>;
+            opp-microvolt-speed1 = <1000000>;
+            opp-microvolt-speed2 = <960000>;
+        };
+    };
+
+...

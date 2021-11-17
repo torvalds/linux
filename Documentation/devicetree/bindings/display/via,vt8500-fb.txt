@@ -1,0 +1,36 @@
+VIA VT8500 Framebuffer
+-----------------------------------------------------
+
+Required properties:
+- compatible : "via,vt8500-fb"
+- reg : Should contain 1 register ranges(address and length)
+- interrupts : framebuffer controller interrupt
+- bits-per-pixel : bit depth of framebuffer (16 or 32)
+
+Required subnodes:
+- display-timings: see display-timing.txt for information
+
+Example:
+
+	fb@d8050800 {
+		compatible = "via,vt8500-fb";
+		reg = <0xd800e400 0x400>;
+		interrupts = <12>;
+		bits-per-pixel = <16>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: 800x480 {
+				clock-frequency = <0>; /* unused but required */
+				hactive = <800>;
+				vactive = <480>;
+				hfront-porch = <40>;
+				hback-porch = <88>;
+				hsync-len = <0>;
+				vback-porch = <32>;
+				vfront-porch = <11>;
+				vsync-len = <1>;
+			};
+		};
+	};
+

@@ -1,0 +1,122 @@
+* Samsung SPI Controller
+
+The Samsung SPI controller is used to interface with various devices such as flash
+and display controllers using the SPI communication interface.
+
+Required SoC Specific Properties:
+
+- compatible: should be one of the following.
+    - samsung,s3c2443-spi: for s3c2443, s3c2416 and s3c2450 platforms
+    - samsung,s3c6410-spi: for s3c6410 platforms
+    - samsung,s5pv210-spi: for s5pv210 and s5pc110 platforms
+    - samsung,exynos5433-spi: for exynos5433 compatible controllers
+    - samsung,exynos7-spi: for exynos7 platforms <DEPRECATED>
+
+- reg: physical base address of the controller and length of memory mapped
+  region.
+
+- interrupts: The interrupt number to the cpu. The interrupt specifier format
+  depends on the interrupt controller.
+
+- dmas : Two or more DMA channel specifiers following the convention outlined
+  in bindings/dma/dma.txt
+
+- dma-names: Names for the dma channels. There must be at least one channel
+  named "tx" for transmit and named "rx" for receive.
+
+- clocks: specifies the clock IDs provided to the SPI controller; they are
+  required for interacting with the controller itself, for synchronizing the bus
+  and as I/O clock (the latter is required by exynos5433 and exynos7).
+
+- clock-names: string names of the clocks in the 'clocks' property; for all the
+  the devices the names must be "spi", "spi_busclkN" (where N is determined by
+  "samsung,spi-src-clk"), while Exynos5433 should specify a third clock
+  "spi_ioclk" for the I/O clock.
+
+Required Board Specific Properties:
+
+- #address-cells: should be 1.
+- #size-cells: should be 0.
+
+Optional Board Specific Properties:
+
+- samsung,spi-src-clk: If the spi controller includes a internal clock mux to
+  select the clock source for the spi bus clock, this property can be used to
+  indicate the clock to be used for driving the spi bus clock. If not specified,
+  the clock number 0 is used as default.
+
+- num-cs: Specifies the number of chip select lines supported. If
+  not specified, the default number of chip select lines is set to 1.
+
+- cs-gpios: should specify GPIOs used for chipselects (see spi-bus.txt)
+
+- no-cs-readback: the CS line is disconnected, therefore the device should not
+  operate based on CS signalling.
+
+SPI Controller specific data in SPI slave nodes:
+
+- The spi slave nodes should provide the following information which is required
+  by the spi controller.
+
+  - samsung,spi-feedback-delay: The sampling phase shift to be applied on the
+    miso line (to account for any lag in the miso line). The following are the
+    valid values.
+
+      - 0: No phase shift.
+      - 1: 90 degree phase shift sampling.
+      - 2: 180 degree phase shift sampling.
+      - 3: 270 degree phase shift sampling.
+
+Aliases:
+
+- All the SPI controller nodes should be represented in the aliases node using
+  the following format 'spi{n}' where n is a unique number for the alias.
+
+
+Example:
+
+- SoC Specific Portion:
+
+	spi_0: spi@12d20000 {
+		compatible = "samsung,exynos4210-spi";
+		reg = <0x12d20000 0x100>;
+		interrupts = <0 66 0>;
+		dmas = <&pdma0 5
+			&pdma0 4>;
+		dma-names = "tx", "rx";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+- Board Specific Portion:
+
+	spi_0: spi@12d20000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_bus>;
+		cs-gpios = <&gpa2 5 0>;
+
+		w25q80bw@0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "w25x80";
+			reg = <0>;
+			spi-max-frequency = <10000>;
+
+			controller-data {
+				samsung,spi-feedback-delay = <0>;
+			};
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0x0 0x40000>;
+				read-only;
+			};
+
+			partition@40000 {
+				label = "Kernel";
+				reg = <0x40000 0xc0000>;
+			};
+		};
+	};

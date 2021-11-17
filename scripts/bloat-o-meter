@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+#
+# Copyright 2004 Matt Mackall <mpm@selenic.com>
+#
+# inspired by perl Bloat-O-Meter (c) 1997 by Andi Kleen
+#
+# This software may be used and distributed according to the terms
+# of the GNU General Public License, incorporated herein by reference.
+
+import sys, os, re
+from signal import signal, SIGPIPE, SIG_DFL
+
+signal(SIGPIPE, SIG_DFL)
+
+if len(sys.argv) < 3:
+    sys.stderr.write("usage: %s [option] file1 file2\n" % sys.argv[0])
+    sys.stderr.write("The options are:\n")
+    sys.stderr.write("-c	categorize output based on symbol type\n")
+    sys.stderr.write("-d	Show delta of Data Section\n")
+    sys.stderr.write("-t	Show delta of text Section\n")
+    sys.exit(-1)
+
+re_NUMBER = re.compile(r'\.[0-9]+')
+
+def getsizes(file, format):
+    sym = {}
+    with os.popen("nm --size-sort " + file) as f:
+        for line in f:
+            if line.startswith("\n") or ":" in line:
+                continue
+            size, type, name = line.split()
+            if type in format:
+                # strip generated symbols
+                if name.startswith("__mod_"): continue
+                if name.startswith("__se_sys"): continue
+                if name.startswith("__se_compat_sys"): continue
+                if name.startswith("__addressable_"): continue
+                if name == "linux_banner": continue
+                # statics and some other optimizations adds random .NUMBER
+                name = re_NUMBER.sub('', name)
+                sym[name] = sym.get(name, 0) + int(size, 16)
+    return sym
+
+def calc(oldfile, newfile, format):
+    old = getsizes(oldfile, format)
+    new = getsizes(newfile, format)
+    grow, shrink, add, remove, up, down = 0, 0, 0, 0, 0, 0
+    delta, common = [], {}
+    otot, ntot = 0, 0
+
+    for a in old:
+        if a in new:
+            common[a] = 1
+
+    for name in old:
+        otot += old[name]
+        if name not in common:
+            remove += 1
+            down += old[name]
+            delta.append((-old[name], name))
+
+    for name in new:
+        ntot += new[name]
+        if name not in common:
+            add += 1
+            up += new[name]
+            delta.append((new[name], name))
+
+    for name in common:
+        d = new.get(name, 0) - old.get(name, 0)
+        if d>0: grow, up = grow+1, up+d
+        if d<0: shrink, down = shrink+1, down-d
+        delta.append((d, name))
+
+    delta.sort()
+    delta.reverse()
+    return grow, shrink, add, remove, up, down, delta, old, new, otot, ntot
+
+def print_result(symboltype, symbolformat, argc):
+    grow, shrink, add, remove, up, down, delta, old, new, otot, ntot = \
+    calc(sys.argv[argc - 1], sys.argv[argc], symbolformat)
+
+    print("add/remove: %s/%s grow/shrink: %s/%s up/down: %s/%s (%s)" % \
+          (add, remove, grow, shrink, up, -down, up-down))
+    print("%-40s %7s %7s %+7s" % (symboltype, "old", "new", "delta"))
+    for d, n in delta:
+        if d: print("%-40s %7s %7s %+7d" % (n, old.get(n,"-"), new.get(n,"-"), d))
+
+    if otot:
+        percent = (ntot - otot) * 100.0 / otot
+    else:
+        percent = 0
+    print("Total: Before=%d, After=%d, chg %+.2f%%" % (otot, ntot, percent))
+
+if sys.argv[1] == "-c":
+    print_result("Function", "tT", 3)
+    print_result("Data", "dDbB", 3)
+    print_result("RO Data", "rR", 3)
+elif sys.argv[1] == "-d":
+    print_result("Data", "dDbBrR", 3)
+elif sys.argv[1] == "-t":
+    print_result("Function", "tT", 3)
+else:
+    print_result("Function", "tTdDbBrR", 2)

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mux/mux-consumer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common multiplexer controller consumer bindings
+
+maintainers:
+  - Peter Rosin <peda@axentia.se>
+
+description: |
+  Mux controller consumers should specify a list of mux controllers that they
+  want to use with a property containing a 'mux-ctrl-list':
+
+    mux-ctrl-list ::= <single-mux-ctrl> [mux-ctrl-list]
+    single-mux-ctrl ::= <mux-ctrl-phandle> [mux-ctrl-specifier]
+    mux-ctrl-phandle : phandle to mux controller node
+    mux-ctrl-specifier : array of #mux-control-cells specifying the
+                         given mux controller (controller specific)
+
+  Mux controller properties should be named "mux-controls". The exact meaning of
+  each mux controller property must be documented in the device tree binding for
+  each consumer. An optional property "mux-control-names" may contain a list of
+  strings to label each of the mux controllers listed in the "mux-controls"
+  property.
+
+  mux-ctrl-specifier typically encodes the chip-relative mux controller number.
+  If the mux controller chip only provides a single mux controller, the
+  mux-ctrl-specifier can typically be left out.
+
+select: true
+
+properties:
+  mux-controls:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+
+  mux-control-names:
+    description:
+      Devices that use more than a single mux controller can use the
+      "mux-control-names" property to map the name of the requested mux
+      controller to an index into the list given by the "mux-controls" property.
+
+additionalProperties: true
+
+...

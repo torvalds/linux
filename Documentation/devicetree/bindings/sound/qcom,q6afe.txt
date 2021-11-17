@@ -1,0 +1,201 @@
+Qualcomm Audio Front End (Q6AFE) binding
+
+AFE is one of the APR audio service on Q6DSP
+Please refer to qcom,apr.txt for details of the common apr service bindings
+used by all apr services. Must contain the following properties.
+
+- compatible:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "qcom,q6afe-v<MAJOR-NUMBER>.<MINOR-NUMBER>"
+		  Or "qcom,q6afe" where the version number can be queried
+		  from DSP.
+		  example "qcom,q6afe"
+
+= AFE DAIs (Digial Audio Interface)
+"dais" subnode of the AFE node. It represents afe dais, each afe dai is a
+subnode of "dais" representing board specific dai setup.
+"dais" node should have following properties followed by dai children.
+
+- compatible:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "qcom,q6afe-dais"
+
+- #sound-dai-cells
+	Usage: required
+	Value type: <u32>
+	Definition: Must be 1
+
+- #address-cells
+	Usage: required
+	Value type: <u32>
+	Definition: Must be 1
+
+- #size-cells
+	Usage: required
+	Value type: <u32>
+	Definition: Must be 0
+
+== AFE DAI is subnode of "dais" and represent a dai, it includes board specific
+configuration of each dai. Must contain the following properties.
+
+- reg
+	Usage: required
+	Value type: <u32>
+	Definition: Must be dai id
+
+- qcom,sd-lines
+	Usage: required for mi2s interface
+	Value type: <prop-encoded-array>
+	Definition: Must be list of serial data lines used by this dai.
+	should be one or more of the 0-3 sd lines.
+
+ - qcom,tdm-sync-mode:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Synchronization mode.
+		0 - Short sync bit mode
+		1 - Long sync mode
+		2 - Short sync slot mode
+
+ - qcom,tdm-sync-src:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Synchronization source.
+		0 - External source
+		1 - Internal source
+
+ - qcom,tdm-data-out:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Data out signal to drive with other masters.
+		0 - Disable
+		1 - Enable
+
+ - qcom,tdm-invert-sync:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Invert the sync.
+		0 - Normal
+		1 - Invert
+
+ - qcom,tdm-data-delay:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Number of bit clock to delay data
+		with respect to sync edge.
+		0 - 0 bit clock cycle
+		1 - 1 bit clock cycle
+		2 - 2 bit clock cycle
+
+ - qcom,tdm-data-align:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Indicate how data is packed
+		within the slot. For example, 32 slot width in case of
+		sample bit width is 24.
+		0 - MSB
+		1 - LSB
+
+= AFE CLOCKSS
+"clocks" subnode of the AFE node. It represents q6afe clocks
+"clocks" node should have following properties.
+- compatible:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "qcom,q6afe-clocks"
+
+- #clock-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: Must be 2. Clock Id followed by
+		below valid clock coupling attributes.
+		1 - for no coupled clock
+		2 - for dividend of the coupled clock
+		3 - for divisor of the coupled clock
+		4 - for inverted and no couple clock
+
+= EXAMPLE
+
+apr-service@4 {
+	compatible = "qcom,q6afe";
+	reg = <APR_SVC_AFE>;
+
+	dais {
+		compatible = "qcom,q6afe-dais";
+		#sound-dai-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dai@1 {
+			reg = <HDMI_RX>;
+		};
+
+		dai@24 {
+			reg = <PRIMARY_TDM_RX_0>;
+			qcom,tdm-sync-mode = <1>:
+			qcom,tdm-sync-src = <1>;
+			qcom,tdm-data-out = <0>;
+			qcom,tdm-invert-sync = <1>;
+			qcom,tdm-data-delay = <1>;
+			qcom,tdm-data-align = <0>;
+
+		};
+
+		dai@25 {
+			reg = <PRIMARY_TDM_TX_0>;
+			qcom,tdm-sync-mode = <1>:
+			qcom,tdm-sync-src = <1>;
+			qcom,tdm-data-out = <0>;
+			qcom,tdm-invert-sync = <1>;
+			qcom,tdm-data-delay <1>:
+			qcom,tdm-data-align = <0>;
+		};
+
+		dai@16 {
+			reg = <PRIMARY_MI2S_RX>;
+			qcom,sd-lines = <0 2>;
+		};
+
+		dai@17 {
+			reg = <PRIMARY_MI2S_TX>;
+			qcom,sd-lines = <1>;
+		};
+
+		dai@18 {
+			reg = <SECONDARY_MI2S_RX>;
+			qcom,sd-lines = <0 3>;
+		};
+
+		dai@19 {
+			reg = <SECONDARY_MI2S_TX>;
+			qcom,sd-lines = <1>;
+		};
+
+		dai@20 {
+			reg = <TERTIARY_MI2S_RX>;
+			qcom,sd-lines = <1 3>;
+		};
+
+		dai@21 {
+			reg = <TERTIARY_MI2S_TX>;
+			qcom,sd-lines = <0>;
+		};
+
+		dai@22 {
+			reg = <QUATERNARY_MI2S_RX>;
+			qcom,sd-lines = <0>;
+		};
+
+		dai@23 {
+			reg = <QUATERNARY_MI2S_TX>;
+			qcom,sd-lines = <1>;
+		};
+	};
+
+	clocks {
+		compatible = "qcom,q6afe-clocks";
+		#clock-cells = <2>;
+	};
+};

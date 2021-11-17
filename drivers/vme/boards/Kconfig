@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+comment "VME Board Drivers"
+
+config VMIVME_7805
+	tristate "VMIVME-7805"
+	help
+	  If you say Y here you get support for the VMIVME-7805 board.
+	  This board has an additional control interface to the Universe II
+	  chip. This driver has to be included if you want to access VME bus
+	  with VMIVME-7805 board.

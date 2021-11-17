@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for Arietta G25
+ * This device tree is minimal, to activate more peripherals, see:
+ * http://dts.acmesystems.it/arietta/
+ */
+/dts-v1/;
+#include "at91sam9g25.dtsi"
+
+/ {
+	model = "Acme Systems Arietta G25";
+	compatible = "acme,ariettag25", "atmel,at91sam9x5", "atmel,at91sam9";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@20000000 {
+		reg = <0x20000000 0x8000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		arietta_led {
+			label = "arietta_led";
+			gpios = <&pioB 8 GPIO_ACTIVE_HIGH>; /* PB8 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&mmc0 {
+	pinctrl-0 = <
+		&pinctrl_mmc0_slot0_clk_cmd_dat0
+		&pinctrl_mmc0_slot0_dat1_3>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+	};
+};
+
+&rtc {
+	status = "okay";
+};
+
+&tcb0 {
+	timer@0 {
+		compatible = "atmel,tcb-timer";
+		reg = <0>;
+	};
+
+	timer@1 {
+		compatible = "atmel,tcb-timer";
+		reg = <1>;
+	};
+};
+
+&usb0 {
+	num-ports = <3>;
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
+};

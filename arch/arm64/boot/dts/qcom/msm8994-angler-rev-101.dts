@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (c) 2015, Huawei Inc. All rights reserved.
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, Petr Vorel <petr.vorel@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "msm8994.dtsi"
+
+/* Angler's firmware does not report where the memory is allocated */
+/delete-node/ &cont_splash_mem;
+
+/ {
+	model = "Huawei Nexus 6P";
+	compatible = "huawei,angler", "qcom,msm8994";
+	/* required for bootloader to select correct board */
+	qcom,msm-id = <207 0x20000>;
+	qcom,pmic-id = <0x10009 0x1000A 0x0 0x0>;
+	qcom,board-id = <8026 0>;
+
+	aliases {
+		serial0 = &blsp1_uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	soc {
+		serial@f991e000 {
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_uart2_default>;
+			pinctrl-1 = <&blsp1_uart2_sleep>;
+		};
+	};
+};
+
+&tlmm {
+	gpio-reserved-ranges = <85 4>;
+};

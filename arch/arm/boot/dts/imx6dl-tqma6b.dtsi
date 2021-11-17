@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2013 Sascha Hauer, Pengutronix
+ * Copyright 2013-2017 Markus Niebel <Markus.Niebel@tq-group.com>
+ */
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-tqma6b.dtsi"
+#include "imx6qdl-tqma6.dtsi"
+
+/ {
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0x20000000>;
+	};
+};

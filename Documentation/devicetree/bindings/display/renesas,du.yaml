@@ -1,0 +1,833 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/renesas,du.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car Display Unit (DU)
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
+
+description: |
+  These DT bindings describe the Display Unit embedded in the Renesas R-Car
+  Gen1, R-Car Gen2, R-Car Gen3, RZ/G1 and RZ/G2 SoCs.
+
+properties:
+  compatible:
+    enum:
+      - renesas,du-r8a7742 # for RZ/G1H compatible DU
+      - renesas,du-r8a7743 # for RZ/G1M compatible DU
+      - renesas,du-r8a7744 # for RZ/G1N compatible DU
+      - renesas,du-r8a7745 # for RZ/G1E compatible DU
+      - renesas,du-r8a77470 # for RZ/G1C compatible DU
+      - renesas,du-r8a774a1 # for RZ/G2M compatible DU
+      - renesas,du-r8a774b1 # for RZ/G2N compatible DU
+      - renesas,du-r8a774c0 # for RZ/G2E compatible DU
+      - renesas,du-r8a774e1 # for RZ/G2H compatible DU
+      - renesas,du-r8a7779 # for R-Car H1 compatible DU
+      - renesas,du-r8a7790 # for R-Car H2 compatible DU
+      - renesas,du-r8a7791 # for R-Car M2-W compatible DU
+      - renesas,du-r8a7792 # for R-Car V2H compatible DU
+      - renesas,du-r8a7793 # for R-Car M2-N compatible DU
+      - renesas,du-r8a7794 # for R-Car E2 compatible DU
+      - renesas,du-r8a7795 # for R-Car H3 compatible DU
+      - renesas,du-r8a7796 # for R-Car M3-W compatible DU
+      - renesas,du-r8a77961 # for R-Car M3-W+ compatible DU
+      - renesas,du-r8a77965 # for R-Car M3-N compatible DU
+      - renesas,du-r8a77970 # for R-Car V3M compatible DU
+      - renesas,du-r8a77980 # for R-Car V3H compatible DU
+      - renesas,du-r8a77990 # for R-Car E3 compatible DU
+      - renesas,du-r8a77995 # for R-Car D3 compatible DU
+
+  reg:
+    maxItems: 1
+
+  # See compatible-specific constraints below.
+  clocks: true
+  clock-names: true
+  interrupts:
+    description: Interrupt specifiers, one per DU channel
+  resets: true
+  reset-names: true
+
+  power-domains:
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: |
+      The connections to the DU output video ports are modeled using the OF
+      graph bindings specified in Documentation/devicetree/bindings/graph.txt.
+      The number of ports and their assignment are model-dependent. Each port
+      shall have a single endpoint.
+
+    patternProperties:
+      "^port@[0-3]$":
+        $ref: /schemas/graph.yaml#/properties/port
+        unevaluatedProperties: false
+
+    required:
+      - port@0
+      - port@1
+
+    unevaluatedProperties: false
+
+  renesas,cmms:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    description:
+      A list of phandles to the CMM instances present in the SoC, one for each
+      available DU channel.
+
+  renesas,vsps:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    description:
+      A list of phandle and channel index tuples to the VSPs that handle the
+      memory interfaces for the DU channels. The phandle identifies the VSP
+      instance that serves the DU channel, and the channel index identifies
+      the LIF instance in that VSP.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+  - ports
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,du-r8a7779
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 3
+          items:
+            - description: Functional clock
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+
+        clock-names:
+          minItems: 1
+          maxItems: 3
+          items:
+            - const: du.0
+            - pattern: '^dclkin\.[01]$'
+            - pattern: '^dclkin\.[01]$'
+
+        interrupts:
+          maxItems: 1
+
+        resets:
+          maxItems: 1
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: DPAD 1
+            # port@2 is TCON, not supported yet
+            port@2: false
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+
+      required:
+        - interrupts
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a7743
+              - renesas,du-r8a7744
+              - renesas,du-r8a7791
+              - renesas,du-r8a7793
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 4
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+
+        clock-names:
+          minItems: 2
+          maxItems: 4
+          items:
+            - const: du.0
+            - const: du.1
+            - pattern: '^dclkin\.[01]$'
+            - pattern: '^dclkin\.[01]$'
+
+        interrupts:
+          maxItems: 2
+
+        resets:
+          maxItems: 1
+
+        reset-names:
+          items:
+            - const: du.0
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: LVDS 0
+            # port@2 is TCON, not supported yet
+            port@2: false
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a7745
+              - renesas,du-r8a7792
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 4
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+
+        clock-names:
+          minItems: 2
+          maxItems: 4
+          items:
+            - const: du.0
+            - const: du.1
+            - pattern: '^dclkin\.[01]$'
+            - pattern: '^dclkin\.[01]$'
+
+        interrupts:
+          maxItems: 2
+
+        resets:
+          maxItems: 1
+
+        reset-names:
+          items:
+            - const: du.0
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: DPAD 1
+            port@2: false
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a7794
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 4
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+
+        clock-names:
+          minItems: 2
+          maxItems: 4
+          items:
+            - const: du.0
+            - const: du.1
+            - pattern: '^dclkin\.[01]$'
+            - pattern: '^dclkin\.[01]$'
+
+        interrupts:
+          maxItems: 2
+
+        resets:
+          maxItems: 1
+
+        reset-names:
+          items:
+            - const: du.0
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: DPAD 1
+            # port@2 is TCON, not supported yet
+            port@2: false
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a77470
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 4
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+
+        clock-names:
+          minItems: 2
+          maxItems: 4
+          items:
+            - const: du.0
+            - const: du.1
+            - pattern: '^dclkin\.[01]$'
+            - pattern: '^dclkin\.[01]$'
+
+        interrupts:
+          maxItems: 2
+
+        resets:
+          maxItems: 1
+
+        reset-names:
+          items:
+            - const: du.0
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: DPAD 1
+            port@2:
+              description: LVDS 0
+            # port@3 is DVENC, not supported yet
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a7742
+              - renesas,du-r8a7790
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 6
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: Functional clock for DU2
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+            - description: DU_DOTCLKIN2 input clock
+
+        clock-names:
+          minItems: 3
+          maxItems: 6
+          items:
+            - const: du.0
+            - const: du.1
+            - const: du.2
+            - pattern: '^dclkin\.[012]$'
+            - pattern: '^dclkin\.[012]$'
+            - pattern: '^dclkin\.[012]$'
+
+        interrupts:
+          maxItems: 3
+
+        resets:
+          maxItems: 1
+
+        reset-names:
+          items:
+            - const: du.0
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: LVDS 0
+            port@2:
+              description: LVDS 1
+            # port@3 is TCON, not supported yet
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a7795
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 8
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: Functional clock for DU2
+            - description: Functional clock for DU4
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+            - description: DU_DOTCLKIN2 input clock
+            - description: DU_DOTCLKIN3 input clock
+
+        clock-names:
+          minItems: 4
+          maxItems: 8
+          items:
+            - const: du.0
+            - const: du.1
+            - const: du.2
+            - const: du.3
+            - pattern: '^dclkin\.[0123]$'
+            - pattern: '^dclkin\.[0123]$'
+            - pattern: '^dclkin\.[0123]$'
+            - pattern: '^dclkin\.[0123]$'
+
+        interrupts:
+          maxItems: 4
+
+        resets:
+          maxItems: 2
+
+        reset-names:
+          items:
+            - const: du.0
+            - const: du.2
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: HDMI 0
+            port@2:
+              description: HDMI 1
+            port@3:
+              description: LVDS 0
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+            - port@3
+
+        renesas,cmms:
+          minItems: 4
+
+        renesas,vsps:
+          minItems: 4
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+        - renesas,vsps
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a774a1
+              - renesas,du-r8a7796
+              - renesas,du-r8a77961
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 6
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: Functional clock for DU2
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+            - description: DU_DOTCLKIN2 input clock
+
+        clock-names:
+          minItems: 3
+          maxItems: 6
+          items:
+            - const: du.0
+            - const: du.1
+            - const: du.2
+            - pattern: '^dclkin\.[012]$'
+            - pattern: '^dclkin\.[012]$'
+            - pattern: '^dclkin\.[012]$'
+
+        interrupts:
+          maxItems: 3
+
+        resets:
+          maxItems: 2
+
+        reset-names:
+          items:
+            - const: du.0
+            - const: du.2
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: HDMI 0
+            port@2:
+              description: LVDS 0
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+
+        renesas,cmms:
+          minItems: 3
+
+        renesas,vsps:
+          minItems: 3
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+        - renesas,vsps
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a774b1
+              - renesas,du-r8a774e1
+              - renesas,du-r8a77965
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 6
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: Functional clock for DU3
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+            - description: DU_DOTCLKIN3 input clock
+
+        clock-names:
+          minItems: 3
+          maxItems: 6
+          items:
+            - const: du.0
+            - const: du.1
+            - const: du.3
+            - pattern: '^dclkin\.[013]$'
+            - pattern: '^dclkin\.[013]$'
+            - pattern: '^dclkin\.[013]$'
+
+        interrupts:
+          maxItems: 3
+
+        resets:
+          maxItems: 2
+
+        reset-names:
+          items:
+            - const: du.0
+            - const: du.3
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: HDMI 0
+            port@2:
+              description: LVDS 0
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+
+        renesas,cmms:
+          minItems: 3
+
+        renesas,vsps:
+          minItems: 3
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+        - renesas,vsps
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a77970
+              - renesas,du-r8a77980
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 2
+          items:
+            - description: Functional clock for DU0
+            - description: DU_DOTCLKIN0 input clock
+
+        clock-names:
+          minItems: 1
+          maxItems: 2
+          items:
+            - const: du.0
+            - const: dclkin.0
+
+        interrupts:
+          maxItems: 1
+
+        resets:
+          maxItems: 1
+
+        reset-names:
+          items:
+            - const: du.0
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: LVDS 0
+            port@2: false
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+
+        renesas,vsps:
+          minItems: 1
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+        - renesas,vsps
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,du-r8a774c0
+              - renesas,du-r8a77990
+              - renesas,du-r8a77995
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 4
+          items:
+            - description: Functional clock for DU0
+            - description: Functional clock for DU1
+            - description: DU_DOTCLKIN0 input clock
+            - description: DU_DOTCLKIN1 input clock
+
+        clock-names:
+          minItems: 2
+          maxItems: 4
+          items:
+            - const: du.0
+            - const: du.1
+            - pattern: '^dclkin\.[01]$'
+            - pattern: '^dclkin\.[01]$'
+
+        interrupts:
+          maxItems: 2
+
+        resets:
+          maxItems: 1
+
+        reset-names:
+          items:
+            - const: du.0
+
+        ports:
+          properties:
+            port@0:
+              description: DPAD 0
+            port@1:
+              description: LVDS 0
+            port@2:
+              description: LVDS 1
+            # port@3 is TCON, not supported yet
+            port@3: false
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+
+        renesas,cmms:
+          minItems: 2
+
+        renesas,vsps:
+          minItems: 2
+
+      required:
+        - clock-names
+        - interrupts
+        - resets
+        - reset-names
+        - renesas,vsps
+
+additionalProperties: false
+
+examples:
+  # R-Car H3 ES2.0 DU
+  - |
+    #include <dt-bindings/clock/renesas-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    display@feb00000 {
+        compatible = "renesas,du-r8a7795";
+        reg = <0xfeb00000 0x80000>;
+        interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 270 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cpg CPG_MOD 724>,
+                 <&cpg CPG_MOD 723>,
+                 <&cpg CPG_MOD 722>,
+                 <&cpg CPG_MOD 721>;
+        clock-names = "du.0", "du.1", "du.2", "du.3";
+        resets = <&cpg 724>, <&cpg 722>;
+        reset-names = "du.0", "du.2";
+
+        renesas,cmms = <&cmm0>, <&cmm1>, <&cmm2>, <&cmm3>;
+        renesas,vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>, <&vspd0 1>;
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+                endpoint {
+                    remote-endpoint = <&adv7123_in>;
+                };
+            };
+            port@1 {
+                reg = <1>;
+                endpoint {
+                    remote-endpoint = <&dw_hdmi0_in>;
+                };
+            };
+            port@2 {
+                reg = <2>;
+                endpoint {
+                    remote-endpoint = <&dw_hdmi1_in>;
+                };
+            };
+            port@3 {
+                reg = <3>;
+                endpoint {
+                    remote-endpoint = <&lvds0_in>;
+                };
+            };
+        };
+    };
+
+...

@@ -1,0 +1,163 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_ATMEL_SOC
+	tristate "SoC Audio for the Atmel System-on-Chip"
+	depends on HAS_IOMEM
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the ATMEL SSC interface. You will also need
+	  to select the audio interfaces to support below.
+
+if SND_ATMEL_SOC
+
+config SND_ATMEL_SOC_PDC
+	bool
+
+config SND_ATMEL_SOC_DMA
+	bool
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
+config SND_ATMEL_SOC_SSC
+	tristate
+	select SND_ATMEL_SOC_DMA
+	select SND_ATMEL_SOC_PDC
+
+config SND_ATMEL_SOC_SSC_PDC
+	tristate "SoC PCM DAI support for AT91 SSC controller using PDC"
+	depends on ATMEL_SSC
+	select SND_ATMEL_SOC_PDC
+	select SND_ATMEL_SOC_SSC
+	help
+	  Say Y or M if you want to add support for Atmel SSC interface
+	  in PDC mode configured using audio-graph-card in device-tree.
+
+config SND_ATMEL_SOC_SSC_DMA
+	tristate "SoC PCM DAI support for AT91 SSC controller using DMA"
+	depends on ATMEL_SSC
+	select SND_ATMEL_SOC_DMA
+	select SND_ATMEL_SOC_SSC
+	help
+	  Say Y or M if you want to add support for Atmel SSC interface
+	  in DMA mode configured using audio-graph-card in device-tree.
+
+config SND_AT91_SOC_SAM9G20_WM8731
+	tristate "SoC Audio support for WM8731-based At91sam9g20 evaluation board"
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ATMEL_SSC && SND_SOC_I2C_AND_SPI
+	select SND_ATMEL_SOC_SSC_PDC
+	select SND_SOC_WM8731
+	help
+	  Say Y if you want to add support for SoC audio on WM8731-based
+	  AT91sam9g20 evaluation board.
+
+config SND_ATMEL_SOC_WM8904
+	tristate "Atmel ASoC driver for boards using WM8904 codec"
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ATMEL_SSC && I2C
+	select SND_ATMEL_SOC_SSC_DMA
+	select SND_SOC_WM8904
+	help
+	  Say Y if you want to add support for Atmel ASoC driver for boards using
+	  WM8904 codec.
+
+config SND_AT91_SOC_SAM9X5_WM8731
+	tristate "SoC Audio support for WM8731-based at91sam9x5 board"
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ATMEL_SSC && SND_SOC_I2C_AND_SPI
+	select SND_ATMEL_SOC_SSC_DMA
+	select SND_SOC_WM8731
+	help
+	  Say Y if you want to add support for audio SoC on an
+	  at91sam9x5 based board that is using WM8731 codec.
+
+config SND_ATMEL_SOC_CLASSD
+	tristate "Atmel ASoC driver for boards using CLASSD"
+	depends on ARCH_AT91 || COMPILE_TEST
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to add support for Atmel ASoC driver for boards using
+	  CLASSD.
+
+config SND_ATMEL_SOC_PDMIC
+	tristate "Atmel ASoC driver for boards using PDMIC"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to add support for Atmel ASoC driver for boards using
+	  PDMIC.
+
+config SND_ATMEL_SOC_TSE850_PCM5142
+	tristate "ASoC driver for the Axentia TSE-850"
+	depends on ARCH_AT91 && OF
+	depends on ATMEL_SSC && I2C
+	select SND_ATMEL_SOC_SSC_DMA
+	select SND_SOC_PCM512x_I2C
+	help
+	  Say Y if you want to add support for the ASoC driver for the
+	  Axentia TSE-850 with a PCM5142 codec.
+
+config SND_ATMEL_SOC_I2S
+	tristate "Atmel ASoC driver for boards using I2S"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for Atmel ASoc driver for boards
+	  using I2S.
+
+config SND_SOC_MIKROE_PROTO
+	tristate "Support for Mikroe-PROTO board"
+	depends on OF
+	depends on SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8731
+	help
+	  Say Y or M if you want to add support for MikroElektronika PROTO Audio
+	  Board. This board contains the WM8731 codec, which can be configured
+	  using I2C over SDA (MPU Data Input) and SCL (MPU Clock Input) pins.
+	  Both playback and capture are supported.
+
+config SND_MCHP_SOC_I2S_MCC
+	tristate "Microchip ASoC driver for boards using I2S MCC"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for I2S Multi-Channel ASoC
+	  driver on the following Microchip platforms:
+	  - sam9x60
+	  - sama7g5
+
+	  The I2SMCC complies with the Inter-IC Sound (I2S) bus specification
+	  and supports a Time Division Multiplexed (TDM) interface with
+	  external multi-channel audio codecs.
+	  Starting with sama7g5, I2S and Left-Justified multi-channel is
+	  supported by using multiple data pins, output and input, without TDM.
+
+config SND_MCHP_SOC_SPDIFTX
+	tristate "Microchip ASoC driver for boards using S/PDIF TX"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for Microchip S/PDIF TX ASoc
+	  driver on the following Microchip platforms:
+	  - sama7g5
+
+	  This S/PDIF TX driver is compliant with IEC-60958 standard and
+	  includes programmable User Data and Channel Status fields.
+
+config SND_MCHP_SOC_SPDIFRX
+	tristate "Microchip ASoC driver for boards using S/PDIF RX"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	depends on COMMON_CLK
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for Microchip S/PDIF RX ASoc
+	  driver on the following Microchip platforms:
+	  - sama7g5
+
+	  This S/PDIF RX driver is compliant with IEC-60958 standard and
+	  includes programmable User Data and Channel Status fields.
+endif

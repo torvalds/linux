@@ -1,0 +1,34 @@
+Broadcom GISB bus Arbiter controller
+
+Required properties:
+
+- compatible:
+    "brcm,bcm7278-gisb-arb" for V7 28nm chips
+    "brcm,gisb-arb" or "brcm,bcm7445-gisb-arb" for other 28nm chips
+    "brcm,bcm7435-gisb-arb" for newer 40nm chips
+    "brcm,bcm7400-gisb-arb" for older 40nm chips and all 65nm chips
+    "brcm,bcm7038-gisb-arb" for 130nm chips
+- reg: specifies the base physical address and size of the registers
+- interrupts: specifies the two interrupts (timeout and TEA) to be used from
+  the parent interrupt controller. A third optional interrupt may be specified
+  for breakpoints.
+
+Optional properties:
+
+- brcm,gisb-arb-master-mask: 32-bits wide bitmask used to specify which GISB
+  masters are valid at the system level
+- brcm,gisb-arb-master-names: string list of the litteral name of the GISB
+  masters. Should match the number of bits set in brcm,gisb-master-mask and
+  the order in which they appear
+
+Example:
+
+gisb-arb@f0400000 {
+	compatible = "brcm,gisb-arb";
+	reg = <0xf0400000 0x800>;
+	interrupts = <0>, <2>;
+	interrupt-parent = <&sun_l2_intc>;
+
+	brcm,gisb-arb-master-mask = <0x7>;
+	brcm,gisb-arb-master-names = "bsp_0", "scpu_0", "cpu_0";
+};

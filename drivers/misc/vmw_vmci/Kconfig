@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# VMware VMCI device
+#
+
+config VMWARE_VMCI
+	tristate "VMware VMCI Driver"
+	depends on X86 && PCI
+	help
+	  This is VMware's Virtual Machine Communication Interface.  It enables
+	  high-speed communication between host and guest in a virtual
+	  environment via the VMCI virtual device.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vmw_vmci.

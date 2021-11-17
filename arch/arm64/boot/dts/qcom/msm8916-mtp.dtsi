@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ */
+
+#include "msm8916-pm8916.dtsi"
+
+/ {
+	aliases {
+		serial0 = &blsp1_uart2;
+		usid0 = &pm8916_0;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+};
+
+&blsp1_uart2 {
+	status = "okay";
+};

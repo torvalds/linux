@@ -1,0 +1,182 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/phy/qcom,qusb2-phy.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Qualcomm QUSB2 phy controller
+
+maintainers:
+  - Manu Gautam <mgautam@codeaurora.org>
+
+description:
+  QUSB2 controller supports LS/FS/HS usb connectivity on Qualcomm chipsets.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - qcom,ipq8074-qusb2-phy
+              - qcom,msm8996-qusb2-phy
+              - qcom,msm8998-qusb2-phy
+              - qcom,sdm660-qusb2-phy
+              - qcom,ipq6018-qusb2-phy
+              - qcom,sm4250-qusb2-phy
+              - qcom,sm6115-qusb2-phy
+      - items:
+          - enum:
+              - qcom,sc7180-qusb2-phy
+              - qcom,sdm845-qusb2-phy
+          - const: qcom,qusb2-v2-phy
+  reg:
+    maxItems: 1
+
+  "#phy-cells":
+    const: 0
+
+  clocks:
+    minItems: 2
+    items:
+      - description: phy config clock
+      - description: 19.2 MHz ref clk
+      - description: phy interface clock (Optional)
+
+  clock-names:
+    minItems: 2
+    items:
+      - const: cfg_ahb
+      - const: ref
+      - const: iface
+
+  vdda-pll-supply:
+    description:
+      Phandle to 1.8V regulator supply to PHY refclk pll block.
+
+  vdda-phy-dpdm-supply:
+    description:
+      Phandle to 3.1V regulator supply to Dp/Dm port signals.
+
+  resets:
+    maxItems: 1
+    description:
+      Phandle to reset to phy block.
+
+  nvmem-cells:
+    maxItems: 1
+    description:
+      Phandle to nvmem cell that contains 'HS Tx trim'
+      tuning parameter value for qusb2 phy.
+
+  qcom,tcsr-syscon:
+    description:
+      Phandle to TCSR syscon register region.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: qcom,qusb2-v2-phy
+then:
+  properties:
+    qcom,imp-res-offset-value:
+      description:
+        It is a 6 bit value that specifies offset to be
+        added to PHY refgen RESCODE via IMP_CTRL1 register. It is a PHY
+        tuning parameter that may vary for different boards of same SOC.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      minimum: 0
+      maximum: 63
+      default: 0
+
+    qcom,bias-ctrl-value:
+      description:
+        It is a 6 bit value that specifies bias-ctrl-value. It is a PHY
+        tuning parameter that may vary for different boards of same SOC.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      minimum: 0
+      maximum: 63
+      default: 32
+
+    qcom,charge-ctrl-value:
+      description:
+        It is a 2 bit value that specifies charge-ctrl-value. It is a PHY
+        tuning parameter that may vary for different boards of same SOC.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      minimum: 0
+      maximum: 3
+      default: 0
+
+    qcom,hstx-trim-value:
+      description:
+        It is a 4 bit value that specifies tuning for HSTX
+        output current.
+        Possible range is - 15mA to 24mA (stepsize of 600 uA).
+        See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      minimum: 0
+      maximum: 15
+      default: 3
+
+    qcom,preemphasis-level:
+      description:
+        It is a 2 bit value that specifies pre-emphasis level.
+        Possible range is 0 to 15% (stepsize of 5%).
+        See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      minimum: 0
+      maximum: 3
+      default: 2
+
+    qcom,preemphasis-width:
+      description:
+        It is a 1 bit value that specifies how long the HSTX
+        pre-emphasis (specified using qcom,preemphasis-level) must be in
+        effect. Duration could be half-bit of full-bit.
+        See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      minimum: 0
+      maximum: 1
+      default: 0
+
+    qcom,hsdisc-trim-value:
+      description:
+        It is a 2 bit value tuning parameter that control disconnect
+        threshold and may vary for different boards of same SOC.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      minimum: 0
+      maximum: 3
+      default: 0
+
+required:
+  - compatible
+  - reg
+  - "#phy-cells"
+  - clocks
+  - clock-names
+  - vdda-pll-supply
+  - vdda-phy-dpdm-supply
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-msm8996.h>
+    hsusb_phy: phy@7411000 {
+        compatible = "qcom,msm8996-qusb2-phy";
+        reg = <0x7411000 0x180>;
+        #phy-cells = <0>;
+
+        clocks = <&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
+                 <&gcc GCC_RX1_USB2_CLKREF_CLK>;
+        clock-names = "cfg_ahb", "ref";
+
+        vdda-pll-supply = <&pm8994_l12>;
+        vdda-phy-dpdm-supply = <&pm8994_l24>;
+
+        resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
+        nvmem-cells = <&qusb2p_hstx_trim>;
+    };

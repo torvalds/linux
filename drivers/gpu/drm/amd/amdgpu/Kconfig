@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT
+config DRM_AMDGPU_SI
+	bool "Enable amdgpu support for SI parts"
+	depends on DRM_AMDGPU
+	help
+	  Choose this option if you want to enable experimental support
+	  for SI asics.
+
+	  SI is already supported in radeon. Experimental support for SI
+	  in amdgpu will be disabled by default and is still provided by
+	  radeon. Use module options to override this:
+
+	  radeon.si_support=0 amdgpu.si_support=1
+
+config DRM_AMDGPU_CIK
+	bool "Enable amdgpu support for CIK parts"
+	depends on DRM_AMDGPU
+	help
+	  Choose this option if you want to enable support for CIK asics.
+
+	  CIK is already supported in radeon. Support for CIK in amdgpu
+	  will be disabled by default and is still provided by radeon.
+	  Use module options to override this:
+
+	  radeon.cik_support=0 amdgpu.cik_support=1
+
+config DRM_AMDGPU_USERPTR
+	bool "Always enable userptr write support"
+	depends on DRM_AMDGPU
+	depends on MMU
+	select HMM_MIRROR
+	select MMU_NOTIFIER
+	help
+	  This option selects CONFIG_HMM and CONFIG_HMM_MIRROR if it
+	  isn't already selected to enabled full userptr support.
+
+source "drivers/gpu/drm/amd/acp/Kconfig"
+source "drivers/gpu/drm/amd/display/Kconfig"
+source "drivers/gpu/drm/amd/amdkfd/Kconfig"

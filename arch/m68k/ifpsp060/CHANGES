@@ -1,0 +1,120 @@
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+M68000 Hi-Performance Microprocessor Division
+M68060 Software Package
+Production Release P1.00 -- October 10, 1994
+
+M68060 Software Package Copyright © 1993, 1994 Motorola Inc.  All rights reserved.
+
+THE SOFTWARE is provided on an "AS IS" basis and without warranty.
+To the maximum extent permitted by applicable law,
+MOTOROLA DISCLAIMS ALL WARRANTIES WHETHER EXPRESS OR IMPLIED,
+INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
+and any warranty against infringement with regard to the SOFTWARE
+(INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
+
+To the maximum extent permitted by applicable law,
+IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+(INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
+BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
+ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
+Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+
+You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
+so long as this entire notice is retained without alteration in any modified and/or
+redistributed versions, and that such modified versions are clearly identified as such.
+No licenses are granted by implication, estoppel or otherwise under any patents
+or trademarks of Motorola, Inc.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+CHANGES SINCE LAST RELEASE:
+---------------------------
+
+1) "movep" emulation where data was being read from memory
+was reading the intermediate bytes. Emulation now only
+reads the required bytes.
+
+2) "flogn", "flog2", and "flog10" of "1" was setting the
+Inexact FPSR bit. Emulation now does not set Inexact for
+this case.
+
+3) For an opclass three FP instruction where the effective addressing
+mode was pre-decrement or post-increment and the address register
+was A0 or A1, the address register was not being updated as a result
+of the operation. This has been corrected.
+
+4) Beta B.2 version had the following erratum:
+
+	Scenario:
+	---------
+	If {i,d}mem_{read,write}_{byte,word,long}() returns
+	a failing value to the 68060SP, the package ignores
+	this return value and continues with program execution
+	as if it never received a failing value.
+
+	Effect:
+	-------
+	For example, if a user executed "fsin.x ADDR,fp0" where
+	ADDR should cause a "segmentation violation", the memory read
+	requested by the package should return a failing value
+	to the package. Since the package currently ignores this
+	return value, the user program will continue to the
+	next instruction, and the result created in fp0 will be
+	undefined.
+
+	Fix:
+	----
+	This has been fixed in the current release.
+
+	Notes:
+	------
+	Upon receiving a non-zero (failing) return value from
+	a {i,d}mem_{read,write}_{byte,word,long}() "call-out",
+	the package creates a 16-byte access error stack frame
+	from the current exception stack frame and exits
+	through the "call-out" _real_access(). This is the process
+	as described in the MC68060 User's Manual.
+
+	For instruction read access errors, the info stacked is:
+		SR	= SR at time of exception
+		PC	= PC of instruction being emulated
+		VOFF	= $4008 (stack frame format type)
+		ADDRESS	= PC of instruction being emulated
+		FSLW	= FAULT STATUS LONGWORD
+
+	The valid FSLW bits are:
+		bit 27		= 1	(misaligned bit)
+		bit 24		= 1	(read)
+		bit 23		= 0	(write)
+		bit 22:21	= 10	(SIZE = word)
+		bit 20:19	= 00	(TT)
+		bit 18:16	= x10	(TM; x = 1 for supervisor mode)
+		bit 15		= 1	(IO)
+		bit 0		= 1	(Software Emulation Error)
+
+	all other bits are EQUAL TO ZERO and can be set by the _real_access()
+	"call-out" stub by the user as appropriate. The MC68060 User's Manual
+	stated that ONLY "bit 0" would be set. The 060SP attempts to set a few
+	other bits.
+
+	For data read/write access errors, the info stacked is:
+		SR	= SR at time of exception
+		PC	= PC of instruction being emulated
+		VOFF	= $4008 (stack frame format type)
+		ADDRESS	= Address of source or destination operand
+		FSLW	= FAULT STATUS LONGWORD
+
+	The valid FSLW bits are:
+		bit 27		= 0	(misaligned bit)
+		bit 24		= x	(read; 1 if read, 0 if write)
+		bit 23		= x	(write; 1 if write, 0 if read)
+		bit 22:21	= xx	(SIZE; see MC68060 User's Manual)
+		bit 20:19	= 00	(TT)
+		bit 18:16	= x01	(TM; x = 1 for supervisor mode)
+		bit 15		= 0	(IO)
+		bit 0		= 1	(Software Emulation Error)
+
+	all other bits are EQUAL TO ZERO and can be set by the _real_access()
+	"call-out" stub by the user as appropriate. The MC68060 User's Manual
+	stated that ONLY "bit 0" would be set. The 060SP attempts to set a few
+	other bits.

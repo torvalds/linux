@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ARCH_NSPIRE
+	bool "TI-NSPIRE based"
+	depends on ARCH_MULTI_V4_V5
+	depends on MMU
+	select CPU_ARM926T
+	select GENERIC_IRQ_CHIP
+	select ARM_AMBA
+	select ARM_VIC
+	select ARM_TIMER_SP804
+	select NSPIRE_TIMER
+	help
+	  This enables support for systems using the TI-NSPIRE CPU

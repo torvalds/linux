@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: MIT
+menu "Display Engine Configuration"
+	depends on DRM && DRM_AMDGPU
+
+config DRM_AMD_DC
+	bool "AMD DC - Enable new display engine"
+	default y
+	select SND_HDA_COMPONENT if SND_HDA_CORE
+	select DRM_AMD_DC_DCN if (X86 || PPC64) && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
+	help
+	  Choose this option if you want to use the new display engine
+	  support for AMDGPU. This adds required support for Vega and
+	  Raven ASICs.
+
+config DRM_AMD_DC_DCN
+	def_bool n
+	help
+	  Raven, Navi, and newer family support for display engine
+
+config DRM_AMD_DC_HDCP
+	bool "Enable HDCP support in DC"
+	depends on DRM_AMD_DC
+	help
+	  Choose this option if you want to support HDCP authentication.
+
+config DRM_AMD_DC_SI
+	bool "AMD DC support for Southern Islands ASICs"
+	depends on DRM_AMDGPU_SI
+	depends on DRM_AMD_DC
+	default n
+	help
+	  Choose this option to enable new AMD DC support for SI asics
+	  by default. This includes Tahiti, Pitcairn, Cape Verde, Oland.
+	  Hainan is not supported by AMD DC and it has no physical DCE6.
+
+config DEBUG_KERNEL_DC
+	bool "Enable kgdb break in DC"
+	depends on DRM_AMD_DC
+	depends on KGDB
+	help
+	  Choose this option if you want to hit kdgb_break in assert.
+
+config DRM_AMD_SECURE_DISPLAY
+        bool "Enable secure display support"
+        default n
+        depends on DEBUG_FS
+        depends on DRM_AMD_DC_DCN
+        help
+            Choose this option if you want to
+            support secure display
+
+            This option enables the calculation
+            of crc of specific region via debugfs.
+            Cooperate with specific DMCU FW.
+
+
+endmenu

@@ -1,0 +1,16 @@
+#
+# NETLOGIC includes
+#
+cflags-$(CONFIG_NLM_COMMON)	+= -I$(srctree)/arch/mips/include/asm/mach-netlogic
+cflags-$(CONFIG_NLM_COMMON)	+= -I$(srctree)/arch/mips/include/asm/netlogic
+
+#
+# use mips64 if xlr is not available
+#
+cflags-$(CONFIG_CPU_XLR)	+= $(call cc-option,-march=xlr,-march=mips64)
+cflags-$(CONFIG_CPU_XLP)	+= $(call cc-option,-march=xlp,-march=mips64r2)
+
+#
+# NETLOGIC processor support
+#
+load-$(CONFIG_NLM_COMMON)	+= 0xffffffff80100000

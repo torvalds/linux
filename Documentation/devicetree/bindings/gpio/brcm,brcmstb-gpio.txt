@@ -1,0 +1,83 @@
+Broadcom STB "UPG GIO" GPIO controller
+
+The controller's registers are organized as sets of eight 32-bit
+registers with each set controlling a bank of up to 32 pins.  A single
+interrupt is shared for all of the banks handled by the controller.
+
+Required properties:
+
+- compatible:
+    Must be "brcm,brcmstb-gpio"
+
+- reg:
+    Define the base and range of the I/O address space containing
+    the brcmstb GPIO controller registers
+
+- #gpio-cells:
+    Should be <2>.  The first cell is the pin number (within the controller's
+    pin space), and the second is used for the following:
+    bit[0]: polarity (0 for active-high, 1 for active-low)
+
+- gpio-controller:
+    Specifies that the node is a GPIO controller.
+
+- brcm,gpio-bank-widths:
+    Number of GPIO lines for each bank.  Number of elements must
+    correspond to number of banks suggested by the 'reg' property.
+
+Optional properties:
+
+- interrupts:
+    The interrupt shared by all GPIO lines for this controller.
+
+- interrupts-extended:
+    Alternate form of specifying interrupts and parents that allows for
+    multiple parents.  This takes precedence over 'interrupts' and
+    'interrupt-parent'.  Wakeup-capable GPIO controllers often route their
+    wakeup interrupt lines through a different interrupt controller than the
+    primary interrupt line, making this property necessary.
+
+- #interrupt-cells:
+    Should be <2>.  The first cell is the GPIO number, the second should specify
+    flags.  The following subset of flags is supported:
+    - bits[3:0] trigger type and level flags
+        1 = low-to-high edge triggered
+        2 = high-to-low edge triggered
+        4 = active high level-sensitive
+        8 = active low level-sensitive
+      Valid combinations are 1, 2, 3, 4, 8.
+    See also Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+
+- interrupt-controller:
+    Marks the device node as an interrupt controller
+
+- wakeup-source:
+    GPIOs for this controller can be used as a wakeup source
+
+Example:
+	upg_gio: gpio@f040a700 {
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
+		compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
+		gpio-controller;
+		interrupt-controller;
+		reg = <0xf040a700 0x80>;
+		interrupt-parent = <&irq0_intc>;
+		interrupts = <0x6>;
+		brcm,gpio-bank-widths = <32 32 32 24>;
+	};
+
+	upg_gio_aon: gpio@f04172c0 {
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
+		compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
+		gpio-controller;
+		interrupt-controller;
+		reg = <0xf04172c0 0x40>;
+		interrupt-parent = <&irq0_aon_intc>;
+		interrupts = <0x6>;
+		interrupts-extended = <&irq0_aon_intc 0x6>,
+			<&aon_pm_l2_intc 0x5>;
+		wakeup-source;
+		brcm,gpio-bank-widths = <18 4>;
+	};

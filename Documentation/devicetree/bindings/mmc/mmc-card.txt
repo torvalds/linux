@@ -1,0 +1,30 @@
+mmc-card / eMMC bindings
+------------------------
+
+This documents describes the devicetree bindings for a mmc-host controller
+child node describing a mmc-card / an eMMC, see "Use of Function subnodes"
+in mmc.txt
+
+Required properties:
+-compatible : Must be "mmc-card"
+-reg        : Must be <0>
+
+Optional properties:
+-broken-hpi : Use this to indicate that the mmc-card has a broken hpi
+              implementation, and that hpi should not be used
+
+Example:
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins_a>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <8>;
+	non-removable;
+
+	mmccard: mmccard@0 {
+		reg = <0>;
+		compatible = "mmc-card";
+		broken-hpi;
+	};
+};

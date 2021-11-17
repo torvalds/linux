@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# ACPI Configuration for ARM64
+#
+
+config ACPI_IORT
+	bool
+
+config ACPI_GTDT
+	bool

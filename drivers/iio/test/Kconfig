@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Industrial I/O subsystem unit tests configuration
+#
+
+# Keep in alphabetical order
+config IIO_TEST_FORMAT
+        bool "Test IIO formatting functions"
+        depends on KUNIT=y

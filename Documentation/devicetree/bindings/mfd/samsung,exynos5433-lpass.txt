@@ -1,0 +1,72 @@
+Samsung Exynos SoC Low Power Audio Subsystem (LPASS)
+
+Required properties:
+
+ - compatible		: "samsung,exynos5433-lpass"
+ - reg			: should contain the LPASS top SFR region location
+			  and size
+ - clock-names		: should contain following required clocks: "sfr0_ctrl"
+ - clocks		: should contain clock specifiers of all clocks, which
+			  input names have been specified in clock-names
+			  property, in same order.
+ - #address-cells	: should be 1
+ - #size-cells		: should be 1
+ - ranges		: must be present
+
+Each IP block of the Low Power Audio Subsystem should be specified as
+an optional sub-node. For "samsung,exynos5433-lpass" compatible this includes:
+UART, SLIMBUS, PCM, I2S, DMAC, Timers 0...4, VIC, WDT 0...1 devices.
+
+Bindings of the sub-nodes are described in:
+  ../serial/samsung_uart.yaml
+  ../sound/samsung-i2s.txt
+  ../dma/arm-pl330.txt
+
+
+Example:
+
+audio-subsystem {
+	compatible = "samsung,exynos5433-lpass";
+	reg = <0x11400000 0x100>, <0x11500000 0x08>;
+	clocks = <&cmu_aud CLK_PCLK_SFR0_CTRL>;
+	clock-names = "sfr0_ctrl";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	adma: adma@11420000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x11420000 0x1000>;
+		interrupts = <0 73 0>;
+		clocks = <&cmu_aud CLK_ACLK_DMAC>;
+		clock-names = "apb_pclk";
+		#dma-cells = <1>;
+		#dma-channels = <8>;
+		#dma-requests = <32>;
+	};
+
+	i2s0: i2s0@11440000 {
+		compatible = "samsung,exynos7-i2s";
+		reg = <0x11440000 0x100>;
+		dmas = <&adma 0 &adma 2>;
+		dma-names = "tx", "rx";
+		interrupts = <0 70 0>;
+		clocks = <&cmu_aud CLK_PCLK_AUD_I2S>,
+			 <&cmu_aud CLK_SCLK_AUD_I2S>,
+			 <&cmu_aud CLK_SCLK_I2S_BCLK>;
+		clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_bus>;
+	};
+
+	serial_3: serial@11460000 {
+		compatible = "samsung,exynos5433-uart";
+		reg = <0x11460000 0x100>;
+		interrupts = <0 67 0>;
+		clocks = <&cmu_aud CLK_PCLK_AUD_UART>,
+			 <&cmu_aud CLK_SCLK_AUD_UART>;
+		clock-names = "uart", "clk_uart_baud0";
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart_aud_bus>;
+	};
+ };

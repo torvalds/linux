@@ -1,0 +1,148 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config IWLWIFI
+	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
+	depends on PCI && HAS_IOMEM && CFG80211
+	select FW_LOADER
+	help
+	  Select to build the driver supporting the:
+
+	  Intel Wireless WiFi Link Next-Gen AGN
+
+	  This option enables support for use with the following hardware:
+		Intel Wireless WiFi Link 6250AGN Adapter
+		Intel 6000 Series Wi-Fi Adapters (6200AGN and 6300AGN)
+		Intel WiFi Link 1000BGN
+		Intel Wireless WiFi 5150AGN
+		Intel Wireless WiFi 5100AGN, 5300AGN, and 5350AGN
+		Intel 6005 Series Wi-Fi Adapters
+		Intel 6030 Series Wi-Fi Adapters
+		Intel Wireless WiFi Link 6150BGN 2 Adapter
+		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
+		Intel 2000 Series Wi-Fi Adapters
+		Intel 7260 Wi-Fi Adapter
+		Intel 3160 Wi-Fi Adapter
+		Intel 7265 Wi-Fi Adapter
+		Intel 8260 Wi-Fi Adapter
+		Intel 3165 Wi-Fi Adapter
+
+
+	  This driver uses the kernel's mac80211 subsystem.
+
+	  In order to use this driver, you will need a firmware
+	  image for it. You can obtain the microcode from:
+
+	          <https://wireless.wiki.kernel.org/en/users/Drivers/iwlwifi>.
+
+	  The firmware is typically installed in /lib/firmware. You can
+	  look in the hotplug script /etc/hotplug/firmware.agent to
+	  determine which directory FIRMWARE_DIR is set to when the script
+	  runs.
+
+	  If you want to compile the driver as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want),
+	  say M here and read <file:Documentation/kbuild/modules.rst>.  The
+	  module will be called iwlwifi.
+
+if IWLWIFI
+
+config IWLWIFI_LEDS
+	bool
+	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
+	depends on IWLMVM || IWLDVM
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
+	default y
+
+config IWLDVM
+	tristate "Intel Wireless WiFi DVM Firmware support"
+	depends on MAC80211
+	help
+	  This is the driver that supports the DVM firmware. The list
+	  of the devices that use this firmware is available here:
+	  https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#firmware
+
+config IWLMVM
+	tristate "Intel Wireless WiFi MVM Firmware support"
+	select WANT_DEV_COREDUMP
+	depends on MAC80211
+	help
+	  This is the driver that supports the MVM firmware. The list
+	  of the devices that use this firmware is available here:
+	  https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#firmware
+
+# don't call it _MODULE -- will confuse Kconfig/fixdep/...
+config IWLWIFI_OPMODE_MODULAR
+	bool
+	default y if IWLDVM=m
+	default y if IWLMVM=m
+
+comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
+	depends on IWLDVM=n && IWLMVM=n
+
+config IWLWIFI_BCAST_FILTERING
+	bool "Enable broadcast filtering"
+	depends on IWLMVM
+	help
+	  Say Y here to enable default bcast filtering configuration.
+
+	  Enabling broadcast filtering will drop any incoming wireless
+	  broadcast frames, except some very specific predefined
+	  patterns (e.g. incoming arp requests).
+
+	  If unsure, don't enable this option, as some programs might
+	  expect incoming broadcasts for their normal operations.
+
+menu "Debugging Options"
+
+config IWLWIFI_DEBUG
+	bool "Enable full debugging output in the iwlwifi driver"
+	help
+	  This option will enable debug tracing output for the iwlwifi drivers
+
+	  This will result in the kernel module being ~100k larger.  You can
+	  control which debug output is sent to the kernel log by setting the
+	  value in
+
+		/sys/module/iwlwifi/parameters/debug
+
+	  This entry will only exist if this option is enabled.
+
+	  To set a value, simply echo an 8-byte hex value to the same file:
+
+		  % echo 0x43fff > /sys/module/iwlwifi/parameters/debug
+
+	  You can find the list of debug mask values in:
+		  drivers/net/wireless/iwlwifi/iwl-debug.h
+
+	  If this is your first time using this driver, you should say Y here
+	  as the debug information can assist others in helping you resolve
+	  any problems you may encounter.
+
+config IWLWIFI_DEBUGFS
+	bool "iwlwifi debugfs support"
+	depends on MAC80211_DEBUGFS
+	help
+	  Enable creation of debugfs files for the iwlwifi drivers. This
+	  is a low-impact option that allows getting insight into the
+	  driver's state at runtime.
+
+config IWLWIFI_DEVICE_TRACING
+	bool "iwlwifi device access tracing"
+	depends on EVENT_TRACING
+	default y
+	help
+	  Say Y here to trace all commands, including TX frames and IO
+	  accesses, sent to the device. If you say yes, iwlwifi will
+	  register with the ftrace framework for event tracing and dump
+	  all this information to the ringbuffer, you may need to
+	  increase the ringbuffer size. See the ftrace documentation
+	  for more information.
+
+	  When tracing is not enabled, this option still has some
+	  (though rather small) overhead.
+
+	  If unsure, say Y so we can help you better when problems
+	  occur.
+endmenu
+
+endif

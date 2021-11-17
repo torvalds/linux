@@ -1,0 +1,19 @@
+
+For --xed the xed tool is needed. Here is how to install it:
+
+  $ git clone https://github.com/intelxed/mbuild.git mbuild
+  $ git clone https://github.com/intelxed/xed
+  $ cd xed
+  $ ./mfile.py --share
+  $ ./mfile.py examples
+  $ sudo ./mfile.py --prefix=/usr/local install
+  $ sudo ldconfig
+  $ sudo cp obj/examples/xed /usr/local/bin
+
+Basic xed testing:
+
+  $ xed | head -3
+  ERROR: required argument(s) were missing
+  Copyright (C) 2017, Intel Corporation. All rights reserved.
+  XED version: [v10.0-328-g7d62c8c49b7b]
+  $

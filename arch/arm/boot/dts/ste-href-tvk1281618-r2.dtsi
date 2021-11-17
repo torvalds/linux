@@ -1,0 +1,289 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Device Tree for the TVK1281618 R2 user interface board (UIB)
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		vdd-supply = <&ab8500_ldo_aux1_reg>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&prox_tvk_mode>, <&hall_tvk_mode>;
+
+		button@139 {
+			/* Proximity sensor */
+			gpios = <&gpio6 25 GPIO_ACTIVE_HIGH>;
+			linux,code = <11>; /* SW_FRONT_PROXIMITY */
+			label = "SFH7741 Proximity Sensor";
+		};
+		button@145 {
+			/* Hall sensor */
+			gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+			linux,code = <0>; /* SW_LID */
+			label = "HED54XXU11 Hall Effect Sensor";
+		};
+	};
+
+	soc {
+		i2c@80004000 {
+			tc35893@44 {
+				compatible = "toshiba,tc35893";
+				reg = <0x44>;
+				interrupt-parent = <&gpio6>;
+				interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tc35893_tvk_mode>;
+
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				status = "disabled";
+
+				tc3589x_gpio {
+					compatible = "toshiba,tc3589x-gpio";
+					interrupts = <0>;
+
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+				tc3589x_keypad {
+					compatible = "toshiba,tc3589x-keypad";
+					interrupts = <6>;
+					debounce-delay-ms = <4>;
+					keypad,num-columns = <8>;
+					keypad,num-rows = <8>;
+					linux,no-autorepeat;
+					wakeup-source;
+					linux,keymap = <MATRIX_KEY(3, 1, KEY_END)>,
+						       <MATRIX_KEY(4, 1, KEY_HOME)>,
+						       <MATRIX_KEY(6, 4, KEY_VOLUMEDOWN)>,
+						       <MATRIX_KEY(4, 2, KEY_EMAIL)>,
+						       <MATRIX_KEY(3, 3, KEY_RIGHT)>,
+						       <MATRIX_KEY(2, 5, KEY_BACKSPACE)>,
+						       <MATRIX_KEY(6, 7, KEY_MENU)>,
+						       <MATRIX_KEY(5, 0, KEY_ENTER)>,
+						       <MATRIX_KEY(4, 3, KEY_0)>,
+						       <MATRIX_KEY(3, 4, KEY_DOT)>,
+						       <MATRIX_KEY(5, 2, KEY_UP)>,
+						       <MATRIX_KEY(3, 5, KEY_DOWN)>,
+						       <MATRIX_KEY(4, 5, KEY_SEND)>,
+						       <MATRIX_KEY(0, 5, KEY_BACK)>,
+						       <MATRIX_KEY(6, 2, KEY_VOLUMEUP)>,
+						       <MATRIX_KEY(1, 3, KEY_SPACE)>,
+						       <MATRIX_KEY(7, 6, KEY_LEFT)>,
+						       <MATRIX_KEY(5, 5, KEY_SEARCH)>;
+				};
+			};
+		};
+
+		i2c@80128000 {
+			accelerometer@18 {
+				/* Accelerometer */
+				compatible = "st,lsm303dlh-accel";
+				st,drdy-int-pin = <1>;
+				drive-open-drain;
+				reg = <0x18>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_tvk_mode>;
+				/*
+				 * These interrupts cannot be used: the other component
+				 * ST-Micro L3D4200D gyro that is connected to the same lines
+				 * cannot set its DRDY line to open drain, so it cannot be
+				 * shared with other peripherals. The should be defined for
+				 * the falling edge if they could be wired together.
+				 *
+				 * interrupts-extended =
+				 * <&gpio1 0 IRQ_TYPE_EDGE_FALLING>,
+				 * <&gpio2 19 IRQ_TYPE_EDGE_FALLING>;
+				 */
+				mount-matrix = "0", "1", "0",
+					       "1", "0", "0",
+					       "0", "0", "-1";
+			};
+			magnetometer@1e {
+				/* Magnetometer */
+				compatible = "st,lsm303dlh-magn";
+				reg = <0x1e>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				/*
+				 * These interrupts cannot be used: the other component
+				 * ST-Micro L3D4200D gyro that is connected to the same lines
+				 * cannot set its DRDY line to open drain, so it cannot be
+				 * shared with other peripherals. The should be defined for
+				 * the falling edge if they could be wired together.
+				 *
+				 * interrupts-extended =
+				 * <&gpio1 0 IRQ_TYPE_EDGE_FALLING>,
+				 * <&gpio2 19 IRQ_TYPE_EDGE_FALLING>;
+				 */
+			};
+			accelerometer@1c {
+				/* Accelerometer */
+				compatible = "st,lis331dl-accel";
+				st,drdy-int-pin = <1>;
+				reg = <0x1c>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_tvk_mode>;
+				interrupt-parent = <&gpio2>;
+				/* INT2 would need to be open drain */
+				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
+					     <19 IRQ_TYPE_EDGE_RISING>;
+				mount-matrix = "0", "-1", "0",
+					       "-1", "0", "0",
+					       "0", "0", "-1";
+			};
+			magnetometer@f {
+				/* Magnetometer */
+				compatible = "asahi-kasei,ak8974";
+				reg = <0x0f>;
+				avdd-supply = <&ab8500_ldo_aux1_reg>;
+				dvdd-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&gyro_magn_tvk_mode>;
+				/*
+				 * These interrupts cannot be used: the other component
+				 * ST-Micro L3D4200D gyro that is connected to the same lines
+				 * cannot set its DRDY line to open drain, so it cannot be
+				 * shared with other peripherals. The should be defined for
+				 * the falling edge if they could be wired together.
+				 *
+				 * interrupts-extended =
+				 * <&gpio1 0 IRQ_TYPE_EDGE_FALLING>,
+				 * <&gpio0 31 IRQ_TYPE_EDGE_FALLING>;
+				 */
+			};
+			gyroscope@68 {
+				/* Gyroscope */
+				compatible = "st,l3g4200d-gyro";
+				st,drdy-int-pin = <2>;
+				reg = <0x68>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&gyro_magn_tvk_mode>;
+				interrupts-extended =
+				<&gpio1 0 IRQ_TYPE_EDGE_RISING>,
+				<&gpio0 31 IRQ_TYPE_EDGE_RISING>;
+			};
+			pressure@5c {
+				/* Barometer/pressure sensor */
+				compatible = "st,lps001wp-press";
+				reg = <0x5c>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+			};
+		};
+		i2c@80110000 {
+			synaptics@4b {
+				/* Synaptics RMI4 TM1217 touchscreen */
+				compatible = "syna,rmi4-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x4b>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&synaptics_tvk_mode>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
+
+				rmi4-f01@1 {
+					reg = <0x1>;
+					syna,nosleep = <1>;
+				};
+				rmi4-f11@11 {
+					reg = <0x11>;
+					syna,sensor-type = <1>;
+					/* This is a landscape display */
+					touchscreen-swapped-x-y;
+				};
+			};
+		};
+		mcde@a0350000 {
+			status = "okay";
+
+			dsi@a0351000 {
+				panel {
+					compatible = "samsung,s6d16d0";
+					reg = <0>;
+					vdd1-supply = <&ab8500_ldo_aux1_reg>;
+					reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+				};
+			};
+		};
+		pinctrl {
+			prox {
+				prox_tvk_mode: prox_tvk {
+					tvk_cfg {
+						pins = "GPIO217_AH12";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			hall {
+				hall_tvk_mode: hall_tvk {
+					tvk_cfg {
+						pins = "GPIO145_C13";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			tc35893 {
+				/* IRQ from the TC35893 */
+				tc35893_tvk_mode: tc35893_tvk {
+					tvk_cfg {
+						pins = "GPIO218_AH11";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			accelerometer {
+				accel_tvk_mode: accel_tvk {
+					/* Accelerometer interrupt lines 1 & 2 */
+					tvk_cfg {
+						pins = "GPIO82_C1", "GPIO83_D3";
+						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			gyroscope {
+				/*
+				 * These lines are shared between Gyroscope l3g400dh
+				 * and AK8974 magnetometer.
+				 */
+				gyro_magn_tvk_mode: gyro_magn_tvk {
+					 /* GPIO 31 used for INT pull down the line */
+					tvk_cfg1 {
+						pins = "GPIO31_V3";
+						ste,config = <&gpio_in_pd>;
+					};
+					/* GPIO 32 used for DRDY, pull this down */
+					tvk_cfg2 {
+						pins = "GPIO32_V2";
+						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			synaptics {
+				synaptics_tvk_mode: synaptics_tvk {
+					/* Touchscreen uses GPIO 84 */
+					tvk_cfg1 {
+						pins = "GPIO84_C2";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+		};
+	};
+};

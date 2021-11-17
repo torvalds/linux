@@ -1,0 +1,32 @@
+#
+# Feature name:          kgdb
+#         Kconfig:       HAVE_ARCH_KGDB
+#         description:   arch supports the kGDB kernel debugger
+#
+    -----------------------
+    |         arch |status|
+    -----------------------
+    |       alpha: | TODO |
+    |         arc: |  ok  |
+    |         arm: |  ok  |
+    |       arm64: |  ok  |
+    |        csky: | TODO |
+    |       h8300: |  ok  |
+    |     hexagon: |  ok  |
+    |        ia64: | TODO |
+    |        m68k: | TODO |
+    |  microblaze: |  ok  |
+    |        mips: |  ok  |
+    |       nds32: | TODO |
+    |       nios2: |  ok  |
+    |    openrisc: | TODO |
+    |      parisc: |  ok  |
+    |     powerpc: |  ok  |
+    |       riscv: |  ok  |
+    |        s390: | TODO |
+    |          sh: |  ok  |
+    |       sparc: |  ok  |
+    |          um: | TODO |
+    |         x86: |  ok  |
+    |      xtensa: | TODO |
+    -----------------------

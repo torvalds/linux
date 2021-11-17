@@ -1,0 +1,53 @@
+Binding for TI CDCE913/925/937/949 programmable I2C clock synthesizers.
+
+Reference
+This binding uses the common clock binding[1].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] https://www.ti.com/product/cdce913
+[3] https://www.ti.com/product/cdce925
+[4] https://www.ti.com/product/cdce937
+[5] https://www.ti.com/product/cdce949
+
+The driver provides clock sources for each output Y1 through Y5.
+
+Required properties:
+ - compatible: Shall be one of the following:
+	- "ti,cdce913": 1-PLL, 3 Outputs
+	- "ti,cdce925": 2-PLL, 5 Outputs
+	- "ti,cdce937": 3-PLL, 7 Outputs
+	- "ti,cdce949": 4-PLL, 9 Outputs
+ - reg: I2C device address.
+ - clocks: Points to a fixed parent clock that provides the input frequency.
+ - #clock-cells: From common clock bindings: Shall be 1.
+
+Optional properties:
+ - xtal-load-pf: Crystal load-capacitor value to fine-tune performance on a
+                 board, or to compensate for external influences.
+- vdd-supply: A regulator node for Vdd
+- vddout-supply: A regulator node for Vddout
+
+For all PLL1, PLL2, ... an optional child node can be used to specify spread
+spectrum clocking parameters for a board.
+  - spread-spectrum: SSC mode as defined in the data sheet.
+  - spread-spectrum-center: Use "centered" mode instead of "max" mode. When
+    present, the clock runs at the requested frequency on average. Otherwise
+    the requested frequency is the maximum value of the SCC range.
+
+
+Example:
+
+	clockgen: cdce925pw@64 {
+		compatible = "cdce925";
+		reg = <0x64>;
+		clocks = <&xtal_27Mhz>;
+		#clock-cells = <1>;
+		xtal-load-pf = <5>;
+		vdd-supply = <&1v8-reg>;
+		vddout-supply = <&3v3-reg>;
+		/* PLL options to get SSC 1% centered */
+		PLL2 {
+			spread-spectrum = <4>;
+			spread-spectrum-center;
+		};
+	};

@@ -1,0 +1,9 @@
+cat <<EOF
+static __always_inline ${ret}
+arch_${atomic}_${pfx}${name}${sfx}_acquire(${params})
+{
+	${ret} ret = arch_${atomic}_${pfx}${name}${sfx}_relaxed(${args});
+	__atomic_acquire_fence();
+	return ret;
+}
+EOF

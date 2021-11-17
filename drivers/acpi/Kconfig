@@ -1,0 +1,563 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# ACPI Configuration
+#
+
+config ARCH_SUPPORTS_ACPI
+	bool
+
+menuconfig ACPI
+	bool "ACPI (Advanced Configuration and Power Interface) Support"
+	depends on ARCH_SUPPORTS_ACPI
+	select PNP
+	select NLS
+	default y if X86
+	help
+	  Advanced Configuration and Power Interface (ACPI) support for 
+	  Linux requires an ACPI-compliant platform (hardware/firmware),
+	  and assumes the presence of OS-directed configuration and power
+	  management (OSPM) software.  This option will enlarge your 
+	  kernel by about 70K.
+
+	  Linux ACPI provides a robust functional replacement for several 
+	  legacy configuration and power management interfaces, including
+	  the Plug-and-Play BIOS specification (PnP BIOS), the 
+	  MultiProcessor Specification (MPS), and the Advanced Power 
+	  Management (APM) specification.  If both ACPI and APM support 
+	  are configured, ACPI is used.
+
+	  The project home page for the Linux ACPI subsystem is here:
+	  <https://01.org/linux-acpi>
+
+	  Linux support for ACPI is based on Intel Corporation's ACPI
+	  Component Architecture (ACPI CA).  For more information on the
+	  ACPI CA, see:
+	  <https://acpica.org/>
+
+	  ACPI is an open industry specification originally co-developed by
+	  Hewlett-Packard, Intel, Microsoft, Phoenix, and Toshiba. Currently,
+	  it is developed by the ACPI Specification Working Group (ASWG) under
+	  the UEFI Forum and any UEFI member can join the ASWG and contribute
+	  to the ACPI specification.
+	  The specification is available at:
+	  <https://uefi.org/specifications>
+
+if ACPI
+
+config ACPI_LEGACY_TABLES_LOOKUP
+	bool
+
+config ARCH_MIGHT_HAVE_ACPI_PDC
+	bool
+
+config ACPI_GENERIC_GSI
+	bool
+
+config ACPI_SYSTEM_POWER_STATES_SUPPORT
+	bool
+
+config ACPI_CCA_REQUIRED
+	bool
+
+config ACPI_DEBUGGER
+	bool "AML debugger interface"
+	select ACPI_DEBUG
+	help
+	  Enable in-kernel debugging of AML facilities: statistics,
+	  internal object dump, single step control method execution.
+	  This is still under development, currently enabling this only
+	  results in the compilation of the ACPICA debugger files.
+
+if ACPI_DEBUGGER
+
+config ACPI_DEBUGGER_USER
+	tristate "Userspace debugger accessiblity"
+	depends on DEBUG_FS
+	help
+	  Export /sys/kernel/debug/acpi/acpidbg for userspace utilities
+	  to access the debugger functionalities.
+
+endif
+
+config ACPI_SPCR_TABLE
+	bool "ACPI Serial Port Console Redirection Support"
+	default y if X86
+	help
+	  Enable support for Serial Port Console Redirection (SPCR) Table.
+	  This table provides information about the configuration of the
+	  earlycon console.
+
+config ACPI_FPDT
+	bool "ACPI Firmware Performance Data Table (FPDT) support"
+	depends on X86_64
+	help
+	  Enable support for the Firmware Performance Data Table (FPDT).
+	  This table provides information on the timing of the system
+	  boot, S3 suspend and S3 resume firmware code paths.
+
+config ACPI_LPIT
+	bool
+	depends on X86_64
+	default y
+
+config ACPI_SLEEP
+	bool
+	depends on SUSPEND || HIBERNATION
+	depends on ACPI_SYSTEM_POWER_STATES_SUPPORT
+	default y
+
+config ACPI_REV_OVERRIDE_POSSIBLE
+	bool "Allow supported ACPI revision to be overridden"
+	depends on X86
+	default y
+	help
+	  The platform firmware on some systems expects Linux to return "5" as
+	  the supported ACPI revision which makes it expose system configuration
+	  information in a special way.
+
+	  For example, based on what ACPI exports as the supported revision,
+	  Dell XPS 13 (2015) configures its audio device to either work in HDA
+	  mode or in I2S mode, where the former is supposed to be used on Linux
+	  until the latter is fully supported (in the kernel as well as in user
+	  space).
+
+	  This option enables a DMI-based quirk for the above Dell machine (so
+	  that HDA audio is exposed by the platform firmware to the kernel) and
+	  makes it possible to force the kernel to return "5" as the supported
+	  ACPI revision via the "acpi_rev_override" command line switch.
+
+config ACPI_EC_DEBUGFS
+	tristate "EC read/write access through /sys/kernel/debug/ec"
+	help
+	  Say N to disable Embedded Controller /sys/kernel/debug interface
+
+	  Be aware that using this interface can confuse your Embedded
+	  Controller in a way that a normal reboot is not enough. You then
+	  have to power off your system, and remove the laptop battery for
+	  some seconds.
+	  An Embedded Controller typically is available on laptops and reads
+	  sensor values like battery state and temperature.
+	  The kernel accesses the EC through ACPI parsed code provided by BIOS
+	  tables. This option allows to access the EC directly without ACPI
+	  code being involved.
+	  Thus this option is a debug option that helps to write ACPI drivers
+	  and can be used to identify ACPI code or EC firmware bugs.
+
+config ACPI_AC
+	tristate "AC Adapter"
+	select POWER_SUPPLY
+	default y
+	help
+	  This driver supports the AC Adapter object, which indicates
+	  whether a system is on AC or not.  If you have a system that can
+	  switch between A/C and battery, say Y.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called ac.
+
+config ACPI_BATTERY
+	tristate "Battery"
+	select POWER_SUPPLY
+	default y
+	help
+	  This driver adds support for battery information through
+	  /proc/acpi/battery. If you have a mobile system with a battery, 
+	  say Y.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called battery.
+
+config ACPI_BUTTON
+	tristate "Button"
+	depends on INPUT
+	default y
+	help
+	  This driver handles events on the power, sleep, and lid buttons.
+	  A daemon reads events from input devices or via netlink and
+	  performs user-defined actions such as shutting down the system.
+	  This is necessary for software-controlled poweroff.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called button.
+
+config ACPI_TINY_POWER_BUTTON
+	tristate "Tiny Power Button Driver"
+	depends on !ACPI_BUTTON
+	help
+	  This driver provides a tiny alternative to the ACPI Button driver.
+	  The tiny power button driver only handles the power button. Rather
+	  than notifying userspace via the input layer or a netlink event, this
+	  driver directly signals the init process to shut down.
+
+	  This driver is particularly suitable for cloud and VM environments,
+	  which use a simulated power button to initiate a controlled poweroff,
+	  but which may not want to run a separate userspace daemon to process
+	  input events.
+
+config ACPI_TINY_POWER_BUTTON_SIGNAL
+	int "Tiny Power Button Signal"
+	depends on ACPI_TINY_POWER_BUTTON
+	default 38
+	help
+	  Default signal to send to init in response to the power button.
+
+	  Likely values here include 38 (SIGRTMIN+4) to power off, or 2
+	  (SIGINT) to simulate Ctrl+Alt+Del.
+
+config ACPI_VIDEO
+	tristate "Video"
+	depends on X86 && BACKLIGHT_CLASS_DEVICE
+	depends on INPUT
+	select THERMAL
+	help
+	  This driver implements the ACPI Extensions For Display Adapters
+	  for integrated graphics devices on motherboard, as specified in
+	  ACPI 2.0 Specification, Appendix B.  This supports basic operations
+	  such as defining the video POST device, retrieving EDID information,
+	  and setting up a video output.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called video.
+
+config ACPI_FAN
+	tristate "Fan"
+	depends on THERMAL
+	default y
+	help
+	  This driver supports ACPI fan devices, allowing user-mode
+	  applications to perform basic fan control (on, off, status).
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called fan.
+
+config ACPI_TAD
+	tristate "ACPI Time and Alarm (TAD) Device Support"
+	depends on SYSFS && PM_SLEEP
+	help
+	  The ACPI Time and Alarm (TAD) device is an alternative to the Real
+	  Time Clock (RTC).  Its wake timers allow the system to transition from
+	  the S3 (or optionally S4/S5) state to S0 state after a time period
+	  elapses.  In comparison with the RTC Alarm, the TAD provides a larger
+	  scale of flexibility in the wake timers.  The time capabilities of the
+	  TAD maintain the time of day information across platform power
+	  transitions, and keep track of time even when the platform is turned
+	  off.
+
+config ACPI_DOCK
+	bool "Dock"
+	help
+	  This driver supports ACPI-controlled docking stations and removable
+	  drive bays such as the IBM Ultrabay and the Dell Module Bay.
+
+config ACPI_CPU_FREQ_PSS
+	bool
+	select THERMAL
+
+config ACPI_PROCESSOR_CSTATE
+	def_bool y
+	depends on ACPI_PROCESSOR
+	depends on IA64 || X86
+
+config ACPI_PROCESSOR_IDLE
+	bool
+	select CPU_IDLE
+
+config ACPI_MCFG
+	bool
+
+config ACPI_CPPC_LIB
+	bool
+	depends on ACPI_PROCESSOR
+	select MAILBOX
+	select PCC
+	help
+	  If this option is enabled, this file implements common functionality
+	  to parse CPPC tables as described in the ACPI 5.1+ spec. The
+	  routines implemented are meant to be used by other
+	  drivers to control CPU performance using CPPC semantics.
+	  If your platform does not support CPPC in firmware,
+	  leave this option disabled.
+
+config ACPI_PROCESSOR
+	tristate "Processor"
+	depends on X86 || IA64 || ARM64 || LOONGARCH
+	select ACPI_PROCESSOR_IDLE
+	select ACPI_CPU_FREQ_PSS if X86 || IA64 || LOONGARCH
+	default y
+	help
+	  This driver adds support for the ACPI Processor package. It is required
+	  by several flavors of cpufreq performance-state, thermal, throttling and
+	  idle drivers.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called processor.
+
+config ACPI_IPMI
+	tristate "IPMI"
+	depends on IPMI_HANDLER
+	help
+	  This driver enables the ACPI to access the BMC controller. And it
+	  uses the IPMI request/response message to communicate with BMC
+	  controller, which can be found on on the server.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called as acpi_ipmi.
+
+config ACPI_HOTPLUG_CPU
+	bool
+	depends on ACPI_PROCESSOR && HOTPLUG_CPU
+	select ACPI_CONTAINER
+	default y
+
+config ACPI_PROCESSOR_AGGREGATOR
+	tristate "Processor Aggregator"
+	depends on ACPI_PROCESSOR
+	depends on X86
+	help
+	  ACPI 4.0 defines processor Aggregator, which enables OS to perform
+	  specific processor configuration and control that applies to all
+	  processors in the platform. Currently only logical processor idling
+	  is defined, which is to reduce power consumption. This driver
+	  supports the new device.
+
+config ACPI_THERMAL
+	tristate "Thermal Zone"
+	depends on ACPI_PROCESSOR
+	select THERMAL
+	default y
+	help
+	  This driver supports ACPI thermal zones.  Most mobile and
+	  some desktop systems support ACPI thermal zones.  It is HIGHLY
+	  recommended that this option be enabled, as your processor(s)
+	  may be damaged without it.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called thermal.
+
+config ACPI_PLATFORM_PROFILE
+	tristate
+
+config ACPI_CUSTOM_DSDT_FILE
+	string "Custom DSDT Table file to include"
+	default ""
+	depends on !STANDALONE
+	help
+	  This option supports a custom DSDT by linking it into the kernel.
+	  See Documentation/admin-guide/acpi/dsdt-override.rst
+
+	  Enter the full path name to the file which includes the AmlCode
+	  or dsdt_aml_code declaration.
+
+	  If unsure, don't enter a file name.
+
+config ACPI_CUSTOM_DSDT
+	bool
+	default ACPI_CUSTOM_DSDT_FILE != ""
+
+config ARCH_HAS_ACPI_TABLE_UPGRADE
+	def_bool n
+
+config ACPI_TABLE_UPGRADE
+	bool "Allow upgrading ACPI tables via initrd"
+	depends on BLK_DEV_INITRD && ARCH_HAS_ACPI_TABLE_UPGRADE
+	default y
+	help
+	  This option provides functionality to upgrade arbitrary ACPI tables
+	  via initrd. No functional change if no ACPI tables are passed via
+	  initrd, therefore it's safe to say Y.
+	  See Documentation/admin-guide/acpi/initrd_table_override.rst for details
+
+config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
+	bool "Override ACPI tables from built-in initrd"
+	depends on ACPI_TABLE_UPGRADE
+	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION_NONE
+	help
+	  This option provides functionality to override arbitrary ACPI tables
+	  from built-in uncompressed initrd.
+
+	  See Documentation/admin-guide/acpi/initrd_table_override.rst for details
+
+config ACPI_DEBUG
+	bool "Debug Statements"
+	help
+	  The ACPI subsystem can produce debug output.  Saying Y enables this
+	  output and increases the kernel size by around 50K.
+
+	  Use the acpi.debug_layer and acpi.debug_level kernel command-line
+	  parameters documented in Documentation/firmware-guide/acpi/debug.rst and
+	  Documentation/admin-guide/kernel-parameters.rst to control the type and
+	  amount of debug output.
+
+config ACPI_PCI_SLOT
+	bool "PCI slot detection driver"
+	depends on SYSFS && PCI
+	help
+	  This driver creates entries in /sys/bus/pci/slots/ for all PCI
+	  slots in the system.  This can help correlate PCI bus addresses,
+	  i.e., segment/bus/device/function tuples, with physical slots in
+	  the system.  If you are unsure, say N.
+
+config ACPI_CONTAINER
+	bool "Container and Module Devices"
+	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU)
+	help
+	  This driver supports ACPI Container and Module devices (IDs
+	  ACPI0004, PNP0A05, and PNP0A06).
+
+	  This helps support hotplug of nodes, CPUs, and memory.
+
+config ACPI_HOTPLUG_MEMORY
+	bool "Memory Hotplug"
+	depends on MEMORY_HOTPLUG
+	help
+	  This driver supports ACPI memory hotplug.  The driver
+	  fields notifications on ACPI memory devices (PNP0C80),
+	  which represent memory ranges that may be onlined or
+	  offlined during runtime.
+
+	  If your hardware and firmware do not support adding or
+	  removing memory devices at runtime, you need not enable
+	  this driver.
+
+config ACPI_HOTPLUG_IOAPIC
+	bool
+	depends on PCI
+	depends on X86_IO_APIC
+	default y
+
+config ACPI_SBS
+	tristate "Smart Battery System"
+	depends on X86
+	select POWER_SUPPLY
+	help
+	  This driver supports the Smart Battery System, another
+	  type of access to battery information, found on some laptops.
+
+	  To compile this driver as a module, choose M here:
+	  the modules will be called sbs and sbshc.
+
+config ACPI_HED
+	tristate "Hardware Error Device"
+	help
+	  This driver supports the Hardware Error Device (PNP0C33),
+	  which is used to report some hardware errors notified via
+	  SCI, mainly the corrected errors.
+
+config ACPI_CUSTOM_METHOD
+	tristate "Allow ACPI methods to be inserted/replaced at run time"
+	depends on DEBUG_FS
+	help
+	  This debug facility allows ACPI AML methods to be inserted and/or
+	  replaced without rebooting the system. For details refer to:
+	  Documentation/firmware-guide/acpi/method-customizing.rst.
+
+	  NOTE: This option is security sensitive, because it allows arbitrary
+	  kernel memory to be written to by root (uid=0) users, allowing them
+	  to bypass certain security measures (e.g. if root is not allowed to
+	  load additional kernel modules after boot, this feature may be used
+	  to override that restriction).
+
+config ACPI_BGRT
+	bool "Boottime Graphics Resource Table support"
+	depends on EFI && (X86 || ARM64)
+	help
+	  This driver adds support for exposing the ACPI Boottime Graphics
+	  Resource Table, which allows the operating system to obtain
+	  data from the firmware boot splash. It will appear under
+	  /sys/firmware/acpi/bgrt/ .
+
+config ACPI_REDUCED_HARDWARE_ONLY
+	bool "Hardware-reduced ACPI support only" if EXPERT
+	def_bool n
+	help
+	  This config item changes the way the ACPI code is built.  When this
+	  option is selected, the kernel will use a specialized version of
+	  ACPICA that ONLY supports the ACPI "reduced hardware" mode.  The
+	  resulting kernel will be smaller but it will also be restricted to
+	  running in ACPI reduced hardware mode ONLY.
+
+	  If you are unsure what to do, do not enable this option.
+
+source "drivers/acpi/nfit/Kconfig"
+source "drivers/acpi/numa/Kconfig"
+source "drivers/acpi/apei/Kconfig"
+source "drivers/acpi/dptf/Kconfig"
+
+config ACPI_WATCHDOG
+	bool
+
+config ACPI_EXTLOG
+	tristate "Extended Error Log support"
+	depends on X86_MCE && X86_LOCAL_APIC && EDAC
+	select UEFI_CPER
+	help
+	  Certain usages such as Predictive Failure Analysis (PFA) require
+	  more information about the error than what can be described in
+	  processor machine check banks. Most server processors log
+	  additional information about the error in processor uncore
+	  registers. Since the addresses and layout of these registers vary
+	  widely from one processor to another, system software cannot
+	  readily make use of them. To complicate matters further, some of
+	  the additional error information cannot be constructed without
+	  detailed knowledge about platform topology.
+
+	  Enhanced MCA Logging allows firmware to provide additional error
+	  information to system software, synchronous with MCE or CMCI. This
+	  driver adds support for that functionality with corresponding
+	  tracepoint which carries that information to userspace.
+
+config ACPI_ADXL
+	bool
+
+config ACPI_CONFIGFS
+	tristate "ACPI configfs support"
+	select CONFIGFS_FS
+	help
+	  Select this option to enable support for ACPI configuration from
+	  userspace. The configurable ACPI groups will be visible under
+	  /config/acpi, assuming configfs is mounted under /config.
+
+if ARM64
+source "drivers/acpi/arm64/Kconfig"
+
+config ACPI_PPTT
+	bool
+endif
+
+source "drivers/acpi/pmic/Kconfig"
+
+config ACPI_VIOT
+	bool
+
+endif	# ACPI
+
+config X86_PM_TIMER
+	bool "Power Management Timer Support" if EXPERT
+	depends on X86 && (ACPI || JAILHOUSE_GUEST)
+	default y
+	help
+	  The Power Management Timer is available on all ACPI-capable,
+	  in most cases even if ACPI is unusable or blacklisted.
+
+	  This timing source is not affected by power management features
+	  like aggressive processor idling, throttling, frequency and/or
+	  voltage scaling, unlike the commonly used Time Stamp Counter
+	  (TSC) timing source.
+
+	  You should nearly always say Y here because many modern
+	  systems require this timer.
+
+config ACPI_PRMT
+	bool "Platform Runtime Mechanism Support"
+	depends on EFI && X86_64
+	default y
+	help
+	  Platform Runtime Mechanism (PRM) is a firmware interface exposing a
+	  set of binary executables that can be called from the AML interpreter
+	  or directly from device drivers.
+
+	  Say Y to enable the AML interpreter to execute the PRM code.
+
+	  While this feature is optional in principle, leaving it out may
+	  substantially increase computational overhead related to the
+	  initialization of some server systems.

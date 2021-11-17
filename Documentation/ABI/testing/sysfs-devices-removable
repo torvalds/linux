@@ -1,0 +1,18 @@
+What:		/sys/devices/.../removable
+Date:		May 2021
+Contact:	Rajat Jain <rajatxjain@gmail.com>
+Description:
+		Information about whether a given device can be removed from the
+		platform by the	user. This is determined by its subsystem in a
+		bus / platform-specific way. This attribute is only present for
+		devices that can support determining such information:
+
+		"removable": device can be removed from the platform by the user
+		"fixed":     device is fixed to the platform / cannot be removed
+			     by the user.
+		"unknown":   The information is unavailable / cannot be deduced.
+
+		Currently this is only supported by USB (which infers the
+		information from a combination of hub descriptor bits and
+		platform-specific data such as ACPI) and PCI (which gets this
+		from ACPI / device tree).

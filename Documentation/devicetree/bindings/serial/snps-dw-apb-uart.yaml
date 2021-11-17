@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/snps-dw-apb-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DesignWare ABP UART
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+allOf:
+  - $ref: serial.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r9a06g032-uart
+              - renesas,r9a06g033-uart
+          - const: renesas,rzn1-uart
+      - items:
+          - enum:
+              - rockchip,px30-uart
+              - rockchip,rk1808-uart
+              - rockchip,rk3036-uart
+              - rockchip,rk3066-uart
+              - rockchip,rk3188-uart
+              - rockchip,rk3288-uart
+              - rockchip,rk3308-uart
+              - rockchip,rk3328-uart
+              - rockchip,rk3368-uart
+              - rockchip,rk3399-uart
+              - rockchip,rk3568-uart
+              - rockchip,rv1108-uart
+          - const: snps,dw-apb-uart
+      - items:
+          - enum:
+              - brcm,bcm11351-dw-apb-uart
+              - brcm,bcm21664-dw-apb-uart
+          - const: snps,dw-apb-uart
+      - const: snps,dw-apb-uart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clock-frequency: true
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: baudclk
+      - const: apb_pclk
+
+  snps,uart-16550-compatible:
+    description: reflects the value of UART_16550_COMPATIBLE configuration
+      parameter. Define this if your UART does not implement the busy functionality.
+    type: boolean
+
+  resets:
+    maxItems: 1
+
+  reg-shift: true
+
+  reg-io-width: true
+
+  dcd-override:
+    description: Override the DCD modem status signal. This signal will
+      always be reported as active instead of being obtained from the modem
+      status register. Define this if your serial port does not use this
+      pin.
+    type: boolean
+
+  dsr-override:
+    description: Override the DTS modem status signal. This signal will
+      always be reported as active instead of being obtained from the modem
+      status register. Define this if your serial port does not use this
+      pin.
+    type: boolean
+
+  cts-override:
+    description: Override the CTS modem status signal. This signal will
+      always be reported as active instead of being obtained from the modem
+      status register. Define this if your serial port does not use this
+      pin.
+    type: boolean
+
+  ri-override:
+    description: Override the RI modem status signal. This signal will always
+      be reported as inactive instead of being obtained from the modem status
+      register. Define this if your serial port does not use this pin.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    serial@80230000 {
+      compatible = "snps,dw-apb-uart";
+      reg = <0x80230000 0x100>;
+      clock-frequency = <3686400>;
+      interrupts = <10>;
+      reg-shift = <2>;
+      reg-io-width = <4>;
+      dcd-override;
+      dsr-override;
+      cts-override;
+      ri-override;
+    };
+
+  - |
+    // Example with one clock:
+    serial@80230000 {
+      compatible = "snps,dw-apb-uart";
+      reg = <0x80230000 0x100>;
+      clocks = <&baudclk>;
+      interrupts = <10>;
+      reg-shift = <2>;
+      reg-io-width = <4>;
+    };
+
+  - |
+    // Example with two clocks:
+    serial@80230000 {
+      compatible = "snps,dw-apb-uart";
+      reg = <0x80230000 0x100>;
+      clocks = <&baudclk>, <&apb_pclk>;
+      clock-names = "baudclk", "apb_pclk";
+      interrupts = <10>;
+      reg-shift = <2>;
+      reg-io-width = <4>;
+    };
+...

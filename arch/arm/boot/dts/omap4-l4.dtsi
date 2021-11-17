@@ -1,0 +1,2483 @@
+// SPDX-License-Identifier: GPL-2.0
+&l4_cfg {						/* 0x4a000000 */
+	compatible = "ti,omap4-l4-cfg", "simple-pm-bus";
+	power-domains = <&prm_core>;
+	clocks = <&l4_cfg_clkctrl OMAP4_L4_CFG_CLKCTRL 0>;
+	clock-names = "fck";
+	reg = <0x4a000000 0x800>,
+	      <0x4a000800 0x800>,
+	      <0x4a001000 0x1000>;
+	reg-names = "ap", "la", "ia0";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0x00000000 0x4a000000 0x080000>,	/* segment 0 */
+		 <0x00080000 0x4a080000 0x080000>,	/* segment 1 */
+		 <0x00100000 0x4a100000 0x080000>,	/* segment 2 */
+		 <0x00180000 0x4a180000 0x080000>,	/* segment 3 */
+		 <0x00200000 0x4a200000 0x080000>,	/* segment 4 */
+		 <0x00280000 0x4a280000 0x080000>,	/* segment 5 */
+		 <0x00300000 0x4a300000 0x080000>;	/* segment 6 */
+
+	segment@0 {					/* 0x4a000000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
+			 <0x00001000 0x00001000 0x001000>,	/* ap 1 */
+			 <0x00000800 0x00000800 0x000800>,	/* ap 2 */
+			 <0x00002000 0x00002000 0x001000>,	/* ap 3 */
+			 <0x00003000 0x00003000 0x001000>,	/* ap 4 */
+			 <0x00004000 0x00004000 0x001000>,	/* ap 5 */
+			 <0x00005000 0x00005000 0x001000>,	/* ap 6 */
+			 <0x00056000 0x00056000 0x001000>,	/* ap 7 */
+			 <0x00057000 0x00057000 0x001000>,	/* ap 8 */
+			 <0x0005c000 0x0005c000 0x001000>,	/* ap 9 */
+			 <0x00058000 0x00058000 0x004000>,	/* ap 10 */
+			 <0x00062000 0x00062000 0x001000>,	/* ap 11 */
+			 <0x00063000 0x00063000 0x001000>,	/* ap 12 */
+			 <0x00008000 0x00008000 0x002000>,	/* ap 23 */
+			 <0x0000a000 0x0000a000 0x001000>,	/* ap 24 */
+			 <0x00066000 0x00066000 0x001000>,	/* ap 25 */
+			 <0x00067000 0x00067000 0x001000>,	/* ap 26 */
+			 <0x0005e000 0x0005e000 0x002000>,	/* ap 80 */
+			 <0x00060000 0x00060000 0x001000>,	/* ap 81 */
+			 <0x00064000 0x00064000 0x001000>,	/* ap 86 */
+			 <0x00065000 0x00065000 0x001000>;	/* ap 87 */
+
+		target-module@2000 {			/* 0x4a002000, ap 3 06.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x2000 0x4>,
+			      <0x2010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, core_pwrdm, l4_cfg_clkdm */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x2000 0x1000>;
+
+			omap4_scm_core: scm@0 {
+				compatible = "ti,omap4-scm-core", "simple-bus";
+				reg = <0x0 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x1000>;
+
+				scm_conf: scm_conf@0 {
+					compatible = "syscon";
+					reg = <0x0 0x800>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+				};
+
+				omap_control_usb2phy: control-phy@300 {
+					compatible = "ti,control-phy-usb2";
+					reg = <0x300 0x4>;
+					reg-names = "power";
+				};
+
+				omap_control_usbotg: control-phy@33c {
+					compatible = "ti,control-phy-otghs";
+					reg = <0x33c 0x4>;
+					reg-names = "otghs_control";
+				};
+			};
+		};
+
+		target-module@4000 {			/* 0x4a004000, ap 5 02.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x4000 0x4>;
+			reg-names = "rev";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4000 0x1000>;
+
+			cm1: cm1@0 {
+				compatible = "ti,omap4-cm1", "simple-bus";
+				reg = <0x0 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x2000>;
+
+				cm1_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				cm1_clockdomains: clockdomains {
+				};
+			};
+		};
+
+		target-module@8000 {			/* 0x4a008000, ap 23 32.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x8000 0x4>;
+			reg-names = "rev";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x8000 0x2000>;
+
+			cm2: cm2@0 {
+				compatible = "ti,omap4-cm2", "simple-bus";
+				reg = <0x0 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x2000>;
+
+				cm2_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				cm2_clockdomains: clockdomains {
+				};
+			};
+		};
+
+		target-module@56000 {			/* 0x4a056000, ap 7 0a.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x56000 0x4>,
+			      <0x5602c 0x4>,
+			      <0x56028 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, core_pwrdm, l3_dma_clkdm */
+			clocks = <&l3_dma_clkctrl OMAP4_DMA_SYSTEM_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x56000 0x1000>;
+
+			sdma: dma-controller@0 {
+				compatible = "ti,omap4430-sdma", "ti,omap-sdma";
+				reg = <0x0 0x1000>;
+				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+				#dma-cells = <1>;
+				dma-channels = <32>;
+				dma-requests = <127>;
+			};
+		};
+
+		target-module@58000 {			/* 0x4a058000, ap 10 0e.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x58000 0x4>,
+			      <0x58010 0x4>,
+			      <0x58014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l3init_pwrdm, l3_init_clkdm */
+			clocks = <&l3_init_clkctrl OMAP4_HSI_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x58000 0x5000>;
+
+			hsi: hsi@0 {
+				compatible = "ti,omap4-hsi";
+				reg = <0x0 0x4000>,
+				      <0x5000 0x1000>;
+				reg-names = "sys", "gdd";
+
+				clocks = <&l3_init_clkctrl OMAP4_HSI_CLKCTRL 0>;
+				clock-names = "hsi_fck";
+
+				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "gdd_mpu";
+
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x4000>;
+
+				hsi_port1: hsi-port@2000 {
+					compatible = "ti,omap4-hsi-port";
+					reg = <0x2000 0x800>,
+					      <0x2800 0x800>;
+					reg-names = "tx", "rx";
+					interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				hsi_port2: hsi-port@3000 {
+					compatible = "ti,omap4-hsi-port";
+					reg = <0x3000 0x800>,
+					      <0x3800 0x800>;
+					reg-names = "tx", "rx";
+					interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+		};
+
+		target-module@5e000 {			/* 0x4a05e000, ap 80 68.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x5e000 0x2000>;
+		};
+
+		target-module@62000 {			/* 0x4a062000, ap 11 16.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x62000 0x4>,
+			      <0x62010 0x4>,
+			      <0x62014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			/* Domains (V, P, C): core, l3init_pwrdm, l3_init_clkdm */
+			clocks = <&l3_init_clkctrl OMAP4_USB_TLL_HS_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x62000 0x1000>;
+
+			usbhstll: usbhstll@0 {
+				compatible = "ti,usbhs-tll";
+				reg = <0x0 0x1000>;
+				interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@64000 {			/* 0x4a064000, ap 86 1e.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x64000 0x4>,
+			      <0x64010 0x4>,
+			      <0x64014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l3init_pwrdm, l3_init_clkdm */
+			clocks = <&l3_init_clkctrl OMAP4_USB_HOST_HS_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x64000 0x1000>;
+
+			usbhshost: usbhshost@0 {
+				compatible = "ti,usbhs-host";
+				reg = <0x0 0x800>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x1000>;
+				clocks = <&init_60m_fclk>,
+					 <&xclk60mhsp1_ck>,
+					 <&xclk60mhsp2_ck>;
+				clock-names = "refclk_60m_int",
+					      "refclk_60m_ext_p1",
+					      "refclk_60m_ext_p2";
+
+				usbhsohci: ohci@800 {
+					compatible = "ti,ohci-omap3";
+					reg = <0x800 0x400>;
+					interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+					remote-wakeup-connected;
+				};
+
+				usbhsehci: ehci@c00 {
+					compatible = "ti,ehci-omap";
+					reg = <0xc00 0x400>;
+					interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+		};
+
+		target-module@66000 {			/* 0x4a066000, ap 25 26.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x66000 0x4>,
+			      <0x66010 0x4>,
+			      <0x66014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			/* Domains (V, P, C): iva, tesla_pwrdm, tesla_clkdm */
+			clocks = <&tesla_clkctrl OMAP4_DSP_CLKCTRL 0>;
+			clock-names = "fck";
+			power-domains = <&prm_tesla>;
+			resets = <&prm_tesla 1>;
+			reset-names = "rstctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x66000 0x1000>;
+
+			mmu_dsp: mmu@0 {
+				compatible = "ti,omap4-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+			};
+		};
+	};
+
+	segment@80000 {					/* 0x4a080000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00059000 0x000d9000 0x001000>,	/* ap 13 */
+			 <0x0005a000 0x000da000 0x001000>,	/* ap 14 */
+			 <0x0005b000 0x000db000 0x001000>,	/* ap 15 */
+			 <0x0005c000 0x000dc000 0x001000>,	/* ap 16 */
+			 <0x0005d000 0x000dd000 0x001000>,	/* ap 17 */
+			 <0x0005e000 0x000de000 0x001000>,	/* ap 18 */
+			 <0x00060000 0x000e0000 0x001000>,	/* ap 19 */
+			 <0x00061000 0x000e1000 0x001000>,	/* ap 20 */
+			 <0x00074000 0x000f4000 0x001000>,	/* ap 27 */
+			 <0x00075000 0x000f5000 0x001000>,	/* ap 28 */
+			 <0x00076000 0x000f6000 0x001000>,	/* ap 29 */
+			 <0x00077000 0x000f7000 0x001000>,	/* ap 30 */
+			 <0x00036000 0x000b6000 0x001000>,	/* ap 69 */
+			 <0x00037000 0x000b7000 0x001000>,	/* ap 70 */
+			 <0x0004d000 0x000cd000 0x001000>,	/* ap 78 */
+			 <0x0004e000 0x000ce000 0x001000>,	/* ap 79 */
+			 <0x00029000 0x000a9000 0x001000>,	/* ap 82 */
+			 <0x0002a000 0x000aa000 0x001000>,	/* ap 83 */
+			 <0x0002b000 0x000ab000 0x001000>,	/* ap 84 */
+			 <0x0002c000 0x000ac000 0x001000>,	/* ap 85 */
+			 <0x0002d000 0x000ad000 0x001000>,	/* ap 88 */
+			 <0x0002e000 0x000ae000 0x001000>;	/* ap 89 */
+
+		target-module@29000 {			/* 0x4a0a9000, ap 82 04.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x29000 0x1000>;
+		};
+
+		target-module@2b000 {			/* 0x4a0ab000, ap 84 12.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x2b400 0x4>,
+			      <0x2b404 0x4>,
+			      <0x2b408 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l3init_pwrdm, l3_init_clkdm */
+			clocks = <&l3_init_clkctrl OMAP4_USB_OTG_HS_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x2b000 0x1000>;
+
+			usb_otg_hs: usb_otg_hs@0 {
+				compatible = "ti,omap4-musb";
+				reg = <0x0 0x7ff>;
+				interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "mc", "dma";
+				usb-phy = <&usb2_phy>;
+				phys = <&usb2_phy>;
+				phy-names = "usb2-phy";
+				multipoint = <1>;
+				num-eps = <16>;
+				ram-bits = <12>;
+				ctrl-module = <&omap_control_usbotg>;
+			};
+		};
+
+		target-module@2d000 {			/* 0x4a0ad000, ap 88 0c.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x2d000 0x4>,
+			      <0x2d010 0x4>,
+			      <0x2d014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l3init_pwrdm, l3_init_clkdm */
+			clocks = <&l3_init_clkctrl OMAP4_OCP2SCP_USB_PHY_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x2d000 0x1000>;
+
+			ocp2scp@0 {
+				compatible = "ti,omap-ocp2scp";
+				reg = <0x0 0x1f>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x1000>;
+				usb2_phy: usb2phy@80 {
+					compatible = "ti,omap-usb2";
+					reg = <0x80 0x58>;
+					ctrl-module = <&omap_control_usb2phy>;
+					clocks = <&usb_phy_cm_clk32k>;
+					clock-names = "wkupclk";
+					#phy-cells = <0>;
+				};
+			};
+		};
+
+		/* d2d mdm */
+		target-module@36000 {			/* 0x4a0b6000, ap 69 60.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x36000 0x4>,
+			      <0x36010 0x4>,
+			      <0x36014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET | SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, core_pwrdm, d2d_clkdm */
+			clocks = <&d2d_clkctrl OMAP4_C2C_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x36000 0x1000>;
+		};
+
+		/* d2d mpu */
+		target-module@4d000 {			/* 0x4a0cd000, ap 78 58.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x4d000 0x4>,
+			      <0x4d010 0x4>,
+			      <0x4d014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET | SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, core_pwrdm, d2d_clkdm */
+			clocks = <&d2d_clkctrl OMAP4_C2C_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4d000 0x1000>;
+		};
+
+		target-module@59000 {			/* 0x4a0d9000, ap 13 1a.0 */
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
+			reg = <0x59038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, always_on_core_pwrdm, l4_ao_clkdm */
+			clocks = <&l4_ao_clkctrl OMAP4_SMARTREFLEX_MPU_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x59000 0x1000>;
+
+			smartreflex_mpu: smartreflex@0 {
+				compatible = "ti,omap4-smartreflex-mpu";
+				reg = <0x0 0x80>;
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@5b000 {			/* 0x4a0db000, ap 15 08.0 */
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
+			reg = <0x5b038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, always_on_core_pwrdm, l4_ao_clkdm */
+			clocks = <&l4_ao_clkctrl OMAP4_SMARTREFLEX_IVA_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x5b000 0x1000>;
+
+			smartreflex_iva: smartreflex@0 {
+				compatible = "ti,omap4-smartreflex-iva";
+				reg = <0x0 0x80>;
+				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@5d000 {			/* 0x4a0dd000, ap 17 22.0 */
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
+			reg = <0x5d038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, always_on_core_pwrdm, l4_ao_clkdm */
+			clocks = <&l4_ao_clkctrl OMAP4_SMARTREFLEX_CORE_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x5d000 0x1000>;
+
+			smartreflex_core: smartreflex@0 {
+				compatible = "ti,omap4-smartreflex-core";
+				reg = <0x0 0x80>;
+				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@60000 {			/* 0x4a0e0000, ap 19 1c.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x60000 0x1000>;
+		};
+
+		target-module@74000 {			/* 0x4a0f4000, ap 27 24.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x74000 0x4>,
+			      <0x74010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			/* Domains (V, P, C): core, core_pwrdm, l4_cfg_clkdm */
+			clocks = <&l4_cfg_clkctrl OMAP4_MAILBOX_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x74000 0x1000>;
+
+			mailbox: mailbox@0 {
+				compatible = "ti,omap4-mailbox";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+				#mbox-cells = <1>;
+				ti,mbox-num-users = <3>;
+				ti,mbox-num-fifos = <8>;
+				mbox_ipu: mbox-ipu {
+					ti,mbox-tx = <0 0 0>;
+					ti,mbox-rx = <1 0 0>;
+				};
+				mbox_dsp: mbox-dsp {
+					ti,mbox-tx = <3 0 0>;
+					ti,mbox-rx = <2 0 0>;
+				};
+			};
+		};
+
+		target-module@76000 {			/* 0x4a0f6000, ap 29 3a.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x76000 0x4>,
+			      <0x76010 0x4>,
+			      <0x76014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, core_pwrdm, l4_cfg_clkdm */
+			clocks = <&l4_cfg_clkctrl OMAP4_SPINLOCK_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x76000 0x1000>;
+
+			hwspinlock: spinlock@0 {
+				compatible = "ti,omap4-hwspinlock";
+				reg = <0x0 0x1000>;
+				#hwlock-cells = <1>;
+			};
+		};
+	};
+
+	segment@100000 {					/* 0x4a100000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x00100000 0x001000>,	/* ap 21 */
+			 <0x00001000 0x00101000 0x001000>,	/* ap 22 */
+			 <0x00002000 0x00102000 0x001000>,	/* ap 61 */
+			 <0x00003000 0x00103000 0x001000>,	/* ap 62 */
+			 <0x00008000 0x00108000 0x001000>,	/* ap 63 */
+			 <0x00009000 0x00109000 0x001000>,	/* ap 64 */
+			 <0x0000a000 0x0010a000 0x001000>,	/* ap 65 */
+			 <0x0000b000 0x0010b000 0x001000>;	/* ap 66 */
+
+		target-module@0 {			/* 0x4a100000, ap 21 2a.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x0 0x4>,
+			      <0x10 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, core_pwrdm, l4_cfg_clkdm */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x1000>;
+
+			omap4_pmx_core: pinmux@40 {
+				compatible = "ti,omap4-padconf",
+					     "pinctrl-single";
+				reg = <0x40 0x0196>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#pinctrl-cells = <1>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				pinctrl-single,register-width = <16>;
+				pinctrl-single,function-mask = <0x7fff>;
+			};
+
+			omap4_padconf_global: omap4_padconf_global@5a0 {
+				compatible = "syscon",
+					     "simple-bus";
+				reg = <0x5a0 0x170>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x5a0 0x170>;
+
+				pbias_regulator: pbias_regulator@60 {
+					compatible = "ti,pbias-omap4", "ti,pbias-omap";
+					reg = <0x60 0x4>;
+					syscon = <&omap4_padconf_global>;
+					pbias_mmc_reg: pbias_mmc_omap4 {
+						regulator-name = "pbias_mmc_omap4";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <3000000>;
+					};
+				};
+			};
+		};
+
+		target-module@2000 {			/* 0x4a102000, ap 61 3c.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x2000 0x1000>;
+		};
+
+		target-module@8000 {			/* 0x4a108000, ap 63 62.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x8000 0x1000>;
+		};
+
+		target-module@a000 {			/* 0x4a10a000, ap 65 50.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xa000 0x4>,
+			      <0xa010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-delay-us = <2>;
+			/* Domains (V, P, C): core, cam_pwrdm, iss_clkdm */
+			clocks = <&iss_clkctrl OMAP4_FDIF_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xa000 0x1000>;
+
+			/* No child device binding or driver in mainline */
+		};
+	};
+
+	segment@180000 {					/* 0x4a180000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	segment@200000 {					/* 0x4a200000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0001e000 0x0021e000 0x001000>,	/* ap 31 */
+			 <0x0001f000 0x0021f000 0x001000>,	/* ap 32 */
+			 <0x0000a000 0x0020a000 0x001000>,	/* ap 33 */
+			 <0x0000b000 0x0020b000 0x001000>,	/* ap 34 */
+			 <0x00004000 0x00204000 0x001000>,	/* ap 35 */
+			 <0x00005000 0x00205000 0x001000>,	/* ap 36 */
+			 <0x00006000 0x00206000 0x001000>,	/* ap 37 */
+			 <0x00007000 0x00207000 0x001000>,	/* ap 38 */
+			 <0x00012000 0x00212000 0x001000>,	/* ap 39 */
+			 <0x00013000 0x00213000 0x001000>,	/* ap 40 */
+			 <0x0000c000 0x0020c000 0x001000>,	/* ap 41 */
+			 <0x0000d000 0x0020d000 0x001000>,	/* ap 42 */
+			 <0x00010000 0x00210000 0x001000>,	/* ap 43 */
+			 <0x00011000 0x00211000 0x001000>,	/* ap 44 */
+			 <0x00016000 0x00216000 0x001000>,	/* ap 45 */
+			 <0x00017000 0x00217000 0x001000>,	/* ap 46 */
+			 <0x00014000 0x00214000 0x001000>,	/* ap 47 */
+			 <0x00015000 0x00215000 0x001000>,	/* ap 48 */
+			 <0x00018000 0x00218000 0x001000>,	/* ap 49 */
+			 <0x00019000 0x00219000 0x001000>,	/* ap 50 */
+			 <0x00020000 0x00220000 0x001000>,	/* ap 51 */
+			 <0x00021000 0x00221000 0x001000>,	/* ap 52 */
+			 <0x00026000 0x00226000 0x001000>,	/* ap 53 */
+			 <0x00027000 0x00227000 0x001000>,	/* ap 54 */
+			 <0x00028000 0x00228000 0x001000>,	/* ap 55 */
+			 <0x00029000 0x00229000 0x001000>,	/* ap 56 */
+			 <0x0002a000 0x0022a000 0x001000>,	/* ap 57 */
+			 <0x0002b000 0x0022b000 0x001000>,	/* ap 58 */
+			 <0x0001c000 0x0021c000 0x001000>,	/* ap 59 */
+			 <0x0001d000 0x0021d000 0x001000>;	/* ap 60 */
+
+		target-module@4000 {			/* 0x4a204000, ap 35 42.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4000 0x1000>;
+		};
+
+		target-module@6000 {			/* 0x4a206000, ap 37 4a.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x6000 0x1000>;
+		};
+
+		target-module@a000 {			/* 0x4a20a000, ap 33 2c.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xa000 0x1000>;
+		};
+
+		target-module@c000 {			/* 0x4a20c000, ap 41 20.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xc000 0x1000>;
+		};
+
+		target-module@10000 {			/* 0x4a210000, ap 43 52.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x10000 0x1000>;
+		};
+
+		target-module@12000 {			/* 0x4a212000, ap 39 18.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x12000 0x1000>;
+		};
+
+		target-module@14000 {			/* 0x4a214000, ap 47 30.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x14000 0x1000>;
+		};
+
+		target-module@16000 {			/* 0x4a216000, ap 45 28.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x16000 0x1000>;
+		};
+
+		target-module@18000 {			/* 0x4a218000, ap 49 38.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x18000 0x1000>;
+		};
+
+		target-module@1c000 {			/* 0x4a21c000, ap 59 5a.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x1c000 0x1000>;
+		};
+
+		target-module@1e000 {			/* 0x4a21e000, ap 31 10.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x1e000 0x1000>;
+		};
+
+		target-module@20000 {			/* 0x4a220000, ap 51 40.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x20000 0x1000>;
+		};
+
+		target-module@26000 {			/* 0x4a226000, ap 53 34.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x26000 0x1000>;
+		};
+
+		target-module@28000 {			/* 0x4a228000, ap 55 2e.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x28000 0x1000>;
+		};
+
+		target-module@2a000 {			/* 0x4a22a000, ap 57 48.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x2a000 0x1000>;
+		};
+	};
+
+	segment@280000 {					/* 0x4a280000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	l4_cfg_segment_300000: segment@300000 {			/* 0x4a300000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x00300000 0x020000>,	/* ap 67 */
+			 <0x00040000 0x00340000 0x001000>,	/* ap 68 */
+			 <0x00020000 0x00320000 0x004000>,	/* ap 71 */
+			 <0x00024000 0x00324000 0x002000>,	/* ap 72 */
+			 <0x00026000 0x00326000 0x001000>,	/* ap 73 */
+			 <0x00027000 0x00327000 0x001000>,	/* ap 74 */
+			 <0x00028000 0x00328000 0x001000>,	/* ap 75 */
+			 <0x00029000 0x00329000 0x001000>,	/* ap 76 */
+			 <0x00030000 0x00330000 0x010000>,	/* ap 77 */
+			 <0x0002a000 0x0032a000 0x002000>,	/* ap 90 */
+			 <0x0002c000 0x0032c000 0x004000>;	/* ap 91 */
+
+		l4_cfg_target_0: target-module@0 {	/* 0x4a300000, ap 67 14.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00000000 0x00000000 0x00020000>,
+				 <0x00020000 0x00020000 0x00004000>,
+				 <0x00024000 0x00024000 0x00002000>,
+				 <0x00026000 0x00026000 0x00001000>,
+				 <0x00027000 0x00027000 0x00001000>,
+				 <0x00028000 0x00028000 0x00001000>,
+				 <0x00029000 0x00029000 0x00001000>,
+				 <0x0002a000 0x0002a000 0x00002000>,
+				 <0x0002c000 0x0002c000 0x00004000>,
+				 <0x00030000 0x00030000 0x00010000>;
+		};
+	};
+};
+
+&l4_wkup {						/* 0x4a300000 */
+	compatible = "ti,omap4-l4-wkup", "simple-pm-bus";
+	power-domains = <&prm_wkup>;
+	clocks = <&l4_wkup_clkctrl OMAP4_L4_WKUP_CLKCTRL 0>;
+	clock-names = "fck";
+	reg = <0x4a300000 0x800>,
+	      <0x4a300800 0x800>,
+	      <0x4a301000 0x1000>;
+	reg-names = "ap", "la", "ia0";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0x00000000 0x4a300000 0x010000>,	/* segment 0 */
+		 <0x00010000 0x4a310000 0x010000>,	/* segment 1 */
+		 <0x00020000 0x4a320000 0x010000>;	/* segment 2 */
+
+	segment@0 {					/* 0x4a300000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
+			 <0x00001000 0x00001000 0x001000>,	/* ap 1 */
+			 <0x00000800 0x00000800 0x000800>,	/* ap 2 */
+			 <0x00006000 0x00006000 0x002000>,	/* ap 3 */
+			 <0x00008000 0x00008000 0x001000>,	/* ap 4 */
+			 <0x0000a000 0x0000a000 0x001000>,	/* ap 15 */
+			 <0x0000b000 0x0000b000 0x001000>,	/* ap 16 */
+			 <0x00004000 0x00004000 0x001000>,	/* ap 17 */
+			 <0x00005000 0x00005000 0x001000>,	/* ap 18 */
+			 <0x0000c000 0x0000c000 0x001000>,	/* ap 19 */
+			 <0x0000d000 0x0000d000 0x001000>;	/* ap 20 */
+
+		target-module@4000 {			/* 0x4a304000, ap 17 24.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x4000 0x4>,
+			      <0x4004 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>;
+			/* Domains (V, P, C): wakeup, wkup_pwrdm, l4_wkup_clkdm */
+			clocks = <&l4_wkup_clkctrl OMAP4_COUNTER_32K_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4000 0x1000>;
+
+			counter32k: counter@0 {
+				compatible = "ti,omap-counter32k";
+				reg = <0x0 0x20>;
+			};
+		};
+
+		target-module@6000 {			/* 0x4a306000, ap 3 08.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x6000 0x4>;
+			reg-names = "rev";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x6000 0x2000>;
+
+			prm: prm@0 {
+				compatible = "ti,omap4-prm", "simple-bus";
+				reg = <0x0 0x2000>;
+				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x2000>;
+
+				prm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				prm_clockdomains: clockdomains {
+				};
+			};
+		};
+
+		target-module@a000 {			/* 0x4a30a000, ap 15 34.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xa000 0x4>;
+			reg-names = "rev";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xa000 0x1000>;
+
+			scrm: scrm@0 {
+				compatible = "ti,omap4-scrm";
+				reg = <0x0 0x2000>;
+
+				scrm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				scrm_clockdomains: clockdomains {
+				};
+			};
+		};
+
+		target-module@c000 {			/* 0x4a30c000, ap 19 2c.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xc000 0x4>,
+			      <0xc010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): wakeup, wkup_pwrdm, l4_wkup_clkdm */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xc000 0x1000>;
+
+			omap4_scm_wkup: scm@c000 {
+				compatible = "ti,omap4-scm-wkup";
+				reg = <0xc000 0x1000>;
+			};
+		};
+	};
+
+	segment@10000 {					/* 0x4a310000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x00010000 0x001000>,	/* ap 5 */
+			 <0x00001000 0x00011000 0x001000>,	/* ap 6 */
+			 <0x00004000 0x00014000 0x001000>,	/* ap 7 */
+			 <0x00005000 0x00015000 0x001000>,	/* ap 8 */
+			 <0x00008000 0x00018000 0x001000>,	/* ap 9 */
+			 <0x00009000 0x00019000 0x001000>,	/* ap 10 */
+			 <0x0000c000 0x0001c000 0x001000>,	/* ap 11 */
+			 <0x0000d000 0x0001d000 0x001000>,	/* ap 12 */
+			 <0x0000e000 0x0001e000 0x001000>,	/* ap 21 */
+			 <0x0000f000 0x0001f000 0x001000>;	/* ap 22 */
+
+		gpio1_target: target-module@0 {			/* 0x4a310000, ap 5 14.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x0 0x4>,
+			      <0x10 0x4>,
+			      <0x114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): wakeup, wkup_pwrdm, l4_wkup_clkdm */
+			clocks = <&l4_wkup_clkctrl OMAP4_GPIO1_CLKCTRL 0>,
+				 <&l4_wkup_clkctrl OMAP4_GPIO1_CLKCTRL 8>;
+			clock-names = "fck", "dbclk";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x1000>;
+
+			gpio1: gpio@0 {
+				compatible = "ti,omap4-gpio";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+				ti,gpio-always-on;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
+
+		target-module@4000 {			/* 0x4a314000, ap 7 18.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x4000 0x4>,
+			      <0x4010 0x4>,
+			      <0x4014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): wakeup, wkup_pwrdm, l4_wkup_clkdm */
+			clocks = <&l4_wkup_clkctrl OMAP4_WD_TIMER2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4000 0x1000>;
+
+			wdt2: wdt@0 {
+				compatible = "ti,omap4-wdt", "ti,omap3-wdt";
+				reg = <0x0 0x80>;
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		timer1_target: target-module@8000 {	/* 0x4a318000, ap 9 1c.0 */
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x8000 0x4>,
+			      <0x8010 0x4>,
+			      <0x8014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): wakeup, wkup_pwrdm, l4_wkup_clkdm */
+			clocks = <&l4_wkup_clkctrl OMAP4_TIMER1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x8000 0x1000>;
+
+			timer1: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&l4_wkup_clkctrl OMAP4_TIMER1_CLKCTRL 24>,
+					 <&sys_clkin_ck>;
+				clock-names = "fck", "timer_sys_ck";
+				interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+				ti,timer-alwon;
+			};
+		};
+
+		target-module@c000 {			/* 0x4a31c000, ap 11 20.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0xc000 0x4>,
+			      <0xc010 0x4>,
+			      <0xc014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): wakeup, wkup_pwrdm, l4_wkup_clkdm */
+			clocks = <&l4_wkup_clkctrl OMAP4_KBD_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xc000 0x1000>;
+
+			keypad: keypad@0 {
+				compatible = "ti,omap4-keypad";
+				reg = <0x0 0x80>;
+				interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+				reg-names = "mpu";
+			};
+		};
+
+		target-module@e000 {			/* 0x4a31e000, ap 21 30.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xe000 0x4>,
+			      <0xe010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): wakeup, wkup_pwrdm, l4_wkup_clkdm */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xe000 0x1000>;
+
+			omap4_pmx_wkup: pinmux@40 {
+				compatible = "ti,omap4-padconf",
+					     "pinctrl-single";
+				reg = <0x40 0x0038>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#pinctrl-cells = <1>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				pinctrl-single,register-width = <16>;
+				pinctrl-single,function-mask = <0x7fff>;
+			};
+		};
+	};
+
+	segment@20000 {					/* 0x4a320000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00006000 0x00026000 0x001000>,	/* ap 13 */
+			 <0x0000a000 0x0002a000 0x001000>,	/* ap 14 */
+			 <0x00000000 0x00020000 0x001000>,	/* ap 23 */
+			 <0x00001000 0x00021000 0x001000>,	/* ap 24 */
+			 <0x00002000 0x00022000 0x001000>,	/* ap 25 */
+			 <0x00003000 0x00023000 0x001000>,	/* ap 26 */
+			 <0x00004000 0x00024000 0x001000>,	/* ap 27 */
+			 <0x00005000 0x00025000 0x001000>,	/* ap 28 */
+			 <0x00007000 0x00027000 0x000400>,	/* ap 29 */
+			 <0x00008000 0x00028000 0x000800>,	/* ap 30 */
+			 <0x00009000 0x00029000 0x000400>;	/* ap 31 */
+
+		target-module@0 {			/* 0x4a320000, ap 23 04.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x1000>;
+		};
+
+		target-module@2000 {			/* 0x4a322000, ap 25 0c.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x2000 0x1000>;
+		};
+
+		target-module@4000 {			/* 0x4a324000, ap 27 10.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4000 0x1000>;
+		};
+
+		target-module@6000 {			/* 0x4a326000, ap 13 28.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00000000 0x00006000 0x00001000>,
+				 <0x00001000 0x00007000 0x00000400>,
+				 <0x00002000 0x00008000 0x00000800>,
+				 <0x00003000 0x00009000 0x00000400>;
+		};
+	};
+};
+
+&l4_per {						/* 0x48000000 */
+	compatible = "ti,omap4-l4-per", "simple-pm-bus";
+	power-domains = <&prm_l4per>;
+	clocks = <&l4_per_clkctrl OMAP4_L4_PER_CLKCTRL 0>;
+	clock-names = "fck";
+	reg = <0x48000000 0x800>,
+	      <0x48000800 0x800>,
+	      <0x48001000 0x400>,
+	      <0x48001400 0x400>,
+	      <0x48001800 0x400>,
+	      <0x48001c00 0x400>;
+	reg-names = "ap", "la", "ia0", "ia1", "ia2", "ia3";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0x00000000 0x48000000 0x200000>,	/* segment 0 */
+		 <0x00200000 0x48200000 0x200000>;	/* segment 1 */
+
+	segment@0 {					/* 0x48000000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
+			 <0x00001000 0x00001000 0x000400>,	/* ap 1 */
+			 <0x00000800 0x00000800 0x000800>,	/* ap 2 */
+			 <0x00020000 0x00020000 0x001000>,	/* ap 3 */
+			 <0x00021000 0x00021000 0x001000>,	/* ap 4 */
+			 <0x00032000 0x00032000 0x001000>,	/* ap 5 */
+			 <0x00033000 0x00033000 0x001000>,	/* ap 6 */
+			 <0x00034000 0x00034000 0x001000>,	/* ap 7 */
+			 <0x00035000 0x00035000 0x001000>,	/* ap 8 */
+			 <0x00036000 0x00036000 0x001000>,	/* ap 9 */
+			 <0x00037000 0x00037000 0x001000>,	/* ap 10 */
+			 <0x0003e000 0x0003e000 0x001000>,	/* ap 11 */
+			 <0x0003f000 0x0003f000 0x001000>,	/* ap 12 */
+			 <0x00040000 0x00040000 0x010000>,	/* ap 13 */
+			 <0x00050000 0x00050000 0x001000>,	/* ap 14 */
+			 <0x00055000 0x00055000 0x001000>,	/* ap 15 */
+			 <0x00056000 0x00056000 0x001000>,	/* ap 16 */
+			 <0x00057000 0x00057000 0x001000>,	/* ap 17 */
+			 <0x00058000 0x00058000 0x001000>,	/* ap 18 */
+			 <0x00059000 0x00059000 0x001000>,	/* ap 19 */
+			 <0x0005a000 0x0005a000 0x001000>,	/* ap 20 */
+			 <0x0005b000 0x0005b000 0x001000>,	/* ap 21 */
+			 <0x0005c000 0x0005c000 0x001000>,	/* ap 22 */
+			 <0x0005d000 0x0005d000 0x001000>,	/* ap 23 */
+			 <0x0005e000 0x0005e000 0x001000>,	/* ap 24 */
+			 <0x00060000 0x00060000 0x001000>,	/* ap 25 */
+			 <0x0006a000 0x0006a000 0x001000>,	/* ap 26 */
+			 <0x0006b000 0x0006b000 0x001000>,	/* ap 27 */
+			 <0x0006c000 0x0006c000 0x001000>,	/* ap 28 */
+			 <0x0006d000 0x0006d000 0x001000>,	/* ap 29 */
+			 <0x0006e000 0x0006e000 0x001000>,	/* ap 30 */
+			 <0x0006f000 0x0006f000 0x001000>,	/* ap 31 */
+			 <0x00070000 0x00070000 0x001000>,	/* ap 32 */
+			 <0x00071000 0x00071000 0x001000>,	/* ap 33 */
+			 <0x00072000 0x00072000 0x001000>,	/* ap 34 */
+			 <0x00073000 0x00073000 0x001000>,	/* ap 35 */
+			 <0x00061000 0x00061000 0x001000>,	/* ap 36 */
+			 <0x00096000 0x00096000 0x001000>,	/* ap 37 */
+			 <0x00097000 0x00097000 0x001000>,	/* ap 38 */
+			 <0x00076000 0x00076000 0x001000>,	/* ap 39 */
+			 <0x00077000 0x00077000 0x001000>,	/* ap 40 */
+			 <0x00078000 0x00078000 0x001000>,	/* ap 41 */
+			 <0x00079000 0x00079000 0x001000>,	/* ap 42 */
+			 <0x00086000 0x00086000 0x001000>,	/* ap 43 */
+			 <0x00087000 0x00087000 0x001000>,	/* ap 44 */
+			 <0x00088000 0x00088000 0x001000>,	/* ap 45 */
+			 <0x00089000 0x00089000 0x001000>,	/* ap 46 */
+			 <0x000b0000 0x000b0000 0x001000>,	/* ap 47 */
+			 <0x000b1000 0x000b1000 0x001000>,	/* ap 48 */
+			 <0x00098000 0x00098000 0x001000>,	/* ap 49 */
+			 <0x00099000 0x00099000 0x001000>,	/* ap 50 */
+			 <0x0009a000 0x0009a000 0x001000>,	/* ap 51 */
+			 <0x0009b000 0x0009b000 0x001000>,	/* ap 52 */
+			 <0x0009c000 0x0009c000 0x001000>,	/* ap 53 */
+			 <0x0009d000 0x0009d000 0x001000>,	/* ap 54 */
+			 <0x0009e000 0x0009e000 0x001000>,	/* ap 55 */
+			 <0x0009f000 0x0009f000 0x001000>,	/* ap 56 */
+			 <0x00090000 0x00090000 0x002000>,	/* ap 57 */
+			 <0x00092000 0x00092000 0x001000>,	/* ap 58 */
+			 <0x000a4000 0x000a4000 0x001000>,	/* ap 59 */
+			 <0x000a6000 0x000a6000 0x001000>,	/* ap 60 */
+			 <0x000a8000 0x000a8000 0x004000>,	/* ap 61 */
+			 <0x000ac000 0x000ac000 0x001000>,	/* ap 62 */
+			 <0x000ad000 0x000ad000 0x001000>,	/* ap 63 */
+			 <0x000ae000 0x000ae000 0x001000>,	/* ap 64 */
+			 <0x000b2000 0x000b2000 0x001000>,	/* ap 65 */
+			 <0x000b3000 0x000b3000 0x001000>,	/* ap 66 */
+			 <0x000b4000 0x000b4000 0x001000>,	/* ap 67 */
+			 <0x000b5000 0x000b5000 0x001000>,	/* ap 68 */
+			 <0x000b8000 0x000b8000 0x001000>,	/* ap 69 */
+			 <0x000b9000 0x000b9000 0x001000>,	/* ap 70 */
+			 <0x000ba000 0x000ba000 0x001000>,	/* ap 71 */
+			 <0x000bb000 0x000bb000 0x001000>,	/* ap 72 */
+			 <0x000d1000 0x000d1000 0x001000>,	/* ap 73 */
+			 <0x000d2000 0x000d2000 0x001000>,	/* ap 74 */
+			 <0x000d5000 0x000d5000 0x001000>,	/* ap 75 */
+			 <0x000d6000 0x000d6000 0x001000>,	/* ap 76 */
+			 <0x000a2000 0x000a2000 0x001000>,	/* ap 79 */
+			 <0x000a3000 0x000a3000 0x001000>,	/* ap 80 */
+			 <0x00001400 0x00001400 0x000400>,	/* ap 81 */
+			 <0x00001800 0x00001800 0x000400>,	/* ap 82 */
+			 <0x00001c00 0x00001c00 0x000400>,	/* ap 83 */
+			 <0x000a5000 0x000a5000 0x001000>;	/* ap 84 */
+
+		target-module@20000 {			/* 0x48020000, ap 3 06.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x20050 0x4>,
+			      <0x20054 0x4>,
+			      <0x20058 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_UART3_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x20000 0x1000>;
+
+			uart3: serial@0 {
+				compatible = "ti,omap4-uart";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <48000000>;
+			};
+		};
+
+		target-module@32000 {			/* 0x48032000, ap 5 02.0 */
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x32000 0x4>,
+			      <0x32010 0x4>,
+			      <0x32014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_TIMER2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x32000 0x1000>;
+
+			timer2: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&l4_per_clkctrl OMAP4_TIMER2_CLKCTRL 24>,
+					 <&sys_clkin_ck>;
+				clock-names = "fck", "timer_sys_ck";
+				interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@34000 {			/* 0x48034000, ap 7 04.0 */
+			compatible = "ti,sysc-omap4-timer", "ti,sysc";
+			reg = <0x34000 0x4>,
+			      <0x34010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_TIMER3_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x34000 0x1000>;
+
+			timer3: timer@0 {
+				compatible = "ti,omap4430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&l4_per_clkctrl OMAP4_TIMER3_CLKCTRL 24>,
+					 <&sys_clkin_ck>;
+				clock-names = "fck", "timer_sys_ck";
+				interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@36000 {			/* 0x48036000, ap 9 0e.0 */
+			compatible = "ti,sysc-omap4-timer", "ti,sysc";
+			reg = <0x36000 0x4>,
+			      <0x36010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_TIMER4_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x36000 0x1000>;
+
+			timer4: timer@0 {
+				compatible = "ti,omap4430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&l4_per_clkctrl OMAP4_TIMER4_CLKCTRL 24>,
+					 <&sys_clkin_ck>;
+				clock-names = "fck", "timer_sys_ck";
+				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@3e000 {			/* 0x4803e000, ap 11 08.0 */
+			compatible = "ti,sysc-omap4-timer", "ti,sysc";
+			reg = <0x3e000 0x4>,
+			      <0x3e010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_TIMER9_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x3e000 0x1000>;
+
+			timer9: timer@0 {
+				compatible = "ti,omap4430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&l4_per_clkctrl OMAP4_TIMER9_CLKCTRL 24>,
+					 <&sys_clkin_ck>;
+				clock-names = "fck", "timer_sys_ck";
+				interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+				ti,timer-pwm;
+			};
+		};
+
+		/* Unused DSS L4 access, see L3 instead */
+		target-module@40000 {			/* 0x48040000, ap 13 0a.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x40000 0x10000>;
+		};
+
+		target-module@55000 {			/* 0x48055000, ap 15 0c.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x55000 0x4>,
+			      <0x55010 0x4>,
+			      <0x55114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_GPIO2_CLKCTRL 0>,
+				 <&l4_per_clkctrl OMAP4_GPIO2_CLKCTRL 8>;
+			clock-names = "fck", "dbclk";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x55000 0x1000>;
+
+			gpio2: gpio@0 {
+				compatible = "ti,omap4-gpio";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
+
+		target-module@57000 {			/* 0x48057000, ap 17 16.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x57000 0x4>,
+			      <0x57010 0x4>,
+			      <0x57114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_GPIO3_CLKCTRL 0>,
+				 <&l4_per_clkctrl OMAP4_GPIO3_CLKCTRL 8>;
+			clock-names = "fck", "dbclk";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x57000 0x1000>;
+
+			gpio3: gpio@0 {
+				compatible = "ti,omap4-gpio";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
+
+		target-module@59000 {			/* 0x48059000, ap 19 10.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x59000 0x4>,
+			      <0x59010 0x4>,
+			      <0x59114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_GPIO4_CLKCTRL 0>,
+				 <&l4_per_clkctrl OMAP4_GPIO4_CLKCTRL 8>;
+			clock-names = "fck", "dbclk";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x59000 0x1000>;
+
+			gpio4: gpio@0 {
+				compatible = "ti,omap4-gpio";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
+
+		target-module@5b000 {			/* 0x4805b000, ap 21 12.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x5b000 0x4>,
+			      <0x5b010 0x4>,
+			      <0x5b114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_GPIO5_CLKCTRL 0>,
+				 <&l4_per_clkctrl OMAP4_GPIO5_CLKCTRL 8>;
+			clock-names = "fck", "dbclk";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x5b000 0x1000>;
+
+			gpio5: gpio@0 {
+				compatible = "ti,omap4-gpio";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
+
+		target-module@5d000 {			/* 0x4805d000, ap 23 14.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x5d000 0x4>,
+			      <0x5d010 0x4>,
+			      <0x5d114 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_GPIO6_CLKCTRL 0>,
+				 <&l4_per_clkctrl OMAP4_GPIO6_CLKCTRL 8>;
+			clock-names = "fck", "dbclk";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x5d000 0x1000>;
+
+			gpio6: gpio@0 {
+				compatible = "ti,omap4-gpio";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
+
+		target-module@60000 {			/* 0x48060000, ap 25 1e.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x60000 0x8>,
+			      <0x60010 0x8>,
+			      <0x60090 0x8>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_I2C3_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x60000 0x1000>;
+
+			i2c3: i2c@0 {
+				compatible = "ti,omap4-i2c";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		target-module@6a000 {			/* 0x4806a000, ap 26 18.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x6a050 0x4>,
+			      <0x6a054 0x4>,
+			      <0x6a058 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_UART1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x6a000 0x1000>;
+
+			uart1: serial@0 {
+				compatible = "ti,omap4-uart";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <48000000>;
+			};
+		};
+
+		target-module@6c000 {			/* 0x4806c000, ap 28 20.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x6c050 0x4>,
+			      <0x6c054 0x4>,
+			      <0x6c058 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_UART2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x6c000 0x1000>;
+
+			uart2: serial@0 {
+				compatible = "ti,omap4-uart";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <48000000>;
+			};
+		};
+
+		target-module@6e000 {			/* 0x4806e000, ap 30 1c.1 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x6e050 0x4>,
+			      <0x6e054 0x4>,
+			      <0x6e058 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_UART4_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x6e000 0x1000>;
+
+			uart4: serial@0 {
+				compatible = "ti,omap4-uart";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+				clock-frequency = <48000000>;
+			};
+		};
+
+		target-module@70000 {			/* 0x48070000, ap 32 28.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x70000 0x8>,
+			      <0x70010 0x8>,
+			      <0x70090 0x8>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_I2C1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x70000 0x1000>;
+
+			i2c1: i2c@0 {
+				compatible = "ti,omap4-i2c";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		target-module@72000 {			/* 0x48072000, ap 34 30.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x72000 0x8>,
+			      <0x72010 0x8>,
+			      <0x72090 0x8>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_I2C2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x72000 0x1000>;
+
+			i2c2: i2c@0 {
+				compatible = "ti,omap4-i2c";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		target-module@76000 {			/* 0x48076000, ap 39 38.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x76000 0x4>,
+			      <0x76010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_SLIMBUS2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x76000 0x1000>;
+
+			/* No child device binding or driver in mainline */
+		};
+
+		target-module@78000 {			/* 0x48078000, ap 41 1a.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x78000 0x4>,
+			      <0x78010 0x4>,
+			      <0x78014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_ELM_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x78000 0x1000>;
+
+			elm: elm@0 {
+				compatible = "ti,am3352-elm";
+				reg = <0x0 0x2000>;
+				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+		};
+
+		target-module@86000 {			/* 0x48086000, ap 43 24.0 */
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x86000 0x4>,
+			      <0x86010 0x4>,
+			      <0x86014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_TIMER10_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x86000 0x1000>;
+
+			timer10: timer@0 {
+				compatible = "ti,omap3430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&l4_per_clkctrl OMAP4_TIMER10_CLKCTRL 24>,
+					 <&sys_clkin_ck>;
+				clock-names = "fck", "timer_sys_ck";
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				ti,timer-pwm;
+			};
+		};
+
+		target-module@88000 {			/* 0x48088000, ap 45 2e.0 */
+			compatible = "ti,sysc-omap4-timer", "ti,sysc";
+			reg = <0x88000 0x4>,
+			      <0x88010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_TIMER11_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x88000 0x1000>;
+
+			timer11: timer@0 {
+				compatible = "ti,omap4430-timer";
+				reg = <0x0 0x80>;
+				clocks = <&l4_per_clkctrl OMAP4_TIMER11_CLKCTRL 24>,
+					 <&sys_clkin_ck>;
+				clock-names = "fck", "timer_sys_ck";
+				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				ti,timer-pwm;
+			};
+		};
+
+		rng_target: target-module@90000 {	/* 0x48090000, ap 57 2a.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x91fe0 0x4>,
+			      <0x91fe4 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>;
+			/* Domains (P, C): l4per_pwrdm, l4_secure_clkdm */
+			clocks = <&l4_secure_clkctrl OMAP4_RNG_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x90000 0x2000>;
+
+			rng: rng@0 {
+				compatible = "ti,omap4-rng";
+				reg = <0x0 0x2000>;
+				interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@96000 {			/* 0x48096000, ap 37 26.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x9608c 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_MCBSP4_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x96000 0x1000>;
+
+			mcbsp4: mcbsp@0 {
+				compatible = "ti,omap4-mcbsp";
+				reg = <0x0 0xff>; /* L4 Interconnect */
+				reg-names = "mpu";
+				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "common";
+				ti,buffer-size = <128>;
+				dmas = <&sdma 31>,
+				       <&sdma 32>;
+				dma-names = "tx", "rx";
+				status = "disabled";
+			};
+		};
+
+		target-module@98000 {			/* 0x48098000, ap 49 22.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x98000 0x4>,
+			      <0x98010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_MCSPI1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x98000 0x1000>;
+
+			mcspi1: spi@0 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,spi-num-cs = <4>;
+				dmas = <&sdma 35>,
+				       <&sdma 36>,
+				       <&sdma 37>,
+				       <&sdma 38>,
+				       <&sdma 39>,
+				       <&sdma 40>,
+				       <&sdma 41>,
+				       <&sdma 42>;
+				dma-names = "tx0", "rx0", "tx1", "rx1",
+					    "tx2", "rx2", "tx3", "rx3";
+			};
+		};
+
+		target-module@9a000 {			/* 0x4809a000, ap 51 2c.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x9a000 0x4>,
+			      <0x9a010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_MCSPI2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x9a000 0x1000>;
+
+			mcspi2: spi@0 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,spi-num-cs = <2>;
+				dmas = <&sdma 43>,
+				       <&sdma 44>,
+				       <&sdma 45>,
+				       <&sdma 46>;
+				dma-names = "tx0", "rx0", "tx1", "rx1";
+			};
+		};
+
+		target-module@9c000 {			/* 0x4809c000, ap 53 36.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x9c000 0x4>,
+			      <0x9c010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l3init_pwrdm, l3_init_clkdm */
+			clocks = <&l3_init_clkctrl OMAP4_MMC1_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x9c000 0x1000>;
+
+			mmc1: mmc@0 {
+				compatible = "ti,omap4-hsmmc";
+				reg = <0x0 0x400>;
+				interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+				ti,dual-volt;
+				ti,needs-special-reset;
+				dmas = <&sdma 61>, <&sdma 62>;
+				dma-names = "tx", "rx";
+				pbias-supply = <&pbias_mmc_reg>;
+			};
+		};
+
+		target-module@9e000 {			/* 0x4809e000, ap 55 48.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x9e000 0x1000>;
+		};
+
+		target-module@a2000 {			/* 0x480a2000, ap 79 3a.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xa2000 0x1000>;
+		};
+
+		target-module@a4000 {			/* 0x480a4000, ap 59 34.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00000000 0x000a4000 0x00001000>,
+				 <0x00001000 0x000a5000 0x00001000>;
+		};
+
+		des_target: target-module@a5000 {	/* 0x480a5000 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0xa5030 0x4>,
+			      <0xa5034 0x4>,
+			      <0xa5038 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): l4per_pwrdm, l4_secure_clkdm */
+			clocks = <&l4_secure_clkctrl OMAP4_DES3DES_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xa5000 0x00001000>;
+
+			des: des@0 {
+				compatible = "ti,omap4-des";
+				reg = <0 0xa0>;
+				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&sdma 117>, <&sdma 116>;
+				dma-names = "tx", "rx";
+			};
+		};
+
+		target-module@a8000 {			/* 0x480a8000, ap 61 3e.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xa8000 0x4000>;
+		};
+
+		target-module@ad000 {			/* 0x480ad000, ap 63 50.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xad000 0x4>,
+			      <0xad010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_MMC3_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xad000 0x1000>;
+
+			mmc3: mmc@0 {
+				compatible = "ti,omap4-hsmmc";
+				reg = <0x0 0x400>;
+				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+				ti,needs-special-reset;
+				dmas = <&sdma 77>, <&sdma 78>;
+				dma-names = "tx", "rx";
+			};
+		};
+
+		target-module@b0000 {			/* 0x480b0000, ap 47 40.0 */
+			compatible = "ti,sysc";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xb0000 0x1000>;
+		};
+
+		target-module@b2000 {			/* 0x480b2000, ap 65 3c.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0xb2000 0x4>,
+			      <0xb2014 0x4>,
+			      <0xb2018 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,syss-mask = <1>;
+			ti,no-reset-on-init;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_HDQ1W_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xb2000 0x1000>;
+
+			hdqw1w: 1w@0 {
+				compatible = "ti,omap3-1w";
+				reg = <0x0 0x1000>;
+				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@b4000 {			/* 0x480b4000, ap 67 46.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xb4000 0x4>,
+			      <0xb4010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l3init_pwrdm, l3_init_clkdm */
+			clocks = <&l3_init_clkctrl OMAP4_MMC2_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xb4000 0x1000>;
+
+			mmc2: mmc@0 {
+				compatible = "ti,omap4-hsmmc";
+				reg = <0x0 0x400>;
+				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+				ti,needs-special-reset;
+				dmas = <&sdma 47>, <&sdma 48>;
+				dma-names = "tx", "rx";
+			};
+		};
+
+		target-module@b8000 {			/* 0x480b8000, ap 69 58.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xb8000 0x4>,
+			      <0xb8010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_MCSPI3_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xb8000 0x1000>;
+
+			mcspi3: spi@0 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,spi-num-cs = <2>;
+				dmas = <&sdma 15>, <&sdma 16>;
+				dma-names = "tx0", "rx0";
+			};
+		};
+
+		target-module@ba000 {			/* 0x480ba000, ap 71 32.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xba000 0x4>,
+			      <0xba010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_MCSPI4_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xba000 0x1000>;
+
+			mcspi4: spi@0 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x0 0x200>;
+				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,spi-num-cs = <1>;
+				dmas = <&sdma 70>, <&sdma 71>;
+				dma-names = "tx0", "rx0";
+			};
+		};
+
+		target-module@d1000 {			/* 0x480d1000, ap 73 44.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xd1000 0x4>,
+			      <0xd1010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_MMC4_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xd1000 0x1000>;
+
+			mmc4: mmc@0 {
+				compatible = "ti,omap4-hsmmc";
+				reg = <0x0 0x400>;
+				interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+				ti,needs-special-reset;
+				dmas = <&sdma 57>, <&sdma 58>;
+				dma-names = "tx", "rx";
+			};
+		};
+
+		target-module@d5000 {			/* 0x480d5000, ap 75 4e.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0xd5000 0x4>,
+			      <0xd5010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP4_SOFTRESET)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_MMC5_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xd5000 0x1000>;
+
+			mmc5: mmc@0 {
+				compatible = "ti,omap4-hsmmc";
+				reg = <0x0 0x400>;
+				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				ti,needs-special-reset;
+				dmas = <&sdma 59>, <&sdma 60>;
+				dma-names = "tx", "rx";
+			};
+		};
+	};
+
+	segment@200000 {					/* 0x48200000 */
+		compatible = "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00150000 0x00350000 0x001000>,	/* ap 77 */
+			 <0x00151000 0x00351000 0x001000>;	/* ap 78 */
+
+		target-module@150000 {			/* 0x48350000, ap 77 4c.0 */
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x150000 0x8>,
+			      <0x150010 0x8>,
+			      <0x150090 0x8>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
+			clocks = <&l4_per_clkctrl OMAP4_I2C4_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x150000 0x1000>;
+
+			i2c4: i2c@0 {
+				compatible = "ti,omap4-i2c";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+	};
+};
+

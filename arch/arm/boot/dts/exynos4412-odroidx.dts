@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Hardkernel's Exynos4412 based ODROID-X board device tree source
+ *
+ * Copyright (c) 2012 Dongjin Kim <tobetter@gmail.com>
+ *
+ * Device tree source file for Hardkernel's ODROID-X board which is based
+ * on Samsung's Exynos4412 SoC.
+ */
+
+/dts-v1/;
+#include "exynos4412-odroid-common.dtsi"
+
+/ {
+	model = "Hardkernel ODROID-X board based on Exynos4412";
+	compatible = "hardkernel,odroid-x", "samsung,exynos4412", "samsung,exynos4";
+
+	aliases {
+		ethernet = &ethernet;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x3FF00000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			label = "led1:heart";
+			gpios = <&gpc1 0 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+		led2 {
+			label = "led2:mmc0";
+			gpios = <&gpc1 2 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+	regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "p3v3_en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpa1 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+};
+
+&adc {
+	vdd-supply = <&ldo10_reg>;
+	status = "okay";
+};
+
+/* VDDQ for MSHC (eMMC card) */
+&buck8_reg {
+	regulator-name = "BUCK8_VDDQ_MMC4_2.8V";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+};
+
+&ehci {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phys = <&exynos_usbphy 2>;
+	phy-names = "hsic0";
+
+	hub@2 {
+		compatible = "usb0424,3503";
+		reg = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hub@1 {
+			compatible = "usb0424,9514";
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet: usbether@1 {
+				compatible = "usb0424,ec00";
+				reg = <1>;
+				/* Filled in by a bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+			};
+		};
+	};
+};
+
+&gpio_keys {
+	pinctrl-0 = <&gpio_power_key &gpio_home_key>;
+
+	home-key {
+		gpios = <&gpx2 2 GPIO_ACTIVE_HIGH>;
+		linux,code = <KEY_HOME>;
+		label = "home key";
+		debounce-interval = <10>;
+		wakeup-source;
+	};
+};
+
+&hsotg {
+	dr_mode = "peripheral";
+};
+
+&mshc_0 {
+	vqmmc-supply = <&buck8_reg>;
+};
+
+&pinctrl_1 {
+	gpio_home_key: home-key {
+		samsung,pins = "gpx2-2";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&serial_2 {
+	status = "okay";
+};
+
+&serial_3 {
+	status = "okay";
+};
+
+&sound {
+	model = "Odroid-X";
+	samsung,audio-widgets =
+		"Headphone", "Headphone Jack",
+		"Microphone", "Mic Jack",
+		"Microphone", "DMIC";
+	samsung,audio-routing =
+		"Headphone Jack", "HPL",
+		"Headphone Jack", "HPR",
+		"IN1", "Mic Jack",
+		"Mic Jack", "MICBIAS";
+};

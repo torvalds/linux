@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/dma-router.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: DMA Router Generic Binding
+
+maintainers:
+  - Vinod Koul <vkoul@kernel.org>
+
+allOf:
+  - $ref: "dma-common.yaml#"
+
+description:
+  DMA routers are transparent IP blocks used to route DMA request
+  lines from devices to the DMA controller. Some SoCs (like TI DRA7x)
+  have more peripherals integrated with DMA requests than what the DMA
+  controller can handle directly.
+
+properties:
+  $nodename:
+    pattern: "^dma-router(@.*)?$"
+
+  dma-masters:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      Array of phandles to the DMA controllers the router can direct
+      the signal to.
+
+  dma-requests:
+    description:
+      Number of incoming request lines the router can handle.
+
+required:
+  - "#dma-cells"
+  - dma-masters
+
+additionalProperties: true
+
+examples:
+  - |
+    sdma_xbar: dma-router@4a002b78 {
+        compatible = "ti,dra7-dma-crossbar";
+        reg = <0x4a002b78 0xfc>;
+        #dma-cells = <1>;
+        dma-requests = <205>;
+        ti,dma-safe-map = <0>;
+        dma-masters = <&sdma>;
+    };
+
+...

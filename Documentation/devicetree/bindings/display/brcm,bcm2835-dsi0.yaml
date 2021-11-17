@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/brcm,bcm2835-dsi0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom VC4 (VideoCore4) DSI Controller
+
+maintainers:
+  - Eric Anholt <eric@anholt.net>
+
+allOf:
+  - $ref: dsi-controller.yaml#
+
+properties:
+  "#clock-cells":
+    const: 1
+
+  compatible:
+    enum:
+      - brcm,bcm2711-dsi1
+      - brcm,bcm2835-dsi0
+      - brcm,bcm2835-dsi1
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: The DSI PLL clock feeding the DSI analog PHY
+      - description: The DSI ESC clock
+      - description: The DSI pixel clock
+
+  clock-names:
+    items:
+      - const: phy
+      - const: escape
+      - const: pixel
+
+  clock-output-names: true
+    # FIXME: The meta-schemas don't seem to allow it for now
+    # items:
+    #   - description: The DSI byte clock for the PHY
+    #   - description: The DSI DDR2 clock
+    #   - description: The DSI DDR clock
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - "#clock-cells"
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - clock-output-names
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/bcm2835.h>
+
+    dsi1: dsi@7e700000 {
+        compatible = "brcm,bcm2835-dsi1";
+        reg = <0x7e700000 0x8c>;
+        interrupts = <2 12>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        #clock-cells = <1>;
+
+        clocks = <&clocks BCM2835_PLLD_DSI1>,
+                 <&clocks BCM2835_CLOCK_DSI1E>,
+                 <&clocks BCM2835_CLOCK_DSI1P>;
+        clock-names = "phy", "escape", "pixel";
+
+        clock-output-names = "dsi1_byte", "dsi1_ddr2", "dsi1_ddr";
+
+    };
+
+...

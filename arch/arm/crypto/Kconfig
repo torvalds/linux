@@ -1,0 +1,171 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menuconfig ARM_CRYPTO
+	bool "ARM Accelerated Cryptographic Algorithms"
+	depends on ARM
+	help
+	  Say Y here to choose from a selection of cryptographic algorithms
+	  implemented using ARM specific CPU features or instructions.
+
+if ARM_CRYPTO
+
+config CRYPTO_SHA1_ARM
+	tristate "SHA1 digest algorithm (ARM-asm)"
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using optimized ARM assembler.
+
+config CRYPTO_SHA1_ARM_NEON
+	tristate "SHA1 digest algorithm (ARM NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SHA1_ARM
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using optimized ARM NEON assembly, when NEON instructions are
+	  available.
+
+config CRYPTO_SHA1_ARM_CE
+	tristate "SHA1 digest algorithm (ARM v8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SHA1_ARM
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using special ARMv8 Crypto Extensions.
+
+config CRYPTO_SHA2_ARM_CE
+	tristate "SHA-224/256 digest algorithm (ARM v8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SHA256_ARM
+	select CRYPTO_HASH
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using special ARMv8 Crypto Extensions.
+
+config CRYPTO_SHA256_ARM
+	tristate "SHA-224/256 digest algorithm (ARM-asm and NEON)"
+	select CRYPTO_HASH
+	depends on !CPU_V7M
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using optimized ARM assembler and NEON, when available.
+
+config CRYPTO_SHA512_ARM
+	tristate "SHA-384/512 digest algorithm (ARM-asm and NEON)"
+	select CRYPTO_HASH
+	depends on !CPU_V7M
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using optimized ARM assembler and NEON, when available.
+
+config CRYPTO_BLAKE2S_ARM
+	tristate "BLAKE2s digest algorithm (ARM)"
+	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
+	help
+	  BLAKE2s digest algorithm optimized with ARM scalar instructions.  This
+	  is faster than the generic implementations of BLAKE2s and BLAKE2b, but
+	  slower than the NEON implementation of BLAKE2b.  (There is no NEON
+	  implementation of BLAKE2s, since NEON doesn't really help with it.)
+
+config CRYPTO_BLAKE2B_NEON
+	tristate "BLAKE2b digest algorithm (ARM NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_BLAKE2B
+	help
+	  BLAKE2b digest algorithm optimized with ARM NEON instructions.
+	  On ARM processors that have NEON support but not the ARMv8
+	  Crypto Extensions, typically this BLAKE2b implementation is
+	  much faster than SHA-2 and slightly faster than SHA-1.
+
+config CRYPTO_AES_ARM
+	tristate "Scalar AES cipher for ARM"
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES
+	help
+	  Use optimized AES assembler routines for ARM platforms.
+
+	  On ARM processors without the Crypto Extensions, this is the
+	  fastest AES implementation for single blocks.  For multiple
+	  blocks, the NEON bit-sliced implementation is usually faster.
+
+	  This implementation may be vulnerable to cache timing attacks,
+	  since it uses lookup tables.  However, as countermeasures it
+	  disables IRQs and preloads the tables; it is hoped this makes
+	  such attacks very difficult.
+
+config CRYPTO_AES_ARM_BS
+	tristate "Bit sliced AES using NEON instructions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_AES
+	select CRYPTO_SIMD
+	help
+	  Use a faster and more secure NEON based implementation of AES in CBC,
+	  CTR and XTS modes
+
+	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
+	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
+	  around 25%. (CBC encryption speed is not affected by this driver.)
+	  This implementation does not rely on any lookup tables so it is
+	  believed to be invulnerable to cache timing attacks.
+
+config CRYPTO_AES_ARM_CE
+	tristate "Accelerated AES using ARMv8 Crypto Extensions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_AES
+	select CRYPTO_SIMD
+	help
+	  Use an implementation of AES in CBC, CTR and XTS modes that uses
+	  ARMv8 Crypto Extensions
+
+config CRYPTO_GHASH_ARM_CE
+	tristate "PMULL-accelerated GHASH using NEON/ARMv8 Crypto Extensions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_CRYPTD
+	select CRYPTO_GF128MUL
+	help
+	  Use an implementation of GHASH (used by the GCM AEAD chaining mode)
+	  that uses the 64x64 to 128 bit polynomial multiplication (vmull.p64)
+	  that is part of the ARMv8 Crypto Extensions, or a slower variant that
+	  uses the vmull.p8 instruction that is part of the basic NEON ISA.
+
+config CRYPTO_CRCT10DIF_ARM_CE
+	tristate "CRCT10DIF digest algorithm using PMULL instructions"
+	depends on KERNEL_MODE_NEON
+	depends on CRC_T10DIF
+	select CRYPTO_HASH
+
+config CRYPTO_CRC32_ARM_CE
+	tristate "CRC32(C) digest algorithm using CRC and/or PMULL instructions"
+	depends on KERNEL_MODE_NEON
+	depends on CRC32
+	select CRYPTO_HASH
+
+config CRYPTO_CHACHA20_NEON
+	tristate "NEON and scalar accelerated ChaCha stream cipher algorithms"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+
+config CRYPTO_POLY1305_ARM
+	tristate "Accelerated scalar and SIMD Poly1305 hash implementations"
+	select CRYPTO_HASH
+	select CRYPTO_ARCH_HAVE_LIB_POLY1305
+
+config CRYPTO_NHPOLY1305_NEON
+	tristate "NEON accelerated NHPoly1305 hash function (for Adiantum)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_NHPOLY1305
+
+config CRYPTO_CURVE25519_NEON
+	tristate "NEON accelerated Curve25519 scalar multiplication library"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_LIB_CURVE25519_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
+
+endif

@@ -1,0 +1,7 @@
+cat <<EOF
+static __always_inline ${ret}
+arch_${atomic}_read_acquire(const ${atomic}_t *v)
+{
+	return smp_load_acquire(&(v)->counter);
+}
+EOF

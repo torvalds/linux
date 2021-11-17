@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config PROC_FS
+	bool "/proc file system support" if EXPERT
+	default y
+	help
+	  This is a virtual file system providing information about the status
+	  of the system. "Virtual" means that it doesn't take up any space on
+	  your hard disk: the files are created on the fly by the kernel when
+	  you try to access them. Also, you cannot read the files with older
+	  version of the program less: you need to use more or cat.
+
+	  It's totally cool; for example, "cat /proc/interrupts" gives
+	  information about what the different IRQs are used for at the moment
+	  (there is a small number of Interrupt ReQuest lines in your computer
+	  that are used by the attached devices to gain the CPU's attention --
+	  often a source of trouble if two devices are mistakenly configured
+	  to use the same IRQ). The program procinfo to display some
+	  information about your system gathered from the /proc file system.
+
+	  Before you can use the /proc file system, it has to be mounted,
+	  meaning it has to be given a location in the directory hierarchy.
+	  That location should be /proc. A command such as "mount -t proc proc
+	  /proc" or the equivalent line in /etc/fstab does the job.
+
+	  The /proc file system is explained in the file
+	  <file:Documentation/filesystems/proc.rst> and on the proc(5) manpage
+	  ("man 5 proc").
+
+	  This option will enlarge your kernel by about 67 KB. Several
+	  programs depend on this, so everyone should say Y here.
+
+config PROC_KCORE
+	bool "/proc/kcore support" if !ARM
+	depends on PROC_FS && MMU
+	select CRASH_CORE
+	help
+	  Provides a virtual ELF core file of the live kernel.  This can
+	  be read with gdb and other ELF tools.  No modifications can be
+	  made using this mechanism.
+
+config PROC_VMCORE
+	bool "/proc/vmcore support"
+	depends on PROC_FS && CRASH_DUMP
+	default y
+	help
+	  Exports the dump image of crashed kernel in ELF format.
+
+config PROC_VMCORE_DEVICE_DUMP
+	bool "Device Hardware/Firmware Log Collection"
+	depends on PROC_VMCORE
+	default n
+	help
+	  After kernel panic, device drivers can collect the device
+	  specific snapshot of their hardware or firmware before the
+	  underlying devices are initialized in crash recovery kernel.
+	  Note that the device driver must be present in the crash
+	  recovery kernel's initramfs to collect its underlying device
+	  snapshot.
+
+	  If you say Y here, the collected device dumps will be added
+	  as ELF notes to /proc/vmcore. You can still disable device
+	  dump using the kernel command line option 'novmcoredd'.
+
+config PROC_SYSCTL
+	bool "Sysctl support (/proc/sys)" if EXPERT
+	depends on PROC_FS
+	select SYSCTL
+	default y
+	help
+	  The sysctl interface provides a means of dynamically changing
+	  certain kernel parameters and variables on the fly without requiring
+	  a recompile of the kernel or reboot of the system.  The primary
+	  interface is through /proc/sys.  If you say Y here a tree of
+	  modifiable sysctl entries will be generated beneath the
+	  /proc/sys directory. They are explained in the files
+	  in <file:Documentation/admin-guide/sysctl/>.  Note that enabling this
+	  option will enlarge the kernel by at least 8 KB.
+
+	  As it is generally a good thing, you should say Y here unless
+	  building a kernel for install/rescue disks or your system is very
+	  limited in memory.
+
+config PROC_PAGE_MONITOR
+ 	default y
+	depends on PROC_FS && MMU
+	bool "Enable /proc page monitoring" if EXPERT
+ 	help
+	  Various /proc files exist to monitor process memory utilization:
+	  /proc/pid/smaps, /proc/pid/clear_refs, /proc/pid/pagemap,
+	  /proc/kpagecount, and /proc/kpageflags. Disabling these
+	  interfaces will reduce the size of the kernel by approximately 4kb.
+
+config PROC_CHILDREN
+	bool "Include /proc/<pid>/task/<tid>/children file"
+	default n
+	help
+	  Provides a fast way to retrieve first level children pids of a task. See
+	  <file:Documentation/filesystems/proc.rst> for more information.
+
+	  Say Y if you are running any user-space software which takes benefit from
+	  this interface. For example, rkt is such a piece of software.
+
+config PROC_PID_ARCH_STATUS
+	def_bool n
+	depends on PROC_FS
+
+config PROC_CPU_RESCTRL
+	def_bool n
+	depends on PROC_FS

@@ -1,0 +1,450 @@
+/*
+ * Copyright (C) 2015, 2016 Zodiac Inflight Innovations
+ *
+ * Based on an original 'vf610-twr.dts' which is Copyright 2015,
+ * Freescale Semiconductor, Inc.
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include "vf610.dtsi"
+
+/ {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pinctrl_leds_debug>;
+		pinctrl-names = "default";
+
+		debug {
+			label = "zii:green:debug1";
+			gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	reg_vcc_3v3_mcu: regulator-vcc-3v3-mcu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_mcu";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	usb0_vbus: regulator-usb0-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-0 = <&pinctrl_usb_vbus>;
+		regulator-name = "usb_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio0 6 0>;
+	};
+
+	supply-voltage-monitor {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 8>, /* VCC_1V5 */
+			      <&adc0 9>, /* VCC_1V8 */
+			      <&adc1 8>, /* VCC_1V0 */
+			      <&adc1 9>; /* VCC_1V2 */
+	};
+};
+
+&adc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0_ad5>;
+	vref-supply = <&reg_vcc_3v3_mcu>;
+	status = "okay";
+};
+
+&edma0 {
+	status = "okay";
+};
+
+&edma1 {
+	status = "okay";
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&fec0 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec0>;
+	status = "okay";
+};
+
+&fec1 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	status = "okay";
+
+	fixed-link {
+		   speed = <100>;
+		   full-duplex;
+	};
+
+	mdio1: mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-frequency = <12500000>;
+		suppress-preamble;
+		status = "okay";
+	};
+};
+
+&i2c0 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c0>;
+	pinctrl-1 = <&pinctrl_i2c0_gpio>;
+	scl-gpios = <&gpio1 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	lm75@48 {
+		compatible = "national,lm75";
+		reg = <0x48>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c04";
+		reg = <0x50>;
+	};
+
+	eeprom@52 {
+		compatible = "atmel,24c04";
+		reg = <0x52>;
+	};
+
+	ds1682@6b {
+		compatible = "dallas,ds1682";
+		reg = <0x6b>;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+};
+
+&qspi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_qspi0>;
+	status = "okay";
+
+	/*
+	 * Attached MT25QL02 can go up to 90Mhz in DTR and 166 in STR
+	 * modes, so, spi-max-frequency is limited to 90MHz
+	 */
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <90000000>;
+		spi-rx-bus-width = <4>;
+		reg = <0>;
+		m25p,fast-read;
+	};
+
+	flash@2 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <90000000>;
+		spi-rx-bus-width = <4>;
+		reg = <2>;
+		m25p,fast-read;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart0>;
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&usbdev0 {
+	disable-over-current;
+	vbus-supply = <&usb0_vbus>;
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbh1 {
+	disable-over-current;
+	status = "okay";
+};
+
+&usbmisc0 {
+	status = "okay";
+};
+
+&usbmisc1 {
+	status = "okay";
+};
+
+&usbphy0 {
+	status = "okay";
+};
+
+&usbphy1 {
+	status = "okay";
+};
+
+&tempsensor {
+	io-channels = <&adc0 16>;
+};
+
+&iomuxc {
+	pinctrl_adc0_ad5: adc0ad5grp {
+		fsl,pins = <
+			VF610_PAD_PTC30__ADC0_SE5	0x00a1
+		>;
+	};
+
+	pinctrl_dspi0: dspi0grp {
+		fsl,pins = <
+			VF610_PAD_PTB18__DSPI0_CS1	0x1182
+			VF610_PAD_PTB19__DSPI0_CS0	0x1182
+			VF610_PAD_PTB20__DSPI0_SIN	0x1181
+			VF610_PAD_PTB21__DSPI0_SOUT	0x1182
+			VF610_PAD_PTB22__DSPI0_SCK	0x1182
+		>;
+	};
+
+	pinctrl_dspi2: dspi2grp {
+		fsl,pins = <
+			VF610_PAD_PTD31__DSPI2_CS1	0x1182
+			VF610_PAD_PTD30__DSPI2_CS0	0x1182
+			VF610_PAD_PTD29__DSPI2_SIN	0x1181
+			VF610_PAD_PTD28__DSPI2_SOUT	0x1182
+			VF610_PAD_PTD27__DSPI2_SCK	0x1182
+		>;
+	};
+
+	pinctrl_esdhc1: esdhc1grp {
+		fsl,pins = <
+			VF610_PAD_PTA24__ESDHC1_CLK	0x31ef
+			VF610_PAD_PTA25__ESDHC1_CMD	0x31ef
+			VF610_PAD_PTA26__ESDHC1_DAT0	0x31ef
+			VF610_PAD_PTA27__ESDHC1_DAT1	0x31ef
+			VF610_PAD_PTA28__ESDHC1_DATA2	0x31ef
+			VF610_PAD_PTA29__ESDHC1_DAT3	0x31ef
+			VF610_PAD_PTA7__GPIO_134	0x219d
+		>;
+	};
+
+	pinctrl_fec0: fec0grp {
+		fsl,pins = <
+			VF610_PAD_PTC0__ENET_RMII0_MDC	0x30d2
+			VF610_PAD_PTC1__ENET_RMII0_MDIO	0x30d3
+			VF610_PAD_PTC2__ENET_RMII0_CRS	0x30d1
+			VF610_PAD_PTC3__ENET_RMII0_RXD1	0x30d1
+			VF610_PAD_PTC4__ENET_RMII0_RXD0	0x30d1
+			VF610_PAD_PTC5__ENET_RMII0_RXER	0x30d1
+			VF610_PAD_PTC6__ENET_RMII0_TXD1	0x30d2
+			VF610_PAD_PTC7__ENET_RMII0_TXD0	0x30d2
+			VF610_PAD_PTC8__ENET_RMII0_TXEN	0x30d2
+		>;
+	};
+
+	pinctrl_fec1: fec1grp {
+		fsl,pins = <
+			VF610_PAD_PTA6__RMII_CLKIN		0x30d1
+			VF610_PAD_PTC9__ENET_RMII1_MDC		0x30d2
+			VF610_PAD_PTC10__ENET_RMII1_MDIO	0x30d3
+			VF610_PAD_PTC11__ENET_RMII1_CRS		0x30d1
+			VF610_PAD_PTC12__ENET_RMII1_RXD1	0x30d1
+			VF610_PAD_PTC13__ENET_RMII1_RXD0	0x30d1
+			VF610_PAD_PTC14__ENET_RMII1_RXER	0x30d1
+			VF610_PAD_PTC15__ENET_RMII1_TXD1	0x30d2
+			VF610_PAD_PTC16__ENET_RMII1_TXD0	0x30d2
+			VF610_PAD_PTC17__ENET_RMII1_TXEN	0x30d2
+		>;
+	};
+
+	pinctrl_gpio_spi0: pinctrl-gpio-spi0 {
+		fsl,pins = <
+			VF610_PAD_PTB22__GPIO_44	0x33e2
+			VF610_PAD_PTB21__GPIO_43	0x33e2
+			VF610_PAD_PTB20__GPIO_42	0x33e1
+			VF610_PAD_PTB19__GPIO_41	0x33e2
+			VF610_PAD_PTB18__GPIO_40	0x33e2
+		>;
+	};
+
+	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
+		fsl,pins = <
+			VF610_PAD_PTB5__GPIO_27		0x219d
+		>;
+	};
+
+	pinctrl_gpio_switch1: pinctrl-gpio-switch1 {
+		fsl,pins = <
+			VF610_PAD_PTB4__GPIO_26		0x219d
+		>;
+	};
+
+	pinctrl_i2c_mux_reset: pinctrl-i2c-mux-reset {
+		fsl,pins = <
+			 VF610_PAD_PTE14__GPIO_119	0x31c2
+			 >;
+	};
+
+	pinctrl_i2c0: i2c0grp {
+		fsl,pins = <
+			VF610_PAD_PTB14__I2C0_SCL	0x37ff
+			VF610_PAD_PTB15__I2C0_SDA	0x37ff
+		>;
+	};
+
+	pinctrl_i2c0_gpio: i2c0grp-gpio {
+		fsl,pins = <
+			VF610_PAD_PTB14__GPIO_36	0x31c2
+			VF610_PAD_PTB15__GPIO_37	0x31c2
+		>;
+	};
+
+
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			VF610_PAD_PTB16__I2C1_SCL	0x37ff
+			VF610_PAD_PTB17__I2C1_SDA	0x37ff
+		>;
+	};
+
+	pinctrl_i2c2: i2c2grp {
+		fsl,pins = <
+			VF610_PAD_PTA22__I2C2_SCL	0x37ff
+			VF610_PAD_PTA23__I2C2_SDA	0x37ff
+		>;
+	};
+
+	pinctrl_leds_debug: pinctrl-leds-debug {
+		fsl,pins = <
+			 VF610_PAD_PTD20__GPIO_74	0x31c2
+			 >;
+	};
+
+	pinctrl_qspi0: qspi0grp {
+		fsl,pins = <
+			VF610_PAD_PTD0__QSPI0_A_QSCK	0x38c2
+			VF610_PAD_PTD1__QSPI0_A_CS0	0x38c2
+			VF610_PAD_PTD2__QSPI0_A_DATA3	0x38c3
+			VF610_PAD_PTD3__QSPI0_A_DATA2	0x38c3
+			VF610_PAD_PTD4__QSPI0_A_DATA1	0x38c3
+			VF610_PAD_PTD5__QSPI0_A_DATA0	0x38c3
+			VF610_PAD_PTD7__QSPI0_B_QSCK	0x38c2
+			VF610_PAD_PTD8__QSPI0_B_CS0	0x38c2
+			VF610_PAD_PTD9__QSPI0_B_DATA3	0x38c3
+			VF610_PAD_PTD10__QSPI0_B_DATA2	0x38c3
+			VF610_PAD_PTD11__QSPI0_B_DATA1	0x38c3
+			VF610_PAD_PTD12__QSPI0_B_DATA0	0x38c3
+		>;
+	};
+
+	pinctrl_uart0: uart0grp {
+		fsl,pins = <
+			VF610_PAD_PTB10__UART0_TX	0x21a2
+			VF610_PAD_PTB11__UART0_RX	0x21a1
+		>;
+	};
+
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			VF610_PAD_PTB23__UART1_TX	0x21a2
+			VF610_PAD_PTB24__UART1_RX	0x21a1
+		>;
+	};
+
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			VF610_PAD_PTD23__UART2_TX	0x21a2
+			VF610_PAD_PTD22__UART2_RX	0x21a1
+		>;
+	};
+
+	pinctrl_usb_vbus: pinctrl-usb-vbus {
+		fsl,pins = <
+			VF610_PAD_PTA16__GPIO_6	0x31c2
+		>;
+	};
+
+	pinctrl_usb0_host: usb0-host-grp {
+		fsl,pins = <
+			VF610_PAD_PTD6__GPIO_85		0x0062
+		>;
+	};
+};

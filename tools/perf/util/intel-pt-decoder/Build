@@ -1,0 +1,20 @@
+perf-$(CONFIG_AUXTRACE) += intel-pt-pkt-decoder.o intel-pt-insn-decoder.o intel-pt-log.o intel-pt-decoder.o
+
+inat_tables_script = $(srctree)/tools/arch/x86/tools/gen-insn-attr-x86.awk
+inat_tables_maps = $(srctree)/tools/arch/x86/lib/x86-opcode-map.txt
+
+$(OUTPUT)util/intel-pt-decoder/inat-tables.c: $(inat_tables_script) $(inat_tables_maps)
+	$(call rule_mkdir)
+	@$(call echo-cmd,gen)$(AWK) -f $(inat_tables_script) $(inat_tables_maps) > $@ || rm -f $@
+
+# Busybox's diff doesn't have -I, avoid warning in the case
+
+$(OUTPUT)util/intel-pt-decoder/intel-pt-insn-decoder.o: util/intel-pt-decoder/intel-pt-insn-decoder.c $(OUTPUT)util/intel-pt-decoder/inat-tables.c
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+CFLAGS_intel-pt-insn-decoder.o += -I$(OUTPUT)util/intel-pt-decoder
+
+ifeq ($(CC_NO_CLANG), 1)
+  CFLAGS_intel-pt-insn-decoder.o += -Wno-override-init
+endif

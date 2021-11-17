@@ -1,0 +1,37 @@
+GNSS Receiver DT binding
+
+This documents the binding structure and common properties for GNSS receiver
+devices.
+
+A GNSS receiver node is a node named "gnss" and typically resides on a serial
+bus (e.g. UART, I2C or SPI).
+
+Please refer to the following documents for generic properties:
+
+	Documentation/devicetree/bindings/serial/serial.yaml
+	Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Required properties:
+
+- compatible	: A string reflecting the vendor and specific device the node
+		  represents
+
+Optional properties:
+- lna-supply	: Separate supply for an LNA
+- enable-gpios	: GPIO used to enable the device
+- timepulse-gpios	: Time pulse GPIO
+
+Example:
+
+serial@1234 {
+	compatible = "ns16550a";
+
+	gnss {
+		compatible = "u-blox,neo-8";
+
+		vcc-supply = <&gnss_reg>;
+		timepulse-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+
+		current-speed = <4800>;
+	};
+};

@@ -1,0 +1,131 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * XLP8XX Device Tree Source for EVP boards
+ */
+
+/dts-v1/;
+/ {
+	model = "netlogic,XLP-EVP";
+	compatible = "netlogic,xlp";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	soc {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0 0  0 0x18000000  0x04000000   // PCIe CFG
+			  1 0  0 0x16000000  0x02000000>; // GBU chipselects
+
+		serial0: serial@30000 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0 0x30100 0xa00>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <133333333>;
+			interrupt-parent = <&pic>;
+			interrupts = <17>;
+		};
+		serial1: serial@31000 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0 0x31100 0xa00>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <133333333>;
+			interrupt-parent = <&pic>;
+			interrupts = <18>;
+		};
+		i2c0: ocores@32000 {
+			compatible = "opencores,i2c-ocores";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0 0x32100 0xa00>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <32000000>;
+			interrupt-parent = <&pic>;
+			interrupts = <30>;
+		};
+		i2c1: ocores@33000 {
+			compatible = "opencores,i2c-ocores";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0 0x33100 0xa00>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <32000000>;
+			interrupt-parent = <&pic>;
+			interrupts = <31>;
+
+			rtc@68 {
+				compatible = "dallas,ds1374";
+				reg = <0x68>;
+			};
+
+			dtt@4c {
+				compatible = "national,lm90";
+				reg = <0x4c>;
+			};
+		};
+		pic: pic@4000 {
+			compatible = "netlogic,xlp-pic";
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0 0x4000 0x200>;
+			interrupt-controller;
+		};
+
+		nor_flash@1,0 {
+			compatible = "cfi-flash";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			bank-width = <2>;
+			reg = <1 0 0x1000000>;
+
+			partition@0 {
+				label = "x-loader";
+				reg = <0x0 0x100000>; /* 1M */
+				read-only;
+			};
+
+			partition@100000 {
+				label = "u-boot";
+				reg = <0x100000 0x100000>; /* 1M */
+			};
+
+			partition@200000 {
+				label = "kernel";
+				reg = <0x200000 0x500000>; /* 5M */
+			};
+
+			partition@700000 {
+				label = "rootfs";
+				reg = <0x700000 0x800000>; /* 8M */
+			};
+
+			partition@f00000 {
+				label = "env";
+				reg = <0xf00000 0x100000>; /* 1M */
+				read-only;
+			};
+		};
+
+		gpio: xlp_gpio@34100 {
+			compatible = "netlogic,xlp832-gpio";
+			reg = <0 0x34100 0x1000>;
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			#interrupt-cells = <2>;
+			interrupt-parent = <&pic>;
+			interrupts = <39>;
+			interrupt-controller;
+		};
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200 rdinit=/sbin/init";
+	};
+};

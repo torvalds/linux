@@ -1,0 +1,87 @@
+QCOM GSBI (General Serial Bus Interface) Driver
+
+The GSBI controller is modeled as a node with zero or more child nodes, each
+representing a serial sub-node device that is mux'd as part of the GSBI
+configuration settings.  The mode setting will govern the input/output mode of
+the 4 GSBI IOs.
+
+Required properties:
+- compatible:	Should contain "qcom,gsbi-v1.0.0"
+- cell-index:	Should contain the GSBI index
+- reg: Address range for GSBI registers
+- clocks: required clock
+- clock-names: must contain "iface" entry
+- qcom,mode : indicates MUX value for configuration of the serial interface.
+  Please reference dt-bindings/soc/qcom,gsbi.h for valid mux values.
+
+Optional properties:
+- qcom,crci : indicates CRCI MUX value for QUP CRCI ports.  Please reference
+  dt-bindings/soc/qcom,gsbi.h for valid CRCI mux values.
+- syscon-tcsr: indicates phandle of TCSR syscon node.  Required if child uses
+  dma.
+
+Required properties if child node exists:
+- #address-cells: Must be 1
+- #size-cells: Must be 1
+- ranges: Must be present
+
+Properties for children:
+
+A GSBI controller node can contain 0 or more child nodes representing serial
+devices.  These serial devices can be a QCOM UART, I2C controller, spi
+controller, or some combination of aforementioned devices.
+
+See the following for child node definitions:
+Documentation/devicetree/bindings/i2c/qcom,i2c-qup.txt
+Documentation/devicetree/bindings/spi/qcom,spi-qup.txt
+Documentation/devicetree/bindings/serial/qcom,msm-uartdm.txt
+
+Example for APQ8064:
+
+#include <dt-bindings/soc/qcom,gsbi.h>
+
+	gsbi4@16300000 {
+		compatible = "qcom,gsbi-v1.0.0";
+		cell-index = <4>;
+		reg = <0x16300000 0x100>;
+		clocks = <&gcc GSBI4_H_CLK>;
+		clock-names = "iface";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		qcom,mode = <GSBI_PROT_I2C_UART>;
+		qcom,crci = <GSBI_CRCI_QUP>;
+
+		syscon-tcsr = <&tcsr>;
+
+		/* child nodes go under here */
+
+		i2c_qup4: i2c@16380000 {
+			compatible = "qcom,i2c-qup-v1.1.1";
+			reg = <0x16380000 0x1000>;
+			interrupts = <0 153 0>;
+
+			clocks = <&gcc GSBI4_QUP_CLK>, <&gcc GSBI4_H_CLK>;
+			clock-names = "core", "iface";
+
+			clock-frequency = <200000>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+		};
+
+		uart4:	serial@16340000 {
+			compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+			reg = <0x16340000 0x1000>,
+				<0x16300000 0x1000>;
+			interrupts = <0 152 0x0>;
+			clocks = <&gcc GSBI4_UART_CLK>, <&gcc GSBI4_H_CLK>;
+			clock-names = "core", "iface";
+		};
+	};
+
+	tcsr: syscon@1a400000 {
+		compatible = "qcom,apq8064-tcsr", "syscon";
+		reg = <0x1a400000 0x100>;
+	};

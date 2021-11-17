@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SOC_ROCKCHIP
+	tristate "ASoC support for Rockchip"
+	depends on COMPILE_TEST || ARCH_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Rockchip SoCs' Audio interfaces. You will also need to
+	  select the audio interfaces to support below.
+
+config SND_SOC_ROCKCHIP_I2S
+	tristate "Rockchip I2S Device Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for I2S driver for
+	  Rockchip I2S device. The device supports upto maximum of
+	  8 channels each for play and record.
+
+config SND_SOC_ROCKCHIP_PDM
+	tristate "Rockchip PDM Controller Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select RATIONAL
+	help
+	  Say Y or M if you want to add support for PDM driver for
+	  Rockchip PDM Controller. The Controller supports up to maximum of
+	  8 channels record.
+
+config SND_SOC_ROCKCHIP_SPDIF
+	tristate "Rockchip SPDIF Device Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for SPDIF driver for
+	  Rockchip SPDIF transceiver device.
+
+config SND_SOC_ROCKCHIP_MAX98090
+	tristate "ASoC support for Rockchip boards using a MAX98090 codec"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && HAVE_CLK
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_MAX98090
+	select SND_SOC_TS3A227E
+	select SND_SOC_HDMI_CODEC
+	help
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards using the MAX98090 codec and HDMI codec, such as Veyron.
+
+config SND_SOC_ROCKCHIP_RT5645
+	tristate "ASoC support for Rockchip boards using a RT5645/RT5650 codec"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && HAVE_CLK
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_RT5645
+	help
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards using the RT5645/RT5650 codec, such as Veyron.
+
+config SND_SOC_RK3288_HDMI_ANALOG
+	tristate "ASoC support multiple codecs for Rockchip RK3288 boards"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && HAVE_CLK
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_HDMI_CODEC
+	select SND_SOC_ES8328_I2C
+	select SND_SOC_ES8328_SPI if SPI_MASTER
+	select DRM_DW_HDMI_I2S_AUDIO if DRM_DW_HDMI
+	help
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  RK3288 boards using an analog output and the built-in HDMI audio.
+
+config SND_SOC_RK3399_GRU_SOUND
+	tristate "ASoC support multiple codecs for Rockchip RK3399 GRU boards"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && HAVE_CLK && SPI
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_MAX98357A
+	select SND_SOC_RT5514
+	select SND_SOC_DA7219
+	select SND_SOC_RT5514_SPI
+	select SND_SOC_HDMI_CODEC
+	select SND_SOC_DMIC
+	help
+	  Say Y or M here if you want to add support multiple codecs for SoC
+	  audio on Rockchip RK3399 GRU boards.

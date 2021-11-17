@@ -1,0 +1,1 @@
+../../../arch/arc/boot/dts

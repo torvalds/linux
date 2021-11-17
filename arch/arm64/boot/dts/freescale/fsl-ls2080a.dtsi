@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree Include file for Freescale Layerscape-2080A family SoC.
+ *
+ * Copyright 2014-2016 Freescale Semiconductor, Inc.
+ *
+ * Abhimanyu Saini <abhimanyu.saini@nxp.com>
+ * Bhupesh Sharma <bhupesh.sharma@freescale.com>
+ *
+ */
+
+#include <dt-bindings/clock/fsl,qoriq-clockgen.h>
+#include "fsl-ls208xa.dtsi"
+
+&cpu {
+	cpu0: cpu@0 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x0>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 0>;
+		cpu-idle-states = <&CPU_PW20>;
+		next-level-cache = <&cluster0_l2>;
+		#cooling-cells = <2>;
+	};
+
+	cpu1: cpu@1 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x1>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 0>;
+		cpu-idle-states = <&CPU_PW20>;
+		next-level-cache = <&cluster0_l2>;
+		#cooling-cells = <2>;
+	};
+
+	cpu2: cpu@100 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x100>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 1>;
+		cpu-idle-states = <&CPU_PW20>;
+		next-level-cache = <&cluster1_l2>;
+		#cooling-cells = <2>;
+	};
+
+	cpu3: cpu@101 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x101>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 1>;
+		cpu-idle-states = <&CPU_PW20>;
+		next-level-cache = <&cluster1_l2>;
+		#cooling-cells = <2>;
+	};
+
+	cpu4: cpu@200 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x200>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 2>;
+		cpu-idle-states = <&CPU_PW20>;
+		next-level-cache = <&cluster2_l2>;
+		#cooling-cells = <2>;
+	};
+
+	cpu5: cpu@201 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x201>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 2>;
+		cpu-idle-states = <&CPU_PW20>;
+		next-level-cache = <&cluster2_l2>;
+		#cooling-cells = <2>;
+	};
+
+	cpu6: cpu@300 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x300>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 3>;
+		next-level-cache = <&cluster3_l2>;
+		cpu-idle-states = <&CPU_PW20>;
+		#cooling-cells = <2>;
+	};
+
+	cpu7: cpu@301 {
+		device_type = "cpu";
+		compatible = "arm,cortex-a57";
+		reg = <0x301>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 3>;
+		cpu-idle-states = <&CPU_PW20>;
+		next-level-cache = <&cluster3_l2>;
+		#cooling-cells = <2>;
+	};
+
+	cluster0_l2: l2-cache0 {
+		compatible = "cache";
+	};
+
+	cluster1_l2: l2-cache1 {
+		compatible = "cache";
+	};
+
+	cluster2_l2: l2-cache2 {
+		compatible = "cache";
+	};
+
+	cluster3_l2: l2-cache3 {
+		compatible = "cache";
+	};
+
+	CPU_PW20: cpu-pw20 {
+		compatible = "arm,idle-state";
+		idle-state-name = "PW20";
+		arm,psci-suspend-param = <0x00010000>;
+		entry-latency-us = <2000>;
+		exit-latency-us = <2000>;
+		min-residency-us = <6000>;
+	};
+};
+
+&pcie1 {
+	reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+	      <0x10 0x00000000 0x0 0x00002000>; /* configuration space */
+
+	ranges = <0x81000000 0x0 0x00000000 0x10 0x00010000 0x0 0x00010000   /* downstream I/O */
+		  0x82000000 0x0 0x40000000 0x10 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+};
+
+&pcie2 {
+	reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
+	      <0x12 0x00000000 0x0 0x00002000>; /* configuration space */
+
+	ranges = <0x81000000 0x0 0x00000000 0x12 0x00010000 0x0 0x00010000   /* downstream I/O */
+		  0x82000000 0x0 0x40000000 0x12 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+};
+
+&pcie3 {
+	reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
+	      <0x14 0x00000000 0x0 0x00002000>; /* configuration space */
+
+	ranges = <0x81000000 0x0 0x00000000 0x14 0x00010000 0x0 0x00010000   /* downstream I/O */
+		  0x82000000 0x0 0x40000000 0x14 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+};
+
+&pcie4 {
+	reg = <0x00 0x03700000 0x0 0x00100000>, /* controller registers */
+	      <0x16 0x00000000 0x0 0x00002000>; /* configuration space */
+
+	ranges = <0x81000000 0x0 0x00000000 0x16 0x00010000 0x0 0x00010000   /* downstream I/O */
+		  0x82000000 0x0 0x40000000 0x16 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+};

@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig V4L_TEST_DRIVERS
+	bool "V4L test drivers"
+	depends on VIDEO_DEV
+
+if V4L_TEST_DRIVERS
+
+source "drivers/media/test-drivers/vimc/Kconfig"
+
+source "drivers/media/test-drivers/vivid/Kconfig"
+
+config VIDEO_VIM2M
+	tristate "Virtual Memory-to-Memory Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	select VIDEOBUF2_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	select MEDIA_CONTROLLER
+	select MEDIA_CONTROLLER_REQUEST_API
+	help
+	  This is a virtual test device for the memory-to-memory driver
+	  framework.
+
+source "drivers/media/test-drivers/vicodec/Kconfig"
+
+endif #V4L_TEST_DRIVERS
+
+menuconfig DVB_TEST_DRIVERS
+	bool "DVB test drivers"
+	depends on DVB_CORE && MEDIA_SUPPORT && I2C
+	help
+	  Enables DVB test drivers.
+
+	  This enables the DVB test drivers. They are meant as an aid for
+	  DVB device driver writers and developers working on userspace
+	  media applications.
+
+if DVB_TEST_DRIVERS
+
+source "drivers/media/test-drivers/vidtv/Kconfig"
+
+endif #DVB_TEST_DRIVERS

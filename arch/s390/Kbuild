@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+obj-y				+= kernel/
+obj-y				+= mm/
+obj-$(CONFIG_KVM)		+= kvm/
+obj-y				+= crypto/
+obj-$(CONFIG_S390_HYPFS_FS)	+= hypfs/
+obj-$(CONFIG_APPLDATA_BASE)	+= appldata/
+obj-y				+= net/
+obj-$(CONFIG_PCI)		+= pci/
+obj-$(CONFIG_ARCH_HAS_KEXEC_PURGATORY) += purgatory/

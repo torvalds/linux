@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config XFS_FS
+	tristate "XFS filesystem support"
+	depends on BLOCK
+	select EXPORTFS
+	select LIBCRC32C
+	select FS_IOMAP
+	help
+	  XFS is a high performance journaling filesystem which originated
+	  on the SGI IRIX platform.  It is completely multi-threaded, can
+	  support large files and large filesystems, extended attributes,
+	  variable block sizes, is extent based, and makes extensive use of
+	  Btrees (directories, extents, free space) to aid both performance
+	  and scalability.
+
+	  Refer to the documentation at <http://oss.sgi.com/projects/xfs/>
+	  for complete details.  This implementation is on-disk compatible
+	  with the IRIX version of XFS.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called xfs.  Be aware, however, that if the file
+	  system of your root partition is compiled as a module, you'll need
+	  to use an initial ramdisk (initrd) to boot.
+
+config XFS_SUPPORT_V4
+	bool "Support deprecated V4 (crc=0) format"
+	depends on XFS_FS
+	default y
+	help
+	  The V4 filesystem format lacks certain features that are supported
+	  by the V5 format, such as metadata checksumming, strengthened
+	  metadata verification, and the ability to store timestamps past the
+	  year 2038.  Because of this, the V4 format is deprecated.  All users
+	  should upgrade by backing up their files, reformatting, and restoring
+	  from the backup.
+
+	  Administrators and users can detect a V4 filesystem by running
+	  xfs_info against a filesystem mountpoint and checking for a string
+	  beginning with "crc=".  If the string "crc=0" is found, the
+	  filesystem is a V4 filesystem.  If no such string is found, please
+	  upgrade xfsprogs to the latest version and try again.
+
+	  This option will become default N in September 2025.  Support for the
+	  V4 format will be removed entirely in September 2030.  Distributors
+	  can say N here to withdraw support earlier.
+
+	  To continue supporting the old V4 format (crc=0), say Y.
+	  To close off an attack surface, say N.
+
+config XFS_QUOTA
+	bool "XFS Quota support"
+	depends on XFS_FS
+	select QUOTACTL
+	help
+	  If you say Y here, you will be able to set limits for disk usage on
+	  a per user and/or a per group basis under XFS.  XFS considers quota
+	  information as filesystem metadata and uses journaling to provide a
+	  higher level guarantee of consistency.  The on-disk data format for
+	  quota is also compatible with the IRIX version of XFS, allowing a
+	  filesystem to be migrated between Linux and IRIX without any need
+	  for conversion.
+
+	  If unsure, say N.  More comprehensive documentation can be found in
+	  README.quota in the xfsprogs package.  XFS quota can be used either
+	  with or without the generic quota support enabled (CONFIG_QUOTA) -
+	  they are completely independent subsystems.
+
+config XFS_POSIX_ACL
+	bool "XFS POSIX ACL support"
+	depends on XFS_FS
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  If you don't know what Access Control Lists are, say N.
+
+config XFS_RT
+	bool "XFS Realtime subvolume support"
+	depends on XFS_FS
+	help
+	  If you say Y here you will be able to mount and use XFS filesystems
+	  which contain a realtime subvolume.  The realtime subvolume is a
+	  separate area of disk space where only file data is stored.  It was
+	  originally designed to provide deterministic data rates suitable
+	  for media streaming applications, but is also useful as a generic
+	  mechanism for ensuring data and metadata/log I/Os are completely
+	  separated.  Regular file I/Os are isolated to a separate device
+	  from all other requests, and this can be done quite transparently
+	  to applications via the inherit-realtime directory inode flag.
+
+	  See the xfs man page in section 5 for additional information.
+
+	  If unsure, say N.
+
+config XFS_ONLINE_SCRUB
+	bool "XFS online metadata check support"
+	default n
+	depends on XFS_FS
+	help
+	  If you say Y here you will be able to check metadata on a
+	  mounted XFS filesystem.  This feature is intended to reduce
+	  filesystem downtime by supplementing xfs_repair.  The key
+	  advantage here is to look for problems proactively so that
+	  they can be dealt with in a controlled manner.
+
+	  This feature is considered EXPERIMENTAL.  Use with caution!
+
+	  See the xfs_scrub man page in section 8 for additional information.
+
+	  If unsure, say N.
+
+config XFS_ONLINE_REPAIR
+	bool "XFS online metadata repair support"
+	default n
+	depends on XFS_FS && XFS_ONLINE_SCRUB
+	help
+	  If you say Y here you will be able to repair metadata on a
+	  mounted XFS filesystem.  This feature is intended to reduce
+	  filesystem downtime by fixing minor problems before they cause the
+	  filesystem to go down.  However, it requires that the filesystem be
+	  formatted with secondary metadata, such as reverse mappings and inode
+	  parent pointers.
+
+	  This feature is considered EXPERIMENTAL.  Use with caution!
+
+	  See the xfs_scrub man page in section 8 for additional information.
+
+	  If unsure, say N.
+
+config XFS_WARN
+	bool "XFS Verbose Warnings"
+	depends on XFS_FS && !XFS_DEBUG
+	help
+	  Say Y here to get an XFS build with many additional warnings.
+	  It converts ASSERT checks to WARN, so will log any out-of-bounds
+	  conditions that occur that would otherwise be missed. It is much
+	  lighter weight than XFS_DEBUG and does not modify algorithms and will
+	  not cause the kernel to panic on non-fatal errors.
+
+	  However, similar to XFS_DEBUG, it is only advisable to use this if you
+	  are debugging a particular problem.
+
+config XFS_DEBUG
+	bool "XFS Debugging support"
+	depends on XFS_FS
+	help
+	  Say Y here to get an XFS build with many debugging features,
+	  including ASSERT checks, function wrappers around macros,
+	  and extra sanity-checking functions in various code paths.
+
+	  Note that the resulting code will be HUGE and SLOW, and probably
+	  not useful unless you are debugging a particular problem.
+
+	  Say N unless you are an XFS developer, or you play one on TV.
+
+config XFS_ASSERT_FATAL
+	bool "XFS fatal asserts"
+	default y
+	depends on XFS_FS && XFS_DEBUG
+	help
+	  Set the default DEBUG mode ASSERT failure behavior.
+
+	  Say Y here to cause DEBUG mode ASSERT failures to result in fatal
+	  errors that BUG() the kernel by default. If you say N, ASSERT failures
+	  result in warnings.
+
+	  This behavior can be modified at runtime via sysfs.

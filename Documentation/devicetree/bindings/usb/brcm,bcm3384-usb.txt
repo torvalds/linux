@@ -1,0 +1,11 @@
+* Broadcom USB controllers
+
+Required properties:
+- compatible: "brcm,bcm3384-ohci", "brcm,bcm3384-ehci"
+
+  These currently use the generic-ohci and generic-ehci drivers.  On some
+  systems, special handling may be needed in the following cases:
+
+  - Restoring state after systemwide power save modes
+  - Sharing PHYs with the USBD (UDC) hardware
+  - Figuring out which controllers are disabled on ASIC bondout variants

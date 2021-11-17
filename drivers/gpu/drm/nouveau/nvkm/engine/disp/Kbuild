@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/engine/disp/base.o
+nvkm-y += nvkm/engine/disp/nv04.o
+nvkm-y += nvkm/engine/disp/nv50.o
+nvkm-y += nvkm/engine/disp/g84.o
+nvkm-y += nvkm/engine/disp/g94.o
+nvkm-y += nvkm/engine/disp/gt200.o
+nvkm-y += nvkm/engine/disp/mcp77.o
+nvkm-y += nvkm/engine/disp/gt215.o
+nvkm-y += nvkm/engine/disp/mcp89.o
+nvkm-y += nvkm/engine/disp/gf119.o
+nvkm-y += nvkm/engine/disp/gk104.o
+nvkm-y += nvkm/engine/disp/gk110.o
+nvkm-y += nvkm/engine/disp/gm107.o
+nvkm-y += nvkm/engine/disp/gm200.o
+nvkm-y += nvkm/engine/disp/gp100.o
+nvkm-y += nvkm/engine/disp/gp102.o
+nvkm-y += nvkm/engine/disp/gv100.o
+nvkm-y += nvkm/engine/disp/tu102.o
+nvkm-y += nvkm/engine/disp/ga102.o
+nvkm-y += nvkm/engine/disp/vga.o
+
+nvkm-y += nvkm/engine/disp/head.o
+nvkm-y += nvkm/engine/disp/headnv04.o
+nvkm-y += nvkm/engine/disp/headnv50.o
+nvkm-y += nvkm/engine/disp/headgf119.o
+nvkm-y += nvkm/engine/disp/headgv100.o
+
+nvkm-y += nvkm/engine/disp/ior.o
+nvkm-y += nvkm/engine/disp/dacnv50.o
+nvkm-y += nvkm/engine/disp/dacgf119.o
+nvkm-y += nvkm/engine/disp/piornv50.o
+nvkm-y += nvkm/engine/disp/sornv50.o
+nvkm-y += nvkm/engine/disp/sorg84.o
+nvkm-y += nvkm/engine/disp/sorg94.o
+nvkm-y += nvkm/engine/disp/sormcp77.o
+nvkm-y += nvkm/engine/disp/sorgt215.o
+nvkm-y += nvkm/engine/disp/sormcp89.o
+nvkm-y += nvkm/engine/disp/sorgf119.o
+nvkm-y += nvkm/engine/disp/sorgk104.o
+nvkm-y += nvkm/engine/disp/sorgm107.o
+nvkm-y += nvkm/engine/disp/sorgm200.o
+nvkm-y += nvkm/engine/disp/sorgp100.o
+nvkm-y += nvkm/engine/disp/sorgv100.o
+nvkm-y += nvkm/engine/disp/sortu102.o
+nvkm-y += nvkm/engine/disp/sorga102.o
+
+nvkm-y += nvkm/engine/disp/outp.o
+nvkm-y += nvkm/engine/disp/dp.o
+
+nvkm-y += nvkm/engine/disp/hdagt215.o
+nvkm-y += nvkm/engine/disp/hdagf119.o
+nvkm-y += nvkm/engine/disp/hdagv100.o
+
+nvkm-y += nvkm/engine/disp/hdmi.o
+nvkm-y += nvkm/engine/disp/hdmig84.o
+nvkm-y += nvkm/engine/disp/hdmigt215.o
+nvkm-y += nvkm/engine/disp/hdmigf119.o
+nvkm-y += nvkm/engine/disp/hdmigk104.o
+nvkm-y += nvkm/engine/disp/hdmigm200.o
+nvkm-y += nvkm/engine/disp/hdmigv100.o
+
+nvkm-y += nvkm/engine/disp/conn.o
+
+nvkm-y += nvkm/engine/disp/rootnv04.o
+nvkm-y += nvkm/engine/disp/rootnv50.o
+nvkm-y += nvkm/engine/disp/rootg84.o
+nvkm-y += nvkm/engine/disp/rootg94.o
+nvkm-y += nvkm/engine/disp/rootgt200.o
+nvkm-y += nvkm/engine/disp/rootgt215.o
+nvkm-y += nvkm/engine/disp/rootgf119.o
+nvkm-y += nvkm/engine/disp/rootgk104.o
+nvkm-y += nvkm/engine/disp/rootgk110.o
+nvkm-y += nvkm/engine/disp/rootgm107.o
+nvkm-y += nvkm/engine/disp/rootgm200.o
+nvkm-y += nvkm/engine/disp/rootgp100.o
+nvkm-y += nvkm/engine/disp/rootgp102.o
+nvkm-y += nvkm/engine/disp/rootgv100.o
+nvkm-y += nvkm/engine/disp/roottu102.o
+nvkm-y += nvkm/engine/disp/rootga102.o
+
+nvkm-y += nvkm/engine/disp/capsgv100.o
+
+nvkm-y += nvkm/engine/disp/channv50.o
+nvkm-y += nvkm/engine/disp/changf119.o
+nvkm-y += nvkm/engine/disp/changv100.o
+
+nvkm-y += nvkm/engine/disp/dmacnv50.o
+nvkm-y += nvkm/engine/disp/dmacgf119.o
+nvkm-y += nvkm/engine/disp/dmacgp102.o
+nvkm-y += nvkm/engine/disp/dmacgv100.o
+
+nvkm-y += nvkm/engine/disp/basenv50.o
+nvkm-y += nvkm/engine/disp/baseg84.o
+nvkm-y += nvkm/engine/disp/basegf119.o
+nvkm-y += nvkm/engine/disp/basegp102.o
+
+nvkm-y += nvkm/engine/disp/corenv50.o
+nvkm-y += nvkm/engine/disp/coreg84.o
+nvkm-y += nvkm/engine/disp/coreg94.o
+nvkm-y += nvkm/engine/disp/coregf119.o
+nvkm-y += nvkm/engine/disp/coregk104.o
+nvkm-y += nvkm/engine/disp/coregp102.o
+nvkm-y += nvkm/engine/disp/coregv100.o
+
+nvkm-y += nvkm/engine/disp/ovlynv50.o
+nvkm-y += nvkm/engine/disp/ovlyg84.o
+nvkm-y += nvkm/engine/disp/ovlygt200.o
+nvkm-y += nvkm/engine/disp/ovlygf119.o
+nvkm-y += nvkm/engine/disp/ovlygk104.o
+nvkm-y += nvkm/engine/disp/ovlygp102.o
+
+nvkm-y += nvkm/engine/disp/wimmgv100.o
+
+nvkm-y += nvkm/engine/disp/wndwgv100.o
+
+nvkm-y += nvkm/engine/disp/piocnv50.o
+nvkm-y += nvkm/engine/disp/piocgf119.o
+
+nvkm-y += nvkm/engine/disp/cursnv50.o
+nvkm-y += nvkm/engine/disp/cursgf119.o
+nvkm-y += nvkm/engine/disp/cursgp102.o
+nvkm-y += nvkm/engine/disp/cursgv100.o
+
+nvkm-y += nvkm/engine/disp/oimmnv50.o
+nvkm-y += nvkm/engine/disp/oimmgf119.o
+nvkm-y += nvkm/engine/disp/oimmgp102.o

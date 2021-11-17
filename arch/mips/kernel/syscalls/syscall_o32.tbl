@@ -1,0 +1,438 @@
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+#
+# system call numbers and entry vectors for mips
+#
+# The format is:
+# <number> <abi> <name> <entry point> <compat entry point>
+#
+# The <abi> is always "o32" for this file.
+#
+0	o32	syscall				sys_syscall			sys32_syscall
+1	o32	exit				sys_exit
+2	o32	fork				__sys_fork
+3	o32	read				sys_read
+4	o32	write				sys_write
+5	o32	open				sys_open			compat_sys_open
+6	o32	close				sys_close
+7	o32	waitpid				sys_waitpid
+8	o32	creat				sys_creat
+9	o32	link				sys_link
+10	o32	unlink				sys_unlink
+11	o32	execve				sys_execve			compat_sys_execve
+12	o32	chdir				sys_chdir
+13	o32	time				sys_time32
+14	o32	mknod				sys_mknod
+15	o32	chmod				sys_chmod
+16	o32	lchown				sys_lchown
+17	o32	break				sys_ni_syscall
+# 18 was sys_stat
+18	o32	unused18			sys_ni_syscall
+19	o32	lseek				sys_lseek
+20	o32	getpid				sys_getpid
+21	o32	mount				sys_mount
+22	o32	umount				sys_oldumount
+23	o32	setuid				sys_setuid
+24	o32	getuid				sys_getuid
+25	o32	stime				sys_stime32
+26	o32	ptrace				sys_ptrace			compat_sys_ptrace
+27	o32	alarm				sys_alarm
+# 28 was sys_fstat
+28	o32	unused28			sys_ni_syscall
+29	o32	pause				sys_pause
+30	o32	utime				sys_utime32
+31	o32	stty				sys_ni_syscall
+32	o32	gtty				sys_ni_syscall
+33	o32	access				sys_access
+34	o32	nice				sys_nice
+35	o32	ftime				sys_ni_syscall
+36	o32	sync				sys_sync
+37	o32	kill				sys_kill
+38	o32	rename				sys_rename
+39	o32	mkdir				sys_mkdir
+40	o32	rmdir				sys_rmdir
+41	o32	dup				sys_dup
+42	o32	pipe				sysm_pipe
+43	o32	times				sys_times			compat_sys_times
+44	o32	prof				sys_ni_syscall
+45	o32	brk				sys_brk
+46	o32	setgid				sys_setgid
+47	o32	getgid				sys_getgid
+48	o32	signal				sys_ni_syscall
+49	o32	geteuid				sys_geteuid
+50	o32	getegid				sys_getegid
+51	o32	acct				sys_acct
+52	o32	umount2				sys_umount
+53	o32	lock				sys_ni_syscall
+54	o32	ioctl				sys_ioctl			compat_sys_ioctl
+55	o32	fcntl				sys_fcntl			compat_sys_fcntl
+56	o32	mpx				sys_ni_syscall
+57	o32	setpgid				sys_setpgid
+58	o32	ulimit				sys_ni_syscall
+59	o32	unused59			sys_olduname
+60	o32	umask				sys_umask
+61	o32	chroot				sys_chroot
+62	o32	ustat				sys_ustat			compat_sys_ustat
+63	o32	dup2				sys_dup2
+64	o32	getppid				sys_getppid
+65	o32	getpgrp				sys_getpgrp
+66	o32	setsid				sys_setsid
+67	o32	sigaction			sys_sigaction			sys_32_sigaction
+68	o32	sgetmask			sys_sgetmask
+69	o32	ssetmask			sys_ssetmask
+70	o32	setreuid			sys_setreuid
+71	o32	setregid			sys_setregid
+72	o32	sigsuspend			sys_sigsuspend			sys32_sigsuspend
+73	o32	sigpending			sys_sigpending			compat_sys_sigpending
+74	o32	sethostname			sys_sethostname
+75	o32	setrlimit			sys_setrlimit			compat_sys_setrlimit
+76	o32	getrlimit			sys_getrlimit			compat_sys_getrlimit
+77	o32	getrusage			sys_getrusage			compat_sys_getrusage
+78	o32	gettimeofday			sys_gettimeofday		compat_sys_gettimeofday
+79	o32	settimeofday			sys_settimeofday		compat_sys_settimeofday
+80	o32	getgroups			sys_getgroups
+81	o32	setgroups			sys_setgroups
+# 82 was old_select
+82	o32	reserved82			sys_ni_syscall
+83	o32	symlink				sys_symlink
+# 84 was sys_lstat
+84	o32	unused84			sys_ni_syscall
+85	o32	readlink			sys_readlink
+86	o32	uselib				sys_uselib
+87	o32	swapon				sys_swapon
+88	o32	reboot				sys_reboot
+89	o32	readdir				sys_old_readdir			compat_sys_old_readdir
+90	o32	mmap				sys_mips_mmap
+91	o32	munmap				sys_munmap
+92	o32	truncate			sys_truncate			compat_sys_truncate
+93	o32	ftruncate			sys_ftruncate			compat_sys_ftruncate
+94	o32	fchmod				sys_fchmod
+95	o32	fchown				sys_fchown
+96	o32	getpriority			sys_getpriority
+97	o32	setpriority			sys_setpriority
+98	o32	profil				sys_ni_syscall
+99	o32	statfs				sys_statfs			compat_sys_statfs
+100	o32	fstatfs				sys_fstatfs			compat_sys_fstatfs
+101	o32	ioperm				sys_ni_syscall
+102	o32	socketcall			sys_socketcall			compat_sys_socketcall
+103	o32	syslog				sys_syslog
+104	o32	setitimer			sys_setitimer			compat_sys_setitimer
+105	o32	getitimer			sys_getitimer			compat_sys_getitimer
+106	o32	stat				sys_newstat			compat_sys_newstat
+107	o32	lstat				sys_newlstat			compat_sys_newlstat
+108	o32	fstat				sys_newfstat			compat_sys_newfstat
+109	o32	unused109			sys_uname
+110	o32	iopl				sys_ni_syscall
+111	o32	vhangup				sys_vhangup
+112	o32	idle				sys_ni_syscall
+113	o32	vm86				sys_ni_syscall
+114	o32	wait4				sys_wait4			compat_sys_wait4
+115	o32	swapoff				sys_swapoff
+116	o32	sysinfo				sys_sysinfo			compat_sys_sysinfo
+117	o32	ipc				sys_ipc				compat_sys_ipc
+118	o32	fsync				sys_fsync
+119	o32	sigreturn			sys_sigreturn			sys32_sigreturn
+120	o32	clone				__sys_clone
+121	o32	setdomainname			sys_setdomainname
+122	o32	uname				sys_newuname
+123	o32	modify_ldt			sys_ni_syscall
+124	o32	adjtimex			sys_adjtimex_time32
+125	o32	mprotect			sys_mprotect
+126	o32	sigprocmask			sys_sigprocmask			compat_sys_sigprocmask
+127	o32	create_module			sys_ni_syscall
+128	o32	init_module			sys_init_module
+129	o32	delete_module			sys_delete_module
+130	o32	get_kernel_syms			sys_ni_syscall
+131	o32	quotactl			sys_quotactl
+132	o32	getpgid				sys_getpgid
+133	o32	fchdir				sys_fchdir
+134	o32	bdflush				sys_ni_syscall
+135	o32	sysfs				sys_sysfs
+136	o32	personality			sys_personality			sys_32_personality
+137	o32	afs_syscall			sys_ni_syscall
+138	o32	setfsuid			sys_setfsuid
+139	o32	setfsgid			sys_setfsgid
+140	o32	_llseek				sys_llseek			sys_32_llseek
+141	o32	getdents			sys_getdents			compat_sys_getdents
+142	o32	_newselect			sys_select			compat_sys_select
+143	o32	flock				sys_flock
+144	o32	msync				sys_msync
+145	o32	readv				sys_readv
+146	o32	writev				sys_writev
+147	o32	cacheflush			sys_cacheflush
+148	o32	cachectl			sys_cachectl
+149	o32	sysmips				__sys_sysmips
+150	o32	unused150			sys_ni_syscall
+151	o32	getsid				sys_getsid
+152	o32	fdatasync			sys_fdatasync
+153	o32	_sysctl				sys_ni_syscall
+154	o32	mlock				sys_mlock
+155	o32	munlock				sys_munlock
+156	o32	mlockall			sys_mlockall
+157	o32	munlockall			sys_munlockall
+158	o32	sched_setparam			sys_sched_setparam
+159	o32	sched_getparam			sys_sched_getparam
+160	o32	sched_setscheduler		sys_sched_setscheduler
+161	o32	sched_getscheduler		sys_sched_getscheduler
+162	o32	sched_yield			sys_sched_yield
+163	o32	sched_get_priority_max		sys_sched_get_priority_max
+164	o32	sched_get_priority_min		sys_sched_get_priority_min
+165	o32	sched_rr_get_interval		sys_sched_rr_get_interval_time32
+166	o32	nanosleep			sys_nanosleep_time32
+167	o32	mremap				sys_mremap
+168	o32	accept				sys_accept
+169	o32	bind				sys_bind
+170	o32	connect				sys_connect
+171	o32	getpeername			sys_getpeername
+172	o32	getsockname			sys_getsockname
+173	o32	getsockopt			sys_getsockopt			sys_getsockopt
+174	o32	listen				sys_listen
+175	o32	recv				sys_recv			compat_sys_recv
+176	o32	recvfrom			sys_recvfrom			compat_sys_recvfrom
+177	o32	recvmsg				sys_recvmsg			compat_sys_recvmsg
+178	o32	send				sys_send
+179	o32	sendmsg				sys_sendmsg			compat_sys_sendmsg
+180	o32	sendto				sys_sendto
+181	o32	setsockopt			sys_setsockopt			sys_setsockopt
+182	o32	shutdown			sys_shutdown
+183	o32	socket				sys_socket
+184	o32	socketpair			sys_socketpair
+185	o32	setresuid			sys_setresuid
+186	o32	getresuid			sys_getresuid
+187	o32	query_module			sys_ni_syscall
+188	o32	poll				sys_poll
+189	o32	nfsservctl			sys_ni_syscall
+190	o32	setresgid			sys_setresgid
+191	o32	getresgid			sys_getresgid
+192	o32	prctl				sys_prctl
+193	o32	rt_sigreturn			sys_rt_sigreturn		sys32_rt_sigreturn
+194	o32	rt_sigaction			sys_rt_sigaction		compat_sys_rt_sigaction
+195	o32	rt_sigprocmask			sys_rt_sigprocmask		compat_sys_rt_sigprocmask
+196	o32	rt_sigpending			sys_rt_sigpending		compat_sys_rt_sigpending
+197	o32	rt_sigtimedwait			sys_rt_sigtimedwait_time32	compat_sys_rt_sigtimedwait_time32
+198	o32	rt_sigqueueinfo			sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
+199	o32	rt_sigsuspend			sys_rt_sigsuspend		compat_sys_rt_sigsuspend
+200	o32	pread64				sys_pread64			sys_32_pread
+201	o32	pwrite64			sys_pwrite64			sys_32_pwrite
+202	o32	chown				sys_chown
+203	o32	getcwd				sys_getcwd
+204	o32	capget				sys_capget
+205	o32	capset				sys_capset
+206	o32	sigaltstack			sys_sigaltstack			compat_sys_sigaltstack
+207	o32	sendfile			sys_sendfile			compat_sys_sendfile
+208	o32	getpmsg				sys_ni_syscall
+209	o32	putpmsg				sys_ni_syscall
+210	o32	mmap2				sys_mips_mmap2
+211	o32	truncate64			sys_truncate64			sys_32_truncate64
+212	o32	ftruncate64			sys_ftruncate64			sys_32_ftruncate64
+213	o32	stat64				sys_stat64			sys_newstat
+214	o32	lstat64				sys_lstat64			sys_newlstat
+215	o32	fstat64				sys_fstat64			sys_newfstat
+216	o32	pivot_root			sys_pivot_root
+217	o32	mincore				sys_mincore
+218	o32	madvise				sys_madvise
+219	o32	getdents64			sys_getdents64
+220	o32	fcntl64				sys_fcntl64			compat_sys_fcntl64
+221	o32	reserved221			sys_ni_syscall
+222	o32	gettid				sys_gettid
+223	o32	readahead			sys_readahead			sys32_readahead
+224	o32	setxattr			sys_setxattr
+225	o32	lsetxattr			sys_lsetxattr
+226	o32	fsetxattr			sys_fsetxattr
+227	o32	getxattr			sys_getxattr
+228	o32	lgetxattr			sys_lgetxattr
+229	o32	fgetxattr			sys_fgetxattr
+230	o32	listxattr			sys_listxattr
+231	o32	llistxattr			sys_llistxattr
+232	o32	flistxattr			sys_flistxattr
+233	o32	removexattr			sys_removexattr
+234	o32	lremovexattr			sys_lremovexattr
+235	o32	fremovexattr			sys_fremovexattr
+236	o32	tkill				sys_tkill
+237	o32	sendfile64			sys_sendfile64
+238	o32	futex				sys_futex_time32
+239	o32	sched_setaffinity		sys_sched_setaffinity		compat_sys_sched_setaffinity
+240	o32	sched_getaffinity		sys_sched_getaffinity		compat_sys_sched_getaffinity
+241	o32	io_setup			sys_io_setup			compat_sys_io_setup
+242	o32	io_destroy			sys_io_destroy
+243	o32	io_getevents			sys_io_getevents_time32
+244	o32	io_submit			sys_io_submit			compat_sys_io_submit
+245	o32	io_cancel			sys_io_cancel
+246	o32	exit_group			sys_exit_group
+247	o32	lookup_dcookie			sys_lookup_dcookie		compat_sys_lookup_dcookie
+248	o32	epoll_create			sys_epoll_create
+249	o32	epoll_ctl			sys_epoll_ctl
+250	o32	epoll_wait			sys_epoll_wait
+251	o32	remap_file_pages		sys_remap_file_pages
+252	o32	set_tid_address			sys_set_tid_address
+253	o32	restart_syscall			sys_restart_syscall
+254	o32	fadvise64			sys_fadvise64_64		sys32_fadvise64_64
+255	o32	statfs64			sys_statfs64			compat_sys_statfs64
+256	o32	fstatfs64			sys_fstatfs64			compat_sys_fstatfs64
+257	o32	timer_create			sys_timer_create		compat_sys_timer_create
+258	o32	timer_settime			sys_timer_settime32
+259	o32	timer_gettime			sys_timer_gettime32
+260	o32	timer_getoverrun		sys_timer_getoverrun
+261	o32	timer_delete			sys_timer_delete
+262	o32	clock_settime			sys_clock_settime32
+263	o32	clock_gettime			sys_clock_gettime32
+264	o32	clock_getres			sys_clock_getres_time32
+265	o32	clock_nanosleep			sys_clock_nanosleep_time32
+266	o32	tgkill				sys_tgkill
+267	o32	utimes				sys_utimes_time32
+268	o32	mbind				sys_mbind
+269	o32	get_mempolicy			sys_get_mempolicy
+270	o32	set_mempolicy			sys_set_mempolicy
+271	o32	mq_open				sys_mq_open			compat_sys_mq_open
+272	o32	mq_unlink			sys_mq_unlink
+273	o32	mq_timedsend			sys_mq_timedsend_time32
+274	o32	mq_timedreceive			sys_mq_timedreceive_time32
+275	o32	mq_notify			sys_mq_notify			compat_sys_mq_notify
+276	o32	mq_getsetattr			sys_mq_getsetattr		compat_sys_mq_getsetattr
+277	o32	vserver				sys_ni_syscall
+278	o32	waitid				sys_waitid			compat_sys_waitid
+# 279 was sys_setaltroot
+280	o32	add_key				sys_add_key
+281	o32	request_key			sys_request_key
+282	o32	keyctl				sys_keyctl			compat_sys_keyctl
+283	o32	set_thread_area			sys_set_thread_area
+284	o32	inotify_init			sys_inotify_init
+285	o32	inotify_add_watch		sys_inotify_add_watch
+286	o32	inotify_rm_watch		sys_inotify_rm_watch
+287	o32	migrate_pages			sys_migrate_pages
+288	o32	openat				sys_openat			compat_sys_openat
+289	o32	mkdirat				sys_mkdirat
+290	o32	mknodat				sys_mknodat
+291	o32	fchownat			sys_fchownat
+292	o32	futimesat			sys_futimesat_time32
+293	o32	fstatat64			sys_fstatat64			sys_newfstatat
+294	o32	unlinkat			sys_unlinkat
+295	o32	renameat			sys_renameat
+296	o32	linkat				sys_linkat
+297	o32	symlinkat			sys_symlinkat
+298	o32	readlinkat			sys_readlinkat
+299	o32	fchmodat			sys_fchmodat
+300	o32	faccessat			sys_faccessat
+301	o32	pselect6			sys_pselect6_time32		compat_sys_pselect6_time32
+302	o32	ppoll				sys_ppoll_time32		compat_sys_ppoll_time32
+303	o32	unshare				sys_unshare
+304	o32	splice				sys_splice
+305	o32	sync_file_range			sys_sync_file_range		sys32_sync_file_range
+306	o32	tee				sys_tee
+307	o32	vmsplice			sys_vmsplice
+308	o32	move_pages			sys_move_pages
+309	o32	set_robust_list			sys_set_robust_list		compat_sys_set_robust_list
+310	o32	get_robust_list			sys_get_robust_list		compat_sys_get_robust_list
+311	o32	kexec_load			sys_kexec_load			compat_sys_kexec_load
+312	o32	getcpu				sys_getcpu
+313	o32	epoll_pwait			sys_epoll_pwait			compat_sys_epoll_pwait
+314	o32	ioprio_set			sys_ioprio_set
+315	o32	ioprio_get			sys_ioprio_get
+316	o32	utimensat			sys_utimensat_time32
+317	o32	signalfd			sys_signalfd			compat_sys_signalfd
+318	o32	timerfd				sys_ni_syscall
+319	o32	eventfd				sys_eventfd
+320	o32	fallocate			sys_fallocate			sys32_fallocate
+321	o32	timerfd_create			sys_timerfd_create
+322	o32	timerfd_gettime			sys_timerfd_gettime32
+323	o32	timerfd_settime			sys_timerfd_settime32
+324	o32	signalfd4			sys_signalfd4			compat_sys_signalfd4
+325	o32	eventfd2			sys_eventfd2
+326	o32	epoll_create1			sys_epoll_create1
+327	o32	dup3				sys_dup3
+328	o32	pipe2				sys_pipe2
+329	o32	inotify_init1			sys_inotify_init1
+330	o32	preadv				sys_preadv			compat_sys_preadv
+331	o32	pwritev				sys_pwritev			compat_sys_pwritev
+332	o32	rt_tgsigqueueinfo		sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
+333	o32	perf_event_open			sys_perf_event_open
+334	o32	accept4				sys_accept4
+335	o32	recvmmsg			sys_recvmmsg_time32		compat_sys_recvmmsg_time32
+336	o32	fanotify_init			sys_fanotify_init
+337	o32	fanotify_mark			sys_fanotify_mark		compat_sys_fanotify_mark
+338	o32	prlimit64			sys_prlimit64
+339	o32	name_to_handle_at		sys_name_to_handle_at
+340	o32	open_by_handle_at		sys_open_by_handle_at		compat_sys_open_by_handle_at
+341	o32	clock_adjtime			sys_clock_adjtime32
+342	o32	syncfs				sys_syncfs
+343	o32	sendmmsg			sys_sendmmsg			compat_sys_sendmmsg
+344	o32	setns				sys_setns
+345	o32	process_vm_readv		sys_process_vm_readv
+346	o32	process_vm_writev		sys_process_vm_writev
+347	o32	kcmp				sys_kcmp
+348	o32	finit_module			sys_finit_module
+349	o32	sched_setattr			sys_sched_setattr
+350	o32	sched_getattr			sys_sched_getattr
+351	o32	renameat2			sys_renameat2
+352	o32	seccomp				sys_seccomp
+353	o32	getrandom			sys_getrandom
+354	o32	memfd_create			sys_memfd_create
+355	o32	bpf				sys_bpf
+356	o32	execveat			sys_execveat			compat_sys_execveat
+357	o32	userfaultfd			sys_userfaultfd
+358	o32	membarrier			sys_membarrier
+359	o32	mlock2				sys_mlock2
+360	o32	copy_file_range			sys_copy_file_range
+361	o32	preadv2				sys_preadv2			compat_sys_preadv2
+362	o32	pwritev2			sys_pwritev2			compat_sys_pwritev2
+363	o32	pkey_mprotect			sys_pkey_mprotect
+364	o32	pkey_alloc			sys_pkey_alloc
+365	o32	pkey_free			sys_pkey_free
+366	o32	statx				sys_statx
+367	o32	rseq				sys_rseq
+368	o32	io_pgetevents			sys_io_pgetevents_time32	compat_sys_io_pgetevents
+# room for arch specific calls
+393	o32	semget				sys_semget
+394	o32	semctl				sys_semctl			compat_sys_semctl
+395	o32	shmget				sys_shmget
+396	o32	shmctl				sys_shmctl			compat_sys_shmctl
+397	o32	shmat				sys_shmat			compat_sys_shmat
+398	o32	shmdt				sys_shmdt
+399	o32	msgget				sys_msgget
+400	o32	msgsnd				sys_msgsnd			compat_sys_msgsnd
+401	o32	msgrcv				sys_msgrcv			compat_sys_msgrcv
+402	o32	msgctl				sys_msgctl			compat_sys_msgctl
+403	o32	clock_gettime64			sys_clock_gettime		sys_clock_gettime
+404	o32	clock_settime64			sys_clock_settime		sys_clock_settime
+405	o32	clock_adjtime64			sys_clock_adjtime		sys_clock_adjtime
+406	o32	clock_getres_time64		sys_clock_getres		sys_clock_getres
+407	o32	clock_nanosleep_time64		sys_clock_nanosleep		sys_clock_nanosleep
+408	o32	timer_gettime64			sys_timer_gettime		sys_timer_gettime
+409	o32	timer_settime64			sys_timer_settime		sys_timer_settime
+410	o32	timerfd_gettime64		sys_timerfd_gettime		sys_timerfd_gettime
+411	o32	timerfd_settime64		sys_timerfd_settime		sys_timerfd_settime
+412	o32	utimensat_time64		sys_utimensat			sys_utimensat
+413	o32	pselect6_time64			sys_pselect6			compat_sys_pselect6_time64
+414	o32	ppoll_time64			sys_ppoll			compat_sys_ppoll_time64
+416	o32	io_pgetevents_time64		sys_io_pgetevents		sys_io_pgetevents
+417	o32	recvmmsg_time64			sys_recvmmsg			compat_sys_recvmmsg_time64
+418	o32	mq_timedsend_time64		sys_mq_timedsend		sys_mq_timedsend
+419	o32	mq_timedreceive_time64		sys_mq_timedreceive		sys_mq_timedreceive
+420	o32	semtimedop_time64		sys_semtimedop			sys_semtimedop
+421	o32	rt_sigtimedwait_time64		sys_rt_sigtimedwait		compat_sys_rt_sigtimedwait_time64
+422	o32	futex_time64			sys_futex			sys_futex
+423	o32	sched_rr_get_interval_time64	sys_sched_rr_get_interval	sys_sched_rr_get_interval
+424	o32	pidfd_send_signal		sys_pidfd_send_signal
+425	o32	io_uring_setup			sys_io_uring_setup
+426	o32	io_uring_enter			sys_io_uring_enter
+427	o32	io_uring_register		sys_io_uring_register
+428	o32	open_tree			sys_open_tree
+429	o32	move_mount			sys_move_mount
+430	o32	fsopen				sys_fsopen
+431	o32	fsconfig			sys_fsconfig
+432	o32	fsmount				sys_fsmount
+433	o32	fspick				sys_fspick
+434	o32	pidfd_open			sys_pidfd_open
+435	o32	clone3				__sys_clone3
+436	o32	close_range			sys_close_range
+437	o32	openat2				sys_openat2
+438	o32	pidfd_getfd			sys_pidfd_getfd
+439	o32	faccessat2			sys_faccessat2
+440	o32	process_madvise			sys_process_madvise
+441	o32	epoll_pwait2			sys_epoll_pwait2		compat_sys_epoll_pwait2
+442	o32	mount_setattr			sys_mount_setattr
+443	o32	quotactl_fd			sys_quotactl_fd
+444	o32	landlock_create_ruleset		sys_landlock_create_ruleset
+445	o32	landlock_add_rule		sys_landlock_add_rule
+446	o32	landlock_restrict_self		sys_landlock_restrict_self
+# 447 reserved for memfd_secret
+448	o32	process_mrelease		sys_process_mrelease

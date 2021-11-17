@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/mitsubishi,aa121td01.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Mitsubishi AA121TD01 12.1" WXGA LVDS Display Panel
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: lvds.yaml#
+
+properties:
+  compatible:
+    items:
+      - const: mitsubishi,aa121td01
+      - {} # panel-lvds, but not listed here to avoid false select
+
+  vcc-supply:
+    description: Reference to the regulator powering the panel VCC pins.
+
+  data-mapping:
+    const: jeida-24
+
+  width-mm:
+    const: 261
+
+  height-mm:
+    const: 163
+
+  panel-timing: true
+  port: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - vcc-supply
+
+examples:
+  - |+
+    panel {
+      compatible = "mitsubishi,aa121td01", "panel-lvds";
+      vcc-supply = <&vcc_3v3>;
+
+      width-mm = <261>;
+      height-mm = <163>;
+
+      data-mapping = "jeida-24";
+
+      panel-timing {
+        /* 1280x800 @60Hz */
+        clock-frequency = <71000000>;
+        hactive = <1280>;
+        vactive = <800>;
+        hsync-len = <70>;
+        hfront-porch = <20>;
+        hback-porch = <70>;
+        vsync-len = <5>;
+        vfront-porch = <3>;
+        vback-porch = <15>;
+      };
+
+      port {
+        panel_in: endpoint {
+          remote-endpoint = <&lvds_encoder>;
+        };
+      };
+    };
+
+...

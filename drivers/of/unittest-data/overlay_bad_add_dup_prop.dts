@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+/*
+ * &electric_1/motor-1/electric and &spin_ctrl_1/electric are the same node:
+ *   /testcase-data-2/substation@100/motor-1/electric
+ *
+ * Thus the property "rpm_avail" in each fragment will
+ * result in an attempt to update the same property twice.
+ * This will result in an error and the overlay apply
+ * will fail.
+ *
+ * The previous version of this test did not include the extra
+ * level of node 'electric'.  That resulted in the 'rpm_avail'
+ * property being located in the pre-existing node 'motor-1'.
+ * Modifying a property results in a WARNING that a memory leak
+ * will occur if the overlay is removed.  Since the overlay apply
+ * fails, the memory leak does actually occur, and kmemleak will
+ * further report the memory leak if CONFIG_DEBUG_KMEMLEAK is
+ * enabled.  Adding the overlay node 'electric' avoids the
+ * memory leak and thus people who use kmemleak will not
+ * have to debug this non-problem again.
+ */
+
+&electric_1 {
+
+	motor-1 {
+		electric {
+			rpm_avail = < 100 >;
+		};
+	};
+};
+
+&spin_ctrl_1 {
+		electric {
+			rpm_avail = < 100 200 >;
+		};
+};

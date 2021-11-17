@@ -1,0 +1,1427 @@
+// SPDX-License-Identifier: GPL-2.0+
+#include <dt-bindings/clock/aspeed-clock.h>
+
+/ {
+	model = "Aspeed BMC";
+	compatible = "aspeed,ast2400";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&vic>;
+
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+		i2c8 = &i2c8;
+		i2c9 = &i2c9;
+		i2c10 = &i2c10;
+		i2c11 = &i2c11;
+		i2c12 = &i2c12;
+		i2c13 = &i2c13;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+		serial5 = &vuart;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0>;
+	};
+
+	ahb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		fmc: spi@1e620000 {
+			reg = < 0x1e620000 0x94
+				0x20000000 0x10000000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2400-fmc";
+			clocks = <&syscon ASPEED_CLK_AHB>;
+			status = "disabled";
+			interrupts = <19>;
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+			flash@1 {
+				reg = < 1 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@2 {
+				reg = < 2 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@3 {
+				reg = < 3 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@4 {
+				reg = < 4 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+		};
+
+		spi: spi@1e630000 {
+			reg = < 0x1e630000 0x18
+				0x30000000 0x10000000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2400-spi";
+			clocks = <&syscon ASPEED_CLK_AHB>;
+			status = "disabled";
+			flash@0 {
+				reg = < 0 >;
+				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
+				status = "disabled";
+			};
+		};
+
+		vic: interrupt-controller@1e6c0080 {
+			compatible = "aspeed,ast2400-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			valid-sources = <0xffffffff 0x0007ffff>;
+			reg = <0x1e6c0080 0x80>;
+		};
+
+		cvic: copro-interrupt-controller@1e6c2000 {
+			compatible = "aspeed,ast2400-cvic", "aspeed-cvic";
+			valid-sources = <0x7fffffff>;
+			reg = <0x1e6c2000 0x80>;
+		};
+
+		mac0: ethernet@1e660000 {
+			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
+			reg = <0x1e660000 0x180>;
+			interrupts = <2>;
+			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
+			status = "disabled";
+		};
+
+		mac1: ethernet@1e680000 {
+			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
+			reg = <0x1e680000 0x180>;
+			interrupts = <3>;
+			clocks = <&syscon ASPEED_CLK_GATE_MAC2CLK>;
+			status = "disabled";
+		};
+
+		ehci0: usb@1e6a1000 {
+			compatible = "aspeed,ast2400-ehci", "generic-ehci";
+			reg = <0x1e6a1000 0x100>;
+			interrupts = <5>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2h_default>;
+			status = "disabled";
+		};
+
+		uhci: usb@1e6b0000 {
+			compatible = "aspeed,ast2400-uhci", "generic-uhci";
+			reg = <0x1e6b0000 0x100>;
+			interrupts = <14>;
+			#ports = <3>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
+			status = "disabled";
+			/*
+			 * No default pinmux, it will follow EHCI, use an explicit pinmux
+			 * override if you don't enable EHCI
+			 */
+		};
+
+		vhub: usb-vhub@1e6a0000 {
+			compatible = "aspeed,ast2400-usb-vhub";
+			reg = <0x1e6a0000 0x300>;
+			interrupts = <5>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			aspeed,vhub-downstream-ports = <5>;
+			aspeed,vhub-generic-endpoints = <15>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2d_default>;
+			status = "disabled";
+		};
+
+		apb {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			syscon: syscon@1e6e2000 {
+				compatible = "aspeed,ast2400-scu", "syscon", "simple-mfd";
+				reg = <0x1e6e2000 0x1a8>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e6e2000 0x1000>;
+				#clock-cells = <1>;
+				#reset-cells = <1>;
+
+				p2a: p2a-control@2c {
+					reg = <0x2c 0x4>;
+					compatible = "aspeed,ast2400-p2a-ctrl";
+					status = "disabled";
+				};
+
+				silicon-id@7c {
+					compatible = "aspeed,ast2400-silicon-id", "aspeed,silicon-id";
+					reg = <0x7c 0x4>;
+				};
+
+				pinctrl: pinctrl@80 {
+					reg = <0x80 0x18>, <0xa0 0x10>;
+					compatible = "aspeed,ast2400-pinctrl";
+				};
+			};
+
+			rng: hwrng@1e6e2078 {
+				compatible = "timeriomem_rng";
+				reg = <0x1e6e2078 0x4>;
+				period = <1>;
+				quality = <100>;
+			};
+
+			adc: adc@1e6e9000 {
+				compatible = "aspeed,ast2400-adc";
+				reg = <0x1e6e9000 0xb0>;
+				clocks = <&syscon ASPEED_CLK_APB>;
+				resets = <&syscon ASPEED_RESET_ADC>;
+				#io-channel-cells = <1>;
+				status = "disabled";
+			};
+
+			sram: sram@1e720000 {
+				compatible = "mmio-sram";
+				reg = <0x1e720000 0x8000>;	// 32K
+			};
+
+			video: video@1e700000 {
+				compatible = "aspeed,ast2400-video-engine";
+				reg = <0x1e700000 0x1000>;
+				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
+					 <&syscon ASPEED_CLK_GATE_ECLK>;
+				clock-names = "vclk", "eclk";
+				interrupts = <7>;
+				status = "disabled";
+			};
+
+			sdmmc: sd-controller@1e740000 {
+				compatible = "aspeed,ast2400-sd-controller";
+				reg = <0x1e740000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e740000 0x10000>;
+				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
+				status = "disabled";
+
+				sdhci0: sdhci@100 {
+					compatible = "aspeed,ast2400-sdhci";
+					reg = <0x100 0x100>;
+					interrupts = <26>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
+
+				sdhci1: sdhci@200 {
+					compatible = "aspeed,ast2400-sdhci";
+					reg = <0x200 0x100>;
+					interrupts = <26>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
+			};
+
+			gpio: gpio@1e780000 {
+				#gpio-cells = <2>;
+				gpio-controller;
+				compatible = "aspeed,ast2400-gpio";
+				reg = <0x1e780000 0x1000>;
+				interrupts = <20>;
+				gpio-ranges = <&pinctrl 0 0 220>;
+				clocks = <&syscon ASPEED_CLK_APB>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			timer: timer@1e782000 {
+				/* This timer is a Faraday FTTMR010 derivative */
+				compatible = "aspeed,ast2400-timer";
+				reg = <0x1e782000 0x90>;
+				interrupts = <16 17 18 35 36 37 38 39>;
+				clocks = <&syscon ASPEED_CLK_APB>;
+				clock-names = "PCLK";
+			};
+
+			rtc: rtc@1e781000 {
+				compatible = "aspeed,ast2400-rtc";
+				reg = <0x1e781000 0x18>;
+				status = "disabled";
+			};
+
+			uart1: serial@1e783000 {
+				compatible = "ns16550a";
+				reg = <0x1e783000 0x20>;
+				reg-shift = <2>;
+				interrupts = <9>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART1CLK>;
+				resets = <&lpc_reset 4>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart5: serial@1e784000 {
+				compatible = "ns16550a";
+				reg = <0x1e784000 0x20>;
+				reg-shift = <2>;
+				interrupts = <10>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART5CLK>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			wdt1: watchdog@1e785000 {
+				compatible = "aspeed,ast2400-wdt";
+				reg = <0x1e785000 0x1c>;
+				clocks = <&syscon ASPEED_CLK_APB>;
+			};
+
+			wdt2: watchdog@1e785020 {
+				compatible = "aspeed,ast2400-wdt";
+				reg = <0x1e785020 0x1c>;
+				clocks = <&syscon ASPEED_CLK_APB>;
+			};
+
+			pwm_tacho: pwm-tacho-controller@1e786000 {
+				compatible = "aspeed,ast2400-pwm-tacho";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x1e786000 0x1000>;
+				clocks = <&syscon ASPEED_CLK_24M>;
+				resets = <&syscon ASPEED_RESET_PWM>;
+				status = "disabled";
+			};
+
+			vuart: serial@1e787000 {
+				compatible = "aspeed,ast2400-vuart";
+				reg = <0x1e787000 0x40>;
+				reg-shift = <2>;
+				interrupts = <8>;
+				clocks = <&syscon ASPEED_CLK_APB>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			lpc: lpc@1e789000 {
+				compatible = "aspeed,ast2400-lpc-v2", "simple-mfd", "syscon";
+				reg = <0x1e789000 0x1000>;
+				reg-io-width = <4>;
+
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1e789000 0x1000>;
+
+				lpc_ctrl: lpc-ctrl@80 {
+					compatible = "aspeed,ast2400-lpc-ctrl";
+					reg = <0x80 0x10>;
+					clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+					status = "disabled";
+				};
+
+				lpc_snoop: lpc-snoop@90 {
+					compatible = "aspeed,ast2400-lpc-snoop";
+					reg = <0x90 0x8>;
+					interrupts = <8>;
+					clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+					status = "disabled";
+				};
+
+				lhc: lhc@a0 {
+					compatible = "aspeed,ast2400-lhc";
+					reg = <0xa0 0x24 0xc8 0x8>;
+				};
+
+				lpc_reset: reset-controller@98 {
+					compatible = "aspeed,ast2400-lpc-reset";
+					reg = <0x98 0x4>;
+					#reset-cells = <1>;
+				};
+
+				ibt: ibt@140 {
+					compatible = "aspeed,ast2400-ibt-bmc";
+					reg = <0x140 0x18>;
+					interrupts = <8>;
+					status = "disabled";
+				};
+			};
+
+			uart2: serial@1e78d000 {
+				compatible = "ns16550a";
+				reg = <0x1e78d000 0x20>;
+				reg-shift = <2>;
+				interrupts = <32>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART2CLK>;
+				resets = <&lpc_reset 5>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart3: serial@1e78e000 {
+				compatible = "ns16550a";
+				reg = <0x1e78e000 0x20>;
+				reg-shift = <2>;
+				interrupts = <33>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART3CLK>;
+				resets = <&lpc_reset 6>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart4: serial@1e78f000 {
+				compatible = "ns16550a";
+				reg = <0x1e78f000 0x20>;
+				reg-shift = <2>;
+				interrupts = <34>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART4CLK>;
+				resets = <&lpc_reset 7>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			i2c: bus@1e78a000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e78a000 0x1000>;
+			};
+		};
+	};
+};
+
+&i2c {
+	i2c_ic: interrupt-controller@0 {
+		#interrupt-cells = <1>;
+		compatible = "aspeed,ast2400-i2c-ic";
+		reg = <0x0 0x40>;
+		interrupts = <12>;
+		interrupt-controller;
+	};
+
+	i2c0: i2c-bus@40 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x40 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <0>;
+		interrupt-parent = <&i2c_ic>;
+		status = "disabled";
+		/* Does not need pinctrl properties */
+	};
+
+	i2c1: i2c-bus@80 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x80 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <1>;
+		interrupt-parent = <&i2c_ic>;
+		status = "disabled";
+		/* Does not need pinctrl properties */
+	};
+
+	i2c2: i2c-bus@c0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0xc0 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <2>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c3_default>;
+		status = "disabled";
+	};
+
+	i2c3: i2c-bus@100 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x100 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <3>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c4_default>;
+		status = "disabled";
+	};
+
+	i2c4: i2c-bus@140 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x140 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <4>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c5_default>;
+		status = "disabled";
+	};
+
+	i2c5: i2c-bus@180 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x180 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <5>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c6_default>;
+		status = "disabled";
+	};
+
+	i2c6: i2c-bus@1c0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x1c0 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <6>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c7_default>;
+		status = "disabled";
+	};
+
+	i2c7: i2c-bus@300 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x300 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <7>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c8_default>;
+		status = "disabled";
+	};
+
+	i2c8: i2c-bus@340 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x340 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <8>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c9_default>;
+		status = "disabled";
+	};
+
+	i2c9: i2c-bus@380 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x380 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <9>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c10_default>;
+		status = "disabled";
+	};
+
+	i2c10: i2c-bus@3c0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x3c0 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <10>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c11_default>;
+		status = "disabled";
+	};
+
+	i2c11: i2c-bus@400 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x400 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <11>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c12_default>;
+		status = "disabled";
+	};
+
+	i2c12: i2c-bus@440 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x440 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <12>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c13_default>;
+		status = "disabled";
+	};
+
+	i2c13: i2c-bus@480 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+
+		reg = <0x480 0x40>;
+		compatible = "aspeed,ast2400-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
+		bus-frequency = <100000>;
+		interrupts = <13>;
+		interrupt-parent = <&i2c_ic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c14_default>;
+		status = "disabled";
+	};
+};
+
+&pinctrl {
+	pinctrl_acpi_default: acpi_default {
+		function = "ACPI";
+		groups = "ACPI";
+	};
+
+	pinctrl_adc0_default: adc0_default {
+		function = "ADC0";
+		groups = "ADC0";
+	};
+
+	pinctrl_adc1_default: adc1_default {
+		function = "ADC1";
+		groups = "ADC1";
+	};
+
+	pinctrl_adc10_default: adc10_default {
+		function = "ADC10";
+		groups = "ADC10";
+	};
+
+	pinctrl_adc11_default: adc11_default {
+		function = "ADC11";
+		groups = "ADC11";
+	};
+
+	pinctrl_adc12_default: adc12_default {
+		function = "ADC12";
+		groups = "ADC12";
+	};
+
+	pinctrl_adc13_default: adc13_default {
+		function = "ADC13";
+		groups = "ADC13";
+	};
+
+	pinctrl_adc14_default: adc14_default {
+		function = "ADC14";
+		groups = "ADC14";
+	};
+
+	pinctrl_adc15_default: adc15_default {
+		function = "ADC15";
+		groups = "ADC15";
+	};
+
+	pinctrl_adc2_default: adc2_default {
+		function = "ADC2";
+		groups = "ADC2";
+	};
+
+	pinctrl_adc3_default: adc3_default {
+		function = "ADC3";
+		groups = "ADC3";
+	};
+
+	pinctrl_adc4_default: adc4_default {
+		function = "ADC4";
+		groups = "ADC4";
+	};
+
+	pinctrl_adc5_default: adc5_default {
+		function = "ADC5";
+		groups = "ADC5";
+	};
+
+	pinctrl_adc6_default: adc6_default {
+		function = "ADC6";
+		groups = "ADC6";
+	};
+
+	pinctrl_adc7_default: adc7_default {
+		function = "ADC7";
+		groups = "ADC7";
+	};
+
+	pinctrl_adc8_default: adc8_default {
+		function = "ADC8";
+		groups = "ADC8";
+	};
+
+	pinctrl_adc9_default: adc9_default {
+		function = "ADC9";
+		groups = "ADC9";
+	};
+
+	pinctrl_bmcint_default: bmcint_default {
+		function = "BMCINT";
+		groups = "BMCINT";
+	};
+
+	pinctrl_ddcclk_default: ddcclk_default {
+		function = "DDCCLK";
+		groups = "DDCCLK";
+	};
+
+	pinctrl_ddcdat_default: ddcdat_default {
+		function = "DDCDAT";
+		groups = "DDCDAT";
+	};
+
+	pinctrl_extrst_default: extrst_default {
+		function = "EXTRST";
+		groups = "EXTRST";
+	};
+
+	pinctrl_flack_default: flack_default {
+		function = "FLACK";
+		groups = "FLACK";
+	};
+
+	pinctrl_flbusy_default: flbusy_default {
+		function = "FLBUSY";
+		groups = "FLBUSY";
+	};
+
+	pinctrl_flwp_default: flwp_default {
+		function = "FLWP";
+		groups = "FLWP";
+	};
+
+	pinctrl_gpid_default: gpid_default {
+		function = "GPID";
+		groups = "GPID";
+	};
+
+	pinctrl_gpid0_default: gpid0_default {
+		function = "GPID0";
+		groups = "GPID0";
+	};
+
+	pinctrl_gpid2_default: gpid2_default {
+		function = "GPID2";
+		groups = "GPID2";
+	};
+
+	pinctrl_gpid4_default: gpid4_default {
+		function = "GPID4";
+		groups = "GPID4";
+	};
+
+	pinctrl_gpid6_default: gpid6_default {
+		function = "GPID6";
+		groups = "GPID6";
+	};
+
+	pinctrl_gpie0_default: gpie0_default {
+		function = "GPIE0";
+		groups = "GPIE0";
+	};
+
+	pinctrl_gpie2_default: gpie2_default {
+		function = "GPIE2";
+		groups = "GPIE2";
+	};
+
+	pinctrl_gpie4_default: gpie4_default {
+		function = "GPIE4";
+		groups = "GPIE4";
+	};
+
+	pinctrl_gpie6_default: gpie6_default {
+		function = "GPIE6";
+		groups = "GPIE6";
+	};
+
+	pinctrl_i2c10_default: i2c10_default {
+		function = "I2C10";
+		groups = "I2C10";
+	};
+
+	pinctrl_i2c11_default: i2c11_default {
+		function = "I2C11";
+		groups = "I2C11";
+	};
+
+	pinctrl_i2c12_default: i2c12_default {
+		function = "I2C12";
+		groups = "I2C12";
+	};
+
+	pinctrl_i2c13_default: i2c13_default {
+		function = "I2C13";
+		groups = "I2C13";
+	};
+
+	pinctrl_i2c14_default: i2c14_default {
+		function = "I2C14";
+		groups = "I2C14";
+	};
+
+	pinctrl_i2c3_default: i2c3_default {
+		function = "I2C3";
+		groups = "I2C3";
+	};
+
+	pinctrl_i2c4_default: i2c4_default {
+		function = "I2C4";
+		groups = "I2C4";
+	};
+
+	pinctrl_i2c5_default: i2c5_default {
+		function = "I2C5";
+		groups = "I2C5";
+	};
+
+	pinctrl_i2c6_default: i2c6_default {
+		function = "I2C6";
+		groups = "I2C6";
+	};
+
+	pinctrl_i2c7_default: i2c7_default {
+		function = "I2C7";
+		groups = "I2C7";
+	};
+
+	pinctrl_i2c8_default: i2c8_default {
+		function = "I2C8";
+		groups = "I2C8";
+	};
+
+	pinctrl_i2c9_default: i2c9_default {
+		function = "I2C9";
+		groups = "I2C9";
+	};
+
+	pinctrl_lpcpd_default: lpcpd_default {
+		function = "LPCPD";
+		groups = "LPCPD";
+	};
+
+	pinctrl_lpcpme_default: lpcpme_default {
+		function = "LPCPME";
+		groups = "LPCPME";
+	};
+
+	pinctrl_lpcrst_default: lpcrst_default {
+		function = "LPCRST";
+		groups = "LPCRST";
+	};
+
+	pinctrl_lpcsmi_default: lpcsmi_default {
+		function = "LPCSMI";
+		groups = "LPCSMI";
+	};
+
+	pinctrl_mac1link_default: mac1link_default {
+		function = "MAC1LINK";
+		groups = "MAC1LINK";
+	};
+
+	pinctrl_mac2link_default: mac2link_default {
+		function = "MAC2LINK";
+		groups = "MAC2LINK";
+	};
+
+	pinctrl_mdio1_default: mdio1_default {
+		function = "MDIO1";
+		groups = "MDIO1";
+	};
+
+	pinctrl_mdio2_default: mdio2_default {
+		function = "MDIO2";
+		groups = "MDIO2";
+	};
+
+	pinctrl_ncts1_default: ncts1_default {
+		function = "NCTS1";
+		groups = "NCTS1";
+	};
+
+	pinctrl_ncts2_default: ncts2_default {
+		function = "NCTS2";
+		groups = "NCTS2";
+	};
+
+	pinctrl_ncts3_default: ncts3_default {
+		function = "NCTS3";
+		groups = "NCTS3";
+	};
+
+	pinctrl_ncts4_default: ncts4_default {
+		function = "NCTS4";
+		groups = "NCTS4";
+	};
+
+	pinctrl_ndcd1_default: ndcd1_default {
+		function = "NDCD1";
+		groups = "NDCD1";
+	};
+
+	pinctrl_ndcd2_default: ndcd2_default {
+		function = "NDCD2";
+		groups = "NDCD2";
+	};
+
+	pinctrl_ndcd3_default: ndcd3_default {
+		function = "NDCD3";
+		groups = "NDCD3";
+	};
+
+	pinctrl_ndcd4_default: ndcd4_default {
+		function = "NDCD4";
+		groups = "NDCD4";
+	};
+
+	pinctrl_ndsr1_default: ndsr1_default {
+		function = "NDSR1";
+		groups = "NDSR1";
+	};
+
+	pinctrl_ndsr2_default: ndsr2_default {
+		function = "NDSR2";
+		groups = "NDSR2";
+	};
+
+	pinctrl_ndsr3_default: ndsr3_default {
+		function = "NDSR3";
+		groups = "NDSR3";
+	};
+
+	pinctrl_ndsr4_default: ndsr4_default {
+		function = "NDSR4";
+		groups = "NDSR4";
+	};
+
+	pinctrl_ndtr1_default: ndtr1_default {
+		function = "NDTR1";
+		groups = "NDTR1";
+	};
+
+	pinctrl_ndtr2_default: ndtr2_default {
+		function = "NDTR2";
+		groups = "NDTR2";
+	};
+
+	pinctrl_ndtr3_default: ndtr3_default {
+		function = "NDTR3";
+		groups = "NDTR3";
+	};
+
+	pinctrl_ndtr4_default: ndtr4_default {
+		function = "NDTR4";
+		groups = "NDTR4";
+	};
+
+	pinctrl_ndts4_default: ndts4_default {
+		function = "NDTS4";
+		groups = "NDTS4";
+	};
+
+	pinctrl_nri1_default: nri1_default {
+		function = "NRI1";
+		groups = "NRI1";
+	};
+
+	pinctrl_nri2_default: nri2_default {
+		function = "NRI2";
+		groups = "NRI2";
+	};
+
+	pinctrl_nri3_default: nri3_default {
+		function = "NRI3";
+		groups = "NRI3";
+	};
+
+	pinctrl_nri4_default: nri4_default {
+		function = "NRI4";
+		groups = "NRI4";
+	};
+
+	pinctrl_nrts1_default: nrts1_default {
+		function = "NRTS1";
+		groups = "NRTS1";
+	};
+
+	pinctrl_nrts2_default: nrts2_default {
+		function = "NRTS2";
+		groups = "NRTS2";
+	};
+
+	pinctrl_nrts3_default: nrts3_default {
+		function = "NRTS3";
+		groups = "NRTS3";
+	};
+
+	pinctrl_oscclk_default: oscclk_default {
+		function = "OSCCLK";
+		groups = "OSCCLK";
+	};
+
+	pinctrl_pwm0_default: pwm0_default {
+		function = "PWM0";
+		groups = "PWM0";
+	};
+
+	pinctrl_pwm1_default: pwm1_default {
+		function = "PWM1";
+		groups = "PWM1";
+	};
+
+	pinctrl_pwm2_default: pwm2_default {
+		function = "PWM2";
+		groups = "PWM2";
+	};
+
+	pinctrl_pwm3_default: pwm3_default {
+		function = "PWM3";
+		groups = "PWM3";
+	};
+
+	pinctrl_pwm4_default: pwm4_default {
+		function = "PWM4";
+		groups = "PWM4";
+	};
+
+	pinctrl_pwm5_default: pwm5_default {
+		function = "PWM5";
+		groups = "PWM5";
+	};
+
+	pinctrl_pwm6_default: pwm6_default {
+		function = "PWM6";
+		groups = "PWM6";
+	};
+
+	pinctrl_pwm7_default: pwm7_default {
+		function = "PWM7";
+		groups = "PWM7";
+	};
+
+	pinctrl_rgmii1_default: rgmii1_default {
+		function = "RGMII1";
+		groups = "RGMII1";
+	};
+
+	pinctrl_rgmii2_default: rgmii2_default {
+		function = "RGMII2";
+		groups = "RGMII2";
+	};
+
+	pinctrl_rmii1_default: rmii1_default {
+		function = "RMII1";
+		groups = "RMII1";
+	};
+
+	pinctrl_rmii2_default: rmii2_default {
+		function = "RMII2";
+		groups = "RMII2";
+	};
+
+	pinctrl_rom16_default: rom16_default {
+		function = "ROM16";
+		groups = "ROM16";
+	};
+
+	pinctrl_rom8_default: rom8_default {
+		function = "ROM8";
+		groups = "ROM8";
+	};
+
+	pinctrl_romcs1_default: romcs1_default {
+		function = "ROMCS1";
+		groups = "ROMCS1";
+	};
+
+	pinctrl_romcs2_default: romcs2_default {
+		function = "ROMCS2";
+		groups = "ROMCS2";
+	};
+
+	pinctrl_romcs3_default: romcs3_default {
+		function = "ROMCS3";
+		groups = "ROMCS3";
+	};
+
+	pinctrl_romcs4_default: romcs4_default {
+		function = "ROMCS4";
+		groups = "ROMCS4";
+	};
+
+	pinctrl_rxd1_default: rxd1_default {
+		function = "RXD1";
+		groups = "RXD1";
+	};
+
+	pinctrl_rxd2_default: rxd2_default {
+		function = "RXD2";
+		groups = "RXD2";
+	};
+
+	pinctrl_rxd3_default: rxd3_default {
+		function = "RXD3";
+		groups = "RXD3";
+	};
+
+	pinctrl_rxd4_default: rxd4_default {
+		function = "RXD4";
+		groups = "RXD4";
+	};
+
+	pinctrl_salt1_default: salt1_default {
+		function = "SALT1";
+		groups = "SALT1";
+	};
+
+	pinctrl_salt2_default: salt2_default {
+		function = "SALT2";
+		groups = "SALT2";
+	};
+
+	pinctrl_salt3_default: salt3_default {
+		function = "SALT3";
+		groups = "SALT3";
+	};
+
+	pinctrl_salt4_default: salt4_default {
+		function = "SALT4";
+		groups = "SALT4";
+	};
+
+	pinctrl_sd1_default: sd1_default {
+		function = "SD1";
+		groups = "SD1";
+	};
+
+	pinctrl_sd2_default: sd2_default {
+		function = "SD2";
+		groups = "SD2";
+	};
+
+	pinctrl_sgpmck_default: sgpmck_default {
+		function = "SGPMCK";
+		groups = "SGPMCK";
+	};
+
+	pinctrl_sgpmi_default: sgpmi_default {
+		function = "SGPMI";
+		groups = "SGPMI";
+	};
+
+	pinctrl_sgpmld_default: sgpmld_default {
+		function = "SGPMLD";
+		groups = "SGPMLD";
+	};
+
+	pinctrl_sgpmo_default: sgpmo_default {
+		function = "SGPMO";
+		groups = "SGPMO";
+	};
+
+	pinctrl_sgpsck_default: sgpsck_default {
+		function = "SGPSCK";
+		groups = "SGPSCK";
+	};
+
+	pinctrl_sgpsi0_default: sgpsi0_default {
+		function = "SGPSI0";
+		groups = "SGPSI0";
+	};
+
+	pinctrl_sgpsi1_default: sgpsi1_default {
+		function = "SGPSI1";
+		groups = "SGPSI1";
+	};
+
+	pinctrl_sgpsld_default: sgpsld_default {
+		function = "SGPSLD";
+		groups = "SGPSLD";
+	};
+
+	pinctrl_sioonctrl_default: sioonctrl_default {
+		function = "SIOONCTRL";
+		groups = "SIOONCTRL";
+	};
+
+	pinctrl_siopbi_default: siopbi_default {
+		function = "SIOPBI";
+		groups = "SIOPBI";
+	};
+
+	pinctrl_siopbo_default: siopbo_default {
+		function = "SIOPBO";
+		groups = "SIOPBO";
+	};
+
+	pinctrl_siopwreq_default: siopwreq_default {
+		function = "SIOPWREQ";
+		groups = "SIOPWREQ";
+	};
+
+	pinctrl_siopwrgd_default: siopwrgd_default {
+		function = "SIOPWRGD";
+		groups = "SIOPWRGD";
+	};
+
+	pinctrl_sios3_default: sios3_default {
+		function = "SIOS3";
+		groups = "SIOS3";
+	};
+
+	pinctrl_sios5_default: sios5_default {
+		function = "SIOS5";
+		groups = "SIOS5";
+	};
+
+	pinctrl_siosci_default: siosci_default {
+		function = "SIOSCI";
+		groups = "SIOSCI";
+	};
+
+	pinctrl_spi1_default: spi1_default {
+		function = "SPI1";
+		groups = "SPI1";
+	};
+
+	pinctrl_spi1debug_default: spi1debug_default {
+		function = "SPI1DEBUG";
+		groups = "SPI1DEBUG";
+	};
+
+	pinctrl_spi1passthru_default: spi1passthru_default {
+		function = "SPI1PASSTHRU";
+		groups = "SPI1PASSTHRU";
+	};
+
+	pinctrl_spics1_default: spics1_default {
+		function = "SPICS1";
+		groups = "SPICS1";
+	};
+
+	pinctrl_timer3_default: timer3_default {
+		function = "TIMER3";
+		groups = "TIMER3";
+	};
+
+	pinctrl_timer4_default: timer4_default {
+		function = "TIMER4";
+		groups = "TIMER4";
+	};
+
+	pinctrl_timer5_default: timer5_default {
+		function = "TIMER5";
+		groups = "TIMER5";
+	};
+
+	pinctrl_timer6_default: timer6_default {
+		function = "TIMER6";
+		groups = "TIMER6";
+	};
+
+	pinctrl_timer7_default: timer7_default {
+		function = "TIMER7";
+		groups = "TIMER7";
+	};
+
+	pinctrl_timer8_default: timer8_default {
+		function = "TIMER8";
+		groups = "TIMER8";
+	};
+
+	pinctrl_txd1_default: txd1_default {
+		function = "TXD1";
+		groups = "TXD1";
+	};
+
+	pinctrl_txd2_default: txd2_default {
+		function = "TXD2";
+		groups = "TXD2";
+	};
+
+	pinctrl_txd3_default: txd3_default {
+		function = "TXD3";
+		groups = "TXD3";
+	};
+
+	pinctrl_txd4_default: txd4_default {
+		function = "TXD4";
+		groups = "TXD4";
+	};
+
+	pinctrl_uart6_default: uart6_default {
+		function = "UART6";
+		groups = "UART6";
+	};
+
+	pinctrl_usbcki_default: usbcki_default {
+		function = "USBCKI";
+		groups = "USBCKI";
+	};
+
+	pinctrl_usb2h_default: usb2h_default {
+		function = "USB2H1";
+		groups = "USB2H1";
+	};
+
+	pinctrl_usb2d_default: usb2d_default {
+		function = "USB2D1";
+		groups = "USB2D1";
+	};
+
+	pinctrl_vgabios_rom_default: vgabios_rom_default {
+		function = "VGABIOS_ROM";
+		groups = "VGABIOS_ROM";
+	};
+
+	pinctrl_vgahs_default: vgahs_default {
+		function = "VGAHS";
+		groups = "VGAHS";
+	};
+
+	pinctrl_vgavs_default: vgavs_default {
+		function = "VGAVS";
+		groups = "VGAVS";
+	};
+
+	pinctrl_vpi18_default: vpi18_default {
+		function = "VPI18";
+		groups = "VPI18";
+	};
+
+	pinctrl_vpi24_default: vpi24_default {
+		function = "VPI24";
+		groups = "VPI24";
+	};
+
+	pinctrl_vpi30_default: vpi30_default {
+		function = "VPI30";
+		groups = "VPI30";
+	};
+
+	pinctrl_vpo12_default: vpo12_default {
+		function = "VPO12";
+		groups = "VPO12";
+	};
+
+	pinctrl_vpo24_default: vpo24_default {
+		function = "VPO24";
+		groups = "VPO24";
+	};
+
+	pinctrl_wdtrst1_default: wdtrst1_default {
+		function = "WDTRST1";
+		groups = "WDTRST1";
+	};
+
+	pinctrl_wdtrst2_default: wdtrst2_default {
+		function = "WDTRST2";
+		groups = "WDTRST2";
+	};
+};

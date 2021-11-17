@@ -1,0 +1,63 @@
+# Cumulative Kconfig recursive issue
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Test with:
+#
+# make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allnoconfig
+#
+# The recursive limitations with Kconfig has some non intuitive implications on
+# kconfig semantics which are documented here. One known practical implication
+# of the recursive limitation is that drivers cannot negate features from other
+# drivers if they share a common core requirement and use disjoint semantics to
+# annotate those requirements, ie, some drivers use "depends on" while others
+# use "select". For instance it means if a driver A and driver B share the same
+# core requirement, and one uses "select" while the other uses "depends on" to
+# annotate this, all features that driver A selects cannot now be negated by
+# driver B.
+#
+# A perhaps not so obvious implication of this is that, if semantics on these
+# core requirements are not carefully synced, as drivers evolve features
+# they select or depend on end up becoming shared requirements which cannot be
+# negated by other drivers.
+#
+# The example provided in Documentation/kbuild/Kconfig.recursion-issue-02
+# describes a simple driver core layout of example features a kernel might
+# have. Let's assume we have some CORE functionality, then the kernel has a
+# series of bells and whistles it desires to implement, its not so advanced so
+# it only supports bells at this time: CORE_BELL_A and CORE_BELL_B. If
+# CORE_BELL_A has some advanced feature CORE_BELL_A_ADVANCED which selects
+# CORE_BELL_A then CORE_BELL_A ends up becoming a common BELL feature which
+# other bells in the system cannot negate. The reason for this issue is
+# due to the disjoint use of semantics on expressing each bell's relationship
+# with CORE, one uses "depends on" while the other uses "select". Another
+# more important reason is that kconfig does not check for dependencies listed
+# under 'select' for a symbol, when such symbols are selected kconfig them
+# as mandatory required symbols. For more details on the heavy handed nature
+# of select refer to Documentation/kbuild/Kconfig.select-break
+#
+# To fix this the "depends on CORE" must be changed to "select CORE", or the
+# "select CORE" must be changed to "depends on CORE".
+#
+# For an example real world scenario issue refer to the attempt to remove
+# "select FW_LOADER" [0], in the end the simple alternative solution to this
+# problem consisted on matching semantics with newly introduced features.
+#
+# [0] https://lkml.kernel.org/r/1432241149-8762-1-git-send-email-mcgrof@do-not-panic.com
+
+mainmenu "Simple example to demo cumulative kconfig recursive dependency implication"
+
+config CORE
+	tristate
+
+config CORE_BELL_A
+	tristate
+	depends on CORE
+
+config CORE_BELL_A_ADVANCED
+	tristate
+	select CORE_BELL_A
+
+config CORE_BELL_B
+	tristate
+	depends on !CORE_BELL_A
+	select CORE

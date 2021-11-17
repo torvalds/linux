@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VGA_ARB
+	bool "VGA Arbitration" if EXPERT
+	default y
+	depends on (PCI && !S390)
+	help
+	  Some "legacy" VGA devices implemented on PCI typically have the same
+	  hard-decoded addresses as they did on ISA. When multiple PCI devices
+	  are accessed at same time they need some kind of coordination. Please
+	  see Documentation/gpu/vgaarbiter.rst for more details. Select this to
+	  enable VGA arbiter.
+
+config VGA_ARB_MAX_GPUS
+	int "Maximum number of GPUs"
+	default 16
+	depends on VGA_ARB
+	help
+	  Reserves space in the kernel to maintain resource locking for
+	  multiple GPUS.  The overhead for each GPU is very small.
+
+config VGA_SWITCHEROO
+	bool "Laptop Hybrid Graphics - GPU switching support"
+	depends on X86
+	depends on ACPI
+	depends on PCI
+	depends on (FRAMEBUFFER_CONSOLE=n || FB=y)
+	select VGA_ARB
+	help
+	  Many laptops released in 2008/9/10 have two GPUs with a multiplexer
+	  to switch between them. This adds support for dynamic switching when
+	  X isn't running and delayed switching until the next logoff. This
+	  feature is called hybrid graphics, ATI PowerXpress, and Nvidia
+	  HybridPower.

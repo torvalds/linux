@@ -1,0 +1,489 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# The IOVA library may also be used by non-IOMMU_API users
+config IOMMU_IOVA
+	tristate
+
+# The IOASID library may also be used by non-IOMMU_API users
+config IOASID
+	tristate
+
+# IOMMU_API always gets selected by whoever wants it.
+config IOMMU_API
+	bool
+
+menuconfig IOMMU_SUPPORT
+	bool "IOMMU Hardware Support"
+	depends on MMU
+	default y
+	help
+	  Say Y here if you want to compile device drivers for IO Memory
+	  Management Units into the kernel. These devices usually allow to
+	  remap DMA requests and/or remap interrupts from other devices on the
+	  system.
+
+if IOMMU_SUPPORT
+
+menu "Generic IOMMU Pagetable Support"
+
+# Selected by the actual pagetable implementations
+config IOMMU_IO_PGTABLE
+	bool
+
+config IOMMU_IO_PGTABLE_LPAE
+	bool "ARMv7/v8 Long Descriptor Format"
+	select IOMMU_IO_PGTABLE
+	depends on ARM || ARM64 || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	help
+	  Enable support for the ARM long descriptor pagetable format.
+	  This allocator supports 4K/2M/1G, 16K/32M and 64K/512M page
+	  sizes at both stage-1 and stage-2, as well as address spaces
+	  up to 48-bits in size.
+
+config IOMMU_IO_PGTABLE_LPAE_SELFTEST
+	bool "LPAE selftests"
+	depends on IOMMU_IO_PGTABLE_LPAE
+	help
+	  Enable self-tests for LPAE page table allocator. This performs
+	  a series of page-table consistency checks during boot.
+
+	  If unsure, say N here.
+
+config IOMMU_IO_PGTABLE_ARMV7S
+	bool "ARMv7/v8 Short Descriptor Format"
+	select IOMMU_IO_PGTABLE
+	depends on ARM || ARM64 || COMPILE_TEST
+	help
+	  Enable support for the ARM Short-descriptor pagetable format.
+	  This supports 32-bit virtual and physical addresses mapped using
+	  2-level tables with 4KB pages/1MB sections, and contiguous entries
+	  for 64KB pages/16MB supersections if indicated by the IOMMU driver.
+
+config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
+	bool "ARMv7s selftests"
+	depends on IOMMU_IO_PGTABLE_ARMV7S
+	help
+	  Enable self-tests for ARMv7s page table allocator. This performs
+	  a series of page-table consistency checks during boot.
+
+	  If unsure, say N here.
+
+endmenu
+
+config IOMMU_DEBUGFS
+	bool "Export IOMMU internals in DebugFS"
+	depends on DEBUG_FS
+	help
+	  Allows exposure of IOMMU device internals. This option enables
+	  the use of debugfs by IOMMU drivers as required. Devices can,
+	  at initialization time, cause the IOMMU code to create a top-level
+	  debug/iommu directory, and then populate a subdirectory with
+	  entries as required.
+
+choice
+	prompt "IOMMU default domain type"
+	depends on IOMMU_API
+	default IOMMU_DEFAULT_DMA_LAZY if X86 || IA64
+	default IOMMU_DEFAULT_DMA_STRICT
+	help
+	  Choose the type of IOMMU domain used to manage DMA API usage by
+	  device drivers. The options here typically represent different
+	  levels of tradeoff between robustness/security and performance,
+	  depending on the IOMMU driver. Not all IOMMUs support all options.
+	  This choice can be overridden at boot via the command line, and for
+	  some devices also at runtime via sysfs.
+
+	  If unsure, keep the default.
+
+config IOMMU_DEFAULT_DMA_STRICT
+	bool "Translated - Strict"
+	help
+	  Trusted devices use translation to restrict their access to only
+	  DMA-mapped pages, with strict TLB invalidation on unmap. Equivalent
+	  to passing "iommu.passthrough=0 iommu.strict=1" on the command line.
+
+	  Untrusted devices always use this mode, with an additional layer of
+	  bounce-buffering such that they cannot gain access to any unrelated
+	  data within a mapped page.
+
+config IOMMU_DEFAULT_DMA_LAZY
+	bool "Translated - Lazy"
+	help
+	  Trusted devices use translation to restrict their access to only
+	  DMA-mapped pages, but with "lazy" batched TLB invalidation. This
+	  mode allows higher performance with some IOMMUs due to reduced TLB
+	  flushing, but at the cost of reduced isolation since devices may be
+	  able to access memory for some time after it has been unmapped.
+	  Equivalent to passing "iommu.passthrough=0 iommu.strict=0" on the
+	  command line.
+
+	  If this mode is not supported by the IOMMU driver, the effective
+	  runtime default will fall back to IOMMU_DEFAULT_DMA_STRICT.
+
+config IOMMU_DEFAULT_PASSTHROUGH
+	bool "Passthrough"
+	help
+	  Trusted devices are identity-mapped, giving them unrestricted access
+	  to memory with minimal performance overhead. Equivalent to passing
+	  "iommu.passthrough=1" (historically "iommu=pt") on the command line.
+
+	  If this mode is not supported by the IOMMU driver, the effective
+	  runtime default will fall back to IOMMU_DEFAULT_DMA_STRICT.
+
+endchoice
+
+config OF_IOMMU
+	def_bool y
+	depends on OF && IOMMU_API
+
+# IOMMU-agnostic DMA-mapping layer
+config IOMMU_DMA
+	bool
+	select DMA_OPS
+	select IOMMU_API
+	select IOMMU_IOVA
+	select IRQ_MSI_IOMMU
+	select NEED_SG_DMA_LENGTH
+
+# Shared Virtual Addressing library
+config IOMMU_SVA_LIB
+	bool
+	select IOASID
+
+config FSL_PAMU
+	bool "Freescale IOMMU support"
+	depends on PCI
+	depends on PHYS_64BIT
+	depends on PPC_E500MC || (COMPILE_TEST && PPC)
+	select IOMMU_API
+	select GENERIC_ALLOCATOR
+	help
+	  Freescale PAMU support. PAMU is the IOMMU present on Freescale QorIQ platforms.
+	  PAMU can authorize memory access, remap the memory address, and remap I/O
+	  transaction types.
+
+# MSM IOMMU support
+config MSM_IOMMU
+	bool "MSM IOMMU Support"
+	depends on ARM
+	depends on ARCH_MSM8X60 || ARCH_MSM8960 || COMPILE_TEST
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_ARMV7S
+	help
+	  Support for the IOMMUs found on certain Qualcomm SOCs.
+	  These IOMMUs allow virtualization of the address space used by most
+	  cores within the multimedia subsystem.
+
+	  If unsure, say N here.
+
+source "drivers/iommu/amd/Kconfig"
+source "drivers/iommu/intel/Kconfig"
+
+config IRQ_REMAP
+	bool "Support for Interrupt Remapping"
+	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI
+	select DMAR_TABLE
+	help
+	  Supports Interrupt remapping for IO-APIC and MSI devices.
+	  To use x2apic mode in the CPU's which support x2APIC enhancements or
+	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
+
+# OMAP IOMMU support
+config OMAP_IOMMU
+	bool "OMAP IOMMU Support"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	select IOMMU_API
+	help
+	  The OMAP3 media platform drivers depend on iommu support,
+	  if you need them say Y here.
+
+config OMAP_IOMMU_DEBUG
+	bool "Export OMAP IOMMU internals in DebugFS"
+	depends on OMAP_IOMMU && DEBUG_FS
+	help
+	  Select this to see extensive information about
+	  the internal state of OMAP IOMMU in debugfs.
+
+	  Say N unless you know you need this.
+
+config ROCKCHIP_IOMMU
+	bool "Rockchip IOMMU Support"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select IOMMU_API
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for IOMMUs found on Rockchip rk32xx SOCs.
+	  These IOMMUs allow virtualization of the address space used by most
+	  cores within the multimedia subsystem.
+	  Say Y here if you are using a Rockchip SoC that includes an IOMMU
+	  device.
+
+config SUN50I_IOMMU
+	bool "Allwinner H6 IOMMU Support"
+	depends on HAS_DMA
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_API
+	help
+	  Support for the IOMMU introduced in the Allwinner H6 SoCs.
+
+config TEGRA_IOMMU_GART
+	bool "Tegra GART IOMMU Support"
+	depends on ARCH_TEGRA_2x_SOC
+	depends on TEGRA_MC
+	select IOMMU_API
+	help
+	  Enables support for remapping discontiguous physical memory
+	  shared with the operating system into contiguous I/O virtual
+	  space through the GART (Graphics Address Relocation Table)
+	  hardware included on Tegra SoCs.
+
+config TEGRA_IOMMU_SMMU
+	bool "NVIDIA Tegra SMMU Support"
+	depends on ARCH_TEGRA
+	depends on TEGRA_AHB
+	depends on TEGRA_MC
+	select IOMMU_API
+	help
+	  This driver supports the IOMMU hardware (SMMU) found on NVIDIA Tegra
+	  SoCs (Tegra30 up to Tegra210).
+
+config EXYNOS_IOMMU
+	bool "Exynos IOMMU Support"
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on !CPU_BIG_ENDIAN # revisit driver if we can enable big-endian ptes
+	select IOMMU_API
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for the IOMMU (System MMU) of Samsung Exynos application
+	  processor family. This enables H/W multimedia accelerators to see
+	  non-linear physical memory chunks as linear memory in their
+	  address space.
+
+	  If unsure, say N here.
+
+config EXYNOS_IOMMU_DEBUG
+	bool "Debugging log for Exynos IOMMU"
+	depends on EXYNOS_IOMMU
+	help
+	  Select this to see the detailed log message that shows what
+	  happens in the IOMMU driver.
+
+	  Say N unless you need kernel log message for IOMMU debugging.
+
+config IPMMU_VMSA
+	bool "Renesas VMSA-compatible IPMMU"
+	depends on ARCH_RENESAS || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for the Renesas VMSA-compatible IPMMU found in the R-Mobile
+	  APE6, R-Car Gen{2,3} and RZ/G{1,2} SoCs.
+
+	  If unsure, say N.
+
+config SPAPR_TCE_IOMMU
+	bool "sPAPR TCE IOMMU Support"
+	depends on PPC_POWERNV || PPC_PSERIES
+	select IOMMU_API
+	help
+	  Enables bits of IOMMU API required by VFIO. The iommu_ops
+	  is not implemented as it is not necessary for VFIO.
+
+config APPLE_DART
+	tristate "Apple DART IOMMU Support"
+	depends on ARCH_APPLE || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	default ARCH_APPLE
+	help
+	  Support for Apple DART (Device Address Resolution Table) IOMMUs
+	  found in Apple ARM SoCs like the M1.
+	  This IOMMU is required for most peripherals using DMA to access
+	  the main memory.
+
+	  Say Y here if you are using an Apple SoC.
+
+# ARM IOMMU support
+config ARM_SMMU
+	tristate "ARM Ltd. System MMU (SMMU) Support"
+	depends on ARM64 || ARM || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select ARM_DMA_USE_IOMMU if ARM
+	help
+	  Support for implementations of the ARM System MMU architecture
+	  versions 1 and 2.
+
+	  Say Y here if your SoC includes an IOMMU device implementing
+	  the ARM SMMU architecture.
+
+config ARM_SMMU_LEGACY_DT_BINDINGS
+	bool "Support the legacy \"mmu-masters\" devicetree bindings"
+	depends on ARM_SMMU=y && OF
+	help
+	  Support for the badly designed and deprecated "mmu-masters"
+	  devicetree bindings. This allows some DMA masters to attach
+	  to the SMMU but does not provide any support via the DMA API.
+	  If you're lucky, you might be able to get VFIO up and running.
+
+	  If you say Y here then you'll make me very sad. Instead, say N
+	  and move your firmware to the utopian future that was 2016.
+
+config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
+	bool "Default to disabling bypass on ARM SMMU v1 and v2"
+	depends on ARM_SMMU
+	default y
+	help
+	  Say Y here to (by default) disable bypass streams such that
+	  incoming transactions from devices that are not attached to
+	  an iommu domain will report an abort back to the device and
+	  will not be allowed to pass through the SMMU.
+
+	  Any old kernels that existed before this KConfig was
+	  introduced would default to _allowing_ bypass (AKA the
+	  equivalent of NO for this config).  However the default for
+	  this option is YES because the old behavior is insecure.
+
+	  There are few reasons to allow unmatched stream bypass, and
+	  even fewer good ones.  If saying YES here breaks your board
+	  you should work on fixing your board.  This KConfig option
+	  is expected to be removed in the future and we'll simply
+	  hardcode the bypass disable in the code.
+
+	  NOTE: the kernel command line parameter
+	  'arm-smmu.disable_bypass' will continue to override this
+	  config.
+
+config ARM_SMMU_QCOM
+	def_tristate y
+	depends on ARM_SMMU && ARCH_QCOM
+	select QCOM_SCM
+	help
+	  When running on a Qualcomm platform that has the custom variant
+	  of the ARM SMMU, this needs to be built into the SMMU driver.
+
+config ARM_SMMU_V3
+	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
+	depends on ARM64
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select GENERIC_MSI_IRQ_DOMAIN
+	help
+	  Support for implementations of the ARM System MMU architecture
+	  version 3 providing translation support to a PCIe root complex.
+
+	  Say Y here if your system includes an IOMMU device implementing
+	  the ARM SMMUv3 architecture.
+
+config ARM_SMMU_V3_SVA
+	bool "Shared Virtual Addressing support for the ARM SMMUv3"
+	depends on ARM_SMMU_V3
+	select IOMMU_SVA_LIB
+	select MMU_NOTIFIER
+	help
+	  Support for sharing process address spaces with devices using the
+	  SMMUv3.
+
+	  Say Y here if your system supports SVA extensions such as PCIe PASID
+	  and PRI.
+
+config S390_IOMMU
+	def_bool y if S390 && PCI
+	depends on S390 && PCI
+	select IOMMU_API
+	help
+	  Support for the IOMMU API for s390 PCI devices.
+
+config S390_CCW_IOMMU
+	bool "S390 CCW IOMMU Support"
+	depends on S390 && CCW || COMPILE_TEST
+	select IOMMU_API
+	help
+	  Enables bits of IOMMU API required by VFIO. The iommu_ops
+	  is not implemented as it is not necessary for VFIO.
+
+config S390_AP_IOMMU
+	bool "S390 AP IOMMU Support"
+	depends on S390 && ZCRYPT || COMPILE_TEST
+	select IOMMU_API
+	help
+	  Enables bits of IOMMU API required by VFIO. The iommu_ops
+	  is not implemented as it is not necessary for VFIO.
+
+config MTK_IOMMU
+	tristate "MediaTek IOMMU Support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_ARMV7S
+	select MEMORY
+	select MTK_SMI
+	help
+	  Support for the M4U on certain Mediatek SOCs. M4U is MultiMedia
+	  Memory Management Unit. This option enables remapping of DMA memory
+	  accesses for the multimedia subsystem.
+
+	  If unsure, say N here.
+
+config MTK_IOMMU_V1
+	tristate "MediaTek IOMMU Version 1 (M4U gen1) Support"
+	depends on ARM
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_API
+	select MEMORY
+	select MTK_SMI
+	help
+	  Support for the M4U on certain Mediatek SoCs. M4U generation 1 HW is
+	  Multimedia Memory Managememt Unit. This option enables remapping of
+	  DMA memory accesses for the multimedia subsystem.
+
+	  if unsure, say N here.
+
+config QCOM_IOMMU
+	# Note: iommu drivers cannot (yet?) be built as modules
+	bool "Qualcomm IOMMU Support"
+	depends on ARCH_QCOM || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	select QCOM_SCM
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for IOMMU on certain Qualcomm SoCs.
+
+config HYPERV_IOMMU
+	bool "Hyper-V x2APIC IRQ Handling"
+	depends on HYPERV && X86
+	select IOMMU_API
+	default HYPERV
+	help
+	  Stub IOMMU driver to handle IRQs as to allow Hyper-V Linux
+	  guests to run with x2APIC mode enabled.
+
+config VIRTIO_IOMMU
+	tristate "Virtio IOMMU driver"
+	depends on VIRTIO
+	depends on (ARM64 || X86)
+	select IOMMU_API
+	select IOMMU_DMA
+	select INTERVAL_TREE
+	select ACPI_VIOT if ACPI
+	help
+	  Para-virtualised IOMMU driver with virtio.
+
+	  Say Y here if you intend to run this kernel as a guest.
+
+config SPRD_IOMMU
+	tristate "Unisoc IOMMU Support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	select IOMMU_API
+	help
+	  Support for IOMMU on Unisoc's SoCs, this IOMMU can be used by
+	  Unisoc's multimedia devices, such as display, Image codec(jpeg)
+	  and a few signal processors, including VSP(video), GSP(graphic),
+	  ISP(image), and CPP(camera pixel processor), etc.
+
+	  Say Y here if you want to use the multimedia devices listed above.
+
+endif # IOMMU_SUPPORT

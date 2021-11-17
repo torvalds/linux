@@ -1,0 +1,43 @@
+Kernel driver adm1031
+=====================
+
+Supported chips:
+  * Analog Devices ADM1030
+
+    Prefix: 'adm1030'
+
+    Addresses scanned: I2C 0x2c to 0x2e
+
+    Datasheet: Publicly available at the Analog Devices website
+
+	       https://www.analog.com/en/prod/0%2C2877%2CADM1030%2C00.html
+
+  * Analog Devices ADM1031
+
+    Prefix: 'adm1031'
+
+    Addresses scanned: I2C 0x2c to 0x2e
+
+    Datasheet: Publicly available at the Analog Devices website
+
+	       https://www.analog.com/en/prod/0%2C2877%2CADM1031%2C00.html
+
+Authors:
+	- Alexandre d'Alton <alex@alexdalton.org>
+	- Jean Delvare <jdelvare@suse.de>
+
+Description
+-----------
+
+The ADM1030 and ADM1031 are digital temperature sensors and fan controllers.
+They sense their own temperature as well as the temperature of up to one
+(ADM1030) or two (ADM1031) external diodes.
+
+All temperature values are given in degrees Celsius. Resolution is 0.5
+degree for the local temperature, 0.125 degree for the remote temperatures.
+
+Each temperature channel has its own high and low limits, plus a critical
+limit.
+
+The ADM1030 monitors a single fan speed, while the ADM1031 monitors up to
+two. Each fan channel has its own low speed limit.

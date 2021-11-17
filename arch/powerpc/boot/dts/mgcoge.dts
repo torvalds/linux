@@ -1,0 +1,260 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Device Tree for the MGCOGE plattform from keymile
+ *
+ * Copyright 2008 DENX Software Engineering GmbH
+ * Heiko Schocher <hs@denx.de>
+ */
+
+/dts-v1/;
+/ {
+	model = "MGCOGE";
+	compatible = "keymile,km82xx";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet0 = &eth0;
+		serial0 = &smc2;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,8247@0 {
+			device_type = "cpu";
+			reg = <0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <16384>;
+			i-cache-size = <16384>;
+			timebase-frequency = <0>; /* Filled in by U-Boot */
+			clock-frequency = <0>; /* Filled in by U-Boot */
+			bus-frequency = <0>; /* Filled in by U-Boot */
+		};
+	};
+
+	localbus@f0010100 {
+		compatible = "fsl,mpc8247-localbus",
+		             "fsl,pq2-localbus",
+		             "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xf0010100 0x40>;
+
+		ranges = <0 0 0xfe000000 0x00400000
+			  1 0 0x30000000 0x00010000
+			  2 0 0x40000000 0x00010000
+			  5 0 0x50000000 0x04000000
+			>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0x0 0x400000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			bank-width = <1>;
+			device-width = <1>;
+			partition@0 {
+				label = "u-boot";
+				reg = <0x00000 0xC0000>;
+			};
+			partition@1 {
+				label = "env";
+				reg = <0xC0000 0x20000>;
+			};
+			partition@2 {
+				label = "envred";
+				reg = <0xE0000 0x20000>;
+			};
+			partition@3 {
+				label = "free";
+				reg = <0x100000 0x300000>;
+			};
+		};
+
+		flash@5,0 {
+			compatible = "cfi-flash";
+			reg = <5 0x00000000 0x02000000
+			       5 0x02000000 0x02000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			bank-width = <2>;
+			partition@app { /* 64 MBytes */
+				label = "ubi0";
+				reg = <0x00000000 0x04000000>;
+			};
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0>; /* Filled in by U-Boot */
+	};
+
+	soc@f0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8247-immr", "fsl,pq2-soc", "simple-bus";
+		ranges = <0x00000000 0xf0000000 0x00053000>;
+
+		// Temporary until code stops depending on it.
+		device_type = "soc";
+
+		cpm@119c0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			#interrupt-cells = <2>;
+			compatible = "fsl,mpc8247-cpm", "fsl,cpm2",
+					"simple-bus";
+			reg = <0x119c0 0x30>;
+			ranges;
+
+			muram {
+				compatible = "fsl,cpm-muram";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 0x10000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0x80 0x1f80 0x9800 0x800>;
+				};
+			};
+
+			brg@119f0 {
+				compatible = "fsl,mpc8247-brg",
+				             "fsl,cpm2-brg",
+				             "fsl,cpm-brg";
+				reg = <0x119f0 0x10 0x115f0 0x10>;
+			};
+
+			/* Monitor port/SMC2 */
+			smc2: serial@11a90 {
+				device_type = "serial";
+				compatible = "fsl,mpc8247-smc-uart",
+				             "fsl,cpm2-smc-uart";
+				reg = <0x11a90 0x20 0x88fc 0x02>;
+				interrupts = <5 8>;
+				interrupt-parent = <&PIC>;
+				fsl,cpm-brg = <2>;
+				fsl,cpm-command = <0x21200000>;
+				current-speed = <0>; /* Filled in by U-Boot */
+			};
+
+			eth0: ethernet@11a60 {
+				device_type = "network";
+				compatible = "fsl,mpc8247-scc-enet",
+				             "fsl,cpm2-scc-enet";
+				reg = <0x11a60 0x20 0x8300 0x100 0x11390 1>;
+				local-mac-address = [ 00 00 00 00 00 00 ]; /* Filled in by U-Boot */
+				interrupts = <43 8>;
+				interrupt-parent = <&PIC>;
+				linux,network-index = <0>;
+				fsl,cpm-command = <0xce00000>;
+				fixed-link = <0 0 10 0 0>;
+			};
+
+			i2c@11860 {
+				compatible = "fsl,mpc8272-i2c",
+					     "fsl,cpm2-i2c";
+				reg = <0x11860 0x20 0x8afc 0x2>;
+				interrupts = <1 8>;
+				interrupt-parent = <&PIC>;
+				fsl,cpm-command = <0x29600000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio@10d40 {
+				compatible = "fsl,cpm2-mdio-bitbang";
+				reg = <0x10d00 0x14>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fsl,mdio-pin = <12>;
+				fsl,mdc-pin = <13>;
+
+				phy0: ethernet-phy@0 {
+					reg = <0x0>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <0x1>;
+				};
+			};
+
+			/* FCC1 management to switch */
+			ethernet@11300 {
+				device_type = "network";
+				compatible = "fsl,cpm2-fcc-enet";
+				reg = <0x11300 0x20 0x8400 0x100 0x11390 0x1>;
+				local-mac-address = [ 00 01 02 03 04 07 ];
+				interrupts = <32 8>;
+				interrupt-parent = <&PIC>;
+				phy-handle = <&phy0>;
+				linux,network-index = <1>;
+				fsl,cpm-command = <0x12000300>;
+			};
+
+			/* FCC2 to redundant core unit over backplane */
+			ethernet@11320 {
+				device_type = "network";
+				compatible = "fsl,cpm2-fcc-enet";
+				reg = <0x11320 0x20 0x8500 0x100 0x113b0 0x1>;
+				local-mac-address = [ 00 01 02 03 04 08 ];
+				interrupts = <33 8>;
+				interrupt-parent = <&PIC>;
+				phy-handle = <&phy1>;
+				linux,network-index = <2>;
+				fsl,cpm-command = <0x16200300>;
+			};
+
+			usb@11b60 {
+				compatible = "fsl,mpc8272-cpm-usb";
+				mode = "peripheral";
+				reg = <0x11b60 0x40 0x8b00 0x100>;
+				interrupts = <11 8>;
+				interrupt-parent = <&PIC>;
+				usb-clock = <5>;
+			};
+			spi@11aa0 {
+				cell-index = <0>;
+				compatible = "fsl,spi", "fsl,cpm2-spi";
+				reg = <0x11a80 0x40 0x89fc 0x2>;
+				interrupts = <2 8>;
+				interrupt-parent = <&PIC>;
+				cs-gpios = < &cpm2_pio_d 19 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ds3106@1 {
+					compatible = "gen,spidev";
+					reg = <0>;
+					spi-max-frequency = <8000000>;
+				};
+			};
+
+		};
+
+		cpm2_pio_d: gpio-controller@10d60 {
+			#gpio-cells = <2>;
+			compatible = "fsl,cpm2-pario-bank";
+			reg = <0x10d60 0x14>;
+			gpio-controller;
+		};
+
+		cpm2_pio_c: gpio-controller@10d40 {
+			#gpio-cells = <2>;
+			compatible = "fsl,cpm2-pario-bank";
+			reg = <0x10d40 0x14>;
+			gpio-controller;
+		};
+
+		PIC: interrupt-controller@10c00 {
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			reg = <0x10c00 0x80>;
+			compatible = "fsl,mpc8247-pic", "fsl,pq2-pic";
+		};
+	};
+};

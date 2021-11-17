@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: GPL-2.0
+config PPC_PSERIES
+	depends on PPC64 && PPC_BOOK3S
+	bool "IBM pSeries & new (POWER5-based) iSeries"
+	select HAVE_PCSPKR_PLATFORM
+	select MPIC
+	select OF_DYNAMIC
+	select FORCE_PCI
+	select PCI_MSI
+	select PPC_XICS
+	select PPC_XIVE_SPAPR
+	select PPC_ICP_NATIVE
+	select PPC_ICP_HV
+	select PPC_ICS_RTAS
+	select PPC_I8259
+	select PPC_RTAS
+	select PPC_RTAS_DAEMON
+	select RTAS_ERROR_LOGGING
+	select PPC_UDBG_16550
+	select PPC_NATIVE
+	select PPC_DOORBELL
+	select HOTPLUG_CPU
+	select ARCH_RANDOM
+	select FORCE_SMP
+	select SWIOTLB
+	default y
+
+config PARAVIRT_SPINLOCKS
+	bool
+
+config PPC_SPLPAR
+	bool "Support for shared-processor logical partitions"
+	depends on PPC_PSERIES
+	select PARAVIRT_SPINLOCKS if PPC_QUEUED_SPINLOCKS
+	default y
+	help
+	  Enabling this option will make the kernel run more efficiently
+	  on logically-partitioned pSeries systems which use shared
+	  processors, that is, which share physical processors between
+	  two or more partitions.
+
+	  Say Y if you are unsure.
+
+config DTL
+	bool "Dispatch Trace Log"
+	depends on PPC_SPLPAR && DEBUG_FS
+	help
+	  SPLPAR machines can log hypervisor preempt & dispatch events to a
+	  kernel buffer. Saying Y here will enable logging these events,
+	  which are accessible through a debugfs file.
+
+	  Say N if you are unsure.
+
+config PSERIES_ENERGY
+	tristate "pSeries energy management capabilities driver"
+	depends on PPC_PSERIES
+	default y
+	help
+	  Provides interface to platform energy management capabilities
+	  on supported PSERIES platforms.
+	  Provides: /sys/devices/system/cpu/pseries_(de)activation_hint_list
+	  and /sys/devices/system/cpu/cpuN/pseries_(de)activation_hint
+
+config SCANLOG
+	tristate "Scanlog dump interface"
+	depends on RTAS_PROC && PPC_PSERIES
+
+config IO_EVENT_IRQ
+	bool "IO Event Interrupt support"
+	depends on PPC_PSERIES
+	default y
+	help
+	  Select this option, if you want to enable support for IO Event
+	  interrupts. IO event interrupt is a mechanism provided by RTAS
+	  to return information about hardware error and non-error events
+	  which may need OS attention. RTAS returns events for multiple
+	  event types and scopes. Device drivers can register their handlers
+	  to receive events.
+
+	  This option will only enable the IO event platform code. You
+	  will still need to enable or compile the actual drivers
+	  that use this infrastructure to handle IO event interrupts.
+
+	  Say Y if you are unsure.
+
+config LPARCFG
+	bool "LPAR Configuration Data"
+	depends on PPC_PSERIES
+	help
+	  Provide system capacity information via human readable
+	  <key word>=<value> pairs through a /proc/ppc64/lparcfg interface.
+
+config PPC_PSERIES_DEBUG
+	depends on PPC_PSERIES && PPC_EARLY_DEBUG
+	bool "Enable extra debug logging in platforms/pseries"
+	default y
+	help
+	  Say Y here if you want the pseries core to produce a bunch of
+	  debug messages to the system log. Select this if you are having a
+	  problem with the pseries core and want to see more of what is
+	  going on. This does not enable debugging in lpar.c, which must
+	  be manually done due to its verbosity.
+
+config PPC_SMLPAR
+	bool "Support for shared-memory logical partitions"
+	depends on PPC_PSERIES
+	select LPARCFG
+	help
+	  Select this option to enable shared memory partition support.
+	  With this option a system running in an LPAR can be given more
+	  memory than physically available and will allow firmware to
+	  balance memory across many LPARs.
+
+config CMM
+	tristate "Collaborative memory management"
+	depends on PPC_SMLPAR
+	select MEMORY_BALLOON
+	default y
+	help
+	  Select this option, if you want to enable the kernel interface
+	  to reduce the memory size of the system. This is accomplished
+	  by allocating pages of memory and put them "on hold". This only
+	  makes sense for a system running in an LPAR where the unused pages
+	  will be reused for other LPARs. The interface allows firmware to
+	  balance memory across many LPARs.
+
+config HV_PERF_CTRS
+	bool "Hypervisor supplied PMU events (24x7 & GPCI)"
+	default y
+	depends on PERF_EVENTS && PPC_PSERIES
+	help
+	  Enable access to hypervisor supplied counters in perf. Currently,
+	  this enables code that uses the hcall GetPerfCounterInfo and 24x7
+	  interfaces to retrieve counters. GPCI exists on Power 6 and later
+	  systems. 24x7 is available on Power 8 and later systems.
+
+	  If unsure, select Y.
+
+config IBMVIO
+	depends on PPC_PSERIES
+	bool
+	default y
+
+config IBMEBUS
+	depends on PPC_PSERIES && !CPU_LITTLE_ENDIAN
+	bool "Support for GX bus based adapters"
+	help
+	  Bus device driver for GX bus based adapters.
+
+config PAPR_SCM
+	depends on PPC_PSERIES && MEMORY_HOTPLUG && LIBNVDIMM
+	tristate "Support for the PAPR Storage Class Memory interface"
+	help
+	  Enable access to hypervisor provided storage class memory.
+
+config PPC_SVM
+	bool "Secure virtual machine (SVM) support for POWER"
+	depends on PPC_PSERIES
+	select SWIOTLB
+	select ARCH_HAS_MEM_ENCRYPT
+	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
+	help
+	 There are certain POWER platforms which support secure guests using
+	 the Protected Execution Facility, with the help of an Ultravisor
+	 executing below the hypervisor layer. This enables support for
+	 those guests.
+
+	 If unsure, say "N".

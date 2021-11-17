@@ -1,0 +1,47 @@
+MIPS CPU interrupt controller
+
+On MIPS the mips_cpu_irq_of_init() helper can be used to initialize the 8 CPU
+IRQs from a devicetree file and create a irq_domain for IRQ controller.
+
+With the irq_domain in place we can describe how the 8 IRQs are wired to the
+platforms internal interrupt controller cascade.
+
+Below is an example of a platform describing the cascade inside the devicetree
+and the code used to load it inside arch_init_irq().
+
+Required properties:
+- compatible : Should be "mti,cpu-interrupt-controller"
+
+Example devicetree:
+	cpu-irq: cpu-irq {
+		#address-cells = <0>;
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	intc: intc@200 {
+		compatible = "ralink,rt2880-intc";
+		reg = <0x200 0x100>;
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		interrupt-parent = <&cpu-irq>;
+		interrupts = <2>;
+	};
+
+
+Example platform irq.c:
+static struct of_device_id __initdata of_irq_ids[] = {
+	{ .compatible = "mti,cpu-interrupt-controller", .data = mips_cpu_irq_of_init },
+	{ .compatible = "ralink,rt2880-intc", .data = intc_of_init },
+	{},
+};
+
+void __init arch_init_irq(void)
+{
+	of_irq_init(of_irq_ids);
+}

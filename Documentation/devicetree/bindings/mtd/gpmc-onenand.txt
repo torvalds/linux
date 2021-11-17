@@ -1,0 +1,48 @@
+Device tree bindings for GPMC connected OneNANDs
+
+GPMC connected OneNAND (found on OMAP boards) are represented as child nodes of
+the GPMC controller with a name of "onenand".
+
+All timing relevant properties as well as generic gpmc child properties are
+explained in a separate documents - please refer to
+Documentation/devicetree/bindings/memory-controllers/omap-gpmc.txt
+
+Required properties:
+
+ - compatible:		"ti,omap2-onenand"
+ - reg:			The CS line the peripheral is connected to
+ - gpmc,device-width:	Width of the ONENAND device connected to the GPMC
+			in bytes. Must be 1 or 2.
+
+Optional properties:
+
+ - int-gpios:		GPIO specifier for the INT pin.
+
+For inline partition table parsing (optional):
+
+ - #address-cells: should be set to 1
+ - #size-cells: should be set to 1
+
+Example for an OMAP3430 board:
+
+	gpmc: gpmc@6e000000 {
+		compatible = "ti,omap3430-gpmc";
+		ti,hwmods = "gpmc";
+		reg = <0x6e000000 0x1000000>;
+		interrupts = <20>;
+		gpmc,num-cs = <8>;
+		gpmc,num-waitpins = <4>;
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		onenand@0 {
+			compatible = "ti,omap2-onenand";
+			reg = <0 0 0>; /* CS0, offset 0 */
+			gpmc,device-width = <2>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/* partitions go here */
+		};
+	};

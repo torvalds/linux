@@ -1,0 +1,178 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "MediaTek pinctrl drivers"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+
+config EINT_MTK
+	tristate "MediaTek External Interrupt Support"
+	depends on PINCTRL_MTK || PINCTRL_MTK_MOORE || PINCTRL_MTK_PARIS || COMPILE_TEST
+	select GPIOLIB
+	select IRQ_DOMAIN
+	default y if PINCTRL_MTK || PINCTRL_MTK_MOORE
+	default PINCTRL_MTK_PARIS
+
+config PINCTRL_MTK
+	bool
+	depends on OF
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select EINT_MTK
+	select OF_GPIO
+
+config PINCTRL_MTK_V2
+	tristate
+
+config PINCTRL_MTK_MOORE
+	bool
+	depends on OF
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select OF_GPIO
+	select PINCTRL_MTK_V2
+
+config PINCTRL_MTK_PARIS
+	tristate
+	depends on OF
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select EINT_MTK
+	select OF_GPIO
+	select PINCTRL_MTK_V2
+
+# For ARMv7 SoCs
+config PINCTRL_MT2701
+	bool "Mediatek MT2701 pin control"
+	depends on MACH_MT7623 || MACH_MT2701 || COMPILE_TEST
+	depends on OF
+	default MACH_MT2701
+	select PINCTRL_MTK
+
+config PINCTRL_MT7623
+	bool "Mediatek MT7623 pin control with generic binding"
+	depends on MACH_MT7623 || COMPILE_TEST
+	depends on OF
+	default MACH_MT7623
+	select PINCTRL_MTK_MOORE
+
+config PINCTRL_MT7629
+	bool "Mediatek MT7629 pin control"
+	depends on MACH_MT7629 || COMPILE_TEST
+	depends on OF
+	default MACH_MT7629
+	select PINCTRL_MTK_MOORE
+
+config PINCTRL_MT8135
+	bool "Mediatek MT8135 pin control"
+	depends on MACH_MT8135 || COMPILE_TEST
+	depends on OF
+	default MACH_MT8135
+	select PINCTRL_MTK
+
+config PINCTRL_MT8127
+	bool "Mediatek MT8127 pin control"
+	depends on MACH_MT8127 || COMPILE_TEST
+	depends on OF
+	default MACH_MT8127
+	select PINCTRL_MTK
+
+# For ARMv8 SoCs
+config PINCTRL_MT2712
+	bool "MediaTek MT2712 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK
+
+config PINCTRL_MT6765
+	tristate "Mediatek MT6765 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
+
+config PINCTRL_MT6779
+	tristate "Mediatek MT6779 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
+	help
+	  Say yes here to support pin controller and gpio driver
+	  on Mediatek MT6779 SoC.
+	  In MTK platform, we support virtual gpio and use it to
+	  map specific eint which doesn't have real gpio pin.
+
+config PINCTRL_MT6797
+	bool "Mediatek MT6797 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
+
+config PINCTRL_MT7622
+	bool "MediaTek MT7622 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_MOORE
+
+config PINCTRL_MT8167
+	bool "Mediatek MT8167 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK
+
+config PINCTRL_MT8173
+	bool "Mediatek MT8173 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK
+
+config PINCTRL_MT8183
+	bool "Mediatek MT8183 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
+
+config PINCTRL_MT8192
+	bool "Mediatek MT8192 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
+
+config PINCTRL_MT8195
+	bool "Mediatek MT8195 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	select PINCTRL_MTK_PARIS
+
+config PINCTRL_MT8365
+	bool "Mediatek MT8365 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK
+
+config PINCTRL_MT8516
+	bool "Mediatek MT8516 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK
+
+# For PMIC
+config PINCTRL_MT6397
+	bool "Mediatek MT6397 pin control"
+	depends on MFD_MT6397 || COMPILE_TEST
+	depends on OF
+	default MFD_MT6397
+	select PINCTRL_MTK
+
+endmenu

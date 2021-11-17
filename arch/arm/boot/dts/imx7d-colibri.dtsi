@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Copyright 2016-2020 Toradex
+ */
+
+#include "imx7d.dtsi"
+#include "imx7-colibri.dtsi"
+
+/ {
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;
+	};
+};
+
+&cpu1 {
+	cpu-supply = <&reg_DCDC2>;
+};
+
+&gpmi {
+	status = "okay";
+};
+
+&usbotg2 {
+	dr_mode = "host";
+};

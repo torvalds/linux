@@ -1,0 +1,23 @@
+DA8XX USB OHCI controller
+
+Required properties:
+
+ - compatible: Should be "ti,da830-ohci"
+ - reg:        Should contain one register range i.e. start and length
+ - interrupts: Description of the interrupt line
+ - phys:       Phandle for the PHY device
+ - phy-names:  Should be "usb-phy"
+
+Optional properties:
+ - vbus-supply: phandle of regulator that controls vbus power / over-current
+
+Example:
+
+ohci: usb@225000 {
+        compatible = "ti,da830-ohci";
+        reg = <0x225000 0x1000>;
+        interrupts = <59>;
+        phys = <&usb_phy 1>;
+        phy-names = "usb-phy";
+        vbus-supply = <&reg_usb_ohci>;
+};

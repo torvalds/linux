@@ -1,0 +1,273 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_MXC
+	bool "Freescale i.MX family"
+	depends on ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
+	select ARCH_SUPPORTS_BIG_ENDIAN
+	select CLKSRC_IMX_GPT
+	select GENERIC_IRQ_CHIP
+	select GPIOLIB
+	select PINCTRL
+	select PM_OPP if PM
+	select SOC_BUS
+	select SRAM
+	help
+	  Support for Freescale MXC/iMX-based family of processors
+
+if ARCH_MXC
+
+config MXC_TZIC
+	bool
+
+config MXC_AVIC
+	bool
+
+config MXC_DEBUG_BOARD
+	bool "Enable MXC debug board(for 3-stack)"
+	depends on MACH_MX27_3DS || MACH_MX31_3DS || MACH_MX35_3DS
+	help
+	  The debug board is an integral part of the MXC 3-stack(PDK)
+	  platforms, it can be attached or removed from the peripheral
+	  board. On debug board, several debug devices(ethernet, UART,
+	  buttons, LEDs and JTAG) are implemented. Between the MCU and
+	  these devices, a CPLD is added as a bridge which performs
+	  data/address de-multiplexing and decode, signal level shift,
+	  interrupt control and various board functions.
+
+config HAVE_IMX_ANATOP
+	bool
+
+config HAVE_IMX_GPC
+	bool
+	select PM_GENERIC_DOMAINS if PM
+
+config HAVE_IMX_MMDC
+	bool
+
+config HAVE_IMX_SRC
+	def_bool y if SMP
+	select ARCH_HAS_RESET_CONTROLLER
+
+if ARCH_MULTI_V6
+
+comment "ARM1136 platforms"
+
+config SOC_IMX31
+	bool "i.MX31 support"
+	select CPU_V6
+	select MXC_AVIC
+	help
+	  This enables support for Freescale i.MX31 processor
+
+config SOC_IMX35
+	bool "i.MX35 support"
+	select MXC_AVIC
+	select PINCTRL_IMX35
+	help
+	  This enables support for Freescale i.MX35 processor
+
+endif
+
+if ARCH_MULTI_V4T
+
+config SOC_IMX1
+	bool "i.MX1 support"
+	select CPU_ARM920T
+	select MXC_AVIC
+	select PINCTRL_IMX1
+	help
+	  This enables support for Freescale i.MX1 processor
+
+endif
+
+if ARCH_MULTI_V5
+
+config SOC_IMX25
+	bool "i.MX25 support"
+	select CPU_ARM926T
+	select MXC_AVIC
+	select PINCTRL_IMX25
+	help
+	  This enables support for Freescale i.MX25 processor
+
+config SOC_IMX27
+	bool "i.MX27 support"
+	select CPU_ARM926T
+	select MXC_AVIC
+	select PINCTRL_IMX27
+	help
+	  This enables support for Freescale i.MX27 processor
+
+endif
+
+if ARCH_MULTI_V7
+
+comment "Cortex-A platforms"
+
+config SOC_IMX5
+	bool
+	select HAVE_IMX_SRC
+	select MXC_TZIC
+
+config	SOC_IMX50
+	bool "i.MX50 support"
+	select PINCTRL_IMX50
+	select SOC_IMX5
+
+	help
+	  This enables support for Freescale i.MX50 processor.
+
+config SOC_IMX51
+	bool "i.MX51 support"
+	select PINCTRL_IMX51
+	select SOC_IMX5
+	help
+	  This enables support for Freescale i.MX51 processor
+
+config	SOC_IMX53
+	bool "i.MX53 support"
+	select PINCTRL_IMX53
+	select SOC_IMX5
+
+	help
+	  This enables support for Freescale i.MX53 processor.
+
+config SOC_IMX6
+	bool
+	select ARM_CPU_SUSPEND if (PM || CPU_IDLE)
+	select ARM_GIC
+	select HAVE_IMX_ANATOP
+	select HAVE_IMX_GPC
+	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
+	select MFD_SYSCON
+	select PL310_ERRATA_769419 if CACHE_L2X0
+
+config SOC_IMX6Q
+	bool "i.MX6 Quad/DualLite support"
+	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD
+	select PINCTRL_IMX6Q
+	select SOC_IMX6
+
+	help
+	  This enables support for Freescale i.MX6 Quad processor.
+
+config SOC_IMX6SL
+	bool "i.MX6 SoloLite support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select PINCTRL_IMX6SL
+	select SOC_IMX6
+
+	help
+	  This enables support for Freescale i.MX6 SoloLite processor.
+
+config SOC_IMX6SLL
+	bool "i.MX6 SoloLiteLite support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select PINCTRL_IMX6SLL
+	select SOC_IMX6
+
+	help
+	  This enables support for Freescale i.MX6 SoloLiteLite processor.
+
+config SOC_IMX6SX
+	bool "i.MX6 SoloX support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select PINCTRL_IMX6SX
+	select SOC_IMX6
+
+	help
+	  This enables support for Freescale i.MX6 SoloX processor.
+
+config SOC_IMX6UL
+	bool "i.MX6 UltraLite support"
+	select PINCTRL_IMX6UL
+	select SOC_IMX6
+	select ARM_ERRATA_814220
+
+	help
+	  This enables support for Freescale i.MX6 UltraLite processor.
+
+config SOC_LS1021A
+	bool "Freescale LS1021A support"
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	select ZONE_DMA if ARM_LPAE
+	help
+	  This enables support for Freescale LS1021A processor.
+
+endif
+
+if ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
+
+comment "Cortex-A/Cortex-M asymmetric multiprocessing platforms"
+
+config SOC_IMX7D_CA7
+	bool
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	select HAVE_IMX_ANATOP
+	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
+	select IMX_GPCV2
+
+config SOC_IMX7D_CM4
+	bool
+	select ARMV7M_SYSTICK
+
+config SOC_IMX7D
+	bool "i.MX7 Dual support"
+	select PINCTRL_IMX7D
+	select SOC_IMX7D_CA7 if ARCH_MULTI_V7
+	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
+	select ARM_ERRATA_814220 if ARCH_MULTI_V7
+	help
+		This enables support for Freescale i.MX7 Dual processor.
+
+config SOC_IMX7ULP
+	bool "i.MX7ULP support"
+	select CLKSRC_IMX_TPM
+	select PINCTRL_IMX7ULP
+	select SOC_IMX7D_CA7 if ARCH_MULTI_V7
+	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
+	help
+	  This enables support for Freescale i.MX7 Ultra Low Power processor.
+
+config SOC_VF610
+	bool "Vybrid Family VF610 support"
+	select ARM_GIC if ARCH_MULTI_V7
+	select PINCTRL_VF610
+
+	help
+	  This enables support for Freescale Vybrid VF610 processor.
+
+choice
+	prompt "Clocksource for scheduler clock"
+	depends on SOC_VF610
+	default VF_USE_ARM_GLOBAL_TIMER
+
+	config VF_USE_ARM_GLOBAL_TIMER
+		bool "Use ARM Global Timer"
+		depends on ARCH_MULTI_V7
+		select ARM_GLOBAL_TIMER
+		select CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
+		help
+		  Use the ARM Global Timer as clocksource
+
+	config VF_USE_PIT_TIMER
+		bool "Use PIT timer"
+		select VF_PIT_TIMER
+		help
+		  Use SoC Periodic Interrupt Timer (PIT) as clocksource
+
+endchoice
+
+endif
+
+endif

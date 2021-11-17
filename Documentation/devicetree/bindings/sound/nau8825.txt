@@ -1,0 +1,105 @@
+Nuvoton NAU8825 audio codec
+
+This device supports I2C only.
+
+Required properties:
+  - compatible : Must be "nuvoton,nau8825"
+
+  - reg : the I2C address of the device. This is either 0x1a (CSB=0) or 0x1b (CSB=1).
+
+Optional properties:
+  - nuvoton,jkdet-enable: Enable jack detection via JKDET pin.
+  - nuvoton,jkdet-pull-enable: Enable JKDET pin pull. If set - pin pull enabled,
+      otherwise pin in high impedance state.
+  - nuvoton,jkdet-pull-up: Pull-up JKDET pin. If set then JKDET pin is pull up, otherwise pull down.
+  - nuvoton,jkdet-polarity: JKDET pin polarity. 0 - active high, 1 - active low.
+
+  - nuvoton,vref-impedance: VREF Impedance selection
+      0 - Open
+      1 - 25 kOhm
+      2 - 125 kOhm
+      3 - 2.5 kOhm
+
+  - nuvoton,micbias-voltage: Micbias voltage level.
+      0 - VDDA
+      1 - VDDA
+      2 - VDDA * 1.1
+      3 - VDDA * 1.2
+      4 - VDDA * 1.3
+      5 - VDDA * 1.4
+      6 - VDDA * 1.53
+      7 - VDDA * 1.53
+
+  - nuvoton,sar-threshold-num: Number of buttons supported
+  - nuvoton,sar-threshold: Impedance threshold for each button. Array that contains up to 8 buttons configuration. SAR value is calculated as
+    SAR = 255 * MICBIAS / SAR_VOLTAGE * R / (2000 + R)
+    where MICBIAS is configured by 'nuvoton,micbias-voltage', SAR_VOLTAGE is configured by 'nuvoton,sar-voltage', R - button impedance.
+    Refer datasheet section 10.2 for more information about threshold calculation.
+
+  - nuvoton,sar-hysteresis: Button impedance measurement hysteresis.
+
+  - nuvoton,sar-voltage: Reference voltage for button impedance measurement.
+      0 - VDDA
+      1 - VDDA
+      2 - VDDA * 1.1
+      3 - VDDA * 1.2
+      4 - VDDA * 1.3
+      5 - VDDA * 1.4
+      6 - VDDA * 1.53
+      7 - VDDA * 1.53
+
+  - nuvoton,sar-compare-time: SAR compare time
+      0 - 500 ns
+      1 - 1 us
+      2 - 2 us
+      3 - 4 us
+
+  - nuvoton,sar-sampling-time: SAR sampling time
+      0 - 2 us
+      1 - 4 us
+      2 - 8 us
+      3 - 16 us
+
+  - nuvoton,short-key-debounce: Button short key press debounce time.
+      0 - 30 ms
+      1 - 50 ms
+      2 - 100 ms
+      3 - 30 ms
+
+  - nuvoton,jack-insert-debounce: number from 0 to 7 that sets debounce time to 2^(n+2) ms
+  - nuvoton,jack-eject-debounce: number from 0 to 7 that sets debounce time to 2^(n+2) ms
+
+  - nuvoton,crosstalk-enable: make crosstalk function enable if set.
+
+  - clocks: list of phandle and clock specifier pairs according to common clock bindings for the
+      clocks described in clock-names
+  - clock-names: should include "mclk" for the MCLK master clock
+
+Example:
+
+  headset: nau8825@1a {
+      compatible = "nuvoton,nau8825";
+      reg = <0x1a>;
+      interrupt-parent = <&gpio>;
+      interrupts = <TEGRA_GPIO(E, 6) IRQ_TYPE_LEVEL_LOW>;
+      nuvoton,jkdet-enable;
+      nuvoton,jkdet-pull-enable;
+      nuvoton,jkdet-pull-up;
+      nuvoton,jkdet-polarity = <GPIO_ACTIVE_LOW>;
+      nuvoton,vref-impedance = <2>;
+      nuvoton,micbias-voltage = <6>;
+      // Setup 4 buttons impedance according to Android specification
+      nuvoton,sar-threshold-num = <4>;
+      nuvoton,sar-threshold = <0xc 0x1e 0x38 0x60>;
+      nuvoton,sar-hysteresis = <1>;
+      nuvoton,sar-voltage = <0>;
+      nuvoton,sar-compare-time = <0>;
+      nuvoton,sar-sampling-time = <0>;
+      nuvoton,short-key-debounce = <2>;
+      nuvoton,jack-insert-debounce = <7>;
+      nuvoton,jack-eject-debounce = <7>;
+      nuvoton,crosstalk-enable;
+
+      clock-names = "mclk";
+      clocks = <&tegra_pmc TEGRA_PMC_CLK_OUT_2>;
+  };

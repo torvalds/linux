@@ -1,0 +1,231 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Memory devices
+#
+
+menuconfig MEMORY
+	bool "Memory Controller drivers"
+	help
+	  This option allows to enable specific memory controller drivers,
+	  useful mostly on embedded systems.  These could be controllers
+	  for DRAM (SDR, DDR), ROM, SRAM and others.  The drivers features
+	  vary from memory tuning and frequency scaling to enabling
+	  access to attached peripherals through memory bus.
+
+if MEMORY
+
+config DDR
+	bool
+	help
+	  Data from JEDEC specs for DDR SDRAM memories,
+	  particularly the AC timing parameters and addressing
+	  information. This data is useful for drivers handling
+	  DDR SDRAM controllers.
+
+config ARM_PL172_MPMC
+	tristate "ARM PL172 MPMC driver"
+	depends on ARM_AMBA && OF
+	help
+	  This selects the ARM PrimeCell PL172 MultiPort Memory Controller.
+	  If you have an embedded system with an AMBA bus and a PL172
+	  controller, say Y or M here.
+
+config ATMEL_SDRAMC
+	bool "Atmel (Multi-port DDR-)SDRAM Controller"
+	default y if ARCH_AT91
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on OF
+	help
+	  This driver is for Atmel SDRAM Controller or Atmel Multi-port
+	  DDR-SDRAM Controller available on Atmel AT91SAM9 and SAMA5 SoCs.
+	  Starting with the at91sam9g45, this controller supports SDR, DDR and
+	  LP-DDR memories.
+
+config ATMEL_EBI
+	bool "Atmel EBI driver"
+	default y if ARCH_AT91
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on OF
+	select MFD_SYSCON
+	select MFD_ATMEL_SMC
+	help
+	  Driver for Atmel EBI controller.
+	  Used to configure the EBI (external bus interface) when the device-
+	  tree is used. This bus supports NANDs, external ethernet controller,
+	  SRAMs, ATA devices, etc.
+
+config BRCMSTB_DPFE
+	bool "Broadcom STB DPFE driver" if COMPILE_TEST
+	default y if ARCH_BRCMSTB
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	help
+	  This driver provides access to the DPFE interface of Broadcom
+	  STB SoCs. The firmware running on the DCPU inside the DDR PHY can
+	  provide current information about the system's RAM, for instance
+	  the DRAM refresh rate. This can be used as an indirect indicator
+	  for the DRAM's temperature. Slower refresh rate means cooler RAM,
+	  higher refresh rate means hotter RAM.
+
+config BT1_L2_CTL
+	bool "Baikal-T1 CM2 L2-RAM Cache Control Block"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Baikal-T1 CPU is based on the MIPS P5600 Warrior IP-core. The CPU
+	  resides Coherency Manager v2 with embedded 1MB L2-cache. It's
+	  possible to tune the L2 cache performance up by setting the data,
+	  tags and way-select latencies of RAM access. This driver provides a
+	  dt properties-based and sysfs interface for it.
+
+config TI_AEMIF
+	tristate "Texas Instruments AEMIF driver"
+	depends on ARCH_DAVINCI || ARCH_KEYSTONE || COMPILE_TEST
+	depends on OF
+	help
+	  This driver is for the AEMIF module available in Texas Instruments
+	  SoCs. AEMIF stands for Asynchronous External Memory Interface and
+	  is intended to provide a glue-less interface to a variety of
+	  asynchronuous memory devices like ASRAM, NOR and NAND memory. A total
+	  of 256M bytes of any of these memories can be accessed at a given
+	  time via four chip selects with 64M byte access per chip select.
+
+config TI_EMIF
+	tristate "Texas Instruments EMIF driver"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	select DDR
+	help
+	  This driver is for the EMIF module available in Texas Instruments
+	  SoCs. EMIF is an SDRAM controller that, based on its revision,
+	  supports one or more of DDR2, DDR3, and LPDDR2 SDRAM protocols.
+	  This driver takes care of only LPDDR2 memories presently. The
+	  functions of the driver includes re-configuring AC timing
+	  parameters and other settings during frequency, voltage and
+	  temperature changes
+
+config OMAP_GPMC
+	bool "Texas Instruments OMAP SoC GPMC driver" if COMPILE_TEST
+	depends on OF_ADDRESS
+	select GPIOLIB
+	help
+	  This driver is for the General Purpose Memory Controller (GPMC)
+	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
+	  interfacing to a variety of asynchronous as well as synchronous
+	  memory drives like NOR, NAND, OneNAND, SRAM.
+
+config OMAP_GPMC_DEBUG
+	bool "Enable GPMC debug output and skip reset of GPMC during init"
+	depends on OMAP_GPMC
+	help
+	  Enables verbose debugging mostly to decode the bootloader provided
+	  timings. To preserve the bootloader provided timings, the reset
+	  of GPMC is skipped during init. Enable this during development to
+	  configure devices connected to the GPMC bus.
+
+	  NOTE: In addition to matching the register setup with the bootloader
+	  you also need to match the GPMC FCLK frequency used by the
+	  bootloader or else the GPMC timings won't be identical with the
+	  bootloader timings.
+
+config TI_EMIF_SRAM
+	tristate "Texas Instruments EMIF SRAM driver"
+	depends on SOC_AM33XX || SOC_AM43XX || (ARM && CPU_V7 && COMPILE_TEST)
+	depends on SRAM
+	help
+	  This driver is for the EMIF module available on Texas Instruments
+	  AM33XX and AM43XX SoCs and is required for PM. Certain parts of
+	  the EMIF PM code must run from on-chip SRAM late in the suspend
+	  sequence so this driver provides several relocatable PM functions
+	  for the SoC PM code to use.
+
+config FPGA_DFL_EMIF
+	tristate "FPGA DFL EMIF Driver"
+	depends on FPGA_DFL && HAS_IOMEM
+	help
+	  This driver is for the EMIF private feature implemented under
+	  FPGA Device Feature List (DFL) framework. It is used to expose
+	  memory interface status information as well as memory clearing
+	  control.
+
+config MVEBU_DEVBUS
+	bool "Marvell EBU Device Bus Controller"
+	default y if PLAT_ORION
+	depends on PLAT_ORION || COMPILE_TEST
+	depends on OF
+	help
+	  This driver is for the Device Bus controller available in some
+	  Marvell EBU SoCs such as Discovery (mv78xx0), Orion (88f5xxx) and
+	  Armada 370 and Armada XP. This controller allows to handle flash
+	  devices such as NOR, NAND, SRAM, and FPGA.
+
+config FSL_CORENET_CF
+	tristate "Freescale CoreNet Error Reporting"
+	depends on FSL_SOC_BOOKE || COMPILE_TEST
+	help
+	  Say Y for reporting of errors from the Freescale CoreNet
+	  Coherency Fabric.  Errors reported include accesses to
+	  physical addresses that mapped by no local access window
+	  (LAW) or an invalid LAW, as well as bad cache state that
+	  represents a coherency violation.
+
+config FSL_IFC
+	bool "Freescale IFC driver" if COMPILE_TEST
+	depends on FSL_SOC || ARCH_LAYERSCAPE || SOC_LS1021A || COMPILE_TEST
+	depends on HAS_IOMEM
+
+config JZ4780_NEMC
+	bool "Ingenic JZ4780 SoC NEMC driver"
+	depends on MIPS || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	help
+	  This driver is for the NAND/External Memory Controller (NEMC) in
+	  the Ingenic JZ4780. This controller is used to handle external
+	  memory devices such as NAND and SRAM.
+
+config MTK_SMI
+	tristate "MediaTek SoC Memory Controller driver" if COMPILE_TEST
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This driver is for the Memory Controller module in MediaTek SoCs,
+	  mainly help enable/disable iommu and control the power domain and
+	  clocks for each local arbiter.
+
+config DA8XX_DDRCTL
+	bool "Texas Instruments da8xx DDR2/mDDR driver"
+	depends on ARCH_DAVINCI_DA8XX || COMPILE_TEST
+	help
+	  This driver is for the DDR2/mDDR Memory Controller present on
+	  Texas Instruments da8xx SoCs. It's used to tweak various memory
+	  controller configuration options.
+
+config PL353_SMC
+	tristate "ARM PL35X Static Memory Controller(SMC) driver"
+	default y if ARM
+	depends on ARM || COMPILE_TEST
+	depends on ARM_AMBA
+	help
+	  This driver is for the ARM PL351/PL353 Static Memory
+	  Controller(SMC) module.
+
+config RENESAS_RPCIF
+	tristate "Renesas RPC-IF driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This supports Renesas R-Car Gen3 or RZ/G2 RPC-IF which provides
+	  either SPI host or HyperFlash. You'll have to select individual
+	  components under the corresponding menu.
+
+config STM32_FMC2_EBI
+	tristate "Support for FMC2 External Bus Interface on STM32MP SoCs"
+	depends on MACH_STM32MP157 || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Select this option to enable the STM32 FMC2 External Bus Interface
+	  controller. This driver configures the transactions with external
+	  devices (like SRAM, ethernet adapters, FPGAs, LCD displays, ...) on
+	  SOCs containing the FMC2 External Bus Interface.
+
+source "drivers/memory/samsung/Kconfig"
+source "drivers/memory/tegra/Kconfig"
+
+endif

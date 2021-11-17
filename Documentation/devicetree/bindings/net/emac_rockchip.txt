@@ -1,0 +1,52 @@
+* ARC EMAC 10/100 Ethernet platform driver for Rockchip RK3036/RK3066/RK3188 SoCs
+
+Required properties:
+- compatible: should be "rockchip,<name>-emac"
+   "rockchip,rk3036-emac": found on RK3036 SoCs
+   "rockchip,rk3066-emac": found on RK3066 SoCs
+   "rockchip,rk3188-emac": found on RK3188 SoCs
+- reg: Address and length of the register set for the device
+- interrupts: Should contain the EMAC interrupts
+- rockchip,grf: phandle to the syscon grf used to control speed and mode
+  for emac.
+- phy: see ethernet.txt file in the same directory.
+- phy-mode: see ethernet.txt file in the same directory.
+
+Optional properties:
+- phy-supply: phandle to a regulator if the PHY needs one
+
+Clock handling:
+- clocks: Must contain an entry for each entry in clock-names.
+- clock-names: Shall be "hclk" for the host clock needed to calculate and set
+  polling period of EMAC and "macref" for the reference clock needed to transfer
+  data to and from the phy.
+
+Child nodes of the driver are the individual PHY devices connected to the
+MDIO bus. They must have a "reg" property given the PHY address on the MDIO bus.
+
+Examples:
+
+ethernet@10204000 {
+	compatible = "rockchip,rk3188-emac";
+	reg = <0xc0fc2000 0x3c>;
+	interrupts = <6>;
+	mac-address = [ 00 11 22 33 44 55 ];
+
+	clocks = <&cru HCLK_EMAC>, <&cru SCLK_MAC>;
+	clock-names = "hclk", "macref";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&emac_xfer>, <&emac_mdio>, <&phy_int>;
+
+	rockchip,grf = <&grf>;
+
+	phy = <&phy0>;
+	phy-mode = "rmii";
+	phy-supply = <&vcc_rmii>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy0: ethernet-phy@0 {
+	      reg = <1>;
+	};
+};

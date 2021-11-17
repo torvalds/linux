@@ -1,0 +1,210 @@
+		=====================================
+		LINUX KERNEL MEMORY CONSISTENCY MODEL
+		=====================================
+
+============
+INTRODUCTION
+============
+
+This directory contains the memory consistency model (memory model, for
+short) of the Linux kernel, written in the "cat" language and executable
+by the externally provided "herd7" simulator, which exhaustively explores
+the state space of small litmus tests.
+
+In addition, the "klitmus7" tool (also externally provided) may be used
+to convert a litmus test to a Linux kernel module, which in turn allows
+that litmus test to be exercised within the Linux kernel.
+
+
+============
+REQUIREMENTS
+============
+
+Version 7.52 or higher of the "herd7" and "klitmus7" tools must be
+downloaded separately:
+
+  https://github.com/herd/herdtools7
+
+See "herdtools7/INSTALL.md" for installation instructions.
+
+Note that although these tools usually provide backwards compatibility,
+this is not absolutely guaranteed.
+
+For example, a future version of herd7 might not work with the model
+in this release.  A compatible model will likely be made available in
+a later release of Linux kernel.
+
+If you absolutely need to run the model in this particular release,
+please try using the exact version called out above.
+
+klitmus7 is independent of the model provided here.  It has its own
+dependency on a target kernel release where converted code is built
+and executed.  Any change in kernel APIs essential to klitmus7 will
+necessitate an upgrade of klitmus7.
+
+If you find any compatibility issues in klitmus7, please inform the
+memory model maintainers.
+
+klitmus7 Compatibility Table
+----------------------------
+
+	============  ==========
+	target Linux  herdtools7
+	------------  ----------
+	     -- 4.14  7.48 --
+	4.15 -- 4.19  7.49 --
+	4.20 -- 5.5   7.54 --
+	5.6  --       7.56 --
+	============  ==========
+
+
+==================
+BASIC USAGE: HERD7
+==================
+
+The memory model is used, in conjunction with "herd7", to exhaustively
+explore the state space of small litmus tests.  Documentation describing
+the format, features, capabilities and limitations of these litmus
+tests is available in tools/memory-model/Documentation/litmus-tests.txt.
+
+Example litmus tests may be found in the Linux-kernel source tree:
+
+	tools/memory-model/litmus-tests/
+	Documentation/litmus-tests/
+
+Several thousand more example litmus tests are available here:
+
+	https://github.com/paulmckrcu/litmus
+	https://git.kernel.org/pub/scm/linux/kernel/git/paulmck/perfbook.git/tree/CodeSamples/formal/herd
+	https://git.kernel.org/pub/scm/linux/kernel/git/paulmck/perfbook.git/tree/CodeSamples/formal/litmus
+
+Documentation describing litmus tests and now to use them may be found
+here:
+
+	tools/memory-model/Documentation/litmus-tests.txt
+
+The remainder of this section uses the SB+fencembonceonces.litmus test
+located in the tools/memory-model directory.
+
+To run SB+fencembonceonces.litmus against the memory model:
+
+  $ cd $LINUX_SOURCE_TREE/tools/memory-model
+  $ herd7 -conf linux-kernel.cfg litmus-tests/SB+fencembonceonces.litmus
+
+Here is the corresponding output:
+
+  Test SB+fencembonceonces Allowed
+  States 3
+  0:r0=0; 1:r0=1;
+  0:r0=1; 1:r0=0;
+  0:r0=1; 1:r0=1;
+  No
+  Witnesses
+  Positive: 0 Negative: 3
+  Condition exists (0:r0=0 /\ 1:r0=0)
+  Observation SB+fencembonceonces Never 0 3
+  Time SB+fencembonceonces 0.01
+  Hash=d66d99523e2cac6b06e66f4c995ebb48
+
+The "Positive: 0 Negative: 3" and the "Never 0 3" each indicate that
+this litmus test's "exists" clause can not be satisfied.
+
+See "herd7 -help" or "herdtools7/doc/" for more information on running the
+tool itself, but please be aware that this documentation is intended for
+people who work on the memory model itself, that is, people making changes
+to the tools/memory-model/linux-kernel.* files.  It is not intended for
+people focusing on writing, understanding, and running LKMM litmus tests.
+
+
+=====================
+BASIC USAGE: KLITMUS7
+=====================
+
+The "klitmus7" tool converts a litmus test into a Linux kernel module,
+which may then be loaded and run.
+
+For example, to run SB+fencembonceonces.litmus against hardware:
+
+  $ mkdir mymodules
+  $ klitmus7 -o mymodules litmus-tests/SB+fencembonceonces.litmus
+  $ cd mymodules ; make
+  $ sudo sh run.sh
+
+The corresponding output includes:
+
+  Test SB+fencembonceonces Allowed
+  Histogram (3 states)
+  644580  :>0:r0=1; 1:r0=0;
+  644328  :>0:r0=0; 1:r0=1;
+  711092  :>0:r0=1; 1:r0=1;
+  No
+  Witnesses
+  Positive: 0, Negative: 2000000
+  Condition exists (0:r0=0 /\ 1:r0=0) is NOT validated
+  Hash=d66d99523e2cac6b06e66f4c995ebb48
+  Observation SB+fencembonceonces Never 0 2000000
+  Time SB+fencembonceonces 0.16
+
+The "Positive: 0 Negative: 2000000" and the "Never 0 2000000" indicate
+that during two million trials, the state specified in this litmus
+test's "exists" clause was not reached.
+
+And, as with "herd7", please see "klitmus7 -help" or "herdtools7/doc/"
+for more information.  And again, please be aware that this documentation
+is intended for people who work on the memory model itself, that is,
+people making changes to the tools/memory-model/linux-kernel.* files.
+It is not intended for people focusing on writing, understanding, and
+running LKMM litmus tests.
+
+
+====================
+DESCRIPTION OF FILES
+====================
+
+Documentation/README
+	Guide to the other documents in the Documentation/ directory.
+
+linux-kernel.bell
+	Categorizes the relevant instructions, including memory
+	references, memory barriers, atomic read-modify-write operations,
+	lock acquisition/release, and RCU operations.
+
+	More formally, this file (1) lists the subtypes of the various
+	event types used by the memory model and (2) performs RCU
+	read-side critical section nesting analysis.
+
+linux-kernel.cat
+	Specifies what reorderings are forbidden by memory references,
+	memory barriers, atomic read-modify-write operations, and RCU.
+
+	More formally, this file specifies what executions are forbidden
+	by the memory model.  Allowed executions are those which
+	satisfy the model's "coherence", "atomic", "happens-before",
+	"propagation", and "rcu" axioms, which are defined in the file.
+
+linux-kernel.cfg
+	Convenience file that gathers the common-case herd7 command-line
+	arguments.
+
+linux-kernel.def
+	Maps from C-like syntax to herd7's internal litmus-test
+	instruction-set architecture.
+
+litmus-tests
+	Directory containing a few representative litmus tests, which
+	are listed in litmus-tests/README.  A great deal more litmus
+	tests are available at https://github.com/paulmckrcu/litmus.
+
+lock.cat
+	Provides a front-end analysis of lock acquisition and release,
+	for example, associating a lock acquisition with the preceding
+	and following releases and checking for self-deadlock.
+
+	More formally, this file defines a performance-enhanced scheme
+	for generation of the possible reads-from and coherence order
+	relations on the locking primitives.
+
+README
+	This file.
+
+scripts	Various scripts, see scripts/README.

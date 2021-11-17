@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree File for TMPV7708 RM main board
+ *
+ * (C) Copyright 2020, Toshiba Corporation.
+ * (C) Copyright 2020, Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ */
+
+/dts-v1/;
+
+#include "tmpv7708.dtsi"
+
+/ {
+	model = "Toshiba TMPV7708 RM main board";
+	compatible = "toshiba,tmpv7708-rm-mbrc", "toshiba,tmpv7708";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	/* 768MB memory */
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x30000000>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+	clocks = <&uart_clk>;
+	clock-names = "apb_pclk";
+};
+
+&uart1 {
+	status = "okay";
+	clocks = <&uart_clk>;
+	clock-names = "apb_pclk";
+};
+
+&piether {
+	status = "okay";
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+	clocks = <&clk300mhz>, <&clk125mhz>;
+	clock-names = "stmmaceth", "phy_ref_clk";
+
+	mdio0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+		phy0: ethernet-phy@1 {
+			device_type = "ethernet-phy";
+			reg = <0x1>;
+		};
+	};
+};
+
+&wdt {
+	status = "okay";
+	clocks = <&wdt_clk>;
+};
+
+&gpio {
+	status = "okay";
+};
+
+&pwm_mux {
+	groups = "pwm0_gpio16_grp", "pwm1_gpio17_grp", "pwm2_gpio18_grp", "pwm3_gpio19_grp";
+};
+
+&pwm {
+	status = "okay";
+};

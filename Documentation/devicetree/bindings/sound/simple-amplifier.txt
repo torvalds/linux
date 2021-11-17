@@ -1,0 +1,17 @@
+Simple Amplifier Audio Driver
+
+Required properties:
+- compatible : "dioo,dio2125" or "simple-audio-amplifier"
+
+Optional properties:
+- enable-gpios : the gpio connected to the enable pin of the simple amplifier
+- VCC-supply   : power supply for the device, as covered
+                 in Documentation/devicetree/bindings/regulator/regulator.txt
+
+Example:
+
+amp: analog-amplifier {
+	compatible = "simple-audio-amplifier";
+	VCC-supply = <&regulator>;
+	enable-gpios = <&gpio GPIOH_3 0>;
+};

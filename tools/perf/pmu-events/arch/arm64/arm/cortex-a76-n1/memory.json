@@ -1,0 +1,21 @@
+[
+    {
+        "PublicDescription": "This event counts memory accesses due to load or store instructions. This event counts the sum of MEM_ACCESS_RD and MEM_ACCESS_WR.",
+        "ArchStdEvent": "MEM_ACCESS",
+    },
+    {
+         "ArchStdEvent": "MEM_ACCESS_RD"
+    },
+    {
+         "ArchStdEvent": "MEM_ACCESS_WR"
+    },
+    {
+         "ArchStdEvent": "UNALIGNED_LD_SPEC"
+    },
+    {
+         "ArchStdEvent": "UNALIGNED_ST_SPEC"
+    },
+    {
+         "ArchStdEvent": "UNALIGNED_LDST_SPEC"
+    }
+]

@@ -1,0 +1,25 @@
+MediaTek cryptographic accelerators
+
+Required properties:
+- compatible: Should be "mediatek,eip97-crypto"
+- reg: Address and length of the register set for the device
+- interrupts: Should contain the five crypto engines interrupts in numeric
+	order. These are global system and four descriptor rings.
+- clocks: the clock used by the core
+- clock-names: Must contain "cryp".
+- power-domains: Must contain a reference to the PM domain.
+
+
+Example:
+	crypto: crypto@1b240000 {
+		compatible = "mediatek,eip97-crypto";
+		reg = <0 0x1b240000 0 0x20000>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_SPI 83 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_SPI 84 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_SPI 91 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_SPI 97 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&ethsys CLK_ETHSYS_CRYPTO>;
+		clock-names = "cryp";
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
+	};

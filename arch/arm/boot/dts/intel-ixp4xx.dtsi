@@ -1,0 +1,187 @@
+// SPDX-License-Identifier: ISC
+/*
+ * Device Tree file for Intel XScale Network Processors
+ * in the IXP 4xx series.
+ */
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		compatible = "simple-bus";
+		interrupt-parent = <&intcon>;
+
+		/*
+		 * The IXP4xx expansion bus is a set of up to 7 each up to 16MB
+		 * windows in the 256MB space from 0x50000000 to 0x5fffffff.
+		 */
+		bus@c4000000 {
+			/* compatible and reg filled in by per-soc device tree */
+			native-endian;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0x0 0x50000000 0x01000000>,
+				 <1 0x0 0x51000000 0x01000000>,
+				 <2 0x0 0x52000000 0x01000000>,
+				 <3 0x0 0x53000000 0x01000000>,
+				 <4 0x0 0x54000000 0x01000000>,
+				 <5 0x0 0x55000000 0x01000000>,
+				 <6 0x0 0x56000000 0x01000000>,
+				 <7 0x0 0x57000000 0x01000000>;
+			dma-ranges = <0 0x0 0x50000000 0x01000000>,
+				 <1 0x0 0x51000000 0x01000000>,
+				 <2 0x0 0x52000000 0x01000000>,
+				 <3 0x0 0x53000000 0x01000000>,
+				 <4 0x0 0x54000000 0x01000000>,
+				 <5 0x0 0x55000000 0x01000000>,
+				 <6 0x0 0x56000000 0x01000000>,
+				 <7 0x0 0x57000000 0x01000000>;
+		};
+
+		qmgr: queue-manager@60000000 {
+			compatible = "intel,ixp4xx-ahb-queue-manager";
+			reg = <0x60000000 0x4000>;
+			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>, <4 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pci@c0000000 {
+			/* compatible filled in by per-soc device tree */
+			reg = <0xc0000000 0x1000>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>,
+				     <9 IRQ_TYPE_LEVEL_HIGH>,
+				     <10 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			status = "disabled";
+
+			ranges =
+			/*
+			 * 64MB 32bit non-prefetchable memory 0x48000000-0x4bffffff
+			 * done in 4 chunks of 16MB each.
+			 */
+			<0x02000000 0 0x48000000 0x48000000 0 0x04000000>,
+			/* 64KB I/O space at 0x4c000000 */
+			<0x01000000 0 0x00000000 0x4c000000 0 0x00010000>;
+
+			/*
+			 * This needs to map to the start of physical memory so
+			 * PCI devices can see all (hopefully) memory. This is done
+			 * using 4 1:1 16MB windows, so the RAM should not be more than
+			 * 64 MB for this to work. If your memory is anywhere else
+			 * than at 0x0 you need to alter this.
+			 */
+			dma-ranges =
+			<0x02000000 0 0x00000000 0x00000000 0 0x04000000>;
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			/* Each unique DTS using PCI must specify the swizzling */
+		};
+
+		uart0: serial@c8000000 {
+			compatible = "intel,xscale-uart";
+			reg = <0xc8000000 0x1000>;
+			/*
+			 * The reg-offset and reg-shift is a side effect
+			 * of running the platform in big endian mode.
+			 */
+			reg-offset = <3>;
+			reg-shift = <2>;
+			interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <14745600>;
+			no-loopback-test;
+		};
+
+		uart1: serial@c8001000 {
+			compatible = "intel,xscale-uart";
+			reg = <0xc8001000 0x1000>;
+			/*
+			 * The reg-offset and reg-shift is a side effect
+			 * of running the platform in big endian mode.
+			 */
+			reg-offset = <3>;
+			reg-shift = <2>;
+			interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <14745600>;
+			no-loopback-test;
+		};
+
+		gpio0: gpio@c8004000 {
+			compatible = "intel,ixp4xx-gpio";
+			reg = <0xc8004000 0x1000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		intcon: interrupt-controller@c8003000 {
+			/*
+			 * Note: no compatible string. The subvariant of the
+			 * chip needs to define what version it is. The
+			 * location of the interrupt controller is fixed in
+			 * memory across all variants.
+			 */
+			reg = <0xc8003000 0x100>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		timer@c8005000 {
+			compatible = "intel,ixp4xx-timer";
+			reg = <0xc8005000 0x100>;
+			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		npe: npe@c8006000 {
+			compatible = "intel,ixp4xx-network-processing-engine";
+			reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
+
+			/* NPE-C contains a crypto accelerator */
+			crypto {
+				compatible = "intel,ixp4xx-crypto";
+				intel,npe-handle = <&npe 2>;
+				queue-rx = <&qmgr 30>;
+				queue-txready = <&qmgr 29>;
+			};
+		};
+
+		/* This is known as EthB */
+		ethernet@c8009000 {
+			compatible = "intel,ixp4xx-ethernet";
+			reg = <0xc8009000 0x1000>;
+			status = "disabled";
+			/* Dummy values that depend on firmware */
+			queue-rx = <&qmgr 3>;
+			queue-txready = <&qmgr 20>;
+			intel,npe-handle = <&npe 1>;
+		};
+
+		/* This is known as EthC */
+		ethernet@c800a000 {
+			compatible = "intel,ixp4xx-ethernet";
+			reg = <0xc800a000 0x1000>;
+			status = "disabled";
+			/* Dummy values that depend on firmware */
+			queue-rx = <&qmgr 0>;
+			queue-txready = <&qmgr 0>;
+			intel,npe-handle = <&npe 2>;
+		};
+
+		/* This is known as EthA */
+		ethernet@c800c000 {
+			compatible = "intel,ixp4xx-ethernet";
+			reg = <0xc800c000 0x1000>;
+			status = "disabled";
+			intel,npe = <0>;
+			/* Dummy values that depend on firmware */
+			queue-rx = <&qmgr 0>;
+			queue-txready = <&qmgr 0>;
+		};
+	};
+};

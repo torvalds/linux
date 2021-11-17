@@ -1,0 +1,27 @@
+Cavium ThunderX/OCTEON-TX GPIO controller bindings
+
+Required Properties:
+- reg: The controller bus address.
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells: Must be 2.
+  - First cell is the GPIO pin number relative to the controller.
+  - Second cell is a standard generic flag bitfield as described in gpio.txt.
+
+Optional Properties:
+- compatible: "cavium,thunder-8890-gpio", unused as PCI driver binding is used.
+- interrupt-controller: Marks the device node as an interrupt controller.
+- #interrupt-cells: Must be present and have value of 2 if
+                    "interrupt-controller" is present.
+  - First cell is the GPIO pin number relative to the controller.
+  - Second cell is triggering flags as defined in interrupts.txt.
+
+Example:
+
+gpio_6_0: gpio@6,0 {
+	compatible = "cavium,thunder-8890-gpio";
+	reg = <0x3000 0 0 0 0>; /*  DEVFN = 0x30 (6:0) */
+	gpio-controller;
+	#gpio-cells = <2>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+};

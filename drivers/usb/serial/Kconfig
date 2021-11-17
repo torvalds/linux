@@ -1,0 +1,655 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# USB Serial device configuration
+#
+
+menuconfig USB_SERIAL
+	tristate "USB Serial Converter support"
+	depends on TTY
+	help
+	  Say Y here if you have a USB device that provides normal serial
+	  ports, or acts like a serial device, and you want to connect it to
+	  your USB bus.
+
+	  Please read <file:Documentation/usb/usb-serial.rst> for more
+	  information on the specifics of the different devices that are
+	  supported, and on how to use them.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbserial.
+
+if USB_SERIAL
+
+config USB_SERIAL_CONSOLE
+	bool "USB Serial Console device support"
+	depends on USB_SERIAL=y
+	help
+	  If you say Y here, it will be possible to use a USB to serial
+	  converter port as the system console (the system console is the
+	  device which receives all kernel messages and warnings and which
+	  allows logins in single user mode). This could be useful if some
+	  terminal or printer is connected to that serial port.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyUSB0". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+	  If you don't have a VGA card installed and you say Y here, the
+	  kernel will automatically use the first USB to serial converter
+	  port, /dev/ttyUSB0, as system console.
+
+	  If unsure, say N.
+
+config USB_SERIAL_GENERIC
+	bool "USB Generic Serial Driver"
+	help
+	  Say Y here if you want to use the generic USB serial driver.  Please
+	  read <file:Documentation/usb/usb-serial.rst> for more information on
+	  using this driver.  It is recommended that the "USB Serial converter
+	  support" be compiled as a module for this driver to be used
+	  properly.
+
+config USB_SERIAL_SIMPLE
+	tristate "USB Serial Simple Driver"
+	help
+	  Say Y here to use the USB serial "simple" driver.  This driver
+	  handles a wide range of very simple devices, all in one
+	  driver.  Specifically, it supports:
+		- Suunto ANT+ USB device.
+		- Medtronic CareLink USB device
+		- Fundamental Software dongle.
+		- Google USB serial devices
+		- HP4x calculators
+		- Libtransistor USB console
+		- a number of Motorola phones
+		- Motorola Tetra devices
+		- Novatel Wireless GPS receivers
+		- Siemens USB/MPI adapter.
+		- ViVOtech ViVOpay USB device.
+		- Infineon Modem Flashloader USB interface
+		- ZIO Motherboard USB serial interface
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called usb-serial-simple.
+
+config USB_SERIAL_AIRCABLE
+	tristate "USB AIRcable Bluetooth Dongle Driver"
+	help
+	    Say Y here if you want to use USB AIRcable Bluetooth Dongle.
+
+	    To compile this driver as a module, choose M here: the module
+	    will be called aircable.
+
+config USB_SERIAL_ARK3116
+	tristate "USB ARK Micro 3116 USB Serial Driver"
+	help
+	  Say Y here if you want to use a ARK Micro 3116 USB to Serial
+	  device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ark3116
+
+config USB_SERIAL_BELKIN
+	tristate "USB Belkin and Peracom Single Port Serial Driver"
+	help
+	  Say Y here if you want to use a Belkin USB Serial single port
+	  adaptor (F5U103 is one of the model numbers) or the Peracom single
+	  port USB to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called belkin_sa.
+
+config USB_SERIAL_CH341
+	tristate "USB Winchiphead CH341 Single Port Serial Driver"
+	help
+	  Say Y here if you want to use a Winchiphead CH341 single port
+	  USB to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ch341.
+
+config USB_SERIAL_WHITEHEAT
+	tristate "USB ConnectTech WhiteHEAT Serial Driver"
+	select USB_EZUSB_FX2
+	help
+	  Say Y here if you want to use a ConnectTech WhiteHEAT 4 port
+	  USB to serial converter device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called whiteheat.
+
+config USB_SERIAL_DIGI_ACCELEPORT
+	tristate "USB Digi International AccelePort USB Serial Driver"
+	help
+	  Say Y here if you want to use Digi AccelePort USB 2 or 4 devices,
+	  2 port (plus parallel port) and 4 port USB serial converters.  The
+	  parallel port on the USB 2 appears as a third serial port on Linux.
+	  The Digi Acceleport USB 8 is not yet supported by this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called digi_acceleport.
+
+config USB_SERIAL_CP210X
+	tristate "USB CP210x family of UART Bridge Controllers"
+	help
+	  Say Y here if you want to use a CP2101/CP2102/CP2103 based USB
+	  to RS232 converters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cp210x.
+
+config USB_SERIAL_CYPRESS_M8
+	tristate "USB Cypress M8 USB Serial Driver"
+	help
+	  Say Y here if you want to use a device that contains the Cypress
+	  USB to Serial microcontroller, such as the DeLorme Earthmate GPS.
+
+		Attempted SMP support... send bug reports!
+
+	  Supported microcontrollers in the CY4601 family are:
+		CY7C63741 CY7C63742 CY7C63743 CY7C64013
+	
+	  To compile this driver as a module, choose M here: the
+	  module will be called cypress_m8.
+
+config USB_SERIAL_EMPEG
+	tristate "USB Empeg empeg-car Mark I/II Driver"
+	help
+	  Say Y here if you want to connect to your Empeg empeg-car Mark I/II
+	  mp3 player via USB.  The driver uses a single ttyUSB{0,1,2,...}
+	  device node.  See <file:Documentation/usb/usb-serial.rst> for more
+	  tidbits of information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called empeg.
+
+config USB_SERIAL_FTDI_SIO
+	tristate "USB FTDI Single Port Serial Driver"
+	help
+	  Say Y here if you want to use a FTDI SIO single port USB to serial
+	  converter device. The implementation I have is called the USC-1000.
+	  This driver has also been tested with the 245 and 232 devices.
+
+	  See <http://ftdi-usb-sio.sourceforge.net/> for more
+	  information on this driver and the device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ftdi_sio.
+
+config USB_SERIAL_VISOR
+	tristate "USB Handspring Visor / Palm m50x / Sony Clie Driver"
+	help
+	  Say Y here if you want to connect to your HandSpring Visor, Palm
+	  m500 or m505 through its USB docking station. See
+	  <http://usbvisor.sourceforge.net/index.php3> for more information on using this
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called visor.
+
+config USB_SERIAL_IPAQ
+	tristate "USB PocketPC PDA Driver"
+	help
+	  Say Y here if you want to connect to your Compaq iPAQ, HP Jornada
+	  or any other PDA running Windows CE 3.0 or PocketPC 2002
+	  using a USB cradle/cable. For information on using the driver,
+	  read <file:Documentation/usb/usb-serial.rst>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ipaq.
+
+config USB_SERIAL_IR
+	tristate "USB IR Dongle Serial Driver"
+	help
+	  Say Y here if you want to enable simple serial support for USB IrDA
+	  devices.  This is useful if you do not want to use the full IrDA
+	  stack.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ir-usb.
+
+config USB_SERIAL_EDGEPORT
+	tristate "USB Inside Out Edgeport Serial Driver"
+	help
+	  Say Y here if you want to use any of the following devices from
+	  Inside Out Networks (Digi):
+	  Edgeport/4
+	  Rapidport/4
+	  Edgeport/4t
+	  Edgeport/2
+	  Edgeport/4i
+	  Edgeport/2i
+	  Edgeport/421
+	  Edgeport/21
+	  Edgeport/8
+	  Edgeport/8 Dual
+	  Edgeport/2D8
+	  Edgeport/4D8
+	  Edgeport/8i
+	  Edgeport/2 DIN
+	  Edgeport/4 DIN
+	  Edgeport/16 Dual
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called io_edgeport.
+
+config USB_SERIAL_EDGEPORT_TI
+	tristate "USB Inside Out Edgeport Serial Driver (TI devices)"
+	help
+	  Say Y here if you want to use any of the devices from Inside Out
+	  Networks (Digi) that are not supported by the io_edgeport driver.
+	  This includes the Edgeport/1 device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called io_ti.
+
+config USB_SERIAL_F81232
+	tristate "USB Fintek F81232 Single Port Serial Driver"
+	help
+	  Say Y here if you want to use the Fintek F81232 single
+	  port usb to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called f81232.
+
+config USB_SERIAL_F8153X
+	tristate "USB Fintek F81532/534 Multi-Ports Serial Driver"
+	help
+	  Say Y here if you want to use the Fintek F81532/534 Multi-Ports
+	  USB to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called f81534.
+
+
+config USB_SERIAL_GARMIN
+	tristate "USB Garmin GPS driver"
+	help
+	  Say Y here if you want to connect to your Garmin GPS.
+	  Should work with most Garmin GPS devices which have a native USB port.
+
+	  See <http://sourceforge.net/projects/garmin-gps> for the latest
+	  version of the driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called garmin_gps.
+
+config USB_SERIAL_IPW
+	tristate "USB IPWireless (3G UMTS TDD) Driver"
+	select USB_SERIAL_WWAN
+	help
+	  Say Y here if you want to use a IPWireless USB modem such as
+	  the ones supplied by Axity3G/Sentech South Africa.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ipw.
+
+config USB_SERIAL_IUU
+	tristate "USB Infinity USB Unlimited Phoenix Driver"
+	help
+	  Say Y here if you want to use a IUU in phoenix mode and get
+	  an extra ttyUSBx device. More information available on
+	  http://eczema.ecze.com/iuu_phoenix.html
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iuu_phoenix.o
+
+config USB_SERIAL_KEYSPAN_PDA
+	tristate "USB Keyspan PDA / Xircom Single Port Serial Driver"
+	select USB_EZUSB_FX2
+	help
+	  Say Y here if you want to use a Keyspan PDA, Xircom or Entrega single
+	  port USB to serial converter device. This driver makes use of
+	  firmware developed from scratch by Brian Warner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keyspan_pda.
+
+config USB_SERIAL_KEYSPAN
+	tristate "USB Keyspan USA-xxx Serial Driver"
+	select USB_EZUSB_FX2
+	help
+	  Say Y here if you want to use Keyspan USB to serial converter
+	  devices.  This driver makes use of Keyspan's official firmware
+	  and was developed with their support.  You must also include
+	  firmware to support your particular device(s).
+
+	  See <http://blemings.org/hugh/keyspan.html> for more information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keyspan.
+
+config USB_SERIAL_KLSI
+	tristate "USB KL5KUSB105 (Palmconnect) Driver"
+	help
+	  Say Y here if you want to use a KL5KUSB105 - based single port
+	  serial adapter. The most widely known -- and currently the only
+	  tested -- device in this category is the PalmConnect USB Serial
+	  adapter sold by Palm Inc. for use with their Palm III and Palm V
+	  series PDAs.
+
+	  Please read <file:Documentation/usb/usb-serial.rst> for more
+	  information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called kl5kusb105.
+
+config USB_SERIAL_KOBIL_SCT
+	tristate "USB KOBIL chipcard reader"
+	help
+	  Say Y here if you want to use one of the following KOBIL USB chipcard
+	  readers:
+
+	    - USB TWIN
+	    - KAAN Standard Plus
+	    - KAAN SIM
+	    - SecOVID Reader Plus
+	    - B1 Professional
+	    - KAAN Professional
+
+	  Note that you need a current CT-API.
+	  To compile this driver as a module, choose M here: the
+	  module will be called kobil_sct.
+
+config USB_SERIAL_MCT_U232
+	tristate "USB MCT Single Port Serial Driver"
+	help
+	  Say Y here if you want to use a USB Serial single port adapter from
+	  Magic Control Technology Corp. (U232 is one of the model numbers).
+
+	  This driver also works with Sitecom U232-P25 and D-Link DU-H3SP USB
+	  BAY, Belkin F5U109, and Belkin F5U409 devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mct_u232.
+
+config USB_SERIAL_METRO
+	tristate "USB Metrologic Instruments USB-POS Barcode Scanner Driver"
+	help
+	  Say Y here if you want to use a USB POS Metrologic barcode scanner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called metro-usb.
+
+config USB_SERIAL_MOS7720
+	tristate "USB Moschip 7720 Serial Driver"
+	help
+	  Say Y here if you want to use USB Serial single and double
+	  port adapters from Moschip Semiconductor Tech.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mos7720.
+
+config USB_SERIAL_MOS7715_PARPORT
+	bool "Support for parallel port on the Moschip 7715"
+	depends on USB_SERIAL_MOS7720
+	depends on PARPORT=y || PARPORT=USB_SERIAL_MOS7720
+	select PARPORT_NOT_PC
+	help
+	Say Y if you have a Moschip 7715 device and would like to use
+	the parallel port it provides.  The port will register with
+	the parport subsystem as a low-level driver.
+
+config USB_SERIAL_MOS7840
+	tristate "USB Moschip 7840/7820 USB Serial Driver"
+	help
+	  Say Y here if you want to use a MCS7840 Quad-Serial or MCS7820
+	  Dual-Serial port device from MosChip Semiconductor.
+
+	  The MCS7840 and MCS7820 have been developed to connect a wide range
+	  of standard serial devices to a USB host.  The MCS7840 has a USB
+	  device controller connected to four (4) individual UARTs while the
+	  MCS7820 controller connects to two (2) individual UARTs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mos7840.  If unsure, choose N.
+
+config USB_SERIAL_MXUPORT
+	tristate "USB Moxa UPORT Serial Driver"
+	help
+	  Say Y here if you want to use a MOXA UPort Serial hub.
+
+	  This driver supports:
+
+	  [2 Port]
+	  - UPort 1250 :  2 Port RS-232/422/485 USB to Serial Hub
+	  - UPort 1250I : 2 Port RS-232/422/485 USB to Serial Hub with
+			  Isolation
+
+	  [4 Port]
+	  - UPort 1410 :  4 Port RS-232 USB to Serial Hub
+	  - UPort 1450 :  4 Port RS-232/422/485 USB to Serial Hub
+	  - UPort 1450I : 4 Port RS-232/422/485 USB to Serial Hub with
+			  Isolation
+
+	  [8 Port]
+	  - UPort 1610-8 : 8 Port RS-232 USB to Serial Hub
+	  - UPort 1650-8 : 8 Port RS-232/422/485 USB to Serial Hub
+
+	  [16 Port]
+	  - UPort 1610-16 : 16 Port RS-232 USB to Serial Hub
+	  - UPort 1650-16 : 16 Port RS-232/422/485 USB to Serial Hub
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mxuport.
+
+config USB_SERIAL_NAVMAN
+	tristate "USB Navman GPS device"
+	help
+	  To compile this driver as a module, choose M here: the
+	  module will be called navman.
+
+config USB_SERIAL_PL2303
+	tristate "USB Prolific 2303 Single Port Serial Driver"
+	help
+	  Say Y here if you want to use the PL2303 USB Serial single port
+	  adapter from Prolific.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pl2303.
+
+config USB_SERIAL_OTI6858
+	tristate "USB Ours Technology Inc. OTi-6858 USB To RS232 Bridge Controller"
+	help
+	  Say Y here if you want to use the OTi-6858 single port USB to serial
+	  converter device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called oti6858.
+
+config USB_SERIAL_QCAUX
+	tristate "USB Qualcomm Auxiliary Serial Port Driver"
+	help
+	  Say Y here if you want to use the auxiliary serial ports provided
+	  by many modems based on Qualcomm chipsets.  These ports often use
+	  a proprietary protocol called DM and cannot be used for AT- or
+	  PPP-based communication.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qcaux.  If unsure, choose N.
+
+config USB_SERIAL_QUALCOMM
+	tristate "USB Qualcomm Serial modem"
+	select USB_SERIAL_WWAN
+	help
+	  Say Y here if you have a Qualcomm USB modem device.  These are
+	  usually wireless cellular modems.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qcserial.
+
+config USB_SERIAL_SPCP8X5
+	tristate "USB SPCP8x5 USB To Serial Driver"
+	help
+	  Say Y here if you want to use the spcp8x5 converter chip.  This is
+	  commonly found in some Z-Wave USB devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called spcp8x5.
+
+config USB_SERIAL_SAFE
+	tristate "USB Safe Serial (Encapsulated) Driver"
+
+config USB_SERIAL_SAFE_PADDED
+	bool "USB Secure Encapsulated Driver - Padded"
+	depends on USB_SERIAL_SAFE
+
+config USB_SERIAL_SIERRAWIRELESS
+	tristate "USB Sierra Wireless Driver"
+	help
+	  Say M here if you want to use Sierra Wireless devices.
+
+	  Many devices have a feature known as TRU-Install. For those devices
+	  to work properly, the USB Storage Sierra feature must be enabled.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sierra.
+
+config USB_SERIAL_SYMBOL
+	tristate "USB Symbol Barcode driver (serial mode)"
+	help
+	  Say Y here if you want to use a Symbol USB Barcode device
+	  in serial emulation mode.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called symbolserial.
+
+config USB_SERIAL_TI
+	tristate "USB TI 3410/5052 Serial Driver"
+	help
+	  Say Y here if you want to use the TI USB 3410 or 5052
+	  serial devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti_usb_3410_5052.
+
+config USB_SERIAL_CYBERJACK
+	tristate "USB REINER SCT cyberJack pinpad/e-com chipcard reader"
+	help
+	  Say Y here if you want to use a cyberJack pinpad/e-com USB chipcard
+	  reader. This is an interface to ISO 7816 compatible contact-based
+	  chipcards, e.g. GSM SIMs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyberjack.
+
+	  If unsure, say N.
+
+config USB_SERIAL_WWAN
+	tristate
+
+config USB_SERIAL_OPTION
+	tristate "USB driver for GSM and CDMA modems"
+	select USB_SERIAL_WWAN
+	help
+	  Say Y here if you have a GSM or CDMA modem that's connected to USB.
+
+	  This driver also supports several PCMCIA cards which have a
+	  built-in OHCI-USB adapter and an internally-connected GSM modem.
+	  The USB bus on these cards is not accessible externally.
+
+	  Supported devices include (some of?) those made by:
+	  Option, Huawei, Audiovox, Novatel Wireless, or Anydata.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called option.
+
+	  If this driver doesn't recognize your device,
+	  it might be accessible via the FTDI_SIO driver.
+
+config USB_SERIAL_OMNINET
+	tristate "USB ZyXEL omni.net LCD Plus Driver"
+	help
+	  Say Y here if you want to use a ZyXEL omni.net LCD ISDN TA.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omninet.
+
+config USB_SERIAL_OPTICON
+	tristate "USB Opticon Barcode driver (serial mode)"
+	help
+	  Say Y here if you want to use a Opticon USB Barcode device
+	  in serial emulation mode.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called opticon.
+
+config USB_SERIAL_XSENS_MT
+	tristate "Xsens motion tracker serial interface driver"
+	help
+	  Say Y here if you want to use Xsens motion trackers.
+
+	  This driver supports the new generation of motion trackers
+	  by Xsens. Older devices can be accessed using the FTDI_SIO
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xsens_mt.
+
+config USB_SERIAL_WISHBONE
+	tristate "USB-Wishbone adapter interface driver"
+	help
+	  Say Y here if you want to use a USB attached Wishbone bus.
+
+	  Wishbone is an open hardware SoC bus commonly used in FPGA
+	  designs. Bus access can be serialized using the Etherbone
+	  protocol <http://www.ohwr.org/projects/etherbone-core>.
+
+	  This driver is intended to be used with devices which attach
+	  their internal Wishbone bus to a USB serial interface using
+	  the Etherbone protocol. A userspace library is required to
+	  speak the protocol made available by this driver as ttyUSBx.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wishbone-serial.
+
+config USB_SERIAL_SSU100
+	tristate "USB Quatech SSU-100 Single Port Serial Driver"
+	help
+	  Say Y here if you want to use the Quatech SSU-100 single
+	  port usb to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssu100.
+
+config USB_SERIAL_QT2
+	tristate "USB Quatech Serial Driver for USB 2 devices"
+	help
+	  Say Y here if you want to use the Quatech USB 2
+	  serial adapters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called quatech-serial.
+
+config USB_SERIAL_UPD78F0730
+	tristate "USB Renesas uPD78F0730 Single Port Serial Driver"
+	help
+	  Say Y here if you want to use the Renesas uPD78F0730
+	  serial driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd78f0730.
+
+config USB_SERIAL_XR
+	tristate "USB MaxLinear/Exar USB to Serial driver"
+	help
+	  Say Y here if you want to use MaxLinear/Exar USB to Serial converter
+	  devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xr_serial.
+
+config USB_SERIAL_DEBUG
+	tristate "USB Debugging Device"
+	help
+	  Say Y here if you have a USB debugging device used to receive
+	  debugging data from another machine.  The most common of these
+	  devices is the NetChip TurboCONNECT device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usb-debug.
+
+endif # USB_SERIAL

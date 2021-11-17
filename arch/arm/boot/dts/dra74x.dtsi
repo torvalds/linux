@@ -1,0 +1,232 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
+ *
+ * Based on "omap4.dtsi"
+ */
+
+#include "dra7.dtsi"
+
+/ {
+	compatible = "ti,dra742", "ti,dra74", "ti,dra7";
+
+	cpus {
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <1>;
+			operating-points-v2 = <&cpu0_opp_table>;
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
+
+			/* cooling options */
+			#cooling-cells = <2>; /* min followed by max */
+
+			vbb-supply = <&abb_mpu>;
+		};
+	};
+
+	aliases {
+		rproc0 = &ipu1;
+		rproc1 = &ipu2;
+		rproc2 = &dsp1;
+		rproc3 = &dsp2;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a15-pmu";
+		interrupt-parent = <&wakeupgen>;
+		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	ocp {
+		dsp2_system: dsp_system@41500000 {
+			compatible = "syscon";
+			reg = <0x41500000 0x100>;
+		};
+
+
+		target-module@41501000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x41501000 0x4>,
+			      <0x41501010 0x4>,
+			      <0x41501014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			clocks = <&dsp2_clkctrl DRA7_DSP2_MMU0_DSP2_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_dsp2 1>;
+			reset-names = "rstctrl";
+			ranges = <0x0 0x41501000 0x1000>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			mmu0_dsp2: mmu@0 {
+				compatible = "ti,dra7-dsp-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+				ti,syscon-mmuconfig = <&dsp2_system 0x0>;
+			};
+		};
+
+		target-module@41502000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x41502000 0x4>,
+			      <0x41502010 0x4>,
+			      <0x41502014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+
+			clocks = <&dsp2_clkctrl DRA7_DSP2_MMU0_DSP2_CLKCTRL 0>;
+			clock-names = "fck";
+			resets = <&prm_dsp2 1>;
+			reset-names = "rstctrl";
+			ranges = <0x0 0x41502000 0x1000>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			mmu1_dsp2: mmu@0 {
+				compatible = "ti,dra7-dsp-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+				ti,syscon-mmuconfig = <&dsp2_system 0x1>;
+			};
+		};
+
+		dsp2: dsp@41000000 {
+			compatible = "ti,dra7-dsp";
+			reg = <0x41000000 0x48000>,
+			      <0x41600000 0x8000>,
+			      <0x41700000 0x8000>;
+			reg-names = "l2ram", "l1pram", "l1dram";
+			ti,bootreg = <&scm_conf 0x560 10>;
+			iommus = <&mmu0_dsp2>, <&mmu1_dsp2>;
+			status = "disabled";
+			resets = <&prm_dsp2 0>;
+			clocks = <&dsp2_clkctrl DRA7_DSP2_MMU0_DSP2_CLKCTRL 0>;
+			firmware-name = "dra7-dsp2-fw.xe66";
+		};
+	};
+};
+
+&cpu0_opp_table {
+	opp-shared;
+};
+
+&dss {
+	reg = <0 0x80>,
+	      <0x4054 0x4>,
+	      <0x4300 0x20>,
+	      <0x9054 0x4>,
+	      <0x9300 0x20>;
+	reg-names = "dss", "pll1_clkctrl", "pll1",
+		    "pll2_clkctrl", "pll2";
+
+	clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>,
+		 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 12>,
+		 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 13>;
+	clock-names = "fck", "video1_clk", "video2_clk";
+};
+
+&mailbox5 {
+	mbox_ipu1_ipc3x: mbox-ipu1-ipc3x {
+		ti,mbox-tx = <6 2 2>;
+		ti,mbox-rx = <4 2 2>;
+		status = "disabled";
+	};
+	mbox_dsp1_ipc3x: mbox-dsp1-ipc3x {
+		ti,mbox-tx = <5 2 2>;
+		ti,mbox-rx = <1 2 2>;
+		status = "disabled";
+	};
+};
+
+&mailbox6 {
+	mbox_ipu2_ipc3x: mbox-ipu2-ipc3x {
+		ti,mbox-tx = <6 2 2>;
+		ti,mbox-rx = <4 2 2>;
+		status = "disabled";
+	};
+	mbox_dsp2_ipc3x: mbox-dsp2-ipc3x {
+		ti,mbox-tx = <5 2 2>;
+		ti,mbox-rx = <1 2 2>;
+		status = "disabled";
+	};
+};
+
+&pcie1_rc {
+	compatible = "ti,dra746-pcie-rc", "ti,dra7-pcie";
+};
+
+&pcie1_ep {
+	compatible = "ti,dra746-pcie-ep", "ti,dra7-pcie-ep";
+};
+
+&pcie2_rc {
+	compatible = "ti,dra746-pcie-rc", "ti,dra7-pcie";
+};
+
+&l4_per3 {
+	segment@0 {
+		usb4_tm: target-module@140000 {         /* 0x48940000, ap 75 3c.0 */
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x140000 0x4>,
+			      <0x140010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <SYSC_OMAP4_DMADISABLE>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			/* Domains (P, C): l3init_pwrdm, l3init_clkdm */
+			clocks = <&l3init_clkctrl DRA7_L3INIT_USB_OTG_SS4_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x140000 0x20000>;
+
+			omap_dwc3_4: omap_dwc3_4@0 {
+				compatible = "ti,dwc3";
+				reg = <0 0x10000>;
+				interrupts = <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				utmi-mode = <2>;
+				ranges;
+				status = "disabled";
+				usb4: usb@10000 {
+					compatible = "snps,dwc3";
+					reg = <0x10000 0x17000>;
+					interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "peripheral",
+							  "host",
+							  "otg";
+					maximum-speed = "high-speed";
+					dr_mode = "otg";
+				};
+			};
+		};
+	};
+};

@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+#		http://www.samsung.com/
+
+# Configuration options for the Samsung Exynos
+
+menuconfig ARCH_EXYNOS
+	bool "Samsung Exynos"
+	depends on ARCH_MULTI_V7
+	select ARCH_SUPPORTS_BIG_ENDIAN
+	select ARM_AMBA
+	select ARM_GIC
+	select EXYNOS_IRQ_COMBINER
+	select COMMON_CLK_SAMSUNG
+	select EXYNOS_CHIPID
+	select EXYNOS_THERMAL
+	select EXYNOS_PMU
+	select EXYNOS_SROM
+	select EXYNOS_PM_DOMAINS if PM_GENERIC_DOMAINS
+	select GPIOLIB
+	select HAVE_ARM_ARCH_TIMER if ARCH_EXYNOS5
+	select HAVE_ARM_SCU if SMP
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select PINCTRL
+	select PINCTRL_EXYNOS
+	select PM_GENERIC_DOMAINS if PM
+	select S5P_DEV_MFC
+	select SAMSUNG_MC
+	select SOC_SAMSUNG
+	select SRAM
+	select THERMAL
+	select THERMAL_OF
+	select MFD_SYSCON
+	select MEMORY
+	select CLKSRC_EXYNOS_MCT
+	select POWER_RESET
+	select POWER_RESET_SYSCON
+	select POWER_RESET_SYSCON_POWEROFF
+	help
+	  Support for Samsung Exynos SoCs
+
+if ARCH_EXYNOS
+
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in setup memory (init) code for MFC
+
+config ARCH_EXYNOS3
+	bool "Samsung Exynos3"
+	default y
+	select ARM_CPU_SUSPEND if PM
+	help
+	  Samsung Exynos3 (Cortex-A7) SoC based systems
+
+config ARCH_EXYNOS4
+	bool "Samsung Exynos4"
+	default y
+	select ARM_CPU_SUSPEND if PM_SLEEP
+	select CLKSRC_SAMSUNG_PWM if CPU_EXYNOS4210
+	select CPU_EXYNOS4210
+	select GIC_NON_BANKED
+	help
+	  Samsung Exynos4 (Cortex-A9) SoC based systems
+
+config ARCH_EXYNOS5
+	bool "Samsung Exynos5"
+	default y
+	help
+	  Samsung Exynos5 (Cortex-A15/A7) SoC based systems
+
+comment "Exynos SoCs"
+
+config SOC_EXYNOS3250
+	bool "Samsung Exynos3250"
+	default y
+	depends on ARCH_EXYNOS3
+
+config CPU_EXYNOS4210
+	bool "Samsung Exynos4210"
+	default y
+	depends on ARCH_EXYNOS4
+
+config SOC_EXYNOS4412
+	bool "Samsung Exynos4412"
+	default y
+	depends on ARCH_EXYNOS4
+
+config SOC_EXYNOS5250
+	bool "Samsung Exynos5250"
+	default y
+	depends on ARCH_EXYNOS5
+
+config SOC_EXYNOS5260
+	bool "Samsung Exynos5260"
+	default y
+	depends on ARCH_EXYNOS5
+
+config SOC_EXYNOS5410
+	bool "Samsung Exynos5410"
+	default y
+	depends on ARCH_EXYNOS5
+
+config SOC_EXYNOS5420
+	bool "Samsung Exynos5420"
+	default y
+	depends on ARCH_EXYNOS5
+	select EXYNOS_MCPM if SMP
+	select ARM_CCI400_PORT_CTRL
+	select ARM_CPU_SUSPEND
+
+config SOC_EXYNOS5800
+	bool "Samsung EXYNOS5800"
+	default y
+	depends on SOC_EXYNOS5420
+	select EXYNOS_REGULATOR_COUPLER
+
+config EXYNOS_MCPM
+	bool
+	select MCPM
+
+config EXYNOS_CPU_SUSPEND
+	bool
+	select ARM_CPU_SUSPEND
+	default PM_SLEEP || ARM_EXYNOS_CPUIDLE
+
+endif

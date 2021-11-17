@@ -1,0 +1,8 @@
+This driver is functional and has been tested on EdgeRouter Lite,
+D-Link DSR-1000N and EBH5600 evaluation board with USB mass storage.
+
+TODO:
+	- kernel coding style
+	- checkpatch warnings
+
+Contact: Aaro Koskinen <aaro.koskinen@iki.fi>

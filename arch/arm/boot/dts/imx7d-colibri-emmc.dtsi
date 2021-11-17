@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2017 Toradex AG
+ */
+
+#include "imx7d.dtsi"
+#include "imx7-colibri.dtsi"
+
+/ {
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;
+	};
+};
+
+&gpio6 {
+	gpio-line-names = "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "SODIMM_169",
+			  "SODIMM_157",
+			  "",
+			  "SODIMM_163",
+			  "SODIMM_77",
+			  "SODIMM_24",
+			  "",
+			  "SODIMM_25",
+			  "SODIMM_27",
+			  "SODIMM_32",
+			  "SODIMM_34";
+};
+
+&usbotg2 {
+	dr_mode = "host";
+};
+
+&usdhc3 {
+	status = "okay";
+};

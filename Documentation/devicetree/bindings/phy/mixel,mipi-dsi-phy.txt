@@ -1,0 +1,29 @@
+Mixel DSI PHY for i.MX8
+
+The Mixel MIPI-DSI PHY IP block is e.g. found on i.MX8 platforms (along the
+MIPI-DSI IP from Northwest Logic). It represents the physical layer for the
+electrical signals for DSI.
+
+Required properties:
+- compatible: Must be:
+  - "fsl,imx8mq-mipi-dphy"
+- clocks: Must contain an entry for each entry in clock-names.
+- clock-names: Must contain the following entries:
+  - "phy_ref": phandle and specifier referring to the DPHY ref clock
+- reg: the register range of the PHY controller
+- #phy-cells: number of cells in PHY, as defined in
+  Documentation/devicetree/bindings/phy/phy-bindings.txt
+  this must be <0>
+
+Optional properties:
+- power-domains: phandle to power domain
+
+Example:
+	dphy: dphy@30a0030 {
+		compatible = "fsl,imx8mq-mipi-dphy";
+		clocks = <&clk IMX8MQ_CLK_DSI_PHY_REF>;
+		clock-names = "phy_ref";
+		reg = <0x30a00300 0x100>;
+		power-domains = <&pd_mipi0>;
+		#phy-cells = <0>;
+        };

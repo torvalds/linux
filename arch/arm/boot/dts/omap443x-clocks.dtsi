@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree Source for OMAP4 clock data
+ *
+ * Copyright (C) 2013 Texas Instruments, Inc.
+ */
+&prm_clocks {
+	bandgap_fclk: bandgap_fclk@1888 {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&sys_32k_ck>;
+		ti,bit-shift = <8>;
+		reg = <0x1888>;
+	};
+};

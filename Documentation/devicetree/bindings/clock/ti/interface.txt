@@ -1,0 +1,56 @@
+Binding for Texas Instruments interface clock.
+
+Binding status: Unstable - ABI compatibility may be broken in the future
+
+This binding uses the common clock binding[1]. This clock is
+quite much similar to the basic gate-clock [2], however,
+it supports a number of additional features, including
+companion clock finding (match corresponding functional gate
+clock) and hardware autoidle enable / disable.
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] Documentation/devicetree/bindings/clock/gpio-gate-clock.txt
+
+Required properties:
+- compatible : shall be one of:
+  "ti,omap3-interface-clock" - basic OMAP3 interface clock
+  "ti,omap3-no-wait-interface-clock" - interface clock which has no hardware
+				       capability for waiting clock to be ready
+  "ti,omap3-hsotgusb-interface-clock" - interface clock with USB specific HW
+					handling
+  "ti,omap3-dss-interface-clock" - interface clock with DSS specific HW handling
+  "ti,omap3-ssi-interface-clock" - interface clock with SSI specific HW handling
+  "ti,am35xx-interface-clock" - interface clock with AM35xx specific HW handling
+  "ti,omap2430-interface-clock" - interface clock with OMAP2430 specific HW
+				  handling
+- #clock-cells : from common clock binding; shall be set to 0
+- clocks : link to phandle of parent clock
+- reg : base address for the control register
+
+Optional properties:
+- ti,bit-shift : bit shift for the bit enabling/disabling the clock (default 0)
+
+Examples:
+	aes1_ick: aes1_ick@48004a14 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-interface-clock";
+		clocks = <&security_l4_ick2>;
+		reg = <0x48004a14 0x4>;
+		ti,bit-shift = <3>;
+	};
+
+	cam_ick: cam_ick@48004f10 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-no-wait-interface-clock";
+		clocks = <&l4_ick>;
+		reg = <0x48004f10 0x4>;
+		ti,bit-shift = <0>;
+	};
+
+	ssi_ick_3430es2: ssi_ick_3430es2@48004a10 {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-ssi-interface-clock";
+		clocks = <&ssi_l4_ick>;
+		reg = <0x48004a10 0x4>;
+		ti,bit-shift = <0>;
+	};

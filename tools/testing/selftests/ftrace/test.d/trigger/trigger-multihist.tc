@@ -1,0 +1,44 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: event trigger - test multiple histogram triggers
+# requires: set_event events/sched/sched_process_fork/trigger events/sched/sched_process_fork/hist
+# flags: instance
+
+fail() { #msg
+    echo $1
+    exit_fail
+}
+
+echo "Test histogram multiple triggers"
+
+echo 'hist:keys=parent_pid:vals=child_pid' > events/sched/sched_process_fork/trigger
+echo 'hist:keys=parent_comm:vals=child_pid' >> events/sched/sched_process_fork/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep parent_pid events/sched/sched_process_fork/hist > /dev/null || \
+    fail "hist trigger on sched_process_fork did not work"
+grep child events/sched/sched_process_fork/hist > /dev/null || \
+    fail "hist trigger on sched_process_fork did not work"
+COMM=`cat /proc/$$/comm`
+grep "parent_comm: $COMM" events/sched/sched_process_fork/hist > /dev/null || \
+    fail "string key on sched_process_fork did not work"
+
+reset_trigger
+
+echo "Test histogram with its name"
+
+echo 'hist:name=test_hist:keys=common_pid' > events/sched/sched_process_fork/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep test_hist events/sched/sched_process_fork/hist > /dev/null || \
+    fail "named event on sched_process_fork did not work"
+
+echo "Test same named histogram on different events"
+
+echo 'hist:name=test_hist:keys=common_pid' > events/sched/sched_process_exit/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep test_hist events/sched/sched_process_exit/hist > /dev/null || \
+    fail "named event on sched_process_fork did not work"
+
+diffs=`diff events/sched/sched_process_exit/hist events/sched/sched_process_fork/hist | wc -l`
+test $diffs -eq 0 || fail "Same name histograms are not same"
+
+exit 0

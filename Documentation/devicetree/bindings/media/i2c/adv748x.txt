@@ -1,0 +1,116 @@
+* Analog Devices ADV748X video decoder with HDMI receiver
+
+The ADV7481 and ADV7482 are multi format video decoders with an integrated
+HDMI receiver. They can output CSI-2 on two independent outputs TXA and TXB
+from three input sources HDMI, analog and TTL.
+
+Required Properties:
+
+  - compatible: Must contain one of the following
+    - "adi,adv7481" for the ADV7481
+    - "adi,adv7482" for the ADV7482
+
+  - reg: I2C slave addresses
+    The ADV748x has up to twelve 256-byte maps that can be accessed via the
+    main I2C ports. Each map has it own I2C address and acts as a standard
+    slave device on the I2C bus. The main address is mandatory, others are
+    optional and remain at default values if not specified.
+
+Optional Properties:
+
+  - interrupt-names: Should specify the interrupts as "intrq1", "intrq2" and/or
+		     "intrq3". All interrupts are optional. The "intrq3" interrupt
+		     is only available on the adv7481
+  - interrupts: Specify the interrupt lines for the ADV748x
+  - reg-names : Names of maps with programmable addresses.
+		It shall contain all maps needing a non-default address.
+		Possible map names are:
+		  "main", "dpll", "cp", "hdmi", "edid", "repeater",
+		  "infoframe", "cbus", "cec", "sdp", "txa", "txb"
+
+The device node must contain one 'port' child node per device input and output
+port, in accordance with the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt. The port nodes
+are numbered as follows.
+
+	  Name		Type		Port
+	---------------------------------------
+	  AIN0		sink		0
+	  AIN1		sink		1
+	  AIN2		sink		2
+	  AIN3		sink		3
+	  AIN4		sink		4
+	  AIN5		sink		5
+	  AIN6		sink		6
+	  AIN7		sink		7
+	  HDMI		sink		8
+	  TTL		sink		9
+	  TXA		source		10
+	  TXB		source		11
+
+The digital output port nodes, when present, shall contain at least one
+endpoint. Each of those endpoints shall contain the data-lanes property as
+described in video-interfaces.txt.
+
+Required source endpoint properties:
+  - data-lanes: an array of physical data lane indexes
+    The accepted value(s) for this property depends on which of the two
+    sources are described. For TXA 1, 2 or 4 data lanes can be described
+    while for TXB only 1 data lane is valid. See video-interfaces.txt
+    for detailed description.
+
+Ports are optional if they are not connected to anything at the hardware level.
+
+Example:
+
+	video-receiver@70 {
+		compatible = "adi,adv7482";
+		reg = <0x70 0x71 0x72 0x73 0x74 0x75
+		       0x60 0x61 0x62 0x63 0x64 0x65>;
+		reg-names = "main", "dpll", "cp", "hdmi", "edid", "repeater",
+			    "infoframe", "cbus", "cec", "sdp", "txa", "txb";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&gpio6>;
+		interrupt-names = "intrq1", "intrq2";
+		interrupts = <30 IRQ_TYPE_LEVEL_LOW>,
+			     <31 IRQ_TYPE_LEVEL_LOW>;
+
+		port@7 {
+			reg = <7>;
+
+			adv7482_ain7: endpoint {
+				remote-endpoint = <&cvbs_in>;
+			};
+		};
+
+		port@8 {
+			reg = <8>;
+
+			adv7482_hdmi: endpoint {
+				remote-endpoint = <&hdmi_in>;
+			};
+		};
+
+		port@a {
+			reg = <10>;
+
+			adv7482_txa: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&csi40_in>;
+			};
+		};
+
+		port@b {
+			reg = <11>;
+
+			adv7482_txb: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1>;
+				remote-endpoint = <&csi20_in>;
+			};
+		};
+	};
