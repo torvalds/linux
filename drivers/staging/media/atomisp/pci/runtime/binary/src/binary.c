@@ -805,11 +805,7 @@ ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 	s3a_info->deci_factor_log2  = binary->deci_factor_log2;
 	s3a_info->elem_bit_depth    = SH_CSS_BAYER_BITS;
 	s3a_info->use_dmem          = binary->info->sp.s3a.s3atbl_use_dmem;
-#if defined(HAS_NO_HMEM)
-	s3a_info->has_histogram     = 1;
-#else
 	s3a_info->has_histogram     = 0;
-#endif
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
 }

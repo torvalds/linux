@@ -227,10 +227,6 @@ ia_css_s3a_hmem_decode(
     struct ia_css_3a_statistics *host_stats,
     const struct ia_css_bh_table *hmem_buf)
 {
-#if defined(HAS_NO_HMEM)
-	(void)host_stats;
-	(void)hmem_buf;
-#else
 	struct ia_css_3a_rgby_output	*out_ptr;
 	int			i;
 
@@ -291,7 +287,6 @@ ia_css_s3a_hmem_decode(
 	out_ptr[0].g -= diff;
 	out_ptr[0].b -= diff;
 	out_ptr[0].y -= diff;
-#endif
 }
 
 void
