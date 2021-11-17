@@ -658,7 +658,7 @@ static void gfx_v9_4_3_read_wave_vgprs(struct amdgpu_device *adev, uint32_t simd
 static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
 					u32 me, u32 pipe, u32 q, u32 vm)
 {
-	soc15_grbm_select(adev, me, pipe, q, vm);
+	soc15_grbm_select(adev, me, pipe, q, vm, 0);
 }
 
 static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
@@ -926,12 +926,12 @@ static void gfx_v9_4_3_init_compute_vmid(struct amdgpu_device *adev)
 
 	mutex_lock(&adev->srbm_mutex);
 	for (i = adev->vm_manager.first_kfd_vmid; i < AMDGPU_NUM_VMID; i++) {
-		soc15_grbm_select(adev, 0, 0, 0, i);
+		soc15_grbm_select(adev, 0, 0, 0, i, 0);
 		/* CP and shaders */
 		WREG32_SOC15_RLC(GC, 0, regSH_MEM_CONFIG, sh_mem_config);
 		WREG32_SOC15_RLC(GC, 0, regSH_MEM_BASES, sh_mem_bases);
 	}
-	soc15_grbm_select(adev, 0, 0, 0, 0);
+	soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
 
 	/* Initialize all compute VMIDs to have no GDS, GWS, or OA
@@ -977,7 +977,7 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	mutex_lock(&adev->srbm_mutex);
 	for (i = 0; i < adev->vm_manager.id_mgr[AMDGPU_GFXHUB_0].num_ids; i++) {
-		soc15_grbm_select(adev, 0, 0, 0, i);
+		soc15_grbm_select(adev, 0, 0, 0, i, 0);
 		/* CP and shaders */
 		if (i == 0) {
 			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
@@ -999,7 +999,7 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 			WREG32_SOC15_RLC(GC, 0, regSH_MEM_BASES, tmp);
 		}
 	}
-	soc15_grbm_select(adev, 0, 0, 0, 0);
+	soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 
 	mutex_unlock(&adev->srbm_mutex);
 
@@ -1706,19 +1706,19 @@ static int gfx_v9_4_3_kiq_init_queue(struct amdgpu_ring *ring)
 		amdgpu_ring_clear_ring(ring);
 
 		mutex_lock(&adev->srbm_mutex);
-		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, 0);
 		gfx_v9_4_3_kiq_init_register(ring);
-		soc15_grbm_select(adev, 0, 0, 0, 0);
+		soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 	} else {
 		memset((void *)mqd, 0, sizeof(struct v9_mqd_allocation));
 		((struct v9_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
 		((struct v9_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
 		mutex_lock(&adev->srbm_mutex);
-		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, 0);
 		gfx_v9_4_3_mqd_init(ring);
 		gfx_v9_4_3_kiq_init_register(ring);
-		soc15_grbm_select(adev, 0, 0, 0, 0);
+		soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 
 		if (adev->gfx.kiq[0].mqd_backup)
@@ -1746,9 +1746,9 @@ static int gfx_v9_4_3_kcq_init_queue(struct amdgpu_ring *ring)
 		((struct v9_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
 		((struct v9_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
 		mutex_lock(&adev->srbm_mutex);
-		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, 0);
 		gfx_v9_4_3_mqd_init(ring);
-		soc15_grbm_select(adev, 0, 0, 0, 0);
+		soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
@@ -1896,9 +1896,9 @@ static int gfx_v9_4_3_hw_fini(void *handle)
 		mutex_lock(&adev->srbm_mutex);
 		soc15_grbm_select(adev, adev->gfx.kiq[0].ring.me,
 				adev->gfx.kiq[0].ring.pipe,
-				adev->gfx.kiq[0].ring.queue, 0);
+				adev->gfx.kiq[0].ring.queue, 0, 0);
 		gfx_v9_4_3_kiq_fini_register(&adev->gfx.kiq[0].ring);
-		soc15_grbm_select(adev, 0, 0, 0, 0);
+		soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 	}
 
