@@ -47,12 +47,7 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 	case ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ:
 		{
 		u8 vf_compat_ver = msg >> ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
-
-		resp = (ADF_PF2VF_MSGORIGIN_SYSTEM |
-			 (ADF_PF2VF_MSGTYPE_VERSION_RESP <<
-			  ADF_PF2VF_MSGTYPE_SHIFT) |
-			 (ADF_PFVF_COMPAT_THIS_VERSION <<
-			  ADF_PF2VF_VERSION_RESP_VERS_SHIFT));
+		u8 compat;
 
 		dev_dbg(&GET_DEV(accel_dev),
 			"Compatibility Version Request from VF%d vers=%u\n",
@@ -62,37 +57,46 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 			dev_err(&GET_DEV(accel_dev),
 				"VF (vers %d) incompatible with PF (vers %d)\n",
 				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
-			resp |= ADF_PF2VF_VF_INCOMPATIBLE <<
-				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+			compat = ADF_PF2VF_VF_INCOMPATIBLE;
 		} else if (vf_compat_ver > ADF_PFVF_COMPAT_THIS_VERSION) {
 			dev_err(&GET_DEV(accel_dev),
 				"VF (vers %d) compat with PF (vers %d) unkn.\n",
 				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
-			resp |= ADF_PF2VF_VF_COMPAT_UNKNOWN <<
-				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
 		} else {
 			dev_dbg(&GET_DEV(accel_dev),
 				"VF (vers %d) compatible with PF (vers %d)\n",
 				vf_compat_ver, ADF_PFVF_COMPAT_THIS_VERSION);
-			resp |= ADF_PF2VF_VF_COMPATIBLE <<
-				ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+			compat = ADF_PF2VF_VF_COMPATIBLE;
 		}
+
+		resp =  ADF_PF2VF_MSGORIGIN_SYSTEM;
+		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
+			ADF_PF2VF_MSGTYPE_SHIFT;
+		resp |= ADF_PFVF_COMPAT_THIS_VERSION <<
+			ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
+		resp |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
 		}
 		break;
 	case ADF_VF2PF_MSGTYPE_VERSION_REQ:
+		{
+		u8 compat;
+
 		dev_dbg(&GET_DEV(accel_dev),
 			"Legacy VersionRequest received from VF%d 0x%x\n",
 			vf_nr + 1, msg);
-		resp = (ADF_PF2VF_MSGORIGIN_SYSTEM |
-			 (ADF_PF2VF_MSGTYPE_VERSION_RESP <<
-			  ADF_PF2VF_MSGTYPE_SHIFT) |
-			 (ADF_PFVF_COMPAT_THIS_VERSION <<
-			  ADF_PF2VF_VERSION_RESP_VERS_SHIFT));
-		resp |= ADF_PF2VF_VF_COMPATIBLE <<
-			ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+
+		/* PF always newer than legacy VF */
+		compat = ADF_PF2VF_VF_COMPATIBLE;
+
+		resp = ADF_PF2VF_MSGORIGIN_SYSTEM;
+		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
+			ADF_PF2VF_MSGTYPE_SHIFT;
 		/* Set legacy major and minor version num */
 		resp |= 1 << ADF_PF2VF_MAJORVERSION_SHIFT |
 			1 << ADF_PF2VF_MINORVERSION_SHIFT;
+		resp |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		}
 		break;
 	case ADF_VF2PF_MSGTYPE_INIT:
 		{
