@@ -295,6 +295,7 @@ static int liteuart_remove(struct platform_device *pdev)
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct liteuart_port *uart = to_liteuart_port(port);
 
+	uart_remove_one_port(&liteuart_driver, port);
 	xa_erase(&liteuart_array, uart->id);
 
 	return 0;
