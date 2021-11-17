@@ -15,6 +15,7 @@
 
 #define ACP_REG_POLL_INTERVAL                   500
 #define ACP_REG_POLL_TIMEOUT_US                 2000
+#define ACP_DMA_COMPLETE_TIMEOUT_US		5000
 
 #define ACP_PGFSM_CNTL_POWER_ON_MASK		0x01
 #define ACP_PGFSM_STATUS_MASK			0x03
@@ -23,10 +24,100 @@
 #define ACP_RELEASE_RESET			0x00
 #define ACP_SOFT_RESET_DONE_MASK		0x00010001
 
+#define ACP_DSP_INTR_EN_MASK			0x00000001
+#define ACP_SRAM_PTE_OFFSET			0x02050000
+#define PAGE_SIZE_4K_ENABLE			0x2
+#define ACP_PAGE_SIZE				0x1000
+#define ACP_DMA_CH_RUN				0x02
+#define ACP_MAX_DESC_CNT			0x02
+#define DSP_FW_RUN_ENABLE			0x01
+#define ACP_SHA_RUN				0x01
+#define ACP_SHA_RESET				0x02
+#define ACP_DMA_CH_RST				0x01
+#define ACP_DMA_CH_GRACEFUL_RST_EN		0x10
+#define ACP_ATU_CACHE_INVALID			0x01
+#define ACP_MAX_DESC				128
+#define ACPBUS_REG_BASE_OFFSET			ACP_DMA_CNTL_0
+
+struct  acp_atu_grp_pte {
+	u32 low;
+	u32 high;
+};
+
+union dma_tx_cnt {
+	struct {
+		unsigned int count : 19;
+		unsigned int reserved : 12;
+		unsigned ioc : 1;
+	} bitfields, bits;
+	unsigned int u32_all;
+	signed int i32_all;
+};
+
+struct dma_descriptor {
+	unsigned int src_addr;
+	unsigned int dest_addr;
+	union dma_tx_cnt tx_cnt;
+	unsigned int reserved;
+};
+
+/* Scratch memory structure for communication b/w host and dsp */
+struct  scratch_ipc_conf {
+	/* DSP mailbox */
+	u8 sof_out_box[512];
+	/* Host mailbox */
+	u8 sof_in_box[512];
+	/* Debug memory */
+	u8 sof_debug_box[1024];
+	/* Exception memory*/
+	u8 sof_except_box[1024];
+	/* Stream buffer */
+	u8 sof_stream_box[1024];
+	/* Trace buffer */
+	u8 sof_trace_box[1024];
+	/* Host msg flag */
+	u32 sof_host_msg_write;
+	/* Host ack flag*/
+	u32 sof_host_ack_write;
+	/* DSP msg flag */
+	u32 sof_dsp_msg_write;
+	/* Dsp ack flag */
+	u32 sof_dsp_ack_write;
+};
+
+struct  scratch_reg_conf {
+	struct scratch_ipc_conf info;
+	struct acp_atu_grp_pte grp1_pte[16];
+	struct acp_atu_grp_pte grp2_pte[16];
+	struct acp_atu_grp_pte grp3_pte[16];
+	struct acp_atu_grp_pte grp4_pte[16];
+	struct acp_atu_grp_pte grp5_pte[16];
+	struct acp_atu_grp_pte grp6_pte[16];
+	struct acp_atu_grp_pte grp7_pte[16];
+	struct acp_atu_grp_pte grp8_pte[16];
+	struct dma_descriptor dma_desc[64];
+	unsigned int reg_offset[8];
+	unsigned int buf_size[8];
+	u8 acp_tx_fifo_buf[256];
+	u8 acp_rx_fifo_buf[256];
+	unsigned int    reserve[];
+};
+
 /* Common device data struct for ACP devices */
 struct acp_dev_data {
 	struct snd_sof_dev  *dev;
+	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 };
+
+void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
+void memcpy_from_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *dst, size_t bytes);
+
+int acp_dma_status(struct acp_dev_data *adata, unsigned char ch);
+int configure_and_run_dma(struct acp_dev_data *adata, unsigned int src_addr,
+			  unsigned int dest_addr, int dsp_data_size);
+int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
+			      unsigned int start_addr, unsigned int dest_addr,
+			      unsigned int image_length);
 
 /* ACP device probe/remove */
 int amd_sof_acp_probe(struct snd_sof_dev *sdev);
