@@ -1314,7 +1314,6 @@ static uint32_t vop2_power_domain_status(struct vop2_power_domain *pd)
 	struct vop2 *vop2 = pd->vop2;
 
 	return vop2_read_reg(vop2, 0, &pd->data->regs->status);
-
 }
 
 static void vop2_wait_power_domain_off(struct vop2_power_domain *pd)
@@ -6467,6 +6466,7 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct vop2_video_port *left_vp = vp->left_vp;
 	struct drm_crtc *crtc = &vp->rockchip_crtc.crtc;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
@@ -6492,8 +6492,12 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 	/*
 	 * right vp share the same crtc state in splice mode
 	 */
-	if (vp->splice_mode_right)
-		vcstate = to_rockchip_crtc_state(vp->left_vp->rockchip_crtc.crtc.state);
+	if (vp->splice_mode_right) {
+		vcstate = to_rockchip_crtc_state(left_vp->rockchip_crtc.crtc.state);
+		adjusted_mode = &left_vp->rockchip_crtc.crtc.state->adjusted_mode;
+		hsync_len = adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
+		hdisplay = adjusted_mode->crtc_hdisplay;
+	}
 
 	if (vcstate->splice_mode)
 		pre_scan_dly = bg_dly + (hdisplay >> 2) - 1;
@@ -6538,8 +6542,8 @@ static void vop2_setup_dly_for_window(struct vop2_video_port *vp, const struct v
 
 		VOP_CTRL_SET(vop2, win_dly[win->phys_id], dly);
 	}
-
 }
+
 static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state *old_crtc_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
