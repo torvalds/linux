@@ -333,7 +333,6 @@ static const struct drm_display_mode sii902x_default_modes[] = {
 static int sii902x_get_modes(struct drm_connector *connector)
 {
 	struct sii902x *sii902x = connector_to_sii902x(connector);
-	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	u8 output_mode = SII902X_SYS_CTRL_OUTPUT_DVI;
 	struct edid *edid;
 	int num = 0, ret = 0, i;
@@ -365,15 +364,8 @@ static int sii902x_get_modes(struct drm_connector *connector)
 		output_mode = SII902X_SYS_CTRL_OUTPUT_HDMI;
 	}
 
-	if (sii902x->bus_format == FORMAT_YCBCR422_INPUT)
-		bus_format = MEDIA_BUS_FMT_YUYV8_1X16;
-	else if (sii902x->bus_format == FORMAT_YCBCR444_INPUT)
-		bus_format = MEDIA_BUS_FMT_YUV8_1X24;
-	else
-		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
-
 	ret = drm_display_info_set_bus_formats(&connector->display_info,
-					       &bus_format, 1);
+					       &sii902x->bus_format, 1);
 	if (ret)
 		goto error_out;
 
@@ -439,7 +431,7 @@ static void sii902x_set_embedded_sync(struct sii902x *sii902x)
 	unsigned char data[8];
 	struct videomode vm;
 
-	if (sii902x->bus_format == FORMAT_RGB_INPUT)
+	if (sii902x->bus_format == MEDIA_BUS_FMT_RGB888_1X24)
 		return;
 
 	sii902x_update_bits_unlocked(sii902x->i2c, SII902X_TPI_SYNC_GEN_CTRL,
@@ -476,12 +468,22 @@ static void sii902x_set_format(struct sii902x *sii902x)
 {
 	u8 val;
 
-	if (sii902x->bus_format == FORMAT_YCBCR422_INPUT)
+	switch (sii902x->bus_format) {
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
 		val = SII902X_TPI_AVI_INPUT_COLORSPACE_YUV422;
-	else if (sii902x->bus_format == FORMAT_YCBCR444_INPUT)
+		break;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_VUY8_1X24:
 		val = SII902X_TPI_AVI_INPUT_COLORSPACE_YUV444;
-	else
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	default:
 		val = SII902X_TPI_AVI_INPUT_COLORSPACE_RGB;
+		break;
+	}
 
 	val |= SII902X_TPI_AVI_INPUT_RANGE_AUTO;
 	val &= ~(SII902X_TPI_AVI_INPUT_DITHER |
@@ -514,15 +516,34 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	buf[7] = adj->crtc_vtotal >> 8;
 	buf[8] = SII902X_TPI_CLK_RATIO_1X | SII902X_TPI_AVI_PIXEL_REP_NONE |
 		 SII902X_TPI_AVI_PIXEL_REP_BUS_24BIT;
-	if (sii902x->bus_format == FORMAT_YCBCR422_INPUT)
+	switch (sii902x->bus_format) {
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
 		buf[8] |= SII902X_TPI_AVI_PIXEL_REP_RISING_EDGE;
+		break;
+	default:
+		break;
+	}
+
 	buf[9] = SII902X_TPI_AVI_INPUT_RANGE_AUTO;
-	if (sii902x->bus_format == FORMAT_YCBCR422_INPUT)
+	switch (sii902x->bus_format) {
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
 		buf[9] |= SII902X_TPI_AVI_INPUT_COLORSPACE_YUV422;
-	else if (sii902x->bus_format == FORMAT_YCBCR444_INPUT)
+		break;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_VUY8_1X24:
 		buf[9] |= SII902X_TPI_AVI_INPUT_COLORSPACE_YUV444;
-	else
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	default:
 		buf[9] |= SII902X_TPI_AVI_INPUT_COLORSPACE_RGB;
+		break;
+	}
 
 	mutex_lock(&sii902x->mutex);
 
@@ -1214,13 +1235,25 @@ static int sii902x_probe(struct i2c_client *client,
 		usleep_range(1500, 2000);
 	}
 
-	sii902x->bus_format = FORMAT_RGB_INPUT;
-	/* 0: RGB; 1: YCBCR422; 2: YCBCR444 */
 	ret = of_property_read_u32(dev->of_node, "bus-format", &val);
-	if (ret < 0)
-		sii902x->bus_format = FORMAT_RGB_INPUT;
-	else
-		sii902x->bus_format = val;
+	if (ret < 0) {
+		sii902x->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	} else {
+		switch (val) {
+		case FORMAT_RGB_INPUT:
+			sii902x->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+			break;
+		case FORMAT_YCBCR422_INPUT:
+			sii902x->bus_format = MEDIA_BUS_FMT_YUYV8_1X16;
+			break;
+		case FORMAT_YCBCR444_INPUT:
+			sii902x->bus_format = MEDIA_BUS_FMT_YUV8_1X24;
+			break;
+		default:
+			sii902x->bus_format = val;
+			break;
+		}
+	}
 
 	mutex_init(&sii902x->mutex);
 
