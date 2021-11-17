@@ -6,6 +6,7 @@
 #include <linux/indirect_call_wrapper.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <net/ip6_checksum.h>
 #include <linux/skbuff.h>
 #include <net/udp.h>
 
