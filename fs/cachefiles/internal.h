@@ -19,6 +19,16 @@
 struct cachefiles_cache;
 struct cachefiles_object;
 
+enum cachefiles_content {
+	/* These values are saved on disk */
+	CACHEFILES_CONTENT_NO_DATA	= 0, /* No content stored */
+	CACHEFILES_CONTENT_SINGLE	= 1, /* Content is monolithic, all is present */
+	CACHEFILES_CONTENT_ALL		= 2, /* Content is all present, no map */
+	CACHEFILES_CONTENT_BACKFS_MAP	= 3, /* Content is piecemeal, mapped through backing fs */
+	CACHEFILES_CONTENT_DIRTY	= 4, /* Content is dirty (only seen on disk) */
+	nr__cachefiles_content
+};
+
 /*
  * Cached volume representation.
  */
@@ -31,10 +41,20 @@ struct cachefiles_volume {
 };
 
 /*
- * Data file records.
+ * Backing file state.
  */
 struct cachefiles_object {
-	int				debug_id;	/* debugging ID */
+	struct fscache_cookie		*cookie;	/* Netfs data storage object cookie */
+	struct cachefiles_volume	*volume;	/* Cache volume that holds this object */
+	struct list_head		cache_link;	/* Link in cache->*_list */
+	struct file			*file;		/* The file representing this object */
+	char				*d_name;	/* Backing file name */
+	int				debug_id;
+	spinlock_t			lock;
+	refcount_t			ref;
+	u8				d_name_len;	/* Length of filename */
+	enum cachefiles_content		content_info:8;	/* Info about content presence */
+	unsigned long			flags;
 };
 
 /*
@@ -146,6 +166,17 @@ static inline int cachefiles_inject_remove_error(void)
  * interface.c
  */
 extern const struct fscache_cache_ops cachefiles_cache_ops;
+extern void cachefiles_see_object(struct cachefiles_object *object,
+				  enum cachefiles_obj_ref_trace why);
+extern struct cachefiles_object *cachefiles_grab_object(struct cachefiles_object *object,
+							enum cachefiles_obj_ref_trace why);
+extern void cachefiles_put_object(struct cachefiles_object *object,
+				  enum cachefiles_obj_ref_trace why);
+
+/*
+ * main.c
+ */
+extern struct kmem_cache *cachefiles_object_jar;
 
 /*
  * namei.c
