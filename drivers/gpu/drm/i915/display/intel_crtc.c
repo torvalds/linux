@@ -610,9 +610,6 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 
 	trace_intel_pipe_update_end(crtc, end_vbl_count, scanline_end);
 
-	/* Send VRR Push to terminate Vblank */
-	intel_vrr_send_push(new_crtc_state);
-
 	/*
 	 * Incase of mipi dsi command mode, we need to set frame update
 	 * request for every commit.
@@ -640,6 +637,22 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 
 		new_crtc_state->uapi.event = NULL;
 	}
+
+	/*
+	 * Send VRR Push to terminate Vblank. If we are already in vblank
+	 * this has to be done _after_ sampling the frame counter, as
+	 * otherwise the push would immediately terminate the vblank and
+	 * the sampled frame counter would correspond to the next frame
+	 * instead of the current frame.
+	 *
+	 * There is a tiny race here (iff vblank evasion failed us) where
+	 * we might sample the frame counter just before vmax vblank start
+	 * but the push would be sent just after it. That would cause the
+	 * push to affect the next frame instead of the current frame,
+	 * which would cause the next frame to terminate already at vmin
+	 * vblank start instead of vmax vblank start.
+	 */
+	intel_vrr_send_push(new_crtc_state);
 
 	local_irq_enable();
 
