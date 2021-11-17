@@ -1021,16 +1021,6 @@ sh_css_params_set_binning_factor(struct ia_css_stream *stream,
 }
 
 static void
-sh_css_update_shading_table_status(struct ia_css_pipe *pipe,
-				   struct ia_css_isp_parameters *params)
-{
-	if (params && pipe && (pipe->pipe_num != params->sc_table_last_pipe_num)) {
-		params->sc_table_dirty = true;
-		params->sc_table_last_pipe_num = pipe->pipe_num;
-	}
-}
-
-static void
 sh_css_set_shading_table(struct ia_css_stream *stream,
 			 struct ia_css_isp_parameters *params,
 			 const struct ia_css_shading_table *table)
@@ -1043,10 +1033,9 @@ sh_css_set_shading_table(struct ia_css_stream *stream,
 	if (!table->enable)
 		table = NULL;
 
-	if ((table != params->sc_table) || params->sc_table_dirty) {
+	if (table != params->sc_table) {
 		params->sc_table = table;
 		params->sc_table_changed = true;
-		params->sc_table_dirty = false;
 		/* Not very clean, this goes to sh_css.c to invalidate the
 		 * shading table for all pipes. Should replaced by a loop
 		 * and a pipe-specific call.
@@ -1608,45 +1597,6 @@ ia_css_set_param_exceptions(const struct ia_css_pipe *pipe,
 	params->dp_config.gb = params->wb_config.gb;
 }
 
-/* ISP2401 */
-static void
-sh_css_set_dp_config(const struct ia_css_pipe *pipe,
-		     struct ia_css_isp_parameters *params,
-		     const struct ia_css_dp_config *config)
-{
-	if (!config)
-		return;
-
-	assert(params);
-	assert(pipe);
-	assert(pipe->mode < IA_CSS_PIPE_ID_NUM);
-
-	IA_CSS_ENTER_PRIVATE("config=%p", config);
-	ia_css_dp_debug_dtrace(config, IA_CSS_DEBUG_TRACE_PRIVATE);
-	if (pipe->mode < IA_CSS_PIPE_ID_NUM) {
-		params->pipe_dp_config[pipe->mode] = *config;
-		params->pipe_dpc_config_changed[pipe->mode] = true;
-	}
-	IA_CSS_LEAVE_PRIVATE("void");
-}
-
-static void
-sh_css_get_dp_config(const struct ia_css_pipe *pipe,
-		     const struct ia_css_isp_parameters *params,
-		     struct ia_css_dp_config *config)
-{
-	if (!config)
-		return;
-
-	assert(params);
-	assert(pipe);
-	IA_CSS_ENTER_PRIVATE("config=%p", config);
-
-	*config = params->pipe_dp_config[pipe->mode];
-
-	IA_CSS_LEAVE_PRIVATE("void");
-}
-
 static void
 sh_css_set_nr_config(struct ia_css_isp_parameters *params,
 		     const struct ia_css_nr_config *config)
@@ -1718,9 +1668,7 @@ sh_css_set_pipe_dvs_6axis_config(const struct ia_css_pipe *pipe,
 
 	copy_dvs_6axis_table(params->pipe_dvs_6axis_config[pipe->mode], dvs_config);
 
-#if !defined(HAS_NO_DVS_6AXIS_CONFIG_UPDATE)
 	params->pipe_dvs_6axis_config_changed[pipe->mode] = true;
-#endif
 
 	IA_CSS_LEAVE_PRIVATE("void");
 }
@@ -2039,7 +1987,6 @@ sh_css_init_isp_params_from_config(struct ia_css_pipe *pipe,
 		sh_css_set_pipe_dvs_6axis_config(pipe, params, config->dvs_6axis_config);
 	sh_css_set_dz_config(params, config->dz_config);
 	sh_css_set_motion_vector(params, config->motion_vector);
-	sh_css_update_shading_table_status(pipe_in, params);
 	sh_css_set_shading_table(pipe->stream, params, config->shading_table);
 	sh_css_set_morph_table(params, config->morph_table);
 	sh_css_set_macc_table(params, config->macc_table);
@@ -2104,7 +2051,6 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
 	sh_css_get_ee_config(params, config->ee_config);
 	sh_css_get_baa_config(params, config->baa_config);
 	sh_css_get_pipe_dvs_6axis_config(pipe, params, config->dvs_6axis_config);
-	sh_css_get_dp_config(pipe, params, config->dp_config);
 	sh_css_get_macc_table(params, config->macc_table);
 	sh_css_get_gamma_table(params, config->gamma_table);
 	sh_css_get_ctc_table(params, config->ctc_table);
@@ -2523,8 +2469,6 @@ sh_css_init_isp_params_from_global(struct ia_css_stream *stream,
 
 		params->sc_table = NULL;
 		params->sc_table_changed = true;
-		params->sc_table_dirty = false;
-		params->sc_table_last_pipe_num = 0;
 
 		ia_css_sdis2_clear_coefficients(&params->dvs2_coefs);
 		params->dvs2_coef_table_changed = true;
@@ -2582,11 +2526,8 @@ sh_css_init_isp_params_from_global(struct ia_css_stream *stream,
 				 * BDS is enabled by the user. But we do not return
 				 * the value immediately to enable internal firmware
 				 * feature testing. */
-
-				if (is_dp_10bpp) {
-					retval = false;
-					/* FIXME: should it ignore this error? */
-				}
+				retval = !is_dp_10bpp;
+				/* FIXME: should it ignore this error? */
 			} else {
 				retval = false;
 				goto exit;
@@ -2604,13 +2545,10 @@ sh_css_init_isp_params_from_global(struct ia_css_stream *stream,
 		sh_css_set_morph_table(params, stream_params->morph_table);
 
 		if (stream_params->sc_table) {
-			sh_css_update_shading_table_status(pipe_in, params);
 			sh_css_set_shading_table(stream, params, stream_params->sc_table);
 		} else {
 			params->sc_table = NULL;
 			params->sc_table_changed = true;
-			params->sc_table_dirty = false;
-			params->sc_table_last_pipe_num = 0;
 		}
 
 		/* Only IA_CSS_PIPE_ID_VIDEO & IA_CSS_PIPE_ID_CAPTURE will support dvs_6axis_config*/
@@ -2703,18 +2641,6 @@ static void host_lut_store(const void *lut)
 		gdc_lut_store((gdc_ID_t)i, (const int (*)[HRT_GDC_N]) lut);
 }
 
-/* Note that allocation is in ipu address space. */
-inline ia_css_ptr sh_css_params_alloc_gdc_lut(void)
-{
-	return hmm_alloc(sizeof(zoom_table), HMM_BO_PRIVATE, 0, NULL, 0);
-}
-
-inline void sh_css_params_free_gdc_lut(ia_css_ptr addr)
-{
-	if (addr != mmgr_NULL)
-		hmm_free(addr);
-}
-
 int ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	const void *lut)
 {
@@ -2741,8 +2667,10 @@ int ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	}
 
 	/* Free any existing tables. */
-	sh_css_params_free_gdc_lut(pipe->scaler_pp_lut);
-	pipe->scaler_pp_lut = mmgr_NULL;
+	if (pipe->scaler_pp_lut != mmgr_NULL) {
+		hmm_free(pipe->scaler_pp_lut);
+		pipe->scaler_pp_lut = mmgr_NULL;
+	}
 
 	if (!stream_started) {
 		pipe->scaler_pp_lut = hmm_alloc(sizeof(zoom_table), HMM_BO_PRIVATE, 0, NULL, 0);
@@ -2805,8 +2733,10 @@ void sh_css_params_free_default_gdc_lut(void)
 {
 	IA_CSS_ENTER_PRIVATE("void");
 
-	sh_css_params_free_gdc_lut(default_gdc_lut);
-	default_gdc_lut = mmgr_NULL;
+	if (default_gdc_lut != mmgr_NULL) {
+		hmm_free(default_gdc_lut);
+		default_gdc_lut = mmgr_NULL;
+	}
 
 	IA_CSS_LEAVE_PRIVATE("void");
 }
