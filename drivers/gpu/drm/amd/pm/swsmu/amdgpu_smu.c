@@ -1153,6 +1153,8 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		case IP_VERSION(11, 5, 0):
 		case IP_VERSION(11, 0, 12):
 			ret = smu_system_features_control(smu, true);
+			if (ret)
+				dev_err(adev->dev, "Failed system features control!\n");
 			break;
 		default:
 			break;
@@ -1277,8 +1279,10 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	}
 
 	ret = smu_notify_display_change(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to notify display change!\n");
 		return ret;
+	}
 
 	/*
 	 * Set min deep sleep dce fclk with bootup value from vbios via
@@ -1286,8 +1290,6 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	 */
 	ret = smu_set_min_dcef_deep_sleep(smu,
 					  smu->smu_table.boot_values.dcefclk / 100);
-	if (ret)
-		return ret;
 
 	return ret;
 }
