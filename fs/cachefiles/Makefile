@@ -11,7 +11,8 @@ cachefiles-y := \
 	main.o \
 	namei.o \
 	security.o \
-	volume.o
+	volume.o \
+	xattr.o
 
 cachefiles-$(CONFIG_CACHEFILES_ERROR_INJECTION) += error_inject.o
 
