@@ -470,10 +470,14 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 	if (intel_crtc_needs_vblank_work(new_crtc_state))
 		intel_crtc_vblank_work_init(new_crtc_state);
 
-	if (new_crtc_state->vrr.enable)
-		vblank_start = intel_vrr_vmax_vblank_start(new_crtc_state);
-	else
+	if (new_crtc_state->vrr.enable) {
+		if (intel_vrr_is_push_sent(new_crtc_state))
+			vblank_start = intel_vrr_vmin_vblank_start(new_crtc_state);
+		else
+			vblank_start = intel_vrr_vmax_vblank_start(new_crtc_state);
+	} else {
 		vblank_start = intel_mode_vblank_start(adjusted_mode);
+	}
 
 	/* FIXME needs to be calibrated sensibly */
 	min = vblank_start - intel_usecs_to_scanlines(adjusted_mode,
