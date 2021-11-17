@@ -314,6 +314,117 @@ cleanup:
 	btf__free(btf1);
 }
 
+static void btf_add_dup_struct_in_cu(struct btf *btf, int start_id)
+{
+#define ID(n) (start_id + n)
+	btf__set_pointer_size(btf, 8); /* enforce 64-bit arch */
+
+	btf__add_int(btf, "int", 4, BTF_INT_SIGNED);    /* [1] int */
+
+	btf__add_struct(btf, "s", 8);                   /* [2] struct s { */
+	btf__add_field(btf, "a", ID(3), 0, 0);          /*      struct anon a; */
+	btf__add_field(btf, "b", ID(4), 0, 0);          /*      struct anon b; */
+							/* } */
+
+	btf__add_struct(btf, "(anon)", 8);              /* [3] struct anon { */
+	btf__add_field(btf, "f1", ID(1), 0, 0);         /*      int f1; */
+	btf__add_field(btf, "f2", ID(1), 32, 0);        /*      int f2; */
+							/* } */
+
+	btf__add_struct(btf, "(anon)", 8);              /* [4] struct anon { */
+	btf__add_field(btf, "f1", ID(1), 0, 0);         /*      int f1; */
+	btf__add_field(btf, "f2", ID(1), 32, 0);        /*      int f2; */
+							/* } */
+#undef ID
+}
+
+static void test_split_dup_struct_in_cu()
+{
+	struct btf *btf1, *btf2;
+	int err;
+
+	/* generate the base data.. */
+	btf1 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf1, "empty_main_btf"))
+		return;
+
+	btf_add_dup_struct_in_cu(btf1, 0);
+
+	VALIDATE_RAW_BTF(
+			btf1,
+			"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+			"[2] STRUCT 's' size=8 vlen=2\n"
+			"\t'a' type_id=3 bits_offset=0\n"
+			"\t'b' type_id=4 bits_offset=0",
+			"[3] STRUCT '(anon)' size=8 vlen=2\n"
+			"\t'f1' type_id=1 bits_offset=0\n"
+			"\t'f2' type_id=1 bits_offset=32",
+			"[4] STRUCT '(anon)' size=8 vlen=2\n"
+			"\t'f1' type_id=1 bits_offset=0\n"
+			"\t'f2' type_id=1 bits_offset=32");
+
+	/* ..dedup them... */
+	err = btf__dedup(btf1, NULL, NULL);
+	if (!ASSERT_OK(err, "btf_dedup"))
+		goto cleanup;
+
+	VALIDATE_RAW_BTF(
+			btf1,
+			"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+			"[2] STRUCT 's' size=8 vlen=2\n"
+			"\t'a' type_id=3 bits_offset=0\n"
+			"\t'b' type_id=3 bits_offset=0",
+			"[3] STRUCT '(anon)' size=8 vlen=2\n"
+			"\t'f1' type_id=1 bits_offset=0\n"
+			"\t'f2' type_id=1 bits_offset=32");
+
+	/* and add the same data on top of it */
+	btf2 = btf__new_empty_split(btf1);
+	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
+		goto cleanup;
+
+	btf_add_dup_struct_in_cu(btf2, 3);
+
+	VALIDATE_RAW_BTF(
+			btf2,
+			"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+			"[2] STRUCT 's' size=8 vlen=2\n"
+			"\t'a' type_id=3 bits_offset=0\n"
+			"\t'b' type_id=3 bits_offset=0",
+			"[3] STRUCT '(anon)' size=8 vlen=2\n"
+			"\t'f1' type_id=1 bits_offset=0\n"
+			"\t'f2' type_id=1 bits_offset=32",
+			"[4] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+			"[5] STRUCT 's' size=8 vlen=2\n"
+			"\t'a' type_id=6 bits_offset=0\n"
+			"\t'b' type_id=7 bits_offset=0",
+			"[6] STRUCT '(anon)' size=8 vlen=2\n"
+			"\t'f1' type_id=4 bits_offset=0\n"
+			"\t'f2' type_id=4 bits_offset=32",
+			"[7] STRUCT '(anon)' size=8 vlen=2\n"
+			"\t'f1' type_id=4 bits_offset=0\n"
+			"\t'f2' type_id=4 bits_offset=32");
+
+	err = btf__dedup(btf2, NULL, NULL);
+	if (!ASSERT_OK(err, "btf_dedup"))
+		goto cleanup;
+
+	/* after dedup it should match the original data */
+	VALIDATE_RAW_BTF(
+			btf2,
+			"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+			"[2] STRUCT 's' size=8 vlen=2\n"
+			"\t'a' type_id=3 bits_offset=0\n"
+			"\t'b' type_id=3 bits_offset=0",
+			"[3] STRUCT '(anon)' size=8 vlen=2\n"
+			"\t'f1' type_id=1 bits_offset=0\n"
+			"\t'f2' type_id=1 bits_offset=32");
+
+cleanup:
+	btf__free(btf2);
+	btf__free(btf1);
+}
+
 void test_btf_dedup_split()
 {
 	if (test__start_subtest("split_simple"))
@@ -322,4 +433,6 @@ void test_btf_dedup_split()
 		test_split_struct_duped();
 	if (test__start_subtest("split_fwd_resolve"))
 		test_split_fwd_resolve();
+	if (test__start_subtest("split_dup_struct_in_cu"))
+		test_split_dup_struct_in_cu();
 }
