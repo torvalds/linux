@@ -623,7 +623,7 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 	flush_rb.rptr = dmub->inbox1_last_wptr;
 	dmub_rb_flush_pending(&flush_rb);
 
-		dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
+	dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
 
 	dmub->inbox1_last_wptr = dmub->inbox1_rb.wrpt;
 
