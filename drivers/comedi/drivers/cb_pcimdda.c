@@ -68,8 +68,7 @@
 
 #include <linux/module.h>
 #include <linux/comedi/comedi_pci.h>
-
-#include "8255.h"
+#include <linux/comedi/comedi_8255.h>
 
 /* device ids of the cards we support -- currently only 1 card supported */
 #define PCI_ID_PCIM_DDA06_16		0x0053

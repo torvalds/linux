@@ -75,9 +75,9 @@
 #include <linux/interrupt.h>
 #include <linux/comedi/comedidev.h>
 #include <linux/isapnp.h>
+#include <linux/comedi/comedi_8255.h>
 
 #include "ni_stc.h"
-#include "8255.h"
 
 /* AT specific setup */
 static const struct ni_board_struct ni_boards[] = {

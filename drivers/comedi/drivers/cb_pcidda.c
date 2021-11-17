@@ -28,8 +28,7 @@
 
 #include <linux/module.h>
 #include <linux/comedi/comedi_pci.h>
-
-#include "8255.h"
+#include <linux/comedi/comedi_8255.h>
 
 #define EEPROM_SIZE	128	/*  number of entries in eeprom */
 /* maximum number of ao channels for supported boards */

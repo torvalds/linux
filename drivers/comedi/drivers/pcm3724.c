@@ -25,8 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/comedi/comedidev.h>
-
-#include "8255.h"
+#include <linux/comedi/comedi_8255.h>
 
 /*
  * Register I/O Map

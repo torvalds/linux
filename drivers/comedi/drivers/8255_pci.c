@@ -54,8 +54,7 @@
 
 #include <linux/module.h>
 #include <linux/comedi/comedi_pci.h>
-
-#include "8255.h"
+#include <linux/comedi/comedi_8255.h>
 
 enum pci_8255_boardid {
 	BOARD_ADLINK_PCI7224,

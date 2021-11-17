@@ -97,8 +97,8 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/comedi/comedi_pci.h>
+#include <linux/comedi/comedi_8255.h>
 
-#include "8255.h"
 #include "plx9080.h"
 
 #define DB2K_FIRMWARE		"daqboard2000_firmware.bin"

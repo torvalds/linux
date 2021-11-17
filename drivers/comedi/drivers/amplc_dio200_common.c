@@ -13,10 +13,10 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8255.h>	/* only for register defines */
 
 #include "amplc_dio200.h"
 #include "comedi_8254.h"
-#include "8255.h"		/* only for register defines */
 
 /* 200 series registers */
 #define DIO200_IO_SIZE		0x20

@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * module/8255.h
- * Header file for 8255
+ * comedi_8255.h
+ * Generic 8255 digital I/O subdevice support
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
  */
 
-#ifndef _8255_H
-#define _8255_H
+#ifndef _COMEDI_8255_H
+#define _COMEDI_8255_H
 
 #define I8255_SIZE		0x04
 

@@ -43,7 +43,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
-#include "8255.h"
+#include <linux/comedi/comedi_8255.h>
 #include "mite.h"
 
 /* A timeout count */

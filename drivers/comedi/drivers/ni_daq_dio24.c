@@ -24,8 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/comedi/comedi_pcmcia.h>
-
-#include "8255.h"
+#include <linux/comedi/comedi_8255.h>
 
 static int dio24_auto_attach(struct comedi_device *dev,
 			     unsigned long context)

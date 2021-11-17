@@ -30,8 +30,7 @@
 
 #include <linux/module.h>
 #include <linux/comedi/comedidev.h>
-
-#include "8255.h"
+#include <linux/comedi/comedi_8255.h>
 
 struct subdev_8255_private {
 	unsigned long regbase;
