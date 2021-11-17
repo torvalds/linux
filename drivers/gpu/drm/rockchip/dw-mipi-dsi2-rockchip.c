@@ -984,6 +984,13 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 	dsi2->c_option = of_property_read_bool(np, "phy-c-option");
 	dsi2->scrambling_en = of_property_read_bool(np, "scrambling-enable");
 	dsi2->dsc_enable = of_property_read_bool(np, "compressed-data");
+
+	if (dsi2->slave) {
+		dsi2->slave->c_option = dsi2->c_option;
+		dsi2->slave->scrambling_en = dsi2->scrambling_en;
+		dsi2->slave->dsc_enable = dsi2->dsc_enable;
+	}
+
 	of_property_read_u32(np, "slice-width", &dsi2->slice_width);
 	of_property_read_u32(np, "slice-height", &dsi2->slice_height);
 	of_property_read_u8(np, "version-major", &dsi2->version_major);
