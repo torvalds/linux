@@ -53,6 +53,8 @@
 
 /* Registers from ACP_INTR block */
 #define ACP_DSP_SW_INTR_CNTL			0x1814
+#define ACP_DSP_SW_INTR_STAT                    0x1818
+#define ACP_SW_INTR_TRIG                        0x181C
 #define ACP_ERROR_STATUS			0x18C4
 
 /* Registers from ACP_SHA block */

@@ -233,6 +233,34 @@ static int acp_memory_init(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static irqreturn_t acp_irq_thread(int irq, void *context)
+{
+	struct snd_sof_dev *sdev = context;
+	unsigned int val;
+
+	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT);
+	if (val & ACP_DSP_TO_HOST_IRQ) {
+		sof_ops(sdev)->irq_thread(irq, sdev);
+		val |= ACP_DSP_TO_HOST_IRQ;
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT, val);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+};
+
+static irqreturn_t acp_irq_handler(int irq, void *dev_id)
+{
+	struct snd_sof_dev *sdev = dev_id;
+	unsigned int val;
+
+	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT);
+	if (val)
+		return IRQ_WAKE_THREAD;
+
+	return IRQ_NONE;
+}
+
 static int acp_power_on(struct snd_sof_dev *sdev)
 {
 	unsigned int val;
@@ -318,9 +346,20 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 
 	sdev->pdata->hw_pdata = adata;
 
-	ret = acp_init(sdev);
-	if (ret < 0)
+	sdev->ipc_irq = pci->irq;
+	ret = request_threaded_irq(sdev->ipc_irq, acp_irq_handler, acp_irq_thread,
+				   IRQF_SHARED, "AudioDSP", sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to register IRQ %d\n",
+			sdev->ipc_irq);
 		return ret;
+	}
+
+	ret = acp_init(sdev);
+	if (ret < 0) {
+		free_irq(sdev->ipc_irq, sdev);
+		return ret;
+	}
 
 	acp_memory_init(sdev);
 
@@ -330,6 +369,9 @@ EXPORT_SYMBOL_NS(amd_sof_acp_probe, SND_SOC_SOF_AMD_COMMON);
 
 int amd_sof_acp_remove(struct snd_sof_dev *sdev)
 {
+	if (sdev->ipc_irq)
+		free_irq(sdev->ipc_irq, sdev);
+
 	return acp_reset(sdev);
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_remove, SND_SOC_SOF_AMD_COMMON);
