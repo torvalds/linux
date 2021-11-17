@@ -270,8 +270,10 @@ static int liteuart_probe(struct platform_device *pdev)
 
 	/* get membase */
 	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (IS_ERR(port->membase))
-		return PTR_ERR(port->membase);
+	if (IS_ERR(port->membase)) {
+		ret = PTR_ERR(port->membase);
+		goto err_erase_id;
+	}
 
 	/* values not from device tree */
 	port->dev = &pdev->dev;
@@ -287,7 +289,16 @@ static int liteuart_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, port);
 
-	return uart_add_one_port(&liteuart_driver, &uart->port);
+	ret = uart_add_one_port(&liteuart_driver, &uart->port);
+	if (ret)
+		goto err_erase_id;
+
+	return 0;
+
+err_erase_id:
+	xa_erase(&liteuart_array, uart->id);
+
+	return ret;
 }
 
 static int liteuart_remove(struct platform_device *pdev)
