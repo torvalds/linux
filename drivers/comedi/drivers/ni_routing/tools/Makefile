@@ -3,7 +3,7 @@
 # 	ni_route_values.h
 #	ni_device_routes.h
 # in order to do this, we are also generating a python representation (using
-# ctypesgen) of ../../comedi.h.
+# ctypesgen) of ../../../../../include/uapi/linux/comedi.h.
 # This allows us to sort NI signal/terminal names numerically to use a binary
 # search through the device_routes tables to find valid routes.
 
@@ -30,13 +30,21 @@ ALL:
 
 everything : csv-files c-files csv-blank
 
-CPPFLAGS=-D"BIT(x)=(1UL<<(x))" -D__user=
+CPPFLAGS = -D__user=
+INC_UAPI = ../../../../../include/uapi
 
-comedi_h.py : ../../../comedi.h
+comedi_h.py: $(INC_UAPI)/linux/comedi.h
 	ctypesgen $< --include "sys/ioctl.h" --cpp 'gcc -E $(CPPFLAGS)' -o $@
 
-convert_c_to_py: all_cfiles.c
-	gcc -g convert_c_to_py.c -o convert_c_to_py -std=c99
+convert_c_to_py: all_cfiles.c linux/comedi.h
+	gcc -g -I. convert_c_to_py.c -o convert_c_to_py -std=c99
+
+# Create a local 'linux/comedi.h' for use when compiling 'convert_c_to_py.c'
+# with the '-I.' option.  (Cannot specify '-I../../../../../include/uapi'
+# because that interferes with inclusion of other system headers.)
+linux/comedi.h: $(INC_UAPI)/linux/comedi.h
+	mkdir -p linux
+	ln -snf ../$< $@
 
 ni_values.py: convert_c_to_py
 	./convert_c_to_py
@@ -44,7 +52,7 @@ ni_values.py: convert_c_to_py
 csv-files : ni_values.py comedi_h.py
 	./convert_py_to_csv.py
 
-csv-blank :
+csv-blank : comedi_h.py
 	./make_blank_csv.py
 	@echo New blank csv signal table in csv/blank_route_table.csv
 
@@ -62,17 +70,16 @@ clean-partial :
 	$(RM) -rf comedi_h.py ni_values.py convert_c_to_py all_cfiles.c *.pyc \
 		__pycache__/
 
-clean : partial_clean
-	$(RM) -rf c/ csv/
+clean : clean-partial
+	$(RM) -rf c/ csv/ linux/
 
 # Note:  One could also use ctypeslib in order to generate these files.  The
 # caveat is that ctypeslib does not do a great job at handling macro functions.
 # The make rules are as follows:
-# comedi.h.xml : ../../comedi.h
+# comedi.h.xml : $(INC_UAPI)/linux/comedi.h
 # 	# note that we have to use PWD here to avoid h2xml finding a system
 # 	# installed version of the comedilib/comedi.h file
-# 	h2xml ${PWD}/../../comedi.h -c -D__user="" -D"BIT(x)=(1<<(x))" \
-# 		-o comedi.h.xml
+# 	h2xml ${PWD}/$(INC_UAPI)/linux/comedi.h -c D__user="" -o comedi.h.xml
 #
 # comedi_h.py : comedi.h.xml
 # 	xml2py ./comedi.h.xml -o comedi_h.py
