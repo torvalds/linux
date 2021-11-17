@@ -493,4 +493,14 @@ int disk_register_independent_access_ranges(struct gendisk *disk,
 				struct blk_independent_access_ranges *new_iars);
 void disk_unregister_independent_access_ranges(struct gendisk *disk);
 
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+bool should_fail_request(struct block_device *part, unsigned int bytes);
+#else /* CONFIG_FAIL_MAKE_REQUEST */
+static inline bool should_fail_request(struct block_device *part,
+					unsigned int bytes)
+{
+	return false;
+}
+#endif /* CONFIG_FAIL_MAKE_REQUEST */
+
 #endif /* BLK_INTERNAL_H */
