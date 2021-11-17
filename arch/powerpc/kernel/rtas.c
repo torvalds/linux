@@ -492,8 +492,25 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 }
 EXPORT_SYMBOL(rtas_call);
 
-/* For RTAS_BUSY (-2), delay for 1 millisecond.  For an extended busy status
- * code of 990n, perform the hinted delay of 10^n (last digit) milliseconds.
+/**
+ * rtas_busy_delay_time() - From an RTAS status value, calculate the
+ *                          suggested delay time in milliseconds.
+ *
+ * @status: a value returned from rtas_call() or similar APIs which return
+ *          the status of a RTAS function call.
+ *
+ * Context: Any context.
+ *
+ * Return:
+ * * 100000 - If @status is 9905.
+ * * 10000  - If @status is 9904.
+ * * 1000   - If @status is 9903.
+ * * 100    - If @status is 9902.
+ * * 10     - If @status is 9901.
+ * * 1      - If @status is either 9900 or -2. This is "wrong" for -2, but
+ *            some callers depend on this behavior, and the worst outcome
+ *            is that they will delay for longer than necessary.
+ * * 0      - If @status is not a busy or extended delay value.
  */
 unsigned int rtas_busy_delay_time(int status)
 {
