@@ -352,7 +352,7 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	__smu_cmn_send_msg(smu, (uint16_t) index, param);
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
-	if (res == -EREMOTEIO)
+	if (res != 0)
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
 	if (read_arg)
 		smu_cmn_read_arg(smu, read_arg);
