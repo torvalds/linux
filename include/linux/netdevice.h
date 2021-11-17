@@ -592,7 +592,7 @@ struct netdev_queue {
 	 * Number of TX timeouts for this queue
 	 * (/sys/class/net/DEV/Q/trans_timeout)
 	 */
-	unsigned long		trans_timeout;
+	atomic_long_t		trans_timeout;
 
 	/* Subordinate device that the queue has been assigned to */
 	struct net_device	*sb_dev;
@@ -4095,10 +4095,21 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 	spin_unlock_bh(&txq->_xmit_lock);
 }
 
+/*
+ * txq->trans_start can be read locklessly from dev_watchdog()
+ */
 static inline void txq_trans_update(struct netdev_queue *txq)
 {
 	if (txq->xmit_lock_owner != -1)
-		txq->trans_start = jiffies;
+		WRITE_ONCE(txq->trans_start, jiffies);
+}
+
+static inline void txq_trans_cond_update(struct netdev_queue *txq)
+{
+	unsigned long now = jiffies;
+
+	if (READ_ONCE(txq->trans_start) != now)
+		WRITE_ONCE(txq->trans_start, now);
 }
 
 /* legacy drivers only, netdev_start_xmit() sets txq->trans_start */
@@ -4106,8 +4117,7 @@ static inline void netif_trans_update(struct net_device *dev)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 
-	if (txq->trans_start != jiffies)
-		txq->trans_start = jiffies;
+	txq_trans_cond_update(txq);
 }
 
 /**
@@ -4116,27 +4126,7 @@ static inline void netif_trans_update(struct net_device *dev)
  *
  * Get network device transmit lock
  */
-static inline void netif_tx_lock(struct net_device *dev)
-{
-	unsigned int i;
-	int cpu;
-
-	spin_lock(&dev->tx_global_lock);
-	cpu = smp_processor_id();
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-
-		/* We are the only thread of execution doing a
-		 * freeze, but we have to grab the _xmit_lock in
-		 * order to synchronize with threads which are in
-		 * the ->hard_start_xmit() handler and already
-		 * checked the frozen bit.
-		 */
-		__netif_tx_lock(txq, cpu);
-		set_bit(__QUEUE_STATE_FROZEN, &txq->state);
-		__netif_tx_unlock(txq);
-	}
-}
+void netif_tx_lock(struct net_device *dev);
 
 static inline void netif_tx_lock_bh(struct net_device *dev)
 {
@@ -4144,22 +4134,7 @@ static inline void netif_tx_lock_bh(struct net_device *dev)
 	netif_tx_lock(dev);
 }
 
-static inline void netif_tx_unlock(struct net_device *dev)
-{
-	unsigned int i;
-
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-
-		/* No need to grab the _xmit_lock here.  If the
-		 * queue is not stopped for another reason, we
-		 * force a schedule.
-		 */
-		clear_bit(__QUEUE_STATE_FROZEN, &txq->state);
-		netif_schedule_queue(txq);
-	}
-	spin_unlock(&dev->tx_global_lock);
-}
+void netif_tx_unlock(struct net_device *dev);
 
 static inline void netif_tx_unlock_bh(struct net_device *dev)
 {

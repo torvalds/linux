@@ -345,7 +345,7 @@ static void am65_cpsw_nuss_ndo_host_tx_timeout(struct net_device *ndev,
 
 	netif_txq = netdev_get_tx_queue(ndev, txqueue);
 	tx_chn = &common->tx_chns[txqueue];
-	trans_start = netif_txq->trans_start;
+	trans_start = READ_ONCE(netif_txq->trans_start);
 
 	netdev_err(ndev, "txq:%d DRV_XOFF:%d tmo:%u dql_avail:%d free_desc:%zu\n",
 		   txqueue,
