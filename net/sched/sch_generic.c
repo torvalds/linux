@@ -500,7 +500,7 @@ static void dev_watchdog(struct timer_list *t)
 {
 	struct net_device *dev = from_timer(dev, t, watchdog_timer);
 
-	netif_tx_lock(dev);
+	spin_lock(&dev->tx_global_lock);
 	if (!qdisc_tx_is_noop(dev)) {
 		if (netif_device_present(dev) &&
 		    netif_running(dev) &&
@@ -523,11 +523,13 @@ static void dev_watchdog(struct timer_list *t)
 				}
 			}
 
-			if (some_queue_timedout) {
+			if (unlikely(some_queue_timedout)) {
 				trace_net_dev_xmit_timeout(dev, i);
 				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
 				       dev->name, netdev_drivername(dev), i);
+				netif_freeze_queues(dev);
 				dev->netdev_ops->ndo_tx_timeout(dev, i);
+				netif_unfreeze_queues(dev);
 			}
 			if (!mod_timer(&dev->watchdog_timer,
 				       round_jiffies(jiffies +
@@ -535,7 +537,7 @@ static void dev_watchdog(struct timer_list *t)
 				dev_hold(dev);
 		}
 	}
-	netif_tx_unlock(dev);
+	spin_unlock(&dev->tx_global_lock);
 
 	dev_put(dev);
 }
