@@ -511,193 +511,215 @@ static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
 static int kfd_resume(struct kfd_dev *kfd);
 
+static void kfd_device_info_init(struct kfd_dev *kfd,
+				 bool vf, uint32_t gfx_target_version)
+{
+	uint32_t gc_version = KFD_GC_VERSION(kfd);
+	uint32_t sdma_version = kfd->adev->ip_versions[SDMA0_HWIP][0];
+	uint32_t asic_type = kfd->adev->asic_type;
+
+	kfd->device_info.max_pasid_bits = 16;
+	kfd->device_info.max_no_of_hqd = 24;
+	kfd->device_info.num_of_watch_points = 4;
+	kfd->device_info.mqd_size_aligned = MQD_SIZE_ALIGNED;
+	kfd->device_info.gfx_target_version = gfx_target_version;
+
+	if (KFD_IS_SOC15(kfd)) {
+		kfd->device_info.doorbell_size = 8;
+		kfd->device_info.ih_ring_entry_size = 8 * sizeof(uint32_t);
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_v9;
+		kfd->device_info.supports_cwsr = true;
+
+		if ((sdma_version >= IP_VERSION(4, 0, 0)  &&
+		     sdma_version <= IP_VERSION(4, 2, 0)) ||
+		     sdma_version == IP_VERSION(5, 2, 1)  ||
+		     sdma_version == IP_VERSION(5, 2, 3))
+			kfd->device_info.num_sdma_queues_per_engine = 2;
+		else
+			kfd->device_info.num_sdma_queues_per_engine = 8;
+
+		/* Raven */
+		if (gc_version == IP_VERSION(9, 1, 0) ||
+		    gc_version == IP_VERSION(9, 2, 2))
+			kfd->device_info.needs_iommu_device = true;
+
+		if (gc_version < IP_VERSION(11, 0, 0)) {
+			/* Navi2x+, Navi1x+ */
+			if (gc_version >= IP_VERSION(10, 3, 0))
+				kfd->device_info.no_atomic_fw_version = 145;
+			else if (gc_version >= IP_VERSION(10, 1, 1))
+				kfd->device_info.no_atomic_fw_version = 92;
+
+			/* Navi1x+ */
+			if (gc_version >= IP_VERSION(10, 1, 1))
+				kfd->device_info.needs_pci_atomics = true;
+		}
+	} else {
+		kfd->device_info.doorbell_size = 4;
+		kfd->device_info.ih_ring_entry_size = 4 * sizeof(uint32_t);
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_cik;
+		kfd->device_info.num_sdma_queues_per_engine = 2;
+
+		if (asic_type != CHIP_KAVERI &&
+		    asic_type != CHIP_HAWAII &&
+		    asic_type != CHIP_TONGA)
+			kfd->device_info.supports_cwsr = true;
+
+		if (asic_type == CHIP_KAVERI ||
+		    asic_type == CHIP_CARRIZO)
+			kfd->device_info.needs_iommu_device = true;
+
+		if (asic_type != CHIP_HAWAII && !vf)
+			kfd->device_info.needs_pci_atomics = true;
+	}
+}
+
 struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 {
-	struct kfd_dev *kfd;
-	const struct kfd_device_info *device_info;
-	const struct kfd2kgd_calls *f2g;
+	struct kfd_dev *kfd = NULL;
+	const struct kfd2kgd_calls *f2g = NULL;
 	struct pci_dev *pdev = adev->pdev;
+	uint32_t gfx_target_version = 0;
 
 	switch (adev->asic_type) {
 #ifdef KFD_SUPPORT_IOMMU_V2
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_KAVERI:
-		if (vf)
-			device_info = NULL;
-		else
-			device_info = &kaveri_device_info;
-		f2g = &gfx_v7_kfd2kgd;
+		gfx_target_version = 70000;
+		if (!vf)
+			f2g = &gfx_v7_kfd2kgd;
 		break;
 #endif
 	case CHIP_CARRIZO:
-		if (vf)
-			device_info = NULL;
-		else
-			device_info = &carrizo_device_info;
-		f2g = &gfx_v8_kfd2kgd;
+		gfx_target_version = 80001;
+		if (!vf)
+			f2g = &gfx_v8_kfd2kgd;
 		break;
 #endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_HAWAII:
-		if (vf)
-			device_info = NULL;
-		else
-			device_info = &hawaii_device_info;
-		f2g = &gfx_v7_kfd2kgd;
+		gfx_target_version = 70001;
+		if (!vf)
+			f2g = &gfx_v7_kfd2kgd;
 		break;
 #endif
 	case CHIP_TONGA:
-		if (vf)
-			device_info = NULL;
-		else
-			device_info = &tonga_device_info;
-		f2g = &gfx_v8_kfd2kgd;
+		gfx_target_version = 80002;
+		if (!vf)
+			f2g = &gfx_v8_kfd2kgd;
 		break;
 	case CHIP_FIJI:
-		if (vf)
-			device_info = &fiji_vf_device_info;
-		else
-			device_info = &fiji_device_info;
+		gfx_target_version = 80003;
 		f2g = &gfx_v8_kfd2kgd;
 		break;
 	case CHIP_POLARIS10:
-		if (vf)
-			device_info = &polaris10_vf_device_info;
-		else
-			device_info = &polaris10_device_info;
+		gfx_target_version = 80003;
 		f2g = &gfx_v8_kfd2kgd;
 		break;
 	case CHIP_POLARIS11:
-		if (vf)
-			device_info = NULL;
-		else
-			device_info = &polaris11_device_info;
-		f2g = &gfx_v8_kfd2kgd;
+		gfx_target_version = 80003;
+		if (!vf)
+			f2g = &gfx_v8_kfd2kgd;
 		break;
 	case CHIP_POLARIS12:
-		if (vf)
-			device_info = NULL;
-		else
-			device_info = &polaris12_device_info;
-		f2g = &gfx_v8_kfd2kgd;
+		gfx_target_version = 80003;
+		if (!vf)
+			f2g = &gfx_v8_kfd2kgd;
 		break;
 	case CHIP_VEGAM:
-		if (vf)
-			device_info = NULL;
-		else
-			device_info = &vegam_device_info;
-		f2g = &gfx_v8_kfd2kgd;
+		gfx_target_version = 80003;
+		if (!vf)
+			f2g = &gfx_v8_kfd2kgd;
 		break;
 	default:
 		switch (adev->ip_versions[GC_HWIP][0]) {
 		case IP_VERSION(9, 0, 1):
-			if (vf)
-				device_info = &vega10_vf_device_info;
-			else
-				device_info = &vega10_device_info;
+			gfx_target_version = 90000;
 			f2g = &gfx_v9_kfd2kgd;
 			break;
 #ifdef KFD_SUPPORT_IOMMU_V2
 		case IP_VERSION(9, 1, 0):
 		case IP_VERSION(9, 2, 2):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &raven_device_info;
-			f2g = &gfx_v9_kfd2kgd;
+			gfx_target_version = 90002;
+			if (!vf)
+				f2g = &gfx_v9_kfd2kgd;
 			break;
 #endif
 		case IP_VERSION(9, 2, 1):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &vega12_device_info;
-			f2g = &gfx_v9_kfd2kgd;
+			gfx_target_version = 90004;
+			if (!vf)
+				f2g = &gfx_v9_kfd2kgd;
 			break;
 		case IP_VERSION(9, 3, 0):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &renoir_device_info;
-			f2g = &gfx_v9_kfd2kgd;
+			gfx_target_version = 90012;
+			if (!vf)
+				f2g = &gfx_v9_kfd2kgd;
 			break;
 		case IP_VERSION(9, 4, 0):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &vega20_device_info;
-			f2g = &gfx_v9_kfd2kgd;
+			gfx_target_version = 90006;
+			if (!vf)
+				f2g = &gfx_v9_kfd2kgd;
 			break;
 		case IP_VERSION(9, 4, 1):
-			device_info = &arcturus_device_info;
+			gfx_target_version = 90008;
 			f2g = &arcturus_kfd2kgd;
 			break;
 		case IP_VERSION(9, 4, 2):
-			device_info = &aldebaran_device_info;
+			gfx_target_version = 90010;
 			f2g = &aldebaran_kfd2kgd;
 			break;
 		case IP_VERSION(10, 1, 10):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &navi10_device_info;
-			f2g = &gfx_v10_kfd2kgd;
+			gfx_target_version = 100100;
+			if (!vf)
+				f2g = &gfx_v10_kfd2kgd;
 			break;
 		case IP_VERSION(10, 1, 2):
-			device_info = &navi12_device_info;
+			gfx_target_version = 100101;
 			f2g = &gfx_v10_kfd2kgd;
 			break;
 		case IP_VERSION(10, 1, 1):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &navi14_device_info;
-			f2g = &gfx_v10_kfd2kgd;
+			gfx_target_version = 100102;
+			if (!vf)
+				f2g = &gfx_v10_kfd2kgd;
 			break;
 		case IP_VERSION(10, 1, 3):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &cyan_skillfish_device_info;
-			f2g = &gfx_v10_kfd2kgd;
+			gfx_target_version = 100103;
+			if (!vf)
+				f2g = &gfx_v10_kfd2kgd;
 			break;
 		case IP_VERSION(10, 3, 0):
-			device_info = &sienna_cichlid_device_info;
+			gfx_target_version = 100300;
 			f2g = &gfx_v10_3_kfd2kgd;
 			break;
 		case IP_VERSION(10, 3, 2):
-			device_info = &navy_flounder_device_info;
+			gfx_target_version = 100301;
 			f2g = &gfx_v10_3_kfd2kgd;
 			break;
 		case IP_VERSION(10, 3, 1):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &vangogh_device_info;
-			f2g = &gfx_v10_3_kfd2kgd;
+			gfx_target_version = 100303;
+			if (!vf)
+				f2g = &gfx_v10_3_kfd2kgd;
 			break;
 		case IP_VERSION(10, 3, 4):
-			device_info = &dimgrey_cavefish_device_info;
+			gfx_target_version = 100302;
 			f2g = &gfx_v10_3_kfd2kgd;
 			break;
 		case IP_VERSION(10, 3, 5):
-			device_info = &beige_goby_device_info;
+			gfx_target_version = 100304;
 			f2g = &gfx_v10_3_kfd2kgd;
 			break;
 		case IP_VERSION(10, 3, 3):
-			if (vf)
-				device_info = NULL;
-			else
-				device_info = &yellow_carp_device_info;
-			f2g = &gfx_v10_3_kfd2kgd;
+			gfx_target_version = 100305;
+			if (!vf)
+				f2g = &gfx_v10_3_kfd2kgd;
 			break;
 		default:
-			return NULL;
+			break;
 		}
 		break;
 	}
 
-	if (!device_info || !f2g) {
+	if (!f2g) {
 		if (adev->ip_versions[GC_HWIP][0])
 			dev_err(kfd_device, "GC IP %06x %s not supported in kfd\n",
 				adev->ip_versions[GC_HWIP][0], vf ? "VF" : "");
@@ -712,7 +734,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 		return NULL;
 
 	kfd->adev = adev;
-	kfd->device_info = device_info;
+	kfd_device_info_init(kfd, vf, gfx_target_version);
 	kfd->pdev = pdev;
 	kfd->init_complete = false;
 	kfd->kfd2kgd = f2g;
@@ -731,7 +753,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 
 static void kfd_cwsr_init(struct kfd_dev *kfd)
 {
-	if (cwsr_enable && kfd->device_info->supports_cwsr) {
+	if (cwsr_enable && kfd->device_info.supports_cwsr) {
 		if (KFD_GC_VERSION(kfd) < IP_VERSION(9, 0, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
@@ -815,14 +837,14 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 */
 	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kfd->adev);
 	if (!kfd->pci_atomic_requested &&
-	    kfd->device_info->needs_pci_atomics &&
-	    (!kfd->device_info->no_atomic_fw_version ||
-	     kfd->mec_fw_version < kfd->device_info->no_atomic_fw_version)) {
+	    kfd->device_info.needs_pci_atomics &&
+	    (!kfd->device_info.no_atomic_fw_version ||
+	     kfd->mec_fw_version < kfd->device_info.no_atomic_fw_version)) {
 		dev_info(kfd_device,
 			 "skipped device %x:%x, PCI rejects atomics %d<%d\n",
 			 kfd->pdev->vendor, kfd->pdev->device,
 			 kfd->mec_fw_version,
-			 kfd->device_info->no_atomic_fw_version);
+			 kfd->device_info.no_atomic_fw_version);
 		return false;
 	}
 
@@ -839,7 +861,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
-			kfd->device_info->mqd_size_aligned;
+			kfd->device_info.mqd_size_aligned;
 
 	/*
 	 * calculate max size of runlist packet.
@@ -1114,7 +1136,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 	if (!kfd->init_complete)
 		return;
 
-	if (kfd->device_info->ih_ring_entry_size > sizeof(patched_ihre)) {
+	if (kfd->device_info.ih_ring_entry_size > sizeof(patched_ihre)) {
 		dev_err_once(kfd_device, "Ring entry too small\n");
 		return;
 	}

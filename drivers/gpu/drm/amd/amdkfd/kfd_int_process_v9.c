@@ -135,7 +135,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 
 		*patched_flag = true;
 		memcpy(patched_ihre, ih_ring_entry,
-				dev->device_info->ih_ring_entry_size);
+				dev->device_info.ih_ring_entry_size);
 
 		pasid = dev->dqm->vmid_pasid[vmid];
 

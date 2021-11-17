@@ -111,7 +111,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->rptr_kernel = kq->rptr_mem->cpu_ptr;
 	kq->rptr_gpu_addr = kq->rptr_mem->gpu_addr;
 
-	retval = kfd_gtt_sa_allocate(dev, dev->device_info->doorbell_size,
+	retval = kfd_gtt_sa_allocate(dev, dev->device_info.doorbell_size,
 					&kq->wptr_mem);
 
 	if (retval != 0)
@@ -297,7 +297,7 @@ void kq_submit_packet(struct kernel_queue *kq)
 	}
 	pr_debug("\n");
 #endif
-	if (kq->dev->device_info->doorbell_size == 8) {
+	if (kq->dev->device_info.doorbell_size == 8) {
 		*kq->wptr64_kernel = kq->pending_wptr64;
 		write_kernel_doorbell64(kq->queue->properties.doorbell_ptr,
 					kq->pending_wptr64);
@@ -310,7 +310,7 @@ void kq_submit_packet(struct kernel_queue *kq)
 
 void kq_rollback_packet(struct kernel_queue *kq)
 {
-	if (kq->dev->device_info->doorbell_size == 8) {
+	if (kq->dev->device_info.doorbell_size == 8) {
 		kq->pending_wptr64 = *kq->wptr64_kernel;
 		kq->pending_wptr = *kq->wptr_kernel %
 			(kq->queue->properties.queue_size / 4);
