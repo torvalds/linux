@@ -583,10 +583,14 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 
 	omap_gem_init(ddev);
 
+	ret = omap_hwoverlays_init(priv);
+	if (ret)
+		goto err_gem_deinit;
+
 	ret = omap_modeset_init(ddev);
 	if (ret) {
 		dev_err(priv->dev, "omap_modeset_init failed: ret=%d\n", ret);
-		goto err_gem_deinit;
+		goto err_free_overlays;
 	}
 
 	/* Initialize vblank handling, start with all CRTCs disabled. */
@@ -618,6 +622,8 @@ err_cleanup_helpers:
 	omap_fbdev_fini(ddev);
 err_cleanup_modeset:
 	omap_modeset_fini(ddev);
+err_free_overlays:
+	omap_hwoverlays_destroy(priv);
 err_gem_deinit:
 	omap_gem_deinit(ddev);
 	destroy_workqueue(priv->wq);
@@ -642,6 +648,7 @@ static void omapdrm_cleanup(struct omap_drm_private *priv)
 	drm_atomic_helper_shutdown(ddev);
 
 	omap_modeset_fini(ddev);
+	omap_hwoverlays_destroy(priv);
 	omap_gem_deinit(ddev);
 
 	destroy_workqueue(priv->wq);
