@@ -36,9 +36,11 @@
 #include <drm/drm_file.h>
 #include <drm/drm_drv.h>
 
+#ifndef FPGA_PLATFORM
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip_ipa.h>
+#endif
 
 #include "rknpu_ioctl.h"
 #include "rknpu_reset.h"
@@ -56,10 +58,52 @@ module_param(bypass_soft_reset, int, 0644);
 MODULE_PARM_DESC(bypass_soft_reset,
 		 "bypass RKNPU soft reset if set it to 1, disabled by default");
 
+struct npu_irqs_data {
+	const char *name;
+	irqreturn_t (*irq_hdl)(int irq, void *ctx);
+};
+
+static const struct npu_irqs_data rk356x_npu_irqs[] = {
+	{ "npu0_irq", rknpu_core0_irq_handler }
+};
+
+static const struct npu_irqs_data rk3588_npu_irqs[] = {
+	{ "npu0_irq", rknpu_core0_irq_handler },
+	{ "npu1_irq", rknpu_core1_irq_handler },
+	{ "npu2_irq", rknpu_core2_irq_handler }
+};
+
+static const struct npu_reset_data rk356x_npu_resets[] = { { "srst_a",
+							     "srst_h" } };
+
+static const struct npu_reset_data rk3588_npu_resets[] = {
+	{ "srst_a0", "srst_h0" },
+	{ "srst_a1", "srst_h1" },
+	{ "srst_a2", "srst_h2" }
+};
+
 static const struct rknpu_config rk356x_rknpu_config = {
 	.bw_priority_addr = 0xfe180008,
 	.bw_priority_length = 0x10,
 	.dma_mask = DMA_BIT_MASK(32),
+	.pc_data_extra_amount = 4,
+	.bw_enable = 1,
+	.irqs = rk356x_npu_irqs,
+	.resets = rk356x_npu_resets,
+	.num_irqs = ARRAY_SIZE(rk356x_npu_irqs),
+	.num_resets = ARRAY_SIZE(rk356x_npu_resets)
+};
+
+static const struct rknpu_config rk3588_rknpu_config = {
+	.bw_priority_addr = 0x0,
+	.bw_priority_length = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.pc_data_extra_amount = 2,
+	.bw_enable = 0,
+	.irqs = rk3588_npu_irqs,
+	.resets = rk3588_npu_resets,
+	.num_irqs = ARRAY_SIZE(rk3588_npu_irqs),
+	.num_resets = ARRAY_SIZE(rk3588_npu_resets)
 };
 
 /* driver probe and init */
@@ -71,6 +115,10 @@ static const struct of_device_id rknpu_of_match[] = {
 	{
 		.compatible = "rockchip,rk3568-rknpu",
 		.data = &rk356x_rknpu_config,
+	},
+	{
+		.compatible = "rockchip,rk3588-rknpu",
+		.data = &rk3588_rknpu_config,
 	},
 	{},
 };
@@ -350,6 +398,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 	struct device *dev = rknpu_dev->dev;
 	int ret = -EINVAL;
 
+#ifndef FPGA_PLATFORM
 	ret = regulator_enable(rknpu_dev->vdd);
 	if (ret) {
 		LOG_DEV_ERROR(
@@ -357,6 +406,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 			ret);
 		return ret;
 	}
+#endif
 
 	ret = clk_bulk_prepare_enable(rknpu_dev->num_clks, rknpu_dev->clks);
 	if (ret) {
@@ -428,11 +478,14 @@ static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 
 	clk_bulk_disable_unprepare(rknpu_dev->num_clks, rknpu_dev->clks);
 
+#ifndef FPGA_PLATFORM
 	regulator_disable(rknpu_dev->vdd);
+#endif
 
 	return 0;
 }
 
+#ifndef FPGA_PLATFORM
 static struct monitor_dev_profile npu_mdevp = {
 	.type = MONITOR_TPYE_DEV,
 	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
@@ -677,6 +730,57 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 out:
 	return 0;
 }
+#endif
+
+static int rknpu_register_irq(struct platform_device *pdev,
+			      struct rknpu_device *rknpu_dev)
+{
+	const struct rknpu_config *config = rknpu_dev->config;
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+	int i, ret, irq;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
+					   config->irqs[0].name);
+	if (res) {
+		/* there are irq names in dts */
+		for (i = 0; i < config->num_irqs; i++) {
+			irq = platform_get_irq_byname(pdev,
+						      config->irqs[i].name);
+			if (irq < 0) {
+				LOG_DEV_ERROR(dev, "no npu %s in dts\n",
+					      config->irqs[i].name);
+				return irq;
+			}
+
+			ret = devm_request_irq(dev, irq,
+					       config->irqs[i].irq_hdl,
+					       IRQF_SHARED, dev_name(dev),
+					       rknpu_dev);
+			if (ret < 0) {
+				LOG_DEV_ERROR(dev, "request %s failed: %d\n",
+					      config->irqs[i].name, ret);
+				return ret;
+			}
+		}
+	} else {
+		/* no irq names in dts */
+		irq = platform_get_irq(pdev, 0);
+		if (irq < 0) {
+			LOG_DEV_ERROR(dev, "no npu irq in dts\n");
+			return irq;
+		}
+
+		ret = devm_request_irq(dev, irq, rknpu_core0_irq_handler,
+				       IRQF_SHARED, dev_name(dev), rknpu_dev);
+		if (ret < 0) {
+			LOG_DEV_ERROR(dev, "request irq failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
 
 static int rknpu_probe(struct platform_device *pdev)
 {
@@ -686,7 +790,7 @@ static int rknpu_probe(struct platform_device *pdev)
 	struct device *virt_dev = NULL;
 	const struct of_device_id *match = NULL;
 	const struct rknpu_config *config = NULL;
-	int ret = -EINVAL;
+	int ret = -EINVAL, i = 0;
 
 	if (!pdev->dev.of_node) {
 		LOG_DEV_ERROR(dev, "rknpu device-tree data is missing!\n");
@@ -729,11 +833,8 @@ static int rknpu_probe(struct platform_device *pdev)
 	rknpu_reset_get(rknpu_dev);
 
 	rknpu_dev->num_clks = devm_clk_bulk_get_all(dev, &rknpu_dev->clks);
-	if (rknpu_dev->num_clks < 1) {
-		LOG_DEV_ERROR(dev, "failed to get clk source for rknpu\n");
-		return -ENODEV;
-	}
 
+#ifndef FPGA_PLATFORM
 	rknpu_dev->vdd = devm_regulator_get_optional(dev, "rknpu");
 	if (IS_ERR(rknpu_dev->vdd)) {
 		if (PTR_ERR(rknpu_dev->vdd) != -ENODEV) {
@@ -746,55 +847,49 @@ static int rknpu_probe(struct platform_device *pdev)
 		}
 		rknpu_dev->vdd = NULL;
 	}
+#endif
 
 	spin_lock_init(&rknpu_dev->lock);
 	spin_lock_init(&rknpu_dev->irq_lock);
-	INIT_LIST_HEAD(&rknpu_dev->todo_list);
-	init_waitqueue_head(&rknpu_dev->job_done_wq);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		LOG_DEV_ERROR(dev, "failed to get memory resource for rknpu\n");
-		return -ENXIO;
-	}
-
-	rknpu_dev->base = devm_ioremap_resource(dev, res);
-	if (PTR_ERR(rknpu_dev->base) == -EBUSY) {
-		rknpu_dev->base =
-			devm_ioremap(dev, res->start, resource_size(res));
-	}
-
-	if (IS_ERR(rknpu_dev->base)) {
-		LOG_DEV_ERROR(dev, "failed to remap register for rknpu\n");
-		return PTR_ERR(rknpu_dev->base);
-	}
-
-	rknpu_dev->bw_priority_base = devm_ioremap(
-		dev, config->bw_priority_addr, config->bw_priority_length);
-	if (IS_ERR(rknpu_dev->bw_priority_base)) {
-		LOG_DEV_ERROR(
-			rknpu_dev->dev,
-			"failed to remap bw priority register for rknpu\n");
-		rknpu_dev->bw_priority_base = NULL;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		LOG_DEV_ERROR(dev,
-			      "failed to get interrupt resource for rknpu\n");
-		return -ENXIO;
-	}
-
-	if (!rknpu_dev->bypass_irq_handler) {
-		ret = devm_request_irq(dev, res->start, rknpu_irq_handler,
-				       IRQF_SHARED, dev_name(dev), rknpu_dev);
-		if (ret) {
-			LOG_DEV_ERROR(dev, "failed to request irq for rknpu\n");
-			return ret;
+	for (i = 0; i < config->num_irqs; i++) {
+		INIT_LIST_HEAD(&rknpu_dev->subcore_datas[i].todo_list);
+		init_waitqueue_head(&rknpu_dev->subcore_datas[i].job_done_wq);
+		rknpu_dev->subcore_datas[i].task_num = 0;
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res) {
+			LOG_DEV_ERROR(
+				dev,
+				"failed to get memory resource for rknpu\n");
+			return -ENXIO;
 		}
-	} else {
-		LOG_DEV_WARN(dev, "bypass irq handler!\n");
+
+		rknpu_dev->base[i] = devm_ioremap_resource(dev, res);
+		if (PTR_ERR(rknpu_dev->base[i]) == -EBUSY) {
+			rknpu_dev->base[i] = devm_ioremap(dev, res->start,
+							  resource_size(res));
+		}
+
+		if (IS_ERR(rknpu_dev->base[i])) {
+			LOG_DEV_ERROR(dev,
+				      "failed to remap register for rknpu\n");
+			return PTR_ERR(rknpu_dev->base[i]);
+		}
 	}
+
+	if (config->bw_priority_length > 0) {
+		rknpu_dev->bw_priority_base =
+			devm_ioremap(dev, config->bw_priority_addr,
+				     config->bw_priority_length);
+		if (IS_ERR(rknpu_dev->bw_priority_base)) {
+			LOG_DEV_ERROR(
+				rknpu_dev->dev,
+				"failed to remap bw priority register for rknpu\n");
+			rknpu_dev->bw_priority_base = NULL;
+		}
+	}
+
+	if (!rknpu_dev->bypass_irq_handler)
+		rknpu_register_irq(pdev, rknpu_dev);
 
 	ret = rknpu_drm_probe(rknpu_dev);
 	if (ret) {
@@ -802,17 +897,18 @@ static int rknpu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rknpu_dev->fence_ctx = rknpu_fence_context_alloc();
-	if (IS_ERR(rknpu_dev->fence_ctx)) {
+	ret = rknpu_fence_context_alloc(rknpu_dev);
+	if (ret) {
 		LOG_DEV_ERROR(dev,
 			      "failed to allocate fence context for rknpu\n");
-		ret = PTR_ERR(rknpu_dev->fence_ctx);
 		goto err_remove_drm;
 	}
 
 	platform_set_drvdata(pdev, rknpu_dev);
 
+#ifndef FPGA_PLATFORM
 	rknpu_devfreq_init(rknpu_dev);
+#endif
 
 	pm_runtime_enable(dev);
 
@@ -832,12 +928,10 @@ static int rknpu_probe(struct platform_device *pdev)
 
 	ret = rknpu_power_on(rknpu_dev);
 	if (ret)
-		goto err_free_fence_context;
+		goto err_remove_drm;
 
 	return 0;
 
-err_free_fence_context:
-	rknpu_fence_context_free(rknpu_dev->fence_ctx);
 err_remove_drm:
 	rknpu_drm_remove(rknpu_dev);
 
@@ -847,13 +941,14 @@ err_remove_drm:
 static int rknpu_remove(struct platform_device *pdev)
 {
 	struct rknpu_device *rknpu_dev = platform_get_drvdata(pdev);
+	int i = 0;
 
-	WARN_ON(rknpu_dev->job);
-	WARN_ON(!list_empty(&rknpu_dev->todo_list));
+	for (i = 0; i < rknpu_dev->config->num_irqs; i++) {
+		WARN_ON(rknpu_dev->subcore_datas[i].job);
+		WARN_ON(!list_empty(&rknpu_dev->subcore_datas[i].todo_list));
+	}
 
 	rknpu_drm_remove(rknpu_dev);
-
-	rknpu_fence_context_free(rknpu_dev->fence_ctx);
 
 	rknpu_power_off(rknpu_dev);
 

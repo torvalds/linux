@@ -9,6 +9,7 @@
 
 #include "rknpu_reset.h"
 
+#ifndef FPGA_PLATFORM
 static inline struct reset_control *rknpu_reset_control_get(struct device *dev,
 							    const char *name)
 {
@@ -22,27 +23,38 @@ static inline struct reset_control *rknpu_reset_control_get(struct device *dev,
 
 	return rst;
 }
+#endif
 
 int rknpu_reset_get(struct rknpu_device *rknpu_dev)
 {
+#ifndef FPGA_PLATFORM
 	struct reset_control *srst_a = NULL;
 	struct reset_control *srst_h = NULL;
+	int i = 0;
 
-	srst_a = rknpu_reset_control_get(rknpu_dev->dev, "srst_a");
-	if (IS_ERR(srst_a))
-		return PTR_ERR(srst_a);
+	for (i = 0; i < rknpu_dev->config->num_resets; i++) {
+		srst_a = rknpu_reset_control_get(
+			rknpu_dev->dev,
+			rknpu_dev->config->resets[i].srst_a_name);
+		if (IS_ERR(srst_a))
+			return PTR_ERR(srst_a);
 
-	rknpu_dev->srst_a = srst_a;
+		rknpu_dev->srst_a[i] = srst_a;
 
-	srst_h = devm_reset_control_get(rknpu_dev->dev, "srst_h");
-	if (IS_ERR(srst_h))
-		return PTR_ERR(srst_h);
+		srst_h = rknpu_reset_control_get(
+			rknpu_dev->dev,
+			rknpu_dev->config->resets[i].srst_h_name);
+		if (IS_ERR(srst_h))
+			return PTR_ERR(srst_h);
 
-	rknpu_dev->srst_h = srst_h;
+		rknpu_dev->srst_h[i] = srst_h;
+	}
+#endif
 
 	return 0;
 }
 
+#ifndef FPGA_PLATFORM
 static int rknpu_reset_assert(struct reset_control *rst)
 {
 	int ret = -EINVAL;
@@ -74,11 +86,13 @@ static int rknpu_reset_deassert(struct reset_control *rst)
 
 	return 0;
 }
+#endif
 
 int rknpu_soft_reset(struct rknpu_device *rknpu_dev)
 {
+#ifndef FPGA_PLATFORM
 	struct iommu_domain *domain = NULL;
-	int ret = -EINVAL;
+	int ret = -EINVAL, i = 0;
 
 	if (rknpu_dev->bypass_soft_reset) {
 		LOG_WARN("bypass soft reset\n");
@@ -87,13 +101,15 @@ int rknpu_soft_reset(struct rknpu_device *rknpu_dev)
 
 	LOG_INFO("soft reset\n");
 
-	ret = rknpu_reset_assert(rknpu_dev->srst_a);
-	ret |= rknpu_reset_assert(rknpu_dev->srst_h);
+	for (i = 0; i < rknpu_dev->config->num_resets; i++) {
+		ret = rknpu_reset_assert(rknpu_dev->srst_a[i]);
+		ret |= rknpu_reset_assert(rknpu_dev->srst_h[i]);
 
-	udelay(10);
+		udelay(10);
 
-	ret |= rknpu_reset_deassert(rknpu_dev->srst_a);
-	ret |= rknpu_reset_deassert(rknpu_dev->srst_h);
+		ret |= rknpu_reset_deassert(rknpu_dev->srst_a[i]);
+		ret |= rknpu_reset_deassert(rknpu_dev->srst_h[i]);
+	}
 
 	if (ret) {
 		LOG_DEV_ERROR(rknpu_dev->dev,
@@ -108,6 +124,7 @@ int rknpu_soft_reset(struct rknpu_device *rknpu_dev)
 		iommu_detach_device(domain, rknpu_dev->dev);
 		iommu_attach_device(domain, rknpu_dev->dev);
 	}
+#endif
 
-	return ret;
+	return 0;
 }

@@ -15,9 +15,7 @@ struct rknpu_fence_context {
 	spinlock_t spinlock;
 };
 
-struct rknpu_fence_context *rknpu_fence_context_alloc(void);
-
-void rknpu_fence_context_free(struct rknpu_fence_context *fence_ctx);
+int rknpu_fence_context_alloc(struct rknpu_device *rknpu_dev);
 
 int rknpu_fence_alloc(struct rknpu_job *job);
 

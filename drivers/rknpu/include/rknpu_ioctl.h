@@ -14,8 +14,6 @@
 #define __user
 #endif
 
-#define RKNPU_PC_DATA_EXTRA_AMOUNT 4
-
 #define RKNPU_OFFSET_VERSION 0x0
 #define RKNPU_OFFSET_PC_OP_EN 0x8
 #define RKNPU_OFFSET_PC_DATA_ADDR 0x10
@@ -27,6 +25,7 @@
 #define RKNPU_OFFSET_INT_MASK 0x20
 #define RKNPU_OFFSET_INT_CLEAR 0x24
 #define RKNPU_OFFSET_INT_STATUS 0x28
+#define RKNPU_OFFSET_INT_RAW_STATUS 0x2c
 
 #define RKNPU_OFFSET_CLR_ALL_RW_AMOUNT 0x8010
 #define RKNPU_OFFSET_DT_WR_AMOUNT 0x8034
@@ -91,9 +90,11 @@ enum e_rknpu_job_mode {
 	RKNPU_JOB_BLOCK = 0 << 1,
 	RKNPU_JOB_NONBLOCK = 1 << 1,
 	RKNPU_JOB_PINGPONG = 1 << 2,
-	RKNPU_JOB_FENCE = 1 << 3,
+	RKNPU_JOB_FENCE_IN = 1 << 3,
+	RKNPU_JOB_FENCE_OUT = 1 << 4,
 	RKNPU_JOB_MASK = RKNPU_JOB_PC | RKNPU_JOB_NONBLOCK |
-			 RKNPU_JOB_PINGPONG | RKNPU_JOB_FENCE
+			 RKNPU_JOB_PINGPONG | RKNPU_JOB_FENCE_IN |
+			 RKNPU_JOB_FENCE_OUT
 };
 
 /* action definitions */
@@ -207,6 +208,19 @@ struct rknpu_task {
 } __packed;
 
 /**
+ * struct rknpu_subcore_task structure for subcore task index
+ *
+ * @task_start: task start index
+ * @task_number: task number
+ *
+ */
+struct rknpu_subcore_task {
+	__u32 task_start;
+	__u32 task_number;
+	__u32 task_end;
+};
+
+/**
  * struct rknpu_submit structure for job submit
  *
  * @flags: flags for job submit
@@ -219,7 +233,7 @@ struct rknpu_task {
  * @regcfg_obj_addr: address of register config object
  * @user_data: (optional) user data
  * @sequence: submit sequence
- * @core_id: core id of rknpu
+ * @core_mask: core mask of rknpu
  * @fence_fd: dma fence fd
  *
  */
@@ -234,8 +248,9 @@ struct rknpu_submit {
 	__u64 regcfg_obj_addr;
 	__u64 user_data;
 	__u64 sequence;
-	__u32 core_id;
+	__u32 core_mask;
 	__s32 fence_fd;
+	struct rknpu_subcore_task subcore_task[5];
 };
 
 /**

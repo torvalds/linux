@@ -24,24 +24,21 @@ static const struct dma_fence_ops rknpu_fence_ops = {
 	.get_timeline_name = rknpu_fence_get_name,
 };
 
-struct rknpu_fence_context *rknpu_fence_context_alloc(void)
+int rknpu_fence_context_alloc(struct rknpu_device *rknpu_dev)
 {
 	struct rknpu_fence_context *fence_ctx = NULL;
 
-	fence_ctx = kzalloc(sizeof(*fence_ctx), GFP_KERNEL);
+	fence_ctx =
+		devm_kzalloc(rknpu_dev->dev, sizeof(*fence_ctx), GFP_KERNEL);
 	if (!fence_ctx)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	fence_ctx->context = dma_fence_context_alloc(1);
 	spin_lock_init(&fence_ctx->spinlock);
 
-	return fence_ctx;
-}
+	rknpu_dev->fence_ctx = fence_ctx;
 
-void rknpu_fence_context_free(struct rknpu_fence_context *fence_ctx)
-{
-	if (!IS_ERR(fence_ctx))
-		kfree(fence_ctx);
+	return 0;
 }
 
 int rknpu_fence_alloc(struct rknpu_job *job)
@@ -53,7 +50,7 @@ int rknpu_fence_alloc(struct rknpu_job *job)
 	if (!fence)
 		return -ENOMEM;
 
-	dma_fence_init(fence, &rknpu_fence_ops, &job->fence_lock,
+	dma_fence_init(fence, &rknpu_fence_ops, &fence_ctx->spinlock,
 		       fence_ctx->context, ++fence_ctx->seqno);
 
 	job->fence = fence;

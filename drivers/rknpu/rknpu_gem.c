@@ -130,9 +130,6 @@ static int rknpu_gem_alloc_buf(struct rknpu_gem_object *rknpu_obj)
 #endif
 #ifdef DMA_ATTR_SYS_CACHE_ONLY
 		rknpu_obj->dma_attrs |= DMA_ATTR_SYS_CACHE_ONLY;
-#elif DMA_ATTR_FORCE_COHERENT
-		// force coherent
-		rknpu_obj->dma_attrs |= DMA_ATTR_FORCE_COHERENT;
 #endif
 	} else if (rknpu_obj->flags & RKNPU_MEM_WRITE_COMBINE) {
 		rknpu_obj->dma_attrs |= DMA_ATTR_WRITE_COMBINE;
@@ -459,7 +456,7 @@ int rknpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	// rknpu_gem_object_get(&rknpu_obj->base);
 
 	args->size = rknpu_obj->size;
-	args->obj_addr = (__u64)rknpu_obj;
+	args->obj_addr = (__u64)(uintptr_t)rknpu_obj;
 	args->dma_addr = rknpu_obj->dma_addr;
 
 	return 0;
@@ -920,7 +917,7 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 	unsigned long len = 0;
 	int i;
 
-	rknpu_obj = (struct rknpu_gem_object *)args->obj_addr;
+	rknpu_obj = (struct rknpu_gem_object *)(uintptr_t)args->obj_addr;
 	if (!rknpu_obj)
 		return -EINVAL;
 
