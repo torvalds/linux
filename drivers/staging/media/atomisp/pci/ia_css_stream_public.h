@@ -102,12 +102,10 @@ struct ia_css_stream_config {
 		isys_config[IA_CSS_STREAM_MAX_ISYS_STREAM_PER_CH];
 	struct ia_css_stream_input_config input_config;
 
-	/* Currently, Android and Windows platforms interpret the binning_factor parameter
-	 * differently. In Android, the binning factor is expressed in the form
-	 * 2^N * 2^N, whereas in Windows platform, the binning factor is N*N
-	 * To use the Windows method of specification, the caller has to define
-	 * macro USE_WINDOWS_BINNING_FACTOR. This is for backward compatibility only
-	 * and will be deprecated. In the future,all platforms will use the N*N method
+	/*
+	 * Currently, Linux and Windows platforms interpret the binning_factor
+	 * parameter differently. In Linux, the binning factor is expressed
+	 * in the form 2^N * 2^N
 	 */
 	/* ISP2401 */
 	unsigned int sensor_binning_factor; /** Binning factor used by sensor

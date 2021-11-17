@@ -271,15 +271,6 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 		      bds_denominator -
 		      binary->info->sp.pipeline.top_cropping;
 
-#if !defined(USE_WINDOWS_BINNING_FACTOR)
-	/* @deprecated{This part of the code will be replaced by the code
-	 * in the #else section below to make the calculation same across
-	 * all platforms.
-	 * Android and Windows platforms interpret the binning_factor parameter
-	 * differently. In Android, the binning factor is expressed in the form
-	 * 2^N * 2^N, whereas in Windows platform, the binning factor is N*N}
-	 */
-
 	/* We take into account the binning done by the sensor. We do this
 	   by cropping the non-binned part of the shading table and then
 	   increasing the size of a grid cell with this same binning factor. */
@@ -291,13 +282,6 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 	left_padding  <<= sensor_binning;
 	right_padding <<= sensor_binning;
 	top_padding   <<= sensor_binning;
-#else
-	input_width   *= sensor_binning;
-	input_height  *= sensor_binning;
-	left_padding  *= sensor_binning;
-	right_padding *= sensor_binning;
-	top_padding   *= sensor_binning;
-#endif /*USE_WINDOWS_BINNING_FACTOR*/
 
 	/* during simulation, the used resolution can exceed the sensor
 	   resolution, so we clip it. */
