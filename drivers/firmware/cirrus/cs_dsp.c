@@ -758,6 +758,9 @@ int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl, const void *buf, size_
 
 	lockdep_assert_held(&ctl->dsp->pwr_lock);
 
+	if (!ctl)
+		return -ENOENT;
+
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
 		ret = -EPERM;
 	else if (buf != ctl->cache)
@@ -816,6 +819,9 @@ int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl, void *buf, size_t len)
 	int ret = 0;
 
 	lockdep_assert_held(&ctl->dsp->pwr_lock);
+
+	if (!ctl)
+		return -ENOENT;
 
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE) {
 		if (ctl->enabled && ctl->dsp->running)
