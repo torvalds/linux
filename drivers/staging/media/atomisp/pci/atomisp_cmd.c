@@ -1046,13 +1046,8 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 
 			asd->pending_capture_request--;
 
-			if (IS_ISP2401)
-				asd->re_trigger_capture = false;
-
 			dev_dbg(isp->dev, "Trigger capture again for new buffer. err=%d\n",
 				err);
-		} else if (IS_ISP2401) {
-			asd->re_trigger_capture = true;
 		}
 		break;
 	case IA_CSS_BUFFER_TYPE_OUTPUT_FRAME:
@@ -1474,7 +1469,7 @@ void atomisp_wdt_work(struct work_struct *work)
 				     wdt_work);
 	int i;
 	unsigned int pipe_wdt_cnt[MAX_STREAM_NUM][4] = { {0} };
-	bool css_recover = false;
+	bool css_recover = true;
 
 	rt_mutex_lock(&isp->mutex);
 	if (!atomisp_streaming_count(isp)) {
@@ -1487,12 +1482,7 @@ void atomisp_wdt_work(struct work_struct *work)
 		dev_err(isp->dev, "timeout %d of %d\n",
 			atomic_read(&isp->wdt_count) + 1,
 			ATOMISP_ISP_MAX_TIMEOUT_COUNT);
-
-		if (atomic_inc_return(&isp->wdt_count) < ATOMISP_ISP_MAX_TIMEOUT_COUNT)
-			css_recover = true;
 	} else {
-		css_recover = true;
-
 		for (i = 0; i < isp->num_of_streams; i++) {
 			struct atomisp_sub_device *asd = &isp->asd[i];
 
@@ -6003,7 +5993,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		 * which appears to be related by a hardware
 		 * performance limitation.  It's unclear why this
 		 * particular code triggers the issue. */
-		if (!IS_ISP2401 || crop_needs_override) {
+		if (crop_needs_override) {
 			if (isp_sink_crop.width * main_compose.height >
 			    isp_sink_crop.height * main_compose.width) {
 				sink_crop.height = isp_sink_crop.height;
