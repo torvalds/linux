@@ -1457,25 +1457,8 @@ done:
 	    pipe->capq.streaming &&
 	    !asd->enable_raw_buffer_lock->val &&
 	    asd->params.offline_parm.num_captures == 1) {
-		if (!IS_ISP2401) {
 			asd->pending_capture_request++;
 			dev_dbg(isp->dev, "Add one pending capture request.\n");
-		} else {
-			if (asd->re_trigger_capture) {
-				ret = atomisp_css_offline_capture_configure(asd,
-					asd->params.offline_parm.num_captures,
-					asd->params.offline_parm.skip_frames,
-					asd->params.offline_parm.offset);
-				asd->re_trigger_capture = false;
-				dev_dbg(isp->dev, "%s Trigger capture again ret=%d\n",
-					__func__, ret);
-
-			} else {
-				asd->pending_capture_request++;
-				asd->re_trigger_capture = false;
-				dev_dbg(isp->dev, "Add one pending capture request.\n");
-			}
-		}
 	}
 	rt_mutex_unlock(&isp->mutex);
 
@@ -1868,8 +1851,6 @@ static int atomisp_streamon(struct file *file, void *fh,
 
 	/* Reset pending capture request count. */
 	asd->pending_capture_request = 0;
-	if (IS_ISP2401)
-		asd->re_trigger_capture = false;
 
 	if ((atomisp_subdev_streaming_count(asd) > sensor_start_stream) &&
 	    (!isp->inputs[asd->input_curr].camera_caps->multi_stream_ctrl)) {
