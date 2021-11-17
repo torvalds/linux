@@ -653,6 +653,8 @@ int cs_dsp_coeff_write_acked_control(struct cs_dsp_coeff_ctl *ctl, unsigned int 
 	unsigned int reg;
 	int i, ret;
 
+	lockdep_assert_held(&dsp->pwr_lock);
+
 	if (!dsp->running)
 		return -EPERM;
 
@@ -754,6 +756,8 @@ int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl, const void *buf, size_
 {
 	int ret = 0;
 
+	lockdep_assert_held(&ctl->dsp->pwr_lock);
+
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
 		ret = -EPERM;
 	else if (buf != ctl->cache)
@@ -810,6 +814,8 @@ static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl, void *buf, s
 int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl, void *buf, size_t len)
 {
 	int ret = 0;
+
+	lockdep_assert_held(&ctl->dsp->pwr_lock);
 
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE) {
 		if (ctl->enabled && ctl->dsp->running)
@@ -1453,6 +1459,8 @@ struct cs_dsp_coeff_ctl *cs_dsp_get_ctl(struct cs_dsp *dsp, const char *name, in
 {
 	struct cs_dsp_coeff_ctl *pos, *rslt = NULL;
 
+	lockdep_assert_held(&dsp->pwr_lock);
+
 	list_for_each_entry(pos, &dsp->ctl_list, list) {
 		if (!pos->subname)
 			continue;
@@ -1547,6 +1555,8 @@ struct cs_dsp_alg_region *cs_dsp_find_alg_region(struct cs_dsp *dsp,
 						 int type, unsigned int id)
 {
 	struct cs_dsp_alg_region *alg_region;
+
+	lockdep_assert_held(&dsp->pwr_lock);
 
 	list_for_each_entry(alg_region, &dsp->alg_regions, list) {
 		if (id == alg_region->alg && type == alg_region->type)
@@ -2783,6 +2793,8 @@ int cs_dsp_read_raw_data_block(struct cs_dsp *dsp, int mem_type, unsigned int me
 	unsigned int reg;
 	int ret;
 
+	lockdep_assert_held(&dsp->pwr_lock);
+
 	if (!mem)
 		return -EINVAL;
 
@@ -2835,6 +2847,8 @@ int cs_dsp_write_data_word(struct cs_dsp *dsp, int mem_type, unsigned int mem_ad
 	struct cs_dsp_region const *mem = cs_dsp_find_region(dsp, mem_type);
 	__be32 val = cpu_to_be32(data & 0x00ffffffu);
 	unsigned int reg;
+
+	lockdep_assert_held(&dsp->pwr_lock);
 
 	if (!mem)
 		return -EINVAL;
