@@ -133,7 +133,7 @@ examples:
      };
      led@3 {
        reg = <3>;
-       function = LED_FUNCTION_MOONLIGHT;
+       function = LED_FUNCTION_INDICATOR;
        color = <LED_COLOR_ID_WHITE>;
        led-max-microamp = <150000>;
      };
