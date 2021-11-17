@@ -592,8 +592,12 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 				ISP3X_DBR_WRSELF_UPD | ISP3X_GAINSELF_UPD |
 				ISP3X_BAY3D_IIRSELF_UPD | ISP3X_BAY3D_CURSELF_UPD |
 				ISP3X_BAY3D_DSSELF_UPD;
-			rkisp_set_bits(dev, MI_WR_CTRL2, 0, val, true);
-			rkisp_set_bits(dev, ISP3X_MPFBC_CTRL, 0, ISP3X_MPFBC_FORCE_UPD, true);
+			writel(val, hw->base_addr + MI_WR_CTRL2);
+
+			val = rkisp_read(dev, ISP3X_MPFBC_CTRL, false);
+			val |= ISP3X_MPFBC_FORCE_UPD;
+			writel(val, hw->base_addr + ISP3X_MPFBC_CTRL);
+
 			/* sensor mode & index */
 			val = rkisp_read_reg_cache(dev, ISP_ACQ_H_OFFS);
 			val |= ISP21_SENSOR_MODE(hw->dev_num >= 3 ? 2 : hw->dev_num - 1) |
