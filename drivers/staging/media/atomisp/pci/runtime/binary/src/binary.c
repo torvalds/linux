@@ -108,7 +108,6 @@ ia_css_binary_internal_res(const struct ia_css_frame_info *in_info,
 			       binary_dvs_env.height);
 }
 
-/* ISP2400 */
 /* Computation results of the origin coordinate of bayer on the shading table. */
 struct sh_css_shading_table_bayer_origin_compute_results {
 	u32 bayer_scale_hor_ratio_in;	/* Horizontal ratio (in) of bayer scaling. */
@@ -119,23 +118,7 @@ struct sh_css_shading_table_bayer_origin_compute_results {
 	u32 sc_bayer_origin_y_bqs_on_shading_table; /* Y coordinate (in bqs) of bayer origin on shading table. */
 };
 
-/* ISP2401 */
-/* Requirements for the shading correction. */
-struct sh_css_binary_sc_requirements {
-	/* Bayer scaling factor, for the scaling which is applied before shading correction. */
-	u32 bayer_scale_hor_ratio_in;  /* Horizontal ratio (in) of scaling applied BEFORE shading correction. */
-	u32 bayer_scale_hor_ratio_out; /* Horizontal ratio (out) of scaling applied BEFORE shading correction. */
-	u32 bayer_scale_ver_ratio_in;  /* Vertical ratio (in) of scaling applied BEFORE shading correction. */
-	u32 bayer_scale_ver_ratio_out; /* Vertical ratio (out) of scaling applied BEFORE shading correction. */
-
-	/* ISP internal frame is composed of the real sensor data and the padding data. */
-	u32 sensor_data_origin_x_bqs_on_internal; /* X origin (in bqs) of sensor data on internal frame
-								at shading correction. */
-	u32 sensor_data_origin_y_bqs_on_internal; /* Y origin (in bqs) of sensor data on internal frame
-								at shading correction. */
-};
-
-/* ISP2400: Get the requirements for the shading correction. */
+/* Get the requirements for the shading correction. */
 static int
 ia_css_binary_compute_shading_table_bayer_origin(
     const struct ia_css_binary *binary,				/* [in] */
@@ -568,15 +551,9 @@ binary_grid_deci_factor_log2(int width, int height)
 	/* 3A/Shading decimation factor spcification (at August 2008)
 	 * ------------------------------------------------------------------
 	 * [Image Width (BQ)] [Decimation Factor (BQ)] [Resulting grid cells]
-	#ifndef ISP2401
 	 * 1280 ?c             32                       40 ?c
 	 *  640 ?c 1279        16                       40 ?c 80
 	 *      ?c  639         8                          ?c 80
-	#else
-	 * from 1280                   32                 from 40
-	 * from  640 to 1279           16                 from 40 to 80
-	 *           to  639            8                         to 80
-	#endif
 	 * ------------------------------------------------------------------
 	 */
 	/* Maximum and minimum decimation factor by the specification */
@@ -938,15 +915,9 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 
 	if (info->enable.sc)
 	{
-		if (!IS_ISP2401) {
-			binary->sctbl_width_per_color = _ISP_SCTBL_WIDTH_PER_COLOR(sc_3a_dis_padded_width, s3a_log_deci);
-			binary->sctbl_aligned_width_per_color = SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR;
-			binary->sctbl_height = _ISP_SCTBL_HEIGHT(sc_3a_dis_height, s3a_log_deci);
-		} else {
-			binary->sctbl_width_per_color = _ISP2401_SCTBL_WIDTH_PER_COLOR(isp_internal_width, s3a_log_deci);
-			binary->sctbl_aligned_width_per_color = SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR;
-			binary->sctbl_height = _ISP2401_SCTBL_HEIGHT(isp_internal_height, s3a_log_deci);
-		}
+		binary->sctbl_width_per_color = _ISP_SCTBL_WIDTH_PER_COLOR(sc_3a_dis_padded_width, s3a_log_deci);
+		binary->sctbl_aligned_width_per_color = SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR;
+		binary->sctbl_height = _ISP_SCTBL_HEIGHT(sc_3a_dis_height, s3a_log_deci);
 	} else
 	{
 		binary->sctbl_width_per_color         = 0;
@@ -980,11 +951,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 		*req_vf_info;
 
 	struct ia_css_binary_xinfo *xcandidate;
-#ifndef ISP2401
 	bool need_ds, need_dz, need_dvs, need_xnr, need_dpc;
-#else
-	bool need_ds, need_dz, need_dvs, need_xnr, need_dpc, need_tnr;
-#endif
 	bool striped;
 	bool enable_yuv_ds;
 	bool enable_high_speed;
@@ -1012,33 +979,21 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 	stream_format = descr->stream_format;
 	req_in_info = descr->in_info;
 	req_bds_out_info = descr->bds_out_info;
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
-	{
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
 		req_out_info[i] = descr->out_info[i];
 		if (req_out_info[i] && (req_out_info[i]->res.width != 0))
 			req_bin_out_info = req_out_info[i];
 	}
 	if (!req_bin_out_info)
 		return -EINVAL;
-#ifndef ISP2401
 	req_vf_info = descr->vf_info;
-#else
-
-	if ((descr->vf_info) && (descr->vf_info->res.width == 0))
-		/* width==0 means that there is no vf pin (e.g. in SkyCam preview case) */
-		req_vf_info = NULL;
-	else
-		req_vf_info = descr->vf_info;
-#endif
 
 	need_xnr = descr->enable_xnr;
 	need_ds = descr->enable_fractional_ds;
 	need_dz = false;
 	need_dvs = false;
 	need_dpc = descr->enable_dpc;
-#ifdef ISP2401
-	need_tnr = descr->enable_tnr;
-#endif
+
 	enable_yuv_ds = descr->enable_yuv_ds;
 	enable_high_speed = descr->enable_high_speed;
 	enable_dvs_6axis  = descr->enable_dvs_6axis;
@@ -1053,8 +1008,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 	internal_res.width = 0;
 	internal_res.height = 0;
 
-	if (mode == IA_CSS_BINARY_MODE_VIDEO)
-	{
+	if (mode == IA_CSS_BINARY_MODE_VIDEO) {
 		dvs_env = descr->dvs_env;
 		need_dz = descr->enable_dz;
 		/* Video is the only mode that has a nodz variant. */
@@ -1063,8 +1017,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 
 	/* print a map of the binary file */
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,	"BINARY INFO:\n");
-	for (i = 0; i < IA_CSS_BINARY_NUM_MODES; i++)
-	{
+	for (i = 0; i < IA_CSS_BINARY_NUM_MODES; i++) {
 		xcandidate = binary_infos[i];
 		if (xcandidate) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,	"%d:\n", i);
@@ -1079,8 +1032,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 
 	/* printf("sh_css_binary_find: pipe version %d\n", isp_pipe_version); */
 	for (xcandidate = binary_infos[mode]; xcandidate;
-	     xcandidate = xcandidate->next)
-	{
+	     xcandidate = xcandidate->next) {
 		struct ia_css_binary_info *candidate = &xcandidate->sp;
 		/* printf("sh_css_binary_find: evaluating candidate:
 		 * %d\n",candidate->id); */
@@ -1338,16 +1290,6 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 			continue;
 		}
 
-#ifdef ISP2401
-		if (!candidate->enable.tnr && need_tnr) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-					    "ia_css_binary_find() [%d] continue: !%d && %d\n",
-					    __LINE__, candidate->enable.tnr,
-					    descr->enable_tnr);
-			continue;
-		}
-
-#endif
 		/* reconfigure any variable properties of the binary */
 		err = ia_css_binary_fill_info(xcandidate, online, two_ppc,
 					      stream_format, req_in_info,
