@@ -1968,6 +1968,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 	struct cs_dsp_alg_region *alg_region;
 	const char *region_name;
 	int ret, pos, blocks, type, offset, reg, version;
+	char *text = NULL;
 	struct cs_dsp_buf *buf;
 
 	if (!firmware)
@@ -2025,6 +2026,8 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 		region_name = "Unknown";
 		switch (type) {
 		case (WMFW_NAME_TEXT << 8):
+			text = kzalloc(le32_to_cpu(blk->len) + 1, GFP_KERNEL);
+			break;
 		case (WMFW_INFO_TEXT << 8):
 		case (WMFW_METADATA << 8):
 			break;
@@ -2094,6 +2097,13 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 			break;
 		}
 
+		if (text) {
+			memcpy(text, blk->data, le32_to_cpu(blk->len));
+			cs_dsp_info(dsp, "%s: %s\n", dsp->fw_name, text);
+			kfree(text);
+			text = NULL;
+		}
+
 		if (reg) {
 			if (le32_to_cpu(blk->len) >
 			    firmware->size - pos - sizeof(*blk)) {
@@ -2144,6 +2154,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 out_fw:
 	regmap_async_complete(regmap);
 	cs_dsp_buf_free(&buf_list);
+	kfree(text);
 	return ret;
 }
 
