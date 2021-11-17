@@ -1264,8 +1264,18 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 	val = RK3568_VOP2_GLB_CFG_DONE_EN | BIT(vp->id) | (BIT(vp->id) << 16);
 	if (vcstate->splice_mode)
 		val |= BIT(vp_data->splice_vp_id) | (BIT(vp_data->splice_vp_id) << 16);
-	if (vcstate->dsc_enable)
-		VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
+		dsc = &vop2->dscs[0];
+		if (vcstate->dsc_enable)
+			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+		dsc = &vop2->dscs[1];
+		if (vcstate->dsc_enable)
+			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+	} else {
+		if (vcstate->dsc_enable)
+			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+	}
+
 	vop2_writel(vop2, 0, val);
 }
 
@@ -3112,13 +3122,22 @@ static void vop2_disable(struct drm_crtc *crtc)
 	clk_disable_unprepare(vop2->hclk);
 }
 
+static void vop2_crtc_disable_dsc(struct vop2 *vop2, u8 dsc_id)
+{
+	struct vop2_dsc *dsc = &vop2->dscs[dsc_id];
+
+	VOP_MODULE_SET(vop2, dsc, dsc_mer, 1);
+	VOP_MODULE_SET(vop2, dsc, dsc_en, 0);
+	VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+}
+
 static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
-	struct vop2_dsc *dsc;
+	bool dual_channel = !!(vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE);
 	int ret;
 
 	WARN_ON(vp->event);
@@ -3126,16 +3145,22 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEV_INFO(vop2->dev, "Crtc atomic disable vp%d\n", vp->id);
 	drm_crtc_vblank_off(crtc);
 	if (vcstate->dsc_enable && vop2->data->nr_dscs) {
-		dsc = &vop2->dscs[vcstate->dsc_id];
-		VOP_MODULE_SET(vop2, dsc, dsc_mer, 0);
-		VOP_MODULE_SET(vop2, dsc, dsc_en, 0);
-		VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+		if (dual_channel) {
+			vop2_crtc_disable_dsc(vop2, 0);
+			vop2_crtc_disable_dsc(vop2, 1);
+		} else {
+			vop2_crtc_disable_dsc(vop2, vcstate->dsc_id);
+		}
 	}
 	vop2_disable_all_planes_for_crtc(crtc);
-	if (vcstate->dsc_enable && vop2->data->nr_dscs) {
-		if (dsc->pd)
-			vop2_power_domain_put(dsc->pd);
-		dsc->enabled = false;
+	if (vcstate->dsc_enable && vop2->data->nr_dscs && vop2->dscs[vcstate->dsc_id].pd) {
+		if (dual_channel) {
+			vop2_power_domain_put(vop2->dscs[0].pd);
+			vop2_power_domain_put(vop2->dscs[1].pd);
+		} else {
+			vop2_power_domain_put(vop2->dscs[vcstate->dsc_id].pd);
+		}
+		vop2->dscs[vcstate->dsc_id].enabled = false;
 		vcstate->dsc_enable = false;
 	}
 
@@ -5019,6 +5044,55 @@ static int vop2_cru_set_rate(struct vop2_clk *if_pixclk, struct vop2_clk *if_dcl
 	return ret;
 }
 
+static int vop2_set_dsc_clk(struct drm_crtc *crtc, u8 dsc_id)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_dsc_data *dsc_data = &vop2_data->dsc[dsc_id];
+	struct vop2_clk *dsc_txp_clk, *dsc_pxl_clk, *dsc_cds_clk, *dsc_txp_clk_parent;
+	char clk_name[32];
+	int ret = 0;
+
+	/* set clk parent */
+	snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
+	dsc_txp_clk = vop2_clk_get(vop2, dsc_data->dsc_txp_clk_src_name);
+	dsc_txp_clk_parent = vop2_clk_get(vop2, clk_name);
+	if (!dsc_txp_clk || !dsc_txp_clk_parent) {
+		DRM_DEV_ERROR(vop2->dev, "failed to get dsc clk\n");
+		return -ENODEV;
+	}
+	ret = clk_set_parent(dsc_txp_clk->hw.clk, dsc_txp_clk_parent->hw.clk);
+	if (ret < 0) {
+		DRM_DEV_ERROR(vop2->dev, "failed to set parent(%s) for %s: %d\n",
+			      __clk_get_name(dsc_txp_clk_parent->hw.clk),
+			      __clk_get_name(dsc_txp_clk->hw.clk), ret);
+		return ret;
+	}
+
+	/* set dsc txp clk rate */
+	clk_set_rate(dsc_txp_clk->hw.clk, vcstate->dsc_txp_clk_rate);
+
+	/* set dsc pxl clk rate */
+	dsc_pxl_clk = vop2_clk_get(vop2, dsc_data->dsc_pxl_clk_name);
+	if (!dsc_pxl_clk) {
+		DRM_DEV_ERROR(vop2->dev, "failed to get dsc_pxl_clk\n");
+		return -ENODEV;
+	}
+	clk_set_rate(dsc_pxl_clk->hw.clk, vcstate->dsc_pxl_clk_rate);
+
+	/* set dsc cds clk rate */
+	dsc_cds_clk = vop2_clk_get(vop2, dsc_data->dsc_cds_clk_name);
+	if (!dsc_cds_clk) {
+		DRM_DEV_ERROR(vop2->dev, "failed to get dsc_cds_clk\n");
+		return -ENODEV;
+	}
+	clk_set_rate(dsc_cds_clk->hw.clk, vcstate->dsc_cds_clk_rate);
+
+	return 0;
+}
+
 static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_if_data *if_data,
 			    struct vop2_clk *if_pixclk, struct vop2_clk *if_dclk)
 {
@@ -5033,8 +5107,10 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	char dclk_core_div_shift = 2;
 	char K = 1;
 	char clk_name[32];
-	struct vop2_clk *dclk_core;
+	struct vop2_clk *dclk_core, *dclk_out;
 	int ret;
+	bool dsc_txp_clk_is_biggest = false;
+	u8 dsc_id = vcstate->output_if & (VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_HDMI0) ? 0 : 1;
 
 	dclk_core_div_shift = if_data->post_proc_div_shift;
 	dclk_core_rate = v_pixclk >> dclk_core_div_shift;
@@ -5047,8 +5123,8 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 		if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)
 			K = 2;
 		if (vcstate->dsc_enable) {
-			hdmi_edp_pixclk = vcstate->dsc_cds_clk << 1;
-			hdmi_edp_dclk = vcstate->dsc_cds_clk;
+			hdmi_edp_pixclk = vcstate->dsc_cds_clk_rate << 1;
+			hdmi_edp_dclk = vcstate->dsc_cds_clk_rate;
 		} else {
 			hdmi_edp_pixclk = (dclk_core_rate << 1) / K;
 			hdmi_edp_dclk = dclk_core_rate / K;
@@ -5074,11 +5150,13 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_DSI) {
 		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)
 			K = 2;
-		if (vcstate->dsc_enable)
+		if (vcstate->dsc_enable) {
+			dclk_out_rate = dclk_core_rate / K;
 			/* dsc output is 96bit, dsi input is 192 bit */
-			mipi_pixclk = vcstate->dsc_cds_clk >> 1;
-		else
+			mipi_pixclk = vcstate->dsc_cds_clk_rate >> 1;
+		} else {
 			mipi_pixclk = dclk_core_rate / K;
+		}
 
 		if_pixclk->rate = mipi_pixclk;
 	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_DPI) {
@@ -5093,13 +5171,42 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	 */
 	snprintf(clk_name, sizeof(clk_name), "dclk_core%d", vp->id);
 	dclk_core = vop2_clk_get(vop2, clk_name);
+
+	snprintf(clk_name, sizeof(clk_name), "dclk_out%d", vp->id);
+	dclk_out = vop2_clk_get(vop2, clk_name);
+
+	if (vcstate->dsc_enable) {
+		if ((vcstate->dsc_txp_clk_rate >= dclk_core_rate) &&
+		    (vcstate->dsc_txp_clk_rate >= if_pixclk->rate)) {
+			dsc_txp_clk_is_biggest = true;
+			if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
+				vop2_set_dsc_clk(crtc, 0);
+				vop2_set_dsc_clk(crtc, 1);
+			} else {
+				vop2_set_dsc_clk(crtc, dsc_id);
+			}
+		}
+	}
+
 	if (dclk_core_rate > if_pixclk->rate) {
 		clk_set_rate(dclk_core->hw.clk, dclk_core_rate);
+		if (vcstate->output_type == DRM_MODE_CONNECTOR_DSI && vcstate->dsc_enable)
+			clk_set_rate(dclk_out->hw.clk, dclk_out_rate);
 		ret = vop2_cru_set_rate(if_pixclk, if_dclk);
-
 	} else {
 		ret = vop2_cru_set_rate(if_pixclk, if_dclk);
 		clk_set_rate(dclk_core->hw.clk, dclk_core_rate);
+		if (vcstate->output_type == DRM_MODE_CONNECTOR_DSI && vcstate->dsc_enable)
+			clk_set_rate(dclk_out->hw.clk, dclk_out_rate);
+	}
+
+	if (!dsc_txp_clk_is_biggest && vcstate->dsc_enable) {
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
+			vop2_set_dsc_clk(crtc, 0);
+			vop2_set_dsc_clk(crtc, 1);
+		} else {
+			vop2_set_dsc_clk(crtc, dsc_id);
+		}
 	}
 
 	return ret;
@@ -5110,15 +5217,8 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
-	const struct vop2_data *vop2_data = vop2->data;
-	struct vop2_clk *dsc_txp_clk, *dsc_txp_clk_parent;
-	const struct vop2_dsc_data *dsc_data = &vop2_data->dsc[vcstate->dsc_id];
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	u64 v_pixclk = adjusted_mode->crtc_clock * 1000LL; /* video timing pixclk */
-	struct rockchip_dsc_sink_cap *dsc_sink_cap = &vcstate->dsc_sink_cap;
-	int bpp = dsc_sink_cap->target_bits_per_pixel_x16 >> 4;
-	char clk_name[32];
-	int ret = 0;
 	u8 k = 1;
 
 	if (!vop2->data->nr_dscs) {
@@ -5130,31 +5230,13 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)
 		k = 2;
 
-	snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
-	dsc_txp_clk = vop2_clk_get(vop2, dsc_data->dsc_txp_clk_src_name);
-	dsc_txp_clk_parent = vop2_clk_get(vop2, clk_name);
+	vcstate->dsc_txp_clk_rate = v_pixclk;
+	do_div(vcstate->dsc_txp_clk_rate, (vcstate->dsc_pixel_num * k));
 
-	if (!dsc_txp_clk || !dsc_txp_clk_parent) {
-		DRM_DEV_ERROR(vop2->dev, "failed to get dsc clk\n");
-		return -ENODEV;
-	}
+	vcstate->dsc_pxl_clk_rate = v_pixclk;
+	do_div(vcstate->dsc_pxl_clk_rate, (vcstate->dsc_slice_num * k));
 
-	ret = clk_set_parent(dsc_txp_clk->hw.clk, dsc_txp_clk_parent->hw.clk);
-	if (ret < 0) {
-		DRM_DEV_ERROR(vop2->dev, "failed to set parent(%s) for %s: %d\n",
-			      __clk_get_name(dsc_txp_clk_parent->hw.clk),
-			      __clk_get_name(dsc_txp_clk->hw.clk), ret);
-		return ret;
-	}
-
-	vcstate->dsc_cds_clk = v_pixclk;
-	do_div(vcstate->dsc_cds_clk, (ROCKCHIP_DSC_OUTPUT_BIT_WIDTH / bpp * k));
-
-	vcstate->dsc_pxl_clk = v_pixclk;
-	do_div(vcstate->dsc_pxl_clk, (vcstate->dsc_slice_num * k));
-
-	vcstate->dsc_txp_clk = v_pixclk;
-	do_div(vcstate->dsc_txp_clk, (vcstate->dsc_pixel_num * k));
+	vcstate->dsc_cds_clk_rate = vcstate->dsc_pxl_clk_rate >> 1;
 
 	return 0;
 }
@@ -5204,7 +5286,7 @@ static int vop2_calc_cru_cfg(struct drm_crtc *crtc, int conn_id,
 	return ret;
 }
 
-static void vop2_crtc_load_pps(struct drm_crtc *crtc)
+static void vop2_crtc_load_pps(struct drm_crtc *crtc, u8 dsc_id)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -5217,7 +5299,7 @@ static void vop2_crtc_load_pps(struct drm_crtc *crtc)
 	u32 offset;
 	struct vop2_dsc *dsc;
 
-	dsc = &vop2->dscs[vcstate->dsc_id];
+	dsc = &vop2->dscs[dsc_id];
 	offset = dsc->regs->dsc_pps0_3.offset;
 
 	memcpy(&config_pps, pps, sizeof(config_pps));
@@ -5230,13 +5312,11 @@ static void vop2_crtc_load_pps(struct drm_crtc *crtc)
 			((pps->rc_range_parameters[i] >> 8 & 0x3f) << 10);
 	}
 
-	for (i = 0; i < ROCKCHIP_DSC_PPS_SIZE_BYTE;) {
-		vop2_writel(vop2, offset + i, *pps_val++);
-		i += 4;
-	}
+	for (i = 0; i < ROCKCHIP_DSC_PPS_SIZE_BYTE / 4; i++)
+		vop2_writel(vop2, offset + i * 4, *pps_val++);
 }
 
-static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
+static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *old_state, u8 dsc_id)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -5257,8 +5337,10 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	struct vop2_dsc *dsc;
 	struct vop2_clk *dsc_cds_clk, *dsc_pxl_clk, *dsc_txp_clk;
 	const struct vop2_data *vop2_data = vop2->data;
-	const struct vop2_dsc_data *dsc_data = &vop2_data->dsc[vcstate->dsc_id];
+	const struct vop2_dsc_data *dsc_data = &vop2_data->dsc[dsc_id];
 	bool mipi_ds_mode = false;
+	uint32_t *reg_base = vop2->regs;
+	u32 offset = 0;
 
 	if (!vop2->data->nr_dscs) {
 		DRM_WARN("Unsupported DSC\n");
@@ -5270,9 +5352,16 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 		DRM_ERROR("DSC%d supported max slice is: %d, current is: %d\n",
 			  dsc_data->id, dsc_data->max_slice_num, vcstate->dsc_slice_num);
 
-	dsc = &vop2->dscs[vcstate->dsc_id];
+	dsc = &vop2->dscs[dsc_id];
 	if (dsc->pd)
 		vop2_power_domain_get(dsc->pd);
+
+	VOP_MODULE_SET(vop2, dsc, rst_deassert, 1);
+
+	/* read current dsc register and backup to regsbak */
+	offset = dsc->regs->dsc_en.offset;
+	vop2->regsbak[offset >> 2] = reg_base[offset >> 2];
+
 	VOP_MODULE_SET(vop2, dsc, dsc_port_sel, vp->id);
 	if (vcstate->output_if & (VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1)) {
 		dsc_interface_mode = VOP_DSC_IF_HDMI;
@@ -5284,20 +5373,22 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 			dsc_interface_mode = VOP_DSC_IF_MIPI_VIDEO_MODE;
 	}
 
+	VOP_MODULE_SET(vop2, dsc, dsc_man_mode, 0);
 	dsc_cds_clk = vop2_clk_get(vop2, dsc_data->dsc_cds_clk_name);
 	dsc_pxl_clk = vop2_clk_get(vop2, dsc_data->dsc_pxl_clk_name);
 	dsc_txp_clk = vop2_clk_get(vop2, dsc_data->dsc_txp_clk_name);
 
 	VOP_MODULE_SET(vop2, dsc, dsc_interface_mode, dsc_interface_mode);
 	VOP_MODULE_SET(vop2, dsc, dsc_pixel_num,  vcstate->dsc_pixel_num >> 1);
+	VOP_MODULE_SET(vop2, dsc, dsc_txp_clk_div, dsc_txp_clk->div_val);
 	VOP_MODULE_SET(vop2, dsc, dsc_pxl_clk_div, dsc_pxl_clk->div_val);
 	VOP_MODULE_SET(vop2, dsc, dsc_cds_clk_div, dsc_cds_clk->div_val);
-	VOP_MODULE_SET(vop2, dsc, dsc_txp_clk_div, dsc_txp_clk->div_val);
-	VOP_MODULE_SET(vop2, dsc, dsc_init_dly_mode, 4);
 	VOP_MODULE_SET(vop2, dsc, dsc_scan_en, !mipi_ds_mode);
 	VOP_MODULE_SET(vop2, dsc, dsc_halt_en, mipi_ds_mode);
 
 	if (!mipi_ds_mode) {
+		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_mode, 0);
+		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_num, 4);
 		VOP_MODULE_SET(vop2, dsc, dsc_htotal_pw, htotal << 16 | hsync_len);
 		VOP_MODULE_SET(vop2, dsc, dsc_hact_st_end, hact_end << 16 | hact_st);
 		VOP_MODULE_SET(vop2, dsc, dsc_vtotal_pw, vtotal << 16 | vsync_len);
@@ -5305,12 +5396,12 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	}
 
 	VOP_MODULE_SET(vop2, dsc, dsc_en, 1);
-	vop2_crtc_load_pps(crtc);
+	vop2_crtc_load_pps(crtc, dsc_id);
 
 	VOP_MODULE_SET(vop2, dsc, dsc_rbit, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_rbyt, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_flal, 1);
-	VOP_MODULE_SET(vop2, dsc, dsc_mer, 1);
+	VOP_MODULE_SET(vop2, dsc, dsc_mer, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_epb, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_epl, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_nslc, vcstate->dsc_slice_num >> 1);
@@ -5435,8 +5526,13 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	}
 
 	if (vcstate->dsc_enable) {
+		int k = 1;
+
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)
+			k = 2;
+
 		vcstate->dsc_id = vcstate->output_if & (VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_HDMI0) ? 0 : 1;
-		vcstate->dsc_slice_num = hdisplay / dsc_sink_cap->slice_width;
+		vcstate->dsc_slice_num = hdisplay / dsc_sink_cap->slice_width / k;
 		vcstate->dsc_pixel_num = vcstate->dsc_slice_num >= 4 ? 4 : vcstate->dsc_slice_num >= 2 ? 2 : 1;
 
 		vop2_calc_dsc_clk(crtc);
@@ -5742,8 +5838,14 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
 		vop2_post_config(crtc);
 
-	if (vcstate->dsc_enable)
-		vop2_crtc_enable_dsc(crtc, old_state);
+	if (vcstate->dsc_enable) {
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
+			vop2_crtc_enable_dsc(crtc, old_state, 0);
+			vop2_crtc_enable_dsc(crtc, old_state, 1);
+		} else {
+			vop2_crtc_enable_dsc(crtc, old_state, vcstate->dsc_id);
+		}
+	}
 	vop2_cfg_done(crtc);
 
 	/*

@@ -65,8 +65,6 @@
 #define VOP2_SOC_VARIANT		4
 
 #define ROCKCHIP_DSC_PPS_SIZE_BYTE	88
-#define ROCKCHIP_DSC_OUTPUT_BIT_WIDTH	96
-
 
 enum vop_win_phy_id {
 	ROCKCHIP_VOP_WIN0 = 0,
@@ -709,6 +707,7 @@ struct vop2_power_domain_regs {
 struct vop2_dsc_regs {
 	/* DSC SYS CTRL */
 	struct vop_reg dsc_port_sel;
+	struct vop_reg dsc_man_mode;
 	struct vop_reg dsc_interface_mode;
 	struct vop_reg dsc_pixel_num;
 	struct vop_reg dsc_pxl_clk_div;

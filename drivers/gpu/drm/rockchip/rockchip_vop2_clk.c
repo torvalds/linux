@@ -73,7 +73,7 @@ PNAME(mux_port0_dclk_src_p)		= { "dclk0", "dclk1" };
 PNAME(mux_port2_dclk_src_p)		= { "dclk2", "dclk1" };
 PNAME(mux_dp_pixclk_p)			= { "dclk_out0", "dclk_out1", "dclk_out2" };
 PNAME(mux_hdmi_edp_clk_src_p)		= { "dclk0", "dclk1", "dclk2" };
-PNAME(mux_mipi_clk_src_p)		= { "dclk_out2", "dclk_out3" };
+PNAME(mux_mipi_clk_src_p)		= { "dclk_out1", "dclk_out2", "dclk_out3" };
 PNAME(mux_dsc_8k_clk_src_p)		= { "dclk0", "dclk1", "dclk2", "dclk3" };
 PNAME(mux_dsc_4k_clk_src_p)		= { "dclk0", "dclk1", "dclk2", "dclk3" };
 
@@ -129,15 +129,15 @@ static struct vop2_clk_branch rk3588_vop_clk_branches[] = {
 
 	FACTOR("rgb_pixclk", "port3_dclk_src", CLK_SET_RATE_PARENT),
 
-	MUX("dsc_8k_txp_clk_src", mux_dsc_8k_clk_src_p, CLK_SET_RATE_NO_REPARENT),
+	MUX("dsc_8k_txp_clk_src", mux_dsc_8k_clk_src_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
 	DIV("dsc_8k_txp_clk", "dsc_8k_txp_clk_src", 0, 2),
-	DIV("dsc_8k_pxl_clk", "dsc_8k_txp_clk", 0, 2),
-	DIV("dsc_8k_cds_clk", "dsc_8k_txp_clk", 0, 2),
+	DIV("dsc_8k_pxl_clk", "dsc_8k_txp_clk_src", 0, 2),
+	DIV("dsc_8k_cds_clk", "dsc_8k_txp_clk_src", 0, 2),
 
-	MUX("dsc_4k_txp_clk_src", mux_dsc_4k_clk_src_p, CLK_SET_RATE_NO_REPARENT),
+	MUX("dsc_4k_txp_clk_src", mux_dsc_4k_clk_src_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
 	DIV("dsc_4k_txp_clk", "dsc_4k_txp_clk_src", 0, 2),
-	DIV("dsc_4k_pxl_clk", "dsc_4k_txp_clk", 0, 2),
-	DIV("dsc_4k_cds_clk", "dsc_4k_txp_clk", 0, 2),
+	DIV("dsc_4k_pxl_clk", "dsc_4k_txp_clk_src", 0, 2),
+	DIV("dsc_4k_cds_clk", "dsc_4k_txp_clk_src", 0, 2),
 };
 
 static unsigned long clk_virtual_recalc_rate(struct clk_hw *hw,

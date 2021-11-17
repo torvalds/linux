@@ -453,6 +453,7 @@ static const struct vop_intr rk3588_vp3_intr = {
 static const struct vop2_dsc_regs rk3588_vop_dsc_8k_regs = {
 	/* DSC SYS CTRL */
 	.dsc_port_sel = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x3, 0),
+	.dsc_man_mode = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x1, 2),
 	.dsc_interface_mode = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x3, 4),
 	.dsc_pixel_num = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x3, 6),
 	.dsc_pxl_clk_div = VOP_REG(RK3588_DSC_8K_SYS_CTRL, 0x1, 8),
@@ -491,6 +492,7 @@ static const struct vop2_dsc_regs rk3588_vop_dsc_8k_regs = {
 static const struct vop2_dsc_regs rk3588_vop_dsc_4k_regs = {
 	/* DSC SYS CTRL */
 	.dsc_port_sel = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x3, 0),
+	.dsc_man_mode = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x1, 2),
 	.dsc_interface_mode = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x3, 4),
 	.dsc_pixel_num = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x3, 6),
 	.dsc_pxl_clk_div = VOP_REG(RK3588_DSC_4K_SYS_CTRL, 0x1, 8),

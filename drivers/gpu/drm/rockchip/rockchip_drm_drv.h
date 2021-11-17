@@ -178,9 +178,9 @@ struct rockchip_crtc_state {
 	u8 dsc_slice_num;
 	u8 dsc_pixel_num;
 
-	u64 dsc_txp_clk;
-	u64 dsc_pxl_clk;
-	u64 dsc_cds_clk;
+	u64 dsc_txp_clk_rate;
+	u64 dsc_pxl_clk_rate;
+	u64 dsc_cds_clk_rate;
 
 	struct drm_dsc_picture_parameter_set pps;
 	struct rockchip_dsc_sink_cap dsc_sink_cap;
