@@ -434,9 +434,9 @@ unsigned long dev_trans_start(struct net_device *dev)
 		dev = vlan_dev_real_dev(dev);
 	else if (netif_is_macvlan(dev))
 		dev = macvlan_dev_real_dev(dev);
-	res = netdev_get_tx_queue(dev, 0)->trans_start;
+	res = READ_ONCE(netdev_get_tx_queue(dev, 0)->trans_start);
 	for (i = 1; i < dev->num_tx_queues; i++) {
-		val = netdev_get_tx_queue(dev, i)->trans_start;
+		val = READ_ONCE(netdev_get_tx_queue(dev, i)->trans_start);
 		if (val && time_after(val, res))
 			res = val;
 	}
@@ -462,7 +462,7 @@ static void dev_watchdog(struct timer_list *t)
 				struct netdev_queue *txq;
 
 				txq = netdev_get_tx_queue(dev, i);
-				trans_start = txq->trans_start;
+				trans_start = READ_ONCE(txq->trans_start);
 				if (netif_xmit_stopped(txq) &&
 				    time_after(jiffies, (trans_start +
 							 dev->watchdog_timeo))) {
@@ -1148,7 +1148,7 @@ static void transition_one_qdisc(struct net_device *dev,
 
 	rcu_assign_pointer(dev_queue->qdisc, new_qdisc);
 	if (need_watchdog_p) {
-		dev_queue->trans_start = 0;
+		WRITE_ONCE(dev_queue->trans_start, 0);
 		*need_watchdog_p = 1;
 	}
 }

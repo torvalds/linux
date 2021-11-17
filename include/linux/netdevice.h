@@ -4095,10 +4095,21 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 	spin_unlock_bh(&txq->_xmit_lock);
 }
 
+/*
+ * txq->trans_start can be read locklessly from dev_watchdog()
+ */
 static inline void txq_trans_update(struct netdev_queue *txq)
 {
 	if (txq->xmit_lock_owner != -1)
-		txq->trans_start = jiffies;
+		WRITE_ONCE(txq->trans_start, jiffies);
+}
+
+static inline void txq_trans_cond_update(struct netdev_queue *txq)
+{
+	unsigned long now = jiffies;
+
+	if (READ_ONCE(txq->trans_start) != now)
+		WRITE_ONCE(txq->trans_start, now);
 }
 
 /* legacy drivers only, netdev_start_xmit() sets txq->trans_start */
@@ -4106,8 +4117,7 @@ static inline void netif_trans_update(struct net_device *dev)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 
-	if (txq->trans_start != jiffies)
-		txq->trans_start = jiffies;
+	txq_trans_cond_update(txq);
 }
 
 /**

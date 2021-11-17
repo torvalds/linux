@@ -2325,7 +2325,7 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	txq = netdev_get_tx_queue(net_dev, queue_mapping);
 
 	/* LLTX requires to do our own update of trans_start */
-	txq->trans_start = jiffies;
+	txq_trans_cond_update(txq);
 
 	if (priv->tx_tstamp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		fd.cmd |= cpu_to_be32(FM_FD_CMD_UPD);
@@ -2531,7 +2531,7 @@ static int dpaa_xdp_xmit_frame(struct net_device *net_dev,
 
 	/* Bump the trans_start */
 	txq = netdev_get_tx_queue(net_dev, smp_processor_id());
-	txq->trans_start = jiffies;
+	txq_trans_cond_update(txq);
 
 	err = dpaa_xmit(priv, percpu_stats, smp_processor_id(), &fd);
 	if (err) {

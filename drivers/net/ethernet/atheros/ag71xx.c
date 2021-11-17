@@ -766,7 +766,7 @@ static bool ag71xx_check_dma_stuck(struct ag71xx *ag)
 	unsigned long timestamp;
 	u32 rx_sm, tx_sm, rx_fd;
 
-	timestamp = netdev_get_tx_queue(ag->ndev, 0)->trans_start;
+	timestamp = READ_ONCE(netdev_get_tx_queue(ag->ndev, 0)->trans_start);
 	if (likely(time_before(jiffies, timestamp + HZ / 10)))
 		return false;
 

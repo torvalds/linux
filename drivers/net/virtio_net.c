@@ -2694,7 +2694,7 @@ static void virtnet_tx_timeout(struct net_device *dev, unsigned int txqueue)
 
 	netdev_err(dev, "TX timeout on queue: %u, sq: %s, vq: 0x%x, name: %s, %u usecs ago\n",
 		   txqueue, sq->name, sq->vq->index, sq->vq->name,
-		   jiffies_to_usecs(jiffies - txq->trans_start));
+		   jiffies_to_usecs(jiffies - READ_ONCE(txq->trans_start)));
 }
 
 static const struct net_device_ops virtnet_netdev = {
