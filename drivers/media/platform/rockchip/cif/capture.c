@@ -3394,7 +3394,11 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 		return -EINVAL;
 	}
 
-	stream->vc = vc;
+	if (vc >= 0 && vc < RKCIF_MAX_STREAM_MIPI)
+		stream->vc = vc;
+	else
+		stream->vc = stream->id;
+
 	if (stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8 ||
 		stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8) {
 		stream->crop_enable = false;
