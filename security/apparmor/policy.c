@@ -422,7 +422,7 @@ static struct aa_profile *__lookup_profile(struct aa_policy *base,
 }
 
 /**
- * aa_lookup_profile - find a profile by its full or partial name
+ * aa_lookupn_profile - find a profile by its full or partial name
  * @ns: the namespace to start from (NOT NULL)
  * @hname: name to do lookup on.  Does not contain namespace prefix (NOT NULL)
  * @n: size of @hname

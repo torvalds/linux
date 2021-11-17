@@ -485,7 +485,7 @@ int aa_label_next_confined(struct aa_label *label, int i)
 }
 
 /**
- * aa_label_next_not_in_set - return the next profile of @sub not in @set
+ * __aa_label_next_not_in_set - return the next profile of @sub not in @set
  * @I: label iterator
  * @set: label to test against
  * @sub: label to if is subset of @set
@@ -2137,7 +2137,7 @@ static void __labelset_update(struct aa_ns *ns)
 }
 
 /**
- * __aa_labelset_udate_subtree - update all labels with a stale component
+ * __aa_labelset_update_subtree - update all labels with a stale component
  * @ns: ns to start update at (NOT NULL)
  *
  * Requires: @ns lock be held
