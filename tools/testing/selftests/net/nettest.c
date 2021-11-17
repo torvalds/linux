@@ -85,6 +85,7 @@ struct sock_args {
 	int version;   /* AF_INET/AF_INET6 */
 
 	int use_setsockopt;
+	int use_freebind;
 	int use_cmsg;
 	const char *dev;
 	const char *server_dev;
@@ -512,6 +513,29 @@ static int set_membership(int sd, uint32_t grp, uint32_t addr, int ifindex)
 	}
 
 	return 0;
+}
+
+static int set_freebind(int sd, int version)
+{
+	unsigned int one = 1;
+	int rc = 0;
+
+	switch (version) {
+	case AF_INET:
+		if (setsockopt(sd, SOL_IP, IP_FREEBIND, &one, sizeof(one))) {
+			log_err_errno("setsockopt(IP_FREEBIND)");
+			rc = -1;
+		}
+		break;
+	case AF_INET6:
+		if (setsockopt(sd, SOL_IPV6, IPV6_FREEBIND, &one, sizeof(one))) {
+			log_err_errno("setsockopt(IPV6_FREEBIND");
+			rc = -1;
+		}
+		break;
+	}
+
+	return rc;
 }
 
 static int set_broadcast(int sd)
@@ -1419,6 +1443,9 @@ static int lsock_init(struct sock_args *args)
 		 set_unicast_if(sd, args->ifindex, args->version))
 		goto err;
 
+	if (args->use_freebind && set_freebind(sd, args->version))
+		goto err;
+
 	if (bind_socket(sd, args))
 		goto err;
 
@@ -1827,7 +1854,7 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	return client_status;
 }
 
-#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6xL:0:1:2:3:Fbq"
+#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SCi6xL:0:1:2:3:Fbqf"
 #define OPT_FORCE_BIND_KEY_IFINDEX 1001
 #define OPT_NO_BIND_KEY_IFINDEX 1002
 
@@ -1864,6 +1891,7 @@ static void print_usage(char *prog)
 	"    -I dev        bind socket to given device name - server mode\n"
 	"    -S            use setsockopt (IP_UNICAST_IF or IP_MULTICAST_IF)\n"
 	"                  to set device binding\n"
+	"    -f            bind socket with the IP[V6]_FREEBIND option\n"
 	"    -C            use cmsg and IP_PKTINFO to specify device binding\n"
 	"\n"
 	"    -L len        send random message of given length\n"
@@ -1998,6 +2026,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'S':
 			args.use_setsockopt = 1;
+			break;
+		case 'f':
+			args.use_freebind = 1;
 			break;
 		case 'C':
 			args.use_cmsg = 1;

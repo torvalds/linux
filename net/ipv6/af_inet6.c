@@ -337,11 +337,8 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		chk_addr_ret = inet_addr_type_dev_table(net, dev, v4addr);
 		rcu_read_unlock();
 
-		if (!inet_can_nonlocal_bind(net, inet) &&
-		    v4addr != htonl(INADDR_ANY) &&
-		    chk_addr_ret != RTN_LOCAL &&
-		    chk_addr_ret != RTN_MULTICAST &&
-		    chk_addr_ret != RTN_BROADCAST) {
+		if (!inet_addr_valid_or_nonlocal(net, inet, v4addr,
+						 chk_addr_ret)) {
 			err = -EADDRNOTAVAIL;
 			goto out;
 		}
