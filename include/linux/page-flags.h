@@ -692,7 +692,13 @@ static inline bool folio_test_single(struct folio *folio)
 	return !folio_test_head(folio);
 }
 
-static inline bool folio_test_multi(struct folio *folio)
+/**
+ * folio_test_large() - Does this folio contain more than one page?
+ * @folio: The folio to test.
+ *
+ * Return: True if the folio is larger than one page.
+ */
+static inline bool folio_test_large(struct folio *folio)
 {
 	return folio_test_head(folio);
 }
