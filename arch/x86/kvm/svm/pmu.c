@@ -16,6 +16,7 @@
 #include "cpuid.h"
 #include "lapic.h"
 #include "pmu.h"
+#include "svm.h"
 
 enum pmu_type {
 	PMU_TYPE_COUNTER = 0,
@@ -99,6 +100,9 @@ static inline struct kvm_pmc *get_gp_pmc_amd(struct kvm_pmu *pmu, u32 msr,
 					     enum pmu_type type)
 {
 	struct kvm_vcpu *vcpu = pmu_to_vcpu(pmu);
+
+	if (!pmu)
+		return NULL;
 
 	switch (msr) {
 	case MSR_F15H_PERF_CTL0:
