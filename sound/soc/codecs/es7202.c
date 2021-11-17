@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -50,6 +51,7 @@ struct es7202_priv {
 	struct i2c_client *i2c;
 
 	unsigned int pwr_vdd_voltage;
+	struct regulator *vdd;
 	int reset_gpio;
 	bool reset_active_level;
 };
@@ -558,7 +560,7 @@ static struct snd_soc_dai_driver es7202_dai0 = {
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 1,
-		.channels_max = 2,
+		.channels_max = 8,
 		.rates = es7202_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
@@ -572,7 +574,7 @@ static struct snd_soc_dai_driver es7202_dai1 = {
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 1,
-		.channels_max = 4,
+		.channels_max = 8,
 		.rates = es7202_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
@@ -586,7 +588,7 @@ static struct snd_soc_dai_driver es7202_dai2 = {
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 1,
-		.channels_max = 6,
+		.channels_max = 8,
 		.rates = es7202_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
@@ -839,66 +841,43 @@ static int es7202_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct es7202_priv *es7202;
+	int uV;
 	int ret = -1;
-	//enum of_gpio_flags flags;
-	//struct device_node *np = i2c->dev.of_node;
-	
-	printk("enter into %s()\n", __func__);
-	
+
+	dev_info(&i2c->dev, "probe\n");
 	es7202 = devm_kzalloc(&i2c->dev, sizeof(*es7202), GFP_KERNEL);
 	if (!es7202)
 		return -ENOMEM;
-
 	es7202->i2c = i2c;
-  	es7202->pwr_vdd_voltage = ES7202_VDD_VOLTAGE;
-  
+	es7202->vdd = devm_regulator_get_optional(&i2c->dev, "power");
+	if (IS_ERR(es7202->vdd)) {
+		if (PTR_ERR(es7202->vdd) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_warn(&i2c->dev, "power-supply get fail, use 3v3 as default\n");
+		es7202->pwr_vdd_voltage = VDD_3V3;
+	} else {
+		uV = regulator_get_voltage(es7202->vdd);
+		dev_info(&i2c->dev, "probe power-supply %duV\n", uV);
+		if (uV <= MAX_VOLTAGE_1_8)
+			es7202->pwr_vdd_voltage = VDD_1V8;
+		else
+			es7202->pwr_vdd_voltage = VDD_3V3;
+	}
 	dev_set_drvdata(&i2c->dev, es7202);
 	if (id->driver_data < ADC_DEV_MAXNUM) {
 		i2c_ctl[id->driver_data] = i2c;
-   #if 0 
-    		if(id->driver_data == 0) {
-			es7202->reset_gpio = of_get_named_gpio_flags(np,
-						"es7202-reset-gpio",
-						0,
-						&flags);
-			if (es7202->reset_gpio < 0) {
-				dev_info(&i2c->dev, 
-					"Can not read property spk_ctl_gpio\n");
-				es7202->reset_gpio = -1;
-			} else {
-				es7202->reset_active_level = 
-						!(flags & OF_GPIO_ACTIVE_LOW);
-				ret = devm_gpio_request_one(&i2c->dev, 
-						es7202->reset_gpio,
-						GPIOF_DIR_OUT, 
-						NULL);
-				if (ret) {
-					dev_err(&i2c->dev, 
-						"Failed to request spk_ctl_gpio\n");
-					//return ret;
-				} else {
-					gpio_set_value(es7202->reset_gpio, 
-						es7202->reset_active_level);
-					msleep(50);
-					gpio_set_value(es7202->reset_gpio, 
-						!es7202->reset_active_level);
-				}
-			}
-		}
-#endif
-		printk("%s()-----1\n", __func__);
+		dev_info(&i2c->dev, "probe reigister es7202 dai(%s) component\n",
+			 es7202_dai[id->driver_data]->name);
 		ret = devm_snd_soc_register_component(&i2c->dev, &soc_codec_dev_es7202,
-					     es7202_dai[id->driver_data],
-					     1);
+						      es7202_dai[id->driver_data], 1);
 		if (ret < 0) {
 			return ret;
-		}				     
+		}
 	}
 	ret = sysfs_create_group(&i2c->dev.kobj, &es7202_debug_attr_group);
 	if (ret) {
-		pr_err("failed to create attr group\n");
-	}	
-
+		dev_err(&i2c->dev, "failed to create attr group\n");
+	}
 	return ret;
 }
 

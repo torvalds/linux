@@ -42,7 +42,7 @@
 /* ES7202 User Marco define */
 #define VDD_1V8   0
 #define VDD_3V3   1
-#define ES7202_VDD_VOLTAGE	    VDD_3V3
+#define MAX_VOLTAGE_1_8		1980000
 
 /*
 * Select Microphone channels for mic array
