@@ -361,6 +361,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		struct vc4_crtc_state *vc4_crtc_state =
 			to_vc4_crtc_state(old_crtc_state);
 		unsigned int channel = vc4_crtc_state->assigned_channel;
+		struct drm_crtc_commit *commit;
 		int ret;
 
 		if (channel == VC4_HVS_CHANNEL_DISABLED)
@@ -369,9 +370,15 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		if (!old_hvs_state->fifo_state[channel].in_use)
 			continue;
 
-		ret = drm_crtc_commit_wait(old_hvs_state->fifo_state[channel].pending_commit);
+		commit = old_hvs_state->fifo_state[channel].pending_commit;
+		if (!commit)
+			continue;
+
+		ret = drm_crtc_commit_wait(commit);
 		if (ret)
 			drm_err(dev, "Timed out waiting for commit\n");
+
+		drm_crtc_commit_put(commit);
 	}
 
 	if (vc4->hvs->hvs5)
