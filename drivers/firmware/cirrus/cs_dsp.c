@@ -1177,6 +1177,7 @@ static int cs_dsp_parse_coeff(struct cs_dsp *dsp,
 				return -EINVAL;
 			break;
 		case WMFW_CTL_TYPE_HOSTEVENT:
+		case WMFW_CTL_TYPE_FWEVENT:
 			ret = cs_dsp_check_coeff_flags(dsp, &coeff_blk,
 						       WMFW_CTL_FLAG_SYS |
 						       WMFW_CTL_FLAG_VOLATILE |
