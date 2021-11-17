@@ -180,6 +180,7 @@ struct ath11k_hw_params {
 	const struct ath11k_hw_hal_params *hal_params;
 	bool supports_dynamic_smps_6ghz;
 	bool alloc_cacheable_memory;
+	bool wakeup_mhi;
 };
 
 struct ath11k_hw_ops {
