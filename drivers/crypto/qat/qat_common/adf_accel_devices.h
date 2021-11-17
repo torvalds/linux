@@ -155,6 +155,7 @@ struct adf_pfvf_ops {
 	void (*enable_vf2pf_interrupts)(void __iomem *pmisc_addr, u32 vf_mask);
 	void (*disable_vf2pf_interrupts)(void __iomem *pmisc_addr, u32 vf_mask);
 	int (*send_msg)(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
+	u32 (*recv_msg)(struct adf_accel_dev *accel_dev, u8 vf_nr);
 };
 
 struct adf_hw_device_data {

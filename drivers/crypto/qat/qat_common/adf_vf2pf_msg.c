@@ -47,6 +47,19 @@ void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_vf2pf_notify_shutdown);
 
+/**
+ * adf_recv_pf2vf_msg() - receive a PF to VF message
+ * @accel_dev:	Pointer to acceleration device
+ *
+ * This function allows the VF to receive a message from the PF.
+ *
+ * Return: a valid message on success, zero otherwise.
+ */
+static u32 adf_recv_pf2vf_msg(struct adf_accel_dev *accel_dev)
+{
+	return GET_PFVF_OPS(accel_dev)->recv_msg(accel_dev, 0);
+}
+
 static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 {
 	switch ((msg & ADF_PF2VF_MSGTYPE_MASK) >> ADF_PF2VF_MSGTYPE_SHIFT) {
@@ -77,28 +90,11 @@ static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 
 bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev)
 {
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
-	u32 offset = hw_data->pfvf_ops.get_pf2vf_offset(0);
 	u32 msg;
 
-	/* Read the message from PF */
-	msg = ADF_CSR_RD(pmisc_bar_addr, offset);
-	if (!(msg & ADF_PF2VF_INT)) {
-		dev_info(&GET_DEV(accel_dev),
-			 "Spurious PF2VF interrupt, msg %X. Ignored\n", msg);
-		return true;
-	}
+	msg = adf_recv_pf2vf_msg(accel_dev);
+	if (msg)
+		return adf_handle_pf2vf_msg(accel_dev, msg);
 
-	if (!(msg & ADF_PF2VF_MSGORIGIN_SYSTEM))
-		/* Ignore legacy non-system (non-kernel) PF2VF messages */
-		return true;
-
-	/* To ack, clear the PF2VFINT bit */
-	msg &= ~ADF_PF2VF_INT;
-	ADF_CSR_WR(pmisc_bar_addr, offset, msg);
-
-	return adf_handle_pf2vf_msg(accel_dev, msg);
+	return true;
 }

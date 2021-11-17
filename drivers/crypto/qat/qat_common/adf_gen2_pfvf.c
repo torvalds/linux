@@ -156,6 +156,49 @@ retry:
 	}
 }
 
+static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev, u8 vf_nr)
+{
+	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	void __iomem *pmisc_addr =
+		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
+	u32 pfvf_offset;
+	u32 msg_origin;
+	u32 int_bit;
+	u32 msg;
+
+	if (accel_dev->is_vf) {
+		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_pf2vf_offset(0);
+		int_bit = ADF_PF2VF_INT;
+		msg_origin = ADF_PF2VF_MSGORIGIN_SYSTEM;
+	} else {
+		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_vf2pf_offset(vf_nr);
+		int_bit = ADF_VF2PF_INT;
+		msg_origin = ADF_VF2PF_MSGORIGIN_SYSTEM;
+	}
+
+	/* Read message */
+	msg = ADF_CSR_RD(pmisc_addr, pfvf_offset);
+	if (!(msg & int_bit)) {
+		dev_info(&GET_DEV(accel_dev),
+			 "Spurious PFVF interrupt, msg %X. Ignored\n", msg);
+		return 0;
+	}
+
+	/* Ignore legacy non-system (non-kernel) VF2PF messages */
+	if (!(msg & msg_origin)) {
+		dev_dbg(&GET_DEV(accel_dev),
+			"Ignored non-system message (0x%x);\n", msg);
+		return 0;
+	}
+
+	/* To ACK, clear the INT bit */
+	msg &= ~int_bit;
+	ADF_CSR_WR(pmisc_addr, pfvf_offset, msg);
+
+	return msg;
+}
+
 void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 {
 	pfvf_ops->enable_comms = adf_enable_pf2vf_comms;
@@ -165,6 +208,7 @@ void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 	pfvf_ops->enable_vf2pf_interrupts = adf_gen2_enable_vf2pf_interrupts;
 	pfvf_ops->disable_vf2pf_interrupts = adf_gen2_disable_vf2pf_interrupts;
 	pfvf_ops->send_msg = adf_gen2_pfvf_send;
+	pfvf_ops->recv_msg = adf_gen2_pfvf_recv;
 }
 EXPORT_SYMBOL_GPL(adf_gen2_init_pf_pfvf_ops);
 
@@ -174,5 +218,6 @@ void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 	pfvf_ops->get_pf2vf_offset = adf_gen2_vf_get_pfvf_offset;
 	pfvf_ops->get_vf2pf_offset = adf_gen2_vf_get_pfvf_offset;
 	pfvf_ops->send_msg = adf_gen2_pfvf_send;
+	pfvf_ops->recv_msg = adf_gen2_pfvf_recv;
 }
 EXPORT_SYMBOL_GPL(adf_gen2_init_vf_pfvf_ops);

@@ -41,6 +41,20 @@ int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 }
 
 /**
+ * adf_recv_vf2pf_msg() - receive a VF to PF message
+ * @accel_dev:	Pointer to acceleration device
+ * @vf_nr:	Number of the VF from where the message will be received
+ *
+ * This function allows the PF to receive a message from a specific VF.
+ *
+ * Return: a valid message on success, zero otherwise.
+ */
+static u32 adf_recv_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr)
+{
+	return GET_PFVF_OPS(accel_dev)->recv_msg(accel_dev, vf_nr);
+}
+
+/**
  * adf_send_vf2pf_req() - send VF2PF request message
  * @accel_dev:	Pointer to acceleration device.
  * @msg:	Request message to send
@@ -163,31 +177,12 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 
 bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr)
 {
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	int bar_id = hw_data->get_misc_bar_id(hw_data);
-	struct adf_bar *pmisc = &GET_BARS(accel_dev)[bar_id];
-	void __iomem *pmisc_addr = pmisc->virt_addr;
-	u32 msg, resp = 0;
+	u32 resp = 0;
+	u32 msg;
 
-	/* Read message from the VF */
-	msg = ADF_CSR_RD(pmisc_addr, hw_data->pfvf_ops.get_vf2pf_offset(vf_nr));
-	if (!(msg & ADF_VF2PF_INT)) {
-		dev_info(&GET_DEV(accel_dev),
-			 "Spurious VF2PF interrupt, msg %X. Ignored\n", msg);
+	msg = adf_recv_vf2pf_msg(accel_dev, vf_nr);
+	if (!msg)
 		return true;
-	}
-
-	/* Ignore legacy non-system (non-kernel) VF2PF messages */
-	if (!(msg & ADF_VF2PF_MSGORIGIN_SYSTEM)) {
-		dev_dbg(&GET_DEV(accel_dev),
-			"Ignored non-system message from VF%d (0x%x);\n",
-			vf_nr + 1, msg);
-		return true;
-	}
-
-	/* To ACK, clear the VF2PFINT bit */
-	msg &= ~ADF_VF2PF_INT;
-	ADF_CSR_WR(pmisc_addr, hw_data->pfvf_ops.get_vf2pf_offset(vf_nr), msg);
 
 	if (adf_handle_vf2pf_msg(accel_dev, vf_nr, msg, &resp))
 		return false;
