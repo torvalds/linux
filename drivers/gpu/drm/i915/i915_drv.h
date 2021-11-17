@@ -1936,6 +1936,10 @@ int i915_gem_evict_vm(struct i915_address_space *vm);
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
 				phys_addr_t size);
+struct drm_i915_gem_object *
+__i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
+				  const struct drm_i915_gem_object_ops *ops,
+				  phys_addr_t size);
 
 /* i915_gem_tiling.c */
 static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
