@@ -20,7 +20,6 @@
 
 #define RPCIF_CMNCR		0x0000	/* R/W */
 #define RPCIF_CMNCR_MD		BIT(31)
-#define RPCIF_CMNCR_SFDE	BIT(24) /* undocumented but must be set */
 #define RPCIF_CMNCR_MOIIO3(val)	(((val) & 0x3) << 22)
 #define RPCIF_CMNCR_MOIIO2(val)	(((val) & 0x3) << 20)
 #define RPCIF_CMNCR_MOIIO1(val)	(((val) & 0x3) << 18)
@@ -287,49 +286,36 @@ int rpcif_hw_init(struct rpcif *rpc, bool hyperflash)
 		rpcif_rzg2l_timing_adjust_sdr(rpc);
 	}
 
-	/*
-	 * NOTE: The 0x260 are undocumented bits, but they must be set.
-	 *	 RPCIF_PHYCNT_STRTIM is strobe timing adjustment bits,
-	 *	 0x0 : the delay is biggest,
-	 *	 0x1 : the delay is 2nd biggest,
-	 *	 On H3 ES1.x, the value should be 0, while on others,
-	 *	 the value should be 7.
-	 */
-	if (rpc->type == RPCIF_RCAR_GEN3) {
-		regmap_write(rpc->regmap, RPCIF_PHYCNT, RPCIF_PHYCNT_STRTIM(7) |
-			     RPCIF_PHYCNT_PHYMEM(hyperflash ? 3 : 0) | 0x260);
-	} else {
-		regmap_read(rpc->regmap, RPCIF_PHYCNT, &dummy);
-		dummy &= ~RPCIF_PHYCNT_PHYMEM_MASK;
-		dummy |= RPCIF_PHYCNT_PHYMEM(hyperflash ? 3 : 0) | 0x260;
-		regmap_write(rpc->regmap, RPCIF_PHYCNT, dummy);
-	}
+	regmap_update_bits(rpc->regmap, RPCIF_PHYCNT, RPCIF_PHYCNT_PHYMEM_MASK,
+			   RPCIF_PHYCNT_PHYMEM(hyperflash ? 3 : 0));
 
-	/*
-	 * NOTE: The 0x1511144 are undocumented bits, but they must be set
-	 *       for RPCIF_PHYOFFSET1.
-	 *	 The 0x31 are undocumented bits, but they must be set
-	 *	 for RPCIF_PHYOFFSET2.
-	 */
-	regmap_write(rpc->regmap, RPCIF_PHYOFFSET1, 0x1511144 |
-		     RPCIF_PHYOFFSET1_DDRTMG(3));
-	regmap_write(rpc->regmap, RPCIF_PHYOFFSET2, 0x31 |
-		     RPCIF_PHYOFFSET2_OCTTMG(4));
+	if (rpc->type == RPCIF_RCAR_GEN3)
+		regmap_update_bits(rpc->regmap, RPCIF_PHYCNT,
+				   RPCIF_PHYCNT_STRTIM(7), RPCIF_PHYCNT_STRTIM(7));
+
+	regmap_update_bits(rpc->regmap, RPCIF_PHYOFFSET1, RPCIF_PHYOFFSET1_DDRTMG(3),
+			   RPCIF_PHYOFFSET1_DDRTMG(3));
+	regmap_update_bits(rpc->regmap, RPCIF_PHYOFFSET2, RPCIF_PHYOFFSET2_OCTTMG(7),
+			   RPCIF_PHYOFFSET2_OCTTMG(4));
 
 	if (hyperflash)
 		regmap_update_bits(rpc->regmap, RPCIF_PHYINT,
 				   RPCIF_PHYINT_WPVAL, 0);
 
 	if (rpc->type == RPCIF_RCAR_GEN3)
-		regmap_write(rpc->regmap, RPCIF_CMNCR, RPCIF_CMNCR_SFDE |
-			     RPCIF_CMNCR_MOIIO_HIZ | RPCIF_CMNCR_IOFV_HIZ |
-			     RPCIF_CMNCR_BSZ(hyperflash ? 1 : 0));
+		regmap_update_bits(rpc->regmap, RPCIF_CMNCR,
+				   RPCIF_CMNCR_MOIIO_HIZ | RPCIF_CMNCR_BSZ(3),
+				   RPCIF_CMNCR_MOIIO_HIZ |
+				   RPCIF_CMNCR_BSZ(hyperflash ? 1 : 0));
 	else
-		regmap_write(rpc->regmap, RPCIF_CMNCR, RPCIF_CMNCR_SFDE |
-			     RPCIF_CMNCR_MOIIO3(1) | RPCIF_CMNCR_MOIIO2(1) |
-			     RPCIF_CMNCR_MOIIO1(1) | RPCIF_CMNCR_MOIIO0(1) |
-			     RPCIF_CMNCR_IO3FV(2) | RPCIF_CMNCR_IO2FV(2) |
-			     RPCIF_CMNCR_IO0FV(2) | RPCIF_CMNCR_BSZ(hyperflash ? 1 : 0));
+		regmap_update_bits(rpc->regmap, RPCIF_CMNCR,
+				   RPCIF_CMNCR_MOIIO_HIZ | RPCIF_CMNCR_IOFV_HIZ |
+				   RPCIF_CMNCR_BSZ(3),
+				   RPCIF_CMNCR_MOIIO3(1) | RPCIF_CMNCR_MOIIO2(1) |
+				   RPCIF_CMNCR_MOIIO1(1) | RPCIF_CMNCR_MOIIO0(1) |
+				   RPCIF_CMNCR_IO3FV(2) | RPCIF_CMNCR_IO2FV(2) |
+				   RPCIF_CMNCR_IO0FV(2) |
+				   RPCIF_CMNCR_BSZ(hyperflash ? 1 : 0));
 
 	/* Set RCF after BSZ update */
 	regmap_write(rpc->regmap, RPCIF_DRCR, RPCIF_DRCR_RCF);
