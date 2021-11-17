@@ -278,8 +278,9 @@ static inline int mpp_procfs_init(struct mpp_service *srv)
 
 static int mpp_service_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret, i;
 	struct mpp_service *srv = NULL;
+	struct mpp_taskqueue *queue;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 
@@ -305,17 +306,15 @@ static int mpp_service_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (srv->taskqueue_cnt) {
-		u32 i = 0;
-		struct mpp_taskqueue *queue;
+	for (i = 0; i < srv->taskqueue_cnt; i++) {
+		queue = mpp_taskqueue_init(dev);
+		if (!queue)
+			continue;
 
-		for (i = 0; i < srv->taskqueue_cnt; i++) {
-			queue = mpp_taskqueue_init(dev);
-			if (!queue)
-				continue;
-
-			srv->task_queues[i] = queue;
-		}
+		kthread_init_worker(&queue->worker);
+		queue->kworker_task = kthread_run(kthread_worker_fn, &queue->worker,
+						  "queue_work%d", i);
+		srv->task_queues[i] = queue;
 	}
 
 	of_property_read_u32(np, "rockchip,resetgroup-count",
@@ -374,11 +373,21 @@ fail_register:
 
 static int mpp_service_remove(struct platform_device *pdev)
 {
+	struct mpp_taskqueue *queue;
 	struct device *dev = &pdev->dev;
 	struct mpp_service *srv = platform_get_drvdata(pdev);
 	int i;
 
 	dev_info(dev, "remove device\n");
+
+	for (i = 0; i < srv->taskqueue_cnt; i++) {
+		queue = srv->task_queues[i];
+		if (queue && queue->kworker_task) {
+			kthread_flush_worker(&queue->worker);
+			kthread_stop(queue->kworker_task);
+			queue->kworker_task = NULL;
+		}
+	}
 
 	/* remove sub drivers */
 	for (i = 0; i < MPP_DRIVER_BUTT; i++)

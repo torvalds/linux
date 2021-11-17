@@ -993,7 +993,7 @@ static void rkvdec2_link_free_task(struct kref *ref)
 
 static void rkvdec2_link_trigger_work(struct mpp_dev *mpp)
 {
-	kthread_queue_work(&mpp->worker, &mpp->work);
+	kthread_queue_work(&mpp->queue->worker, &mpp->work);
 }
 
 static void rkvdec2_link_trigger_timeout(struct mpp_dev *mpp)
@@ -1267,12 +1267,6 @@ int rkvdec2_link_process_task(struct mpp_session *session,
 	task->task_index = atomic_fetch_inc(&mpp->task_index);
 	INIT_DELAYED_WORK(&task->timeout_work, rkvdec2_link_timeout_proc);
 
-	/*
-	 * Push task to session should be in front of push task to queue.
-	 * Otherwise, when mpp_task_finish finish and worker_thread call
-	 * mpp_task_try_run, it may be get a task who has push in queue but
-	 * not in session, cause some errors.
-	 */
 	atomic_inc(&session->task_count);
 
 	kref_get(&task->ref);

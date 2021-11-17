@@ -286,10 +286,6 @@ struct mpp_dev {
 	struct mpp_hw_ops *hw_ops;
 	struct mpp_dev_ops *dev_ops;
 
-	/* kworker for attached taskqueue */
-	struct kthread_worker worker;
-	/* task for work queue */
-	struct task_struct *kworker_task;
 	/* per-device work for attached taskqueue */
 	struct kthread_work work;
 	/* the flag for get/get/reduce freq */
@@ -422,6 +418,11 @@ struct mpp_task {
 };
 
 struct mpp_taskqueue {
+	/* kworker for attached taskqueue */
+	struct kthread_worker worker;
+	/* task for work queue */
+	struct task_struct *kworker_task;
+
 	/* lock for session attach and session_detach */
 	struct mutex session_lock;
 	/* link to session session_link for attached sessions */
