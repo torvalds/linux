@@ -266,6 +266,8 @@
 };
 
 &gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	mem-supply = <&vdd_gpu_mem_s0>;
 	status = "okay";
 };
 
