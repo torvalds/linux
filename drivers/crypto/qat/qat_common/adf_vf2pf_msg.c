@@ -67,7 +67,7 @@ bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev)
 
 	if (!(msg & ADF_PF2VF_MSGORIGIN_SYSTEM))
 		/* Ignore legacy non-system (non-kernel) PF2VF messages */
-		goto err;
+		return true;
 
 	/* To ack, clear the PF2VFINT bit */
 	msg &= ~ADF_PF2VF_INT;
