@@ -1908,7 +1908,7 @@ static int dw_dp_audio_infoframe_send(struct dw_dp *dp)
 	frame.sample_size = HDMI_AUDIO_SAMPLE_SIZE_STREAM;
 	frame.channels = audio->channels;
 
-	ret = hdmi_audio_infoframe_pack(&frame, &buffer[4], sizeof(buffer));
+	ret = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (ret < 0)
 		return ret;
 
