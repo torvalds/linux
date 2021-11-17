@@ -59,7 +59,6 @@ int ocrdma_query_port(struct ib_device *ibdev, u32 port,
 enum rdma_protocol_type
 ocrdma_query_protocol(struct ib_device *device, u32 port_num);
 
-void ocrdma_get_guid(struct ocrdma_dev *, u8 *guid);
 int ocrdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey);
 
 int ocrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);

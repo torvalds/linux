@@ -41,6 +41,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <net/addrconf.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/iw_cm.h>
@@ -74,7 +75,8 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	memset(attr, 0, sizeof *attr);
 	memcpy(&attr->fw_ver, &dev->attr.fw_ver[0],
 	       min(sizeof(dev->attr.fw_ver), sizeof(attr->fw_ver)));
-	ocrdma_get_guid(dev, (u8 *)&attr->sys_image_guid);
+	addrconf_addr_eui48((u8 *)&attr->sys_image_guid,
+			    dev->nic_info.mac_addr);
 	attr->max_mr_size = dev->attr.max_mr_size;
 	attr->page_size_cap = 0xffff000;
 	attr->vendor_id = dev->nic_info.pdev->vendor;
