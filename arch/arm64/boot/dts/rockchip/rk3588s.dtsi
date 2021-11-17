@@ -3175,8 +3175,8 @@
 		compatible = "rockchip,rk3588-crypto";
 		reg = <0x0 0xfe370000 0x0 0x2000>;
 		interrupts = <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCMI_ACLK_SECURE_NS>, <&cru SCMI_HCLK_SECURE_NS>,
-			 <&cru SCMI_CRYPTO_CORE>, <&cru SCMI_CRYPTO_PKA>;
+		clocks = <&scmi_clk SCMI_ACLK_SECURE_NS>, <&scmi_clk SCMI_HCLK_SECURE_NS>,
+			 <&scmi_clk SCMI_CRYPTO_CORE>, <&scmi_clk SCMI_CRYPTO_PKA>;
 		clock-names = "aclk", "hclk", "sclk", "pka";
 		resets = <&scmi_reset SRST_CRYPTO_CORE>;
 		reset-names = "crypto-rst";
