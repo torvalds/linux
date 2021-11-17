@@ -96,4 +96,10 @@ config SND_SOC_AMD_YC_MACH
 	  Say m if you have such a device.
 	  If unsure select "N".
 
+config SND_AMD_ACP_CONFIG
+	tristate "AMD ACP configuration selection"
+	help
+	 This option adds an auto detection to determine which ACP
+	 driver modules to use
+
 source "sound/soc/amd/acp/Kconfig"

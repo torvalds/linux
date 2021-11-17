@@ -376,6 +376,9 @@ static const struct sof_dai_types sof_dais[] = {
 	{"ALH", SOF_DAI_INTEL_ALH},
 	{"SAI", SOF_DAI_IMX_SAI},
 	{"ESAI", SOF_DAI_IMX_ESAI},
+	{"ACP", SOF_DAI_AMD_BT},
+	{"ACPSP", SOF_DAI_AMD_SP},
+	{"ACPDMIC", SOF_DAI_AMD_DMIC},
 };
 
 static enum sof_ipc_dai_type find_dai(const char *name)
@@ -2992,6 +2995,102 @@ static int sof_link_esai_load(struct snd_soc_component *scomp, int index,
 	return ret;
 }
 
+static int sof_link_acp_dmic_load(struct snd_soc_component *scomp, int index,
+				  struct snd_soc_dai_link *link,
+				  struct snd_soc_tplg_link_config *cfg,
+				  struct snd_soc_tplg_hw_config *hw_config,
+				  struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	u32 size = sizeof(*config);
+	int ret;
+
+       /* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->acpdmic, 0, sizeof(struct sof_ipc_dai_acp_params));
+	config->hdr.size = size;
+
+	config->acpdmic.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
+	config->acpdmic.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+
+	dev_info(scomp->dev, "ACP_DMIC config ACP%d channel %d rate %d\n",
+		 config->dai_index, config->acpdmic.tdm_slots,
+		 config->acpdmic.fsync_rate);
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "ACP_DMIC failed to save DAI config for ACP%d\n",
+			config->dai_index);
+	return ret;
+}
+
+static int sof_link_acp_bt_load(struct snd_soc_component *scomp, int index,
+				struct snd_soc_dai_link *link,
+				struct snd_soc_tplg_link_config *cfg,
+				struct snd_soc_tplg_hw_config *hw_config,
+				struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	u32 size = sizeof(*config);
+	int ret;
+
+	/* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->acpbt, 0, sizeof(struct sof_ipc_dai_acp_params));
+	config->hdr.size = size;
+
+	config->acpbt.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
+	config->acpbt.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+
+	dev_info(scomp->dev, "ACP_BT config ACP%d channel %d rate %d\n",
+		 config->dai_index, config->acpbt.tdm_slots,
+		 config->acpbt.fsync_rate);
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "ACP_BT failed to save DAI config for ACP%d\n",
+			config->dai_index);
+	return ret;
+}
+
+static int sof_link_acp_sp_load(struct snd_soc_component *scomp, int index,
+				struct snd_soc_dai_link *link,
+				struct snd_soc_tplg_link_config *cfg,
+				struct snd_soc_tplg_hw_config *hw_config,
+				struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	u32 size = sizeof(*config);
+	int ret;
+
+	/* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->acpsp, 0, sizeof(struct sof_ipc_dai_acp_params));
+	config->hdr.size = size;
+
+	config->acpsp.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
+	config->acpsp.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+
+	dev_info(scomp->dev, "ACP_SP config ACP%d channel %d rate %d\n",
+		 config->dai_index, config->acpsp.tdm_slots,
+		 config->acpsp.fsync_rate);
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "ACP_SP failed to save DAI config for ACP%d\n",
+			config->dai_index);
+	return ret;
+}
+
 static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			      struct snd_soc_dai_link *link,
 			      struct snd_soc_tplg_link_config *cfg,
@@ -3276,6 +3375,16 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 		break;
 	case SOF_DAI_IMX_ESAI:
 		ret = sof_link_esai_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		break;
+	case SOF_DAI_AMD_BT:
+		ret = sof_link_acp_bt_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		break;
+	case SOF_DAI_AMD_SP:
+		ret = sof_link_acp_sp_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		break;
+	case SOF_DAI_AMD_DMIC:
+		ret = sof_link_acp_dmic_load(scomp, index, link, cfg, hw_config + curr_conf,
+					     config);
 		break;
 	default:
 		dev_err(scomp->dev, "error: invalid DAI type %d\n", common_config.type);
