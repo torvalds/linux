@@ -269,7 +269,7 @@
 };
 
 &pcie3x4 {
-	reset-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
 	status = "okay";
 };
