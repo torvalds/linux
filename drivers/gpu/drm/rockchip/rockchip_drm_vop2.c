@@ -3347,6 +3347,8 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 {
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
 	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2_win *splice_win;
+	struct vop2 *vop2 = win->vop2;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_display_mode *mode;
 	struct drm_crtc *crtc = state->crtc;
@@ -3386,6 +3388,10 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 			ret = vop2_plane_splice_check(plane, state, mode);
 			if (ret < 0)
 				return ret;
+			splice_win = vop2_find_win_by_phys_id(vop2, win->splice_win_id);
+			splice_win->splice_mode_right = true;
+			splice_win->left_win = win;
+			win->splice_win = splice_win;
 		}
 	}
 
@@ -3633,7 +3639,7 @@ static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
 	left_dst->x2 = dst->x1 + left_dst_w;
 	right_src->x1 = left_src->x2;
 	right_src->x2 = src->x2;
-	right_dst->x1 = left_dst->x2;
+	right_dst->x1 = dst->x1;
 	right_dst->x2 = dst->x2;
 
 	left_src->y1 = src->y1;
@@ -3964,10 +3970,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 			      vpstate->afbc_en ? "AFBC" : "", &vpstate->yrgb_mst);
 
 		vop2_calc_drm_rect_for_splice(vpstate, &wsrc, &wdst, &right_wsrc, &right_wdst);
-		splice_win = vop2_find_win_by_phys_id(vop2, win->splice_win_id);
-		splice_win->splice_mode_right = true;
-		splice_win->left_win = win;
-		win->splice_win = splice_win;
+		splice_win = win->splice_win;
 		vop2_win_atomic_update(splice_win, &right_wsrc, &right_wdst, pstate);
 	} else {
 		memcpy(&wsrc, &vpstate->src, sizeof(struct drm_rect));
@@ -5535,10 +5538,13 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	vop2_set_system_status(vop2);
 
 	vop2_lock(vop2);
-	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d for vp%d\n",
+	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d for vp%d dclk: %d\n",
 		     hdisplay, vdisplay, interlaced ? "i" : "p",
-		     drm_mode_vrefresh(adjusted_mode), vcstate->output_type, vp->id);
-	if (vcstate->splice_mode) {
+		     drm_mode_vrefresh(adjusted_mode), vcstate->output_type, vp->id,
+		     adjusted_mode->crtc_clock * 1000);
+
+	if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
+		vcstate->splice_mode = true;
 		splice_vp = &vop2->vps[vp_data->splice_vp_id];
 		splice_vp->splice_mode_right = true;
 		splice_vp->left_vp = vp;
@@ -5983,12 +5989,16 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 	 */
 	for_each_set_bit(phys_id, &win_mask, ROCKCHIP_MAX_LAYER) {
 		win = vop2_find_win_by_phys_id(vop2, phys_id);
-		if (vp->splice_mode_right)
-			pstate = win->left_win->base.state;
-		else
+		if (vp->splice_mode_right) {
+			if (win->left_win)
+				pstate = win->left_win->base.state;
+			else
+				pstate = NULL; /* this win is not activated */
+		} else {
 			pstate = win->base.state;
+		}
 
-		vpstate = to_vop2_plane_state(pstate);
+		vpstate = pstate ? to_vop2_plane_state(pstate) : NULL;
 
 		if (!vop2_plane_active(pstate))
 			continue;
@@ -6592,7 +6602,11 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 			     win->name, vpstate->zpos, vp->id, old_vp->id);
 		/* left and right win may have different number */
 		if (vcstate->splice_mode) {
-			splice_win = win->splice_win;
+			splice_win = vop2_find_win_by_phys_id(vop2, win->splice_win_id);
+			splice_win->splice_mode_right = true;
+			splice_win->left_win = win;
+			win->splice_win = splice_win;
+
 			old_vp_id = ffs(splice_win->vp_mask);
 			old_vp_id = (old_vp_id == 0) ? 0 : old_vp_id - 1;
 			old_vp = &vop2->vps[old_vp_id];
