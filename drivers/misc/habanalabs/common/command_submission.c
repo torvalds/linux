@@ -545,6 +545,13 @@ static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
 			 * mcs fences.
 			 */
 			fence->mcs_handling_done = true;
+			/*
+			 * Since CS (and its related fence) can be associated with only one
+			 * multi CS context, once it triggered multi CS completion no need to
+			 * continue checking other multi CS contexts.
+			 */
+			spin_unlock(&mcs_compl->lock);
+			break;
 		}
 
 		spin_unlock(&mcs_compl->lock);
