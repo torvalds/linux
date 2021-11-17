@@ -14,6 +14,7 @@
 #include "dss/omapdss.h"
 #include "dss/dss.h"
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_gem.h>
 #include <drm/omap_drm.h>
 
@@ -41,6 +42,16 @@ struct omap_drm_pipeline {
 	unsigned int alias_id;
 };
 
+/*
+ * Global private object state for tracking resources that are shared across
+ * multiple kms objects (planes/crtcs/etc).
+ */
+#define to_omap_global_state(x) container_of(x, struct omap_global_state, base)
+
+struct omap_global_state {
+	struct drm_private_state base;
+};
+
 struct omap_drm_private {
 	struct drm_device *ddev;
 	struct device *dev;
@@ -60,6 +71,8 @@ struct omap_drm_private {
 
 	unsigned int num_ovls;
 	struct omap_hw_overlay *overlays[8];
+
+	struct drm_private_obj glob_obj;
 
 	struct drm_fb_helper *fbdev;
 
@@ -88,5 +101,9 @@ struct omap_drm_private {
 
 
 void omap_debugfs_init(struct drm_minor *minor);
+
+struct omap_global_state * __must_check omap_get_global_state(struct drm_atomic_state *s);
+
+struct omap_global_state *omap_get_existing_global_state(struct omap_drm_private *priv);
 
 #endif /* __OMAPDRM_DRV_H__ */
