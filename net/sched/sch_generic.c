@@ -445,6 +445,57 @@ unsigned long dev_trans_start(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_trans_start);
 
+static void netif_freeze_queues(struct net_device *dev)
+{
+	unsigned int i;
+	int cpu;
+
+	cpu = smp_processor_id();
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+
+		/* We are the only thread of execution doing a
+		 * freeze, but we have to grab the _xmit_lock in
+		 * order to synchronize with threads which are in
+		 * the ->hard_start_xmit() handler and already
+		 * checked the frozen bit.
+		 */
+		__netif_tx_lock(txq, cpu);
+		set_bit(__QUEUE_STATE_FROZEN, &txq->state);
+		__netif_tx_unlock(txq);
+	}
+}
+
+void netif_tx_lock(struct net_device *dev)
+{
+	spin_lock(&dev->tx_global_lock);
+	netif_freeze_queues(dev);
+}
+EXPORT_SYMBOL(netif_tx_lock);
+
+static void netif_unfreeze_queues(struct net_device *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+
+		/* No need to grab the _xmit_lock here.  If the
+		 * queue is not stopped for another reason, we
+		 * force a schedule.
+		 */
+		clear_bit(__QUEUE_STATE_FROZEN, &txq->state);
+		netif_schedule_queue(txq);
+	}
+}
+
+void netif_tx_unlock(struct net_device *dev)
+{
+	netif_unfreeze_queues(dev);
+	spin_unlock(&dev->tx_global_lock);
+}
+EXPORT_SYMBOL(netif_tx_unlock);
+
 static void dev_watchdog(struct timer_list *t)
 {
 	struct net_device *dev = from_timer(dev, t, watchdog_timer);
