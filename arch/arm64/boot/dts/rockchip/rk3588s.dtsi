@@ -2115,7 +2115,7 @@
 
 	rkcif: rkcif@fdce0000 {
 		compatible = "rockchip,rk3588-cif";
-		reg = <0x0 0xfdce0000 0x0 0x20000>;
+		reg = <0x0 0xfdce0000 0x0 0x800>;
 		reg-names = "cif_regs";
 		interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif-intr";
