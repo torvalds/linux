@@ -1088,6 +1088,7 @@
 };
 
 &usbdrd_dwc3_0 {
+	dr_mode = "otg";
 	usb-role-switch;
 	port {
 		#address-cells = <1>;
