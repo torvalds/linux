@@ -2938,7 +2938,7 @@
 		compatible = "rockchip,trngv1";
 		reg = <0x0 0xfe378000 0x0 0x200>;
 		interrupts = <GIC_SPI 400 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCMI_HCLK_SECURE_NS>;
+		clocks = <&scmi_clk SCMI_HCLK_SECURE_NS>;
 		clock-names = "hclk_trng";
 		resets = <&scmi_reset SRST_H_TRNG_NS>;
 		reset-names = "reset";
