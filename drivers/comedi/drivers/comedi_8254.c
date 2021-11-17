@@ -117,8 +117,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/comedi/comedidev.h>
-
-#include "comedi_8254.h"
+#include <linux/comedi/comedi_8254.h>
 
 static unsigned int __i8254_read(struct comedi_8254 *i8254, unsigned int reg)
 {

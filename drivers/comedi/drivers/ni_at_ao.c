@@ -26,8 +26,7 @@
 
 #include <linux/module.h>
 #include <linux/comedi/comedidev.h>
-
-#include "comedi_8254.h"
+#include <linux/comedi/comedi_8254.h>
 
 /*
  * Register map

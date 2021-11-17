@@ -30,8 +30,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/comedi/comedidev.h>
-
-#include "comedi_8254.h"
+#include <linux/comedi/comedi_8254.h>
 
 /*
  * I/O port register map

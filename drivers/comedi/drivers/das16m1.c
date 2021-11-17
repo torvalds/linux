@@ -44,8 +44,7 @@
 #include <linux/interrupt.h>
 #include <linux/comedi/comedidev.h>
 #include <linux/comedi/comedi_8255.h>
-
-#include "comedi_8254.h"
+#include <linux/comedi/comedi_8254.h>
 
 /*
  * Register map (dev->iobase)

@@ -36,8 +36,8 @@
 #include <linux/interrupt.h>
 #include <linux/comedi/comedi_pci.h>
 #include <linux/comedi/comedi_8255.h>
+#include <linux/comedi/comedi_8254.h>
 
-#include "comedi_8254.h"
 #include "plx9052.h"
 
 /*

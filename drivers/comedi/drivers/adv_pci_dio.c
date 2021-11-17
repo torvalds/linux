@@ -25,8 +25,7 @@
 #include <linux/delay.h>
 #include <linux/comedi/comedi_pci.h>
 #include <linux/comedi/comedi_8255.h>
-
-#include "comedi_8254.h"
+#include <linux/comedi/comedi_8254.h>
 
 /*
  * Register offset definitions

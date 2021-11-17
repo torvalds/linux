@@ -14,8 +14,8 @@
 #include <linux/slab.h>
 #include <linux/comedi/comedidev.h>
 #include <linux/comedi/comedi_8255.h>
+#include <linux/comedi/comedi_8254.h>
 
-#include "comedi_8254.h"
 #include "ni_labpc.h"
 #include "ni_labpc_regs.h"
 #include "ni_labpc_isadma.h"
