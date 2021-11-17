@@ -71,10 +71,6 @@
 #define GSI_CPHA		BIT(4)
 #define GSI_CPOL		BIT(5)
 
-#define MAX_TX_SG		3
-#define NUM_SPI_XFER		8
-#define SPI_XFER_TIMEOUT_MS	250
-
 struct spi_geni_master {
 	struct geni_se se;
 	struct device *dev;
