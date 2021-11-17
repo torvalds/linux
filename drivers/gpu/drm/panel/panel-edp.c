@@ -196,10 +196,10 @@ struct edp_panel_entry {
 	/** @panel_id: 32-bit ID for panel, encoded with drm_edid_encode_panel_id(). */
 	u32 panel_id;
 
-	/* @delay: The power sequencing delays needed for this panel. */
+	/** @delay: The power sequencing delays needed for this panel. */
 	const struct panel_delay *delay;
 
-	/* @name: Name of this panel (for printing to logs). */
+	/** @name: Name of this panel (for printing to logs). */
 	const char *name;
 };
 
