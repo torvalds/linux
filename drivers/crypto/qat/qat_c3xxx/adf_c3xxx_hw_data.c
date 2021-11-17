@@ -4,6 +4,7 @@
 #include <adf_common_drv.h>
 #include <adf_pf2vf_msg.h>
 #include <adf_gen2_hw_data.h>
+#include <adf_gen2_pfvf.h>
 #include "adf_c3xxx_hw_data.h"
 #include "icp_qat_hw.h"
 
