@@ -95,13 +95,13 @@ struct rk_cam_set_zoom {
 };
 
 struct rk_cam_vcm_tim {
-	struct timeval vcm_start_t;
-	struct timeval vcm_end_t;
+	struct __kernel_old_timeval vcm_start_t;
+	struct __kernel_old_timeval vcm_end_t;
 };
 
 struct rk_cam_compat_vcm_tim {
-	struct compat_timeval vcm_start_t;
-	struct compat_timeval vcm_end_t;
+	struct old_timeval32 vcm_start_t;
+	struct old_timeval32 vcm_end_t;
 };
 
 struct rk_cam_vcm_cfg {
