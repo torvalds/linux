@@ -3,6 +3,7 @@
  * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/phy/phy-snps-pcie3.h>
 #include "rk3588s.dtsi"
 #include "rk3588-vccio3-pinctrl.dtsi"
 
