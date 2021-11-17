@@ -14,7 +14,7 @@
 					 ADF_PFVF_MSG_ACK_MAX_RETRY + \
 					 ADF_PFVF_MSG_COLLISION_DETECT_DELAY)
 
-static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
+static int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 {
 	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
@@ -24,8 +24,9 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 	u32 local_in_use_mask, local_in_use_pattern;
 	u32 remote_in_use_mask, remote_in_use_pattern;
 	struct mutex *lock;	/* lock preventing concurrent acces of CSR */
+	unsigned int retries = ADF_PFVF_MSG_MAX_RETRIES;
 	u32 int_bit;
-	int ret = 0;
+	int ret;
 
 	if (accel_dev->is_vf) {
 		pf2vf_offset = hw_data->get_pf2vf_offset(0);
@@ -45,19 +46,21 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 		int_bit = ADF_PF2VF_INT;
 	}
 
+	msg &= ~local_in_use_mask;
+	msg |= local_in_use_pattern;
+
 	mutex_lock(lock);
+
+start:
+	ret = 0;
 
 	/* Check if the PFVF CSR is in use by remote function */
 	val = ADF_CSR_RD(pmisc_bar_addr, pf2vf_offset);
 	if ((val & remote_in_use_mask) == remote_in_use_pattern) {
 		dev_dbg(&GET_DEV(accel_dev),
 			"PFVF CSR in use by remote function\n");
-		ret = -EBUSY;
-		goto out;
+		goto retry;
 	}
-
-	msg &= ~local_in_use_mask;
-	msg |= local_in_use_pattern;
 
 	/* Attempt to get ownership of the PFVF CSR */
 	ADF_CSR_WR(pmisc_bar_addr, pf2vf_offset, msg | int_bit);
@@ -77,8 +80,7 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 	if (val != msg) {
 		dev_dbg(&GET_DEV(accel_dev),
 			"Collision - PFVF CSR overwritten by remote function\n");
-		ret = -EIO;
-		goto out;
+		goto retry;
 	}
 
 	/* Finished with the PFVF CSR; relinquish it and leave msg in CSR */
@@ -86,31 +88,15 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 out:
 	mutex_unlock(lock);
 	return ret;
-}
 
-/**
- * adf_iov_putmsg() - send PFVF message
- * @accel_dev:  Pointer to acceleration device.
- * @msg:	Message to send
- * @vf_nr:	VF number to which the message will be sent if on PF, ignored
- *		otherwise
- *
- * Function sends a message through the PFVF channel
- *
- * Return: 0 on success, error code otherwise.
- */
-static int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
-{
-	u32 count = 0;
-	int ret;
-
-	do {
-		ret = __adf_iov_putmsg(accel_dev, msg, vf_nr);
-		if (ret)
-			msleep(ADF_PFVF_MSG_RETRY_DELAY);
-	} while (ret && (count++ < ADF_PFVF_MSG_MAX_RETRIES));
-
-	return ret;
+retry:
+	if (--retries) {
+		msleep(ADF_PFVF_MSG_RETRY_DELAY);
+		goto start;
+	} else {
+		ret = -EBUSY;
+		goto out;
+	}
 }
 
 /**
