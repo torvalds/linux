@@ -46,3 +46,62 @@ void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev)
 				"Failed to send Shutdown event to PF\n");
 }
 EXPORT_SYMBOL_GPL(adf_vf2pf_notify_shutdown);
+
+bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_bar *pmisc =
+			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
+	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
+	u32 offset = hw_data->get_pf2vf_offset(0);
+	bool ret;
+	u32 msg;
+
+	/* Read the message from PF */
+	msg = ADF_CSR_RD(pmisc_bar_addr, offset);
+	if (!(msg & ADF_PF2VF_INT)) {
+		dev_info(&GET_DEV(accel_dev),
+			 "Spurious PF2VF interrupt, msg %X. Ignored\n", msg);
+		return true;
+	}
+
+	if (!(msg & ADF_PF2VF_MSGORIGIN_SYSTEM))
+		/* Ignore legacy non-system (non-kernel) PF2VF messages */
+		goto err;
+
+	switch ((msg & ADF_PF2VF_MSGTYPE_MASK) >> ADF_PF2VF_MSGTYPE_SHIFT) {
+	case ADF_PF2VF_MSGTYPE_RESTARTING:
+		dev_dbg(&GET_DEV(accel_dev),
+			"Restarting msg received from PF 0x%x\n", msg);
+
+		adf_pf2vf_handle_pf_restarting(accel_dev);
+		ret = false;
+		break;
+	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
+		dev_dbg(&GET_DEV(accel_dev),
+			"Version resp received from PF 0x%x\n", msg);
+		accel_dev->vf.pf_version =
+			(msg & ADF_PF2VF_VERSION_RESP_VERS_MASK) >>
+			ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
+		accel_dev->vf.compatible =
+			(msg & ADF_PF2VF_VERSION_RESP_RESULT_MASK) >>
+			ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		complete(&accel_dev->vf.iov_msg_completion);
+		ret = true;
+		break;
+	default:
+		goto err;
+	}
+
+	/* To ack, clear the PF2VFINT bit */
+	msg &= ~ADF_PF2VF_INT;
+	ADF_CSR_WR(pmisc_bar_addr, offset, msg);
+	return ret;
+
+err:
+	dev_err(&GET_DEV(accel_dev),
+		"Unknown message from PF (0x%x); leaving PF2VF ints disabled\n",
+		msg);
+
+	return false;
+}
