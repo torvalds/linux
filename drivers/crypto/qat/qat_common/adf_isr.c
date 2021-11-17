@@ -123,7 +123,7 @@ static bool adf_handle_vf2pf_int(struct adf_accel_dev *accel_dev)
 			if (!__ratelimit(&vf_info->vf2pf_ratelimit)) {
 				dev_info(&GET_DEV(accel_dev),
 					 "Too many ints from VF%d\n",
-					  vf_info->vf_nr + 1);
+					  vf_info->vf_nr);
 				continue;
 			}
 

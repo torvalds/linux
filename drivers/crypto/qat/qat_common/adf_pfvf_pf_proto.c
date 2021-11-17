@@ -50,7 +50,7 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 
 		dev_dbg(&GET_DEV(accel_dev),
 			"Compatibility Version Request from VF%d vers=%u\n",
-			vf_nr + 1, vf_compat_ver);
+			vf_nr, vf_compat_ver);
 
 		if (vf_compat_ver <= ADF_PFVF_COMPAT_THIS_VERSION) {
 			compat = ADF_PF2VF_VF_COMPATIBLE;
@@ -78,7 +78,7 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 
 		dev_dbg(&GET_DEV(accel_dev),
 			"Legacy VersionRequest received from VF%d 0x%x\n",
-			vf_nr + 1, msg);
+			vf_nr, msg);
 
 		/* PF always newer than legacy VF */
 		compat = ADF_PF2VF_VF_COMPATIBLE;
@@ -96,7 +96,7 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		{
 		dev_dbg(&GET_DEV(accel_dev),
 			"Init message received from VF%d 0x%x\n",
-			vf_nr + 1, msg);
+			vf_nr, msg);
 		vf_info->init = true;
 		}
 		break;
@@ -104,13 +104,13 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		{
 		dev_dbg(&GET_DEV(accel_dev),
 			"Shutdown message received from VF%d 0x%x\n",
-			vf_nr + 1, msg);
+			vf_nr, msg);
 		vf_info->init = false;
 		}
 		break;
 	default:
 		dev_dbg(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%x)\n",
-			vf_nr + 1, msg);
+			vf_nr, msg);
 		return -ENOMSG;
 	}
 
