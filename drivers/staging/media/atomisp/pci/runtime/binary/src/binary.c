@@ -1339,18 +1339,12 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 			binary->sctbl_width_per_color = _ISP2401_SCTBL_WIDTH_PER_COLOR(isp_internal_width, s3a_log_deci);
 			binary->sctbl_aligned_width_per_color = SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR;
 			binary->sctbl_height = _ISP2401_SCTBL_HEIGHT(isp_internal_height, s3a_log_deci);
-			binary->sctbl_legacy_width_per_color  = _ISP_SCTBL_LEGACY_WIDTH_PER_COLOR(sc_3a_dis_padded_width, s3a_log_deci);
-			binary->sctbl_legacy_height = _ISP_SCTBL_LEGACY_HEIGHT(sc_3a_dis_height, s3a_log_deci);
 		}
 	} else
 	{
 		binary->sctbl_width_per_color         = 0;
 		binary->sctbl_aligned_width_per_color = 0;
 		binary->sctbl_height                  = 0;
-		if (IS_ISP2401) {
-			binary->sctbl_legacy_width_per_color  = 0;
-			binary->sctbl_legacy_height	      = 0;
-		}
 	}
 	ia_css_sdis_init_info(&binary->dis,
 			      sc_3a_dis_width,

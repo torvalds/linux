@@ -130,8 +130,6 @@ struct ia_css_binary {
 	int                      sctbl_width_per_color;
 	int                      sctbl_aligned_width_per_color;
 	int                      sctbl_height;
-	int                      sctbl_legacy_width_per_color;
-	int                      sctbl_legacy_height;
 	struct ia_css_sdis_info	 dis;
 	struct ia_css_resolution dvs_envelope;
 	bool                     online;

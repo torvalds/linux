@@ -242,8 +242,8 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 
 	if (!in_table) {
 		sh_css_params_shading_id_table_generate(target_table,
-							binary->sctbl_legacy_width_per_color,
-							binary->sctbl_legacy_height);
+							binary->sctbl_width_per_color,
+							binary->sctbl_height);
 		return;
 	}
 
@@ -290,8 +290,8 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 
 	/* This prepare_shading_table() function is called only in legacy API (not in new API).
 	   Then, the legacy shading table width and height should be used. */
-	table_width  = binary->sctbl_legacy_width_per_color;
-	table_height = binary->sctbl_legacy_height;
+	table_width  = binary->sctbl_width_per_color;
+	table_height = binary->sctbl_height;
 
 	result = ia_css_shading_table_alloc(table_width, table_height);
 	if (!result) {
