@@ -2,6 +2,7 @@
 /* Copyright(c) 2021 Intel Corporation */
 #include <linux/types.h>
 #include "adf_accel_devices.h"
+#include "adf_common_drv.h"
 #include "adf_gen2_pfvf.h"
 
  /* VF2PF interrupts */
@@ -11,19 +12,17 @@
 #define ADF_GEN2_PF_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_GEN2_VF_PF2VF_OFFSET	0x200
 
-u32 adf_gen2_pf_get_pf2vf_offset(u32 i)
+static u32 adf_gen2_pf_get_pf2vf_offset(u32 i)
 {
 	return ADF_GEN2_PF_PF2VF_OFFSET(i);
 }
-EXPORT_SYMBOL_GPL(adf_gen2_pf_get_pf2vf_offset);
 
-u32 adf_gen2_vf_get_pf2vf_offset(u32 i)
+static u32 adf_gen2_vf_get_pf2vf_offset(u32 i)
 {
 	return ADF_GEN2_VF_PF2VF_OFFSET;
 }
-EXPORT_SYMBOL_GPL(adf_gen2_vf_get_pf2vf_offset);
 
-u32 adf_gen2_get_vf2pf_sources(void __iomem *pmisc_addr)
+static u32 adf_gen2_get_vf2pf_sources(void __iomem *pmisc_addr)
 {
 	u32 errsou3, errmsk3, vf_int_mask;
 
@@ -39,9 +38,9 @@ u32 adf_gen2_get_vf2pf_sources(void __iomem *pmisc_addr)
 
 	return vf_int_mask;
 }
-EXPORT_SYMBOL_GPL(adf_gen2_get_vf2pf_sources);
 
-void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
+static void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
+					     u32 vf_mask)
 {
 	/* Enable VF2PF Messaging Ints - VFs 0 through 15 per vf_mask[15:0] */
 	if (vf_mask & 0xFFFF) {
@@ -50,9 +49,9 @@ void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
 		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK3, val);
 	}
 }
-EXPORT_SYMBOL_GPL(adf_gen2_enable_vf2pf_interrupts);
 
-void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
+static void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr,
+					      u32 vf_mask)
 {
 	/* Disable VF2PF interrupts for VFs 0 through 15 per vf_mask[15:0] */
 	if (vf_mask & 0xFFFF) {
@@ -61,4 +60,20 @@ void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
 		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK3, val);
 	}
 }
-EXPORT_SYMBOL_GPL(adf_gen2_disable_vf2pf_interrupts);
+
+void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
+{
+	pfvf_ops->enable_comms = adf_enable_pf2vf_comms;
+	pfvf_ops->get_pf2vf_offset = adf_gen2_pf_get_pf2vf_offset;
+	pfvf_ops->get_vf2pf_sources = adf_gen2_get_vf2pf_sources;
+	pfvf_ops->enable_vf2pf_interrupts = adf_gen2_enable_vf2pf_interrupts;
+	pfvf_ops->disable_vf2pf_interrupts = adf_gen2_disable_vf2pf_interrupts;
+}
+EXPORT_SYMBOL_GPL(adf_gen2_init_pf_pfvf_ops);
+
+void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
+{
+	pfvf_ops->enable_comms = adf_enable_vf2pf_comms;
+	pfvf_ops->get_pf2vf_offset = adf_gen2_vf_get_pf2vf_offset;
+}
+EXPORT_SYMBOL_GPL(adf_gen2_init_vf_pfvf_ops);

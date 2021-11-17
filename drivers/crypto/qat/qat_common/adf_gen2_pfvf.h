@@ -11,10 +11,19 @@
 #define ADF_GEN2_ERRMSK3 (0x3A000 + 0x1C)
 #define ADF_GEN2_ERRMSK5 (0x3A000 + 0xDC)
 
-u32 adf_gen2_pf_get_pf2vf_offset(u32 i);
-u32 adf_gen2_vf_get_pf2vf_offset(u32 i);
-u32 adf_gen2_get_vf2pf_sources(void __iomem *pmisc_bar);
-void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask);
-void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask);
+#if defined(CONFIG_PCI_IOV)
+void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops);
+void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops);
+#else
+static inline void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
+{
+	pfvf_ops->enable_comms = adf_pfvf_comms_disabled;
+}
+
+static inline void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
+{
+	pfvf_ops->enable_comms = adf_pfvf_comms_disabled;
+}
+#endif
 
 #endif /* ADF_GEN2_PFVF_H */

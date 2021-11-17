@@ -147,6 +147,14 @@ struct adf_accel_dev;
 struct adf_etr_data;
 struct adf_etr_ring_data;
 
+struct adf_pfvf_ops {
+	int (*enable_comms)(struct adf_accel_dev *accel_dev);
+	u32 (*get_pf2vf_offset)(u32 i);
+	u32 (*get_vf2pf_sources)(void __iomem *pmisc_addr);
+	void (*enable_vf2pf_interrupts)(void __iomem *pmisc_addr, u32 vf_mask);
+	void (*disable_vf2pf_interrupts)(void __iomem *pmisc_addr, u32 vf_mask);
+};
+
 struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
 	u32 (*get_accel_mask)(struct adf_hw_device_data *self);
@@ -157,7 +165,6 @@ struct adf_hw_device_data {
 	u32 (*get_etr_bar_id)(struct adf_hw_device_data *self);
 	u32 (*get_num_aes)(struct adf_hw_device_data *self);
 	u32 (*get_num_accels)(struct adf_hw_device_data *self);
-	u32 (*get_pf2vf_offset)(u32 i);
 	void (*get_arb_info)(struct arb_info *arb_csrs_info);
 	void (*get_admin_info)(struct admin_info *admin_csrs_info);
 	enum dev_sku_info (*get_sku)(struct adf_hw_device_data *self);
@@ -176,17 +183,12 @@ struct adf_hw_device_data {
 				      bool enable);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	void (*set_ssm_wdtimer)(struct adf_accel_dev *accel_dev);
-	int (*enable_pfvf_comms)(struct adf_accel_dev *accel_dev);
-	u32 (*get_vf2pf_sources)(void __iomem *pmisc_addr);
-	void (*enable_vf2pf_interrupts)(void __iomem *pmisc_bar_addr,
-					u32 vf_mask);
-	void (*disable_vf2pf_interrupts)(void __iomem *pmisc_bar_addr,
-					 u32 vf_mask);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	char *(*uof_get_name)(u32 obj_num);
 	u32 (*uof_get_num_objs)(void);
 	u32 (*uof_get_ae_mask)(u32 obj_num);
+	struct adf_pfvf_ops pfvf_ops;
 	struct adf_hw_csr_ops csr_ops;
 	const char *fw_name;
 	const char *fw_mmp_name;
@@ -222,6 +224,7 @@ struct adf_hw_device_data {
 	GET_HW_DATA(accel_dev)->num_rings_per_bank
 #define GET_MAX_ACCELENGINES(accel_dev) (GET_HW_DATA(accel_dev)->num_engines)
 #define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_ops)
+#define GET_PFVF_OPS(accel_dev) (&(accel_dev)->hw_device->pfvf_ops)
 #define accel_to_pci_dev(accel_ptr) accel_ptr->accel_pci_dev.pci_dev
 
 struct adf_admin_comms;

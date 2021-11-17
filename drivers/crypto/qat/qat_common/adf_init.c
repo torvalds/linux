@@ -117,7 +117,7 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	hw_data->enable_ints(accel_dev);
 	hw_data->enable_error_correction(accel_dev);
 
-	ret = hw_data->enable_pfvf_comms(accel_dev);
+	ret = hw_data->pfvf_ops.enable_comms(accel_dev);
 	if (ret)
 		return ret;
 

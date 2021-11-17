@@ -64,7 +64,7 @@ void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
-	hw_data->enable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	hw_data->pfvf_ops.enable_vf2pf_interrupts(pmisc_addr, vf_mask);
 	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
 }
 
@@ -77,7 +77,7 @@ void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
-	hw_data->disable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	hw_data->pfvf_ops.disable_vf2pf_interrupts(pmisc_addr, vf_mask);
 	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
 }
 
@@ -90,7 +90,7 @@ static void adf_disable_vf2pf_interrupts_irq(struct adf_accel_dev *accel_dev,
 	void __iomem *pmisc_addr = pmisc->virt_addr;
 
 	spin_lock(&accel_dev->pf.vf2pf_ints_lock);
-	hw_data->disable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	hw_data->pfvf_ops.disable_vf2pf_interrupts(pmisc_addr, vf_mask);
 	spin_unlock(&accel_dev->pf.vf2pf_ints_lock);
 }
 
@@ -104,7 +104,7 @@ static bool adf_handle_vf2pf_int(struct adf_accel_dev *accel_dev)
 	unsigned long vf_mask;
 
 	/* Get the interrupt sources triggered by VFs */
-	vf_mask = hw_data->get_vf2pf_sources(pmisc_addr);
+	vf_mask = hw_data->pfvf_ops.get_vf2pf_sources(pmisc_addr);
 
 	if (vf_mask) {
 		struct adf_accel_vf_info *vf_info;

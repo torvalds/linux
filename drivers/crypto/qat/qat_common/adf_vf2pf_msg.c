@@ -81,7 +81,7 @@ bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev)
 	struct adf_bar *pmisc =
 			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
-	u32 offset = hw_data->get_pf2vf_offset(0);
+	u32 offset = hw_data->pfvf_ops.get_pf2vf_offset(0);
 	u32 msg;
 
 	/* Read the message from PF */

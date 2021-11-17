@@ -70,7 +70,7 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 		hw_data->configure_iov_threads(accel_dev, true);
 
 	/* Enable VF to PF interrupts for all VFs */
-	if (hw_data->get_pf2vf_offset)
+	if (hw_data->pfvf_ops.get_pf2vf_offset)
 		adf_enable_vf2pf_interrupts(accel_dev, BIT_ULL(totalvfs) - 1);
 
 	/*
@@ -100,13 +100,13 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->pf.vf_info)
 		return;
 
-	if (hw_data->get_pf2vf_offset)
+	if (hw_data->pfvf_ops.get_pf2vf_offset)
 		adf_pf2vf_notify_restarting(accel_dev);
 
 	pci_disable_sriov(accel_to_pci_dev(accel_dev));
 
 	/* Disable VF to PF interrupts */
-	if (hw_data->get_pf2vf_offset)
+	if (hw_data->pfvf_ops.get_pf2vf_offset)
 		adf_disable_vf2pf_interrupts(accel_dev, GENMASK(31, 0));
 
 	/* Clear Valid bits in AE Thread to PCIe Function Mapping */
