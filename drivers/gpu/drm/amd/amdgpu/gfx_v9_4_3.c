@@ -1068,13 +1068,13 @@ static void gfx_v9_4_3_init_pg(struct amdgpu_device *adev, int xcc_id)
 	}
 }
 
-void gfx_v9_4_3_disable_gpa_mode(struct amdgpu_device *adev)
+void gfx_v9_4_3_disable_gpa_mode(struct amdgpu_device *adev, int xcc_id)
 {
 	uint32_t data;
 
-	data = RREG32_SOC15(GC, 0, regCPC_PSP_DEBUG);
+	data = RREG32_SOC15(GC, xcc_id, regCPC_PSP_DEBUG);
 	data |= CPC_PSP_DEBUG__UTCL2IUGPAOVERRIDE_MASK;
-	WREG32_SOC15(GC, 0, regCPC_PSP_DEBUG, data);
+	WREG32_SOC15(GC, xcc_id, regCPC_PSP_DEBUG, data);
 }
 
 static bool gfx_v9_4_3_is_rlc_enabled(struct amdgpu_device *adev)
@@ -1177,19 +1177,19 @@ static void gfx_v9_4_3_wait_for_rlc_serdes(struct amdgpu_device *adev,
 }
 
 static void gfx_v9_4_3_enable_gui_idle_interrupt(struct amdgpu_device *adev,
-					       bool enable)
+						 bool enable, int xcc_id)
 {
 	u32 tmp;
 
 	/* These interrupts should be enabled to drive DS clock */
 
-	tmp = RREG32_SOC15(GC, 0, regCP_INT_CNTL_RING0);
+	tmp = RREG32_SOC15(GC, xcc_id, regCP_INT_CNTL_RING0);
 
 	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL_RING0, CNTX_BUSY_INT_ENABLE, enable ? 1 : 0);
 	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL_RING0, CNTX_EMPTY_INT_ENABLE, enable ? 1 : 0);
 	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL_RING0, CMP_BUSY_INT_ENABLE, enable ? 1 : 0);
 
-	WREG32_SOC15(GC, 0, regCP_INT_CNTL_RING0, tmp);
+	WREG32_SOC15(GC, xcc_id, regCP_INT_CNTL_RING0, tmp);
 }
 
 static void gfx_v9_4_3_rlc_stop(struct amdgpu_device *adev)
@@ -1198,7 +1198,7 @@ static void gfx_v9_4_3_rlc_stop(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->gfx.num_xcd; i++) {
 		WREG32_FIELD15_PREREG(GC, i, RLC_CNTL, RLC_ENABLE_F32, 0);
-		gfx_v9_4_3_enable_gui_idle_interrupt(adev, false);
+		gfx_v9_4_3_enable_gui_idle_interrupt(adev, false, i);
 		gfx_v9_4_3_wait_for_rlc_serdes(adev, i);
 	}
 }
@@ -1228,7 +1228,7 @@ static void gfx_v9_4_3_rlc_start(struct amdgpu_device *adev)
 
 		/* carrizo do enable cp interrupt after cp inited */
 		if (!(adev->flags & AMD_IS_APU)) {
-			gfx_v9_4_3_enable_gui_idle_interrupt(adev, true);
+			gfx_v9_4_3_enable_gui_idle_interrupt(adev, true, i);
 			udelay(50);
 		}
 
@@ -1865,10 +1865,10 @@ static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 
 	for (i = 0; i < adev->gfx.num_xcd; i++) {
-		gfx_v9_4_3_enable_gui_idle_interrupt(adev, false);
+		gfx_v9_4_3_enable_gui_idle_interrupt(adev, false, i);
 
 		if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-			gfx_v9_4_3_disable_gpa_mode(adev);
+			gfx_v9_4_3_disable_gpa_mode(adev, i);
 
 			r = gfx_v9_4_3_cp_compute_load_microcode(adev, i);
 			if (r)
@@ -1888,7 +1888,7 @@ static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 			amdgpu_ring_test_helper(ring);
 		}
 
-		gfx_v9_4_3_enable_gui_idle_interrupt(adev, true);
+		gfx_v9_4_3_enable_gui_idle_interrupt(adev, true, i);
 	}
 
 	return 0;
