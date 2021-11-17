@@ -55,6 +55,45 @@ static irqreturn_t adf_msix_isr_bundle(int irq, void *bank_ptr)
 }
 
 #ifdef CONFIG_PCI_IOV
+void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 misc_bar_id = hw_data->get_misc_bar_id(hw_data);
+	struct adf_bar *pmisc = &GET_BARS(accel_dev)[misc_bar_id];
+	void __iomem *pmisc_addr = pmisc->virt_addr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
+	hw_data->enable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
+}
+
+void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 misc_bar_id = hw_data->get_misc_bar_id(hw_data);
+	struct adf_bar *pmisc = &GET_BARS(accel_dev)[misc_bar_id];
+	void __iomem *pmisc_addr = pmisc->virt_addr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
+	hw_data->disable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
+}
+
+static void adf_disable_vf2pf_interrupts_irq(struct adf_accel_dev *accel_dev,
+					     u32 vf_mask)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 misc_bar_id = hw_data->get_misc_bar_id(hw_data);
+	struct adf_bar *pmisc = &GET_BARS(accel_dev)[misc_bar_id];
+	void __iomem *pmisc_addr = pmisc->virt_addr;
+
+	spin_lock(&accel_dev->pf.vf2pf_ints_lock);
+	hw_data->disable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	spin_unlock(&accel_dev->pf.vf2pf_ints_lock);
+}
+
 static bool adf_handle_vf2pf_int(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
