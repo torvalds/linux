@@ -4070,10 +4070,8 @@ ice_find_free_recp_res_idx(struct ice_hw *hw, const unsigned long *profiles,
 	DECLARE_BITMAP(used_idx, ICE_MAX_FV_WORDS);
 	u16 bit;
 
-	bitmap_zero(possible_idx, ICE_MAX_FV_WORDS);
 	bitmap_zero(recipes, ICE_MAX_NUM_RECIPES);
 	bitmap_zero(used_idx, ICE_MAX_FV_WORDS);
-	bitmap_zero(free_idx, ICE_MAX_FV_WORDS);
 
 	bitmap_set(possible_idx, 0, ICE_MAX_FV_WORDS);
 
