@@ -130,7 +130,7 @@ static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw,
 	/* If vports min rate divider is 0 but their group has bw_share configured, then
 	 * need to set bw_share for vports to minimal value.
 	 */
-	if (!group_level && !max_guarantee && group->bw_share)
+	if (!group_level && !max_guarantee && group && group->bw_share)
 		return 1;
 	return 0;
 }
