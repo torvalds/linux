@@ -52,6 +52,15 @@
 
 #define ACP_DSP_TO_HOST_IRQ			0x04
 
+#define HOST_BRIDGE_CZN				0x1630
+#define ACP_SHA_STAT				0x8000
+#define ACP_PSP_TIMEOUT_COUNTER			5
+#define ACP_EXT_INTR_ERROR_STAT			0x20000000
+#define MP0_C2PMSG_26_REG			0x03810570
+#define MBOX_ACP_SHA_DMA_COMMAND		0x330000
+#define MBOX_READY_MASK				0x80000000
+#define MBOX_STATUS_MASK			0xFFFF
+
 struct  acp_atu_grp_pte {
 	u32 low;
 	u32 high;
@@ -140,6 +149,7 @@ struct acp_dev_data {
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 	struct acp_dsp_stream *dtrace_stream;
+	struct pci_dev *smn_dev;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -202,4 +212,15 @@ int snd_amd_acp_find_config(struct pci_dev *pci);
 /* Trace */
 int acp_sof_trace_init(struct snd_sof_dev *sdev, u32 *stream_tag);
 int acp_sof_trace_release(struct snd_sof_dev *sdev);
+
+struct sof_amd_acp_desc {
+	unsigned int host_bridge_id;
+};
+
+static inline const struct sof_amd_acp_desc *get_chip_info(struct snd_sof_pdata *pdata)
+{
+	const struct sof_dev_desc *desc = pdata->desc;
+
+	return desc->chip_info;
+}
 #endif

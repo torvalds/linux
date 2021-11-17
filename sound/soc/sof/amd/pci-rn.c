@@ -43,12 +43,17 @@ static const struct resource renoir_res[] = {
 	},
 };
 
+static const struct sof_amd_acp_desc renoir_chip_info = {
+	.host_bridge_id = HOST_BRIDGE_CZN,
+};
+
 static const struct sof_dev_desc renoir_desc = {
 	.machines		= snd_soc_acpi_amd_sof_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
+	.chip_info		= &renoir_chip_info,
 	.default_fw_path	= "amd/sof",
 	.default_tplg_path	= "amd/sof-tplg",
 	.default_fw_filename	= "sof-rn.ri",

@@ -54,6 +54,9 @@
 #define ACP_PGFSM_STATUS			0x1420
 
 /* Registers from ACP_INTR block */
+#define ACP_EXTERNAL_INTR_ENB			0x1800
+#define ACP_EXTERNAL_INTR_CNTL			0x1804
+#define ACP_EXTERNAL_INTR_STAT			0x1808
 #define ACP_DSP_SW_INTR_CNTL			0x1814
 #define ACP_DSP_SW_INTR_STAT                    0x1818
 #define ACP_SW_INTR_TRIG                        0x181C
@@ -68,6 +71,7 @@
 #define ACP_SHA_DMA_CMD_STS			0x1CC0
 #define ACP_SHA_DMA_ERR_STATUS			0x1CC4
 #define ACP_SHA_TRANSFER_BYTE_CNT		0x1CC8
+#define ACP_SHA_PSP_ACK                         0x1C74
 
 #define ACP_SCRATCH_REG_0			0x10000
 
