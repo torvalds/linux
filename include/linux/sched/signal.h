@@ -286,17 +286,18 @@ static inline int signal_group_exit(const struct signal_struct *sig)
 extern void flush_signals(struct task_struct *);
 extern void ignore_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
-extern int dequeue_signal(struct task_struct *task,
-			  sigset_t *mask, kernel_siginfo_t *info);
+extern int dequeue_signal(struct task_struct *task, sigset_t *mask,
+			  kernel_siginfo_t *info, enum pid_type *type);
 
 static inline int kernel_dequeue_signal(void)
 {
 	struct task_struct *task = current;
 	kernel_siginfo_t __info;
+	enum pid_type __type;
 	int ret;
 
 	spin_lock_irq(&task->sighand->siglock);
-	ret = dequeue_signal(task, &task->blocked, &__info);
+	ret = dequeue_signal(task, &task->blocked, &__info, &__type);
 	spin_unlock_irq(&task->sighand->siglock);
 
 	return ret;
