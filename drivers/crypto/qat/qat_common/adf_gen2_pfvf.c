@@ -8,13 +8,20 @@
 #define ADF_GEN2_ERR_REG_VF2PF(vf_src)	(((vf_src) & 0x01FFFE00) >> 9)
 #define ADF_GEN2_ERR_MSK_VF2PF(vf_mask)	(((vf_mask) & 0xFFFF) << 9)
 
-#define ADF_GEN2_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
+#define ADF_GEN2_PF_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
+#define ADF_GEN2_VF_PF2VF_OFFSET	0x200
 
-u32 adf_gen2_get_pf2vf_offset(u32 i)
+u32 adf_gen2_pf_get_pf2vf_offset(u32 i)
 {
-	return ADF_GEN2_PF2VF_OFFSET(i);
+	return ADF_GEN2_PF_PF2VF_OFFSET(i);
 }
-EXPORT_SYMBOL_GPL(adf_gen2_get_pf2vf_offset);
+EXPORT_SYMBOL_GPL(adf_gen2_pf_get_pf2vf_offset);
+
+u32 adf_gen2_vf_get_pf2vf_offset(u32 i)
+{
+	return ADF_GEN2_VF_PF2VF_OFFSET;
+}
+EXPORT_SYMBOL_GPL(adf_gen2_vf_get_pf2vf_offset);
 
 u32 adf_gen2_get_vf2pf_sources(void __iomem *pmisc_addr)
 {

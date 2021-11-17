@@ -4,6 +4,7 @@
 #include <adf_pf2vf_msg.h>
 #include <adf_common_drv.h>
 #include <adf_gen2_hw_data.h>
+#include <adf_gen2_pfvf.h>
 #include "adf_dh895xccvf_hw_data.h"
 
 static struct adf_hw_device_class dh895xcciov_class = {
@@ -47,11 +48,6 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 	return DEV_SKU_VF;
 }
 
-static u32 get_pf2vf_offset(u32 i)
-{
-	return ADF_DH895XCCIOV_PF2VF_OFFSET;
-}
-
 static int adf_vf_int_noop(struct adf_accel_dev *accel_dev)
 {
 	return 0;
@@ -86,7 +82,7 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 	hw_data->get_num_aes = get_num_aes;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
-	hw_data->get_pf2vf_offset = get_pf2vf_offset;
+	hw_data->get_pf2vf_offset = adf_gen2_vf_get_pf2vf_offset;
 	hw_data->get_sku = get_sku;
 	hw_data->enable_ints = adf_vf_void_noop;
 	hw_data->enable_pfvf_comms = adf_enable_vf2pf_comms;

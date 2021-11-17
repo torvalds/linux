@@ -215,7 +215,7 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
 	hw_data->enable_ints = adf_enable_ints;
 	hw_data->reset_device = adf_reset_sbr;
-	hw_data->get_pf2vf_offset = adf_gen2_get_pf2vf_offset;
+	hw_data->get_pf2vf_offset = adf_gen2_pf_get_pf2vf_offset;
 	hw_data->get_vf2pf_sources = get_vf2pf_sources;
 	hw_data->enable_vf2pf_interrupts = enable_vf2pf_interrupts;
 	hw_data->disable_vf2pf_interrupts = disable_vf2pf_interrupts;
