@@ -454,7 +454,10 @@ struct vop2_wb {
 struct vop2_dsc {
 	uint8_t id;
 	uint8_t max_slice_num;
+	uint8_t max_linebuf_depth;	/* used to generate the bitstream */
+	uint8_t min_bits_per_pixel;	/* bit num after encoder compress */
 	bool enabled;
+	char attach_vp_id;
 	const struct vop2_dsc_regs *regs;
 	struct vop2_power_domain *pd;
 };
@@ -3181,6 +3184,8 @@ static void vop2_crtc_disable_dsc(struct vop2 *vop2, u8 dsc_id)
 	VOP_MODULE_SET(vop2, dsc, dsc_mer, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_en, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+
+	dsc->attach_vp_id = -1;
 }
 
 static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -3198,7 +3203,9 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Crtc atomic disable vp%d\n", vp->id);
 	drm_crtc_vblank_off(crtc);
-	if (vcstate->dsc_enable && vop2->data->nr_dscs) {
+	if (vop2->dscs[vcstate->dsc_id].enabled &&
+	    vop2->dscs[vcstate->dsc_id].attach_vp_id == vp->id &&
+	    vop2->data->nr_dscs) {
 		if (dual_channel) {
 			vop2_crtc_disable_dsc(vop2, 0);
 			vop2_crtc_disable_dsc(vop2, 1);
@@ -3207,7 +3214,9 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		}
 	}
 	vop2_disable_all_planes_for_crtc(crtc);
-	if (vcstate->dsc_enable && vop2->data->nr_dscs && vop2->dscs[vcstate->dsc_id].pd) {
+	if (vop2->dscs[vcstate->dsc_id].enabled &&
+	    vop2->dscs[vcstate->dsc_id].attach_vp_id == vp->id &&
+	    vop2->data->nr_dscs && vop2->dscs[vcstate->dsc_id].pd) {
 		if (dual_channel) {
 			vop2_power_domain_put(vop2->dscs[0].pd);
 			vop2_power_domain_put(vop2->dscs[1].pd);
@@ -5311,7 +5320,12 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	vcstate->dsc_pxl_clk_rate = v_pixclk;
 	do_div(vcstate->dsc_pxl_clk_rate, (vcstate->dsc_slice_num * k));
 
-	vcstate->dsc_cds_clk_rate = vcstate->dsc_pxl_clk_rate >> 1;
+	/* dsc_cds = crtc_clock / (cds_dat_width / bits_per_pixel)
+	 * cds_dat_width = 96;
+	 * bits_per_pixel = [8-12];
+	 * As only support 1/2/4 div, so we set dsc_cds = crtc_clock / 8;
+	 */
+	vcstate->dsc_cds_clk_rate = adjusted_mode->crtc_clock / 8 * 1000;
 
 	return 0;
 }
@@ -5379,6 +5393,13 @@ static void vop2_crtc_load_pps(struct drm_crtc *crtc, u8 dsc_id)
 
 	memcpy(&config_pps, pps, sizeof(config_pps));
 
+	if ((config_pps.pps_3 & 0xf) > dsc->max_linebuf_depth) {
+		config_pps.pps_3 &= 0xf0;
+		config_pps.pps_3 |= dsc->max_linebuf_depth;
+		DRM_WARN("DSC%d max_linebuf_depth is: %d, current set value is: %d\n",
+			 dsc_id, dsc->max_linebuf_depth, config_pps.pps_3 & 0xf);
+	}
+
 	for (i = 0; i < DSC_NUM_BUF_RANGES; i++) {
 		config_pps.rc_range_parameters[i] =
 			(pps->rc_range_parameters[i] >> 3 & 0x1f) |
@@ -5402,7 +5423,6 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	u16 hdisplay = adjusted_mode->crtc_hdisplay;
 	u16 htotal = adjusted_mode->crtc_htotal;
 	u16 hact_st = adjusted_mode->crtc_htotal - adjusted_mode->crtc_hsync_start;
-	u16 hact_end = hact_st + hdisplay;
 	u16 vdisplay = adjusted_mode->crtc_vdisplay;
 	u16 vtotal = adjusted_mode->crtc_vtotal;
 	u16 vsync_len = adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
@@ -5432,6 +5452,7 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 		vop2_power_domain_get(dsc->pd);
 
 	VOP_MODULE_SET(vop2, dsc, rst_deassert, 1);
+	VOP_MODULE_SET(vop2, dsc, scan_timing_para_imd_en, 1);
 
 	/* read current dsc register and backup to regsbak */
 	offset = dsc->regs->dsc_en.offset;
@@ -5448,13 +5469,16 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 			dsc_interface_mode = VOP_DSC_IF_MIPI_VIDEO_MODE;
 	}
 
-	VOP_MODULE_SET(vop2, dsc, dsc_man_mode, 0);
+	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)
+		VOP_MODULE_SET(vop2, dsc, dsc_man_mode, 0);
+	else
+		VOP_MODULE_SET(vop2, dsc, dsc_man_mode, 1);
 	dsc_cds_clk = vop2_clk_get(vop2, dsc_data->dsc_cds_clk_name);
 	dsc_pxl_clk = vop2_clk_get(vop2, dsc_data->dsc_pxl_clk_name);
 	dsc_txp_clk = vop2_clk_get(vop2, dsc_data->dsc_txp_clk_name);
 
 	VOP_MODULE_SET(vop2, dsc, dsc_interface_mode, dsc_interface_mode);
-	VOP_MODULE_SET(vop2, dsc, dsc_pixel_num,  vcstate->dsc_pixel_num >> 1);
+	VOP_MODULE_SET(vop2, dsc, dsc_pixel_num, vcstate->dsc_pixel_num >> 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_txp_clk_div, dsc_txp_clk->div_val);
 	VOP_MODULE_SET(vop2, dsc, dsc_pxl_clk_div, dsc_pxl_clk->div_val);
 	VOP_MODULE_SET(vop2, dsc, dsc_cds_clk_div, dsc_cds_clk->div_val);
@@ -5462,10 +5486,37 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	VOP_MODULE_SET(vop2, dsc, dsc_halt_en, mipi_ds_mode);
 
 	if (!mipi_ds_mode) {
+		u16 dsc_hsync, dsc_htotal, dsc_hact_st, dsc_hact_end;
+		u32 target_bpp = dsc_sink_cap->target_bits_per_pixel_x16;
+		u64 dsc_cds_rate = vcstate->dsc_cds_clk_rate;
+		u32 v_pixclk_mhz = adjusted_mode->crtc_clock / 1000; /* video timing pixclk */
+		u32 dly_num, dsc_cds_rate_mhz, val = 0;
+
+		if (target_bpp >> 4 < dsc->min_bits_per_pixel)
+			DRM_ERROR("Unsupported bpp less than: %d\n", dsc->min_bits_per_pixel);
+
+		/*
+		 * dly_num = 3 * T(one-line) / T (dsc_cds)
+		 * T (one-line) = 1/v_pixclk_mhz * htotal = htotal/v_pixclk_mhz
+		 * T (dsc_cds) = 1 / dsc_cds_rate_mhz
+		 * dly_num = 3 * htotal * dsc_cds_rate_mhz / v_pixclk_mhz;
+		 */
+		do_div(dsc_cds_rate, 1000000); /* hz to Mhz */
+		dsc_cds_rate_mhz = dsc_cds_rate;
+		dly_num = 3 * htotal * dsc_cds_rate_mhz / v_pixclk_mhz;
 		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_mode, 0);
-		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_num, 4);
-		VOP_MODULE_SET(vop2, dsc, dsc_htotal_pw, htotal << 16 | hsync_len);
-		VOP_MODULE_SET(vop2, dsc, dsc_hact_st_end, hact_end << 16 | hact_st);
+		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_num, dly_num);
+
+		dsc_hsync = hsync_len / 2;
+		dsc_htotal = htotal / (1 << dsc_cds_clk->div_val);
+		val = dsc_htotal << 16 | dsc_hsync;
+		VOP_MODULE_SET(vop2, dsc, dsc_htotal_pw, val);
+
+		dsc_hact_st = hact_st / 2;
+		dsc_hact_end = (hdisplay * target_bpp >> 4) / 24 + dsc_hact_st;
+		val = dsc_hact_end << 16 | dsc_hact_st;
+		VOP_MODULE_SET(vop2, dsc, dsc_hact_st_end, val);
+
 		VOP_MODULE_SET(vop2, dsc, dsc_vtotal_pw, vtotal << 16 | vsync_len);
 		VOP_MODULE_SET(vop2, dsc, dsc_vact_st_end, vact_end << 16 | vact_st);
 	}
@@ -5479,11 +5530,18 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	VOP_MODULE_SET(vop2, dsc, dsc_mer, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_epb, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_epl, 1);
-	VOP_MODULE_SET(vop2, dsc, dsc_nslc, vcstate->dsc_slice_num >> 1);
+	VOP_MODULE_SET(vop2, dsc, dsc_nslc, ilog2(vcstate->dsc_slice_num));
 	VOP_MODULE_SET(vop2, dsc, dsc_sbo, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_ifep, dsc_sink_cap->version_minor == 2 ? 1 : 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_pps_upd, 1);
 
+	DRM_DEV_INFO(vop2->dev, "DSC%d: txp:%lld div:%d, pxl:%lld div:%d, dsc:%lld div:%d\n",
+		     dsc->id,
+		     vcstate->dsc_txp_clk_rate, dsc_txp_clk->div_val,
+		     vcstate->dsc_pxl_clk_rate, dsc_pxl_clk->div_val,
+		     vcstate->dsc_cds_clk_rate, dsc_cds_clk->div_val);
+
+	dsc->attach_vp_id = vp->id;
 	dsc->enabled = true;
 }
 
@@ -5611,12 +5669,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 		vcstate->dsc_id = vcstate->output_if & (VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_HDMI0) ? 0 : 1;
 		vcstate->dsc_slice_num = hdisplay / dsc_sink_cap->slice_width / k;
-		vcstate->dsc_pixel_num = vcstate->dsc_slice_num >= 4 ? 4 : vcstate->dsc_slice_num >= 2 ? 2 : 1;
+		vcstate->dsc_pixel_num = vcstate->dsc_slice_num > 4 ? 4 : vcstate->dsc_slice_num;
 
 		vop2_calc_dsc_clk(crtc);
-		DRM_DEV_INFO(vop2->dev, "Enable DSC%d slice:%dx%d\n",
+		DRM_DEV_INFO(vop2->dev, "Enable DSC%d slice:%dx%d, slice num:%d\n",
 			     vcstate->dsc_id, dsc_sink_cap->slice_width,
-			     dsc_sink_cap->slice_height);
+			     dsc_sink_cap->slice_height, vcstate->dsc_slice_num);
 	}
 
 	vop2_initial(crtc);
@@ -8056,7 +8114,10 @@ static void vop2_dsc_data_init(struct vop2 *vop2)
 		dsc_data = &vop2_data->dsc[i];
 		dsc->id = dsc_data->id;
 		dsc->max_slice_num = dsc_data->max_slice_num;
+		dsc->max_linebuf_depth = dsc_data->max_linebuf_depth;
+		dsc->min_bits_per_pixel = dsc_data->min_bits_per_pixel;
 		dsc->regs = dsc_data->regs;
+		dsc->attach_vp_id = -1;
 		if (dsc_data->pd_id)
 			dsc->pd = vop2_find_pd_by_id(vop2, dsc_data->pd_id);
 	}

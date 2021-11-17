@@ -722,6 +722,7 @@ struct vop2_dsc_regs {
 	struct vop_reg dsc_flush;
 	struct vop_reg dsc_cfg_done;
 	struct vop_reg dsc_init_dly_num;
+	struct vop_reg scan_timing_para_imd_en;
 	struct vop_reg dsc_htotal_pw;
 	struct vop_reg dsc_hact_st_end;
 	struct vop_reg dsc_vtotal_pw;
@@ -831,6 +832,8 @@ struct vop2_dsc_data {
 	uint8_t id;
 	uint8_t pd_id;
 	uint8_t max_slice_num;
+	uint8_t max_linebuf_depth;	/* used to generate the bitstream */
+	uint8_t min_bits_per_pixel;	/* bit num after encoder compress */
 	const char *dsc_txp_clk_src_name;
 	const char *dsc_txp_clk_name;
 	const char *dsc_pxl_clk_name;
