@@ -49,7 +49,8 @@
  *
  * When a PF or VF attempts to send a message in the lower or upper 16 bits,
  * respectively, the other 16 bits are written to first with a defined
- * IN_USE_BY pattern as part of a collision control scheme (see adf_iov_putmsg).
+ * IN_USE_BY pattern as part of a collision control scheme (see function
+ * adf_gen2_pfvf_send() in adf_pf2vf_msg.c).
  */
 
 #define ADF_PFVF_COMPAT_THIS_VERSION		0x1	/* PF<->VF compat */

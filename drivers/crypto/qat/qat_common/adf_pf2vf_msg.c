@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2015 - 2020 Intel Corporation */
-#include <linux/delay.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_pf2vf_msg.h"
@@ -8,96 +7,9 @@
 #define ADF_PFVF_MSG_COLLISION_DETECT_DELAY	10
 #define ADF_PFVF_MSG_ACK_DELAY			2
 #define ADF_PFVF_MSG_ACK_MAX_RETRY		100
-#define ADF_PFVF_MSG_RETRY_DELAY		5
-#define ADF_PFVF_MSG_MAX_RETRIES		3
 #define ADF_PFVF_MSG_RESP_TIMEOUT	(ADF_PFVF_MSG_ACK_DELAY * \
 					 ADF_PFVF_MSG_ACK_MAX_RETRY + \
 					 ADF_PFVF_MSG_COLLISION_DETECT_DELAY)
-
-static int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
-{
-	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	void __iomem *pmisc_bar_addr =
-		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
-	u32 val, pf2vf_offset, count = 0;
-	u32 local_in_use_mask, local_in_use_pattern;
-	u32 remote_in_use_mask, remote_in_use_pattern;
-	struct mutex *lock;	/* lock preventing concurrent acces of CSR */
-	unsigned int retries = ADF_PFVF_MSG_MAX_RETRIES;
-	u32 int_bit;
-	int ret;
-
-	if (accel_dev->is_vf) {
-		pf2vf_offset = hw_data->pfvf_ops.get_vf2pf_offset(0);
-		lock = &accel_dev->vf.vf2pf_lock;
-		local_in_use_mask = ADF_VF2PF_IN_USE_BY_VF_MASK;
-		local_in_use_pattern = ADF_VF2PF_IN_USE_BY_VF;
-		remote_in_use_mask = ADF_PF2VF_IN_USE_BY_PF_MASK;
-		remote_in_use_pattern = ADF_PF2VF_IN_USE_BY_PF;
-		int_bit = ADF_VF2PF_INT;
-	} else {
-		pf2vf_offset = hw_data->pfvf_ops.get_pf2vf_offset(vf_nr);
-		lock = &accel_dev->pf.vf_info[vf_nr].pf2vf_lock;
-		local_in_use_mask = ADF_PF2VF_IN_USE_BY_PF_MASK;
-		local_in_use_pattern = ADF_PF2VF_IN_USE_BY_PF;
-		remote_in_use_mask = ADF_VF2PF_IN_USE_BY_VF_MASK;
-		remote_in_use_pattern = ADF_VF2PF_IN_USE_BY_VF;
-		int_bit = ADF_PF2VF_INT;
-	}
-
-	msg &= ~local_in_use_mask;
-	msg |= local_in_use_pattern;
-
-	mutex_lock(lock);
-
-start:
-	ret = 0;
-
-	/* Check if the PFVF CSR is in use by remote function */
-	val = ADF_CSR_RD(pmisc_bar_addr, pf2vf_offset);
-	if ((val & remote_in_use_mask) == remote_in_use_pattern) {
-		dev_dbg(&GET_DEV(accel_dev),
-			"PFVF CSR in use by remote function\n");
-		goto retry;
-	}
-
-	/* Attempt to get ownership of the PFVF CSR */
-	ADF_CSR_WR(pmisc_bar_addr, pf2vf_offset, msg | int_bit);
-
-	/* Wait for confirmation from remote func it received the message */
-	do {
-		msleep(ADF_PFVF_MSG_ACK_DELAY);
-		val = ADF_CSR_RD(pmisc_bar_addr, pf2vf_offset);
-	} while ((val & int_bit) && (count++ < ADF_PFVF_MSG_ACK_MAX_RETRY));
-
-	if (val & int_bit) {
-		dev_dbg(&GET_DEV(accel_dev), "ACK not received from remote\n");
-		val &= ~int_bit;
-		ret = -EIO;
-	}
-
-	if (val != msg) {
-		dev_dbg(&GET_DEV(accel_dev),
-			"Collision - PFVF CSR overwritten by remote function\n");
-		goto retry;
-	}
-
-	/* Finished with the PFVF CSR; relinquish it and leave msg in CSR */
-	ADF_CSR_WR(pmisc_bar_addr, pf2vf_offset, val & ~local_in_use_mask);
-out:
-	mutex_unlock(lock);
-	return ret;
-
-retry:
-	if (--retries) {
-		msleep(ADF_PFVF_MSG_RETRY_DELAY);
-		goto start;
-	} else {
-		ret = -EBUSY;
-		goto out;
-	}
-}
 
 /**
  * adf_send_pf2vf_msg() - send PF to VF message
@@ -111,7 +23,7 @@ retry:
  */
 static int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, u32 msg)
 {
-	return adf_iov_putmsg(accel_dev, msg, vf_nr);
+	return GET_PFVF_OPS(accel_dev)->send_msg(accel_dev, msg, vf_nr);
 }
 
 /**
@@ -125,7 +37,7 @@ static int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, u32 msg
  */
 int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 {
-	return adf_iov_putmsg(accel_dev, msg, 0);
+	return GET_PFVF_OPS(accel_dev)->send_msg(accel_dev, msg, 0);
 }
 
 /**
