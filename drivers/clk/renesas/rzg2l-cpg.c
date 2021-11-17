@@ -666,8 +666,7 @@ static int __init rzg2l_cpg_add_clk_domain(struct device *dev)
 	if (ret)
 		return ret;
 
-	of_genpd_add_provider_simple(np, genpd);
-	return 0;
+	return of_genpd_add_provider_simple(np, genpd);
 }
 
 static int __init rzg2l_cpg_probe(struct platform_device *pdev)
