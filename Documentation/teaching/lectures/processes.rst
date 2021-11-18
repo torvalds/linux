@@ -317,7 +317,7 @@ same kernel instance, as opposed to normal virtualization where a
 hypervisor runs multiple VMs, each with its one kernel
 instance.
 
-Examples of container technologies are LCX - that allows running
+Examples of container technologies are LXC - that allows running
 lightweight "VM" and docker - a specialized container for running a
 single application.
 
