@@ -241,6 +241,10 @@
 		compatible = "everest,es8311";
 		reg = <0x18>;
 		#sound-dai-cells = <0>;
+		adc-pga-gain = <6>;     /* 18dB */
+		adc-volume = <0xbf>;    /* 0dB */
+		dac-volume = <0xbf>;    /* 0dB */
+		aec-mode = "adc left, adc right";
 		clocks = <&cru I2S0_8CH_MCLKOUT>;
 		clock-names = "mclk";
 		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
