@@ -1149,7 +1149,6 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork);
 
 void rtw_macaddr_cfg(u8 *mac_addr);
 
-u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40,
-		 unsigned char *MCS_rate);
+u16 rtw_mcs_rate(u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40, unsigned char *MCS_rate);
 
 #endif /* IEEE80211_H */
