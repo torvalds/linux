@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3588s-evb3-lp4x.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588S EVB3 LP4 V10 Board + Rockchip RK3588S EVB V10 Extboard1";
+	compatible = "rockchip,rk3588s-evb3-lp4x-v10-rk630-bt656-to-cvbs", "rockchip,rk3588";
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
+&i2c4 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	rk630: rk630@50 {
+		compatible = "rockchip,rk630";
+		reg = <0x50>;
+		reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_LOW>;
+		status = "okay";
+
+		rk630_tve: rk630-tve {
+			compatible = "rockchip,rk630-tve";
+			status = "okay";
+
+			ports {
+				port {
+					rk630_tve_in_rgb: endpoint {
+						remote-endpoint = <&rgb_out_rk630_tve>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&rgb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&bt656_pins>;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_rk630_tve: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rk630_tve_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp3 {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
