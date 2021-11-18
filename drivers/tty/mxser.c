@@ -1507,7 +1507,8 @@ static bool mxser_receive_chars_new(struct mxser_port *port, u8 status)
 
 	while (gdl--) {
 		u8 ch = inb(port->ioaddr + UART_RX);
-		tty_insert_flip_char(&port->port, ch, 0);
+		if (!tty_insert_flip_char(&port->port, ch, 0))
+			port->icount.buf_overrun++;
 	}
 
 	return true;
@@ -1553,8 +1554,10 @@ static u8 mxser_receive_chars_old(struct tty_struct *tty,
 					port->icount.overrun++;
 				}
 			}
-			if (!tty_insert_flip_char(&port->port, ch, flag))
+			if (!tty_insert_flip_char(&port->port, ch, flag)) {
+				port->icount.buf_overrun++;
 				break;
+			}
 		}
 
 		if (hwid)
