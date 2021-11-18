@@ -216,6 +216,10 @@
 	status = "okay";
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
+
 &hdptxphy_hdmi0 {
 	status = "okay";
 };
@@ -276,6 +280,10 @@
 		     &i2s0_sclk
 		     &i2s0_sdi0
 		     &i2s0_sdo0>;
+};
+
+&i2s5_8ch {
+	status = "okay";
 };
 
 &mdio0 {
