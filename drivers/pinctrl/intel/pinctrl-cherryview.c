@@ -73,6 +73,8 @@ struct intel_pad_context {
 	u32 padctrl1;
 };
 
+#define CHV_INVALID_HWIRQ	((unsigned int)INVALID_HWIRQ)
+
 /**
  * struct intel_community_context - community context for Cherryview
  * @intr_lines: Mapping between 16 HW interrupt wires and GPIO offset (in GPIO number space)
@@ -812,7 +814,7 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 		/* Reset the interrupt mapping */
 		for (i = 0; i < ARRAY_SIZE(cctx->intr_lines); i++) {
 			if (cctx->intr_lines[i] == offset) {
-				cctx->intr_lines[i] = 0;
+				cctx->intr_lines[i] = CHV_INVALID_HWIRQ;
 				break;
 			}
 		}
@@ -1319,7 +1321,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 		else
 			handler = handle_edge_irq;
 
-		if (!cctx->intr_lines[intsel]) {
+		if (cctx->intr_lines[intsel] == CHV_INVALID_HWIRQ) {
 			irq_set_handler_locked(d, handler);
 			cctx->intr_lines[intsel] = pin;
 		}
@@ -1412,6 +1414,12 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 		unsigned int offset;
 
 		offset = cctx->intr_lines[intr_line];
+		if (offset == CHV_INVALID_HWIRQ) {
+			dev_err(pctrl->dev, "interrupt on unused interrupt line %u\n",
+				intr_line);
+			continue;
+		}
+
 		generic_handle_domain_irq(gc->irq.domain, offset);
 	}
 
@@ -1617,11 +1625,13 @@ static acpi_status chv_pinctrl_mmio_access_handler(u32 function,
 static int chv_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct intel_pinctrl_soc_data *soc_data;
+	struct intel_community_context *cctx;
 	struct intel_community *community;
 	struct device *dev = &pdev->dev;
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct intel_pinctrl *pctrl;
 	acpi_status status;
+	unsigned int i;
 	int ret, irq;
 
 	soc_data = intel_pinctrl_get_soc_data(pdev);
@@ -1662,6 +1672,10 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 						  GFP_KERNEL);
 	if (!pctrl->context.communities)
 		return -ENOMEM;
+
+	cctx = &pctrl->context.communities[0];
+	for (i = 0; i < ARRAY_SIZE(cctx->intr_lines); i++)
+		cctx->intr_lines[i] = CHV_INVALID_HWIRQ;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
