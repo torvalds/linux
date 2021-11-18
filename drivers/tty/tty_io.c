@@ -3030,7 +3030,7 @@ void __do_SAK(struct tty_struct *tty)
 {
 	struct task_struct *g, *p;
 	struct pid *session;
-	int		i;
+	int i;
 	unsigned long flags;
 
 	spin_lock_irqsave(&tty->ctrl.lock, flags);
@@ -3054,7 +3054,8 @@ void __do_SAK(struct tty_struct *tty)
 		if (p->signal->tty == tty) {
 			tty_notice(tty, "SAK: killed process %d (%s): by controlling tty\n",
 				   task_pid_nr(p), p->comm);
-			group_send_sig_info(SIGKILL, SEND_SIG_PRIV, p, PIDTYPE_SID);
+			group_send_sig_info(SIGKILL, SEND_SIG_PRIV, p,
+					PIDTYPE_SID);
 			continue;
 		}
 		task_lock(p);
@@ -3062,7 +3063,8 @@ void __do_SAK(struct tty_struct *tty)
 		if (i != 0) {
 			tty_notice(tty, "SAK: killed process %d (%s): by fd#%d\n",
 				   task_pid_nr(p), p->comm, i - 1);
-			group_send_sig_info(SIGKILL, SEND_SIG_PRIV, p, PIDTYPE_SID);
+			group_send_sig_info(SIGKILL, SEND_SIG_PRIV, p,
+					PIDTYPE_SID);
 		}
 		task_unlock(p);
 	} while_each_thread(g, p);
