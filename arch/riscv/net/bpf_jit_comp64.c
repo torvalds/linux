@@ -459,8 +459,8 @@ static int emit_call(bool fixed, u64 addr, struct rv_jit_context *ctx)
 #define BPF_FIXUP_OFFSET_MASK   GENMASK(26, 0)
 #define BPF_FIXUP_REG_MASK      GENMASK(31, 27)
 
-bool rv_bpf_fixup_exception(const struct exception_table_entry *ex,
-			    struct pt_regs *regs)
+bool ex_handler_bpf(const struct exception_table_entry *ex,
+		    struct pt_regs *regs)
 {
 	off_t offset = FIELD_GET(BPF_FIXUP_OFFSET_MASK, ex->fixup);
 	int regs_offset = FIELD_GET(BPF_FIXUP_REG_MASK, ex->fixup);
@@ -514,6 +514,7 @@ static int add_exception_handler(const struct bpf_insn *insn,
 
 	ex->fixup = FIELD_PREP(BPF_FIXUP_OFFSET_MASK, offset) |
 		FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
+	ex->type = EX_TYPE_BPF;
 
 	ctx->nexentries++;
 	return 0;

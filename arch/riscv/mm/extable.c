@@ -10,6 +10,20 @@
 #include <linux/extable.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <asm/asm-extable.h>
+
+static inline unsigned long
+get_ex_fixup(const struct exception_table_entry *ex)
+{
+	return ((unsigned long)&ex->fixup + ex->fixup);
+}
+
+static bool ex_handler_fixup(const struct exception_table_entry *ex,
+			     struct pt_regs *regs)
+{
+	regs->epc = get_ex_fixup(ex);
+	return true;
+}
 
 bool fixup_exception(struct pt_regs *regs)
 {
@@ -19,9 +33,12 @@ bool fixup_exception(struct pt_regs *regs)
 	if (!ex)
 		return false;
 
-	if (regs->epc >= BPF_JIT_REGION_START && regs->epc < BPF_JIT_REGION_END)
-		return rv_bpf_fixup_exception(ex, regs);
+	switch (ex->type) {
+	case EX_TYPE_FIXUP:
+		return ex_handler_fixup(ex, regs);
+	case EX_TYPE_BPF:
+		return ex_handler_bpf(ex, regs);
+	}
 
-	regs->epc = (unsigned long)&ex->fixup + ex->fixup;
-	return true;
+	BUG();
 }
