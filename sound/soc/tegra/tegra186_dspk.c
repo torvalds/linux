@@ -35,15 +35,15 @@ static int tegra186_dspk_get_control(struct snd_kcontrol *kcontrol,
 	if (strstr(kcontrol->id.name, "FIFO Threshold"))
 		ucontrol->value.integer.value[0] = dspk->rx_fifo_th;
 	else if (strstr(kcontrol->id.name, "OSR Value"))
-		ucontrol->value.integer.value[0] = dspk->osr_val;
+		ucontrol->value.enumerated.item[0] = dspk->osr_val;
 	else if (strstr(kcontrol->id.name, "LR Polarity Select"))
-		ucontrol->value.integer.value[0] = dspk->lrsel;
+		ucontrol->value.enumerated.item[0] = dspk->lrsel;
 	else if (strstr(kcontrol->id.name, "Channel Select"))
-		ucontrol->value.integer.value[0] = dspk->ch_sel;
+		ucontrol->value.enumerated.item[0] = dspk->ch_sel;
 	else if (strstr(kcontrol->id.name, "Mono To Stereo"))
-		ucontrol->value.integer.value[0] = dspk->mono_to_stereo;
+		ucontrol->value.enumerated.item[0] = dspk->mono_to_stereo;
 	else if (strstr(kcontrol->id.name, "Stereo To Mono"))
-		ucontrol->value.integer.value[0] = dspk->stereo_to_mono;
+		ucontrol->value.enumerated.item[0] = dspk->stereo_to_mono;
 
 	return 0;
 }
@@ -53,20 +53,19 @@ static int tegra186_dspk_put_control(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
-	int val = ucontrol->value.integer.value[0];
 
 	if (strstr(kcontrol->id.name, "FIFO Threshold"))
-		dspk->rx_fifo_th = val;
+		dspk->rx_fifo_th = ucontrol->value.integer.value[0];
 	else if (strstr(kcontrol->id.name, "OSR Value"))
-		dspk->osr_val = val;
+		dspk->osr_val = ucontrol->value.enumerated.item[0];
 	else if (strstr(kcontrol->id.name, "LR Polarity Select"))
-		dspk->lrsel = val;
+		dspk->lrsel = ucontrol->value.enumerated.item[0];
 	else if (strstr(kcontrol->id.name, "Channel Select"))
-		dspk->ch_sel = val;
+		dspk->ch_sel = ucontrol->value.enumerated.item[0];
 	else if (strstr(kcontrol->id.name, "Mono To Stereo"))
-		dspk->mono_to_stereo = val;
+		dspk->mono_to_stereo = ucontrol->value.enumerated.item[0];
 	else if (strstr(kcontrol->id.name, "Stereo To Mono"))
-		dspk->stereo_to_mono = val;
+		dspk->stereo_to_mono = ucontrol->value.enumerated.item[0];
 
 	return 0;
 }
