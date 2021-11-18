@@ -3253,6 +3253,11 @@ void defer_console_output(void)
 	preempt_enable();
 }
 
+void printk_trigger_flush(void)
+{
+	defer_console_output();
+}
+
 int vprintk_deferred(const char *fmt, va_list args)
 {
 	int r;
