@@ -1001,7 +1001,7 @@ static int rk3588_udphy_status_check(struct rockchip_udphy *udphy)
 	if (udphy->mode & UDPHY_MODE_USB) {
 		ret = regmap_read_poll_timeout(udphy->pma_regmap, CMN_ANA_LCPLL_DONE_OFFSET,
 					       val, (val & CMN_ANA_LCPLL_AFC_DONE) &&
-					       (val & CMN_ANA_LCPLL_LOCK_DONE), 200, 600);
+					       (val & CMN_ANA_LCPLL_LOCK_DONE), 200, 100000);
 		if (ret) {
 			dev_err(udphy->dev, "cmn ana lcpll lock timeout\n");
 			return ret;
@@ -1011,7 +1011,7 @@ static int rk3588_udphy_status_check(struct rockchip_udphy *udphy)
 			ret = regmap_read_poll_timeout(udphy->pma_regmap,
 						       TRSV_LN0_MON_RX_CDR_DONE_OFFSET, val,
 						       val & TRSV_LN0_MON_RX_CDR_LOCK_DONE,
-						       200, 600);
+						       200, 100000);
 			if (ret) {
 				dev_err(udphy->dev, "trsv ln0 mon rx cdr lock timeout\n");
 				return ret;
@@ -1020,7 +1020,7 @@ static int rk3588_udphy_status_check(struct rockchip_udphy *udphy)
 			ret = regmap_read_poll_timeout(udphy->pma_regmap,
 						       TRSV_LN2_MON_RX_CDR_DONE_OFFSET, val,
 						       val & TRSV_LN2_MON_RX_CDR_LOCK_DONE,
-						       200, 600);
+						       200, 100000);
 			if (ret) {
 				dev_err(udphy->dev, "trsv ln2 mon rx cdr lock timeout\n");
 				return ret;
@@ -1032,7 +1032,7 @@ static int rk3588_udphy_status_check(struct rockchip_udphy *udphy)
 	if (udphy->mode & UDPHY_MODE_DP) {
 		ret = regmap_read_poll_timeout(udphy->pma_regmap, CMN_ANA_ROPLL_DONE_OFFSET,
 					       val, (val & CMN_ANA_ROPLL_AFC_DONE) &&
-					       (val & CMN_ANA_ROPLL_LOCK_DONE), 200, 600);
+					       (val & CMN_ANA_ROPLL_LOCK_DONE), 200, 100000);
 		if (ret) {
 			dev_err(udphy->dev, "cmn ana ropll lock timeout\n");
 			return ret;
