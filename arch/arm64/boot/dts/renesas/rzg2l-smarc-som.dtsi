@@ -130,6 +130,14 @@
 	clock-frequency = <24000000>;
 };
 
+&ostm1 {
+	status = "okay";
+};
+
+&ostm2 {
+	status = "okay";
+};
+
 &pinctrl {
 	adc_pins: adc {
 		pinmux = <RZG2L_PORT_PINMUX(9, 0, 2)>; /* ADC_TRG */
