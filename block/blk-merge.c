@@ -6,12 +6,45 @@
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/scatterlist.h>
 
 #include <trace/events/block.h>
 
 #include "blk.h"
 #include "blk-rq-qos.h"
+#include "blk-throttle.h"
+
+static inline void bio_get_first_bvec(struct bio *bio, struct bio_vec *bv)
+{
+	*bv = mp_bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+}
+
+static inline void bio_get_last_bvec(struct bio *bio, struct bio_vec *bv)
+{
+	struct bvec_iter iter = bio->bi_iter;
+	int idx;
+
+	bio_get_first_bvec(bio, bv);
+	if (bv->bv_len == bio->bi_iter.bi_size)
+		return;		/* this bio only has a single bvec */
+
+	bio_advance_iter(bio, &iter, iter.bi_size);
+
+	if (!iter.bi_bvec_done)
+		idx = iter.bi_idx - 1;
+	else	/* in the middle of bvec */
+		idx = iter.bi_idx;
+
+	*bv = bio->bi_io_vec[idx];
+
+	/*
+	 * iter.bi_bvec_done records actual length of the last bvec
+	 * if this bio ends in the middle of one io vector
+	 */
+	if (iter.bi_bvec_done)
+		bv->bv_len = iter.bi_bvec_done;
+}
 
 static inline bool bio_will_gap(struct request_queue *q,
 		struct request *prev_rq, struct bio *prev, struct bio *next)
@@ -285,13 +318,13 @@ split:
 	 * iopoll in direct IO routine. Given performance gain of iopoll for
 	 * big IO can be trival, disable iopoll when split needed.
 	 */
-	bio_clear_hipri(bio);
-
+	bio_clear_polled(bio);
 	return bio_split(bio, sectors, GFP_NOIO, bs);
 }
 
 /**
  * __blk_queue_split - split a bio and submit the second half
+ * @q:       [in] request_queue new bio is being queued at
  * @bio:     [in, out] bio to be split
  * @nr_segs: [out] number of segments in the first bio
  *
@@ -302,9 +335,9 @@ split:
  * of the caller to ensure that q->bio_split is only released after processing
  * of the split bio has finished.
  */
-void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
+void __blk_queue_split(struct request_queue *q, struct bio **bio,
+		       unsigned int *nr_segs)
 {
-	struct request_queue *q = (*bio)->bi_bdev->bd_disk->queue;
 	struct bio *split = NULL;
 
 	switch (bio_op(*bio)) {
@@ -321,21 +354,6 @@ void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
 				nr_segs);
 		break;
 	default:
-		/*
-		 * All drivers must accept single-segments bios that are <=
-		 * PAGE_SIZE.  This is a quick and dirty check that relies on
-		 * the fact that bi_io_vec[0] is always valid if a bio has data.
-		 * The check might lead to occasional false negatives when bios
-		 * are cloned, but compared to the performance impact of cloned
-		 * bios themselves the loop below doesn't matter anyway.
-		 */
-		if (!q->limits.chunk_sectors &&
-		    (*bio)->bi_vcnt == 1 &&
-		    ((*bio)->bi_io_vec[0].bv_len +
-		     (*bio)->bi_io_vec[0].bv_offset) <= PAGE_SIZE) {
-			*nr_segs = 1;
-			break;
-		}
 		split = blk_bio_segment_split(q, *bio, &q->bio_split, nr_segs);
 		break;
 	}
@@ -365,9 +383,11 @@ void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
  */
 void blk_queue_split(struct bio **bio)
 {
+	struct request_queue *q = bdev_get_queue((*bio)->bi_bdev);
 	unsigned int nr_segs;
 
-	__blk_queue_split(bio, &nr_segs);
+	if (blk_may_split(q, *bio))
+		__blk_queue_split(q, bio, &nr_segs);
 }
 EXPORT_SYMBOL(blk_queue_split);
 
@@ -558,6 +578,23 @@ static inline unsigned int blk_rq_get_max_segments(struct request *rq)
 	return queue_max_segments(rq->q);
 }
 
+static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
+						  sector_t offset)
+{
+	struct request_queue *q = rq->q;
+
+	if (blk_rq_is_passthrough(rq))
+		return q->limits.max_hw_sectors;
+
+	if (!q->limits.chunk_sectors ||
+	    req_op(rq) == REQ_OP_DISCARD ||
+	    req_op(rq) == REQ_OP_SECURE_ERASE)
+		return blk_queue_get_max_sectors(q, req_op(rq));
+
+	return min(blk_max_size_offset(q, offset, 0),
+			blk_queue_get_max_sectors(q, req_op(rq)));
+}
+
 static inline int ll_new_hw_segment(struct request *req, struct bio *bio,
 		unsigned int nr_phys_segs)
 {
@@ -716,6 +753,13 @@ static enum elv_merge blk_try_req_merge(struct request *req,
 		return ELEVATOR_BACK_MERGE;
 
 	return ELEVATOR_NO_MERGE;
+}
+
+static inline bool blk_write_same_mergeable(struct bio *a, struct bio *b)
+{
+	if (bio_page(a) == bio_page(b) && bio_offset(a) == bio_offset(b))
+		return true;
+	return false;
 }
 
 /*
@@ -1023,12 +1067,11 @@ static enum bio_merge_status blk_attempt_bio_merge(struct request_queue *q,
  * @q: request_queue new bio is being queued at
  * @bio: new bio being queued
  * @nr_segs: number of segments in @bio
- * @same_queue_rq: pointer to &struct request that gets filled in when
- * another request associated with @q is found on the plug list
- * (optional, may be %NULL)
+ * @same_queue_rq: output value, will be true if there's an existing request
+ * from the passed in @q already in the plug list
  *
- * Determine whether @bio being queued on @q can be merged with a request
- * on %current's plugged list.  Returns %true if merge was successful,
+ * Determine whether @bio being queued on @q can be merged with the previous
+ * request on %current's plugged list.  Returns %true if merge was successful,
  * otherwise %false.
  *
  * Plugging coalesces IOs from the same issuer for the same purpose without
@@ -1041,36 +1084,28 @@ static enum bio_merge_status blk_attempt_bio_merge(struct request_queue *q,
  * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
-		unsigned int nr_segs, struct request **same_queue_rq)
+		unsigned int nr_segs, bool *same_queue_rq)
 {
 	struct blk_plug *plug;
 	struct request *rq;
-	struct list_head *plug_list;
 
 	plug = blk_mq_plug(q, bio);
-	if (!plug)
+	if (!plug || rq_list_empty(plug->mq_list))
 		return false;
 
-	plug_list = &plug->mq_list;
-
-	list_for_each_entry_reverse(rq, plug_list, queuelist) {
-		if (rq->q == q && same_queue_rq) {
-			/*
-			 * Only blk-mq multiple hardware queues case checks the
-			 * rq in the same queue, there should be only one such
-			 * rq in a queue
-			 **/
-			*same_queue_rq = rq;
-		}
-
-		if (rq->q != q)
-			continue;
+	/* check the previously added entry for a quick merge attempt */
+	rq = rq_list_peek(&plug->mq_list);
+	if (rq->q == q) {
+		/*
+		 * Only blk-mq multiple hardware queues case checks the rq in
+		 * the same queue, there should be only one such rq in a queue
+		 */
+		*same_queue_rq = true;
 
 		if (blk_attempt_bio_merge(q, rq, bio, nr_segs, false) ==
-		    BIO_MERGE_OK)
+				BIO_MERGE_OK)
 			return true;
 	}
-
 	return false;
 }
 

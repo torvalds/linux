@@ -35,7 +35,7 @@
  * Command line options
  */
 extern int quiet;		/* Level of quietness */
-extern int reservenum;		/* Number of memory reservation slots */
+extern unsigned int reservenum;	/* Number of memory reservation slots */
 extern int minsize;		/* Minimum blob size */
 extern int padsize;		/* Additional padding to blob */
 extern int alignsize;		/* Additional padding to blob accroding to the alignsize */
@@ -50,6 +50,11 @@ extern int annotate;		/* annotate .dts with input source location */
 #define PHANDLE_BOTH	0x3
 
 typedef uint32_t cell_t;
+
+static inline bool phandle_is_valid(cell_t phandle)
+{
+	return phandle != 0 && phandle != ~0U;
+}
 
 static inline uint16_t dtb_ld16(const void *p)
 {
@@ -86,6 +91,16 @@ static inline uint64_t dtb_ld64(const void *p)
 #define streq(a, b)	(strcmp((a), (b)) == 0)
 #define strstarts(s, prefix)	(strncmp((s), (prefix), strlen(prefix)) == 0)
 #define strprefixeq(a, n, b)	(strlen(b) == (n) && (memcmp(a, b, n) == 0))
+static inline bool strends(const char *str, const char *suffix)
+{
+	unsigned int len, suffix_len;
+
+	len = strlen(str);
+	suffix_len = strlen(suffix);
+	if (len < suffix_len)
+		return false;
+	return streq(str + len - suffix_len, suffix);
+}
 
 #define ALIGN(x, a)	(((x) + (a) - 1) & ~((a) - 1))
 
@@ -101,6 +116,12 @@ enum markertype {
 	TYPE_UINT64,
 	TYPE_STRING,
 };
+
+static inline bool is_type_marker(enum markertype type)
+{
+	return type >= TYPE_UINT8;
+}
+
 extern const char *markername(enum markertype markertype);
 
 struct  marker {
@@ -125,7 +146,22 @@ struct data {
 	for_each_marker(m) \
 		if ((m)->type == (t))
 
-size_t type_marker_length(struct marker *m);
+static inline struct marker *next_type_marker(struct marker *m)
+{
+	for_each_marker(m)
+		if (is_type_marker(m->type))
+			break;
+	return m;
+}
+
+static inline size_t type_marker_length(struct marker *m)
+{
+	struct marker *next = next_type_marker(m->next);
+
+	if (next)
+		return next->offset - m->offset;
+	return 0;
+}
 
 void data_free(struct data d);
 

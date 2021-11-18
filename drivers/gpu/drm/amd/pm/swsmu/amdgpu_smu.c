@@ -455,6 +455,10 @@ static int smu_get_power_num_states(void *handle,
 
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
+	/* vega20 is 11.0.2, but it's supported via the powerplay code */
+	if (adev->asic_type == CHIP_VEGA20)
+		return false;
+
 	if (adev->ip_versions[MP1_HWIP][0] >= IP_VERSION(11, 0, 0))
 		return true;
 
@@ -1464,7 +1468,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 			dev_err(adev->dev, "Failed to disable smu features.\n");
 	}
 
-	if (adev->ip_versions[MP1_HWIP][0] >= IP_VERSION(11, 0, 0) &&
+	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 0, 0) &&
 	    adev->gfx.rlc.funcs->stop)
 		adev->gfx.rlc.funcs->stop(adev);
 
@@ -2344,9 +2348,10 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
 
 	mutex_lock(&smu->mutex);
 
+	limit &= (1<<24)-1;
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
 		if (smu->ppt_funcs->set_power_limit) {
-			ret = smu->ppt_funcs->set_power_limit(smu, limit);
+			ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
 			goto out;
 		}
 
@@ -2362,7 +2367,7 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
 		limit = smu->current_power_limit;
 
 	if (smu->ppt_funcs->set_power_limit) {
-		ret = smu->ppt_funcs->set_power_limit(smu, limit);
+		ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
 		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
 			smu->user_dpm_profile.power_limit = limit;
 	}
@@ -2529,13 +2534,15 @@ static int smu_get_power_profile_mode(void *handle, char *buf)
 	struct smu_context *smu = handle;
 	int ret = 0;
 
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
+	    !smu->ppt_funcs->get_power_profile_mode)
 		return -EOPNOTSUPP;
+	if (!buf)
+		return -EINVAL;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_power_profile_mode)
-		ret = smu->ppt_funcs->get_power_profile_mode(smu, buf);
+	ret = smu->ppt_funcs->get_power_profile_mode(smu, buf);
 
 	mutex_unlock(&smu->mutex);
 
@@ -2549,7 +2556,8 @@ static int smu_set_power_profile_mode(void *handle,
 	struct smu_context *smu = handle;
 	int ret = 0;
 
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
+	    !smu->ppt_funcs->set_power_profile_mode)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);

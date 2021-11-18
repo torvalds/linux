@@ -48,7 +48,7 @@ configure_stack(void)
 		return false;
 	sprintf(tc_cmd, "%s %s %s %s", "tc filter add dev lo ingress bpf",
 		       "direct-action object-file ./test_sk_assign.o",
-		       "section classifier/sk_assign_test",
+		       "section tc",
 		       (env.verbosity < VERBOSE_VERY) ? " 2>/dev/null" : "verbose");
 	if (CHECK(system(tc_cmd), "BPF load failed;",
 		  "run with -vv for more info\n"))

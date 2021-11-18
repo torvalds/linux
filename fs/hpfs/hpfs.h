@@ -409,10 +409,10 @@ struct bplus_header
   __le16 first_free;			/* offset from start of header to
 					   first free node in array */
   union {
-    struct bplus_internal_node internal[0]; /* (internal) 2-word entries giving
-					       subtree pointers */
-    struct bplus_leaf_node external[0];	    /* (external) 3-word entries giving
-					       sector runs */
+	/* (internal) 2-word entries giving subtree pointers */
+	DECLARE_FLEX_ARRAY(struct bplus_internal_node, internal);
+	/* (external) 3-word entries giving sector runs */
+	DECLARE_FLEX_ARRAY(struct bplus_leaf_node, external);
   } u;
 };
 

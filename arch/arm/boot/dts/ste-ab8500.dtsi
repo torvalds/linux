@@ -129,11 +129,6 @@
 					io-channel-names = "aux1", "aux2";
 				};
 
-				ab8500_battery: ab8500_battery {
-					stericsson,battery-type = "LIPO";
-					thermistor-on-batctrl;
-				};
-
 				ab8500_fg {
 					compatible = "stericsson,ab8500-fg";
 					interrupts = <24 IRQ_TYPE_LEVEL_HIGH>,
@@ -146,7 +141,7 @@
 							  "LOW_BAT_F",
 							  "CC_INT_CALIB",
 							  "CCEOC";
-					battery = <&ab8500_battery>;
+					monitored-battery = <&battery>;
 					io-channels = <&gpadc 0x08>;
 					io-channel-names = "main_bat_v";
 				};
@@ -163,7 +158,7 @@
 							  "BTEMP_HIGH",
 							  "BTEMP_LOW_MEDIUM",
 							  "BTEMP_MEDIUM_HIGH";
-					battery = <&ab8500_battery>;
+					monitored-battery = <&battery>;
 					io-channels = <&gpadc 0x02>,
 						      <&gpadc 0x01>;
 					io-channel-names = "btemp_ball",
@@ -200,7 +195,7 @@
 							  "VBUS_OVV",
 							  "CH_WD_EXP",
 							  "VBUS_CH_DROP_END";
-					battery		= <&ab8500_battery>;
+					monitored-battery = <&battery>;
 					vddadc-supply	= <&ab8500_ldo_tvout_reg>;
 					io-channels = <&gpadc 0x03>,
 						      <&gpadc 0x0a>,
@@ -214,7 +209,7 @@
 
 				ab8500_chargalg {
 					compatible	= "stericsson,ab8500-chargalg";
-					battery		= <&ab8500_battery>;
+					monitored-battery	= <&battery>;
 				};
 
 				ab8500_usb: ab8500_usb {

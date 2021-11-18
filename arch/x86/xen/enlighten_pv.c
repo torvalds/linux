@@ -27,8 +27,6 @@
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/page-flags.h>
-#include <linux/highmem.h>
-#include <linux/console.h>
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/edd.h>
@@ -109,17 +107,6 @@ struct tls_descs {
  */
 static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
 
-static void __init xen_banner(void)
-{
-	unsigned version = HYPERVISOR_xen_version(XENVER_version, NULL);
-	struct xen_extraversion extra;
-	HYPERVISOR_xen_version(XENVER_extraversion, &extra);
-
-	pr_info("Booting paravirtualized kernel on %s\n", pv_info.name);
-	pr_info("Xen version: %d.%d%s (preserve-AD)\n",
-		version >> 16, version & 0xffff, extra.extraversion);
-}
-
 static void __init xen_pv_init_platform(void)
 {
 	populate_extra_pte(fix_to_virt(FIX_PARAVIRT_BOOTMAP));
@@ -140,22 +127,6 @@ static void __init xen_pv_guest_late_init(void)
 	/* Setup shared vcpu info for non-smp configurations */
 	xen_setup_vcpu_info_placement();
 #endif
-}
-
-/* Check if running on Xen version (major, minor) or later */
-bool
-xen_running_on_version_or_later(unsigned int major, unsigned int minor)
-{
-	unsigned int version;
-
-	if (!xen_domain())
-		return false;
-
-	version = HYPERVISOR_xen_version(XENVER_version, NULL);
-	if ((((version >> 16) == major) && ((version & 0xffff) >= minor)) ||
-		((version >> 16) > major))
-		return true;
-	return false;
 }
 
 static __read_mostly unsigned int cpuid_leaf5_ecx_val;
@@ -311,12 +282,12 @@ static void __init xen_init_capabilities(void)
 	}
 }
 
-static void xen_set_debugreg(int reg, unsigned long val)
+static noinstr void xen_set_debugreg(int reg, unsigned long val)
 {
 	HYPERVISOR_set_debugreg(reg, val);
 }
 
-static unsigned long xen_get_debugreg(int reg)
+static noinstr unsigned long xen_get_debugreg(int reg)
 {
 	return HYPERVISOR_get_debugreg(reg);
 }
@@ -755,8 +726,8 @@ static void xen_write_idt_entry(gate_desc *dt, int entrynum, const gate_desc *g)
 	preempt_enable();
 }
 
-static void xen_convert_trap_info(const struct desc_ptr *desc,
-				  struct trap_info *traps)
+static unsigned xen_convert_trap_info(const struct desc_ptr *desc,
+				      struct trap_info *traps, bool full)
 {
 	unsigned in, out, count;
 
@@ -766,17 +737,18 @@ static void xen_convert_trap_info(const struct desc_ptr *desc,
 	for (in = out = 0; in < count; in++) {
 		gate_desc *entry = (gate_desc *)(desc->address) + in;
 
-		if (cvt_gate_to_trap(in, entry, &traps[out]))
+		if (cvt_gate_to_trap(in, entry, &traps[out]) || full)
 			out++;
 	}
-	traps[out].address = 0;
+
+	return out;
 }
 
 void xen_copy_trap_info(struct trap_info *traps)
 {
 	const struct desc_ptr *desc = this_cpu_ptr(&idt_desc);
 
-	xen_convert_trap_info(desc, traps);
+	xen_convert_trap_info(desc, traps, true);
 }
 
 /* Load a new IDT into Xen.  In principle this can be per-CPU, so we
@@ -786,6 +758,7 @@ static void xen_load_idt(const struct desc_ptr *desc)
 {
 	static DEFINE_SPINLOCK(lock);
 	static struct trap_info traps[257];
+	unsigned out;
 
 	trace_xen_cpu_load_idt(desc);
 
@@ -793,7 +766,8 @@ static void xen_load_idt(const struct desc_ptr *desc)
 
 	memcpy(this_cpu_ptr(&idt_desc), desc, sizeof(idt_desc));
 
-	xen_convert_trap_info(desc, traps);
+	out = xen_convert_trap_info(desc, traps, false);
+	memset(&traps[out], 0, sizeof(traps[0]));
 
 	xen_mc_flush();
 	if (HYPERVISOR_set_trap_table(traps))
@@ -1018,31 +992,13 @@ void __init xen_setup_vcpu_info_placement(void)
 	for_each_possible_cpu(cpu) {
 		/* Set up direct vCPU id mapping for PV guests. */
 		per_cpu(xen_vcpu_id, cpu) = cpu;
-
-		/*
-		 * xen_vcpu_setup(cpu) can fail  -- in which case it
-		 * falls back to the shared_info version for cpus
-		 * where xen_vcpu_nr(cpu) < MAX_VIRT_CPUS.
-		 *
-		 * xen_cpu_up_prepare_pv() handles the rest by failing
-		 * them in hotplug.
-		 */
-		(void) xen_vcpu_setup(cpu);
+		xen_vcpu_setup(cpu);
 	}
 
-	/*
-	 * xen_vcpu_setup managed to place the vcpu_info within the
-	 * percpu area for all cpus, so make use of it.
-	 */
-	if (xen_have_vcpu_info_placement) {
-		pv_ops.irq.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
-		pv_ops.irq.irq_disable =
-			__PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
-		pv_ops.irq.irq_enable =
-			__PV_IS_CALLEE_SAVE(xen_irq_enable_direct);
-		pv_ops.mmu.read_cr2 =
-			__PV_IS_CALLEE_SAVE(xen_read_cr2_direct);
-	}
+	pv_ops.irq.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
+	pv_ops.irq.irq_disable = __PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
+	pv_ops.irq.irq_enable = __PV_IS_CALLEE_SAVE(xen_irq_enable_direct);
+	pv_ops.mmu.read_cr2 = __PV_IS_CALLEE_SAVE(xen_read_cr2_direct);
 }
 
 static const struct pv_info xen_info __initconst = {
@@ -1050,52 +1006,54 @@ static const struct pv_info xen_info __initconst = {
 	.name = "Xen",
 };
 
-static const struct pv_cpu_ops xen_cpu_ops __initconst = {
-	.cpuid = xen_cpuid,
+static const typeof(pv_ops) xen_cpu_ops __initconst = {
+	.cpu = {
+		.cpuid = xen_cpuid,
 
-	.set_debugreg = xen_set_debugreg,
-	.get_debugreg = xen_get_debugreg,
+		.set_debugreg = xen_set_debugreg,
+		.get_debugreg = xen_get_debugreg,
 
-	.read_cr0 = xen_read_cr0,
-	.write_cr0 = xen_write_cr0,
+		.read_cr0 = xen_read_cr0,
+		.write_cr0 = xen_write_cr0,
 
-	.write_cr4 = xen_write_cr4,
+		.write_cr4 = xen_write_cr4,
 
-	.wbinvd = native_wbinvd,
+		.wbinvd = native_wbinvd,
 
-	.read_msr = xen_read_msr,
-	.write_msr = xen_write_msr,
+		.read_msr = xen_read_msr,
+		.write_msr = xen_write_msr,
 
-	.read_msr_safe = xen_read_msr_safe,
-	.write_msr_safe = xen_write_msr_safe,
+		.read_msr_safe = xen_read_msr_safe,
+		.write_msr_safe = xen_write_msr_safe,
 
-	.read_pmc = xen_read_pmc,
+		.read_pmc = xen_read_pmc,
 
-	.load_tr_desc = paravirt_nop,
-	.set_ldt = xen_set_ldt,
-	.load_gdt = xen_load_gdt,
-	.load_idt = xen_load_idt,
-	.load_tls = xen_load_tls,
-	.load_gs_index = xen_load_gs_index,
+		.load_tr_desc = paravirt_nop,
+		.set_ldt = xen_set_ldt,
+		.load_gdt = xen_load_gdt,
+		.load_idt = xen_load_idt,
+		.load_tls = xen_load_tls,
+		.load_gs_index = xen_load_gs_index,
 
-	.alloc_ldt = xen_alloc_ldt,
-	.free_ldt = xen_free_ldt,
+		.alloc_ldt = xen_alloc_ldt,
+		.free_ldt = xen_free_ldt,
 
-	.store_tr = xen_store_tr,
+		.store_tr = xen_store_tr,
 
-	.write_ldt_entry = xen_write_ldt_entry,
-	.write_gdt_entry = xen_write_gdt_entry,
-	.write_idt_entry = xen_write_idt_entry,
-	.load_sp0 = xen_load_sp0,
+		.write_ldt_entry = xen_write_ldt_entry,
+		.write_gdt_entry = xen_write_gdt_entry,
+		.write_idt_entry = xen_write_idt_entry,
+		.load_sp0 = xen_load_sp0,
 
 #ifdef CONFIG_X86_IOPL_IOPERM
-	.invalidate_io_bitmap = xen_invalidate_io_bitmap,
-	.update_io_bitmap = xen_update_io_bitmap,
+		.invalidate_io_bitmap = xen_invalidate_io_bitmap,
+		.update_io_bitmap = xen_update_io_bitmap,
 #endif
-	.io_delay = xen_io_delay,
+		.io_delay = xen_io_delay,
 
-	.start_context_switch = paravirt_start_context_switch,
-	.end_context_switch = xen_end_context_switch,
+		.start_context_switch = paravirt_start_context_switch,
+		.end_context_switch = xen_end_context_switch,
+	},
 };
 
 static void xen_restart(char *msg)
@@ -1236,7 +1194,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
-	pv_ops.cpu = xen_cpu_ops;
+	pv_ops.cpu = xen_cpu_ops.cpu;
 	paravirt_iret = xen_iret;
 	xen_init_irq_ops();
 
@@ -1269,12 +1227,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	/* Prevent unwanted bits from being set in PTEs. */
 	__supported_pte_mask &= ~_PAGE_GLOBAL;
 	__default_kernel_pte_mask &= ~_PAGE_GLOBAL;
-
-	/*
-	 * Prevent page tables from being allocated in highmem, even
-	 * if CONFIG_HIGHPTE is enabled.
-	 */
-	__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
 
 	/* Get mfn list */
 	xen_build_dynamic_phys_to_machine();
@@ -1361,7 +1313,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	boot_params.hdr.hardware_subarch = X86_SUBARCH_XEN;
 
 	if (!xen_initial_domain()) {
-		add_preferred_console("xenboot", 0, NULL);
 		if (pci_xen)
 			x86_init.pci.arch_init = pci_xen_init;
 		x86_platform.set_legacy_features =
@@ -1406,11 +1357,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #endif
 	}
 
-	if (!boot_params.screen_info.orig_video_isVGA)
-		add_preferred_console("tty", 0, NULL);
-	add_preferred_console("hvc", 0, NULL);
-	if (boot_params.screen_info.orig_video_isVGA)
-		add_preferred_console("tty", 0, NULL);
+	xen_add_preferred_consoles();
 
 #ifdef CONFIG_PCI
 	/* PCI BIOS service won't work from a PV guest. */

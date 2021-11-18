@@ -1082,14 +1082,12 @@ static void ag71xx_mac_validate(struct phylink_config *config,
 		phylink_set(mask, 1000baseX_Full);
 	}
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 
 	return;
 unsupported:
-	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_zero(supported);
 }
 
 static void ag71xx_mac_pcs_get_state(struct phylink_config *config,
@@ -1968,10 +1966,10 @@ static int ag71xx_probe(struct platform_device *pdev)
 	ag->stop_desc->ctrl = 0;
 	ag->stop_desc->next = (u32)ag->stop_desc_dma;
 
-	err = of_get_mac_address(np, ndev->dev_addr);
+	err = of_get_ethdev_address(np, ndev);
 	if (err) {
 		netif_err(ag, probe, ndev, "invalid MAC address, using random address\n");
-		eth_random_addr(ndev->dev_addr);
+		eth_hw_addr_random(ndev);
 	}
 
 	err = of_get_phy_mode(np, &ag->phy_if_mode);

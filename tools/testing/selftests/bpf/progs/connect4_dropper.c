@@ -18,7 +18,7 @@ int connect_v4_dropper(struct bpf_sock_addr *ctx)
 {
 	if (ctx->type != SOCK_STREAM)
 		return VERDICT_PROCEED;
-	if (ctx->user_port == bpf_htons(60123))
+	if (ctx->user_port == bpf_htons(60120))
 		return VERDICT_REJECT;
 	return VERDICT_PROCEED;
 }

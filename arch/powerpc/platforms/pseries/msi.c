@@ -507,12 +507,27 @@ static void pseries_msi_unmask(struct irq_data *d)
 	irq_chip_unmask_parent(d);
 }
 
+static void pseries_msi_write_msg(struct irq_data *data, struct msi_msg *msg)
+{
+	struct msi_desc *entry = irq_data_get_msi_desc(data);
+
+	/*
+	 * Do not update the MSIx vector table. It's not strictly necessary
+	 * because the table is initialized by the underlying hypervisor, PowerVM
+	 * or QEMU/KVM. However, if the MSIx vector entry is cleared, any further
+	 * activation will fail. This can happen in some drivers (eg. IPR) which
+	 * deactivate an IRQ used for testing MSI support.
+	 */
+	entry->msg = *msg;
+}
+
 static struct irq_chip pseries_pci_msi_irq_chip = {
 	.name		= "pSeries-PCI-MSI",
 	.irq_shutdown	= pseries_msi_shutdown,
 	.irq_mask	= pseries_msi_mask,
 	.irq_unmask	= pseries_msi_unmask,
 	.irq_eoi	= irq_chip_eoi_parent,
+	.irq_write_msi_msg	= pseries_msi_write_msg,
 };
 
 static struct msi_domain_info pseries_msi_domain_info = {

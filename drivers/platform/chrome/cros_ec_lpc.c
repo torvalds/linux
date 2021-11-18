@@ -156,7 +156,7 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
 
 	if (ec_response_timed_out()) {
-		dev_warn(ec->dev, "EC responsed timed out\n");
+		dev_warn(ec->dev, "EC response timed out\n");
 		ret = -EIO;
 		goto done;
 	}
@@ -238,7 +238,7 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 	cros_ec_lpc_ops.write(EC_LPC_ADDR_HOST_CMD, 1, &sum);
 
 	if (ec_response_timed_out()) {
-		dev_warn(ec->dev, "EC responsed timed out\n");
+		dev_warn(ec->dev, "EC response timed out\n");
 		ret = -EIO;
 		goto done;
 	}

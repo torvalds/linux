@@ -2690,9 +2690,16 @@ static int ath10k_core_copy_target_iram(struct ath10k *ar)
 	int i, ret;
 	u32 len, remaining_len;
 
-	hw_mem = ath10k_coredump_get_mem_layout(ar);
+	/* copy target iram feature must work also when
+	 * ATH10K_FW_CRASH_DUMP_RAM_DATA is disabled, so
+	 * _ath10k_coredump_get_mem_layout() to accomplist that
+	 */
+	hw_mem = _ath10k_coredump_get_mem_layout(ar);
 	if (!hw_mem)
-		return -ENOMEM;
+		/* if CONFIG_DEV_COREDUMP is disabled we get NULL, then
+		 * just silently disable the feature by doing nothing
+		 */
+		return 0;
 
 	for (i = 0; i < hw_mem->region_table.size; i++) {
 		tmp = &hw_mem->region_table.regions[i];
@@ -3224,7 +3231,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		ath10k_debug_print_board_info(ar);
 	}
 
-	device_get_mac_address(ar->dev, ar->mac_addr, sizeof(ar->mac_addr));
+	device_get_mac_address(ar->dev, ar->mac_addr);
 
 	ret = ath10k_core_init_firmware_features(ar);
 	if (ret) {
@@ -3520,13 +3527,10 @@ EXPORT_SYMBOL(ath10k_core_create);
 
 void ath10k_core_destroy(struct ath10k *ar)
 {
-	flush_workqueue(ar->workqueue);
 	destroy_workqueue(ar->workqueue);
 
-	flush_workqueue(ar->workqueue_aux);
 	destroy_workqueue(ar->workqueue_aux);
 
-	flush_workqueue(ar->workqueue_tx_complete);
 	destroy_workqueue(ar->workqueue_tx_complete);
 
 	ath10k_debug_destroy(ar);

@@ -151,7 +151,7 @@ static int __init com20020_init(void)
 		return -ENOMEM;
 
 	if (node && node != 0xff)
-		dev->dev_addr[0] = node;
+		arcnet_set_addr(dev, node);
 
 	dev->netdev_ops = &com20020_netdev_ops;
 

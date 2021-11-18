@@ -151,10 +151,9 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 	data->reset_gpio = devm_gpiod_get_optional(priv->dev, "phy-reset",
 						   GPIOD_OUT_LOW);
 	if (IS_ERR(data->reset_gpio)) {
-		error = PTR_ERR(data->reset_gpio);
-		dev_err(priv->dev, "Failed to request gpio: %d\n", error);
 		mdiobus_free(bus);
-		return error;
+		return dev_err_probe(priv->dev, PTR_ERR(data->reset_gpio),
+				     "Failed to request gpio\n");
 	}
 
 	of_property_read_u32(np, "phy-reset-duration", &data->msec);
@@ -166,9 +165,9 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 
 	error = of_mdiobus_register(bus, priv->dev->of_node);
 	if (error) {
-		dev_err(priv->dev, "cannot register MDIO bus %s\n", bus->name);
 		mdiobus_free(bus);
-		return error;
+		return dev_err_probe(priv->dev, error,
+				     "cannot register MDIO bus %s\n", bus->name);
 	}
 
 	return 0;

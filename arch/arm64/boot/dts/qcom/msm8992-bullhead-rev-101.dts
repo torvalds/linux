@@ -16,6 +16,8 @@
 / {
 	model = "LG Nexus 5X";
 	compatible = "lg,bullhead", "qcom,msm8992";
+	chassis-type = "handset";
+
 	/* required for bootloader to select correct board */
 	qcom,msm-id = <251 0>, <252 0>;
 	qcom,board-id = <0xb64 0>;

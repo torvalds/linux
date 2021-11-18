@@ -244,7 +244,7 @@ static int serport_ldisc_compat_ioctl(struct tty_struct *tty,
 }
 #endif
 
-static int serport_ldisc_hangup(struct tty_struct *tty)
+static void serport_ldisc_hangup(struct tty_struct *tty)
 {
 	struct serport *serport = (struct serport *) tty->disc_data;
 	unsigned long flags;
@@ -254,7 +254,6 @@ static int serport_ldisc_hangup(struct tty_struct *tty)
 	spin_unlock_irqrestore(&serport->lock, flags);
 
 	wake_up_interruptible(&serport->wait);
-	return 0;
 }
 
 static void serport_ldisc_write_wakeup(struct tty_struct * tty)

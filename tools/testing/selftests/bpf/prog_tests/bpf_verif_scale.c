@@ -39,82 +39,171 @@ struct scale_test_def {
 	bool fails;
 };
 
-void test_bpf_verif_scale(void)
+static void scale_test(const char *file,
+		       enum bpf_prog_type attach_type,
+		       bool should_fail)
 {
-	struct scale_test_def tests[] = {
-		{ "loop3.o", BPF_PROG_TYPE_RAW_TRACEPOINT, true /* fails */ },
-
-		{ "test_verif_scale1.o", BPF_PROG_TYPE_SCHED_CLS },
-		{ "test_verif_scale2.o", BPF_PROG_TYPE_SCHED_CLS },
-		{ "test_verif_scale3.o", BPF_PROG_TYPE_SCHED_CLS },
-
-		{ "pyperf_global.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-		{ "pyperf_subprogs.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-
-		/* full unroll by llvm */
-		{ "pyperf50.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-		{ "pyperf100.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-		{ "pyperf180.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-
-		/* partial unroll. llvm will unroll loop ~150 times.
-		 * C loop count -> 600.
-		 * Asm loop count -> 4.
-		 * 16k insns in loop body.
-		 * Total of 5 such loops. Total program size ~82k insns.
-		 */
-		{ "pyperf600.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-
-		/* no unroll at all.
-		 * C loop count -> 600.
-		 * ASM loop count -> 600.
-		 * ~110 insns in loop body.
-		 * Total of 5 such loops. Total program size ~1500 insns.
-		 */
-		{ "pyperf600_nounroll.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-
-		{ "loop1.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-		{ "loop2.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-		{ "loop4.o", BPF_PROG_TYPE_SCHED_CLS },
-		{ "loop5.o", BPF_PROG_TYPE_SCHED_CLS },
-		{ "loop6.o", BPF_PROG_TYPE_KPROBE },
-
-		/* partial unroll. 19k insn in a loop.
-		 * Total program size 20.8k insn.
-		 * ~350k processed_insns
-		 */
-		{ "strobemeta.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-
-		/* no unroll, tiny loops */
-		{ "strobemeta_nounroll1.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-		{ "strobemeta_nounroll2.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-
-		/* non-inlined subprogs */
-		{ "strobemeta_subprogs.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-
-		{ "test_sysctl_loop1.o", BPF_PROG_TYPE_CGROUP_SYSCTL },
-		{ "test_sysctl_loop2.o", BPF_PROG_TYPE_CGROUP_SYSCTL },
-
-		{ "test_xdp_loop.o", BPF_PROG_TYPE_XDP },
-		{ "test_seg6_loop.o", BPF_PROG_TYPE_LWT_SEG6LOCAL },
-	};
 	libbpf_print_fn_t old_print_fn = NULL;
-	int err, i;
+	int err;
 
 	if (env.verifier_stats) {
 		test__force_log();
 		old_print_fn = libbpf_set_print(libbpf_debug_print);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		const struct scale_test_def *test = &tests[i];
-
-		if (!test__start_subtest(test->file))
-			continue;
-
-		err = check_load(test->file, test->attach_type);
-		CHECK_FAIL(err && !test->fails);
-	}
+	err = check_load(file, attach_type);
+	if (should_fail)
+		ASSERT_ERR(err, "expect_error");
+	else
+		ASSERT_OK(err, "expect_success");
 
 	if (env.verifier_stats)
 		libbpf_set_print(old_print_fn);
+}
+
+void test_verif_scale1()
+{
+	scale_test("test_verif_scale1.o", BPF_PROG_TYPE_SCHED_CLS, false);
+}
+
+void test_verif_scale2()
+{
+	scale_test("test_verif_scale2.o", BPF_PROG_TYPE_SCHED_CLS, false);
+}
+
+void test_verif_scale3()
+{
+	scale_test("test_verif_scale3.o", BPF_PROG_TYPE_SCHED_CLS, false);
+}
+
+void test_verif_scale_pyperf_global()
+{
+	scale_test("pyperf_global.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_pyperf_subprogs()
+{
+	scale_test("pyperf_subprogs.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_pyperf50()
+{
+	/* full unroll by llvm */
+	scale_test("pyperf50.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_pyperf100()
+{
+	/* full unroll by llvm */
+	scale_test("pyperf100.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_pyperf180()
+{
+	/* full unroll by llvm */
+	scale_test("pyperf180.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_pyperf600()
+{
+	/* partial unroll. llvm will unroll loop ~150 times.
+	 * C loop count -> 600.
+	 * Asm loop count -> 4.
+	 * 16k insns in loop body.
+	 * Total of 5 such loops. Total program size ~82k insns.
+	 */
+	scale_test("pyperf600.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_pyperf600_nounroll()
+{
+	/* no unroll at all.
+	 * C loop count -> 600.
+	 * ASM loop count -> 600.
+	 * ~110 insns in loop body.
+	 * Total of 5 such loops. Total program size ~1500 insns.
+	 */
+	scale_test("pyperf600_nounroll.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_loop1()
+{
+	scale_test("loop1.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_loop2()
+{
+	scale_test("loop2.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_loop3_fail()
+{
+	scale_test("loop3.o", BPF_PROG_TYPE_RAW_TRACEPOINT, true /* fails */);
+}
+
+void test_verif_scale_loop4()
+{
+	scale_test("loop4.o", BPF_PROG_TYPE_SCHED_CLS, false);
+}
+
+void test_verif_scale_loop5()
+{
+	scale_test("loop5.o", BPF_PROG_TYPE_SCHED_CLS, false);
+}
+
+void test_verif_scale_loop6()
+{
+	scale_test("loop6.o", BPF_PROG_TYPE_KPROBE, false);
+}
+
+void test_verif_scale_strobemeta()
+{
+	/* partial unroll. 19k insn in a loop.
+	 * Total program size 20.8k insn.
+	 * ~350k processed_insns
+	 */
+	scale_test("strobemeta.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_strobemeta_nounroll1()
+{
+	/* no unroll, tiny loops */
+	scale_test("strobemeta_nounroll1.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_strobemeta_nounroll2()
+{
+	/* no unroll, tiny loops */
+	scale_test("strobemeta_nounroll2.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_strobemeta_subprogs()
+{
+	/* non-inlined subprogs */
+	scale_test("strobemeta_subprogs.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_sysctl_loop1()
+{
+	scale_test("test_sysctl_loop1.o", BPF_PROG_TYPE_CGROUP_SYSCTL, false);
+}
+
+void test_verif_scale_sysctl_loop2()
+{
+	scale_test("test_sysctl_loop2.o", BPF_PROG_TYPE_CGROUP_SYSCTL, false);
+}
+
+void test_verif_scale_xdp_loop()
+{
+	scale_test("test_xdp_loop.o", BPF_PROG_TYPE_XDP, false);
+}
+
+void test_verif_scale_seg6_loop()
+{
+	scale_test("test_seg6_loop.o", BPF_PROG_TYPE_LWT_SEG6LOCAL, false);
+}
+
+void test_verif_twfw()
+{
+	scale_test("twfw.o", BPF_PROG_TYPE_CGROUP_SKB, false);
 }

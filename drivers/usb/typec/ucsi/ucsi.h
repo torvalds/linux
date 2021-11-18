@@ -300,7 +300,6 @@ struct ucsi {
 #define EVENT_PENDING	0
 #define COMMAND_PENDING	1
 #define ACK_PENDING	2
-#define EVENT_PROCESSING	3
 };
 
 #define UCSI_MAX_SVID		5
@@ -317,6 +316,7 @@ struct ucsi_connector {
 	struct mutex lock; /* port lock */
 	struct work_struct work;
 	struct completion complete;
+	struct workqueue_struct *wq;
 
 	struct typec_port *port;
 	struct typec_partner *partner;
@@ -326,7 +326,6 @@ struct ucsi_connector {
 
 	struct typec_capability typec_cap;
 
-	u16 unprocessed_changes;
 	struct ucsi_connector_status status;
 	struct ucsi_connector_capability cap;
 	struct power_supply *psy;

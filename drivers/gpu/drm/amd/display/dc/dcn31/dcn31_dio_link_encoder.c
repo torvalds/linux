@@ -431,7 +431,7 @@ void dcn31_link_encoder_enable_dp_output(
 
 		if (link) {
 			dpia_control.dpia_id = link->ddc_hw_inst;
-			dpia_control.fec_rdy = link->fec_state == dc_link_fec_ready ? 1 : 0;
+			dpia_control.fec_rdy = dc_link_should_enable_fec(link);
 		} else {
 			DC_LOG_ERROR("%s: Failed to execute DPIA enable DMUB command.\n", __func__);
 			BREAK_TO_DEBUGGER();
@@ -476,7 +476,7 @@ void dcn31_link_encoder_enable_dp_mst_output(
 
 		if (link) {
 			dpia_control.dpia_id = link->ddc_hw_inst;
-			dpia_control.fec_rdy = link->fec_state == dc_link_fec_ready ? 1 : 0;
+			dpia_control.fec_rdy = dc_link_should_enable_fec(link);
 		} else {
 			DC_LOG_ERROR("%s: Failed to execute DPIA enable DMUB command.\n", __func__);
 			BREAK_TO_DEBUGGER();

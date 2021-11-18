@@ -53,7 +53,6 @@ unsigned long HYPERVISOR_hvm_op(int op, void *arg);
 int HYPERVISOR_memory_op(unsigned int cmd, void *arg);
 int HYPERVISOR_physdev_op(int cmd, void *arg);
 int HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args);
-int HYPERVISOR_tmem_op(void *arg);
 int HYPERVISOR_vm_assist(unsigned int cmd, unsigned int type);
 int HYPERVISOR_dm_op(domid_t domid, unsigned int nr_bufs,
 		     struct xen_dm_op_buf *bufs);
@@ -72,20 +71,6 @@ HYPERVISOR_suspend(unsigned long start_info_mfn)
 
 	/* start_info_mfn is unused on ARM */
 	return HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-}
-
-static inline void
-MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
-			unsigned int new_val, unsigned long flags)
-{
-	BUG();
-}
-
-static inline void
-MULTI_mmu_update(struct multicall_entry *mcl, struct mmu_update *req,
-		 int count, int *success_count, domid_t domid)
-{
-	BUG();
 }
 
 #endif /* _ASM_ARM_XEN_HYPERCALL_H */

@@ -57,19 +57,35 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	return zpci_deconfigure_device(zdev);
 }
 
+static int reset_slot(struct hotplug_slot *hotplug_slot, bool probe)
+{
+	struct zpci_dev *zdev = container_of(hotplug_slot, struct zpci_dev,
+					     hotplug_slot);
+
+	if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
+		return -EIO;
+	/*
+	 * We can't take the zdev->lock as reset_slot may be called during
+	 * probing and/or device removal which already happens under the
+	 * zdev->lock. Instead the user should use the higher level
+	 * pci_reset_function() or pci_bus_reset() which hold the PCI device
+	 * lock preventing concurrent removal. If not using these functions
+	 * holding the PCI device lock is required.
+	 */
+
+	/* As long as the function is configured we can reset */
+	if (probe)
+		return 0;
+
+	return zpci_hot_reset_device(zdev);
+}
+
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct zpci_dev *zdev = container_of(hotplug_slot, struct zpci_dev,
 					     hotplug_slot);
 
-	switch (zdev->state) {
-	case ZPCI_FN_STATE_STANDBY:
-		*value = 0;
-		break;
-	default:
-		*value = 1;
-		break;
-	}
+	*value = zpci_is_device_configured(zdev) ? 1 : 0;
 	return 0;
 }
 
@@ -83,6 +99,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 static const struct hotplug_slot_ops s390_hotplug_slot_ops = {
 	.enable_slot =		enable_slot,
 	.disable_slot =		disable_slot,
+	.reset_slot =		reset_slot,
 	.get_power_status =	get_power_status,
 	.get_adapter_status =	get_adapter_status,
 };

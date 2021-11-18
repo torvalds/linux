@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/fscache.c - CIFS filesystem cache interface
+ *   CIFS filesystem cache interface
  *
  *   Copyright (c) 2010 Novell, Inc.
  *   Author(s): Suresh Jayaraman <sjayaraman@suse.de>
@@ -86,6 +86,14 @@ void cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 	struct TCP_Server_Info *server = tcon->ses->server;
 	char *sharename;
 	struct cifs_fscache_super_auxdata auxdata;
+
+	/*
+	 * Check if cookie was already initialized so don't reinitialize it.
+	 * In the future, as we integrate with newer fscache features,
+	 * we may want to instead add a check if cookie has changed
+	 */
+	if (tcon->fscache == NULL)
+		return;
 
 	sharename = extract_sharename(tcon->treeName);
 	if (IS_ERR(sharename)) {

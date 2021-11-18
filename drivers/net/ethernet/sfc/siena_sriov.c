@@ -1057,7 +1057,7 @@ void efx_siena_sriov_probe(struct efx_nic *efx)
 		return;
 
 	if (efx_siena_sriov_cmd(efx, false, &efx->vi_scale, &count)) {
-		netif_info(efx, probe, efx->net_dev, "no SR-IOV VFs probed\n");
+		pci_info(efx->pci_dev, "no SR-IOV VFs probed\n");
 		return;
 	}
 	if (count > 0 && count > max_vfs)
@@ -1591,7 +1591,7 @@ void efx_fini_sriov(void)
 	destroy_workqueue(vfdi_workqueue);
 }
 
-int efx_siena_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
+int efx_siena_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, const u8 *mac)
 {
 	struct siena_nic_data *nic_data = efx->nic_data;
 	struct siena_vf *vf;

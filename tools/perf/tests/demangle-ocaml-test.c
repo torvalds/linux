@@ -7,7 +7,7 @@
 #include "debug.h"
 #include "demangle-ocaml.h"
 
-int test__demangle_ocaml(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__demangle_ocaml(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret = TEST_OK;
 	char *buf = NULL;
@@ -41,3 +41,5 @@ int test__demangle_ocaml(struct test *test __maybe_unused, int subtest __maybe_u
 
 	return ret;
 }
+
+DEFINE_SUITE("Demangle OCaml", demangle_ocaml);

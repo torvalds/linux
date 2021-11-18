@@ -2100,6 +2100,8 @@ int pinctrl_enable(struct pinctrl_dev *pctldev)
 	if (error) {
 		dev_err(pctldev->dev, "could not claim hogs: %i\n",
 			error);
+		pinctrl_free_pindescs(pctldev, pctldev->desc->pins,
+				      pctldev->desc->npins);
 		mutex_destroy(&pctldev->mutex);
 		kfree(pctldev);
 
@@ -2306,7 +2308,7 @@ EXPORT_SYMBOL_GPL(devm_pinctrl_register_and_init);
 
 /**
  * devm_pinctrl_unregister() - Resource managed version of pinctrl_unregister().
- * @dev: device for which which resource was allocated
+ * @dev: device for which resource was allocated
  * @pctldev: the pinctrl device to unregister.
  */
 void devm_pinctrl_unregister(struct device *dev, struct pinctrl_dev *pctldev)

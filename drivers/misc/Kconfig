@@ -224,6 +224,7 @@ config HI6421V600_IRQ
 	tristate "HiSilicon Hi6421v600 IRQ and powerkey"
 	depends on OF
 	depends on SPMI
+	depends on HAS_IOMEM
 	select MFD_CORE
 	select REGMAP_SPMI
 	help

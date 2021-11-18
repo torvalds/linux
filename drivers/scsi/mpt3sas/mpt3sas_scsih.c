@@ -3314,7 +3314,7 @@ scsih_abort(struct scsi_cmnd *scmd)
 		sdev_printk(KERN_INFO, scmd->device,
 		    "device been deleted! scmd(0x%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		r = SUCCESS;
 		goto out;
 	}
@@ -3390,7 +3390,7 @@ scsih_dev_reset(struct scsi_cmnd *scmd)
 		sdev_printk(KERN_INFO, scmd->device,
 		    "device been deleted! scmd(0x%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		r = SUCCESS;
 		goto out;
 	}
@@ -3470,7 +3470,7 @@ scsih_target_reset(struct scsi_cmnd *scmd)
 		starget_printk(KERN_INFO, starget,
 		    "target been deleted! scmd(0x%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		r = SUCCESS;
 		goto out;
 	}
@@ -5030,7 +5030,7 @@ _scsih_flush_running_cmds(struct MPT3SAS_ADAPTER *ioc)
 			scmd->result = DID_NO_CONNECT << 16;
 		else
 			scmd->result = DID_RESET << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 	}
 	dtmprintk(ioc, ioc_info(ioc, "completing %d cmds\n", count));
 }
@@ -5065,9 +5065,12 @@ _scsih_setup_eedp(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	if (scmd->prot_flags & SCSI_PROT_GUARD_CHECK)
 		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
 
-	if (scmd->prot_flags & SCSI_PROT_REF_CHECK) {
-		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
-			MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG;
+	if (scmd->prot_flags & SCSI_PROT_REF_CHECK)
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG;
+
+	if (scmd->prot_flags & SCSI_PROT_REF_INCREMENT) {
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG;
+
 		mpi_request->CDB.EEDP32.PrimaryReferenceTag =
 			cpu_to_be32(scsi_prot_ref_tag(scmd));
 	}
@@ -5139,13 +5142,13 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return 0;
 	}
 
 	if (!(_scsih_allow_scmd_to_device(ioc, scmd))) {
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return 0;
 	}
 
@@ -5155,7 +5158,7 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	handle = sas_target_priv_data->handle;
 	if (handle == MPT3SAS_INVALID_DEVICE_HANDLE) {
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return 0;
 	}
 
@@ -5166,7 +5169,7 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	} else if (sas_target_priv_data->deleted) {
 		/* device has been deleted */
 		scmd->result = DID_NO_CONNECT << 16;
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return 0;
 	} else if (sas_target_priv_data->tm_busy ||
 		   sas_device_priv_data->block) {
@@ -5909,7 +5912,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 
 	scsi_dma_unmap(scmd);
 	mpt3sas_base_free_smid(ioc, smid);
-	scmd->scsi_done(scmd);
+	scsi_done(scmd);
 	return 0;
 }
 
@@ -10749,8 +10752,7 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
 		_scsih_pcie_topology_change_event(ioc, fw_event);
 		ioc->current_event = NULL;
-			return;
-	break;
+		return;
 	}
 out:
 	fw_event_work_put(fw_event);
@@ -11876,8 +11878,8 @@ static struct scsi_host_template mpt2sas_driver_template = {
 	.sg_tablesize			= MPT2SAS_SG_DEPTH,
 	.max_sectors			= 32767,
 	.cmd_per_lun			= 7,
-	.shost_attrs			= mpt3sas_host_attrs,
-	.sdev_attrs			= mpt3sas_dev_attrs,
+	.shost_groups			= mpt3sas_host_groups,
+	.sdev_groups			= mpt3sas_dev_groups,
 	.track_queue_depth		= 1,
 	.cmd_size			= sizeof(struct scsiio_tracker),
 };
@@ -11915,8 +11917,8 @@ static struct scsi_host_template mpt3sas_driver_template = {
 	.max_sectors			= 32767,
 	.max_segment_size		= 0xffffffff,
 	.cmd_per_lun			= 7,
-	.shost_attrs			= mpt3sas_host_attrs,
-	.sdev_attrs			= mpt3sas_dev_attrs,
+	.shost_groups			= mpt3sas_host_groups,
+	.sdev_groups			= mpt3sas_dev_groups,
 	.track_queue_depth		= 1,
 	.cmd_size			= sizeof(struct scsiio_tracker),
 	.map_queues			= scsih_map_queues,

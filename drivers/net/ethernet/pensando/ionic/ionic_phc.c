@@ -348,7 +348,7 @@ static int ionic_phc_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 
 	spin_unlock_irqrestore(&phc->lock, irqflags);
 
-	return ionic_adminq_wait(phc->lif, &ctx, err);
+	return ionic_adminq_wait(phc->lif, &ctx, err, true);
 }
 
 static int ionic_phc_adjtime(struct ptp_clock_info *info, s64 delta)
@@ -373,7 +373,7 @@ static int ionic_phc_adjtime(struct ptp_clock_info *info, s64 delta)
 
 	spin_unlock_irqrestore(&phc->lock, irqflags);
 
-	return ionic_adminq_wait(phc->lif, &ctx, err);
+	return ionic_adminq_wait(phc->lif, &ctx, err, true);
 }
 
 static int ionic_phc_settime64(struct ptp_clock_info *info,
@@ -402,7 +402,7 @@ static int ionic_phc_settime64(struct ptp_clock_info *info,
 
 	spin_unlock_irqrestore(&phc->lock, irqflags);
 
-	return ionic_adminq_wait(phc->lif, &ctx, err);
+	return ionic_adminq_wait(phc->lif, &ctx, err, true);
 }
 
 static int ionic_phc_gettimex64(struct ptp_clock_info *info,
@@ -459,7 +459,7 @@ static long ionic_phc_aux_work(struct ptp_clock_info *info)
 
 	spin_unlock_irqrestore(&phc->lock, irqflags);
 
-	ionic_adminq_wait(phc->lif, &ctx, err);
+	ionic_adminq_wait(phc->lif, &ctx, err, true);
 
 	return phc->aux_work_delay;
 }

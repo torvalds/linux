@@ -351,7 +351,7 @@ config AXP20X_POWER
 
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
-	depends on MFD_AXP20X && EXTCON_AXP288
+	depends on MFD_AXP20X && EXTCON_AXP288 && IOSF_MBI
 	help
 	  Say yes here to have support X-Power AXP288 power management IC (PMIC)
 	  integrated charger.
@@ -366,20 +366,22 @@ config AXP288_FUEL_GAUGE
 	  over/under temperature.
 
 config BATTERY_MAX17040
-	tristate "Maxim MAX17040 Fuel Gauge"
+	tristate "Maxim MAX17040/17041/17043 family Fuel Gauge"
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Maxim models with ModelGauge are fuel-gauge systems for lithium-ion
-	  (Li+) batteries in handheld and portable equipment, including
-	  max17040, max17041, max17043, max17044, max17048, max17049, max17058,
-	  max17059. It is also included in some batteries like max77836.
+	  Driver supports Maxim fuel-gauge systems for lithium-ion (Li+)
+	  batteries used mainly in handheld and portable equipment.
+	  Supported devices: max17040, max17041, max17043, max17044, max17048,
+	  max17049, max17058, max17059, max77836.
 
 	  Driver supports reporting SOC (State of Charge, i.e capacity),
 	  voltage and configurable low-SOC wakeup interrupt.
 
+	  Driver can be build as a module (max17040_battery).
+
 config BATTERY_MAX17042
-	tristate "Maxim MAX17042/17047/17050/8997/8966 Fuel Gauge"
+	tristate "Maxim MAX17042/17047/17050/8997/8966 family Fuel Gauge"
 	depends on I2C
 	select REGMAP_I2C
 	help
@@ -387,8 +389,11 @@ config BATTERY_MAX17042
 	  in handheld and portable equipment. The MAX17042 is configured
 	  to operate with a single lithium cell. MAX8997 and MAX8966 are
 	  multi-function devices that include fuel gauages that are compatible
-	  with MAX17042. This driver also supports max17047/50 chips which are
-	  improved version of max17042.
+	  with MAX17042.
+	  Supported devices: max8966, max8997, max17042, max17047, max17050,
+	  max17055, max77693, max77849.
+
+	  Driver can be build as a module (max17042_battery).
 
 config BATTERY_MAX1721X
 	tristate "MAX17211/MAX17215 standalone gas-gauge"

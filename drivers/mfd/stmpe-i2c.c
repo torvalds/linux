@@ -95,7 +95,9 @@ static int stmpe_i2c_remove(struct i2c_client *i2c)
 {
 	struct stmpe *stmpe = dev_get_drvdata(&i2c->dev);
 
-	return stmpe_remove(stmpe);
+	stmpe_remove(stmpe);
+
+	return 0;
 }
 
 static const struct i2c_device_id stmpe_i2c_id[] = {

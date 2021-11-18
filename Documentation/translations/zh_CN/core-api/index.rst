@@ -39,12 +39,14 @@
    :maxdepth: 1
 
    kobject
-
-Todolist:
-
    kref
    assoc_array
    xarray
+
+Todolist:
+
+
+
    idr
    circular-buffers
    rbtree
@@ -101,19 +103,23 @@ Todolist:
 如何在内核中分配和使用内存。请注意，在
 :doc:`/vm/index` 中有更多的内存管理文档。
 
-Todolist:
+.. toctree::
+   :maxdepth: 1
 
    memory-allocation
    unaligned-memory-access
+   mm-api
+   genalloc
+   boot-time-mm
+   gfp_mask-from-fs-io
+
+Todolist:
+
    dma-api
    dma-api-howto
    dma-attributes
    dma-isa-lpc
-   mm-api
-   genalloc
    pin_user_pages
-   boot-time-mm
-   gfp_mask-from-fs-io
 
 内核调试的接口
 ==============

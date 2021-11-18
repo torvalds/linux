@@ -229,6 +229,9 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		return;
 	}
 
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+		WARN_ON_ONCE(in_nmi() || in_hardirq());
+
 	/*
 	 * After the stb, interrupts are unmasked and there are no interrupts
 	 * pending replay. The restart sequence makes this atomic with
@@ -320,6 +323,9 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	irq_soft_mask_set(mask);
 	if (mask)
 		return;
+
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+		WARN_ON_ONCE(in_nmi() || in_hardirq());
 
 	/*
 	 * From this point onward, we can take interrupts, preempt,

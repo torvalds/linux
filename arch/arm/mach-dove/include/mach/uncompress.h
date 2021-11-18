@@ -11,7 +11,7 @@
 
 #define LSR_THRE	0x20
 
-static void putc(const char c)
+static inline void putc(const char c)
 {
 	int i;
 
@@ -24,7 +24,7 @@ static void putc(const char c)
 	*UART_THR = c;
 }
 
-static void flush(void)
+static inline void flush(void)
 {
 }
 

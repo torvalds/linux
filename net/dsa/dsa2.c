@@ -170,7 +170,7 @@ void dsa_bridge_num_put(const struct net_device *bridge_dev, int bridge_num)
 	/* Check if the bridge is still in use, otherwise it is time
 	 * to clean it up so we can reuse this bridge_num later.
 	 */
-	if (!dsa_bridge_num_find(bridge_dev))
+	if (dsa_bridge_num_find(bridge_dev) < 0)
 		clear_bit(bridge_num, &dsa_fwd_offloading_bridges);
 }
 
@@ -399,11 +399,8 @@ static int dsa_tree_setup_cpu_ports(struct dsa_switch_tree *dst)
 		if (!dsa_port_is_cpu(cpu_dp))
 			continue;
 
-		list_for_each_entry(dp, &dst->ports, list) {
-			/* Prefer a local CPU port */
-			if (dp->ds != cpu_dp->ds)
-				continue;
-
+		/* Prefer a local CPU port */
+		dsa_switch_for_each_port(dp, cpu_dp->ds) {
 			/* Prefer the first local CPU port found */
 			if (dp->cpu_dp)
 				continue;
@@ -429,14 +426,22 @@ static int dsa_port_setup(struct dsa_port *dp)
 {
 	struct devlink_port *dlp = &dp->devlink_port;
 	bool dsa_port_link_registered = false;
+	struct dsa_switch *ds = dp->ds;
 	bool dsa_port_enabled = false;
 	int err = 0;
 
 	if (dp->setup)
 		return 0;
 
+	mutex_init(&dp->addr_lists_lock);
 	INIT_LIST_HEAD(&dp->fdbs);
 	INIT_LIST_HEAD(&dp->mdbs);
+
+	if (ds->ops->port_setup) {
+		err = ds->ops->port_setup(ds, dp->index);
+		if (err)
+			return err;
+	}
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
@@ -480,8 +485,11 @@ static int dsa_port_setup(struct dsa_port *dp)
 		dsa_port_disable(dp);
 	if (err && dsa_port_link_registered)
 		dsa_port_link_unregister_of(dp);
-	if (err)
+	if (err) {
+		if (ds->ops->port_teardown)
+			ds->ops->port_teardown(ds, dp->index);
 		return err;
+	}
 
 	dp->setup = true;
 
@@ -533,10 +541,14 @@ static int dsa_port_devlink_setup(struct dsa_port *dp)
 static void dsa_port_teardown(struct dsa_port *dp)
 {
 	struct devlink_port *dlp = &dp->devlink_port;
+	struct dsa_switch *ds = dp->ds;
 	struct dsa_mac_addr *a, *tmp;
 
 	if (!dp->setup)
 		return;
+
+	if (ds->ops->port_teardown)
+		ds->ops->port_teardown(ds, dp->index);
 
 	devlink_port_type_clear(dlp);
 
@@ -579,6 +591,36 @@ static void dsa_port_devlink_teardown(struct dsa_port *dp)
 	if (dp->devlink_port_setup)
 		devlink_port_unregister(dlp);
 	dp->devlink_port_setup = false;
+}
+
+/* Destroy the current devlink port, and create a new one which has the UNUSED
+ * flavour. At this point, any call to ds->ops->port_setup has been already
+ * balanced out by a call to ds->ops->port_teardown, so we know that any
+ * devlink port regions the driver had are now unregistered. We then call its
+ * ds->ops->port_setup again, in order for the driver to re-create them on the
+ * new devlink port.
+ */
+static int dsa_port_reinit_as_unused(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	int err;
+
+	dsa_port_devlink_teardown(dp);
+	dp->type = DSA_PORT_TYPE_UNUSED;
+	err = dsa_port_devlink_setup(dp);
+	if (err)
+		return err;
+
+	if (ds->ops->port_setup) {
+		/* On error, leave the devlink port registered,
+		 * dsa_switch_teardown will clean it up later.
+		 */
+		err = ds->ops->port_setup(ds, dp->index);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int dsa_devlink_info_get(struct devlink *dl,
@@ -758,16 +800,17 @@ static int dsa_switch_setup_tag_protocol(struct dsa_switch *ds)
 {
 	const struct dsa_device_ops *tag_ops = ds->dst->tag_ops;
 	struct dsa_switch_tree *dst = ds->dst;
-	int port, err;
+	struct dsa_port *cpu_dp;
+	int err;
 
 	if (tag_ops->proto == dst->default_proto)
 		return 0;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (!dsa_is_cpu_port(ds, port))
-			continue;
-
-		err = ds->ops->change_tag_protocol(ds, port, tag_ops->proto);
+	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
+		rtnl_lock();
+		err = ds->ops->change_tag_protocol(ds, cpu_dp->index,
+						   tag_ops->proto);
+		rtnl_unlock();
 		if (err) {
 			dev_err(ds->dev, "Unable to use tag protocol \"%s\": %pe\n",
 				tag_ops->name, ERR_PTR(err));
@@ -804,19 +847,13 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	dl_priv = devlink_priv(ds->devlink);
 	dl_priv->ds = ds;
 
-	err = devlink_register(ds->devlink);
-	if (err)
-		goto free_devlink;
-
 	/* Setup devlink port instances now, so that the switch
 	 * setup() can register regions etc, against the ports
 	 */
-	list_for_each_entry(dp, &ds->dst->ports, list) {
-		if (dp->ds == ds) {
-			err = dsa_port_devlink_setup(dp);
-			if (err)
-				goto unregister_devlink_ports;
-		}
+	dsa_switch_for_each_port(dp, ds) {
+		err = dsa_port_devlink_setup(dp);
+		if (err)
+			goto unregister_devlink_ports;
 	}
 
 	err = dsa_switch_register_notifier(ds);
@@ -833,10 +870,8 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	if (err)
 		goto teardown;
 
-	devlink_params_publish(ds->devlink);
-
 	if (!ds->slave_mii_bus && ds->ops->phy_read) {
-		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
+		ds->slave_mii_bus = mdiobus_alloc();
 		if (!ds->slave_mii_bus) {
 			err = -ENOMEM;
 			goto teardown;
@@ -846,27 +881,26 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 
 		err = mdiobus_register(ds->slave_mii_bus);
 		if (err < 0)
-			goto teardown;
+			goto free_slave_mii_bus;
 	}
 
 	ds->setup = true;
-
+	devlink_register(ds->devlink);
 	return 0;
 
+free_slave_mii_bus:
+	if (ds->slave_mii_bus && ds->ops->phy_read)
+		mdiobus_free(ds->slave_mii_bus);
 teardown:
 	if (ds->ops->teardown)
 		ds->ops->teardown(ds);
 unregister_notifier:
 	dsa_switch_unregister_notifier(ds);
 unregister_devlink_ports:
-	list_for_each_entry(dp, &ds->dst->ports, list)
-		if (dp->ds == ds)
-			dsa_port_devlink_teardown(dp);
-	devlink_unregister(ds->devlink);
-free_devlink:
+	dsa_switch_for_each_port(dp, ds)
+		dsa_port_devlink_teardown(dp);
 	devlink_free(ds->devlink);
 	ds->devlink = NULL;
-
 	return err;
 }
 
@@ -877,19 +911,23 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 	if (!ds->setup)
 		return;
 
-	if (ds->slave_mii_bus && ds->ops->phy_read)
-		mdiobus_unregister(ds->slave_mii_bus);
+	if (ds->devlink)
+		devlink_unregister(ds->devlink);
 
-	dsa_switch_unregister_notifier(ds);
+	if (ds->slave_mii_bus && ds->ops->phy_read) {
+		mdiobus_unregister(ds->slave_mii_bus);
+		mdiobus_free(ds->slave_mii_bus);
+		ds->slave_mii_bus = NULL;
+	}
 
 	if (ds->ops->teardown)
 		ds->ops->teardown(ds);
 
+	dsa_switch_unregister_notifier(ds);
+
 	if (ds->devlink) {
-		list_for_each_entry(dp, &ds->dst->ports, list)
-			if (dp->ds == ds)
-				dsa_port_devlink_teardown(dp);
-		devlink_unregister(ds->devlink);
+		dsa_switch_for_each_port(dp, ds)
+			dsa_port_devlink_teardown(dp);
 		devlink_free(ds->devlink);
 		ds->devlink = NULL;
 	}
@@ -938,12 +976,9 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 	list_for_each_entry(dp, &dst->ports, list) {
 		err = dsa_port_setup(dp);
 		if (err) {
-			dsa_port_devlink_teardown(dp);
-			dp->type = DSA_PORT_TYPE_UNUSED;
-			err = dsa_port_devlink_setup(dp);
+			err = dsa_port_reinit_as_unused(dp);
 			if (err)
 				goto teardown;
-			continue;
 		}
 	}
 
@@ -1048,6 +1083,7 @@ static int dsa_tree_setup(struct dsa_switch_tree *dst)
 teardown_master:
 	dsa_tree_teardown_master(dst);
 teardown_switches:
+	dsa_tree_teardown_ports(dst);
 	dsa_tree_teardown_switches(dst);
 teardown_cpu_ports:
 	dsa_tree_teardown_cpu_ports(dst);
@@ -1107,7 +1143,7 @@ int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
 		goto out_unlock;
 
 	list_for_each_entry(dp, &dst->ports, list) {
-		if (!dsa_is_user_port(dp->ds, dp->index))
+		if (!dsa_port_is_user(dp))
 			continue;
 
 		if (dp->slave->flags & IFF_UP)
@@ -1138,8 +1174,8 @@ static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 	struct dsa_switch_tree *dst = ds->dst;
 	struct dsa_port *dp;
 
-	list_for_each_entry(dp, &dst->ports, list)
-		if (dp->ds == ds && dp->index == index)
+	dsa_switch_for_each_port(dp, ds)
+		if (dp->index == index)
 			return dp;
 
 	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
@@ -1324,12 +1360,15 @@ static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
 
 	for_each_available_child_of_node(ports, port) {
 		err = of_property_read_u32(port, "reg", &reg);
-		if (err)
+		if (err) {
+			of_node_put(port);
 			goto out_put_node;
+		}
 
 		if (reg >= ds->num_ports) {
 			dev_err(ds->dev, "port %pOF index %u exceeds num_ports (%zu)\n",
 				port, reg, ds->num_ports);
+			of_node_put(port);
 			err = -EINVAL;
 			goto out_put_node;
 		}
@@ -1337,8 +1376,10 @@ static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
 		dp = dsa_to_port(ds, reg);
 
 		err = dsa_port_parse_of(dp, port);
-		if (err)
+		if (err) {
+			of_node_put(port);
 			goto out_put_node;
+		}
 	}
 
 out_put_node:
@@ -1480,12 +1521,9 @@ static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 
 static void dsa_switch_release_ports(struct dsa_switch *ds)
 {
-	struct dsa_switch_tree *dst = ds->dst;
 	struct dsa_port *dp, *next;
 
-	list_for_each_entry_safe(dp, next, &dst->ports, list) {
-		if (dp->ds != ds)
-			continue;
+	dsa_switch_for_each_port_safe(dp, next, ds) {
 		list_del(&dp->list);
 		kfree(dp);
 	}
@@ -1562,3 +1600,47 @@ void dsa_unregister_switch(struct dsa_switch *ds)
 	mutex_unlock(&dsa2_mutex);
 }
 EXPORT_SYMBOL_GPL(dsa_unregister_switch);
+
+/* If the DSA master chooses to unregister its net_device on .shutdown, DSA is
+ * blocking that operation from completion, due to the dev_hold taken inside
+ * netdev_upper_dev_link. Unlink the DSA slave interfaces from being uppers of
+ * the DSA master, so that the system can reboot successfully.
+ */
+void dsa_switch_shutdown(struct dsa_switch *ds)
+{
+	struct net_device *master, *slave_dev;
+	LIST_HEAD(unregister_list);
+	struct dsa_port *dp;
+
+	mutex_lock(&dsa2_mutex);
+	rtnl_lock();
+
+	dsa_switch_for_each_user_port(dp, ds) {
+		master = dp->cpu_dp->master;
+		slave_dev = dp->slave;
+
+		netdev_upper_dev_unlink(master, slave_dev);
+		/* Just unlinking ourselves as uppers of the master is not
+		 * sufficient. When the master net device unregisters, that will
+		 * also call dev_close, which we will catch as NETDEV_GOING_DOWN
+		 * and trigger a dev_close on our own devices (dsa_slave_close).
+		 * In turn, that will call dev_mc_unsync on the master's net
+		 * device. If the master is also a DSA switch port, this will
+		 * trigger dsa_slave_set_rx_mode which will call dev_mc_sync on
+		 * its own master. Lockdep will complain about the fact that
+		 * all cascaded masters have the same dsa_master_addr_list_lock_key,
+		 * which it normally would not do if the cascaded masters would
+		 * be in a proper upper/lower relationship, which we've just
+		 * destroyed.
+		 * To suppress the lockdep warnings, let's actually unregister
+		 * the DSA slave interfaces too, to avoid the nonsensical
+		 * multicast address list synchronization on shutdown.
+		 */
+		unregister_netdevice_queue(slave_dev, &unregister_list);
+	}
+	unregister_netdevice_many(&unregister_list);
+
+	rtnl_unlock();
+	mutex_unlock(&dsa2_mutex);
+}
+EXPORT_SYMBOL_GPL(dsa_switch_shutdown);

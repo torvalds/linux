@@ -2602,6 +2602,7 @@ nv172_chipset = {
 	.top      = { 0x00000001, ga100_top_new },
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 };
 
 static const struct nvkm_device_chip
@@ -2622,6 +2623,7 @@ nv174_chipset = {
 	.top      = { 0x00000001, ga100_top_new },
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 };
 
 static const struct nvkm_device_chip
@@ -2642,6 +2644,7 @@ nv177_chipset = {
 	.top      = { 0x00000001, ga100_top_new },
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 };
 
 static int
@@ -3144,8 +3147,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	WARN_ON(device->chip->ptr.inst & ~((1 << ARRAY_SIZE(device->ptr)) - 1));             \
 	for (j = 0; device->chip->ptr.inst && j < ARRAY_SIZE(device->ptr); j++) {            \
 		if ((device->chip->ptr.inst & BIT(j)) && (subdev_mask & BIT_ULL(type))) {    \
-			int inst = (device->chip->ptr.inst == 1) ? -1 : (j);                 \
-			ret = device->chip->ptr.ctor(device, (type), inst, &device->ptr[j]); \
+			ret = device->chip->ptr.ctor(device, (type), (j), &device->ptr[j]);  \
 			subdev = nvkm_device_subdev(device, (type), (j));                    \
 			if (ret) {                                                           \
 				nvkm_subdev_del(&subdev);                                    \

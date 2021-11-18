@@ -1283,7 +1283,7 @@ static int nixge_probe(struct platform_device *pdev)
 
 	mac_addr = nixge_get_nvmem_address(&pdev->dev);
 	if (mac_addr && is_valid_ether_addr(mac_addr)) {
-		ether_addr_copy(ndev->dev_addr, mac_addr);
+		eth_hw_addr_set(ndev, mac_addr);
 		kfree(mac_addr);
 	} else {
 		eth_hw_addr_random(ndev);

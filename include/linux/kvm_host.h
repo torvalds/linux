@@ -39,8 +39,8 @@
 #include <asm/kvm_host.h>
 #include <linux/kvm_dirty_ring.h>
 
-#ifndef KVM_MAX_VCPU_ID
-#define KVM_MAX_VCPU_ID KVM_MAX_VCPUS
+#ifndef KVM_MAX_VCPU_IDS
+#define KVM_MAX_VCPU_IDS KVM_MAX_VCPUS
 #endif
 
 /*
@@ -150,7 +150,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_MMU_RELOAD        (1 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_UNBLOCK           2
 #define KVM_REQ_UNHALT            3
-#define KVM_REQ_VM_BUGGED         (4 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_VM_DEAD           (4 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQUEST_ARCH_BASE     8
 
 #define KVM_ARCH_REQ_FLAGS(nr, flags) ({ \
@@ -160,8 +160,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_ARCH_REQ(nr)           KVM_ARCH_REQ_FLAGS(nr, 0)
 
 bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
-				 struct kvm_vcpu *except,
-				 unsigned long *vcpu_bitmap, cpumask_var_t tmp);
+				 unsigned long *vcpu_bitmap);
 bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req);
 bool kvm_make_all_cpus_request_except(struct kvm *kvm, unsigned int req,
 				      struct kvm_vcpu *except);
@@ -608,7 +607,6 @@ struct kvm {
 	unsigned long mmu_notifier_range_start;
 	unsigned long mmu_notifier_range_end;
 #endif
-	long tlbs_dirty;
 	struct list_head devices;
 	u64 manual_dirty_log_protect;
 	struct dentry *debugfs_dentry;
@@ -619,6 +617,7 @@ struct kvm {
 	unsigned int max_halt_poll_ns;
 	u32 dirty_ring_size;
 	bool vm_bugged;
+	bool vm_dead;
 
 #ifdef CONFIG_HAVE_KVM_PM_NOTIFIER
 	struct notifier_block pm_notifier;
@@ -652,11 +651,18 @@ struct kvm {
 #define vcpu_err(vcpu, fmt, ...)					\
 	kvm_err("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
 
+static inline void kvm_vm_dead(struct kvm *kvm)
+{
+	kvm->vm_dead = true;
+	kvm_make_all_cpus_request(kvm, KVM_REQ_VM_DEAD);
+}
+
 static inline void kvm_vm_bugged(struct kvm *kvm)
 {
 	kvm->vm_bugged = true;
-	kvm_make_all_cpus_request(kvm, KVM_REQ_VM_BUGGED);
+	kvm_vm_dead(kvm);
 }
+
 
 #define KVM_BUG(cond, kvm, fmt...)				\
 ({								\
@@ -719,11 +725,6 @@ static inline struct kvm_vcpu *kvm_get_vcpu_by_id(struct kvm *kvm, int id)
 		if (vcpu->vcpu_id == id)
 			return vcpu;
 	return NULL;
-}
-
-static inline int kvm_vcpu_get_idx(struct kvm_vcpu *vcpu)
-{
-	return vcpu->vcpu_idx;
 }
 
 #define kvm_for_each_memslot(memslot, slots)				\
@@ -1088,10 +1089,17 @@ static inline struct kvm *kvm_arch_alloc_vm(void)
 {
 	return kzalloc(sizeof(struct kvm), GFP_KERNEL);
 }
+#endif
 
+static inline void __kvm_arch_free_vm(struct kvm *kvm)
+{
+	kvfree(kvm);
+}
+
+#ifndef __KVM_HAVE_ARCH_VM_FREE
 static inline void kvm_arch_free_vm(struct kvm *kvm)
 {
-	kfree(kvm);
+	__kvm_arch_free_vm(kvm);
 }
 #endif
 
@@ -1771,6 +1779,8 @@ void kvm_arch_irq_bypass_stop(struct irq_bypass_consumer *);
 void kvm_arch_irq_bypass_start(struct irq_bypass_consumer *);
 int kvm_arch_update_irqfd_routing(struct kvm *kvm, unsigned int host_irq,
 				  uint32_t guest_irq, bool set);
+bool kvm_arch_irqfd_route_changed(struct kvm_kernel_irq_routing_entry *,
+				  struct kvm_kernel_irq_routing_entry *);
 #endif /* CONFIG_HAVE_KVM_IRQ_BYPASS */
 
 #ifdef CONFIG_HAVE_KVM_INVALID_WAKEUPS

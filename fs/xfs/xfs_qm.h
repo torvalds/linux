@@ -11,7 +11,7 @@
 
 struct xfs_inode;
 
-extern struct kmem_zone	*xfs_qm_dqtrxzone;
+extern struct kmem_cache	*xfs_dqtrx_cache;
 
 /*
  * Number of bmaps that we ask from bmapi when doing a quotacheck.

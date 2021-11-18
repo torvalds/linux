@@ -50,6 +50,8 @@
 #define HCLGE_PPP_MPF_ECC_ERR_INT3_EN	0x003F
 #define HCLGE_PPP_MPF_ECC_ERR_INT3_EN_MASK	0x003F
 #define HCLGE_TM_SCH_ECC_ERR_INT_EN	0x3
+#define HCLGE_TM_QCN_ERR_INT_TYPE	0x29
+#define HCLGE_TM_QCN_FIFO_INT_EN	0xFFFF00
 #define HCLGE_TM_QCN_MEM_ERR_INT_EN	0xFFFFFF
 #define HCLGE_NCSI_ERR_INT_EN	0x3
 #define HCLGE_NCSI_ERR_INT_TYPE	0x9
@@ -136,6 +138,7 @@ enum hclge_mod_name_list {
 	MODULE_RCB_TX		= 12,
 	MODULE_TXDMA		= 13,
 	MODULE_MASTER		= 14,
+	MODULE_HIMAC		= 15,
 	/* add new MODULE NAME for NIC here in order */
 	MODULE_ROCEE_TOP	= 40,
 	MODULE_ROCEE_TIMER	= 41,
@@ -164,9 +167,12 @@ enum hclge_err_type_list {
 	ETS_ERROR		= 10,
 	NCSI_ERROR		= 11,
 	GLB_ERROR		= 12,
+	LINK_ERROR		= 13,
+	PTP_ERROR		= 14,
 	/* add new ERROR TYPE for NIC here in order */
 	ROCEE_NORMAL_ERR	= 40,
 	ROCEE_OVF_ERR		= 41,
+	ROCEE_BUS_ERR		= 42,
 	/* add new ERROR TYPE for ROCEE here in order */
 };
 

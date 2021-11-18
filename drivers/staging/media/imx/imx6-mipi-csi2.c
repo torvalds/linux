@@ -647,7 +647,7 @@ static int csi2_async_register(struct csi2_dev *csi2)
 	struct fwnode_handle *ep;
 	int ret;
 
-	v4l2_async_notifier_init(&csi2->notifier);
+	v4l2_async_nf_init(&csi2->notifier);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi2->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
@@ -663,8 +663,8 @@ static int csi2_async_register(struct csi2_dev *csi2)
 	dev_dbg(csi2->dev, "data lanes: %d\n", vep.bus.mipi_csi2.num_data_lanes);
 	dev_dbg(csi2->dev, "flags: 0x%08x\n", vep.bus.mipi_csi2.flags);
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&csi2->notifier, ep, struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&csi2->notifier, ep,
+					      struct v4l2_async_subdev);
 	fwnode_handle_put(ep);
 
 	if (IS_ERR(asd))
@@ -672,8 +672,7 @@ static int csi2_async_register(struct csi2_dev *csi2)
 
 	csi2->notifier.ops = &csi2_notify_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&csi2->sd,
-						  &csi2->notifier);
+	ret = v4l2_async_subdev_nf_register(&csi2->sd, &csi2->notifier);
 	if (ret)
 		return ret;
 
@@ -768,8 +767,8 @@ static int csi2_probe(struct platform_device *pdev)
 	return 0;
 
 clean_notifier:
-	v4l2_async_notifier_unregister(&csi2->notifier);
-	v4l2_async_notifier_cleanup(&csi2->notifier);
+	v4l2_async_nf_unregister(&csi2->notifier);
+	v4l2_async_nf_cleanup(&csi2->notifier);
 	clk_disable_unprepare(csi2->dphy_clk);
 pllref_off:
 	clk_disable_unprepare(csi2->pllref_clk);
@@ -783,8 +782,8 @@ static int csi2_remove(struct platform_device *pdev)
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csi2_dev *csi2 = sd_to_dev(sd);
 
-	v4l2_async_notifier_unregister(&csi2->notifier);
-	v4l2_async_notifier_cleanup(&csi2->notifier);
+	v4l2_async_nf_unregister(&csi2->notifier);
+	v4l2_async_nf_cleanup(&csi2->notifier);
 	v4l2_async_unregister_subdev(sd);
 	clk_disable_unprepare(csi2->dphy_clk);
 	clk_disable_unprepare(csi2->pllref_clk);

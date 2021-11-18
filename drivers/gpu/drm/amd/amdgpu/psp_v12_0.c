@@ -84,7 +84,7 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 
 		ta_hdr = (const struct ta_firmware_header_v1_0 *)
 				 adev->psp.ta_fw->data;
-		adev->psp.hdcp_context.context.bin_desc.feature_version =
+		adev->psp.hdcp_context.context.bin_desc.fw_version =
 			le32_to_cpu(ta_hdr->hdcp.fw_version);
 		adev->psp.hdcp_context.context.bin_desc.size_bytes =
 			le32_to_cpu(ta_hdr->hdcp.size_bytes);
@@ -94,7 +94,7 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 
 		adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
 
-		adev->psp.dtm_context.context.bin_desc.feature_version =
+		adev->psp.dtm_context.context.bin_desc.fw_version =
 			le32_to_cpu(ta_hdr->dtm.fw_version);
 		adev->psp.dtm_context.context.bin_desc.size_bytes =
 			le32_to_cpu(ta_hdr->dtm.size_bytes);

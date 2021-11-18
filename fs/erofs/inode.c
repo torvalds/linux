@@ -176,7 +176,7 @@ static struct page *erofs_read_inode(struct inode *inode,
 	}
 
 	if (vi->datalayout == EROFS_INODE_CHUNK_BASED) {
-		if (!(vi->chunkformat & EROFS_CHUNK_FORMAT_ALL)) {
+		if (vi->chunkformat & ~EROFS_CHUNK_FORMAT_ALL) {
 			erofs_err(inode->i_sb,
 				  "unsupported chunk format %x of nid %llu",
 				  vi->chunkformat, vi->nid);
@@ -192,7 +192,7 @@ static struct page *erofs_read_inode(struct inode *inode,
 	inode->i_atime.tv_nsec = inode->i_ctime.tv_nsec;
 
 	inode->i_flags &= ~S_DAX;
-	if (test_opt(&sbi->ctx, DAX_ALWAYS) && S_ISREG(inode->i_mode) &&
+	if (test_opt(&sbi->opt, DAX_ALWAYS) && S_ISREG(inode->i_mode) &&
 	    vi->datalayout == EROFS_INODE_FLAT_PLAIN)
 		inode->i_flags |= S_DAX;
 	if (!nblks)

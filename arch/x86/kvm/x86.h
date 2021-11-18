@@ -343,8 +343,6 @@ extern bool enable_vmware_backdoor;
 
 extern int pi_inject_timer;
 
-extern struct static_key kvm_no_apic_vcpu;
-
 extern bool report_ignored_msrs;
 
 static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)

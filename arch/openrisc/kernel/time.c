@@ -127,7 +127,7 @@ irqreturn_t __irq_entry timer_interrupt(struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * Clocksource: Based on OpenRISC timer/counter
  *
  * This sets up the OpenRISC Tick Timer as a clock source.  The tick timer

@@ -259,7 +259,7 @@ static int axp288_adc_probe(struct platform_device *pdev)
 	info->irq = platform_get_irq(pdev, 0);
 	if (info->irq < 0)
 		return info->irq;
-	platform_set_drvdata(pdev, indio_dev);
+
 	info->regmap = axp20x->regmap;
 	/*
 	 * Set ADC to enabled state at all time, including system suspend.
@@ -276,31 +276,12 @@ static int axp288_adc_probe(struct platform_device *pdev)
 	indio_dev->num_channels = ARRAY_SIZE(axp288_adc_channels);
 	indio_dev->info = &axp288_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	ret = iio_map_array_register(indio_dev, axp288_adc_default_maps);
+
+	ret = devm_iio_map_array_register(&pdev->dev, indio_dev, axp288_adc_default_maps);
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "unable to register iio device\n");
-		goto err_array_unregister;
-	}
-	return 0;
-
-err_array_unregister:
-	iio_map_array_unregister(indio_dev);
-
-	return ret;
-}
-
-static int axp288_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-	iio_map_array_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
 static const struct platform_device_id axp288_adc_id_table[] = {
@@ -310,7 +291,6 @@ static const struct platform_device_id axp288_adc_id_table[] = {
 
 static struct platform_driver axp288_adc_driver = {
 	.probe = axp288_adc_probe,
-	.remove = axp288_adc_remove,
 	.id_table = axp288_adc_id_table,
 	.driver = {
 		.name = "axp288_adc",

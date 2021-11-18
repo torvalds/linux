@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifs_fs_sb.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2004
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -62,11 +61,6 @@ struct cifs_sb_info {
 	/* only used when CIFS_MOUNT_USE_PREFIX_PATH is set */
 	char *prepath;
 
-	/*
-	 * Canonical DFS path initially provided by the mount call. We might connect to something
-	 * different via DFS but we want to keep it to do failover properly.
-	 */
-	char *origin_fullpath; /* \\HOST\SHARE\[OPTIONAL PATH] */
 	/* randomly generated 128-bit number for indexing dfs mount groups in referral cache */
 	uuid_t dfs_mount_id;
 	/*

@@ -671,6 +671,7 @@ struct dce_hwseq_registers {
 	uint32_t MC_VM_FB_LOCATION_BASE;
 	uint32_t MC_VM_FB_LOCATION_TOP;
 	uint32_t MC_VM_FB_OFFSET;
+	uint32_t HPO_TOP_HW_CONTROL;
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -1151,7 +1152,9 @@ struct dce_hwseq_registers {
 	type DOMAIN_POWER_GATE;\
 	type DOMAIN_PGFSM_PWR_STATUS;\
 	type HPO_HDMISTREAMCLK_G_GATE_DIS;\
-	type DISABLE_HOSTVM_FORCE_ALLOW_PSTATE;
+	type DISABLE_HOSTVM_FORCE_ALLOW_PSTATE;\
+	type I2C_LIGHT_SLEEP_FORCE;\
+	type HPO_IO_EN;
 
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)

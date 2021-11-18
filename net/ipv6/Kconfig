@@ -332,10 +332,10 @@ config IPV6_IOAM6_LWTUNNEL
 	bool "IPv6: IOAM Pre-allocated Trace insertion support"
 	depends on IPV6
 	select LWTUNNEL
+	select DST_CACHE
 	help
-	  Support for the inline insertion of IOAM Pre-allocated
-	  Trace Header (only on locally generated packets), using
-	  the lightweight tunnels mechanism.
+	  Support for the insertion of IOAM Pre-allocated Trace
+	  Header using the lightweight tunnels mechanism.
 
 	  If unsure, say N.
 

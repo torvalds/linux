@@ -172,7 +172,6 @@ static void set_reg_bits(struct reg_pair_t *reg_pair, u8 reg, u8 mask, u8 val)
 		i++;
 
 	}
-	return;
 }
 
 static void copy_reg_bits(struct reg_pair_t *reg_pair1,
@@ -193,7 +192,6 @@ static void copy_reg_bits(struct reg_pair_t *reg_pair1,
 		}
 		i++;
 	}
-	return;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -221,7 +219,6 @@ static void mxl5007t_set_mode_bits(struct mxl5007t_state *state,
 	default:
 		mxl_fail(-EINVAL);
 	}
-	return;
 }
 
 static void mxl5007t_set_if_freq_bits(struct mxl5007t_state *state,
@@ -274,8 +271,6 @@ static void mxl5007t_set_if_freq_bits(struct mxl5007t_state *state,
 	set_reg_bits(state->tab_init, 0x02, 0x10, invert_if ? 0x10 : 0x00);
 
 	state->if_freq = if_freq;
-
-	return;
 }
 
 static void mxl5007t_set_xtal_freq_bits(struct mxl5007t_state *state,
@@ -343,8 +338,6 @@ static void mxl5007t_set_xtal_freq_bits(struct mxl5007t_state *state,
 		mxl_fail(-EINVAL);
 		return;
 	}
-
-	return;
 }
 
 static struct reg_pair_t *mxl5007t_calc_init_regs(struct mxl5007t_state *state,
@@ -398,8 +391,6 @@ static void mxl5007t_set_bw_bits(struct mxl5007t_state *state,
 		return;
 	}
 	set_reg_bits(state->tab_rftune, 0x0c, 0x3f, val);
-
-	return;
 }
 
 static struct

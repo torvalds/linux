@@ -12,4 +12,5 @@
 / {
 	model = "Microsoft Lumia 950 XL";
 	compatible = "microsoft,cityman", "qcom,msm8994";
+	chassis-type = "handset";
 };

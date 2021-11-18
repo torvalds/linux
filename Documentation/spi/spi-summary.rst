@@ -336,14 +336,6 @@ certainly includes SPI devices hooked up through the card connectors!
 Non-static Configurations
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Developer boards often play by different rules than product boards, and one
-example is the potential need to hotplug SPI devices and/or controllers.
-
-For those cases you might need to use spi_busnum_to_master() to look
-up the spi bus master, and will likely need spi_new_device() to provide the
-board info based on the board that was hotplugged.  Of course, you'd later
-call at least spi_unregister_device() when that board is removed.
-
 When Linux includes support for MMC/SD/SDIO/DataFlash cards through SPI, those
 configurations will also be dynamic.  Fortunately, such devices all support
 basic device identification probes, so they should hotplug normally.

@@ -3,6 +3,8 @@
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  */
 
+#include "drm/drm_bridge_connector.h"
+
 #include "msm_kms.h"
 #include "dsi.h"
 
@@ -377,6 +379,14 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		}
 	}
 
+	/*
+	 * Enable before preparing the panel, disable after unpreparing, so
+	 * that the panel can communicate over the DSI link.
+	 */
+	msm_dsi_host_enable_irq(host);
+	if (is_bonded_dsi && msm_dsi1)
+		msm_dsi_host_enable_irq(msm_dsi1->host);
+
 	/* Always call panel functions once, because even for dual panels,
 	 * there is only one drm_panel instance.
 	 */
@@ -411,6 +421,10 @@ host_en_fail:
 	if (panel)
 		drm_panel_unprepare(panel);
 panel_prep_fail:
+	msm_dsi_host_disable_irq(host);
+	if (is_bonded_dsi && msm_dsi1)
+		msm_dsi_host_disable_irq(msm_dsi1->host);
+
 	if (is_bonded_dsi && msm_dsi1)
 		msm_dsi_host_power_off(msm_dsi1->host);
 host1_on_fail:
@@ -522,6 +536,10 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 			pr_err("%s: Panel %d unprepare failed,%d\n", __func__,
 								id, ret);
 	}
+
+	msm_dsi_host_disable_irq(host);
+	if (is_bonded_dsi && msm_dsi1)
+		msm_dsi_host_disable_irq(msm_dsi1->host);
 
 	/* Save PHY status if it is a clock source */
 	msm_dsi_phy_pll_save_state(msm_dsi->phy);
@@ -688,10 +706,10 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_device *dev = msm_dsi->dev;
+	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_bridge *int_bridge, *ext_bridge;
-	struct drm_connector *connector;
-	struct list_head *connector_list;
+	int ret;
 
 	int_bridge = msm_dsi->bridge;
 	ext_bridge = msm_dsi->external_bridge =
@@ -699,22 +717,44 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 
 	encoder = msm_dsi->encoder;
 
-	/* link the internal dsi bridge to the external bridge */
-	drm_bridge_attach(encoder, ext_bridge, int_bridge, 0);
-
 	/*
-	 * we need the drm_connector created by the external bridge
-	 * driver (or someone else) to feed it to our driver's
-	 * priv->connector[] list, mainly for msm_fbdev_init()
+	 * Try first to create the bridge without it creating its own
+	 * connector.. currently some bridges support this, and others
+	 * do not (and some support both modes)
 	 */
-	connector_list = &dev->mode_config.connector_list;
+	ret = drm_bridge_attach(encoder, ext_bridge, int_bridge,
+			DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	if (ret == -EINVAL) {
+		struct drm_connector *connector;
+		struct list_head *connector_list;
 
-	list_for_each_entry(connector, connector_list, head) {
-		if (drm_connector_has_possible_encoder(connector, encoder))
-			return connector;
+		/* link the internal dsi bridge to the external bridge */
+		drm_bridge_attach(encoder, ext_bridge, int_bridge, 0);
+
+		/*
+		 * we need the drm_connector created by the external bridge
+		 * driver (or someone else) to feed it to our driver's
+		 * priv->connector[] list, mainly for msm_fbdev_init()
+		 */
+		connector_list = &dev->mode_config.connector_list;
+
+		list_for_each_entry(connector, connector_list, head) {
+			if (drm_connector_has_possible_encoder(connector, encoder))
+				return connector;
+		}
+
+		return ERR_PTR(-ENODEV);
 	}
 
-	return ERR_PTR(-ENODEV);
+	connector = drm_bridge_connector_init(dev, encoder);
+	if (IS_ERR(connector)) {
+		DRM_ERROR("Unable to create bridge connector\n");
+		return ERR_CAST(connector);
+	}
+
+	drm_connector_attach_encoder(connector, encoder);
+
+	return connector;
 }
 
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2015 - 2020 Intel Corporation.
+ * Copyright(c) 2021 Cornelis Networks.
  */
 
 #include <linux/pci.h>
@@ -1342,7 +1343,7 @@ static void remove_one(struct pci_dev *);
 static int init_one(struct pci_dev *, const struct pci_device_id *);
 static void shutdown_one(struct pci_dev *);
 
-#define DRIVER_LOAD_MSG "Intel " DRIVER_NAME " loaded: "
+#define DRIVER_LOAD_MSG "Cornelis " DRIVER_NAME " loaded: "
 #define PFX DRIVER_NAME ": "
 
 const struct pci_device_id hfi1_pci_tbl[] = {

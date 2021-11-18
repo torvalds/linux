@@ -4336,7 +4336,7 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 			return rc;
 	}
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (netif_running(dev))
 		rc = bnx2x_set_eth_mac(bp, true);

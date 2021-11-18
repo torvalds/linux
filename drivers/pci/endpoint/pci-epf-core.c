@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(pci_epf_add_vepf);
  *   be removed
  * @epf_vf: the virtual EP function to be removed
  *
- * Invoke to remove a virtual endpoint function from the physcial endpoint
+ * Invoke to remove a virtual endpoint function from the physical endpoint
  * function.
  */
 void pci_epf_remove_vepf(struct pci_epf *epf_pf, struct pci_epf *epf_vf)
@@ -432,7 +432,7 @@ EXPORT_SYMBOL_GPL(pci_epf_destroy);
 /**
  * pci_epf_create() - create a new PCI EPF device
  * @name: the name of the PCI EPF device. This name will be used to bind the
- *	  the EPF device to a EPF driver
+ *	  EPF device to a EPF driver
  *
  * Invoke to create a new PCI EPF device by providing the name of the function
  * device.

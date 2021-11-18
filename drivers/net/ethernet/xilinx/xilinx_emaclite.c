@@ -206,12 +206,13 @@ static void xemaclite_disable_interrupts(struct net_local *drvdata)
  * This function writes data from a 16-bit aligned buffer to a 32-bit aligned
  * address in the EmacLite device.
  */
-static void xemaclite_aligned_write(void *src_ptr, u32 *dest_ptr,
+static void xemaclite_aligned_write(const void *src_ptr, u32 *dest_ptr,
 				    unsigned length)
 {
+	const u16 *from_u16_ptr;
 	u32 align_buffer;
 	u32 *to_u32_ptr;
-	u16 *from_u16_ptr, *to_u16_ptr;
+	u16 *to_u16_ptr;
 
 	to_u32_ptr = dest_ptr;
 	from_u16_ptr = src_ptr;
@@ -470,7 +471,7 @@ static u16 xemaclite_recv_data(struct net_local *drvdata, u8 *data, int maxlen)
  * buffers (if configured).
  */
 static void xemaclite_update_address(struct net_local *drvdata,
-				     u8 *address_ptr)
+				     const u8 *address_ptr)
 {
 	void __iomem *addr;
 	u32 reg_data;
@@ -511,7 +512,7 @@ static int xemaclite_set_mac_address(struct net_device *dev, void *address)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	xemaclite_update_address(lp, dev->dev_addr);
 	return 0;
 }
@@ -1157,7 +1158,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	lp->tx_ping_pong = get_bool(ofdev, "xlnx,tx-ping-pong");
 	lp->rx_ping_pong = get_bool(ofdev, "xlnx,rx-ping-pong");
 
-	rc = of_get_mac_address(ofdev->dev.of_node, ndev->dev_addr);
+	rc = of_get_ethdev_address(ofdev->dev.of_node, ndev);
 	if (rc) {
 		dev_warn(dev, "No MAC address found, using random\n");
 		eth_hw_addr_random(ndev);

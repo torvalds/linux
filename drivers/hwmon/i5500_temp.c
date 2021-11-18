@@ -5,6 +5,7 @@
  * Copyright (C) 2012, 2014 Jean Delvare <jdelvare@suse.de>
  */
 
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -12,7 +13,6 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 
@@ -29,69 +29,78 @@
 #define REG_CTCTRL	0xF7
 #define REG_TSTIMER	0xF8
 
-/*
- * Sysfs stuff
- */
-
-/* Sensor resolution : 0.5 degree C */
-static ssize_t temp1_input_show(struct device *dev,
-				struct device_attribute *devattr, char *buf)
+static umode_t i5500_is_visible(const void *drvdata, enum hwmon_sensor_types type, u32 attr,
+				int channel)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->parent);
-	long temp;
-	u16 tsthrhi;
-	s8 tsfsc;
-
-	pci_read_config_word(pdev, REG_TSTHRHI, &tsthrhi);
-	pci_read_config_byte(pdev, REG_TSFSC, &tsfsc);
-	temp = ((long)tsthrhi - tsfsc) * 500;
-
-	return sprintf(buf, "%ld\n", temp);
+	return 0444;
 }
 
-static ssize_t thresh_show(struct device *dev,
-			   struct device_attribute *devattr, char *buf)
+static int i5500_read(struct device *dev, enum hwmon_sensor_types type, u32 attr, int channel,
+		      long *val)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->parent);
-	int reg = to_sensor_dev_attr(devattr)->index;
-	long temp;
 	u16 tsthr;
-
-	pci_read_config_word(pdev, reg, &tsthr);
-	temp = tsthr * 500;
-
-	return sprintf(buf, "%ld\n", temp);
-}
-
-static ssize_t alarm_show(struct device *dev,
-			  struct device_attribute *devattr, char *buf)
-{
-	struct pci_dev *pdev = to_pci_dev(dev->parent);
-	int nr = to_sensor_dev_attr(devattr)->index;
+	s8 tsfsc;
 	u8 ctsts;
 
-	pci_read_config_byte(pdev, REG_CTSTS, &ctsts);
-	return sprintf(buf, "%u\n", (unsigned int)ctsts & (1 << nr));
+	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		/* Sensor resolution : 0.5 degree C */
+		case hwmon_temp_input:
+			pci_read_config_word(pdev, REG_TSTHRHI, &tsthr);
+			pci_read_config_byte(pdev, REG_TSFSC, &tsfsc);
+			*val = (tsthr - tsfsc) * 500;
+			return 0;
+		case hwmon_temp_max:
+			pci_read_config_word(pdev, REG_TSTHRHI, &tsthr);
+			*val = tsthr * 500;
+			return 0;
+		case hwmon_temp_max_hyst:
+			pci_read_config_word(pdev, REG_TSTHRLO, &tsthr);
+			*val = tsthr * 500;
+			return 0;
+		case hwmon_temp_crit:
+			pci_read_config_word(pdev, REG_TSTHRCATA, &tsthr);
+			*val = tsthr * 500;
+			return 0;
+		case hwmon_temp_max_alarm:
+			pci_read_config_byte(pdev, REG_CTSTS, &ctsts);
+			*val = !!(ctsts & BIT(1));
+			return 0;
+		case hwmon_temp_crit_alarm:
+			pci_read_config_byte(pdev, REG_CTSTS, &ctsts);
+			*val = !!(ctsts & BIT(0));
+			return 0;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
-static DEVICE_ATTR_RO(temp1_input);
-static SENSOR_DEVICE_ATTR_RO(temp1_crit, thresh, 0xE2);
-static SENSOR_DEVICE_ATTR_RO(temp1_max_hyst, thresh, 0xEC);
-static SENSOR_DEVICE_ATTR_RO(temp1_max, thresh, 0xEE);
-static SENSOR_DEVICE_ATTR_RO(temp1_crit_alarm, alarm, 0);
-static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, 1);
+static const struct hwmon_ops i5500_ops = {
+	.is_visible = i5500_is_visible,
+	.read = i5500_read,
+};
 
-static struct attribute *i5500_temp_attrs[] = {
-	&dev_attr_temp1_input.attr,
-	&sensor_dev_attr_temp1_crit.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
+static const struct hwmon_channel_info *i5500_info[] = {
+	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM
+			   ),
 	NULL
 };
 
-ATTRIBUTE_GROUPS(i5500_temp);
+static const struct hwmon_chip_info i5500_chip_info = {
+	.ops = &i5500_ops,
+	.info = i5500_info,
+};
 
 static const struct pci_device_id i5500_temp_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x3438) },
@@ -121,9 +130,8 @@ static int i5500_temp_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(&pdev->dev,
-							   "intel5500", NULL,
-							   i5500_temp_groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev, "intel5500", NULL,
+							 &i5500_chip_info, NULL);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 

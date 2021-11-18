@@ -234,8 +234,7 @@ static int sparx5_create_targets(struct sparx5 *sparx5)
 		}
 		iomem[idx] = devm_ioremap(sparx5->dev,
 					  iores[idx]->start,
-					  iores[idx]->end - iores[idx]->start
-					  + 1);
+					  resource_size(iores[idx]));
 		if (!iomem[idx]) {
 			dev_err(sparx5->dev, "Unable to get switch registers: %s\n",
 				iores[idx]->name);
@@ -758,6 +757,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 			err = dev_err_probe(sparx5->dev, PTR_ERR(serdes),
 					    "port %u: missing serdes\n",
 					    portno);
+			of_node_put(portnp);
 			goto cleanup_config;
 		}
 		config->portno = portno;

@@ -51,10 +51,11 @@ to userspace as a V4L2 sub-device node and has two pads:
 .. tabularcolumns:: |p{0.8cm}|p{4.0cm}|p{4.0cm}|
 
 .. flat-table::
+    :header-rows: 1
 
-    * - pad
-      - direction
-      - purpose
+    * - Pad
+      - Direction
+      - Purpose
 
     * - 0
       - sink
@@ -148,10 +149,11 @@ Each pipe has two sink pads and three source pads for the following purpose:
 .. tabularcolumns:: |p{0.8cm}|p{4.0cm}|p{4.0cm}|
 
 .. flat-table::
+    :header-rows: 1
 
-    * - pad
-      - direction
-      - purpose
+    * - Pad
+      - Direction
+      - Purpose
 
     * - 0
       - sink

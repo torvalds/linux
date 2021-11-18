@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/major.h>
 #include <linux/backing-dev.h>
+#include <linux/blkdev.h>
 #include <linux/fs_context.h>
 #include "mtdcore.h"
 

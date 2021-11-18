@@ -63,9 +63,10 @@ struct inode * coda_iget(struct super_block * sb, struct CodaFid * fid,
 	struct inode *inode;
 	struct coda_inode_info *cii;
 	unsigned long hash = coda_f2i(fid);
+	umode_t inode_type = coda_inode_type(attr);
 
+retry:
 	inode = iget5_locked(sb, hash, coda_test_inode, coda_set_inode, fid);
-
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
@@ -75,11 +76,15 @@ struct inode * coda_iget(struct super_block * sb, struct CodaFid * fid,
 		inode->i_ino = hash;
 		/* inode is locked and unique, no need to grab cii->c_lock */
 		cii->c_mapcount = 0;
+		coda_fill_inode(inode, attr);
 		unlock_new_inode(inode);
+	} else if ((inode->i_mode & S_IFMT) != inode_type) {
+		/* Inode has changed type, mark bad and grab a new one */
+		remove_inode_hash(inode);
+		coda_flag_inode(inode, C_PURGE);
+		iput(inode);
+		goto retry;
 	}
-
-	/* always replace the attributes, type might have changed */
-	coda_fill_inode(inode, attr);
 	return inode;
 }
 

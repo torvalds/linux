@@ -77,10 +77,6 @@ struct aa_labelset {
 #define __labelset_for_each(LS, N) \
 	for ((N) = rb_first(&(LS)->root); (N); (N) = rb_next(N))
 
-void aa_labelset_destroy(struct aa_labelset *ls);
-void aa_labelset_init(struct aa_labelset *ls);
-
-
 enum label_flags {
 	FLAG_HAT = 1,			/* profile is a hat */
 	FLAG_UNCONFINED = 2,		/* label unconfined only if all */
@@ -148,6 +144,7 @@ do {							\
 #define __label_make_stale(X) ((X)->flags |= FLAG_STALE)
 #define labels_ns(X) (vec_ns(&((X)->vec[0]), (X)->size))
 #define labels_set(X) (&labels_ns(X)->labels)
+#define labels_view(X) labels_ns(X)
 #define labels_profile(X) ((X)->vec[(X)->size - 1])
 
 

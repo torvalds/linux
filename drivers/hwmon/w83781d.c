@@ -203,7 +203,7 @@ struct w83781d_data {
 	int isa_addr;
 
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	struct i2c_client *lm75[2];	/* for secondary I2C addresses */
@@ -1554,7 +1554,7 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 					       W83781D_REG_BEEP_INTS3) << 16;
 		}
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

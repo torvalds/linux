@@ -594,7 +594,7 @@ static int handle_parse_hdr(struct bpf_sock_ops *skops)
 	return CG_OK;
 }
 
-SEC("sockops/estab")
+SEC("sockops")
 int estab(struct bpf_sock_ops *skops)
 {
 	int true_val = 1;

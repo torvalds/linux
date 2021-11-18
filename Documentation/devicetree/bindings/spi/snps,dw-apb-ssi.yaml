@@ -171,7 +171,7 @@ examples:
       cs-gpios = <&gpio0 13 0>,
                  <&gpio0 14 0>;
       rx-sample-delay-ns = <3>;
-      spi-flash@1 {
+      flash@1 {
         compatible = "spi-nand";
         reg = <1>;
         rx-sample-delay-ns = <7>;

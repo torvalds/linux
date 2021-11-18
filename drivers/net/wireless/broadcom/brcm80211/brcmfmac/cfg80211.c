@@ -1783,8 +1783,8 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 			val = WPA_AUTH_PSK;
 			break;
 		default:
-			bphy_err(drvr, "invalid cipher group (%d)\n",
-				 sme->crypto.cipher_group);
+			bphy_err(drvr, "invalid akm suite (%d)\n",
+				 sme->crypto.akm_suites[0]);
 			return -EINVAL;
 		}
 	} else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
@@ -1816,8 +1816,8 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 			profile->is_ft = true;
 			break;
 		default:
-			bphy_err(drvr, "invalid cipher group (%d)\n",
-				 sme->crypto.cipher_group);
+			bphy_err(drvr, "invalid akm suite (%d)\n",
+				 sme->crypto.akm_suites[0]);
 			return -EINVAL;
 		}
 	} else if (val & WPA3_AUTH_SAE_PSK) {
@@ -1838,8 +1838,8 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 			}
 			break;
 		default:
-			bphy_err(drvr, "invalid cipher group (%d)\n",
-				 sme->crypto.cipher_group);
+			bphy_err(drvr, "invalid akm suite (%d)\n",
+				 sme->crypto.akm_suites[0]);
 			return -EINVAL;
 		}
 	}
@@ -7463,21 +7463,16 @@ static s32 brcmf_translate_country_code(struct brcmf_pub *drvr, char alpha2[2],
 	s32 found_index;
 	int i;
 
+	country_codes = drvr->settings->country_codes;
+	if (!country_codes) {
+		brcmf_dbg(TRACE, "No country codes configured for device\n");
+		return -EINVAL;
+	}
+
 	if ((alpha2[0] == ccreq->country_abbrev[0]) &&
 	    (alpha2[1] == ccreq->country_abbrev[1])) {
 		brcmf_dbg(TRACE, "Country code already set\n");
 		return -EAGAIN;
-	}
-
-	country_codes = drvr->settings->country_codes;
-	if (!country_codes) {
-		brcmf_dbg(TRACE, "No country codes configured for device, using ISO3166 code and 0 rev\n");
-		memset(ccreq, 0, sizeof(*ccreq));
-		ccreq->country_abbrev[0] = alpha2[0];
-		ccreq->country_abbrev[1] = alpha2[1];
-		ccreq->ccode[0] = alpha2[0];
-		ccreq->ccode[1] = alpha2[1];
-		return 0;
 	}
 
 	found_index = -1;

@@ -58,10 +58,6 @@ modalias_show(struct device *dev, struct device_attribute *a, char *buf)
 	const struct spi_device	*spi = to_spi_device(dev);
 	int len;
 
-	len = of_device_modalias(dev, buf, PAGE_SIZE);
-	if (len != -ENODEV)
-		return len;
-
 	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
 	if (len != -ENODEV)
 		return len;
@@ -289,9 +285,9 @@ static const struct attribute_group *spi_master_groups[] = {
 	NULL,
 };
 
-void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
-				       struct spi_transfer *xfer,
-				       struct spi_controller *ctlr)
+static void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
+					      struct spi_transfer *xfer,
+					      struct spi_controller *ctlr)
 {
 	unsigned long flags;
 	int l2len = min(fls(xfer->len), SPI_STATISTICS_HISTO_SIZE) - 1;
@@ -314,7 +310,6 @@ void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
 
 	spin_unlock_irqrestore(&stats->lock, flags);
 }
-EXPORT_SYMBOL_GPL(spi_statistics_add_transfer_stats);
 
 /* modalias support makes "modprobe $MODALIAS" new-style hotplug work,
  * and the sysfs version makes coldplug work too.
@@ -366,10 +361,6 @@ static int spi_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct spi_device		*spi = to_spi_device(dev);
 	int rc;
-
-	rc = of_device_uevent_modalias(dev, env);
-	if (rc != -ENODEV)
-		return rc;
 
 	rc = acpi_device_uevent_modalias(dev, env);
 	if (rc != -ENODEV)
@@ -459,6 +450,47 @@ int __spi_register_driver(struct module *owner, struct spi_driver *sdrv)
 {
 	sdrv->driver.owner = owner;
 	sdrv->driver.bus = &spi_bus_type;
+
+	/*
+	 * For Really Good Reasons we use spi: modaliases not of:
+	 * modaliases for DT so module autoloading won't work if we
+	 * don't have a spi_device_id as well as a compatible string.
+	 */
+	if (sdrv->driver.of_match_table) {
+		const struct of_device_id *of_id;
+
+		for (of_id = sdrv->driver.of_match_table; of_id->compatible[0];
+		     of_id++) {
+			const char *of_name;
+
+			/* Strip off any vendor prefix */
+			of_name = strnchr(of_id->compatible,
+					  sizeof(of_id->compatible), ',');
+			if (of_name)
+				of_name++;
+			else
+				of_name = of_id->compatible;
+
+			if (sdrv->id_table) {
+				const struct spi_device_id *spi_id;
+
+				for (spi_id = sdrv->id_table; spi_id->name[0];
+				     spi_id++)
+					if (strcmp(spi_id->name, of_name) == 0)
+						break;
+
+				if (spi_id->name[0])
+					continue;
+			} else {
+				if (strcmp(sdrv->driver.name, of_name) == 0)
+					continue;
+			}
+
+			pr_warn("SPI driver %s has no spi_device_id for %s\n",
+				sdrv->driver.name, of_id->compatible);
+		}
+	}
+
 	return driver_register(&sdrv->driver);
 }
 EXPORT_SYMBOL_GPL(__spi_register_driver);
@@ -486,12 +518,6 @@ static LIST_HEAD(spi_controller_list);
  */
 static DEFINE_MUTEX(board_lock);
 
-/*
- * Prevents addition of devices with same chip select and
- * addition of devices below an unregistering controller.
- */
-static DEFINE_MUTEX(spi_add_lock);
-
 /**
  * spi_alloc_device - Allocate a new SPI device
  * @ctlr: Controller to which device is connected
@@ -509,7 +535,7 @@ static DEFINE_MUTEX(spi_add_lock);
  *
  * Return: a pointer to the new device, or NULL.
  */
-struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
+static struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 {
 	struct spi_device	*spi;
 
@@ -534,7 +560,6 @@ struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 	device_initialize(&spi->dev);
 	return spi;
 }
-EXPORT_SYMBOL_GPL(spi_alloc_device);
 
 static void spi_dev_set_name(struct spi_device *spi)
 {
@@ -572,6 +597,11 @@ static int __spi_add_device(struct spi_device *spi)
 	struct device *dev = ctlr->dev.parent;
 	int status;
 
+	/*
+	 * We need to make sure there's no other device with this
+	 * chipselect **BEFORE** we call setup(), else we'll trash
+	 * its configuration.
+	 */
 	status = bus_for_each_dev(&spi_bus_type, NULL, spi, spi_dev_check);
 	if (status) {
 		dev_err(dev, "chipselect %d already in use\n",
@@ -624,7 +654,7 @@ static int __spi_add_device(struct spi_device *spi)
  *
  * Return: 0 on success; negative errno on failure
  */
-int spi_add_device(struct spi_device *spi)
+static int spi_add_device(struct spi_device *spi)
 {
 	struct spi_controller *ctlr = spi->controller;
 	struct device *dev = ctlr->dev.parent;
@@ -640,16 +670,11 @@ int spi_add_device(struct spi_device *spi)
 	/* Set the bus ID string */
 	spi_dev_set_name(spi);
 
-	/* We need to make sure there's no other device with this
-	 * chipselect **BEFORE** we call setup(), else we'll trash
-	 * its configuration.  Lock against concurrent add() calls.
-	 */
-	mutex_lock(&spi_add_lock);
+	mutex_lock(&ctlr->add_lock);
 	status = __spi_add_device(spi);
-	mutex_unlock(&spi_add_lock);
+	mutex_unlock(&ctlr->add_lock);
 	return status;
 }
-EXPORT_SYMBOL_GPL(spi_add_device);
 
 static int spi_add_device_locked(struct spi_device *spi)
 {
@@ -666,7 +691,7 @@ static int spi_add_device_locked(struct spi_device *spi)
 	/* Set the bus ID string */
 	spi_dev_set_name(spi);
 
-	WARN_ON(!mutex_is_locked(&spi_add_lock));
+	WARN_ON(!mutex_is_locked(&ctlr->add_lock));
 	return __spi_add_device(spi);
 }
 
@@ -820,6 +845,87 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 	}
 
 	return 0;
+}
+
+/*-------------------------------------------------------------------------*/
+
+/* Core methods for SPI resource management */
+
+/**
+ * spi_res_alloc - allocate a spi resource that is life-cycle managed
+ *                 during the processing of a spi_message while using
+ *                 spi_transfer_one
+ * @spi:     the spi device for which we allocate memory
+ * @release: the release code to execute for this resource
+ * @size:    size to alloc and return
+ * @gfp:     GFP allocation flags
+ *
+ * Return: the pointer to the allocated data
+ *
+ * This may get enhanced in the future to allocate from a memory pool
+ * of the @spi_device or @spi_controller to avoid repeated allocations.
+ */
+static void *spi_res_alloc(struct spi_device *spi, spi_res_release_t release,
+			   size_t size, gfp_t gfp)
+{
+	struct spi_res *sres;
+
+	sres = kzalloc(sizeof(*sres) + size, gfp);
+	if (!sres)
+		return NULL;
+
+	INIT_LIST_HEAD(&sres->entry);
+	sres->release = release;
+
+	return sres->data;
+}
+
+/**
+ * spi_res_free - free an spi resource
+ * @res: pointer to the custom data of a resource
+ *
+ */
+static void spi_res_free(void *res)
+{
+	struct spi_res *sres = container_of(res, struct spi_res, data);
+
+	if (!res)
+		return;
+
+	WARN_ON(!list_empty(&sres->entry));
+	kfree(sres);
+}
+
+/**
+ * spi_res_add - add a spi_res to the spi_message
+ * @message: the spi message
+ * @res:     the spi_resource
+ */
+static void spi_res_add(struct spi_message *message, void *res)
+{
+	struct spi_res *sres = container_of(res, struct spi_res, data);
+
+	WARN_ON(!list_empty(&sres->entry));
+	list_add_tail(&sres->entry, &message->resources);
+}
+
+/**
+ * spi_res_release - release all spi resources for this message
+ * @ctlr:  the @spi_controller
+ * @message: the @spi_message
+ */
+static void spi_res_release(struct spi_controller *ctlr, struct spi_message *message)
+{
+	struct spi_res *res, *tmp;
+
+	list_for_each_entry_safe_reverse(res, tmp, &message->resources, entry) {
+		if (res->release)
+			res->release(ctlr, message, res->data);
+
+		list_del(&res->entry);
+
+		kfree(res);
+	}
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2561,6 +2667,12 @@ struct spi_controller *__spi_alloc_controller(struct device *dev,
 		return NULL;
 
 	device_initialize(&ctlr->dev);
+	INIT_LIST_HEAD(&ctlr->queue);
+	spin_lock_init(&ctlr->queue_lock);
+	spin_lock_init(&ctlr->bus_lock_spinlock);
+	mutex_init(&ctlr->bus_lock_mutex);
+	mutex_init(&ctlr->io_mutex);
+	mutex_init(&ctlr->add_lock);
 	ctlr->bus_num = -1;
 	ctlr->num_chipselect = 1;
 	ctlr->slave = slave;
@@ -2833,11 +2945,6 @@ int spi_register_controller(struct spi_controller *ctlr)
 			return id;
 		ctlr->bus_num = id;
 	}
-	INIT_LIST_HEAD(&ctlr->queue);
-	spin_lock_init(&ctlr->queue_lock);
-	spin_lock_init(&ctlr->bus_lock_spinlock);
-	mutex_init(&ctlr->bus_lock_mutex);
-	mutex_init(&ctlr->io_mutex);
 	ctlr->bus_lock_flag = 0;
 	init_completion(&ctlr->xfer_completion);
 	if (!ctlr->max_dma_len)
@@ -2974,7 +3081,7 @@ void spi_unregister_controller(struct spi_controller *ctlr)
 
 	/* Prevent addition of new devices, unregister existing ones */
 	if (IS_ENABLED(CONFIG_SPI_DYNAMIC))
-		mutex_lock(&spi_add_lock);
+		mutex_lock(&ctlr->add_lock);
 
 	device_for_each_child(&ctlr->dev, NULL, __unregister);
 
@@ -3005,7 +3112,7 @@ void spi_unregister_controller(struct spi_controller *ctlr)
 	mutex_unlock(&board_lock);
 
 	if (IS_ENABLED(CONFIG_SPI_DYNAMIC))
-		mutex_unlock(&spi_add_lock);
+		mutex_unlock(&ctlr->add_lock);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_controller);
 
@@ -3039,127 +3146,6 @@ int spi_controller_resume(struct spi_controller *ctlr)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_controller_resume);
-
-static int __spi_controller_match(struct device *dev, const void *data)
-{
-	struct spi_controller *ctlr;
-	const u16 *bus_num = data;
-
-	ctlr = container_of(dev, struct spi_controller, dev);
-	return ctlr->bus_num == *bus_num;
-}
-
-/**
- * spi_busnum_to_master - look up master associated with bus_num
- * @bus_num: the master's bus number
- * Context: can sleep
- *
- * This call may be used with devices that are registered after
- * arch init time.  It returns a refcounted pointer to the relevant
- * spi_controller (which the caller must release), or NULL if there is
- * no such master registered.
- *
- * Return: the SPI master structure on success, else NULL.
- */
-struct spi_controller *spi_busnum_to_master(u16 bus_num)
-{
-	struct device		*dev;
-	struct spi_controller	*ctlr = NULL;
-
-	dev = class_find_device(&spi_master_class, NULL, &bus_num,
-				__spi_controller_match);
-	if (dev)
-		ctlr = container_of(dev, struct spi_controller, dev);
-	/* reference got in class_find_device */
-	return ctlr;
-}
-EXPORT_SYMBOL_GPL(spi_busnum_to_master);
-
-/*-------------------------------------------------------------------------*/
-
-/* Core methods for SPI resource management */
-
-/**
- * spi_res_alloc - allocate a spi resource that is life-cycle managed
- *                 during the processing of a spi_message while using
- *                 spi_transfer_one
- * @spi:     the spi device for which we allocate memory
- * @release: the release code to execute for this resource
- * @size:    size to alloc and return
- * @gfp:     GFP allocation flags
- *
- * Return: the pointer to the allocated data
- *
- * This may get enhanced in the future to allocate from a memory pool
- * of the @spi_device or @spi_controller to avoid repeated allocations.
- */
-void *spi_res_alloc(struct spi_device *spi,
-		    spi_res_release_t release,
-		    size_t size, gfp_t gfp)
-{
-	struct spi_res *sres;
-
-	sres = kzalloc(sizeof(*sres) + size, gfp);
-	if (!sres)
-		return NULL;
-
-	INIT_LIST_HEAD(&sres->entry);
-	sres->release = release;
-
-	return sres->data;
-}
-EXPORT_SYMBOL_GPL(spi_res_alloc);
-
-/**
- * spi_res_free - free an spi resource
- * @res: pointer to the custom data of a resource
- *
- */
-void spi_res_free(void *res)
-{
-	struct spi_res *sres = container_of(res, struct spi_res, data);
-
-	if (!res)
-		return;
-
-	WARN_ON(!list_empty(&sres->entry));
-	kfree(sres);
-}
-EXPORT_SYMBOL_GPL(spi_res_free);
-
-/**
- * spi_res_add - add a spi_res to the spi_message
- * @message: the spi message
- * @res:     the spi_resource
- */
-void spi_res_add(struct spi_message *message, void *res)
-{
-	struct spi_res *sres = container_of(res, struct spi_res, data);
-
-	WARN_ON(!list_empty(&sres->entry));
-	list_add_tail(&sres->entry, &message->resources);
-}
-EXPORT_SYMBOL_GPL(spi_res_add);
-
-/**
- * spi_res_release - release all spi resources for this message
- * @ctlr:  the @spi_controller
- * @message: the @spi_message
- */
-void spi_res_release(struct spi_controller *ctlr, struct spi_message *message)
-{
-	struct spi_res *res, *tmp;
-
-	list_for_each_entry_safe_reverse(res, tmp, &message->resources, entry) {
-		if (res->release)
-			res->release(ctlr, message, res->data);
-
-		list_del(&res->entry);
-
-		kfree(res);
-	}
-}
-EXPORT_SYMBOL_GPL(spi_res_release);
 
 /*-------------------------------------------------------------------------*/
 
@@ -3199,7 +3185,7 @@ static void __spi_replace_transfers_release(struct spi_controller *ctlr,
  * Returns: pointer to @spi_replaced_transfers,
  *          PTR_ERR(...) in case of errors.
  */
-struct spi_replaced_transfers *spi_replace_transfers(
+static struct spi_replaced_transfers *spi_replace_transfers(
 	struct spi_message *msg,
 	struct spi_transfer *xfer_first,
 	size_t remove,
@@ -3291,7 +3277,6 @@ struct spi_replaced_transfers *spi_replace_transfers(
 
 	return rxfer;
 }
-EXPORT_SYMBOL_GPL(spi_replace_transfers);
 
 static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 					struct spi_message *msg,
@@ -3841,7 +3826,7 @@ EXPORT_SYMBOL_GPL(spi_async);
  *
  * Return: zero on success, else a negative error code.
  */
-int spi_async_locked(struct spi_device *spi, struct spi_message *message)
+static int spi_async_locked(struct spi_device *spi, struct spi_message *message)
 {
 	struct spi_controller *ctlr = spi->controller;
 	int ret;
@@ -3860,7 +3845,6 @@ int spi_async_locked(struct spi_device *spi, struct spi_message *message)
 	return ret;
 
 }
-EXPORT_SYMBOL_GPL(spi_async_locked);
 
 /*-------------------------------------------------------------------------*/
 
@@ -4118,18 +4102,15 @@ EXPORT_SYMBOL_GPL(spi_write_then_read);
 
 /*-------------------------------------------------------------------------*/
 
-#if IS_ENABLED(CONFIG_OF)
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
 /* must call put_device() when done with returned spi_device device */
-struct spi_device *of_find_spi_device_by_node(struct device_node *node)
+static struct spi_device *of_find_spi_device_by_node(struct device_node *node)
 {
 	struct device *dev = bus_find_device_by_of_node(&spi_bus_type, node);
 
 	return dev ? to_spi_device(dev) : NULL;
 }
-EXPORT_SYMBOL_GPL(of_find_spi_device_by_node);
-#endif /* IS_ENABLED(CONFIG_OF) */
 
-#if IS_ENABLED(CONFIG_OF_DYNAMIC)
 /* the spi controllers are not using spi_bus, so we find it with another way */
 static struct spi_controller *of_find_spi_controller_by_node(struct device_node *node)
 {

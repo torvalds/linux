@@ -37,7 +37,7 @@
 
 struct fman_mac *dtsec_config(struct fman_mac_params *params);
 int dtsec_set_promiscuous(struct fman_mac *dtsec, bool new_val);
-int dtsec_modify_mac_address(struct fman_mac *dtsec, enet_addr_t *enet_addr);
+int dtsec_modify_mac_address(struct fman_mac *dtsec, const enet_addr_t *enet_addr);
 int dtsec_adjust_link(struct fman_mac *dtsec,
 		      u16 speed);
 int dtsec_restart_autoneg(struct fman_mac *dtsec);

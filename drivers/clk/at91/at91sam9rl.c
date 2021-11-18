@@ -132,7 +132,7 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 					  "masterck_pres",
 					  &at91rm9200_master_layout,
 					  &sam9rl_mck_characteristics,
-					  &sam9rl_mck_lock, CLK_SET_RATE_GATE);
+					  &sam9rl_mck_lock, CLK_SET_RATE_GATE, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 

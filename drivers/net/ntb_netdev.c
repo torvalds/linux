@@ -428,7 +428,7 @@ static int ntb_netdev_probe(struct device *client_dev)
 	ndev->watchdog_timeo = msecs_to_jiffies(NTB_TX_TIMEOUT_MS);
 
 	eth_random_addr(ndev->perm_addr);
-	memcpy(ndev->dev_addr, ndev->perm_addr, ndev->addr_len);
+	dev_addr_set(ndev, ndev->perm_addr);
 
 	ndev->netdev_ops = &ntb_netdev_ops;
 	ndev->ethtool_ops = &ntb_ethtool_ops;

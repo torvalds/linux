@@ -1583,7 +1583,7 @@ int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	struct mlxsw_sp_sb_sr_occ_query_cb_ctx cb_ctx;
-	unsigned long cb_priv;
+	unsigned long cb_priv = 0;
 	LIST_HEAD(bulk_list);
 	char *sbsr_pl;
 	u8 masked_count;

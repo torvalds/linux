@@ -35,6 +35,7 @@ description: |
     PMIC. Supported regulator node names are
       For PM6150, smps1 - smps5, ldo1 - ldo19
       For PM6150L, smps1 - smps8, ldo1 - ldo11, bob
+      For PM6350, smps1 - smps5, ldo1 - ldo22
       For PM7325, smps1 - smps8, ldo1 - ldo19
       For PM8005, smps1 - smps4
       For PM8009, smps1 - smps2, ldo1 - ldo7
@@ -52,6 +53,7 @@ properties:
     enum:
       - qcom,pm6150-rpmh-regulators
       - qcom,pm6150l-rpmh-regulators
+      - qcom,pm6350-rpmh-regulators
       - qcom,pm7325-rpmh-regulators
       - qcom,pm8005-rpmh-regulators
       - qcom,pm8009-rpmh-regulators

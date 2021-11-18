@@ -139,7 +139,7 @@ int __init sclp_early_get_core_info(struct sclp_core_info *info)
 	}
 	sclp_fill_core_info(info, sccb);
 out:
-	memblock_free_early((unsigned long)sccb, length);
+	memblock_phys_free((unsigned long)sccb, length);
 	return rc;
 }
 
@@ -153,6 +153,11 @@ static void __init sclp_early_console_detect(struct init_sccb *sccb)
 
 	if (sclp_early_con_check_linemode(sccb))
 		sclp.has_linemode = 1;
+}
+
+void __init sclp_early_adjust_va(void)
+{
+	sclp_early_sccb = __va((unsigned long)sclp_early_sccb);
 }
 
 void __init sclp_early_detect(void)

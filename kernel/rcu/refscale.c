@@ -824,7 +824,7 @@ ref_scale_init(void)
 		init_waitqueue_head(&shutdown_wq);
 		firsterr = torture_create_kthread(ref_scale_shutdown, NULL,
 						  shutdown_task);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 		schedule_timeout_uninterruptible(1);
 	}
@@ -851,7 +851,7 @@ ref_scale_init(void)
 	for (i = 0; i < nreaders; i++) {
 		firsterr = torture_create_kthread(ref_scale_reader, (void *)i,
 						  reader_tasks[i].task);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 
 		init_waitqueue_head(&(reader_tasks[i].wq));
@@ -860,7 +860,7 @@ ref_scale_init(void)
 	// Main Task
 	init_waitqueue_head(&main_wq);
 	firsterr = torture_create_kthread(main_func, NULL, main_task);
-	if (firsterr)
+	if (torture_init_error(firsterr))
 		goto unwind;
 
 	torture_init_end();

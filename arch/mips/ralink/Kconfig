@@ -51,7 +51,8 @@ choice
 		select SYS_SUPPORTS_HIGHMEM
 		select MIPS_GIC
 		select CLKSRC_MIPS_GIC
-		select HAVE_PCI if PCI_MT7621
+		select HAVE_PCI
+		select PCI_DRIVERS_GENERIC
 		select SOC_BUS
 endchoice
 

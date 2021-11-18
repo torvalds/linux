@@ -80,7 +80,7 @@
 	};
 
 	ethernet@20000000 {
-		compatible = "smsc,lan9220", "smsc,lan9115";
+		compatible = "smsc,lan9221", "smsc,lan9115";
 		reg = <0x20000000 0x10000>;
 		phy-mode = "mii";
 		interrupt-parent = <&gpio0>;

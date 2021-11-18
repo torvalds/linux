@@ -19,7 +19,7 @@ struct evlist;
 struct target;
 
 struct bpf_prog_info_node {
-	struct bpf_prog_info_linear	*info_linear;
+	struct perf_bpil		*info_linear;
 	struct rb_node			rb_node;
 };
 

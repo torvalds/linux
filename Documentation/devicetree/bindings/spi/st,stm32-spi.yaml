@@ -13,8 +13,8 @@ description: |
   from 4 to 32-bit data size.
 
 maintainers:
-  - Erwan Leray <erwan.leray@st.com>
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Erwan Leray <erwan.leray@foss.st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 allOf:
   - $ref: "spi-controller.yaml#"

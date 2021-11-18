@@ -34,6 +34,7 @@
 #include "smc_ism.h"
 #include "smc_netlink.h"
 #include "smc_stats.h"
+#include "smc_tracepoint.h"
 
 #define SMC_LGR_NUM_INCR		256
 #define SMC_LGR_FREE_DELAY_SERV		(600 * HZ)
@@ -223,7 +224,6 @@ int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb)
 	struct smc_nl_dmp_ctx *cb_ctx = smc_nl_dmp_ctx(cb);
 	char hostname[SMC_MAX_HOSTNAME_LEN + 1];
 	char smc_seid[SMC_MAX_EID_LEN + 1];
-	struct smcd_dev *smcd_dev;
 	struct nlattr *attrs;
 	u8 *seid = NULL;
 	u8 *host = NULL;
@@ -245,6 +245,8 @@ int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb)
 		goto errattr;
 	if (nla_put_u8(skb, SMC_NLA_SYS_IS_ISM_V2, smc_ism_is_v2_capable()))
 		goto errattr;
+	if (nla_put_u8(skb, SMC_NLA_SYS_IS_SMCR_V2, true))
+		goto errattr;
 	smc_clc_get_hostname(&host);
 	if (host) {
 		memcpy(hostname, host, SMC_MAX_HOSTNAME_LEN);
@@ -252,13 +254,8 @@ int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb)
 		if (nla_put_string(skb, SMC_NLA_SYS_LOCAL_HOST, hostname))
 			goto errattr;
 	}
-	mutex_lock(&smcd_dev_list.mutex);
-	smcd_dev = list_first_entry_or_null(&smcd_dev_list.list,
-					    struct smcd_dev, list);
-	if (smcd_dev)
-		smc_ism_get_system_eid(smcd_dev, &seid);
-	mutex_unlock(&smcd_dev_list.mutex);
-	if (seid && smc_ism_is_v2_capable()) {
+	if (smc_ism_is_v2_capable()) {
+		smc_ism_get_system_eid(&seid);
 		memcpy(smc_seid, seid, SMC_MAX_EID_LEN);
 		smc_seid[SMC_MAX_EID_LEN] = 0;
 		if (nla_put_string(skb, SMC_NLA_SYS_SEID, smc_seid))
@@ -277,12 +274,65 @@ errmsg:
 	return skb->len;
 }
 
+/* Fill SMC_NLA_LGR_D_V2_COMMON/SMC_NLA_LGR_R_V2_COMMON nested attributes */
+static int smc_nl_fill_lgr_v2_common(struct smc_link_group *lgr,
+				     struct sk_buff *skb,
+				     struct netlink_callback *cb,
+				     struct nlattr *v2_attrs)
+{
+	char smc_host[SMC_MAX_HOSTNAME_LEN + 1];
+	char smc_eid[SMC_MAX_EID_LEN + 1];
+
+	if (nla_put_u8(skb, SMC_NLA_LGR_V2_VER, lgr->smc_version))
+		goto errv2attr;
+	if (nla_put_u8(skb, SMC_NLA_LGR_V2_REL, lgr->peer_smc_release))
+		goto errv2attr;
+	if (nla_put_u8(skb, SMC_NLA_LGR_V2_OS, lgr->peer_os))
+		goto errv2attr;
+	memcpy(smc_host, lgr->peer_hostname, SMC_MAX_HOSTNAME_LEN);
+	smc_host[SMC_MAX_HOSTNAME_LEN] = 0;
+	if (nla_put_string(skb, SMC_NLA_LGR_V2_PEER_HOST, smc_host))
+		goto errv2attr;
+	memcpy(smc_eid, lgr->negotiated_eid, SMC_MAX_EID_LEN);
+	smc_eid[SMC_MAX_EID_LEN] = 0;
+	if (nla_put_string(skb, SMC_NLA_LGR_V2_NEG_EID, smc_eid))
+		goto errv2attr;
+
+	nla_nest_end(skb, v2_attrs);
+	return 0;
+
+errv2attr:
+	nla_nest_cancel(skb, v2_attrs);
+	return -EMSGSIZE;
+}
+
+static int smc_nl_fill_smcr_lgr_v2(struct smc_link_group *lgr,
+				   struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	struct nlattr *v2_attrs;
+
+	v2_attrs = nla_nest_start(skb, SMC_NLA_LGR_R_V2);
+	if (!v2_attrs)
+		goto errattr;
+	if (nla_put_u8(skb, SMC_NLA_LGR_R_V2_DIRECT, !lgr->uses_gateway))
+		goto errv2attr;
+
+	nla_nest_end(skb, v2_attrs);
+	return 0;
+
+errv2attr:
+	nla_nest_cancel(skb, v2_attrs);
+errattr:
+	return -EMSGSIZE;
+}
+
 static int smc_nl_fill_lgr(struct smc_link_group *lgr,
 			   struct sk_buff *skb,
 			   struct netlink_callback *cb)
 {
 	char smc_target[SMC_MAX_PNETID_LEN + 1];
-	struct nlattr *attrs;
+	struct nlattr *attrs, *v2_attrs;
 
 	attrs = nla_nest_start(skb, SMC_GEN_LGR_SMCR);
 	if (!attrs)
@@ -302,6 +352,15 @@ static int smc_nl_fill_lgr(struct smc_link_group *lgr,
 	smc_target[SMC_MAX_PNETID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_LGR_R_PNETID, smc_target))
 		goto errattr;
+	if (lgr->smc_version > SMC_V1) {
+		v2_attrs = nla_nest_start(skb, SMC_NLA_LGR_R_V2_COMMON);
+		if (!v2_attrs)
+			goto errattr;
+		if (smc_nl_fill_lgr_v2_common(lgr, skb, cb, v2_attrs))
+			goto errattr;
+		if (smc_nl_fill_smcr_lgr_v2(lgr, skb, cb))
+			goto errattr;
+	}
 
 	nla_nest_end(skb, attrs);
 	return 0;
@@ -434,10 +493,7 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 				struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
-	char smc_host[SMC_MAX_HOSTNAME_LEN + 1];
 	char smc_pnet[SMC_MAX_PNETID_LEN + 1];
-	char smc_eid[SMC_MAX_EID_LEN + 1];
-	struct nlattr *v2_attrs;
 	struct nlattr *attrs;
 	void *nlh;
 
@@ -469,32 +525,19 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 	smc_pnet[SMC_MAX_PNETID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_LGR_D_PNETID, smc_pnet))
 		goto errattr;
+	if (lgr->smc_version > SMC_V1) {
+		struct nlattr *v2_attrs;
 
-	v2_attrs = nla_nest_start(skb, SMC_NLA_LGR_V2);
-	if (!v2_attrs)
-		goto errattr;
-	if (nla_put_u8(skb, SMC_NLA_LGR_V2_VER, lgr->smc_version))
-		goto errv2attr;
-	if (nla_put_u8(skb, SMC_NLA_LGR_V2_REL, lgr->peer_smc_release))
-		goto errv2attr;
-	if (nla_put_u8(skb, SMC_NLA_LGR_V2_OS, lgr->peer_os))
-		goto errv2attr;
-	memcpy(smc_host, lgr->peer_hostname, SMC_MAX_HOSTNAME_LEN);
-	smc_host[SMC_MAX_HOSTNAME_LEN] = 0;
-	if (nla_put_string(skb, SMC_NLA_LGR_V2_PEER_HOST, smc_host))
-		goto errv2attr;
-	memcpy(smc_eid, lgr->negotiated_eid, SMC_MAX_EID_LEN);
-	smc_eid[SMC_MAX_EID_LEN] = 0;
-	if (nla_put_string(skb, SMC_NLA_LGR_V2_NEG_EID, smc_eid))
-		goto errv2attr;
-
-	nla_nest_end(skb, v2_attrs);
+		v2_attrs = nla_nest_start(skb, SMC_NLA_LGR_D_V2_COMMON);
+		if (!v2_attrs)
+			goto errattr;
+		if (smc_nl_fill_lgr_v2_common(lgr, skb, cb, v2_attrs))
+			goto errattr;
+	}
 	nla_nest_end(skb, attrs);
 	genlmsg_end(skb, nlh);
 	return 0;
 
-errv2attr:
-	nla_nest_cancel(skb, v2_attrs);
 errattr:
 	nla_nest_cancel(skb, attrs);
 errout:
@@ -690,24 +733,30 @@ static void smcr_copy_dev_info_to_link(struct smc_link *link)
 int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 		   u8 link_idx, struct smc_init_info *ini)
 {
+	struct smc_ib_device *smcibdev;
 	u8 rndvec[3];
 	int rc;
 
-	get_device(&ini->ib_dev->ibdev->dev);
-	atomic_inc(&ini->ib_dev->lnk_cnt);
+	if (lgr->smc_version == SMC_V2) {
+		lnk->smcibdev = ini->smcrv2.ib_dev_v2;
+		lnk->ibport = ini->smcrv2.ib_port_v2;
+	} else {
+		lnk->smcibdev = ini->ib_dev;
+		lnk->ibport = ini->ib_port;
+	}
+	get_device(&lnk->smcibdev->ibdev->dev);
+	atomic_inc(&lnk->smcibdev->lnk_cnt);
+	lnk->path_mtu = lnk->smcibdev->pattr[lnk->ibport - 1].active_mtu;
 	lnk->link_id = smcr_next_link_id(lgr);
 	lnk->lgr = lgr;
 	lnk->link_idx = link_idx;
-	lnk->smcibdev = ini->ib_dev;
-	lnk->ibport = ini->ib_port;
 	smc_ibdev_cnt_inc(lnk);
 	smcr_copy_dev_info_to_link(lnk);
-	lnk->path_mtu = ini->ib_dev->pattr[ini->ib_port - 1].active_mtu;
 	atomic_set(&lnk->conn_cnt, 0);
 	smc_llc_link_set_uid(lnk);
 	INIT_WORK(&lnk->link_down_wrk, smc_link_down_work);
-	if (!ini->ib_dev->initialized) {
-		rc = (int)smc_ib_setup_per_ibdev(ini->ib_dev);
+	if (!lnk->smcibdev->initialized) {
+		rc = (int)smc_ib_setup_per_ibdev(lnk->smcibdev);
 		if (rc)
 			goto out;
 	}
@@ -715,7 +764,9 @@ int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 	lnk->psn_initial = rndvec[0] + (rndvec[1] << 8) +
 		(rndvec[2] << 16);
 	rc = smc_ib_determine_gid(lnk->smcibdev, lnk->ibport,
-				  ini->vlan_id, lnk->gid, &lnk->sgid_index);
+				  ini->vlan_id, lnk->gid, &lnk->sgid_index,
+				  lgr->smc_version == SMC_V2 ?
+						  &ini->smcrv2 : NULL);
 	if (rc)
 		goto out;
 	rc = smc_llc_link_init(lnk);
@@ -746,11 +797,12 @@ clear_llc_lnk:
 	smc_llc_link_clear(lnk, false);
 out:
 	smc_ibdev_cnt_dec(lnk);
-	put_device(&ini->ib_dev->ibdev->dev);
+	put_device(&lnk->smcibdev->ibdev->dev);
+	smcibdev = lnk->smcibdev;
 	memset(lnk, 0, sizeof(struct smc_link));
 	lnk->state = SMC_LNK_UNUSED;
-	if (!atomic_dec_return(&ini->ib_dev->lnk_cnt))
-		wake_up(&ini->ib_dev->lnks_deleted);
+	if (!atomic_dec_return(&smcibdev->lnk_cnt))
+		wake_up(&smcibdev->lnks_deleted);
 	return rc;
 }
 
@@ -814,18 +866,37 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		atomic_inc(&ini->ism_dev[ini->ism_selected]->lgr_cnt);
 	} else {
 		/* SMC-R specific settings */
+		struct smc_ib_device *ibdev;
+		int ibport;
+
 		lgr->role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
-		memcpy(lgr->peer_systemid, ini->ib_lcl->id_for_peer,
+		lgr->smc_version = ini->smcr_version;
+		memcpy(lgr->peer_systemid, ini->peer_systemid,
 		       SMC_SYSTEMID_LEN);
-		memcpy(lgr->pnet_id, ini->ib_dev->pnetid[ini->ib_port - 1],
+		if (lgr->smc_version == SMC_V2) {
+			ibdev = ini->smcrv2.ib_dev_v2;
+			ibport = ini->smcrv2.ib_port_v2;
+			lgr->saddr = ini->smcrv2.saddr;
+			lgr->uses_gateway = ini->smcrv2.uses_gateway;
+			memcpy(lgr->nexthop_mac, ini->smcrv2.nexthop_mac,
+			       ETH_ALEN);
+		} else {
+			ibdev = ini->ib_dev;
+			ibport = ini->ib_port;
+		}
+		memcpy(lgr->pnet_id, ibdev->pnetid[ibport - 1],
 		       SMC_MAX_PNETID_LEN);
+		if (smc_wr_alloc_lgr_mem(lgr))
+			goto free_wq;
 		smc_llc_lgr_init(lgr, smc);
 
 		link_idx = SMC_SINGLE_LINK;
 		lnk = &lgr->lnk[link_idx];
 		rc = smcr_link_init(lgr, lnk, link_idx, ini);
-		if (rc)
+		if (rc) {
+			smc_wr_free_lgr_mem(lgr);
 			goto free_wq;
+		}
 		lgr_list = &smc_lgr_list.list;
 		lgr_lock = &smc_lgr_list.lock;
 		atomic_inc(&lgr_cnt);
@@ -949,7 +1020,7 @@ struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
 		to_lnk = &lgr->lnk[i];
 		break;
 	}
-	if (!to_lnk) {
+	if (!to_lnk || !smc_wr_tx_link_hold(to_lnk)) {
 		smc_lgr_terminate_sched(lgr);
 		return NULL;
 	}
@@ -981,24 +1052,26 @@ again:
 		read_unlock_bh(&lgr->conns_lock);
 		/* pre-fetch buffer outside of send_lock, might sleep */
 		rc = smc_cdc_get_free_slot(conn, to_lnk, &wr_buf, NULL, &pend);
-		if (rc) {
-			smcr_link_down_cond_sched(to_lnk);
-			return NULL;
-		}
+		if (rc)
+			goto err_out;
 		/* avoid race with smcr_tx_sndbuf_nonempty() */
 		spin_lock_bh(&conn->send_lock);
 		smc_switch_link_and_count(conn, to_lnk);
 		rc = smc_switch_cursor(smc, pend, wr_buf);
 		spin_unlock_bh(&conn->send_lock);
 		sock_put(&smc->sk);
-		if (rc) {
-			smcr_link_down_cond_sched(to_lnk);
-			return NULL;
-		}
+		if (rc)
+			goto err_out;
 		goto again;
 	}
 	read_unlock_bh(&lgr->conns_lock);
+	smc_wr_tx_link_put(to_lnk);
 	return to_lnk;
+
+err_out:
+	smcr_link_down_cond_sched(to_lnk);
+	smc_wr_tx_link_put(to_lnk);
+	return NULL;
 }
 
 static void smcr_buf_unuse(struct smc_buf_desc *rmb_desc,
@@ -1230,6 +1303,7 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 		if (!atomic_dec_return(&lgr->smcd->lgr_cnt))
 			wake_up(&lgr->smcd->lgrs_deleted);
 	} else {
+		smc_wr_free_lgr_mem(lgr);
 		if (!atomic_dec_return(&lgr_cnt))
 			wake_up(&lgrs_deleted);
 	}
@@ -1474,7 +1548,9 @@ static void smc_conn_abort_work(struct work_struct *work)
 						   abort_work);
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
 
+	lock_sock(&smc->sk);
 	smc_conn_kill(conn, true);
+	release_sock(&smc->sk);
 	sock_put(&smc->sk); /* sock_hold done by schedulers of abort_work */
 }
 
@@ -1545,15 +1621,19 @@ static void smcr_link_down(struct smc_link *lnk)
 /* must be called under lgr->llc_conf_mutex lock */
 void smcr_link_down_cond(struct smc_link *lnk)
 {
-	if (smc_link_downing(&lnk->state))
+	if (smc_link_downing(&lnk->state)) {
+		trace_smcr_link_down(lnk, __builtin_return_address(0));
 		smcr_link_down(lnk);
+	}
 }
 
 /* will get the lgr->llc_conf_mutex lock */
 void smcr_link_down_cond_sched(struct smc_link *lnk)
 {
-	if (smc_link_downing(&lnk->state))
+	if (smc_link_downing(&lnk->state)) {
+		trace_smcr_link_down(lnk, __builtin_return_address(0));
 		schedule_work(&lnk->link_down_wrk);
+	}
 }
 
 void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport)
@@ -1638,13 +1718,15 @@ out:
 	return rc;
 }
 
-static bool smcr_lgr_match(struct smc_link_group *lgr,
-			   struct smc_clc_msg_local *lcl,
+static bool smcr_lgr_match(struct smc_link_group *lgr, u8 smcr_version,
+			   u8 peer_systemid[],
+			   u8 peer_gid[],
+			   u8 peer_mac_v1[],
 			   enum smc_lgr_role role, u32 clcqpn)
 {
 	int i;
 
-	if (memcmp(lgr->peer_systemid, lcl->id_for_peer, SMC_SYSTEMID_LEN) ||
+	if (memcmp(lgr->peer_systemid, peer_systemid, SMC_SYSTEMID_LEN) ||
 	    lgr->role != role)
 		return false;
 
@@ -1652,8 +1734,9 @@ static bool smcr_lgr_match(struct smc_link_group *lgr,
 		if (!smc_link_active(&lgr->lnk[i]))
 			continue;
 		if ((lgr->role == SMC_SERV || lgr->lnk[i].peer_qpn == clcqpn) &&
-		    !memcmp(lgr->lnk[i].peer_gid, &lcl->gid, SMC_GID_SIZE) &&
-		    !memcmp(lgr->lnk[i].peer_mac, lcl->mac, sizeof(lcl->mac)))
+		    !memcmp(lgr->lnk[i].peer_gid, peer_gid, SMC_GID_SIZE) &&
+		    (smcr_version == SMC_V2 ||
+		     !memcmp(lgr->lnk[i].peer_mac, peer_mac_v1, ETH_ALEN)))
 			return true;
 	}
 	return false;
@@ -1692,7 +1775,10 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 		if ((ini->is_smcd ?
 		     smcd_lgr_match(lgr, ini->ism_dev[ini->ism_selected],
 				    ini->ism_peer_gid[ini->ism_selected]) :
-		     smcr_lgr_match(lgr, ini->ib_lcl, role, ini->ib_clcqpn)) &&
+		     smcr_lgr_match(lgr, ini->smcr_version,
+				    ini->peer_systemid,
+				    ini->peer_gid, ini->peer_mac, role,
+				    ini->ib_clcqpn)) &&
 		    !lgr->sync_err &&
 		    (ini->smcd_version == SMC_V2 ||
 		     lgr->vlan_id == ini->vlan_id) &&

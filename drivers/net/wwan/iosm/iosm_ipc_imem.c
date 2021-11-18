@@ -6,6 +6,8 @@
 #include <linux/delay.h>
 
 #include "iosm_ipc_chnl_cfg.h"
+#include "iosm_ipc_devlink.h"
+#include "iosm_ipc_flash.h"
 #include "iosm_ipc_imem.h"
 #include "iosm_ipc_port.h"
 
@@ -263,9 +265,12 @@ static void ipc_imem_dl_skb_process(struct iosm_imem *ipc_imem,
 	switch (pipe->channel->ctype) {
 	case IPC_CTYPE_CTRL:
 		port_id = pipe->channel->channel_id;
-
-		/* Pass the packet to the wwan layer. */
-		wwan_port_rx(ipc_imem->ipc_port[port_id]->iosm_port, skb);
+		if (port_id == IPC_MEM_CTRL_CHL_ID_7)
+			ipc_imem_sys_devlink_notify_rx(ipc_imem->ipc_devlink,
+						       skb);
+		else
+			wwan_port_rx(ipc_imem->ipc_port[port_id]->iosm_port,
+				     skb);
 		break;
 
 	case IPC_CTYPE_WWAN:
@@ -399,19 +404,8 @@ static void ipc_imem_rom_irq_exec(struct iosm_imem *ipc_imem)
 {
 	struct ipc_mem_channel *channel;
 
-	if (ipc_imem->flash_channel_id < 0) {
-		ipc_imem->rom_exit_code = IMEM_ROM_EXIT_FAIL;
-		dev_err(ipc_imem->dev, "Missing flash app:%d",
-			ipc_imem->flash_channel_id);
-		return;
-	}
-
+	channel = ipc_imem->ipc_devlink->devlink_sio.channel;
 	ipc_imem->rom_exit_code = ipc_mmio_get_rom_exit_code(ipc_imem->mmio);
-
-	/* Wake up the flash app to continue or to terminate depending
-	 * on the CP ROM exit code.
-	 */
-	channel = &ipc_imem->channels[ipc_imem->flash_channel_id];
 	complete(&channel->ul_sem);
 }
 
@@ -482,8 +476,8 @@ static enum hrtimer_restart ipc_imem_startup_timer_cb(struct hrtimer *hr_timer)
 		container_of(hr_timer, struct iosm_imem, startup_timer);
 
 	if (ktime_to_ns(ipc_imem->hrtimer_period)) {
-		hrtimer_forward(&ipc_imem->startup_timer, ktime_get(),
-				ipc_imem->hrtimer_period);
+		hrtimer_forward_now(&ipc_imem->startup_timer,
+				    ipc_imem->hrtimer_period);
 		result = HRTIMER_RESTART;
 	}
 
@@ -572,7 +566,7 @@ static void ipc_imem_handle_irq(struct iosm_imem *ipc_imem, int irq)
 	enum ipc_phase old_phase, phase;
 	bool retry_allocation = false;
 	bool ul_pending = false;
-	int ch_id, i;
+	int i;
 
 	if (irq != IMEM_IRQ_DONT_CARE)
 		ipc_imem->ev_irq_pending[irq] = false;
@@ -696,11 +690,8 @@ static void ipc_imem_handle_irq(struct iosm_imem *ipc_imem, int irq)
 	if ((phase == IPC_P_PSI || phase == IPC_P_EBL) &&
 	    ipc_imem->ipc_requested_state == IPC_MEM_DEVICE_IPC_RUNNING &&
 	    ipc_mmio_get_ipc_state(ipc_imem->mmio) ==
-		    IPC_MEM_DEVICE_IPC_RUNNING &&
-	    ipc_imem->flash_channel_id >= 0) {
-		/* Wake up the flash app to open the pipes. */
-		ch_id = ipc_imem->flash_channel_id;
-		complete(&ipc_imem->channels[ch_id].ul_sem);
+						IPC_MEM_DEVICE_IPC_RUNNING) {
+		complete(&ipc_imem->ipc_devlink->devlink_sio.channel->ul_sem);
 	}
 
 	/* Reset the expected CP state. */
@@ -1176,6 +1167,9 @@ void ipc_imem_cleanup(struct iosm_imem *ipc_imem)
 		ipc_port_deinit(ipc_imem->ipc_port);
 	}
 
+	if (ipc_imem->ipc_devlink)
+		ipc_devlink_deinit(ipc_imem->ipc_devlink);
+
 	ipc_imem_device_ipc_uninit(ipc_imem);
 	ipc_imem_channel_reset(ipc_imem);
 
@@ -1258,6 +1252,7 @@ struct iosm_imem *ipc_imem_init(struct iosm_pcie *pcie, unsigned int device_id,
 				void __iomem *mmio, struct device *dev)
 {
 	struct iosm_imem *ipc_imem = kzalloc(sizeof(*pcie->imem), GFP_KERNEL);
+	enum ipc_mem_exec_stage stage;
 
 	if (!ipc_imem)
 		return NULL;
@@ -1271,9 +1266,6 @@ struct iosm_imem *ipc_imem_init(struct iosm_pcie *pcie, unsigned int device_id,
 	ipc_imem->ev_cdev_write_pending = false;
 	ipc_imem->cp_version = 0;
 	ipc_imem->device_sleep = IPC_HOST_SLEEP_ENTER_SLEEP;
-
-	/* Reset the flash channel id. */
-	ipc_imem->flash_channel_id = -1;
 
 	/* Reset the max number of configured channels */
 	ipc_imem->nr_of_channels = 0;
@@ -1328,8 +1320,21 @@ struct iosm_imem *ipc_imem_init(struct iosm_pcie *pcie, unsigned int device_id,
 		goto imem_config_fail;
 	}
 
-	return ipc_imem;
+	stage = ipc_mmio_get_exec_stage(ipc_imem->mmio);
+	if (stage == IPC_MEM_EXEC_STAGE_BOOT) {
+		/* Alloc and Register devlink */
+		ipc_imem->ipc_devlink = ipc_devlink_init(ipc_imem);
+		if (!ipc_imem->ipc_devlink) {
+			dev_err(ipc_imem->dev, "Devlink register failed");
+			goto imem_config_fail;
+		}
 
+		if (ipc_flash_link_establish(ipc_imem))
+			goto devlink_channel_fail;
+	}
+	return ipc_imem;
+devlink_channel_fail:
+	ipc_devlink_deinit(ipc_imem->ipc_devlink);
 imem_config_fail:
 	hrtimer_cancel(&ipc_imem->td_alloc_timer);
 	hrtimer_cancel(&ipc_imem->fast_update_timer);
@@ -1360,4 +1365,52 @@ void ipc_imem_irq_process(struct iosm_imem *ipc_imem, int irq)
 void ipc_imem_td_update_timer_suspend(struct iosm_imem *ipc_imem, bool suspend)
 {
 	ipc_imem->td_update_timer_suspended = suspend;
+}
+
+/* Verify the CP execution state, copy the chip info,
+ * change the execution phase to ROM
+ */
+static int ipc_imem_devlink_trigger_chip_info_cb(struct iosm_imem *ipc_imem,
+						 int arg, void *msg,
+						 size_t msgsize)
+{
+	enum ipc_mem_exec_stage stage;
+	struct sk_buff *skb;
+	int rc = -EINVAL;
+	size_t size;
+
+	/* Test the CP execution state. */
+	stage = ipc_mmio_get_exec_stage(ipc_imem->mmio);
+	if (stage != IPC_MEM_EXEC_STAGE_BOOT) {
+		dev_err(ipc_imem->dev,
+			"Execution_stage: expected BOOT, received = %X", stage);
+		goto trigger_chip_info_fail;
+	}
+	/* Allocate a new sk buf for the chip info. */
+	size = ipc_imem->mmio->chip_info_size;
+	if (size > IOSM_CHIP_INFO_SIZE_MAX)
+		goto trigger_chip_info_fail;
+
+	skb = ipc_pcie_alloc_local_skb(ipc_imem->pcie, GFP_ATOMIC, size);
+	if (!skb) {
+		dev_err(ipc_imem->dev, "exhausted skbuf kernel DL memory");
+		rc = -ENOMEM;
+		goto trigger_chip_info_fail;
+	}
+	/* Copy the chip info characters into the ipc_skb. */
+	ipc_mmio_copy_chip_info(ipc_imem->mmio, skb_put(skb, size), size);
+	/* First change to the ROM boot phase. */
+	dev_dbg(ipc_imem->dev, "execution_stage[%X] eq. BOOT", stage);
+	ipc_imem->phase = ipc_imem_phase_update(ipc_imem);
+	ipc_imem_sys_devlink_notify_rx(ipc_imem->ipc_devlink, skb);
+	rc = 0;
+trigger_chip_info_fail:
+	return rc;
+}
+
+int ipc_imem_devlink_trigger_chip_info(struct iosm_imem *ipc_imem)
+{
+	return ipc_task_queue_send_task(ipc_imem,
+					ipc_imem_devlink_trigger_chip_info_cb,
+					0, NULL, 0, true);
 }

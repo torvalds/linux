@@ -822,10 +822,8 @@ void mlx4_ib_destroy_alias_guid_service(struct mlx4_ib_dev *dev)
 		}
 		spin_unlock_irqrestore(&sriov->alias_guid.ag_work_lock, flags);
 	}
-	for (i = 0 ; i < dev->num_ports; i++) {
-		flush_workqueue(dev->sriov.alias_guid.ports_guid[i].wq);
+	for (i = 0 ; i < dev->num_ports; i++)
 		destroy_workqueue(dev->sriov.alias_guid.ports_guid[i].wq);
-	}
 	ib_sa_unregister_client(dev->sriov.alias_guid.sa_client);
 	kfree(dev->sriov.alias_guid.sa_client);
 }

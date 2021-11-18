@@ -341,6 +341,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 			cpu = torture_random(trsp) % nr_cpu_ids;
 			scfp->n_resched++;
 			resched_cpu(cpu);
+			this_cpu_inc(scf_invoked_count);
 		}
 		break;
 	case SCF_PRIM_SINGLE:
@@ -553,18 +554,18 @@ static int __init scf_torture_init(void)
 
 	scftorture_print_module_parms("Start of test");
 
-	if (weight_resched == -1 &&
-	    weight_single == -1 && weight_single_rpc == -1 && weight_single_wait == -1 &&
-	    weight_many == -1 && weight_many_wait == -1 &&
-	    weight_all == -1 && weight_all_wait == -1) {
-		weight_resched1 = 2 * nr_cpu_ids;
-		weight_single1 = 2 * nr_cpu_ids;
-		weight_single_rpc1 = 2 * nr_cpu_ids;
-		weight_single_wait1 = 2 * nr_cpu_ids;
-		weight_many1 = 2;
-		weight_many_wait1 = 2;
-		weight_all1 = 1;
-		weight_all_wait1 = 1;
+	if (weight_resched <= 0 &&
+	    weight_single <= 0 && weight_single_rpc <= 0 && weight_single_wait <= 0 &&
+	    weight_many <= 0 && weight_many_wait <= 0 &&
+	    weight_all <= 0 && weight_all_wait <= 0) {
+		weight_resched1 = weight_resched == 0 ? 0 : 2 * nr_cpu_ids;
+		weight_single1 = weight_single == 0 ? 0 : 2 * nr_cpu_ids;
+		weight_single_rpc1 = weight_single_rpc == 0 ? 0 : 2 * nr_cpu_ids;
+		weight_single_wait1 = weight_single_wait == 0 ? 0 : 2 * nr_cpu_ids;
+		weight_many1 = weight_many == 0 ? 0 : 2;
+		weight_many_wait1 = weight_many_wait == 0 ? 0 : 2;
+		weight_all1 = weight_all == 0 ? 0 : 1;
+		weight_all_wait1 = weight_all_wait == 0 ? 0 : 1;
 	} else {
 		if (weight_resched == -1)
 			weight_resched1 = 0;
@@ -583,8 +584,8 @@ static int __init scf_torture_init(void)
 		if (weight_all_wait == -1)
 			weight_all_wait1 = 0;
 	}
-	if (weight_single1 == 0 && weight_single_rpc1 == 0 && weight_single_wait1 == 0 &&
-	    weight_many1 == 0 && weight_many_wait1 == 0 &&
+	if (weight_resched1 == 0 && weight_single1 == 0 && weight_single_rpc1 == 0 &&
+	    weight_single_wait1 == 0 && weight_many1 == 0 && weight_many_wait1 == 0 &&
 	    weight_all1 == 0 && weight_all_wait1 == 0) {
 		VERBOSE_SCFTORTOUT_ERRSTRING("all zero weights makes no sense");
 		firsterr = -EINVAL;
@@ -605,17 +606,17 @@ static int __init scf_torture_init(void)
 
 	if (onoff_interval > 0) {
 		firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval, NULL);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 	if (shutdown_secs > 0) {
 		firsterr = torture_shutdown_init(shutdown_secs, scf_torture_cleanup);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 	if (stutter > 0) {
 		firsterr = torture_stutter_init(stutter, stutter);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 
@@ -636,12 +637,12 @@ static int __init scf_torture_init(void)
 		scf_stats_p[i].cpu = i;
 		firsterr = torture_create_kthread(scftorture_invoker, (void *)&scf_stats_p[i],
 						  scf_stats_p[i].task);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 	if (stat_interval > 0) {
 		firsterr = torture_create_kthread(scf_torture_stats, NULL, scf_torture_stats_task);
-		if (firsterr)
+		if (torture_init_error(firsterr))
 			goto unwind;
 	}
 
@@ -651,6 +652,10 @@ static int __init scf_torture_init(void)
 unwind:
 	torture_init_end();
 	scf_torture_cleanup();
+	if (shutdown_secs) {
+		WARN_ON(!IS_MODULE(CONFIG_SCF_TORTURE_TEST));
+		kernel_power_off();
+	}
 	return firsterr;
 }
 

@@ -1700,7 +1700,7 @@ static int tegra_i2c_init_hardware(struct tegra_i2c_dev *i2c_dev)
 	else
 		ret = tegra_i2c_init(i2c_dev);
 
-	pm_runtime_put(i2c_dev->dev);
+	pm_runtime_put_sync(i2c_dev->dev);
 
 	return ret;
 }
@@ -1819,7 +1819,7 @@ static int tegra_i2c_remove(struct platform_device *pdev)
 	struct tegra_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c_dev->adapter);
-	pm_runtime_disable(i2c_dev->dev);
+	pm_runtime_force_suspend(i2c_dev->dev);
 
 	tegra_i2c_release_dma(i2c_dev);
 	tegra_i2c_release_clocks(i2c_dev);

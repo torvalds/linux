@@ -38,7 +38,7 @@ properties:
 
   port:
     additionalProperties: false
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/$defs/port-base
 
     properties:
       endpoint:

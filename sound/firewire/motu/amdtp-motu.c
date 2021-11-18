@@ -276,10 +276,11 @@ static void __maybe_unused copy_message(u64 *frames, __be32 *buffer,
 
 	/* This is just for v2/v3 protocol. */
 	for (i = 0; i < data_blocks; ++i) {
-		*frames = (be32_to_cpu(buffer[1]) << 16) |
-			  (be32_to_cpu(buffer[2]) >> 16);
+		*frames = be32_to_cpu(buffer[1]);
+		*frames <<= 16;
+		*frames |= be32_to_cpu(buffer[2]) >> 16;
+		++frames;
 		buffer += data_block_quadlets;
-		frames++;
 	}
 }
 
@@ -332,6 +333,7 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 					    unsigned int packets,
 					    struct snd_pcm_substream *pcm)
 {
+	struct snd_motu *motu = container_of(s, struct snd_motu, tx_stream);
 	struct amdtp_motu *p = s->protocol;
 	unsigned int pcm_frames = 0;
 	int i;
@@ -354,6 +356,14 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 
 		if (p->midi_ports)
 			read_midi_messages(s, buf, data_blocks);
+	}
+
+	if (motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP) {
+		snd_motu_register_dsp_message_parser_parse(motu, descs, packets,
+							   s->data_block_quadlets);
+	} else if (motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP) {
+		snd_motu_command_dsp_message_parser_parse(motu, descs, packets,
+							  s->data_block_quadlets);
 	}
 
 	// For tracepoints.
@@ -413,8 +423,6 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 		if (p->midi_ports)
 			write_midi_messages(s, buf, data_blocks);
-
-		// TODO: how to interact control messages between userspace?
 
 		write_sph(p->cache, buf, data_blocks, s->data_block_quadlets);
 	}

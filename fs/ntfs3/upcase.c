@@ -5,13 +5,9 @@
  *
  */
 
-#include <linux/blkdev.h>
-#include <linux/buffer_head.h>
-#include <linux/module.h>
-#include <linux/nls.h>
+#include <linux/kernel.h>
+#include <linux/types.h>
 
-#include "debug.h"
-#include "ntfs.h"
 #include "ntfs_fs.h"
 
 static inline u16 upcase_unicode_char(const u16 *upcase, u16 chr)

@@ -2123,7 +2123,7 @@ void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
 void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings)
 {
-	struct encoder_unblank_param params = { { 0 } };
+	struct encoder_unblank_param params = {0};
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	struct dce_hwseq *hws = link->dc->hwseq;
@@ -2298,7 +2298,7 @@ void dcn20_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx,
 void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
-	struct mpcc_blnd_cfg blnd_cfg = { {0} };
+	struct mpcc_blnd_cfg blnd_cfg = {0};
 	bool per_pixel_alpha = pipe_ctx->plane_state->per_pixel_alpha;
 	int mpcc_id;
 	struct mpcc *new_mpcc;
@@ -2397,6 +2397,9 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	 * BY this, it is logic clean to separate stream and link
 	 */
 	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		if (pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control)
+			pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control(
+				pipe_ctx->stream->ctx->dc->hwseq, true);
 		setup_dp_hpo_stream(pipe_ctx, true);
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->enable_stream(
 				pipe_ctx->stream_res.hpo_dp_stream_enc);

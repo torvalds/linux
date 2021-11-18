@@ -1092,6 +1092,7 @@ struct in6_addr *fl6_update_dst(struct flowi6 *fl6,
 /*
  *	socket options (ipv6_sockglue.c)
  */
+DECLARE_STATIC_KEY_FALSE(ip6_min_hopcount);
 
 int ipv6_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
 		    unsigned int optlen);

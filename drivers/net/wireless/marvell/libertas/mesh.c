@@ -169,7 +169,7 @@ static ssize_t anycast_mask_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 12, "0x%X\n", le32_to_cpu(mesh_access.data[0]));
+	return sysfs_emit(buf, "0x%X\n", le32_to_cpu(mesh_access.data[0]));
 }
 
 /**
@@ -222,7 +222,7 @@ static ssize_t prb_rsp_limit_show(struct device *dev,
 		return ret;
 
 	retry_limit = le32_to_cpu(mesh_access.data[1]);
-	return snprintf(buf, 10, "%d\n", retry_limit);
+	return sysfs_emit(buf, "%d\n", retry_limit);
 }
 
 /**
@@ -270,7 +270,7 @@ static ssize_t lbs_mesh_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-	return snprintf(buf, 5, "0x%X\n", !!priv->mesh_dev);
+	return sysfs_emit(buf, "0x%X\n", !!priv->mesh_dev);
 }
 
 /**
@@ -369,7 +369,7 @@ static ssize_t bootflag_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 12, "%d\n", le32_to_cpu(defs.bootflag));
+	return sysfs_emit(buf, "%d\n", le32_to_cpu(defs.bootflag));
 }
 
 /**
@@ -419,7 +419,7 @@ static ssize_t boottime_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 12, "%d\n", defs.boottime);
+	return sysfs_emit(buf, "%d\n", defs.boottime);
 }
 
 /**
@@ -479,7 +479,7 @@ static ssize_t channel_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 12, "%d\n", le16_to_cpu(defs.channel));
+	return sysfs_emit(buf, "%d\n", le16_to_cpu(defs.channel));
 }
 
 /**
@@ -605,7 +605,7 @@ static ssize_t protocol_id_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 5, "%d\n", defs.meshie.val.active_protocol_id);
+	return sysfs_emit(buf, "%d\n", defs.meshie.val.active_protocol_id);
 }
 
 /**
@@ -667,7 +667,7 @@ static ssize_t metric_id_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 5, "%d\n", defs.meshie.val.active_metric_id);
+	return sysfs_emit(buf, "%d\n", defs.meshie.val.active_metric_id);
 }
 
 /**
@@ -729,7 +729,7 @@ static ssize_t capability_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, 5, "%d\n", defs.meshie.val.mesh_capability);
+	return sysfs_emit(buf, "%d\n", defs.meshie.val.mesh_capability);
 }
 
 /**

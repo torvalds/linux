@@ -285,9 +285,6 @@ static int s35390a_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 		alm->time.tm_min, alm->time.tm_hour, alm->time.tm_mday,
 		alm->time.tm_mon, alm->time.tm_year, alm->time.tm_wday);
 
-	if (alm->time.tm_sec != 0)
-		dev_warn(&client->dev, "Alarms are only supported on a per minute basis!\n");
-
 	/* disable interrupt (which deasserts the irq line) */
 	err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
 	if (err < 0)
@@ -491,8 +488,8 @@ static int s35390a_probe(struct i2c_client *client,
 	s35390a->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	s35390a->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	/* supports per-minute alarms only, therefore set uie_unsupported */
-	s35390a->rtc->uie_unsupported = 1;
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, s35390a->rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, s35390a->rtc->features );
 
 	if (status1 & S35390A_FLAG_INT2)
 		rtc_update_irq(s35390a->rtc, 1, RTC_AF);

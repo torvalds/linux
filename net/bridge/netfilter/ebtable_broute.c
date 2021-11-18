@@ -66,7 +66,7 @@ static unsigned int ebt_broute(void *priv, struct sk_buff *skb,
 			   NFPROTO_BRIDGE, s->in, NULL, NULL,
 			   s->net, NULL);
 
-	ret = ebt_do_table(skb, &state, priv);
+	ret = ebt_do_table(priv, skb, &state);
 	if (ret != NF_DROP)
 		return ret;
 

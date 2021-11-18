@@ -8,6 +8,8 @@
 #include "en_stats.h"
 #include <linux/ptp_classify.h>
 
+#define MLX5E_PTP_CHANNEL_IX 0
+
 struct mlx5e_ptpsq {
 	struct mlx5e_txqsq       txqsq;
 	struct mlx5e_cq          ts_cq;

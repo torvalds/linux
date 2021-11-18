@@ -72,7 +72,7 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 		if (band == NL80211_BAND_2GHZ)
 			he_cap_elem->phy_cap_info[0] =
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
-		else if (band == NL80211_BAND_5GHZ)
+		else
 			he_cap_elem->phy_cap_info[0] =
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G;
 
@@ -93,7 +93,7 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 			if (band == NL80211_BAND_2GHZ)
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_2G;
-			else if (band == NL80211_BAND_5GHZ)
+			else
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G;
 
@@ -142,6 +142,32 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 			he_cap_elem->phy_cap_info[9] |=
 				IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US;
 		}
+
+		if (band == NL80211_BAND_6GHZ) {
+			struct ieee80211_supported_band *sband =
+				&phy->mt76->sband_5g.sband;
+			struct ieee80211_sta_vht_cap *vht_cap = &sband->vht_cap;
+			struct ieee80211_sta_ht_cap *ht_cap = &sband->ht_cap;
+			u32 exp;
+			u16 cap;
+
+			cap = u16_encode_bits(ht_cap->ampdu_density,
+					IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START);
+			exp = u32_get_bits(vht_cap->cap,
+				IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
+			cap |= u16_encode_bits(exp,
+					IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
+			exp = u32_get_bits(vht_cap->cap,
+					   IEEE80211_VHT_CAP_MAX_MPDU_MASK);
+			cap |= u16_encode_bits(exp,
+					IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
+			if (vht_cap->cap & IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN)
+				cap |= IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS;
+			if (vht_cap->cap & IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN)
+				cap |= IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
+
+			data->he_6ghz_capa.capa = cpu_to_le16(cap);
+		}
 		idx++;
 	}
 
@@ -170,6 +196,15 @@ void mt7921_set_stream_he_caps(struct mt7921_phy *phy)
 		band = &phy->mt76->sband_5g.sband;
 		band->iftype_data = data;
 		band->n_iftype_data = n;
+
+		if (phy->mt76->cap.has_6ghz) {
+			data = phy->iftype[NL80211_BAND_6GHZ];
+			n = mt7921_init_he_caps(phy, NL80211_BAND_6GHZ, data);
+
+			band = &phy->mt76->sband_6g.sband;
+			band->iftype_data = data;
+			band->n_iftype_data = n;
+		}
 	}
 }
 
@@ -202,6 +237,7 @@ int __mt7921_start(struct mt7921_phy *phy)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__mt7921_start);
 
 static int mt7921_start(struct ieee80211_hw *hw)
 {
@@ -243,10 +279,6 @@ static int mt7921_add_interface(struct ieee80211_hw *hw,
 
 	mt7921_mutex_acquire(dev);
 
-	if (vif->type == NL80211_IFTYPE_MONITOR &&
-	    is_zero_ether_addr(vif->addr))
-		phy->monitor_vif = vif;
-
 	mvif->mt76.idx = ffs(~dev->mt76.vif_mask) - 1;
 	if (mvif->mt76.idx >= MT7921_MAX_INTERFACES) {
 		ret = -ENOSPC;
@@ -268,12 +300,13 @@ static int mt7921_add_interface(struct ieee80211_hw *hw,
 
 	idx = MT7921_WTBL_RESERVED - mvif->mt76.idx;
 
-	INIT_LIST_HEAD(&mvif->sta.stats_list);
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
 	mvif->sta.wcid.ext_phy = mvif->mt76.band_idx;
 	mvif->sta.wcid.hw_key_idx = -1;
 	mvif->sta.wcid.tx_info |= MT_WCID_TX_INFO_SET;
+	mt76_packet_id_init(&mvif->sta.wcid);
+
 	mt7921_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
@@ -306,9 +339,6 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 	int idx = msta->wcid.idx;
 
-	if (vif == phy->monitor_vif)
-		phy->monitor_vif = NULL;
-
 	mt7921_mutex_acquire(dev);
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
 	mt76_connac_mcu_uni_add_dev(&dev->mphy, vif, &mvif->sta.wcid, false);
@@ -323,6 +353,8 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 	if (!list_empty(&msta->poll_list))
 		list_del_init(&msta->poll_list);
 	spin_unlock_bh(&dev->sta_poll_lock);
+
+	mt76_packet_id_flush(&dev->mt76, &msta->wcid);
 }
 
 static int mt7921_set_channel(struct mt7921_phy *phy)
@@ -533,36 +565,6 @@ static void mt7921_configure_filter(struct ieee80211_hw *hw,
 	mt7921_mutex_release(dev);
 }
 
-static int
-mt7921_bss_bcnft_apply(struct mt7921_dev *dev, struct ieee80211_vif *vif,
-		       bool assoc)
-{
-	int ret;
-
-	if (!dev->pm.enable)
-		return 0;
-
-	if (assoc) {
-		ret = mt7921_mcu_uni_bss_bcnft(dev, vif, true);
-		if (ret)
-			return ret;
-
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-		mt76_set(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
-
-		return 0;
-	}
-
-	ret = mt7921_mcu_set_bss_pm(dev, vif, false);
-	if (ret)
-		return ret;
-
-	vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
-	mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
-
-	return 0;
-}
-
 static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
@@ -592,7 +594,8 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		mt7921_mcu_sta_update(dev, NULL, vif, true,
 				      MT76_STA_INFO_STATE_ASSOC);
-		mt7921_bss_bcnft_apply(dev, vif, info->assoc);
+		if (dev->pm.enable)
+			mt7921_mcu_set_beacon_filter(dev, vif, info->assoc);
 	}
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
@@ -617,14 +620,13 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	if (idx < 0)
 		return -ENOSPC;
 
-	INIT_LIST_HEAD(&msta->stats_list);
 	INIT_LIST_HEAD(&msta->poll_list);
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
 	msta->wcid.ext_phy = mvif->mt76.band_idx;
 	msta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	msta->stats.jiffies = jiffies;
+	msta->last_txs = jiffies;
 
 	ret = mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 	if (ret)
@@ -645,6 +647,7 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt7921_mac_sta_add);
 
 void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta)
@@ -666,6 +669,7 @@ void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	mt7921_mutex_release(dev);
 }
+EXPORT_SYMBOL_GPL(mt7921_mac_sta_assoc);
 
 void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
@@ -693,12 +697,11 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	spin_lock_bh(&dev->sta_poll_lock);
 	if (!list_empty(&msta->poll_list))
 		list_del_init(&msta->poll_list);
-	if (!list_empty(&msta->stats_list))
-		list_del_init(&msta->stats_list);
 	spin_unlock_bh(&dev->sta_poll_lock);
 
 	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 }
+EXPORT_SYMBOL_GPL(mt7921_mac_sta_remove);
 
 void mt7921_tx_worker(struct mt76_worker *w)
 {
@@ -853,11 +856,173 @@ mt7921_get_stats(struct ieee80211_hw *hw,
 	stats->dot11FCSErrorCount = mib->fcs_err_cnt;
 	stats->dot11ACKFailureCount = mib->ack_fail_cnt;
 
-	memset(mib, 0, sizeof(*mib));
-
 	mt7921_mutex_release(phy->dev);
 
 	return 0;
+}
+
+static const char mt7921_gstrings_stats[][ETH_GSTRING_LEN] = {
+	/* tx counters */
+	"tx_ampdu_cnt",
+	"tx_mpdu_attempts",
+	"tx_mpdu_success",
+	"tx_pkt_ebf_cnt",
+	"tx_pkt_ibf_cnt",
+	"tx_ampdu_len:0-1",
+	"tx_ampdu_len:2-10",
+	"tx_ampdu_len:11-19",
+	"tx_ampdu_len:20-28",
+	"tx_ampdu_len:29-37",
+	"tx_ampdu_len:38-46",
+	"tx_ampdu_len:47-55",
+	"tx_ampdu_len:56-79",
+	"tx_ampdu_len:80-103",
+	"tx_ampdu_len:104-127",
+	"tx_ampdu_len:128-151",
+	"tx_ampdu_len:152-175",
+	"tx_ampdu_len:176-199",
+	"tx_ampdu_len:200-223",
+	"tx_ampdu_len:224-247",
+	"ba_miss_count",
+	"tx_beamformer_ppdu_iBF",
+	"tx_beamformer_ppdu_eBF",
+	"tx_beamformer_rx_feedback_all",
+	"tx_beamformer_rx_feedback_he",
+	"tx_beamformer_rx_feedback_vht",
+	"tx_beamformer_rx_feedback_ht",
+	"tx_msdu_pack_1",
+	"tx_msdu_pack_2",
+	"tx_msdu_pack_3",
+	"tx_msdu_pack_4",
+	"tx_msdu_pack_5",
+	"tx_msdu_pack_6",
+	"tx_msdu_pack_7",
+	"tx_msdu_pack_8",
+	/* rx counters */
+	"rx_mpdu_cnt",
+	"rx_ampdu_cnt",
+	"rx_ampdu_bytes_cnt",
+	"rx_ba_cnt",
+	/* per vif counters */
+	"v_tx_mode_cck",
+	"v_tx_mode_ofdm",
+	"v_tx_mode_ht",
+	"v_tx_mode_ht_gf",
+	"v_tx_mode_vht",
+	"v_tx_mode_he_su",
+	"v_tx_mode_he_ext_su",
+	"v_tx_mode_he_tb",
+	"v_tx_mode_he_mu",
+	"v_tx_bw_20",
+	"v_tx_bw_40",
+	"v_tx_bw_80",
+	"v_tx_bw_160",
+	"v_tx_mcs_0",
+	"v_tx_mcs_1",
+	"v_tx_mcs_2",
+	"v_tx_mcs_3",
+	"v_tx_mcs_4",
+	"v_tx_mcs_5",
+	"v_tx_mcs_6",
+	"v_tx_mcs_7",
+	"v_tx_mcs_8",
+	"v_tx_mcs_9",
+	"v_tx_mcs_10",
+	"v_tx_mcs_11",
+};
+
+static void
+mt7921_get_et_strings(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      u32 sset, u8 *data)
+{
+	if (sset != ETH_SS_STATS)
+		return;
+
+	memcpy(data, *mt7921_gstrings_stats, sizeof(mt7921_gstrings_stats));
+}
+
+static int
+mt7921_get_et_sset_count(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 int sset)
+{
+	return sset == ETH_SS_STATS ? ARRAY_SIZE(mt7921_gstrings_stats) : 0;
+}
+
+static void
+mt7921_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
+{
+	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt76_ethtool_worker_info *wi = wi_data;
+
+	if (msta->vif->mt76.idx != wi->idx)
+		return;
+
+	mt76_ethtool_worker(wi, &msta->stats);
+}
+
+static
+void mt7921_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 struct ethtool_stats *stats, u64 *data)
+{
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt7921_dev *dev = phy->dev;
+	struct mib_stats *mib = &phy->mib;
+	struct mt76_ethtool_worker_info wi = {
+		.data = data,
+		.idx = mvif->mt76.idx,
+	};
+	int i, ei = 0;
+
+	mt7921_mutex_acquire(dev);
+
+	mt7921_mac_update_mib_stats(phy);
+
+	data[ei++] = mib->tx_ampdu_cnt;
+	data[ei++] = mib->tx_mpdu_attempts_cnt;
+	data[ei++] = mib->tx_mpdu_success_cnt;
+	data[ei++] = mib->tx_pkt_ebf_cnt;
+	data[ei++] = mib->tx_pkt_ibf_cnt;
+
+	/* Tx ampdu stat */
+	for (i = 0; i < 15; i++)
+		data[ei++] = dev->mt76.aggr_stats[i];
+
+	data[ei++] = phy->mib.ba_miss_cnt;
+
+	/* Tx Beamformer monitor */
+	data[ei++] = mib->tx_bf_ibf_ppdu_cnt;
+	data[ei++] = mib->tx_bf_ebf_ppdu_cnt;
+
+	/* Tx Beamformer Rx feedback monitor */
+	data[ei++] = mib->tx_bf_rx_fb_all_cnt;
+	data[ei++] = mib->tx_bf_rx_fb_he_cnt;
+	data[ei++] = mib->tx_bf_rx_fb_vht_cnt;
+	data[ei++] = mib->tx_bf_rx_fb_ht_cnt;
+
+	/* Tx amsdu info (pack-count histogram) */
+	for (i = 0; i < ARRAY_SIZE(mib->tx_amsdu); i++)
+		data[ei++] = mib->tx_amsdu[i];
+
+	/* rx counters */
+	data[ei++] = mib->rx_mpdu_cnt;
+	data[ei++] = mib->rx_ampdu_cnt;
+	data[ei++] = mib->rx_ampdu_bytes_cnt;
+	data[ei++] = mib->rx_ba_cnt;
+
+	/* Add values for all stations owned by this vif */
+	wi.initial_stat_idx = ei;
+	ieee80211_iterate_stations_atomic(hw, mt7921_ethtool_worker, &wi);
+
+	mt7921_mutex_release(dev);
+
+	if (!wi.sta_count)
+		return;
+
+	ei += wi.worker_stat_count;
+	if (ei != ARRAY_SIZE(mt7921_gstrings_stats))
+		dev_err(dev->mt76.dev, "ei: %d  SSTATS_LEN: %zu",
+			ei, ARRAY_SIZE(mt7921_gstrings_stats));
 }
 
 static u64
@@ -1048,22 +1213,22 @@ static void mt7921_sta_statistics(struct ieee80211_hw *hw,
 				  struct station_info *sinfo)
 {
 	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
-	struct mt7921_sta_stats *stats = &msta->stats;
+	struct rate_info *txrate = &msta->wcid.rate;
 
-	if (!stats->tx_rate.legacy && !stats->tx_rate.flags)
+	if (!txrate->legacy && !txrate->flags)
 		return;
 
-	if (stats->tx_rate.legacy) {
-		sinfo->txrate.legacy = stats->tx_rate.legacy;
+	if (txrate->legacy) {
+		sinfo->txrate.legacy = txrate->legacy;
 	} else {
-		sinfo->txrate.mcs = stats->tx_rate.mcs;
-		sinfo->txrate.nss = stats->tx_rate.nss;
-		sinfo->txrate.bw = stats->tx_rate.bw;
-		sinfo->txrate.he_gi = stats->tx_rate.he_gi;
-		sinfo->txrate.he_dcm = stats->tx_rate.he_dcm;
-		sinfo->txrate.he_ru_alloc = stats->tx_rate.he_ru_alloc;
+		sinfo->txrate.mcs = txrate->mcs;
+		sinfo->txrate.nss = txrate->nss;
+		sinfo->txrate.bw = txrate->bw;
+		sinfo->txrate.he_gi = txrate->he_gi;
+		sinfo->txrate.he_dcm = txrate->he_dcm;
+		sinfo->txrate.he_ru_alloc = txrate->he_ru_alloc;
 	}
-	sinfo->txrate.flags = stats->tx_rate.flags;
+	sinfo->txrate.flags = txrate->flags;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 }
 
@@ -1172,6 +1337,43 @@ static void mt7921_sta_set_decap_offload(struct ieee80211_hw *hw,
 					     MCU_UNI_CMD_STA_REC_UPDATE);
 }
 
+static int mt7921_set_sar_specs(struct ieee80211_hw *hw,
+				const struct cfg80211_sar_specs *sar)
+{
+	const struct cfg80211_sar_capa *capa = hw->wiphy->sar_capa;
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+	struct mt76_freq_range_power *data, *frp;
+	struct mt76_phy *mphy = hw->priv;
+	int err;
+	u32 i;
+
+	if (sar->type != NL80211_SAR_TYPE_POWER || !sar->num_sub_specs)
+		return -EINVAL;
+
+	mt7921_mutex_acquire(dev);
+
+	data = mphy->frp;
+
+	for (i = 0; i < sar->num_sub_specs; i++) {
+		u32 index = sar->sub_specs[i].freq_range_index;
+		/* SAR specifies power limitaton in 0.25dbm */
+		s32 power = sar->sub_specs[i].power >> 1;
+
+		if (power > 127 || power < -127)
+			power = 127;
+
+		frp = &data[index];
+		frp->range = &capa->freq_ranges[index];
+		frp->power = power;
+	}
+
+	err = mt76_connac_mcu_set_rate_txpower(mphy);
+
+	mt7921_mutex_release(dev);
+
+	return err;
+}
+
 const struct ieee80211_ops mt7921_ops = {
 	.tx = mt7921_tx,
 	.start = mt7921_start,
@@ -1192,6 +1394,9 @@ const struct ieee80211_ops mt7921_ops = {
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.get_txpower = mt76_get_txpower,
 	.get_stats = mt7921_get_stats,
+	.get_et_sset_count = mt7921_get_et_sset_count,
+	.get_et_strings = mt7921_get_et_strings,
+	.get_et_stats = mt7921_get_et_stats,
 	.get_tsf = mt7921_get_tsf,
 	.set_tsf = mt7921_set_tsf,
 	.get_survey = mt76_get_survey,
@@ -1203,6 +1408,8 @@ const struct ieee80211_ops mt7921_ops = {
 	.sta_statistics = mt7921_sta_statistics,
 	.sched_scan_start = mt7921_start_sched_scan,
 	.sched_scan_stop = mt7921_stop_sched_scan,
+	CFG80211_TESTMODE_CMD(mt7921_testmode_cmd)
+	CFG80211_TESTMODE_DUMP(mt7921_testmode_dump)
 #ifdef CONFIG_PM
 	.suspend = mt7921_suspend,
 	.resume = mt7921_resume,
@@ -1210,4 +1417,9 @@ const struct ieee80211_ops mt7921_ops = {
 	.set_rekey_data = mt7921_set_rekey_data,
 #endif /* CONFIG_PM */
 	.flush = mt7921_flush,
+	.set_sar_specs = mt7921_set_sar_specs,
 };
+EXPORT_SYMBOL_GPL(mt7921_ops);
+
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");

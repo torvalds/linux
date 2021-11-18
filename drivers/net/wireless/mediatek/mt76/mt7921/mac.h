@@ -116,6 +116,7 @@ enum rx_pkt_type {
 #define MT_PRXV_TX_DCM			BIT(4)
 #define MT_PRXV_TX_ER_SU_106T		BIT(5)
 #define MT_PRXV_NSTS			GENMASK(9, 7)
+#define MT_PRXV_TXBF			BIT(10)
 #define MT_PRXV_HT_AD_CODE		BIT(11)
 #define MT_PRXV_FRAME_MODE		GENMASK(14, 12)
 #define MT_PRXV_SGI			GENMASK(16, 15)
@@ -138,7 +139,14 @@ enum rx_pkt_type {
 #define MT_CRXV_HE_LTF_SIZE		GENMASK(18, 17)
 #define MT_CRXV_HE_LDPC_EXT_SYM		BIT(20)
 #define MT_CRXV_HE_PE_DISAMBIG		BIT(23)
+#define MT_CRXV_HE_NUM_USER		GENMASK(30, 24)
 #define MT_CRXV_HE_UPLINK		BIT(31)
+
+#define MT_CRXV_HE_RU0			GENMASK(7, 0)
+#define MT_CRXV_HE_RU1			GENMASK(15, 8)
+#define MT_CRXV_HE_RU2			GENMASK(23, 16)
+#define MT_CRXV_HE_RU3			GENMASK(31, 24)
+#define MT_CRXV_HE_MU_AID		GENMASK(30, 20)
 
 #define MT_CRXV_HE_SR_MASK		GENMASK(11, 8)
 #define MT_CRXV_HE_SR1_MASK		GENMASK(16, 12)
@@ -190,6 +198,10 @@ enum tx_mcu_port_q_idx {
 #define MT_CT_INFO_FROM_HOST		BIT(7)
 
 #define MT_TXD_SIZE			(8 * 4)
+
+#define MT_SDIO_TXD_SIZE		(MT_TXD_SIZE + 8 * 4)
+#define MT_SDIO_TAIL_SIZE		8
+#define MT_SDIO_HDR_SIZE		4
 
 #define MT_TXD0_Q_IDX			GENMASK(31, 25)
 #define MT_TXD0_PKT_FMT			GENMASK(24, 23)
@@ -309,6 +321,15 @@ struct mt7921_tx_free {
 /* will support this field in further revision */
 #define MT_TX_FREE_RATE			GENMASK(13, 0)
 
+#define MT_TXS0_BW			GENMASK(30, 29)
+#define MT_TXS0_TXS_FORMAT		GENMASK(24, 23)
+#define MT_TXS0_ACK_ERROR_MASK		GENMASK(18, 16)
+#define MT_TXS0_TX_RATE			GENMASK(13, 0)
+
+#define MT_TXS2_WCID			GENMASK(25, 16)
+
+#define MT_TXS3_PID			GENMASK(31, 24)
+
 static inline struct mt7921_txp_common *
 mt7921_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
@@ -349,5 +370,16 @@ struct mt7921_txp_common {
 		struct mt7921_hw_txp hw;
 	};
 };
+
+#define MT_WTBL_TXRX_CAP_RATE_OFFSET	7
+#define MT_WTBL_TXRX_RATE_G2_HE		24
+#define MT_WTBL_TXRX_RATE_G2		12
+
+#define MT_WTBL_AC0_CTT_OFFSET		20
+
+static inline u32 mt7921_mac_wtbl_lmac_addr(int idx, u8 offset)
+{
+	return MT_WTBL_LMAC_OFFS(idx, 0) + offset * 4;
+}
 
 #endif

@@ -52,7 +52,7 @@
 	};
 
 	ethernet@18000000 {
-		compatible = "smsc,lan9220", "smsc,lan9115";
+		compatible = "smsc,lan89218", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
 		pinctrl-0 = <&ethernet_pins>;
 		pinctrl-names = "default";

@@ -836,7 +836,7 @@ static void qede_init_ndev(struct qede_dev *edev)
 	ndev->max_mtu = QEDE_MAX_JUMBO_PACKET_SIZE;
 
 	/* Set network device HW mac */
-	ether_addr_copy(edev->ndev->dev_addr, edev->dev_info.common.hw_mac);
+	eth_hw_addr_set(edev->ndev, edev->dev_info.common.hw_mac);
 
 	ndev->mtu = edev->dev_info.common.mtu;
 }
@@ -1176,19 +1176,17 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 		edev->devlink = qed_ops->common->devlink_register(cdev);
 		if (IS_ERR(edev->devlink)) {
 			DP_NOTICE(edev, "Cannot register devlink\n");
+			rc = PTR_ERR(edev->devlink);
 			edev->devlink = NULL;
-			/* Go on, we can live without devlink */
+			goto err3;
 		}
 	} else {
 		struct net_device *ndev = pci_get_drvdata(pdev);
+		struct qed_devlink *qdl;
 
 		edev = netdev_priv(ndev);
-
-		if (edev->devlink) {
-			struct qed_devlink *qdl = devlink_priv(edev->devlink);
-
-			qdl->cdev = cdev;
-		}
+		qdl = devlink_priv(edev->devlink);
+		qdl->cdev = cdev;
 		edev->cdev = cdev;
 		memset(&edev->stats, 0, sizeof(edev->stats));
 		memcpy(&edev->dev_info, &dev_info, sizeof(dev_info));
@@ -1397,7 +1395,7 @@ static void qede_free_mem_sb(struct qede_dev *edev, struct qed_sb_info *sb_info,
 static int qede_alloc_mem_sb(struct qede_dev *edev,
 			     struct qed_sb_info *sb_info, u16 sb_id)
 {
-	struct status_block_e4 *sb_virt;
+	struct status_block *sb_virt;
 	dma_addr_t sb_phys;
 	int rc;
 
@@ -2802,9 +2800,12 @@ static void qede_get_eth_tlv_data(void *dev, void *data)
 }
 
 /**
- * qede_io_error_detected - called when PCI error is detected
+ * qede_io_error_detected(): Called when PCI error is detected
+ *
  * @pdev: Pointer to PCI device
  * @state: The current pci connection state
+ *
+ *Return: pci_ers_result_t.
  *
  * This function is called after a PCI bus error affecting
  * this device has been detected.

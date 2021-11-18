@@ -77,10 +77,10 @@ xfs_inode_alloc(
 	 * XXX: If this didn't occur in transactions, we could drop GFP_NOFAIL
 	 * and return NULL here on ENOMEM.
 	 */
-	ip = kmem_cache_alloc(xfs_inode_zone, GFP_KERNEL | __GFP_NOFAIL);
+	ip = kmem_cache_alloc(xfs_inode_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	if (inode_init_always(mp->m_super, VFS_I(ip))) {
-		kmem_cache_free(xfs_inode_zone, ip);
+		kmem_cache_free(xfs_inode_cache, ip);
 		return NULL;
 	}
 
@@ -130,11 +130,11 @@ xfs_inode_free_callback(
 
 	if (ip->i_afp) {
 		xfs_idestroy_fork(ip->i_afp);
-		kmem_cache_free(xfs_ifork_zone, ip->i_afp);
+		kmem_cache_free(xfs_ifork_cache, ip->i_afp);
 	}
 	if (ip->i_cowfp) {
 		xfs_idestroy_fork(ip->i_cowfp);
-		kmem_cache_free(xfs_ifork_zone, ip->i_cowfp);
+		kmem_cache_free(xfs_ifork_cache, ip->i_cowfp);
 	}
 	if (ip->i_itemp) {
 		ASSERT(!test_bit(XFS_LI_IN_AIL,
@@ -143,7 +143,7 @@ xfs_inode_free_callback(
 		ip->i_itemp = NULL;
 	}
 
-	kmem_cache_free(xfs_inode_zone, ip);
+	kmem_cache_free(xfs_inode_cache, ip);
 }
 
 static void

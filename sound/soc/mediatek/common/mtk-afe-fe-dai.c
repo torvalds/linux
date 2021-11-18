@@ -288,7 +288,6 @@ const struct snd_soc_dai_ops mtk_afe_fe_ops = {
 };
 EXPORT_SYMBOL_GPL(mtk_afe_fe_ops);
 
-static DEFINE_MUTEX(irqs_lock);
 int mtk_dynamic_irq_acquire(struct mtk_base_afe *afe)
 {
 	int i;
@@ -334,9 +333,11 @@ int mtk_afe_suspend(struct snd_soc_component *component)
 			devm_kcalloc(dev, afe->reg_back_up_list_num,
 				     sizeof(unsigned int), GFP_KERNEL);
 
-	for (i = 0; i < afe->reg_back_up_list_num; i++)
-		regmap_read(regmap, afe->reg_back_up_list[i],
-			    &afe->reg_back_up[i]);
+	if (afe->reg_back_up) {
+		for (i = 0; i < afe->reg_back_up_list_num; i++)
+			regmap_read(regmap, afe->reg_back_up_list[i],
+				    &afe->reg_back_up[i]);
+	}
 
 	afe->suspended = true;
 	afe->runtime_suspend(dev);
@@ -349,19 +350,20 @@ int mtk_afe_resume(struct snd_soc_component *component)
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 	struct device *dev = afe->dev;
 	struct regmap *regmap = afe->regmap;
-	int i = 0;
+	int i;
 
 	if (pm_runtime_status_suspended(dev) || !afe->suspended)
 		return 0;
 
 	afe->runtime_resume(dev);
 
-	if (!afe->reg_back_up)
+	if (!afe->reg_back_up) {
 		dev_dbg(dev, "%s no reg_backup\n", __func__);
-
-	for (i = 0; i < afe->reg_back_up_list_num; i++)
-		mtk_regmap_write(regmap, afe->reg_back_up_list[i],
-				 afe->reg_back_up[i]);
+	} else {
+		for (i = 0; i < afe->reg_back_up_list_num; i++)
+			mtk_regmap_write(regmap, afe->reg_back_up_list[i],
+					 afe->reg_back_up[i]);
+	}
 
 	afe->suspended = false;
 	return 0;

@@ -244,7 +244,7 @@ static int brcmf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 	} else {
 		brcmf_dbg(TRACE, "updated to %pM\n", sa->sa_data);
 		memcpy(ifp->mac_addr, sa->sa_data, ETH_ALEN);
-		memcpy(ifp->ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(ifp->ndev, ifp->mac_addr);
 	}
 	return err;
 }
@@ -655,7 +655,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool locked)
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
 
 	/* set the mac address & netns */
-	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(ndev, ifp->mac_addr);
 	dev_net_set(ndev, wiphy_net(cfg_to_wiphy(drvr->config)));
 
 	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
@@ -830,7 +830,7 @@ static int brcmf_net_p2p_attach(struct brcmf_if *ifp)
 	ndev->netdev_ops = &brcmf_netdev_ops_p2p;
 
 	/* set the mac address */
-	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(ndev, ifp->mac_addr);
 
 	if (register_netdev(ndev) != 0) {
 		bphy_err(drvr, "couldn't register the p2p net device\n");

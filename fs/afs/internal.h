@@ -390,6 +390,9 @@ struct afs_cell {
 	/* Active fileserver interaction state. */
 	struct rb_root		fs_servers;	/* afs_server (by server UUID) */
 	seqlock_t		fs_lock;	/* For fs_servers  */
+	struct rw_semaphore	fs_open_mmaps_lock;
+	struct list_head	fs_open_mmaps;	/* List of vnodes that are mmapped */
+	atomic_t		fs_s_break;	/* Counter of CB.InitCallBackState messages */
 
 	/* VL server list. */
 	rwlock_t		vl_servers_lock; /* Lock on vl_servers */
@@ -503,6 +506,7 @@ struct afs_server {
 	struct hlist_node	addr4_link;	/* Link in net->fs_addresses4 */
 	struct hlist_node	addr6_link;	/* Link in net->fs_addresses6 */
 	struct hlist_node	proc_link;	/* Link in net->fs_proc */
+	struct work_struct	initcb_work;	/* Work for CB.InitCallBackState* */
 	struct afs_server	*gc_next;	/* Next server in manager's list */
 	time64_t		unuse_time;	/* Time at which last unused */
 	unsigned long		flags;
@@ -516,6 +520,7 @@ struct afs_server {
 #define AFS_SERVER_FL_IS_YFS	16		/* Server is YFS not AFS */
 #define AFS_SERVER_FL_NO_IBULK	17		/* Fileserver doesn't support FS.InlineBulkStatus */
 #define AFS_SERVER_FL_NO_RM2	18		/* Fileserver doesn't support YFS.RemoveFile2 */
+#define AFS_SERVER_FL_HAS_FS64	19		/* Fileserver supports FS.{Fetch,Store}Data64 */
 	atomic_t		ref;		/* Object refcount */
 	atomic_t		active;		/* Active user count */
 	u32			addr_version;	/* Address list version */
@@ -657,7 +662,11 @@ struct afs_vnode {
 	afs_lock_type_t		lock_type : 8;
 
 	/* outstanding callback notification on this file */
+	struct work_struct	cb_work;	/* Work for mmap'd files */
+	struct list_head	cb_mmap_link;	/* Link in cell->fs_open_mmaps */
 	void			*cb_server;	/* Server with callback/filelock */
+	atomic_t		cb_nr_mmap;	/* Number of mmaps */
+	unsigned int		cb_fs_s_break;	/* Mass server break counter (cell->fs_s_break) */
 	unsigned int		cb_s_break;	/* Mass break counter on ->server */
 	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */
@@ -867,59 +876,59 @@ struct afs_vnode_cache_aux {
 } __packed;
 
 /*
- * We use page->private to hold the amount of the page that we've written to,
+ * We use folio->private to hold the amount of the folio that we've written to,
  * splitting the field into two parts.  However, we need to represent a range
- * 0...PAGE_SIZE, so we reduce the resolution if the size of the page
+ * 0...FOLIO_SIZE, so we reduce the resolution if the size of the folio
  * exceeds what we can encode.
  */
 #ifdef CONFIG_64BIT
-#define __AFS_PAGE_PRIV_MASK	0x7fffffffUL
-#define __AFS_PAGE_PRIV_SHIFT	32
-#define __AFS_PAGE_PRIV_MMAPPED	0x80000000UL
+#define __AFS_FOLIO_PRIV_MASK		0x7fffffffUL
+#define __AFS_FOLIO_PRIV_SHIFT		32
+#define __AFS_FOLIO_PRIV_MMAPPED	0x80000000UL
 #else
-#define __AFS_PAGE_PRIV_MASK	0x7fffUL
-#define __AFS_PAGE_PRIV_SHIFT	16
-#define __AFS_PAGE_PRIV_MMAPPED	0x8000UL
+#define __AFS_FOLIO_PRIV_MASK		0x7fffUL
+#define __AFS_FOLIO_PRIV_SHIFT		16
+#define __AFS_FOLIO_PRIV_MMAPPED	0x8000UL
 #endif
 
-static inline unsigned int afs_page_dirty_resolution(struct page *page)
+static inline unsigned int afs_folio_dirty_resolution(struct folio *folio)
 {
-	int shift = thp_order(page) + PAGE_SHIFT - (__AFS_PAGE_PRIV_SHIFT - 1);
+	int shift = folio_shift(folio) - (__AFS_FOLIO_PRIV_SHIFT - 1);
 	return (shift > 0) ? shift : 0;
 }
 
-static inline size_t afs_page_dirty_from(struct page *page, unsigned long priv)
+static inline size_t afs_folio_dirty_from(struct folio *folio, unsigned long priv)
 {
-	unsigned long x = priv & __AFS_PAGE_PRIV_MASK;
+	unsigned long x = priv & __AFS_FOLIO_PRIV_MASK;
 
 	/* The lower bound is inclusive */
-	return x << afs_page_dirty_resolution(page);
+	return x << afs_folio_dirty_resolution(folio);
 }
 
-static inline size_t afs_page_dirty_to(struct page *page, unsigned long priv)
+static inline size_t afs_folio_dirty_to(struct folio *folio, unsigned long priv)
 {
-	unsigned long x = (priv >> __AFS_PAGE_PRIV_SHIFT) & __AFS_PAGE_PRIV_MASK;
+	unsigned long x = (priv >> __AFS_FOLIO_PRIV_SHIFT) & __AFS_FOLIO_PRIV_MASK;
 
 	/* The upper bound is immediately beyond the region */
-	return (x + 1) << afs_page_dirty_resolution(page);
+	return (x + 1) << afs_folio_dirty_resolution(folio);
 }
 
-static inline unsigned long afs_page_dirty(struct page *page, size_t from, size_t to)
+static inline unsigned long afs_folio_dirty(struct folio *folio, size_t from, size_t to)
 {
-	unsigned int res = afs_page_dirty_resolution(page);
+	unsigned int res = afs_folio_dirty_resolution(folio);
 	from >>= res;
 	to = (to - 1) >> res;
-	return (to << __AFS_PAGE_PRIV_SHIFT) | from;
+	return (to << __AFS_FOLIO_PRIV_SHIFT) | from;
 }
 
-static inline unsigned long afs_page_dirty_mmapped(unsigned long priv)
+static inline unsigned long afs_folio_dirty_mmapped(unsigned long priv)
 {
-	return priv | __AFS_PAGE_PRIV_MMAPPED;
+	return priv | __AFS_FOLIO_PRIV_MMAPPED;
 }
 
-static inline bool afs_is_page_dirty_mmapped(unsigned long priv)
+static inline bool afs_is_folio_dirty_mmapped(unsigned long priv)
 {
-	return priv & __AFS_PAGE_PRIV_MMAPPED;
+	return priv & __AFS_FOLIO_PRIV_MMAPPED;
 }
 
 #include <trace/events/afs.h>
@@ -965,6 +974,8 @@ extern struct fscache_cookie_def afs_vnode_cache_index_def;
 /*
  * callback.c
  */
+extern void afs_invalidate_mmap_work(struct work_struct *);
+extern void afs_server_init_callback_work(struct work_struct *work);
 extern void afs_init_callback_state(struct afs_server *);
 extern void __afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
 extern void afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
@@ -1044,7 +1055,8 @@ extern void afs_dynroot_depopulate(struct super_block *);
 /*
  * file.c
  */
-extern const struct address_space_operations afs_fs_aops;
+extern const struct address_space_operations afs_file_aops;
+extern const struct address_space_operations afs_symlink_aops;
 extern const struct inode_operations afs_file_inode_operations;
 extern const struct file_operations afs_file_operations;
 extern const struct netfs_read_request_ops afs_req_ops;
@@ -1583,6 +1595,16 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
 	if (!op->error)
 		dentry->d_fsdata =
 			(void *)(unsigned long)dir_vp->scb.status.data_version;
+}
+
+/*
+ * Set the file size and block count.  Estimate the number of 512 bytes blocks
+ * used, rounded up to nearest 1K for consistency with other AFS clients.
+ */
+static inline void afs_set_i_size(struct afs_vnode *vnode, u64 size)
+{
+	i_size_write(&vnode->vfs_inode, size);
+	vnode->vfs_inode.i_blocks = ((size + 1023) >> 10) << 1;
 }
 
 /*

@@ -62,7 +62,7 @@ config RISCV
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL if MMU && 64BIT
-	select HANDLE_DOMAIN_IRQ
+	select GENERIC_VDSO_TIME_NS if HAVE_GENERIC_VDSO
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE if !XIP_KERNEL
@@ -162,6 +162,12 @@ config PAGE_OFFSET
 	default 0x80000000 if 64BIT && !MMU
 	default 0xffffffff80000000 if 64BIT && MAXPHYSMEM_2GB
 	default 0xffffffe000000000 if 64BIT && MAXPHYSMEM_128GB
+
+config KASAN_SHADOW_OFFSET
+	hex
+	depends on KASAN_GENERIC
+	default 0xdfffffc800000000 if 64BIT
+	default 0xffffffff if 32BIT
 
 config ARCH_FLATMEM_ENABLE
 	def_bool !NUMA
@@ -562,4 +568,4 @@ source "kernel/power/Kconfig"
 
 endmenu
 
-source "drivers/firmware/Kconfig"
+source "arch/riscv/kvm/Kconfig"

@@ -177,6 +177,7 @@ enum iavf_state_t {
 	__IAVF_INIT_VERSION_CHECK,	/* aq msg sent, awaiting reply */
 	__IAVF_INIT_GET_RESOURCES,	/* aq msg sent, awaiting reply */
 	__IAVF_INIT_SW,		/* got resources, setting up structs */
+	__IAVF_INIT_FAILED,	/* init failed, restarting procedure */
 	__IAVF_RESETTING,		/* in reset */
 	__IAVF_COMM_FAILED,		/* communication with PF failed */
 	/* Below here, watchdog is running */
@@ -225,7 +226,6 @@ struct iavf_adapter {
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
-	struct delayed_work init_task;
 	wait_queue_head_t down_waitqueue;
 	struct iavf_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
@@ -312,6 +312,7 @@ struct iavf_adapter {
 	struct iavf_hw hw; /* defined in iavf_type.h */
 
 	enum iavf_state_t state;
+	enum iavf_state_t last_state;
 	unsigned long crit_section;
 
 	struct delayed_work watchdog_task;
@@ -392,6 +393,51 @@ struct iavf_device {
 /* needed by iavf_ethtool.c */
 extern char iavf_driver_name[];
 extern struct workqueue_struct *iavf_wq;
+
+static inline const char *iavf_state_str(enum iavf_state_t state)
+{
+	switch (state) {
+	case __IAVF_STARTUP:
+		return "__IAVF_STARTUP";
+	case __IAVF_REMOVE:
+		return "__IAVF_REMOVE";
+	case __IAVF_INIT_VERSION_CHECK:
+		return "__IAVF_INIT_VERSION_CHECK";
+	case __IAVF_INIT_GET_RESOURCES:
+		return "__IAVF_INIT_GET_RESOURCES";
+	case __IAVF_INIT_SW:
+		return "__IAVF_INIT_SW";
+	case __IAVF_INIT_FAILED:
+		return "__IAVF_INIT_FAILED";
+	case __IAVF_RESETTING:
+		return "__IAVF_RESETTING";
+	case __IAVF_COMM_FAILED:
+		return "__IAVF_COMM_FAILED";
+	case __IAVF_DOWN:
+		return "__IAVF_DOWN";
+	case __IAVF_DOWN_PENDING:
+		return "__IAVF_DOWN_PENDING";
+	case __IAVF_TESTING:
+		return "__IAVF_TESTING";
+	case __IAVF_RUNNING:
+		return "__IAVF_RUNNING";
+	default:
+		return "__IAVF_UNKNOWN_STATE";
+	}
+}
+
+static inline void iavf_change_state(struct iavf_adapter *adapter,
+				     enum iavf_state_t state)
+{
+	if (adapter->state != state) {
+		adapter->last_state = adapter->state;
+		adapter->state = state;
+	}
+	dev_dbg(&adapter->pdev->dev,
+		"state transition from:%s to:%s\n",
+		iavf_state_str(adapter->last_state),
+		iavf_state_str(adapter->state));
+}
 
 int iavf_up(struct iavf_adapter *adapter);
 void iavf_down(struct iavf_adapter *adapter);

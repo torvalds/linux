@@ -62,7 +62,7 @@ struct pt_ctx {
 
 struct pt_desc {
 	u64 ctl_bitmask;
-	u32 addr_range;
+	u32 num_address_ranges;
 	u32 caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
 	struct pt_ctx host;
 	struct pt_ctx guest;
@@ -248,12 +248,8 @@ struct vcpu_vmx {
 	 * only loaded into hardware when necessary, e.g. SYSCALL #UDs outside
 	 * of 64-bit mode or if EFER.SCE=1, thus the SYSCALL MSRs don't need to
 	 * be loaded into hardware if those conditions aren't met.
-	 * nr_active_uret_msrs tracks the number of MSRs that need to be loaded
-	 * into hardware when running the guest.  guest_uret_msrs[] is resorted
-	 * whenever the number of "active" uret MSRs is modified.
 	 */
 	struct vmx_uret_msr   guest_uret_msrs[MAX_NR_USER_RETURN_MSRS];
-	int                   nr_active_uret_msrs;
 	bool                  guest_uret_msrs_loaded;
 #ifdef CONFIG_X86_64
 	u64		      msr_host_kernel_gs_base;
@@ -359,6 +355,7 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu);
 void vmx_set_host_fs_gs(struct vmcs_host_state *host, u16 fs_sel, u16 gs_sel,
 			unsigned long fs_base, unsigned long gs_base);
 int vmx_get_cpl(struct kvm_vcpu *vcpu);
+bool vmx_emulation_required(struct kvm_vcpu *vcpu);
 unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu);
 void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
 u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu);
@@ -402,6 +399,34 @@ static inline void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr,
 }
 
 void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu);
+
+/*
+ * Note, early Intel manuals have the write-low and read-high bitmap offsets
+ * the wrong way round.  The bitmaps control MSRs 0x00000000-0x00001fff and
+ * 0xc0000000-0xc0001fff.  The former (low) uses bytes 0-0x3ff for reads and
+ * 0x800-0xbff for writes.  The latter (high) uses 0x400-0x7ff for reads and
+ * 0xc00-0xfff for writes.  MSRs not covered by either of the ranges always
+ * VM-Exit.
+ */
+#define __BUILD_VMX_MSR_BITMAP_HELPER(rtype, action, bitop, access, base)      \
+static inline rtype vmx_##action##_msr_bitmap_##access(unsigned long *bitmap,  \
+						       u32 msr)		       \
+{									       \
+	int f = sizeof(unsigned long);					       \
+									       \
+	if (msr <= 0x1fff)						       \
+		return bitop##_bit(msr, bitmap + base / f);		       \
+	else if ((msr >= 0xc0000000) && (msr <= 0xc0001fff))		       \
+		return bitop##_bit(msr & 0x1fff, bitmap + (base + 0x400) / f); \
+	return (rtype)true;						       \
+}
+#define BUILD_VMX_MSR_BITMAP_HELPERS(ret_type, action, bitop)		       \
+	__BUILD_VMX_MSR_BITMAP_HELPER(ret_type, action, bitop, read,  0x0)     \
+	__BUILD_VMX_MSR_BITMAP_HELPER(ret_type, action, bitop, write, 0x800)
+
+BUILD_VMX_MSR_BITMAP_HELPERS(bool, test, test)
+BUILD_VMX_MSR_BITMAP_HELPERS(void, clear, __clear)
+BUILD_VMX_MSR_BITMAP_HELPERS(void, set, __set)
 
 static inline u8 vmx_get_rvi(void)
 {
@@ -524,5 +549,10 @@ static inline bool vmx_guest_state_valid(struct kvm_vcpu *vcpu)
 }
 
 void dump_vmcs(struct kvm_vcpu *vcpu);
+
+static inline int vmx_get_instr_info_reg2(u32 vmx_instr_info)
+{
+	return (vmx_instr_info >> 28) & 0xf;
+}
 
 #endif /* __KVM_X86_VMX_H */

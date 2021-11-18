@@ -134,6 +134,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			adev->vcn.indirect_sram = true;
 		break;
 	case IP_VERSION(3, 0, 0):
+	case IP_VERSION(3, 0, 64):
 		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 0))
 			fw_name = FIRMWARE_SIENNA_CICHLID;
 		else
@@ -947,5 +948,32 @@ enum amdgpu_ring_priority_level amdgpu_vcn_get_enc_ring_prio(int ring)
 		return AMDGPU_RING_PRIO_2;
 	default:
 		return AMDGPU_RING_PRIO_0;
+	}
+}
+
+void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev)
+{
+	int i;
+	unsigned int idx;
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		const struct common_firmware_header *hdr;
+		hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
+
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			if (adev->vcn.harvest_config & (1 << i))
+				continue;
+			/* currently only support 2 FW instances */
+			if (i >= 2) {
+				dev_info(adev->dev, "More then 2 VCN FW instances!\n");
+				break;
+			}
+			idx = AMDGPU_UCODE_ID_VCN + i;
+			adev->firmware.ucode[idx].ucode_id = idx;
+			adev->firmware.ucode[idx].fw = adev->vcn.fw;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
+		}
+		dev_info(adev->dev, "Will use PSP to load VCN firmware\n");
 	}
 }

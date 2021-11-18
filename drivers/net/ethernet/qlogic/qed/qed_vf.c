@@ -27,7 +27,7 @@ static void *qed_vf_pf_prep(struct qed_hwfn *p_hwfn, u16 type, u16 length)
 		   "preparing to send 0x%04x tlv over vf pf channel\n",
 		   type);
 
-	/* Reset Requst offset */
+	/* Reset Request offset */
 	p_iov->offset = (u8 *)p_iov->vf2pf_request;
 
 	/* Clear mailbox - both request and reply */
@@ -444,7 +444,7 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 	u32 reg;
 	int rc;
 
-	/* Set number of hwfns - might be overriden once leading hwfn learns
+	/* Set number of hwfns - might be overridden once leading hwfn learns
 	 * actual configuration from PF.
 	 */
 	if (IS_LEAD_HWFN(p_hwfn))
@@ -504,7 +504,7 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 		   QED_MSG_IOV,
 		   "VF's Request mailbox [%p virt 0x%llx phys], Response mailbox [%p virt 0x%llx phys]\n",
 		   p_iov->vf2pf_request,
-		   (u64) p_iov->vf2pf_request_phys,
+		   (u64)p_iov->vf2pf_request_phys,
 		   p_iov->pf2vf_reply, (u64)p_iov->pf2vf_reply_phys);
 
 	/* Allocate Bulletin board */
@@ -561,6 +561,7 @@ free_p_iov:
 
 	return -ENOMEM;
 }
+
 #define TSTORM_QZONE_START   PXP_VF_BAR0_START_SDM_ZONE_A
 #define MSTORM_QZONE_START(dev)   (TSTORM_QZONE_START +	\
 				   (TSTORM_QZONE_SIZE * NUM_OF_L2_QUEUES(dev)))
@@ -1285,8 +1286,8 @@ int qed_vf_pf_filter_ucast(struct qed_hwfn *p_hwfn,
 
 	/* clear mailbox and prep first tlv */
 	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_UCAST_FILTER, sizeof(*req));
-	req->opcode = (u8) p_ucast->opcode;
-	req->type = (u8) p_ucast->type;
+	req->opcode = (u8)p_ucast->opcode;
+	req->type = (u8)p_ucast->type;
 	memcpy(req->mac, p_ucast->mac, ETH_ALEN);
 	req->vlan = p_ucast->vlan;
 
@@ -1372,7 +1373,7 @@ exit:
 
 int
 qed_vf_pf_bulletin_update_mac(struct qed_hwfn *p_hwfn,
-			      u8 *p_mac)
+			      const u8 *p_mac)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct vfpf_bulletin_update_mac_tlv *p_req;

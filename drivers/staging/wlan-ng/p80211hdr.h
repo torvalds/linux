@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
-/* p80211hdr.h
+/*
  *
  * Macros, types, and functions for handling 802.11 MAC headers
  *

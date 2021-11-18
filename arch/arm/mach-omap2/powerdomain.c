@@ -626,7 +626,7 @@ int pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
  * powerdomain @pwrdm will enter when the powerdomain enters retention.
  * This will be either RETENTION or OFF, if supported.  Returns
  * -EINVAL if the powerdomain pointer is null or the target power
- * state is not not supported, or returns 0 upon success.
+ * state is not supported, or returns 0 upon success.
  */
 int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 {
@@ -658,7 +658,7 @@ int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
  * state.  @bank will be a number from 0 to 3, and represents different
  * types of memory, depending on the powerdomain.  Returns -EINVAL if
  * the powerdomain pointer is null or the target power state is not
- * not supported for this memory bank, -EEXIST if the target memory
+ * supported for this memory bank, -EEXIST if the target memory
  * bank does not exist or is not controllable, or returns 0 upon
  * success.
  */
@@ -696,7 +696,7 @@ int pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank, u8 pwrst)
  * different types of memory, depending on the powerdomain.  @pwrst
  * will be either RETENTION or OFF, if supported.  Returns -EINVAL if
  * the powerdomain pointer is null or the target power state is not
- * not supported for this memory bank, -EEXIST if the target memory
+ * supported for this memory bank, -EEXIST if the target memory
  * bank does not exist or is not controllable, or returns 0 upon
  * success.
  */

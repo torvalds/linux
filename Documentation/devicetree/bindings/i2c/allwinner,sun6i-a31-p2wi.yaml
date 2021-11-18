@@ -55,7 +55,7 @@ examples:
         #size-cells = <0>;
 
         axp221: pmic@68 {
-            compatible = "x-powers,axp221";
+            /* compatible = "x-powers,axp221"; */
             reg = <0x68>;
         };
     };

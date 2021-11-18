@@ -49,6 +49,8 @@
 #include "inc/link_dpcd.h"
 #include "dcn10/dcn10_hw_sequencer.h"
 #include "inc/link_enc_cfg.h"
+#include "dcn30/dcn30_vpg.h"
+#include "dce/dce_i2c_hw.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -64,6 +66,45 @@
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
 
+static void enable_memory_low_power(struct dc *dc)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	int i;
+
+	if (dc->debug.enable_mem_low_power.bits.dmcu) {
+		// Force ERAM to shutdown if DMCU is not enabled
+		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
+			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
+		}
+	}
+
+	// Set default OPTC memory power states
+	if (dc->debug.enable_mem_low_power.bits.optc) {
+		// Shutdown when unassigned and light sleep in VBLANK
+		REG_SET_2(ODM_MEM_PWR_CTRL3, 0, ODM_MEM_UNASSIGNED_PWR_MODE, 3, ODM_MEM_VBLANK_PWR_MODE, 1);
+	}
+
+	if (dc->debug.enable_mem_low_power.bits.vga) {
+		// Power down VGA memory
+		REG_UPDATE(MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, 1);
+	}
+
+	if (dc->debug.enable_mem_low_power.bits.mpc)
+		dc->res_pool->mpc->funcs->set_mpc_mem_lp_mode(dc->res_pool->mpc);
+
+
+	if (dc->debug.enable_mem_low_power.bits.vpg && dc->res_pool->stream_enc[0]->vpg->funcs->vpg_powerdown) {
+		// Power down VPGs
+		for (i = 0; i < dc->res_pool->stream_enc_count; i++)
+			dc->res_pool->stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->stream_enc[i]->vpg);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++)
+			dc->res_pool->hpo_dp_stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->hpo_dp_stream_enc[i]->vpg);
+#endif
+	}
+
+}
+
 void dcn31_init_hw(struct dc *dc)
 {
 	struct abm **abms = dc->res_pool->multiple_abms;
@@ -71,15 +112,10 @@ void dcn31_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
-	int i;
-	int edp_num;
+	int i, j;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
-
-	// Initialize the dccg
-	if (res_pool->dccg->funcs->dccg_init)
-		res_pool->dccg->funcs->dccg_init(res_pool->dccg);
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 
@@ -107,24 +143,11 @@ void dcn31_init_hw(struct dc *dc)
 		hws->funcs.bios_golden_init(dc);
 		hws->funcs.disable_vga(dc->hwseq);
 	}
+	// Initialize the dccg
+	if (res_pool->dccg->funcs->dccg_init)
+		res_pool->dccg->funcs->dccg_init(res_pool->dccg);
 
-	if (dc->debug.enable_mem_low_power.bits.dmcu) {
-		// Force ERAM to shutdown if DMCU is not enabled
-		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
-			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
-		}
-	}
-
-	// Set default OPTC memory power states
-	if (dc->debug.enable_mem_low_power.bits.optc) {
-		// Shutdown when unassigned and light sleep in VBLANK
-		REG_SET_2(ODM_MEM_PWR_CTRL3, 0, ODM_MEM_UNASSIGNED_PWR_MODE, 3, ODM_MEM_VBLANK_PWR_MODE, 1);
-	}
-
-	if (dc->debug.enable_mem_low_power.bits.vga) {
-		// Power down VGA memory
-		REG_UPDATE(MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, 1);
-	}
+	enable_memory_low_power(dc);
 
 	if (dc->ctx->dc_bios->fw_info_valid) {
 		res_pool->ref_clocks.xtalin_clock_inKhz =
@@ -179,9 +202,40 @@ void dcn31_init_hw(struct dc *dc)
 		dmub_enable_outbox_notification(dc);
 
 	/* we want to turn off all dp displays before doing detection */
-	if (dc->config.power_down_display_on_boot)
-		blank_all_dp_displays(dc, true);
+	if (dc->config.power_down_display_on_boot) {
+		uint8_t dpcd_power_state = '\0';
+		enum dc_status status = DC_ERROR_UNEXPECTED;
 
+		for (i = 0; i < dc->link_count; i++) {
+			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
+				continue;
+
+			/* if any of the displays are lit up turn them off */
+			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+						     &dpcd_power_state, sizeof(dpcd_power_state));
+			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
+				/* blank dp stream before power off receiver*/
+				if (dc->links[i]->ep_type == DISPLAY_ENDPOINT_PHY &&
+						dc->links[i]->link_enc->funcs->get_dig_frontend) {
+					unsigned int fe;
+
+					fe = dc->links[i]->link_enc->funcs->get_dig_frontend(
+										dc->links[i]->link_enc);
+					if (fe == ENGINE_ID_UNKNOWN)
+						continue;
+
+					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+						if (fe == dc->res_pool->stream_enc[j]->id) {
+							dc->res_pool->stream_enc[j]->funcs->dp_blank(dc->links[i],
+										dc->res_pool->stream_enc[j]);
+							break;
+						}
+					}
+				}
+				dp_receiver_power_ctrl(dc->links[i], false);
+			}
+		}
+	}
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -194,48 +248,6 @@ void dcn31_init_hw(struct dc *dc)
 		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
 					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
-	}
-
-	/* In headless boot cases, DIG may be turned
-	 * on which causes HW/SW discrepancies.
-	 * To avoid this, power down hardware on boot
-	 * if DIG is turned on and seamless boot not enabled
-	 */
-	if (dc->config.power_down_display_on_boot) {
-		struct dc_link *edp_links[MAX_NUM_EDP];
-		struct dc_link *edp_link;
-		bool power_down = false;
-
-		get_edp_links(dc, edp_links, &edp_num);
-		if (edp_num) {
-			for (i = 0; i < edp_num; i++) {
-				edp_link = edp_links[i];
-				if (edp_link->link_enc->funcs->is_dig_enabled &&
-						edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
-						dc->hwss.edp_backlight_control &&
-						dc->hwss.power_down &&
-						dc->hwss.edp_power_control) {
-					dc->hwss.edp_backlight_control(edp_link, false);
-					dc->hwss.power_down(dc);
-					dc->hwss.edp_power_control(edp_link, false);
-					power_down = true;
-				}
-			}
-		}
-		if (!power_down) {
-			for (i = 0; i < dc->link_count; i++) {
-				struct dc_link *link = dc->links[i];
-
-				if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
-						link->link_enc->funcs->is_dig_enabled &&
-						link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
-						dc->hwss.power_down) {
-					dc->hwss.power_down(dc);
-					break;
-				}
-
-			}
-		}
 	}
 
 	for (i = 0; i < res_pool->audio_count; i++) {
@@ -258,6 +270,13 @@ void dcn31_init_hw(struct dc *dc)
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
 	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+
+	// Set i2c to light sleep until engine is setup
+	if (dc->debug.enable_mem_low_power.bits.i2c)
+		REG_UPDATE(DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, 1);
+
+	if (hws->funcs.setup_hpo_hw_control)
+		hws->funcs.setup_hpo_hw_control(hws, false);
 
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
@@ -300,6 +319,12 @@ void dcn31_dsc_pg_control(
 	if (hws->ctx->dc->debug.disable_dsc_power_gate)
 		return;
 
+	if (hws->ctx->dc->debug.root_clock_optimization.bits.dsc &&
+		hws->ctx->dc->res_pool->dccg->funcs->enable_dsc &&
+		power_on)
+		hws->ctx->dc->res_pool->dccg->funcs->enable_dsc(
+			hws->ctx->dc->res_pool->dccg, dsc_inst);
+
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
@@ -336,6 +361,13 @@ void dcn31_dsc_pg_control(
 
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
+
+	if (hws->ctx->dc->debug.root_clock_optimization.bits.dsc) {
+		if (hws->ctx->dc->res_pool->dccg->funcs->disable_dsc && !power_on)
+			hws->ctx->dc->res_pool->dccg->funcs->disable_dsc(
+				hws->ctx->dc->res_pool->dccg, dsc_inst);
+	}
+
 }
 
 
@@ -578,4 +610,10 @@ void dcn31_reset_hw_ctx_wrap(
 
 	/* New dc_state in the process of being applied to hardware. */
 	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
+}
+
+void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)
+{
+	if (hws->ctx->dc->debug.hpo_optimization)
+		REG_UPDATE(HPO_TOP_HW_CONTROL, HPO_IO_EN, !!enable);
 }

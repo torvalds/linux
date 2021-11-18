@@ -6,7 +6,7 @@
  */
 / {
 	bus@8000000 {
-		motherboard-bus {
+		motherboard-bus@8000000 {
 			arm,v2m-memory-map = "rs2";
 
 			iofpga-bus@300000000 {

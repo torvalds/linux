@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Common private data for Silicon Labs WFx chips.
+ * Common private data.
  *
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
@@ -22,7 +22,7 @@
 #include "queue.h"
 #include "hif_tx.h"
 
-#define USEC_PER_TXOP 32 // see struct ieee80211_tx_queue_params
+#define USEC_PER_TXOP 32 /* see struct ieee80211_tx_queue_params */
 #define USEC_PER_TU 1024
 
 struct hwbus_ops;
@@ -85,6 +85,7 @@ struct wfx_vif {
 	struct mutex		scan_lock;
 	struct work_struct	scan_work;
 	struct completion	scan_complete;
+	int			scan_nb_chan_done;
 	bool			scan_abort;
 	struct ieee80211_scan_request *scan_req;
 
@@ -98,12 +99,9 @@ static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)
 		return NULL;
 	}
 	vif_id = array_index_nospec(vif_id, ARRAY_SIZE(wdev->vif));
-	if (!wdev->vif[vif_id]) {
-		dev_dbg(wdev->dev, "requesting non-allocated vif: %d\n",
-			vif_id);
+	if (!wdev->vif[vif_id])
 		return NULL;
-	}
-	return (struct wfx_vif *) wdev->vif[vif_id]->drv_priv;
+	return (struct wfx_vif *)wdev->vif[vif_id]->drv_priv;
 }
 
 static inline struct wfx_vif *wvif_iterate(struct wfx_dev *wdev,
@@ -163,4 +161,4 @@ static inline int memzcmp(void *src, unsigned int size)
 	return memcmp(buf, buf + 1, size - 1);
 }
 
-#endif /* WFX_H */
+#endif

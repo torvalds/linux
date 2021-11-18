@@ -464,14 +464,6 @@
 			status = "disabled";
 		};
 
-		vec: vec@7e806000 {
-			compatible = "brcm,bcm2835-vec";
-			reg = <0x7e806000 0x1000>;
-			clocks = <&clocks BCM2835_CLOCK_VEC>;
-			interrupts = <2 27>;
-			status = "disabled";
-		};
-
 		usb: usb@7e980000 {
 			compatible = "brcm,bcm2835-usb";
 			reg = <0x7e980000 0x10000>;

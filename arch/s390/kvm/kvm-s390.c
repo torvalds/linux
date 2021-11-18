@@ -2487,8 +2487,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	case KVM_S390_PV_COMMAND: {
 		struct kvm_pv_cmd args;
 
-		/* protvirt means user sigp */
-		kvm->arch.user_cpu_state_ctrl = 1;
+		/* protvirt means user cpu state */
+		kvm_s390_set_user_cpu_state_ctrl(kvm);
 		r = 0;
 		if (!is_prot_virt_host()) {
 			r = -EINVAL;
@@ -3363,6 +3363,7 @@ out_free_sie_block:
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
+	clear_bit(vcpu->vcpu_idx, vcpu->kvm->arch.gisa_int.kicked_mask);
 	return kvm_s390_vcpu_has_irq(vcpu, 0);
 }
 
@@ -3801,7 +3802,7 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	vcpu_load(vcpu);
 
 	/* user space knows about this interface - let it control the state */
-	vcpu->kvm->arch.user_cpu_state_ctrl = 1;
+	kvm_s390_set_user_cpu_state_ctrl(vcpu->kvm);
 
 	switch (mp_state->mp_state) {
 	case KVM_MP_STATE_STOPPED:
@@ -4066,7 +4067,7 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 		kvm_s390_patch_guest_per_regs(vcpu);
 	}
 
-	clear_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.gisa_int.kicked_mask);
+	clear_bit(vcpu->vcpu_idx, vcpu->kvm->arch.gisa_int.kicked_mask);
 
 	vcpu->arch.sie_block->icptcode = 0;
 	cpuflags = atomic_read(&vcpu->arch.sie_block->cpuflags);
@@ -4254,6 +4255,7 @@ static void sync_regs_fmt2(struct kvm_vcpu *vcpu)
 	if (kvm_run->kvm_dirty_regs & KVM_SYNC_DIAG318) {
 		vcpu->arch.diag318_info.val = kvm_run->s.regs.diag318;
 		vcpu->arch.sie_block->cpnc = vcpu->arch.diag318_info.cpnc;
+		VCPU_EVENT(vcpu, 3, "setting cpnc to %d", vcpu->arch.diag318_info.cpnc);
 	}
 	/*
 	 * If userspace sets the riccb (e.g. after migration) to a valid state,

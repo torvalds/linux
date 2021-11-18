@@ -624,7 +624,7 @@ static void port100_recv_response(struct urb *urb)
 		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-		nfc_err(&dev->interface->dev,
+		nfc_dbg(&dev->interface->dev,
 			"The urb has been canceled (status %d)\n", urb->status);
 		goto sched_wq;
 	case -ESHUTDOWN:
@@ -678,7 +678,7 @@ static void port100_recv_ack(struct urb *urb)
 		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-		nfc_err(&dev->interface->dev,
+		nfc_dbg(&dev->interface->dev,
 			"The urb has been stopped (status %d)\n", urb->status);
 		goto sched_wq;
 	case -ESHUTDOWN:
@@ -942,7 +942,7 @@ static void port100_send_complete(struct urb *urb)
 		break; /* success */
 	case -ECONNRESET:
 	case -ENOENT:
-		nfc_err(&dev->interface->dev,
+		nfc_dbg(&dev->interface->dev,
 			"The urb has been stopped (status %d)\n", urb->status);
 		break;
 	case -ESHUTDOWN:
@@ -1006,11 +1006,11 @@ static u64 port100_get_command_type_mask(struct port100 *dev)
 
 	skb = port100_alloc_skb(dev, 0);
 	if (!skb)
-		return -ENOMEM;
+		return 0;
 
 	resp = port100_send_cmd_sync(dev, PORT100_CMD_GET_COMMAND_TYPE, skb);
 	if (IS_ERR(resp))
-		return PTR_ERR(resp);
+		return 0;
 
 	if (resp->len < 8)
 		mask = 0;

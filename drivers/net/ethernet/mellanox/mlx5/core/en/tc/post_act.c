@@ -4,6 +4,7 @@
 #include "en_tc.h"
 #include "post_act.h"
 #include "mlx5_core.h"
+#include "fs_core.h"
 
 struct mlx5e_post_act {
 	enum mlx5_flow_namespace_type ns_type;
@@ -28,16 +29,14 @@ struct mlx5e_post_act *
 mlx5e_tc_post_act_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 		       enum mlx5_flow_namespace_type ns_type)
 {
+	enum fs_flow_table_type table_type = ns_type == MLX5_FLOW_NAMESPACE_FDB ?
+					     FS_FT_FDB : FS_FT_NIC_RX;
 	struct mlx5e_post_act *post_act;
 	int err;
 
-	if (ns_type == MLX5_FLOW_NAMESPACE_FDB &&
-	    !MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev, ignore_flow_level)) {
-		mlx5_core_warn(priv->mdev, "firmware level support is missing\n");
-		err = -EOPNOTSUPP;
-		goto err_check;
-	} else if (!MLX5_CAP_FLOWTABLE_NIC_RX(priv->mdev, ignore_flow_level)) {
-		mlx5_core_warn(priv->mdev, "firmware level support is missing\n");
+	if (!MLX5_CAP_FLOWTABLE_TYPE(priv->mdev, ignore_flow_level, table_type)) {
+		if (priv->mdev->coredev_type != MLX5_COREDEV_VF)
+			mlx5_core_warn(priv->mdev, "firmware level support is missing\n");
 		err = -EOPNOTSUPP;
 		goto err_check;
 	}

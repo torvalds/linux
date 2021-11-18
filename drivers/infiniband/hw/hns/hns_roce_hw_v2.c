@@ -1165,19 +1165,10 @@ static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 {
 	int size = ring->desc_num * sizeof(struct hns_roce_cmq_desc);
 
-	ring->desc = kzalloc(size, GFP_KERNEL);
+	ring->desc = dma_alloc_coherent(hr_dev->dev, size,
+					&ring->desc_dma_addr, GFP_KERNEL);
 	if (!ring->desc)
 		return -ENOMEM;
-
-	ring->desc_dma_addr = dma_map_single(hr_dev->dev, ring->desc, size,
-					     DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(hr_dev->dev, ring->desc_dma_addr)) {
-		ring->desc_dma_addr = 0;
-		kfree(ring->desc);
-		ring->desc = NULL;
-
-		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -1185,12 +1176,11 @@ static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 static void hns_roce_free_cmq_desc(struct hns_roce_dev *hr_dev,
 				   struct hns_roce_v2_cmq_ring *ring)
 {
-	dma_unmap_single(hr_dev->dev, ring->desc_dma_addr,
-			 ring->desc_num * sizeof(struct hns_roce_cmq_desc),
-			 DMA_BIDIRECTIONAL);
+	dma_free_coherent(hr_dev->dev,
+			  ring->desc_num * sizeof(struct hns_roce_cmq_desc),
+			  ring->desc, ring->desc_dma_addr);
 
 	ring->desc_dma_addr = 0;
-	kfree(ring->desc);
 }
 
 static int init_csq(struct hns_roce_dev *hr_dev,
@@ -2992,7 +2982,7 @@ static int hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u32 port,
 }
 
 static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
-			       u8 *addr)
+			       const u8 *addr)
 {
 	struct hns_roce_cmq_desc desc;
 	struct hns_roce_cfg_smac_tb *smac_tb =
@@ -3299,7 +3289,7 @@ static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 			dest = get_cqe_v2(hr_cq, (prod_index + nfreed) &
 					  hr_cq->ib_cq.cqe);
 			owner_bit = hr_reg_read(dest, CQE_OWNER);
-			memcpy(dest, cqe, sizeof(*cqe));
+			memcpy(dest, cqe, hr_cq->cqe_size);
 			hr_reg_write(dest, CQE_OWNER, owner_bit);
 		}
 	}
@@ -3328,7 +3318,7 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 	memset(cq_context, 0, sizeof(*cq_context));
 
 	hr_reg_write(cq_context, CQC_CQ_ST, V2_CQ_STATE_VALID);
-	hr_reg_write(cq_context, CQC_ARM_ST, REG_NXT_CEQE);
+	hr_reg_write(cq_context, CQC_ARM_ST, NO_ARMED);
 	hr_reg_write(cq_context, CQC_SHIFT, ilog2(hr_cq->cq_depth));
 	hr_reg_write(cq_context, CQC_CEQN, hr_cq->vector);
 	hr_reg_write(cq_context, CQC_CQN, hr_cq->cqn);
@@ -4318,10 +4308,10 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	dma_addr_t trrl_ba;
 	dma_addr_t irrl_ba;
 	enum ib_mtu ib_mtu;
+	const u8 *smac;
 	u8 lp_pktn_ini;
 	u64 *mtts;
 	u8 *dmac;
-	u8 *smac;
 	u32 port;
 	int mtu;
 	int ret;
@@ -4374,7 +4364,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 
 	port = (attr_mask & IB_QP_PORT) ? (attr->port_num - 1) : hr_qp->port;
 
-	smac = (u8 *)hr_dev->dev_addr[port];
+	smac = (const u8 *)hr_dev->dev_addr[port];
 	dmac = (u8 *)attr->ah_attr.roce.dmac;
 	/* when dmac equals smac or loop_idc is 1, it should loopback */
 	if (ether_addr_equal_unaligned(dmac, smac) ||
@@ -4397,17 +4387,18 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	hr_qp->path_mtu = ib_mtu;
 
 	mtu = ib_mtu_enum_to_int(ib_mtu);
-	if (WARN_ON(mtu < 0))
+	if (WARN_ON(mtu <= 0))
+		return -EINVAL;
+#define MAX_LP_MSG_LEN 16384
+	/* MTU * (2 ^ LP_PKTN_INI) shouldn't be bigger than 16KB */
+	lp_pktn_ini = ilog2(MAX_LP_MSG_LEN / mtu);
+	if (WARN_ON(lp_pktn_ini >= 0xF))
 		return -EINVAL;
 
 	if (attr_mask & IB_QP_PATH_MTU) {
 		hr_reg_write(context, QPC_MTU, ib_mtu);
 		hr_reg_clear(qpc_mask, QPC_MTU);
 	}
-
-#define MAX_LP_MSG_LEN 65536
-	/* MTU * (2 ^ LP_PKTN_INI) shouldn't be bigger than 64KB */
-	lp_pktn_ini = ilog2(MAX_LP_MSG_LEN / mtu);
 
 	hr_reg_write(context, QPC_LP_PKTN_INI, lp_pktn_ini);
 	hr_reg_clear(qpc_mask, QPC_LP_PKTN_INI);

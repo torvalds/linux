@@ -45,6 +45,7 @@
  *   6    6       2        2      4    2       N
  */
 
+#include <linux/dsa/mv88e6xxx.h>
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -129,12 +130,9 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 	u8 tag_dev, tag_port;
 	enum dsa_cmd cmd;
 	u8 *dsa_header;
-	u16 pvid = 0;
-	int err;
 
 	if (skb->offload_fwd_mark) {
 		struct dsa_switch_tree *dst = dp->ds->dst;
-		struct net_device *br = dp->bridge_dev;
 
 		cmd = DSA_CMD_FORWARD;
 
@@ -144,19 +142,6 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 		 */
 		tag_dev = dst->last_switch + 1 + dp->bridge_num;
 		tag_port = 0;
-
-		/* If we are offloading forwarding for a VLAN-unaware bridge,
-		 * inject packets to hardware using the bridge's pvid, since
-		 * that's where the packets ingressed from.
-		 */
-		if (!br_vlan_enabled(br)) {
-			/* Safe because __dev_queue_xmit() runs under
-			 * rcu_read_lock_bh()
-			 */
-			err = br_vlan_get_pvid_rcu(br, &pvid);
-			if (err)
-				return NULL;
-		}
 	} else {
 		cmd = DSA_CMD_FROM_CPU;
 		tag_dev = dp->ds->index;
@@ -180,16 +165,21 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 			dsa_header[2] &= ~0x10;
 		}
 	} else {
+		struct net_device *br = dp->bridge_dev;
+		u16 vid;
+
+		vid = br ? MV88E6XXX_VID_BRIDGED : MV88E6XXX_VID_STANDALONE;
+
 		skb_push(skb, DSA_HLEN + extra);
 		dsa_alloc_etype_header(skb, DSA_HLEN + extra);
 
-		/* Construct untagged DSA tag. */
+		/* Construct DSA header from untagged frame. */
 		dsa_header = dsa_etype_header_pos_tx(skb) + extra;
 
 		dsa_header[0] = (cmd << 6) | tag_dev;
 		dsa_header[1] = tag_port << 3;
-		dsa_header[2] = pvid >> 8;
-		dsa_header[3] = pvid & 0xff;
+		dsa_header[2] = vid >> 8;
+		dsa_header[3] = vid & 0xff;
 	}
 
 	return skb;
@@ -210,7 +200,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 	cmd = dsa_header[0] >> 6;
 	switch (cmd) {
 	case DSA_CMD_FORWARD:
-		trunk = !!(dsa_header[1] & 7);
+		trunk = !!(dsa_header[1] & 4);
 		break;
 
 	case DSA_CMD_TO_CPU:

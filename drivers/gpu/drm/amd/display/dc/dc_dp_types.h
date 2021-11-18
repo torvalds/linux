@@ -174,11 +174,6 @@ struct dc_lane_settings {
 #endif
 };
 
-struct dc_link_training_settings {
-	struct dc_link_settings link;
-	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
-};
-
 struct dc_link_training_overrides {
 	enum dc_voltage_swing *voltage_swing;
 	enum dc_pre_emphasis *pre_emphasis;
@@ -902,6 +897,9 @@ struct dpcd_usb4_dp_tunneling_info {
 #endif
 #ifndef DP_DFP_CAPABILITY_EXTENSION_SUPPORT
 #define DP_DFP_CAPABILITY_EXTENSION_SUPPORT		0x0A3
+#endif
+#ifndef DP_LINK_SQUARE_PATTERN
+#define DP_LINK_SQUARE_PATTERN				0x10F
 #endif
 #ifndef DP_DSC_CONFIGURATION
 #define DP_DSC_CONFIGURATION				0x161

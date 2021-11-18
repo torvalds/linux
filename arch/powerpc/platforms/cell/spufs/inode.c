@@ -21,6 +21,7 @@
 #include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/poll.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 
 #include <asm/prom.h>

@@ -134,8 +134,9 @@ static int mscc_miim_reset(struct mii_bus *bus)
 
 static int mscc_miim_probe(struct platform_device *pdev)
 {
-	struct mii_bus *bus;
 	struct mscc_miim_dev *dev;
+	struct resource *res;
+	struct mii_bus *bus;
 	int ret;
 
 	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*dev));
@@ -156,10 +157,14 @@ static int mscc_miim_probe(struct platform_device *pdev)
 		return PTR_ERR(dev->regs);
 	}
 
-	dev->phy_regs = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(dev->phy_regs)) {
-		dev_err(&pdev->dev, "Unable to map internal phy registers\n");
-		return PTR_ERR(dev->phy_regs);
+	/* This resource is optional */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res) {
+		dev->phy_regs = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(dev->phy_regs)) {
+			dev_err(&pdev->dev, "Unable to map internal phy registers\n");
+			return PTR_ERR(dev->phy_regs);
+		}
 	}
 
 	ret = of_mdiobus_register(bus, pdev->dev.of_node);

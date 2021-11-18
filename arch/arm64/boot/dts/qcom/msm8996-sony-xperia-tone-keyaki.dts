@@ -12,6 +12,7 @@
 / {
 	model = "Sony Xperia XZs";
 	compatible = "sony,keyaki-row", "qcom,msm8996";
+	chassis-type = "handset";
 };
 
 &pm8994_l19 {

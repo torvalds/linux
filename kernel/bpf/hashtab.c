@@ -668,7 +668,7 @@ static int htab_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 
 	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
-	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
+	*insn++ = BPF_EMIT_CALL(__htab_map_lookup_elem);
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 1);
 	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
 				offsetof(struct htab_elem, key) +
@@ -709,7 +709,7 @@ static int htab_lru_map_gen_lookup(struct bpf_map *map,
 
 	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
-	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
+	*insn++ = BPF_EMIT_CALL(__htab_map_lookup_elem);
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 4);
 	*insn++ = BPF_LDX_MEM(BPF_B, ref_reg, ret,
 			      offsetof(struct htab_elem, lru_node) +
@@ -2049,7 +2049,7 @@ static const struct bpf_iter_seq_info iter_seq_info = {
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_hash_map_info),
 };
 
-static int bpf_for_each_hash_elem(struct bpf_map *map, void *callback_fn,
+static int bpf_for_each_hash_elem(struct bpf_map *map, bpf_callback_t callback_fn,
 				  void *callback_ctx, u64 flags)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
@@ -2089,9 +2089,8 @@ static int bpf_for_each_hash_elem(struct bpf_map *map, void *callback_fn,
 				val = elem->key + roundup_key_size;
 			}
 			num_elems++;
-			ret = BPF_CAST_CALL(callback_fn)((u64)(long)map,
-					(u64)(long)key, (u64)(long)val,
-					(u64)(long)callback_ctx, 0);
+			ret = callback_fn((u64)(long)map, (u64)(long)key,
+					  (u64)(long)val, (u64)(long)callback_ctx, 0);
 			/* return value: 0 - continue, 1 - stop and return */
 			if (ret) {
 				rcu_read_unlock();
@@ -2397,7 +2396,7 @@ static int htab_of_map_gen_lookup(struct bpf_map *map,
 
 	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
-	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
+	*insn++ = BPF_EMIT_CALL(__htab_map_lookup_elem);
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 2);
 	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
 				offsetof(struct htab_elem, key) +

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright 2020-2021 NXP Semiconductors
+/* Copyright 2020-2021 NXP
  *
  * An implementation of the software-defined tag_8021q.c tagger format, which
  * also preserves full functionality under a vlan_filtering bridge. It does
@@ -9,29 +9,43 @@
  *   that on egress
  */
 #include <linux/dsa/8021q.h>
-#include <soc/mscc/ocelot.h>
-#include <soc/mscc/ocelot_ptp.h>
+#include <linux/dsa/ocelot.h>
 #include "dsa_priv.h"
+
+static struct sk_buff *ocelot_defer_xmit(struct dsa_port *dp,
+					 struct sk_buff *skb)
+{
+	struct felix_deferred_xmit_work *xmit_work;
+	struct felix_port *felix_port = dp->priv;
+
+	xmit_work = kzalloc(sizeof(*xmit_work), GFP_ATOMIC);
+	if (!xmit_work)
+		return NULL;
+
+	/* Calls felix_port_deferred_xmit in felix.c */
+	kthread_init_work(&xmit_work->work, felix_port->xmit_work_fn);
+	/* Increase refcount so the kfree_skb in dsa_slave_xmit
+	 * won't really free the packet.
+	 */
+	xmit_work->dp = dp;
+	xmit_work->skb = skb_get(skb);
+
+	kthread_queue_work(felix_port->xmit_worker, &xmit_work->work);
+
+	return NULL;
+}
 
 static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
-	struct ocelot *ocelot = dp->ds->priv;
-	int port = dp->index;
-	u32 rew_op = 0;
+	u16 tx_vid = dsa_tag_8021q_tx_vid(dp);
+	struct ethhdr *hdr = eth_hdr(skb);
 
-	rew_op = ocelot_ptp_rew_op(skb);
-	if (rew_op) {
-		if (!ocelot_can_inject(ocelot, 0))
-			return NULL;
-
-		ocelot_port_inject_frame(ocelot, port, 0, rew_op, skb);
-		return NULL;
-	}
+	if (ocelot_ptp_rew_op(skb) || is_link_local_ether_addr(hdr->h_dest))
+		return ocelot_defer_xmit(dp, skb);
 
 	return dsa_8021q_xmit(skb, netdev, ETH_P_8021Q,
 			      ((pcp << VLAN_PRIO_SHIFT) | tx_vid));

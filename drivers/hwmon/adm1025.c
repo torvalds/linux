@@ -97,7 +97,7 @@ struct adm1025_data {
 	struct i2c_client *client;
 	const struct attribute_group *groups[3];
 	struct mutex update_lock;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	u8 in[6];		/* register value */
@@ -148,7 +148,7 @@ static struct adm1025_data *adm1025_update_device(struct device *dev)
 			      ADM1025_REG_VID4) & 0x01) << 4);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

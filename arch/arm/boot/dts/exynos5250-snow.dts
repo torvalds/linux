@@ -12,6 +12,7 @@
 	model = "Google Snow";
 	compatible = "google,snow-rev4", "google,snow", "samsung,exynos5250",
 		"samsung,exynos5";
+	chassis-type = "laptop";
 
 	sound {
 		compatible = "google,snow-audio-max98095";

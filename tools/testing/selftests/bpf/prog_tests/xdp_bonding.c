@@ -519,7 +519,7 @@ static struct bond_test_case bond_test_cases[] = {
 	{ "xdp_bonding_xor_layer34", BOND_MODE_XOR, BOND_XMIT_POLICY_LAYER34, },
 };
 
-void test_xdp_bonding(void)
+void serial_test_xdp_bonding(void)
 {
 	libbpf_print_fn_t old_print_fn;
 	struct skeletons skeletons = {};

@@ -207,6 +207,8 @@ static long bcm63xx_wdt_ioctl(struct file *file, unsigned int cmd,
 
 		bcm63xx_wdt_pet();
 
+		fallthrough;
+
 	case WDIOC_GETTIMEOUT:
 		return put_user(wdt_time, p);
 

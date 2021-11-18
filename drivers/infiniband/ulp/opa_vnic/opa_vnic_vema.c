@@ -1,5 +1,6 @@
 /*
  * Copyright(c) 2017 Intel Corporation.
+ * Copyright(c) 2021 Cornelis Networks.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -46,7 +47,7 @@
  */
 
 /*
- * This file contains OPA Virtual Network Interface Controller (VNIC)
+ * This file contains OPX Virtual Network Interface Controller (VNIC)
  * Ethernet Management Agent (EMA) driver
  */
 
@@ -1051,5 +1052,5 @@ static void opa_vnic_deinit(void)
 module_exit(opa_vnic_deinit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("Intel OPA Virtual Network driver");
+MODULE_AUTHOR("Cornelis Networks");
+MODULE_DESCRIPTION("Cornelis OPX Virtual Network driver");

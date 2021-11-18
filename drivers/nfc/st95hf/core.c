@@ -1226,11 +1226,9 @@ static int st95hf_remove(struct spi_device *nfc_spi_dev)
 				 &reset_cmd,
 				 ST95HF_RESET_CMD_LEN,
 				 ASYNC);
-	if (result) {
+	if (result)
 		dev_err(&spictx->spidev->dev,
 			"ST95HF reset failed in remove() err = %d\n", result);
-		return result;
-	}
 
 	/* wait for 3 ms to complete the controller reset process */
 	usleep_range(3000, 4000);
@@ -1239,7 +1237,7 @@ static int st95hf_remove(struct spi_device *nfc_spi_dev)
 	if (stcontext->st95hf_supply)
 		regulator_disable(stcontext->st95hf_supply);
 
-	return result;
+	return 0;
 }
 
 /* Register as SPI protocol driver */

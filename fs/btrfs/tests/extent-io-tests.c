@@ -112,7 +112,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 */
 	set_extent_delalloc(tmp, 0, sectorsize - 1, 0, NULL);
 	start = 0;
-	end = 0;
+	end = start + PAGE_SIZE - 1;
 	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (!found) {
@@ -143,7 +143,7 @@ static int test_find_delalloc(u32 sectorsize)
 	}
 	set_extent_delalloc(tmp, sectorsize, max_bytes - 1, 0, NULL);
 	start = test_start;
-	end = 0;
+	end = start + PAGE_SIZE - 1;
 	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (!found) {
@@ -177,14 +177,14 @@ static int test_find_delalloc(u32 sectorsize)
 		goto out_bits;
 	}
 	start = test_start;
-	end = 0;
+	end = start + PAGE_SIZE - 1;
 	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (found) {
 		test_err("found range when we shouldn't have");
 		goto out_bits;
 	}
-	if (end != (u64)-1) {
+	if (end != test_start + PAGE_SIZE - 1) {
 		test_err("did not return the proper end offset");
 		goto out_bits;
 	}
@@ -198,7 +198,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 */
 	set_extent_delalloc(tmp, max_bytes, total_dirty - 1, 0, NULL);
 	start = test_start;
-	end = 0;
+	end = start + PAGE_SIZE - 1;
 	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (!found) {
@@ -233,7 +233,7 @@ static int test_find_delalloc(u32 sectorsize)
 	/* We unlocked it in the previous test */
 	lock_page(locked_page);
 	start = test_start;
-	end = 0;
+	end = start + PAGE_SIZE - 1;
 	/*
 	 * Currently if we fail to find dirty pages in the delalloc range we
 	 * will adjust max_bytes down to PAGE_SIZE and then re-search.  If

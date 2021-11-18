@@ -816,7 +816,7 @@ blk_trace_request_get_cgid(struct request *rq)
  *     Records an action against a request. Will log the bio offset + size.
  *
  **/
-static void blk_add_trace_rq(struct request *rq, int error,
+static void blk_add_trace_rq(struct request *rq, blk_status_t error,
 			     unsigned int nr_bytes, u32 what, u64 cgid)
 {
 	struct blk_trace *bt;
@@ -834,7 +834,8 @@ static void blk_add_trace_rq(struct request *rq, int error,
 		what |= BLK_TC_ACT(BLK_TC_FS);
 
 	__blk_add_trace(bt, blk_rq_trace_sector(rq), nr_bytes, req_op(rq),
-			rq->cmd_flags, what, error, 0, NULL, cgid);
+			rq->cmd_flags, what, blk_status_to_errno(error), 0,
+			NULL, cgid);
 	rcu_read_unlock();
 }
 
@@ -863,7 +864,7 @@ static void blk_add_trace_rq_requeue(void *ignore, struct request *rq)
 }
 
 static void blk_add_trace_rq_complete(void *ignore, struct request *rq,
-			int error, unsigned int nr_bytes)
+			blk_status_t error, unsigned int nr_bytes)
 {
 	blk_add_trace_rq(rq, error, nr_bytes, BLK_TA_COMPLETE,
 			 blk_trace_request_get_cgid(rq));
@@ -1604,6 +1605,14 @@ static int blk_trace_remove_queue(struct request_queue *q)
 				 lockdep_is_held(&q->debugfs_mutex));
 	if (bt == NULL)
 		return -EINVAL;
+
+	if (bt->trace_state == Blktrace_running) {
+		bt->trace_state = Blktrace_stopped;
+		spin_lock_irq(&running_trace_lock);
+		list_del_init(&bt->running_list);
+		spin_unlock_irq(&running_trace_lock);
+		relay_flush(bt->rchan);
+	}
 
 	put_probe_ref();
 	synchronize_rcu();

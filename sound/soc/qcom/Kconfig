@@ -38,6 +38,7 @@ config SND_SOC_LPASS_SC7180
 
 config SND_SOC_STORM
 	tristate "ASoC I2S support for Storm boards"
+	depends on GPIOLIB
 	select SND_SOC_LPASS_IPQ806X
 	select SND_SOC_MAX98357A
 	help
@@ -84,6 +85,25 @@ config SND_SOC_QDSP6_ASM_DAI
 	select SND_SOC_COMPRESS
 	tristate
 
+config SND_SOC_QDSP6_APM_DAI
+	tristate
+	select SND_SOC_COMPRESS
+
+config SND_SOC_QDSP6_APM_LPASS_DAI
+	tristate
+
+config SND_SOC_QDSP6_APM
+	tristate
+	select SND_SOC_QDSP6_APM_DAI
+	select SND_SOC_QDSP6_APM_LPASS_DAI
+
+config SND_SOC_QDSP6_PRM_LPASS_CLOCKS
+	tristate
+
+config SND_SOC_QDSP6_PRM
+	tristate
+	select SND_SOC_QDSP6_PRM_LPASS_CLOCKS
+
 config SND_SOC_QDSP6
 	tristate "SoC ALSA audio driver for QDSP6"
 	depends on QCOM_APR
@@ -97,6 +117,9 @@ config SND_SOC_QDSP6
 	select SND_SOC_QDSP6_ROUTING
 	select SND_SOC_QDSP6_ASM
 	select SND_SOC_QDSP6_ASM_DAI
+	select SND_SOC_TOPOLOGY
+	select SND_SOC_QDSP6_APM
+	select SND_SOC_QDSP6_PRM
 	help
 	 To add support for MSM QDSP6 Soc Audio.
 	 This will enable sound soc platform specific
@@ -141,7 +164,7 @@ config SND_SOC_SM8250
 
 config SND_SOC_SC7180
 	tristate "SoC Machine driver for SC7180 boards"
-	depends on I2C
+	depends on I2C && GPIOLIB
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_LPASS_SC7180
 	select SND_SOC_MAX98357A

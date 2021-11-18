@@ -17,6 +17,7 @@
 / {
 	model = "Pine64 Pinebook Pro";
 	compatible = "pine64,pinebook-pro", "rockchip,rk3399";
+	chassis-type = "laptop";
 
 	aliases {
 		mmc0 = &sdio0;
@@ -385,10 +386,6 @@
 	};
 };
 
-&cdn_dp {
-	status = "okay";
-};
-
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_b>;
 };
@@ -711,7 +708,7 @@
 
 		connector {
 			compatible = "usb-c-connector";
-			data-role = "host";
+			data-role = "dual";
 			label = "USB-C";
 			op-sink-microwatt = <1000000>;
 			power-role = "dual";

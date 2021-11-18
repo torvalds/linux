@@ -90,7 +90,6 @@ struct mlxsw_core {
 		struct devlink_health_reporter *fw_fatal;
 	} health;
 	struct mlxsw_env *env;
-	bool is_initialized; /* Denotes if core was already initialized. */
 	unsigned long driver_priv[];
 	/* driver_priv has to be always the last item */
 };
@@ -1975,12 +1974,6 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 		goto err_emad_init;
 
 	if (!reload) {
-		err = devlink_register(devlink);
-		if (err)
-			goto err_devlink_register;
-	}
-
-	if (!reload) {
 		err = mlxsw_core_params_register(mlxsw_core);
 		if (err)
 			goto err_register_params;
@@ -1995,12 +1988,6 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_health_init;
 
-	if (mlxsw_driver->init) {
-		err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info, extack);
-		if (err)
-			goto err_driver_init;
-	}
-
 	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
 	if (err)
 		goto err_hwmon_init;
@@ -2014,31 +2001,31 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_env_init;
 
-	mlxsw_core->is_initialized = true;
-	devlink_params_publish(devlink);
+	if (mlxsw_driver->init) {
+		err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info, extack);
+		if (err)
+			goto err_driver_init;
+	}
 
-	if (!reload)
-		devlink_reload_enable(devlink);
-
+	if (!reload) {
+		devlink_set_features(devlink, DEVLINK_F_RELOAD);
+		devlink_register(devlink);
+	}
 	return 0;
 
+err_driver_init:
+	mlxsw_env_fini(mlxsw_core->env);
 err_env_init:
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 err_thermal_init:
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 err_hwmon_init:
-	if (mlxsw_core->driver->fini)
-		mlxsw_core->driver->fini(mlxsw_core);
-err_driver_init:
 	mlxsw_core_health_fini(mlxsw_core);
 err_health_init:
 err_fw_rev_validate:
 	if (!reload)
 		mlxsw_core_params_unregister(mlxsw_core);
 err_register_params:
-	if (!reload)
-		devlink_unregister(devlink);
-err_devlink_register:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
 	kfree(mlxsw_core->lag.mapping);
@@ -2088,7 +2075,8 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 
 	if (!reload)
-		devlink_reload_disable(devlink);
+		devlink_unregister(devlink);
+
 	if (devlink_is_reload_failed(devlink)) {
 		if (!reload)
 			/* Only the parts that were not de-initialized in the
@@ -2099,18 +2087,14 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 			return;
 	}
 
-	devlink_params_unpublish(devlink);
-	mlxsw_core->is_initialized = false;
+	if (mlxsw_core->driver->fini)
+		mlxsw_core->driver->fini(mlxsw_core);
 	mlxsw_env_fini(mlxsw_core->env);
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
-	if (mlxsw_core->driver->fini)
-		mlxsw_core->driver->fini(mlxsw_core);
 	mlxsw_core_health_fini(mlxsw_core);
 	if (!reload)
 		mlxsw_core_params_unregister(mlxsw_core);
-	if (!reload)
-		devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);
 	kfree(mlxsw_core->lag.mapping);
 	mlxsw_ports_fini(mlxsw_core, reload);
@@ -2124,7 +2108,6 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 
 reload_fail_deinit:
 	mlxsw_core_params_unregister(mlxsw_core);
-	devlink_unregister(devlink);
 	devlink_resources_unregister(devlink, NULL);
 	devlink_free(devlink);
 }
@@ -2938,49 +2921,6 @@ struct mlxsw_env *mlxsw_core_env(const struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_core->env;
 }
-
-bool mlxsw_core_is_initialized(const struct mlxsw_core *mlxsw_core)
-{
-	return mlxsw_core->is_initialized;
-}
-
-int mlxsw_core_module_max_width(struct mlxsw_core *mlxsw_core, u8 module)
-{
-	enum mlxsw_reg_pmtm_module_type module_type;
-	char pmtm_pl[MLXSW_REG_PMTM_LEN];
-	int err;
-
-	mlxsw_reg_pmtm_pack(pmtm_pl, module);
-	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(pmtm), pmtm_pl);
-	if (err)
-		return err;
-	mlxsw_reg_pmtm_unpack(pmtm_pl, &module_type);
-
-	/* Here we need to get the module width according to the module type. */
-
-	switch (module_type) {
-	case MLXSW_REG_PMTM_MODULE_TYPE_C2C8X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_QSFP_DD:
-	case MLXSW_REG_PMTM_MODULE_TYPE_OSFP:
-		return 8;
-	case MLXSW_REG_PMTM_MODULE_TYPE_C2C4X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_4X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_QSFP:
-		return 4;
-	case MLXSW_REG_PMTM_MODULE_TYPE_C2C2X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_2X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_SFP_DD:
-	case MLXSW_REG_PMTM_MODULE_TYPE_DSFP:
-		return 2;
-	case MLXSW_REG_PMTM_MODULE_TYPE_C2C1X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_BP_1X:
-	case MLXSW_REG_PMTM_MODULE_TYPE_SFP:
-		return 1;
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL(mlxsw_core_module_max_width);
 
 static void mlxsw_core_buf_dump_dbg(struct mlxsw_core *mlxsw_core,
 				    const char *buf, size_t size)

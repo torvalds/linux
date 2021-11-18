@@ -463,7 +463,7 @@ typedef int (*parse_endpoint_func)(struct device *dev,
 				  struct v4l2_async_subdev *asd);
 
 /**
- * v4l2_async_notifier_parse_fwnode_endpoints - Parse V4L2 fwnode endpoints in a
+ * v4l2_async_nf_parse_fwnode_endpoints - Parse V4L2 fwnode endpoints in a
  *						device node
  * @dev: the device the endpoints of which are to be parsed
  * @notifier: notifier for @dev
@@ -496,7 +496,7 @@ typedef int (*parse_endpoint_func)(struct device *dev,
  * to retain that configuration, the user needs to allocate memory for it.
  *
  * Any notifier populated using this function must be released with a call to
- * v4l2_async_notifier_cleanup() after it has been unregistered and the async
+ * v4l2_async_nf_cleanup() after it has been unregistered and the async
  * sub-devices are no longer in use, even if the function returned an error.
  *
  * Return: %0 on success, including when no async sub-devices are found
@@ -505,10 +505,10 @@ typedef int (*parse_endpoint_func)(struct device *dev,
  *	   Other error codes as returned by @parse_endpoint
  */
 int
-v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
-					   struct v4l2_async_notifier *notifier,
-					   size_t asd_struct_size,
-					   parse_endpoint_func parse_endpoint);
+v4l2_async_nf_parse_fwnode_endpoints(struct device *dev,
+				     struct v4l2_async_notifier *notifier,
+				     size_t asd_struct_size,
+				     parse_endpoint_func parse_endpoint);
 
 /* Helper macros to access the connector links. */
 

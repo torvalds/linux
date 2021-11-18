@@ -76,7 +76,7 @@ config TCG_TIS_SPI_CR50
 
 config TCG_TIS_SYNQUACER
 	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface (MMIO - SynQuacer)"
-	depends on ARCH_SYNQUACER
+	depends on ARCH_SYNQUACER || COMPILE_TEST
 	select TCG_TIS_CORE
 	help
 	  If you have a TPM security chip that is compliant with the

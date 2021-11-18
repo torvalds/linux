@@ -376,8 +376,11 @@ static int rtl2832_sdr_alloc_urbs(struct rtl2832_sdr_dev *dev)
 		dev_dbg(&pdev->dev, "alloc urb=%d\n", i);
 		dev->urb_list[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!dev->urb_list[i]) {
-			for (j = 0; j < i; j++)
+			for (j = 0; j < i; j++) {
 				usb_free_urb(dev->urb_list[j]);
+				dev->urb_list[j] = NULL;
+			}
+			dev->urbs_initialized = 0;
 			return -ENOMEM;
 		}
 		usb_fill_bulk_urb(dev->urb_list[i],

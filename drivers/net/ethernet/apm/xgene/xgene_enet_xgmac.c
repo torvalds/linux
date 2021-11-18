@@ -207,8 +207,8 @@ static void xgene_pcs_reset(struct xgene_enet_pdata *pdata)
 
 static void xgene_xgmac_set_mac_addr(struct xgene_enet_pdata *pdata)
 {
+	const u8 *dev_addr = pdata->ndev->dev_addr;
 	u32 addr0, addr1;
-	u8 *dev_addr = pdata->ndev->dev_addr;
 
 	addr0 = (dev_addr[3] << 24) | (dev_addr[2] << 16) |
 		(dev_addr[1] << 8) | dev_addr[0];

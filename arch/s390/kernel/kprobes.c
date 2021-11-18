@@ -7,6 +7,8 @@
  * s390 port, used ppc64 as template. Mike Grundy <grundym@us.ibm.com>
  */
 
+#define pr_fmt(fmt) "kprobes: " fmt
+
 #include <linux/moduleloader.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
@@ -120,9 +122,55 @@ static void s390_free_insn_slot(struct kprobe *p)
 }
 NOKPROBE_SYMBOL(s390_free_insn_slot);
 
+/* Check if paddr is at an instruction boundary */
+static bool can_probe(unsigned long paddr)
+{
+	unsigned long addr, offset = 0;
+	kprobe_opcode_t insn;
+	struct kprobe *kp;
+
+	if (paddr & 0x01)
+		return false;
+
+	if (!kallsyms_lookup_size_offset(paddr, NULL, &offset))
+		return false;
+
+	/* Decode instructions */
+	addr = paddr - offset;
+	while (addr < paddr) {
+		if (copy_from_kernel_nofault(&insn, (void *)addr, sizeof(insn)))
+			return false;
+
+		if (insn >> 8 == 0) {
+			if (insn != BREAKPOINT_INSTRUCTION) {
+				/*
+				 * Note that QEMU inserts opcode 0x0000 to implement
+				 * software breakpoints for guests. Since the size of
+				 * the original instruction is unknown, stop following
+				 * instructions and prevent setting a kprobe.
+				 */
+				return false;
+			}
+			/*
+			 * Check if the instruction has been modified by another
+			 * kprobe, in which case the original instruction is
+			 * decoded.
+			 */
+			kp = get_kprobe((void *)addr);
+			if (!kp) {
+				/* not a kprobe */
+				return false;
+			}
+			insn = kp->opcode;
+		}
+		addr += insn_length(insn >> 8);
+	}
+	return addr == paddr;
+}
+
 int arch_prepare_kprobe(struct kprobe *p)
 {
-	if ((unsigned long) p->addr & 0x01)
+	if (!can_probe((unsigned long)p->addr))
 		return -EINVAL;
 	/* Make sure the probe isn't going on a difficult instruction */
 	if (probe_is_prohibited_opcode(p->addr))
@@ -240,7 +288,7 @@ void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
 	ri->fp = NULL;
 
 	/* Replace the return addr with trampoline addr */
-	regs->gprs[14] = (unsigned long) &kretprobe_trampoline;
+	regs->gprs[14] = (unsigned long) &__kretprobe_trampoline;
 }
 NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
@@ -259,7 +307,7 @@ static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 		 * is a BUG. The code path resides in the .kprobes.text
 		 * section and is executed with interrupts disabled.
 		 */
-		pr_err("Invalid kprobe detected.\n");
+		pr_err("Failed to recover from reentered kprobes.\n");
 		dump_kprobe(p);
 		BUG();
 	}
@@ -332,8 +380,8 @@ NOKPROBE_SYMBOL(kprobe_handler);
  */
 static void __used kretprobe_trampoline_holder(void)
 {
-	asm volatile(".global kretprobe_trampoline\n"
-		     "kretprobe_trampoline: bcr 0,0\n");
+	asm volatile(".global __kretprobe_trampoline\n"
+		     "__kretprobe_trampoline: bcr 0,0\n");
 }
 
 /*
@@ -341,7 +389,7 @@ static void __used kretprobe_trampoline_holder(void)
  */
 static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
-	regs->psw.addr = __kretprobe_trampoline_handler(regs, &kretprobe_trampoline, NULL);
+	regs->psw.addr = __kretprobe_trampoline_handler(regs, NULL);
 	/*
 	 * By returning a non-zero value, we are telling
 	 * kprobe_handler() that we don't want the post_handler
@@ -507,7 +555,7 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 NOKPROBE_SYMBOL(kprobe_exceptions_notify);
 
 static struct kprobe trampoline = {
-	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
+	.addr = (kprobe_opcode_t *) &__kretprobe_trampoline,
 	.pre_handler = trampoline_probe_handler
 };
 
@@ -518,6 +566,6 @@ int __init arch_init_kprobes(void)
 
 int arch_trampoline_kprobe(struct kprobe *p)
 {
-	return p->addr == (kprobe_opcode_t *) &kretprobe_trampoline;
+	return p->addr == (kprobe_opcode_t *) &__kretprobe_trampoline;
 }
 NOKPROBE_SYMBOL(arch_trampoline_kprobe);

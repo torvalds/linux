@@ -186,17 +186,16 @@ enum hns3_nic_state {
 
 #define HNS3_MAX_BD_SIZE			65535
 #define HNS3_MAX_TSO_BD_NUM			63U
-#define HNS3_MAX_TSO_SIZE \
-	(HNS3_MAX_BD_SIZE * HNS3_MAX_TSO_BD_NUM)
+#define HNS3_MAX_TSO_SIZE			1048576U
+#define HNS3_MAX_NON_TSO_SIZE			9728U
 
-#define HNS3_MAX_NON_TSO_SIZE(max_non_tso_bd_num) \
-	(HNS3_MAX_BD_SIZE * (max_non_tso_bd_num))
-
+#define HNS3_VECTOR_GL_MASK			GENMASK(11, 0)
 #define HNS3_VECTOR_GL0_OFFSET			0x100
 #define HNS3_VECTOR_GL1_OFFSET			0x200
 #define HNS3_VECTOR_GL2_OFFSET			0x300
 #define HNS3_VECTOR_RL_OFFSET			0x900
 #define HNS3_VECTOR_RL_EN_B			6
+#define HNS3_VECTOR_QL_MASK			GENMASK(9, 0)
 #define HNS3_VECTOR_TX_QL_OFFSET		0xe00
 #define HNS3_VECTOR_RX_QL_OFFSET		0xf00
 
@@ -332,6 +331,7 @@ struct hns3_desc_cb {
 	u32 length;     /* length of the buffer */
 
 	u16 reuse_flag;
+	u16 refill;
 
 	/* desc type, used by the ring user to mark the type of the priv data */
 	u16 type;

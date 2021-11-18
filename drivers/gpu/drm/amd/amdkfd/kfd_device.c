@@ -93,7 +93,6 @@ static const struct kfd_device_info carrizo_device_info = {
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
-#endif
 
 static const struct kfd_device_info raven_device_info = {
 	.asic_family = CHIP_RAVEN,
@@ -113,7 +112,9 @@ static const struct kfd_device_info raven_device_info = {
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
+#endif
 
+#ifdef CONFIG_DRM_AMDGPU_CIK
 static const struct kfd_device_info hawaii_device_info = {
 	.asic_family = CHIP_HAWAII,
 	.asic_name = "hawaii",
@@ -133,6 +134,7 @@ static const struct kfd_device_info hawaii_device_info = {
 	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
+#endif
 
 static const struct kfd_device_info tonga_device_info = {
 	.asic_family = CHIP_TONGA,
@@ -404,7 +406,7 @@ static const struct kfd_device_info aldebaran_device_info = {
 static const struct kfd_device_info renoir_device_info = {
 	.asic_family = CHIP_RENOIR,
 	.asic_name = "renoir",
-	.gfx_target_version = 90002,
+	.gfx_target_version = 90012,
 	.max_pasid_bits = 16,
 	.max_no_of_hqd  = 24,
 	.doorbell_size  = 8,
@@ -1021,6 +1023,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd_double_confirm_iommu_support(kfd);
 
 	if (kfd_iommu_device_init(kfd)) {
+		kfd->use_iommu_v2 = false;
 		dev_err(kfd_device, "Error initializing iommuv2\n");
 		goto device_iommu_error;
 	}
@@ -1028,6 +1031,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd_cwsr_init(kfd);
 
 	svm_migrate_init((struct amdgpu_device *)kfd->kgd);
+
+	if(kgd2kfd_resume_iommu(kfd))
+		goto device_iommu_error;
 
 	if (kfd_resume(kfd))
 		goto kfd_resume_error;

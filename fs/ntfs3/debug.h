@@ -11,6 +11,9 @@
 #ifndef _LINUX_NTFS3_DEBUG_H
 #define _LINUX_NTFS3_DEBUG_H
 
+struct super_block;
+struct inode;
+
 #ifndef Add2Ptr
 #define Add2Ptr(P, I)		((void *)((u8 *)(P) + (I)))
 #define PtrOffset(B, O)		((size_t)((size_t)(O) - (size_t)(B)))

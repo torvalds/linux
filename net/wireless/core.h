@@ -100,6 +100,8 @@ struct cfg80211_registered_device {
 	struct work_struct propagate_cac_done_wk;
 
 	struct work_struct mgmt_registrations_update_wk;
+	/* lock for all wdev lists */
+	spinlock_t mgmt_registrations_lock;
 
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */

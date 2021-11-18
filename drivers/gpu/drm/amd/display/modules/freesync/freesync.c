@@ -155,9 +155,18 @@ static unsigned int calc_v_total_from_duration(
 	if (duration_in_us > vrr->max_duration_in_us)
 		duration_in_us = vrr->max_duration_in_us;
 
-	v_total = div64_u64(div64_u64(((unsigned long long)(
-				duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
-				stream->timing.h_total), 1000);
+	if (dc_is_hdmi_signal(stream->signal)) {
+		uint32_t h_total_up_scaled;
+
+		h_total_up_scaled = stream->timing.h_total * 10000;
+		v_total = div_u64((unsigned long long)duration_in_us
+					* stream->timing.pix_clk_100hz + (h_total_up_scaled - 1),
+					h_total_up_scaled);
+	} else {
+		v_total = div64_u64(div64_u64(((unsigned long long)(
+					duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
+					stream->timing.h_total), 1000);
+	}
 
 	/* v_total cannot be less than nominal */
 	if (v_total < stream->timing.v_total) {

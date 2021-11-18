@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifsproto.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -268,7 +267,11 @@ extern void cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode);
 
 extern void cifs_close_all_deferred_files(struct cifs_tcon *cifs_tcon);
 
-extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb3_fs_context *ctx);
+extern void cifs_close_deferred_file_under_dentry(struct cifs_tcon *cifs_tcon,
+				const char *path);
+extern struct TCP_Server_Info *
+cifs_get_tcp_session(struct smb3_fs_context *ctx,
+		     struct TCP_Server_Info *primary_server);
 extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
 				 int from_reconnect);
 extern void cifs_put_tcon(struct cifs_tcon *tcon);
@@ -605,7 +608,7 @@ int smb2_parse_query_directory(struct cifs_tcon *tcon, struct kvec *rsp_iov,
 
 struct super_block *cifs_get_tcp_super(struct TCP_Server_Info *server);
 void cifs_put_tcp_super(struct super_block *sb);
-int update_super_prepath(struct cifs_tcon *tcon, char *prefix);
+int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix);
 char *extract_hostname(const char *unc);
 char *extract_sharename(const char *unc);
 
@@ -631,5 +634,8 @@ static inline int cifs_create_options(struct cifs_sb_info *cifs_sb, int options)
 	else
 		return options;
 }
+
+struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon);
+void cifs_put_tcon_super(struct super_block *sb);
 
 #endif			/* _CIFSPROTO_H */

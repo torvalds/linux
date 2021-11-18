@@ -119,7 +119,7 @@ static int aqc111_write_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
 }
 
 static int aqc111_write_cmd(struct usbnet *dev, u8 cmd, u16 value,
-			    u16 index, u16 size, void *data)
+			    u16 index, u16 size, const void *data)
 {
 	int ret;
 
@@ -714,7 +714,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ret)
 		goto out;
 
-	ether_addr_copy(dev->net->dev_addr, dev->net->perm_addr);
+	eth_hw_addr_set(dev->net, dev->net->perm_addr);
 
 	/* Set Rx urb size */
 	dev->rx_urb_size = URB_SIZE;

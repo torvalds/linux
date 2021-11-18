@@ -52,7 +52,7 @@ static int timer_mim(struct timer_mim *timer_skel)
 	return 0;
 }
 
-void test_timer_mim(void)
+void serial_test_timer_mim(void)
 {
 	struct timer_mim_reject *timer_reject_skel = NULL;
 	libbpf_print_fn_t old_print_fn = NULL;

@@ -90,8 +90,11 @@ enum lttpr_mode {
 
 struct link_training_settings {
 	struct dc_link_settings link_settings;
-	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
 
+	/* TODO: turn lane settings below into mandatory fields
+	 * as initial lane configuration
+	 */
+	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
 	enum dc_voltage_swing *voltage_swing;
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;
@@ -115,8 +118,30 @@ struct link_training_settings {
 #endif
 
 	bool enhanced_framing;
-	bool allow_invalid_msa_timing_param;
 	enum lttpr_mode lttpr_mode;
+
+	/* disallow different lanes to have different lane settings */
+	bool disallow_per_lane_settings;
+	/* dpcd lane settings will always use the same hw lane settings
+	 * even if it doesn't match requested lane adjust */
+	bool always_match_dpcd_with_hw_lane_settings;
+
+	/*****************************************************************
+	* training states - parameters that can change in link training
+	*****************************************************************/
+	/* TODO: Move hw_lane_settings and dpcd_lane_settings
+	 * along with lane adjust, lane align, offset and all
+	 * other training states into a new structure called
+	 * training states, so link_training_settings becomes
+	 * a constant input pre-decided prior to link training.
+	 *
+	 * The goal is to strictly decouple link training settings
+	 * decision making process from link training states to
+	 * prevent it from messy code practice of changing training
+	 * decision on the fly.
+	 */
+	struct dc_lane_settings hw_lane_settings[LANE_COUNT_DP_MAX];
+	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX];
 };
 
 /*TODO: Move this enum test harness*/

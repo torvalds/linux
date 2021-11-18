@@ -101,8 +101,6 @@
 #include "link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
-#define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
 
 #define DCN3_1_DEFAULT_DET_SIZE 384
 
@@ -222,8 +220,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
 	.num_states = 5,
 	.sr_exit_time_us = 9.0,
 	.sr_enter_plus_exit_time_us = 11.0,
-	.sr_exit_z8_time_us = 402.0,
-	.sr_enter_plus_exit_z8_time_us = 520.0,
+	.sr_exit_z8_time_us = 442.0,
+	.sr_enter_plus_exit_z8_time_us = 560.0,
 	.writeback_latency_us = 12.0,
 	.dram_channel_width_bytes = 4,
 	.round_trip_ping_latency_dcfclk_cycles = 106,
@@ -862,7 +860,8 @@ static const struct dccg_mask dccg_mask = {
 	SR(D6VGA_CONTROL), \
 	SR(DC_IP_REQUEST_CNTL), \
 	SR(AZALIA_AUDIO_DTO), \
-	SR(AZALIA_CONTROLLER_CLOCK_GATING)
+	SR(AZALIA_CONTROLLER_CLOCK_GATING), \
+	SR(HPO_TOP_HW_CONTROL)
 
 static const struct dce_hwseq_registers hwseq_reg = {
 		HWSEQ_DCN31_REG_LIST()
@@ -899,7 +898,9 @@ static const struct dce_hwseq_registers hwseq_reg = {
 	HWS_SF(, DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, mask_sh), \
 	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_UNASSIGNED_PWR_MODE, mask_sh), \
 	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_VBLANK_PWR_MODE, mask_sh), \
-	HWS_SF(, MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, mask_sh)
+	HWS_SF(, MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, mask_sh), \
+	HWS_SF(, DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh), \
+	HWS_SF(, HPO_TOP_HW_CONTROL, HPO_IO_EN, mask_sh)
 
 static const struct dce_hwseq_shift hwseq_shift = {
 		HWSEQ_DCN31_MASK_SH_LIST(__SHIFT)
@@ -998,7 +999,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dcc = DCC_ENABLE,
 	.vsr_support = true,
 	.performance_trace = false,
-	.max_downscale_src_width = 3840,/*upto 4K*/
+	.max_downscale_src_width = 4096,/*upto true 4K*/
 	.disable_pplib_wm_range = false,
 	.scl_reset_length10 = true,
 	.sanity_checks = false,
@@ -1312,10 +1313,6 @@ static struct vpg *dcn31_vpg_create(
 			&vpg_shift,
 			&vpg_mask);
 
-	// Will re-enable hw block when we enable stream
-	// Check for enabled stream before powering down?
-	vpg31_powerdown(&vpg31->base);
-
 	return &vpg31->base;
 }
 
@@ -1381,6 +1378,12 @@ static struct stream_encoder *dcn31_stream_encoder_create(
 		kfree(vpg);
 		kfree(afmt);
 		return NULL;
+	}
+
+	if (ctx->asic_id.chip_family == FAMILY_YELLOW_CARP &&
+			ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+		if ((eng_id == ENGINE_ID_DIGC) || (eng_id == ENGINE_ID_DIGD))
+			eng_id = eng_id + 3; // For B0 only. C->F, D->G.
 	}
 
 	dcn30_dio_stream_encoder_construct(enc1, ctx, ctx->dc_bios,
@@ -1782,6 +1785,13 @@ static int dcn31_populate_dml_pipes_from_context(
 		pipe = &res_ctx->pipe_ctx[i];
 		timing = &pipe->stream->timing;
 
+		/*
+		 * Immediate flip can be set dynamically after enabling the plane.
+		 * We need to require support for immediate flip or underflow can be
+		 * intermittently experienced depending on peak b/w requirements.
+		 */
+		pipes[pipe_cnt].pipe.src.immediate_flip = true;
+
 		pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
 		pipes[pipe_cnt].pipe.src.gpuvm = true;
 		pipes[pipe_cnt].pipe.src.dcc_fraction_of_zs_req_luma = 0;
@@ -1824,7 +1834,7 @@ static int dcn31_populate_dml_pipes_from_context(
 	return pipe_cnt;
 }
 
-static void dcn31_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
+void dcn31_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
 {
 	if (dc->clk_mgr->bw_params->wm_table.entries[WM_A].valid) {
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.entries[WM_A].pstate_latency_us;
@@ -1968,7 +1978,7 @@ static void dcn31_calculate_wm_and_dlg_fp(
 	dcn20_calculate_dlg_params(dc, context, pipes, pipe_cnt, vlevel);
 }
 
-static void dcn31_calculate_wm_and_dlg(
+void dcn31_calculate_wm_and_dlg(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,
@@ -2449,6 +2459,8 @@ static bool dcn31_resource_construct(
 		dc->caps.planes[i] = plane_cap;
 
 	dc->cap_funcs = cap_funcs;
+
+	dc->dcn_ip->max_num_dpp = dcn3_1_ip.max_num_dpp;
 
 	DC_FP_END();
 
