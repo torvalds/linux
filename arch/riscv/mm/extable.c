@@ -13,15 +13,15 @@
 
 bool fixup_exception(struct pt_regs *regs)
 {
-	const struct exception_table_entry *fixup;
+	const struct exception_table_entry *ex;
 
-	fixup = search_exception_tables(regs->epc);
-	if (!fixup)
+	ex = search_exception_tables(regs->epc);
+	if (!ex)
 		return false;
 
 	if (regs->epc >= BPF_JIT_REGION_START && regs->epc < BPF_JIT_REGION_END)
-		return rv_bpf_fixup_exception(fixup, regs);
+		return rv_bpf_fixup_exception(ex, regs);
 
-	regs->epc = (unsigned long)&fixup->fixup + fixup->fixup;
+	regs->epc = (unsigned long)&ex->fixup + ex->fixup;
 	return true;
 }
