@@ -1055,12 +1055,8 @@ static bool wcd_mbhc_check_for_spl_headset(struct wcd_mbhc *mbhc)
 	hs_threshold = wcd_mbhc_get_spl_hs_thres(mbhc);
 	hph_threshold = wcd_mbhc_adc_get_hph_thres(mbhc);
 
-	if (output_mv > hs_threshold || output_mv < hph_threshold) {
-		if (mbhc->force_linein == true)
-			is_spl_hs = false;
-	} else {
+	if (!(output_mv > hs_threshold || output_mv < hph_threshold))
 		is_spl_hs = true;
-	}
 
 	/* Back MIC_BIAS2 to 1.8v if the type is not special headset */
 	if (!is_spl_hs) {
@@ -1149,13 +1145,13 @@ correct_plug_type:
 		plug_type = wcd_mbhc_get_plug_from_adc(mbhc, output_mv);
 		is_pa_on = wcd_mbhc_read_field(mbhc, WCD_MBHC_HPH_PA_EN);
 
-		if ((output_mv > hs_threshold) && (!is_spl_hs)) {
+		if (output_mv > hs_threshold && !is_spl_hs) {
 			is_spl_hs = wcd_mbhc_check_for_spl_headset(mbhc);
 			output_mv = wcd_measure_adc_once(mbhc, MUX_CTL_IN2P);
 
 			if (is_spl_hs) {
-				hs_threshold = (hs_threshold * wcd_mbhc_get_micbias(mbhc)) /
-									micbias_mv;
+				hs_threshold *= wcd_mbhc_get_micbias(mbhc);
+				hs_threshold /= micbias_mv;
 			}
 		}
 
@@ -1185,7 +1181,7 @@ correct_plug_type:
 		}
 
 		/* cable is extension cable */
-		if (output_mv > hs_threshold || mbhc->force_linein == true)
+		if (output_mv > hs_threshold || mbhc->force_linein)
 			plug_type = MBHC_PLUG_TYPE_HIGH_HPH;
 	}
 
