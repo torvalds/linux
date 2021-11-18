@@ -197,6 +197,7 @@ static void phylink_caps_to_linkmodes(unsigned long *linkmodes,
 
 	if (caps & MAC_1000FD) {
 		__set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, linkmodes);
+		__set_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT, linkmodes);
 		__set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT, linkmodes);
 		__set_bit(ETHTOOL_LINK_MODE_1000baseT1_Full_BIT, linkmodes);
 	}
