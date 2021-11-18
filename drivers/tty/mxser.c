@@ -683,27 +683,34 @@ static void mxser_change_speed(struct tty_struct *tty, struct ktermios *old_term
 	outb(cval, info->ioaddr + UART_LCR);
 }
 
-static void mxser_check_modem_status(struct tty_struct *tty,
-				struct mxser_port *port, int status)
+static u8 mxser_check_modem_status(struct tty_struct *tty,
+				struct mxser_port *port)
 {
+	u8 msr = inb(port->ioaddr + UART_MSR);
+
+	if (!(msr & UART_MSR_ANY_DELTA))
+		return msr;
+
 	/* update input line counters */
-	if (status & UART_MSR_TERI)
+	if (msr & UART_MSR_TERI)
 		port->icount.rng++;
-	if (status & UART_MSR_DDSR)
+	if (msr & UART_MSR_DDSR)
 		port->icount.dsr++;
-	if (status & UART_MSR_DDCD)
+	if (msr & UART_MSR_DDCD)
 		port->icount.dcd++;
-	if (status & UART_MSR_DCTS)
+	if (msr & UART_MSR_DCTS)
 		port->icount.cts++;
 	wake_up_interruptible(&port->port.delta_msr_wait);
 
-	if (tty_port_check_carrier(&port->port) && (status & UART_MSR_DDCD)) {
-		if (status & UART_MSR_DCD)
+	if (tty_port_check_carrier(&port->port) && (msr & UART_MSR_DDCD)) {
+		if (msr & UART_MSR_DCD)
 			wake_up_interruptible(&port->port.open_wait);
 	}
 
 	if (tty_port_cts_enabled(&port->port))
-		mxser_handle_cts(tty, port, status);
+		mxser_handle_cts(tty, port, msr);
+
+	return msr;
 }
 
 static void mxser_disable_and_clear_FIFO(struct mxser_port *info)
@@ -1135,25 +1142,24 @@ static int mxser_get_lsr_info(struct mxser_port *info,
 static int mxser_tiocmget(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
-	unsigned char control, status;
+	unsigned char control;
 	unsigned long flags;
+	u8 msr;
 
 	if (tty_io_error(tty))
 		return -EIO;
 
 	spin_lock_irqsave(&info->slock, flags);
 	control = info->MCR;
-	status = inb(info->ioaddr + UART_MSR);
-	if (status & UART_MSR_ANY_DELTA)
-		mxser_check_modem_status(tty, info, status);
+	msr = mxser_check_modem_status(tty, info);
 	spin_unlock_irqrestore(&info->slock, flags);
 
 	return ((control & UART_MCR_RTS) ? TIOCM_RTS : 0) |
 		    ((control & UART_MCR_DTR) ? TIOCM_DTR : 0) |
-		    ((status & UART_MSR_DCD) ? TIOCM_CAR : 0) |
-		    ((status & UART_MSR_RI) ? TIOCM_RNG : 0) |
-		    ((status & UART_MSR_DSR) ? TIOCM_DSR : 0) |
-		    ((status & UART_MSR_CTS) ? TIOCM_CTS : 0);
+		    ((msr & UART_MSR_DCD) ? TIOCM_CAR : 0) |
+		    ((msr & UART_MSR_RI) ? TIOCM_RNG : 0) |
+		    ((msr & UART_MSR_DSR) ? TIOCM_DSR : 0) |
+		    ((msr & UART_MSR_CTS) ? TIOCM_CTS : 0);
 }
 
 static int mxser_tiocmset(struct tty_struct *tty,
@@ -1656,7 +1662,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 static bool mxser_port_isr(struct mxser_port *port)
 {
 	struct tty_struct *tty;
-	u8 iir, msr, status;
+	u8 iir, status;
 	bool error = false;
 
 	iir = inb(port->ioaddr + UART_IIR);
@@ -1689,9 +1695,7 @@ static bool mxser_port_isr(struct mxser_port *port)
 			status = mxser_receive_chars(tty, port, status);
 	}
 
-	msr = inb(port->ioaddr + UART_MSR);
-	if (msr & UART_MSR_ANY_DELTA)
-		mxser_check_modem_status(tty, port, msr);
+	mxser_check_modem_status(tty, port);
 
 	if (port->board->must_hwid) {
 		if (iir == 0x02 && (status & UART_LSR_THRE))
