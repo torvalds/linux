@@ -1870,9 +1870,33 @@ static int search_bitmap(struct btrfs_free_space_ctl *ctl,
 	return -1;
 }
 
+/*
+ * This is a little subtle.  We *only* have ->max_extent_size set if we actually
+ * searched through the bitmap and figured out the largest ->max_extent_size,
+ * otherwise it's 0.  In the case that it's 0 we don't want to tell the
+ * allocator the wrong thing, we want to use the actual real max_extent_size
+ * we've found already if it's larger, or we want to use ->bytes.
+ *
+ * This matters because find_free_space() will skip entries who's ->bytes is
+ * less than the required bytes.  So if we didn't search down this bitmap, we
+ * may pick some previous entry that has a smaller ->max_extent_size than we
+ * have.  For example, assume we have two entries, one that has
+ * ->max_extent_size set to 4k and ->bytes set to 1M.  A second entry hasn't set
+ * ->max_extent_size yet, has ->bytes set to 8k and it's contiguous.  We will
+ *  call into find_free_space(), and return with max_extent_size == 4k, because
+ *  that first bitmap entry had ->max_extent_size set, but the second one did
+ *  not.  If instead we returned 8k we'd come in searching for 8k, and find the
+ *  8k contiguous range.
+ *
+ *  Consider the other case, we have 2 8k chunks in that second entry and still
+ *  don't have ->max_extent_size set.  We'll return 16k, and the next time the
+ *  allocator comes in it'll fully search our second bitmap, and this time it'll
+ *  get an uptodate value of 8k as the maximum chunk size.  Then we'll get the
+ *  right allocation the next loop through.
+ */
 static inline u64 get_max_extent_size(struct btrfs_free_space *entry)
 {
-	if (entry->bitmap)
+	if (entry->bitmap && entry->max_extent_size)
 		return entry->max_extent_size;
 	return entry->bytes;
 }
