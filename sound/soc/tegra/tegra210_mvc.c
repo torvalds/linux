@@ -275,7 +275,7 @@ static int tegra210_mvc_get_curve_type(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 
-	ucontrol->value.integer.value[0] = mvc->curve_type;
+	ucontrol->value.enumerated.item[0] = mvc->curve_type;
 
 	return 0;
 }
@@ -285,7 +285,7 @@ static int tegra210_mvc_put_curve_type(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
-	int value;
+	unsigned int value;
 
 	regmap_read(mvc->regmap, TEGRA210_MVC_ENABLE, &value);
 	if (value & TEGRA210_MVC_EN) {
@@ -294,10 +294,10 @@ static int tegra210_mvc_put_curve_type(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	if (mvc->curve_type == ucontrol->value.integer.value[0])
+	if (mvc->curve_type == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	mvc->curve_type = ucontrol->value.integer.value[0];
+	mvc->curve_type = ucontrol->value.enumerated.item[0];
 
 	tegra210_mvc_reset_vol_settings(mvc, cmpnt->dev);
 
