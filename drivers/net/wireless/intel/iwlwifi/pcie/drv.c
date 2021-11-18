@@ -1339,9 +1339,13 @@ iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 		      u16 mac_type, u8 mac_step,
 		      u16 rf_type, u8 cdb, u8 rf_id, u8 no_160, u8 cores)
 {
+	int num_devices = ARRAY_SIZE(iwl_dev_info_table);
 	int i;
 
-	for (i = ARRAY_SIZE(iwl_dev_info_table) - 1; i >= 0; i--) {
+	if (!num_devices)
+		return NULL;
+
+	for (i = num_devices - 1; i >= 0; i--) {
 		const struct iwl_dev_info *dev_info = &iwl_dev_info_table[i];
 
 		if (dev_info->device != (u16)IWL_CFG_ANY &&
