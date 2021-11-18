@@ -574,6 +574,7 @@ static int wilc_mac_open(struct net_device *ndev)
 	struct wilc *wl = vif->wilc;
 	int ret = 0;
 	struct mgmt_frame_regs mgmt_regs = {};
+	u8 addr[ETH_ALEN] __aligned(2);
 
 	if (!wl || !wl->dev) {
 		netdev_err(ndev, "device not ready\n");
@@ -596,10 +597,9 @@ static int wilc_mac_open(struct net_device *ndev)
 				vif->idx);
 
 	if (is_valid_ether_addr(ndev->dev_addr)) {
-		wilc_set_mac_address(vif, ndev->dev_addr);
+		ether_addr_copy(addr, ndev->dev_addr);
+		wilc_set_mac_address(vif, addr);
 	} else {
-		u8 addr[ETH_ALEN];
-
 		wilc_get_mac_address(vif, addr);
 		eth_hw_addr_set(ndev, addr);
 	}
