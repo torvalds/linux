@@ -81,22 +81,14 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 
 #define __get_user_asm(insn, x, ptr, err)			\
 do {								\
-	uintptr_t __tmp;					\
 	__typeof__(x) __x;					\
 	__asm__ __volatile__ (					\
 		"1:\n"						\
-		"	" insn " %1, %3\n"			\
+		"	" insn " %1, %2\n"			\
 		"2:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
-		"	.balign 4\n"				\
-		"3:\n"						\
-		"	li %0, %4\n"				\
-		"	li %1, 0\n"				\
-		"	jump 2b, %2\n"				\
-		"	.previous\n"				\
-			_ASM_EXTABLE(1b, 3b)			\
-		: "+r" (err), "=&r" (__x), "=r" (__tmp)		\
-		: "m" (*(ptr)), "i" (-EFAULT));			\
+		_ASM_EXTABLE_UACCESS_ERR_ZERO(1b, 2b, %0, %1)	\
+		: "+r" (err), "=&r" (__x)			\
+		: "m" (*(ptr)));				\
 	(x) = __x;						\
 } while (0)
 
@@ -108,27 +100,18 @@ do {								\
 do {								\
 	u32 __user *__ptr = (u32 __user *)(ptr);		\
 	u32 __lo, __hi;						\
-	uintptr_t __tmp;					\
 	__asm__ __volatile__ (					\
 		"1:\n"						\
-		"	lw %1, %4\n"				\
+		"	lw %1, %3\n"				\
 		"2:\n"						\
-		"	lw %2, %5\n"				\
+		"	lw %2, %4\n"				\
 		"3:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
-		"	.balign 4\n"				\
-		"4:\n"						\
-		"	li %0, %6\n"				\
-		"	li %1, 0\n"				\
-		"	li %2, 0\n"				\
-		"	jump 3b, %3\n"				\
-		"	.previous\n"				\
-			_ASM_EXTABLE(1b, 4b)			\
-			_ASM_EXTABLE(2b, 4b)			\
-		: "+r" (err), "=&r" (__lo), "=r" (__hi),	\
-			"=r" (__tmp)				\
-		: "m" (__ptr[__LSW]), "m" (__ptr[__MSW]),	\
-			"i" (-EFAULT));				\
+		_ASM_EXTABLE_UACCESS_ERR_ZERO(1b, 3b, %0, %1)	\
+		_ASM_EXTABLE_UACCESS_ERR_ZERO(2b, 3b, %0, %1)	\
+		: "+r" (err), "=&r" (__lo), "=r" (__hi)		\
+		: "m" (__ptr[__LSW]), "m" (__ptr[__MSW]));	\
+	if (err)						\
+		__hi = 0;					\
 	(x) = (__typeof__(x))((__typeof__((x)-(x)))(		\
 		(((u64)__hi << 32) | __lo)));			\
 } while (0)
@@ -216,21 +199,14 @@ do {								\
 
 #define __put_user_asm(insn, x, ptr, err)			\
 do {								\
-	uintptr_t __tmp;					\
 	__typeof__(*(ptr)) __x = x;				\
 	__asm__ __volatile__ (					\
 		"1:\n"						\
-		"	" insn " %z3, %2\n"			\
+		"	" insn " %z2, %1\n"			\
 		"2:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
-		"	.balign 4\n"				\
-		"3:\n"						\
-		"	li %0, %4\n"				\
-		"	jump 2b, %1\n"				\
-		"	.previous\n"				\
-			_ASM_EXTABLE(1b, 3b)			\
-		: "+r" (err), "=r" (__tmp), "=m" (*(ptr))	\
-		: "rJ" (__x), "i" (-EFAULT));			\
+		_ASM_EXTABLE_UACCESS_ERR(1b, 2b, %0)		\
+		: "+r" (err), "=m" (*(ptr))			\
+		: "rJ" (__x));					\
 } while (0)
 
 #ifdef CONFIG_64BIT
@@ -241,25 +217,18 @@ do {								\
 do {								\
 	u32 __user *__ptr = (u32 __user *)(ptr);		\
 	u64 __x = (__typeof__((x)-(x)))(x);			\
-	uintptr_t __tmp;					\
 	__asm__ __volatile__ (					\
 		"1:\n"						\
-		"	sw %z4, %2\n"				\
+		"	sw %z3, %1\n"				\
 		"2:\n"						\
-		"	sw %z5, %3\n"				\
+		"	sw %z4, %2\n"				\
 		"3:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
-		"	.balign 4\n"				\
-		"4:\n"						\
-		"	li %0, %6\n"				\
-		"	jump 3b, %1\n"				\
-		"	.previous\n"				\
-			_ASM_EXTABLE(1b, 4b)			\
-			_ASM_EXTABLE(2b, 4b)			\
-		: "+r" (err), "=r" (__tmp),			\
+		_ASM_EXTABLE_UACCESS_ERR(1b, 3b, %0)		\
+		_ASM_EXTABLE_UACCESS_ERR(2b, 3b, %0)		\
+		: "+r" (err),					\
 			"=m" (__ptr[__LSW]),			\
 			"=m" (__ptr[__MSW])			\
-		: "rJ" (__x), "rJ" (__x >> 32), "i" (-EFAULT));	\
+		: "rJ" (__x), "rJ" (__x >> 32));		\
 } while (0)
 #endif /* CONFIG_64BIT */
 
