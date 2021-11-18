@@ -1685,17 +1685,13 @@ static void uart_port_shutdown(struct tty_port *port)
 	 */
 	wake_up_interruptible(&port->delta_msr_wait);
 
-	/*
-	 * Free the IRQ and disable the port.
-	 */
-	if (uport)
+	if (uport) {
+		/* Free the IRQ and disable the port. */
 		uport->ops->shutdown(uport);
 
-	/*
-	 * Ensure that the IRQ handler isn't running on another CPU.
-	 */
-	if (uport)
+		/* Ensure that the IRQ handler isn't running on another CPU. */
 		synchronize_irq(uport->irq);
+	}
 }
 
 static int uart_carrier_raised(struct tty_port *port)
