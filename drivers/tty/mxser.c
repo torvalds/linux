@@ -1491,8 +1491,7 @@ static int mxser_rs_break(struct tty_struct *tty, int break_state)
 	return 0;
 }
 
-static bool mxser_receive_chars_new(struct tty_struct *tty,
-		struct mxser_port *port, u8 status)
+static bool mxser_receive_chars_new(struct mxser_port *port, u8 status)
 {
 	enum mxser_must_hwid hwid = port->board->must_hwid;
 	u8 gdl;
@@ -1570,7 +1569,7 @@ static u8 mxser_receive_chars_old(struct tty_struct *tty,
 static u8 mxser_receive_chars(struct tty_struct *tty,
 		struct mxser_port *port, u8 status)
 {
-	if (!mxser_receive_chars_new(tty, port, status))
+	if (!mxser_receive_chars_new(port, status))
 		status = mxser_receive_chars_old(tty, port, status);
 
 	tty_flip_buffer_push(&port->port);
