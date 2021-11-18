@@ -412,9 +412,9 @@ int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
 	if (pcie_capability_reg_implemented(dev, pos)) {
 		ret = pci_read_config_word(dev, pci_pcie_cap(dev) + pos, val);
 		/*
-		 * Reset *val to 0 if pci_read_config_word() fails, it may
-		 * have been written as 0xFFFF if hardware error happens
-		 * during pci_read_config_word().
+		 * Reset *val to 0 if pci_read_config_word() fails; it may
+		 * have been written as 0xFFFF (PCI_ERROR_RESPONSE) if the
+		 * config read failed on PCI.
 		 */
 		if (ret)
 			*val = 0;
@@ -447,9 +447,9 @@ int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *val)
 	if (pcie_capability_reg_implemented(dev, pos)) {
 		ret = pci_read_config_dword(dev, pci_pcie_cap(dev) + pos, val);
 		/*
-		 * Reset *val to 0 if pci_read_config_dword() fails, it may
-		 * have been written as 0xFFFFFFFF if hardware error happens
-		 * during pci_read_config_dword().
+		 * Reset *val to 0 if pci_read_config_dword() fails; it may
+		 * have been written as 0xFFFFFFFF (PCI_ERROR_RESPONSE) if
+		 * the config read failed on PCI.
 		 */
 		if (ret)
 			*val = 0;
