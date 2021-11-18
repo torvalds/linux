@@ -3680,60 +3680,6 @@ static inline void rx_process(struct lan78xx_net *dev, struct sk_buff *skb)
 	dev->net->stats.rx_errors++;
 }
 
-static void rx_complete(struct urb *urb);
-
-static int rx_submit(struct lan78xx_net *dev, struct sk_buff *skb, gfp_t flags)
-{
-	struct skb_data	*entry = (struct skb_data *)skb->cb;
-	size_t size = dev->rx_urb_size;
-	struct urb *urb = entry->urb;
-	unsigned long lockflags;
-	int ret = 0;
-
-	usb_fill_bulk_urb(urb, dev->udev, dev->pipe_in,
-			  skb->data, size, rx_complete, skb);
-
-	spin_lock_irqsave(&dev->rxq.lock, lockflags);
-
-	if (netif_device_present(dev->net) &&
-	    netif_running(dev->net) &&
-	    !test_bit(EVENT_RX_HALT, &dev->flags) &&
-	    !test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
-		ret = usb_submit_urb(urb, flags);
-		switch (ret) {
-		case 0:
-			lan78xx_queue_skb(&dev->rxq, skb, rx_start);
-			break;
-		case -EPIPE:
-			lan78xx_defer_kevent(dev, EVENT_RX_HALT);
-			break;
-		case -ENODEV:
-		case -ENOENT:
-			netif_dbg(dev, ifdown, dev->net, "device gone\n");
-			netif_device_detach(dev->net);
-			break;
-		case -EHOSTUNREACH:
-			ret = -ENOLINK;
-			tasklet_schedule(&dev->bh);
-			break;
-		default:
-			netif_dbg(dev, rx_err, dev->net,
-				  "rx submit, %d\n", ret);
-			tasklet_schedule(&dev->bh);
-			break;
-		}
-	} else {
-		netif_dbg(dev, ifdown, dev->net, "rx: stopped\n");
-		ret = -ENOLINK;
-	}
-	spin_unlock_irqrestore(&dev->rxq.lock, lockflags);
-
-	if (ret)
-		lan78xx_release_rx_buf(dev, skb);
-
-	return ret;
-}
-
 static void rx_complete(struct urb *urb)
 {
 	struct sk_buff	*skb = (struct sk_buff *)urb->context;
@@ -3792,6 +3738,58 @@ static void rx_complete(struct urb *urb)
 	}
 
 	state = defer_bh(dev, skb, &dev->rxq, state);
+}
+
+static int rx_submit(struct lan78xx_net *dev, struct sk_buff *skb, gfp_t flags)
+{
+	struct skb_data	*entry = (struct skb_data *)skb->cb;
+	size_t size = dev->rx_urb_size;
+	struct urb *urb = entry->urb;
+	unsigned long lockflags;
+	int ret = 0;
+
+	usb_fill_bulk_urb(urb, dev->udev, dev->pipe_in,
+			  skb->data, size, rx_complete, skb);
+
+	spin_lock_irqsave(&dev->rxq.lock, lockflags);
+
+	if (netif_device_present(dev->net) &&
+	    netif_running(dev->net) &&
+	    !test_bit(EVENT_RX_HALT, &dev->flags) &&
+	    !test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
+		ret = usb_submit_urb(urb, flags);
+		switch (ret) {
+		case 0:
+			lan78xx_queue_skb(&dev->rxq, skb, rx_start);
+			break;
+		case -EPIPE:
+			lan78xx_defer_kevent(dev, EVENT_RX_HALT);
+			break;
+		case -ENODEV:
+		case -ENOENT:
+			netif_dbg(dev, ifdown, dev->net, "device gone\n");
+			netif_device_detach(dev->net);
+			break;
+		case -EHOSTUNREACH:
+			ret = -ENOLINK;
+			tasklet_schedule(&dev->bh);
+			break;
+		default:
+			netif_dbg(dev, rx_err, dev->net,
+				  "rx submit, %d\n", ret);
+			tasklet_schedule(&dev->bh);
+			break;
+		}
+	} else {
+		netif_dbg(dev, ifdown, dev->net, "rx: stopped\n");
+		ret = -ENOLINK;
+	}
+	spin_unlock_irqrestore(&dev->rxq.lock, lockflags);
+
+	if (ret)
+		lan78xx_release_rx_buf(dev, skb);
+
+	return ret;
 }
 
 static void lan78xx_rx_urb_submit_all(struct lan78xx_net *dev)
