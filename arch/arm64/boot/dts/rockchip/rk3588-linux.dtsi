@@ -47,4 +47,7 @@
 	};
 };
 
+&rng {
+	status = "okay";
+};
 

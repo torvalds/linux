@@ -86,6 +86,10 @@
 	};
 };
 
+&rng {
+	status = "okay";
+};
+
 &vop {
 	support-multi-area;
 };
