@@ -602,15 +602,13 @@ static int vmx_set_guest_uret_msr(struct vcpu_vmx *vmx,
 	unsigned int slot = msr - vmx->guest_uret_msrs;
 	int ret = 0;
 
-	u64 old_msr_data = msr->data;
-	msr->data = data;
 	if (msr->load_into_hardware) {
 		preempt_disable();
-		ret = kvm_set_user_return_msr(slot, msr->data, msr->mask);
+		ret = kvm_set_user_return_msr(slot, data, msr->mask);
 		preempt_enable();
-		if (ret)
-			msr->data = old_msr_data;
 	}
+	if (!ret)
+		msr->data = data;
 	return ret;
 }
 
