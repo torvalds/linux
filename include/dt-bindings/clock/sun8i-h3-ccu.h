@@ -126,7 +126,7 @@
 #define CLK_USB_OHCI1		93
 #define CLK_USB_OHCI2		94
 #define CLK_USB_OHCI3		95
-
+#define CLK_DRAM		96
 #define CLK_DRAM_VE		97
 #define CLK_DRAM_CSI		98
 #define CLK_DRAM_DEINTERLACE	99
