@@ -168,6 +168,8 @@
  * when dsi1 is enabled
  */
 &dsi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mipi_te1>;
 	status = "disabled";
 };
 

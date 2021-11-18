@@ -160,6 +160,8 @@
  */
 &dsi1 {
 	//rockchip,lane-rate = <650>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mipi_te1>;
 	status = "disabled";
 };
 
