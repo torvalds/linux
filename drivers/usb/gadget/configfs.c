@@ -883,9 +883,7 @@ static int os_desc_link(struct config_item *os_desc_ci,
 {
 	struct gadget_info *gi = os_desc_item_to_gadget_info(os_desc_ci);
 	struct usb_composite_dev *cdev = &gi->cdev;
-	struct config_usb_cfg *c_target =
-		container_of(to_config_group(usb_cfg_ci),
-			     struct config_usb_cfg, group);
+	struct config_usb_cfg *c_target = to_config_usb_cfg(usb_cfg_ci);
 	struct usb_configuration *c;
 	int ret;
 
