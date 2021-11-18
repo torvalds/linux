@@ -183,7 +183,7 @@ void msm_devfreq_active(struct msm_gpu *gpu)
 	 * interval, then we won't meet the threshold of busyness for
 	 * the governor to ramp up the freq.. so give some boost
 	 */
-	if (idle_time > msm_devfreq_profile.polling_ms/2) {
+	if (idle_time > msm_devfreq_profile.polling_ms) {
 		target_freq *= 2;
 	}
 
