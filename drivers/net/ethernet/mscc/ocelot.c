@@ -2352,6 +2352,9 @@ int ocelot_init(struct ocelot *ocelot)
 	ocelot_vcap_init(ocelot);
 	ocelot_cpu_port_init(ocelot);
 
+	if (ocelot->ops->psfp_init)
+		ocelot->ops->psfp_init(ocelot);
+
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		/* Clear all counters (5 groups) */
 		ocelot_write(ocelot, SYS_STAT_CFG_STAT_VIEW(port) |
