@@ -874,16 +874,13 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 	tty_wakeup(tty);
 }
 
-
-static void mxser_close_port(struct tty_port *port)
+/*
+ * To stop accepting input, we disable the receive line status interrupts, and
+ * tell the interrupt driver to stop checking the data ready bit in the line
+ * status register.
+ */
+static void mxser_stop_rx(struct mxser_port *info)
 {
-	struct mxser_port *info = container_of(port, struct mxser_port, port);
-	/*
-	 * At this point we stop accepting input.  To do this, we
-	 * disable the receive line status interrupts, and tell the
-	 * interrupt driver to stop checking the data ready bit in the
-	 * line status register.
-	 */
 	info->IER &= ~UART_IER_RLSI;
 	if (info->board->must_hwid)
 		info->IER &= ~MOXA_MUST_RECV_ISR;
@@ -908,7 +905,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 		return;
 	info->closing = 1;
 	mutex_lock(&port->mutex);
-	mxser_close_port(port);
+	mxser_stop_rx(info);
 	mxser_flush_buffer(tty);
 	if (tty_port_initialized(port) && C_HUPCL(tty))
 		tty_port_lower_dtr_rts(port);
