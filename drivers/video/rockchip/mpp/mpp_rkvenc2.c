@@ -192,7 +192,7 @@ static struct rkvenc_hw_info rkvenc_v2_hw_info = {
 	},
 	.reg_msg[RKVENC_CLASS_SQI] = {
 		.base_s = 0x2000,
-		.base_e = 0x2198,
+		.base_e = 0x21e4,
 	},
 	.reg_msg[RKVENC_CLASS_SCL] = {
 		.base_s = 0x2200,
