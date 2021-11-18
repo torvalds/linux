@@ -1049,10 +1049,11 @@ ptp_ocp_register_ext(struct ptp_ocp *bp, struct ocp_resource *r)
 	if (!ext)
 		return -ENOMEM;
 
-	err = -EINVAL;
 	ext->mem = ptp_ocp_get_mem(bp, r);
-	if (!ext->mem)
+	if (IS_ERR(ext->mem)) {
+		err = PTR_ERR(ext->mem);
 		goto out;
+	}
 
 	ext->bp = bp;
 	ext->info = r->extra;
@@ -1122,8 +1123,8 @@ ptp_ocp_register_mem(struct ptp_ocp *bp, struct ocp_resource *r)
 	void __iomem *mem;
 
 	mem = ptp_ocp_get_mem(bp, r);
-	if (!mem)
-		return -EINVAL;
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
 
 	bp_assign_entry(bp, r, mem);
 
