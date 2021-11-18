@@ -459,8 +459,8 @@ static int emit_call(bool fixed, u64 addr, struct rv_jit_context *ctx)
 #define BPF_FIXUP_OFFSET_MASK   GENMASK(26, 0)
 #define BPF_FIXUP_REG_MASK      GENMASK(31, 27)
 
-int rv_bpf_fixup_exception(const struct exception_table_entry *ex,
-				struct pt_regs *regs)
+bool rv_bpf_fixup_exception(const struct exception_table_entry *ex,
+			    struct pt_regs *regs)
 {
 	off_t offset = FIELD_GET(BPF_FIXUP_OFFSET_MASK, ex->fixup);
 	int regs_offset = FIELD_GET(BPF_FIXUP_REG_MASK, ex->fixup);
@@ -468,7 +468,7 @@ int rv_bpf_fixup_exception(const struct exception_table_entry *ex,
 	*(unsigned long *)((void *)regs + pt_regmap[regs_offset]) = 0;
 	regs->epc = (unsigned long)&ex->fixup - offset;
 
-	return 1;
+	return true;
 }
 
 /* For accesses to BTF pointers, add an entry to the exception table */

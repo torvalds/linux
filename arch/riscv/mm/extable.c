@@ -11,17 +11,17 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 
-int fixup_exception(struct pt_regs *regs)
+bool fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
 
 	fixup = search_exception_tables(regs->epc);
 	if (!fixup)
-		return 0;
+		return false;
 
 	if (regs->epc >= BPF_JIT_REGION_START && regs->epc < BPF_JIT_REGION_END)
 		return rv_bpf_fixup_exception(fixup, regs);
 
 	regs->epc = (unsigned long)&fixup->fixup + fixup->fixup;
-	return 1;
+	return true;
 }
