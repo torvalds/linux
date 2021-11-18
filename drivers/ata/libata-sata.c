@@ -922,7 +922,7 @@ DEVICE_ATTR(ncq_prio_enable, S_IRUGO | S_IWUSR,
 	    ata_ncq_prio_enable_show, ata_ncq_prio_enable_store);
 EXPORT_SYMBOL_GPL(dev_attr_ncq_prio_enable);
 
-struct attribute *ata_ncq_sdev_attrs[] = {
+static struct attribute *ata_ncq_sdev_attrs[] = {
 	&dev_attr_unload_heads.attr,
 	&dev_attr_ncq_prio_enable.attr,
 	&dev_attr_ncq_prio_supported.attr,
