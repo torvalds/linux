@@ -837,7 +837,7 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 	if (filter->type == OCELOT_PSFP_FILTER_OFFLOAD) {
 		kfree(filter);
 		if (ocelot->ops->psfp_filter_add)
-			return ocelot->ops->psfp_filter_add(ocelot, f);
+			return ocelot->ops->psfp_filter_add(ocelot, port, f);
 
 		NL_SET_ERR_MSG_MOD(extack, "PSFP chain is not supported in HW");
 		return -EOPNOTSUPP;
