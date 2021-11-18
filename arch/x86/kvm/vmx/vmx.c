@@ -1757,7 +1757,7 @@ static int vmx_get_msr_feature(struct kvm_msr_entry *msr)
 }
 
 /*
- * Reads an msr value (of 'msr_index') into 'pdata'.
+ * Reads an msr value (of 'msr_info->index') into 'msr_info->data'.
  * Returns 0 on success, non-0 otherwise.
  * Assumes vcpu_load() was already called.
  */
