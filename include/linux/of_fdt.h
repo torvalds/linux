@@ -68,8 +68,7 @@ extern void early_init_dt_add_memory_arch(u64 base, u64 size);
 extern u64 dt_mem_next_cell(int s, const __be32 **cellp);
 
 /* Early flat tree scan hooks */
-extern int early_init_dt_scan_root(unsigned long node, const char *uname,
-				   int depth, void *data);
+extern int early_init_dt_scan_root(void);
 
 extern bool early_init_dt_scan(void *params);
 extern bool early_init_dt_verify(void *params);
