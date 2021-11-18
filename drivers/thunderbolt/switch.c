@@ -1322,13 +1322,18 @@ int tb_dp_port_hpd_clear(struct tb_port *port)
  * @aux_tx: AUX TX Hop ID
  * @aux_rx: AUX RX Hop ID
  *
- * Programs specified Hop IDs for DP IN/OUT port.
+ * Programs specified Hop IDs for DP IN/OUT port. Can be called for USB4
+ * router DP adapters too but does not program the values as the fields
+ * are read-only.
  */
 int tb_dp_port_set_hops(struct tb_port *port, unsigned int video,
 			unsigned int aux_tx, unsigned int aux_rx)
 {
 	u32 data[2];
 	int ret;
+
+	if (tb_switch_is_usb4(port->sw))
+		return 0;
 
 	ret = tb_port_read(port, data, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_0, ARRAY_SIZE(data));
