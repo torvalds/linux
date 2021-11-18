@@ -42,7 +42,7 @@ config SND_SOC_SOF_OF
 	depends on OF || COMPILE_TEST
 	help
 	  This adds support for Device Tree enumeration. This option is
-	  required to enable i.MX8 devices.
+	  required to enable i.MX8 or Mediatek devices.
 	  Say Y if you need this option. If unsure select "N".
 
 config SND_SOC_SOF_OF_DEV
