@@ -478,6 +478,7 @@
 		reg-names = "pcie-apb", "pcie-dbi";
 		resets = <&cru SRST_PCIE0_POWER_UP>;
 		reset-names = "pipe";
+		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
 		pcie3x4_intc: legacy-interrupt-controller {
@@ -529,6 +530,7 @@
 		reg-names = "pcie-apb", "pcie-dbi";
 		resets = <&cru SRST_PCIE1_POWER_UP>;
 		reset-names = "pipe";
+		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
 		pcie3x2_intc: legacy-interrupt-controller {
@@ -580,6 +582,7 @@
 		reg-names = "pcie-apb", "pcie-dbi";
 		resets = <&cru SRST_PCIE2_POWER_UP>;
 		reset-names = "pipe";
+		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
 		pcie2x1l0_intc: legacy-interrupt-controller {
