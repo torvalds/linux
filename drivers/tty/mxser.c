@@ -1443,6 +1443,9 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 		char_time = 1;
 	if (timeout && timeout < char_time)
 		char_time = timeout;
+
+	char_time = jiffies_to_msecs(char_time);
+
 	/*
 	 * If the transmitter hasn't cleared in twice the approximate
 	 * amount of time to send the entire FIFO, it probably won't
@@ -1456,13 +1459,12 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 		timeout = 2 * info->timeout;
 
 	while (mxser_tx_empty(info)) {
-		schedule_timeout_interruptible(char_time);
+		msleep_interruptible(char_time);
 		if (signal_pending(current))
 			break;
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))
 			break;
 	}
-	set_current_state(TASK_RUNNING);
 }
 
 /*
