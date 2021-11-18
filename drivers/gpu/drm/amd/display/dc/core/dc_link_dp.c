@@ -398,6 +398,170 @@ static uint8_t get_dpcd_link_rate(const struct dc_link_settings *link_settings)
 }
 #endif
 
+static void vendor_specific_lttpr_wa_one_start(struct dc_link *link)
+{
+	const uint8_t vendor_lttpr_write_data[4] = {0x1, 0x50, 0x63, 0xff};
+	const uint8_t offset = dp_convert_to_count(
+			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	uint32_t vendor_lttpr_write_address = 0xF004F;
+
+	if (offset != 0xFF)
+		vendor_lttpr_write_address +=
+				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+
+	/* W/A for certain LTTPR to reset their lane settings, part one of two */
+	core_link_write_dpcd(
+			link,
+			vendor_lttpr_write_address,
+			&vendor_lttpr_write_data[0],
+			sizeof(vendor_lttpr_write_data));
+}
+
+static void vendor_specific_lttpr_wa_one_end(
+	struct dc_link *link,
+	uint8_t retry_count)
+{
+	const uint8_t vendor_lttpr_write_data[4] = {0x1, 0x50, 0x63, 0x0};
+	const uint8_t offset = dp_convert_to_count(
+			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	uint32_t vendor_lttpr_write_address = 0xF004F;
+
+	if (!retry_count) {
+		if (offset != 0xFF)
+			vendor_lttpr_write_address +=
+					((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+
+		/* W/A for certain LTTPR to reset their lane settings, part two of two */
+		core_link_write_dpcd(
+				link,
+				vendor_lttpr_write_address,
+				&vendor_lttpr_write_data[0],
+				sizeof(vendor_lttpr_write_data));
+	}
+}
+
+static void vendor_specific_lttpr_wa_one_two(
+	struct dc_link *link,
+	const uint8_t rate)
+{
+	uint8_t toggle_rate = 0x0;
+
+	if (rate == 0x6)
+		toggle_rate = 0xA;
+	else
+		toggle_rate = 0x6;
+
+	if (link->vendor_specific_lttpr_link_rate_wa == rate) {
+		/* W/A for certain LTTPR to reset internal state for link training */
+		core_link_write_dpcd(
+				link,
+				DP_LINK_BW_SET,
+				&toggle_rate,
+				1);
+	}
+
+	/* Store the last attempted link rate for this link */
+	link->vendor_specific_lttpr_link_rate_wa = rate;
+}
+
+static void vendor_specific_lttpr_wa_three(
+	struct dc_link *link,
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX])
+{
+	const uint8_t vendor_lttpr_write_data_vs[3] = {0x0, 0x53, 0x63};
+	const uint8_t vendor_lttpr_write_data_pe[3] = {0x0, 0x54, 0x63};
+	const uint8_t offset = dp_convert_to_count(
+			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	uint32_t vendor_lttpr_write_address = 0xF004F;
+	uint32_t vendor_lttpr_read_address = 0xF0053;
+	uint8_t dprx_vs = 0;
+	uint8_t dprx_pe = 0;
+	uint8_t lane;
+
+	if (offset != 0xFF) {
+		vendor_lttpr_write_address +=
+				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+		vendor_lttpr_read_address +=
+				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+	}
+
+	/* W/A to read lane settings requested by DPRX */
+	core_link_write_dpcd(
+			link,
+			vendor_lttpr_write_address,
+			&vendor_lttpr_write_data_vs[0],
+			sizeof(vendor_lttpr_write_data_vs));
+	core_link_read_dpcd(
+			link,
+			vendor_lttpr_read_address,
+			&dprx_vs,
+			1);
+	core_link_write_dpcd(
+			link,
+			vendor_lttpr_write_address,
+			&vendor_lttpr_write_data_pe[0],
+			sizeof(vendor_lttpr_write_data_pe));
+	core_link_read_dpcd(
+			link,
+			vendor_lttpr_read_address,
+			&dprx_pe,
+			1);
+
+	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
+		dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_LANE = (dprx_vs >> (2 * lane)) & 0x3;
+		dpcd_lane_adjust[lane].bits.PRE_EMPHASIS_LANE = (dprx_pe >> (2 * lane)) & 0x3;
+	}
+}
+
+static void vendor_specific_lttpr_wa_four(
+	struct dc_link *link,
+	bool apply_wa)
+{
+	const uint8_t vendor_lttpr_write_data_one[4] = {0x1, 0x55, 0x63, 0x8};
+	const uint8_t vendor_lttpr_write_data_two[4] = {0x1, 0x55, 0x63, 0x0};
+	const uint8_t offset = dp_convert_to_count(
+			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+	uint32_t vendor_lttpr_write_address = 0xF004F;
+#if defined(CONFIG_DRM_AMD_DC_DP2_0)
+	uint8_t sink_status = 0;
+	uint8_t i;
+#endif
+
+	if (offset != 0xFF)
+		vendor_lttpr_write_address +=
+				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+
+	/* W/A to pass through DPCD write of TPS=0 to DPRX */
+	if (apply_wa) {
+		core_link_write_dpcd(
+				link,
+				vendor_lttpr_write_address,
+				&vendor_lttpr_write_data_one[0],
+				sizeof(vendor_lttpr_write_data_one));
+	}
+
+	/* clear training pattern set */
+	dpcd_set_training_pattern(link, DP_TRAINING_PATTERN_VIDEOIDLE);
+
+	if (apply_wa) {
+		core_link_write_dpcd(
+				link,
+				vendor_lttpr_write_address,
+				&vendor_lttpr_write_data_two[0],
+				sizeof(vendor_lttpr_write_data_two));
+	}
+
+#if defined(CONFIG_DRM_AMD_DC_DP2_0)
+	/* poll for intra-hop disable */
+	for (i = 0; i < 10; i++) {
+		if ((core_link_read_dpcd(link, DP_SINK_STATUS, &sink_status, 1) == DC_OK) &&
+				(sink_status & DP_INTRA_HOP_AUX_REPLY_INDICATION) == 0)
+			break;
+		udelay(1000);
+	}
+#endif
+}
+
 enum dc_status dpcd_set_link_settings(
 	struct dc_link *link,
 	const struct link_training_settings *lt_settings)
@@ -452,6 +616,13 @@ enum dc_status dpcd_set_link_settings(
 #else
 		rate = (uint8_t) (lt_settings->link_settings.link_rate);
 #endif
+		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+					(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+					link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+			vendor_specific_lttpr_wa_one_start(link);
+			vendor_specific_lttpr_wa_one_two(link, rate);
+		}
+
 		status = core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
 	}
 
@@ -1329,6 +1500,13 @@ static enum link_training_result perform_clock_recovery_sequence(
 				dpcd_lane_adjust,
 				offset);
 
+		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+				(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+				link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+			vendor_specific_lttpr_wa_one_end(link, retry_count);
+			vendor_specific_lttpr_wa_three(link, dpcd_lane_adjust);
+		}
+
 		/* 5. check CR done*/
 		if (dp_is_cr_done(lane_count, dpcd_lane_status))
 			return LINK_TRAINING_SUCCESS;
@@ -2203,7 +2381,12 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&lt_settings);
 
 	/* reset previous training states */
-	dpcd_exit_training_mode(link);
+	if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+			(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+			link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
+		vendor_specific_lttpr_wa_four(link, true);
+	else
+		dpcd_exit_training_mode(link);
 
 	/* configure link prior to entering training mode */
 	dpcd_configure_lttpr_mode(link, &lt_settings);
@@ -2223,8 +2406,15 @@ enum link_training_result dc_link_dp_perform_link_training(
 	else
 		ASSERT(0);
 
-	/* exit training mode and switch to video idle */
-	dpcd_exit_training_mode(link);
+	/* exit training mode */
+	if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+			(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+			link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
+		vendor_specific_lttpr_wa_four(link, (status != LINK_TRAINING_SUCCESS));
+	else
+		dpcd_exit_training_mode(link);
+
+	/* switch to video idle */
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern)
 		status = dp_transition_to_video_idle(link,
 				&lt_settings,

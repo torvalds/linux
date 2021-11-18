@@ -186,6 +186,9 @@ struct dc_link {
 	/* Drive settings read from integrated info table */
 	struct dc_lane_settings bios_forced_drive_settings;
 
+	/* Vendor specific LTTPR workaround variables */
+	uint8_t vendor_specific_lttpr_link_rate_wa;
+
 	/* MST record stream using this link */
 	struct link_flags {
 		bool dp_keep_receiver_powered;

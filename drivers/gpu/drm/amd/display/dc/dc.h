@@ -697,6 +697,7 @@ struct dc_debug_options {
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
 #endif
+	bool apply_vendor_specific_lttpr_wa;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
