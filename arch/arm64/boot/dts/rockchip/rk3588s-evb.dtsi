@@ -923,6 +923,8 @@
 	no-sd;
 	non-removable;
 	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
 	status = "okay";
 };
 
