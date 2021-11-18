@@ -941,6 +941,19 @@ config RTD119X_WATCHDOG
 	  Say Y here to include support for the watchdog timer in
 	  Realtek RTD1295 SoCs.
 
+config REALTEK_OTTO_WDT
+	tristate "Realtek Otto MIPS watchdog support"
+	depends on MACH_REALTEK_RTL || COMPILE_TEST
+	depends on COMMON_CLK
+	select WATCHDOG_CORE
+	default MACH_REALTEK_RTL
+	help
+	  Say Y here to include support for the watchdog timer on Realtek
+	  RTL838x, RTL839x, RTL930x SoCs. This watchdog has pretimeout
+	  notifications and system reset on timeout.
+
+	  When built as a module this will be called realtek_otto_wdt.
+
 config SPRD_WATCHDOG
 	tristate "Spreadtrum watchdog support"
 	depends on ARCH_SPRD || COMPILE_TEST
