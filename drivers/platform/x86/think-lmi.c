@@ -1141,42 +1141,38 @@ static int tlmi_analyze(void)
 	if (ret)
 		goto fail_clear_attr;
 
+	/* All failures below boil down to kmalloc failures */
+	ret = -ENOMEM;
+
 	tlmi_priv.pwd_admin = tlmi_create_auth("pap", "bios-admin");
-	if (!tlmi_priv.pwd_admin) {
-		ret = -ENOMEM;
+	if (!tlmi_priv.pwd_admin)
 		goto fail_clear_attr;
-	}
+
 	if (tlmi_priv.pwdcfg.core.password_state & TLMI_PAP_PWD)
 		tlmi_priv.pwd_admin->valid = true;
 
 	tlmi_priv.pwd_power = tlmi_create_auth("pop", "power-on");
-	if (!tlmi_priv.pwd_power) {
-		ret = -ENOMEM;
+	if (!tlmi_priv.pwd_power)
 		goto fail_clear_attr;
-	}
+
 	if (tlmi_priv.pwdcfg.core.password_state & TLMI_POP_PWD)
 		tlmi_priv.pwd_power->valid = true;
 
 	if (tlmi_priv.opcode_support) {
 		tlmi_priv.pwd_system = tlmi_create_auth("sys", "system");
-		if (!tlmi_priv.pwd_system) {
-			ret = -ENOMEM;
+		if (!tlmi_priv.pwd_system)
 			goto fail_clear_attr;
-		}
+
 		if (tlmi_priv.pwdcfg.core.password_state & TLMI_SYS_PWD)
 			tlmi_priv.pwd_system->valid = true;
 
 		tlmi_priv.pwd_hdd = tlmi_create_auth("hdd", "hdd");
-		if (!tlmi_priv.pwd_hdd) {
-			ret = -ENOMEM;
+		if (!tlmi_priv.pwd_hdd)
 			goto fail_clear_attr;
-		}
 
 		tlmi_priv.pwd_nvme = tlmi_create_auth("nvm", "nvme");
-		if (!tlmi_priv.pwd_nvme) {
-			ret = -ENOMEM;
+		if (!tlmi_priv.pwd_nvme)
 			goto fail_clear_attr;
-		}
 
 		if (tlmi_priv.pwdcfg.core.password_state & TLMI_HDD_PWD) {
 			/* Check if PWD is configured and set index to first drive found */
