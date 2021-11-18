@@ -1482,32 +1482,72 @@
 
 	mipi {
 		/omit-if-no-ref/
-		mipim0_pins: mipim0-pins {
+		mipim0_camera0_clk: mipim0-camera0-clk {
 			rockchip,pins =
-				/* mipi_camera0_clk_m0 */
-				<4 RK_PB1 1 &pcfg_pull_none>,
-				/* mipi_camera1_clk_m0 */
-				<1 RK_PB6 2 &pcfg_pull_none>,
-				/* mipi_camera2_clk_m0 */
-				<1 RK_PB7 2 &pcfg_pull_none>,
-				/* mipi_camera3_clk_m0 */
-				<1 RK_PD6 2 &pcfg_pull_none>,
-				/* mipi_camera4_clk_m0 */
+				/* mipim0_camera0_clk */
+				<4 RK_PB1 1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mipim0_camera1_clk: mipim0-camera1-clk {
+			rockchip,pins =
+				/* mipim0_camera1_clk */
+				<1 RK_PB6 2 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mipim0_camera2_clk: mipim0-camera2-clk {
+			rockchip,pins =
+				/* mipim0_camera2_clk */
+				<1 RK_PB7 2 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mipim0_camera3_clk: mipim0-camera3-clk {
+			rockchip,pins =
+				/* mipim0_camera3_clk */
+				<1 RK_PD6 2 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mipim0_camera4_clk: mipim0-camera4-clk {
+			rockchip,pins =
+				/* mipim0_camera4_clk */
 				<1 RK_PD7 2 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		mipim1_pins: mipim1-pins {
+		mipim1_camera0_clk: mipim1-camera0-clk {
 			rockchip,pins =
-				/* mipi_camera0_clk_m1 */
-				<3 RK_PA5 4 &pcfg_pull_none>,
-				/* mipi_camera1_clk_m1 */
-				<3 RK_PA6 4 &pcfg_pull_none>,
-				/* mipi_camera2_clk_m1 */
-				<3 RK_PA7 4 &pcfg_pull_none>,
-				/* mipi_camera3_clk_m1 */
-				<3 RK_PB0 4 &pcfg_pull_none>,
-				/* mipi_camera4_clk_m1 */
+				/* mipim1_camera0_clk */
+				<3 RK_PA5 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mipim1_camera1_clk: mipim1-camera1-clk {
+			rockchip,pins =
+				/* mipim1_camera1_clk */
+				<3 RK_PA6 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mipim1_camera2_clk: mipim1-camera2-clk {
+			rockchip,pins =
+				/* mipim1_camera2_clk */
+				<3 RK_PA7 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mipim1_camera3_clk: mipim1-camera3-clk {
+			rockchip,pins =
+				/* mipim1_camera3_clk */
+				<3 RK_PB0 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mipim1_camera4_clk: mipim1-camera4-clk {
+			rockchip,pins =
+				/* mipim1_camera4_clk */
 				<3 RK_PB1 4 &pcfg_pull_none>;
 		};
 
