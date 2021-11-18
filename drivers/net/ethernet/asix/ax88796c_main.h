@@ -127,9 +127,9 @@ struct ax88796c_device {
 		#define AX_PRIV_FLAGS_MASK	(AX_CAP_COMP)
 
 	unsigned long		flags;
-		#define EVENT_INTR		BIT(0)
-		#define EVENT_TX		BIT(1)
-		#define EVENT_SET_MULTI		BIT(2)
+		#define EVENT_INTR		0
+		#define EVENT_TX		1
+		#define EVENT_SET_MULTI		2
 
 };
 

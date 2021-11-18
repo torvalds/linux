@@ -3183,12 +3183,6 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 	u64 mapping_id;
 	int err;
 
-	if (MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, reformat) &&
-	    MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, decap))
-		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_BASIC;
-	else
-		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
-
 	mutex_init(&esw->offloads.termtbl_mutex);
 	mlx5_rdma_enable_roce(esw->dev);
 
@@ -3286,7 +3280,6 @@ void esw_offloads_disable(struct mlx5_eswitch *esw)
 	esw_offloads_metadata_uninit(esw);
 	mlx5_rdma_disable_roce(esw->dev);
 	mutex_destroy(&esw->offloads.termtbl_mutex);
-	esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 }
 
 static int esw_mode_from_devlink(u16 mode, u16 *mlx5_mode)
@@ -3630,7 +3623,7 @@ int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink,
 	*encap = esw->offloads.encap;
 unlock:
 	up_write(&esw->mode_lock);
-	return 0;
+	return err;
 }
 
 static bool

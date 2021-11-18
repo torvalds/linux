@@ -524,7 +524,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 		return -EEXIST;
 
 	/* Allocate a new AEAD */
-	tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
+	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (unlikely(!tmp))
 		return -ENOMEM;
 
@@ -597,6 +597,10 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 	tmp->cloned = NULL;
 	tmp->authsize = TIPC_AES_GCM_TAG_SIZE;
 	tmp->key = kmemdup(ukey, tipc_aead_key_size(ukey), GFP_KERNEL);
+	if (!tmp->key) {
+		tipc_aead_free(&tmp->rcu);
+		return -ENOMEM;
+	}
 	memcpy(&tmp->salt, ukey->key + keylen, TIPC_AES_GCM_SALT_SIZE);
 	atomic_set(&tmp->users, 0);
 	atomic64_set(&tmp->seqno, 0);
@@ -1470,7 +1474,7 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 		return -EEXIST;
 
 	/* Allocate crypto */
-	c = kzalloc(sizeof(*c), GFP_ATOMIC);
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return -ENOMEM;
 
@@ -1484,7 +1488,7 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 	}
 
 	/* Allocate statistic structure */
-	c->stats = alloc_percpu_gfp(struct tipc_crypto_stats, GFP_ATOMIC);
+	c->stats = alloc_percpu(struct tipc_crypto_stats);
 	if (!c->stats) {
 		if (c->wq)
 			destroy_workqueue(c->wq);
@@ -2457,7 +2461,7 @@ static void tipc_crypto_work_tx(struct work_struct *work)
 	}
 
 	/* Lets duplicate it first */
-	skey = kmemdup(aead->key, tipc_aead_key_size(aead->key), GFP_ATOMIC);
+	skey = kmemdup(aead->key, tipc_aead_key_size(aead->key), GFP_KERNEL);
 	rcu_read_unlock();
 
 	/* Now, generate new key, initiate & distribute it */

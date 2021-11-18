@@ -236,10 +236,11 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 	u64 lmt_addr, val, tbl_base;
 	int pf, vf, num_vfs, hw_vfs;
 	void __iomem *lmt_map_base;
-	int index = 0, off = 0;
-	int bytes_not_copied;
 	int buf_size = 10240;
+	size_t off = 0;
+	int index = 0;
 	char *buf;
+	int ret;
 
 	/* don't allow partial reads */
 	if (*ppos != 0)
@@ -303,15 +304,17 @@ static ssize_t rvu_dbg_lmtst_map_table_display(struct file *filp,
 	}
 	off +=	scnprintf(&buf[off], buf_size - 1 - off, "\n");
 
-	bytes_not_copied = copy_to_user(buffer, buf, off);
+	ret = min(off, count);
+	if (copy_to_user(buffer, buf, ret))
+		ret = -EFAULT;
 	kfree(buf);
 
 	iounmap(lmt_map_base);
-	if (bytes_not_copied)
-		return -EFAULT;
+	if (ret < 0)
+		return ret;
 
-	*ppos = off;
-	return off;
+	*ppos = ret;
+	return ret;
 }
 
 RVU_DEBUG_FOPS(lmtst_map_table, lmtst_map_table_display, NULL);
