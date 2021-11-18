@@ -1271,7 +1271,6 @@ void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu,
 
 	if (!already_loaded) {
 		void *gdt = get_current_gdt_ro();
-		unsigned long sysenter_esp;
 
 		/*
 		 * Flush all EPTP/VPID contexts, the new pCPU may have stale
@@ -1287,8 +1286,11 @@ void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu,
 			    (unsigned long)&get_cpu_entry_area(cpu)->tss.x86_tss);
 		vmcs_writel(HOST_GDTR_BASE, (unsigned long)gdt);   /* 22.2.4 */
 
-		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
-		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
+		if (IS_ENABLED(CONFIG_IA32_EMULATION) || IS_ENABLED(CONFIG_X86_32)) {
+			/* 22.2.3 */
+			vmcs_writel(HOST_IA32_SYSENTER_ESP,
+				    (unsigned long)(cpu_entry_stack(cpu) + 1));
+		}
 
 		vmx->loaded_vmcs->cpu = cpu;
 	}
@@ -4026,6 +4028,12 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 
 	rdmsr(MSR_IA32_SYSENTER_CS, low32, high32);
 	vmcs_write32(HOST_IA32_SYSENTER_CS, low32);
+
+	/*
+	 * If 32-bit syscall is enabled, vmx_vcpu_load_vcms rewrites
+	 * HOST_IA32_SYSENTER_ESP.
+	 */
+	vmcs_writel(HOST_IA32_SYSENTER_ESP, 0);
 	rdmsrl(MSR_IA32_SYSENTER_EIP, tmpl);
 	vmcs_writel(HOST_IA32_SYSENTER_EIP, tmpl);   /* 22.2.3 */
 
