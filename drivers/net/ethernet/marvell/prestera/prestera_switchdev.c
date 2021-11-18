@@ -1124,7 +1124,7 @@ static int prestera_switchdev_blk_event(struct notifier_block *unused,
 						     prestera_port_obj_attr_set);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		return NOTIFY_DONE;
 	}
 
 	return notifier_from_errno(err);
