@@ -89,7 +89,7 @@ static void test_sev_migrate_from(bool es)
 {
 	struct kvm_vm *src_vm;
 	struct kvm_vm *dst_vms[NR_MIGRATE_TEST_VMS];
-	int i;
+	int i, ret;
 
 	src_vm = sev_vm_create(es);
 	for (i = 0; i < NR_MIGRATE_TEST_VMS; ++i)
@@ -102,7 +102,10 @@ static void test_sev_migrate_from(bool es)
 		sev_migrate_from(dst_vms[i]->fd, dst_vms[i - 1]->fd);
 
 	/* Migrate the guest back to the original VM. */
-	sev_migrate_from(src_vm->fd, dst_vms[NR_MIGRATE_TEST_VMS - 1]->fd);
+	ret = __sev_migrate_from(src_vm->fd, dst_vms[NR_MIGRATE_TEST_VMS - 1]->fd);
+	TEST_ASSERT(ret == -1 && errno == EIO,
+		    "VM that was migrated from should be dead. ret %d, errno: %d\n", ret,
+		    errno);
 
 	kvm_vm_free(src_vm);
 	for (i = 0; i < NR_MIGRATE_TEST_VMS; ++i)
