@@ -1190,12 +1190,8 @@ mt76_connac_get_phy_mode(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		if (vht_cap->vht_supported)
 			mode |= PHY_MODE_AC;
 
-		if (he_cap && he_cap->has_he) {
-			if (band == NL80211_BAND_6GHZ)
-				mode |= PHY_MODE_AX_6G;
-			else
-				mode |= PHY_MODE_AX_5G;
-		}
+		if (he_cap && he_cap->has_he && band == NL80211_BAND_5GHZ)
+			mode |= PHY_MODE_AX_5G;
 	}
 
 	return mode;
@@ -1318,7 +1314,7 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 	idx = mvif->omac_idx > EXT_BSSID_START ? HW_BSSID_0 : mvif->omac_idx;
 	basic_req.basic.hw_bss_idx = idx;
 	if (band == NL80211_BAND_6GHZ)
-		basic_req.basic.phymode_ext = BIT(0);
+		basic_req.basic.phymode_ext = PHY_MODE_AX_6G;
 
 	basic_phy = mt76_connac_get_phy_mode_v2(phy, vif, band, NULL);
 	basic_req.basic.nonht_basic_phy = cpu_to_le16(basic_phy);
