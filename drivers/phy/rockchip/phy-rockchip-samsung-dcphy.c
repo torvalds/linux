@@ -1810,10 +1810,11 @@ static const struct phy_ops samsung_mipi_dcphy_ops = {
 };
 
 static const struct regmap_config samsung_mipi_dcphy_regmap_config = {
+	.name = "dcphy_tx",
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.max_register = 0x1fec,
+	.max_register = 0x0b00,
 };
 
 static int samsung_mipi_dcphy_probe(struct platform_device *pdev)
