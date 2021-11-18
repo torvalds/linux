@@ -61,9 +61,9 @@ static void ocelot_mact_select(struct ocelot *ocelot,
 
 }
 
-int ocelot_mact_learn(struct ocelot *ocelot, int port,
-		      const unsigned char mac[ETH_ALEN],
-		      unsigned int vid, enum macaccess_entry_type type)
+static int __ocelot_mact_learn(struct ocelot *ocelot, int port,
+			       const unsigned char mac[ETH_ALEN],
+			       unsigned int vid, enum macaccess_entry_type type)
 {
 	u32 cmd = ANA_TABLES_MACACCESS_VALID |
 		ANA_TABLES_MACACCESS_DEST_IDX(port) |
@@ -83,8 +83,6 @@ int ocelot_mact_learn(struct ocelot *ocelot, int port,
 	if (mc_ports & BIT(ocelot->num_phys_ports))
 		cmd |= ANA_TABLES_MACACCESS_MAC_CPU_COPY;
 
-	mutex_lock(&ocelot->mact_lock);
-
 	ocelot_mact_select(ocelot, mac, vid);
 
 	/* Issue a write command */
@@ -92,9 +90,20 @@ int ocelot_mact_learn(struct ocelot *ocelot, int port,
 
 	err = ocelot_mact_wait_for_completion(ocelot);
 
+	return err;
+}
+
+int ocelot_mact_learn(struct ocelot *ocelot, int port,
+		      const unsigned char mac[ETH_ALEN],
+		      unsigned int vid, enum macaccess_entry_type type)
+{
+	int ret;
+
+	mutex_lock(&ocelot->mact_lock);
+	ret = __ocelot_mact_learn(ocelot, port, mac, vid, type);
 	mutex_unlock(&ocelot->mact_lock);
 
-	return err;
+	return ret;
 }
 EXPORT_SYMBOL(ocelot_mact_learn);
 
@@ -119,6 +128,66 @@ int ocelot_mact_forget(struct ocelot *ocelot,
 	return err;
 }
 EXPORT_SYMBOL(ocelot_mact_forget);
+
+int ocelot_mact_lookup(struct ocelot *ocelot, int *dst_idx,
+		       const unsigned char mac[ETH_ALEN],
+		       unsigned int vid, enum macaccess_entry_type *type)
+{
+	int val;
+
+	mutex_lock(&ocelot->mact_lock);
+
+	ocelot_mact_select(ocelot, mac, vid);
+
+	/* Issue a read command with MACACCESS_VALID=1. */
+	ocelot_write(ocelot, ANA_TABLES_MACACCESS_VALID |
+		     ANA_TABLES_MACACCESS_MAC_TABLE_CMD(MACACCESS_CMD_READ),
+		     ANA_TABLES_MACACCESS);
+
+	if (ocelot_mact_wait_for_completion(ocelot)) {
+		mutex_unlock(&ocelot->mact_lock);
+		return -ETIMEDOUT;
+	}
+
+	/* Read back the entry flags */
+	val = ocelot_read(ocelot, ANA_TABLES_MACACCESS);
+
+	mutex_unlock(&ocelot->mact_lock);
+
+	if (!(val & ANA_TABLES_MACACCESS_VALID))
+		return -ENOENT;
+
+	*dst_idx = ANA_TABLES_MACACCESS_DEST_IDX_X(val);
+	*type = ANA_TABLES_MACACCESS_ENTRYTYPE_X(val);
+
+	return 0;
+}
+EXPORT_SYMBOL(ocelot_mact_lookup);
+
+int ocelot_mact_learn_streamdata(struct ocelot *ocelot, int dst_idx,
+				 const unsigned char mac[ETH_ALEN],
+				 unsigned int vid,
+				 enum macaccess_entry_type type,
+				 int sfid, int ssid)
+{
+	int ret;
+
+	mutex_lock(&ocelot->mact_lock);
+
+	ocelot_write(ocelot,
+		     (sfid < 0 ? 0 : ANA_TABLES_STREAMDATA_SFID_VALID) |
+		     ANA_TABLES_STREAMDATA_SFID(sfid) |
+		     (ssid < 0 ? 0 : ANA_TABLES_STREAMDATA_SSID_VALID) |
+		     ANA_TABLES_STREAMDATA_SSID(ssid),
+		     ANA_TABLES_STREAMDATA);
+
+	ret = __ocelot_mact_learn(ocelot, dst_idx, mac, vid, type);
+
+	mutex_unlock(&ocelot->mact_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(ocelot_mact_learn_streamdata);
 
 static void ocelot_mact_init(struct ocelot *ocelot)
 {
@@ -2282,6 +2351,9 @@ int ocelot_init(struct ocelot *ocelot)
 	ocelot_vlan_init(ocelot);
 	ocelot_vcap_init(ocelot);
 	ocelot_cpu_port_init(ocelot);
+
+	if (ocelot->ops->psfp_init)
+		ocelot->ops->psfp_init(ocelot);
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		/* Clear all counters (5 groups) */
