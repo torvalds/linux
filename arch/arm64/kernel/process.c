@@ -625,6 +625,7 @@ out:
 	put_task_stack(p);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(get_wchan);
 
 unsigned long arch_align_stack(unsigned long sp)
 {

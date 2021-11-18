@@ -8,17 +8,17 @@
 
 #include <linux/completion.h>
 #include <linux/module.h>
+#include <generated/utsrelease.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "fips140: " fmt
 
 /*
  * This is the name and version number of the module that are shown on the FIPS
- * certificate.  These don't necessarily have any relation to the filename of
- * the .ko file, or to the git branch or commit ID.
+ * certificate.
  */
 #define FIPS140_MODULE_NAME "Android Kernel Cryptographic Module"
-#define FIPS140_MODULE_VERSION "v1.0"
+#define FIPS140_MODULE_VERSION UTS_RELEASE
 
 #ifdef CONFIG_CRYPTO_FIPS140_MOD_ERROR_INJECTION
 extern char *fips140_broken_alg;
