@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig ROCKCHIP_MULTI_RGA
+	tristate "MULTI_RGA"
+	depends on ARCH_ROCKCHIP
+	help
+	  multi_rga module.
+
+if ROCKCHIP_MULTI_RGA
+
+config ROCKCHIP_RGA_PROC_FS
+	bool "Enable RGA procfs"
+	select ROCKCHIP_RGA_DEBUGGER
+	depends on PROC_FS
+	help
+	  Enable procfs to debug multi RGA driver.
+
+config ROCKCHIP_RGA_DEBUG_FS
+	bool "Enable RGA debugfs"
+	select ROCKCHIP_RGA_DEBUGGER
+	depends on DEBUG_FS
+	default y
+	help
+	  Enable debugfs to debug multi RGA driver.
+
+config ROCKCHIP_RGA_DEBUGGER
+	bool
+	help
+	  Enabling the debugger of multi RGA, you can use procfs and debugfs for debugging.
+
+endif
