@@ -359,7 +359,7 @@ static bool dr_mask_is_tnl_mpls_over_gre(struct mlx5dr_match_param *mask,
 
 static int dr_matcher_supp_tnl_mpls_over_udp(struct mlx5dr_cmd_caps *caps)
 {
-	return caps->flex_protocols & mlx5_FLEX_PARSER_MPLS_OVER_UDP_ENABLED;
+	return caps->flex_protocols & MLX5_FLEX_PARSER_MPLS_OVER_UDP_ENABLED;
 }
 
 static bool dr_mask_is_tnl_mpls_over_udp(struct mlx5dr_match_param *mask,
