@@ -969,6 +969,7 @@ int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_GET <<
 				CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.type = cpu_to_le16(CPUCP_POWER_INPUT);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);

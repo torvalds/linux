@@ -333,6 +333,7 @@ enum hl_server_type {
  * HL_INFO_SYNC_MANAGER  - Retrieve sync manager info per dcore
  * HL_INFO_TOTAL_ENERGY  - Retrieve total energy consumption
  * HL_INFO_PLL_FREQUENCY - Retrieve PLL frequency
+ * HL_INFO_POWER         - Retrieve power information
  * HL_INFO_OPEN_STATS    - Retrieve info regarding recent device open calls
  * HL_INFO_DRAM_REPLACED_ROWS - Retrieve DRAM replaced rows info
  * HL_INFO_DRAM_PENDING_ROWS - Retrieve DRAM pending rows num
