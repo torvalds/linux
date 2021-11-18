@@ -73,9 +73,8 @@ bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 static inline bool task_demand_fits(struct task_struct *p, int cpu)
 {
 	unsigned long capacity = capacity_orig_of(cpu);
-	unsigned long max_capacity = max_possible_capacity;
 
-	if (capacity == max_capacity)
+	if (is_max_cluster_cpu(cpu))
 		return true;
 
 	return task_fits_capacity(p, capacity, cpu);

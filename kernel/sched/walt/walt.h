@@ -177,8 +177,8 @@ extern int core_ctl_init(void);
 
 extern atomic64_t walt_irq_work_lastq_ws;
 extern unsigned int __read_mostly sched_ravg_window;
-extern unsigned int min_max_possible_capacity;
-extern unsigned int max_possible_capacity;
+extern int min_possible_cluster_id;
+extern int max_possible_cluster_id;
 extern unsigned int __read_mostly sched_init_task_load_windows;
 extern unsigned int __read_mostly sched_load_granule;
 
@@ -622,22 +622,26 @@ static inline int cluster_first_cpu(struct walt_sched_cluster *cluster)
 
 static inline bool hmp_capable(void)
 {
-	return max_possible_capacity != min_max_possible_capacity;
+	return max_possible_cluster_id != min_possible_cluster_id;
 }
 
-static inline bool is_max_capacity_cpu(int cpu)
+static inline bool is_max_cluster_cpu(int cpu)
 {
-	return arch_scale_cpu_capacity(cpu) == max_possible_capacity;
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+
+	return wrq->cluster->id == max_possible_cluster_id;
 }
 
-static inline bool is_min_capacity_cpu(int cpu)
+static inline bool is_min_cluster_cpu(int cpu)
 {
-	return arch_scale_cpu_capacity(cpu) == min_max_possible_capacity;
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+
+	return wrq->cluster->id == min_possible_cluster_id;
 }
 
 static inline bool is_min_capacity_cluster(struct walt_sched_cluster *cluster)
 {
-	return is_min_capacity_cpu(cluster_first_cpu(cluster));
+	return cluster->id == min_possible_cluster_id;
 }
 
 /*
@@ -696,7 +700,7 @@ static inline bool walt_should_kick_upmigrate(struct task_struct *p, int cpu)
 
 	if (is_suh_max() && rtg && rtg->id == DEFAULT_CGROUP_COLOC_ID &&
 			    rtg->skip_min && wts->unfilter)
-		return is_min_capacity_cpu(cpu);
+		return is_min_cluster_cpu(cpu);
 
 	return false;
 }
@@ -731,13 +735,12 @@ static inline bool task_fits_capacity(struct task_struct *p,
 static inline bool task_fits_max(struct task_struct *p, int cpu)
 {
 	unsigned long capacity = capacity_orig_of(cpu);
-	unsigned long max_capacity = max_possible_capacity;
 	unsigned long task_boost = per_task_boost(p);
 
-	if (capacity == max_capacity)
+	if (is_max_cluster_cpu(cpu))
 		return true;
 
-	if (is_min_capacity_cpu(cpu)) {
+	if (is_min_cluster_cpu(cpu)) {
 		if (task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
 				task_boost > 0 ||
 				walt_uclamp_boosted(p) ||
@@ -891,7 +894,7 @@ void walt_lb_tick(struct rq *rq);
 extern __read_mostly unsigned int walt_scale_demand_divisor;
 #define scale_demand(d) ((d)/walt_scale_demand_divisor)
 
-#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && !is_min_capacity_cpu(cpu))
+#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && !is_min_cluster_cpu(cpu))
 
 void create_util_to_cost(void);
 struct compute_energy_output {

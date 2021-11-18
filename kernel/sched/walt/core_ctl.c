@@ -784,7 +784,7 @@ static bool adjustment_possible(const struct cluster_data *cluster,
 
 static bool need_all_cpus(const struct cluster_data *cluster)
 {
-	return (is_min_capacity_cpu(cluster->first_cpu) &&
+	return (is_min_cluster_cpu(cluster->first_cpu) &&
 		sched_ravg_window < DEFAULT_SCHED_RAVG_WINDOW);
 }
 

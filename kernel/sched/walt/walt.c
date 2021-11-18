@@ -64,8 +64,8 @@ unsigned int walt_rotation_enabled;
 cpumask_t asym_cap_sibling_cpus = CPU_MASK_NONE;
 
 unsigned int __read_mostly sched_ravg_window = 20000000;
-unsigned int min_max_possible_capacity = 1024;
-unsigned int max_possible_capacity = 1024; /* max(rq->max_possible_capacity) */
+int min_possible_cluster_id;
+int max_possible_cluster_id;
 /* Initial task load. Newly created tasks are assigned this load. */
 unsigned int __read_mostly sched_init_task_load_windows;
 /*
@@ -271,8 +271,7 @@ void walt_dump(void)
 			sched_ravg_window_change_time);
 	for_each_online_cpu(cpu)
 		walt_rq_dump(cpu);
-	SCHED_PRINT(max_possible_capacity);
-	SCHED_PRINT(min_max_possible_capacity);
+	SCHED_PRINT(max_possible_cluster_id);
 	printk_deferred("============ WALT RQ DUMP END ==============\n");
 }
 
@@ -2446,16 +2445,18 @@ static void update_all_clusters_stats(void)
 	for_each_sched_cluster(cluster) {
 		u64 mpc = arch_scale_cpu_capacity(
 				cluster_first_cpu(cluster));
+		int cluster_id = cluster->id;
 
-		if (mpc > highest_mpc)
+		if (mpc > highest_mpc) {
 			highest_mpc = mpc;
+			max_possible_cluster_id = cluster_id;
+		}
 
-		if (mpc < lowest_mpc)
+		if (mpc < lowest_mpc) {
 			lowest_mpc = mpc;
+			min_possible_cluster_id = cluster_id;
+		}
 	}
-
-	max_possible_capacity = highest_mpc;
-	min_max_possible_capacity = lowest_mpc;
 	walt_update_group_thresholds();
 }
 

@@ -143,7 +143,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	struct walt_lb_rotate_work *wr = NULL;
 	struct walt_task_struct *wts;
 
-	if (!is_min_capacity_cpu(src_cpu))
+	if (!is_min_cluster_cpu(src_cpu))
 		return;
 
 	wc = walt_ktime_get_ns();
@@ -151,7 +151,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	for_each_possible_cpu(i) {
 		struct rq *rq = cpu_rq(i);
 
-		if (!is_min_capacity_cpu(i))
+		if (!is_min_cluster_cpu(i))
 			break;
 
 		if (is_reserved(i))
@@ -174,7 +174,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	for_each_possible_cpu(i) {
 		struct rq *rq = cpu_rq(i);
 
-		if (is_min_capacity_cpu(i))
+		if (is_min_cluster_cpu(i))
 			continue;
 
 		if (is_reserved(i))
@@ -723,7 +723,7 @@ static bool should_help_min_cap(int this_cpu)
 {
 	int cpu;
 
-	if (!sysctl_sched_force_lb_enable || is_min_capacity_cpu(this_cpu))
+	if (!sysctl_sched_force_lb_enable || is_min_cluster_cpu(this_cpu))
 		return false;
 
 	for_each_cpu(cpu, &cpu_array[0][0]) {

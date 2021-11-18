@@ -306,7 +306,7 @@ static inline unsigned long target_util(struct waltgov_policy *wg_policy,
 
 	util = freq_to_util(wg_policy, freq);
 
-	if (wg_policy->max == min_max_possible_capacity &&
+	if (is_min_cluster_cpu(wg_policy->policy->cpu) &&
 		util >= wg_policy->tunables->target_load_thresh)
 		util = mult_frac(util, 94, 100);
 	else
