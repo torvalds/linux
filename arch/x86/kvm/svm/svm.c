@@ -269,7 +269,7 @@ u32 svm_msrpm_offset(u32 msr)
 
 #define MAX_INST_SIZE 15
 
-static int get_max_npt_level(void)
+static int get_npt_level(void)
 {
 #ifdef CONFIG_X86_64
 	return pgtable_l5_enabled() ? PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
@@ -1037,9 +1037,9 @@ static __init int svm_hardware_setup(void)
 	if (!boot_cpu_has(X86_FEATURE_NPT))
 		npt_enabled = false;
 
-	/* Force VM NPT level equal to the host's max NPT level */
-	kvm_configure_mmu(npt_enabled, get_max_npt_level(),
-			  get_max_npt_level(), PG_LEVEL_1G);
+	/* Force VM NPT level equal to the host's paging level */
+	kvm_configure_mmu(npt_enabled, get_npt_level(),
+			  get_npt_level(), PG_LEVEL_1G);
 	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
 	/* Note, SEV setup consumes npt_enabled. */
