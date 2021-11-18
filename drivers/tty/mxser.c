@@ -929,9 +929,6 @@ static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int cou
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
 
-	if (!info->port.xmit_buf)
-		return 0;
-
 	while (1) {
 		c = min_t(int, count, min(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
 					  SERIAL_XMIT_SIZE - info->xmit_head));
@@ -962,9 +959,6 @@ static int mxser_put_char(struct tty_struct *tty, unsigned char ch)
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
 
-	if (!info->port.xmit_buf)
-		return 0;
-
 	if (info->xmit_cnt >= SERIAL_XMIT_SIZE - 1)
 		return 0;
 
@@ -982,7 +976,7 @@ static void mxser_flush_chars(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 
-	if (!info->xmit_cnt || tty->flow.stopped || !info->port.xmit_buf ||
+	if (!info->xmit_cnt || tty->flow.stopped ||
 			(tty->hw_stopped && !mxser_16550A_or_MUST(info)))
 		return;
 
@@ -1397,7 +1391,7 @@ static void mxser_start(struct tty_struct *tty)
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
-	if (info->xmit_cnt && info->port.xmit_buf)
+	if (info->xmit_cnt)
 		__mxser_start_tx(info);
 	spin_unlock_irqrestore(&info->slock, flags);
 }
@@ -1630,9 +1624,6 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 		port->icount.tx++;
 		return;
 	}
-
-	if (port->port.xmit_buf == NULL)
-		return;
 
 	if (!port->xmit_cnt || tty->flow.stopped ||
 			(tty->hw_stopped && !mxser_16550A_or_MUST(port))) {
