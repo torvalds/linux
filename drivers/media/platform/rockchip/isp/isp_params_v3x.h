@@ -137,11 +137,11 @@ struct rkisp_isp_params_ops_v3x {
 	void (*ynr_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct isp3x_ynr_cfg *arg, u32 id);
 	void (*ynr_enable)(struct rkisp_isp_params_vdev *params_vdev,
-			   bool en, const struct isp3x_ynr_cfg *arg, u32 id);
+			   bool en, u32 id);
 	void (*cnr_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct isp3x_cnr_cfg *arg, u32 id);
 	void (*cnr_enable)(struct rkisp_isp_params_vdev *params_vdev,
-			   bool en, const struct isp3x_cnr_cfg *arg, u32 id);
+			   bool en, u32 id);
 	void (*sharp_config)(struct rkisp_isp_params_vdev *params_vdev,
 			     const struct isp3x_sharp_cfg *arg, u32 id);
 	void (*sharp_enable)(struct rkisp_isp_params_vdev *params_vdev,

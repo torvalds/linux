@@ -38,6 +38,19 @@ isp3_param_read(struct rkisp_isp_params_vdev *params_vdev,
 	return val;
 }
 
+static inline u32
+isp3_param_read_cache(struct rkisp_isp_params_vdev *params_vdev,
+		      u32 addr, u32 id)
+{
+	u32 val;
+
+	if (id == ISP3_LEFT)
+		val = rkisp_read_reg_cache(params_vdev->dev, addr);
+	else
+		val = rkisp_next_read_reg_cache(params_vdev->dev, addr);
+	return val;
+}
+
 static inline void
 isp3_param_set_bits(struct rkisp_isp_params_vdev *params_vdev,
 		    u32 reg, u32 bit_mask, u32 id)
@@ -2516,7 +2529,7 @@ isp_hdrmge_config(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, value, ISP3X_HDRMGE_GAIN2, id);
 
 		if (arg->s_base) {
-			value = rkisp_read_reg_cache(params_vdev->dev, ISP3X_HDRMGE_CTRL);
+			value = isp3_param_read_cache(params_vdev, ISP3X_HDRMGE_CTRL, id);
 			value |= BIT(1);
 			isp3_param_write(params_vdev, value, ISP3X_HDRMGE_CTRL, id);
 		}
@@ -3066,36 +3079,25 @@ isp_ynr_config(struct rkisp_isp_params_vdev *params_vdev,
 
 static void
 isp_ynr_enable(struct rkisp_isp_params_vdev *params_vdev,
-	       bool en, const struct isp3x_ynr_cfg *arg, u32 id)
+	       bool en, u32 id)
 {
-	u32 ynr_ctrl, value = 0;
+	u32 ynr_ctrl;
 	bool real_en;
 
-	if (arg) {
-		value = (arg->rnr_en & 0x1) << 26 |
-			(arg->thumb_mix_cur_en & 0x1) << 24 |
-			(arg->global_gain_alpha & 0xF) << 20 |
-			(arg->global_gain & 0x3FF) << 8 |
-			(arg->flt1x1_bypass_sel & 0x3) << 6 |
-			(arg->sft5x5_bypass & 0x1) << 5 |
-			(arg->flt1x1_bypass & 0x1) << 4 |
-			(arg->lgft3x3_bypass & 0x1) << 3 |
-			(arg->lbft5x5_bypass & 0x1) << 2 |
-			(arg->bft3x3_bypass & 0x1) << 1;
-	}
-
-	ynr_ctrl = isp3_param_read(params_vdev, ISP3X_YNR_GLOBAL_CTRL, id);
+	ynr_ctrl = isp3_param_read_cache(params_vdev, ISP3X_YNR_GLOBAL_CTRL, id);
 	real_en = !!(ynr_ctrl & ISP3X_MODULE_EN);
 	if ((en && real_en) || (!en && !real_en))
 		return;
 
 	if (en) {
-		value |= ISP3X_MODULE_EN;
+		ynr_ctrl |= ISP3X_MODULE_EN;
 		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1,
 				    ISP3X_YNR_FST_FRAME, id);
+	} else {
+		ynr_ctrl &= ~ISP3X_MODULE_EN;
 	}
 
-	isp3_param_write(params_vdev, value, ISP3X_YNR_GLOBAL_CTRL, id);
+	isp3_param_write(params_vdev, ynr_ctrl, ISP3X_YNR_GLOBAL_CTRL, id);
 }
 
 static void
@@ -3162,30 +3164,25 @@ isp_cnr_config(struct rkisp_isp_params_vdev *params_vdev,
 
 static void
 isp_cnr_enable(struct rkisp_isp_params_vdev *params_vdev,
-	       bool en, const struct isp3x_cnr_cfg *arg, u32 id)
+	       bool en, u32 id)
 {
-	u32 cnr_ctrl, value = 0;
+	u32 cnr_ctrl;
 	bool real_en;
 
-	if (arg) {
-		value = (arg->thumb_mix_cur_en & 0x1) << 4 |
-			(arg->lq_bila_bypass & 0x1) << 3 |
-			(arg->hq_bila_bypass & 0x1) << 2 |
-			(arg->exgain_bypass & 0x1) << 1;
-	}
-
-	cnr_ctrl = isp3_param_read(params_vdev, ISP3X_CNR_CTRL, id);
+	cnr_ctrl = isp3_param_read_cache(params_vdev, ISP3X_CNR_CTRL, id);
 	real_en = !!(cnr_ctrl & ISP3X_MODULE_EN);
 	if ((en && real_en) || (!en && !real_en))
 		return;
 
 	if (en) {
-		value |= ISP3X_MODULE_EN;
+		cnr_ctrl |= ISP3X_MODULE_EN;
 		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1,
 				    ISP3X_CNR_FST_FRAME, id);
+	} else {
+		cnr_ctrl &= ~ISP3X_MODULE_EN;
 	}
 
-	isp3_param_write(params_vdev, value, ISP3X_CNR_CTRL, id);
+	isp3_param_write(params_vdev, cnr_ctrl, ISP3X_CNR_CTRL, id);
 }
 
 static void
@@ -3293,7 +3290,7 @@ isp_sharp_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
 	u32 value;
 
-	value = isp3_param_read(params_vdev, ISP3X_SHARP_EN, id);
+	value = isp3_param_read_cache(params_vdev, ISP3X_SHARP_EN, id);
 	value &= ~ISP3X_MODULE_EN;
 
 	if (en)
@@ -3355,7 +3352,7 @@ isp_baynr_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
 	u32 value;
 
-	value = isp3_param_read(params_vdev, ISP3X_BAYNR_CTRL, id);
+	value = isp3_param_read_cache(params_vdev, ISP3X_BAYNR_CTRL, id);
 	value &= ~ISP3X_MODULE_EN;
 
 	if (en)
@@ -3432,7 +3429,7 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 	u32 value, bay3d_ctrl;
 
 	priv_val = (struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
-	bay3d_ctrl = isp3_param_read(params_vdev, ISP3X_BAY3D_CTRL, id);
+	bay3d_ctrl = isp3_param_read_cache(params_vdev, ISP3X_BAY3D_CTRL, id);
 	if ((en && (bay3d_ctrl & ISP3X_MODULE_EN)) ||
 	    (!en && !(bay3d_ctrl & ISP3X_MODULE_EN)))
 		return;
@@ -3461,6 +3458,9 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_DS_WR_BASE, id);
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_DS_RD_BASE, id);
 
+		bay3d_ctrl |= ISP3X_MODULE_EN;
+		isp3_param_write(params_vdev, bay3d_ctrl, ISP3X_BAY3D_CTRL, id);
+
 		value = ISP3X_BAY3D_IIR_WR_AUTO_UPD | ISP3X_BAY3D_CUR_WR_AUTO_UPD |
 			ISP3X_BAY3D_DS_WR_AUTO_UPD | ISP3X_BAY3D_IIRSELF_UPD |
 			ISP3X_BAY3D_CURSELF_UPD | ISP3X_BAY3D_DSSELF_UPD |
@@ -3468,14 +3468,11 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 		isp3_param_set_bits(params_vdev, MI_WR_CTRL2, value, id);
 
 		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1, ISP3X_RAW3D_FST_FRAME, id);
-
-		bay3d_ctrl |= ISP3X_MODULE_EN;
 	} else {
 		bay3d_ctrl &= ~ISP3X_MODULE_EN;
+		isp3_param_write(params_vdev, bay3d_ctrl, ISP3X_BAY3D_CTRL, id);
 		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(4), id);
 	}
-
-	isp3_param_write(params_vdev, bay3d_ctrl, ISP3X_BAY3D_CTRL, id);
 }
 
 static void
@@ -3816,12 +3813,10 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 		ops->ldch_enable(params_vdev, !!(module_ens & ISP3X_MODULE_LDCH), id);
 
 	if (module_en_update & ISP3X_MODULE_YNR)
-		ops->ynr_enable(params_vdev, !!(module_ens & ISP3X_MODULE_YNR),
-				&new_params->others.ynr_cfg, id);
+		ops->ynr_enable(params_vdev, !!(module_ens & ISP3X_MODULE_YNR), id);
 
 	if (module_en_update & ISP3X_MODULE_CNR)
-		ops->cnr_enable(params_vdev, !!(module_ens & ISP3X_MODULE_CNR),
-				&new_params->others.cnr_cfg, id);
+		ops->cnr_enable(params_vdev, !!(module_ens & ISP3X_MODULE_CNR), id);
 
 	if (module_en_update & ISP3X_MODULE_SHARP)
 		ops->sharp_enable(params_vdev, !!(module_ens & ISP3X_MODULE_SHARP), id);
@@ -3841,8 +3836,8 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 		ops->gain_enable(params_vdev, !!(module_ens & ISP3X_MODULE_GAIN), id);
 
 	/* gain disable, using global gain for cnr */
-	gain_ctrl = isp3_param_read(params_vdev, ISP3X_GAIN_CTRL, id);
-	cnr_ctrl = isp3_param_read(params_vdev, ISP3X_CNR_CTRL, id);
+	gain_ctrl = isp3_param_read_cache(params_vdev, ISP3X_GAIN_CTRL, id);
+	cnr_ctrl = isp3_param_read_cache(params_vdev, ISP3X_CNR_CTRL, id);
 	if (!(gain_ctrl & ISP3X_MODULE_EN) && cnr_ctrl & ISP3X_MODULE_EN) {
 		cnr_ctrl |= BIT(1);
 		isp3_param_write(params_vdev, cnr_ctrl, ISP3X_CNR_CTRL, id);
