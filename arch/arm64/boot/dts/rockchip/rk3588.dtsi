@@ -182,6 +182,8 @@
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
 		clocks = <&cru MCLK_SPDIF5_DP1>, <&cru HCLK_SPDIF5_DP1>;
+		assigned-clocks = <&cru CLK_SPDIF5_DP1_SRC>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		power-domains = <&power RK3588_PD_VO0>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
@@ -193,6 +195,8 @@
 		interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_I2S8_8CH_TX>, <&cru HCLK_I2S8_8CH>;
 		clock-names = "mclk_tx", "hclk";
+		assigned-clocks = <&cru CLK_I2S8_8CH_TX_SRC>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		dmas = <&dmac2 22>;
 		dma-names = "tx";
 		power-domains = <&power RK3588_PD_VO0>;
@@ -211,6 +215,8 @@
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
 		clocks = <&cru MCLK_SPDIF4>, <&cru HCLK_SPDIF4>;
+		assigned-clocks = <&cru CLK_SPDIF4_SRC>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		power-domains = <&power RK3588_PD_VO1>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
@@ -222,6 +228,8 @@
 		interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_I2S6_8CH_TX>, <&cru MCLK_I2S6_8CH_TX>, <&cru HCLK_I2S6_8CH>;
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		assigned-clocks = <&cru CLK_I2S6_8CH_TX_SRC>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		dmas = <&dmac2 4>;
 		dma-names = "tx";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -238,6 +246,8 @@
 		interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_I2S7_8CH_RX>, <&cru MCLK_I2S7_8CH_RX>, <&cru HCLK_I2S7_8CH>;
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		assigned-clocks = <&cru CLK_I2S7_8CH_RX_SRC>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		dmas = <&dmac2 21>;
 		dma-names = "rx";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -254,6 +264,8 @@
 		interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_I2S10_8CH_RX>, <&cru MCLK_I2S10_8CH_RX>, <&cru HCLK_I2S10_8CH>;
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		assigned-clocks = <&cru CLK_I2S10_8CH_RX_SRC>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		dmas = <&dmac2 24>;
 		dma-names = "rx";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -270,6 +282,8 @@
 		interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SPDIFRX1>, <&cru HCLK_SPDIFRX1>;
 		clock-names = "mclk", "hclk";
+		assigned-clocks = <&cru MCLK_SPDIFRX1>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		dmas = <&dmac0 22>;
 		dma-names = "rx";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -285,6 +299,8 @@
 		interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SPDIFRX2>, <&cru HCLK_SPDIFRX2>;
 		clock-names = "mclk", "hclk";
+		assigned-clocks = <&cru MCLK_SPDIFRX2>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		dmas = <&dmac0 23>;
 		dma-names = "rx";
 		power-domains = <&power RK3588_PD_VO1>;
