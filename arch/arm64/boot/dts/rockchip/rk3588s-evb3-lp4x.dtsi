@@ -34,7 +34,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <5000>;
 		vin-supply = <&vcc12v_dcin>;
 	};
@@ -52,7 +52,7 @@
 	};
 };
 
-&combphy2_psu {
+&combphy0_ps {
 	status = "okay";
 };
 
@@ -212,7 +212,7 @@
 };
 
 &pcie2x1l2 {
-	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
 	status = "okay";
 };
