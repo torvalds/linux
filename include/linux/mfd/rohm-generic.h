@@ -80,11 +80,18 @@ int rohm_regulator_set_dvs_levels(const struct rohm_dvs_config *dvs,
 				  const struct regulator_desc *desc,
 				  struct regmap *regmap);
 
+int rohm_regulator_set_voltage_sel_restricted(struct regulator_dev *rdev,
+					      unsigned int sel);
 #else
 static inline int rohm_regulator_set_dvs_levels(const struct rohm_dvs_config *dvs,
 						struct device_node *np,
 						const struct regulator_desc *desc,
 						struct regmap *regmap)
+{
+	return 0;
+}
+static int rohm_regulator_set_voltage_sel_restricted(struct regulator_dev *rdev,
+						     unsigned int sel)
 {
 	return 0;
 }
