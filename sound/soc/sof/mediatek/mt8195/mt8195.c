@@ -311,6 +311,44 @@ static int mt8195_dsp_remove(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static int mt8195_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
+{
+	struct platform_device *pdev = container_of(sdev->dev, struct platform_device, dev);
+	int ret;
+
+	/* stall and reset dsp */
+	sof_hifixdsp_shutdown(sdev);
+
+	/* power down adsp sram */
+	ret = adsp_sram_power_on(&pdev->dev, false);
+	if (ret) {
+		dev_err(sdev->dev, "adsp_sram_power_off fail!\n");
+		return ret;
+	}
+
+	/* turn off adsp clock */
+	return adsp_clock_off(sdev);
+}
+
+static int mt8195_dsp_resume(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	/* turn on adsp clock */
+	ret = adsp_clock_on(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "adsp_clock_on fail!\n");
+		return ret;
+	}
+
+	/* power on adsp sram */
+	ret = adsp_sram_power_on(sdev->dev, true);
+	if (ret)
+		dev_err(sdev->dev, "adsp_sram_power_on fail!\n");
+
+	return ret;
+}
+
 /* on mt8195 there is 1 to 1 match between type and BAR idx */
 static int mt8195_get_bar_index(struct snd_sof_dev *sdev, u32 type)
 {
@@ -381,6 +419,10 @@ const struct snd_sof_dsp_ops sof_mt8195_ops = {
 	/* DAI drivers */
 	.drv = mt8195_dai,
 	.num_drv = ARRAY_SIZE(mt8195_dai),
+
+	/* PM */
+	.suspend	= mt8195_dsp_suspend,
+	.resume		= mt8195_dsp_resume,
 
 	/* ALSA HW info flags */
 	.hw_info =	SNDRV_PCM_INFO_MMAP |
