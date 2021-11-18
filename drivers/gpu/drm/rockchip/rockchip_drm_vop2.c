@@ -5573,8 +5573,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		if (ret < 0)
 			goto out;
 
-		VOP_CTRL_SET(vop2, rgb_en, 1);
-		VOP_CTRL_SET(vop2, bt1120_en, 1);
+		if (vop2->version == VOP_VERSION_RK3588) {
+			VOP_CTRL_SET(vop2, bt1120_en, 3);
+		} else {
+			VOP_CTRL_SET(vop2, rgb_en, 1);
+			VOP_CTRL_SET(vop2, bt1120_en, 1);
+		}
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
 		VOP_GRF_SET(vop2, sys_grf, grf_bt1120_clk_inv, !dclk_inv);
 		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
