@@ -10,6 +10,7 @@ struct rings_req_info {
 struct rings_reply_data {
 	struct ethnl_reply_data		base;
 	struct ethtool_ringparam	ringparam;
+	struct kernel_ethtool_ringparam	kernel_ringparam;
 };
 
 #define RINGS_REPDATA(__reply_base) \
@@ -49,7 +50,8 @@ static int rings_reply_size(const struct ethnl_req_info *req_base,
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX */
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_MINI */
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_JUMBO */
-	       nla_total_size(sizeof(u32));	/* _RINGS_TX */
+	       nla_total_size(sizeof(u32)) +	/* _RINGS_TX */
+	       nla_total_size(sizeof(u32));     /* _RINGS_RX_BUF_LEN */
 }
 
 static int rings_fill_reply(struct sk_buff *skb,
@@ -57,6 +59,7 @@ static int rings_fill_reply(struct sk_buff *skb,
 			    const struct ethnl_reply_data *reply_base)
 {
 	const struct rings_reply_data *data = RINGS_REPDATA(reply_base);
+	const struct kernel_ethtool_ringparam *kernel_ringparam = &data->kernel_ringparam;
 	const struct ethtool_ringparam *ringparam = &data->ringparam;
 
 	if ((ringparam->rx_max_pending &&
@@ -78,7 +81,10 @@ static int rings_fill_reply(struct sk_buff *skb,
 	     (nla_put_u32(skb, ETHTOOL_A_RINGS_TX_MAX,
 			  ringparam->tx_max_pending) ||
 	      nla_put_u32(skb, ETHTOOL_A_RINGS_TX,
-			  ringparam->tx_pending))))
+			  ringparam->tx_pending)))  ||
+	    (kernel_ringparam->rx_buf_len &&
+	     (nla_put_u32(skb, ETHTOOL_A_RINGS_RX_BUF_LEN,
+			  kernel_ringparam->rx_buf_len))))
 		return -EMSGSIZE;
 
 	return 0;
@@ -105,10 +111,12 @@ const struct nla_policy ethnl_rings_set_policy[] = {
 	[ETHTOOL_A_RINGS_RX_MINI]		= { .type = NLA_U32 },
 	[ETHTOOL_A_RINGS_RX_JUMBO]		= { .type = NLA_U32 },
 	[ETHTOOL_A_RINGS_TX]			= { .type = NLA_U32 },
+	[ETHTOOL_A_RINGS_RX_BUF_LEN]            = NLA_POLICY_MIN(NLA_U32, 1),
 };
 
 int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
 {
+	struct kernel_ethtool_ringparam kernel_ringparam = {};
 	struct ethtool_ringparam ringparam = {};
 	struct ethnl_req_info req_info = {};
 	struct nlattr **tb = info->attrs;
@@ -142,6 +150,8 @@ int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
 	ethnl_update_u32(&ringparam.rx_jumbo_pending,
 			 tb[ETHTOOL_A_RINGS_RX_JUMBO], &mod);
 	ethnl_update_u32(&ringparam.tx_pending, tb[ETHTOOL_A_RINGS_TX], &mod);
+	ethnl_update_u32(&kernel_ringparam.rx_buf_len,
+			 tb[ETHTOOL_A_RINGS_RX_BUF_LEN], &mod);
 	ret = 0;
 	if (!mod)
 		goto out_ops;
@@ -161,6 +171,15 @@ int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
 		ret = -EINVAL;
 		NL_SET_ERR_MSG_ATTR(info->extack, err_attr,
 				    "requested ring size exceeds maximum");
+		goto out_ops;
+	}
+
+	if (kernel_ringparam.rx_buf_len != 0 &&
+	    !(ops->supported_ring_params & ETHTOOL_RING_USE_RX_BUF_LEN)) {
+		ret = -EOPNOTSUPP;
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_RINGS_RX_BUF_LEN],
+				    "setting rx buf len not supported");
 		goto out_ops;
 	}
 
