@@ -24,6 +24,10 @@
 extern "C" {
 #endif
 
+LIBBPF_API __u32 libbpf_major_version(void);
+LIBBPF_API __u32 libbpf_minor_version(void);
+LIBBPF_API const char *libbpf_version_string(void);
+
 enum libbpf_errno {
 	__LIBBPF_ERRNO__START = 4000,
 
