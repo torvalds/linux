@@ -589,13 +589,24 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 	mdiodev->device_free = phy_mdio_device_free;
 	mdiodev->device_remove = phy_mdio_device_remove;
 
+#if defined(CONFIG_FPGA_GMAC_SPEED10)
+	dev->speed = SPEED_10;
+	dev->duplex = DUPLEX_FULL;
+	dev->interface = PHY_INTERFACE_MODE_RGMII;
+#elif defined(CONFIG_FPGA_GMAC_SPEED100)
+	dev->speed = SPEED_100;
+	dev->duplex = DUPLEX_FULL;
+	dev->interface = PHY_INTERFACE_MODE_RGMII;
+#else
 	dev->speed = SPEED_UNKNOWN;
 	dev->duplex = DUPLEX_UNKNOWN;
+	dev->interface = PHY_INTERFACE_MODE_GMII;
+#endif
 	dev->pause = 0;
 	dev->asym_pause = 0;
 	dev->link = 0;
 	dev->port = PORT_TP;
-	dev->interface = PHY_INTERFACE_MODE_GMII;
+//	dev->interface = PHY_INTERFACE_MODE_GMII;
 
 	dev->autoneg = AUTONEG_ENABLE;
 
@@ -1910,6 +1921,13 @@ static int genphy_config_advert(struct phy_device *phydev)
 	if (err > 0)
 		changed = 1;
 
+#if defined(CONFIG_FPGA_GMAC_SPEED10)
+	err = phy_write(phydev, MII_ADVERTISE, 0x61);
+	//Auto-Negotiation Advertisement 10M
+#elif defined(CONFIG_FPGA_GMAC_SPEED100)
+	err = phy_write(phydev, MII_ADVERTISE, 0x181);
+	//Auto-Negotiation Advertisement 100M
+#endif
 	bmsr = phy_read(phydev, MII_BMSR);
 	if (bmsr < 0)
 		return bmsr;
@@ -1923,9 +1941,19 @@ static int genphy_config_advert(struct phy_device *phydev)
 
 	adv = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
 
+#if defined(CONFIG_FPGA_GMAC_SPEED10)
+	err = phy_modify_changed(phydev, MII_CTRL1000,
+				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
+				 0);
+#elif defined(CONFIG_FPGA_GMAC_SPEED100)
+	err = phy_modify_changed(phydev, MII_CTRL1000,
+				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
+				 0);
+#else
 	err = phy_modify_changed(phydev, MII_CTRL1000,
 				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
 				 adv);
+#endif
 	if (err < 0)
 		return err;
 	if (err > 0)

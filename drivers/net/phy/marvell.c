@@ -551,9 +551,20 @@ static int m88e1121_config_aneg_rgmii_delays(struct phy_device *phydev)
 	else
 		mscr = 0;
 
+#if defined(CONFIG_FPGA_GMAC_SPEED10)
+	return phy_modify_paged(phydev, MII_MARVELL_MSCR_PAGE,
+				MII_88E1121_PHY_MSCR_REG,
+				MII_88E1121_PHY_MSCR_DELAY_MASK|BIT(6)|BIT(13),
+				mscr);
+#elif defined(CONFIG_FPGA_GMAC_SPEED100)
+	return phy_modify_paged(phydev, MII_MARVELL_MSCR_PAGE,
+				MII_88E1121_PHY_MSCR_REG,
+				MII_88E1121_PHY_MSCR_DELAY_MASK|BIT(13), mscr);
+#else
 	return phy_modify_paged(phydev, MII_MARVELL_MSCR_PAGE,
 				MII_88E1121_PHY_MSCR_REG,
 				MII_88E1121_PHY_MSCR_DELAY_MASK, mscr);
+#endif
 }
 
 static int m88e1121_config_aneg(struct phy_device *phydev)

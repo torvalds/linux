@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/ {
+	oscclk:oscclk{
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "oscclk";
+	};
+	pll0clk:pll0clk{
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <1000000000>;
+		clock-output-names = "pll0clk";
+	};
+	pll1clk:pll1clk{
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <1066000000>;
+		clock-output-names = "pll1clk";
+	};
+	pll2clk:pll2clk{
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <1228800000>;
+		clock-output-names = "pll2clk";
+	};
+	rtcclk: rtcclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <4000000>;
+		clock-output-names = "rtcclk";
+	};
+	perh_rootclk: perh_rootclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <500000000>;
+	};
+	ahb0clk: ahb0clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <204800000>;
+	};
+	ahb1clk: ahb1clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <204800000>;
+	};
+	apb0clk: apb0clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <512000000>;
+	};
+	apb2clk: apb2clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <49500000>;
+	};
+	apb12clk: apb12clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <49500000>;
+	};
+	jpuclk: jpuclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <204800000>;
+	};
+	vdec_rootclk: vdec_rootclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <400000000>;
+	};
+	venc_rootclk: venc_rootclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <245760000>;
+	};
+	gmac_bus_clk: gmac_bus_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <4000000>;
+	};
+	gmac_rxtx_clk: gmac_rxtx_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <2500000>;
+	};
+	gmac_ptp_clk: gmac_ptp_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <2500000>;
+	};
+	qspi_clk: qspi-clk@0 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <50000000>;
+	};
+	uartclk: uartclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <51200000>;
+	};
+	dwmmc_biuclk: dwmmc_biuclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <4000000>;
+	};
+	dwmmc_ciuclk: dwmmc_ciuclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <4000000>;
+	};
+	stg_axiahb_clk: stg_axiahb_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <204800000>;
+	};
+	stg_apbclk: stg_apbclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <51200000>;
+	};
+
+	gpu_core_clk: gpu_core_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+	gpu_sys_clk: gpu_sys_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+	pwmclk: pwmclk {
+            #clock-cells = <0>;
+            compatible = "fixed-clock";
+            clock-frequency = <125000000>;
+       };
+	audioclk: audioclk {
+            #clock-cells = <0>;
+            compatible = "fixed-clock";
+            clock-frequency = <12288000>;
+    	};
+	canclk: canclk {
+            #clock-cells = <0>;
+            compatible = "fixed-clock";
+            clock-frequency = <24000000>;
+    	};
+};

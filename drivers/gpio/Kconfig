@@ -549,6 +549,13 @@ config GPIO_SIFIVE
 	select REGMAP_MMIO
 	help
 	  Say yes here to support the GPIO device on SiFive SoCs.
+config GPIO_STARFIVE_JH7110
+	bool "Starfive JH7110 GPIO support"
+	depends on SOC_STARFIVE_JH7110
+	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the GPIO device on Starfive VIC7110 SoCs.
 
 config GPIO_SIOX
 	tristate "SIOX GPIO support"

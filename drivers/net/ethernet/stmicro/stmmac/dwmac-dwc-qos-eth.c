@@ -493,6 +493,7 @@ static int dwc_eth_dwmac_remove(struct platform_device *pdev)
 
 static const struct of_device_id dwc_eth_dwmac_match[] = {
 	{ .compatible = "snps,dwc-qos-ethernet-4.10", .data = &dwc_qos_data },
+	{ .compatible = "snps,dwc-qos-ethernet-5.10a", .data = &dwc_qos_data },
 	{ .compatible = "nvidia,tegra186-eqos", .data = &tegra_eqos_data },
 	{ }
 };

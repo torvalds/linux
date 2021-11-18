@@ -29,12 +29,15 @@
 #define SIFIVE_L2_DATECCFAIL_HIGH 0x164
 #define SIFIVE_L2_DATECCFAIL_COUNT 0x168
 
+#define SIFIVE_L2_FLUSH64 0x200
+
 #define SIFIVE_L2_CONFIG 0x00
 #define SIFIVE_L2_WAYENABLE 0x08
 #define SIFIVE_L2_ECCINJECTERR 0x40
 
 #define SIFIVE_L2_MAX_ECCINTR 4
 
+#define SIFIVE_L2_FLUSH64_LINE_LEN 64
 static void __iomem *l2_base;
 static int g_irq[SIFIVE_L2_MAX_ECCINTR];
 static struct riscv_cacheinfo_ops l2_cache_ops;
@@ -115,6 +118,41 @@ int unregister_sifive_l2_error_notifier(struct notifier_block *nb)
 	return atomic_notifier_chain_unregister(&l2_err_chain, nb);
 }
 EXPORT_SYMBOL_GPL(unregister_sifive_l2_error_notifier);
+
+#ifdef CONFIG_SIFIVE_L2_FLUSH
+void sifive_l2_flush64_range(unsigned long start, unsigned long len)
+{
+	unsigned long line;
+
+	if(!l2_base) {
+		pr_warn("L2CACHE: base addr invalid, skipping flush\n");
+		return;
+	}
+
+	/* TODO: if (len == 0), skipping flush or going on? */
+	if(!len) {
+		pr_debug("L2CACHE: flush64 range @ 0x%lx(len:0)\n", start);
+		return;
+	}
+
+	/* make sure the address is in the range */
+	if(start < CONFIG_SIFIVE_L2_FLUSH_START ||
+	   (start + len) > (CONFIG_SIFIVE_L2_FLUSH_START +
+			     CONFIG_SIFIVE_L2_FLUSH_SIZE)) {
+		pr_warn("L2CACHE: flush64 out of range: %lx(%lx), skip flush\n",
+			start, len);
+		return;
+	}
+
+	mb();	/* sync */
+	for (line = start; line < start + len;
+	     line += SIFIVE_L2_FLUSH64_LINE_LEN) {
+		writeq(line, l2_base + SIFIVE_L2_FLUSH64);
+		mb();
+	}
+}
+EXPORT_SYMBOL_GPL(sifive_l2_flush64_range);
+#endif
 
 static int l2_largest_wayenabled(void)
 {

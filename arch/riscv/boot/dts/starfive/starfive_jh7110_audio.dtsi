@@ -1,0 +1,88 @@
+&soc{
+	sound_pwmdac:snd-card_pwmdac{
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "Starfive-Pwmdac-Sound-Card";
+			simple-audio-card,bitclock-master = <&pwmdac_dailink_master>;
+			simple-audio-card,frame-master = <&pwmdac_dailink_master>;
+			simple-audio-card,format = "left_j";
+			pwmdac_dailink_master:simple-audio-card,cpu {
+				sound-dai = <&pwmdac>;
+			};
+
+			simple-audio-card,codec {
+				sound-dai = <&pwmdac_codec>;
+			};
+		};
+	
+	sound_wm8960:snd-card-wm8960{
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "Starfive-wm8960-Sound-Card"; 
+		/* i2s + wm8960 */
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
+			status = "okay";
+			format = "i2s";
+			bitclock-master = <&sndcodec0>;
+			frame-master = <&sndcodec0>;
+
+			widgets =
+					"Microphone", "Mic Jack",
+					"Line", "Line In",
+					"Line", "Line Out",
+					"Speaker", "Speaker",
+					"Headphone", "Headphone Jack";
+			routing =
+					"Headphone Jack", "HP_L",
+					"Headphone Jack", "HP_R",
+					"Speaker", "SPK_LP",
+					"Speaker", "SPK_LN",
+					"LINPUT1", "Mic Jack",
+					"LINPUT3", "Mic Jack",
+					"RINPUT1", "Mic Jack",
+					"RINPUT2", "Mic Jack";
+			cpu0 {
+				sound-dai = <&i2stx_4ch1>;
+			};
+			cpu1 {
+				sound-dai = <&i2srx_3ch>;
+			};
+			
+			sndcodec0:codec {
+				sound-dai = <&wm8960>;
+				clocks = <&audioclk>;
+				clock-names = "mclk";
+			};
+		};
+	};
+	
+	sound_spdif:snd-card-spdif{
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SF-SPDIF-Sound-Card";
+		simple-audio-card,bitclock-master = <&spdif_dailink_master>;
+		simple-audio-card,frame-master = <&spdif_dailink_master>;
+		simple-audio-card,format = "left_j";
+		spdif_dailink_master:simple-audio-card,cpu {
+			sound-dai = <&spdif0>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_transmitter>;
+		};
+	};
+		
+	sound_pdm:snd-card-pdm{
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "SF-PDM-Sound-Card";
+		simple-audio-card,bitclock-master = <&pdm_dailink_master>;
+		simple-audio-card,frame-master = <&pdm_dailink_master>;
+		status = "okay";
+		simple-audio-card,cpu {
+			sound-dai = <&i2srx_3ch>;
+		};
+		
+		pdm_dailink_master:simple-audio-card,codec {
+			sound-dai = <&pdm>;
+		};
+	};
+};

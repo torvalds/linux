@@ -13,4 +13,8 @@ extern int unregister_sifive_l2_error_notifier(struct notifier_block *nb);
 #define SIFIVE_L2_ERR_TYPE_CE 0
 #define SIFIVE_L2_ERR_TYPE_UE 1
 
+#ifdef CONFIG_SIFIVE_L2_FLUSH
+void sifive_l2_flush64_range(unsigned long start, unsigned long len);
+#endif
+
 #endif /* __SOC_SIFIVE_L2_CACHE_H */

@@ -7,4 +7,20 @@ config SIFIVE_L2
 	help
 	  Support for the L2 cache controller on SiFive platforms.
 
+config SIFIVE_L2_FLUSH
+	bool "Support Level 2 Cache Controller Flush operation of SiFive Soc"
+
+if SIFIVE_L2_FLUSH
+
+config SIFIVE_L2_FLUSH_START
+	hex "Level 2 Cache Flush operation start"
+	default 0x80000000
+	default 0x40000000 if SOC_STARFIVE_JH7110
+
+config SIFIVE_L2_FLUSH_SIZE
+	hex "Level 2 Cache Flush operation size"
+	default 0x800000000
+	default 0x400000000 if SOC_STARFIVE_JH7110
+
+endif # SIFIVE_L2_FLUSH
 endif

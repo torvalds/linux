@@ -894,6 +894,48 @@ static int ksz9031_config_init(struct phy_device *phydev)
 				goto err_force_master;
 		}
 	}
+#if defined(CONFIG_FPGA_GMAC_SPEED10)
+	/* set to 10M
+	bit [6, 13]
+		[1,1] = Reserved
+		[1,0] = 1000 Mbps
+		[0,1] = 100 Mbps
+		[0,0] = 10 Mbps
+	*/
+	result = phy_read(phydev, MII_BMCR);
+	result &=~(BIT(6)|BIT(13));
+	result = phy_write(phydev, MII_BMCR, result);
+	if (result < 0)
+		goto err_force_master;
+
+	/* remove Auto-Negotiation advertisements for 1000 Mbps full-/half-duplex*/
+	result = phy_read(phydev, MII_CTRL1000);
+	result &=~(BIT(8)|BIT(9));
+	result = phy_write(phydev, MII_CTRL1000, result);
+	if (result < 0)
+		goto err_force_master;
+#elif defined(CONFIG_FPGA_GMAC_SPEED100)
+	/* set to 100M
+	bit	[6, 13]
+		[1,1] = Reserved
+		[1,0] = 1000 Mbps
+		[0,1] = 100 Mbps
+		[0,0] = 10 Mbps
+	*/
+	result = phy_read(phydev, MII_BMCR);
+	result &=~BIT(6);
+	result |=BIT(13);
+	result = phy_write(phydev, MII_BMCR, result);
+	if (result < 0)
+		goto err_force_master;
+
+	/* remove Auto-Negotiation advertisements for 1000 Mbps full-/half-duplex*/
+	result = phy_read(phydev, MII_CTRL1000);
+	result &=~(BIT(8)|BIT(9));
+	result = phy_write(phydev, MII_CTRL1000, result);
+	if (result < 0)
+		goto err_force_master;
+#endif
 
 	return ksz9031_center_flp_timing(phydev);
 
