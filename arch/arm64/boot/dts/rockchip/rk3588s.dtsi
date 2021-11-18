@@ -1637,6 +1637,18 @@
 		status = "disabled";
 	};
 
+	rga3_core0: rga@fdb60000 {
+		compatible = "rockchip,rga3_core0";
+		reg = <0x0 0xfdb60000 0x0 0x1000>;
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rga3_core0_irq";
+		clocks = <&cru ACLK_RGA3_0>, <&cru HCLK_RGA3_0>, <&cru CLK_RGA3_0_CORE>;
+		clock-names = "aclk_rga3_0", "hclk_rga3_0", "clk_rga3_0";
+		power-domains = <&power RK3588_PD_RGA30>;
+		iommus = <&rga3_0_mmu>;
+		status = "disabled";
+	};
+
 	rga3_0_mmu: iommu@fdb60f00 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdb60f00 0x0 0x100>;
@@ -1649,6 +1661,18 @@
 		status = "disabled";
 	};
 
+	rga3_core1: rga@fdb70000 {
+		compatible = "rockchip,rga3_core1";
+		reg = <0x0 0xfdb70000 0x0 0x1000>;
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rga3_core1_irq";
+		clocks = <&cru ACLK_RGA3_1>, <&cru HCLK_RGA3_1>, <&cru CLK_RGA3_1_CORE>;
+		clock-names = "aclk_rga3_1", "hclk_rga3_1", "clk_rga3_1";
+		power-domains = <&power RK3588_PD_RGA31>;
+		iommus = <&rga3_1_mmu>;
+		status = "disabled";
+	};
+
 	rga3_1_mmu: iommu@fdb70f00 {
 		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdb70f00 0x0 0x100>;
@@ -1658,6 +1682,17 @@
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3588_PD_RGA31>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rga2: rga@fdb80000 {
+		compatible = "rockchip,rga2_core0";
+		reg = <0x0 0xfdb80000 0x0 0x1000>;
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rga2_irq";
+		clocks = <&cru ACLK_RGA2>, <&cru HCLK_RGA2>, <&cru CLK_RGA2_CORE>;
+		clock-names = "aclk_rga2", "hclk_rga2", "clk_rga2";
+		power-domains = <&power RK3588_PD_VDPU>;
 		status = "disabled";
 	};
 
