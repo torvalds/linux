@@ -1420,7 +1420,7 @@ static bool mxser_tx_empty(struct mxser_port *info)
 static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 {
 	struct mxser_port *info = tty->driver_data;
-	unsigned long orig_jiffies, char_time;
+	unsigned long expire, char_time;
 
 	if (info->type == PORT_UNKNOWN)
 		return;
@@ -1428,7 +1428,6 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (info->xmit_fifo_size == 0)
 		return;		/* Just in case.... */
 
-	orig_jiffies = jiffies;
 	/*
 	 * Set the check interval to be 1/5 of the estimated time to
 	 * send a single character, and make it at least 1.  The check
@@ -1458,11 +1457,13 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (!timeout || timeout > 2 * info->timeout)
 		timeout = 2 * info->timeout;
 
+	expire = jiffies + timeout;
+
 	while (mxser_tx_empty(info)) {
 		msleep_interruptible(char_time);
 		if (signal_pending(current))
 			break;
-		if (timeout && time_after(jiffies, orig_jiffies + timeout))
+		if (time_after(jiffies, expire))
 			break;
 	}
 }
