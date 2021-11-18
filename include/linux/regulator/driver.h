@@ -101,11 +101,13 @@ enum regulator_detection_severity {
  *		is requested.
  * @set_over_voltage_protection: Support enabling of and setting limits for over
  *	voltage situation detection. Detection can be configured for same
- *	severities as over current protection.
+ *	severities as over current protection. Units of uV.
  * @set_under_voltage_protection: Support enabling of and setting limits for
- *	under situation detection.
+ *	under voltage situation detection. Detection can be configured for same
+ *	severities as over current protection. Units of uV.
  * @set_thermal_protection: Support enabling of and setting limits for over
- *	temperature situation detection.
+ *	temperature situation detection.Detection can be configured for same
+ *	severities as over current protection. Units of degree Kelvin.
  *
  * @set_active_discharge: Set active discharge enable/disable of regulators.
  *
