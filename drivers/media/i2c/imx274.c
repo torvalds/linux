@@ -1909,7 +1909,21 @@ fail:
 	return err;
 }
 
+static int imx274_enum_mbus_code(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_mbus_code_enum *code)
+{
+	if (code->index > 0)
+		return -EINVAL;
+
+	/* only supported format in the driver is Raw 10 bits SRGGB */
+	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_pad_ops imx274_pad_ops = {
+	.enum_mbus_code = imx274_enum_mbus_code,
 	.get_fmt = imx274_get_fmt,
 	.set_fmt = imx274_set_fmt,
 	.get_selection = imx274_get_selection,
