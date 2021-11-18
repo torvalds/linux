@@ -67,7 +67,6 @@
 #define DEFAULT_TSO_CSUM_ENABLE		(true)
 #define DEFAULT_VLAN_FILTER_ENABLE	(true)
 #define DEFAULT_VLAN_RX_OFFLOAD		(true)
-#define TX_OVERHEAD			(8)
 #define TX_ALIGNMENT			(4)
 #define RXW_PADDING			2
 
@@ -119,6 +118,10 @@
 #define TX_CMD_LEN			8
 #define TX_SKB_MIN_LEN			(TX_CMD_LEN + ETH_HLEN)
 #define LAN78XX_TSO_SIZE(dev)		((dev)->tx_urb_size - TX_SKB_MIN_LEN)
+
+#define RX_CMD_LEN			10
+#define RX_SKB_MIN_LEN			(RX_CMD_LEN + ETH_HLEN)
+#define RX_MAX_FRAME_LEN(mtu)		((mtu) + ETH_HLEN + VLAN_HLEN)
 
 /* USB related defines */
 #define BULK_IN_PIPE			1
@@ -439,8 +442,6 @@ struct lan78xx_net {
 	struct mutex		dev_mutex; /* serialise open/stop wrt suspend/resume */
 	struct mutex		phy_mutex; /* for phy access */
 	unsigned int		pipe_in, pipe_out, pipe_intr;
-
-	u32			hard_mtu;	/* count any extra framing */
 
 	unsigned int		bulk_in_delay;
 	unsigned int		burst_cap;
@@ -2536,37 +2537,24 @@ found:
 static int lan78xx_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct lan78xx_net *dev = netdev_priv(netdev);
-	int ll_mtu = new_mtu + netdev->hard_header_len;
-	int old_hard_mtu = dev->hard_mtu;
-	int old_rx_urb_size = dev->rx_urb_size;
+	int max_frame_len = RX_MAX_FRAME_LEN(new_mtu);
 	int ret;
 
 	/* no second zero-length packet read wanted after mtu-sized packets */
-	if ((ll_mtu % dev->maxpacket) == 0)
+	if ((max_frame_len % dev->maxpacket) == 0)
 		return -EDOM;
 
 	ret = usb_autopm_get_interface(dev->intf);
 	if (ret < 0)
 		return ret;
 
-	lan78xx_set_rx_max_frame_length(dev, new_mtu + VLAN_ETH_HLEN);
-
-	netdev->mtu = new_mtu;
-
-	dev->hard_mtu = netdev->mtu + netdev->hard_header_len;
-	if (dev->rx_urb_size == old_hard_mtu) {
-		dev->rx_urb_size = dev->hard_mtu;
-		if (dev->rx_urb_size > old_rx_urb_size) {
-			if (netif_running(dev->net)) {
-				unlink_urbs(dev, &dev->rxq);
-				tasklet_schedule(&dev->bh);
-			}
-		}
-	}
+	ret = lan78xx_set_rx_max_frame_length(dev, max_frame_len);
+	if (!ret)
+		netdev->mtu = new_mtu;
 
 	usb_autopm_put_interface(dev->intf);
 
-	return 0;
+	return ret;
 }
 
 static int lan78xx_set_mac_addr(struct net_device *netdev, void *p)
@@ -3084,7 +3072,7 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 		return ret;
 
 	ret = lan78xx_set_rx_max_frame_length(dev,
-					      dev->net->mtu + VLAN_ETH_HLEN);
+					      RX_MAX_FRAME_LEN(dev->net->mtu));
 
 	return ret;
 }
@@ -3489,9 +3477,6 @@ static int lan78xx_bind(struct lan78xx_net *dev, struct usb_interface *intf)
 		goto out1;
 	}
 
-	dev->net->hard_header_len += TX_OVERHEAD;
-	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
-
 	/* Init all registers */
 	ret = lan78xx_reset(dev);
 	if (ret) {
@@ -3592,7 +3577,7 @@ static void lan78xx_skb_return(struct lan78xx_net *dev, struct sk_buff *skb)
 
 static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb)
 {
-	if (skb->len < dev->net->hard_header_len)
+	if (skb->len < RX_SKB_MIN_LEN)
 		return 0;
 
 	while (skb->len > 0) {
@@ -3699,7 +3684,7 @@ static void rx_complete(struct urb *urb)
 
 	switch (urb_status) {
 	case 0:
-		if (skb->len < dev->net->hard_header_len) {
+		if (skb->len < RX_SKB_MIN_LEN) {
 			state = rx_cleanup;
 			dev->net->stats.rx_errors++;
 			dev->net->stats.rx_length_errors++;
@@ -4343,6 +4328,9 @@ static int lan78xx_probe(struct usb_interface *intf,
 	if (ret < 0)
 		goto out3;
 
+	/* MTU range: 68 - 9000 */
+	netdev->max_mtu = MAX_SINGLE_PACKET_SIZE;
+
 	netif_set_gso_max_size(netdev, LAN78XX_TSO_SIZE(dev));
 
 	tasklet_setup(&dev->bh, lan78xx_bh);
@@ -4389,13 +4377,6 @@ static int lan78xx_probe(struct usb_interface *intf,
 	ret = lan78xx_bind(dev, intf);
 	if (ret < 0)
 		goto out4;
-
-	if (netdev->mtu > (dev->hard_mtu - netdev->hard_header_len))
-		netdev->mtu = dev->hard_mtu - netdev->hard_header_len;
-
-	/* MTU range: 68 - 9000 */
-	netdev->max_mtu = MAX_SINGLE_PACKET_SIZE;
-	netif_set_gso_max_size(netdev, MAX_SINGLE_PACKET_SIZE - MAX_HEADER);
 
 	period = ep_intr->desc.bInterval;
 	maxp = usb_maxpacket(dev->udev, dev->pipe_intr, 0);
