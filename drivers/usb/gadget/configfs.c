@@ -89,10 +89,6 @@ struct gadget_strings {
 	struct list_head list;
 };
 
-struct os_desc {
-	struct config_group group;
-};
-
 struct gadget_config_name {
 	struct usb_gadget_strings stringtab_dev;
 	struct usb_string strings;
@@ -783,11 +779,6 @@ static void gadget_strings_attr_release(struct config_item *item)
 USB_CONFIG_STRING_RW_OPS(gadget_strings);
 USB_CONFIG_STRINGS_LANG(gadget_strings, gadget_info);
 
-static inline struct os_desc *to_os_desc(struct config_item *item)
-{
-	return container_of(to_config_group(item), struct os_desc, group);
-}
-
 static inline struct gadget_info *os_desc_item_to_gadget_info(
 		struct config_item *item)
 {
@@ -887,12 +878,6 @@ static struct configfs_attribute *os_desc_attrs[] = {
 	NULL,
 };
 
-static void os_desc_attr_release(struct config_item *item)
-{
-	struct os_desc *os_desc = to_os_desc(item);
-	kfree(os_desc);
-}
-
 static int os_desc_link(struct config_item *os_desc_ci,
 			struct config_item *usb_cfg_ci)
 {
@@ -942,7 +927,6 @@ static void os_desc_unlink(struct config_item *os_desc_ci,
 }
 
 static struct configfs_item_operations os_desc_ops = {
-	.release                = os_desc_attr_release,
 	.allow_link		= os_desc_link,
 	.drop_link		= os_desc_unlink,
 };
