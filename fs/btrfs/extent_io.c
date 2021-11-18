@@ -5120,6 +5120,9 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 int extent_writepages(struct address_space *mapping,
 		      struct writeback_control *wbc)
 {
+	struct inode *inode = mapping->host;
+	const bool data_reloc = btrfs_is_data_reloc_root(BTRFS_I(inode)->root);
+	const bool zoned = btrfs_is_zoned(BTRFS_I(inode)->root->fs_info);
 	int ret = 0;
 	struct extent_page_data epd = {
 		.bio_ctrl = { 0 },
@@ -5127,7 +5130,15 @@ int extent_writepages(struct address_space *mapping,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
 
+	/*
+	 * Allow only a single thread to do the reloc work in zoned mode to
+	 * protect the write pointer updates.
+	 */
+	if (data_reloc && zoned)
+		btrfs_inode_lock(inode, 0);
 	ret = extent_write_cache_pages(mapping, wbc, &epd);
+	if (data_reloc && zoned)
+		btrfs_inode_unlock(inode, 0);
 	ASSERT(ret <= 0);
 	if (ret < 0) {
 		end_write_bio(&epd, ret);
