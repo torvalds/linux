@@ -165,15 +165,15 @@ static int tegra210_dmic_get_control(struct snd_kcontrol *kcontrol,
 	if (strstr(kcontrol->id.name, "Boost Gain Volume"))
 		ucontrol->value.integer.value[0] = dmic->boost_gain;
 	else if (strstr(kcontrol->id.name, "Channel Select"))
-		ucontrol->value.integer.value[0] = dmic->ch_select;
+		ucontrol->value.enumerated.item[0] = dmic->ch_select;
 	else if (strstr(kcontrol->id.name, "Mono To Stereo"))
-		ucontrol->value.integer.value[0] = dmic->mono_to_stereo;
+		ucontrol->value.enumerated.item[0] = dmic->mono_to_stereo;
 	else if (strstr(kcontrol->id.name, "Stereo To Mono"))
-		ucontrol->value.integer.value[0] = dmic->stereo_to_mono;
+		ucontrol->value.enumerated.item[0] = dmic->stereo_to_mono;
 	else if (strstr(kcontrol->id.name, "OSR Value"))
-		ucontrol->value.integer.value[0] = dmic->osr_val;
+		ucontrol->value.enumerated.item[0] = dmic->osr_val;
 	else if (strstr(kcontrol->id.name, "LR Polarity Select"))
-		ucontrol->value.integer.value[0] = dmic->lrsel;
+		ucontrol->value.enumerated.item[0] = dmic->lrsel;
 
 	return 0;
 }
@@ -183,20 +183,19 @@ static int tegra210_dmic_put_control(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_dmic *dmic = snd_soc_component_get_drvdata(comp);
-	int value = ucontrol->value.integer.value[0];
 
 	if (strstr(kcontrol->id.name, "Boost Gain Volume"))
-		dmic->boost_gain = value;
+		dmic->boost_gain = ucontrol->value.integer.value[0];
 	else if (strstr(kcontrol->id.name, "Channel Select"))
-		dmic->ch_select = ucontrol->value.integer.value[0];
+		dmic->ch_select = ucontrol->value.enumerated.item[0];
 	else if (strstr(kcontrol->id.name, "Mono To Stereo"))
-		dmic->mono_to_stereo = value;
+		dmic->mono_to_stereo = ucontrol->value.enumerated.item[0];
 	else if (strstr(kcontrol->id.name, "Stereo To Mono"))
-		dmic->stereo_to_mono = value;
+		dmic->stereo_to_mono = ucontrol->value.enumerated.item[0];
 	else if (strstr(kcontrol->id.name, "OSR Value"))
-		dmic->osr_val = value;
+		dmic->osr_val = ucontrol->value.enumerated.item[0];
 	else if (strstr(kcontrol->id.name, "LR Polarity Select"))
-		dmic->lrsel = value;
+		dmic->lrsel = ucontrol->value.enumerated.item[0];
 
 	return 0;
 }
