@@ -1817,15 +1817,17 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	get_edp_streams(context, edp_streams, &edp_stream_num);
 
 	// Check fastboot support, disable on DCE8 because of blank screens
-	if (edp_num && dc->ctx->dce_version != DCE_VERSION_8_0 &&
+	if (edp_num && edp_stream_num && dc->ctx->dce_version != DCE_VERSION_8_0 &&
 		    dc->ctx->dce_version != DCE_VERSION_8_1 &&
 		    dc->ctx->dce_version != DCE_VERSION_8_3) {
 		for (i = 0; i < edp_num; i++) {
 			edp_link = edp_links[i];
+			if (edp_link != edp_streams[0]->link)
+				continue;
 			// enable fastboot if backend is enabled on eDP
 			if (edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc)) {
 				/* Set optimization flag on eDP stream*/
-				if (edp_stream_num && edp_link->link_status.link_active) {
+				if (edp_link->link_status.link_active) {
 					edp_stream = edp_streams[0];
 					can_apply_edp_fast_boot = !is_edp_ilr_optimization_required(edp_stream->link, &edp_stream->timing);
 					edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
@@ -1837,7 +1839,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 			}
 		}
 		// We are trying to enable eDP, don't power down VDD
-		if (edp_stream_num && can_apply_edp_fast_boot)
+		if (can_apply_edp_fast_boot)
 			keep_edp_vdd_on = true;
 	}
 
