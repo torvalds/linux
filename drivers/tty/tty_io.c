@@ -3033,9 +3033,6 @@ void __do_SAK(struct tty_struct *tty)
 	int		i;
 	unsigned long flags;
 
-	if (!tty)
-		return;
-
 	spin_lock_irqsave(&tty->ctrl.lock, flags);
 	session = get_pid(tty->ctrl.session);
 	spin_unlock_irqrestore(&tty->ctrl.lock, flags);
