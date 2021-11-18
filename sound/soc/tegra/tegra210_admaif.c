@@ -430,7 +430,7 @@ static int tegra_admaif_get_control(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
-	long *uctl_val = &ucontrol->value.integer.value[0];
+	unsigned int *uctl_val = &ucontrol->value.enumerated.item[0];
 
 	if (strstr(kcontrol->id.name, "Playback Mono To Stereo"))
 		*uctl_val = admaif->mono_to_stereo[ADMAIF_TX_PATH][ec->reg];
@@ -450,7 +450,7 @@ static int tegra_admaif_put_control(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
-	int value = ucontrol->value.integer.value[0];
+	unsigned int value = ucontrol->value.enumerated.item[0];
 
 	if (strstr(kcontrol->id.name, "Playback Mono To Stereo"))
 		admaif->mono_to_stereo[ADMAIF_TX_PATH][ec->reg] = value;
