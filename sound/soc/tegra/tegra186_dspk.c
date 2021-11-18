@@ -26,48 +26,160 @@ static const struct reg_default tegra186_dspk_reg_defaults[] = {
 	{ TEGRA186_DSPK_CODEC_CTRL,  0x03000000 },
 };
 
-static int tegra186_dspk_get_control(struct snd_kcontrol *kcontrol,
+static int tegra186_dspk_get_fifo_th(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
 
-	if (strstr(kcontrol->id.name, "FIFO Threshold"))
-		ucontrol->value.integer.value[0] = dspk->rx_fifo_th;
-	else if (strstr(kcontrol->id.name, "OSR Value"))
-		ucontrol->value.enumerated.item[0] = dspk->osr_val;
-	else if (strstr(kcontrol->id.name, "LR Polarity Select"))
-		ucontrol->value.enumerated.item[0] = dspk->lrsel;
-	else if (strstr(kcontrol->id.name, "Channel Select"))
-		ucontrol->value.enumerated.item[0] = dspk->ch_sel;
-	else if (strstr(kcontrol->id.name, "Mono To Stereo"))
-		ucontrol->value.enumerated.item[0] = dspk->mono_to_stereo;
-	else if (strstr(kcontrol->id.name, "Stereo To Mono"))
-		ucontrol->value.enumerated.item[0] = dspk->stereo_to_mono;
+	ucontrol->value.integer.value[0] = dspk->rx_fifo_th;
 
 	return 0;
 }
 
-static int tegra186_dspk_put_control(struct snd_kcontrol *kcontrol,
+static int tegra186_dspk_put_fifo_th(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	int value = ucontrol->value.integer.value[0];
+
+	if (value == dspk->rx_fifo_th)
+		return 0;
+
+	dspk->rx_fifo_th = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_osr_val(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
 
-	if (strstr(kcontrol->id.name, "FIFO Threshold"))
-		dspk->rx_fifo_th = ucontrol->value.integer.value[0];
-	else if (strstr(kcontrol->id.name, "OSR Value"))
-		dspk->osr_val = ucontrol->value.enumerated.item[0];
-	else if (strstr(kcontrol->id.name, "LR Polarity Select"))
-		dspk->lrsel = ucontrol->value.enumerated.item[0];
-	else if (strstr(kcontrol->id.name, "Channel Select"))
-		dspk->ch_sel = ucontrol->value.enumerated.item[0];
-	else if (strstr(kcontrol->id.name, "Mono To Stereo"))
-		dspk->mono_to_stereo = ucontrol->value.enumerated.item[0];
-	else if (strstr(kcontrol->id.name, "Stereo To Mono"))
-		dspk->stereo_to_mono = ucontrol->value.enumerated.item[0];
+	ucontrol->value.enumerated.item[0] = dspk->osr_val;
 
 	return 0;
+}
+
+static int tegra186_dspk_put_osr_val(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->osr_val)
+		return 0;
+
+	dspk->osr_val = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_pol_sel(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = dspk->lrsel;
+
+	return 0;
+}
+
+static int tegra186_dspk_put_pol_sel(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->lrsel)
+		return 0;
+
+	dspk->lrsel = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_ch_sel(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = dspk->ch_sel;
+
+	return 0;
+}
+
+static int tegra186_dspk_put_ch_sel(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->ch_sel)
+		return 0;
+
+	dspk->ch_sel = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_mono_to_stereo(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = dspk->mono_to_stereo;
+
+	return 0;
+}
+
+static int tegra186_dspk_put_mono_to_stereo(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->mono_to_stereo)
+		return 0;
+
+	dspk->mono_to_stereo = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_stereo_to_mono(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = dspk->stereo_to_mono;
+
+	return 0;
+}
+
+static int tegra186_dspk_put_stereo_to_mono(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->stereo_to_mono)
+		return 0;
+
+	dspk->stereo_to_mono = value;
+
+	return 1;
 }
 
 static int __maybe_unused tegra186_dspk_runtime_suspend(struct device *dev)
@@ -278,17 +390,19 @@ static const struct soc_enum tegra186_dspk_lrsel_enum =
 static const struct snd_kcontrol_new tegrat186_dspk_controls[] = {
 	SOC_SINGLE_EXT("FIFO Threshold", SND_SOC_NOPM, 0,
 		       TEGRA186_DSPK_RX_FIFO_DEPTH - 1, 0,
-		       tegra186_dspk_get_control, tegra186_dspk_put_control),
+		       tegra186_dspk_get_fifo_th, tegra186_dspk_put_fifo_th),
 	SOC_ENUM_EXT("OSR Value", tegra186_dspk_osr_enum,
-		     tegra186_dspk_get_control, tegra186_dspk_put_control),
+		     tegra186_dspk_get_osr_val, tegra186_dspk_put_osr_val),
 	SOC_ENUM_EXT("LR Polarity Select", tegra186_dspk_lrsel_enum,
-		     tegra186_dspk_get_control, tegra186_dspk_put_control),
+		     tegra186_dspk_get_pol_sel, tegra186_dspk_put_pol_sel),
 	SOC_ENUM_EXT("Channel Select", tegra186_dspk_ch_sel_enum,
-		     tegra186_dspk_get_control, tegra186_dspk_put_control),
+		     tegra186_dspk_get_ch_sel, tegra186_dspk_put_ch_sel),
 	SOC_ENUM_EXT("Mono To Stereo", tegra186_dspk_mono_conv_enum,
-		     tegra186_dspk_get_control, tegra186_dspk_put_control),
+		     tegra186_dspk_get_mono_to_stereo,
+		     tegra186_dspk_put_mono_to_stereo),
 	SOC_ENUM_EXT("Stereo To Mono", tegra186_dspk_stereo_conv_enum,
-		     tegra186_dspk_get_control, tegra186_dspk_put_control),
+		     tegra186_dspk_get_stereo_to_mono,
+		     tegra186_dspk_put_stereo_to_mono),
 };
 
 static const struct snd_soc_component_driver tegra186_dspk_cmpnt = {
