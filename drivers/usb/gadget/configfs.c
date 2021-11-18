@@ -416,9 +416,8 @@ static int config_usb_cfg_link(
 	struct config_usb_cfg *cfg = to_config_usb_cfg(usb_cfg_ci);
 	struct gadget_info *gi = cfg_to_gadget_info(cfg);
 
-	struct config_group *group = to_config_group(usb_func_ci);
-	struct usb_function_instance *fi = container_of(group,
-			struct usb_function_instance, group);
+	struct usb_function_instance *fi =
+			to_usb_function_instance(usb_func_ci);
 	struct usb_function_instance *a_fi;
 	struct usb_function *f;
 	int ret;
@@ -466,9 +465,8 @@ static void config_usb_cfg_unlink(
 	struct config_usb_cfg *cfg = to_config_usb_cfg(usb_cfg_ci);
 	struct gadget_info *gi = cfg_to_gadget_info(cfg);
 
-	struct config_group *group = to_config_group(usb_func_ci);
-	struct usb_function_instance *fi = container_of(group,
-			struct usb_function_instance, group);
+	struct usb_function_instance *fi =
+			to_usb_function_instance(usb_func_ci);
 	struct usb_function *f;
 
 	/*
