@@ -28,6 +28,6 @@ int fixup_exception(struct pt_regs *regs)
 		return rv_bpf_fixup_exception(fixup, regs);
 #endif
 
-	regs->epc = fixup->fixup;
+	regs->epc = (unsigned long)&fixup->fixup + fixup->fixup;
 	return 1;
 }
