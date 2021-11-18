@@ -155,7 +155,11 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 	if (tcon == NULL)
 		return 0;
 
-	if (smb2_command == SMB2_TREE_CONNECT)
+	/*
+	 * Need to also skip SMB2_IOCTL because it is used for checking nested dfs links in
+	 * cifs_tree_connect().
+	 */
+	if (smb2_command == SMB2_TREE_CONNECT || smb2_command == SMB2_IOCTL)
 		return 0;
 
 	if (tcon->tidStatus == CifsExiting) {
@@ -253,7 +257,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 	/*
 	 * If we are reconnecting an extra channel, bind
 	 */
-	if (server->is_channel) {
+	if (CIFS_SERVER_IS_CHAN(server)) {
 		ses->binding = true;
 		ses->binding_chan = cifs_ses_find_chan(ses, server);
 	}
@@ -1456,7 +1460,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	int rc;
 	struct cifs_ses *ses = sess_data->ses;
 	struct smb2_sess_setup_rsp *rsp = NULL;
-	char *ntlmssp_blob = NULL;
+	unsigned char *ntlmssp_blob = NULL;
 	bool use_spnego = false; /* else use raw ntlmssp */
 	u16 blob_length = 0;
 
@@ -1475,22 +1479,17 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	if (rc)
 		goto out_err;
 
-	ntlmssp_blob = kmalloc(sizeof(struct _NEGOTIATE_MESSAGE),
-			       GFP_KERNEL);
-	if (ntlmssp_blob == NULL) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	rc = build_ntlmssp_negotiate_blob(&ntlmssp_blob,
+					  &blob_length, ses,
+					  sess_data->nls_cp);
+	if (rc)
+		goto out_err;
 
-	build_ntlmssp_negotiate_blob(ntlmssp_blob, ses);
 	if (use_spnego) {
 		/* BB eventually need to add this */
 		cifs_dbg(VFS, "spnego not supported for SMB2 yet\n");
 		rc = -EOPNOTSUPP;
 		goto out;
-	} else {
-		blob_length = sizeof(struct _NEGOTIATE_MESSAGE);
-		/* with raw NTLMSSP we don't encapsulate in SPNEGO */
 	}
 	sess_data->iov[1].iov_base = ntlmssp_blob;
 	sess_data->iov[1].iov_len = blob_length;
@@ -1841,7 +1840,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	cifs_small_buf_release(req);
 	rsp = (struct smb2_tree_connect_rsp *)rsp_iov.iov_base;
 	trace_smb3_tcon(xid, tcon->tid, ses->Suid, tree, rc);
-	if (rc != 0) {
+	if ((rc != 0) || (rsp == NULL)) {
 		cifs_stats_fail_inc(tcon, SMB2_TREE_CONNECT_HE);
 		tcon->need_reconnect = true;
 		goto tcon_error_exit;
@@ -2669,7 +2668,18 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 		goto err_free_rsp_buf;
 	}
 
+	/*
+	 * Although unlikely to be possible for rsp to be null and rc not set,
+	 * adding check below is slightly safer long term (and quiets Coverity
+	 * warning)
+	 */
 	rsp = (struct smb2_create_rsp *)rsp_iov.iov_base;
+	if (rsp == NULL) {
+		rc = -EIO;
+		kfree(pc_buf);
+		goto err_free_req;
+	}
+
 	trace_smb3_posix_mkdir_done(xid, le64_to_cpu(rsp->PersistentFileId),
 				    tcon->tid,
 				    ses->Suid, CREATE_NOT_FILE,
@@ -2942,7 +2952,9 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 			tcon->need_reconnect = true;
 		}
 		goto creat_exit;
-	} else
+	} else if (rsp == NULL) /* unlikely to happen, but safer to check */
+		goto creat_exit;
+	else
 		trace_smb3_open_done(xid, le64_to_cpu(rsp->PersistentFileId),
 				     tcon->tid,
 				     ses->Suid, oparms->create_options,
@@ -3162,6 +3174,16 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	/* check if caller wants to look at return data or just return rc */
 	if ((plen == NULL) || (out_data == NULL))
 		goto ioctl_exit;
+
+	/*
+	 * Although unlikely to be possible for rsp to be null and rc not set,
+	 * adding check below is slightly safer long term (and quiets Coverity
+	 * warning)
+	 */
+	if (rsp == NULL) {
+		rc = -EIO;
+		goto ioctl_exit;
+	}
 
 	*plen = le32_to_cpu(rsp->OutputCount);
 

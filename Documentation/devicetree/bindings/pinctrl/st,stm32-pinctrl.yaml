@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STM32 GPIO and Pin Mux/Config controller
 
 maintainers:
-  - Alexandre TORGUE <alexandre.torgue@st.com>
+  - Alexandre TORGUE <alexandre.torgue@foss.st.com>
 
 description: |
   STMicroelectronics's STM32 MCUs intregrate a GPIO and Pin mux/config hardware

@@ -92,6 +92,13 @@
 #define XFEATURE_MASK_FPSTATE	(XFEATURE_MASK_USER_RESTORE | \
 				 XFEATURE_MASK_SUPERVISOR_SUPPORTED)
 
+/*
+ * Features in this mask have space allocated in the signal frame, but may not
+ * have that space initialized when the feature is in its init state.
+ */
+#define XFEATURE_MASK_SIGFRAME_INITOPT	(XFEATURE_MASK_XTILE | \
+					 XFEATURE_MASK_USER_DYNAMIC)
+
 extern u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 
 extern void __init update_regset_xstate_info(unsigned int size,

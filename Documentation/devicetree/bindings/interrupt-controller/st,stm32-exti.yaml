@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STM32 External Interrupt Controller Device Tree Bindings
 
 maintainers:
-  - Alexandre Torgue <alexandre.torgue@st.com>
-  - Ludovic Barre <ludovic.barre@st.com>
+  - Alexandre Torgue <alexandre.torgue@foss.st.com>
+  - Ludovic Barre <ludovic.barre@foss.st.com>
 
 properties:
   compatible:

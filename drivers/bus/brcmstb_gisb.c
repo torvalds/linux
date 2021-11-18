@@ -485,7 +485,7 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	list_add_tail(&gdev->next, &brcmstb_gisb_arb_device_list);
 
 #ifdef CONFIG_MIPS
-	board_be_handler = brcmstb_bus_error_handler;
+	mips_set_be_handler(brcmstb_bus_error_handler);
 #endif
 
 	if (list_is_singular(&brcmstb_gisb_arb_device_list)) {

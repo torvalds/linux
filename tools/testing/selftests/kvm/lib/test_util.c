@@ -283,6 +283,11 @@ size_t get_backing_src_pagesz(uint32_t i)
 	}
 }
 
+bool is_backing_src_hugetlb(uint32_t i)
+{
+	return !!(vm_mem_backing_src_alias(i)->flag & MAP_HUGETLB);
+}
+
 static void print_available_backing_src_types(const char *prefix)
 {
 	int i;

@@ -62,11 +62,11 @@ static int test(struct expr_parse_ctx *ctx, const char *e, double val2)
 	return 0;
 }
 
-int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
+static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_unused)
 {
 	struct expr_id_data *val_ptr;
 	const char *p;
-	double val;
+	double val, num_cpus, num_cores, num_dies, num_packages;
 	int ret;
 	struct expr_parse_ctx *ctx;
 
@@ -134,6 +134,16 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "EVENT2,param=3@",
 						    (void **)&val_ptr));
 
+	expr__ctx_clear(ctx);
+	TEST_ASSERT_VAL("find ids",
+			expr__find_ids("dash\\-event1 - dash\\-event2",
+				       NULL, ctx) == 0);
+	TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 2);
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "dash-event1",
+						    (void **)&val_ptr));
+	TEST_ASSERT_VAL("find ids", hashmap__find(ctx->ids, "dash-event2",
+						    (void **)&val_ptr));
+
 	/* Only EVENT1 or EVENT2 need be measured depending on the value of smt_on. */
 	expr__ctx_clear(ctx);
 	TEST_ASSERT_VAL("find ids",
@@ -151,7 +161,31 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 			NULL, ctx) == 0);
 	TEST_ASSERT_VAL("find ids", hashmap__size(ctx->ids) == 0);
 
+	/* Test toplogy constants appear well ordered. */
+	expr__ctx_clear(ctx);
+	TEST_ASSERT_VAL("#num_cpus", expr__parse(&num_cpus, ctx, "#num_cpus") == 0);
+	TEST_ASSERT_VAL("#num_cores", expr__parse(&num_cores, ctx, "#num_cores") == 0);
+	TEST_ASSERT_VAL("#num_cpus >= #num_cores", num_cpus >= num_cores);
+	TEST_ASSERT_VAL("#num_dies", expr__parse(&num_dies, ctx, "#num_dies") == 0);
+	TEST_ASSERT_VAL("#num_cores >= #num_dies", num_cores >= num_dies);
+	TEST_ASSERT_VAL("#num_packages", expr__parse(&num_packages, ctx, "#num_packages") == 0);
+	TEST_ASSERT_VAL("#num_dies >= #num_packages", num_dies >= num_packages);
+
+	/*
+	 * Source count returns the number of events aggregating in a leader
+	 * event including the leader. Check parsing yields an id.
+	 */
+	expr__ctx_clear(ctx);
+	TEST_ASSERT_VAL("source count",
+			expr__find_ids("source_count(EVENT1)",
+			NULL, ctx) == 0);
+	TEST_ASSERT_VAL("source count", hashmap__size(ctx->ids) == 1);
+	TEST_ASSERT_VAL("source count", hashmap__find(ctx->ids, "EVENT1",
+							(void **)&val_ptr));
+
 	expr__ctx_free(ctx);
 
 	return 0;
 }
+
+DEFINE_SUITE("Simple expression parser", expr);

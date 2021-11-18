@@ -4,6 +4,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/fpu/xstate.h>
+#include <asm/fpu/xcr.h>
 
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(u64, xfd_state);
@@ -199,6 +200,32 @@ static inline void os_xrstor_supervisor(struct fpstate *fpstate)
 }
 
 /*
+ * XSAVE itself always writes all requested xfeatures.  Removing features
+ * from the request bitmap reduces the features which are written.
+ * Generate a mask of features which must be written to a sigframe.  The
+ * unset features can be optimized away and not written.
+ *
+ * This optimization is user-visible.  Only use for states where
+ * uninitialized sigframe contents are tolerable, like dynamic features.
+ *
+ * Users of buffers produced with this optimization must check XSTATE_BV
+ * to determine which features have been optimized out.
+ */
+static inline u64 xfeatures_need_sigframe_write(void)
+{
+	u64 xfeaures_to_write;
+
+	/* In-use features must be written: */
+	xfeaures_to_write = xfeatures_in_use();
+
+	/* Also write all non-optimizable sigframe features: */
+	xfeaures_to_write |= XFEATURE_MASK_USER_SUPPORTED &
+			     ~XFEATURE_MASK_SIGFRAME_INITOPT;
+
+	return xfeaures_to_write;
+}
+
+/*
  * Save xstate to user space xsave area.
  *
  * We don't use modified optimization because xrstor/xrstors might track
@@ -220,10 +247,16 @@ static inline int xsave_to_user_sigframe(struct xregs_state __user *buf)
 	 */
 	struct fpstate *fpstate = current->thread.fpu.fpstate;
 	u64 mask = fpstate->user_xfeatures;
-	u32 lmask = mask;
-	u32 hmask = mask >> 32;
+	u32 lmask;
+	u32 hmask;
 	int err;
 
+	/* Optimize away writing unnecessary xfeatures: */
+	if (fpu_state_size_dynamic())
+		mask &= xfeatures_need_sigframe_write();
+
+	lmask = mask;
+	hmask = mask >> 32;
 	xfd_validate_state(fpstate, mask, false);
 
 	stac();

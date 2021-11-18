@@ -55,7 +55,8 @@ struct osnoise_instance {
 	struct list_head	list;
 	struct trace_array	*tr;
 };
-struct list_head osnoise_instances;
+
+static struct list_head osnoise_instances;
 
 static bool osnoise_has_registered_instances(void)
 {

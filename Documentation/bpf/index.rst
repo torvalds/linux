@@ -15,7 +15,7 @@ that goes into great technical depth about the BPF Architecture.
 libbpf
 ======
 
-Documentation/bpf/libbpf/libbpf.rst is a userspace library for loading and interacting with bpf programs.
+Documentation/bpf/libbpf/index.rst is a userspace library for loading and interacting with bpf programs.
 
 BPF Type Format (BTF)
 =====================

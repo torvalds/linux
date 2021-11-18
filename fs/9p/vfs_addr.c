@@ -108,7 +108,9 @@ static const struct netfs_read_request_ops v9fs_req_ops = {
  */
 static int v9fs_vfs_readpage(struct file *file, struct page *page)
 {
-	return netfs_readpage(file, page, &v9fs_req_ops, NULL);
+	struct folio *folio = page_folio(page);
+
+	return netfs_readpage(file, folio, &v9fs_req_ops, NULL);
 }
 
 /**
@@ -130,13 +132,15 @@ static void v9fs_vfs_readahead(struct readahead_control *ractl)
 
 static int v9fs_release_page(struct page *page, gfp_t gfp)
 {
-	if (PagePrivate(page))
+	struct folio *folio = page_folio(page);
+
+	if (folio_test_private(folio))
 		return 0;
 #ifdef CONFIG_9P_FSCACHE
-	if (PageFsCache(page)) {
+	if (folio_test_fscache(folio)) {
 		if (!(gfp & __GFP_DIRECT_RECLAIM) || !(gfp & __GFP_FS))
 			return 0;
-		wait_on_page_fscache(page);
+		folio_wait_fscache(folio);
 	}
 #endif
 	return 1;
@@ -152,55 +156,58 @@ static int v9fs_release_page(struct page *page, gfp_t gfp)
 static void v9fs_invalidate_page(struct page *page, unsigned int offset,
 				 unsigned int length)
 {
-	wait_on_page_fscache(page);
+	struct folio *folio = page_folio(page);
+
+	folio_wait_fscache(folio);
 }
 
-static int v9fs_vfs_writepage_locked(struct page *page)
+static int v9fs_vfs_write_folio_locked(struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio_inode(folio);
 	struct v9fs_inode *v9inode = V9FS_I(inode);
-	loff_t start = page_offset(page);
-	loff_t size = i_size_read(inode);
+	loff_t start = folio_pos(folio);
+	loff_t i_size = i_size_read(inode);
 	struct iov_iter from;
-	int err, len;
+	size_t len = folio_size(folio);
+	int err;
 
-	if (page->index == size >> PAGE_SHIFT)
-		len = size & ~PAGE_MASK;
-	else
-		len = PAGE_SIZE;
+	if (start >= i_size)
+		return 0; /* Simultaneous truncation occurred */
 
-	iov_iter_xarray(&from, WRITE, &page->mapping->i_pages, start, len);
+	len = min_t(loff_t, i_size - start, len);
+
+	iov_iter_xarray(&from, WRITE, &folio_mapping(folio)->i_pages, start, len);
 
 	/* We should have writeback_fid always set */
 	BUG_ON(!v9inode->writeback_fid);
 
-	set_page_writeback(page);
+	folio_start_writeback(folio);
 
 	p9_client_write(v9inode->writeback_fid, start, &from, &err);
 
-	end_page_writeback(page);
+	folio_end_writeback(folio);
 	return err;
 }
 
 static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
 {
+	struct folio *folio = page_folio(page);
 	int retval;
 
-	p9_debug(P9_DEBUG_VFS, "page %p\n", page);
+	p9_debug(P9_DEBUG_VFS, "folio %p\n", folio);
 
-	retval = v9fs_vfs_writepage_locked(page);
+	retval = v9fs_vfs_write_folio_locked(folio);
 	if (retval < 0) {
 		if (retval == -EAGAIN) {
-			redirty_page_for_writepage(wbc, page);
+			folio_redirty_for_writepage(wbc, folio);
 			retval = 0;
 		} else {
-			SetPageError(page);
-			mapping_set_error(page->mapping, retval);
+			mapping_set_error(folio_mapping(folio), retval);
 		}
 	} else
 		retval = 0;
 
-	unlock_page(page);
+	folio_unlock(folio);
 	return retval;
 }
 
@@ -213,14 +220,15 @@ static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
 
 static int v9fs_launder_page(struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	int retval;
 
-	if (clear_page_dirty_for_io(page)) {
-		retval = v9fs_vfs_writepage_locked(page);
+	if (folio_clear_dirty_for_io(folio)) {
+		retval = v9fs_vfs_write_folio_locked(folio);
 		if (retval)
 			return retval;
 	}
-	wait_on_page_fscache(page);
+	folio_wait_fscache(folio);
 	return 0;
 }
 
@@ -265,10 +273,10 @@ v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 			    loff_t pos, unsigned int len, unsigned int flags,
-			    struct page **pagep, void **fsdata)
+			    struct page **subpagep, void **fsdata)
 {
 	int retval;
-	struct page *page;
+	struct folio *folio;
 	struct v9fs_inode *v9inode = V9FS_I(mapping->host);
 
 	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
@@ -279,31 +287,32 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	 * file.  We need to do this before we get a lock on the page in case
 	 * there's more than one writer competing for the same cache block.
 	 */
-	retval = netfs_write_begin(filp, mapping, pos, len, flags, &page, fsdata,
+	retval = netfs_write_begin(filp, mapping, pos, len, flags, &folio, fsdata,
 				   &v9fs_req_ops, NULL);
 	if (retval < 0)
 		return retval;
 
-	*pagep = find_subpage(page, pos / PAGE_SIZE);
+	*subpagep = &folio->page;
 	return retval;
 }
 
 static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 			  loff_t pos, unsigned int len, unsigned int copied,
-			  struct page *page, void *fsdata)
+			  struct page *subpage, void *fsdata)
 {
 	loff_t last_pos = pos + copied;
-	struct inode *inode = page->mapping->host;
+	struct folio *folio = page_folio(subpage);
+	struct inode *inode = mapping->host;
 
 	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
 
-	if (!PageUptodate(page)) {
+	if (!folio_test_uptodate(folio)) {
 		if (unlikely(copied < len)) {
 			copied = 0;
 			goto out;
 		}
 
-		SetPageUptodate(page);
+		folio_mark_uptodate(folio);
 	}
 
 	/*
@@ -314,10 +323,10 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 		inode_add_bytes(inode, last_pos - inode->i_size);
 		i_size_write(inode, last_pos);
 	}
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 out:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return copied;
 }

@@ -175,7 +175,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	return 0;
 }
 
-int test__session_topology(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__session_topology(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	char path[PATH_MAX];
 	struct perf_cpu_map *map;
@@ -201,3 +201,5 @@ free_path:
 	unlink(path);
 	return ret;
 }
+
+DEFINE_SUITE("Session topology", session_topology);

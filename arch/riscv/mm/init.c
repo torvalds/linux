@@ -41,7 +41,7 @@ phys_addr_t phys_ram_base __ro_after_init;
 EXPORT_SYMBOL(phys_ram_base);
 
 #ifdef CONFIG_XIP_KERNEL
-extern char _xiprom[], _exiprom[];
+extern char _xiprom[], _exiprom[], __data_loc;
 #endif
 
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
@@ -454,10 +454,9 @@ static uintptr_t __init best_map_size(phys_addr_t base, phys_addr_t size)
 /* called from head.S with MMU off */
 asmlinkage void __init __copy_data(void)
 {
-	void *from = (void *)(&_sdata);
-	void *end = (void *)(&_end);
+	void *from = (void *)(&__data_loc);
 	void *to = (void *)CONFIG_PHYS_RAM_BASE;
-	size_t sz = (size_t)(end - from + 1);
+	size_t sz = (size_t)((uintptr_t)(&_end) - (uintptr_t)(&_sdata));
 
 	memcpy(to, from, sz);
 }

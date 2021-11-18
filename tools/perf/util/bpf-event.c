@@ -33,6 +33,33 @@ struct btf * __weak btf__load_from_kernel_by_id(__u32 id)
        return err ? ERR_PTR(err) : btf;
 }
 
+struct bpf_program * __weak
+bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prev)
+{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+	return bpf_program__next(prev, obj);
+#pragma GCC diagnostic pop
+}
+
+struct bpf_map * __weak
+bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
+{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+	return bpf_map__next(prev, obj);
+#pragma GCC diagnostic pop
+}
+
+const void * __weak
+btf__raw_data(const struct btf *btf_ro, __u32 *size)
+{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+	return btf__get_raw_data(btf_ro, size);
+#pragma GCC diagnostic pop
+}
+
 static int snprintf_hex(char *buf, size_t size, unsigned char *data, size_t len)
 {
 	int ret = 0;
@@ -119,7 +146,11 @@ static int perf_env__fetch_btf(struct perf_env *env,
 	node->data_size = data_size;
 	memcpy(node->data, data, data_size);
 
-	perf_env__insert_btf(env, node);
+	if (!perf_env__insert_btf(env, node)) {
+		/* Insertion failed because of a duplicate. */
+		free(node);
+		return -1;
+	}
 	return 0;
 }
 
