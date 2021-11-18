@@ -246,9 +246,7 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 		dma_rmb();
 
 		if (hdev->disabled) {
-			dev_warn(hdev->dev,
-				"Device disabled but received IRQ %d for EQ\n",
-					irq);
+			dev_warn(hdev->dev, "Device disabled but received an EQ event\n");
 			goto skip_irq;
 		}
 
