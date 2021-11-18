@@ -770,3 +770,19 @@ int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which)
 		return -ENODEV;
 	}
 }
+
+/* Patched to NOP when enabled */
+void noinstr spectre_bhb_patch_loop_mitigation_enable(struct alt_instr *alt,
+						     __le32 *origptr,
+						      __le32 *updptr, int nr_inst)
+{
+	BUG_ON(nr_inst != 1);
+}
+
+/* Patched to NOP when enabled */
+void noinstr spectre_bhb_patch_fw_mitigation_enabled(struct alt_instr *alt,
+						   __le32 *origptr,
+						   __le32 *updptr, int nr_inst)
+{
+	BUG_ON(nr_inst != 1);
+}
