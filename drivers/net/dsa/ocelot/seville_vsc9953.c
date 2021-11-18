@@ -18,6 +18,10 @@
 #define MSCC_MIIM_CMD_REGAD_SHIFT		20
 #define MSCC_MIIM_CMD_PHYAD_SHIFT		25
 #define MSCC_MIIM_CMD_VLD			BIT(31)
+#define VSC9953_VCAP_POLICER_BASE		11
+#define VSC9953_VCAP_POLICER_MAX		31
+#define VSC9953_VCAP_POLICER_BASE2		120
+#define VSC9953_VCAP_POLICER_MAX2		161
 
 static const u32 vsc9953_ana_regmap[] = {
 	REG(ANA_ADVLEARN,			0x00b500),
@@ -1172,6 +1176,10 @@ static const struct felix_info seville_info_vsc9953 = {
 	.stats_layout		= vsc9953_stats_layout,
 	.num_stats		= ARRAY_SIZE(vsc9953_stats_layout),
 	.vcap			= vsc9953_vcap_props,
+	.vcap_pol_base		= VSC9953_VCAP_POLICER_BASE,
+	.vcap_pol_max		= VSC9953_VCAP_POLICER_MAX,
+	.vcap_pol_base2		= VSC9953_VCAP_POLICER_BASE2,
+	.vcap_pol_max2		= VSC9953_VCAP_POLICER_MAX2,
 	.num_mact_rows		= 2048,
 	.num_ports		= 10,
 	.num_tx_queues		= OCELOT_NUM_TC,

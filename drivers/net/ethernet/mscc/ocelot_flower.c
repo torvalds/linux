@@ -222,6 +222,7 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 	const struct flow_action_entry *a;
 	enum ocelot_tag_tpid_sel tpid;
 	int i, chain, egress_port;
+	u32 pol_ix, pol_max;
 	u64 rate;
 	int err;
 
@@ -301,6 +302,20 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 				return -EOPNOTSUPP;
 			}
 			filter->action.police_ena = true;
+
+			pol_ix = a->police.index + ocelot->vcap_pol.base;
+			pol_max = ocelot->vcap_pol.max;
+
+			if (ocelot->vcap_pol.max2 && pol_ix > pol_max) {
+				pol_ix += ocelot->vcap_pol.base2 - pol_max - 1;
+				pol_max = ocelot->vcap_pol.max2;
+			}
+
+			if (pol_ix >= pol_max)
+				return -EINVAL;
+
+			filter->action.pol_ix = pol_ix;
+
 			rate = a->police.rate_bytes_ps;
 			filter->action.pol.rate = div_u64(rate, 1000) * 8;
 			filter->action.pol.burst = a->police.burst;

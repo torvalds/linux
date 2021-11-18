@@ -20,6 +20,9 @@
 #include <soc/mscc/ocelot_hsio.h>
 #include "ocelot.h"
 
+#define VSC7514_VCAP_POLICER_BASE			128
+#define VSC7514_VCAP_POLICER_MAX			191
+
 static const u32 ocelot_ana_regmap[] = {
 	REG(ANA_ADVLEARN,				0x009000),
 	REG(ANA_VLANMASK,				0x009004),
@@ -1129,6 +1132,10 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	ocelot->num_flooding_pgids = 1;
 
 	ocelot->vcap = vsc7514_vcap_props;
+
+	ocelot->vcap_pol.base = VSC7514_VCAP_POLICER_BASE;
+	ocelot->vcap_pol.max = VSC7514_VCAP_POLICER_MAX;
+
 	ocelot->npi = -1;
 
 	err = ocelot_init(ocelot);
