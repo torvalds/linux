@@ -791,7 +791,8 @@ static inline struct os_desc *to_os_desc(struct config_item *item)
 static inline struct gadget_info *os_desc_item_to_gadget_info(
 		struct config_item *item)
 {
-	return to_gadget_info(to_os_desc(item)->group.cg_item.ci_parent);
+	return container_of(to_config_group(item),
+			struct gadget_info, os_desc_group);
 }
 
 static ssize_t os_desc_use_show(struct config_item *item, char *page)
@@ -895,8 +896,7 @@ static void os_desc_attr_release(struct config_item *item)
 static int os_desc_link(struct config_item *os_desc_ci,
 			struct config_item *usb_cfg_ci)
 {
-	struct gadget_info *gi = container_of(to_config_group(os_desc_ci),
-					struct gadget_info, os_desc_group);
+	struct gadget_info *gi = os_desc_item_to_gadget_info(os_desc_ci);
 	struct usb_composite_dev *cdev = &gi->cdev;
 	struct config_usb_cfg *c_target =
 		container_of(to_config_group(usb_cfg_ci),
@@ -930,8 +930,7 @@ out:
 static void os_desc_unlink(struct config_item *os_desc_ci,
 			  struct config_item *usb_cfg_ci)
 {
-	struct gadget_info *gi = container_of(to_config_group(os_desc_ci),
-					struct gadget_info, os_desc_group);
+	struct gadget_info *gi = os_desc_item_to_gadget_info(os_desc_ci);
 	struct usb_composite_dev *cdev = &gi->cdev;
 
 	mutex_lock(&gi->lock);
