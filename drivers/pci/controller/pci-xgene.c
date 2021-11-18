@@ -171,11 +171,11 @@ static int xgene_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/*
-	 * The v1 controller has a bug in its Configuration Request
-	 * Retry Status (CRS) logic: when CRS Software Visibility is
-	 * enabled and we read the Vendor and Device ID of a non-existent
-	 * device, the controller fabricates return data of 0xFFFF0001
-	 * ("device exists but is not ready") instead of 0xFFFFFFFF
+	 * The v1 controller has a bug in its Configuration Request Retry
+	 * Status (CRS) logic: when CRS Software Visibility is enabled and
+	 * we read the Vendor and Device ID of a non-existent device, the
+	 * controller fabricates return data of 0xFFFF0001 ("device exists
+	 * but is not ready") instead of 0xFFFFFFFF (PCI_ERROR_RESPONSE)
 	 * ("device does not exist").  This causes the PCI core to retry
 	 * the read until it times out.  Avoid this by not claiming to
 	 * support CRS SV.
