@@ -814,6 +814,18 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 			"channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
 		break;
+	case SOF_DAI_MEDIATEK_AFE:
+		rate->min = dai->dai_config->afe.rate;
+		rate->max = dai->dai_config->afe.rate;
+		channels->min = dai->dai_config->afe.channels;
+		channels->max = dai->dai_config->afe.channels;
+
+		dev_dbg(component->dev,
+			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
+		dev_dbg(component->dev,
+			"channels_min: %d channels_max: %d\n",
+			channels->min, channels->max);
+		break;
 	case SOF_DAI_IMX_SAI:
 		rate->min = dai->dai_config->sai.fsync_rate;
 		rate->max = dai->dai_config->sai.fsync_rate;

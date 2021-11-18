@@ -379,6 +379,7 @@ static const struct sof_dai_types sof_dais[] = {
 	{"ACP", SOF_DAI_AMD_BT},
 	{"ACPSP", SOF_DAI_AMD_SP},
 	{"ACPDMIC", SOF_DAI_AMD_DMIC},
+	{"AFE", SOF_DAI_MEDIATEK_AFE},
 };
 
 static enum sof_ipc_dai_type find_dai(const char *name)
@@ -804,6 +805,19 @@ static const struct sof_topology_token led_tokens[] = {
 	 offsetof(struct snd_sof_led_control, use_led), 0},
 	{SOF_TKN_MUTE_LED_DIRECTION, SND_SOC_TPLG_TUPLE_TYPE_WORD,
 	 get_token_u32, offsetof(struct snd_sof_led_control, direction), 0},
+};
+
+/* AFE */
+static const struct sof_topology_token afe_tokens[] = {
+	{SOF_TKN_MEDIATEK_AFE_RATE,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_mtk_afe_params, rate), 0},
+	{SOF_TKN_MEDIATEK_AFE_CH,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_mtk_afe_params, channels), 0},
+	{SOF_TKN_MEDIATEK_AFE_FORMAT,
+		SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_comp_format,
+		offsetof(struct sof_ipc_dai_mtk_afe_params, format), 0},
 };
 
 static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
@@ -3091,6 +3105,48 @@ static int sof_link_acp_sp_load(struct snd_soc_component *scomp, int index,
 	return ret;
 }
 
+static int sof_link_afe_load(struct snd_soc_component *scomp, int index,
+			     struct snd_soc_dai_link *link,
+			     struct snd_soc_tplg_link_config *cfg,
+			     struct snd_soc_tplg_hw_config *hw_config,
+			     struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &cfg->priv;
+	struct snd_soc_dai *dai;
+	u32 size = sizeof(*config);
+	int ret;
+
+	config->hdr.size = size;
+
+	/* get any bespoke DAI tokens */
+	ret = sof_parse_tokens(scomp, &config->afe, afe_tokens,
+			       ARRAY_SIZE(afe_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "parse afe tokens failed %d\n",
+			le32_to_cpu(private->size));
+		return ret;
+	}
+
+	dev_dbg(scomp->dev, "AFE config rate %d channels %d format:%d\n",
+		config->afe.rate, config->afe.channels, config->afe.format);
+
+	dai = snd_soc_find_dai(link->cpus);
+	if (!dai) {
+		dev_err(scomp->dev, "%s: failed to find dai %s", __func__, link->cpus->dai_name);
+		return -EINVAL;
+	}
+
+	config->afe.stream_id = DMA_CHAN_INVALID;
+
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "failed to process afe dai link %s", link->name);
+
+	return ret;
+}
+
 static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			      struct snd_soc_dai_link *link,
 			      struct snd_soc_tplg_link_config *cfg,
@@ -3385,6 +3441,9 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	case SOF_DAI_AMD_DMIC:
 		ret = sof_link_acp_dmic_load(scomp, index, link, cfg, hw_config + curr_conf,
 					     config);
+		break;
+	case SOF_DAI_MEDIATEK_AFE:
+		ret = sof_link_afe_load(scomp, index, link, cfg, hw_config + curr_conf, config);
 		break;
 	default:
 		dev_err(scomp->dev, "error: invalid DAI type %d\n", common_config.type);

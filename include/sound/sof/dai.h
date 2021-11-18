@@ -13,6 +13,7 @@
 #include <sound/sof/dai-intel.h>
 #include <sound/sof/dai-imx.h>
 #include <sound/sof/dai-amd.h>
+#include <sound/sof/dai-mediatek.h>
 
 /*
  * DAI Configuration.
@@ -70,6 +71,7 @@ enum sof_ipc_dai_type {
 	SOF_DAI_AMD_BT,			/**< AMD ACP BT*/
 	SOF_DAI_AMD_SP,			/**< AMD ACP SP */
 	SOF_DAI_AMD_DMIC,		/**< AMD ACP DMIC */
+	SOF_DAI_MEDIATEK_AFE,		/**< Mediatek AFE */
 };
 
 /* general purpose DAI configuration */
@@ -97,6 +99,7 @@ struct sof_ipc_dai_config {
 		struct sof_ipc_dai_acp_params acpbt;
 		struct sof_ipc_dai_acp_params acpsp;
 		struct sof_ipc_dai_acp_params acpdmic;
+		struct sof_ipc_dai_mtk_afe_params afe;
 	};
 } __packed;
 
