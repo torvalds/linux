@@ -3056,9 +3056,20 @@ bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
  */
 int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {
+	int ret;
+
 	if (tb_switch_is_usb4(sw))
-		return usb4_switch_alloc_dp_resource(sw, in);
-	return tb_lc_dp_sink_alloc(sw, in);
+		ret = usb4_switch_alloc_dp_resource(sw, in);
+	else
+		ret = tb_lc_dp_sink_alloc(sw, in);
+
+	if (ret)
+		tb_sw_warn(sw, "failed to allocate DP resource for port %d\n",
+			   in->port);
+	else
+		tb_sw_dbg(sw, "allocated DP resource for port %d\n", in->port);
+
+	return ret;
 }
 
 /**
@@ -3081,6 +3092,8 @@ void tb_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 	if (ret)
 		tb_sw_warn(sw, "failed to de-allocate DP resource for port %d\n",
 			   in->port);
+	else
+		tb_sw_dbg(sw, "released DP resource for port %d\n", in->port);
 }
 
 struct tb_sw_lookup {
