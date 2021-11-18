@@ -1516,6 +1516,26 @@ void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
 		kfd_smi_event_update_thermal_throttling(kfd, throttle_bitmask);
 }
 
+/* kfd_get_num_sdma_engines returns the number of PCIe optimized SDMA and
+ * kfd_get_num_xgmi_sdma_engines returns the number of XGMI SDMA.
+ * When the device has more than two engines, we reserve two for PCIe to enable
+ * full-duplex and the rest are used as XGMI.
+ */
+unsigned int kfd_get_num_sdma_engines(struct kfd_dev *kdev)
+{
+	/* If XGMI is not supported, all SDMA engines are PCIe */
+	if (!kdev->adev->gmc.xgmi.supported)
+		return kdev->adev->sdma.num_instances;
+
+	return min(kdev->adev->sdma.num_instances, 2);
+}
+
+unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_dev *kdev)
+{
+	/* After reserved for PCIe, the rest of engines are XGMI */
+	return kdev->adev->sdma.num_instances - kfd_get_num_sdma_engines(kdev);
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 /* This function will send a package to HIQ to hang the HWS

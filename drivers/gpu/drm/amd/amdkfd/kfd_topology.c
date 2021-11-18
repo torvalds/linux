@@ -1392,9 +1392,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		gpu->shared_resources.drm_render_minor;
 
 	dev->node_props.hive_id = gpu->hive_id;
-	dev->node_props.num_sdma_engines = gpu->device_info->num_sdma_engines;
+	dev->node_props.num_sdma_engines = kfd_get_num_sdma_engines(gpu);
 	dev->node_props.num_sdma_xgmi_engines =
-				gpu->device_info->num_xgmi_sdma_engines;
+					kfd_get_num_xgmi_sdma_engines(gpu);
 	dev->node_props.num_sdma_queues_per_engine =
 				gpu->device_info->num_sdma_queues_per_engine;
 	dev->node_props.num_gws = (dev->gpu->gws &&

@@ -99,31 +99,22 @@ unsigned int get_pipes_per_mec(struct device_queue_manager *dqm)
 	return dqm->dev->shared_resources.num_pipe_per_mec;
 }
 
-static unsigned int get_num_sdma_engines(struct device_queue_manager *dqm)
-{
-	return dqm->dev->device_info->num_sdma_engines;
-}
-
-static unsigned int get_num_xgmi_sdma_engines(struct device_queue_manager *dqm)
-{
-	return dqm->dev->device_info->num_xgmi_sdma_engines;
-}
-
 static unsigned int get_num_all_sdma_engines(struct device_queue_manager *dqm)
 {
-	return get_num_sdma_engines(dqm) + get_num_xgmi_sdma_engines(dqm);
+	return kfd_get_num_sdma_engines(dqm->dev) +
+		kfd_get_num_xgmi_sdma_engines(dqm->dev);
 }
 
 unsigned int get_num_sdma_queues(struct device_queue_manager *dqm)
 {
-	return dqm->dev->device_info->num_sdma_engines
-			* dqm->dev->device_info->num_sdma_queues_per_engine;
+	return kfd_get_num_sdma_engines(dqm->dev) *
+		dqm->dev->device_info->num_sdma_queues_per_engine;
 }
 
 unsigned int get_num_xgmi_sdma_queues(struct device_queue_manager *dqm)
 {
-	return dqm->dev->device_info->num_xgmi_sdma_engines
-			* dqm->dev->device_info->num_sdma_queues_per_engine;
+	return kfd_get_num_xgmi_sdma_engines(dqm->dev) *
+		dqm->dev->device_info->num_sdma_queues_per_engine;
 }
 
 void program_sh_mem_settings(struct device_queue_manager *dqm,
@@ -1054,9 +1045,9 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 		dqm->sdma_bitmap &= ~(1ULL << bit);
 		q->sdma_id = bit;
 		q->properties.sdma_engine_id = q->sdma_id %
-				get_num_sdma_engines(dqm);
+				kfd_get_num_sdma_engines(dqm->dev);
 		q->properties.sdma_queue_id = q->sdma_id /
-				get_num_sdma_engines(dqm);
+				kfd_get_num_sdma_engines(dqm->dev);
 	} else if (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI) {
 		if (dqm->xgmi_sdma_bitmap == 0) {
 			pr_err("No more XGMI SDMA queue to allocate\n");
@@ -1071,10 +1062,11 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 		 * assumes the first N engines are always
 		 * PCIe-optimized ones
 		 */
-		q->properties.sdma_engine_id = get_num_sdma_engines(dqm) +
-				q->sdma_id % get_num_xgmi_sdma_engines(dqm);
+		q->properties.sdma_engine_id =
+			kfd_get_num_sdma_engines(dqm->dev) +
+			q->sdma_id % kfd_get_num_xgmi_sdma_engines(dqm->dev);
 		q->properties.sdma_queue_id = q->sdma_id /
-				get_num_xgmi_sdma_engines(dqm);
+			kfd_get_num_xgmi_sdma_engines(dqm->dev);
 	}
 
 	pr_debug("SDMA engine id: %d\n", q->properties.sdma_engine_id);

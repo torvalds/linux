@@ -213,6 +213,9 @@ struct kfd_device_info {
 	unsigned int num_sdma_queues_per_engine;
 };
 
+unsigned int kfd_get_num_sdma_engines(struct kfd_dev *kdev);
+unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_dev *kdev);
+
 struct kfd_mem_obj {
 	uint32_t range_start;
 	uint32_t range_end;
