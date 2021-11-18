@@ -589,11 +589,9 @@ static int svm_cpu_init(int cpu)
 	if (!sd)
 		return ret;
 	sd->cpu = cpu;
-	sd->save_area = alloc_page(GFP_KERNEL);
+	sd->save_area = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!sd->save_area)
 		goto free_cpu_data;
-
-	clear_page(page_address(sd->save_area));
 
 	ret = sev_cpu_init(sd);
 	if (ret)
