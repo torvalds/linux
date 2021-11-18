@@ -142,6 +142,16 @@ struct nested_vmx {
 	struct vmcs12 *cached_shadow_vmcs12;
 
 	/*
+	 * GPA to HVA cache for accessing vmcs12->vmcs_link_pointer
+	 */
+	struct gfn_to_hva_cache shadow_vmcs12_cache;
+
+	/*
+	 * GPA to HVA cache for VMCS12
+	 */
+	struct gfn_to_hva_cache vmcs12_cache;
+
+	/*
 	 * Indicates if the shadow vmcs or enlightened vmcs must be updated
 	 * with the data held by struct vmcs12.
 	 */

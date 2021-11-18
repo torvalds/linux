@@ -237,7 +237,6 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	bool es_active = argp->id == KVM_SEV_ES_INIT;
 	int asid, ret;
 
 	if (kvm->created_vcpus)
@@ -247,7 +246,8 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (unlikely(sev->active))
 		return ret;
 
-	sev->es_active = es_active;
+	sev->active = true;
+	sev->es_active = argp->id == KVM_SEV_ES_INIT;
 	asid = sev_asid_new(sev);
 	if (asid < 0)
 		goto e_no_asid;
@@ -257,8 +257,6 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (ret)
 		goto e_free;
 
-	sev->active = true;
-	sev->asid = asid;
 	INIT_LIST_HEAD(&sev->regions_list);
 
 	return 0;
@@ -268,6 +266,7 @@ e_free:
 	sev->asid = 0;
 e_no_asid:
 	sev->es_active = false;
+	sev->active = false;
 	return ret;
 }
 
@@ -1530,7 +1529,7 @@ static int sev_receive_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	return sev_issue_cmd(kvm, SEV_CMD_RECEIVE_FINISH, &data, &argp->error);
 }
 
-static bool cmd_allowed_from_miror(u32 cmd_id)
+static bool is_cmd_allowed_from_mirror(u32 cmd_id)
 {
 	/*
 	 * Allow mirrors VM to call KVM_SEV_LAUNCH_UPDATE_VMSA to enable SEV-ES
@@ -1757,7 +1756,7 @@ int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 
 	/* Only the enc_context_owner handles some memory enc operations. */
 	if (is_mirroring_enc_context(kvm) &&
-	    !cmd_allowed_from_miror(sev_cmd.id)) {
+	    !is_cmd_allowed_from_mirror(sev_cmd.id)) {
 		r = -EINVAL;
 		goto out;
 	}
@@ -1990,7 +1989,12 @@ int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd)
 	mutex_unlock(&source_kvm->lock);
 	mutex_lock(&kvm->lock);
 
-	if (sev_guest(kvm)) {
+	/*
+	 * Disallow out-of-band SEV/SEV-ES init if the target is already an
+	 * SEV guest, or if vCPUs have been created.  KVM relies on vCPUs being
+	 * created after SEV/SEV-ES initialization, e.g. to init intercepts.
+	 */
+	if (sev_guest(kvm) || kvm->created_vcpus) {
 		ret = -EINVAL;
 		goto e_mirror_unlock;
 	}
