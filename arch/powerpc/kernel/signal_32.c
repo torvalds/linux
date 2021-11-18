@@ -1063,7 +1063,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 	if (do_setcontext(new_ctx, regs, 0)) {
-		force_fatal_sig(SIGSEGV);
+		force_exit_sig(SIGSEGV);
 		return -EFAULT;
 	}
 

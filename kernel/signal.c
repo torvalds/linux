@@ -1671,6 +1671,19 @@ void force_fatal_sig(int sig)
 	force_sig_info_to_task(&info, current, HANDLER_SIG_DFL);
 }
 
+void force_exit_sig(int sig)
+{
+	struct kernel_siginfo info;
+
+	clear_siginfo(&info);
+	info.si_signo = sig;
+	info.si_errno = 0;
+	info.si_code = SI_KERNEL;
+	info.si_pid = 0;
+	info.si_uid = 0;
+	force_sig_info_to_task(&info, current, HANDLER_EXIT);
+}
+
 /*
  * When things go south during signal handling, we
  * will force a SIGSEGV. And if the signal that caused
