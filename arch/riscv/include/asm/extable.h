@@ -22,4 +22,16 @@ struct exception_table_entry {
 #define ARCH_HAS_RELATIVE_EXTABLE
 
 int fixup_exception(struct pt_regs *regs);
+
+#if defined(CONFIG_BPF_JIT) && defined(CONFIG_ARCH_RV64I)
+int rv_bpf_fixup_exception(const struct exception_table_entry *ex, struct pt_regs *regs);
+#else
+static inline int
+rv_bpf_fixup_exception(const struct exception_table_entry *ex,
+		       struct pt_regs *regs)
+{
+	return 0;
+}
+#endif
+
 #endif
