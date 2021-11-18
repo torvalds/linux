@@ -896,29 +896,9 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 	tty_wakeup(tty);
 }
 
-/*
- * This routine is called when the serial port gets closed.  First, we
- * wait for the last remaining data to be sent.  Then, we unlink its
- * async structure from the interrupt chain if necessary, and we free
- * that IRQ if nothing is left in the chain.
- */
 static void mxser_close(struct tty_struct *tty, struct file *filp)
 {
-	struct mxser_port *info = tty->driver_data;
-	struct tty_port *port = &info->port;
-
-	if (tty_port_close_start(port, tty, filp) == 0)
-		return;
-	mutex_lock(&port->mutex);
-	if (tty_port_initialized(port) && C_HUPCL(tty))
-		tty_port_lower_dtr_rts(port);
-	mxser_shutdown_port(port);
-	tty_port_set_initialized(port, 0);
-	mutex_unlock(&port->mutex);
-	/* Right now the tty_port set is done outside of the close_end helper
-	   as we don't yet have everyone using refcounts */	
-	tty_port_close_end(port, tty);
-	tty_port_tty_set(port, NULL);
+	tty_port_close(tty->port, tty, filp);
 }
 
 static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int count)
