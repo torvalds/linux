@@ -325,6 +325,9 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", ES8323_DACPOWER, 6, 1),
 	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", ES8323_DACPOWER, 7, 1),
 
+	SND_SOC_DAPM_AIF_OUT("I2S OUT", "Capture",  0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
+
 	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_NOPM, 0, 0,
 			   &es8323_left_mixer_controls[0],
 			   ARRAY_SIZE(es8323_left_mixer_controls)),
@@ -374,6 +377,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Left ADC", NULL, "Left ADC Power"},
 	{"Right ADC", NULL, "Right ADC Power"},
 
+	{"I2S OUT", NULL, "Left ADC"},
+	{"I2S OUT", NULL, "Right ADC"},
+
 	{"Left Line Mux", "Line 1L", "LINPUT1"},
 	{"Left Line Mux", "Line 2L", "LINPUT2"},
 	{"Left Line Mux", "MicL", "Left PGA Mux"},
@@ -381,6 +387,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Right Line Mux", "Line 1R", "RINPUT1"},
 	{"Right Line Mux", "Line 2R", "RINPUT2"},
 	{"Right Line Mux", "MicR", "Right PGA Mux"},
+
+	{"Right DAC", NULL, "I2S IN"},
+	{"Left DAC", NULL, "I2S IN"},
 
 	{"Left Mixer", "Left Playback Switch", "Left DAC"},
 	{"Left Mixer", "Left Bypass Switch", "Left Line Mux"},
