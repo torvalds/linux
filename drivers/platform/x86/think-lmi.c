@@ -1057,6 +1057,9 @@ static struct tlmi_pwd_setting *tlmi_create_auth(const char *pwd_type,
 	new_pwd->minlen = tlmi_priv.pwdcfg.core.min_length;
 	new_pwd->maxlen = tlmi_priv.pwdcfg.core.max_length;
 	new_pwd->index = 0;
+
+	kobject_init(&new_pwd->kobj, &tlmi_pwd_setting_ktype);
+
 	return new_pwd;
 }
 
@@ -1146,8 +1149,6 @@ static int tlmi_analyze(void)
 	if (tlmi_priv.pwdcfg.core.password_state & TLMI_PAP_PWD)
 		tlmi_priv.pwd_admin->valid = true;
 
-	kobject_init(&tlmi_priv.pwd_admin->kobj, &tlmi_pwd_setting_ktype);
-
 	tlmi_priv.pwd_power = tlmi_create_auth("pop", "power-on");
 	if (!tlmi_priv.pwd_power) {
 		ret = -ENOMEM;
@@ -1155,8 +1156,6 @@ static int tlmi_analyze(void)
 	}
 	if (tlmi_priv.pwdcfg.core.password_state & TLMI_POP_PWD)
 		tlmi_priv.pwd_power->valid = true;
-
-	kobject_init(&tlmi_priv.pwd_power->kobj, &tlmi_pwd_setting_ktype);
 
 	if (tlmi_priv.opcode_support) {
 		tlmi_priv.pwd_system = tlmi_create_auth("sys", "system");
@@ -1167,21 +1166,17 @@ static int tlmi_analyze(void)
 		if (tlmi_priv.pwdcfg.core.password_state & TLMI_SYS_PWD)
 			tlmi_priv.pwd_system->valid = true;
 
-		kobject_init(&tlmi_priv.pwd_system->kobj, &tlmi_pwd_setting_ktype);
-
 		tlmi_priv.pwd_hdd = tlmi_create_auth("hdd", "hdd");
 		if (!tlmi_priv.pwd_hdd) {
 			ret = -ENOMEM;
 			goto fail_clear_attr;
 		}
-		kobject_init(&tlmi_priv.pwd_hdd->kobj, &tlmi_pwd_setting_ktype);
 
 		tlmi_priv.pwd_nvme = tlmi_create_auth("nvm", "nvme");
 		if (!tlmi_priv.pwd_nvme) {
 			ret = -ENOMEM;
 			goto fail_clear_attr;
 		}
-		kobject_init(&tlmi_priv.pwd_nvme->kobj, &tlmi_pwd_setting_ktype);
 
 		if (tlmi_priv.pwdcfg.core.password_state & TLMI_HDD_PWD) {
 			/* Check if PWD is configured and set index to first drive found */
