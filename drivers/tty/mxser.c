@@ -878,7 +878,6 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 static void mxser_close_port(struct tty_port *port)
 {
 	struct mxser_port *info = container_of(port, struct mxser_port, port);
-	unsigned long timeout;
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
@@ -890,17 +889,6 @@ static void mxser_close_port(struct tty_port *port)
 		info->IER &= ~MOXA_MUST_RECV_ISR;
 
 	outb(info->IER, info->ioaddr + UART_IER);
-	/*
-	 * Before we drop DTR, make sure the UART transmitter
-	 * has completely drained; this is especially
-	 * important if there is a transmit FIFO!
-	 */
-	timeout = jiffies + HZ;
-	while (!(inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT)) {
-		schedule_timeout_interruptible(5);
-		if (time_after(jiffies, timeout))
-			break;
-	}
 }
 
 /*
