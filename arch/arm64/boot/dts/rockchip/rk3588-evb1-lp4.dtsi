@@ -196,6 +196,8 @@
 };
 
 &dp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dp1_hpd>;
 	hpd-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -471,6 +473,13 @@
 				<2 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	dp {
+		dp1_hpd: dp1-hpd {
+			rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -606,4 +615,12 @@
 
 &usbhost_dwc3_0 {
 	status = "disabled";
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP0_SRC>,
+			  <&cru DCLK_VOP1_SRC>,
+			  <&cru DCLK_VOP2_SRC>,
+			  <&cru DCLK_VOP3>;
+	assigned-clock-parents = <0>, <0>, <&cru PLL_V0PLL>, <0>;
 };
