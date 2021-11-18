@@ -458,7 +458,6 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 	if (dsi2->panel)
 		drm_panel_unprepare(dsi2->panel);
 	dw_mipi_dsi2_post_disable(dsi2);
-	pm_runtime_put(dsi2->dev);
 }
 
 static void dw_mipi_dsi2_set_lane_rate(struct dw_mipi_dsi2 *dsi2)
