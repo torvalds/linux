@@ -142,7 +142,7 @@ static inline size_t iucv_msg_length(struct iucv_message *msg)
  * iucv_sock_in_state() - check for specific states
  * @sk:		sock structure
  * @state:	first iucv sk state
- * @state:	second iucv sk state
+ * @state2:	second iucv sk state
  *
  * Returns true if the socket in either in the first or second state.
  */
@@ -172,7 +172,7 @@ static inline int iucv_below_msglim(struct sock *sk)
 			(atomic_read(&iucv->pendings) <= 0));
 }
 
-/**
+/*
  * iucv_sock_wake_msglim() - Wake up thread waiting on msg limit
  */
 static void iucv_sock_wake_msglim(struct sock *sk)
@@ -187,7 +187,7 @@ static void iucv_sock_wake_msglim(struct sock *sk)
 	rcu_read_unlock();
 }
 
-/**
+/*
  * afiucv_hs_send() - send a message through HiperSockets transport
  */
 static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
@@ -1831,9 +1831,9 @@ static void afiucv_swap_src_dest(struct sk_buff *skb)
 	memset(skb->data, 0, ETH_HLEN);
 }
 
-/**
+/*
  * afiucv_hs_callback_syn - react on received SYN
- **/
+ */
 static int afiucv_hs_callback_syn(struct sock *sk, struct sk_buff *skb)
 {
 	struct af_iucv_trans_hdr *trans_hdr = iucv_trans_hdr(skb);
@@ -1896,9 +1896,9 @@ out:
 	return NET_RX_SUCCESS;
 }
 
-/**
+/*
  * afiucv_hs_callback_synack() - react on received SYN-ACK
- **/
+ */
 static int afiucv_hs_callback_synack(struct sock *sk, struct sk_buff *skb)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1917,9 +1917,9 @@ static int afiucv_hs_callback_synack(struct sock *sk, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-/**
+/*
  * afiucv_hs_callback_synfin() - react on received SYN_FIN
- **/
+ */
 static int afiucv_hs_callback_synfin(struct sock *sk, struct sk_buff *skb)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1937,9 +1937,9 @@ static int afiucv_hs_callback_synfin(struct sock *sk, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-/**
+/*
  * afiucv_hs_callback_fin() - react on received FIN
- **/
+ */
 static int afiucv_hs_callback_fin(struct sock *sk, struct sk_buff *skb)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1960,9 +1960,9 @@ static int afiucv_hs_callback_fin(struct sock *sk, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-/**
+/*
  * afiucv_hs_callback_win() - react on received WIN
- **/
+ */
 static int afiucv_hs_callback_win(struct sock *sk, struct sk_buff *skb)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1978,9 +1978,9 @@ static int afiucv_hs_callback_win(struct sock *sk, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-/**
+/*
  * afiucv_hs_callback_rx() - react on received data
- **/
+ */
 static int afiucv_hs_callback_rx(struct sock *sk, struct sk_buff *skb)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -2022,11 +2022,11 @@ static int afiucv_hs_callback_rx(struct sock *sk, struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-/**
+/*
  * afiucv_hs_rcv() - base function for arriving data through HiperSockets
  *                   transport
  *                   called from netif RX softirq
- **/
+ */
 static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *pt, struct net_device *orig_dev)
 {
@@ -2128,10 +2128,10 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	return err;
 }
 
-/**
+/*
  * afiucv_hs_callback_txnotify() - handle send notifications from HiperSockets
  *                                 transport
- **/
+ */
 static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify n)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
