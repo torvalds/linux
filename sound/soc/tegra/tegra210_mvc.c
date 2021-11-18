@@ -136,7 +136,7 @@ static int tegra210_mvc_put_mute(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 	unsigned int value;
-	u8 mute_mask;
+	u8 new_mask, old_mask;
 	int err;
 
 	pm_runtime_get_sync(cmpnt->dev);
@@ -148,11 +148,19 @@ static int tegra210_mvc_put_mute(struct snd_kcontrol *kcontrol,
 	if (err < 0)
 		goto end;
 
-	mute_mask = ucontrol->value.integer.value[0];
+	regmap_read(mvc->regmap, TEGRA210_MVC_CTRL, &value);
+
+	old_mask = (value >> TEGRA210_MVC_MUTE_SHIFT) & TEGRA210_MUTE_MASK_EN;
+	new_mask = ucontrol->value.integer.value[0];
+
+	if (new_mask == old_mask) {
+		err = 0;
+		goto end;
+	}
 
 	err = regmap_update_bits(mvc->regmap, mc->reg,
 				 TEGRA210_MVC_MUTE_MASK,
-				 mute_mask << TEGRA210_MVC_MUTE_SHIFT);
+				 new_mask << TEGRA210_MVC_MUTE_SHIFT);
 	if (err < 0)
 		goto end;
 
@@ -195,7 +203,7 @@ static int tegra210_mvc_put_vol(struct snd_kcontrol *kcontrol,
 	unsigned int reg = mc->reg;
 	unsigned int value;
 	u8 chan;
-	int err;
+	int err, old_volume;
 
 	pm_runtime_get_sync(cmpnt->dev);
 
@@ -207,9 +215,15 @@ static int tegra210_mvc_put_vol(struct snd_kcontrol *kcontrol,
 		goto end;
 
 	chan = (reg - TEGRA210_MVC_TARGET_VOL) / REG_SIZE;
+	old_volume = mvc->volume[chan];
 
 	tegra210_mvc_conv_vol(mvc, chan,
 			      ucontrol->value.integer.value[0]);
+
+	if (mvc->volume[chan] == old_volume) {
+		err = 0;
+		goto end;
+	}
 
 	/* Configure init volume same as target volume */
 	regmap_write(mvc->regmap,
