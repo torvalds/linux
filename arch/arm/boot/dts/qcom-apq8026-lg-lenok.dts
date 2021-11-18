@@ -244,3 +244,15 @@
 		};
 	};
 };
+
+&usb {
+	status = "okay";
+	extcon = <&smbb>;
+	dr_mode = "peripheral";
+};
+
+&usb_hs_phy {
+	extcon = <&smbb>;
+	v1p8-supply = <&pm8226_l10>;
+	v3p3-supply = <&pm8226_l20>;
+};
