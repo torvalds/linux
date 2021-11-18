@@ -1245,7 +1245,7 @@ out:
 }
 
 /**
- * gfs2_holder_init - initialize a struct gfs2_holder in the default way
+ * __gfs2_holder_init - initialize a struct gfs2_holder in the default way
  * @gl: the glock
  * @state: the state we're requesting
  * @flags: the modifier flags
