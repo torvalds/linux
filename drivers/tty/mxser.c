@@ -905,8 +905,6 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	struct mxser_port *info = tty->driver_data;
 	struct tty_port *port = &info->port;
 
-	if (info == NULL)
-		return;
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
 	mutex_lock(&port->mutex);
