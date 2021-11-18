@@ -8,13 +8,8 @@
 #ifndef _ASM_RISCV_UACCESS_H
 #define _ASM_RISCV_UACCESS_H
 
+#include <asm/asm-extable.h>
 #include <asm/pgtable.h>		/* for TASK_SIZE */
-
-#define _ASM_EXTABLE(from, to)						\
-	"	.pushsection	__ex_table, \"a\"\n"			\
-	"	.balign		4\n"					\
-	"	.long		(" #from " - .), (" #to " - .)\n"	\
-	"	.popsection\n"
 
 /*
  * User space memory access functions

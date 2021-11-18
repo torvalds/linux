@@ -11,6 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <asm/asm.h>
+#include <asm/asm-extable.h>
 
 /* We don't even really need the extable code, but for now keep it simple */
 #ifndef CONFIG_MMU
