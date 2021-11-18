@@ -75,6 +75,16 @@ enum dc_plane_type {
 	DC_PLANE_TYPE_DCN_UNIVERSAL,
 };
 
+// Sizes defined as multiples of 64KB
+enum det_size {
+	DET_SIZE_DEFAULT = 0,
+	DET_SIZE_192KB = 3,
+	DET_SIZE_256KB = 4,
+	DET_SIZE_320KB = 5,
+	DET_SIZE_384KB = 6
+};
+
+
 struct dc_plane_cap {
 	enum dc_plane_type type;
 	uint32_t blends_with_above : 1;
@@ -692,6 +702,8 @@ struct dc_debug_options {
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
+	enum det_size crb_alloc_policy;
+	int crb_alloc_policy_min_disp_count;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_z10;
 	bool enable_sw_cntl_psr;
