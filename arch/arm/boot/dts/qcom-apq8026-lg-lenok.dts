@@ -23,6 +23,15 @@
 	};
 };
 
+&blsp1_i2c1 {
+	status = "okay";
+
+	fuel-gauge@55 {
+		compatible = "ti,bq27421";
+		reg = <0x55>;
+	};
+};
+
 &blsp1_i2c5 {
 	status = "okay";
 	clock-frequency = <384000>;
