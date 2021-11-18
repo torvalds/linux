@@ -1622,7 +1622,7 @@ static u8 mxser_receive_chars(struct tty_struct *tty,
 
 static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port)
 {
-	int count, cnt;
+	int count;
 
 	if (port->x_char) {
 		outb(port->x_char, port->ioaddr + UART_TX);
@@ -1640,17 +1640,15 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 		return;
 	}
 
-	cnt = port->xmit_cnt;
 	count = port->xmit_fifo_size;
 	do {
 		outb(port->port.xmit_buf[port->xmit_tail++],
 			port->ioaddr + UART_TX);
-		port->xmit_tail = port->xmit_tail & (SERIAL_XMIT_SIZE - 1);
+		port->xmit_tail &= SERIAL_XMIT_SIZE - 1;
+		port->icount.tx++;
 		if (!--port->xmit_cnt)
 			break;
 	} while (--count > 0);
-
-	port->icount.tx += (cnt - port->xmit_cnt);
 
 	if (port->xmit_cnt < WAKEUP_CHARS)
 		tty_wakeup(tty);
