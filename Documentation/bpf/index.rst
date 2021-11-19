@@ -5,16 +5,15 @@ BPF Documentation
 This directory contains documentation for the BPF (Berkeley Packet
 Filter) facility, with a focus on the extended BPF version (eBPF).
 
-This kernel side documentation is still work in progress. The main
-textual documentation is (for historical reasons) described in
-:ref:`networking-filter`, which describe both classical and extended
-BPF instruction-set.
+This kernel side documentation is still work in progress.
 The Cilium project also maintains a `BPF and XDP Reference Guide`_
 that goes into great technical depth about the BPF Architecture.
 
 .. toctree::
    :maxdepth: 1
 
+   instruction-set
+   verifier
    libbpf/index
    btf
    faq
