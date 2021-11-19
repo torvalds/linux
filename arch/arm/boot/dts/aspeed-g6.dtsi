@@ -104,6 +104,11 @@
 			    <0x40466000 0x2000>;
 			};
 
+		ahbc: ahbc@1e600000 {
+			compatible = "aspeed,aspeed-ahbc", "syscon";
+			reg = < 0x1e600000 0x100>;
+		};
+
 		fmc: spi@1e620000 {
 			reg = < 0x1e620000 0xc4
 				0x20000000 0x10000000 >;
@@ -359,6 +364,55 @@
 				reg = <0x1e6e2524 0x4>;
 				period = <1>;
 				quality = <100>;
+			};
+
+			pcie_ep:pcie_ep@1e6ed000 {
+				compatible = "aspeed,ast2600-pcie-ep", "syscon";
+				reg = <0x1e6ed000 0x100>;
+
+				resets = <&syscon ASPEED_RESET_PCIE_DEV_O>;
+				rc_offset = <0x80>;
+				msi_address = <0x1e770058>;
+
+				status = "disabled";
+			};
+
+			pcie: pcie@1e6ed200 {
+				compatible = "aspeed,ast2600-pcie";
+				reg = <0x1e6ed200 0x100>, <0x1e770000 0x200>;
+				reg-names = "pciereg", "h2xreg";
+				device_type = "pci";
+				bus-range = <0x00 0xff>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <1>;
+
+				interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "pcie", "h2x";
+				msi-parent = <&pcie>;
+
+				ranges = <0x01000000 0 0x00010000 0x00010000 0x0 0x10000   /* I/O */
+						  0x02000000 0x0 0x70000000 0x70000000 0 0x0fffffff>; /* memory */
+				interrupt-map-mask = <0 0 0 7>;
+				interrupt-map = <0 0 0 1 &pcie_intc0 0>, /* INT A */
+				<0 0 0 2 &pcie_intc0 1>, /* INT B */
+				<0 0 0 3 &pcie_intc0 2>, /* INT C */
+				<0 0 0 4 &pcie_intc0 3>; /* INT D */
+
+				resets = <&syscon ASPEED_RESET_PCIE_RC_O>, <&syscon ASPEED_RESET_H2X>;
+				reset-names = "pcie", "h2x";
+				rc_offset = <0xC0>;
+				msi_address = <0x1e77005C>;
+				aspeed,ahbc = <&ahbc>;
+				status = "disabled";
+
+				pcie_intc0: legacy-interrupt-controller {
+					interrupt-controller;
+					#interrupt-cells = <1>;
+					interrupt-parent = <&gic>;
+					interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+				};
 			};
 
 			xdma: xdma@1e6e7000 {

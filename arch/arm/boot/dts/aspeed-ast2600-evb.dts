@@ -23,6 +23,19 @@
 		reg = <0x80000000 0x80000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		pci_msi_memory: pci_msi_memory {
+			no-map;
+			reg = <0x9e770000 0x100>;
+			compatible = "shared-dma-pool";
+		};
+
+	};
+
 	vcc_sdhci0: regulator-vcc-sdhci0 {
 		compatible = "regulator-fixed";
 		regulator-name = "SDHCI0 Vcc";
@@ -281,3 +294,8 @@
 &ehci1 {
 	status = "okay";
 };
+
+&pcie {
+	status = "okay";
+};
+
