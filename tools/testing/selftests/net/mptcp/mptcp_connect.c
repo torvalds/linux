@@ -75,7 +75,12 @@ struct cfg_cmsg_types {
 	unsigned int timestampns:1;
 };
 
+struct cfg_sockopt_types {
+	unsigned int transparent:1;
+};
+
 static struct cfg_cmsg_types cfg_cmsg_types;
+static struct cfg_sockopt_types cfg_sockopt_types;
 
 static void die_usage(void)
 {
@@ -93,6 +98,7 @@ static void die_usage(void)
 	fprintf(stderr, "\t-u -- check mptcp ulp\n");
 	fprintf(stderr, "\t-w num -- wait num sec before closing the socket\n");
 	fprintf(stderr, "\t-c cmsg -- test cmsg type <cmsg>\n");
+	fprintf(stderr, "\t-o option -- test sockopt <option>\n");
 	fprintf(stderr,
 		"\t-P [saveWithPeek|saveAfterPeek] -- save data with/after MSG_PEEK form tcp socket\n");
 	exit(1);
@@ -185,6 +191,22 @@ static void set_mark(int fd, uint32_t mark)
 	}
 }
 
+static void set_transparent(int fd, int pf)
+{
+	int one = 1;
+
+	switch (pf) {
+	case AF_INET:
+		if (-1 == setsockopt(fd, SOL_IP, IP_TRANSPARENT, &one, sizeof(one)))
+			perror("IP_TRANSPARENT");
+		break;
+	case AF_INET6:
+		if (-1 == setsockopt(fd, IPPROTO_IPV6, IPV6_TRANSPARENT, &one, sizeof(one)))
+			perror("IPV6_TRANSPARENT");
+		break;
+	}
+}
+
 static int sock_listen_mptcp(const char * const listenaddr,
 			     const char * const port)
 {
@@ -211,6 +233,9 @@ static int sock_listen_mptcp(const char * const listenaddr,
 		if (-1 == setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one,
 				     sizeof(one)))
 			perror("setsockopt");
+
+		if (cfg_sockopt_types.transparent)
+			set_transparent(sock, pf);
 
 		if (bind(sock, a->ai_addr, a->ai_addrlen) == 0)
 			break; /* success */
@@ -944,6 +969,27 @@ static void parse_cmsg_types(const char *type)
 	exit(1);
 }
 
+static void parse_setsock_options(const char *name)
+{
+	char *next = strchr(name, ',');
+	unsigned int len = 0;
+
+	if (next) {
+		parse_setsock_options(next + 1);
+		len = next - name;
+	} else {
+		len = strlen(name);
+	}
+
+	if (strncmp(name, "TRANSPARENT", len) == 0) {
+		cfg_sockopt_types.transparent = 1;
+		return;
+	}
+
+	fprintf(stderr, "Unrecognized setsockopt option %s\n", name);
+	exit(1);
+}
+
 int main_loop(void)
 {
 	int fd;
@@ -1047,7 +1093,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6jr:lp:s:hut:T:m:S:R:w:M:P:c:")) != -1) {
+	while ((c = getopt(argc, argv, "6jr:lp:s:hut:T:m:S:R:w:M:P:c:o:")) != -1) {
 		switch (c) {
 		case 'j':
 			cfg_join = true;
@@ -1107,6 +1153,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'c':
 			parse_cmsg_types(optarg);
+			break;
+		case 'o':
+			parse_setsock_options(optarg);
 			break;
 		}
 	}
