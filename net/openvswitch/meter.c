@@ -12,7 +12,6 @@
 #include <linux/openvswitch.h>
 #include <linux/netlink.h>
 #include <linux/rculist.h>
-#include <linux/swap.h>
 
 #include <net/netlink.h>
 #include <net/genetlink.h>

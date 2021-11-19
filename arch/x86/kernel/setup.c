@@ -322,7 +322,7 @@ static void __init reserve_initrd(void)
 
 	relocate_initrd();
 
-	memblock_free(ramdisk_image, ramdisk_end - ramdisk_image);
+	memblock_phys_free(ramdisk_image, ramdisk_end - ramdisk_image);
 }
 
 #else
@@ -521,7 +521,7 @@ static void __init reserve_crashkernel(void)
 	}
 
 	if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
-		memblock_free(crash_base, crash_size);
+		memblock_phys_free(crash_base, crash_size);
 		return;
 	}
 
