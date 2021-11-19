@@ -4284,7 +4284,7 @@ static ssize_t f2fs_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (count == 0)
 		return 0; /* skip atime update */
 
-	trace_f2fs_direct_IO_enter(inode, pos, count, READ);
+	trace_f2fs_direct_IO_enter(inode, iocb, count, READ);
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		if (!down_read_trylock(&fi->i_gc_rwsem[READ])) {
@@ -4483,7 +4483,7 @@ static ssize_t f2fs_dio_write_iter(struct kiocb *iocb, struct iov_iter *from,
 	struct iomap_dio *dio;
 	ssize_t ret;
 
-	trace_f2fs_direct_IO_enter(inode, pos, count, WRITE);
+	trace_f2fs_direct_IO_enter(inode, iocb, count, WRITE);
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		/* f2fs_convert_inline_inode() and block allocation can block */
