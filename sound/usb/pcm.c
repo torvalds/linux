@@ -581,6 +581,12 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+/* free-wheeling mode? (e.g. dmix) */
+static int in_free_wheeling_mode(struct snd_pcm_runtime *runtime)
+{
+	return runtime->stop_threshold > runtime->buffer_size;
+}
+
 /* check whether early start is needed for playback stream */
 static int lowlatency_playback_available(struct snd_pcm_runtime *runtime,
 					 struct snd_usb_substream *subs)
@@ -592,8 +598,7 @@ static int lowlatency_playback_available(struct snd_pcm_runtime *runtime,
 	/* disabled via module option? */
 	if (!chip->lowlatency)
 		return false;
-	/* free-wheeling mode? (e.g. dmix) */
-	if (runtime->stop_threshold > runtime->buffer_size)
+	if (in_free_wheeling_mode(runtime))
 		return false;
 	/* implicit feedback mode has own operation mode */
 	if (snd_usb_endpoint_implicit_feedback_sink(subs->data_endpoint))
@@ -1545,6 +1550,8 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 					      subs);
 		if (subs->lowlatency_playback &&
 		    cmd == SNDRV_PCM_TRIGGER_START) {
+			if (in_free_wheeling_mode(substream->runtime))
+				subs->lowlatency_playback = false;
 			err = start_endpoints(subs);
 			if (err < 0) {
 				snd_usb_endpoint_set_callback(subs->data_endpoint,
