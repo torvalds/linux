@@ -3754,16 +3754,22 @@ static bool init_soc_bounding_box(struct dc *dc,
 			clock_limits_available = (status == PP_SMU_RESULT_OK);
 		}
 
-		if (clock_limits_available && uclk_states_available && num_states)
+		if (clock_limits_available && uclk_states_available && num_states) {
+			DC_FP_START();
 			dcn20_update_bounding_box(dc, loaded_bb, &max_clocks, uclk_states, num_states);
-		else if (clock_limits_available)
+			DC_FP_END();
+		} else if (clock_limits_available) {
+			DC_FP_START();
 			dcn20_cap_soc_clocks(loaded_bb, max_clocks);
+			DC_FP_END();
+		}
 	}
 
 	loaded_ip->max_num_otg = pool->base.res_cap->num_timing_generator;
 	loaded_ip->max_num_dpp = pool->base.pipe_count;
+	DC_FP_START();
 	dcn20_patch_bounding_box(dc, loaded_bb);
-
+	DC_FP_END();
 	return true;
 }
 
@@ -3782,8 +3788,6 @@ static bool dcn20_resource_construct(
 			get_asic_rev_ip_params(ctx->asic_id.hw_internal_rev);
 	enum dml_project dml_project_version =
 			get_dml_project_version(ctx->asic_id.hw_internal_rev);
-
-	DC_FP_START();
 
 	ctx->dc_bios->regs = &bios_regs;
 	pool->base.funcs = &dcn20_res_pool_funcs;
@@ -4128,12 +4132,10 @@ static bool dcn20_resource_construct(
 		pool->base.oem_device = NULL;
 	}
 
-	DC_FP_END();
 	return true;
 
 create_fail:
 
-	DC_FP_END();
 	dcn20_resource_destruct(pool);
 
 	return false;

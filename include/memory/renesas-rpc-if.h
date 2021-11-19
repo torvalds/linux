@@ -58,6 +58,7 @@ struct	rpcif_op {
 
 struct	rpcif {
 	struct device *dev;
+	void __iomem *base;
 	void __iomem *dirmap;
 	struct regmap *regmap;
 	struct reset_control *rstc;

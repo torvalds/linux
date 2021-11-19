@@ -662,10 +662,16 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
 	seq = rds_ib_get_ack(ic);
 
 	rdsdebug("send_ack: ic %p ack %llu\n", ic, (unsigned long long) seq);
+
+	ib_dma_sync_single_for_cpu(ic->rds_ibdev->dev, ic->i_ack_dma,
+				   sizeof(*hdr), DMA_TO_DEVICE);
 	rds_message_populate_header(hdr, 0, 0, 0);
 	hdr->h_ack = cpu_to_be64(seq);
 	hdr->h_credit = adv_credits;
 	rds_message_make_checksum(hdr);
+	ib_dma_sync_single_for_device(ic->rds_ibdev->dev, ic->i_ack_dma,
+				      sizeof(*hdr), DMA_TO_DEVICE);
+
 	ic->i_ack_queued = jiffies;
 
 	ret = ib_post_send(ic->i_cm_id->qp, &ic->i_ack_wr, NULL);
@@ -845,6 +851,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct rds_ib_incoming *ibinc = ic->i_ibinc;
 	struct rds_header *ihdr, *hdr;
+	dma_addr_t dma_addr = ic->i_recv_hdrs_dma[recv - ic->i_recvs];
 
 	/* XXX shut down the connection if port 0,0 are seen? */
 
@@ -863,6 +870,8 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 
 	ihdr = ic->i_recv_hdrs[recv - ic->i_recvs];
 
+	ib_dma_sync_single_for_cpu(ic->rds_ibdev->dev, dma_addr,
+				   sizeof(*ihdr), DMA_FROM_DEVICE);
 	/* Validate the checksum. */
 	if (!rds_message_verify_checksum(ihdr)) {
 		rds_ib_conn_error(conn, "incoming message "
@@ -870,7 +879,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		       "forcing a reconnect\n",
 		       &conn->c_faddr);
 		rds_stats_inc(s_recv_drop_bad_checksum);
-		return;
+		goto done;
 	}
 
 	/* Process the ACK sequence which comes with every packet */
@@ -899,7 +908,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		 */
 		rds_ib_frag_free(ic, recv->r_frag);
 		recv->r_frag = NULL;
-		return;
+		goto done;
 	}
 
 	/*
@@ -933,7 +942,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		    hdr->h_dport != ihdr->h_dport) {
 			rds_ib_conn_error(conn,
 				"fragment header mismatch; forcing reconnect\n");
-			return;
+			goto done;
 		}
 	}
 
@@ -965,6 +974,9 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 
 		rds_inc_put(&ibinc->ii_inc);
 	}
+done:
+	ib_dma_sync_single_for_device(ic->rds_ibdev->dev, dma_addr,
+				      sizeof(*ihdr), DMA_FROM_DEVICE);
 }
 
 void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
