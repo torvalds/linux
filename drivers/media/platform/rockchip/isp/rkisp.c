@@ -555,11 +555,8 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	}
 	dev->rd_mode = rd_mode;
 
-	/* configure hdr params in rdbk mode */
-	if (is_upd || cur_frame_id == 0)
-		rkisp_params_first_cfg(&dev->params_vdev,
-				       &dev->isp_sdev.in_fmt,
-				       dev->isp_sdev.quantization);
+	rkisp_params_first_cfg(&dev->params_vdev, &dev->isp_sdev.in_fmt,
+			       dev->isp_sdev.quantization);
 	rkisp_params_cfg(params_vdev, cur_frame_id);
 	rkisp_config_cmsk(dev);
 	if (!hw->is_single && !is_try) {
@@ -685,8 +682,7 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 
 	if (max) {
 		v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
-			 "handle isp%d, trigger fifo len:%d\n",
-			 id, max);
+			 "trigger fifo len:%d\n", max);
 		isp = hw->isp[id];
 		rkisp_rdbk_trigger_event(isp, T_CMD_DEQUEUE, &t);
 		isp->dmarx_dev.pre_frame = isp->dmarx_dev.cur_frame;

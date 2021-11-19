@@ -150,6 +150,7 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		params_vdev->first_params = false;
 		wake_up(&params_vdev->dev->sync_onoff);
+		dev_info(params_vdev->dev->dev, "first params buf queue\n");
 		return;
 	}
 
@@ -210,6 +211,7 @@ rkisp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkisp_isp_params_vdev *params_vdev = queue->drv_priv;
 	unsigned long flags;
 
+	params_vdev->is_first_cfg = true;
 	params_vdev->hdrtmo_en = false;
 	params_vdev->cur_buf = NULL;
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
@@ -340,6 +342,9 @@ void rkisp_params_first_cfg(struct rkisp_isp_params_vdev *params_vdev,
 			    struct ispsd_in_fmt *in_fmt,
 			    enum v4l2_quantization quantization)
 {
+	if (!params_vdev->is_first_cfg)
+		return;
+	params_vdev->is_first_cfg = false;
 	params_vdev->quantization = quantization;
 	params_vdev->raw_type = in_fmt->bayer_pat;
 	params_vdev->in_mbus_code = in_fmt->mbus_code;
