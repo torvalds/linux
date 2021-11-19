@@ -1248,7 +1248,6 @@ static int mt7921_suspend(struct ieee80211_hw *hw,
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
-	int err;
 
 	cancel_delayed_work_sync(&phy->scan_work);
 	cancel_delayed_work_sync(&phy->mt76->mac_work);
@@ -1266,24 +1265,17 @@ static int mt7921_suspend(struct ieee80211_hw *hw,
 					    mt76_connac_mcu_set_suspend_iter,
 					    &dev->mphy);
 
-	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true);
-
 	mt7921_mutex_release(dev);
 
-	return err;
+	return 0;
 }
 
 static int mt7921_resume(struct ieee80211_hw *hw)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
-	int err;
 
 	mt7921_mutex_acquire(dev);
-
-	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, false);
-	if (err < 0)
-		goto out;
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 	clear_bit(MT76_STATE_SUSPEND, &phy->mt76->state);
@@ -1294,11 +1286,10 @@ static int mt7921_resume(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 				     MT7921_WATCHDOG_TIME);
-out:
 
 	mt7921_mutex_release(dev);
 
-	return err;
+	return 0;
 }
 
 static void mt7921_set_wakeup(struct ieee80211_hw *hw, bool enabled)
