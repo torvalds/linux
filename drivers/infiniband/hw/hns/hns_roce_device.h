@@ -354,10 +354,10 @@ struct hns_roce_mr {
 	u64			size; /* Address range of MR */
 	u32			key; /* Key of MR */
 	u32			pd;   /* PD num of MR */
-	u32			access;	/* Access permission of MR */
+	u32			access; /* Access permission of MR */
 	int			enabled; /* MR's active status */
-	int			type;	/* MR's register type */
-	u32			pbl_hop_num;	/* multi-hop number */
+	int			type; /* MR's register type */
+	u32			pbl_hop_num; /* multi-hop number */
 	struct hns_roce_mtr	pbl_mtr;
 	u32			npages;
 	dma_addr_t		*page_list;
@@ -375,16 +375,16 @@ struct hns_roce_wq {
 	u32		max_gs;
 	u32		rsv_sge;
 	int		offset;
-	int		wqe_shift;	/* WQE size */
+	int		wqe_shift; /* WQE size */
 	u32		head;
 	u32		tail;
 	void __iomem	*db_reg;
 };
 
 struct hns_roce_sge {
-	unsigned int	sge_cnt;	/* SGE num */
+	unsigned int	sge_cnt; /* SGE num */
 	int		offset;
-	int		sge_shift;	/* SGE size */
+	int		sge_shift; /* SGE size */
 };
 
 struct hns_roce_buf_list {
@@ -672,9 +672,9 @@ struct hns_roce_qp {
 	unsigned long		flush_flag;
 	struct hns_roce_work	flush_work;
 	struct hns_roce_rinl_buf rq_inl_buf;
-	struct list_head	node;		/* all qps are on a list */
-	struct list_head	rq_node;	/* all recv qps are on a list */
-	struct list_head	sq_node;	/* all send qps are on a list */
+	struct list_head	node; /* all qps are on a list */
+	struct list_head	rq_node; /* all recv qps are on a list */
+	struct list_head	sq_node; /* all send qps are on a list */
 };
 
 struct hns_roce_ib_iboe {
@@ -855,7 +855,7 @@ struct hns_roce_caps {
 	u32		cqc_timer_ba_pg_sz;
 	u32		cqc_timer_buf_pg_sz;
 	u32		cqc_timer_hop_num;
-	u32             cqe_ba_pg_sz;	/* page_size = 4K*(2^cqe_ba_pg_sz) */
+	u32		cqe_ba_pg_sz; /* page_size = 4K*(2^cqe_ba_pg_sz) */
 	u32		cqe_buf_pg_sz;
 	u32		cqe_hop_num;
 	u32		srqwqe_ba_pg_sz;
@@ -874,7 +874,7 @@ struct hns_roce_caps {
 	u32		gmv_hop_num;
 	u32		sl_num;
 	u32		llm_buf_pg_sz;
-	u32		chunk_sz;	/* chunk size in non multihop mode */
+	u32		chunk_sz; /* chunk size in non multihop mode */
 	u64		flags;
 	u16		default_ceq_max_cnt;
 	u16		default_ceq_period;
@@ -1001,8 +1001,8 @@ struct hns_roce_dev {
 	int			loop_idc;
 	u32			sdb_offset;
 	u32			odb_offset;
-	dma_addr_t		tptr_dma_addr;	/* only for hw v1 */
-	u32			tptr_size;	/* only for hw v1 */
+	dma_addr_t		tptr_dma_addr; /* only for hw v1 */
+	u32			tptr_size; /* only for hw v1 */
 	const struct hns_roce_hw *hw;
 	void			*priv;
 	struct workqueue_struct *irq_workq;

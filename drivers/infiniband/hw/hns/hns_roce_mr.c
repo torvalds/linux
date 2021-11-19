@@ -81,7 +81,7 @@ static int alloc_mr_key(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 		return -ENOMEM;
 	}
 
-	mr->key = hw_index_to_key(id);		/* MR key */
+	mr->key = hw_index_to_key(id); /* MR key */
 
 	err = hns_roce_table_get(hr_dev, &hr_dev->mr_table.mtpt_table,
 				 (unsigned long)id);
