@@ -194,9 +194,6 @@ static void qeth_clear_working_pool_list(struct qeth_card *card)
 				 &card->qdio.in_buf_pool.entry_list, list)
 		list_del(&pool_entry->list);
 
-	if (!queue)
-		return;
-
 	for (i = 0; i < ARRAY_SIZE(queue->bufs); i++)
 		queue->bufs[i].pool_entry = NULL;
 }
@@ -275,8 +272,8 @@ int qeth_resize_buffer_pool(struct qeth_card *card, unsigned int count)
 
 	QETH_CARD_TEXT(card, 2, "realcbp");
 
-	/* Defer until queue is allocated: */
-	if (!card->qdio.in_q)
+	/* Defer until pool is allocated: */
+	if (list_empty(&pool->entry_list))
 		goto out;
 
 	/* Remove entries from the pool: */
@@ -2557,14 +2554,9 @@ static int qeth_alloc_qdio_queues(struct qeth_card *card)
 		QETH_QDIO_ALLOCATED) != QETH_QDIO_UNINITIALIZED)
 		return 0;
 
-	QETH_CARD_TEXT(card, 2, "inq");
-	card->qdio.in_q = qeth_alloc_qdio_queue();
-	if (!card->qdio.in_q)
-		goto out_nomem;
-
 	/* inbound buffer pool */
 	if (qeth_alloc_buffer_pool(card))
-		goto out_freeinq;
+		goto out_buffer_pool;
 
 	/* outbound */
 	for (i = 0; i < card->qdio.no_out_queues; ++i) {
@@ -2605,10 +2597,7 @@ out_freeoutq:
 		card->qdio.out_qs[i] = NULL;
 	}
 	qeth_free_buffer_pool(card);
-out_freeinq:
-	qeth_free_qdio_queue(card->qdio.in_q);
-	card->qdio.in_q = NULL;
-out_nomem:
+out_buffer_pool:
 	atomic_set(&card->qdio.state, QETH_QDIO_UNINITIALIZED);
 	return -ENOMEM;
 }
@@ -2623,11 +2612,12 @@ static void qeth_free_qdio_queues(struct qeth_card *card)
 
 	qeth_free_cq(card);
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
-		if (card->qdio.in_q->bufs[j].rx_skb)
+		if (card->qdio.in_q->bufs[j].rx_skb) {
 			consume_skb(card->qdio.in_q->bufs[j].rx_skb);
+			card->qdio.in_q->bufs[j].rx_skb = NULL;
+		}
 	}
-	qeth_free_qdio_queue(card->qdio.in_q);
-	card->qdio.in_q = NULL;
+
 	/* inbound buffer pool */
 	qeth_free_buffer_pool(card);
 	/* free outbound qdio_qs */
@@ -6447,6 +6437,12 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	qeth_determine_capabilities(card);
 	qeth_set_blkt_defaults(card);
 
+	card->qdio.in_q = qeth_alloc_qdio_queue();
+	if (!card->qdio.in_q) {
+		rc = -ENOMEM;
+		goto err_rx_queue;
+	}
+
 	card->qdio.no_out_queues = card->dev->num_tx_queues;
 	rc = qeth_update_from_chp_desc(card);
 	if (rc)
@@ -6473,6 +6469,8 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 
 err_setup_disc:
 err_chp_desc:
+	qeth_free_qdio_queue(card->qdio.in_q);
+err_rx_queue:
 	free_netdev(card->dev);
 err_card:
 	qeth_core_free_card(card);
@@ -6494,6 +6492,7 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 
 	qeth_free_qdio_queues(card);
 
+	qeth_free_qdio_queue(card->qdio.in_q);
 	free_netdev(card->dev);
 	qeth_core_free_card(card);
 	put_device(&gdev->dev);

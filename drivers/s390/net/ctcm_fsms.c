@@ -1406,7 +1406,7 @@ static void ctcmpc_chx_rx(fsm_instance *fi, int event, void *arg)
 
 		if (new_skb == NULL) {
 			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-				"%s(%d): skb allocation failed",
+				"%s(%s): skb allocation failed",
 						CTCM_FUNTAIL, dev->name);
 			fsm_event(priv->mpcg->fsm, MPCG_EVENT_INOP, dev);
 					goto again;
