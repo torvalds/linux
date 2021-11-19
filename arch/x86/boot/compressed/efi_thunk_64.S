@@ -26,14 +26,17 @@ SYM_FUNC_START(__efi64_thunk)
 	push	%rbp
 	push	%rbx
 
-	leaq	1f(%rip), %rbp
-
 	movl	%ds, %eax
 	push	%rax
 	movl	%es, %eax
 	push	%rax
 	movl	%ss, %eax
 	push	%rax
+
+	/* Copy args passed on stack */
+	movq	0x30(%rsp), %rbp
+	movq	0x38(%rsp), %rbx
+	movq	0x40(%rsp), %rax
 
 	/*
 	 * Convert x86-64 ABI params to i386 ABI
@@ -44,12 +47,17 @@ SYM_FUNC_START(__efi64_thunk)
 	movl	%ecx, 0x8(%rsp)
 	movl	%r8d, 0xc(%rsp)
 	movl	%r9d, 0x10(%rsp)
+	movl	%ebp, 0x14(%rsp)
+	movl	%ebx, 0x18(%rsp)
+	movl	%eax, 0x1c(%rsp)
 
-	leaq	0x14(%rsp), %rbx
+	leaq	0x20(%rsp), %rbx
 	sgdt	(%rbx)
 
 	addq	$16, %rbx
 	sidt	(%rbx)
+
+	leaq	1f(%rip), %rbp
 
 	/*
 	 * Switch to IDT and GDT with 32-bit segments. This is the firmware GDT
