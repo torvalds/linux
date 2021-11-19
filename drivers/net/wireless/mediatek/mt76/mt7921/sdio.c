@@ -206,15 +206,13 @@ static int mt7921s_suspend(struct device *__dev)
 	int err;
 
 	pm->suspended = true;
+	set_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
+
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
 	err = mt7921_mcu_drv_pmctrl(dev);
 	if (err < 0)
-		goto restore_suspend;
-
-	err = mt76_connac_mcu_set_hif_suspend(mdev, true);
-	if (err)
 		goto restore_suspend;
 
 	/* always enable deep sleep during suspend to reduce
@@ -224,34 +222,45 @@ static int mt7921s_suspend(struct device *__dev)
 
 	mt76_txq_schedule_all(&dev->mphy);
 	mt76_worker_disable(&mdev->tx_worker);
-	mt76_worker_disable(&mdev->sdio.txrx_worker);
 	mt76_worker_disable(&mdev->sdio.status_worker);
-	mt76_worker_disable(&mdev->sdio.net_worker);
 	cancel_work_sync(&mdev->sdio.stat_work);
 	clear_bit(MT76_READING_STATS, &dev->mphy.state);
-
 	mt76_tx_status_check(mdev, true);
+
+	mt76_worker_schedule(&mdev->sdio.txrx_worker);
+	wait_event_timeout(dev->mt76.sdio.wait,
+			   mt76s_txqs_empty(&dev->mt76), 5 * HZ);
+
+	/* It is supposed that SDIO bus is idle at the point */
+	err = mt76_connac_mcu_set_hif_suspend(mdev, true);
+	if (err)
+		goto restore_worker;
+
+	mt76_worker_disable(&mdev->sdio.txrx_worker);
+	mt76_worker_disable(&mdev->sdio.net_worker);
 
 	err = mt7921_mcu_fw_pmctrl(dev);
 	if (err)
-		goto restore_worker;
+		goto restore_txrx_worker;
 
 	sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 
 	return 0;
 
+restore_txrx_worker:
+	mt76_worker_enable(&mdev->sdio.net_worker);
+	mt76_worker_enable(&mdev->sdio.txrx_worker);
+	mt76_connac_mcu_set_hif_suspend(mdev, false);
+
 restore_worker:
 	mt76_worker_enable(&mdev->tx_worker);
-	mt76_worker_enable(&mdev->sdio.txrx_worker);
 	mt76_worker_enable(&mdev->sdio.status_worker);
-	mt76_worker_enable(&mdev->sdio.net_worker);
 
 	if (!pm->ds_enable)
 		mt76_connac_mcu_set_deep_sleep(mdev, false);
 
-	mt76_connac_mcu_set_hif_suspend(mdev, false);
-
 restore_suspend:
+	clear_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
 	pm->suspended = false;
 
 	return err;
@@ -266,6 +275,7 @@ static int mt7921s_resume(struct device *__dev)
 	int err;
 
 	pm->suspended = false;
+	clear_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
 
 	err = mt7921_mcu_drv_pmctrl(dev);
 	if (err < 0)

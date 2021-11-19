@@ -479,7 +479,8 @@ static void mt76s_status_worker(struct mt76_worker *w)
 			resched = true;
 
 		if (dev->drv->tx_status_data &&
-		    !test_and_set_bit(MT76_READING_STATS, &dev->phy.state))
+		    !test_and_set_bit(MT76_READING_STATS, &dev->phy.state) &&
+		    !test_bit(MT76_STATE_SUSPEND, &dev->phy.state))
 			queue_work(dev->wq, &dev->sdio.stat_work);
 	} while (nframes > 0);
 
