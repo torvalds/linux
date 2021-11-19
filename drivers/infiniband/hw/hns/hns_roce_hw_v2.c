@@ -1302,7 +1302,7 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	} else {
 		/* FW/HW reset or incorrect number of desc */
 		tail = roce_read(hr_dev, ROCEE_TX_CMQ_CI_REG);
-		dev_warn(hr_dev->dev, "CMDQ move tail from %d to %d\n",
+		dev_warn(hr_dev->dev, "CMDQ move tail from %u to %u.\n",
 			 csq->head, tail);
 		csq->head = tail;
 
@@ -4723,7 +4723,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
 	if (unlikely(hr_qp->sl > MAX_SERVICE_LEVEL)) {
 		ibdev_err(ibdev,
-			  "failed to fill QPC, sl (%d) shouldn't be larger than %d.\n",
+			  "failed to fill QPC, sl (%u) shouldn't be larger than %d.\n",
 			  hr_qp->sl, MAX_SERVICE_LEVEL);
 		return -EINVAL;
 	}
@@ -5831,7 +5831,7 @@ static void hns_roce_v2_destroy_eqc(struct hns_roce_dev *hr_dev, int eqn)
 					0, HNS_ROCE_CMD_DESTROY_AEQC,
 					HNS_ROCE_CMD_TIMEOUT_MSECS);
 	if (ret)
-		dev_err(dev, "[mailbox cmd] destroy eqc(%d) failed.\n", eqn);
+		dev_err(dev, "[mailbox cmd] destroy eqc(%u) failed.\n", eqn);
 }
 
 static void free_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
