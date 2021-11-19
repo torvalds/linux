@@ -189,6 +189,7 @@ struct joycon_rumble_amp_data {
 	u16 amp;
 };
 
+#if IS_ENABLED(CONFIG_NINTENDO_FF)
 /*
  * These tables are from
  * https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering/blob/master/rumble_data_table.md
@@ -289,6 +290,10 @@ static const struct joycon_rumble_amp_data joycon_rumble_amplitudes[] = {
 	{ 0xc2, 0x8070,  940 }, { 0xc4, 0x0071,  960 }, { 0xc6, 0x8071,  981 },
 	{ 0xc8, 0x0072, joycon_max_rumble_amp }
 };
+static const u16 JC_RUMBLE_DFLT_LOW_FREQ = 160;
+static const u16 JC_RUMBLE_DFLT_HIGH_FREQ = 320;
+#endif /* IS_ENABLED(CONFIG_NINTENDO_FF) */
+static const u16 JC_RUMBLE_PERIOD_MS = 50;
 
 /* States for controller state machine */
 enum joycon_ctlr_state {
@@ -397,9 +402,6 @@ struct joycon_input_report {
 #define JC_RUMBLE_DATA_SIZE	8
 #define JC_RUMBLE_QUEUE_SIZE	8
 
-static const u16 JC_RUMBLE_DFLT_LOW_FREQ = 160;
-static const u16 JC_RUMBLE_DFLT_HIGH_FREQ = 320;
-static const u16 JC_RUMBLE_PERIOD_MS = 50;
 static const unsigned short JC_RUMBLE_ZERO_AMP_PKT_CNT = 5;
 
 static const char * const joycon_player_led_names[] = {
