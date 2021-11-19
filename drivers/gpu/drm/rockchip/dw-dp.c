@@ -251,6 +251,10 @@ struct dw_dp {
 	struct dw_dp_audio audio;
 
 	DECLARE_BITMAP(sdp_reg_bank, SDP_REG_BANK_SIZE);
+
+	bool split_mode;
+	struct dw_dp *left;
+	struct dw_dp *right;
 };
 
 enum {
@@ -310,6 +314,26 @@ static inline struct dw_dp *encoder_to_dp(struct drm_encoder *e)
 static inline struct dw_dp *bridge_to_dp(struct drm_bridge *b)
 {
 	return container_of(b, struct dw_dp, bridge);
+}
+
+static int dw_dp_match_by_id(struct device *dev, const void *data)
+{
+	struct dw_dp *dp = dev_get_drvdata(dev);
+	const unsigned int *id = data;
+
+	return dp->id == *id;
+}
+
+static struct dw_dp *dw_dp_find_by_id(struct device_driver *drv,
+				      unsigned int id)
+{
+	struct device *dev;
+
+	dev = driver_find_device(drv, NULL, &id, dw_dp_match_by_id);
+	if (!dev)
+		return NULL;
+
+	return dev_get_drvdata(dev);
 }
 
 static void dw_dp_phy_set_pattern(struct dw_dp *dp, u32 pattern)
@@ -400,6 +424,9 @@ dw_dp_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct dw_dp *dp = connector_to_dp(connector);
 
+	if (dp->right && drm_bridge_detect(&dp->right->bridge) != connector_status_connected)
+		return connector_status_disconnected;
+
 	return drm_bridge_detect(&dp->bridge);
 }
 
@@ -427,6 +454,13 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 	drm_connector_update_edid_property(connector, edid);
 	num_modes = drm_add_edid_modes(connector, edid);
 	kfree(edid);
+
+	if (num_modes > 0 && dp->split_mode) {
+		struct drm_display_mode *mode;
+
+		list_for_each_entry(mode, &connector->probed_modes, head)
+			drm_mode_convert_to_split_mode(mode);
+	}
 
 	return num_modes;
 }
@@ -1468,7 +1502,13 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_DisplayPort;
-	s->output_if = dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
+	if (dp->split_mode) {
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
+		s->output_flags |= dp->id ? ROCKCHIP_OUTPUT_DATA_SWAP : 0;
+		s->output_if |= VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1;
+	} else {
+		s->output_if = dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
+	}
 	s->output_bpc = di->bpc;
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
@@ -1587,8 +1627,14 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct dw_dp_link *link = &dp->link;
+	struct drm_display_mode m;
 
-	if (!dw_dp_bandwidth_ok(dp, mode, link->lanes, link->rate))
+	drm_mode_copy(&m, mode);
+
+	if (dp->split_mode)
+		drm_mode_convert_to_origin_mode(&m);
+
+	if (!dw_dp_bandwidth_ok(dp, &m, link->lanes, link->rate))
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -1624,11 +1670,6 @@ static int dw_dp_bridge_attach(struct drm_bridge *bridge,
 
 	drm_connector_attach_encoder(connector, bridge->encoder);
 
-	pm_runtime_enable(dp->dev);
-	pm_runtime_get_sync(dp->dev);
-	dw_dp_init(dp);
-	enable_irq(dp->irq);
-
 	return 0;
 }
 
@@ -1636,9 +1677,6 @@ static void dw_dp_bridge_detach(struct drm_bridge *bridge)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 
-	disable_irq(dp->irq);
-	pm_runtime_put(dp->dev);
-	pm_runtime_disable(dp->dev);
 	drm_connector_cleanup(&dp->connector);
 }
 
@@ -1648,8 +1686,12 @@ static void dw_dp_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct dw_dp_video *video = &dp->video;
+	struct drm_display_mode *m = &video->mode;
 
-	drm_mode_copy(&video->mode, adjusted_mode);
+	drm_mode_copy(m, adjusted_mode);
+
+	if (dp->split_mode)
+		drm_mode_convert_to_origin_mode(m);
 }
 
 static bool dw_dp_needs_link_retrain(struct dw_dp *dp)
@@ -1734,29 +1776,29 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	video->stream_on = false;
 }
 
-static enum drm_connector_status dw_dp_detect(struct dw_dp *dp)
+static bool dw_dp_detect(struct dw_dp *dp)
 {
 	u32 value;
 
-	if (dp->hpd_gpio) {
-		if (gpiod_get_value_cansleep(dp->hpd_gpio))
-			return connector_status_connected;
-		else
-			return connector_status_disconnected;
-	}
+	if (dp->hpd_gpio)
+		return gpiod_get_value_cansleep(dp->hpd_gpio);
 
 	regmap_read(dp->regmap, DPTX_HPD_STATUS, &value);
-	if (value & HPD_STATUS)
-		return connector_status_connected;
-	else
-		return connector_status_disconnected;
+
+	return !!(value & HPD_STATUS);
 }
 
 static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
+	enum drm_connector_status status;
 
-	return dw_dp_detect(dp);
+	if (dw_dp_detect(dp))
+		status = connector_status_connected;
+	else
+		status = connector_status_disconnected;
+
+	return status;
 }
 
 static struct edid *dw_dp_bridge_get_edid(struct drm_bridge *bridge,
@@ -1790,7 +1832,7 @@ static void dw_dp_hpd_work(struct work_struct *work)
 
 	mutex_lock(&dp->bridge.dev->mode_config.mutex);
 
-	if (dw_dp_detect(dp) == connector_status_connected) {
+	if (dw_dp_detect(dp)) {
 		if (dw_dp_needs_link_retrain(dp)) {
 			if (video->stream_on)
 				dw_dp_video_disable(dp);
@@ -2038,17 +2080,33 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 	struct drm_bridge *bridge = &dp->bridge;
 	int ret;
 
-	drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(encoder, &dw_dp_encoder_helper_funcs);
+	if (!dp->left) {
+		drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
+		drm_encoder_helper_add(encoder, &dw_dp_encoder_helper_funcs);
 
-	encoder->possible_crtcs =
-		rockchip_drm_of_find_possible_crtcs(drm_dev, dev->of_node);
+		encoder->possible_crtcs =
+			rockchip_drm_of_find_possible_crtcs(drm_dev, dev->of_node);
 
-	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
-	if (ret) {
-		dev_err(dev, "failed to attach bridge: %d\n", ret);
-		return ret;
+		ret = drm_bridge_attach(encoder, bridge, NULL, 0);
+		if (ret) {
+			dev_err(dev, "failed to attach bridge: %d\n", ret);
+			return ret;
+		}
 	}
+
+	if (dp->right) {
+		struct dw_dp *secondary = dp->right;
+
+		ret = drm_bridge_attach(encoder, &secondary->bridge, bridge,
+					DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+		if (ret)
+			return ret;
+	}
+
+	pm_runtime_enable(dp->dev);
+	pm_runtime_get_sync(dp->dev);
+	dw_dp_init(dp);
+	enable_irq(dp->irq);
 
 	return 0;
 }
@@ -2056,6 +2114,10 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 static void dw_dp_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
+
+	disable_irq(dp->irq);
+	pm_runtime_put(dp->dev);
+	pm_runtime_disable(dp->dev);
 
 	drm_encoder_cleanup(&dp->encoder);
 }
@@ -2185,9 +2247,20 @@ static int dw_dp_probe(struct platform_device *pdev)
 	dp->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID |
 			 DRM_BRIDGE_OP_HPD;
 	dp->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
-	drm_bridge_add(&dp->bridge);
 
 	platform_set_drvdata(pdev, dp);
+
+	if (device_property_read_bool(dev, "split-mode")) {
+		struct dw_dp *secondary = dw_dp_find_by_id(dev->driver, !dp->id);
+
+		if (!secondary)
+			return -EPROBE_DEFER;
+
+		dp->right = secondary;
+		dp->split_mode = true;
+		secondary->left = dp;
+		secondary->split_mode = true;
+	}
 
 	return component_add(dev, &dw_dp_component_ops);
 }
@@ -2197,7 +2270,6 @@ static int dw_dp_remove(struct platform_device *pdev)
 	struct dw_dp *dp = platform_get_drvdata(pdev);
 
 	component_del(dp->dev, &dw_dp_component_ops);
-	drm_bridge_remove(&dp->bridge);
 	cancel_delayed_work(&dp->hpd_work);
 
 	return 0;
