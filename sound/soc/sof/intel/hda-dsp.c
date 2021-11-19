@@ -614,7 +614,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 #endif
-	int ret;
+	int ret, j;
 
 	hda_sdw_int_enable(sdev, false);
 
@@ -629,12 +629,16 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 #endif
 
 	/* power down DSP */
-	ret = snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask);
+	ret = hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to power down core during suspend\n");
 		return ret;
 	}
+
+	/* reset ref counts for all cores */
+	for (j = 0; j < chip->cores_num; j++)
+		sdev->dsp_core_ref_count[j] = 0;
 
 	/* disable ppcap interrupt */
 	hda_dsp_ctrl_ppcap_enable(sdev, false);
