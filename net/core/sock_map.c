@@ -167,8 +167,11 @@ static void sock_map_del_link(struct sock *sk,
 		write_lock_bh(&sk->sk_callback_lock);
 		if (strp_stop)
 			sk_psock_stop_strp(sk, psock);
-		else
+		if (verdict_stop)
 			sk_psock_stop_verdict(sk, psock);
+
+		if (psock->psock_update_sk_prot)
+			psock->psock_update_sk_prot(sk, psock, false);
 		write_unlock_bh(&sk->sk_callback_lock);
 	}
 }
