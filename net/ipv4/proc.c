@@ -53,7 +53,7 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 	struct net *net = seq->private;
 	int orphans, sockets;
 
-	orphans = tcp_orphan_count_sum();
+	orphans = percpu_counter_sum_positive(&tcp_orphan_count);
 	sockets = proto_sockets_allocated_sum_positive(&tcp_prot);
 
 	socket_seq_show(seq);

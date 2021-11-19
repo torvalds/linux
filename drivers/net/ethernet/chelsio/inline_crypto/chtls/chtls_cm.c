@@ -870,7 +870,7 @@ static void do_abort_syn_rcv(struct sock *child, struct sock *parent)
 		 * created only after 3 way handshake is done.
 		 */
 		sock_orphan(child);
-		INC_ORPHAN_COUNT(child);
+		percpu_counter_inc((child)->sk_prot->orphan_count);
 		chtls_release_resources(child);
 		chtls_conn_done(child);
 	} else {

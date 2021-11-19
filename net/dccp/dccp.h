@@ -48,7 +48,7 @@ extern bool dccp_debug;
 
 extern struct inet_hashinfo dccp_hashinfo;
 
-DECLARE_PER_CPU(unsigned int, dccp_orphan_count);
+extern struct percpu_counter dccp_orphan_count;
 
 void dccp_time_wait(struct sock *sk, int state, int timeo);
 
