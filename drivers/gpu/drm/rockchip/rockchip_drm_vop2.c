@@ -1459,9 +1459,13 @@ static void vop2_win_disable(struct vop2_win *win)
 {
 	struct vop2 *vop2 = win->vop2;
 
-	win->left_win = NULL;
-	win->splice_win = NULL;
-	win->splice_mode_right = false;
+	/* Disable the right splice win */
+	if (win->splice_win) {
+		vop2_win_disable(win->splice_win);
+		win->left_win = NULL;
+		win->splice_win = NULL;
+		win->splice_mode_right = false;
+	}
 
 	if (win->enabled) {
 		VOP_WIN_SET(vop2, win, enable, 0);
@@ -3151,6 +3155,8 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
+	struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
 	bool dual_channel = !!(vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE);
 	int ret;
 
@@ -3208,6 +3214,8 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	spin_lock(&vop2->reg_lock);
 
+	if (vcstate->splice_mode)
+		VOP_MODULE_SET(vop2, splice_vp, standby, 1);
 	VOP_MODULE_SET(vop2, vp, standby, 1);
 
 	spin_unlock(&vop2->reg_lock);
