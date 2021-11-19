@@ -122,7 +122,7 @@ static void stuser_set_state(struct switchtec_user *stuser,
 {
 	/* requires the mrpc_mutex to already be held when called */
 
-	const char * const state_names[] = {
+	static const char * const state_names[] = {
 		[MRPC_IDLE] = "IDLE",
 		[MRPC_QUEUED] = "QUEUED",
 		[MRPC_RUNNING] = "RUNNING",
