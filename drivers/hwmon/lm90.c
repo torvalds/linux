@@ -673,6 +673,10 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl,
 	oldh = lm90_read_reg(client, regh);
 	if (oldh < 0)
 		return oldh;
+
+	if (!regl)
+		return oldh << 8;
+
 	l = lm90_read_reg(client, regl);
 	if (l < 0)
 		return l;
@@ -804,29 +808,19 @@ static int lm90_update_limits(struct device *dev)
 		data->temp_hyst = val;
 	}
 
-	val = lm90_read_reg(client, LM90_REG_REMOTE_LOWH);
+	val = lm90_read16(client, LM90_REG_REMOTE_LOWH,
+			  (data->flags & LM90_HAVE_REM_LIMIT_EXT) ? LM90_REG_REMOTE_LOWL : 0,
+			  false);
 	if (val < 0)
 		return val;
-	data->temp[REMOTE_LOW] = val << 8;
+	data->temp[REMOTE_LOW] = val;
 
-	if (data->flags & LM90_HAVE_REM_LIMIT_EXT) {
-		val = lm90_read_reg(client, LM90_REG_REMOTE_LOWL);
-		if (val < 0)
-			return val;
-		data->temp[REMOTE_LOW] |= val;
-	}
-
-	val = lm90_read_reg(client, LM90_REG_REMOTE_HIGHH);
+	val = lm90_read16(client, LM90_REG_REMOTE_HIGHH,
+			  (data->flags & LM90_HAVE_REM_LIMIT_EXT) ? LM90_REG_REMOTE_HIGHL : 0,
+			  false);
 	if (val < 0)
 		return val;
-	data->temp[REMOTE_HIGH] = val << 8;
-
-	if (data->flags & LM90_HAVE_REM_LIMIT_EXT) {
-		val = lm90_read_reg(client, LM90_REG_REMOTE_HIGHL);
-		if (val < 0)
-			return val;
-		data->temp[REMOTE_HIGH] |= val;
-	}
+	data->temp[REMOTE_HIGH] = val;
 
 	if (data->flags & LM90_HAVE_OFFSET) {
 		val = lm90_read16(client, LM90_REG_REMOTE_OFFSH,
@@ -1063,18 +1057,11 @@ static int lm90_update_device(struct device *dev)
 			return val;
 		data->temp[LOCAL_HIGH] = val << 8;
 
-		if (data->reg_local_ext) {
-			val = lm90_read16(client, LM90_REG_LOCAL_TEMP,
-					  data->reg_local_ext, true);
-			if (val < 0)
-				return val;
-			data->temp[LOCAL_TEMP] = val;
-		} else {
-			val = lm90_read_reg(client, LM90_REG_LOCAL_TEMP);
-			if (val < 0)
-				return val;
-			data->temp[LOCAL_TEMP] = val << 8;
-		}
+		val = lm90_read16(client, LM90_REG_LOCAL_TEMP,
+				  data->reg_local_ext, true);
+		if (val < 0)
+			return val;
+		data->temp[LOCAL_TEMP] = val;
 		val = lm90_read16(client, LM90_REG_REMOTE_TEMPH,
 				  LM90_REG_REMOTE_TEMPL, true);
 		if (val < 0)
