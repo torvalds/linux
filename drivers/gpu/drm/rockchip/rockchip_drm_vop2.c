@@ -3626,11 +3626,13 @@ static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
 	struct drm_rect *src = &vpstate->src;
 	u16 half_hdisplay = mode->crtc_hdisplay >> 1;
 	int hscale = drm_rect_calc_hscale(src, dst, 0, INT_MAX);
-	int left_src_w, left_dst_w;
+	int dsp_w = drm_rect_width(dst);
+	int left_src_w, left_dst_w, right_dst_w;
 
 	left_dst_w = min_t(u16, half_hdisplay, dst->x2) - dst->x1;
 	if (left_dst_w < 0)
 		left_dst_w = 0;
+	right_dst_w = dsp_w - left_dst_w;
 
 	left_src_w = (left_dst_w * hscale) >> 16;
 	left_src->x1 = src->x1;
@@ -3639,8 +3641,8 @@ static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
 	left_dst->x2 = dst->x1 + left_dst_w;
 	right_src->x1 = left_src->x2;
 	right_src->x2 = src->x2;
-	right_dst->x1 = dst->x1;
-	right_dst->x2 = dst->x2;
+	right_dst->x1 = dst->x1 + left_dst_w - half_hdisplay;
+	right_dst->x2 = right_dst->x1 + right_dst_w;
 
 	left_src->y1 = src->y1;
 	left_src->y2 = src->y2;
@@ -3715,6 +3717,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		return;
 	}
 
+	dsp_w = drm_rect_width(dst);
 	/*
 	 * This win is for the right part of the plane,
 	 * we need calculate the fb offset for it.
@@ -3729,7 +3732,6 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		}
 	}
 
-	dsp_w = drm_rect_width(dst);
 	if (dst->x1 + dsp_w > adjusted_mode->hdisplay) {
 		DRM_ERROR("vp%d %s dest->x1[%d] + dsp_w[%d] exceed mode hdisplay[%d]\n",
 			  vp->id, win->name, dst->x1, dsp_w, adjusted_mode->hdisplay);
@@ -3803,7 +3805,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		afbc_tile_num = ALIGN(actual_w, 16) >> 4;
 
 		/* The right win should have a src  offset in splice mode */
-		afbc_xoffset = (src->x1 >> 16) + splice_pixel_offset;
+		afbc_xoffset = (src->x1 >> 16);
 		/* AFBC pic_vir_width is count by pixel, this is different
 		 * with WIN_VIR_STRIDE.
 		 */
