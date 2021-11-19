@@ -1295,7 +1295,7 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 				continue;
 
 			dev_err_ratelimited(hr_dev->dev,
-					    "Cmdq IO error, opcode = %x, return = %x\n",
+					    "Cmdq IO error, opcode = 0x%x, return = 0x%x.\n",
 					    desc->opcode, desc_ret);
 			ret = -EIO;
 		}
