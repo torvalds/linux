@@ -678,6 +678,7 @@ static void hns_roce_write512(struct hns_roce_dev *hr_dev, u64 *val,
 static void write_dwqe(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 		       void *wqe)
 {
+#define HNS_ROCE_SL_SHIFT 2
 	struct hns_roce_v2_rc_send_wqe *rc_sq_wqe = wqe;
 
 	/* All kinds of DirectWQE have the same header field layout */
@@ -685,7 +686,8 @@ static void write_dwqe(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_DB_SL_L_M,
 		       V2_RC_SEND_WQE_BYTE_4_DB_SL_L_S, qp->sl);
 	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_DB_SL_H_M,
-		       V2_RC_SEND_WQE_BYTE_4_DB_SL_H_S, qp->sl >> 2);
+		       V2_RC_SEND_WQE_BYTE_4_DB_SL_H_S,
+		       qp->sl >> HNS_ROCE_SL_SHIFT);
 	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_M,
 		       V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_S, qp->sq.head);
 
