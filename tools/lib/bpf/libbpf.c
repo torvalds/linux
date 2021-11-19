@@ -8315,12 +8315,12 @@ __u32 bpf_program__flags(const struct bpf_program *prog)
 	return prog->prog_flags;
 }
 
-int bpf_program__set_extra_flags(struct bpf_program *prog, __u32 extra_flags)
+int bpf_program__set_flags(struct bpf_program *prog, __u32 flags)
 {
 	if (prog->obj->loaded)
 		return libbpf_err(-EBUSY);
 
-	prog->prog_flags |= extra_flags;
+	prog->prog_flags = flags;
 	return 0;
 }
 

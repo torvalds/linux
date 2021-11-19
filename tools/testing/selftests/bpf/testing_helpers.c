@@ -91,6 +91,7 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 	struct bpf_object_load_attr attr = {};
 	struct bpf_object *obj;
 	struct bpf_program *prog;
+	__u32 flags;
 	int err;
 
 	obj = bpf_object__open(file);
@@ -106,7 +107,8 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 	if (type != BPF_PROG_TYPE_UNSPEC)
 		bpf_program__set_type(prog, type);
 
-	bpf_program__set_extra_flags(prog, BPF_F_TEST_RND_HI32);
+	flags = bpf_program__flags(prog) | BPF_F_TEST_RND_HI32;
+	bpf_program__set_flags(prog, flags);
 
 	attr.obj = obj;
 	attr.log_level = extra_prog_load_log_flags;

@@ -400,7 +400,7 @@ LIBBPF_0.6.0 {
 		bpf_program__flags;
 		bpf_program__insn_cnt;
 		bpf_program__insns;
-		bpf_program__set_extra_flags;
+		bpf_program__set_flags;
 		btf__add_btf;
 		btf__add_decl_tag;
 		btf__add_type_tag;
