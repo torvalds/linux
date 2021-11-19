@@ -49,6 +49,18 @@
 		pinctrl-0 = <&typec5v_pwren>;
 	};
 
+	vcc3v3_au5426: vcc3v3-au5426 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_au5426";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-boot-on;
+		gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
 	vcc3v3_lcd_n: vcc3v3-lcd0-n {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_lcd0_n";
