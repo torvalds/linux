@@ -1,24 +1,27 @@
 # SPDX-License-Identifier: GPL-2.0
+
+obj-$(CONFIG_SUNXI_CCU)		+= sunxi-ccu.o
+
 # Common objects
-obj-y				+= ccu_common.o
-obj-y				+= ccu_mmc_timing.o
-obj-y				+= ccu_reset.o
+sunxi-ccu-y			+= ccu_common.o
+sunxi-ccu-y			+= ccu_mmc_timing.o
+sunxi-ccu-y			+= ccu_reset.o
 
 # Base clock types
-obj-y				+= ccu_div.o
-obj-y				+= ccu_frac.o
-obj-y				+= ccu_gate.o
-obj-y				+= ccu_mux.o
-obj-y				+= ccu_mult.o
-obj-y				+= ccu_phase.o
-obj-y				+= ccu_sdm.o
+sunxi-ccu-y			+= ccu_div.o
+sunxi-ccu-y			+= ccu_frac.o
+sunxi-ccu-y			+= ccu_gate.o
+sunxi-ccu-y			+= ccu_mux.o
+sunxi-ccu-y			+= ccu_mult.o
+sunxi-ccu-y			+= ccu_phase.o
+sunxi-ccu-y			+= ccu_sdm.o
 
 # Multi-factor clocks
-obj-y				+= ccu_nk.o
-obj-y				+= ccu_nkm.o
-obj-y				+= ccu_nkmp.o
-obj-y				+= ccu_nm.o
-obj-y				+= ccu_mp.o
+sunxi-ccu-y			+= ccu_nk.o
+sunxi-ccu-y			+= ccu_nkm.o
+sunxi-ccu-y			+= ccu_nkmp.o
+sunxi-ccu-y			+= ccu_nm.o
+sunxi-ccu-y			+= ccu_mp.o
 
 # SoC support
 obj-$(CONFIG_SUNIV_F1C100S_CCU)	+= suniv-f1c100s-ccu.o

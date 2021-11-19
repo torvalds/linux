@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config SUNXI_CCU
-	bool "Clock support for Allwinner SoCs"
+	tristate "Clock support for Allwinner SoCs"
 	depends on ARCH_SUNXI || COMPILE_TEST
 	select RESET_CONTROLLER
 	default ARCH_SUNXI
@@ -52,6 +52,7 @@ config SUN5I_CCU
 	bool "Support for the Allwinner sun5i family CCM"
 	default MACH_SUN5I
 	depends on MACH_SUN5I || COMPILE_TEST
+	depends on SUNXI_CCU=y
 
 config SUN6I_A31_CCU
 	tristate "Support for the Allwinner A31/A31s CCU"
