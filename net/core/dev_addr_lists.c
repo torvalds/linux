@@ -513,7 +513,6 @@ void dev_addr_flush(struct net_device *dev)
 	__hw_addr_flush(&dev->dev_addrs);
 	dev->dev_addr = NULL;
 }
-EXPORT_SYMBOL(dev_addr_flush);
 
 /**
  *	dev_addr_init - Init device address list
@@ -547,7 +546,6 @@ int dev_addr_init(struct net_device *dev)
 	}
 	return err;
 }
-EXPORT_SYMBOL(dev_addr_init);
 
 void dev_addr_mod(struct net_device *dev, unsigned int offset,
 		  const void *addr, size_t len)
