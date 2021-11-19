@@ -21,6 +21,7 @@ properties:
           - nvidia,tegra210-efuse
           - nvidia,tegra186-efuse
           - nvidia,tegra194-efuse
+          - nvidia,tegra234-efuse
 
       - items:
           - const: nvidia,tegra132-efuse
