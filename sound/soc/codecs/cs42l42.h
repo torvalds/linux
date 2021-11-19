@@ -12,6 +12,7 @@
 #ifndef __CS42L42_H__
 #define __CS42L42_H__
 
+#include <linux/mutex.h>
 #include <sound/jack.h>
 
 #define CS42L42_PAGE_REGISTER	0x00	/* Page Select Register */
@@ -841,6 +842,7 @@ struct  cs42l42_private {
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;
 	struct snd_soc_jack *jack;
+	struct mutex jack_detect_mutex;
 	int pll_config;
 	int bclk;
 	u32 sclk;
