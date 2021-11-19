@@ -224,6 +224,17 @@
 			riscv,ndev = <136>;
 		};
 
+                wdog: wdog@13070000 {
+                        compatible = "starfive,dskit-wdt";
+                        reg = <0x0 0x13070000 0x0 0x10000>;
+                        interrupt-parent = <&plic>;
+                        interrupts = <68>;
+                        interrupt-names = "wdog";
+                        clock-frequency = <2000000>;
+			timeout-sec = <15>;
+                        status = "okay";
+                };
+
 		rtc: rtc@17040000 {
 			compatible = "starfive,rtc_hms";
 			reg = <0x0 0x17040000 0x0 0x10000>;
