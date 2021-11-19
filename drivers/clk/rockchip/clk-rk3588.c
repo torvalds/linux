@@ -2366,9 +2366,9 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE(CLK_USB2PHY_HDPTXRXPHY_REF, "clk_usb2phy_hdptxrxphy_ref", mux_24m_ppll_p, CLK_IS_CRITICAL,
 			RK3588_PMU_CLKSEL_CON(14), 14, 1, MFLAGS, 9, 5, DFLAGS,
 			RK3588_PMU_CLKGATE_CON(4), 7, GFLAGS),
-	COMPOSITE(CLK_USBDPPHY_MIPIDCPPHY_REF, "clk_usbdpphy_mipidcpphy_ref", mux_24m_ppll_p, CLK_IS_CRITICAL,
-			RK3588_PMU_CLKSEL_CON(9), 10, 1, MFLAGS, 5, 5, DFLAGS,
-			RK3588_PMU_CLKGATE_CON(3), 5, GFLAGS),
+	COMPOSITE(CLK_USBDPPHY_MIPIDCPPHY_REF, "clk_usbdpphy_mipidcpphy_ref", mux_24m_ppll_spll_p, CLK_IS_CRITICAL,
+			RK3588_PMU_CLKSEL_CON(14), 7, 2, MFLAGS, 0, 7, DFLAGS,
+			RK3588_PMU_CLKGATE_CON(4), 3, GFLAGS),
 };
 
 static void __iomem *rk3588_cru_base;
