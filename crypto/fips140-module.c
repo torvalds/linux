@@ -388,6 +388,8 @@ static bool __init check_fips140_module_hmac(void)
 				  offset_to_ptr(&fips140_rela_rodata.offset),
 				  fips140_rela_rodata.count);
 
+	fips140_inject_integrity_failure(textcopy);
+
 	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
 	if (IS_ERR(tfm)) {
 		pr_err("failed to allocate hmac tfm (%ld)\n", PTR_ERR(tfm));
