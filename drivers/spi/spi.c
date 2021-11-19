@@ -315,11 +315,10 @@ static void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
  * and the sysfs version makes coldplug work too.
  */
 
-static const struct spi_device_id *spi_match_id(const struct spi_device_id *id,
-						const struct spi_device *sdev)
+static const struct spi_device_id *spi_match_id(const struct spi_device_id *id, const char *name)
 {
 	while (id->name[0]) {
-		if (!strcmp(sdev->modalias, id->name))
+		if (!strcmp(name, id->name))
 			return id;
 		id++;
 	}
@@ -330,7 +329,7 @@ const struct spi_device_id *spi_get_device_id(const struct spi_device *sdev)
 {
 	const struct spi_driver *sdrv = to_spi_driver(sdev->dev.driver);
 
-	return spi_match_id(sdrv->id_table, sdev);
+	return spi_match_id(sdrv->id_table, sdev->modalias);
 }
 EXPORT_SYMBOL_GPL(spi_get_device_id);
 
@@ -352,7 +351,7 @@ static int spi_match_device(struct device *dev, struct device_driver *drv)
 		return 1;
 
 	if (sdrv->id_table)
-		return !!spi_match_id(sdrv->id_table, spi);
+		return !!spi_match_id(sdrv->id_table, spi->modalias);
 
 	return strcmp(spi->modalias, drv->name) == 0;
 }
@@ -474,12 +473,8 @@ int __spi_register_driver(struct module *owner, struct spi_driver *sdrv)
 			if (sdrv->id_table) {
 				const struct spi_device_id *spi_id;
 
-				for (spi_id = sdrv->id_table; spi_id->name[0];
-				     spi_id++)
-					if (strcmp(spi_id->name, of_name) == 0)
-						break;
-
-				if (spi_id->name[0])
+				spi_id = spi_match_id(sdrv->id_table, of_name);
+				if (!spi_id)
 					continue;
 			} else {
 				if (strcmp(sdrv->driver.name, of_name) == 0)
