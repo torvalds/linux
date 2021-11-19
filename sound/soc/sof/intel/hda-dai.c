@@ -182,24 +182,6 @@ static struct sof_ipc_dai_config *hda_dai_update_config(struct snd_soc_dapm_widg
 	return config;
 }
 
-static int hda_link_config_ipc(struct sof_intel_hda_stream *hda_stream,
-			       struct snd_soc_dapm_widget *w, int channel)
-{
-	struct snd_sof_dev *sdev = hda_stream->sdev;
-	struct sof_ipc_dai_config *config;
-	struct sof_ipc_reply reply;
-
-	config = hda_dai_update_config(w, channel);
-	if (!config) {
-		dev_err(sdev->dev, "error: no config for DAI %s\n", w->name);
-		return -ENOENT;
-	}
-
-	/* send DAI_CONFIG IPC */
-	return sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
-				  &reply, sizeof(reply));
-}
-
 static int hda_link_dai_widget_update(struct sof_intel_hda_stream *hda_stream,
 				      struct snd_soc_dapm_widget *w,
 				      int channel, bool widget_setup)
@@ -353,10 +335,9 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 			w = dai->capture_widget;
 
 		/*
-		 * clear link DMA channel. It will be assigned when
-		 * hw_params is set up again after resume.
+		 * free DAI widget during stop/suspend to keep widget use_count's balanced.
 		 */
-		ret = hda_link_config_ipc(hda_stream, w, DMA_CHAN_INVALID);
+		ret = hda_link_dai_widget_update(hda_stream, w, DMA_CHAN_INVALID, false);
 		if (ret < 0)
 			return ret;
 
