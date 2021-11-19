@@ -654,6 +654,12 @@ rtw89_phy_cofig_rf_reg_store(struct rtw89_dev *rtwdev,
 	u16 idx = info->curr_idx % RTW89_H2C_RF_PAGE_SIZE;
 	u8 page = info->curr_idx / RTW89_H2C_RF_PAGE_SIZE;
 
+	if (page >= RTW89_H2C_RF_PAGE_NUM) {
+		rtw89_warn(rtwdev, "RF parameters exceed size. path=%d, idx=%d",
+			   rf_path, info->curr_idx);
+		return;
+	}
+
 	info->rtw89_phy_config_rf_h2c[page][idx] =
 		cpu_to_le32((reg->addr << 20) | reg->data);
 	info->curr_idx++;
@@ -662,30 +668,29 @@ rtw89_phy_cofig_rf_reg_store(struct rtw89_dev *rtwdev,
 static int rtw89_phy_config_rf_reg_fw(struct rtw89_dev *rtwdev,
 				      struct rtw89_fw_h2c_rf_reg_info *info)
 {
-	u16 page = info->curr_idx / RTW89_H2C_RF_PAGE_SIZE;
-	u16 len = (info->curr_idx % RTW89_H2C_RF_PAGE_SIZE) * 4;
+	u16 remain = info->curr_idx;
+	u16 len = 0;
 	u8 i;
 	int ret = 0;
 
-	if (page > RTW89_H2C_RF_PAGE_NUM) {
+	if (remain > RTW89_H2C_RF_PAGE_NUM * RTW89_H2C_RF_PAGE_SIZE) {
 		rtw89_warn(rtwdev,
-			   "rf reg h2c total page num %d larger than %d (RTW89_H2C_RF_PAGE_NUM)\n",
-			   page, RTW89_H2C_RF_PAGE_NUM);
-		return -EINVAL;
+			   "rf reg h2c total len %d larger than %d\n",
+			   remain, RTW89_H2C_RF_PAGE_NUM * RTW89_H2C_RF_PAGE_SIZE);
+		ret = -EINVAL;
+		goto out;
 	}
 
-	for (i = 0; i < page; i++) {
-		ret = rtw89_fw_h2c_rf_reg(rtwdev, info,
-					  RTW89_H2C_RF_PAGE_SIZE * 4, i);
+	for (i = 0; i < RTW89_H2C_RF_PAGE_NUM && remain; i++, remain -= len) {
+		len = remain > RTW89_H2C_RF_PAGE_SIZE ? RTW89_H2C_RF_PAGE_SIZE : remain;
+		ret = rtw89_fw_h2c_rf_reg(rtwdev, info, len * 4, i);
 		if (ret)
-			return ret;
+			goto out;
 	}
-	ret = rtw89_fw_h2c_rf_reg(rtwdev, info, len, i);
-	if (ret)
-		return ret;
+out:
 	info->curr_idx = 0;
 
-	return 0;
+	return ret;
 }
 
 static void rtw89_phy_config_rf_reg(struct rtw89_dev *rtwdev,
