@@ -752,7 +752,13 @@ static int gfx_v9_4_3_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 
 	ring->ring_obj = NULL;
 	ring->use_doorbell = true;
-	ring->doorbell_index = (adev->doorbell_index.mec_ring0 + ring_id) << 1;
+	if (xcc_id >= 1)
+		ring->doorbell_index =
+				(adev->doorbell_index.xcc1_mec_ring0_start +
+				ring_id - adev->gfx.num_compute_rings) << 1;
+	else
+		ring->doorbell_index =
+				(adev->doorbell_index.mec_ring0 + ring_id) << 1;
 	ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr
 				+ (ring_id * GFX9_MEC_HPD_SIZE);
 	ring->vm_hub = AMDGPU_GFXHUB_0;
