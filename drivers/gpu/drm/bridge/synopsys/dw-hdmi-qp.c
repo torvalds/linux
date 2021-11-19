@@ -287,6 +287,10 @@ struct dw_hdmi_qp {
 	struct cec_notifier *cec_notifier;
 	struct cec_adapter *cec_adap;
 	struct mutex cec_notifier_mutex;
+
+	hdmi_codec_plugged_cb plugged_cb;
+	struct device *codec_dev;
+	enum drm_connector_status last_connector_result;
 };
 
 static inline void hdmi_writel(struct dw_hdmi_qp *hdmi, u32 val, int offset)
@@ -302,6 +306,28 @@ static inline u32 hdmi_readl(struct dw_hdmi_qp *hdmi, int offset)
 
 	return val;
 }
+
+static void handle_plugged_change(struct dw_hdmi_qp *hdmi, bool plugged)
+{
+	if (hdmi->plugged_cb && hdmi->codec_dev)
+		hdmi->plugged_cb(hdmi->codec_dev, plugged);
+}
+
+int dw_hdmi_qp_set_plugged_cb(struct dw_hdmi_qp *hdmi, hdmi_codec_plugged_cb fn,
+			      struct device *codec_dev)
+{
+	bool plugged;
+
+	mutex_lock(&hdmi->mutex);
+	hdmi->plugged_cb = fn;
+	hdmi->codec_dev = codec_dev;
+	plugged = hdmi->last_connector_result == connector_status_connected;
+	handle_plugged_change(hdmi, plugged);
+	mutex_unlock(&hdmi->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_plugged_cb);
 
 static void hdmi_modb(struct dw_hdmi_qp *hdmi, u32 data, u32 mask, u32 reg)
 {
@@ -1472,19 +1498,27 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct dw_hdmi_qp *hdmi =
 		container_of(connector, struct dw_hdmi_qp, connector);
-	int connect_status;
+	enum drm_connector_status result;
 
 	mutex_lock(&hdmi->mutex);
 	hdmi->force = DRM_FORCE_UNSPECIFIED;
 	mutex_unlock(&hdmi->mutex);
 
-	connect_status = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
-	if (connect_status == connector_status_connected)
+	result = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+	if (result == connector_status_connected)
 		extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, true);
 	else
 		extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, false);
 
-	return connect_status;
+	mutex_lock(&hdmi->mutex);
+	if (result != hdmi->last_connector_result) {
+		dev_dbg(hdmi->dev, "read_hpd result: %d", result);
+		handle_plugged_change(hdmi,
+				result == connector_status_connected);
+		hdmi->last_connector_result = result;
+	}
+	mutex_unlock(&hdmi->mutex);
+	return result;
 }
 
 static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
