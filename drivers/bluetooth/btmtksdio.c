@@ -324,8 +324,29 @@ err_out:
 	return err;
 }
 
+static int btmtksdio_recv_acl(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+	u16 handle = le16_to_cpu(hci_acl_hdr(skb)->handle);
+
+	switch (handle) {
+	case 0xfc6f:
+		/* Firmware dump from device: when the firmware hangs, the
+		 * device can no longer suspend and thus disable auto-suspend.
+		 */
+		pm_runtime_forbid(bdev->dev);
+		fallthrough;
+	case 0x05ff:
+	case 0x05fe:
+		/* Firmware debug logging */
+		return hci_recv_diag(hdev, skb);
+	}
+
+	return hci_recv_frame(hdev, skb);
+}
+
 static const struct h4_recv_pkt mtk_recv_pkts[] = {
-	{ H4_RECV_ACL,      .recv = hci_recv_frame },
+	{ H4_RECV_ACL,      .recv = btmtksdio_recv_acl },
 	{ H4_RECV_SCO,      .recv = hci_recv_frame },
 	{ H4_RECV_EVENT,    .recv = btmtksdio_recv_event },
 };
