@@ -338,11 +338,6 @@ int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 				nfp_flow->meta.mask_len,
 				&nfp_flow->meta.flags, &new_mask_id)) {
 		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot allocate a new mask id");
-		if (nfp_release_stats_entry(app, stats_cxt)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release stats context");
-			err = -EINVAL;
-			goto err_remove_rhash;
-		}
 		err = -ENOENT;
 		goto err_remove_rhash;
 	}
@@ -359,21 +354,6 @@ int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 	check_entry = nfp_flower_search_fl_table(app, cookie, netdev);
 	if (check_entry) {
 		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot offload duplicate flow entry");
-		if (nfp_release_stats_entry(app, stats_cxt)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release stats context");
-			err = -EINVAL;
-			goto err_remove_mask;
-		}
-
-		if (!nfp_flow->pre_tun_rule.dev &&
-		    !nfp_check_mask_remove(app, nfp_flow->mask_data,
-					   nfp_flow->meta.mask_len,
-					   NULL, &new_mask_id)) {
-			NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot release mask id");
-			err = -EINVAL;
-			goto err_remove_mask;
-		}
-
 		err = -EEXIST;
 		goto err_remove_mask;
 	}
