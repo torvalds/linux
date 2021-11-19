@@ -21,6 +21,7 @@ import qemu_config
 
 KCONFIG_PATH = '.config'
 KUNITCONFIG_PATH = '.kunitconfig'
+OLD_KUNITCONFIG_PATH = 'last_used_kunitconfig'
 DEFAULT_KUNITCONFIG_PATH = 'tools/testing/kunit/configs/default.config'
 BROKEN_ALLCONFIG_PATH = 'tools/testing/kunit/configs/broken_on_uml.config'
 OUTFILE_PATH = 'test.log'
@@ -179,6 +180,9 @@ def get_kconfig_path(build_dir) -> str:
 def get_kunitconfig_path(build_dir) -> str:
 	return get_file_path(build_dir, KUNITCONFIG_PATH)
 
+def get_old_kunitconfig_path(build_dir) -> str:
+	return get_file_path(build_dir, OLD_KUNITCONFIG_PATH)
+
 def get_outfile_path(build_dir) -> str:
 	return get_file_path(build_dir, OUTFILE_PATH)
 
@@ -289,23 +293,37 @@ class LinuxSourceTree(object):
 		except ConfigError as e:
 			logging.error(e)
 			return False
-		return self.validate_config(build_dir)
+		if not self.validate_config(build_dir):
+			return False
+
+		old_path = get_old_kunitconfig_path(build_dir)
+		if os.path.exists(old_path):
+			os.remove(old_path)  # write_to_file appends to the file
+		self._kconfig.write_to_file(old_path)
+		return True
+
+	def _kunitconfig_changed(self, build_dir: str) -> bool:
+		old_path = get_old_kunitconfig_path(build_dir)
+		if not os.path.exists(old_path):
+			return True
+
+		old_kconfig = kunit_config.parse_file(old_path)
+		return old_kconfig.entries() != self._kconfig.entries()
 
 	def build_reconfig(self, build_dir, make_options) -> bool:
 		"""Creates a new .config if it is not a subset of the .kunitconfig."""
 		kconfig_path = get_kconfig_path(build_dir)
-		if os.path.exists(kconfig_path):
-			existing_kconfig = kunit_config.parse_file(kconfig_path)
-			self._ops.make_arch_qemuconfig(self._kconfig)
-			if not self._kconfig.is_subset_of(existing_kconfig):
-				print('Regenerating .config ...')
-				os.remove(kconfig_path)
-				return self.build_config(build_dir, make_options)
-			else:
-				return True
-		else:
+		if not os.path.exists(kconfig_path):
 			print('Generating .config ...')
 			return self.build_config(build_dir, make_options)
+
+		existing_kconfig = kunit_config.parse_file(kconfig_path)
+		self._ops.make_arch_qemuconfig(self._kconfig)
+		if self._kconfig.is_subset_of(existing_kconfig) and not self._kunitconfig_changed(build_dir):
+			return True
+		print('Regenerating .config ...')
+		os.remove(kconfig_path)
+		return self.build_config(build_dir, make_options)
 
 	def build_kernel(self, alltests, jobs, build_dir, make_options) -> bool:
 		try:
