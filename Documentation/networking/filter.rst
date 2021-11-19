@@ -1232,9 +1232,9 @@ pointer type.  The types of pointers describe their base, as follows:
 			Pointer to the value stored in a map element.
     PTR_TO_MAP_VALUE_OR_NULL
 			Either a pointer to a map value, or NULL; map accesses
-			(see section 'eBPF maps', below) return this type,
-			which becomes a PTR_TO_MAP_VALUE when checked != NULL.
-			Arithmetic on these pointers is forbidden.
+			(see maps.rst) return this type, which becomes a
+			a PTR_TO_MAP_VALUE when checked != NULL. Arithmetic on
+			these pointers is forbidden.
     PTR_TO_STACK
 			Frame pointer.
     PTR_TO_PACKET
@@ -1401,47 +1401,6 @@ using normal C code as::
 
 which makes such programs easier to write comparing to LD_ABS insn
 and significantly faster.
-
-eBPF maps
----------
-'maps' is a generic storage of different types for sharing data between kernel
-and userspace.
-
-The maps are accessed from user space via BPF syscall, which has commands:
-
-- create a map with given type and attributes
-  ``map_fd = bpf(BPF_MAP_CREATE, union bpf_attr *attr, u32 size)``
-  using attr->map_type, attr->key_size, attr->value_size, attr->max_entries
-  returns process-local file descriptor or negative error
-
-- lookup key in a given map
-  ``err = bpf(BPF_MAP_LOOKUP_ELEM, union bpf_attr *attr, u32 size)``
-  using attr->map_fd, attr->key, attr->value
-  returns zero and stores found elem into value or negative error
-
-- create or update key/value pair in a given map
-  ``err = bpf(BPF_MAP_UPDATE_ELEM, union bpf_attr *attr, u32 size)``
-  using attr->map_fd, attr->key, attr->value
-  returns zero or negative error
-
-- find and delete element by key in a given map
-  ``err = bpf(BPF_MAP_DELETE_ELEM, union bpf_attr *attr, u32 size)``
-  using attr->map_fd, attr->key
-
-- to delete map: close(fd)
-  Exiting process will delete maps automatically
-
-userspace programs use this syscall to create/access maps that eBPF programs
-are concurrently updating.
-
-maps can have different types: hash, array, bloom filter, radix-tree, etc.
-
-The map is defined by:
-
-  - type
-  - max number of elements
-  - key size in bytes
-  - value size in bytes
 
 Pruning
 -------
