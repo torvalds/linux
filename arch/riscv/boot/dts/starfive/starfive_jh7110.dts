@@ -216,6 +216,18 @@
 			riscv,ndev = <136>;
 		};
 
+		rtc: rtc@17040000 {
+			compatible = "starfive,rtc_hms";
+			reg = <0x0 0x17040000 0x0 0x10000>;
+			interrupt-parent = <&plic>;
+			interrupts = <10>, <11>, <12>;
+			interrupt-names = "rtc_ms_pulse", "rtc_sec_pulse", "rtc";
+			clocks = <&rtc_hmsclk>, <&oscclk>;
+			clock-names = "pclk", "cal_clk";
+			rtc,cal-clock-freq = <1000000>;
+			status = "okay";
+		};
+
 		uart0: serial@10000000 {
 			compatible = "snps,dw-apb-uart";
 			interrupt-parent = <&plic>;

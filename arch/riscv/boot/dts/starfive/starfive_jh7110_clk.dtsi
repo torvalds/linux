@@ -30,6 +30,11 @@
 		clock-frequency = <4000000>;
 		clock-output-names = "rtcclk";
 	};
+	rtc_hmsclk: rtc_hmsclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+	};
 	perh_rootclk: perh_rootclk {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
