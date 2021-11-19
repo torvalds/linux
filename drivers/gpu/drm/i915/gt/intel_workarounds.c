@@ -1869,7 +1869,11 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 				  RING_FORCE_TO_NONPRIV_ACCESS_RD |
 				  RING_FORCE_TO_NONPRIV_RANGE_4);
 
-		/* Wa_1808121037:tgl */
+		/*
+		 * Wa_1808121037:tgl
+		 * Wa_14012131227:dg1
+		 * Wa_1508744258:tgl,rkl,dg1,adl-s,adl-p
+		 */
 		whitelist_reg(w, GEN7_COMMON_SLICE_CHICKEN1);
 
 		/* Wa_1806527549:tgl */
