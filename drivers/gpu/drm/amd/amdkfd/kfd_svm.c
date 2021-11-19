@@ -1957,9 +1957,15 @@ static void svm_range_drain_retry_fault(struct svm_range_list *svms)
 {
 	struct kfd_process_device *pdd;
 	struct kfd_process *p;
+	int drain;
 	uint32_t i;
 
 	p = container_of(svms, struct kfd_process, svms);
+
+restart:
+	drain = atomic_read(&svms->drain_pagefaults);
+	if (!drain)
+		return;
 
 	for_each_set_bit(i, svms->bitmap_supported, p->n_pdds) {
 		pdd = p->pdds[i];
@@ -1972,6 +1978,8 @@ static void svm_range_drain_retry_fault(struct svm_range_list *svms)
 						     &pdd->dev->adev->irq.ih1);
 		pr_debug("drain retry fault gpu %d svms 0x%p done\n", i, svms);
 	}
+	if (atomic_cmpxchg(&svms->drain_pagefaults, drain, 0) != drain)
+		goto restart;
 }
 
 static void svm_range_deferred_list_work(struct work_struct *work)
@@ -1997,8 +2005,7 @@ retry:
 	/* Checking for the need to drain retry faults must be inside
 	 * mmap write lock to serialize with munmap notifiers.
 	 */
-	if (unlikely(READ_ONCE(svms->drain_pagefaults))) {
-		WRITE_ONCE(svms->drain_pagefaults, false);
+	if (unlikely(atomic_read(&svms->drain_pagefaults))) {
 		mmap_write_unlock(mm);
 		svm_range_drain_retry_fault(svms);
 		goto retry;
@@ -2045,12 +2052,6 @@ svm_range_add_list_work(struct svm_range_list *svms, struct svm_range *prange,
 			struct mm_struct *mm, enum svm_work_list_ops op)
 {
 	spin_lock(&svms->deferred_list_lock);
-	/* Make sure pending page faults are drained in the deferred worker
-	 * before the range is freed to avoid straggler interrupts on
-	 * unmapped memory causing "phantom faults".
-	 */
-	if (op == SVM_OP_UNMAP_RANGE)
-		svms->drain_pagefaults = true;
 	/* if prange is on the deferred list */
 	if (!list_empty(&prange->deferred_list)) {
 		pr_debug("update exist prange 0x%p work op %d\n", prange, op);
@@ -2128,6 +2129,12 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 
 	pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx] [0x%lx 0x%lx]\n", svms,
 		 prange, prange->start, prange->last, start, last);
+
+	/* Make sure pending page faults are drained in the deferred worker
+	 * before the range is freed to avoid straggler interrupts on
+	 * unmapped memory causing "phantom faults".
+	 */
+	atomic_inc(&svms->drain_pagefaults);
 
 	unmap_parent = start <= prange->start && last >= prange->last;
 
@@ -2594,6 +2601,11 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 
 	pr_debug("restoring svms 0x%p fault address 0x%llx\n", svms, addr);
 
+	if (atomic_read(&svms->drain_pagefaults)) {
+		pr_debug("draining retry fault, drop fault 0x%llx\n", addr);
+		goto out;
+	}
+
 	/* p->lead_thread is available as kfd_process_wq_release flush the work
 	 * before releasing task ref.
 	 */
@@ -2740,6 +2752,7 @@ void svm_range_list_fini(struct kfd_process *p)
 	 * Ensure no retry fault comes in afterwards, as page fault handler will
 	 * not find kfd process and take mm lock to recover fault.
 	 */
+	atomic_inc(&p->svms.drain_pagefaults);
 	svm_range_drain_retry_fault(&p->svms);
 
 
@@ -2763,6 +2776,7 @@ int svm_range_list_init(struct kfd_process *p)
 	mutex_init(&svms->lock);
 	INIT_LIST_HEAD(&svms->list);
 	atomic_set(&svms->evicted_ranges, 0);
+	atomic_set(&svms->drain_pagefaults, 0);
 	INIT_DELAYED_WORK(&svms->restore_work, svm_range_restore_work);
 	INIT_WORK(&svms->deferred_list_work, svm_range_deferred_list_work);
 	INIT_LIST_HEAD(&svms->deferred_range_list);
