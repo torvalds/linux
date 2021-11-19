@@ -5122,10 +5122,17 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	if (!if_dclk && (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA ||
 	    vcstate->output_type == DRM_MODE_CONNECTOR_eDP))
 		return -EINVAL;
+	if ((vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) &&
+	    (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)) {
+		DRM_DEV_ERROR(vop2->dev, "Dual channel and YUV420 can't work together\n");
+		return -EINVAL;
+	}
+
+	if ((vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) ||
+	    (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420))
+		K = 2;
 
 	if (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA) {
-		if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)
-			K = 2;
 		if (vcstate->dsc_enable) {
 			hdmi_edp_pixclk = vcstate->dsc_cds_clk_rate << 1;
 			hdmi_edp_dclk = vcstate->dsc_cds_clk_rate;
@@ -5137,8 +5144,6 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 		if_pixclk->rate = hdmi_edp_pixclk;
 		if_dclk->rate = hdmi_edp_dclk;
 	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_eDP) {
-		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)
-			K = 2;
 		hdmi_edp_pixclk = v_pixclk;
 		do_div(hdmi_edp_pixclk, K);
 		hdmi_edp_dclk = hdmi_edp_pixclk;
@@ -5150,10 +5155,8 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 			dclk_out_rate = v_pixclk >> 3;
 		else
 			dclk_out_rate = v_pixclk >> 2;
-		if_pixclk->rate = dclk_out_rate;
+		if_pixclk->rate = dclk_out_rate / K;
 	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_DSI) {
-		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)
-			K = 2;
 		if (vcstate->dsc_enable) {
 			dclk_out_rate = dclk_core_rate / K;
 			/* dsc output is 96bit, dsi input is 192 bit */
