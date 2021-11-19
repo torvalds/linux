@@ -188,6 +188,7 @@ struct dc_link {
 
 	/* Vendor specific LTTPR workaround variables */
 	uint8_t vendor_specific_lttpr_link_rate_wa;
+	bool apply_vendor_specific_lttpr_link_rate_wa;
 
 	/* MST record stream using this link */
 	struct link_flags {

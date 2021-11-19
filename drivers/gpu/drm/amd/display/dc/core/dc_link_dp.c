@@ -444,24 +444,26 @@ static void vendor_specific_lttpr_wa_one_two(
 	struct dc_link *link,
 	const uint8_t rate)
 {
-	uint8_t toggle_rate = 0x0;
+	if (link->apply_vendor_specific_lttpr_link_rate_wa) {
+		uint8_t toggle_rate = 0x0;
 
-	if (rate == 0x6)
-		toggle_rate = 0xA;
-	else
-		toggle_rate = 0x6;
+		if (rate == 0x6)
+			toggle_rate = 0xA;
+		else
+			toggle_rate = 0x6;
 
-	if (link->vendor_specific_lttpr_link_rate_wa == rate) {
-		/* W/A for certain LTTPR to reset internal state for link training */
-		core_link_write_dpcd(
-				link,
-				DP_LINK_BW_SET,
-				&toggle_rate,
-				1);
+		if (link->vendor_specific_lttpr_link_rate_wa == rate) {
+			/* W/A for certain LTTPR to reset internal state for link training */
+			core_link_write_dpcd(
+					link,
+					DP_LINK_BW_SET,
+					&toggle_rate,
+					1);
+		}
+
+		/* Store the last attempted link rate for this link */
+		link->vendor_specific_lttpr_link_rate_wa = rate;
 	}
-
-	/* Store the last attempted link rate for this link */
-	link->vendor_specific_lttpr_link_rate_wa = rate;
 }
 
 static void vendor_specific_lttpr_wa_three(
@@ -2383,10 +2385,12 @@ enum link_training_result dc_link_dp_perform_link_training(
 	/* reset previous training states */
 	if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
 			(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
-			link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
+			link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+		link->apply_vendor_specific_lttpr_link_rate_wa = true;
 		vendor_specific_lttpr_wa_four(link, true);
-	else
+	} else {
 		dpcd_exit_training_mode(link);
+	}
 
 	/* configure link prior to entering training mode */
 	dpcd_configure_lttpr_mode(link, &lt_settings);
@@ -2409,10 +2413,12 @@ enum link_training_result dc_link_dp_perform_link_training(
 	/* exit training mode */
 	if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
 			(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
-			link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
+			link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+		link->apply_vendor_specific_lttpr_link_rate_wa = false;
 		vendor_specific_lttpr_wa_four(link, (status != LINK_TRAINING_SUCCESS));
-	else
+	} else {
 		dpcd_exit_training_mode(link);
+	}
 
 	/* switch to video idle */
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern)
