@@ -13,22 +13,22 @@ config SUNIV_F1C100S_CCU
 	depends on MACH_SUNIV || COMPILE_TEST
 
 config SUN50I_A64_CCU
-	bool "Support for the Allwinner A64 CCU"
+	tristate "Support for the Allwinner A64 CCU"
 	default ARM64 && ARCH_SUNXI
 	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 
 config SUN50I_A100_CCU
-	bool "Support for the Allwinner A100 CCU"
+	tristate "Support for the Allwinner A100 CCU"
 	default ARM64 && ARCH_SUNXI
 	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 
 config SUN50I_A100_R_CCU
-	bool "Support for the Allwinner A100 PRCM CCU"
+	tristate "Support for the Allwinner A100 PRCM CCU"
 	default ARM64 && ARCH_SUNXI
 	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 
 config SUN50I_H6_CCU
-	bool "Support for the Allwinner H6 CCU"
+	tristate "Support for the Allwinner H6 CCU"
 	default ARM64 && ARCH_SUNXI
 	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 
@@ -69,7 +69,7 @@ config SUN8I_A33_CCU
 	depends on MACH_SUN8I || COMPILE_TEST
 
 config SUN8I_A83T_CCU
-	bool "Support for the Allwinner A83T CCU"
+	tristate "Support for the Allwinner A83T CCU"
 	default MACH_SUN8I
 	depends on MACH_SUN8I || COMPILE_TEST
 
@@ -84,16 +84,16 @@ config SUN8I_V3S_CCU
 	depends on MACH_SUN8I || COMPILE_TEST
 
 config SUN8I_DE2_CCU
-	bool "Support for the Allwinner SoCs DE2 CCU"
+	tristate "Support for the Allwinner SoCs DE2 CCU"
 	default MACH_SUN8I || (ARM64 && ARCH_SUNXI)
 
 config SUN8I_R40_CCU
-	bool "Support for the Allwinner R40 CCU"
+	tristate "Support for the Allwinner R40 CCU"
 	default MACH_SUN8I
 	depends on MACH_SUN8I || COMPILE_TEST
 
 config SUN9I_A80_CCU
-	bool "Support for the Allwinner A80 CCU"
+	tristate "Support for the Allwinner A80 CCU"
 	default MACH_SUN9I
 	depends on MACH_SUN9I || COMPILE_TEST
 
