@@ -36,6 +36,7 @@
 #define QL_VND_GET_HOST_STATS		0x24
 #define QL_VND_GET_TGT_STATS		0x25
 #define QL_VND_MANAGE_HOST_PORT		0x26
+#define QL_VND_MBX_PASSTHRU		0x2B
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -187,6 +188,12 @@ struct qla_port_param {
 	uint16_t speed;
 } __attribute__ ((packed));
 
+struct qla_mbx_passthru {
+	uint16_t reserved1[2];
+	uint16_t mbx_in[32];
+	uint16_t mbx_out[32];
+	uint32_t reserved2[16];
+} __packed;
 
 /* FRU VPD */
 

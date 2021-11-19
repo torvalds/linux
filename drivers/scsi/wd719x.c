@@ -200,7 +200,7 @@ static void wd719x_finish_cmd(struct wd719x_scb *scb, int result)
 			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 
 	cmd->result = result << 16;
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 }
 
 /* Build a SCB and send it to the card */
@@ -295,7 +295,7 @@ out_unmap_scb:
 			 DMA_BIDIRECTIONAL);
 out_error:
 	cmd->result = DID_ERROR << 16;
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 	return 0;
 }
 

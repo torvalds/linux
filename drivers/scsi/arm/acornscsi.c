@@ -841,13 +841,10 @@ static void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp,
 		}
 	}
 
-	if (!SCpnt->scsi_done)
-	    panic("scsi%d.H: null scsi_done function in acornscsi_done", host->host->host_no);
-
 	clear_bit(SCpnt->device->id * 8 +
 		  (u8)(SCpnt->device->lun & 0x7), host->busyluns);
 
-	SCpnt->scsi_done(SCpnt);
+	scsi_done(SCpnt);
     } else
 	printk("scsi%d: null command in acornscsi_done", host->host->host_no);
 
@@ -2400,23 +2397,15 @@ acornscsi_intr(int irq, void *dev_id)
  */
 
 /*
- * Function : acornscsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+ * Function : acornscsi_queuecmd(struct scsi_cmnd *cmd)
  * Purpose  : queues a SCSI command
  * Params   : cmd  - SCSI command
- *	      done - function called on completion, with pointer to command descriptor
  * Returns  : 0, or < 0 on error.
  */
-static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
-		       void (*done)(struct scsi_cmnd *))
+static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt)
 {
+    void (*done)(struct scsi_cmnd *) = scsi_done;
     AS_Host *host = (AS_Host *)SCpnt->device->host->hostdata;
-
-    if (!done) {
-	/* there should be some way of rejecting errors like this without panicing... */
-	panic("scsi%d: queuecommand called with NULL done function [cmd=%p]",
-		host->host->host_no, SCpnt);
-	return -EINVAL;
-    }
 
 #if (DEBUG & DEBUG_NO_WRITE)
     if (acornscsi_cmdtype(SCpnt->cmnd[0]) == CMD_WRITE && (NO_WRITE & (1 << SCpnt->device->id))) {
@@ -2428,7 +2417,6 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
     }
 #endif
 
-    SCpnt->scsi_done = done;
     SCpnt->host_scribble = NULL;
     SCpnt->result = 0;
     SCpnt->SCp.phase = (int)acornscsi_datadirection(SCpnt->cmnd[0]);

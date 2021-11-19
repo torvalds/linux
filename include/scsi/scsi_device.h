@@ -225,6 +225,12 @@ struct scsi_device {
 
 	struct device		sdev_gendev,
 				sdev_dev;
+	/*
+	 * The array size 6 provides space for one attribute group for the
+	 * SCSI core, four attribute groups defined by SCSI LLDs and one
+	 * terminating NULL pointer.
+	 */
+	const struct attribute_group *gendev_attr_groups[6];
 
 	struct execute_work	ew; /* used to get process context on put */
 	struct work_struct	requeue_work;

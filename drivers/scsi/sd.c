@@ -110,7 +110,7 @@ static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *);
 static int sd_suspend_system(struct device *);
 static int sd_suspend_runtime(struct device *);
-static int sd_resume(struct device *);
+static int sd_resume_system(struct device *);
 static int sd_resume_runtime(struct device *);
 static void sd_rescan(struct device *);
 static blk_status_t sd_init_command(struct scsi_cmnd *SCpnt);
@@ -603,9 +603,9 @@ static struct class sd_disk_class = {
 
 static const struct dev_pm_ops sd_pm_ops = {
 	.suspend		= sd_suspend_system,
-	.resume			= sd_resume,
+	.resume			= sd_resume_system,
 	.poweroff		= sd_suspend_system,
-	.restore		= sd_resume,
+	.restore		= sd_resume_system,
 	.runtime_suspend	= sd_suspend_runtime,
 	.runtime_resume		= sd_resume_runtime,
 };
@@ -2647,6 +2647,13 @@ sd_do_mode_sense(struct scsi_disk *sdkp, int dbd, int modepage,
 		 unsigned char *buffer, int len, struct scsi_mode_data *data,
 		 struct scsi_sense_hdr *sshdr)
 {
+	/*
+	 * If we must use MODE SENSE(10), make sure that the buffer length
+	 * is at least 8 bytes so that the mode sense header fits.
+	 */
+	if (sdkp->device->use_10_for_ms && len < 8)
+		len = 8;
+
 	return scsi_mode_sense(sdkp->device, dbd, modepage, buffer, len,
 			       SD_TIMEOUT, sdkp->max_retries, data,
 			       sshdr);
@@ -2825,7 +2832,8 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 			}
 		}
 
-		sd_first_printk(KERN_ERR, sdkp, "No Caching mode page found\n");
+		sd_first_printk(KERN_WARNING, sdkp,
+				"No Caching mode page found\n");
 		goto defaults;
 
 	Page_found:
@@ -2880,7 +2888,7 @@ defaults:
 				"Assuming drive cache: write back\n");
 		sdkp->WCE = 1;
 	} else {
-		sd_first_printk(KERN_ERR, sdkp,
+		sd_first_printk(KERN_WARNING, sdkp,
 				"Assuming drive cache: write through\n");
 		sdkp->WCE = 0;
 	}
@@ -3570,7 +3578,13 @@ static int sd_probe(struct device *dev)
 		pm_runtime_set_autosuspend_delay(dev,
 			sdp->host->hostt->rpm_autosuspend_delay);
 	}
-	device_add_disk(dev, gd, NULL);
+
+	error = device_add_disk(dev, gd, NULL);
+	if (error) {
+		put_device(&sdkp->dev);
+		goto out;
+	}
+
 	if (sdkp->capacity)
 		sd_dif_config_host(sdkp);
 
@@ -3618,7 +3632,6 @@ static int sd_remove(struct device *dev)
 	sdkp = dev_get_drvdata(dev);
 	scsi_autopm_get_device(sdkp->device);
 
-	async_synchronize_full_domain(&scsi_sd_pm_domain);
 	device_del(&sdkp->dev);
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);
@@ -3775,6 +3788,9 @@ static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
 
 static int sd_suspend_system(struct device *dev)
 {
+	if (pm_runtime_suspended(dev))
+		return 0;
+
 	return sd_suspend_common(dev, true);
 }
 
@@ -3799,6 +3815,14 @@ static int sd_resume(struct device *dev)
 	if (!ret)
 		opal_unlock_from_suspend(sdkp->opal_dev);
 	return ret;
+}
+
+static int sd_resume_system(struct device *dev)
+{
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return sd_resume(dev);
 }
 
 static int sd_resume_runtime(struct device *dev)
