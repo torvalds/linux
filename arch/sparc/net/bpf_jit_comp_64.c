@@ -227,7 +227,7 @@ static const int bpf2sparc[] = {
 
 	[BPF_REG_AX] = G7,
 
-	/* temporary register for internal BPF JIT */
+	/* temporary register for BPF JIT */
 	[TMP_REG_1] = G1,
 	[TMP_REG_2] = G2,
 	[TMP_REG_3] = G3,

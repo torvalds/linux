@@ -163,7 +163,7 @@ static const s8 bpf2a32[][2] = {
 	[BPF_REG_9] = {STACK_OFFSET(BPF_R9_HI), STACK_OFFSET(BPF_R9_LO)},
 	/* Read only Frame Pointer to access Stack */
 	[BPF_REG_FP] = {STACK_OFFSET(BPF_FP_HI), STACK_OFFSET(BPF_FP_LO)},
-	/* Temporary Register for internal BPF JIT, can be used
+	/* Temporary Register for BPF JIT, can be used
 	 * for constant blindings and others.
 	 */
 	[TMP_REG_1] = {ARM_R7, ARM_R6},

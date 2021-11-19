@@ -617,7 +617,7 @@ format with similar underlying principles from BPF described in previous
 paragraphs is being used. However, the instruction set format is modelled
 closer to the underlying architecture to mimic native instruction sets, so
 that a better performance can be achieved (more details later). This new
-ISA is called 'eBPF' or 'internal BPF' interchangeably. (Note: eBPF which
+ISA is called 'eBPF'. (Note: eBPF which
 originates from [e]xtended BPF is not the same as BPF extensions! While
 eBPF is an ISA, BPF extensions date back to classic BPF's 'overloading'
 of BPF_LD | BPF_{B,H,W} | BPF_ABS instruction.)
@@ -690,7 +690,7 @@ Some core changes of the new internal format:
   That behavior maps directly to x86_64 and arm64 subregister definition, but
   makes other JITs more difficult.
 
-  32-bit architectures run 64-bit internal BPF programs via interpreter.
+  32-bit architectures run 64-bit eBPF programs via interpreter.
   Their JITs may convert BPF programs that only use 32-bit subregisters into
   native instruction set and let the rest being interpreted.
 
@@ -711,7 +711,7 @@ Some core changes of the new internal format:
 - Introduces bpf_call insn and register passing convention for zero overhead
   calls from/to other kernel functions:
 
-  Before an in-kernel function call, the internal BPF program needs to
+  Before an in-kernel function call, the eBPF program needs to
   place function arguments into R1 to R5 registers to satisfy calling
   convention, then the interpreter will take them from registers and pass
   to in-kernel function. If R1 - R5 registers are mapped to CPU registers
@@ -780,7 +780,7 @@ Some core changes of the new internal format:
   ... since x86_64 ABI mandates rdi, rsi, rdx, rcx, r8, r9 for argument passing
   and rbx, r12 - r15 are callee saved.
 
-  Then the following internal BPF pseudo-program::
+  Then the following eBPF pseudo-program::
 
     bpf_mov R6, R1 /* save ctx */
     bpf_mov R2, 2
@@ -846,7 +846,7 @@ Some core changes of the new internal format:
     bpf_exit
 
   After the call the registers R1-R5 contain junk values and cannot be read.
-  An in-kernel eBPF verifier is used to validate internal BPF programs.
+  An in-kernel eBPF verifier is used to validate eBPF programs.
 
 Also in the new design, eBPF is limited to 4096 insns, which means that any
 program will terminate quickly and will only call a fixed number of kernel
@@ -861,23 +861,23 @@ A program, that is translated internally consists of the following elements::
 
   op:16, jt:8, jf:8, k:32    ==>    op:8, dst_reg:4, src_reg:4, off:16, imm:32
 
-So far 87 internal BPF instructions were implemented. 8-bit 'op' opcode field
+So far 87 eBPF instructions were implemented. 8-bit 'op' opcode field
 has room for new instructions. Some of them may use 16/24/32 byte encoding. New
 instructions must be multiple of 8 bytes to preserve backward compatibility.
 
-Internal BPF is a general purpose RISC instruction set. Not every register and
+eBPF is a general purpose RISC instruction set. Not every register and
 every instruction are used during translation from original BPF to new format.
 For example, socket filters are not using ``exclusive add`` instruction, but
 tracing filters may do to maintain counters of events, for example. Register R9
 is not used by socket filters either, but more complex filters may be running
 out of registers and would have to resort to spill/fill to stack.
 
-Internal BPF can be used as a generic assembler for last step performance
+eBPF can be used as a generic assembler for last step performance
 optimizations, socket filters and seccomp are using it as assembler. Tracing
 filters may use it as assembler to generate code from kernel. In kernel usage
-may not be bounded by security considerations, since generated internal BPF code
+may not be bounded by security considerations, since generated eBPF code
 may be optimizing internal code path and not being exposed to the user space.
-Safety of internal BPF can come from a verifier (TBD). In such use cases as
+Safety of eBPF can come from a verifier (TBD). In such use cases as
 described, it may be used as safe instruction set.
 
 Just like the original BPF, the new format runs within a controlled environment,
@@ -1675,7 +1675,7 @@ Testing
 -------
 
 Next to the BPF toolchain, the kernel also ships a test module that contains
-various test cases for classic and internal BPF that can be executed against
+various test cases for classic and eBPF that can be executed against
 the BPF interpreter and JIT compiler. It can be found in lib/test_bpf.c and
 enabled via Kconfig::
 
