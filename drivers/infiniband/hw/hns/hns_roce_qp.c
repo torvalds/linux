@@ -1391,7 +1391,7 @@ void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
 	}
 }
 
-static inline void *get_wqe(struct hns_roce_qp *hr_qp, int offset)
+static inline void *get_wqe(struct hns_roce_qp *hr_qp, u32 offset)
 {
 	return hns_roce_buf_offset(hr_qp->mtr.kmem, offset);
 }

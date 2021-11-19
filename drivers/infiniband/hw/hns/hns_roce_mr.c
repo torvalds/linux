@@ -824,11 +824,11 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 }
 
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
+		      u32 offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
 {
 	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
 	int mtt_count, left;
-	int start_index;
+	u32 start_index;
 	int total = 0;
 	__le64 *mtts;
 	u32 npage;
@@ -884,10 +884,10 @@ done:
 static int mtr_init_buf_cfg(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_buf_attr *attr,
 			    struct hns_roce_hem_cfg *cfg,
-			    unsigned int *buf_page_shift, int unalinged_size)
+			    unsigned int *buf_page_shift, u64 unalinged_size)
 {
 	struct hns_roce_buf_region *r;
-	int first_region_padding;
+	u64 first_region_padding;
 	int page_cnt, region_cnt;
 	unsigned int page_shift;
 	size_t buf_size;

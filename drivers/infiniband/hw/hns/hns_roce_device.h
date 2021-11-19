@@ -374,8 +374,8 @@ struct hns_roce_wq {
 	u32		wqe_cnt;  /* WQE num */
 	u32		max_gs;
 	u32		rsv_sge;
-	int		offset;
-	int		wqe_shift; /* WQE size */
+	u32		offset;
+	u32		wqe_shift; /* WQE size */
 	u32		head;
 	u32		tail;
 	void __iomem	*db_reg;
@@ -383,8 +383,8 @@ struct hns_roce_wq {
 
 struct hns_roce_sge {
 	unsigned int	sge_cnt; /* SGE num */
-	int		offset;
-	int		sge_shift; /* SGE size */
+	u32		offset;
+	u32		sge_shift; /* SGE size */
 };
 
 struct hns_roce_buf_list {
@@ -468,7 +468,7 @@ struct hns_roce_cq {
 
 struct hns_roce_idx_que {
 	struct hns_roce_mtr		mtr;
-	int				entry_shift;
+	u32				entry_shift;
 	unsigned long			*bitmap;
 	u32				head;
 	u32				tail;
@@ -480,7 +480,7 @@ struct hns_roce_srq {
 	u32			wqe_cnt;
 	int			max_gs;
 	u32			rsv_sge;
-	int			wqe_shift;
+	u32			wqe_shift;
 	u32			cqn;
 	u32			xrcdn;
 	void __iomem		*db_reg;
@@ -767,7 +767,7 @@ struct hns_roce_caps {
 	u32		reserved_qps;
 	int		num_qpc_timer;
 	int		num_cqc_timer;
-	int		num_srqs;
+	u32		num_srqs;
 	u32		max_wqes;
 	u32		max_srq_wrs;
 	u32		max_srq_sges;
@@ -781,7 +781,7 @@ struct hns_roce_caps {
 	u32		min_cqes;
 	u32		min_wqes;
 	u32		reserved_cqs;
-	int		reserved_srqs;
+	u32		reserved_srqs;
 	int		num_aeq_vectors;
 	int		num_comp_vectors;
 	int		num_other_vectors;
@@ -1158,7 +1158,7 @@ void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev);
 /* hns roce hw need current block and next block addr from mtt */
 #define MTT_MIN_COUNT	 2
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr);
+		      u32 offset, u64 *mtt_buf, int mtt_max, u64 *base_addr);
 int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			struct hns_roce_buf_attr *buf_attr,
 			unsigned int page_shift, struct ib_udata *udata,
