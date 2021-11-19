@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config PCIE_ASPEED
+	bool "ASPEED PCIe controller"
+	depends on PCI
+	depends on OF || COMPILE_TEST
+	select PCI_MSI_ARCH_FALLBACKS
+	help
+	  Say Y here if you want PCIe controller support on
+	  ASPEED SoCs.
