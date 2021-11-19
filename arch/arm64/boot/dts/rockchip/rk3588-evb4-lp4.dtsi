@@ -116,8 +116,8 @@
 		reg = <0x14>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		goodix,rst-gpio = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
-		goodix,irq-gpio = <&gpio0 RK_PD3 IRQ_TYPE_LEVEL_LOW>;
+		goodix,rst-gpio = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio0 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
