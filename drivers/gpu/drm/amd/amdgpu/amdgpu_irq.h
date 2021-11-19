@@ -102,6 +102,20 @@ struct amdgpu_irq {
 	bool                            retry_cam_enabled;
 };
 
+enum interrupt_node_id_per_xcp {
+	XCD0_NODEID = 1,
+	XCD1_NODEID = 2,
+	XCD2_NODEID = 5,
+	XCD3_NODEID = 6,
+	XCD4_NODEID = 9,
+	XCD5_NODEID = 10,
+	XCD6_NODEID = 13,
+	XCD7_NODEID = 14,
+	NODEID_MAX,
+};
+
+extern const int node_id_to_phys_map[NODEID_MAX];
+
 void amdgpu_irq_disable_all(struct amdgpu_device *adev);
 
 int amdgpu_irq_init(struct amdgpu_device *adev);

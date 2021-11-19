@@ -99,6 +99,17 @@ const char *soc15_ih_clientid_name[] = {
 	"MP1"
 };
 
+const int node_id_to_phys_map[NODEID_MAX] = {
+	[XCD0_NODEID] = 0,
+	[XCD1_NODEID] = 1,
+	[XCD2_NODEID] = 2,
+	[XCD3_NODEID] = 3,
+	[XCD4_NODEID] = 4,
+	[XCD5_NODEID] = 5,
+	[XCD6_NODEID] = 6,
+	[XCD7_NODEID] = 7,
+};
+
 /**
  * amdgpu_irq_disable_all - disable *all* interrupts
  *
