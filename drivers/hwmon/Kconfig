@@ -1358,11 +1358,12 @@ config SENSORS_LM90
 	tristate "National Semiconductor LM90 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for National Semiconductor LM90,
-	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, ADT7461A,
+	  If you say yes here you get support for National Semiconductor LM84,
+	  LM90, LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, ADT7461A,
 	  ADT7481, ADT7482, and ADT7483A,
-	  Maxim MAX6642, MAX6646, MAX6647, MAX6648, MAX6649, MAX6654, MAX6657,
-	  MAX6658, MAX6659, MAX6680, MAX6681, MAX6692, MAX6695, MAX6696,
+	  Maxim MAX1617, MAX6642, MAX6646, MAX6647, MAX6648, MAX6649, MAX6654,
+	  MAX6657, MAX6658, MAX6659, MAX6680, MAX6681, MAX6692, MAX6695,
+	  MAX6696,
 	  ON Semiconductor NCT1008, Winbond/Nuvoton W83L771W/G/AWG/ASG,
 	  Philips SA56004, GMT G781, Texas Instruments TMP451 and TMP461
 	  sensor chips.
