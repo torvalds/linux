@@ -2815,31 +2815,22 @@ void phylink_decode_usxgmii_word(struct phylink_link_state *state,
 EXPORT_SYMBOL_GPL(phylink_decode_usxgmii_word);
 
 /**
- * phylink_mii_c22_pcs_get_state() - read the MAC PCS state
- * @pcs: a pointer to a &struct mdio_device.
+ * phylink_mii_c22_pcs_decode_state() - Decode MAC PCS state from MII registers
  * @state: a pointer to a &struct phylink_link_state.
+ * @bmsr: The value of the %MII_BMSR register
+ * @lpa: The value of the %MII_LPA register
  *
  * Helper for MAC PCS supporting the 802.3 clause 22 register set for
  * clause 37 negotiation and/or SGMII control.
  *
- * Read the MAC PCS state from the MII device configured in @config and
- * parse the Clause 37 or Cisco SGMII link partner negotiation word into
- * the phylink @state structure. This is suitable to be directly plugged
- * into the mac_pcs_get_state() member of the struct phylink_mac_ops
- * structure.
+ * Parse the Clause 37 or Cisco SGMII link partner negotiation word into
+ * the phylink @state structure. This is suitable to be used for implementing
+ * the mac_pcs_get_state() member of the struct phylink_mac_ops structure if
+ * accessing @bmsr and @lpa cannot be done with MDIO directly.
  */
-void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
-				   struct phylink_link_state *state)
+void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
+				      u16 bmsr, u16 lpa)
 {
-	int bmsr, lpa;
-
-	bmsr = mdiodev_read(pcs, MII_BMSR);
-	lpa = mdiodev_read(pcs, MII_LPA);
-	if (bmsr < 0 || lpa < 0) {
-		state->link = false;
-		return;
-	}
-
 	state->link = !!(bmsr & BMSR_LSTATUS);
 	state->an_complete = !!(bmsr & BMSR_ANEGCOMPLETE);
 	/* If there is no link or autonegotiation is disabled, the LP advertisement
@@ -2867,28 +2858,54 @@ void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_decode_state);
+
+/**
+ * phylink_mii_c22_pcs_get_state() - read the MAC PCS state
+ * @pcs: a pointer to a &struct mdio_device.
+ * @state: a pointer to a &struct phylink_link_state.
+ *
+ * Helper for MAC PCS supporting the 802.3 clause 22 register set for
+ * clause 37 negotiation and/or SGMII control.
+ *
+ * Read the MAC PCS state from the MII device configured in @config and
+ * parse the Clause 37 or Cisco SGMII link partner negotiation word into
+ * the phylink @state structure. This is suitable to be directly plugged
+ * into the mac_pcs_get_state() member of the struct phylink_mac_ops
+ * structure.
+ */
+void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
+				   struct phylink_link_state *state)
+{
+	int bmsr, lpa;
+
+	bmsr = mdiodev_read(pcs, MII_BMSR);
+	lpa = mdiodev_read(pcs, MII_LPA);
+	if (bmsr < 0 || lpa < 0) {
+		state->link = false;
+		return;
+	}
+
+	phylink_mii_c22_pcs_decode_state(state, bmsr, lpa);
+}
 EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_get_state);
 
 /**
- * phylink_mii_c22_pcs_set_advertisement() - configure the clause 37 PCS
+ * phylink_mii_c22_pcs_encode_advertisement() - configure the clause 37 PCS
  *	advertisement
- * @pcs: a pointer to a &struct mdio_device.
  * @interface: the PHY interface mode being configured
  * @advertising: the ethtool advertisement mask
  *
  * Helper for MAC PCS supporting the 802.3 clause 22 register set for
  * clause 37 negotiation and/or SGMII control.
  *
- * Configure the clause 37 PCS advertisement as specified by @state. This
- * does not trigger a renegotiation; phylink will do that via the
- * mac_an_restart() method of the struct phylink_mac_ops structure.
+ * Encode the clause 37 PCS advertisement as specified by @interface and
+ * @advertising.
  *
- * Returns negative error code on failure to configure the advertisement,
- * zero if no change has been made, or one if the advertisement has changed.
+ * Return: The new value for @adv, or ``-EINVAL`` if it should not be changed.
  */
-int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
-					  phy_interface_t interface,
-					  const unsigned long *advertising)
+int phylink_mii_c22_pcs_encode_advertisement(phy_interface_t interface,
+					     const unsigned long *advertising)
 {
 	u16 adv;
 
@@ -2902,18 +2919,15 @@ int phylink_mii_c22_pcs_set_advertisement(struct mdio_device *pcs,
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 				      advertising))
 			adv |= ADVERTISE_1000XPSE_ASYM;
-
-		return mdiodev_modify_changed(pcs, MII_ADVERTISE, 0xffff, adv);
-
+		return adv;
 	case PHY_INTERFACE_MODE_SGMII:
-		return mdiodev_modify_changed(pcs, MII_ADVERTISE, 0xffff, 0x0001);
-
+		return 0x0001;
 	default:
 		/* Nothing to do for other modes */
-		return 0;
+		return -EINVAL;
 	}
 }
-EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_set_advertisement);
+EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_encode_advertisement);
 
 /**
  * phylink_mii_c22_pcs_config() - configure clause 22 PCS
@@ -2931,16 +2945,18 @@ int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 			       phy_interface_t interface,
 			       const unsigned long *advertising)
 {
-	bool changed;
+	bool changed = 0;
 	u16 bmcr;
-	int ret;
+	int ret, adv;
 
-	ret = phylink_mii_c22_pcs_set_advertisement(pcs, interface,
-						    advertising);
-	if (ret < 0)
-		return ret;
-
-	changed = ret > 0;
+	adv = phylink_mii_c22_pcs_encode_advertisement(interface, advertising);
+	if (adv >= 0) {
+		ret = mdiobus_modify_changed(pcs->bus, pcs->addr,
+					     MII_ADVERTISE, 0xffff, adv);
+		if (ret < 0)
+			return ret;
+		changed = ret;
+	}
 
 	/* Ensure ISOLATE bit is disabled */
 	if (mode == MLO_AN_INBAND &&
@@ -2953,7 +2969,7 @@ int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 	if (ret < 0)
 		return ret;
 
-	return changed ? 1 : 0;
+	return changed;
 }
 EXPORT_SYMBOL_GPL(phylink_mii_c22_pcs_config);
 
