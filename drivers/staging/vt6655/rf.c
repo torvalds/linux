@@ -609,11 +609,11 @@ bool RFbInit(struct vnt_private *priv)
 	switch (priv->byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
-		priv->byMaxPwrLevel = AL2230_PWR_IDX_LEN;
+		priv->max_pwr_level = AL2230_PWR_IDX_LEN;
 		ret = RFbAL2230Init(priv);
 		break;
 	case RF_AIROHA7230:
-		priv->byMaxPwrLevel = AL7230_PWR_IDX_LEN;
+		priv->max_pwr_level = AL7230_PWR_IDX_LEN;
 		ret = s_bAL7230Init(priv);
 		break;
 	case RF_NOTHING:
@@ -778,8 +778,8 @@ bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH)
 		else
 			byDec = byPwr + 10;
 
-		if (byDec >= priv->byMaxPwrLevel)
-			byDec = priv->byMaxPwrLevel - 1;
+		if (byDec >= priv->max_pwr_level)
+			byDec = priv->max_pwr_level - 1;
 
 		byPwr = byDec;
 		break;
@@ -821,7 +821,7 @@ bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
 	bool ret = true;
 	unsigned long dwMax7230Pwr = 0;
 
-	if (byPwr >=  priv->byMaxPwrLevel)
+	if (byPwr >= priv->max_pwr_level)
 		return false;
 
 	switch (priv->byRFType) {
