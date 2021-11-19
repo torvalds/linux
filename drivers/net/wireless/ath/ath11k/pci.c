@@ -843,6 +843,15 @@ static int ath11k_pci_ext_irq_config(struct ath11k_base *ab)
 	return 0;
 }
 
+static int ath11k_pci_set_irq_affinity_hint(struct ath11k_pci *ab_pci,
+					    const struct cpumask *m)
+{
+	if (test_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		return 0;
+
+	return irq_set_affinity_hint(ab_pci->pdev->irq, m);
+}
+
 static int ath11k_pci_config_irq(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
@@ -858,6 +867,12 @@ static int ath11k_pci_config_irq(struct ath11k_base *ab)
 						 &msi_data_start, &msi_irq_start);
 	if (ret)
 		return ret;
+
+	ret = ath11k_pci_set_irq_affinity_hint(ab_pci, cpumask_of(0));
+	if (ret) {
+		ath11k_err(ab, "failed to set irq affinity %d\n", ret);
+		return ret;
+	}
 
 	/* Configure CE irqs */
 	for (i = 0, msi_data_idx = 0; i < ab->hw_params.ce_count; i++) {
@@ -878,7 +893,7 @@ static int ath11k_pci_config_irq(struct ath11k_base *ab)
 		if (ret) {
 			ath11k_err(ab, "failed to request irq %d: %d\n",
 				   irq_idx, ret);
-			return ret;
+			goto err_irq_affinity_cleanup;
 		}
 
 		ab->irq_num[irq_idx] = irq;
@@ -889,9 +904,13 @@ static int ath11k_pci_config_irq(struct ath11k_base *ab)
 
 	ret = ath11k_pci_ext_irq_config(ab);
 	if (ret)
-		return ret;
+		goto err_irq_affinity_cleanup;
 
 	return 0;
+
+err_irq_affinity_cleanup:
+	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
+	return ret;
 }
 
 static void ath11k_pci_init_qmi_ce_config(struct ath11k_base *ab)
@@ -1487,6 +1506,8 @@ static void ath11k_pci_remove(struct pci_dev *pdev)
 {
 	struct ath11k_base *ab = pci_get_drvdata(pdev);
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
 		ath11k_pci_power_down(ab);
