@@ -47,6 +47,41 @@
 static bool is_support_iommu = true;
 static struct drm_driver rockchip_drm_driver;
 
+void drm_mode_convert_to_split_mode(struct drm_display_mode *mode)
+{
+	u16 hactive, hfp, hsync, hbp;
+
+	hactive = mode->hdisplay;
+	hfp = mode->hsync_start - mode->hdisplay;
+	hsync = mode->hsync_end - mode->hsync_start;
+	hbp = mode->htotal - mode->hsync_end;
+
+	mode->clock *= 2;
+	mode->hdisplay = hactive * 2;
+	mode->hsync_start = mode->hdisplay + hfp * 2;
+	mode->hsync_end = mode->hsync_start + hsync * 2;
+	mode->htotal = mode->hsync_end + hbp * 2;
+	drm_mode_set_name(mode);
+}
+EXPORT_SYMBOL(drm_mode_convert_to_split_mode);
+
+void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode)
+{
+	u16 hactive, hfp, hsync, hbp;
+
+	hactive = mode->hdisplay;
+	hfp = mode->hsync_start - mode->hdisplay;
+	hsync = mode->hsync_end - mode->hsync_start;
+	hbp = mode->htotal - mode->hsync_end;
+
+	mode->clock /= 2;
+	mode->hdisplay = hactive / 2;
+	mode->hsync_start = mode->hdisplay + hfp / 2;
+	mode->hsync_end = mode->hsync_start + hsync / 2;
+	mode->htotal = mode->hsync_end + hbp / 2;
+}
+EXPORT_SYMBOL(drm_mode_convert_to_origin_mode);
+
 /**
  * drm_connector_oob_hotplug_event - Report out-of-band hotplug event to connector
  * @connector: connector to report the event on

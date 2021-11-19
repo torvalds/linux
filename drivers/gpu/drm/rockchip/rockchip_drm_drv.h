@@ -400,6 +400,8 @@ void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
 void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node);
 int rockchip_drm_add_modes_noedid(struct drm_connector *connector);
+void drm_mode_convert_to_split_mode(struct drm_display_mode *mode);
+void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode);
 #if IS_ENABLED(CONFIG_DRM_ROCKCHIP)
 int rockchip_drm_get_sub_dev_type(void);
 #else
