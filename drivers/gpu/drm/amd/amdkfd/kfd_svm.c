@@ -2548,19 +2548,12 @@ svm_range_count_fault(struct amdgpu_device *adev, struct kfd_process *p,
 }
 
 static bool
-svm_fault_allowed(struct mm_struct *mm, uint64_t addr, bool write_fault)
+svm_fault_allowed(struct vm_area_struct *vma, bool write_fault)
 {
 	unsigned long requested = VM_READ;
-	struct vm_area_struct *vma;
 
 	if (write_fault)
 		requested |= VM_WRITE;
-
-	vma = find_vma(mm, addr << PAGE_SHIFT);
-	if (!vma || (addr << PAGE_SHIFT) < vma->vm_start) {
-		pr_debug("address 0x%llx VMA is removed\n", addr);
-		return true;
-	}
 
 	pr_debug("requested 0x%lx, vma permission flags 0x%lx\n", requested,
 		vma->vm_flags);
@@ -2579,6 +2572,7 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	int32_t best_loc;
 	int32_t gpuidx = MAX_GPU_INSTANCE;
 	bool write_locked = false;
+	struct vm_area_struct *vma;
 	int r = 0;
 
 	if (!KFD_IS_SVM_API_SUPPORTED(adev->kfd.dev)) {
@@ -2654,7 +2648,17 @@ retry_write_locked:
 		goto out_unlock_range;
 	}
 
-	if (!svm_fault_allowed(mm, addr, write_fault)) {
+	/* __do_munmap removed VMA, return success as we are handling stale
+	 * retry fault.
+	 */
+	vma = find_vma(mm, addr << PAGE_SHIFT);
+	if (!vma || (addr << PAGE_SHIFT) < vma->vm_start) {
+		pr_debug("address 0x%llx VMA is removed\n", addr);
+		r = 0;
+		goto out_unlock_range;
+	}
+
+	if (!svm_fault_allowed(vma, write_fault)) {
 		pr_debug("fault addr 0x%llx no %s permission\n", addr,
 			write_fault ? "write" : "read");
 		r = -EPERM;
