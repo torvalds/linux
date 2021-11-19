@@ -113,9 +113,10 @@ properties:
               - nvidia,tegra30-uart
               - nvidia,tegra114-uart
               - nvidia,tegra124-uart
+              - nvidia,tegra210-uart
               - nvidia,tegra186-uart
               - nvidia,tegra194-uart
-              - nvidia,tegra210-uart
+              - nvidia,tegra234-uart
           - const: nvidia,tegra20-uart
 
   reg:
