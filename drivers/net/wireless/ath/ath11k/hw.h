@@ -170,12 +170,17 @@ struct ath11k_hw_params {
 	bool supports_monitor;
 	bool supports_shadow_regs;
 	bool idle_ps;
+	bool supports_sta_ps;
 	bool cold_boot_calib;
 	bool supports_suspend;
 	u32 hal_desc_sz;
 	bool fix_l1ss;
+	bool credit_flow;
 	u8 max_tx_ring;
 	const struct ath11k_hw_hal_params *hal_params;
+	bool supports_dynamic_smps_6ghz;
+	bool alloc_cacheable_memory;
+	bool wakeup_mhi;
 };
 
 struct ath11k_hw_ops {
