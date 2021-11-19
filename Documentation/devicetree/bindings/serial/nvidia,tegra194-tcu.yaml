@@ -22,7 +22,12 @@ properties:
     pattern: "^serial(@.*)?$"
 
   compatible:
-    const: nvidia,tegra194-tcu
+    oneOf:
+      - const: nvidia,tegra194-tcu
+      - items:
+          - enum:
+              - nvidia,tegra234-tcu
+          - const: nvidia,tegra194-tcu
 
   mbox-names:
     items:
