@@ -897,6 +897,8 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 		goto err;
 	}
 
+	sdev->num_cores = chip->cores_num;
+
 	hdev = devm_kzalloc(sdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return -ENOMEM;
