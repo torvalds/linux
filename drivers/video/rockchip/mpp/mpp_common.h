@@ -335,13 +335,7 @@ struct mpp_session {
 	struct mutex pending_lock;
 	/* task pending list in session */
 	struct list_head pending_list;
-	/* lock for session task done list */
-	struct mutex done_lock;
-	/* task done list in session */
-	struct list_head done_list;
 
-	/* event for session wait thread */
-	wait_queue_head_t wait;
 	pid_t pid;
 	atomic_t task_count;
 	atomic_t release_request;
@@ -415,6 +409,8 @@ struct mpp_task {
 	struct mpp_hw_info *hw_info;
 	u32 task_index;
 	u32 *reg;
+	/* event for session wait thread */
+	wait_queue_head_t wait;
 };
 
 struct mpp_taskqueue {
