@@ -901,7 +901,7 @@ static int macvlan_init(struct net_device *dev)
 	dev->vlan_features	|= ALWAYS_ON_OFFLOADS;
 	dev->hw_enc_features    |= dev->features;
 	netif_set_gso_max_size(dev, lowerdev->gso_max_size);
-	dev->gso_max_segs	= lowerdev->gso_max_segs;
+	netif_set_gso_max_segs(dev, lowerdev->gso_max_segs);
 	dev->hard_header_len	= lowerdev->hard_header_len;
 	macvlan_set_lockdep_class(dev);
 
@@ -1749,7 +1749,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 	case NETDEV_FEAT_CHANGE:
 		list_for_each_entry(vlan, &port->vlans, list) {
 			netif_set_gso_max_size(vlan->dev, dev->gso_max_size);
-			vlan->dev->gso_max_segs = dev->gso_max_segs;
+			netif_set_gso_max_segs(vlan->dev, dev->gso_max_segs);
 			netdev_update_features(vlan->dev);
 		}
 		break;

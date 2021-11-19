@@ -526,7 +526,7 @@ static void br_set_gso_limits(struct net_bridge *br)
 		gso_max_segs = min(gso_max_segs, p->dev->gso_max_segs);
 	}
 	netif_set_gso_max_size(br->dev, gso_max_size);
-	br->dev->gso_max_segs = gso_max_segs;
+	netif_set_gso_max_segs(br->dev, gso_max_segs);
 }
 
 /*

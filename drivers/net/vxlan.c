@@ -3812,7 +3812,7 @@ static void vxlan_config_apply(struct net_device *dev,
 		dst->remote_ifindex = conf->remote_ifindex;
 
 		netif_set_gso_max_size(dev, lowerdev->gso_max_size);
-		dev->gso_max_segs = lowerdev->gso_max_segs;
+		netif_set_gso_max_segs(dev, lowerdev->gso_max_segs);
 
 		needed_headroom = lowerdev->hard_header_len;
 		needed_headroom += lowerdev->needed_headroom;
