@@ -498,6 +498,21 @@ EXPORT_SYMBOL(__hw_addr_init);
  * Device addresses handling functions
  */
 
+/* Check that netdev->dev_addr is not written to directly as this would
+ * break the rbtree layout. All changes should go thru dev_addr_set() and co.
+ * Remove this check in mid-2024.
+ */
+void dev_addr_check(struct net_device *dev)
+{
+	if (!memcmp(dev->dev_addr, dev->dev_addr_shadow, MAX_ADDR_LEN))
+		return;
+
+	netdev_warn(dev, "Current addr:  %*ph\n", MAX_ADDR_LEN, dev->dev_addr);
+	netdev_warn(dev, "Expected addr: %*ph\n",
+		    MAX_ADDR_LEN, dev->dev_addr_shadow);
+	netdev_WARN(dev, "Incorrect netdev->dev_addr\n");
+}
+
 /**
  *	dev_addr_flush - Flush device address list
  *	@dev: device
@@ -509,6 +524,7 @@ EXPORT_SYMBOL(__hw_addr_init);
 void dev_addr_flush(struct net_device *dev)
 {
 	/* rtnl_mutex must be held here */
+	dev_addr_check(dev);
 
 	__hw_addr_flush(&dev->dev_addrs);
 	dev->dev_addr = NULL;
@@ -552,8 +568,11 @@ void dev_addr_mod(struct net_device *dev, unsigned int offset,
 {
 	struct netdev_hw_addr *ha;
 
+	dev_addr_check(dev);
+
 	ha = container_of(dev->dev_addr, struct netdev_hw_addr, addr[0]);
 	memcpy(&ha->addr[offset], addr, len);
+	memcpy(&dev->dev_addr_shadow[offset], addr, len);
 }
 EXPORT_SYMBOL(dev_addr_mod);
 
