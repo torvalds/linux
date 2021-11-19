@@ -32,6 +32,12 @@ static struct clk_bulk_data imx8m_dsp_clks[] = {
 	{ .id = "core" },
 };
 
+/* DAP registers */
+#define IMX8M_DAP_DEBUG                0x28800000
+#define IMX8M_DAP_DEBUG_SIZE   (64 * 1024)
+#define IMX8M_DAP_PWRCTL       (0x4000 + 0x3020)
+#define IMX8M_PWRCTL_CORERESET         BIT(16)
+
 /* DSP audio mix registers */
 #define AudioDSP_REG0	0x100
 #define AudioDSP_REG1	0x104
@@ -50,6 +56,7 @@ struct imx8m_priv {
 
 	struct imx_clocks *clks;
 
+	void __iomem *dap;
 	struct regmap *regmap;
 };
 
@@ -116,6 +123,30 @@ static int imx8m_run(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static int imx8m_reset(struct snd_sof_dev *sdev)
+{
+	struct imx8m_priv *priv = (struct imx8m_priv *)sdev->pdata->hw_pdata;
+	u32 pwrctl;
+
+	/* put DSP into reset and stall */
+	pwrctl = readl(priv->dap + IMX8M_DAP_PWRCTL);
+	pwrctl |= IMX8M_PWRCTL_CORERESET;
+	writel(pwrctl, priv->dap + IMX8M_DAP_PWRCTL);
+
+	/* keep reset asserted for 10 cycles */
+	usleep_range(1, 2);
+
+	regmap_update_bits(priv->regmap, AudioDSP_REG2,
+			   AudioDSP_REG2_RUNSTALL, AudioDSP_REG2_RUNSTALL);
+
+	/* take the DSP out of reset and keep stalled for FW loading */
+	pwrctl = readl(priv->dap + IMX8M_DAP_PWRCTL);
+	pwrctl &= ~IMX8M_PWRCTL_CORERESET;
+	writel(pwrctl, priv->dap + IMX8M_DAP_PWRCTL);
+
+	return 0;
+}
+
 static int imx8m_probe(struct snd_sof_dev *sdev)
 {
 	struct platform_device *pdev =
@@ -165,6 +196,13 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 	} else {
 		dev_err(sdev->dev, "error: failed to get DSP base at idx 0\n");
 		ret = -EINVAL;
+		goto exit_pdev_unregister;
+	}
+
+	priv->dap = devm_ioremap(sdev->dev, IMX8M_DAP_DEBUG, IMX8M_DAP_DEBUG_SIZE);
+	if (!priv->dap) {
+		dev_err(sdev->dev, "error: failed to map DAP debug memory area");
+		ret = -ENODEV;
 		goto exit_pdev_unregister;
 	}
 
@@ -378,6 +416,7 @@ struct snd_sof_dsp_ops sof_imx8m_ops = {
 	.remove		= imx8m_remove,
 	/* DSP core boot */
 	.run		= imx8m_run,
+	.reset		= imx8m_reset,
 
 	/* Block IO */
 	.block_read	= sof_block_read,
