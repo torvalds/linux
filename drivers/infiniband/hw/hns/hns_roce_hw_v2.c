@@ -4752,7 +4752,8 @@ static bool check_qp_state(enum ib_qp_state cur_state,
 				 [IB_QPS_ERR] = true },
 		[IB_QPS_SQD] = {},
 		[IB_QPS_SQE] = {},
-		[IB_QPS_ERR] = { [IB_QPS_RESET] = true, [IB_QPS_ERR] = true }
+		[IB_QPS_ERR] = { [IB_QPS_RESET] = true,
+				 [IB_QPS_ERR] = true }
 	};
 
 	return sm[cur_state][new_state];
