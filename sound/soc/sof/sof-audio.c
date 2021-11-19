@@ -106,7 +106,7 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 		.id = swidget->comp_id,
 	};
 	struct sof_ipc_reply reply;
-	int ret;
+	int ret, ret1, core;
 
 	if (!swidget->private)
 		return 0;
@@ -115,10 +115,17 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (--swidget->use_count)
 		return 0;
 
+	core = swidget->core;
+
 	switch (swidget->id) {
 	case snd_soc_dapm_scheduler:
+	{
+		const struct sof_ipc_pipe_new *pipeline = swidget->private;
+
+		core = pipeline->core;
 		ipc_free.hdr.cmd |= SOF_IPC_TPLG_PIPE_FREE;
 		break;
+	}
 	case snd_soc_dapm_buffer:
 		ipc_free.hdr.cmd |= SOF_IPC_TPLG_BUFFER_FREE;
 		break;
@@ -127,20 +134,32 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 		break;
 	}
 
+	/* continue to disable core even if IPC fails */
 	ret = sof_ipc_tx_message(sdev->ipc, ipc_free.hdr.cmd, &ipc_free, sizeof(ipc_free),
 				 &reply, sizeof(reply));
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(sdev->dev, "error: failed to free widget %s\n", swidget->widget->name);
-		swidget->use_count++;
-		return ret;
+
+	/*
+	 * disable widget core. continue to route setup status and complete flag
+	 * even if this fails and return the appropriate error
+	 */
+	ret1 = snd_sof_dsp_core_put(sdev, core);
+	if (ret1 < 0) {
+		dev_err(sdev->dev, "error: failed to disable target core: %d for widget %s\n",
+			core, swidget->widget->name);
+		if (!ret)
+			ret = ret1;
 	}
 
 	/* reset route setup status for all routes that contain this widget */
 	sof_reset_route_setup_status(sdev, swidget);
 	swidget->complete = 0;
-	dev_dbg(sdev->dev, "widget %s freed\n", swidget->widget->name);
 
-	return 0;
+	if (!ret)
+		dev_dbg(sdev->dev, "widget %s freed\n", swidget->widget->name);
+
+	return ret;
 }
 EXPORT_SYMBOL(sof_widget_free);
 
@@ -153,6 +172,7 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	struct snd_sof_dai *dai;
 	size_t ipc_size;
 	int ret;
+	int core;
 
 	/* skip if there is no private data */
 	if (!swidget->private)
@@ -162,10 +182,18 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (++swidget->use_count > 1)
 		return 0;
 
-	ret = sof_pipeline_core_enable(sdev, swidget);
+	/* set core ID */
+	core = swidget->core;
+	if (swidget->id == snd_soc_dapm_scheduler) {
+		pipeline = swidget->private;
+		core = pipeline->core;
+	}
+
+	/* enable widget core */
+	ret = snd_sof_dsp_core_get(sdev, core);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to enable target core: %d for widget %s\n",
-			ret, swidget->widget->name);
+		dev_err(sdev->dev, "error: failed to enable target core for widget %s\n",
+			swidget->widget->name);
 		goto use_count_dec;
 	}
 
@@ -174,8 +202,10 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	case snd_soc_dapm_dai_out:
 		ipc_size = sizeof(struct sof_ipc_comp_dai) + sizeof(struct sof_ipc_comp_ext);
 		comp = kzalloc(ipc_size, GFP_KERNEL);
-		if (!comp)
-			return -ENOMEM;
+		if (!comp) {
+			ret = -ENOMEM;
+			goto core_put;
+		}
 
 		dai = swidget->private;
 		dai->configured = false;
@@ -190,13 +220,18 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to load widget %s\n",
 				swidget->widget->name);
-			goto use_count_dec;
+			goto core_put;
 		}
 
 		ret = sof_dai_config_setup(sdev, dai);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to load dai config for DAI %s\n",
 				swidget->widget->name);
+
+			/*
+			 * widget use_count and core ref_count will both be decremented by
+			 * sof_widget_free()
+			 */
 			sof_widget_free(sdev, swidget);
 			return ret;
 		}
@@ -214,7 +249,7 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	}
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to load widget %s\n", swidget->widget->name);
-		goto use_count_dec;
+		goto core_put;
 	}
 
 	/* restore kcontrols for widget */
@@ -222,6 +257,10 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to restore kcontrols for widget %s\n",
 			swidget->widget->name);
+		/*
+		 * widget use_count and core ref_count will both be decremented by
+		 * sof_widget_free()
+		 */
 		sof_widget_free(sdev, swidget);
 		return ret;
 	}
@@ -230,6 +269,8 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 
 	return 0;
 
+core_put:
+	snd_sof_dsp_core_put(sdev, core);
 use_count_dec:
 	swidget->use_count--;
 	return ret;

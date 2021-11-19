@@ -303,9 +303,7 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	/* parse platform specific extended manifest */
 	.parse_platform_ext_manifest = hda_dsp_ext_man_get_cavs_config_data,
 
-	/* dsp core power up/down */
-	.core_power_up = hda_dsp_enable_core,
-	.core_power_down = hda_dsp_core_reset_power_down,
+	/* dsp core get/put */
 	.core_get = hda_dsp_core_get,
 
 	/* firmware run */

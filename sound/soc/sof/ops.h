@@ -72,37 +72,7 @@ static inline int snd_sof_dsp_reset(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-/* dsp core power up/power down */
-static inline int snd_sof_dsp_core_power_up(struct snd_sof_dev *sdev,
-					    unsigned int core_mask)
-{
-	int ret = 0;
-
-	core_mask &= ~sdev->enabled_cores_mask;
-	if (sof_ops(sdev)->core_power_up && core_mask) {
-		ret = sof_ops(sdev)->core_power_up(sdev, core_mask);
-		if (!ret)
-			sdev->enabled_cores_mask |= core_mask;
-	}
-
-	return ret;
-}
-
-static inline int snd_sof_dsp_core_power_down(struct snd_sof_dev *sdev,
-					      unsigned int core_mask)
-{
-	int ret = 0;
-
-	core_mask &= sdev->enabled_cores_mask;
-	if (sof_ops(sdev)->core_power_down && core_mask) {
-		ret = sof_ops(sdev)->core_power_down(sdev, core_mask);
-		if (!ret)
-			sdev->enabled_cores_mask &= ~core_mask;
-	}
-
-	return ret;
-}
-
+/* dsp core get/put */
 static inline int snd_sof_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
 	if (core > sdev->num_cores - 1) {

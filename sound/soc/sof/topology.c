@@ -1346,69 +1346,6 @@ static int sof_control_unload(struct snd_soc_component *scomp,
  * DAI Topology
  */
 
-/* Static DSP core power management so far, should be extended in the future */
-static int sof_core_enable(struct snd_sof_dev *sdev, int core)
-{
-	struct sof_ipc_pm_core_config pm_core_config = {
-		.hdr = {
-			.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
-			.size = sizeof(pm_core_config),
-		},
-		.enable_mask = sdev->enabled_cores_mask | BIT(core),
-	};
-	int ret;
-
-	if (sdev->enabled_cores_mask & BIT(core))
-		return 0;
-
-	/* power up the core if it is host managed */
-	ret = snd_sof_dsp_core_power_up(sdev, BIT(core));
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: %d powering up core %d\n",
-			ret, core);
-		return ret;
-	}
-
-	/* Now notify DSP */
-	ret = sof_ipc_tx_message(sdev->ipc, pm_core_config.hdr.cmd,
-				 &pm_core_config, sizeof(pm_core_config),
-				 &pm_core_config, sizeof(pm_core_config));
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: core %d enable ipc failure %d\n",
-			core, ret);
-		goto err;
-	}
-	return ret;
-err:
-	/* power down core if it is host managed and return the original error if this fails too */
-	if (snd_sof_dsp_core_power_down(sdev, BIT(core)) < 0)
-		dev_err(sdev->dev, "error: powering down core %d\n", core);
-
-	return ret;
-}
-
-int sof_pipeline_core_enable(struct snd_sof_dev *sdev,
-			     const struct snd_sof_widget *swidget)
-{
-	const struct sof_ipc_pipe_new *pipeline;
-	int ret;
-
-	if (swidget->id == snd_soc_dapm_scheduler) {
-		pipeline = swidget->private;
-	} else {
-		pipeline = snd_sof_pipeline_find(sdev, swidget->pipeline_id);
-		if (!pipeline)
-			return -ENOENT;
-	}
-
-	/* First enable the pipeline core */
-	ret = sof_core_enable(sdev, pipeline->core);
-	if (ret < 0)
-		return ret;
-
-	return sof_core_enable(sdev, swidget->core);
-}
-
 static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 				  struct snd_soc_dapm_widget *w,
 				  struct snd_soc_tplg_dapm_widget *tw,
@@ -2485,10 +2422,8 @@ static int sof_route_unload(struct snd_soc_component *scomp,
 static int sof_widget_unload(struct snd_soc_component *scomp,
 			     struct snd_soc_dobj *dobj)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct snd_kcontrol_new *kc;
 	struct snd_soc_dapm_widget *widget;
-	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_control *scontrol;
 	struct snd_sof_widget *swidget;
 	struct soc_mixer_control *sm;
@@ -2514,24 +2449,6 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 			kfree(dai->dai_config);
 			list_del(&dai->list);
 		}
-		break;
-	case snd_soc_dapm_scheduler:
-
-		/* power down the pipeline schedule core */
-		pipeline = swidget->private;
-
-		/*
-		 * Runtime PM should still function normally if topology loading fails and
-		 * it's components are unloaded. Do not power down the primary core so that the
-		 * CTX_SAVE IPC can succeed during runtime suspend.
-		 */
-		if (pipeline->core == SOF_DSP_PRIMARY_CORE)
-			break;
-
-		ret = snd_sof_dsp_core_power_down(sdev, 1 << pipeline->core);
-		if (ret < 0)
-			dev_err(scomp->dev, "error: powering down pipeline schedule core %d\n",
-				pipeline->core);
 		break;
 	default:
 		break;
