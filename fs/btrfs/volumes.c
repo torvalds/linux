@@ -34,6 +34,10 @@
 #include "discard.h"
 #include "zoned.h"
 
+#define BTRFS_BLOCK_GROUP_STRIPE_MASK	(BTRFS_BLOCK_GROUP_RAID0 | \
+					 BTRFS_BLOCK_GROUP_RAID10 | \
+					 BTRFS_BLOCK_GROUP_RAID56_MASK)
+
 const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID10] = {
 		.sub_stripes	= 2,
@@ -6347,7 +6351,8 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *em,
 	stripe_offset = offset - stripe_offset;
 	data_stripes = nr_data_stripes(map);
 
-	if (map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) {
+	/* Only stripe based profiles needs to check against stripe length. */
+	if (map->type & BTRFS_BLOCK_GROUP_STRIPE_MASK) {
 		u64 max_len = stripe_len - stripe_offset;
 
 		/*
