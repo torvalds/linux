@@ -252,36 +252,36 @@ struct rtw89_h2creg_sch_tx_en {
 #define FW_EDCA_PARAM_AIFS_MSK GENMASK(7, 0)
 
 #define GET_FWSECTION_HDR_SEC_SIZE(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 1), GENMASK(23, 0))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(23, 0))
 #define GET_FWSECTION_HDR_CHECKSUM(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 1), BIT(28))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 1), BIT(28))
 #define GET_FWSECTION_HDR_REDL(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 1), BIT(29))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 1), BIT(29))
 #define GET_FWSECTION_HDR_DL_ADDR(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr)), GENMASK(31, 0))
+	le32_get_bits(*((const __le32 *)(fwhdr)), GENMASK(31, 0))
 
 #define GET_FW_HDR_MAJOR_VERSION(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 1), GENMASK(7, 0))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(7, 0))
 #define GET_FW_HDR_MINOR_VERSION(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 1), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(15, 8))
 #define GET_FW_HDR_SUBVERSION(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 1), GENMASK(23, 16))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(23, 16))
 #define GET_FW_HDR_SUBINDEX(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 1), GENMASK(31, 24))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(31, 24))
 #define GET_FW_HDR_MONTH(fwhdr)		\
-	le32_get_bits(*((__le32 *)(fwhdr) + 4), GENMASK(7, 0))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 4), GENMASK(7, 0))
 #define GET_FW_HDR_DATE(fwhdr)		\
-	le32_get_bits(*((__le32 *)(fwhdr) + 4), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 4), GENMASK(15, 8))
 #define GET_FW_HDR_HOUR(fwhdr)		\
-	le32_get_bits(*((__le32 *)(fwhdr) + 4), GENMASK(23, 16))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 4), GENMASK(23, 16))
 #define GET_FW_HDR_MIN(fwhdr)		\
-	le32_get_bits(*((__le32 *)(fwhdr) + 4), GENMASK(31, 24))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 4), GENMASK(31, 24))
 #define GET_FW_HDR_YEAR(fwhdr)		\
-	le32_get_bits(*((__le32 *)(fwhdr) + 5), GENMASK(31, 0))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 5), GENMASK(31, 0))
 #define GET_FW_HDR_SEC_NUM(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 6), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 6), GENMASK(15, 8))
 #define GET_FW_HDR_CMD_VERSERION(fwhdr)	\
-	le32_get_bits(*((__le32 *)(fwhdr) + 7), GENMASK(31, 24))
+	le32_get_bits(*((const __le32 *)(fwhdr) + 7), GENMASK(31, 24))
 static inline void SET_FW_HDR_PART_SIZE(void *fwhdr, u32 val)
 {
 	le32p_replace_bits((__le32 *)fwhdr + 7, val, GENMASK(15, 0));
@@ -1170,49 +1170,49 @@ enum rtw89_btc_cxdrvinfo {
 #define RTW89_C2H_HEADER_LEN 8
 
 #define RTW89_GET_C2H_CATEGORY(c2h) \
-	le32_get_bits(*((__le32 *)c2h), GENMASK(1, 0))
+	le32_get_bits(*((const __le32 *)c2h), GENMASK(1, 0))
 #define RTW89_GET_C2H_CLASS(c2h) \
-	le32_get_bits(*((__le32 *)c2h), GENMASK(7, 2))
+	le32_get_bits(*((const __le32 *)c2h), GENMASK(7, 2))
 #define RTW89_GET_C2H_FUNC(c2h) \
-	le32_get_bits(*((__le32 *)c2h), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)c2h), GENMASK(15, 8))
 #define RTW89_GET_C2H_LEN(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 1), GENMASK(13, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 1), GENMASK(13, 0))
 
 #define RTW89_GET_C2H_LOG_SRT_PRT(c2h) (char *)((__le32 *)(c2h) + 2)
 #define RTW89_GET_C2H_LOG_LEN(len) ((len) - RTW89_C2H_HEADER_LEN)
 
 #define RTW89_GET_MAC_C2H_DONE_ACK_CAT(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(1, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(1, 0))
 #define RTW89_GET_MAC_C2H_DONE_ACK_CLASS(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(7, 2))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 2))
 #define RTW89_GET_MAC_C2H_DONE_ACK_FUNC(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
 #define RTW89_GET_MAC_C2H_DONE_ACK_H2C_RETURN(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(23, 16))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 16))
 #define RTW89_GET_MAC_C2H_DONE_ACK_H2C_SEQ(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(31, 24))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(31, 24))
 
 #define RTW89_GET_MAC_C2H_REV_ACK_CAT(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(1, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(1, 0))
 #define RTW89_GET_MAC_C2H_REV_ACK_CLASS(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(7, 2))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 2))
 #define RTW89_GET_MAC_C2H_REV_ACK_FUNC(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(15, 8))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
 #define RTW89_GET_MAC_C2H_REV_ACK_H2C_SEQ(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(23, 16))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 16))
 
 #define RTW89_GET_PHY_C2H_RA_RPT_MACID(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(15, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 0))
 #define RTW89_GET_PHY_C2H_RA_RPT_RETRY_RATIO(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 2), GENMASK(23, 16))
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 16))
 #define RTW89_GET_PHY_C2H_RA_RPT_MCSNSS(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 3), GENMASK(6, 0))
+	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(6, 0))
 #define RTW89_GET_PHY_C2H_RA_RPT_MD_SEL(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 3), GENMASK(9, 8))
+	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(9, 8))
 #define RTW89_GET_PHY_C2H_RA_RPT_GILTF(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 3), GENMASK(12, 10))
+	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(12, 10))
 #define RTW89_GET_PHY_C2H_RA_RPT_BW(c2h) \
-	le32_get_bits(*((__le32 *)(c2h) + 3), GENMASK(14, 13))
+	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(14, 13))
 
 /* VHT, HE, HT-old: [6:4]: NSS, [3:0]: MCS
  * HT-new: [6:5]: NA, [4:0]: MCS
