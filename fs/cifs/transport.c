@@ -1049,7 +1049,10 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 
 	/* round robin */
 	index = (uint)atomic_inc_return(&ses->chan_seq);
+
+	spin_lock(&ses->chan_lock);
 	index %= ses->chan_count;
+	spin_unlock(&ses->chan_lock);
 
 	return ses->chans[index].server;
 }

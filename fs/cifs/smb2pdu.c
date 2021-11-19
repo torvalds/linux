@@ -244,10 +244,10 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
+	spin_unlock(&ses->chan_lock);
 	cifs_dbg(FYI, "sess reconnect mask: 0x%lx, tcon reconnect: %d",
 		 tcon->ses->chans_need_reconnect,
 		 tcon->need_reconnect);
-	spin_unlock(&ses->chan_lock);
 
 	nls_codepage = load_nls_default();
 
@@ -3835,11 +3835,13 @@ void smb2_reconnect_server(struct work_struct *work)
 		 * binding session, but tcon is healthy (some other channel
 		 * is active)
 		 */
+		spin_lock(&ses->chan_lock);
 		if (!tcon_selected && cifs_chan_needs_reconnect(ses, server)) {
 			list_add_tail(&ses->rlist, &tmp_ses_list);
 			ses_selected = ses_exist = true;
 			ses->ses_count++;
 		}
+		spin_unlock(&ses->chan_lock);
 	}
 	/*
 	 * Get the reference to server struct to be sure that the last call of

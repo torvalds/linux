@@ -65,6 +65,8 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	return false;
 }
 
+/* channel helper functions. assumed that chan_lock is held by caller. */
+
 unsigned int
 cifs_ses_get_chan_index(struct cifs_ses *ses,
 			struct TCP_Server_Info *server)
@@ -134,10 +136,10 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 	left = ses->chan_max - ses->chan_count;
 
 	if (left <= 0) {
+		spin_unlock(&ses->chan_lock);
 		cifs_dbg(FYI,
 			 "ses already at max_channels (%zu), nothing to open\n",
 			 ses->chan_max);
-		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
 
@@ -369,12 +371,14 @@ void cifs_ses_mark_for_reconnect(struct cifs_ses *ses)
 {
 	int i;
 
+	spin_lock(&cifs_tcp_ses_lock);
+	spin_lock(&ses->chan_lock);
 	for (i = 0; i < ses->chan_count; i++) {
-		spin_lock(&cifs_tcp_ses_lock);
 		if (ses->chans[i].server->tcpStatus != CifsExiting)
 			ses->chans[i].server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&cifs_tcp_ses_lock);
 	}
+	spin_unlock(&ses->chan_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 }
 
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses,
