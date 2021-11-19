@@ -224,6 +224,16 @@
 			riscv,ndev = <136>;
 		};
 
+		timer: timer@13050000 {
+                        compatible = "starfive,si5-timers";
+                        reg = <0x0 0x13050000 0x0 0x10000>;
+                        interrupt-parent = <&plic>;
+                        interrupts = <69>, <70>, <71> ,<72>;
+                        interrupt-names = "timer0", "timer1", "timer2", "timer3";
+                        clock-frequency = <2000000>;
+                        status = "disabled";
+                };
+
                 wdog: wdog@13070000 {
                         compatible = "starfive,dskit-wdt";
                         reg = <0x0 0x13070000 0x0 0x10000>;
