@@ -195,7 +195,9 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		goto exit_pdev_unregister;
 
-	imx8_enable_clocks(sdev, priv->clks);
+	ret = imx8_enable_clocks(sdev, priv->clks);
+	if (ret < 0)
+		goto exit_pdev_unregister;
 
 	return 0;
 
@@ -252,6 +254,100 @@ static struct snd_soc_dai_driver imx8m_dai[] = {
 },
 };
 
+static int imx8m_dsp_set_power_state(struct snd_sof_dev *sdev,
+				     const struct sof_dsp_power_state *target_state)
+{
+	sdev->dsp_power_state = *target_state;
+
+	return 0;
+}
+
+static int imx8m_resume(struct snd_sof_dev *sdev)
+{
+	struct imx8m_priv *priv = (struct imx8m_priv *)sdev->pdata->hw_pdata;
+	int ret;
+	int i;
+
+	ret = imx8_enable_clocks(sdev, priv->clks);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < DSP_MU_CHAN_NUM; i++)
+		imx_dsp_request_channel(priv->dsp_ipc, i);
+
+	return 0;
+}
+
+static void imx8m_suspend(struct snd_sof_dev *sdev)
+{
+	struct imx8m_priv *priv = (struct imx8m_priv *)sdev->pdata->hw_pdata;
+	int i;
+
+	for (i = 0; i < DSP_MU_CHAN_NUM; i++)
+		imx_dsp_free_channel(priv->dsp_ipc, i);
+
+	imx8_disable_clocks(sdev, priv->clks);
+}
+
+static int imx8m_dsp_runtime_resume(struct snd_sof_dev *sdev)
+{
+	int ret;
+	const struct sof_dsp_power_state target_dsp_state = {
+		.state = SOF_DSP_PM_D0,
+	};
+
+	ret = imx8m_resume(sdev);
+	if (ret < 0)
+		return ret;
+
+	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
+}
+
+static int imx8m_dsp_runtime_suspend(struct snd_sof_dev *sdev)
+{
+	const struct sof_dsp_power_state target_dsp_state = {
+		.state = SOF_DSP_PM_D3,
+	};
+
+	imx8m_suspend(sdev);
+
+	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
+}
+
+static int imx8m_dsp_resume(struct snd_sof_dev *sdev)
+{
+	int ret;
+	const struct sof_dsp_power_state target_dsp_state = {
+		.state = SOF_DSP_PM_D0,
+	};
+
+	ret = imx8m_resume(sdev);
+	if (ret < 0)
+		return ret;
+
+	if (pm_runtime_suspended(sdev->dev)) {
+		pm_runtime_disable(sdev->dev);
+		pm_runtime_set_active(sdev->dev);
+		pm_runtime_mark_last_busy(sdev->dev);
+		pm_runtime_enable(sdev->dev);
+		pm_runtime_idle(sdev->dev);
+	}
+
+	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
+}
+
+static int imx8m_dsp_suspend(struct snd_sof_dev *sdev, unsigned int target_state)
+{
+	const struct sof_dsp_power_state target_dsp_state = {
+		.state = target_state,
+	};
+
+	if (!pm_runtime_suspended(sdev->dev))
+		imx8m_suspend(sdev);
+
+	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
+}
+
 /* i.MX8 ops */
 struct snd_sof_dsp_ops sof_imx8m_ops = {
 	/* probe and remove */
@@ -296,6 +392,14 @@ struct snd_sof_dsp_ops sof_imx8m_ops = {
 	/* DAI drivers */
 	.drv = imx8m_dai,
 	.num_drv = ARRAY_SIZE(imx8m_dai),
+
+	.suspend	= imx8m_dsp_suspend,
+	.resume		= imx8m_dsp_resume,
+
+	.runtime_suspend = imx8m_dsp_runtime_suspend,
+	.runtime_resume = imx8m_dsp_runtime_resume,
+
+	.set_power_state = imx8m_dsp_set_power_state,
 
 	.hw_info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
