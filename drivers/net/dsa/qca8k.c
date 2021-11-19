@@ -1256,8 +1256,12 @@ qca8k_setup(struct dsa_switch *ds)
 		/* Set initial MTU for every port.
 		 * We have only have a general MTU setting. So track
 		 * every port and set the max across all port.
+		 * Set per port MTU to 1500 as the MTU change function
+		 * will add the overhead and if its set to 1518 then it
+		 * will apply the overhead again and we will end up with
+		 * MTU of 1536 instead of 1518
 		 */
-		priv->port_mtu[i] = ETH_FRAME_LEN + ETH_FCS_LEN;
+		priv->port_mtu[i] = ETH_DATA_LEN;
 	}
 
 	/* Special GLOBAL_FC_THRESH value are needed for ar8327 switch */
