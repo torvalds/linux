@@ -1575,6 +1575,7 @@ static int rk_pcie_init_irq_domain(struct rk_pcie *rockchip)
 		return -EINVAL;
 	}
 
+	raw_spin_lock_init(&rockchip->intx_lock);
 	rockchip->irq_domain = irq_domain_add_linear(intc, PCI_NUM_INTX,
 						     &intx_domain_ops, rockchip);
 	if (!rockchip->irq_domain) {
