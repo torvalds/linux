@@ -16,6 +16,16 @@
 #define ISP3X_AUTO_BIGMODE_WIDTH	2688
 
 static inline void
+isp3_param_write_direct(struct rkisp_isp_params_vdev *params_vdev,
+			u32 value, u32 addr, u32 id)
+{
+	if (id == ISP3_LEFT)
+		rkisp_write(params_vdev->dev, addr, value, true);
+	else
+		rkisp_next_write(params_vdev->dev, addr, value, true);
+}
+
+static inline void
 isp3_param_write(struct rkisp_isp_params_vdev *params_vdev,
 		 u32 value, u32 addr, u32 id)
 {
@@ -496,26 +506,21 @@ isp_sdg_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 static void __maybe_unused
 isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 			const struct isp3x_lsc_cfg *pconfig,
-			bool is_direct, u32 id)
+			bool is_check, u32 id)
 {
-	struct rkisp_device *dev = params_vdev->dev;
-	unsigned int sram_addr;
-	unsigned int data;
+	unsigned int sram_addr, data;
 	int i, j;
+
+	if (is_check &&
+	    !(isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id) & ISP_LSC_EN))
+		return;
 
 	/* CIF_ISP_LSC_TABLE_ADDRESS_153 = ( 17 * 18 ) >> 1 */
 	sram_addr = CIF_ISP_LSC_TABLE_ADDRESS_0;
-	if (id == ISP3_LEFT) {
-		rkisp_write(dev, ISP3X_LSC_R_TABLE_ADDR, sram_addr, is_direct);
-		rkisp_write(dev, ISP3X_LSC_GR_TABLE_ADDR, sram_addr, is_direct);
-		rkisp_write(dev, ISP3X_LSC_GB_TABLE_ADDR, sram_addr, is_direct);
-		rkisp_write(dev, ISP3X_LSC_B_TABLE_ADDR, sram_addr, is_direct);
-	} else {
-		rkisp_next_write(dev, ISP3X_LSC_R_TABLE_ADDR, sram_addr, is_direct);
-		rkisp_next_write(dev, ISP3X_LSC_GR_TABLE_ADDR, sram_addr, is_direct);
-		rkisp_next_write(dev, ISP3X_LSC_GB_TABLE_ADDR, sram_addr, is_direct);
-		rkisp_next_write(dev, ISP3X_LSC_B_TABLE_ADDR, sram_addr, is_direct);
-	}
+	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_R_TABLE_ADDR, id);
+	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_GR_TABLE_ADDR, id);
+	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_GB_TABLE_ADDR, id);
+	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_B_TABLE_ADDR, id);
 
 	/* program data tables (table size is 9 * 17 = 153) */
 	for (i = 0; i < CIF_ISP_LSC_SECTORS_MAX * CIF_ISP_LSC_SECTORS_MAX;
@@ -525,58 +530,34 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 		 * DWORDs (2nd value of last DWORD unused)
 		 */
 		for (j = 0; j < CIF_ISP_LSC_SECTORS_MAX - 1; j += 2) {
-			data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->r_data_tbl[i + j], pconfig->r_data_tbl[i + j + 1]);
-			if (id == ISP3_LEFT)
-				rkisp_write(dev, ISP3X_LSC_R_TABLE_DATA, data, is_direct);
-			else
-				rkisp_next_write(dev, ISP3X_LSC_R_TABLE_DATA, data, is_direct);
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i + j],
+						      pconfig->r_data_tbl[i + j + 1]);
+			isp3_param_write_direct(params_vdev, data, ISP3X_LSC_R_TABLE_DATA, id);
 
-			data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->gr_data_tbl[i + j], pconfig->gr_data_tbl[i + j + 1]);
-			if (id == ISP3_LEFT)
-				rkisp_write(dev, ISP3X_LSC_GR_TABLE_DATA, data, is_direct);
-			else
-				rkisp_next_write(dev, ISP3X_LSC_GR_TABLE_DATA, data, is_direct);
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i + j],
+						      pconfig->gr_data_tbl[i + j + 1]);
+			isp3_param_write_direct(params_vdev, data, ISP3X_LSC_GR_TABLE_DATA, id);
 
-			data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->gb_data_tbl[i + j], pconfig->gb_data_tbl[i + j + 1]);
-			if (id == ISP3_LEFT)
-				rkisp_write(dev, ISP3X_LSC_GB_TABLE_DATA, data, is_direct);
-			else
-				rkisp_next_write(dev, ISP3X_LSC_GB_TABLE_DATA, data, is_direct);
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i + j],
+						      pconfig->gb_data_tbl[i + j + 1]);
+			isp3_param_write_direct(params_vdev, data, ISP3X_LSC_GB_TABLE_DATA, id);
 
-			data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->b_data_tbl[i + j], pconfig->b_data_tbl[i + j + 1]);
-			if (id == ISP3_LEFT)
-				rkisp_write(dev, ISP3X_LSC_B_TABLE_DATA, data, is_direct);
-			else
-				rkisp_next_write(dev, ISP3X_LSC_B_TABLE_DATA, data, is_direct);
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j],
+						      pconfig->b_data_tbl[i + j + 1]);
+			isp3_param_write_direct(params_vdev, data, ISP3X_LSC_B_TABLE_DATA, id);
 		}
 
 		data = ISP_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i + j], 0);
-		if (id == ISP3_LEFT)
-			rkisp_write(dev, ISP3X_LSC_R_TABLE_DATA, data, is_direct);
-		else
-			rkisp_next_write(dev, ISP3X_LSC_R_TABLE_DATA, data, is_direct);
+		isp3_param_write_direct(params_vdev, data, ISP3X_LSC_R_TABLE_DATA, id);
 
 		data = ISP_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i + j], 0);
-		if (id == ISP3_LEFT)
-			rkisp_write(dev, ISP3X_LSC_GR_TABLE_DATA, data, is_direct);
-		else
-			rkisp_next_write(dev, ISP3X_LSC_GR_TABLE_DATA, data, is_direct);
+		isp3_param_write_direct(params_vdev, data, ISP3X_LSC_GR_TABLE_DATA, id);
 
 		data = ISP_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i + j], 0);
-		if (id == ISP3_LEFT)
-			rkisp_write(dev, ISP3X_LSC_GB_TABLE_DATA, data, is_direct);
-		else
-			rkisp_next_write(dev, ISP3X_LSC_GB_TABLE_DATA, data, is_direct);
+		isp3_param_write_direct(params_vdev, data, ISP3X_LSC_GB_TABLE_DATA, id);
 
 		data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j], 0);
-		if (id == ISP3_LEFT)
-			rkisp_write(dev, ISP3X_LSC_B_TABLE_DATA, data, is_direct);
-		else
-			rkisp_next_write(dev, ISP3X_LSC_B_TABLE_DATA, data, is_direct);
+		isp3_param_write_direct(params_vdev, data, ISP3X_LSC_B_TABLE_DATA, id);
 	}
 }
 
@@ -646,8 +627,7 @@ static void
 isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	       const struct isp3x_lsc_cfg *arg, u32 id)
 {
-	struct rkisp_isp_params_val_v3x *priv_val =
-		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
+	struct isp3x_isp_params_cfg *params_rec = params_vdev->isp3x_params + id;
 	struct rkisp_device *dev = params_vdev->dev;
 	unsigned int data;
 	u32 lsc_ctrl;
@@ -656,8 +636,16 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	/* To config must be off , store the current status firstly */
 	lsc_ctrl = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
 	isp3_param_clear_bits(params_vdev, ISP3X_LSC_CTRL, ISP_LSC_EN | BIT(2), id);
+	/* online mode lsc lut load from ddr quick for some sensor VB short
+	 * readback mode lsc lut AHB config to sram, once for single device,
+	 * need record to switch for multi-device.
+	 */
 	if (!IS_HDR_RDBK(dev->rd_mode))
 		isp_lsc_matrix_cfg_ddr(params_vdev, arg, id);
+	else if (dev->hw_dev->is_single)
+		isp_lsc_matrix_cfg_sram(params_vdev, arg, false, id);
+	else
+		params_rec->others.lsc_cfg = *arg;
 
 	for (i = 0; i < ISP3X_LSC_SIZE_TBL_SIZE / 4; i++) {
 		/* program x size tables */
@@ -699,8 +687,6 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	if (arg->sector_16x16)
 		lsc_ctrl |= BIT(2);
 	isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, lsc_ctrl, id);
-
-	priv_val->cur_lsccfg[id] = *arg;
 }
 
 static void
@@ -2369,14 +2355,11 @@ isp_rawhstlite_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id
 }
 
 static void
-isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
-		     const struct isp2x_rawhistbig_cfg *arg, u32 blk_no, u32 id)
+isp_rawhstbig_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
+		       const struct isp2x_rawhistbig_cfg *arg,
+		       u32 blk_no, bool is_check, u32 id)
 {
-	u32 i, j;
-	u32 value;
-	u32 hist_ctrl;
-	u32 block_hsize, block_vsize;
-	u32 wnd_num_idx, hist_weight_num;
+	u32 i, j, wnd_num_idx, value;
 	u8 weight15x15[ISP3X_RAWHISTBIG_WEIGHT_REG_SIZE];
 	const u32 hist_wnd_num[] = {5, 5, 15, 15};
 	u32 addr;
@@ -2394,8 +2377,59 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 		break;
 	}
 
+	value = ISP3X_RAWHIST_EN;
+	if (is_check &&
+	    !(isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, id) & value))
+		return;
+
 	wnd_num_idx = arg->wnd_num;
-	memset(weight15x15, 0x00, sizeof(weight15x15));
+	memset(weight15x15, 0, sizeof(weight15x15));
+	for (i = 0; i < hist_wnd_num[wnd_num_idx]; i++) {
+		for (j = 0; j < hist_wnd_num[wnd_num_idx]; j++) {
+			weight15x15[i * ISP3X_RAWHISTBIG_ROW_NUM + j] =
+				arg->weight[i * hist_wnd_num[wnd_num_idx] + j];
+		}
+	}
+
+	for (i = 0; i < (ISP3X_RAWHISTBIG_WEIGHT_REG_SIZE / 5); i++) {
+		value = (weight15x15[5 * i + 0] & 0x3f) |
+			(weight15x15[5 * i + 1] & 0x3f) << 6 |
+			(weight15x15[5 * i + 2] & 0x3f) << 12 |
+			(weight15x15[5 * i + 3] & 0x3f) << 18 |
+			(weight15x15[5 * i + 4] & 0x3f) << 24;
+		isp3_param_write_direct(params_vdev, value,
+					addr + ISP3X_RAWHIST_BIG_WEIGHT_BASE, id);
+	}
+}
+
+static void
+isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
+		     const struct isp2x_rawhistbig_cfg *arg, u32 blk_no, u32 id)
+{
+	struct isp3x_isp_params_cfg *params_rec = params_vdev->isp3x_params + id;
+	struct rkisp_device *dev = params_vdev->dev;
+	struct isp2x_rawhistbig_cfg *arg_rec;
+	u32 hist_ctrl, block_hsize, block_vsize, wnd_num_idx;
+	const u32 hist_wnd_num[] = {5, 5, 15, 15};
+	u32 addr;
+
+	switch (blk_no) {
+	case 1:
+		addr = ISP3X_RAWHIST_BIG2_BASE;
+		arg_rec = &params_rec->meas.rawhist1;
+		break;
+	case 2:
+		addr = ISP3X_RAWHIST_BIG3_BASE;
+		arg_rec = &params_rec->meas.rawhist2;
+		break;
+	case 0:
+	default:
+		addr = ISP3X_RAWHIST_BIG1_BASE;
+		arg_rec = &params_rec->meas.rawhist3;
+		break;
+	}
+
+	wnd_num_idx = arg->wnd_num;
 	/* avoid to override the old enable value */
 	hist_ctrl = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, id);
 	hist_ctrl &= ISP3X_RAWHIST_EN;
@@ -2423,24 +2457,10 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 			 ISP_PACK_4BYTE(arg->rcc, arg->gcc, arg->bcc, arg->off),
 			 addr + ISP3X_RAWHIST_BIG_RAW2Y_CC, id);
 
-	for (i = 0; i < hist_wnd_num[wnd_num_idx]; i++) {
-		for (j = 0; j < hist_wnd_num[wnd_num_idx]; j++) {
-			weight15x15[i * ISP3X_RAWHISTBIG_ROW_NUM + j] =
-				arg->weight[i * hist_wnd_num[wnd_num_idx] + j];
-		}
-	}
-
-	isp3_param_write(params_vdev, ISP3X_RAWHIST_RAM_EN, ISP3X_RAWHIST_BIG_WRAM_CTRL, id);
-	hist_weight_num = ISP3X_RAWHISTBIG_WEIGHT_REG_SIZE;
-	for (i = 0; i < (hist_weight_num / 5); i++) {
-		value = (weight15x15[5 * i + 0] & 0x3f) |
-			(weight15x15[5 * i + 1] & 0x3f) << 6 |
-			(weight15x15[5 * i + 2] & 0x3f) << 12 |
-			(weight15x15[5 * i + 3] & 0x3f) << 18 |
-			(weight15x15[5 * i + 4] & 0x3f) << 24;
-		isp3_param_write(params_vdev, value,
-				 addr + ISP3X_RAWHIST_BIG_WEIGHT_BASE, id);
-	}
+	if (dev->hw_dev->is_single)
+		isp_rawhstbig_cfg_sram(params_vdev, arg, blk_no, false, id);
+	else
+		*arg_rec = *arg;
 }
 
 static void
@@ -3956,12 +3976,19 @@ void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
 static
 void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
-	struct rkisp_isp_params_val_v3x *priv_val =
-		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
+	struct isp3x_isp_params_cfg *params = params_vdev->isp3x_params;
 
-	isp_lsc_matrix_cfg_sram(params_vdev, &priv_val->cur_lsccfg[0], true, 0);
-	if (params_vdev->dev->hw_dev->is_unite)
-		isp_lsc_matrix_cfg_sram(params_vdev, &priv_val->cur_lsccfg[1], true, 1);
+	isp_lsc_matrix_cfg_sram(params_vdev, &params->others.lsc_cfg, true, 0);
+	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist1, 1, true, 0);
+	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist2, 2, true, 0);
+	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist3, 0, true, 0);
+	if (params_vdev->dev->hw_dev->is_unite) {
+		params++;
+		isp_lsc_matrix_cfg_sram(params_vdev, &params->others.lsc_cfg, true, 1);
+		isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist1, 1, true, 1);
+		isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist2, 2, true, 1);
+		isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist3, 0, true, 1);
+	}
 }
 
 static void

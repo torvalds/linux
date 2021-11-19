@@ -327,6 +327,10 @@ void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id)
 
 void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev)
 {
+	/* multi device to switch sram config */
+	if (params_vdev->dev->hw_dev->is_single)
+		return;
+
 	if (params_vdev->ops->param_cfgsram)
 		params_vdev->ops->param_cfgsram(params_vdev);
 }

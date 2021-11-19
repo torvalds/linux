@@ -333,7 +333,6 @@ struct rkisp_isp_params_val_v2x {
 	struct isp2x_hdrmge_cfg last_hdrmge;
 	struct isp2x_hdrtmo_cfg cur_hdrtmo;
 	struct isp2x_hdrmge_cfg cur_hdrmge;
-	struct isp2x_lsc_cfg cur_lsccfg;
 
 	u8 dhaz_en;
 	u8 wdr_en;

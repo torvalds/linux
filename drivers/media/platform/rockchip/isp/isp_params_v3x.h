@@ -185,7 +185,6 @@ struct rkisp_isp_params_val_v3x {
 	struct isp3x_drc_cfg last_hdrdrc;
 	struct isp3x_hdrmge_cfg cur_hdrmge;
 	struct isp3x_drc_cfg cur_hdrdrc;
-	struct isp3x_lsc_cfg cur_lsccfg[ISP3_UNITE_MAX];
 
 	bool dhaz_en;
 	bool drc_en;
