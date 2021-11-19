@@ -95,12 +95,9 @@ static int zynqmp_fpga_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	mgr = devm_fpga_mgr_create(dev, "Xilinx ZynqMP FPGA Manager",
-				   &zynqmp_fpga_ops, priv);
-	if (!mgr)
-		return -ENOMEM;
-
-	return devm_fpga_mgr_register(dev, mgr);
+	mgr = devm_fpga_mgr_register(dev, "Xilinx ZynqMP FPGA Manager",
+				     &zynqmp_fpga_ops, priv);
+	return PTR_ERR_OR_ZERO(mgr);
 }
 
 #ifdef CONFIG_OF

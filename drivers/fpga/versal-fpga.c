@@ -54,12 +54,9 @@ static int versal_fpga_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mgr = devm_fpga_mgr_create(dev, "Xilinx Versal FPGA Manager",
-				   &versal_fpga_ops, NULL);
-	if (!mgr)
-		return -ENOMEM;
-
-	return devm_fpga_mgr_register(dev, mgr);
+	mgr = devm_fpga_mgr_register(dev, "Xilinx Versal FPGA Manager",
+				     &versal_fpga_ops, NULL);
+	return PTR_ERR_OR_ZERO(mgr);
 }
 
 static const struct of_device_id versal_fpga_of_match[] = {
