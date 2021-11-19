@@ -2133,6 +2133,9 @@ int pcm_lib_apply_appl_ptr(struct snd_pcm_substream *substream,
 	if (old_appl_ptr == appl_ptr)
 		return 0;
 
+	if (appl_ptr >= runtime->boundary)
+		return -EINVAL;
+
 	runtime->control->appl_ptr = appl_ptr;
 	if (substream->ops->ack) {
 		ret = substream->ops->ack(substream);
