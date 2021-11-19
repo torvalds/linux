@@ -453,6 +453,11 @@
 			reg = <0x00060000 0x8000>;
 		};
 
+		sram@290000 {
+			compatible = "qcom,msm8916-rpm-stats";
+			reg = <0x00290000 0x10000>;
+		};
+
 		bimc: interconnect@400000 {
 			compatible = "qcom,msm8916-bimc";
 			reg = <0x00400000 0x62000>;
