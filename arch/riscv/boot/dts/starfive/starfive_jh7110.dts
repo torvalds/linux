@@ -200,7 +200,11 @@
 			#interrupt-cells = <1>;
 			compatible = "riscv,clint0";
 			/*interrupts-extended = <&cpu0intctrl 3 &cpu0intctrl 7 &cpu1intctrl 3 &cpu1intctrl 7 >;*/
-			interrupts-extended = <&cpu0intctrl 3 &cpu0intctrl 7 &cpu1intctrl 3 &cpu1intctrl 7 &cpu2intctrl 3 &cpu2intctrl 7 &cpu3intctrl 3 &cpu3intctrl 7 &cpu4intctrl 3 &cpu4intctrl 7>;
+			interrupts-extended = <&cpu0intctrl 3 &cpu0intctrl 7
+						&cpu1intctrl 3 &cpu1intctrl 7
+						&cpu2intctrl 3 &cpu2intctrl 7
+						&cpu3intctrl 3 &cpu3intctrl 7
+						&cpu4intctrl 3 &cpu4intctrl 7>;
 			reg = <0x0 0x2000000 0x0 0x10000>;
 			reg-names = "control";
 		};
@@ -209,7 +213,11 @@
 			compatible = "riscv,plic0";
 			interrupt-controller;
 			/*interrupts-extended = <&cpu0intctrl 11 &cpu0intctrl 9 &cpu1intctrl 11 &cpu1intctrl 9 >;*/
-			interrupts-extended = <&cpu0intctrl 11 &cpu1intctrl 11 &cpu1intctrl 9 &cpu2intctrl 11 &cpu2intctrl 9 &cpu3intctrl 11 &cpu3intctrl 9 &cpu4intctrl 11 &cpu4intctrl 9>;
+			interrupts-extended = <&cpu0intctrl 11
+						&cpu1intctrl 11 &cpu1intctrl 9
+						&cpu2intctrl 11 &cpu2intctrl 9
+						&cpu3intctrl 11 &cpu3intctrl 9
+						&cpu4intctrl 11 &cpu4intctrl 9>;
 			reg = <0x0 0xc000000 0x0 0x4000000>;
 			reg-names = "control";
 			riscv,max-priority = <7>;
