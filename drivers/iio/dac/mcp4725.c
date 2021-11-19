@@ -221,8 +221,8 @@ static const struct iio_chan_spec_ext_info mcp4725_ext_info[] = {
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE,
 			&mcp472x_powerdown_mode_enum[MCP4725]),
-	IIO_ENUM_AVAILABLE("powerdown_mode",
-			&mcp472x_powerdown_mode_enum[MCP4725]),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE,
+			   &mcp472x_powerdown_mode_enum[MCP4725]),
 	{ },
 };
 
@@ -235,8 +235,8 @@ static const struct iio_chan_spec_ext_info mcp4726_ext_info[] = {
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE,
 			&mcp472x_powerdown_mode_enum[MCP4726]),
-	IIO_ENUM_AVAILABLE("powerdown_mode",
-			&mcp472x_powerdown_mode_enum[MCP4726]),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE,
+			   &mcp472x_powerdown_mode_enum[MCP4726]),
 	{ },
 };
 
