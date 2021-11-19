@@ -27,6 +27,7 @@ properties:
               - nvidia,tegra210-rtc
               - nvidia,tegra186-rtc
               - nvidia,tegra194-rtc
+              - nvidia,tegra234-rtc
           - const: nvidia,tegra20-rtc
 
   reg:
