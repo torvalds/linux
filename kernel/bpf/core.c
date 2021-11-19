@@ -2301,7 +2301,6 @@ static void bpf_prog_free_deferred(struct work_struct *work)
 	}
 }
 
-/* Free internal BPF program */
 void bpf_prog_free(struct bpf_prog *fp)
 {
 	struct bpf_prog_aux *aux = fp->aux;
