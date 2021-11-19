@@ -104,6 +104,7 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	/* dsp core power up/down */
 	.core_power_up = hda_dsp_enable_core,
 	.core_power_down = hda_dsp_core_reset_power_down,
+	.core_get = hda_dsp_core_get,
 
 	/* trace callback */
 	.trace_init = hda_dsp_trace_init,
