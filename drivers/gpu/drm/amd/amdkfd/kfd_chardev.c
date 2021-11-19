@@ -1848,6 +1848,11 @@ static int criu_checkpoint_process(struct kfd_process *p,
 	memset(&process_priv, 0, sizeof(process_priv));
 
 	process_priv.version = KFD_CRIU_PRIV_VERSION;
+	/* For CR, we don't consider negative xnack mode which is used for
+	 * querying without changing it, here 0 simply means disabled and 1
+	 * means enabled so retry for finding a valid PTE.
+	 */
+	process_priv.xnack_mode = p->xnack_enabled ? 1 : 0;
 
 	ret = copy_to_user(user_priv_data + *priv_offset,
 				&process_priv, sizeof(process_priv));
@@ -2239,6 +2244,16 @@ static int criu_restore_process(struct kfd_process *p,
 		pr_err("Invalid CRIU API version (checkpointed:%d current:%d)\n",
 			process_priv.version, KFD_CRIU_PRIV_VERSION);
 		return -EINVAL;
+	}
+
+	pr_debug("Setting XNACK mode\n");
+	if (process_priv.xnack_mode && !kfd_process_xnack_mode(p, true)) {
+		pr_err("xnack mode cannot be set\n");
+		ret = -EPERM;
+		goto exit;
+	} else {
+		pr_debug("set xnack mode: %d\n", process_priv.xnack_mode);
+		p->xnack_enabled = process_priv.xnack_mode;
 	}
 
 exit:

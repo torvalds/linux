@@ -1056,6 +1056,7 @@ void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
 
 struct kfd_criu_process_priv_data {
 	uint32_t version;
+	uint32_t xnack_mode;
 };
 
 struct kfd_criu_device_priv_data {
