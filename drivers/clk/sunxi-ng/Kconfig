@@ -12,6 +12,16 @@ config SUNIV_F1C100S_CCU
 	default MACH_SUNIV
 	depends on MACH_SUNIV || COMPILE_TEST
 
+config SUN20I_D1_CCU
+	tristate "Support for the Allwinner D1 CCU"
+	default RISCV && ARCH_SUNXI
+	depends on (RISCV && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN20I_D1_R_CCU
+	tristate "Support for the Allwinner D1 PRCM CCU"
+	default RISCV && ARCH_SUNXI
+	depends on (RISCV && ARCH_SUNXI) || COMPILE_TEST
+
 config SUN50I_A64_CCU
 	tristate "Support for the Allwinner A64 CCU"
 	default ARM64 && ARCH_SUNXI
