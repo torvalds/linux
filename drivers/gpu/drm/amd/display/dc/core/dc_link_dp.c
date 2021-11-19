@@ -1384,6 +1384,12 @@ static enum link_training_result perform_channel_equalization_sequence(
 					dp_translate_training_aux_read_interval(
 						link->dpcd_caps.lttpr_caps.aux_rd_interval[offset - 1]);
 
+		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+				(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+				link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+			wait_time_microsec = 16000;
+		}
+
 		dp_wait_for_training_aux_rd_interval(
 				link,
 				wait_time_microsec);
@@ -1486,6 +1492,12 @@ static enum link_training_result perform_clock_recovery_sequence(
 
 		if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
 			wait_time_microsec = TRAINING_AUX_RD_INTERVAL;
+
+		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+				(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+				link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+			wait_time_microsec = 16000;
+		}
 
 		dp_wait_for_training_aux_rd_interval(
 				link,
