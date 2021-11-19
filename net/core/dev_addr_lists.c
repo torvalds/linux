@@ -549,6 +549,16 @@ int dev_addr_init(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_addr_init);
 
+void dev_addr_mod(struct net_device *dev, unsigned int offset,
+		  const void *addr, size_t len)
+{
+	struct netdev_hw_addr *ha;
+
+	ha = container_of(dev->dev_addr, struct netdev_hw_addr, addr[0]);
+	memcpy(&ha->addr[offset], addr, len);
+}
+EXPORT_SYMBOL(dev_addr_mod);
+
 /**
  *	dev_addr_add - Add a device address
  *	@dev: device
