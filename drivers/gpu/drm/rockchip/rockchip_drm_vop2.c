@@ -139,6 +139,8 @@
 #define VOP2_SYS_AXI_BUS_NUM 2
 
 #define VOP2_MAX_VP_OUTPUT_WIDTH	4096
+/* KHZ */
+#define VOP2_MAX_DCLK_RATE		600000
 
 #define VOP2_COLOR_KEY_NONE		(0 << 31)
 #define VOP2_COLOR_KEY_MASK		(1 << 31)
@@ -4869,9 +4871,9 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		adj_mode->crtc_clock *= 2;
 
-	adj_mode->crtc_clock = DIV_ROUND_UP(clk_round_rate(vp->dclk,
-							   adj_mode->crtc_clock * 1000), 1000);
-
+	if (adj_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)
+		adj_mode->crtc_clock = DIV_ROUND_UP(clk_round_rate(vp->dclk,
+						    adj_mode->crtc_clock * 1000), 1000);
 	return true;
 }
 
