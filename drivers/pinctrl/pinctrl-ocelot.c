@@ -317,7 +317,7 @@ struct ocelot_pinctrl {
 	struct pinctrl_dev *pctl;
 	struct gpio_chip gpio_chip;
 	struct regmap *map;
-	void __iomem *pincfg;
+	struct regmap *pincfg;
 	struct pinctrl_desc *desc;
 	struct ocelot_pmx_func func[FUNC_MAX];
 	u8 stride;
@@ -1224,7 +1224,11 @@ static int ocelot_hw_get_value(struct ocelot_pinctrl *info,
 	int ret = -EOPNOTSUPP;
 
 	if (info->pincfg) {
-		u32 regcfg = readl(info->pincfg + (pin * sizeof(u32)));
+		u32 regcfg;
+
+		ret = regmap_read(info->pincfg, pin, &regcfg);
+		if (ret)
+			return ret;
 
 		ret = 0;
 		switch (reg) {
@@ -1248,6 +1252,24 @@ static int ocelot_hw_get_value(struct ocelot_pinctrl *info,
 	return ret;
 }
 
+static int ocelot_pincfg_clrsetbits(struct ocelot_pinctrl *info, u32 regaddr,
+				    u32 clrbits, u32 setbits)
+{
+	u32 val;
+	int ret;
+
+	ret = regmap_read(info->pincfg, regaddr, &val);
+	if (ret)
+		return ret;
+
+	val &= ~clrbits;
+	val |= setbits;
+
+	ret = regmap_write(info->pincfg, regaddr, val);
+
+	return ret;
+}
+
 static int ocelot_hw_set_value(struct ocelot_pinctrl *info,
 			       unsigned int pin,
 			       unsigned int reg,
@@ -1256,21 +1278,23 @@ static int ocelot_hw_set_value(struct ocelot_pinctrl *info,
 	int ret = -EOPNOTSUPP;
 
 	if (info->pincfg) {
-		void __iomem *regaddr = info->pincfg + (pin * sizeof(u32));
 
 		ret = 0;
 		switch (reg) {
 		case PINCONF_BIAS:
-			ocelot_clrsetbits(regaddr, BIAS_BITS, val);
+			ret = ocelot_pincfg_clrsetbits(info, pin, BIAS_BITS,
+						       val);
 			break;
 
 		case PINCONF_SCHMITT:
-			ocelot_clrsetbits(regaddr, SCHMITT_BIT, val);
+			ret = ocelot_pincfg_clrsetbits(info, pin, SCHMITT_BIT,
+						       val);
 			break;
 
 		case PINCONF_DRIVE_STRENGTH:
 			if (val <= 3)
-				ocelot_clrsetbits(regaddr, DRIVE_BITS, val);
+				ret = ocelot_pincfg_clrsetbits(info, pin,
+							       DRIVE_BITS, val);
 			else
 				ret = -EINVAL;
 			break;
@@ -1756,10 +1780,31 @@ static const struct of_device_id ocelot_pinctrl_of_match[] = {
 	{},
 };
 
+static struct regmap *ocelot_pinctrl_create_pincfg(struct platform_device *pdev)
+{
+	void __iomem *base;
+
+	const struct regmap_config regmap_config = {
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = 32,
+	};
+
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base)) {
+		dev_dbg(&pdev->dev, "Failed to ioremap config registers (no extended pinconf)\n");
+		return NULL;
+	}
+
+	return devm_regmap_init_mmio(&pdev->dev, base, &regmap_config);
+}
+
 static int ocelot_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ocelot_pinctrl *info;
+	struct regmap *pincfg;
 	void __iomem *base;
 	int ret;
 	struct regmap_config regmap_config = {
@@ -1793,11 +1838,11 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 
 	/* Pinconf registers */
 	if (info->desc->confops) {
-		base = devm_platform_ioremap_resource(pdev, 0);
-		if (IS_ERR(base))
-			dev_dbg(dev, "Failed to ioremap config registers (no extended pinconf)\n");
+		pincfg = ocelot_pinctrl_create_pincfg(pdev);
+		if (IS_ERR(pincfg))
+			dev_dbg(dev, "Failed to create pincfg regmap\n");
 		else
-			info->pincfg = base;
+			info->pincfg = pincfg;
 	}
 
 	ret = ocelot_pinctrl_register(pdev, info);
