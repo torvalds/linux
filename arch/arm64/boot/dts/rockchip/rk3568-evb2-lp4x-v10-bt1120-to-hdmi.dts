@@ -4,6 +4,7 @@
  *
  */
 
+#include <dt-bindings/display/media-bus-format.h>
 #include "rk3568-evb2-lp4x-v10.dtsi"
 #include "rk3568-android.dtsi"
 
@@ -28,7 +29,7 @@
 		interrupts = <RK_PA0 IRQ_TYPE_LEVEL_HIGH>;
 		reset-gpio = <&gpio3 RK_PC4 GPIO_ACTIVE_LOW>;
 		enable-gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
-		bus-format = <1>;
+		bus-format = <MEDIA_BUS_FMT_YUYV8_1X16>;
 
 		ports {
 			#address-cells = <1>;
