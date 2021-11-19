@@ -665,11 +665,12 @@ int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify)
 }
 
 /*
- * This function doesn't free widgets during suspend. It only resets the set up status for all
- * routes and use_count for all widgets.
+ * For older firmware, this function doesn't free widgets for static pipelines during suspend.
+ * It only resets use_count for all widgets.
  */
 int sof_tear_down_pipelines(struct snd_sof_dev *sdev, bool verify)
 {
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
 	struct snd_sof_widget *swidget;
 	struct snd_sof_route *sroute;
 	int ret;
@@ -681,8 +682,14 @@ int sof_tear_down_pipelines(struct snd_sof_dev *sdev, bool verify)
 	 * loading the sound card unavailable to open PCMs.
 	 */
 	list_for_each_entry_reverse(swidget, &sdev->widget_list, list) {
-		if (!verify) {
+		if (swidget->dynamic_pipeline_widget)
+			continue;
+
+		/* Do not free widgets for static pipelines with FW ABI older than 3.19 */
+		if (!verify && !swidget->dynamic_pipeline_widget &&
+		    v->abi_version < SOF_ABI_VER(3, 19, 0)) {
 			swidget->use_count = 0;
+			swidget->complete = 0;
 			continue;
 		}
 
