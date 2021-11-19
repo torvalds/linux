@@ -134,6 +134,8 @@ struct snd_sof_dsp_ops {
 			     unsigned int core_mask); /* optional */
 	int (*core_power_down)(struct snd_sof_dev *sof_dev,
 			       unsigned int core_mask); /* optional */
+	int (*core_get)(struct snd_sof_dev *sof_dev, int core); /* optional */
+	int (*core_put)(struct snd_sof_dev *sof_dev, int core); /* optional */
 
 	/*
 	 * Register IO: only used by respective drivers themselves,
