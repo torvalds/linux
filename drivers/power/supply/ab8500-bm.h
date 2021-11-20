@@ -367,7 +367,6 @@ struct ab8500_maxim_parameters {
  * struct ab8500_battery_type - different batteries supported
  * @resis_high:			battery upper resistance limit
  * @resis_low:			battery lower resistance limit
- * @normal_vol_lvl:		charger voltage in normal state in mV
  * @maint_a_cur_lvl:		charger current in maintenance A state in mA
  * @maint_a_vol_lvl:		charger voltage in maintenance A state in mV
  * @maint_a_chg_timer_h:	charge time in maintenance A state
@@ -386,7 +385,6 @@ struct ab8500_maxim_parameters {
 struct ab8500_battery_type {
 	int resis_high;
 	int resis_low;
-	int normal_vol_lvl;
 	int maint_a_cur_lvl;
 	int maint_a_vol_lvl;
 	int maint_a_chg_timer_h;
@@ -421,15 +419,15 @@ struct ab8500_bm_capacity_levels {
 
 /**
  * struct ab8500_bm_charger_parameters - Charger specific parameters
- * @usb_volt_max:	maximum allowed USB charger voltage in mV
+ * @usb_volt_max_uv:	maximum allowed USB charger voltage in uV
  * @usb_curr_max_ua:	maximum allowed USB charger current in uA
- * @ac_volt_max:	maximum allowed AC charger voltage in mV
+ * @ac_volt_max_uv:	maximum allowed AC charger voltage in uV
  * @ac_curr_max_ua:	maximum allowed AC charger current in uA
  */
 struct ab8500_bm_charger_parameters {
-	int usb_volt_max;
+	int usb_volt_max_uv;
 	int usb_curr_max_ua;
-	int ac_volt_max;
+	int ac_volt_max_uv;
 	int ac_curr_max_ua;
 };
 

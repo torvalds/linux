@@ -70,13 +70,13 @@ struct ab8500_chargalg_charger_info {
 	enum ab8500_chargers charger_type;
 	bool usb_chg_ok;
 	bool ac_chg_ok;
-	int usb_volt;
+	int usb_volt_uv;
 	int usb_curr_ua;
-	int ac_volt;
+	int ac_volt_uv;
 	int ac_curr_ua;
-	int usb_vset;
+	int usb_vset_uv;
 	int usb_iset_ua;
-	int ac_vset;
+	int ac_vset_uv;
 	int ac_iset_ua;
 };
 
@@ -365,12 +365,12 @@ static int ab8500_chargalg_check_charger_enable(struct ab8500_chargalg *di)
 
 	if (di->chg_info.charger_type & USB_CHG) {
 		return di->usb_chg->ops.check_enable(di->usb_chg,
-			di->bm->bat_type->normal_vol_lvl,
+			bi->constant_charge_voltage_max_uv,
 			bi->constant_charge_current_max_ua);
 	} else if ((di->chg_info.charger_type & AC_CHG) &&
 		   !(di->ac_chg->external)) {
 		return di->ac_chg->ops.check_enable(di->ac_chg,
-			di->bm->bat_type->normal_vol_lvl,
+			bi->constant_charge_voltage_max_uv,
 			bi->constant_charge_current_max_ua);
 	}
 	return 0;
@@ -546,14 +546,14 @@ static int ab8500_chargalg_kick_watchdog(struct ab8500_chargalg *di)
  * ab8500_chargalg_ac_en() - Turn on/off the AC charger
  * @di:		pointer to the ab8500_chargalg structure
  * @enable:	charger on/off
- * @vset:	requested charger output voltage
+ * @vset_uv:	requested charger output voltage in microvolt
  * @iset_ua:	requested charger output current in microampere
  *
  * The AC charger will be turned on/off with the requested charge voltage and
  * current
  */
 static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
-	int vset, int iset_ua)
+	int vset_uv, int iset_ua)
 {
 	static int ab8500_chargalg_ex_ac_enable_toggle;
 
@@ -561,13 +561,13 @@ static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
 		return -ENXIO;
 
 	/* Select maximum of what both the charger and the battery supports */
-	if (di->ac_chg->max_out_volt)
-		vset = min(vset, di->ac_chg->max_out_volt);
+	if (di->ac_chg->max_out_volt_uv)
+		vset_uv = min(vset_uv, di->ac_chg->max_out_volt_uv);
 	if (di->ac_chg->max_out_curr_ua)
 		iset_ua = min(iset_ua, di->ac_chg->max_out_curr_ua);
 
 	di->chg_info.ac_iset_ua = iset_ua;
-	di->chg_info.ac_vset = vset;
+	di->chg_info.ac_vset_uv = vset_uv;
 
 	/* Enable external charger */
 	if (enable && di->ac_chg->external &&
@@ -577,35 +577,35 @@ static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
 		ab8500_chargalg_ex_ac_enable_toggle++;
 	}
 
-	return di->ac_chg->ops.enable(di->ac_chg, enable, vset, iset_ua);
+	return di->ac_chg->ops.enable(di->ac_chg, enable, vset_uv, iset_ua);
 }
 
 /**
  * ab8500_chargalg_usb_en() - Turn on/off the USB charger
  * @di:		pointer to the ab8500_chargalg structure
  * @enable:	charger on/off
- * @vset:	requested charger output voltage
+ * @vset_uv:	requested charger output voltage in microvolt
  * @iset_ua:	requested charger output current in microampere
  *
  * The USB charger will be turned on/off with the requested charge voltage and
  * current
  */
 static int ab8500_chargalg_usb_en(struct ab8500_chargalg *di, int enable,
-	int vset, int iset_ua)
+	int vset_uv, int iset_ua)
 {
 	if (!di->usb_chg || !di->usb_chg->ops.enable)
 		return -ENXIO;
 
 	/* Select maximum of what both the charger and the battery supports */
-	if (di->usb_chg->max_out_volt)
-		vset = min(vset, di->usb_chg->max_out_volt);
+	if (di->usb_chg->max_out_volt_uv)
+		vset_uv = min(vset_uv, di->usb_chg->max_out_volt_uv);
 	if (di->usb_chg->max_out_curr_ua)
 		iset_ua = min(iset_ua, di->usb_chg->max_out_curr_ua);
 
 	di->chg_info.usb_iset_ua = iset_ua;
-	di->chg_info.usb_vset = vset;
+	di->chg_info.usb_vset_uv = vset_uv;
 
-	return di->usb_chg->ops.enable(di->usb_chg, enable, vset, iset_ua);
+	return di->usb_chg->ops.enable(di->usb_chg, enable, vset_uv, iset_ua);
 }
 
 /**
@@ -692,28 +692,28 @@ static void ab8500_chargalg_hold_charging(struct ab8500_chargalg *di)
 /**
  * ab8500_chargalg_start_charging() - Start the charger
  * @di:		pointer to the ab8500_chargalg structure
- * @vset:	requested charger output voltage
+ * @vset_uv:	requested charger output voltage in microvolt
  * @iset_ua:	requested charger output current in microampere
  *
  * A charger will be enabled depending on the requested charger type that was
  * detected previously.
  */
 static void ab8500_chargalg_start_charging(struct ab8500_chargalg *di,
-	int vset, int iset_ua)
+	int vset_uv, int iset_ua)
 {
 	switch (di->chg_info.charger_type) {
 	case AC_CHG:
 		dev_dbg(di->dev,
-			"AC parameters: Vset %d, Ich %d\n", vset, iset_ua);
+			"AC parameters: Vset %d, Ich %d\n", vset_uv, iset_ua);
 		ab8500_chargalg_usb_en(di, false, 0, 0);
-		ab8500_chargalg_ac_en(di, true, vset, iset_ua);
+		ab8500_chargalg_ac_en(di, true, vset_uv, iset_ua);
 		break;
 
 	case USB_CHG:
 		dev_dbg(di->dev,
-			"USB parameters: Vset %d, Ich %d\n", vset, iset_ua);
+			"USB parameters: Vset %d, Ich %d\n", vset_uv, iset_ua);
 		ab8500_chargalg_ac_en(di, false, 0, 0);
-		ab8500_chargalg_usb_en(di, true, vset, iset_ua);
+		ab8500_chargalg_usb_en(di, true, vset_uv, iset_ua);
 		break;
 
 	default:
@@ -777,12 +777,12 @@ static void ab8500_chargalg_check_temp(struct ab8500_chargalg *di)
  */
 static void ab8500_chargalg_check_charger_voltage(struct ab8500_chargalg *di)
 {
-	if (di->chg_info.usb_volt > di->bm->chg_params->usb_volt_max)
+	if (di->chg_info.usb_volt_uv > di->bm->chg_params->usb_volt_max_uv)
 		di->chg_info.usb_chg_ok = false;
 	else
 		di->chg_info.usb_chg_ok = true;
 
-	if (di->chg_info.ac_volt > di->bm->chg_params->ac_volt_max)
+	if (di->chg_info.ac_volt_uv > di->bm->chg_params->ac_volt_max_uv)
 		di->chg_info.ac_chg_ok = false;
 	else
 		di->chg_info.ac_chg_ok = true;
@@ -1173,10 +1173,10 @@ static int ab8500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 				di->batt_data.volt_uv = ret.intval;
 				break;
 			case POWER_SUPPLY_TYPE_MAINS:
-				di->chg_info.ac_volt = ret.intval / 1000;
+				di->chg_info.ac_volt_uv = ret.intval;
 				break;
 			case POWER_SUPPLY_TYPE_USB:
-				di->chg_info.usb_volt = ret.intval / 1000;
+				di->chg_info.usb_volt_uv = ret.intval;
 				break;
 			default:
 				break;
@@ -1423,9 +1423,9 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		di->events.usb_cv_active,
 		di->chg_info.ac_curr_ua,
 		di->chg_info.usb_curr_ua,
-		di->chg_info.ac_vset,
+		di->chg_info.ac_vset_uv,
 		di->chg_info.ac_iset_ua,
-		di->chg_info.usb_vset,
+		di->chg_info.usb_vset_uv,
 		di->chg_info.usb_iset_ua);
 
 	switch (di->charge_state) {
@@ -1518,7 +1518,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 				* di->curr_status.curr_step_ua
 				/ CHARGALG_CURR_STEP_HIGH_UA;
 			ab8500_chargalg_start_charging(di,
-				di->bm->bat_type->normal_vol_lvl,
+				bi->constant_charge_voltage_max_uv,
 				curr_step_lvl_ua);
 		}
 

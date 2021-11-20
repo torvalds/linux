@@ -183,7 +183,7 @@ struct ab8500_charger_interrupts {
 struct ab8500_charger_info {
 	int charger_connected;
 	int charger_online;
-	int charger_voltage;
+	int charger_voltage_uv;
 	int cv_active;
 	bool wd_expired;
 	int charger_current_ua;
@@ -479,7 +479,7 @@ static void ab8500_charger_set_usb_connected(struct ab8500_charger *di,
  * ab8500_charger_get_ac_voltage() - get ac charger voltage
  * @di:		pointer to the ab8500_charger structure
  *
- * Returns ac charger voltage (on success)
+ * Returns ac charger voltage in microvolt (on success)
  */
 static int ab8500_charger_get_ac_voltage(struct ab8500_charger *di)
 {
@@ -493,7 +493,8 @@ static int ab8500_charger_get_ac_voltage(struct ab8500_charger *di)
 	} else {
 		vch = 0;
 	}
-	return vch;
+	/* Convert to microvolt, IIO returns millivolt */
+	return vch * 1000;
 }
 
 /**
@@ -530,7 +531,7 @@ static int ab8500_charger_ac_cv(struct ab8500_charger *di)
  * @di:		pointer to the ab8500_charger structure
  *
  * This function returns the vbus voltage.
- * Returns vbus voltage (on success)
+ * Returns vbus voltage in microvolt (on success)
  */
 static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
 {
@@ -544,7 +545,8 @@ static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
 	} else {
 		vch = 0;
 	}
-	return vch;
+	/* Convert to microvolt, IIO returns millivolt */
+	return vch * 1000;
 }
 
 /**
@@ -923,105 +925,105 @@ static int ab8500_charger_detect_usb_type(struct ab8500_charger *di)
 
 /*
  * This array maps the raw hex value to charger voltage used by the AB8500
- * Values taken from the UM0836
+ * Values taken from the UM0836, in microvolt.
  */
 static int ab8500_charger_voltage_map[] = {
-	3500 ,
-	3525 ,
-	3550 ,
-	3575 ,
-	3600 ,
-	3625 ,
-	3650 ,
-	3675 ,
-	3700 ,
-	3725 ,
-	3750 ,
-	3775 ,
-	3800 ,
-	3825 ,
-	3850 ,
-	3875 ,
-	3900 ,
-	3925 ,
-	3950 ,
-	3975 ,
-	4000 ,
-	4025 ,
-	4050 ,
-	4060 ,
-	4070 ,
-	4080 ,
-	4090 ,
-	4100 ,
-	4110 ,
-	4120 ,
-	4130 ,
-	4140 ,
-	4150 ,
-	4160 ,
-	4170 ,
-	4180 ,
-	4190 ,
-	4200 ,
-	4210 ,
-	4220 ,
-	4230 ,
-	4240 ,
-	4250 ,
-	4260 ,
-	4270 ,
-	4280 ,
-	4290 ,
-	4300 ,
-	4310 ,
-	4320 ,
-	4330 ,
-	4340 ,
-	4350 ,
-	4360 ,
-	4370 ,
-	4380 ,
-	4390 ,
-	4400 ,
-	4410 ,
-	4420 ,
-	4430 ,
-	4440 ,
-	4450 ,
-	4460 ,
-	4470 ,
-	4480 ,
-	4490 ,
-	4500 ,
-	4510 ,
-	4520 ,
-	4530 ,
-	4540 ,
-	4550 ,
-	4560 ,
-	4570 ,
-	4580 ,
-	4590 ,
-	4600 ,
+	3500000,
+	3525000,
+	3550000,
+	3575000,
+	3600000,
+	3625000,
+	3650000,
+	3675000,
+	3700000,
+	3725000,
+	3750000,
+	3775000,
+	3800000,
+	3825000,
+	3850000,
+	3875000,
+	3900000,
+	3925000,
+	3950000,
+	3975000,
+	4000000,
+	4025000,
+	4050000,
+	4060000,
+	4070000,
+	4080000,
+	4090000,
+	4100000,
+	4110000,
+	4120000,
+	4130000,
+	4140000,
+	4150000,
+	4160000,
+	4170000,
+	4180000,
+	4190000,
+	4200000,
+	4210000,
+	4220000,
+	4230000,
+	4240000,
+	4250000,
+	4260000,
+	4270000,
+	4280000,
+	4290000,
+	4300000,
+	4310000,
+	4320000,
+	4330000,
+	4340000,
+	4350000,
+	4360000,
+	4370000,
+	4380000,
+	4390000,
+	4400000,
+	4410000,
+	4420000,
+	4430000,
+	4440000,
+	4450000,
+	4460000,
+	4470000,
+	4480000,
+	4490000,
+	4500000,
+	4510000,
+	4520000,
+	4530000,
+	4540000,
+	4550000,
+	4560000,
+	4570000,
+	4580000,
+	4590000,
+	4600000,
 };
 
-static int ab8500_voltage_to_regval(int voltage)
+static int ab8500_voltage_to_regval(int voltage_uv)
 {
 	int i;
 
 	/* Special case for voltage below 3.5V */
-	if (voltage < ab8500_charger_voltage_map[0])
+	if (voltage_uv < ab8500_charger_voltage_map[0])
 		return LOW_VOLT_REG;
 
 	for (i = 1; i < ARRAY_SIZE(ab8500_charger_voltage_map); i++) {
-		if (voltage < ab8500_charger_voltage_map[i])
+		if (voltage_uv < ab8500_charger_voltage_map[i])
 			return i - 1;
 	}
 
 	/* If not last element, return error */
 	i = ARRAY_SIZE(ab8500_charger_voltage_map) - 1;
-	if (voltage == ab8500_charger_voltage_map[i])
+	if (voltage_uv == ab8500_charger_voltage_map[i])
 		return i;
 	else
 		return -1;
@@ -1382,14 +1384,14 @@ static int ab8500_charger_led_en(struct ab8500_charger *di, int on)
  * ab8500_charger_ac_en() - enable or disable ac charging
  * @di:		pointer to the ab8500_charger structure
  * @enable:	enable/disable flag
- * @vset:	charging voltage
+ * @vset_uv:	charging voltage in microvolt
  * @iset_ua:	charging current in microampere
  *
  * Enable/Disable AC/Mains charging and turns on/off the charging led
  * respectively.
  **/
 static int ab8500_charger_ac_en(struct ux500_charger *charger,
-	int enable, int vset, int iset_ua)
+	int enable, int vset_uv, int iset_ua)
 {
 	int ret;
 	int volt_index;
@@ -1407,7 +1409,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		}
 
 		/* Enable AC charging */
-		dev_dbg(di->dev, "Enable AC: %dmV %duA\n", vset, iset_ua);
+		dev_dbg(di->dev, "Enable AC: %duV %duA\n", vset_uv, iset_ua);
 
 		/*
 		 * Due to a bug in AB8500, BTEMP_HIGH/LOW interrupts
@@ -1429,7 +1431,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		}
 
 		/* Check if the requested voltage or current is valid */
-		volt_index = ab8500_voltage_to_regval(vset);
+		volt_index = ab8500_voltage_to_regval(vset_uv);
 		curr_index = ab8500_current_to_regval(di, iset_ua);
 		input_curr_index = ab8500_current_to_regval(di,
 			di->bm->chg_params->ac_curr_max_ua);
@@ -1559,14 +1561,14 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
  * ab8500_charger_usb_en() - enable usb charging
  * @di:		pointer to the ab8500_charger structure
  * @enable:	enable/disable flag
- * @vset:	charging voltage
+ * @vset_uv:	charging voltage in microvolt
  * @ich_out_ua:	charger output current in microampere
  *
  * Enable/Disable USB charging and turns on/off the charging led respectively.
  * Returns error code in case of failure else 0(on success)
  */
 static int ab8500_charger_usb_en(struct ux500_charger *charger,
-	int enable, int vset, int ich_out_ua)
+	int enable, int vset_uv, int ich_out_ua)
 {
 	int ret;
 	int volt_index;
@@ -1602,10 +1604,10 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 		}
 
 		/* Enable USB charging */
-		dev_dbg(di->dev, "Enable USB: %d mV %d uA\n", vset, ich_out_ua);
+		dev_dbg(di->dev, "Enable USB: %d uV %d uA\n", vset_uv, ich_out_ua);
 
 		/* Check if the requested voltage or current is valid */
-		volt_index = ab8500_voltage_to_regval(vset);
+		volt_index = ab8500_voltage_to_regval(vset_uv);
 		curr_index = ab8500_current_to_regval(di, ich_out_ua);
 		if (volt_index < 0 || curr_index < 0) {
 			dev_err(di->dev,
@@ -1740,14 +1742,14 @@ out:
 /**
  * ab8500_charger_usb_check_enable() - enable usb charging
  * @charger:	pointer to the ux500_charger structure
- * @vset:	charging voltage
+ * @vset_uv:	charging voltage in microvolt
  * @iset_ua:	charger output current in microampere
  *
  * Check if the VBUS charger has been disconnected and reconnected without
  * AB8500 rising an interrupt. Returns 0 on success.
  */
 static int ab8500_charger_usb_check_enable(struct ux500_charger *charger,
-	int vset, int iset_ua)
+	int vset_uv, int iset_ua)
 {
 	u8 usbch_ctrl1 = 0;
 	int ret = 0;
@@ -1776,7 +1778,7 @@ static int ab8500_charger_usb_check_enable(struct ux500_charger *charger,
 			return ret;
 		}
 
-		ret = ab8500_charger_usb_en(&di->usb_chg, true, vset, iset_ua);
+		ret = ab8500_charger_usb_en(&di->usb_chg, true, vset_uv, iset_ua);
 		if (ret < 0) {
 			dev_err(di->dev, "Failed to enable VBUS charger %d\n",
 					__LINE__);
@@ -1789,14 +1791,14 @@ static int ab8500_charger_usb_check_enable(struct ux500_charger *charger,
 /**
  * ab8500_charger_ac_check_enable() - enable usb charging
  * @charger:	pointer to the ux500_charger structure
- * @vset:	charging voltage
+ * @vset_uv:	charging voltage in microvolt
  * @iset_ua:	charger output current in micrompere
  *
  * Check if the AC charger has been disconnected and reconnected without
  * AB8500 rising an interrupt. Returns 0 on success.
  */
 static int ab8500_charger_ac_check_enable(struct ux500_charger *charger,
-	int vset, int iset_ua)
+	int vset_uv, int iset_ua)
 {
 	u8 mainch_ctrl1 = 0;
 	int ret = 0;
@@ -1826,7 +1828,7 @@ static int ab8500_charger_ac_check_enable(struct ux500_charger *charger,
 			return ret;
 		}
 
-		ret = ab8500_charger_ac_en(&di->usb_chg, true, vset, iset_ua);
+		ret = ab8500_charger_ac_en(&di->usb_chg, true, vset_uv, iset_ua);
 		if (ret < 0) {
 			dev_err(di->dev, "failed to enable AC charger %d\n",
 				__LINE__);
@@ -2941,9 +2943,9 @@ static int ab8500_charger_ac_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		ret = ab8500_charger_get_ac_voltage(di);
 		if (ret >= 0)
-			di->ac.charger_voltage = ret;
+			di->ac.charger_voltage_uv = ret;
 		/* On error, use previous value */
-		val->intval = di->ac.charger_voltage * 1000;
+		val->intval = di->ac.charger_voltage_uv;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		/*
@@ -3010,8 +3012,8 @@ static int ab8500_charger_usb_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		ret = ab8500_charger_get_vbus_voltage(di);
 		if (ret >= 0)
-			di->usb.charger_voltage = ret;
-		val->intval = di->usb.charger_voltage * 1000;
+			di->usb.charger_voltage_uv = ret;
+		val->intval = di->usb.charger_voltage_uv;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		/*
@@ -3521,7 +3523,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.ops.check_enable = &ab8500_charger_ac_check_enable;
 	di->ac_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
 	di->ac_chg.ops.update_curr = &ab8500_charger_update_charger_current;
-	di->ac_chg.max_out_volt = ab8500_charger_voltage_map[
+	di->ac_chg.max_out_volt_uv = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->ac_chg.max_out_curr_ua =
 		ab8500_charge_output_curr_map[ARRAY_SIZE(ab8500_charge_output_curr_map) - 1];
@@ -3542,7 +3544,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.ops.check_enable = &ab8500_charger_usb_check_enable;
 	di->usb_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
 	di->usb_chg.ops.update_curr = &ab8500_charger_update_charger_current;
-	di->usb_chg.max_out_volt = ab8500_charger_voltage_map[
+	di->usb_chg.max_out_volt_uv = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->usb_chg.max_out_curr_ua =
 		ab8500_charge_output_curr_map[ARRAY_SIZE(ab8500_charge_output_curr_map) - 1];
