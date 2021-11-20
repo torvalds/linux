@@ -734,6 +734,7 @@ static const struct imx_pgc_domain imx8mm_pgc_domains[] = {
 			.map = IMX8MM_VPUH1_A53_DOMAIN,
 		},
 		.pgc   = BIT(IMX8MM_PGC_VPUH1),
+		.keep_clocks = true,
 	},
 
 	[IMX8MM_POWER_DOMAIN_DISPMIX] = {
