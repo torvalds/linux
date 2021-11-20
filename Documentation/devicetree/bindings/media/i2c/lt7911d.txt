@@ -1,0 +1,49 @@
+* Lontium lt7911d type-c/DP to MIPI-CSI Bridge
+
+Required Properties:
+- compatible: should be "lontium,lt7911d".
+- clocks: reference to the 27M xvclk input clock.
+- clock-names: should be "xvclk".
+- reset-gpios: Low active reset gpio.
+- power-gpios: High active power gpio.
+- hpd-ctl-gpios: High active hpd control gpio.
+		 If inverted circuit, choose low active.
+- plugin-det-gpios: Low active plugin detect gpio.
+- interrupts: GPIO connected to the gpio5.
+- data-lanes: should be <1 2 3 4> for four-lane operation,
+	      or <1 2> for two-lane operation.
+
+Attention:
+LT7911D device address 0x2b(7bit)
+
+Example:
+&i2c7 {
+	status = "okay";
+
+	lt7911d: lt7911d@2b {
+		compatible = "lontium,lt7911d";
+		status = "okay";
+		reg = <0x2b>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+		clock-names = "xvclk";
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PD4 IRQ_TYPE_EDGE_RISING>;
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipim1_camera1_clk>;
+		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		power-gpios = <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
+		hpd-ctl-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		plugin-det-gpios = <&gpio0 RK_PD6 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "LT7911D";
+		rockchip,camera-module-lens-name = "NC";
+		port {
+			lt7911d_out: endpoint {
+				remote-endpoint = <&hdmi_mipi_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
