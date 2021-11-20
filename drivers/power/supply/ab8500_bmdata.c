@@ -436,24 +436,6 @@ static const struct ab8500_bm_charger_parameters chg = {
 	.ac_curr_max		= 1500,
 };
 
-/*
- * This array maps the raw hex value to charger output current used by the
- * AB8500 values
- */
-static int ab8500_charge_output_curr_map[] = {
-        100,    200,    300,    400,    500,    600,    700,    800,
-        900,    1000,   1100,   1200,   1300,   1400,   1500,   1500,
-};
-
-/*
- * This array maps the raw hex value to charger input current used by the
- * AB8500 values
- */
-static int ab8500_charge_input_curr_map[] = {
-        50,     98,     193,    290,    380,    450,    500,    600,
-        700,    800,    900,    1000,   1100,   1300,   1400,   1500,
-};
-
 struct ab8500_bm_data ab8500_bm_data = {
 	.temp_under             = 3,
 	.temp_low               = 8,
@@ -479,13 +461,9 @@ struct ab8500_bm_data ab8500_bm_data = {
 	.interval_not_charging  = 120,
 	.temp_hysteresis        = 3,
 	.gnd_lift_resistance    = 34,
-	.chg_output_curr        = ab8500_charge_output_curr_map,
-	.n_chg_out_curr         = ARRAY_SIZE(ab8500_charge_output_curr_map),
 	.maxi                   = &ab8500_maxi_params,
 	.chg_params             = &chg,
 	.fg_params              = &fg,
-        .chg_input_curr         = ab8500_charge_input_curr_map,
-        .n_chg_in_curr          = ARRAY_SIZE(ab8500_charge_input_curr_map),
 };
 
 int ab8500_bm_of_probe(struct power_supply *psy,

@@ -1025,21 +1025,33 @@ static int ab8500_voltage_to_regval(int voltage)
 		return -1;
 }
 
+/* This array maps the raw register value to charger input current */
+static int ab8500_charge_input_curr_map[] = {
+	50, 98, 193, 290, 380, 450, 500, 600,
+	700, 800, 900, 1000, 1100, 1300, 1400, 1500,
+};
+
+/* This array maps the raw register value to charger output current */
+static int ab8500_charge_output_curr_map[] = {
+	100, 200, 300, 400, 500, 600, 700, 800,
+	900, 1000, 1100, 1200, 1300, 1400, 1500, 1500,
+};
+
 static int ab8500_current_to_regval(struct ab8500_charger *di, int curr)
 {
 	int i;
 
-	if (curr < di->bm->chg_output_curr[0])
+	if (curr < ab8500_charge_output_curr_map[0])
 		return 0;
 
-	for (i = 0; i < di->bm->n_chg_out_curr; i++) {
-		if (curr < di->bm->chg_output_curr[i])
+	for (i = 0; i < ARRAY_SIZE(ab8500_charge_output_curr_map); i++) {
+		if (curr < ab8500_charge_output_curr_map[i])
 			return i - 1;
 	}
 
 	/* If not last element, return error */
-	i = di->bm->n_chg_out_curr - 1;
-	if (curr == di->bm->chg_output_curr[i])
+	i =  ARRAY_SIZE(ab8500_charge_output_curr_map) - 1;
+	if (curr == ab8500_charge_output_curr_map[i])
 		return i;
 	else
 		return -1;
@@ -1049,17 +1061,17 @@ static int ab8500_vbus_in_curr_to_regval(struct ab8500_charger *di, int curr)
 {
 	int i;
 
-	if (curr < di->bm->chg_input_curr[0])
+	if (curr < ab8500_charge_input_curr_map[0])
 		return 0;
 
-	for (i = 0; i < di->bm->n_chg_in_curr; i++) {
-		if (curr < di->bm->chg_input_curr[i])
+	for (i = 0; i < ARRAY_SIZE(ab8500_charge_input_curr_map); i++) {
+		if (curr < ab8500_charge_input_curr_map[i])
 			return i - 1;
 	}
 
 	/* If not last element, return error */
-	i = di->bm->n_chg_in_curr - 1;
-	if (curr == di->bm->chg_input_curr[i])
+	i =  ARRAY_SIZE(ab8500_charge_input_curr_map) - 1;
+	if (curr == ab8500_charge_input_curr_map[i])
 		return i;
 	else
 		return -1;
@@ -2673,7 +2685,7 @@ static void ab8500_charger_vbus_drop_end_work(struct work_struct *work)
 		return;
 	}
 
-	curr = di->bm->chg_input_curr[
+	curr = ab8500_charge_input_curr_map[
 		reg_value >> AUTO_VBUS_IN_CURR_LIM_SHIFT];
 
 	if (di->max_usb_in_curr.calculated_max != curr) {
@@ -3503,7 +3515,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.max_out_volt = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->ac_chg.max_out_curr =
-		di->bm->chg_output_curr[di->bm->n_chg_out_curr - 1];
+		ab8500_charge_output_curr_map[ARRAY_SIZE(ab8500_charge_output_curr_map) - 1];
 	di->ac_chg.wdt_refresh = CHG_WD_INTERVAL;
 	/*
 	 * The AB8505 only supports USB charging. If we are not the
@@ -3524,7 +3536,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.max_out_volt = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->usb_chg.max_out_curr =
-		di->bm->chg_output_curr[di->bm->n_chg_out_curr - 1];
+		ab8500_charge_output_curr_map[ARRAY_SIZE(ab8500_charge_output_curr_map) - 1];
 	di->usb_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->usb_chg.external = false;
 	di->usb_state.usb_current = -1;

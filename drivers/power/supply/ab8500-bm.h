@@ -484,10 +484,6 @@ struct ab8500_bm_charger_parameters {
  * @interval_not_charging charge alg cycle period time when not charging (sec)
  * @temp_hysteresis	temperature hysteresis
  * @gnd_lift_resistance	Battery ground to phone ground resistance (mOhm)
- * @n_chg_out_curr		number of elements in array chg_output_curr
- * @n_chg_in_curr		number of elements in array chg_input_curr
- * @chg_output_curr	charger output current level map
- * @chg_input_curr		charger input current level map
  * @maxi		maximization parameters
  * @cap_levels		capacity in percent for the different capacity levels
  * @bat_type		table of supported battery types
@@ -519,10 +515,6 @@ struct ab8500_bm_data {
 	int interval_not_charging;
 	int temp_hysteresis;
 	int gnd_lift_resistance;
-	int n_chg_out_curr;
-	int n_chg_in_curr;
-	int *chg_output_curr;
-	int *chg_input_curr;
 	const struct ab8500_maxim_parameters *maxi;
 	const struct ab8500_bm_capacity_levels *cap_levels;
 	struct ab8500_battery_type *bat_type;
