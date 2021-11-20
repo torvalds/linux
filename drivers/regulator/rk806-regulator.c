@@ -157,7 +157,7 @@ struct rk806_regulator_data {
 	int dvs_flag[RK806_DVS_END];
 	int dvs_used[RK806_DVS_END];
 	int dvs_count[RK806_DVS_END];
-	int dvs_init;
+	int regulator_init;
 	int support_dvs;
 	struct rk806 *rk806;
 };
@@ -258,7 +258,7 @@ static int get_dvs_mode(struct regulator_dev *rdev)
 	if (!pdata->support_dvs)
 		return RK806_DVS_NOT_SUPPORT;
 
-	if (pdata->dvs_ctrl_mode_init[rid])
+	if (pdata->dvs_ctrl_mode_init[rid] || pdata->regulator_init)
 		return pdata->dvs_ctrl_mode[rid];
 
 	for (i = 0; i < RK806_DVS_END; i++) {
@@ -270,6 +270,7 @@ static int get_dvs_mode(struct regulator_dev *rdev)
 			pdata->dvs_ctrl_mode[rid] = i;
 			pdata->dvs_ctrl_mode_init[rid] = 1;
 			pdata->dvs_flag[i] |= BIT(rid);
+			pdata->dvs_field[j] = rk806_dvs_field[j];
 
 			/* init dvs pin function */
 			if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN1)
@@ -383,9 +384,6 @@ static void rk806_do_gpio_dvs(struct regulator_dev *rdev)
 	int gpio_level, pid;
 	int mode, count;
 
-	if (pdata->dvs_init == 0)
-		return;
-
 	mode = get_dvs_mode(rdev);
 	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
 	    (mode <= RK806_DVS_BY_CTR_PIN3)) {
@@ -422,9 +420,6 @@ static void rk806_do_soft_dvs(struct regulator_dev *rdev)
 	struct rk806 *rk806 = pdata->rk806;
 	int rid = rdev_get_id(rdev);
 	int soft_mode, count;
-
-	if (pdata->dvs_init == 0)
-		return;
 
 	soft_mode = get_dvs_mode(rdev);
 
@@ -624,8 +619,6 @@ static int rk806_regulator_resume(struct regulator_dev *rdev)
 		}
 	}
 
-	rk806_field_write(rk806, SLP1_POL, 0x00);
-
 	if ((get_dvs_mode(rdev) >= RK806_DVS_BY_CTR_PIN1) &&
 	    (get_dvs_mode(rdev) <= RK806_DVS_BY_CTR_PIN3))
 		rk806_regulator_sleep2dvs_mode(rdev);
@@ -683,7 +676,7 @@ static int rk806_regulator_dvs2sleep_mode(struct regulator_dev *rdev)
 
 	if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN1) {
 		/* 6.the slp pin avctive high */
-		rk806_field_write(rk806, SLP1_POL, 0x01);
+		/* rk806_field_write(rk806, SLP1_POL, 0x01); */
 		/* 7.switch to sleep function */
 		rk806_field_write(rk806, SLP1_FUN, RK806_PIN_FUN_SLP);
 	}
@@ -707,6 +700,56 @@ static int rk806_regulator_dvs2sleep_mode(struct regulator_dev *rdev)
 	return 0;
 }
 
+
+static int rk806_regulator_dvs2noeffect_mode(struct platform_device *pdev)
+{
+	struct rk806_regulator_data *pdata = platform_get_drvdata(pdev);
+	struct rk806 *rk806 = pdata->rk806;
+	int rid;
+	int mode;
+	int gpio_level;
+
+
+	for (rid = RK806_ID_DCDC1; rid < RK806_ID_END; rid++) {
+		mode = pdata->dvs_ctrl_mode[rid];
+			if ((mode < RK806_DVS_BY_CTR_PIN1) || (mode < RK806_DVS_BY_CTR_PIN3))
+				break;
+
+		/* 1. get the ctrl pin level */
+		gpio_level = gpio_get_value(pdata->dvs_gpios[mode - 1]);
+
+		if (gpio_level == 1) {
+			/* 2.if dvs_pin high level, the output voltage from SLP_VSEL/SLP_EN */
+			rk806_field_write(rk806,
+					  pdata->dvs_field[rid].on_vsel,
+					  pdata->dvs_mode[rid].sleep_vsel_val);
+			rk806_field_write(rk806,
+					  pdata->dvs_field[rid].en_reg,
+					  pdata->dvs_mode[rid].sleep_en_val |
+					  (pdata->dvs_field[rid].en_bit << 4));
+		}
+
+		/* 3.check the used count 1 */
+		pdata->dvs_used[mode] |= BIT(rid);
+		if (pdata->dvs_used[mode] != pdata->dvs_flag[mode])
+			break;
+		pdata->dvs_used[mode] = 0;
+		/* 4.switch to ON_VSEL/ON_EN */
+		gpio_set_value(pdata->dvs_gpios[mode - 1], 0);
+
+		/* set slp_fun NULL */
+		if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN1)
+			rk806_field_write(rk806, SLP1_FUN, RK806_PIN_FUN_NULL);
+		else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN2)
+			rk806_field_write(rk806, SLP2_FUN, RK806_PIN_FUN_NULL);
+		else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN3)
+			rk806_field_write(rk806, SLP3_FUN, RK806_PIN_FUN_NULL);
+	}
+
+	return 0;
+}
+
+
 static int rk806_set_suspend_voltage_range(struct regulator_dev *rdev, int uv)
 {
 	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
@@ -715,6 +758,7 @@ static int rk806_set_suspend_voltage_range(struct regulator_dev *rdev, int uv)
 	int rid = rdev_get_id(rdev);
 	int reg_offset;
 	unsigned int reg, j;
+
 
 	if (sel < 0)
 		return -EINVAL;
@@ -740,16 +784,12 @@ static int rk806_set_suspend_voltage_range(struct regulator_dev *rdev, int uv)
 				rk806_field_write(rk806,
 						  pdata->dvs_field[j].sleep_ctrl_sel,
 						  RK806_PIN_FUN_SLP);
-			rk806_field_write(rk806, SLP1_POL, 0x01);
+			/* rk806_field_write(rk806, SLP1_POL, 0x01); */
 		}
 		return regmap_update_bits(rdev->regmap, reg,
 					  rdev->desc->vsel_mask,
 					  sel);
 	} else {
-		/* power on set state */
-		if (!pdata->dvs_init)
-			return 0;
-
 		pdata->sleep_mode[rid].sleep_vsel_val = sel;
 		rk806_regulator_dvs2sleep_mode(rdev);
 
@@ -758,7 +798,7 @@ static int rk806_set_suspend_voltage_range(struct regulator_dev *rdev, int uv)
 				rk806_field_write(rk806,
 						  gpio_dvs_id[j],
 						  RK806_PIN_FUN_SLP);
-			rk806_field_write(rk806, SLP1_POL, 0x01);
+			/* rk806_field_write(rk806, SLP1_POL, 0x01); */
 		}
 	}
 
@@ -837,17 +877,12 @@ static int rk806_regulator_is_enabled_regmap(struct regulator_dev *rdev)
 		pid = get_gpio_id(rdev);
 		gpio_level = gpio_get_value(pdata->dvs_gpios[pid]);
 
-		if (gpio_level == 1) {
+		if (gpio_level == 1)
 			return rk806_field_read(rk806, pdata->dvs_field[rid].sleep_en);
-		} else {
-			val = rk806_field_read(rk806,  pdata->dvs_field[rid].en_reg);
-			return val & rdev->desc->enable_val;
-		}
 	}
 
-	val = rk806_field_read(rk806,  pdata->dvs_field[rid].en_reg);
-
-	return val & rdev->desc->enable_val;
+	val = rk806_field_read(rk806, pdata->dvs_field[rid].en_reg);
+	return (val & rdev->desc->enable_val) != 0;
 }
 
 static int rk806_regulator_enable_regmap(struct regulator_dev *rdev)
@@ -869,10 +904,6 @@ static int rk806_regulator_enable_regmap(struct regulator_dev *rdev)
 			return rk806_field_write(rk806,
 						 pdata->dvs_field[rid].sleep_en,
 						 0x01);
-		else
-			return rk806_field_write(rk806,
-						 pdata->dvs_field[rid].en_reg,
-						 rdev->desc->enable_val);
 	}
 
 	return rk806_field_write(rk806,
@@ -899,10 +930,6 @@ static int rk806_regulator_disable_regmap(struct regulator_dev *rdev)
 			return rk806_field_write(rk806,
 						 pdata->dvs_field[rid].sleep_en,
 						 0x00);
-		else
-			return rk806_field_write(rk806,
-						 pdata->dvs_field[rid].en_reg,
-						 rdev->desc->disable_val);
 	}
 
 	return rk806_field_write(rk806,
@@ -1187,34 +1214,6 @@ static void rk806_regulator_dt_parse_pdata(struct rk806 *rk806,
 	}
 }
 
-static void rk806_init_dvs_mode(struct regulator_dev *rdev,
-				struct rk806_regulator_data *pdata)
-{
-	int rid;
-	int i, j;
-
-	if (!pdata->support_dvs)
-		return;
-
-	for (i = 0; i < RK806_DVS_END; i++) {
-		for (j = 0; j < RK806_ID_END; j++) {
-			pdata->dvs_ctrl_mode_init[j] = 1;
-			if (!pdata->dvs_dn[i][j])
-				break;
-			if (strcmp(pdata->dvs_dn[i][j]->name, rdev->desc->name))
-				continue;
-
-			rid = rdev_get_id(rdev);
-			pdata->dvs_ctrl_mode[rid] = i;
-			pdata->dvs_flag[i] |= BIT(rid);
-			pdata->dvs_init = 1;
-			pdata->dvs_field[j] = rk806_dvs_field[j];
-			rk806_regulator_sync_voltage(rdev);
-			return;
-		}
-	}
-}
-
 static int rk806_regulator_probe(struct platform_device *pdev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(pdev->dev.parent);
@@ -1247,10 +1246,47 @@ static int rk806_regulator_probe(struct platform_device *pdev)
 			return PTR_ERR(rdev);
 		}
 
-		rk806_init_dvs_mode(rdev, pdata);
+		rk806_regulator_sync_voltage(rdev);
 	}
 
+	pdata->regulator_init = 1;
+
 	return 0;
+}
+
+static int __maybe_unused rk806_suspend(struct device *dev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(dev->parent);
+
+	pinctrl_select_state(rk806->pins->p, rk806->pins->sleep);
+
+	return 0;
+}
+
+static int __maybe_unused rk806_resume(struct device *dev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(dev->parent);
+
+	pinctrl_select_state(rk806->pins->p, rk806->pins->default_st);
+
+	return 0;
+}
+SIMPLE_DEV_PM_OPS(rk806_pm_ops, rk806_suspend, rk806_resume);
+
+static void rk806_regulator_shutdown(struct platform_device *pdev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(pdev->dev.parent);
+
+	rk806_regulator_dvs2noeffect_mode(pdev);
+
+	if (system_state == SYSTEM_POWER_OFF)
+		if ((rk806->pins->p) && (rk806->pins->power_off))
+			pinctrl_select_state(rk806->pins->p, rk806->pins->power_off);
+
+	if (system_state == SYSTEM_RESTART)
+		if ((rk806->pins->p) && (rk806->pins->power_off))
+			pinctrl_select_state(rk806->pins->p, rk806->pins->reset);
+
 }
 
 static const struct platform_device_id rk806_regulator_id_table[] = {
@@ -1262,9 +1298,11 @@ MODULE_DEVICE_TABLE(platform, rk806_regulator_id_table);
 static struct platform_driver rk806_regulator_driver = {
 	.driver = {
 		.name = "rk806-regulator",
+		.pm = &rk806_pm_ops,
 	},
 	.probe = rk806_regulator_probe,
 	.id_table = rk806_regulator_id_table,
+	.shutdown = rk806_regulator_shutdown,
 };
 module_platform_driver(rk806_regulator_driver);
 

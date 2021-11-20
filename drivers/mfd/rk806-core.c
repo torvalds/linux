@@ -171,9 +171,12 @@ static const struct reg_field rk806_reg_fields[] = {
 	[VB_LO_ACT] = REG_FIELD(0x5E, 3, 3),
 	[VB_LO_SEL] = REG_FIELD(0x5E, 0, 2),
 	/* SYS_CFG1 */
+	[ABNORDET_EN] = REG_FIELD(0x5F, 7, 7),
 	[TSD_TEMP] = REG_FIELD(0x5F, 6, 6),
 	[HOTDIE_TMP] = REG_FIELD(0x5F, 4, 5),
-	[VPREREG_SEL] = REG_FIELD(0x5F, 0, 1),
+	[SYS_OV_SD_EN] = REG_FIELD(0x5F, 3, 3),
+	[SYS_OV_SD_DLY_SEL] = REG_FIELD(0x5F, 2, 2),
+	[DLY_ABN_SHORT] = REG_FIELD(0x5F, 0, 1),
 	/* SYS_OPTION */
 	[VCCXDET_DIS] = REG_FIELD(0x61, 4, 5),
 	[OSC_TC] = REG_FIELD(0x61, 2, 3),
@@ -261,6 +264,8 @@ static const struct reg_field rk806_reg_fields[] = {
 	[WDT_CLR] = REG_FIELD(0x73, 4, 4),
 	[WDT_EN] = REG_FIELD(0x73, 3, 3),
 	[WDT_SET] = REG_FIELD(0x73, 0, 3),
+	[ON_SOURCE] = REG_FIELD(0x74, 0, 7),
+	[OFF_SOURCE] = REG_FIELD(0x75, 0, 7),
 	/* PWRON_KEY */
 	[PWRON_ON_TIME] = REG_FIELD(0x76, 7, 7),
 	[PWRON_LP_ACT] = REG_FIELD(0x76, 6, 6),
@@ -479,6 +484,7 @@ static int rk806_parse_dt(struct rk806 *rk806)
 {
 	struct rk806_platform_data *pdata;
 	struct device *dev = rk806->dev;
+	int rst_fun;
 	int ret;
 
 	pdata = rk806->pdata;
@@ -527,6 +533,13 @@ static int rk806_parse_dt(struct rk806 *rk806)
 	if (ret < 0)
 		dev_info(dev, "hotdie_temperture_threshold missing!\n");
 
+	ret = device_property_read_u32(dev, "pmic-reset-func", &rst_fun);
+	if (ret < 0) {
+		dev_info(dev, "pmic-reset-func missing!\n");
+		rk806_field_write(rk806, RST_FUN, 0x00);
+	} else
+		rk806_field_write(rk806, RST_FUN, rst_fun);
+
 	return 0;
 }
 
@@ -548,6 +561,9 @@ static int rk806_init(struct rk806 *rk806)
 
 	if (pdata->hotdie_temperture_threshold >= 160)
 		rk806_field_write(rk806, TSD_TEMP, TSD_TEMP_160);
+
+	/* When the slave chip goes through a shutdown process, it will automatically trigger a restart */
+	rk806_field_write(rk806, SLAVE_RESTART_FUN, 0x01);
 
 	rk806_low_power_irqs(rk806);
 
@@ -587,9 +603,11 @@ int rk806_device_init(struct rk806 *rk806)
 	otp_ver = rk806_field_read(rk806, OTP_VER);
 	dev_info(rk806->dev, "chip id: RK%x%x,ver:0x%x, 0x%x\n",
 		 name_h, name_l, chip_ver, otp_ver);
+	if (chip_ver == VERSION_AB)
+		rk806_field_write(rk806, ABNORDET_EN, 0x01);
 
-	on_source = regmap_read(rk806->regmap, RK806_ON_SOURCE, &on_source);
-	off_source = regmap_read(rk806->regmap, RK806_OFF_SOURCE, &off_source);
+	on_source = rk806_field_read(rk806, ON_SOURCE);
+	off_source = rk806_field_read(rk806, OFF_SOURCE);
 	dev_info(rk806->dev, "ON: 0x%x OFF:0x%x\n", on_source, off_source);
 
 	rk806_parse_dt(rk806);
