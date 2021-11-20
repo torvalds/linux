@@ -241,8 +241,8 @@
 		     &gmac1_rgmii_clk
 		     &gmac1_rgmii_bus>;
 
-	tx_delay = <0x5c>;
-	/* rx_delay = <0x4f>; */
+	tx_delay = <0x45>;
+	/* rx_delay = <0x3f>; */
 
 	phy-handle = <&rgmii_phy>;
 	status = "okay";
