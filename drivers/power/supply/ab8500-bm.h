@@ -374,9 +374,6 @@ struct ab8500_maxim_parameters {
  * struct ab8500_battery_type - different batteries supported
  * @resis_high:			battery upper resistance limit
  * @resis_low:			battery lower resistance limit
- * @recharge_cap		battery capacity limit that will trigger a new
- *				full charging cycle in the case where maintenan-
- *				-ce charging has been disabled
  * @normal_cur_lvl:		charger current in normal state in mA
  * @normal_vol_lvl:		charger voltage in normal state in mV
  * @maint_a_cur_lvl:		charger current in maintenance A state in mA
@@ -397,7 +394,6 @@ struct ab8500_maxim_parameters {
 struct ab8500_battery_type {
 	int resis_high;
 	int resis_low;
-	int recharge_cap;
 	int normal_cur_lvl;
 	int normal_vol_lvl;
 	int maint_a_cur_lvl;

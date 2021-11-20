@@ -83,7 +83,6 @@ static const struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
 static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.resis_high = 0,
 	.resis_low = 0,
-	.recharge_cap = 95,
 	.normal_cur_lvl = 400,
 	.normal_vol_lvl = 4100,
 	.maint_a_cur_lvl = 400,

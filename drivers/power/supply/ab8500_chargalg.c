@@ -49,6 +49,13 @@
 #define CHARGALG_CURR_STEP_LOW		0
 #define CHARGALG_CURR_STEP_HIGH	100
 
+/*
+ * This is the battery capacity limit that will trigger a new
+ * full charging cycle in the case where maintenance charging
+ * has been disabled
+ */
+#define AB8500_RECHARGE_CAP		95
+
 enum ab8500_chargers {
 	NO_CHG,
 	AC_CHG,
@@ -1544,8 +1551,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		fallthrough;
 
 	case STATE_WAIT_FOR_RECHARGE:
-		if (di->batt_data.percent <=
-		    di->bm->bat_type->recharge_cap)
+		if (di->batt_data.percent <= AB8500_RECHARGE_CAP)
 			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
 		break;
 
