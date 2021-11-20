@@ -86,7 +86,7 @@ struct ab8500_chargalg_current_step_status {
 
 struct ab8500_chargalg_battery_data {
 	int temp;
-	int volt;
+	int volt_uv;
 	int avg_curr;
 	int inst_curr;
 	int percent;
@@ -792,8 +792,8 @@ static void ab8500_chargalg_end_of_charge(struct ab8500_chargalg *di)
 {
 	if (di->charge_status == POWER_SUPPLY_STATUS_CHARGING &&
 		di->charge_state == STATE_NORMAL &&
-		!di->maintenance_chg && (di->batt_data.volt >=
-		di->bm->bat_type->termination_vol ||
+		!di->maintenance_chg && (di->batt_data.volt_uv >=
+		di->bm->bi.overvoltage_limit_uv ||
 		di->events.usb_cv_active || di->events.ac_cv_active) &&
 		di->batt_data.avg_curr <
 		di->bm->bat_type->termination_curr &&
@@ -1160,7 +1160,7 @@ static int ab8500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 		case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
-				di->batt_data.volt = ret.intval / 1000;
+				di->batt_data.volt_uv = ret.intval;
 				break;
 			case POWER_SUPPLY_TYPE_MAINS:
 				di->chg_info.ac_volt = ret.intval / 1000;
@@ -1397,7 +1397,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		"State %s Active_chg %d Chg_status %d AC %d USB %d "
 		"AC_online %d USB_online %d AC_CV %d USB_CV %d AC_I %d "
 		"USB_I %d AC_Vset %d AC_Iset %d USB_Vset %d USB_Iset %d\n",
-		di->batt_data.volt,
+		di->batt_data.volt_uv,
 		di->batt_data.avg_curr,
 		di->batt_data.inst_curr,
 		di->batt_data.temp,

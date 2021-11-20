@@ -157,7 +157,7 @@ struct inst_curr_result_list {
  * @node:		a list of AB8500 FGs, hence prepared for reentrance
  * @irq			holds the CCEOC interrupt number
  * @vbat:		Battery voltage in mV
- * @vbat_nom:		Nominal battery voltage in mV
+ * @vbat_nom_uv:	Nominal battery voltage in uV
  * @inst_curr:		Instantenous battery current in mA
  * @avg_curr:		Average battery current in mA
  * @bat_temp		battery temperature
@@ -199,7 +199,7 @@ struct ab8500_fg {
 	struct list_head node;
 	int irq;
 	int vbat;
-	int vbat_nom;
+	int vbat_nom_uv;
 	int inst_curr;
 	int avg_curr;
 	int bat_temp;
@@ -1013,11 +1013,16 @@ static int ab8500_fg_convert_mah_to_uwh(struct ab8500_fg *di, int cap_mah)
 	u64 div_res;
 	u32 div_rem;
 
-	div_res = ((u64) cap_mah) * ((u64) di->vbat_nom);
-	div_rem = do_div(div_res, 1000);
+	/*
+	 * Capacity is in milli ampere hours (10^-3)Ah
+	 * Nominal voltage is in microvolts (10^-6)V
+	 * divide by 1000000 after multiplication to get to mWh
+	 */
+	div_res = ((u64) cap_mah) * ((u64) di->vbat_nom_uv);
+	div_rem = do_div(div_res, 1000000);
 
 	/* Make sure to round upwards if necessary */
-	if (div_rem >= 1000 / 2)
+	if (div_rem >= 1000000 / 2)
 		div_res++;
 
 	return (int) div_res;
@@ -2247,7 +2252,8 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 					di->bat_cap.max_mah =
 						di->bat_cap.max_mah_design;
 
-					di->vbat_nom = b->nominal_voltage;
+					di->vbat_nom_uv =
+						di->bm->bi.voltage_max_design_uv;
 				}
 
 				if (ret.intval)
@@ -3078,8 +3084,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 	di->bat_cap.max_mah_design = di->bm->bi.charge_full_design_uah;
 	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
-
-	di->vbat_nom = di->bm->bat_type->nominal_voltage;
+	di->vbat_nom_uv = di->bm->bi.voltage_max_design_uv;
 
 	di->init_capacity = true;
 

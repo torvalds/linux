@@ -374,8 +374,6 @@ struct ab8500_maxim_parameters {
  * struct ab8500_battery_type - different batteries supported
  * @resis_high:			battery upper resistance limit
  * @resis_low:			battery lower resistance limit
- * @nominal_voltage:		Nominal voltage of the battery in mV
- * @termination_vol:		max voltage upto which battery can be charged
  * @termination_curr		battery charging termination current in mA
  * @recharge_cap		battery capacity limit that will trigger a new
  *				full charging cycle in the case where maintenan-
@@ -401,8 +399,6 @@ struct ab8500_maxim_parameters {
 struct ab8500_battery_type {
 	int resis_high;
 	int resis_low;
-	int nominal_voltage;
-	int termination_vol;
 	int termination_curr;
 	int recharge_cap;
 	int normal_cur_lvl;

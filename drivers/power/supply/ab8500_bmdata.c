@@ -84,8 +84,6 @@ static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.resis_high = 0,
 	.resis_low = 0,
 	.battery_resistance = 300,
-	.nominal_voltage = 3700,
-	.termination_vol = 4050,
 	.termination_curr = 200,
 	.recharge_cap = 95,
 	.normal_cur_lvl = 400,
@@ -191,6 +189,21 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	if (bi->charge_full_design_uah < 0)
 		/* The default capacity is 612 mAh for unknown batteries */
 		bi->charge_full_design_uah = 612000;
+
+	/*
+	 * All of these voltages need to be specified or we will simply
+	 * fall back to safe defaults.
+	 */
+	if ((bi->voltage_min_design_uv < 0) ||
+	    (bi->voltage_max_design_uv < 0) ||
+	    (bi->overvoltage_limit_uv < 0)) {
+		/* Nominal voltage is 3.7V for unknown batteries */
+		bi->voltage_min_design_uv = 3700000;
+		bi->voltage_max_design_uv = 3700000;
+		/* Termination voltage (overcharge limit) 4.05V */
+		bi->overvoltage_limit_uv = 4050000;
+	}
+
 	if (bi->temp_min == INT_MIN)
 		bi->temp_min = AB8500_TEMP_UNDER;
 	if (bi->temp_max == INT_MAX)
