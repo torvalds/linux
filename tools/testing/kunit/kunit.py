@@ -156,6 +156,12 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest,
 
 		test_counts.add_subtest_counts(result.result.test.counts)
 
+	if len(filter_globs) == 1 and test_counts.crashed > 0:
+		bd = request.build_dir
+		print('The kernel seems to have crashed; you can decode the stack traces with:')
+		print('$ scripts/decode_stacktrace.sh {}/vmlinux {} < {} | tee {}/decoded.log | {} parse'.format(
+				bd, bd, kunit_kernel.get_outfile_path(bd), bd, sys.argv[0]))
+
 	kunit_status = _map_to_overall_status(test_counts.get_status())
 	return KunitResult(status=kunit_status, result=result.result, elapsed_time=exec_time)
 
