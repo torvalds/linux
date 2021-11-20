@@ -171,4 +171,6 @@ int wwan_register_ops(struct device *parent, const struct wwan_ops *ops,
 
 void wwan_unregister_ops(struct device *parent);
 
+struct dentry *wwan_get_debugfs_dir(struct device *parent);
+
 #endif /* __WWAN_H */
