@@ -488,29 +488,22 @@ struct ab8500_bm_data ab8500_bm_data = {
         .n_chg_in_curr          = ARRAY_SIZE(ab8500_charge_input_curr_map),
 };
 
-int ab8500_bm_of_probe(struct device *dev,
-		       struct device_node *np,
+int ab8500_bm_of_probe(struct power_supply *psy,
 		       struct ab8500_bm_data *bm)
 {
 	const struct batres_vs_temp *tmp_batres_tbl;
-	struct device_node *battery_node;
-	const char *btech;
+	struct power_supply_battery_info info;
+	struct device *dev = &psy->dev;
+	int ret;
 	int i;
 
-	battery_node = of_parse_phandle(np, "monitored-battery", 0);
-	if (!battery_node) {
-		dev_err(dev, "battery node or reference missing\n");
-		return -EINVAL;
+	ret = power_supply_get_battery_info(psy, &info);
+	if (ret) {
+		dev_err(dev, "cannot retrieve battery info\n");
+		return ret;
 	}
 
-	btech = of_get_property(battery_node, "stericsson,battery-type", NULL);
-	if (!btech) {
-		dev_warn(dev, "missing property battery-name/type\n");
-		of_node_put(battery_node);
-		return -EINVAL;
-	}
-
-	if (strncmp(btech, "LION", 4) == 0) {
+	if (info.technology == POWER_SUPPLY_TECHNOLOGY_LION) {
 		bm->no_maintenance  = true;
 		bm->chg_unknown_bat = true;
 		bm->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
@@ -520,8 +513,8 @@ int ab8500_bm_of_probe(struct device *dev,
 		bm->bat_type[BATTERY_UNKNOWN].normal_vol_lvl     = 4200;
 	}
 
-	if (of_property_read_bool(battery_node, "thermistor-on-batctrl")) {
-		if (strncmp(btech, "LION", 4) == 0)
+	if (of_property_read_bool(psy->of_node, "thermistor-on-batctrl")) {
+		if (info.technology == POWER_SUPPLY_TECHNOLOGY_LION)
 			tmp_batres_tbl = temp_to_batres_tbl_9100;
 		else
 			tmp_batres_tbl = temp_to_batres_tbl_thermistor;
@@ -536,7 +529,7 @@ int ab8500_bm_of_probe(struct device *dev,
 	for (i = 0; i < bm->n_btypes; ++i)
 		bm->bat_type[i].batres_tbl = tmp_batres_tbl;
 
-	of_node_put(battery_node);
+	power_supply_put_battery_info(psy, &info);
 
 	return 0;
 }

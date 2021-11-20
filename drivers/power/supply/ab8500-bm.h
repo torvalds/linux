@@ -570,8 +570,7 @@ int ab8500_fg_inst_curr_start(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res);
 int ab8500_fg_inst_curr_started(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_done(struct ab8500_fg *di);
-int ab8500_bm_of_probe(struct device *dev,
-		       struct device_node *np,
+int ab8500_bm_of_probe(struct power_supply *psy,
 		       struct ab8500_bm_data *bm);
 
 extern struct platform_driver ab8500_fg_driver;
