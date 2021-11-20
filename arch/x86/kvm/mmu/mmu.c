@@ -6171,23 +6171,46 @@ void kvm_mmu_module_exit(void)
 	mmu_audit_disable();
 }
 
+/*
+ * Calculate the effective recovery period, accounting for '0' meaning "let KVM
+ * select a halving time of 1 hour".  Returns true if recovery is enabled.
+ */
+static bool calc_nx_huge_pages_recovery_period(uint *period)
+{
+	/*
+	 * Use READ_ONCE to get the params, this may be called outside of the
+	 * param setters, e.g. by the kthread to compute its next timeout.
+	 */
+	bool enabled = READ_ONCE(nx_huge_pages);
+	uint ratio = READ_ONCE(nx_huge_pages_recovery_ratio);
+
+	if (!enabled || !ratio)
+		return false;
+
+	*period = READ_ONCE(nx_huge_pages_recovery_period_ms);
+	if (!*period) {
+		/* Make sure the period is not less than one second.  */
+		ratio = min(ratio, 3600u);
+		*period = 60 * 60 * 1000 / ratio;
+	}
+	return true;
+}
+
 static int set_nx_huge_pages_recovery_param(const char *val, const struct kernel_param *kp)
 {
 	bool was_recovery_enabled, is_recovery_enabled;
 	uint old_period, new_period;
 	int err;
 
-	was_recovery_enabled = nx_huge_pages_recovery_ratio;
-	old_period = nx_huge_pages_recovery_period_ms;
+	was_recovery_enabled = calc_nx_huge_pages_recovery_period(&old_period);
 
 	err = param_set_uint(val, kp);
 	if (err)
 		return err;
 
-	is_recovery_enabled = nx_huge_pages_recovery_ratio;
-	new_period = nx_huge_pages_recovery_period_ms;
+	is_recovery_enabled = calc_nx_huge_pages_recovery_period(&new_period);
 
-	if (READ_ONCE(nx_huge_pages) && is_recovery_enabled &&
+	if (is_recovery_enabled &&
 	    (!was_recovery_enabled || old_period > new_period)) {
 		struct kvm *kvm;
 
@@ -6251,18 +6274,13 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 
 static long get_nx_lpage_recovery_timeout(u64 start_time)
 {
-	uint ratio = READ_ONCE(nx_huge_pages_recovery_ratio);
-	uint period = READ_ONCE(nx_huge_pages_recovery_period_ms);
+	bool enabled;
+	uint period;
 
-	if (!period && ratio) {
-		/* Make sure the period is not less than one second.  */
-		ratio = min(ratio, 3600u);
-		period = 60 * 60 * 1000 / ratio;
-	}
+	enabled = calc_nx_huge_pages_recovery_period(&period);
 
-	return READ_ONCE(nx_huge_pages) && ratio
-		? start_time + msecs_to_jiffies(period) - get_jiffies_64()
-		: MAX_SCHEDULE_TIMEOUT;
+	return enabled ? start_time + msecs_to_jiffies(period) - get_jiffies_64()
+		       : MAX_SCHEDULE_TIMEOUT;
 }
 
 static int kvm_nx_lpage_recovery_worker(struct kvm *kvm, uintptr_t data)
