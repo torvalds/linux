@@ -21,6 +21,7 @@ iosm-y = \
 	iosm_ipc_mux_codec.o		\
 	iosm_ipc_devlink.o		\
 	iosm_ipc_flash.o		\
-	iosm_ipc_coredump.o
+	iosm_ipc_coredump.o		\
+	iosm_ipc_trace.o
 
 obj-$(CONFIG_IOSM) := iosm.o

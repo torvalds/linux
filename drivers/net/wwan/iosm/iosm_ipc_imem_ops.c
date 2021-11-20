@@ -11,6 +11,7 @@
 #include "iosm_ipc_imem_ops.h"
 #include "iosm_ipc_port.h"
 #include "iosm_ipc_task_queue.h"
+#include "iosm_ipc_trace.h"
 
 /* Open a packet data online channel between the network layer and CP. */
 int ipc_imem_sys_wwan_open(struct iosm_imem *ipc_imem, int if_id)
@@ -107,6 +108,23 @@ void ipc_imem_wwan_channel_init(struct iosm_imem *ipc_imem,
 			"failed to register the ipc_wwan interfaces");
 }
 
+/**
+ * ipc_imem_trace_channel_init - Initializes trace channel.
+ * @ipc_imem:          Pointer to iosm_imem struct.
+ *
+ * Returns: Pointer to trace instance on success else NULL
+ */
+struct iosm_trace *ipc_imem_trace_channel_init(struct iosm_imem *ipc_imem)
+{
+	struct ipc_chnl_cfg chnl_cfg = { 0 };
+
+	ipc_chnl_cfg_get(&chnl_cfg, IPC_MEM_CTRL_CHL_ID_3);
+	ipc_imem_channel_init(ipc_imem, IPC_CTYPE_CTRL, chnl_cfg,
+			      IRQ_MOD_OFF);
+
+	return ipc_trace_init(ipc_imem);
+}
+
 /* Map SKB to DMA for transfer */
 static int ipc_imem_map_skb_to_dma(struct iosm_imem *ipc_imem,
 				   struct sk_buff *skb)
@@ -182,11 +200,14 @@ channel_unavailable:
 	return false;
 }
 
-/* Release a sio link to CP. */
-void ipc_imem_sys_cdev_close(struct iosm_cdev *ipc_cdev)
+/**
+ * ipc_imem_sys_port_close - Release a sio link to CP.
+ * @ipc_imem:          Imem instance.
+ * @channel:           Channel instance.
+ */
+void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
+			     struct ipc_mem_channel *channel)
 {
-	struct iosm_imem *ipc_imem = ipc_cdev->ipc_imem;
-	struct ipc_mem_channel *channel = ipc_cdev->channel;
 	enum ipc_phase curr_phase;
 	int status = 0;
 	u32 tail = 0;
@@ -643,6 +664,6 @@ int ipc_imem_sys_devlink_read(struct iosm_devlink *devlink, u8 *data,
 	memcpy(data, skb->data, skb->len);
 
 devlink_read_fail:
-	ipc_pcie_kfree_skb(devlink->pcie, skb);
+	dev_kfree_skb(skb);
 	return rc;
 }

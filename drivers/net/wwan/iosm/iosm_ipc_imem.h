@@ -304,6 +304,7 @@ enum ipc_phase {
  * @sio:			IPC SIO data structure pointer
  * @ipc_port:			IPC PORT data structure pointer
  * @pcie:			IPC PCIe
+ * @trace:			IPC trace data structure pointer
  * @dev:			Pointer to device structure
  * @ipc_requested_state:	Expected IPC state on CP.
  * @channels:			Channel list with UL/DL pipe pairs.
@@ -349,6 +350,7 @@ struct iosm_imem {
 	struct iosm_mux *mux;
 	struct iosm_cdev *ipc_port[IPC_MEM_MAX_CHANNELS];
 	struct iosm_pcie *pcie;
+	struct iosm_trace *trace;
 	struct device *dev;
 	enum ipc_mem_device_ipc_state ipc_requested_state;
 	struct ipc_mem_channel channels[IPC_MEM_MAX_CHANNELS];

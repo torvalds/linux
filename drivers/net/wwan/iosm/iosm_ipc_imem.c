@@ -10,6 +10,7 @@
 #include "iosm_ipc_flash.h"
 #include "iosm_ipc_imem.h"
 #include "iosm_ipc_port.h"
+#include "iosm_ipc_trace.h"
 
 /* Check the wwan ips if it is valid with Channel as input. */
 static int ipc_imem_check_wwan_ips(struct ipc_mem_channel *chnl)
@@ -265,9 +266,14 @@ static void ipc_imem_dl_skb_process(struct iosm_imem *ipc_imem,
 	switch (pipe->channel->ctype) {
 	case IPC_CTYPE_CTRL:
 		port_id = pipe->channel->channel_id;
+		ipc_pcie_addr_unmap(ipc_imem->pcie, IPC_CB(skb)->len,
+				    IPC_CB(skb)->mapping,
+				    IPC_CB(skb)->direction);
 		if (port_id == IPC_MEM_CTRL_CHL_ID_7)
 			ipc_imem_sys_devlink_notify_rx(ipc_imem->ipc_devlink,
 						       skb);
+		else if (port_id == ipc_imem->trace->chl_id)
+			ipc_trace_port_rx(ipc_imem->trace, skb);
 		else
 			wwan_port_rx(ipc_imem->ipc_port[port_id]->iosm_port,
 				     skb);
@@ -546,6 +552,12 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 			}
 		}
 		ctrl_chl_idx++;
+	}
+
+	ipc_imem->trace = ipc_imem_trace_channel_init(ipc_imem);
+	if (!ipc_imem->trace) {
+		dev_err(ipc_imem->dev, "trace channel init failed");
+		return;
 	}
 
 	ipc_task_queue_send_task(ipc_imem, ipc_imem_send_mdm_rdy_cb, 0, NULL, 0,
@@ -1163,6 +1175,7 @@ void ipc_imem_cleanup(struct iosm_imem *ipc_imem)
 
 	if (test_and_clear_bit(FULLY_FUNCTIONAL, &ipc_imem->flag)) {
 		ipc_mux_deinit(ipc_imem->mux);
+		ipc_trace_deinit(ipc_imem->trace);
 		ipc_wwan_deinit(ipc_imem->wwan);
 		ipc_port_deinit(ipc_imem->ipc_port);
 	}
