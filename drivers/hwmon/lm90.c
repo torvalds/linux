@@ -122,7 +122,8 @@ static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
-enum chips { adm1032, adt7461, adt7461a, adt7481, g781, lm84, lm86, lm90, lm99,
+enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
+	g781, lm84, lm86, lm90, lm99,
 	max1617, max6642, max6646, max6648, max6654, max6657, max6659, max6680, max6696,
 	sa56004, tmp451, tmp461, w83l771,
 };
@@ -223,6 +224,8 @@ enum chips { adm1032, adt7461, adt7461a, adt7481, g781, lm84, lm86, lm90, lm99,
  */
 
 static const struct i2c_device_id lm90_id[] = {
+	{ "adm1021", max1617 },
+	{ "adm1023", adm1023 },
 	{ "adm1032", adm1032 },
 	{ "adt7461", adt7461 },
 	{ "adt7461a", adt7461a },
@@ -375,6 +378,14 @@ struct lm90_params {
 };
 
 static const struct lm90_params lm90_params[] = {
+	[adm1023] = {
+		.flags = LM90_HAVE_ALARMS | LM90_HAVE_OFFSET | LM90_HAVE_BROKEN_ALERT
+		  | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
+		  | LM90_HAVE_REMOTE_EXT,
+		.alert_alarms = 0x7c,
+		.resolution = 8,
+		.max_convrate = 7,
+	},
 	[adm1032] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT
@@ -1742,19 +1753,43 @@ static const char *lm90_detect_national(struct i2c_client *client, int chip_id,
 	return name;
 }
 
-static const char *lm90_detect_analog(struct i2c_client *client, int chip_id,
-				      int config1, int convrate)
+static const char *lm90_detect_analog(struct i2c_client *client, bool common_address,
+				      int chip_id, int config1, int convrate)
 {
+	int status = i2c_smbus_read_byte_data(client, LM90_REG_STATUS);
 	int config2 = i2c_smbus_read_byte_data(client, ADT7481_REG_CONFIG2);
 	int man_id2 = i2c_smbus_read_byte_data(client, ADT7481_REG_MAN_ID);
 	int chip_id2 = i2c_smbus_read_byte_data(client, ADT7481_REG_CHIP_ID);
 	int address = client->addr;
 	const char *name = NULL;
 
-	if (config2 < 0 || man_id2 < 0 || chip_id2 < 0)
+	if (status < 0 || config2 < 0 || man_id2 < 0 || chip_id2 < 0)
 		return NULL;
 
 	switch (chip_id) {
+	case 0x00 ... 0x0f:	/* ADM1021, undocumented */
+		if (man_id2 == 0x00 && chip_id2 == 0x00 && common_address &&
+		    !(status & 0x03) && !(config1 & 0x3f) && !(convrate & 0xf8))
+			name = "adm1021";
+		break;
+	case 0x30 ... 0x3f:	/* ADM1021A, ADM1023 */
+		/*
+		 * ADM1021A and compatible chips will be mis-detected as
+		 * ADM1023. Chips labeled 'ADM1021A' and 'ADM1023' were both
+		 * found to have a Chip ID of 0x3c.
+		 * ADM1021A does not officially support low byte registers
+		 * (0x12 .. 0x14), but a chip labeled ADM1021A does support it.
+		 * Official support for the temperature offset high byte
+		 * register (0x11) was added to revision F of the ADM1021A
+		 * datasheet.
+		 * It is currently unknown if there is a means to distinguish
+		 * ADM1021A from ADM1023, and/or if revisions of ADM1021A exist
+		 * which differ in functionality from ADM1023.
+		 */
+		if (man_id2 == 0x00 && chip_id2 == 0x00 && common_address &&
+		    !(status & 0x03) && !(config1 & 0x3f) && !(convrate & 0xf8))
+			name = "adm1023";
+		break;
 	case 0x40 ... 0x4f:	/* ADM1032 */
 		if (man_id2 == 0x00 && chip_id2 == 0x00 &&
 		    (address == 0x4c || address == 0x4d) && !(config1 & 0x3f) &&
@@ -1795,6 +1830,7 @@ static const char *lm90_detect_analog(struct i2c_client *client, int chip_id,
 		break;
 	case 0x94:	/* ADT7483 */
 		if (man_id2 == 0x41 && chip_id2 == 0x83 &&
+		    common_address &&
 		    ((address >= 0x18 && address <= 0x1a) ||
 		     (address >= 0x29 && address <= 0x2b) ||
 		     (address >= 0x4c && address <= 0x4e)) &&
@@ -2175,7 +2211,8 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 		name = lm90_detect_national(client, chip_id, config1, convrate);
 		break;
 	case 0x41:	/* Analog Devices */
-		name = lm90_detect_analog(client, chip_id, config1, convrate);
+		name = lm90_detect_analog(client, common_address, chip_id, config1,
+					  convrate);
 		break;
 	case 0x47:	/* GMT */
 		name = lm90_detect_gmt(client, chip_id, config1, convrate);

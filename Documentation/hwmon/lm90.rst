@@ -51,6 +51,22 @@ Supported chips:
 
 	       http://www.national.com/mpf/LM/LM86.html
 
+  * Analog Devices ADM1021
+
+    Prefix: 'adm1021'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Analog Devices website
+
+  * Analog Devices ADM1021A/ADM1023
+
+    Prefix: 'adm1023'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Analog Devices website
+
   * Analog Devices ADM1032
 
     Prefix: 'adm1032'
@@ -369,8 +385,13 @@ features:
 LM84:
   * 8 bit sensor resolution
 
-MAX1617:
+ADM1021, MAX1617:
   * 8 bit sensor resolution
+  * Low temperature limits
+
+ADM1021A, ADM1023:
+  * Temperature offset register for remote temperature sensor
+  * 11 bit resolution for remote temperature sensor
   * Low temperature limits
 
 LM90:
