@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _KERNEL_SCHED_AUTOGROUP_H
+#define _KERNEL_SCHED_AUTOGROUP_H
+
 #ifdef CONFIG_SCHED_AUTOGROUP
 
 struct autogroup {
@@ -59,3 +62,5 @@ static inline int autogroup_path(struct task_group *tg, char *buf, int buflen)
 }
 
 #endif /* CONFIG_SCHED_AUTOGROUP */
+
+#endif /* _KERNEL_SCHED_AUTOGROUP_H */
