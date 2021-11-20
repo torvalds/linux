@@ -1942,6 +1942,8 @@ enum netdev_ml_priv_type {
  *	@unlink_list:	As netif_addr_lock() can be called recursively,
  *			keep a list of interfaces to be deleted.
  *
+ *	@dev_addr_shadow:	Copy of @dev_addr to catch direct writes.
+ *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
  */
@@ -2117,7 +2119,7 @@ struct net_device {
  * Cache lines mostly used on receive path (including eth_type_trans())
  */
 	/* Interface address info used in eth_type_trans() */
-	unsigned char		*dev_addr;
+	const unsigned char	*dev_addr;
 
 	struct netdev_rx_queue	*_rx;
 	unsigned int		num_rx_queues;
@@ -2268,6 +2270,8 @@ struct net_device {
 
 	/* protected by rtnl_lock */
 	struct bpf_xdp_entity	xdp_state[__MAX_XDP_MODE];
+
+	u8 dev_addr_shadow[MAX_ADDR_LEN];
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -4268,22 +4272,18 @@ void __hw_addr_unsync_dev(struct netdev_hw_addr_list *list,
 void __hw_addr_init(struct netdev_hw_addr_list *list);
 
 /* Functions used for device addresses handling */
+void dev_addr_mod(struct net_device *dev, unsigned int offset,
+		  const void *addr, size_t len);
+
 static inline void
 __dev_addr_set(struct net_device *dev, const void *addr, size_t len)
 {
-	memcpy(dev->dev_addr, addr, len);
+	dev_addr_mod(dev, 0, addr, len);
 }
 
 static inline void dev_addr_set(struct net_device *dev, const u8 *addr)
 {
 	__dev_addr_set(dev, addr, dev->addr_len);
-}
-
-static inline void
-dev_addr_mod(struct net_device *dev, unsigned int offset,
-	     const void *addr, size_t len)
-{
-	memcpy(&dev->dev_addr[offset], addr, len);
 }
 
 int dev_addr_add(struct net_device *dev, const unsigned char *addr,
@@ -4292,6 +4292,7 @@ int dev_addr_del(struct net_device *dev, const unsigned char *addr,
 		 unsigned char addr_type);
 void dev_addr_flush(struct net_device *dev);
 int dev_addr_init(struct net_device *dev);
+void dev_addr_check(struct net_device *dev);
 
 /* Functions used for unicast addresses handling */
 int dev_uc_add(struct net_device *dev, const unsigned char *addr);

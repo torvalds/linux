@@ -586,7 +586,7 @@ static inline int bnx2x_vfpf_release(struct bnx2x *bp) {return 0; }
 static inline int bnx2x_vfpf_init(struct bnx2x *bp) {return 0; }
 static inline void bnx2x_vfpf_close_vf(struct bnx2x *bp) {}
 static inline int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp, bool is_leading) {return 0; }
-static inline int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr,
+static inline int bnx2x_vfpf_config_mac(struct bnx2x *bp, const u8 *addr,
 					u8 vf_qid, bool set) {return 0; }
 static inline int bnx2x_vfpf_config_rss(struct bnx2x *bp,
 					struct bnx2x_config_rss_params *params) {return 0; }
