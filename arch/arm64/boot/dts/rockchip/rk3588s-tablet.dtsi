@@ -228,6 +228,12 @@
 	};
 };
 
+&avdd_1v2_cam_s0 {
+	regulator-min-microvolt = <1300000>;
+	regulator-max-microvolt = <1300000>;
+	regulator-ramp-delay = <12500>;
+};
+
 &combphy0_ps {
 	status = "okay";
 };
