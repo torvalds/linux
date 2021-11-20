@@ -356,13 +356,13 @@ static int ab8500_chargalg_check_charger_enable(struct ab8500_chargalg *di)
 
 	if (di->chg_info.charger_type & USB_CHG) {
 		return di->usb_chg->ops.check_enable(di->usb_chg,
-			di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
-			di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
+			di->bm->bat_type->normal_vol_lvl,
+			di->bm->bat_type->normal_cur_lvl);
 	} else if ((di->chg_info.charger_type & AC_CHG) &&
 		   !(di->ac_chg->external)) {
 		return di->ac_chg->ops.check_enable(di->ac_chg,
-			di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
-			di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
+			di->bm->bat_type->normal_vol_lvl,
+			di->bm->bat_type->normal_cur_lvl);
 	}
 	return 0;
 }
@@ -793,10 +793,10 @@ static void ab8500_chargalg_end_of_charge(struct ab8500_chargalg *di)
 	if (di->charge_status == POWER_SUPPLY_STATUS_CHARGING &&
 		di->charge_state == STATE_NORMAL &&
 		!di->maintenance_chg && (di->batt_data.volt >=
-		di->bm->bat_type[di->bm->batt_id].termination_vol ||
+		di->bm->bat_type->termination_vol ||
 		di->events.usb_cv_active || di->events.ac_cv_active) &&
 		di->batt_data.avg_curr <
-		di->bm->bat_type[di->bm->batt_id].termination_curr &&
+		di->bm->bat_type->termination_curr &&
 		di->batt_data.avg_curr > 0) {
 		if (++di->eoc_cnt >= EOC_COND_CNT) {
 			di->eoc_cnt = 0;
@@ -819,9 +819,9 @@ static void ab8500_chargalg_end_of_charge(struct ab8500_chargalg *di)
 static void init_maxim_chg_curr(struct ab8500_chargalg *di)
 {
 	di->ccm.original_iset =
-		di->bm->bat_type[di->bm->batt_id].normal_cur_lvl;
+		di->bm->bat_type->normal_cur_lvl;
 	di->ccm.current_iset =
-		di->bm->bat_type[di->bm->batt_id].normal_cur_lvl;
+		di->bm->bat_type->normal_cur_lvl;
 	di->ccm.test_delta_i = di->bm->maxi->charger_curr_step;
 	di->ccm.max_current = di->bm->maxi->chg_curr;
 	di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
@@ -924,7 +924,7 @@ static void handle_maxim_chg_curr(struct ab8500_chargalg *di)
 		break;
 	case MAXIM_RET_IBAT_TOO_HIGH:
 		result = ab8500_chargalg_update_chg_curr(di,
-			di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
+			di->bm->bat_type->normal_cur_lvl);
 		if (result)
 			dev_err(di->dev, "failed to set chg curr\n");
 		break;
@@ -1505,13 +1505,12 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		if (di->curr_status.curr_step == CHARGALG_CURR_STEP_LOW)
 			ab8500_chargalg_stop_charging(di);
 		else {
-			curr_step_lvl = di->bm->bat_type[
-				di->bm->batt_id].normal_cur_lvl
+			curr_step_lvl = di->bm->bat_type->normal_cur_lvl
 				* di->curr_status.curr_step
 				/ CHARGALG_CURR_STEP_HIGH;
 			ab8500_chargalg_start_charging(di,
-				di->bm->bat_type[di->bm->batt_id]
-				.normal_vol_lvl, curr_step_lvl);
+				di->bm->bat_type->normal_vol_lvl,
+				curr_step_lvl);
 		}
 
 		ab8500_chargalg_state_to(di, STATE_NORMAL);
@@ -1546,20 +1545,17 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 
 	case STATE_WAIT_FOR_RECHARGE:
 		if (di->batt_data.percent <=
-		    di->bm->bat_type[di->bm->batt_id].recharge_cap)
+		    di->bm->bat_type->recharge_cap)
 			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
 		break;
 
 	case STATE_MAINTENANCE_A_INIT:
 		ab8500_chargalg_stop_safety_timer(di);
 		ab8500_chargalg_start_maintenance_timer(di,
-			di->bm->bat_type[
-				di->bm->batt_id].maint_a_chg_timer_h);
+			di->bm->bat_type->maint_a_chg_timer_h);
 		ab8500_chargalg_start_charging(di,
-			di->bm->bat_type[
-				di->bm->batt_id].maint_a_vol_lvl,
-			di->bm->bat_type[
-				di->bm->batt_id].maint_a_cur_lvl);
+			di->bm->bat_type->maint_a_vol_lvl,
+			di->bm->bat_type->maint_a_cur_lvl);
 		ab8500_chargalg_state_to(di, STATE_MAINTENANCE_A);
 		power_supply_changed(di->chargalg_psy);
 		fallthrough;
@@ -1573,13 +1569,10 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 
 	case STATE_MAINTENANCE_B_INIT:
 		ab8500_chargalg_start_maintenance_timer(di,
-			di->bm->bat_type[
-				di->bm->batt_id].maint_b_chg_timer_h);
+			di->bm->bat_type->maint_b_chg_timer_h);
 		ab8500_chargalg_start_charging(di,
-			di->bm->bat_type[
-				di->bm->batt_id].maint_b_vol_lvl,
-			di->bm->bat_type[
-				di->bm->batt_id].maint_b_cur_lvl);
+			di->bm->bat_type->maint_b_vol_lvl,
+			di->bm->bat_type->maint_b_cur_lvl);
 		ab8500_chargalg_state_to(di, STATE_MAINTENANCE_B);
 		power_supply_changed(di->chargalg_psy);
 		fallthrough;
@@ -1593,10 +1586,8 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 
 	case STATE_TEMP_LOWHIGH_INIT:
 		ab8500_chargalg_start_charging(di,
-			di->bm->bat_type[
-				di->bm->batt_id].low_high_vol_lvl,
-			di->bm->bat_type[
-				di->bm->batt_id].low_high_cur_lvl);
+			di->bm->bat_type->low_high_vol_lvl,
+			di->bm->bat_type->low_high_cur_lvl);
 		ab8500_chargalg_stop_maintenance_timer(di);
 		di->charge_status = POWER_SUPPLY_STATUS_CHARGING;
 		ab8500_chargalg_state_to(di, STATE_TEMP_LOWHIGH);

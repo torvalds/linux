@@ -857,8 +857,8 @@ static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage)
 	const struct ab8500_v_to_cap *tbl;
 	int cap = 0;
 
-	tbl = di->bm->bat_type[di->bm->batt_id].v_to_cap_tbl;
-	tbl_size = di->bm->bat_type[di->bm->batt_id].n_v_cap_tbl_elements;
+	tbl = di->bm->bat_type->v_to_cap_tbl;
+	tbl_size = di->bm->bat_type->n_v_cap_tbl_elements;
 
 	for (i = 0; i < tbl_size; ++i) {
 		if (voltage > tbl[i].voltage)
@@ -910,8 +910,8 @@ static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 	const struct batres_vs_temp *tbl;
 	int resist = 0;
 
-	tbl = di->bm->bat_type[di->bm->batt_id].batres_tbl;
-	tbl_size = di->bm->bat_type[di->bm->batt_id].n_batres_tbl_elements;
+	tbl = di->bm->bat_type->batres_tbl;
+	tbl_size = di->bm->bat_type->n_batres_tbl_elements;
 
 	for (i = 0; i < tbl_size; ++i) {
 		if (di->bat_temp / 10 > tbl[i].temp)
@@ -2234,10 +2234,11 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				if (!di->flags.batt_id_received &&
-				    di->bm->batt_id != BATTERY_UNKNOWN) {
+				    (di->bm->bat_type->name !=
+				     POWER_SUPPLY_TECHNOLOGY_UNKNOWN)) {
 					const struct ab8500_battery_type *b;
 
-					b = &(di->bm->bat_type[di->bm->batt_id]);
+					b = di->bm->bat_type;
 
 					di->flags.batt_id_received = true;
 
@@ -3078,11 +3079,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	psy_cfg.drv_data = di;
 
 	di->bat_cap.max_mah_design = MILLI_TO_MICRO *
-		di->bm->bat_type[di->bm->batt_id].charge_full_design;
+		di->bm->bat_type->charge_full_design;
 
 	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
 
-	di->vbat_nom = di->bm->bat_type[di->bm->batt_id].nominal_voltage;
+	di->vbat_nom = di->bm->bat_type->nominal_voltage;
 
 	di->init_capacity = true;
 

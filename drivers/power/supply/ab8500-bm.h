@@ -475,8 +475,6 @@ struct ab8500_bm_charger_parameters {
  * @enable_overshoot	flag to enable VBAT overshoot control
  * @auto_trig		flag to enable auto adc trigger
  * @fg_res		resistance of FG resistor in 0.1mOhm
- * @n_btypes		number of elements in array bat_type
- * @batt_id		index of the identified battery in array bat_type
  * @interval_charging	charge alg cycle period time when charging (sec)
  * @interval_not_charging charge alg cycle period time when not charging (sec)
  * @temp_hysteresis	temperature hysteresis
@@ -503,8 +501,6 @@ struct ab8500_bm_data {
 	bool auto_trig;
 	enum ab8500_adc_therm adc_therm;
 	int fg_res;
-	int n_btypes;
-	int batt_id;
 	int interval_charging;
 	int interval_not_charging;
 	int temp_hysteresis;
