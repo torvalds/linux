@@ -372,7 +372,6 @@ struct ab8500_maxim_parameters {
 
 /**
  * struct ab8500_battery_type - different batteries supported
- * @name:			battery technology
  * @resis_high:			battery upper resistance limit
  * @resis_low:			battery lower resistance limit
  * @nominal_voltage:		Nominal voltage of the battery in mV
@@ -400,7 +399,6 @@ struct ab8500_maxim_parameters {
  * @batres_tbl			battery internal resistance vs temperature table
  */
 struct ab8500_battery_type {
-	int name;
 	int resis_high;
 	int resis_low;
 	int nominal_voltage;

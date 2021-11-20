@@ -81,7 +81,6 @@ static const struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
 
 /* Default battery type for reference designs is the unknown type */
 static struct ab8500_battery_type bat_type_thermistor_unknown = {
-	.name = POWER_SUPPLY_TECHNOLOGY_UNKNOWN,
 	.resis_high = 0,
 	.resis_low = 0,
 	.battery_resistance = 300,

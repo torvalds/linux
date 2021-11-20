@@ -2233,7 +2233,7 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				if (!di->flags.batt_id_received &&
-				    (di->bm->bat_type->name !=
+				    (di->bm->bi.technology !=
 				     POWER_SUPPLY_TECHNOLOGY_UNKNOWN)) {
 					const struct ab8500_battery_type *b;
 

@@ -456,7 +456,7 @@ static int ab8500_btemp_measure_temp(struct ab8500_btemp *di)
 	int rbat, rntc, vntc;
 
 	if ((di->bm->adc_therm == AB8500_ADC_THERM_BATCTRL) &&
-	    (di->bm->bat_type->name == POWER_SUPPLY_TECHNOLOGY_UNKNOWN)) {
+	    (di->bm->bi.technology == POWER_SUPPLY_TECHNOLOGY_UNKNOWN)) {
 
 		rbat = ab8500_btemp_get_batctrl_res(di);
 		if (rbat < 0) {
@@ -540,7 +540,7 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 	 * that need it.
 	 */
 	if ((di->bm->adc_therm == AB8500_ADC_THERM_BATCTRL) &&
-	    (di->bm->bat_type->name == POWER_SUPPLY_TECHNOLOGY_LIPO) &&
+	    (di->bm->bi.technology == POWER_SUPPLY_TECHNOLOGY_LIPO) &&
 	    (res <= 53407) && (res >= 12500)) {
 		dev_dbg(di->dev, "Set BATCTRL current source to 20uA\n");
 		di->curr_source = BTEMP_BATCTRL_CURR_SRC_20UA;
@@ -807,7 +807,7 @@ static int ab8500_btemp_get_property(struct power_supply *psy,
 			val->intval = 1;
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = di->bm->bat_type->name;
+		val->intval = di->bm->bi.technology;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = ab8500_btemp_get_temp(di);
