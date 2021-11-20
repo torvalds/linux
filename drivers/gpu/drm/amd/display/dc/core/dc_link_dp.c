@@ -515,6 +515,21 @@ static void vendor_specific_lttpr_wa_three(
 	}
 }
 
+static void vendor_specific_lttpr_wa_three_dpcd(
+	struct dc_link *link,
+	union dpcd_training_lane dpcd_lane_adjust[LANE_COUNT_DP_MAX])
+{
+	union lane_adjust lane_adjust[LANE_COUNT_DP_MAX];
+	uint8_t lane = 0;
+
+	vendor_specific_lttpr_wa_three(link, lane_adjust);
+
+	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
+		dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_SET = lane_adjust[lane].bits.VOLTAGE_SWING_LANE;
+		dpcd_lane_adjust[lane].bits.PRE_EMPHASIS_SET = lane_adjust[lane].bits.PRE_EMPHASIS_LANE;
+	}
+}
+
 static void vendor_specific_lttpr_wa_four(
 	struct dc_link *link,
 	bool apply_wa)
@@ -562,6 +577,42 @@ static void vendor_specific_lttpr_wa_four(
 		udelay(1000);
 	}
 #endif
+}
+
+static void vendor_specific_lttpr_wa_five(
+	struct dc_link *link,
+	const union dpcd_training_lane dpcd_lane_adjust[LANE_COUNT_DP_MAX],
+	uint8_t lane_count)
+{
+	const uint32_t vendor_lttpr_write_address = 0xF004F;
+	const uint8_t vendor_lttpr_write_data_reset[4] = {0x1, 0x50, 0x63, 0xFF};
+	uint8_t vendor_lttpr_write_data_vs[4] = {0x1, 0x51, 0x63, 0x0};
+	uint8_t vendor_lttpr_write_data_pe[4] = {0x1, 0x52, 0x63, 0x0};
+	uint8_t lane = 0;
+
+	for (lane = 0; lane < lane_count; lane++) {
+		vendor_lttpr_write_data_vs[3] |=
+				dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_SET << (2 * lane);
+		vendor_lttpr_write_data_pe[3] |=
+				dpcd_lane_adjust[lane].bits.PRE_EMPHASIS_SET << (2 * lane);
+	}
+
+	/* Force LTTPR to output desired VS and PE */
+	core_link_write_dpcd(
+			link,
+			vendor_lttpr_write_address,
+			&vendor_lttpr_write_data_reset[0],
+			sizeof(vendor_lttpr_write_data_reset));
+	core_link_write_dpcd(
+			link,
+			vendor_lttpr_write_address,
+			&vendor_lttpr_write_data_vs[0],
+			sizeof(vendor_lttpr_write_data_vs));
+	core_link_write_dpcd(
+			link,
+			vendor_lttpr_write_address,
+			&vendor_lttpr_write_data_pe[0],
+			sizeof(vendor_lttpr_write_data_pe));
 }
 
 enum dc_status dpcd_set_link_settings(
@@ -3903,6 +3954,13 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 			&dpcd_lane_adjustment[0].raw,
 			sizeof(dpcd_lane_adjustment));
 
+	if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+			(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+			link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
+		vendor_specific_lttpr_wa_three_dpcd(
+				link,
+				link_training_settings.dpcd_lane_settings);
+
 	/*get post cursor 2 parameters
 	 * For DP 1.1a or eariler, this DPCD register's value is 0
 	 * For DP 1.2 or later:
@@ -5680,8 +5738,18 @@ bool dc_link_dp_set_test_pattern(
 	if (is_dp_phy_pattern(test_pattern)) {
 		/* Set DPCD Lane Settings before running test pattern */
 		if (p_link_settings != NULL) {
-			dp_set_hw_lane_settings(link, p_link_settings, DPRX);
-			dpcd_set_lane_settings(link, p_link_settings, DPRX);
+			if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+					(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+					link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+				dpcd_set_lane_settings(link, p_link_settings, DPRX);
+				vendor_specific_lttpr_wa_five(
+						link,
+						p_link_settings->dpcd_lane_settings,
+						p_link_settings->link_settings.lane_count);
+			} else {
+				dp_set_hw_lane_settings(link, p_link_settings, DPRX);
+				dpcd_set_lane_settings(link, p_link_settings, DPRX);
+			}
 		}
 
 		/* Blank stream if running test pattern */
