@@ -665,6 +665,21 @@ static int lm90_write_reg(struct i2c_client *client, u8 reg, u8 val)
 	return i2c_smbus_write_byte_data(client, lm90_write_reg_addr(reg), val);
 }
 
+/*
+ * Write into 16-bit LM90 register.
+ * Convert register addresses to write address if needed, then execute the
+ * operation.
+ */
+static int lm90_write16(struct i2c_client *client, u8 regh, u8 regl, u16 val)
+{
+	int ret;
+
+	ret = lm90_write_reg(client, regh, val >> 8);
+	if (ret < 0 || !regl)
+		return ret;
+	return lm90_write_reg(client, regl, val & 0xff);
+}
+
 static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl,
 		       bool is_volatile)
 {
@@ -1240,12 +1255,8 @@ static int lm90_set_temp(struct lm90_data *data, int index, int channel, long va
 	if (channel > 1)
 		lm90_select_remote_channel(data, true);
 
-	err = lm90_write_reg(client, regh, data->temp[index] >> 8);
-	if (err < 0)
-		goto deselect;
-	if (regl)
-		err = lm90_write_reg(client, regl, data->temp[index] & 0xff);
-deselect:
+	err = lm90_write16(client, regh, regl, data->temp[index]);
+
 	if (channel > 1)
 		lm90_select_remote_channel(data, false);
 
@@ -1404,14 +1415,8 @@ static int lm90_temp_write(struct device *dev, u32 attr, int channel, long val)
 	case hwmon_temp_offset:
 		val = lm90_temp_to_reg(0, val,
 				       lm90_temp_get_resolution(data, REMOTE_OFFSET));
-		err = i2c_smbus_write_byte_data(data->client,
-						LM90_REG_REMOTE_OFFSH,
-						val >> 8);
-		if (err)
-			break;
-		err = i2c_smbus_write_byte_data(data->client,
-						LM90_REG_REMOTE_OFFSL,
-						val & 0xff);
+		err = lm90_write16(data->client, LM90_REG_REMOTE_OFFSH,
+				   LM90_REG_REMOTE_OFFSL, val);
 		if (err)
 			break;
 		data->temp[REMOTE_OFFSET] = val;
