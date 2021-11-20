@@ -501,10 +501,30 @@ static const char * const qp_s[] = {
 	"none", "init", "start", "stop", "close",
 };
 
-static const u32 typical_qos_val[QM_QOS_TYPICAL_NUM] = {100, 250, 500, 1000,
-						10000, 25000, 50000, 100000};
-static const u32 typical_qos_cbs_s[QM_QOS_TYPICAL_NUM] = {9, 10, 11, 12, 16,
-							 17, 18, 19};
+struct qm_typical_qos_table {
+	u32 start;
+	u32 end;
+	u32 val;
+};
+
+/* the qos step is 100 */
+static struct qm_typical_qos_table shaper_cir_s[] = {
+	{100, 100, 4},
+	{200, 200, 3},
+	{300, 500, 2},
+	{600, 1000, 1},
+	{1100, 100000, 0},
+};
+
+static struct qm_typical_qos_table shaper_cbs_s[] = {
+	{100, 200, 9},
+	{300, 500, 11},
+	{600, 1000, 12},
+	{1100, 10000, 16},
+	{10100, 25000, 17},
+	{25100, 50000, 18},
+	{50100, 100000, 19}
+};
 
 static bool qm_avail_state(struct hisi_qm *qm, enum qm_state new)
 {
@@ -988,12 +1008,14 @@ static void qm_init_prefetch(struct hisi_qm *qm)
 }
 
 /*
+ * acc_shaper_para_calc() Get the IR value by the qos formula, the return value
+ * is the expected qos calculated.
  * the formula:
  * IR = X Mbps if ir = 1 means IR = 100 Mbps, if ir = 10000 means = 10Gbps
  *
- *		        IR_b * (2 ^ IR_u) * 8
- * IR(Mbps) * 10 ^ -3 = -------------------------
- *		        Tick * (2 ^ IR_s)
+ *		IR_b * (2 ^ IR_u) * 8000
+ * IR(Mbps) = -------------------------
+ *		  Tick * (2 ^ IR_s)
  */
 static u32 acc_shaper_para_calc(u64 cir_b, u64 cir_u, u64 cir_s)
 {
@@ -1003,17 +1025,28 @@ static u32 acc_shaper_para_calc(u64 cir_b, u64 cir_u, u64 cir_s)
 
 static u32 acc_shaper_calc_cbs_s(u32 ir)
 {
+	int table_size = ARRAY_SIZE(shaper_cbs_s);
 	int i;
 
-	if (ir < typical_qos_val[0])
-		return QM_SHAPER_MIN_CBS_S;
-
-	for (i = 1; i < QM_QOS_TYPICAL_NUM; i++) {
-		if (ir >= typical_qos_val[i - 1] && ir < typical_qos_val[i])
-			return typical_qos_cbs_s[i - 1];
+	for (i = 0; i < table_size; i++) {
+		if (ir >= shaper_cbs_s[i].start && ir <= shaper_cbs_s[i].end)
+			return shaper_cbs_s[i].val;
 	}
 
-	return typical_qos_cbs_s[QM_QOS_TYPICAL_NUM - 1];
+	return QM_SHAPER_MIN_CBS_S;
+}
+
+static u32 acc_shaper_calc_cir_s(u32 ir)
+{
+	int table_size = ARRAY_SIZE(shaper_cir_s);
+	int i;
+
+	for (i = 0; i < table_size; i++) {
+		if (ir >= shaper_cir_s[i].start && ir <= shaper_cir_s[i].end)
+			return shaper_cir_s[i].val;
+	}
+
+	return 0;
 }
 
 static int qm_get_shaper_para(u32 ir, struct qm_shaper_factor *factor)
@@ -1022,25 +1055,18 @@ static int qm_get_shaper_para(u32 ir, struct qm_shaper_factor *factor)
 	u32 error_rate;
 
 	factor->cbs_s = acc_shaper_calc_cbs_s(ir);
+	cir_s = acc_shaper_calc_cir_s(ir);
 
 	for (cir_b = QM_QOS_MIN_CIR_B; cir_b <= QM_QOS_MAX_CIR_B; cir_b++) {
 		for (cir_u = 0; cir_u <= QM_QOS_MAX_CIR_U; cir_u++) {
-			for (cir_s = 0; cir_s <= QM_QOS_MAX_CIR_S; cir_s++) {
-				/** the formula is changed to:
-				 *	   IR_b * (2 ^ IR_u) * DIVISOR_CLK
-				 * IR(Mbps) = -------------------------
-				 *	       768 * (2 ^ IR_s)
-				 */
-				ir_calc = acc_shaper_para_calc(cir_b, cir_u,
-							       cir_s);
-				error_rate = QM_QOS_EXPAND_RATE * (u32)abs(ir_calc - ir) / ir;
-				if (error_rate <= QM_QOS_MIN_ERROR_RATE) {
-					factor->cir_b = cir_b;
-					factor->cir_u = cir_u;
-					factor->cir_s = cir_s;
+			ir_calc = acc_shaper_para_calc(cir_b, cir_u, cir_s);
 
-					return 0;
-				}
+			error_rate = QM_QOS_EXPAND_RATE * (u32)abs(ir_calc - ir) / ir;
+			if (error_rate <= QM_QOS_MIN_ERROR_RATE) {
+				factor->cir_b = cir_b;
+				factor->cir_u = cir_u;
+				factor->cir_s = cir_s;
+				return 0;
 			}
 		}
 	}
