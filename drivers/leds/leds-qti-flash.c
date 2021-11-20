@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt)	"qti-flash: %s: " fmt, __func__
 
@@ -1397,32 +1398,38 @@ static int qti_flash_led_register_interrupts(struct qti_flash_led *led)
 {
 	int rc;
 
-	rc = devm_request_threaded_irq(&led->pdev->dev,
-		led->all_ramp_up_done_irq, NULL, qti_flash_led_irq_handler,
-		IRQF_ONESHOT, "flash_all_ramp_up", led);
-	if (rc < 0) {
-		pr_err("Failed to request all_ramp_up_done(%d) IRQ(err:%d)\n",
-			led->all_ramp_up_done_irq, rc);
-		return rc;
+	if (led->all_ramp_up_done_irq >= 0) {
+		rc = devm_request_threaded_irq(&led->pdev->dev,
+			led->all_ramp_up_done_irq, NULL, qti_flash_led_irq_handler,
+			IRQF_ONESHOT, "flash_all_ramp_up", led);
+		if (rc < 0) {
+			pr_err("Failed to request all_ramp_up_done(%d) IRQ(err:%d)\n",
+				led->all_ramp_up_done_irq, rc);
+			return rc;
+		}
 	}
 
-	rc = devm_request_threaded_irq(&led->pdev->dev,
-		led->all_ramp_down_done_irq, NULL, qti_flash_led_irq_handler,
-		IRQF_ONESHOT, "flash_all_ramp_down", led);
-	if (rc < 0) {
-		pr_err("Failed to request all_ramp_down_done(%d) IRQ(err:%d)\n",
-			led->all_ramp_down_done_irq,
-			rc);
-		return rc;
+	if (led->all_ramp_down_done_irq >= 0) {
+		rc = devm_request_threaded_irq(&led->pdev->dev,
+			led->all_ramp_down_done_irq, NULL, qti_flash_led_irq_handler,
+			IRQF_ONESHOT, "flash_all_ramp_down", led);
+		if (rc < 0) {
+			pr_err("Failed to request all_ramp_down_done(%d) IRQ(err:%d)\n",
+				led->all_ramp_down_done_irq,
+				rc);
+			return rc;
+		}
 	}
 
-	rc = devm_request_threaded_irq(&led->pdev->dev,
-		led->led_fault_irq, NULL, qti_flash_led_irq_handler,
-		IRQF_ONESHOT, "flash_fault", led);
-	if (rc < 0) {
-		pr_err("Failed to request led_fault(%d) IRQ(err:%d)\n",
-			led->led_fault_irq, rc);
-		return rc;
+	if (led->led_fault_irq >= 0) {
+		rc = devm_request_threaded_irq(&led->pdev->dev,
+			led->led_fault_irq, NULL, qti_flash_led_irq_handler,
+			IRQF_ONESHOT, "flash_fault", led);
+		if (rc < 0) {
+			pr_err("Failed to request led_fault(%d) IRQ(err:%d)\n",
+				led->led_fault_irq, rc);
+			return rc;
+		}
 	}
 
 	return 0;
