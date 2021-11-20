@@ -3555,22 +3555,11 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, val, ISP3X_CAC_STRENGTH0 + i * 4, id);
 	}
 
-	for (i = 0; i < ISP3X_MESH_BUF_NUM; i++) {
-		if (arg->buf_fd == priv_val->buf_cac[id][i].dma_fd)
-			break;
-	}
-	if (i == ISP3X_MESH_BUF_NUM) {
-		dev_err(dev->dev, "cannot find cac buf fd(%d)\n", arg->buf_fd);
-		return;
-	}
-
-	val = priv_val->buf_cac_idx[id];
-	head = (struct isp2x_mesh_head *)priv_val->buf_cac[id][val].vaddr;
-	head->stat = MESH_BUF_INIT;
-
+	/* two buf, buf0 for no bigmode, buf1 for bigmode */
+	i = 0;
+	if (priv_val->is_bigmode)
+		i = 1;
 	head = (struct isp2x_mesh_head *)priv_val->buf_cac[id][i].vaddr;
-	head->stat = MESH_BUF_CHIPINUSE;
-	priv_val->buf_cac_idx[id] = i;
 	rkisp_prepare_buffer(dev, &priv_val->buf_cac[id][i]);
 	val = priv_val->buf_cac[id][i].dma_addr + head->data_oft;
 	isp3_param_write(params_vdev, val, ISP3X_MI_LUT_CAC_RD_BASE, id);
@@ -4068,24 +4057,34 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->lsc_en = 0;
 	priv_val->mge_en = 0;
 	priv_val->lut3d_en = 0;
-	__isp_isr_other_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
-	__isp_isr_other_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
-	__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
-	__isp_isr_meas_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
+	priv_val->is_bigmode = 0;
 	if (hw->is_unite) {
 		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
 		size = width * out_crop->height;
+		if (width > ISP3X_AUTO_BIGMODE_WIDTH || size > ISP3X_NOBIG_OVERFLOW_SIZE) {
+			priv_val->is_bigmode = true;
+			rkisp_next_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
+					    ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
+		}
 		__isp_isr_other_config(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_other_en(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_meas_en(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
-		if (width <= ISP3X_AUTO_BIGMODE_WIDTH && size > ISP3X_NOBIG_OVERFLOW_SIZE)
+		if (width > ISP3X_AUTO_BIGMODE_WIDTH || size > ISP3X_NOBIG_OVERFLOW_SIZE) {
+			priv_val->is_bigmode = true;
 			rkisp_next_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 					    ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
+		}
 	}
-	if ((width <= ISP3X_AUTO_BIGMODE_WIDTH && size > ISP3X_NOBIG_OVERFLOW_SIZE) || !hw->is_single)
+	if (width > ISP3X_AUTO_BIGMODE_WIDTH || size > ISP3X_NOBIG_OVERFLOW_SIZE) {
+		priv_val->is_bigmode = true;
 		rkisp_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 			       ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
+	}
+	__isp_isr_other_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
+	__isp_isr_other_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
+	__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
+	__isp_isr_meas_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 
 	priv_val->cur_hdrmge = params_vdev->isp3x_params->others.hdrmge_cfg;
 	priv_val->cur_hdrdrc = params_vdev->isp3x_params->others.drc_cfg;
