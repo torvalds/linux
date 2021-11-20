@@ -388,7 +388,6 @@ struct ab8500_maxim_parameters {
  * @maint_b_chg_timer_h:	charge time in maintenance B state
  * @low_high_cur_lvl:		charger current in temp low/high state in mA
  * @low_high_vol_lvl:		charger voltage in temp low/high state in mV'
- * @battery_resistance:		battery inner resistance in mOhm.
  * @n_r_t_tbl_elements:		number of elements in r_to_t_tbl
  * @r_to_t_tbl:			table containing resistance to temp points
  * @n_v_cap_tbl_elements:	number of elements in v_to_cap_tbl
@@ -411,7 +410,6 @@ struct ab8500_battery_type {
 	int maint_b_chg_timer_h;
 	int low_high_cur_lvl;
 	int low_high_vol_lvl;
-	int battery_resistance;
 	int n_temp_tbl_elements;
 	const struct ab8500_res_to_temp *r_to_t_tbl;
 	int n_v_cap_tbl_elements;

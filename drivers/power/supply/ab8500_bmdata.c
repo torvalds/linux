@@ -83,7 +83,6 @@ static const struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
 static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.resis_high = 0,
 	.resis_low = 0,
-	.battery_resistance = 300,
 	.termination_curr = 200,
 	.recharge_cap = 95,
 	.normal_cur_lvl = 400,
@@ -203,6 +202,9 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 		/* Termination voltage (overcharge limit) 4.05V */
 		bi->overvoltage_limit_uv = 4050000;
 	}
+
+	if (bi->factory_internal_resistance_uohm < 0)
+		bi->factory_internal_resistance_uohm = 300000;
 
 	if (bi->temp_min == INT_MIN)
 		bi->temp_min = AB8500_TEMP_UNDER;
