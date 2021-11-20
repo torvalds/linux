@@ -468,7 +468,7 @@ static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
-	int ret;
+	int ret = 0;
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
@@ -480,8 +480,11 @@ static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 
 	mt7921_mutex_acquire(dev);
 
-	if (changed & IEEE80211_CONF_CHANGE_POWER)
-		mt76_connac_mcu_set_rate_txpower(phy->mt76);
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		ret = mt76_connac_mcu_set_rate_txpower(phy->mt76);
+		if (ret)
+			goto out;
+	}
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		bool enabled = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
@@ -496,9 +499,10 @@ static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 		mt76_wr(dev, MT_WF_RFCR(0), phy->rxfilter);
 	}
 
+out:
 	mt7921_mutex_release(dev);
 
-	return 0;
+	return ret;
 }
 
 static int
