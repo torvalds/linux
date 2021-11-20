@@ -16,31 +16,31 @@
 /* Default: temperature hysteresis */
 #define AB8500_TEMP_HYSTERESIS	3
 
-static const struct ab8500_v_to_cap cap_tbl[] = {
-	{4186,	100},
-	{4163,	 99},
-	{4114,	 95},
-	{4068,	 90},
-	{3990,	 80},
-	{3926,	 70},
-	{3898,	 65},
-	{3866,	 60},
-	{3833,	 55},
-	{3812,	 50},
-	{3787,	 40},
-	{3768,	 30},
-	{3747,	 25},
-	{3730,	 20},
-	{3705,	 15},
-	{3699,	 14},
-	{3684,	 12},
-	{3672,	  9},
-	{3657,	  7},
-	{3638,	  6},
-	{3556,	  4},
-	{3424,	  2},
-	{3317,	  1},
-	{3094,	  0},
+static struct power_supply_battery_ocv_table ocv_cap_tbl[] = {
+	{ .ocv = 4186000, .capacity = 100},
+	{ .ocv = 4163000, .capacity = 99},
+	{ .ocv = 4114000, .capacity = 95},
+	{ .ocv = 4068000, .capacity = 90},
+	{ .ocv = 3990000, .capacity = 80},
+	{ .ocv = 3926000, .capacity = 70},
+	{ .ocv = 3898000, .capacity = 65},
+	{ .ocv = 3866000, .capacity = 60},
+	{ .ocv = 3833000, .capacity = 55},
+	{ .ocv = 3812000, .capacity = 50},
+	{ .ocv = 3787000, .capacity = 40},
+	{ .ocv = 3768000, .capacity = 30},
+	{ .ocv = 3747000, .capacity = 25},
+	{ .ocv = 3730000, .capacity = 20},
+	{ .ocv = 3705000, .capacity = 15},
+	{ .ocv = 3699000, .capacity = 14},
+	{ .ocv = 3684000, .capacity = 12},
+	{ .ocv = 3672000, .capacity = 9},
+	{ .ocv = 3657000, .capacity = 7},
+	{ .ocv = 3638000, .capacity = 6},
+	{ .ocv = 3556000, .capacity = 4},
+	{ .ocv = 3424000, .capacity = 2},
+	{ .ocv = 3317000, .capacity = 1},
+	{ .ocv = 3094000, .capacity = 0},
 };
 
 /*
@@ -94,8 +94,6 @@ static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.low_high_vol_lvl = 4000,
 	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
 	.r_to_t_tbl = temp_tbl,
-	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-	.v_to_cap_tbl = cap_tbl,
 };
 
 static const struct ab8500_bm_capacity_levels cap_levels = {
@@ -115,8 +113,8 @@ static const struct ab8500_fg_parameters fg = {
 	.high_curr_time = 60,
 	.accu_charging = 30,
 	.accu_high_curr = 30,
-	.high_curr_threshold = 50,
-	.lowbat_threshold = 3100,
+	.high_curr_threshold_ua = 50000,
+	.lowbat_threshold_uv = 3100000,
 	.battok_falling_th_sel0 = 2860,
 	.battok_raising_th_sel1 = 2860,
 	.maint_thres = 95,
@@ -217,6 +215,13 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 		bi->factory_internal_resistance_uohm = 300000;
 		bi->resist_table = temp_to_batres_tbl_thermistor;
 		bi->resist_table_size = ARRAY_SIZE(temp_to_batres_tbl_thermistor);
+	}
+
+	if (!bi->ocv_table[0]) {
+		/* Default capacity table at say 25 degrees Celsius */
+		bi->ocv_temp[0] = 25;
+		bi->ocv_table[0] = ocv_cap_tbl;
+		bi->ocv_table_size[0] = ARRAY_SIZE(ocv_cap_tbl);
 	}
 
 	if (bi->temp_min == INT_MIN)

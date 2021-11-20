@@ -196,8 +196,8 @@ enum bup_vch_sel {
 #define BATT_OVV_TH_3P7			0x00
 #define BATT_OVV_TH_4P75		0x01
 
-/* A value to indicate over voltage */
-#define BATT_OVV_VALUE			4750
+/* A value to indicate over voltage (microvolts) */
+#define BATT_OVV_VALUE			4750000
 
 /* VBUS OVV constants */
 #define VBUS_OVV_SELECT_MASK		0x78
@@ -284,16 +284,6 @@ struct ab8500_res_to_temp {
 	int resist;
 };
 
-/**
- * struct ab8500_v_to_cap - Table for translating voltage to capacity
- * @voltage:		Voltage in mV
- * @capacity:		Capacity in percent
- */
-struct ab8500_v_to_cap {
-	int voltage;
-	int capacity;
-};
-
 /* Forward declaration */
 struct ab8500_fg;
 
@@ -307,10 +297,9 @@ struct ab8500_fg;
  * @init_total_time:		Total init time during startup
  * @high_curr_time:		Time current has to be high to go to recovery
  * @accu_charging:		FG accumulation time while charging
- * @accu_high_curr:		FG accumulation time in high current mode
- * @high_curr_threshold:	High current threshold, in mA
- * @lowbat_threshold:		Low battery threshold, in mV
- * @overbat_threshold:		Over battery threshold, in mV
+ * @accu_high_curr_ua:		FG accumulation time in high current mode
+ * @high_curr_threshold_ua:	High current threshold, in uA
+ * @lowbat_threshold_uv:	Low battery threshold, in uV
  * @battok_falling_th_sel0	Threshold in mV for battOk signal sel0
  *				Resolution in 50 mV step.
  * @battok_raising_th_sel1	Threshold in mV for battOk signal sel1
@@ -335,9 +324,8 @@ struct ab8500_fg_parameters {
 	int high_curr_time;
 	int accu_charging;
 	int accu_high_curr;
-	int high_curr_threshold;
-	int lowbat_threshold;
-	int overbat_threshold;
+	int high_curr_threshold_ua;
+	int lowbat_threshold_uv;
 	int battok_falling_th_sel0;
 	int battok_raising_th_sel1;
 	int user_cap_limit;
@@ -377,8 +365,6 @@ struct ab8500_maxim_parameters {
  * @low_high_vol_lvl:		charger voltage in temp low/high state in mV'
  * @n_r_t_tbl_elements:		number of elements in r_to_t_tbl
  * @r_to_t_tbl:			table containing resistance to temp points
- * @n_v_cap_tbl_elements:	number of elements in v_to_cap_tbl
- * @v_to_cap_tbl:		Voltage to capacity (in %) table
  */
 struct ab8500_battery_type {
 	int resis_high;
@@ -393,8 +379,6 @@ struct ab8500_battery_type {
 	int low_high_vol_lvl;
 	int n_temp_tbl_elements;
 	const struct ab8500_res_to_temp *r_to_t_tbl;
-	int n_v_cap_tbl_elements;
-	const struct ab8500_v_to_cap *v_to_cap_tbl;
 };
 
 /**
