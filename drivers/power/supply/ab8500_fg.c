@@ -3023,6 +3023,10 @@ static int ab8500_fg_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 	}
 
+	di->bat_cap.max_mah_design = di->bm->bi.charge_full_design_uah;
+	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
+	di->vbat_nom_uv = di->bm->bi.voltage_max_design_uv;
+
 	/* Start the coulomb counter */
 	ab8500_fg_coulomb_counter(di, true);
 	/* Run the FG algorithm */
@@ -3081,10 +3085,6 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	psy_cfg.supplied_to = supply_interface;
 	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 	psy_cfg.drv_data = di;
-
-	di->bat_cap.max_mah_design = di->bm->bi.charge_full_design_uah;
-	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
-	di->vbat_nom_uv = di->bm->bi.voltage_max_design_uv;
 
 	di->init_capacity = true;
 
