@@ -548,7 +548,7 @@ struct octeon_mgmt_cam_state {
 };
 
 static void octeon_mgmt_cam_state_add(struct octeon_mgmt_cam_state *cs,
-				      unsigned char *addr)
+				      const unsigned char *addr)
 {
 	int i;
 
