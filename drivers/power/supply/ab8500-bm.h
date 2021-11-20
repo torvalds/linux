@@ -379,8 +379,6 @@ struct ab8500_maxim_parameters {
  * @r_to_t_tbl:			table containing resistance to temp points
  * @n_v_cap_tbl_elements:	number of elements in v_to_cap_tbl
  * @v_to_cap_tbl:		Voltage to capacity (in %) table
- * @n_batres_tbl_elements	number of elements in the batres_tbl
- * @batres_tbl			battery internal resistance vs temperature table
  */
 struct ab8500_battery_type {
 	int resis_high;
@@ -397,8 +395,6 @@ struct ab8500_battery_type {
 	const struct ab8500_res_to_temp *r_to_t_tbl;
 	int n_v_cap_tbl_elements;
 	const struct ab8500_v_to_cap *v_to_cap_tbl;
-	int n_batres_tbl_elements;
-	const struct batres_vs_temp *batres_tbl;
 };
 
 /**
@@ -498,17 +494,6 @@ enum {
  * @resist:			NTC resistor net total resistance
  */
 struct res_to_temp {
-	int temp;
-	int resist;
-};
-
-/**
- * struct batres_vs_temp - defines one point in a temp vs battery internal
- * resistance curve.
- * @temp:			battery pack temperature in Celsius
- * @resist:			battery internal reistance in mOhm
- */
-struct batres_vs_temp {
 	int temp;
 	int resist;
 };

@@ -67,16 +67,17 @@ static const struct ab8500_res_to_temp temp_tbl[] = {
 
 /*
  * Note that the batres_vs_temp table must be strictly sorted by falling
- * temperature values to work.
+ * temperature values to work. Factory resistance is 300 mOhm and the
+ * resistance values to the right are percentages of 300 mOhm.
  */
-static const struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
-	{ 40, 120},
-	{ 30, 135},
-	{ 20, 165},
-	{ 10, 230},
-	{ 00, 325},
-	{-10, 445},
-	{-20, 595},
+static struct power_supply_resistance_temp_table temp_to_batres_tbl_thermistor[] = {
+	{ .temp = 40, .resistance = 40 /* 120 mOhm */ },
+	{ .temp = 30, .resistance = 45 /* 135 mOhm */ },
+	{ .temp = 20, .resistance = 55 /* 165 mOhm */ },
+	{ .temp = 10, .resistance = 77 /* 230 mOhm */ },
+	{ .temp = 00, .resistance = 108 /* 325 mOhm */ },
+	{ .temp = -10, .resistance = 158 /* 445 mOhm */ },
+	{ .temp = -20, .resistance = 198 /* 595 mOhm */ },
 };
 
 /* Default battery type for reference designs is the unknown type */
@@ -95,8 +96,6 @@ static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.r_to_t_tbl = temp_tbl,
 	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
 	.v_to_cap_tbl = cap_tbl,
-	.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-	.batres_tbl = temp_to_batres_tbl_thermistor,
 };
 
 static const struct ab8500_bm_capacity_levels cap_levels = {
@@ -209,8 +208,16 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 		/* Charging stops when we drop below this current */
 		bi->charge_term_current_ua = 200000;
 
-	if (bi->factory_internal_resistance_uohm < 0)
+	/*
+	 * Internal resistance and factory resistance are tightly coupled
+	 * so both MUST be defined or we fall back to defaults.
+	 */
+	if ((bi->factory_internal_resistance_uohm < 0) ||
+	    !bi->resist_table) {
 		bi->factory_internal_resistance_uohm = 300000;
+		bi->resist_table = temp_to_batres_tbl_thermistor;
+		bi->resist_table_size = ARRAY_SIZE(temp_to_batres_tbl_thermistor);
+	}
 
 	if (bi->temp_min == INT_MIN)
 		bi->temp_min = AB8500_TEMP_UNDER;

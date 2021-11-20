@@ -901,44 +901,35 @@ static int ab8500_fg_uncomp_volt_to_capacity(struct ab8500_fg *di)
  * @di:		pointer to the ab8500_fg structure
  *
  * Returns battery inner resistance added with the fuel gauge resistor value
- * to get the total resistance in the whole link from gnd to bat+ node.
+ * to get the total resistance in the whole link from gnd to bat+ node
+ * in milliohm.
  */
 static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 {
-	int i, tbl_size;
-	const struct batres_vs_temp *tbl;
-	int resist = 0;
+	struct power_supply_battery_info *bi = &di->bm->bi;
+	int resistance_percent = 0;
+	int resistance;
 
-	tbl = di->bm->bat_type->batres_tbl;
-	tbl_size = di->bm->bat_type->n_batres_tbl_elements;
-
-	for (i = 0; i < tbl_size; ++i) {
-		if (di->bat_temp / 10 > tbl[i].temp)
-			break;
-	}
-
-	if ((i > 0) && (i < tbl_size)) {
-		resist = fixp_linear_interpolate(
-			tbl[i].temp,
-			tbl[i].resist,
-			tbl[i-1].temp,
-			tbl[i-1].resist,
-			di->bat_temp / 10);
-	} else if (i == 0) {
-		resist = tbl[0].resist;
-	} else {
-		resist = tbl[tbl_size - 1].resist;
-	}
+	resistance_percent = power_supply_temp2resist_simple(bi->resist_table,
+						 bi->resist_table_size,
+						 di->bat_temp / 10);
+	/*
+	 * We get a percentage of factory resistance here so first get
+	 * the factory resistance in milliohms then calculate how much
+	 * resistance we have at this temperature.
+	 */
+	resistance = (bi->factory_internal_resistance_uohm / 1000);
+	resistance = resistance * resistance_percent / 100;
 
 	dev_dbg(di->dev, "%s Temp: %d battery internal resistance: %d"
 	    " fg resistance %d, total: %d (mOhm)\n",
-		__func__, di->bat_temp, resist, di->bm->fg_res / 10,
-		(di->bm->fg_res / 10) + resist);
+		__func__, di->bat_temp, resistance, di->bm->fg_res / 10,
+		(di->bm->fg_res / 10) + resistance);
 
 	/* fg_res variable is in 0.1mOhm */
-	resist += di->bm->fg_res / 10;
+	resistance += di->bm->fg_res / 10;
 
-	return resist;
+	return resistance;
 }
 
 /**
