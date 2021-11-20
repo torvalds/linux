@@ -620,10 +620,12 @@ enum dc_status dpcd_set_link_settings(
 #endif
 		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
 					(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
-					link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+					link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
 			vendor_specific_lttpr_wa_one_start(link);
+
+		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
+					(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN))
 			vendor_specific_lttpr_wa_one_two(link, rate);
-		}
 
 		status = core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
 	}
@@ -1494,8 +1496,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 			wait_time_microsec = TRAINING_AUX_RD_INTERVAL;
 
 		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
-				(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
-				link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+				(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN)) {
 			wait_time_microsec = 16000;
 		}
 
