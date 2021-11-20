@@ -4231,65 +4231,68 @@ static ssize_t qm_qos_value_init(const char *buf, unsigned long *val)
 	return 0;
 }
 
+static ssize_t qm_get_qos_value(struct hisi_qm *qm, const char *buf,
+			       unsigned long *val,
+			       unsigned int *fun_index)
+{
+	char tbuf_bdf[QM_DBG_READ_LEN] = {0};
+	char val_buf[QM_QOS_VAL_MAX_LEN] = {0};
+	u32 tmp1, device, function;
+	int ret, bus;
+
+	ret = sscanf(buf, "%s %s", tbuf_bdf, val_buf);
+	if (ret != QM_QOS_PARAM_NUM)
+		return -EINVAL;
+
+	ret = qm_qos_value_init(val_buf, val);
+	if (*val == 0 || *val > QM_QOS_MAX_VAL || ret) {
+		pci_err(qm->pdev, "input qos value is error, please set 1~1000!\n");
+		return -EINVAL;
+	}
+
+	ret = sscanf(tbuf_bdf, "%u:%x:%u.%u", &tmp1, &bus, &device, &function);
+	if (ret != QM_QOS_BDF_PARAM_NUM) {
+		pci_err(qm->pdev, "input pci bdf value is error!\n");
+		return -EINVAL;
+	}
+
+	*fun_index = PCI_DEVFN(device, function);
+
+	return 0;
+}
+
 static ssize_t qm_algqos_write(struct file *filp, const char __user *buf,
 			       size_t count, loff_t *pos)
 {
 	struct hisi_qm *qm = filp->private_data;
 	char tbuf[QM_DBG_READ_LEN];
-	int tmp1, bus, device, function;
-	char tbuf_bdf[QM_DBG_READ_LEN] = {0};
-	char val_buf[QM_QOS_VAL_MAX_LEN] = {0};
 	unsigned int fun_index;
-	unsigned long val = 0;
+	unsigned long val;
 	int len, ret;
 
 	if (qm->fun_type == QM_HW_VF)
 		return -EINVAL;
+
+	if (*pos != 0)
+		return 0;
+
+	if (count >= QM_DBG_READ_LEN)
+		return -ENOSPC;
+
+	len = simple_write_to_buffer(tbuf, QM_DBG_READ_LEN - 1, pos, buf, count);
+	if (len < 0)
+		return len;
+
+	tbuf[len] = '\0';
+	ret = qm_get_qos_value(qm, tbuf, &val, &fun_index);
+	if (ret)
+		return ret;
 
 	/* Mailbox and reset cannot be operated at the same time */
 	if (test_and_set_bit(QM_RESETTING, &qm->misc_ctl)) {
 		pci_err(qm->pdev, "dev resetting, write alg qos failed!\n");
 		return -EAGAIN;
 	}
-
-	if (*pos != 0) {
-		ret = 0;
-		goto err_get_status;
-	}
-
-	if (count >= QM_DBG_READ_LEN) {
-		ret = -ENOSPC;
-		goto err_get_status;
-	}
-
-	len = simple_write_to_buffer(tbuf, QM_DBG_READ_LEN - 1, pos, buf, count);
-	if (len < 0) {
-		ret = len;
-		goto err_get_status;
-	}
-
-	tbuf[len] = '\0';
-	ret = sscanf(tbuf, "%s %s", tbuf_bdf, val_buf);
-	if (ret != QM_QOS_PARAM_NUM) {
-		ret = -EINVAL;
-		goto err_get_status;
-	}
-
-	ret = qm_qos_value_init(val_buf, &val);
-	if (val == 0 || val > QM_QOS_MAX_VAL || ret) {
-		pci_err(qm->pdev, "input qos value is error, please set 1~1000!\n");
-		ret = -EINVAL;
-		goto err_get_status;
-	}
-
-	ret = sscanf(tbuf_bdf, "%d:%x:%d.%d", &tmp1, &bus, &device, &function);
-	if (ret != QM_QOS_BDF_PARAM_NUM) {
-		pci_err(qm->pdev, "input pci bdf value is error!\n");
-		ret = -EINVAL;
-		goto err_get_status;
-	}
-
-	fun_index = device * 8 + function;
 
 	ret = qm_pm_get_sync(qm);
 	if (ret) {
@@ -4304,6 +4307,8 @@ static ssize_t qm_algqos_write(struct file *filp, const char __user *buf,
 		goto err_put_sync;
 	}
 
+	pci_info(qm->pdev, "the qos value of function%u is set to %lu.\n",
+		 fun_index, val);
 	ret = count;
 
 err_put_sync:
