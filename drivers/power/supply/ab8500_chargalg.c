@@ -722,27 +722,29 @@ static void ab8500_chargalg_start_charging(struct ab8500_chargalg *di,
  */
 static void ab8500_chargalg_check_temp(struct ab8500_chargalg *di)
 {
-	if (di->batt_data.temp > (di->bm->temp_low + di->t_hyst_norm) &&
-		di->batt_data.temp < (di->bm->temp_high - di->t_hyst_norm)) {
+	struct power_supply_battery_info *bi = &di->bm->bi;
+
+	if (di->batt_data.temp > (bi->temp_alert_min + di->t_hyst_norm) &&
+		di->batt_data.temp < (bi->temp_alert_max - di->t_hyst_norm)) {
 		/* Temp OK! */
 		di->events.btemp_underover = false;
 		di->events.btemp_lowhigh = false;
 		di->t_hyst_norm = 0;
 		di->t_hyst_lowhigh = 0;
 	} else {
-		if (((di->batt_data.temp >= di->bm->temp_high) &&
+		if (((di->batt_data.temp >= bi->temp_alert_max) &&
 			(di->batt_data.temp <
-				(di->bm->temp_over - di->t_hyst_lowhigh))) ||
+				(bi->temp_max - di->t_hyst_lowhigh))) ||
 			((di->batt_data.temp >
-				(di->bm->temp_under + di->t_hyst_lowhigh)) &&
-			(di->batt_data.temp <= di->bm->temp_low))) {
+				(bi->temp_min + di->t_hyst_lowhigh)) &&
+			(di->batt_data.temp <= bi->temp_alert_min))) {
 			/* TEMP minor!!!!! */
 			di->events.btemp_underover = false;
 			di->events.btemp_lowhigh = true;
 			di->t_hyst_norm = di->bm->temp_hysteresis;
 			di->t_hyst_lowhigh = 0;
-		} else if (di->batt_data.temp <= di->bm->temp_under ||
-			di->batt_data.temp >= di->bm->temp_over) {
+		} else if (di->batt_data.temp <= bi->temp_min ||
+			di->batt_data.temp >= bi->temp_max) {
 			/* TEMP major!!!!! */
 			di->events.btemp_underover = true;
 			di->events.btemp_lowhigh = false;
@@ -1722,7 +1724,7 @@ static int ab8500_chargalg_get_property(struct power_supply *psy,
 		if (di->events.batt_ovv) {
 			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
 		} else if (di->events.btemp_underover) {
-			if (di->batt_data.temp <= di->bm->temp_under)
+			if (di->batt_data.temp <= di->bm->bi.temp_min)
 				val->intval = POWER_SUPPLY_HEALTH_COLD;
 			else
 				val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;

@@ -3709,6 +3709,7 @@ static int ab8500_charger_remove(struct platform_device *pdev)
 	component_master_del(&pdev->dev, &ab8500_charger_comp_ops);
 
 	usb_unregister_notifier(di->usb_phy, &di->nb);
+	ab8500_bm_of_remove(di->usb_chg.psy, di->bm);
 	usb_put_phy(di->usb_phy);
 	if (!di->ac_chg.enabled)
 		blocking_notifier_chain_unregister(

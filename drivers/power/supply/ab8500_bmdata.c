@@ -5,6 +5,17 @@
 
 #include "ab8500-bm.h"
 
+/* Default: under this temperature, charging is stopped */
+#define AB8500_TEMP_UNDER	3
+/* Default: between this temp and AB8500_TEMP_UNDER charging is reduced */
+#define AB8500_TEMP_LOW		8
+/* Default: between this temp and AB8500_TEMP_OVER charging is reduced */
+#define AB8500_TEMP_HIGH	43
+/* Default: over this temp, charging is stopped */
+#define AB8500_TEMP_OVER	48
+/* Default: temperature hysteresis */
+#define AB8500_TEMP_HYSTERESIS	3
+
 /*
  * These are the defined batteries that uses a NTC and ID resistor placed
  * inside of the battery pack.
@@ -437,10 +448,6 @@ static const struct ab8500_bm_charger_parameters chg = {
 };
 
 struct ab8500_bm_data ab8500_bm_data = {
-	.temp_under             = 3,
-	.temp_low               = 8,
-	.temp_high              = 43,
-	.temp_over              = 48,
 	.main_safety_tmr_h      = 4,
 	.temp_interval_chg      = 20,
 	.temp_interval_nochg    = 120,
@@ -459,7 +466,6 @@ struct ab8500_bm_data ab8500_bm_data = {
 	.batt_id                = 0,
 	.interval_charging      = 5,
 	.interval_not_charging  = 120,
-	.temp_hysteresis        = 3,
 	.gnd_lift_resistance    = 34,
 	.maxi                   = &ab8500_maxi_params,
 	.chg_params             = &chg,
@@ -470,18 +476,29 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 		       struct ab8500_bm_data *bm)
 {
 	const struct batres_vs_temp *tmp_batres_tbl;
-	struct power_supply_battery_info info;
+	struct power_supply_battery_info *bi = &bm->bi;
 	struct device *dev = &psy->dev;
 	int ret;
 	int i;
 
-	ret = power_supply_get_battery_info(psy, &info);
+	ret = power_supply_get_battery_info(psy, bi);
 	if (ret) {
 		dev_err(dev, "cannot retrieve battery info\n");
 		return ret;
 	}
 
-	if (info.technology == POWER_SUPPLY_TECHNOLOGY_LION) {
+	if (bi->temp_min == INT_MIN)
+		bi->temp_min = AB8500_TEMP_UNDER;
+	if (bi->temp_max == INT_MAX)
+		bi->temp_max = AB8500_TEMP_OVER;
+	if (bi->temp_alert_min == INT_MIN)
+		bi->temp_alert_min = AB8500_TEMP_LOW;
+	if (bi->temp_alert_max == INT_MAX)
+		bi->temp_alert_max = AB8500_TEMP_HIGH;
+	bm->temp_hysteresis = AB8500_TEMP_HYSTERESIS;
+
+
+	if (bi->technology == POWER_SUPPLY_TECHNOLOGY_LION) {
 		bm->no_maintenance  = true;
 		bm->chg_unknown_bat = true;
 		bm->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
@@ -492,7 +509,7 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	}
 
 	if (of_property_read_bool(psy->of_node, "thermistor-on-batctrl")) {
-		if (info.technology == POWER_SUPPLY_TECHNOLOGY_LION)
+		if (bi->technology == POWER_SUPPLY_TECHNOLOGY_LION)
 			tmp_batres_tbl = temp_to_batres_tbl_9100;
 		else
 			tmp_batres_tbl = temp_to_batres_tbl_thermistor;
@@ -507,7 +524,11 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	for (i = 0; i < bm->n_btypes; ++i)
 		bm->bat_type[i].batres_tbl = tmp_batres_tbl;
 
-	power_supply_put_battery_info(psy, &info);
-
 	return 0;
+}
+
+void ab8500_bm_of_remove(struct power_supply *psy,
+			 struct ab8500_bm_data *bm)
+{
+	power_supply_put_battery_info(psy, &bm->bi);
 }
