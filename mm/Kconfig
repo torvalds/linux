@@ -887,6 +887,9 @@ config MAPPING_DIRTY_HELPERS
 config KMAP_LOCAL
 	bool
 
+config KMAP_LOCAL_NON_LINEAR_PTE_ARRAY
+	bool
+
 # struct io_mapping based helper.  Selected by drivers that need them
 config IO_MAPPING
 	bool
