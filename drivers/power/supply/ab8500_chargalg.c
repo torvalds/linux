@@ -46,8 +46,8 @@
 /* Five minutes expressed in seconds */
 #define FIVE_MINUTES_IN_SECONDS        300
 
-#define CHARGALG_CURR_STEP_LOW		0
-#define CHARGALG_CURR_STEP_HIGH	100
+#define CHARGALG_CURR_STEP_LOW_UA	0
+#define CHARGALG_CURR_STEP_HIGH_UA	100000
 
 /*
  * This is the battery capacity limit that will trigger a new
@@ -71,13 +71,13 @@ struct ab8500_chargalg_charger_info {
 	bool usb_chg_ok;
 	bool ac_chg_ok;
 	int usb_volt;
-	int usb_curr;
+	int usb_curr_ua;
 	int ac_volt;
-	int ac_curr;
+	int ac_curr_ua;
 	int usb_vset;
-	int usb_iset;
+	int usb_iset_ua;
 	int ac_vset;
-	int ac_iset;
+	int ac_iset_ua;
 };
 
 struct ab8500_chargalg_suspension_status {
@@ -88,14 +88,14 @@ struct ab8500_chargalg_suspension_status {
 
 struct ab8500_chargalg_current_step_status {
 	bool curr_step_change;
-	int curr_step;
+	int curr_step_ua;
 };
 
 struct ab8500_chargalg_battery_data {
 	int temp;
 	int volt_uv;
 	int avg_curr_ua;
-	int inst_curr;
+	int inst_curr_ua;
 	int percent;
 };
 
@@ -184,13 +184,13 @@ struct ab8500_chargalg_events {
 
 /**
  * struct ab8500_charge_curr_maximization - Charger maximization parameters
- * @original_iset:	the non optimized/maximised charger current
- * @current_iset:	the charging current used at this moment
- * @test_delta_i:	the delta between the current we want to charge and the
+ * @original_iset_ua:	the non optimized/maximised charger current
+ * @current_iset_ua:	the charging current used at this moment
+ * @test_delta_i_ua:	the delta between the current we want to charge and the
 			current that is really going into the battery
  * @condition_cnt:	number of iterations needed before a new charger current
 			is set
- * @max_current:	maximum charger current
+ * @max_current_ua:	maximum charger current
  * @wait_cnt:		to avoid too fast current step down in case of charger
  *			voltage collapse, we insert this delay between step
  *			down
@@ -198,11 +198,11 @@ struct ab8500_chargalg_events {
 			increased
  */
 struct ab8500_charge_curr_maximization {
-	int original_iset;
-	int current_iset;
-	int test_delta_i;
+	int original_iset_ua;
+	int current_iset_ua;
+	int test_delta_i_ua;
 	int condition_cnt;
-	int max_current;
+	int max_current_ua;
 	int wait_cnt;
 	u8 level;
 };
@@ -352,6 +352,8 @@ static void ab8500_chargalg_state_to(struct ab8500_chargalg *di,
 
 static int ab8500_chargalg_check_charger_enable(struct ab8500_chargalg *di)
 {
+	struct power_supply_battery_info *bi = &di->bm->bi;
+
 	switch (di->charge_state) {
 	case STATE_NORMAL:
 	case STATE_MAINTENANCE_A:
@@ -364,12 +366,12 @@ static int ab8500_chargalg_check_charger_enable(struct ab8500_chargalg *di)
 	if (di->chg_info.charger_type & USB_CHG) {
 		return di->usb_chg->ops.check_enable(di->usb_chg,
 			di->bm->bat_type->normal_vol_lvl,
-			di->bm->bat_type->normal_cur_lvl);
+			bi->constant_charge_current_max_ua);
 	} else if ((di->chg_info.charger_type & AC_CHG) &&
 		   !(di->ac_chg->external)) {
 		return di->ac_chg->ops.check_enable(di->ac_chg,
 			di->bm->bat_type->normal_vol_lvl,
-			di->bm->bat_type->normal_cur_lvl);
+			bi->constant_charge_current_max_ua);
 	}
 	return 0;
 }
@@ -545,13 +547,13 @@ static int ab8500_chargalg_kick_watchdog(struct ab8500_chargalg *di)
  * @di:		pointer to the ab8500_chargalg structure
  * @enable:	charger on/off
  * @vset:	requested charger output voltage
- * @iset:	requested charger output current
+ * @iset_ua:	requested charger output current in microampere
  *
  * The AC charger will be turned on/off with the requested charge voltage and
  * current
  */
 static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
-	int vset, int iset)
+	int vset, int iset_ua)
 {
 	static int ab8500_chargalg_ex_ac_enable_toggle;
 
@@ -561,10 +563,10 @@ static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
 	/* Select maximum of what both the charger and the battery supports */
 	if (di->ac_chg->max_out_volt)
 		vset = min(vset, di->ac_chg->max_out_volt);
-	if (di->ac_chg->max_out_curr)
-		iset = min(iset, di->ac_chg->max_out_curr);
+	if (di->ac_chg->max_out_curr_ua)
+		iset_ua = min(iset_ua, di->ac_chg->max_out_curr_ua);
 
-	di->chg_info.ac_iset = iset;
+	di->chg_info.ac_iset_ua = iset_ua;
 	di->chg_info.ac_vset = vset;
 
 	/* Enable external charger */
@@ -575,7 +577,7 @@ static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
 		ab8500_chargalg_ex_ac_enable_toggle++;
 	}
 
-	return di->ac_chg->ops.enable(di->ac_chg, enable, vset, iset);
+	return di->ac_chg->ops.enable(di->ac_chg, enable, vset, iset_ua);
 }
 
 /**
@@ -583,13 +585,13 @@ static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
  * @di:		pointer to the ab8500_chargalg structure
  * @enable:	charger on/off
  * @vset:	requested charger output voltage
- * @iset:	requested charger output current
+ * @iset_ua:	requested charger output current in microampere
  *
  * The USB charger will be turned on/off with the requested charge voltage and
  * current
  */
 static int ab8500_chargalg_usb_en(struct ab8500_chargalg *di, int enable,
-	int vset, int iset)
+	int vset, int iset_ua)
 {
 	if (!di->usb_chg || !di->usb_chg->ops.enable)
 		return -ENXIO;
@@ -597,25 +599,25 @@ static int ab8500_chargalg_usb_en(struct ab8500_chargalg *di, int enable,
 	/* Select maximum of what both the charger and the battery supports */
 	if (di->usb_chg->max_out_volt)
 		vset = min(vset, di->usb_chg->max_out_volt);
-	if (di->usb_chg->max_out_curr)
-		iset = min(iset, di->usb_chg->max_out_curr);
+	if (di->usb_chg->max_out_curr_ua)
+		iset_ua = min(iset_ua, di->usb_chg->max_out_curr_ua);
 
-	di->chg_info.usb_iset = iset;
+	di->chg_info.usb_iset_ua = iset_ua;
 	di->chg_info.usb_vset = vset;
 
-	return di->usb_chg->ops.enable(di->usb_chg, enable, vset, iset);
+	return di->usb_chg->ops.enable(di->usb_chg, enable, vset, iset_ua);
 }
 
 /**
  * ab8500_chargalg_update_chg_curr() - Update charger current
  * @di:		pointer to the ab8500_chargalg structure
- * @iset:	requested charger output current
+ * @iset_ua:	requested charger output current in microampere
  *
  * The charger output current will be updated for the charger
  * that is currently in use
  */
 static int ab8500_chargalg_update_chg_curr(struct ab8500_chargalg *di,
-		int iset)
+		int iset_ua)
 {
 	/* Check if charger exists and update current if charging */
 	if (di->ac_chg && di->ac_chg->ops.update_curr &&
@@ -624,24 +626,24 @@ static int ab8500_chargalg_update_chg_curr(struct ab8500_chargalg *di,
 		 * Select maximum of what both the charger
 		 * and the battery supports
 		 */
-		if (di->ac_chg->max_out_curr)
-			iset = min(iset, di->ac_chg->max_out_curr);
+		if (di->ac_chg->max_out_curr_ua)
+			iset_ua = min(iset_ua, di->ac_chg->max_out_curr_ua);
 
-		di->chg_info.ac_iset = iset;
+		di->chg_info.ac_iset_ua = iset_ua;
 
-		return di->ac_chg->ops.update_curr(di->ac_chg, iset);
+		return di->ac_chg->ops.update_curr(di->ac_chg, iset_ua);
 	} else if (di->usb_chg && di->usb_chg->ops.update_curr &&
 			di->chg_info.charger_type & USB_CHG) {
 		/*
 		 * Select maximum of what both the charger
 		 * and the battery supports
 		 */
-		if (di->usb_chg->max_out_curr)
-			iset = min(iset, di->usb_chg->max_out_curr);
+		if (di->usb_chg->max_out_curr_ua)
+			iset_ua = min(iset_ua, di->usb_chg->max_out_curr_ua);
 
-		di->chg_info.usb_iset = iset;
+		di->chg_info.usb_iset_ua = iset_ua;
 
-		return di->usb_chg->ops.update_curr(di->usb_chg, iset);
+		return di->usb_chg->ops.update_curr(di->usb_chg, iset_ua);
 	}
 
 	return -ENXIO;
@@ -691,27 +693,27 @@ static void ab8500_chargalg_hold_charging(struct ab8500_chargalg *di)
  * ab8500_chargalg_start_charging() - Start the charger
  * @di:		pointer to the ab8500_chargalg structure
  * @vset:	requested charger output voltage
- * @iset:	requested charger output current
+ * @iset_ua:	requested charger output current in microampere
  *
  * A charger will be enabled depending on the requested charger type that was
  * detected previously.
  */
 static void ab8500_chargalg_start_charging(struct ab8500_chargalg *di,
-	int vset, int iset)
+	int vset, int iset_ua)
 {
 	switch (di->chg_info.charger_type) {
 	case AC_CHG:
 		dev_dbg(di->dev,
-			"AC parameters: Vset %d, Ich %d\n", vset, iset);
+			"AC parameters: Vset %d, Ich %d\n", vset, iset_ua);
 		ab8500_chargalg_usb_en(di, false, 0, 0);
-		ab8500_chargalg_ac_en(di, true, vset, iset);
+		ab8500_chargalg_ac_en(di, true, vset, iset_ua);
 		break;
 
 	case USB_CHG:
 		dev_dbg(di->dev,
-			"USB parameters: Vset %d, Ich %d\n", vset, iset);
+			"USB parameters: Vset %d, Ich %d\n", vset, iset_ua);
 		ab8500_chargalg_ac_en(di, false, 0, 0);
-		ab8500_chargalg_usb_en(di, true, vset, iset);
+		ab8500_chargalg_usb_en(di, true, vset, iset_ua);
 		break;
 
 	default:
@@ -825,12 +827,12 @@ static void ab8500_chargalg_end_of_charge(struct ab8500_chargalg *di)
 
 static void init_maxim_chg_curr(struct ab8500_chargalg *di)
 {
-	di->ccm.original_iset =
-		di->bm->bat_type->normal_cur_lvl;
-	di->ccm.current_iset =
-		di->bm->bat_type->normal_cur_lvl;
-	di->ccm.test_delta_i = di->bm->maxi->charger_curr_step;
-	di->ccm.max_current = di->bm->maxi->chg_curr;
+	struct power_supply_battery_info *bi = &di->bm->bi;
+
+	di->ccm.original_iset_ua = bi->constant_charge_current_max_ua;
+	di->ccm.current_iset_ua = bi->constant_charge_current_max_ua;
+	di->ccm.test_delta_i_ua = di->bm->maxi->charger_curr_step_ua;
+	di->ccm.max_current_ua = di->bm->maxi->chg_curr_ua;
 	di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
 	di->ccm.level = 0;
 }
@@ -846,12 +848,12 @@ static void init_maxim_chg_curr(struct ab8500_chargalg *di)
  */
 static enum maxim_ret ab8500_chargalg_chg_curr_maxim(struct ab8500_chargalg *di)
 {
-	int delta_i;
+	int delta_i_ua;
 
 	if (!di->bm->maxi->ena_maxi)
 		return MAXIM_RET_NOACTION;
 
-	delta_i = di->ccm.original_iset - di->batt_data.inst_curr;
+	delta_i_ua = di->ccm.original_iset_ua - di->batt_data.inst_curr_ua;
 
 	if (di->events.vbus_collapsed) {
 		dev_dbg(di->dev, "Charger voltage has collapsed %d\n",
@@ -860,9 +862,9 @@ static enum maxim_ret ab8500_chargalg_chg_curr_maxim(struct ab8500_chargalg *di)
 			dev_dbg(di->dev, "lowering current\n");
 			di->ccm.wait_cnt++;
 			di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
-			di->ccm.max_current =
-				di->ccm.current_iset - di->ccm.test_delta_i;
-			di->ccm.current_iset = di->ccm.max_current;
+			di->ccm.max_current_ua =
+				di->ccm.current_iset_ua - di->ccm.test_delta_i_ua;
+			di->ccm.current_iset_ua = di->ccm.max_current_ua;
 			di->ccm.level--;
 			return MAXIM_RET_CHANGE;
 		} else {
@@ -875,36 +877,36 @@ static enum maxim_ret ab8500_chargalg_chg_curr_maxim(struct ab8500_chargalg *di)
 
 	di->ccm.wait_cnt = 0;
 
-	if (di->batt_data.inst_curr > di->ccm.original_iset) {
-		dev_dbg(di->dev, " Maximization Ibat (%dmA) too high"
-			" (limit %dmA) (current iset: %dmA)!\n",
-			di->batt_data.inst_curr, di->ccm.original_iset,
-			di->ccm.current_iset);
+	if (di->batt_data.inst_curr_ua > di->ccm.original_iset_ua) {
+		dev_dbg(di->dev, " Maximization Ibat (%duA) too high"
+			" (limit %duA) (current iset: %duA)!\n",
+			di->batt_data.inst_curr_ua, di->ccm.original_iset_ua,
+			di->ccm.current_iset_ua);
 
-		if (di->ccm.current_iset == di->ccm.original_iset)
+		if (di->ccm.current_iset_ua == di->ccm.original_iset_ua)
 			return MAXIM_RET_NOACTION;
 
 		di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
-		di->ccm.current_iset = di->ccm.original_iset;
+		di->ccm.current_iset_ua = di->ccm.original_iset_ua;
 		di->ccm.level = 0;
 
 		return MAXIM_RET_IBAT_TOO_HIGH;
 	}
 
-	if (delta_i > di->ccm.test_delta_i &&
-		(di->ccm.current_iset + di->ccm.test_delta_i) <
-		di->ccm.max_current) {
+	if (delta_i_ua > di->ccm.test_delta_i_ua &&
+		(di->ccm.current_iset_ua + di->ccm.test_delta_i_ua) <
+		di->ccm.max_current_ua) {
 		if (di->ccm.condition_cnt-- == 0) {
 			/* Increse the iset with cco.test_delta_i */
 			di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
-			di->ccm.current_iset += di->ccm.test_delta_i;
+			di->ccm.current_iset_ua += di->ccm.test_delta_i_ua;
 			di->ccm.level++;
 			dev_dbg(di->dev, " Maximization needed, increase"
-				" with %d mA to %dmA (Optimal ibat: %d)"
+				" with %d uA to %duA (Optimal ibat: %d uA)"
 				" Level %d\n",
-				di->ccm.test_delta_i,
-				di->ccm.current_iset,
-				di->ccm.original_iset,
+				di->ccm.test_delta_i_ua,
+				di->ccm.current_iset_ua,
+				di->ccm.original_iset_ua,
 				di->ccm.level);
 			return MAXIM_RET_CHANGE;
 		} else {
@@ -918,6 +920,7 @@ static enum maxim_ret ab8500_chargalg_chg_curr_maxim(struct ab8500_chargalg *di)
 
 static void handle_maxim_chg_curr(struct ab8500_chargalg *di)
 {
+	struct power_supply_battery_info *bi = &di->bm->bi;
 	enum maxim_ret ret;
 	int result;
 
@@ -925,13 +928,13 @@ static void handle_maxim_chg_curr(struct ab8500_chargalg *di)
 	switch (ret) {
 	case MAXIM_RET_CHANGE:
 		result = ab8500_chargalg_update_chg_curr(di,
-			di->ccm.current_iset);
+			di->ccm.current_iset_ua);
 		if (result)
 			dev_err(di->dev, "failed to set chg curr\n");
 		break;
 	case MAXIM_RET_IBAT_TOO_HIGH:
 		result = ab8500_chargalg_update_chg_curr(di,
-			di->bm->bat_type->normal_cur_lvl);
+			bi->constant_charge_current_max_ua);
 		if (result)
 			dev_err(di->dev, "failed to set chg curr\n");
 		break;
@@ -1226,15 +1229,13 @@ static int ab8500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 		case POWER_SUPPLY_PROP_CURRENT_NOW:
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_MAINS:
-					di->chg_info.ac_curr =
-						ret.intval / 1000;
-					break;
+				di->chg_info.ac_curr_ua = ret.intval;
+				break;
 			case POWER_SUPPLY_TYPE_USB:
-					di->chg_info.usb_curr =
-						ret.intval / 1000;
+				di->chg_info.usb_curr_ua = ret.intval;
 				break;
 			case POWER_SUPPLY_TYPE_BATTERY:
-				di->batt_data.inst_curr = ret.intval / 1000;
+				di->batt_data.inst_curr_ua = ret.intval;
 				break;
 			default:
 				break;
@@ -1298,9 +1299,10 @@ static void ab8500_chargalg_external_power_changed(struct power_supply *psy)
  */
 static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 {
+	struct power_supply_battery_info *bi = &di->bm->bi;
 	int charger_status;
 	int ret;
-	int curr_step_lvl;
+	int curr_step_lvl_ua;
 
 	/* Collect data from all power_supply class devices */
 	class_for_each_device(power_supply_class, NULL,
@@ -1406,7 +1408,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		"USB_I %d AC_Vset %d AC_Iset %d USB_Vset %d USB_Iset %d\n",
 		di->batt_data.volt_uv,
 		di->batt_data.avg_curr_ua,
-		di->batt_data.inst_curr,
+		di->batt_data.inst_curr_ua,
 		di->batt_data.temp,
 		di->batt_data.percent,
 		di->maintenance_chg,
@@ -1419,12 +1421,12 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		di->chg_info.online_chg & USB_CHG,
 		di->events.ac_cv_active,
 		di->events.usb_cv_active,
-		di->chg_info.ac_curr,
-		di->chg_info.usb_curr,
+		di->chg_info.ac_curr_ua,
+		di->chg_info.usb_curr_ua,
 		di->chg_info.ac_vset,
-		di->chg_info.ac_iset,
+		di->chg_info.ac_iset_ua,
 		di->chg_info.usb_vset,
-		di->chg_info.usb_iset);
+		di->chg_info.usb_iset_ua);
 
 	switch (di->charge_state) {
 	case STATE_HANDHELD_INIT:
@@ -1509,15 +1511,15 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		break;
 
 	case STATE_NORMAL_INIT:
-		if (di->curr_status.curr_step == CHARGALG_CURR_STEP_LOW)
+		if (di->curr_status.curr_step_ua == CHARGALG_CURR_STEP_LOW_UA)
 			ab8500_chargalg_stop_charging(di);
 		else {
-			curr_step_lvl = di->bm->bat_type->normal_cur_lvl
-				* di->curr_status.curr_step
-				/ CHARGALG_CURR_STEP_HIGH;
+			curr_step_lvl_ua = bi->constant_charge_current_max_ua
+				* di->curr_status.curr_step_ua
+				/ CHARGALG_CURR_STEP_HIGH_UA;
 			ab8500_chargalg_start_charging(di,
 				di->bm->bat_type->normal_vol_lvl,
-				curr_step_lvl);
+				curr_step_lvl_ua);
 		}
 
 		ab8500_chargalg_state_to(di, STATE_NORMAL);
@@ -1743,7 +1745,7 @@ static int ab8500_chargalg_get_property(struct power_supply *psy,
 static ssize_t ab8500_chargalg_curr_step_show(struct ab8500_chargalg *di,
 					      char *buf)
 {
-	return sprintf(buf, "%d\n", di->curr_status.curr_step);
+	return sprintf(buf, "%d\n", di->curr_status.curr_step_ua);
 }
 
 static ssize_t ab8500_chargalg_curr_step_store(struct ab8500_chargalg *di,
@@ -1756,9 +1758,9 @@ static ssize_t ab8500_chargalg_curr_step_store(struct ab8500_chargalg *di,
 	if (ret < 0)
 		return ret;
 
-	di->curr_status.curr_step = param;
-	if (di->curr_status.curr_step >= CHARGALG_CURR_STEP_LOW &&
-		di->curr_status.curr_step <= CHARGALG_CURR_STEP_HIGH) {
+	di->curr_status.curr_step_ua = param;
+	if (di->curr_status.curr_step_ua >= CHARGALG_CURR_STEP_LOW_UA &&
+		di->curr_status.curr_step_ua <= CHARGALG_CURR_STEP_HIGH_UA) {
 		di->curr_status.curr_step_change = true;
 		queue_work(di->chargalg_wq, &di->chargalg_work);
 	} else
@@ -2055,7 +2057,7 @@ static int ab8500_chargalg_probe(struct platform_device *pdev)
 		dev_err(di->dev, "failed to create sysfs entry\n");
 		return ret;
 	}
-	di->curr_status.curr_step = CHARGALG_CURR_STEP_HIGH;
+	di->curr_status.curr_step_ua = CHARGALG_CURR_STEP_HIGH_UA;
 
 	dev_info(di->dev, "probe success\n");
 	return component_add(dev, &ab8500_chargalg_component_ops);

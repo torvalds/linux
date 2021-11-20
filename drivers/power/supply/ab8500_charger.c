@@ -145,23 +145,23 @@ enum ab8500_usb_state {
 	AB8500_BM_USB_STATE_MAX,
 };
 
-/* VBUS input current limits supported in AB8500 in mA */
-#define USB_CH_IP_CUR_LVL_0P05		50
-#define USB_CH_IP_CUR_LVL_0P09		98
-#define USB_CH_IP_CUR_LVL_0P19		193
-#define USB_CH_IP_CUR_LVL_0P29		290
-#define USB_CH_IP_CUR_LVL_0P38		380
-#define USB_CH_IP_CUR_LVL_0P45		450
-#define USB_CH_IP_CUR_LVL_0P5		500
-#define USB_CH_IP_CUR_LVL_0P6		600
-#define USB_CH_IP_CUR_LVL_0P7		700
-#define USB_CH_IP_CUR_LVL_0P8		800
-#define USB_CH_IP_CUR_LVL_0P9		900
-#define USB_CH_IP_CUR_LVL_1P0		1000
-#define USB_CH_IP_CUR_LVL_1P1		1100
-#define USB_CH_IP_CUR_LVL_1P3		1300
-#define USB_CH_IP_CUR_LVL_1P4		1400
-#define USB_CH_IP_CUR_LVL_1P5		1500
+/* VBUS input current limits supported in AB8500 in uA */
+#define USB_CH_IP_CUR_LVL_0P05		50000
+#define USB_CH_IP_CUR_LVL_0P09		98000
+#define USB_CH_IP_CUR_LVL_0P19		193000
+#define USB_CH_IP_CUR_LVL_0P29		290000
+#define USB_CH_IP_CUR_LVL_0P38		380000
+#define USB_CH_IP_CUR_LVL_0P45		450000
+#define USB_CH_IP_CUR_LVL_0P5		500000
+#define USB_CH_IP_CUR_LVL_0P6		600000
+#define USB_CH_IP_CUR_LVL_0P7		700000
+#define USB_CH_IP_CUR_LVL_0P8		800000
+#define USB_CH_IP_CUR_LVL_0P9		900000
+#define USB_CH_IP_CUR_LVL_1P0		1000000
+#define USB_CH_IP_CUR_LVL_1P1		1100000
+#define USB_CH_IP_CUR_LVL_1P3		1300000
+#define USB_CH_IP_CUR_LVL_1P4		1400000
+#define USB_CH_IP_CUR_LVL_1P5		1500000
 
 #define VBAT_TRESH_IP_CUR_RED		3800
 
@@ -186,7 +186,7 @@ struct ab8500_charger_info {
 	int charger_voltage;
 	int cv_active;
 	bool wd_expired;
-	int charger_current;
+	int charger_current_ua;
 };
 
 struct ab8500_charger_event_flags {
@@ -201,17 +201,17 @@ struct ab8500_charger_event_flags {
 };
 
 struct ab8500_charger_usb_state {
-	int usb_current;
-	int usb_current_tmp;
+	int usb_current_ua;
+	int usb_current_tmp_ua;
 	enum ab8500_usb_state state;
 	enum ab8500_usb_state state_tmp;
 	spinlock_t usb_lock;
 };
 
 struct ab8500_charger_max_usb_in_curr {
-	int usb_type_max;
-	int set_max;
-	int calculated_max;
+	int usb_type_max_ua;
+	int set_max_ua;
+	int calculated_max_ua;
 };
 
 /**
@@ -552,7 +552,7 @@ static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
  * @di:		pointer to the ab8500_charger structure
  *
  * This function returns the usb charger current.
- * Returns usb current (on success) and error code on failure
+ * Returns usb current in microamperes (on success) and error code on failure
  */
 static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
 {
@@ -566,7 +566,8 @@ static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
 	} else {
 		ich = 0;
 	}
-	return ich;
+	/* Return microamperes */
+	return ich * 1000;
 }
 
 /**
@@ -574,7 +575,7 @@ static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
  * @di:		pointer to the ab8500_charger structure
  *
  * This function returns the ac charger current.
- * Returns ac current (on success) and error code on failure.
+ * Returns ac current in microamperes (on success) and error code on failure.
  */
 static int ab8500_charger_get_ac_current(struct ab8500_charger *di)
 {
@@ -588,7 +589,8 @@ static int ab8500_charger_get_ac_current(struct ab8500_charger *di)
 	} else {
 		ich = 0;
 	}
-	return ich;
+	/* Return microamperes */
+	return ich * 1000;
 }
 
 /**
@@ -711,19 +713,19 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 	case USB_STAT_STD_HOST_C_S:
 		dev_dbg(di->dev, "USB Type - Standard host is "
 			"detected through USB driver\n");
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_HOST_CHG_HS_CHIRP:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_HOST_CHG_HS:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_ACA_RID_C_HS:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P9;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P9;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_ACA_RID_A:
@@ -732,7 +734,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 		 * can consume (900mA). Closest level is 500mA
 		 */
 		dev_dbg(di->dev, "USB_STAT_ACA_RID_A detected\n");
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 1;
 		break;
 	case USB_STAT_ACA_RID_B:
@@ -740,36 +742,36 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 		 * Dedicated charger level minus 120mA (20mA for ACA and
 		 * 100mA for potential accessory). Closest level is 1300mA
 		 */
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_1P3;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_1P3;
 		dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d", link_status,
-				di->max_usb_in_curr.usb_type_max);
+				di->max_usb_in_curr.usb_type_max_ua);
 		di->is_aca_rid = 1;
 		break;
 	case USB_STAT_HOST_CHG_NM:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_DEDICATED_CHG:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_1P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_1P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_ACA_RID_C_HS_CHIRP:
 	case USB_STAT_ACA_RID_C_NM:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_1P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_1P5;
 		di->is_aca_rid = 1;
 		break;
 	case USB_STAT_NOT_CONFIGURED:
 		if (di->vbus_detected) {
 			di->usb_device_is_unrecognised = true;
 			dev_dbg(di->dev, "USB Type - Legacy charger.\n");
-			di->max_usb_in_curr.usb_type_max =
+			di->max_usb_in_curr.usb_type_max_ua =
 						USB_CH_IP_CUR_LVL_1P5;
 			break;
 		}
 		fallthrough;
 	case USB_STAT_HM_IDGND:
 		dev_err(di->dev, "USB Type - Charging not allowed\n");
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P05;
 		ret = -ENXIO;
 		break;
 	case USB_STAT_RESERVED:
@@ -781,11 +783,11 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 			break;
 		} else {
 			dev_dbg(di->dev, "USB Type - Charging not allowed\n");
-			di->max_usb_in_curr.usb_type_max =
+			di->max_usb_in_curr.usb_type_max_ua =
 						USB_CH_IP_CUR_LVL_0P05;
 			dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d",
 				link_status,
-				di->max_usb_in_curr.usb_type_max);
+				di->max_usb_in_curr.usb_type_max_ua);
 			ret = -ENXIO;
 			break;
 		}
@@ -793,25 +795,25 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 	case USB_STAT_CARKIT_2:
 	case USB_STAT_ACA_DOCK_CHARGER:
 	case USB_STAT_CHARGER_LINE_1:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P5;
 		dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d", link_status,
-				di->max_usb_in_curr.usb_type_max);
+				di->max_usb_in_curr.usb_type_max_ua);
 		break;
 	case USB_STAT_NOT_VALID_LINK:
 		dev_err(di->dev, "USB Type invalid - try charging anyway\n");
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P5;
 		break;
 
 	default:
 		dev_err(di->dev, "USB Type - Unknown\n");
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P05;
 		ret = -ENXIO;
 		break;
 	}
 
-	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
+	di->max_usb_in_curr.set_max_ua = di->max_usb_in_curr.usb_type_max_ua;
 	dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d",
-		link_status, di->max_usb_in_curr.set_max);
+		link_status, di->max_usb_in_curr.set_max_ua);
 
 	return ret;
 }
@@ -1027,51 +1029,51 @@ static int ab8500_voltage_to_regval(int voltage)
 
 /* This array maps the raw register value to charger input current */
 static int ab8500_charge_input_curr_map[] = {
-	50, 98, 193, 290, 380, 450, 500, 600,
-	700, 800, 900, 1000, 1100, 1300, 1400, 1500,
+	50000, 98000, 193000, 290000, 380000, 450000, 500000, 600000,
+	700000, 800000, 900000, 1000000, 1100000, 1300000, 1400000, 1500000,
 };
 
 /* This array maps the raw register value to charger output current */
 static int ab8500_charge_output_curr_map[] = {
-	100, 200, 300, 400, 500, 600, 700, 800,
-	900, 1000, 1100, 1200, 1300, 1400, 1500, 1500,
+	100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000,
+	900000, 1000000, 1100000, 1200000, 1300000, 1400000, 1500000, 1500000,
 };
 
-static int ab8500_current_to_regval(struct ab8500_charger *di, int curr)
+static int ab8500_current_to_regval(struct ab8500_charger *di, int curr_ua)
 {
 	int i;
 
-	if (curr < ab8500_charge_output_curr_map[0])
+	if (curr_ua < ab8500_charge_output_curr_map[0])
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(ab8500_charge_output_curr_map); i++) {
-		if (curr < ab8500_charge_output_curr_map[i])
+		if (curr_ua < ab8500_charge_output_curr_map[i])
 			return i - 1;
 	}
 
 	/* If not last element, return error */
 	i =  ARRAY_SIZE(ab8500_charge_output_curr_map) - 1;
-	if (curr == ab8500_charge_output_curr_map[i])
+	if (curr_ua == ab8500_charge_output_curr_map[i])
 		return i;
 	else
 		return -1;
 }
 
-static int ab8500_vbus_in_curr_to_regval(struct ab8500_charger *di, int curr)
+static int ab8500_vbus_in_curr_to_regval(struct ab8500_charger *di, int curr_ua)
 {
 	int i;
 
-	if (curr < ab8500_charge_input_curr_map[0])
+	if (curr_ua < ab8500_charge_input_curr_map[0])
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(ab8500_charge_input_curr_map); i++) {
-		if (curr < ab8500_charge_input_curr_map[i])
+		if (curr_ua < ab8500_charge_input_curr_map[i])
 			return i - 1;
 	}
 
 	/* If not last element, return error */
 	i =  ARRAY_SIZE(ab8500_charge_input_curr_map) - 1;
-	if (curr == ab8500_charge_input_curr_map[i])
+	if (curr_ua == ab8500_charge_input_curr_map[i])
 		return i;
 	else
 		return -1;
@@ -1082,35 +1084,35 @@ static int ab8500_vbus_in_curr_to_regval(struct ab8500_charger *di, int curr)
  * @di:		pointer to the ab8500_charger structre
  *
  * The usb stack provides the maximum current that can be drawn from
- * the standard usb host. This will be in mA.
- * This function converts current in mA to a value that can be written
+ * the standard usb host. This will be in uA.
+ * This function converts current in uA to a value that can be written
  * to the register. Returns -1 if charging is not allowed
  */
 static int ab8500_charger_get_usb_cur(struct ab8500_charger *di)
 {
 	int ret = 0;
-	switch (di->usb_state.usb_current) {
-	case 100:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P09;
+	switch (di->usb_state.usb_current_ua) {
+	case 100000:
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P09;
 		break;
-	case 200:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P19;
+	case 200000:
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P19;
 		break;
-	case 300:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P29;
+	case 300000:
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P29;
 		break;
-	case 400:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P38;
+	case 400000:
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P38;
 		break;
-	case 500:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
+	case 500000:
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P5;
 		break;
 	default:
-		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
+		di->max_usb_in_curr.usb_type_max_ua = USB_CH_IP_CUR_LVL_0P05;
 		ret = -EPERM;
 		break;
 	}
-	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
+	di->max_usb_in_curr.set_max_ua = di->max_usb_in_curr.usb_type_max_ua;
 	return ret;
 }
 
@@ -1135,7 +1137,7 @@ static bool ab8500_charger_check_continue_stepping(struct ab8500_charger *di,
 /**
  * ab8500_charger_set_current() - set charger current
  * @di:		pointer to the ab8500_charger structure
- * @ich:	charger current, in mA
+ * @ich_ua:	charger current, in uA
  * @reg:	select what charger register to set
  *
  * Set charger current.
@@ -1146,7 +1148,7 @@ static bool ab8500_charger_check_continue_stepping(struct ab8500_charger *di,
  * Returns error code in case of failure else 0(on success)
  */
 static int ab8500_charger_set_current(struct ab8500_charger *di,
-	int ich, int reg)
+	int ich_ua, int reg)
 {
 	int ret = 0;
 	int curr_index, prev_curr_index, shift_value, i;
@@ -1167,7 +1169,7 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 	case AB8500_MCH_IPT_CURLVL_REG:
 		shift_value = MAIN_CH_INPUT_CURR_SHIFT;
 		prev_curr_index = (reg_value >> shift_value);
-		curr_index = ab8500_current_to_regval(di, ich);
+		curr_index = ab8500_current_to_regval(di, ich_ua);
 		step_udelay = STEP_UDELAY;
 		if (!di->ac.charger_connected)
 			no_stepping = true;
@@ -1175,7 +1177,7 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 	case AB8500_USBCH_IPT_CRNTLVL_REG:
 		shift_value = VBUS_IN_CURR_LIM_SHIFT;
 		prev_curr_index = (reg_value >> shift_value);
-		curr_index = ab8500_vbus_in_curr_to_regval(di, ich);
+		curr_index = ab8500_vbus_in_curr_to_regval(di, ich_ua);
 		step_udelay = STEP_UDELAY * 100;
 
 		if (!di->usb.charger_connected)
@@ -1184,7 +1186,7 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 	case AB8500_CH_OPT_CRNTLVL_REG:
 		shift_value = 0;
 		prev_curr_index = (reg_value >> shift_value);
-		curr_index = ab8500_current_to_regval(di, ich);
+		curr_index = ab8500_current_to_regval(di, ich_ua);
 		step_udelay = STEP_UDELAY;
 		if (curr_index && (curr_index - prev_curr_index) > 1)
 			step_udelay *= 100;
@@ -1213,8 +1215,8 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 		goto exit_set_current;
 	}
 
-	dev_dbg(di->dev, "%s set charger current: %d mA for reg: 0x%02x\n",
-		__func__, ich, reg);
+	dev_dbg(di->dev, "%s set charger current: %d uA for reg: 0x%02x\n",
+		__func__, ich_ua, reg);
 
 	if (no_stepping) {
 		ret = abx500_set_register_interruptible(di->dev, AB8500_CHARGER,
@@ -1261,31 +1263,31 @@ exit_set_current:
 /**
  * ab8500_charger_set_vbus_in_curr() - set VBUS input current limit
  * @di:		pointer to the ab8500_charger structure
- * @ich_in:	charger input current limit
+ * @ich_in_ua:	charger input current limit in microampere
  *
  * Sets the current that can be drawn from the USB host
  * Returns error code in case of failure else 0(on success)
  */
 static int ab8500_charger_set_vbus_in_curr(struct ab8500_charger *di,
-		int ich_in)
+		int ich_in_ua)
 {
 	int min_value;
 	int ret;
 
 	/* We should always use to lowest current limit */
-	min_value = min(di->bm->chg_params->usb_curr_max, ich_in);
-	if (di->max_usb_in_curr.set_max > 0)
-		min_value = min(di->max_usb_in_curr.set_max, min_value);
+	min_value = min(di->bm->chg_params->usb_curr_max_ua, ich_in_ua);
+	if (di->max_usb_in_curr.set_max_ua > 0)
+		min_value = min(di->max_usb_in_curr.set_max_ua, min_value);
 
-	if (di->usb_state.usb_current >= 0)
-		min_value = min(di->usb_state.usb_current, min_value);
+	if (di->usb_state.usb_current_ua >= 0)
+		min_value = min(di->usb_state.usb_current_ua, min_value);
 
 	switch (min_value) {
-	case 100:
+	case 100000:
 		if (di->vbat < VBAT_TRESH_IP_CUR_RED)
 			min_value = USB_CH_IP_CUR_LVL_0P05;
 		break;
-	case 500:
+	case 500000:
 		if (di->vbat < VBAT_TRESH_IP_CUR_RED)
 			min_value = USB_CH_IP_CUR_LVL_0P45;
 		break;
@@ -1293,7 +1295,7 @@ static int ab8500_charger_set_vbus_in_curr(struct ab8500_charger *di,
 		break;
 	}
 
-	dev_info(di->dev, "VBUS input current limit set to %d mA\n", min_value);
+	dev_info(di->dev, "VBUS input current limit set to %d uA\n", min_value);
 
 	mutex_lock(&di->usb_ipt_crnt_lock);
 	ret = ab8500_charger_set_current(di, min_value,
@@ -1306,30 +1308,30 @@ static int ab8500_charger_set_vbus_in_curr(struct ab8500_charger *di,
 /**
  * ab8500_charger_set_main_in_curr() - set main charger input current
  * @di:		pointer to the ab8500_charger structure
- * @ich_in:	input charger current, in mA
+ * @ich_in_ua:	input charger current, in uA
  *
  * Set main charger input current.
  * Returns error code in case of failure else 0(on success)
  */
 static int ab8500_charger_set_main_in_curr(struct ab8500_charger *di,
-	int ich_in)
+	int ich_in_ua)
 {
-	return ab8500_charger_set_current(di, ich_in,
+	return ab8500_charger_set_current(di, ich_in_ua,
 		AB8500_MCH_IPT_CURLVL_REG);
 }
 
 /**
  * ab8500_charger_set_output_curr() - set charger output current
  * @di:		pointer to the ab8500_charger structure
- * @ich_out:	output charger current, in mA
+ * @ich_out_ua:	output charger current, in uA
  *
  * Set charger output current.
  * Returns error code in case of failure else 0(on success)
  */
 static int ab8500_charger_set_output_curr(struct ab8500_charger *di,
-	int ich_out)
+	int ich_out_ua)
 {
-	return ab8500_charger_set_current(di, ich_out,
+	return ab8500_charger_set_current(di, ich_out_ua,
 		AB8500_CH_OPT_CRNTLVL_REG);
 }
 
@@ -1381,13 +1383,13 @@ static int ab8500_charger_led_en(struct ab8500_charger *di, int on)
  * @di:		pointer to the ab8500_charger structure
  * @enable:	enable/disable flag
  * @vset:	charging voltage
- * @iset:	charging current
+ * @iset_ua:	charging current in microampere
  *
  * Enable/Disable AC/Mains charging and turns on/off the charging led
  * respectively.
  **/
 static int ab8500_charger_ac_en(struct ux500_charger *charger,
-	int enable, int vset, int iset)
+	int enable, int vset, int iset_ua)
 {
 	int ret;
 	int volt_index;
@@ -1405,7 +1407,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		}
 
 		/* Enable AC charging */
-		dev_dbg(di->dev, "Enable AC: %dmV %dmA\n", vset, iset);
+		dev_dbg(di->dev, "Enable AC: %dmV %duA\n", vset, iset_ua);
 
 		/*
 		 * Due to a bug in AB8500, BTEMP_HIGH/LOW interrupts
@@ -1428,9 +1430,9 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 
 		/* Check if the requested voltage or current is valid */
 		volt_index = ab8500_voltage_to_regval(vset);
-		curr_index = ab8500_current_to_regval(di, iset);
+		curr_index = ab8500_current_to_regval(di, iset_ua);
 		input_curr_index = ab8500_current_to_regval(di,
-			di->bm->chg_params->ac_curr_max);
+			di->bm->chg_params->ac_curr_max_ua);
 		if (volt_index < 0 || curr_index < 0 || input_curr_index < 0) {
 			dev_err(di->dev,
 				"Charger voltage or current too high, "
@@ -1447,14 +1449,14 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		}
 		/* MainChInputCurr: current that can be drawn from the charger*/
 		ret = ab8500_charger_set_main_in_curr(di,
-			di->bm->chg_params->ac_curr_max);
+			di->bm->chg_params->ac_curr_max_ua);
 		if (ret) {
 			dev_err(di->dev, "%s Failed to set MainChInputCurr\n",
 				__func__);
 			return ret;
 		}
 		/* ChOutputCurentLevel: protected output current */
-		ret = ab8500_charger_set_output_curr(di, iset);
+		ret = ab8500_charger_set_output_curr(di, iset_ua);
 		if (ret) {
 			dev_err(di->dev, "%s "
 				"Failed to set ChOutputCurentLevel\n",
@@ -1558,13 +1560,13 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
  * @di:		pointer to the ab8500_charger structure
  * @enable:	enable/disable flag
  * @vset:	charging voltage
- * @ich_out:	charger output current
+ * @ich_out_ua:	charger output current in microampere
  *
  * Enable/Disable USB charging and turns on/off the charging led respectively.
  * Returns error code in case of failure else 0(on success)
  */
 static int ab8500_charger_usb_en(struct ux500_charger *charger,
-	int enable, int vset, int ich_out)
+	int enable, int vset, int ich_out_ua)
 {
 	int ret;
 	int volt_index;
@@ -1600,11 +1602,11 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 		}
 
 		/* Enable USB charging */
-		dev_dbg(di->dev, "Enable USB: %dmV %dmA\n", vset, ich_out);
+		dev_dbg(di->dev, "Enable USB: %d mV %d uA\n", vset, ich_out_ua);
 
 		/* Check if the requested voltage or current is valid */
 		volt_index = ab8500_voltage_to_regval(vset);
-		curr_index = ab8500_current_to_regval(di, ich_out);
+		curr_index = ab8500_current_to_regval(di, ich_out_ua);
 		if (volt_index < 0 || curr_index < 0) {
 			dev_err(di->dev,
 				"Charger voltage or current too high, "
@@ -1645,14 +1647,14 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 
 		/* USBChInputCurr: current that can be drawn from the usb */
 		ret = ab8500_charger_set_vbus_in_curr(di,
-					di->max_usb_in_curr.usb_type_max);
+					di->max_usb_in_curr.usb_type_max_ua);
 		if (ret) {
 			dev_err(di->dev, "setting USBChInputCurr failed\n");
 			return ret;
 		}
 
 		/* ChOutputCurentLevel: protected output current */
-		ret = ab8500_charger_set_output_curr(di, ich_out);
+		ret = ab8500_charger_set_output_curr(di, ich_out_ua);
 		if (ret) {
 			dev_err(di->dev, "%s "
 				"Failed to set ChOutputCurentLevel\n",
@@ -1739,13 +1741,13 @@ out:
  * ab8500_charger_usb_check_enable() - enable usb charging
  * @charger:	pointer to the ux500_charger structure
  * @vset:	charging voltage
- * @iset:	charger output current
+ * @iset_ua:	charger output current in microampere
  *
  * Check if the VBUS charger has been disconnected and reconnected without
  * AB8500 rising an interrupt. Returns 0 on success.
  */
 static int ab8500_charger_usb_check_enable(struct ux500_charger *charger,
-	int vset, int iset)
+	int vset, int iset_ua)
 {
 	u8 usbch_ctrl1 = 0;
 	int ret = 0;
@@ -1774,7 +1776,7 @@ static int ab8500_charger_usb_check_enable(struct ux500_charger *charger,
 			return ret;
 		}
 
-		ret = ab8500_charger_usb_en(&di->usb_chg, true, vset, iset);
+		ret = ab8500_charger_usb_en(&di->usb_chg, true, vset, iset_ua);
 		if (ret < 0) {
 			dev_err(di->dev, "Failed to enable VBUS charger %d\n",
 					__LINE__);
@@ -1788,13 +1790,13 @@ static int ab8500_charger_usb_check_enable(struct ux500_charger *charger,
  * ab8500_charger_ac_check_enable() - enable usb charging
  * @charger:	pointer to the ux500_charger structure
  * @vset:	charging voltage
- * @iset:	charger output current
+ * @iset_ua:	charger output current in micrompere
  *
  * Check if the AC charger has been disconnected and reconnected without
  * AB8500 rising an interrupt. Returns 0 on success.
  */
 static int ab8500_charger_ac_check_enable(struct ux500_charger *charger,
-	int vset, int iset)
+	int vset, int iset_ua)
 {
 	u8 mainch_ctrl1 = 0;
 	int ret = 0;
@@ -1824,7 +1826,7 @@ static int ab8500_charger_ac_check_enable(struct ux500_charger *charger,
 			return ret;
 		}
 
-		ret = ab8500_charger_ac_en(&di->usb_chg, true, vset, iset);
+		ret = ab8500_charger_ac_en(&di->usb_chg, true, vset, iset_ua);
 		if (ret < 0) {
 			dev_err(di->dev, "failed to enable AC charger %d\n",
 				__LINE__);
@@ -1863,13 +1865,14 @@ static int ab8500_charger_watchdog_kick(struct ux500_charger *charger)
 
 /**
  * ab8500_charger_update_charger_current() - update charger current
- * @di:		pointer to the ab8500_charger structure
+ * @charger:		pointer to the ab8500_charger structure
+ * @ich_out_ua:		desired output current in microampere
  *
  * Update the charger output current for the specified charger
  * Returns error code in case of failure else 0(on success)
  */
 static int ab8500_charger_update_charger_current(struct ux500_charger *charger,
-		int ich_out)
+		int ich_out_ua)
 {
 	int ret;
 	struct ab8500_charger *di;
@@ -1881,7 +1884,7 @@ static int ab8500_charger_update_charger_current(struct ux500_charger *charger,
 	else
 		return -ENXIO;
 
-	ret = ab8500_charger_set_output_curr(di, ich_out);
+	ret = ab8500_charger_set_output_curr(di, ich_out_ua);
 	if (ret) {
 		dev_err(di->dev, "%s "
 			"Failed to set ChOutputCurentLevel\n",
@@ -1973,10 +1976,10 @@ static void ab8500_charger_check_vbat_work(struct work_struct *work)
 		di->vbat > VBAT_TRESH_IP_CUR_RED))) {
 
 		dev_dbg(di->dev, "Vbat did cross threshold, curr: %d, new: %d,"
-			" old: %d\n", di->max_usb_in_curr.usb_type_max,
+			" old: %d\n", di->max_usb_in_curr.usb_type_max_ua,
 			di->vbat, di->old_vbat);
 		ab8500_charger_set_vbus_in_curr(di,
-					di->max_usb_in_curr.usb_type_max);
+					di->max_usb_in_curr.usb_type_max_ua);
 		power_supply_changed(di->usb_chg.psy);
 	}
 
@@ -2257,7 +2260,7 @@ static void ab8500_charger_usb_link_attach_work(struct work_struct *work)
 	/* Update maximum input current if USB enumeration is not detected */
 	if (!di->usb.charger_online) {
 		ret = ab8500_charger_set_vbus_in_curr(di,
-					di->max_usb_in_curr.usb_type_max);
+					di->max_usb_in_curr.usb_type_max_ua);
 		if (ret)
 			return;
 	}
@@ -2419,11 +2422,11 @@ static void ab8500_charger_usb_state_changed_work(struct work_struct *work)
 
 	spin_lock_irqsave(&di->usb_state.usb_lock, flags);
 	di->usb_state.state = di->usb_state.state_tmp;
-	di->usb_state.usb_current = di->usb_state.usb_current_tmp;
+	di->usb_state.usb_current_ua = di->usb_state.usb_current_tmp_ua;
 	spin_unlock_irqrestore(&di->usb_state.usb_lock, flags);
 
-	dev_dbg(di->dev, "%s USB state: 0x%02x mA: %d\n",
-		__func__, di->usb_state.state, di->usb_state.usb_current);
+	dev_dbg(di->dev, "%s USB state: 0x%02x uA: %d\n",
+		__func__, di->usb_state.state, di->usb_state.usb_current_ua);
 
 	switch (di->usb_state.state) {
 	case AB8500_BM_USB_STATE_RESET_HS:
@@ -2449,7 +2452,7 @@ static void ab8500_charger_usb_state_changed_work(struct work_struct *work)
 		if (!ab8500_charger_get_usb_cur(di)) {
 			/* Update maximum input current */
 			ret = ab8500_charger_set_vbus_in_curr(di,
-					di->max_usb_in_curr.usb_type_max);
+					di->max_usb_in_curr.usb_type_max_ua);
 			if (ret)
 				return;
 
@@ -2669,7 +2672,7 @@ static void ab8500_charger_vbus_drop_end_work(struct work_struct *work)
 {
 	struct ab8500_charger *di = container_of(work,
 		struct ab8500_charger, vbus_drop_end_work.work);
-	int ret, curr;
+	int ret, curr_ua;
 	u8 reg_value;
 
 	di->flags.vbus_drop_end = false;
@@ -2685,30 +2688,30 @@ static void ab8500_charger_vbus_drop_end_work(struct work_struct *work)
 		return;
 	}
 
-	curr = ab8500_charge_input_curr_map[
+	curr_ua = ab8500_charge_input_curr_map[
 		reg_value >> AUTO_VBUS_IN_CURR_LIM_SHIFT];
 
-	if (di->max_usb_in_curr.calculated_max != curr) {
+	if (di->max_usb_in_curr.calculated_max_ua != curr_ua) {
 		/* USB source is collapsing */
-		di->max_usb_in_curr.calculated_max = curr;
+		di->max_usb_in_curr.calculated_max_ua = curr_ua;
 		dev_dbg(di->dev,
-			 "VBUS input current limiting to %d mA\n",
-			 di->max_usb_in_curr.calculated_max);
+			 "VBUS input current limiting to %d uA\n",
+			 di->max_usb_in_curr.calculated_max_ua);
 	} else {
 		/*
 		 * USB source can not give more than this amount.
 		 * Taking more will collapse the source.
 		 */
-		di->max_usb_in_curr.set_max =
-			di->max_usb_in_curr.calculated_max;
+		di->max_usb_in_curr.set_max_ua =
+			di->max_usb_in_curr.calculated_max_ua;
 		dev_dbg(di->dev,
-			 "VBUS input current limited to %d mA\n",
-			 di->max_usb_in_curr.set_max);
+			 "VBUS input current limited to %d uA\n",
+			 di->max_usb_in_curr.set_max_ua);
 	}
 
 	if (di->usb.charger_connected)
 		ab8500_charger_set_vbus_in_curr(di,
-					di->max_usb_in_curr.usb_type_max);
+					di->max_usb_in_curr.usb_type_max_ua);
 }
 
 /**
@@ -2953,8 +2956,8 @@ static int ab8500_charger_ac_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		ret = ab8500_charger_get_ac_current(di);
 		if (ret >= 0)
-			di->ac.charger_current = ret;
-		val->intval = di->ac.charger_current * 1000;
+			di->ac.charger_current_ua = ret;
+		val->intval = di->ac.charger_current_ua;
 		break;
 	default:
 		return -EINVAL;
@@ -3021,8 +3024,8 @@ static int ab8500_charger_usb_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		ret = ab8500_charger_get_usb_current(di);
 		if (ret >= 0)
-			di->usb.charger_current = ret;
-		val->intval = di->usb.charger_current * 1000;
+			di->usb.charger_current_ua = ret;
+		val->intval = di->usb.charger_current_ua;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		/*
@@ -3198,6 +3201,11 @@ static int ab8500_charger_usb_notifier_call(struct notifier_block *nb,
 	struct ab8500_charger *di =
 		container_of(nb, struct ab8500_charger, nb);
 	enum ab8500_usb_state bm_usb_state;
+	/*
+	 * FIXME: it appears the AB8500 PHY never sends what it should here.
+	 * Fix the PHY driver to properly notify the desired current.
+	 * Also broadcast microampere and not milliampere.
+	 */
 	unsigned mA = *((unsigned *)power);
 
 	if (event != USB_EVENT_VBUS) {
@@ -3208,7 +3216,7 @@ static int ab8500_charger_usb_notifier_call(struct notifier_block *nb,
 	/* TODO: State is fabricate  here. See if charger really needs USB
 	 * state or if mA is enough
 	 */
-	if ((di->usb_state.usb_current == 2) && (mA > 2))
+	if ((di->usb_state.usb_current_ua == 2000) && (mA > 2))
 		bm_usb_state = AB8500_BM_USB_STATE_RESUME;
 	else if (mA == 0)
 		bm_usb_state = AB8500_BM_USB_STATE_RESET_HS;
@@ -3224,7 +3232,8 @@ static int ab8500_charger_usb_notifier_call(struct notifier_block *nb,
 
 	spin_lock(&di->usb_state.usb_lock);
 	di->usb_state.state_tmp = bm_usb_state;
-	di->usb_state.usb_current_tmp = mA;
+	/* FIXME: broadcast ua instead, see above */
+	di->usb_state.usb_current_tmp_ua = mA * 1000;
 	spin_unlock(&di->usb_state.usb_lock);
 
 	/*
@@ -3514,7 +3523,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.ops.update_curr = &ab8500_charger_update_charger_current;
 	di->ac_chg.max_out_volt = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
-	di->ac_chg.max_out_curr =
+	di->ac_chg.max_out_curr_ua =
 		ab8500_charge_output_curr_map[ARRAY_SIZE(ab8500_charge_output_curr_map) - 1];
 	di->ac_chg.wdt_refresh = CHG_WD_INTERVAL;
 	/*
@@ -3535,11 +3544,11 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.ops.update_curr = &ab8500_charger_update_charger_current;
 	di->usb_chg.max_out_volt = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
-	di->usb_chg.max_out_curr =
+	di->usb_chg.max_out_curr_ua =
 		ab8500_charge_output_curr_map[ARRAY_SIZE(ab8500_charge_output_curr_map) - 1];
 	di->usb_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->usb_chg.external = false;
-	di->usb_state.usb_current = -1;
+	di->usb_state.usb_current_ua = -1;
 
 	mutex_init(&di->charger_attached_mutex);
 

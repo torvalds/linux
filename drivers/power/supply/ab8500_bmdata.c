@@ -83,7 +83,6 @@ static const struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
 static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.resis_high = 0,
 	.resis_low = 0,
-	.normal_cur_lvl = 400,
 	.normal_vol_lvl = 4100,
 	.maint_a_cur_lvl = 400,
 	.maint_a_vol_lvl = 4050,
@@ -133,16 +132,16 @@ static const struct ab8500_fg_parameters fg = {
 
 static const struct ab8500_maxim_parameters ab8500_maxi_params = {
 	.ena_maxi = true,
-	.chg_curr = 910,
+	.chg_curr_ua = 910000,
 	.wait_cycles = 10,
-	.charger_curr_step = 100,
+	.charger_curr_step_ua = 100000,
 };
 
 static const struct ab8500_bm_charger_parameters chg = {
 	.usb_volt_max		= 5500,
-	.usb_curr_max		= 1500,
+	.usb_curr_max_ua	= 1500000,
 	.ac_volt_max		= 7500,
-	.ac_curr_max		= 1500,
+	.ac_curr_max_ua		= 1500000,
 };
 
 /* This is referenced directly in the charger code */
@@ -200,6 +199,9 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 		/* Termination voltage (overcharge limit) 4.05V */
 		bi->overvoltage_limit_uv = 4050000;
 	}
+
+	if (bi->constant_charge_current_max_ua < 0)
+		bi->constant_charge_current_max_ua = 400000;
 
 	if (bi->charge_term_current_ua)
 		/* Charging stops when we drop below this current */

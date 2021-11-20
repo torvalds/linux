@@ -160,13 +160,6 @@
 #define BTEMP_HIGH_TH_57_1		0x02
 #define BTEMP_HIGH_TH_62		0x03
 
-/* current is mA */
-#define USB_0P1A			100
-#define USB_0P2A			200
-#define USB_0P3A			300
-#define USB_0P4A			400
-#define USB_0P5A			500
-
 #define LOW_BAT_3P1V			0x20
 #define LOW_BAT_2P3V			0x00
 #define LOW_BAT_RESET			0x01
@@ -359,22 +352,21 @@ struct ab8500_fg_parameters {
 /**
  * struct ab8500_charger_maximization - struct used by the board config.
  * @use_maxi:		Enable maximization for this battery type
- * @maxi_chg_curr:	Maximum charger current allowed
+ * @maxi_chg_curr_ua:	Maximum charger current allowed in microampere
  * @maxi_wait_cycles:	cycles to wait before setting charger current
- * @charger_curr_step	delta between two charger current settings (mA)
+ * @charger_curr_step_ua: delta between two charger current settings (uA)
  */
 struct ab8500_maxim_parameters {
 	bool ena_maxi;
-	int chg_curr;
+	int chg_curr_ua;
 	int wait_cycles;
-	int charger_curr_step;
+	int charger_curr_step_ua;
 };
 
 /**
  * struct ab8500_battery_type - different batteries supported
  * @resis_high:			battery upper resistance limit
  * @resis_low:			battery lower resistance limit
- * @normal_cur_lvl:		charger current in normal state in mA
  * @normal_vol_lvl:		charger voltage in normal state in mV
  * @maint_a_cur_lvl:		charger current in maintenance A state in mA
  * @maint_a_vol_lvl:		charger voltage in maintenance A state in mV
@@ -394,7 +386,6 @@ struct ab8500_maxim_parameters {
 struct ab8500_battery_type {
 	int resis_high;
 	int resis_low;
-	int normal_cur_lvl;
 	int normal_vol_lvl;
 	int maint_a_cur_lvl;
 	int maint_a_vol_lvl;
@@ -431,15 +422,15 @@ struct ab8500_bm_capacity_levels {
 /**
  * struct ab8500_bm_charger_parameters - Charger specific parameters
  * @usb_volt_max:	maximum allowed USB charger voltage in mV
- * @usb_curr_max:	maximum allowed USB charger current in mA
+ * @usb_curr_max_ua:	maximum allowed USB charger current in uA
  * @ac_volt_max:	maximum allowed AC charger voltage in mV
- * @ac_curr_max:	maximum allowed AC charger current in mA
+ * @ac_curr_max_ua:	maximum allowed AC charger current in uA
  */
 struct ab8500_bm_charger_parameters {
 	int usb_volt_max;
-	int usb_curr_max;
+	int usb_curr_max_ua;
 	int ac_volt_max;
-	int ac_curr_max;
+	int ac_curr_max_ua;
 };
 
 /**
