@@ -38,7 +38,6 @@
 
 #include "ab8500-bm.h"
 
-#define MILLI_TO_MICRO			1000
 #define FG_LSB_IN_MA			1627
 #define QLSB_NANO_AMP_HOURS_X10		1071
 #define INS_CURR_TIMEOUT		(3 * HZ)
@@ -2243,8 +2242,7 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 					di->flags.batt_id_received = true;
 
 					di->bat_cap.max_mah_design =
-						MILLI_TO_MICRO *
-						b->charge_full_design;
+						di->bm->bi.charge_full_design_uah;
 
 					di->bat_cap.max_mah =
 						di->bat_cap.max_mah_design;
@@ -3078,9 +3076,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 	psy_cfg.drv_data = di;
 
-	di->bat_cap.max_mah_design = MILLI_TO_MICRO *
-		di->bm->bat_type->charge_full_design;
-
+	di->bat_cap.max_mah_design = di->bm->bi.charge_full_design_uah;
 	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
 
 	di->vbat_nom = di->bm->bat_type->nominal_voltage;

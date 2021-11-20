@@ -375,7 +375,6 @@ struct ab8500_maxim_parameters {
  * @name:			battery technology
  * @resis_high:			battery upper resistance limit
  * @resis_low:			battery lower resistance limit
- * @charge_full_design:		Maximum battery capacity in mAh
  * @nominal_voltage:		Nominal voltage of the battery in mV
  * @termination_vol:		max voltage upto which battery can be charged
  * @termination_curr		battery charging termination current in mA
@@ -404,7 +403,6 @@ struct ab8500_battery_type {
 	int name;
 	int resis_high;
 	int resis_low;
-	int charge_full_design;
 	int nominal_voltage;
 	int termination_vol;
 	int termination_curr;
