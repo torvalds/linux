@@ -304,6 +304,37 @@ static void isp30_show(struct rkisp_device *dev, struct seq_file *p)
 	seq_printf(p, "%-10s %s(0x%x)\n", "RAWHIST2", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_RAWHIST_BIG1_BASE, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "RAWHIST3", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP3X_ISP_CTRL1, true);
+	seq_printf(p, "%-10s %s(0x%x)\n", "BigMode", val & BIT(28) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP3X_ISP_DEBUG1, true);
+	seq_printf(p, "%-10s space full status group (0x%x)\n"
+		   "\t   ibuf2:0x%x ibuf1:0x%x ibuf0:0x%x mpfbc_infifo:0x%x\n"
+		   "\t   r1fifo:0x%x r0fifo:0x%x outfifo:0x%x lafifo:0x%x\n",
+		   "DEBUG1", val,
+		   val >> 28, (val >> 24) & 0xf, (val >> 20) & 0xf, (val >> 16) & 0xf,
+		   (val >> 12) & 0xf, (val >> 8) & 0xf, (val >> 4) & 0xf, val & 0xf);
+	val = rkisp_read(dev, ISP3X_ISP_DEBUG2, true);
+	seq_printf(p, "%-10s 0x%x\n"
+		   "\t   bay3d_fifo_full iir:%d cur:%d\n"
+		   "\t   module outform vertical counter:%d, out frame counter:%d\n"
+		   "\t   isp output line counter:%d\n",
+		   "DEBUG2", val, !!(val & BIT(31)), !!(val & BIT(30)),
+		   (val >> 16) & 0x3fff, (val >> 14) & 0x3, val & 0x3fff);
+	val = rkisp_read(dev, ISP3X_ISP_DEBUG3, true);
+	seq_printf(p, "%-10s isp pipeline group (0x%x)\n"
+		   "\t   mge(%d %d) rawnr(%d %d) bay3d(%d %d) tmo(%d %d)\n"
+		   "\t   gic(%d %d) dbr(%d %d) debayer(%d %d) dhaz(%d %d)\n"
+		   "\t   lut3d(%d %d) ldch(%d %d) ynr(%d %d) shp(%d %d)\n"
+		   "\t   cgc(%d %d) cac(%d %d) isp_out(%d %d) isp_in(%d %d)\n",
+		   "DEBUG3", val,
+		   !!(val & BIT(31)), !!(val & BIT(30)), !!(val & BIT(29)), !!(val & BIT(28)),
+		   !!(val & BIT(27)), !!(val & BIT(26)), !!(val & BIT(25)), !!(val & BIT(24)),
+		   !!(val & BIT(23)), !!(val & BIT(22)), !!(val & BIT(21)), !!(val & BIT(20)),
+		   !!(val & BIT(19)), !!(val & BIT(18)), !!(val & BIT(17)), !!(val & BIT(16)),
+		   !!(val & BIT(15)), !!(val & BIT(14)), !!(val & BIT(13)), !!(val & BIT(12)),
+		   !!(val & BIT(11)), !!(val & BIT(10)), !!(val & BIT(9)), !!(val & BIT(8)),
+		   !!(val & BIT(7)), !!(val & BIT(6)), !!(val & BIT(5)), !!(val & BIT(4)),
+		   !!(val & BIT(3)), !!(val & BIT(2)), !!(val & BIT(1)), !!(val & BIT(0)));
 }
 
 static void isp30_unite_show(struct rkisp_device *dev, struct seq_file *p)
@@ -549,6 +580,62 @@ static void isp30_unite_show(struct rkisp_device *dev, struct seq_file *p)
 		   "RAWHIST3",
 		   (v0 & 1) ? "ON" : "OFF", v0,
 		   (v1 & 1) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_ISP_CTRL1, true);
+	v1 = rkisp_next_read(dev, ISP3X_ISP_CTRL1, true);
+	seq_printf(p, "%-10s Left %s(0x%x), Right %s(0x%x)\n",
+		   "BigMode",
+		   v0 & BIT(28) ? "ON" : "OFF", v0,
+		   v1 & BIT(28) ? "ON" : "OFF", v1);
+	v0 = rkisp_read(dev, ISP3X_ISP_DEBUG1, true);
+	v1 = rkisp_next_read(dev, ISP3X_ISP_DEBUG1, true);
+	seq_printf(p, "%-10s space full status group. Left:0x%x Right:0x%x\n"
+		   "\t   ibuf2(L:0x%x R:0x%x) ibuf1(L:0x%x R:0x%x)\n"
+		   "\t   ibuf0(L:0x%x R:0x%x) mpfbc_infifo(L:0x%x R:0x%x)\n"
+		   "\t   r1fifo(L:0x%x R:0x%x) r0fifo(L:0x%x R:0x%x)\n"
+		   "\t   outfifo(L:0x%x R:0x%x) lafifo(L:0x%x R:0x%x)\n",
+		   "DEBUG1", v0, v1,
+		   v0 >> 28, v1 >> 28, (v0 >> 24) & 0xf, (v1 >> 24) & 0xf,
+		   (v0 >> 20) & 0xf, (v1 >> 20) & 0xf, (v0 >> 16) & 0xf, (v1 >> 16) & 0xf,
+		   (v0 >> 12) & 0xf, (v1 >> 12) & 0xf, (v0 >> 8) & 0xf, (v1 >> 8) & 0xf,
+		   (v0 >> 4) & 0xf, (v1 >> 4) & 0xf, v0 & 0xf, v1 & 0xf);
+	v0 = rkisp_read(dev, ISP3X_ISP_DEBUG2, true);
+	v1 = rkisp_next_read(dev, ISP3X_ISP_DEBUG2, true);
+	seq_printf(p, "%-10s Left:0x%x Right:0x%x\n"
+		   "\t   bay3d_fifo_full iir(L:%d R:%d) cur(L:%d R:%d)\n"
+		   "\t   module outform vertical counter(L:%d R:%d), out frame counter:(L:%d R:%d)\n"
+		   "\t   isp output line counter(L:%d R:%d)\n",
+		   "DEBUG2", v0, v1,
+		   !!(v0 & BIT(31)), !!(v1 & BIT(31)), !!(v0 & BIT(30)), !!(v1 & BIT(30)),
+		   (v0 >> 16) & 0x3fff, (v1 >> 16) & 0x3fff, (v0 >> 14) & 0x3, (v1 >> 14) & 0x3,
+		   v0 & 0x3fff, v1 & 0x3fff);
+	v0 = rkisp_read(dev, ISP3X_ISP_DEBUG3, true);
+	v1 = rkisp_next_read(dev, ISP3X_ISP_DEBUG3, true);
+	seq_printf(p, "%-10s isp pipeline group Left:0x%x Right:0x%x\n"
+		   "\t   mge(L:%d %d R:%d %d) rawnr(L:%d %d R:%d %d)\n"
+		   "\t   bay3d(L:%d %d R:%d %d) tmo(L:%d %d R:%d %d)\n"
+		   "\t   gic(L:%d %d R:%d %d) dbr(L:%d %d R:%d %d)\n"
+		   "\t   debayer(L:%d %d R:%d %d) dhaz(L:%d %d R:%d %d)\n"
+		   "\t   lut3d(L:%d %d R:%d %d) ldch(L:%d %d R:%d %d)\n"
+		   "\t   ynr(L:%d %d R:%d %d) shp(L:%d %d R:%d %d)\n"
+		   "\t   cgc(L:%d %d R:%d %d) cac(L:%d %d R:%d %d)\n"
+		   "\t   isp_out(L:%d %d R:%d %d) isp_in(L:%d %d R:%d %d)\n",
+		   "DEBUG3", v0, v1,
+		   !!(v0 & BIT(31)), !!(v0 & BIT(30)), !!(v1 & BIT(31)), !!(v1 & BIT(30)),
+		   !!(v0 & BIT(29)), !!(v0 & BIT(28)), !!(v1 & BIT(29)), !!(v1 & BIT(28)),
+		   !!(v0 & BIT(27)), !!(v0 & BIT(26)), !!(v1 & BIT(27)), !!(v1 & BIT(26)),
+		   !!(v0 & BIT(25)), !!(v0 & BIT(24)), !!(v1 & BIT(25)), !!(v1 & BIT(24)),
+		   !!(v0 & BIT(23)), !!(v0 & BIT(22)), !!(v1 & BIT(23)), !!(v1 & BIT(22)),
+		   !!(v0 & BIT(21)), !!(v0 & BIT(20)), !!(v1 & BIT(21)), !!(v1 & BIT(20)),
+		   !!(v0 & BIT(19)), !!(v0 & BIT(18)), !!(v1 & BIT(19)), !!(v1 & BIT(18)),
+		   !!(v0 & BIT(17)), !!(v0 & BIT(16)), !!(v1 & BIT(17)), !!(v1 & BIT(16)),
+		   !!(v0 & BIT(15)), !!(v0 & BIT(14)), !!(v1 & BIT(15)), !!(v1 & BIT(14)),
+		   !!(v0 & BIT(13)), !!(v0 & BIT(12)), !!(v1 & BIT(13)), !!(v1 & BIT(12)),
+		   !!(v0 & BIT(11)), !!(v0 & BIT(10)), !!(v1 & BIT(11)), !!(v1 & BIT(10)),
+		   !!(v0 & BIT(9)), !!(v0 & BIT(8)), !!(v1 & BIT(9)), !!(v1 & BIT(8)),
+		   !!(v0 & BIT(7)), !!(v0 & BIT(6)), !!(v1 & BIT(7)), !!(v1 & BIT(6)),
+		   !!(v0 & BIT(5)), !!(v0 & BIT(4)), !!(v1 & BIT(5)), !!(v1 & BIT(4)),
+		   !!(v0 & BIT(3)), !!(v0 & BIT(2)), !!(v1 & BIT(3)), !!(v1 & BIT(2)),
+		   !!(v0 & BIT(1)), !!(v0 & BIT(0)), !!(v1 & BIT(1)), !!(v1 & BIT(0)));
 }
 
 static int isp_show(struct seq_file *p, void *v)
