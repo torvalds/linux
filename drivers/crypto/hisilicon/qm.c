@@ -1126,10 +1126,10 @@ static int qm_set_vft_common(struct hisi_qm *qm, enum vft_type type,
 
 static int qm_shaper_init_vft(struct hisi_qm *qm, u32 fun_num)
 {
+	u32 qos = qm->factor[fun_num].func_qos;
 	int ret, i;
 
-	qm->factor[fun_num].func_qos = QM_QOS_MAX_VAL;
-	ret = qm_get_shaper_para(QM_QOS_MAX_VAL * QM_QOS_RATE, &qm->factor[fun_num]);
+	ret = qm_get_shaper_para(qos * QM_QOS_RATE, &qm->factor[fun_num]);
 	if (ret) {
 		dev_err(&qm->pdev->dev, "failed to calculate shaper parameter!\n");
 		return ret;
@@ -5750,13 +5750,15 @@ err_init_qp_mem:
 static int hisi_qm_memory_init(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
-	int ret, total_vfs;
+	int ret, total_func, i;
 	size_t off = 0;
 
-	total_vfs = pci_sriov_get_totalvfs(qm->pdev);
-	qm->factor = kcalloc(total_vfs + 1, sizeof(struct qm_shaper_factor), GFP_KERNEL);
+	total_func = pci_sriov_get_totalvfs(qm->pdev) + 1;
+	qm->factor = kcalloc(total_func, sizeof(struct qm_shaper_factor), GFP_KERNEL);
 	if (!qm->factor)
 		return -ENOMEM;
+	for (i = 0; i < total_func; i++)
+		qm->factor[i].func_qos = QM_QOS_MAX_VAL;
 
 #define QM_INIT_BUF(qm, type, num) do { \
 	(qm)->type = ((qm)->qdma.va + (off)); \
