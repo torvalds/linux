@@ -553,6 +553,7 @@
 };
 
 &pwm13 {
+	pinctrl-0 = <&pwm13m1_pins>;
 	status = "okay";
 };
 

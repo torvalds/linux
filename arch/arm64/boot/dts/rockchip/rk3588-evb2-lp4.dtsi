@@ -316,6 +316,7 @@
 };
 
 &pwm3 {
+	pinctrl-0 = <&pwm3m1_pins>;
 	status = "okay";
 };
 
