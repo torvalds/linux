@@ -5,6 +5,7 @@
  * Authors: Salvatore Benedetto <salvatore.benedetto@intel.com>
  */
 
+#include <linux/fips.h>
 #include <linux/module.h>
 #include <crypto/internal/kpp.h>
 #include <crypto/kpp.h>
@@ -47,6 +48,9 @@ static inline struct dh_ctx *dh_get_ctx(struct crypto_kpp *tfm)
 
 static int dh_check_params_length(unsigned int p_len)
 {
+	if (fips_enabled)
+		return (p_len < 2048) ? -EINVAL : 0;
+
 	return (p_len < 1536) ? -EINVAL : 0;
 }
 
