@@ -229,7 +229,7 @@ struct vnt_private {
 	/* GPIO Radio Control */
 	unsigned char byRadioCtl;
 	unsigned char byGPIO;
-	bool bHWRadioOff;
+	bool hw_radio_off;
 	bool bPrvActive4RadioOFF;
 	bool bGPIOBlockRead;
 
