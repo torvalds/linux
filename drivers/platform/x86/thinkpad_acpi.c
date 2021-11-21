@@ -10685,8 +10685,8 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 
 	if (iibm->init) {
 		ret = iibm->init(iibm);
-		if (ret > 0)
-			return 0;	/* probe failed */
+		if (ret > 0 || ret == -ENODEV)
+			return 0; /* subdriver functionality not available */
 		if (ret)
 			return ret;
 
