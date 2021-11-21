@@ -11,6 +11,7 @@
  */
 
 #include <dt-bindings/pinctrl/apple.h>
+#include <linux/bits.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
