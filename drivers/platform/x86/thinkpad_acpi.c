@@ -10095,31 +10095,30 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	if (dytc_version < 5)
 		return -ENODEV;
 
-	{
-		dbg_printk(TPACPI_DBG_INIT,
-				"DYTC version %d: thermal mode available\n", dytc_version);
-		/*
-		 * Check if MMC_GET functionality available
-		 * Version > 6 and return success from MMC_GET command
-		 */
-		dytc_mmc_get_available = false;
-		if (dytc_version >= 6) {
-			err = dytc_command(DYTC_CMD_MMC_GET, &output);
-			if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
-				dytc_mmc_get_available = true;
-		}
-		/* Create platform_profile structure and register */
-		err = platform_profile_register(&dytc_profile);
-		/*
-		 * If for some reason platform_profiles aren't enabled
-		 * don't quit terminally.
-		 */
-		if (err)
-			return -ENODEV;
-
-		/* Ensure initial values are correct */
-		dytc_profile_refresh();
+	dbg_printk(TPACPI_DBG_INIT,
+			"DYTC version %d: thermal mode available\n", dytc_version);
+	/*
+	 * Check if MMC_GET functionality available
+	 * Version > 6 and return success from MMC_GET command
+	 */
+	dytc_mmc_get_available = false;
+	if (dytc_version >= 6) {
+		err = dytc_command(DYTC_CMD_MMC_GET, &output);
+		if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
+			dytc_mmc_get_available = true;
 	}
+	/* Create platform_profile structure and register */
+	err = platform_profile_register(&dytc_profile);
+	/*
+	 * If for some reason platform_profiles aren't enabled
+	 * don't quit terminally.
+	 */
+	if (err)
+		return -ENODEV;
+
+	/* Ensure initial values are correct */
+	dytc_profile_refresh();
+
 	return 0;
 }
 
