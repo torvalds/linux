@@ -9911,7 +9911,6 @@ static struct ibm_struct proxsensor_driver_data = {
 
 #define DYTC_ENABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, 1)
 
-static bool dytc_profile_available;
 static enum platform_profile_option dytc_current_profile;
 static atomic_t dytc_ignore_event = ATOMIC_INIT(0);
 static DEFINE_MUTEX(dytc_mutex);
@@ -10015,9 +10014,6 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 	int output;
 	int err;
 
-	if (!dytc_profile_available)
-		return -ENODEV;
-
 	err = mutex_lock_interruptible(&dytc_mutex);
 	if (err)
 		return err;
@@ -10088,7 +10084,6 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	set_bit(PLATFORM_PROFILE_BALANCED, dytc_profile.choices);
 	set_bit(PLATFORM_PROFILE_PERFORMANCE, dytc_profile.choices);
 
-	dytc_profile_available = false;
 	err = dytc_command(DYTC_CMD_QUERY, &output);
 	if (err)
 		return err;
@@ -10097,7 +10092,10 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 		dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
 
 	/* Check DYTC is enabled and supports mode setting */
-	if (dytc_version >= 5) {
+	if (dytc_version < 5)
+		return -ENODEV;
+
+	{
 		dbg_printk(TPACPI_DBG_INIT,
 				"DYTC version %d: thermal mode available\n", dytc_version);
 		/*
@@ -10117,9 +10115,8 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 		 * don't quit terminally.
 		 */
 		if (err)
-			return 0;
+			return -ENODEV;
 
-		dytc_profile_available = true;
 		/* Ensure initial values are correct */
 		dytc_profile_refresh();
 	}
@@ -10128,10 +10125,7 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 
 static void dytc_profile_exit(void)
 {
-	if (dytc_profile_available) {
-		dytc_profile_available = false;
-		platform_profile_remove();
-	}
+	platform_profile_remove();
 }
 
 static struct ibm_struct  dytc_profile_driver_data = {
