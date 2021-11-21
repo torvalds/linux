@@ -58,8 +58,7 @@ tc_act_parse_redirect_ingress(struct mlx5e_tc_act_parse_state *parse_state,
 	struct net_device *out_dev = act->dev;
 	int err;
 
-	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-			MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
 	err = mlx5e_set_fwd_to_int_port_actions(priv, attr, out_dev->ifindex,
 						MLX5E_TC_INT_PORT_INGRESS,

@@ -3536,7 +3536,6 @@ alloc_flow_post_acts(struct mlx5e_tc_flow *flow, struct netlink_ext_ack *extack)
 			/* Set counter action on last post act rule. */
 			attr->action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
 		} else {
-			attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			err = mlx5e_tc_act_set_next_post_act(flow, attr, next_attr);
 			if (err)
 				goto out_free;
