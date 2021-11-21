@@ -73,7 +73,7 @@ struct regmap_config regmap_config = {
 	.use_relaxed_mmio = true,
 };
 
-// No locking needed to mask/unmask IRQs as the interrupt mode is per pin-register.
+/* No locking needed to mask/unmask IRQs as the interrupt mode is per pin-register. */
 static void apple_gpio_set_reg(struct apple_gpio_pinctrl *pctl,
                                unsigned int pin, u32 mask, u32 value)
 {
