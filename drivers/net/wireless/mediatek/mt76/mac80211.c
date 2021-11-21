@@ -1348,6 +1348,59 @@ int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76_get_txpower);
 
+int mt76_init_sar_power(struct ieee80211_hw *hw,
+			const struct cfg80211_sar_specs *sar)
+{
+	struct mt76_phy *phy = hw->priv;
+	const struct cfg80211_sar_capa *capa = hw->wiphy->sar_capa;
+	int i;
+
+	if (sar->type != NL80211_SAR_TYPE_POWER || !sar->num_sub_specs)
+		return -EINVAL;
+
+	for (i = 0; i < sar->num_sub_specs; i++) {
+		u32 index = sar->sub_specs[i].freq_range_index;
+		/* SAR specifies power limitaton in 0.25dbm */
+		s32 power = sar->sub_specs[i].power >> 1;
+
+		if (power > 127 || power < -127)
+			power = 127;
+
+		phy->frp[index].range = &capa->freq_ranges[index];
+		phy->frp[index].power = power;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_init_sar_power);
+
+int mt76_get_sar_power(struct mt76_phy *phy,
+		       struct ieee80211_channel *chan,
+		       int power)
+{
+	const struct cfg80211_sar_capa *capa = phy->hw->wiphy->sar_capa;
+	int freq, i;
+
+	if (!capa || !phy->frp)
+		return power;
+
+	if (power > 127 || power < -127)
+		power = 127;
+
+	freq = ieee80211_channel_to_frequency(chan->hw_value, chan->band);
+	for (i = 0 ; i < capa->num_freq_ranges; i++) {
+		if (phy->frp[i].range &&
+		    freq >= phy->frp[i].range->start_freq &&
+		    freq < phy->frp[i].range->end_freq) {
+			power = min_t(int, phy->frp[i].power, power);
+			break;
+		}
+	}
+
+	return power;
+}
+EXPORT_SYMBOL_GPL(mt76_get_sar_power);
+
 static void
 __mt76_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
