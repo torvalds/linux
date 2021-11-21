@@ -3464,7 +3464,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		 * the first hotkey_mask_get to return hotkey_orig_mask */
 		res = hotkey_mask_get();
 		if (res)
-			goto err_exit;
+			return res;
 
 		hotkey_orig_mask = hotkey_acpi_mask;
 	} else {
@@ -3500,8 +3500,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			TPACPI_HOTKEY_MAP_SIZE,	GFP_KERNEL);
 	if (!hotkey_keycode_map) {
 		pr_err("failed to allocate memory for key map\n");
-		res = -ENOMEM;
-		goto err_exit;
+		return -ENOMEM;
 	}
 
 	input_set_capability(tpacpi_inputdev, EV_MSC, MSC_SCAN);
@@ -3582,9 +3581,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	hotkey_poll_setup_safe(true);
 
 	return 0;
-
-err_exit:
-	return (res < 0) ? res : -ENODEV;
 }
 
 /* Thinkpad X1 Carbon support 5 modes including Home mode, Web browser
