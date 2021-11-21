@@ -5,6 +5,7 @@
  * Authors: Tadeusz Struk <tadeusz.struk@intel.com>
  */
 
+#include <linux/fips.h>
 #include <linux/module.h>
 #include <linux/mpi.h>
 #include <crypto/internal/rsa.h>
@@ -144,6 +145,9 @@ static int rsa_check_key_length(unsigned int len)
 	case 512:
 	case 1024:
 	case 1536:
+		if (fips_enabled)
+			return -EINVAL;
+		fallthrough;
 	case 2048:
 	case 3072:
 	case 4096:
