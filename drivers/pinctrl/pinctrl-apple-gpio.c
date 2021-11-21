@@ -81,12 +81,16 @@ static void apple_gpio_set_reg(struct apple_gpio_pinctrl *pctl,
 	regmap_update_bits(pctl->map, REG_GPIO(pin), mask, value);
 }
 
-static uint32_t apple_gpio_get_reg(struct apple_gpio_pinctrl *pctl,
+static u32 apple_gpio_get_reg(struct apple_gpio_pinctrl *pctl,
                               unsigned int pin)
 {
-	unsigned int val = 0;
+	int ret;
+	u32 val;
 
-	regmap_read(pctl->map, REG_GPIO(pin), &val);
+	ret = regmap_read(pctl->map, REG_GPIO(pin), &val);
+	if (ret)
+		return 0;
+
 	return val;
 }
 
