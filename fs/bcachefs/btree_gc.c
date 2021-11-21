@@ -498,6 +498,10 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 	char buf[200];
 	int ret = 0;
 
+	/*
+	 * XXX
+	 * use check_bucket_ref here
+	 */
 	bkey_for_each_ptr_decode(k->k, ptrs, p, entry) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 		struct bucket *g = PTR_BUCKET(ca, &p.ptr, true);
@@ -552,6 +556,15 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				do_update = true;
 			}
 		}
+
+		if (fsck_err_on(gen_cmp(g->mark.gen, p.ptr.gen) > BUCKET_GC_GEN_MAX, c,
+				"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
+				"while marking %s",
+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->mark.gen,
+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+				p.ptr.gen,
+				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
+			do_update = true;
 
 		if (fsck_err_on(!p.ptr.cached &&
 				gen_cmp(p.ptr.gen, g->mark.gen) < 0, c,
@@ -644,6 +657,7 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				 (!g->gen_valid || gen_cmp(ptr->gen, g->mark.gen) > 0)) ||
 				(!ptr->cached &&
 				 gen_cmp(ptr->gen, g->mark.gen) < 0) ||
+				gen_cmp(g->mark.gen, ptr->gen) > BUCKET_GC_GEN_MAX ||
 				(g->mark.data_type &&
 				 g->mark.data_type != data_type);
 			}));
