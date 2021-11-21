@@ -360,10 +360,6 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 	void **irq_data = NULL;
 	int ret;
 
-	if (!of_property_read_bool(pctl->dev->of_node, "gpio-controller"))
-		return dev_err_probe(pctl->dev,	-ENODEV,
-				     "No gpio-controller property\n");
-
 	pctl->irq_chip = apple_gpio_irqchip;
 
 	pctl->gpio_chip.label = dev_name(pctl->dev);
