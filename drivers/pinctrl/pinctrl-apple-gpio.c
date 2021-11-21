@@ -194,8 +194,9 @@ static int apple_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	struct apple_gpio_pinctrl *pctl = gpiochip_get_data(chip);
 	unsigned int reg = apple_gpio_get_reg(pctl, offset);
 
-	return (FIELD_GET(REG_GPIOx_MODE, reg) == REG_GPIOx_OUT) ?
-		       GPIO_LINE_DIRECTION_OUT : GPIO_LINE_DIRECTION_IN;
+	if (FIELD_GET(REG_GPIOx_MODE, reg) == REG_GPIOx_OUT)
+		return GPIO_LINE_DIRECTION_OUT;
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int apple_gpio_get(struct gpio_chip *chip, unsigned offset)
