@@ -986,6 +986,7 @@ static void rkcif_scale_update_stream(struct rkcif_scale_vdev *scale_vdev, int c
 void rkcif_irq_handle_scale(struct rkcif_device *cif_dev, unsigned int intstat_glb)
 {
 	struct rkcif_scale_vdev *scale_vdev;
+	struct rkcif_stream *stream;
 	int ch;
 	int i = 0;
 	u32 val = 0;
@@ -1027,6 +1028,9 @@ void rkcif_irq_handle_scale(struct rkcif_device *cif_dev, unsigned int intstat_g
 		scale_vdev->frame_phase = SW_SCALE_END(intstat_glb, ch);
 		intstat_glb &= ~(SCALE_END_INTSTAT(ch));
 		rkcif_scale_update_stream(scale_vdev, ch);
+		stream = scale_vdev->stream;
+		if (stream->to_en_dma)
+			rkcif_enable_dma_capture(stream);
 	}
 }
 

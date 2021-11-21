@@ -2265,7 +2265,7 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 					CSI_START_INTEN(channel->id));
 
-	if (priv->toisp_inf.link_mode == TOISP_NONE && detect_stream->is_line_wake_up) {
+	if (priv && priv->toisp_inf.link_mode == TOISP_NONE && detect_stream->is_line_wake_up) {
 		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 					CSI_LINE_INTEN_RK3588(channel->id));
 		wait_line = dev->wait_line;
@@ -2393,7 +2393,7 @@ static int rkcif_csi_stream_start(struct rkcif_stream *stream, unsigned int mode
 			else
 				rkcif_csi_channel_set_v1(stream, channel, mbus_type, mode);
 		} else {
-			if (stream->cifdev->chip_id > CHIP_RK3588_CIF) {
+			if (stream->cifdev->chip_id >= CHIP_RK3588_CIF) {
 				if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE &&
 				    (!stream->dma_en)) {
 					stream->to_en_dma = RKCIF_DMAEN_BY_VICAP;
@@ -2493,6 +2493,7 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 	}
 	stream->cifdev->id_use_cnt--;
 	stream->state = RKCIF_STATE_READY;
+	stream->dma_en = 0;
 }
 
 static bool rkcif_is_extending_line_for_height(struct rkcif_device *dev,
@@ -3051,7 +3052,6 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			pm_runtime_put_sync(dev->dev);
 		}
 
-		stream->cur_stream_mode &= ~mode;
 		if (stream->cur_stream_mode == 0) {
 			if (dev->hdr.hdr_mode == HDR_X2) {
 				if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
@@ -3085,7 +3085,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	}
 	if (!atomic_read(&dev->pipe.stream_cnt) && dev->dummy_buf.vaddr)
 		rkcif_destroy_dummy_buf(stream);
-
+	stream->cur_stream_mode &= ~mode;
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished\n", stream->id);
 	rkcif_detach_sync_mode(dev);
 	mutex_unlock(&dev->stream_lock);
@@ -6788,7 +6788,7 @@ static void rkcif_detect_wake_up_mode_change(struct rkcif_stream *stream)
 	struct rkcif_device *cif_dev = stream->cifdev;
 	struct sditf_priv *priv = cif_dev->sditf;
 
-	if (priv->toisp_inf.link_mode != TOISP_NONE)
+	if (!priv || priv->toisp_inf.link_mode != TOISP_NONE)
 		return;
 
 	if (cif_dev->wait_line && (!stream->is_line_wake_up)) {
@@ -6926,7 +6926,7 @@ void rkcif_set_default_fmt(struct rkcif_device *cif_dev)
 	}
 }
 
-static void rkcif_enable_dma_capture(struct rkcif_stream *stream)
+void rkcif_enable_dma_capture(struct rkcif_stream *stream)
 {
 	struct rkcif_device *cif_dev = stream->cifdev;
 	struct v4l2_mbus_config *mbus_cfg = &cif_dev->active_sensor->mbus;
@@ -6954,15 +6954,8 @@ static void rkcif_enable_dma_capture(struct rkcif_stream *stream)
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
 		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
-			val |= CSI_ENABLE_CAPTURE;
-		else
-			val |= LVDS_ENABLE_CAPTURE;
-
+			val |= CSI_DMA_ENABLE;
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id), val);
-	} else {
-		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
-		rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
-				     val | ENABLE_CAPTURE);
 	}
 	stream->to_en_dma = 0;
 }
@@ -6985,17 +6978,9 @@ static void rkcif_stop_dma_capture(struct rkcif_stream *stream)
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
 		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
-			val &= ~CSI_ENABLE_CAPTURE;
-		else
-			val &= ~LVDS_ENABLE_CAPTURE;
+			val &= ~CSI_DMA_ENABLE;
 
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id), val);
-	} else {
-		if (atomic_read(&cif_dev->pipe.stream_cnt) == 1) {
-			val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
-			rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL,
-					     val & (~ENABLE_CAPTURE));
-		}
 	}
 	stream->to_stop_dma = 0;
 }
@@ -7039,6 +7024,8 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 			stream->stopping = false;
 			wake_up(&stream->wq_stopped);
 		}
+		if (stream->to_en_dma)
+			rkcif_enable_dma_capture(stream);
 		switch (ch) {
 		case RKCIF_TOISP_CH0:
 			val = TOISP_END_CH0(index);
@@ -7064,7 +7051,7 @@ void rkcif_irq_handle_toisp(struct rkcif_device *cif_dev, unsigned int intstat_g
 	bool to_check = false;
 	struct sditf_priv *priv = cif_dev->sditf;
 
-	if (priv->toisp_inf.link_mode == TOISP_NONE)
+	if (!priv || priv->toisp_inf.link_mode == TOISP_NONE)
 		return;
 
 	for (i = 0; i < 2; i++) {
