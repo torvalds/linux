@@ -6267,14 +6267,6 @@ static struct sensor_device_attribute sensor_dev_attr_thermal_temp_input[] = {
 	&sensor_dev_attr_thermal_temp_input[X].dev_attr.attr
 
 static struct attribute *thermal_temp_input_attr[] = {
-	THERMAL_ATTRS(8),
-	THERMAL_ATTRS(9),
-	THERMAL_ATTRS(10),
-	THERMAL_ATTRS(11),
-	THERMAL_ATTRS(12),
-	THERMAL_ATTRS(13),
-	THERMAL_ATTRS(14),
-	THERMAL_ATTRS(15),
 	THERMAL_ATTRS(0),
 	THERMAL_ATTRS(1),
 	THERMAL_ATTRS(2),
@@ -6283,6 +6275,14 @@ static struct attribute *thermal_temp_input_attr[] = {
 	THERMAL_ATTRS(5),
 	THERMAL_ATTRS(6),
 	THERMAL_ATTRS(7),
+	THERMAL_ATTRS(8),
+	THERMAL_ATTRS(9),
+	THERMAL_ATTRS(10),
+	THERMAL_ATTRS(11),
+	THERMAL_ATTRS(12),
+	THERMAL_ATTRS(13),
+	THERMAL_ATTRS(14),
+	THERMAL_ATTRS(15),
 	NULL
 };
 
