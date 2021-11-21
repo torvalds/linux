@@ -392,13 +392,13 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 					 GFP_KERNEL);
 		if (!girq->parents || !irq_data) {
 			ret = -ENOMEM;
-			goto out;
+			goto out_free_irq_data;
 		}
 
 		for (i = 0; i < girq->num_parents; i++) {
 			ret = platform_get_irq(to_platform_device(pctl->dev), i);
 			if (ret < 0)
-				goto out;
+				goto out_free_irq_data;
 
 			girq->parents[i] = ret;
 			pctl->irqgrps[i] = i;
@@ -412,7 +412,8 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 	}
 
 	ret = devm_gpiochip_add_data(pctl->dev, &pctl->gpio_chip, pctl);
-out:
+
+out_free_irq_data:
 	kfree(girq->parents);
 	kfree(irq_data);
 
