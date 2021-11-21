@@ -1217,10 +1217,8 @@ static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *
 {
 	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
 
-	if (ctx->nosharesock) {
-		server->nosharesock = true;
+	if (ctx->nosharesock)
 		return 0;
-	}
 
 	/* this server does not share socket */
 	if (server->nosharesock)
@@ -1375,6 +1373,9 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx)
 		rc = -ENOMEM;
 		goto out_err;
 	}
+
+	if (ctx->nosharesock)
+		tcp_ses->nosharesock = true;
 
 	tcp_ses->ops = ctx->ops;
 	tcp_ses->vals = ctx->vals;
