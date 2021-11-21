@@ -155,7 +155,7 @@ static void free_netvsc_device(struct rcu_head *head)
 	kfree(nvdev->extension);
 	vfree(nvdev->recv_buf);
 	vfree(nvdev->send_buf);
-	kfree(nvdev->send_section_map);
+	bitmap_free(nvdev->send_section_map);
 
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++) {
 		xdp_rxq_info_unreg(&nvdev->chan_table[i].xdp_rxq);
@@ -336,7 +336,6 @@ static int netvsc_init_buf(struct hv_device *device,
 	struct net_device *ndev = hv_get_drvdata(device);
 	struct nvsp_message *init_packet;
 	unsigned int buf_size;
-	size_t map_words;
 	int i, ret = 0;
 
 	/* Get receive buffer area. */
@@ -528,10 +527,9 @@ static int netvsc_init_buf(struct hv_device *device,
 		   net_device->send_section_size, net_device->send_section_cnt);
 
 	/* Setup state for managing the send buffer. */
-	map_words = DIV_ROUND_UP(net_device->send_section_cnt, BITS_PER_LONG);
-
-	net_device->send_section_map = kcalloc(map_words, sizeof(ulong), GFP_KERNEL);
-	if (net_device->send_section_map == NULL) {
+	net_device->send_section_map = bitmap_zalloc(net_device->send_section_cnt,
+						     GFP_KERNEL);
+	if (!net_device->send_section_map) {
 		ret = -ENOMEM;
 		goto cleanup;
 	}
