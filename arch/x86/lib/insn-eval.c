@@ -1415,7 +1415,7 @@ void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 	}
 }
 
-static unsigned long insn_get_effective_ip(struct pt_regs *regs)
+unsigned long insn_get_effective_ip(struct pt_regs *regs)
 {
 	unsigned long seg_base = 0;
 
