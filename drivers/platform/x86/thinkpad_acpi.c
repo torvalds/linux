@@ -9742,33 +9742,6 @@ static int dytc_command(int command, int *output)
 	return 0;
 }
 
-static int dytc_get_version(void)
-{
-	int err, output;
-
-	/* Check if we've been called before - and just return cached value */
-	if (dytc_version)
-		return dytc_version;
-
-	/* Otherwise query DYTC and extract version information */
-	err = dytc_command(DYTC_CMD_QUERY, &output);
-	/*
-	 * If support isn't available (ENODEV) then don't return an error
-	 * and don't create the sysfs group
-	 */
-	if (err == -ENODEV)
-		return 0;
-	/* For all other errors we can flag the failure */
-	if (err)
-		return err;
-
-	/* Check DYTC is enabled and supports mode setting */
-	if (output & BIT(DYTC_QUERY_ENABLE_BIT))
-		dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
-
-	return 0;
-}
-
 static int lapsensor_get(bool *present, bool *state)
 {
 	int output, err;
@@ -9865,7 +9838,7 @@ static umode_t proxsensor_attr_is_visible(struct kobject *kobj,
 		 * Platforms before DYTC version 5 claim to have a lap sensor,
 		 * but it doesn't work, so we ignore them.
 		 */
-		if (!has_lapsensor ||  dytc_version < 5)
+		if (!has_lapsensor || dytc_version < 5)
 			return 0;
 	} else if (attr == &dev_attr_palmsensor.attr) {
 		if (!has_palmsensor)
@@ -9882,7 +9855,7 @@ static const struct attribute_group proxsensor_attr_group = {
 
 static int tpacpi_proxsensor_init(struct ibm_init_struct *iibm)
 {
-	int palm_err, lap_err, err;
+	int palm_err, lap_err;
 
 	palm_err = palmsensor_get(&has_palmsensor, &palm_state);
 	lap_err = lapsensor_get(&has_lapsensor, &lap_state);
@@ -9894,13 +9867,6 @@ static int tpacpi_proxsensor_init(struct ibm_init_struct *iibm)
 		return palm_err;
 	if (lap_err && (lap_err != -ENODEV))
 		return lap_err;
-
-	/* Check if we know the DYTC version, if we don't then get it */
-	if (!dytc_version) {
-		err = dytc_get_version();
-		if (err)
-			return err;
-	}
 
 	return 0;
 }
@@ -10127,12 +10093,9 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	if (err)
 		return err;
 
-	/* Check if we know the DYTC version, if we don't then get it */
-	if (!dytc_version) {
-		err = dytc_get_version();
-		if (err)
-			return err;
-	}
+	if (output & BIT(DYTC_QUERY_ENABLE_BIT))
+		dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
+
 	/* Check DYTC is enabled and supports mode setting */
 	if (dytc_version >= 5) {
 		dbg_printk(TPACPI_DBG_INIT,
