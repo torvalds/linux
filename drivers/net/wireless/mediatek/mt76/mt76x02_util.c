@@ -138,7 +138,7 @@ mt76x02_led_set_brightness(struct led_classdev *led_cdev,
 		mt76x02_led_set_config(mdev, 0xff, 0);
 }
 
-void mt76x02_init_device(struct mt76x02_dev *dev)
+int mt76x02_init_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;
@@ -174,6 +174,13 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 	}
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
+	wiphy->sar_capa = &mt76_sar_capa;
+	dev->mt76.phy.frp = devm_kcalloc(dev->mt76.dev,
+					 wiphy->sar_capa->num_freq_ranges,
+					 sizeof(struct mt76_freq_range_power),
+					 GFP_KERNEL);
+	if (!dev->mt76.phy.frp)
+		return -ENOMEM;
 
 	hw->sta_data_size = sizeof(struct mt76x02_sta);
 	hw->vif_data_size = sizeof(struct mt76x02_vif);
@@ -197,6 +204,8 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 		dev->mphy.chainmask = 0x101;
 		dev->mphy.antenna_mask = 1;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_device);
 
