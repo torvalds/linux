@@ -513,7 +513,7 @@ static void macb_validate(struct phylink_config *config,
 	struct net_device *ndev = to_net_dev(config->dev);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct macb *bp = netdev_priv(ndev);
-	bool have_1g, have_sgmii, have_10g;
+	bool have_1g=false, have_sgmii=false, have_10g=false;
 
 	/* Determine what modes are supported */
 	if (macb_is_gem(bp) &&
