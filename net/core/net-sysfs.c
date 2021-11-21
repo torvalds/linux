@@ -1448,7 +1448,7 @@ static ssize_t xps_queue_show(struct net_device *dev, unsigned int index,
 
 		for (i = map->len; i--;) {
 			if (map->queues[i] == index) {
-				set_bit(j, mask);
+				__set_bit(j, mask);
 				break;
 			}
 		}
