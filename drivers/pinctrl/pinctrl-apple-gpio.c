@@ -373,7 +373,6 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 	pctl->gpio_chip.base = -1;
 	pctl->gpio_chip.ngpio = pctl->pinctrl_desc.npins;
 	pctl->gpio_chip.parent = pctl->dev;
-	pctl->gpio_chip.of_node = pctl->dev->of_node;
 
 	if (girq->num_parents) {
 		int i;
