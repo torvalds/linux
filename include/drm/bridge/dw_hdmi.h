@@ -126,9 +126,9 @@ struct dw_hdmi_link_config {
 	bool dsc_mode;
 	bool frl_mode;
 	int frl_lanes;
-	int rate_per_rate;
+	int rate_per_lane;
 	int hcactive;
-	u8 *pps_payload;
+	u8 pps_payload[128];
 };
 
 struct dw_hdmi_phy_ops {
