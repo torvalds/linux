@@ -4919,9 +4919,9 @@ int move_hugetlb_page_tables(struct vm_area_struct *vma,
 
 		move_huge_pte(vma, old_addr, new_addr, src_pte);
 	}
-	i_mmap_unlock_write(mapping);
 	flush_tlb_range(vma, old_end - len, old_end);
 	mmu_notifier_invalidate_range_end(&range);
+	i_mmap_unlock_write(mapping);
 
 	return len + old_addr - old_end;
 }
