@@ -281,6 +281,8 @@ properties:
           - sensirion,sgp30
             # Sensirion gas sensor with I2C interface
           - sensirion,sgp40
+            # Sensirion temperature & humidity sensor with I2C interface
+          - sensirion,sht4x
             # Sensortek 3 axis accelerometer
           - sensortek,stk8312
             # Sensortek 3 axis accelerometer
