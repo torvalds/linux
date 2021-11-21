@@ -2591,6 +2591,7 @@ struct last_error_session_info {
  *                        protocol will throw an error. Relevant only for
  *                        cases where Linux was not loaded to device CPU
  * @supports_wait_for_multi_cs: true if wait for multi CS is supported
+ * @is_in_soft_reset: Device is currently in soft reset process.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2719,6 +2720,7 @@ struct hl_device {
 	u8				device_cpu_is_halted;
 	u8				supports_wait_for_multi_cs;
 	u8				stream_master_qid_arr_size;
+	u8				is_in_soft_reset;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;

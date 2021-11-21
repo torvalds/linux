@@ -1019,6 +1019,8 @@ do_reset:
 
 		handle_reset_trigger(hdev, flags);
 
+		hdev->is_in_soft_reset = !hard_reset;
+
 		/* This also blocks future CS/VM/JOB completion operations */
 		hdev->disabled = true;
 
@@ -1171,6 +1173,7 @@ kill_processes:
 	 * is required for the initialization itself
 	 */
 	hdev->disabled = false;
+	hdev->is_in_soft_reset = false;
 
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
@@ -1242,6 +1245,7 @@ kill_processes:
 
 out_err:
 	hdev->disabled = true;
+	hdev->is_in_soft_reset = false;
 
 	if (hard_reset) {
 		dev_err(hdev->dev, "Failed to reset! Device is NOT usable\n");
