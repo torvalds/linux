@@ -119,7 +119,7 @@ static int apple_gpio_dt_node_to_map(struct pinctrl_dev *pctldev,
 		dev_err(pctl->dev,
 			"missing or empty pinmux property in node %pOFn.\n",
 			node);
-		return ret;
+		return ret ? ret : -EINVAL;
 	}
 
 	num_pins = ret;
