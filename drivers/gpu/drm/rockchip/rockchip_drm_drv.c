@@ -581,6 +581,10 @@ void parse_edid_forum_vsdb(struct rockchip_drm_dsc_cap *dsc_cap,
 	max_frl_rate = (hf_vsdb[7] & EDID_MAX_FRL_RATE_MASK) >> 4;
 	get_max_frl_rate(max_frl_rate, max_lanes,
 			 max_frl_rate_per_lane);
+
+	if (cea_db_payload_len(hf_vsdb) < 13)
+		return;
+
 	dsc_cap->v_1p2 = hf_vsdb[11] & EDID_DSC_1P2;
 
 	if (!dsc_cap->v_1p2)
