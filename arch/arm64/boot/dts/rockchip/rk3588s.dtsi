@@ -1473,26 +1473,11 @@
 						 <&cru ACLK_PHP_ROOT>;
 				};
 			};
-			power-domain@RK3588_PD_NVM {
-				reg = <RK3588_PD_NVM>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				power-domain@RK3588_PD_NVM0 {
-					reg = <RK3588_PD_NVM0>;
-					clocks = <&cru HCLK_EMMC>,
-						 <&cru ACLK_EMMC>,
-						 <&cru HCLK_SFC>,
-						 <&cru HCLK_SFC_XIP>;
-					pm_qos = <&qos_emmc>,
-						 <&qos_fspi>;
-				};
-				power-domain@RK3588_PD_SDIO {
-					reg = <RK3588_PD_SDIO>;
-					clocks = <&cru HCLK_SDIO>,
-						 <&cru HCLK_NVM_ROOT>;
-					pm_qos = <&qos_sdio>;
-				};
+			power-domain@RK3588_PD_SDIO {
+				reg = <RK3588_PD_SDIO>;
+				clocks = <&cru HCLK_SDIO>,
+					 <&cru HCLK_NVM_ROOT>;
+				pm_qos = <&qos_sdio>;
 			};
 			power-domain@RK3588_PD_AUDIO {
 				reg = <RK3588_PD_AUDIO>;
@@ -2740,16 +2725,6 @@
 		reg = <0x0 0xfdf36000 0x0 0x20>;
 	};
 
-	qos_fspi: qos@fdf38000 {
-		compatible = "syscon";
-		reg = <0x0 0xfdf38000 0x0 0x20>;
-	};
-
-	qos_emmc: qos@fdf38200 {
-		compatible = "syscon";
-		reg = <0x0 0xfdf38200 0x0 0x20>;
-	};
-
 	qos_sdio: qos@fdf39000 {
 		compatible = "syscon";
 		reg = <0x0 0xfdf39000 0x0 0x20>;
@@ -3229,7 +3204,6 @@
 			 <&cru TMCLK_EMMC>;
 		clock-names = "core", "bus", "axi", "block", "timer";
 		max-frequency = <200000000>;
-		power-domains = <&power RK3588_PD_NVM0>;
 		status = "disabled";
 	};
 
