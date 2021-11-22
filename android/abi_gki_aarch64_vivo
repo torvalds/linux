@@ -1673,6 +1673,7 @@
   trace_event_reg
   trace_handle_return
   __traceiter_android_rvh_account_irq
+  __traceiter_android_rvh_binder_transaction
   __traceiter_android_rvh_build_perf_domains
   __traceiter_android_rvh_can_migrate_task
   __traceiter_android_rvh_check_preempt_wakeup
@@ -1772,6 +1773,7 @@
   __traceiter_usb_gadget_connect
   __traceiter_usb_gadget_disconnect
   __tracepoint_android_rvh_account_irq
+  __tracepoint_android_rvh_binder_transaction
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_check_preempt_wakeup
