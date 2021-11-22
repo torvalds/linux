@@ -61,16 +61,12 @@ struct chip_data {
 	u32 cr1;
 	u32 dds_rate;
 	u32 timeout;
-	u8 n_bytes;
 	u8 enable_dma;
 	u32 dma_burst_size;
 	u32 dma_threshold;
 	u32 threshold;
 	u16 lpss_rx_threshold;
 	u16 lpss_tx_threshold;
-
-	int (*write)(struct driver_data *drv_data);
-	int (*read)(struct driver_data *drv_data);
 
 	void (*cs_control)(u32 command);
 };
