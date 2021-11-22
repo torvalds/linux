@@ -1455,13 +1455,13 @@ static void vop2_win_multi_area_disable(struct vop2_win *parent)
 	}
 }
 
-static void vop2_win_disable(struct vop2_win *win)
+static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 {
 	struct vop2 *vop2 = win->vop2;
 
 	/* Disable the right splice win */
-	if (win->splice_win) {
-		vop2_win_disable(win->splice_win);
+	if (win->splice_win && !skip_splice_win) {
+		vop2_win_disable(win->splice_win, false);
 		win->left_win = NULL;
 		win->splice_win = NULL;
 		win->splice_mode_right = false;
@@ -2183,7 +2183,7 @@ static void vop2_disable_all_planes_for_crtc(struct drm_crtc *crtc)
 	for_each_set_bit(phys_id, &win_mask, ROCKCHIP_MAX_LAYER) {
 		win = vop2_find_win_by_phys_id(vop2, phys_id);
 		need_wait_win_disabled |= VOP_WIN_GET(vop2, win, enable);
-		vop2_win_disable(win);
+		vop2_win_disable(win, false);
 	}
 
 	if (need_wait_win_disabled) {
@@ -3558,9 +3558,9 @@ static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_plane_
 
 	spin_lock(&vop2->reg_lock);
 
-	vop2_win_disable(win);
+	vop2_win_disable(win, false);
 	if (win->splice_win)
-		vop2_win_disable(win->splice_win);
+		vop2_win_disable(win->splice_win, false);
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	kfree(vpstate->planlist);
@@ -3721,7 +3721,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	actual_h = drm_rect_height(src) >> 16;
 
 	if (!actual_w || !actual_h) {
-		vop2_win_disable(win);
+		if (win->splice_win)
+			vop2_win_disable(win, true);
 		return;
 	}
 
