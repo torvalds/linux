@@ -1790,6 +1790,7 @@ static int fd_alloc_disk(int drive, int system)
 	disk->first_minor = drive + system;
 	disk->minors = 1;
 	disk->fops = &floppy_fops;
+	disk->flags |= GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	if (system)
 		sprintf(disk->disk_name, "fd%d_msdos", drive);

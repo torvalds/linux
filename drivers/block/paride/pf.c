@@ -942,6 +942,7 @@ static int __init pf_init_unit(struct pf_unit *pf, bool autoprobe, int port,
 	disk->minors = 1;
 	strcpy(disk->disk_name, pf->name);
 	disk->fops = &pf_fops;
+	disk->flags |= GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->private_data = pf;
 

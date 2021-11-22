@@ -4503,6 +4503,7 @@ static int floppy_alloc_disk(unsigned int drive, unsigned int type)
 	disk->first_minor = TOMINOR(drive) | (type << 2);
 	disk->minors = 1;
 	disk->fops = &floppy_fops;
+	disk->flags |= GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	if (type)
 		sprintf(disk->disk_name, "fd%d_type%d", drive, type);

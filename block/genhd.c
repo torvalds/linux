@@ -376,7 +376,7 @@ int disk_scan_partitions(struct gendisk *disk, fmode_t mode)
 {
 	struct block_device *bdev;
 
-	if (!disk_part_scan_enabled(disk))
+	if (disk->flags & GENHD_FL_NO_PART)
 		return -EINVAL;
 	if (disk->open_partitions)
 		return -EBUSY;
@@ -438,7 +438,6 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 			return ret;
 		disk->major = BLOCK_EXT_MAJOR;
 		disk->first_minor = ret;
-		disk->flags |= GENHD_FL_EXT_DEVT;
 	}
 
 	ret = disk_alloc_events(disk);
@@ -872,7 +871,8 @@ static ssize_t disk_ext_range_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n", disk_max_parts(disk));
+	return sprintf(buf, "%d\n",
+		(disk->flags & GENHD_FL_NO_PART) ? 1 : DISK_MAX_PARTS);
 }
 
 static ssize_t disk_removable_show(struct device *dev,

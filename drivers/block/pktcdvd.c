@@ -2719,7 +2719,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	disk->first_minor = idx;
 	disk->minors = 1;
 	disk->fops = &pktcdvd_ops;
-	disk->flags = GENHD_FL_REMOVABLE;
+	disk->flags = GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
 	strcpy(disk->disk_name, pd->name);
 	disk->private_data = pd;
 

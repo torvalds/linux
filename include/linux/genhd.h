@@ -46,11 +46,6 @@ struct partition_meta_info {
  * Must not be set for devices which are removed entirely when the
  * media is removed.
  *
- * ``GENHD_FL_EXT_DEVT`` (0x0040): the driver supports extended
- * dynamic ``dev_t``, i.e. it wants extended device numbers
- * (``BLOCK_EXT_MAJOR``).
- * This affects the maximum number of partitions.
- *
  * ``GENHD_FL_NO_PART`` (0x0200): partition support is disabled.
  * The kernel will not scan for partitions from add_disk, and users
  * can't add partitions manually.
@@ -64,7 +59,6 @@ struct partition_meta_info {
 #define GENHD_FL_REMOVABLE			0x0001
 /* 2 is unused (used to be GENHD_FL_DRIVERFS) */
 /* 4 is unused (used to be GENHD_FL_MEDIA_CHANGE_NOTIFY) */
-#define GENHD_FL_EXT_DEVT			0x0040
 #define GENHD_FL_NO_PART			0x0200
 #define GENHD_FL_HIDDEN				0x0400
 
@@ -94,13 +88,13 @@ struct blk_integrity {
 };
 
 struct gendisk {
-	/* major, first_minor and minors are input parameters only,
-	 * don't use directly.  Use disk_devt() and disk_max_parts().
+	/*
+	 * major/first_minor/minors should not be set by any new driver, the
+	 * block core will take care of allocating them automatically.
 	 */
-	int major;			/* major number of driver */
+	int major;
 	int first_minor;
-	int minors;                     /* maximum number of minors, =1 for
-                                         * disks that can't be partitioned. */
+	int minors;
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
 
@@ -163,18 +157,6 @@ static inline bool disk_live(struct gendisk *disk)
 #else
 #define disk_to_cdi(disk)	NULL
 #endif
-
-static inline int disk_max_parts(struct gendisk *disk)
-{
-	if (disk->flags & GENHD_FL_EXT_DEVT)
-		return DISK_MAX_PARTS;
-	return disk->minors;
-}
-
-static inline bool disk_part_scan_enabled(struct gendisk *disk)
-{
-	return disk_max_parts(disk) > 1 && !(disk->flags & GENHD_FL_NO_PART);
-}
 
 static inline dev_t disk_devt(struct gendisk *disk)
 {

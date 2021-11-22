@@ -2000,6 +2000,7 @@ static int ataflop_alloc_disk(unsigned int drive, unsigned int type)
 	disk->minors = 1;
 	sprintf(disk->disk_name, "fd%d", drive);
 	disk->fops = &floppy_fops;
+	disk->flags |= GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->private_data = &unit[drive];
 	set_capacity(disk, MAX_DISK_SIZE * 2);
