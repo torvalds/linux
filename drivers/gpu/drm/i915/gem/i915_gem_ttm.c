@@ -418,6 +418,7 @@ int i915_ttm_purge(struct drm_i915_gem_object *obj)
 }
 
 static int i915_ttm_shrinker_release_pages(struct drm_i915_gem_object *obj,
+					   bool no_wait_gpu,
 					   bool should_writeback)
 {
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
@@ -425,7 +426,7 @@ static int i915_ttm_shrinker_release_pages(struct drm_i915_gem_object *obj,
 		container_of(bo->ttm, typeof(*i915_tt), ttm);
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false,
+		.no_wait_gpu = no_wait_gpu,
 	};
 	struct ttm_placement place = {};
 	int ret;
@@ -437,6 +438,10 @@ static int i915_ttm_shrinker_release_pages(struct drm_i915_gem_object *obj,
 
 	if (!i915_tt->filp)
 		return 0;
+
+	ret = ttm_bo_wait_ctx(bo, &ctx);
+	if (ret)
+		return ret;
 
 	switch (obj->mm.madv) {
 	case I915_MADV_DONTNEED:

@@ -60,6 +60,7 @@ static int try_to_writeback(struct drm_i915_gem_object *obj, unsigned int flags)
 {
 	if (obj->ops->shrinker_release_pages)
 		return obj->ops->shrinker_release_pages(obj,
+							!(flags & I915_SHRINK_ACTIVE),
 							flags & I915_SHRINK_WRITEBACK);
 
 	switch (obj->mm.madv) {
