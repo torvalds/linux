@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -122,6 +123,10 @@
 #define BIT_DATA_FROM_MIPI		BIT(22)
 #define BIT_MIPI_YU_SWAP		BIT(21)
 #define BIT_MIPI_DOUBLE_CMPNT		BIT(20)
+#define BIT_MASK_OPTION_FIRST_FRAME	(0 << 18)
+#define BIT_MASK_OPTION_CSI_EN		(1 << 18)
+#define BIT_MASK_OPTION_SECOND_FRAME	(2 << 18)
+#define BIT_MASK_OPTION_ON_DATA		(3 << 18)
 #define BIT_BASEADDR_CHG_ERR_EN		BIT(9)
 #define BIT_BASEADDR_SWITCH_SEL		BIT(5)
 #define BIT_BASEADDR_SWITCH_EN		BIT(4)
@@ -153,6 +158,11 @@
 
 #define CSI_CSICR18			0x48
 #define CSI_CSICR19			0x4c
+
+enum imx_csi_model {
+	IMX7_CSI_IMX7 = 0,
+	IMX7_CSI_IMX8MQ,
+};
 
 struct imx7_csi {
 	struct device *dev;
@@ -189,6 +199,8 @@ struct imx7_csi {
 	bool is_csi2;
 
 	struct completion last_eof_completion;
+
+	enum imx_csi_model model;
 };
 
 static struct imx7_csi *
@@ -537,6 +549,16 @@ static void imx7_csi_deinit(struct imx7_csi *csi,
 	clk_disable_unprepare(csi->mclk);
 }
 
+static void imx7_csi_baseaddr_switch_on_second_frame(struct imx7_csi *csi)
+{
+	u32 cr18 = imx7_csi_reg_read(csi, CSI_CSICR18);
+
+	cr18 |= BIT_BASEADDR_SWITCH_EN | BIT_BASEADDR_SWITCH_SEL |
+		BIT_BASEADDR_CHG_ERR_EN;
+	cr18 |= BIT_MASK_OPTION_SECOND_FRAME;
+	imx7_csi_reg_write(csi, cr18, CSI_CSICR18);
+}
+
 static void imx7_csi_enable(struct imx7_csi *csi)
 {
 	/* Clear the Rx FIFO and reflash the DMA controller. */
@@ -552,6 +574,9 @@ static void imx7_csi_enable(struct imx7_csi *csi)
 	/* Enable the RxFIFO DMA and the CSI. */
 	imx7_csi_dmareq_rff_enable(csi);
 	imx7_csi_hw_enable(csi);
+
+	if (csi->model == IMX7_CSI_IMX8MQ)
+		imx7_csi_baseaddr_switch_on_second_frame(csi);
 }
 
 static void imx7_csi_disable(struct imx7_csi *csi)
@@ -1155,6 +1180,8 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	if (IS_ERR(csi->regbase))
 		return PTR_ERR(csi->regbase);
 
+	csi->model = (enum imx_csi_model)(uintptr_t)of_device_get_match_data(&pdev->dev);
+
 	spin_lock_init(&csi->irqlock);
 	mutex_init(&csi->lock);
 
@@ -1249,8 +1276,9 @@ static int imx7_csi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id imx7_csi_of_match[] = {
-	{ .compatible = "fsl,imx7-csi" },
-	{ .compatible = "fsl,imx6ul-csi" },
+	{ .compatible = "fsl,imx8mq-csi", .data = (void *)IMX7_CSI_IMX8MQ },
+	{ .compatible = "fsl,imx7-csi", .data = (void *)IMX7_CSI_IMX7 },
+	{ .compatible = "fsl,imx6ul-csi", .data = (void *)IMX7_CSI_IMX7 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, imx7_csi_of_match);
