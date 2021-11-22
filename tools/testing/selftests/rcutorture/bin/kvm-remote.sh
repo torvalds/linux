@@ -157,8 +157,15 @@ do
 	ret=$?
 	if test "$ret" -ne 0
 	then
-		echo Unable to download $T/binres.tgz to system $i, giving up. | tee -a "$oldrun/remote-log"
-		exit 10 | tee -a "$oldrun/remote-log"
+		echo Unable to download $T/binres.tgz to system $i, waiting and then retrying. | tee -a "$oldrun/remote-log"
+		sleep 60
+		cat $T/binres.tgz | ssh $i "cd /tmp; tar -xzf -"
+		ret=$?
+		if test "$ret" -ne 0
+		then
+			echo Unable to download $T/binres.tgz to system $i, giving up. | tee -a "$oldrun/remote-log"
+			exit 10
+		fi
 	fi
 done
 
