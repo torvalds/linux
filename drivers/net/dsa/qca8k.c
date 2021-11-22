@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/netdevice.h>
+#include <linux/bitfield.h>
 #include <net/dsa.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
@@ -319,18 +320,18 @@ qca8k_fdb_read(struct qca8k_priv *priv, struct qca8k_fdb *fdb)
 	}
 
 	/* vid - 83:72 */
-	fdb->vid = (reg[2] >> QCA8K_ATU_VID_S) & QCA8K_ATU_VID_M;
+	fdb->vid = FIELD_GET(QCA8K_ATU_VID_MASK, reg[2]);
 	/* aging - 67:64 */
-	fdb->aging = reg[2] & QCA8K_ATU_STATUS_M;
+	fdb->aging = FIELD_GET(QCA8K_ATU_STATUS_MASK, reg[2]);
 	/* portmask - 54:48 */
-	fdb->port_mask = (reg[1] >> QCA8K_ATU_PORT_S) & QCA8K_ATU_PORT_M;
+	fdb->port_mask = FIELD_GET(QCA8K_ATU_PORT_MASK, reg[1]);
 	/* mac - 47:0 */
-	fdb->mac[0] = (reg[1] >> QCA8K_ATU_ADDR0_S) & 0xff;
-	fdb->mac[1] = reg[1] & 0xff;
-	fdb->mac[2] = (reg[0] >> QCA8K_ATU_ADDR2_S) & 0xff;
-	fdb->mac[3] = (reg[0] >> QCA8K_ATU_ADDR3_S) & 0xff;
-	fdb->mac[4] = (reg[0] >> QCA8K_ATU_ADDR4_S) & 0xff;
-	fdb->mac[5] = reg[0] & 0xff;
+	fdb->mac[0] = FIELD_GET(QCA8K_ATU_ADDR0_MASK, reg[1]);
+	fdb->mac[1] = FIELD_GET(QCA8K_ATU_ADDR1_MASK, reg[1]);
+	fdb->mac[2] = FIELD_GET(QCA8K_ATU_ADDR2_MASK, reg[0]);
+	fdb->mac[3] = FIELD_GET(QCA8K_ATU_ADDR3_MASK, reg[0]);
+	fdb->mac[4] = FIELD_GET(QCA8K_ATU_ADDR4_MASK, reg[0]);
+	fdb->mac[5] = FIELD_GET(QCA8K_ATU_ADDR5_MASK, reg[0]);
 
 	return 0;
 }
@@ -343,18 +344,18 @@ qca8k_fdb_write(struct qca8k_priv *priv, u16 vid, u8 port_mask, const u8 *mac,
 	int i;
 
 	/* vid - 83:72 */
-	reg[2] = (vid & QCA8K_ATU_VID_M) << QCA8K_ATU_VID_S;
+	reg[2] = FIELD_PREP(QCA8K_ATU_VID_MASK, vid);
 	/* aging - 67:64 */
-	reg[2] |= aging & QCA8K_ATU_STATUS_M;
+	reg[2] |= FIELD_PREP(QCA8K_ATU_STATUS_MASK, aging);
 	/* portmask - 54:48 */
-	reg[1] = (port_mask & QCA8K_ATU_PORT_M) << QCA8K_ATU_PORT_S;
+	reg[1] = FIELD_PREP(QCA8K_ATU_PORT_MASK, port_mask);
 	/* mac - 47:0 */
-	reg[1] |= mac[0] << QCA8K_ATU_ADDR0_S;
-	reg[1] |= mac[1];
-	reg[0] |= mac[2] << QCA8K_ATU_ADDR2_S;
-	reg[0] |= mac[3] << QCA8K_ATU_ADDR3_S;
-	reg[0] |= mac[4] << QCA8K_ATU_ADDR4_S;
-	reg[0] |= mac[5];
+	reg[1] |= FIELD_PREP(QCA8K_ATU_ADDR0_MASK, mac[0]);
+	reg[1] |= FIELD_PREP(QCA8K_ATU_ADDR1_MASK, mac[1]);
+	reg[0] |= FIELD_PREP(QCA8K_ATU_ADDR2_MASK, mac[2]);
+	reg[0] |= FIELD_PREP(QCA8K_ATU_ADDR3_MASK, mac[3]);
+	reg[0] |= FIELD_PREP(QCA8K_ATU_ADDR4_MASK, mac[4]);
+	reg[0] |= FIELD_PREP(QCA8K_ATU_ADDR5_MASK, mac[5]);
 
 	/* load the array into the ARL table */
 	for (i = 0; i < 3; i++)
@@ -372,7 +373,7 @@ qca8k_fdb_access(struct qca8k_priv *priv, enum qca8k_fdb_cmd cmd, int port)
 	reg |= cmd;
 	if (port >= 0) {
 		reg |= QCA8K_ATU_FUNC_PORT_EN;
-		reg |= (port & QCA8K_ATU_FUNC_PORT_M) << QCA8K_ATU_FUNC_PORT_S;
+		reg |= FIELD_PREP(QCA8K_ATU_FUNC_PORT_MASK, port);
 	}
 
 	/* Write the function register triggering the table access */
@@ -454,7 +455,7 @@ qca8k_vlan_access(struct qca8k_priv *priv, enum qca8k_vlan_cmd cmd, u16 vid)
 	/* Set the command and VLAN index */
 	reg = QCA8K_VTU_FUNC1_BUSY;
 	reg |= cmd;
-	reg |= vid << QCA8K_VTU_FUNC1_VID_S;
+	reg |= FIELD_PREP(QCA8K_VTU_FUNC1_VID_MASK, vid);
 
 	/* Write the function register triggering the table access */
 	ret = qca8k_write(priv, QCA8K_REG_VTU_FUNC1, reg);
@@ -500,13 +501,11 @@ qca8k_vlan_add(struct qca8k_priv *priv, u8 port, u16 vid, bool untagged)
 	if (ret < 0)
 		goto out;
 	reg |= QCA8K_VTU_FUNC0_VALID | QCA8K_VTU_FUNC0_IVL_EN;
-	reg &= ~(QCA8K_VTU_FUNC0_EG_MODE_MASK << QCA8K_VTU_FUNC0_EG_MODE_S(port));
+	reg &= ~QCA8K_VTU_FUNC0_EG_MODE_PORT_MASK(port);
 	if (untagged)
-		reg |= QCA8K_VTU_FUNC0_EG_MODE_UNTAG <<
-				QCA8K_VTU_FUNC0_EG_MODE_S(port);
+		reg |= QCA8K_VTU_FUNC0_EG_MODE_PORT_UNTAG(port);
 	else
-		reg |= QCA8K_VTU_FUNC0_EG_MODE_TAG <<
-				QCA8K_VTU_FUNC0_EG_MODE_S(port);
+		reg |= QCA8K_VTU_FUNC0_EG_MODE_PORT_TAG(port);
 
 	ret = qca8k_write(priv, QCA8K_REG_VTU_FUNC0, reg);
 	if (ret)
@@ -534,15 +533,13 @@ qca8k_vlan_del(struct qca8k_priv *priv, u8 port, u16 vid)
 	ret = qca8k_read(priv, QCA8K_REG_VTU_FUNC0, &reg);
 	if (ret < 0)
 		goto out;
-	reg &= ~(3 << QCA8K_VTU_FUNC0_EG_MODE_S(port));
-	reg |= QCA8K_VTU_FUNC0_EG_MODE_NOT <<
-			QCA8K_VTU_FUNC0_EG_MODE_S(port);
+	reg &= ~QCA8K_VTU_FUNC0_EG_MODE_PORT_MASK(port);
+	reg |= QCA8K_VTU_FUNC0_EG_MODE_PORT_NOT(port);
 
 	/* Check if we're the last member to be removed */
 	del = true;
 	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
-		mask = QCA8K_VTU_FUNC0_EG_MODE_NOT;
-		mask <<= QCA8K_VTU_FUNC0_EG_MODE_S(i);
+		mask = QCA8K_VTU_FUNC0_EG_MODE_PORT_NOT(i);
 
 		if ((reg & mask) != mask) {
 			del = false;
@@ -1014,7 +1011,7 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 				 mode == PHY_INTERFACE_MODE_RGMII_TXID)
 				delay = 1;
 
-			if (delay > QCA8K_MAX_DELAY) {
+			if (!FIELD_FIT(QCA8K_PORT_PAD_RGMII_TX_DELAY_MASK, delay)) {
 				dev_err(priv->dev, "rgmii tx delay is limited to a max value of 3ns, setting to the max value");
 				delay = 3;
 			}
@@ -1030,7 +1027,7 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 				 mode == PHY_INTERFACE_MODE_RGMII_RXID)
 				delay = 2;
 
-			if (delay > QCA8K_MAX_DELAY) {
+			if (!FIELD_FIT(QCA8K_PORT_PAD_RGMII_RX_DELAY_MASK, delay)) {
 				dev_err(priv->dev, "rgmii rx delay is limited to a max value of 3ns, setting to the max value");
 				delay = 3;
 			}
@@ -1141,8 +1138,8 @@ qca8k_setup(struct dsa_switch *ds)
 		/* Enable QCA header mode on all cpu ports */
 		if (dsa_is_cpu_port(ds, i)) {
 			ret = qca8k_write(priv, QCA8K_REG_PORT_HDR_CTRL(i),
-					  QCA8K_PORT_HDR_CTRL_ALL << QCA8K_PORT_HDR_CTRL_TX_S |
-					  QCA8K_PORT_HDR_CTRL_ALL << QCA8K_PORT_HDR_CTRL_RX_S);
+					  FIELD_PREP(QCA8K_PORT_HDR_CTRL_TX_MASK, QCA8K_PORT_HDR_CTRL_ALL) |
+					  FIELD_PREP(QCA8K_PORT_HDR_CTRL_RX_MASK, QCA8K_PORT_HDR_CTRL_ALL));
 			if (ret) {
 				dev_err(priv->dev, "failed enabling QCA header mode");
 				return ret;
@@ -1159,10 +1156,10 @@ qca8k_setup(struct dsa_switch *ds)
 	 * for igmp, unknown, multicast and broadcast packet
 	 */
 	ret = qca8k_write(priv, QCA8K_REG_GLOBAL_FW_CTRL1,
-			  BIT(cpu_port) << QCA8K_GLOBAL_FW_CTRL1_IGMP_DP_S |
-			  BIT(cpu_port) << QCA8K_GLOBAL_FW_CTRL1_BC_DP_S |
-			  BIT(cpu_port) << QCA8K_GLOBAL_FW_CTRL1_MC_DP_S |
-			  BIT(cpu_port) << QCA8K_GLOBAL_FW_CTRL1_UC_DP_S);
+			  FIELD_PREP(QCA8K_GLOBAL_FW_CTRL1_IGMP_DP_MASK, BIT(cpu_port)) |
+			  FIELD_PREP(QCA8K_GLOBAL_FW_CTRL1_BC_DP_MASK, BIT(cpu_port)) |
+			  FIELD_PREP(QCA8K_GLOBAL_FW_CTRL1_MC_DP_MASK, BIT(cpu_port)) |
+			  FIELD_PREP(QCA8K_GLOBAL_FW_CTRL1_UC_DP_MASK, BIT(cpu_port)));
 	if (ret)
 		return ret;
 
@@ -1180,8 +1177,6 @@ qca8k_setup(struct dsa_switch *ds)
 
 		/* Individual user ports get connected to CPU port only */
 		if (dsa_is_user_port(ds, i)) {
-			int shift = 16 * (i % 2);
-
 			ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(i),
 					QCA8K_PORT_LOOKUP_MEMBER,
 					BIT(cpu_port));
@@ -1198,8 +1193,8 @@ qca8k_setup(struct dsa_switch *ds)
 			 * default egress vid
 			 */
 			ret = qca8k_rmw(priv, QCA8K_EGRESS_VLAN(i),
-					0xfff << shift,
-					QCA8K_PORT_VID_DEF << shift);
+					QCA8K_EGREES_VLAN_PORT_MASK(i),
+					QCA8K_EGREES_VLAN_PORT(i, QCA8K_PORT_VID_DEF));
 			if (ret)
 				return ret;
 
@@ -1246,7 +1241,7 @@ qca8k_setup(struct dsa_switch *ds)
 			QCA8K_PORT_HOL_CTRL1_EG_PORT_BUF_EN |
 			QCA8K_PORT_HOL_CTRL1_WRED_EN;
 			qca8k_rmw(priv, QCA8K_REG_PORT_HOL_CTRL1(i),
-				  QCA8K_PORT_HOL_CTRL1_ING_BUF |
+				  QCA8K_PORT_HOL_CTRL1_ING_BUF_MASK |
 				  QCA8K_PORT_HOL_CTRL1_EG_PRI_BUF_EN |
 				  QCA8K_PORT_HOL_CTRL1_EG_PORT_BUF_EN |
 				  QCA8K_PORT_HOL_CTRL1_WRED_EN,
@@ -1265,8 +1260,8 @@ qca8k_setup(struct dsa_switch *ds)
 		mask = QCA8K_GLOBAL_FC_GOL_XON_THRES(288) |
 		       QCA8K_GLOBAL_FC_GOL_XOFF_THRES(496);
 		qca8k_rmw(priv, QCA8K_REG_GLOBAL_FC_THRESH,
-			  QCA8K_GLOBAL_FC_GOL_XON_THRES_S |
-			  QCA8K_GLOBAL_FC_GOL_XOFF_THRES_S,
+			  QCA8K_GLOBAL_FC_GOL_XON_THRES_MASK |
+			  QCA8K_GLOBAL_FC_GOL_XOFF_THRES_MASK,
 			  mask);
 	}
 
@@ -1912,11 +1907,11 @@ qca8k_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
 
 	if (vlan_filtering) {
 		ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),
-				QCA8K_PORT_LOOKUP_VLAN_MODE,
+				QCA8K_PORT_LOOKUP_VLAN_MODE_MASK,
 				QCA8K_PORT_LOOKUP_VLAN_MODE_SECURE);
 	} else {
 		ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),
-				QCA8K_PORT_LOOKUP_VLAN_MODE,
+				QCA8K_PORT_LOOKUP_VLAN_MODE_MASK,
 				QCA8K_PORT_LOOKUP_VLAN_MODE_NONE);
 	}
 
@@ -1940,10 +1935,9 @@ qca8k_port_vlan_add(struct dsa_switch *ds, int port,
 	}
 
 	if (pvid) {
-		int shift = 16 * (port % 2);
-
 		ret = qca8k_rmw(priv, QCA8K_EGRESS_VLAN(port),
-				0xfff << shift, vlan->vid << shift);
+				QCA8K_EGREES_VLAN_PORT_MASK(port),
+				QCA8K_EGREES_VLAN_PORT(port, vlan->vid));
 		if (ret)
 			return ret;
 
@@ -2037,7 +2031,7 @@ static int qca8k_read_switch_id(struct qca8k_priv *priv)
 	if (ret < 0)
 		return -ENODEV;
 
-	id = QCA8K_MASK_CTRL_DEVICE_ID(val & QCA8K_MASK_CTRL_DEVICE_ID_MASK);
+	id = QCA8K_MASK_CTRL_DEVICE_ID(val);
 	if (id != data->id) {
 		dev_err(priv->dev, "Switch id detected %x but expected %x", id, data->id);
 		return -ENODEV;
@@ -2046,7 +2040,7 @@ static int qca8k_read_switch_id(struct qca8k_priv *priv)
 	priv->switch_id = id;
 
 	/* Save revision to communicate to the internal PHY driver */
-	priv->switch_revision = (val & QCA8K_MASK_CTRL_REV_ID_MASK);
+	priv->switch_revision = QCA8K_MASK_CTRL_REV_ID(val);
 
 	return 0;
 }
