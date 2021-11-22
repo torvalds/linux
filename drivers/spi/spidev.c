@@ -415,7 +415,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				tmp |= SPI_CS_HIGH;
 
 			tmp |= spi->mode & ~SPI_MODE_MASK;
-			spi->mode = (u16)tmp;
+			spi->mode = tmp & SPI_MODE_USER_MASK;
 			retval = spi_setup(spi);
 			if (retval < 0)
 				spi->mode = save;
