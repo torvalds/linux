@@ -632,6 +632,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-wandboard.dtb \
 	imx6q-wandboard-revb1.dtb \
 	imx6q-wandboard-revd1.dtb \
+	imx6q-yapp4-crux.dtb \
 	imx6q-zii-rdu2.dtb \
 	imx6qp-mba6b.dtb \
 	imx6qp-nitrogen6_max.dtb \
@@ -646,6 +647,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6qp-tx6qp-8137-mb7.dtb \
 	imx6qp-vicutp.dtb \
 	imx6qp-wandboard-revd1.dtb \
+	imx6qp-yapp4-crux-plus.dtb \
 	imx6qp-zii-rdu2.dtb \
 	imx6s-dhcom-drc02.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
