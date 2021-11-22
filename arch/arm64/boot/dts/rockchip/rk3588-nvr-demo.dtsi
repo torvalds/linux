@@ -151,6 +151,24 @@
 	status = "okay";
 };
 
+&dp1 {
+	pinctrl-0 = <&dp1m2_pins &dp1_hdmi_ctl>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&dp1_in_vp0 {
+	status = "okay";
+};
+
+&dp1_in_vp1 {
+	status = "okay";
+};
+
+&dp1_in_vp2 {
+	status = "okay";
+};
+
 &gmac0 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rgmii-rxid";
@@ -448,6 +466,13 @@
 };
 
 &pinctrl {
+	dp {
+		dp1_hdmi_ctl: dp-hdmi-ctl {
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_output_high>,
+					<3 RK_PB2 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+	};
+
 	rtc {
 		rtc_int: rtc-int {
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -540,6 +565,7 @@
 };
 
 &usbdp_phy1 {
+	rockchip,dp-lane-mux = < 0 1 2 3 >;
 	status = "okay";
 };
 
