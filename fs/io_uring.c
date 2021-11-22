@@ -4366,6 +4366,7 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx, struct io_buffer *buf,
 		kfree(nxt);
 		if (++i == nbufs)
 			return i;
+		cond_resched();
 	}
 	i++;
 	kfree(buf);
@@ -9295,10 +9296,8 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 	struct io_buffer *buf;
 	unsigned long index;
 
-	xa_for_each(&ctx->io_buffers, index, buf) {
+	xa_for_each(&ctx->io_buffers, index, buf)
 		__io_remove_buffers(ctx, buf, index, -1U);
-		cond_resched();
-	}
 }
 
 static void io_req_caches_free(struct io_ring_ctx *ctx)
