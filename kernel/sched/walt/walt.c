@@ -384,8 +384,9 @@ update_window_start(struct rq *rq, u64 wallclock, int event)
 
 	delta = wallclock - wrq->window_start;
 	if (delta < 0) {
-		printk_deferred("WALT-BUG CPU%d; wallclock=%llu is lesser than window_start=%llu",
-				rq->cpu, wallclock, wrq->window_start);
+		printk_deferred("WALT-BUG CPU%d; wallclock=%llu(0x%llx) is lesser than window_start=%llu(0x%llx)",
+				rq->cpu, wallclock, wallclock,
+				wrq->window_start, wrq->window_start);
 		WALT_PANIC(1);
 	}
 	if (delta < sched_ravg_window)
@@ -2124,9 +2125,9 @@ update_task_rq_cpu_cycles(struct task_struct *p, struct rq *rq, int event,
 			time_delta = wallclock - wts->mark_start;
 
 		if ((s64)time_delta < 0) {
-			printk_deferred("WALT-BUG pid=%u CPU%d wallclock=%llu < mark_start=%llu event=%d irqtime=%llu",
-					 p->pid, rq->cpu, wallclock,
-					 wts->mark_start, event, irqtime);
+			printk_deferred("WALT-BUG pid=%u CPU%d wallclock=%llu(0x%llx) < mark_start=%llu(0x%llx) event=%d irqtime=%llu",
+					 p->pid, rq->cpu, wallclock, wallclock,
+					 wts->mark_start, wts->mark_start, event, irqtime);
 			WALT_PANIC((s64)time_delta < 0);
 		}
 
