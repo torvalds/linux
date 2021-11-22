@@ -2806,6 +2806,8 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 					 &reservation.k_i,
 				&disk_res, NULL,
 				0, &i_sectors_delta, true);
+		if (ret)
+			goto bkey_err;
 		i_sectors_acct(c, inode, &quota_res, i_sectors_delta);
 bkey_err:
 		bch2_quota_reservation_put(c, inode, &quota_res);
