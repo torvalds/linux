@@ -232,7 +232,7 @@ static void __init sunxi_r_ccu_init(struct device_node *node,
 		return;
 	}
 
-	sunxi_ccu_probe(node, reg, desc);
+	of_sunxi_ccu_probe(node, reg, desc);
 }
 
 static void __init sun50i_h6_r_ccu_setup(struct device_node *node)

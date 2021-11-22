@@ -94,16 +94,6 @@ enum {
 	TEST_OUT_BIT9,
 	TEST_OUT_BIT10,
 	TEST_OUT_BIT11,
-	TEST_OUT_BIT12,
-	TEST_OUT_BIT13,
-	TEST_OUT_BIT14,
-	TEST_OUT_BIT15,
-	TEST_OUT_BIT16,
-	TEST_OUT_BIT17,
-	TEST_OUT_BIT18,
-	TEST_OUT_BIT19,
-	TEST_OUT_BIT20,
-	TEST_OUT_BIT21,
 	TEST_OUT_BIT22,
 	TEST_OUT_FULL_SUPP_TRACE,
 
@@ -125,16 +115,6 @@ enum {
 	TEST_IN_BIT9,
 	TEST_IN_BIT10,
 	TEST_IN_BIT11,
-	TEST_IN_BIT12,
-	TEST_IN_BIT13,
-	TEST_IN_BIT14,
-	TEST_IN_BIT15,
-	TEST_IN_BIT16,
-	TEST_IN_BIT17,
-	TEST_IN_BIT18,
-	TEST_IN_BIT19,
-	TEST_IN_BIT20,
-	TEST_IN_BIT21,
 	TEST_IN_BIT22,
 	TEST_IN_FULL_SUPP_TRACE,
 
@@ -198,30 +178,6 @@ static int check_ioam_header(int tid, struct ioam6_trace_hdr *ioam6h,
 		return ioam6h->overflow ||
 		       ioam6h->nodelen != 2 ||
 		       ioam6h->remlen;
-
-	case TEST_OUT_BIT12:
-	case TEST_IN_BIT12:
-	case TEST_OUT_BIT13:
-	case TEST_IN_BIT13:
-	case TEST_OUT_BIT14:
-	case TEST_IN_BIT14:
-	case TEST_OUT_BIT15:
-	case TEST_IN_BIT15:
-	case TEST_OUT_BIT16:
-	case TEST_IN_BIT16:
-	case TEST_OUT_BIT17:
-	case TEST_IN_BIT17:
-	case TEST_OUT_BIT18:
-	case TEST_IN_BIT18:
-	case TEST_OUT_BIT19:
-	case TEST_IN_BIT19:
-	case TEST_OUT_BIT20:
-	case TEST_IN_BIT20:
-	case TEST_OUT_BIT21:
-	case TEST_IN_BIT21:
-		return ioam6h->overflow ||
-		       ioam6h->nodelen ||
-		       ioam6h->remlen != 1;
 
 	case TEST_OUT_BIT22:
 	case TEST_IN_BIT22:
@@ -321,6 +277,66 @@ static int check_ioam6_data(__u8 **p, struct ioam6_trace_hdr *ioam6h,
 	}
 
 	if (ioam6h->type.bit11) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit12) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit13) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit14) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit15) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit16) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit17) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit18) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit19) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit20) {
+		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
+			return 1;
+		*p += sizeof(__u32);
+	}
+
+	if (ioam6h->type.bit21) {
 		if (__be32_to_cpu(*((__u32 *)*p)) != 0xffffffff)
 			return 1;
 		*p += sizeof(__u32);
@@ -455,26 +471,6 @@ static int str2id(const char *tname)
 		return TEST_OUT_BIT10;
 	if (!strcmp("out_bit11", tname))
 		return TEST_OUT_BIT11;
-	if (!strcmp("out_bit12", tname))
-		return TEST_OUT_BIT12;
-	if (!strcmp("out_bit13", tname))
-		return TEST_OUT_BIT13;
-	if (!strcmp("out_bit14", tname))
-		return TEST_OUT_BIT14;
-	if (!strcmp("out_bit15", tname))
-		return TEST_OUT_BIT15;
-	if (!strcmp("out_bit16", tname))
-		return TEST_OUT_BIT16;
-	if (!strcmp("out_bit17", tname))
-		return TEST_OUT_BIT17;
-	if (!strcmp("out_bit18", tname))
-		return TEST_OUT_BIT18;
-	if (!strcmp("out_bit19", tname))
-		return TEST_OUT_BIT19;
-	if (!strcmp("out_bit20", tname))
-		return TEST_OUT_BIT20;
-	if (!strcmp("out_bit21", tname))
-		return TEST_OUT_BIT21;
 	if (!strcmp("out_bit22", tname))
 		return TEST_OUT_BIT22;
 	if (!strcmp("out_full_supp_trace", tname))
@@ -509,26 +505,6 @@ static int str2id(const char *tname)
 		return TEST_IN_BIT10;
 	if (!strcmp("in_bit11", tname))
 		return TEST_IN_BIT11;
-	if (!strcmp("in_bit12", tname))
-		return TEST_IN_BIT12;
-	if (!strcmp("in_bit13", tname))
-		return TEST_IN_BIT13;
-	if (!strcmp("in_bit14", tname))
-		return TEST_IN_BIT14;
-	if (!strcmp("in_bit15", tname))
-		return TEST_IN_BIT15;
-	if (!strcmp("in_bit16", tname))
-		return TEST_IN_BIT16;
-	if (!strcmp("in_bit17", tname))
-		return TEST_IN_BIT17;
-	if (!strcmp("in_bit18", tname))
-		return TEST_IN_BIT18;
-	if (!strcmp("in_bit19", tname))
-		return TEST_IN_BIT19;
-	if (!strcmp("in_bit20", tname))
-		return TEST_IN_BIT20;
-	if (!strcmp("in_bit21", tname))
-		return TEST_IN_BIT21;
 	if (!strcmp("in_bit22", tname))
 		return TEST_IN_BIT22;
 	if (!strcmp("in_full_supp_trace", tname))
@@ -606,16 +582,6 @@ static int (*func[__TEST_MAX])(int, struct ioam6_trace_hdr *, __u32, __u16) = {
 	[TEST_OUT_BIT9]		= check_ioam_header_and_data,
 	[TEST_OUT_BIT10]		= check_ioam_header_and_data,
 	[TEST_OUT_BIT11]		= check_ioam_header_and_data,
-	[TEST_OUT_BIT12]		= check_ioam_header,
-	[TEST_OUT_BIT13]		= check_ioam_header,
-	[TEST_OUT_BIT14]		= check_ioam_header,
-	[TEST_OUT_BIT15]		= check_ioam_header,
-	[TEST_OUT_BIT16]		= check_ioam_header,
-	[TEST_OUT_BIT17]		= check_ioam_header,
-	[TEST_OUT_BIT18]		= check_ioam_header,
-	[TEST_OUT_BIT19]		= check_ioam_header,
-	[TEST_OUT_BIT20]		= check_ioam_header,
-	[TEST_OUT_BIT21]		= check_ioam_header,
 	[TEST_OUT_BIT22]		= check_ioam_header_and_data,
 	[TEST_OUT_FULL_SUPP_TRACE]	= check_ioam_header_and_data,
 	[TEST_IN_UNDEF_NS]		= check_ioam_header,
@@ -633,16 +599,6 @@ static int (*func[__TEST_MAX])(int, struct ioam6_trace_hdr *, __u32, __u16) = {
 	[TEST_IN_BIT9]			= check_ioam_header_and_data,
 	[TEST_IN_BIT10]		= check_ioam_header_and_data,
 	[TEST_IN_BIT11]		= check_ioam_header_and_data,
-	[TEST_IN_BIT12]		= check_ioam_header,
-	[TEST_IN_BIT13]		= check_ioam_header,
-	[TEST_IN_BIT14]		= check_ioam_header,
-	[TEST_IN_BIT15]		= check_ioam_header,
-	[TEST_IN_BIT16]		= check_ioam_header,
-	[TEST_IN_BIT17]		= check_ioam_header,
-	[TEST_IN_BIT18]		= check_ioam_header,
-	[TEST_IN_BIT19]		= check_ioam_header,
-	[TEST_IN_BIT20]		= check_ioam_header,
-	[TEST_IN_BIT21]		= check_ioam_header,
 	[TEST_IN_BIT22]		= check_ioam_header_and_data,
 	[TEST_IN_FULL_SUPP_TRACE]	= check_ioam_header_and_data,
 	[TEST_FWD_FULL_SUPP_TRACE]	= check_ioam_header_and_data,

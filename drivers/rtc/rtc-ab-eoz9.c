@@ -534,7 +534,6 @@ static int abeoz9_probe(struct i2c_client *client,
 	data->rtc->ops = &rtc_ops;
 	data->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	data->rtc->range_max = RTC_TIMESTAMP_END_2099;
-	data->rtc->uie_unsupported = 1;
 	clear_bit(RTC_FEATURE_ALARM, data->rtc->features);
 
 	if (client->irq > 0) {
@@ -546,6 +545,8 @@ static int abeoz9_probe(struct i2c_client *client,
 			dev_err(dev, "failed to request alarm irq\n");
 			return ret;
 		}
+	} else {
+		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, data->rtc->features);
 	}
 
 	if (client->irq > 0 || device_property_read_bool(dev, "wakeup-source")) {

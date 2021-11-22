@@ -115,15 +115,7 @@ static int vcn_v2_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		const struct common_firmware_header *hdr;
-		hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
-		adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].ucode_id = AMDGPU_UCODE_ID_VCN;
-		adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].fw = adev->vcn.fw;
-		adev->firmware.fw_size +=
-			ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
-		dev_info(adev->dev, "Will use PSP to load VCN firmware\n");
-	}
+	amdgpu_vcn_setup_ucode(adev);
 
 	r = amdgpu_vcn_resume(adev);
 	if (r)
@@ -1884,15 +1876,14 @@ static int vcn_v2_0_start_sriov(struct amdgpu_device *adev)
 
 		/* mc resume*/
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-			tmp = AMDGPU_UCODE_ID_VCN;
 			MMSCH_V2_0_INSERT_DIRECT_WT(
 				SOC15_REG_OFFSET(UVD, i,
 					mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
-				adev->firmware.ucode[tmp].tmr_mc_addr_lo);
+				adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].tmr_mc_addr_lo);
 			MMSCH_V2_0_INSERT_DIRECT_WT(
 				SOC15_REG_OFFSET(UVD, i,
 					mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
-				adev->firmware.ucode[tmp].tmr_mc_addr_hi);
+				adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].tmr_mc_addr_hi);
 			offset = 0;
 		} else {
 			MMSCH_V2_0_INSERT_DIRECT_WT(

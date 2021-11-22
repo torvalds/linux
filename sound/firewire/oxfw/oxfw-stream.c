@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 
 #define AVC_GENERIC_FRAME_MAXIMUM_BYTES	512
-#define READY_TIMEOUT_MS	200
+#define READY_TIMEOUT_MS	600
 
 /*
  * According to datasheet of Oxford Semiconductor:
@@ -367,6 +367,11 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 				// Just after changing sampling transfer frequency, many cycles are
 				// skipped for packet transmission.
 				tx_init_skip_cycles = 400;
+			} else if (oxfw->quirks & SND_OXFW_QUIRK_VOLUNTARY_RECOVERY) {
+				// It takes a bit time for target device to adjust event frequency
+				// according to nominal event frequency in isochronous packets from
+				// ALSA oxfw driver.
+				tx_init_skip_cycles = 4000;
 			} else {
 				replay_seq = true;
 			}

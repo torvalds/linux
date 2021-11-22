@@ -197,7 +197,7 @@ void nommu_dump_state(struct pt_regs *regs,
 }
 
 /* This is normally the 'Oops' routine */
-void die(const char *str, struct pt_regs *regs, long err)
+void __noreturn die(const char *str, struct pt_regs *regs, long err)
 {
 
 	console_verbose();

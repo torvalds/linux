@@ -9,6 +9,7 @@
 #include <linux/dma-buf.h>
 #include <linux/pfn_t.h>
 #include <linux/shmem_fs.h>
+#include <linux/module.h>
 
 #include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>
@@ -16,6 +17,8 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem, bool kvmap)
 {

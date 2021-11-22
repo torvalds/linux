@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/ingenic,tcu.h>
-#include <dt-bindings/clock/x1830-cgu.h>
+#include <dt-bindings/clock/ingenic,x1830-cgu.h>
 #include <dt-bindings/dma/x1830-dma.h>
 
 / {

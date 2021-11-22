@@ -432,7 +432,7 @@ void iostat_print_metric(struct perf_stat_config *config, struct evsel *evsel,
 	u8 die = ((struct iio_root_port *)evsel->priv)->die;
 	struct perf_counts_values *count = perf_counts(evsel->counts, die, 0);
 
-	if (count->run && count->ena) {
+	if (count && count->run && count->ena) {
 		if (evsel->prev_raw_counts && !out->force_header) {
 			struct perf_counts_values *prev_count =
 				perf_counts(evsel->prev_raw_counts, die, 0);

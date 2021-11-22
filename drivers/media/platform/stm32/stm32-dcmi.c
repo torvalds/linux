@@ -128,6 +128,7 @@ struct stm32_dcmi {
 	int				sequence;
 	struct list_head		buffers;
 	struct dcmi_buf			*active;
+	int			irq;
 
 	struct v4l2_device		v4l2_dev;
 	struct video_device		*vdev;
@@ -1759,6 +1760,14 @@ static int dcmi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 	}
 
+	ret = devm_request_threaded_irq(dcmi->dev, dcmi->irq, dcmi_irq_callback,
+					dcmi_irq_thread, IRQF_ONESHOT,
+					dev_name(dcmi->dev), dcmi);
+	if (ret) {
+		dev_err(dcmi->dev, "Unable to request irq %d\n", dcmi->irq);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -1824,11 +1833,11 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 		return -EINVAL;
 	}
 
-	v4l2_async_notifier_init(&dcmi->notifier);
+	v4l2_async_nf_init(&dcmi->notifier);
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&dcmi->notifier, of_fwnode_handle(ep),
-		struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&dcmi->notifier,
+					      of_fwnode_handle(ep),
+					      struct v4l2_async_subdev);
 
 	of_node_put(ep);
 
@@ -1839,10 +1848,10 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 	dcmi->notifier.ops = &dcmi_graph_notify_ops;
 
-	ret = v4l2_async_notifier_register(&dcmi->v4l2_dev, &dcmi->notifier);
+	ret = v4l2_async_nf_register(&dcmi->v4l2_dev, &dcmi->notifier);
 	if (ret < 0) {
 		dev_err(dcmi->dev, "Failed to register notifier\n");
-		v4l2_async_notifier_cleanup(&dcmi->notifier);
+		v4l2_async_nf_cleanup(&dcmi->notifier);
 		return ret;
 	}
 
@@ -1914,6 +1923,8 @@ static int dcmi_probe(struct platform_device *pdev)
 	if (irq <= 0)
 		return irq ? irq : -ENXIO;
 
+	dcmi->irq = irq;
+
 	dcmi->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!dcmi->res) {
 		dev_err(&pdev->dev, "Could not get resource\n");
@@ -1924,14 +1935,6 @@ static int dcmi_probe(struct platform_device *pdev)
 	if (IS_ERR(dcmi->regs)) {
 		dev_err(&pdev->dev, "Could not map registers\n");
 		return PTR_ERR(dcmi->regs);
-	}
-
-	ret = devm_request_threaded_irq(&pdev->dev, irq, dcmi_irq_callback,
-					dcmi_irq_thread, IRQF_ONESHOT,
-					dev_name(&pdev->dev), dcmi);
-	if (ret) {
-		dev_err(&pdev->dev, "Unable to request irq %d\n", irq);
-		return ret;
 	}
 
 	mclk = devm_clk_get(&pdev->dev, "mclk");
@@ -2060,7 +2063,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	return 0;
 
 err_cleanup:
-	v4l2_async_notifier_cleanup(&dcmi->notifier);
+	v4l2_async_nf_cleanup(&dcmi->notifier);
 err_media_entity_cleanup:
 	media_entity_cleanup(&dcmi->vdev->entity);
 err_device_release:
@@ -2080,8 +2083,8 @@ static int dcmi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	v4l2_async_notifier_unregister(&dcmi->notifier);
-	v4l2_async_notifier_cleanup(&dcmi->notifier);
+	v4l2_async_nf_unregister(&dcmi->notifier);
+	v4l2_async_nf_cleanup(&dcmi->notifier);
 	media_entity_cleanup(&dcmi->vdev->entity);
 	v4l2_device_unregister(&dcmi->v4l2_dev);
 	media_device_cleanup(&dcmi->mdev);

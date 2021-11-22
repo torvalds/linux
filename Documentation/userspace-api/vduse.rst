@@ -18,7 +18,7 @@ types can be added after the security issue of corresponding device driver
 is clarified or fixed in the future.
 
 Create/Destroy VDUSE devices
-------------------------
+----------------------------
 
 VDUSE devices are created as follows:
 

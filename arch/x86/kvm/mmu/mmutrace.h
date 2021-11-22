@@ -252,9 +252,9 @@ TRACE_EVENT(
 
 TRACE_EVENT(
 	fast_page_fault,
-	TP_PROTO(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u32 error_code,
+	TP_PROTO(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		 u64 *sptep, u64 old_spte, int ret),
-	TP_ARGS(vcpu, cr2_or_gpa, error_code, sptep, old_spte, ret),
+	TP_ARGS(vcpu, fault, sptep, old_spte, ret),
 
 	TP_STRUCT__entry(
 		__field(int, vcpu_id)
@@ -268,8 +268,8 @@ TRACE_EVENT(
 
 	TP_fast_assign(
 		__entry->vcpu_id = vcpu->vcpu_id;
-		__entry->cr2_or_gpa = cr2_or_gpa;
-		__entry->error_code = error_code;
+		__entry->cr2_or_gpa = fault->addr;
+		__entry->error_code = fault->error_code;
 		__entry->sptep = sptep;
 		__entry->old_spte = old_spte;
 		__entry->new_spte = *sptep;
@@ -367,8 +367,8 @@ TRACE_EVENT(
 
 TRACE_EVENT(
 	kvm_mmu_spte_requested,
-	TP_PROTO(gpa_t addr, int level, kvm_pfn_t pfn),
-	TP_ARGS(addr, level, pfn),
+	TP_PROTO(struct kvm_page_fault *fault),
+	TP_ARGS(fault),
 
 	TP_STRUCT__entry(
 		__field(u64, gfn)
@@ -377,9 +377,9 @@ TRACE_EVENT(
 	),
 
 	TP_fast_assign(
-		__entry->gfn = addr >> PAGE_SHIFT;
-		__entry->pfn = pfn | (__entry->gfn & (KVM_PAGES_PER_HPAGE(level) - 1));
-		__entry->level = level;
+		__entry->gfn = fault->gfn;
+		__entry->pfn = fault->pfn | (fault->gfn & (KVM_PAGES_PER_HPAGE(fault->goal_level) - 1));
+		__entry->level = fault->goal_level;
 	),
 
 	TP_printk("gfn %llx pfn %llx level %d",

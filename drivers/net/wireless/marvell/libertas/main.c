@@ -302,9 +302,9 @@ int lbs_set_mac_address(struct net_device *dev, void *addr)
 	dev = priv->dev;
 
 	memcpy(priv->current_addr, phwaddr->sa_data, ETH_ALEN);
-	memcpy(dev->dev_addr, phwaddr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, phwaddr->sa_data);
 	if (priv->mesh_dev)
-		memcpy(priv->mesh_dev->dev_addr, phwaddr->sa_data, ETH_ALEN);
+		eth_hw_addr_set(priv->mesh_dev, phwaddr->sa_data);
 
 	return ret;
 }

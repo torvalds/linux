@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 /* Copyright (c) 2018 Facebook */
+/*! \file */
 
 #ifndef __LIBBPF_BTF_H
 #define __LIBBPF_BTF_H
@@ -30,11 +31,80 @@ enum btf_endianness {
 	BTF_BIG_ENDIAN = 1,
 };
 
+/**
+ * @brief **btf__free()** frees all data of a BTF object
+ * @param btf BTF object to free
+ */
 LIBBPF_API void btf__free(struct btf *btf);
 
+/**
+ * @brief **btf__new()** creates a new instance of a BTF object from the raw
+ * bytes of an ELF's BTF section
+ * @param data raw bytes
+ * @param size number of bytes passed in `data`
+ * @return new BTF object instance which has to be eventually freed with
+ * **btf__free()**
+ *
+ * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * error code from such a pointer `libbpf_get_error()` should be used. If
+ * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+ * returned on error instead. In both cases thread-local `errno` variable is
+ * always set to error code as well.
+ */
 LIBBPF_API struct btf *btf__new(const void *data, __u32 size);
+
+/**
+ * @brief **btf__new_split()** create a new instance of a BTF object from the
+ * provided raw data bytes. It takes another BTF instance, **base_btf**, which
+ * serves as a base BTF, which is extended by types in a newly created BTF
+ * instance
+ * @param data raw bytes
+ * @param size length of raw bytes
+ * @param base_btf the base BTF object
+ * @return new BTF object instance which has to be eventually freed with
+ * **btf__free()**
+ *
+ * If *base_btf* is NULL, `btf__new_split()` is equivalent to `btf__new()` and
+ * creates non-split BTF.
+ *
+ * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * error code from such a pointer `libbpf_get_error()` should be used. If
+ * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+ * returned on error instead. In both cases thread-local `errno` variable is
+ * always set to error code as well.
+ */
 LIBBPF_API struct btf *btf__new_split(const void *data, __u32 size, struct btf *base_btf);
+
+/**
+ * @brief **btf__new_empty()** creates an empty BTF object.  Use
+ * `btf__add_*()` to populate such BTF object.
+ * @return new BTF object instance which has to be eventually freed with
+ * **btf__free()**
+ *
+ * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * error code from such a pointer `libbpf_get_error()` should be used. If
+ * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+ * returned on error instead. In both cases thread-local `errno` variable is
+ * always set to error code as well.
+ */
 LIBBPF_API struct btf *btf__new_empty(void);
+
+/**
+ * @brief **btf__new_empty_split()** creates an unpopulated BTF object from an
+ * ELF BTF section except with a base BTF on top of which split BTF should be
+ * based
+ * @return new BTF object instance which has to be eventually freed with
+ * **btf__free()**
+ *
+ * If *base_btf* is NULL, `btf__new_empty_split()` is equivalent to
+ * `btf__new_empty()` and creates non-split BTF.
+ *
+ * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+ * error code from such a pointer `libbpf_get_error()` should be used. If
+ * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+ * returned on error instead. In both cases thread-local `errno` variable is
+ * always set to error code as well.
+ */
 LIBBPF_API struct btf *btf__new_empty_split(struct btf *base_btf);
 
 LIBBPF_API struct btf *btf__parse(const char *path, struct btf_ext **btf_ext);
@@ -50,16 +120,21 @@ LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
 
 LIBBPF_API struct btf *btf__load_from_kernel_by_id(__u32 id);
 LIBBPF_API struct btf *btf__load_from_kernel_by_id_split(__u32 id, struct btf *base_btf);
+LIBBPF_DEPRECATED_SINCE(0, 6, "use btf__load_from_kernel_by_id instead")
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 
+LIBBPF_DEPRECATED_SINCE(0, 6, "intended for internal libbpf use only")
 LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
+LIBBPF_DEPRECATED_SINCE(0, 6, "use btf__load_into_kernel instead")
 LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API int btf__load_into_kernel(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
 LIBBPF_API __s32 btf__find_by_name_kind(const struct btf *btf,
 					const char *type_name, __u32 kind);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use btf__type_cnt() instead; note that btf__get_nr_types() == btf__type_cnt() - 1")
 LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
+LIBBPF_API __u32 btf__type_cnt(const struct btf *btf);
 LIBBPF_API const struct btf *btf__base_btf(const struct btf *btf);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
@@ -72,7 +147,9 @@ LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__align_of(const struct btf *btf, __u32 id);
 LIBBPF_API int btf__fd(const struct btf *btf);
 LIBBPF_API void btf__set_fd(struct btf *btf, int fd);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use btf__raw_data() instead")
 LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
+LIBBPF_API const void *btf__raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API const char *btf__str_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
@@ -101,6 +178,28 @@ LIBBPF_API int btf__find_str(struct btf *btf, const char *s);
 LIBBPF_API int btf__add_str(struct btf *btf, const char *s);
 LIBBPF_API int btf__add_type(struct btf *btf, const struct btf *src_btf,
 			     const struct btf_type *src_type);
+/**
+ * @brief **btf__add_btf()** appends all the BTF types from *src_btf* into *btf*
+ * @param btf BTF object which all the BTF types and strings are added to
+ * @param src_btf BTF object which all BTF types and referenced strings are copied from
+ * @return BTF type ID of the first appended BTF type, or negative error code
+ *
+ * **btf__add_btf()** can be used to simply and efficiently append the entire
+ * contents of one BTF object to another one. All the BTF type data is copied
+ * over, all referenced type IDs are adjusted by adding a necessary ID offset.
+ * Only strings referenced from BTF types are copied over and deduplicated, so
+ * if there were some unused strings in *src_btf*, those won't be copied over,
+ * which is consistent with the general string deduplication semantics of BTF
+ * writing APIs.
+ *
+ * If any error is encountered during this process, the contents of *btf* is
+ * left intact, which means that **btf__add_btf()** follows the transactional
+ * semantics and the operation as a whole is all-or-nothing.
+ *
+ * *src_btf* has to be non-split BTF, as of now copying types from split BTF
+ * is not supported and will result in -ENOTSUP error code returned.
+ */
+LIBBPF_API int btf__add_btf(struct btf *btf, const struct btf *src_btf);
 
 LIBBPF_API int btf__add_int(struct btf *btf, const char *name, size_t byte_sz, int encoding);
 LIBBPF_API int btf__add_float(struct btf *btf, const char *name, size_t byte_sz);
@@ -140,6 +239,10 @@ LIBBPF_API int btf__add_var(struct btf *btf, const char *name, int linkage, int 
 LIBBPF_API int btf__add_datasec(struct btf *btf, const char *name, __u32 byte_sz);
 LIBBPF_API int btf__add_datasec_var_info(struct btf *btf, int var_type_id,
 					 __u32 offset, __u32 byte_sz);
+
+/* tag construction API */
+LIBBPF_API int btf__add_decl_tag(struct btf *btf, const char *value, int ref_type_id,
+			    int component_idx);
 
 struct btf_dedup_opts {
 	unsigned int dedup_table_size;
@@ -328,6 +431,11 @@ static inline bool btf_is_float(const struct btf_type *t)
 	return btf_kind(t) == BTF_KIND_FLOAT;
 }
 
+static inline bool btf_is_decl_tag(const struct btf_type *t)
+{
+	return btf_kind(t) == BTF_KIND_DECL_TAG;
+}
+
 static inline __u8 btf_int_encoding(const struct btf_type *t)
 {
 	return BTF_INT_ENCODING(*(__u32 *)(t + 1));
@@ -394,6 +502,12 @@ static inline struct btf_var_secinfo *
 btf_var_secinfos(const struct btf_type *t)
 {
 	return (struct btf_var_secinfo *)(t + 1);
+}
+
+struct btf_decl_tag;
+static inline struct btf_decl_tag *btf_decl_tag(const struct btf_type *t)
+{
+	return (struct btf_decl_tag *)(t + 1);
 }
 
 #ifdef __cplusplus

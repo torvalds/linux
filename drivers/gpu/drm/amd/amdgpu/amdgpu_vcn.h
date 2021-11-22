@@ -310,4 +310,6 @@ int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 enum amdgpu_ring_priority_level amdgpu_vcn_get_enc_ring_prio(int ring);
 
+void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev);
+
 #endif

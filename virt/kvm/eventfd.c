@@ -281,6 +281,13 @@ int  __attribute__((weak)) kvm_arch_update_irqfd_routing(
 {
 	return 0;
 }
+
+bool __attribute__((weak)) kvm_arch_irqfd_route_changed(
+				struct kvm_kernel_irq_routing_entry *old,
+				struct kvm_kernel_irq_routing_entry *new)
+{
+	return true;
+}
 #endif
 
 static int
@@ -615,10 +622,16 @@ void kvm_irq_routing_update(struct kvm *kvm)
 	spin_lock_irq(&kvm->irqfds.lock);
 
 	list_for_each_entry(irqfd, &kvm->irqfds.items, list) {
+#ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
+		/* Under irqfds.lock, so can read irq_entry safely */
+		struct kvm_kernel_irq_routing_entry old = irqfd->irq_entry;
+#endif
+
 		irqfd_update(kvm, irqfd);
 
 #ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
-		if (irqfd->producer) {
+		if (irqfd->producer &&
+		    kvm_arch_irqfd_route_changed(&old, &irqfd->irq_entry)) {
 			int ret = kvm_arch_update_irqfd_routing(
 					irqfd->kvm, irqfd->producer->irq,
 					irqfd->gsi, 1);

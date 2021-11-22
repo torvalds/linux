@@ -44,9 +44,8 @@
 #define PT32_ROOT_LEVEL 2
 #define PT32E_ROOT_LEVEL 3
 
-#define KVM_MMU_CR4_ROLE_BITS (X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE | \
-			       X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE | \
-			       X86_CR4_LA57)
+#define KVM_MMU_CR4_ROLE_BITS (X86_CR4_PSE | X86_CR4_PAE | X86_CR4_LA57 | \
+			       X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE)
 
 #define KVM_MMU_CR0_ROLE_BITS (X86_CR0_PG | X86_CR0_WP)
 
@@ -80,6 +79,7 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 int kvm_mmu_load(struct kvm_vcpu *vcpu);
 void kvm_mmu_unload(struct kvm_vcpu *vcpu);
 void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu);
+void kvm_mmu_sync_prev_roots(struct kvm_vcpu *vcpu);
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
@@ -114,17 +114,91 @@ static inline void kvm_mmu_load_pgd(struct kvm_vcpu *vcpu)
 					  vcpu->arch.mmu->shadow_root_level);
 }
 
-int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
-		       bool prefault);
+struct kvm_page_fault {
+	/* arguments to kvm_mmu_do_page_fault.  */
+	const gpa_t addr;
+	const u32 error_code;
+	const bool prefetch;
+
+	/* Derived from error_code.  */
+	const bool exec;
+	const bool write;
+	const bool present;
+	const bool rsvd;
+	const bool user;
+
+	/* Derived from mmu and global state.  */
+	const bool is_tdp;
+	const bool nx_huge_page_workaround_enabled;
+
+	/*
+	 * Whether a >4KB mapping can be created or is forbidden due to NX
+	 * hugepages.
+	 */
+	bool huge_page_disallowed;
+
+	/*
+	 * Maximum page size that can be created for this fault; input to
+	 * FNAME(fetch), __direct_map and kvm_tdp_mmu_map.
+	 */
+	u8 max_level;
+
+	/*
+	 * Page size that can be created based on the max_level and the
+	 * page size used by the host mapping.
+	 */
+	u8 req_level;
+
+	/*
+	 * Page size that will be created based on the req_level and
+	 * huge_page_disallowed.
+	 */
+	u8 goal_level;
+
+	/* Shifted addr, or result of guest page table walk if addr is a gva.  */
+	gfn_t gfn;
+
+	/* The memslot containing gfn. May be NULL. */
+	struct kvm_memory_slot *slot;
+
+	/* Outputs of kvm_faultin_pfn.  */
+	kvm_pfn_t pfn;
+	hva_t hva;
+	bool map_writable;
+};
+
+int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
+
+extern int nx_huge_pages;
+static inline bool is_nx_huge_page_enabled(void)
+{
+	return READ_ONCE(nx_huge_pages);
+}
 
 static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
-					u32 err, bool prefault)
+					u32 err, bool prefetch)
 {
+	struct kvm_page_fault fault = {
+		.addr = cr2_or_gpa,
+		.error_code = err,
+		.exec = err & PFERR_FETCH_MASK,
+		.write = err & PFERR_WRITE_MASK,
+		.present = err & PFERR_PRESENT_MASK,
+		.rsvd = err & PFERR_RSVD_MASK,
+		.user = err & PFERR_USER_MASK,
+		.prefetch = prefetch,
+		.is_tdp = likely(vcpu->arch.mmu->page_fault == kvm_tdp_page_fault),
+		.nx_huge_page_workaround_enabled = is_nx_huge_page_enabled(),
+
+		.max_level = KVM_MAX_HUGEPAGE_LEVEL,
+		.req_level = PG_LEVEL_4K,
+		.goal_level = PG_LEVEL_4K,
+	};
 #ifdef CONFIG_RETPOLINE
-	if (likely(vcpu->arch.mmu->page_fault == kvm_tdp_page_fault))
-		return kvm_tdp_page_fault(vcpu, cr2_or_gpa, err, prefault);
+	if (fault.is_tdp)
+		return kvm_tdp_page_fault(vcpu, &fault);
 #endif
-	return vcpu->arch.mmu->page_fault(vcpu, cr2_or_gpa, err, prefault);
+	return vcpu->arch.mmu->page_fault(vcpu, &fault);
 }
 
 /*
@@ -230,14 +304,26 @@ int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu);
 int kvm_mmu_post_init_vm(struct kvm *kvm);
 void kvm_mmu_pre_destroy_vm(struct kvm *kvm);
 
-static inline bool kvm_memslots_have_rmaps(struct kvm *kvm)
+static inline bool kvm_shadow_root_allocated(struct kvm *kvm)
 {
 	/*
-	 * Read memslot_have_rmaps before rmap pointers.  Hence, threads reading
-	 * memslots_have_rmaps in any lock context are guaranteed to see the
-	 * pointers.  Pairs with smp_store_release in alloc_all_memslots_rmaps.
+	 * Read shadow_root_allocated before related pointers. Hence, threads
+	 * reading shadow_root_allocated in any lock context are guaranteed to
+	 * see the pointers. Pairs with smp_store_release in
+	 * mmu_first_shadow_root_alloc.
 	 */
-	return smp_load_acquire(&kvm->arch.memslots_have_rmaps);
+	return smp_load_acquire(&kvm->arch.shadow_root_allocated);
+}
+
+#ifdef CONFIG_X86_64
+static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return kvm->arch.tdp_mmu_enabled; }
+#else
+static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return false; }
+#endif
+
+static inline bool kvm_memslots_have_rmaps(struct kvm *kvm)
+{
+	return !is_tdp_mmu_enabled(kvm) || kvm_shadow_root_allocated(kvm);
 }
 
 static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)

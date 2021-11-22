@@ -338,20 +338,19 @@ __setup("rootflags=", root_data_setup);
 __setup("rootfstype=", fs_names_setup);
 __setup("rootdelay=", root_delay_setup);
 
-static int __init split_fs_names(char *page, char *names)
+/* This can return zero length strings. Caller should check */
+static int __init split_fs_names(char *page, size_t size, char *names)
 {
-	int count = 0;
+	int count = 1;
 	char *p = page;
 
-	strcpy(p, root_fs_names);
+	strlcpy(p, root_fs_names, size);
 	while (*p++) {
-		if (p[-1] == ',')
+		if (p[-1] == ',') {
 			p[-1] = '\0';
+			count++;
+		}
 	}
-	*p = '\0';
-
-	for (p = page; *p; p += strlen(p)+1)
-		count++;
 
 	return count;
 }
@@ -404,12 +403,16 @@ void __init mount_block_root(char *name, int flags)
 	scnprintf(b, BDEVNAME_SIZE, "unknown-block(%u,%u)",
 		  MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
 	if (root_fs_names)
-		num_fs = split_fs_names(fs_names, root_fs_names);
+		num_fs = split_fs_names(fs_names, PAGE_SIZE, root_fs_names);
 	else
 		num_fs = list_bdev_fs_names(fs_names, PAGE_SIZE);
 retry:
 	for (i = 0, p = fs_names; i < num_fs; i++, p += strlen(p)+1) {
-		int err = do_mount_root(name, p, flags, root_mount_data);
+		int err;
+
+		if (!*p)
+			continue;
+		err = do_mount_root(name, p, flags, root_mount_data);
 		switch (err) {
 			case 0:
 				goto out;
@@ -543,19 +546,18 @@ static int __init mount_nodev_root(void)
 	fs_names = (void *)__get_free_page(GFP_KERNEL);
 	if (!fs_names)
 		return -EINVAL;
-	num_fs = split_fs_names(fs_names, root_fs_names);
+	num_fs = split_fs_names(fs_names, PAGE_SIZE, root_fs_names);
 
 	for (i = 0, fstype = fs_names; i < num_fs;
 	     i++, fstype += strlen(fstype) + 1) {
+		if (!*fstype)
+			continue;
 		if (!fs_is_nodev(fstype))
 			continue;
 		err = do_mount_root(root_device_name, fstype, root_mountflags,
 				    root_mount_data);
 		if (!err)
 			break;
-		if (err != -EACCES && err != -EINVAL)
-			panic("VFS: Unable to mount root \"%s\" (%s), err=%d\n",
-			      root_device_name, fstype, err);
 	}
 
 	free_page((unsigned long)fs_names);

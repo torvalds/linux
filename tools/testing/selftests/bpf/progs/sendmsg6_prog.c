@@ -22,8 +22,6 @@
 
 #define DST_REWRITE_PORT6	6666
 
-int _version SEC("version") = 1;
-
 SEC("cgroup/sendmsg6")
 int sendmsg_v6_prog(struct bpf_sock_addr *ctx)
 {

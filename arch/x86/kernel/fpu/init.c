@@ -2,13 +2,17 @@
 /*
  * x86 FPU boot time init code:
  */
-#include <asm/fpu/internal.h>
+#include <asm/fpu/api.h>
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
 
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/init.h>
+
+#include "internal.h"
+#include "legacy.h"
+#include "xstate.h"
 
 /*
  * Initialize the registers found in all CPUs, CR0 and CR4:
@@ -34,7 +38,7 @@ static void fpu__init_cpu_generic(void)
 	/* Flush out any pending x87 state: */
 #ifdef CONFIG_MATH_EMULATION
 	if (!boot_cpu_has(X86_FEATURE_FPU))
-		fpstate_init_soft(&current->thread.fpu.state.soft);
+		fpstate_init_soft(&current->thread.fpu.fpstate->regs.soft);
 	else
 #endif
 		asm volatile ("fninit");
@@ -121,22 +125,13 @@ static void __init fpu__init_system_mxcsr(void)
 static void __init fpu__init_system_generic(void)
 {
 	/*
-	 * Set up the legacy init FPU context. (xstate init might overwrite this
-	 * with a more modern format, if the CPU supports it.)
+	 * Set up the legacy init FPU context. Will be updated when the
+	 * CPU supports XSAVE[S].
 	 */
-	fpstate_init(&init_fpstate);
+	fpstate_init_user(&init_fpstate);
 
 	fpu__init_system_mxcsr();
 }
-
-/*
- * Size of the FPU context state. All tasks in the system use the
- * same context size, regardless of what portion they use.
- * This is inherent to the XSAVE architecture which puts all state
- * components into a single, continuous memory block:
- */
-unsigned int fpu_kernel_xstate_size __ro_after_init;
-EXPORT_SYMBOL_GPL(fpu_kernel_xstate_size);
 
 /* Get alignment of the TYPE. */
 #define TYPE_ALIGN(TYPE) offsetof(struct { char x; TYPE test; }, test)
@@ -162,13 +157,13 @@ static void __init fpu__init_task_struct_size(void)
 	 * Subtract off the static size of the register state.
 	 * It potentially has a bunch of padding.
 	 */
-	task_size -= sizeof(((struct task_struct *)0)->thread.fpu.state);
+	task_size -= sizeof(current->thread.fpu.__fpstate.regs);
 
 	/*
 	 * Add back the dynamically-calculated register state
 	 * size.
 	 */
-	task_size += fpu_kernel_xstate_size;
+	task_size += fpu_kernel_cfg.default_size;
 
 	/*
 	 * We dynamically size 'struct fpu', so we require that
@@ -177,7 +172,7 @@ static void __init fpu__init_task_struct_size(void)
 	 * you hit a compile error here, check the structure to
 	 * see if something got added to the end.
 	 */
-	CHECK_MEMBER_AT_END_OF(struct fpu, state);
+	CHECK_MEMBER_AT_END_OF(struct fpu, __fpstate);
 	CHECK_MEMBER_AT_END_OF(struct thread_struct, fpu);
 	CHECK_MEMBER_AT_END_OF(struct task_struct, thread);
 
@@ -192,37 +187,34 @@ static void __init fpu__init_task_struct_size(void)
  */
 static void __init fpu__init_system_xstate_size_legacy(void)
 {
-	static int on_boot_cpu __initdata = 1;
-
-	WARN_ON_FPU(!on_boot_cpu);
-	on_boot_cpu = 0;
+	unsigned int size;
 
 	/*
-	 * Note that xstate sizes might be overwritten later during
-	 * fpu__init_system_xstate().
+	 * Note that the size configuration might be overwritten later
+	 * during fpu__init_system_xstate().
 	 */
-
-	if (!boot_cpu_has(X86_FEATURE_FPU)) {
-		fpu_kernel_xstate_size = sizeof(struct swregs_state);
+	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {
+		size = sizeof(struct swregs_state);
+	} else if (cpu_feature_enabled(X86_FEATURE_FXSR)) {
+		size = sizeof(struct fxregs_state);
+		fpu_user_cfg.legacy_features = XFEATURE_MASK_FPSSE;
 	} else {
-		if (boot_cpu_has(X86_FEATURE_FXSR))
-			fpu_kernel_xstate_size =
-				sizeof(struct fxregs_state);
-		else
-			fpu_kernel_xstate_size =
-				sizeof(struct fregs_state);
+		size = sizeof(struct fregs_state);
+		fpu_user_cfg.legacy_features = XFEATURE_MASK_FP;
 	}
 
-	fpu_user_xstate_size = fpu_kernel_xstate_size;
+	fpu_kernel_cfg.max_size = size;
+	fpu_kernel_cfg.default_size = size;
+	fpu_user_cfg.max_size = size;
+	fpu_user_cfg.default_size = size;
+	fpstate_reset(&current->thread.fpu);
 }
 
-/* Legacy code to initialize eager fpu mode. */
-static void __init fpu__init_system_ctx_switch(void)
+static void __init fpu__init_init_fpstate(void)
 {
-	static bool on_boot_cpu __initdata = 1;
-
-	WARN_ON_FPU(!on_boot_cpu);
-	on_boot_cpu = 0;
+	/* Bring init_fpstate size and features up to date */
+	init_fpstate.size		= fpu_kernel_cfg.max_size;
+	init_fpstate.xfeatures		= fpu_kernel_cfg.max_features;
 }
 
 /*
@@ -231,6 +223,7 @@ static void __init fpu__init_system_ctx_switch(void)
  */
 void __init fpu__init_system(struct cpuinfo_x86 *c)
 {
+	fpstate_reset(&current->thread.fpu);
 	fpu__init_system_early_generic(c);
 
 	/*
@@ -241,8 +234,7 @@ void __init fpu__init_system(struct cpuinfo_x86 *c)
 
 	fpu__init_system_generic();
 	fpu__init_system_xstate_size_legacy();
-	fpu__init_system_xstate();
+	fpu__init_system_xstate(fpu_kernel_cfg.max_size);
 	fpu__init_task_struct_size();
-
-	fpu__init_system_ctx_switch();
+	fpu__init_init_fpstate();
 }

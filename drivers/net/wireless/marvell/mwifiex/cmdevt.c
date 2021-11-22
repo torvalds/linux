@@ -608,6 +608,11 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		return -1;
 	}
 
+	if (priv->adapter->hs_activated_manually &&
+	    cmd_no != HostCmd_CMD_802_11_HS_CFG_ENH) {
+		mwifiex_cancel_hs(priv, MWIFIEX_ASYNC_CMD);
+		priv->adapter->hs_activated_manually = false;
+	}
 
 	/* Get a new command node */
 	cmd_node = mwifiex_get_cmd_node(adapter);
@@ -712,6 +717,15 @@ mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 			if (adapter->ps_state != PS_STATE_AWAKE)
 				add_tail = false;
 		}
+	}
+
+	/* Same with exit host sleep cmd, luckily that can't happen at the same time as EXIT_PS */
+	if (command == HostCmd_CMD_802_11_HS_CFG_ENH) {
+		struct host_cmd_ds_802_11_hs_cfg_enh *hs_cfg =
+			&host_cmd->params.opt_hs_cfg;
+
+		if (le16_to_cpu(hs_cfg->action) == HS_ACTIVATE)
+				add_tail = false;
 	}
 
 	spin_lock_bh(&adapter->cmd_pending_q_lock);
@@ -1216,6 +1230,13 @@ mwifiex_process_hs_config(struct mwifiex_adapter *adapter)
 		    __func__);
 
 	adapter->if_ops.wakeup(adapter);
+
+	if (adapter->hs_activated_manually) {
+		mwifiex_cancel_hs(mwifiex_get_priv (adapter, MWIFIEX_BSS_ROLE_ANY),
+				  MWIFIEX_ASYNC_CMD);
+		adapter->hs_activated_manually = false;
+	}
+
 	adapter->hs_activated = false;
 	clear_bit(MWIFIEX_IS_HS_CONFIGURED, &adapter->work_flags);
 	clear_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags);

@@ -1550,6 +1550,8 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 	uint32_t i, now;
 	int size = 0;
 
+	phm_get_sysfs_buf(&buf, &size);
+
 	switch (type) {
 	case PP_SCLK:
 		now = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device,

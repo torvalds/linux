@@ -1116,7 +1116,7 @@ void msm_edp_ctrl_power(struct edp_ctrl *ctrl, bool on)
 int msm_edp_ctrl_init(struct msm_edp *edp)
 {
 	struct edp_ctrl *ctrl = NULL;
-	struct device *dev = &edp->pdev->dev;
+	struct device *dev;
 	int ret;
 
 	if (!edp) {
@@ -1124,6 +1124,7 @@ int msm_edp_ctrl_init(struct msm_edp *edp)
 		return -EINVAL;
 	}
 
+	dev = &edp->pdev->dev;
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return -ENOMEM;
@@ -1189,7 +1190,6 @@ void msm_edp_ctrl_destroy(struct edp_ctrl *ctrl)
 		return;
 
 	if (ctrl->workqueue) {
-		flush_workqueue(ctrl->workqueue);
 		destroy_workqueue(ctrl->workqueue);
 		ctrl->workqueue = NULL;
 	}
@@ -1242,8 +1242,6 @@ bool msm_edp_ctrl_panel_connected(struct edp_ctrl *ctrl)
 int msm_edp_ctrl_get_panel_info(struct edp_ctrl *ctrl,
 		struct drm_connector *connector, struct edid **edid)
 {
-	int ret = 0;
-
 	mutex_lock(&ctrl->dev_mutex);
 
 	if (ctrl->edid) {
@@ -1278,7 +1276,7 @@ disable_ret:
 	}
 unlock_ret:
 	mutex_unlock(&ctrl->dev_mutex);
-	return ret;
+	return 0;
 }
 
 int msm_edp_ctrl_timing_cfg(struct edp_ctrl *ctrl,

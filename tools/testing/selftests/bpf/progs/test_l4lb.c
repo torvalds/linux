@@ -21,8 +21,6 @@
 #include "test_iptunnel_common.h"
 #include <bpf/bpf_endian.h>
 
-int _version SEC("version") = 1;
-
 static inline __u32 rol32(__u32 word, unsigned int shift)
 {
 	return (word << shift) | (word >> ((-shift) & 31));

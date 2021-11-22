@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 
-#include <dt-bindings/clock/jz4725b-cgu.h>
+#include <dt-bindings/clock/ingenic,jz4725b-cgu.h>
 
 #include "cgu.h"
 #include "pm.h"

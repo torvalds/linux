@@ -239,12 +239,35 @@ make_file()
 	echo "Created $name (size $size KB) containing data sent by $who"
 }
 
+do_mptcp_sockopt_tests()
+{
+	local lret=0
+
+	./mptcp_sockopt
+	lret=$?
+
+	if [ $lret -ne 0 ]; then
+		echo "FAIL: SOL_MPTCP getsockopt" 1>&2
+		ret=$lret
+		return
+	fi
+
+	./mptcp_sockopt -6
+	lret=$?
+
+	if [ $lret -ne 0 ]; then
+		echo "FAIL: SOL_MPTCP getsockopt (ipv6)" 1>&2
+		ret=$lret
+		return
+	fi
+}
+
 run_tests()
 {
 	listener_ns="$1"
 	connector_ns="$2"
 	connect_addr="$3"
-	lret=0
+	local lret=0
 
 	do_transfer ${listener_ns} ${connector_ns} MPTCP MPTCP ${connect_addr}
 
@@ -268,9 +291,13 @@ trap cleanup EXIT
 run_tests $ns1 $ns2 10.0.1.1
 run_tests $ns1 $ns2 dead:beef:1::1
 
-
 if [ $ret -eq 0 ];then
 	echo "PASS: all packets had packet mark set"
+fi
+
+do_mptcp_sockopt_tests
+if [ $ret -eq 0 ];then
+	echo "PASS: SOL_MPTCP getsockopt has expected information"
 fi
 
 exit $ret

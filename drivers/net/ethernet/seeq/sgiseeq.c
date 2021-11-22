@@ -167,7 +167,7 @@ static int sgiseeq_set_mac_address(struct net_device *dev, void *addr)
 	struct sgiseeq_private *sp = netdev_priv(dev);
 	struct sockaddr *sa = addr;
 
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, sa->sa_data);
 
 	spin_lock_irq(&sp->tx_lock);
 	__sgiseeq_set_mac_address(dev);
@@ -764,7 +764,7 @@ static int sgiseeq_probe(struct platform_device *pdev)
 	setup_rx_ring(dev, sp->rx_desc, SEEQ_RX_BUFFERS);
 	setup_tx_ring(dev, sp->tx_desc, SEEQ_TX_BUFFERS);
 
-	memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
+	eth_hw_addr_set(dev, pd->mac);
 
 #ifdef DEBUG
 	gpriv = sp;

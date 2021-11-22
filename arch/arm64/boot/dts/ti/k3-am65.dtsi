@@ -31,6 +31,8 @@
 		i2c4 = &main_i2c2;
 		i2c5 = &main_i2c3;
 		ethernet0 = &cpsw_port1;
+		mmc0 = &sdhci0;
+		mmc1 = &sdhci1;
 	};
 
 	chosen { };

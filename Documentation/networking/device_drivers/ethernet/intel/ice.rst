@@ -851,7 +851,7 @@ NOTES:
 - 0x88A8 traffic will not be received unless VLAN stripping is disabled with
   the following command::
 
-    # ethool -K <ethX> rxvlan off
+    # ethtool -K <ethX> rxvlan off
 
 - 0x88A8/0x8100 double VLANs cannot be used with 0x8100 or 0x8100/0x8100 VLANS
   configured on the same port. 0x88a8/0x8100 traffic will not be received if

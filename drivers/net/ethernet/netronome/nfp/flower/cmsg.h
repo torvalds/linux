@@ -703,7 +703,7 @@ nfp_fl_netdev_is_tunnel_type(struct net_device *netdev,
 {
 	if (netif_is_vxlan(netdev))
 		return tun_type == NFP_FL_TUNNEL_VXLAN;
-	if (netif_is_gretap(netdev))
+	if (netif_is_gretap(netdev) || netif_is_ip6gretap(netdev))
 		return tun_type == NFP_FL_TUNNEL_GRE;
 	if (netif_is_geneve(netdev))
 		return tun_type == NFP_FL_TUNNEL_GENEVE;

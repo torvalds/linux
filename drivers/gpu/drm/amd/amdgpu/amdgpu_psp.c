@@ -65,7 +65,6 @@ static int psp_securedisplay_terminate(struct psp_context *psp);
  *
  * This new sequence is required for
  *   - Arcturus and onwards
- *   - Navi12 and onwards
  */
 static void psp_check_pmfw_centralized_cstate_management(struct psp_context *psp)
 {
@@ -77,7 +76,9 @@ static void psp_check_pmfw_centralized_cstate_management(struct psp_context *psp
 	}
 
 	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 4):
+	case IP_VERSION(11, 0, 5):
 	case IP_VERSION(11, 0, 7):
 	case IP_VERSION(11, 0, 9):
 	case IP_VERSION(11, 0, 11):
@@ -1114,7 +1115,7 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 static bool psp_xgmi_peer_link_info_supported(struct psp_context *psp)
 {
 	return psp->adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 2) &&
-		psp->xgmi_context.context.bin_desc.feature_version >= 0x2000000b;
+		psp->xgmi_context.context.bin_desc.fw_version >= 0x2000000b;
 }
 
 /*
@@ -1291,6 +1292,29 @@ static int psp_ras_unload(struct psp_context *psp)
 	return psp_ta_unload(psp, &psp->ras_context.context);
 }
 
+static void psp_ras_ta_check_status(struct psp_context *psp)
+{
+	struct ta_ras_shared_memory *ras_cmd =
+		(struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
+
+	switch (ras_cmd->ras_status) {
+	case TA_RAS_STATUS__ERROR_UNSUPPORTED_IP:
+		dev_warn(psp->adev->dev,
+				"RAS WARNING: cmd failed due to unsupported ip\n");
+		break;
+	case TA_RAS_STATUS__ERROR_UNSUPPORTED_ERROR_INJ:
+		dev_warn(psp->adev->dev,
+				"RAS WARNING: cmd failed due to unsupported error injection\n");
+		break;
+	case TA_RAS_STATUS__SUCCESS:
+		break;
+	default:
+		dev_warn(psp->adev->dev,
+				"RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
+		break;
+	}
+}
+
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
 	struct ta_ras_shared_memory *ras_cmd;
@@ -1325,10 +1349,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 			dev_warn(psp->adev->dev,
 				 "RAS internal register access blocked\n");
 
-		if (ras_cmd->ras_status == TA_RAS_STATUS__ERROR_UNSUPPORTED_IP)
-		    dev_warn(psp->adev->dev, "RAS WARNING: cmd failed due to unsupported ip\n");
-		else if (ras_cmd->ras_status)
-		    dev_warn(psp->adev->dev, "RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
+		psp_ras_ta_check_status(psp);
 	}
 
 	return ret;
@@ -2622,6 +2643,12 @@ static int psp_resume(void *handle)
 		goto failed;
 	}
 
+	ret = psp_rl_load(adev);
+	if (ret) {
+		dev_err(adev->dev, "PSP load RL failed!\n");
+		goto failed;
+	}
+
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
 		ret = psp_xgmi_initialize(psp, false, true);
 		/* Warning the XGMI seesion initialize failure
@@ -3081,32 +3108,32 @@ static int parse_ta_bin_descriptor(struct psp_context *psp,
 		psp->asd_context.bin_desc.start_addr        = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:
-		psp->xgmi_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->xgmi_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->xgmi_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->xgmi_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_RAS:
-		psp->ras_context.context.bin_desc.feature_version   = le32_to_cpu(desc->fw_version);
+		psp->ras_context.context.bin_desc.fw_version        = le32_to_cpu(desc->fw_version);
 		psp->ras_context.context.bin_desc.size_bytes        = le32_to_cpu(desc->size_bytes);
 		psp->ras_context.context.bin_desc.start_addr        = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_HDCP:
-		psp->hdcp_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->hdcp_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->hdcp_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->hdcp_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_DTM:
-		psp->dtm_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->dtm_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->dtm_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->dtm_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_RAP:
-		psp->rap_context.context.bin_desc.feature_version  = le32_to_cpu(desc->fw_version);
+		psp->rap_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->rap_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->rap_context.context.bin_desc.start_addr       = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_SECUREDISPLAY:
-		psp->securedisplay_context.context.bin_desc.feature_version =
+		psp->securedisplay_context.context.bin_desc.fw_version =
 			le32_to_cpu(desc->fw_version);
 		psp->securedisplay_context.context.bin_desc.size_bytes =
 			le32_to_cpu(desc->size_bytes);

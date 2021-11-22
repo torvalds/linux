@@ -41,7 +41,6 @@ properties:
       - description: builtin MSI controller.
 
   interrupt-names:
-    minItems: 1
     items:
       - const: msi
 

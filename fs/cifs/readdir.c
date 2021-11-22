@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/readdir.c
  *
  *   Directory search handling
  *

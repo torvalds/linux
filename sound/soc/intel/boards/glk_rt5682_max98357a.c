@@ -18,14 +18,18 @@
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include "../../codecs/rt5682.h"
+#include "../../codecs/rt5682s.h"
 #include "../../codecs/hdac_hdmi.h"
 #include "hda_dsp_common.h"
 
 /* The platform clock outputs 19.2Mhz clock to codec as I2S MCLK */
 #define GLK_PLAT_CLK_FREQ 19200000
 #define RT5682_PLL_FREQ (48000 * 512)
-#define GLK_REALTEK_CODEC_DAI "rt5682-aif1"
+#define RT5682_DAI_NAME "rt5682-aif1"
+#define RT5682S_DAI_NAME "rt5682s-aif1"
 #define GLK_MAXIM_CODEC_DAI "HiFi"
+#define RT5682_DEV0_NAME "i2c-10EC5682:00"
+#define RT5682S_DEV0_NAME "i2c-RTL5682:00"
 #define MAXIM_DEV0_NAME "MX98357A:00"
 #define DUAL_CHANNEL 2
 #define QUAD_CHANNEL 4
@@ -43,6 +47,7 @@ struct glk_card_private {
 	struct snd_soc_jack geminilake_headset;
 	struct list_head hdmi_pcm_list;
 	bool common_hdmi_codec_drv;
+	int is_rt5682s;
 };
 
 enum {
@@ -139,9 +144,19 @@ static int geminilake_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_jack *jack;
-	int ret;
+	int pll_id, pll_source, clk_id, ret;
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0, RT5682_PLL1_S_MCLK,
+	if (ctx->is_rt5682s) {
+		pll_id = RT5682S_PLL2;
+		pll_source = RT5682S_PLL_S_MCLK;
+		clk_id = RT5682S_SCLK_S_PLL2;
+	} else {
+		pll_id = RT5682_PLL1;
+		pll_source = RT5682_PLL1_S_MCLK;
+		clk_id = RT5682_SCLK_S_PLL1;
+	}
+
+	ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source,
 					GLK_PLAT_CLK_FREQ, RT5682_PLL_FREQ);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set codec pll: %d\n", ret);
@@ -149,7 +164,7 @@ static int geminilake_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Configure sysclk for codec */
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL1,
+	ret = snd_soc_dai_set_sysclk(codec_dai, clk_id,
 					RT5682_PLL_FREQ, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		dev_err(rtd->dev, "snd_soc_dai_set_sysclk err = %d\n", ret);
@@ -344,9 +359,12 @@ SND_SOC_DAILINK_DEF(ssp1_codec,
 
 SND_SOC_DAILINK_DEF(ssp2_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("SSP2 Pin")));
-SND_SOC_DAILINK_DEF(ssp2_codec,
-	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC5682:00",
-				      GLK_REALTEK_CODEC_DAI)));
+SND_SOC_DAILINK_DEF(ssp2_codec_5682,
+	DAILINK_COMP_ARRAY(COMP_CODEC(RT5682_DEV0_NAME,
+				      RT5682_DAI_NAME)));
+SND_SOC_DAILINK_DEF(ssp2_codec_5682s,
+	DAILINK_COMP_ARRAY(COMP_CODEC(RT5682S_DEV0_NAME,
+				      RT5682S_DAI_NAME)));
 
 SND_SOC_DAILINK_DEF(dmic_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("DMIC01 Pin")));
@@ -473,7 +491,7 @@ static struct snd_soc_dai_link geminilake_dais[] = {
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = geminilake_ssp_fixup,
 		.dpcm_playback = 1,
@@ -486,13 +504,13 @@ static struct snd_soc_dai_link geminilake_dais[] = {
 		.no_pcm = 1,
 		.init = geminilake_rt5682_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
+			SND_SOC_DAIFMT_CBC_CFC,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = geminilake_ssp_fixup,
 		.ops = &geminilake_rt5682_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		SND_SOC_DAILINK_REG(ssp2_pin, ssp2_codec, platform),
+		SND_SOC_DAILINK_REG(ssp2_pin, ssp2_codec_5682, platform),
 	},
 	{
 		.name = "dmic01",
@@ -592,11 +610,27 @@ static int geminilake_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
 	struct snd_soc_card *card;
-	int ret;
+	int ret, i;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	/* Detect the headset codec variant */
+	if (acpi_dev_present("RTL5682", NULL, -1)) {
+		/* ALC5682I-VS is detected */
+		ctx->is_rt5682s = 1;
+
+		for (i = 0; i < glk_audio_card_rt5682_m98357a.num_links; i++) {
+			if (strcmp(geminilake_dais[i].name, "SSP2-Codec"))
+				continue;
+
+			/* update the dai link to use rt5682s codec */
+			geminilake_dais[i].codecs = ssp2_codec_5682s;
+			geminilake_dais[i].num_codecs = ARRAY_SIZE(ssp2_codec_5682s);
+			break;
+		}
+	}
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 

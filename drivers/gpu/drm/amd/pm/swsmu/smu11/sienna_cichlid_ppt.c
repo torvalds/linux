@@ -670,7 +670,7 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	struct smu_11_0_dpm_table *dpm_table;
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
+	int i, ret = 0;
 	DpmDescriptor_t *table_member;
 
 	/* socclk dpm table setup */
@@ -746,78 +746,45 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
-	/* vclk0 dpm table setup */
-	dpm_table = &dpm_context->dpm_tables.vclk_table;
-	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
-		ret = smu_v11_0_set_single_dpm_table(smu,
-						     SMU_VCLK,
-						     dpm_table);
-		if (ret)
-			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_VCLK_0].SnapToDiscrete;
-	} else {
-		dpm_table->count = 1;
-		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclk / 100;
-		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
-	}
+	/* vclk0/1 dpm table setup */
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 
-	/* vclk1 dpm table setup */
-	if (adev->vcn.num_vcn_inst > 1) {
-		dpm_table = &dpm_context->dpm_tables.vclk1_table;
+		dpm_table = &dpm_context->dpm_tables.vclk_table;
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
 			ret = smu_v11_0_set_single_dpm_table(smu,
-							     SMU_VCLK1,
+							     i ? SMU_VCLK1 : SMU_VCLK,
 							     dpm_table);
 			if (ret)
 				return ret;
 			dpm_table->is_fine_grained =
-				!table_member[PPCLK_VCLK_1].SnapToDiscrete;
+				!table_member[i ? PPCLK_VCLK_1 : PPCLK_VCLK_0].SnapToDiscrete;
 		} else {
 			dpm_table->count = 1;
-			dpm_table->dpm_levels[0].value =
-				smu->smu_table.boot_values.vclk / 100;
+			dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclk / 100;
 			dpm_table->dpm_levels[0].enabled = true;
 			dpm_table->min = dpm_table->dpm_levels[0].value;
 			dpm_table->max = dpm_table->dpm_levels[0].value;
 		}
 	}
 
-	/* dclk0 dpm table setup */
-	dpm_table = &dpm_context->dpm_tables.dclk_table;
-	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
-		ret = smu_v11_0_set_single_dpm_table(smu,
-						     SMU_DCLK,
-						     dpm_table);
-		if (ret)
-			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_DCLK_0].SnapToDiscrete;
-	} else {
-		dpm_table->count = 1;
-		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclk / 100;
-		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
-	}
-
-	/* dclk1 dpm table setup */
-	if (adev->vcn.num_vcn_inst > 1) {
-		dpm_table = &dpm_context->dpm_tables.dclk1_table;
+	/* dclk0/1 dpm table setup */
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
+		dpm_table = &dpm_context->dpm_tables.dclk_table;
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
 			ret = smu_v11_0_set_single_dpm_table(smu,
-							     SMU_DCLK1,
+							     i ? SMU_DCLK1 : SMU_DCLK,
 							     dpm_table);
 			if (ret)
 				return ret;
 			dpm_table->is_fine_grained =
-				!table_member[PPCLK_DCLK_1].SnapToDiscrete;
+				!table_member[i ? PPCLK_DCLK_1 : PPCLK_DCLK_0].SnapToDiscrete;
 		} else {
 			dpm_table->count = 1;
-			dpm_table->dpm_levels[0].value =
-				smu->smu_table.boot_values.dclk / 100;
+			dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclk / 100;
 			dpm_table->dpm_levels[0].enabled = true;
 			dpm_table->min = dpm_table->dpm_levels[0].value;
 			dpm_table->max = dpm_table->dpm_levels[0].value;
@@ -902,32 +869,18 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 static int sienna_cichlid_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
+	int i, ret = 0;
 
-	if (enable) {
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
 		/* vcn dpm on is a prerequisite for vcn power gate messages */
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
-			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0, NULL);
+			ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+							      SMU_MSG_PowerUpVcn : SMU_MSG_PowerDownVcn,
+							      0x10000 * i, NULL);
 			if (ret)
 				return ret;
-			if (adev->vcn.num_vcn_inst > 1) {
-				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn,
-								  0x10000, NULL);
-				if (ret)
-					return ret;
-			}
-		}
-	} else {
-		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
-			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn, 0, NULL);
-			if (ret)
-				return ret;
-			if (adev->vcn.num_vcn_inst > 1) {
-				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn,
-								  0x10000, NULL);
-				if (ret)
-					return ret;
-			}
 		}
 	}
 

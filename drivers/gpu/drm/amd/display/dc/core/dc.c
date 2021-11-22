@@ -71,8 +71,6 @@
 
 #include "dmub/dmub_srv.h"
 
-#include "dcn30/dcn30_vpg.h"
-
 #include "i2caux_interface.h"
 #include "dce/dmub_hw_lock_mgr.h"
 
@@ -1087,6 +1085,8 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 		struct dc_stream_state *old_stream =
 				dc->current_state->res_ctx.pipe_ctx[i].stream;
 		bool should_disable = true;
+		bool pipe_split_change =
+			context->res_ctx.pipe_ctx[i].top_pipe != dc->current_state->res_ctx.pipe_ctx[i].top_pipe;
 
 		for (j = 0; j < context->stream_count; j++) {
 			if (old_stream == context->streams[j]) {
@@ -1094,6 +1094,9 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 				break;
 			}
 		}
+		if (!should_disable && pipe_split_change)
+			should_disable = true;
+
 		if (should_disable && old_stream) {
 			dc_rem_all_planes_for_stream(dc, old_stream, dangling_context);
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
@@ -1889,6 +1892,7 @@ static bool is_flip_pending_in_pipes(struct dc *dc, struct dc_state *context)
 	return false;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DCN
 /* Perform updates here which need to be deferred until next vupdate
  *
  * i.e. blnd lut, 3dlut, and shaper lut bypass regs are double buffered
@@ -1898,15 +1902,16 @@ static bool is_flip_pending_in_pipes(struct dc *dc, struct dc_state *context)
  */
 static void process_deferred_updates(struct dc *dc)
 {
-#ifdef CONFIG_DRM_AMD_DC_DCN
-	int i;
+	int i = 0;
 
-	if (dc->debug.enable_mem_low_power.bits.cm)
+	if (dc->debug.enable_mem_low_power.bits.cm) {
+		ASSERT(dc->dcn_ip->max_num_dpp);
 		for (i = 0; i < dc->dcn_ip->max_num_dpp; i++)
 			if (dc->res_pool->dpps[i]->funcs->dpp_deferred_update)
 				dc->res_pool->dpps[i]->funcs->dpp_deferred_update(dc->res_pool->dpps[i]);
-#endif
+	}
 }
+#endif /* CONFIG_DRM_AMD_DC_DCN */
 
 void dc_post_update_surfaces_to_stream(struct dc *dc)
 {
@@ -1933,7 +1938,9 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 			dc->hwss.disable_plane(dc, &context->res_ctx.pipe_ctx[i]);
 		}
 
+#ifdef CONFIG_DRM_AMD_DC_DCN
 	process_deferred_updates(dc);
+#endif
 
 	dc->hwss.optimize_bandwidth(dc, context);
 
@@ -2285,6 +2292,9 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 			update_flags->bits.gamma_change = 1;
 	}
 
+	if (u->lut3d_func || u->func_shaper)
+		update_flags->bits.lut_3d = 1;
+
 	if (u->hdr_mult.value)
 		if (u->hdr_mult.value != u->surface->hdr_mult.value) {
 			update_flags->bits.hdr_mult = 1;
@@ -2298,6 +2308,7 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 	if (update_flags->bits.input_csc_change
 			|| update_flags->bits.coeff_reduction_change
+			|| update_flags->bits.lut_3d
 			|| update_flags->bits.gamma_change
 			|| update_flags->bits.gamut_remap_change) {
 		type = UPDATE_TYPE_FULL;
@@ -2355,6 +2366,11 @@ static enum surface_update_type check_update_surfaces_for_stream(
 
 		if (stream_update->dsc_config)
 			su_flags->bits.dsc_changed = 1;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (stream_update->mst_bw_update)
+			su_flags->bits.mst_bw = 1;
+#endif
 
 		if (su_flags->raw != 0)
 			overall_type = UPDATE_TYPE_FULL;
@@ -2674,9 +2690,6 @@ static void commit_planes_do_stream_update(struct dc *dc,
 		enum surface_update_type update_type,
 		struct dc_state *context)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	struct vpg *vpg;
-#endif
 	int j;
 
 	// Stream updates
@@ -2697,11 +2710,6 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					stream_update->vrr_infopacket ||
 					stream_update->vsc_infopacket ||
 					stream_update->vsp_infopacket) {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-				vpg = pipe_ctx->stream_res.stream_enc->vpg;
-				if (vpg && vpg->funcs->vpg_poweron)
-					vpg->funcs->vpg_poweron(vpg);
-#endif
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);
 			}
@@ -2740,6 +2748,15 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if (stream_update->dsc_config)
 				dp_update_dsc_config(pipe_ctx);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			if (stream_update->mst_bw_update) {
+				if (stream_update->mst_bw_update->is_increase)
+					dc_link_increase_mst_payload(pipe_ctx, stream_update->mst_bw_update->mst_stream_bw);
+				else
+					dc_link_reduce_mst_payload(pipe_ctx, stream_update->mst_bw_update->mst_stream_bw);
+			}
+#endif
 
 			if (stream_update->pending_test_pattern) {
 				dc_link_dp_set_test_pattern(stream->link,
@@ -3118,8 +3135,13 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			if (new_pipe->plane_state && new_pipe->plane_state != old_pipe->plane_state)
 				new_pipe->plane_state->force_full_update = true;
 		}
-	} else if (update_type == UPDATE_TYPE_FAST) {
-		/* Previous frame finished and HW is ready for optimization. */
+	} else if (update_type == UPDATE_TYPE_FAST && dc_ctx->dce_version >= DCE_VERSION_MAX) {
+		/*
+		 * Previous frame finished and HW is ready for optimization.
+		 *
+		 * Only relevant for DCN behavior where we can guarantee the optimization
+		 * is safe to apply - retain the legacy behavior for DCE.
+		 */
 		dc_post_update_surfaces_to_stream(dc);
 	}
 
@@ -3176,6 +3198,12 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			if (pipe_ctx->plane_state && pipe_ctx->stream == stream)
 				pipe_ctx->plane_state->force_full_update = false;
 		}
+	}
+
+	/* Legacy optimization path for DCE. */
+	if (update_type >= UPDATE_TYPE_FULL && dc_ctx->dce_version < DCE_VERSION_MAX) {
+		dc_post_update_surfaces_to_stream(dc);
+		TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
 	}
 
 	return;
@@ -3478,6 +3506,7 @@ void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_
 bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 {
 	int i;
+	bool allow_active;
 
 	for (i = 0; i < dc->current_state->stream_count ; i++) {
 		struct dc_link *link;
@@ -3489,10 +3518,12 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 
 		if (link->psr_settings.psr_feature_enabled) {
 			if (enable && !link->psr_settings.psr_allow_active) {
-				if (!dc_link_set_psr_allow_active(link, true, false, false))
+				allow_active = true;
+				if (!dc_link_set_psr_allow_active(link, &allow_active, false, false, NULL))
 					return false;
 			} else if (!enable && link->psr_settings.psr_allow_active) {
-				if (!dc_link_set_psr_allow_active(link, false, true, false))
+				allow_active = false;
+				if (!dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL))
 					return false;
 			}
 		}
@@ -3579,7 +3610,8 @@ bool dc_enable_dmub_notifications(struct dc *dc)
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* YELLOW_CARP B0 USB4 DPIA needs dmub notifications for interrupts */
 	if (dc->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP &&
-	    dc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0)
+	    dc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0 &&
+	    !dc->debug.dpia_debug.bits.disable_dpia)
 		return true;
 #endif
 	/* dmub aux needs dmub notifications to be enabled */
@@ -3724,6 +3756,60 @@ bool dc_process_dmub_set_config_async(struct dc *dc,
 		is_cmd_complete = false;
 
 	return is_cmd_complete;
+}
+
+/**
+ *****************************************************************************
+ *  Function: dc_process_dmub_set_mst_slots
+ *
+ *  @brief
+ *		Submits mst slot allocation command to dmub via inbox message
+ *
+ *  @param
+ *		[in] dc: dc structure
+ *		[in] link_index: link index
+ *		[in] mst_alloc_slots: mst slots to be allotted
+ *		[out] mst_slots_in_use: mst slots in use returned in failure case
+ *
+ *	@return
+ *		DC_OK if successful, DC_ERROR if failure
+ *****************************************************************************
+ */
+enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
+				uint32_t link_index,
+				uint8_t mst_alloc_slots,
+				uint8_t *mst_slots_in_use)
+{
+	union dmub_rb_cmd cmd = {0};
+	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
+
+	/* prepare MST_ALLOC_SLOTS command */
+	cmd.set_mst_alloc_slots.header.type = DMUB_CMD__DPIA;
+	cmd.set_mst_alloc_slots.header.sub_type = DMUB_CMD__DPIA_MST_ALLOC_SLOTS;
+
+	cmd.set_mst_alloc_slots.mst_slots_control.instance = dc->links[link_index]->ddc_hw_inst;
+	cmd.set_mst_alloc_slots.mst_slots_control.mst_alloc_slots = mst_alloc_slots;
+
+	if (!dc_dmub_srv_cmd_with_reply_data(dmub_srv, &cmd))
+		/* command is not processed by dmub */
+		return DC_ERROR_UNEXPECTED;
+
+	/* command processed by dmub, if ret_status is 1 */
+	if (cmd.set_config_access.header.ret_status != 1)
+		/* command processing error */
+		return DC_ERROR_UNEXPECTED;
+
+	/* command processed and we have a status of 2, mst not enabled in dpia */
+	if (cmd.set_mst_alloc_slots.mst_slots_control.immed_status == 2)
+		return DC_FAIL_UNSUPPORTED_1;
+
+	/* previously configured mst alloc and used slots did not match */
+	if (cmd.set_mst_alloc_slots.mst_slots_control.immed_status == 3) {
+		*mst_slots_in_use = cmd.set_mst_alloc_slots.mst_slots_control.mst_slots_in_use;
+		return DC_NOT_SUPPORTED;
+	}
+
+	return DC_OK;
 }
 
 /**

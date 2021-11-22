@@ -22,6 +22,39 @@
 #include <sound/soc-link.h>
 #include <linux/pm_runtime.h>
 
+static int snd_soc_compr_components_open(struct snd_compr_stream *cstream)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int ret = 0;
+	int i;
+
+	for_each_rtd_components(rtd, i, component) {
+		ret = snd_soc_component_module_get_when_open(component, cstream);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_component_compr_open(component, cstream);
+		if (ret < 0)
+			break;
+	}
+
+	return ret;
+}
+
+static void snd_soc_compr_components_free(struct snd_compr_stream *cstream,
+					  int rollback)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i;
+
+	for_each_rtd_components(rtd, i, component) {
+		snd_soc_component_compr_free(component, cstream, rollback);
+		snd_soc_component_module_put_when_close(component, cstream, rollback);
+	}
+}
+
 static int soc_compr_clean(struct snd_compr_stream *cstream, int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -44,7 +77,7 @@ static int soc_compr_clean(struct snd_compr_stream *cstream, int rollback)
 
 	snd_soc_link_compr_shutdown(cstream, rollback);
 
-	snd_soc_component_compr_free(cstream, rollback);
+	snd_soc_compr_components_free(cstream, rollback);
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream, rollback);
 
@@ -80,7 +113,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto err;
 
-	ret = snd_soc_component_compr_open(cstream);
+	ret = snd_soc_compr_components_open(cstream);
 	if (ret < 0)
 		goto err;
 
@@ -137,7 +170,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto out;
 
-	ret = snd_soc_component_compr_open(cstream);
+	ret = snd_soc_compr_components_open(cstream);
 	if (ret < 0)
 		goto open_err;
 
@@ -160,7 +193,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	return 0;
 
 machine_err:
-	snd_soc_component_compr_free(cstream, 1);
+	snd_soc_compr_components_free(cstream, 1);
 open_err:
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 1);
 out:
@@ -205,7 +238,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	snd_soc_link_compr_shutdown(cstream, 0);
 
-	snd_soc_component_compr_free(cstream, 0);
+	snd_soc_compr_components_free(cstream, 0);
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 0);
 

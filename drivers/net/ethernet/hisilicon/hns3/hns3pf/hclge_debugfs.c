@@ -391,7 +391,7 @@ static int hclge_dbg_dump_mac(struct hclge_dev *hdev, char *buf, int len)
 static int hclge_dbg_dump_dcb_qset(struct hclge_dev *hdev, char *buf, int len,
 				   int *pos)
 {
-	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_dbg_bitmap_cmd req;
 	struct hclge_desc desc;
 	u16 qset_id, qset_num;
 	int ret;
@@ -408,12 +408,12 @@ static int hclge_dbg_dump_dcb_qset(struct hclge_dev *hdev, char *buf, int len,
 		if (ret)
 			return ret;
 
-		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+		req.bitmap = (u8)le32_to_cpu(desc.data[1]);
 
 		*pos += scnprintf(buf + *pos, len - *pos,
 				  "%04u           %#x            %#x             %#x               %#x\n",
-				  qset_id, bitmap->bit0, bitmap->bit1,
-				  bitmap->bit2, bitmap->bit3);
+				  qset_id, req.bit0, req.bit1, req.bit2,
+				  req.bit3);
 	}
 
 	return 0;
@@ -422,7 +422,7 @@ static int hclge_dbg_dump_dcb_qset(struct hclge_dev *hdev, char *buf, int len,
 static int hclge_dbg_dump_dcb_pri(struct hclge_dev *hdev, char *buf, int len,
 				  int *pos)
 {
-	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_dbg_bitmap_cmd req;
 	struct hclge_desc desc;
 	u8 pri_id, pri_num;
 	int ret;
@@ -439,12 +439,11 @@ static int hclge_dbg_dump_dcb_pri(struct hclge_dev *hdev, char *buf, int len,
 		if (ret)
 			return ret;
 
-		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+		req.bitmap = (u8)le32_to_cpu(desc.data[1]);
 
 		*pos += scnprintf(buf + *pos, len - *pos,
 				  "%03u       %#x           %#x                %#x\n",
-				  pri_id, bitmap->bit0, bitmap->bit1,
-				  bitmap->bit2);
+				  pri_id, req.bit0, req.bit1, req.bit2);
 	}
 
 	return 0;
@@ -453,7 +452,7 @@ static int hclge_dbg_dump_dcb_pri(struct hclge_dev *hdev, char *buf, int len,
 static int hclge_dbg_dump_dcb_pg(struct hclge_dev *hdev, char *buf, int len,
 				 int *pos)
 {
-	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_dbg_bitmap_cmd req;
 	struct hclge_desc desc;
 	u8 pg_id;
 	int ret;
@@ -466,12 +465,11 @@ static int hclge_dbg_dump_dcb_pg(struct hclge_dev *hdev, char *buf, int len,
 		if (ret)
 			return ret;
 
-		bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+		req.bitmap = (u8)le32_to_cpu(desc.data[1]);
 
 		*pos += scnprintf(buf + *pos, len - *pos,
 				  "%03u      %#x           %#x               %#x\n",
-				  pg_id, bitmap->bit0, bitmap->bit1,
-				  bitmap->bit2);
+				  pg_id, req.bit0, req.bit1, req.bit2);
 	}
 
 	return 0;
@@ -511,7 +509,7 @@ static int hclge_dbg_dump_dcb_queue(struct hclge_dev *hdev, char *buf, int len,
 static int hclge_dbg_dump_dcb_port(struct hclge_dev *hdev, char *buf, int len,
 				   int *pos)
 {
-	struct hclge_dbg_bitmap_cmd *bitmap;
+	struct hclge_dbg_bitmap_cmd req;
 	struct hclge_desc desc;
 	u8 port_id = 0;
 	int ret;
@@ -521,12 +519,12 @@ static int hclge_dbg_dump_dcb_port(struct hclge_dev *hdev, char *buf, int len,
 	if (ret)
 		return ret;
 
-	bitmap = (struct hclge_dbg_bitmap_cmd *)&desc.data[1];
+	req.bitmap = (u8)le32_to_cpu(desc.data[1]);
 
 	*pos += scnprintf(buf + *pos, len - *pos, "port_mask: %#x\n",
-			 bitmap->bit0);
+			 req.bit0);
 	*pos += scnprintf(buf + *pos, len - *pos, "port_shaping_pass: %#x\n",
-			 bitmap->bit1);
+			 req.bit1);
 
 	return 0;
 }
@@ -719,9 +717,9 @@ static void hclge_dbg_fill_shaper_content(struct hclge_tm_shaper_para *para,
 	sprintf(result[(*index)++], "%6u", para->rate);
 }
 
-static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
+static int __hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *data_str,
+				  char *buf, int len)
 {
-	char data_str[ARRAY_SIZE(tm_pg_items)][HCLGE_DBG_DATA_STR_LEN];
 	struct hclge_tm_shaper_para c_shaper_para, p_shaper_para;
 	char *result[ARRAY_SIZE(tm_pg_items)], *sch_mode_str;
 	u8 pg_id, sch_mode, weight, pri_bit_map, i, j;
@@ -729,8 +727,10 @@ static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
 	int pos = 0;
 	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(tm_pg_items); i++)
-		result[i] = &data_str[i][0];
+	for (i = 0; i < ARRAY_SIZE(tm_pg_items); i++) {
+		result[i] = data_str;
+		data_str += HCLGE_DBG_DATA_STR_LEN;
+	}
 
 	hclge_dbg_fill_content(content, sizeof(content), tm_pg_items,
 			       NULL, ARRAY_SIZE(tm_pg_items));
@@ -779,6 +779,24 @@ static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
 	}
 
 	return 0;
+}
+
+static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
+{
+	char *data_str;
+	int ret;
+
+	data_str = kcalloc(ARRAY_SIZE(tm_pg_items),
+			   HCLGE_DBG_DATA_STR_LEN, GFP_KERNEL);
+
+	if (!data_str)
+		return -ENOMEM;
+
+	ret = __hclge_dbg_dump_tm_pg(hdev, data_str, buf, len);
+
+	kfree(data_str);
+
+	return ret;
 }
 
 static int hclge_dbg_dump_tm_port(struct hclge_dev *hdev,  char *buf, int len)
@@ -1971,6 +1989,9 @@ static int hclge_dbg_dump_umv_info(struct hclge_dev *hdev, char *buf, int len)
 				 i, vport->used_umv_num);
 	}
 	mutex_unlock(&hdev->vport_lock);
+
+	pos += scnprintf(buf + pos, len - pos, "used_mc_mac_num  : %u\n",
+			 hdev->used_mc_mac_num);
 
 	return 0;
 }

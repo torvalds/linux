@@ -467,9 +467,8 @@ static int ixgbe_set_link_ksettings(struct net_device *netdev,
 		 * this function does not support duplex forcing, but can
 		 * limit the advertising of the adapter to the specified speed
 		 */
-		if (!bitmap_subset(cmd->link_modes.advertising,
-				   cmd->link_modes.supported,
-				   __ETHTOOL_LINK_MODE_MASK_NBITS))
+		if (!linkmode_subset(cmd->link_modes.advertising,
+				     cmd->link_modes.supported))
 			return -EINVAL;
 
 		/* only allow one speed at a time if no autoneg */
@@ -3208,7 +3207,7 @@ static unsigned int ixgbe_max_channels(struct ixgbe_adapter *adapter)
 		max_combined = ixgbe_max_rss_indices(adapter);
 	}
 
-	return max_combined;
+	return min_t(int, max_combined, num_online_cpus());
 }
 
 static void ixgbe_get_channels(struct net_device *dev,

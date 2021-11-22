@@ -142,17 +142,77 @@ ocelot_find_vcap_filter_that_points_at(struct ocelot *ocelot, int chain)
 	return NULL;
 }
 
+static int
+ocelot_flower_parse_ingress_vlan_modify(struct ocelot *ocelot, int port,
+					struct ocelot_vcap_filter *filter,
+					const struct flow_action_entry *a,
+					struct netlink_ext_ack *extack)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	if (filter->goto_target != -1) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Last action must be GOTO");
+		return -EOPNOTSUPP;
+	}
+
+	if (!ocelot_port->vlan_aware) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Can only modify VLAN under VLAN aware bridge");
+		return -EOPNOTSUPP;
+	}
+
+	filter->action.vid_replace_ena = true;
+	filter->action.pcp_dei_ena = true;
+	filter->action.vid = a->vlan.vid;
+	filter->action.pcp = a->vlan.prio;
+	filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+
+	return 0;
+}
+
+static int
+ocelot_flower_parse_egress_vlan_modify(struct ocelot_vcap_filter *filter,
+				       const struct flow_action_entry *a,
+				       struct netlink_ext_ack *extack)
+{
+	enum ocelot_tag_tpid_sel tpid;
+
+	switch (ntohs(a->vlan.proto)) {
+	case ETH_P_8021Q:
+		tpid = OCELOT_TAG_TPID_SEL_8021Q;
+		break;
+	case ETH_P_8021AD:
+		tpid = OCELOT_TAG_TPID_SEL_8021AD;
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot modify custom TPID");
+		return -EOPNOTSUPP;
+	}
+
+	filter->action.tag_a_tpid_sel = tpid;
+	filter->action.push_outer_tag = OCELOT_ES0_TAG;
+	filter->action.tag_a_vid_sel = OCELOT_ES0_VID_PLUS_CLASSIFIED_VID;
+	filter->action.vid_a_val = a->vlan.vid;
+	filter->action.pcp_a_val = a->vlan.prio;
+	filter->action.tag_a_pcp_sel = OCELOT_ES0_PCP;
+	filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+
+	return 0;
+}
+
 static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 				      bool ingress, struct flow_cls_offload *f,
 				      struct ocelot_vcap_filter *filter)
 {
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct netlink_ext_ack *extack = f->common.extack;
 	bool allow_missing_goto_target = false;
 	const struct flow_action_entry *a;
 	enum ocelot_tag_tpid_sel tpid;
 	int i, chain, egress_port;
 	u64 rate;
+	int err;
 
 	if (!flow_action_basic_hw_stats_check(&f->rule->action,
 					      f->common.extack))
@@ -273,26 +333,20 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
 		case FLOW_ACTION_VLAN_MANGLE:
-			if (filter->block_id != VCAP_IS1) {
+			if (filter->block_id == VCAP_IS1) {
+				err = ocelot_flower_parse_ingress_vlan_modify(ocelot, port,
+									      filter, a,
+									      extack);
+			} else if (filter->block_id == VCAP_ES0) {
+				err = ocelot_flower_parse_egress_vlan_modify(filter, a,
+									     extack);
+			} else {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "VLAN modify action can only be offloaded to VCAP IS1");
-				return -EOPNOTSUPP;
+						   "VLAN modify action can only be offloaded to VCAP IS1 or ES0");
+				err = -EOPNOTSUPP;
 			}
-			if (filter->goto_target != -1) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Last action must be GOTO");
-				return -EOPNOTSUPP;
-			}
-			if (!ocelot_port->vlan_aware) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Can only modify VLAN under VLAN aware bridge");
-				return -EOPNOTSUPP;
-			}
-			filter->action.vid_replace_ena = true;
-			filter->action.pcp_dei_ena = true;
-			filter->action.vid = a->vlan.vid;
-			filter->action.pcp = a->vlan.prio;
-			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+			if (err)
+				return err;
 			break;
 		case FLOW_ACTION_PRIORITY:
 			if (filter->block_id != VCAP_IS1) {
@@ -340,7 +394,7 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			}
 			filter->action.tag_a_tpid_sel = tpid;
 			filter->action.push_outer_tag = OCELOT_ES0_TAG;
-			filter->action.tag_a_vid_sel = 1;
+			filter->action.tag_a_vid_sel = OCELOT_ES0_VID;
 			filter->action.vid_a_val = a->vlan.vid;
 			filter->action.pcp_a_val = a->vlan.prio;
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -678,6 +732,31 @@ static int ocelot_vcap_dummy_filter_del(struct ocelot *ocelot,
 	return 0;
 }
 
+/* If we have an egress VLAN modification rule, we need to actually write the
+ * delta between the input VLAN (from the key) and the output VLAN (from the
+ * action), but the action was parsed first. So we need to patch the delta into
+ * the action here.
+ */
+static int
+ocelot_flower_patch_es0_vlan_modify(struct ocelot_vcap_filter *filter,
+				    struct netlink_ext_ack *extack)
+{
+	if (filter->block_id != VCAP_ES0 ||
+	    filter->action.tag_a_vid_sel != OCELOT_ES0_VID_PLUS_CLASSIFIED_VID)
+		return 0;
+
+	if (filter->vlan.vid.mask != VLAN_VID_MASK) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "VCAP ES0 VLAN rewriting needs a full VLAN in the key");
+		return -EOPNOTSUPP;
+	}
+
+	filter->action.vid_a_val -= filter->vlan.vid.value;
+	filter->action.vid_a_val &= VLAN_VID_MASK;
+
+	return 0;
+}
+
 int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 			      struct flow_cls_offload *f, bool ingress)
 {
@@ -696,6 +775,12 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 		return -ENOMEM;
 
 	ret = ocelot_flower_parse(ocelot, port, ingress, f, filter);
+	if (ret) {
+		kfree(filter);
+		return ret;
+	}
+
+	ret = ocelot_flower_patch_es0_vlan_modify(filter, extack);
 	if (ret) {
 		kfree(filter);
 		return ret;

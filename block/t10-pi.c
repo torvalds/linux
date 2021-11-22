@@ -5,7 +5,7 @@
  */
 
 #include <linux/t10-pi.h>
-#include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/crc-t10dif.h>
 #include <linux/module.h>
 #include <net/checksum.h>

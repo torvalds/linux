@@ -189,7 +189,7 @@ struct struct_with_embedded_stuff {
 			const char *d;
 		} e;
 		union {
-			volatile long int f;
+			volatile long f;
 			void * restrict g;
 		};
 	};

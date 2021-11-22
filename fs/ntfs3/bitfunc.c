@@ -5,13 +5,8 @@
  *
  */
 
-#include <linux/blkdev.h>
-#include <linux/buffer_head.h>
-#include <linux/fs.h>
-#include <linux/nls.h>
+#include <linux/types.h>
 
-#include "debug.h"
-#include "ntfs.h"
 #include "ntfs_fs.h"
 
 #define BITS_IN_SIZE_T (sizeof(size_t) * 8)
@@ -124,8 +119,7 @@ bool are_bits_set(const ulong *lmap, size_t bit, size_t nbits)
 
 	pos = nbits & 7;
 	if (pos) {
-		u8 mask = fill_mask[pos];
-
+		mask = fill_mask[pos];
 		if ((*map & mask) != mask)
 			return false;
 	}

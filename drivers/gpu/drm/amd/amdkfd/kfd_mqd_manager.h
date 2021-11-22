@@ -80,7 +80,8 @@ struct mqd_manager {
 				struct mm_struct *mms);
 
 	void	(*update_mqd)(struct mqd_manager *mm, void *mqd,
-				struct queue_properties *q);
+				struct queue_properties *q,
+				struct mqd_update_info *minfo);
 
 	int	(*destroy_mqd)(struct mqd_manager *mm, void *mqd,
 				enum kfd_preempt_type type,

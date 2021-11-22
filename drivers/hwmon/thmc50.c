@@ -62,7 +62,7 @@ struct thmc50_data {
 	enum chips type;
 	unsigned long last_updated;	/* In jiffies */
 	char has_temp3;		/* !=0 if it is ADM1022 in temp3 mode */
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 
 	/* Register values */
 	s8 temp_input[3];
@@ -107,7 +107,7 @@ static struct thmc50_data *thmc50_update_device(struct device *dev)
 		data->alarms =
 		    i2c_smbus_read_byte_data(client, THMC50_REG_INTR);
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

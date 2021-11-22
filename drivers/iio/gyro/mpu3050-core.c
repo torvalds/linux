@@ -471,13 +471,10 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct mpu3050 *mpu3050 = iio_priv(indio_dev);
 	int ret;
-	/*
-	 * Temperature 1*16 bits
-	 * Three axes 3*16 bits
-	 * Timestamp 64 bits (4*16 bits)
-	 * Sum total 8*16 bits
-	 */
-	__be16 hw_values[8];
+	struct {
+		__be16 chans[4];
+		s64 timestamp __aligned(8);
+	} scan;
 	s64 timestamp;
 	unsigned int datums_from_fifo = 0;
 
@@ -572,9 +569,10 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 				fifo_values[4]);
 
 			/* Index past the footer (fifo_values[0]) and push */
-			iio_push_to_buffers_with_timestamp(indio_dev,
-							   &fifo_values[1],
-							   timestamp);
+			iio_push_to_buffers_with_ts_unaligned(indio_dev,
+							      &fifo_values[1],
+							      sizeof(__be16) * 4,
+							      timestamp);
 
 			fifocnt -= toread;
 			datums_from_fifo++;
@@ -632,15 +630,15 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 		goto out_trigger_unlock;
 	}
 
-	ret = regmap_bulk_read(mpu3050->map, MPU3050_TEMP_H, &hw_values,
-			       sizeof(hw_values));
+	ret = regmap_bulk_read(mpu3050->map, MPU3050_TEMP_H, scan.chans,
+			       sizeof(scan.chans));
 	if (ret) {
 		dev_err(mpu3050->dev,
 			"error reading axis data\n");
 		goto out_trigger_unlock;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, hw_values, timestamp);
+	iio_push_to_buffers_with_timestamp(indio_dev, &scan, timestamp);
 
 out_trigger_unlock:
 	mutex_unlock(&mpu3050->lock);

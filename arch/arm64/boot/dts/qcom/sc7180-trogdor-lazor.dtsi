@@ -11,6 +11,7 @@ ap_ec_spi: &spi6 {};
 ap_h1_spi: &spi0 {};
 
 #include "sc7180-trogdor.dtsi"
+#include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 
 &ap_sar_sensor {
 	semtech,cs0-ground;
@@ -52,6 +53,18 @@ ap_ts_pen_1v8: &i2c4 {
 
 &panel {
 	compatible = "boe,nv133fhm-n62";
+};
+
+&pm6150_adc {
+	status = "disabled";
+
+	/delete-node/ charger-thermistor@4f;
+};
+
+&pm6150_adc_tm {
+	status = "disabled";
+
+	/delete-node/ charger-thermistor@0;
 };
 
 &trackpad {

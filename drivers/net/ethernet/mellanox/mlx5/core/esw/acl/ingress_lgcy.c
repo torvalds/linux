@@ -160,7 +160,9 @@ int esw_acl_ingress_lgcy_setup(struct mlx5_eswitch *esw,
 
 	esw_acl_ingress_lgcy_rules_destroy(vport);
 
-	if (MLX5_CAP_ESW_INGRESS_ACL(esw->dev, flow_counter)) {
+	if (vport->ingress.legacy.drop_counter) {
+		counter = vport->ingress.legacy.drop_counter;
+	} else if (MLX5_CAP_ESW_INGRESS_ACL(esw->dev, flow_counter)) {
 		counter = mlx5_fc_create(esw->dev, false);
 		if (IS_ERR(counter)) {
 			esw_warn(esw->dev,

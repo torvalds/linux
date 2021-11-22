@@ -150,9 +150,11 @@ static int smcr_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 
 again:
 	link = conn->lnk;
+	if (!smc_wr_tx_link_hold(link))
+		return -ENOLINK;
 	rc = smc_cdc_get_free_slot(conn, link, &wr_buf, NULL, &pend);
 	if (rc)
-		return rc;
+		goto put_out;
 
 	spin_lock_bh(&conn->send_lock);
 	if (link != conn->lnk) {
@@ -160,6 +162,7 @@ again:
 		spin_unlock_bh(&conn->send_lock);
 		smc_wr_tx_put_slot(link,
 				   (struct smc_wr_tx_pend_priv *)pend);
+		smc_wr_tx_link_put(link);
 		if (again)
 			return -ENOLINK;
 		again = true;
@@ -167,6 +170,8 @@ again:
 	}
 	rc = smc_cdc_msg_send(conn, wr_buf, pend);
 	spin_unlock_bh(&conn->send_lock);
+put_out:
+	smc_wr_tx_link_put(link);
 	return rc;
 }
 

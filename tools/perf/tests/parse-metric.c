@@ -79,7 +79,7 @@ static struct pmu_event pme_test[] = {
 }
 };
 
-static struct pmu_events_map map = {
+static const struct pmu_events_map map = {
 	.cpuid		= "test",
 	.version	= "1",
 	.type		= "core",
@@ -369,7 +369,7 @@ static int test_metric_group(void)
 	return 0;
 }
 
-int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__parse_metric(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("IPC failed", test_ipc() == 0);
 	TEST_ASSERT_VAL("frontend failed", test_frontend() == 0);
@@ -383,3 +383,5 @@ int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unu
 	}
 	return 0;
 }
+
+DEFINE_SUITE("Parse and process metrics", parse_metric);

@@ -12,6 +12,4 @@
 #  define ASM_CONST(x)		__ASM_CONST(x)
 #endif
 
-#define UPD_CONSTR "<>"
-
 #endif /* _ASM_POWERPC_ASM_CONST_H */

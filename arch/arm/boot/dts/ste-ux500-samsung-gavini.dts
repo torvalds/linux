@@ -20,6 +20,10 @@
 		stdout-path = &serial2;
 	};
 
+	battery: battery {
+		compatible = "samsung,eb585157lu";
+	};
+
 	/* TI TXS0206 level translator for 2.9 V */
 	sd_level_translator: regulator-gpio {
 		compatible = "regulator-fixed";

@@ -83,6 +83,9 @@ enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_RDMA_RX,
 	MLX5_FLOW_NAMESPACE_RDMA_RX_KERNEL,
 	MLX5_FLOW_NAMESPACE_RDMA_TX,
+	MLX5_FLOW_NAMESPACE_PORT_SEL,
+	MLX5_FLOW_NAMESPACE_RDMA_RX_COUNTERS,
+	MLX5_FLOW_NAMESPACE_RDMA_TX_COUNTERS,
 };
 
 enum {
@@ -97,6 +100,7 @@ enum {
 
 struct mlx5_pkt_reformat;
 struct mlx5_modify_hdr;
+struct mlx5_flow_definer;
 struct mlx5_flow_table;
 struct mlx5_flow_group;
 struct mlx5_flow_namespace;
@@ -241,6 +245,10 @@ int mlx5_modify_rule_destination(struct mlx5_flow_handle *handler,
 				 struct mlx5_flow_destination *old_dest);
 
 struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging);
+
+/* As mlx5_fc_create() but doesn't queue stats refresh thread. */
+struct mlx5_fc *mlx5_fc_create_ex(struct mlx5_core_dev *dev, bool aging);
+
 void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter);
 u64 mlx5_fc_query_lastuse(struct mlx5_fc *counter);
 void mlx5_fc_query_cached(struct mlx5_fc *counter,
@@ -257,6 +265,13 @@ struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 						 void *modify_actions);
 void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
 				struct mlx5_modify_hdr *modify_hdr);
+struct mlx5_flow_definer *
+mlx5_create_match_definer(struct mlx5_core_dev *dev,
+			  enum mlx5_flow_namespace_type ns_type, u16 format_id,
+			  u32 *match_mask);
+void mlx5_destroy_match_definer(struct mlx5_core_dev *dev,
+				struct mlx5_flow_definer *definer);
+int mlx5_get_match_definer_id(struct mlx5_flow_definer *definer);
 
 struct mlx5_pkt_reformat_params {
 	int type;

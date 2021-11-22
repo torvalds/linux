@@ -178,7 +178,7 @@ static void axp_mc_check(struct mem_ctl_info *mci)
 				     "details unavailable (multiple errors)");
 	if (cnt_dbe)
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
-				     cnt_sbe, /* error count */
+				     cnt_dbe, /* error count */
 				     0, 0, 0, /* pfn, offset, syndrome */
 				     -1, -1, -1, /* top, mid, low layer */
 				     mci->ctl_name,

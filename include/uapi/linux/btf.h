@@ -43,7 +43,7 @@ struct btf_type {
 	 * "size" tells the size of the type it is describing.
 	 *
 	 * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
-	 * FUNC, FUNC_PROTO and VAR.
+	 * FUNC, FUNC_PROTO, VAR and DECL_TAG.
 	 * "type" is a type_id referring to another type.
 	 */
 	union {
@@ -56,25 +56,29 @@ struct btf_type {
 #define BTF_INFO_VLEN(info)	((info) & 0xffff)
 #define BTF_INFO_KFLAG(info)	((info) >> 31)
 
-#define BTF_KIND_UNKN		0	/* Unknown	*/
-#define BTF_KIND_INT		1	/* Integer	*/
-#define BTF_KIND_PTR		2	/* Pointer	*/
-#define BTF_KIND_ARRAY		3	/* Array	*/
-#define BTF_KIND_STRUCT		4	/* Struct	*/
-#define BTF_KIND_UNION		5	/* Union	*/
-#define BTF_KIND_ENUM		6	/* Enumeration	*/
-#define BTF_KIND_FWD		7	/* Forward	*/
-#define BTF_KIND_TYPEDEF	8	/* Typedef	*/
-#define BTF_KIND_VOLATILE	9	/* Volatile	*/
-#define BTF_KIND_CONST		10	/* Const	*/
-#define BTF_KIND_RESTRICT	11	/* Restrict	*/
-#define BTF_KIND_FUNC		12	/* Function	*/
-#define BTF_KIND_FUNC_PROTO	13	/* Function Proto	*/
-#define BTF_KIND_VAR		14	/* Variable	*/
-#define BTF_KIND_DATASEC	15	/* Section	*/
-#define BTF_KIND_FLOAT		16	/* Floating point	*/
-#define BTF_KIND_MAX		BTF_KIND_FLOAT
-#define NR_BTF_KINDS		(BTF_KIND_MAX + 1)
+enum {
+	BTF_KIND_UNKN		= 0,	/* Unknown	*/
+	BTF_KIND_INT		= 1,	/* Integer	*/
+	BTF_KIND_PTR		= 2,	/* Pointer	*/
+	BTF_KIND_ARRAY		= 3,	/* Array	*/
+	BTF_KIND_STRUCT		= 4,	/* Struct	*/
+	BTF_KIND_UNION		= 5,	/* Union	*/
+	BTF_KIND_ENUM		= 6,	/* Enumeration	*/
+	BTF_KIND_FWD		= 7,	/* Forward	*/
+	BTF_KIND_TYPEDEF	= 8,	/* Typedef	*/
+	BTF_KIND_VOLATILE	= 9,	/* Volatile	*/
+	BTF_KIND_CONST		= 10,	/* Const	*/
+	BTF_KIND_RESTRICT	= 11,	/* Restrict	*/
+	BTF_KIND_FUNC		= 12,	/* Function	*/
+	BTF_KIND_FUNC_PROTO	= 13,	/* Function Proto	*/
+	BTF_KIND_VAR		= 14,	/* Variable	*/
+	BTF_KIND_DATASEC	= 15,	/* Section	*/
+	BTF_KIND_FLOAT		= 16,	/* Floating point	*/
+	BTF_KIND_DECL_TAG	= 17,	/* Decl Tag */
+
+	NR_BTF_KINDS,
+	BTF_KIND_MAX		= NR_BTF_KINDS - 1,
+};
 
 /* For some specific BTF_KIND, "struct btf_type" is immediately
  * followed by extra data.
@@ -168,6 +172,17 @@ struct btf_var_secinfo {
 	__u32	type;
 	__u32	offset;
 	__u32	size;
+};
+
+/* BTF_KIND_DECL_TAG is followed by a single "struct btf_decl_tag" to describe
+ * additional information related to the tag applied location.
+ * If component_idx == -1, the tag is applied to a struct, union,
+ * variable or function. Otherwise, it is applied to a struct/union
+ * member or a func argument, and component_idx indicates which member
+ * or argument (0 ... vlen-1).
+ */
+struct btf_decl_tag {
+       __s32   component_idx;
 };
 
 #endif /* _UAPI__LINUX_BTF_H__ */

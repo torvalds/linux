@@ -62,15 +62,13 @@ static inline size_t sve_ffr_offset(int vl)
 
 static inline void *sve_pffr(struct thread_struct *thread)
 {
-	return (char *)thread->sve_state + sve_ffr_offset(thread->sve_vl);
+	return (char *)thread->sve_state + sve_ffr_offset(thread_get_sve_vl(thread));
 }
 
-extern void sve_save_state(void *state, u32 *pfpsr);
+extern void sve_save_state(void *state, u32 *pfpsr, int save_ffr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
-			   unsigned long vq_minus_1);
-extern void sve_flush_live(unsigned long vq_minus_1);
-extern void sve_load_from_fpsimd_state(struct user_fpsimd_state const *state,
-				       unsigned long vq_minus_1);
+			   int restore_ffr);
+extern void sve_flush_live(bool flush_ffr, unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);
 extern void sve_set_vq(unsigned long vq_minus_1);
 
@@ -78,10 +76,6 @@ struct arm64_cpu_capabilities;
 extern void sve_kernel_enable(const struct arm64_cpu_capabilities *__unused);
 
 extern u64 read_zcr_features(void);
-
-extern int __ro_after_init sve_max_vl;
-extern int __ro_after_init sve_max_virtualisable_vl;
-extern __ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
 
 /*
  * Helpers to translate bit indices in sve_vq_map to VQ values (and
@@ -98,15 +92,29 @@ static inline unsigned int __bit_to_vq(unsigned int bit)
 	return SVE_VQ_MAX - bit;
 }
 
-/* Ensure vq >= SVE_VQ_MIN && vq <= SVE_VQ_MAX before calling this function */
-static inline bool sve_vq_available(unsigned int vq)
-{
-	return test_bit(__vq_to_bit(vq), sve_vq_map);
-}
+
+struct vl_info {
+	enum vec_type type;
+	const char *name;		/* For display purposes */
+
+	/* Minimum supported vector length across all CPUs */
+	int min_vl;
+
+	/* Maximum supported vector length across all CPUs */
+	int max_vl;
+	int max_virtualisable_vl;
+
+	/*
+	 * Set of available vector lengths,
+	 * where length vq encoded as bit __vq_to_bit(vq):
+	 */
+	DECLARE_BITMAP(vq_map, SVE_VQ_MAX);
+
+	/* Set of vector lengths present on at least one cpu: */
+	DECLARE_BITMAP(vq_partial_map, SVE_VQ_MAX);
+};
 
 #ifdef CONFIG_ARM64_SVE
-
-extern size_t sve_state_size(struct task_struct const *task);
 
 extern void sve_alloc(struct task_struct *task);
 extern void fpsimd_release_task(struct task_struct *task);
@@ -143,10 +151,62 @@ static inline void sve_user_enable(void)
  * Probing and setup functions.
  * Calls to these functions must be serialised with one another.
  */
-extern void __init sve_init_vq_map(void);
-extern void sve_update_vq_map(void);
-extern int sve_verify_vq_map(void);
+enum vec_type;
+
+extern void __init vec_init_vq_map(enum vec_type type);
+extern void vec_update_vq_map(enum vec_type type);
+extern int vec_verify_vq_map(enum vec_type type);
 extern void __init sve_setup(void);
+
+extern __ro_after_init struct vl_info vl_info[ARM64_VEC_MAX];
+
+static inline void write_vl(enum vec_type type, u64 val)
+{
+	u64 tmp;
+
+	switch (type) {
+#ifdef CONFIG_ARM64_SVE
+	case ARM64_VEC_SVE:
+		tmp = read_sysreg_s(SYS_ZCR_EL1) & ~ZCR_ELx_LEN_MASK;
+		write_sysreg_s(tmp | val, SYS_ZCR_EL1);
+		break;
+#endif
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+}
+
+static inline int vec_max_vl(enum vec_type type)
+{
+	return vl_info[type].max_vl;
+}
+
+static inline int vec_max_virtualisable_vl(enum vec_type type)
+{
+	return vl_info[type].max_virtualisable_vl;
+}
+
+static inline int sve_max_vl(void)
+{
+	return vec_max_vl(ARM64_VEC_SVE);
+}
+
+static inline int sve_max_virtualisable_vl(void)
+{
+	return vec_max_virtualisable_vl(ARM64_VEC_SVE);
+}
+
+/* Ensure vq >= SVE_VQ_MIN && vq <= SVE_VQ_MAX before calling this function */
+static inline bool vq_available(enum vec_type type, unsigned int vq)
+{
+	return test_bit(__vq_to_bit(vq), vl_info[type].vq_map);
+}
+
+static inline bool sve_vq_available(unsigned int vq)
+{
+	return vq_available(ARM64_VEC_SVE, vq);
+}
 
 #else /* ! CONFIG_ARM64_SVE */
 
@@ -154,6 +214,11 @@ static inline void sve_alloc(struct task_struct *task) { }
 static inline void fpsimd_release_task(struct task_struct *task) { }
 static inline void sve_sync_to_fpsimd(struct task_struct *task) { }
 static inline void sve_sync_from_fpsimd_zeropad(struct task_struct *task) { }
+
+static inline int sve_max_virtualisable_vl(void)
+{
+	return 0;
+}
 
 static inline int sve_set_current_vl(unsigned long arg)
 {
@@ -165,14 +230,21 @@ static inline int sve_get_current_vl(void)
 	return -EINVAL;
 }
 
+static inline int sve_max_vl(void)
+{
+	return -EINVAL;
+}
+
+static inline bool sve_vq_available(unsigned int vq) { return false; }
+
 static inline void sve_user_disable(void) { BUILD_BUG(); }
 static inline void sve_user_enable(void) { BUILD_BUG(); }
 
 #define sve_cond_update_zcr_vq(val, reg) do { } while (0)
 
-static inline void sve_init_vq_map(void) { }
-static inline void sve_update_vq_map(void) { }
-static inline int sve_verify_vq_map(void) { return 0; }
+static inline void vec_init_vq_map(enum vec_type t) { }
+static inline void vec_update_vq_map(enum vec_type t) { }
+static inline int vec_verify_vq_map(enum vec_type t) { return 0; }
 static inline void sve_setup(void) { }
 
 #endif /* ! CONFIG_ARM64_SVE */

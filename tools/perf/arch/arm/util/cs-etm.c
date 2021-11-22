@@ -16,19 +16,19 @@
 #include <linux/zalloc.h>
 
 #include "cs-etm.h"
-#include "../../util/debug.h"
-#include "../../util/record.h"
-#include "../../util/auxtrace.h"
-#include "../../util/cpumap.h"
-#include "../../util/event.h"
-#include "../../util/evlist.h"
-#include "../../util/evsel.h"
-#include "../../util/perf_api_probe.h"
-#include "../../util/evsel_config.h"
-#include "../../util/pmu.h"
-#include "../../util/cs-etm.h"
+#include "../../../util/debug.h"
+#include "../../../util/record.h"
+#include "../../../util/auxtrace.h"
+#include "../../../util/cpumap.h"
+#include "../../../util/event.h"
+#include "../../../util/evlist.h"
+#include "../../../util/evsel.h"
+#include "../../../util/perf_api_probe.h"
+#include "../../../util/evsel_config.h"
+#include "../../../util/pmu.h"
+#include "../../../util/cs-etm.h"
 #include <internal/lib.h> // page_size
-#include "../../util/session.h"
+#include "../../../util/session.h"
 
 #include <errno.h>
 #include <stdlib.h>

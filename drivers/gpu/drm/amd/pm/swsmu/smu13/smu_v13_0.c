@@ -945,22 +945,27 @@ int smu_v13_0_get_current_power_limit(struct smu_context *smu,
 	return ret;
 }
 
-int smu_v13_0_set_power_limit(struct smu_context *smu, uint32_t n)
+int smu_v13_0_set_power_limit(struct smu_context *smu,
+			      enum smu_ppt_limit_type limit_type,
+			      uint32_t limit)
 {
 	int ret = 0;
+
+	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
+		return -EINVAL;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
 		return -EOPNOTSUPP;
 	}
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n, NULL);
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit, NULL);
 	if (ret) {
 		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
 		return ret;
 	}
 
-	smu->current_power_limit = n;
+	smu->current_power_limit = limit;
 
 	return 0;
 }

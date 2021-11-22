@@ -57,7 +57,7 @@ static int xlgmac_enable_rx_csum(struct xlgmac_pdata *pdata)
 	return 0;
 }
 
-static int xlgmac_set_mac_address(struct xlgmac_pdata *pdata, u8 *addr)
+static int xlgmac_set_mac_address(struct xlgmac_pdata *pdata, const u8 *addr)
 {
 	unsigned int mac_addr_hi, mac_addr_lo;
 

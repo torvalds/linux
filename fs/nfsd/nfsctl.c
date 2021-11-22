@@ -395,12 +395,12 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	auth_domain_put(dom);
 	if (len)
 		return len;
-	
+
 	mesg = buf;
 	len = SIMPLE_TRANSACTION_LIMIT;
-	qword_addhex(&mesg, &len, (char*)&fh.fh_base, fh.fh_size);
+	qword_addhex(&mesg, &len, fh.fh_raw, fh.fh_size);
 	mesg[-1] = '\n';
-	return mesg - buf;	
+	return mesg - buf;
 }
 
 /*
@@ -793,7 +793,10 @@ out_close:
 		svc_xprt_put(xprt);
 	}
 out_err:
-	nfsd_destroy(net);
+	if (!list_empty(&nn->nfsd_serv->sv_permsocks))
+		nn->nfsd_serv->sv_nrthreads--;
+	 else
+		nfsd_destroy(net);
 	return err;
 }
 
@@ -1545,7 +1548,7 @@ static int __init init_nfsd(void)
 		goto out_free_all;
 	return 0;
 out_free_all:
-	unregister_pernet_subsys(&nfsd_net_ops);
+	unregister_filesystem(&nfsd_fs_type);
 out_free_exports:
 	remove_proc_entry("fs/nfs/exports", NULL);
 	remove_proc_entry("fs/nfs", NULL);

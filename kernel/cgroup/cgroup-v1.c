@@ -63,9 +63,6 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 	for_each_root(root) {
 		struct cgroup *from_cgrp;
 
-		if (root == &cgrp_dfl_root)
-			continue;
-
 		spin_lock_irq(&css_set_lock);
 		from_cgrp = task_cgroup_from_root(from, root);
 		spin_unlock_irq(&css_set_lock);
@@ -662,11 +659,9 @@ int proc_cgroupstats_show(struct seq_file *m, void *v)
 
 	seq_puts(m, "#subsys_name\thierarchy\tnum_cgroups\tenabled\n");
 	/*
-	 * ideally we don't want subsystems moving around while we do this.
-	 * cgroup_mutex is also necessary to guarantee an atomic snapshot of
-	 * subsys/hierarchy state.
+	 * Grab the subsystems state racily. No need to add avenue to
+	 * cgroup_mutex contention.
 	 */
-	mutex_lock(&cgroup_mutex);
 
 	for_each_subsys(ss, i)
 		seq_printf(m, "%s\t%d\t%d\t%d\n",
@@ -674,7 +669,6 @@ int proc_cgroupstats_show(struct seq_file *m, void *v)
 			   atomic_read(&ss->root->nr_cgrps),
 			   cgroup_ssid_enabled(i));
 
-	mutex_unlock(&cgroup_mutex);
 	return 0;
 }
 
@@ -701,8 +695,6 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	    kernfs_type(kn) != KERNFS_DIR)
 		return -EINVAL;
 
-	mutex_lock(&cgroup_mutex);
-
 	/*
 	 * We aren't being called from kernfs and there's no guarantee on
 	 * @kn->priv's validity.  For this and css_tryget_online_from_dir(),
@@ -710,9 +702,8 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	 */
 	rcu_read_lock();
 	cgrp = rcu_dereference(*(void __rcu __force **)&kn->priv);
-	if (!cgrp || cgroup_is_dead(cgrp)) {
+	if (!cgrp || !cgroup_tryget(cgrp)) {
 		rcu_read_unlock();
-		mutex_unlock(&cgroup_mutex);
 		return -ENOENT;
 	}
 	rcu_read_unlock();
@@ -740,7 +731,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	}
 	css_task_iter_end(&it);
 
-	mutex_unlock(&cgroup_mutex);
+	cgroup_put(cgrp);
 	return 0;
 }
 

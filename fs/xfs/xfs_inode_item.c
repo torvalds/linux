@@ -21,7 +21,7 @@
 
 #include <linux/iversion.h>
 
-kmem_zone_t	*xfs_ili_zone;		/* inode log item zone */
+struct kmem_cache	*xfs_ili_cache;		/* inode log item */
 
 static inline struct xfs_inode_log_item *INODE_ITEM(struct xfs_log_item *lip)
 {
@@ -672,7 +672,7 @@ xfs_inode_item_init(
 	struct xfs_inode_log_item *iip;
 
 	ASSERT(ip->i_itemp == NULL);
-	iip = ip->i_itemp = kmem_cache_zalloc(xfs_ili_zone,
+	iip = ip->i_itemp = kmem_cache_zalloc(xfs_ili_cache,
 					      GFP_KERNEL | __GFP_NOFAIL);
 
 	iip->ili_inode = ip;
@@ -694,7 +694,7 @@ xfs_inode_item_destroy(
 
 	ip->i_itemp = NULL;
 	kmem_free(iip->ili_item.li_lv_shadow);
-	kmem_cache_free(xfs_ili_zone, iip);
+	kmem_cache_free(xfs_ili_cache, iip);
 }
 
 

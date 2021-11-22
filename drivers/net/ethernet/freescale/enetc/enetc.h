@@ -112,6 +112,10 @@ struct enetc_bdr {
 	dma_addr_t bd_dma_base;
 	u8 tsd_enable; /* Time specific departure */
 	bool ext_en; /* enable h/w descriptor extensions */
+
+	/* DMA buffer for TSO headers */
+	char *tso_headers;
+	dma_addr_t tso_headers_dma;
 } ____cacheline_aligned_in_smp;
 
 static inline void enetc_bdr_idx_inc(struct enetc_bdr *bdr, int *i)

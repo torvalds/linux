@@ -10,6 +10,7 @@
 / {
 	model = "Sony Xperia Z3+/Z4";
 	compatible = "sony,ivy-row", "qcom,msm8994";
+	chassis-type = "handset";
 };
 
 &pm8994_l3 {

@@ -42,6 +42,12 @@ Description:    the CPU core ID of cpuX. Typically it is the hardware platform's
                 architecture and platform dependent.
 Values:         integer
 
+What:           /sys/devices/system/cpu/cpuX/topology/cluster_id
+Description:    the cluster ID of cpuX.  Typically it is the hardware platform's
+                identifier (rather than the kernel's). The actual value is
+                architecture and platform dependent.
+Values:         integer
+
 What:           /sys/devices/system/cpu/cpuX/topology/book_id
 Description:    the book ID of cpuX. Typically it is the hardware platform's
                 identifier (rather than the kernel's). The actual value is
@@ -82,6 +88,15 @@ Values:         hexadecimal bitmask.
 
 What:           /sys/devices/system/cpu/cpuX/topology/die_cpus_list
 Description:    human-readable list of CPUs within the same die.
+                The format is like 0-3, 8-11, 14,17.
+Values:         decimal list.
+
+What:           /sys/devices/system/cpu/cpuX/topology/cluster_cpus
+Description:    internal kernel map of CPUs within the same cluster.
+Values:         hexadecimal bitmask.
+
+What:           /sys/devices/system/cpu/cpuX/topology/cluster_cpus_list
+Description:    human-readable list of CPUs within the same cluster.
                 The format is like 0-3, 8-11, 14,17.
 Values:         decimal list.
 

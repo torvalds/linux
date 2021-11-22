@@ -549,7 +549,7 @@ ixgb_mta_set(struct ixgb_hw *hw,
  *****************************************************************************/
 void
 ixgb_rar_set(struct ixgb_hw *hw,
-		  u8 *addr,
+		  const u8 *addr,
 		  u32 index)
 {
 	u32 rar_low, rar_high;

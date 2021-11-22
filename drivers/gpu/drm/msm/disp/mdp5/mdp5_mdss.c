@@ -136,10 +136,8 @@ static int mdp5_mdss_enable(struct msm_mdss *mdss)
 	DBG("");
 
 	clk_prepare_enable(mdp5_mdss->ahb_clk);
-	if (mdp5_mdss->axi_clk)
-		clk_prepare_enable(mdp5_mdss->axi_clk);
-	if (mdp5_mdss->vsync_clk)
-		clk_prepare_enable(mdp5_mdss->vsync_clk);
+	clk_prepare_enable(mdp5_mdss->axi_clk);
+	clk_prepare_enable(mdp5_mdss->vsync_clk);
 
 	return 0;
 }
@@ -149,10 +147,8 @@ static int mdp5_mdss_disable(struct msm_mdss *mdss)
 	struct mdp5_mdss *mdp5_mdss = to_mdp5_mdss(mdss);
 	DBG("");
 
-	if (mdp5_mdss->vsync_clk)
-		clk_disable_unprepare(mdp5_mdss->vsync_clk);
-	if (mdp5_mdss->axi_clk)
-		clk_disable_unprepare(mdp5_mdss->axi_clk);
+	clk_disable_unprepare(mdp5_mdss->vsync_clk);
+	clk_disable_unprepare(mdp5_mdss->axi_clk);
 	clk_disable_unprepare(mdp5_mdss->ahb_clk);
 
 	return 0;

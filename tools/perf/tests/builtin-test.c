@@ -30,349 +30,133 @@
 
 static bool dont_fork;
 
-struct test __weak arch_tests[] = {
-	{
-		.func = NULL,
-	},
+struct test_suite *__weak arch_tests[] = {
+	NULL,
 };
 
-static struct test generic_tests[] = {
-	{
-		.desc = "vmlinux symtab matches kallsyms",
-		.func = test__vmlinux_matches_kallsyms,
-	},
-	{
-		.desc = "Detect openat syscall event",
-		.func = test__openat_syscall_event,
-	},
-	{
-		.desc = "Detect openat syscall event on all cpus",
-		.func = test__openat_syscall_event_on_all_cpus,
-	},
-	{
-		.desc = "Read samples using the mmap interface",
-		.func = test__basic_mmap,
-	},
-	{
-		.desc = "Test data source output",
-		.func = test__mem,
-	},
-	{
-		.desc = "Parse event definition strings",
-		.func = test__parse_events,
-	},
-	{
-		.desc = "Simple expression parser",
-		.func = test__expr,
-	},
-	{
-		.desc = "PERF_RECORD_* events & perf_sample fields",
-		.func = test__PERF_RECORD,
-	},
-	{
-		.desc = "Parse perf pmu format",
-		.func = test__pmu,
-	},
-	{
-		.desc = "PMU events",
-		.func = test__pmu_events,
-		.subtest = {
-			.skip_if_fail	= false,
-			.get_nr		= test__pmu_events_subtest_get_nr,
-			.get_desc	= test__pmu_events_subtest_get_desc,
-			.skip_reason	= test__pmu_events_subtest_skip_reason,
-		},
-
-	},
-	{
-		.desc = "DSO data read",
-		.func = test__dso_data,
-	},
-	{
-		.desc = "DSO data cache",
-		.func = test__dso_data_cache,
-	},
-	{
-		.desc = "DSO data reopen",
-		.func = test__dso_data_reopen,
-	},
-	{
-		.desc = "Roundtrip evsel->name",
-		.func = test__perf_evsel__roundtrip_name_test,
-	},
-	{
-		.desc = "Parse sched tracepoints fields",
-		.func = test__perf_evsel__tp_sched_test,
-	},
-	{
-		.desc = "syscalls:sys_enter_openat event fields",
-		.func = test__syscall_openat_tp_fields,
-	},
-	{
-		.desc = "Setup struct perf_event_attr",
-		.func = test__attr,
-	},
-	{
-		.desc = "Match and link multiple hists",
-		.func = test__hists_link,
-	},
-	{
-		.desc = "'import perf' in python",
-		.func = test__python_use,
-	},
-	{
-		.desc = "Breakpoint overflow signal handler",
-		.func = test__bp_signal,
-		.is_supported = test__bp_signal_is_supported,
-	},
-	{
-		.desc = "Breakpoint overflow sampling",
-		.func = test__bp_signal_overflow,
-		.is_supported = test__bp_signal_is_supported,
-	},
-	{
-		.desc = "Breakpoint accounting",
-		.func = test__bp_accounting,
-		.is_supported = test__bp_account_is_supported,
-	},
-	{
-		.desc = "Watchpoint",
-		.func = test__wp,
-		.is_supported = test__wp_is_supported,
-		.subtest = {
-			.skip_if_fail	= false,
-			.get_nr		= test__wp_subtest_get_nr,
-			.get_desc	= test__wp_subtest_get_desc,
-			.skip_reason    = test__wp_subtest_skip_reason,
-		},
-	},
-	{
-		.desc = "Number of exit events of a simple workload",
-		.func = test__task_exit,
-	},
-	{
-		.desc = "Software clock events period values",
-		.func = test__sw_clock_freq,
-	},
-	{
-		.desc = "Object code reading",
-		.func = test__code_reading,
-	},
-	{
-		.desc = "Sample parsing",
-		.func = test__sample_parsing,
-	},
-	{
-		.desc = "Use a dummy software event to keep tracking",
-		.func = test__keep_tracking,
-	},
-	{
-		.desc = "Parse with no sample_id_all bit set",
-		.func = test__parse_no_sample_id_all,
-	},
-	{
-		.desc = "Filter hist entries",
-		.func = test__hists_filter,
-	},
-	{
-		.desc = "Lookup mmap thread",
-		.func = test__mmap_thread_lookup,
-	},
-	{
-		.desc = "Share thread maps",
-		.func = test__thread_maps_share,
-	},
-	{
-		.desc = "Sort output of hist entries",
-		.func = test__hists_output,
-	},
-	{
-		.desc = "Cumulate child hist entries",
-		.func = test__hists_cumulate,
-	},
-	{
-		.desc = "Track with sched_switch",
-		.func = test__switch_tracking,
-	},
-	{
-		.desc = "Filter fds with revents mask in a fdarray",
-		.func = test__fdarray__filter,
-	},
-	{
-		.desc = "Add fd to a fdarray, making it autogrow",
-		.func = test__fdarray__add,
-	},
-	{
-		.desc = "kmod_path__parse",
-		.func = test__kmod_path__parse,
-	},
-	{
-		.desc = "Thread map",
-		.func = test__thread_map,
-	},
-	{
-		.desc = "LLVM search and compile",
-		.func = test__llvm,
-		.subtest = {
-			.skip_if_fail	= true,
-			.get_nr		= test__llvm_subtest_get_nr,
-			.get_desc	= test__llvm_subtest_get_desc,
-		},
-	},
-	{
-		.desc = "Session topology",
-		.func = test__session_topology,
-	},
-	{
-		.desc = "BPF filter",
-		.func = test__bpf,
-		.subtest = {
-			.skip_if_fail	= true,
-			.get_nr		= test__bpf_subtest_get_nr,
-			.get_desc	= test__bpf_subtest_get_desc,
-		},
-	},
-	{
-		.desc = "Synthesize thread map",
-		.func = test__thread_map_synthesize,
-	},
-	{
-		.desc = "Remove thread map",
-		.func = test__thread_map_remove,
-	},
-	{
-		.desc = "Synthesize cpu map",
-		.func = test__cpu_map_synthesize,
-	},
-	{
-		.desc = "Synthesize stat config",
-		.func = test__synthesize_stat_config,
-	},
-	{
-		.desc = "Synthesize stat",
-		.func = test__synthesize_stat,
-	},
-	{
-		.desc = "Synthesize stat round",
-		.func = test__synthesize_stat_round,
-	},
-	{
-		.desc = "Synthesize attr update",
-		.func = test__event_update,
-	},
-	{
-		.desc = "Event times",
-		.func = test__event_times,
-	},
-	{
-		.desc = "Read backward ring buffer",
-		.func = test__backward_ring_buffer,
-	},
-	{
-		.desc = "Print cpu map",
-		.func = test__cpu_map_print,
-	},
-	{
-		.desc = "Merge cpu map",
-		.func = test__cpu_map_merge,
-	},
-
-	{
-		.desc = "Probe SDT events",
-		.func = test__sdt_event,
-	},
-	{
-		.desc = "is_printable_array",
-		.func = test__is_printable_array,
-	},
-	{
-		.desc = "Print bitmap",
-		.func = test__bitmap_print,
-	},
-	{
-		.desc = "perf hooks",
-		.func = test__perf_hooks,
-	},
-	{
-		.desc = "builtin clang support",
-		.func = test__clang,
-		.subtest = {
-			.skip_if_fail	= true,
-			.get_nr		= test__clang_subtest_get_nr,
-			.get_desc	= test__clang_subtest_get_desc,
-		}
-	},
-	{
-		.desc = "unit_number__scnprintf",
-		.func = test__unit_number__scnprint,
-	},
-	{
-		.desc = "mem2node",
-		.func = test__mem2node,
-	},
-	{
-		.desc = "time utils",
-		.func = test__time_utils,
-	},
-	{
-		.desc = "Test jit_write_elf",
-		.func = test__jit_write_elf,
-	},
-	{
-		.desc = "Test libpfm4 support",
-		.func = test__pfm,
-		.subtest = {
-			.skip_if_fail	= true,
-			.get_nr		= test__pfm_subtest_get_nr,
-			.get_desc	= test__pfm_subtest_get_desc,
-		}
-	},
-	{
-		.desc = "Test api io",
-		.func = test__api_io,
-	},
-	{
-		.desc = "maps__merge_in",
-		.func = test__maps__merge_in,
-	},
-	{
-		.desc = "Demangle Java",
-		.func = test__demangle_java,
-	},
-	{
-		.desc = "Demangle OCaml",
-		.func = test__demangle_ocaml,
-	},
-	{
-		.desc = "Parse and process metrics",
-		.func = test__parse_metric,
-	},
-	{
-		.desc = "PE file support",
-		.func = test__pe_file_parsing,
-	},
-	{
-		.desc = "Event expansion for cgroups",
-		.func = test__expand_cgroup_events,
-	},
-	{
-		.desc = "Convert perf time to TSC",
-		.func = test__perf_time_to_tsc,
-		.is_supported = test__tsc_is_supported,
-	},
-	{
-		.desc = "dlfilter C API",
-		.func = test__dlfilter,
-	},
-	{
-		.func = NULL,
-	},
+static struct test_suite *generic_tests[] = {
+	&suite__vmlinux_matches_kallsyms,
+	&suite__openat_syscall_event,
+	&suite__openat_syscall_event_on_all_cpus,
+	&suite__basic_mmap,
+	&suite__mem,
+	&suite__parse_events,
+	&suite__expr,
+	&suite__PERF_RECORD,
+	&suite__pmu,
+	&suite__pmu_events,
+	&suite__dso_data,
+	&suite__dso_data_cache,
+	&suite__dso_data_reopen,
+	&suite__perf_evsel__roundtrip_name_test,
+	&suite__perf_evsel__tp_sched_test,
+	&suite__syscall_openat_tp_fields,
+	&suite__attr,
+	&suite__hists_link,
+	&suite__python_use,
+	&suite__bp_signal,
+	&suite__bp_signal_overflow,
+	&suite__bp_accounting,
+	&suite__wp,
+	&suite__task_exit,
+	&suite__sw_clock_freq,
+	&suite__code_reading,
+	&suite__sample_parsing,
+	&suite__keep_tracking,
+	&suite__parse_no_sample_id_all,
+	&suite__hists_filter,
+	&suite__mmap_thread_lookup,
+	&suite__thread_maps_share,
+	&suite__hists_output,
+	&suite__hists_cumulate,
+	&suite__switch_tracking,
+	&suite__fdarray__filter,
+	&suite__fdarray__add,
+	&suite__kmod_path__parse,
+	&suite__thread_map,
+	&suite__llvm,
+	&suite__session_topology,
+	&suite__bpf,
+	&suite__thread_map_synthesize,
+	&suite__thread_map_remove,
+	&suite__cpu_map_synthesize,
+	&suite__synthesize_stat_config,
+	&suite__synthesize_stat,
+	&suite__synthesize_stat_round,
+	&suite__event_update,
+	&suite__event_times,
+	&suite__backward_ring_buffer,
+	&suite__cpu_map_print,
+	&suite__cpu_map_merge,
+	&suite__sdt_event,
+	&suite__is_printable_array,
+	&suite__bitmap_print,
+	&suite__perf_hooks,
+	&suite__clang,
+	&suite__unit_number__scnprint,
+	&suite__mem2node,
+	&suite__time_utils,
+	&suite__jit_write_elf,
+	&suite__pfm,
+	&suite__api_io,
+	&suite__maps__merge_in,
+	&suite__demangle_java,
+	&suite__demangle_ocaml,
+	&suite__parse_metric,
+	&suite__pe_file_parsing,
+	&suite__expand_cgroup_events,
+	&suite__perf_time_to_tsc,
+	&suite__dlfilter,
+	NULL,
 };
 
-static struct test *tests[] = {
+static struct test_suite **tests[] = {
 	generic_tests,
 	arch_tests,
 };
+
+static int num_subtests(const struct test_suite *t)
+{
+	int num;
+
+	if (!t->test_cases)
+		return 0;
+
+	num = 0;
+	while (t->test_cases[num].name)
+		num++;
+
+	return num;
+}
+
+static bool has_subtests(const struct test_suite *t)
+{
+	return num_subtests(t) > 1;
+}
+
+static const char *skip_reason(const struct test_suite *t, int subtest)
+{
+	if (t->test_cases && subtest >= 0)
+		return t->test_cases[subtest].skip_reason;
+
+	return NULL;
+}
+
+static const char *test_description(const struct test_suite *t, int subtest)
+{
+	if (t->test_cases && subtest >= 0)
+		return t->test_cases[subtest].desc;
+
+	return t->desc;
+}
+
+static test_fnptr test_function(const struct test_suite *t, int subtest)
+{
+	if (subtest <= 0)
+		return t->test_cases[0].run_case;
+
+	return t->test_cases[subtest].run_case;
+}
 
 static bool perf_test__matches(const char *desc, int curr, int argc, const char *argv[])
 {
@@ -398,7 +182,7 @@ static bool perf_test__matches(const char *desc, int curr, int argc, const char 
 	return false;
 }
 
-static int run_test(struct test *test, int subtest)
+static int run_test(struct test_suite *test, int subtest)
 {
 	int status, err = -1, child = dont_fork ? 0 : fork();
 	char sbuf[STRERR_BUFSIZE];
@@ -430,7 +214,7 @@ static int run_test(struct test *test, int subtest)
 			}
 		}
 
-		err = test->func(test, subtest);
+		err = test_function(test, subtest)(test, subtest);
 		if (!dont_fork)
 			exit(err);
 	}
@@ -450,24 +234,19 @@ static int run_test(struct test *test, int subtest)
 	return err;
 }
 
-#define for_each_test(j, t)	 				\
+#define for_each_test(j, k, t)			\
 	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
-		for (t = &tests[j][0]; t->func; t++)
+		for (k = 0, t = tests[j][k]; tests[j][k]; k++, t = tests[j][k])
 
-static int test_and_print(struct test *t, bool force_skip, int subtest)
+static int test_and_print(struct test_suite *t, int subtest)
 {
 	int err;
 
-	if (!force_skip) {
-		pr_debug("\n--- start ---\n");
-		err = run_test(t, subtest);
-		pr_debug("---- end ----\n");
-	} else {
-		pr_debug("\n--- force skipped ---\n");
-		err = TEST_SKIP;
-	}
+	pr_debug("\n--- start ---\n");
+	err = run_test(t, subtest);
+	pr_debug("---- end ----\n");
 
-	if (!t->subtest.get_nr)
+	if (!has_subtests(t))
 		pr_debug("%s:", t->desc);
 	else
 		pr_debug("%s subtest %d:", t->desc, subtest + 1);
@@ -477,11 +256,10 @@ static int test_and_print(struct test *t, bool force_skip, int subtest)
 		pr_info(" Ok\n");
 		break;
 	case TEST_SKIP: {
-		const char *skip_reason = NULL;
-		if (t->subtest.skip_reason)
-			skip_reason = t->subtest.skip_reason(subtest);
-		if (skip_reason)
-			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (%s)\n", skip_reason);
+		const char *reason = skip_reason(t, subtest);
+
+		if (reason)
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (%s)\n", reason);
 		else
 			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip\n");
 	}
@@ -580,7 +358,7 @@ struct shell_test {
 	const char *file;
 };
 
-static int shell_test__run(struct test *test, int subdir __maybe_unused)
+static int shell_test__run(struct test_suite *test, int subdir __maybe_unused)
 {
 	int err;
 	char script[PATH_MAX];
@@ -622,24 +400,34 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width,
 	for_each_shell_test(entlist, n_dirs, st.dir, ent) {
 		int curr = i++;
 		char desc[256];
-		struct test test = {
-			.desc = shell_test__description(desc, sizeof(desc), st.dir, ent->d_name),
-			.func = shell_test__run,
+		struct test_case test_cases[] = {
+			{
+				.desc = shell_test__description(desc,
+								sizeof(desc),
+								st.dir,
+								ent->d_name),
+				.run_case = shell_test__run,
+			},
+			{ .name = NULL, }
+		};
+		struct test_suite test_suite = {
+			.desc = test_cases[0].desc,
+			.test_cases = test_cases,
 			.priv = &st,
 		};
 
-		if (!perf_test__matches(test.desc, curr, argc, argv))
+		if (!perf_test__matches(test_suite.desc, curr, argc, argv))
 			continue;
 
 		st.file = ent->d_name;
-		pr_info("%2d: %-*s:", i, width, test.desc);
+		pr_info("%2d: %-*s:", i, width, test_suite.desc);
 
 		if (intlist__find(skiplist, i)) {
 			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
 			continue;
 		}
 
-		test_and_print(&test, false, -1);
+		test_and_print(&test_suite, 0);
 	}
 
 	for (e = 0; e < n_dirs; e++)
@@ -650,33 +438,31 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width,
 
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
-	struct test *t;
-	unsigned int j;
+	struct test_suite *t;
+	unsigned int j, k;
 	int i = 0;
 	int width = shell_tests__max_desc_width();
 
-	for_each_test(j, t) {
-		int len = strlen(t->desc);
+	for_each_test(j, k, t) {
+		int len = strlen(test_description(t, -1));
 
 		if (width < len)
 			width = len;
 	}
 
-	for_each_test(j, t) {
-		int curr = i++, err;
+	for_each_test(j, k, t) {
+		int curr = i++;
 		int subi;
 
-		if (!perf_test__matches(t->desc, curr, argc, argv)) {
+		if (!perf_test__matches(test_description(t, -1), curr, argc, argv)) {
 			bool skip = true;
 			int subn;
 
-			if (!t->subtest.get_nr)
-				continue;
-
-			subn = t->subtest.get_nr();
+			subn = num_subtests(t);
 
 			for (subi = 0; subi < subn; subi++) {
-				if (perf_test__matches(t->subtest.get_desc(subi), curr, argc, argv))
+				if (perf_test__matches(test_description(t, subi),
+							curr, argc, argv))
 					skip = false;
 			}
 
@@ -684,22 +470,17 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 				continue;
 		}
 
-		if (t->is_supported && !t->is_supported()) {
-			pr_debug("%2d: %-*s: Disabled\n", i, width, t->desc);
-			continue;
-		}
-
-		pr_info("%2d: %-*s:", i, width, t->desc);
+		pr_info("%2d: %-*s:", i, width, test_description(t, -1));
 
 		if (intlist__find(skiplist, i)) {
 			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
 			continue;
 		}
 
-		if (!t->subtest.get_nr) {
-			test_and_print(t, false, -1);
+		if (!has_subtests(t)) {
+			test_and_print(t, -1);
 		} else {
-			int subn = t->subtest.get_nr();
+			int subn = num_subtests(t);
 			/*
 			 * minus 2 to align with normal testcases.
 			 * For subtest we print additional '.x' in number.
@@ -709,7 +490,6 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			 * 35.1: Basic BPF llvm compiling test                          : Ok
 			 */
 			int subw = width > 2 ? width - 2 : width;
-			bool skip = false;
 
 			if (subn <= 0) {
 				color_fprintf(stderr, PERF_COLOR_YELLOW,
@@ -719,21 +499,20 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			pr_info("\n");
 
 			for (subi = 0; subi < subn; subi++) {
-				int len = strlen(t->subtest.get_desc(subi));
+				int len = strlen(test_description(t, subi));
 
 				if (subw < len)
 					subw = len;
 			}
 
 			for (subi = 0; subi < subn; subi++) {
-				if (!perf_test__matches(t->subtest.get_desc(subi), curr, argc, argv))
+				if (!perf_test__matches(test_description(t, subi),
+							curr, argc, argv))
 					continue;
 
 				pr_info("%2d.%1d: %-*s:", i, subi + 1, subw,
-					t->subtest.get_desc(subi));
-				err = test_and_print(t, skip, subi);
-				if (err != TEST_OK && t->subtest.skip_if_fail)
-					skip = true;
+					test_description(t, subi));
+				test_and_print(t, subi);
 			}
 		}
 	}
@@ -759,7 +538,7 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 	for_each_shell_test(entlist, n_dirs, path, ent) {
 		int curr = i++;
 		char bf[256];
-		struct test t = {
+		struct test_suite t = {
 			.desc = shell_test__description(bf, sizeof(bf), path, ent->d_name),
 		};
 
@@ -778,26 +557,25 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 
 static int perf_test__list(int argc, const char **argv)
 {
-	unsigned int j;
-	struct test *t;
+	unsigned int j, k;
+	struct test_suite *t;
 	int i = 0;
 
-	for_each_test(j, t) {
+	for_each_test(j, k, t) {
 		int curr = i++;
 
-		if (!perf_test__matches(t->desc, curr, argc, argv) ||
-		    (t->is_supported && !t->is_supported()))
+		if (!perf_test__matches(test_description(t, -1), curr, argc, argv))
 			continue;
 
-		pr_info("%2d: %s\n", i, t->desc);
+		pr_info("%2d: %s\n", i, test_description(t, -1));
 
-		if (t->subtest.get_nr) {
-			int subn = t->subtest.get_nr();
+		if (has_subtests(t)) {
+			int subn = num_subtests(t);
 			int subi;
 
 			for (subi = 0; subi < subn; subi++)
 				pr_info("%2d:%1d: %s\n", i, subi + 1,
-					t->subtest.get_desc(subi));
+					test_description(t, subi));
 		}
 	}
 

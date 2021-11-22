@@ -137,11 +137,6 @@ static void pseries_cpu_die(unsigned int cpu)
 			cpu, pcpu);
 	}
 
-	/* Isolation and deallocation are definitely done by
-	 * drslot_chrp_cpu.  If they were not they would be
-	 * done here.  Change isolate state to Isolate and
-	 * change allocation-state to Unusable.
-	 */
 	paca_ptrs[cpu]->cpu_start = 0;
 }
 
@@ -521,6 +516,27 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 	return found;
 }
 
+static int pseries_cpuhp_attach_nodes(struct device_node *dn)
+{
+	struct of_changeset cs;
+	int ret;
+
+	/*
+	 * This device node is unattached but may have siblings; open-code the
+	 * traversal.
+	 */
+	for (of_changeset_init(&cs); dn != NULL; dn = dn->sibling) {
+		ret = of_changeset_attach_node(&cs, dn);
+		if (ret)
+			goto out;
+	}
+
+	ret = of_changeset_apply(&cs);
+out:
+	of_changeset_destroy(&cs);
+	return ret;
+}
+
 static ssize_t dlpar_cpu_add(u32 drc_index)
 {
 	struct device_node *dn, *parent;
@@ -563,7 +579,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		return -EINVAL;
 	}
 
-	rc = dlpar_attach_node(dn, parent);
+	rc = pseries_cpuhp_attach_nodes(dn);
 
 	/* Regardless we are done with parent now */
 	of_node_put(parent);
@@ -600,6 +616,53 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	return rc;
 }
 
+static unsigned int pseries_cpuhp_cache_use_count(const struct device_node *cachedn)
+{
+	unsigned int use_count = 0;
+	struct device_node *dn;
+
+	WARN_ON(!of_node_is_type(cachedn, "cache"));
+
+	for_each_of_cpu_node(dn) {
+		if (of_find_next_cache_node(dn) == cachedn)
+			use_count++;
+	}
+
+	for_each_node_by_type(dn, "cache") {
+		if (of_find_next_cache_node(dn) == cachedn)
+			use_count++;
+	}
+
+	return use_count;
+}
+
+static int pseries_cpuhp_detach_nodes(struct device_node *cpudn)
+{
+	struct device_node *dn;
+	struct of_changeset cs;
+	int ret = 0;
+
+	of_changeset_init(&cs);
+	ret = of_changeset_detach_node(&cs, cpudn);
+	if (ret)
+		goto out;
+
+	dn = cpudn;
+	while ((dn = of_find_next_cache_node(dn))) {
+		if (pseries_cpuhp_cache_use_count(dn) > 1)
+			break;
+
+		ret = of_changeset_detach_node(&cs, dn);
+		if (ret)
+			goto out;
+	}
+
+	ret = of_changeset_apply(&cs);
+out:
+	of_changeset_destroy(&cs);
+	return ret;
+}
+
 static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 {
 	int rc;
@@ -621,7 +684,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 		return rc;
 	}
 
-	rc = dlpar_detach_node(dn);
+	rc = pseries_cpuhp_detach_nodes(dn);
 	if (rc) {
 		int saved_rc = rc;
 
@@ -673,231 +736,18 @@ static int dlpar_cpu_remove_by_index(u32 drc_index)
 	return rc;
 }
 
-static int find_dlpar_cpus_to_remove(u32 *cpu_drcs, int cpus_to_remove)
-{
-	struct device_node *dn;
-	int cpus_found = 0;
-	int rc;
-
-	/* We want to find cpus_to_remove + 1 CPUs to ensure we do not
-	 * remove the last CPU.
-	 */
-	for_each_node_by_type(dn, "cpu") {
-		cpus_found++;
-
-		if (cpus_found > cpus_to_remove) {
-			of_node_put(dn);
-			break;
-		}
-
-		/* Note that cpus_found is always 1 ahead of the index
-		 * into the cpu_drcs array, so we use cpus_found - 1
-		 */
-		rc = of_property_read_u32(dn, "ibm,my-drc-index",
-					  &cpu_drcs[cpus_found - 1]);
-		if (rc) {
-			pr_warn("Error occurred getting drc-index for %pOFn\n",
-				dn);
-			of_node_put(dn);
-			return -1;
-		}
-	}
-
-	if (cpus_found < cpus_to_remove) {
-		pr_warn("Failed to find enough CPUs (%d of %d) to remove\n",
-			cpus_found, cpus_to_remove);
-	} else if (cpus_found == cpus_to_remove) {
-		pr_warn("Cannot remove all CPUs\n");
-	}
-
-	return cpus_found;
-}
-
-static int dlpar_cpu_remove_by_count(u32 cpus_to_remove)
-{
-	u32 *cpu_drcs;
-	int cpus_found;
-	int cpus_removed = 0;
-	int i, rc;
-
-	pr_debug("Attempting to hot-remove %d CPUs\n", cpus_to_remove);
-
-	cpu_drcs = kcalloc(cpus_to_remove, sizeof(*cpu_drcs), GFP_KERNEL);
-	if (!cpu_drcs)
-		return -EINVAL;
-
-	cpus_found = find_dlpar_cpus_to_remove(cpu_drcs, cpus_to_remove);
-	if (cpus_found <= cpus_to_remove) {
-		kfree(cpu_drcs);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < cpus_to_remove; i++) {
-		rc = dlpar_cpu_remove_by_index(cpu_drcs[i]);
-		if (rc)
-			break;
-
-		cpus_removed++;
-	}
-
-	if (cpus_removed != cpus_to_remove) {
-		pr_warn("CPU hot-remove failed, adding back removed CPUs\n");
-
-		for (i = 0; i < cpus_removed; i++)
-			dlpar_cpu_add(cpu_drcs[i]);
-
-		rc = -EINVAL;
-	} else {
-		rc = 0;
-	}
-
-	kfree(cpu_drcs);
-	return rc;
-}
-
-static int find_drc_info_cpus_to_add(struct device_node *cpus,
-				     struct property *info,
-				     u32 *cpu_drcs, u32 cpus_to_add)
-{
-	struct of_drc_info drc;
-	const __be32 *value;
-	u32 count, drc_index;
-	int cpus_found = 0;
-	int i, j;
-
-	if (!info)
-		return -1;
-
-	value = of_prop_next_u32(info, NULL, &count);
-	if (value)
-		value++;
-
-	for (i = 0; i < count; i++) {
-		of_read_drc_info_cell(&info, &value, &drc);
-		if (strncmp(drc.drc_type, "CPU", 3))
-			break;
-
-		drc_index = drc.drc_index_start;
-		for (j = 0; j < drc.num_sequential_elems; j++) {
-			if (dlpar_cpu_exists(cpus, drc_index))
-				continue;
-
-			cpu_drcs[cpus_found++] = drc_index;
-
-			if (cpus_found == cpus_to_add)
-				return cpus_found;
-
-			drc_index += drc.sequential_inc;
-		}
-	}
-
-	return cpus_found;
-}
-
-static int find_drc_index_cpus_to_add(struct device_node *cpus,
-				      u32 *cpu_drcs, u32 cpus_to_add)
-{
-	int cpus_found = 0;
-	int index, rc;
-	u32 drc_index;
-
-	/* Search the ibm,drc-indexes array for possible CPU drcs to
-	 * add. Note that the format of the ibm,drc-indexes array is
-	 * the number of entries in the array followed by the array
-	 * of drc values so we start looking at index = 1.
-	 */
-	index = 1;
-	while (cpus_found < cpus_to_add) {
-		rc = of_property_read_u32_index(cpus, "ibm,drc-indexes",
-						index++, &drc_index);
-
-		if (rc)
-			break;
-
-		if (dlpar_cpu_exists(cpus, drc_index))
-			continue;
-
-		cpu_drcs[cpus_found++] = drc_index;
-	}
-
-	return cpus_found;
-}
-
-static int dlpar_cpu_add_by_count(u32 cpus_to_add)
-{
-	struct device_node *parent;
-	struct property *info;
-	u32 *cpu_drcs;
-	int cpus_added = 0;
-	int cpus_found;
-	int i, rc;
-
-	pr_debug("Attempting to hot-add %d CPUs\n", cpus_to_add);
-
-	cpu_drcs = kcalloc(cpus_to_add, sizeof(*cpu_drcs), GFP_KERNEL);
-	if (!cpu_drcs)
-		return -EINVAL;
-
-	parent = of_find_node_by_path("/cpus");
-	if (!parent) {
-		pr_warn("Could not find CPU root node in device tree\n");
-		kfree(cpu_drcs);
-		return -1;
-	}
-
-	info = of_find_property(parent, "ibm,drc-info", NULL);
-	if (info)
-		cpus_found = find_drc_info_cpus_to_add(parent, info, cpu_drcs, cpus_to_add);
-	else
-		cpus_found = find_drc_index_cpus_to_add(parent, cpu_drcs, cpus_to_add);
-
-	of_node_put(parent);
-
-	if (cpus_found < cpus_to_add) {
-		pr_warn("Failed to find enough CPUs (%d of %d) to add\n",
-			cpus_found, cpus_to_add);
-		kfree(cpu_drcs);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < cpus_to_add; i++) {
-		rc = dlpar_cpu_add(cpu_drcs[i]);
-		if (rc)
-			break;
-
-		cpus_added++;
-	}
-
-	if (cpus_added < cpus_to_add) {
-		pr_warn("CPU hot-add failed, removing any added CPUs\n");
-
-		for (i = 0; i < cpus_added; i++)
-			dlpar_cpu_remove_by_index(cpu_drcs[i]);
-
-		rc = -EINVAL;
-	} else {
-		rc = 0;
-	}
-
-	kfree(cpu_drcs);
-	return rc;
-}
-
 int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
 {
-	u32 count, drc_index;
+	u32 drc_index;
 	int rc;
 
-	count = hp_elog->_drc_u.drc_count;
 	drc_index = hp_elog->_drc_u.drc_index;
 
 	lock_device_hotplug();
 
 	switch (hp_elog->action) {
 	case PSERIES_HP_ELOG_ACTION_REMOVE:
-		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_COUNT)
-			rc = dlpar_cpu_remove_by_count(count);
-		else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX) {
+		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX) {
 			rc = dlpar_cpu_remove_by_index(drc_index);
 			/*
 			 * Setting the isolation state of an UNISOLATED/CONFIGURED
@@ -911,9 +761,7 @@ int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
 			rc = -EINVAL;
 		break;
 	case PSERIES_HP_ELOG_ACTION_ADD:
-		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_COUNT)
-			rc = dlpar_cpu_add_by_count(count);
-		else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX)
+		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX)
 			rc = dlpar_cpu_add(drc_index);
 		else
 			rc = -EINVAL;

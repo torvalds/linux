@@ -11,3 +11,4 @@ NFS
    rpc-server-gss
    nfs41-server
    knfsd-stats
+   reexport

@@ -265,7 +265,7 @@ static void __init sunxi_r_ccu_init(struct device_node *node,
 		return;
 	}
 
-	sunxi_ccu_probe(node, reg, desc);
+	of_sunxi_ccu_probe(node, reg, desc);
 }
 
 static void __init sun8i_a83t_r_ccu_setup(struct device_node *node)

@@ -601,7 +601,7 @@ int ksmbd_ipc_tree_disconnect_request(unsigned long long session_id,
 	return ret;
 }
 
-int ksmbd_ipc_logout_request(const char *account)
+int ksmbd_ipc_logout_request(const char *account, int flags)
 {
 	struct ksmbd_ipc_msg *msg;
 	struct ksmbd_logout_request *req;
@@ -616,6 +616,7 @@ int ksmbd_ipc_logout_request(const char *account)
 
 	msg->type = KSMBD_EVENT_LOGOUT_REQUEST;
 	req = (struct ksmbd_logout_request *)msg->payload;
+	req->account_flags = flags;
 	strscpy(req->account, account, KSMBD_REQ_MAX_ACCOUNT_NAME_SZ);
 
 	ret = ipc_msg_send(msg);

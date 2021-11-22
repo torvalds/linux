@@ -475,8 +475,8 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 
 	pkt_type = mwifiex_is_skb_mgmt_frame(skb) ? PKT_TYPE_MGMT : 0;
 
-	pad = ((void *)skb->data - (sizeof(*txpd) + hroom) - NULL) &
-			(MWIFIEX_DMA_ALIGN_SZ - 1);
+	pad = ((uintptr_t)skb->data - (sizeof(*txpd) + hroom)) &
+	       (MWIFIEX_DMA_ALIGN_SZ - 1);
 
 	skb_push(skb, sizeof(*txpd) + pad);
 

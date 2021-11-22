@@ -95,10 +95,10 @@ EXPORT_SYMBOL(console_irq);
  * relocated above 2 GB, because it has to use 31 bit addresses.
  * Such code and data is part of the .amode31 section.
  */
-unsigned long __amode31_ref __samode31 = __pa(&_samode31);
-unsigned long __amode31_ref __eamode31 = __pa(&_eamode31);
-unsigned long __amode31_ref __stext_amode31 = __pa(&_stext_amode31);
-unsigned long __amode31_ref __etext_amode31 = __pa(&_etext_amode31);
+unsigned long __amode31_ref __samode31 = (unsigned long)&_samode31;
+unsigned long __amode31_ref __eamode31 = (unsigned long)&_eamode31;
+unsigned long __amode31_ref __stext_amode31 = (unsigned long)&_stext_amode31;
+unsigned long __amode31_ref __etext_amode31 = (unsigned long)&_etext_amode31;
 struct exception_table_entry __amode31_ref *__start_amode31_ex_table = _start_amode31_ex_table;
 struct exception_table_entry __amode31_ref *__stop_amode31_ex_table = _stop_amode31_ex_table;
 
@@ -149,6 +149,7 @@ struct mem_detect_info __bootdata(mem_detect);
 struct initrd_data __bootdata(initrd_data);
 
 unsigned long __bootdata_preserved(__kaslr_offset);
+unsigned long __bootdata(__amode31_base);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
 u64 __bootdata_preserved(stfle_fac_list[16]);
@@ -172,6 +173,8 @@ unsigned long MODULES_END;
 /* An array with a pointer to the lowcore of every CPU. */
 struct lowcore *lowcore_ptr[NR_CPUS];
 EXPORT_SYMBOL(lowcore_ptr);
+
+DEFINE_STATIC_KEY_FALSE(cpu_has_bear);
 
 /*
  * The Write Back bit position in the physaddr is given by the SLPC PCI.
@@ -593,7 +596,8 @@ static void __init setup_resources(void)
 	 * part of the System RAM resource.
 	 */
 	if (crashk_res.end) {
-		memblock_add_node(crashk_res.start, resource_size(&crashk_res), 0);
+		memblock_add_node(crashk_res.start, resource_size(&crashk_res),
+				  0, MEMBLOCK_NONE);
 		memblock_reserve(crashk_res.start, resource_size(&crashk_res));
 		insert_resource(&iomem_resource, &crashk_res);
 	}
@@ -602,7 +606,7 @@ static void __init setup_resources(void)
 
 static void __init setup_memory_end(void)
 {
-	memblock_remove(ident_map_size, ULONG_MAX);
+	memblock_remove(ident_map_size, PHYS_ADDR_MAX - ident_map_size);
 	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
 	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
@@ -632,14 +636,6 @@ static struct notifier_block kdump_mem_nb = {
 };
 
 #endif
-
-/*
- * Make sure that the area above identity mapping is protected
- */
-static void __init reserve_above_ident_map(void)
-{
-	memblock_reserve(ident_map_size, ULONG_MAX);
-}
 
 /*
  * Reserve memory for kdump kernel to be loaded with kexec
@@ -693,7 +689,7 @@ static void __init reserve_crashkernel(void)
 	}
 
 	if (register_memory_notifier(&kdump_mem_nb)) {
-		memblock_free(crash_base, crash_size);
+		memblock_phys_free(crash_base, crash_size);
 		return;
 	}
 
@@ -718,7 +714,7 @@ static void __init reserve_initrd(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (!initrd_data.start || !initrd_data.size)
 		return;
-	initrd_start = initrd_data.start;
+	initrd_start = (unsigned long)__va(initrd_data.start);
 	initrd_end = initrd_start + initrd_data.size;
 	memblock_reserve(initrd_data.start, initrd_data.size);
 #endif
@@ -748,7 +744,7 @@ static void __init free_mem_detect_info(void)
 
 	get_mem_detect_reserved(&start, &size);
 	if (size)
-		memblock_free(start, size);
+		memblock_phys_free(start, size);
 }
 
 static const char * __init get_mem_info_source(void)
@@ -781,7 +777,6 @@ static void __init memblock_add_mem_detect_info(void)
 	}
 	memblock_set_bottom_up(false);
 	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
-	memblock_dump_all();
 }
 
 /*
@@ -793,7 +788,7 @@ static void __init check_initrd(void)
 	if (initrd_data.start && initrd_data.size &&
 	    !memblock_is_region_memory(initrd_data.start, initrd_data.size)) {
 		pr_err("The initial RAM disk does not fit into the memory\n");
-		memblock_free(initrd_data.start, initrd_data.size);
+		memblock_phys_free(initrd_data.start, initrd_data.size);
 		initrd_start = initrd_end = 0;
 	}
 #endif
@@ -804,12 +799,10 @@ static void __init check_initrd(void)
  */
 static void __init reserve_kernel(void)
 {
-	unsigned long start_pfn = PFN_UP(__pa(_end));
-
 	memblock_reserve(0, STARTUP_NORMAL_OFFSET);
-	memblock_reserve((unsigned long)sclp_early_sccb, EXT_SCCB_READ_SCP);
-	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
-			 - (unsigned long)_stext);
+	memblock_reserve(__amode31_base, __eamode31 - __samode31);
+	memblock_reserve(__pa(sclp_early_sccb), EXT_SCCB_READ_SCP);
+	memblock_reserve(__pa(_stext), _end - _stext);
 }
 
 static void __init setup_memory(void)
@@ -824,27 +817,18 @@ static void __init setup_memory(void)
 		storage_key_init_range(start, end);
 
 	psw_set_key(PAGE_DEFAULT_KEY);
-
-	/* Only cosmetics */
-	memblock_enforce_memory_limit(memblock_end_of_DRAM());
 }
 
 static void __init relocate_amode31_section(void)
 {
-	unsigned long amode31_addr, amode31_size;
-	long amode31_offset;
+	unsigned long amode31_size = __eamode31 - __samode31;
+	long amode31_offset = __amode31_base - __samode31;
 	long *ptr;
 
-	/* Allocate a new AMODE31 capable memory region */
-	amode31_size = __eamode31 - __samode31;
 	pr_info("Relocating AMODE31 section of size 0x%08lx\n", amode31_size);
-	amode31_addr = (unsigned long)memblock_alloc_low(amode31_size, PAGE_SIZE);
-	if (!amode31_addr)
-		panic("Failed to allocate memory for AMODE31 section\n");
-	amode31_offset = amode31_addr - __samode31;
 
 	/* Move original AMODE31 section to the new one */
-	memmove((void *)amode31_addr, (void *)__samode31, amode31_size);
+	memmove((void *)__amode31_base, (void *)__samode31, amode31_size);
 	/* Zero out the old AMODE31 section to catch invalid accesses within it */
 	memset((void *)__samode31, 0, amode31_size);
 
@@ -883,14 +867,12 @@ static void __init setup_randomness(void)
 {
 	struct sysinfo_3_2_2 *vmms;
 
-	vmms = (struct sysinfo_3_2_2 *) memblock_phys_alloc(PAGE_SIZE,
-							    PAGE_SIZE);
+	vmms = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	if (!vmms)
 		panic("Failed to allocate memory for sysinfo structure\n");
-
 	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
-	memblock_free((unsigned long) vmms, PAGE_SIZE);
+	memblock_free(vmms, PAGE_SIZE);
 }
 
 /*
@@ -1005,24 +987,24 @@ void __init setup_arch(char **cmdline_p)
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
-	reserve_above_ident_map();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();
 	reserve_mem_detect_info();
+	memblock_set_current_limit(ident_map_size);
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */
 	memblock_add_mem_detect_info();
 
 	free_mem_detect_info();
+	setup_memory_end();
+	memblock_dump_all();
+	setup_memory();
 
 	relocate_amode31_section();
 	setup_cr();
-
 	setup_uv();
-	setup_memory_end();
-	setup_memory();
 	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();
 	if (MACHINE_HAS_EDAT2)
@@ -1046,6 +1028,9 @@ void __init setup_arch(char **cmdline_p)
 	numa_setup();
 	smp_detect_cpus();
 	topology_init_early();
+
+	if (test_facility(193))
+		static_branch_enable(&cpu_has_bear);
 
 	/*
 	 * Create kernel page tables and switch to virtual addressing.

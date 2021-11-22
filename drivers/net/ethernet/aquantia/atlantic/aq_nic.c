@@ -300,6 +300,7 @@ static bool aq_nic_is_valid_ether_addr(const u8 *addr)
 
 int aq_nic_ndev_register(struct aq_nic_s *self)
 {
+	u8 addr[ETH_ALEN];
 	int err = 0;
 
 	if (!self->ndev) {
@@ -316,11 +317,12 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 #endif
 
 	mutex_lock(&self->fwreq_mutex);
-	err = self->aq_fw_ops->get_mac_permanent(self->aq_hw,
-			    self->ndev->dev_addr);
+	err = self->aq_fw_ops->get_mac_permanent(self->aq_hw, addr);
 	mutex_unlock(&self->fwreq_mutex);
 	if (err)
 		goto err_exit;
+
+	eth_hw_addr_set(self->ndev, addr);
 
 	if (!is_valid_ether_addr(self->ndev->dev_addr) ||
 	    !aq_nic_is_valid_ether_addr(self->ndev->dev_addr)) {
@@ -332,7 +334,7 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 	{
 		static u8 mac_addr_permanent[] = AQ_CFG_MAC_ADDR_PERMANENT;
 
-		ether_addr_copy(self->ndev->dev_addr, mac_addr_permanent);
+		eth_hw_addr_set(self->ndev, mac_addr_permanent);
 	}
 #endif
 

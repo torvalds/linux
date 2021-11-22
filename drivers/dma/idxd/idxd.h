@@ -187,9 +187,7 @@ struct idxd_wq {
 		struct dsa_completion_record *compls;
 		struct iax_completion_record *iax_compls;
 	};
-	void *compls_raw;
 	dma_addr_t compls_addr;
-	dma_addr_t compls_addr_raw;
 	int compls_size;
 	struct idxd_desc **descs;
 	struct sbitmap_queue sbq;

@@ -75,52 +75,27 @@ static inline int cxl_hdm_decoder_count(u32 cap_hdr)
 #define CXLDEV_MBOX_BG_CMD_STATUS_OFFSET 0x18
 #define CXLDEV_MBOX_PAYLOAD_OFFSET 0x20
 
-#define CXL_COMPONENT_REGS() \
-	void __iomem *hdm_decoder
-
-#define CXL_DEVICE_REGS() \
-	void __iomem *status; \
-	void __iomem *mbox; \
-	void __iomem *memdev
-
-/* See note for 'struct cxl_regs' for the rationale of this organization */
 /*
- * CXL_COMPONENT_REGS - Common set of CXL Component register block base pointers
- * @hdm_decoder: CXL 2.0 8.2.5.12 CXL HDM Decoder Capability Structure
- */
-struct cxl_component_regs {
-	CXL_COMPONENT_REGS();
-};
-
-/* See note for 'struct cxl_regs' for the rationale of this organization */
-/*
- * CXL_DEVICE_REGS - Common set of CXL Device register block base pointers
- * @status: CXL 2.0 8.2.8.3 Device Status Registers
- * @mbox: CXL 2.0 8.2.8.4 Mailbox Registers
- * @memdev: CXL 2.0 8.2.8.5 Memory Device Registers
- */
-struct cxl_device_regs {
-	CXL_DEVICE_REGS();
-};
-
-/*
- * Note, the anonymous union organization allows for per
- * register-block-type helper routines, without requiring block-type
- * agnostic code to include the prefix.
+ * Using struct_group() allows for per register-block-type helper routines,
+ * without requiring block-type agnostic code to include the prefix.
  */
 struct cxl_regs {
-	union {
-		struct {
-			CXL_COMPONENT_REGS();
-		};
-		struct cxl_component_regs component;
-	};
-	union {
-		struct {
-			CXL_DEVICE_REGS();
-		};
-		struct cxl_device_regs device_regs;
-	};
+	/*
+	 * Common set of CXL Component register block base pointers
+	 * @hdm_decoder: CXL 2.0 8.2.5.12 CXL HDM Decoder Capability Structure
+	 */
+	struct_group_tagged(cxl_component_regs, component,
+		void __iomem *hdm_decoder;
+	);
+	/*
+	 * Common set of CXL Device register block base pointers
+	 * @status: CXL 2.0 8.2.8.3 Device Status Registers
+	 * @mbox: CXL 2.0 8.2.8.4 Mailbox Registers
+	 * @memdev: CXL 2.0 8.2.8.5 Memory Device Registers
+	 */
+	struct_group_tagged(cxl_device_regs, device_regs,
+		void __iomem *status, *mbox, *memdev;
+	);
 };
 
 struct cxl_reg_map {
@@ -139,7 +114,17 @@ struct cxl_device_reg_map {
 	struct cxl_reg_map memdev;
 };
 
+/**
+ * struct cxl_register_map - DVSEC harvested register block mapping parameters
+ * @base: virtual base of the register-block-BAR + @block_offset
+ * @block_offset: offset to start of register block in @barno
+ * @reg_type: see enum cxl_regloc_type
+ * @barno: PCI BAR number containing the register block
+ * @component_map: cxl_reg_map for component registers
+ * @device_map: cxl_reg_maps for device registers
+ */
 struct cxl_register_map {
+	void __iomem *base;
 	u64 block_offset;
 	u8 reg_type;
 	u8 barno;
@@ -180,6 +165,12 @@ enum cxl_decoder_type {
        CXL_DECODER_EXPANDER = 3,
 };
 
+/*
+ * Current specification goes up to 8, double that seems a reasonable
+ * software max for the foreseeable future
+ */
+#define CXL_DECODER_MAX_INTERLEAVE 16
+
 /**
  * struct cxl_decoder - CXL address range decode configuration
  * @dev: this decoder's device
@@ -189,6 +180,7 @@ enum cxl_decoder_type {
  * @interleave_granularity: data stride per dport
  * @target_type: accelerator vs expander (type2 vs type3) selector
  * @flags: memory type capabilities and locking
+ * @nr_targets: number of elements in @target
  * @target: active ordered target list in current decoder configuration
  */
 struct cxl_decoder {
@@ -199,6 +191,7 @@ struct cxl_decoder {
 	int interleave_granularity;
 	enum cxl_decoder_type target_type;
 	unsigned long flags;
+	const int nr_targets;
 	struct cxl_dport *target[];
 };
 
@@ -211,6 +204,7 @@ enum cxl_nvdimm_brige_state {
 };
 
 struct cxl_nvdimm_bridge {
+	int id;
 	struct device dev;
 	struct cxl_port *port;
 	struct nvdimm_bus *nvdimm_bus;
@@ -223,6 +217,14 @@ struct cxl_nvdimm {
 	struct device dev;
 	struct cxl_memdev *cxlmd;
 	struct nvdimm *nvdimm;
+};
+
+struct cxl_walk_context {
+	struct device *dev;
+	struct pci_bus *root;
+	struct cxl_port *port;
+	int error;
+	int count;
 };
 
 /**
@@ -271,25 +273,9 @@ int cxl_add_dport(struct cxl_port *port, struct device *dport, int port_id,
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
-struct cxl_decoder *
-devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
-		     resource_size_t base, resource_size_t len,
-		     int interleave_ways, int interleave_granularity,
-		     enum cxl_decoder_type type, unsigned long flags);
-
-/*
- * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability Structure)
- * single ported host-bridges need not publish a decoder capability when a
- * passthrough decode can be assumed, i.e. all transactions that the uport sees
- * are claimed and passed to the single dport. Default the range a 0-base
- * 0-length until the first CXL region is activated.
- */
-static inline struct cxl_decoder *
-devm_cxl_add_passthrough_decoder(struct device *host, struct cxl_port *port)
-{
-	return devm_cxl_add_decoder(host, port, 1, 0, 0, 1, PAGE_SIZE,
-				    CXL_DECODER_EXPANDER, 0);
-}
+struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port, int nr_targets);
+int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
+int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld);
 
 extern struct bus_type cxl_bus_type;
 
@@ -323,4 +309,13 @@ struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
 struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm(struct device *dev);
 int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd);
+struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_nvdimm *cxl_nvd);
+
+/*
+ * Unit test builds overrides this to __weak, find the 'strong' version
+ * of these symbols in tools/testing/cxl/.
+ */
+#ifndef __mock
+#define __mock static
+#endif
 #endif /* __CXL_H__ */

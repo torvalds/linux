@@ -2,6 +2,7 @@
 /* Copyright (c) 2019, Intel Corporation. */
 
 #include "ice_common.h"
+#include "ice_lib.h"
 #include "ice_sched.h"
 #include "ice_dcb.h"
 
@@ -736,6 +737,45 @@ ice_aq_get_cee_dcb_cfg(struct ice_hw *hw,
 }
 
 /**
+ * ice_aq_set_pfc_mode - Set PFC mode
+ * @hw: pointer to the HW struct
+ * @pfc_mode: value of PFC mode to set
+ * @cd: pointer to command details structure or NULL
+ *
+ * This AQ call configures the PFC mode to DSCP-based PFC mode or
+ * VLAN-based PFC (0x0303)
+ */
+int ice_aq_set_pfc_mode(struct ice_hw *hw, u8 pfc_mode, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_query_pfc_mode *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	if (pfc_mode > ICE_AQC_PFC_DSCP_BASED_PFC)
+		return -EINVAL;
+
+	cmd = &desc.params.set_query_pfc_mode;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_pfc_mode);
+
+	cmd->pfc_mode = pfc_mode;
+
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+	if (status)
+		return ice_status_to_errno(status);
+
+	/* FW will write the PFC mode set back into cmd->pfc_mode, but if DCB is
+	 * disabled, FW will write back 0 to cmd->pfc_mode. After the AQ has
+	 * been executed, check if cmd->pfc_mode is what was requested. If not,
+	 * return an error.
+	 */
+	if (cmd->pfc_mode != pfc_mode)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+/**
  * ice_cee_to_dcb_cfg
  * @cee_cfg: pointer to CEE configuration struct
  * @pi: port information structure
@@ -1207,7 +1247,140 @@ ice_add_ieee_app_pri_tlv(struct ice_lldp_org_tlv *tlv,
 }
 
 /**
- * ice_add_dcb_tlv - Add all IEEE TLVs
+ * ice_add_dscp_up_tlv - Prepare DSCP to UP TLV
+ * @tlv: location to build the TLV data
+ * @dcbcfg: location of data to convert to TLV
+ */
+static void
+ice_add_dscp_up_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
+{
+	u8 *buf = tlv->tlvinfo;
+	u32 ouisubtype;
+	u16 typelen;
+	int i;
+
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_DSCP_UP_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = (u32)((ICE_DSCP_OUI << ICE_LLDP_TLV_OUI_S) |
+			   ICE_DSCP_SUBTYPE_DSCP2UP);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* bytes 0 - 63 - IPv4 DSCP2UP LUT */
+	for (i = 0; i < ICE_DSCP_NUM_VAL; i++) {
+		/* IPv4 mapping */
+		buf[i] = dcbcfg->dscp_map[i];
+		/* IPv6 mapping */
+		buf[i + ICE_DSCP_IPV6_OFFSET] = dcbcfg->dscp_map[i];
+	}
+
+	/* byte 64 - IPv4 untagged traffic */
+	buf[i] = 0;
+
+	/* byte 144 - IPv6 untagged traffic */
+	buf[i + ICE_DSCP_IPV6_OFFSET] = 0;
+}
+
+#define ICE_BYTES_PER_TC	8
+/**
+ * ice_add_dscp_enf_tlv - Prepare DSCP Enforcement TLV
+ * @tlv: location to build the TLV data
+ */
+static void
+ice_add_dscp_enf_tlv(struct ice_lldp_org_tlv *tlv)
+{
+	u8 *buf = tlv->tlvinfo;
+	u32 ouisubtype;
+	u16 typelen;
+
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_DSCP_ENF_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = (u32)((ICE_DSCP_OUI << ICE_LLDP_TLV_OUI_S) |
+			   ICE_DSCP_SUBTYPE_ENFORCE);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* Allow all DSCP values to be valid for all TC's (IPv4 and IPv6) */
+	memset(buf, 0, 2 * (ICE_MAX_TRAFFIC_CLASS * ICE_BYTES_PER_TC));
+}
+
+/**
+ * ice_add_dscp_tc_bw_tlv - Prepare DSCP BW for TC TLV
+ * @tlv: location to build the TLV data
+ * @dcbcfg: location of the data to convert to TLV
+ */
+static void
+ice_add_dscp_tc_bw_tlv(struct ice_lldp_org_tlv *tlv,
+		       struct ice_dcbx_cfg *dcbcfg)
+{
+	struct ice_dcb_ets_cfg *etscfg;
+	u8 *buf = tlv->tlvinfo;
+	u32 ouisubtype;
+	u8 offset = 0;
+	u16 typelen;
+	int i;
+
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_DSCP_TC_BW_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = (u32)((ICE_DSCP_OUI << ICE_LLDP_TLV_OUI_S) |
+			   ICE_DSCP_SUBTYPE_TCBW);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* First Octect after subtype
+	 * ----------------------------
+	 * | RSV | CBS | RSV | Max TCs |
+	 * | 1b  | 1b  | 3b  | 3b      |
+	 * ----------------------------
+	 */
+	etscfg = &dcbcfg->etscfg;
+	buf[0] = etscfg->maxtcs & ICE_IEEE_ETS_MAXTC_M;
+
+	/* bytes 1 - 4 reserved */
+	offset = 5;
+
+	/* TC BW table
+	 * bytes 0 - 7 for TC 0 - 7
+	 *
+	 * TSA Assignment table
+	 * bytes 8 - 15 for TC 0 - 7
+	 */
+	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+		buf[offset] = etscfg->tcbwtable[i];
+		buf[offset + ICE_MAX_TRAFFIC_CLASS] = etscfg->tsatable[i];
+		offset++;
+	}
+}
+
+/**
+ * ice_add_dscp_pfc_tlv - Prepare DSCP PFC TLV
+ * @tlv: Fill PFC TLV in IEEE format
+ * @dcbcfg: Local store which holds the PFC CFG data
+ */
+static void
+ice_add_dscp_pfc_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
+{
+	u8 *buf = tlv->tlvinfo;
+	u32 ouisubtype;
+	u16 typelen;
+
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_DSCP_PFC_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = (u32)((ICE_DSCP_OUI << ICE_LLDP_TLV_OUI_S) |
+			   ICE_DSCP_SUBTYPE_PFC);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	buf[0] = dcbcfg->pfc.pfccap & 0xF;
+	buf[1] = dcbcfg->pfc.pfcena & 0xF;
+}
+
+/**
+ * ice_add_dcb_tlv - Add all IEEE or DSCP TLVs
  * @tlv: Fill TLV data in IEEE format
  * @dcbcfg: Local store which holds the DCB Config
  * @tlvid: Type of IEEE TLV
@@ -1218,21 +1391,41 @@ static void
 ice_add_dcb_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg,
 		u16 tlvid)
 {
-	switch (tlvid) {
-	case ICE_IEEE_TLV_ID_ETS_CFG:
-		ice_add_ieee_ets_tlv(tlv, dcbcfg);
-		break;
-	case ICE_IEEE_TLV_ID_ETS_REC:
-		ice_add_ieee_etsrec_tlv(tlv, dcbcfg);
-		break;
-	case ICE_IEEE_TLV_ID_PFC_CFG:
-		ice_add_ieee_pfc_tlv(tlv, dcbcfg);
-		break;
-	case ICE_IEEE_TLV_ID_APP_PRI:
-		ice_add_ieee_app_pri_tlv(tlv, dcbcfg);
-		break;
-	default:
-		break;
+	if (dcbcfg->pfc_mode == ICE_QOS_MODE_VLAN) {
+		switch (tlvid) {
+		case ICE_IEEE_TLV_ID_ETS_CFG:
+			ice_add_ieee_ets_tlv(tlv, dcbcfg);
+			break;
+		case ICE_IEEE_TLV_ID_ETS_REC:
+			ice_add_ieee_etsrec_tlv(tlv, dcbcfg);
+			break;
+		case ICE_IEEE_TLV_ID_PFC_CFG:
+			ice_add_ieee_pfc_tlv(tlv, dcbcfg);
+			break;
+		case ICE_IEEE_TLV_ID_APP_PRI:
+			ice_add_ieee_app_pri_tlv(tlv, dcbcfg);
+			break;
+		default:
+			break;
+		}
+	} else {
+		/* pfc_mode == ICE_QOS_MODE_DSCP */
+		switch (tlvid) {
+		case ICE_TLV_ID_DSCP_UP:
+			ice_add_dscp_up_tlv(tlv, dcbcfg);
+			break;
+		case ICE_TLV_ID_DSCP_ENF:
+			ice_add_dscp_enf_tlv(tlv);
+			break;
+		case ICE_TLV_ID_DSCP_TC_BW:
+			ice_add_dscp_tc_bw_tlv(tlv, dcbcfg);
+			break;
+		case ICE_TLV_ID_DSCP_TO_PFC:
+			ice_add_dscp_pfc_tlv(tlv, dcbcfg);
+			break;
+		default:
+			break;
+		}
 	}
 }
 

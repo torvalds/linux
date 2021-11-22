@@ -310,8 +310,10 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		 * For example: FE <-> BE1 <-> BE2 <-> ... <-> BEn where
 		 * there are 'n' BE components in the path.
 		 */
-		if (card->component_chaining && !soc_component_is_pcm(cpus))
+		if (card->component_chaining && !soc_component_is_pcm(cpus)) {
 			dai_link->no_pcm = 1;
+			dai_link->be_hw_params_fixup = asoc_simple_be_hw_params_fixup;
+		}
 
 		asoc_simple_canonicalize_cpu(cpus, is_single_links);
 		asoc_simple_canonicalize_platform(platforms, cpus);

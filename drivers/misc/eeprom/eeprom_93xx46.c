@@ -406,6 +406,23 @@ static const struct of_device_id eeprom_93xx46_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, eeprom_93xx46_of_table);
 
+static const struct spi_device_id eeprom_93xx46_spi_ids[] = {
+	{ .name = "eeprom-93xx46",
+	  .driver_data = (kernel_ulong_t)&at93c46_data, },
+	{ .name = "at93c46",
+	  .driver_data = (kernel_ulong_t)&at93c46_data, },
+	{ .name = "at93c46d",
+	  .driver_data = (kernel_ulong_t)&atmel_at93c46d_data, },
+	{ .name = "at93c56",
+	  .driver_data = (kernel_ulong_t)&at93c56_data, },
+	{ .name = "at93c66",
+	  .driver_data = (kernel_ulong_t)&at93c66_data, },
+	{ .name = "93lc46b",
+	  .driver_data = (kernel_ulong_t)&microchip_93lc46b_data, },
+	{}
+};
+MODULE_DEVICE_TABLE(spi, eeprom_93xx46_spi_ids);
+
 static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 {
 	const struct of_device_id *of_id =
@@ -555,6 +572,7 @@ static struct spi_driver eeprom_93xx46_driver = {
 	},
 	.probe		= eeprom_93xx46_probe,
 	.remove		= eeprom_93xx46_remove,
+	.id_table	= eeprom_93xx46_spi_ids,
 };
 
 module_spi_driver(eeprom_93xx46_driver);

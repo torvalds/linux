@@ -506,6 +506,10 @@
 #define STATE_MODE_SHIFT                  (0)
 #define STATE_MODE_MASK                   (0x7)
 
+/* Bit definitions for the DPLL_MANU_REF_CFG register */
+#define MANUAL_REFERENCE_SHIFT            (0)
+#define MANUAL_REFERENCE_MASK             (0x1f)
+
 /* Bit definitions for the GPIO_CFG_GBL register */
 #define SUPPLY_MODE_SHIFT                 (0)
 #define SUPPLY_MODE_MASK                  (0x3)
@@ -654,7 +658,7 @@
 /* Values of DPLL_N.DPLL_MODE.PLL_MODE */
 enum pll_mode {
 	PLL_MODE_MIN = 0,
-	PLL_MODE_NORMAL = PLL_MODE_MIN,
+	PLL_MODE_PLL = PLL_MODE_MIN,
 	PLL_MODE_WRITE_PHASE = 1,
 	PLL_MODE_WRITE_FREQUENCY = 2,
 	PLL_MODE_GPIO_INC_DEC = 3,
@@ -662,6 +666,31 @@ enum pll_mode {
 	PLL_MODE_PHASE_MEASUREMENT = 5,
 	PLL_MODE_DISABLED = 6,
 	PLL_MODE_MAX = PLL_MODE_DISABLED,
+};
+
+/* Values of DPLL_CTRL_n.DPLL_MANU_REF_CFG.MANUAL_REFERENCE */
+enum manual_reference {
+	MANU_REF_MIN = 0,
+	MANU_REF_CLK0 = MANU_REF_MIN,
+	MANU_REF_CLK1,
+	MANU_REF_CLK2,
+	MANU_REF_CLK3,
+	MANU_REF_CLK4,
+	MANU_REF_CLK5,
+	MANU_REF_CLK6,
+	MANU_REF_CLK7,
+	MANU_REF_CLK8,
+	MANU_REF_CLK9,
+	MANU_REF_CLK10,
+	MANU_REF_CLK11,
+	MANU_REF_CLK12,
+	MANU_REF_CLK13,
+	MANU_REF_CLK14,
+	MANU_REF_CLK15,
+	MANU_REF_WRITE_PHASE,
+	MANU_REF_WRITE_FREQUENCY,
+	MANU_REF_XO_DPLL,
+	MANU_REF_MAX = MANU_REF_XO_DPLL,
 };
 
 enum hw_tod_write_trig_sel {

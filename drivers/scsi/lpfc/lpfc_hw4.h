@@ -673,6 +673,10 @@ struct lpfc_register {
 #define lpfc_sliport_status_rdy_SHIFT	23
 #define lpfc_sliport_status_rdy_MASK	0x1
 #define lpfc_sliport_status_rdy_WORD	word0
+#define lpfc_sliport_status_pldv_SHIFT	0
+#define lpfc_sliport_status_pldv_MASK	0x1
+#define lpfc_sliport_status_pldv_WORD	word0
+#define CFG_PLD				0x3C
 #define MAX_IF_TYPE_2_RESETS		6
 
 #define LPFC_CTL_PORT_CTL_OFFSET	0x408
@@ -1167,7 +1171,7 @@ struct lpfc_mbx_read_object {  /* Version 0 */
 #define lpfc_mbx_rd_object_rlen_MASK	0x00FFFFFF
 #define lpfc_mbx_rd_object_rlen_WORD	word0
 			uint32_t rd_object_offset;
-			uint32_t rd_object_name[LPFC_MBX_OBJECT_NAME_LEN_DW];
+			__le32 rd_object_name[LPFC_MBX_OBJECT_NAME_LEN_DW];
 #define LPFC_OBJ_NAME_SZ 104   /* 26 x sizeof(uint32_t) is 104. */
 			uint32_t rd_object_cnt;
 			struct lpfc_mbx_host_buf rd_object_hbuf[4];

@@ -449,8 +449,10 @@ EXPORT_SYMBOL(ksz_switch_register);
 void ksz_switch_remove(struct ksz_device *dev)
 {
 	/* timer started */
-	if (dev->mib_read_interval)
+	if (dev->mib_read_interval) {
+		dev->mib_read_interval = 0;
 		cancel_delayed_work_sync(&dev->mib_read);
+	}
 
 	dev->dev_ops->exit(dev);
 	dsa_unregister_switch(dev->ds);

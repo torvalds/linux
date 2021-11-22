@@ -436,6 +436,19 @@ static void arcturus_check_bxco_support(struct smu_context *smu)
 	}
 }
 
+static void arcturus_check_fan_support(struct smu_context *smu)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+
+	/* No sort of fan control possible if PPTable has it disabled */
+	smu->adev->pm.no_fan =
+		!(pptable->FeaturesToRun[0] & FEATURE_FAN_CONTROL_MASK);
+	if (smu->adev->pm.no_fan)
+		dev_info_once(smu->adev->dev,
+			      "PMFW based fan control disabled");
+}
+
 static int arcturus_check_powerplay_table(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -443,6 +456,7 @@ static int arcturus_check_powerplay_table(struct smu_context *smu)
 		table_context->power_play_table;
 
 	arcturus_check_bxco_support(smu);
+	arcturus_check_fan_support(smu);
 
 	table_context->thermal_controller_type =
 		powerplay_table->thermal_controller_type;

@@ -542,7 +542,7 @@ nfsd_file_close_inode_sync(struct inode *inode)
 }
 
 /**
- * nfsd_file_close_inode_sync - attempt to forcibly close a nfsd_file
+ * nfsd_file_close_inode - attempt a delayed close of a nfsd_file
  * @inode: inode of the file to attempt to remove
  *
  * Walk the whole hash bucket, looking for any files that correspond to "inode".
@@ -602,6 +602,9 @@ nfsd_file_fsnotify_handle_event(struct fsnotify_mark *mark, u32 mask,
 				struct inode *inode, struct inode *dir,
 				const struct qstr *name, u32 cookie)
 {
+	if (WARN_ON_ONCE(!inode))
+		return 0;
+
 	trace_nfsd_file_fsnotify_handle_event(inode, mask);
 
 	/* Should be no marks on non-regular files */

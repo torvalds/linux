@@ -1059,7 +1059,7 @@ void pcibios_bus_add_device(struct pci_dev *dev)
 		ppc_md.pcibios_bus_add_device(dev);
 }
 
-int pcibios_add_device(struct pci_dev *dev)
+int pcibios_device_add(struct pci_dev *dev)
 {
 	struct irq_domain *d;
 

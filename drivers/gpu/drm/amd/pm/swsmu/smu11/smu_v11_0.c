@@ -255,7 +255,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	case IP_VERSION(11, 0, 11):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Navy_Flounder;
 		break;
-	case CHIP_VANGOGH:
+	case IP_VERSION(11, 5, 0):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_VANGOGH;
 		break;
 	case IP_VERSION(11, 0, 12):
@@ -755,6 +755,7 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 	 */
 	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 11) ||
 	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 5, 0) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 12) ||
 	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 13))
 		return 0;
 
@@ -978,10 +979,16 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 	return ret;
 }
 
-int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
+int smu_v11_0_set_power_limit(struct smu_context *smu,
+			      enum smu_ppt_limit_type limit_type,
+			      uint32_t limit)
 {
 	int power_src;
 	int ret = 0;
+	uint32_t limit_param;
+
+	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
+		return -EINVAL;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
@@ -1001,16 +1008,16 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 	 * BIT 16-23: PowerSource
 	 * BIT 0-15: PowerLimit
 	 */
-	n &= 0xFFFF;
-	n |= 0 << 24;
-	n |= (power_src) << 16;
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n, NULL);
+	limit_param  = (limit & 0xFFFF);
+	limit_param |= 0 << 24;
+	limit_param |= (power_src) << 16;
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit_param, NULL);
 	if (ret) {
 		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
 		return ret;
 	}
 
-	smu->current_power_limit = n;
+	smu->current_power_limit = limit;
 
 	return 0;
 }

@@ -20,6 +20,7 @@ NUM_NETIFS=2
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
+source mlxsw_lib.sh
 
 switch_create()
 {
@@ -169,7 +170,7 @@ matchall_sample_egress_test()
 
 	# It is forbidden in mlxsw driver to have matchall with sample action
 	# bound on egress. Spectrum-1 specific restriction
-	[[ "$DEVLINK_VIDDID" != "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 1 || return
 
 	tc qdisc add dev $swp1 clsact
 

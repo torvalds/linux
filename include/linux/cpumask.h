@@ -996,14 +996,15 @@ cpumap_print_to_pagebuf(bool list, char *buf, const struct cpumask *mask)
  * cpumask; Typically used by bin_attribute to export cpumask bitmask
  * ABI.
  *
- * Returns the length of how many bytes have been copied.
+ * Returns the length of how many bytes have been copied, excluding
+ * terminating '\0'.
  */
 static inline ssize_t
 cpumap_print_bitmask_to_buf(char *buf, const struct cpumask *mask,
 		loff_t off, size_t count)
 {
 	return bitmap_print_bitmask_to_buf(buf, cpumask_bits(mask),
-				   nr_cpu_ids, off, count);
+				   nr_cpu_ids, off, count) - 1;
 }
 
 /**
@@ -1018,7 +1019,7 @@ cpumap_print_list_to_buf(char *buf, const struct cpumask *mask,
 		loff_t off, size_t count)
 {
 	return bitmap_print_list_to_buf(buf, cpumask_bits(mask),
-				   nr_cpu_ids, off, count);
+				   nr_cpu_ids, off, count) - 1;
 }
 
 #if NR_CPUS <= BITS_PER_LONG

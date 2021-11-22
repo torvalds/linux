@@ -94,6 +94,7 @@ struct ethtool_link_ext_state_info {
 		enum ethtool_link_ext_substate_link_logical_mismatch link_logical_mismatch;
 		enum ethtool_link_ext_substate_bad_signal_integrity bad_signal_integrity;
 		enum ethtool_link_ext_substate_cable_issue cable_issue;
+		enum ethtool_link_ext_substate_module module;
 		u8 __link_ext_substate;
 	};
 };
@@ -416,6 +417,17 @@ struct ethtool_module_eeprom {
 };
 
 /**
+ * struct ethtool_module_power_mode_params - module power mode parameters
+ * @policy: The power mode policy enforced by the host for the plug-in module.
+ * @mode: The operational power mode of the plug-in module. Should be filled by
+ *	device drivers on get operations.
+ */
+struct ethtool_module_power_mode_params {
+	enum ethtool_module_power_mode_policy policy;
+	enum ethtool_module_power_mode mode;
+};
+
+/**
  * struct ethtool_ops - optional netdev operations
  * @cap_link_lanes_supported: indicates if the driver supports lanes
  *	parameter.
@@ -580,6 +592,11 @@ struct ethtool_module_eeprom {
  * @get_eth_ctrl_stats: Query some of the IEEE 802.3 MAC Ctrl statistics.
  * @get_rmon_stats: Query some of the RMON (RFC 2819) statistics.
  *	Set %ranges to a pointer to zero-terminated array of byte ranges.
+ * @get_module_power_mode: Get the power mode policy for the plug-in module
+ *	used by the network device and its operational power mode, if
+ *	plugged-in.
+ * @set_module_power_mode: Set the power mode policy for the plug-in module
+ *	used by the network device.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -705,6 +722,12 @@ struct ethtool_ops {
 	void	(*get_rmon_stats)(struct net_device *dev,
 				  struct ethtool_rmon_stats *rmon_stats,
 				  const struct ethtool_rmon_hist_range **ranges);
+	int	(*get_module_power_mode)(struct net_device *dev,
+					 struct ethtool_module_power_mode_params *params,
+					 struct netlink_ext_ack *extack);
+	int	(*set_module_power_mode)(struct net_device *dev,
+					 const struct ethtool_module_power_mode_params *params,
+					 struct netlink_ext_ack *extack);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);

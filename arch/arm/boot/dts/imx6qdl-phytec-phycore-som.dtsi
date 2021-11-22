@@ -78,8 +78,11 @@
 };
 
 &i2c3 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	scl-gpios = <&gpio1 5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	clock-frequency = <400000>;
 	status = "okay";
 
@@ -256,6 +259,13 @@
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_6__I2C3_SDA		0x4001b8b1
 			MX6QDL_PAD_GPIO_5__I2C3_SCL		0x4001b8b1
+		>;
+	};
+
+	pinctrl_i2c3_gpio: i2c3gpiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_6__GPIO1_IO06	0x4001b8b1
+			MX6QDL_PAD_GPIO_5__GPIO1_IO05	0x4001b8b1
 		>;
 	};
 

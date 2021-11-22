@@ -121,7 +121,7 @@ static void encode_nfs_fh4(struct xdr_stream *xdr, const struct knfsd_fh *fh)
 
 	BUG_ON(length > NFS4_FHSIZE);
 	p = xdr_reserve_space(xdr, 4 + length);
-	xdr_encode_opaque(p, &fh->fh_base, length);
+	xdr_encode_opaque(p, &fh->fh_raw, length);
 }
 
 /*

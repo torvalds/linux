@@ -3,7 +3,6 @@
 obj-$(CONFIG_MLXBF_GIGE) += mlxbf_gige.o
 
 mlxbf_gige-y := mlxbf_gige_ethtool.o \
-		mlxbf_gige_gpio.o \
 		mlxbf_gige_intr.o \
 		mlxbf_gige_main.o \
 		mlxbf_gige_mdio.o \

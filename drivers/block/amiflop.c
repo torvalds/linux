@@ -61,10 +61,10 @@
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/major.h>
 #include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/blk-mq.h>
-#include <linux/elevator.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
@@ -1780,6 +1780,7 @@ static const struct blk_mq_ops amiflop_mq_ops = {
 static int fd_alloc_disk(int drive, int system)
 {
 	struct gendisk *disk;
+	int err;
 
 	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL);
 	if (IS_ERR(disk))
@@ -1798,8 +1799,10 @@ static int fd_alloc_disk(int drive, int system)
 	set_capacity(disk, 880 * 2);
 
 	unit[drive].gendisk[system] = disk;
-	add_disk(disk);
-	return 0;
+	err = add_disk(disk);
+	if (err)
+		blk_cleanup_disk(disk);
+	return err;
 }
 
 static int fd_alloc_drive(int drive)

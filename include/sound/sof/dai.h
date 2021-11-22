@@ -50,6 +50,13 @@
 #define SOF_DAI_FMT_INV_MASK		0x0f00
 #define SOF_DAI_FMT_CLOCK_PROVIDER_MASK	0xf000
 
+/* DAI_CONFIG flags */
+#define SOF_DAI_CONFIG_FLAGS_MASK	0x3
+#define SOF_DAI_CONFIG_FLAGS_NONE	(0 << 0) /**< DAI_CONFIG sent without stage information */
+#define SOF_DAI_CONFIG_FLAGS_HW_PARAMS	(1 << 0) /**< DAI_CONFIG sent during hw_params stage */
+#define SOF_DAI_CONFIG_FLAGS_HW_FREE	(2 << 0) /**< DAI_CONFIG sent during hw_free stage */
+#define SOF_DAI_CONFIG_FLAGS_RFU	(3 << 0) /**< not used, reserved for future use */
+
 /** \brief Types of DAI */
 enum sof_ipc_dai_type {
 	SOF_DAI_INTEL_NONE = 0,		/**< None */
@@ -69,7 +76,8 @@ struct sof_ipc_dai_config {
 
 	/* physical protocol and clocking */
 	uint16_t format;	/**< SOF_DAI_FMT_ */
-	uint16_t reserved16;	/**< alignment */
+	uint8_t group_id;	/**< group ID, 0 means no group (ABI 3.17) */
+	uint8_t flags;		/**< SOF_DAI_CONFIG_FLAGS_ (ABI 3.19) */
 
 	/* reserved for future use */
 	uint32_t reserved[8];

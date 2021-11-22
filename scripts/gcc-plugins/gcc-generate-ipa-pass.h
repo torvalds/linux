@@ -146,17 +146,6 @@ static const pass_data _PASS_NAME_PASS_DATA = {
 		.type			= IPA_PASS,
 		.name			= _PASS_NAME_NAME,
 		.optinfo_flags		= OPTGROUP_NONE,
-#if BUILDING_GCC_VERSION >= 5000
-#elif BUILDING_GCC_VERSION == 4009
-		.has_gate		= _HAS_GATE,
-		.has_execute		= _HAS_EXECUTE,
-#else
-		.gate			= _GATE,
-		.execute		= _EXECUTE,
-		.sub			= NULL,
-		.next			= NULL,
-		.static_pass_number	= 0,
-#endif
 		.tv_id			= TV_NONE,
 		.properties_required	= PROPERTIES_REQUIRED,
 		.properties_provided	= PROPERTIES_PROVIDED,
@@ -180,20 +169,12 @@ public:
 			 _VARIABLE_TRANSFORM) {}
 
 #ifndef NO_GATE
-#if BUILDING_GCC_VERSION >= 5000
 	virtual bool gate(function *) { return _GATE(); }
-#else
-	virtual bool gate(void) { return _GATE(); }
-#endif
 
 	virtual opt_pass *clone() { return new _PASS_NAME_PASS(); }
 
 #ifndef NO_EXECUTE
-#if BUILDING_GCC_VERSION >= 5000
 	virtual unsigned int execute(function *) { return _EXECUTE(); }
-#else
-	virtual unsigned int execute(void) { return _EXECUTE(); }
-#endif
 #endif
 };
 }

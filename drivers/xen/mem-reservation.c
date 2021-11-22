@@ -35,6 +35,7 @@ void __xenmem_reservation_va_mapping_update(unsigned long count,
 	for (i = 0; i < count; i++) {
 		struct page *page = pages[i];
 		unsigned long pfn = page_to_pfn(page);
+		int ret;
 
 		BUG_ON(!page);
 
@@ -46,16 +47,10 @@ void __xenmem_reservation_va_mapping_update(unsigned long count,
 
 		set_phys_to_machine(pfn, frames[i]);
 
-		/* Link back into the page tables if not highmem. */
-		if (!PageHighMem(page)) {
-			int ret;
-
-			ret = HYPERVISOR_update_va_mapping(
-					(unsigned long)__va(pfn << PAGE_SHIFT),
-					mfn_pte(frames[i], PAGE_KERNEL),
-					0);
-			BUG_ON(ret);
-		}
+		ret = HYPERVISOR_update_va_mapping(
+				(unsigned long)__va(pfn << PAGE_SHIFT),
+				mfn_pte(frames[i], PAGE_KERNEL), 0);
+		BUG_ON(ret);
 	}
 }
 EXPORT_SYMBOL_GPL(__xenmem_reservation_va_mapping_update);
@@ -68,6 +63,7 @@ void __xenmem_reservation_va_mapping_reset(unsigned long count,
 	for (i = 0; i < count; i++) {
 		struct page *page = pages[i];
 		unsigned long pfn = page_to_pfn(page);
+		int ret;
 
 		/*
 		 * We don't support PV MMU when Linux and Xen are using
@@ -75,14 +71,11 @@ void __xenmem_reservation_va_mapping_reset(unsigned long count,
 		 */
 		BUILD_BUG_ON(XEN_PAGE_SIZE != PAGE_SIZE);
 
-		if (!PageHighMem(page)) {
-			int ret;
+		ret = HYPERVISOR_update_va_mapping(
+				(unsigned long)__va(pfn << PAGE_SHIFT),
+				__pte_ma(0), 0);
+		BUG_ON(ret);
 
-			ret = HYPERVISOR_update_va_mapping(
-					(unsigned long)__va(pfn << PAGE_SHIFT),
-					__pte_ma(0), 0);
-			BUG_ON(ret);
-		}
 		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 	}
 }

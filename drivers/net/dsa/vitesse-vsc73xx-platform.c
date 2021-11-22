@@ -116,7 +116,26 @@ static int vsc73xx_platform_remove(struct platform_device *pdev)
 {
 	struct vsc73xx_platform *vsc_platform = platform_get_drvdata(pdev);
 
-	return vsc73xx_remove(&vsc_platform->vsc);
+	if (!vsc_platform)
+		return 0;
+
+	vsc73xx_remove(&vsc_platform->vsc);
+
+	platform_set_drvdata(pdev, NULL);
+
+	return 0;
+}
+
+static void vsc73xx_platform_shutdown(struct platform_device *pdev)
+{
+	struct vsc73xx_platform *vsc_platform = platform_get_drvdata(pdev);
+
+	if (!vsc_platform)
+		return;
+
+	vsc73xx_shutdown(&vsc_platform->vsc);
+
+	platform_set_drvdata(pdev, NULL);
 }
 
 static const struct vsc73xx_ops vsc73xx_platform_ops = {
@@ -144,6 +163,7 @@ MODULE_DEVICE_TABLE(of, vsc73xx_of_match);
 static struct platform_driver vsc73xx_platform_driver = {
 	.probe = vsc73xx_platform_probe,
 	.remove = vsc73xx_platform_remove,
+	.shutdown = vsc73xx_platform_shutdown,
 	.driver = {
 		.name = "vsc73xx-platform",
 		.of_match_table = vsc73xx_of_match,

@@ -542,11 +542,14 @@ enum cpucp_packet_rc {
  */
 enum cpucp_temp_type {
 	cpucp_temp_input,
+	cpucp_temp_min = 4,
+	cpucp_temp_min_hyst,
 	cpucp_temp_max = 6,
 	cpucp_temp_max_hyst,
 	cpucp_temp_crit,
 	cpucp_temp_crit_hyst,
 	cpucp_temp_offset = 19,
+	cpucp_temp_lowest = 21,
 	cpucp_temp_highest = 22,
 	cpucp_temp_reset_history = 23
 };
@@ -555,6 +558,7 @@ enum cpucp_in_attributes {
 	cpucp_in_input,
 	cpucp_in_min,
 	cpucp_in_max,
+	cpucp_in_lowest = 6,
 	cpucp_in_highest = 7,
 	cpucp_in_reset_history
 };
@@ -563,6 +567,7 @@ enum cpucp_curr_attributes {
 	cpucp_curr_input,
 	cpucp_curr_min,
 	cpucp_curr_max,
+	cpucp_curr_lowest = 6,
 	cpucp_curr_highest = 7,
 	cpucp_curr_reset_history
 };
@@ -596,6 +601,16 @@ enum cpucp_pll_reg_attributes {
 enum cpucp_pll_type_attributes {
 	cpucp_pll_cpu,
 	cpucp_pll_pci,
+};
+
+/*
+ * cpucp_power_type aligns with hwmon_power_attributes
+ * defined in Linux kernel hwmon.h file
+ */
+enum cpucp_power_type {
+	CPUCP_POWER_INPUT = 8,
+	CPUCP_POWER_INPUT_HIGHEST = 9,
+	CPUCP_POWER_RESET_INPUT_HISTORY = 11
 };
 
 /*
@@ -731,6 +746,9 @@ struct cpucp_security_info {
  * @pll_map: Bit map of supported PLLs for current ASIC version.
  * @mme_binning_mask: MME binning mask,
  *                   (0 = functional, 1 = binned)
+ * @dram_binning_mask: DRAM binning mask, 1 bit per dram instance
+ *                     (0 = functional 1 = binned)
+ * @memory_repair_flag: eFuse flag indicating memory repair
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -749,7 +767,9 @@ struct cpucp_info {
 	__le64 reserved3;
 	__le64 reserved4;
 	__u8 reserved5;
-	__u8 pad[7];
+	__u8 dram_binning_mask;
+	__u8 memory_repair_flag;
+	__u8 pad[5];
 	struct cpucp_security_info sec_info;
 	__le32 reserved6;
 	__u8 pll_map[PLL_MAP_LEN];

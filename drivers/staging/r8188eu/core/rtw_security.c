@@ -10,80 +10,15 @@
 
 /* WEP related ===== */
 
-#define CRC32_POLY 0x04c11db7
-
-struct arc4context {
-	u32 x;
-	u32 y;
-	u8 state[256];
-};
-
-static void arcfour_init(struct arc4context *parc4ctx, u8 *key, u32	key_len)
-{
-	u32	t, u;
-	u32	keyindex;
-	u32	stateindex;
-	u8 *state;
-	u32	counter;
-
-	state = parc4ctx->state;
-	parc4ctx->x = 0;
-	parc4ctx->y = 0;
-	for (counter = 0; counter < 256; counter++)
-		state[counter] = (u8)counter;
-	keyindex = 0;
-	stateindex = 0;
-	for (counter = 0; counter < 256; counter++) {
-		t = state[counter];
-		stateindex = (stateindex + key[keyindex] + t) & 0xff;
-		u = state[stateindex];
-		state[stateindex] = (u8)t;
-		state[counter] = (u8)u;
-		if (++keyindex >= key_len)
-			keyindex = 0;
-	}
-
-}
-
-static u32 arcfour_byte(struct arc4context *parc4ctx)
-{
-	u32 x;
-	u32 y;
-	u32 sx, sy;
-	u8 *state;
-
-	state = parc4ctx->state;
-	x = (parc4ctx->x + 1) & 0xff;
-	sx = state[x];
-	y = (sx + parc4ctx->y) & 0xff;
-	sy = state[y];
-	parc4ctx->x = x;
-	parc4ctx->y = y;
-	state[y] = (u8)sx;
-	state[x] = (u8)sy;
-
-	return state[(sx + sy) & 0xff];
-}
-
-static void arcfour_encrypt(struct arc4context *parc4ctx, u8 *dest, u8 *src, u32 len)
-{
-	u32	i;
-
-	for (i = 0; i < len; i++)
-		dest[i] = src[i] ^ (unsigned char)arcfour_byte(parc4ctx);
-
-}
-
 /*
 	Need to consider the fragment  situation
 */
-void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
+void rtw_wep_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {	/*  exclude ICV */
 	union {
 		__le32 f0;
 		u8 f1[4];
 	} crc;
-	struct arc4context	 mycontext;
 
 	int	curfragnum, length;
 	u32	keylength;
@@ -91,17 +26,16 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	u8	*pframe, *payload, *iv;    /* wepkey */
 	u8	wepkey[16];
 	u8   hw_hdr_offset = 0;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
+	struct arc4_ctx *ctx = &psecuritypriv->xmit_arc4_ctx;
 
-	if (!((struct xmit_frame *)pxmitframe)->buf_addr)
+	if (!pxmitframe->buf_addr)
 		return;
 
-	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
-
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+	hw_hdr_offset = TXDESC_SIZE + pxmitframe->pkt_offset * PACKET_OFFSET_SZ;
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
 	/* start to encrypt each fragment */
 	if ((pattrib->encrypt == _WEP40_) || (pattrib->encrypt == _WEP104_)) {
@@ -118,15 +52,15 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 				crc.f0 = cpu_to_le32(~crc32_le(~0, payload, length));
 
-				arcfour_init(&mycontext, wepkey, 3 + keylength);
-				arcfour_encrypt(&mycontext, payload, payload, length);
-				arcfour_encrypt(&mycontext, payload + length, crc.f1, 4);
+				arc4_setkey(ctx, wepkey, 3 + keylength);
+				arc4_crypt(ctx, payload, payload, length);
+				arc4_crypt(ctx, payload + length, crc.f1, 4);
 			} else {
 				length = pxmitpriv->frag_len - pattrib->hdrlen - pattrib->iv_len - pattrib->icv_len;
 				crc.f0 = cpu_to_le32(~crc32_le(~0, payload, length));
-				arcfour_init(&mycontext, wepkey, 3 + keylength);
-				arcfour_encrypt(&mycontext, payload, payload, length);
-				arcfour_encrypt(&mycontext, payload + length, crc.f1, 4);
+				arc4_setkey(ctx, wepkey, 3 + keylength);
+				arc4_crypt(ctx, payload, payload, length);
+				arc4_crypt(ctx, payload + length, crc.f1, 4);
 
 				pframe += pxmitpriv->frag_len;
 				pframe = (u8 *)RND4((size_t)(pframe));
@@ -136,18 +70,18 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 }
 
-void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
+void rtw_wep_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 {
 	/*  exclude ICV */
-	struct arc4context	 mycontext;
 	int	length;
 	u32	keylength;
 	u8	*pframe, *payload, *iv, wepkey[16];
 	u8	 keyindex;
-	struct	rx_pkt_attrib	 *prxattrib = &(((struct recv_frame *)precvframe)->attrib);
+	struct	rx_pkt_attrib	 *prxattrib = &precvframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
+	struct arc4_ctx *ctx = &psecuritypriv->recv_arc4_ctx;
 
-	pframe = (unsigned char *)((struct recv_frame *)precvframe)->rx_data;
+	pframe = precvframe->rx_data;
 
 	/* start to decrypt recvframe */
 	if ((prxattrib->encrypt == _WEP40_) || (prxattrib->encrypt == _WEP104_)) {
@@ -156,13 +90,13 @@ void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 		keylength = psecuritypriv->dot11DefKeylen[keyindex];
 		memcpy(&wepkey[0], iv, 3);
 		memcpy(&wepkey[3], &psecuritypriv->dot11DefKey[keyindex].skey[0], keylength);
-		length = ((struct recv_frame *)precvframe)->len - prxattrib->hdrlen - prxattrib->iv_len;
+		length = precvframe->len - prxattrib->hdrlen - prxattrib->iv_len;
 
 		payload = pframe + prxattrib->iv_len + prxattrib->hdrlen;
 
 		/* decrypt payload include icv */
-		arcfour_init(&mycontext, wepkey, 3 + keylength);
-		arcfour_encrypt(&mycontext, payload, payload,  length);
+		arc4_setkey(ctx, wepkey, 3 + keylength);
+		arc4_crypt(ctx, payload, payload, length);
 	}
 }
 
@@ -502,7 +436,7 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 }
 
 /* The hlen isn't include the IV */
-u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
+u32 rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {																	/*  exclude ICV */
 	u16	pnl;
 	u32	pnh;
@@ -513,23 +447,23 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 		u8 f1[4];
 	} crc;
 	u8   hw_hdr_offset = 0;
-	struct arc4context mycontext;
 	int			curfragnum, length;
 
 	u8	*pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
 	struct	sta_info		*stainfo;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
+	struct arc4_ctx *ctx = &psecuritypriv->xmit_arc4_ctx;
 	u32	res = _SUCCESS;
 
-	if (!((struct xmit_frame *)pxmitframe)->buf_addr)
+	if (!pxmitframe->buf_addr)
 		return _FAIL;
 
-	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+	hw_hdr_offset = TXDESC_SIZE + pxmitframe->pkt_offset * PACKET_OFFSET_SZ;
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
+
 	/* 4 start to encrypt each fragment */
 	if (pattrib->encrypt == _TKIP_) {
 		if (pattrib->psta)
@@ -558,16 +492,16 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 					length = pattrib->last_txcmdsz - pattrib->hdrlen - pattrib->iv_len - pattrib->icv_len;
 					crc.f0 = cpu_to_le32(~crc32_le(~0, payload, length));
 
-					arcfour_init(&mycontext, rc4key, 16);
-					arcfour_encrypt(&mycontext, payload, payload, length);
-					arcfour_encrypt(&mycontext, payload + length, crc.f1, 4);
+					arc4_setkey(ctx, rc4key, 16);
+					arc4_crypt(ctx, payload, payload, length);
+					arc4_crypt(ctx, payload + length, crc.f1, 4);
 				} else {
 					length = pxmitpriv->frag_len - pattrib->hdrlen - pattrib->iv_len - pattrib->icv_len;
 					crc.f0 = cpu_to_le32(~crc32_le(~0, payload, length));
 
-					arcfour_init(&mycontext, rc4key, 16);
-					arcfour_encrypt(&mycontext, payload, payload, length);
-					arcfour_encrypt(&mycontext, payload + length, crc.f1, 4);
+					arc4_setkey(ctx, rc4key, 16);
+					arc4_crypt(ctx, payload, payload, length);
+					arc4_crypt(ctx, payload + length, crc.f1, 4);
 
 					pframe += pxmitpriv->frag_len;
 					pframe = (u8 *)RND4((size_t)(pframe));
@@ -582,7 +516,7 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 }
 
 /* The hlen isn't include the IV */
-u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
+u32 rtw_tkip_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 {																	/*  exclude ICV */
 	u16 pnl;
 	u32 pnh;
@@ -592,17 +526,17 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 		__le32 f0;
 		u8 f1[4];
 	} crc;
-	struct arc4context mycontext;
 	int			length;
 
 	u8	*pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
 	struct	sta_info		*stainfo;
-	struct	rx_pkt_attrib	 *prxattrib = &((struct recv_frame *)precvframe)->attrib;
+	struct	rx_pkt_attrib	 *prxattrib = &precvframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
+	struct arc4_ctx *ctx = &psecuritypriv->recv_arc4_ctx;
 	u32		res = _SUCCESS;
 
-	pframe = (unsigned char *)((struct recv_frame *)precvframe)->rx_data;
+	pframe = precvframe->rx_data;
 
 	/* 4 start to decrypt recvframe */
 	if (prxattrib->encrypt == _TKIP_) {
@@ -621,7 +555,7 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 
 			iv = pframe + prxattrib->hdrlen;
 			payload = pframe + prxattrib->iv_len + prxattrib->hdrlen;
-			length = ((struct recv_frame *)precvframe)->len - prxattrib->hdrlen - prxattrib->iv_len;
+			length = precvframe->len - prxattrib->hdrlen - prxattrib->iv_len;
 
 			GET_TKIP_PN(iv, dot11txpn);
 
@@ -633,8 +567,8 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 
 			/* 4 decrypt payload include icv */
 
-			arcfour_init(&mycontext, rc4key, 16);
-			arcfour_encrypt(&mycontext, payload, payload, length);
+			arc4_setkey(ctx, rc4key, 16);
+			arc4_crypt(ctx, payload, payload, length);
 
 			crc.f0 = cpu_to_le32(~crc32_le(~0, payload, length));
 
@@ -1154,7 +1088,7 @@ static int aes_cipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 	return _SUCCESS;
 }
 
-u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
+u32 rtw_aes_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {	/*  exclude ICV */
 
 	/*static*/
@@ -1165,20 +1099,18 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	u8	*pframe, *prwskey;	/*  *payload,*iv */
 	u8   hw_hdr_offset = 0;
 	struct	sta_info		*stainfo;
-	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
+	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
 
 /*	uint	offset = 0; */
 	u32 res = _SUCCESS;
 
-	if (!((struct xmit_frame *)pxmitframe)->buf_addr)
+	if (!pxmitframe->buf_addr)
 		return _FAIL;
 
-	hw_hdr_offset = TXDESC_SIZE +
-		 (((struct xmit_frame *)pxmitframe)->pkt_offset * PACKET_OFFSET_SZ);
-
-	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
+	hw_hdr_offset = TXDESC_SIZE + pxmitframe->pkt_offset * PACKET_OFFSET_SZ;
+	pframe = pxmitframe->buf_addr + hw_hdr_offset;
 
 	/* 4 start to encrypt each fragment */
 	if (pattrib->encrypt == _AES_) {
@@ -1406,17 +1338,18 @@ static int aes_decipher(u8 *key, uint	hdrlen,
 	return res;
 }
 
-u32	rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
+u32 rtw_aes_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 {	/*  exclude ICV */
 	/* Intermediate Buffers */
 	int		length;
 	u8	*pframe, *prwskey;	/*  *payload,*iv */
 	struct	sta_info		*stainfo;
-	struct	rx_pkt_attrib	 *prxattrib = &((struct recv_frame *)precvframe)->attrib;
+	struct	rx_pkt_attrib	 *prxattrib = &precvframe->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	u32	res = _SUCCESS;
 
-	pframe = (unsigned char *)((struct recv_frame *)precvframe)->rx_data;
+	pframe = precvframe->rx_data;
+
 	/* 4 start to encrypt each fragment */
 	if (prxattrib->encrypt == _AES_) {
 		stainfo = rtw_get_stainfo(&padapter->stapriv, &prxattrib->ta[0]);
@@ -1438,7 +1371,7 @@ u32	rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 			} else {
 				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
 			}
-			length = ((struct recv_frame *)precvframe)->len - prxattrib->hdrlen - prxattrib->iv_len;
+			length = precvframe->len - prxattrib->hdrlen - prxattrib->iv_len;
 			res = aes_decipher(prwskey, prxattrib->hdrlen, pframe, length);
 		} else {
 			res = _FAIL;
@@ -1622,35 +1555,3 @@ const u8 rcons[] = {
 	0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
 	/* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
-
-/**
- * Expand the cipher key into the encryption key schedule.
- *
- * @return	the number of rounds for the given cipher key size.
- */
-#define ROUND(i, d, s) \
-do {									\
-	d##0 = TE0(s##0) ^ TE1(s##1) ^ TE2(s##2) ^ TE3(s##3) ^ rk[4 * i]; \
-	d##1 = TE0(s##1) ^ TE1(s##2) ^ TE2(s##3) ^ TE3(s##0) ^ rk[4 * i + 1]; \
-	d##2 = TE0(s##2) ^ TE1(s##3) ^ TE2(s##0) ^ TE3(s##1) ^ rk[4 * i + 2]; \
-	d##3 = TE0(s##3) ^ TE1(s##0) ^ TE2(s##1) ^ TE3(s##2) ^ rk[4 * i + 3]; \
-} while (0);
-
-/**
- * omac1_aes_128 - One-Key CBC MAC (OMAC1) hash with AES-128 (aka AES-CMAC)
- * @key: 128-bit key for the hash operation
- * @data: Data buffer for which a MAC is determined
- * @data_len: Length of data buffer in bytes
- * @mac: Buffer for MAC (128 bits, i.e., 16 bytes)
- * Returns: 0 on success, -1 on failure
- *
- * This is a mode for using block cipher (AES in this case) for authentication.
- * OMAC1 was standardized with the name CMAC by NIST in a Special Publication
- * (SP) 800-38B.
- */
-void rtw_use_tkipkey_handler(void *FunctionContext)
-{
-	struct adapter *padapter = (struct adapter *)FunctionContext;
-
-	padapter->securitypriv.busetkipkey = true;
-}

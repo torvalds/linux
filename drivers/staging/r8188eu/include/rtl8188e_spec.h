@@ -893,11 +893,7 @@ Current IOREG MAP
 #define _PSRX(x)			(x)
 #define _PSTX(x)			((x) << 4)
 
-#define PBP_64				0x0
 #define PBP_128				0x1
-#define PBP_256				0x2
-#define PBP_512				0x3
-#define PBP_1024			0x4
 
 /* 2 TX/RXDMA */
 #define RXDMA_ARBBW_EN			BIT(0)

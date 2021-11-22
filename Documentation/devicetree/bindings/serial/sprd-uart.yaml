@@ -19,6 +19,7 @@ properties:
           - enum:
               - sprd,sc9860-uart
               - sprd,sc9863a-uart
+              - sprd,ums512-uart
           - const: sprd,sc9836-uart
       - const: sprd,sc9836-uart
 

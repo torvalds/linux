@@ -354,7 +354,7 @@ static int hns_mdio_reset(struct mii_bus *bus)
 
 	if (dev_of_node(bus->parent)) {
 		if (!mdio_dev->subctrl_vbase) {
-			dev_err(&bus->dev, "mdio sys ctl reg has not maped\n");
+			dev_err(&bus->dev, "mdio sys ctl reg has not mapped\n");
 			return -ENODEV;
 		}
 

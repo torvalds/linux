@@ -34,12 +34,10 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_data/x86/soc.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
-
-#include <asm/cpu_device_id.h>
-#include <asm/intel-family.h>
 
 #define DRV_NAME			"INT0002 Virtual GPIO"
 
@@ -151,12 +149,6 @@ static struct irq_chip int0002_irqchip = {
 	.irq_set_wake		= int0002_irq_set_wake,
 };
 
-static const struct x86_cpu_id int0002_cpu_ids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT, NULL),
-	{}
-};
-
 static void int0002_init_irq_valid_mask(struct gpio_chip *chip,
 					unsigned long *valid_mask,
 					unsigned int ngpios)
@@ -167,15 +159,13 @@ static void int0002_init_irq_valid_mask(struct gpio_chip *chip,
 static int int0002_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct x86_cpu_id *cpu_id;
 	struct int0002_data *int0002;
 	struct gpio_irq_chip *girq;
 	struct gpio_chip *chip;
 	int irq, ret;
 
 	/* Menlow has a different INT0002 device? <sigh> */
-	cpu_id = x86_match_cpu(int0002_cpu_ids);
-	if (!cpu_id)
+	if (!soc_intel_is_byt() && !soc_intel_is_cht())
 		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);

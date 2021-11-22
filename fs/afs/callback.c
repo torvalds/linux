@@ -21,6 +21,37 @@
 #include "internal.h"
 
 /*
+ * Handle invalidation of an mmap'd file.  We invalidate all the PTEs referring
+ * to the pages in this file's pagecache, forcing the kernel to go through
+ * ->fault() or ->page_mkwrite() - at which point we can handle invalidation
+ * more fully.
+ */
+void afs_invalidate_mmap_work(struct work_struct *work)
+{
+	struct afs_vnode *vnode = container_of(work, struct afs_vnode, cb_work);
+
+	unmap_mapping_pages(vnode->vfs_inode.i_mapping, 0, 0, false);
+}
+
+void afs_server_init_callback_work(struct work_struct *work)
+{
+	struct afs_server *server = container_of(work, struct afs_server, initcb_work);
+	struct afs_vnode *vnode;
+	struct afs_cell *cell = server->cell;
+
+	down_read(&cell->fs_open_mmaps_lock);
+
+	list_for_each_entry(vnode, &cell->fs_open_mmaps, cb_mmap_link) {
+		if (vnode->cb_server == server) {
+			clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+			queue_work(system_unbound_wq, &vnode->cb_work);
+		}
+	}
+
+	up_read(&cell->fs_open_mmaps_lock);
+}
+
+/*
  * Allow the fileserver to request callback state (re-)initialisation.
  * Unfortunately, UUIDs are not guaranteed unique.
  */
@@ -29,8 +60,11 @@ void afs_init_callback_state(struct afs_server *server)
 	rcu_read_lock();
 	do {
 		server->cb_s_break++;
-		server = rcu_dereference(server->uuid_next);
-	} while (0);
+		atomic_inc(&server->cell->fs_s_break);
+		if (!list_empty(&server->cell->fs_open_mmaps))
+			queue_work(system_unbound_wq, &server->initcb_work);
+
+	} while ((server = rcu_dereference(server->uuid_next)));
 	rcu_read_unlock();
 }
 
@@ -44,10 +78,16 @@ void __afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reas
 	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
 	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		vnode->cb_break++;
+		vnode->cb_v_break = vnode->volume->cb_v_break;
 		afs_clear_permits(vnode);
 
 		if (vnode->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)
 			afs_lock_may_be_available(vnode);
+
+		if (reason != afs_cb_break_for_deleted &&
+		    vnode->status.type == AFS_FTYPE_FILE &&
+		    atomic_read(&vnode->cb_nr_mmap))
+			queue_work(system_unbound_wq, &vnode->cb_work);
 
 		trace_afs_cb_break(&vnode->fid, vnode->cb_break, reason, true);
 	} else {

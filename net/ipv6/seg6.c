@@ -374,7 +374,11 @@ static int __net_init seg6_net_init(struct net *net)
 	net->ipv6.seg6_data = sdata;
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
-	seg6_hmac_net_init(net);
+	if (seg6_hmac_net_init(net)) {
+		kfree(rcu_dereference_raw(sdata->tun_src));
+		kfree(sdata);
+		return -ENOMEM;
+	}
 #endif
 
 	return 0;
@@ -388,7 +392,7 @@ static void __net_exit seg6_net_exit(struct net *net)
 	seg6_hmac_net_exit(net);
 #endif
 
-	kfree(sdata->tun_src);
+	kfree(rcu_dereference_raw(sdata->tun_src));
 	kfree(sdata);
 }
 

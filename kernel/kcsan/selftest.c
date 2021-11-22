@@ -18,7 +18,7 @@
 #define ITERS_PER_TEST 2000
 
 /* Test requirements. */
-static bool test_requires(void)
+static bool __init test_requires(void)
 {
 	/* random should be initialized for the below tests */
 	return prandom_u32() + prandom_u32() != 0;
@@ -28,14 +28,18 @@ static bool test_requires(void)
  * Test watchpoint encode and decode: check that encoding some access's info,
  * and then subsequent decode preserves the access's info.
  */
-static bool test_encode_decode(void)
+static bool __init test_encode_decode(void)
 {
 	int i;
 
 	for (i = 0; i < ITERS_PER_TEST; ++i) {
 		size_t size = prandom_u32_max(MAX_ENCODABLE_SIZE) + 1;
 		bool is_write = !!prandom_u32_max(2);
+		unsigned long verif_masked_addr;
+		long encoded_watchpoint;
+		bool verif_is_write;
 		unsigned long addr;
+		size_t verif_size;
 
 		prandom_bytes(&addr, sizeof(addr));
 		if (addr < PAGE_SIZE)
@@ -44,53 +48,37 @@ static bool test_encode_decode(void)
 		if (WARN_ON(!check_encodable(addr, size)))
 			return false;
 
-		/* Encode and decode */
-		{
-			const long encoded_watchpoint =
-				encode_watchpoint(addr, size, is_write);
-			unsigned long verif_masked_addr;
-			size_t verif_size;
-			bool verif_is_write;
+		encoded_watchpoint = encode_watchpoint(addr, size, is_write);
 
-			/* Check special watchpoints */
-			if (WARN_ON(decode_watchpoint(
-				    INVALID_WATCHPOINT, &verif_masked_addr,
-				    &verif_size, &verif_is_write)))
-				return false;
-			if (WARN_ON(decode_watchpoint(
-				    CONSUMED_WATCHPOINT, &verif_masked_addr,
-				    &verif_size, &verif_is_write)))
-				return false;
-
-			/* Check decoding watchpoint returns same data */
-			if (WARN_ON(!decode_watchpoint(
-				    encoded_watchpoint, &verif_masked_addr,
-				    &verif_size, &verif_is_write)))
-				return false;
-			if (WARN_ON(verif_masked_addr !=
-				    (addr & WATCHPOINT_ADDR_MASK)))
-				goto fail;
-			if (WARN_ON(verif_size != size))
-				goto fail;
-			if (WARN_ON(is_write != verif_is_write))
-				goto fail;
-
-			continue;
-fail:
-			pr_err("%s fail: %s %zu bytes @ %lx -> encoded: %lx -> %s %zu bytes @ %lx\n",
-			       __func__, is_write ? "write" : "read", size,
-			       addr, encoded_watchpoint,
-			       verif_is_write ? "write" : "read", verif_size,
-			       verif_masked_addr);
+		/* Check special watchpoints */
+		if (WARN_ON(decode_watchpoint(INVALID_WATCHPOINT, &verif_masked_addr, &verif_size, &verif_is_write)))
 			return false;
-		}
+		if (WARN_ON(decode_watchpoint(CONSUMED_WATCHPOINT, &verif_masked_addr, &verif_size, &verif_is_write)))
+			return false;
+
+		/* Check decoding watchpoint returns same data */
+		if (WARN_ON(!decode_watchpoint(encoded_watchpoint, &verif_masked_addr, &verif_size, &verif_is_write)))
+			return false;
+		if (WARN_ON(verif_masked_addr != (addr & WATCHPOINT_ADDR_MASK)))
+			goto fail;
+		if (WARN_ON(verif_size != size))
+			goto fail;
+		if (WARN_ON(is_write != verif_is_write))
+			goto fail;
+
+		continue;
+fail:
+		pr_err("%s fail: %s %zu bytes @ %lx -> encoded: %lx -> %s %zu bytes @ %lx\n",
+		       __func__, is_write ? "write" : "read", size, addr, encoded_watchpoint,
+		       verif_is_write ? "write" : "read", verif_size, verif_masked_addr);
+		return false;
 	}
 
 	return true;
 }
 
 /* Test access matching function. */
-static bool test_matching_access(void)
+static bool __init test_matching_access(void)
 {
 	if (WARN_ON(!matching_access(10, 1, 10, 1)))
 		return false;

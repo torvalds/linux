@@ -37,7 +37,7 @@ static asmlinkage void riscv_intc_irq(struct pt_regs *regs)
 		break;
 #endif
 	default:
-		handle_domain_irq(intc_domain, cause, regs);
+		generic_handle_domain_irq(intc_domain, cause);
 		break;
 	}
 }

@@ -46,7 +46,7 @@ static void bio_csum(struct bio *bio, struct bkey *k)
 	bio_for_each_segment(bv, bio, iter) {
 		void *d = kmap(bv.bv_page) + bv.bv_offset;
 
-		csum = bch_crc64_update(csum, d, bv.bv_len);
+		csum = crc64_be(csum, d, bv.bv_len);
 		kunmap(bv.bv_page);
 	}
 
@@ -651,8 +651,8 @@ static void backing_request_endio(struct bio *bio)
 		 */
 		if (unlikely(s->iop.writeback &&
 			     bio->bi_opf & REQ_PREFLUSH)) {
-			pr_err("Can't flush %s: returned bi_status %i\n",
-				dc->backing_dev_name, bio->bi_status);
+			pr_err("Can't flush %pg: returned bi_status %i\n",
+				dc->bdev, bio->bi_status);
 		} else {
 			/* set to orig_bio->bi_status in bio_complete() */
 			s->iop.status = bio->bi_status;
@@ -1163,7 +1163,7 @@ static void quit_max_writeback_rate(struct cache_set *c,
 
 /* Cached devices - read & write stuff */
 
-blk_qc_t cached_dev_submit_bio(struct bio *bio)
+void cached_dev_submit_bio(struct bio *bio)
 {
 	struct search *s;
 	struct block_device *orig_bdev = bio->bi_bdev;
@@ -1176,7 +1176,7 @@ blk_qc_t cached_dev_submit_bio(struct bio *bio)
 		     dc->io_disable)) {
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
-		return BLK_QC_T_NONE;
+		return;
 	}
 
 	if (likely(d->c)) {
@@ -1222,8 +1222,6 @@ blk_qc_t cached_dev_submit_bio(struct bio *bio)
 	} else
 		/* I/O request sent to backing device */
 		detached_dev_do_request(d, bio, orig_bdev, start_time);
-
-	return BLK_QC_T_NONE;
 }
 
 static int cached_dev_ioctl(struct bcache_device *d, fmode_t mode,
@@ -1273,7 +1271,7 @@ static void flash_dev_nodata(struct closure *cl)
 	continue_at(cl, search_free, NULL);
 }
 
-blk_qc_t flash_dev_submit_bio(struct bio *bio)
+void flash_dev_submit_bio(struct bio *bio)
 {
 	struct search *s;
 	struct closure *cl;
@@ -1282,7 +1280,7 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
 	if (unlikely(d->c && test_bit(CACHE_SET_IO_DISABLE, &d->c->flags))) {
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
-		return BLK_QC_T_NONE;
+		return;
 	}
 
 	s = search_alloc(bio, d, bio->bi_bdev, bio_start_io_acct(bio));
@@ -1298,7 +1296,7 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
 		continue_at_nobarrier(&s->cl,
 				      flash_dev_nodata,
 				      bcache_wq);
-		return BLK_QC_T_NONE;
+		return;
 	} else if (bio_data_dir(bio)) {
 		bch_keybuf_check_overlapping(&s->iop.c->moving_gc_keys,
 					&KEY(d->id, bio->bi_iter.bi_sector, 0),
@@ -1314,7 +1312,6 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
 	}
 
 	continue_at(cl, search_free, NULL);
-	return BLK_QC_T_NONE;
 }
 
 static int flash_dev_ioctl(struct bcache_device *d, fmode_t mode,

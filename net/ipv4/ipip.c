@@ -380,7 +380,7 @@ static int ipip_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 
-	memcpy(dev->dev_addr, &tunnel->parms.iph.saddr, 4);
+	__dev_addr_set(dev, &tunnel->parms.iph.saddr, 4);
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
 
 	tunnel->tun_hlen = 0;

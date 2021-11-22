@@ -635,9 +635,7 @@ static int g2d_probe(struct platform_device *pdev)
 	mutex_init(&dev->mutex);
 	atomic_set(&dev->num_inst, 0);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	dev->regs = devm_ioremap_resource(&pdev->dev, res);
+	dev->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->regs))
 		return PTR_ERR(dev->regs);
 

@@ -191,6 +191,7 @@ enum nix_scheduler {
 #define NIX_CHAN_SDP_CH_START          (0x700ull)
 #define NIX_CHAN_SDP_CHX(a)            (NIX_CHAN_SDP_CH_START + (a))
 #define NIX_CHAN_SDP_NUM_CHANS		256
+#define NIX_CHAN_CPT_CH_START          (0x800ull)
 
 /* The mask is to extract lower 10-bits of channel number
  * which CPT will pass to X2P.

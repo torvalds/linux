@@ -23,18 +23,6 @@
 #define PORT(offset) (CKSEG1ADDR(INGENIC_UART_BASE_ADDR) + (4 * offset))
 #endif
 
-#ifdef CONFIG_CPU_XLR
-#define UART0_BASE  0x1EF14000
-#define PORT(offset) (CKSEG1ADDR(UART0_BASE) + (4 * offset))
-#define IOTYPE unsigned int
-#endif
-
-#ifdef CONFIG_CPU_XLP
-#define UART0_BASE  0x18030100
-#define PORT(offset) (CKSEG1ADDR(UART0_BASE) + (4 * offset))
-#define IOTYPE unsigned int
-#endif
-
 #ifndef IOTYPE
 #define IOTYPE char
 #endif

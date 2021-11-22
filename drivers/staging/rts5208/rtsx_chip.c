@@ -325,7 +325,7 @@ static int rtsx_enable_pcie_intr(struct rtsx_chip *chip)
 			return STATUS_FAIL;
 	}
 
-	if (chip->driver_first_load && (chip->ic_version < IC_VER_C))
+	if (chip->driver_first_load && chip->ic_version < IC_VER_C)
 		rtsx_calibration(chip);
 
 	return STATUS_SUCCESS;
@@ -496,7 +496,7 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 		chip->int_reg);
 	if (chip->int_reg & SD_EXIST) {
 #ifdef HW_AUTO_SWITCH_SD_BUS
-		if (CHECK_PID(chip, 0x5208) && (chip->ic_version < IC_VER_C))
+		if (CHECK_PID(chip, 0x5208) && chip->ic_version < IC_VER_C)
 			retval = rtsx_pre_handle_sdio_old(chip);
 		else
 			retval = rtsx_pre_handle_sdio_new(chip);
@@ -563,7 +563,7 @@ nextcard:
 			return retval;
 	}
 
-	if (CHECK_PID(chip, 0x5208) && (chip->ic_version >= IC_VER_D)) {
+	if (CHECK_PID(chip, 0x5208) && chip->ic_version >= IC_VER_D) {
 		retval = rtsx_write_register(chip, PETXCFG, 0x1C, 0x14);
 		if (retval)
 			return retval;
@@ -606,7 +606,7 @@ static inline int valid_sd_speed_prior(u32 sd_speed_prior)
 	for (i = 0; i < 4; i++) {
 		u8 tmp = (u8)(sd_speed_prior >> (i * 8));
 
-		if ((tmp < 0x01) || (tmp > 0x04)) {
+		if (tmp < 0x01 || tmp > 0x04) {
 			valid_para = false;
 			break;
 		}
@@ -808,10 +808,10 @@ int rtsx_init_chip(struct rtsx_chip *chip)
 	dev_dbg(rtsx_dev(chip), "sd_current_prior = 0x%08x\n",
 		chip->sd_current_prior);
 
-	if ((chip->sd_ddr_tx_phase > 31) || (chip->sd_ddr_tx_phase < 0))
+	if (chip->sd_ddr_tx_phase > 31 || chip->sd_ddr_tx_phase < 0)
 		chip->sd_ddr_tx_phase = 0;
 
-	if ((chip->mmc_ddr_tx_phase > 31) || (chip->mmc_ddr_tx_phase < 0))
+	if (chip->mmc_ddr_tx_phase > 31 || chip->mmc_ddr_tx_phase < 0)
 		chip->mmc_ddr_tx_phase = 0;
 
 	retval = rtsx_write_register(chip, FPDCTL, SSC_POWER_DOWN, 0);
@@ -1840,7 +1840,7 @@ int rtsx_pre_handle_interrupt(struct rtsx_chip *chip)
 	chip->int_reg = rtsx_readl(chip, RTSX_BIPR);
 
 	if (((chip->int_reg & int_enable) == 0) ||
-	    (chip->int_reg == 0xFFFFFFFF))
+	    chip->int_reg == 0xFFFFFFFF)
 		return STATUS_FAIL;
 
 	status = chip->int_reg &= (int_enable | 0x7FFFFF);
@@ -1939,7 +1939,7 @@ void rtsx_do_before_power_down(struct rtsx_chip *chip, int pm_stat)
 	}
 #endif
 
-	if (CHECK_PID(chip, 0x5208) && (chip->ic_version >= IC_VER_D)) {
+	if (CHECK_PID(chip, 0x5208) && chip->ic_version >= IC_VER_D) {
 		/* u_force_clkreq_0 */
 		rtsx_write_register(chip, PETXCFG, 0x08, 0x08);
 	}

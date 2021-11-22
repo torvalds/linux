@@ -36,7 +36,7 @@
 #include "xfs_reflink.h"
 #include "xfs_ag.h"
 
-kmem_zone_t *xfs_inode_zone;
+struct kmem_cache *xfs_inode_cache;
 
 /*
  * Used in xfs_itruncate_extents().  This is the maximum number of extents
@@ -564,8 +564,6 @@ xfs_lock_two_inodes(
 	struct xfs_inode	*ip1,
 	uint			ip1_mode)
 {
-	struct xfs_inode	*temp;
-	uint			mode_temp;
 	int			attempts = 0;
 	struct xfs_log_item	*lp;
 
@@ -578,12 +576,8 @@ xfs_lock_two_inodes(
 	ASSERT(ip0->i_ino != ip1->i_ino);
 
 	if (ip0->i_ino > ip1->i_ino) {
-		temp = ip0;
-		ip0 = ip1;
-		ip1 = temp;
-		mode_temp = ip0_mode;
-		ip0_mode = ip1_mode;
-		ip1_mode = mode_temp;
+		swap(ip0, ip1);
+		swap(ip0_mode, ip1_mode);
 	}
 
  again:

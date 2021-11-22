@@ -53,7 +53,7 @@ static void mt76x02_pre_tbtt_tasklet(struct tasklet_struct *t)
 		mt76_skb_set_moredata(data.tail[i], false);
 	}
 
-	spin_lock_bh(&q->lock);
+	spin_lock(&q->lock);
 	while ((skb = __skb_dequeue(&data.q)) != NULL) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		struct ieee80211_vif *vif = info->control.vif;
@@ -61,7 +61,7 @@ static void mt76x02_pre_tbtt_tasklet(struct tasklet_struct *t)
 
 		mt76_tx_queue_skb(dev, q, skb, &mvif->group_wcid, NULL);
 	}
-	spin_unlock_bh(&q->lock);
+	spin_unlock(&q->lock);
 }
 
 static void mt76x02e_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
@@ -472,7 +472,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 		mt76_queue_rx_reset(dev, i);
 	}
 
-	mt76_tx_status_check(&dev->mt76, NULL, true);
+	mt76_tx_status_check(&dev->mt76, true);
 
 	mt76x02_mac_start(dev);
 
@@ -491,15 +491,17 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	clear_bit(MT76_RESET, &dev->mphy.state);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
+
+	local_bh_disable();
 	napi_enable(&dev->mt76.tx_napi);
 	napi_schedule(&dev->mt76.tx_napi);
-
-	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_enable(&dev->mt76.napi[i]);
 		napi_schedule(&dev->mt76.napi[i]);
 	}
+	local_bh_enable();
 
 	if (restart) {
 		set_bit(MT76_RESTART, &dev->mphy.state);

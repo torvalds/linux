@@ -376,8 +376,8 @@ struct ahci_host_priv {
 
 extern int ahci_ignore_sss;
 
-extern struct device_attribute *ahci_shost_attrs[];
-extern struct device_attribute *ahci_sdev_attrs[];
+extern const struct attribute_group *ahci_shost_groups[];
+extern const struct attribute_group *ahci_sdev_groups[];
 
 /*
  * This must be instantiated by the edge drivers.  Read the comments
@@ -388,8 +388,8 @@ extern struct device_attribute *ahci_sdev_attrs[];
 	.can_queue		= AHCI_MAX_CMDS,			\
 	.sg_tablesize		= AHCI_MAX_SG,				\
 	.dma_boundary		= AHCI_DMA_BOUNDARY,			\
-	.shost_attrs		= ahci_shost_attrs,			\
-	.sdev_attrs		= ahci_sdev_attrs,			\
+	.shost_groups		= ahci_shost_groups,			\
+	.sdev_groups		= ahci_sdev_groups,			\
 	.change_queue_depth     = ata_scsi_change_queue_depth,		\
 	.tag_alloc_policy       = BLK_TAG_ALLOC_RR,             	\
 	.slave_configure        = ata_scsi_slave_config

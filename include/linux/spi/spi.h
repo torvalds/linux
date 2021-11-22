@@ -78,10 +78,6 @@ struct spi_statistics {
 	unsigned long transfers_split_maxsize;
 };
 
-void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
-				       struct spi_transfer *xfer,
-				       struct spi_controller *ctlr);
-
 #define SPI_STATISTICS_ADD_TO_FIELD(stats, field, count)	\
 	do {							\
 		unsigned long flags;				\
@@ -531,6 +527,9 @@ struct spi_controller {
 	/* I/O mutex */
 	struct mutex		io_mutex;
 
+	/* Used to avoid adding the same CS twice */
+	struct mutex		add_lock;
+
 	/* lock and mutex for SPI bus locking */
 	spinlock_t		bus_lock_spinlock;
 	struct mutex		bus_lock_mutex;
@@ -760,8 +759,6 @@ extern int devm_spi_register_controller(struct device *dev,
 					struct spi_controller *ctlr);
 extern void spi_unregister_controller(struct spi_controller *ctlr);
 
-extern struct spi_controller *spi_busnum_to_master(u16 busnum);
-
 /*
  * SPI resource management while processing a SPI message
  */
@@ -784,15 +781,6 @@ struct spi_res {
 	spi_res_release_t       release;
 	unsigned long long      data[]; /* guarantee ull alignment */
 };
-
-extern void *spi_res_alloc(struct spi_device *spi,
-			   spi_res_release_t release,
-			   size_t size, gfp_t gfp);
-extern void spi_res_add(struct spi_message *message, void *res);
-extern void spi_res_free(void *res);
-
-extern void spi_res_release(struct spi_controller *ctlr,
-			    struct spi_message *message);
 
 /*---------------------------------------------------------------------------*/
 
@@ -1111,8 +1099,6 @@ static inline void spi_message_free(struct spi_message *m)
 
 extern int spi_setup(struct spi_device *spi);
 extern int spi_async(struct spi_device *spi, struct spi_message *message);
-extern int spi_async_locked(struct spi_device *spi,
-			    struct spi_message *message);
 extern int spi_slave_abort(struct spi_device *spi);
 
 static inline size_t
@@ -1194,15 +1180,6 @@ struct spi_replaced_transfers {
 	size_t inserted;
 	struct spi_transfer inserted_transfers[];
 };
-
-extern struct spi_replaced_transfers *spi_replace_transfers(
-	struct spi_message *msg,
-	struct spi_transfer *xfer_first,
-	size_t remove,
-	size_t insert,
-	spi_replaced_release_t release,
-	size_t extradatasize,
-	gfp_t gfp);
 
 /*---------------------------------------------------------------------------*/
 
@@ -1475,19 +1452,7 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
  * use spi_new_device() to describe each device.  You can also call
  * spi_unregister_device() to start making that device vanish, but
  * normally that would be handled by spi_unregister_controller().
- *
- * You can also use spi_alloc_device() and spi_add_device() to use a two
- * stage registration sequence for each spi_device.  This gives the caller
- * some more control over the spi_device structure before it is registered,
- * but requires that caller to initialize fields that would otherwise
- * be defined using the board info.
  */
-extern struct spi_device *
-spi_alloc_device(struct spi_controller *ctlr);
-
-extern int
-spi_add_device(struct spi_device *spi);
-
 extern struct spi_device *
 spi_new_device(struct spi_controller *, struct spi_board_info *);
 
@@ -1501,23 +1466,6 @@ spi_transfer_is_last(struct spi_controller *ctlr, struct spi_transfer *xfer)
 {
 	return list_is_last(&xfer->transfer_list, &ctlr->cur_msg->transfers);
 }
-
-/* OF support code */
-#if IS_ENABLED(CONFIG_OF)
-
-/* must call put_device() when done with returned spi_device device */
-extern struct spi_device *
-of_find_spi_device_by_node(struct device_node *node);
-
-#else
-
-static inline struct spi_device *
-of_find_spi_device_by_node(struct device_node *node)
-{
-	return NULL;
-}
-
-#endif /* IS_ENABLED(CONFIG_OF) */
 
 /* Compatibility layer */
 #define spi_master			spi_controller

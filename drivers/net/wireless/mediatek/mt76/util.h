@@ -70,16 +70,14 @@ mt76_worker_setup(struct ieee80211_hw *hw, struct mt76_worker *w,
 
 	if (fn)
 		w->fn = fn;
-	w->task = kthread_create(__mt76_worker_fn, w, "mt76-%s %s",
-				 name, dev_name);
+	w->task = kthread_run(__mt76_worker_fn, w,
+			      "mt76-%s %s", name, dev_name);
 
-	ret = PTR_ERR_OR_ZERO(w->task);
-	if (ret) {
+	if (IS_ERR(w->task)) {
+		ret = PTR_ERR(w->task);
 		w->task = NULL;
 		return ret;
 	}
-
-	wake_up_process(w->task);
 
 	return 0;
 }

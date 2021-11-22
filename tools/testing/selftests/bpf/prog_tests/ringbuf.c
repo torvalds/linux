@@ -58,7 +58,7 @@ static int process_sample(void *ctx, void *data, size_t len)
 	}
 }
 
-static struct test_ringbuf *skel;
+static struct test_ringbuf_lskel *skel;
 static struct ring_buffer *ringbuf;
 
 static void trigger_samples()
@@ -90,13 +90,13 @@ void test_ringbuf(void)
 	int page_size = getpagesize();
 	void *mmap_ptr, *tmp_ptr;
 
-	skel = test_ringbuf__open();
+	skel = test_ringbuf_lskel__open();
 	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
 		return;
 
 	skel->maps.ringbuf.max_entries = page_size;
 
-	err = test_ringbuf__load(skel);
+	err = test_ringbuf_lskel__load(skel);
 	if (CHECK(err != 0, "skel_load", "skeleton load failed\n"))
 		goto cleanup;
 
@@ -154,7 +154,7 @@ void test_ringbuf(void)
 	if (CHECK(!ringbuf, "ringbuf_create", "failed to create ringbuf\n"))
 		goto cleanup;
 
-	err = test_ringbuf__attach(skel);
+	err = test_ringbuf_lskel__attach(skel);
 	if (CHECK(err, "skel_attach", "skeleton attachment failed: %d\n", err))
 		goto cleanup;
 
@@ -292,8 +292,8 @@ void test_ringbuf(void)
 	CHECK(skel->bss->discarded != 1, "err_discarded", "exp %ld, got %ld\n",
 	      1L, skel->bss->discarded);
 
-	test_ringbuf__detach(skel);
+	test_ringbuf_lskel__detach(skel);
 cleanup:
 	ring_buffer__free(ringbuf);
-	test_ringbuf__destroy(skel);
+	test_ringbuf_lskel__destroy(skel);
 }

@@ -45,8 +45,6 @@
 		spinlock_t	lock;
 	};
 
-	#define thread_exit() complete_and_exit(NULL, 0)
-
 static inline struct list_head *get_next(struct list_head	*list)
 {
 	return list->next;

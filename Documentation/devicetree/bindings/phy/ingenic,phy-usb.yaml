@@ -46,7 +46,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4770-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4770-cgu.h>
     otg_phy: usb-phy@3c {
       compatible = "ingenic,jz4770-phy";
       reg = <0x3c 0x10>;

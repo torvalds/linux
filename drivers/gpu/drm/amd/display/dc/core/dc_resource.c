@@ -1155,9 +1155,17 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width;
 	}
 
-	if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE ||
-			pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
-		res = false;
+	if (!pipe_ctx->stream->ctx->dc->config.enable_windowed_mpo_odm) {
+		if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE ||
+				pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
+			res = false;
+	} else {
+		/* Clamp minimum viewport size */
+		if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE)
+			pipe_ctx->plane_res.scl_data.viewport.height = MIN_VIEWPORT_SIZE;
+		if (pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
+			pipe_ctx->plane_res.scl_data.viewport.width = MIN_VIEWPORT_SIZE;
+	}
 
 	DC_LOG_SCALER("%s pipe %d:\nViewport: height:%d width:%d x:%d y:%d  Recout: height:%d width:%d x:%d y:%d  HACTIVE:%d VACTIVE:%d\n"
 			"src_rect: height:%d width:%d x:%d y:%d  dst_rect: height:%d width:%d x:%d y:%d  clip_rect: height:%d width:%d x:%d y:%d\n",
@@ -3008,6 +3016,11 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state)
 {
 	enum dc_status res = DC_OK;
+
+	/* check if surface has invalid dimensions */
+	if (plane_state->src_rect.width == 0 || plane_state->src_rect.height == 0 ||
+		plane_state->dst_rect.width == 0 || plane_state->dst_rect.height == 0)
+		return DC_FAIL_SURFACE_VALIDATE;
 
 	/* TODO For now validates pixel format only */
 	if (dc->res_pool->funcs->validate_plane)

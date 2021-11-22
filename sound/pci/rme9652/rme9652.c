@@ -208,8 +208,11 @@ struct snd_rme9652 {
 	unsigned char ds_channels;
 	unsigned char ss_channels;	/* different for hammerfall/hammerfall-light */
 
-	struct snd_dma_buffer *playback_dma_buf;
-	struct snd_dma_buffer *capture_dma_buf;
+	/* DMA buffers; those are copied instances from the original snd_dma_buf
+	 * objects (which are managed via devres) for the address alignments
+	 */
+	struct snd_dma_buffer playback_dma_buf;
+	struct snd_dma_buffer capture_dma_buf;
 
 	unsigned char *capture_buffer;	/* suitably aligned address */
 	unsigned char *playback_buffer;	/* suitably aligned address */
@@ -1719,30 +1722,32 @@ static void snd_rme9652_card_free(struct snd_card *card)
 
 static int snd_rme9652_initialize_memory(struct snd_rme9652 *rme9652)
 {
-	unsigned long pb_bus, cb_bus;
+	struct snd_dma_buffer *capture_dma, *playback_dma;
 
-	rme9652->capture_dma_buf =
-		snd_hammerfall_get_buffer(rme9652->pci, RME9652_DMA_AREA_BYTES);
-	rme9652->playback_dma_buf =
-		snd_hammerfall_get_buffer(rme9652->pci, RME9652_DMA_AREA_BYTES);
-	if (!rme9652->capture_dma_buf || !rme9652->playback_dma_buf) {
+	capture_dma = snd_hammerfall_get_buffer(rme9652->pci, RME9652_DMA_AREA_BYTES);
+	playback_dma = snd_hammerfall_get_buffer(rme9652->pci, RME9652_DMA_AREA_BYTES);
+	if (!capture_dma || !playback_dma) {
 		dev_err(rme9652->card->dev,
 			"%s: no buffers available\n", rme9652->card_name);
 		return -ENOMEM;
 	}
 
-	/* Align to bus-space 64K boundary */
+	/* copy to the own data for alignment */
+	rme9652->capture_dma_buf = *capture_dma;
+	rme9652->playback_dma_buf = *playback_dma;
 
-	cb_bus = ALIGN(rme9652->capture_dma_buf->addr, 0x10000ul);
-	pb_bus = ALIGN(rme9652->playback_dma_buf->addr, 0x10000ul);
+	/* Align to bus-space 64K boundary */
+	rme9652->capture_dma_buf.addr = ALIGN(capture_dma->addr, 0x10000ul);
+	rme9652->playback_dma_buf.addr = ALIGN(playback_dma->addr, 0x10000ul);
 
 	/* Tell the card where it is */
+	rme9652_write(rme9652, RME9652_rec_buffer, rme9652->capture_dma_buf.addr);
+	rme9652_write(rme9652, RME9652_play_buffer, rme9652->playback_dma_buf.addr);
 
-	rme9652_write(rme9652, RME9652_rec_buffer, cb_bus);
-	rme9652_write(rme9652, RME9652_play_buffer, pb_bus);
-
-	rme9652->capture_buffer = rme9652->capture_dma_buf->area + (cb_bus - rme9652->capture_dma_buf->addr);
-	rme9652->playback_buffer = rme9652->playback_dma_buf->area + (pb_bus - rme9652->playback_dma_buf->addr);
+	rme9652->capture_dma_buf.area += rme9652->capture_dma_buf.addr - capture_dma->addr;
+	rme9652->playback_dma_buf.area += rme9652->playback_dma_buf.addr - playback_dma->addr;
+	rme9652->capture_buffer = rme9652->capture_dma_buf.area;
+	rme9652->playback_buffer = rme9652->playback_dma_buf.area;
 
 	return 0;
 }
@@ -2259,7 +2264,7 @@ static int snd_rme9652_playback_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
         runtime->hw = snd_rme9652_playback_subinfo;
-	snd_pcm_set_runtime_buffer(substream, rme9652->playback_dma_buf);
+	snd_pcm_set_runtime_buffer(substream, &rme9652->playback_dma_buf);
 
 	if (rme9652->capture_substream == NULL) {
 		rme9652_stop(rme9652);
@@ -2318,7 +2323,7 @@ static int snd_rme9652_capture_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
 	runtime->hw = snd_rme9652_capture_subinfo;
-	snd_pcm_set_runtime_buffer(substream, rme9652->capture_dma_buf);
+	snd_pcm_set_runtime_buffer(substream, &rme9652->capture_dma_buf);
 
 	if (rme9652->playback_substream == NULL) {
 		rme9652_stop(rme9652);

@@ -113,12 +113,6 @@ void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 #define XFS_ITEM_FLUSHING	3
 
 /*
- * Deferred operation item relogging limits.
- */
-#define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
-#define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
-
-/*
  * This is the structure maintained for every active transaction.
  */
 typedef struct xfs_trans {
@@ -243,7 +237,7 @@ void		xfs_trans_buf_set_type(struct xfs_trans *, struct xfs_buf *,
 void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 					struct xfs_buf *src_bp);
 
-extern kmem_zone_t	*xfs_trans_zone;
+extern struct kmem_cache	*xfs_trans_cache;
 
 static inline struct xfs_log_item *
 xfs_trans_item_relog(

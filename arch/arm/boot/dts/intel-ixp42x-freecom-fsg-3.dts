@@ -106,6 +106,8 @@
 			 * Written based on the FSG-3 PCI boardfile.
 			 * We have slots 12, 13 & 14 (IDSEL) with one IRQ each.
 			 */
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map =
 			/* IDSEL 12 */
 			<0x6000 0 0 1 &gpio0 5 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 12 is irq 5 */

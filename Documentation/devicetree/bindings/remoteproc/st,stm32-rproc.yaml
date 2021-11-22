@@ -11,8 +11,8 @@ description:
   boots firmwares on the ST32MP family chipset.
 
 maintainers:
-  - Fabien Dessenne <fabien.dessenne@st.com>
-  - Arnaud Pouliquen <arnaud.pouliquen@st.com>
+  - Fabien Dessenne <fabien.dessenne@foss.st.com>
+  - Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
 
 properties:
   compatible:

@@ -47,7 +47,7 @@ static int mctp_neigh_add(struct mctp_dev *mdev, mctp_eid_t eid,
 	}
 	INIT_LIST_HEAD(&neigh->list);
 	neigh->dev = mdev;
-	dev_hold(neigh->dev->dev);
+	mctp_dev_hold(neigh->dev);
 	neigh->eid = eid;
 	neigh->source = source;
 	memcpy(neigh->ha, lladdr, lladdr_len);
@@ -63,7 +63,7 @@ static void __mctp_neigh_free(struct rcu_head *rcu)
 {
 	struct mctp_neigh *neigh = container_of(rcu, struct mctp_neigh, rcu);
 
-	dev_put(neigh->dev->dev);
+	mctp_dev_put(neigh->dev);
 	kfree(neigh);
 }
 

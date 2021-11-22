@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/cifsacl.c
  *
  *   Copyright (C) International Business Machines  Corp., 2007,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)

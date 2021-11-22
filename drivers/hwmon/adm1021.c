@@ -72,7 +72,7 @@ struct adm1021_data {
 	const struct attribute_group *groups[3];
 
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	char low_power;		/* !=0 if device in low power mode */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -135,7 +135,7 @@ static struct adm1021_data *adm1021_update_device(struct device *dev)
 						ADM1023_REG_REM_OFFSET_PREC);
 		}
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

@@ -20,6 +20,7 @@
 #include <linux/irqdesc.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -1332,4 +1333,10 @@ static struct platform_driver bcm2835_pinctrl_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-builtin_platform_driver(bcm2835_pinctrl_driver);
+module_platform_driver(bcm2835_pinctrl_driver);
+
+MODULE_AUTHOR("Chris Boot");
+MODULE_AUTHOR("Simon Arlott");
+MODULE_AUTHOR("Stephen Warren");
+MODULE_DESCRIPTION("Broadcom BCM2835/2711 pinctrl and GPIO driver");
+MODULE_LICENSE("GPL");

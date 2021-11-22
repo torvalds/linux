@@ -20,6 +20,10 @@
 	UNIPHIER_CLK_FACTOR("sd-200m", -1, "spll", 1, 10),		\
 	UNIPHIER_CLK_FACTOR("sd-133m", -1, "spll", 1, 15)
 
+#define UNIPHIER_NX1_SYS_CLK_SD						\
+	UNIPHIER_CLK_FACTOR("sd-200m", -1, "spll", 1, 4),		\
+	UNIPHIER_CLK_FACTOR("sd-133m", -1, "spll", 1, 6)
+
 #define UNIPHIER_LD4_SYS_CLK_NAND(idx)					\
 	UNIPHIER_CLK_FACTOR("nand-50m", -1, "spll", 1, 32),		\
 	UNIPHIER_CLK_GATE("nand", (idx), "nand-50m", 0x2104, 2)
@@ -288,6 +292,8 @@ const struct uniphier_clk_data uniphier_pxs3_sys_clk_data[] = {
 	UNIPHIER_CLK_GATE("sata0", 28, NULL, 0x210c, 7),
 	UNIPHIER_CLK_GATE("sata1", 29, NULL, 0x210c, 8),
 	UNIPHIER_CLK_GATE("sata-phy", 30, NULL, 0x210c, 21),
+	UNIPHIER_LD11_SYS_CLK_AIO(40),
+	UNIPHIER_LD11_SYS_CLK_EXIV(42),
 	/* CPU gears */
 	UNIPHIER_CLK_DIV4("cpll", 2, 3, 4, 8),
 	UNIPHIER_CLK_DIV4("spll", 2, 3, 4, 8),
@@ -298,5 +304,46 @@ const struct uniphier_clk_data uniphier_pxs3_sys_clk_data[] = {
 	UNIPHIER_CLK_CPUGEAR("cpu-ipp", 34, 0x8100, 0xf, 8,
 			     "s2pll/2", "spll/2", "s2pll/3", "spll/3",
 			     "spll/4", "spll/8", "s2pll/4", "s2pll/8"),
+	{ /* sentinel */ }
+};
+
+const struct uniphier_clk_data uniphier_nx1_sys_clk_data[] = {
+	UNIPHIER_CLK_FACTOR("cpll", -1, "ref", 100, 1),		/* ARM: 2500 MHz */
+	UNIPHIER_CLK_FACTOR("spll", -1, "ref", 32, 1),		/* 800 MHz */
+	UNIPHIER_CLK_FACTOR("uart", 0, "spll", 1, 6),
+	UNIPHIER_CLK_FACTOR("i2c", 1, "spll", 1, 16),
+	UNIPHIER_NX1_SYS_CLK_SD,
+	UNIPHIER_CLK_GATE("emmc", 4, NULL, 0x2108, 8),
+	UNIPHIER_CLK_GATE("ether", 6, NULL, 0x210c, 0),
+	UNIPHIER_CLK_GATE("usb30-0", 12, NULL, 0x210c, 16),	/* =GIO */
+	UNIPHIER_CLK_GATE("usb30-1", 13, NULL, 0x210c, 20),	/* =GIO1P */
+	UNIPHIER_CLK_GATE("usb30-hsphy0", 16, NULL, 0x210c, 24),
+	UNIPHIER_CLK_GATE("usb30-ssphy0", 17, NULL, 0x210c, 25),
+	UNIPHIER_CLK_GATE("usb30-ssphy1", 18, NULL, 0x210c, 26),
+	UNIPHIER_CLK_GATE("pcie", 24, NULL, 0x210c, 8),
+	UNIPHIER_CLK_GATE("voc", 52, NULL, 0x2110, 0),
+	UNIPHIER_CLK_GATE("hdmitx", 58, NULL, 0x2110, 8),
+	/* CPU gears */
+	UNIPHIER_CLK_DIV5("cpll", 2, 4, 8, 16, 32),
+	UNIPHIER_CLK_CPUGEAR("cpu-ca53", 33, 0x8080, 0xf, 5,
+			     "cpll/2", "cpll/4", "cpll/8", "cpll/16",
+			     "cpll/32"),
+	{ /* sentinel */ }
+};
+
+const struct uniphier_clk_data uniphier_pro4_sg_clk_data[] = {
+	UNIPHIER_CLK_DIV("gpll", 4),
+	{
+		.name = "sata-ref",
+		.type = UNIPHIER_CLK_TYPE_MUX,
+		.idx = 0,
+		.data.mux = {
+			.parent_names = { "gpll/4", "ref", },
+			.num_parents = 2,
+			.reg = 0x1a28,
+			.masks = { 0x1, 0x1, },
+			.vals  = { 0x0, 0x1, },
+		},
+	},
 	{ /* sentinel */ }
 };

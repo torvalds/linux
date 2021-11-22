@@ -140,12 +140,14 @@ static int ovl_copy_fileattr(struct inode *inode, struct path *old,
 	int err;
 
 	err = ovl_real_fileattr_get(old, &oldfa);
-	if (err)
+	if (err) {
+		/* Ntfs-3g returns -EINVAL for "no fileattr support" */
+		if (err == -ENOTTY || err == -EINVAL)
+			return 0;
+		pr_warn("failed to retrieve lower fileattr (%pd2, err=%i)\n",
+			old, err);
 		return err;
-
-	err = ovl_real_fileattr_get(new, &newfa);
-	if (err)
-		return err;
+	}
 
 	/*
 	 * We cannot set immutable and append-only flags on upper inode,
@@ -157,6 +159,17 @@ static int ovl_copy_fileattr(struct inode *inode, struct path *old,
 		err = ovl_set_protattr(inode, new->dentry, &oldfa);
 		if (err)
 			return err;
+	}
+
+	/* Don't bother copying flags if none are set */
+	if (!(oldfa.flags & OVL_COPY_FS_FLAGS_MASK))
+		return 0;
+
+	err = ovl_real_fileattr_get(new, &newfa);
+	if (err) {
+		pr_warn("failed to retrieve upper fileattr (%pd2, err=%i)\n",
+			new, err);
+		return err;
 	}
 
 	BUILD_BUG_ON(OVL_COPY_FS_FLAGS_MASK & ~FS_COMMON_FL);

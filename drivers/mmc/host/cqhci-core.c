@@ -282,6 +282,9 @@ static void __cqhci_enable(struct cqhci_host *cq_host)
 
 	cqhci_writel(cq_host, cqcfg, CQHCI_CFG);
 
+	if (cqhci_readl(cq_host, CQHCI_CTL) & CQHCI_HALT)
+		cqhci_writel(cq_host, 0, CQHCI_CTL);
+
 	mmc->cqe_on = true;
 
 	if (cq_host->ops->enable)
@@ -899,8 +902,8 @@ static bool cqhci_timeout(struct mmc_host *mmc, struct mmc_request *mrq,
 	spin_unlock_irqrestore(&cq_host->lock, flags);
 
 	if (timed_out) {
-		pr_err("%s: cqhci: timeout for tag %d\n",
-		       mmc_hostname(mmc), tag);
+		pr_err("%s: cqhci: timeout for tag %d, qcnt %d\n",
+		       mmc_hostname(mmc), tag, cq_host->qcnt);
 		cqhci_dumpregs(cq_host);
 	}
 

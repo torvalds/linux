@@ -132,11 +132,11 @@ static struct via_camera *via_cam_info;
  * Debugging and related.
  */
 #define cam_err(cam, fmt, arg...) \
-	dev_err(&(cam)->platdev->dev, fmt, ##arg);
+	dev_err(&(cam)->platdev->dev, fmt, ##arg)
 #define cam_warn(cam, fmt, arg...) \
-	dev_warn(&(cam)->platdev->dev, fmt, ##arg);
+	dev_warn(&(cam)->platdev->dev, fmt, ##arg)
 #define cam_dbg(cam, fmt, arg...) \
-	dev_dbg(&(cam)->platdev->dev, fmt, ##arg);
+	dev_dbg(&(cam)->platdev->dev, fmt, ##arg)
 
 /*
  * Format handling.  This is ripped almost directly from Hans's changes

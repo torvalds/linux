@@ -2,7 +2,7 @@
 /* Copyright (C) 2020 Felix Fietkau <nbd@nbd.name> */
 #include "mt76.h"
 
-static const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
+const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_RESET] = { .type = NLA_FLAG },
 	[MT76_TM_ATTR_STATE] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_COUNT] = { .type = NLA_U32 },
@@ -21,7 +21,9 @@ static const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_TX_IPG] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_TX_TIME] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_FREQ_OFFSET] = { .type = NLA_U32 },
+	[MT76_TM_ATTR_DRV_DATA] = { .type = NLA_NESTED },
 };
+EXPORT_SYMBOL_GPL(mt76_tm_policy);
 
 void mt76_testmode_tx_pending(struct mt76_phy *phy)
 {

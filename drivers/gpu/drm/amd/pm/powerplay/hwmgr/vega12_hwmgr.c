@@ -2141,6 +2141,8 @@ static int vega12_get_ppfeature_status(struct pp_hwmgr *hwmgr, char *buf)
 	int ret = 0;
 	int size = 0;
 
+	phm_get_sysfs_buf(&buf, &size);
+
 	ret = vega12_get_enabled_smc_features(hwmgr, &features_enabled);
 	PP_ASSERT_WITH_CODE(!ret,
 		"[EnableAllSmuFeatures] Failed to get enabled smc features!",
@@ -2243,6 +2245,8 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 {
 	int i, now, size = 0;
 	struct pp_clock_levels_with_latency clocks;
+
+	phm_get_sysfs_buf(&buf, &size);
 
 	switch (type) {
 	case PP_SCLK:

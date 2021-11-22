@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/smb2proto.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002, 2011
  *                 Etersoft, 2012
@@ -26,7 +25,7 @@ extern int smb2_check_message(char *buf, unsigned int length,
 			      struct TCP_Server_Info *server);
 extern unsigned int smb2_calc_size(void *buf, struct TCP_Server_Info *server);
 extern char *smb2_get_data_area_len(int *off, int *len,
-				    struct smb2_sync_hdr *shdr);
+				    struct smb2_hdr *shdr);
 extern __le16 *cifs_convert_path_to_utf16(const char *from,
 					  struct cifs_sb_info *cifs_sb);
 

@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/smb2glob.h
  *
  *   Definitions for various global variables and structures
  *

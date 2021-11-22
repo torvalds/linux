@@ -46,7 +46,7 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 		 * Mark stacktraces with kretprobed functions on them
 		 * as unreliable.
 		 */
-		if (state.ip == (unsigned long)kretprobe_trampoline)
+		if (state.ip == (unsigned long)__kretprobe_trampoline)
 			return -EINVAL;
 #endif
 

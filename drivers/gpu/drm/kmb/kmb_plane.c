@@ -67,8 +67,21 @@ static const u32 kmb_formats_v[] = {
 
 static unsigned int check_pixel_format(struct drm_plane *plane, u32 format)
 {
+	struct kmb_drm_private *kmb;
+	struct kmb_plane *kmb_plane = to_kmb_plane(plane);
 	int i;
+	int plane_id = kmb_plane->id;
+	struct disp_cfg init_disp_cfg;
 
+	kmb = to_kmb(plane->dev);
+	init_disp_cfg = kmb->init_disp_cfg[plane_id];
+	/* Due to HW limitations, changing pixel format after initial
+	 * plane configuration is not supported.
+	 */
+	if (init_disp_cfg.format && init_disp_cfg.format != format) {
+		drm_dbg(&kmb->drm, "Cannot change format after initial plane configuration");
+		return -EINVAL;
+	}
 	for (i = 0; i < plane->format_count; i++) {
 		if (plane->format_types[i] == format)
 			return 0;
@@ -81,11 +94,17 @@ static int kmb_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
+	struct kmb_drm_private *kmb;
+	struct kmb_plane *kmb_plane = to_kmb_plane(plane);
+	int plane_id = kmb_plane->id;
+	struct disp_cfg init_disp_cfg;
 	struct drm_framebuffer *fb;
 	int ret;
 	struct drm_crtc_state *crtc_state;
 	bool can_position;
 
+	kmb = to_kmb(plane->dev);
+	init_disp_cfg = kmb->init_disp_cfg[plane_id];
 	fb = new_plane_state->fb;
 	if (!fb || !new_plane_state->crtc)
 		return 0;
@@ -94,10 +113,21 @@ static int kmb_plane_atomic_check(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	if (new_plane_state->crtc_w > KMB_MAX_WIDTH || new_plane_state->crtc_h > KMB_MAX_HEIGHT)
+	if (new_plane_state->crtc_w > KMB_FB_MAX_WIDTH ||
+	    new_plane_state->crtc_h > KMB_FB_MAX_HEIGHT ||
+	    new_plane_state->crtc_w < KMB_FB_MIN_WIDTH ||
+	    new_plane_state->crtc_h < KMB_FB_MIN_HEIGHT)
 		return -EINVAL;
-	if (new_plane_state->crtc_w < KMB_MIN_WIDTH || new_plane_state->crtc_h < KMB_MIN_HEIGHT)
+
+	/* Due to HW limitations, changing plane height or width after
+	 * initial plane configuration is not supported.
+	 */
+	if ((init_disp_cfg.width && init_disp_cfg.height) &&
+	    (init_disp_cfg.width != fb->width ||
+	    init_disp_cfg.height != fb->height)) {
+		drm_dbg(&kmb->drm, "Cannot change plane height or width after initial configuration");
 		return -EINVAL;
+	}
 	can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
 	crtc_state =
 		drm_atomic_get_existing_crtc_state(state,
@@ -277,6 +307,44 @@ static void config_csc(struct kmb_drm_private *kmb, int plane_id)
 	kmb_write_lcd(kmb, LCD_LAYERn_CSC_OFF3(plane_id), csc_coef_lcd[11]);
 }
 
+static void kmb_plane_set_alpha(struct kmb_drm_private *kmb,
+				const struct drm_plane_state *state,
+				unsigned char plane_id,
+				unsigned int *val)
+{
+	u16 plane_alpha = state->alpha;
+	u16 pixel_blend_mode = state->pixel_blend_mode;
+	int has_alpha = state->fb->format->has_alpha;
+
+	if (plane_alpha != DRM_BLEND_ALPHA_OPAQUE)
+		*val |= LCD_LAYER_ALPHA_STATIC;
+
+	if (has_alpha) {
+		switch (pixel_blend_mode) {
+		case DRM_MODE_BLEND_PIXEL_NONE:
+			break;
+		case DRM_MODE_BLEND_PREMULTI:
+			*val |= LCD_LAYER_ALPHA_EMBED | LCD_LAYER_ALPHA_PREMULT;
+			break;
+		case DRM_MODE_BLEND_COVERAGE:
+			*val |= LCD_LAYER_ALPHA_EMBED;
+			break;
+		default:
+			DRM_DEBUG("Missing pixel blend mode case (%s == %ld)\n",
+				  __stringify(pixel_blend_mode),
+				  (long)pixel_blend_mode);
+			break;
+		}
+	}
+
+	if (plane_alpha == DRM_BLEND_ALPHA_OPAQUE && !has_alpha) {
+		*val &= LCD_LAYER_ALPHA_DISABLED;
+		return;
+	}
+
+	kmb_write_lcd(kmb, LCD_LAYERn_ALPHA(plane_id), plane_alpha);
+}
+
 static void kmb_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_atomic_state *state)
 {
@@ -296,6 +364,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	unsigned char plane_id;
 	int num_planes;
 	static dma_addr_t addr[MAX_SUB_PLANES];
+	struct disp_cfg *init_disp_cfg;
 
 	if (!plane || !new_plane_state || !old_plane_state)
 		return;
@@ -303,11 +372,12 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	fb = new_plane_state->fb;
 	if (!fb)
 		return;
+
 	num_planes = fb->format->num_planes;
 	kmb_plane = to_kmb_plane(plane);
-	plane_id = kmb_plane->id;
 
 	kmb = to_kmb(plane->dev);
+	plane_id = kmb_plane->id;
 
 	spin_lock_irq(&kmb->irq_lock);
 	if (kmb->kmb_under_flow || kmb->kmb_flush_done) {
@@ -317,7 +387,8 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	}
 	spin_unlock_irq(&kmb->irq_lock);
 
-	src_w = (new_plane_state->src_w >> 16);
+	init_disp_cfg = &kmb->init_disp_cfg[plane_id];
+	src_w = new_plane_state->src_w >> 16;
 	src_h = new_plane_state->src_h >> 16;
 	crtc_x = new_plane_state->crtc_x;
 	crtc_y = new_plane_state->crtc_y;
@@ -400,20 +471,32 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 		config_csc(kmb, plane_id);
 	}
 
+	kmb_plane_set_alpha(kmb, plane->state, plane_id, &val);
+
 	kmb_write_lcd(kmb, LCD_LAYERn_CFG(plane_id), val);
+
+	/* Configure LCD_CONTROL */
+	ctrl = kmb_read_lcd(kmb, LCD_CONTROL);
+
+	/* Set layer blending config */
+	ctrl &= ~LCD_CTRL_ALPHA_ALL;
+	ctrl |= LCD_CTRL_ALPHA_BOTTOM_VL1 |
+		LCD_CTRL_ALPHA_BLEND_VL2;
+
+	ctrl &= ~LCD_CTRL_ALPHA_BLEND_BKGND_DISABLE;
 
 	switch (plane_id) {
 	case LAYER_0:
-		ctrl = LCD_CTRL_VL1_ENABLE;
+		ctrl |= LCD_CTRL_VL1_ENABLE;
 		break;
 	case LAYER_1:
-		ctrl = LCD_CTRL_VL2_ENABLE;
+		ctrl |= LCD_CTRL_VL2_ENABLE;
 		break;
 	case LAYER_2:
-		ctrl = LCD_CTRL_GL1_ENABLE;
+		ctrl |= LCD_CTRL_GL1_ENABLE;
 		break;
 	case LAYER_3:
-		ctrl = LCD_CTRL_GL2_ENABLE;
+		ctrl |= LCD_CTRL_GL2_ENABLE;
 		break;
 	}
 
@@ -425,7 +508,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	 */
 	ctrl |= LCD_CTRL_VHSYNC_IDLE_LVL;
 
-	kmb_set_bitmask_lcd(kmb, LCD_CONTROL, ctrl);
+	kmb_write_lcd(kmb, LCD_CONTROL, ctrl);
 
 	/* Enable pipeline AXI read transactions for the DMA
 	 * after setting graphics layers. This must be done
@@ -448,6 +531,16 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 
 	/* Enable DMA */
 	kmb_write_lcd(kmb, LCD_LAYERn_DMA_CFG(plane_id), dma_cfg);
+
+	/* Save initial display config */
+	if (!init_disp_cfg->width ||
+	    !init_disp_cfg->height ||
+	    !init_disp_cfg->format) {
+		init_disp_cfg->width = width;
+		init_disp_cfg->height = height;
+		init_disp_cfg->format = fb->format->format;
+	}
+
 	drm_dbg(&kmb->drm, "dma_cfg=0x%x LCD_DMA_CFG=0x%x\n", dma_cfg,
 		kmb_read_lcd(kmb, LCD_LAYERn_DMA_CFG(plane_id)));
 
@@ -490,6 +583,9 @@ struct kmb_plane *kmb_plane_init(struct drm_device *drm)
 	enum drm_plane_type plane_type;
 	const u32 *plane_formats;
 	int num_plane_formats;
+	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				  BIT(DRM_MODE_BLEND_PREMULTI)   |
+				  BIT(DRM_MODE_BLEND_COVERAGE);
 
 	for (i = 0; i < KMB_MAX_PLANES; i++) {
 		plane = drmm_kzalloc(drm, sizeof(*plane), GFP_KERNEL);
@@ -521,8 +617,16 @@ struct kmb_plane *kmb_plane_init(struct drm_device *drm)
 		drm_dbg(drm, "%s : %d i=%d type=%d",
 			__func__, __LINE__,
 			  i, plane_type);
+		drm_plane_create_alpha_property(&plane->base_plane);
+
+		drm_plane_create_blend_mode_property(&plane->base_plane,
+						     blend_caps);
+
+		drm_plane_create_zpos_immutable_property(&plane->base_plane, i);
+
 		drm_plane_helper_add(&plane->base_plane,
 				     &kmb_plane_helper_funcs);
+
 		if (plane_type == DRM_PLANE_TYPE_PRIMARY) {
 			primary = plane;
 			kmb->plane = plane;

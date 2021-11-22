@@ -373,7 +373,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	if (bus->sfp_quirk)
 		bus->sfp_quirk->modes(id, modes);
 
-	bitmap_or(support, support, modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_or(support, support, modes);
 
 	phylink_set(support, Autoneg);
 	phylink_set(support, Pause);

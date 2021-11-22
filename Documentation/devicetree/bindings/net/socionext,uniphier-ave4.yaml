@@ -24,6 +24,7 @@ properties:
       - socionext,uniphier-ld11-ave4
       - socionext,uniphier-ld20-ave4
       - socionext,uniphier-pxs3-ave4
+      - socionext,uniphier-nx1-ave4
 
   reg:
     maxItems: 1

@@ -854,7 +854,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		switch (usage->hid & HID_USAGE) {
 		case 0x10: asus_map_key_clear(KEY_BRIGHTNESSDOWN);	break;
 		case 0x20: asus_map_key_clear(KEY_BRIGHTNESSUP);		break;
-		case 0x35: asus_map_key_clear(KEY_DISPLAY_OFF);		break;
+		case 0x35: asus_map_key_clear(KEY_SCREENLOCK);		break;
 		case 0x6c: asus_map_key_clear(KEY_SLEEP);		break;
 		case 0x7c: asus_map_key_clear(KEY_MICMUTE);		break;
 		case 0x82: asus_map_key_clear(KEY_CAMERA);		break;

@@ -242,8 +242,10 @@ static inline int compute_score(struct sock *sk, struct net *net,
 
 		if (!inet_sk_bound_dev_eq(net, sk->sk_bound_dev_if, dif, sdif))
 			return -1;
+		score =  sk->sk_bound_dev_if ? 2 : 1;
 
-		score = sk->sk_family == PF_INET ? 2 : 1;
+		if (sk->sk_family == PF_INET)
+			score++;
 		if (READ_ONCE(sk->sk_incoming_cpu) == raw_smp_processor_id())
 			score++;
 	}
@@ -596,7 +598,7 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 	if (ok) {
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	} else {
-		percpu_counter_inc(sk->sk_prot->orphan_count);
+		this_cpu_inc(*sk->sk_prot->orphan_count);
 		inet_sk_set_state(sk, TCP_CLOSE);
 		sock_set_flag(sk, SOCK_DEAD);
 		inet_csk_destroy_sock(sk);

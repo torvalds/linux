@@ -27,8 +27,6 @@
 		reg = <0x0 0x2b1f0000 0x0 0x1000>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "mhu_lpri_rx",
-				  "mhu_hpri_rx";
 		#mbox-cells = <1>;
 		clocks = <&soc_refclk100mhz>;
 		clock-names = "apb_pclk";
@@ -804,16 +802,6 @@
 	};
 
 	bus@8000000 {
-		compatible = "simple-bus";
-		#address-cells = <2>;
-		#size-cells = <1>;
-		ranges = <0 0 0 0x08000000 0x04000000>,
-			 <1 0 0 0x14000000 0x04000000>,
-			 <2 0 0 0x18000000 0x04000000>,
-			 <3 0 0 0x1c000000 0x04000000>,
-			 <4 0 0 0x0c000000 0x04000000>,
-			 <5 0 0 0x10000000 0x04000000>;
-
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 15>;
 		interrupt-map = <0 0  0 &gic 0 GIC_SPI  68 IRQ_TYPE_LEVEL_HIGH>,

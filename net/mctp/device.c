@@ -35,14 +35,6 @@ struct mctp_dev *mctp_dev_get_rtnl(const struct net_device *dev)
 	return rtnl_dereference(dev->mctp_ptr);
 }
 
-static void mctp_dev_destroy(struct mctp_dev *mdev)
-{
-	struct net_device *dev = mdev->dev;
-
-	dev_put(dev);
-	kfree_rcu(mdev, rcu);
-}
-
 static int mctp_fill_addrinfo(struct sk_buff *skb, struct netlink_callback *cb,
 			      struct mctp_dev *mdev, mctp_eid_t eid)
 {
@@ -255,6 +247,37 @@ static int mctp_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 }
 
+void mctp_dev_hold(struct mctp_dev *mdev)
+{
+	refcount_inc(&mdev->refs);
+}
+
+void mctp_dev_put(struct mctp_dev *mdev)
+{
+	if (refcount_dec_and_test(&mdev->refs)) {
+		dev_put(mdev->dev);
+		kfree_rcu(mdev, rcu);
+	}
+}
+
+void mctp_dev_release_key(struct mctp_dev *dev, struct mctp_sk_key *key)
+	__must_hold(&key->lock)
+{
+	if (!dev)
+		return;
+	if (dev->ops && dev->ops->release_flow)
+		dev->ops->release_flow(dev, key);
+	key->dev = NULL;
+	mctp_dev_put(dev);
+}
+
+void mctp_dev_set_key(struct mctp_dev *dev, struct mctp_sk_key *key)
+	__must_hold(&key->lock)
+{
+	mctp_dev_hold(dev);
+	key->dev = dev;
+}
+
 static struct mctp_dev *mctp_add_dev(struct net_device *dev)
 {
 	struct mctp_dev *mdev;
@@ -270,7 +293,9 @@ static struct mctp_dev *mctp_add_dev(struct net_device *dev)
 	mdev->net = mctp_default_net(dev_net(dev));
 
 	/* associate to net_device */
+	refcount_set(&mdev->refs, 1);
 	rcu_assign_pointer(dev->mctp_ptr, mdev);
+
 	dev_hold(dev);
 	mdev->dev = dev;
 
@@ -330,12 +355,26 @@ static int mctp_set_link_af(struct net_device *dev, const struct nlattr *attr,
 	return 0;
 }
 
+/* Matches netdev types that should have MCTP handling */
+static bool mctp_known(struct net_device *dev)
+{
+	/* only register specific types (inc. NONE for TUN devices) */
+	return dev->type == ARPHRD_MCTP ||
+		   dev->type == ARPHRD_LOOPBACK ||
+		   dev->type == ARPHRD_NONE;
+}
+
 static void mctp_unregister(struct net_device *dev)
 {
 	struct mctp_dev *mdev;
 
 	mdev = mctp_dev_get_rtnl(dev);
-
+	if (mctp_known(dev) != (bool)mdev) {
+		// Sanity check, should match what was set in mctp_register
+		netdev_warn(dev, "%s: mdev pointer %d but type (%d) match is %d",
+			    __func__, (bool)mdev, mctp_known(dev), dev->type);
+		return;
+	}
 	if (!mdev)
 		return;
 
@@ -345,7 +384,7 @@ static void mctp_unregister(struct net_device *dev)
 	mctp_neigh_remove_dev(mdev);
 	kfree(mdev->addrs);
 
-	mctp_dev_destroy(mdev);
+	mctp_dev_put(mdev);
 }
 
 static int mctp_register(struct net_device *dev)
@@ -353,11 +392,17 @@ static int mctp_register(struct net_device *dev)
 	struct mctp_dev *mdev;
 
 	/* Already registered? */
-	if (rtnl_dereference(dev->mctp_ptr))
-		return 0;
+	mdev = rtnl_dereference(dev->mctp_ptr);
 
-	/* only register specific types; MCTP-specific and loopback for now */
-	if (dev->type != ARPHRD_MCTP && dev->type != ARPHRD_LOOPBACK)
+	if (mdev) {
+		if (!mctp_known(dev))
+			netdev_warn(dev, "%s: mctp_dev set for unknown type %d",
+				    __func__, dev->type);
+		return 0;
+	}
+
+	/* only register specific types */
+	if (!mctp_known(dev))
 		return 0;
 
 	mdev = mctp_add_dev(dev);
@@ -386,6 +431,39 @@ static int mctp_dev_notify(struct notifier_block *this, unsigned long event,
 
 	return NOTIFY_OK;
 }
+
+static int mctp_register_netdevice(struct net_device *dev,
+				   const struct mctp_netdev_ops *ops)
+{
+	struct mctp_dev *mdev;
+
+	mdev = mctp_add_dev(dev);
+	if (IS_ERR(mdev))
+		return PTR_ERR(mdev);
+
+	mdev->ops = ops;
+
+	return register_netdevice(dev);
+}
+
+int mctp_register_netdev(struct net_device *dev,
+			 const struct mctp_netdev_ops *ops)
+{
+	int rc;
+
+	rtnl_lock();
+	rc = mctp_register_netdevice(dev, ops);
+	rtnl_unlock();
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(mctp_register_netdev);
+
+void mctp_unregister_netdev(struct net_device *dev)
+{
+	unregister_netdev(dev);
+}
+EXPORT_SYMBOL_GPL(mctp_unregister_netdev);
 
 static struct rtnl_af_ops mctp_af_ops = {
 	.family = AF_MCTP,

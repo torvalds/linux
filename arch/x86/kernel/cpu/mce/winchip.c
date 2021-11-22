@@ -17,7 +17,7 @@
 #include "internal.h"
 
 /* Machine check handler for WinChip C6: */
-static noinstr void winchip_machine_check(struct pt_regs *regs)
+noinstr void winchip_machine_check(struct pt_regs *regs)
 {
 	instrumentation_begin();
 	pr_emerg("CPU0: Machine Check Exception.\n");
@@ -29,10 +29,6 @@ static noinstr void winchip_machine_check(struct pt_regs *regs)
 void winchip_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 lo, hi;
-
-	machine_check_vector = winchip_machine_check;
-	/* Make sure the vector pointer is visible before we enable MCEs: */
-	wmb();
 
 	rdmsr(MSR_IDT_FCR1, lo, hi);
 	lo |= (1<<2);	/* Enable EIERRINT (int 18 MCE) */

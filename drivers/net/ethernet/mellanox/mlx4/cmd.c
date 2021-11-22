@@ -2480,7 +2480,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 	return 0;
 
 err_thread:
-	flush_workqueue(priv->mfunc.master.comm_wq);
 	destroy_workqueue(priv->mfunc.master.comm_wq);
 err_slaves:
 	while (i--) {
@@ -2587,7 +2586,6 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 	int i, port;
 
 	if (mlx4_is_master(dev)) {
-		flush_workqueue(priv->mfunc.master.comm_wq);
 		destroy_workqueue(priv->mfunc.master.comm_wq);
 		for (i = 0; i < dev->num_slaves; i++) {
 			for (port = 1; port <= MLX4_MAX_PORTS; port++)
@@ -3009,7 +3007,7 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u8 *mac)
 		return -EPERM;
 	}
 
-	s_info->mac = mlx4_mac_to_u64(mac);
+	s_info->mac = ether_addr_to_u64(mac);
 	mlx4_info(dev, "default mac on vf %d port %d to %llX will take effect only after vf restart\n",
 		  vf, port, s_info->mac);
 	return 0;
@@ -3195,7 +3193,7 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 
-	mlx4_u64_to_mac(mac, s_info->mac);
+	u64_to_ether_addr(s_info->mac, mac);
 	if (setting && !is_valid_ether_addr(mac)) {
 		mlx4_info(dev, "Illegal MAC with spoofchk\n");
 		return -EPERM;

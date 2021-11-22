@@ -233,6 +233,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1FB9, 0x0602) }, /* Lake Shore Model 648 Magnet Power Supply */
 	{ USB_DEVICE(0x1FB9, 0x0700) }, /* Lake Shore Model 737 VSM Controller */
 	{ USB_DEVICE(0x1FB9, 0x0701) }, /* Lake Shore Model 776 Hall Matrix */
+	{ USB_DEVICE(0x2184, 0x0030) }, /* GW Instek GDM-834x Digital Multimeter */
 	{ USB_DEVICE(0x2626, 0xEA60) }, /* Aruba Networks 7xxx USB Serial Console */
 	{ USB_DEVICE(0x3195, 0xF190) }, /* Link Instruments MSO-19 */
 	{ USB_DEVICE(0x3195, 0xF280) }, /* Link Instruments MSO-28 */
@@ -258,6 +259,7 @@ struct cp210x_serial_private {
 	speed_t			max_speed;
 	bool			use_actual_rate;
 	bool			no_flow_control;
+	bool			no_event_mode;
 };
 
 enum cp210x_event_state {
@@ -629,30 +631,20 @@ static int cp210x_read_reg_block(struct usb_serial_port *port, u8 req,
 {
 	struct usb_serial *serial = port->serial;
 	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
-	void *dmabuf;
 	int result;
 
-	dmabuf = kmalloc(bufsize, GFP_KERNEL);
-	if (!dmabuf)
-		return -ENOMEM;
 
-	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-			req, REQTYPE_INTERFACE_TO_HOST, 0,
-			port_priv->bInterfaceNumber, dmabuf, bufsize,
-			USB_CTRL_GET_TIMEOUT);
-	if (result == bufsize) {
-		memcpy(buf, dmabuf, bufsize);
-		result = 0;
-	} else {
+	result = usb_control_msg_recv(serial->dev, 0, req,
+			REQTYPE_INTERFACE_TO_HOST, 0,
+			port_priv->bInterfaceNumber, buf, bufsize,
+			USB_CTRL_SET_TIMEOUT, GFP_KERNEL);
+	if (result) {
 		dev_err(&port->dev, "failed get req 0x%x size %d status: %d\n",
 				req, bufsize, result);
-		if (result >= 0)
-			result = -EIO;
+		return result;
 	}
 
-	kfree(dmabuf);
-
-	return result;
+	return 0;
 }
 
 /*
@@ -670,31 +662,19 @@ static int cp210x_read_u8_reg(struct usb_serial_port *port, u8 req, u8 *val)
 static int cp210x_read_vendor_block(struct usb_serial *serial, u8 type, u16 val,
 				    void *buf, int bufsize)
 {
-	void *dmabuf;
 	int result;
 
-	dmabuf = kmalloc(bufsize, GFP_KERNEL);
-	if (!dmabuf)
-		return -ENOMEM;
-
-	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-				 CP210X_VENDOR_SPECIFIC, type, val,
-				 cp210x_interface_num(serial), dmabuf, bufsize,
-				 USB_CTRL_GET_TIMEOUT);
-	if (result == bufsize) {
-		memcpy(buf, dmabuf, bufsize);
-		result = 0;
-	} else {
+	result = usb_control_msg_recv(serial->dev, 0, CP210X_VENDOR_SPECIFIC,
+			type, val, cp210x_interface_num(serial), buf, bufsize,
+			USB_CTRL_GET_TIMEOUT, GFP_KERNEL);
+	if (result) {
 		dev_err(&serial->interface->dev,
 			"failed to get vendor val 0x%04x size %d: %d\n", val,
 			bufsize, result);
-		if (result >= 0)
-			result = -EIO;
+		return result;
 	}
 
-	kfree(dmabuf);
-
-	return result;
+	return 0;
 }
 
 /*
@@ -728,21 +708,13 @@ static int cp210x_write_reg_block(struct usb_serial_port *port, u8 req,
 {
 	struct usb_serial *serial = port->serial;
 	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
-	void *dmabuf;
 	int result;
 
-	dmabuf = kmemdup(buf, bufsize, GFP_KERNEL);
-	if (!dmabuf)
-		return -ENOMEM;
-
-	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-			req, REQTYPE_HOST_TO_INTERFACE, 0,
-			port_priv->bInterfaceNumber, dmabuf, bufsize,
-			USB_CTRL_SET_TIMEOUT);
-
-	kfree(dmabuf);
-
-	if (result < 0) {
+	result = usb_control_msg_send(serial->dev, 0, req,
+			REQTYPE_HOST_TO_INTERFACE, 0,
+			port_priv->bInterfaceNumber, buf, bufsize,
+			USB_CTRL_SET_TIMEOUT, GFP_KERNEL);
+	if (result) {
 		dev_err(&port->dev, "failed set req 0x%x size %d status: %d\n",
 				req, bufsize, result);
 		return result;
@@ -771,21 +743,12 @@ static int cp210x_write_u32_reg(struct usb_serial_port *port, u8 req, u32 val)
 static int cp210x_write_vendor_block(struct usb_serial *serial, u8 type,
 				     u16 val, void *buf, int bufsize)
 {
-	void *dmabuf;
 	int result;
 
-	dmabuf = kmemdup(buf, bufsize, GFP_KERNEL);
-	if (!dmabuf)
-		return -ENOMEM;
-
-	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-				 CP210X_VENDOR_SPECIFIC, type, val,
-				 cp210x_interface_num(serial), dmabuf, bufsize,
-				 USB_CTRL_SET_TIMEOUT);
-
-	kfree(dmabuf);
-
-	if (result < 0) {
+	result = usb_control_msg_send(serial->dev, 0, CP210X_VENDOR_SPECIFIC,
+			type, val, cp210x_interface_num(serial), buf, bufsize,
+			USB_CTRL_SET_TIMEOUT, GFP_KERNEL);
+	if (result) {
 		dev_err(&serial->interface->dev,
 			"failed to set vendor val 0x%04x size %d: %d\n", val,
 			bufsize, result);
@@ -950,29 +913,21 @@ static int cp210x_get_tx_queue_byte_count(struct usb_serial_port *port,
 {
 	struct usb_serial *serial = port->serial;
 	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
-	struct cp210x_comm_status *sts;
+	struct cp210x_comm_status sts;
 	int result;
 
-	sts = kmalloc(sizeof(*sts), GFP_KERNEL);
-	if (!sts)
-		return -ENOMEM;
-
-	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-			CP210X_GET_COMM_STATUS, REQTYPE_INTERFACE_TO_HOST,
-			0, port_priv->bInterfaceNumber, sts, sizeof(*sts),
-			USB_CTRL_GET_TIMEOUT);
-	if (result == sizeof(*sts)) {
-		*count = le32_to_cpu(sts->ulAmountInOutQueue);
-		result = 0;
-	} else {
+	result = usb_control_msg_recv(serial->dev, 0, CP210X_GET_COMM_STATUS,
+			REQTYPE_INTERFACE_TO_HOST, 0,
+			port_priv->bInterfaceNumber, &sts, sizeof(sts),
+			USB_CTRL_GET_TIMEOUT, GFP_KERNEL);
+	if (result) {
 		dev_err(&port->dev, "failed to get comm status: %d\n", result);
-		if (result >= 0)
-			result = -EIO;
+		return result;
 	}
 
-	kfree(sts);
+	*count = le32_to_cpu(sts.ulAmountInOutQueue);
 
-	return result;
+	return 0;
 }
 
 static bool cp210x_tx_empty(struct usb_serial_port *port)
@@ -1113,10 +1068,14 @@ static void cp210x_change_speed(struct tty_struct *tty,
 
 static void cp210x_enable_event_mode(struct usb_serial_port *port)
 {
+	struct cp210x_serial_private *priv = usb_get_serial_data(port->serial);
 	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
 	int ret;
 
 	if (port_priv->event_mode)
+		return;
+
+	if (priv->no_event_mode)
 		return;
 
 	port_priv->event_state = ES_DATA;
@@ -2074,6 +2033,33 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 	priv->use_actual_rate = use_actual_rate;
 }
 
+static void cp2102_determine_quirks(struct usb_serial *serial)
+{
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	u8 *buf;
+	int ret;
+
+	buf = kmalloc(2, GFP_KERNEL);
+	if (!buf)
+		return;
+	/*
+	 * Some (possibly counterfeit) CP2102 do not support event-insertion
+	 * mode and respond differently to malformed vendor requests.
+	 * Specifically, they return one instead of two bytes when sent a
+	 * two-byte part-number request.
+	 */
+	ret = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+			CP210X_VENDOR_SPECIFIC, REQTYPE_DEVICE_TO_HOST,
+			CP210X_GET_PARTNUM, 0, buf, 2, USB_CTRL_GET_TIMEOUT);
+	if (ret == 1) {
+		dev_dbg(&serial->interface->dev,
+				"device does not support event-insertion mode\n");
+		priv->no_event_mode = true;
+	}
+
+	kfree(buf);
+}
+
 static int cp210x_get_fw_version(struct usb_serial *serial, u16 value)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
@@ -2108,7 +2094,12 @@ static void cp210x_determine_type(struct usb_serial *serial)
 		return;
 	}
 
+	dev_dbg(&serial->interface->dev, "partnum = 0x%02x\n", priv->partnum);
+
 	switch (priv->partnum) {
+	case CP210X_PARTNUM_CP2102:
+		cp2102_determine_quirks(serial);
+		break;
 	case CP210X_PARTNUM_CP2105:
 	case CP210X_PARTNUM_CP2108:
 		cp210x_get_fw_version(serial, CP210X_GET_FW_VER);

@@ -18,12 +18,16 @@ void gve_tx_remove_from_block(struct gve_priv *priv, int queue_idx)
 
 void gve_tx_add_to_block(struct gve_priv *priv, int queue_idx)
 {
+	unsigned int active_cpus = min_t(int, priv->num_ntfy_blks / 2,
+					 num_online_cpus());
 	int ntfy_idx = gve_tx_idx_to_ntfy(priv, queue_idx);
 	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 	struct gve_tx_ring *tx = &priv->tx[queue_idx];
 
 	block->tx = tx;
 	tx->ntfy_id = ntfy_idx;
+	netif_set_xps_queue(priv->dev, get_cpu_mask(ntfy_idx % active_cpus),
+			    queue_idx);
 }
 
 void gve_rx_remove_from_block(struct gve_priv *priv, int queue_idx)
@@ -46,20 +50,31 @@ void gve_rx_add_to_block(struct gve_priv *priv, int queue_idx)
 
 struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
 			    struct gve_rx_slot_page_info *page_info, u16 len,
-			    u16 pad)
+			    u16 padding, struct gve_rx_ctx *ctx)
 {
-	struct sk_buff *skb = napi_alloc_skb(napi, len);
-	void *va = page_info->page_address + pad +
-		   page_info->page_offset;
+	void *va = page_info->page_address + padding + page_info->page_offset;
+	int skb_linear_offset = 0;
+	bool set_protocol = false;
+	struct sk_buff *skb;
 
-	if (unlikely(!skb))
-		return NULL;
+	if (ctx) {
+		if (!ctx->skb_head)
+			ctx->skb_head = napi_alloc_skb(napi, ctx->total_expected_size);
 
+		if (unlikely(!ctx->skb_head))
+			return NULL;
+		skb = ctx->skb_head;
+		skb_linear_offset = skb->len;
+		set_protocol = ctx->curr_frag_cnt == ctx->expected_frag_cnt - 1;
+	} else {
+		skb = napi_alloc_skb(napi, len);
+		set_protocol = true;
+	}
 	__skb_put(skb, len);
+	skb_copy_to_linear_data_offset(skb, skb_linear_offset, va, len);
 
-	skb_copy_to_linear_data(skb, va, len);
-
-	skb->protocol = eth_type_trans(skb, dev);
+	if (set_protocol)
+		skb->protocol = eth_type_trans(skb, dev);
 
 	return skb;
 }

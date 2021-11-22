@@ -509,7 +509,7 @@ static ssize_t show_##name(struct device *dev,				\
 	struct drm_device *ddev = dev_get_drvdata(dev);			\
 	struct amdgpu_device *adev = drm_to_adev(ddev);			\
 									\
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", adev->field);	\
+	return sysfs_emit(buf, "0x%08x\n", adev->field);	\
 }									\
 static DEVICE_ATTR(name, mode, show_##name, NULL)
 
@@ -527,8 +527,8 @@ FW_VERSION_ATTR(mec_fw_version, 0444, gfx.mec_fw_version);
 FW_VERSION_ATTR(mec2_fw_version, 0444, gfx.mec2_fw_version);
 FW_VERSION_ATTR(sos_fw_version, 0444, psp.sos.fw_version);
 FW_VERSION_ATTR(asd_fw_version, 0444, psp.asd_context.bin_desc.fw_version);
-FW_VERSION_ATTR(ta_ras_fw_version, 0444, psp.ras_context.context.bin_desc.feature_version);
-FW_VERSION_ATTR(ta_xgmi_fw_version, 0444, psp.xgmi_context.context.bin_desc.feature_version);
+FW_VERSION_ATTR(ta_ras_fw_version, 0444, psp.ras_context.context.bin_desc.fw_version);
+FW_VERSION_ATTR(ta_xgmi_fw_version, 0444, psp.xgmi_context.context.bin_desc.fw_version);
 FW_VERSION_ATTR(smc_fw_version, 0444, pm.fw_version);
 FW_VERSION_ATTR(sdma_fw_version, 0444, sdma.instance[0].fw_version);
 FW_VERSION_ATTR(sdma2_fw_version, 0444, sdma.instance[1].fw_version);

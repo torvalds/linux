@@ -36,7 +36,7 @@ struct misc_cg;
 struct misc_res {
 	unsigned long max;
 	atomic_long_t usage;
-	bool failed;
+	atomic_long_t events;
 };
 
 /**
@@ -46,6 +46,10 @@ struct misc_res {
  */
 struct misc_cg {
 	struct cgroup_subsys_state css;
+
+	/* misc.events */
+	struct cgroup_file events_file;
+
 	struct misc_res res[MISC_CG_RES_TYPES];
 };
 

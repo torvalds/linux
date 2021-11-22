@@ -158,25 +158,18 @@ out:
  * Return : windows path string or error
  */
 
-char *convert_to_nt_pathname(char *filename, char *sharepath)
+char *convert_to_nt_pathname(char *filename)
 {
 	char *ab_pathname;
-	int len, name_len;
 
-	name_len = strlen(filename);
-	ab_pathname = kmalloc(name_len, GFP_KERNEL);
+	if (strlen(filename) == 0)
+		filename = "\\";
+
+	ab_pathname = kstrdup(filename, GFP_KERNEL);
 	if (!ab_pathname)
 		return NULL;
 
-	ab_pathname[0] = '\\';
-	ab_pathname[1] = '\0';
-
-	len = strlen(sharepath);
-	if (!strncmp(filename, sharepath, len) && name_len != len) {
-		strscpy(ab_pathname, &filename[len], name_len);
-		ksmbd_conv_path_to_windows(ab_pathname);
-	}
-
+	ksmbd_conv_path_to_windows(ab_pathname);
 	return ab_pathname;
 }
 
@@ -240,7 +233,7 @@ char *ksmbd_extract_sharename(char *treename)
  *
  * Return:	converted name on success, otherwise NULL
  */
-char *convert_to_unix_name(struct ksmbd_share_config *share, char *name)
+char *convert_to_unix_name(struct ksmbd_share_config *share, const char *name)
 {
 	int no_slash = 0, name_len, path_len;
 	char *new_name;

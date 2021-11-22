@@ -68,7 +68,7 @@ config ARM_SCMI_TRANSPORT_SMC
 
 config ARM_SCMI_TRANSPORT_VIRTIO
 	bool "SCMI transport based on VirtIO"
-	depends on VIRTIO
+	depends on VIRTIO=y || VIRTIO=ARM_SCMI_PROTOCOL
 	select ARM_SCMI_HAVE_TRANSPORT
 	select ARM_SCMI_HAVE_MSG
 	help

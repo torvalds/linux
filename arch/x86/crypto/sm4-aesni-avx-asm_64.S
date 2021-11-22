@@ -78,7 +78,7 @@
 	vpxor tmp0, x, x;
 
 
-.section	.rodata.cst164, "aM", @progbits, 164
+.section	.rodata.cst16, "aM", @progbits, 16
 .align 16
 
 /*
@@ -132,6 +132,10 @@
 /* 4-bit mask */
 .L0f0f0f0f:
 	.long 0x0f0f0f0f
+
+/* 12 bytes, only for padding */
+.Lpadding_deadbeef:
+	.long 0xdeadbeef, 0xdeadbeef, 0xdeadbeef
 
 
 .text
@@ -367,10 +371,11 @@ SYM_FUNC_START(sm4_aesni_avx_crypt8)
 	 *	%rdx: src (1..8 blocks)
 	 *	%rcx: num blocks (1..8)
 	 */
-	FRAME_BEGIN
-
 	cmpq $5, %rcx;
 	jb sm4_aesni_avx_crypt4;
+
+	FRAME_BEGIN
+
 	vmovdqu (0 * 16)(%rdx), RA0;
 	vmovdqu (1 * 16)(%rdx), RA1;
 	vmovdqu (2 * 16)(%rdx), RA2;

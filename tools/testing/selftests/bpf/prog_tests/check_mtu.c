@@ -195,7 +195,7 @@ cleanup:
 	test_check_mtu__destroy(skel);
 }
 
-void test_check_mtu(void)
+void serial_test_check_mtu(void)
 {
 	__u32 mtu_lo;
 

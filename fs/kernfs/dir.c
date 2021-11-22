@@ -1111,13 +1111,25 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 
 	kn = kernfs_find_ns(parent, dentry->d_name.name, ns);
 	/* attach dentry and inode */
-	if (kn && kernfs_active(kn)) {
+	if (kn) {
+		/* Inactive nodes are invisible to the VFS so don't
+		 * create a negative.
+		 */
+		if (!kernfs_active(kn)) {
+			up_read(&kernfs_rwsem);
+			return NULL;
+		}
 		inode = kernfs_get_inode(dir->i_sb, kn);
 		if (!inode)
 			inode = ERR_PTR(-ENOMEM);
 	}
-	/* Needed only for negative dentry validation */
-	if (!inode)
+	/*
+	 * Needed for negative dentry validation.
+	 * The negative dentry can be created in kernfs_iop_lookup()
+	 * or transforms from positive dentry in dentry_unlink_inode()
+	 * called from vfs_rmdir().
+	 */
+	if (!IS_ERR(inode))
 		kernfs_set_rev(parent, dentry);
 	up_read(&kernfs_rwsem);
 

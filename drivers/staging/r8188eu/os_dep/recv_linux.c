@@ -186,20 +186,6 @@ _recv_indicatepkt_drop:
 	 return _FAIL;
 }
 
-void rtw_os_read_port(struct adapter *padapter, struct recv_buf *precvbuf)
-{
-	struct recv_priv *precvpriv = &padapter->recvpriv;
-
-	precvbuf->ref_cnt--;
-	/* free skb in recv_buf */
-	dev_kfree_skb_any(precvbuf->pskb);
-	precvbuf->pskb = NULL;
-	precvbuf->reuse = false;
-	if (!precvbuf->irp_pending)
-		rtw_read_port(padapter, precvpriv->ff_hwaddr, 0,
-			      (unsigned char *)precvbuf);
-}
-
 static void _rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
 {
 	struct recv_reorder_ctrl *preorder_ctrl;

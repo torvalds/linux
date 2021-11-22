@@ -1041,6 +1041,6 @@ extern uint32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *,
 	struct QBUFFER __iomem *);
 extern void arcmsr_clear_iop2drv_rqueue_buffer(struct AdapterControlBlock *);
 extern struct QBUFFER __iomem *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *);
-extern struct device_attribute *arcmsr_host_attrs[];
+extern const struct attribute_group *arcmsr_host_groups[];
 extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *);
 void arcmsr_free_sysfs_attr(struct AdapterControlBlock *acb);

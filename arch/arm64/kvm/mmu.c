@@ -512,7 +512,7 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
 		return -EINVAL;
 	}
 
-	pgt = kzalloc(sizeof(*pgt), GFP_KERNEL);
+	pgt = kzalloc(sizeof(*pgt), GFP_KERNEL_ACCOUNT);
 	if (!pgt)
 		return -ENOMEM;
 
@@ -1529,8 +1529,10 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		 * when updating the PG_mte_tagged page flag, see
 		 * sanitise_mte_tags for more details.
 		 */
-		if (kvm_has_mte(kvm) && vma->vm_flags & VM_SHARED)
-			return -EINVAL;
+		if (kvm_has_mte(kvm) && vma->vm_flags & VM_SHARED) {
+			ret = -EINVAL;
+			break;
+		}
 
 		if (vma->vm_flags & VM_PFNMAP) {
 			/* IO region dirty page logging not allowed */

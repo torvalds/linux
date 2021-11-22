@@ -51,7 +51,7 @@
 #define PPSMC_MSG_PowerUpVcn                    0x07 ///< Power up VCN; VCN is power gated by default
 #define PPSMC_MSG_SetHardMinVcn                 0x08 ///< For wireless display
 #define PPSMC_MSG_SetSoftMinGfxclk              0x09 ///< Set SoftMin for GFXCLK, argument is frequency in MHz
-#define PPSMC_MSG_ActiveProcessNotify           0x0A ///< Set active work load type
+#define PPSMC_MSG_ActiveProcessNotify           0x0A ///< Deprecated (Not to be used)
 #define PPSMC_MSG_ForcePowerDownGfx             0x0B ///< Force power down GFX, i.e. enter GFXOFF
 #define PPSMC_MSG_PrepareMp1ForUnload           0x0C ///< Prepare PMFW for GFX driver unload
 #define PPSMC_MSG_SetDriverDramAddrHigh         0x0D ///< Set high 32 bits of DRAM address for Driver table transfer
@@ -63,7 +63,7 @@
 #define PPSMC_MSG_SetHardMinSocclkByFreq        0x13 ///< Set hard min for SOC CLK
 #define PPSMC_MSG_SetSoftMinFclk                0x14 ///< Set hard min for FCLK
 #define PPSMC_MSG_SetSoftMinVcn                 0x15 ///< Set soft min for VCN clocks (VCLK and DCLK)
-#define PPSMC_MSG_SPARE0                        0x16 ///< Spared
+#define PPSMC_MSG_SPARE                         0x16 ///< Spare
 #define PPSMC_MSG_GetGfxclkFrequency            0x17 ///< Get GFX clock frequency
 #define PPSMC_MSG_GetFclkFrequency              0x18 ///< Get FCLK frequency
 #define PPSMC_MSG_AllowGfxOff                   0x19 ///< Inform PMFW of allowing GFXOFF entry

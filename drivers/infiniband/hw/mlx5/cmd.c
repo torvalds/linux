@@ -206,3 +206,29 @@ out:
 	kfree(in);
 	return err;
 }
+
+int mlx5_cmd_uar_alloc(struct mlx5_core_dev *dev, u32 *uarn, u16 uid)
+{
+	u32 out[MLX5_ST_SZ_DW(alloc_uar_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(alloc_uar_in)] = {};
+	int err;
+
+	MLX5_SET(alloc_uar_in, in, opcode, MLX5_CMD_OP_ALLOC_UAR);
+	MLX5_SET(alloc_uar_in, in, uid, uid);
+	err = mlx5_cmd_exec_inout(dev, alloc_uar, in, out);
+	if (err)
+		return err;
+
+	*uarn = MLX5_GET(alloc_uar_out, out, uar);
+	return 0;
+}
+
+int mlx5_cmd_uar_dealloc(struct mlx5_core_dev *dev, u32 uarn, u16 uid)
+{
+	u32 in[MLX5_ST_SZ_DW(dealloc_uar_in)] = {};
+
+	MLX5_SET(dealloc_uar_in, in, opcode, MLX5_CMD_OP_DEALLOC_UAR);
+	MLX5_SET(dealloc_uar_in, in, uar, uarn);
+	MLX5_SET(dealloc_uar_in, in, uid, uid);
+	return mlx5_cmd_exec_in(dev, dealloc_uar, in);
+}

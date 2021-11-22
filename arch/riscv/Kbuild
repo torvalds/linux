@@ -2,3 +2,6 @@
 
 obj-y += kernel/ mm/ net/
 obj-$(CONFIG_BUILTIN_DTB) += boot/dts/
+
+# for cleaning
+subdir- += boot

@@ -1095,7 +1095,7 @@ static int slab_offline_cpu(unsigned int cpu)
 	return 0;
 }
 
-#if defined(CONFIG_NUMA) && defined(CONFIG_MEMORY_HOTPLUG)
+#if defined(CONFIG_NUMA)
 /*
  * Drains freelist for a node on each slab cache, used for memory hot-remove.
  * Returns -EBUSY if all objects cannot be drained so that the node is not
@@ -1157,7 +1157,7 @@ static int __meminit slab_memory_callback(struct notifier_block *self,
 out:
 	return notifier_from_errno(ret);
 }
-#endif /* CONFIG_NUMA && CONFIG_MEMORY_HOTPLUG */
+#endif /* CONFIG_NUMA */
 
 /*
  * swap the static kmem_cache_node with kmalloced memory
@@ -3733,14 +3733,13 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	if (!cachep)
 		return;
 
+	trace_kmem_cache_free(_RET_IP_, objp, cachep->name);
 	local_irq_save(flags);
 	debug_check_no_locks_freed(objp, cachep->object_size);
 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
 		debug_check_no_obj_freed(objp, cachep->object_size);
 	__cache_free(cachep, objp, _RET_IP_);
 	local_irq_restore(flags);
-
-	trace_kmem_cache_free(_RET_IP_, objp, cachep->name);
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
@@ -3900,8 +3899,6 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 	if (err)
 		goto end;
 
-	if (limit && shared && batchcount)
-		goto skip_setup;
 	/*
 	 * The head array serves three purposes:
 	 * - create a LIFO ordering, i.e. return objects that are cache-warm
@@ -3944,7 +3941,6 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 		limit = 32;
 #endif
 	batchcount = (limit + 1) / 2;
-skip_setup:
 	err = do_tune_cpucache(cachep, limit, batchcount, shared, gfp);
 end:
 	if (err)
@@ -4206,19 +4202,6 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
 	    offset - cachep->useroffset <= cachep->usersize &&
 	    n <= cachep->useroffset - offset + cachep->usersize)
 		return;
-
-	/*
-	 * If the copy is still within the allocated object, produce
-	 * a warning instead of rejecting the copy. This is intended
-	 * to be a temporary method to find any missing usercopy
-	 * whitelists.
-	 */
-	if (usercopy_fallback &&
-	    offset <= cachep->object_size &&
-	    n <= cachep->object_size - offset) {
-		usercopy_warn("SLAB object", cachep->name, to_user, offset, n);
-		return;
-	}
 
 	usercopy_abort("SLAB object", cachep->name, to_user, offset, n);
 }
