@@ -174,6 +174,8 @@ struct flash_switch_data {
  * @module_en:			Flag used to enable/disable flash LED module
  * @trigger_lmh:		Flag to enable lmh mitigation
  * @non_all_mask_switch_present: Used in handling symmetry for all_mask switch
+ * @secure_vm:			Flag indicating whether flash LED is used by
+ *				secure VM
  */
 struct qti_flash_led {
 	struct platform_device		*pdev;
@@ -198,6 +200,7 @@ struct qti_flash_led {
 	bool				module_en;
 	bool				trigger_lmh;
 	bool				non_all_mask_switch_present;
+	bool				secure_vm;
 };
 
 struct flash_current_headroom {
@@ -1043,6 +1046,11 @@ static int qti_flash_led_get_max_avail_current(
 {
 	int thermal_current_limit = 0, rc;
 
+	if (led->secure_vm) {
+		led->max_current = MAX_FLASH_CURRENT_MA;
+		return 0;
+	}
+
 	led->trigger_lmh = false;
 	rc = qti_flash_led_calc_max_avail_current(led, max_current_ma);
 	if (rc < 0) {
@@ -1701,6 +1709,8 @@ static int qti_flash_led_register_device(struct qti_flash_led *led,
 		gpio_direction_output(led->hw_strobe_gpio[i], 0);
 
 	}
+
+	led->secure_vm = of_property_read_bool(node, "qcom,secure-vm");
 
 	led->all_ramp_up_done_irq = of_irq_get_byname(node,
 			"all-ramp-up-done-irq");
