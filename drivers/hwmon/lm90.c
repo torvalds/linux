@@ -164,11 +164,8 @@ enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
 #define TMP461_REG_CHEN			0x16
 #define TMP461_REG_DFC			0x24
 
-/*
- * Device flags
- */
-#define LM90_FLAG_ADT7461_EXT	BIT(0)	/* ADT7461 extended mode	*/
 /* Device features */
+#define LM90_HAVE_EXTENDED_TEMP	BIT(0)	/* extended temperature support	*/
 #define LM90_HAVE_OFFSET	BIT(1)	/* temperature offset register	*/
 #define LM90_HAVE_UNSIGNED_TEMP	BIT(2)	/* temperatures are unsigned	*/
 #define LM90_HAVE_REM_LIMIT_EXT	BIT(3)	/* extended remote limit	*/
@@ -176,12 +173,11 @@ enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
 #define LM90_HAVE_EMERGENCY_ALARM BIT(5)/* emergency alarm		*/
 #define LM90_HAVE_TEMP3		BIT(6)	/* 3rd temperature sensor	*/
 #define LM90_HAVE_BROKEN_ALERT	BIT(7)	/* Broken alert			*/
-#define LM90_HAVE_EXTENDED_TEMP	BIT(8)	/* extended temperature support	*/
-#define LM90_PAUSE_FOR_CONFIG	BIT(9)	/* Pause conversion for config	*/
-#define LM90_HAVE_CRIT		BIT(10)	/* Chip supports CRIT/OVERT register	*/
-#define LM90_HAVE_CRIT_ALRM_SWP	BIT(11)	/* critical alarm bits swapped	*/
-#define LM90_HAVE_PEC		BIT(12)	/* Chip supports PEC		*/
-#define LM90_HAVE_PARTIAL_PEC	BIT(13)	/* Partial PEC support (adm1032)*/
+#define LM90_PAUSE_FOR_CONFIG	BIT(8)	/* Pause conversion for config	*/
+#define LM90_HAVE_CRIT		BIT(9)	/* Chip supports CRIT/OVERT register	*/
+#define LM90_HAVE_CRIT_ALRM_SWP	BIT(10)	/* critical alarm bits swapped	*/
+#define LM90_HAVE_PEC		BIT(11)	/* Chip supports PEC		*/
+#define LM90_HAVE_PARTIAL_PEC	BIT(12)	/* Partial PEC support (adm1032)*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	BIT(0)	/* local THERM limit tripped */
@@ -1109,7 +1105,7 @@ static int lm90_temp_from_reg(u32 flags, u16 regval, u8 resolution)
 {
 	int val;
 
-	if (flags & LM90_FLAG_ADT7461_EXT)
+	if (flags & LM90_HAVE_EXTENDED_TEMP)
 		val = regval - 0x4000;
 	else if (flags & LM90_HAVE_UNSIGNED_TEMP)
 		val = regval;
@@ -1136,7 +1132,7 @@ static u16 lm90_temp_to_reg(u32 flags, long val, u8 resolution)
 	int fraction = resolution > 8 ?
 			1000 - DIV_ROUND_CLOSEST(1000, BIT(resolution - 8)) : 0;
 
-	if (flags & LM90_FLAG_ADT7461_EXT) {
+	if (flags & LM90_HAVE_EXTENDED_TEMP) {
 		val = clamp_val(val, -64000, 191000 + fraction);
 		val += 64000;
 	} else if (flags & LM90_HAVE_UNSIGNED_TEMP) {
@@ -1766,9 +1762,8 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP) {
 		if (of_property_read_bool(np, "ti,extended-range-enable"))
 			config |= 0x04;
-
-		if (config & 0x04)
-			data->flags |= LM90_FLAG_ADT7461_EXT;
+		if (!(config & 0x04))
+			data->flags &= ~LM90_HAVE_EXTENDED_TEMP;
 	}
 
 	/*
