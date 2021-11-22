@@ -376,7 +376,7 @@ int disk_scan_partitions(struct gendisk *disk, fmode_t mode)
 {
 	struct block_device *bdev;
 
-	if (disk->flags & GENHD_FL_NO_PART)
+	if (disk->flags & (GENHD_FL_NO_PART | GENHD_FL_HIDDEN))
 		return -EINVAL;
 	if (disk->open_partitions)
 		return -EBUSY;
@@ -493,12 +493,7 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	if (ret)
 		goto out_put_slave_dir;
 
-	if (disk->flags & GENHD_FL_HIDDEN) {
-		/*
-		 * Don't bother scanning for partitions.
-		 */
-		disk->flags |= GENHD_FL_NO_PART;
-	} else {
+	if (!(disk->flags & GENHD_FL_HIDDEN)) {
 		ret = bdi_register(disk->bdi, "%u:%u",
 				   disk->major, disk->first_minor);
 		if (ret)
