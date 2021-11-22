@@ -164,8 +164,12 @@ struct rockchip_hdmi {
 	struct clk *phyref_clk;
 	struct clk *grf_clk;
 	struct clk *hclk_vio;
+	struct clk *hclk_vo1;
 	struct clk *hclk_vop;
 	struct clk *hpd_clk;
+	struct clk *pclk;
+	struct clk *earc_clk;
+	struct clk *hdmitx_ref;
 	struct dw_hdmi *hdmi;
 	struct dw_hdmi_qp *hdmi_qp;
 
@@ -1438,6 +1442,34 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		return PTR_ERR(hdmi->hpd_clk);
 	}
 
+	hdmi->hclk_vo1 = devm_clk_get_optional(hdmi->dev, "hclk_vo1");
+	if (IS_ERR(hdmi->hclk_vo1)) {
+		dev_err_probe(hdmi->dev, PTR_ERR(hdmi->hclk_vo1),
+			      "failed to get hclk_vo1 clock\n");
+		return PTR_ERR(hdmi->hclk_vo1);
+	}
+
+	hdmi->earc_clk = devm_clk_get_optional(hdmi->dev, "earc");
+	if (IS_ERR(hdmi->earc_clk)) {
+		dev_err_probe(hdmi->dev, PTR_ERR(hdmi->earc_clk),
+			      "failed to get earc_clk clock\n");
+		return PTR_ERR(hdmi->earc_clk);
+	}
+
+	hdmi->hdmitx_ref = devm_clk_get_optional(hdmi->dev, "hdmitx_ref");
+	if (IS_ERR(hdmi->hdmitx_ref)) {
+		dev_err_probe(hdmi->dev, PTR_ERR(hdmi->hdmitx_ref),
+			      "failed to get hdmitx_ref clock\n");
+		return PTR_ERR(hdmi->hdmitx_ref);
+	}
+
+	hdmi->pclk = devm_clk_get_optional(hdmi->dev, "pclk");
+	if (IS_ERR(hdmi->pclk)) {
+		dev_err_probe(hdmi->dev, PTR_ERR(hdmi->pclk),
+			      "failed to get pclk clock\n");
+		return PTR_ERR(hdmi->pclk);
+	}
+
 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable",
 						    GPIOD_OUT_HIGH);
 	if (IS_ERR(hdmi->enable_gpio)) {
@@ -1592,9 +1624,8 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	if (hdmi->phy)
 		phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
 
-	if (!hdmi->is_hdmi_qp)
-		clk_set_rate(hdmi->phyref_clk,
-			     crtc->state->adjusted_mode.crtc_clock * 1000);
+	clk_set_rate(hdmi->phyref_clk,
+		     crtc->state->adjusted_mode.crtc_clock * 1000);
 
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
 		return;
@@ -2475,8 +2506,7 @@ static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 
-	if (!hdmi->is_hdmi_qp)
-		clk_set_rate(hdmi->phyref_clk, adj->crtc_clock * 1000);
+	clk_set_rate(hdmi->phyref_clk, adj->crtc_clock * 1000);
 }
 
 static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
@@ -2909,6 +2939,37 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		return ret;
 	}
 
+	ret = clk_prepare_enable(hdmi->hpd_clk);
+	if (ret) {
+		dev_err(hdmi->dev, "Failed to enable HDMI hpd_clk: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(hdmi->hclk_vo1);
+	if (ret) {
+		dev_err(hdmi->dev, "Failed to enable HDMI hclk_vo1: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(hdmi->earc_clk);
+	if (ret) {
+		dev_err(hdmi->dev, "Failed to enable HDMI earc_clk: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(hdmi->hdmitx_ref);
+	if (ret) {
+		dev_err(hdmi->dev, "Failed to enable HDMI hdmitx_ref: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(hdmi->pclk);
+	if (ret) {
+		dev_err(hdmi->dev, "Failed to enable HDMI pclk: %d\n", ret);
+		return ret;
+	}
+
 	if (hdmi->chip_data->ddc_en_reg == RK3568_GRF_VO_CON1) {
 		regmap_write(hdmi->regmap, RK3568_GRF_VO_CON1,
 			     HIWORD_UPDATE(RK3568_HDMI_SDAIN_MSK |
@@ -2966,13 +3027,6 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	ret = clk_prepare_enable(hdmi->hclk_vop);
 	if (ret) {
 		dev_err(hdmi->dev, "Failed to enable HDMI hclk_vop: %d\n",
-			ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(hdmi->hpd_clk);
-	if (ret) {
-		dev_err(hdmi->dev, "Failed to enable HDMI hpd_clk: %d\n",
 			ret);
 		return ret;
 	}
@@ -3040,6 +3094,10 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		clk_disable_unprepare(hdmi->phyref_clk);
 		clk_disable_unprepare(hdmi->hclk_vop);
 		clk_disable_unprepare(hdmi->hpd_clk);
+		clk_disable_unprepare(hdmi->hclk_vo1);
+		clk_disable_unprepare(hdmi->earc_clk);
+		clk_disable_unprepare(hdmi->hdmitx_ref);
+		clk_disable_unprepare(hdmi->pclk);
 	}
 
 	if (plat_data->connector) {
@@ -3066,6 +3124,10 @@ static void dw_hdmi_rockchip_unbind(struct device *dev, struct device *master,
 	clk_disable_unprepare(hdmi->phyref_clk);
 	clk_disable_unprepare(hdmi->hclk_vop);
 	clk_disable_unprepare(hdmi->hpd_clk);
+	clk_disable_unprepare(hdmi->hclk_vo1);
+	clk_disable_unprepare(hdmi->earc_clk);
+	clk_disable_unprepare(hdmi->hdmitx_ref);
+	clk_disable_unprepare(hdmi->pclk);
 }
 
 static const struct component_ops dw_hdmi_rockchip_ops = {

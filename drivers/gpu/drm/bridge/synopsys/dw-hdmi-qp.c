@@ -230,10 +230,6 @@ struct dw_hdmi_qp {
 	int avp_irq;
 	int earc_irq;
 
-	struct clk *pclk;
-	struct clk *earc_clk;
-	struct clk *ref_clk;
-
 	u8 edid[HDMI_EDID_LEN];
 
 	struct {
@@ -2062,48 +2058,9 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->regm = plat_data->regm;
 	}
 
-	hdmi->pclk = devm_clk_get(hdmi->dev, "pclk");
-	if (IS_ERR(hdmi->pclk)) {
-		ret = PTR_ERR(hdmi->pclk);
-		dev_err(hdmi->dev, "Unable to get HDMI pclk: %d\n", ret);
-		goto err_res;
-	}
-
-	ret = clk_prepare_enable(hdmi->pclk);
-	if (ret) {
-		dev_err(hdmi->dev, "Cannot enable HDMI pclk: %d\n", ret);
-		goto err_res;
-	}
-
-	hdmi->earc_clk = devm_clk_get(hdmi->dev, "earc");
-	if (IS_ERR(hdmi->earc_clk)) {
-		ret = PTR_ERR(hdmi->earc_clk);
-		dev_err(hdmi->dev, "Unable to get HDMI earc_clk: %d\n", ret);
-		goto err_pclk;
-	}
-
-	ret = clk_prepare_enable(hdmi->earc_clk);
-	if (ret) {
-		dev_err(hdmi->dev, "Cannot enable HDMI earc_clk: %d\n", ret);
-		goto err_pclk;
-	}
-
-	hdmi->ref_clk = devm_clk_get(hdmi->dev, "ref");
-	if (IS_ERR(hdmi->ref_clk)) {
-		ret = PTR_ERR(hdmi->ref_clk);
-		dev_err(hdmi->dev, "Unable to get HDMI ref_clk: %d\n", ret);
-		goto err_earc;
-	}
-
-	ret = clk_prepare_enable(hdmi->ref_clk);
-	if (ret) {
-		dev_err(hdmi->dev, "Cannot enable HDMI ref_clk: %d\n", ret);
-		goto err_earc;
-	}
-
 	ret = dw_hdmi_detect_phy(hdmi);
 	if (ret < 0)
-		goto err_ref;
+		goto err_res;
 
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
@@ -2112,7 +2069,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = irq;
-		goto err_ref;
+		goto err_res;
 	}
 
 	hdmi->avp_irq = irq;
@@ -2121,12 +2078,12 @@ __dw_hdmi_probe(struct platform_device *pdev,
 					dw_hdmi_qp_avp_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
 	if (ret)
-		goto err_ref;
+		goto err_res;
 
 	irq = platform_get_irq(pdev, 2);
 	if (irq < 0) {
 		ret = irq;
-		goto err_pclk;
+		goto err_res;
 	}
 
 	hdmi->earc_irq = irq;
@@ -2135,12 +2092,12 @@ __dw_hdmi_probe(struct platform_device *pdev,
 					dw_hdmi_qp_earc_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
 	if (ret)
-		goto err_ref;
+		goto err_res;
 
 	irq = platform_get_irq(pdev, 3);
 	if (irq < 0) {
 		ret = irq;
-		goto err_ref;
+		goto err_res;
 	}
 
 	hdmi->main_irq = irq;
@@ -2148,7 +2105,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 					dw_hdmi_qp_main_hardirq, NULL,
 					IRQF_SHARED, dev_name(dev), hdmi);
 	if (ret)
-		goto err_ref;
+		goto err_res;
 
 	hdmi_init_clk_regenerator(hdmi);
 
@@ -2201,13 +2158,13 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (IS_ERR(hdmi->extcon)) {
 		dev_err(hdmi->dev, "allocate extcon failed\n");
 		ret = PTR_ERR(hdmi->extcon);
-		goto err_ref;
+		goto err_res;
 	}
 
 	ret = devm_extcon_dev_register(hdmi->dev, hdmi->extcon);
 	if (ret) {
 		dev_err(hdmi->dev, "failed to register extcon: %d\n", ret);
-		goto err_ref;
+		goto err_res;
 	}
 
 	ret = extcon_set_property_capability(hdmi->extcon, EXTCON_DISP_HDMI,
@@ -2215,7 +2172,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (ret) {
 		dev_err(hdmi->dev,
 			"failed to set USB property capability: %d\n", ret);
-		goto err_ref;
+		goto err_res;
 	}
 
 	/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
@@ -2230,18 +2187,6 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->scramble_low_rates = true;
 
 	return hdmi;
-
-err_ref:
-	clk_disable_unprepare(hdmi->ref_clk);
-err_earc:
-	clk_disable_unprepare(hdmi->earc_clk);
-err_pclk:
-	if (hdmi->i2c) {
-		i2c_del_adapter(&hdmi->i2c->adap);
-		hdmi->ddc = NULL;
-	}
-
-	clk_disable_unprepare(hdmi->pclk);
 
 err_res:
 	if (hdmi->i2c)
@@ -2270,10 +2215,6 @@ static void __dw_hdmi_remove(struct dw_hdmi_qp *hdmi)
 
 	if (hdmi->bridge.encoder)
 		hdmi->bridge.encoder->funcs->destroy(hdmi->bridge.encoder);
-
-	clk_disable_unprepare(hdmi->ref_clk);
-	clk_disable_unprepare(hdmi->earc_clk);
-	clk_disable_unprepare(hdmi->pclk);
 
 	if (hdmi->i2c)
 		i2c_del_adapter(&hdmi->i2c->adap);
