@@ -10,6 +10,7 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/bitfield.h>
+#include <linux/regmap.h>
 #include <net/dsa.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
@@ -152,6 +153,25 @@ qca8k_set_page(struct mii_bus *bus, u16 page)
 static int
 qca8k_read(struct qca8k_priv *priv, u32 reg, u32 *val)
 {
+	return regmap_read(priv->regmap, reg, val);
+}
+
+static int
+qca8k_write(struct qca8k_priv *priv, u32 reg, u32 val)
+{
+	return regmap_write(priv->regmap, reg, val);
+}
+
+static int
+qca8k_rmw(struct qca8k_priv *priv, u32 reg, u32 mask, u32 write_val)
+{
+	return regmap_update_bits(priv->regmap, reg, mask, write_val);
+}
+
+static int
+qca8k_regmap_read(void *ctx, uint32_t reg, uint32_t *val)
+{
+	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
 	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	int ret;
@@ -172,8 +192,9 @@ exit:
 }
 
 static int
-qca8k_write(struct qca8k_priv *priv, u32 reg, u32 val)
+qca8k_regmap_write(void *ctx, uint32_t reg, uint32_t val)
 {
+	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
 	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	int ret;
@@ -194,8 +215,9 @@ exit:
 }
 
 static int
-qca8k_rmw(struct qca8k_priv *priv, u32 reg, u32 mask, u32 write_val)
+qca8k_regmap_update_bits(void *ctx, uint32_t reg, uint32_t mask, uint32_t write_val)
 {
+	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
 	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	u32 val;
@@ -221,34 +243,6 @@ exit:
 	mutex_unlock(&bus->mdio_lock);
 
 	return ret;
-}
-
-static int
-qca8k_reg_set(struct qca8k_priv *priv, u32 reg, u32 val)
-{
-	return qca8k_rmw(priv, reg, 0, val);
-}
-
-static int
-qca8k_reg_clear(struct qca8k_priv *priv, u32 reg, u32 val)
-{
-	return qca8k_rmw(priv, reg, val, 0);
-}
-
-static int
-qca8k_regmap_read(void *ctx, uint32_t reg, uint32_t *val)
-{
-	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
-
-	return qca8k_read(priv, reg, val);
-}
-
-static int
-qca8k_regmap_write(void *ctx, uint32_t reg, uint32_t val)
-{
-	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
-
-	return qca8k_write(priv, reg, val);
 }
 
 static const struct regmap_range qca8k_readable_ranges[] = {
@@ -282,26 +276,19 @@ static struct regmap_config qca8k_regmap_config = {
 	.max_register = 0x16ac, /* end MIB - Port6 range */
 	.reg_read = qca8k_regmap_read,
 	.reg_write = qca8k_regmap_write,
+	.reg_update_bits = qca8k_regmap_update_bits,
 	.rd_table = &qca8k_readable_table,
+	.disable_locking = true, /* Locking is handled by qca8k read/write */
+	.cache_type = REGCACHE_NONE, /* Explicitly disable CACHE */
 };
 
 static int
 qca8k_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask)
 {
-	int ret, ret1;
 	u32 val;
 
-	ret = read_poll_timeout(qca8k_read, ret1, !(val & mask),
-				0, QCA8K_BUSY_WAIT_TIMEOUT * USEC_PER_MSEC, false,
-				priv, reg, &val);
-
-	/* Check if qca8k_read has failed for a different reason
-	 * before returning -ETIMEDOUT
-	 */
-	if (ret < 0 && ret1 < 0)
-		return ret1;
-
-	return ret;
+	return regmap_read_poll_timeout(priv->regmap, reg, val, !(val & mask), 0,
+				       QCA8K_BUSY_WAIT_TIMEOUT * USEC_PER_MSEC);
 }
 
 static int
@@ -568,7 +555,7 @@ qca8k_mib_init(struct qca8k_priv *priv)
 	int ret;
 
 	mutex_lock(&priv->reg_mutex);
-	ret = qca8k_reg_set(priv, QCA8K_REG_MIB, QCA8K_MIB_FLUSH | QCA8K_MIB_BUSY);
+	ret = regmap_set_bits(priv->regmap, QCA8K_REG_MIB, QCA8K_MIB_FLUSH | QCA8K_MIB_BUSY);
 	if (ret)
 		goto exit;
 
@@ -576,7 +563,7 @@ qca8k_mib_init(struct qca8k_priv *priv)
 	if (ret)
 		goto exit;
 
-	ret = qca8k_reg_set(priv, QCA8K_REG_MIB, QCA8K_MIB_CPU_KEEP);
+	ret = regmap_set_bits(priv->regmap, QCA8K_REG_MIB, QCA8K_MIB_CPU_KEEP);
 	if (ret)
 		goto exit;
 
@@ -597,9 +584,9 @@ qca8k_port_set_status(struct qca8k_priv *priv, int port, int enable)
 		mask |= QCA8K_PORT_STATUS_LINK_AUTO;
 
 	if (enable)
-		qca8k_reg_set(priv, QCA8K_REG_PORT_STATUS(port), mask);
+		regmap_set_bits(priv->regmap, QCA8K_REG_PORT_STATUS(port), mask);
 	else
-		qca8k_reg_clear(priv, QCA8K_REG_PORT_STATUS(port), mask);
+		regmap_clear_bits(priv->regmap, QCA8K_REG_PORT_STATUS(port), mask);
 }
 
 static u32
@@ -861,8 +848,8 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 		 * a dt-overlay and driver reload changed the configuration
 		 */
 
-		return qca8k_reg_clear(priv, QCA8K_MDIO_MASTER_CTRL,
-				       QCA8K_MDIO_MASTER_EN);
+		return regmap_clear_bits(priv->regmap, QCA8K_MDIO_MASTER_CTRL,
+					 QCA8K_MDIO_MASTER_EN);
 	}
 
 	/* Check if the devicetree declare the port:phy mapping */
@@ -1099,16 +1086,16 @@ qca8k_setup(struct dsa_switch *ds)
 		return ret;
 
 	/* Make sure MAC06 is disabled */
-	ret = qca8k_reg_clear(priv, QCA8K_REG_PORT0_PAD_CTRL,
-			      QCA8K_PORT0_PAD_MAC06_EXCHANGE_EN);
+	ret = regmap_clear_bits(priv->regmap, QCA8K_REG_PORT0_PAD_CTRL,
+				QCA8K_PORT0_PAD_MAC06_EXCHANGE_EN);
 	if (ret) {
 		dev_err(priv->dev, "failed disabling MAC06 exchange");
 		return ret;
 	}
 
 	/* Enable CPU Port */
-	ret = qca8k_reg_set(priv, QCA8K_REG_GLOBAL_FW_CTRL0,
-			    QCA8K_GLOBAL_FW_CTRL0_CPU_PORT_EN);
+	ret = regmap_set_bits(priv->regmap, QCA8K_REG_GLOBAL_FW_CTRL0,
+			      QCA8K_GLOBAL_FW_CTRL0_CPU_PORT_EN);
 	if (ret) {
 		dev_err(priv->dev, "failed enabling CPU port");
 		return ret;
@@ -1176,8 +1163,8 @@ qca8k_setup(struct dsa_switch *ds)
 				return ret;
 
 			/* Enable ARP Auto-learning by default */
-			ret = qca8k_reg_set(priv, QCA8K_PORT_LOOKUP_CTRL(i),
-					    QCA8K_PORT_LOOKUP_LEARN);
+			ret = regmap_set_bits(priv->regmap, QCA8K_PORT_LOOKUP_CTRL(i),
+					      QCA8K_PORT_LOOKUP_LEARN);
 			if (ret)
 				return ret;
 
@@ -1741,9 +1728,9 @@ qca8k_port_bridge_join(struct dsa_switch *ds, int port, struct net_device *br)
 		/* Add this port to the portvlan mask of the other ports
 		 * in the bridge
 		 */
-		ret = qca8k_reg_set(priv,
-				    QCA8K_PORT_LOOKUP_CTRL(i),
-				    BIT(port));
+		ret = regmap_set_bits(priv->regmap,
+				      QCA8K_PORT_LOOKUP_CTRL(i),
+				      BIT(port));
 		if (ret)
 			return ret;
 		if (i != port)
@@ -1773,9 +1760,9 @@ qca8k_port_bridge_leave(struct dsa_switch *ds, int port, struct net_device *br)
 		/* Remove this port to the portvlan mask of the other ports
 		 * in the bridge
 		 */
-		qca8k_reg_clear(priv,
-				QCA8K_PORT_LOOKUP_CTRL(i),
-				BIT(port));
+		regmap_clear_bits(priv->regmap,
+				  QCA8K_PORT_LOOKUP_CTRL(i),
+				  BIT(port));
 	}
 
 	/* Set the cpu port to be the only one in the portvlan mask of
