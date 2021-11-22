@@ -706,6 +706,29 @@ static int filter_pred_strloc(struct filter_pred *pred, void *event)
 	return match;
 }
 
+/*
+ * Filter predicate for relative dynamic sized arrays of characters.
+ * These are implemented through a list of strings at the end
+ * of the entry as same as dynamic string.
+ * The difference is that the relative one records the location offset
+ * from the field itself, not the event entry.
+ */
+static int filter_pred_strrelloc(struct filter_pred *pred, void *event)
+{
+	u32 *item = (u32 *)(event + pred->offset);
+	u32 str_item = *item;
+	int str_loc = str_item & 0xffff;
+	int str_len = str_item >> 16;
+	char *addr = (char *)(&item[1]) + str_loc;
+	int cmp, match;
+
+	cmp = pred->regex.match(addr, &pred->regex, str_len);
+
+	match = cmp ^ pred->not;
+
+	return match;
+}
+
 /* Filter predicate for CPUs. */
 static int filter_pred_cpu(struct filter_pred *pred, void *event)
 {
@@ -756,7 +779,7 @@ static int filter_pred_none(struct filter_pred *pred, void *event)
  *
  * Note:
  * - @str might not be NULL-terminated if it's of type DYN_STRING
- *   or STATIC_STRING, unless @len is zero.
+ *   RDYN_STRING, or STATIC_STRING, unless @len is zero.
  */
 
 static int regex_match_full(char *str, struct regex *r, int len)
@@ -1083,6 +1106,9 @@ int filter_assign_type(const char *type)
 	if (strstr(type, "__data_loc") && strstr(type, "char"))
 		return FILTER_DYN_STRING;
 
+	if (strstr(type, "__rel_loc") && strstr(type, "char"))
+		return FILTER_RDYN_STRING;
+
 	if (strchr(type, '[') && strstr(type, "char"))
 		return FILTER_STATIC_STRING;
 
@@ -1318,8 +1344,10 @@ static int parse_pred(const char *str, void *data,
 			pred->fn = filter_pred_string;
 			pred->regex.field_len = field->size;
 
-		} else if (field->filter_type == FILTER_DYN_STRING)
+		} else if (field->filter_type == FILTER_DYN_STRING) {
 			pred->fn = filter_pred_strloc;
+		} else if (field->filter_type == FILTER_RDYN_STRING)
+			pred->fn = filter_pred_strrelloc;
 		else
 			pred->fn = filter_pred_pchar;
 		/* go past the last quote */
