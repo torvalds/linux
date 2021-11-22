@@ -128,7 +128,6 @@ static void aspeed_msi_compose_msi_msg(struct irq_data *data, struct msi_msg *ms
 	msg->address_hi = 0;
 	msg->address_lo = pcie->msi_address;
 	msg->data = data->hwirq;
-
 }
 
 static int aspeed_msi_set_affinity(struct irq_data *irq_data,
@@ -146,27 +145,31 @@ static struct irq_chip aspeed_msi_bottom_irq_chip = {
 static int aspeed_irq_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 											unsigned int nr_irqs, void *args)
 {
-	int hwirq;
+	int i;
+	int bit;
 
-	hwirq = find_first_zero_bit(msi_irq_in_use, MAX_MSI_HOST_IRQS);
-	if (hwirq >= MAX_MSI_HOST_IRQS)
+	bit = bitmap_find_free_region(msi_irq_in_use, MAX_MSI_HOST_IRQS,
+				      get_count_order(nr_irqs));
+	if (bit < 0)
 		return -ENOSPC;
 
-	set_bit(hwirq, msi_irq_in_use);
-	irq_domain_set_info(domain, virq, hwirq,
-						&aspeed_msi_bottom_irq_chip,
-						domain->host_data, handle_simple_irq,
-						NULL, NULL);
-	return hwirq;
+	for (i = 0; i < nr_irqs; i++) {
+		irq_domain_set_info(domain, virq + i, bit + i, &aspeed_msi_bottom_irq_chip,
+				domain->host_data, handle_simple_irq,
+				NULL, NULL);
+	}
 
+	return 0;
 }
 
 static void aspeed_irq_msi_domain_free(struct irq_domain *domain, unsigned int virq,
 											unsigned int nr_irqs)
 {
-	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
+	struct irq_data *data = irq_domain_get_irq_data(domain, virq);
 
-	clear_bit(d->hwirq, msi_irq_in_use);
+	bitmap_release_region(msi_irq_in_use, data->hwirq,
+			      get_count_order(nr_irqs));
+
 }
 
 static const struct irq_domain_ops aspeed_msi_domain_ops = {
@@ -184,8 +187,7 @@ static struct irq_chip aspeed_msi_irq_chip = {
 
 static struct msi_domain_info aspeed_msi_domain_info = {
 	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-				MSI_FLAG_PCI_MSIX),
-
+				MSI_FLAG_MULTI_PCI_MSI),
 	.chip = &aspeed_msi_irq_chip,
 };
 
@@ -350,7 +352,6 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 	pcie->dev = dev;
 	pcie->txTag = 0;
 
-
 	err = aspeed_pcie_parse_dt(pcie, pdev);
 	if (err) {
 		dev_err(dev, "Parsing DT failed\n");
@@ -369,8 +370,6 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed creating IRQ Domain\n");
 		return err;
 	}
-
-	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	bridge->sysdata = pcie;
 	bridge->ops = &aspeed_pcie_ops;

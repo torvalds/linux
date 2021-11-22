@@ -296,24 +296,21 @@ out:
 /* INTx Functions */
 extern void aspeed_h2x_intx_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(d);
 
 	writel(readl(pcie->h2x_rc_base + 0x04) | BIT(d->hwirq), pcie->h2x_rc_base + 0x04);
 }
 
 extern void aspeed_h2x_intx_mask_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(d);
 
 	writel(readl(pcie->h2x_rc_base + 0x04) & ~BIT(d->hwirq), pcie->h2x_rc_base + 0x04);
 }
 
 extern void aspeed_h2x_intx_unmask_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(d);
 
 	//Enable IRQ ..
 	writel(readl(pcie->h2x_rc_base + 0x04) | BIT(d->hwirq), pcie->h2x_rc_base + 0x04);
@@ -322,8 +319,7 @@ extern void aspeed_h2x_intx_unmask_irq(struct irq_data *d)
 /* msi Functions */
 extern void aspeed_h2x_msi_mask_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(d);
 
 	if (d->hwirq > 31)
 		writel(readl(pcie->h2x_rc_base + 0x24) & ~BIT((d->hwirq - 32)), pcie->h2x_rc_base + 0x24);
@@ -335,8 +331,7 @@ extern void aspeed_h2x_msi_mask_irq(struct irq_data *d)
 
 extern void aspeed_h2x_msi_unmask_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	struct aspeed_pcie *pcie = irq_desc_get_chip_data(desc);
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(d);
 
 	if (d->hwirq > 31)
 		writel(readl(pcie->h2x_rc_base + 0x24) | BIT((d->hwirq - 32)), pcie->h2x_rc_base + 0x24);
@@ -358,7 +353,7 @@ extern void aspeed_h2x_msi_disable(struct aspeed_pcie *pcie)
 	writel(0x0, pcie->h2x_rc_base + 0x24);
 }
 #endif
-extern void aspeed_h2x_rc_intr_handler(struct aspeed_pcie *pcie)
+void aspeed_h2x_rc_intr_handler(struct aspeed_pcie *pcie)
 {
 	u32 bit;
 	u32 virq;
@@ -371,7 +366,7 @@ extern void aspeed_h2x_rc_intr_handler(struct aspeed_pcie *pcie)
 		for_each_set_bit(bit, &intx, PCI_NUM_INTX) {
 			virq = irq_find_mapping(pcie->leg_domain, bit);
 			if (virq)
-				generic_handle_irq(virq);
+				generic_handle_domain_irq(pcie->leg_domain, virq);
 			else
 				dev_err(pcie->dev, "unexpected Int - X\n");
 		}
