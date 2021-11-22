@@ -46,6 +46,7 @@ struct dma_multi {
 	bool ch_enreg_2;
 	struct dma_ch_cfg cfg;
 	struct dma_ch_en en;
+	bool need_flush;
 };
 
 struct dw_axi_dma_hcfg {

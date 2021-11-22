@@ -32,6 +32,8 @@
 #include "../dmaengine.h"
 #include "../virt-dma.h"
 
+#include <soc/starfive/vic7100.h>
+
 /*
  * The set of bus widths supported by the DMA controller. DW AXI DMAC supports
  * master data bus width up to 512 bits (for both AXI master interfaces), but
@@ -464,6 +466,17 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 	irq_mask |= DWAXIDMAC_IRQ_SUSPENDED;
 	axi_chan_irq_set(chan, irq_mask);
 
+	/*flush all the desc */
+#ifdef CONFIG_SOC_STARFIVE_VIC7100
+	if (chan->chip->multi.need_flush = true) {
+		int count = atomic_read(&chan->descs_allocated);
+		int i;
+
+		for (i = 0; i < count; i++) {
+			starfive_flush_dcache(first->hw_desc[i].llp,
+				sizeof(*first->hw_desc[i].lli));
+	}
+#endif
 	axi_chan_enable(chan);
 }
 
@@ -1377,8 +1390,12 @@ static int parse_device_properties(struct axi_dma_chip *chip)
 	if (!ret)
 		chip->dw->hdata->nr_hs_if = tmp;
 
-	if (chip->dw->hdata->nr_channels > 8)
+	if (chip->dw->hdata->nr_channels > 8) {
+#ifdef CONFIG_SOC_STARFIVE_VIC7100
+		chip->multi.need_flush = true;
+#endif
 		chip->multi.ch_enreg_2 = true;
+	}
 
 	if (chip->dw->hdata->nr_channels > 8 || chip->dw->hdata->nr_hs_if > 16)
 		chip->multi.ch_cfg_2 = true;
@@ -1581,6 +1598,7 @@ static const struct dev_pm_ops dw_axi_dma_pm_ops = {
 static const struct of_device_id dw_dma_of_id_table[] = {
 	{ .compatible = "snps,axi-dma-1.01a" },
 	{ .compatible = "intel,kmb-axi-dma" },
+	{ .compatible = "starfive,axi-dma" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
