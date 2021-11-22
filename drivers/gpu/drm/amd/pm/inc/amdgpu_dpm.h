@@ -508,6 +508,7 @@ int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
 				        enum pp_clock_type type,
 				        uint32_t min,
 				        uint32_t max);
+int amdgpu_dpm_write_watermarks_table(struct amdgpu_device *adev);
 int amdgpu_dpm_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
 		       uint64_t event_arg);
 int amdgpu_dpm_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
@@ -586,4 +587,41 @@ int amdgpu_dpm_set_pp_table(struct amdgpu_device *adev,
 			    size_t size);
 int amdgpu_dpm_get_num_cpu_cores(struct amdgpu_device *adev);
 void amdgpu_dpm_stb_debug_fs_init(struct amdgpu_device *adev);
+int amdgpu_dpm_display_configuration_change(struct amdgpu_device *adev,
+					    const struct amd_pp_display_configuration *input);
+int amdgpu_dpm_get_clock_by_type(struct amdgpu_device *adev,
+				 enum amd_pp_clock_type type,
+				 struct amd_pp_clocks *clocks);
+int amdgpu_dpm_get_display_mode_validation_clks(struct amdgpu_device *adev,
+						struct amd_pp_simple_clock_info *clocks);
+int amdgpu_dpm_get_clock_by_type_with_latency(struct amdgpu_device *adev,
+					      enum amd_pp_clock_type type,
+					      struct pp_clock_levels_with_latency *clocks);
+int amdgpu_dpm_get_clock_by_type_with_voltage(struct amdgpu_device *adev,
+					      enum amd_pp_clock_type type,
+					      struct pp_clock_levels_with_voltage *clocks);
+int amdgpu_dpm_set_watermarks_for_clocks_ranges(struct amdgpu_device *adev,
+					       void *clock_ranges);
+int amdgpu_dpm_display_clock_voltage_request(struct amdgpu_device *adev,
+					     struct pp_display_clock_request *clock);
+int amdgpu_dpm_get_current_clocks(struct amdgpu_device *adev,
+				  struct amd_pp_clock_info *clocks);
+void amdgpu_dpm_notify_smu_enable_pwe(struct amdgpu_device *adev);
+int amdgpu_dpm_set_active_display_count(struct amdgpu_device *adev,
+					uint32_t count);
+int amdgpu_dpm_set_min_deep_sleep_dcefclk(struct amdgpu_device *adev,
+					  uint32_t clock);
+void amdgpu_dpm_set_hard_min_dcefclk_by_freq(struct amdgpu_device *adev,
+					     uint32_t clock);
+void amdgpu_dpm_set_hard_min_fclk_by_freq(struct amdgpu_device *adev,
+					  uint32_t clock);
+int amdgpu_dpm_display_disable_memory_clock_switch(struct amdgpu_device *adev,
+						   bool disable_memory_clock_switch);
+int amdgpu_dpm_get_max_sustainable_clocks_by_dc(struct amdgpu_device *adev,
+						struct pp_smu_nv_clock_table *max_clocks);
+enum pp_smu_status amdgpu_dpm_get_uclk_dpm_states(struct amdgpu_device *adev,
+						  unsigned int *clock_values_in_khz,
+						  unsigned int *num_states);
+int amdgpu_dpm_get_dpm_clock_table(struct amdgpu_device *adev,
+				   struct dpm_clocks *clock_table);
 #endif

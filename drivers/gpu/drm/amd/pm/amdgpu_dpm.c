@@ -1659,6 +1659,14 @@ int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
 	}
 }
 
+int amdgpu_dpm_write_watermarks_table(struct amdgpu_device *adev)
+{
+	if (!is_support_sw_smu(adev))
+		return 0;
+
+	return smu_write_watermarks_table(&adev->smu);
+}
+
 int amdgpu_dpm_wait_for_event(struct amdgpu_device *adev,
 			      enum smu_event_type event,
 			      uint64_t event_arg)
@@ -2162,4 +2170,214 @@ void amdgpu_dpm_stb_debug_fs_init(struct amdgpu_device *adev)
 		return;
 
 	amdgpu_smu_stb_debug_fs_init(adev);
+}
+
+int amdgpu_dpm_display_configuration_change(struct amdgpu_device *adev,
+					    const struct amd_pp_display_configuration *input)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->display_configuration_change)
+		return 0;
+
+	return pp_funcs->display_configuration_change(adev->powerplay.pp_handle,
+						      input);
+}
+
+int amdgpu_dpm_get_clock_by_type(struct amdgpu_device *adev,
+				 enum amd_pp_clock_type type,
+				 struct amd_pp_clocks *clocks)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->get_clock_by_type)
+		return 0;
+
+	return pp_funcs->get_clock_by_type(adev->powerplay.pp_handle,
+					   type,
+					   clocks);
+}
+
+int amdgpu_dpm_get_display_mode_validation_clks(struct amdgpu_device *adev,
+						struct amd_pp_simple_clock_info *clocks)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->get_display_mode_validation_clocks)
+		return 0;
+
+	return pp_funcs->get_display_mode_validation_clocks(adev->powerplay.pp_handle,
+							    clocks);
+}
+
+int amdgpu_dpm_get_clock_by_type_with_latency(struct amdgpu_device *adev,
+					      enum amd_pp_clock_type type,
+					      struct pp_clock_levels_with_latency *clocks)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->get_clock_by_type_with_latency)
+		return 0;
+
+	return pp_funcs->get_clock_by_type_with_latency(adev->powerplay.pp_handle,
+							type,
+							clocks);
+}
+
+int amdgpu_dpm_get_clock_by_type_with_voltage(struct amdgpu_device *adev,
+					      enum amd_pp_clock_type type,
+					      struct pp_clock_levels_with_voltage *clocks)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->get_clock_by_type_with_voltage)
+		return 0;
+
+	return pp_funcs->get_clock_by_type_with_voltage(adev->powerplay.pp_handle,
+							type,
+							clocks);
+}
+
+int amdgpu_dpm_set_watermarks_for_clocks_ranges(struct amdgpu_device *adev,
+					       void *clock_ranges)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->set_watermarks_for_clocks_ranges)
+		return -EOPNOTSUPP;
+
+	return pp_funcs->set_watermarks_for_clocks_ranges(adev->powerplay.pp_handle,
+							  clock_ranges);
+}
+
+int amdgpu_dpm_display_clock_voltage_request(struct amdgpu_device *adev,
+					     struct pp_display_clock_request *clock)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->display_clock_voltage_request)
+		return -EOPNOTSUPP;
+
+	return pp_funcs->display_clock_voltage_request(adev->powerplay.pp_handle,
+						       clock);
+}
+
+int amdgpu_dpm_get_current_clocks(struct amdgpu_device *adev,
+				  struct amd_pp_clock_info *clocks)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->get_current_clocks)
+		return -EOPNOTSUPP;
+
+	return pp_funcs->get_current_clocks(adev->powerplay.pp_handle,
+					    clocks);
+}
+
+void amdgpu_dpm_notify_smu_enable_pwe(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->notify_smu_enable_pwe)
+		return;
+
+	pp_funcs->notify_smu_enable_pwe(adev->powerplay.pp_handle);
+}
+
+int amdgpu_dpm_set_active_display_count(struct amdgpu_device *adev,
+					uint32_t count)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->set_active_display_count)
+		return -EOPNOTSUPP;
+
+	return pp_funcs->set_active_display_count(adev->powerplay.pp_handle,
+						  count);
+}
+
+int amdgpu_dpm_set_min_deep_sleep_dcefclk(struct amdgpu_device *adev,
+					  uint32_t clock)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->set_min_deep_sleep_dcefclk)
+		return -EOPNOTSUPP;
+
+	return pp_funcs->set_min_deep_sleep_dcefclk(adev->powerplay.pp_handle,
+						    clock);
+}
+
+void amdgpu_dpm_set_hard_min_dcefclk_by_freq(struct amdgpu_device *adev,
+					     uint32_t clock)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->set_hard_min_dcefclk_by_freq)
+		return;
+
+	pp_funcs->set_hard_min_dcefclk_by_freq(adev->powerplay.pp_handle,
+					       clock);
+}
+
+void amdgpu_dpm_set_hard_min_fclk_by_freq(struct amdgpu_device *adev,
+					  uint32_t clock)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->set_hard_min_fclk_by_freq)
+		return;
+
+	pp_funcs->set_hard_min_fclk_by_freq(adev->powerplay.pp_handle,
+					    clock);
+}
+
+int amdgpu_dpm_display_disable_memory_clock_switch(struct amdgpu_device *adev,
+						   bool disable_memory_clock_switch)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->display_disable_memory_clock_switch)
+		return 0;
+
+	return pp_funcs->display_disable_memory_clock_switch(adev->powerplay.pp_handle,
+							     disable_memory_clock_switch);
+}
+
+int amdgpu_dpm_get_max_sustainable_clocks_by_dc(struct amdgpu_device *adev,
+						struct pp_smu_nv_clock_table *max_clocks)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->get_max_sustainable_clocks_by_dc)
+		return -EOPNOTSUPP;
+
+	return pp_funcs->get_max_sustainable_clocks_by_dc(adev->powerplay.pp_handle,
+							  max_clocks);
+}
+
+enum pp_smu_status amdgpu_dpm_get_uclk_dpm_states(struct amdgpu_device *adev,
+						  unsigned int *clock_values_in_khz,
+						  unsigned int *num_states)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->get_uclk_dpm_states)
+		return -EOPNOTSUPP;
+
+	return pp_funcs->get_uclk_dpm_states(adev->powerplay.pp_handle,
+					     clock_values_in_khz,
+					     num_states);
+}
+
+int amdgpu_dpm_get_dpm_clock_table(struct amdgpu_device *adev,
+				   struct dpm_clocks *clock_table)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs->get_dpm_clock_table)
+		return -EOPNOTSUPP;
+
+	return pp_funcs->get_dpm_clock_table(adev->powerplay.pp_handle,
+					     clock_table);
 }
