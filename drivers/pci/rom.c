@@ -85,7 +85,7 @@ static size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom,
 {
 	void __iomem *image;
 	int last_image;
-	unsigned length;
+	unsigned int length;
 
 	image = rom;
 	do {

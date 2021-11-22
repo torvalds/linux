@@ -40,7 +40,7 @@ static int test_bitmap(const char *str)
 	return ret;
 }
 
-int test__bitmap_print(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__bitmap_print(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("failed to convert map", test_bitmap("1"));
 	TEST_ASSERT_VAL("failed to convert map", test_bitmap("1,5"));
@@ -51,3 +51,5 @@ int test__bitmap_print(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("failed to convert map", test_bitmap("1-10,12-20,22-30,32-40"));
 	return 0;
 }
+
+DEFINE_SUITE("Print bitmap", bitmap_print);

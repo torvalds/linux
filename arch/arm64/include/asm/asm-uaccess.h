@@ -3,10 +3,11 @@
 #define __ASM_ASM_UACCESS_H
 
 #include <asm/alternative-macros.h>
+#include <asm/asm-extable.h>
+#include <asm/assembler.h>
 #include <asm/kernel-pgtable.h>
 #include <asm/mmu.h>
 #include <asm/sysreg.h>
-#include <asm/assembler.h>
 
 /*
  * User access enabling/disabling macros.
@@ -57,6 +58,10 @@ alternative_else_nop_endif
 	.macro	uaccess_ttbr0_enable, tmp1, tmp2, tmp3
 	.endm
 #endif
+
+#define USER(l, x...)				\
+9999:	x;					\
+	_asm_extable	9999b, l
 
 /*
  * Generate the assembly for LDTR/STTR with exception table entries.

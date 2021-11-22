@@ -7,7 +7,7 @@ Description:
 		core and provides a sysfs interface for configuring infrared
 		remote controller receivers.
 
-What:		/sys/class/rc/rcN/
+What:		/sys/class/rc/rc<N>/
 Date:		Apr 2010
 KernelVersion:	2.6.35
 Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
@@ -15,7 +15,7 @@ Description:
 		A /sys/class/rc/rcN directory is created for each remote
 		control receiver device where N is the number of the receiver.
 
-What:		/sys/class/rc/rcN/protocols
+What:		/sys/class/rc/rc<N>/protocols
 Date:		Jun 2010
 KernelVersion:	2.6.36
 Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
@@ -40,7 +40,7 @@ Description:
 		Write fails with EINVAL if an invalid protocol combination or
 		unknown protocol name is used.
 
-What:		/sys/class/rc/rcN/filter
+What:		/sys/class/rc/rc<N>/filter
 Date:		Jan 2014
 KernelVersion:	3.15
 Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
@@ -55,7 +55,7 @@ Description:
 
 		This value may be reset to 0 if the current protocol is altered.
 
-What:		/sys/class/rc/rcN/filter_mask
+What:		/sys/class/rc/rc<N>/filter_mask
 Date:		Jan 2014
 KernelVersion:	3.15
 Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
@@ -72,7 +72,7 @@ Description:
 
 		This value may be reset to 0 if the current protocol is altered.
 
-What:		/sys/class/rc/rcN/wakeup_protocols
+What:		/sys/class/rc/rc<N>/wakeup_protocols
 Date:		Feb 2017
 KernelVersion:	4.11
 Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
@@ -98,7 +98,7 @@ Description:
 		unknown protocol name is used, or if wakeup is not supported by
 		the hardware.
 
-What:		/sys/class/rc/rcN/wakeup_filter
+What:		/sys/class/rc/rc<N>/wakeup_filter
 Date:		Jan 2014
 KernelVersion:	3.15
 Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
@@ -117,7 +117,7 @@ Description:
 
 		This value may be reset to 0 if the wakeup protocol is altered.
 
-What:		/sys/class/rc/rcN/wakeup_filter_mask
+What:		/sys/class/rc/rc<N>/wakeup_filter_mask
 Date:		Jan 2014
 KernelVersion:	3.15
 Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>

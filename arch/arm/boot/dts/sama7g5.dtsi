@@ -152,6 +152,13 @@
 			reg = <0xe001d060 0x48>;
 		};
 
+		rtc: rtc@e001d0a8 {
+			compatible = "microchip,sama7g5-rtc", "microchip,sam9x60-rtc";
+			reg = <0xe001d0a8 0x30>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk32k 1>;
+		};
+
 		ps_wdt: watchdog@e001d180 {
 			compatible = "microchip,sama7g5-wdt";
 			reg = <0xe001d180 0x24>;
@@ -162,6 +169,32 @@
 		chipid@e0020000 {
 			compatible = "microchip,sama7g5-chipid";
 			reg = <0xe0020000 0x8>;
+		};
+
+		tcb1: timer@e0800000 {
+			compatible = "atmel,sama5d2-tcb", "simple-mfd", "syscon";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xe0800000 0x100>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 91>, <&pmc PMC_TYPE_PERIPHERAL 92>, <&pmc PMC_TYPE_PERIPHERAL 93>, <&clk32k 1>;
+			clock-names = "t0_clk", "t1_clk", "t2_clk", "slow_clk";
+		};
+
+		adc: adc@e1000000 {
+			compatible = "microchip,sama7g5-adc";
+			reg = <0xe1000000 0x200>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_GCK 26>;
+			assigned-clocks = <&pmc PMC_TYPE_GCK 26>;
+			assigned-clock-rates = <100000000>;
+			clock-names = "adc_clk";
+			dmas = <&dma0 AT91_XDMAC_DT_PERID(0)>;
+			dma-names = "rx";
+			atmel,min-sample-rate-hz = <200000>;
+			atmel,max-sample-rate-hz = <20000000>;
+			atmel,startup-time-ms = <4>;
+			status = "disabled";
 		};
 
 		sdmmc0: mmc@e1204000 {
@@ -463,6 +496,16 @@
 			clock-names = "dma_clk";
 			dma-requests = <0>;
 			status = "disabled";
+		};
+
+		tcb0: timer@e2814000 {
+			compatible = "atmel,sama5d2-tcb", "simple-mfd", "syscon";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xe2814000 0x100>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 88>, <&pmc PMC_TYPE_PERIPHERAL 89>, <&pmc PMC_TYPE_PERIPHERAL 90>, <&clk32k 1>;
+			clock-names = "t0_clk", "t1_clk", "t2_clk", "slow_clk";
 		};
 
 		flx8: flexcom@e2818000 {

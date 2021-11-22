@@ -23,6 +23,12 @@
 extern "C" {
 #endif
 
+/* This whole API has been deprecated and moved to libxdp that can be found at
+ * https://github.com/xdp-project/xdp-tools. The APIs are exactly the same so
+ * it should just be linking with libxdp instead of libbpf for this set of
+ * functionality. If not, please submit a bug report on the aforementioned page.
+ */
+
 /* Load-Acquire Store-Release barriers used by the XDP socket
  * library. The following macros should *NOT* be considered part of
  * the xsk.h API, and is subject to change anytime.
@@ -245,8 +251,10 @@ static inline __u64 xsk_umem__add_offset_to_addr(__u64 addr)
 	return xsk_umem__extract_addr(addr) + xsk_umem__extract_offset(addr);
 }
 
-LIBBPF_API int xsk_umem__fd(const struct xsk_umem *umem);
-LIBBPF_API int xsk_socket__fd(const struct xsk_socket *xsk);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_umem__fd(const struct xsk_umem *umem);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_socket__fd(const struct xsk_socket *xsk);
 
 #define XSK_RING_CONS__DEFAULT_NUM_DESCS      2048
 #define XSK_RING_PROD__DEFAULT_NUM_DESCS      2048
@@ -263,10 +271,10 @@ struct xsk_umem_config {
 	__u32 flags;
 };
 
-LIBBPF_API int xsk_setup_xdp_prog(int ifindex,
-				  int *xsks_map_fd);
-LIBBPF_API int xsk_socket__update_xskmap(struct xsk_socket *xsk,
-					 int xsks_map_fd);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_setup_xdp_prog(int ifindex, int *xsks_map_fd);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_socket__update_xskmap(struct xsk_socket *xsk, int xsks_map_fd);
 
 /* Flags for the libbpf_flags field. */
 #define XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD (1 << 0)
@@ -280,40 +288,46 @@ struct xsk_socket_config {
 };
 
 /* Set config to NULL to get the default configuration. */
-LIBBPF_API int xsk_umem__create(struct xsk_umem **umem,
-				void *umem_area, __u64 size,
-				struct xsk_ring_prod *fill,
-				struct xsk_ring_cons *comp,
-				const struct xsk_umem_config *config);
-LIBBPF_API int xsk_umem__create_v0_0_2(struct xsk_umem **umem,
-				       void *umem_area, __u64 size,
-				       struct xsk_ring_prod *fill,
-				       struct xsk_ring_cons *comp,
-				       const struct xsk_umem_config *config);
-LIBBPF_API int xsk_umem__create_v0_0_4(struct xsk_umem **umem,
-				       void *umem_area, __u64 size,
-				       struct xsk_ring_prod *fill,
-				       struct xsk_ring_cons *comp,
-				       const struct xsk_umem_config *config);
-LIBBPF_API int xsk_socket__create(struct xsk_socket **xsk,
-				  const char *ifname, __u32 queue_id,
-				  struct xsk_umem *umem,
-				  struct xsk_ring_cons *rx,
-				  struct xsk_ring_prod *tx,
-				  const struct xsk_socket_config *config);
-LIBBPF_API int
-xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
-			  const char *ifname,
-			  __u32 queue_id, struct xsk_umem *umem,
-			  struct xsk_ring_cons *rx,
-			  struct xsk_ring_prod *tx,
-			  struct xsk_ring_prod *fill,
-			  struct xsk_ring_cons *comp,
-			  const struct xsk_socket_config *config);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_umem__create(struct xsk_umem **umem,
+		     void *umem_area, __u64 size,
+		     struct xsk_ring_prod *fill,
+		     struct xsk_ring_cons *comp,
+		     const struct xsk_umem_config *config);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_umem__create_v0_0_2(struct xsk_umem **umem,
+			    void *umem_area, __u64 size,
+			    struct xsk_ring_prod *fill,
+			    struct xsk_ring_cons *comp,
+			    const struct xsk_umem_config *config);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_umem__create_v0_0_4(struct xsk_umem **umem,
+			    void *umem_area, __u64 size,
+			    struct xsk_ring_prod *fill,
+			    struct xsk_ring_cons *comp,
+			    const struct xsk_umem_config *config);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_socket__create(struct xsk_socket **xsk,
+		       const char *ifname, __u32 queue_id,
+		       struct xsk_umem *umem,
+		       struct xsk_ring_cons *rx,
+		       struct xsk_ring_prod *tx,
+		       const struct xsk_socket_config *config);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
+			      const char *ifname,
+			      __u32 queue_id, struct xsk_umem *umem,
+			      struct xsk_ring_cons *rx,
+			      struct xsk_ring_prod *tx,
+			      struct xsk_ring_prod *fill,
+			      struct xsk_ring_cons *comp,
+			      const struct xsk_socket_config *config);
 
 /* Returns 0 for success and -EBUSY if the umem is still in use. */
-LIBBPF_API int xsk_umem__delete(struct xsk_umem *umem);
-LIBBPF_API void xsk_socket__delete(struct xsk_socket *xsk);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+int xsk_umem__delete(struct xsk_umem *umem);
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "AF_XDP support deprecated and moved to libxdp")
+void xsk_socket__delete(struct xsk_socket *xsk);
 
 #ifdef __cplusplus
 } /* extern "C" */

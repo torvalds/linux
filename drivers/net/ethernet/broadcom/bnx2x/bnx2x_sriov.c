@@ -3058,7 +3058,7 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 	if (bulletin->valid_bitmap & 1 << MAC_ADDR_VALID &&
 	    !ether_addr_equal(bulletin->mac, bp->old_bulletin.mac)) {
 		/* update new mac to net device */
-		memcpy(bp->dev->dev_addr, bulletin->mac, ETH_ALEN);
+		eth_hw_addr_set(bp->dev, bulletin->mac);
 	}
 
 	if (bulletin->valid_bitmap & (1 << LINK_VALID)) {

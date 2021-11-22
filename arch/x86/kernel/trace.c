@@ -231,4 +231,4 @@ void osnoise_arch_unregister(void)
 	unregister_trace_local_timer_exit(trace_intel_irq_exit, "local_timer");
 	unregister_trace_local_timer_entry(trace_intel_irq_entry, NULL);
 }
-#endif /* CONFIG_OSNOISE_TRAECR && CONFIG_X86_LOCAL_APIC */
+#endif /* CONFIG_OSNOISE_TRACER && CONFIG_X86_LOCAL_APIC */

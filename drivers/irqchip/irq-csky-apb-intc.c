@@ -138,7 +138,7 @@ static inline bool handle_irq_perbit(struct pt_regs *regs, u32 hwirq,
 	if (hwirq == 0)
 		return 0;
 
-	handle_domain_irq(root_domain, irq_base + __fls(hwirq), regs);
+	generic_handle_domain_irq(root_domain, irq_base + __fls(hwirq));
 
 	return 1;
 }

@@ -41,7 +41,8 @@ static struct bpf_link *load(struct bpf_object *obj, const char *name)
 	return bpf_program__attach_trace(prog);
 }
 
-void test_trampoline_count(void)
+/* TODO: use different target function to run in concurrent mode */
+void serial_test_trampoline_count(void)
 {
 	const char *fentry_name = "fentry/__set_task_comm";
 	const char *fexit_name = "fexit/__set_task_comm";

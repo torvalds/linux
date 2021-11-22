@@ -357,7 +357,7 @@ static void set_ethernet_addr(pegasus_t *pegasus)
 			goto err;
 	}
 
-	memcpy(pegasus->net->dev_addr, node_id, sizeof(node_id));
+	eth_hw_addr_set(pegasus->net, node_id);
 
 	return;
 err:

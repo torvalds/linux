@@ -382,7 +382,7 @@ efct_lio_sg_map(struct efct_io *io)
 	struct efct_scsi_tgt_io *ocp = &io->tgt_io;
 	struct se_cmd *cmd = &ocp->cmd;
 
-	ocp->seg_map_cnt = pci_map_sg(io->efct->pci, cmd->t_data_sg,
+	ocp->seg_map_cnt = dma_map_sg(&io->efct->pci->dev, cmd->t_data_sg,
 				      cmd->t_data_nents, cmd->data_direction);
 	if (ocp->seg_map_cnt == 0)
 		return -EFAULT;
@@ -398,7 +398,7 @@ efct_lio_sg_unmap(struct efct_io *io)
 	if (WARN_ON(!ocp->seg_map_cnt || !cmd->t_data_sg))
 		return;
 
-	pci_unmap_sg(io->efct->pci, cmd->t_data_sg,
+	dma_unmap_sg(&io->efct->pci->dev, cmd->t_data_sg,
 		     ocp->seg_map_cnt, cmd->data_direction);
 	ocp->seg_map_cnt = 0;
 }

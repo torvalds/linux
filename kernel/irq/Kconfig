@@ -97,9 +97,6 @@ config GENERIC_MSI_IRQ_DOMAIN
 config IRQ_MSI_IOMMU
 	bool
 
-config HANDLE_DOMAIN_IRQ
-	bool
-
 config IRQ_TIMINGS
 	bool
 
@@ -144,3 +141,10 @@ config GENERIC_IRQ_MULTI_HANDLER
 	bool
 	help
 	  Allow to specify the low level IRQ handler at run time.
+
+# Cavium Octeon is the last system to use this deprecated option
+# Do not even think of enabling this on any new platform
+config DEPRECATED_IRQ_CPU_ONOFFLINE
+	bool
+	depends on CAVIUM_OCTEON_SOC
+	default CAVIUM_OCTEON_SOC

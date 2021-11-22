@@ -494,6 +494,20 @@ void dpp3_deferred_update(
 	int bypass_state;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
+	if (dpp_base->deferred_reg_writes.bits.disable_dscl) {
+		REG_UPDATE(DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, 3);
+		dpp_base->deferred_reg_writes.bits.disable_dscl = false;
+	}
+
+	if (dpp_base->deferred_reg_writes.bits.disable_gamcor) {
+		REG_GET(CM_GAMCOR_CONTROL, CM_GAMCOR_MODE_CURRENT, &bypass_state);
+		if (bypass_state == 0) {	// only program if bypass was latched
+			REG_UPDATE(CM_MEM_PWR_CTRL, GAMCOR_MEM_PWR_FORCE, 3);
+		} else
+			ASSERT(0); // LUT select was updated again before vupdate
+		dpp_base->deferred_reg_writes.bits.disable_gamcor = false;
+	}
+
 	if (dpp_base->deferred_reg_writes.bits.disable_blnd_lut) {
 		REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_MODE_CURRENT, &bypass_state);
 		if (bypass_state == 0) {	// only program if bypass was latched

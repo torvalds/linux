@@ -27,14 +27,6 @@ static const struct xt_table packet_filter = {
 	.priority	= NF_IP6_PRI_FILTER,
 };
 
-/* The work comes in here from netfilter.c. */
-static unsigned int
-ip6table_filter_hook(void *priv, struct sk_buff *skb,
-		     const struct nf_hook_state *state)
-{
-	return ip6t_do_table(skb, state, priv);
-}
-
 static struct nf_hook_ops *filter_ops __read_mostly;
 
 /* Default to forward because I got too much mail already. */
@@ -90,7 +82,7 @@ static int __init ip6table_filter_init(void)
 	if (ret < 0)
 		return ret;
 
-	filter_ops = xt_hook_ops_alloc(&packet_filter, ip6table_filter_hook);
+	filter_ops = xt_hook_ops_alloc(&packet_filter, ip6t_do_table);
 	if (IS_ERR(filter_ops)) {
 		xt_unregister_template(&packet_filter);
 		return PTR_ERR(filter_ops);

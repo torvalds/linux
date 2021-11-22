@@ -80,7 +80,7 @@ out_free:
  *	establishment will inform to upper layer via calling it's confirm
  *	function and passing proper information.
  */
-int llc_establish_connection(struct sock *sk, u8 *lmac, u8 *dmac, u8 dsap)
+int llc_establish_connection(struct sock *sk, const u8 *lmac, u8 *dmac, u8 dsap)
 {
 	int rc = -EISCONN;
 	struct llc_addr laddr, daddr;

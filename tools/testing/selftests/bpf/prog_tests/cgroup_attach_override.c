@@ -23,7 +23,7 @@ static int prog_load(int verdict)
 			       bpf_log_buf, BPF_LOG_BUF_SIZE);
 }
 
-void test_cgroup_attach_override(void)
+void serial_test_cgroup_attach_override(void)
 {
 	int drop_prog = -1, allow_prog = -1, foo = -1, bar = -1;
 	__u32 duration = 0;

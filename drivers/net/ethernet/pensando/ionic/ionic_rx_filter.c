@@ -239,6 +239,21 @@ struct ionic_rx_filter *ionic_rx_filter_rxsteer(struct ionic_lif *lif)
 	return NULL;
 }
 
+static struct ionic_rx_filter *ionic_rx_filter_find(struct ionic_lif *lif,
+						    struct ionic_rx_filter_add_cmd *ac)
+{
+	switch (le16_to_cpu(ac->match)) {
+	case IONIC_RX_FILTER_MATCH_VLAN:
+		return ionic_rx_filter_by_vlan(lif, le16_to_cpu(ac->vlan.vlan));
+	case IONIC_RX_FILTER_MATCH_MAC:
+		return ionic_rx_filter_by_addr(lif, ac->mac.addr);
+	default:
+		netdev_err(lif->netdev, "unsupported filter match %d",
+			   le16_to_cpu(ac->match));
+		return NULL;
+	}
+}
+
 int ionic_lif_list_addr(struct ionic_lif *lif, const u8 *addr, bool mode)
 {
 	struct ionic_rx_filter *f;
@@ -284,6 +299,228 @@ int ionic_lif_list_addr(struct ionic_lif *lif, const u8 *addr, bool mode)
 	set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
 
 	return 0;
+}
+
+static int ionic_lif_filter_add(struct ionic_lif *lif,
+				struct ionic_rx_filter_add_cmd *ac)
+{
+	struct ionic_admin_ctx ctx = {
+		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
+	};
+	struct ionic_rx_filter *f;
+	int nfilters;
+	int err = 0;
+
+	ctx.cmd.rx_filter_add = *ac;
+	ctx.cmd.rx_filter_add.opcode = IONIC_CMD_RX_FILTER_ADD,
+	ctx.cmd.rx_filter_add.lif_index = cpu_to_le16(lif->index),
+
+	spin_lock_bh(&lif->rx_filters.lock);
+	f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
+	if (f) {
+		/* don't bother if we already have it and it is sync'd */
+		if (f->state == IONIC_FILTER_STATE_SYNCED) {
+			spin_unlock_bh(&lif->rx_filters.lock);
+			return 0;
+		}
+
+		/* mark preemptively as sync'd to block any parallel attempts */
+		f->state = IONIC_FILTER_STATE_SYNCED;
+	} else {
+		/* save as SYNCED to catch any DEL requests while processing */
+		err = ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx,
+					   IONIC_FILTER_STATE_SYNCED);
+	}
+	spin_unlock_bh(&lif->rx_filters.lock);
+	if (err)
+		return err;
+
+	/* Don't bother with the write to FW if we know there's no room,
+	 * we can try again on the next sync attempt.
+	 * Since the FW doesn't have a way to tell us the vlan limit,
+	 * we start max_vlans at 0 until we hit the ENOSPC error.
+	 */
+	switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
+	case IONIC_RX_FILTER_MATCH_VLAN:
+		netdev_dbg(lif->netdev, "%s: rx_filter add VLAN %d\n",
+			   __func__, ctx.cmd.rx_filter_add.vlan.vlan);
+		if (lif->max_vlans && lif->nvlans >= lif->max_vlans)
+			err = -ENOSPC;
+		break;
+	case IONIC_RX_FILTER_MATCH_MAC:
+		netdev_dbg(lif->netdev, "%s: rx_filter add ADDR %pM\n",
+			   __func__, ctx.cmd.rx_filter_add.mac.addr);
+		nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
+		if ((lif->nucast + lif->nmcast) >= nfilters)
+			err = -ENOSPC;
+		break;
+	}
+
+	if (err != -ENOSPC)
+		err = ionic_adminq_post_wait_nomsg(lif, &ctx);
+
+	spin_lock_bh(&lif->rx_filters.lock);
+
+	if (err && err != -EEXIST) {
+		/* set the state back to NEW so we can try again later */
+		f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
+		if (f && f->state == IONIC_FILTER_STATE_SYNCED) {
+			f->state = IONIC_FILTER_STATE_NEW;
+
+			/* If -ENOSPC we won't waste time trying to sync again
+			 * until there is a delete that might make room
+			 */
+			if (err != -ENOSPC)
+				set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
+		}
+
+		spin_unlock_bh(&lif->rx_filters.lock);
+
+		if (err == -ENOSPC) {
+			if (le16_to_cpu(ctx.cmd.rx_filter_add.match) == IONIC_RX_FILTER_MATCH_VLAN)
+				lif->max_vlans = lif->nvlans;
+			return 0;
+		}
+
+		ionic_adminq_netdev_err_print(lif, ctx.cmd.cmd.opcode,
+					      ctx.comp.comp.status, err);
+		switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
+		case IONIC_RX_FILTER_MATCH_VLAN:
+			netdev_info(lif->netdev, "rx_filter add failed: VLAN %d\n",
+				    ctx.cmd.rx_filter_add.vlan.vlan);
+			break;
+		case IONIC_RX_FILTER_MATCH_MAC:
+			netdev_info(lif->netdev, "rx_filter add failed: ADDR %pM\n",
+				    ctx.cmd.rx_filter_add.mac.addr);
+			break;
+		}
+
+		return err;
+	}
+
+	switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
+	case IONIC_RX_FILTER_MATCH_VLAN:
+		lif->nvlans++;
+		break;
+	case IONIC_RX_FILTER_MATCH_MAC:
+		if (is_multicast_ether_addr(ctx.cmd.rx_filter_add.mac.addr))
+			lif->nmcast++;
+		else
+			lif->nucast++;
+		break;
+	}
+
+	f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);
+	if (f && f->state == IONIC_FILTER_STATE_OLD) {
+		/* Someone requested a delete while we were adding
+		 * so update the filter info with the results from the add
+		 * and the data will be there for the delete on the next
+		 * sync cycle.
+		 */
+		err = ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx,
+					   IONIC_FILTER_STATE_OLD);
+	} else {
+		err = ionic_rx_filter_save(lif, 0, IONIC_RXQ_INDEX_ANY, 0, &ctx,
+					   IONIC_FILTER_STATE_SYNCED);
+	}
+
+	spin_unlock_bh(&lif->rx_filters.lock);
+
+	return err;
+}
+
+int ionic_lif_addr_add(struct ionic_lif *lif, const u8 *addr)
+{
+	struct ionic_rx_filter_add_cmd ac = {
+		.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_MAC),
+	};
+
+	memcpy(&ac.mac.addr, addr, ETH_ALEN);
+
+	return ionic_lif_filter_add(lif, &ac);
+}
+
+int ionic_lif_vlan_add(struct ionic_lif *lif, const u16 vid)
+{
+	struct ionic_rx_filter_add_cmd ac = {
+		.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_VLAN),
+		.vlan.vlan = cpu_to_le16(vid),
+	};
+
+	return ionic_lif_filter_add(lif, &ac);
+}
+
+static int ionic_lif_filter_del(struct ionic_lif *lif,
+				struct ionic_rx_filter_add_cmd *ac)
+{
+	struct ionic_admin_ctx ctx = {
+		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
+		.cmd.rx_filter_del = {
+			.opcode = IONIC_CMD_RX_FILTER_DEL,
+			.lif_index = cpu_to_le16(lif->index),
+		},
+	};
+	struct ionic_rx_filter *f;
+	int state;
+	int err;
+
+	spin_lock_bh(&lif->rx_filters.lock);
+	f = ionic_rx_filter_find(lif, ac);
+	if (!f) {
+		spin_unlock_bh(&lif->rx_filters.lock);
+		return -ENOENT;
+	}
+
+	switch (le16_to_cpu(ac->match)) {
+	case IONIC_RX_FILTER_MATCH_VLAN:
+		netdev_dbg(lif->netdev, "%s: rx_filter del VLAN %d id %d\n",
+			   __func__, ac->vlan.vlan, f->filter_id);
+		lif->nvlans--;
+		break;
+	case IONIC_RX_FILTER_MATCH_MAC:
+		netdev_dbg(lif->netdev, "%s: rx_filter del ADDR %pM id %d\n",
+			   __func__, ac->mac.addr, f->filter_id);
+		if (is_multicast_ether_addr(ac->mac.addr) && lif->nmcast)
+			lif->nmcast--;
+		else if (!is_multicast_ether_addr(ac->mac.addr) && lif->nucast)
+			lif->nucast--;
+		break;
+	}
+
+	state = f->state;
+	ctx.cmd.rx_filter_del.filter_id = cpu_to_le32(f->filter_id);
+	ionic_rx_filter_free(lif, f);
+
+	spin_unlock_bh(&lif->rx_filters.lock);
+
+	if (state != IONIC_FILTER_STATE_NEW) {
+		err = ionic_adminq_post_wait(lif, &ctx);
+		if (err && err != -EEXIST)
+			return err;
+	}
+
+	return 0;
+}
+
+int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
+{
+	struct ionic_rx_filter_add_cmd ac = {
+		.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_MAC),
+	};
+
+	memcpy(&ac.mac.addr, addr, ETH_ALEN);
+
+	return ionic_lif_filter_del(lif, &ac);
+}
+
+int ionic_lif_vlan_del(struct ionic_lif *lif, const u16 vid)
+{
+	struct ionic_rx_filter_add_cmd ac = {
+		.match = cpu_to_le16(IONIC_RX_FILTER_MATCH_VLAN),
+		.vlan.vlan = cpu_to_le16(vid),
+	};
+
+	return ionic_lif_filter_del(lif, &ac);
 }
 
 struct sync_item {
@@ -340,14 +577,14 @@ loop_out:
 	 * they can clear room for some new filters
 	 */
 	list_for_each_entry_safe(sync_item, spos, &sync_del_list, list) {
-		(void)ionic_lif_addr_del(lif, sync_item->f.cmd.mac.addr);
+		(void)ionic_lif_filter_del(lif, &sync_item->f.cmd);
 
 		list_del(&sync_item->list);
 		devm_kfree(dev, sync_item);
 	}
 
 	list_for_each_entry_safe(sync_item, spos, &sync_add_list, list) {
-		(void)ionic_lif_addr_add(lif, sync_item->f.cmd.mac.addr);
+		(void)ionic_lif_filter_add(lif, &sync_item->f.cmd);
 
 		list_del(&sync_item->list);
 		devm_kfree(dev, sync_item);

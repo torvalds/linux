@@ -41,7 +41,7 @@ static int tcf_bpf_act(struct sk_buff *skb, const struct tc_action *act,
 	int action, filter_res;
 
 	tcf_lastuse_update(&prog->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(prog->common.cpu_bstats), skb);
+	bstats_update(this_cpu_ptr(prog->common.cpu_bstats), skb);
 
 	filter = rcu_dereference(prog->filter);
 	if (at_ingress) {

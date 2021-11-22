@@ -183,7 +183,7 @@ static int bcm_ns_usb3_mdio_phy_write(struct bcm_ns_usb3 *usb3, u16 reg,
 {
 	struct mdio_device *mdiodev = usb3->mdiodev;
 
-	return mdiobus_write(mdiodev->bus, mdiodev->addr, reg, value);
+	return mdiodev_write(mdiodev, reg, value);
 }
 
 static int bcm_ns_usb3_mdio_probe(struct mdio_device *mdiodev)

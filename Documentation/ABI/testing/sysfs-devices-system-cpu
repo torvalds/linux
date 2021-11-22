@@ -7,7 +7,7 @@ Description:
 		Individual CPU attributes are contained in subdirectories
 		named by the kernel's logical CPU number, e.g.:
 
-		/sys/devices/system/cpu/cpu#/
+		/sys/devices/system/cpu/cpuX/
 
 What:		/sys/devices/system/cpu/kernel_max
 		/sys/devices/system/cpu/offline
@@ -53,7 +53,7 @@ Description:	Dynamic addition and removal of CPU's.  This is not hotplug
 		the system.  Information written to the file to remove CPU's
 		is architecture specific.
 
-What:		/sys/devices/system/cpu/cpu#/node
+What:		/sys/devices/system/cpu/cpuX/node
 Date:		October 2009
 Contact:	Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Discover NUMA node a CPU belongs to
@@ -67,41 +67,41 @@ Description:	Discover NUMA node a CPU belongs to
 		/sys/devices/system/cpu/cpu42/node2 -> ../../node/node2
 
 
-What:		/sys/devices/system/cpu/cpu#/topology/core_id
-		/sys/devices/system/cpu/cpu#/topology/core_siblings
-		/sys/devices/system/cpu/cpu#/topology/core_siblings_list
-		/sys/devices/system/cpu/cpu#/topology/physical_package_id
-		/sys/devices/system/cpu/cpu#/topology/thread_siblings
-		/sys/devices/system/cpu/cpu#/topology/thread_siblings_list
+What:		/sys/devices/system/cpu/cpuX/topology/core_id
+		/sys/devices/system/cpu/cpuX/topology/core_siblings
+		/sys/devices/system/cpu/cpuX/topology/core_siblings_list
+		/sys/devices/system/cpu/cpuX/topology/physical_package_id
+		/sys/devices/system/cpu/cpuX/topology/thread_siblings
+		/sys/devices/system/cpu/cpuX/topology/thread_siblings_list
 Date:		December 2008
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	CPU topology files that describe a logical CPU's relationship
 		to other cores and threads in the same physical package.
 
-		One cpu# directory is created per logical CPU in the system,
+		One cpuX directory is created per logical CPU in the system,
 		e.g. /sys/devices/system/cpu/cpu42/.
 
 		Briefly, the files above are:
 
-		core_id: the CPU core ID of cpu#. Typically it is the
+		core_id: the CPU core ID of cpuX. Typically it is the
 		hardware platform's identifier (rather than the kernel's).
 		The actual value is architecture and platform dependent.
 
-		core_siblings: internal kernel map of cpu#'s hardware threads
+		core_siblings: internal kernel map of cpuX's hardware threads
 		within the same physical_package_id.
 
 		core_siblings_list: human-readable list of the logical CPU
-		numbers within the same physical_package_id as cpu#.
+		numbers within the same physical_package_id as cpuX.
 
-		physical_package_id: physical package id of cpu#. Typically
+		physical_package_id: physical package id of cpuX. Typically
 		corresponds to a physical socket number, but the actual value
 		is architecture and platform dependent.
 
-		thread_siblings: internal kernel map of cpu#'s hardware
-		threads within the same core as cpu#
+		thread_siblings: internal kernel map of cpuX's hardware
+		threads within the same core as cpuX
 
-		thread_siblings_list: human-readable list of cpu#'s hardware
-		threads within the same core as cpu#
+		thread_siblings_list: human-readable list of cpuX's hardware
+		threads within the same core as cpuX
 
 		See Documentation/admin-guide/cputopology.rst for more information.
 
@@ -135,7 +135,7 @@ Description:	Discover cpuidle policy and mechanism
 		Documentation/driver-api/pm/cpuidle.rst for more information.
 
 
-What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/name
+What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/name
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/latency
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/power
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/time
@@ -174,7 +174,7 @@ Description:
 			      (a count).
 		======== ==== =================================================
 
-What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/desc
+What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/desc
 Date:		February 2008
 KernelVersion:	v2.6.25
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
@@ -182,7 +182,7 @@ Description:
 		(RO) A small description about the idle state (string).
 
 
-What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/disable
+What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/disable
 Date:		March 2012
 KernelVersion:	v3.10
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
@@ -195,14 +195,14 @@ Description:
 		does not reflect it. Likewise, if one enables a deep state but a
 		lighter state still is disabled, then this has no effect.
 
-What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/default_status
+What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/default_status
 Date:		December 2019
 KernelVersion:	v5.6
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		(RO) The default status of this state, "enabled" or "disabled".
 
-What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/residency
+What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/residency
 Date:		March 2014
 KernelVersion:	v3.15
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
@@ -211,7 +211,7 @@ Description:
 		time (in microseconds) this cpu should spend in this idle state
 		to make the transition worth the effort.
 
-What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/s2idle/
+What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/s2idle/
 Date:		March 2018
 KernelVersion:	v4.17
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
@@ -221,7 +221,7 @@ Description:
 		This attribute group is only present for states that can be
 		used in suspend-to-idle with suspended timekeeping.
 
-What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/s2idle/time
+What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/s2idle/time
 Date:		March 2018
 KernelVersion:	v4.17
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
@@ -229,7 +229,7 @@ Description:
 		Total time spent by the CPU in suspend-to-idle (with scheduler
 		tick suspended) after requesting this state.
 
-What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/s2idle/usage
+What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/s2idle/usage
 Date:		March 2018
 KernelVersion:	v4.17
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
@@ -237,7 +237,7 @@ Description:
 		Total number of times this state has been requested by the CPU
 		while entering suspend-to-idle.
 
-What:		/sys/devices/system/cpu/cpu#/cpufreq/*
+What:		/sys/devices/system/cpu/cpuX/cpufreq/*
 Date:		pre-git history
 Contact:	linux-pm@vger.kernel.org
 Description:	Discover and change clock speed of CPUs
@@ -252,7 +252,7 @@ Description:	Discover and change clock speed of CPUs
 		See files in Documentation/cpu-freq/ for more information.
 
 
-What:		/sys/devices/system/cpu/cpu#/cpufreq/freqdomain_cpus
+What:		/sys/devices/system/cpu/cpuX/cpufreq/freqdomain_cpus
 Date:		June 2013
 Contact:	linux-pm@vger.kernel.org
 Description:	Discover CPUs in the same CPU frequency coordination domain
@@ -301,16 +301,16 @@ Description:	Processor frequency boosting control
 		Documentation/admin-guide/pm/cpufreq.rst
 
 
-What:		/sys/devices/system/cpu/cpu#/crash_notes
-		/sys/devices/system/cpu/cpu#/crash_notes_size
+What:		/sys/devices/system/cpu/cpuX/crash_notes
+		/sys/devices/system/cpu/cpuX/crash_notes_size
 Date:		April 2013
 Contact:	kexec@lists.infradead.org
 Description:	address and size of the percpu note.
 
 		crash_notes: the physical address of the memory that holds the
-		note of cpu#.
+		note of cpuX.
 
-		crash_notes_size: size of the note of cpu#.
+		crash_notes_size: size of the note of cpuX.
 
 
 What:		/sys/devices/system/cpu/intel_pstate/max_perf_pct
@@ -503,12 +503,12 @@ Description:	Identifies the subset of CPUs in the system that can execute
 		If absent, then all or none of the CPUs can execute AArch32
 		applications and execve() will behave accordingly.
 
-What:		/sys/devices/system/cpu/cpu#/cpu_capacity
+What:		/sys/devices/system/cpu/cpuX/cpu_capacity
 Date:		December 2016
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	information about CPUs heterogeneity.
 
-		cpu_capacity: capacity of cpu#.
+		cpu_capacity: capacity of cpuX.
 
 What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/meltdown
@@ -560,7 +560,7 @@ Description:	Control Symmetric Multi Threading (SMT)
 			 If control status is "forceoff" or "notsupported" writes
 			 are rejected.
 
-What:		/sys/devices/system/cpu/cpu#/power/energy_perf_bias
+What:		/sys/devices/system/cpu/cpuX/power/energy_perf_bias
 Date:		March 2019
 Contact:	linux-pm@vger.kernel.org
 Description:	Intel Energy and Performance Bias Hint (EPB)

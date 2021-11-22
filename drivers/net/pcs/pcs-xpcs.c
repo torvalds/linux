@@ -646,7 +646,7 @@ void xpcs_validate(struct dw_xpcs *xpcs, unsigned long *supported,
 	if (state->interface == PHY_INTERFACE_MODE_NA)
 		return;
 
-	bitmap_zero(xpcs_supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_zero(xpcs_supported);
 
 	compat = xpcs_find_compat(xpcs->id, state->interface);
 

@@ -13,6 +13,9 @@ description: |
   Simple audio multiplexers are driven using gpios, allowing to select which of
   their input line is connected to the output line.
 
+allOf:
+  - $ref: name-prefix.yaml#
+
 properties:
   compatible:
     const: simple-audio-mux
@@ -21,11 +24,7 @@ properties:
     description: |
       GPIOs used to select the input line.
 
-  sound-name-prefix:
-    $ref: /schemas/types.yaml#/definitions/string
-    description:
-      Used as prefix for sink/source names of the component. Must be a
-      unique string among multiple instances of the same component.
+  sound-name-prefix: true
 
 required:
   - compatible

@@ -303,7 +303,7 @@ static int ipheth_get_macaddr(struct ipheth_device *dev)
 			__func__, retval);
 		retval = -EINVAL;
 	} else {
-		memcpy(net->dev_addr, dev->ctrl_buf, ETH_ALEN);
+		eth_hw_addr_set(net, dev->ctrl_buf);
 		retval = 0;
 	}
 

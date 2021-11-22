@@ -211,9 +211,6 @@ static int mana_set_channels(struct net_device *ndev,
 	unsigned int old_count = apc->num_queues;
 	int err, err2;
 
-	if (!apc->port_is_up)
-		return -EOPNOTSUPP;
-
 	err = mana_detach(ndev, false);
 	if (err) {
 		netdev_err(ndev, "mana_detach failed: %d\n", err);

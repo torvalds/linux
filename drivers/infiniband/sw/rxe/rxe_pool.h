@@ -32,20 +32,6 @@ enum rxe_elem_type {
 
 struct rxe_pool_entry;
 
-struct rxe_type_info {
-	const char		*name;
-	size_t			size;
-	size_t			elem_offset;
-	void			(*cleanup)(struct rxe_pool_entry *obj);
-	enum rxe_pool_flags	flags;
-	u32			max_index;
-	u32			min_index;
-	size_t			key_offset;
-	size_t			key_size;
-};
-
-extern struct rxe_type_info rxe_type_info[];
-
 struct rxe_pool_entry {
 	struct rxe_pool		*pool;
 	struct kref		ref_cnt;
@@ -74,7 +60,6 @@ struct rxe_pool {
 	struct {
 		struct rb_root		tree;
 		unsigned long		*table;
-		size_t			table_size;
 		u32			last;
 		u32			max_index;
 		u32			min_index;

@@ -887,7 +887,7 @@ static void __ssp_add_console_port(struct sifive_serial_port *ssp)
 
 static void __ssp_remove_console_port(struct sifive_serial_port *ssp)
 {
-	sifive_serial_console_ports[ssp->port.line] = 0;
+	sifive_serial_console_ports[ssp->port.line] = NULL;
 }
 
 #define SIFIVE_SERIAL_CONSOLE	(&sifive_serial_console)

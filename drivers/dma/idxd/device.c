@@ -135,8 +135,6 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
 	int rc, num_descs, i;
-	int align;
-	u64 tmp;
 
 	if (wq->type != IDXD_WQT_KERNEL)
 		return 0;
@@ -148,20 +146,12 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	if (rc < 0)
 		return rc;
 
-	align = idxd->data->align;
-	wq->compls_size = num_descs * idxd->data->compl_size + align;
-	wq->compls_raw = dma_alloc_coherent(dev, wq->compls_size,
-					    &wq->compls_addr_raw, GFP_KERNEL);
-	if (!wq->compls_raw) {
+	wq->compls_size = num_descs * idxd->data->compl_size;
+	wq->compls = dma_alloc_coherent(dev, wq->compls_size, &wq->compls_addr, GFP_KERNEL);
+	if (!wq->compls) {
 		rc = -ENOMEM;
 		goto fail_alloc_compls;
 	}
-
-	/* Adjust alignment */
-	wq->compls_addr = (wq->compls_addr_raw + (align - 1)) & ~(align - 1);
-	tmp = (u64)wq->compls_raw;
-	tmp = (tmp + (align - 1)) & ~(align - 1);
-	wq->compls = (struct dsa_completion_record *)tmp;
 
 	rc = alloc_descs(wq, num_descs);
 	if (rc < 0)
@@ -191,8 +181,7 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
  fail_sbitmap_init:
 	free_descs(wq);
  fail_alloc_descs:
-	dma_free_coherent(dev, wq->compls_size, wq->compls_raw,
-			  wq->compls_addr_raw);
+	dma_free_coherent(dev, wq->compls_size, wq->compls, wq->compls_addr);
  fail_alloc_compls:
 	free_hw_descs(wq);
 	return rc;
@@ -207,8 +196,7 @@ void idxd_wq_free_resources(struct idxd_wq *wq)
 
 	free_hw_descs(wq);
 	free_descs(wq);
-	dma_free_coherent(dev, wq->compls_size, wq->compls_raw,
-			  wq->compls_addr_raw);
+	dma_free_coherent(dev, wq->compls_size, wq->compls, wq->compls_addr);
 	sbitmap_queue_free(&wq->sbq);
 }
 
@@ -427,7 +415,6 @@ void idxd_wq_quiesce(struct idxd_wq *wq)
 {
 	percpu_ref_kill(&wq->wq_active);
 	wait_for_completion(&wq->wq_dead);
-	percpu_ref_exit(&wq->wq_active);
 }
 
 /* Device control bits */
@@ -584,6 +571,8 @@ void idxd_device_reset(struct idxd_device *idxd)
 	spin_lock(&idxd->dev_lock);
 	idxd_device_clear_state(idxd);
 	idxd->state = IDXD_DEV_DISABLED;
+	idxd_unmask_error_interrupts(idxd);
+	idxd_msix_perm_setup(idxd);
 	spin_unlock(&idxd->dev_lock);
 }
 
@@ -792,7 +781,7 @@ static int idxd_groups_config_write(struct idxd_device *idxd)
 	struct device *dev = &idxd->pdev->dev;
 
 	/* Setup bandwidth token limit */
-	if (idxd->token_limit) {
+	if (idxd->hw.gen_cap.config_en && idxd->token_limit) {
 		reg.bits = ioread32(idxd->reg_base + IDXD_GENCFG_OFFSET);
 		reg.token_limit = idxd->token_limit;
 		iowrite32(reg.bits, idxd->reg_base + IDXD_GENCFG_OFFSET);
@@ -1051,8 +1040,6 @@ static int idxd_wq_load_config(struct idxd_wq *wq)
 
 	wq->size = wq->wqcfg->wq_size;
 	wq->threshold = wq->wqcfg->wq_thresh;
-	if (wq->wqcfg->priv)
-		wq->type = IDXD_WQT_KERNEL;
 
 	/* The driver does not support shared WQ mode in read-only config yet */
 	if (wq->wqcfg->mode == 0 || wq->wqcfg->pasid_en)

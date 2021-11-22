@@ -14,7 +14,7 @@ static int regmap_mdio_read(struct mdio_device *mdio_dev, u32 reg, unsigned int 
 {
 	int ret;
 
-	ret = mdiobus_read(mdio_dev->bus, mdio_dev->addr, reg);
+	ret = mdiodev_read(mdio_dev, reg);
 	if (ret < 0)
 		return ret;
 
@@ -24,7 +24,7 @@ static int regmap_mdio_read(struct mdio_device *mdio_dev, u32 reg, unsigned int 
 
 static int regmap_mdio_write(struct mdio_device *mdio_dev, u32 reg, unsigned int val)
 {
-	return mdiobus_write(mdio_dev->bus, mdio_dev->addr, reg, val);
+	return mdiodev_write(mdio_dev, reg, val);
 }
 
 static int regmap_mdio_c22_read(void *context, unsigned int reg, unsigned int *val)
@@ -44,7 +44,7 @@ static int regmap_mdio_c22_write(void *context, unsigned int reg, unsigned int v
 	if (unlikely(reg & ~REGNUM_C22_MASK))
 		return -ENXIO;
 
-	return mdiobus_write(mdio_dev->bus, mdio_dev->addr, reg, val);
+	return mdiodev_write(mdio_dev, reg, val);
 }
 
 static const struct regmap_bus regmap_mdio_c22_bus = {

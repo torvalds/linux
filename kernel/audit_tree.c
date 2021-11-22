@@ -30,7 +30,7 @@ struct audit_chunk {
 	int count;
 	atomic_long_t refs;
 	struct rcu_head head;
-	struct node {
+	struct audit_node {
 		struct list_head list;
 		struct audit_tree *owner;
 		unsigned index;		/* index; upper bit indicates 'will prune' */
@@ -269,7 +269,7 @@ bool audit_tree_match(struct audit_chunk *chunk, struct audit_tree *tree)
 
 /* tagging and untagging inodes with trees */
 
-static struct audit_chunk *find_chunk(struct node *p)
+static struct audit_chunk *find_chunk(struct audit_node *p)
 {
 	int index = p->index & ~(1U<<31);
 	p -= index;
@@ -322,7 +322,7 @@ static void replace_chunk(struct audit_chunk *new, struct audit_chunk *old)
 	list_replace_rcu(&old->hash, &new->hash);
 }
 
-static void remove_chunk_node(struct audit_chunk *chunk, struct node *p)
+static void remove_chunk_node(struct audit_chunk *chunk, struct audit_node *p)
 {
 	struct audit_tree *owner = p->owner;
 
@@ -459,7 +459,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 {
 	struct fsnotify_mark *mark;
 	struct audit_chunk *chunk, *old;
-	struct node *p;
+	struct audit_node *p;
 	int n;
 
 	mutex_lock(&audit_tree_group->mark_mutex);
@@ -570,11 +570,11 @@ static void prune_tree_chunks(struct audit_tree *victim, bool tagged)
 {
 	spin_lock(&hash_lock);
 	while (!list_empty(&victim->chunks)) {
-		struct node *p;
+		struct audit_node *p;
 		struct audit_chunk *chunk;
 		struct fsnotify_mark *mark;
 
-		p = list_first_entry(&victim->chunks, struct node, list);
+		p = list_first_entry(&victim->chunks, struct audit_node, list);
 		/* have we run out of marked? */
 		if (tagged && !(p->index & (1U<<31)))
 			break;
@@ -616,7 +616,7 @@ static void trim_marked(struct audit_tree *tree)
 	}
 	/* reorder */
 	for (p = tree->chunks.next; p != &tree->chunks; p = q) {
-		struct node *node = list_entry(p, struct node, list);
+		struct audit_node *node = list_entry(p, struct audit_node, list);
 		q = p->next;
 		if (node->index & (1U<<31)) {
 			list_del_init(p);
@@ -684,7 +684,7 @@ void audit_trim_trees(void)
 		struct audit_tree *tree;
 		struct path path;
 		struct vfsmount *root_mnt;
-		struct node *node;
+		struct audit_node *node;
 		int err;
 
 		tree = container_of(cursor.next, struct audit_tree, list);
@@ -726,7 +726,8 @@ int audit_make_tree(struct audit_krule *rule, char *pathname, u32 op)
 {
 
 	if (pathname[0] != '/' ||
-	    rule->listnr != AUDIT_FILTER_EXIT ||
+	    (rule->listnr != AUDIT_FILTER_EXIT &&
+	     rule->listnr != AUDIT_FILTER_URING_EXIT) ||
 	    op != Audit_equal ||
 	    rule->inode_f || rule->watch || rule->tree)
 		return -EINVAL;
@@ -839,7 +840,7 @@ int audit_add_tree_rule(struct audit_krule *rule)
 	drop_collected_mounts(mnt);
 
 	if (!err) {
-		struct node *node;
+		struct audit_node *node;
 		spin_lock(&hash_lock);
 		list_for_each_entry(node, &tree->chunks, list)
 			node->index &= ~(1U<<31);
@@ -938,7 +939,7 @@ int audit_tag_tree(char *old, char *new)
 		mutex_unlock(&audit_filter_mutex);
 
 		if (!failed) {
-			struct node *node;
+			struct audit_node *node;
 			spin_lock(&hash_lock);
 			list_for_each_entry(node, &tree->chunks, list)
 				node->index &= ~(1U<<31);

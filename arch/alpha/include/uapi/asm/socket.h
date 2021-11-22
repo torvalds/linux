@@ -131,6 +131,8 @@
 
 #define SO_BUF_LOCK		72
 
+#define SO_RESERVE_MEM		73
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

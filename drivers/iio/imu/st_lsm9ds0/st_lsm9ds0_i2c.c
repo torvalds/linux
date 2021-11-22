@@ -64,18 +64,12 @@ static int st_lsm9ds0_i2c_probe(struct i2c_client *client)
 	return st_lsm9ds0_probe(lsm9ds0, regmap);
 }
 
-static int st_lsm9ds0_i2c_remove(struct i2c_client *client)
-{
-	return st_lsm9ds0_remove(i2c_get_clientdata(client));
-}
-
 static struct i2c_driver st_lsm9ds0_driver = {
 	.driver = {
 		.name = "st-lsm9ds0-i2c",
 		.of_match_table = st_lsm9ds0_of_match,
 	},
 	.probe_new = st_lsm9ds0_i2c_probe,
-	.remove = st_lsm9ds0_i2c_remove,
 	.id_table = st_lsm9ds0_id_table,
 };
 module_i2c_driver(st_lsm9ds0_driver);

@@ -75,7 +75,7 @@ static __always_inline int fill_fib_params_v6(struct __sk_buff *skb,
 	return 0;
 }
 
-SEC("classifier/chk_egress")
+SEC("tc")
 int tc_chk(struct __sk_buff *skb)
 {
 	void *data_end = ctx_ptr(skb->data_end);
@@ -143,13 +143,13 @@ static __always_inline int tc_redir(struct __sk_buff *skb)
 /* these are identical, but keep them separate for compatibility with the
  * section names expected by test_tc_redirect.sh
  */
-SEC("classifier/dst_ingress")
+SEC("tc")
 int tc_dst(struct __sk_buff *skb)
 {
 	return tc_redir(skb);
 }
 
-SEC("classifier/src_ingress")
+SEC("tc")
 int tc_src(struct __sk_buff *skb)
 {
 	return tc_redir(skb);

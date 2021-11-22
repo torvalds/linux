@@ -13,10 +13,10 @@
  */
 
 #ifdef __GNUC__
-#ifdef __clang__
-#define PRINTF(i, j)	__attribute__((format (printf, i, j)))
-#else
+#if __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
 #define PRINTF(i, j)	__attribute__((format (gnu_printf, i, j)))
+#else
+#define PRINTF(i, j)	__attribute__((format (printf, i, j)))
 #endif
 #define NORETURN	__attribute__((noreturn))
 #else

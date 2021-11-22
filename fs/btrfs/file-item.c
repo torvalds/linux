@@ -358,7 +358,7 @@ static int search_file_offset_in_bio(struct bio *bio, struct inode *inode,
  * @dst: Buffer of size nblocks * btrfs_super_csum_size() used to return
  *       checksum (nblocks = bio->bi_iter.bi_size / fs_info->sectorsize). If
  *       NULL, the checksum buffer is allocated and returned in
- *       btrfs_io_bio(bio)->csum instead.
+ *       btrfs_bio(bio)->csum instead.
  *
  * Return: BLK_STS_RESOURCE if allocating memory fails, BLK_STS_OK otherwise.
  */
@@ -397,19 +397,18 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio, u8 *dst
 		return BLK_STS_RESOURCE;
 
 	if (!dst) {
-		struct btrfs_io_bio *btrfs_bio = btrfs_io_bio(bio);
+		struct btrfs_bio *bbio = btrfs_bio(bio);
 
 		if (nblocks * csum_size > BTRFS_BIO_INLINE_CSUM_SIZE) {
-			btrfs_bio->csum = kmalloc_array(nblocks, csum_size,
-							GFP_NOFS);
-			if (!btrfs_bio->csum) {
+			bbio->csum = kmalloc_array(nblocks, csum_size, GFP_NOFS);
+			if (!bbio->csum) {
 				btrfs_free_path(path);
 				return BLK_STS_RESOURCE;
 			}
 		} else {
-			btrfs_bio->csum = btrfs_bio->csum_inline;
+			bbio->csum = bbio->csum_inline;
 		}
-		csum = btrfs_bio->csum;
+		csum = bbio->csum;
 	} else {
 		csum = dst;
 	}
@@ -709,12 +708,12 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_inode *inode, struct bio *bio,
 				index = 0;
 			}
 
-			data = kmap_atomic(bvec.bv_page);
-			crypto_shash_digest(shash, data + bvec.bv_offset
-					    + (i * fs_info->sectorsize),
+			data = bvec_kmap_local(&bvec);
+			crypto_shash_digest(shash,
+					    data + (i * fs_info->sectorsize),
 					    fs_info->sectorsize,
 					    sums->sums + index);
-			kunmap_atomic(data);
+			kunmap_local(data);
 			index += fs_info->csum_size;
 			offset += fs_info->sectorsize;
 			this_sum_bytes += fs_info->sectorsize;

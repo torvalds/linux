@@ -114,6 +114,8 @@ qed_iwarp_init_fw_ramrod(struct qed_hwfn *p_hwfn,
 	    RESC_START(p_hwfn, QED_LL2_RAM_QUEUE) +
 	    p_hwfn->p_rdma_info->iwarp.ll2_ooo_handle;
 
+	p_ramrod->tcp.tx_sws_timer = cpu_to_le16(QED_TX_SWS_TIMER_DFLT);
+	p_ramrod->tcp.two_msl_timer = cpu_to_le32(QED_TWO_MSL_TIMER_DFLT);
 	p_ramrod->tcp.max_fin_rt = QED_IWARP_MAX_FIN_RT_DEFAULT;
 
 	return;

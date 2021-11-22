@@ -35,6 +35,8 @@ struct cp_psp_stream_config {
 	uint8_t link_enc_idx;
 	uint8_t stream_enc_idx;
 	uint8_t phy_idx;
+	uint8_t dio_output_idx;
+	uint8_t dio_output_type;
 	uint8_t assr_enabled;
 	uint8_t mst_enabled;
 	uint8_t dp2_enabled;

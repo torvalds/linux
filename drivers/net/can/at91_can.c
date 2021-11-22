@@ -1170,9 +1170,9 @@ static ssize_t mb0_id_show(struct device *dev,
 	struct at91_priv *priv = netdev_priv(to_net_dev(dev));
 
 	if (priv->mb0_id & CAN_EFF_FLAG)
-		return snprintf(buf, PAGE_SIZE, "0x%08x\n", priv->mb0_id);
+		return sysfs_emit(buf, "0x%08x\n", priv->mb0_id);
 	else
-		return snprintf(buf, PAGE_SIZE, "0x%03x\n", priv->mb0_id);
+		return sysfs_emit(buf, "0x%03x\n", priv->mb0_id);
 }
 
 static ssize_t mb0_id_store(struct device *dev,

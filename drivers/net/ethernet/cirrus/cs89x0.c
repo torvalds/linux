@@ -1227,7 +1227,7 @@ static int set_mac_address(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	cs89_dbg(0, debug, "%s: Setting MAC address to %pM\n",
 		 dev->name, dev->dev_addr);
@@ -1314,6 +1314,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 	int tmp;
 	unsigned rev_type = 0;
 	int eeprom_buff[CHKSUM_LEN];
+	u8 addr[ETH_ALEN];
 	int retval;
 
 	/* Initialize the device structure. */
@@ -1387,9 +1388,10 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		for (i = 0; i < ETH_ALEN / 2; i++) {
 			unsigned int Addr;
 			Addr = readreg(dev, PP_IA + i * 2);
-			dev->dev_addr[i * 2] = Addr & 0xFF;
-			dev->dev_addr[i * 2 + 1] = Addr >> 8;
+			addr[i * 2] = Addr & 0xFF;
+			addr[i * 2 + 1] = Addr >> 8;
 		}
+		eth_hw_addr_set(dev, addr);
 
 		/* Load the Adapter Configuration.
 		 * Note:  Barring any more specific information from some
@@ -1464,9 +1466,10 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		/* eeprom_buff has 32-bit ints, so we can't just memcpy it */
 		/* store the initial memory base address */
 		for (i = 0; i < ETH_ALEN / 2; i++) {
-			dev->dev_addr[i * 2] = eeprom_buff[i];
-			dev->dev_addr[i * 2 + 1] = eeprom_buff[i] >> 8;
+			addr[i * 2] = eeprom_buff[i];
+			addr[i * 2 + 1] = eeprom_buff[i] >> 8;
 		}
+		eth_hw_addr_set(dev, addr);
 		cs89_dbg(1, debug, "%s: new adapter_cnf: 0x%x\n",
 			 dev->name, lp->adapter_cnf);
 	}

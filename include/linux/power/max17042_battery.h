@@ -78,7 +78,7 @@ enum max17042_register {
 	MAX17042_T_empty	= 0x34,
 
 	MAX17042_FullCAP0       = 0x35,
-	MAX17042_LAvg_empty	= 0x36,
+	MAX17042_IAvg_empty	= 0x36,
 	MAX17042_FCTC		= 0x37,
 	MAX17042_RCOMP0		= 0x38,
 	MAX17042_TempCo		= 0x39,
@@ -221,7 +221,7 @@ struct max17042_config_data {
 	u16	fullcap;	/* 0x10 */
 	u16	fullcapnom;	/* 0x23 */
 	u16	socempty;	/* 0x33 */
-	u16	lavg_empty;	/* 0x36 */
+	u16	iavg_empty;	/* 0x36 */
 	u16	dqacc;		/* 0x45 */
 	u16	dpacc;		/* 0x46 */
 	u16	qrtbl00;	/* 0x12 */

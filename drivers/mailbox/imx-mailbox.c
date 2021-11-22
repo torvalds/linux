@@ -5,6 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/firmware/imx/ipc.h>
+#include <linux/firmware/imx/s4.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -18,6 +19,8 @@
 #define IMX_MU_CHANS		16
 /* TX0/RX0/RXDB[0-3] */
 #define IMX_MU_SCU_CHANS	6
+/* TX0/RX0 */
+#define IMX_MU_S4_CHANS		2
 #define IMX_MU_CHAN_NAME_SIZE	20
 
 enum imx_mu_chan_type {
@@ -47,6 +50,11 @@ struct imx_sc_rpc_msg_max {
 	u32 data[7];
 };
 
+struct imx_s4_rpc_msg_max {
+	struct imx_s4_rpc_msg hdr;
+	u32 data[254];
+};
+
 struct imx_mu_con_priv {
 	unsigned int		idx;
 	char			irq_desc[IMX_MU_CHAN_NAME_SIZE];
@@ -58,6 +66,7 @@ struct imx_mu_con_priv {
 struct imx_mu_priv {
 	struct device		*dev;
 	void __iomem		*base;
+	void			*msg;
 	spinlock_t		xcr_lock; /* control register lock */
 
 	struct mbox_controller	mbox;
@@ -75,7 +84,8 @@ struct imx_mu_priv {
 
 enum imx_mu_type {
 	IMX_MU_V1,
-	IMX_MU_V2,
+	IMX_MU_V2 = BIT(1),
+	IMX_MU_V2_S4 = BIT(15),
 };
 
 struct imx_mu_dcfg {
@@ -89,18 +99,18 @@ struct imx_mu_dcfg {
 	u32	xCR[4];		/* Control Registers */
 };
 
-#define IMX_MU_xSR_GIPn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(28 + (3 - (x))))
-#define IMX_MU_xSR_RFn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(24 + (3 - (x))))
-#define IMX_MU_xSR_TEn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(20 + (3 - (x))))
+#define IMX_MU_xSR_GIPn(type, x) (type & IMX_MU_V2 ? BIT(x) : BIT(28 + (3 - (x))))
+#define IMX_MU_xSR_RFn(type, x) (type & IMX_MU_V2 ? BIT(x) : BIT(24 + (3 - (x))))
+#define IMX_MU_xSR_TEn(type, x) (type & IMX_MU_V2 ? BIT(x) : BIT(20 + (3 - (x))))
 
 /* General Purpose Interrupt Enable */
-#define IMX_MU_xCR_GIEn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(28 + (3 - (x))))
+#define IMX_MU_xCR_GIEn(type, x) (type & IMX_MU_V2 ? BIT(x) : BIT(28 + (3 - (x))))
 /* Receive Interrupt Enable */
-#define IMX_MU_xCR_RIEn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(24 + (3 - (x))))
+#define IMX_MU_xCR_RIEn(type, x) (type & IMX_MU_V2 ? BIT(x) : BIT(24 + (3 - (x))))
 /* Transmit Interrupt Enable */
-#define IMX_MU_xCR_TIEn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(20 + (3 - (x))))
+#define IMX_MU_xCR_TIEn(type, x) (type & IMX_MU_V2 ? BIT(x) : BIT(20 + (3 - (x))))
 /* General Purpose Interrupt Request */
-#define IMX_MU_xCR_GIRn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(16 + (3 - (x))))
+#define IMX_MU_xCR_GIRn(type, x) (type & IMX_MU_V2 ? BIT(x) : BIT(16 + (3 - (x))))
 
 
 static struct imx_mu_priv *to_imx_mu_priv(struct mbox_controller *mbox)
@@ -167,14 +177,22 @@ static int imx_mu_generic_rx(struct imx_mu_priv *priv,
 	return 0;
 }
 
-static int imx_mu_scu_tx(struct imx_mu_priv *priv,
-			 struct imx_mu_con_priv *cp,
-			 void *data)
+static int imx_mu_specific_tx(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp, void *data)
 {
-	struct imx_sc_rpc_msg_max *msg = data;
 	u32 *arg = data;
 	int i, ret;
 	u32 xsr;
+	u32 size, max_size, num_tr;
+
+	if (priv->dcfg->type & IMX_MU_V2_S4) {
+		size = ((struct imx_s4_rpc_msg_max *)data)->hdr.size;
+		max_size = sizeof(struct imx_s4_rpc_msg_max);
+		num_tr = 8;
+	} else {
+		size = ((struct imx_sc_rpc_msg_max *)data)->hdr.size;
+		max_size = sizeof(struct imx_sc_rpc_msg_max);
+		num_tr = 4;
+	}
 
 	switch (cp->type) {
 	case IMX_MU_TYPE_TX:
@@ -183,27 +201,27 @@ static int imx_mu_scu_tx(struct imx_mu_priv *priv,
 		 * sizeof yields bytes.
 		 */
 
-		if (msg->hdr.size > sizeof(*msg) / 4) {
+		if (size > max_size / 4) {
 			/*
 			 * The real message size can be different to
-			 * struct imx_sc_rpc_msg_max size
+			 * struct imx_sc_rpc_msg_max/imx_s4_rpc_msg_max size
 			 */
-			dev_err(priv->dev, "Maximal message size (%zu bytes) exceeded on TX; got: %i bytes\n", sizeof(*msg), msg->hdr.size << 2);
+			dev_err(priv->dev, "Maximal message size (%u bytes) exceeded on TX; got: %i bytes\n", max_size, size << 2);
 			return -EINVAL;
 		}
 
-		for (i = 0; i < 4 && i < msg->hdr.size; i++)
-			imx_mu_write(priv, *arg++, priv->dcfg->xTR + (i % 4) * 4);
-		for (; i < msg->hdr.size; i++) {
+		for (i = 0; i < num_tr && i < size; i++)
+			imx_mu_write(priv, *arg++, priv->dcfg->xTR + (i % num_tr) * 4);
+		for (; i < size; i++) {
 			ret = readl_poll_timeout(priv->base + priv->dcfg->xSR[IMX_MU_TSR],
 						 xsr,
-						 xsr & IMX_MU_xSR_TEn(priv->dcfg->type, i % 4),
+						 xsr & IMX_MU_xSR_TEn(priv->dcfg->type, i % num_tr),
 						 0, 100);
 			if (ret) {
 				dev_err(priv->dev, "Send data index: %d timeout\n", i);
 				return ret;
 			}
-			imx_mu_write(priv, *arg++, priv->dcfg->xTR + (i % 4) * 4);
+			imx_mu_write(priv, *arg++, priv->dcfg->xTR + (i % num_tr) * 4);
 		}
 
 		imx_mu_xcr_rmw(priv, IMX_MU_TCR, IMX_MU_xCR_TIEn(priv->dcfg->type, cp->idx), 0);
@@ -216,23 +234,32 @@ static int imx_mu_scu_tx(struct imx_mu_priv *priv,
 	return 0;
 }
 
-static int imx_mu_scu_rx(struct imx_mu_priv *priv,
-			 struct imx_mu_con_priv *cp)
+static int imx_mu_specific_rx(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp)
 {
-	struct imx_sc_rpc_msg_max msg;
-	u32 *data = (u32 *)&msg;
+	u32 *data;
 	int i, ret;
 	u32 xsr;
+	u32 size, max_size;
+
+	data = (u32 *)priv->msg;
 
 	imx_mu_xcr_rmw(priv, IMX_MU_RCR, 0, IMX_MU_xCR_RIEn(priv->dcfg->type, 0));
 	*data++ = imx_mu_read(priv, priv->dcfg->xRR);
 
-	if (msg.hdr.size > sizeof(msg) / 4) {
-		dev_err(priv->dev, "Maximal message size (%zu bytes) exceeded on RX; got: %i bytes\n", sizeof(msg), msg.hdr.size << 2);
+	if (priv->dcfg->type & IMX_MU_V2_S4) {
+		size = ((struct imx_s4_rpc_msg_max *)priv->msg)->hdr.size;
+		max_size = sizeof(struct imx_s4_rpc_msg_max);
+	} else {
+		size = ((struct imx_sc_rpc_msg_max *)priv->msg)->hdr.size;
+		max_size = sizeof(struct imx_sc_rpc_msg_max);
+	}
+
+	if (size > max_size / 4) {
+		dev_err(priv->dev, "Maximal message size (%u bytes) exceeded on RX; got: %i bytes\n", max_size, size << 2);
 		return -EINVAL;
 	}
 
-	for (i = 1; i < msg.hdr.size; i++) {
+	for (i = 1; i < size; i++) {
 		ret = readl_poll_timeout(priv->base + priv->dcfg->xSR[IMX_MU_RSR], xsr,
 					 xsr & IMX_MU_xSR_RFn(priv->dcfg->type, i % 4), 0, 100);
 		if (ret) {
@@ -243,7 +270,7 @@ static int imx_mu_scu_rx(struct imx_mu_priv *priv,
 	}
 
 	imx_mu_xcr_rmw(priv, IMX_MU_RCR, IMX_MU_xCR_RIEn(priv->dcfg->type, 0), 0);
-	mbox_chan_received_data(cp->chan, (void *)&msg);
+	mbox_chan_received_data(cp->chan, (void *)priv->msg);
 
 	return 0;
 }
@@ -394,8 +421,8 @@ static const struct mbox_chan_ops imx_mu_ops = {
 	.shutdown = imx_mu_shutdown,
 };
 
-static struct mbox_chan *imx_mu_scu_xlate(struct mbox_controller *mbox,
-					  const struct of_phandle_args *sp)
+static struct mbox_chan *imx_mu_specific_xlate(struct mbox_controller *mbox,
+					       const struct of_phandle_args *sp)
 {
 	u32 type, idx, chan;
 
@@ -478,11 +505,12 @@ static void imx_mu_init_generic(struct imx_mu_priv *priv)
 		imx_mu_write(priv, 0, priv->dcfg->xCR[i]);
 }
 
-static void imx_mu_init_scu(struct imx_mu_priv *priv)
+static void imx_mu_init_specific(struct imx_mu_priv *priv)
 {
 	unsigned int i;
+	int num_chans = priv->dcfg->type & IMX_MU_V2_S4 ? IMX_MU_S4_CHANS : IMX_MU_SCU_CHANS;
 
-	for (i = 0; i < IMX_MU_SCU_CHANS; i++) {
+	for (i = 0; i < num_chans; i++) {
 		struct imx_mu_con_priv *cp = &priv->con_priv[i];
 
 		cp->idx = i < 2 ? 0 : i - 2;
@@ -493,8 +521,8 @@ static void imx_mu_init_scu(struct imx_mu_priv *priv)
 			 "imx_mu_chan[%i-%i]", cp->type, cp->idx);
 	}
 
-	priv->mbox.num_chans = IMX_MU_SCU_CHANS;
-	priv->mbox.of_xlate = imx_mu_scu_xlate;
+	priv->mbox.num_chans = num_chans;
+	priv->mbox.of_xlate = imx_mu_specific_xlate;
 
 	/* Set default MU configuration */
 	for (i = 0; i < IMX_MU_xCR_MAX; i++)
@@ -508,6 +536,7 @@ static int imx_mu_probe(struct platform_device *pdev)
 	struct imx_mu_priv *priv;
 	const struct imx_mu_dcfg *dcfg;
 	int ret;
+	u32 size;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -527,6 +556,15 @@ static int imx_mu_probe(struct platform_device *pdev)
 	if (!dcfg)
 		return -EINVAL;
 	priv->dcfg = dcfg;
+
+	if (priv->dcfg->type & IMX_MU_V2_S4)
+		size = sizeof(struct imx_s4_rpc_msg_max);
+	else
+		size = sizeof(struct imx_sc_rpc_msg_max);
+
+	priv->msg = devm_kzalloc(dev, size, GFP_KERNEL);
+	if (IS_ERR(priv->msg))
+		return PTR_ERR(priv->msg);
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -623,10 +661,21 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx8ulp = {
 	.xCR	= {0x110, 0x114, 0x120, 0x128},
 };
 
+static const struct imx_mu_dcfg imx_mu_cfg_imx8ulp_s4 = {
+	.tx	= imx_mu_specific_tx,
+	.rx	= imx_mu_specific_rx,
+	.init	= imx_mu_init_specific,
+	.type	= IMX_MU_V2 | IMX_MU_V2_S4,
+	.xTR	= 0x200,
+	.xRR	= 0x280,
+	.xSR	= {0xC, 0x118, 0x124, 0x12C},
+	.xCR	= {0x110, 0x114, 0x120, 0x128},
+};
+
 static const struct imx_mu_dcfg imx_mu_cfg_imx8_scu = {
-	.tx	= imx_mu_scu_tx,
-	.rx	= imx_mu_scu_rx,
-	.init	= imx_mu_init_scu,
+	.tx	= imx_mu_specific_tx,
+	.rx	= imx_mu_specific_rx,
+	.init	= imx_mu_init_specific,
 	.xTR	= 0x0,
 	.xRR	= 0x10,
 	.xSR	= {0x20, 0x20, 0x20, 0x20},
@@ -637,6 +686,7 @@ static const struct of_device_id imx_mu_dt_ids[] = {
 	{ .compatible = "fsl,imx7ulp-mu", .data = &imx_mu_cfg_imx7ulp },
 	{ .compatible = "fsl,imx6sx-mu", .data = &imx_mu_cfg_imx6sx },
 	{ .compatible = "fsl,imx8ulp-mu", .data = &imx_mu_cfg_imx8ulp },
+	{ .compatible = "fsl,imx8ulp-mu-s4", .data = &imx_mu_cfg_imx8ulp_s4 },
 	{ .compatible = "fsl,imx8-mu-scu", .data = &imx_mu_cfg_imx8_scu },
 	{ },
 };

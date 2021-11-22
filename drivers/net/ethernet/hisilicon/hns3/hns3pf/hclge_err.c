@@ -1243,6 +1243,9 @@ static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 		.module_id = MODULE_MASTER,
 		.msg = "MODULE_MASTER"
 	}, {
+		.module_id = MODULE_HIMAC,
+		.msg = "MODULE_HIMAC"
+	}, {
 		.module_id = MODULE_ROCEE_TOP,
 		.msg = "MODULE_ROCEE_TOP"
 	}, {
@@ -1316,12 +1319,21 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 		.type_id = GLB_ERROR,
 		.msg = "glb_error"
 	}, {
+		.type_id = LINK_ERROR,
+		.msg = "link_error"
+	}, {
+		.type_id = PTP_ERROR,
+		.msg = "ptp_error"
+	}, {
 		.type_id = ROCEE_NORMAL_ERR,
 		.msg = "rocee_normal_error"
 	}, {
 		.type_id = ROCEE_OVF_ERR,
 		.msg = "rocee_ovf_error"
-	}
+	}, {
+		.type_id = ROCEE_BUS_ERR,
+		.msg = "rocee_bus_error"
+	},
 };
 
 static void hclge_log_error(struct device *dev, char *reg,

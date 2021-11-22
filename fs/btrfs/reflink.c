@@ -138,7 +138,7 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	}
 
 	btrfs_page_set_uptodate(fs_info, page, file_offset, block_size);
-	ClearPageChecked(page);
+	btrfs_page_clear_checked(fs_info, page, file_offset, block_size);
 	btrfs_page_set_dirty(fs_info, page, file_offset, block_size);
 out_unlock:
 	if (page) {
@@ -649,7 +649,7 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 			     struct inode *dst, u64 dst_loff)
 {
-	int ret;
+	int ret = 0;
 	u64 i, tail_len, chunk_count;
 	struct btrfs_root *root_dst = BTRFS_I(dst)->root;
 

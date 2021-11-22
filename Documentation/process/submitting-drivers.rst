@@ -185,7 +185,7 @@ Linux USB project:
 	http://www.linux-usb.org/
 
 How to NOT write kernel driver by Arjan van de Ven:
-	http://www.fenrus.org/how-to-not-write-a-device-driver-paper.pdf
+	https://landley.net/kdocs/ols/2002/ols2002-pages-545-555.pdf
 
 Kernel Janitor:
 	https://kernelnewbies.org/KernelJanitors

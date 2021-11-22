@@ -352,7 +352,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 	} else { /* echo_id == hf->echo_id */
 		if (hf->echo_id >= GS_MAX_TX_URBS) {
 			netdev_err(netdev,
-				   "Unexpected out of range echo id %d\n",
+				   "Unexpected out of range echo id %u\n",
 				   hf->echo_id);
 			goto resubmit_urb;
 		}
@@ -365,7 +365,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 		/* bad devices send bad echo_ids. */
 		if (!txc) {
 			netdev_err(netdev,
-				   "Unexpected unused echo id %d\n",
+				   "Unexpected unused echo id %u\n",
 				   hf->echo_id);
 			goto resubmit_urb;
 		}
@@ -458,7 +458,7 @@ static void gs_usb_xmit_callback(struct urb *urb)
 	struct net_device *netdev = dev->netdev;
 
 	if (urb->status)
-		netdev_info(netdev, "usb xmit fail %d\n", txc->echo_id);
+		netdev_info(netdev, "usb xmit fail %u\n", txc->echo_id);
 
 	usb_free_coherent(urb->dev,
 			  urb->transfer_buffer_length,
@@ -501,7 +501,7 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 	idx = txc->echo_id;
 
 	if (idx >= GS_MAX_TX_URBS) {
-		netdev_err(netdev, "Invalid tx context %d\n", idx);
+		netdev_err(netdev, "Invalid tx context %u\n", idx);
 		goto badidx;
 	}
 
@@ -964,11 +964,11 @@ static int gs_usb_probe(struct usb_interface *intf,
 	}
 
 	icount = dconf->icount + 1;
-	dev_info(&intf->dev, "Configuring for %d interfaces\n", icount);
+	dev_info(&intf->dev, "Configuring for %u interfaces\n", icount);
 
 	if (icount > GS_MAX_INTF) {
 		dev_err(&intf->dev,
-			"Driver cannot handle more that %d CAN interfaces\n",
+			"Driver cannot handle more that %u CAN interfaces\n",
 			GS_MAX_INTF);
 		kfree(dconf);
 		return -EINVAL;

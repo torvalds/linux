@@ -34,7 +34,7 @@ MODULE_PARM_DESC(enable_trace_D0I3_S0,
  * DSP Core control.
  */
 
-int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev, unsigned int core_mask)
+static int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	u32 adspcs;
 	u32 reset;
@@ -73,7 +73,7 @@ int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev, unsigned int core_mask)
 	return ret;
 }
 
-int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev, unsigned int core_mask)
+static int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	unsigned int crst;
 	u32 adspcs;
@@ -113,7 +113,7 @@ int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev, unsigned int core_mask)
 	return ret;
 }
 
-int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask)
+static int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	/* stall core */
 	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
@@ -123,6 +123,31 @@ int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	/* set reset state */
 	return hda_dsp_core_reset_enter(sdev, core_mask);
+}
+
+static bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask)
+{
+	int val;
+	bool is_enable;
+
+	val = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPCS);
+
+#define MASK_IS_EQUAL(v, m, field) ({	\
+	u32 _m = field(m);		\
+	((v) & _m) == _m;		\
+})
+
+	is_enable = MASK_IS_EQUAL(val, core_mask, HDA_DSP_ADSPCS_CPA_MASK) &&
+		MASK_IS_EQUAL(val, core_mask, HDA_DSP_ADSPCS_SPA_MASK) &&
+		!(val & HDA_DSP_ADSPCS_CRST_MASK(core_mask)) &&
+		!(val & HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
+
+#undef MASK_IS_EQUAL
+
+	dev_dbg(sdev->dev, "DSP core(s) enabled? %d : core_mask %x\n",
+		is_enable, core_mask);
+
+	return is_enable;
 }
 
 int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
@@ -156,7 +181,7 @@ int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
  * Power Management.
  */
 
-int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
+static int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	unsigned int cpa;
 	u32 adspcs;
@@ -195,7 +220,7 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 	return ret;
 }
 
-int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
+static int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	u32 adspcs;
 	int ret;
@@ -216,32 +241,6 @@ int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
 			__func__);
 
 	return ret;
-}
-
-bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,
-			     unsigned int core_mask)
-{
-	int val;
-	bool is_enable;
-
-	val = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPCS);
-
-#define MASK_IS_EQUAL(v, m, field) ({	\
-	u32 _m = field(m);		\
-	((v) & _m) == _m;		\
-})
-
-	is_enable = MASK_IS_EQUAL(val, core_mask, HDA_DSP_ADSPCS_CPA_MASK) &&
-		MASK_IS_EQUAL(val, core_mask, HDA_DSP_ADSPCS_SPA_MASK) &&
-		!(val & HDA_DSP_ADSPCS_CRST_MASK(core_mask)) &&
-		!(val & HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
-
-#undef MASK_IS_EQUAL
-
-	dev_dbg(sdev->dev, "DSP core(s) enabled? %d : core_mask %x\n",
-		is_enable, core_mask);
-
-	return is_enable;
 }
 
 int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask)

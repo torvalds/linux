@@ -149,6 +149,7 @@ do
 done
 
 # Download and expand the tarball on all systems.
+echo Build-products tarball: `du -h $T/binres.tgz` | tee -a "$oldrun/remote-log"
 for i in $systems
 do
 	echo Downloading tarball to $i `date` | tee -a "$oldrun/remote-log"

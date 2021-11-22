@@ -27,8 +27,3 @@
 - i.MX7: all of the above, since it uses the imx media core
 
 - i.MX7: use Frame Interval Monitor
-
-- i.MX7: runtime testing with parallel sensor, links setup and streaming
-
-- i.MX7: runtime testing with different formats, for the time only 10-bit bayer
-  is tested

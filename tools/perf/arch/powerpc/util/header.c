@@ -40,7 +40,7 @@ get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
 	return bufp;
 }
 
-int arch_get_runtimeparam(struct pmu_event *pe)
+int arch_get_runtimeparam(const struct pmu_event *pe)
 {
 	int count;
 	char path[PATH_MAX] = "/devices/hv_24x7/interface/";

@@ -45,6 +45,6 @@ extern void ltq_dma_close(struct ltq_dma_channel *ch);
 extern void ltq_dma_alloc_tx(struct ltq_dma_channel *ch);
 extern void ltq_dma_alloc_rx(struct ltq_dma_channel *ch);
 extern void ltq_dma_free(struct ltq_dma_channel *ch);
-extern void ltq_dma_init_port(int p);
+extern void ltq_dma_init_port(int p, int tx_burst, int rx_burst);
 
 #endif

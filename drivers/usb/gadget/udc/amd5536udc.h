@@ -572,7 +572,6 @@ struct udc {
 	struct extcon_specific_cable_nb	extcon_nb;
 	struct notifier_block		nb;
 	struct delayed_work		drd_work;
-	struct workqueue_struct		*drd_wq;
 	u32				conn_type;
 };
 

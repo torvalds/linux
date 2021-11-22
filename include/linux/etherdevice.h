@@ -26,9 +26,16 @@
 
 #ifdef __KERNEL__
 struct device;
+struct fwnode_handle;
+
 int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr);
+int platform_get_ethdev_address(struct device *dev, struct net_device *netdev);
 unsigned char *arch_get_platform_mac_address(void);
 int nvmem_get_mac_address(struct device *dev, void *addrbuf);
+int device_get_mac_address(struct device *dev, char *addr);
+int device_get_ethdev_address(struct device *dev, struct net_device *netdev);
+int fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr);
+
 u32 eth_get_headlen(const struct net_device *dev, const void *data, u32 len);
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev);
 extern const struct header_ops eth_header_ops;
@@ -227,8 +234,6 @@ static inline void eth_random_addr(u8 *addr)
 	addr[0] |= 0x02;	/* set local assignment bit (IEEE802) */
 }
 
-#define random_ether_addr(addr) eth_random_addr(addr)
-
 /**
  * eth_broadcast_addr - Assign broadcast address
  * @addr: Pointer to a six-byte array containing the Ethernet address
@@ -262,8 +267,11 @@ static inline void eth_zero_addr(u8 *addr)
  */
 static inline void eth_hw_addr_random(struct net_device *dev)
 {
+	u8 addr[ETH_ALEN];
+
+	eth_random_addr(addr);
+	__dev_addr_set(dev, addr, ETH_ALEN);
 	dev->addr_assign_type = NET_ADDR_RANDOM;
-	eth_random_addr(dev->dev_addr);
 }
 
 /**
@@ -323,7 +331,7 @@ static inline void eth_hw_addr_inherit(struct net_device *dst,
 				       struct net_device *src)
 {
 	dst->addr_assign_type = src->addr_assign_type;
-	ether_addr_copy(dst->dev_addr, src->dev_addr);
+	eth_hw_addr_set(dst, src->dev_addr);
 }
 
 /**
@@ -541,6 +549,27 @@ static inline unsigned long compare_ether_header(const void *a, const void *b)
 	return (*(u16 *)a ^ *(u16 *)b) | (a32[0] ^ b32[0]) |
 	       (a32[1] ^ b32[1]) | (a32[2] ^ b32[2]);
 #endif
+}
+
+/**
+ * eth_hw_addr_gen - Generate and assign Ethernet address to a port
+ * @dev: pointer to port's net_device structure
+ * @base_addr: base Ethernet address
+ * @id: offset to add to the base address
+ *
+ * Generate a MAC address using a base address and an offset and assign it
+ * to a net_device. Commonly used by switch drivers which need to compute
+ * addresses for all their ports. addr_assign_type is not changed.
+ */
+static inline void eth_hw_addr_gen(struct net_device *dev, const u8 *base_addr,
+				   unsigned int id)
+{
+	u64 u = ether_addr_to_u64(base_addr);
+	u8 addr[ETH_ALEN];
+
+	u += id;
+	u64_to_ether_addr(u, addr);
+	eth_hw_addr_set(dev, addr);
 }
 
 /**

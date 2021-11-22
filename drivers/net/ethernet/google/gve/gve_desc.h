@@ -90,12 +90,13 @@ union gve_rx_data_slot {
 
 /* GVE Recive Packet Descriptor Flags */
 #define GVE_RXFLG(x)	cpu_to_be16(1 << (3 + (x)))
-#define	GVE_RXF_FRAG	GVE_RXFLG(3)	/* IP Fragment			*/
-#define	GVE_RXF_IPV4	GVE_RXFLG(4)	/* IPv4				*/
-#define	GVE_RXF_IPV6	GVE_RXFLG(5)	/* IPv6				*/
-#define	GVE_RXF_TCP	GVE_RXFLG(6)	/* TCP Packet			*/
-#define	GVE_RXF_UDP	GVE_RXFLG(7)	/* UDP Packet			*/
-#define	GVE_RXF_ERR	GVE_RXFLG(8)	/* Packet Error Detected	*/
+#define	GVE_RXF_FRAG		GVE_RXFLG(3)	/* IP Fragment			*/
+#define	GVE_RXF_IPV4		GVE_RXFLG(4)	/* IPv4				*/
+#define	GVE_RXF_IPV6		GVE_RXFLG(5)	/* IPv6				*/
+#define	GVE_RXF_TCP		GVE_RXFLG(6)	/* TCP Packet			*/
+#define	GVE_RXF_UDP		GVE_RXFLG(7)	/* UDP Packet			*/
+#define	GVE_RXF_ERR		GVE_RXFLG(8)	/* Packet Error Detected	*/
+#define	GVE_RXF_PKT_CONT	GVE_RXFLG(10)	/* Multi Fragment RX packet	*/
 
 /* GVE IRQ */
 #define GVE_IRQ_ACK	BIT(31)

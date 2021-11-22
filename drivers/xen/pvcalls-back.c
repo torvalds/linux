@@ -465,7 +465,6 @@ static int pvcalls_back_release_passive(struct xenbus_device *dev,
 		write_unlock_bh(&mappass->sock->sk->sk_callback_lock);
 	}
 	sock_release(mappass->sock);
-	flush_workqueue(mappass->wq);
 	destroy_workqueue(mappass->wq);
 	kfree(mappass);
 

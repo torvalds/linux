@@ -33,6 +33,7 @@ properties:
           - renesas,r8a77970-rpc-if       # R-Car V3M
           - renesas,r8a77980-rpc-if       # R-Car V3H
           - renesas,r8a77995-rpc-if       # R-Car D3
+          - renesas,r8a779a0-rpc-if       # R-Car V3U
       - const: renesas,rcar-gen3-rpc-if   # a generic R-Car gen3 or RZ/G2 device
 
   reg:

@@ -21,6 +21,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/miscdevice.h>
+#include <linux/debugfs.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -37,6 +38,9 @@ struct vhci_data {
 
 	struct mutex open_mutex;
 	struct delayed_work open_timeout;
+
+	bool suspended;
+	bool wakeup;
 };
 
 static int vhci_open_dev(struct hci_dev *hdev)
@@ -72,6 +76,115 @@ static int vhci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	wake_up_interruptible(&data->read_wait);
 	return 0;
 }
+
+static int vhci_get_data_path_id(struct hci_dev *hdev, u8 *data_path_id)
+{
+	*data_path_id = 0;
+	return 0;
+}
+
+static int vhci_get_codec_config_data(struct hci_dev *hdev, __u8 type,
+				      struct bt_codec *codec, __u8 *vnd_len,
+				      __u8 **vnd_data)
+{
+	if (type != ESCO_LINK)
+		return -EINVAL;
+
+	*vnd_len = 0;
+	*vnd_data = NULL;
+	return 0;
+}
+
+static bool vhci_wakeup(struct hci_dev *hdev)
+{
+	struct vhci_data *data = hci_get_drvdata(hdev);
+
+	return data->wakeup;
+}
+
+static ssize_t force_suspend_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct vhci_data *data = file->private_data;
+	char buf[3];
+
+	buf[0] = data->suspended ? 'Y' : 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t force_suspend_write(struct file *file,
+				   const char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct vhci_data *data = file->private_data;
+	bool enable;
+	int err;
+
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
+
+	if (data->suspended == enable)
+		return -EALREADY;
+
+	if (enable)
+		err = hci_suspend_dev(data->hdev);
+	else
+		err = hci_resume_dev(data->hdev);
+
+	if (err)
+		return err;
+
+	data->suspended = enable;
+
+	return count;
+}
+
+static const struct file_operations force_suspend_fops = {
+	.open		= simple_open,
+	.read		= force_suspend_read,
+	.write		= force_suspend_write,
+	.llseek		= default_llseek,
+};
+
+static ssize_t force_wakeup_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct vhci_data *data = file->private_data;
+	char buf[3];
+
+	buf[0] = data->wakeup ? 'Y' : 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t force_wakeup_write(struct file *file,
+				  const char __user *user_buf, size_t count,
+				  loff_t *ppos)
+{
+	struct vhci_data *data = file->private_data;
+	bool enable;
+	int err;
+
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
+
+	if (data->wakeup == enable)
+		return -EALREADY;
+
+	return count;
+}
+
+static const struct file_operations force_wakeup_fops = {
+	.open		= simple_open,
+	.read		= force_wakeup_read,
+	.write		= force_wakeup_write,
+	.llseek		= default_llseek,
+};
 
 static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 {
@@ -112,6 +225,9 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	hdev->close = vhci_close_dev;
 	hdev->flush = vhci_flush;
 	hdev->send  = vhci_send_frame;
+	hdev->get_data_path_id = vhci_get_data_path_id;
+	hdev->get_codec_config_data = vhci_get_codec_config_data;
+	hdev->wakeup = vhci_wakeup;
 
 	/* bit 6 is for external configuration */
 	if (opcode & 0x40)
@@ -128,6 +244,12 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 		kfree_skb(skb);
 		return -EBUSY;
 	}
+
+	debugfs_create_file("force_suspend", 0644, hdev->debugfs, data,
+			    &force_suspend_fops);
+
+	debugfs_create_file("force_wakeup", 0644, hdev->debugfs, data,
+			    &force_wakeup_fops);
 
 	hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
 

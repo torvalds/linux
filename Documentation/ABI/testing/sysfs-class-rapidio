@@ -10,7 +10,7 @@ Description:
 		NOTE: An mport ID is not a RapidIO destination ID assigned to a
 		given local mport device.
 
-What:		/sys/class/rapidio_port/rapidioN/sys_size
+What:		/sys/class/rapidio_port/rapidio<N>/sys_size
 Date:		Apr, 2014
 KernelVersion:	v3.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -22,7 +22,7 @@ Description:
 
 		1 = large (16-bit destination ID, max. 65536 devices).
 
-What:		/sys/class/rapidio_port/rapidioN/port_destid
+What:		/sys/class/rapidio_port/rapidio<N>/port_destid
 Date:		Apr, 2014
 KernelVersion:	v3.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,

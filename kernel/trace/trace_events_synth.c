@@ -2227,8 +2227,8 @@ static __init int trace_events_synth_init(void)
 	if (err)
 		goto err;
 
-	entry = tracefs_create_file("synthetic_events", 0644, NULL,
-				    NULL, &synth_events_fops);
+	entry = tracefs_create_file("synthetic_events", TRACE_MODE_WRITE,
+				    NULL, NULL, &synth_events_fops);
 	if (!entry) {
 		err = -ENODEV;
 		goto err;

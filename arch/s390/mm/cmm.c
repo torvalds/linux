@@ -14,8 +14,8 @@
 #include <linux/moduleparam.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
+#include <linux/string_helpers.h>
 #include <linux/sysctl.h>
-#include <linux/ctype.h>
 #include <linux/swap.h>
 #include <linux/kthread.h>
 #include <linux/oom.h>
@@ -394,13 +394,10 @@ static int __init cmm_init(void)
 		goto out_sysctl;
 #ifdef CONFIG_CMM_IUCV
 	/* convert sender to uppercase characters */
-	if (sender) {
-		int len = strlen(sender);
-		while (len--)
-			sender[len] = toupper(sender[len]);
-	} else {
+	if (sender)
+		string_upper(sender, sender);
+	else
 		sender = cmm_default_sender;
-	}
 
 	rc = smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
 	if (rc < 0)

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: I2C controller embedded in STMicroelectronics STM32 I2C platform
 
 maintainers:
-  - Pierre-Yves MORDRET <pierre-yves.mordret@st.com>
+  - Pierre-Yves MORDRET <pierre-yves.mordret@foss.st.com>
 
 allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml#

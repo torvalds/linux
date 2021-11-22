@@ -405,7 +405,7 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 
 	mutex_lock(&p->mutex);
 
-	retval = pqm_update_queue(&p->pqm, args->queue_id, &properties);
+	retval = pqm_update_queue_properties(&p->pqm, args->queue_id, &properties);
 
 	mutex_unlock(&p->mutex);
 
@@ -418,7 +418,7 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 	int retval;
 	const int max_num_cus = 1024;
 	struct kfd_ioctl_set_cu_mask_args *args = data;
-	struct queue_properties properties;
+	struct mqd_update_info minfo = {0};
 	uint32_t __user *cu_mask_ptr = (uint32_t __user *)args->cu_mask_ptr;
 	size_t cu_mask_size = sizeof(uint32_t) * (args->num_cu_mask / 32);
 
@@ -428,8 +428,8 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 		return -EINVAL;
 	}
 
-	properties.cu_mask_count = args->num_cu_mask;
-	if (properties.cu_mask_count == 0) {
+	minfo.cu_mask.count = args->num_cu_mask;
+	if (minfo.cu_mask.count == 0) {
 		pr_debug("CU mask cannot be 0");
 		return -EINVAL;
 	}
@@ -438,32 +438,33 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 	 * limit of max_num_cus bits.  We can then just drop any CU mask bits
 	 * past max_num_cus bits and just use the first max_num_cus bits.
 	 */
-	if (properties.cu_mask_count > max_num_cus) {
+	if (minfo.cu_mask.count > max_num_cus) {
 		pr_debug("CU mask cannot be greater than 1024 bits");
-		properties.cu_mask_count = max_num_cus;
+		minfo.cu_mask.count = max_num_cus;
 		cu_mask_size = sizeof(uint32_t) * (max_num_cus/32);
 	}
 
-	properties.cu_mask = kzalloc(cu_mask_size, GFP_KERNEL);
-	if (!properties.cu_mask)
+	minfo.cu_mask.ptr = kzalloc(cu_mask_size, GFP_KERNEL);
+	if (!minfo.cu_mask.ptr)
 		return -ENOMEM;
 
-	retval = copy_from_user(properties.cu_mask, cu_mask_ptr, cu_mask_size);
+	retval = copy_from_user(minfo.cu_mask.ptr, cu_mask_ptr, cu_mask_size);
 	if (retval) {
 		pr_debug("Could not copy CU mask from userspace");
-		kfree(properties.cu_mask);
-		return -EFAULT;
+		retval = -EFAULT;
+		goto out;
 	}
+
+	minfo.update_flag = UPDATE_FLAG_CU_MASK;
 
 	mutex_lock(&p->mutex);
 
-	retval = pqm_set_cu_mask(&p->pqm, args->queue_id, &properties);
+	retval = pqm_update_mqd(&p->pqm, args->queue_id, &minfo);
 
 	mutex_unlock(&p->mutex);
 
-	if (retval)
-		kfree(properties.cu_mask);
-
+out:
+	kfree(minfo.cu_mask.ptr);
 	return retval;
 }
 
@@ -1011,11 +1012,6 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 		void *mem, *kern_addr;
 		uint64_t size;
 
-		if (p->signal_page) {
-			pr_err("Event page is already set\n");
-			return -EINVAL;
-		}
-
 		kfd = kfd_device_by_id(GET_GPU_ID(args->event_page_offset));
 		if (!kfd) {
 			pr_err("Getting device by id failed in %s\n", __func__);
@@ -1023,6 +1019,13 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 		}
 
 		mutex_lock(&p->mutex);
+
+		if (p->signal_page) {
+			pr_err("Event page is already set\n");
+			err = -EINVAL;
+			goto out_unlock;
+		}
+
 		pdd = kfd_bind_process_to_device(kfd, p);
 		if (IS_ERR(pdd)) {
 			err = PTR_ERR(pdd);
@@ -1037,20 +1040,24 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 			err = -EINVAL;
 			goto out_unlock;
 		}
-		mutex_unlock(&p->mutex);
 
 		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kfd->kgd,
 						mem, &kern_addr, &size);
 		if (err) {
 			pr_err("Failed to map event page to kernel\n");
-			return err;
+			goto out_unlock;
 		}
 
 		err = kfd_event_page_set(p, kern_addr, size);
 		if (err) {
 			pr_err("Failed to set event page\n");
-			return err;
+			amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(kfd->kgd, mem);
+			goto out_unlock;
 		}
+
+		p->signal_handle = args->event_page_offset;
+
+		mutex_unlock(&p->mutex);
 	}
 
 	err = kfd_event_create(filp, p, args->event_type,
@@ -1368,6 +1375,15 @@ static int kfd_ioctl_free_memory_of_gpu(struct file *filep,
 		return -EINVAL;
 
 	mutex_lock(&p->mutex);
+	/*
+	 * Safeguard to prevent user space from freeing signal BO.
+	 * It will be freed at process termination.
+	 */
+	if (p->signal_handle && (p->signal_handle == args->handle)) {
+		pr_err("Free signal BO is not allowed\n");
+		ret = -EPERM;
+		goto err_unlock;
+	}
 
 	pdd = kfd_get_process_device_data(dev, p);
 	if (!pdd) {

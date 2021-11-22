@@ -25,7 +25,7 @@ static const struct mvs_chip_info mvs_chips[] = {
 	[chip_1320] =	{ 2, 4, 0x800, 17, 64, 8,  9, &mvs_94xx_dispatch, },
 };
 
-static struct device_attribute *mvst_host_attrs[];
+static const struct attribute_group *mvst_host_groups[];
 
 #define SOC_SAS_NUM 2
 
@@ -52,7 +52,7 @@ static struct scsi_host_template mvs_sht = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sas_ioctl,
 #endif
-	.shost_attrs		= mvst_host_attrs,
+	.shost_groups		= mvst_host_groups,
 	.track_queue_depth	= 1,
 };
 
@@ -773,11 +773,13 @@ static void __exit mvs_exit(void)
 	sas_release_transport(mvs_stt);
 }
 
-static struct device_attribute *mvst_host_attrs[] = {
-	&dev_attr_driver_version,
-	&dev_attr_interrupt_coalescing,
+static struct attribute *mvst_host_attrs[] = {
+	&dev_attr_driver_version.attr,
+	&dev_attr_interrupt_coalescing.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(mvst_host);
 
 module_init(mvs_init);
 module_exit(mvs_exit);

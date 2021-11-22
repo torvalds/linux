@@ -65,6 +65,9 @@ description:
   For pms405, s1, s2, s3, s4, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
   l12, l13
 
+  For pm2250, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
+  l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22
+
 maintainers:
   - Kathiravan T <kathirav@codeaurora.org>
 
@@ -86,6 +89,7 @@ properties:
       - qcom,rpm-pmi8994-regulators
       - qcom,rpm-pmi8998-regulators
       - qcom,rpm-pms405-regulators
+      - qcom,rpm-pm2250-regulators
 
 patternProperties:
   ".*-supply$":

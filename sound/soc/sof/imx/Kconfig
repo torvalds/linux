@@ -38,6 +38,7 @@ config SND_SOC_SOF_IMX8
 	tristate
 	select SND_SOC_SOF_IMX_COMMON
 	select SND_SOC_SOF_XTENSA
+	select SND_SOC_SOF_COMPRESS
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.
@@ -54,6 +55,7 @@ config SND_SOC_SOF_IMX8M
 	tristate
 	select SND_SOC_SOF_IMX_COMMON
 	select SND_SOC_SOF_XTENSA
+	select SND_SOC_SOF_COMPRESS
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.

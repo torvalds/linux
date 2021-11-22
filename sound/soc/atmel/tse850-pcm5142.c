@@ -304,7 +304,7 @@ static struct snd_soc_dai_link tse850_dailink = {
 	.stream_name = "TSE-850-PCM",
 	.dai_fmt = SND_SOC_DAIFMT_I2S
 		 | SND_SOC_DAIFMT_NB_NF
-		 | SND_SOC_DAIFMT_CBM_CFS,
+		 | SND_SOC_DAIFMT_CBP_CFC,
 	SND_SOC_DAILINK_REG(pcm),
 };
 

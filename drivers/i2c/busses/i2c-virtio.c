@@ -63,34 +63,32 @@ static int virtio_i2c_prepare_reqs(struct virtqueue *vq,
 		int outcnt = 0, incnt = 0;
 
 		/*
-		 * We don't support 0 length messages and so filter out
-		 * 0 length transfers by using i2c_adapter_quirks.
-		 */
-		if (!msgs[i].len)
-			break;
-
-		/*
 		 * Only 7-bit mode supported for this moment. For the address
 		 * format, Please check the Virtio I2C Specification.
 		 */
 		reqs[i].out_hdr.addr = cpu_to_le16(msgs[i].addr << 1);
 
+		if (msgs[i].flags & I2C_M_RD)
+			reqs[i].out_hdr.flags |= cpu_to_le32(VIRTIO_I2C_FLAGS_M_RD);
+
 		if (i != num - 1)
-			reqs[i].out_hdr.flags = cpu_to_le32(VIRTIO_I2C_FLAGS_FAIL_NEXT);
+			reqs[i].out_hdr.flags |= cpu_to_le32(VIRTIO_I2C_FLAGS_FAIL_NEXT);
 
 		sg_init_one(&out_hdr, &reqs[i].out_hdr, sizeof(reqs[i].out_hdr));
 		sgs[outcnt++] = &out_hdr;
 
-		reqs[i].buf = i2c_get_dma_safe_msg_buf(&msgs[i], 1);
-		if (!reqs[i].buf)
-			break;
+		if (msgs[i].len) {
+			reqs[i].buf = i2c_get_dma_safe_msg_buf(&msgs[i], 1);
+			if (!reqs[i].buf)
+				break;
 
-		sg_init_one(&msg_buf, reqs[i].buf, msgs[i].len);
+			sg_init_one(&msg_buf, reqs[i].buf, msgs[i].len);
 
-		if (msgs[i].flags & I2C_M_RD)
-			sgs[outcnt + incnt++] = &msg_buf;
-		else
-			sgs[outcnt++] = &msg_buf;
+			if (msgs[i].flags & I2C_M_RD)
+				sgs[outcnt + incnt++] = &msg_buf;
+			else
+				sgs[outcnt++] = &msg_buf;
+		}
 
 		sg_init_one(&in_hdr, &reqs[i].in_hdr, sizeof(reqs[i].in_hdr));
 		sgs[outcnt + incnt++] = &in_hdr;
@@ -191,7 +189,7 @@ static int virtio_i2c_setup_vqs(struct virtio_i2c *vi)
 
 static u32 virtio_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
 static struct i2c_algorithm virtio_algorithm = {
@@ -199,14 +197,15 @@ static struct i2c_algorithm virtio_algorithm = {
 	.functionality = virtio_i2c_func,
 };
 
-static const struct i2c_adapter_quirks virtio_i2c_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
-};
-
 static int virtio_i2c_probe(struct virtio_device *vdev)
 {
 	struct virtio_i2c *vi;
 	int ret;
+
+	if (!virtio_has_feature(vdev, VIRTIO_I2C_F_ZERO_LENGTH_REQUEST)) {
+		dev_err(&vdev->dev, "Zero-length request feature is mandatory\n");
+		return -EINVAL;
+	}
 
 	vi = devm_kzalloc(&vdev->dev, sizeof(*vi), GFP_KERNEL);
 	if (!vi)
@@ -225,7 +224,6 @@ static int virtio_i2c_probe(struct virtio_device *vdev)
 	snprintf(vi->adap.name, sizeof(vi->adap.name),
 		 "i2c_virtio at virtio bus %d", vdev->index);
 	vi->adap.algo = &virtio_algorithm;
-	vi->adap.quirks = &virtio_i2c_quirks;
 	vi->adap.dev.parent = &vdev->dev;
 	vi->adap.dev.of_node = vdev->dev.of_node;
 	i2c_set_adapdata(&vi->adap, vi);
@@ -270,11 +268,17 @@ static int virtio_i2c_restore(struct virtio_device *vdev)
 }
 #endif
 
+static const unsigned int features[] = {
+	VIRTIO_I2C_F_ZERO_LENGTH_REQUEST,
+};
+
 static struct virtio_driver virtio_i2c_driver = {
-	.id_table	= id_table,
-	.probe		= virtio_i2c_probe,
-	.remove		= virtio_i2c_remove,
-	.driver	= {
+	.feature_table		= features,
+	.feature_table_size	= ARRAY_SIZE(features),
+	.id_table		= id_table,
+	.probe			= virtio_i2c_probe,
+	.remove			= virtio_i2c_remove,
+	.driver			= {
 		.name	= "i2c_virtio",
 	},
 #ifdef CONFIG_PM_SLEEP

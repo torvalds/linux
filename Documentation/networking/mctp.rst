@@ -211,3 +211,62 @@ remote address is already known, or the message does not require a reply.
 
 Like the send calls, sockets will only receive responses to requests they have
 sent (TO=1) and may only respond (TO=0) to requests they have received.
+
+Kernel internals
+================
+
+There are a few possible packet flows in the MCTP stack:
+
+1. local TX to remote endpoint, message <= MTU::
+
+	sendmsg()
+	 -> mctp_local_output()
+	    : route lookup
+	    -> rt->output() (== mctp_route_output)
+	       -> dev_queue_xmit()
+
+2. local TX to remote endpoint, message > MTU::
+
+	sendmsg()
+	-> mctp_local_output()
+	    -> mctp_do_fragment_route()
+	       : creates packet-sized skbs. For each new skb:
+	       -> rt->output() (== mctp_route_output)
+	          -> dev_queue_xmit()
+
+3. remote TX to local endpoint, single-packet message::
+
+	mctp_pkttype_receive()
+	: route lookup
+	-> rt->output() (== mctp_route_input)
+	   : sk_key lookup
+	   -> sock_queue_rcv_skb()
+
+4. remote TX to local endpoint, multiple-packet message::
+
+	mctp_pkttype_receive()
+	: route lookup
+	-> rt->output() (== mctp_route_input)
+	   : sk_key lookup
+	   : stores skb in struct sk_key->reasm_head
+
+	mctp_pkttype_receive()
+	: route lookup
+	-> rt->output() (== mctp_route_input)
+	   : sk_key lookup
+	   : finds existing reassembly in sk_key->reasm_head
+	   : appends new fragment
+	   -> sock_queue_rcv_skb()
+
+Key refcounts
+-------------
+
+ * keys are refed by:
+
+   - a skb: during route output, stored in ``skb->cb``.
+
+   - netns and sock lists.
+
+ * keys can be associated with a device, in which case they hold a
+   reference to the dev (set through ``key->dev``, counted through
+   ``dev->key_count``). Multiple keys can reference the device.

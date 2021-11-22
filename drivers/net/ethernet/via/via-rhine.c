@@ -899,6 +899,7 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	struct net_device *dev;
 	struct rhine_private *rp;
 	int i, rc, phy_id;
+	u8 addr[ETH_ALEN];
 	const char *name;
 
 	/* this should always be supported */
@@ -933,7 +934,8 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	rhine_hw_init(dev, pioaddr);
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = ioread8(ioaddr + StationAddr + i);
+		addr[i] = ioread8(ioaddr + StationAddr + i);
+	eth_hw_addr_set(dev, addr);
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/* Report it and use a random ethernet address instead */

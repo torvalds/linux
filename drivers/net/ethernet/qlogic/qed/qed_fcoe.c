@@ -30,6 +30,7 @@
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_int.h"
+#include "qed_iro_hsi.h"
 #include "qed_ll2.h"
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
@@ -89,7 +90,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	struct qed_fcoe_pf_params *fcoe_pf_params = NULL;
 	struct fcoe_init_ramrod_params *p_ramrod = NULL;
 	struct fcoe_init_func_ramrod_data *p_data;
-	struct e4_fcoe_conn_context *p_cxt = NULL;
+	struct fcoe_conn_context *p_cxt = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	struct qed_cxt_info cxt_info;
@@ -144,7 +145,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	memset(p_cxt, 0, sizeof(*p_cxt));
 
 	SET_FIELD(p_cxt->tstorm_ag_context.flags3,
-		  E4_TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN, 1);
+		  TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN, 1);
 
 	fcoe_pf_params->dummy_icid = (u16)dummy_cid;
 
@@ -506,10 +507,9 @@ static void __iomem *qed_fcoe_get_primary_bdq_prod(struct qed_hwfn *p_hwfn,
 {
 	if (RESC_NUM(p_hwfn, QED_BDQ)) {
 		return (u8 __iomem *)p_hwfn->regview +
-		       GTT_BAR0_MAP_REG_MSDM_RAM +
-		       MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(RESC_START(p_hwfn,
-								  QED_BDQ),
-						       bdq_id);
+		    GET_GTT_BDQ_REG_ADDR(GTT_BAR0_MAP_REG_MSDM_RAM,
+					 MSTORM_SCSI_BDQ_EXT_PROD,
+					 RESC_START(p_hwfn, QED_BDQ), bdq_id);
 	} else {
 		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
 		return NULL;
@@ -521,10 +521,9 @@ static void __iomem *qed_fcoe_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 {
 	if (RESC_NUM(p_hwfn, QED_BDQ)) {
 		return (u8 __iomem *)p_hwfn->regview +
-		       GTT_BAR0_MAP_REG_TSDM_RAM +
-		       TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(RESC_START(p_hwfn,
-								  QED_BDQ),
-						       bdq_id);
+		    GET_GTT_BDQ_REG_ADDR(GTT_BAR0_MAP_REG_TSDM_RAM,
+					 TSTORM_SCSI_BDQ_EXT_PROD,
+					 RESC_START(p_hwfn, QED_BDQ), bdq_id);
 	} else {
 		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
 		return NULL;
@@ -549,7 +548,7 @@ int qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
 
 void qed_fcoe_setup(struct qed_hwfn *p_hwfn)
 {
-	struct e4_fcoe_task_context *p_task_ctx = NULL;
+	struct fcoe_task_context *p_task_ctx = NULL;
 	u32 i, lc;
 	int rc;
 
@@ -561,7 +560,7 @@ void qed_fcoe_setup(struct qed_hwfn *p_hwfn)
 		if (rc)
 			continue;
 
-		memset(p_task_ctx, 0, sizeof(struct e4_fcoe_task_context));
+		memset(p_task_ctx, 0, sizeof(struct fcoe_task_context));
 
 		lc = 0;
 		SET_FIELD(lc, TIMERS_CONTEXT_VALIDLC0, 1);
@@ -572,7 +571,7 @@ void qed_fcoe_setup(struct qed_hwfn *p_hwfn)
 		p_task_ctx->timer_context.logical_client_1 = cpu_to_le32(lc);
 
 		SET_FIELD(p_task_ctx->tstorm_ag_context.flags0,
-			  E4_TSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE, 1);
+			  TSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE, 1);
 	}
 }
 

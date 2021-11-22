@@ -100,9 +100,9 @@ static void ice_display_lag_info(struct ice_lag *lag)
  */
 static void ice_lag_info_event(struct ice_lag *lag, void *ptr)
 {
-	struct net_device *event_netdev, *netdev_tmp;
 	struct netdev_notifier_bonding_info *info;
 	struct netdev_bonding_info *bonding_info;
+	struct net_device *event_netdev;
 	const char *lag_netdev_name;
 
 	event_netdev = netdev_notifier_info_to_dev(ptr);
@@ -122,19 +122,6 @@ static void ice_lag_info_event(struct ice_lag *lag, void *ptr)
 		netdev_dbg(lag->netdev, "Bonding event recv, but slave info not for us\n");
 		goto lag_out;
 	}
-
-	rcu_read_lock();
-	for_each_netdev_in_bond_rcu(lag->upper_netdev, netdev_tmp) {
-		if (!netif_is_ice(netdev_tmp))
-			continue;
-
-		if (netdev_tmp && netdev_tmp != lag->netdev &&
-		    lag->peer_netdev != netdev_tmp) {
-			dev_hold(netdev_tmp);
-			lag->peer_netdev = netdev_tmp;
-		}
-	}
-	rcu_read_unlock();
 
 	if (bonding_info->slave.state)
 		ice_lag_set_backup(lag);
@@ -318,6 +305,9 @@ ice_lag_event_handler(struct notifier_block *notif_blk, unsigned long event,
 		break;
 	case NETDEV_BONDING_INFO:
 		ice_lag_info_event(lag, ptr);
+		break;
+	case NETDEV_UNREGISTER:
+		ice_lag_unlink(lag, ptr);
 		break;
 	default:
 		break;

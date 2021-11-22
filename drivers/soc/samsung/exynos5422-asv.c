@@ -503,3 +503,4 @@ int exynos5422_asv_init(struct exynos_asv *asv)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(exynos5422_asv_init);

@@ -310,12 +310,7 @@ static inline bool __is_bad_mt_xwr(struct rsvd_bits_validate *rsvd_check,
 static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
 					 u64 spte, int level)
 {
-	/*
-	 * Use a bitwise-OR instead of a logical-OR to aggregate the reserved
-	 * bits and EPT's invalid memtype/XWR checks to avoid an extra Jcc
-	 * (this is extremely unlikely to be short-circuited as true).
-	 */
-	return __is_bad_mt_xwr(rsvd_check, spte) |
+	return __is_bad_mt_xwr(rsvd_check, spte) ||
 	       __is_rsvd_bits_set(rsvd_check, spte, level);
 }
 
@@ -334,15 +329,11 @@ static inline u64 get_mmio_spte_generation(u64 spte)
 	return gen;
 }
 
-/* Bits which may be returned by set_spte() */
-#define SET_SPTE_WRITE_PROTECTED_PT    BIT(0)
-#define SET_SPTE_NEED_REMOTE_TLB_FLUSH BIT(1)
-#define SET_SPTE_SPURIOUS              BIT(2)
-
-int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
-		     gfn_t gfn, kvm_pfn_t pfn, u64 old_spte, bool speculative,
-		     bool can_unsync, bool host_writable, bool ad_disabled,
-		     u64 *new_spte);
+bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+	       struct kvm_memory_slot *slot,
+	       unsigned int pte_access, gfn_t gfn, kvm_pfn_t pfn,
+	       u64 old_spte, bool prefetch, bool can_unsync,
+	       bool host_writable, u64 *new_spte);
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled);
 u64 make_mmio_spte(struct kvm_vcpu *vcpu, u64 gfn, unsigned int access);
 u64 mark_spte_for_access_track(u64 spte);

@@ -90,7 +90,11 @@ static u64 get_ext_regs_value(int idx)
 		return mfspr(SPRN_SIER2);
 	case PERF_REG_POWERPC_SIER3:
 		return mfspr(SPRN_SIER3);
+	case PERF_REG_POWERPC_SDAR:
+		return mfspr(SPRN_SDAR);
 #endif
+	case PERF_REG_POWERPC_SIAR:
+		return mfspr(SPRN_SIAR);
 	default: return 0;
 	}
 }

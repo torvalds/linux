@@ -68,4 +68,3 @@ int bpf_nextcnt(struct __sk_buff *skb)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = LINUX_VERSION_CODE;

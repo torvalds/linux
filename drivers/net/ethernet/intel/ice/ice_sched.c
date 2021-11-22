@@ -3012,6 +3012,43 @@ static void ice_set_clear_shared_bw(struct ice_bw_type_info *bw_t_info, u32 bw)
 }
 
 /**
+ * ice_sched_save_vsi_bw - save VSI node's BW information
+ * @pi: port information structure
+ * @vsi_handle: sw VSI handle
+ * @tc: traffic class
+ * @rl_type: rate limit type min, max, or shared
+ * @bw: bandwidth in Kbps - Kilo bits per sec
+ *
+ * Save BW information of VSI type node for post replay use.
+ */
+static int
+ice_sched_save_vsi_bw(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
+		      enum ice_rl_type rl_type, u32 bw)
+{
+	struct ice_vsi_ctx *vsi_ctx;
+
+	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+		return -EINVAL;
+	vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
+	if (!vsi_ctx)
+		return -EINVAL;
+	switch (rl_type) {
+	case ICE_MIN_BW:
+		ice_set_clear_cir_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	case ICE_MAX_BW:
+		ice_set_clear_eir_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	case ICE_SHARED_BW:
+		ice_set_clear_shared_bw(&vsi_ctx->sched.bw_t_info[tc], bw);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
  * ice_sched_calc_wakeup - calculate RL profile wakeup parameter
  * @hw: pointer to the HW struct
  * @bw: bandwidth in Kbps
@@ -3781,6 +3818,153 @@ ice_cfg_q_bw_dflt_lmt(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 {
 	return ice_sched_set_q_bw_lmt(pi, vsi_handle, tc, q_handle, rl_type,
 				      ICE_SCHED_DFLT_BW);
+}
+
+/**
+ * ice_sched_get_node_by_id_type - get node from ID type
+ * @pi: port information structure
+ * @id: identifier
+ * @agg_type: type of aggregator
+ * @tc: traffic class
+ *
+ * This function returns node identified by ID of type aggregator, and
+ * based on traffic class (TC). This function needs to be called with
+ * the scheduler lock held.
+ */
+static struct ice_sched_node *
+ice_sched_get_node_by_id_type(struct ice_port_info *pi, u32 id,
+			      enum ice_agg_type agg_type, u8 tc)
+{
+	struct ice_sched_node *node = NULL;
+
+	switch (agg_type) {
+	case ICE_AGG_TYPE_VSI: {
+		struct ice_vsi_ctx *vsi_ctx;
+		u16 vsi_handle = (u16)id;
+
+		if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+			break;
+		/* Get sched_vsi_info */
+		vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
+		if (!vsi_ctx)
+			break;
+		node = vsi_ctx->sched.vsi_node[tc];
+		break;
+	}
+
+	case ICE_AGG_TYPE_AGG: {
+		struct ice_sched_node *tc_node;
+
+		tc_node = ice_sched_get_tc_node(pi, tc);
+		if (tc_node)
+			node = ice_sched_get_agg_node(pi, tc_node, id);
+		break;
+	}
+
+	default:
+		break;
+	}
+
+	return node;
+}
+
+/**
+ * ice_sched_set_node_bw_lmt_per_tc - set node BW limit per TC
+ * @pi: port information structure
+ * @id: ID (software VSI handle or AGG ID)
+ * @agg_type: aggregator type (VSI or AGG type node)
+ * @tc: traffic class
+ * @rl_type: min or max
+ * @bw: bandwidth in Kbps
+ *
+ * This function sets BW limit of VSI or Aggregator scheduling node
+ * based on TC information from passed in argument BW.
+ */
+static enum ice_status
+ice_sched_set_node_bw_lmt_per_tc(struct ice_port_info *pi, u32 id,
+				 enum ice_agg_type agg_type, u8 tc,
+				 enum ice_rl_type rl_type, u32 bw)
+{
+	enum ice_status status = ICE_ERR_PARAM;
+	struct ice_sched_node *node;
+
+	if (!pi)
+		return status;
+
+	if (rl_type == ICE_UNKNOWN_BW)
+		return status;
+
+	mutex_lock(&pi->sched_lock);
+	node = ice_sched_get_node_by_id_type(pi, id, agg_type, tc);
+	if (!node) {
+		ice_debug(pi->hw, ICE_DBG_SCHED, "Wrong id, agg type, or tc\n");
+		goto exit_set_node_bw_lmt_per_tc;
+	}
+	if (bw == ICE_SCHED_DFLT_BW)
+		status = ice_sched_set_node_bw_dflt_lmt(pi, node, rl_type);
+	else
+		status = ice_sched_set_node_bw_lmt(pi, node, rl_type, bw);
+
+exit_set_node_bw_lmt_per_tc:
+	mutex_unlock(&pi->sched_lock);
+	return status;
+}
+
+/**
+ * ice_cfg_vsi_bw_lmt_per_tc - configure VSI BW limit per TC
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @tc: traffic class
+ * @rl_type: min or max
+ * @bw: bandwidth in Kbps
+ *
+ * This function configures BW limit of VSI scheduling node based on TC
+ * information.
+ */
+enum ice_status
+ice_cfg_vsi_bw_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
+			  enum ice_rl_type rl_type, u32 bw)
+{
+	int status;
+
+	status = ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
+						  ICE_AGG_TYPE_VSI,
+						  tc, rl_type, bw);
+	if (!status) {
+		mutex_lock(&pi->sched_lock);
+		status = ice_sched_save_vsi_bw(pi, vsi_handle, tc, rl_type, bw);
+		mutex_unlock(&pi->sched_lock);
+	}
+	return status;
+}
+
+/**
+ * ice_cfg_vsi_bw_dflt_lmt_per_tc - configure default VSI BW limit per TC
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @tc: traffic class
+ * @rl_type: min or max
+ *
+ * This function configures default BW limit of VSI scheduling node based on TC
+ * information.
+ */
+enum ice_status
+ice_cfg_vsi_bw_dflt_lmt_per_tc(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
+			       enum ice_rl_type rl_type)
+{
+	int status;
+
+	status = ice_sched_set_node_bw_lmt_per_tc(pi, vsi_handle,
+						  ICE_AGG_TYPE_VSI,
+						  tc, rl_type,
+						  ICE_SCHED_DFLT_BW);
+	if (!status) {
+		mutex_lock(&pi->sched_lock);
+		status = ice_sched_save_vsi_bw(pi, vsi_handle, tc, rl_type,
+					       ICE_SCHED_DFLT_BW);
+		mutex_unlock(&pi->sched_lock);
+	}
+	return status;
 }
 
 /**
