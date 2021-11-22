@@ -262,9 +262,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_pre_set_power_state(adev) \
 		((adev)->powerplay.pp_funcs->pre_set_power_state((adev)->powerplay.pp_handle))
 
-#define amdgpu_dpm_set_power_state(adev) \
-		((adev)->powerplay.pp_funcs->set_power_state((adev)->powerplay.pp_handle))
-
 #define amdgpu_dpm_post_set_power_state(adev) \
 		((adev)->powerplay.pp_funcs->post_set_power_state((adev)->powerplay.pp_handle))
 
@@ -280,99 +277,12 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_enable_bapm(adev, e) \
 		((adev)->powerplay.pp_funcs->enable_bapm((adev)->powerplay.pp_handle, (e)))
 
-#define amdgpu_dpm_set_fan_control_mode(adev, m) \
-		((adev)->powerplay.pp_funcs->set_fan_control_mode((adev)->powerplay.pp_handle, (m)))
-
-#define amdgpu_dpm_get_fan_control_mode(adev) \
-		((adev)->powerplay.pp_funcs->get_fan_control_mode((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_set_fan_speed_pwm(adev, s) \
-		((adev)->powerplay.pp_funcs->set_fan_speed_pwm((adev)->powerplay.pp_handle, (s)))
-
-#define amdgpu_dpm_get_fan_speed_pwm(adev, s) \
-		((adev)->powerplay.pp_funcs->get_fan_speed_pwm((adev)->powerplay.pp_handle, (s)))
-
-#define amdgpu_dpm_get_fan_speed_rpm(adev, s) \
-		((adev)->powerplay.pp_funcs->get_fan_speed_rpm)((adev)->powerplay.pp_handle, (s))
-
-#define amdgpu_dpm_set_fan_speed_rpm(adev, s) \
-		((adev)->powerplay.pp_funcs->set_fan_speed_rpm)((adev)->powerplay.pp_handle, (s))
-
-#define amdgpu_dpm_force_performance_level(adev, l) \
-		((adev)->powerplay.pp_funcs->force_performance_level((adev)->powerplay.pp_handle, (l)))
-
-#define amdgpu_dpm_get_current_power_state(adev) \
-		((adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_get_pp_num_states(adev, data) \
-		((adev)->powerplay.pp_funcs->get_pp_num_states((adev)->powerplay.pp_handle, data))
-
-#define amdgpu_dpm_get_pp_table(adev, table) \
-		((adev)->powerplay.pp_funcs->get_pp_table((adev)->powerplay.pp_handle, table))
-
-#define amdgpu_dpm_set_pp_table(adev, buf, size) \
-		((adev)->powerplay.pp_funcs->set_pp_table((adev)->powerplay.pp_handle, buf, size))
-
-#define amdgpu_dpm_print_clock_levels(adev, type, buf) \
-		((adev)->powerplay.pp_funcs->print_clock_levels((adev)->powerplay.pp_handle, type, buf))
-
-#define amdgpu_dpm_force_clock_level(adev, type, level) \
-		((adev)->powerplay.pp_funcs->force_clock_level((adev)->powerplay.pp_handle, type, level))
-
-#define amdgpu_dpm_get_sclk_od(adev) \
-		((adev)->powerplay.pp_funcs->get_sclk_od((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_set_sclk_od(adev, value) \
-		((adev)->powerplay.pp_funcs->set_sclk_od((adev)->powerplay.pp_handle, value))
-
-#define amdgpu_dpm_get_mclk_od(adev) \
-		((adev)->powerplay.pp_funcs->get_mclk_od((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_set_mclk_od(adev, value) \
-		((adev)->powerplay.pp_funcs->set_mclk_od((adev)->powerplay.pp_handle, value))
-
-#define amdgpu_dpm_dispatch_task(adev, task_id, user_state)		\
-		((adev)->powerplay.pp_funcs->dispatch_tasks)((adev)->powerplay.pp_handle, (task_id), (user_state))
-
 #define amdgpu_dpm_check_state_equal(adev, cps, rps, equal) \
 		((adev)->powerplay.pp_funcs->check_state_equal((adev)->powerplay.pp_handle, (cps), (rps), (equal)))
-
-#define amdgpu_dpm_get_vce_clock_state(adev, i)				\
-		((adev)->powerplay.pp_funcs->get_vce_clock_state((adev)->powerplay.pp_handle, (i)))
-
-#define amdgpu_dpm_get_performance_level(adev)				\
-		((adev)->powerplay.pp_funcs->get_performance_level((adev)->powerplay.pp_handle))
 
 #define amdgpu_dpm_reset_power_profile_state(adev, request) \
 		((adev)->powerplay.pp_funcs->reset_power_profile_state(\
 			(adev)->powerplay.pp_handle, request))
-
-#define amdgpu_dpm_get_power_profile_mode(adev, buf) \
-		((adev)->powerplay.pp_funcs->get_power_profile_mode(\
-			(adev)->powerplay.pp_handle, buf))
-
-#define amdgpu_dpm_set_power_profile_mode(adev, parameter, size) \
-		((adev)->powerplay.pp_funcs->set_power_profile_mode(\
-			(adev)->powerplay.pp_handle, parameter, size))
-
-#define amdgpu_dpm_set_fine_grain_clk_vol(adev, type, parameter, size) \
-		((adev)->powerplay.pp_funcs->set_fine_grain_clk_vol(\
-			(adev)->powerplay.pp_handle, type, parameter, size))
-
-#define amdgpu_dpm_odn_edit_dpm_table(adev, type, parameter, size) \
-		((adev)->powerplay.pp_funcs->odn_edit_dpm_table(\
-			(adev)->powerplay.pp_handle, type, parameter, size))
-
-#define amdgpu_dpm_get_ppfeature_status(adev, buf) \
-		((adev)->powerplay.pp_funcs->get_ppfeature_status(\
-			(adev)->powerplay.pp_handle, (buf)))
-
-#define amdgpu_dpm_set_ppfeature_status(adev, ppfeatures) \
-		((adev)->powerplay.pp_funcs->set_ppfeature_status(\
-			(adev)->powerplay.pp_handle, (ppfeatures)))
-
-#define amdgpu_dpm_get_gpu_metrics(adev, table) \
-		((adev)->powerplay.pp_funcs->get_gpu_metrics((adev)->powerplay.pp_handle, table))
 
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
@@ -606,4 +516,74 @@ void amdgpu_dpm_gfx_state_change(struct amdgpu_device *adev,
 				 enum gfx_change_state state);
 int amdgpu_dpm_get_ecc_info(struct amdgpu_device *adev,
 			    void *umc_ecc);
+struct amd_vce_state *amdgpu_dpm_get_vce_clock_state(struct amdgpu_device *adev,
+						     uint32_t idx);
+void amdgpu_dpm_get_current_power_state(struct amdgpu_device *adev, enum amd_pm_state_type *state);
+void amdgpu_dpm_set_power_state(struct amdgpu_device *adev,
+				enum amd_pm_state_type state);
+enum amd_dpm_forced_level amdgpu_dpm_get_performance_level(struct amdgpu_device *adev);
+int amdgpu_dpm_force_performance_level(struct amdgpu_device *adev,
+				       enum amd_dpm_forced_level level);
+int amdgpu_dpm_get_pp_num_states(struct amdgpu_device *adev,
+				 struct pp_states_info *states);
+int amdgpu_dpm_dispatch_task(struct amdgpu_device *adev,
+			      enum amd_pp_task task_id,
+			      enum amd_pm_state_type *user_state);
+int amdgpu_dpm_get_pp_table(struct amdgpu_device *adev, char **table);
+int amdgpu_dpm_set_fine_grain_clk_vol(struct amdgpu_device *adev,
+				      uint32_t type,
+				      long *input,
+				      uint32_t size);
+int amdgpu_dpm_odn_edit_dpm_table(struct amdgpu_device *adev,
+				  uint32_t type,
+				  long *input,
+				  uint32_t size);
+int amdgpu_dpm_print_clock_levels(struct amdgpu_device *adev,
+				  enum pp_clock_type type,
+				  char *buf);
+int amdgpu_dpm_set_ppfeature_status(struct amdgpu_device *adev,
+				    uint64_t ppfeature_masks);
+int amdgpu_dpm_get_ppfeature_status(struct amdgpu_device *adev, char *buf);
+int amdgpu_dpm_force_clock_level(struct amdgpu_device *adev,
+				 enum pp_clock_type type,
+				 uint32_t mask);
+int amdgpu_dpm_get_sclk_od(struct amdgpu_device *adev);
+int amdgpu_dpm_set_sclk_od(struct amdgpu_device *adev, uint32_t value);
+int amdgpu_dpm_get_mclk_od(struct amdgpu_device *adev);
+int amdgpu_dpm_set_mclk_od(struct amdgpu_device *adev, uint32_t value);
+int amdgpu_dpm_get_power_profile_mode(struct amdgpu_device *adev,
+				      char *buf);
+int amdgpu_dpm_set_power_profile_mode(struct amdgpu_device *adev,
+				      long *input, uint32_t size);
+int amdgpu_dpm_get_gpu_metrics(struct amdgpu_device *adev, void **table);
+int amdgpu_dpm_get_fan_control_mode(struct amdgpu_device *adev,
+				    uint32_t *fan_mode);
+int amdgpu_dpm_set_fan_speed_pwm(struct amdgpu_device *adev,
+				 uint32_t speed);
+int amdgpu_dpm_get_fan_speed_pwm(struct amdgpu_device *adev,
+				 uint32_t *speed);
+int amdgpu_dpm_get_fan_speed_rpm(struct amdgpu_device *adev,
+				 uint32_t *speed);
+int amdgpu_dpm_set_fan_speed_rpm(struct amdgpu_device *adev,
+				 uint32_t speed);
+int amdgpu_dpm_set_fan_control_mode(struct amdgpu_device *adev,
+				    uint32_t mode);
+int amdgpu_dpm_get_power_limit(struct amdgpu_device *adev,
+			       uint32_t *limit,
+			       enum pp_power_limit_level pp_limit_level,
+			       enum pp_power_type power_type);
+int amdgpu_dpm_set_power_limit(struct amdgpu_device *adev,
+			       uint32_t limit);
+int amdgpu_dpm_is_cclk_dpm_supported(struct amdgpu_device *adev);
+int amdgpu_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
+						       struct seq_file *m);
+int amdgpu_dpm_get_smu_prv_buf_details(struct amdgpu_device *adev,
+				       void **addr,
+				       size_t *size);
+int amdgpu_dpm_is_overdrive_supported(struct amdgpu_device *adev);
+int amdgpu_dpm_set_pp_table(struct amdgpu_device *adev,
+			    const char *buf,
+			    size_t size);
+int amdgpu_dpm_get_num_cpu_cores(struct amdgpu_device *adev);
+void amdgpu_dpm_stb_debug_fs_init(struct amdgpu_device *adev);
 #endif
