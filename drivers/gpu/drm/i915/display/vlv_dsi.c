@@ -42,6 +42,7 @@
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
 #include "skl_scaler.h"
+#include "vlv_dsi_pll.h"
 #include "vlv_sideband.h"
 
 /* return pixels in terms of txbyteclkhs */
