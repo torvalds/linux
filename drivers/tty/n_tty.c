@@ -2400,8 +2400,8 @@ static unsigned long inq_canon(struct n_tty_data *ldata)
 	return nr;
 }
 
-static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+static int n_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+		       unsigned long arg)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	int retval;

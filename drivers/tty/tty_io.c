@@ -2811,7 +2811,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return hung_up_tty_ioctl(file, cmd, arg);
 	retval = -EINVAL;
 	if (ld->ops->ioctl) {
-		retval = ld->ops->ioctl(tty, file, cmd, arg);
+		retval = ld->ops->ioctl(tty, cmd, arg);
 		if (retval == -ENOIOCTLCMD)
 			retval = -ENOTTY;
 	}
@@ -2990,10 +2990,10 @@ static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 	if (!ld)
 		return hung_up_tty_compat_ioctl(file, cmd, arg);
 	if (ld->ops->compat_ioctl)
-		retval = ld->ops->compat_ioctl(tty, file, cmd, arg);
+		retval = ld->ops->compat_ioctl(tty, cmd, arg);
 	if (retval == -ENOIOCTLCMD && ld->ops->ioctl)
-		retval = ld->ops->ioctl(tty, file,
-				(unsigned long)compat_ptr(cmd), arg);
+		retval = ld->ops->ioctl(tty, (unsigned long)compat_ptr(cmd),
+				arg);
 	tty_ldisc_deref(ld);
 
 	return retval;
