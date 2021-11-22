@@ -1505,8 +1505,8 @@ err_free_optee:
 	kfree(optee);
 err_free_pool:
 	tee_shm_pool_free(pool);
-	if (optee->smc.memremaped_shm)
-		memunmap(optee->smc.memremaped_shm);
+	if (memremaped_shm)
+		memunmap(memremaped_shm);
 	return rc;
 }
 
