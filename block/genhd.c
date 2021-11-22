@@ -372,17 +372,21 @@ void disk_uevent(struct gendisk *disk, enum kobject_action action)
 }
 EXPORT_SYMBOL_GPL(disk_uevent);
 
-static void disk_scan_partitions(struct gendisk *disk)
+int disk_scan_partitions(struct gendisk *disk, fmode_t mode)
 {
 	struct block_device *bdev;
 
-	if (!get_capacity(disk) || !disk_part_scan_enabled(disk))
-		return;
+	if (!disk_part_scan_enabled(disk))
+		return -EINVAL;
+	if (disk->open_partitions)
+		return -EBUSY;
 
 	set_bit(GD_NEED_PART_SCAN, &disk->state);
-	bdev = blkdev_get_by_dev(disk_devt(disk), FMODE_READ, NULL);
-	if (!IS_ERR(bdev))
-		blkdev_put(bdev, FMODE_READ);
+	bdev = blkdev_get_by_dev(disk_devt(disk), mode, NULL);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
+	blkdev_put(bdev, mode);
+	return 0;
 }
 
 /**
@@ -509,7 +513,8 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 			goto out_unregister_bdi;
 
 		bdev_add(disk->part0, ddev->devt);
-		disk_scan_partitions(disk);
+		if (get_capacity(disk))
+			disk_scan_partitions(disk, FMODE_READ);
 
 		/*
 		 * Announce the disk and partitions after all partitions are
