@@ -6371,8 +6371,6 @@ bool bpf_check_mod_kfunc_call(struct kfunc_btf_id_list *klist, u32 kfunc_id,
 {
 	struct kfunc_btf_id_set *s;
 
-	if (!owner)
-		return false;
 	mutex_lock(&klist->mutex);
 	list_for_each_entry(s, &klist->list, list) {
 		if (s->owner == owner && btf_id_set_contains(s->set, kfunc_id)) {
