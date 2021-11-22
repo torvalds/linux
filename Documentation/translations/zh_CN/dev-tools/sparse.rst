@@ -1,34 +1,34 @@
-﻿Chinese translated version of Documentation/dev-tools/sparse.rst
-
-If you have any comment or update to the content, please contact the
-original document maintainer directly.  However, if you have a problem
-communicating in English you can also ask the Chinese maintainer for
-help.  Contact the Chinese maintainer if this translation is outdated
-or if there is a problem with the translation.
-
-Chinese maintainer: Li Yang <leoyang.li@nxp.com>
----------------------------------------------------------------------
-Documentation/dev-tools/sparse.rst 的中文翻译
-
-如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
-交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
-译存在问题，请联系中文版维护者。
-
-中文版维护者： 李阳  Li Yang <leoyang.li@nxp.com>
-中文版翻译者： 李阳  Li Yang <leoyang.li@nxp.com>
-
-
-以下为正文
----------------------------------------------------------------------
-
-Copyright 2004 Linus Torvalds
+﻿Copyright 2004 Linus Torvalds
 Copyright 2004 Pavel Machek <pavel@ucw.cz>
 Copyright 2006 Bob Copeland <me@bobcopeland.com>
+
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: Documentation/dev-tools/sparse.rst
+
+:翻译:
+
+ Li Yang <leoyang.li@nxp.com>
+
+:校译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
+
+.. _cn_sparse:
+
+Sparse
+======
+
+Sparse是一个C程序的语义检查器；它可以用来发现内核代码的一些潜在问题。 关
+于sparse的概述，请参见https://lwn.net/Articles/689907/；本文档包含
+一些针对内核的sparse信息。
+关于sparse的更多信息，主要是关于它的内部结构，可以在它的官方网页上找到：
+https://sparse.docs.kernel.org。
 
 使用 sparse 工具做类型检查
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-"__bitwise" 是一种类型属性，所以你应该这样使用它：
+"__bitwise" 是一种类型属性，所以你应该这样使用它::
 
         typedef int __bitwise pm_request_t;
 
@@ -48,7 +48,7 @@ Copyright 2006 Bob Copeland <me@bobcopeland.com>
 坦白来说，你并不需要使用枚举类型。上面那些实际都可以浓缩成一个特殊的"int
 __bitwise"类型。
 
-所以更简单的办法只要这样做：
+所以更简单的办法只要这样做::
 
 	typedef int __bitwise pm_request_t;
 
@@ -60,25 +60,42 @@ __bitwise"类型。
 一个小提醒：常数整数"0"是特殊的。你可以直接把常数零当作位方式整数使用而
 不用担心 sparse 会抱怨。这是因为"bitwise"（恰如其名）是用来确保不同位方
 式类型不会被弄混（小尾模式，大尾模式，cpu尾模式，或者其他），对他们来说
-常数"0"确实是特殊的。
+常数"0"确实 **是** 特殊的。
+
+使用sparse进行锁检查
+--------------------
+
+下面的宏对于 gcc 来说是未定义的，在 sparse 运行时定义，以使用sparse的“上下文”
+跟踪功能，应用于锁定。 这些注释告诉 sparse 什么时候有锁，以及注释的函数的进入和
+退出。
+
+__must_hold - 指定的锁在函数进入和退出时被持有。
+
+__acquires  - 指定的锁在函数退出时被持有，但在进入时不被持有。
+
+__releases  - 指定的锁在函数进入时被持有，但在退出时不被持有。
+
+如果函数在不持有锁的情况下进入和退出，在函数内部以平衡的方式获取和释放锁，则不
+需要注释。
+上面的三个注释是针对sparse否则会报告上下文不平衡的情况。
 
 获取 sparse 工具
 ~~~~~~~~~~~~~~~~
 
 你可以从 Sparse 的主页获取最新的发布版本：
 
-	http://www.kernel.org/pub/linux/kernel/people/josh/sparse/
+	https://www.kernel.org/pub/software/devel/sparse/dist/
 
 或者，你也可以使用 git 克隆最新的 sparse 开发版本：
 
-	git://git.kernel.org/pub/scm/linux/kernel/git/josh/sparse.git
+	git://git.kernel.org/pub/scm/devel/sparse/sparse.git
 
 一旦你下载了源码，只要以普通用户身份运行：
 
 	make
 	make install
 
-它将会被自动安装到你的 ~/bin 目录下。
+如果是标准的用户，它将会被自动安装到你的~/bin目录下。
 
 使用 sparse 工具
 ~~~~~~~~~~~~~~~~
