@@ -4857,6 +4857,7 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.cached_vmcs12)
 		goto out_cached_vmcs12;
 
+	vmx->nested.shadow_vmcs12_cache.gpa = INVALID_GPA;
 	vmx->nested.cached_shadow_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL_ACCOUNT);
 	if (!vmx->nested.cached_shadow_vmcs12)
 		goto out_cached_shadow_vmcs12;
@@ -5289,8 +5290,7 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		struct gfn_to_hva_cache *ghc = &vmx->nested.vmcs12_cache;
 		struct vmcs_hdr hdr;
 
-		if (ghc->gpa != vmptr &&
-		    kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc, vmptr, VMCS12_SIZE)) {
+		if (kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc, vmptr, VMCS12_SIZE)) {
 			/*
 			 * Reads from an unbacked page return all 1s,
 			 * which means that the 32 bits located at the
