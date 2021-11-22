@@ -886,8 +886,7 @@ void __noreturn make_task_dead(int signr)
 	if (unlikely(tsk->flags & PF_EXITING)) {
 		pr_alert("Fixing recursive fault but reboot is needed!\n");
 		futex_exit_recursive(tsk);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule();
+		do_task_dead();
 	}
 
 	do_exit(signr);
