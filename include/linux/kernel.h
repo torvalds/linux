@@ -187,7 +187,6 @@ static inline void might_fault(void) { }
 #endif
 
 void do_exit(long error_code) __noreturn;
-void complete_and_exit(struct completion *, long) __noreturn;
 
 extern int num_to_str(char *buf, int size,
 		      unsigned long long num, unsigned int width);

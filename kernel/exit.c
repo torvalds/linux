@@ -891,15 +891,6 @@ void __noreturn make_task_dead(int signr)
 	do_exit(signr);
 }
 
-void complete_and_exit(struct completion *comp, long code)
-{
-	if (comp)
-		complete(comp);
-
-	do_exit(code);
-}
-EXPORT_SYMBOL(complete_and_exit);
-
 SYSCALL_DEFINE1(exit, int, error_code)
 {
 	do_exit((error_code&0xff)<<8);
