@@ -79,6 +79,14 @@ properties:
           - const: mediatek,mt7629
       - items:
           - enum:
+              - mediatek,mt7986a-rfb
+          - const: mediatek,mt7986a
+      - items:
+          - enum:
+              - mediatek,mt7986b-rfb
+          - const: mediatek,mt7986b
+      - items:
+          - enum:
               - mediatek,mt8127-moose
           - const: mediatek,mt8127
       - items:
