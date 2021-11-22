@@ -1730,6 +1730,10 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 		return NULL;
 
 	while (1) {
+		n = rb_next(&entry->offset_index);
+		if (!n)
+			return NULL;
+		entry = rb_entry(n, struct btrfs_free_space, offset_index);
 		if (entry->bitmap) {
 			if (entry->offset + BITS_PER_BITMAP *
 			    ctl->unit > offset)
@@ -1738,11 +1742,6 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 			if (entry->offset + entry->bytes > offset)
 				break;
 		}
-
-		n = rb_next(&entry->offset_index);
-		if (!n)
-			return NULL;
-		entry = rb_entry(n, struct btrfs_free_space, offset_index);
 	}
 	return entry;
 }
