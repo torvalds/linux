@@ -14,22 +14,6 @@
 #include <media/media-entity.h>
 #include <media/media-device.h>
 
-static inline const char *gobj_type(enum media_gobj_type type)
-{
-	switch (type) {
-	case MEDIA_GRAPH_ENTITY:
-		return "entity";
-	case MEDIA_GRAPH_PAD:
-		return "pad";
-	case MEDIA_GRAPH_LINK:
-		return "link";
-	case MEDIA_GRAPH_INTF_DEVNODE:
-		return "intf-devnode";
-	default:
-		return "unknown";
-	}
-}
-
 static inline const char *intf_type(struct media_interface *intf)
 {
 	switch (intf->type) {
