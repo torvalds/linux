@@ -180,7 +180,7 @@ static int hw_id_map[MAX_HWIP] = {
 	[DCI_HWIP]	= DCI_HWID,
 };
 
-static int amdgpu_discovery_read_binary(struct amdgpu_device *adev, uint8_t *binary)
+static int amdgpu_discovery_read_binary_from_vram(struct amdgpu_device *adev, uint8_t *binary)
 {
 	uint64_t vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
 	uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
@@ -262,7 +262,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 		release_firmware(fw);
 	} else {
 get_from_vram:
-		r = amdgpu_discovery_read_binary(adev, adev->mman.discovery_bin);
+		r = amdgpu_discovery_read_binary_from_vram(adev, adev->mman.discovery_bin);
 		if (r) {
 			DRM_ERROR("failed to read ip discovery binary\n");
 			goto out;
