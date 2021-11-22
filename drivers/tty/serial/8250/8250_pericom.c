@@ -70,11 +70,11 @@ static void pericom_do_set_divisor(struct uart_port *port, unsigned int baud,
 		/* Update delta due to possible divisor change */
 		delta = maxrate / divisor - baud;
 		if (abs(delta) < baud / 50) {
+			struct uart_8250_port *up = up_to_u8250p(port);
 			int lcr = serial_port_in(port, UART_LCR);
 
 			serial_port_out(port, UART_LCR, lcr | 0x80);
-			serial_port_out(port, UART_DLL, divisor & 0xff);
-			serial_port_out(port, UART_DLM, (divisor >> 8) & 0xff);
+			serial_dl_write(up, divisor);
 			serial_port_out(port, 2, 16 - scr);
 			serial_port_out(port, UART_LCR, lcr);
 			return;
