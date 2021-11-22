@@ -684,7 +684,7 @@ static int sr_probe(struct device *dev)
 	disk->minors = 1;
 	sprintf(disk->disk_name, "sr%d", minor);
 	disk->fops = &sr_bdops;
-	disk->flags |= GENHD_FL_NO_PART;
+	disk->flags |= GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE | DISK_EVENT_EJECT_REQUEST;
 	disk->event_flags = DISK_EVENT_FLAG_POLL | DISK_EVENT_FLAG_UEVENT |
 				DISK_EVENT_FLAG_BLOCK_ON_EXCL_WRITE;
@@ -726,7 +726,6 @@ static int sr_probe(struct device *dev)
 	blk_pm_runtime_init(sdev->request_queue, dev);
 
 	dev_set_drvdata(dev, cd);
-	disk->flags |= GENHD_FL_REMOVABLE;
 	sr_revalidate_disk(cd);
 
 	error = device_add_disk(&sdev->sdev_gendev, disk, NULL);
