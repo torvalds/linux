@@ -36,6 +36,7 @@
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_dsi.h"
+#include "intel_dsi_vbt.h"
 #include "intel_panel.h"
 #include "intel_vdsc.h"
 #include "skl_scaler.h"
