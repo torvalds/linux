@@ -313,6 +313,27 @@
 			status = "disabled";
 		};
 
+		uphya: uphya@1e6a0800 {
+			compatible = "aspeed,ast2600-uphya";
+			reg = <0x1e6a0800 0x20>;
+		};
+
+		udc: udc@1e6a2000 {
+			compatible = "aspeed,ast2600-udc";
+			reg = <0x1e6a2000 0x300>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT2CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2bd_default>;
+			status = "disabled";
+		};
+
+		uphyb: uphyb@1e6a2800 {
+			compatible = "aspeed,ast2600-uphyb";
+			reg = <0x1e6a2800 0x10>;
+			ctrl = <0x0 0x8>;
+		};
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
