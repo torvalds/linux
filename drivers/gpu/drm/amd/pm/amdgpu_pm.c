@@ -2869,7 +2869,7 @@ static ssize_t amdgpu_hwmon_show_power_label(struct device *dev,
 	int limit_type = to_sensor_dev_attr(attr)->index;
 
 	return sysfs_emit(buf, "%s\n",
-		limit_type == SMU_FAST_PPT_LIMIT ? "fastPPT" : "slowPPT");
+		limit_type == PP_PWR_TYPE_FAST ? "fastPPT" : "slowPPT");
 }
 
 static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,

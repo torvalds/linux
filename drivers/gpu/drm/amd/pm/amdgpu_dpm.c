@@ -31,6 +31,7 @@
 #include "amdgpu_display.h"
 #include "hwmgr.h"
 #include <linux/power_supply.h>
+#include "amdgpu_smu.h"
 
 #define amdgpu_dpm_enable_bapm(adev, e) \
 		((adev)->powerplay.pp_funcs->enable_bapm((adev)->powerplay.pp_handle, (e)))
@@ -213,7 +214,7 @@ int amdgpu_dpm_baco_reset(struct amdgpu_device *adev)
 
 bool amdgpu_dpm_is_mode1_reset_supported(struct amdgpu_device *adev)
 {
-	struct smu_context *smu = &adev->smu;
+	struct smu_context *smu = adev->powerplay.pp_handle;
 
 	if (is_support_sw_smu(adev))
 		return smu_mode1_reset_is_support(smu);
@@ -223,7 +224,7 @@ bool amdgpu_dpm_is_mode1_reset_supported(struct amdgpu_device *adev)
 
 int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev)
 {
-	struct smu_context *smu = &adev->smu;
+	struct smu_context *smu = adev->powerplay.pp_handle;
 
 	if (is_support_sw_smu(adev))
 		return smu_mode1_reset(smu);
@@ -276,7 +277,7 @@ int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 
 int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en)
 {
-	struct smu_context *smu = &adev->smu;
+	struct smu_context *smu = adev->powerplay.pp_handle;
 
 	if (is_support_sw_smu(adev))
 		return smu_allow_xgmi_power_down(smu, en);
@@ -341,7 +342,7 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 		mutex_unlock(&adev->pm.mutex);
 
 		if (is_support_sw_smu(adev))
-			smu_set_ac_dc(&adev->smu);
+			smu_set_ac_dc(adev->powerplay.pp_handle);
 	}
 }
 
@@ -426,12 +427,14 @@ int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_versio
 
 int amdgpu_dpm_handle_passthrough_sbr(struct amdgpu_device *adev, bool enable)
 {
-	return smu_handle_passthrough_sbr(&adev->smu, enable);
+	return smu_handle_passthrough_sbr(adev->powerplay.pp_handle, enable);
 }
 
 int amdgpu_dpm_send_hbm_bad_pages_num(struct amdgpu_device *adev, uint32_t size)
 {
-	return smu_send_hbm_bad_pages_num(&adev->smu, size);
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
+	return smu_send_hbm_bad_pages_num(smu, size);
 }
 
 int amdgpu_dpm_get_dpm_freq_range(struct amdgpu_device *adev,
@@ -444,7 +447,7 @@ int amdgpu_dpm_get_dpm_freq_range(struct amdgpu_device *adev,
 
 	switch (type) {
 	case PP_SCLK:
-		return smu_get_dpm_freq_range(&adev->smu, SMU_SCLK, min, max);
+		return smu_get_dpm_freq_range(adev->powerplay.pp_handle, SMU_SCLK, min, max);
 	default:
 		return -EINVAL;
 	}
@@ -455,12 +458,14 @@ int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
 				   uint32_t min,
 				   uint32_t max)
 {
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
 	if (!is_support_sw_smu(adev))
 		return -EOPNOTSUPP;
 
 	switch (type) {
 	case PP_SCLK:
-		return smu_set_soft_freq_range(&adev->smu, SMU_SCLK, min, max);
+		return smu_set_soft_freq_range(smu, SMU_SCLK, min, max);
 	default:
 		return -EINVAL;
 	}
@@ -468,33 +473,41 @@ int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
 
 int amdgpu_dpm_write_watermarks_table(struct amdgpu_device *adev)
 {
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
 	if (!is_support_sw_smu(adev))
 		return 0;
 
-	return smu_write_watermarks_table(&adev->smu);
+	return smu_write_watermarks_table(smu);
 }
 
 int amdgpu_dpm_wait_for_event(struct amdgpu_device *adev,
 			      enum smu_event_type event,
 			      uint64_t event_arg)
 {
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
 	if (!is_support_sw_smu(adev))
 		return -EOPNOTSUPP;
 
-	return smu_wait_for_event(&adev->smu, event, event_arg);
+	return smu_wait_for_event(smu, event, event_arg);
 }
 
 int amdgpu_dpm_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value)
 {
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
 	if (!is_support_sw_smu(adev))
 		return -EOPNOTSUPP;
 
-	return smu_get_status_gfxoff(&adev->smu, value);
+	return smu_get_status_gfxoff(smu, value);
 }
 
 uint64_t amdgpu_dpm_get_thermal_throttling_counter(struct amdgpu_device *adev)
 {
-	return atomic64_read(&adev->smu.throttle_int_counter);
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
+	return atomic64_read(&smu->throttle_int_counter);
 }
 
 /* amdgpu_dpm_gfx_state_change - Handle gfx power state change set
@@ -516,10 +529,12 @@ void amdgpu_dpm_gfx_state_change(struct amdgpu_device *adev,
 int amdgpu_dpm_get_ecc_info(struct amdgpu_device *adev,
 			    void *umc_ecc)
 {
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
 	if (!is_support_sw_smu(adev))
 		return -EOPNOTSUPP;
 
-	return smu_get_ecc_info(&adev->smu, umc_ecc);
+	return smu_get_ecc_info(smu, umc_ecc);
 }
 
 struct amd_vce_state *amdgpu_dpm_get_vce_clock_state(struct amdgpu_device *adev,
@@ -943,9 +958,10 @@ int amdgpu_dpm_get_smu_prv_buf_details(struct amdgpu_device *adev,
 int amdgpu_dpm_is_overdrive_supported(struct amdgpu_device *adev)
 {
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+	struct smu_context *smu = adev->powerplay.pp_handle;
 
-	if ((is_support_sw_smu(adev) && adev->smu.od_enabled) ||
-	    (is_support_sw_smu(adev) && adev->smu.is_apu) ||
+	if ((is_support_sw_smu(adev) && smu->od_enabled) ||
+	    (is_support_sw_smu(adev) && smu->is_apu) ||
 		(!is_support_sw_smu(adev) && hwmgr->od_enabled))
 		return true;
 
@@ -968,7 +984,9 @@ int amdgpu_dpm_set_pp_table(struct amdgpu_device *adev,
 
 int amdgpu_dpm_get_num_cpu_cores(struct amdgpu_device *adev)
 {
-	return adev->smu.cpu_core_num;
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
+	return smu->cpu_core_num;
 }
 
 void amdgpu_dpm_stb_debug_fs_init(struct amdgpu_device *adev)
