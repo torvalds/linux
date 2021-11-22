@@ -2624,7 +2624,7 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 	/* For passthrough configuration on arcturus and aldebaran, enable special handling SBR */
 	if (amdgpu_passthrough(adev) && ((adev->asic_type == CHIP_ARCTURUS && adev->gmc.xgmi.num_physical_nodes > 1)||
 			       adev->asic_type == CHIP_ALDEBARAN ))
-		smu_handle_passthrough_sbr(&adev->smu, true);
+		amdgpu_dpm_handle_passthrough_sbr(adev, true);
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
 		mutex_lock(&mgpu_info.mutex);
@@ -2881,7 +2881,7 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 	int i, r;
 
 	if (adev->in_s0ix)
-		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D3Entry);
+		amdgpu_dpm_gfx_state_change(adev, sGpuChangeState_D3Entry);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
@@ -4044,7 +4044,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 		return 0;
 
 	if (adev->in_s0ix)
-		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D0Entry);
+		amdgpu_dpm_gfx_state_change(adev, sGpuChangeState_D0Entry);
 
 	/* post card */
 	if (amdgpu_device_need_post(adev)) {

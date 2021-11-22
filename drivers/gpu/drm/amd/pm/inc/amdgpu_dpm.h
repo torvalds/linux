@@ -23,6 +23,12 @@
 #ifndef __AMDGPU_DPM_H__
 #define __AMDGPU_DPM_H__
 
+/* Argument for PPSMC_MSG_GpuChangeState */
+enum gfx_change_state {
+	sGpuChangeState_D0Entry = 1,
+	sGpuChangeState_D3Entry,
+};
+
 enum amdgpu_int_thermal_type {
 	THERMAL_TYPE_NONE,
 	THERMAL_TYPE_EXTERNAL,
@@ -582,5 +588,22 @@ void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_jpeg(struct amdgpu_device *adev, bool enable);
 void amdgpu_pm_print_power_states(struct amdgpu_device *adev);
 int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_version);
-
+int amdgpu_dpm_handle_passthrough_sbr(struct amdgpu_device *adev, bool enable);
+int amdgpu_dpm_send_hbm_bad_pages_num(struct amdgpu_device *adev, uint32_t size);
+int amdgpu_dpm_get_dpm_freq_range(struct amdgpu_device *adev,
+				       enum pp_clock_type type,
+				       uint32_t *min,
+				       uint32_t *max);
+int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
+				        enum pp_clock_type type,
+				        uint32_t min,
+				        uint32_t max);
+int amdgpu_dpm_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
+		       uint64_t event_arg);
+int amdgpu_dpm_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
+uint64_t amdgpu_dpm_get_thermal_throttling_counter(struct amdgpu_device *adev);
+void amdgpu_dpm_gfx_state_change(struct amdgpu_device *adev,
+				 enum gfx_change_state state);
+int amdgpu_dpm_get_ecc_info(struct amdgpu_device *adev,
+			    void *umc_ecc);
 #endif

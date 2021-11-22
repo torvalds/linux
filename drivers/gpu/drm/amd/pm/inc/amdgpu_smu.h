@@ -241,11 +241,6 @@ struct smu_user_dpm_profile {
 	uint32_t clk_dependency;
 };
 
-enum smu_event_type {
-
-	SMU_EVENT_RESET_COMPLETE = 0,
-};
-
 #define SMU_TABLE_INIT(tables, table_id, s, a, d)	\
 	do {						\
 		tables[table_id].size = s;		\
@@ -1413,15 +1408,15 @@ int smu_set_ac_dc(struct smu_context *smu);
 
 int smu_allow_xgmi_power_down(struct smu_context *smu, bool en);
 
-int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
+int smu_get_status_gfxoff(struct smu_context *smu, uint32_t *value);
 
 int smu_handle_passthrough_sbr(struct smu_context *smu, bool enable);
 
-int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
+int smu_wait_for_event(struct smu_context *smu, enum smu_event_type event,
 		       uint64_t event_arg);
 int smu_get_ecc_info(struct smu_context *smu, void *umc_ecc);
 int smu_stb_collect_info(struct smu_context *smu, void *buff, uint32_t size);
 void amdgpu_smu_stb_debug_fs_init(struct amdgpu_device *adev);
-
+int smu_send_hbm_bad_pages_num(struct smu_context *smu, uint32_t size);
 #endif
 #endif

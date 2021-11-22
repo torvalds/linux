@@ -1614,3 +1614,93 @@ int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_versio
 
 	return 0;
 }
+
+int amdgpu_dpm_handle_passthrough_sbr(struct amdgpu_device *adev, bool enable)
+{
+	return smu_handle_passthrough_sbr(&adev->smu, enable);
+}
+
+int amdgpu_dpm_send_hbm_bad_pages_num(struct amdgpu_device *adev, uint32_t size)
+{
+	return smu_send_hbm_bad_pages_num(&adev->smu, size);
+}
+
+int amdgpu_dpm_get_dpm_freq_range(struct amdgpu_device *adev,
+				  enum pp_clock_type type,
+				  uint32_t *min,
+				  uint32_t *max)
+{
+	if (!is_support_sw_smu(adev))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case PP_SCLK:
+		return smu_get_dpm_freq_range(&adev->smu, SMU_SCLK, min, max);
+	default:
+		return -EINVAL;
+	}
+}
+
+int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
+				   enum pp_clock_type type,
+				   uint32_t min,
+				   uint32_t max)
+{
+	if (!is_support_sw_smu(adev))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case PP_SCLK:
+		return smu_set_soft_freq_range(&adev->smu, SMU_SCLK, min, max);
+	default:
+		return -EINVAL;
+	}
+}
+
+int amdgpu_dpm_wait_for_event(struct amdgpu_device *adev,
+			      enum smu_event_type event,
+			      uint64_t event_arg)
+{
+	if (!is_support_sw_smu(adev))
+		return -EOPNOTSUPP;
+
+	return smu_wait_for_event(&adev->smu, event, event_arg);
+}
+
+int amdgpu_dpm_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value)
+{
+	if (!is_support_sw_smu(adev))
+		return -EOPNOTSUPP;
+
+	return smu_get_status_gfxoff(&adev->smu, value);
+}
+
+uint64_t amdgpu_dpm_get_thermal_throttling_counter(struct amdgpu_device *adev)
+{
+	return atomic64_read(&adev->smu.throttle_int_counter);
+}
+
+/* amdgpu_dpm_gfx_state_change - Handle gfx power state change set
+ * @adev: amdgpu_device pointer
+ * @state: gfx power state(1 -sGpuChangeState_D0Entry and 2 -sGpuChangeState_D3Entry)
+ *
+ */
+void amdgpu_dpm_gfx_state_change(struct amdgpu_device *adev,
+				 enum gfx_change_state state)
+{
+	mutex_lock(&adev->pm.mutex);
+	if (adev->powerplay.pp_funcs &&
+	    adev->powerplay.pp_funcs->gfx_state_change_set)
+		((adev)->powerplay.pp_funcs->gfx_state_change_set(
+			(adev)->powerplay.pp_handle, state));
+	mutex_unlock(&adev->pm.mutex);
+}
+
+int amdgpu_dpm_get_ecc_info(struct amdgpu_device *adev,
+			    void *umc_ecc)
+{
+	if (!is_support_sw_smu(adev))
+		return -EOPNOTSUPP;
+
+	return smu_get_ecc_info(&adev->smu, umc_ecc);
+}

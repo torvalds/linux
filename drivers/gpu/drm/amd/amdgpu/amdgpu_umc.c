@@ -33,7 +33,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	int ret = 0;
 
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-	ret = smu_get_ecc_info(&adev->smu, (void *)&(con->umc_ecc));
+	ret = amdgpu_dpm_get_ecc_info(adev, (void *)&(con->umc_ecc));
 	if (ret == -EOPNOTSUPP) {
 		if (adev->umc.ras_funcs &&
 		    adev->umc.ras_funcs->query_ras_error_count)
@@ -96,8 +96,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 						err_data->err_addr_cnt);
 			amdgpu_ras_save_bad_pages(adev);
 
-			if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->send_hbm_bad_pages_num)
-				adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.ras_num_recs);
+			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
 		}
 
 		if (reset)

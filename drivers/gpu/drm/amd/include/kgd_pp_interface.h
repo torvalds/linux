@@ -26,6 +26,10 @@
 
 extern const struct amdgpu_ip_block_version pp_smu_ip_block;
 
+enum smu_event_type {
+	SMU_EVENT_RESET_COMPLETE = 0,
+};
+
 struct amd_vce_state {
 	/* vce clocks */
 	u32 evclk;

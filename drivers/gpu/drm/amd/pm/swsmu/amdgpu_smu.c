@@ -100,17 +100,14 @@ static int smu_sys_set_pp_feature_mask(void *handle,
 	return ret;
 }
 
-int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value)
+int smu_get_status_gfxoff(struct smu_context *smu, uint32_t *value)
 {
-	int ret = 0;
-	struct smu_context *smu = &adev->smu;
+	if (!smu->ppt_funcs->get_gfx_off_status)
+		return -EINVAL;
 
-	if (is_support_sw_smu(adev) && smu->ppt_funcs->get_gfx_off_status)
-		*value = smu_get_gfx_off_status(smu);
-	else
-		ret = -EINVAL;
+	*value = smu_get_gfx_off_status(smu);
 
-	return ret;
+	return 0;
 }
 
 int smu_set_soft_freq_range(struct smu_context *smu,
@@ -3165,11 +3162,10 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_smu_prv_buf_details = smu_get_prv_buffer_details,
 };
 
-int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
+int smu_wait_for_event(struct smu_context *smu, enum smu_event_type event,
 		       uint64_t event_arg)
 {
 	int ret = -EINVAL;
-	struct smu_context *smu = &adev->smu;
 
 	if (smu->ppt_funcs->wait_for_event) {
 		mutex_lock(&smu->mutex);
@@ -3282,4 +3278,14 @@ void amdgpu_smu_stb_debug_fs_init(struct amdgpu_device *adev)
 			    smu->stb_context.stb_buf_size);
 #endif
 
+}
+
+int smu_send_hbm_bad_pages_num(struct smu_context *smu, uint32_t size)
+{
+	int ret = 0;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->send_hbm_bad_pages_num)
+		ret = smu->ppt_funcs->send_hbm_bad_pages_num(smu, size);
+
+	return ret;
 }
