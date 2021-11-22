@@ -291,6 +291,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_replace_next_task_fair,
 			bool simple, struct task_struct *prev),
 	TP_ARGS(rq, p, se, repick, simple, prev), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_do_sched_yield,
+	TP_PROTO(struct rq *rq),
+	TP_ARGS(rq), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_util_est_update,
 	TP_PROTO(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep, int *ret),
 	TP_ARGS(cfs_rq, p, task_sleep, ret), 1);
