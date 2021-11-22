@@ -658,6 +658,7 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 	size_t block_ts;
 	u32 ctllo, ctlhi;
 	u32 burst_len;
+	u32 burst_trans_len;
 
 	axi_block_ts = chan->chip->dw->hdata->block_size[chan->id];
 
@@ -721,8 +722,14 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 
 	hw_desc->lli->block_ts_lo = cpu_to_le32(block_ts - 1);
 
-	ctllo |= DWAXIDMAC_BURST_TRANS_LEN_4 << CH_CTL_L_DST_MSIZE_POS |
-		 DWAXIDMAC_BURST_TRANS_LEN_4 << CH_CTL_L_SRC_MSIZE_POS;
+	if (chan->fixed_burst_trans_len == true)
+		burst_trans_len = chan->burst_trans_len;
+	else
+		burst_trans_len = DWAXIDMAC_BURST_TRANS_LEN_4;
+
+	ctllo |= burst_trans_len << CH_CTL_L_DST_MSIZE_POS |
+		 burst_trans_len << CH_CTL_L_SRC_MSIZE_POS;
+
 	hw_desc->lli->ctl_lo = cpu_to_le32(ctllo);
 
 	set_desc_src_master(hw_desc);
@@ -1316,6 +1323,13 @@ static struct dma_chan *dw_axi_dma_of_xlate(struct of_phandle_args *dma_spec,
 
 	chan = dchan_to_axi_dma_chan(dchan);
 	chan->hw_handshake_num = dma_spec->args[0];
+
+	/*some per may need fixed-burst_trans_len*/
+	if (dma_spec->args_count == 2  && dma_spec->args[1] > 0) {
+		chan->fixed_burst_trans_len = true;
+		chan->burst_trans_len = dma_spec->args[1];
+	}
+
 	return dchan;
 }
 

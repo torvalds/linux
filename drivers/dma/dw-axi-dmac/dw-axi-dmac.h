@@ -66,6 +66,7 @@ struct axi_dma_chan {
 	void __iomem			*chan_regs;
 	u8				id;
 	u8				hw_handshake_num;
+	s8				burst_trans_len;
 	atomic_t			descs_allocated;
 
 	struct dma_pool			*desc_pool;
@@ -74,6 +75,7 @@ struct axi_dma_chan {
 	struct axi_dma_desc		*desc;
 	struct dma_slave_config		config;
 	enum dma_transfer_direction	direction;
+	bool 				fixed_burst_trans_len;
 	bool				cyclic;
 	/* these other elements are all protected by vc.lock */
 	bool				is_paused;
