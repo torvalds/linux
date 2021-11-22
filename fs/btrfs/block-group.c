@@ -1509,7 +1509,6 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
 	struct btrfs_block_group *bg;
 	struct btrfs_space_info *space_info;
-	LIST_HEAD(again_list);
 
 	if (!test_bit(BTRFS_FS_OPEN, &fs_info->flags))
 		return;
@@ -1586,18 +1585,14 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 				div64_u64(zone_unusable * 100, bg->length));
 		trace_btrfs_reclaim_block_group(bg);
 		ret = btrfs_relocate_chunk(fs_info, bg->start);
-		if (ret && ret != -EAGAIN)
+		if (ret)
 			btrfs_err(fs_info, "error relocating chunk %llu",
 				  bg->start);
 
 next:
+		btrfs_put_block_group(bg);
 		spin_lock(&fs_info->unused_bgs_lock);
-		if (ret == -EAGAIN && list_empty(&bg->bg_list))
-			list_add_tail(&bg->bg_list, &again_list);
-		else
-			btrfs_put_block_group(bg);
 	}
-	list_splice_tail(&again_list, &fs_info->reclaim_bgs);
 	spin_unlock(&fs_info->unused_bgs_lock);
 	mutex_unlock(&fs_info->reclaim_bgs_lock);
 	btrfs_exclop_finish(fs_info);

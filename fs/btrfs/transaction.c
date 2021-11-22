@@ -169,6 +169,10 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 	ASSERT(cur_trans->state == TRANS_STATE_COMMIT_DOING);
 
 	down_write(&fs_info->commit_root_sem);
+
+	if (test_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags))
+		fs_info->last_reloc_trans = trans->transid;
+
 	list_for_each_entry_safe(root, tmp, &cur_trans->switch_commits,
 				 dirty_list) {
 		list_del_init(&root->dirty_list);
