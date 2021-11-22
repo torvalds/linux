@@ -169,8 +169,9 @@ static void csi2_enable(struct csi2_dev *csi2,
 		       SW_DATATYPE_FE(0x01) | SW_DATATYPE_LS(0x02) |
 		       SW_DATATYPE_LE(0x03);
 		write_csihost_reg(base, CSIHOST_CONTROL, val);
-		write_csihost_reg(base, CSIHOST_MSK1, 0);
+		write_csihost_reg(base, CSIHOST_MSK1, 0x0);
 		write_csihost_reg(base, CSIHOST_MSK2, 0xf000);
+		csi2->is_check_sot_sync = true;
 	}
 
 	write_csihost_reg(base, CSIHOST_RESETN, 1);
@@ -636,19 +637,31 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 	if (val) {
 		write_csihost_reg(csi2->base,
 				  CSIHOST_ERR1, 0x0);
-
 		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_SOTSYN];
 			err_list->cnt++;
-			v4l2_err(&csi2->sd,
-				 "ERR1: start of transmission error(no synchronization achieved), reg: 0x%x,cnt:%d\n",
-				 val, err_list->cnt);
+			if (csi2->match_data->chip_id == CHIP_RK3588_CSI2) {
+				if (csi2->err_list[RK_CSI2_ERR_ALL].cnt > err_list->cnt) {
+					dev_err(csi2->dev,
+						"ERR1: start of transmission error(no synchronization achieved), reg: 0x%x,cnt:%d\n",
+						val, err_list->cnt);
+				} else {
+					if (csi2->is_check_sot_sync) {
+						write_csihost_reg(csi2->base, CSIHOST_MSK1, 0xf);
+						csi2->is_check_sot_sync = false;
+					}
+				}
+			} else {
+				dev_err(csi2->dev,
+					"ERR1: start of transmission error(no synchronization achieved), reg: 0x%x,cnt:%d\n",
+					val, err_list->cnt);
+			}
 		}
 
 		if (val & CSIHOST_ERR1_ERR_BNDRY_MATCH) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_FS_FE_MIS];
 			err_list->cnt++;
-			v4l2_err(&csi2->sd,
+			dev_err(csi2->dev,
 				 "ERR1: error matching frame start with frame end, reg: 0x%x,cnt:%d\n",
 				 val, err_list->cnt);
 		}
@@ -656,7 +669,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 		if (val & CSIHOST_ERR1_ERR_SEQ) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_FRM_SEQ_ERR];
 			err_list->cnt++;
-			v4l2_err(&csi2->sd,
+			dev_err(csi2->dev,
 				 "ERR1: incorrect frame sequence detected, reg: 0x%x,cnt:%d\n",
 				 val, err_list->cnt);
 		}
@@ -671,7 +684,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 		if (val & CSIHOST_ERR1_ERR_CRC) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_CRC];
 			err_list->cnt++;
-			v4l2_err(&csi2->sd,
+			dev_err(csi2->dev,
 				 "ERR1: crc errors, reg: 0x%x, cnt:%d\n",
 				 val, err_list->cnt);
 		}
@@ -698,9 +711,9 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR2);
 	if (val) {
 		if (val & CSIHOST_ERR2_PHYERR_ESC)
-			v4l2_err(&csi2->sd, "ERR2: escape entry error(ULPM), reg: 0x%x\n", val);
+			dev_err(csi2->dev, "ERR2: escape entry error(ULPM), reg: 0x%x\n", val);
 		if (val & CSIHOST_ERR2_PHYERR_SOTHS)
-			v4l2_err(&csi2->sd,
+			dev_err(csi2->dev,
 				 "ERR2: start of transmission error(synchronization can still be achieved), reg: 0x%x\n",
 				 val);
 		if (val & CSIHOST_ERR2_ECC_CORRECTED)
@@ -708,11 +721,11 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 				 "ERR2: header error detected and corrected, reg: 0x%x\n",
 				 val);
 		if (val & CSIHOST_ERR2_ERR_ID)
-			v4l2_err(&csi2->sd,
+			dev_err(csi2->dev,
 				 "ERR2: unrecognized or unimplemented data type detected, reg: 0x%x\n",
 				 val);
 		if (val & CSIHOST_ERR2_PHYERR_CODEHS)
-			v4l2_err(&csi2->sd, "ERR2: receiv error code, reg: 0x%x\n", val);
+			dev_err(csi2->dev, "ERR2: receiv error code, reg: 0x%x\n", val);
 	}
 
 	return IRQ_HANDLED;
