@@ -355,6 +355,38 @@ Supported chips:
 
 	       https://www.ti.com/lit/gpn/tmp461
 
+  * Philips NE1617, NE1617A
+
+    Prefix: 'max1617' (probably detected as a max1617)
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheets: Publicly available at the Philips website
+
+  * Genesys Logic GL523SM
+
+    Prefix: 'gl523sm'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet:
+
+  * TI THMC10
+
+    Prefix: 'thmc10'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the TI website
+
+  * Onsemi MC1066
+
+    Prefix: 'mc1066'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Onsemi website
+
 Author: Jean Delvare <jdelvare@suse.de>
 
 
@@ -385,7 +417,7 @@ features:
 LM84:
   * 8 bit sensor resolution
 
-ADM1021, MAX1617:
+ADM1021, GL523SM, MAX1617, NE1617, NE1617A, THMC10:
   * 8 bit sensor resolution
   * Low temperature limits
 

@@ -233,6 +233,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "adt7482", adt7481 },
 	{ "adt7483a", adt7481 },
 	{ "g781", g781 },
+	{ "gl523sm", max1617 },
 	{ "lm84", lm84 },
 	{ "lm86", lm86 },
 	{ "lm89", lm86 },
@@ -254,9 +255,11 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6692", max6648 },
 	{ "max6695", max6696 },
 	{ "max6696", max6696 },
+	{ "mc1066", max1617 },
 	{ "nct1008", adt7461a },
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
+	{ "thmc10", max1617 },
 	{ "tmp451", tmp451 },
 	{ "tmp461", tmp461 },
 	{ }
@@ -2127,6 +2130,18 @@ static const char *lm90_detect_gmt(struct i2c_client *client, int chip_id,
 	return NULL;
 }
 
+static const char *lm90_detect_ti49(struct i2c_client *client, bool common_address,
+				    int chip_id, int config1, int convrate)
+{
+	if (common_address && chip_id == 0x00 && !(config1 & 0x3f) && !(convrate & 0xf8)) {
+		/* THMC10: Unsupported registers return 0xff */
+		if (i2c_smbus_read_byte_data(client, LM90_REG_REMOTE_TEMPL) == 0xff &&
+		    i2c_smbus_read_byte_data(client, LM90_REG_REMOTE_CRIT) == 0xff)
+			return "thmc10";
+	}
+	return NULL;
+}
+
 static const char *lm90_detect_ti(struct i2c_client *client, int chip_id,
 				  int config1, int convrate)
 {
@@ -2210,6 +2225,10 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 	case 0x01:	/* National Semiconductor */
 		name = lm90_detect_national(client, chip_id, config1, convrate);
 		break;
+	case 0x23:	/* Genesys Logic */
+		if (common_address && !(config1 & 0x3f) && !(convrate & 0xf8))
+			name = "gl523sm";
+		break;
 	case 0x41:	/* Analog Devices */
 		name = lm90_detect_analog(client, common_address, chip_id, config1,
 					  convrate);
@@ -2217,9 +2236,16 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 	case 0x47:	/* GMT */
 		name = lm90_detect_gmt(client, chip_id, config1, convrate);
 		break;
+	case 0x49:	/* TI */
+		name = lm90_detect_ti49(client, common_address, chip_id, config1, convrate);
+		break;
 	case 0x4d:	/* Maxim Integrated */
 		name = lm90_detect_maxim(client, common_address, chip_id,
 					 config1, convrate);
+		break;
+	case 0x54:	/* ON MC1066, Microchip TC1068, TCM1617 (originally TelCom) */
+		if (common_address && !(config1 & 0x3f) && !(convrate & 0xf8))
+			name = "mc1066";
 		break;
 	case 0x55:	/* TI */
 		name = lm90_detect_ti(client, chip_id, config1, convrate);
