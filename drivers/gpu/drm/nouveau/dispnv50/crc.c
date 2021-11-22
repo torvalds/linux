@@ -84,7 +84,10 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 	struct nv50_crc *crc = container_of(work, struct nv50_crc, flip_work);
 	struct nv50_head *head = container_of(crc, struct nv50_head, crc);
 	struct drm_crtc *crtc = &head->base.base;
-	struct nv50_disp *disp = nv50_disp(crtc->dev);
+	struct drm_device *dev = crtc->dev;
+	struct nv50_disp *disp = nv50_disp(dev);
+	const uint64_t start_vbl = drm_crtc_vblank_count(crtc);
+	uint64_t end_vbl;
 	u8 new_idx = crc->ctx_idx ^ 1;
 
 	/*
@@ -92,22 +95,23 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 	 * try again for the next vblank if we don't grab the lock
 	 */
 	if (!mutex_trylock(&disp->mutex)) {
-		DRM_DEV_DEBUG_KMS(crtc->dev->dev,
-				  "Lock contended, delaying CRC ctx flip for head-%d\n",
-				  head->base.index);
-		drm_vblank_work_schedule(work,
-					 drm_crtc_vblank_count(crtc) + 1,
-					 true);
+		drm_dbg_kms(dev, "Lock contended, delaying CRC ctx flip for %s\n", crtc->name);
+		drm_vblank_work_schedule(work, start_vbl + 1, true);
 		return;
 	}
 
-	DRM_DEV_DEBUG_KMS(crtc->dev->dev,
-			  "Flipping notifier ctx for head %d (%d -> %d)\n",
-			  drm_crtc_index(crtc), crc->ctx_idx, new_idx);
+	drm_dbg_kms(dev, "Flipping notifier ctx for %s (%d -> %d)\n",
+		    crtc->name, crc->ctx_idx, new_idx);
 
 	nv50_crc_program_ctx(head, NULL);
 	nv50_crc_program_ctx(head, &crc->ctx[new_idx]);
 	mutex_unlock(&disp->mutex);
+
+	end_vbl = drm_crtc_vblank_count(crtc);
+	if (unlikely(end_vbl != start_vbl))
+		NV_ERROR(nouveau_drm(dev),
+			 "Failed to flip CRC context on %s on time (%llu > %llu)\n",
+			 crtc->name, end_vbl, start_vbl);
 
 	spin_lock_irq(&crc->lock);
 	crc->ctx_changed = true;
@@ -189,9 +193,9 @@ void nv50_crc_handle_vblank(struct nv50_head *head)
 		 * updates back-to-back without waiting, we'll just be
 		 * optimistic and assume we always miss exactly one frame.
 		 */
-		DRM_DEV_DEBUG_KMS(head->base.base.dev->dev,
-				  "Notifier ctx flip for head-%d finished, lost CRC for frame %llu\n",
-				  head->base.index, crc->frame);
+		drm_dbg_kms(head->base.base.dev,
+			    "Notifier ctx flip for head-%d finished, lost CRC for frame %llu\n",
+			    head->base.index, crc->frame);
 		crc->frame++;
 
 		nv50_crc_reset_ctx(ctx);
@@ -347,8 +351,6 @@ int nv50_crc_atomic_check_head(struct nv50_head *head,
 			       struct nv50_head_atom *armh)
 {
 	struct nv50_atom *atom = nv50_atom(asyh->state.state);
-	struct drm_device *dev = head->base.base.dev;
-	struct nv50_disp *disp = nv50_disp(dev);
 	bool changed = armh->crc.src != asyh->crc.src;
 
 	if (!armh->crc.src && !asyh->crc.src) {
@@ -357,30 +359,7 @@ int nv50_crc_atomic_check_head(struct nv50_head *head,
 		return 0;
 	}
 
-	/* While we don't care about entry tags, Volta+ hw always needs the
-	 * controlling wndw channel programmed to a wndw that's owned by our
-	 * head
-	 */
-	if (asyh->crc.src && disp->disp->object.oclass >= GV100_DISP &&
-	    !(BIT(asyh->crc.wndw) & asyh->wndw.owned)) {
-		if (!asyh->wndw.owned) {
-			/* TODO: once we support flexible channel ownership,
-			 * we should write some code here to handle attempting
-			 * to "steal" a plane: e.g. take a plane that is
-			 * currently not-visible and owned by another head,
-			 * and reassign it to this head. If we fail to do so,
-			 * we shuld reject the mode outright as CRC capture
-			 * then becomes impossible.
-			 */
-			NV_ATOMIC(nouveau_drm(dev),
-				  "No available wndws for CRC readback\n");
-			return -EINVAL;
-		}
-		asyh->crc.wndw = ffs(asyh->wndw.owned) - 1;
-	}
-
-	if (drm_atomic_crtc_needs_modeset(&asyh->state) || changed ||
-	    armh->crc.wndw != asyh->crc.wndw) {
+	if (drm_atomic_crtc_needs_modeset(&asyh->state) || changed) {
 		asyh->clr.crc = armh->crc.src && armh->state.active;
 		asyh->set.crc = asyh->crc.src && asyh->state.active;
 		if (changed)
@@ -467,9 +446,8 @@ void nv50_crc_atomic_set(struct nv50_head *head,
 	struct nouveau_encoder *outp =
 		nv50_real_outp(nv50_head_atom_get_encoder(asyh));
 
-	func->set_src(head, outp->or,
-		      nv50_crc_source_type(outp, asyh->crc.src),
-		      &crc->ctx[crc->ctx_idx], asyh->crc.wndw);
+	func->set_src(head, outp->or, nv50_crc_source_type(outp, asyh->crc.src),
+		      &crc->ctx[crc->ctx_idx]);
 }
 
 void nv50_crc_atomic_clr(struct nv50_head *head)
@@ -477,7 +455,7 @@ void nv50_crc_atomic_clr(struct nv50_head *head)
 	const struct nv50_crc_func *func =
 		nv50_disp(head->base.base.dev)->core->func->crc;
 
-	func->set_src(head, 0, NV50_CRC_SOURCE_TYPE_NONE, NULL, 0);
+	func->set_src(head, 0, NV50_CRC_SOURCE_TYPE_NONE, NULL);
 }
 
 static inline int

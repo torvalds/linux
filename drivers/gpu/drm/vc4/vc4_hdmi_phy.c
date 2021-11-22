@@ -130,31 +130,49 @@
 void vc4_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
 		       struct vc4_hdmi_connector_state *conn_state)
 {
+	unsigned long flags;
+
 	/* PHY should be in reset, like
 	 * vc4_hdmi_encoder_disable() does.
 	 */
 
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
+
 	HDMI_WRITE(HDMI_TX_PHY_RESET_CTL, 0xf << 16);
 	HDMI_WRITE(HDMI_TX_PHY_RESET_CTL, 0);
+
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 }
 
 void vc4_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 	HDMI_WRITE(HDMI_TX_PHY_RESET_CTL, 0xf << 16);
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 }
 
 void vc4_hdmi_phy_rng_enable(struct vc4_hdmi *vc4_hdmi)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 	HDMI_WRITE(HDMI_TX_PHY_CTL_0,
 		   HDMI_READ(HDMI_TX_PHY_CTL_0) &
 		   ~VC4_HDMI_TX_PHY_RNG_PWRDN);
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 }
 
 void vc4_hdmi_phy_rng_disable(struct vc4_hdmi *vc4_hdmi)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 	HDMI_WRITE(HDMI_TX_PHY_CTL_0,
 		   HDMI_READ(HDMI_TX_PHY_CTL_0) |
 		   VC4_HDMI_TX_PHY_RNG_PWRDN);
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 }
 
 static unsigned long long
@@ -336,6 +354,8 @@ phy_get_channel_settings(enum vc4_hdmi_phy_channel chan,
 
 static void vc5_hdmi_reset_phy(struct vc4_hdmi *vc4_hdmi)
 {
+	lockdep_assert_held(&vc4_hdmi->hw_lock);
+
 	HDMI_WRITE(HDMI_TX_PHY_RESET_CTL, 0x0f);
 	HDMI_WRITE(HDMI_TX_PHY_POWERDOWN_CTL, BIT(10));
 }
@@ -348,9 +368,12 @@ void vc5_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
 	unsigned long long pixel_freq = conn_state->pixel_rate;
 	unsigned long long vco_freq;
 	unsigned char word_sel;
+	unsigned long flags;
 	u8 vco_sel, vco_div;
 
 	vco_freq = phy_get_vco_freq(pixel_freq, &vco_sel, &vco_div);
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
 	vc5_hdmi_reset_phy(vc4_hdmi);
 
@@ -501,23 +524,37 @@ void vc5_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
 		   HDMI_READ(HDMI_TX_PHY_RESET_CTL) |
 		   VC4_HDMI_TX_PHY_RESET_CTL_PLL_RESETB |
 		   VC4_HDMI_TX_PHY_RESET_CTL_PLLDIV_RESETB);
+
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 }
 
 void vc5_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 	vc5_hdmi_reset_phy(vc4_hdmi);
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 }
 
 void vc5_hdmi_phy_rng_enable(struct vc4_hdmi *vc4_hdmi)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 	HDMI_WRITE(HDMI_TX_PHY_POWERDOWN_CTL,
 		   HDMI_READ(HDMI_TX_PHY_POWERDOWN_CTL) &
 		   ~VC4_HDMI_TX_PHY_POWERDOWN_CTL_RNDGEN_PWRDN);
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 }
 
 void vc5_hdmi_phy_rng_disable(struct vc4_hdmi *vc4_hdmi)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 	HDMI_WRITE(HDMI_TX_PHY_POWERDOWN_CTL,
 		   HDMI_READ(HDMI_TX_PHY_POWERDOWN_CTL) |
 		   VC4_HDMI_TX_PHY_POWERDOWN_CTL_RNDGEN_PWRDN);
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 }

@@ -146,22 +146,19 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 	lcd->pdev = pdev;
 
 	lcd->vdd = devm_regulator_get(&pdev->dev, "envdd");
-	if (IS_ERR(lcd->vdd)) {
-		dev_err(&pdev->dev, "failed to get regulator\n");
-		return PTR_ERR(lcd->vdd);
-	}
+	if (IS_ERR(lcd->vdd))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lcd->vdd),
+				     "failed to get regulator\n");
 
 	lcd->ini_gpio = devm_gpiod_get(&pdev->dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(lcd->ini_gpio)) {
-		dev_err(&pdev->dev, "failed to get enable gpio\n");
-		return PTR_ERR(lcd->ini_gpio);
-	}
+	if (IS_ERR(lcd->ini_gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lcd->ini_gpio),
+				     "failed to get enable gpio\n");
 
 	lcd->resb_gpio = devm_gpiod_get(&pdev->dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(lcd->resb_gpio)) {
-		dev_err(&pdev->dev, "failed to get reset gpio\n");
-		return PTR_ERR(lcd->resb_gpio);
-	}
+	if (IS_ERR(lcd->resb_gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lcd->resb_gpio),
+				     "failed to get reset gpio\n");
 
 	lcd->mo_gpio = devm_gpiod_get_index(&pdev->dev, "mode", 0,
 					    GPIOD_OUT_LOW);
