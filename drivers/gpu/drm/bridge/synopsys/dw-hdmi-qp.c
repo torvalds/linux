@@ -450,6 +450,11 @@ static unsigned int hdmi_find_n(struct dw_hdmi_qp *hdmi, unsigned long pixel_clk
 void dw_hdmi_qp_set_channel_status(struct dw_hdmi_qp *hdmi,
 				   u8 *channel_status)
 {
+	/* Set channel status */
+	hdmi_writel(hdmi, channel_status[3] | (channel_status[4] << 8),
+		    AUDPKT_CHSTATUS_OVR1);
+	hdmi_modb(hdmi, AUDPKT_CHSTATUS_OVR_EN,
+		  AUDPKT_CHSTATUS_OVR_EN_MASK, AUDPKT_CONTROL0);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_channel_status);
 

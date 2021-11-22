@@ -88,11 +88,22 @@ static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 
 	hdmi_mod(audio, conf0, I2S_LINES_EN_MSK, AUDIO_INTERFACE_CONFIG0);
 
-	/* Enable bpcuv generated internally */
-	hdmi_mod(audio, I2S_BPCUV_RCV_DIS, I2S_BPCUV_RCV_MSK, AUDIO_INTERFACE_CONFIG0);
+	/*
+	 * Enable bpcuv generated internally for L-PCM, or received
+	 * from stream for NLPCM/HBR.
+	 */
+	switch (fmt->bit_fmt) {
+	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
+		conf0 = (hparms->channels == 8) ? AUD_HBR : AUD_ASP;
+		conf0 |= I2S_BPCUV_RCV_EN;
+		break;
+	default:
+		conf0 = AUD_ASP | I2S_BPCUV_RCV_DIS;
+		break;
+	}
 
-	/* Configure the audio format */
-	hdmi_mod(audio, AUD_ASP, AUD_FORMAT_MSK, AUDIO_INTERFACE_CONFIG0);
+	hdmi_mod(audio, conf0, I2S_BPCUV_RCV_MSK | AUD_FORMAT_MSK,
+		 AUDIO_INTERFACE_CONFIG0);
 
 	/* Enable audio FIFO auto clear when overflow */
 	hdmi_mod(audio, AUD_FIFO_INIT_ON_OVF_EN, AUD_FIFO_INIT_ON_OVF_MSK,
