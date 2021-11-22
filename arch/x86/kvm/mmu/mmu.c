@@ -5025,6 +5025,14 @@ void kvm_mmu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	/*
 	 * Invalidate all MMU roles to force them to reinitialize as CPUID
 	 * information is factored into reserved bit calculations.
+	 *
+	 * Correctly handling multiple vCPU models with respect to paging and
+	 * physical address properties) in a single VM would require tracking
+	 * all relevant CPUID information in kvm_mmu_page_role. That is very
+	 * undesirable as it would increase the memory requirements for
+	 * gfn_track (see struct kvm_mmu_page_role comments).  For now that
+	 * problem is swept under the rug; KVM's CPUID API is horrific and
+	 * it's all but impossible to solve it without introducing a new API.
 	 */
 	vcpu->arch.root_mmu.mmu_role.ext.valid = 0;
 	vcpu->arch.guest_mmu.mmu_role.ext.valid = 0;
@@ -5032,24 +5040,10 @@ void kvm_mmu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	kvm_mmu_reset_context(vcpu);
 
 	/*
-	 * KVM does not correctly handle changing guest CPUID after KVM_RUN, as
-	 * MAXPHYADDR, GBPAGES support, AMD reserved bit behavior, etc.. aren't
-	 * tracked in kvm_mmu_page_role.  As a result, KVM may miss guest page
-	 * faults due to reusing SPs/SPTEs.  Alert userspace, but otherwise
-	 * sweep the problem under the rug.
-	 *
-	 * KVM's horrific CPUID ABI makes the problem all but impossible to
-	 * solve, as correctly handling multiple vCPU models (with respect to
-	 * paging and physical address properties) in a single VM would require
-	 * tracking all relevant CPUID information in kvm_mmu_page_role.  That
-	 * is very undesirable as it would double the memory requirements for
-	 * gfn_track (see struct kvm_mmu_page_role comments), and in practice
-	 * no sane VMM mucks with the core vCPU model on the fly.
+	 * Changing guest CPUID after KVM_RUN is forbidden, see the comment in
+	 * kvm_arch_vcpu_ioctl().
 	 */
-	if (vcpu->arch.last_vmentry_cpu != -1) {
-		pr_warn_ratelimited("KVM: KVM_SET_CPUID{,2} after KVM_RUN may cause guest instability\n");
-		pr_warn_ratelimited("KVM: KVM_SET_CPUID{,2} will fail after KVM_RUN starting with Linux 5.16\n");
-	}
+	KVM_BUG_ON(vcpu->arch.last_vmentry_cpu != -1, vcpu->kvm);
 }
 
 void kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
