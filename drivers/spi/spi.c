@@ -1222,11 +1222,10 @@ static int spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 		if (max_tx) {
 			tmp = krealloc(ctlr->dummy_tx, max_tx,
-				       GFP_KERNEL | GFP_DMA);
+				       GFP_KERNEL | GFP_DMA | __GFP_ZERO);
 			if (!tmp)
 				return -ENOMEM;
 			ctlr->dummy_tx = tmp;
-			memset(tmp, 0, max_tx);
 		}
 
 		if (max_rx) {
