@@ -795,7 +795,8 @@ ice_parse_tunnel_attr(struct net_device *dev, struct flow_rule *rule,
 		headers->l3_mask.ttl = match.mask->ttl;
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS) &&
+	    fltr->tunnel_type != TNL_VXLAN && fltr->tunnel_type != TNL_GENEVE) {
 		struct flow_match_ports match;
 
 		flow_rule_match_enc_ports(rule, &match);
