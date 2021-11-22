@@ -619,17 +619,6 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 }
 
 /**
- * vpif_get_default_field() - Get default field type based on interface
- * @iface: ptr to vpif interface
- */
-static inline enum v4l2_field vpif_get_default_field(
-				struct vpif_interface *iface)
-{
-	return (iface->if_type == VPIF_IF_RAW_BAYER) ? V4L2_FIELD_NONE :
-						V4L2_FIELD_INTERLACED;
-}
-
-/**
  * vpif_config_addr() - function to configure buffer address in vpif
  * @ch: channel ptr
  * @muxmode: channel mux mode
