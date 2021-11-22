@@ -75,6 +75,12 @@
 #define CSI2_DCPHY_DATA_LANE2_ENABLE		(0x300)
 #define CSI2_DCPHY_DATA_LANE3_ENABLE		(0x400)
 
+#define CSI2_DCPHY_S0C_GNR_CON1                 (0x004)
+#define CSI2_DCPHY_COMBO_S0D0_GNR_CON1          (0x104)
+#define CSI2_DCPHY_COMBO_S0D1_GNR_CON1          (0x204)
+#define CSI2_DCPHY_COMBO_S0D2_GNR_CON1          (0x304)
+#define CSI2_DCPHY_S0D3_GNR_CON1                (0x304)
+
 /* PHY REG BIT DEFINE */
 #define CSI2_DPHY_LANE_MODE_FULL	(0x4)
 #define CSI2_DPHY_LANE_MODE_SPLIT	(0x2)
@@ -194,6 +200,11 @@ enum csi2dphy_reg_id {
 	CSI2PHY_LANE1_ERR_SOT_SYNC,
 	CSI2PHY_LANE2_ERR_SOT_SYNC,
 	CSI2PHY_LANE3_ERR_SOT_SYNC,
+	CSI2PHY_S0C_GNR_CON1,
+	CSI2PHY_COMBO_S0D0_GNR_CON1,
+	CSI2PHY_COMBO_S0D1_GNR_CON1,
+	CSI2PHY_COMBO_S0D2_GNR_CON1,
+	CSI2PHY_S0D3_GNR_CON1,
 };
 
 #define HIWORD_UPDATE(val, mask, shift) \
@@ -399,6 +410,11 @@ static const struct csi2dphy_reg rk3588_csi2dcphy_regs[] = {
 	[CSI2PHY_DATA_LANE1_ENABLE] = CSI2PHY_REG(CSI2_DCPHY_DATA_LANE1_ENABLE),
 	[CSI2PHY_DATA_LANE2_ENABLE] = CSI2PHY_REG(CSI2_DCPHY_DATA_LANE2_ENABLE),
 	[CSI2PHY_DATA_LANE3_ENABLE] = CSI2PHY_REG(CSI2_DCPHY_DATA_LANE3_ENABLE),
+	[CSI2PHY_S0C_GNR_CON1] = CSI2PHY_REG(CSI2_DCPHY_S0C_GNR_CON1),
+	[CSI2PHY_COMBO_S0D0_GNR_CON1] = CSI2PHY_REG(CSI2_DCPHY_COMBO_S0D0_GNR_CON1),
+	[CSI2PHY_COMBO_S0D1_GNR_CON1] = CSI2PHY_REG(CSI2_DCPHY_COMBO_S0D1_GNR_CON1),
+	[CSI2PHY_COMBO_S0D2_GNR_CON1] = CSI2PHY_REG(CSI2_DCPHY_COMBO_S0D2_GNR_CON1),
+	[CSI2PHY_S0D3_GNR_CON1] = CSI2PHY_REG(CSI2_DCPHY_S0D3_GNR_CON1),
 };
 
 /* These tables must be sorted by .range_h ascending. */
@@ -774,8 +790,14 @@ static int csi2_dcphy_hw_stream_on(struct csi2_dphy *dphy,
 		reset_control_assert(hw->rsts_bulk);
 
 	/*clk settle fix to 0x301*/
-	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY)
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
 		write_csi2_dphy_reg(hw, CSI2PHY_CLK_THS_SETTLE, 0x301);
+		write_csi2_dphy_reg(hw, CSI2PHY_S0C_GNR_CON1, 0x1450);
+		write_csi2_dphy_reg(hw, CSI2PHY_COMBO_S0D0_GNR_CON1, 0x1450);
+		write_csi2_dphy_reg(hw, CSI2PHY_COMBO_S0D1_GNR_CON1, 0x1450);
+		write_csi2_dphy_reg(hw, CSI2PHY_COMBO_S0D2_GNR_CON1, 0x1450);
+		write_csi2_dphy_reg(hw, CSI2PHY_S0D3_GNR_CON1, 0x1450);
+	}
 	/* set data lane */
 	for (i = 0; i < num_hsfreq_ranges; i++) {
 		if (hsfreq_ranges[i].range_h >= dphy->data_rate_mbps) {
