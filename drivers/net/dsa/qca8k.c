@@ -1086,12 +1086,6 @@ qca8k_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Start by setting up the register mapping */
-	priv->regmap = devm_regmap_init(ds->dev, NULL, priv,
-					&qca8k_regmap_config);
-	if (IS_ERR(priv->regmap))
-		dev_warn(priv->dev, "regmap initialization failed");
-
 	ret = qca8k_setup_mdio_bus(priv);
 	if (ret)
 		return ret;
@@ -2071,6 +2065,14 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 		 */
 		msleep(20);
 		gpiod_set_value_cansleep(priv->reset_gpio, 0);
+	}
+
+	/* Start by setting up the register mapping */
+	priv->regmap = devm_regmap_init(&mdiodev->dev, NULL, priv,
+					&qca8k_regmap_config);
+	if (IS_ERR(priv->regmap)) {
+		dev_err(priv->dev, "regmap initialization failed");
+		return PTR_ERR(priv->regmap);
 	}
 
 	/* Check the detected switch id */
