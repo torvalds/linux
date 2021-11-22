@@ -260,6 +260,7 @@ struct exynos_dsi {
 	struct drm_bridge bridge;
 	struct drm_bridge *out_bridge;
 	struct device *dev;
+	struct drm_display_mode mode;
 
 	void __iomem *reg_base;
 	struct phy *phy;
@@ -883,7 +884,7 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 
 static void exynos_dsi_set_display_mode(struct exynos_dsi *dsi)
 {
-	struct drm_display_mode *m = &dsi->encoder.crtc->state->adjusted_mode;
+	struct drm_display_mode *m = &dsi->mode;
 	unsigned int num_bits_resol = dsi->driver_data->num_bits_resol;
 	u32 reg;
 
@@ -1526,6 +1527,15 @@ static int exynos_dsi_create_connector(struct exynos_dsi *dsi)
 	return 0;
 }
 
+static void exynos_dsi_mode_set(struct drm_bridge *bridge,
+				const struct drm_display_mode *mode,
+				const struct drm_display_mode *adjusted_mode)
+{
+	struct exynos_dsi *dsi = bridge_to_dsi(bridge);
+
+	drm_mode_copy(&dsi->mode, adjusted_mode);
+}
+
 static int exynos_dsi_attach(struct drm_bridge *bridge,
 			     enum drm_bridge_attach_flags flags)
 {
@@ -1540,6 +1550,7 @@ static const struct drm_bridge_funcs exynos_dsi_bridge_funcs = {
 	.atomic_reset		= drm_atomic_helper_bridge_reset,
 	.atomic_enable		= exynos_dsi_atomic_enable,
 	.atomic_disable		= exynos_dsi_atomic_disable,
+	.mode_set		= exynos_dsi_mode_set,
 	.attach			= exynos_dsi_attach,
 };
 
