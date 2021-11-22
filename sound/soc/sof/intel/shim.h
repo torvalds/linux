@@ -177,4 +177,11 @@ struct sof_intel_stream {
 	size_t posn_offset;
 };
 
+static inline const struct sof_intel_dsp_desc *get_chip_info(struct snd_sof_pdata *pdata)
+{
+	const struct sof_dev_desc *desc = pdata->desc;
+
+	return desc->chip_info;
+}
+
 #endif

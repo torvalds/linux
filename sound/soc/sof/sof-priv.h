@@ -71,6 +71,9 @@ extern int sof_core_debug;
 /* So far the primary core on all DSPs has ID 0 */
 #define SOF_DSP_PRIMARY_CORE 0
 
+/* max number of DSP cores */
+#define SOF_MAX_DSP_NUM_CORES 8
+
 /* DSP power state */
 enum sof_dsp_power_states {
 	SOF_DSP_PM_D0,
@@ -127,10 +130,8 @@ struct snd_sof_dsp_ops {
 	int (*run)(struct snd_sof_dev *sof_dev); /* mandatory */
 	int (*stall)(struct snd_sof_dev *sof_dev, unsigned int core_mask); /* optional */
 	int (*reset)(struct snd_sof_dev *sof_dev); /* optional */
-	int (*core_power_up)(struct snd_sof_dev *sof_dev,
-			     unsigned int core_mask); /* optional */
-	int (*core_power_down)(struct snd_sof_dev *sof_dev,
-			       unsigned int core_mask); /* optional */
+	int (*core_get)(struct snd_sof_dev *sof_dev, int core); /* optional */
+	int (*core_put)(struct snd_sof_dev *sof_dev, int core); /* optional */
 
 	/*
 	 * Register IO: only used by respective drivers themselves,
@@ -476,6 +477,18 @@ struct snd_sof_dev {
 	bool dtrace_draining;
 
 	bool msi_enabled;
+
+	/* DSP core context */
+	u32 num_cores;
+
+	/*
+	 * ref count per core that will be modified during system suspend/resume and during pcm
+	 * hw_params/hw_free. This doesn't need to be protected with a mutex because pcm
+	 * hw_params/hw_free are already protected by the PCM mutex in the ALSA framework in
+	 * sound/core/ when streams are active and during system suspend/resume, streams are
+	 * already suspended.
+	 */
+	int dsp_core_ref_count[SOF_MAX_DSP_NUM_CORES];
 
 	void *private;			/* core does not touch this */
 };

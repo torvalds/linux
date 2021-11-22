@@ -88,12 +88,13 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 	unsigned int status;
-	u32 flags;
+	unsigned long mask;
+	u32 flags, j;
 	int ret;
 	int i;
 
 	/* step 1: power up corex */
-	ret = snd_sof_dsp_core_power_up(sdev, chip->host_managed_cores_mask);
+	ret = hda_dsp_enable_core(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
@@ -148,8 +149,8 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 				       chip->ipc_ack_mask);
 
 	/* step 5: power down cores that are no longer needed */
-	ret = snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask &
-					  ~(chip->init_core_mask));
+	ret = hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask &
+					   ~(chip->init_core_mask));
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev,
@@ -168,8 +169,14 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					chip->rom_init_timeout *
 					USEC_PER_MSEC);
-	if (!ret)
+	if (!ret) {
+		/* set enabled cores mask and increment ref count for cores in init_core_mask */
+		sdev->enabled_cores_mask |= chip->init_core_mask;
+		mask = sdev->enabled_cores_mask;
+		for_each_set_bit(j, &mask, SOF_MAX_DSP_NUM_CORES)
+			sdev->dsp_core_ref_count[j]++;
 		return 0;
+	}
 
 	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 		dev_err(sdev->dev,
@@ -184,7 +191,7 @@ err:
 		flags &= ~SOF_DBG_DUMP_OPTIONAL;
 
 	snd_sof_dsp_dbg_dump(sdev, flags);
-	snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask);
+	hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 
 	return ret;
 }
@@ -501,11 +508,14 @@ int hda_dsp_post_fw_run_icl(struct snd_sof_dev *sdev)
 	 * the host whereas on TGL it is handled by the firmware.
 	 */
 	if (!hda->clk_config_lpro) {
-		ret = snd_sof_dsp_core_power_up(sdev, BIT(3));
+		ret = hda_dsp_enable_core(sdev, BIT(3));
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: dsp core power up failed on core 3\n");
 			return ret;
 		}
+
+		sdev->enabled_cores_mask |= BIT(3);
+		sdev->dsp_core_ref_count[3]++;
 
 		snd_sof_dsp_stall(sdev, BIT(3));
 	}

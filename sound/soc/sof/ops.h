@@ -72,35 +72,68 @@ static inline int snd_sof_dsp_reset(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-/* dsp core power up/power down */
-static inline int snd_sof_dsp_core_power_up(struct snd_sof_dev *sdev,
-					    unsigned int core_mask)
+/* dsp core get/put */
+static inline int snd_sof_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
-	int ret = 0;
-
-	core_mask &= ~sdev->enabled_cores_mask;
-	if (sof_ops(sdev)->core_power_up && core_mask) {
-		ret = sof_ops(sdev)->core_power_up(sdev, core_mask);
-		if (!ret)
-			sdev->enabled_cores_mask |= core_mask;
+	if (core > sdev->num_cores - 1) {
+		dev_err(sdev->dev, "invalid core id: %d for num_cores: %d\n", core,
+			sdev->num_cores);
+		return -EINVAL;
 	}
 
-	return ret;
+	if (sof_ops(sdev)->core_get) {
+		int ret;
+
+		/* if current ref_count is > 0, increment it and return */
+		if (sdev->dsp_core_ref_count[core] > 0) {
+			sdev->dsp_core_ref_count[core]++;
+			return 0;
+		}
+
+		/* power up the core */
+		ret = sof_ops(sdev)->core_get(sdev, core);
+		if (ret < 0)
+			return ret;
+
+		/* increment ref_count */
+		sdev->dsp_core_ref_count[core]++;
+
+		/* and update enabled_cores_mask */
+		sdev->enabled_cores_mask |= BIT(core);
+
+		dev_dbg(sdev->dev, "Core %d powered up\n", core);
+	}
+
+	return 0;
 }
 
-static inline int snd_sof_dsp_core_power_down(struct snd_sof_dev *sdev,
-					      unsigned int core_mask)
+static inline int snd_sof_dsp_core_put(struct snd_sof_dev *sdev, int core)
 {
-	int ret = 0;
-
-	core_mask &= sdev->enabled_cores_mask;
-	if (sof_ops(sdev)->core_power_down && core_mask) {
-		ret = sof_ops(sdev)->core_power_down(sdev, core_mask);
-		if (!ret)
-			sdev->enabled_cores_mask &= ~core_mask;
+	if (core > sdev->num_cores - 1) {
+		dev_err(sdev->dev, "invalid core id: %d for num_cores: %d\n", core,
+			sdev->num_cores);
+		return -EINVAL;
 	}
 
-	return ret;
+	if (sof_ops(sdev)->core_put) {
+		int ret;
+
+		/* decrement ref_count and return if it is > 0 */
+		if (--(sdev->dsp_core_ref_count[core]) > 0)
+			return 0;
+
+		/* power down the core */
+		ret = sof_ops(sdev)->core_put(sdev, core);
+		if (ret < 0)
+			return ret;
+
+		/* and update enabled_cores_mask */
+		sdev->enabled_cores_mask &= ~BIT(core);
+
+		dev_dbg(sdev->dev, "Core %d powered down\n", core);
+	}
+
+	return 0;
 }
 
 /* pre/post fw load */
