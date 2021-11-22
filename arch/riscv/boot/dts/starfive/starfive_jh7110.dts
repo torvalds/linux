@@ -302,6 +302,23 @@
 			clock-names = "baudclk", "apb_pclk";
 			status = "okay";
 		};
+		dma: dma-controller@16050000 {
+			compatible = "starfive,axi-dma";
+			reg = <0x0 0x16050000 0x0 0x10000>;
+			clocks = <&stg_axiahb_clk>, <&stg_apbclk>;
+			clock-names = "core-clk", "cfgr-clk";
+			interrupt-parent = <&plic>;
+			interrupts = <73>;
+			#dma-cells = <2>;
+			dma-channels = <4>;
+			snps,dma-masters = <1>;
+			snps,data-width = <3>;
+			snps,num-hs-if = <56>;
+			snps,block-size = <65536 65536 65536 65536>;
+			snps,priority = <0 1 2 3>;
+			snps,axi-max-burst-len = <16>;
+			status = "okay";
+		};
 		gpio: gpio@13040000 {
 			compatible = "starfive,gpio7110";
 			interrupt-parent = <&plic>;
@@ -313,7 +330,7 @@
 			ngpios = <64>;
 			status = "okay";
 		};
-		
+
 		/*emmc*/
 		sdio0:sdio0@16010000{
 			compatible = "snps,dw-mshc";
