@@ -280,7 +280,7 @@ static struct console *exclusive_console;
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
 
 static int preferred_console = -1;
-static bool has_preferred_console;
+static bool need_default_console = true;
 int console_set_on_cmdline;
 EXPORT_SYMBOL(console_set_on_cmdline);
 
@@ -2894,7 +2894,7 @@ static int try_enable_preferred_console(struct console *newcon,
 		newcon->flags |= CON_ENABLED;
 		if (i == preferred_console) {
 			newcon->flags |= CON_CONSDEV;
-			has_preferred_console = true;
+			need_default_console = false;
 		}
 		return 0;
 	}
@@ -2923,7 +2923,7 @@ static void try_enable_default_console(struct console *newcon)
 
 	if (newcon->device) {
 		newcon->flags |= CON_CONSDEV;
-		has_preferred_console = true;
+		need_default_console = false;
 	}
 }
 
@@ -2974,15 +2974,15 @@ void register_console(struct console *newcon)
 	if (console_drivers && console_drivers->flags & CON_BOOT)
 		bcon = console_drivers;
 
-	if (!has_preferred_console || bcon || !console_drivers)
-		has_preferred_console = preferred_console >= 0;
+	if (need_default_console || bcon || !console_drivers)
+		need_default_console = preferred_console < 0;
 
 	/*
 	 *	See if we want to use this console driver. If we
 	 *	didn't select a console we take the first one
 	 *	that registers here.
 	 */
-	if (!has_preferred_console)
+	if (need_default_console)
 		try_enable_default_console(newcon);
 
 	/* See if this console matches one we selected on the command line */
