@@ -249,7 +249,6 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
 	struct gpu_info_header *ghdr;
-	const struct firmware *fw;
 	uint16_t offset;
 	uint16_t size;
 	uint16_t checksum;
@@ -260,30 +259,31 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	if (!adev->mman.discovery_bin)
 		return -ENOMEM;
 
-	if (amdgpu_discovery == 2) {
-		r = request_firmware(&fw, "amdgpu/ip_discovery.bin", adev->dev);
-		if (r)
-			goto get_from_vram;
-		dev_info(adev->dev, "Using IP discovery from file\n");
-		memcpy((u8 *)adev->mman.discovery_bin, (u8 *)fw->data,
-		       adev->mman.discovery_tmr_size);
-		release_firmware(fw);
-	} else {
-get_from_vram:
-		r = amdgpu_discovery_read_binary_from_vram(adev, adev->mman.discovery_bin);
+	r = amdgpu_discovery_read_binary_from_vram(adev, adev->mman.discovery_bin);
+	if (r) {
+		dev_err(adev->dev, "failed to read ip discovery binary from vram\n");
+		r = -EINVAL;
+		goto out;
+	}
+
+	if(!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin)) {
+		dev_warn(adev->dev, "get invalid ip discovery binary signature from vram\n");
+		/* retry read ip discovery binary from file */
+		r = amdgpu_discovery_read_binary_from_file(adev, adev->mman.discovery_bin);
 		if (r) {
-			DRM_ERROR("failed to read ip discovery binary\n");
+			dev_err(adev->dev, "failed to read ip discovery binary from file\n");
+			r = -EINVAL;
+			goto out;
+		}
+		/* check the ip discovery binary signature */
+		if(!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin)) {
+			dev_warn(adev->dev, "get invalid ip discovery binary signature from file\n");
+			r = -EINVAL;
 			goto out;
 		}
 	}
 
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
-
-	if (le32_to_cpu(bhdr->binary_signature) != BINARY_SIGNATURE) {
-		DRM_ERROR("invalid ip discovery binary signature\n");
-		r = -EINVAL;
-		goto out;
-	}
 
 	offset = offsetof(struct binary_header, binary_checksum) +
 		sizeof(bhdr->binary_checksum);
@@ -292,7 +292,7 @@ get_from_vram:
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
 					      size, checksum)) {
-		DRM_ERROR("invalid ip discovery binary checksum\n");
+		dev_err(adev->dev, "invalid ip discovery binary checksum\n");
 		r = -EINVAL;
 		goto out;
 	}
@@ -303,14 +303,14 @@ get_from_vram:
 	ihdr = (struct ip_discovery_header *)(adev->mman.discovery_bin + offset);
 
 	if (le32_to_cpu(ihdr->signature) != DISCOVERY_TABLE_SIGNATURE) {
-		DRM_ERROR("invalid ip discovery data table signature\n");
+		dev_err(adev->dev, "invalid ip discovery data table signature\n");
 		r = -EINVAL;
 		goto out;
 	}
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
 					      le16_to_cpu(ihdr->size), checksum)) {
-		DRM_ERROR("invalid ip discovery data table checksum\n");
+		dev_err(adev->dev, "invalid ip discovery data table checksum\n");
 		r = -EINVAL;
 		goto out;
 	}
@@ -322,7 +322,7 @@ get_from_vram:
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
 				              le32_to_cpu(ghdr->size), checksum)) {
-		DRM_ERROR("invalid gc data table checksum\n");
+		dev_err(adev->dev, "invalid gc data table checksum\n");
 		r = -EINVAL;
 		goto out;
 	}
