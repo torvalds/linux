@@ -5927,7 +5927,13 @@ static void ath11k_wmi_htc_tx_complete(struct ath11k_base *ab,
 
 static bool ath11k_reg_is_world_alpha(char *alpha)
 {
-	return alpha[0] == '0' && alpha[1] == '0';
+	if (alpha[0] == '0' && alpha[1] == '0')
+		return true;
+
+	if (alpha[0] == 'n' && alpha[1] == 'a')
+		return true;
+
+	return false;
 }
 
 static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *skb)
