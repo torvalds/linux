@@ -1044,6 +1044,7 @@ static const struct intel_device_info dg2_info = {
 	DGFX_FEATURES,
 	.graphics_rel = 55,
 	.media_rel = 55,
+	.has_4tile = 1,
 	PLATFORM(INTEL_DG2),
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) |
