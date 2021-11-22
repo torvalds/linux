@@ -1004,7 +1004,7 @@ static int tsnep_netdev_set_mac_address(struct net_device *netdev, void *addr)
 	retval = eth_prepare_mac_addr_change(netdev, sock_addr);
 	if (retval)
 		return retval;
-	ether_addr_copy(netdev->dev_addr, sock_addr->sa_data);
+	dev_set_mac_address(netdev, sock_addr, NULL);
 	tsnep_mac_set_address(adapter, sock_addr->sa_data);
 
 	return 0;
@@ -1051,7 +1051,7 @@ static int tsnep_mac_init(struct tsnep_adapter *adapter)
 	}
 
 	tsnep_mac_set_address(adapter, adapter->mac_address);
-	ether_addr_copy(adapter->netdev->dev_addr, adapter->mac_address);
+	eth_hw_addr_set(adapter->netdev, adapter->mac_address);
 
 	return 0;
 }
