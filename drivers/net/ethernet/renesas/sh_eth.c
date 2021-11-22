@@ -2296,7 +2296,9 @@ static void sh_eth_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 }
 
 static void sh_eth_get_ringparam(struct net_device *ndev,
-				 struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring,
+				 struct kernel_ethtool_ringparam *kernel_ring,
+				 struct netlink_ext_ack *extack)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -2307,7 +2309,9 @@ static void sh_eth_get_ringparam(struct net_device *ndev,
 }
 
 static int sh_eth_set_ringparam(struct net_device *ndev,
-				struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int ret;

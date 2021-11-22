@@ -405,7 +405,9 @@ static int bnad_set_coalesce(struct net_device *netdev,
 
 static void
 bnad_get_ringparam(struct net_device *netdev,
-		   struct ethtool_ringparam *ringparam)
+		   struct ethtool_ringparam *ringparam,
+		   struct kernel_ethtool_ringparam *kernel_ringparam,
+		   struct netlink_ext_ack *extack)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 
@@ -418,7 +420,9 @@ bnad_get_ringparam(struct net_device *netdev,
 
 static int
 bnad_set_ringparam(struct net_device *netdev,
-		   struct ethtool_ringparam *ringparam)
+		   struct ethtool_ringparam *ringparam,
+		   struct kernel_ethtool_ringparam *kernel_ringparam,
+		   struct netlink_ext_ack *extack)
 {
 	int i, current_err, err = 0;
 	struct bnad *bnad = netdev_priv(netdev);

@@ -5461,8 +5461,11 @@ static int s2io_ethtool_set_led(struct net_device *dev,
 	return 0;
 }
 
-static void s2io_ethtool_gringparam(struct net_device *dev,
-				    struct ethtool_ringparam *ering)
+static void
+s2io_ethtool_gringparam(struct net_device *dev,
+			struct ethtool_ringparam *ering,
+			struct kernel_ethtool_ringparam *kernel_ering,
+			struct netlink_ext_ack *extack)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 	int i, tx_desc_count = 0, rx_desc_count = 0;
