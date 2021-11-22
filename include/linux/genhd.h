@@ -39,28 +39,24 @@ struct partition_meta_info {
 /**
  * DOC: genhd capability flags
  *
- * ``GENHD_FL_REMOVABLE`` (0x0001): indicates that the block device
- * gives access to removable media.
- * When set, the device remains present even when media is not
- * inserted.
- * Must not be set for devices which are removed entirely when the
+ * ``GENHD_FL_REMOVABLE``: indicates that the block device gives access to
+ * removable media.  When set, the device remains present even when media is not
+ * inserted.  Shall not be set for devices which are removed entirely when the
  * media is removed.
  *
- * ``GENHD_FL_NO_PART`` (0x0200): partition support is disabled.
- * The kernel will not scan for partitions from add_disk, and users
- * can't add partitions manually.
+ * ``GENHD_FL_HIDDEN``: the block device is hidden; it doesn't produce events,
+ * doesn't appear in sysfs, and can't be opened from userspace or using
+ * blkdev_get*. Used for the underlying components of multipath devices.
  *
- * ``GENHD_FL_HIDDEN`` (0x0400): the block device is hidden; it
- * doesn't produce events, doesn't appear in sysfs, and doesn't have
- * an associated ``bdev``.
- * Implies ``GENHD_FL_NO_PART``.
- * Used for multipath devices.
+ * ``GENHD_FL_NO_PART``: partition support is disabled.  The kernel will not
+ * scan for partitions from add_disk, and users can't add partitions manually.
+ *
  */
-#define GENHD_FL_REMOVABLE			0x0001
-/* 2 is unused (used to be GENHD_FL_DRIVERFS) */
-/* 4 is unused (used to be GENHD_FL_MEDIA_CHANGE_NOTIFY) */
-#define GENHD_FL_NO_PART			0x0200
-#define GENHD_FL_HIDDEN				0x0400
+enum {
+	GENHD_FL_REMOVABLE			= 1 << 0,
+	GENHD_FL_HIDDEN				= 1 << 1,
+	GENHD_FL_NO_PART			= 1 << 2,
+};
 
 enum {
 	DISK_EVENT_MEDIA_CHANGE			= 1 << 0, /* media changed */
