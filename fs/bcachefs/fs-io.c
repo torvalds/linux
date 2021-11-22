@@ -2241,6 +2241,7 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 	unsigned end_offset = ((end - 1) & (PAGE_SIZE - 1)) + 1;
 	unsigned i;
 	struct page *page;
+	s64 i_sectors_delta = 0;
 	int ret = 0;
 
 	/* Page boundary? Nothing to do */
@@ -2292,8 +2293,12 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 	     i < round_down(end_offset, block_bytes(c)) >> 9;
 	     i++) {
 		s->s[i].nr_replicas	= 0;
+		if (s->s[i].state == SECTOR_DIRTY)
+			i_sectors_delta--;
 		s->s[i].state		= SECTOR_UNALLOCATED;
 	}
+
+	i_sectors_acct(c, inode, NULL, i_sectors_delta);
 
 	/*
 	 * Caller needs to know whether this page will be written out by
