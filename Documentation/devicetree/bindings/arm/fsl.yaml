@@ -240,6 +240,7 @@ properties:
               - uniwest,imx6q-evi         # Uniwest Evi
               - variscite,dt6customboard
               - wand,imx6q-wandboard      # Wandboard i.MX6 Quad Board
+              - ysoft,imx6q-yapp4-crux    # i.MX6 Quad Y Soft IOTA Crux board
               - zealz,imx6q-gk802         # Zealz GK802
               - zii,imx6q-zii-rdu2        # ZII RDU2 Board
           - const: fsl,imx6q
@@ -348,6 +349,7 @@ properties:
               - kvg,vicutp                # Kverneland UT1P board
               - prt,prtwd3                # Protonic WD3 board
               - wand,imx6qp-wandboard     # Wandboard i.MX6 QuadPlus Board
+              - ysoft,imx6qp-yapp4-crux-plus  # i.MX6 Quad Plus Y Soft IOTA Crux+ board
               - zii,imx6qp-zii-rdu2       # ZII RDU2+ Board
           - const: fsl,imx6qp
 
