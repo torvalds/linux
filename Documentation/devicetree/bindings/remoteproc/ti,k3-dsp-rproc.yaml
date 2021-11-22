@@ -33,9 +33,11 @@ properties:
     enum:
       - ti,j721e-c66-dsp
       - ti,j721e-c71-dsp
+      - ti,j721s2-c71-dsp
     description:
       Use "ti,j721e-c66-dsp" for C66x DSPs on K3 J721E SoCs
       Use "ti,j721e-c71-dsp" for C71x DSPs on K3 J721E SoCs
+      Use "ti,j721s2-c71-dsp" for C71x DSPs on K3 J721S2 SoCs
 
   resets:
     description: |
@@ -106,6 +108,7 @@ else:
       compatible:
         enum:
           - ti,j721e-c71-dsp
+          - ti,j721s2-c71-dsp
   then:
     properties:
       reg:
