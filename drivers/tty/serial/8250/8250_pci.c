@@ -1349,29 +1349,33 @@ pericom_do_set_divisor(struct uart_port *port, unsigned int baud,
 {
 	int scr;
 	int lcr;
-	int actual_baud;
-	int tolerance;
 
-	for (scr = 5 ; scr <= 15 ; scr++) {
-		actual_baud = 921600 * 16 / scr;
-		tolerance = actual_baud / 50;
+	for (scr = 16; scr > 4; scr--) {
+		unsigned int maxrate = port->uartclk / scr;
+		unsigned int divisor = max(maxrate / baud, 1U);
+		int delta = maxrate / divisor - baud;
 
-		if ((baud < actual_baud + tolerance) &&
-			(baud > actual_baud - tolerance)) {
+		if (baud > maxrate + baud / 50)
+			continue;
 
+		if (delta > baud / 50)
+			divisor++;
+
+		if (divisor > 0xffff)
+			continue;
+
+		/* Update delta due to possible divisor change */
+		delta = maxrate / divisor - baud;
+		if (abs(delta) < baud / 50) {
 			lcr = serial_port_in(port, UART_LCR);
 			serial_port_out(port, UART_LCR, lcr | 0x80);
-
-			serial_port_out(port, UART_DLL, 1);
-			serial_port_out(port, UART_DLM, 0);
+			serial_port_out(port, UART_DLL, divisor & 0xff);
+			serial_port_out(port, UART_DLM, divisor >> 8 & 0xff);
 			serial_port_out(port, 2, 16 - scr);
 			serial_port_out(port, UART_LCR, lcr);
 			return;
-		} else if (baud > actual_baud) {
-			break;
 		}
 	}
-	serial8250_do_set_divisor(port, baud, quot, quot_frac);
 }
 static int pci_pericom_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
