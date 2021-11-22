@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig ROCKCHIP_RGA2
 	tristate "RGA2"
-	depends on ARCH_ROCKCHIP
+	depends on ARCH_ROCKCHIP && !ROCKCHIP_MULTI_RGA
 	help
 	  rk32 rga2 module.
 
