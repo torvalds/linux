@@ -2892,10 +2892,8 @@ static int try_enable_preferred_console(struct console *newcon,
 				return err;
 		}
 		newcon->flags |= CON_ENABLED;
-		if (i == preferred_console) {
+		if (i == preferred_console)
 			newcon->flags |= CON_CONSDEV;
-			need_default_console = false;
-		}
 		return 0;
 	}
 
