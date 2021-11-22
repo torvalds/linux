@@ -1911,19 +1911,18 @@ err:
 	return ret;
 }
 
-static void
-mlx5_free_priv_descs(struct mlx5_ib_mr *mr)
+static void mlx5_free_priv_descs(struct mlx5_ib_mr *mr)
 {
-	if (!mr->umem && mr->descs) {
-		struct ib_device *device = mr->ibmr.device;
-		int size = mr->max_descs * mr->desc_size;
-		struct mlx5_ib_dev *dev = to_mdev(device);
+	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
+	int size = mr->max_descs * mr->desc_size;
 
-		dma_unmap_single(&dev->mdev->pdev->dev, mr->desc_map, size,
-				 DMA_TO_DEVICE);
-		kfree(mr->descs_alloc);
-		mr->descs = NULL;
-	}
+	if (!mr->descs)
+		return;
+
+	dma_unmap_single(&dev->mdev->pdev->dev, mr->desc_map, size,
+			 DMA_TO_DEVICE);
+	kfree(mr->descs_alloc);
+	mr->descs = NULL;
 }
 
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
@@ -1999,7 +1998,8 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	if (mr->cache_ent) {
 		mlx5_mr_cache_free(dev, mr);
 	} else {
-		mlx5_free_priv_descs(mr);
+		if (!udata)
+			mlx5_free_priv_descs(mr);
 		kfree(mr);
 	}
 	return 0;
@@ -2086,7 +2086,6 @@ static struct mlx5_ib_mr *mlx5_ib_alloc_pi_mr(struct ib_pd *pd,
 	if (err)
 		goto err_free_in;
 
-	mr->umem = NULL;
 	kfree(in);
 
 	return mr;
@@ -2213,7 +2212,6 @@ static struct ib_mr *__mlx5_ib_alloc_mr(struct ib_pd *pd,
 	}
 
 	mr->ibmr.device = pd->device;
-	mr->umem = NULL;
 
 	switch (mr_type) {
 	case IB_MR_TYPE_MEM_REG:
