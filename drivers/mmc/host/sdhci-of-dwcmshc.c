@@ -73,6 +73,7 @@
 
 struct dwcmshc_priv {
 	struct clk	*bus_clk;
+	u32 cclk_rate;
 
 	/* Rockchip specified optional clocks */
 	struct clk_bulk_data rockchip_clks[ROCKCHIP_MAX_CLKS];
@@ -532,6 +533,9 @@ static int dwcmshc_runtime_suspend(struct device *dev)
 
 	priv->actual_clk = host->mmc->actual_clock;
 	sdhci_set_clock(host, 0);
+	priv->cclk_rate = clk_get_rate(pltfm_host->clk);
+	clk_set_rate(pltfm_host->clk, 24000000);
+	clk_bulk_disable_unprepare(ROCKCHIP_MAX_CLKS, priv->rockchip_clks);
 
 	return 0;
 }
@@ -541,10 +545,13 @@ static int dwcmshc_runtime_resume(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	int ret = 0;
 
+	clk_set_rate(pltfm_host->clk, priv->cclk_rate);
 	sdhci_set_clock(host, priv->actual_clk);
+	ret = clk_bulk_prepare_enable(ROCKCHIP_MAX_CLKS, priv->rockchip_clks);
 
-	return 0;
+	return ret;
 }
 #endif
 
