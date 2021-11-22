@@ -148,33 +148,79 @@ static inline u32 axi_chan_irq_read(struct axi_dma_chan *chan)
 	return axi_chan_ioread32(chan, CH_INTSTATUS);
 }
 
+static void axi_chan_set_multi_reg(struct axi_dma_chip *chip)
+{
+	struct dma_multi *multi = &chip->multi;
+
+	 /* cfg_2 Exists:  (DMAX_NUM_CHANNELS > 8 || DMAX_NUM_HS_IF > 16) */
+	if (multi->ch_cfg_2 == true) {
+		multi->cfg.ch_cfg_priority_pos = CH_CFG_H_PRIORITY_POS_2;
+		multi->cfg.ch_cfg_dst_per_pos = CH_CFG_L_DST_PER_POS_2;
+		multi->cfg.ch_cfg_src_per_pos = CH_CFG_L_SRC_PER_POS_2;
+	} else {
+		multi->cfg.ch_cfg_priority_pos = CH_CFG_H_PRIORITY_POS;
+		multi->cfg.ch_cfg_dst_per_pos = CH_CFG_H_DST_PER_POS;
+		multi->cfg.ch_cfg_src_per_pos = CH_CFG_H_SRC_PER_POS;
+	}
+
+	/* en_2 Exists: DMAX_NUM_CHANNELS > 8 */
+	if (multi->ch_enreg_2 == true) {
+		multi->en.ch_en = DMAC_CHEN_2;
+		multi->en.ch_en_shift = DMAC_CHAN_EN_SHIFT_2;
+		multi->en.ch_en_we_shift = DMAC_CHAN_EN_WE_SHIFT_2;
+
+		multi->en.ch_susp = DMAC_CHSUSP_2;
+		multi->en.ch_susp_shift = DMAC_CHAN_SUSP_SHIFT_2;
+		multi->en.ch_susp_we_shift = DMAC_CHAN_SUSP_WE_SHIFT_2;
+
+		multi->en.ch_abort = DMAC_CHABORT_2;
+		multi->en.ch_abort_shift = DMAC_CHAN_ABORT_SHIFT_2;
+		multi->en.ch_abort_we_shfit = DMAC_CHAN_ABORT_WE_SHIFT_2;
+	} else {
+		multi->en.ch_en = DMAC_CHEN;
+		multi->en.ch_en_shift = DMAC_CHAN_EN_SHIFT;
+		multi->en.ch_en_we_shift = DMAC_CHAN_EN_WE_SHIFT;
+
+		multi->en.ch_susp = DMAC_CHSUSP;
+		multi->en.ch_susp_shift = DMAC_CHAN_SUSP_SHIFT;
+		multi->en.ch_susp_we_shift = DMAC_CHAN_SUSP_WE_SHIFT;
+
+		multi->en.ch_abort = DMAC_CHABORT;
+		multi->en.ch_abort_shift = DMAC_CHAN_ABORT_SHIFT;
+		multi->en.ch_abort_we_shfit = DMAC_CHAN_ABORT_WE_SHIFT;
+	}
+}
+
 static inline void axi_chan_disable(struct axi_dma_chan *chan)
 {
+	struct dma_multi *multi = &chan->chip->multi;
 	u32 val;
 
-	val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
-	val &= ~(BIT(chan->id) << DMAC_CHAN_EN_SHIFT);
-	val |=   BIT(chan->id) << DMAC_CHAN_EN_WE_SHIFT;
-	axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
+	val = axi_dma_ioread32(chan->chip, multi->en.ch_en);
+	val &= ~(BIT(chan->id) << multi->en.ch_en_shift);
+	val |=   BIT(chan->id) << multi->en.ch_en_we_shift;
+	axi_dma_iowrite32(chan->chip, multi->en.ch_en, val);
 }
 
 static inline void axi_chan_enable(struct axi_dma_chan *chan)
 {
+	struct dma_multi *multi = &chan->chip->multi;
 	u32 val;
 
-	val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
-	val |= BIT(chan->id) << DMAC_CHAN_EN_SHIFT |
-	       BIT(chan->id) << DMAC_CHAN_EN_WE_SHIFT;
-	axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
+	val = axi_dma_ioread32(chan->chip, multi->en.ch_en);
+	val |= BIT(chan->id) << multi->en.ch_en_shift |
+	       BIT(chan->id) << multi->en.ch_en_we_shift;
+	axi_dma_iowrite32(chan->chip, multi->en.ch_en, val);
 }
 
 static inline bool axi_chan_is_hw_enable(struct axi_dma_chan *chan)
 {
+	struct dma_multi *multi = &chan->chip->multi;
 	u32 val;
 
-	val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
+	val = axi_dma_ioread32(chan->chip, multi->en.ch_en);
 
-	return !!(val & (BIT(chan->id) << DMAC_CHAN_EN_SHIFT));
+	return !!(val & (BIT(chan->id) << multi->en.ch_en_shift));
 }
 
 static void axi_dma_hw_init(struct axi_dma_chip *chip)
@@ -335,8 +381,9 @@ static void dw_axi_dma_set_byte_halfword(struct axi_dma_chan *chan, bool set)
 static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 				      struct axi_dma_desc *first)
 {
+	struct dma_multi *multi = &chan->chip->multi;
 	u32 priority = chan->chip->dw->hdata->priority[chan->id];
-	u32 reg, irq_mask;
+	u32 reg_lo, reg_hi, irq_mask;
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
 
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
@@ -348,36 +395,65 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 
 	axi_dma_enable(chan->chip);
 
-	reg = (DWAXIDMAC_MBLK_TYPE_LL << CH_CFG_L_DST_MULTBLK_TYPE_POS |
+	reg_lo = (DWAXIDMAC_MBLK_TYPE_LL << CH_CFG_L_DST_MULTBLK_TYPE_POS |
 	       DWAXIDMAC_MBLK_TYPE_LL << CH_CFG_L_SRC_MULTBLK_TYPE_POS);
-	axi_chan_iowrite32(chan, CH_CFG_L, reg);
 
-	reg = (DWAXIDMAC_TT_FC_MEM_TO_MEM_DMAC << CH_CFG_H_TT_FC_POS |
-	       priority << CH_CFG_H_PRIORITY_POS |
+	reg_hi = (DWAXIDMAC_TT_FC_MEM_TO_MEM_DMAC << CH_CFG_H_TT_FC_POS |
+	       priority << multi->cfg.ch_cfg_priority_pos |
 	       DWAXIDMAC_HS_SEL_HW << CH_CFG_H_HS_SEL_DST_POS |
 	       DWAXIDMAC_HS_SEL_HW << CH_CFG_H_HS_SEL_SRC_POS);
 	switch (chan->direction) {
 	case DMA_MEM_TO_DEV:
 		dw_axi_dma_set_byte_halfword(chan, true);
-		reg |= (chan->config.device_fc ?
+		reg_hi |= (chan->config.device_fc ?
 			DWAXIDMAC_TT_FC_MEM_TO_PER_DST :
 			DWAXIDMAC_TT_FC_MEM_TO_PER_DMAC)
 			<< CH_CFG_H_TT_FC_POS;
 		if (chan->chip->apb_regs)
-			reg |= (chan->id << CH_CFG_H_DST_PER_POS);
+			reg_hi |= (chan->id << CH_CFG_H_DST_PER_POS);
 		break;
 	case DMA_DEV_TO_MEM:
-		reg |= (chan->config.device_fc ?
+		reg_hi |= (chan->config.device_fc ?
 			DWAXIDMAC_TT_FC_PER_TO_MEM_SRC :
 			DWAXIDMAC_TT_FC_PER_TO_MEM_DMAC)
 			<< CH_CFG_H_TT_FC_POS;
 		if (chan->chip->apb_regs)
-			reg |= (chan->id << CH_CFG_H_SRC_PER_POS);
+			reg_hi |= (chan->id << CH_CFG_H_SRC_PER_POS);
 		break;
 	default:
 		break;
 	}
-	axi_chan_iowrite32(chan, CH_CFG_H, reg);
+
+	reg_hi |= CH_CFG_H_MAX_OSR_LMT << CH_CFG_H_SRC_OSR_LMT_POS |
+		CH_CFG_H_MAX_OSR_LMT << CH_CFG_H_DST_OSR_LMT_POS;
+
+	if (chan->hw_handshake_num) {
+		switch (chan->direction) {
+		case DMA_MEM_TO_DEV:
+			if (multi->ch_cfg_2 == true)
+				reg_lo |= chan->hw_handshake_num
+					<< multi->cfg.ch_cfg_dst_per_pos;
+			else
+				reg_hi |= chan->hw_handshake_num
+					<< multi->cfg.ch_cfg_dst_per_pos;
+
+			break;
+		case DMA_DEV_TO_MEM:
+			if (multi->ch_cfg_2 == true)
+				reg_lo |= chan->hw_handshake_num
+					<< multi->cfg.ch_cfg_src_per_pos;
+			else
+				reg_hi |= chan->hw_handshake_num
+					<< multi->cfg.ch_cfg_src_per_pos;
+
+			break;
+		default:
+			break;
+		}
+	}
+
+	axi_chan_iowrite32(chan, CH_CFG_L, reg_lo);
+	axi_chan_iowrite32(chan, CH_CFG_H, reg_hi);
 
 	write_chan_llp(chan, first->hw_desc[0].llp | lms);
 
@@ -1114,16 +1190,17 @@ static int dma_chan_terminate_all(struct dma_chan *dchan)
 static int dma_chan_pause(struct dma_chan *dchan)
 {
 	struct axi_dma_chan *chan = dchan_to_axi_dma_chan(dchan);
+	struct dma_multi *multi = &chan->chip->multi;
 	unsigned long flags;
 	unsigned int timeout = 20; /* timeout iterations */
 	u32 val;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 
-	val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
-	val |= BIT(chan->id) << DMAC_CHAN_SUSP_SHIFT |
-	       BIT(chan->id) << DMAC_CHAN_SUSP_WE_SHIFT;
-	axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
+	val = axi_dma_ioread32(chan->chip, multi->en.ch_susp);
+	val |= BIT(chan->id) << multi->en.ch_susp_shift |
+	       BIT(chan->id) << multi->en.ch_susp_we_shift;
+	axi_dma_iowrite32(chan->chip, multi->en.ch_susp, val);
 
 	do  {
 		if (axi_chan_irq_read(chan) & DWAXIDMAC_IRQ_SUSPENDED)
@@ -1144,12 +1221,13 @@ static int dma_chan_pause(struct dma_chan *dchan)
 /* Called in chan locked context */
 static inline void axi_chan_resume(struct axi_dma_chan *chan)
 {
+	struct dma_multi *multi = &chan->chip->multi;
 	u32 val;
 
-	val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
-	val &= ~(BIT(chan->id) << DMAC_CHAN_SUSP_SHIFT);
-	val |=  (BIT(chan->id) << DMAC_CHAN_SUSP_WE_SHIFT);
-	axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
+	val = axi_dma_ioread32(chan->chip, multi->en.ch_susp);
+	val &= ~(BIT(chan->id) << multi->en.ch_susp_shift);
+	val |=  (BIT(chan->id) << multi->en.ch_susp_we_shift);
+	axi_dma_iowrite32(chan->chip, multi->en.ch_susp, val);
 
 	chan->is_paused = false;
 }
@@ -1292,6 +1370,20 @@ static int parse_device_properties(struct axi_dma_chip *chip)
 		chip->dw->hdata->restrict_axi_burst_len = true;
 		chip->dw->hdata->axi_rw_burst_len = tmp;
 	}
+
+
+	/* get number of handshak interface and configure multi reg */
+	ret = device_property_read_u32(dev, "snps,num-hs-if", &tmp);
+	if (!ret)
+		chip->dw->hdata->nr_hs_if = tmp;
+
+	if (chip->dw->hdata->nr_channels > 8)
+		chip->multi.ch_enreg_2 = true;
+
+	if (chip->dw->hdata->nr_channels > 8 || chip->dw->hdata->nr_hs_if > 16)
+		chip->multi.ch_cfg_2 = true;
+
+	axi_chan_set_multi_reg(chip);
 
 	return 0;
 }

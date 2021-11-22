@@ -5,6 +5,7 @@
  * Synopsys DesignWare AXI DMA Controller driver.
  *
  * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+ *         Samin.guo <samin.guo@starfivetech.com>
  */
 
 #ifndef _AXI_DMA_PLATFORM_H
@@ -18,13 +19,39 @@
 
 #include "../virt-dma.h"
 
-#define DMAC_MAX_CHANNELS	8
+#define DMAC_MAX_CHANNELS	16
 #define DMAC_MAX_MASTERS	2
 #define DMAC_MAX_BLK_SIZE	0x200000
+
+struct dma_ch_en {
+	u8 ch_en;
+	u8 ch_en_shift;
+	u8 ch_en_we_shift;
+	u8 ch_susp;
+	u8 ch_susp_shift;
+	u8 ch_susp_we_shift;
+	u8 ch_abort;
+	u8 ch_abort_shift;
+	u8 ch_abort_we_shfit;
+};
+
+struct dma_ch_cfg {
+	u8 ch_cfg_priority_pos;
+	u8 ch_cfg_dst_per_pos;
+	u8 ch_cfg_src_per_pos;
+};
+
+struct dma_multi {
+	bool ch_cfg_2;
+	bool ch_enreg_2;
+	struct dma_ch_cfg cfg;
+	struct dma_ch_en en;
+};
 
 struct dw_axi_dma_hcfg {
 	u32	nr_channels;
 	u32	nr_masters;
+	u32	nr_hs_if;
 	u32	m_data_width;
 	u32	block_size[DMAC_MAX_CHANNELS];
 	u32	priority[DMAC_MAX_CHANNELS];
@@ -68,6 +95,7 @@ struct axi_dma_chip {
 	struct clk		*core_clk;
 	struct clk		*cfgr_clk;
 	struct dw_axi_dma	*dw;
+	struct dma_multi	multi;
 };
 
 /* LLI == Linked List Item */
@@ -139,6 +167,15 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define DMAC_CHEN		0x018 /* R/W DMAC Channel Enable */
 #define DMAC_CHEN_L		0x018 /* R/W DMAC Channel Enable 00-31 */
 #define DMAC_CHEN_H		0x01C /* R/W DMAC Channel Enable 32-63 */
+#define DMAC_CHSUSP		0x018 /* R/W DMAC Channel suspend */
+#define DMAC_CHABORT		0x018 /* R/W DMAC Channel Abort */
+
+#define DMAC_CHEN_2		0x018 /* R/W DMAC Channel Enable */
+#define DMAC_CHEN_L_2		0x018 /* R/W DMAC Channel Enable */
+#define DMAC_CHEN_H_2		0x01C /* R/W DMAC Channel Enable */
+#define DMAC_CHSUSP_2		0x020 /* R/W DMAC Channel Suspend */
+#define DMAC_CHABORT_2		0x028 /* R/W DMAC Channel Abort */
+
 #define DMAC_INTSTATUS		0x030 /* R DMAC Interrupt Status */
 #define DMAC_COMMON_INTCLEAR	0x038 /* W DMAC Interrupt Clear */
 #define DMAC_COMMON_INTSTATUS_ENA 0x040 /* R DMAC Interrupt Status Enable */
@@ -201,6 +238,18 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define DMAC_CHAN_SUSP_SHIFT		16
 #define DMAC_CHAN_SUSP_WE_SHIFT		24
 
+#define DMAC_CHAN_ABORT_SHIFT		32
+#define DMAC_CHAN_ABORT_WE_SHIFT	40
+
+#define DMAC_CHAN_EN_SHIFT_2		0
+#define DMAC_CHAN_EN_WE_SHIFT_2		16
+
+#define DMAC_CHAN_SUSP_SHIFT_2		0
+#define DMAC_CHAN_SUSP_WE_SHIFT_2	16
+
+#define DMAC_CHAN_ABORT_SHIFT_2		0
+#define DMAC_CHAN_ABORT_WE_SHIFT_2	16
+
 /* CH_CTL_H */
 #define CH_CTL_H_ARLEN_EN		BIT(6)
 #define CH_CTL_H_ARLEN_POS		7
@@ -257,9 +306,13 @@ enum {
 #define CH_CTL_L_SRC_MAST		BIT(0)
 
 /* CH_CFG_H */
+#define CH_CFG_H_DST_OSR_LMT_POS	27
+#define CH_CFG_H_SRC_OSR_LMT_POS	23
+#define CH_CFG_H_MAX_OSR_LMT		0xf
 #define CH_CFG_H_PRIORITY_POS		17
 #define CH_CFG_H_DST_PER_POS		12
 #define CH_CFG_H_SRC_PER_POS		7
+#define CH_CFG_H_PRIORITY_POS_2		15
 #define CH_CFG_H_HS_SEL_DST_POS		4
 #define CH_CFG_H_HS_SEL_SRC_POS		3
 enum {
@@ -282,6 +335,9 @@ enum {
 /* CH_CFG_L */
 #define CH_CFG_L_DST_MULTBLK_TYPE_POS	2
 #define CH_CFG_L_SRC_MULTBLK_TYPE_POS	0
+
+#define CH_CFG_L_DST_PER_POS_2		11
+#define CH_CFG_L_SRC_PER_POS_2		4
 enum {
 	DWAXIDMAC_MBLK_TYPE_CONTIGUOUS	= 0,
 	DWAXIDMAC_MBLK_TYPE_RELOAD,
