@@ -46,11 +46,6 @@ struct partition_meta_info {
  * Must not be set for devices which are removed entirely when the
  * media is removed.
  *
- * ``GENHD_FL_SUPPRESS_PARTITION_INFO`` (0x0020): don't include
- * partition information in ``/proc/partitions`` or in the output of
- * printk_all_partitions().
- * Used for the null block device and some MMC devices.
- *
  * ``GENHD_FL_EXT_DEVT`` (0x0040): the driver supports extended
  * dynamic ``dev_t``, i.e. it wants extended device numbers
  * (``BLOCK_EXT_MAJOR``).
@@ -63,14 +58,12 @@ struct partition_meta_info {
  * ``GENHD_FL_HIDDEN`` (0x0400): the block device is hidden; it
  * doesn't produce events, doesn't appear in sysfs, and doesn't have
  * an associated ``bdev``.
- * Implies ``GENHD_FL_SUPPRESS_PARTITION_INFO`` and
- * ``GENHD_FL_NO_PART``.
+ * Implies ``GENHD_FL_NO_PART``.
  * Used for multipath devices.
  */
 #define GENHD_FL_REMOVABLE			0x0001
 /* 2 is unused (used to be GENHD_FL_DRIVERFS) */
 /* 4 is unused (used to be GENHD_FL_MEDIA_CHANGE_NOTIFY) */
-#define GENHD_FL_SUPPRESS_PARTITION_INFO	0x0020
 #define GENHD_FL_EXT_DEVT			0x0040
 #define GENHD_FL_NO_PART			0x0200
 #define GENHD_FL_HIDDEN				0x0400
