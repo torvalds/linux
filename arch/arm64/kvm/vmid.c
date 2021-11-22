@@ -32,6 +32,13 @@ static DEFINE_PER_CPU(u64, reserved_vmids);
 #define vmid2idx(vmid)		((vmid) & ~VMID_MASK)
 #define idx2vmid(idx)		vmid2idx(idx)
 
+/*
+ * As vmid #0 is always reserved, we will never allocate one
+ * as below and can be treated as invalid. This is used to
+ * set the active_vmids on vCPU schedule out.
+ */
+#define VMID_ACTIVE_INVALID		VMID_FIRST_VERSION
+
 #define vmid_gen_match(vmid) \
 	(!(((vmid) ^ atomic64_read(&vmid_generation)) >> kvm_arm_vmid_bits))
 
@@ -122,6 +129,12 @@ set_vmid:
 	return vmid;
 }
 
+/* Called from vCPU sched out with preemption disabled */
+void kvm_arm_vmid_clear_active(void)
+{
+	atomic64_set(this_cpu_ptr(&active_vmids), VMID_ACTIVE_INVALID);
+}
+
 void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
 {
 	unsigned long flags;
@@ -132,11 +145,17 @@ void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
 	/*
 	 * Please refer comments in check_and_switch_context() in
 	 * arch/arm64/mm/context.c.
+	 *
+	 * Unlike ASID allocator, we set the active_vmids to
+	 * VMID_ACTIVE_INVALID on vCPU schedule out to avoid
+	 * reserving the VMID space needlessly on rollover.
+	 * Hence explicitly check here for a "!= 0" to
+	 * handle the sync with a concurrent rollover.
 	 */
 	old_active_vmid = atomic64_read(this_cpu_ptr(&active_vmids));
-	if (old_active_vmid && vmid_gen_match(vmid) &&
-	    atomic64_cmpxchg_relaxed(this_cpu_ptr(&active_vmids),
-				     old_active_vmid, vmid))
+	if (old_active_vmid != 0 && vmid_gen_match(vmid) &&
+	    0 != atomic64_cmpxchg_relaxed(this_cpu_ptr(&active_vmids),
+					  old_active_vmid, vmid))
 		return;
 
 	raw_spin_lock_irqsave(&cpu_vmid_lock, flags);
