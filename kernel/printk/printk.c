@@ -2943,31 +2943,30 @@ static void try_enable_default_console(struct console *newcon)
  */
 void register_console(struct console *newcon)
 {
-	struct console *bcon = NULL;
+	struct console *con;
+	bool bootcon_enabled = false;
+	bool realcon_enabled = false;
 	int err;
 
-	for_each_console(bcon) {
-		if (WARN(bcon == newcon, "console '%s%d' already registered\n",
-					 bcon->name, bcon->index))
+	for_each_console(con) {
+		if (WARN(con == newcon, "console '%s%d' already registered\n",
+					 con->name, con->index))
 			return;
 	}
 
-	/*
-	 * before we register a new CON_BOOT console, make sure we don't
-	 * already have a valid console
-	 */
-	if (newcon->flags & CON_BOOT) {
-		for_each_console(bcon) {
-			if (!(bcon->flags & CON_BOOT)) {
-				pr_info("Too late to register bootconsole %s%d\n",
-					newcon->name, newcon->index);
-				return;
-			}
-		}
+	for_each_console(con) {
+		if (con->flags & CON_BOOT)
+			bootcon_enabled = true;
+		else
+			realcon_enabled = true;
 	}
 
-	if (console_drivers && console_drivers->flags & CON_BOOT)
-		bcon = console_drivers;
+	/* Do not register boot consoles when there already is a real one. */
+	if (newcon->flags & CON_BOOT && realcon_enabled) {
+		pr_info("Too late to register bootconsole %s%d\n",
+			newcon->name, newcon->index);
+		return;
+	}
 
 	/*
 	 * See if we want to enable this console driver by default.
@@ -3005,8 +3004,10 @@ void register_console(struct console *newcon)
 	 * the real console are the same physical device, it's annoying to
 	 * see the beginning boot messages twice
 	 */
-	if (bcon && ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV))
+	if (bootcon_enabled &&
+	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV)) {
 		newcon->flags &= ~CON_PRINTBUFFER;
+	}
 
 	/*
 	 *	Put this console in the list - keep the
@@ -3062,15 +3063,15 @@ void register_console(struct console *newcon)
 	pr_info("%sconsole [%s%d] enabled\n",
 		(newcon->flags & CON_BOOT) ? "boot" : "" ,
 		newcon->name, newcon->index);
-	if (bcon &&
+	if (bootcon_enabled &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
 	    !keep_bootcon) {
 		/* We need to iterate through all boot consoles, to make
 		 * sure we print everything out, before we unregister them.
 		 */
-		for_each_console(bcon)
-			if (bcon->flags & CON_BOOT)
-				unregister_console(bcon);
+		for_each_console(con)
+			if (con->flags & CON_BOOT)
+				unregister_console(con);
 	}
 }
 EXPORT_SYMBOL(register_console);
