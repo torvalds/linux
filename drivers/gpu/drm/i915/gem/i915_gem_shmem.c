@@ -664,9 +664,10 @@ static int init_shmem(struct intel_memory_region *mem)
 	return 0; /* Don't error, we can simply fallback to the kernel mnt */
 }
 
-static void release_shmem(struct intel_memory_region *mem)
+static int release_shmem(struct intel_memory_region *mem)
 {
 	i915_gemfs_fini(mem->i915);
+	return 0;
 }
 
 static const struct intel_memory_region_ops shmem_region_ops = {

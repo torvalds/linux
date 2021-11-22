@@ -84,13 +84,16 @@ static int mock_object_init(struct intel_memory_region *mem,
 	return 0;
 }
 
-static void mock_region_fini(struct intel_memory_region *mem)
+static int mock_region_fini(struct intel_memory_region *mem)
 {
 	struct drm_i915_private *i915 = mem->i915;
 	int instance = mem->instance;
+	int ret;
 
-	intel_region_ttm_fini(mem);
+	ret = intel_region_ttm_fini(mem);
 	ida_free(&i915->selftest.mock_region_instances, instance);
+
+	return ret;
 }
 
 static const struct intel_memory_region_ops mock_region_ops = {

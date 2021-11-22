@@ -568,7 +568,7 @@ out_unpin:
 out_put:
 	i915_gem_object_put(obj);
 out_region:
-	intel_memory_region_put(mem);
+	intel_memory_region_destroy(mem);
 	return err;
 }
 

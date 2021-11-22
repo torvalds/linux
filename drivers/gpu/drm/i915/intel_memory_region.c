@@ -126,7 +126,6 @@ intel_memory_region_create(struct drm_i915_private *i915,
 			goto err_free;
 	}
 
-	kref_init(&mem->kref);
 	return mem;
 
 err_free:
@@ -144,28 +143,17 @@ void intel_memory_region_set_name(struct intel_memory_region *mem,
 	va_end(ap);
 }
 
-static void __intel_memory_region_destroy(struct kref *kref)
+void intel_memory_region_destroy(struct intel_memory_region *mem)
 {
-	struct intel_memory_region *mem =
-		container_of(kref, typeof(*mem), kref);
+	int ret = 0;
 
 	if (mem->ops->release)
-		mem->ops->release(mem);
+		ret = mem->ops->release(mem);
 
+	GEM_WARN_ON(!list_empty_careful(&mem->objects.list));
 	mutex_destroy(&mem->objects.lock);
-	kfree(mem);
-}
-
-struct intel_memory_region *
-intel_memory_region_get(struct intel_memory_region *mem)
-{
-	kref_get(&mem->kref);
-	return mem;
-}
-
-void intel_memory_region_put(struct intel_memory_region *mem)
-{
-	kref_put(&mem->kref, __intel_memory_region_destroy);
+	if (!ret)
+		kfree(mem);
 }
 
 /* Global memory region registration -- only slight layer inversions! */
@@ -234,7 +222,7 @@ void intel_memory_regions_driver_release(struct drm_i915_private *i915)
 			fetch_and_zero(&i915->mm.regions[i]);
 
 		if (region)
-			intel_memory_region_put(region);
+			intel_memory_region_destroy(region);
 	}
 }
 

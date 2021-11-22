@@ -997,7 +997,7 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	i915_gem_object_init(obj, &i915_gem_ttm_obj_ops, &lock_class, flags);
 
 	/* Don't put on a region list until we're either locked or fully initialized. */
-	obj->mm.region = intel_memory_region_get(mem);
+	obj->mm.region = mem;
 	INIT_LIST_HEAD(&obj->mm.region_link);
 
 	INIT_RADIX_TREE(&obj->ttm.get_io_page.radix, GFP_KERNEL | __GFP_NOWARN);
@@ -1044,6 +1044,7 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 
 static const struct intel_memory_region_ops ttm_system_region_ops = {
 	.init_object = __i915_gem_ttm_object_init,
+	.release = intel_region_ttm_fini,
 };
 
 struct intel_memory_region *

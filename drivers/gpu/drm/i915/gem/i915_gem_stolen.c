@@ -720,9 +720,10 @@ static int init_stolen_smem(struct intel_memory_region *mem)
 	return i915_gem_init_stolen(mem);
 }
 
-static void release_stolen_smem(struct intel_memory_region *mem)
+static int release_stolen_smem(struct intel_memory_region *mem)
 {
 	i915_gem_cleanup_stolen(mem->i915);
+	return 0;
 }
 
 static const struct intel_memory_region_ops i915_region_stolen_smem_ops = {
@@ -759,10 +760,11 @@ err_fini:
 	return err;
 }
 
-static void release_stolen_lmem(struct intel_memory_region *mem)
+static int release_stolen_lmem(struct intel_memory_region *mem)
 {
 	io_mapping_fini(&mem->iomap);
 	i915_gem_cleanup_stolen(mem->i915);
+	return 0;
 }
 
 static const struct intel_memory_region_ops i915_region_stolen_lmem_ops = {

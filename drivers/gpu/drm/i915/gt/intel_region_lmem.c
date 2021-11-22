@@ -66,12 +66,16 @@ static void release_fake_lmem_bar(struct intel_memory_region *mem)
 			   DMA_ATTR_FORCE_CONTIGUOUS);
 }
 
-static void
+static int
 region_lmem_release(struct intel_memory_region *mem)
 {
-	intel_region_ttm_fini(mem);
+	int ret;
+
+	ret = intel_region_ttm_fini(mem);
 	io_mapping_fini(&mem->iomap);
 	release_fake_lmem_bar(mem);
+
+	return ret;
 }
 
 static int
@@ -231,7 +235,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	return mem;
 
 err_region_put:
-	intel_memory_region_put(mem);
+	intel_memory_region_destroy(mem);
 	return ERR_PTR(err);
 }
 

@@ -20,7 +20,7 @@ void intel_region_ttm_device_fini(struct drm_i915_private *dev_priv);
 
 int intel_region_ttm_init(struct intel_memory_region *mem);
 
-void intel_region_ttm_fini(struct intel_memory_region *mem);
+int intel_region_ttm_fini(struct intel_memory_region *mem);
 
 struct i915_refct_sgt *
 intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
