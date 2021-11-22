@@ -774,7 +774,6 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 		const struct hl_ioctl_desc *ioctl, struct device *dev)
 {
 	struct hl_fpriv *hpriv = filep->private_data;
-	struct hl_device *hdev = hpriv->hdev;
 	unsigned int nr = _IOC_NR(cmd);
 	char stack_kdata[128] = {0};
 	char *kdata = NULL;
@@ -782,12 +781,6 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 	hl_ioctl_t *func;
 	u32 hl_size;
 	int retcode;
-
-	if (hdev->hard_reset_pending) {
-		dev_crit_ratelimited(dev,
-			"Device HARD reset pending! Please close FD\n");
-		return -ENODEV;
-	}
 
 	/* Do not trust userspace, use our own definition */
 	func = ioctl->func;

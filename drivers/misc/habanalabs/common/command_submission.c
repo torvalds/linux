@@ -1146,9 +1146,6 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 	enum hl_cs_type cs_type;
 
 	if (!hl_device_operational(hdev, &status)) {
-		dev_warn_ratelimited(hdev->dev,
-			"Device is %s. Can't submit new CS\n",
-			hdev->status[status]);
 		return -EBUSY;
 	}
 
@@ -2997,7 +2994,7 @@ int hl_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	 * user interrupt
 	 */
 	if (!hl_device_operational(hpriv->hdev, NULL))
-		return -EPERM;
+		return -EBUSY;
 
 	if (flags & HL_WAIT_CS_FLAGS_INTERRUPT)
 		rc = hl_interrupt_wait_ioctl(hpriv, data);
