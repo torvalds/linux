@@ -914,44 +914,36 @@ static int DownloadMicrocode(struct drxd_state *state,
 	u32 Address;
 	u16 nBlocks;
 	u16 BlockSize;
-	u32 offset = 0;
 	int i, status = 0;
 
 	pSrc = (u8 *) pMCImage;
 	/* We're not using Flags */
 	/* Flags = (pSrc[0] << 8) | pSrc[1]; */
 	pSrc += sizeof(u16);
-	offset += sizeof(u16);
 	nBlocks = (pSrc[0] << 8) | pSrc[1];
 	pSrc += sizeof(u16);
-	offset += sizeof(u16);
 
 	for (i = 0; i < nBlocks; i++) {
 		Address = (pSrc[0] << 24) | (pSrc[1] << 16) |
 		    (pSrc[2] << 8) | pSrc[3];
 		pSrc += sizeof(u32);
-		offset += sizeof(u32);
 
 		BlockSize = ((pSrc[0] << 8) | pSrc[1]) * sizeof(u16);
 		pSrc += sizeof(u16);
-		offset += sizeof(u16);
 
 		/* We're not using Flags */
 		/* u16 Flags = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
-		offset += sizeof(u16);
 
 		/* We're not using BlockCRC */
 		/* u16 BlockCRC = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
-		offset += sizeof(u16);
 
 		status = WriteBlock(state, Address, BlockSize,
 				    pSrc, DRX_I2C_CLEARCRC);
 		if (status < 0)
 			break;
 		pSrc += BlockSize;
-		offset += BlockSize;
 	}
 
 	return status;
