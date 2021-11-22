@@ -983,7 +983,7 @@ qca8k_parse_port_config(struct qca8k_priv *priv)
 	u32 delay;
 
 	/* We have 2 CPU port. Check them */
-	for (port = 0; port < QCA8K_NUM_PORTS && cpu_port_index < QCA8K_NUM_CPU_PORTS; port++) {
+	for (port = 0; port < QCA8K_NUM_PORTS; port++) {
 		/* Skip every other port */
 		if (port != 0 && port != 6)
 			continue;
