@@ -23,13 +23,11 @@ int i915_ttm_move_notify(struct ttm_buffer_object *bo);
 I915_SELFTEST_DECLARE(void i915_ttm_migrate_set_failure_modes(bool gpu_migration,
 							      bool work_allocation));
 
-/* Internal I915 TTM declarations and definitions below. */
+int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
+			  struct drm_i915_gem_object *src,
+			  bool allow_accel, bool intr);
 
-void __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
-		     struct ttm_resource *dst_mem,
-		     struct ttm_tt *dst_ttm,
-		     struct i915_refct_sgt *dst_rsgt,
-		     bool allow_accel);
+/* Internal I915 TTM declarations and definitions below. */
 
 int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 		  struct ttm_operation_ctx *ctx,

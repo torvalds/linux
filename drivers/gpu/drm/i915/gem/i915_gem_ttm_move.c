@@ -378,18 +378,10 @@ i915_ttm_memcpy_work_arm(struct i915_ttm_memcpy_work *work,
 	return &work->fence;
 }
 
-/**
- * __i915_ttm_move - helper to perform TTM moves or clears.
- * @bo: The source buffer object.
- * @clear: Whether this is a clear operation.
- * @dst_mem: The destination ttm resource.
- * @dst_ttm: The destination ttm page vector.
- * @dst_rsgt: The destination refcounted sg-list.
- * @allow_accel: Whether to allow acceleration.
- */
-void __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
-		     struct ttm_resource *dst_mem, struct ttm_tt *dst_ttm,
-		     struct i915_refct_sgt *dst_rsgt, bool allow_accel)
+static void __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
+			    struct ttm_resource *dst_mem,
+			    struct ttm_tt *dst_ttm,
+			    struct i915_refct_sgt *dst_rsgt, bool allow_accel)
 {
 	struct i915_ttm_memcpy_work *copy_work = NULL;
 	struct i915_ttm_memcpy_arg _arg, *arg = &_arg;
@@ -519,5 +511,52 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 
 	i915_ttm_adjust_lru(obj);
 	i915_ttm_adjust_gem_after_move(obj);
+	return 0;
+}
+
+/**
+ * i915_gem_obj_copy_ttm - Copy the contents of one ttm-based gem object to
+ * another
+ * @dst: The destination object
+ * @src: The source object
+ * @allow_accel: Allow using the blitter. Otherwise TTM memcpy is used.
+ * @intr: Whether to perform waits interruptible:
+ *
+ * Note: The caller is responsible for assuring that the underlying
+ * TTM objects are populated if needed and locked.
+ *
+ * Return: Zero on success. Negative error code on error. If @intr == true,
+ * then it may return -ERESTARTSYS or -EINTR.
+ */
+int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
+			  struct drm_i915_gem_object *src,
+			  bool allow_accel, bool intr)
+{
+	struct ttm_buffer_object *dst_bo = i915_gem_to_ttm(dst);
+	struct ttm_buffer_object *src_bo = i915_gem_to_ttm(src);
+	struct ttm_operation_ctx ctx = {
+		.interruptible = intr,
+	};
+	struct i915_refct_sgt *dst_rsgt;
+	int ret;
+
+	assert_object_held(dst);
+	assert_object_held(src);
+
+	/*
+	 * Sync for now. This will change with async moves.
+	 */
+	ret = ttm_bo_wait_ctx(dst_bo, &ctx);
+	if (!ret)
+		ret = ttm_bo_wait_ctx(src_bo, &ctx);
+	if (ret)
+		return ret;
+
+	dst_rsgt = i915_ttm_resource_get_st(dst, dst_bo->resource);
+	__i915_ttm_move(src_bo, false, dst_bo->resource, dst_bo->ttm,
+			dst_rsgt, allow_accel);
+
+	i915_refct_sgt_put(dst_rsgt);
+
 	return 0;
 }

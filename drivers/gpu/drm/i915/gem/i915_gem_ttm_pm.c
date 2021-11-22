@@ -12,6 +12,7 @@
 
 #include "gem/i915_gem_region.h"
 #include "gem/i915_gem_ttm.h"
+#include "gem/i915_gem_ttm_move.h"
 #include "gem/i915_gem_ttm_pm.h"
 
 /**
