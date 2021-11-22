@@ -235,6 +235,14 @@ static inline bool amdgpu_discovery_verify_checksum(uint8_t *data, uint32_t size
 	return !!(amdgpu_discovery_calculate_checksum(data, size) == expected);
 }
 
+static inline bool amdgpu_discovery_verify_binary_signature(uint8_t *binary)
+{
+	struct binary_header *bhdr;
+	bhdr = (struct binary_header *)binary;
+
+	return (le32_to_cpu(bhdr->binary_signature) == BINARY_SIGNATURE);
+}
+
 static int amdgpu_discovery_init(struct amdgpu_device *adev)
 {
 	struct table_info *info;
