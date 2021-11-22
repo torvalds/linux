@@ -24,6 +24,8 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
  * struct rcu_tasks_percpu - Per-CPU component of definition for a Tasks-RCU-like mechanism.
  * @cblist: Callback list.
  * @lock: Lock protecting per-CPU callback list.
+ * @rtp_jiffies: Jiffies counter value for statistics.
+ * @rtp_n_lock_retries: Rough lock-contention statistic.
  * @rtp_work: Work queue for invoking callbacks.
  * @barrier_q_head: RCU callback for barrier operation.
  * @cpu: CPU number corresponding to this entry.
@@ -32,6 +34,8 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
 struct rcu_tasks_percpu {
 	struct rcu_segcblist cblist;
 	raw_spinlock_t __private lock;
+	unsigned long rtp_jiffies;
+	unsigned long rtp_n_lock_retries;
 	struct work_struct rtp_work;
 	struct rcu_head barrier_q_head;
 	int cpu;
@@ -231,6 +235,7 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 				   struct rcu_tasks *rtp)
 {
 	unsigned long flags;
+	unsigned long j;
 	bool needwake;
 	struct rcu_tasks_percpu *rtpcp;
 
@@ -239,7 +244,15 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	local_irq_save(flags);
 	rtpcp = per_cpu_ptr(rtp->rtpcpu,
 			    smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift));
-	raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
+	if (!raw_spin_trylock_rcu_node(rtpcp)) { // irqs already disabled.
+		raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
+		j = jiffies;
+		if (rtpcp->rtp_jiffies != j) {
+			rtpcp->rtp_jiffies = j;
+			rtpcp->rtp_n_lock_retries = 0;
+		}
+		rtpcp->rtp_n_lock_retries++;
+	}
 	if (!rcu_segcblist_is_enabled(&rtpcp->cblist)) {
 		raw_spin_unlock_rcu_node(rtpcp); // irqs remain disabled.
 		cblist_init_generic(rtp);
