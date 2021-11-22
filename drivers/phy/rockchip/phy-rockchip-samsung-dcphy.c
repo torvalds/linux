@@ -59,6 +59,8 @@
 #define T_PHY_READY(x)		UPDATE(x, 15, 0)
 #define DPHY_MC_ANA_CON0	0x0308
 #define DPHY_MC_ANA_CON1	0x030c
+#define DPHY_MC_ANA_CON2	0x0310
+#define HS_VREG_AMP_ICON(x)	UPDATE(x, 1, 0)
 #define DPHY_MC_TIME_CON0	0x0330
 #define HSTX_CLK_SEL		BIT(12)
 #define T_LPX(x)		UPDATE(x, 11, 4)
@@ -1266,17 +1268,17 @@ static void samsung_mipi_cphy_lane_enable(struct samsung_mipi_dcphy *samsung)
 
 	/* 200us is needed for locking the PLL */
 	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD0_GNR_CON0,
-				       sts, (sts & PHY_READY), 0, 200);
+				       sts, (sts & PHY_READY), 200, 2000);
 	if (ret < 0)
 		dev_err(samsung->dev, "C-PHY Data0 lane is not locked\n");
 
 	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD1_GNR_CON0,
-				       sts, (sts & PHY_READY), 0, 200);
+				       sts, (sts & PHY_READY), 200, 2000);
 	if (ret < 0)
 		dev_err(samsung->dev, "C-PHY Data1 lane is not locked\n");
 
 	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD2_GNR_CON0,
-				       sts, (sts & PHY_READY), 0, 200);
+				       sts, (sts & PHY_READY), 200, 2000);
 	if (ret < 0)
 		dev_err(samsung->dev, "C-PHY Data2 lane is not locked\n");
 }
@@ -1508,7 +1510,7 @@ samsung_mipi_dcphy_pll_round_rate(struct samsung_mipi_dcphy *samsung,
 	*fbdiv = best_fbdiv;
 	*dsm = (int)best_dsm & 0xffff;
 	*scaler = best_scaler;
-	dev_info(samsung->dev, "p: %d, m: %d, dsm:%ld, scaler: %d\n",
+	dev_dbg(samsung->dev, "p: %d, m: %d, dsm:%ld, scaler: %d\n",
 		 best_prediv, best_fbdiv, best_dsm, best_scaler);
 
 	return best_freq >> best_scaler;
@@ -1620,6 +1622,12 @@ samsung_mipi_dphy_data_lane_timing_init(struct samsung_mipi_dcphy *samsung)
 	regmap_write(samsung->regmap, DPHY_MD3_TIME_CON4, 0x1f4);
 }
 
+static void
+samsung_mipi_dcphy_hs_vreg_amp_configure(struct samsung_mipi_dcphy *samsung)
+{
+	regmap_write(samsung->regmap, DPHY_MC_ANA_CON2, HS_VREG_AMP_ICON(2));
+}
+
 static void samsung_mipi_dphy_power_on(struct samsung_mipi_dcphy *samsung)
 {
 	reset_control_assert(samsung->phy_rst);
@@ -1640,6 +1648,7 @@ static void samsung_mipi_cphy_power_on(struct samsung_mipi_dcphy *samsung)
 	reset_control_assert(samsung->phy_rst);
 
 	samsung_mipi_dcphy_bias_block_enable(samsung);
+	samsung_mipi_dcphy_hs_vreg_amp_configure(samsung);
 	samsung_mipi_dcphy_pll_configure(samsung);
 	samsung_mipi_cphy_timing_init(samsung);
 	samsung_mipi_dcphy_pll_enable(samsung);
