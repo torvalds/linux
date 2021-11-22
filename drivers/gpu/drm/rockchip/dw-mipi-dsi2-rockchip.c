@@ -450,13 +450,14 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
 
-	dw_mipi_dsi2_irq_enable(dsi2, 0);
-
 	if (dsi2->panel)
 		drm_panel_disable(dsi2->panel);
+
 	dw_mipi_dsi2_disable(dsi2);
+
 	if (dsi2->panel)
 		drm_panel_unprepare(dsi2->panel);
+
 	dw_mipi_dsi2_post_disable(dsi2);
 }
 
@@ -591,10 +592,6 @@ static void dw_mipi_dsi2_lp2hs_or_hs2lp_cfg(struct dw_mipi_dsi2 *dsi2)
 	struct phy_configure_opts_mipi_dphy *cfg = &dsi2->phy_opts.mipi_dphy;
 	unsigned long long tmp, ui;
 	unsigned long long hstx_clk;
-
-	/* test dphy firstly */
-	if (dsi2->c_option)
-		return;
 
 	hstx_clk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * USEC_PER_SEC, 16);
 
