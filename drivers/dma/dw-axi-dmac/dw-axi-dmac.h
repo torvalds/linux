@@ -77,6 +77,7 @@ struct axi_dma_chan {
 	enum dma_transfer_direction	direction;
 	bool 				fixed_burst_trans_len;
 	bool				cyclic;
+	bool				is_err;
 	/* these other elements are all protected by vc.lock */
 	bool				is_paused;
 };

@@ -388,11 +388,13 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 	u32 reg_lo, reg_hi, irq_mask;
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
 
+	chan->is_err = false;
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
 		dev_err(chan2dev(chan), "%s is non-idle!\n",
 			axi_chan_name(chan));
-
-		return;
+		axi_chan_disable(chan);
+		chan->is_err = true;
+		//return;
 	}
 
 	axi_dma_enable(chan->chip);
@@ -1064,6 +1066,7 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 {
 	struct virt_dma_desc *vd;
 	unsigned long flags;
+	struct axi_dma_desc *desc;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 
@@ -1071,19 +1074,31 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 
 	/* The bad descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
-	/* Remove the completed descriptor from issued list */
-	list_del(&vd->node);
+	if (!vd) {
+		dev_warn(chan2dev(chan),
+			 "%s vd is null\n", axi_chan_name(chan));
+		spin_unlock_irqrestore(&chan->vc.lock, flags);
+		return;
+	}
+	if (chan->is_err) {
+		desc = vd_to_axi_desc(vd);
+		axi_chan_block_xfer_start(chan, desc);
+		chan->is_err = false;
+	} else {
+		/* Remove the completed descriptor from issued list */
+		list_del(&vd->node);
 
-	/* WARN about bad descriptor */
-	dev_err(chan2dev(chan),
-		"Bad descriptor submitted for %s, cookie: %d, irq: 0x%08x\n",
-		axi_chan_name(chan), vd->tx.cookie, status);
-	axi_chan_list_dump_lli(chan, vd_to_axi_desc(vd));
+		/* WARN about bad descriptor */
+		dev_err(chan2dev(chan),
+			"Bad descriptor submitted for %s, cookie: %d, irq: 0x%08x\n",
+			axi_chan_name(chan), vd->tx.cookie, status);
+		axi_chan_list_dump_lli(chan, vd_to_axi_desc(vd));
 
-	vchan_cookie_complete(vd);
+		vchan_cookie_complete(vd);
 
-	/* Try to restart the controller */
-	axi_chan_start_first_queued(chan);
+		/* Try to restart the controller */
+		axi_chan_start_first_queued(chan);
+	}
 
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 }
@@ -1107,6 +1122,12 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 
 	/* The completed descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
+	if (!vd) {
+		dev_err(chan2dev(chan),
+			 "%s vd is null\n", axi_chan_name(chan));
+		spin_unlock_irqrestore(&chan->vc.lock, flags);
+		return;
+	}
 
 	if (chan->cyclic) {
 		desc = vd_to_axi_desc(vd);
@@ -1117,6 +1138,9 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 				if (hw_desc->llp == llp) {
 					axi_chan_irq_clear(chan, hw_desc->lli->status_lo);
 					hw_desc->lli->ctl_hi |= CH_CTL_H_LLI_VALID;
+					#ifdef CONFIG_SOC_STARFIVE_VIC7100
+					starfive_flush_dcache(hw_desc->llp, sizeof(*hw_desc->lli));
+					#endif
 					desc->completed_blocks = i;
 
 					if (((hw_desc->len * (i + 1)) % desc->period_len) == 0)
