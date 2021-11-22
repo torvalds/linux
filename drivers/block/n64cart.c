@@ -136,7 +136,7 @@ static int __init n64cart_probe(struct platform_device *pdev)
 		goto out;
 
 	disk->first_minor = 0;
-	disk->flags = GENHD_FL_NO_PART_SCAN;
+	disk->flags = GENHD_FL_NO_PART;
 	disk->fops = &n64cart_fops;
 	disk->private_data = &pdev->dev;
 	strcpy(disk->disk_name, "n64cart");
