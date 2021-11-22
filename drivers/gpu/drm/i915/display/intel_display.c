@@ -111,6 +111,7 @@
 #include "skl_universal_plane.h"
 #include "vlv_dsi_pll.h"
 #include "vlv_sideband.h"
+#include "vlv_dsi.h"
 
 static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state);
 static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state);
