@@ -1577,7 +1577,7 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 		vg->irqchip.irq_mask = byt_irq_mask,
 		vg->irqchip.irq_unmask = byt_irq_unmask,
 		vg->irqchip.irq_set_type = byt_irq_type,
-		vg->irqchip.flags = IRQCHIP_SKIP_SET_WAKE,
+		vg->irqchip.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_SET_TYPE_MASKED,
 
 		girq = &gc->irq;
 		girq->chip = &vg->irqchip;
