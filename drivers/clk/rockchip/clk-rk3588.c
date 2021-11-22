@@ -15,6 +15,7 @@
 
 #define RK3588_GRF_SOC_STATUS0		0x600
 #define RK3588_FRAC_MAX_PRATE		1500000000
+#define RK3588_DCLK_MAX_PRATE		400000000
 
 enum rk3588_plls {
 	b0pll, b1pll, lpll, v0pll, aupll, cpll, gpll, npll, ppll,
@@ -2185,9 +2186,9 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE(DCLK_VOP1_SRC, "dclk_vop1_src", gpll_cpll_v0pll_aupll_p, 0,
 			RK3588_CLKSEL_CON(111), 14, 2, MFLAGS, 9, 5, DFLAGS,
 			RK3588_CLKGATE_CON(52), 11, GFLAGS),
-	COMPOSITE(DCLK_VOP2_SRC, "dclk_vop2_src", gpll_cpll_v0pll_aupll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE_DCLK(DCLK_VOP2_SRC, "dclk_vop2_src", gpll_cpll_v0pll_aupll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			RK3588_CLKSEL_CON(112), 5, 2, MFLAGS, 0, 5, DFLAGS,
-			RK3588_CLKGATE_CON(52), 12, GFLAGS),
+			RK3588_CLKGATE_CON(52), 12, GFLAGS, RK3588_DCLK_MAX_PRATE),
 	COMPOSITE_NODIV(DCLK_VOP0, "dclk_vop0", dclk_vop0_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			RK3588_CLKSEL_CON(112), 7, 2, MFLAGS,
 			RK3588_CLKGATE_CON(52), 13, GFLAGS),
