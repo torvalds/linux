@@ -248,9 +248,12 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 	struct ttm_resource_manager *man =
 		ttm_manager_type(bo->bdev, bo->resource->mem_type);
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
-	enum ttm_caching caching = i915_ttm_select_tt_caching(obj);
+	enum ttm_caching caching;
 	struct i915_ttm_tt *i915_tt;
 	int ret;
+
+	if (!obj)
+		return NULL;
 
 	i915_tt = kzalloc(sizeof(*i915_tt), GFP_KERNEL);
 	if (!i915_tt)
@@ -260,6 +263,7 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 	    man->use_tt)
 		page_flags |= TTM_TT_FLAG_ZERO_ALLOC;
 
+	caching = i915_ttm_select_tt_caching(obj);
 	if (i915_gem_object_is_shrinkable(obj) && caching == ttm_cached) {
 		page_flags |= TTM_TT_FLAG_EXTERNAL |
 			      TTM_TT_FLAG_EXTERNAL_MAPPABLE;
@@ -325,6 +329,9 @@ static bool i915_ttm_eviction_valuable(struct ttm_buffer_object *bo,
 				       const struct ttm_place *place)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+
+	if (!obj)
+		return false;
 
 	/*
 	 * EXTERNAL objects should never be swapped out by TTM, instead we need
@@ -552,8 +559,12 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 static void i915_ttm_swap_notify(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
-	int ret = i915_ttm_move_notify(bo);
+	int ret;
 
+	if (!obj)
+		return;
+
+	ret = i915_ttm_move_notify(bo);
 	GEM_WARN_ON(ret);
 	GEM_WARN_ON(obj->ttm.cached_io_rsgt);
 	if (!ret && obj->mm.madv != I915_MADV_WILLNEED)
@@ -575,17 +586,23 @@ static unsigned long i915_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
 					 unsigned long page_offset)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
-	unsigned long base = obj->mm.region->iomap.base - obj->mm.region->region.start;
 	struct scatterlist *sg;
+	unsigned long base;
 	unsigned int ofs;
 
+	GEM_BUG_ON(!obj);
 	GEM_WARN_ON(bo->ttm);
 
+	base = obj->mm.region->iomap.base - obj->mm.region->region.start;
 	sg = __i915_gem_object_get_sg(obj, &obj->ttm.get_io_page, page_offset, &ofs, true);
 
 	return ((base + sg_dma_address(sg)) >> PAGE_SHIFT) + ofs;
 }
 
+/*
+ * All callbacks need to take care not to downcast a struct ttm_buffer_object
+ * without checking its subclass, since it might be a TTM ghost object.
+ */
 static struct ttm_device_funcs i915_ttm_bo_driver = {
 	.ttm_tt_create = i915_ttm_tt_create,
 	.ttm_tt_populate = i915_ttm_tt_populate,
@@ -847,12 +864,15 @@ static void i915_ttm_delayed_free(struct drm_i915_gem_object *obj)
 static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 {
 	struct vm_area_struct *area = vmf->vma;
-	struct drm_i915_gem_object *obj =
-		i915_ttm_to_gem(area->vm_private_data);
-	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	struct ttm_buffer_object *bo = area->vm_private_data;
 	struct drm_device *dev = bo->base.dev;
+	struct drm_i915_gem_object *obj;
 	vm_fault_t ret;
 	int idx;
+
+	obj = i915_ttm_to_gem(bo);
+	if (!obj)
+		return VM_FAULT_SIGBUS;
 
 	/* Sanity check that we allow writing into this object */
 	if (unlikely(i915_gem_object_is_readonly(obj) &&
