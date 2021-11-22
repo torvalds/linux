@@ -5206,7 +5206,7 @@ int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg, int remote_wakeup)
 		 * as result BNA interrupt asserted on hibernation exit
 		 * by restoring from saved area.
 		 */
-		if (hsotg->params.g_dma_desc &&
+		if (using_desc_dma(hsotg) &&
 		    (dr->diepctl[i] & DXEPCTL_EPENA))
 			dr->diepdma[i] = hsotg->eps_in[i]->desc_list_dma;
 		dwc2_writel(hsotg, dr->dtxfsiz[i], DPTXFSIZN(i));
@@ -5218,7 +5218,7 @@ int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg, int remote_wakeup)
 		 * as result BNA interrupt asserted on hibernation exit
 		 * by restoring from saved area.
 		 */
-		if (hsotg->params.g_dma_desc &&
+		if (using_desc_dma(hsotg) &&
 		    (dr->doepctl[i] & DXEPCTL_EPENA))
 			dr->doepdma[i] = hsotg->eps_out[i]->desc_list_dma;
 		dwc2_writel(hsotg, dr->doepdma[i], DOEPDMA(i));
