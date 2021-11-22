@@ -144,6 +144,9 @@
 #define BRCM_INT_PCI_MSI_NR		32
 #define BRCM_INT_PCI_MSI_LEGACY_NR	8
 #define BRCM_INT_PCI_MSI_SHIFT		0
+#define BRCM_INT_PCI_MSI_MASK		GENMASK(BRCM_INT_PCI_MSI_NR - 1, 0)
+#define BRCM_INT_PCI_MSI_LEGACY_MASK	GENMASK(31, \
+						32 - BRCM_INT_PCI_MSI_LEGACY_NR)
 
 /* MSI target addresses */
 #define BRCM_MSI_TARGET_ADDR_LT_4GB	0x0fffffffcULL
@@ -618,7 +621,8 @@ static void brcm_msi_remove(struct brcm_pcie *pcie)
 
 static void brcm_msi_set_regs(struct brcm_msi *msi)
 {
-	u32 val = __GENMASK(31, msi->legacy_shift);
+	u32 val = msi->legacy ? BRCM_INT_PCI_MSI_LEGACY_MASK :
+				BRCM_INT_PCI_MSI_MASK;
 
 	writel(val, msi->intr_base + MSI_INT_MASK_CLR);
 	writel(val, msi->intr_base + MSI_INT_CLR);
