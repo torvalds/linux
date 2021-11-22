@@ -66,4 +66,23 @@ config ST_LPS22HB_SPI_IIO
         tristate
         depends on ST_LPS22HB_IIO
 
+config ST_LPS33HW_IIO
+        tristate "STMicroelectronics LPS33HW sensor"
+        depends on (I2C || SPI_MASTER) && SYSFS
+        select IIO_BUFFER
+        select IIO_KFIFO_BUF
+        select ST_LPS33HW_I2C_IIO if (I2C)
+        select ST_LPS33HW_SPI_IIO if (SPI)
+        help
+          This driver supports LPS33HW pressure sensors. This driver can be
+          built as a module. The module will be called st-lps33hw.
+
+config ST_LPS33HW_I2C_IIO
+        tristate
+        depends on ST_LPS33HW_IIO
+
+config ST_LPS33HW_SPI_IIO
+        tristate
+        depends on ST_LPS33HW_IIO
+
 endmenu
