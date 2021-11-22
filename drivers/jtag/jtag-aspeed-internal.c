@@ -97,6 +97,7 @@
 #define JTAG_GO_IDLE			BIT(0)
 
 #define TCK_FREQ			1000000
+#define ASPEED_JTAG_MAX_PAD_SIZE	1024
 /******************************************************************************/
 #define ASPEED_JTAG_DEBUG
 
@@ -126,6 +127,8 @@ struct aspeed_jtag_info {
 	u32				flag;
 	wait_queue_head_t		jtag_wq;
 	u32				mode;
+	u8 pad_data_one[ASPEED_JTAG_MAX_PAD_SIZE];
+	u8 pad_data_zero[ASPEED_JTAG_MAX_PAD_SIZE];
 };
 /******************************************************************************/
 static inline u32
@@ -724,15 +727,74 @@ static int aspeed_jtag_xfer(struct jtag *jtag, struct jtag_xfer *xfer,
 			    u8 *xfer_data)
 {
 	struct aspeed_jtag_info *aspeed_jtag = jtag_priv(jtag);
+	union pad_config padding;
+	struct jtag_xfer pre_xfer, post_xfer;
+	struct jtag_xfer peri_xfer = {
+		.type = xfer->type,
+		.direction = xfer->direction,
+		.from = xfer->from,
+		.endstate = xfer->endstate,
+		.padding = 0,
+		.length = xfer->length,
+	};
 
 	JTAG_DBUG("%s mode, END : %d, len : %d\n",
 		  aspeed_jtag->mode ? "HW" : "SW", xfer->endstate,
 		  xfer->length);
+	padding.int_value = xfer->padding;
+	if (padding.pre_pad_number) {
+		pre_xfer.type = xfer->type;
+		pre_xfer.direction = JTAG_WRITE_XFER;
+		pre_xfer.from = xfer->from;
+		pre_xfer.endstate =
+			xfer->type ? JTAG_STATE_PAUSEDR : JTAG_STATE_PAUSEIR;
+		pre_xfer.padding = xfer->padding;
+		pre_xfer.length = padding.pre_pad_number;
+
+		peri_xfer.from = pre_xfer.endstate;
+	}
+
+	if (padding.post_pad_number) {
+		peri_xfer.endstate =
+			xfer->type ? JTAG_STATE_PAUSEDR : JTAG_STATE_PAUSEIR;
+
+		post_xfer.type = xfer->type;
+		post_xfer.direction = JTAG_WRITE_XFER;
+		post_xfer.from = peri_xfer.endstate;
+		post_xfer.endstate = xfer->endstate;
+		post_xfer.padding = xfer->padding;
+		post_xfer.length = padding.post_pad_number;
+	}
+	if (padding.pre_pad_number) {
+		if (aspeed_jtag->mode == JTAG_XFER_HW_MODE)
+			aspeed_hw_jtag_xfer(aspeed_jtag, &pre_xfer,
+					    padding.pad_data ?
+							  aspeed_jtag->pad_data_one :
+							  aspeed_jtag->pad_data_zero);
+		else
+			aspeed_sw_jtag_xfer(aspeed_jtag, &pre_xfer,
+					    padding.pad_data ?
+							  aspeed_jtag->pad_data_one :
+							  aspeed_jtag->pad_data_zero);
+	}
 
 	if (aspeed_jtag->mode == JTAG_XFER_HW_MODE)
-		aspeed_hw_jtag_xfer(aspeed_jtag, xfer, xfer_data);
+		aspeed_hw_jtag_xfer(aspeed_jtag, &peri_xfer, xfer_data);
 	else
-		aspeed_sw_jtag_xfer(aspeed_jtag, xfer, xfer_data);
+		aspeed_sw_jtag_xfer(aspeed_jtag, &peri_xfer, xfer_data);
+
+	if (padding.post_pad_number) {
+		if (aspeed_jtag->mode == JTAG_XFER_HW_MODE)
+			aspeed_hw_jtag_xfer(aspeed_jtag, &post_xfer,
+					    padding.pad_data ?
+							  aspeed_jtag->pad_data_one :
+							  aspeed_jtag->pad_data_zero);
+		else
+			aspeed_sw_jtag_xfer(aspeed_jtag, &post_xfer,
+					    padding.pad_data ?
+							  aspeed_jtag->pad_data_one :
+							  aspeed_jtag->pad_data_zero);
+	}
 
 	return 0;
 }
@@ -949,6 +1011,11 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 	ret = devm_jtag_register(aspeed_jtag->dev, jtag);
 	if (ret)
 		goto out;
+
+	memset(aspeed_jtag->pad_data_one, ~0,
+	       sizeof(aspeed_jtag->pad_data_one));
+	memset(aspeed_jtag->pad_data_zero, 0,
+	       sizeof(aspeed_jtag->pad_data_zero));
 
 	dev_info(&pdev->dev, "aspeed_jtag: driver successfully loaded.\n");
 
