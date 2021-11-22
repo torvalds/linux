@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/nvidia,tegra194-pinmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra194 Pinmux Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    const: nvidia,tegra194-pinmux
+
+  reg:
+    items:
+      - description: APB_MISC_GP_*_PADCTRL registers (pad control)
+      - description: PINMUX_AUX_* registers (pinmux)
+
+patternProperties:
+  "^pinmux(-[a-z0-9-_]+)?$":
+    type: object
+    properties:
+      phandle: true
+
+    # pin groups
+    additionalProperties:
+      $ref: nvidia,tegra-pinmux-common.yaml
+      additionalProperties: false
+      properties:
+        nvidia,pins:
+          description: An array of strings. Each string contains the name of a
+            pin or group. Valid values for these names are listed below.
+
+            Note that the pex_l5_clkreq_n_pgg0 and pex_l5_rst_n_pgg1 pins are
+            part of PCIE C5 power partition. Client devices must enable this
+            partition before accessing the configuration for these pins.
+          items:
+            enum: [ pex_l5_clkreq_n_pgg0, pex_l5_rst_n_pgg1,
+                    # drive groups
+                    drive_pex_l5_clkreq_n_pgg0, drive_pex_l5_rst_n_pgg1 ]
+
+        nvidia,function:
+          enum: [ pe5 ]
+
+        nvidia,pull: true
+        nvidia,tristate: true
+        nvidia,schmitt: true
+        nvidia,enable-input: true
+        nvidia,open-drain: true
+        nvidia,lock: true
+        nvidia,drive-type: true
+        nvidia,io-hv: true
+
+      required:
+        - nvidia,pins
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/pinctrl-tegra.h>
+
+    pinmux@2430000 {
+        compatible = "nvidia,tegra194-pinmux";
+        reg = <0x2430000 0x17000>,
+              <0xc300000 0x04000>;
+
+        pinctrl-names = "pex_rst";
+        pinctrl-0 = <&pex_rst_c5_out_state>;
+
+        pex_rst_c5_out_state: pinmux-pex-rst-c5-out {
+            pex_rst {
+                nvidia,pins = "pex_l5_rst_n_pgg1";
+                nvidia,schmitt = <TEGRA_PIN_DISABLE>;
+                nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+                nvidia,io-hv = <TEGRA_PIN_ENABLE>;
+                nvidia,tristate = <TEGRA_PIN_DISABLE>;
+                nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+            };
+        };
+    };
+...
