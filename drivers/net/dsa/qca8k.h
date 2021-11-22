@@ -21,6 +21,9 @@
 #define PHY_ID_QCA8337					0x004dd036
 #define QCA8K_ID_QCA8337				0x13
 
+#define QCA8K_QCA832X_MIB_COUNT				39
+#define QCA8K_QCA833X_MIB_COUNT				41
+
 #define QCA8K_BUSY_WAIT_TIMEOUT				2000
 
 #define QCA8K_NUM_FDB_RECORDS				2048
@@ -279,6 +282,7 @@ struct ar8xxx_port_status {
 struct qca8k_match_data {
 	u8 id;
 	bool reduced_package;
+	u8 mib_count;
 };
 
 enum {
