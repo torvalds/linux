@@ -795,7 +795,7 @@ struct sk_buff {
 #else
 #define CLONED_MASK	1
 #endif
-#define CLONED_OFFSET()		offsetof(struct sk_buff, __cloned_offset)
+#define CLONED_OFFSET		offsetof(struct sk_buff, __cloned_offset)
 
 	/* private: */
 	__u8			__cloned_offset[0];
@@ -811,25 +811,15 @@ struct sk_buff {
 	__u8			active_extensions;
 #endif
 
-	/* fields enclosed in headers_start/headers_end are copied
+	/* Fields enclosed in headers group are copied
 	 * using a single memcpy() in __copy_skb_header()
 	 */
-	/* private: */
-	__u32			headers_start[0];
-	/* public: */
-
-/* if you move pkt_type around you also must adapt those constants */
-#ifdef __BIG_ENDIAN_BITFIELD
-#define PKT_TYPE_MAX	(7 << 5)
-#else
-#define PKT_TYPE_MAX	7
-#endif
-#define PKT_TYPE_OFFSET()	offsetof(struct sk_buff, __pkt_type_offset)
+	struct_group(headers,
 
 	/* private: */
 	__u8			__pkt_type_offset[0];
 	/* public: */
-	__u8			pkt_type:3;
+	__u8			pkt_type:3; /* see PKT_TYPE_MAX */
 	__u8			ignore_df:1;
 	__u8			nf_trace:1;
 	__u8			ip_summed:2;
@@ -845,16 +835,10 @@ struct sk_buff {
 	__u8			encap_hdr_csum:1;
 	__u8			csum_valid:1;
 
-#ifdef __BIG_ENDIAN_BITFIELD
-#define PKT_VLAN_PRESENT_BIT	7
-#else
-#define PKT_VLAN_PRESENT_BIT	0
-#endif
-#define PKT_VLAN_PRESENT_OFFSET()	offsetof(struct sk_buff, __pkt_vlan_present_offset)
 	/* private: */
 	__u8			__pkt_vlan_present_offset[0];
 	/* public: */
-	__u8			vlan_present:1;
+	__u8			vlan_present:1;	/* See PKT_VLAN_PRESENT_BIT */
 	__u8			csum_complete_sw:1;
 	__u8			csum_level:2;
 	__u8			csum_not_inet:1;
@@ -935,9 +919,7 @@ struct sk_buff {
 	u64			kcov_handle;
 #endif
 
-	/* private: */
-	__u32			headers_end[0];
-	/* public: */
+	); /* end headers group */
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;
@@ -952,6 +934,22 @@ struct sk_buff {
 	struct skb_ext		*extensions;
 #endif
 };
+
+/* if you move pkt_type around you also must adapt those constants */
+#ifdef __BIG_ENDIAN_BITFIELD
+#define PKT_TYPE_MAX	(7 << 5)
+#else
+#define PKT_TYPE_MAX	7
+#endif
+#define PKT_TYPE_OFFSET		offsetof(struct sk_buff, __pkt_type_offset)
+
+/* if you move pkt_vlan_present around you also must adapt these constants */
+#ifdef __BIG_ENDIAN_BITFIELD
+#define PKT_VLAN_PRESENT_BIT	7
+#else
+#define PKT_VLAN_PRESENT_BIT	0
+#endif
+#define PKT_VLAN_PRESENT_OFFSET	offsetof(struct sk_buff, __pkt_vlan_present_offset)
 
 #ifdef __KERNEL__
 /*
