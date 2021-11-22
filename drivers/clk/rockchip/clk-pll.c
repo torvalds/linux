@@ -1674,6 +1674,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 			init.ops = &rockchip_rk3588_pll_clk_norate_ops;
 		else
 			init.ops = &rockchip_rk3588_pll_clk_ops;
+		init.flags = flags;
 		break;
 	default:
 		pr_warn("%s: Unknown pll type for pll clk %s\n",
