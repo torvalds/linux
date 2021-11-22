@@ -18483,6 +18483,7 @@ F:	include/uapi/linux/pkt_sched.h
 F:	include/uapi/linux/tc_act/
 F:	include/uapi/linux/tc_ematch/
 F:	net/sched/
+F:	tools/testing/selftests/tc-testing
 
 TC90522 MEDIA DRIVER
 M:	Akihiro Tsukada <tskd08@gmail.com>
