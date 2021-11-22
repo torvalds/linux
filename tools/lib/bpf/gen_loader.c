@@ -674,27 +674,29 @@ static void emit_relo_kfunc_btf(struct bpf_gen *gen, struct ksym_relo_desc *relo
 		return;
 	}
 	kdesc->off = btf_fd_idx;
-	/* set a default value for imm */
+	/* jump to success case */
+	emit(gen, BPF_JMP_IMM(BPF_JSGE, BPF_REG_7, 0, 3));
+	/* set value for imm, off as 0 */
 	emit(gen, BPF_ST_MEM(BPF_W, BPF_REG_8, offsetof(struct bpf_insn, imm), 0));
-	/* skip success case store if ret < 0 */
-	emit(gen, BPF_JMP_IMM(BPF_JSLT, BPF_REG_7, 0, 1));
+	emit(gen, BPF_ST_MEM(BPF_H, BPF_REG_8, offsetof(struct bpf_insn, off), 0));
+	/* skip success case for ret < 0 */
+	emit(gen, BPF_JMP_IMM(BPF_JA, 0, 0, 10));
 	/* store btf_id into insn[insn_idx].imm */
 	emit(gen, BPF_STX_MEM(BPF_W, BPF_REG_8, BPF_REG_7, offsetof(struct bpf_insn, imm)));
+	/* obtain fd in BPF_REG_9 */
+	emit(gen, BPF_MOV64_REG(BPF_REG_9, BPF_REG_7));
+	emit(gen, BPF_ALU64_IMM(BPF_RSH, BPF_REG_9, 32));
+	/* jump to fd_array store if fd denotes module BTF */
+	emit(gen, BPF_JMP_IMM(BPF_JNE, BPF_REG_9, 0, 2));
+	/* set the default value for off */
+	emit(gen, BPF_ST_MEM(BPF_H, BPF_REG_8, offsetof(struct bpf_insn, off), 0));
+	/* skip BTF fd store for vmlinux BTF */
+	emit(gen, BPF_JMP_IMM(BPF_JA, 0, 0, 4));
 	/* load fd_array slot pointer */
 	emit2(gen, BPF_LD_IMM64_RAW_FULL(BPF_REG_0, BPF_PSEUDO_MAP_IDX_VALUE,
 					 0, 0, 0, blob_fd_array_off(gen, btf_fd_idx)));
-	/* skip store of BTF fd if ret < 0 */
-	emit(gen, BPF_JMP_IMM(BPF_JSLT, BPF_REG_7, 0, 3));
 	/* store BTF fd in slot */
-	emit(gen, BPF_MOV64_REG(BPF_REG_9, BPF_REG_7));
-	emit(gen, BPF_ALU64_IMM(BPF_RSH, BPF_REG_9, 32));
 	emit(gen, BPF_STX_MEM(BPF_W, BPF_REG_0, BPF_REG_9, 0));
-	/* set a default value for off */
-	emit(gen, BPF_ST_MEM(BPF_H, BPF_REG_8, offsetof(struct bpf_insn, off), 0));
-	/* skip insn->off store if ret < 0 */
-	emit(gen, BPF_JMP_IMM(BPF_JSLT, BPF_REG_7, 0, 2));
-	/* skip if vmlinux BTF */
-	emit(gen, BPF_JMP_IMM(BPF_JEQ, BPF_REG_9, 0, 1));
 	/* store index into insn[insn_idx].off */
 	emit(gen, BPF_ST_MEM(BPF_H, BPF_REG_8, offsetof(struct bpf_insn, off), btf_fd_idx));
 log:
@@ -803,17 +805,20 @@ static void emit_relo_ksym_btf(struct bpf_gen *gen, struct ksym_relo_desc *relo,
 	emit_bpf_find_by_name_kind(gen, relo);
 	if (!relo->is_weak)
 		emit_check_err(gen);
-	/* set default values as 0 */
+	/* jump to success case */
+	emit(gen, BPF_JMP_IMM(BPF_JSGE, BPF_REG_7, 0, 3));
+	/* set values for insn[insn_idx].imm, insn[insn_idx + 1].imm as 0 */
 	emit(gen, BPF_ST_MEM(BPF_W, BPF_REG_8, offsetof(struct bpf_insn, imm), 0));
 	emit(gen, BPF_ST_MEM(BPF_W, BPF_REG_8, sizeof(struct bpf_insn) + offsetof(struct bpf_insn, imm), 0));
-	/* skip success case stores if ret < 0 */
-	emit(gen, BPF_JMP_IMM(BPF_JSLT, BPF_REG_7, 0, 4));
+	/* skip success case for ret < 0 */
+	emit(gen, BPF_JMP_IMM(BPF_JA, 0, 0, 4));
 	/* store btf_id into insn[insn_idx].imm */
 	emit(gen, BPF_STX_MEM(BPF_W, BPF_REG_8, BPF_REG_7, offsetof(struct bpf_insn, imm)));
 	/* store btf_obj_fd into insn[insn_idx + 1].imm */
 	emit(gen, BPF_ALU64_IMM(BPF_RSH, BPF_REG_7, 32));
 	emit(gen, BPF_STX_MEM(BPF_W, BPF_REG_8, BPF_REG_7,
 			      sizeof(struct bpf_insn) + offsetof(struct bpf_insn, imm)));
+	/* skip src_reg adjustment */
 	emit(gen, BPF_JMP_IMM(BPF_JSGE, BPF_REG_7, 0, 3));
 clear_src_reg:
 	/* clear bpf_object__relocate_data's src_reg assignment, otherwise we get a verifier failure */
