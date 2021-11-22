@@ -2214,13 +2214,13 @@ struct hwmon_chip_info;
  * @wq: work queue for device reset procedure.
  * @reset_work: reset work to be done.
  * @hdev: habanalabs device structure.
- * @fw_reset: whether f/w will do the reset without us sending them a message to do it.
+ * @flags: reset flags.
  */
 struct hl_device_reset_work {
 	struct workqueue_struct		*wq;
 	struct delayed_work		reset_work;
 	struct hl_device		*hdev;
-	bool				fw_reset;
+	u32				flags;
 };
 
 /**

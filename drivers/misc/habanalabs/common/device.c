@@ -324,16 +324,12 @@ put_devices:
 static void device_hard_reset_pending(struct work_struct *work)
 {
 	struct hl_device_reset_work *device_reset_work =
-		container_of(work, struct hl_device_reset_work,
-				reset_work.work);
+		container_of(work, struct hl_device_reset_work, reset_work.work);
 	struct hl_device *hdev = device_reset_work->hdev;
 	u32 flags;
 	int rc;
 
-	flags = HL_DRV_RESET_HARD | HL_DRV_RESET_FROM_RESET_THR;
-
-	if (device_reset_work->fw_reset)
-		flags |= HL_DRV_RESET_BYPASS_REQ_TO_FW;
+	flags = device_reset_work->flags | HL_DRV_RESET_FROM_RESET_THR;
 
 	rc = hl_device_reset(hdev, flags);
 	if ((rc == -EBUSY) && !hdev->device_fini_pending) {
@@ -1040,7 +1036,7 @@ again:
 
 		hdev->process_kill_trial_cnt = 0;
 
-		hdev->device_reset_work.fw_reset = fw_reset;
+		hdev->device_reset_work.flags = flags;
 
 		/*
 		 * Because the reset function can't run from heartbeat work,
