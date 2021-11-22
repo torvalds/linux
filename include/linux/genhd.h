@@ -60,9 +60,6 @@ struct partition_meta_info {
  * (``BLOCK_EXT_MAJOR``).
  * This affects the maximum number of partitions.
  *
- * ``GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE`` (0x0100): event polling is
- * blocked whenever a writer holds an exclusive lock.
- *
  * ``GENHD_FL_NO_PART_SCAN`` (0x0200): partition scanning is disabled.
  * Used for loop devices in their default settings and some MMC
  * devices.
@@ -80,7 +77,6 @@ struct partition_meta_info {
 #define GENHD_FL_CD				0x0008
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	0x0020
 #define GENHD_FL_EXT_DEVT			0x0040
-#define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE	0x0100
 #define GENHD_FL_NO_PART_SCAN			0x0200
 #define GENHD_FL_HIDDEN				0x0400
 
@@ -94,6 +90,8 @@ enum {
 	DISK_EVENT_FLAG_POLL			= 1 << 0,
 	/* Forward events to udev */
 	DISK_EVENT_FLAG_UEVENT			= 1 << 1,
+	/* Block event polling when open for exclusive write */
+	DISK_EVENT_FLAG_BLOCK_ON_EXCL_WRITE	= 1 << 2,
 };
 
 struct disk_events;
