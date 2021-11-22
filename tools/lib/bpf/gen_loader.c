@@ -795,9 +795,8 @@ static void emit_relo_ksym_btf(struct bpf_gen *gen, struct ksym_relo_desc *relo,
 			       kdesc->insn + offsetof(struct bpf_insn, imm));
 		move_blob2blob(gen, insn + sizeof(struct bpf_insn) + offsetof(struct bpf_insn, imm), 4,
 			       kdesc->insn + sizeof(struct bpf_insn) + offsetof(struct bpf_insn, imm));
-		emit(gen, BPF_LDX_MEM(BPF_W, BPF_REG_9, BPF_REG_8, offsetof(struct bpf_insn, imm)));
-		/* jump over src_reg adjustment if imm is not 0 */
-		emit(gen, BPF_JMP_IMM(BPF_JNE, BPF_REG_9, 0, 3));
+		/* jump over src_reg adjustment if imm is not 0, reuse BPF_REG_0 from move_blob2blob */
+		emit(gen, BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 3));
 		goto clear_src_reg;
 	}
 	/* remember insn offset, so we can copy BTF ID and FD later */
