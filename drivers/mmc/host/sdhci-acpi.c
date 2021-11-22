@@ -31,8 +31,7 @@
 #include <linux/mmc/slot-gpio.h>
 
 #ifdef CONFIG_X86
-#include <asm/cpu_device_id.h>
-#include <asm/intel-family.h>
+#include <linux/platform_data/x86/soc.h>
 #include <asm/iosf_mbi.h>
 #endif
 
@@ -239,16 +238,6 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 
 #ifdef CONFIG_X86
 
-static bool sdhci_acpi_byt(void)
-{
-	static const struct x86_cpu_id byt[] = {
-		X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT, NULL),
-		{}
-	};
-
-	return x86_match_cpu(byt);
-}
-
 #define BYT_IOSF_SCCEP			0x63
 #define BYT_IOSF_OCP_NETCTRL0		0x1078
 #define BYT_IOSF_OCP_TIMEOUT_BASE	GENMASK(10, 8)
@@ -257,7 +246,7 @@ static void sdhci_acpi_byt_setting(struct device *dev)
 {
 	u32 val = 0;
 
-	if (!sdhci_acpi_byt())
+	if (!soc_intel_is_byt())
 		return;
 
 	if (iosf_mbi_read(BYT_IOSF_SCCEP, MBI_CR_READ, BYT_IOSF_OCP_NETCTRL0,
@@ -282,7 +271,7 @@ static void sdhci_acpi_byt_setting(struct device *dev)
 
 static bool sdhci_acpi_byt_defer(struct device *dev)
 {
-	if (!sdhci_acpi_byt())
+	if (!soc_intel_is_byt())
 		return false;
 
 	if (!iosf_mbi_available())
