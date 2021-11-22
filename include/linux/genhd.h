@@ -46,10 +46,6 @@ struct partition_meta_info {
  * Must not be set for devices which are removed entirely when the
  * media is removed.
  *
- * ``GENHD_FL_CD`` (0x0008): the block device is a CD-ROM-style
- * device.
- * Affects responses to the ``CDROM_GET_CAPABILITY`` ioctl.
- *
  * ``GENHD_FL_SUPPRESS_PARTITION_INFO`` (0x0020): don't include
  * partition information in ``/proc/partitions`` or in the output of
  * printk_all_partitions().
@@ -74,7 +70,6 @@ struct partition_meta_info {
 #define GENHD_FL_REMOVABLE			0x0001
 /* 2 is unused (used to be GENHD_FL_DRIVERFS) */
 /* 4 is unused (used to be GENHD_FL_MEDIA_CHANGE_NOTIFY) */
-#define GENHD_FL_CD				0x0008
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	0x0020
 #define GENHD_FL_EXT_DEVT			0x0040
 #define GENHD_FL_NO_PART_SCAN			0x0200
