@@ -332,7 +332,7 @@ static bool i915_ttm_eviction_valuable(struct ttm_buffer_object *bo,
 	 * but we would like to avoid grabbing locks for no good reason.
 	 */
 	if (bo->ttm && bo->ttm->page_flags & TTM_TT_FLAG_EXTERNAL)
-		return -EBUSY;
+		return false;
 
 	/* Will do for now. Our pinned objects are still on TTM's LRU lists */
 	return i915_gem_object_evictable(obj);
