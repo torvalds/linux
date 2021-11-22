@@ -62,7 +62,6 @@
 #define RK_VIDIOC_MODIFY_POSITION \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 16, struct rk_cam_modify_pos)
 
-#ifdef CONFIG_COMPAT
 #define RK_VIDIOC_COMPAT_VCM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rk_cam_compat_vcm_tim)
 #define RK_VIDIOC_COMPAT_IRIS_TIMEINFO \
@@ -71,7 +70,6 @@
 	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rk_cam_compat_vcm_tim)
 #define RK_VIDIOC_COMPAT_ZOOM1_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 11, struct rk_cam_compat_vcm_tim)
-#endif
 
 struct rk_cam_modify_pos {
 	s32 focus_pos;
@@ -101,12 +99,10 @@ struct rk_cam_vcm_tim {
 	struct timeval vcm_end_t;
 };
 
-#ifdef CONFIG_COMPAT
 struct rk_cam_compat_vcm_tim {
 	struct compat_timeval vcm_start_t;
 	struct compat_timeval vcm_end_t;
 };
-#endif
 
 struct rk_cam_vcm_cfg {
 	int start_ma;
