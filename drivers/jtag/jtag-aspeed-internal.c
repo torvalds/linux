@@ -474,11 +474,14 @@ static void aspeed_sw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 		shift_bits++;
 		remain_xfer--;
 		if ((shift_bits % 8) == 0) {
-			xfer_data[index] = tdo_buff;
+			if (xfer->direction & JTAG_READ_XFER)
+				xfer_data[index] = tdo_buff;
 			tdo_buff = 0;
 			index++;
 		}
 	}
+	if (xfer->direction & JTAG_READ_XFER && (shift_bits % 8))
+		xfer_data[index] = tdo_buff;
 	TCK_Cycle(aspeed_jtag, 0, 0);
 	if (xfer->type == JTAG_SIR_XFER)
 		aspeed_jtag->sts = JTAG_STATE_PAUSEIR;
@@ -694,21 +697,24 @@ static void aspeed_hw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 		remain_xfer = remain_xfer - shift_bits;
 
 		//handle tdo data
-		tmp_idx = shift_bits / 32;
-		if (shift_bits % 32)
-			tmp_idx += 1;
-		for (i = 0; i < tmp_idx; i++) {
-			if (shift_bits < 32)
-				xfer_data_32[index + i] =
-					aspeed_jtag_read(aspeed_jtag,
-							 fifo_reg) >>
-					(32 - shift_bits);
-			else
-				xfer_data_32[index + i] =
-					aspeed_jtag_read(aspeed_jtag, fifo_reg);
-			JTAG_DBUG("TDO[%d]: %x\n", index + i,
-				  xfer_data_32[index + i]);
-			shift_bits -= 32;
+		if (xfer->direction & JTAG_READ_XFER) {
+			tmp_idx = shift_bits / 32;
+			if (shift_bits % 32)
+				tmp_idx += 1;
+			for (i = 0; i < tmp_idx; i++) {
+				if (shift_bits < 32)
+					xfer_data_32[index + i] =
+						aspeed_jtag_read(aspeed_jtag,
+								 fifo_reg) >>
+						(32 - shift_bits);
+				else
+					xfer_data_32[index + i] =
+						aspeed_jtag_read(aspeed_jtag,
+								 fifo_reg);
+				JTAG_DBUG("TDO[%d]: %x\n", index + i,
+					  xfer_data_32[index + i]);
+				shift_bits -= 32;
+			}
 		}
 		index += tmp_idx;
 	}
