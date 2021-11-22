@@ -14,7 +14,7 @@
 
 #include "i915_trace.h"
 #include "i915_vgpu.h"
-
+#include "icl_dsi.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_color.h"
