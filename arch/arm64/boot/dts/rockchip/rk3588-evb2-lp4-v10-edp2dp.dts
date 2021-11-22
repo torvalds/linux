@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+
+/dts-v1/;
+
+#include "rk3588-evb2-lp4.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB2 LP4 V10 eDP to DP Board";
+	compatible = "rockchip,rk3588-evb2-lp4-v10-edp2dp", "rockchip,rk3588";
+
+	edp0-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip-edp-sound";
+
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_tx3>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&edp0 1>;
+		};
+	};
+};
+
+&edp0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&edp0_hpd>;
+	hpd-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
+	#sound-dai-cells = <1>;
+	status = "okay";
+};
+
+&edp0_in_vp2 {
+	status = "okay";
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&pinctrl {
+	edp {
+		edp0_hpd: edp0-hpd {
+			rockchip,pins = <1 RK_PA5 0 &pcfg_pull_none>;
+		};
+	};
+};
+
+&spdif_tx3 {
+	status = "okay";
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP0_SRC>,
+			  <&cru DCLK_VOP1_SRC>,
+			  <&cru DCLK_VOP2_SRC>,
+			  <&cru DCLK_VOP3>;
+	assigned-clock-parents = <0>, <0>, <&cru PLL_V0PLL>, <0>;
+};
