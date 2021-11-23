@@ -49,8 +49,7 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 		return ret;
 	}
 
-	dev_dbg(dev, "DMA pbase=0x%llx, size=0x%llx\n",
-		(phys_addr_t)res.start, resource_size(&res));
+	dev_dbg(dev, "DMA %pR\n", &res);
 
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
@@ -166,7 +165,7 @@ static int adsp_memory_remap_init(struct device *dev, struct mtk_adsp_chip_info 
 	offset = adsp->pa_dram - DRAM_PHYS_BASE_FROM_DSP_VIEW;
 	adsp->dram_offset = offset;
 	offset >>= DRAM_REMAP_SHIFT;
-	dev_dbg(dev, "adsp->pa_dram %llx, offset %#x\n", adsp->pa_dram, offset);
+	dev_dbg(dev, "adsp->pa_dram %pa, offset %#x\n", &adsp->pa_dram, offset);
 	writel(offset, vaddr_emi_map);
 	if (offset != readl(vaddr_emi_map)) {
 		dev_err(dev, "write emi map fail : %#x\n", readl(vaddr_emi_map));
@@ -195,8 +194,8 @@ static int adsp_shared_base_ioremap(struct platform_device *pdev, void *data)
 			return -ENOMEM;
 		}
 	}
-	dev_dbg(dev, "shared-dram vbase=%p, phy addr :%llx,  size=%#x\n",
-		adsp->shared_dram, adsp->pa_shared_dram, shared_size);
+	dev_dbg(dev, "shared-dram vbase=%p, phy addr :%pa,  size=%#x\n",
+		adsp->shared_dram, &adsp->pa_shared_dram, shared_size);
 
 	return 0;
 }
