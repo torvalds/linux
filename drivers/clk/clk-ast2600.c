@@ -686,7 +686,13 @@ static struct platform_driver aspeed_g6_clk_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-builtin_platform_driver(aspeed_g6_clk_driver);
+
+static int __init aspeed_g6_clk_init(void)
+{
+	return platform_driver_register(&aspeed_g6_clk_driver);
+}
+
+core_initcall(aspeed_g6_clk_init);
 
 static const u32 ast2600_a0_axi_ahb_div_table[] = {
 	2, 2, 3, 5,
