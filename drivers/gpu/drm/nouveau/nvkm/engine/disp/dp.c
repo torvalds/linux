@@ -278,7 +278,7 @@ nvkm_dp_train_cr(struct lt_state *lt)
 }
 
 static int
-nvkm_dp_train_links(struct nvkm_dp *dp)
+nvkm_dp_train_links(struct nvkm_dp *dp, int rate)
 {
 	struct nvkm_ior *ior = dp->outp.ior;
 	struct nvkm_disp *disp = dp->outp.disp;
@@ -359,7 +359,7 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 	}
 
 	/* Set desired link configuration on the sink. */
-	sink[0] = ior->dp.bw;
+	sink[0] = (dp->rate[rate].dpcd < 0) ? ior->dp.bw : 0;
 	sink[1] = ior->dp.nr;
 	if (ior->dp.ef)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
@@ -367,6 +367,19 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 	ret = nvkm_wraux(dp->aux, DPCD_LC00_LINK_BW_SET, sink, 2);
 	if (ret)
 		return ret;
+
+	if (dp->rate[rate].dpcd >= 0) {
+		ret = nvkm_rdaux(dp->aux, DPCD_LC15_LINK_RATE_SET, &sink[0], sizeof(sink[0]));
+		if (ret)
+			return ret;
+
+		sink[0] &= ~DPCD_LC15_LINK_RATE_SET_MASK;
+		sink[0] |= dp->rate[rate].dpcd;
+
+		ret = nvkm_wraux(dp->aux, DPCD_LC15_LINK_RATE_SET, &sink[0], sizeof(sink[0]));
+		if (ret)
+			return ret;
+	}
 
 	/* Attempt to train the link in this configuration. */
 	for (lt.repeater = lt.repeaters; lt.repeater >= 0; lt.repeater--) {
@@ -453,7 +466,7 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 				/* Program selected link configuration. */
 				ior->dp.bw = dp->rate[rate].rate / 27000;
 				ior->dp.nr = nr;
-				ret = nvkm_dp_train_links(dp);
+				ret = nvkm_dp_train_links(dp, rate);
 			}
 		}
 	}
@@ -553,6 +566,47 @@ done:
 }
 
 static bool
+nvkm_dp_enable_supported_link_rates(struct nvkm_dp *dp)
+{
+	u8 sink_rates[DPCD_RC10_SUPPORTED_LINK_RATES__SIZE];
+	int i, j, k;
+
+	if (dp->outp.conn->info.type != DCB_CONNECTOR_eDP ||
+	    dp->dpcd[DPCD_RC00_DPCD_REV] < 0x13 ||
+	    nvkm_rdaux(dp->aux, DPCD_RC10_SUPPORTED_LINK_RATES(0), sink_rates, sizeof(sink_rates)))
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(sink_rates); i += 2) {
+		const u32 rate = ((sink_rates[i + 1] << 8) | sink_rates[i]) * 200 / 10;
+
+		if (!rate || WARN_ON(dp->rates == ARRAY_SIZE(dp->rate)))
+			break;
+
+		if (rate > dp->outp.info.dpconf.link_bw * 27000) {
+			OUTP_DBG(&dp->outp, "rate %d !outp", rate);
+			continue;
+		}
+
+		for (j = 0; j < dp->rates; j++) {
+			if (rate > dp->rate[j].rate) {
+				for (k = dp->rates; k > j; k--)
+					dp->rate[k] = dp->rate[k - 1];
+				break;
+			}
+		}
+
+		dp->rate[j].dpcd = i / 2;
+		dp->rate[j].rate = rate;
+		dp->rates++;
+	}
+
+	for (i = 0; i < dp->rates; i++)
+		OUTP_DBG(&dp->outp, "link_rate[%d] = %d", dp->rate[i].dpcd, dp->rate[i].rate);
+
+	return dp->rates != 0;
+}
+
+static bool
 nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 {
 	struct nvkm_i2c_aux *aux = dp->aux;
@@ -603,12 +657,13 @@ nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 			if (dp->lttprs && dp->lttpr[1])
 				rate_max = min_t(int, rate_max, dp->lttpr[1]);
 
-			if (1) {
+			if (!nvkm_dp_enable_supported_link_rates(dp)) {
 				for (rate = rates; *rate; rate++) {
 					if (*rate <= rate_max) {
 						if (WARN_ON(dp->rates == ARRAY_SIZE(dp->rate)))
 							break;
 
+						dp->rate[dp->rates].dpcd = -1;
 						dp->rate[dp->rates].rate = *rate * 27000;
 						dp->rates++;
 					}

@@ -23,8 +23,9 @@ struct nvkm_dp {
 	u8 dpcd[16];
 
 	struct {
+		int dpcd; /* -1, or index into SUPPORTED_LINK_RATES table */
 		u32 rate;
-	} rate[4];
+	} rate[8];
 	int rates;
 	int links;
 
@@ -51,6 +52,8 @@ void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 #define DPCD_RC03_MAX_DOWNSPREAD                                           0x01
 #define DPCD_RC0E                                                       0x0000e
 #define DPCD_RC0E_AUX_RD_INTERVAL                                          0x7f
+#define DPCD_RC10_SUPPORTED_LINK_RATES(i)                               0x00010
+#define DPCD_RC10_SUPPORTED_LINK_RATES__SIZE                                 16
 
 /* DPCD Link Configuration */
 #define DPCD_LC00_LINK_BW_SET                                           0x00100
@@ -75,6 +78,8 @@ void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 #define DPCD_LC10_LANE3_POST_CURSOR2_SET                                   0x30
 #define DPCD_LC10_LANE2_MAX_POST_CURSOR2_REACHED                           0x04
 #define DPCD_LC10_LANE2_POST_CURSOR2_SET                                   0x03
+#define DPCD_LC15_LINK_RATE_SET                                         0x00115
+#define DPCD_LC15_LINK_RATE_SET_MASK                                       0x07
 
 /* DPCD Link/Sink Status */
 #define DPCD_LS02                                                       0x00202

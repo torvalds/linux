@@ -37,6 +37,10 @@ ga102_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 	case 0x0a: clksor |= 0x00040000; break;
 	case 0x14: clksor |= 0x00080000; break;
 	case 0x1e: clksor |= 0x000c0000; break;
+	case 0x08: clksor |= 0x00100000; break;
+	case 0x09: clksor |= 0x00140000; break;
+	case 0x0c: clksor |= 0x00180000; break;
+	case 0x10: clksor |= 0x001c0000; break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
