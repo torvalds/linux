@@ -1619,11 +1619,13 @@ static void sev_migrate_from(struct kvm_sev_info *dst,
 	dst->asid = src->asid;
 	dst->handle = src->handle;
 	dst->pages_locked = src->pages_locked;
+	dst->enc_context_owner = src->enc_context_owner;
 
 	src->asid = 0;
 	src->active = false;
 	src->handle = 0;
 	src->pages_locked = 0;
+	src->enc_context_owner = NULL;
 
 	list_cut_before(&dst->regions_list, &src->regions_list, &src->regions_list);
 }
