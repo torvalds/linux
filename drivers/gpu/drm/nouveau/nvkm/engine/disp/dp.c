@@ -588,7 +588,7 @@ nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 		}
 
 		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, dp->dpcd, sizeof(dp->dpcd))) {
-			const u8 rates[] = { 0x14, 0x0a, 0x06, 0 };
+			const u8 rates[] = { 0x1e, 0x14, 0x0a, 0x06, 0 };
 			const u8 *rate;
 			int rate_max;
 

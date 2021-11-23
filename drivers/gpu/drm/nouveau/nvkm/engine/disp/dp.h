@@ -24,7 +24,7 @@ struct nvkm_dp {
 
 	struct {
 		u32 rate;
-	} rate[3];
+	} rate[4];
 	int rates;
 	int links;
 
