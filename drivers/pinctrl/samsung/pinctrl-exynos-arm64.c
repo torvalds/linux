@@ -487,7 +487,7 @@ static const struct samsung_pin_bank_data exynos7885_pin_banks3[] __initconst = 
 	EXYNOS850_PIN_BANK_EINTG(8, 0x200, "gpc2", 0x40),
 };
 
-const struct samsung_pin_ctrl exynos7885_pin_ctrl[] __initconst = {
+static const struct samsung_pin_ctrl exynos7885_pin_ctrl[] __initconst = {
 	{
 		/* pin-controller instance 0 Alive data */
 		.pin_banks	= exynos7885_pin_banks0,
