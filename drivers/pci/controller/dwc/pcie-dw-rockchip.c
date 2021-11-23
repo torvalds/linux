@@ -123,7 +123,6 @@ struct reset_bulk_data	{
 #define PCIE_PHY_LINKUP			BIT(0)
 #define PCIE_DATA_LINKUP		BIT(1)
 
-#define PCIE_RESBAR_CTRL_REG0_REG	0x2a8
 #define PCIE_SB_BAR0_MASK_REG		0x100010
 
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
@@ -770,6 +769,42 @@ static int rk_pcie_host_init_dma_trx(struct rk_pcie *rk_pcie)
 	return 0;
 }
 
+static int rk_pci_find_resbar_capability(struct rk_pcie *rk_pcie)
+{
+	u32 header;
+	int ttl;
+	int start = 0;
+	int pos = PCI_CFG_SPACE_SIZE;
+	int cap = PCI_EXT_CAP_ID_REBAR;
+
+	/* minimum 8 bytes per capability */
+	ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;
+
+	header = dw_pcie_readl_dbi(rk_pcie->pci, pos);
+
+	/*
+	 * If we have no capabilities, this is indicated by cap ID,
+	 * cap version and next pointer all being 0.
+	 */
+	if (header == 0)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap && pos != start)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < PCI_CFG_SPACE_SIZE)
+			break;
+
+		header = dw_pcie_readl_dbi(rk_pcie->pci, pos);
+		if (!header)
+			break;
+	}
+
+	return 0;
+}
+
 static void rk_pcie_ep_setup(struct rk_pcie *rk_pcie)
 {
 	int ret;
@@ -777,6 +812,8 @@ static void rk_pcie_ep_setup(struct rk_pcie *rk_pcie)
 	u32 lanes;
 	struct device *dev = rk_pcie->pci->dev;
 	struct device_node *np = dev->of_node;
+	int resbar_base;
+	int bar;
 
 	/* Enable client write and read interrupt */
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xc000000);
@@ -840,17 +877,32 @@ static void rk_pcie_ep_setup(struct rk_pcie *rk_pcie)
 	/* Enable bus master and memory space */
 	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_TYPE0_STATUS_COMMAND_REG, 0x6);
 
-	/* Resize BAR0 to 4GB */
-	/* bit13-8 set to 6 means 64MB */
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_RESBAR_CTRL_REG0_REG, 0x600);
+	resbar_base = rk_pci_find_resbar_capability(rk_pcie);
+	if (!resbar_base) {
+		dev_warn(dev, "failed to find resbar_base\n");
+	} else {
+		/* Resize BAR0 to support 512GB */
+		dw_pcie_writel_dbi(rk_pcie->pci, resbar_base + 0x4, 0xfffff0);
+		/* Bit13-8 set to 19 means 2^19MB (512GB) */
+		dw_pcie_writel_dbi(rk_pcie->pci, resbar_base + 0x8, 0x13c0);
+		/* Resize bar1 - bar6 to 64M */
+		for (bar = 1; bar < 6; bar++) {
+			dw_pcie_writel_dbi(rk_pcie->pci, resbar_base +
+					   0x4 + bar * 0x8, 0xfffff0);
+			dw_pcie_writel_dbi(rk_pcie->pci, resbar_base +
+					   0x8 + bar * 0x8, 0x6c0);
+		}
+	}
 
-	/* Set shadow BAR0 according 64MB */
-	val = rk_pcie->mem_size - 1;
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_SB_BAR0_MASK_REG, val);
+	/* Device id and class id needed for request bar address */
+	dw_pcie_writew_dbi(rk_pcie->pci, PCI_DEVICE_ID, 0x356a);
+	dw_pcie_writew_dbi(rk_pcie->pci, PCI_CLASS_DEVICE, 0x0580);
 
-	/* Set reserved memory address to BAR0 */
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_TYPE0_BAR0_REG,
-			   rk_pcie->mem_start);
+	/* Set shadow BAR0 */
+	if (rk_pcie->is_rk1808) {
+		val = rk_pcie->mem_size - 1;
+		dw_pcie_writel_dbi(rk_pcie->pci, PCIE_SB_BAR0_MASK_REG, val);
+	}
 }
 
 static int rk_pcie_ep_win_parse(struct rk_pcie *rk_pcie)
