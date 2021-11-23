@@ -2540,12 +2540,12 @@ static void steal_from_bitmap(struct btrfs_free_space_ctl *ctl,
 	}
 }
 
-int __btrfs_add_free_space(struct btrfs_fs_info *fs_info,
-			   struct btrfs_free_space_ctl *ctl,
+int __btrfs_add_free_space(struct btrfs_block_group *block_group,
 			   u64 offset, u64 bytes,
 			   enum btrfs_trim_state trim_state)
 {
-	struct btrfs_block_group *block_group = ctl->private;
+	struct btrfs_fs_info *fs_info = block_group->fs_info;
+	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *info;
 	int ret = 0;
 	u64 filter_bytes = bytes;
@@ -2677,9 +2677,7 @@ int btrfs_add_free_space(struct btrfs_block_group *block_group,
 	if (btrfs_test_opt(block_group->fs_info, DISCARD_SYNC))
 		trim_state = BTRFS_TRIM_STATE_TRIMMED;
 
-	return __btrfs_add_free_space(block_group->fs_info,
-				      block_group->free_space_ctl,
-				      bytenr, size, trim_state);
+	return __btrfs_add_free_space(block_group, bytenr, size, trim_state);
 }
 
 int btrfs_add_free_space_unused(struct btrfs_block_group *block_group,
@@ -2710,9 +2708,7 @@ int btrfs_add_free_space_async_trimmed(struct btrfs_block_group *block_group,
 	    btrfs_test_opt(block_group->fs_info, DISCARD_ASYNC))
 		trim_state = BTRFS_TRIM_STATE_TRIMMED;
 
-	return __btrfs_add_free_space(block_group->fs_info,
-				      block_group->free_space_ctl,
-				      bytenr, size, trim_state);
+	return __btrfs_add_free_space(block_group, bytenr, size, trim_state);
 }
 
 int btrfs_remove_free_space(struct btrfs_block_group *block_group,
@@ -2807,7 +2803,7 @@ again:
 			}
 			spin_unlock(&ctl->tree_lock);
 
-			ret = __btrfs_add_free_space(block_group->fs_info, ctl,
+			ret = __btrfs_add_free_space(block_group,
 						     offset + bytes,
 						     old_end - (offset + bytes),
 						     info->trim_state);
@@ -3086,8 +3082,7 @@ out:
 	spin_unlock(&ctl->tree_lock);
 
 	if (align_gap_len)
-		__btrfs_add_free_space(block_group->fs_info, ctl,
-				       align_gap, align_gap_len,
+		__btrfs_add_free_space(block_group, align_gap, align_gap_len,
 				       align_gap_trim_state);
 	return ret;
 }
@@ -3627,13 +3622,13 @@ static int do_trimming(struct btrfs_block_group *block_group,
 
 	mutex_lock(&ctl->cache_writeout_mutex);
 	if (reserved_start < start)
-		__btrfs_add_free_space(fs_info, ctl, reserved_start,
+		__btrfs_add_free_space(block_group, reserved_start,
 				       start - reserved_start,
 				       reserved_trim_state);
 	if (start + bytes < reserved_start + reserved_bytes)
-		__btrfs_add_free_space(fs_info, ctl, end, reserved_end - end,
+		__btrfs_add_free_space(block_group, end, reserved_end - end,
 				       reserved_trim_state);
-	__btrfs_add_free_space(fs_info, ctl, start, bytes, trim_state);
+	__btrfs_add_free_space(block_group, start, bytes, trim_state);
 	list_del(&trim_entry->list);
 	mutex_unlock(&ctl->cache_writeout_mutex);
 
