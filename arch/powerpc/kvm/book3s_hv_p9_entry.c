@@ -670,26 +670,41 @@ static void check_need_tlb_flush(struct kvm *kvm, int pcpu,
 				 struct kvm_nested_guest *nested)
 {
 	cpumask_t *need_tlb_flush;
-
-	/*
-	 * On POWER9, individual threads can come in here, but the
-	 * TLB is shared between the 4 threads in a core, hence
-	 * invalidating on one thread invalidates for all.
-	 * Thus we make all 4 threads use the same bit.
-	 */
-	pcpu = cpu_first_tlb_thread_sibling(pcpu);
+	bool all_set = true;
+	int i;
 
 	if (nested)
 		need_tlb_flush = &nested->need_tlb_flush;
 	else
 		need_tlb_flush = &kvm->arch.need_tlb_flush;
 
-	if (cpumask_test_cpu(pcpu, need_tlb_flush)) {
-		flush_guest_tlb(kvm);
+	if (likely(!cpumask_test_cpu(pcpu, need_tlb_flush)))
+		return;
 
-		/* Clear the bit after the TLB flush */
-		cpumask_clear_cpu(pcpu, need_tlb_flush);
+	/*
+	 * Individual threads can come in here, but the TLB is shared between
+	 * the 4 threads in a core, hence invalidating on one thread
+	 * invalidates for all, so only invalidate the first time (if all bits
+	 * were set.  The others must still execute a ptesync.
+	 *
+	 * If a race occurs and two threads do the TLB flush, that is not a
+	 * problem, just sub-optimal.
+	 */
+	for (i = cpu_first_tlb_thread_sibling(pcpu);
+			i <= cpu_last_tlb_thread_sibling(pcpu);
+			i += cpu_tlb_thread_sibling_step()) {
+		if (!cpumask_test_cpu(i, need_tlb_flush)) {
+			all_set = false;
+			break;
+		}
 	}
+	if (all_set)
+		flush_guest_tlb(kvm);
+	else
+		asm volatile("ptesync" ::: "memory");
+
+	/* Clear the bit after the TLB flush */
+	cpumask_clear_cpu(pcpu, need_tlb_flush);
 }
 
 int kvmhv_vcpu_entry_p9(struct kvm_vcpu *vcpu, u64 time_limit, unsigned long lpcr, u64 *tb)
@@ -1108,15 +1123,6 @@ tm_return_to_guest:
 	restore_p9_host_os_sprs(vcpu, &host_os_sprs);
 
 	local_paca->kvm_hstate.in_guest = KVM_GUEST_MODE_NONE;
-
-	if (kvm_is_radix(kvm)) {
-		/*
-		 * Since this is radix, do a eieio; tlbsync; ptesync sequence
-		 * in case we interrupted the guest between a tlbie and a
-		 * ptesync.
-		 */
-		asm volatile("eieio; tlbsync; ptesync");
-	}
 
 	/*
 	 * cp_abort is required if the processor supports local copy-paste

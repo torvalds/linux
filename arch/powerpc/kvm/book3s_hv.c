@@ -3002,27 +3002,52 @@ static void kvmppc_release_hwthread(int cpu)
 static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
 {
 	struct kvm_nested_guest *nested = vcpu->arch.nested;
-	cpumask_t *cpu_in_guest;
+	cpumask_t *cpu_in_guest, *need_tlb_flush;
 	int i;
 
-	cpu = cpu_first_tlb_thread_sibling(cpu);
 	if (nested) {
-		cpumask_set_cpu(cpu, &nested->need_tlb_flush);
+		need_tlb_flush = &nested->need_tlb_flush;
 		cpu_in_guest = &nested->cpu_in_guest;
 	} else {
-		cpumask_set_cpu(cpu, &kvm->arch.need_tlb_flush);
+		need_tlb_flush = &kvm->arch.need_tlb_flush;
 		cpu_in_guest = &kvm->arch.cpu_in_guest;
 	}
+
+	cpu = cpu_first_tlb_thread_sibling(cpu);
+	for (i = cpu; i <= cpu_last_tlb_thread_sibling(cpu);
+					i += cpu_tlb_thread_sibling_step())
+		cpumask_set_cpu(i, need_tlb_flush);
+
 	/*
 	 * Make sure setting of bit in need_tlb_flush precedes
 	 * testing of cpu_in_guest bits.  The matching barrier on
 	 * the other side is the first smp_mb() in kvmppc_run_core().
 	 */
 	smp_mb();
+
 	for (i = cpu; i <= cpu_last_tlb_thread_sibling(cpu);
 					i += cpu_tlb_thread_sibling_step())
 		if (cpumask_test_cpu(i, cpu_in_guest))
 			smp_call_function_single(i, do_nothing, NULL, 1);
+}
+
+static void do_migrate_away_vcpu(void *arg)
+{
+	struct kvm_vcpu *vcpu = arg;
+	struct kvm *kvm = vcpu->kvm;
+
+	/*
+	 * If the guest has GTSE, it may execute tlbie, so do a eieio; tlbsync;
+	 * ptesync sequence on the old CPU before migrating to a new one, in
+	 * case we interrupted the guest between a tlbie ; eieio ;
+	 * tlbsync; ptesync sequence.
+	 *
+	 * Otherwise, ptesync is sufficient for ordering tlbiel sequences.
+	 */
+	if (kvm->arch.lpcr & LPCR_GTSE)
+		asm volatile("eieio; tlbsync; ptesync");
+	else
+		asm volatile("ptesync");
 }
 
 static void kvmppc_prepare_radix_vcpu(struct kvm_vcpu *vcpu, int pcpu)
@@ -3048,14 +3073,17 @@ static void kvmppc_prepare_radix_vcpu(struct kvm_vcpu *vcpu, int pcpu)
 	 * can move around between pcpus.  To cope with this, when
 	 * a vcpu moves from one pcpu to another, we need to tell
 	 * any vcpus running on the same core as this vcpu previously
-	 * ran to flush the TLB.  The TLB is shared between threads,
-	 * so we use a single bit in .need_tlb_flush for all 4 threads.
+	 * ran to flush the TLB.
 	 */
 	if (prev_cpu != pcpu) {
-		if (prev_cpu >= 0 &&
-		    cpu_first_tlb_thread_sibling(prev_cpu) !=
-		    cpu_first_tlb_thread_sibling(pcpu))
-			radix_flush_cpu(kvm, prev_cpu, vcpu);
+		if (prev_cpu >= 0) {
+			if (cpu_first_tlb_thread_sibling(prev_cpu) !=
+			    cpu_first_tlb_thread_sibling(pcpu))
+				radix_flush_cpu(kvm, prev_cpu, vcpu);
+
+			smp_call_function_single(prev_cpu,
+					do_migrate_away_vcpu, vcpu, 1);
+		}
 		if (nested)
 			nested->prev_cpu[vcpu->arch.nested_vcpu_id] = pcpu;
 		else
