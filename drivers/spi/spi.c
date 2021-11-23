@@ -474,7 +474,7 @@ int __spi_register_driver(struct module *owner, struct spi_driver *sdrv)
 				const struct spi_device_id *spi_id;
 
 				spi_id = spi_match_id(sdrv->id_table, of_name);
-				if (!spi_id)
+				if (spi_id)
 					continue;
 			} else {
 				if (strcmp(sdrv->driver.name, of_name) == 0)
