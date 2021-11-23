@@ -1237,11 +1237,8 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
 	struct rcu_data *rdp_gp;
 	struct task_struct *t;
 
-	/*
-	 * If this isn't a no-CBs CPU or if it already has an rcuo kthread,
-	 * then nothing to do.
-	 */
-	if (!rcu_is_nocb_cpu(cpu) || rdp->nocb_cb_kthread)
+	/* If there already is an rcuo kthread, then nothing to do. */
+	if (rdp->nocb_cb_kthread)
 		return;
 
 	/* If we didn't spawn the GP kthread first, reorganize! */
@@ -1269,7 +1266,7 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
  */
 static void rcu_spawn_cpu_nocb_kthread(int cpu)
 {
-	if (rcu_scheduler_fully_active)
+	if (rcu_scheduler_fully_active && rcu_nocb_is_setup)
 		rcu_spawn_one_nocb_kthread(cpu);
 }
 
@@ -1319,7 +1316,7 @@ static void __init rcu_organize_nocb_kthreads(void)
 	 * Should the corresponding CPU come online in the future, then
 	 * we will spawn the needed set of rcu_nocb_kthread() kthreads.
 	 */
-	for_each_cpu(cpu, rcu_nocb_mask) {
+	for_each_possible_cpu(cpu) {
 		rdp = per_cpu_ptr(&rcu_data, cpu);
 		if (rdp->cpu >= nl) {
 			/* New GP kthread, set up for CBs & next GP. */
@@ -1343,7 +1340,8 @@ static void __init rcu_organize_nocb_kthreads(void)
 				pr_cont(" %d", cpu);
 		}
 		rdp->nocb_gp_rdp = rdp_gp;
-		list_add_tail(&rdp->nocb_entry_rdp, &rdp_gp->nocb_head_rdp);
+		if (cpumask_test_cpu(cpu, rcu_nocb_mask))
+			list_add_tail(&rdp->nocb_entry_rdp, &rdp_gp->nocb_head_rdp);
 	}
 	if (gotnocbs && dump_tree)
 		pr_cont("%s\n", gotnocbscbs ? "" : " (self only)");
