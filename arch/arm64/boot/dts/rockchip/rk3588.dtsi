@@ -417,8 +417,8 @@
 		reg = <0x0 0xfded0000 0x0 0x1000>;
 		interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_EDP1_24M>, <&cru PCLK_EDP1>,
-			 <&cru CLK_EDP1_200M>;
-		clock-names = "dp", "pclk", "spdif";
+			 <&cru CLK_EDP1_200M>, <&hclk_vo1>;
+		clock-names = "dp", "pclk", "spdif", "hclk";
 		resets = <&cru SRST_EDP1_24M>, <&cru SRST_P_EDP1>;
 		reset-names = "dp", "apb";
 		phys = <&hdptxphy1>;
