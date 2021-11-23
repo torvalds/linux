@@ -139,15 +139,19 @@ static void irq_release(struct mlx5_irq *irq)
 	kfree(irq);
 }
 
-static void irq_put(struct mlx5_irq *irq)
+int mlx5_irq_put(struct mlx5_irq *irq)
 {
 	struct mlx5_irq_pool *pool = irq->pool;
+	int ret = 0;
 
 	mutex_lock(&pool->lock);
 	irq->refcount--;
-	if (!irq->refcount)
+	if (!irq->refcount) {
 		irq_release(irq);
+		ret = 1;
+	}
 	mutex_unlock(&pool->lock);
+	return ret;
 }
 
 int mlx5_irq_read_locked(struct mlx5_irq *irq)
@@ -202,11 +206,6 @@ static void irq_set_name(struct mlx5_irq_pool *pool, char *name, int vecidx)
 	snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", vecidx);
 }
 
-static bool irq_pool_is_sf_pool(struct mlx5_irq_pool *pool)
-{
-	return !strncmp("mlx5_sf", pool->name, strlen("mlx5_sf"));
-}
-
 struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 				const struct cpumask *affinity)
 {
@@ -219,7 +218,7 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	if (!irq)
 		return ERR_PTR(-ENOMEM);
 	irq->irqn = pci_irq_vector(dev->pdev, i);
-	if (!irq_pool_is_sf_pool(pool))
+	if (!mlx5_irq_pool_is_sf_pool(pool))
 		irq_set_name(pool, name, i);
 	else
 		irq_sf_set_name(pool, name, i);
@@ -273,7 +272,7 @@ int mlx5_irq_attach_nb(struct mlx5_irq *irq, struct notifier_block *nb)
 		return -ENOENT;
 	ret = atomic_notifier_chain_register(&irq->nh, nb);
 	if (ret)
-		irq_put(irq);
+		mlx5_irq_put(irq);
 	return ret;
 }
 
@@ -282,7 +281,7 @@ int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct notifier_block *nb)
 	int err = 0;
 
 	err = atomic_notifier_chain_unregister(&irq->nh, nb);
-	irq_put(irq);
+	mlx5_irq_put(irq);
 	return err;
 }
 
@@ -327,6 +326,20 @@ static struct mlx5_irq_pool *sf_irq_pool_get(struct mlx5_irq_table *irq_table)
 	return irq_table->sf_comp_pool;
 }
 
+struct mlx5_irq_pool *mlx5_irq_pool_get(struct mlx5_core_dev *dev)
+{
+	struct mlx5_irq_table *irq_table = mlx5_irq_table_get(dev);
+	struct mlx5_irq_pool *pool = NULL;
+
+	if (mlx5_core_is_sf(dev))
+		pool = sf_irq_pool_get(irq_table);
+
+	/* In some configs, there won't be a pool of SFs IRQs. Hence, returning
+	 * the PF IRQs pool in case the SF pool doesn't exist.
+	 */
+	return pool ? pool : irq_table->pf_pool;
+}
+
 static struct mlx5_irq_pool *ctrl_irq_pool_get(struct mlx5_core_dev *dev)
 {
 	struct mlx5_irq_table *irq_table = mlx5_irq_table_get(dev);
@@ -352,7 +365,7 @@ static void mlx5_irqs_release(struct mlx5_irq **irqs, int nirqs)
 
 	for (i = 0; i < nirqs; i++) {
 		synchronize_irq(irqs[i]->irqn);
-		irq_put(irqs[i]);
+		mlx5_irq_put(irqs[i]);
 	}
 }
 
@@ -380,7 +393,7 @@ struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev)
 	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL))
 		return ERR_PTR(-ENOMEM);
 	cpumask_copy(req_mask, cpu_online_mask);
-	if (!irq_pool_is_sf_pool(pool)) {
+	if (!mlx5_irq_pool_is_sf_pool(pool)) {
 		/* In case we are allocating a control IRQ for PF/VF */
 		if (!pool->xa_num_irqs.max) {
 			cpumask_clear(req_mask);
@@ -398,7 +411,7 @@ struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev)
 }
 
 /**
- * mlx5_irq_request - request an IRQ for mlx5 device.
+ * mlx5_irq_request - request an IRQ for mlx5 PF/VF device.
  * @dev: mlx5 device that requesting the IRQ.
  * @vecidx: vector index of the IRQ. This argument is ignore if affinity is
  * provided.
@@ -413,22 +426,8 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
 	struct mlx5_irq_pool *pool;
 	struct mlx5_irq *irq;
 
-	if (mlx5_core_is_sf(dev)) {
-		pool = sf_irq_pool_get(irq_table);
-		if (!pool)
-			/* we don't have IRQs for SFs, using the PF IRQs */
-			goto pf_irq;
-		if (cpumask_empty(affinity) && !strcmp(pool->name, "mlx5_sf_comp"))
-			/* In case an SF user request IRQ with vecidx */
-			irq = irq_pool_request_vector(pool, vecidx, NULL);
-		else
-			irq = mlx5_irq_affinity_request(pool, affinity);
-		goto out;
-	}
-pf_irq:
 	pool = irq_table->pf_pool;
 	irq = irq_pool_request_vector(pool, vecidx, affinity);
-out:
 	if (IS_ERR(irq))
 		return irq;
 	mlx5_core_dbg(dev, "irq %u mapped to cpu %*pbl, %u EQs on this irq\n",
@@ -518,6 +517,7 @@ static void irq_pool_free(struct mlx5_irq_pool *pool)
 		irq_release(irq);
 	xa_destroy(&pool->irqs);
 	mutex_destroy(&pool->lock);
+	kfree(pool->irqs_per_cpu);
 	kvfree(pool);
 }
 
@@ -565,7 +565,17 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pf_vec)
 		err = PTR_ERR(table->sf_comp_pool);
 		goto err_sf_ctrl;
 	}
+
+	table->sf_comp_pool->irqs_per_cpu = kcalloc(nr_cpu_ids, sizeof(u16), GFP_KERNEL);
+	if (!table->sf_comp_pool->irqs_per_cpu) {
+		err = -ENOMEM;
+		goto err_irqs_per_cpu;
+	}
+
 	return 0;
+
+err_irqs_per_cpu:
+	irq_pool_free(table->sf_comp_pool);
 err_sf_ctrl:
 	irq_pool_free(table->sf_ctrl_pool);
 err_pf:

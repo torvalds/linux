@@ -36,13 +36,26 @@ int mlx5_irq_get_index(struct mlx5_irq *irq);
 
 struct mlx5_irq_pool;
 #ifdef CONFIG_MLX5_SF
+int mlx5_irq_affinity_irqs_request_auto(struct mlx5_core_dev *dev, int nirqs,
+					struct mlx5_irq **irqs);
 struct mlx5_irq *mlx5_irq_affinity_request(struct mlx5_irq_pool *pool,
 					   const struct cpumask *req_mask);
+void mlx5_irq_affinity_irqs_release(struct mlx5_core_dev *dev, struct mlx5_irq **irqs,
+				    int num_irqs);
 #else
+static inline int mlx5_irq_affinity_irqs_request_auto(struct mlx5_core_dev *dev, int nirqs,
+						      struct mlx5_irq **irqs)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline struct mlx5_irq *
 mlx5_irq_affinity_request(struct mlx5_irq_pool *pool, const struct cpumask *req_mask)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
+
+static inline void mlx5_irq_affinity_irqs_release(struct mlx5_core_dev *dev,
+						  struct mlx5_irq **irqs, int num_irqs) {}
 #endif
 #endif /* __MLX5_IRQ_H__ */

@@ -798,7 +798,10 @@ static void comp_irqs_release(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 
-	mlx5_irqs_release_vectors(table->comp_irqs, table->num_comp_eqs);
+	if (mlx5_core_is_sf(dev))
+		mlx5_irq_affinity_irqs_release(dev, table->comp_irqs, table->num_comp_eqs);
+	else
+		mlx5_irqs_release_vectors(table->comp_irqs, table->num_comp_eqs);
 	kfree(table->comp_irqs);
 }
 
@@ -814,6 +817,12 @@ static int comp_irqs_request(struct mlx5_core_dev *dev)
 	table->comp_irqs = kcalloc(ncomp_eqs, sizeof(*table->comp_irqs), GFP_KERNEL);
 	if (!table->comp_irqs)
 		return -ENOMEM;
+	if (mlx5_core_is_sf(dev)) {
+		ret = mlx5_irq_affinity_irqs_request_auto(dev, ncomp_eqs, table->comp_irqs);
+		if (ret < 0)
+			goto free_irqs;
+		return ret;
+	}
 
 	cpus = kcalloc(ncomp_eqs, sizeof(*cpus), GFP_KERNEL);
 	if (!cpus) {
