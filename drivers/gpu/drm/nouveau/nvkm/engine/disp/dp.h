@@ -49,6 +49,7 @@ void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 #define DPCD_LC01_LANE_COUNT_SET                                           0x1f
 #define DPCD_LC02                                                       0x00102
 #define DPCD_LC02_TRAINING_PATTERN_SET                                     0x03
+#define DPCD_LC02_SCRAMBLING_DISABLE                                       0x20
 #define DPCD_LC03(l)                                            ((l) +  0x00103)
 #define DPCD_LC03_MAX_PRE_EMPHASIS_REACHED                                 0x20
 #define DPCD_LC03_PRE_EMPHASIS_SET                                         0x18

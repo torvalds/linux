@@ -154,6 +154,11 @@ nvkm_dp_train_pattern(struct lt_state *lt, u8 pattern)
 	nvkm_rdaux(dp->aux, DPCD_LC02, &sink_tp, 1);
 	sink_tp &= ~DPCD_LC02_TRAINING_PATTERN_SET;
 	sink_tp |= pattern;
+
+	if (pattern != 0)
+		sink_tp |=  DPCD_LC02_SCRAMBLING_DISABLE;
+	else
+		sink_tp &= ~DPCD_LC02_SCRAMBLING_DISABLE;
 	nvkm_wraux(dp->aux, DPCD_LC02, &sink_tp, 1);
 }
 
