@@ -814,6 +814,11 @@ static const struct rpmh_vreg_init_data pm8998_vreg_data[] = {
 	{}
 };
 
+static const struct rpmh_vreg_init_data pmg1110_vreg_data[] = {
+	RPMH_VREG("smps1",  "smp%s1",  &pmic5_ftsmps510,  "vdd-s1"),
+	{}
+};
+
 static const struct rpmh_vreg_init_data pmi8998_vreg_data[] = {
 	RPMH_VREG("bob",    "bob%s1",  &pmic4_bob,       "vdd-bob"),
 	{}
@@ -1216,6 +1221,10 @@ static const struct of_device_id __maybe_unused rpmh_regulator_match_table[] = {
 	{
 		.compatible = "qcom,pm8998-rpmh-regulators",
 		.data = pm8998_vreg_data,
+	},
+	{
+		.compatible = "qcom,pmg1110-rpmh-regulators",
+		.data = pmg1110_vreg_data,
 	},
 	{
 		.compatible = "qcom,pmi8998-rpmh-regulators",
