@@ -1961,23 +1961,23 @@ static int imx274_probe(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd;
 	struct stimx274 *imx274;
+	struct device *dev = &client->dev;
 	int ret;
 
 	/* initialize imx274 */
-	imx274 = devm_kzalloc(&client->dev, sizeof(*imx274), GFP_KERNEL);
+	imx274 = devm_kzalloc(dev, sizeof(*imx274), GFP_KERNEL);
 	if (!imx274)
 		return -ENOMEM;
 
 	mutex_init(&imx274->lock);
 
-	imx274->inck = devm_clk_get_optional(&client->dev, "inck");
+	imx274->inck = devm_clk_get_optional(dev, "inck");
 	if (IS_ERR(imx274->inck))
 		return PTR_ERR(imx274->inck);
 
-	ret = imx274_regulators_get(&client->dev, imx274);
+	ret = imx274_regulators_get(dev, imx274);
 	if (ret) {
-		dev_err(&client->dev,
-			"Failed to get power regulators, err: %d\n", ret);
+		dev_err(dev, "Failed to get power regulators, err: %d\n", ret);
 		return ret;
 	}
 
@@ -1996,7 +1996,7 @@ static int imx274_probe(struct i2c_client *client)
 	/* initialize regmap */
 	imx274->regmap = devm_regmap_init_i2c(client, &imx274_regmap_config);
 	if (IS_ERR(imx274->regmap)) {
-		dev_err(&client->dev,
+		dev_err(dev,
 			"regmap init failed: %ld\n", PTR_ERR(imx274->regmap));
 		ret = -ENODEV;
 		goto err_regmap;
@@ -2013,34 +2013,32 @@ static int imx274_probe(struct i2c_client *client)
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sd->entity, 1, &imx274->pad);
 	if (ret < 0) {
-		dev_err(&client->dev,
+		dev_err(dev,
 			"%s : media entity init Failed %d\n", __func__, ret);
 		goto err_regmap;
 	}
 
 	/* initialize sensor reset gpio */
-	imx274->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+	imx274->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 						     GPIOD_OUT_HIGH);
 	if (IS_ERR(imx274->reset_gpio)) {
 		if (PTR_ERR(imx274->reset_gpio) != -EPROBE_DEFER)
-			dev_err(&client->dev, "Reset GPIO not setup in DT");
+			dev_err(dev, "Reset GPIO not setup in DT");
 		ret = PTR_ERR(imx274->reset_gpio);
 		goto err_me;
 	}
 
 	/* power on the sensor */
-	ret = imx274_power_on(&client->dev);
+	ret = imx274_power_on(dev);
 	if (ret < 0) {
-		dev_err(&client->dev,
-			"%s : imx274 power on failed\n", __func__);
+		dev_err(dev, "%s : imx274 power on failed\n", __func__);
 		goto err_me;
 	}
 
 	/* initialize controls */
 	ret = v4l2_ctrl_handler_init(&imx274->ctrls.handler, 4);
 	if (ret < 0) {
-		dev_err(&client->dev,
-			"%s : ctrl handler init Failed\n", __func__);
+		dev_err(dev, "%s : ctrl handler init Failed\n", __func__);
 		goto err_power_off;
 	}
 
@@ -2083,23 +2081,22 @@ static int imx274_probe(struct i2c_client *client)
 	/* register subdevice */
 	ret = v4l2_async_register_subdev(sd);
 	if (ret < 0) {
-		dev_err(&client->dev,
-			"%s : v4l2_async_register_subdev failed %d\n",
+		dev_err(dev, "%s : v4l2_async_register_subdev failed %d\n",
 			__func__, ret);
 		goto err_ctrls;
 	}
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_idle(dev);
 
-	dev_info(&client->dev, "imx274 : imx274 probe success !\n");
+	dev_info(dev, "imx274 : imx274 probe success !\n");
 	return 0;
 
 err_ctrls:
 	v4l2_ctrl_handler_free(&imx274->ctrls.handler);
 err_power_off:
-	imx274_power_off(&client->dev);
+	imx274_power_off(dev);
 err_me:
 	media_entity_cleanup(&sd->entity);
 err_regmap:
