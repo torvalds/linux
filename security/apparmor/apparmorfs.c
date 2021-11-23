@@ -36,6 +36,7 @@
 #include "include/policy_ns.h"
 #include "include/resource.h"
 #include "include/policy_unpack.h"
+#include "include/task.h"
 
 /*
  * The apparmor filesystem interface used for policy load and introspection
