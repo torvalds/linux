@@ -329,14 +329,25 @@ static bool
 esw_is_indir_table(struct mlx5_eswitch *esw, struct mlx5_flow_attr *attr)
 {
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
+	bool result = false;
 	int i;
 
-	for (i = esw_attr->split_count; i < esw_attr->out_count; i++)
+	/* Indirect table is supported only for flows with in_port uplink
+	 * and the destination is vport on the same eswitch as the uplink,
+	 * return false in case at least one of destinations doesn't meet
+	 * this criteria.
+	 */
+	for (i = esw_attr->split_count; i < esw_attr->out_count; i++) {
 		if (esw_attr->dests[i].rep &&
 		    mlx5_esw_indir_table_needed(esw, attr, esw_attr->dests[i].rep->vport,
-						esw_attr->dests[i].mdev))
-			return true;
-	return false;
+						esw_attr->dests[i].mdev)) {
+			result = true;
+		} else {
+			result = false;
+			break;
+		}
+	}
+	return result;
 }
 
 static int
