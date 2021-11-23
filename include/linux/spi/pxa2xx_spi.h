@@ -42,7 +42,6 @@ struct pxa2xx_spi_chip {
 	u8 rx_threshold;
 	u8 dma_burst_size;
 	u32 timeout;
-	u8 enable_loopback;
 	int gpio_cs;
 };
 

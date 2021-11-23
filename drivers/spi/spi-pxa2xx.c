@@ -1289,7 +1289,6 @@ static int setup(struct spi_device *spi)
 	chip_info = spi->controller_data;
 
 	/* chip_info isn't always needed */
-	chip->cr1 = 0;
 	if (chip_info) {
 		if (chip_info->timeout)
 			chip->timeout = chip_info->timeout;
@@ -1300,9 +1299,9 @@ static int setup(struct spi_device *spi)
 		if (chip_info->rx_threshold)
 			rx_thres = chip_info->rx_threshold;
 		chip->dma_threshold = 0;
-		if (chip_info->enable_loopback)
-			chip->cr1 = SSCR1_LBM;
 	}
+
+	chip->cr1 = 0;
 	if (spi_controller_is_slave(drv_data->controller)) {
 		chip->cr1 |= SSCR1_SCFR;
 		chip->cr1 |= SSCR1_SCLKDIR;

@@ -101,7 +101,6 @@ device. All fields are optional.
 	u8 rx_threshold;
 	u8 dma_burst_size;
 	u32 timeout;
-	u8 enable_loopback;
 	int gpio_cs;
   };
 
@@ -127,11 +126,6 @@ trailing bytes in the SSP receiver FIFO. The correct value for this field is
 dependent on the SPI bus speed ("spi_board_info.max_speed_hz") and the specific
 slave device.  Please note that the PXA2xx SSP 1 does not support trailing byte
 timeouts and must busy-wait any trailing bytes.
-
-The "pxa2xx_spi_chip.enable_loopback" field is used to place the SSP porting
-into internal loopback mode.  In this mode the SSP controller internally
-connects the SSPTX pin to the SSPRX pin.  This is useful for initial setup
-testing.
 
 NOTE: the SPI driver cannot control the chip select if SSPFRM is used, so the
 chipselect is dropped after each spi_transfer.  Most devices need chip select
