@@ -18,6 +18,8 @@ struct nvkm_dp {
 
 	struct nvkm_notify hpd;
 	bool present;
+	u8 lttpr[6];
+	u8 lttprs;
 	u8 dpcd[16];
 
 	struct {
@@ -114,4 +116,14 @@ void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 #define DPCD_SC00_SET_POWER                                                0x03
 #define DPCD_SC00_SET_POWER_D0                                             0x01
 #define DPCD_SC00_SET_POWER_D3                                             0x03
+
+#define DPCD_LTTPR_REV                                                  0xf0000
+#define DPCD_LTTPR_MODE                                                 0xf0003
+#define DPCD_LTTPR_MODE_TRANSPARENT                                        0x55
+#define DPCD_LTTPR_MODE_NON_TRANSPARENT                                    0xaa
+#define DPCD_LTTPR_PATTERN_SET(i)                     ((i - 1) * 0x50 + 0xf0010)
+#define DPCD_LTTPR_LANE0_SET(i)                       ((i - 1) * 0x50 + 0xf0011)
+#define DPCD_LTTPR_AUX_RD_INTERVAL(i)                 ((i - 1) * 0x50 + 0xf0020)
+#define DPCD_LTTPR_LANE0_1_STATUS(i)                  ((i - 1) * 0x50 + 0xf0030)
+#define DPCD_LTTPR_LANE0_1_ADJUST(i)                  ((i - 1) * 0x50 + 0xf0033)
 #endif
