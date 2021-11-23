@@ -600,10 +600,29 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 		hdr_trans = false;
 	} else {
+		int pad_start = 0;
+
 		skb_pull(skb, hdr_gap);
 		if (!hdr_trans && status->amsdu) {
-			memmove(skb->data + 2, skb->data,
-				ieee80211_get_hdrlen_from_skb(skb));
+			pad_start = ieee80211_get_hdrlen_from_skb(skb);
+		} else if (hdr_trans && (rxd2 & MT_RXD2_NORMAL_HDR_TRANS_ERROR)) {
+			/*
+			 * When header translation failure is indicated,
+			 * the hardware will insert an extra 2-byte field
+			 * containing the data length after the protocol
+			 * type field.
+			 */
+			pad_start = 12;
+			if (get_unaligned_be16(skb->data + pad_start) == ETH_P_8021Q)
+				pad_start += 4;
+
+			if (get_unaligned_be16(skb->data + pad_start) !=
+			    skb->len - pad_start - 2)
+				pad_start = 0;
+		}
+
+		if (pad_start) {
+			memmove(skb->data + 2, skb->data, pad_start);
 			skb_pull(skb, 2);
 		}
 	}
