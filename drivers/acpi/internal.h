@@ -182,7 +182,7 @@ struct acpi_ec {
 	spinlock_t lock;
 	struct work_struct work;
 	unsigned long timestamp;
-	unsigned long nr_pending_queries;
+	unsigned int events_to_process;
 	unsigned int events_in_progress;
 	unsigned int queries_in_progress;
 	bool busy_polling;

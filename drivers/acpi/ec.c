@@ -453,7 +453,16 @@ static bool acpi_ec_submit_event(struct acpi_ec *ec)
 	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
 		ec_dbg_evt("Command(%s) submitted/blocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
-		ec->nr_pending_queries++;
+		/*
+		 * If events_to_process is greqter than 0 at this point, the
+		 * while () loop in acpi_ec_event_handler() is still running
+		 * and incrementing events_to_process will cause it to invoke
+		 * acpi_ec_submit_query() once more, so it is not necessary to
+		 * queue up the event work to start the same loop again.
+		 */
+		if (ec->events_to_process++ > 0)
+			return true;
+
 		ec->events_in_progress++;
 		return queue_work(ec_wq, &ec->work);
 	}
@@ -665,7 +674,7 @@ static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
 	 */
 	if (!t || !(t->flags & ACPI_EC_COMMAND_POLL)) {
 		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
-		    (!ec->nr_pending_queries ||
+		    (!ec->events_to_process ||
 		     test_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags))) {
 			clear_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
 			acpi_ec_close_event(ec);
@@ -1223,13 +1232,13 @@ static void acpi_ec_event_handler(struct work_struct *work)
 
 	spin_lock_irq(&ec->lock);
 
-	while (ec->nr_pending_queries) {
+	while (ec->events_to_process) {
 		spin_unlock_irq(&ec->lock);
 
 		acpi_ec_submit_query(ec);
 
 		spin_lock_irq(&ec->lock);
-		ec->nr_pending_queries--;
+		ec->events_to_process--;
 	}
 
 	/*
