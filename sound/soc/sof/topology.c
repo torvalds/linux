@@ -3529,7 +3529,7 @@ static int sof_complete(struct snd_soc_component *scomp)
 			 * Apply the dynamic_pipeline_widget flag and set the pipe_widget field
 			 * for all widgets that have the same pipeline ID as the scheduler widget
 			 */
-			list_for_each_entry_reverse(comp_swidget, &sdev->widget_list, list)
+			list_for_each_entry(comp_swidget, &sdev->widget_list, list)
 				if (comp_swidget->pipeline_id == swidget->pipeline_id) {
 					ret = sof_set_pipe_widget(sdev, swidget, comp_swidget);
 					if (ret < 0)
