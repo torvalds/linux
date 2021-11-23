@@ -47,7 +47,8 @@ void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 #define DPCD_RC03                                                       0x00003
 #define DPCD_RC03_TPS4_SUPPORTED                                           0x80
 #define DPCD_RC03_MAX_DOWNSPREAD                                           0x01
-#define DPCD_RC0E_AUX_RD_INTERVAL                                       0x0000e
+#define DPCD_RC0E                                                       0x0000e
+#define DPCD_RC0E_AUX_RD_INTERVAL                                          0x7f
 
 /* DPCD Link Configuration */
 #define DPCD_LC00_LINK_BW_SET                                           0x00100

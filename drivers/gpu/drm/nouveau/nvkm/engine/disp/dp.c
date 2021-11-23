@@ -54,10 +54,7 @@ nvkm_dp_train_sense(struct lt_state *lt, bool pc, u32 delay)
 	struct nvkm_dp *dp = lt->dp;
 	int ret;
 
-	if (dp->dpcd[DPCD_RC0E_AUX_RD_INTERVAL])
-		mdelay(dp->dpcd[DPCD_RC0E_AUX_RD_INTERVAL] * 4);
-	else
-		udelay(delay);
+	usleep_range(delay, delay * 2);
 
 	ret = nvkm_rdaux(dp->aux, DPCD_LS02, lt->stat, 6);
 	if (ret)
@@ -166,7 +163,7 @@ static int
 nvkm_dp_train_eq(struct lt_state *lt)
 {
 	bool eq_done = false, cr_done = true;
-	int tries = 0, i;
+	int tries = 0, usec = 0, i;
 
 	{
 		if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] >= 0x14 &&
@@ -178,12 +175,14 @@ nvkm_dp_train_eq(struct lt_state *lt)
 			nvkm_dp_train_pattern(lt, 3);
 		else
 			nvkm_dp_train_pattern(lt, 2);
+
+		usec = (lt->dp->dpcd[DPCD_RC0E] & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
 	}
 
 	do {
 		if ((tries &&
 		    nvkm_dp_train_drive(lt, lt->pc2)) ||
-		    nvkm_dp_train_sense(lt, lt->pc2, 400))
+		    nvkm_dp_train_sense(lt, lt->pc2, usec ? usec : 400))
 			break;
 
 		eq_done = !!(lt->stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE);
@@ -205,13 +204,16 @@ nvkm_dp_train_cr(struct lt_state *lt)
 {
 	bool cr_done = false, abort = false;
 	int voltage = lt->conf[0] & DPCD_LC03_VOLTAGE_SWING_SET;
-	int tries = 0, i;
+	int tries = 0, usec = 0, i;
 
 	nvkm_dp_train_pattern(lt, 1);
 
+	if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] < 0x14)
+		usec = (lt->dp->dpcd[DPCD_RC0E] & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
+
 	do {
 		if (nvkm_dp_train_drive(lt, false) ||
-		    nvkm_dp_train_sense(lt, false, 100))
+		    nvkm_dp_train_sense(lt, false, usec ? usec : 100))
 			break;
 
 		cr_done = true;
