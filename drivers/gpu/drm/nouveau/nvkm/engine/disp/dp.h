@@ -20,6 +20,12 @@ struct nvkm_dp {
 	bool present;
 	u8 dpcd[16];
 
+	struct {
+		u32 rate;
+	} rate[3];
+	int rates;
+	int links;
+
 	struct mutex mutex;
 	struct {
 		atomic_t done;
