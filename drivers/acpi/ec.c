@@ -170,7 +170,6 @@ struct acpi_ec_query {
 static int acpi_ec_submit_query(struct acpi_ec *ec);
 static bool advance_transaction(struct acpi_ec *ec, bool interrupt);
 static void acpi_ec_event_handler(struct work_struct *work);
-static void acpi_ec_event_processor(struct work_struct *work);
 
 struct acpi_ec *first_ec;
 EXPORT_SYMBOL(first_ec);
@@ -1134,33 +1133,6 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit)
 }
 EXPORT_SYMBOL_GPL(acpi_ec_remove_query_handler);
 
-static struct acpi_ec_query *acpi_ec_create_query(struct acpi_ec *ec, u8 *pval)
-{
-	struct acpi_ec_query *q;
-	struct transaction *t;
-
-	q = kzalloc(sizeof (struct acpi_ec_query), GFP_KERNEL);
-	if (!q)
-		return NULL;
-
-	INIT_WORK(&q->work, acpi_ec_event_processor);
-	t = &q->transaction;
-	t->command = ACPI_EC_COMMAND_QUERY;
-	t->rdata = pval;
-	t->rlen = 1;
-	q->ec = ec;
-	return q;
-}
-
-static void acpi_ec_delete_query(struct acpi_ec_query *q)
-{
-	if (q) {
-		if (q->handler)
-			acpi_ec_put_query_handler(q->handler);
-		kfree(q);
-	}
-}
-
 static void acpi_ec_event_processor(struct work_struct *work)
 {
 	struct acpi_ec_query *q = container_of(work, struct acpi_ec_query, work);
@@ -1180,7 +1152,26 @@ static void acpi_ec_event_processor(struct work_struct *work)
 	ec->queries_in_progress--;
 	spin_unlock_irq(&ec->lock);
 
-	acpi_ec_delete_query(q);
+	acpi_ec_put_query_handler(handler);
+	kfree(q);
+}
+
+static struct acpi_ec_query *acpi_ec_create_query(struct acpi_ec *ec, u8 *pval)
+{
+	struct acpi_ec_query *q;
+	struct transaction *t;
+
+	q = kzalloc(sizeof (struct acpi_ec_query), GFP_KERNEL);
+	if (!q)
+		return NULL;
+
+	INIT_WORK(&q->work, acpi_ec_event_processor);
+	t = &q->transaction;
+	t->command = ACPI_EC_COMMAND_QUERY;
+	t->rdata = pval;
+	t->rlen = 1;
+	q->ec = ec;
+	return q;
 }
 
 static int acpi_ec_submit_query(struct acpi_ec *ec)
@@ -1229,9 +1220,10 @@ static int acpi_ec_submit_query(struct acpi_ec *ec)
 
 	spin_unlock_irq(&ec->lock);
 
+	return 0;
+
 err_exit:
-	if (result)
-		acpi_ec_delete_query(q);
+	kfree(q);
 
 	return result;
 }
