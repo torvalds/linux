@@ -1233,11 +1233,14 @@ static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
  * rcuo CB kthread, spawn it.  Additionally, if the rcuo GP kthread
  * for this CPU's group has not yet been created, spawn it as well.
  */
-static void rcu_spawn_one_nocb_kthread(int cpu)
+static void rcu_spawn_cpu_nocb_kthread(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 	struct rcu_data *rdp_gp;
 	struct task_struct *t;
+
+	if (!rcu_scheduler_fully_active || !rcu_nocb_is_setup)
+		return;
 
 	/* If there already is an rcuo kthread, then nothing to do. */
 	if (rdp->nocb_cb_kthread)
@@ -1260,16 +1263,6 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
 		return;
 	WRITE_ONCE(rdp->nocb_cb_kthread, t);
 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
-}
-
-/*
- * If the specified CPU is a no-CBs CPU that does not already have its
- * rcuo kthread, spawn it.
- */
-static void rcu_spawn_cpu_nocb_kthread(int cpu)
-{
-	if (rcu_scheduler_fully_active && rcu_nocb_is_setup)
-		rcu_spawn_one_nocb_kthread(cpu);
 }
 
 /*
