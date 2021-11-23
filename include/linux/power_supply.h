@@ -546,4 +546,13 @@ static inline
 void power_supply_remove_hwmon_sysfs(struct power_supply *psy) {}
 #endif
 
+#ifdef CONFIG_SYSFS
+ssize_t power_supply_charge_behaviour_show(struct device *dev,
+					   unsigned int available_behaviours,
+					   enum power_supply_charge_behaviour behaviour,
+					   char *buf);
+
+int power_supply_charge_behaviour_parse(unsigned int available_behaviours, const char *buf);
+#endif
+
 #endif /* __LINUX_POWER_SUPPLY_H__ */
