@@ -6,7 +6,7 @@
 
 #include "rk3588.dtsi"
 #include "rk3588-evb.dtsi"
-#include "rk806-double.dtsi"
+#include "rk3588-rk806-daul.dtsi"
 
 / {
 	dsm_sound: dsm-sound {

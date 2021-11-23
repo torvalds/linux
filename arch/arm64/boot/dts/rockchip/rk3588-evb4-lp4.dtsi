@@ -7,7 +7,7 @@
 #include "dt-bindings/usb/pd.h"
 #include "rk3588.dtsi"
 #include "rk3588-evb.dtsi"
-#include "rk806-single.dtsi"
+#include "rk3588-rk806-single.dtsi"
 
 / {
 	pcie30_avdd1v8: pcie30-avdd1v8 {

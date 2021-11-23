@@ -14,7 +14,7 @@
 #include <dt-bindings/sensor-dev.h>
 #include "rk3588s.dtsi"
 #include "rk3588-android.dtsi"
-#include "rk806-double.dtsi"
+#include "rk3588-rk806-daul.dtsi"
 
 / {
 	adc_keys: adc-keys {

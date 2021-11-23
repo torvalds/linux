@@ -259,7 +259,7 @@
 			vdd2_ddr_s3: DCDC_REG9 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-name = "vdd2_ddr_s0";
+				regulator-name = "vdd2_ddr_s3";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
@@ -688,7 +688,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-ramp-delay = <12500>;
-				regulator-name = "vdd1v8_pll_s0";
+				regulator-name = "vdd_1v8_pll_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};

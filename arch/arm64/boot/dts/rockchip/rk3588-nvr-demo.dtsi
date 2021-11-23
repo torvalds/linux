@@ -6,7 +6,7 @@
 
 #include "rk3588.dtsi"
 #include "rk3588-nvr.dtsi"
-#include "rk806-single.dtsi"
+#include "rk3588-rk806-single.dtsi"
 
 / {
 	i2s0_sound: i2s0-sound {
