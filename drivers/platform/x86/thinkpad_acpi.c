@@ -11113,6 +11113,11 @@ static void thinkpad_acpi_module_exit(void)
 
 	tpacpi_lifecycle = TPACPI_LIFE_EXITING;
 
+	if (tp_features.sensors_pdrv_registered)
+		platform_driver_unregister(&tpacpi_hwmon_pdriver);
+	if (tp_features.platform_drv_registered)
+		platform_driver_unregister(&tpacpi_pdriver);
+
 	list_for_each_entry_safe_reverse(ibm, itmp,
 					 &tpacpi_all_drivers,
 					 all_drivers) {
@@ -11135,10 +11140,6 @@ static void thinkpad_acpi_module_exit(void)
 		platform_device_unregister(tpacpi_sensors_pdev);
 	if (tpacpi_pdev)
 		platform_device_unregister(tpacpi_pdev);
-	if (tp_features.sensors_pdrv_registered)
-		platform_driver_unregister(&tpacpi_hwmon_pdriver);
-	if (tp_features.platform_drv_registered)
-		platform_driver_unregister(&tpacpi_pdriver);
 	if (proc_dir)
 		remove_proc_entry(TPACPI_PROC_DIR, acpi_root_dir);
 	if (tpacpi_wq)
@@ -11191,22 +11192,6 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return -ENODEV;
 	}
-
-	ret = platform_driver_register(&tpacpi_pdriver);
-	if (ret) {
-		pr_err("unable to register main platform driver\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
-	tp_features.platform_drv_registered = 1;
-
-	ret = platform_driver_register(&tpacpi_hwmon_pdriver);
-	if (ret) {
-		pr_err("unable to register hwmon platform driver\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
-	tp_features.sensors_pdrv_registered = 1;
 
 	/* Device initialization */
 	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, -1,
@@ -11270,6 +11255,22 @@ static int __init thinkpad_acpi_module_init(void)
 	}
 
 	tpacpi_lifecycle = TPACPI_LIFE_RUNNING;
+
+	ret = platform_driver_register(&tpacpi_pdriver);
+	if (ret) {
+		pr_err("unable to register main platform driver\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+	tp_features.platform_drv_registered = 1;
+
+	ret = platform_driver_register(&tpacpi_hwmon_pdriver);
+	if (ret) {
+		pr_err("unable to register hwmon platform driver\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+	tp_features.sensors_pdrv_registered = 1;
 
 	ret = input_register_device(tpacpi_inputdev);
 	if (ret < 0) {
