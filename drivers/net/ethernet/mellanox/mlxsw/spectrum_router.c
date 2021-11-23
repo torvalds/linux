@@ -8369,9 +8369,6 @@ mlxsw_sp_rif_mac_profile_find(const struct mlxsw_sp *mlxsw_sp, const char *mac)
 	int id;
 
 	idr_for_each_entry(&router->rif_mac_profiles_idr, profile, id) {
-		if (!profile)
-			continue;
-
 		if (ether_addr_equal_masked(profile->mac_prefix, mac,
 					    mlxsw_sp->mac_mask))
 			return profile;
