@@ -264,9 +264,11 @@ struct csi_channel_info {
 	unsigned char enable;	/* capture enable */
 	unsigned char vc;
 	unsigned char data_type;
+	unsigned char data_bit;
 	unsigned char crop_en;
 	unsigned char cmd_mode_en;
 	unsigned char fmt_val;
+	unsigned char csi_fmt_val;
 	unsigned int width;
 	unsigned int height;
 	unsigned int virtual_width;
@@ -483,7 +485,6 @@ struct rkcif_stream {
 	struct list_head		rx_buf_head;
 	int				buf_num_toisp;
 	u64				line_int_cnt;
-	int				vc;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -723,7 +724,7 @@ void rkcif_irq_handle_scale(struct rkcif_device *cif_dev,
 const struct
 cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd,
 				 struct v4l2_rect *rect,
-				 u32 pad_id, int *vc);
+				 u32 pad_id, struct csi_channel_info *csi_info);
 
 void rkcif_write_register(struct rkcif_device *dev,
 			  enum cif_reg_index index, u32 val);

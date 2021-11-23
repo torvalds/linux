@@ -347,7 +347,7 @@ static int rkcif_scale_enum_framesizes(struct file *file, void *prov,
 	struct rkcif_device *dev = scale_vdev->cifdev;
 	struct v4l2_rect input_rect;
 	struct rkcif_sensor_info *terminal_sensor = &dev->terminal_sensor;
-	int vc = 0;
+	struct csi_channel_info csi_info;
 	int scale_times = 0;
 
 	if (fsize->index >= RKCIF_SCALE_ENUM_SIZE_MAX)
@@ -361,7 +361,7 @@ static int rkcif_scale_enum_framesizes(struct file *file, void *prov,
 
 	if (terminal_sensor && terminal_sensor->sd)
 		get_input_fmt(terminal_sensor->sd,
-			      &input_rect, 0, &vc);
+			      &input_rect, 0, &csi_info);
 
 	switch (fsize->index) {
 	case SCALE_8TIMES:

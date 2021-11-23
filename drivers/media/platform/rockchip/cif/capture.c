@@ -639,10 +639,10 @@ static int get_csi_crop_align(const struct cif_input_fmt *fmt_in)
 
 const struct
 cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
-			     u32 pad_id, int *vc)
+			     u32 pad_id, struct csi_channel_info *csi_info)
 {
 	struct v4l2_subdev_format fmt;
-	struct rkmodule_channel_info ch_info;
+	struct rkmodule_channel_info ch_info = {0};
 	int ret;
 	u32 i;
 
@@ -666,23 +666,27 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
 		fmt.format.code = ch_info.bus_fmt;
 		switch (ch_info.vc) {
 		case V4L2_MBUS_CSI2_CHANNEL_3:
-			*vc = 3;
+			csi_info->vc = 3;
 			break;
 		case V4L2_MBUS_CSI2_CHANNEL_2:
-			*vc = 2;
+			csi_info->vc = 2;
 			break;
 		case V4L2_MBUS_CSI2_CHANNEL_1:
-			*vc = 1;
+			csi_info->vc = 1;
 			break;
 		case V4L2_MBUS_CSI2_CHANNEL_0:
-			*vc = 0;
+			csi_info->vc = 0;
 			break;
 		default:
-			*vc = -1;
+			csi_info->vc = -1;
 		}
-
-	} else {
-		*vc = -1;
+		if (ch_info.bus_fmt == MEDIA_BUS_FMT_SPD_2X8 ||
+		    ch_info.bus_fmt == MEDIA_BUS_FMT_EBD_1X8) {
+			if (ch_info.data_type > 0)
+				csi_info->data_type = ch_info.data_type;
+			if (ch_info.data_bit > 0)
+				csi_info->data_bit = ch_info.data_bit;
+		}
 	}
 
 	v4l2_dbg(1, rkcif_debug, sd->v4l2_dev,
@@ -1931,12 +1935,42 @@ static void rkcif_csi_set_lvds_sav_eav(struct rkcif_stream *stream,
 	}
 }
 
+static unsigned char get_csi_fmt_val(const struct cif_input_fmt	*cif_fmt_in,
+					 struct csi_channel_info *csi_info)
+{
+	unsigned char csi_fmt_val = 0;
+
+	if (cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8 ||
+	    cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8) {
+		switch (csi_info->data_bit) {
+		case 8:
+			csi_fmt_val = CSI_WRDDR_TYPE_RAW8;
+			break;
+		case 10:
+			csi_fmt_val = CSI_WRDDR_TYPE_RAW10;
+			break;
+		case 12:
+			csi_fmt_val = CSI_WRDDR_TYPE_RAW12;
+			break;
+		default:
+			csi_fmt_val = CSI_WRDDR_TYPE_RAW12;
+			break;
+		}
+	} else if (cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB888) {
+		csi_fmt_val = CSI_WRDDR_TYPE_RAW8;
+	} else {
+		csi_fmt_val  = cif_fmt_in->csi_fmt_val;
+	}
+	return csi_fmt_val;
+}
+
 static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 				  struct csi_channel_info *channel)
 {
 	struct rkcif_device *dev = stream->cifdev;
 	const struct cif_output_fmt *fmt;
 	u32 fourcc;
+	int vc = dev->channels[stream->id].vc;
 
 	channel->enable = 1;
 	channel->width = stream->pixm.width;
@@ -2004,14 +2038,24 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 		channel->virtual_width *= 2;
 		channel->height /= 2;
 	}
-
-	channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
-					   channel->cmd_mode_en);
+	if (stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8 ||
+	    stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8) {
+		if (dev->channels[stream->id].data_type)
+			channel->data_type = dev->channels[stream->id].data_type;
+		else
+			channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
+							   channel->cmd_mode_en);
+	} else {
+		channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
+						   channel->cmd_mode_en);
+	}
+	channel->csi_fmt_val = get_csi_fmt_val(stream->cif_fmt_in,
+					       &dev->channels[stream->id]);
 
 	if (dev->hdr.hdr_mode == NO_HDR ||
 	    (dev->hdr.hdr_mode == HDR_X2 && stream->id > 1) ||
 	    (dev->hdr.hdr_mode == HDR_X3 && stream->id > 2))
-		channel->vc = stream->vc;
+		channel->vc = vc >= 0 ? vc : channel->id;
 	else
 		channel->vc = channel->id;
 	v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
@@ -2312,12 +2356,9 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 	    mbus_type  == V4L2_MBUS_CSI2_CPHY) {
 		val = CSI_ENABLE_CAPTURE | dma_en |
 		      channel->cmd_mode_en << 26 | CSI_ENABLE_CROP_V1 |
-		      channel->vc << 8 | channel->data_type << 10;
+		      channel->vc << 8 | channel->data_type << 10 |
+		      channel->csi_fmt_val;
 
-		if (stream->cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB888)
-			val |= CSI_WRDDR_TYPE_RAW8;
-		else
-			val |= stream->cif_fmt_in->csi_fmt_val;
 		val |= stream->cif_fmt_in->csi_yuv_order;
 		val |= rkcif_csi_get_output_type_mask(stream);
 		if (stream->cifdev->hdr.hdr_mode == NO_HDR)
@@ -3385,19 +3426,13 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct v4l2_rect input, *crop;
-	int vc;
 
 	stream->cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
-					   &input, stream->id, &vc);
+					   &input, stream->id, &dev->channels[stream->id]);
 	if (!stream->cif_fmt_in) {
 		v4l2_err(v4l2_dev, "Input fmt is invalid\n");
 		return -EINVAL;
 	}
-
-	if (vc >= 0 && vc < RKCIF_MAX_STREAM_MIPI)
-		stream->vc = vc;
-	else
-		stream->vc = stream->id;
 
 	if (stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8 ||
 		stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8) {
@@ -4150,7 +4185,7 @@ void rkcif_set_fmt(struct rkcif_stream *stream,
 	u32 xsubs = 1, ysubs = 1, i;
 	struct rkmodule_hdr_cfg hdr_cfg;
 	struct rkcif_extend_info *extend_line = &stream->extend_line;
-	int ret, vc;
+	int ret;
 
 	for (i = 0; i < RKCIF_MAX_PLANE; i++)
 		memset(&pixm->plane_fmt[i], 0, sizeof(struct v4l2_plane_pix_format));
@@ -4164,7 +4199,8 @@ void rkcif_set_fmt(struct rkcif_stream *stream,
 
 	if (dev->terminal_sensor.sd) {
 		cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
-			      &input_rect, stream->id, &vc);
+					   &input_rect, stream->id,
+					   &dev->channels[stream->id]);
 		stream->cif_fmt_in = cif_fmt_in;
 	}
 
@@ -4197,6 +4233,10 @@ void rkcif_set_fmt(struct rkcif_stream *stream,
 	fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
 
 	planes = fmt->cplanes ? fmt->cplanes : fmt->mplanes;
+
+	if (cif_fmt_in && (cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8 ||
+			   cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8))
+		stream->crop_enable = false;
 
 	for (i = 0; i < planes; i++) {
 		struct v4l2_plane_pix_format *plane_fmt;
@@ -4465,7 +4505,7 @@ static int rkcif_enum_framesizes(struct file *file, void *prov,
 	struct rkcif_stream *stream = video_drvdata(file);
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_rect input_rect;
-	int vc;
+	struct csi_channel_info csi_info;
 
 	if (fsize->index != 0)
 		return -EINVAL;
@@ -4478,7 +4518,8 @@ static int rkcif_enum_framesizes(struct file *file, void *prov,
 
 	if (dev->terminal_sensor.sd)
 		get_input_fmt(dev->terminal_sensor.sd,
-			      &input_rect, stream->id, &vc);
+			      &input_rect, stream->id,
+			      &csi_info);
 
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 	s->min_width = CIF_MIN_WIDTH;
@@ -4769,7 +4810,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	struct rkcif_device *dev = stream->cifdev;
 	const struct cif_input_fmt *in_fmt;
 	struct v4l2_rect rect;
-	int vc = 0;
+	struct csi_channel_info csi_info;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
@@ -4784,7 +4825,8 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKCIF_CMD_SET_CSI_MEMORY_MODE:
 		if (dev->terminal_sensor.sd) {
-			in_fmt = get_input_fmt(dev->terminal_sensor.sd, &rect, 0, &vc);
+			in_fmt = get_input_fmt(dev->terminal_sensor.sd,
+					       &rect, 0, &csi_info);
 			if (in_fmt == NULL) {
 				v4l2_err(&dev->v4l2_dev, "can't get sensor input format\n");
 				return -EINVAL;
