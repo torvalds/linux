@@ -2662,21 +2662,6 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		hctx->queue->mq_ops->commit_rqs(hctx);
 }
 
-static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
-{
-	if (!plug->multiple_queues) {
-		struct request *nxt = rq_list_peek(&plug->mq_list);
-
-		if (nxt && nxt->q != rq->q)
-			plug->multiple_queues = true;
-	}
-	if (!plug->has_elevator && (rq->rq_flags & RQF_ELV))
-		plug->has_elevator = true;
-	rq->rq_next = NULL;
-	rq_list_add(&plug->mq_list, rq);
-	plug->rq_count++;
-}
-
 /*
  * Allow 2x BLK_MAX_REQUEST_COUNT requests on plug queue for multiple
  * queues. This is important for md arrays to benefit from merging
@@ -2687,6 +2672,28 @@ static inline unsigned short blk_plug_max_rq_count(struct blk_plug *plug)
 	if (plug->multiple_queues)
 		return BLK_MAX_REQUEST_COUNT * 2;
 	return BLK_MAX_REQUEST_COUNT;
+}
+
+static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
+{
+	struct request *last = rq_list_peek(&plug->mq_list);
+
+	if (!plug->rq_count) {
+		trace_block_plug(rq->q);
+	} else if (plug->rq_count >= blk_plug_max_rq_count(plug) ||
+		   (!blk_queue_nomerges(rq->q) &&
+		    blk_rq_bytes(last) >= BLK_PLUG_FLUSH_SIZE)) {
+		blk_mq_flush_plug_list(plug, false);
+		trace_block_plug(rq->q);
+	}
+
+	if (!plug->multiple_queues && last && last->q != rq->q)
+		plug->multiple_queues = true;
+	if (!plug->has_elevator && (rq->rq_flags & RQF_ELV))
+		plug->has_elevator = true;
+	rq->rq_next = NULL;
+	rq_list_add(&plug->mq_list, rq);
+	plug->rq_count++;
 }
 
 static bool blk_mq_attempt_bio_merge(struct request_queue *q,
@@ -2841,31 +2848,14 @@ void blk_mq_submit_bio(struct bio *bio)
 		return;
 	}
 
-	if (plug) {
-		unsigned int request_count = plug->rq_count;
-		struct request *last = NULL;
-
-		if (!request_count) {
-			trace_block_plug(q);
-		} else if (!blk_queue_nomerges(q)) {
-			last = rq_list_peek(&plug->mq_list);
-			if (blk_rq_bytes(last) < BLK_PLUG_FLUSH_SIZE)
-				last = NULL;
-		}
-
-		if (request_count >= blk_plug_max_rq_count(plug) || last) {
-			blk_mq_flush_plug_list(plug, false);
-			trace_block_plug(q);
-		}
-
+	if (plug)
 		blk_add_rq_to_plug(plug, rq);
-	} else if ((rq->rq_flags & RQF_ELV) ||
-		   (rq->mq_hctx->dispatch_busy &&
-		    (q->nr_hw_queues == 1 || !is_sync))) {
+	else if ((rq->rq_flags & RQF_ELV) ||
+		 (rq->mq_hctx->dispatch_busy &&
+		  (q->nr_hw_queues == 1 || !is_sync)))
 		blk_mq_sched_insert_request(rq, false, true, true);
-	} else {
+	else
 		blk_mq_try_issue_directly(rq->mq_hctx, rq);
-	}
 }
 
 /**
