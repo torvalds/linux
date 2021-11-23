@@ -111,6 +111,9 @@
 #define VNIE_FIE		(1 << 4)
 #define VNIE_EFE		(1 << 1)
 
+/* Video n Interrupt Status Register bits */
+#define VNINTS_FIS		(1 << 4)
+
 /* Video n Data Mode Register bits */
 #define VNDMR_A8BIT(n)		(((n) & 0xff) << 24)
 #define VNDMR_A8BIT_MASK	(0xff << 24)
@@ -1004,6 +1007,10 @@ static irqreturn_t rvin_irq(int irq, void *data)
 
 	rvin_ack_interrupt(vin);
 	handled = 1;
+
+	/* Nothing to do if nothing was captured. */
+	if (!(int_status & VNINTS_FIS))
+		goto done;
 
 	/* Nothing to do if capture status is 'STOPPED' */
 	if (vin->state == STOPPED) {
