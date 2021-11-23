@@ -4603,8 +4603,12 @@
 			in seconds.
 
 	rcutorture.fwd_progress= [KNL]
-			Enable RCU grace-period forward-progress testing
+			Specifies the number of kthreads to be used
+			for  RCU grace-period forward-progress testing
 			for the types of RCU supporting this notion.
+			Defaults to 1 kthread, values less than zero or
+			greater than the number of CPUs cause the number
+			of CPUs to be used.
 
 	rcutorture.fwd_progress_div= [KNL]
 			Specify the fraction of a CPU-stall-warning

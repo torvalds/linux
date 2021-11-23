@@ -79,7 +79,7 @@ torture_param(int, fqs_duration, 0,
 	      "Duration of fqs bursts (us), 0 to disable");
 torture_param(int, fqs_holdoff, 0, "Holdoff time within fqs bursts (us)");
 torture_param(int, fqs_stutter, 3, "Wait time between fqs bursts (s)");
-torture_param(bool, fwd_progress, 1, "Test grace-period forward progress");
+torture_param(int, fwd_progress, 1, "Test grace-period forward progress");
 torture_param(int, fwd_progress_div, 4, "Fraction of CPU stall to wait");
 torture_param(int, fwd_progress_holdoff, 60,
 	      "Time between forward-progress tests (s)");
@@ -146,7 +146,7 @@ static struct task_struct *stats_task;
 static struct task_struct *fqs_task;
 static struct task_struct *boost_tasks[NR_CPUS];
 static struct task_struct *stall_task;
-static struct task_struct *fwd_prog_task;
+static struct task_struct **fwd_prog_tasks;
 static struct task_struct **barrier_cbs_tasks;
 static struct task_struct *barrier_task;
 static struct task_struct *read_exit_task;
@@ -2161,10 +2161,12 @@ struct rcu_fwd {
 	unsigned long rcu_fwd_startat;
 	struct rcu_launder_hist n_launders_hist[N_LAUNDERS_HIST];
 	unsigned long rcu_launder_gp_seq_start;
+	int rcu_fwd_id;
 };
 
 static DEFINE_MUTEX(rcu_fwd_mutex);
 static struct rcu_fwd *rcu_fwds;
+static unsigned long rcu_fwd_seq;
 static bool rcu_fwd_emergency_stop;
 
 static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
@@ -2177,8 +2179,9 @@ static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
 	for (i = ARRAY_SIZE(rfp->n_launders_hist) - 1; i > 0; i--)
 		if (rfp->n_launders_hist[i].n_launders > 0)
 			break;
-	pr_alert("%s: Callback-invocation histogram (duration %lu jiffies):",
-		 __func__, jiffies - rfp->rcu_fwd_startat);
+	mutex_lock(&rcu_fwd_mutex); // Serialize histograms.
+	pr_alert("%s: Callback-invocation histogram %d (duration %lu jiffies):",
+		 __func__, rfp->rcu_fwd_id, jiffies - rfp->rcu_fwd_startat);
 	gps_old = rfp->rcu_launder_gp_seq_start;
 	for (j = 0; j <= i; j++) {
 		gps = rfp->n_launders_hist[j].launder_gp_seq;
@@ -2189,6 +2192,7 @@ static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
 		gps_old = gps;
 	}
 	pr_cont("\n");
+	mutex_unlock(&rcu_fwd_mutex);
 }
 
 /* Callback function for continuous-flood RCU callbacks. */
@@ -2314,7 +2318,8 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 		cver = READ_ONCE(rcu_torture_current_version) - cver;
 		gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
 		WARN_ON(!cver && gps < 2);
-		pr_alert("%s: Duration %ld cver %ld gps %ld\n", __func__, dur, cver, gps);
+		pr_alert("%s: %d Duration %ld cver %ld gps %ld\n", __func__,
+			 rfp->rcu_fwd_id, dur, cver, gps);
 	}
 	if (selfpropcb) {
 		WRITE_ONCE(fcs.stop, 1);
@@ -2432,6 +2437,8 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 static int rcutorture_oom_notify(struct notifier_block *self,
 				 unsigned long notused, void *nfreed)
 {
+	int i;
+	long ncbs;
 	struct rcu_fwd *rfp;
 
 	mutex_lock(&rcu_fwd_mutex);
@@ -2442,18 +2449,26 @@ static int rcutorture_oom_notify(struct notifier_block *self,
 	}
 	WARN(1, "%s invoked upon OOM during forward-progress testing.\n",
 	     __func__);
-	rcu_torture_fwd_cb_hist(rfp);
-	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rfp->rcu_fwd_startat)) / 2);
+	for (i = 0; i < fwd_progress; i++) {
+		rcu_torture_fwd_cb_hist(&rfp[i]);
+		rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rfp[i].rcu_fwd_startat)) / 2);
+	}
 	WRITE_ONCE(rcu_fwd_emergency_stop, true);
 	smp_mb(); /* Emergency stop before free and wait to avoid hangs. */
-	pr_info("%s: Freed %lu RCU callbacks.\n",
-		__func__, rcu_torture_fwd_prog_cbfree(rfp));
+	ncbs = 0;
+	for (i = 0; i < fwd_progress; i++)
+		ncbs += rcu_torture_fwd_prog_cbfree(&rfp[i]);
+	pr_info("%s: Freed %lu RCU callbacks.\n", __func__, ncbs);
 	rcu_barrier();
-	pr_info("%s: Freed %lu RCU callbacks.\n",
-		__func__, rcu_torture_fwd_prog_cbfree(rfp));
+	ncbs = 0;
+	for (i = 0; i < fwd_progress; i++)
+		ncbs += rcu_torture_fwd_prog_cbfree(&rfp[i]);
+	pr_info("%s: Freed %lu RCU callbacks.\n", __func__, ncbs);
 	rcu_barrier();
-	pr_info("%s: Freed %lu RCU callbacks.\n",
-		__func__, rcu_torture_fwd_prog_cbfree(rfp));
+	ncbs = 0;
+	for (i = 0; i < fwd_progress; i++)
+		ncbs += rcu_torture_fwd_prog_cbfree(&rfp[i]);
+	pr_info("%s: Freed %lu RCU callbacks.\n", __func__, ncbs);
 	smp_mb(); /* Frees before return to avoid redoing OOM. */
 	(*(unsigned long *)nfreed)++; /* Forward progress CBs freed! */
 	pr_info("%s returning after OOM processing.\n", __func__);
@@ -2469,6 +2484,7 @@ static struct notifier_block rcutorture_oom_nb = {
 static int rcu_torture_fwd_prog(void *args)
 {
 	int oldnice = task_nice(current);
+	unsigned long oldseq = READ_ONCE(rcu_fwd_seq);
 	struct rcu_fwd *rfp = args;
 	int tested = 0;
 	int tested_tries = 0;
@@ -2478,21 +2494,31 @@ static int rcu_torture_fwd_prog(void *args)
 	if (!IS_ENABLED(CONFIG_SMP) || !IS_ENABLED(CONFIG_RCU_BOOST))
 		set_user_nice(current, MAX_NICE);
 	do {
-		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
-		WRITE_ONCE(rcu_fwd_emergency_stop, false);
-		if (!IS_ENABLED(CONFIG_TINY_RCU) ||
-		    rcu_inkernel_boot_has_ended())
-			rcu_torture_fwd_prog_nr(rfp, &tested, &tested_tries);
-		if (rcu_inkernel_boot_has_ended())
+		if (!rfp->rcu_fwd_id) {
+			schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
+			WRITE_ONCE(rcu_fwd_emergency_stop, false);
+			WRITE_ONCE(rcu_fwd_seq, rcu_fwd_seq + 1);
+		} else {
+			while (READ_ONCE(rcu_fwd_seq) == oldseq)
+				schedule_timeout_interruptible(1);
+			oldseq = READ_ONCE(rcu_fwd_seq);
+		}
+		pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
+		if (rcu_inkernel_boot_has_ended() && torture_num_online_cpus() > rfp->rcu_fwd_id)
 			rcu_torture_fwd_prog_cr(rfp);
+		if (!IS_ENABLED(CONFIG_TINY_RCU) ||
+		    (rcu_inkernel_boot_has_ended() && torture_num_online_cpus() > rfp->rcu_fwd_id))
+			rcu_torture_fwd_prog_nr(rfp, &tested, &tested_tries);
 
 		/* Avoid slow periods, better to test when busy. */
 		if (stutter_wait("rcu_torture_fwd_prog"))
 			sched_set_normal(current, oldnice);
 	} while (!torture_must_stop());
 	/* Short runs might not contain a valid forward-progress attempt. */
-	WARN_ON(!tested && tested_tries >= 5);
-	pr_alert("%s: tested %d tested_tries %d\n", __func__, tested, tested_tries);
+	if (!rfp->rcu_fwd_id) {
+		WARN_ON(!tested && tested_tries >= 5);
+		pr_alert("%s: tested %d tested_tries %d\n", __func__, tested, tested_tries);
+	}
 	torture_kthread_stopping("rcu_torture_fwd_prog");
 	return 0;
 }
@@ -2500,17 +2526,27 @@ static int rcu_torture_fwd_prog(void *args)
 /* If forward-progress checking is requested and feasible, spawn the thread. */
 static int __init rcu_torture_fwd_prog_init(void)
 {
+	int i;
+	int ret = 0;
 	struct rcu_fwd *rfp;
 
 	if (!fwd_progress)
 		return 0; /* Not requested, so don't do it. */
+	if (fwd_progress >= nr_cpu_ids) {
+		VERBOSE_TOROUT_STRING("rcu_torture_fwd_prog_init: Limiting fwd_progress to # CPUs.\n");
+		fwd_progress = nr_cpu_ids;
+	} else if (fwd_progress < 0) {
+		fwd_progress = nr_cpu_ids;
+	}
 	if ((!cur_ops->sync && !cur_ops->call) ||
 	    !cur_ops->stall_dur || cur_ops->stall_dur() <= 0 || cur_ops == &rcu_busted_ops) {
 		VERBOSE_TOROUT_STRING("rcu_torture_fwd_prog_init: Disabled, unsupported by RCU flavor under test");
+		fwd_progress = 0;
 		return 0;
 	}
 	if (stall_cpu > 0) {
 		VERBOSE_TOROUT_STRING("rcu_torture_fwd_prog_init: Disabled, conflicts with CPU-stall testing");
+		fwd_progress = 0;
 		if (IS_MODULE(CONFIG_RCU_TORTURE_TEST))
 			return -EINVAL; /* In module, can fail back to user. */
 		WARN_ON(1); /* Make sure rcutorture notices conflict. */
@@ -2520,29 +2556,51 @@ static int __init rcu_torture_fwd_prog_init(void)
 		fwd_progress_holdoff = 1;
 	if (fwd_progress_div <= 0)
 		fwd_progress_div = 4;
-	rfp = kzalloc(sizeof(*rfp), GFP_KERNEL);
-	if (!rfp)
+	rfp = kcalloc(fwd_progress, sizeof(*rfp), GFP_KERNEL);
+	fwd_prog_tasks = kcalloc(fwd_progress, sizeof(*fwd_prog_tasks), GFP_KERNEL);
+	if (!rfp || !fwd_prog_tasks) {
+		kfree(rfp);
+		kfree(fwd_prog_tasks);
+		fwd_prog_tasks = NULL;
+		fwd_progress = 0;
 		return -ENOMEM;
-	spin_lock_init(&rfp->rcu_fwd_lock);
-	rfp->rcu_fwd_cb_tail = &rfp->rcu_fwd_cb_head;
+	}
+	for (i = 0; i < fwd_progress; i++) {
+		spin_lock_init(&rfp[i].rcu_fwd_lock);
+		rfp[i].rcu_fwd_cb_tail = &rfp[i].rcu_fwd_cb_head;
+		rfp[i].rcu_fwd_id = i;
+	}
 	mutex_lock(&rcu_fwd_mutex);
 	rcu_fwds = rfp;
 	mutex_unlock(&rcu_fwd_mutex);
 	register_oom_notifier(&rcutorture_oom_nb);
-	return torture_create_kthread(rcu_torture_fwd_prog, rfp, fwd_prog_task);
+	for (i = 0; i < fwd_progress; i++) {
+		ret = torture_create_kthread(rcu_torture_fwd_prog, &rcu_fwds[i], fwd_prog_tasks[i]);
+		if (ret) {
+			fwd_progress = i;
+			return ret;
+		}
+	}
+	return 0;
 }
 
 static void rcu_torture_fwd_prog_cleanup(void)
 {
+	int i;
 	struct rcu_fwd *rfp;
 
-	torture_stop_kthread(rcu_torture_fwd_prog, fwd_prog_task);
-	rfp = rcu_fwds;
+	if (!rcu_fwds || !fwd_prog_tasks)
+		return;
+	for (i = 0; i < fwd_progress; i++)
+		torture_stop_kthread(rcu_torture_fwd_prog, fwd_prog_tasks[i]);
+	unregister_oom_notifier(&rcutorture_oom_nb);
 	mutex_lock(&rcu_fwd_mutex);
+	rfp = rcu_fwds;
 	rcu_fwds = NULL;
 	mutex_unlock(&rcu_fwd_mutex);
-	unregister_oom_notifier(&rcutorture_oom_nb);
 	kfree(rfp);
+	kfree(fwd_prog_tasks);
+	fwd_prog_tasks = NULL;
 }
 
 /* Callback function for RCU barrier testing. */
