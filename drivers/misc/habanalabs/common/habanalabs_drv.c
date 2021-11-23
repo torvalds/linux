@@ -289,8 +289,8 @@ static int fixup_device_params(struct hl_device *hdev)
 	hdev->fw_poll_interval_usec = HL_FW_STATUS_POLL_INTERVAL_USEC;
 
 	hdev->stop_on_err = true;
-	hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
-	hdev->prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
+	hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+	hdev->reset_info.prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
 
 	/* Enable only after the initialization of the device */
 	hdev->disabled = true;

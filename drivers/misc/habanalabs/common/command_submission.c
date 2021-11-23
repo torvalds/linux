@@ -777,7 +777,7 @@ static void cs_timedout(struct work_struct *work)
 		if (hdev->reset_on_lockup)
 			hl_device_reset(hdev, HL_DRV_RESET_TDR);
 		else
-			hdev->needs_reset = true;
+			hdev->reset_info.needs_reset = true;
 	}
 }
 
@@ -814,7 +814,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs->encaps_signals = !!(flags & HL_CS_FLAGS_ENCAP_SIGNALS);
 	cs->timeout_jiffies = timeout;
 	cs->skip_reset_on_timeout =
-		hdev->skip_reset_on_timeout ||
+		hdev->reset_info.skip_reset_on_timeout ||
 		!!(flags & HL_CS_FLAGS_SKIP_RESET_ON_TIMEOUT);
 	cs->submission_time_jiffies = jiffies;
 	INIT_LIST_HEAD(&cs->job_list);

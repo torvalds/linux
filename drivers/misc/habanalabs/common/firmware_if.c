@@ -2371,14 +2371,14 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (rc)
 		goto protocol_err;
 
-	if (hdev->curr_reset_cause) {
+	if (hdev->reset_info.curr_reset_cause) {
 		rc = hl_fw_dynamic_send_msg(hdev, fw_loader,
-				HL_COMMS_RESET_CAUSE_TYPE, &hdev->curr_reset_cause);
+				HL_COMMS_RESET_CAUSE_TYPE, &hdev->reset_info.curr_reset_cause);
 		if (rc)
 			goto protocol_err;
 
 		/* Clear current reset cause */
-		hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+		hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
 	}
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {

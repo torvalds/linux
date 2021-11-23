@@ -269,8 +269,8 @@ static int get_reset_count(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	reset_count.hard_reset_cnt = hdev->hard_reset_cnt;
-	reset_count.soft_reset_cnt = hdev->soft_reset_cnt;
+	reset_count.hard_reset_cnt = hdev->reset_info.hard_reset_cnt;
+	reset_count.soft_reset_cnt = hdev->reset_info.soft_reset_cnt;
 
 	return copy_to_user(out, &reset_count,
 		min((size_t) max_size, sizeof(reset_count))) ? -EFAULT : 0;

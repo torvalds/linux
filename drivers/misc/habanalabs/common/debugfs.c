@@ -527,7 +527,7 @@ static int engines_show(struct seq_file *s, void *data)
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (atomic_read(&hdev->reset_info.in_reset)) {
 		dev_warn_ratelimited(hdev->dev,
 				"Can't check device idle during reset\n");
 		return 0;
@@ -658,7 +658,7 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	ssize_t rc;
 	u32 val;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (atomic_read(&hdev->reset_info.in_reset)) {
 		dev_warn_ratelimited(hdev->dev, "Can't read during reset\n");
 		return 0;
 	}
@@ -694,7 +694,7 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	u32 value;
 	ssize_t rc;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (atomic_read(&hdev->reset_info.in_reset)) {
 		dev_warn_ratelimited(hdev->dev, "Can't write during reset\n");
 		return 0;
 	}
@@ -731,7 +731,7 @@ static ssize_t hl_data_read64(struct file *f, char __user *buf,
 	ssize_t rc;
 	u64 val;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (atomic_read(&hdev->reset_info.in_reset)) {
 		dev_warn_ratelimited(hdev->dev, "Can't read during reset\n");
 		return 0;
 	}
@@ -767,7 +767,7 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	u64 value;
 	ssize_t rc;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (atomic_read(&hdev->reset_info.in_reset)) {
 		dev_warn_ratelimited(hdev->dev, "Can't write during reset\n");
 		return 0;
 	}
@@ -802,7 +802,7 @@ static ssize_t hl_dma_size_write(struct file *f, const char __user *buf,
 	ssize_t rc;
 	u32 size;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (atomic_read(&hdev->reset_info.in_reset)) {
 		dev_warn_ratelimited(hdev->dev, "Can't DMA during reset\n");
 		return 0;
 	}
@@ -1077,7 +1077,7 @@ static ssize_t hl_clk_gate_write(struct file *f, const char __user *buf,
 	u64 value;
 	ssize_t rc;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (atomic_read(&hdev->reset_info.in_reset)) {
 		dev_warn_ratelimited(hdev->dev,
 				"Can't change clock gating during reset\n");
 		return 0;
@@ -1119,7 +1119,7 @@ static ssize_t hl_stop_on_err_write(struct file *f, const char __user *buf,
 	u32 value;
 	ssize_t rc;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (atomic_read(&hdev->reset_info.in_reset)) {
 		dev_warn_ratelimited(hdev->dev,
 				"Can't change stop on error during reset\n");
 		return 0;
@@ -1497,7 +1497,7 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	debugfs_create_x8("skip_reset_on_timeout",
 				0644,
 				dev_entry->root,
-				&hdev->skip_reset_on_timeout);
+				&hdev->reset_info.skip_reset_on_timeout);
 
 	debugfs_create_file("state_dump",
 				0600,

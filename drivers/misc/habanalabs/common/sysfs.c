@@ -211,7 +211,7 @@ static ssize_t soft_reset_store(struct device *dev,
 		goto out;
 	}
 
-	if (!hdev->allow_inference_soft_reset) {
+	if (!hdev->asic_prop.allow_inference_soft_reset) {
 		dev_err(hdev->dev, "Device does not support inference soft-reset\n");
 		goto out;
 	}
@@ -303,7 +303,7 @@ static ssize_t soft_reset_cnt_show(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", hdev->soft_reset_cnt);
+	return sprintf(buf, "%d\n", hdev->reset_info.soft_reset_cnt);
 }
 
 static ssize_t hard_reset_cnt_show(struct device *dev,
@@ -311,7 +311,7 @@ static ssize_t hard_reset_cnt_show(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", hdev->hard_reset_cnt);
+	return sprintf(buf, "%d\n", hdev->reset_info.hard_reset_cnt);
 }
 
 static ssize_t max_power_show(struct device *dev, struct device_attribute *attr,
@@ -478,7 +478,7 @@ int hl_sysfs_init(struct hl_device *hdev)
 		return rc;
 	}
 
-	if (!hdev->allow_inference_soft_reset)
+	if (!hdev->asic_prop.allow_inference_soft_reset)
 		return 0;
 
 	rc = device_add_groups(hdev->dev, hl_dev_inference_attr_groups);
@@ -495,7 +495,7 @@ void hl_sysfs_fini(struct hl_device *hdev)
 {
 	device_remove_groups(hdev->dev, hl_dev_attr_groups);
 
-	if (!hdev->allow_inference_soft_reset)
+	if (!hdev->asic_prop.allow_inference_soft_reset)
 		return;
 
 	device_remove_groups(hdev->dev, hl_dev_inference_attr_groups);

@@ -4325,7 +4325,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset
 		 * In case watchdog hasn't expired but we still got HB, then this won't do any
 		 * damage.
 		 */
-		if (hdev->curr_reset_cause == HL_RESET_CAUSE_HEARTBEAT) {
+		if (hdev->reset_info.curr_reset_cause == HL_RESET_CAUSE_HEARTBEAT) {
 			if (hdev->asic_prop.hard_reset_done_by_fw)
 				hl_fw_ask_hard_reset_without_linux(hdev);
 			else
@@ -6564,7 +6564,7 @@ static u64 gaudi_read_pte(struct hl_device *hdev, u64 addr)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
-	if (hdev->hard_reset_pending)
+	if (hdev->reset_info.hard_reset_pending)
 		return U64_MAX;
 
 	return readq(hdev->pcie_bar[HBM_BAR_ID] +
@@ -6575,7 +6575,7 @@ static void gaudi_write_pte(struct hl_device *hdev, u64 addr, u64 val)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
-	if (hdev->hard_reset_pending)
+	if (hdev->reset_info.hard_reset_pending)
 		return;
 
 	writeq(val, hdev->pcie_bar[HBM_BAR_ID] +
@@ -8341,7 +8341,7 @@ static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	int rc;
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU) ||
-		hdev->hard_reset_pending)
+		hdev->reset_info.hard_reset_pending)
 		return 0;
 
 	if (hdev->pldm)

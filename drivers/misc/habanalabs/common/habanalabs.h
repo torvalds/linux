@@ -547,6 +547,13 @@ struct hl_hints_range {
  *                         false otherwise.
  * @use_get_power_for_reset_history: To support backward compatibility for Goya
  *                                   and Gaudi
+ * @supports_soft_reset: is soft reset supported.
+ * @allow_inference_soft_reset: true if the ASIC supports soft reset that is
+ *                              initiated by user or TDR. This is only true
+ *                              in inference ASICs, as there is no real-world
+ *                              use-case of doing soft-reset in training (due
+ *                              to the fact that training runs on multiple
+ *                              devices)
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -628,6 +635,8 @@ struct asic_fixed_properties {
 	u8				dynamic_fw_load;
 	u8				gic_interrupts_enable;
 	u8				use_get_power_for_reset_history;
+	u8				supports_soft_reset;
+	u8				allow_inference_soft_reset;
 };
 
 /**
@@ -2447,6 +2456,39 @@ struct last_error_session_info {
 };
 
 /**
+ * struct hl_reset_info - holds current device reset information.
+ * @in_reset: is device in reset flow.
+ * @soft_reset_cnt: number of soft reset since the driver was loaded.
+ * @hard_reset_cnt: number of hard reset since the driver was loaded.
+ * @is_in_soft_reset: Device is currently in soft reset process.
+ * @needs_reset: true if reset_on_lockup is false and device should be reset
+ *               due to lockup.
+ * @hard_reset_pending: is there a hard reset work pending.
+ * @curr_reset_cause: saves an enumerated reset cause when a hard reset is
+ *                    triggered, and cleared after it is shared with preboot.
+ * @prev_reset_trigger: saves the previous trigger which caused a reset, overidden
+ *                      with a new value on next reset
+ * @reset_trigger_repeated: set if device reset is triggered more than once with
+ *                          same cause.
+ * @skip_reset_on_timeout: Skip device reset if CS has timed out, wait for it to
+ *                         complete instead.
+ */
+struct hl_reset_info {
+	atomic_t	in_reset;
+	u32		soft_reset_cnt;
+	u32		hard_reset_cnt;
+	u8		is_in_soft_reset;
+	u8		needs_reset;
+	u8		hard_reset_pending;
+
+	u8		curr_reset_cause;
+	u8		prev_reset_trigger;
+	u8		reset_trigger_repeated;
+
+	u8		skip_reset_on_timeout;
+};
+
+/**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
  * @pcie_bar_phys: array of available PCIe bars physical addresses.
@@ -2514,6 +2556,7 @@ struct last_error_session_info {
  * @state_dump_specs: constants and dictionaries needed to dump system state.
  * @multi_cs_completion: array of multi-CS completion.
  * @clk_throttling: holds information about current/previous clock throttling events
+ * @reset_info: holds current device reset information.
  * @last_error: holds information about last session in which CS timeout or razwi error occurred.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @dram_used_mem: current DRAM memory consumption.
@@ -2538,13 +2581,10 @@ struct last_error_session_info {
  *                                  session.
  * @open_counter: number of successful device open operations.
  * @fw_poll_interval_usec: FW status poll interval in usec.
- * @in_reset: is device in reset flow.
  * @card_type: Various ASICs have several card types. This indicates the card
  *             type of the current device.
  * @major: habanalabs kernel driver major.
  * @high_pll: high PLL profile frequency.
- * @soft_reset_cnt: number of soft reset since the driver was loaded.
- * @hard_reset_cnt: number of hard reset since the driver was loaded.
  * @id: device minor.
  * @id_control: minor of the control device
  * @cpu_pci_msb_addr: 50-bit extension bits for the device CPU's 40-bit
@@ -2552,7 +2592,6 @@ struct last_error_session_info {
  * @disabled: is device disabled.
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
- * @hard_reset_pending: is there a hard reset work pending.
  * @heartbeat: is heartbeat sanity check towards CPU-CP enabled.
  * @reset_on_lockup: true if a reset should be done in case of stuck CS, false
  *                   otherwise.
@@ -2575,35 +2614,17 @@ struct last_error_session_info {
  * @sync_stream_queue_idx: helper index for sync stream queues initialization.
  * @collective_mon_idx: helper index for collective initialization
  * @supports_coresight: is CoreSight supported.
- * @supports_soft_reset: is soft reset supported.
- * @allow_inference_soft_reset: true if the ASIC supports soft reset that is
- *                              initiated by user or TDR. This is only true
- *                              in inference ASICs, as there is no real-world
- *                              use-case of doing soft-reset in training (due
- *                              to the fact that training runs on multiple
- *                              devices)
  * @supports_cb_mapping: is mapping a CB to the device's MMU supported.
- * @needs_reset: true if reset_on_lockup is false and device should be reset
- *               due to lockup.
  * @process_kill_trial_cnt: number of trials reset thread tried killing
  *                          user processes
  * @device_fini_pending: true if device_fini was called and might be
  *                       waiting for the reset thread to finish
  * @supports_staged_submission: true if staged submissions are supported
- * @curr_reset_cause: saves an enumerated reset cause when a hard reset is
- *                    triggered, and cleared after it is shared with preboot.
- * @prev_reset_trigger: saves the previous trigger which caused a reset, overidden
- *                      with a new value on next reset
- * @reset_trigger_repeated: set if device reset is triggered more than once with
- *                          same cause.
- * @skip_reset_on_timeout: Skip device reset if CS has timed out, wait for it to
- *                         complete instead.
  * @device_cpu_is_halted: Flag to indicate whether the device CPU was already
  *                        halted. We can't halt it again because the COMMS
  *                        protocol will throw an error. Relevant only for
  *                        cases where Linux was not loaded to device CPU
  * @supports_wait_for_multi_cs: true if wait for multi CS is supported
- * @is_in_soft_reset: Device is currently in soft reset process.
  * @is_compute_ctx_active: Whether there is an active compute context executing.
  */
 struct hl_device {
@@ -2678,6 +2699,8 @@ struct hl_device {
 	struct hl_clk_throttle		clk_throttling;
 	struct last_error_session_info	last_error;
 
+	struct hl_reset_info		reset_info;
+
 	u32				*stream_master_qid_arr;
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
@@ -2689,20 +2712,16 @@ struct hl_device {
 	u64				last_open_session_duration_jif;
 	u64				open_counter;
 	u64				fw_poll_interval_usec;
-	atomic_t			in_reset;
 	ktime_t				last_successful_open_ktime;
 	enum cpucp_card_types		card_type;
 	u32				major;
 	u32				high_pll;
-	u32				soft_reset_cnt;
-	u32				hard_reset_cnt;
 	u16				id;
 	u16				id_control;
 	u16				cpu_pci_msb_addr;
 	u8				disabled;
 	u8				late_init_done;
 	u8				hwmon_initialized;
-	u8				hard_reset_pending;
 	u8				heartbeat;
 	u8				reset_on_lockup;
 	u8				dram_default_page_mapping;
@@ -2719,21 +2738,13 @@ struct hl_device {
 	u8				sync_stream_queue_idx;
 	u8				collective_mon_idx;
 	u8				supports_coresight;
-	u8				supports_soft_reset;
-	u8				allow_inference_soft_reset;
 	u8				supports_cb_mapping;
-	u8				needs_reset;
 	u8				process_kill_trial_cnt;
 	u8				device_fini_pending;
 	u8				supports_staged_submission;
-	u8				curr_reset_cause;
-	u8				prev_reset_trigger;
-	u8				reset_trigger_repeated;
-	u8				skip_reset_on_timeout;
 	u8				device_cpu_is_halted;
 	u8				supports_wait_for_multi_cs;
 	u8				stream_master_qid_arr_size;
-	u8				is_in_soft_reset;
 	u8				is_compute_ctx_active;
 
 	/* Parameters for bring-up */
