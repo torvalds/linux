@@ -1636,15 +1636,10 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 		   u64 offset, int bitmap_only, int fuzzy)
 {
 	struct rb_node *n = ctl->free_space_offset.rb_node;
-	struct btrfs_free_space *entry, *prev = NULL;
+	struct btrfs_free_space *entry = NULL, *prev = NULL;
 
 	/* find entry that is closest to the 'offset' */
-	while (1) {
-		if (!n) {
-			entry = NULL;
-			break;
-		}
-
+	while (n) {
 		entry = rb_entry(n, struct btrfs_free_space, offset_index);
 		prev = entry;
 
@@ -1654,6 +1649,8 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 			n = n->rb_right;
 		else
 			break;
+
+		entry = NULL;
 	}
 
 	if (bitmap_only) {
