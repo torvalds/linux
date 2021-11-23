@@ -134,11 +134,10 @@ struct rkisp_stream_dmarx {
 struct stream_config {
 	const struct capture_fmt *fmts;
 	int fmt_size;
-	/* constrains */
-	const int max_rsz_width;
-	const int max_rsz_height;
-	const int min_rsz_width;
-	const int min_rsz_height;
+	int max_rsz_width;
+	int max_rsz_height;
+	int min_rsz_width;
+	int min_rsz_height;
 	const int frame_end_id;
 	/* registers */
 	struct {

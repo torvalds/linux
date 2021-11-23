@@ -890,8 +890,8 @@ static void restrict_rsz_resolution(struct rkisp_device *dev,
 	struct v4l2_rect *input_win;
 
 	input_win = rkisp_get_isp_sd_win(&dev->isp_sdev);
-	max_rsz->width = max_t(int, input_win->width, config->max_rsz_width);
-	max_rsz->height = max_t(int, input_win->height, config->max_rsz_height);
+	max_rsz->width = min_t(int, input_win->width, config->max_rsz_width);
+	max_rsz->height = min_t(int, input_win->height, config->max_rsz_height);
 }
 
 static int rkisp_set_fmt(struct rkisp_stream *stream,
@@ -1631,20 +1631,35 @@ unreg:
 int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 {
 	struct rkisp_capture_device *cap_dev = &dev->cap_dev;
+	struct stream_config *mp_cfg = &rkisp_mp_stream_config;
 	int ret = 0;
 
 	memset(cap_dev, 0, sizeof(*cap_dev));
 	cap_dev->ispdev = dev;
 	atomic_set(&cap_dev->refcnt, 0);
 
-	if (dev->isp_ver <= ISP_V13)
+	if (dev->isp_ver <= ISP_V13) {
+		if (dev->isp_ver == ISP_V12) {
+			mp_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V12;
+			mp_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V12;
+		} else if (dev->isp_ver == ISP_V13) {
+			mp_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V13;
+			mp_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V13;
+		}
 		ret = rkisp_register_stream_v1x(dev);
-	else if (dev->isp_ver == ISP_V20)
+	} else if (dev->isp_ver == ISP_V20) {
 		ret = rkisp_register_stream_v20(dev);
-	else if (dev->isp_ver == ISP_V21)
+	} else if (dev->isp_ver == ISP_V21) {
+		mp_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V21;
+		mp_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V21;
 		ret = rkisp_register_stream_v21(dev);
-	else if (dev->isp_ver == ISP_V30)
+	} else if (dev->isp_ver == ISP_V30) {
+		mp_cfg->max_rsz_width = dev->hw_dev->is_unite ?
+					CIF_ISP_INPUT_W_MAX_V30_UNITE : CIF_ISP_INPUT_W_MAX_V30;
+		mp_cfg->max_rsz_height = dev->hw_dev->is_unite ?
+					 CIF_ISP_INPUT_H_MAX_V30_UNITE : CIF_ISP_INPUT_H_MAX_V30;
 		ret = rkisp_register_stream_v30(dev);
+	}
 	return ret;
 }
 
