@@ -294,6 +294,41 @@ static void test_sev_mirror_parameters(void)
 	kvm_vm_free(vm_no_vcpu);
 }
 
+static void test_sev_move_copy(void)
+{
+	struct kvm_vm *dst_vm, *sev_vm, *mirror_vm, *dst_mirror_vm;
+	int ret;
+
+	sev_vm = sev_vm_create(/* es= */ false);
+	dst_vm = aux_vm_create(true);
+	mirror_vm = aux_vm_create(false);
+	dst_mirror_vm = aux_vm_create(false);
+
+	sev_mirror_create(mirror_vm->fd, sev_vm->fd);
+	ret = __sev_migrate_from(dst_vm->fd, sev_vm->fd);
+	TEST_ASSERT(ret == -1 && errno == EBUSY,
+		    "Cannot migrate VM that has mirrors. ret %d, errno: %d\n", ret,
+		    errno);
+
+	/* The mirror itself can be migrated.  */
+	sev_migrate_from(dst_mirror_vm->fd, mirror_vm->fd);
+	ret = __sev_migrate_from(dst_vm->fd, sev_vm->fd);
+	TEST_ASSERT(ret == -1 && errno == EBUSY,
+		    "Cannot migrate VM that has mirrors. ret %d, errno: %d\n", ret,
+		    errno);
+
+	/*
+	 * mirror_vm is not a mirror anymore, dst_mirror_vm is.  Thus,
+	 * the owner can be copied as soon as dst_mirror_vm is gone.
+	 */
+	kvm_vm_free(dst_mirror_vm);
+	sev_migrate_from(dst_vm->fd, sev_vm->fd);
+
+	kvm_vm_free(mirror_vm);
+	kvm_vm_free(dst_vm);
+	kvm_vm_free(sev_vm);
+}
+
 int main(int argc, char *argv[])
 {
 	if (kvm_check_cap(KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM)) {
@@ -301,6 +336,8 @@ int main(int argc, char *argv[])
 		test_sev_migrate_from(/* es= */ true);
 		test_sev_migrate_locking();
 		test_sev_migrate_parameters();
+		if (kvm_check_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM))
+			test_sev_move_copy();
 	}
 	if (kvm_check_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM)) {
 		test_sev_mirror(/* es= */ false);

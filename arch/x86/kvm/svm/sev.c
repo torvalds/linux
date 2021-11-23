@@ -1696,6 +1696,16 @@ int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd)
 	}
 
 	src_sev = &to_kvm_svm(source_kvm)->sev_info;
+
+	/*
+	 * VMs mirroring src's encryption context rely on it to keep the
+	 * ASID allocated, but below we are clearing src_sev->asid.
+	 */
+	if (src_sev->num_mirrored_vms) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
 	dst_sev->misc_cg = get_current_misc_cg();
 	cg_cleanup_sev = dst_sev;
 	if (dst_sev->misc_cg != src_sev->misc_cg) {
@@ -1987,6 +1997,7 @@ int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd)
 	 */
 	source_sev = &to_kvm_svm(source_kvm)->sev_info;
 	kvm_get_kvm(source_kvm);
+	source_sev->num_mirrored_vms++;
 
 	/* Set enc_context_owner and copy its encryption context over */
 	mirror_sev = &to_kvm_svm(kvm)->sev_info;
@@ -2019,12 +2030,21 @@ void sev_vm_destroy(struct kvm *kvm)
 	struct list_head *head = &sev->regions_list;
 	struct list_head *pos, *q;
 
+	WARN_ON(sev->num_mirrored_vms);
+
 	if (!sev_guest(kvm))
 		return;
 
 	/* If this is a mirror_kvm release the enc_context_owner and skip sev cleanup */
 	if (is_mirroring_enc_context(kvm)) {
-		kvm_put_kvm(sev->enc_context_owner);
+		struct kvm *owner_kvm = sev->enc_context_owner;
+		struct kvm_sev_info *owner_sev = &to_kvm_svm(owner_kvm)->sev_info;
+
+		mutex_lock(&owner_kvm->lock);
+		if (!WARN_ON(!owner_sev->num_mirrored_vms))
+			owner_sev->num_mirrored_vms--;
+		mutex_unlock(&owner_kvm->lock);
+		kvm_put_kvm(owner_kvm);
 		return;
 	}
 
