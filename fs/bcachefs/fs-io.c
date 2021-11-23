@@ -425,6 +425,108 @@ static void bch2_bio_page_state_set(struct bio *bio, struct bkey_s_c k)
 				      bv.bv_len >> 9, nr_ptrs, state);
 }
 
+static void mark_pagecache_unallocated(struct bch_inode_info *inode,
+				       u64 start, u64 end)
+{
+	pgoff_t index = start >> PAGE_SECTORS_SHIFT;
+	pgoff_t end_index = (end - 1) >> PAGE_SECTORS_SHIFT;
+	struct folio_batch fbatch;
+	unsigned i, j;
+
+	if (end <= start)
+		return;
+
+	folio_batch_init(&fbatch);
+
+	while (filemap_get_folios(inode->v.i_mapping,
+				  &index, end_index, &fbatch)) {
+		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+			struct folio *folio = fbatch.folios[i];
+			u64 pg_start = folio->index << PAGE_SECTORS_SHIFT;
+			u64 pg_end = (folio->index + 1) << PAGE_SECTORS_SHIFT;
+			unsigned pg_offset = max(start, pg_start) - pg_start;
+			unsigned pg_len = min(end, pg_end) - pg_offset - pg_start;
+			struct bch_page_state *s;
+
+			BUG_ON(end <= pg_start);
+			BUG_ON(pg_offset >= PAGE_SECTORS);
+			BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
+
+			folio_lock(folio);
+			s = bch2_page_state(&folio->page);
+
+			if (s) {
+				spin_lock(&s->lock);
+				for (j = pg_offset; j < pg_offset + pg_len; j++)
+					s->s[j].nr_replicas = 0;
+				spin_unlock(&s->lock);
+			}
+
+			folio_unlock(folio);
+		}
+		folio_batch_release(&fbatch);
+		cond_resched();
+	}
+}
+
+static void mark_pagecache_reserved(struct bch_inode_info *inode,
+				    u64 start, u64 end)
+{
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	pgoff_t index = start >> PAGE_SECTORS_SHIFT;
+	pgoff_t end_index = (end - 1) >> PAGE_SECTORS_SHIFT;
+	struct folio_batch fbatch;
+	s64 i_sectors_delta = 0;
+	unsigned i, j;
+
+	if (end <= start)
+		return;
+
+	folio_batch_init(&fbatch);
+
+	while (filemap_get_folios(inode->v.i_mapping,
+				  &index, end_index, &fbatch)) {
+		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+			struct folio *folio = fbatch.folios[i];
+			u64 pg_start = folio->index << PAGE_SECTORS_SHIFT;
+			u64 pg_end = (folio->index + 1) << PAGE_SECTORS_SHIFT;
+			unsigned pg_offset = max(start, pg_start) - pg_start;
+			unsigned pg_len = min(end, pg_end) - pg_offset - pg_start;
+			struct bch_page_state *s;
+
+			BUG_ON(end <= pg_start);
+			BUG_ON(pg_offset >= PAGE_SECTORS);
+			BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
+
+			folio_lock(folio);
+			s = bch2_page_state(&folio->page);
+
+			if (s) {
+				spin_lock(&s->lock);
+				for (j = pg_offset; j < pg_offset + pg_len; j++)
+					switch (s->s[j].state) {
+					case SECTOR_UNALLOCATED:
+						s->s[j].state = SECTOR_RESERVED;
+						break;
+					case SECTOR_DIRTY:
+						s->s[j].state = SECTOR_DIRTY_RESERVED;
+						i_sectors_delta--;
+						break;
+					default:
+						break;
+					}
+				spin_unlock(&s->lock);
+			}
+
+			folio_unlock(folio);
+		}
+		folio_batch_release(&fbatch);
+		cond_resched();
+	}
+
+	i_sectors_acct(c, inode, NULL, i_sectors_delta);
+}
+
 static inline unsigned inode_nr_replicas(struct bch_fs *c, struct bch_inode_info *inode)
 {
 	/* XXX: this should not be open coded */
@@ -580,8 +682,7 @@ static void bch2_clear_page_bits(struct page *page)
 
 	bch2_disk_reservation_put(c, &disk_res);
 
-	if (dirty_sectors)
-		i_sectors_acct(c, inode, NULL, dirty_sectors);
+	i_sectors_acct(c, inode, NULL, dirty_sectors);
 
 	bch2_page_state_release(page);
 }
@@ -629,8 +730,7 @@ static void bch2_set_page_dirty(struct bch_fs *c,
 
 	spin_unlock(&s->lock);
 
-	if (dirty_sectors)
-		i_sectors_acct(c, inode, &res->quota, dirty_sectors);
+	i_sectors_acct(c, inode, &res->quota, dirty_sectors);
 
 	if (!PageDirty(page))
 		filemap_dirty_folio(inode->v.i_mapping, page_folio(page));
@@ -2599,6 +2699,8 @@ int bch2_truncate(struct mnt_idmap *idmap,
 			U64_MAX, &i_sectors_delta);
 	i_sectors_acct(c, inode, NULL, i_sectors_delta);
 
+	BUG_ON(!inode->v.i_size && inode->v.i_blocks);
+
 	if (unlikely(ret))
 		goto err;
 
@@ -2939,6 +3041,9 @@ bkey_err:
 			ret = 0;
 	}
 
+	bch2_trans_unlock(&trans); /* lock ordering, before taking pagecache locks: */
+	mark_pagecache_reserved(inode, start_sector, iter.pos.offset);
+
 	if (ret == -ENOSPC && (mode & FALLOC_FL_ZERO_RANGE)) {
 		struct quota_res quota_res = { 0 };
 		s64 i_sectors_delta = 0;
@@ -3044,39 +3149,6 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	return ret;
 }
 
-static void mark_range_unallocated(struct bch_inode_info *inode,
-				   loff_t start, loff_t end)
-{
-	pgoff_t index = start >> PAGE_SHIFT;
-	pgoff_t end_index = (end - 1) >> PAGE_SHIFT;
-	struct folio_batch fbatch;
-	unsigned i, j;
-
-	folio_batch_init(&fbatch);
-
-	while (filemap_get_folios(inode->v.i_mapping,
-				  &index, end_index, &fbatch)) {
-		for (i = 0; i < folio_batch_count(&fbatch); i++) {
-			struct folio *folio = fbatch.folios[i];
-			struct bch_page_state *s;
-
-			folio_lock(folio);
-			s = bch2_page_state(&folio->page);
-
-			if (s) {
-				spin_lock(&s->lock);
-				for (j = 0; j < PAGE_SECTORS; j++)
-					s->s[j].nr_replicas = 0;
-				spin_unlock(&s->lock);
-			}
-
-			folio_unlock(folio);
-		}
-		folio_batch_release(&fbatch);
-		cond_resched();
-	}
-}
-
 loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 			     struct file *file_dst, loff_t pos_dst,
 			     loff_t len, unsigned remap_flags)
@@ -3122,7 +3194,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	if (ret)
 		goto err;
 
-	mark_range_unallocated(src, pos_src, pos_src + aligned_len);
+	mark_pagecache_unallocated(src, pos_src >> 9,
+				   (pos_src + aligned_len) >> 9);
 
 	ret = bch2_remap_range(c,
 			       inode_inum(dst), pos_dst >> 9,
