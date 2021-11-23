@@ -92,8 +92,6 @@ enum ec_command {
 
 enum {
 	EC_FLAGS_QUERY_ENABLED,		/* Query is enabled */
-	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
-	EC_FLAGS_QUERY_GUARDING,	/* Guard for SCI_EVT check */
 	EC_FLAGS_EVENT_HANDLER_INSTALLED,	/* Event handler installed */
 	EC_FLAGS_EC_HANDLER_INSTALLED,	/* OpReg handler installed */
 	EC_FLAGS_QUERY_METHODS_INSTALLED, /* _Qxx handlers installed */
@@ -450,9 +448,11 @@ static bool acpi_ec_submit_event(struct acpi_ec *ec)
 	if (!acpi_ec_event_enabled(ec))
 		return false;
 
-	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
+	if (ec->event_state == EC_EVENT_READY) {
 		ec_dbg_evt("Command(%s) submitted/blocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
+
+		ec->event_state = EC_EVENT_IN_PROGRESS;
 		/*
 		 * If events_to_process is greqter than 0 at this point, the
 		 * while () loop in acpi_ec_event_handler() is still running
@@ -474,11 +474,19 @@ static bool acpi_ec_submit_event(struct acpi_ec *ec)
 	return true;
 }
 
+static void acpi_ec_complete_event(struct acpi_ec *ec)
+{
+	if (ec->event_state == EC_EVENT_IN_PROGRESS)
+		ec->event_state = EC_EVENT_COMPLETE;
+}
+
 static void acpi_ec_close_event(struct acpi_ec *ec)
 {
-	if (test_and_clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
+	if (ec->event_state != EC_EVENT_READY)
 		ec_dbg_evt("Command(%s) unblocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
+
+	ec->event_state = EC_EVENT_READY;
 	acpi_ec_unmask_events(ec);
 }
 
@@ -565,8 +573,8 @@ void acpi_ec_flush_work(void)
 
 static bool acpi_ec_guard_event(struct acpi_ec *ec)
 {
-	bool guarded = true;
 	unsigned long flags;
+	bool guarded;
 
 	spin_lock_irqsave(&ec->lock, flags);
 	/*
@@ -575,19 +583,15 @@ static bool acpi_ec_guard_event(struct acpi_ec *ec)
 	 * evaluating _Qxx, so we need to re-check SCI_EVT after waiting an
 	 * acceptable period.
 	 *
-	 * The guarding period begins when EC_FLAGS_QUERY_PENDING is
-	 * flagged, which means SCI_EVT check has just been performed.
-	 * But if the current transaction is ACPI_EC_COMMAND_QUERY, the
-	 * guarding should have already been performed (via
-	 * EC_FLAGS_QUERY_GUARDING) and should not be applied so that the
-	 * ACPI_EC_COMMAND_QUERY transaction can be transitioned into
-	 * ACPI_EC_COMMAND_POLL state immediately.
+	 * The guarding period is applicable if the event state is not
+	 * EC_EVENT_READY, but otherwise if the current transaction is of the
+	 * ACPI_EC_COMMAND_QUERY type, the guarding should have elapsed already
+	 * and it should not be applied to let the transaction transition into
+	 * the ACPI_EC_COMMAND_POLL state immediately.
 	 */
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
-	    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY ||
-	    !test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags) ||
-	    (ec->curr && ec->curr->command == ACPI_EC_COMMAND_QUERY))
-		guarded = false;
+	guarded = ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
+		ec->event_state != EC_EVENT_READY &&
+		(!ec->curr || ec->curr->command != ACPI_EC_COMMAND_QUERY);
 	spin_unlock_irqrestore(&ec->lock, flags);
 	return guarded;
 }
@@ -619,16 +623,26 @@ static int ec_transaction_completed(struct acpi_ec *ec)
 static inline void ec_transaction_transition(struct acpi_ec *ec, unsigned long flag)
 {
 	ec->curr->flags |= flag;
-	if (ec->curr->command == ACPI_EC_COMMAND_QUERY) {
-		if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS &&
-		    flag == ACPI_EC_COMMAND_POLL)
+
+	if (ec->curr->command != ACPI_EC_COMMAND_QUERY)
+		return;
+
+	switch (ec_event_clearing) {
+	case ACPI_EC_EVT_TIMING_STATUS:
+		if (flag == ACPI_EC_COMMAND_POLL)
 			acpi_ec_close_event(ec);
-		if (ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY &&
-		    flag == ACPI_EC_COMMAND_COMPLETE)
+
+		return;
+
+	case ACPI_EC_EVT_TIMING_QUERY:
+		if (flag == ACPI_EC_COMMAND_COMPLETE)
 			acpi_ec_close_event(ec);
-		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
-		    flag == ACPI_EC_COMMAND_COMPLETE)
-			set_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
+
+		return;
+
+	case ACPI_EC_EVT_TIMING_EVENT:
+		if (flag == ACPI_EC_COMMAND_COMPLETE)
+			acpi_ec_complete_event(ec);
 	}
 }
 
@@ -674,11 +688,9 @@ static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
 	 */
 	if (!t || !(t->flags & ACPI_EC_COMMAND_POLL)) {
 		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
-		    (!ec->events_to_process ||
-		     test_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags))) {
-			clear_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
+		    ec->event_state == EC_EVENT_COMPLETE)
 			acpi_ec_close_event(ec);
-		}
+
 		if (!t)
 			goto out;
 	}
@@ -1246,8 +1258,9 @@ static void acpi_ec_event_handler(struct work_struct *work)
 	 * event handling work again regardless of whether or not the query
 	 * queued up above is processed successfully.
 	 */
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
-	    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY)
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT)
+		acpi_ec_complete_event(ec);
+	else
 		acpi_ec_close_event(ec);
 
 	spin_unlock_irq(&ec->lock);
