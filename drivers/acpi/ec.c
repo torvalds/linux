@@ -1215,24 +1215,6 @@ err_exit:
 	return result;
 }
 
-static void acpi_ec_check_event(struct acpi_ec *ec)
-{
-	unsigned long flags;
-
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT) {
-		if (ec_guard(ec)) {
-			spin_lock_irqsave(&ec->lock, flags);
-			/*
-			 * Take care of the SCI_EVT unless no one else is
-			 * taking care of it.
-			 */
-			if (!ec->curr)
-				advance_transaction(ec, false);
-			spin_unlock_irqrestore(&ec->lock, flags);
-		}
-	}
-}
-
 static void acpi_ec_event_handler(struct work_struct *work)
 {
 	unsigned long flags;
@@ -1264,7 +1246,15 @@ static void acpi_ec_event_handler(struct work_struct *work)
 
 	ec_dbg_evt("Event stopped");
 
-	acpi_ec_check_event(ec);
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT && ec_guard(ec)) {
+		spin_lock_irqsave(&ec->lock, flags);
+
+		/* Take care of SCI_EVT unless someone else is doing that. */
+		if (!ec->curr)
+			advance_transaction(ec, false);
+
+		spin_unlock_irqrestore(&ec->lock, flags);
+	}
 
 	spin_lock_irqsave(&ec->lock, flags);
 	ec->events_in_progress--;
