@@ -91,7 +91,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 }
 
 /**
- * i915_gem_object_fini - Clean up a GEM object initialization
+ * __i915_gem_object_fini - Clean up a GEM object initialization
  * @obj: The gem object to cleanup
  *
  * This function cleans up gem object fields that are set up by
@@ -107,7 +107,8 @@ void __i915_gem_object_fini(struct drm_i915_gem_object *obj)
 }
 
 /**
- * Mark up the object's coherency levels for a given cache_level
+ * i915_gem_object_set_cache_coherency - Mark up the object's coherency levels
+ * for a given cache_level
  * @obj: #drm_i915_gem_object
  * @cache_level: cache level
  */
@@ -450,7 +451,7 @@ i915_gem_object_read_from_page_iomap(struct drm_i915_gem_object *obj, u64 offset
  * from can't cross a page boundary. The caller must ensure that @obj pages
  * are pinned and that @obj is synced wrt. any related writes.
  *
- * Returns 0 on success or -ENODEV if the type of @obj's backing store is
+ * Return: %0 on success or -ENODEV if the type of @obj's backing store is
  * unsupported.
  */
 int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size)
