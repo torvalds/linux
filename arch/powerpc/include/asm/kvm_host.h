@@ -580,6 +580,9 @@ struct kvm_vcpu_arch {
 	ulong ppr;
 	u32 pspb;
 	u8 load_ebb;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	u8 load_tm;
+#endif
 	ulong fscr;
 	ulong shadow_fscr;
 	ulong ebbhr;
