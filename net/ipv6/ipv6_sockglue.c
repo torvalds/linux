@@ -603,7 +603,10 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			val &= ~INET_ECN_MASK;
 			val |= np->tclass & INET_ECN_MASK;
 		}
-		np->tclass = val;
+		if (np->tclass != val) {
+			np->tclass = val;
+			sk_dst_reset(sk);
+		}
 		retv = 0;
 		break;
 
