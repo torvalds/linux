@@ -3511,7 +3511,7 @@ ath11k_wmi_obss_color_collision_event(struct ath11k_base *ab, struct sk_buff *sk
 	case WMI_BSS_COLOR_FREE_SLOT_AVAILABLE:
 		break;
 	default:
-		ath11k_warn(ab, "received unknown obss color collision detetction event\n");
+		ath11k_warn(ab, "received unknown obss color collision detection event\n");
 	}
 
 exit:
