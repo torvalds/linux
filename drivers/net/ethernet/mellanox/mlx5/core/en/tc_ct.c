@@ -18,6 +18,7 @@
 
 #include "lib/fs_chains.h"
 #include "en/tc_ct.h"
+#include "en/tc/ct_fs.h"
 #include "en/tc_priv.h"
 #include "en/mod_hdr.h"
 #include "en/mapping.h"
@@ -63,6 +64,8 @@ struct mlx5_tc_ct_priv {
 	struct mapping_ctx *labels_mapping;
 	enum mlx5_flow_namespace_type ns_type;
 	struct mlx5_fs_chains *chains;
+	struct mlx5_ct_fs *fs;
+	struct mlx5_ct_fs_ops *fs_ops;
 	spinlock_t ht_lock; /* protects ft entries */
 };
 
@@ -74,7 +77,7 @@ struct mlx5_ct_flow {
 };
 
 struct mlx5_ct_zone_rule {
-	struct mlx5_flow_handle *rule;
+	struct mlx5_ct_fs_rule *rule;
 	struct mlx5e_mod_hdr_handle *mh;
 	struct mlx5_flow_attr *attr;
 	bool nat;
@@ -505,7 +508,7 @@ mlx5_tc_ct_entry_del_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 	ct_dbg("Deleting ct entry rule in zone %d", entry->tuple.zone);
 
-	mlx5_tc_rule_delete(netdev_priv(ct_priv->netdev), zone_rule->rule, attr);
+	ct_priv->fs_ops->ct_rule_del(ct_priv->fs, zone_rule->rule);
 	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, zone_rule->attr, zone_rule->mh);
 	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 	kfree(attr);
@@ -816,7 +819,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	mlx5_tc_ct_set_tuple_match(ct_priv, spec, flow_rule);
 	mlx5e_tc_match_to_reg_match(spec, ZONE_TO_REG, entry->tuple.zone, MLX5_CT_ZONE_MASK);
 
-	zone_rule->rule = mlx5_tc_rule_insert(priv, spec, attr);
+	zone_rule->rule = ct_priv->fs_ops->ct_rule_add(ct_priv->fs, spec, attr);
 	if (IS_ERR(zone_rule->rule)) {
 		err = PTR_ERR(zone_rule->rule);
 		ct_dbg("Failed to add ct entry rule, nat: %d", nat);
@@ -1961,6 +1964,22 @@ mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *priv,
 }
 
 static int
+mlx5_tc_ct_fs_init(struct mlx5_tc_ct_priv *ct_priv)
+{
+	struct mlx5_ct_fs_ops *fs_ops = mlx5_ct_fs_dmfs_ops_get();
+
+	ct_priv->fs = kzalloc(sizeof(*ct_priv->fs), GFP_KERNEL);
+	if (!ct_priv->fs)
+		return -ENOMEM;
+
+	ct_priv->fs->netdev = ct_priv->netdev;
+	ct_priv->fs->dev = ct_priv->dev;
+	ct_priv->fs_ops = fs_ops;
+
+	return 0;
+}
+
+static int
 mlx5_tc_ct_init_check_esw_support(struct mlx5_eswitch *esw,
 				  const char **err_msg)
 {
@@ -2098,8 +2117,14 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 	if (rhashtable_init(&ct_priv->ct_tuples_nat_ht, &tuples_nat_ht_params))
 		goto err_ct_tuples_nat_ht;
 
+	err = mlx5_tc_ct_fs_init(ct_priv);
+	if (err)
+		goto err_init_fs;
+
 	return ct_priv;
 
+err_init_fs:
+	rhashtable_destroy(&ct_priv->ct_tuples_nat_ht);
 err_ct_tuples_nat_ht:
 	rhashtable_destroy(&ct_priv->ct_tuples_ht);
 err_ct_tuples_ht:
@@ -2129,6 +2154,8 @@ mlx5_tc_ct_clean(struct mlx5_tc_ct_priv *ct_priv)
 		return;
 
 	chains = ct_priv->chains;
+
+	kfree(ct_priv->fs);
 
 	mlx5_chains_destroy_global_table(chains, ct_priv->ct_nat);
 	mlx5_chains_destroy_global_table(chains, ct_priv->ct);
