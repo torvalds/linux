@@ -102,7 +102,7 @@ device. All fields are optional.
 	u8 dma_burst_size;
 	u32 timeout;
 	u8 enable_loopback;
-	void (*cs_control)(u32 command);
+	int gpio_cs;
   };
 
 The "pxa2xx_spi_chip.tx_threshold" and "pxa2xx_spi_chip.rx_threshold" fields are
@@ -133,11 +133,6 @@ into internal loopback mode.  In this mode the SSP controller internally
 connects the SSPTX pin to the SSPRX pin.  This is useful for initial setup
 testing.
 
-The "pxa2xx_spi_chip.cs_control" field is used to point to a board specific
-function for asserting/deasserting a slave device chip select.  If the field is
-NULL, the pxa2xx_spi master controller driver assumes that the SSP port is
-configured to use GPIO or SSPFRM instead.
-
 NOTE: the SPI driver cannot control the chip select if SSPFRM is used, so the
 chipselect is dropped after each spi_transfer.  Most devices need chip select
 asserted around the complete message. Use SSPFRM as a GPIO (through a descriptor)
@@ -152,30 +147,12 @@ field. Below is a sample configuration using the PXA255 NSSP.
 
 ::
 
-  /* Chip Select control for the CS8415A SPI slave device */
-  static void cs8415a_cs_control(u32 command)
-  {
-	if (command & PXA2XX_CS_ASSERT)
-		GPCR(2) = GPIO_bit(2);
-	else
-		GPSR(2) = GPIO_bit(2);
-  }
-
-  /* Chip Select control for the CS8405A SPI slave device */
-  static void cs8405a_cs_control(u32 command)
-  {
-	if (command & PXA2XX_CS_ASSERT)
-		GPCR(3) = GPIO_bit(3);
-	else
-		GPSR(3) = GPIO_bit(3);
-  }
-
   static struct pxa2xx_spi_chip cs8415a_chip_info = {
 	.tx_threshold = 8, /* SSP hardward FIFO threshold */
 	.rx_threshold = 8, /* SSP hardward FIFO threshold */
 	.dma_burst_size = 8, /* Byte wide transfers used so 8 byte bursts */
 	.timeout = 235, /* See Intel documentation */
-	.cs_control = cs8415a_cs_control, /* Use external chip select */
+	.gpio_cs = 2, /* Use external chip select */
   };
 
   static struct pxa2xx_spi_chip cs8405a_chip_info = {
@@ -183,7 +160,7 @@ field. Below is a sample configuration using the PXA255 NSSP.
 	.rx_threshold = 8, /* SSP hardward FIFO threshold */
 	.dma_burst_size = 8, /* Byte wide transfers used so 8 byte bursts */
 	.timeout = 235, /* See Intel documentation */
-	.cs_control = cs8405a_cs_control, /* Use external chip select */
+	.gpio_cs = 3, /* Use external chip select */
   };
 
   static struct spi_board_info streetracer_spi_board_info[] __initdata = {

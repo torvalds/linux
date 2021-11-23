@@ -427,17 +427,11 @@ static void lpss_ssp_cs_control(struct spi_device *spi, bool enable)
 
 static void cs_assert(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata(spi);
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 
 	if (drv_data->ssp_type == CE4100_SSP) {
 		pxa2xx_spi_write(drv_data, SSSR, spi->chip_select);
-		return;
-	}
-
-	if (chip->cs_control) {
-		chip->cs_control(PXA2XX_CS_ASSERT);
 		return;
 	}
 
@@ -447,7 +441,6 @@ static void cs_assert(struct spi_device *spi)
 
 static void cs_deassert(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata(spi);
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 	unsigned long timeout;
@@ -460,11 +453,6 @@ static void cs_deassert(struct spi_device *spi)
 	while (pxa2xx_spi_read(drv_data, SSSR) & SSSR_BSY &&
 	       !time_after(jiffies, timeout))
 		cpu_relax();
-
-	if (chip->cs_control) {
-		chip->cs_control(PXA2XX_CS_DEASSERT);
-		return;
-	}
 
 	if (is_lpss_ssp(drv_data))
 		lpss_ssp_cs_control(spi, false);
@@ -1203,12 +1191,6 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 	 * different chip_info, release previously requested GPIO.
 	 */
 	cleanup_cs(spi);
-
-	/* If ->cs_control() is provided, ignore GPIO chip select */
-	if (chip_info->cs_control) {
-		chip->cs_control = chip_info->cs_control;
-		return 0;
-	}
 
 	if (gpio_is_valid(chip_info->gpio_cs)) {
 		int gpio = chip_info->gpio_cs;
