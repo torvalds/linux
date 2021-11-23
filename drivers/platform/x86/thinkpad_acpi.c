@@ -2960,6 +2960,8 @@ static struct attribute *hotkey_attributes[] = {
 	&dev_attr_hotkey_all_mask.attr,
 	&dev_attr_hotkey_adaptive_all_mask.attr,
 	&dev_attr_hotkey_recommended_mask.attr,
+	&dev_attr_hotkey_tablet_mode.attr,
+	&dev_attr_hotkey_radio_sw.attr,
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 	&dev_attr_hotkey_source_mask.attr,
 	&dev_attr_hotkey_poll_freq.attr,
