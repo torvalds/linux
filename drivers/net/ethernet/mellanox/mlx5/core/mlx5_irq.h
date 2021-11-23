@@ -31,4 +31,15 @@ int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct notifier_block *nb);
 struct cpumask *mlx5_irq_get_affinity_mask(struct mlx5_irq *irq);
 int mlx5_irq_get_index(struct mlx5_irq *irq);
 
+struct mlx5_irq_pool;
+#ifdef CONFIG_MLX5_SF
+struct mlx5_irq *mlx5_irq_affinity_request(struct mlx5_irq_pool *pool,
+					   const struct cpumask *req_mask);
+#else
+static inline struct mlx5_irq *
+mlx5_irq_affinity_request(struct mlx5_irq_pool *pool, const struct cpumask *req_mask)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+#endif
 #endif /* __MLX5_IRQ_H__ */
