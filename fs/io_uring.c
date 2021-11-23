@@ -2948,17 +2948,10 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 		if (io_resubmit_prep(req)) {
 			io_req_task_queue_reissue(req);
 		} else {
-			unsigned int cflags = io_put_rw_kbuf(req);
-			struct io_ring_ctx *ctx = req->ctx;
-
 			req_set_fail(req);
-			if (issue_flags & IO_URING_F_UNLOCKED) {
-				mutex_lock(&ctx->uring_lock);
-				__io_req_complete(req, issue_flags, ret, cflags);
-				mutex_unlock(&ctx->uring_lock);
-			} else {
-				__io_req_complete(req, issue_flags, ret, cflags);
-			}
+			req->result = ret;
+			req->io_task_work.func = io_req_task_complete;
+			io_req_task_work_add(req);
 		}
 	}
 }
