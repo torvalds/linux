@@ -153,7 +153,7 @@ nvkm_dp_train_pattern(struct lt_state *lt, u8 pattern)
 
 	nvkm_rdaux(dp->aux, DPCD_LC02, &sink_tp, 1);
 	sink_tp &= ~DPCD_LC02_TRAINING_PATTERN_SET;
-	sink_tp |= pattern;
+	sink_tp |= (pattern != 4) ? pattern : 7;
 
 	if (pattern != 0)
 		sink_tp |=  DPCD_LC02_SCRAMBLING_DISABLE;
@@ -168,10 +168,17 @@ nvkm_dp_train_eq(struct lt_state *lt)
 	bool eq_done = false, cr_done = true;
 	int tries = 0, i;
 
-	if (lt->dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED)
-		nvkm_dp_train_pattern(lt, 3);
-	else
-		nvkm_dp_train_pattern(lt, 2);
+	{
+		if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] >= 0x14 &&
+		    lt->dp->dpcd[DPCD_RC03] & DPCD_RC03_TPS4_SUPPORTED)
+			nvkm_dp_train_pattern(lt, 4);
+		else
+		if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] >= 0x12 &&
+		    lt->dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED)
+			nvkm_dp_train_pattern(lt, 3);
+		else
+			nvkm_dp_train_pattern(lt, 2);
+	}
 
 	do {
 		if ((tries &&
@@ -245,6 +252,8 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 		 ior->dp.nr, ior->dp.bw * 27);
 
 	/* Intersect misc. capabilities of the OR and sink. */
+	if (disp->engine.subdev.device->chipset < 0x110)
+		dp->dpcd[DPCD_RC03] &= ~DPCD_RC03_TPS4_SUPPORTED;
 	if (disp->engine.subdev.device->chipset < 0xd0)
 		dp->dpcd[DPCD_RC02] &= ~DPCD_RC02_TPS3_SUPPORTED;
 	lt.pc2 = dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED;

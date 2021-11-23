@@ -45,6 +45,7 @@ void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 #define DPCD_RC02_TPS3_SUPPORTED                                           0x40
 #define DPCD_RC02_MAX_LANE_COUNT                                           0x1f
 #define DPCD_RC03                                                       0x00003
+#define DPCD_RC03_TPS4_SUPPORTED                                           0x80
 #define DPCD_RC03_MAX_DOWNSPREAD                                           0x01
 #define DPCD_RC0E_AUX_RD_INTERVAL                                       0x0000e
 
@@ -54,7 +55,7 @@ void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 #define DPCD_LC01_ENHANCED_FRAME_EN                                        0x80
 #define DPCD_LC01_LANE_COUNT_SET                                           0x1f
 #define DPCD_LC02                                                       0x00102
-#define DPCD_LC02_TRAINING_PATTERN_SET                                     0x03
+#define DPCD_LC02_TRAINING_PATTERN_SET                                     0x0f
 #define DPCD_LC02_SCRAMBLING_DISABLE                                       0x20
 #define DPCD_LC03(l)                                            ((l) +  0x00103)
 #define DPCD_LC03_MAX_PRE_EMPHASIS_REACHED                                 0x20

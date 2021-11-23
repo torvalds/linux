@@ -35,6 +35,7 @@ gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 	case 1: data = 0x01010101; break;
 	case 2: data = 0x02020202; break;
 	case 3: data = 0x03030303; break;
+	case 4: data = 0x1b1b1b1b; break;
 	default:
 		WARN_ON(1);
 		return;
