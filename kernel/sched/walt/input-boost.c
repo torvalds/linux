@@ -86,7 +86,7 @@ static void update_policy_online(void)
 	struct cpumask online_cpus;
 
 	/* Re-evaluate policy to trigger adjust notifier for online CPUs */
-	get_online_cpus();
+	cpus_read_lock();
 	online_cpus = *cpu_online_mask;
 	for_each_cpu(i, &online_cpus) {
 		policy = cpufreq_cpu_get(i);
@@ -100,7 +100,7 @@ static void update_policy_online(void)
 						policy->related_cpus);
 		boost_adjust_notify(policy);
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 static void do_input_boost_rem(struct work_struct *work)
