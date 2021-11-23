@@ -8630,7 +8630,6 @@ static struct attribute *fan_attributes[] = {
 	&dev_attr_pwm1.attr,
 	&dev_attr_fan1_input.attr,
 	&dev_attr_fan2_input.attr,
-	&driver_attr_fan_watchdog.attr,
 	NULL
 };
 
@@ -8652,6 +8651,16 @@ static umode_t fan_attr_is_visible(struct kobject *kobj, struct attribute *attr,
 static const struct attribute_group fan_attr_group = {
 	.is_visible = fan_attr_is_visible,
 	.attrs = fan_attributes,
+};
+
+static struct attribute *fan_driver_attributes[] = {
+	&driver_attr_fan_watchdog.attr,
+	NULL
+};
+
+static const struct attribute_group fan_driver_attr_group = {
+	.is_visible = fan_attr_is_visible,
+	.attrs = fan_driver_attributes,
 };
 
 #define TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
@@ -10396,7 +10405,7 @@ static struct ibm_struct dprc_driver_data = {
 
 /* --------------------------------------------------------------------- */
 
-static struct attribute *tpacpi_attributes[] = {
+static struct attribute *tpacpi_driver_attributes[] = {
 	&driver_attr_debug_level.attr,
 	&driver_attr_version.attr,
 	&driver_attr_interface_version.attr,
@@ -10431,11 +10440,16 @@ static umode_t tpacpi_attr_is_visible(struct kobject *kobj,
 }
 #endif
 
-static const struct attribute_group tpacpi_attr_group = {
+static const struct attribute_group tpacpi_driver_attr_group = {
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 	.is_visible = tpacpi_attr_is_visible,
 #endif
-	.attrs = tpacpi_attributes,
+	.attrs = tpacpi_driver_attributes,
+};
+
+static const struct attribute_group *tpacpi_driver_groups[] = {
+	&tpacpi_driver_attr_group,
+	NULL,
 };
 
 static const struct attribute_group *tpacpi_groups[] = {
@@ -10447,7 +10461,6 @@ static const struct attribute_group *tpacpi_groups[] = {
 	&proxsensor_attr_group,
 	&kbdlang_attr_group,
 	&dprc_attr_group,
-	&tpacpi_attr_group,
 	NULL,
 };
 
@@ -10455,6 +10468,11 @@ static const struct attribute_group *tpacpi_hwmon_groups[] = {
 	&thermal_attr_group,
 	&temp_label_attr_group,
 	&fan_attr_group,
+	NULL,
+};
+
+static const struct attribute_group *tpacpi_hwmon_driver_groups[] = {
+	&fan_driver_attr_group,
 	NULL,
 };
 
@@ -10470,6 +10488,7 @@ static struct platform_driver tpacpi_pdriver = {
 	.driver = {
 		.name = TPACPI_DRVR_NAME,
 		.pm = &tpacpi_pm,
+		.groups = tpacpi_driver_groups,
 		.dev_groups = tpacpi_groups,
 	},
 	.shutdown = tpacpi_shutdown_handler,
@@ -10478,6 +10497,7 @@ static struct platform_driver tpacpi_pdriver = {
 static struct platform_driver tpacpi_hwmon_pdriver = {
 	.driver = {
 		.name = TPACPI_HWMON_DRVR_NAME,
+		.groups = tpacpi_hwmon_driver_groups,
 		.dev_groups = tpacpi_hwmon_groups,
 	},
 };
