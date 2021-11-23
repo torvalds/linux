@@ -272,6 +272,7 @@ struct bch_page_sector {
 struct bch_page_state {
 	spinlock_t		lock;
 	atomic_t		write_count;
+	bool			uptodate;
 	struct bch_page_sector	s[PAGE_SECTORS];
 };
 
@@ -331,6 +332,86 @@ static unsigned bkey_to_sector_state(const struct bkey *k)
 	return SECTOR_UNALLOCATED;
 }
 
+static void __bch2_page_state_set(struct page *page,
+				  unsigned pg_offset, unsigned pg_len,
+				  unsigned nr_ptrs, unsigned state)
+{
+	struct bch_page_state *s = bch2_page_state_create(page, __GFP_NOFAIL);
+	unsigned i;
+
+	BUG_ON(pg_offset >= PAGE_SECTORS);
+	BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
+
+	spin_lock(&s->lock);
+
+	for (i = pg_offset; i < pg_offset + pg_len; i++) {
+		s->s[i].nr_replicas = nr_ptrs;
+		s->s[i].state = state;
+	}
+
+	if (i == PAGE_SECTORS)
+		s->uptodate = true;
+
+	spin_unlock(&s->lock);
+}
+
+static int bch2_page_state_set(struct bch_fs *c, subvol_inum inum,
+			       struct page **pages, unsigned nr_pages)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	u64 offset = pages[0]->index << PAGE_SECTORS_SHIFT;
+	unsigned pg_idx = 0;
+	u32 snapshot;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+
+	ret = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
+	if (ret)
+		goto err;
+
+	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents,
+			   SPOS(inum.inum, offset, snapshot),
+			   BTREE_ITER_SLOTS, k, ret) {
+		unsigned nr_ptrs = bch2_bkey_nr_ptrs_fully_allocated(k);
+		unsigned state = bkey_to_sector_state(k.k);
+
+		while (pg_idx < nr_pages) {
+			struct page *page = pages[pg_idx];
+			u64 pg_start = page->index << PAGE_SECTORS_SHIFT;
+			u64 pg_end = (page->index + 1) << PAGE_SECTORS_SHIFT;
+			unsigned pg_offset = max(bkey_start_offset(k.k), pg_start) - pg_start;
+			unsigned pg_len = min(k.k->p.offset, pg_end) - pg_offset - pg_start;
+
+			BUG_ON(k.k->p.offset < pg_start);
+			BUG_ON(bkey_start_offset(k.k) > pg_end);
+
+			if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate)
+				__bch2_page_state_set(page, pg_offset, pg_len, nr_ptrs, state);
+
+			if (k.k->p.offset < pg_end)
+				break;
+			pg_idx++;
+		}
+
+		if (pg_idx == nr_pages)
+			break;
+	}
+
+	offset = iter.pos.offset;
+	bch2_trans_iter_exit(&trans, &iter);
+err:
+	if (ret == -EINTR)
+		goto retry;
+	bch2_trans_exit(&trans);
+
+	return ret;
+}
+
 static void bch2_bio_page_state_set(struct bio *bio, struct bkey_s_c k)
 {
 	struct bvec_iter iter;
@@ -339,17 +420,9 @@ static void bch2_bio_page_state_set(struct bio *bio, struct bkey_s_c k)
 		? 0 : bch2_bkey_nr_ptrs_fully_allocated(k);
 	unsigned state = bkey_to_sector_state(k.k);
 
-	bio_for_each_segment(bv, bio, iter) {
-		struct bch_page_state *s = bch2_page_state(bv.bv_page);
-		unsigned i;
-
-		for (i = bv.bv_offset >> 9;
-		     i < (bv.bv_offset + bv.bv_len) >> 9;
-		     i++) {
-			s->s[i].nr_replicas = nr_ptrs;
-			s->s[i].state = state;
-		}
-	}
+	bio_for_each_segment(bv, bio, iter)
+		__bch2_page_state_set(bv.bv_page, bv.bv_offset >> 9,
+				      bv.bv_len >> 9, nr_ptrs, state);
 }
 
 static inline unsigned inode_nr_replicas(struct bch_fs *c, struct bch_inode_info *inode)
@@ -435,6 +508,8 @@ static int bch2_page_reservation_get(struct bch_fs *c,
 
 	if (!s)
 		return -ENOMEM;
+
+	BUG_ON(!s->uptodate);
 
 	for (i = round_down(offset, block_bytes(c)) >> 9;
 	     i < round_up(offset + len, block_bytes(c)) >> 9;
@@ -609,7 +684,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	struct bch2_page_reservation res;
 	unsigned len;
 	loff_t isize;
-	int ret = VM_FAULT_LOCKED;
+	int ret;
 
 	bch2_page_reservation_init(c, inode, &res);
 
@@ -635,6 +710,14 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 
 	len = min_t(loff_t, PAGE_SIZE, isize - page_offset(page));
 
+	if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
+		if (bch2_page_state_set(c, inode_inum(inode), &page, 1)) {
+			unlock_page(page);
+			ret = VM_FAULT_SIGBUS;
+			goto out;
+		}
+	}
+
 	if (bch2_page_reservation_get(c, inode, page, &res, 0, len, true)) {
 		unlock_page(page);
 		ret = VM_FAULT_SIGBUS;
@@ -645,6 +728,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	bch2_page_reservation_put(c, inode, &res);
 
 	wait_for_stable_page(page);
+	ret = VM_FAULT_LOCKED;
 out:
 	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
 	sb_end_pagefault(inode->v.i_sb);
@@ -1348,6 +1432,12 @@ readpage:
 	if (ret)
 		goto err;
 out:
+	if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
+		ret = bch2_page_state_set(c, inode_inum(inode), &page, 1);
+		if (ret)
+			goto out;
+	}
+
 	ret = bch2_page_reservation_get(c, inode, page, res,
 					offset, len, true);
 	if (ret) {
@@ -1477,20 +1567,21 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	}
 
 	while (reserved < len) {
-		struct page *page = pages[(offset + reserved) >> PAGE_SHIFT];
+		unsigned i = (offset + reserved) >> PAGE_SHIFT;
+		struct page *page = pages[i];
 		unsigned pg_offset = (offset + reserved) & (PAGE_SIZE - 1);
 		unsigned pg_len = min_t(unsigned, len - reserved,
 					PAGE_SIZE - pg_offset);
-retry_reservation:
-		ret = bch2_page_reservation_get(c, inode, page, &res,
-						pg_offset, pg_len, true);
 
-		if (ret && !PageUptodate(page)) {
-			ret = bch2_read_single_page(page, mapping);
-			if (!ret)
-				goto retry_reservation;
+		if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
+			ret = bch2_page_state_set(c, inode_inum(inode),
+						  pages + i, nr_pages - i);
+			if (ret)
+				goto out;
 		}
 
+		ret = bch2_page_reservation_get(c, inode, page, &res,
+						pg_offset, pg_len, true);
 		if (ret)
 			goto out;
 
