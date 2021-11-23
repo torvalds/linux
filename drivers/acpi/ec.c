@@ -1217,18 +1217,18 @@ err_exit:
 
 static void acpi_ec_event_handler(struct work_struct *work)
 {
-	unsigned long flags;
 	struct acpi_ec *ec = container_of(work, struct acpi_ec, work);
 
 	ec_dbg_evt("Event started");
 
-	spin_lock_irqsave(&ec->lock, flags);
+	spin_lock_irq(&ec->lock);
+
 	while (ec->nr_pending_queries) {
-		spin_unlock_irqrestore(&ec->lock, flags);
+		spin_unlock_irq(&ec->lock);
 
 		acpi_ec_query(ec);
 
-		spin_lock_irqsave(&ec->lock, flags);
+		spin_lock_irq(&ec->lock);
 		ec->nr_pending_queries--;
 	}
 
@@ -1241,23 +1241,23 @@ static void acpi_ec_event_handler(struct work_struct *work)
 	    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY)
 		acpi_ec_complete_query(ec);
 
-	spin_unlock_irqrestore(&ec->lock, flags);
+	spin_unlock_irq(&ec->lock);
 
 	ec_dbg_evt("Event stopped");
 
 	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT && ec_guard(ec)) {
-		spin_lock_irqsave(&ec->lock, flags);
+		spin_lock_irq(&ec->lock);
 
 		/* Take care of SCI_EVT unless someone else is doing that. */
 		if (!ec->curr)
 			advance_transaction(ec, false);
 
-		spin_unlock_irqrestore(&ec->lock, flags);
+		spin_unlock_irq(&ec->lock);
 	}
 
-	spin_lock_irqsave(&ec->lock, flags);
+	spin_lock_irq(&ec->lock);
 	ec->events_in_progress--;
-	spin_unlock_irqrestore(&ec->lock, flags);
+	spin_unlock_irq(&ec->lock);
 }
 
 static void acpi_ec_handle_interrupt(struct acpi_ec *ec)
