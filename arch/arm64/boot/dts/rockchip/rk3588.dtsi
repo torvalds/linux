@@ -92,6 +92,8 @@
 			resets = <&cru SRST_A_USB3OTG1>;
 			reset-names = "usb3-otg";
 			dr_mode = "host";
+			phys = <&u2phy1_otg>, <&usbdp_phy1_u3>;
+			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
 			snps,dis-u2-freeclk-exists-quirk;
@@ -129,6 +131,7 @@
 			interrupts = <GIC_SPI 394 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>;
 			clock-names = "phyclk";
+			clock-output-names = "usb480m_phy1";
 			#clock-cells = <0>;
 			status = "disabled";
 

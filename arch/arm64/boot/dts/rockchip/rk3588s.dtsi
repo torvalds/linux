@@ -818,6 +818,8 @@
 			resets = <&cru SRST_A_USB3OTG0>;
 			reset-names = "usb3-otg";
 			dr_mode = "otg";
+			phys = <&u2phy0_otg>, <&usbdp_phy0_u3>;
+			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
 			snps,dis-u1-entry-quirk;
@@ -835,6 +837,8 @@
 		interrupts = <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST0>, <&cru HCLK_HOST_ARB0>;
 		clock-names = "usbhost", "arbiter";
+		phys = <&u2phy2_host>;
+		phy-names = "usb2-phy";
 		power-domains = <&power RK3588_PD_USB>;
 		status = "disabled";
 	};
@@ -845,6 +849,8 @@
 		interrupts = <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST0>, <&cru HCLK_HOST_ARB0>;
 		clock-names = "usbhost", "arbiter";
+		phys = <&u2phy2_host>;
+		phy-names = "usb2-phy";
 		power-domains = <&power RK3588_PD_USB>;
 		status = "disabled";
 	};
@@ -855,6 +861,8 @@
 		interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST1>, <&cru HCLK_HOST_ARB1>;
 		clock-names = "usbhost", "arbiter";
+		phys = <&u2phy3_host>;
+		phy-names = "usb2-phy";
 		power-domains = <&power RK3588_PD_USB>;
 		status = "disabled";
 	};
@@ -865,6 +873,8 @@
 		interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST1>, <&cru HCLK_HOST_ARB1>;
 		clock-names = "usbhost", "arbiter";
+		phys = <&u2phy3_host>;
+		phy-names = "usb2-phy";
 		power-domains = <&power RK3588_PD_USB>;
 		status = "disabled";
 	};
@@ -1010,6 +1020,7 @@
 			interrupts = <GIC_SPI 393 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>;
 			clock-names = "phyclk";
+			clock-output-names = "usb480m_phy0";
 			#clock-cells = <0>;
 			status = "disabled";
 
@@ -1033,6 +1044,7 @@
 			interrupts = <GIC_SPI 391 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>;
 			clock-names = "phyclk";
+			clock-output-names = "usb480m_phy2";
 			#clock-cells = <0>;
 			status = "disabled";
 
@@ -1056,6 +1068,7 @@
 			interrupts = <GIC_SPI 392 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>;
 			clock-names = "phyclk";
+			clock-output-names = "usb480m_phy3";
 			#clock-cells = <0>;
 			status = "disabled";
 
