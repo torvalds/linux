@@ -188,7 +188,7 @@ static void elevator_release(struct kobject *kobj)
 	kfree(e);
 }
 
-void __elevator_exit(struct request_queue *q, struct elevator_queue *e)
+void elevator_exit(struct request_queue *q, struct elevator_queue *e)
 {
 	mutex_lock(&e->sysfs_lock);
 	blk_mq_exit_sched(q, e);
@@ -595,6 +595,7 @@ int elevator_switch_mq(struct request_queue *q,
 			elv_unregister_queue(q);
 
 		ioc_clear_queue(q);
+		blk_mq_sched_free_rqs(q);
 		elevator_exit(q, q->elevator);
 	}
 
@@ -605,6 +606,7 @@ int elevator_switch_mq(struct request_queue *q,
 	if (new_e) {
 		ret = elv_register_queue(q, true);
 		if (ret) {
+			blk_mq_sched_free_rqs(q);
 			elevator_exit(q, q->elevator);
 			goto out;
 		}
