@@ -348,6 +348,7 @@ struct rcu_torture_ops {
 	void (*gp_kthread_dbg)(void);
 	bool (*check_boost_failed)(unsigned long gp_state, int *cpup);
 	int (*stall_dur)(void);
+	long cbflood_max;
 	int irq_capable;
 	int can_boost;
 	int extendables;
@@ -841,6 +842,7 @@ static struct rcu_torture_ops tasks_rude_ops = {
 	.call		= call_rcu_tasks_rude,
 	.cb_barrier	= rcu_barrier_tasks_rude,
 	.gp_kthread_dbg	= show_rcu_tasks_rude_gp_kthread,
+	.cbflood_max	= 50000,
 	.fqs		= NULL,
 	.stats		= NULL,
 	.irq_capable	= 1,
@@ -881,6 +883,7 @@ static struct rcu_torture_ops tasks_tracing_ops = {
 	.call		= call_rcu_tasks_trace,
 	.cb_barrier	= rcu_barrier_tasks_trace,
 	.gp_kthread_dbg	= show_rcu_tasks_trace_gp_kthread,
+	.cbflood_max	= 50000,
 	.fqs		= NULL,
 	.stats		= NULL,
 	.irq_capable	= 1,
@@ -2387,7 +2390,7 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 			rfp->rcu_fwd_cb_head = rfcpn;
 			n_launders++;
 			n_launders_sa++;
-		} else {
+		} else if (!cur_ops->cbflood_max || cur_ops->cbflood_max > n_max_cbs) {
 			rfcp = kmalloc(sizeof(*rfcp), GFP_KERNEL);
 			if (WARN_ON_ONCE(!rfcp)) {
 				schedule_timeout_interruptible(1);
@@ -2397,8 +2400,11 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 			n_launders_sa = 0;
 			rfcp->rfc_gps = 0;
 			rfcp->rfc_rfp = rfp;
+		} else {
+			rfcp = NULL;
 		}
-		cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
+		if (rfcp)
+			cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
 		rcu_torture_fwd_prog_cond_resched(n_launders + n_max_cbs);
 		if (tick_nohz_full_enabled()) {
 			local_irq_save(flags);
@@ -2506,8 +2512,10 @@ static int rcu_torture_fwd_prog(void *args)
 		pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 		if (rcu_inkernel_boot_has_ended() && torture_num_online_cpus() > rfp->rcu_fwd_id)
 			rcu_torture_fwd_prog_cr(rfp);
-		if (!IS_ENABLED(CONFIG_TINY_RCU) ||
-		    (rcu_inkernel_boot_has_ended() && torture_num_online_cpus() > rfp->rcu_fwd_id))
+		if ((cur_ops->stall_dur && cur_ops->stall_dur() > 0) &&
+		    (!IS_ENABLED(CONFIG_TINY_RCU) ||
+		     (rcu_inkernel_boot_has_ended() &&
+		      torture_num_online_cpus() > rfp->rcu_fwd_id)))
 			rcu_torture_fwd_prog_nr(rfp, &tested, &tested_tries);
 
 		/* Avoid slow periods, better to test when busy. */
@@ -2539,7 +2547,8 @@ static int __init rcu_torture_fwd_prog_init(void)
 		fwd_progress = nr_cpu_ids;
 	}
 	if ((!cur_ops->sync && !cur_ops->call) ||
-	    !cur_ops->stall_dur || cur_ops->stall_dur() <= 0 || cur_ops == &rcu_busted_ops) {
+	    (!cur_ops->cbflood_max && (!cur_ops->stall_dur || cur_ops->stall_dur() <= 0)) ||
+	    cur_ops == &rcu_busted_ops) {
 		VERBOSE_TOROUT_STRING("rcu_torture_fwd_prog_init: Disabled, unsupported by RCU flavor under test");
 		fwd_progress = 0;
 		return 0;
