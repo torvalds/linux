@@ -169,7 +169,7 @@ struct acpi_ec_query {
 	struct acpi_ec *ec;
 };
 
-static int acpi_ec_query(struct acpi_ec *ec);
+static int acpi_ec_submit_query(struct acpi_ec *ec);
 static bool advance_transaction(struct acpi_ec *ec, bool interrupt);
 static void acpi_ec_event_handler(struct work_struct *work);
 static void acpi_ec_event_processor(struct work_struct *work);
@@ -444,7 +444,7 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 	return true;
 }
 
-static bool acpi_ec_submit_query(struct acpi_ec *ec)
+static bool acpi_ec_submit_event(struct acpi_ec *ec)
 {
 	acpi_ec_mask_events(ec);
 	if (!acpi_ec_event_enabled(ec))
@@ -465,7 +465,7 @@ static bool acpi_ec_submit_query(struct acpi_ec *ec)
 	return true;
 }
 
-static void acpi_ec_complete_query(struct acpi_ec *ec)
+static void acpi_ec_close_event(struct acpi_ec *ec)
 {
 	if (test_and_clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
 		ec_dbg_evt("Command(%s) unblocked",
@@ -499,7 +499,7 @@ static void acpi_ec_clear(struct acpi_ec *ec)
 	int i;
 
 	for (i = 0; i < ACPI_EC_CLEAR_MAX; i++) {
-		if (acpi_ec_query(ec))
+		if (acpi_ec_submit_query(ec))
 			break;
 	}
 	if (unlikely(i == ACPI_EC_CLEAR_MAX))
@@ -613,10 +613,10 @@ static inline void ec_transaction_transition(struct acpi_ec *ec, unsigned long f
 	if (ec->curr->command == ACPI_EC_COMMAND_QUERY) {
 		if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS &&
 		    flag == ACPI_EC_COMMAND_POLL)
-			acpi_ec_complete_query(ec);
+			acpi_ec_close_event(ec);
 		if (ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY &&
 		    flag == ACPI_EC_COMMAND_COMPLETE)
-			acpi_ec_complete_query(ec);
+			acpi_ec_close_event(ec);
 		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
 		    flag == ACPI_EC_COMMAND_COMPLETE)
 			set_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
@@ -668,7 +668,7 @@ static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
 		    (!ec->nr_pending_queries ||
 		     test_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags))) {
 			clear_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
-			acpi_ec_complete_query(ec);
+			acpi_ec_close_event(ec);
 		}
 		if (!t)
 			goto out;
@@ -704,7 +704,7 @@ static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
 
 out:
 	if (status & ACPI_EC_FLAG_SCI)
-		ret = acpi_ec_submit_query(ec);
+		ret = acpi_ec_submit_event(ec);
 
 	if (wakeup && interrupt)
 		wake_up(&ec->wait);
@@ -1162,7 +1162,7 @@ static void acpi_ec_event_processor(struct work_struct *work)
 	acpi_ec_delete_query(q);
 }
 
-static int acpi_ec_query(struct acpi_ec *ec)
+static int acpi_ec_submit_query(struct acpi_ec *ec)
 {
 	struct acpi_ec_query *q;
 	u8 value = 0;
@@ -1226,7 +1226,7 @@ static void acpi_ec_event_handler(struct work_struct *work)
 	while (ec->nr_pending_queries) {
 		spin_unlock_irq(&ec->lock);
 
-		acpi_ec_query(ec);
+		acpi_ec_submit_query(ec);
 
 		spin_lock_irq(&ec->lock);
 		ec->nr_pending_queries--;
@@ -1239,7 +1239,7 @@ static void acpi_ec_event_handler(struct work_struct *work)
 	 */
 	if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
 	    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY)
-		acpi_ec_complete_query(ec);
+		acpi_ec_close_event(ec);
 
 	spin_unlock_irq(&ec->lock);
 
