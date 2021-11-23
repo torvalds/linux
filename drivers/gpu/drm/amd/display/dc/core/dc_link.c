@@ -3079,6 +3079,11 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
+	if (allow_active && link->type == dc_connection_none) {
+		// Don't enter PSR if panel is not connected
+		return false;
+	}
+
 	/* Set power optimization flag */
 	if (power_opts && link->psr_settings.psr_power_opt != *power_opts) {
 		link->psr_settings.psr_power_opt = *power_opts;
