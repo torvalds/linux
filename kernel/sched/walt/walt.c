@@ -4143,20 +4143,6 @@ static void android_rvh_build_perf_domains(void *unused, bool *eas_check)
 	*eas_check = true;
 }
 
-static void android_rvh_force_compatible_pre(void *unused, void *unused2)
-{
-	if (unlikely(walt_disabled))
-		return;
-	cpu_maps_update_begin();
-}
-
-static void android_rvh_force_compatible_post(void *unused, void *unused2)
-{
-	if (unlikely(walt_disabled))
-		return;
-	cpu_maps_update_done();
-}
-
 static void dump_throttled_rt_tasks(void *unused, int cpu, u64 clock,
 		ktime_t rt_period, u64 rt_runtime, s64 rt_period_timer_expires)
 {
@@ -4202,8 +4188,6 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_sched_exec(android_rvh_sched_exec, NULL);
 	register_trace_android_rvh_build_perf_domains(android_rvh_build_perf_domains, NULL);
 	register_trace_cpu_frequency_limits(walt_cpu_frequency_limits, NULL);
-	register_trace_android_rvh_force_compatible_pre(android_rvh_force_compatible_pre, NULL);
-	register_trace_android_rvh_force_compatible_post(android_rvh_force_compatible_post, NULL);
 	register_trace_android_vh_dump_throttled_rt_tasks(dump_throttled_rt_tasks, NULL);
 }
 
