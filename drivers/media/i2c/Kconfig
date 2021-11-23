@@ -771,6 +771,16 @@ config VIDEO_ST_MIPID02
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called st-mipid02.
+
+config VIDEO_RK_IRCUT
+	tristate "Rockchip IR-CUT control device"
+	depends on VIDEO_V4L2
+	help
+	  Support for the Rockchip IR-CUT control board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rk_ircut.
+
 endmenu
 
 #
