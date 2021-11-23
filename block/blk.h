@@ -9,7 +9,6 @@
 #include <linux/memblock.h>	/* for max_pfn/max_low_pfn */
 #include <xen/xen.h>
 #include "blk-crypto-internal.h"
-#include "blk-mq.h"
 
 struct elevator_type;
 
