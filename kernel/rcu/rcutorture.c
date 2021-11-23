@@ -2170,6 +2170,7 @@ struct rcu_fwd {
 static DEFINE_MUTEX(rcu_fwd_mutex);
 static struct rcu_fwd *rcu_fwds;
 static unsigned long rcu_fwd_seq;
+static atomic_long_t rcu_fwd_max_cbs;
 static bool rcu_fwd_emergency_stop;
 
 static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
@@ -2428,6 +2429,7 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 			 n_launders + n_max_cbs - n_launders_cb_snap,
 			 n_launders, n_launders_sa,
 			 n_max_gps, n_max_cbs, cver, gps);
+		atomic_long_add(n_max_cbs, &rcu_fwd_max_cbs);
 		rcu_torture_fwd_cb_hist(rfp);
 	}
 	schedule_timeout_uninterruptible(HZ); /* Let CBs drain. */
@@ -2489,6 +2491,8 @@ static struct notifier_block rcutorture_oom_nb = {
 /* Carry out grace-period forward-progress testing. */
 static int rcu_torture_fwd_prog(void *args)
 {
+	bool firsttime = true;
+	long max_cbs;
 	int oldnice = task_nice(current);
 	unsigned long oldseq = READ_ONCE(rcu_fwd_seq);
 	struct rcu_fwd *rfp = args;
@@ -2503,6 +2507,11 @@ static int rcu_torture_fwd_prog(void *args)
 		if (!rfp->rcu_fwd_id) {
 			schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
 			WRITE_ONCE(rcu_fwd_emergency_stop, false);
+			if (!firsttime) {
+				max_cbs = atomic_long_xchg(&rcu_fwd_max_cbs, 0);
+				pr_alert("%s n_max_cbs: %ld\n", __func__, max_cbs);
+			}
+			firsttime = false;
 			WRITE_ONCE(rcu_fwd_seq, rcu_fwd_seq + 1);
 		} else {
 			while (READ_ONCE(rcu_fwd_seq) == oldseq)
