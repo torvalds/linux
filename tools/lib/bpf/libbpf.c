@@ -5006,6 +5006,24 @@ bpf_object__create_maps(struct bpf_object *obj)
 	for (i = 0; i < obj->nr_maps; i++) {
 		map = &obj->maps[i];
 
+		/* To support old kernels, we skip creating global data maps
+		 * (.rodata, .data, .kconfig, etc); later on, during program
+		 * loading, if we detect that at least one of the to-be-loaded
+		 * programs is referencing any global data map, we'll error
+		 * out with program name and relocation index logged.
+		 * This approach allows to accommodate Clang emitting
+		 * unnecessary .rodata.str1.1 sections for string literals,
+		 * but also it allows to have CO-RE applications that use
+		 * global variables in some of BPF programs, but not others.
+		 * If those global variable-using programs are not loaded at
+		 * runtime due to bpf_program__set_autoload(prog, false),
+		 * bpf_object loading will succeed just fine even on old
+		 * kernels.
+		 */
+		if (bpf_map__is_internal(map) &&
+		    !kernel_supports(obj, FEAT_GLOBAL_DATA))
+			continue;
+
 		retried = false;
 retry:
 		if (map->pin_path) {
@@ -5605,6 +5623,14 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 				insn[0].src_reg = BPF_PSEUDO_MAP_IDX_VALUE;
 				insn[0].imm = relo->map_idx;
 			} else {
+				const struct bpf_map *map = &obj->maps[relo->map_idx];
+
+				if (bpf_map__is_internal(map) &&
+				    !kernel_supports(obj, FEAT_GLOBAL_DATA)) {
+					pr_warn("prog '%s': relo #%d: kernel doesn't support global data\n",
+						prog->name, i);
+					return -ENOTSUP;
+				}
 				insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
 				insn[0].imm = obj->maps[relo->map_idx].fd;
 			}
@@ -6139,6 +6165,8 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 		 */
 		if (prog_is_subprog(obj, prog))
 			continue;
+		if (!prog->load)
+			continue;
 
 		err = bpf_object__relocate_calls(obj, prog);
 		if (err) {
@@ -6151,6 +6179,8 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
 		if (prog_is_subprog(obj, prog))
+			continue;
+		if (!prog->load)
 			continue;
 		err = bpf_object__relocate_data(obj, prog);
 		if (err) {
@@ -6939,10 +6969,6 @@ static int bpf_object__sanitize_maps(struct bpf_object *obj)
 	bpf_object__for_each_map(m, obj) {
 		if (!bpf_map__is_internal(m))
 			continue;
-		if (!kernel_supports(obj, FEAT_GLOBAL_DATA)) {
-			pr_warn("kernel doesn't support global data\n");
-			return -ENOTSUP;
-		}
 		if (!kernel_supports(obj, FEAT_ARRAY_MMAP))
 			m->def.map_flags ^= BPF_F_MMAPABLE;
 	}
