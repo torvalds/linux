@@ -9,10 +9,7 @@
 #include <subdev/bios/dp.h>
 
 struct nvkm_dp {
-	union {
-		struct nvkm_outp base;
-		struct nvkm_outp outp;
-	};
+	struct nvkm_outp outp;
 
 	struct nvbios_dpout info;
 	u8 version;
