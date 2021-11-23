@@ -37,7 +37,7 @@ struct btrfs_trim_range {
 static int link_free_space(struct btrfs_free_space_ctl *ctl,
 			   struct btrfs_free_space *info);
 static void unlink_free_space(struct btrfs_free_space_ctl *ctl,
-			      struct btrfs_free_space *info);
+			      struct btrfs_free_space *info, bool update_stat);
 static int search_bitmap(struct btrfs_free_space_ctl *ctl,
 			 struct btrfs_free_space *bitmap_info, u64 *offset,
 			 u64 *bytes, bool for_alloc);
@@ -872,7 +872,7 @@ static int copy_free_space_cache(struct btrfs_block_group *block_group,
 	while (!ret && (n = rb_first(&ctl->free_space_offset)) != NULL) {
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
 		if (!info->bitmap) {
-			unlink_free_space(ctl, info);
+			unlink_free_space(ctl, info, true);
 			ret = btrfs_add_free_space(block_group, info->offset,
 						   info->bytes);
 			kmem_cache_free(btrfs_free_space_cachep, info);
@@ -1743,9 +1743,9 @@ tree_search_offset(struct btrfs_free_space_ctl *ctl,
 	return entry;
 }
 
-static inline void
-__unlink_free_space(struct btrfs_free_space_ctl *ctl,
-		    struct btrfs_free_space *info)
+static inline void unlink_free_space(struct btrfs_free_space_ctl *ctl,
+				     struct btrfs_free_space *info,
+				     bool update_stat)
 {
 	rb_erase(&info->offset_index, &ctl->free_space_offset);
 	rb_erase_cached(&info->bytes_index, &ctl->free_space_bytes);
@@ -1755,13 +1755,9 @@ __unlink_free_space(struct btrfs_free_space_ctl *ctl,
 		ctl->discardable_extents[BTRFS_STAT_CURR]--;
 		ctl->discardable_bytes[BTRFS_STAT_CURR] -= info->bytes;
 	}
-}
 
-static void unlink_free_space(struct btrfs_free_space_ctl *ctl,
-			      struct btrfs_free_space *info)
-{
-	__unlink_free_space(ctl, info);
-	ctl->free_space -= info->bytes;
+	if (update_stat)
+		ctl->free_space -= info->bytes;
 }
 
 static int link_free_space(struct btrfs_free_space_ctl *ctl,
@@ -2069,7 +2065,7 @@ static void free_bitmap(struct btrfs_free_space_ctl *ctl,
 		ctl->discardable_bytes[BTRFS_STAT_CURR] -= bitmap_info->bytes;
 
 	}
-	unlink_free_space(ctl, bitmap_info);
+	unlink_free_space(ctl, bitmap_info, true);
 	kmem_cache_free(btrfs_free_space_bitmap_cachep, bitmap_info->bitmap);
 	kmem_cache_free(btrfs_free_space_cachep, bitmap_info);
 	ctl->total_bitmaps--;
@@ -2400,10 +2396,7 @@ static bool try_merge_free_space(struct btrfs_free_space_ctl *ctl,
 	/* See try_merge_free_space() comment. */
 	if (right_info && !right_info->bitmap &&
 	    (!is_trimmed || btrfs_free_space_trimmed(right_info))) {
-		if (update_stat)
-			unlink_free_space(ctl, right_info);
-		else
-			__unlink_free_space(ctl, right_info);
+		unlink_free_space(ctl, right_info, update_stat);
 		info->bytes += right_info->bytes;
 		kmem_cache_free(btrfs_free_space_cachep, right_info);
 		merged = true;
@@ -2413,10 +2406,7 @@ static bool try_merge_free_space(struct btrfs_free_space_ctl *ctl,
 	if (left_info && !left_info->bitmap &&
 	    left_info->offset + left_info->bytes == offset &&
 	    (!is_trimmed || btrfs_free_space_trimmed(left_info))) {
-		if (update_stat)
-			unlink_free_space(ctl, left_info);
-		else
-			__unlink_free_space(ctl, left_info);
+		unlink_free_space(ctl, left_info, update_stat);
 		info->offset = left_info->offset;
 		info->bytes += left_info->bytes;
 		kmem_cache_free(btrfs_free_space_cachep, left_info);
@@ -2781,7 +2771,7 @@ again:
 
 	re_search = false;
 	if (!info->bitmap) {
-		unlink_free_space(ctl, info);
+		unlink_free_space(ctl, info, true);
 		if (offset == info->offset) {
 			u64 to_free = min(bytes, info->bytes);
 
@@ -2967,7 +2957,7 @@ static void __btrfs_remove_free_space_cache_locked(
 	while ((node = rb_last(&ctl->free_space_offset)) != NULL) {
 		info = rb_entry(node, struct btrfs_free_space, offset_index);
 		if (!info->bitmap) {
-			unlink_free_space(ctl, info);
+			unlink_free_space(ctl, info, true);
 			kmem_cache_free(btrfs_free_space_cachep, info);
 		} else {
 			free_bitmap(ctl, info);
@@ -3074,7 +3064,7 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group *block_group,
 		if (!entry->bytes)
 			free_bitmap(ctl, entry);
 	} else {
-		unlink_free_space(ctl, entry);
+		unlink_free_space(ctl, entry, true);
 		align_gap_len = offset - entry->offset;
 		align_gap = entry->offset;
 		align_gap_trim_state = entry->trim_state;
@@ -3717,7 +3707,7 @@ static int trim_no_bitmap(struct btrfs_block_group *block_group,
 				mutex_unlock(&ctl->cache_writeout_mutex);
 				goto next;
 			}
-			unlink_free_space(ctl, entry);
+			unlink_free_space(ctl, entry, true);
 			/*
 			 * Let bytes = BTRFS_MAX_DISCARD_SIZE + X.
 			 * If X < BTRFS_ASYNC_DISCARD_MIN_FILTER, we won't trim
@@ -3743,7 +3733,7 @@ static int trim_no_bitmap(struct btrfs_block_group *block_group,
 				goto next;
 			}
 
-			unlink_free_space(ctl, entry);
+			unlink_free_space(ctl, entry, true);
 			kmem_cache_free(btrfs_free_space_cachep, entry);
 		}
 
