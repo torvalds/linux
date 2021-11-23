@@ -641,6 +641,28 @@ err_free_rk_obj:
 }
 
 /*
+ * rockchip_gem_destroy - destroy gem object
+ *
+ * The dma_buf_unmap_attachment and dma_buf_detach will be re-defined if
+ * CONFIG_DMABUF_CACHE is enabled.
+ *
+ * Same as drm_prime_gem_destroy
+ */
+static void rockchip_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg)
+{
+	struct dma_buf_attachment *attach;
+	struct dma_buf *dma_buf;
+
+	attach = obj->import_attach;
+	if (sg)
+		dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
+	dma_buf = attach->dmabuf;
+	dma_buf_detach(attach->dmabuf, attach);
+	/* remove the reference */
+	dma_buf_put(dma_buf);
+}
+
+/*
  * rockchip_gem_free_object - (struct drm_driver)->gem_free_object_unlocked
  * callback function
  */
@@ -658,7 +680,10 @@ void rockchip_gem_free_object(struct drm_gem_object *obj)
 					  DMA_BIDIRECTIONAL, 0);
 		}
 		drm_free_large(rk_obj->pages);
-		drm_prime_gem_destroy(obj, rk_obj->sgt);
+		if (IS_ENABLED(CONFIG_DMABUF_CACHE))
+			rockchip_gem_destroy(obj, rk_obj->sgt);
+		else
+			drm_prime_gem_destroy(obj, rk_obj->sgt);
 	} else {
 		rockchip_gem_free_buf(rk_obj);
 	}
