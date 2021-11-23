@@ -10498,7 +10498,6 @@ static struct platform_driver tpacpi_hwmon_pdriver = {
 	.driver = {
 		.name = TPACPI_HWMON_DRVR_NAME,
 		.groups = tpacpi_hwmon_driver_groups,
-		.dev_groups = tpacpi_hwmon_groups,
 	},
 };
 
@@ -11133,6 +11132,8 @@ static void thinkpad_acpi_module_exit(void)
 
 	tpacpi_lifecycle = TPACPI_LIFE_EXITING;
 
+	if (tpacpi_hwmon)
+		hwmon_device_unregister(tpacpi_hwmon);
 	if (tp_features.sensors_pdrv_registered)
 		platform_driver_unregister(&tpacpi_hwmon_pdriver);
 	if (tp_features.platform_drv_registered)
@@ -11154,8 +11155,6 @@ static void thinkpad_acpi_module_exit(void)
 		kfree(hotkey_keycode_map);
 	}
 
-	if (tpacpi_hwmon)
-		hwmon_device_unregister(tpacpi_hwmon);
 	if (tpacpi_sensors_pdev)
 		platform_device_unregister(tpacpi_sensors_pdev);
 	if (tpacpi_pdev)
@@ -11234,16 +11233,7 @@ static int __init thinkpad_acpi_module_init(void)
 		return ret;
 	}
 	tp_features.sensors_pdev_attrs_registered = 1;
-	tpacpi_hwmon = hwmon_device_register_with_groups(
-		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, NULL);
 
-	if (IS_ERR(tpacpi_hwmon)) {
-		ret = PTR_ERR(tpacpi_hwmon);
-		tpacpi_hwmon = NULL;
-		pr_err("unable to register hwmon device\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
 	mutex_init(&tpacpi_inputdev_send_mutex);
 	tpacpi_inputdev = input_allocate_device();
 	if (!tpacpi_inputdev) {
@@ -11291,6 +11281,16 @@ static int __init thinkpad_acpi_module_init(void)
 		return ret;
 	}
 	tp_features.sensors_pdrv_registered = 1;
+
+	tpacpi_hwmon = hwmon_device_register_with_groups(
+		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, tpacpi_hwmon_groups);
+	if (IS_ERR(tpacpi_hwmon)) {
+		ret = PTR_ERR(tpacpi_hwmon);
+		tpacpi_hwmon = NULL;
+		pr_err("unable to register hwmon device\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
 
 	ret = input_register_device(tpacpi_inputdev);
 	if (ret < 0) {
