@@ -219,14 +219,13 @@ EXPORT_SYMBOL_GPL(acpi_gpio_get_io_resource);
 static void acpi_gpiochip_request_irq(struct acpi_gpio_chip *acpi_gpio,
 				      struct acpi_gpio_event *event)
 {
+	struct device *parent = acpi_gpio->chip->parent;
 	int ret, value;
 
 	ret = request_threaded_irq(event->irq, NULL, event->handler,
 				   event->irqflags | IRQF_ONESHOT, "ACPI:Event", event);
 	if (ret) {
-		dev_err(acpi_gpio->chip->parent,
-			"Failed to setup interrupt handler for %d\n",
-			event->irq);
+		dev_err(parent, "Failed to setup interrupt handler for %d\n", event->irq);
 		return;
 	}
 
@@ -347,8 +346,7 @@ static bool acpi_gpio_in_ignore_list(const char *controller_in, int pin_in)
 
 	return false;
 err:
-	pr_err_once("Error invalid value for gpiolib_acpi.ignore_wake: %s\n",
-		    ignore_wake);
+	pr_err_once("Error: Invalid value for gpiolib_acpi.ignore_wake: %s\n", ignore_wake);
 	return false;
 }
 
@@ -929,7 +927,7 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 
 	if (info.gpioint &&
 	    (*dflags == GPIOD_OUT_LOW || *dflags == GPIOD_OUT_HIGH)) {
-		dev_dbg(dev, "refusing GpioInt() entry when doing GPIOD_OUT_* lookup\n");
+		dev_dbg(&adev->dev, "refusing GpioInt() entry when doing GPIOD_OUT_* lookup\n");
 		return ERR_PTR(-ENOENT);
 	}
 
