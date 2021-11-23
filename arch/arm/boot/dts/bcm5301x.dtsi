@@ -148,15 +148,6 @@
 		};
 	};
 
-	usb2_phy: usb2-phy@1800c000 {
-		compatible = "brcm,ns-usb2-phy";
-		reg = <0x1800c000 0x1000>;
-		reg-names = "dmu";
-		#phy-cells = <0>;
-		clocks = <&genpll BCM_NSP_GENPLL_USB_PHY_REF_CLK>;
-		clock-names = "phy-ref-clk";
-	};
-
 	axi@18000000 {
 		compatible = "brcm,bus-axi";
 		reg = <0x18000000 0x1000>;
@@ -448,7 +439,16 @@
 						     "sata1", "sata2";
 			};
 
-			syscon@180 {
+			usb2_phy: phy@164 {
+				compatible = "brcm,ns-usb2-phy";
+				reg = <0x164 0x4>;
+				brcm,syscon-clkset = <&cru_clkset>;
+				clocks = <&genpll BCM_NSP_GENPLL_USB_PHY_REF_CLK>;
+				clock-names = "phy-ref-clk";
+				#phy-cells = <0>;
+			};
+
+			cru_clkset: syscon@180 {
 				compatible = "brcm,cru-clkset", "syscon";
 				reg = <0x180 0x4>;
 			};
