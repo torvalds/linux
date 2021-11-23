@@ -6789,6 +6789,7 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
 	uint32_t val;
 	uint32_t r, g, b;
 
@@ -6815,6 +6816,8 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	}
 
 	VOP_MODULE_SET(vop2, vp, dsp_background, val);
+	if (vcstate->splice_mode)
+		VOP_MODULE_SET(vop2, splice_vp, dsp_background, val);
 
 	vop2_tv_config_update(crtc, old_crtc_state);
 
@@ -6829,8 +6832,8 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct drm_atomic_state *old_state = old_cstate->state;
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct drm_plane_state *old_pstate;
 	struct vop2 *vop2 = vp->vop2;
+	struct drm_plane_state *old_pstate;
 	struct drm_plane *plane;
 	unsigned long flags;
 	int i, ret;
