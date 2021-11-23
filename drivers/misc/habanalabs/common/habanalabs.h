@@ -2457,9 +2457,10 @@ struct last_error_session_info {
 
 /**
  * struct hl_reset_info - holds current device reset information.
- * @in_reset: is device in reset flow.
+ * @lock: lock to protect critical reset flows.
  * @soft_reset_cnt: number of soft reset since the driver was loaded.
  * @hard_reset_cnt: number of hard reset since the driver was loaded.
+ * @in_reset: is device in reset flow.
  * @is_in_soft_reset: Device is currently in soft reset process.
  * @needs_reset: true if reset_on_lockup is false and device should be reset
  *               due to lockup.
@@ -2474,9 +2475,10 @@ struct last_error_session_info {
  *                         complete instead.
  */
 struct hl_reset_info {
-	atomic_t	in_reset;
+	spinlock_t	lock;
 	u32		soft_reset_cnt;
 	u32		hard_reset_cnt;
+	u8		in_reset;
 	u8		is_in_soft_reset;
 	u8		needs_reset;
 	u8		hard_reset_pending;

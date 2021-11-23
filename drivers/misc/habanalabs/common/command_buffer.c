@@ -250,8 +250,7 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	 * Can't use generic function to check this because of special case
 	 * where we create a CB as part of the reset process
 	 */
-	if ((hdev->disabled) || ((atomic_read(&hdev->reset_info.in_reset)) &&
-					(ctx_id != HL_KERNEL_ASID_ID))) {
+	if ((hdev->disabled) || (hdev->reset_info.in_reset && (ctx_id != HL_KERNEL_ASID_ID))) {
 		dev_warn_ratelimited(hdev->dev,
 			"Device is disabled or in reset. Can't create new CBs\n");
 		rc = -EBUSY;

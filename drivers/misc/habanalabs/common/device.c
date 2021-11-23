@@ -17,7 +17,7 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
 
-	if (atomic_read(&hdev->reset_info.in_reset))
+	if (hdev->reset_info.in_reset)
 		status = HL_DEVICE_STATUS_IN_RESET;
 	else if (hdev->reset_info.needs_reset)
 		status = HL_DEVICE_STATUS_NEEDS_RESET;
@@ -448,11 +448,11 @@ static int device_early_init(struct hl_device *hdev)
 	mutex_init(&hdev->debug_lock);
 	INIT_LIST_HEAD(&hdev->cs_mirror_list);
 	spin_lock_init(&hdev->cs_mirror_lock);
+	spin_lock_init(&hdev->reset_info.lock);
 	INIT_LIST_HEAD(&hdev->fpriv_list);
 	INIT_LIST_HEAD(&hdev->fpriv_ctrl_list);
 	mutex_init(&hdev->fpriv_list_lock);
 	mutex_init(&hdev->fpriv_ctrl_list_lock);
-	atomic_set(&hdev->reset_info.in_reset, 0);
 	mutex_init(&hdev->clk_throttling.lock);
 
 	return 0;
@@ -544,7 +544,7 @@ reschedule:
 	 * status for at least one heartbeat. From this point driver restarts
 	 * tracking future consecutive fatal errors.
 	 */
-	if (!(atomic_read(&hdev->reset_info.in_reset)))
+	if (!hdev->reset_info.in_reset)
 		hdev->reset_info.prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
 
 	schedule_delayed_work(&hdev->work_heartbeat,
@@ -722,11 +722,14 @@ int hl_device_suspend(struct hl_device *hdev)
 	pci_save_state(hdev->pdev);
 
 	/* Block future CS/VM/JOB completion operations */
-	rc = atomic_cmpxchg(&hdev->reset_info.in_reset, 0, 1);
-	if (rc) {
+	spin_lock(&hdev->reset_info.lock);
+	if (hdev->reset_info.in_reset) {
+		spin_unlock(&hdev->reset_info.lock);
 		dev_err(hdev->dev, "Can't suspend while in reset\n");
 		return -EIO;
 	}
+	hdev->reset_info.in_reset = 1;
+	spin_unlock(&hdev->reset_info.lock);
 
 	/* This blocks all other stuff that is not blocked by in_reset */
 	hdev->disabled = true;
@@ -776,8 +779,10 @@ int hl_device_resume(struct hl_device *hdev)
 	}
 
 
-	hdev->disabled = false;
-	atomic_set(&hdev->reset_info.in_reset, 0);
+	/* 'in_reset' was set to true during suspend, now we must clear it in order
+	 * for hard reset to be performed
+	 */
+	hdev->reset_info.in_reset = 0;
 
 	rc = hl_device_reset(hdev, HL_DRV_RESET_HARD);
 	if (rc) {
@@ -1024,9 +1029,13 @@ do_reset:
 	 */
 	if (!from_hard_reset_thread) {
 		/* Block future CS/VM/JOB completion operations */
-		rc = atomic_cmpxchg(&hdev->reset_info.in_reset, 0, 1);
-		if (rc)
+		spin_lock(&hdev->reset_info.lock);
+		if (hdev->reset_info.in_reset) {
+			spin_unlock(&hdev->reset_info.lock);
 			return 0;
+		}
+		hdev->reset_info.in_reset = 1;
+		spin_unlock(&hdev->reset_info.lock);
 
 		handle_reset_trigger(hdev, flags);
 
@@ -1234,7 +1243,7 @@ kill_processes:
 		}
 	}
 
-	atomic_set(&hdev->reset_info.in_reset, 0);
+	hdev->reset_info.in_reset = 0;
 	hdev->reset_info.needs_reset = false;
 
 	dev_notice(hdev->dev, "Successfully finished resetting the device\n");
@@ -1272,7 +1281,7 @@ out_err:
 		goto again;
 	}
 
-	atomic_set(&hdev->reset_info.in_reset, 0);
+	hdev->reset_info.in_reset = 0;
 
 	return rc;
 }
@@ -1583,6 +1592,7 @@ out_disabled:
  */
 void hl_device_fini(struct hl_device *hdev)
 {
+	bool device_in_reset;
 	ktime_t timeout;
 	u64 reset_sec;
 	int i, rc;
@@ -1606,10 +1616,22 @@ void hl_device_fini(struct hl_device *hdev)
 	 */
 
 	timeout = ktime_add_us(ktime_get(), reset_sec * 1000 * 1000);
-	rc = atomic_cmpxchg(&hdev->reset_info.in_reset, 0, 1);
-	while (rc) {
+
+	spin_lock(&hdev->reset_info.lock);
+	device_in_reset = !!hdev->reset_info.in_reset;
+	if (!device_in_reset)
+		hdev->reset_info.in_reset = 1;
+	spin_unlock(&hdev->reset_info.lock);
+
+	while (device_in_reset) {
 		usleep_range(50, 200);
-		rc = atomic_cmpxchg(&hdev->reset_info.in_reset, 0, 1);
+
+		spin_lock(&hdev->reset_info.lock);
+		device_in_reset = !!hdev->reset_info.in_reset;
+		if (!device_in_reset)
+			hdev->reset_info.in_reset = 1;
+		spin_unlock(&hdev->reset_info.lock);
+
 		if (ktime_compare(ktime_get(), timeout) > 0) {
 			dev_crit(hdev->dev,
 				"Failed to remove device because reset function did not finish\n");
