@@ -119,7 +119,7 @@
 /* Page protection bits */
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_USER)
 
-#define PAGE_NONE		__pgprot(_PAGE_PROT_NONE)
+#define PAGE_NONE		__pgprot(_PAGE_PROT_NONE | _PAGE_READ)
 #define PAGE_READ		__pgprot(_PAGE_BASE | _PAGE_READ)
 #define PAGE_WRITE		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE)
 #define PAGE_EXEC		__pgprot(_PAGE_BASE | _PAGE_EXEC)
@@ -628,11 +628,12 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
  *
  * Format of swap PTE:
  *	bit            0:	_PAGE_PRESENT (zero)
- *	bit            1:	_PAGE_PROT_NONE (zero)
- *	bits      2 to 6:	swap type
- *	bits 7 to XLEN-1:	swap offset
+ *	bit       1 to 3:       _PAGE_LEAF (zero)
+ *	bit            5:	_PAGE_PROT_NONE (zero)
+ *	bits      6 to 10:	swap type
+ *	bits 10 to XLEN-1:	swap offset
  */
-#define __SWP_TYPE_SHIFT	2
+#define __SWP_TYPE_SHIFT	6
 #define __SWP_TYPE_BITS		5
 #define __SWP_TYPE_MASK		((1UL << __SWP_TYPE_BITS) - 1)
 #define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
