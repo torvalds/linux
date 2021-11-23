@@ -170,7 +170,7 @@ struct acpi_ec_query {
 };
 
 static int acpi_ec_query(struct acpi_ec *ec, u8 *data);
-static void advance_transaction(struct acpi_ec *ec, bool interrupt);
+static bool advance_transaction(struct acpi_ec *ec, bool interrupt);
 static void acpi_ec_event_handler(struct work_struct *work);
 static void acpi_ec_event_processor(struct work_struct *work);
 
@@ -444,18 +444,25 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 	return true;
 }
 
-static void acpi_ec_submit_query(struct acpi_ec *ec)
+static bool acpi_ec_submit_query(struct acpi_ec *ec)
 {
 	acpi_ec_mask_events(ec);
 	if (!acpi_ec_event_enabled(ec))
-		return;
+		return false;
+
 	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
 		ec_dbg_evt("Command(%s) submitted/blocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 		ec->nr_pending_queries++;
 		ec->events_in_progress++;
-		queue_work(ec_wq, &ec->work);
+		return queue_work(ec_wq, &ec->work);
 	}
+
+	/*
+	 * The event handling work has not been completed yet, so it needs to be
+	 * flushed.
+	 */
+	return true;
 }
 
 static void acpi_ec_complete_query(struct acpi_ec *ec)
@@ -628,10 +635,11 @@ static void acpi_ec_spurious_interrupt(struct acpi_ec *ec, struct transaction *t
 		acpi_ec_mask_events(ec);
 }
 
-static void advance_transaction(struct acpi_ec *ec, bool interrupt)
+static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
 {
 	struct transaction *t = ec->curr;
 	bool wakeup = false;
+	bool ret = false;
 	u8 status;
 
 	ec_dbg_stm("%s (%d)", interrupt ? "IRQ" : "TASK", smp_processor_id());
@@ -698,10 +706,12 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 
 out:
 	if (status & ACPI_EC_FLAG_SCI)
-		acpi_ec_submit_query(ec);
+		ret = acpi_ec_submit_query(ec);
 
 	if (wakeup && interrupt)
 		wake_up(&ec->wait);
+
+	return ret;
 }
 
 static void start_transaction(struct acpi_ec *ec)
@@ -2038,8 +2048,7 @@ void acpi_ec_set_gpe_wake_mask(u8 action)
 
 bool acpi_ec_dispatch_gpe(void)
 {
-	bool work_in_progress;
-	u32 ret;
+	bool work_in_progress = false;
 
 	if (!first_ec)
 		return acpi_any_gpe_status_set(U32_MAX);
@@ -2055,9 +2064,17 @@ bool acpi_ec_dispatch_gpe(void)
 	 * Dispatch the EC GPE in-band, but do not report wakeup in any case
 	 * to allow the caller to process events properly after that.
 	 */
-	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
-	if (ret == ACPI_INTERRUPT_HANDLED)
-		pm_pr_dbg("ACPI EC GPE dispatched\n");
+	spin_lock_irq(&first_ec->lock);
+
+	if (acpi_ec_gpe_status_set(first_ec))
+		work_in_progress = advance_transaction(first_ec, false);
+
+	spin_unlock_irq(&first_ec->lock);
+
+	if (!work_in_progress)
+		return false;
+
+	pm_pr_dbg("ACPI EC GPE dispatched\n");
 
 	/* Drain EC work. */
 	do {
