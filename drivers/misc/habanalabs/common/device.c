@@ -978,7 +978,7 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
 	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false,
-								reset_upon_device_release = false;
+			reset_upon_device_release = false, schedule_hard_reset = false;
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	struct hl_ctx *ctx;
 	int i, rc;
@@ -1031,6 +1031,9 @@ do_reset:
 		/* Block future CS/VM/JOB completion operations */
 		spin_lock(&hdev->reset_info.lock);
 		if (hdev->reset_info.in_reset) {
+			/* We only allow scheduling of a hard reset during soft reset */
+			if (hard_reset && hdev->reset_info.is_in_soft_reset)
+				hdev->reset_info.hard_reset_schedule_flags = flags;
 			spin_unlock(&hdev->reset_info.lock);
 			return 0;
 		}
@@ -1193,7 +1196,6 @@ kill_processes:
 	 * is required for the initialization itself
 	 */
 	hdev->disabled = false;
-	hdev->reset_info.is_in_soft_reset = false;
 
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
@@ -1243,7 +1245,20 @@ kill_processes:
 		}
 	}
 
-	hdev->reset_info.in_reset = 0;
+	spin_lock(&hdev->reset_info.lock);
+	hdev->reset_info.is_in_soft_reset = false;
+
+	/* Schedule hard reset only if requested and if not already in hard reset.
+	 * We keep 'in_reset' enabled, so no other reset can go in during the hard
+	 * reset schedule
+	 */
+	if (!hard_reset && hdev->reset_info.hard_reset_schedule_flags)
+		schedule_hard_reset = true;
+	else
+		hdev->reset_info.in_reset = 0;
+
+	spin_unlock(&hdev->reset_info.lock);
+
 	hdev->reset_info.needs_reset = false;
 
 	dev_notice(hdev->dev, "Successfully finished resetting the device\n");
@@ -1259,6 +1274,16 @@ kill_processes:
 		hdev->asic_funcs->enable_events_from_fw(hdev);
 	} else if (!reset_upon_device_release) {
 		hdev->reset_info.soft_reset_cnt++;
+	}
+
+	if (schedule_hard_reset) {
+		dev_info(hdev->dev, "Performing hard reset scheduled during soft reset\n");
+		flags = hdev->reset_info.hard_reset_schedule_flags;
+		hdev->reset_info.hard_reset_schedule_flags = 0;
+		hdev->disabled = true;
+		hard_reset = true;
+		handle_reset_trigger(hdev, flags);
+		goto again;
 	}
 
 	return 0;
