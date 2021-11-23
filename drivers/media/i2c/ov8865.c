@@ -2957,6 +2957,26 @@ static int ov8865_probe(struct i2c_client *client)
 	sensor->dev = dev;
 	sensor->i2c_client = client;
 
+	/* Regulators */
+
+	/* DVDD: digital core */
+	sensor->dvdd = devm_regulator_get(dev, "dvdd");
+	if (IS_ERR(sensor->dvdd))
+		return dev_err_probe(dev, PTR_ERR(sensor->dvdd),
+				     "cannot get DVDD regulator\n");
+
+	/* DOVDD: digital I/O */
+	sensor->dovdd = devm_regulator_get(dev, "dovdd");
+	if (IS_ERR(sensor->dovdd))
+		return dev_err_probe(dev, PTR_ERR(sensor->dovdd),
+				     "cannot get DOVDD regulator\n");
+
+	/* AVDD: analog */
+	sensor->avdd = devm_regulator_get(dev, "avdd");
+	if (IS_ERR(sensor->avdd))
+		return dev_err_probe(dev, PTR_ERR(sensor->avdd),
+				     "cannot get AVDD (analog) regulator\n");
+
 	/* Graph Endpoint */
 
 	handle = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
@@ -2984,32 +3004,6 @@ static int ov8865_probe(struct i2c_client *client)
 	sensor->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(sensor->reset)) {
 		ret = PTR_ERR(sensor->reset);
-		goto error_endpoint;
-	}
-
-	/* Regulators */
-
-	/* DVDD: digital core */
-	sensor->dvdd = devm_regulator_get(dev, "dvdd");
-	if (IS_ERR(sensor->dvdd)) {
-		dev_err(dev, "cannot get DVDD (digital core) regulator\n");
-		ret = PTR_ERR(sensor->dvdd);
-		goto error_endpoint;
-	}
-
-	/* DOVDD: digital I/O */
-	sensor->dovdd = devm_regulator_get(dev, "dovdd");
-	if (IS_ERR(sensor->dovdd)) {
-		dev_err(dev, "cannot get DOVDD (digital I/O) regulator\n");
-		ret = PTR_ERR(sensor->dovdd);
-		goto error_endpoint;
-	}
-
-	/* AVDD: analog */
-	sensor->avdd = devm_regulator_get(dev, "avdd");
-	if (IS_ERR(sensor->avdd)) {
-		dev_err(dev, "cannot get AVDD (analog) regulator\n");
-		ret = PTR_ERR(sensor->avdd);
 		goto error_endpoint;
 	}
 
