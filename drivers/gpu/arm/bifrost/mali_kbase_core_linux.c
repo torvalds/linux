@@ -4421,7 +4421,7 @@ int power_control_init(struct kbase_device *kbdev)
 	 * Any other error is ignored and the driver will continue
 	 * operating with a partial initialization of regulators.
 	 */
-	for (i = 0; i < BASE_MAX_NR_CLOCKS_REGULATORS; i++) {
+	for (i = 0; i < ARRAY_SIZE(regulator_names); i++) {
 		kbdev->regulators[i] = regulator_get_optional(kbdev->dev,
 			regulator_names[i]);
 		if (IS_ERR_OR_NULL(kbdev->regulators[i])) {
