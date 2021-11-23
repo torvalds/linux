@@ -8330,15 +8330,8 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		aconnector->base.polled = DRM_CONNECTOR_POLL_HPD;
-		if (link->is_dig_mapping_flexible &&
-		    link->dc->res_pool->funcs->link_encs_assign) {
-			link->link_enc =
-				link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-			if (!link->link_enc)
-				link->link_enc =
-					link_enc_cfg_get_next_avail_link_enc(link->ctx->dc);
-		}
-
+		link->link_enc = dp_get_link_enc(link);
+		ASSERT(link->link_enc);
 		if (link->link_enc)
 			aconnector->base.ycbcr_420_allowed =
 			link->link_enc->features.dp_ycbcr420_supported ? true : false;

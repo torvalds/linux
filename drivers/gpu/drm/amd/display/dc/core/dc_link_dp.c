@@ -6174,6 +6174,23 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 	}
 }
 
+struct link_encoder *dp_get_link_enc(struct dc_link *link)
+{
+	struct link_encoder *link_enc;
+
+	link_enc = link->link_enc;
+	if (link->is_dig_mapping_flexible &&
+	    link->dc->res_pool->funcs->link_encs_assign) {
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc,
+								  link);
+		if (!link->link_enc)
+			link_enc = link_enc_cfg_get_next_avail_link_enc(
+				link->ctx->dc);
+	}
+
+	return link_enc;
+}
+
 void dpcd_set_source_specific_data(struct dc_link *link)
 {
 	if (!link->dc->vendor_signature.is_valid) {
