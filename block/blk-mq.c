@@ -28,7 +28,6 @@
 #include <linux/crash_dump.h>
 #include <linux/prefetch.h>
 #include <linux/blk-crypto.h>
-#include <linux/sched/sysctl.h>
 
 #include <trace/events/block.h>
 
