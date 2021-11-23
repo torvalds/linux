@@ -3179,10 +3179,12 @@ static struct iovec *__io_import_iovec(int rw, struct io_kiocb *req,
 	size_t sqe_len;
 	ssize_t ret;
 
-	BUILD_BUG_ON(ERR_PTR(0) != NULL);
-
-	if (opcode == IORING_OP_READ_FIXED || opcode == IORING_OP_WRITE_FIXED)
-		return ERR_PTR(io_import_fixed(req, rw, iter));
+	if (opcode == IORING_OP_READ_FIXED || opcode == IORING_OP_WRITE_FIXED) {
+		ret = io_import_fixed(req, rw, iter);
+		if (ret)
+			return ERR_PTR(ret);
+		return NULL;
+	}
 
 	/* buffer index only valid with fixed read/write, or buffer select  */
 	if (unlikely(req->buf_index && !(req->flags & REQ_F_BUFFER_SELECT)))
@@ -3200,15 +3202,18 @@ static struct iovec *__io_import_iovec(int rw, struct io_kiocb *req,
 		}
 
 		ret = import_single_range(rw, buf, sqe_len, s->fast_iov, iter);
-		return ERR_PTR(ret);
+		if (ret)
+			return ERR_PTR(ret);
+		return NULL;
 	}
 
 	iovec = s->fast_iov;
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		ret = io_iov_buffer_select(req, iovec, issue_flags);
-		if (!ret)
-			iov_iter_init(iter, rw, iovec, 1, iovec->iov_len);
-		return ERR_PTR(ret);
+		if (ret)
+			return ERR_PTR(ret);
+		iov_iter_init(iter, rw, iovec, 1, iovec->iov_len);
+		return NULL;
 	}
 
 	ret = __import_iovec(rw, buf, sqe_len, UIO_FASTIOV, &iovec, iter,
