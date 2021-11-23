@@ -301,8 +301,6 @@ static int __init stmpe_pwm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, pwm);
-
 	return 0;
 }
 
