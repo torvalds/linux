@@ -9216,6 +9216,8 @@ static struct ibm_struct mute_led_driver_data = {
 #define SET_STOP	"BCSS"
 #define GET_DISCHARGE	"BDSG"
 #define SET_DISCHARGE	"BDSS"
+#define GET_INHIBIT	"BICG"
+#define SET_INHIBIT	"BICS"
 
 enum {
 	BAT_ANY = 0,
@@ -9233,6 +9235,7 @@ enum {
 	THRESHOLD_START,
 	THRESHOLD_STOP,
 	FORCE_DISCHARGE,
+	INHIBIT_CHARGE,
 };
 
 struct tpacpi_battery_data {
@@ -9304,6 +9307,12 @@ static int tpacpi_battery_get(int what, int battery, int *ret)
 		/* The force discharge status is in bit 0 */
 		*ret = *ret & 0x01;
 		return 0;
+	case INHIBIT_CHARGE:
+		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_INHIBIT, ret, battery))
+			return -ENODEV;
+		/* The inhibit charge status is in bit 0 */
+		*ret = *ret & 0x01;
+		return 0;
 	default:
 		pr_crit("wrong parameter: %d", what);
 		return -EINVAL;
@@ -9339,6 +9348,22 @@ static int tpacpi_battery_set(int what, int battery, int value)
 		 */
 		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(SET_DISCHARGE, &ret, param))) {
 			pr_err("failed to set force discharge on %d", battery);
+			return -ENODEV;
+		}
+		return 0;
+	case INHIBIT_CHARGE:
+		/* When setting inhibit charge, we set a default value of
+		 * always breaking on AC detach and the effective time is set to
+		 * be permanent.
+		 * The battery ID is in bits 4-5, 2 bits,
+		 * the effective time is in bits 8-23, 2 bytes.
+		 * A time of FFFF indicates forever.
+		 */
+		param = value;
+		param |= battery << 4;
+		param |= 0xFFFF << 8;
+		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(SET_INHIBIT, &ret, param))) {
+			pr_err("failed to set inhibit charge on %d", battery);
 			return -ENODEV;
 		}
 		return 0;
@@ -9389,6 +9414,8 @@ static int tpacpi_battery_probe(int battery)
 	 * 4) Check for support
 	 * 5) Get the current force discharge status
 	 * 6) Check for support
+	 * 7) Get the current inhibit charge status
+	 * 8) Check for support
 	 */
 	if (acpi_has_method(hkey_handle, GET_START)) {
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_START, &ret, battery)) {
@@ -9434,6 +9461,16 @@ static int tpacpi_battery_probe(int battery)
 		if (ret & BIT(8))
 			battery_info.batteries[battery].charge_behaviours |=
 				BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE);
+	}
+	if (acpi_has_method(hkey_handle, GET_INHIBIT)) {
+		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_INHIBIT, &ret, battery))) {
+			pr_err("Error probing battery inhibit charge; %d\n", battery);
+			return -ENODEV;
+		}
+		/* Support is marked in bit 5 */
+		if (ret & BIT(5))
+			battery_info.batteries[battery].charge_behaviours |=
+				BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE);
 	}
 
 	battery_info.batteries[battery].charge_behaviours |=
@@ -9593,10 +9630,22 @@ static ssize_t charge_behaviour_show(struct device *dev,
 	if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE)) {
 		if (tpacpi_battery_get(FORCE_DISCHARGE, battery, &ret))
 			return -ENODEV;
-		if (ret)
+		if (ret) {
 			active = POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE;
+			goto out;
+		}
 	}
 
+	if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE)) {
+		if (tpacpi_battery_get(INHIBIT_CHARGE, battery, &ret))
+			return -ENODEV;
+		if (ret) {
+			active = POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE;
+			goto out;
+		}
+	}
+
+out:
 	return power_supply_charge_behaviour_show(dev, available, active, buf);
 }
 
@@ -9633,11 +9682,22 @@ static ssize_t charge_behaviour_store(struct device *dev,
 	case POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO:
 		if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE))
 			ret = tpacpi_battery_set_validate(FORCE_DISCHARGE, battery, 0);
+		if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE))
+			ret = min(ret, tpacpi_battery_set_validate(INHIBIT_CHARGE, battery, 0));
 		if (ret < 0)
 			return ret;
 		break;
 	case POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE:
-		ret = tpacpi_battery_set_validate(FORCE_DISCHARGE, battery, 1);
+		if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE))
+			ret = tpacpi_battery_set_validate(INHIBIT_CHARGE, battery, 0);
+		ret = min(ret, tpacpi_battery_set_validate(FORCE_DISCHARGE, battery, 1));
+		if (ret < 0)
+			return ret;
+		break;
+	case POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE:
+		if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE))
+			ret = tpacpi_battery_set_validate(FORCE_DISCHARGE, battery, 0);
+		ret = min(ret, tpacpi_battery_set_validate(INHIBIT_CHARGE, battery, 1));
 		if (ret < 0)
 			return ret;
 		break;
