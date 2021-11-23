@@ -67,7 +67,8 @@
 #include "smuio_v11_0_6.h"
 #include "smuio_v13_0.h"
 
-MODULE_FIRMWARE("amdgpu/ip_discovery.bin");
+#define FIRMWARE_IP_DISCOVERY "amdgpu/ip_discovery.bin"
+MODULE_FIRMWARE(FIRMWARE_IP_DISCOVERY);
 
 #define mmRCC_CONFIG_MEMSIZE	0xde3
 #define mmMM_INDEX		0x0
@@ -186,6 +187,34 @@ static int amdgpu_discovery_read_binary(struct amdgpu_device *adev, uint8_t *bin
 
 	amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
 				  adev->mman.discovery_tmr_size, false);
+	return 0;
+}
+
+static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev, uint8_t *binary)
+{
+	const struct firmware *fw;
+	const char *fw_name;
+	int r;
+
+	switch (amdgpu_discovery) {
+	case 2:
+		fw_name = FIRMWARE_IP_DISCOVERY;
+		break;
+	default:
+		dev_warn(adev->dev, "amdgpu_discovery is not set properly\n");
+		return -EINVAL;
+	}
+
+	r = request_firmware(&fw, fw_name, adev->dev);
+	if (r) {
+		dev_err(adev->dev, "can't load firmware \"%s\"\n",
+			fw_name);
+		return r;
+	}
+
+	memcpy((u8 *)binary, (u8 *)fw->data, adev->mman.discovery_tmr_size);
+	release_firmware(fw);
+
 	return 0;
 }
 
