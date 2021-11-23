@@ -1197,6 +1197,21 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 {
 	int rc;
 	struct response_type *rtype = (struct response_type *)(ap_msg->private);
+	struct {
+		struct type6_hdr hdr;
+		struct CPRBX cprbx;
+		/* ... more data blocks ... */
+	} __packed * msg = ap_msg->msg;
+
+	/*
+	 * Set the queue's reply buffer length minus 128 byte padding
+	 * as reply limit for the card firmware.
+	 */
+	msg->hdr.FromCardLen1 = min_t(unsigned int, msg->hdr.FromCardLen1,
+				      zq->reply.bufsize - 128);
+	if (msg->hdr.FromCardLen2)
+		msg->hdr.FromCardLen2 =
+			zq->reply.bufsize - msg->hdr.FromCardLen1 - 128;
 
 	init_completion(&rtype->work);
 	rc = ap_queue_message(zq->queue, ap_msg);
@@ -1277,7 +1292,6 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 		unsigned int	dom_val;	/* domain id	   */
 	} __packed * payload_hdr = NULL;
 
-
 	/*
 	 * The target domain field within the cprb body/payload block will be
 	 * replaced by the usage domain for non-management commands only.
@@ -1308,6 +1322,13 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 		payload_hdr->dom_val = (unsigned int)
 					AP_QID_QUEUE(zq->queue->qid);
 	}
+
+	/*
+	 * Set the queue's reply buffer length minus the two prepend headers
+	 * as reply limit for the card firmware.
+	 */
+	msg->hdr.FromCardLen1 = zq->reply.bufsize -
+		sizeof(struct type86_hdr) - sizeof(struct type86_fmt2_ext);
 
 	init_completion(&rtype->work);
 	rc = ap_queue_message(zq->queue, ap_msg);
