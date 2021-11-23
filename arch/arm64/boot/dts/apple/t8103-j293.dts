@@ -31,3 +31,11 @@
 
 /delete-node/ &port01;
 /delete-node/ &port02;
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+};

@@ -111,6 +111,68 @@
 		ranges;
 		nonposted-mmio;
 
+		i2c0: i2c@235010000 {
+			compatible = "apple,t8103-i2c", "apple,i2c";
+			reg = <0x2 0x35010000 0x0 0x4000>;
+			clocks = <&clk24>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 627 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-0 = <&i2c0_pins>;
+			pinctrl-names = "default";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		i2c1: i2c@235014000 {
+			compatible = "apple,t8103-i2c", "apple,i2c";
+			reg = <0x2 0x35014000 0x0 0x4000>;
+			clocks = <&clk24>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 628 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-0 = <&i2c1_pins>;
+			pinctrl-names = "default";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		i2c2: i2c@235018000 {
+			compatible = "apple,t8103-i2c", "apple,i2c";
+			reg = <0x2 0x35018000 0x0 0x4000>;
+			clocks = <&clk24>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 629 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-0 = <&i2c2_pins>;
+			pinctrl-names = "default";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			status = "disabled"; /* not used in all devices */
+		};
+
+		i2c3: i2c@23501c000 {
+			compatible = "apple,t8103-i2c", "apple,i2c";
+			reg = <0x2 0x3501c000 0x0 0x4000>;
+			clocks = <&clk24>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 630 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-0 = <&i2c3_pins>;
+			pinctrl-names = "default";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		i2c4: i2c@235020000 {
+			compatible = "apple,t8103-i2c", "apple,i2c";
+			reg = <0x2 0x35020000 0x0 0x4000>;
+			clocks = <&clk24>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 631 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-0 = <&i2c4_pins>;
+			pinctrl-names = "default";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			status = "disabled"; /* only used in J293 */
+		};
+
 		serial0: serial@235200000 {
 			compatible = "apple,s5l-uart";
 			reg = <0x2 0x35200000 0x0 0x1000>;
@@ -152,6 +214,31 @@
 				     <AIC_IRQ 194 IRQ_TYPE_LEVEL_HIGH>,
 				     <AIC_IRQ 195 IRQ_TYPE_LEVEL_HIGH>,
 				     <AIC_IRQ 196 IRQ_TYPE_LEVEL_HIGH>;
+
+			i2c0_pins: i2c0-pins {
+				pinmux = <APPLE_PINMUX(192, 1)>,
+					 <APPLE_PINMUX(188, 1)>;
+			};
+
+			i2c1_pins: i2c1-pins {
+				pinmux = <APPLE_PINMUX(201, 1)>,
+					 <APPLE_PINMUX(199, 1)>;
+			};
+
+			i2c2_pins: i2c2-pins {
+				pinmux = <APPLE_PINMUX(163, 1)>,
+					 <APPLE_PINMUX(162, 1)>;
+			};
+
+			i2c3_pins: i2c3-pins {
+				pinmux = <APPLE_PINMUX(73, 1)>,
+					 <APPLE_PINMUX(72, 1)>;
+			};
+
+			i2c4_pins: i2c4-pins {
+				pinmux = <APPLE_PINMUX(135, 1)>,
+					 <APPLE_PINMUX(134, 1)>;
+			};
 
 			pcie_pins: pcie-pins {
 				pinmux = <APPLE_PINMUX(150, 1)>,

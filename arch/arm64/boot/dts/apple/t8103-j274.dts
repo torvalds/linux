@@ -39,3 +39,7 @@
 		local-mac-address = [00 10 18 00 00 00];
 	};
 };
+
+&i2c2 {
+	status = "okay";
+};
