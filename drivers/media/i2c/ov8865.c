@@ -21,10 +21,6 @@
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
 
-/* Clock rate */
-
-#define OV8865_EXTCLK_RATE			24000000
-
 /* Register definitions */
 
 /* System */
@@ -567,6 +563,25 @@ struct ov8865_sclk_config {
 	unsigned int sclk_div;
 };
 
+struct ov8865_pll_configs {
+	const struct ov8865_pll1_config *pll1_config;
+	const struct ov8865_pll2_config *pll2_config_native;
+	const struct ov8865_pll2_config *pll2_config_binning;
+};
+
+/* Clock rate */
+
+enum extclk_rate {
+	OV8865_19_2_MHZ,
+	OV8865_24_MHZ,
+	OV8865_NUM_SUPPORTED_RATES
+};
+
+static const unsigned long supported_extclk_rates[] = {
+	[OV8865_19_2_MHZ] = 19200000,
+	[OV8865_24_MHZ] = 24000000,
+};
+
 /*
  * General formulas for (array-centered) mode calculation:
  * - photo_array_width = 3296
@@ -635,9 +650,7 @@ struct ov8865_mode {
 
 	struct v4l2_fract frame_interval;
 
-	const struct ov8865_pll1_config *pll1_config;
-	const struct ov8865_pll2_config *pll2_config;
-	const struct ov8865_sclk_config *sclk_config;
+	bool pll2_binning;
 
 	const struct ov8865_register_value *register_values;
 	unsigned int register_values_count;
@@ -665,6 +678,9 @@ struct ov8865_sensor {
 	struct regulator *avdd;
 	struct regulator *dvdd;
 	struct regulator *dovdd;
+
+	unsigned long extclk_rate;
+	const struct ov8865_pll_configs *pll_configs;
 	struct clk *extclk;
 
 	struct v4l2_fwnode_endpoint endpoint;
@@ -680,49 +696,93 @@ struct ov8865_sensor {
 /* Static definitions */
 
 /*
- * EXTCLK = 24 MHz
  * PHY_SCLK = 720 MHz
  * MIPI_PCLK = 90 MHz
  */
-static const struct ov8865_pll1_config ov8865_pll1_config_native = {
-	.pll_pre_div_half	= 1,
-	.pll_pre_div		= 0,
-	.pll_mul		= 30,
-	.m_div			= 1,
-	.mipi_div		= 3,
-	.pclk_div		= 1,
-	.sys_pre_div		= 1,
-	.sys_div		= 2,
+
+static const struct ov8865_pll1_config ov8865_pll1_config_native_19_2mhz = {
+		.pll_pre_div_half	= 1,
+		.pll_pre_div		= 2,
+		.pll_mul		= 75,
+		.m_div			= 1,
+		.mipi_div		= 3,
+		.pclk_div		= 1,
+		.sys_pre_div		= 1,
+		.sys_div		= 2,
+};
+
+static const struct ov8865_pll1_config ov8865_pll1_config_native_24mhz = {
+		.pll_pre_div_half	= 1,
+		.pll_pre_div		= 0,
+		.pll_mul		= 30,
+		.m_div			= 1,
+		.mipi_div		= 3,
+		.pclk_div		= 1,
+		.sys_pre_div		= 1,
+		.sys_div		= 2,
 };
 
 /*
- * EXTCLK = 24 MHz
  * DAC_CLK = 360 MHz
  * SCLK = 144 MHz
  */
 
-static const struct ov8865_pll2_config ov8865_pll2_config_native = {
-	.pll_pre_div_half	= 1,
-	.pll_pre_div		= 0,
-	.pll_mul		= 30,
-	.dac_div		= 2,
-	.sys_pre_div		= 5,
-	.sys_div		= 0,
+static const struct ov8865_pll2_config ov8865_pll2_config_native_19_2mhz = {
+		.pll_pre_div_half	= 1,
+		.pll_pre_div		= 5,
+		.pll_mul		= 75,
+		.dac_div		= 1,
+		.sys_pre_div		= 1,
+		.sys_div		= 3,
+};
+
+static const struct ov8865_pll2_config ov8865_pll2_config_native_24mhz = {
+		.pll_pre_div_half	= 1,
+		.pll_pre_div		= 0,
+		.pll_mul		= 30,
+		.dac_div		= 2,
+		.sys_pre_div		= 5,
+		.sys_div		= 0,
 };
 
 /*
- * EXTCLK = 24 MHz
  * DAC_CLK = 360 MHz
  * SCLK = 72 MHz
  */
 
-static const struct ov8865_pll2_config ov8865_pll2_config_binning = {
+static const struct ov8865_pll2_config ov8865_pll2_config_binning_19_2mhz = {
+	.pll_pre_div_half	= 1,
+	.pll_pre_div		= 2,
+	.pll_mul		= 75,
+	.dac_div		= 2,
+	.sys_pre_div		= 10,
+	.sys_div		= 0,
+};
+
+static const struct ov8865_pll2_config ov8865_pll2_config_binning_24mhz = {
 	.pll_pre_div_half	= 1,
 	.pll_pre_div		= 0,
 	.pll_mul		= 30,
 	.dac_div		= 2,
 	.sys_pre_div		= 10,
 	.sys_div		= 0,
+};
+
+static const struct ov8865_pll_configs ov8865_pll_configs_19_2mhz = {
+	.pll1_config = &ov8865_pll1_config_native_19_2mhz,
+	.pll2_config_native = &ov8865_pll2_config_native_19_2mhz,
+	.pll2_config_binning = &ov8865_pll2_config_binning_19_2mhz,
+};
+
+static const struct ov8865_pll_configs ov8865_pll_configs_24mhz = {
+	.pll1_config = &ov8865_pll1_config_native_24mhz,
+	.pll2_config_native = &ov8865_pll2_config_native_24mhz,
+	.pll2_config_binning = &ov8865_pll2_config_binning_24mhz,
+};
+
+static const struct ov8865_pll_configs *ov8865_pll_configs[] = {
+	&ov8865_pll_configs_19_2mhz,
+	&ov8865_pll_configs_24mhz,
 };
 
 static const struct ov8865_sclk_config ov8865_sclk_config_native = {
@@ -934,9 +994,7 @@ static const struct ov8865_mode ov8865_modes[] = {
 		.frame_interval			= { 1, 30 },
 
 		/* PLL */
-		.pll1_config			= &ov8865_pll1_config_native,
-		.pll2_config			= &ov8865_pll2_config_native,
-		.sclk_config			= &ov8865_sclk_config_native,
+		.pll2_binning			= false,
 
 		/* Registers */
 		.register_values	= ov8865_register_values_native,
@@ -990,9 +1048,7 @@ static const struct ov8865_mode ov8865_modes[] = {
 		.frame_interval			= { 1, 30 },
 
 		/* PLL */
-		.pll1_config			= &ov8865_pll1_config_native,
-		.pll2_config			= &ov8865_pll2_config_native,
-		.sclk_config			= &ov8865_sclk_config_native,
+		.pll2_binning			= false,
 
 		/* Registers */
 		.register_values	= ov8865_register_values_native,
@@ -1050,9 +1106,7 @@ static const struct ov8865_mode ov8865_modes[] = {
 		.frame_interval			= { 1, 30 },
 
 		/* PLL */
-		.pll1_config			= &ov8865_pll1_config_native,
-		.pll2_config			= &ov8865_pll2_config_binning,
-		.sclk_config			= &ov8865_sclk_config_native,
+		.pll2_binning			= true,
 
 		/* Registers */
 		.register_values	= ov8865_register_values_binning,
@@ -1116,9 +1170,7 @@ static const struct ov8865_mode ov8865_modes[] = {
 		.frame_interval			= { 1, 90 },
 
 		/* PLL */
-		.pll1_config			= &ov8865_pll1_config_native,
-		.pll2_config			= &ov8865_pll2_config_binning,
-		.sclk_config			= &ov8865_sclk_config_native,
+		.pll2_binning			= true,
 
 		/* Registers */
 		.register_values	= ov8865_register_values_binning,
@@ -1513,12 +1565,11 @@ static int ov8865_isp_configure(struct ov8865_sensor *sensor)
 static unsigned long ov8865_mode_pll1_rate(struct ov8865_sensor *sensor,
 					   const struct ov8865_mode *mode)
 {
-	const struct ov8865_pll1_config *config = mode->pll1_config;
-	unsigned long extclk_rate;
+	const struct ov8865_pll1_config *config;
 	unsigned long pll1_rate;
 
-	extclk_rate = clk_get_rate(sensor->extclk);
-	pll1_rate = extclk_rate * config->pll_mul / config->pll_pre_div_half;
+	config = sensor->pll_configs->pll1_config;
+	pll1_rate = sensor->extclk_rate * config->pll_mul / config->pll_pre_div_half;
 
 	switch (config->pll_pre_div) {
 	case 0:
@@ -1552,9 +1603,11 @@ static int ov8865_mode_pll1_configure(struct ov8865_sensor *sensor,
 				      const struct ov8865_mode *mode,
 				      u32 mbus_code)
 {
-	const struct ov8865_pll1_config *config = mode->pll1_config;
+	const struct ov8865_pll1_config *config;
 	u8 value;
 	int ret;
+
+	config = sensor->pll_configs->pll1_config;
 
 	switch (mbus_code) {
 	case MEDIA_BUS_FMT_SBGGR10_1X10:
@@ -1622,8 +1675,11 @@ static int ov8865_mode_pll1_configure(struct ov8865_sensor *sensor,
 static int ov8865_mode_pll2_configure(struct ov8865_sensor *sensor,
 				      const struct ov8865_mode *mode)
 {
-	const struct ov8865_pll2_config *config = mode->pll2_config;
+	const struct ov8865_pll2_config *config;
 	int ret;
+
+	config = mode->pll2_binning ? sensor->pll_configs->pll2_config_binning :
+				      sensor->pll_configs->pll2_config_native;
 
 	ret = ov8865_write(sensor, OV8865_PLL_CTRL12_REG,
 			   OV8865_PLL_CTRL12_PRE_DIV_HALF(config->pll_pre_div_half) |
@@ -1658,7 +1714,7 @@ static int ov8865_mode_pll2_configure(struct ov8865_sensor *sensor,
 static int ov8865_mode_sclk_configure(struct ov8865_sensor *sensor,
 				      const struct ov8865_mode *mode)
 {
-	const struct ov8865_sclk_config *config = mode->sclk_config;
+	const struct ov8865_sclk_config *config = &ov8865_sclk_config_native;
 	int ret;
 
 	ret = ov8865_write(sensor, OV8865_CLK_SEL0_REG,
@@ -2053,8 +2109,10 @@ static int ov8865_mode_configure(struct ov8865_sensor *sensor,
 static unsigned long ov8865_mode_mipi_clk_rate(struct ov8865_sensor *sensor,
 					       const struct ov8865_mode *mode)
 {
-	const struct ov8865_pll1_config *config = mode->pll1_config;
+	const struct ov8865_pll1_config *config;
 	unsigned long pll1_rate;
+
+	config = sensor->pll_configs->pll1_config;
 
 	pll1_rate = ov8865_mode_pll1_rate(sensor, mode);
 
@@ -2783,7 +2841,8 @@ static int ov8865_probe(struct i2c_client *client)
 	struct ov8865_sensor *sensor;
 	struct v4l2_subdev *subdev;
 	struct media_pad *pad;
-	unsigned long rate;
+	unsigned int rate = 0;
+	unsigned int i;
 	int ret;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
@@ -2852,18 +2911,50 @@ static int ov8865_probe(struct i2c_client *client)
 	/* External Clock */
 
 	sensor->extclk = devm_clk_get(dev, NULL);
-	if (IS_ERR(sensor->extclk)) {
+	if (PTR_ERR(sensor->extclk) == -ENOENT) {
+		dev_info(dev, "no external clock found, continuing...\n");
+		sensor->extclk = NULL;
+	} else if (IS_ERR(sensor->extclk)) {
 		dev_err(dev, "failed to get external clock\n");
 		ret = PTR_ERR(sensor->extclk);
 		goto error_endpoint;
 	}
 
-	rate = clk_get_rate(sensor->extclk);
-	if (rate != OV8865_EXTCLK_RATE) {
-		dev_err(dev, "clock rate %lu Hz is unsupported\n", rate);
+	/*
+	 * We could have either a 24MHz or 19.2MHz clock rate from either dt or
+	 * ACPI...but we also need to support the weird IPU3 case which will
+	 * have an external clock AND a clock-frequency property. Check for the
+	 * clock-frequency property and if found, set that rate if we managed
+	 * to acquire a clock. This should cover the ACPI case. If the system
+	 * uses devicetree then the configured rate should already be set, so
+	 * we can just read it.
+	 */
+	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+				       &rate);
+	if (!ret && sensor->extclk) {
+		ret = clk_set_rate(sensor->extclk, rate);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to set clock rate\n");
+	} else if (ret && !sensor->extclk) {
+		return dev_err_probe(dev, ret, "invalid clock config\n");
+	}
+
+	sensor->extclk_rate = rate ? rate : clk_get_rate(sensor->extclk);
+
+	for (i = 0; i < ARRAY_SIZE(supported_extclk_rates); i++) {
+		if (sensor->extclk_rate == supported_extclk_rates[i])
+			break;
+	}
+
+	if (i == ARRAY_SIZE(supported_extclk_rates)) {
+		dev_err(dev, "clock rate %lu Hz is unsupported\n",
+			sensor->extclk_rate);
 		ret = -EINVAL;
 		goto error_endpoint;
 	}
+
+	sensor->pll_configs = ov8865_pll_configs[i];
 
 	/* Subdev, entity and pad */
 
