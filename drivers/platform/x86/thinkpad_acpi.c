@@ -333,7 +333,6 @@ static struct {
 	u32 input_device_registered:1;
 	u32 platform_drv_registered:1;
 	u32 sensors_pdrv_registered:1;
-	u32 sensors_pdev_attrs_registered:1;
 	u32 hotkey_poll_active:1;
 	u32 has_adaptive_kbd:1;
 	u32 kbd_lang:1;
@@ -11232,7 +11231,6 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
-	tp_features.sensors_pdev_attrs_registered = 1;
 
 	mutex_init(&tpacpi_inputdev_send_mutex);
 	tpacpi_inputdev = input_allocate_device();
