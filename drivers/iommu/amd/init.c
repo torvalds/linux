@@ -2101,6 +2101,11 @@ static int intcapxt_set_affinity(struct irq_data *irqd,
 	return 0;
 }
 
+static int intcapxt_set_wake(struct irq_data *irqd, unsigned int on)
+{
+	return on ? -EOPNOTSUPP : 0;
+}
+
 static struct irq_chip intcapxt_controller = {
 	.name			= "IOMMU-MSI",
 	.irq_unmask		= intcapxt_unmask_irq,
@@ -2108,7 +2113,8 @@ static struct irq_chip intcapxt_controller = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.irq_set_affinity       = intcapxt_set_affinity,
-	.flags			= IRQCHIP_SKIP_SET_WAKE,
+	.irq_set_wake		= intcapxt_set_wake,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static const struct irq_domain_ops intcapxt_domain_ops = {
