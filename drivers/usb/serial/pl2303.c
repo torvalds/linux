@@ -432,6 +432,7 @@ static int pl2303_detect_type(struct usb_serial *serial)
 	case 0x200:
 		switch (bcdDevice) {
 		case 0x100:
+		case 0x105:
 		case 0x305:
 		case 0x405:
 			/*
