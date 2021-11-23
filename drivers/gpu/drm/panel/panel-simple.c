@@ -803,7 +803,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	/* Catch common mistakes for panels. */
 	switch (connector_type) {
 	case 0:
-		dev_warn(dev, "Specify missing connector_type\n");
+		dev_dbg(dev, "Specify missing connector_type\n");
 		connector_type = DRM_MODE_CONNECTOR_DPI;
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
