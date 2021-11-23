@@ -5,6 +5,7 @@
 #include <asm/cpu.h>
 
 #include "lapic.h"
+#include "irq.h"
 #include "posted_intr.h"
 #include "trace.h"
 #include "vmx.h"
@@ -77,13 +78,18 @@ after_clear_sn:
 		pi_set_on(pi_desc);
 }
 
+static bool vmx_can_use_vtd_pi(struct kvm *kvm)
+{
+	return irqchip_in_kernel(kvm) && enable_apicv &&
+		kvm_arch_has_assigned_device(kvm) &&
+		irq_remapping_cap(IRQ_POSTING_CAP);
+}
+
 void vmx_vcpu_pi_put(struct kvm_vcpu *vcpu)
 {
 	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
 
-	if (!kvm_arch_has_assigned_device(vcpu->kvm) ||
-		!irq_remapping_cap(IRQ_POSTING_CAP)  ||
-		!kvm_vcpu_apicv_active(vcpu))
+	if (!vmx_can_use_vtd_pi(vcpu->kvm))
 		return;
 
 	/* Set SN when the vCPU is preempted */
@@ -141,9 +147,7 @@ int pi_pre_block(struct kvm_vcpu *vcpu)
 	struct pi_desc old, new;
 	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
 
-	if (!kvm_arch_has_assigned_device(vcpu->kvm) ||
-		!irq_remapping_cap(IRQ_POSTING_CAP)  ||
-		!kvm_vcpu_apicv_active(vcpu))
+	if (!vmx_can_use_vtd_pi(vcpu->kvm))
 		return 0;
 
 	WARN_ON(irqs_disabled());
@@ -256,9 +260,7 @@ int pi_update_irte(struct kvm *kvm, unsigned int host_irq, uint32_t guest_irq,
 	struct vcpu_data vcpu_info;
 	int idx, ret = 0;
 
-	if (!kvm_arch_has_assigned_device(kvm) ||
-	    !irq_remapping_cap(IRQ_POSTING_CAP) ||
-	    !kvm_vcpu_apicv_active(kvm->vcpus[0]))
+	if (!vmx_can_use_vtd_pi(kvm))
 		return 0;
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
