@@ -1402,11 +1402,11 @@ static const struct IMX464_mode supported_modes_2lane[] = {
 		.height = 1538,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000,
+			.denominator = 300000,
 		},
 		.exp_def = 0x0600,
 		.hts_def = 0x05dc * 2,
-		.vts_def = 0x7bc,
+		.vts_def = 0x672,
 		.mipi_freq_idx = 0,
 		.bpp = 10,
 		.mclk = 24000000,
@@ -3130,6 +3130,10 @@ static int IMX464_probe(struct i2c_client *client,
 	}
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
 		&IMX464->bus_cfg);
+	if (ret) {
+		dev_err(dev, "Failed to get bus cfg\n");
+		return ret;
+	}
 	if (IMX464->bus_cfg.bus.mipi_csi2.num_data_lanes == 4) {
 		IMX464->support_modes = supported_modes;
 		IMX464->cfg_num = ARRAY_SIZE(supported_modes);
