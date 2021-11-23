@@ -666,7 +666,7 @@ static int io_ctl_read_bitmap(struct btrfs_io_ctl *io_ctl,
 
 static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 {
-	struct btrfs_block_group *block_group = ctl->private;
+	struct btrfs_block_group *block_group = ctl->block_group;
 	u64 max_bytes;
 	u64 bitmap_bytes;
 	u64 extent_bytes;
@@ -2182,7 +2182,7 @@ static u64 add_bytes_to_bitmap(struct btrfs_free_space_ctl *ctl,
 static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		      struct btrfs_free_space *info)
 {
-	struct btrfs_block_group *block_group = ctl->private;
+	struct btrfs_block_group *block_group = ctl->block_group;
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	bool forced = false;
 
@@ -2251,7 +2251,7 @@ static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
 		return 0;
 
 	if (ctl->op == &free_space_op)
-		block_group = ctl->private;
+		block_group = ctl->block_group;
 again:
 	/*
 	 * Since we link bitmaps right into the cluster we need to see if we
@@ -2868,7 +2868,7 @@ void btrfs_init_free_space_ctl(struct btrfs_block_group *block_group,
 	spin_lock_init(&ctl->tree_lock);
 	ctl->unit = fs_info->sectorsize;
 	ctl->start = block_group->start;
-	ctl->private = block_group;
+	ctl->block_group = block_group;
 	ctl->op = &free_space_op;
 	ctl->free_space_bytes = RB_ROOT_CACHED;
 	INIT_LIST_HEAD(&ctl->trimming_ranges);
@@ -2967,8 +2967,8 @@ void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl)
 {
 	spin_lock(&ctl->tree_lock);
 	__btrfs_remove_free_space_cache_locked(ctl);
-	if (ctl->private)
-		btrfs_discard_update_discardable(ctl->private);
+	if (ctl->block_group)
+		btrfs_discard_update_discardable(ctl->block_group);
 	spin_unlock(&ctl->tree_lock);
 }
 
