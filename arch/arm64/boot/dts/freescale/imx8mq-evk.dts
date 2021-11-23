@@ -169,6 +169,7 @@
 			reg = <0>;
 			reset-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <10000>;
+			qca,disable-smarteee;
 		};
 	};
 };
