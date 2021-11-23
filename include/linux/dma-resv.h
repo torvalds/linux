@@ -99,8 +99,8 @@ static inline enum dma_resv_usage dma_resv_usage_rw(bool write)
 /**
  * struct dma_resv - a reservation object manages fences for a buffer
  *
- * There are multiple uses for this, with sometimes slightly different rules in
- * how the fence slots are used.
+ * This is a container for dma_fence objects which needs to handle multiple use
+ * cases.
  *
  * One use is to synchronize cross-driver access to a struct dma_buf, either for
  * dynamic buffer management or just to handle implicit synchronization between
@@ -130,47 +130,22 @@ struct dma_resv {
 	 * @seq:
 	 *
 	 * Sequence count for managing RCU read-side synchronization, allows
-	 * read-only access to @fence_excl and @fence while ensuring we take a
-	 * consistent snapshot.
+	 * read-only access to @fences while ensuring we take a consistent
+	 * snapshot.
 	 */
 	seqcount_ww_mutex_t seq;
 
 	/**
-	 * @fence_excl:
+	 * @fences:
 	 *
-	 * The exclusive fence, if there is one currently.
+	 * Array of fences which where added to the dma_resv object
 	 *
-	 * To guarantee that no fences are lost, this new fence must signal
-	 * only after the previous exclusive fence has signalled. If
-	 * semantically only a new access is added without actually treating the
-	 * previous one as a dependency the exclusive fences can be strung
-	 * together using struct dma_fence_chain.
-	 *
-	 * Note that actual semantics of what an exclusive or shared fence mean
-	 * is defined by the user, for reservation objects shared across drivers
-	 * see &dma_buf.resv.
-	 */
-	struct dma_fence __rcu *fence_excl;
-
-	/**
-	 * @fence:
-	 *
-	 * List of current shared fences.
-	 *
-	 * There are no ordering constraints of shared fences against the
-	 * exclusive fence slot. If a waiter needs to wait for all access, it
-	 * has to wait for both sets of fences to signal.
-	 *
-	 * A new fence is added by calling dma_resv_add_shared_fence(). Since
-	 * this often needs to be done past the point of no return in command
+	 * A new fence is added by calling dma_resv_add_fence(). Since this
+	 * often needs to be done past the point of no return in command
 	 * submission it cannot fail, and therefore sufficient slots need to be
 	 * reserved by calling dma_resv_reserve_fences().
-	 *
-	 * Note that actual semantics of what an exclusive or shared fence mean
-	 * is defined by the user, for reservation objects shared across drivers
-	 * see &dma_buf.resv.
 	 */
-	struct dma_resv_list __rcu *fence;
+	struct dma_resv_list __rcu *fences;
 };
 
 /**
@@ -207,8 +182,8 @@ struct dma_resv_iter {
 	/** @fences: the shared fences; private, *MUST* not dereference  */
 	struct dma_resv_list *fences;
 
-	/** @shared_count: number of shared fences */
-	unsigned int shared_count;
+	/** @num_fences: number of fences */
+	unsigned int num_fences;
 
 	/** @is_restarted: true if this is the first returned fence */
 	bool is_restarted;
