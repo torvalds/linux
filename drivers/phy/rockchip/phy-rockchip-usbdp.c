@@ -87,8 +87,8 @@ struct rockchip_udphy_cfg {
 	int (*dp_phy_set_voltages)(struct rockchip_udphy *udphy,
 				   struct phy_configure_opts_dp *dp);
 	int (*hpd_event_trigger)(struct rockchip_udphy *udphy, bool hpd);
-	int (*lane_enable)(struct rockchip_udphy *udphy, int dp_lanes);
-	int (*lane_select)(struct rockchip_udphy *udphy);
+	int (*lane_cfg)(struct rockchip_udphy *udphy, int dp_lanes);
+	int (*dplane_select)(struct rockchip_udphy *udphy);
 };
 
 struct rockchip_udphy {
@@ -386,21 +386,10 @@ static int udphy_dplane_select(struct rockchip_udphy *udphy)
 {
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 
-	if (cfg->lane_select)
-		return cfg->lane_select(udphy);
+	if (cfg->dplane_select)
+		return cfg->dplane_select(udphy);
 
 	return 0;
-}
-
-static int udphy_lane_enable(struct rockchip_udphy *udphy, int dp_lanes)
-{
-	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
-	int ret = 0;
-
-	if (cfg->lane_enable)
-		ret = cfg->lane_enable(udphy, dp_lanes);
-
-	return ret;
 }
 
 static int udphy_dplane_get(struct rockchip_udphy *udphy)
@@ -424,15 +413,15 @@ static int udphy_dplane_get(struct rockchip_udphy *udphy)
 	return dp_lanes;
 }
 
-static int udphy_lane_configure(struct rockchip_udphy *udphy)
+static int udphy_lane_configure(struct rockchip_udphy *udphy, int dp_lanes)
 {
-	int ret;
+	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+	int ret = 0;
 
-	ret = udphy_dplane_select(udphy);
-	if (ret)
-		return ret;
+	if (cfg->lane_cfg)
+		ret = cfg->lane_cfg(udphy, dp_lanes);
 
-	return udphy_lane_enable(udphy, udphy_dplane_get(udphy));
+	return ret;
 }
 
 static int upphy_set_typec_default_mapping(struct rockchip_udphy *udphy)
@@ -740,9 +729,14 @@ static int udphy_power_off(struct rockchip_udphy *udphy, u8 mode)
 static int rockchip_dp_phy_power_on(struct phy *phy)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
+	int ret;
 
 	phy_set_bus_width(phy, udphy_dplane_get(udphy));
-	return udphy_power_on(udphy, UDPHY_MODE_DP);
+	ret = udphy_power_on(udphy, UDPHY_MODE_DP);
+	if (ret)
+		return ret;
+	return udphy_dplane_select(udphy);
+
 }
 
 static int rockchip_dp_phy_power_off(struct phy *phy)
@@ -1172,7 +1166,7 @@ static int rk3588_udphy_init(struct rockchip_udphy *udphy)
 	}
 
 	/* Step 3: configure lane and select mux */
-	ret = udphy_lane_configure(udphy);
+	ret = udphy_lane_configure(udphy, udphy_dplane_get(udphy));
 	if (ret) {
 		dev_err(udphy->dev, "lane configure error %d\n", ret);
 		goto assert_apb;
@@ -1229,7 +1223,7 @@ static int rk3588_udphy_hpd_event_trigger(struct rockchip_udphy *udphy, bool hpd
 	return 0;
 }
 
-static int rk3588_udphy_lane_enable(struct rockchip_udphy *udphy, int dp_lanes)
+static int rk3588_udphy_lane_configure(struct rockchip_udphy *udphy, int dp_lanes)
 {
 	int i;
 	u32 val = 0;
@@ -1237,13 +1231,18 @@ static int rk3588_udphy_lane_enable(struct rockchip_udphy *udphy, int dp_lanes)
 	for (i = 0; i < dp_lanes; i++)
 		val |= BIT(udphy->dp_lane_sel[i]);
 
-	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET, CMN_DP_LANE_EN_ALL,
+	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET,
+			   CMN_DP_LANE_MUX_ALL | CMN_DP_LANE_EN_ALL,
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(3), udphy->lane_mux_sel[3]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(2), udphy->lane_mux_sel[2]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(1), udphy->lane_mux_sel[1]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(0), udphy->lane_mux_sel[0]) |
 			   FIELD_PREP(CMN_DP_LANE_EN_ALL, val));
 
 	return 0;
 }
 
-static int rk3588_udphy_lane_select(struct rockchip_udphy *udphy)
+static int rk3588_udphy_dplane_select(struct rockchip_udphy *udphy)
 {
 	u32 value = 0;
 
@@ -1266,12 +1265,6 @@ static int rk3588_udphy_lane_select(struct rockchip_udphy *udphy)
 		     ((DP_AUX_DIN_SEL | DP_AUX_DOUT_SEL | DP_LANE_SEL_ALL) << 16) |
 		     FIELD_PREP(DP_AUX_DIN_SEL, udphy->dp_aux_din_sel) |
 		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel) | value);
-
-	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET, CMN_DP_LANE_MUX_ALL,
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(3), udphy->lane_mux_sel[3]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(2), udphy->lane_mux_sel[2]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(1), udphy->lane_mux_sel[1]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(0), udphy->lane_mux_sel[0]));
 
 	return 0;
 }
@@ -1319,7 +1312,7 @@ static int rk3588_dp_phy_set_rate(struct rockchip_udphy *udphy,
 		return ret;
 	}
 
-	return udphy_lane_enable(udphy, dp->lanes);
+	return udphy_lane_configure(udphy, dp->lanes);
 }
 
 static const struct {
@@ -1436,8 +1429,8 @@ static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 	.dp_phy_set_rate = rk3588_dp_phy_set_rate,
 	.dp_phy_set_voltages = rk3588_dp_phy_set_voltages,
 	.hpd_event_trigger = rk3588_udphy_hpd_event_trigger,
-	.lane_enable = rk3588_udphy_lane_enable,
-	.lane_select = rk3588_udphy_lane_select,
+	.lane_cfg = rk3588_udphy_lane_configure,
+	.dplane_select = rk3588_udphy_dplane_select,
 };
 
 static const struct of_device_id rockchip_udphy_dt_match[] = {
