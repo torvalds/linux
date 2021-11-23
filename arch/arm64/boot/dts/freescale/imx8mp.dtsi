@@ -397,6 +397,10 @@
 				eth_mac1: mac-address@90 {
 					reg = <0x90 6>;
 				};
+
+				eth_mac2: mac-address@96 {
+					reg = <0x96 6>;
+				};
 			};
 
 			anatop: anatop@30360000 {
@@ -881,6 +885,8 @@
 							 <&clk IMX8MP_SYS_PLL2_100M>,
 							 <&clk IMX8MP_SYS_PLL2_125M>;
 				assigned-clock-rates = <0>, <100000000>, <125000000>;
+				nvmem-cells = <&eth_mac2>;
+				nvmem-cell-names = "mac-address";
 				intf_mode = <&gpr 0x4>;
 				status = "disabled";
 			};
