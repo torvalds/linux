@@ -506,6 +506,7 @@ static int scmi_optee_service_probe(struct device *dev)
 	agent->dev = dev;
 	agent->tee_ctx = tee_ctx;
 	INIT_LIST_HEAD(&agent->channel_list);
+	mutex_init(&agent->mu);
 
 	ret = get_capabilities(agent);
 	if (ret)
