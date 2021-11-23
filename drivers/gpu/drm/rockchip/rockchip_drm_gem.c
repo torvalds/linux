@@ -745,7 +745,7 @@ int rockchip_gem_dumb_create(struct drm_file *file_priv,
 			     struct drm_mode_create_dumb *args)
 {
 	struct rockchip_gem_object *rk_obj;
-	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+	u32 min_pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
 
 	/*
 	 * align to 64 bytes since Mali requires it.
