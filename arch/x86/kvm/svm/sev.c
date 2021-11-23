@@ -2048,8 +2048,6 @@ void sev_vm_destroy(struct kvm *kvm)
 		return;
 	}
 
-	mutex_lock(&kvm->lock);
-
 	/*
 	 * Ensure that all guest tagged cache entries are flushed before
 	 * releasing the pages back to the system for use. CLFLUSH will
@@ -2068,8 +2066,6 @@ void sev_vm_destroy(struct kvm *kvm)
 			cond_resched();
 		}
 	}
-
-	mutex_unlock(&kvm->lock);
 
 	sev_unbind_asid(kvm, sev->handle);
 	sev_asid_free(sev);
