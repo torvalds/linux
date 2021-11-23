@@ -354,9 +354,9 @@ static void smc_close_passive_work(struct work_struct *work)
 	if (rxflags->peer_conn_abort) {
 		/* peer has not received all data */
 		smc_close_passive_abort_received(smc);
-		release_sock(&smc->sk);
+		release_sock(sk);
 		cancel_delayed_work_sync(&conn->tx_work);
-		lock_sock(&smc->sk);
+		lock_sock(sk);
 		goto wakeup;
 	}
 
