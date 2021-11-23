@@ -228,6 +228,12 @@ again:
 			/* send close request */
 			rc = smc_close_final(conn);
 			sk->sk_state = SMC_PEERCLOSEWAIT1;
+
+			/* actively shutdown clcsock before peer close it,
+			 * prevent peer from entering TIME_WAIT state.
+			 */
+			if (smc->clcsock && smc->clcsock->sk)
+				rc = kernel_sock_shutdown(smc->clcsock, SHUT_RDWR);
 		} else {
 			/* peer event has changed the state */
 			goto again;
@@ -354,9 +360,9 @@ static void smc_close_passive_work(struct work_struct *work)
 	if (rxflags->peer_conn_abort) {
 		/* peer has not received all data */
 		smc_close_passive_abort_received(smc);
-		release_sock(&smc->sk);
+		release_sock(sk);
 		cancel_delayed_work_sync(&conn->tx_work);
-		lock_sock(&smc->sk);
+		lock_sock(sk);
 		goto wakeup;
 	}
 
