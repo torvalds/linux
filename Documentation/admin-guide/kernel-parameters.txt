@@ -4343,19 +4343,30 @@
 				Disable the Correctable Errors Collector,
 				see CONFIG_RAS_CEC help text.
 
-	rcu_nocbs=	[KNL]
-			The argument is a cpu list, as described above.
+	rcu_nocbs[=cpu-list]
+			[KNL] The optional argument is a cpu list,
+			as described above.
 
-			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
-			the specified list of CPUs to be no-callback CPUs.
-			Invocation of these CPUs' RCU callbacks will be
-			offloaded to "rcuox/N" kthreads created for that
-			purpose, where "x" is "p" for RCU-preempt, and
-			"s" for RCU-sched, and "N" is the CPU number.
-			This reduces OS jitter on the offloaded CPUs,
-			which can be useful for HPC and real-time
-			workloads.  It can also improve energy efficiency
-			for asymmetric multiprocessors.
+			In kernels built with CONFIG_RCU_NOCB_CPU=y,
+			enable the no-callback CPU mode, which prevents
+			such CPUs' callbacks from being invoked in
+			softirq context.  Invocation of such CPUs' RCU
+			callbacks will instead be offloaded to "rcuox/N"
+			kthreads created for that purpose, where "x" is
+			"p" for RCU-preempt, "s" for RCU-sched, and "g"
+			for the kthreads that mediate grace periods; and
+			"N" is the CPU number. This reduces OS jitter on
+			the offloaded CPUs, which can be useful for HPC
+			and real-time workloads.  It can also improve
+			energy efficiency for asymmetric multiprocessors.
+
+			If a cpulist is passed as an argument, the specified
+			list of	CPUs is set to no-callback mode from boot.
+
+			Otherwise, if the '=' sign and the cpulist
+			arguments are omitted, no CPU will be set to
+			no-callback mode from boot but the mode may be
+			toggled at runtime via cpusets.
 
 	rcu_nocb_poll	[KNL]
 			Rather than requiring that offloaded CPUs

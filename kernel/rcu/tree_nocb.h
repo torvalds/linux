@@ -66,14 +66,16 @@ static bool rcu_nocb_is_setup;
 static int __init rcu_nocb_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&rcu_nocb_mask);
-	if (cpulist_parse(str, rcu_nocb_mask)) {
-		pr_warn("rcu_nocbs= bad CPU range, all CPUs set\n");
-		cpumask_setall(rcu_nocb_mask);
+	if (*str == '=') {
+		if (cpulist_parse(++str, rcu_nocb_mask)) {
+			pr_warn("rcu_nocbs= bad CPU range, all CPUs set\n");
+			cpumask_setall(rcu_nocb_mask);
+		}
 	}
 	rcu_nocb_is_setup = true;
 	return 1;
 }
-__setup("rcu_nocbs=", rcu_nocb_setup);
+__setup("rcu_nocbs", rcu_nocb_setup);
 
 static int __init parse_rcu_nocb_poll(char *arg)
 {
