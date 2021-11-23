@@ -1613,8 +1613,7 @@ static void sev_migrate_from(struct kvm_sev_info *dst,
 	src->handle = 0;
 	src->pages_locked = 0;
 
-	INIT_LIST_HEAD(&dst->regions_list);
-	list_replace_init(&src->regions_list, &dst->regions_list);
+	list_cut_before(&dst->regions_list, &src->regions_list, &src->regions_list);
 }
 
 static int sev_es_migrate_from(struct kvm *dst, struct kvm *src)
