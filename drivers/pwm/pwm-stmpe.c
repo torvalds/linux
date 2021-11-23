@@ -269,19 +269,19 @@ static const struct pwm_ops stmpe_24xx_pwm_ops = {
 static int __init stmpe_pwm_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	struct stmpe_pwm *pwm;
+	struct stmpe_pwm *stmpe_pwm;
 	int ret;
 
-	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (!pwm)
+	stmpe_pwm = devm_kzalloc(&pdev->dev, sizeof(*stmpe_pwm), GFP_KERNEL);
+	if (!stmpe_pwm)
 		return -ENOMEM;
 
-	pwm->stmpe = stmpe;
-	pwm->chip.dev = &pdev->dev;
+	stmpe_pwm->stmpe = stmpe;
+	stmpe_pwm->chip.dev = &pdev->dev;
 
 	if (stmpe->partnum == STMPE2401 || stmpe->partnum == STMPE2403) {
-		pwm->chip.ops = &stmpe_24xx_pwm_ops;
-		pwm->chip.npwm = 3;
+		stmpe_pwm->chip.ops = &stmpe_24xx_pwm_ops;
+		stmpe_pwm->chip.npwm = 3;
 	} else {
 		if (stmpe->partnum == STMPE1601)
 			dev_err(&pdev->dev, "STMPE1601 not yet supported\n");
@@ -295,7 +295,7 @@ static int __init stmpe_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = pwmchip_add(&pwm->chip);
+	ret = pwmchip_add(&stmpe_pwm->chip);
 	if (ret) {
 		stmpe_disable(stmpe, STMPE_BLOCK_PWM);
 		return ret;
