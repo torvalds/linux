@@ -274,7 +274,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VDPU_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_hdcp0_pre: aclk_hdcp0_pre {
@@ -283,7 +283,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VOP_LOW_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_hdcp1_pre: aclk_hdcp1_pre {
@@ -292,7 +292,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VO1USB_TOP_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_isp1_pre: aclk_isp1_pre {
@@ -301,7 +301,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VI_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_jpeg_decoder_pre: aclk_jpeg_decoder_pre {
@@ -310,7 +310,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VDPU_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_rkvdec0_pre: aclk_rkvdec0_pre {
@@ -319,7 +319,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VDPU_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_rkvdec1_pre: aclk_rkvdec1_pre {
@@ -328,7 +328,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VDPU_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_rkvenc1_pre: aclk_rkvenc1_pre {
@@ -337,7 +337,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_RKVENC0>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_usb: aclk_usb {
@@ -346,7 +346,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VO1USB_TOP_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	aclk_vdpu_low_pre: aclk_vdpu_low_pre {
@@ -355,7 +355,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_VDPU_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	arm_pmu: arm-pmu {
@@ -436,7 +436,7 @@
 		clock-names = "link";
 		clocks = <&cru HCLK_VI_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	hclk_nvm: hclk_nvm {
@@ -445,7 +445,7 @@
 		clock-names = "link";
 		clocks = <&cru ACLK_NVM_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	hclk_rkvdec0_pre: hclk_rkvdec0_pre {
@@ -454,7 +454,7 @@
 		clock-names = "link";
 		clocks = <&cru HCLK_VDPU_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	hclk_rkvdec1_pre: hclk_rkvdec1_pre {
@@ -463,7 +463,7 @@
 		clock-names = "link";
 		clocks = <&cru HCLK_VDPU_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	hclk_rkvenc1_pre: hclk_rkvenc1_pre {
@@ -472,16 +472,16 @@
 		clock-names = "link";
 		clocks = <&cru HCLK_RKVENC0>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	hclk_sdio_pre: hclk_sdio_pre {
 		compatible = "rockchip,rk3588-clock-gate-link";
 		reg = <0 0xfd7c092c 0 0x10>;
 		clock-names = "link";
-		clocks = <&hclk_nvm 0>;
+		clocks = <&hclk_nvm>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	hclk_usb: hclk_usb {
@@ -490,7 +490,7 @@
 		clock-names = "link";
 		clocks = <&cru HCLK_VO1USB_TOP_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	hclk_vo0: hclk_vo0 {
@@ -499,7 +499,7 @@
 		clock-names = "link";
 		clocks = <&cru HCLK_VOP_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	hclk_vo1: hclk_vo1 {
@@ -508,7 +508,7 @@
 		clock-names = "link";
 		clocks = <&cru HCLK_VO1USB_TOP_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	jpege_ccu: jpege-ccu {
@@ -528,7 +528,7 @@
 		clock-names = "link";
 		clocks = <&cru HCLK_VDPU_ROOT>;
 		#power-domain-cells = <1>;
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 	};
 
 	psci {
