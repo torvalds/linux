@@ -73,6 +73,8 @@
 #include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/kasan.h>
+#include <linux/percpu.h>
+
 #include <asm/cpu.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu_ops.h>
@@ -85,6 +87,7 @@
 #include <asm/smp.h>
 #include <asm/sysreg.h>
 #include <asm/traps.h>
+#include <asm/vectors.h>
 #include <asm/virt.h>
 
 /* Kernel representation of AT_HWCAP and AT_HWCAP2 */
@@ -109,6 +112,8 @@ DECLARE_BITMAP(boot_capabilities, ARM64_NPATCHABLE);
 
 bool arm64_use_ng_mappings = false;
 EXPORT_SYMBOL(arm64_use_ng_mappings);
+
+DEFINE_PER_CPU_READ_MOSTLY(const char *, this_cpu_vector) = vectors;
 
 /*
  * Permit PER_LINUX32 and execve() of 32-bit binaries even if not all CPUs
@@ -1589,6 +1594,12 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 	kpti_remap_fn *remap_fn;
 
 	int cpu = smp_processor_id();
+
+	if (__this_cpu_read(this_cpu_vector) == vectors) {
+		const char *v = arm64_get_bp_hardening_vector(EL1_VECTOR_KPTI);
+
+		__this_cpu_write(this_cpu_vector, v);
+	}
 
 	/*
 	 * We don't need to rewrite the page-tables if either we've done
