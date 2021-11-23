@@ -659,8 +659,6 @@ struct ov8865_mode {
 	unsigned int blc_anchor_right_start;
 	unsigned int blc_anchor_right_end;
 
-	struct v4l2_fract frame_interval;
-
 	bool pll2_binning;
 
 	const struct ov8865_register_value *register_values;
@@ -964,7 +962,7 @@ static const struct ov8865_mode ov8865_modes[] = {
 	{
 		/* Horizontal */
 		.output_size_x			= 3264,
-		.hts				= 1944,
+		.hts				= 3888,
 
 		/* Vertical */
 		.output_size_y			= 2448,
@@ -1003,9 +1001,6 @@ static const struct ov8865_mode ov8865_modes[] = {
 		.blc_anchor_right_start		= 1984,
 		.blc_anchor_right_end		= 2239,
 
-		/* Frame Interval */
-		.frame_interval			= { 1, 30 },
-
 		/* PLL */
 		.pll2_binning			= false,
 
@@ -1018,11 +1013,11 @@ static const struct ov8865_mode ov8865_modes[] = {
 	{
 		/* Horizontal */
 		.output_size_x			= 3264,
-		.hts				= 2582,
+		.hts				= 3888,
 
 		/* Vertical */
 		.output_size_y			= 1836,
-		.vts				= 2002,
+		.vts				= 2470,
 
 		.size_auto			= true,
 		.size_auto_boundary_x		= 8,
@@ -1056,9 +1051,6 @@ static const struct ov8865_mode ov8865_modes[] = {
 		.blc_anchor_left_end		= 831,
 		.blc_anchor_right_start		= 1984,
 		.blc_anchor_right_end		= 2239,
-
-		/* Frame Interval */
-		.frame_interval			= { 1, 30 },
 
 		/* PLL */
 		.pll2_binning			= false,
@@ -1114,9 +1106,6 @@ static const struct ov8865_mode ov8865_modes[] = {
 		.blc_anchor_left_end		= 415,
 		.blc_anchor_right_start		= 992,
 		.blc_anchor_right_end		= 1119,
-
-		/* Frame Interval */
-		.frame_interval			= { 1, 30 },
 
 		/* PLL */
 		.pll2_binning			= true,
@@ -1178,9 +1167,6 @@ static const struct ov8865_mode ov8865_modes[] = {
 		.blc_anchor_left_end		= 415,
 		.blc_anchor_right_start		= 992,
 		.blc_anchor_right_end		= 1119,
-
-		/* Frame Interval */
-		.frame_interval			= { 1, 90 },
 
 		/* PLL */
 		.pll2_binning			= true,
@@ -2628,11 +2614,18 @@ static int ov8865_g_frame_interval(struct v4l2_subdev *subdev,
 {
 	struct ov8865_sensor *sensor = ov8865_subdev_sensor(subdev);
 	const struct ov8865_mode *mode;
+	unsigned int framesize;
+	unsigned int fps;
 
 	mutex_lock(&sensor->mutex);
 
 	mode = sensor->state.mode;
-	interval->interval = mode->frame_interval;
+	framesize = mode->hts * (mode->output_size_y +
+				 sensor->ctrls.vblank->val);
+	fps = DIV_ROUND_CLOSEST(sensor->ctrls.pixel_rate->val, framesize);
+
+	interval->interval.numerator = 1;
+	interval->interval.denominator = fps;
 
 	mutex_unlock(&sensor->mutex);
 
@@ -2777,41 +2770,6 @@ static int ov8865_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int ov8865_enum_frame_interval(struct v4l2_subdev *subdev,
-				      struct v4l2_subdev_state *sd_state,
-				      struct v4l2_subdev_frame_interval_enum *interval_enum)
-{
-	const struct ov8865_mode *mode = NULL;
-	unsigned int mode_index;
-	unsigned int interval_index;
-
-	if (interval_enum->index > 0)
-		return -EINVAL;
-	/*
-	 * Multiple modes with the same dimensions may have different frame
-	 * intervals, so look up each relevant mode.
-	 */
-	for (mode_index = 0, interval_index = 0;
-	     mode_index < ARRAY_SIZE(ov8865_modes); mode_index++) {
-		mode = &ov8865_modes[mode_index];
-
-		if (mode->output_size_x == interval_enum->width &&
-		    mode->output_size_y == interval_enum->height) {
-			if (interval_index == interval_enum->index)
-				break;
-
-			interval_index++;
-		}
-	}
-
-	if (mode_index == ARRAY_SIZE(ov8865_modes))
-		return -EINVAL;
-
-	interval_enum->interval = mode->frame_interval;
-
-	return 0;
-}
-
 static void
 __ov8865_get_pad_crop(struct ov8865_sensor *sensor,
 		      struct v4l2_subdev_state *state, unsigned int pad,
@@ -2870,7 +2828,6 @@ static const struct v4l2_subdev_pad_ops ov8865_subdev_pad_ops = {
 	.get_fmt		= ov8865_get_fmt,
 	.set_fmt		= ov8865_set_fmt,
 	.enum_frame_size	= ov8865_enum_frame_size,
-	.enum_frame_interval	= ov8865_enum_frame_interval,
 	.get_selection		= ov8865_get_selection,
 	.set_selection		= ov8865_get_selection,
 };
