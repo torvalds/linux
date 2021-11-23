@@ -690,6 +690,8 @@ static int udphy_power_on(struct rockchip_udphy *udphy, u8 mode)
 		if (udphy->mode & UDPHY_MODE_USB)
 			udphy_u3_port_disable(udphy, false);
 	} else if (udphy->mode_change) {
+		udphy->mode_change = false;
+		udphy->status = UDPHY_MODE_NONE;
 		if (udphy->mode == UDPHY_MODE_DP)
 			udphy_u3_port_disable(udphy, true);
 
@@ -902,12 +904,6 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 		break;
 	}
 
-	if (udphy->mode != mode) {
-		udphy->mode = mode;
-		udphy->mode_change = true;
-	} else
-		udphy->mode_change = false;
-
 	if (state->alt && state->alt->svid == USB_TYPEC_DP_SID) {
 		struct typec_displayport_data *data = state->data;
 		bool hpd = !!(data && (data->status & DP_STATUS_HPD_STATE));
@@ -920,6 +916,11 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 				gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 0);
 				gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 1);
 			}
+		}
+
+		if (hpd && udphy->mode != mode) {
+			udphy->mode = mode;
+			udphy->mode_change = true;
 		}
 
 		if (cfg->hpd_event_trigger)
