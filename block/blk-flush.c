@@ -95,6 +95,12 @@ enum {
 static void blk_kick_flush(struct request_queue *q,
 			   struct blk_flush_queue *fq, unsigned int flags);
 
+static inline struct blk_flush_queue *
+blk_get_flush_queue(struct request_queue *q, struct blk_mq_ctx *ctx)
+{
+	return blk_mq_map_queue(q, REQ_OP_FLUSH, ctx)->fq;
+}
+
 static unsigned int blk_flush_policy(unsigned long fflags, struct request *rq)
 {
 	unsigned int policy = 0;
