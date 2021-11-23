@@ -472,6 +472,7 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	*fcode = (msg->hdr.function_code[0] << 8) | msg->hdr.function_code[1];
 	*dom = (unsigned short *)&msg->cprbx.domain;
 
+	/* check subfunction, US and AU need special flag with NQAP */
 	if (memcmp(function_code, "US", 2) == 0
 	    || memcmp(function_code, "AU", 2) == 0)
 		ap_msg->flags |= AP_MSG_FLAG_SPECIAL;
@@ -480,6 +481,23 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
 		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
 #endif
+
+	/* check CPRB minor version, set info bits in ap_message flag field */
+	switch (*(unsigned short *)(&msg->cprbx.func_id[0])) {
+	case 0x5432: /* "T2" */
+		ap_msg->flags |= AP_MSG_FLAG_USAGE;
+		break;
+	case 0x5433: /* "T3" */
+	case 0x5435: /* "T5" */
+	case 0x5436: /* "T6" */
+	case 0x5437: /* "T7" */
+		ap_msg->flags |= AP_MSG_FLAG_ADMIN;
+		break;
+	default:
+		ZCRYPT_DBF_DBG("%s unknown CPRB minor version '%c%c'\n",
+			       __func__, msg->cprbx.func_id[0],
+			       msg->cprbx.func_id[1]);
+	}
 
 	/* copy data block */
 	if (xcRB->request_data_length &&
@@ -567,6 +585,12 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
 		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
 #endif
+
+	/* set info bits in ap_message flag field */
+	if (msg->cprbx.flags & 0x80)
+		ap_msg->flags |= AP_MSG_FLAG_ADMIN;
+	else
+		ap_msg->flags |= AP_MSG_FLAG_USAGE;
 
 	return 0;
 }
@@ -1131,15 +1155,17 @@ out_free:
 }
 
 /*
- * Fetch function code from cprb.
- * Extracting the fc requires to copy the cprb from userspace.
- * So this function allocates memory and needs an ap_msg prepared
+ * Prepare a CCA AP msg request.
+ * Prepare a CCA AP msg: fetch the required data from userspace,
+ * prepare the AP msg, fill some info into the ap_message struct,
+ * extract some data from the CPRB and give back to the caller.
+ * This function allocates memory and needs an ap_msg prepared
  * by the caller with ap_init_message(). Also the caller has to
  * make sure ap_release_message() is always called even on failure.
  */
-unsigned int get_cprb_fc(bool userspace, struct ica_xcRB *xcRB,
-			 struct ap_message *ap_msg,
-			 unsigned int *func_code, unsigned short **dom)
+int prep_cca_ap_msg(bool userspace, struct ica_xcRB *xcRB,
+		    struct ap_message *ap_msg,
+		    unsigned int *func_code, unsigned short **dom)
 {
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_XCRB,
@@ -1193,15 +1219,17 @@ out:
 }
 
 /*
- * Fetch function code from ep11 cprb.
- * Extracting the fc requires to copy the ep11 cprb from userspace.
- * So this function allocates memory and needs an ap_msg prepared
+ * Prepare an EP11 AP msg request.
+ * Prepare an EP11 AP msg: fetch the required data from userspace,
+ * prepare the AP msg, fill some info into the ap_message struct,
+ * extract some data from the CPRB and give back to the caller.
+ * This function allocates memory and needs an ap_msg prepared
  * by the caller with ap_init_message(). Also the caller has to
  * make sure ap_release_message() is always called even on failure.
  */
-unsigned int get_ep11cprb_fc(bool userspace, struct ep11_urb *xcrb,
-			     struct ap_message *ap_msg,
-			     unsigned int *func_code)
+int prep_ep11_ap_msg(bool userspace, struct ep11_urb *xcrb,
+		     struct ap_message *ap_msg,
+		     unsigned int *func_code)
 {
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_EP11,
@@ -1301,8 +1329,8 @@ out:
 	return rc;
 }
 
-unsigned int get_rng_fc(struct ap_message *ap_msg, int *func_code,
-						   unsigned int *domain)
+int prep_rng_ap_msg(struct ap_message *ap_msg, int *func_code,
+		    unsigned int *domain)
 {
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_XCRB,

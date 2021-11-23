@@ -156,7 +156,7 @@ struct type80_hdr {
 	unsigned char	reserved3[8];
 } __packed;
 
-unsigned int get_rsa_modex_fc(struct ica_rsa_modexpo *mex, int *fcode)
+int get_rsa_modex_fc(struct ica_rsa_modexpo *mex, int *fcode)
 {
 
 	if (!mex->inputdatalength)
@@ -172,7 +172,7 @@ unsigned int get_rsa_modex_fc(struct ica_rsa_modexpo *mex, int *fcode)
 	return 0;
 }
 
-unsigned int get_rsa_crt_fc(struct ica_rsa_modexpo_crt *crt, int *fcode)
+int get_rsa_crt_fc(struct ica_rsa_modexpo_crt *crt, int *fcode)
 {
 
 	if (!crt->inputdatalength)

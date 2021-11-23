@@ -251,7 +251,9 @@ struct ap_message {
 			struct ap_message *);
 };
 
-#define AP_MSG_FLAG_SPECIAL  1		/* flag msg as 'special' with NQAP */
+#define AP_MSG_FLAG_SPECIAL  0x0001	/* flag msg as 'special' with NQAP */
+#define AP_MSG_FLAG_USAGE    0x0002	/* CCA, EP11: usage (no admin) msg */
+#define AP_MSG_FLAG_ADMIN    0x0004	/* CCA, EP11: admin (=control) msg */
 
 /**
  * ap_init_message() - Initialize ap_message.

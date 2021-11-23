@@ -876,7 +876,7 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	}
 #endif
 
-	rc = get_cprb_fc(userspace, xcRB, &ap_msg, &func_code, &domain);
+	rc = prep_cca_ap_msg(userspace, xcRB, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
 
@@ -1058,7 +1058,7 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 		}
 	}
 
-	rc = get_ep11cprb_fc(userspace, xcrb, &ap_msg, &func_code);
+	rc = prep_ep11_ap_msg(userspace, xcrb, &ap_msg, &func_code);
 	if (rc)
 		goto out_free;
 
@@ -1171,7 +1171,7 @@ static long zcrypt_rng(char *buffer)
 	trace_s390_zcrypt_req(buffer, TP_HWRNGCPRB);
 
 	ap_init_message(&ap_msg);
-	rc = get_rng_fc(&ap_msg, &func_code, &domain);
+	rc = prep_rng_ap_msg(&ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
 
