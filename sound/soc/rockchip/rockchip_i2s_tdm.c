@@ -1076,6 +1076,7 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 		val |= I2S_TXCR_VDW(24);
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
+	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
 		val |= I2S_TXCR_VDW(32);
 		break;
 	default:
@@ -1509,7 +1510,8 @@ static int rockchip_i2s_tdm_dai_prepare(struct platform_device *pdev,
 				    SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S20_3LE |
 				    SNDRV_PCM_FMTBIT_S24_LE |
-				    SNDRV_PCM_FMTBIT_S32_LE),
+				    SNDRV_PCM_FMTBIT_S32_LE |
+				    SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE),
 		},
 		.capture = {
 			.stream_name = "Capture",
@@ -1520,7 +1522,8 @@ static int rockchip_i2s_tdm_dai_prepare(struct platform_device *pdev,
 				    SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S20_3LE |
 				    SNDRV_PCM_FMTBIT_S24_LE |
-				    SNDRV_PCM_FMTBIT_S32_LE),
+				    SNDRV_PCM_FMTBIT_S32_LE |
+				    SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE),
 		},
 		.ops = &rockchip_i2s_tdm_dai_ops,
 	};
