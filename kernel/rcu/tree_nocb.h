@@ -60,6 +60,9 @@ static inline bool rcu_current_is_nocb_kthread(struct rcu_data *rdp)
  * Parse the boot-time rcu_nocb_mask CPU list from the kernel parameters.
  * If the list is invalid, a warning is emitted and all CPUs are offloaded.
  */
+
+static bool rcu_nocb_is_setup;
+
 static int __init rcu_nocb_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&rcu_nocb_mask);
@@ -67,6 +70,7 @@ static int __init rcu_nocb_setup(char *str)
 		pr_warn("rcu_nocbs= bad CPU range, all CPUs set\n");
 		cpumask_setall(rcu_nocb_mask);
 	}
+	rcu_nocb_is_setup = true;
 	return 1;
 }
 __setup("rcu_nocbs=", rcu_nocb_setup);
@@ -1167,13 +1171,17 @@ void __init rcu_init_nohz(void)
 		need_rcu_nocb_mask = true;
 #endif /* #if defined(CONFIG_NO_HZ_FULL) */
 
-	if (!cpumask_available(rcu_nocb_mask) && need_rcu_nocb_mask) {
-		if (!zalloc_cpumask_var(&rcu_nocb_mask, GFP_KERNEL)) {
-			pr_info("rcu_nocb_mask allocation failed, callback offloading disabled.\n");
-			return;
+	if (need_rcu_nocb_mask) {
+		if (!cpumask_available(rcu_nocb_mask)) {
+			if (!zalloc_cpumask_var(&rcu_nocb_mask, GFP_KERNEL)) {
+				pr_info("rcu_nocb_mask allocation failed, callback offloading disabled.\n");
+				return;
+			}
 		}
+		rcu_nocb_is_setup = true;
 	}
-	if (!cpumask_available(rcu_nocb_mask))
+
+	if (!rcu_nocb_is_setup)
 		return;
 
 #if defined(CONFIG_NO_HZ_FULL)
@@ -1275,8 +1283,10 @@ static void __init rcu_spawn_nocb_kthreads(void)
 {
 	int cpu;
 
-	for_each_online_cpu(cpu)
-		rcu_spawn_cpu_nocb_kthread(cpu);
+	if (rcu_nocb_is_setup) {
+		for_each_online_cpu(cpu)
+			rcu_spawn_cpu_nocb_kthread(cpu);
+	}
 }
 
 /* How many CB CPU IDs per GP kthread?  Default of -1 for sqrt(nr_cpu_ids). */
