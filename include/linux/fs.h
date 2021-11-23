@@ -1220,13 +1220,13 @@ static inline int fcntl_setlk(unsigned int fd, struct file *file,
 
 #if BITS_PER_LONG == 32
 static inline int fcntl_getlk64(struct file *file, unsigned int cmd,
-				struct flock64 __user *user)
+				struct flock64 *user)
 {
 	return -EINVAL;
 }
 
 static inline int fcntl_setlk64(unsigned int fd, struct file *file,
-				unsigned int cmd, struct flock64 __user *user)
+				unsigned int cmd, struct flock64 *user)
 {
 	return -EACCES;
 }
