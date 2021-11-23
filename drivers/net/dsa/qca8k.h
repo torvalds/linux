@@ -15,6 +15,8 @@
 #define QCA8K_NUM_PORTS					7
 #define QCA8K_NUM_CPU_PORTS				2
 #define QCA8K_MAX_MTU					9000
+#define QCA8K_NUM_LAGS					4
+#define QCA8K_NUM_PORTS_FOR_LAG				4
 
 #define PHY_ID_QCA8327					0x004dd034
 #define QCA8K_ID_QCA8327				0x12
@@ -122,6 +124,14 @@
 #define QCA8K_REG_EEE_CTRL				0x100
 #define  QCA8K_REG_EEE_CTRL_LPI_EN(_i)			((_i + 1) * 2)
 
+/* TRUNK_HASH_EN registers */
+#define QCA8K_TRUNK_HASH_EN_CTRL			0x270
+#define   QCA8K_TRUNK_HASH_SIP_EN			BIT(3)
+#define   QCA8K_TRUNK_HASH_DIP_EN			BIT(2)
+#define   QCA8K_TRUNK_HASH_SA_EN			BIT(1)
+#define   QCA8K_TRUNK_HASH_DA_EN			BIT(0)
+#define   QCA8K_TRUNK_HASH_MASK				GENMASK(3, 0)
+
 /* ACL registers */
 #define QCA8K_REG_PORT_VLAN_CTRL0(_i)			(0x420 + (_i * 8))
 #define   QCA8K_PORT_VLAN_CVID_MASK			GENMASK(27, 16)
@@ -180,6 +190,7 @@
 #define   QCA8K_ATU_AGE_TIME(x)				FIELD_PREP(QCA8K_ATU_AGE_TIME_MASK, (x))
 #define QCA8K_REG_GLOBAL_FW_CTRL0			0x620
 #define   QCA8K_GLOBAL_FW_CTRL0_CPU_PORT_EN		BIT(10)
+#define   QCA8K_GLOBAL_FW_CTRL0_MIRROR_PORT_NUM		GENMASK(7, 4)
 #define QCA8K_REG_GLOBAL_FW_CTRL1			0x624
 #define   QCA8K_GLOBAL_FW_CTRL1_IGMP_DP_MASK		GENMASK(30, 24)
 #define   QCA8K_GLOBAL_FW_CTRL1_BC_DP_MASK		GENMASK(22, 16)
@@ -201,6 +212,29 @@
 #define   QCA8K_PORT_LOOKUP_STATE_LEARNING		QCA8K_PORT_LOOKUP_STATE(0x3)
 #define   QCA8K_PORT_LOOKUP_STATE_FORWARD		QCA8K_PORT_LOOKUP_STATE(0x4)
 #define   QCA8K_PORT_LOOKUP_LEARN			BIT(20)
+#define   QCA8K_PORT_LOOKUP_ING_MIRROR_EN		BIT(25)
+
+#define QCA8K_REG_GOL_TRUNK_CTRL0			0x700
+/* 4 max trunk first
+ * first 6 bit for member bitmap
+ * 7th bit is to enable trunk port
+ */
+#define QCA8K_REG_GOL_TRUNK_SHIFT(_i)			((_i) * 8)
+#define QCA8K_REG_GOL_TRUNK_EN_MASK			BIT(7)
+#define QCA8K_REG_GOL_TRUNK_EN(_i)			(QCA8K_REG_GOL_TRUNK_EN_MASK << QCA8K_REG_GOL_TRUNK_SHIFT(_i))
+#define QCA8K_REG_GOL_TRUNK_MEMBER_MASK			GENMASK(6, 0)
+#define QCA8K_REG_GOL_TRUNK_MEMBER(_i)			(QCA8K_REG_GOL_TRUNK_MEMBER_MASK << QCA8K_REG_GOL_TRUNK_SHIFT(_i))
+/* 0x704 for TRUNK 0-1 --- 0x708 for TRUNK 2-3 */
+#define QCA8K_REG_GOL_TRUNK_CTRL(_i)			(0x704 + (((_i) / 2) * 4))
+#define QCA8K_REG_GOL_TRUNK_ID_MEM_ID_MASK		GENMASK(3, 0)
+#define QCA8K_REG_GOL_TRUNK_ID_MEM_ID_EN_MASK		BIT(3)
+#define QCA8K_REG_GOL_TRUNK_ID_MEM_ID_PORT_MASK		GENMASK(2, 0)
+#define QCA8K_REG_GOL_TRUNK_ID_SHIFT(_i)		(((_i) / 2) * 16)
+#define QCA8K_REG_GOL_MEM_ID_SHIFT(_i)			((_i) * 4)
+/* Complex shift: FIRST shift for port THEN shift for trunk */
+#define QCA8K_REG_GOL_TRUNK_ID_MEM_ID_SHIFT(_i, _j)	(QCA8K_REG_GOL_MEM_ID_SHIFT(_j) + QCA8K_REG_GOL_TRUNK_ID_SHIFT(_i))
+#define QCA8K_REG_GOL_TRUNK_ID_MEM_ID_EN(_i, _j)	(QCA8K_REG_GOL_TRUNK_ID_MEM_ID_EN_MASK << QCA8K_REG_GOL_TRUNK_ID_MEM_ID_SHIFT(_i, _j))
+#define QCA8K_REG_GOL_TRUNK_ID_MEM_ID_PORT(_i, _j)	(QCA8K_REG_GOL_TRUNK_ID_MEM_ID_PORT_MASK << QCA8K_REG_GOL_TRUNK_ID_MEM_ID_SHIFT(_i, _j))
 
 #define QCA8K_REG_GLOBAL_FC_THRESH			0x800
 #define   QCA8K_GLOBAL_FC_GOL_XON_THRES_MASK		GENMASK(24, 16)
@@ -305,6 +339,9 @@ struct qca8k_ports_config {
 struct qca8k_priv {
 	u8 switch_id;
 	u8 switch_revision;
+	u8 mirror_rx;
+	u8 mirror_tx;
+	u8 lag_hash_mode;
 	bool legacy_phy_port_mapping;
 	struct qca8k_ports_config ports_config;
 	struct regmap *regmap;
