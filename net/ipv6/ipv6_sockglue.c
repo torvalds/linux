@@ -599,6 +599,10 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		/* RFC 3542, 6.5: default traffic class of 0x0 */
 		if (val == -1)
 			val = 0;
+		if (sk->sk_type == SOCK_STREAM) {
+			val &= ~INET_ECN_MASK;
+			val |= np->tclass & INET_ECN_MASK;
+		}
 		np->tclass = val;
 		retv = 0;
 		break;
