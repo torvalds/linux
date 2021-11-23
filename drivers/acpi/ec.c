@@ -169,7 +169,7 @@ struct acpi_ec_query {
 	struct acpi_ec *ec;
 };
 
-static int acpi_ec_query(struct acpi_ec *ec, u8 *data);
+static int acpi_ec_query(struct acpi_ec *ec);
 static bool advance_transaction(struct acpi_ec *ec, bool interrupt);
 static void acpi_ec_event_handler(struct work_struct *work);
 static void acpi_ec_event_processor(struct work_struct *work);
@@ -496,12 +496,10 @@ static inline void __acpi_ec_disable_event(struct acpi_ec *ec)
  */
 static void acpi_ec_clear(struct acpi_ec *ec)
 {
-	int i, status;
-	u8 value = 0;
+	int i;
 
 	for (i = 0; i < ACPI_EC_CLEAR_MAX; i++) {
-		status = acpi_ec_query(ec, &value);
-		if (status || !value)
+		if (acpi_ec_query(ec))
 			break;
 	}
 	if (unlikely(i == ACPI_EC_CLEAR_MAX))
@@ -1164,11 +1162,11 @@ static void acpi_ec_event_processor(struct work_struct *work)
 	acpi_ec_delete_query(q);
 }
 
-static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
+static int acpi_ec_query(struct acpi_ec *ec)
 {
+	struct acpi_ec_query *q;
 	u8 value = 0;
 	int result;
-	struct acpi_ec_query *q;
 
 	q = acpi_ec_create_query(ec, &value);
 	if (!q)
@@ -1180,10 +1178,13 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	 * bit to be cleared (and thus clearing the interrupt source).
 	 */
 	result = acpi_ec_transaction(ec, &q->transaction);
-	if (!value)
-		result = -ENODATA;
 	if (result)
 		goto err_exit;
+
+	if (!value) {
+		result = -ENODATA;
+		goto err_exit;
+	}
 
 	q->handler = acpi_ec_get_query_handler_by_value(ec, value);
 	if (!q->handler) {
@@ -1210,8 +1211,7 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 err_exit:
 	if (result)
 		acpi_ec_delete_query(q);
-	if (data)
-		*data = value;
+
 	return result;
 }
 
@@ -1243,7 +1243,9 @@ static void acpi_ec_event_handler(struct work_struct *work)
 	spin_lock_irqsave(&ec->lock, flags);
 	while (ec->nr_pending_queries) {
 		spin_unlock_irqrestore(&ec->lock, flags);
-		(void)acpi_ec_query(ec, NULL);
+
+		acpi_ec_query(ec);
+
 		spin_lock_irqsave(&ec->lock, flags);
 		ec->nr_pending_queries--;
 		/*
