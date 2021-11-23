@@ -1182,6 +1182,12 @@ void kvmppc_save_user_regs(void)
 #endif
 }
 EXPORT_SYMBOL_GPL(kvmppc_save_user_regs);
+
+void kvmppc_save_current_sprs(void)
+{
+	save_sprs(&current->thread);
+}
+EXPORT_SYMBOL_GPL(kvmppc_save_current_sprs);
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 static inline void restore_sprs(struct thread_struct *old_thread,

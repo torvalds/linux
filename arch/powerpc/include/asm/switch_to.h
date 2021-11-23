@@ -113,6 +113,7 @@ static inline void clear_task_ebb(struct task_struct *t)
 }
 
 void kvmppc_save_user_regs(void);
+void kvmppc_save_current_sprs(void);
 
 extern int set_thread_tidr(struct task_struct *t);
 
