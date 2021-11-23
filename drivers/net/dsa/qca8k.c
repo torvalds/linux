@@ -2228,7 +2228,7 @@ qca8k_lag_can_offload(struct dsa_switch *ds,
 	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH)
 		return false;
 
-	if (info->hash_type != NETDEV_LAG_HASH_L2 ||
+	if (info->hash_type != NETDEV_LAG_HASH_L2 &&
 	    info->hash_type != NETDEV_LAG_HASH_L23)
 		return false;
 
@@ -2242,8 +2242,8 @@ qca8k_lag_setup_hash(struct dsa_switch *ds,
 {
 	struct qca8k_priv *priv = ds->priv;
 	bool unique_lag = true;
+	u32 hash = 0;
 	int i, id;
-	u32 hash;
 
 	id = dsa_lag_id(ds->dst, lag);
 
