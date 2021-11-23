@@ -1230,18 +1230,17 @@ static void acpi_ec_event_handler(struct work_struct *work)
 
 		spin_lock_irqsave(&ec->lock, flags);
 		ec->nr_pending_queries--;
-		/*
-		 * Before exit, make sure that this work item can be
-		 * scheduled again. There might be QR_EC failures, leaving
-		 * EC_FLAGS_QUERY_PENDING uncleared and preventing this work
-		 * item from being scheduled again.
-		 */
-		if (!ec->nr_pending_queries) {
-			if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
-			    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY)
-				acpi_ec_complete_query(ec);
-		}
 	}
+
+	/*
+	 * Before exit, make sure that the it will be possible to queue up the
+	 * event handling work again regardless of whether or not the query
+	 * queued up above is processed successfully.
+	 */
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
+	    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY)
+		acpi_ec_complete_query(ec);
+
 	spin_unlock_irqrestore(&ec->lock, flags);
 
 	ec_dbg_evt("Event stopped");
