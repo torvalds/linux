@@ -125,6 +125,8 @@ struct other_data {
 	u32 width;
 	u32 height;
 	u32 bus_fmt;
+	u32 data_type;
+	u32 data_bit;
 };
 
 struct ov50c40_mode {
@@ -1443,7 +1445,7 @@ static const struct regval ov50c40_10bit_4096x3072_dphy_30fps_regs[] = {
 	{0x363b, 0x80},
 	{0x363d, 0x0c},
 	{0x3680, 0xc0},
-	{0x3684, 0x00},//0x03
+	{0x3684, 0x03},//0x03
 	{0x368d, 0x00},
 	{0x368e, 0x01},
 	{0x3690, 0x10},
@@ -1787,7 +1789,7 @@ static const struct regval ov50c40_10bit_4096x3072_dphy_30fps_regs[] = {
 	{0x4802, 0x00},
 	{0x480b, 0x10},
 	{0x480c, 0x80},
-	{0x480e, 0x00},//0x04
+	{0x480e, 0x04},//0x04
 	{0x480f, 0x32},
 	{0x4815, 0x19},
 	{0x481b, 0x3c},
@@ -2047,7 +2049,7 @@ static const struct regval ov50c40_10bit_4096x3072_dphy_30fps_nopd_regs[] = {
 	{0x5941, 0x40},
 	{0x5942, 0x40},
 	{0x5943, 0x40},
-	{0x5944, 0x40},//0x03
+	{0x5944, 0x40},
 	{0x5945, 0x40},
 	{0x5946, 0x40},
 	{0x5947, 0x40},
@@ -2647,7 +2649,7 @@ static const struct regval ov50c40_10bit_4096x3072_dphy_30fps_nopd_regs[] = {
 	{0x5b99, 0xcd},
 	{0x5b9a, 0xcd},
 	{0x5b9b, 0xcd},
-	{0x5b9c, 0xcd},//0x03
+	{0x5b9c, 0xcd},
 	{0x5b9d, 0xcd},
 	{0x5b9e, 0xcd},
 	{0x5b9f, 0xcd},
@@ -2991,7 +2993,7 @@ static const struct regval ov50c40_10bit_4096x3072_dphy_30fps_nopd_regs[] = {
 	{0x4030, 0x00},
 	{0x4031, 0x02},
 	{0x4032, 0x00},
-	{0x4033, 0x02},//0x04
+	{0x4033, 0x02},
 	{0x4034, 0x00},
 	{0x4035, 0x02},
 	{0x4036, 0x00},
@@ -3247,7 +3249,7 @@ static const struct regval ov50c40_10bit_4096x3072_dphy_30fps_nopd_regs[] = {
 	{0x5c64, 0x1f},
 	{0x5c65, 0xc0},
 	{0x5c66, 0x17},
-	{0x5c67, 0xc0},//0x03
+	{0x5c67, 0xc0},
 	{0x5c68, 0x02},
 	{0x5c69, 0x02},
 	{0x5c6a, 0x02},
@@ -5708,6 +5710,8 @@ static const struct other_data ov50c40_spd = {
 	.width = 1016,
 	.height = 760,
 	.bus_fmt = MEDIA_BUS_FMT_SPD_2X8,
+	.data_type = 0x19,
+	.data_bit = 10,
 };
 
 /*
@@ -5723,23 +5727,6 @@ static const struct other_data ov50c40_spd = {
  * }
  */
 static const struct ov50c40_mode supported_modes_dphy[] = {
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.width = 4096,
-		.height = 3072,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300000,
-		},
-		.exp_def = 0x0840,
-		.hts_def = 0x3e8 * 8,
-		.vts_def = 0x0d05,
-		.mipi_freq_idx = 2,
-		.bpp = 10,
-		.reg_list = ov50c40_10bit_4096x3072_dphy_30fps_nopd_regs,
-		.hdr_mode = NO_HDR,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 4096,
@@ -5782,6 +5769,24 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.height = 6144,
 		.max_fps = {
 			.numerator = 10000,
+			.denominator = 120000,
+		},
+		.exp_def = 0x0240,
+		.hts_def = 0x9f6 * 4,
+		.vts_def = 0x0cc3 * 2,
+		.mipi_freq_idx = 2,
+		.bpp = 10,
+		.reg_list = ov50c40_10bit_8192x6144_dphy_12fps_regs,
+		.hdr_mode = NO_HDR,
+		.spd = &ov50c40_spd,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.width = 8192,
+		.height = 6144,
+		.max_fps = {
+			.numerator = 10000,
 			.denominator = 30000,
 		},
 		.exp_def = 0x0240,
@@ -5794,23 +5799,21 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.spd = &ov50c40_spd,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
-
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.width = 8192,
-		.height = 6144,
+		.width = 4096,
+		.height = 3072,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 120000,
+			.denominator = 300000,
 		},
-		.exp_def = 0x0240,
-		.hts_def = 0x9f6 * 4,
-		.vts_def = 0x0cc3 * 2,
+		.exp_def = 0x0840,
+		.hts_def = 0x3e8 * 8,
+		.vts_def = 0x0d05,
 		.mipi_freq_idx = 2,
 		.bpp = 10,
-		.reg_list = ov50c40_10bit_8192x6144_dphy_12fps_regs,
+		.reg_list = ov50c40_10bit_4096x3072_dphy_30fps_nopd_regs,
 		.hdr_mode = NO_HDR,
-		.spd = &ov50c40_spd,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 };
@@ -6250,6 +6253,8 @@ static int ov50c40_get_channel_info(struct ov50c40 *ov50c40, struct rkmodule_cha
 		ch_info->width = mode->spd->width;
 		ch_info->height = mode->spd->height;
 		ch_info->bus_fmt = mode->spd->bus_fmt;
+		ch_info->data_type = mode->spd->data_type;
+		ch_info->data_bit = mode->spd->data_bit;
 	} else {
 		ch_info->vc = ov50c40->cur_mode->vc[ch_info->index];
 		ch_info->width = ov50c40->cur_mode->width;
@@ -6697,7 +6702,7 @@ static int ov50c40_enum_frame_interval(struct v4l2_subdev *sd,
 	fie->reserved[0] = ov50c40->support_modes[fie->index].hdr_mode;
 	return 0;
 }
-#define RK356X_TEST
+//#define RK356X_TEST
 #ifdef RK356X_TEST
 #define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
 #define DST_WIDTH 4096
