@@ -9214,6 +9214,8 @@ static struct ibm_struct mute_led_driver_data = {
 #define SET_START	"BCCS"
 #define GET_STOP	"BCSG"
 #define SET_STOP	"BCSS"
+#define GET_DISCHARGE	"BDSG"
+#define SET_DISCHARGE	"BDSS"
 
 enum {
 	BAT_ANY = 0,
@@ -9230,6 +9232,7 @@ enum {
 	/* This is used in the get/set helpers */
 	THRESHOLD_START,
 	THRESHOLD_STOP,
+	FORCE_DISCHARGE,
 };
 
 struct tpacpi_battery_data {
@@ -9237,6 +9240,7 @@ struct tpacpi_battery_data {
 	int start_support;
 	int charge_stop;
 	int stop_support;
+	unsigned int charge_behaviours;
 };
 
 struct tpacpi_battery_driver_data {
@@ -9294,6 +9298,12 @@ static int tpacpi_battery_get(int what, int battery, int *ret)
 		if (*ret == 0)
 			*ret = 100;
 		return 0;
+	case FORCE_DISCHARGE:
+		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_DISCHARGE, ret, battery))
+			return -ENODEV;
+		/* The force discharge status is in bit 0 */
+		*ret = *ret & 0x01;
+		return 0;
 	default:
 		pr_crit("wrong parameter: %d", what);
 		return -EINVAL;
@@ -9322,10 +9332,47 @@ static int tpacpi_battery_set(int what, int battery, int value)
 			return -ENODEV;
 		}
 		return 0;
+	case FORCE_DISCHARGE:
+		/* Force discharge is in bit 0,
+		 * break on AC attach is in bit 1 (won't work on some ThinkPads),
+		 * battery ID is in bits 8-9, 2 bits.
+		 */
+		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(SET_DISCHARGE, &ret, param))) {
+			pr_err("failed to set force discharge on %d", battery);
+			return -ENODEV;
+		}
+		return 0;
 	default:
 		pr_crit("wrong parameter: %d", what);
 		return -EINVAL;
 	}
+}
+
+static int tpacpi_battery_set_validate(int what, int battery, int value)
+{
+	int ret, v;
+
+	ret = tpacpi_battery_set(what, battery, value);
+	if (ret < 0)
+		return ret;
+
+	ret = tpacpi_battery_get(what, battery, &v);
+	if (ret < 0)
+		return ret;
+
+	if (v == value)
+		return 0;
+
+	msleep(500);
+
+	ret = tpacpi_battery_get(what, battery, &v);
+	if (ret < 0)
+		return ret;
+
+	if (v == value)
+		return 0;
+
+	return -EIO;
 }
 
 static int tpacpi_battery_probe(int battery)
@@ -9340,6 +9387,8 @@ static int tpacpi_battery_probe(int battery)
 	 * 2) Check for support
 	 * 3) Get the current stop threshold
 	 * 4) Check for support
+	 * 5) Get the current force discharge status
+	 * 6) Check for support
 	 */
 	if (acpi_has_method(hkey_handle, GET_START)) {
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_START, &ret, battery)) {
@@ -9376,10 +9425,25 @@ static int tpacpi_battery_probe(int battery)
 			return -ENODEV;
 		}
 	}
-	pr_info("battery %d registered (start %d, stop %d)",
-			battery,
-			battery_info.batteries[battery].charge_start,
-			battery_info.batteries[battery].charge_stop);
+	if (acpi_has_method(hkey_handle, GET_DISCHARGE)) {
+		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_DISCHARGE, &ret, battery))) {
+			pr_err("Error probing battery discharge; %d\n", battery);
+			return -ENODEV;
+		}
+		/* Support is marked in bit 8 */
+		if (ret & BIT(8))
+			battery_info.batteries[battery].charge_behaviours |=
+				BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE);
+	}
+
+	battery_info.batteries[battery].charge_behaviours |=
+		BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO);
+
+	pr_info("battery %d registered (start %d, stop %d, behaviours: 0x%x)\n",
+		battery,
+		battery_info.batteries[battery].charge_start,
+		battery_info.batteries[battery].charge_stop,
+		battery_info.batteries[battery].charge_behaviours);
 
 	return 0;
 }
@@ -9514,6 +9578,28 @@ static ssize_t charge_control_end_threshold_show(struct device *device,
 	return tpacpi_battery_show(THRESHOLD_STOP, device, buf);
 }
 
+static ssize_t charge_behaviour_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	enum power_supply_charge_behaviour active = POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO;
+	struct power_supply *supply = to_power_supply(dev);
+	unsigned int available;
+	int ret, battery;
+
+	battery = tpacpi_battery_get_id(supply->desc->name);
+	available = battery_info.batteries[battery].charge_behaviours;
+
+	if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE)) {
+		if (tpacpi_battery_get(FORCE_DISCHARGE, battery, &ret))
+			return -ENODEV;
+		if (ret)
+			active = POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE;
+	}
+
+	return power_supply_charge_behaviour_show(dev, available, active, buf);
+}
+
 static ssize_t charge_control_start_threshold_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -9528,8 +9614,44 @@ static ssize_t charge_control_end_threshold_store(struct device *dev,
 	return tpacpi_battery_store(THRESHOLD_STOP, dev, buf, count);
 }
 
+static ssize_t charge_behaviour_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct power_supply *supply = to_power_supply(dev);
+	int selected, battery, ret = 0;
+	unsigned int available;
+
+	battery = tpacpi_battery_get_id(supply->desc->name);
+	available = battery_info.batteries[battery].charge_behaviours;
+	selected = power_supply_charge_behaviour_parse(available, buf);
+
+	if (selected < 0)
+		return selected;
+
+	switch (selected) {
+	case POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO:
+		if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE))
+			ret = tpacpi_battery_set_validate(FORCE_DISCHARGE, battery, 0);
+		if (ret < 0)
+			return ret;
+		break;
+	case POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE:
+		ret = tpacpi_battery_set_validate(FORCE_DISCHARGE, battery, 1);
+		if (ret < 0)
+			return ret;
+		break;
+	default:
+		dev_err(dev, "Unexpected charge behaviour: %d\n", selected);
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static DEVICE_ATTR_RW(charge_control_start_threshold);
 static DEVICE_ATTR_RW(charge_control_end_threshold);
+static DEVICE_ATTR_RW(charge_behaviour);
 static struct device_attribute dev_attr_charge_start_threshold = __ATTR(
 	charge_start_threshold,
 	0644,
@@ -9548,6 +9670,7 @@ static struct attribute *tpacpi_battery_attrs[] = {
 	&dev_attr_charge_control_end_threshold.attr,
 	&dev_attr_charge_start_threshold.attr,
 	&dev_attr_charge_stop_threshold.attr,
+	&dev_attr_charge_behaviour.attr,
 	NULL,
 };
 
