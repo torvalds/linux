@@ -204,14 +204,25 @@ static int of_coresight_get_cpu(struct device *dev)
 	return cpu;
 }
 
-int of_coresight_get_atid(struct coresight_device *csdev)
+/*
+ * of_coresight_get_atid_number: Get the atid number of a source device.
+ *
+ * Returns the number of the atid. If the result is less than zero, it means
+ * failure.
+ */
+int of_coresight_get_atid_number(struct coresight_device *csdev)
 {
-	int atid, ret = 0;
+	return of_property_count_u32_elems(csdev->dev.parent->of_node, "atid");
+}
 
-	ret = of_property_read_u32(csdev->dev.parent->of_node, "atid", &atid);
-	if (ret)
-		return ret;
-	return atid;
+/*
+ * of_coresight_get_atid: Get the atid array of a source device.
+ *
+ * Returns 0 on success.
+ */
+int of_coresight_get_atid(struct coresight_device *csdev, u32 *atid, int atid_num)
+{
+	return of_property_read_u32_array(csdev->dev.parent->of_node, "atid", atid, atid_num);
 }
 
 /*

@@ -20,13 +20,20 @@ struct byte_cntr {
 	uint32_t		block_size;
 	int			byte_cntr_irq;
 	atomic_t		irq_cnt;
+	atomic_t	usb_free_buf;
 	wait_queue_head_t	wq;
+	wait_queue_head_t	usb_wait_wq;
+	struct workqueue_struct	*usb_wq;
+	struct qdss_request	*usb_req;
+	struct work_struct	read_work;
+	struct mutex		usb_bypass_lock;
 	struct mutex		byte_cntr_lock;
 	struct coresight_csr		*csr;
 	struct tmc_drvdata	*tmcdrvdata;
 	const char		*name;
 	const char		*class_name;
 	int			irqctrl_offset;
+	unsigned long	offset;
 };
 
 extern void tmc_etr_byte_cntr_start(struct byte_cntr *byte_cntr_data);
