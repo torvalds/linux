@@ -25,6 +25,7 @@
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
 #include <linux/badblocks.h>
+#include <linux/part_stat.h>
 
 #include "blk.h"
 #include "blk-mq-sched.h"

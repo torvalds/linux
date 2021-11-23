@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/blk-integrity.h>
 #include <linux/scatterlist.h>
+#include <linux/part_stat.h>
 
 #include <trace/events/block.h>
 
