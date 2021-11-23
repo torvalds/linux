@@ -4059,28 +4059,6 @@ static void android_rvh_schedule(void *unused, struct task_struct *prev,
 	}
 }
 
-static void android_rvh_resume_cpus(void *unused, struct cpumask *resuming_cpus, int *err)
-{
-	int i;
-	struct rq *rq;
-	unsigned long flags;
-
-	if (unlikely(walt_disabled))
-		return;
-	/*
-	 * send a reschedule event  on all resumed CPUs
-	 * which trigger newly idle load balance.
-	 */
-	for_each_cpu(i, resuming_cpus) {
-		rq = cpu_rq(i);
-		raw_spin_lock_irqsave(&rq->__lock, flags);
-		resched_curr(rq);
-		raw_spin_unlock_irqrestore(&rq->__lock, flags);
-	}
-
-	*err = 0;
-}
-
 static void android_rvh_update_cpus_allowed(void *unused, struct task_struct *p,
 						cpumask_var_t cpus_requested,
 						const struct cpumask *new_mask, int *ret)
@@ -4178,7 +4156,6 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_tick_entry(android_rvh_tick_entry, NULL);
 	register_trace_android_vh_scheduler_tick(android_vh_scheduler_tick, NULL);
 	register_trace_android_rvh_schedule(android_rvh_schedule, NULL);
-	register_trace_android_rvh_resume_cpus(android_rvh_resume_cpus, NULL);
 	register_trace_android_rvh_cpu_cgroup_attach(android_rvh_cpu_cgroup_attach, NULL);
 	register_trace_android_rvh_cpu_cgroup_online(android_rvh_cpu_cgroup_online, NULL);
 	register_trace_android_rvh_update_cpus_allowed(android_rvh_update_cpus_allowed, NULL);
