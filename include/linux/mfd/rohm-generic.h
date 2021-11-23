@@ -90,7 +90,8 @@ static inline int rohm_regulator_set_dvs_levels(const struct rohm_dvs_config *dv
 {
 	return 0;
 }
-static int rohm_regulator_set_voltage_sel_restricted(struct regulator_dev *rdev,
+
+static inline int rohm_regulator_set_voltage_sel_restricted(struct regulator_dev *rdev,
 						     unsigned int sel)
 {
 	return 0;
