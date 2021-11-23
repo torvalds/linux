@@ -649,6 +649,11 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+#define __pmd_to_swp_entry(pmd) ((swp_entry_t) { pmd_val(pmd) })
+#define __swp_entry_to_pmd(swp) __pmd((swp).val)
+#endif /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
+
 /*
  * In the RV64 Linux scheme, we give the user half of the virtual-address space
  * and give the kernel the other (upper) half.
