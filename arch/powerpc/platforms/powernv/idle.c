@@ -589,7 +589,6 @@ struct p9_sprs {
 	u64 purr;
 	u64 spurr;
 	u64 dscr;
-	u64 wort;
 	u64 ciabr;
 
 	u64 mmcra;
