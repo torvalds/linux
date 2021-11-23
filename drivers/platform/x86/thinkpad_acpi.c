@@ -5809,6 +5809,7 @@ static int __init tpacpi_init_led(unsigned int led)
 		tpacpi_leds[led].led_classdev.brightness_get = &led_sysfs_get;
 
 	tpacpi_leds[led].led_classdev.name = tpacpi_led_names[led];
+	tpacpi_leds[led].led_classdev.flags = LED_RETAIN_AT_SHUTDOWN;
 	tpacpi_leds[led].led = led;
 
 	return led_classdev_register(&tpacpi_pdev->dev, &tpacpi_leds[led].led_classdev);
