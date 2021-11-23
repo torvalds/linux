@@ -2273,13 +2273,15 @@
 			 <&cru DCLK_VOP0>,
 			 <&cru DCLK_VOP1>,
 			 <&cru DCLK_VOP2>,
-			 <&cru DCLK_VOP3>;
+			 <&cru DCLK_VOP3>,
+			 <&cru PCLK_VOPGRF>;
 		clock-names = "aclk_vop",
 			      "hclk_vop",
 			      "dclk_vp0",
 			      "dclk_vp1",
 			      "dclk_vp2",
-			      "dclk_vp3";
+			      "dclk_vp3",
+			      "pclk_vop";
 		iommus = <&vop_mmu>;
 		power-domains = <&power RK3588_PD_VOP>;
 		rockchip,grf = <&sys_grf>;
