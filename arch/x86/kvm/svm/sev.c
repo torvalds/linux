@@ -1543,28 +1543,40 @@ static bool is_cmd_allowed_from_mirror(u32 cmd_id)
 	return false;
 }
 
-static int sev_lock_for_migration(struct kvm *kvm)
+static int sev_lock_two_vms(struct kvm *dst_kvm, struct kvm *src_kvm)
 {
-	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+	struct kvm_sev_info *dst_sev = &to_kvm_svm(dst_kvm)->sev_info;
+	struct kvm_sev_info *src_sev = &to_kvm_svm(src_kvm)->sev_info;
+
+	if (dst_kvm == src_kvm)
+		return -EINVAL;
 
 	/*
-	 * Bail if this VM is already involved in a migration to avoid deadlock
-	 * between two VMs trying to migrate to/from each other.
+	 * Bail if these VMs are already involved in a migration to avoid
+	 * deadlock between two VMs trying to migrate to/from each other.
 	 */
-	if (atomic_cmpxchg_acquire(&sev->migration_in_progress, 0, 1))
+	if (atomic_cmpxchg_acquire(&dst_sev->migration_in_progress, 0, 1))
 		return -EBUSY;
 
-	mutex_lock(&kvm->lock);
+	if (atomic_cmpxchg_acquire(&src_sev->migration_in_progress, 0, 1)) {
+		atomic_set_release(&dst_sev->migration_in_progress, 0);
+		return -EBUSY;
+	}
 
+	mutex_lock(&dst_kvm->lock);
+	mutex_lock(&src_kvm->lock);
 	return 0;
 }
 
-static void sev_unlock_after_migration(struct kvm *kvm)
+static void sev_unlock_two_vms(struct kvm *dst_kvm, struct kvm *src_kvm)
 {
-	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+	struct kvm_sev_info *dst_sev = &to_kvm_svm(dst_kvm)->sev_info;
+	struct kvm_sev_info *src_sev = &to_kvm_svm(src_kvm)->sev_info;
 
-	mutex_unlock(&kvm->lock);
-	atomic_set_release(&sev->migration_in_progress, 0);
+	mutex_unlock(&dst_kvm->lock);
+	mutex_unlock(&src_kvm->lock);
+	atomic_set_release(&dst_sev->migration_in_progress, 0);
+	atomic_set_release(&src_sev->migration_in_progress, 0);
 }
 
 
@@ -1665,15 +1677,6 @@ int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd)
 	bool charged = false;
 	int ret;
 
-	ret = sev_lock_for_migration(kvm);
-	if (ret)
-		return ret;
-
-	if (sev_guest(kvm)) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
 	source_kvm_file = fget(source_fd);
 	if (!file_is_kvm(source_kvm_file)) {
 		ret = -EBADF;
@@ -1681,13 +1684,13 @@ int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd)
 	}
 
 	source_kvm = source_kvm_file->private_data;
-	ret = sev_lock_for_migration(source_kvm);
+	ret = sev_lock_two_vms(kvm, source_kvm);
 	if (ret)
 		goto out_fput;
 
-	if (!sev_guest(source_kvm)) {
+	if (sev_guest(kvm) || !sev_guest(source_kvm)) {
 		ret = -EINVAL;
-		goto out_source;
+		goto out_unlock;
 	}
 
 	src_sev = &to_kvm_svm(source_kvm)->sev_info;
@@ -1727,13 +1730,11 @@ out_dst_cgroup:
 		sev_misc_cg_uncharge(cg_cleanup_sev);
 	put_misc_cg(cg_cleanup_sev->misc_cg);
 	cg_cleanup_sev->misc_cg = NULL;
-out_source:
-	sev_unlock_after_migration(source_kvm);
+out_unlock:
+	sev_unlock_two_vms(kvm, source_kvm);
 out_fput:
 	if (source_kvm_file)
 		fput(source_kvm_file);
-out_unlock:
-	sev_unlock_after_migration(kvm);
 	return ret;
 }
 
