@@ -71,7 +71,7 @@ static int register_clocks(struct rockchip_link_clk *priv, struct device *dev)
 	if (IS_ERR(clk))
 		return -EINVAL;
 
-	return 0;
+	return of_clk_add_provider(dev->of_node, of_clk_src_simple_get, clk);
 }
 
 static const struct rockchip_link_info rk3588_clk_gate_link_info[] = {
