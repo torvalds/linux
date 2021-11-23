@@ -11,6 +11,7 @@
 #include <linux/sched/task.h>
 
 #include "blk.h"
+#include "blk-mq-sched.h"
 
 /*
  * For io context allocations

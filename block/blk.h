@@ -10,7 +10,6 @@
 #include <xen/xen.h>
 #include "blk-crypto-internal.h"
 #include "blk-mq.h"
-#include "blk-mq-sched.h"
 
 struct elevator_type;
 

@@ -46,6 +46,7 @@
 #include <trace/events/block.h>
 
 #include "blk.h"
+#include "blk-mq-sched.h"
 #include "blk-pm.h"
 #include "blk-throttle.h"
 
