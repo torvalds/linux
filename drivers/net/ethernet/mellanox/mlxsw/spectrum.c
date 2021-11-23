@@ -3290,10 +3290,10 @@ mlxsw_sp_resources_rif_mac_profile_register(struct mlxsw_core *mlxsw_core)
 	u8 max_rif_mac_profiles;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_core, MAX_RIF_MAC_PROFILES))
-		return -EIO;
-
-	max_rif_mac_profiles = MLXSW_CORE_RES_GET(mlxsw_core,
-						  MAX_RIF_MAC_PROFILES);
+		max_rif_mac_profiles = 1;
+	else
+		max_rif_mac_profiles = MLXSW_CORE_RES_GET(mlxsw_core,
+							  MAX_RIF_MAC_PROFILES);
 	devlink_resource_size_params_init(&size_params, max_rif_mac_profiles,
 					  max_rif_mac_profiles, 1,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
