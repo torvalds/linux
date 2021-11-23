@@ -309,7 +309,7 @@ void ipa_smp2p_exit(struct ipa *ipa)
 	kfree(smp2p);
 }
 
-void ipa_smp2p_disable(struct ipa *ipa)
+void ipa_smp2p_irq_disable_setup(struct ipa *ipa)
 {
 	struct ipa_smp2p *smp2p = ipa->smp2p;
 
