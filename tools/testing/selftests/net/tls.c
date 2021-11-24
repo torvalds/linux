@@ -1617,4 +1617,59 @@ TEST(keysizes) {
 	close(cfd);
 }
 
+TEST(tls_v6ops) {
+	struct tls_crypto_info_keys tls12;
+	struct sockaddr_in6 addr, addr2;
+	int sfd, ret, fd;
+	socklen_t len, len2;
+
+	tls_crypto_info_init(TLS_1_2_VERSION, TLS_CIPHER_AES_GCM_128, &tls12);
+
+	addr.sin6_family = AF_INET6;
+	addr.sin6_addr = in6addr_any;
+	addr.sin6_port = 0;
+
+	fd = socket(AF_INET6, SOCK_STREAM, 0);
+	sfd = socket(AF_INET6, SOCK_STREAM, 0);
+
+	ret = bind(sfd, &addr, sizeof(addr));
+	ASSERT_EQ(ret, 0);
+	ret = listen(sfd, 10);
+	ASSERT_EQ(ret, 0);
+
+	len = sizeof(addr);
+	ret = getsockname(sfd, &addr, &len);
+	ASSERT_EQ(ret, 0);
+
+	ret = connect(fd, &addr, sizeof(addr));
+	ASSERT_EQ(ret, 0);
+
+	len = sizeof(addr);
+	ret = getsockname(fd, &addr, &len);
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	if (ret) {
+		ASSERT_EQ(errno, ENOENT);
+		SKIP(return, "no TLS support");
+	}
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(fd, SOL_TLS, TLS_TX, &tls12, tls12.len);
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(fd, SOL_TLS, TLS_RX, &tls12, tls12.len);
+	ASSERT_EQ(ret, 0);
+
+	len2 = sizeof(addr2);
+	ret = getsockname(fd, &addr2, &len2);
+	ASSERT_EQ(ret, 0);
+
+	EXPECT_EQ(len2, len);
+	EXPECT_EQ(memcmp(&addr, &addr2, len), 0);
+
+	close(fd);
+	close(sfd);
+}
+
 TEST_HARNESS_MAIN
