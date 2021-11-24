@@ -1605,7 +1605,7 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 		 * it is always updated per SDM when moving to CRs.
 		 */
 		if (npt_enabled)
-			load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
+			load_pdptrs(vcpu, kvm_read_cr3(vcpu));
 		break;
 	default:
 		KVM_BUG_ON(1, vcpu->kvm);

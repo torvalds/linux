@@ -798,8 +798,9 @@ static inline u64 pdptr_rsvd_bits(struct kvm_vcpu *vcpu)
 /*
  * Load the pae pdptrs.  Return 1 if they are all valid, 0 otherwise.
  */
-int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3)
+int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
+	struct kvm_mmu *mmu = vcpu->arch.walk_mmu;
 	gfn_t pdpt_gfn = cr3 >> PAGE_SHIFT;
 	gpa_t real_gpa;
 	int i;
@@ -890,7 +891,7 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 #endif
 	if (!(vcpu->arch.efer & EFER_LME) && (cr0 & X86_CR0_PG) &&
 	    is_pae(vcpu) && ((cr0 ^ old_cr0) & X86_CR0_PDPTR_BITS) &&
-	    !load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu)))
+	    !load_pdptrs(vcpu, kvm_read_cr3(vcpu)))
 		return 1;
 
 	if (!(cr0 & X86_CR0_PG) && kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE))
@@ -1064,8 +1065,7 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 			return 1;
 	} else if (is_paging(vcpu) && (cr4 & X86_CR4_PAE)
 		   && ((cr4 ^ old_cr4) & X86_CR4_PDPTR_BITS)
-		   && !load_pdptrs(vcpu, vcpu->arch.walk_mmu,
-				   kvm_read_cr3(vcpu)))
+		   && !load_pdptrs(vcpu, kvm_read_cr3(vcpu)))
 		return 1;
 
 	if ((cr4 & X86_CR4_PCIDE) && !(old_cr4 & X86_CR4_PCIDE)) {
@@ -1154,7 +1154,7 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	if (kvm_vcpu_is_illegal_gpa(vcpu, cr3))
 		return 1;
 
-	if (is_pae_paging(vcpu) && !load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))
+	if (is_pae_paging(vcpu) && !load_pdptrs(vcpu, cr3))
 		return 1;
 
 	if (cr3 != kvm_read_cr3(vcpu))
@@ -10597,7 +10597,7 @@ static int __set_sregs_common(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs,
 	if (update_pdptrs) {
 		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		if (is_pae_paging(vcpu)) {
-			load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
+			load_pdptrs(vcpu, kvm_read_cr3(vcpu));
 			*mmu_reset_needed = 1;
 		}
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);

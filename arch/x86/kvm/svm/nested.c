@@ -461,7 +461,7 @@ static int nested_svm_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3,
 		return -EINVAL;
 
 	if (reload_pdptrs && !nested_npt && is_pae_paging(vcpu) &&
-	    CC(!load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3)))
+	    CC(!load_pdptrs(vcpu, cr3)))
 		return -EINVAL;
 
 	if (!nested_npt)
@@ -1517,7 +1517,7 @@ static bool svm_get_nested_state_pages(struct kvm_vcpu *vcpu)
 		 * the guest CR3 might be restored prior to setting the nested
 		 * state which can lead to a load of wrong PDPTRs.
 		 */
-		if (CC(!load_pdptrs(vcpu, vcpu->arch.walk_mmu, vcpu->arch.cr3)))
+		if (CC(!load_pdptrs(vcpu, vcpu->arch.cr3)))
 			return false;
 
 	if (!nested_svm_vmrun_msrpm(svm)) {
