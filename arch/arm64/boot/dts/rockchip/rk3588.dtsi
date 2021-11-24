@@ -716,6 +716,7 @@
 	usbdp_phy1: phy@fed90000 {
 		compatible = "rockchip,rk3588-usbdp-phy";
 		reg = <0x0 0xfed90000 0x0 0x10000>;
+		rockchip,u2phy-grf = <&usb2phy1_grf>;
 		rockchip,usb-grf = <&usb_grf>;
 		rockchip,usbdpphy-grf = <&usbdpphy1_grf>;
 		rockchip,vo-grf = <&vo0_grf>;
