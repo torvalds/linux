@@ -549,7 +549,7 @@ static void svm_migrate_page_free(struct page *page)
 
 	if (svm_bo) {
 		pr_debug_ratelimited("ref: %d\n", kref_read(&svm_bo->kref));
-		svm_range_bo_unref(svm_bo);
+		svm_range_bo_unref_async(svm_bo);
 	}
 }
 

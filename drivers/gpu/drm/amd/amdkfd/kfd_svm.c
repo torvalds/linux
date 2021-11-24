@@ -332,6 +332,8 @@ static void svm_range_bo_release(struct kref *kref)
 	struct svm_range_bo *svm_bo;
 
 	svm_bo = container_of(kref, struct svm_range_bo, kref);
+	pr_debug("svm_bo 0x%p\n", svm_bo);
+
 	spin_lock(&svm_bo->list_lock);
 	while (!list_empty(&svm_bo->range_list)) {
 		struct svm_range *prange =
@@ -365,12 +367,33 @@ static void svm_range_bo_release(struct kref *kref)
 	kfree(svm_bo);
 }
 
-void svm_range_bo_unref(struct svm_range_bo *svm_bo)
+static void svm_range_bo_wq_release(struct work_struct *work)
 {
-	if (!svm_bo)
-		return;
+	struct svm_range_bo *svm_bo;
 
-	kref_put(&svm_bo->kref, svm_range_bo_release);
+	svm_bo = container_of(work, struct svm_range_bo, release_work);
+	svm_range_bo_release(&svm_bo->kref);
+}
+
+static void svm_range_bo_release_async(struct kref *kref)
+{
+	struct svm_range_bo *svm_bo;
+
+	svm_bo = container_of(kref, struct svm_range_bo, kref);
+	pr_debug("svm_bo 0x%p\n", svm_bo);
+	INIT_WORK(&svm_bo->release_work, svm_range_bo_wq_release);
+	schedule_work(&svm_bo->release_work);
+}
+
+void svm_range_bo_unref_async(struct svm_range_bo *svm_bo)
+{
+	kref_put(&svm_bo->kref, svm_range_bo_release_async);
+}
+
+static void svm_range_bo_unref(struct svm_range_bo *svm_bo)
+{
+	if (svm_bo)
+		kref_put(&svm_bo->kref, svm_range_bo_release);
 }
 
 static bool
