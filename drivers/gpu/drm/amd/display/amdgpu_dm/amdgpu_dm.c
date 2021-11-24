@@ -6056,10 +6056,12 @@ static void update_dsc_caps(struct amdgpu_dm_connector *aconnector,
 
 	if (aconnector->dc_link && (sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		sink->sink_signal == SIGNAL_TYPE_EDP)) {
-		dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
-				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
-				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw,
-				      dsc_caps);
+		if (sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_NONE ||
+			sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+			dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
+				aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
+				aconnector->dc_link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw,
+				dsc_caps);
 	}
 }
 
@@ -6129,6 +6131,8 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 	uint32_t link_bandwidth_kbps;
 	uint32_t max_dsc_target_bpp_limit_override = 0;
 	struct dc *dc = sink->ctx->dc;
+	uint32_t max_supported_bw_in_kbps, timing_bw_in_kbps;
+	uint32_t dsc_max_supported_bw_in_kbps;
 
 	link_bandwidth_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
 							dc_link_get_link_cap(aconnector->dc_link));
@@ -6147,16 +6151,37 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 		apply_dsc_policy_for_edp(aconnector, sink, stream, dsc_caps, max_dsc_target_bpp_limit_override);
 
 	} else if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT) {
-
-		if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc->res_pool->dscs[0],
+		if (sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_NONE) {
+			if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc->res_pool->dscs[0],
 						dsc_caps,
 						aconnector->dc_link->ctx->dc->debug.dsc_min_slice_height_override,
 						max_dsc_target_bpp_limit_override,
 						link_bandwidth_kbps,
 						&stream->timing,
 						&stream->timing.dsc_cfg)) {
-			stream->timing.flags.DSC = 1;
-			DRM_DEBUG_DRIVER("%s: [%s] DSC is selected from SST RX\n", __func__, drm_connector->name);
+				stream->timing.flags.DSC = 1;
+				DRM_DEBUG_DRIVER("%s: [%s] DSC is selected from SST RX\n",
+								 __func__, drm_connector->name);
+			}
+		} else if (sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER) {
+			timing_bw_in_kbps = dc_bandwidth_in_kbps_from_timing(&stream->timing);
+			max_supported_bw_in_kbps = link_bandwidth_kbps;
+			dsc_max_supported_bw_in_kbps = link_bandwidth_kbps;
+
+			if (timing_bw_in_kbps > max_supported_bw_in_kbps &&
+					max_supported_bw_in_kbps > 0 &&
+					dsc_max_supported_bw_in_kbps > 0)
+				if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc->res_pool->dscs[0],
+						dsc_caps,
+						aconnector->dc_link->ctx->dc->debug.dsc_min_slice_height_override,
+						max_dsc_target_bpp_limit_override,
+						dsc_max_supported_bw_in_kbps,
+						&stream->timing,
+						&stream->timing.dsc_cfg)) {
+					stream->timing.flags.DSC = 1;
+					DRM_DEBUG_DRIVER("%s: [%s] DSC is selected from DP-HDMI PCON\n",
+									 __func__, drm_connector->name);
+				}
 		}
 	}
 

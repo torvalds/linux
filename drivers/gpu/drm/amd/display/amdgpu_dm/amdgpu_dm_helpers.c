@@ -585,8 +585,17 @@ bool dm_helpers_dp_write_dsc_enable(
 	}
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT || stream->signal == SIGNAL_TYPE_EDP) {
-		ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
-		DC_LOG_DC("Send DSC %s to sst display\n", enable_dsc ? "enable" : "disable");
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_NONE) {
+#endif
+			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
+			DC_LOG_DC("Send DSC %s to SST RX\n", enable_dsc ? "enable" : "disable");
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		} else if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER) {
+			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
+			DC_LOG_DC("Send DSC %s to DP-HDMI PCON\n", enable_dsc ? "enable" : "disable");
+		}
+#endif
 	}
 
 	return (ret > 0);
