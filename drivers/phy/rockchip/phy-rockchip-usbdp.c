@@ -54,6 +54,10 @@ struct udphy_grf_reg {
 };
 
 struct udphy_grf_cfg {
+	/* u2phy-grf */
+	struct udphy_grf_reg	bvalid_phy_con;
+	struct udphy_grf_reg	bvalid_grf_con;
+
 	/* usb-grf */
 	struct udphy_grf_reg	usb3otg0_cfg;
 	struct udphy_grf_reg	usb3otg1_cfg;
@@ -90,6 +94,7 @@ struct rockchip_udphy_cfg {
 struct rockchip_udphy {
 	struct device *dev;
 	struct regmap *pma_regmap;
+	struct regmap *u2phygrf;
 	struct regmap *udphygrf;
 	struct regmap *usbgrf;
 	struct regmap *vogrf;
@@ -330,11 +335,15 @@ static void udphy_u3_port_disable(struct rockchip_udphy *udphy, u8 disable)
 	const struct udphy_grf_reg *preg;
 
 	preg = udphy->id ? &cfg->grfcfg.usb3otg1_cfg : &cfg->grfcfg.usb3otg0_cfg;
+	grfreg_write(udphy->usbgrf, preg, disable);
+}
 
-	if (disable)
-		grfreg_write(udphy->usbgrf, preg, true);
-	else
-		grfreg_write(udphy->usbgrf, preg, false);
+static void udphy_usb_bvalid_enable(struct rockchip_udphy *udphy, u8 enable)
+{
+	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+
+	grfreg_write(udphy->u2phygrf, &cfg->grfcfg.bvalid_phy_con, enable);
+	grfreg_write(udphy->u2phygrf, &cfg->grfcfg.bvalid_grf_con, enable);
 }
 
 /*
@@ -464,11 +473,15 @@ static int udphy_orien_sw_set(struct typec_switch *sw,
 
 	mutex_lock(&udphy->mutex);
 
-	if (orien == TYPEC_ORIENTATION_NONE)
+	if (orien == TYPEC_ORIENTATION_NONE) {
+		/* unattached */
+		udphy_usb_bvalid_enable(udphy, false);
 		goto unlock_ret;
+	}
 
 	udphy->flip = (orien == TYPEC_ORIENTATION_REVERSE) ? true : false;
 	upphy_set_typec_default_mapping(udphy);
+	udphy_usb_bvalid_enable(udphy, true);
 
 unlock_ret:
 	mutex_unlock(&udphy->mutex);
@@ -603,6 +616,16 @@ static int udphy_parse_dt(struct rockchip_udphy *udphy, struct device *dev)
 	enum usb_device_speed maximum_speed;
 	int ret;
 
+	udphy->u2phygrf = syscon_regmap_lookup_by_phandle(np, "rockchip,u2phy-grf");
+	if (IS_ERR(udphy->u2phygrf)) {
+		if (PTR_ERR(udphy->u2phygrf) == -ENODEV) {
+			dev_warn(dev, "missing u2phy-grf dt node\n");
+			udphy->u2phygrf = NULL;
+		} else {
+			return PTR_ERR(udphy->u2phygrf);
+		}
+	}
+
 	udphy->udphygrf = syscon_regmap_lookup_by_phandle(np, "rockchip,usbdpphy-grf");
 	if (IS_ERR(udphy->udphygrf)) {
 		if (PTR_ERR(udphy->udphygrf) == -ENODEV) {
@@ -626,7 +649,7 @@ static int udphy_parse_dt(struct rockchip_udphy *udphy, struct device *dev)
 	udphy->vogrf = syscon_regmap_lookup_by_phandle(np, "rockchip,vo-grf");
 	if (IS_ERR(udphy->vogrf)) {
 		if (PTR_ERR(udphy->vogrf) == -ENODEV) {
-			dev_warn(dev, "missing usb-grf dt node\n");
+			dev_warn(dev, "missing vo-grf dt node\n");
 			udphy->vogrf = NULL;
 		} else {
 			return PTR_ERR(udphy->vogrf);
@@ -1389,6 +1412,10 @@ static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 	.num_rsts = ARRAY_SIZE(rk3588_udphy_rst_l),
 	.rst_list = rk3588_udphy_rst_l,
 	.grfcfg	= {
+		/* u2phy-grf */
+		.bvalid_phy_con		= { 0x0008, 1, 0, 0x2, 0x3 },
+		.bvalid_grf_con		= { 0x0010, 3, 2, 0x2, 0x3 },
+
 		/* usb-grf */
 		.usb3otg0_cfg		= { 0x001c, 15, 0, 0x1100, 0x0188 },
 		.usb3otg1_cfg		= { 0x0034, 15, 0, 0x1100, 0x0188 },
