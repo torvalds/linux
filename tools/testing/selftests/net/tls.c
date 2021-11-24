@@ -1297,6 +1297,160 @@ TEST_F(tls, shutdown_reuse)
 	EXPECT_EQ(errno, EISCONN);
 }
 
+FIXTURE(tls_err)
+{
+	int fd, cfd;
+	int fd2, cfd2;
+	bool notls;
+};
+
+FIXTURE_VARIANT(tls_err)
+{
+	uint16_t tls_version;
+};
+
+FIXTURE_VARIANT_ADD(tls_err, 12_aes_gcm)
+{
+	.tls_version = TLS_1_2_VERSION,
+};
+
+FIXTURE_VARIANT_ADD(tls_err, 13_aes_gcm)
+{
+	.tls_version = TLS_1_3_VERSION,
+};
+
+FIXTURE_SETUP(tls_err)
+{
+	struct tls_crypto_info_keys tls12;
+	int ret;
+
+	tls_crypto_info_init(variant->tls_version, TLS_CIPHER_AES_GCM_128,
+			     &tls12);
+
+	ulp_sock_pair(_metadata, &self->fd, &self->cfd, &self->notls);
+	ulp_sock_pair(_metadata, &self->fd2, &self->cfd2, &self->notls);
+	if (self->notls)
+		return;
+
+	ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, tls12.len);
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(self->cfd2, SOL_TLS, TLS_RX, &tls12, tls12.len);
+	ASSERT_EQ(ret, 0);
+}
+
+FIXTURE_TEARDOWN(tls_err)
+{
+	close(self->fd);
+	close(self->cfd);
+	close(self->fd2);
+	close(self->cfd2);
+}
+
+TEST_F(tls_err, bad_rec)
+{
+	char buf[64];
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	memset(buf, 0x55, sizeof(buf));
+	EXPECT_EQ(send(self->fd2, buf, sizeof(buf), 0), sizeof(buf));
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+	EXPECT_EQ(errno, EMSGSIZE);
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), MSG_DONTWAIT), -1);
+	EXPECT_EQ(errno, EAGAIN);
+}
+
+TEST_F(tls_err, bad_auth)
+{
+	char buf[128];
+	int n;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	memrnd(buf, sizeof(buf) / 2);
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf) / 2, 0), sizeof(buf) / 2);
+	n = recv(self->cfd, buf, sizeof(buf), 0);
+	EXPECT_GT(n, sizeof(buf) / 2);
+
+	buf[n - 1]++;
+
+	EXPECT_EQ(send(self->fd2, buf, n, 0), n);
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+	EXPECT_EQ(errno, EBADMSG);
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+	EXPECT_EQ(errno, EBADMSG);
+}
+
+TEST_F(tls_err, bad_in_large_read)
+{
+	char txt[3][64];
+	char cip[3][128];
+	char buf[3 * 128];
+	int i, n;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	/* Put 3 records in the sockets */
+	for (i = 0; i < 3; i++) {
+		memrnd(txt[i], sizeof(txt[i]));
+		EXPECT_EQ(send(self->fd, txt[i], sizeof(txt[i]), 0),
+			  sizeof(txt[i]));
+		n = recv(self->cfd, cip[i], sizeof(cip[i]), 0);
+		EXPECT_GT(n, sizeof(txt[i]));
+		/* Break the third message */
+		if (i == 2)
+			cip[2][n - 1]++;
+		EXPECT_EQ(send(self->fd2, cip[i], n, 0), n);
+	}
+
+	/* We should be able to receive the first two messages */
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), sizeof(txt[0]) * 2);
+	EXPECT_EQ(memcmp(buf, txt[0], sizeof(txt[0])), 0);
+	EXPECT_EQ(memcmp(buf + sizeof(txt[0]), txt[1], sizeof(txt[1])), 0);
+	/* Third mesasge is bad */
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+	EXPECT_EQ(errno, EBADMSG);
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+	EXPECT_EQ(errno, EBADMSG);
+}
+
+TEST_F(tls_err, bad_cmsg)
+{
+	char *test_str = "test_read";
+	int send_len = 10;
+	char cip[128];
+	char buf[128];
+	char txt[64];
+	int n;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	/* Queue up one data record */
+	memrnd(txt, sizeof(txt));
+	EXPECT_EQ(send(self->fd, txt, sizeof(txt), 0), sizeof(txt));
+	n = recv(self->cfd, cip, sizeof(cip), 0);
+	EXPECT_GT(n, sizeof(txt));
+	EXPECT_EQ(send(self->fd2, cip, n, 0), n);
+
+	EXPECT_EQ(tls_send_cmsg(self->fd, 100, test_str, send_len, 0), 10);
+	n = recv(self->cfd, cip, sizeof(cip), 0);
+	cip[n - 1]++; /* Break it */
+	EXPECT_GT(n, send_len);
+	EXPECT_EQ(send(self->fd2, cip, n, 0), n);
+
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), sizeof(txt));
+	EXPECT_EQ(memcmp(buf, txt, sizeof(txt)), 0);
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+	EXPECT_EQ(errno, EBADMSG);
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+	EXPECT_EQ(errno, EBADMSG);
+}
+
 TEST(non_established) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
 	struct sockaddr_in addr;
