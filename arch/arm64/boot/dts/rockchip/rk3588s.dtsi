@@ -2300,7 +2300,7 @@
 			 <&cru DCLK_VOP1>,
 			 <&cru DCLK_VOP2>,
 			 <&cru DCLK_VOP3>,
-			 <&cru PCLK_VOPGRF>;
+			 <&cru PCLK_VOP_ROOT>;
 		clock-names = "aclk_vop",
 			      "hclk_vop",
 			      "dclk_vp0",
