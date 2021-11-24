@@ -1223,27 +1223,27 @@ static bool __intel_fbc_pre_update(struct intel_atomic_state *state,
 	intel_fbc_update_state_cache(state, crtc, plane);
 	fbc->flip_pending = true;
 
-	if (!intel_fbc_can_flip_nuke(state, crtc, plane)) {
-		intel_fbc_deactivate(fbc, "update pending");
+	if (intel_fbc_can_flip_nuke(state, crtc, plane))
+		return need_vblank_wait;
 
-		/*
-		 * Display WA #1198: glk+
-		 * Need an extra vblank wait between FBC disable and most plane
-		 * updates. Bspec says this is only needed for plane disable, but
-		 * that is not true. Touching most plane registers will cause the
-		 * corruption to appear. Also SKL/derivatives do not seem to be
-		 * affected.
-		 *
-		 * TODO: could optimize this a bit by sampling the frame
-		 * counter when we disable FBC (if it was already done earlier)
-		 * and skipping the extra vblank wait before the plane update
-		 * if at least one frame has already passed.
-		 */
-		if (fbc->activated &&
-		    DISPLAY_VER(i915) >= 10)
-			need_vblank_wait = true;
-		fbc->activated = false;
-	}
+	intel_fbc_deactivate(fbc, "update pending");
+
+	/*
+	 * Display WA #1198: glk+
+	 * Need an extra vblank wait between FBC disable and most plane
+	 * updates. Bspec says this is only needed for plane disable, but
+	 * that is not true. Touching most plane registers will cause the
+	 * corruption to appear. Also SKL/derivatives do not seem to be
+	 * affected.
+	 *
+	 * TODO: could optimize this a bit by sampling the frame
+	 * counter when we disable FBC (if it was already done earlier)
+	 * and skipping the extra vblank wait before the plane update
+	 * if at least one frame has already passed.
+	 */
+	if (fbc->activated && DISPLAY_VER(i915) >= 10)
+		need_vblank_wait = true;
+	fbc->activated = false;
 
 	return need_vblank_wait;
 }
