@@ -1688,7 +1688,10 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 {
 	struct intel_fbc *fbc = m->private;
 	struct drm_i915_private *i915 = fbc->i915;
+	struct intel_plane *plane;
 	intel_wakeref_t wakeref;
+
+	drm_modeset_lock_all(&i915->drm);
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	mutex_lock(&fbc->lock);
@@ -1701,8 +1704,23 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
 	}
 
+	for_each_intel_plane(&i915->drm, plane) {
+		const struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
+
+		if (plane->fbc != fbc)
+			continue;
+
+		seq_printf(m, "%c [PLANE:%d:%s]: %s\n",
+			   fbc->state.plane == plane ? '*' : ' ',
+			   plane->base.base.id, plane->base.name,
+			   plane_state->no_fbc_reason ?: "FBC possible");
+	}
+
 	mutex_unlock(&fbc->lock);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+
+	drm_modeset_unlock_all(&i915->drm);
 
 	return 0;
 }
