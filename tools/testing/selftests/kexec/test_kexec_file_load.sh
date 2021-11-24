@@ -226,8 +226,12 @@ get_secureboot_mode
 secureboot=$?
 
 # Are there pe and ima signatures
-check_for_pesig
-pe_signed=$?
+if [ "$(get_arch)" == 'ppc64le' ]; then
+	pe_signed=0
+else
+	check_for_pesig
+	pe_signed=$?
+fi
 
 check_for_imasig
 ima_signed=$?
