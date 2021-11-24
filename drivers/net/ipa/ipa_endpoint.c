@@ -237,7 +237,8 @@ static struct gsi_trans *ipa_endpoint_trans_alloc(struct ipa_endpoint *endpoint,
 }
 
 /* suspend_delay represents suspend for RX, delay for TX endpoints.
- * Note that suspend is not supported starting with IPA v4.0.
+ * Note that suspend is not supported starting with IPA v4.0, and
+ * delay mode should not be used starting with IPA v4.2.
  */
 static bool
 ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
@@ -248,11 +249,8 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 	u32 mask;
 	u32 val;
 
-	/* Suspend is not supported for IPA v4.0+.  Delay doesn't work
-	 * correctly on IPA v4.2.
-	 */
 	if (endpoint->toward_ipa)
-		WARN_ON(ipa->version == IPA_VERSION_4_2);
+		WARN_ON(ipa->version >= IPA_VERSION_4_2);
 	else
 		WARN_ON(ipa->version >= IPA_VERSION_4_0);
 
@@ -270,15 +268,15 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 	return state;
 }
 
-/* We currently don't care what the previous state was for delay mode */
+/* We don't care what the previous state was for delay mode */
 static void
 ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
 {
+	/* Delay mode should not be used for IPA v4.2+ */
+	WARN_ON(endpoint->ipa->version >= IPA_VERSION_4_2);
 	WARN_ON(!endpoint->toward_ipa);
 
-	/* Delay mode doesn't work properly for IPA v4.2 */
-	if (endpoint->ipa->version != IPA_VERSION_4_2)
-		(void)ipa_endpoint_init_ctrl(endpoint, enable);
+	(void)ipa_endpoint_init_ctrl(endpoint, enable);
 }
 
 static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
@@ -355,14 +353,14 @@ ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
 	return suspended;
 }
 
-/* Enable or disable delay or suspend mode on all modem endpoints */
+/* Put all modem RX endpoints into suspend mode, and stop transmission
+ * on all modem TX endpoints.  Prior to IPA v4.2, endpoint DELAY mode is
+ * used for TX endpoints; starting with IPA v4.2 we use GSI channel flow
+ * control instead.
+ */
 void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 {
 	u32 endpoint_id;
-
-	/* DELAY mode doesn't work correctly on IPA v4.2 */
-	if (ipa->version == IPA_VERSION_4_2)
-		return;
 
 	for (endpoint_id = 0; endpoint_id < IPA_ENDPOINT_MAX; endpoint_id++) {
 		struct ipa_endpoint *endpoint = &ipa->endpoint[endpoint_id];
@@ -370,11 +368,14 @@ void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 		if (endpoint->ee_id != GSI_EE_MODEM)
 			continue;
 
-		/* Set TX delay mode or RX suspend mode */
-		if (endpoint->toward_ipa)
+		if (!endpoint->toward_ipa)
+			(void)ipa_endpoint_program_suspend(endpoint, enable);
+		else if (ipa->version < IPA_VERSION_4_2)
 			ipa_endpoint_program_delay(endpoint, enable);
 		else
-			(void)ipa_endpoint_program_suspend(endpoint, enable);
+			gsi_modem_channel_flow_control(&ipa->gsi,
+						       endpoint->channel_id,
+						       enable);
 	}
 }
 
@@ -1532,10 +1533,19 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 
 static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 {
-	if (endpoint->toward_ipa)
-		ipa_endpoint_program_delay(endpoint, false);
-	else
+	if (endpoint->toward_ipa) {
+		/* Newer versions of IPA use GSI channel flow control
+		 * instead of endpoint DELAY mode to prevent sending data.
+		 * Flow control is disabled for newly-allocated channels,
+		 * and we can assume flow control is not (ever) enabled
+		 * for AP TX channels.
+		 */
+		if (endpoint->ipa->version < IPA_VERSION_4_2)
+			ipa_endpoint_program_delay(endpoint, false);
+	} else {
+		/* Ensure suspend mode is off on all AP RX endpoints */
 		(void)ipa_endpoint_program_suspend(endpoint, false);
+	}
 	ipa_endpoint_init_cfg(endpoint);
 	ipa_endpoint_init_nat(endpoint);
 	ipa_endpoint_init_hdr(endpoint);

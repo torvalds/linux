@@ -1162,18 +1162,23 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 	u32 result;
 	u32 val;
 
-	/* This interrupt is used to handle completions of the two GENERIC
-	 * GSI commands.  We use these to allocate and halt channels on
-	 * the modem's behalf due to a hardware quirk on IPA v4.2.  Once
-	 * allocated, the modem "owns" these channels, and as a result we
-	 * have no way of knowing the channel's state at any given time.
+	/* This interrupt is used to handle completions of GENERIC GSI
+	 * commands.  We use these to allocate and halt channels on the
+	 * modem's behalf due to a hardware quirk on IPA v4.2.  The modem
+	 * "owns" channels even when the AP allocates them, and have no
+	 * way of knowing whether a modem channel's state has been changed.
+	 *
+	 * We also use GENERIC commands to enable/disable channel flow
+	 * control for IPA v4.2+.
 	 *
 	 * It is recommended that we halt the modem channels we allocated
 	 * when shutting down, but it's possible the channel isn't running
 	 * at the time we issue the HALT command.  We'll get an error in
 	 * that case, but it's harmless (the channel is already halted).
+	 * Similarly, we could get an error back when updating flow control
+	 * on a channel because it's not in the proper state.
 	 *
-	 * For this reason, we silently ignore a CHANNEL_NOT_RUNNING error
+	 * In either case, we silently ignore a CHANNEL_NOT_RUNNING error
 	 * if we receive it.
 	 */
 	val = ioread32(gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
@@ -1639,18 +1644,24 @@ static void gsi_channel_teardown_one(struct gsi *gsi, u32 channel_id)
 	gsi_evt_ring_de_alloc_command(gsi, evt_ring_id);
 }
 
+/* We use generic commands only to operate on modem channels.  We don't have
+ * the ability to determine channel state for a modem channel, so we simply
+ * issue the command and wait for it to complete.
+ */
 static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 			       enum gsi_generic_cmd_opcode opcode)
 {
 	bool timeout;
 	u32 val;
 
-	/* The error global interrupt type is always enabled (until we
-	 * teardown), so we won't change that.  A generic EE command
-	 * completes with a GSI global interrupt of type GP_INT1.  We
-	 * only perform one generic command at a time (to allocate or
-	 * halt a modem channel) and only from this function.  So we
-	 * enable the GP_INT1 IRQ type here while we're expecting it.
+	/* The error global interrupt type is always enabled (until we tear
+	 * down), so we will keep it enabled.
+	 *
+	 * A generic EE command completes with a GSI global interrupt of
+	 * type GP_INT1.  We only perform one generic command at a time
+	 * (to allocate, halt, or enable/disable flow control on a modem
+	 * channel), and only from this function.  So we enable the GP_INT1
+	 * IRQ type here, and disable it again after the command completes.
 	 */
 	val = BIT(ERROR_INT) | BIT(GP_INT1);
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
@@ -1698,6 +1709,23 @@ static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
 	if (ret)
 		dev_err(gsi->dev, "error %d halting modem channel %u\n",
 			ret, channel_id);
+}
+
+/* Enable or disable flow control for a modem GSI TX channel (IPA v4.2+) */
+void
+gsi_modem_channel_flow_control(struct gsi *gsi, u32 channel_id, bool enable)
+{
+	u32 command;
+	int ret;
+
+	command = enable ? GSI_GENERIC_ENABLE_FLOW_CONTROL
+			 : GSI_GENERIC_DISABLE_FLOW_CONTROL;
+
+	ret = gsi_generic_command(gsi, channel_id, command);
+	if (ret)
+		dev_err(gsi->dev,
+			"error %d %sabling mode channel %u flow control\n",
+			ret, enable ? "en" : "dis", channel_id);
 }
 
 /* Setup function for channels */
