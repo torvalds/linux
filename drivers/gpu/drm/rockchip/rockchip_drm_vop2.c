@@ -6833,8 +6833,10 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	}
 
 	VOP_MODULE_SET(vop2, vp, dsp_background, val);
-	if (vcstate->splice_mode)
+	if (vcstate->splice_mode) {
+		VOP_MODULE_SET(vop2, splice_vp, overlay_mode, vcstate->yuv_overlay);
 		VOP_MODULE_SET(vop2, splice_vp, dsp_background, val);
+	}
 
 	vop2_tv_config_update(crtc, old_crtc_state);
 
