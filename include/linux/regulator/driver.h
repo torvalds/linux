@@ -700,6 +700,8 @@ void *regulator_irq_helper(struct device *dev,
 			   int irq_flags, int common_errs, int *per_rdev_errs,
 			   struct regulator_dev **rdev, int rdev_amount);
 void regulator_irq_helper_cancel(void **handle);
+int regulator_irq_map_event_simple(int irq, struct regulator_irq_data *rid,
+				   unsigned long *dev_mask);
 
 void *rdev_get_drvdata(struct regulator_dev *rdev);
 struct device *rdev_get_dev(struct regulator_dev *rdev);
