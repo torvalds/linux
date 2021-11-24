@@ -3841,7 +3841,6 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 		&psr_configuration.raw,
 		sizeof(psr_configuration.raw));
 
-
 	if (psr_configuration.bits.ENABLE) {
 		unsigned char dpcdbuf[3] = {0};
 		union psr_error_status psr_error_status;
@@ -3873,10 +3872,12 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 				sizeof(psr_error_status.raw));
 
 			/* PSR error, disable and re-enable PSR */
-			allow_active = false;
-			dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL);
-			allow_active = true;
-			dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL);
+			if (link->psr_settings.psr_allow_active) {
+				allow_active = false;
+				dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL);
+				allow_active = true;
+				dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL);
+			}
 
 			return true;
 		} else if (psr_sink_psr_status.bits.SINK_SELF_REFRESH_STATUS ==
