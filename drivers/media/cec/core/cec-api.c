@@ -669,7 +669,7 @@ static int cec_release(struct inode *inode, struct file *filp)
 
 		data->blocking = false;
 		data->fh = NULL;
-		list_del(&data->xfer_list);
+		list_del_init(&data->xfer_list);
 	}
 	mutex_unlock(&adap->lock);
 	while (!list_empty(&fh->msgs)) {
