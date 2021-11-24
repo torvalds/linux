@@ -55,7 +55,7 @@
 		clock-frequency = <0>;
 	};
 
-	cluster1_opp: opp_table10 {
+	cluster1_opp: opp-table-1 {
 		compatible = "operating-points-v2";
 		opp-shared;
 		opp-800000000 {
