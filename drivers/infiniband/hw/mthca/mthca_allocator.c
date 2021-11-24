@@ -79,8 +79,6 @@ void mthca_free(struct mthca_alloc *alloc, u32 obj)
 int mthca_alloc_init(struct mthca_alloc *alloc, u32 num, u32 mask,
 		     u32 reserved)
 {
-	int i;
-
 	/* num must be a power of 2 */
 	if (num != 1 << (ffs(num) - 1))
 		return -EINVAL;
@@ -94,8 +92,7 @@ int mthca_alloc_init(struct mthca_alloc *alloc, u32 num, u32 mask,
 	if (!alloc->table)
 		return -ENOMEM;
 
-	for (i = 0; i < reserved; ++i)
-		set_bit(i, alloc->table);
+	bitmap_set(alloc->table, 0, reserved);
 
 	return 0;
 }
