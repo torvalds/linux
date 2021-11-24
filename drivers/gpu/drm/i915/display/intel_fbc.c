@@ -1056,6 +1056,11 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		return 0;
 	}
 
+	if (crtc_state->double_wide) {
+		plane_state->no_fbc_reason = "double wide pipe not supported";
+		return 0;
+	}
+
 	/*
 	 * Display 12+ is not supporting FBC with PSR2.
 	 * Recommendation is to keep this combination disabled
