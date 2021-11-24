@@ -209,7 +209,7 @@
 		clock-names = "ext_clock";
 		uart_rts_gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart7m1_rtsn>, <&bt_wake_host>;
+		pinctrl-0 = <&uart7m1_rtsn>,  <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
 		pinctrl-1 = <&uart7_gpios>;
 		BT,reset_gpio    = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio     = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
@@ -605,8 +605,16 @@
 			rockchip,pins = <3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		bt_wake_host: bt-wake-host {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
+		bt_reset_gpio: bt-reset-gpio {
+			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_wake_gpio: bt-wake-gpio {
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_irq_gpio: bt-irq-gpio {
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
