@@ -681,10 +681,10 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->registers[DEVICEID], radio->registers[SI_CHIPID]);
 	if ((radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
 		dev_warn(&intf->dev,
-			"This driver is known to work with firmware version %hu,\n",
+			"This driver is known to work with firmware version %u,\n",
 			RADIO_FW_VERSION);
 		dev_warn(&intf->dev,
-			"but the device has firmware version %hu.\n",
+			"but the device has firmware version %u.\n",
 			radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE);
 		version_warning = 1;
 	}
@@ -698,10 +698,10 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->software_version, radio->hardware_version);
 	if (radio->hardware_version < RADIO_HW_VERSION) {
 		dev_warn(&intf->dev,
-			"This driver is known to work with hardware version %hu,\n",
+			"This driver is known to work with hardware version %u,\n",
 			RADIO_HW_VERSION);
 		dev_warn(&intf->dev,
-			"but the device has hardware version %hu.\n",
+			"but the device has hardware version %u.\n",
 			radio->hardware_version);
 		version_warning = 1;
 	}
