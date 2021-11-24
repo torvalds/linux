@@ -637,6 +637,7 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 	struct clk *refclk = NULL;
 	unsigned long rate;
 	int i;
+	u32 val;
 
 	/* Configure PHY reference clock frequency */
 	for (i = 0; i < priv->num_clks; i++) {
@@ -659,6 +660,39 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 		param_write(priv->phy_grf, &cfg->con3_for_pcie, true);
 		break;
 	case PHY_TYPE_USB3:
+		/* Set SSC downward spread spectrum */
+		val = readl(priv->mmio + (0x1f << 2));
+		val &= ~GENMASK(5, 4);
+		val |= 0x01 << 4;
+		writel(val, priv->mmio + 0x7c);
+
+		/* Enable adaptive CTLE for USB3.0 Rx */
+		val = readl(priv->mmio + (0x0e << 2));
+		val &= ~GENMASK(0, 0);
+		val |= 0x01;
+		writel(val, priv->mmio + (0x0e << 2));
+
+		/* Set PLL KVCO fine tuning signals */
+		val = readl(priv->mmio + (0x20 << 2));
+		val &= ~(0x7 << 2);
+		val |= 0x2 << 2;
+		writel(val, priv->mmio + (0x20 << 2));
+
+		/* Set PLL LPF R1 to su_trim[10:7]=1001 */
+		writel(0x4, priv->mmio + (0xb << 2));
+
+		/* Set PLL input clock divider 1/2 */
+		val = readl(priv->mmio + (0x5 << 2));
+		val &= ~(0x3 << 6);
+		val |= 0x1 << 6;
+		writel(val, priv->mmio + (0x5 << 2));
+
+		/* Set PLL loop divider */
+		writel(0x32, priv->mmio + (0x11 << 2));
+
+		/* Set PLL KVCO to min and set PLL charge pump current to max */
+		writel(0xf0, priv->mmio + (0xa << 2));
+
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
 		param_write(priv->phy_grf, &cfg->pipe_txelec_sel, false);
 		param_write(priv->phy_grf, &cfg->usb_mode_set, true);
@@ -682,6 +716,18 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 	switch (rate) {
 	case 24000000:
+		if (priv->mode == PHY_TYPE_USB3) {
+			/* Set ssc_cnt[9:0]=0101111101 & 31.5KHz */
+			val = readl(priv->mmio + (0x0e << 2));
+			val &= ~GENMASK(7, 6);
+			val |= 0x01 << 6;
+			writel(val, priv->mmio + (0x0e << 2));
+
+			val = readl(priv->mmio + (0x0f << 2));
+			val &= ~GENMASK(7, 0);
+			val |= 0x5f;
+			writel(val, priv->mmio + (0x0f << 2));
+		}
 		break;
 	case 25000000:
 		param_write(priv->phy_grf, &cfg->pipe_clk_25m, true);
