@@ -810,8 +810,8 @@ int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3)
 	 * If the MMU is nested, CR3 holds an L2 GPA and needs to be translated
 	 * to an L1 GPA.
 	 */
-	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(pdpt_gfn),
-				      PFERR_USER_MASK | PFERR_WRITE_MASK, NULL);
+	real_gpa = kvm_translate_gpa(vcpu, mmu, gfn_to_gpa(pdpt_gfn),
+				     PFERR_USER_MASK | PFERR_WRITE_MASK, NULL);
 	if (real_gpa == UNMAPPED_GVA)
 		return 0;
 
