@@ -186,7 +186,7 @@
 		     &gmac0_rgmii_clk
 		     &gmac0_rgmii_bus>;
 
-	tx_delay = <0x5c>;
+	tx_delay = <0x44>;
 	/* rx_delay = <0x4f>; */
 
 	phy-handle = <&rgmii_phy0>;
@@ -210,7 +210,7 @@
 		     &gmac1_rgmii_clk
 		     &gmac1_rgmii_bus>;
 
-	tx_delay = <0x5c>;
+	tx_delay = <0x42>;
 	/* rx_delay = <0x4f>; */
 
 	phy-handle = <&rgmii_phy1>;
