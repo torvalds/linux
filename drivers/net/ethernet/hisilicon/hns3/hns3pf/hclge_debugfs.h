@@ -321,10 +321,10 @@ static const struct hclge_dbg_dfx_message hclge_dbg_igu_egu_reg[] = {
 	{true,	"IGU_RX_OUT_UDP0_PKT"},
 
 	{true,	"IGU_RX_IN_UDP0_PKT"},
-	{false, "Reserved"},
-	{false, "Reserved"},
-	{false, "Reserved"},
-	{false, "Reserved"},
+	{true,	"IGU_MC_CAR_DROP_PKT_L"},
+	{true,	"IGU_MC_CAR_DROP_PKT_H"},
+	{true,	"IGU_BC_CAR_DROP_PKT_L"},
+	{true,	"IGU_BC_CAR_DROP_PKT_H"},
 	{false, "Reserved"},
 
 	{true,	"IGU_RX_OVERSIZE_PKT_L"},
