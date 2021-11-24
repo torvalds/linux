@@ -19,6 +19,9 @@ properties:
   clocks:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   "#sound-dai-cells":
     const: 0
 
