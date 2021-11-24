@@ -806,16 +806,16 @@ ENTRY(__switch_to)
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
 	switch_tls r1, r4, r5, r3, r7
-#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
-	ldr	r7, [r2, #TI_TASK]
+#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
+    !defined(CONFIG_STACKPROTECTOR_PER_TASK)
+	ldr	r9, [r2, #TI_TASK]
 	ldr	r8, =__stack_chk_guard
 	.if (TSK_STACK_CANARY > IMM12_MASK)
-	add	r7, r7, #TSK_STACK_CANARY & ~IMM12_MASK
+	add	r9, r9, #TSK_STACK_CANARY & ~IMM12_MASK
 	.endif
-	ldr	r7, [r7, #TSK_STACK_CANARY & IMM12_MASK]
-#elif defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO)
-	mov	r7, r2				@ Preserve 'next'
+	ldr	r9, [r9, #TSK_STACK_CANARY & IMM12_MASK]
 #endif
+	mov	r7, r2				@ Preserve 'next'
 #ifdef CONFIG_CPU_USE_DOMAINS
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
 #endif
@@ -824,8 +824,9 @@ ENTRY(__switch_to)
 	ldr	r0, =thread_notify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
 	bl	atomic_notifier_call_chain
-#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
-	str	r7, [r8]
+#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
+    !defined(CONFIG_STACKPROTECTOR_PER_TASK)
+	str	r9, [r8]
 #endif
 	mov	r0, r5
 #if !defined(CONFIG_THUMB2_KERNEL) && !defined(CONFIG_VMAP_STACK)
