@@ -93,6 +93,7 @@
 
 #define GSI_CHANNEL_STOP_RETRIES	10
 #define GSI_CHANNEL_MODEM_HALT_RETRIES	10
+#define GSI_CHANNEL_MODEM_FLOW_RETRIES	5	/* disable flow control only */
 
 #define GSI_MHI_EVENT_ID_START		10	/* 1st reserved event id */
 #define GSI_MHI_EVENT_ID_END		16	/* Last reserved event id */
@@ -1649,7 +1650,8 @@ static void gsi_channel_teardown_one(struct gsi *gsi, u32 channel_id)
  * issue the command and wait for it to complete.
  */
 static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
-			       enum gsi_generic_cmd_opcode opcode)
+			       enum gsi_generic_cmd_opcode opcode,
+			       u8 params)
 {
 	bool timeout;
 	u32 val;
@@ -1675,6 +1677,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	val = u32_encode_bits(opcode, GENERIC_OPCODE_FMASK);
 	val |= u32_encode_bits(channel_id, GENERIC_CHID_FMASK);
 	val |= u32_encode_bits(GSI_EE_MODEM, GENERIC_EE_FMASK);
+	val |= u32_encode_bits(params, GENERIC_PARAMS_FMASK);
 
 	timeout = !gsi_command(gsi, GSI_GENERIC_CMD_OFFSET, val);
 
@@ -1693,7 +1696,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 static int gsi_modem_channel_alloc(struct gsi *gsi, u32 channel_id)
 {
 	return gsi_generic_command(gsi, channel_id,
-				   GSI_GENERIC_ALLOCATE_CHANNEL);
+				   GSI_GENERIC_ALLOCATE_CHANNEL, 0);
 }
 
 static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
@@ -1703,7 +1706,7 @@ static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
 
 	do
 		ret = gsi_generic_command(gsi, channel_id,
-					  GSI_GENERIC_HALT_CHANNEL);
+					  GSI_GENERIC_HALT_CHANNEL, 0);
 	while (ret == -EAGAIN && retries--);
 
 	if (ret)
@@ -1715,13 +1718,22 @@ static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
 void
 gsi_modem_channel_flow_control(struct gsi *gsi, u32 channel_id, bool enable)
 {
+	u32 retries = 0;
 	u32 command;
 	int ret;
 
 	command = enable ? GSI_GENERIC_ENABLE_FLOW_CONTROL
 			 : GSI_GENERIC_DISABLE_FLOW_CONTROL;
+	/* Disabling flow control on IPA v4.11+ can return -EAGAIN if enable
+	 * is underway.  In this case we need to retry the command.
+	 */
+	if (!enable && gsi->version >= IPA_VERSION_4_11)
+		retries = GSI_CHANNEL_MODEM_FLOW_RETRIES;
 
-	ret = gsi_generic_command(gsi, channel_id, command);
+	do
+		ret = gsi_generic_command(gsi, channel_id, command, 0);
+	while (ret == -EAGAIN && retries--);
+
 	if (ret)
 		dev_err(gsi->dev,
 			"error %d %sabling mode channel %u flow control\n",
