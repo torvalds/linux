@@ -2717,8 +2717,12 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	};
 	struct request *rq;
 
-	if (blk_mq_attempt_bio_merge(q, bio, nsegs))
+	if (unlikely(bio_queue_enter(bio)))
 		return NULL;
+	if (unlikely(!submit_bio_checks(bio)))
+		goto queue_exit;
+	if (blk_mq_attempt_bio_merge(q, bio, nsegs))
+		goto queue_exit;
 
 	rq_qos_throttle(q, bio);
 
@@ -2729,64 +2733,44 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	}
 
 	rq = __blk_mq_alloc_requests(&data);
-	if (rq)
-		return rq;
+	if (!rq)
+		goto fail;
+	return rq;
 
+fail:
 	rq_qos_cleanup(q, bio);
 	if (bio->bi_opf & REQ_NOWAIT)
 		bio_wouldblock_error(bio);
-
-	return NULL;
-}
-
-static inline bool blk_mq_can_use_cached_rq(struct request *rq, struct bio *bio)
-{
-	if (blk_mq_get_hctx_type(bio->bi_opf) != rq->mq_hctx->type)
-		return false;
-
-	if (op_is_flush(rq->cmd_flags) != op_is_flush(bio->bi_opf))
-		return false;
-
-	return true;
-}
-
-static inline struct request *blk_mq_get_request(struct request_queue *q,
-						 struct blk_plug *plug,
-						 struct bio *bio,
-						 unsigned int nsegs)
-{
-	struct request *rq;
-	bool checked = false;
-
-	if (plug) {
-		rq = rq_list_peek(&plug->cached_rq);
-		if (rq && rq->q == q) {
-			if (unlikely(!submit_bio_checks(bio)))
-				return NULL;
-			if (blk_mq_attempt_bio_merge(q, bio, nsegs))
-				return NULL;
-			checked = true;
-			if (!blk_mq_can_use_cached_rq(rq, bio))
-				goto fallback;
-			rq->cmd_flags = bio->bi_opf;
-			plug->cached_rq = rq_list_next(rq);
-			INIT_LIST_HEAD(&rq->queuelist);
-			rq_qos_throttle(q, bio);
-			return rq;
-		}
-	}
-
-fallback:
-	if (unlikely(bio_queue_enter(bio)))
-		return NULL;
-	if (unlikely(!checked && !submit_bio_checks(bio)))
-		goto out_put;
-	rq = blk_mq_get_new_requests(q, plug, bio, nsegs);
-	if (rq)
-		return rq;
-out_put:
+queue_exit:
 	blk_queue_exit(q);
 	return NULL;
+}
+
+static inline struct request *blk_mq_get_cached_request(struct request_queue *q,
+		struct blk_plug *plug, struct bio *bio, unsigned int nsegs)
+{
+	struct request *rq;
+
+	if (!plug)
+		return NULL;
+	rq = rq_list_peek(&plug->cached_rq);
+	if (!rq || rq->q != q)
+		return NULL;
+
+	if (unlikely(!submit_bio_checks(bio)))
+		return NULL;
+	if (blk_mq_attempt_bio_merge(q, bio, nsegs))
+		return NULL;
+	if (blk_mq_get_hctx_type(bio->bi_opf) != rq->mq_hctx->type)
+		return NULL;
+	if (op_is_flush(rq->cmd_flags) != op_is_flush(bio->bi_opf))
+		return NULL;
+
+	rq->cmd_flags = bio->bi_opf;
+	plug->cached_rq = rq_list_next(rq);
+	INIT_LIST_HEAD(&rq->queuelist);
+	rq_qos_throttle(q, bio);
+	return rq;
 }
 
 /**
@@ -2805,9 +2789,9 @@ out_put:
 void blk_mq_submit_bio(struct bio *bio)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+	struct blk_plug *plug = blk_mq_plug(q, bio);
 	const int is_sync = op_is_sync(bio->bi_opf);
 	struct request *rq;
-	struct blk_plug *plug;
 	unsigned int nr_segs = 1;
 	blk_status_t ret;
 
@@ -2821,10 +2805,12 @@ void blk_mq_submit_bio(struct bio *bio)
 	if (!bio_integrity_prep(bio))
 		return;
 
-	plug = blk_mq_plug(q, bio);
-	rq = blk_mq_get_request(q, plug, bio, nr_segs);
-	if (unlikely(!rq))
-		return;
+	rq = blk_mq_get_cached_request(q, plug, bio, nr_segs);
+	if (!rq) {
+		rq = blk_mq_get_new_requests(q, plug, bio, nr_segs);
+		if (unlikely(!rq))
+			return;
+	}
 
 	trace_block_getrq(bio);
 
