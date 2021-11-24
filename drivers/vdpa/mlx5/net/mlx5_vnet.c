@@ -1895,6 +1895,7 @@ static u64 mlx5_vdpa_get_features(struct vdpa_device *vdev)
 	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR);
 	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_MQ);
 	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_STATUS);
+	ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_MTU);
 
 	print_features(mvdev, ndev->mvdev.mlx_features, false);
 	return ndev->mvdev.mlx_features;
