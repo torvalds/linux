@@ -57,6 +57,11 @@ properties:
       dp lane1 on Type-C phy lane1, dp lane2 on Type-C phy lane2, dp lane3 on Type-C
       phy lane3. If dp lane map by DisplayPort Alt mode, this property is not need.
 
+  rockchip,u2phy-grf:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the syscon managing the 'usb2 phy general register files'.
+
   rockchip,usb-grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -114,6 +119,7 @@ examples:
     usbdp_phy0: phy@fed80000 {
       compatible = "rockchip,rk3588-usbdp-phy";
       reg = <0x0 0xfed80000 0x0 0x10000>;
+      rockchip,u2phy-grf = <&usb2phy0_grf>;
       rockchip,usb-grf = <&usb_grf>;
       rockchip,usbdpphy-grf = <&usbdpphy0_grf>;
       rockchip,vo-grf = <&vo0_grf>;
