@@ -41,7 +41,7 @@ static ssize_t store_bridge_parm(struct device *d,
 	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	err = kstrtoul(buf, 10, &val);
+	err = kstrtoul(buf, 0, &val);
 	if (err != 0)
 		return err;
 
