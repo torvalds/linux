@@ -355,6 +355,9 @@
 	pr_err("%s: " fmt, __func__, arg);  \
 	} while (0)
 
+#define CHECK_NTN3_VERSION_MASK (0x000000FF)
+#define NTN3_CHIP_VERSION_1 (0x00000000)
+
 enum msm_pcie_res {
 	MSM_PCIE_RES_PARF,
 	MSM_PCIE_RES_PHY,
@@ -1038,7 +1041,10 @@ struct pcie_i2c_ctrl {
 	u32 dump_reg_count;
 	struct pcie_i2c_reg_update *reg_update;
 	u32 reg_update_count;
-
+	u32 version_reg;
+	bool force_i2c_setting;
+	struct pcie_i2c_reg_update *switch_reg_update;
+	u32 switch_reg_update_count;
 	/* client specific callbacks */
 	int (*client_i2c_read)(struct i2c_client *client, u32 reg_addr,
 			       u32 *val);
@@ -5974,24 +5980,48 @@ static void ntn3_dump_regs(struct pcie_i2c_ctrl *i2c_ctrl)
 
 static void ntn3_de_emphasis_wa(struct pcie_i2c_ctrl *i2c_ctrl)
 {
-	int i, val;
+	int i, val, ret, rd_val;
 	struct msm_pcie_dev_t *pcie_dev = container_of(i2c_ctrl,
 						       struct msm_pcie_dev_t,
 						       i2c_ctrl);
+	ret = i2c_ctrl->client_i2c_read(i2c_ctrl->client,
+			 i2c_ctrl->version_reg, &rd_val);
+	if (ret) {
+		PCIE_DBG(pcie_dev, "PCIe: RC%d: gpio version reg read failed : %d\n",
+				 pcie_dev->rc_idx, ret);
+	}
+	i2c_ctrl->force_i2c_setting = of_property_read_bool(i2c_ctrl->client->dev.of_node,
+					  "force-i2c-setting");
+	rd_val &= CHECK_NTN3_VERSION_MASK;
+	PCIE_DBG(pcie_dev, "PCIe: RC%d: NTN3 Version reg:0x%x and force-i2c-setting is %s enabled",
+		 pcie_dev->rc_idx, rd_val, i2c_ctrl->force_i2c_setting ? "" : "not");
+	if (rd_val == NTN3_CHIP_VERSION_1 || i2c_ctrl->force_i2c_setting) {
+		PCIE_DBG(pcie_dev, "PCIe: RC%d: NTN3 reg update\n", pcie_dev->rc_idx);
 
-	PCIE_DBG(pcie_dev, "PCIe: RC%d: NTN3 reg update\n", pcie_dev->rc_idx);
-
-	for (i = 0; i < i2c_ctrl->reg_update_count; i++) {
-		i2c_ctrl->client_i2c_write(i2c_ctrl->client, i2c_ctrl->reg_update[i].offset,
-					   i2c_ctrl->reg_update[i].val);
-		/*Read to make sure writes are completed*/
-		i2c_ctrl->client_i2c_read(i2c_ctrl->client, i2c_ctrl->reg_update[i].offset,
-					   &val);
-		PCIE_DBG(pcie_dev, "PCIe: RC%d: NTN3 reg off:0x%x wr_val:0x%x rd_val:0x%x\n",
-			pcie_dev->rc_idx, i2c_ctrl->reg_update[i].offset,
-			i2c_ctrl->reg_update[i].val, val);
+		for (i = 0; i < i2c_ctrl->reg_update_count; i++) {
+			i2c_ctrl->client_i2c_write(i2c_ctrl->client, i2c_ctrl->reg_update[i].offset,
+						   i2c_ctrl->reg_update[i].val);
+			/*Read to make sure writes are completed*/
+			i2c_ctrl->client_i2c_read(i2c_ctrl->client, i2c_ctrl->reg_update[i].offset,
+						   &val);
+			PCIE_DBG(pcie_dev,
+				 "PCIe: RC%d: NTN3 reg off:0x%x wr_val:0x%x rd_val:0x%x\n",
+				pcie_dev->rc_idx, i2c_ctrl->reg_update[i].offset,
+				i2c_ctrl->reg_update[i].val, val);
+		}
 	}
 
+	for (i = 0; i < i2c_ctrl->switch_reg_update_count; i++) {
+		i2c_ctrl->client_i2c_write(i2c_ctrl->client, i2c_ctrl->switch_reg_update[i].offset,
+				i2c_ctrl->switch_reg_update[i].val);
+		/*Read to make sure writes are completed*/
+		i2c_ctrl->client_i2c_read(i2c_ctrl->client, i2c_ctrl->switch_reg_update[i].offset,
+				&val);
+		PCIE_DBG(pcie_dev,
+			 "PCIe: RC%d: NTN3 reg off:0x%x wr_val:0x%x rd_val:0x%x\n",
+			 pcie_dev->rc_idx, i2c_ctrl->switch_reg_update[i].offset,
+			 i2c_ctrl->switch_reg_update[i].val, val);
+	}
 }
 #endif
 
@@ -8246,7 +8276,10 @@ static int msm_pcie_i2c_ctrl_init(struct msm_pcie_dev_t *pcie_dev)
 
 	of_property_read_u32(i2c_client_node, "ep-reset-gpio-mask",
 			     &i2c_ctrl->ep_reset_gpio_mask);
-
+	of_property_read_u32(i2c_client_node, "version-reg",
+				 &i2c_ctrl->version_reg);
+	i2c_ctrl->force_i2c_setting = of_property_read_bool(i2c_client_node,
+				 "force-i2c-setting");
 	of_get_property(i2c_client_node, "dump-regs", &size);
 
 	if (size) {
@@ -8282,6 +8315,25 @@ static int msm_pcie_i2c_ctrl_init(struct msm_pcie_dev_t *pcie_dev)
 						size/sizeof(i2c_ctrl->reg_update->offset));
 		if (ret)
 			i2c_ctrl->reg_update_count = 0;
+	}
+
+	of_get_property(i2c_client_node, "switch_reg_update", &size);
+
+	if (size) {
+		i2c_ctrl->switch_reg_update = devm_kzalloc(dev, size, GFP_KERNEL);
+		if (!i2c_ctrl->switch_reg_update) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		i2c_ctrl->switch_reg_update_count = size / sizeof(*i2c_ctrl->switch_reg_update);
+
+		ret = of_property_read_u32_array(i2c_client_node,
+						"switch_reg_update",
+						(unsigned int *)i2c_ctrl->switch_reg_update,
+						size/sizeof(i2c_ctrl->switch_reg_update->offset));
+		if (ret)
+			i2c_ctrl->switch_reg_update_count = 0;
 	}
 
 	return 0;
