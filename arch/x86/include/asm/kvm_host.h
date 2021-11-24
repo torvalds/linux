@@ -296,14 +296,14 @@ struct kvm_kernel_irq_routing_entry;
  *
  *   - invalid shadow pages are not accounted, so the bits are effectively 18
  *
- *   - quadrant will only be used if gpte_is_8_bytes=0 (non-PAE paging);
+ *   - quadrant will only be used if has_4_byte_gpte=1 (non-PAE paging);
  *     execonly and ad_disabled are only used for nested EPT which has
- *     gpte_is_8_bytes=1.  Therefore, 2 bits are always unused.
+ *     has_4_byte_gpte=0.  Therefore, 2 bits are always unused.
  *
  *   - the 4 bits of level are effectively limited to the values 2/3/4/5,
  *     as 4k SPs are not tracked (allowed to go unsync).  In addition non-PAE
  *     paging has exactly one upper level, making level completely redundant
- *     when gpte_is_8_bytes=0.
+ *     when has_4_byte_gpte=1.
  *
  *   - on top of this, smep_andnot_wp and smap_andnot_wp are only set if
  *     cr0_wp=0, therefore these three bits only give rise to 5 possibilities.
@@ -315,7 +315,7 @@ union kvm_mmu_page_role {
 	u32 word;
 	struct {
 		unsigned level:4;
-		unsigned gpte_is_8_bytes:1;
+		unsigned has_4_byte_gpte:1;
 		unsigned quadrant:2;
 		unsigned direct:1;
 		unsigned access:3;
