@@ -881,6 +881,10 @@ retry:
 
 		swap(rbio->bio.bi_iter.bi_size, bytes);
 		bio_advance(&rbio->bio, bytes);
+
+		ret = btree_trans_too_many_iters(trans);
+		if (ret)
+			break;
 	}
 err:
 	bch2_trans_iter_exit(trans, &iter);

@@ -328,13 +328,19 @@ static inline struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter,
 		: bch2_btree_iter_peek(iter);
 }
 
+static inline int btree_trans_too_many_iters(struct btree_trans *trans)
+{
+	return hweight64(trans->paths_allocated) > BTREE_ITER_MAX / 2
+		? -EINTR : 0;
+}
+
 static inline struct bkey_s_c
 __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 				   struct btree_iter *iter, unsigned flags)
 {
 	struct bkey_s_c k;
 
-	while ((hweight64(trans->paths_allocated) > BTREE_ITER_MAX / 2) ||
+	while (btree_trans_too_many_iters(trans) ||
 	       (k = __bch2_btree_iter_peek(iter, flags),
 		bkey_err(k) == -EINTR))
 		bch2_trans_begin(trans);
