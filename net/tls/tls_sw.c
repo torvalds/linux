@@ -1993,6 +1993,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	ssize_t copied = 0;
+	bool from_queue;
 	int err = 0;
 	long timeo;
 	int chunk;
@@ -2002,14 +2003,20 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 
 	timeo = sock_rcvtimeo(sk, flags & SPLICE_F_NONBLOCK);
 
-	skb = tls_wait_data(sk, NULL, flags & SPLICE_F_NONBLOCK, timeo, &err);
-	if (!skb)
-		goto splice_read_end;
+	from_queue = !skb_queue_empty(&ctx->rx_list);
+	if (from_queue) {
+		skb = __skb_dequeue(&ctx->rx_list);
+	} else {
+		skb = tls_wait_data(sk, NULL, flags & SPLICE_F_NONBLOCK, timeo,
+				    &err);
+		if (!skb)
+			goto splice_read_end;
 
-	err = decrypt_skb_update(sk, skb, NULL, &chunk, &zc, false);
-	if (err < 0) {
-		tls_err_abort(sk, -EBADMSG);
-		goto splice_read_end;
+		err = decrypt_skb_update(sk, skb, NULL, &chunk, &zc, false);
+		if (err < 0) {
+			tls_err_abort(sk, -EBADMSG);
+			goto splice_read_end;
+		}
 	}
 
 	/* splice does not support reading control messages */
@@ -2025,7 +2032,17 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	if (copied < 0)
 		goto splice_read_end;
 
-	tls_sw_advance_skb(sk, skb, copied);
+	if (!from_queue) {
+		ctx->recv_pkt = NULL;
+		__strp_unpause(&ctx->strp);
+	}
+	if (chunk < rxm->full_len) {
+		__skb_queue_head(&ctx->rx_list, skb);
+		rxm->offset += len;
+		rxm->full_len -= len;
+	} else {
+		consume_skb(skb);
+	}
 
 splice_read_end:
 	release_sock(sk);
