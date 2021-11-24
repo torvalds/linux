@@ -996,18 +996,6 @@ static bool intel_fbc_cfb_size_changed(struct intel_fbc *fbc)
 
 static bool intel_fbc_can_enable(struct intel_fbc *fbc)
 {
-	struct drm_i915_private *i915 = fbc->i915;
-
-	if (intel_vgpu_active(i915)) {
-		fbc->no_fbc_reason = "VGPU is active";
-		return false;
-	}
-
-	if (!i915->params.enable_fbc) {
-		fbc->no_fbc_reason = "disabled per module param or by default";
-		return false;
-	}
-
 	if (fbc->underrun_detected) {
 		fbc->no_fbc_reason = "underrun detected";
 		return false;
@@ -1029,6 +1017,16 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 
 	if (!fbc)
 		return 0;
+
+	if (intel_vgpu_active(i915)) {
+		plane_state->no_fbc_reason = "VGPU active";
+		return 0;
+	}
+
+	if (!i915->params.enable_fbc) {
+		plane_state->no_fbc_reason = "disabled per module param or by default";
+		return 0;
+	}
 
 	if (!plane_state->uapi.visible) {
 		plane_state->no_fbc_reason = "plane not visible";
