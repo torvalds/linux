@@ -61,6 +61,8 @@
  *  VERSION     : 01-00-20
  *  08 Nov 2021 : 1. Added macro for Maximum Port
  *  VERSION     : 01-00-21
+ *  24 Nov 2021 : 1. Single Port Suspend/Resume supported
+ *  VERSION     : 01-00-22
  */
 
 #ifndef __COMMON_H__
@@ -89,13 +91,9 @@
 
 /* Indepenedent Suspend/Resume Debug */
 #undef TC956X_PM_DEBUG
-#define TC956X_MAX_PORT		2
-/* Suspend-Resume Enum Counter */
-enum TC956X_INDEPENDENT_PORT_PM_SUSPEND {
-	NO_PORT_SUSPENDED = 0, /* Normal State */
-	SINGLE_PORT_SUSPENDED, /* Only Single Port suspended */
-	BOTH_PORT_SUSPENDED, /* Both Port suspended */
-};
+#define TC956X_MAX_PORT			2
+#define TC956X_ALL_MAC_PORT_SUSPENDED 	0 /* All EMAC Port Suspended. To be used just after suspend and before resume. */
+#define TC956X_NO_MAC_DEVICE_IN_USE	0 /* No EMAC Port in use. To be used at probe and remove. */
 
 /* Suspend-Resume Arguments */
 enum TC956X_PORT_PM_STATE {

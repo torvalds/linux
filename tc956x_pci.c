@@ -84,6 +84,9 @@
  		  2. Cancel PHY Workqueue before suspend.
  		  3. Restore Gen 3 Speed after resume.
  *  VERSION     : 01-00-21
+ *  24 Nov 2021 : 1. Version update
+ 		  2. Single Port Suspend/Resume supported
+ *  VERSION     : 01-00-22
  */
 
 #include <linux/clk-provider.h>
@@ -116,10 +119,10 @@ static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 unsigned int tc956x_port0_filter_phy_pause_frames = DISABLE;
 unsigned int tc956x_port1_filter_phy_pause_frames = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 1};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 2};
 
-enum TC956X_INDEPENDENT_PORT_PM_SUSPEND tc956xmac_pm_suspend_counter = NO_PORT_SUSPENDED;
-struct mutex tc956x_pm_suspend_lock;
+static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
+struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
 
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
@@ -2258,12 +2261,19 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		dev_dbg(&(pdev->dev), "%s : ltssm_data.ltssm_stop_status = %d\n", __func__, ltssm_data.ltssm_stop_status);
 	}
 #endif /* TC956X_PCIE_LOGSTAT */
-	mutex_init(&tc956x_pm_suspend_lock);
+	/* Initialize only once */
+	if (tc956xmac_pm_usage_counter == TC956X_NO_MAC_DEVICE_IN_USE)
+		mutex_init(&tc956x_pm_suspend_lock);
 
 #ifdef DMA_OFFLOAD_ENABLE
 	if (res.port_num == RM_PF0_ID)
 		port0_pdev = pdev;
 #endif
+	mutex_lock(&tc956x_pm_suspend_lock);
+	/* Increment device usage counter */
+	tc956xmac_pm_usage_counter++;
+	DBGPR_FUNC(&(pdev->dev), "%s : (Device Usage Count = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
+	mutex_unlock(&tc956x_pm_suspend_lock);
 	return ret;
 
 err_out_msi_failed:
@@ -2345,59 +2355,17 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 
 	pci_disable_device(pdev);
-	mutex_destroy(&tc956x_pm_suspend_lock);
+
+	mutex_lock(&tc956x_pm_suspend_lock);
+	/* Decrement device usage counter */
+	tc956xmac_pm_usage_counter--;
+	DBGPR_FUNC(&(pdev->dev), "%s : (Device Usage Count = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
+	mutex_unlock(&tc956x_pm_suspend_lock);
+	/* Destroy Mutex only once */
+	if (tc956xmac_pm_usage_counter == TC956X_NO_MAC_DEVICE_IN_USE)
+		mutex_destroy(&tc956x_pm_suspend_lock);
 
 	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
-}
-
-/*!
- * \brief API to increment port-wise suspend counter.
- *
- * \details This api will be called during suspend operation.
- * This will set(increase) the tc956xmac_pm_set_counter based on
- * number of times tc956x_pcie_suspend() is called as per following :
- * If no port suspended - the api will set to Single Port Supended,
- * If one port already suspended - the api will set to Single Port Supended,
- * If both port suspended - the api will return error.
- *
- * \param[in] pdev - pointer to pci_dev structure.
- *
- * \return int
- */
-static inline int tc956xmac_pm_set_counter(struct tc956xmac_priv *priv)
-{
-	if (tc956xmac_pm_suspend_counter == NO_PORT_SUSPENDED)
-		tc956xmac_pm_suspend_counter = SINGLE_PORT_SUSPENDED;
-	else if (tc956xmac_pm_suspend_counter == SINGLE_PORT_SUSPENDED)
-		tc956xmac_pm_suspend_counter = BOTH_PORT_SUSPENDED;
-	else /* if (tc956xmac_pm_suspend_counter == BOTH_PORT_SUSPENDED)*/
-		return -1;
-	return tc956xmac_pm_suspend_counter;
-}
-
-/*!
- * \brief API to decrement port-wise suspend counter.
- *
- * \details This api will be called during resume operation.
- * This will set(decrease) the tc956xmac_pm_set_counter based on
- * number of times tc956x_pcie_resume() is called as per following :
- * If both port suspended - the api will set to Single Port Supended,
- * If one port is already suspended - the api will set to No Port Supended,
- * If no port is suspended - on calling the api will return error.
- *
- * \param[in] pdev - pointer to pci_dev structure.
- *
- * \return int
- */
-static inline int tc956xmac_pm_get_counter(struct tc956xmac_priv *priv)
-{
-	if (tc956xmac_pm_suspend_counter == BOTH_PORT_SUSPENDED)
-		tc956xmac_pm_suspend_counter = SINGLE_PORT_SUSPENDED;
-	else if (tc956xmac_pm_suspend_counter == SINGLE_PORT_SUSPENDED)
-		tc956xmac_pm_suspend_counter = NO_PORT_SUSPENDED;
-	else /* if (tc956xmac_pm_suspend_counter == NO_PORT_SUSPENDED) */
-		return -1;
-	return tc956xmac_pm_suspend_counter;
 }
 
 /*!
@@ -2468,10 +2436,10 @@ static int tc956x_pcie_pm_enable_pci(struct pci_dev *pdev)
  */
 static int tc956x_pcie_pm_pci(struct pci_dev *pdev, enum TC956X_PORT_PM_STATE state)
 {
-	static struct pci_dev *tc956x_pd = NULL, *tc956x_dsp_ep = NULL, *tc956x_port_pdev[2];
+	static struct pci_dev *tc956x_pd = NULL, *tc956x_dsp_ep = NULL, *tc956x_port_pdev[2] = {NULL}; 
 	struct pci_bus *bus = NULL;
-	int ret = 0, i = 0;
-	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
+	int ret = 0, i = 0, p = 0;
+	if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 		tc956x_dsp_ep = pci_upstream_bridge(pdev);
 		bus = tc956x_dsp_ep->subordinate;
 
@@ -2479,21 +2447,17 @@ static int tc956x_pcie_pm_pci(struct pci_dev *pdev, enum TC956X_PORT_PM_STATE st
 		    list_for_each_entry(tc956x_pd, &bus->devices, bus_list)
 			tc956x_port_pdev[i++] = tc956x_pd;
 
-		/* Enter only if at least 1 Port Suspended */
-		if (state == SUSPEND) {
-			ret = tc956x_pcie_pm_disable_pci(tc956x_port_pdev[0]);
-			if (ret < 0)
-				goto err;
-			ret = tc956x_pcie_pm_disable_pci(tc956x_port_pdev[1]);
-			if (ret < 0)
-				goto err;
-		} else if (state == RESUME) {
-			ret = tc956x_pcie_pm_enable_pci(tc956x_port_pdev[0]);
-			if (ret < 0)
-				goto err;
-			ret = tc956x_pcie_pm_enable_pci(tc956x_port_pdev[1]);
-			if (ret < 0)
-				goto err;
+		for (p = 0; ((p < i) && (tc956x_port_pdev[p] != NULL)); p++) {
+			/* Enter only if at least 1 Port Suspended */
+			if (state == SUSPEND) {
+				ret = tc956x_pcie_pm_disable_pci(tc956x_port_pdev[p]);
+				if (ret < 0)
+					goto err;
+			} else if (state == RESUME) {
+				ret = tc956x_pcie_pm_enable_pci(tc956x_port_pdev[p]);
+				if (ret < 0)
+					goto err;
+			}
 		}
 	}
 err :
@@ -2545,19 +2509,15 @@ static int tc956x_pcie_suspend(struct device *dev)
 
 	mutex_lock(&tc956x_pm_suspend_lock);
 
-	/* Increment Suspend counter */
-	ret = tc956xmac_pm_set_counter(priv);
-	if (ret < 0) {
-		DBGPR_FUNC(&(pdev->dev), "%s : (Both Ports Already Suspended ) \n", __func__);
-		goto err;
-	} else
-		DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Suspended = [%d]) \n", __func__, ret);
+	/* Decrement device usage counter */
+	tc956xmac_pm_usage_counter--;
+	DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Left to Suspend = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
 
 	/* Call tc956xmac_suspend() */
 	tc956xmac_suspend(&pdev->dev);
 
 #ifdef DMA_OFFLOAD_ENABLE
-	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
+	if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 		DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Tamap Configuration", __func__, priv->port_num);
 		/* Since TAMAP is common for Port0 and Port1,
 		 * Store CM3 TAMAP entries of one Port0*/
@@ -2818,7 +2778,7 @@ static int tc956x_pcie_resume(struct device *dev)
 		goto err;
 	}
 #ifdef TC956X_PCIE_GEN3_SETTING
-	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
+	if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 		/* Reset Speed to Gen3 after resume */
 		DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Set Speed to Gen3", __func__, priv->port_num);
 		val = readl(priv->ioaddr + TC956X_GLUE_EFUSE_CTRL);
@@ -2840,7 +2800,7 @@ static int tc956x_pcie_resume(struct device *dev)
 #endif
 
 	/* Configure TA map registers */
-	if (tc956xmac_pm_suspend_counter > SINGLE_PORT_SUSPENDED) {
+	if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 		DBGPR_FUNC(&(pdev->dev),"%s : Tamap Re-configuration", __func__);
 		tc956x_config_tamap(&pdev->dev, priv->tc956x_BRIDGE_CFG_pci_base_addr);
 #ifdef DMA_OFFLOAD_ENABLE
@@ -2864,15 +2824,9 @@ static int tc956x_pcie_resume(struct device *dev)
 		writel(NEMACIOCTL_DEFAULT, priv->ioaddr + TC9563_CFG_NEMACIOCTL);
 	}
 
-	/* Decrement Suspend counter */
-	ret = tc956xmac_pm_get_counter(priv);
-	if (ret < 0) {
-		DBGPR_FUNC(&(pdev->dev), "%s : (Both Ports Already in Resume State ) \n", __func__);
-		goto err;
-	} else {
-		DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports left to Resume = [%d]) \n", __func__, ret);
-		ret = 0;
-	}
+	/* Increment device usage counter */
+	tc956xmac_pm_usage_counter++;
+	DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Resumed = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
 
 	priv->tc956x_port_pm_suspend = false;
 

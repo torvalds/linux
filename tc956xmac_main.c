@@ -69,7 +69,9 @@
  *  VERSION     : 01-00-20
  *  08 Nov 2021 : 1. Skip queuing PHY Work during suspend.
  *  VERSION     : 01-00-21
- */
+ *  24 Nov 2021 : 1. Private member used instead of global for wol interrupt indication
+ *  VERSION     : 01-00-22
+*/
 
 #include <linux/clk.h>
 #include <linux/kernel.h>
@@ -219,7 +221,7 @@ static const struct config_parameter_list config_param_list[] = {
 };
 
 static uint16_t mdio_bus_id;
-static bool tc956xmac_pm_wol_interrupt[TC956X_MAX_PORT]; /* Port-wise flag for clearing interrupt after resume. */
+
 #define CONFIG_PARAM_NUM ARRAY_SIZE(config_param_list)
 int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *);
 
@@ -347,7 +349,7 @@ static irqreturn_t tc956xmac_wol_interrupt(int irq, void *dev_id)
 	/* Set flag to clear interrupt after resume */
 	DBGPR_FUNC(priv->device, "%s\n", __func__);
 	/* Set flag to indicate WOL interrupt trigger */
-	tc956xmac_pm_wol_interrupt[priv->port_num] = true;
+	priv->tc956xmac_pm_wol_interrupt = true;
 	return IRQ_HANDLED;
 }
 
@@ -4243,7 +4245,7 @@ static int tc956xmac_open(struct net_device *dev)
 			}
 		}
 #endif
-		tc956xmac_pm_wol_interrupt[priv->port_num] = false; /* Initialize flag for PHY Work queue */
+		priv->tc956xmac_pm_wol_interrupt = false; /* Initialize flag for PHY Work queue */
 	}
 	tc956xmac_enable_all_queues(priv);
 	tc956xmac_start_all_queues(priv);
@@ -5809,7 +5811,7 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 		/* Queue the work in system_wq */
 		if (priv->tc956x_port_pm_suspend == true) {
 			KPRINT_INFO("%s : (Do not queue PHY Work during suspend. Set WOL Interrupt flag) \n", __func__);
-			tc956xmac_pm_wol_interrupt[priv->port_num] = true;
+			priv->tc956xmac_pm_wol_interrupt = true;
 		} else {
 			KPRINT_INFO("%s : (Queue PHY Work.) \n", __func__);
 			queue_work(system_wq, &priv->emac_phy_work);
@@ -10750,10 +10752,10 @@ int tc956xmac_resume(struct device *dev)
 	rtnl_unlock();
 
 clean_exit:
-	if (tc956xmac_pm_wol_interrupt[priv->port_num]) {
+	if (priv->tc956xmac_pm_wol_interrupt) {
 		KPRINT_INFO("%s : Port %d Clearing WOL and queuing phy work", __func__, priv->port_num);
 		/* Clear WOL Interrupt after resume, if WOL enabled */
-		tc956xmac_pm_wol_interrupt[priv->port_num] = false;
+		priv->tc956xmac_pm_wol_interrupt = false;
 		/* Queue the work in system_wq */
 		queue_work(system_wq, &priv->emac_phy_work);
 	}
