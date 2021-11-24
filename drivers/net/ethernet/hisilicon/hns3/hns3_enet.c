@@ -2683,6 +2683,13 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 		if (netif_xmit_stopped(q) &&
 		    time_after(jiffies,
 			       (trans_start + ndev->watchdog_timeo))) {
+#ifdef CONFIG_BQL
+			struct dql *dql = &q->dql;
+
+			netdev_info(ndev, "DQL info last_cnt: %u, queued: %u, adj_limit: %u, completed: %u\n",
+				    dql->last_obj_cnt, dql->num_queued,
+				    dql->adj_limit, dql->num_completed);
+#endif
 			timeout_queue = i;
 			netdev_info(ndev, "queue state: 0x%lx, delta msecs: %u\n",
 				    q->state,
