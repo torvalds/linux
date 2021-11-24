@@ -679,6 +679,55 @@ TEST_F(tls, splice_dec_cmsg_to_pipe)
 	EXPECT_EQ(memcmp(test_str, buf, send_len), 0);
 }
 
+TEST_F(tls, recv_and_splice)
+{
+	int send_len = TLS_PAYLOAD_MAX_LEN;
+	char mem_send[TLS_PAYLOAD_MAX_LEN];
+	char mem_recv[TLS_PAYLOAD_MAX_LEN];
+	int half = send_len / 2;
+	int p[2];
+
+	ASSERT_GE(pipe(p), 0);
+	EXPECT_EQ(send(self->fd, mem_send, send_len, 0), send_len);
+	/* Recv hald of the record, splice the other half */
+	EXPECT_EQ(recv(self->cfd, mem_recv, half, MSG_WAITALL), half);
+	EXPECT_EQ(splice(self->cfd, NULL, p[1], NULL, half, SPLICE_F_NONBLOCK),
+		  half);
+	EXPECT_EQ(read(p[0], &mem_recv[half], half), half);
+	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
+}
+
+TEST_F(tls, peek_and_splice)
+{
+	int send_len = TLS_PAYLOAD_MAX_LEN;
+	char mem_send[TLS_PAYLOAD_MAX_LEN];
+	char mem_recv[TLS_PAYLOAD_MAX_LEN];
+	int chunk = TLS_PAYLOAD_MAX_LEN / 4;
+	int n, i, p[2];
+
+	memrnd(mem_send, sizeof(mem_send));
+
+	ASSERT_GE(pipe(p), 0);
+	for (i = 0; i < 4; i++)
+		EXPECT_EQ(send(self->fd, &mem_send[chunk * i], chunk, 0),
+			  chunk);
+
+	EXPECT_EQ(recv(self->cfd, mem_recv, chunk * 5 / 2,
+		       MSG_WAITALL | MSG_PEEK),
+		  chunk * 5 / 2);
+	EXPECT_EQ(memcmp(mem_send, mem_recv, chunk * 5 / 2), 0);
+
+	n = 0;
+	while (n < send_len) {
+		i = splice(self->cfd, NULL, p[1], NULL, send_len - n, 0);
+		EXPECT_GT(i, 0);
+		n += i;
+	}
+	EXPECT_EQ(n, send_len);
+	EXPECT_EQ(read(p[0], mem_recv, send_len), send_len);
+	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
+}
+
 TEST_F(tls, recvmsg_single)
 {
 	char const *test_str = "test_recvmsg_single";
