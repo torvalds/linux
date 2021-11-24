@@ -709,9 +709,8 @@
 #define CLK_CORE_LITCORE_PVTM		715
 #define CLK_AUX16M_0			716
 #define CLK_AUX16M_1			717
-#define PCLK_VOPGRF			718
 
-#define CLK_NR_CLKS			(PCLK_VOPGRF + 1)
+#define CLK_NR_CLKS			(CLK_AUX16M_1 + 1)
 
 /********Name=SOFTRST_CON01,Offset=0xA04********/
 #define SRST_A_TOP_BIU			19

@@ -2203,8 +2203,6 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE(DCLK_VOP3, "dclk_vop3", gpll_cpll_v0pll_aupll_p, 0,
 			RK3588_CLKSEL_CON(113), 7, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3588_CLKGATE_CON(53), 2, GFLAGS),
-	GATE(PCLK_VOPGRF, "pclk_vopgrf", "pclk_vop_root", 0,
-			RK3588_CLKGATE_CON(53), 3, GFLAGS),
 	GATE(PCLK_DSIHOST0, "pclk_dsihost0", "pclk_vop_root", 0,
 			RK3588_CLKGATE_CON(53), 4, GFLAGS),
 	GATE(PCLK_DSIHOST1, "pclk_dsihost1", "pclk_vop_root", 0,
