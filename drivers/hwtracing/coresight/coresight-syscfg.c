@@ -361,13 +361,22 @@ unlock_exit:
  * descriptors and load into the system.
  * Features are loaded first to ensure configuration dependencies can be met.
  *
+ * To facilitate dynamic loading and unloading, features and configurations
+ * have a "load_owner", to allow later unload by the same owner. An owner may
+ * be a loadable module or configuration dynamically created via configfs.
+ * As later loaded configurations can use earlier loaded features, creating load
+ * dependencies, a load order list is maintained. Unload is strictly in the
+ * reverse order to load.
+ *
  * @config_descs: 0 terminated array of configuration descriptors.
  * @feat_descs:   0 terminated array of feature descriptors.
+ * @owner_info:	  Information on the owner of this set.
  */
 int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
-			   struct cscfg_feature_desc **feat_descs)
+			   struct cscfg_feature_desc **feat_descs,
+			   struct cscfg_load_owner_info *owner_info)
 {
-	int err, i = 0;
+	int err = 0, i = 0;
 
 	mutex_lock(&cscfg_mutex);
 
@@ -382,6 +391,7 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 				       feat_descs[i]->name);
 				goto exit_unlock;
 			}
+			feat_descs[i]->load_owner = owner_info;
 			i++;
 		}
 	}
@@ -398,9 +408,13 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 				       config_descs[i]->name);
 				goto exit_unlock;
 			}
+			config_descs[i]->load_owner = owner_info;
 			i++;
 		}
 	}
+
+	/* add the load owner to the load order list */
+	list_add_tail(&owner_info->item, &cscfg_mgr->load_order_list);
 
 exit_unlock:
 	mutex_unlock(&cscfg_mutex);
@@ -827,10 +841,11 @@ int __init cscfg_init(void)
 	INIT_LIST_HEAD(&cscfg_mgr->csdev_desc_list);
 	INIT_LIST_HEAD(&cscfg_mgr->feat_desc_list);
 	INIT_LIST_HEAD(&cscfg_mgr->config_desc_list);
+	INIT_LIST_HEAD(&cscfg_mgr->load_order_list);
 	atomic_set(&cscfg_mgr->sys_active_cnt, 0);
 
 	/* preload built-in configurations */
-	err = cscfg_preload();
+	err = cscfg_preload(THIS_MODULE);
 	if (err)
 		goto exit_err;
 
