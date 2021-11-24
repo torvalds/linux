@@ -4489,8 +4489,10 @@ static void get_file_stream_info(struct ksmbd_work *work,
 				     ":%s", &stream_name[XATTR_NAME_STREAM_LEN]);
 
 		next = sizeof(struct smb2_file_stream_info) + streamlen * 2;
-		if (next > buf_free_len)
+		if (next > buf_free_len) {
+			kfree(stream_buf);
 			break;
+		}
 
 		file_info = (struct smb2_file_stream_info *)&rsp->Buffer[nbytes];
 		streamlen  = smbConvertToUTF16((__le16 *)file_info->StreamName,
