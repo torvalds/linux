@@ -951,7 +951,7 @@ static int unix_release(struct socket *sock)
 }
 
 static struct sock *unix_find_bsd(struct net *net, struct sockaddr_un *sunaddr,
-				  int type, int *error)
+				  int type)
 {
 	struct inode *inode;
 	struct path path;
@@ -990,23 +990,20 @@ sock_put:
 path_put:
 	path_put(&path);
 fail:
-	*error = err;
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static struct sock *unix_find_abstract(struct net *net,
 				       struct sockaddr_un *sunaddr,
 				       int addr_len, int type,
-				       unsigned int hash, int *error)
+				       unsigned int hash)
 {
 	struct dentry *dentry;
 	struct sock *sk;
 
 	sk = unix_find_socket_byname(net, sunaddr, addr_len, type ^ hash);
-	if (!sk) {
-		*error = -ECONNREFUSED;
-		return NULL;
-	}
+	if (!sk)
+		return ERR_PTR(-ECONNREFUSED);
 
 	dentry = unix_sk(sk)->path.dentry;
 	if (dentry)
@@ -1018,15 +1015,14 @@ static struct sock *unix_find_abstract(struct net *net,
 static struct sock *unix_find_other(struct net *net,
 				    struct sockaddr_un *sunaddr,
 				    int addr_len, int type,
-				    unsigned int hash, int *error)
+				    unsigned int hash)
 {
 	struct sock *sk;
 
 	if (sunaddr->sun_path[0])
-		sk = unix_find_bsd(net, sunaddr, type, error);
+		sk = unix_find_bsd(net, sunaddr, type);
 	else
-		sk = unix_find_abstract(net, sunaddr, addr_len, type, hash,
-					error);
+		sk = unix_find_abstract(net, sunaddr, addr_len, type, hash);
 
 	return sk;
 }
@@ -1263,9 +1259,11 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 		}
 
 restart:
-		other = unix_find_other(net, sunaddr, alen, sock->type, hash, &err);
-		if (!other)
+		other = unix_find_other(net, sunaddr, alen, sock->type, hash);
+		if (IS_ERR(other)) {
+			err = PTR_ERR(other);
 			goto out;
+		}
 
 		unix_state_double_lock(sk, other);
 
@@ -1395,9 +1393,12 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 
 restart:
 	/*  Find listening sock. */
-	other = unix_find_other(net, sunaddr, addr_len, sk->sk_type, hash, &err);
-	if (!other)
+	other = unix_find_other(net, sunaddr, addr_len, sk->sk_type, hash);
+	if (IS_ERR(other)) {
+		err = PTR_ERR(other);
+		other = NULL;
 		goto out;
+	}
 
 	/* Latch state of peer */
 	unix_state_lock(other);
@@ -1866,9 +1867,12 @@ restart:
 			goto out_free;
 
 		other = unix_find_other(net, sunaddr, namelen, sk->sk_type,
-					hash, &err);
-		if (other == NULL)
+					hash);
+		if (IS_ERR(other)) {
+			err = PTR_ERR(other);
+			other = NULL;
 			goto out_free;
+		}
 	}
 
 	if (sk_filter(other, skb) < 0) {
