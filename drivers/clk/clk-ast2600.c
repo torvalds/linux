@@ -814,6 +814,10 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 		return;
 	}
 
+	/* A0/A1 need change to RSA clock = HPLL/3, A2/A3 have been set at Rom Code */
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, BIT(19), BIT(19));
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(27, 26), (2 << 26));
+
 	aspeed_g6_cc(map);
 	aspeed_g6_clk_data->num = ASPEED_G6_NUM_CLKS;
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, aspeed_g6_clk_data);
