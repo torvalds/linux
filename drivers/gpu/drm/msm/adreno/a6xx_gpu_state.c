@@ -802,28 +802,24 @@ static void a6xx_get_gmu_registers(struct msm_gpu *gpu,
 		&a6xx_state->gmu_registers[2], false);
 }
 
-static void a6xx_get_gmu_log(struct msm_gpu *gpu,
-		struct a6xx_gpu_state *a6xx_state)
+static struct msm_gpu_state_bo *a6xx_snapshot_gmu_bo(
+		struct a6xx_gpu_state *a6xx_state, struct a6xx_gmu_bo *bo)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
-	struct msm_gpu_state_bo *gmu_log;
+	struct msm_gpu_state_bo *snapshot;
 
-	gmu_log = state_kcalloc(a6xx_state,
-		1, sizeof(*a6xx_state->gmu_log));
-	if (!gmu_log)
-		return;
+	snapshot = state_kcalloc(a6xx_state, 1, sizeof(*snapshot));
+	if (!snapshot)
+		return NULL;
 
-	gmu_log->iova = gmu->log.iova;
-	gmu_log->size = gmu->log.size;
-	gmu_log->data = kvzalloc(gmu_log->size, GFP_KERNEL);
-	if (!gmu_log->data)
-		return;
+	snapshot->iova = bo->iova;
+	snapshot->size = bo->size;
+	snapshot->data = kvzalloc(snapshot->size, GFP_KERNEL);
+	if (!snapshot->data)
+		return NULL;
 
-	memcpy(gmu_log->data, gmu->log.virt, gmu->log.size);
+	memcpy(snapshot->data, bo->virt, bo->size);
 
-	a6xx_state->gmu_log = gmu_log;
+	return snapshot;
 }
 
 #define A6XX_GBIF_REGLIST_SIZE   1
@@ -963,7 +959,7 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 
 	a6xx_get_gmu_registers(gpu, a6xx_state);
 
-	a6xx_get_gmu_log(gpu, a6xx_state);
+	a6xx_state->gmu_log = a6xx_snapshot_gmu_bo(a6xx_state, &a6xx_gpu->gmu.log);
 
 	/* If GX isn't on the rest of the data isn't going to be accessible */
 	if (!a6xx_gmu_gx_is_on(&a6xx_gpu->gmu))
@@ -1006,7 +1002,7 @@ static void a6xx_gpu_state_destroy(struct kref *kref)
 	struct a6xx_gpu_state *a6xx_state = container_of(state,
 			struct a6xx_gpu_state, base);
 
-	if (a6xx_state->gmu_log && a6xx_state->gmu_log->data)
+	if (a6xx_state->gmu_log)
 		kvfree(a6xx_state->gmu_log->data);
 
 	list_for_each_entry_safe(obj, tmp, &a6xx_state->objs, node)
