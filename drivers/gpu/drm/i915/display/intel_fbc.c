@@ -142,6 +142,27 @@ static unsigned int intel_fbc_cfb_size(struct intel_fbc *fbc,
 	return lines * intel_fbc_cfb_stride(fbc, cache);
 }
 
+static u16 intel_fbc_override_cfb_stride(struct intel_fbc *fbc,
+					 const struct intel_fbc_state_cache *cache)
+{
+	unsigned int stride = _intel_fbc_cfb_stride(cache);
+	unsigned int stride_aligned = intel_fbc_cfb_stride(fbc, cache);
+
+	/*
+	 * Override stride in 64 byte units per 4 line segment.
+	 *
+	 * Gen9 hw miscalculates cfb stride for linear as
+	 * PLANE_STRIDE*512 instead of PLANE_STRIDE*64, so
+	 * we always need to use the override there.
+	 */
+	if (stride != stride_aligned ||
+	    (DISPLAY_VER(fbc->i915) == 9 &&
+	     cache->fb.modifier == DRM_FORMAT_MOD_LINEAR))
+		return stride_aligned * 4 / 64;
+
+	return 0;
+}
+
 static u32 i8xx_fbc_ctl(struct intel_fbc *fbc)
 {
 	const struct intel_fbc_reg_params *params = &fbc->params;
@@ -948,27 +969,6 @@ static bool intel_fbc_cfb_size_changed(struct intel_fbc *fbc)
 {
 	return intel_fbc_cfb_size(fbc, &fbc->state_cache) >
 		fbc->compressed_fb.size * fbc->limit;
-}
-
-static u16 intel_fbc_override_cfb_stride(struct intel_fbc *fbc,
-					 const struct intel_fbc_state_cache *cache)
-{
-	unsigned int stride = _intel_fbc_cfb_stride(cache);
-	unsigned int stride_aligned = intel_fbc_cfb_stride(fbc, cache);
-
-	/*
-	 * Override stride in 64 byte units per 4 line segment.
-	 *
-	 * Gen9 hw miscalculates cfb stride for linear as
-	 * PLANE_STRIDE*512 instead of PLANE_STRIDE*64, so
-	 * we always need to use the override there.
-	 */
-	if (stride != stride_aligned ||
-	    (DISPLAY_VER(fbc->i915) == 9 &&
-	     cache->fb.modifier == DRM_FORMAT_MOD_LINEAR))
-		return stride_aligned * 4 / 64;
-
-	return 0;
 }
 
 static bool intel_fbc_can_enable(struct intel_fbc *fbc)
