@@ -1074,8 +1074,7 @@ static int unix_autobind(struct sock *sk)
 	unsigned int new_hash, old_hash = sk->sk_hash;
 	struct unix_sock *u = unix_sk(sk);
 	struct unix_address *addr;
-	unsigned int retries = 0;
-	static u32 ordernum = 1;
+	u32 lastnum, ordernum;
 	int err;
 
 	err = mutex_lock_interruptible(&u->bindlock);
@@ -1091,32 +1090,35 @@ static int unix_autobind(struct sock *sk)
 	if (!addr)
 		goto out;
 
+	addr->len = offsetof(struct sockaddr_un, sun_path) + 6;
 	addr->name->sun_family = AF_UNIX;
 	refcount_set(&addr->refcnt, 1);
 
+	ordernum = prandom_u32();
+	lastnum = ordernum & 0xFFFFF;
 retry:
-	addr->len = sprintf(addr->name->sun_path + 1, "%05x", ordernum) +
-		offsetof(struct sockaddr_un, sun_path) + 1;
+	ordernum = (ordernum + 1) & 0xFFFFF;
+	sprintf(addr->name->sun_path + 1, "%05x", ordernum);
 
 	new_hash = unix_abstract_hash(addr->name, addr->len, sk->sk_type);
 	unix_table_double_lock(old_hash, new_hash);
-	ordernum = (ordernum+1)&0xFFFFF;
 
 	if (__unix_find_socket_byname(sock_net(sk), addr->name, addr->len,
 				      new_hash)) {
 		unix_table_double_unlock(old_hash, new_hash);
 
-		/*
-		 * __unix_find_socket_byname() may take long time if many names
+		/* __unix_find_socket_byname() may take long time if many names
 		 * are already in use.
 		 */
 		cond_resched();
-		/* Give up if all names seems to be in use. */
-		if (retries++ == 0xFFFFF) {
+
+		if (ordernum == lastnum) {
+			/* Give up if all names seems to be in use. */
 			err = -ENOSPC;
-			kfree(addr);
+			unix_release_addr(addr);
 			goto out;
 		}
+
 		goto retry;
 	}
 
