@@ -28,6 +28,8 @@
  * @load_order_list:    Ordered list of owners for dynamically loaded configurations.
  * @sys_active_cnt:	Total number of active config descriptor references.
  * @cfgfs_subsys:	configfs subsystem used to manage configurations.
+ * @sysfs_active_config:Active config hash used if CoreSight controlled from sysfs.
+ * @sysfs_active_preset:Active preset index used if CoreSight controlled from sysfs.
  */
 struct cscfg_manager {
 	struct device dev;
@@ -37,6 +39,8 @@ struct cscfg_manager {
 	struct list_head load_order_list;
 	atomic_t sys_active_cnt;
 	struct configfs_subsystem cfgfs_subsys;
+	u32 sysfs_active_config;
+	int sysfs_active_preset;
 };
 
 /* get reference to dev in cscfg_manager */
@@ -88,7 +92,8 @@ int cscfg_preload(void *owner_handle);
 const struct cscfg_feature_desc *cscfg_get_named_feat_desc(const char *name);
 int cscfg_update_feat_param_val(struct cscfg_feature_desc *feat_desc,
 				int param_idx, u64 value);
-
+int cscfg_config_sysfs_activate(struct cscfg_config_desc *cfg_desc, bool activate);
+void cscfg_config_sysfs_set_preset(int preset);
 
 /* syscfg manager external API */
 int cscfg_load_config_sets(struct cscfg_config_desc **cfg_descs,
@@ -104,5 +109,6 @@ void cscfg_csdev_reset_feats(struct coresight_device *csdev);
 int cscfg_csdev_enable_active_config(struct coresight_device *csdev,
 				     unsigned long cfg_hash, int preset);
 void cscfg_csdev_disable_active_config(struct coresight_device *csdev);
+void cscfg_config_sysfs_get_active_cfg(unsigned long *cfg_hash, int *preset);
 
 #endif /* CORESIGHT_SYSCFG_H */

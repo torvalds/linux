@@ -15,6 +15,8 @@
 struct cscfg_fs_config {
 	struct cscfg_config_desc *config_desc;
 	struct config_group group;
+	bool active;
+	int preset;
 };
 
 /* container for feature view */
