@@ -474,17 +474,6 @@ int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr)
 }
 EXPORT_SYMBOL(pci_remap_iospace);
 
-int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr)
-{
-	BUG_ON(offset + SZ_64K - 1 > IO_SPACE_LIMIT);
-
-	return ioremap_page_range(PCI_IO_VIRT_BASE + offset,
-				  PCI_IO_VIRT_BASE + offset + SZ_64K,
-				  phys_addr,
-				  __pgprot(get_mem_type(pci_ioremap_mem_type)->prot_pte));
-}
-EXPORT_SYMBOL_GPL(pci_ioremap_io);
-
 void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size)
 {
 	return arch_ioremap_caller(res_cookie, size, MT_UNCACHED,
