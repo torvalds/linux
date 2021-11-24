@@ -8,7 +8,8 @@
 static bool
 tc_act_can_offload_mpls_push(struct mlx5e_tc_act_parse_state *parse_state,
 			     const struct flow_action_entry *act,
-			     int act_index)
+			     int act_index,
+			     struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
 	struct mlx5e_priv *priv = parse_state->flow->priv;
@@ -36,13 +37,13 @@ tc_act_parse_mpls_push(struct mlx5e_tc_act_parse_state *parse_state,
 static bool
 tc_act_can_offload_mpls_pop(struct mlx5e_tc_act_parse_state *parse_state,
 			    const struct flow_action_entry *act,
-			    int act_index)
+			    int act_index,
+			    struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
-	struct mlx5e_tc_flow *flow = parse_state->flow;
 	struct net_device *filter_dev;
 
-	filter_dev = flow->attr->parse_attr->filter_dev;
+	filter_dev = attr->parse_attr->filter_dev;
 
 	/* we only support mpls pop if it is the first action
 	 * and the filter net device is bareudp. Subsequent

@@ -7,7 +7,8 @@
 static bool
 tc_act_can_offload_trap(struct mlx5e_tc_act_parse_state *parse_state,
 			const struct flow_action_entry *act,
-			int act_index)
+			int act_index,
+			struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
 

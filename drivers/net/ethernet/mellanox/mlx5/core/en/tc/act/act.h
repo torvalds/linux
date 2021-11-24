@@ -29,7 +29,8 @@ struct mlx5e_tc_act_parse_state {
 struct mlx5e_tc_act {
 	bool (*can_offload)(struct mlx5e_tc_act_parse_state *parse_state,
 			    const struct flow_action_entry *act,
-			    int act_index);
+			    int act_index,
+			    struct mlx5_flow_attr *attr);
 
 	int (*parse_action)(struct mlx5e_tc_act_parse_state *parse_state,
 			    const struct flow_action_entry *act,

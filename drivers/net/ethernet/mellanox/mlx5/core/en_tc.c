@@ -3302,7 +3302,7 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 			return -EOPNOTSUPP;
 		}
 
-		if (!tc_act->can_offload(parse_state, act, i))
+		if (!tc_act->can_offload(parse_state, act, i, attr))
 			return -EOPNOTSUPP;
 
 		err = tc_act->parse_action(parse_state, act, priv, attr);
@@ -3313,7 +3313,7 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 	flow_action_for_each(i, act, flow_action) {
 		tc_act = mlx5e_tc_act_get(act->id, ns_type);
 		if (!tc_act || !tc_act->post_parse ||
-		    !tc_act->can_offload(parse_state, act, i))
+		    !tc_act->can_offload(parse_state, act, i, attr))
 			continue;
 
 		err = tc_act->post_parse(parse_state, priv, attr);
