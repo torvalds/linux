@@ -97,10 +97,11 @@ check_for_imasig()
 check_for_modsig()
 {
 	local module_sig_string="~Module signature appended~"
-	local sig="$(tail --bytes $((${#module_sig_string} + 1)) $KERNEL_IMAGE)"
 	local ret=0
 
-	if [ "$sig" == "$module_sig_string" ]; then
+	tail --bytes $((${#module_sig_string} + 1)) $KERNEL_IMAGE | \
+		grep -q "$module_sig_string"
+	if [ $? -eq 0 ]; then
 		ret=1
 		log_info "kexec kernel image modsig signed"
 	else
