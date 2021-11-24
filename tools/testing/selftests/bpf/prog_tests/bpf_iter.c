@@ -469,12 +469,12 @@ static void test_overflow(bool test_e2big_overflow, bool ret1)
 	 * fills seq_file buffer and then the other will trigger
 	 * overflow and needs restart.
 	 */
-	map1_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 8, 1, 0);
-	if (CHECK(map1_fd < 0, "bpf_create_map",
+	map1_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, 4, 8, 1, NULL);
+	if (CHECK(map1_fd < 0, "bpf_map_create",
 		  "map_creation failed: %s\n", strerror(errno)))
 		goto out;
-	map2_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 8, 1, 0);
-	if (CHECK(map2_fd < 0, "bpf_create_map",
+	map2_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, 4, 8, 1, NULL);
+	if (CHECK(map2_fd < 0, "bpf_map_create",
 		  "map_creation failed: %s\n", strerror(errno)))
 		goto free_map1;
 

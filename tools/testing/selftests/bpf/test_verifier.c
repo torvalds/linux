@@ -461,11 +461,11 @@ static int __create_map(uint32_t type, uint32_t size_key,
 			uint32_t size_value, uint32_t max_elem,
 			uint32_t extra_flags)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int fd;
 
-	fd = bpf_create_map(type, size_key, size_value, max_elem,
-			    (type == BPF_MAP_TYPE_HASH ?
-			     BPF_F_NO_PREALLOC : 0) | extra_flags);
+	opts.map_flags = (type == BPF_MAP_TYPE_HASH ? BPF_F_NO_PREALLOC : 0) | extra_flags;
+	fd = bpf_map_create(type, NULL, size_key, size_value, max_elem, &opts);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
@@ -521,8 +521,8 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 {
 	int mfd, p1fd, p2fd, p3fd;
 
-	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
-			     sizeof(int), max_elem, 0);
+	mfd = bpf_map_create(BPF_MAP_TYPE_PROG_ARRAY, NULL, sizeof(int),
+			     sizeof(int), max_elem, NULL);
 	if (mfd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_PROG_ARRAY))
 			return -1;
@@ -552,10 +552,11 @@ err:
 
 static int create_map_in_map(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int inner_map_fd, outer_map_fd;
 
-	inner_map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(int),
-				      sizeof(int), 1, 0);
+	inner_map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(int),
+				      sizeof(int), 1, NULL);
 	if (inner_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY))
 			return -1;
@@ -563,8 +564,9 @@ static int create_map_in_map(void)
 		return inner_map_fd;
 	}
 
-	outer_map_fd = bpf_create_map_in_map(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
-					     sizeof(int), inner_map_fd, 1, 0);
+	opts.inner_map_fd = inner_map_fd;
+	outer_map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
+				      sizeof(int), sizeof(int), 1, &opts);
 	if (outer_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY_OF_MAPS))
 			return -1;
@@ -583,8 +585,8 @@ static int create_cgroup_storage(bool percpu)
 		BPF_MAP_TYPE_CGROUP_STORAGE;
 	int fd;
 
-	fd = bpf_create_map(type, sizeof(struct bpf_cgroup_storage_key),
-			    TEST_DATA_LEN, 0, 0);
+	fd = bpf_map_create(type, NULL, sizeof(struct bpf_cgroup_storage_key),
+			    TEST_DATA_LEN, 0, NULL);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
@@ -648,22 +650,17 @@ static int load_btf(void)
 
 static int create_map_spin_lock(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_ARRAY,
-		.key_size = 4,
-		.value_size = 8,
-		.max_entries = 1,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_map", 4, 8, 1, &opts);
 	if (fd < 0)
 		printf("Failed to create map with spin_lock\n");
 	return fd;
@@ -671,24 +668,19 @@ static int create_map_spin_lock(void)
 
 static int create_sk_storage_map(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_SK_STORAGE,
-		.key_size = 4,
-		.value_size = 8,
-		.max_entries = 0,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.map_flags = BPF_F_NO_PREALLOC,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
-	close(attr.btf_fd);
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "test_map", 4, 8, 0, &opts);
+	close(opts.btf_fd);
 	if (fd < 0)
 		printf("Failed to create sk_storage_map\n");
 	return fd;

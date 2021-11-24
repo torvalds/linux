@@ -208,6 +208,7 @@ static void test_lpm_order(void)
 
 static void test_lpm_map(int keysize)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
 	size_t i, j, n_matches, n_matches_after_delete, n_nodes, n_lookups;
 	struct tlpm_node *t, *list = NULL;
 	struct bpf_lpm_trie_key *key;
@@ -233,11 +234,11 @@ static void test_lpm_map(int keysize)
 	key = alloca(sizeof(*key) + keysize);
 	memset(key, 0, sizeof(*key) + keysize);
 
-	map = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE,
+	map = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE, NULL,
 			     sizeof(*key) + keysize,
 			     keysize + 1,
 			     4096,
-			     BPF_F_NO_PREALLOC);
+			     &opts);
 	assert(map >= 0);
 
 	for (i = 0; i < n_nodes; ++i) {
@@ -329,6 +330,7 @@ static void test_lpm_map(int keysize)
 
 static void test_lpm_ipaddr(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
 	struct bpf_lpm_trie_key *key_ipv4;
 	struct bpf_lpm_trie_key *key_ipv6;
 	size_t key_size_ipv4;
@@ -342,14 +344,14 @@ static void test_lpm_ipaddr(void)
 	key_ipv4 = alloca(key_size_ipv4);
 	key_ipv6 = alloca(key_size_ipv6);
 
-	map_fd_ipv4 = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE,
+	map_fd_ipv4 = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE, NULL,
 				     key_size_ipv4, sizeof(value),
-				     100, BPF_F_NO_PREALLOC);
+				     100, &opts);
 	assert(map_fd_ipv4 >= 0);
 
-	map_fd_ipv6 = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE,
+	map_fd_ipv6 = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE, NULL,
 				     key_size_ipv6, sizeof(value),
-				     100, BPF_F_NO_PREALLOC);
+				     100, &opts);
 	assert(map_fd_ipv6 >= 0);
 
 	/* Fill data some IPv4 and IPv6 address ranges */
@@ -423,6 +425,7 @@ static void test_lpm_ipaddr(void)
 
 static void test_lpm_delete(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
 	struct bpf_lpm_trie_key *key;
 	size_t key_size;
 	int map_fd;
@@ -431,9 +434,9 @@ static void test_lpm_delete(void)
 	key_size = sizeof(*key) + sizeof(__u32);
 	key = alloca(key_size);
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE,
+	map_fd = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE, NULL,
 				key_size, sizeof(value),
-				100, BPF_F_NO_PREALLOC);
+				100, &opts);
 	assert(map_fd >= 0);
 
 	/* Add nodes:
@@ -535,6 +538,7 @@ static void test_lpm_delete(void)
 
 static void test_lpm_get_next_key(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
 	struct bpf_lpm_trie_key *key_p, *next_key_p;
 	size_t key_size;
 	__u32 value = 0;
@@ -544,8 +548,7 @@ static void test_lpm_get_next_key(void)
 	key_p = alloca(key_size);
 	next_key_p = alloca(key_size);
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE, key_size, sizeof(value),
-				100, BPF_F_NO_PREALLOC);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE, NULL, key_size, sizeof(value), 100, &opts);
 	assert(map_fd >= 0);
 
 	/* empty tree. get_next_key should return ENOENT */
@@ -753,6 +756,7 @@ static void setup_lpm_mt_test_info(struct lpm_mt_test_info *info, int map_fd)
 
 static void test_lpm_multi_thread(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
 	struct lpm_mt_test_info info[4];
 	size_t key_size, value_size;
 	pthread_t thread_id[4];
@@ -762,8 +766,7 @@ static void test_lpm_multi_thread(void)
 	/* create a trie */
 	value_size = sizeof(__u32);
 	key_size = sizeof(struct bpf_lpm_trie_key) + value_size;
-	map_fd = bpf_create_map(BPF_MAP_TYPE_LPM_TRIE, key_size, value_size,
-				100, BPF_F_NO_PREALLOC);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_LPM_TRIE, NULL, key_size, value_size, 100, &opts);
 
 	/* create 4 threads to test update, delete, lookup and get_next_key */
 	setup_lpm_mt_test_info(&info[0], map_fd);

@@ -185,11 +185,12 @@ static void do_test(uint32_t *tests, int start_insns, int fd_map,
 
 int main(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
 	uint32_t tests = 0;
 	int i, fd_map;
 
-	fd_map = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int),
-				sizeof(int), 1, BPF_F_NO_PREALLOC);
+	fd_map = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(int),
+				sizeof(int), 1, &opts);
 	assert(fd_map > 0);
 
 	for (i = 0; i < 5; i++) {

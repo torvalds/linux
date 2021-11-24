@@ -4074,7 +4074,7 @@ done:
 static void do_test_raw(unsigned int test_num)
 {
 	struct btf_raw_test *test = &raw_tests[test_num - 1];
-	struct bpf_create_map_attr create_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int map_fd = -1, btf_fd = -1;
 	unsigned int raw_btf_size;
 	struct btf_header *hdr;
@@ -4117,16 +4117,11 @@ static void do_test_raw(unsigned int test_num)
 	if (err || btf_fd < 0)
 		goto done;
 
-	create_attr.name = test->map_name;
-	create_attr.map_type = test->map_type;
-	create_attr.key_size = test->key_size;
-	create_attr.value_size = test->value_size;
-	create_attr.max_entries = test->max_entries;
-	create_attr.btf_fd = btf_fd;
-	create_attr.btf_key_type_id = test->key_type_id;
-	create_attr.btf_value_type_id = test->value_type_id;
-
-	map_fd = bpf_create_map_xattr(&create_attr);
+	opts.btf_fd = btf_fd;
+	opts.btf_key_type_id = test->key_type_id;
+	opts.btf_value_type_id = test->value_type_id;
+	map_fd = bpf_map_create(test->map_type, test->map_name,
+				test->key_size, test->value_size, test->max_entries, &opts);
 
 	err = ((map_fd < 0) != test->map_create_err);
 	CHECK(err, "map_fd:%d test->map_create_err:%u",
@@ -4290,7 +4285,7 @@ done:
 static int test_btf_id(unsigned int test_num)
 {
 	const struct btf_get_info_test *test = &get_info_tests[test_num - 1];
-	struct bpf_create_map_attr create_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	uint8_t *raw_btf = NULL, *user_btf[2] = {};
 	int btf_fd[2] = {-1, -1}, map_fd = -1;
 	struct bpf_map_info map_info = {};
@@ -4355,16 +4350,11 @@ static int test_btf_id(unsigned int test_num)
 	}
 
 	/* Test btf members in struct bpf_map_info */
-	create_attr.name = "test_btf_id";
-	create_attr.map_type = BPF_MAP_TYPE_ARRAY;
-	create_attr.key_size = sizeof(int);
-	create_attr.value_size = sizeof(unsigned int);
-	create_attr.max_entries = 4;
-	create_attr.btf_fd = btf_fd[0];
-	create_attr.btf_key_type_id = 1;
-	create_attr.btf_value_type_id = 2;
-
-	map_fd = bpf_create_map_xattr(&create_attr);
+	opts.btf_fd = btf_fd[0];
+	opts.btf_key_type_id = 1;
+	opts.btf_value_type_id = 2;
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_btf_id",
+				sizeof(int), sizeof(int), 4, &opts);
 	if (CHECK(map_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -5153,7 +5143,7 @@ static void do_test_pprint(int test_num)
 {
 	const struct btf_raw_test *test = &pprint_test_template[test_num];
 	enum pprint_mapv_kind_t mapv_kind = test->mapv_kind;
-	struct bpf_create_map_attr create_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	bool ordered_map, lossless_map, percpu_map;
 	int err, ret, num_cpus, rounded_value_size;
 	unsigned int key, nr_read_elems;
@@ -5189,16 +5179,11 @@ static void do_test_pprint(int test_num)
 		goto done;
 	}
 
-	create_attr.name = test->map_name;
-	create_attr.map_type = test->map_type;
-	create_attr.key_size = test->key_size;
-	create_attr.value_size = test->value_size;
-	create_attr.max_entries = test->max_entries;
-	create_attr.btf_fd = btf_fd;
-	create_attr.btf_key_type_id = test->key_type_id;
-	create_attr.btf_value_type_id = test->value_type_id;
-
-	map_fd = bpf_create_map_xattr(&create_attr);
+	opts.btf_fd = btf_fd;
+	opts.btf_key_type_id = test->key_type_id;
+	opts.btf_value_type_id = test->value_type_id;
+	map_fd = bpf_map_create(test->map_type, test->map_name,
+				test->key_size, test->value_size, test->max_entries, &opts);
 	if (CHECK(map_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;

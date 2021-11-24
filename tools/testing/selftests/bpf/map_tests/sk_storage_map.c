@@ -19,16 +19,12 @@
 #include <test_btf.h>
 #include <test_maps.h>
 
-static struct bpf_create_map_attr xattr = {
-	.name = "sk_storage_map",
-	.map_type = BPF_MAP_TYPE_SK_STORAGE,
-	.map_flags = BPF_F_NO_PREALLOC,
-	.max_entries = 0,
-	.key_size = 4,
-	.value_size = 8,
+static struct bpf_map_create_opts map_opts = {
+	.sz = sizeof(map_opts),
 	.btf_key_type_id = 1,
 	.btf_value_type_id = 3,
 	.btf_fd = -1,
+	.map_flags = BPF_F_NO_PREALLOC,
 };
 
 static unsigned int nr_sk_threads_done;
@@ -150,13 +146,13 @@ static int create_sk_storage_map(void)
 	btf_fd = load_btf();
 	CHECK(btf_fd == -1, "bpf_load_btf", "btf_fd:%d errno:%d\n",
 	      btf_fd, errno);
-	xattr.btf_fd = btf_fd;
+	map_opts.btf_fd = btf_fd;
 
-	map_fd = bpf_create_map_xattr(&xattr);
-	xattr.btf_fd = -1;
+	map_fd = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &map_opts);
+	map_opts.btf_fd = -1;
 	close(btf_fd);
 	CHECK(map_fd == -1,
-	      "bpf_create_map_xattr()", "errno:%d\n", errno);
+	      "bpf_map_create()", "errno:%d\n", errno);
 
 	return map_fd;
 }
@@ -463,20 +459,20 @@ static void test_sk_storage_map_basic(void)
 		int cnt;
 		int lock;
 	} value = { .cnt = 0xeB9f, .lock = 0, }, lookup_value;
-	struct bpf_create_map_attr bad_xattr;
+	struct bpf_map_create_opts bad_xattr;
 	int btf_fd, map_fd, sk_fd, err;
 
 	btf_fd = load_btf();
 	CHECK(btf_fd == -1, "bpf_load_btf", "btf_fd:%d errno:%d\n",
 	      btf_fd, errno);
-	xattr.btf_fd = btf_fd;
+	map_opts.btf_fd = btf_fd;
 
 	sk_fd = socket(AF_INET6, SOCK_STREAM, 0);
 	CHECK(sk_fd == -1, "socket()", "sk_fd:%d errno:%d\n",
 	      sk_fd, errno);
 
-	map_fd = bpf_create_map_xattr(&xattr);
-	CHECK(map_fd == -1, "bpf_create_map_xattr(good_xattr)",
+	map_fd = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &map_opts);
+	CHECK(map_fd == -1, "bpf_map_create(good_xattr)",
 	      "map_fd:%d errno:%d\n", map_fd, errno);
 
 	/* Add new elem */
@@ -560,31 +556,29 @@ static void test_sk_storage_map_basic(void)
 	CHECK(!err || errno != ENOENT, "bpf_map_delete_elem()",
 	      "err:%d errno:%d\n", err, errno);
 
-	memcpy(&bad_xattr, &xattr, sizeof(xattr));
+	memcpy(&bad_xattr, &map_opts, sizeof(map_opts));
 	bad_xattr.btf_key_type_id = 0;
-	err = bpf_create_map_xattr(&bad_xattr);
-	CHECK(!err || errno != EINVAL, "bap_create_map_xattr(bad_xattr)",
+	err = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &bad_xattr);
+	CHECK(!err || errno != EINVAL, "bpf_map_create(bad_xattr)",
 	      "err:%d errno:%d\n", err, errno);
 
-	memcpy(&bad_xattr, &xattr, sizeof(xattr));
+	memcpy(&bad_xattr, &map_opts, sizeof(map_opts));
 	bad_xattr.btf_key_type_id = 3;
-	err = bpf_create_map_xattr(&bad_xattr);
-	CHECK(!err || errno != EINVAL, "bap_create_map_xattr(bad_xattr)",
+	err = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &bad_xattr);
+	CHECK(!err || errno != EINVAL, "bpf_map_create(bad_xattr)",
 	      "err:%d errno:%d\n", err, errno);
 
-	memcpy(&bad_xattr, &xattr, sizeof(xattr));
-	bad_xattr.max_entries = 1;
-	err = bpf_create_map_xattr(&bad_xattr);
-	CHECK(!err || errno != EINVAL, "bap_create_map_xattr(bad_xattr)",
+	err = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 1, &map_opts);
+	CHECK(!err || errno != EINVAL, "bpf_map_create(bad_xattr)",
 	      "err:%d errno:%d\n", err, errno);
 
-	memcpy(&bad_xattr, &xattr, sizeof(xattr));
+	memcpy(&bad_xattr, &map_opts, sizeof(map_opts));
 	bad_xattr.map_flags = 0;
-	err = bpf_create_map_xattr(&bad_xattr);
+	err = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "sk_storage_map", 4, 8, 0, &bad_xattr);
 	CHECK(!err || errno != EINVAL, "bap_create_map_xattr(bad_xattr)",
 	      "err:%d errno:%d\n", err, errno);
 
-	xattr.btf_fd = -1;
+	map_opts.btf_fd = -1;
 	close(btf_fd);
 	close(map_fd);
 	close(sk_fd);
