@@ -6519,6 +6519,9 @@ int stmmac_xdp_open(struct net_device *dev)
 		tx_q->tx_tail_addr = tx_q->dma_tx_phy;
 		stmmac_set_tx_tail_ptr(priv, priv->ioaddr,
 				       tx_q->tx_tail_addr, chan);
+
+		hrtimer_init(&tx_q->txtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		tx_q->txtimer.function = stmmac_tx_timer;
 	}
 
 	/* Enable the MAC Rx/Tx */
@@ -6526,8 +6529,6 @@ int stmmac_xdp_open(struct net_device *dev)
 
 	/* Start Rx & Tx DMA Channels */
 	stmmac_start_all_dma(priv);
-
-	stmmac_init_coalesce(priv);
 
 	ret = stmmac_request_irq(dev);
 	if (ret)
