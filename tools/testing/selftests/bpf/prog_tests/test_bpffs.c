@@ -19,11 +19,13 @@ static int read_iter(char *file)
 	fd = open(file, 0);
 	if (fd < 0)
 		return -1;
-	while ((len = read(fd, buf, sizeof(buf))) > 0)
+	while ((len = read(fd, buf, sizeof(buf))) > 0) {
+		buf[sizeof(buf) - 1] = '\0';
 		if (strstr(buf, "iter")) {
 			close(fd);
 			return 0;
 		}
+	}
 	close(fd);
 	return -1;
 }
