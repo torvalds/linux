@@ -2404,7 +2404,7 @@ struct dmub_rb_cmd_lvtma_control {
 struct dmub_cmd_send_edid_cea {
 	uint16_t offset;	/**< offset into the CEA block */
 	uint8_t length;	/**< number of bytes in payload to copy as part of CEA block */
-	uint16_t total_length;  /**< total length of the CEA block */
+	uint16_t cea_total_length;  /**< total length of the CEA block */
 	uint8_t payload[DMUB_EDID_CEA_DATA_CHUNK_BYTES]; /**< data chunk of the CEA block */
 	uint8_t pad[3]; /**< padding and for future expansion */
 };
