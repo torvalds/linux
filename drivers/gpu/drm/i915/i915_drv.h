@@ -415,18 +415,10 @@ struct intel_fbc {
 	struct intel_fbc_state_cache {
 		const char *no_fbc_reason;
 
-		struct {
-			int src_w;
-			int src_h;
-		} plane;
-
-		struct {
-			const struct drm_format_info *format;
-			unsigned int stride;
-			u64 modifier;
-		} fb;
-
+		unsigned int cfb_stride;
+		unsigned int cfb_size;
 		unsigned int fence_y_offset;
+		u16 override_cfb_stride;
 		u16 interval;
 		s8 fence_id;
 	} state_cache;
@@ -442,12 +434,6 @@ struct intel_fbc {
 		struct {
 			enum i9xx_plane_id i9xx_plane;
 		} crtc;
-
-		struct {
-			const struct drm_format_info *format;
-			unsigned int stride;
-			u64 modifier;
-		} fb;
 
 		unsigned int cfb_stride;
 		unsigned int cfb_size;
