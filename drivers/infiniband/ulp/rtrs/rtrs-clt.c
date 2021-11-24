@@ -867,7 +867,7 @@ static struct rtrs_clt_sess *get_next_path_min_latency(struct path_it *it)
 	struct rtrs_clt_sess *min_path = NULL;
 	struct rtrs_clt *clt = it->clt;
 	struct rtrs_clt_sess *sess;
-	ktime_t min_latency = INT_MAX;
+	ktime_t min_latency = KTIME_MAX;
 	ktime_t latency;
 
 	list_for_each_entry_rcu(sess, &clt->paths_list, s.entry) {
