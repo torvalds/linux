@@ -5,6 +5,56 @@
 #include "api/fs/fs.h"
 #include "smt.h"
 
+/**
+ * hweight_str - Returns the number of bits set in str. Stops at first non-hex
+ *	       or ',' character.
+ */
+static int hweight_str(char *str)
+{
+	int result = 0;
+
+	while (*str) {
+		switch (*str++) {
+		case '0':
+		case ',':
+			break;
+		case '1':
+		case '2':
+		case '4':
+		case '8':
+			result++;
+			break;
+		case '3':
+		case '5':
+		case '6':
+		case '9':
+		case 'a':
+		case 'A':
+		case 'c':
+		case 'C':
+			result += 2;
+			break;
+		case '7':
+		case 'b':
+		case 'B':
+		case 'd':
+		case 'D':
+		case 'e':
+		case 'E':
+			result += 3;
+			break;
+		case 'f':
+		case 'F':
+			result += 4;
+			break;
+		default:
+			goto done;
+		}
+	}
+done:
+	return result;
+}
+
 int smt_on(void)
 {
 	static bool cached;
@@ -15,9 +65,12 @@ int smt_on(void)
 	if (cached)
 		return cached_result;
 
-	if (sysfs__read_int("devices/system/cpu/smt/active", &cached_result) >= 0)
-		goto done;
+	if (sysfs__read_int("devices/system/cpu/smt/active", &cached_result) >= 0) {
+		cached = true;
+		return cached_result;
+	}
 
+	cached_result = 0;
 	ncpu = sysconf(_SC_NPROCESSORS_CONF);
 	for (cpu = 0; cpu < ncpu; cpu++) {
 		unsigned long long siblings;
@@ -35,18 +88,13 @@ int smt_on(void)
 				continue;
 		}
 		/* Entry is hex, but does not have 0x, so need custom parser */
-		siblings = strtoull(str, NULL, 16);
+		siblings = hweight_str(str);
 		free(str);
-		if (hweight64(siblings) > 1) {
+		if (siblings > 1) {
 			cached_result = 1;
-			cached = true;
 			break;
 		}
 	}
-	if (!cached) {
-		cached_result = 0;
-done:
-		cached = true;
-	}
+	cached = true;
 	return cached_result;
 }
