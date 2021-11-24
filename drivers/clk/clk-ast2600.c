@@ -221,6 +221,32 @@ static const struct clk_div_table ast2600_div_table[] = {
 };
 
 /* For hpll/dpll/epll/mpll */
+static struct clk_hw *ast2600_calc_hpll(const char *name, u32 val)
+{
+	unsigned int mult, div;
+	u32 hwstrap = readl(scu_g6_base + ASPEED_G6_STRAP1);
+
+	if (val & BIT(24)) {
+		/* Pass through mode */
+		mult = div = 1;
+	} else {
+		/* F = 25Mhz * [(M + 2) / (n + 1)] / (p + 1) */
+		u32 m = val  & 0x1fff;
+		u32 n = (val >> 13) & 0x3f;
+		u32 p = (val >> 19) & 0xf;
+
+		if (hwstrap & BIT(10))
+			m = 0x5F;
+		else if (hwstrap & BIT(8))
+			m = 0xBF;
+
+		mult = (m + 1) / (n + 1);
+		div = (p + 1);
+	}
+	return clk_hw_register_fixed_factor(NULL, name, "clkin", 0,
+			mult, div);
+};
+
 static struct clk_hw *ast2600_calc_pll(const char *name, u32 val)
 {
 	unsigned int mult, div;
@@ -774,7 +800,7 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	 * and we assume that it is enabled
 	 */
 	regmap_read(map, ASPEED_HPLL_PARAM, &val);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = ast2600_calc_pll("hpll", val);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_HPLL] = ast2600_calc_hpll("hpll", val);
 
 	regmap_read(map, ASPEED_MPLL_PARAM, &val);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_MPLL] = ast2600_calc_pll("mpll", val);
