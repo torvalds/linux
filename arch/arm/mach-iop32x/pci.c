@@ -185,6 +185,7 @@ iop3xx_pci_abort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 {
 	struct resource *res;
+	struct resource realio;
 
 	if (nr != 0)
 		return 0;
@@ -206,7 +207,9 @@ int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 
 	pci_add_resource_offset(&sys->resources, res, sys->mem_offset);
 
-	pci_ioremap_io(0, IOP3XX_PCI_LOWER_IO_PA);
+	realio.start = 0;
+	realio.end = realio.start + SZ_64K - 1;
+	pci_remap_iospace(&realio, IOP3XX_PCI_LOWER_IO_PA);
 
 	return 1;
 }
