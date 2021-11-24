@@ -928,30 +928,6 @@ walt_select_task_rq_fair(void *unused, struct task_struct *p, int prev_cpu,
 		*target_cpu = prev_cpu;
 }
 
-static void walt_place_entity(void *unused, struct sched_entity *se, u64 *vruntime)
-{
-	if (unlikely(walt_disabled))
-		return;
-	if (entity_is_task(se)) {
-		unsigned long thresh = sysctl_sched_latency;
-
-		/*
-		 * Halve their sleep time's effect, to allow
-		 * for a gentler effect of sleepers:
-		 */
-		if (sched_feat(GENTLE_FAIR_SLEEPERS))
-			thresh >>= 1;
-
-		if ((per_task_boost(task_of(se)) == TASK_BOOST_STRICT_MAX) ||
-				walt_low_latency_task(task_of(se)) ||
-				task_rtg_high_prio(task_of(se))) {
-			*vruntime -= sysctl_sched_latency;
-			*vruntime -= thresh;
-			se->vruntime = *vruntime;
-		}
-	}
-}
-
 static void walt_binder_low_latency_set(void *unused, struct task_struct *task,
 					bool sync, struct binder_proc *proc)
 {
