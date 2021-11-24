@@ -848,6 +848,14 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 		if (hnae3_get_bit(req->mbx_need_resp, HCLGE_MBX_NEED_RESP_B) &&
 		    req->msg.code < HCLGE_MBX_GET_VF_FLR_STATUS) {
 			resp_msg.status = ret;
+			if (time_is_before_jiffies(hdev->last_mbx_scheduled +
+						   HCLGE_MBX_SCHED_TIMEOUT))
+				dev_warn(&hdev->pdev->dev,
+					 "resp vport%u mbx(%u,%u) late\n",
+					 req->mbx_src_vfid,
+					 req->msg.code,
+					 req->msg.subcode);
+
 			hclge_gen_resp_to_vf(vport, req, &resp_msg);
 		}
 
