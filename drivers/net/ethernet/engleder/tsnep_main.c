@@ -1089,9 +1089,10 @@ static int tsnep_mdio_init(struct tsnep_adapter *adapter)
 	adapter->mdiobus->phy_mask = 0x0000001;
 
 	retval = of_mdiobus_register(adapter->mdiobus, np);
+
+out:
 	if (np)
 		of_node_put(np);
-out:
 
 	return retval;
 }
