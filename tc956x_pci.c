@@ -87,6 +87,8 @@
  *  24 Nov 2021 : 1. Version update
  		  2. Single Port Suspend/Resume supported
  *  VERSION     : 01-00-22
+ *  24 Nov 2021 : 1. Version update
+ *  VERSION     : 01-00-23
  */
 
 #include <linux/clk-provider.h>
@@ -119,7 +121,7 @@ static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 unsigned int tc956x_port0_filter_phy_pause_frames = DISABLE;
 unsigned int tc956x_port1_filter_phy_pause_frames = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 2};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 3};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */

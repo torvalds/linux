@@ -86,6 +86,8 @@
  *  24 Nov 2021 : 1. Version update
  		  2. Private member used instead of global for wol interrupt indication
  *  VERSION     : 01-00-22
+ *  24 Nov 2021 : 1. Version update
+ *  VERSION     : 01-00-23
  */
 
 #ifndef __TC956XMAC_H__
@@ -138,7 +140,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-22"
+#define DRV_MODULE_VERSION	"V_01-00-23"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800

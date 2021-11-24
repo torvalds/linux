@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
 Release Date: 24 Nov 2021
 
-Release Version: V_01-00-22 : Limited-tested version
+Release Version: V_01-00-23 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -297,3 +297,8 @@ ethtool -s eth0 wol pg
 ## TC956X_Host_Driver_20211124_V_01-00-22:
 
 1. Single port Suspend/Resume supported
+
+## TC956X_Host_Driver_20211124_V_01-00-23:
+
+1. Restricted MDIO access when no PHY found or MDIO registration fails
+2. Added mdio lock for making mii bus of private member to null to avoid parallel accessing to MDIO bus

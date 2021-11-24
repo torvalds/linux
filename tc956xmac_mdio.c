@@ -36,6 +36,9 @@
  *  VERSION     : 01-00-01
  *  20 Jul 2021 : 1. MAX C22 address changed to 3. Print not corrected for C45 PHY selection
  *  VERSION     : 01-00-03
+ *  24 Nov 2021 : 1. Restricted MDIO access when no PHY found or MDIO registration fails
+ *                2. Added mdio lock for making mii bus of private member to null to avoid parallel accessing to MDIO bus
+ *  VERSION     : 01-00-23
  */
 
 #include <linux/gpio/consumer.h>
@@ -108,7 +111,7 @@ static int tc956xmac_xgmac2_c22_format(struct tc956xmac_priv *priv, int phyaddr,
 	return 0;
 }
 
-static int tc956xmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
+static int __tc956xmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 {
 	struct net_device *ndev = bus->priv;
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
@@ -179,8 +182,21 @@ static int tc956xmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyr
 	/* Read the data from the MII data register */
 	return readl(priv->ioaddr + mii_data) & GENMASK(15, 0);
 }
+/**
+ * __tc956xmac_xgmac2_mdio_read
+ * @bus: points to the mii_bus structure
+ * @phyaddr: MII addr
+ * @phyreg: MII reg
+ * Description: Check whether MDIO bus is registered successfully or not
+ * if registered then access MDIO for Read operation
+ */
+static int tc956xmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
+{
+	return bus->priv ?
+		__tc956xmac_xgmac2_mdio_read(bus, phyaddr, phyreg) : -EIO;
+}
 
-static int tc956xmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
+static int __tc956xmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
 				    int phyreg, u16 phydata)
 {
 	struct net_device *ndev = bus->priv;
@@ -233,6 +249,21 @@ static int tc956xmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
 	/* Wait until any existing MII operation is complete */
 	return readl_poll_timeout(priv->ioaddr + mii_data, tmp,
 				  !(tmp & MII_XGMAC_BUSY), /*100*/10, 10000);
+}
+/**
+ * __tc956xmac_xgmac2_mdio_write
+ * @bus: points to the mii_bus structure
+ * @phyaddr: MII addr
+ * @phyreg: MII reg
+ * @phydata: data to write into PHY reg
+ * Description: Check whether MDIO bus is registered successfully or not
+ * if registered then access MDIO for write operation
+ */
+static int tc956xmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
+				    int phyreg, u16 phydata)
+{
+	return bus->priv ?
+		__tc956xmac_xgmac2_mdio_write(bus, phyaddr, phyreg, phydata) : -EIO;
 }
 
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
@@ -606,9 +637,7 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 
 	if (!found && !mdio_node) {
 		dev_warn(dev, "No PHY found\n");
-		mdiobus_unregister(new_bus);
-		mdiobus_free(new_bus);
-		return -ENODEV;
+		goto bus_no_phy_found;
 	}
 #ifndef TC956X
 bus_register_done:
@@ -616,8 +645,15 @@ bus_register_done:
 	priv->mii = new_bus;
 
 	return 0;
-
+bus_no_phy_found:
+	err = -ENODEV;
+	mdiobus_unregister(new_bus);
 bus_register_fail:
+	/* Set bus->priv to NULL, so that any future calls to bus read/write can avoid bus access.*/
+	mutex_lock(&new_bus->mdio_lock);
+	new_bus->priv = NULL;
+	mutex_unlock(&new_bus->mdio_lock);
+
 	mdiobus_free(new_bus);
 	return err;
 }
@@ -635,7 +671,9 @@ int tc956xmac_mdio_unregister(struct net_device *ndev)
 		return 0;
 
 	mdiobus_unregister(priv->mii);
+	mutex_lock(&priv->mii->mdio_lock);
 	priv->mii->priv = NULL;
+	mutex_unlock(&priv->mii->mdio_lock);
 	mdiobus_free(priv->mii);
 	priv->mii = NULL;
 
