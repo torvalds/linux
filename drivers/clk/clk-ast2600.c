@@ -773,14 +773,14 @@ static int __init aspeed_g6_clk_init(void)
 core_initcall(aspeed_g6_clk_init);
 
 static const u32 ast2600_a0_axi_ahb_div_table[] = {
-	2, 2, 3, 5,
+	2, 2, 3, 4,
 };
 
-static const u32 ast2600_a1_axi_ahb_div0_tbl[] = {
+static u32 ast2600_a1_axi_ahb_div0_tbl[] = {
 	3, 2, 3, 4,
 };
 
-static const u32 ast2600_a1_axi_ahb_div1_tbl[] = {
+static u32 ast2600_a1_axi_ahb_div1_tbl[] = {
 	3, 4, 6, 8,
 };
 
@@ -814,27 +814,24 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	regmap_read(map, ASPEED_APLL_PARAM, &val);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_APLL] = ast2600_calc_apll("apll", val);
 
-	/* Strap bits 12:11 define the AXI/AHB clock frequency ratio (aka HCLK)*/
-	regmap_read(map, ASPEED_G6_STRAP1, &val);
-	if (val & BIT(16))
-		axi_div = 1;
-	else
-		axi_div = 2;
 
+	regmap_read(map, ASPEED_G6_STRAP1, &val);
 	divbits = (val >> 11) & 0x3;
 	regmap_read(map, ASPEED_G6_SILICON_REV, &chip_id);
-	if (chip_id & BIT(16)) {
-		if (!divbits) {
-			ahb_div = ast2600_a1_axi_ahb200_tbl[(val >> 8) & 0x3];
-			if (val & BIT(16))
-				ahb_div *= 2;
+	if ((chip_id & CHIP_REVISION_ID) >> 16) {
+		//ast2600a1
+		if (val & BIT(16)) {
+			ast2600_a1_axi_ahb_div1_tbl[0] = ast2600_a1_axi_ahb200_tbl[(val >> 8) & 0x7] * 2;
+			axi_div = 1;
+			ahb_div = ast2600_a1_axi_ahb_div1_tbl[divbits];
 		} else {
-			if (val & BIT(16))
-				ahb_div = ast2600_a1_axi_ahb_div1_tbl[divbits];
-			else
-				ahb_div = ast2600_a1_axi_ahb_div0_tbl[divbits];
+			ast2600_a1_axi_ahb_div0_tbl[0] = ast2600_a1_axi_ahb200_tbl[(val >> 8) & 0x7];
+			axi_div = 2;
+			ahb_div = ast2600_a1_axi_ahb_div0_tbl[divbits];
 		}
 	} else {
+		//ast2600a0 : fix axi = hpll/2
+		axi_div = 2;
 		ahb_div = ast2600_a0_axi_ahb_div_table[(val >> 11) & 0x3];
 	}
 
