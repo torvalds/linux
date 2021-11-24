@@ -1310,6 +1310,18 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 	    !(entry->flags & IMA_MODSIG_ALLOWED))
 		return false;
 
+	/*
+	 * Unlike for regular IMA 'appraise' policy rules where security.ima
+	 * xattr may contain either a file hash or signature, the security.ima
+	 * xattr for fsverity must contain a file signature (sigv3).  Ensure
+	 * that 'appraise' rules for fsverity require file signatures by
+	 * checking the IMA_DIGSIG_REQUIRED flag is set.
+	 */
+	if (entry->action == APPRAISE &&
+	    (entry->flags & IMA_VERITY_REQUIRED) &&
+	    !(entry->flags & IMA_DIGSIG_REQUIRED))
+		return false;
+
 	return true;
 }
 
@@ -1727,21 +1739,37 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			break;
 		case Opt_digest_type:
 			ima_log_string(ab, "digest_type", args[0].from);
-			if ((strcmp(args[0].from, "verity")) == 0)
+			if (entry->flags & IMA_DIGSIG_REQUIRED)
+				result = -EINVAL;
+			else if ((strcmp(args[0].from, "verity")) == 0)
 				entry->flags |= IMA_VERITY_REQUIRED;
 			else
 				result = -EINVAL;
 			break;
 		case Opt_appraise_type:
 			ima_log_string(ab, "appraise_type", args[0].from);
-			if ((strcmp(args[0].from, "imasig")) == 0)
-				entry->flags |= IMA_DIGSIG_REQUIRED;
-			else if (IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG) &&
-				 strcmp(args[0].from, "imasig|modsig") == 0)
-				entry->flags |= IMA_DIGSIG_REQUIRED |
+
+			if ((strcmp(args[0].from, "imasig")) == 0) {
+				if (entry->flags & IMA_VERITY_REQUIRED)
+					result = -EINVAL;
+				else
+					entry->flags |= IMA_DIGSIG_REQUIRED;
+			} else if (strcmp(args[0].from, "sigv3") == 0) {
+				/* Only fsverity supports sigv3 for now */
+				if (entry->flags & IMA_VERITY_REQUIRED)
+					entry->flags |= IMA_DIGSIG_REQUIRED;
+				else
+					result = -EINVAL;
+			} else if (IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG) &&
+				 strcmp(args[0].from, "imasig|modsig") == 0) {
+				if (entry->flags & IMA_VERITY_REQUIRED)
+					result = -EINVAL;
+				else
+					entry->flags |= IMA_DIGSIG_REQUIRED |
 						IMA_MODSIG_ALLOWED;
-			else
+			} else {
 				result = -EINVAL;
+			}
 			break;
 		case Opt_appraise_flag:
 			ima_log_string(ab, "appraise_flag", args[0].from);
@@ -2183,7 +2211,9 @@ int ima_policy_show(struct seq_file *m, void *v)
 	if (entry->template)
 		seq_printf(m, "template=%s ", entry->template->name);
 	if (entry->flags & IMA_DIGSIG_REQUIRED) {
-		if (entry->flags & IMA_MODSIG_ALLOWED)
+		if (entry->flags & IMA_VERITY_REQUIRED)
+			seq_puts(m, "appraise_type=sigv3 ");
+		else if (entry->flags & IMA_MODSIG_ALLOWED)
 			seq_puts(m, "appraise_type=imasig|modsig ");
 		else
 			seq_puts(m, "appraise_type=imasig ");
