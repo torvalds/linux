@@ -32,15 +32,13 @@ properties:
               - okaya,rh128128t
           - const: sitronix,st7715r
 
-  spi-max-frequency:
-    maximum: 32000000
-
   dc-gpios:
     maxItems: 1
     description: Display data/command selection (D/CX)
 
   backlight: true
   reg: true
+  spi-max-frequency: true
   reset-gpios: true
   rotation: true
 
