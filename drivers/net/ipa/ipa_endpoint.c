@@ -1153,18 +1153,19 @@ static void ipa_endpoint_skb_copy(struct ipa_endpoint *endpoint,
 {
 	struct sk_buff *skb;
 
-	skb = __dev_alloc_skb(len, GFP_ATOMIC);
-	if (skb) {
-		skb_put(skb, len);
-		memcpy(skb->data, data, len);
-		skb->truesize += extra;
-	}
+	if (!endpoint->netdev)
+		return;
 
-	/* Now receive it, or drop it if there's no netdev */
-	if (endpoint->netdev)
-		ipa_modem_skb_rx(endpoint->netdev, skb);
-	else if (skb)
-		dev_kfree_skb_any(skb);
+	skb = __dev_alloc_skb(len, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	/* Copy the data into the socket buffer and receive it */
+	skb_put(skb, len);
+	memcpy(skb->data, data, len);
+	skb->truesize += extra;
+
+	ipa_modem_skb_rx(endpoint->netdev, skb);
 }
 
 static bool ipa_endpoint_skb_build(struct ipa_endpoint *endpoint,
