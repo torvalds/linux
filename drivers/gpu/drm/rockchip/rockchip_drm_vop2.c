@@ -3737,8 +3737,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	actual_h = drm_rect_height(src) >> 16;
 
 	if (!actual_w || !actual_h) {
-		if (win->splice_win)
-			vop2_win_disable(win, true);
+		vop2_win_disable(win, true);
 		return;
 	}
 
