@@ -992,6 +992,10 @@ static int mvebu_pcie_parse_request_resources(struct mvebu_pcie *pcie)
 					 resource_size(&pcie->io) - 1);
 		pcie->realio.name = "PCI I/O";
 
+		ret = devm_pci_remap_iospace(dev, &pcie->realio, pcie->io.start);
+		if (ret)
+			return ret;
+
 		pci_add_resource(&bridge->windows, &pcie->realio);
 		ret = devm_request_resource(dev, &ioport_resource, &pcie->realio);
 		if (ret)
@@ -1010,7 +1014,6 @@ static int mvebu_pcie_parse_request_resources(struct mvebu_pcie *pcie)
  */
 static int mvebu_pci_host_probe(struct pci_host_bridge *bridge)
 {
-	struct mvebu_pcie *pcie;
 	struct pci_bus *bus, *child;
 	int ret;
 
@@ -1018,14 +1021,6 @@ static int mvebu_pci_host_probe(struct pci_host_bridge *bridge)
 	if (ret < 0) {
 		dev_err(bridge->dev.parent, "Scanning root bridge failed");
 		return ret;
-	}
-
-	pcie = pci_host_bridge_priv(bridge);
-	if (resource_size(&pcie->io) != 0) {
-		unsigned int i;
-
-		for (i = 0; i < resource_size(&pcie->realio); i += SZ_64K)
-			pci_ioremap_io(i, pcie->io.start + i);
 	}
 
 	bus = bridge->bus;
