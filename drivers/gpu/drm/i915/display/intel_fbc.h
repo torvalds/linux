@@ -35,8 +35,8 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 			  enum fb_op_origin origin);
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		     unsigned int frontbuffer_bits, enum fb_op_origin origin);
-void intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc);
-int intel_fbc_reset_underrun(struct intel_fbc *fbc);
+void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *i915);
+void intel_fbc_reset_underrun(struct drm_i915_private *i915);
 int intel_fbc_set_false_color(struct intel_fbc *fbc, bool enable);
 
 #endif /* __INTEL_FBC_H__ */

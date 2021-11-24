@@ -1547,21 +1547,21 @@ out:
 
 /*
  * intel_fbc_reset_underrun - reset FBC fifo underrun status.
- * @fbc: The FBC instance
+ * @i915: the i915 device
  *
  * See intel_fbc_handle_fifo_underrun_irq(). For automated testing we
  * want to re-enable FBC after an underrun to increase test coverage.
  */
-int intel_fbc_reset_underrun(struct intel_fbc *fbc)
+void intel_fbc_reset_underrun(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *i915 = fbc->i915;
-	int ret;
+	struct intel_fbc *fbc = &i915->fbc;
+
+	if (!HAS_FBC(i915))
+		return;
 
 	cancel_work_sync(&fbc->underrun_work);
 
-	ret = mutex_lock_interruptible(&fbc->lock);
-	if (ret)
-		return ret;
+	mutex_lock(&fbc->lock);
 
 	if (fbc->underrun_detected) {
 		drm_dbg_kms(&i915->drm,
@@ -1571,13 +1571,11 @@ int intel_fbc_reset_underrun(struct intel_fbc *fbc)
 
 	fbc->underrun_detected = false;
 	mutex_unlock(&fbc->lock);
-
-	return 0;
 }
 
 /**
  * intel_fbc_handle_fifo_underrun_irq - disable FBC when we get a FIFO underrun
- * @fbc: The FBC instance
+ * @i915: i915 device
  *
  * Without FBC, most underruns are harmless and don't really cause too many
  * problems, except for an annoying message on dmesg. With FBC, underruns can
@@ -1589,9 +1587,11 @@ int intel_fbc_reset_underrun(struct intel_fbc *fbc)
  *
  * This function is called from the IRQ handler.
  */
-void intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
+void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *i915)
 {
-	if (!HAS_FBC(fbc->i915))
+	struct intel_fbc *fbc = &i915->fbc;
+
+	if (!HAS_FBC(i915))
 		return;
 
 	/* There's no guarantee that underrun_detected won't be set to true
