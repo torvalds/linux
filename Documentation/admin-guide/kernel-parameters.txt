@@ -4805,6 +4805,14 @@
 			period to instead use normal non-expedited
 			grace-period processing.
 
+	rcupdate.rcu_task_contend_lim= [KNL]
+			Set the minimum number of callback-queuing-time
+			lock-contention events per jiffy required to
+			cause the RCU Tasks flavors to switch to per-CPU
+			callback queuing.  This switching only occurs
+			when rcupdate.rcu_task_enqueue_lim is set to
+			the default value of -1.
+
 	rcupdate.rcu_task_enqueue_lim= [KNL]
 			Set the number of callback queues to use for the
 			RCU Tasks family of RCU flavors.  The default

@@ -142,6 +142,10 @@ module_param(rcu_task_stall_timeout, int, 0644);
 static int rcu_task_enqueue_lim __read_mostly = -1;
 module_param(rcu_task_enqueue_lim, int, 0444);
 
+static bool rcu_task_cb_adjust;
+static int rcu_task_contend_lim __read_mostly = 100;
+module_param(rcu_task_contend_lim, int, 0444);
+
 /* RCU tasks grace-period state for debugging. */
 #define RTGS_INIT		 0
 #define RTGS_WAIT_WAIT_CBS	 1
@@ -207,10 +211,13 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 	int lim;
 
 	raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
-	if (rcu_task_enqueue_lim < 0)
-		rcu_task_enqueue_lim = nr_cpu_ids;
-	else if (rcu_task_enqueue_lim == 0)
+	if (rcu_task_enqueue_lim < 0) {
 		rcu_task_enqueue_lim = 1;
+		rcu_task_cb_adjust = true;
+		pr_info("%s: Setting adjustable number of callback queues.\n", __func__);
+	} else if (rcu_task_enqueue_lim == 0) {
+		rcu_task_enqueue_lim = 1;
+	}
 	lim = rcu_task_enqueue_lim;
 
 	if (lim > nr_cpu_ids)
@@ -251,6 +258,7 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 {
 	unsigned long flags;
 	unsigned long j;
+	bool needadjust = false;
 	bool needwake;
 	struct rcu_tasks_percpu *rtpcp;
 
@@ -266,7 +274,9 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 			rtpcp->rtp_jiffies = j;
 			rtpcp->rtp_n_lock_retries = 0;
 		}
-		rtpcp->rtp_n_lock_retries++;
+		if (rcu_task_cb_adjust && ++rtpcp->rtp_n_lock_retries > rcu_task_contend_lim &&
+		    READ_ONCE(rtp->percpu_enqueue_lim) != nr_cpu_ids)
+			needadjust = true;  // Defer adjustment to avoid deadlock.
 	}
 	if (!rcu_segcblist_is_enabled(&rtpcp->cblist)) {
 		raw_spin_unlock_rcu_node(rtpcp); // irqs remain disabled.
@@ -276,6 +286,15 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	needwake = rcu_segcblist_empty(&rtpcp->cblist);
 	rcu_segcblist_enqueue(&rtpcp->cblist, rhp);
 	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+	if (unlikely(needadjust)) {
+		raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
+		if (rtp->percpu_enqueue_lim != nr_cpu_ids) {
+			WRITE_ONCE(rtp->percpu_enqueue_shift, ilog2(nr_cpu_ids));
+			smp_store_release(&rtp->percpu_enqueue_lim, nr_cpu_ids);
+			pr_info("Switching %s to per-CPU callback queuing.\n", rtp->name);
+		}
+		raw_spin_unlock_irqrestore(&rtp->cbs_gbl_lock, flags);
+	}
 	/* We can't create the thread unless interrupts are enabled. */
 	if (needwake && READ_ONCE(rtp->kthread_ptr))
 		irq_work_queue(&rtpcp->rtp_irq_work);
