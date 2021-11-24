@@ -165,7 +165,8 @@ static bool has_die_topology(void)
 	if (uname(&uts) < 0)
 		return false;
 
-	if (strncmp(uts.machine, "x86_64", 6))
+	if (strncmp(uts.machine, "x86_64", 6) &&
+	    strncmp(uts.machine, "s390x", 5))
 		return false;
 
 	scnprintf(filename, MAXPATHLEN, DIE_CPUS_FMT,
