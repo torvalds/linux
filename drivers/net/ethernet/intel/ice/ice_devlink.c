@@ -436,7 +436,7 @@ ice_devlink_enable_roce_get(struct devlink *devlink, u32 id,
 {
 	struct ice_pf *pf = devlink_priv(devlink);
 
-	ctx->val.vbool = pf->rdma_mode & IIDC_RDMA_PROTOCOL_ROCEV2;
+	ctx->val.vbool = pf->rdma_mode & IIDC_RDMA_PROTOCOL_ROCEV2 ? true : false;
 
 	return 0;
 }
