@@ -90,14 +90,12 @@ int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
 		alloc->last = prandom_u32() % RANDOM_SKIP;
 	else
 		alloc->last = 0;
-	alloc->max  = num;
+	alloc->max = num;
 	spin_lock_init(&alloc->lock);
-	alloc->table = kmalloc_array(BITS_TO_LONGS(num), sizeof(long),
-				     GFP_KERNEL);
+	alloc->table = bitmap_zalloc(num, GFP_KERNEL);
 	if (!alloc->table)
 		return -ENOMEM;
 
-	bitmap_zero(alloc->table, num);
 	if (!(alloc->flags & C4IW_ID_TABLE_F_EMPTY))
 		for (i = 0; i < reserved; ++i)
 			set_bit(i, alloc->table);
@@ -107,5 +105,5 @@ int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
 
 void c4iw_id_table_free(struct c4iw_id_table *alloc)
 {
-	kfree(alloc->table);
+	bitmap_free(alloc->table);
 }
