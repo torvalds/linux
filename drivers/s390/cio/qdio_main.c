@@ -170,8 +170,6 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 	int tmp_count = count, tmp_start = start;
 	int nr = q->nr;
 
-	if (!count)
-		return 0;
 	qperf_inc(q, sqbs);
 
 	if (!q->is_input_q)
