@@ -59,7 +59,7 @@ u32 c4iw_id_alloc(struct c4iw_id_table *alloc)
 			alloc->last = obj + 1;
 		if (alloc->last >= alloc->max)
 			alloc->last = 0;
-		set_bit(obj, alloc->table);
+		__set_bit(obj, alloc->table);
 		obj += alloc->start;
 	} else
 		obj = -1;
@@ -75,7 +75,7 @@ void c4iw_id_free(struct c4iw_id_table *alloc, u32 obj)
 	obj -= alloc->start;
 
 	spin_lock_irqsave(&alloc->lock, flags);
-	clear_bit(obj, alloc->table);
+	__clear_bit(obj, alloc->table);
 	spin_unlock_irqrestore(&alloc->lock, flags);
 }
 
