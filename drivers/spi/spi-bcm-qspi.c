@@ -598,11 +598,23 @@ static void bcm_qspi_chip_select(struct bcm_qspi *qspi, int cs)
 	qspi->curr_cs = cs;
 }
 
+static bool bcmspi_parms_did_change(const struct bcm_qspi_parms * const cur,
+				    const struct bcm_qspi_parms * const prev)
+{
+	return (cur->speed_hz != prev->speed_hz) ||
+		(cur->mode != prev->mode) ||
+		(cur->bits_per_word != prev->bits_per_word);
+}
+
+
 /* MSPI helpers */
 static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 				  const struct bcm_qspi_parms *xp)
 {
 	u32 spcr, spbr = 0;
+
+	if (!bcmspi_parms_did_change(xp, &qspi->last_parms))
+		return;
 
 	if (!qspi->mspi_maj_rev)
 		/* legacy controller */
