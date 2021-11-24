@@ -402,7 +402,7 @@ struct intel_fbc {
 	struct mutex lock;
 	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
-	struct intel_crtc *crtc;
+	struct intel_plane *plane;
 
 	struct drm_mm_node compressed_fb;
 	struct drm_mm_node compressed_llb;
