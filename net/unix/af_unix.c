@@ -950,6 +950,87 @@ static int unix_release(struct socket *sock)
 	return 0;
 }
 
+static struct sock *unix_find_bsd(struct net *net, struct sockaddr_un *sunaddr,
+				  int type, int *error)
+{
+	struct inode *inode;
+	struct path path;
+	struct sock *sk;
+	int err;
+
+	err = kern_path(sunaddr->sun_path, LOOKUP_FOLLOW, &path);
+	if (err)
+		goto fail;
+
+	err = path_permission(&path, MAY_WRITE);
+	if (err)
+		goto path_put;
+
+	err = -ECONNREFUSED;
+	inode = d_backing_inode(path.dentry);
+	if (!S_ISSOCK(inode->i_mode))
+		goto path_put;
+
+	sk = unix_find_socket_byinode(inode);
+	if (!sk)
+		goto path_put;
+
+	err = -EPROTOTYPE;
+	if (sk->sk_type == type)
+		touch_atime(&path);
+	else
+		goto sock_put;
+
+	path_put(&path);
+
+	return sk;
+
+sock_put:
+	sock_put(sk);
+path_put:
+	path_put(&path);
+fail:
+	*error = err;
+	return NULL;
+}
+
+static struct sock *unix_find_abstract(struct net *net,
+				       struct sockaddr_un *sunaddr,
+				       int addr_len, int type,
+				       unsigned int hash, int *error)
+{
+	struct dentry *dentry;
+	struct sock *sk;
+
+	sk = unix_find_socket_byname(net, sunaddr, addr_len, type ^ hash);
+	if (!sk) {
+		*error = -ECONNREFUSED;
+		return NULL;
+	}
+
+	dentry = unix_sk(sk)->path.dentry;
+	if (dentry)
+		touch_atime(&unix_sk(sk)->path);
+
+	return sk;
+}
+
+static struct sock *unix_find_other(struct net *net,
+				    struct sockaddr_un *sunaddr,
+				    int addr_len, int type,
+				    unsigned int hash, int *error)
+{
+	struct sock *sk;
+
+	if (sunaddr->sun_path[0])
+		sk = unix_find_bsd(net, sunaddr, type, error);
+	else
+		sk = unix_find_abstract(net, sunaddr, addr_len, type, hash,
+					error);
+
+	return sk;
+}
+
 static int unix_autobind(struct sock *sk)
 {
 	struct unix_sock *u = unix_sk(sk);
@@ -1006,61 +1087,6 @@ retry:
 
 out:	mutex_unlock(&u->bindlock);
 	return err;
-}
-
-static struct sock *unix_find_other(struct net *net,
-				    struct sockaddr_un *sunname, int len,
-				    int type, unsigned int hash, int *error)
-{
-	struct sock *u;
-	struct path path;
-	int err = 0;
-
-	if (sunname->sun_path[0]) {
-		struct inode *inode;
-		err = kern_path(sunname->sun_path, LOOKUP_FOLLOW, &path);
-		if (err)
-			goto fail;
-		inode = d_backing_inode(path.dentry);
-		err = path_permission(&path, MAY_WRITE);
-		if (err)
-			goto put_fail;
-
-		err = -ECONNREFUSED;
-		if (!S_ISSOCK(inode->i_mode))
-			goto put_fail;
-		u = unix_find_socket_byinode(inode);
-		if (!u)
-			goto put_fail;
-
-		if (u->sk_type == type)
-			touch_atime(&path);
-
-		path_put(&path);
-
-		err = -EPROTOTYPE;
-		if (u->sk_type != type) {
-			sock_put(u);
-			goto fail;
-		}
-	} else {
-		err = -ECONNREFUSED;
-		u = unix_find_socket_byname(net, sunname, len, type ^ hash);
-		if (u) {
-			struct dentry *dentry;
-			dentry = unix_sk(u)->path.dentry;
-			if (dentry)
-				touch_atime(&unix_sk(u)->path);
-		} else
-			goto fail;
-	}
-	return u;
-
-put_fail:
-	path_put(&path);
-fail:
-	*error = err;
-	return NULL;
 }
 
 static int unix_bind_bsd(struct sock *sk, struct unix_address *addr)
