@@ -35,6 +35,30 @@
 extern "C" {
 #endif
 
+struct bpf_map_create_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+
+	__u32 btf_fd;
+	__u32 btf_key_type_id;
+	__u32 btf_value_type_id;
+	__u32 btf_vmlinux_value_type_id;
+
+	int inner_map_fd;
+	int map_flags;
+	__u64 map_extra;
+
+	int numa_node;
+	int map_ifindex;
+};
+#define bpf_map_create_opts__last_field map_ifindex
+
+LIBBPF_API int bpf_map_create(enum bpf_map_type map_type,
+			      const char *map_name,
+			      __u32 key_size,
+			      __u32 value_size,
+			      __u32 max_entries,
+			      const struct bpf_map_create_opts *opts);
+
 struct bpf_create_map_attr {
 	const char *name;
 	enum bpf_map_type map_type;
@@ -53,20 +77,25 @@ struct bpf_create_map_attr {
 	};
 };
 
-LIBBPF_API int
-bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
+LIBBPF_API int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
 LIBBPF_API int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
 				   int key_size, int value_size,
 				   int max_entries, __u32 map_flags, int node);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
 LIBBPF_API int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
 				   int key_size, int value_size,
 				   int max_entries, __u32 map_flags);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
 LIBBPF_API int bpf_create_map(enum bpf_map_type map_type, int key_size,
 			      int value_size, int max_entries, __u32 map_flags);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
 LIBBPF_API int bpf_create_map_in_map_node(enum bpf_map_type map_type,
 					  const char *name, int key_size,
 					  int inner_map_fd, int max_entries,
 					  __u32 map_flags, int node);
+LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_map_create() instead")
 LIBBPF_API int bpf_create_map_in_map(enum bpf_map_type map_type,
 				     const char *name, int key_size,
 				     int inner_map_fd, int max_entries,

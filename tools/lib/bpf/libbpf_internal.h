@@ -278,27 +278,6 @@ int parse_cpu_mask_file(const char *fcpu, bool **mask, int *mask_sz);
 int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
 			 const char *str_sec, size_t str_len);
 
-struct bpf_create_map_params {
-	const char *name;
-	enum bpf_map_type map_type;
-	__u32 map_flags;
-	__u32 key_size;
-	__u32 value_size;
-	__u32 max_entries;
-	__u32 numa_node;
-	__u32 btf_fd;
-	__u32 btf_key_type_id;
-	__u32 btf_value_type_id;
-	__u32 map_ifindex;
-	union {
-		__u32 inner_map_fd;
-		__u32 btf_vmlinux_value_type_id;
-	};
-	__u64 map_extra;
-};
-
-int libbpf__bpf_create_map_xattr(const struct bpf_create_map_params *create_attr);
-
 struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf);
 void btf_get_kernel_prefix_kind(enum bpf_attach_type attach_type,
 				const char **prefix, int *kind);

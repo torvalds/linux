@@ -4839,19 +4839,16 @@ static void bpf_map__destroy(struct bpf_map *map);
 
 static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map, bool is_inner)
 {
-	struct bpf_create_map_params create_attr;
+	LIBBPF_OPTS(bpf_map_create_opts, create_attr);
 	struct bpf_map_def *def = &map->def;
+	const char *map_name = NULL;
+	__u32 max_entries;
 	int err = 0;
 
-	memset(&create_attr, 0, sizeof(create_attr));
-
 	if (kernel_supports(obj, FEAT_PROG_NAME))
-		create_attr.name = map->name;
+		map_name = map->name;
 	create_attr.map_ifindex = map->map_ifindex;
-	create_attr.map_type = def->type;
 	create_attr.map_flags = def->map_flags;
-	create_attr.key_size = def->key_size;
-	create_attr.value_size = def->value_size;
 	create_attr.numa_node = map->numa_node;
 	create_attr.map_extra = map->map_extra;
 
@@ -4865,18 +4862,14 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map, b
 			return nr_cpus;
 		}
 		pr_debug("map '%s': setting size to %d\n", map->name, nr_cpus);
-		create_attr.max_entries = nr_cpus;
+		max_entries = nr_cpus;
 	} else {
-		create_attr.max_entries = def->max_entries;
+		max_entries = def->max_entries;
 	}
 
 	if (bpf_map__is_struct_ops(map))
-		create_attr.btf_vmlinux_value_type_id =
-			map->btf_vmlinux_value_type_id;
+		create_attr.btf_vmlinux_value_type_id = map->btf_vmlinux_value_type_id;
 
-	create_attr.btf_fd = 0;
-	create_attr.btf_key_type_id = 0;
-	create_attr.btf_value_type_id = 0;
 	if (obj->btf && btf__fd(obj->btf) >= 0 && !bpf_map_find_btf_info(obj, map)) {
 		create_attr.btf_fd = btf__fd(obj->btf);
 		create_attr.btf_key_type_id = map->btf_key_type_id;
@@ -4922,13 +4915,17 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map, b
 	}
 
 	if (obj->gen_loader) {
-		bpf_gen__map_create(obj->gen_loader, &create_attr, is_inner ? -1 : map - obj->maps);
+		bpf_gen__map_create(obj->gen_loader, def->type, map_name,
+				    def->key_size, def->value_size, max_entries,
+				    &create_attr, is_inner ? -1 : map - obj->maps);
 		/* Pretend to have valid FD to pass various fd >= 0 checks.
 		 * This fd == 0 will not be used with any syscall and will be reset to -1 eventually.
 		 */
 		map->fd = 0;
 	} else {
-		map->fd = libbpf__bpf_create_map_xattr(&create_attr);
+		map->fd = bpf_map_create(def->type, map_name,
+					 def->key_size, def->value_size,
+					 max_entries, &create_attr);
 	}
 	if (map->fd < 0 && (create_attr.btf_key_type_id ||
 			    create_attr.btf_value_type_id)) {
@@ -4943,7 +4940,9 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map, b
 		create_attr.btf_value_type_id = 0;
 		map->btf_key_type_id = 0;
 		map->btf_value_type_id = 0;
-		map->fd = libbpf__bpf_create_map_xattr(&create_attr);
+		map->fd = bpf_map_create(def->type, map_name,
+					 def->key_size, def->value_size,
+					 max_entries, &create_attr);
 	}
 
 	err = map->fd < 0 ? -errno : 0;
