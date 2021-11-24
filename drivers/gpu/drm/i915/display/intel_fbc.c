@@ -1612,6 +1612,15 @@ static bool need_fbc_vtd_wa(struct drm_i915_private *i915)
 	return false;
 }
 
+void intel_fbc_add_plane(struct intel_fbc *fbc, struct intel_plane *plane)
+{
+	if (!fbc)
+		return;
+
+	plane->fbc = fbc;
+	fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
+}
+
 /**
  * intel_fbc_init - Initialize FBC
  * @i915: the i915 device

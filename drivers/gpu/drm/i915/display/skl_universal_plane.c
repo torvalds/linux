@@ -13,6 +13,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
+#include "intel_fbc.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
@@ -1828,6 +1829,15 @@ static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
 	return pipe == PIPE_A && plane_id == PLANE_PRIMARY;
 }
 
+static struct intel_fbc *skl_plane_fbc(struct drm_i915_private *dev_priv,
+				       enum pipe pipe, enum plane_id plane_id)
+{
+	if (skl_plane_has_fbc(dev_priv, pipe, plane_id))
+		return &dev_priv->fbc;
+	else
+		return NULL;
+}
+
 static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 				 enum pipe pipe, enum plane_id plane_id)
 {
@@ -2114,10 +2124,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->id = plane_id;
 	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane_id);
 
-	if (skl_plane_has_fbc(dev_priv, pipe, plane_id))
-		plane->fbc = &dev_priv->fbc;
-	if (plane->fbc)
-		plane->fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
+	intel_fbc_add_plane(skl_plane_fbc(dev_priv, pipe, plane_id), plane);
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		plane->min_width = icl_plane_min_width;
