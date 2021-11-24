@@ -5647,6 +5647,16 @@ static int haptics_restore(struct device *dev)
 		return rc;
 
 	return haptics_module_enable(chip, true);
+
+}
+
+static void haptics_shutdown(struct platform_device *pdev)
+{
+	struct haptics_chip *chip = platform_get_drvdata(pdev);
+
+	haptics_suspend_config(chip->dev);
+
+	haptics_ds_suspend_config(chip->dev);
 }
 
 static const struct dev_pm_ops haptics_pm_ops = {
@@ -5676,6 +5686,7 @@ static struct platform_driver haptics_driver = {
 		.pm		= &haptics_pm_ops,
 	},
 	.probe		= haptics_probe,
+	.shutdown	= haptics_shutdown,
 	.remove		= haptics_remove,
 };
 module_platform_driver(haptics_driver);
