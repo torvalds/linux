@@ -63,6 +63,8 @@
  *  VERSION     : 01-00-21
  *  24 Nov 2021 : 1. Single Port Suspend/Resume supported
  *  VERSION     : 01-00-22
+ *  24 Nov 2021 : 1. EEE update for runtime configuration and LPI interrupt disabled.
+ *  VERSION     : 01-00-24 
  */
 
 #ifndef __COMMON_H__
@@ -88,7 +90,7 @@
 
 /* Enable DMA IPA offload */
 #define DMA_OFFLOAD_ENABLE
-
+//#define TC956X_LPI_INTERRUPT
 /* Indepenedent Suspend/Resume Debug */
 #undef TC956X_PM_DEBUG
 #define TC956X_MAX_PORT			2
@@ -116,7 +118,7 @@ enum TC956X_PORT_PM_STATE {
 #define DWXGMAC_CORE_3_01	0x30
 
 //#define DISABLE_EMAC_PORT1
-//#define EEE /* Enable for EEE support */
+#define EEE /* Enable for EEE support */
 
 /* Note: Multiple macro definitions for TC956X_PCIE_LOGSTAT.
  * Please also define/undefine same macro in tc956xmac_ioctl.h, if changing in this file
@@ -1055,7 +1057,11 @@ entry delay = n * 256 ns */
 #define TC956X_MSI_PF1				(0x000)
 #endif
 
+#ifdef TC956X_LPI_INTERRUPT
 #define ENABLE_MSI_INTR				(0x17FFFD)
+#else
+#define ENABLE_MSI_INTR				(0x17FFFC)
+#endif
 
 #define TC956X_MSI_OUT_EN_OFFSET(pf_id)	(TC956X_MSI_BASE + \
 						(pf_id * TC956X_MSI_PF1) + (0x0000))
@@ -1584,6 +1590,9 @@ struct dma_features {
 #define TC956X_EIGHT		8
 #define TC956X_SIXTEEN		16
 #define TC956X_TWENTY_FOUR	24
+
+#define TC956X_MIN_LPI_AUTO_ENTRY_TIMER		0
+#define TC956X_MAX_LPI_AUTO_ENTRY_TIMER		0xFFFF8 /* LPI Entry timer is in the units of 8 micro second granularity. So mask the last 3 bits. */
 
 extern const struct tc956xmac_desc_ops enh_desc_ops;
 extern const struct tc956xmac_desc_ops ndesc_ops;

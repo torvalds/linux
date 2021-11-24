@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
 Release Date: 24 Nov 2021
 
-Release Version: V_01-00-23 : Limited-tested version
+Release Version: V_01-00-24 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -168,17 +168,39 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 12. WOL command Usage :
 	#ethtool -s <interface> wol <type - p/g/d>.
 
-Supported WOL options and meaning:
-----------------------------------
- Option  |  Meaning
-----------------------------------
-  p	  |  Wake on phy activity
-  g	  |  Wake on MagicPacket(tm)
-  d	  |  Disable (wake on nothing). (Default)
-----------------------------------  
-Example - To wake on phy activity and magic packet use :
-ethtool -s eth0 wol pg
+	Supported WOL options and meaning:
+	 Option	  |  Meaning
+	  p	  |  Wake on phy activity
+	  g	  |  Wake on MagicPacket(tm)
+	  d	  |  Disable (wake on nothing). (Default)
 
+	Example - To wake on phy activity and magic packet use :
+	ethtool -s eth0 wol pg
+
+13. Please use the below command to insert the kernel module to enable EEE and configure LPI Auto Entry timer:
+
+	#insmod tc956x_pcie_eth.ko tc956x_port0_enable_eee=X tc956x_port0_lpi_auto_entry_timer=Y tc956x_port1_enable_eee=X tc956x_port1_lpi_auto_entry_timer=Y
+
+	argument info:
+
+		tc956x_port0_enable_eee: For PORT0
+		tc956x_port1_enable_eee: For PORT1
+		X = [0: DISABLE (default), 1: ENABLE]
+		This module parameter is to Enable/Disable EEE for Port 0/1 - default is 0.
+		If invalid values are passed as kernel module parameter, the default value will be selected.		
+
+		tc956x_port0_lpi_auto_entry_timer: For PORT0
+		tc956x_port1_lpi_auto_entry_timer: For PORT1
+		Y = [0..1048568 (us)]
+		This module parameter is to configure LPI Automatic Entry Timer for Port 0/1 - default is 600 (us).
+		If invalid values are passed as kernel module parameter, the default value will be selected.		
+
+	In addition to above module parameter, use below ethtool command to configure EEE and LPI auto entry timer.
+	#ethtool --set-eee <interfcae> eee <on/off> tx-timer <time in us>
+	Example: #ethtool --set-eee enp7s0f0 eee on tx-timer 10000
+
+	Use below command to check the status of EEE configuration
+	#ethtool --show-eee <interface>
 	
 # Release Versions:
 
@@ -302,3 +324,9 @@ ethtool -s eth0 wol pg
 
 1. Restricted MDIO access when no PHY found or MDIO registration fails
 2. Added mdio lock for making mii bus of private member to null to avoid parallel accessing to MDIO bus
+
+## TC956X_Host_Driver_20211124_V_01-00-24:
+
+1. Runtime configuration of EEE supported and LPI interrupts disabled by default.
+2. Module param added to configure EEE and LPI timer.
+3. Driver name corrected in ethtool display.

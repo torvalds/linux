@@ -30,6 +30,8 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *  24 Nov 2021 : 1. EEE HW counter support.
+ *  VERSION     : 01-00-24 
  */
 
 #include <linux/kernel.h>
@@ -463,6 +465,10 @@ static void dwxgmac_mmc_read(struct tc956xmac_priv *priv, void __iomem *mmcaddr,
 
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_TX_PER_PRIOR_OCTET_GB,
 			     &mmc->mmc_tx_per_priority_octet_gb);
+
+	/* MMC EEE registers */
+	mmc->mmc_tx_lpi_tran_cntr += readl(mmcaddr + MMC_XGMAC_TX_LPI_TRAN);
+	mmc->mmc_rx_lpi_tran_cntr += readl(mmcaddr + MMC_XGMAC_RX_LPI_TRAN);
 
 	/* MMC RX counter registers */
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_PKT_GB,

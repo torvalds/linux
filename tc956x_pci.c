@@ -89,6 +89,9 @@
  *  VERSION     : 01-00-22
  *  24 Nov 2021 : 1. Version update
  *  VERSION     : 01-00-23
+ *  24 Nov 2021 : 1. Module param support for EEE enable/disable and LPI timer configuration.
+ 		  2. Version update
+ *  VERSION     : 01-00-24
  */
 
 #include <linux/clk-provider.h>
@@ -121,7 +124,12 @@ static unsigned int tc956x_port1_interface = ENABLE_SGMII_INTERFACE;
 unsigned int tc956x_port0_filter_phy_pause_frames = DISABLE;
 unsigned int tc956x_port1_filter_phy_pause_frames = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 3};
+static unsigned int tc956x_port0_enable_eee = DISABLE;
+static unsigned int tc956x_port0_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
+static unsigned int tc956x_port1_enable_eee = DISABLE;
+static unsigned int tc956x_port1_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
+
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 4};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -2073,6 +2081,44 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 
 	plat->port_interface = res.port_interface;
 
+	if (res.port_num == RM_PF0_ID) {
+		if ((tc956x_port0_enable_eee != DISABLE) && 
+		(tc956x_port0_enable_eee != ENABLE)) {
+			tc956x_port0_enable_eee = DISABLE;
+			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid tc956x_port0_enable_eee parameter passed. Restoring default to %d. Supported Values are 0 and 1.\n", 
+			__func__, tc956x_port1_enable_eee);
+		}
+
+		if ((tc956x_port0_enable_eee == ENABLE) && 
+		(tc956x_port0_lpi_auto_entry_timer > TC956X_MAX_LPI_AUTO_ENTRY_TIMER)) {
+			tc956x_port0_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
+			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid tc956x_port0_lpi_auto_entry_timer parameter passed. Restoring default to %d. Supported Values between %d and %d.\n", 
+			__func__, tc956x_port1_lpi_auto_entry_timer, 
+			TC956X_MIN_LPI_AUTO_ENTRY_TIMER, TC956X_MAX_LPI_AUTO_ENTRY_TIMER);
+		}
+		res.eee_enabled = tc956x_port0_enable_eee;
+		res.tx_lpi_timer = tc956x_port0_lpi_auto_entry_timer;
+	}
+
+	if (res.port_num == RM_PF1_ID) {
+		if ((tc956x_port1_enable_eee != DISABLE) && 
+		(tc956x_port1_enable_eee != ENABLE)) {
+			tc956x_port1_enable_eee = DISABLE;
+			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid tc956x_port1_enable_eee parameter passed. Restoring default to %d. Supported Values are 0 and 1.\n", 
+			__func__, tc956x_port1_enable_eee);
+		}
+
+		if ((tc956x_port0_enable_eee == ENABLE) && 
+		(tc956x_port1_lpi_auto_entry_timer > TC956X_MAX_LPI_AUTO_ENTRY_TIMER)) {
+			tc956x_port1_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
+			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid tc956x_port1_lpi_auto_entry_timer parameter passed. Restoring default to %d. Supported Values between %d and %d.\n", 
+			__func__, tc956x_port1_lpi_auto_entry_timer, 
+			TC956X_MIN_LPI_AUTO_ENTRY_TIMER, TC956X_MAX_LPI_AUTO_ENTRY_TIMER);
+		}
+		res.eee_enabled = tc956x_port1_enable_eee;
+		res.tx_lpi_timer = tc956x_port1_lpi_auto_entry_timer;
+	}
+
 	ret = info->setup(pdev, plat);
 
 	if (ret)
@@ -3060,6 +3106,26 @@ module_param(tc956x_port1_filter_phy_pause_frames, uint, 0444);
 MODULE_PARM_DESC(tc956x_port1_filter_phy_pause_frames,
 		 "Filter PHY pause frames alone and pass Link partner pause frames to application in PORT1 - default is 0,\
 		 [0: DISABLE, 1: ENABLE]");
+
+module_param(tc956x_port0_enable_eee, uint, 0444);
+MODULE_PARM_DESC(tc956x_port0_enable_eee,
+		 "Enable/Disable EEE for Port 0 - default is 0,\
+		 [0: DISABLE, 1: ENABLE]");
+
+module_param(tc956x_port0_lpi_auto_entry_timer, uint, 0444);
+MODULE_PARM_DESC(tc956x_port0_lpi_auto_entry_timer,
+		 "LPI Automatic Entry Timer for Port 0 - default is 600 (us),\
+		 [Range Supported : 0..1048568 (us)]");
+
+module_param(tc956x_port1_enable_eee, uint, 0444);
+MODULE_PARM_DESC(tc956x_port1_enable_eee,
+		 "Enable/Disable EEE for Port 1 - default is 0,\
+		 [0: DISABLE, 1: ENABLE]");
+
+module_param(tc956x_port1_lpi_auto_entry_timer, uint, 0444);
+MODULE_PARM_DESC(tc956x_port1_lpi_auto_entry_timer,
+		 "LPI Automatic Entry Timer for Port 1 - default is 600 (us),\
+		 [Range Supported : 0..1048568 (us)]");
 
 MODULE_DESCRIPTION("TC956X PCI Express Ethernet Network Driver");
 MODULE_AUTHOR("Toshiba Electronic Devices & Storage Corporation");

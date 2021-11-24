@@ -88,6 +88,10 @@
  *  VERSION     : 01-00-22
  *  24 Nov 2021 : 1. Version update
  *  VERSION     : 01-00-23
+ *  24 Nov 2021 : 1. EEE macro enabled by default.
+ 		  2. Module param support for EEE configuration
+		  3. Version update
+ *  VERSION     : 01-00-24 
  */
 
 #ifndef __TC956XMAC_H__
@@ -110,9 +114,9 @@
 #define PF_DRIVER 4
 
 /* Uncomment EEE_MAC_CONTROLLED_MODE macro for MAC controlled EEE Mode & comment for PHY controlled EEE mode */
-//#define EEE_MAC_CONTROLLED_MODE
+#define EEE_MAC_CONTROLLED_MODE
 /* Uncomment TC956X_5_G_2_5_G_EEE_SUPPORT macro for enabling EEE support for 5G and 2.5G */
-//#define TC956X_5_G_2_5_G_EEE_SUPPORT
+#define TC956X_5_G_2_5_G_EEE_SUPPORT
 // #define CONFIG_TC956XMAC_SELFTESTS  /*Enable this macro to test Feature selftest*/
 
 #ifdef TC956X
@@ -140,7 +144,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-23"
+#define DRV_MODULE_VERSION	"V_01-00-24"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -311,6 +315,8 @@ struct tc956xmac_resources {
 #ifdef TC956X
 	unsigned int port_num;
 	unsigned int port_interface; /* Kernel module parameter variable for interface */
+	unsigned int eee_enabled; /* Parameter to store kernel module parameter to enable/disable EEE */
+	unsigned int tx_lpi_timer; /* Parameter to store kernel module parameter for LPI Auto Entry Timer */
 #endif
 };
 
@@ -525,11 +531,10 @@ struct tc956xmac_priv {
 	int wolopts;
 	int wol_irq;
 	int clk_csr;
-	struct timer_list eee_ctrl_timer;
 	int lpi_irq;
-	int eee_enabled;
+	unsigned int eee_enabled;
 	int eee_active;
-	int tx_lpi_timer;
+	unsigned int tx_lpi_timer;
 	unsigned int mode;
 	unsigned int chain_mode;
 	int extend_desc;

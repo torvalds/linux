@@ -54,6 +54,9 @@
  *  VERSION     : 01-00-19
  *  04 Nov 2021 : 1. Added separate control functons for MAC TX and RX start/stop
  *  VERSION     : 01-00-20
+ *  24 Nov 2021 : 1. EEE update for runtime configuration and LPI interrupt disabled.
+ 		  2. USXGMII support during link change
+ *  VERSION     : 01-00-24
  */
 
 #include <linux/bitrev.h>
@@ -101,8 +104,14 @@ static void dwxgmac2_core_init(struct tc956xmac_priv *priv,
 		case SPEED_10000:
 			tx |= hw->link.xgmii.speed10000;
 			break;
+		case SPEED_5000:
+			if (priv->plat->interface == PHY_INTERFACE_MODE_USXGMII)
+				tx |= hw->link.xgmii.speed5000;
+			break;
 		case SPEED_2500:
-			if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII)
+			if (priv->plat->interface == PHY_INTERFACE_MODE_USXGMII)
+				tx |= hw->link.xgmii.speed2500;
+			else
 				tx |= hw->link.speed2500;
 			break;
 		case SPEED_1000:
@@ -122,8 +131,9 @@ static void dwxgmac2_core_init(struct tc956xmac_priv *priv,
 #endif
 	writel(tx, ioaddr + XGMAC_TX_CONFIG);
 	writel(rx, ioaddr + XGMAC_RX_CONFIG);
+#ifdef TC956X_LPI_INTERRUPT
 	writel(XGMAC_INT_DEFAULT_EN, ioaddr + XGMAC_INT_EN);
-
+#endif
 	netdev_dbg(priv->dev, "%s: MAC TX Config = 0x%x", __func__,
 			readl(ioaddr + XGMAC_TX_CONFIG));
 
@@ -642,6 +652,9 @@ static void dwxgmac2_reset_eee_mode(struct tc956xmac_priv *priv,
 
 	value = readl(ioaddr + XGMAC_LPI_CTRL);
 	value &= ~(XGMAC_LPITXEN | XGMAC_LPITXA | XGMAC_TXCGE);
+#ifdef EEE_MAC_CONTROLLED_MODE
+	value &= ~(XGMAC_PLS | XGMAC_PLSDIS | XGMAC_LPIATE);
+#endif
 	writel(value, ioaddr + XGMAC_LPI_CTRL);
 }
 
@@ -2169,7 +2182,7 @@ static void dwxgmac2_disable_tx_vlan(struct tc956xmac_priv *priv,
 	value = readl(ioaddr + XGMAC_VLAN_INCL);
 	value &= ~XGMAC_VLAN_VLTI;
 	value &= ~XGMAC_VLAN_VLC;
-	writel(value, ioaddr + XGMAC_VLAN_INCL);	
+	writel(value, ioaddr + XGMAC_VLAN_INCL);
 }
 
 static void dwxgmac2_enable_rx_vlan_stripping(struct tc956xmac_priv *priv,
