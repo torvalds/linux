@@ -79,11 +79,10 @@ int smt_on(void)
 		char fn[256];
 
 		snprintf(fn, sizeof fn,
-			"devices/system/cpu/cpu%d/topology/core_cpus", cpu);
+			"devices/system/cpu/cpu%d/topology/thread_siblings", cpu);
 		if (sysfs__read_str(fn, &str, &strlen) < 0) {
 			snprintf(fn, sizeof fn,
-				"devices/system/cpu/cpu%d/topology/thread_siblings",
-				cpu);
+				"devices/system/cpu/cpu%d/topology/core_cpus", cpu);
 			if (sysfs__read_str(fn, &str, &strlen) < 0)
 				continue;
 		}
