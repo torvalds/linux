@@ -600,7 +600,7 @@ static void intel_fbc_hw_deactivate(struct intel_fbc *fbc)
 	fbc->funcs->deactivate(fbc);
 }
 
-bool intel_fbc_is_compressing(struct intel_fbc *fbc)
+static bool intel_fbc_is_compressing(struct intel_fbc *fbc)
 {
 	return fbc->funcs->is_compressing(fbc);
 }
@@ -610,36 +610,6 @@ static void intel_fbc_nuke(struct intel_fbc *fbc)
 	trace_intel_fbc_nuke(fbc->plane);
 
 	fbc->funcs->nuke(fbc);
-}
-
-int intel_fbc_set_false_color(struct intel_fbc *fbc, bool enable)
-{
-	if (!fbc->funcs || !fbc->funcs->set_false_color)
-		return -ENODEV;
-
-	mutex_lock(&fbc->lock);
-
-	fbc->false_color = enable;
-
-	fbc->funcs->set_false_color(fbc, enable);
-
-	mutex_unlock(&fbc->lock);
-
-	return 0;
-}
-
-/**
- * intel_fbc_is_active - Is FBC active?
- * @fbc: The FBC instance
- *
- * This function is used to verify the current state of FBC.
- *
- * FIXME: This should be tracked in the plane config eventually
- * instead of queried at runtime for most callers.
- */
-bool intel_fbc_is_active(struct intel_fbc *fbc)
-{
-	return fbc->active;
 }
 
 static void intel_fbc_activate(struct intel_fbc *fbc)
@@ -1690,4 +1660,82 @@ void intel_fbc_init(struct drm_i915_private *i915)
 	 * matches the hardware state. */
 	if (intel_fbc_hw_is_active(fbc))
 		intel_fbc_hw_deactivate(fbc);
+}
+
+static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
+{
+	struct intel_fbc *fbc = m->private;
+	struct drm_i915_private *i915 = fbc->i915;
+	intel_wakeref_t wakeref;
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+	mutex_lock(&fbc->lock);
+
+	if (fbc->active) {
+		seq_puts(m, "FBC enabled\n");
+		seq_printf(m, "Compressing: %s\n",
+			   yesno(intel_fbc_is_compressing(fbc)));
+	} else {
+		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
+	}
+
+	mutex_unlock(&fbc->lock);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(intel_fbc_debugfs_status);
+
+static int intel_fbc_debugfs_false_color_get(void *data, u64 *val)
+{
+	struct intel_fbc *fbc = data;
+
+	*val = fbc->false_color;
+
+	return 0;
+}
+
+static int intel_fbc_debugfs_false_color_set(void *data, u64 val)
+{
+	struct intel_fbc *fbc = data;
+
+	mutex_lock(&fbc->lock);
+
+	fbc->false_color = val;
+
+	if (fbc->active)
+		fbc->funcs->set_false_color(fbc, fbc->false_color);
+
+	mutex_unlock(&fbc->lock);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(intel_fbc_debugfs_false_color_fops,
+			intel_fbc_debugfs_false_color_get,
+			intel_fbc_debugfs_false_color_set,
+			"%llu\n");
+
+static void intel_fbc_debugfs_add(struct intel_fbc *fbc)
+{
+	struct drm_i915_private *i915 = fbc->i915;
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_fbc_status", 0444,
+			    minor->debugfs_root, fbc,
+			    &intel_fbc_debugfs_status_fops);
+
+	if (fbc->funcs->set_false_color)
+		debugfs_create_file("i915_fbc_false_color", 0644,
+				    minor->debugfs_root, fbc,
+				    &intel_fbc_debugfs_false_color_fops);
+}
+
+void intel_fbc_debugfs_register(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc = &i915->fbc;
+
+	if (HAS_FBC(i915))
+		intel_fbc_debugfs_add(fbc);
 }
