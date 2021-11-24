@@ -1542,8 +1542,6 @@ static int smu_reset(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
 
-	amdgpu_gfx_off_ctrl(smu->adev, false);
-
 	ret = smu_hw_fini(adev);
 	if (ret)
 		return ret;
@@ -1555,8 +1553,6 @@ static int smu_reset(struct smu_context *smu)
 	ret = smu_late_init(adev);
 	if (ret)
 		return ret;
-
-	amdgpu_gfx_off_ctrl(smu->adev, true);
 
 	return 0;
 }
