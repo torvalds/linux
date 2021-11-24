@@ -7700,7 +7700,7 @@ static __init int hardware_setup(void)
 {
 	unsigned long host_bndcfgs;
 	struct desc_ptr dt;
-	int r, ept_lpage_level;
+	int r;
 
 	store_idt(&dt);
 	host_idt_base = dt.address;
@@ -7797,16 +7797,8 @@ static __init int hardware_setup(void)
 		kvm_mmu_set_ept_masks(enable_ept_ad_bits,
 				      cpu_has_vmx_ept_execute_only());
 
-	if (!enable_ept)
-		ept_lpage_level = 0;
-	else if (cpu_has_vmx_ept_1g_page())
-		ept_lpage_level = PG_LEVEL_1G;
-	else if (cpu_has_vmx_ept_2m_page())
-		ept_lpage_level = PG_LEVEL_2M;
-	else
-		ept_lpage_level = PG_LEVEL_4K;
 	kvm_configure_mmu(enable_ept, 0, vmx_get_max_tdp_level(),
-			  ept_lpage_level);
+			  ept_caps_to_lpage_level(vmx_capability.ept));
 
 	/*
 	 * Only enable PML when hardware supports PML feature, and both EPT
