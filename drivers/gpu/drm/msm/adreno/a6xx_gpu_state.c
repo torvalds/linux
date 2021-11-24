@@ -43,6 +43,9 @@ struct a6xx_gpu_state {
 	int nr_cx_debugbus;
 
 	struct msm_gpu_state_bo *gmu_log;
+	struct msm_gpu_state_bo *gmu_hfi;
+
+	s32 hfi_queue_history[2][HFI_HISTORY_SZ];
 
 	struct list_head objs;
 };
@@ -822,6 +825,25 @@ static struct msm_gpu_state_bo *a6xx_snapshot_gmu_bo(
 	return snapshot;
 }
 
+static void a6xx_snapshot_gmu_hfi_history(struct msm_gpu *gpu,
+					  struct a6xx_gpu_state *a6xx_state)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
+	unsigned i, j;
+
+	BUILD_BUG_ON(ARRAY_SIZE(gmu->queues) != ARRAY_SIZE(a6xx_state->hfi_queue_history));
+
+	for (i = 0; i < ARRAY_SIZE(gmu->queues); i++) {
+		struct a6xx_hfi_queue *queue = &gmu->queues[i];
+		for (j = 0; j < HFI_HISTORY_SZ; j++) {
+			unsigned idx = (j + queue->history_idx) % HFI_HISTORY_SZ;
+			a6xx_state->hfi_queue_history[i][j] = queue->history[idx];
+		}
+	}
+}
+
 #define A6XX_GBIF_REGLIST_SIZE   1
 static void a6xx_get_registers(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state,
@@ -960,6 +982,9 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 	a6xx_get_gmu_registers(gpu, a6xx_state);
 
 	a6xx_state->gmu_log = a6xx_snapshot_gmu_bo(a6xx_state, &a6xx_gpu->gmu.log);
+	a6xx_state->gmu_hfi = a6xx_snapshot_gmu_bo(a6xx_state, &a6xx_gpu->gmu.hfi);
+
+	a6xx_snapshot_gmu_hfi_history(gpu, a6xx_state);
 
 	/* If GX isn't on the rest of the data isn't going to be accessible */
 	if (!a6xx_gmu_gx_is_on(&a6xx_gpu->gmu))
@@ -1004,6 +1029,9 @@ static void a6xx_gpu_state_destroy(struct kref *kref)
 
 	if (a6xx_state->gmu_log)
 		kvfree(a6xx_state->gmu_log->data);
+
+	if (a6xx_state->gmu_hfi)
+		kvfree(a6xx_state->gmu_hfi->data);
 
 	list_for_each_entry_safe(obj, tmp, &a6xx_state->objs, node)
 		kfree(obj);
@@ -1223,9 +1251,27 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 		struct msm_gpu_state_bo *gmu_log = a6xx_state->gmu_log;
 
 		drm_printf(p, "    iova: 0x%016llx\n", gmu_log->iova);
-		drm_printf(p, "    size: %d\n", gmu_log->size);
+		drm_printf(p, "    size: %zu\n", gmu_log->size);
 		adreno_show_object(p, &gmu_log->data, gmu_log->size,
 				&gmu_log->encoded);
+	}
+
+	drm_puts(p, "gmu-hfi:\n");
+	if (a6xx_state->gmu_hfi) {
+		struct msm_gpu_state_bo *gmu_hfi = a6xx_state->gmu_hfi;
+		unsigned i, j;
+
+		drm_printf(p, "    iova: 0x%016llx\n", gmu_hfi->iova);
+		drm_printf(p, "    size: %zu\n", gmu_hfi->size);
+		for (i = 0; i < ARRAY_SIZE(a6xx_state->hfi_queue_history); i++) {
+			drm_printf(p, "    queue-history[%u]:", i);
+			for (j = 0; j < HFI_HISTORY_SZ; j++) {
+				drm_printf(p, " %d", a6xx_state->hfi_queue_history[i][j]);
+			}
+			drm_printf(p, "\n");
+		}
+		adreno_show_object(p, &gmu_hfi->data, gmu_hfi->size,
+				&gmu_hfi->encoded);
 	}
 
 	drm_puts(p, "registers:\n");
