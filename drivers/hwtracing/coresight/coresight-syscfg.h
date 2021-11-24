@@ -61,6 +61,7 @@ struct cscfg_registered_csdev {
 /* owner types for loading and unloading of config and feature sets */
 enum cscfg_load_owner_type {
 	CSCFG_OWNER_PRELOAD,
+	CSCFG_OWNER_MODULE,
 };
 
 /**

@@ -368,6 +368,26 @@ unlock_exit:
 	return err;
 }
 
+/*
+ * Conditionally up reference count on owner to prevent unload.
+ *
+ * module loaded configs need to be locked in to prevent premature unload.
+ */
+static int cscfg_owner_get(struct cscfg_load_owner_info *owner_info)
+{
+	if ((owner_info->type == CSCFG_OWNER_MODULE) &&
+	    (!try_module_get(owner_info->owner_handle)))
+		return -EINVAL;
+	return 0;
+}
+
+/* conditionally lower ref count on an owner */
+static void cscfg_owner_put(struct cscfg_load_owner_info *owner_info)
+{
+	if (owner_info->type == CSCFG_OWNER_MODULE)
+		module_put(owner_info->owner_handle);
+}
+
 static void cscfg_remove_owned_csdev_configs(struct coresight_device *csdev, void *load_owner)
 {
 	struct cscfg_config_csdev *config_csdev, *tmp;
@@ -497,6 +517,14 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 
 	/* add the load owner to the load order list */
 	list_add_tail(&owner_info->item, &cscfg_mgr->load_order_list);
+	if (!list_is_singular(&cscfg_mgr->load_order_list)) {
+		/* lock previous item in load order list */
+		err = cscfg_owner_get(list_prev_entry(owner_info, item));
+		if (err) {
+			cscfg_unload_owned_cfgs_feats(owner_info);
+			list_del(&owner_info->item);
+		}
+	}
 
 exit_unlock:
 	mutex_unlock(&cscfg_mutex);
@@ -547,7 +575,11 @@ int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
 	cscfg_unload_owned_cfgs_feats(owner_info);
 
 	/* remove from load order list */
-	list_del(&load_list_item->item);
+	if (!list_is_singular(&cscfg_mgr->load_order_list)) {
+		/* unlock previous item in load order list */
+		cscfg_owner_put(list_prev_entry(owner_info, item));
+	}
+	list_del(&owner_info->item);
 
 exit_unlock:
 	mutex_unlock(&cscfg_mutex);
@@ -739,6 +771,10 @@ int cscfg_activate_config(unsigned long cfg_hash)
 
 	list_for_each_entry(config_desc, &cscfg_mgr->config_desc_list, item) {
 		if ((unsigned long)config_desc->event_ea->var == cfg_hash) {
+			/* must ensure that config cannot be unloaded in use */
+			err = cscfg_owner_get(config_desc->load_owner);
+			if (err)
+				break;
 			/*
 			 * increment the global active count - control changes to
 			 * active configurations
@@ -779,6 +815,7 @@ void cscfg_deactivate_config(unsigned long cfg_hash)
 		if ((unsigned long)config_desc->event_ea->var == cfg_hash) {
 			atomic_dec(&config_desc->active_cnt);
 			atomic_dec(&cscfg_mgr->sys_active_cnt);
+			cscfg_owner_put(config_desc->load_owner);
 			dev_dbg(cscfg_device(), "Deactivate config %s.\n", config_desc->name);
 			break;
 		}
