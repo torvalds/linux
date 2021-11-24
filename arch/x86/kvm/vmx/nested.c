@@ -397,9 +397,11 @@ static void nested_ept_inject_page_fault(struct kvm_vcpu *vcpu,
 
 static void nested_ept_new_eptp(struct kvm_vcpu *vcpu)
 {
-	kvm_init_shadow_ept_mmu(vcpu,
-				to_vmx(vcpu)->nested.msrs.ept_caps &
-				VMX_EPT_EXECUTE_ONLY_BIT,
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	bool execonly = vmx->nested.msrs.ept_caps & VMX_EPT_EXECUTE_ONLY_BIT;
+	int ept_lpage_level = ept_caps_to_lpage_level(vmx->nested.msrs.ept_caps);
+
+	kvm_init_shadow_ept_mmu(vcpu, execonly, ept_lpage_level,
 				nested_ept_ad_enabled(vcpu),
 				nested_ept_get_eptp(vcpu));
 }

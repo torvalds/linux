@@ -4905,7 +4905,8 @@ kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 }
 
 void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
-			     bool accessed_dirty, gpa_t new_eptp)
+			     int huge_page_level, bool accessed_dirty,
+			     gpa_t new_eptp)
 {
 	struct kvm_mmu *context = &vcpu->arch.guest_mmu;
 	u8 level = vmx_eptp_page_walk_level(new_eptp);
@@ -4932,7 +4933,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 
 	update_permission_bitmask(context, true);
 	context->pkru_mask = 0;
-	reset_rsvds_bits_mask_ept(vcpu, context, execonly, max_huge_page_level);
+	reset_rsvds_bits_mask_ept(vcpu, context, execonly, huge_page_level);
 	reset_ept_shadow_zero_bits_mask(vcpu, context, execonly);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_ept_mmu);
