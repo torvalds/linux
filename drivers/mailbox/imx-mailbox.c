@@ -563,8 +563,8 @@ static int imx_mu_probe(struct platform_device *pdev)
 		size = sizeof(struct imx_sc_rpc_msg_max);
 
 	priv->msg = devm_kzalloc(dev, size, GFP_KERNEL);
-	if (IS_ERR(priv->msg))
-		return PTR_ERR(priv->msg);
+	if (!priv->msg)
+		return -ENOMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
