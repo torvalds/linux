@@ -865,7 +865,9 @@ early_initcall(allocate_overflow_stacks);
 asmlinkage void handle_bad_stack(struct pt_regs *regs)
 {
 	unsigned long tsk_stk = (unsigned long)current->stack;
+#ifdef CONFIG_IRQSTACKS
 	unsigned long irq_stk = (unsigned long)this_cpu_read(irq_stack_ptr);
+#endif
 	unsigned long ovf_stk = (unsigned long)this_cpu_read(overflow_stack_ptr);
 
 	console_verbose();
@@ -873,8 +875,10 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 
 	pr_emerg("Task stack:     [0x%08lx..0x%08lx]\n",
 		 tsk_stk, tsk_stk + THREAD_SIZE);
+#ifdef CONFIG_IRQSTACKS
 	pr_emerg("IRQ stack:      [0x%08lx..0x%08lx]\n",
 		 irq_stk - THREAD_SIZE, irq_stk);
+#endif
 	pr_emerg("Overflow stack: [0x%08lx..0x%08lx]\n",
 		 ovf_stk - OVERFLOW_STACK_SIZE, ovf_stk);
 

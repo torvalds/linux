@@ -127,8 +127,8 @@ config ARM
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
-	select THREAD_INFO_IN_TASK if CURRENT_POINTER_IN_TPIDRURO
-	select HAVE_ARCH_VMAP_STACK if MMU && THREAD_INFO_IN_TASK && (!LD_IS_LLD || LLD_VERSION >= 140000)
+	select THREAD_INFO_IN_TASK
+	select HAVE_ARCH_VMAP_STACK if MMU && (!LD_IS_LLD || LLD_VERSION >= 140000)
 	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
@@ -1158,7 +1158,7 @@ config CURRENT_POINTER_IN_TPIDRURO
 
 config IRQSTACKS
 	def_bool y
-	depends on THREAD_INFO_IN_TASK
+	depends on MMU
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_SOFTIRQ_ON_OWN_STACK
 
@@ -1608,7 +1608,7 @@ config CC_HAVE_STACKPROTECTOR_TLS
 
 config STACKPROTECTOR_PER_TASK
 	bool "Use a unique stack canary value for each task"
-	depends on STACKPROTECTOR && THREAD_INFO_IN_TASK && !XIP_DEFLATED_DATA
+	depends on STACKPROTECTOR && CURRENT_POINTER_IN_TPIDRURO && !XIP_DEFLATED_DATA
 	depends on GCC_PLUGINS || CC_HAVE_STACKPROTECTOR_TLS
 	select GCC_PLUGIN_ARM_SSP_PER_TASK if !CC_HAVE_STACKPROTECTOR_TLS
 	default y

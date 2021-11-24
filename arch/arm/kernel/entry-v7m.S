@@ -97,15 +97,17 @@ ENTRY(__switch_to)
 	str	sp, [ip], #4
 	str	lr, [ip], #4
 	mov	r5, r0
+	mov	r6, r2			@ Preserve 'next'
 	add	r4, r2, #TI_CPU_SAVE
 	ldr	r0, =thread_notify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
 	bl	atomic_notifier_call_chain
-	mov	ip, r4
 	mov	r0, r5
-	ldmia	ip!, {r4 - r11}		@ Load all regs saved previously
-	ldr	sp, [ip]
-	ldr	pc, [ip, #4]!
+	mov	r1, r6
+	ldmia	r4, {r4 - r12, lr}	@ Load all regs saved previously
+	set_current r1, r2
+	mov	sp, ip
+	bx	lr
 	.fnend
 ENDPROC(__switch_to)
 

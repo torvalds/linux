@@ -807,12 +807,13 @@ ENTRY(__switch_to)
 	switch_tls r1, r4, r5, r3, r7
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
     !defined(CONFIG_STACKPROTECTOR_PER_TASK)
-	ldr	r9, [r2, #TI_TASK]
 	ldr	r8, =__stack_chk_guard
 	.if (TSK_STACK_CANARY > IMM12_MASK)
-	add	r9, r9, #TSK_STACK_CANARY & ~IMM12_MASK
-	.endif
+	add	r9, r2, #TSK_STACK_CANARY & ~IMM12_MASK
 	ldr	r9, [r9, #TSK_STACK_CANARY & IMM12_MASK]
+	.else
+	ldr	r9, [r2, #TSK_STACK_CANARY & IMM12_MASK]
+	.endif
 #endif
 	mov	r7, r2				@ Preserve 'next'
 #ifdef CONFIG_CPU_USE_DOMAINS
@@ -829,7 +830,7 @@ ENTRY(__switch_to)
 #endif
 	mov	r0, r5
 #if !defined(CONFIG_THUMB2_KERNEL) && !defined(CONFIG_VMAP_STACK)
-	set_current r7
+	set_current r7, r8
 	ldmia	r4, {r4 - sl, fp, sp, pc}	@ Load all regs saved previously
 #else
 	mov	r1, r7
@@ -851,7 +852,7 @@ ENTRY(__switch_to)
 	@ switches us to another stack, with few other side effects. In order
 	@ to prevent this distinction from causing any inconsistencies, let's
 	@ keep the 'set_current' call as close as we can to the update of SP.
-	set_current r1
+	set_current r1, r2
 	mov	sp, ip
 	ret	lr
 #endif
