@@ -78,26 +78,21 @@ static void memrnd(void *s, size_t n)
 		*byte++ = rand();
 }
 
-FIXTURE(tls_basic)
-{
-	int fd, cfd;
-	bool notls;
-};
-
-FIXTURE_SETUP(tls_basic)
+static void ulp_sock_pair(struct __test_metadata *_metadata,
+			  int *fd, int *cfd, bool *notls)
 {
 	struct sockaddr_in addr;
 	socklen_t len;
 	int sfd, ret;
 
-	self->notls = false;
+	*notls = false;
 	len = sizeof(addr);
 
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = 0;
 
-	self->fd = socket(AF_INET, SOCK_STREAM, 0);
+	*fd = socket(AF_INET, SOCK_STREAM, 0);
 	sfd = socket(AF_INET, SOCK_STREAM, 0);
 
 	ret = bind(sfd, &addr, sizeof(addr));
@@ -108,24 +103,35 @@ FIXTURE_SETUP(tls_basic)
 	ret = getsockname(sfd, &addr, &len);
 	ASSERT_EQ(ret, 0);
 
-	ret = connect(self->fd, &addr, sizeof(addr));
+	ret = connect(*fd, &addr, sizeof(addr));
 	ASSERT_EQ(ret, 0);
 
-	self->cfd = accept(sfd, &addr, &len);
-	ASSERT_GE(self->cfd, 0);
+	*cfd = accept(sfd, &addr, &len);
+	ASSERT_GE(*cfd, 0);
 
 	close(sfd);
 
-	ret = setsockopt(self->fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	ret = setsockopt(*fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	if (ret != 0) {
 		ASSERT_EQ(errno, ENOENT);
-		self->notls = true;
+		*notls = true;
 		printf("Failure setting TCP_ULP, testing without tls\n");
 		return;
 	}
 
-	ret = setsockopt(self->cfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	ret = setsockopt(*cfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	ASSERT_EQ(ret, 0);
+}
+
+FIXTURE(tls_basic)
+{
+	int fd, cfd;
+	bool notls;
+};
+
+FIXTURE_SETUP(tls_basic)
+{
+	ulp_sock_pair(_metadata, &self->fd, &self->cfd, &self->notls);
 }
 
 FIXTURE_TEARDOWN(tls_basic)
@@ -199,60 +205,21 @@ FIXTURE_VARIANT_ADD(tls, 13_sm4_ccm)
 FIXTURE_SETUP(tls)
 {
 	struct tls_crypto_info_keys tls12;
-	struct sockaddr_in addr;
-	socklen_t len;
-	int sfd, ret;
-
-	self->notls = false;
-	len = sizeof(addr);
+	int ret;
 
 	tls_crypto_info_init(variant->tls_version, variant->cipher_type,
 			     &tls12);
 
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	addr.sin_port = 0;
+	ulp_sock_pair(_metadata, &self->fd, &self->cfd, &self->notls);
 
-	self->fd = socket(AF_INET, SOCK_STREAM, 0);
-	sfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (self->notls)
+		return;
 
-	ret = bind(sfd, &addr, sizeof(addr));
-	ASSERT_EQ(ret, 0);
-	ret = listen(sfd, 10);
+	ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, tls12.len);
 	ASSERT_EQ(ret, 0);
 
-	ret = getsockname(sfd, &addr, &len);
+	ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls12, tls12.len);
 	ASSERT_EQ(ret, 0);
-
-	ret = connect(self->fd, &addr, sizeof(addr));
-	ASSERT_EQ(ret, 0);
-
-	ret = setsockopt(self->fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
-	if (ret != 0) {
-		self->notls = true;
-		printf("Failure setting TCP_ULP, testing without tls\n");
-	}
-
-	if (!self->notls) {
-		ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12,
-				 tls12.len);
-		ASSERT_EQ(ret, 0);
-	}
-
-	self->cfd = accept(sfd, &addr, &len);
-	ASSERT_GE(self->cfd, 0);
-
-	if (!self->notls) {
-		ret = setsockopt(self->cfd, IPPROTO_TCP, TCP_ULP, "tls",
-				 sizeof("tls"));
-		ASSERT_EQ(ret, 0);
-
-		ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls12,
-				 tls12.len);
-		ASSERT_EQ(ret, 0);
-	}
-
-	close(sfd);
 }
 
 FIXTURE_TEARDOWN(tls)
@@ -1355,54 +1322,18 @@ TEST(non_established) {
 
 TEST(keysizes) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
-	struct sockaddr_in addr;
-	int sfd, ret, fd, cfd;
-	socklen_t len;
+	int ret, fd, cfd;
 	bool notls;
-
-	notls = false;
-	len = sizeof(addr);
 
 	memset(&tls12, 0, sizeof(tls12));
 	tls12.info.version = TLS_1_2_VERSION;
 	tls12.info.cipher_type = TLS_CIPHER_AES_GCM_256;
 
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	addr.sin_port = 0;
-
-	fd = socket(AF_INET, SOCK_STREAM, 0);
-	sfd = socket(AF_INET, SOCK_STREAM, 0);
-
-	ret = bind(sfd, &addr, sizeof(addr));
-	ASSERT_EQ(ret, 0);
-	ret = listen(sfd, 10);
-	ASSERT_EQ(ret, 0);
-
-	ret = getsockname(sfd, &addr, &len);
-	ASSERT_EQ(ret, 0);
-
-	ret = connect(fd, &addr, sizeof(addr));
-	ASSERT_EQ(ret, 0);
-
-	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
-	if (ret != 0) {
-		notls = true;
-		printf("Failure setting TCP_ULP, testing without tls\n");
-	}
+	ulp_sock_pair(_metadata, &fd, &cfd, &notls);
 
 	if (!notls) {
 		ret = setsockopt(fd, SOL_TLS, TLS_TX, &tls12,
 				 sizeof(tls12));
-		EXPECT_EQ(ret, 0);
-	}
-
-	cfd = accept(sfd, &addr, &len);
-	ASSERT_GE(cfd, 0);
-
-	if (!notls) {
-		ret = setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls",
-				 sizeof("tls"));
 		EXPECT_EQ(ret, 0);
 
 		ret = setsockopt(cfd, SOL_TLS, TLS_RX, &tls12,
@@ -1410,7 +1341,6 @@ TEST(keysizes) {
 		EXPECT_EQ(ret, 0);
 	}
 
-	close(sfd);
 	close(fd);
 	close(cfd);
 }
