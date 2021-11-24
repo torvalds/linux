@@ -103,6 +103,7 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 	if (cif_dev->terminal_sensor.sd) {
 		sditf_get_hdr_mode(priv);
 		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		fmt->pad = 0;
 		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd, pad, get_fmt, NULL, fmt);
 		if (ret) {
 			v4l2_err(&priv->sd,

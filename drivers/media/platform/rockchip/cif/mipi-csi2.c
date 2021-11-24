@@ -390,10 +390,12 @@ static int csi2_get_selection(struct v4l2_subdev *sd,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+			sel->pad = 0;
 			ret = v4l2_subdev_call(sensor, pad, get_selection,
 					       cfg, sel);
 			if (ret) {
 				fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+				fmt.pad = 0;
 				ret = v4l2_subdev_call(sensor, pad, get_fmt, NULL, &fmt);
 				if (!ret) {
 					csi2->format_mbus = fmt.format;
