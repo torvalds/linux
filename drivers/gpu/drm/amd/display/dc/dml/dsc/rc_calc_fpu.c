@@ -93,7 +93,7 @@ static void get_qp_set(qp_set qps, enum colour_mode cm, enum bits_per_comp bpc,
 		TABLE_CASE(420, 12, min);
 	}
 
-	if (table == 0)
+	if (!table)
 		return;
 
 	index = (bpp - table[0].bpp) * 2;
