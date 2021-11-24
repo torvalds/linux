@@ -554,7 +554,6 @@ struct regulator_irq_data {
  */
 struct regulator_irq_desc {
 	const char *name;
-	int irq_flags;
 	int fatal_cnt;
 	int reread_ms;
 	int irq_off_ms;
