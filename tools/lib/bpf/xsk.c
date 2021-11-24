@@ -35,6 +35,11 @@
 #include "libbpf_internal.h"
 #include "xsk.h"
 
+/* entire xsk.h and xsk.c is going away in libbpf 1.0, so ignore all internal
+ * uses of deprecated APIs
+ */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #ifndef SOL_XDP
  #define SOL_XDP 283
 #endif
