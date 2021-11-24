@@ -275,7 +275,7 @@ static DEFINE_SPINLOCK(destroy_list_lock);
 
 static void destroy_list_workfn(struct work_struct *work)
 {
-	struct percpu_rw_semaphore *sem, *sem2;
+	struct percpu_rw_semaphore_atomic *sem, *sem2;
 	LIST_HEAD(to_destroy);
 
 	spin_lock(&destroy_list_lock);
@@ -286,14 +286,14 @@ static void destroy_list_workfn(struct work_struct *work)
 		return;
 
 	list_for_each_entry_safe(sem, sem2, &to_destroy, destroy_list_entry) {
-		percpu_free_rwsem(sem);
+		percpu_free_rwsem(&sem->rw_sem);
 		kfree(sem);
 	}
 }
 
 static DECLARE_WORK(destroy_list_work, destroy_list_workfn);
 
-void percpu_rwsem_async_destroy(struct percpu_rw_semaphore *sem)
+void percpu_rwsem_async_destroy(struct percpu_rw_semaphore_atomic *sem)
 {
 	spin_lock(&destroy_list_lock);
 	list_add_tail(&sem->destroy_list_entry, &destroy_list);

@@ -508,11 +508,12 @@ static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
 
 static inline bool mmu_notifier_subscriptions_init(struct mm_struct *mm)
 {
-	mm->mmu_notifier_lock = kzalloc(sizeof(struct percpu_rw_semaphore), GFP_KERNEL);
+	mm->mmu_notifier_lock = kzalloc(
+		sizeof(struct percpu_rw_semaphore_atomic), GFP_KERNEL);
 	if (!mm->mmu_notifier_lock)
 		return false;
 
-	percpu_init_rwsem(mm->mmu_notifier_lock);
+	percpu_init_rwsem(&mm->mmu_notifier_lock->rw_sem);
 	mm->notifier_subscriptions = NULL;
 
 	return true;
@@ -526,7 +527,7 @@ static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 	if (in_atomic()) {
 		percpu_rwsem_async_destroy(mm->mmu_notifier_lock);
 	} else {
-		percpu_free_rwsem(mm->mmu_notifier_lock);
+		percpu_free_rwsem(&mm->mmu_notifier_lock->rw_sem);
 		kfree(mm->mmu_notifier_lock);
 	}
 	mm->mmu_notifier_lock = NULL;
@@ -534,12 +535,12 @@ static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 
 static inline bool mmu_notifier_trylock(struct mm_struct *mm)
 {
-	return percpu_down_read_trylock(mm->mmu_notifier_lock);
+	return percpu_down_read_trylock(&mm->mmu_notifier_lock->rw_sem);
 }
 
 static inline void mmu_notifier_unlock(struct mm_struct *mm)
 {
-	percpu_up_read(mm->mmu_notifier_lock);
+	percpu_up_read(&mm->mmu_notifier_lock->rw_sem);
 }
 
 #else /* CONFIG_SPECULATIVE_PAGE_FAULT */

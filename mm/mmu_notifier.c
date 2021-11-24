@@ -625,12 +625,12 @@ void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 
 static inline void mmu_notifier_write_lock(struct mm_struct *mm)
 {
-	percpu_down_write(mm->mmu_notifier_lock);
+	percpu_down_write(&mm->mmu_notifier_lock->rw_sem);
 }
 
 static inline void mmu_notifier_write_unlock(struct mm_struct *mm)
 {
-	percpu_up_write(mm->mmu_notifier_lock);
+	percpu_up_write(&mm->mmu_notifier_lock->rw_sem);
 }
 
 #else /* CONFIG_SPECULATIVE_PAGE_FAULT */
