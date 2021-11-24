@@ -550,6 +550,8 @@ struct dw_mci_slot {
  * dw_mci driver data - dw-mshc implementation specific driver data.
  * @caps: mmc subsystem specified capabilities of the controller(s).
  * @num_caps: number of capabilities specified by @caps.
+ * @common_caps: mmc subsystem specified capabilities applicable to all of
+ *	the controllers
  * @init: early implementation specific initialization.
  * @set_ios: handle bus specific extensions.
  * @parse_dt: parse implementation specific device tree properties.
@@ -562,6 +564,7 @@ struct dw_mci_slot {
 struct dw_mci_drv_data {
 	unsigned long	*caps;
 	u32		num_caps;
+	u32		common_caps;
 	int		(*init)(struct dw_mci *host);
 	void		(*set_ios)(struct dw_mci *host, struct mmc_ios *ios);
 	int		(*parse_dt)(struct dw_mci *host);
