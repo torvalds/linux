@@ -1932,7 +1932,7 @@ static int aspeed_mctp_irq_init(struct aspeed_mctp *priv)
 	struct platform_device *pdev = to_platform_device(priv->dev);
 	int irq, ret;
 
-	irq = platform_get_irq_byname(pdev, "mctp");
+	irq = platform_get_irq_byname_optional(pdev, "mctp");
 	if (irq < 0) {
 		/* mctp irq is option */
 		priv->miss_mctp_int = 1;
