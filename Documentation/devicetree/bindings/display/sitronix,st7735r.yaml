@@ -48,7 +48,6 @@ required:
   - compatible
   - reg
   - dc-gpios
-  - reset-gpios
 
 additionalProperties: false
 
