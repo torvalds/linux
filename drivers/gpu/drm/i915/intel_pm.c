@@ -3369,13 +3369,8 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	}
 
 	/* ILK: LP2+ must be disabled when FBC WM is disabled but FBC enabled */
-	/*
-	 * FIXME this is racy. FBC might get enabled later.
-	 * What we should check here is whether FBC can be
-	 * enabled sometime later.
-	 */
-	if (DISPLAY_VER(dev_priv) == 5 && !merged->fbc_wm_enabled &&
-	    intel_fbc_is_active(&dev_priv->fbc)) {
+	if (DISPLAY_VER(dev_priv) == 5 && HAS_FBC(dev_priv) &&
+	    dev_priv->params.enable_fbc && !merged->fbc_wm_enabled) {
 		for (level = 2; level <= max_level; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
 
