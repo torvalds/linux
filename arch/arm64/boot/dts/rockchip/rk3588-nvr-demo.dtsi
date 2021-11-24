@@ -574,7 +574,8 @@
 };
 
 &usbdp_phy1_u3 {
-	status = "disabled";
+	maximum-speed = "high-speed";
+	status = "okay";
 };
 
 &usbdrd3_0 {
@@ -587,7 +588,6 @@
 
 &usbdrd_dwc3_0 {
 	dr_mode = "peripheral";
-	maximum-speed = "high-speed";
 	status = "okay";
 };
 
