@@ -2383,7 +2383,7 @@ static ssize_t fan_curve_enable_store(struct device *dev,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (data->enabled) {
 		err = fan_curve_write(asus, data);
