@@ -2000,7 +2000,7 @@ add_sym:
 static int linker_append_elf_relos(struct bpf_linker *linker, struct src_obj *obj)
 {
 	struct src_sec *src_symtab = &obj->secs[obj->symtab_sec_idx];
-	struct dst_sec *dst_symtab = &linker->secs[linker->symtab_sec_idx];
+	struct dst_sec *dst_symtab;
 	int i, err;
 
 	for (i = 1; i < obj->sec_cnt; i++) {
@@ -2032,6 +2032,9 @@ static int linker_append_elf_relos(struct bpf_linker *linker, struct src_obj *ob
 			pr_warn("sections %s are not compatible\n", src_sec->sec_name);
 			return -1;
 		}
+
+		/* add_dst_sec() above could have invalidated linker->secs */
+		dst_symtab = &linker->secs[linker->symtab_sec_idx];
 
 		/* shdr->sh_link points to SYMTAB */
 		dst_sec->shdr->sh_link = linker->symtab_sec_idx;
