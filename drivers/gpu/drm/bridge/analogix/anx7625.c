@@ -1636,7 +1636,7 @@ static int anx7625_register_audio(struct device *dev, struct anx7625_data *ctx)
 							sizeof(codec_data));
 
 	if (IS_ERR(ctx->audio_pdev))
-		return IS_ERR(ctx->audio_pdev);
+		return PTR_ERR(ctx->audio_pdev);
 
 	DRM_DEV_DEBUG_DRIVER(dev, "bound to %s", HDMI_CODEC_DRV_NAME);
 
