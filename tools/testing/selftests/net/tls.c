@@ -639,6 +639,46 @@ TEST_F(tls, splice_to_pipe)
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
+TEST_F(tls, splice_cmsg_to_pipe)
+{
+	char *test_str = "test_read";
+	char record_type = 100;
+	int send_len = 10;
+	char buf[10];
+	int p[2];
+
+	ASSERT_GE(pipe(p), 0);
+	EXPECT_EQ(tls_send_cmsg(self->fd, 100, test_str, send_len, 0), 10);
+	EXPECT_EQ(splice(self->cfd, NULL, p[1], NULL, send_len, 0), -1);
+	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(recv(self->cfd, buf, send_len, 0), -1);
+	EXPECT_EQ(errno, EIO);
+	EXPECT_EQ(tls_recv_cmsg(_metadata, self->cfd, record_type,
+				buf, sizeof(buf), MSG_WAITALL),
+		  send_len);
+	EXPECT_EQ(memcmp(test_str, buf, send_len), 0);
+}
+
+TEST_F(tls, splice_dec_cmsg_to_pipe)
+{
+	char *test_str = "test_read";
+	char record_type = 100;
+	int send_len = 10;
+	char buf[10];
+	int p[2];
+
+	ASSERT_GE(pipe(p), 0);
+	EXPECT_EQ(tls_send_cmsg(self->fd, 100, test_str, send_len, 0), 10);
+	EXPECT_EQ(recv(self->cfd, buf, send_len, 0), -1);
+	EXPECT_EQ(errno, EIO);
+	EXPECT_EQ(splice(self->cfd, NULL, p[1], NULL, send_len, 0), -1);
+	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(tls_recv_cmsg(_metadata, self->cfd, record_type,
+				buf, sizeof(buf), MSG_WAITALL),
+		  send_len);
+	EXPECT_EQ(memcmp(test_str, buf, send_len), 0);
+}
+
 TEST_F(tls, recvmsg_single)
 {
 	char const *test_str = "test_recvmsg_single";
