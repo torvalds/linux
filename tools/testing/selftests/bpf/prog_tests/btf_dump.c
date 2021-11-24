@@ -323,7 +323,7 @@ static void test_btf_dump_int_data(struct btf *btf, struct btf_dump *d,
 				   char *str)
 {
 #ifdef __SIZEOF_INT128__
-	__int128 i = 0xffffffffffffffff;
+	unsigned __int128 i = 0xffffffffffffffff;
 
 	/* this dance is required because we cannot directly initialize
 	 * a 128-bit value to anything larger than a 64-bit value.
