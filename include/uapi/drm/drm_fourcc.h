@@ -564,14 +564,6 @@ extern "C" {
  * pitch is required to be a multiple of 4 tile widths.
  */
 #define I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC fourcc_mod_code(INTEL, 8)
-/*
- * Intel F-tiling(aka Tile4) layout
- *
- * This is a tiled layout using 4Kb tiles in row-major layout.
- * Within the tile pixels are laid out in 64 byte units / sub-tiles in OWORD
- * (16 bytes) chunks column-major..
- */
-#define I915_FORMAT_MOD_4_TILED         fourcc_mod_code(INTEL, 9)
 
 /*
  * Tiled, NV12MT, grouped in 64 (pixels) x 32 (lines) -sized macroblocks
