@@ -2188,10 +2188,10 @@ static void shadow_walk_init_using_root(struct kvm_shadow_walk_iterator *iterato
 	iterator->shadow_addr = root;
 	iterator->level = vcpu->arch.mmu->shadow_root_level;
 
-	if (iterator->level == PT64_ROOT_4LEVEL &&
+	if (iterator->level >= PT64_ROOT_4LEVEL &&
 	    vcpu->arch.mmu->root_level < PT64_ROOT_4LEVEL &&
 	    !vcpu->arch.mmu->direct_map)
-		--iterator->level;
+		iterator->level = PT32E_ROOT_LEVEL;
 
 	if (iterator->level == PT32E_ROOT_LEVEL) {
 		/*
