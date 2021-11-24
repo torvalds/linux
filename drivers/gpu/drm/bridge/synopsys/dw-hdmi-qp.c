@@ -507,6 +507,16 @@ void dw_hdmi_qp_set_channel_allocation(struct dw_hdmi_qp *hdmi, unsigned int ca)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_channel_allocation);
 
+bool dw_hdmi_qp_connected(struct dw_hdmi_qp *hdmi)
+{
+	enum drm_connector_status status;
+
+	status = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+
+	return status == connector_status_connected;
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_connected);
+
 static void hdmi_enable_audio_clk(struct dw_hdmi_qp *hdmi, bool enable)
 {
 	if (enable)

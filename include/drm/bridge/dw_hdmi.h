@@ -292,5 +292,6 @@ void dw_hdmi_qp_set_channel_status(struct dw_hdmi_qp *hdmi, u8 *channel_status);
 void dw_hdmi_qp_set_channel_allocation(struct dw_hdmi_qp *hdmi, unsigned int ca);
 void dw_hdmi_qp_audio_enable(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_audio_disable(struct dw_hdmi_qp *hdmi);
+bool dw_hdmi_qp_connected(struct dw_hdmi_qp *hdmi);
 
 #endif /* __IMX_HDMI_H__ */
