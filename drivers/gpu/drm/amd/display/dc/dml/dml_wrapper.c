@@ -1223,8 +1223,8 @@ static void dml_full_validate_bw_helper(struct dc *dc,
 		*pipe_cnt = dml_populate_dml_pipes_from_context(dc, context, pipes, false);
 		*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
 		if (*vlevel < context->bw_ctx.dml.soc.num_states) {
-			memset(split, 0, sizeof(split));
-			memset(merge, 0, sizeof(merge));
+			memset(split, 0, MAX_PIPES * sizeof(*split));
+			memset(merge, 0, MAX_PIPES * sizeof(*merge));
 			*vlevel = dml_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
 		}
 
