@@ -82,8 +82,6 @@ void c4iw_id_free(struct c4iw_id_table *alloc, u32 obj)
 int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
 			u32 reserved, u32 flags)
 {
-	int i;
-
 	alloc->start = start;
 	alloc->flags = flags;
 	if (flags & C4IW_ID_TABLE_F_RANDOM)
@@ -97,8 +95,7 @@ int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
 		return -ENOMEM;
 
 	if (!(alloc->flags & C4IW_ID_TABLE_F_EMPTY))
-		for (i = 0; i < reserved; ++i)
-			set_bit(i, alloc->table);
+		bitmap_set(alloc->table, 0, reserved);
 
 	return 0;
 }
