@@ -13,7 +13,7 @@
 
 static int sk_diag_dump_name(struct sock *sk, struct sk_buff *nlskb)
 {
-	/* might or might not have unix_table_lock */
+	/* might or might not have unix_table_locks */
 	struct unix_address *addr = smp_load_acquire(&unix_sk(sk)->addr);
 
 	if (!addr)
@@ -204,13 +204,13 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 
-	spin_lock(&unix_table_lock);
 	for (slot = s_slot;
 	     slot < ARRAY_SIZE(unix_socket_table);
 	     s_num = 0, slot++) {
 		struct sock *sk;
 
 		num = 0;
+		spin_lock(&unix_table_locks[slot]);
 		sk_for_each(sk, &unix_socket_table[slot]) {
 			if (!net_eq(sock_net(sk), net))
 				continue;
@@ -221,14 +221,16 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			if (sk_diag_dump(sk, skb, req,
 					 NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq,
-					 NLM_F_MULTI) < 0)
+					 NLM_F_MULTI) < 0) {
+				spin_unlock(&unix_table_locks[slot]);
 				goto done;
+			}
 next:
 			num++;
 		}
+		spin_unlock(&unix_table_locks[slot]);
 	}
 done:
-	spin_unlock(&unix_table_lock);
 	cb->args[0] = slot;
 	cb->args[1] = num;
 
@@ -237,21 +239,19 @@ done:
 
 static struct sock *unix_lookup_by_ino(unsigned int ino)
 {
-	int i;
 	struct sock *sk;
+	int i;
 
-	spin_lock(&unix_table_lock);
 	for (i = 0; i < ARRAY_SIZE(unix_socket_table); i++) {
+		spin_lock(&unix_table_locks[i]);
 		sk_for_each(sk, &unix_socket_table[i])
 			if (ino == sock_i_ino(sk)) {
 				sock_hold(sk);
-				spin_unlock(&unix_table_lock);
-
+				spin_unlock(&unix_table_locks[i]);
 				return sk;
 			}
+		spin_unlock(&unix_table_locks[i]);
 	}
-
-	spin_unlock(&unix_table_lock);
 	return NULL;
 }
 
