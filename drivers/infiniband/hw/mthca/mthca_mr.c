@@ -139,7 +139,7 @@ static void mthca_buddy_free(struct mthca_buddy *buddy, u32 seg, int order)
 
 static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 {
-	int i, s;
+	int i;
 
 	buddy->max_order = max_order;
 	spin_lock_init(&buddy->lock);
@@ -152,12 +152,10 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 		goto err_out;
 
 	for (i = 0; i <= buddy->max_order; ++i) {
-		s = BITS_TO_LONGS(1 << (buddy->max_order - i));
-		buddy->bits[i] = kmalloc_array(s, sizeof(long), GFP_KERNEL);
+		buddy->bits[i] = bitmap_zalloc(1 << (buddy->max_order - i),
+					       GFP_KERNEL);
 		if (!buddy->bits[i])
 			goto err_out_free;
-		bitmap_zero(buddy->bits[i],
-			    1 << (buddy->max_order - i));
 	}
 
 	set_bit(0, buddy->bits[buddy->max_order]);
@@ -167,7 +165,7 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 
 err_out_free:
 	for (i = 0; i <= buddy->max_order; ++i)
-		kfree(buddy->bits[i]);
+		bitmap_free(buddy->bits[i]);
 
 err_out:
 	kfree(buddy->bits);
@@ -181,7 +179,7 @@ static void mthca_buddy_cleanup(struct mthca_buddy *buddy)
 	int i;
 
 	for (i = 0; i <= buddy->max_order; ++i)
-		kfree(buddy->bits[i]);
+		bitmap_free(buddy->bits[i]);
 
 	kfree(buddy->bits);
 	kfree(buddy->num_free);

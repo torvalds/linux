@@ -90,12 +90,10 @@ int mthca_alloc_init(struct mthca_alloc *alloc, u32 num, u32 mask,
 	alloc->max  = num;
 	alloc->mask = mask;
 	spin_lock_init(&alloc->lock);
-	alloc->table = kmalloc_array(BITS_TO_LONGS(num), sizeof(long),
-				     GFP_KERNEL);
+	alloc->table = bitmap_zalloc(num, GFP_KERNEL);
 	if (!alloc->table)
 		return -ENOMEM;
 
-	bitmap_zero(alloc->table, num);
 	for (i = 0; i < reserved; ++i)
 		set_bit(i, alloc->table);
 
@@ -104,7 +102,7 @@ int mthca_alloc_init(struct mthca_alloc *alloc, u32 num, u32 mask,
 
 void mthca_alloc_cleanup(struct mthca_alloc *alloc)
 {
-	kfree(alloc->table);
+	bitmap_free(alloc->table);
 }
 
 /*
