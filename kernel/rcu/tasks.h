@@ -27,6 +27,7 @@ typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
  * @rtp_jiffies: Jiffies counter value for statistics.
  * @rtp_n_lock_retries: Rough lock-contention statistic.
  * @rtp_work: Work queue for invoking callbacks.
+ * @rtp_irq_work: IRQ work queue for deferred wakeups.
  * @barrier_q_head: RCU callback for barrier operation.
  * @cpu: CPU number corresponding to this entry.
  * @rtpp: Pointer to the rcu_tasks structure.
@@ -37,6 +38,7 @@ struct rcu_tasks_percpu {
 	unsigned long rtp_jiffies;
 	unsigned long rtp_n_lock_retries;
 	struct work_struct rtp_work;
+	struct irq_work rtp_irq_work;
 	struct rcu_head barrier_q_head;
 	int cpu;
 	struct rcu_tasks *rtpp;
@@ -102,9 +104,12 @@ struct rcu_tasks {
 	char *kname;
 };
 
+static void call_rcu_tasks_iw_wakeup(struct irq_work *iwp);
+
 #define DEFINE_RCU_TASKS(rt_name, gp, call, n)						\
 static DEFINE_PER_CPU(struct rcu_tasks_percpu, rt_name ## __percpu) = {			\
 	.lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name ## __percpu.cbs_pcpu_lock),		\
+	.rtp_irq_work = IRQ_WORK_INIT(call_rcu_tasks_iw_wakeup),			\
 };											\
 static struct rcu_tasks rt_name =							\
 {											\
@@ -230,6 +235,16 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 	pr_info("%s: Setting shift to %d and lim to %d.\n", __func__, data_race(rtp->percpu_enqueue_shift), data_race(rtp->percpu_enqueue_lim));
 }
 
+// IRQ-work handler that does deferred wakeup for call_rcu_tasks_generic().
+static void call_rcu_tasks_iw_wakeup(struct irq_work *iwp)
+{
+	struct rcu_tasks *rtp;
+	struct rcu_tasks_percpu *rtpcp = container_of(iwp, struct rcu_tasks_percpu, rtp_irq_work);
+
+	rtp = rtpcp->rtpp;
+	wake_up(&rtp->cbs_wq);
+}
+
 // Enqueue a callback for the specified flavor of Tasks RCU.
 static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 				   struct rcu_tasks *rtp)
@@ -263,7 +278,7 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 	/* We can't create the thread unless interrupts are enabled. */
 	if (needwake && READ_ONCE(rtp->kthread_ptr))
-		wake_up(&rtp->cbs_wq);
+		irq_work_queue(&rtpcp->rtp_irq_work);
 }
 
 // Wait for a grace period for the specified flavor of Tasks RCU.
