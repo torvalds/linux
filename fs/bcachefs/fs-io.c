@@ -752,7 +752,7 @@ static void readpage_bio_extend(struct readpages_iter *iter,
 {
 	while (bio_sectors(bio) < sectors_this_extent &&
 	       bio->bi_vcnt < bio->bi_max_vecs) {
-		pgoff_t page_offset = bio_end_sector(bio) >> PAGE_SECTOR_SHIFT;
+		pgoff_t page_offset = bio_end_sector(bio) >> PAGE_SECTORS_SHIFT;
 		struct page *page = readpage_iter_next(iter);
 		int ret;
 
@@ -932,7 +932,7 @@ void bch2_readahead(struct readahead_control *ractl)
 
 		readpages_iter.idx++;
 
-		rbio->bio.bi_iter.bi_sector = (sector_t) index << PAGE_SECTOR_SHIFT;
+		rbio->bio.bi_iter.bi_sector = (sector_t) index << PAGE_SECTORS_SHIFT;
 		rbio->bio.bi_end_io = bch2_readpages_end_io;
 		BUG_ON(!bio_add_page(&rbio->bio, page, PAGE_SIZE, 0));
 
@@ -955,7 +955,7 @@ static void __bchfs_readpage(struct bch_fs *c, struct bch_read_bio *rbio,
 
 	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
 	rbio->bio.bi_iter.bi_sector =
-		(sector_t) page->index << PAGE_SECTOR_SHIFT;
+		(sector_t) page->index << PAGE_SECTORS_SHIFT;
 	BUG_ON(!bio_add_page(&rbio->bio, page, PAGE_SIZE, 0));
 
 	bch2_trans_init(&trans, c, 0, 0);
@@ -1231,7 +1231,7 @@ do_io:
 		}
 		BUG_ON(!sectors);
 
-		sector = ((u64) page->index << PAGE_SECTOR_SHIFT) + offset;
+		sector = ((u64) page->index << PAGE_SECTORS_SHIFT) + offset;
 
 		if (w->io &&
 		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
@@ -2287,8 +2287,8 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 		 * page
 		 */
 		ret = range_has_data(c, inode->ei_subvol,
-				POS(inode->v.i_ino, index << PAGE_SECTOR_SHIFT),
-				POS(inode->v.i_ino, (index + 1) << PAGE_SECTOR_SHIFT));
+				POS(inode->v.i_ino, index << PAGE_SECTORS_SHIFT),
+				POS(inode->v.i_ino, (index + 1) << PAGE_SECTORS_SHIFT));
 		if (ret <= 0)
 			return ret;
 
