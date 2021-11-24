@@ -176,41 +176,55 @@ struct pci_bridge_reg_behavior pcie_cap_regs_behavior[PCI_CAP_PCIE_SIZEOF / 4] =
 	[PCI_CAP_LIST_ID / 4] = {
 		/*
 		 * Capability ID, Next Capability Pointer and
-		 * Capabilities register are all read-only.
+		 * bits [14:0] of Capabilities register are all read-only.
+		 * Bit 15 of Capabilities register is reserved.
 		 */
-		.ro = ~0,
+		.ro = GENMASK(30, 0),
 	},
 
 	[PCI_EXP_DEVCAP / 4] = {
-		.ro = ~0,
+		/*
+		 * Bits [31:29] and [17:16] are reserved.
+		 * Bits [27:18] are reserved for non-upstream ports.
+		 * Bits 28 and [14:6] are reserved for non-endpoint devices.
+		 * Other bits are read-only.
+		 */
+		.ro = BIT(15) | GENMASK(5, 0),
 	},
 
 	[PCI_EXP_DEVCTL / 4] = {
-		/* Device control register is RW */
-		.rw = GENMASK(15, 0),
+		/*
+		 * Device control register is RW, except bit 15 which is
+		 * reserved for non-endpoints or non-PCIe-to-PCI/X bridges.
+		 */
+		.rw = GENMASK(14, 0),
 
 		/*
 		 * Device status register has bits 6 and [3:0] W1C, [5:4] RO,
-		 * the rest is reserved
+		 * the rest is reserved. Also bit 6 is reserved for non-upstream
+		 * ports.
 		 */
-		.w1c = (BIT(6) | GENMASK(3, 0)) << 16,
+		.w1c = GENMASK(3, 0) << 16,
 		.ro = GENMASK(5, 4) << 16,
 	},
 
 	[PCI_EXP_LNKCAP / 4] = {
-		/* All bits are RO, except bit 23 which is reserved */
-		.ro = lower_32_bits(~BIT(23)),
+		/*
+		 * All bits are RO, except bit 23 which is reserved and
+		 * bit 18 which is reserved for non-upstream ports.
+		 */
+		.ro = lower_32_bits(~(BIT(23) | PCI_EXP_LNKCAP_CLKPM)),
 	},
 
 	[PCI_EXP_LNKCTL / 4] = {
 		/*
 		 * Link control has bits [15:14], [11:3] and [1:0] RW, the
-		 * rest is reserved.
+		 * rest is reserved. Bit 8 is reserved for non-upstream ports.
 		 *
 		 * Link status has bits [13:0] RO, and bits [15:14]
 		 * W1C.
 		 */
-		.rw = GENMASK(15, 14) | GENMASK(11, 3) | GENMASK(1, 0),
+		.rw = GENMASK(15, 14) | GENMASK(11, 9) | GENMASK(7, 3) | GENMASK(1, 0),
 		.ro = GENMASK(13, 0) << 16,
 		.w1c = GENMASK(15, 14) << 16,
 	},
