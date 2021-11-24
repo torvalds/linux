@@ -3369,7 +3369,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 
 	/* sort BPF programs by section name and in-section instruction offset
 	 * for faster search */
-	qsort(obj->programs, obj->nr_programs, sizeof(*obj->programs), cmp_progs);
+	if (obj->nr_programs)
+		qsort(obj->programs, obj->nr_programs, sizeof(*obj->programs), cmp_progs);
 
 	return bpf_object__init_btf(obj, btf_data, btf_ext_data);
 }
@@ -5823,6 +5824,8 @@ static int cmp_relo_by_insn_idx(const void *key, const void *elem)
 
 static struct reloc_desc *find_prog_insn_relo(const struct bpf_program *prog, size_t insn_idx)
 {
+	if (!prog->nr_reloc)
+		return NULL;
 	return bsearch(&insn_idx, prog->reloc_desc, prog->nr_reloc,
 		       sizeof(*prog->reloc_desc), cmp_relo_by_insn_idx);
 }
@@ -5838,8 +5841,9 @@ static int append_subprog_relos(struct bpf_program *main_prog, struct bpf_progra
 	relos = libbpf_reallocarray(main_prog->reloc_desc, new_cnt, sizeof(*relos));
 	if (!relos)
 		return -ENOMEM;
-	memcpy(relos + main_prog->nr_reloc, subprog->reloc_desc,
-	       sizeof(*relos) * subprog->nr_reloc);
+	if (subprog->nr_reloc)
+		memcpy(relos + main_prog->nr_reloc, subprog->reloc_desc,
+		       sizeof(*relos) * subprog->nr_reloc);
 
 	for (i = main_prog->nr_reloc; i < new_cnt; i++)
 		relos[i].insn_idx += subprog->sub_insn_off;
