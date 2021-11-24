@@ -101,13 +101,13 @@ static u32 mthca_buddy_alloc(struct mthca_buddy *buddy, int order)
 	return -1;
 
  found:
-	clear_bit(seg, buddy->bits[o]);
+	__clear_bit(seg, buddy->bits[o]);
 	--buddy->num_free[o];
 
 	while (o > order) {
 		--o;
 		seg <<= 1;
-		set_bit(seg ^ 1, buddy->bits[o]);
+		__set_bit(seg ^ 1, buddy->bits[o]);
 		++buddy->num_free[o];
 	}
 
@@ -125,13 +125,13 @@ static void mthca_buddy_free(struct mthca_buddy *buddy, u32 seg, int order)
 	spin_lock(&buddy->lock);
 
 	while (test_bit(seg ^ 1, buddy->bits[order])) {
-		clear_bit(seg ^ 1, buddy->bits[order]);
+		__clear_bit(seg ^ 1, buddy->bits[order]);
 		--buddy->num_free[order];
 		seg >>= 1;
 		++order;
 	}
 
-	set_bit(seg, buddy->bits[order]);
+	__set_bit(seg, buddy->bits[order]);
 	++buddy->num_free[order];
 
 	spin_unlock(&buddy->lock);
@@ -158,7 +158,7 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 			goto err_out_free;
 	}
 
-	set_bit(0, buddy->bits[buddy->max_order]);
+	__set_bit(0, buddy->bits[buddy->max_order]);
 	buddy->num_free[buddy->max_order] = 1;
 
 	return 0;
