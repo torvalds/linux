@@ -125,7 +125,6 @@ struct tsnep_adapter {
 	struct platform_device *pdev;
 	struct device *dmadev;
 	void __iomem *addr;
-	unsigned long size;
 	int irq;
 
 	bool gate_control;
