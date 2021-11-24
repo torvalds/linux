@@ -252,21 +252,6 @@ static void unix_mkname_bsd(struct sockaddr_un *sunaddr, int addr_len)
 	((char *)sunaddr)[addr_len] = 0;
 }
 
-static int unix_mkname(struct sockaddr_un *sunaddr, int len, unsigned int *hashp)
-{
-	*hashp = 0;
-
-	if (sunaddr->sun_path[0]) {
-		unix_mkname_bsd(sunaddr, len);
-		len = strlen(sunaddr->sun_path) +
-			offsetof(struct sockaddr_un, sun_path) + 1;
-		return len;
-	}
-
-	*hashp = unix_hash_fold(csum_partial(sunaddr, len, 0));
-	return len;
-}
-
 static void __unix_remove_socket(struct sock *sk)
 {
 	sk_del_node_init(sk);
@@ -1168,6 +1153,9 @@ static int unix_bind_abstract(struct sock *sk, struct unix_address *addr)
 		return -EINVAL;
 	}
 
+	addr->hash = unix_hash_fold(csum_partial(addr->name, addr->len, 0));
+	addr->hash ^= sk->sk_type;
+
 	spin_lock(&unix_table_lock);
 	if (__unix_find_socket_byname(sock_net(sk), addr->name, addr->len,
 				      addr->hash)) {
@@ -1183,12 +1171,11 @@ static int unix_bind_abstract(struct sock *sk, struct unix_address *addr)
 
 static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
-	struct sock *sk = sock->sk;
 	struct sockaddr_un *sunaddr = (struct sockaddr_un *)uaddr;
 	char *sun_path = sunaddr->sun_path;
-	int err;
-	unsigned int hash;
+	struct sock *sk = sock->sk;
 	struct unix_address *addr;
+	int err;
 
 	if (addr_len == offsetof(struct sockaddr_un, sun_path) &&
 	    sunaddr->sun_family == AF_UNIX)
@@ -1198,17 +1185,18 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (err)
 		return err;
 
-	err = unix_mkname(sunaddr, addr_len, &hash);
-	if (err < 0)
-		return err;
-	addr_len = err;
+	if (sun_path[0]) {
+		unix_mkname_bsd(sunaddr, addr_len);
+		addr_len = strlen(sunaddr->sun_path) +
+			offsetof(struct sockaddr_un, sun_path) + 1;
+	}
+
 	addr = kmalloc(sizeof(*addr)+addr_len, GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 
 	memcpy(addr->name, sunaddr, addr_len);
 	addr->len = addr_len;
-	addr->hash = hash ^ sk->sk_type;
 	refcount_set(&addr->refcnt, 1);
 
 	if (sun_path[0])
