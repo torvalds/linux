@@ -121,6 +121,7 @@
 			pinctrl-names = "default";
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
+			power-domains = <&ps_i2c0>;
 		};
 
 		i2c1: i2c@235014000 {
@@ -133,6 +134,7 @@
 			pinctrl-names = "default";
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
+			power-domains = <&ps_i2c1>;
 		};
 
 		i2c2: i2c@235018000 {
@@ -146,6 +148,7 @@
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
 			status = "disabled"; /* not used in all devices */
+			power-domains = <&ps_i2c2>;
 		};
 
 		i2c3: i2c@23501c000 {
@@ -158,6 +161,7 @@
 			pinctrl-names = "default";
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
+			power-domains = <&ps_i2c3>;
 		};
 
 		i2c4: i2c@235020000 {
@@ -170,6 +174,7 @@
 			pinctrl-names = "default";
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
+			power-domains = <&ps_i2c4>;
 			status = "disabled"; /* only used in J293 */
 		};
 
@@ -185,6 +190,7 @@
 			 */
 			clocks = <&clk24>, <&clk24>;
 			clock-names = "uart", "clk_uart_baud0";
+			power-domains = <&ps_uart0>;
 			status = "disabled";
 		};
 
@@ -193,11 +199,20 @@
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			reg = <0x2 0x3b100000 0x0 0x8000>;
+			power-domains = <&ps_aic>;
+		};
+
+		pmgr: power-management@23b700000 {
+			compatible = "apple,t8103-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2 0x3b700000 0 0x14000>;
 		};
 
 		pinctrl_ap: pinctrl@23c100000 {
 			compatible = "apple,t8103-pinctrl", "apple,pinctrl";
 			reg = <0x2 0x3c100000 0x0 0x100000>;
+			power-domains = <&ps_gpio>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -247,6 +262,13 @@
 			};
 		};
 
+		pmgr_mini: power-management@23d280000 {
+			compatible = "apple,t8103-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2 0x3d280000 0 0x4000>;
+		};
+
 		pinctrl_aop: pinctrl@24a820000 {
 			compatible = "apple,t8103-pinctrl", "apple,pinctrl";
 			reg = <0x2 0x4a820000 0x0 0x4000>;
@@ -271,6 +293,7 @@
 		pinctrl_nub: pinctrl@23d1f0000 {
 			compatible = "apple,t8103-pinctrl", "apple,pinctrl";
 			reg = <0x2 0x3d1f0000 0x0 0x4000>;
+			power-domains = <&ps_nub_gpio>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -316,6 +339,7 @@
 			#iommu-cells = <1>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 696 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&ps_apcie_gp>;
 		};
 
 		pcie0_dart_1: dart@682008000 {
@@ -324,6 +348,7 @@
 			#iommu-cells = <1>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 699 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&ps_apcie_gp>;
 		};
 
 		pcie0_dart_2: dart@683008000 {
@@ -332,6 +357,7 @@
 			#iommu-cells = <1>;
 			interrupt-parent = <&aic>;
 			interrupts = <AIC_IRQ 702 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&ps_apcie_gp>;
 		};
 
 		pcie0: pcie@690000000 {
@@ -366,6 +392,7 @@
 			ranges = <0x43000000 0x6 0xa0000000 0x6 0xa0000000 0x0 0x20000000>,
 				 <0x02000000 0x0 0xc0000000 0x6 0xc0000000 0x0 0x40000000>;
 
+			power-domains = <&ps_apcie_gp>;
 			pinctrl-0 = <&pcie_pins>;
 			pinctrl-names = "default";
 
@@ -431,3 +458,5 @@
 		};
 	};
 };
+
+#include "t8103-pmgr.dtsi"
