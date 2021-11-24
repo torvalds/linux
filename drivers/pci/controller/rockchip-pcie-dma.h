@@ -203,6 +203,7 @@ struct dma_trx_obj {
 	u32				set_buf_size_pos;
 	u32				set_chk_sum_pos;
 	u32				version;
+	int				addr_reverse;
 };
 
 #if IS_ENABLED(CONFIG_ROCKCHIP_PCIE_DMA_OBJ)

@@ -168,10 +168,18 @@ static void rk_pcie_prepare_dma(struct dma_trx_obj *obj,
 		bus = obj->remote_mem_start + bus_idx * obj->buffer_size;
 		virt = obj->local_mem_base + local_idx * obj->buffer_size;
 
-		if (!is_rc(obj)) {
-			local += obj->rd_buf_size;
-			virt += obj->rd_buf_size;
-			bus += obj->wr_buf_size;
+		if (obj->addr_reverse) {
+			if (is_rc(obj)) {
+				local += obj->rd_buf_size;
+				virt += obj->rd_buf_size;
+				bus += obj->wr_buf_size;
+			}
+		} else {
+			if (!is_rc(obj)) {
+				local += obj->rd_buf_size;
+				virt += obj->rd_buf_size;
+				bus += obj->wr_buf_size;
+			}
 		}
 
 		obj->begin = ktime_get();
@@ -315,11 +323,17 @@ static enum hrtimer_restart rk_pcie_scan_timer(struct hrtimer *timer)
 	for (i = 0; i < PCIE_DMA_BUF_CNT; i++) {
 		sda_base = obj->local_mem_base + obj->buffer_size * i;
 
-		if (is_rc(obj))
-			scan_data_addr =  sda_base + obj->rd_buf_size;
-		else
-			scan_data_addr = sda_base;
-
+		if (obj->addr_reverse) {
+			if (is_rc(obj))
+				scan_data_addr = sda_base;
+			else
+				scan_data_addr =  sda_base + obj->rd_buf_size;
+		} else {
+			if (is_rc(obj))
+				scan_data_addr =  sda_base + obj->rd_buf_size;
+			else
+				scan_data_addr = sda_base;
+		}
 		sdv = readl(scan_data_addr + obj->set_data_check_pos);
 		idx = readl(scan_data_addr + obj->set_local_idx_pos);
 
@@ -815,6 +829,7 @@ struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 	struct device_node *mem;
 	struct resource reg;
 	struct dma_trx_obj *obj;
+	int reverse;
 
 	obj = devm_kzalloc(dev, sizeof(struct dma_trx_obj), GFP_KERNEL);
 	if (!obj)
@@ -829,6 +844,12 @@ struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 	}
 
 	obj->busno = busno;
+
+	ret = of_property_read_u32(np, "reverse", &reverse);
+	if (ret < 0)
+		obj->addr_reverse = 0;
+	else
+		obj->addr_reverse = reverse;
 
 	mem = of_parse_phandle(np, "memory-region", 0);
 	if (!mem) {
@@ -898,7 +919,7 @@ struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 	obj->irq_num = 0;
 	obj->loop_count_threshold = 0;
 	obj->ref_count = 0;
-	obj->version = 0x2;
+	obj->version = 0x3;
 	init_completion(&obj->done);
 
 	mutex_init(&obj->count_mutex);
