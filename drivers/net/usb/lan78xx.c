@@ -4957,8 +4957,7 @@ static int lan78xx_resume(struct usb_interface *intf)
 			if (ret < 0) {
 				if (ret == -ENODEV)
 					netif_device_detach(dev->net);
-
-			netdev_warn(dev->net, "Failed to submit intr URB");
+				netdev_warn(dev->net, "Failed to submit intr URB");
 			}
 		}
 
