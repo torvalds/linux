@@ -1091,10 +1091,9 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	return 0;
 }
 
-static bool intel_fbc_can_activate(struct intel_crtc *crtc)
+static bool intel_fbc_can_activate(struct intel_fbc *fbc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct intel_fbc *fbc = &i915->fbc;
+	struct drm_i915_private *i915 = fbc->i915;
 	struct intel_fbc_state *cache = &fbc->state_cache;
 
 	if (!intel_fbc_can_enable(fbc))
@@ -1186,7 +1185,7 @@ static bool intel_fbc_can_flip_nuke(struct intel_atomic_state *state,
 	if (drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi))
 		return false;
 
-	if (!intel_fbc_can_activate(crtc))
+	if (!intel_fbc_can_activate(fbc))
 		return false;
 
 	if (!old_fb || !new_fb)
@@ -1280,17 +1279,11 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	fbc->crtc = NULL;
 }
 
-static void __intel_fbc_post_update(struct intel_crtc *crtc)
+static void __intel_fbc_post_update(struct intel_fbc *fbc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct intel_fbc *fbc = &i915->fbc;
+	struct drm_i915_private *i915 = fbc->i915;
 
 	drm_WARN_ON(&i915->drm, !mutex_is_locked(&fbc->lock));
-
-	if (fbc->crtc != crtc)
-		return;
-
-	fbc->flip_pending = false;
 
 	if (!i915->params.enable_fbc) {
 		intel_fbc_deactivate(fbc, "disabled at runtime per module param");
@@ -1299,9 +1292,7 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 		return;
 	}
 
-	intel_fbc_get_reg_params(fbc, crtc);
-
-	if (!intel_fbc_can_activate(crtc))
+	if (!intel_fbc_can_activate(fbc))
 		return;
 
 	if (!fbc->busy_bits)
@@ -1322,7 +1313,11 @@ void intel_fbc_post_update(struct intel_atomic_state *state,
 		return;
 
 	mutex_lock(&fbc->lock);
-	__intel_fbc_post_update(crtc);
+	if (fbc->crtc == crtc) {
+		fbc->flip_pending = false;
+		intel_fbc_get_reg_params(fbc, crtc);
+		__intel_fbc_post_update(fbc);
+	}
 	mutex_unlock(&fbc->lock);
 }
 
@@ -1376,7 +1371,7 @@ void intel_fbc_flush(struct drm_i915_private *i915,
 		if (fbc->active)
 			intel_fbc_nuke(fbc);
 		else if (!fbc->flip_pending)
-			__intel_fbc_post_update(fbc->crtc);
+			__intel_fbc_post_update(fbc);
 	}
 
 out:
