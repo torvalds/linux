@@ -163,7 +163,7 @@ static u16 intel_fbc_override_cfb_stride(const struct intel_plane_state *plane_s
 
 static u32 i8xx_fbc_ctl(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 	unsigned int cfb_stride;
 	u32 fbc_ctl;
@@ -191,11 +191,11 @@ static u32 i8xx_fbc_ctl(struct intel_fbc *fbc)
 
 static u32 i965_fbc_ctl2(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	u32 fbc_ctl2;
 
 	fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM |
-		FBC_CTL_PLANE(params->crtc.i9xx_plane);
+		FBC_CTL_PLANE(params->i9xx_plane);
 
 	if (params->fence_id >= 0)
 		fbc_ctl2 |= FBC_CTL_CPU_FENCE_EN;
@@ -226,7 +226,7 @@ static void i8xx_fbc_deactivate(struct intel_fbc *fbc)
 
 static void i8xx_fbc_activate(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 	int i;
 
@@ -258,8 +258,8 @@ static bool i8xx_fbc_is_compressing(struct intel_fbc *fbc)
 
 static void i8xx_fbc_nuke(struct intel_fbc *fbc)
 {
-	struct intel_fbc_reg_params *params = &fbc->params;
-	enum i9xx_plane_id i9xx_plane = params->crtc.i9xx_plane;
+	struct intel_fbc_state *params = &fbc->params;
+	enum i9xx_plane_id i9xx_plane = params->i9xx_plane;
 	struct drm_i915_private *dev_priv = fbc->i915;
 
 	spin_lock_irq(&dev_priv->uncore.lock);
@@ -294,8 +294,8 @@ static const struct intel_fbc_funcs i8xx_fbc_funcs = {
 
 static void i965_fbc_nuke(struct intel_fbc *fbc)
 {
-	struct intel_fbc_reg_params *params = &fbc->params;
-	enum i9xx_plane_id i9xx_plane = params->crtc.i9xx_plane;
+	struct intel_fbc_state *params = &fbc->params;
+	enum i9xx_plane_id i9xx_plane = params->i9xx_plane;
 	struct drm_i915_private *dev_priv = fbc->i915;
 
 	spin_lock_irq(&dev_priv->uncore.lock);
@@ -330,12 +330,12 @@ static u32 g4x_dpfc_ctl_limit(struct intel_fbc *fbc)
 
 static u32 g4x_dpfc_ctl(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 	u32 dpfc_ctl;
 
 	dpfc_ctl = g4x_dpfc_ctl_limit(fbc) |
-		DPFC_CTL_PLANE_G4X(params->crtc.i9xx_plane);
+		DPFC_CTL_PLANE_G4X(params->i9xx_plane);
 
 	if (IS_G4X(i915))
 		dpfc_ctl |= DPFC_CTL_SR_EN;
@@ -352,7 +352,7 @@ static u32 g4x_dpfc_ctl(struct intel_fbc *fbc)
 
 static void g4x_fbc_activate(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 
 	intel_de_write(i915, DPFC_FENCE_YOFF,
@@ -403,7 +403,7 @@ static const struct intel_fbc_funcs g4x_fbc_funcs = {
 
 static void ilk_fbc_activate(struct intel_fbc *fbc)
 {
-	struct intel_fbc_reg_params *params = &fbc->params;
+	struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 
 	intel_de_write(i915, ILK_DPFC_FENCE_YOFF,
@@ -454,7 +454,7 @@ static const struct intel_fbc_funcs ilk_fbc_funcs = {
 
 static void snb_fbc_program_fence(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 	u32 ctl = 0;
 
@@ -491,7 +491,7 @@ static const struct intel_fbc_funcs snb_fbc_funcs = {
 
 static void glk_fbc_program_cfb_stride(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 	u32 val = 0;
 
@@ -504,7 +504,7 @@ static void glk_fbc_program_cfb_stride(struct intel_fbc *fbc)
 
 static void skl_fbc_program_cfb_stride(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 	u32 val = 0;
 
@@ -520,14 +520,14 @@ static void skl_fbc_program_cfb_stride(struct intel_fbc *fbc)
 
 static u32 ivb_dpfc_ctl(struct intel_fbc *fbc)
 {
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *params = &fbc->params;
 	struct drm_i915_private *i915 = fbc->i915;
 	u32 dpfc_ctl;
 
 	dpfc_ctl = g4x_dpfc_ctl_limit(fbc);
 
 	if (IS_IVYBRIDGE(i915))
-		dpfc_ctl |= DPFC_CTL_PLANE_IVB(params->crtc.i9xx_plane);
+		dpfc_ctl |= DPFC_CTL_PLANE_IVB(params->i9xx_plane);
 
 	if (params->fence_id >= 0)
 		dpfc_ctl |= DPFC_CTL_FENCE_EN_IVB;
@@ -933,11 +933,13 @@ static void intel_fbc_update_state_cache(struct intel_atomic_state *state,
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_fbc *fbc = plane->fbc;
-	struct intel_fbc_state_cache *cache = &fbc->state_cache;
+	struct intel_fbc_state *cache = &fbc->state_cache;
 
 	cache->no_fbc_reason = plane_state->no_fbc_reason;
 	if (cache->no_fbc_reason)
 		return;
+
+	cache->i9xx_plane = plane->i9xx_plane;
 
 	/* FBC1 compression interval: arbitrary choice of 1 second */
 	cache->interval = drm_mode_vrefresh(&crtc_state->hw.adjusted_mode);
@@ -1093,7 +1095,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &i915->fbc;
-	struct intel_fbc_state_cache *cache = &fbc->state_cache;
+	struct intel_fbc_state *cache = &fbc->state_cache;
 
 	if (!intel_fbc_can_enable(fbc))
 		return false;
@@ -1156,23 +1158,13 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 static void intel_fbc_get_reg_params(struct intel_fbc *fbc,
 				     struct intel_crtc *crtc)
 {
-	const struct intel_fbc_state_cache *cache = &fbc->state_cache;
-	struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *cache = &fbc->state_cache;
+	struct intel_fbc_state *params = &fbc->params;
 
 	/* Since all our fields are integer types, use memset here so the
 	 * comparison function can rely on memcmp because the padding will be
 	 * zero. */
-	memset(params, 0, sizeof(*params));
-
-	params->fence_id = cache->fence_id;
-	params->fence_y_offset = cache->fence_y_offset;
-
-	params->interval = cache->interval;
-	params->crtc.i9xx_plane = to_intel_plane(crtc->base.primary)->i9xx_plane;
-
-	params->cfb_stride = cache->cfb_stride;
-	params->cfb_size = cache->cfb_size;
-	params->override_cfb_stride = cache->override_cfb_stride;
+	*params = *cache;
 }
 
 static bool intel_fbc_can_flip_nuke(struct intel_atomic_state *state,
@@ -1188,8 +1180,8 @@ static bool intel_fbc_can_flip_nuke(struct intel_atomic_state *state,
 		intel_atomic_get_new_plane_state(state, plane);
 	const struct drm_framebuffer *old_fb = old_plane_state->hw.fb;
 	const struct drm_framebuffer *new_fb = new_plane_state->hw.fb;
-	const struct intel_fbc_state_cache *cache = &fbc->state_cache;
-	const struct intel_fbc_reg_params *params = &fbc->params;
+	const struct intel_fbc_state *cache = &fbc->state_cache;
+	const struct intel_fbc_state *params = &fbc->params;
 
 	if (drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi))
 		return false;
@@ -1426,7 +1418,7 @@ static void intel_fbc_enable(struct intel_atomic_state *state,
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_fbc *fbc = plane->fbc;
-	struct intel_fbc_state_cache *cache;
+	struct intel_fbc_state *cache;
 	int min_limit;
 
 	if (!fbc || !plane_state)

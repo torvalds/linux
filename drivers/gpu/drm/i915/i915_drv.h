@@ -382,6 +382,17 @@ struct intel_fbc_funcs;
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
 
+struct intel_fbc_state {
+	const char *no_fbc_reason;
+	enum i9xx_plane_id i9xx_plane;
+	unsigned int cfb_stride;
+	unsigned int cfb_size;
+	unsigned int fence_y_offset;
+	u16 override_cfb_stride;
+	u16 interval;
+	s8 fence_id;
+};
+
 struct intel_fbc {
 	struct drm_i915_private *i915;
 	const struct intel_fbc_funcs *funcs;
@@ -412,16 +423,7 @@ struct intel_fbc {
 	 * appropriate locking, so we cache information here in order to avoid
 	 * these problems.
 	 */
-	struct intel_fbc_state_cache {
-		const char *no_fbc_reason;
-
-		unsigned int cfb_stride;
-		unsigned int cfb_size;
-		unsigned int fence_y_offset;
-		u16 override_cfb_stride;
-		u16 interval;
-		s8 fence_id;
-	} state_cache;
+	struct intel_fbc_state state_cache;
 
 	/*
 	 * This structure contains everything that's relevant to program the
@@ -430,19 +432,7 @@ struct intel_fbc {
 	 * something different in the struct. The genx_fbc_activate functions
 	 * are supposed to read from it in order to program the registers.
 	 */
-	struct intel_fbc_reg_params {
-		struct {
-			enum i9xx_plane_id i9xx_plane;
-		} crtc;
-
-		unsigned int cfb_stride;
-		unsigned int cfb_size;
-		unsigned int fence_y_offset;
-		u16 override_cfb_stride;
-		u16 interval;
-		s8 fence_id;
-	} params;
-
+	struct intel_fbc_state params;
 	const char *no_fbc_reason;
 };
 
