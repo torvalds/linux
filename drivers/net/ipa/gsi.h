@@ -145,21 +145,21 @@ struct gsi_evt_ring {
 struct gsi {
 	struct device *dev;		/* Same as IPA device */
 	enum ipa_version version;
-	struct net_device dummy_dev;	/* needed for NAPI */
 	void __iomem *virt_raw;		/* I/O mapped address range */
 	void __iomem *virt;		/* Adjusted for most registers */
 	u32 irq;
 	u32 channel_count;
 	u32 evt_ring_count;
-	struct gsi_channel channel[GSI_CHANNEL_COUNT_MAX];
-	struct gsi_evt_ring evt_ring[GSI_EVT_RING_COUNT_MAX];
 	u32 event_bitmap;		/* allocated event rings */
 	u32 modem_channel_bitmap;	/* modem channels to allocate */
 	u32 type_enabled_bitmap;	/* GSI IRQ types enabled */
 	u32 ieob_enabled_bitmap;	/* IEOB IRQ enabled (event rings) */
-	struct completion completion;	/* Signals GSI command completion */
 	int result;			/* Negative errno (generic commands) */
+	struct completion completion;	/* Signals GSI command completion */
 	struct mutex mutex;		/* protects commands, programming */
+	struct gsi_channel channel[GSI_CHANNEL_COUNT_MAX];
+	struct gsi_evt_ring evt_ring[GSI_EVT_RING_COUNT_MAX];
+	struct net_device dummy_dev;	/* needed for NAPI */
 };
 
 /**
