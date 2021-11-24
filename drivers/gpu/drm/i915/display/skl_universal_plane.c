@@ -1833,7 +1833,7 @@ static struct intel_fbc *skl_plane_fbc(struct drm_i915_private *dev_priv,
 				       enum pipe pipe, enum plane_id plane_id)
 {
 	if (skl_plane_has_fbc(dev_priv, pipe, plane_id))
-		return &dev_priv->fbc;
+		return dev_priv->fbc;
 	else
 		return NULL;
 }

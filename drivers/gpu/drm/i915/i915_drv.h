@@ -378,63 +378,7 @@ struct drm_i915_display_funcs {
 	void (*commit_modeset_enables)(struct intel_atomic_state *state);
 };
 
-struct intel_fbc_funcs;
-
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
-
-struct intel_fbc_state {
-	const char *no_fbc_reason;
-	enum i9xx_plane_id i9xx_plane;
-	unsigned int cfb_stride;
-	unsigned int cfb_size;
-	unsigned int fence_y_offset;
-	u16 override_cfb_stride;
-	u16 interval;
-	s8 fence_id;
-};
-
-struct intel_fbc {
-	struct drm_i915_private *i915;
-	const struct intel_fbc_funcs *funcs;
-
-	/* This is always the inner lock when overlapping with struct_mutex and
-	 * it's the outer lock when overlapping with stolen_lock. */
-	struct mutex lock;
-	unsigned int possible_framebuffer_bits;
-	unsigned int busy_bits;
-	struct intel_plane *plane;
-
-	struct drm_mm_node compressed_fb;
-	struct drm_mm_node compressed_llb;
-
-	u8 limit;
-
-	bool false_color;
-
-	bool active;
-	bool activated;
-	bool flip_pending;
-
-	bool underrun_detected;
-	struct work_struct underrun_work;
-
-	/*
-	 * Due to the atomic rules we can't access some structures without the
-	 * appropriate locking, so we cache information here in order to avoid
-	 * these problems.
-	 */
-	struct intel_fbc_state state_cache;
-
-	/*
-	 * This structure contains everything that's relevant to program the
-	 * hardware registers. When we want to figure out if we need to disable
-	 * and re-enable FBC for a new configuration we just check if there's
-	 * something different in the struct. The genx_fbc_activate functions
-	 * are supposed to read from it in order to program the registers.
-	 */
-	struct intel_fbc_state params;
-	const char *no_fbc_reason;
-};
 
 /*
  * HIGH_RR is the highest eDP panel refresh rate read from EDID
@@ -472,7 +416,6 @@ struct i915_drrs {
 #define QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK (1<<8)
 
 struct intel_fbdev;
-struct intel_fbc_work;
 
 struct intel_gmbus {
 	struct i2c_adapter adapter;
@@ -808,7 +751,7 @@ struct drm_i915_private {
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	struct i915_hotplug hotplug;
-	struct intel_fbc fbc;
+	struct intel_fbc *fbc;
 	struct i915_drrs drrs;
 	struct intel_opregion opregion;
 	struct intel_vbt_data vbt;
