@@ -334,7 +334,17 @@ int cscfg_configfs_add_config(struct cscfg_config_desc *config_desc)
 	if (IS_ERR(new_group))
 		return PTR_ERR(new_group);
 	err =  configfs_register_group(&cscfg_configs_grp, new_group);
+	if (!err)
+		config_desc->fs_group = new_group;
 	return err;
+}
+
+void cscfg_configfs_del_config(struct cscfg_config_desc *config_desc)
+{
+	if (config_desc->fs_group) {
+		configfs_unregister_group(config_desc->fs_group);
+		config_desc->fs_group = NULL;
+	}
 }
 
 static struct config_item_type cscfg_features_type = {
@@ -358,7 +368,17 @@ int cscfg_configfs_add_feature(struct cscfg_feature_desc *feat_desc)
 	if (IS_ERR(new_group))
 		return PTR_ERR(new_group);
 	err =  configfs_register_group(&cscfg_features_grp, new_group);
+	if (!err)
+		feat_desc->fs_group = new_group;
 	return err;
+}
+
+void cscfg_configfs_del_feature(struct cscfg_feature_desc *feat_desc)
+{
+	if (feat_desc->fs_group) {
+		configfs_unregister_group(feat_desc->fs_group);
+		feat_desc->fs_group = NULL;
+	}
 }
 
 int cscfg_configfs_init(struct cscfg_manager *cscfg_mgr)

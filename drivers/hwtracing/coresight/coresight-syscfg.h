@@ -93,6 +93,7 @@ int cscfg_update_feat_param_val(struct cscfg_feature_desc *feat_desc,
 int cscfg_load_config_sets(struct cscfg_config_desc **cfg_descs,
 			   struct cscfg_feature_desc **feat_descs,
 			   struct cscfg_load_owner_info *owner_info);
+int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info);
 int cscfg_register_csdev(struct coresight_device *csdev, u32 match_flags,
 			 struct cscfg_csdev_feat_ops *ops);
 void cscfg_unregister_csdev(struct coresight_device *csdev);

@@ -98,6 +98,7 @@ struct cscfg_regval_desc {
  * @nr_regs:	 number of registers used.
  * @regs_desc:	 array of registers used.
  * @load_owner:	 handle to load owner for dynamic load and unload of features.
+ * @fs_group:	 reference to configfs group for dynamic unload.
  */
 struct cscfg_feature_desc {
 	const char *name;
@@ -109,6 +110,7 @@ struct cscfg_feature_desc {
 	int nr_regs;
 	struct cscfg_regval_desc *regs_desc;
 	void *load_owner;
+	struct config_group *fs_group;
 };
 
 /**
@@ -131,6 +133,7 @@ struct cscfg_feature_desc {
  * @event_ea:		Extended attribute for perf event value
  * @active_cnt:		ref count for activate on this configuration.
  * @load_owner:		handle to load owner for dynamic load and unload of configs.
+ * @fs_group:		reference to configfs group for dynamic unload.
  */
 struct cscfg_config_desc {
 	const char *name;
@@ -144,6 +147,7 @@ struct cscfg_config_desc {
 	struct dev_ext_attribute *event_ea;
 	atomic_t active_cnt;
 	void *load_owner;
+	struct config_group *fs_group;
 };
 
 /**

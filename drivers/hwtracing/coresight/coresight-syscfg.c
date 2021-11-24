@@ -250,6 +250,13 @@ static int cscfg_check_feat_for_cfg(struct cscfg_config_desc *config_desc)
 static int cscfg_load_feat(struct cscfg_feature_desc *feat_desc)
 {
 	int err;
+	struct cscfg_feature_desc *feat_desc_exist;
+
+	/* new feature must have unique name */
+	list_for_each_entry(feat_desc_exist, &cscfg_mgr->feat_desc_list, item) {
+		if (!strcmp(feat_desc_exist->name, feat_desc->name))
+			return -EEXIST;
+	}
 
 	/* add feature to any matching registered devices */
 	err = cscfg_add_feat_to_csdevs(feat_desc);
@@ -267,6 +274,13 @@ static int cscfg_load_feat(struct cscfg_feature_desc *feat_desc)
 static int cscfg_load_config(struct cscfg_config_desc *config_desc)
 {
 	int err;
+	struct cscfg_config_desc *config_desc_exist;
+
+	/* new configuration must have a unique name */
+	list_for_each_entry(config_desc_exist, &cscfg_mgr->config_desc_list, item) {
+		if (!strcmp(config_desc_exist->name, config_desc->name))
+			return -EEXIST;
+	}
 
 	/* validate features are present */
 	err = cscfg_check_feat_for_cfg(config_desc);
@@ -354,6 +368,72 @@ unlock_exit:
 	return err;
 }
 
+static void cscfg_remove_owned_csdev_configs(struct coresight_device *csdev, void *load_owner)
+{
+	struct cscfg_config_csdev *config_csdev, *tmp;
+
+	if (list_empty(&csdev->config_csdev_list))
+		return;
+
+	list_for_each_entry_safe(config_csdev, tmp, &csdev->config_csdev_list, node) {
+		if (config_csdev->config_desc->load_owner == load_owner)
+			list_del(&config_csdev->node);
+	}
+}
+
+static void cscfg_remove_owned_csdev_features(struct coresight_device *csdev, void *load_owner)
+{
+	struct cscfg_feature_csdev *feat_csdev, *tmp;
+
+	if (list_empty(&csdev->feature_csdev_list))
+		return;
+
+	list_for_each_entry_safe(feat_csdev, tmp, &csdev->feature_csdev_list, node) {
+		if (feat_csdev->feat_desc->load_owner == load_owner)
+			list_del(&feat_csdev->node);
+	}
+}
+
+/*
+ * removal is relatively easy - just remove from all lists, anything that
+ * matches the owner. Memory for the descriptors will be managed by the owner,
+ * memory for the csdev items is devm_ allocated with the individual csdev
+ * devices.
+ */
+static void cscfg_unload_owned_cfgs_feats(void *load_owner)
+{
+	struct cscfg_config_desc *config_desc, *cfg_tmp;
+	struct cscfg_feature_desc *feat_desc, *feat_tmp;
+	struct cscfg_registered_csdev *csdev_item;
+
+	/* remove from each csdev instance feature and config lists */
+	list_for_each_entry(csdev_item, &cscfg_mgr->csdev_desc_list, item) {
+		/*
+		 * for each csdev, check the loaded lists and remove if
+		 * referenced descriptor is owned
+		 */
+		cscfg_remove_owned_csdev_configs(csdev_item->csdev, load_owner);
+		cscfg_remove_owned_csdev_features(csdev_item->csdev, load_owner);
+	}
+
+	/* remove from the config descriptor lists */
+	list_for_each_entry_safe(config_desc, cfg_tmp, &cscfg_mgr->config_desc_list, item) {
+		if (config_desc->load_owner == load_owner) {
+			cscfg_configfs_del_config(config_desc);
+			etm_perf_del_symlink_cscfg(config_desc);
+			list_del(&config_desc->item);
+		}
+	}
+
+	/* remove from the feature descriptor lists */
+	list_for_each_entry_safe(feat_desc, feat_tmp, &cscfg_mgr->feat_desc_list, item) {
+		if (feat_desc->load_owner == load_owner) {
+			cscfg_configfs_del_feature(feat_desc);
+			list_del(&feat_desc->item);
+		}
+	}
+}
+
 /**
  * cscfg_load_config_sets - API function to load feature and config sets.
  *
@@ -389,6 +469,7 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 			if (err) {
 				pr_err("coresight-syscfg: Failed to load feature %s\n",
 				       feat_descs[i]->name);
+				cscfg_unload_owned_cfgs_feats(owner_info);
 				goto exit_unlock;
 			}
 			feat_descs[i]->load_owner = owner_info;
@@ -406,6 +487,7 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 			if (err) {
 				pr_err("coresight-syscfg: Failed to load configuration %s\n",
 				       config_descs[i]->name);
+				cscfg_unload_owned_cfgs_feats(owner_info);
 				goto exit_unlock;
 			}
 			config_descs[i]->load_owner = owner_info;
@@ -421,6 +503,57 @@ exit_unlock:
 	return err;
 }
 EXPORT_SYMBOL_GPL(cscfg_load_config_sets);
+
+/**
+ * cscfg_unload_config_sets - unload a set of configurations by owner.
+ *
+ * Dynamic unload of configuration and feature sets is done on the basis of
+ * the load owner of that set. Later loaded configurations can depend on
+ * features loaded earlier.
+ *
+ * Therefore, unload is only possible if:-
+ * 1) no configurations are active.
+ * 2) the set being unloaded was the last to be loaded to maintain dependencies.
+ *
+ * @owner_info:	Information on owner for set being unloaded.
+ */
+int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
+{
+	int err = 0;
+	struct cscfg_load_owner_info *load_list_item = NULL;
+
+	mutex_lock(&cscfg_mutex);
+
+	/* cannot unload if anything is active */
+	if (atomic_read(&cscfg_mgr->sys_active_cnt)) {
+		err = -EBUSY;
+		goto exit_unlock;
+	}
+
+	/* cannot unload if not last loaded in load order */
+	if (!list_empty(&cscfg_mgr->load_order_list)) {
+		load_list_item = list_last_entry(&cscfg_mgr->load_order_list,
+						 struct cscfg_load_owner_info, item);
+		if (load_list_item != owner_info)
+			load_list_item = NULL;
+	}
+
+	if (!load_list_item) {
+		err = -EINVAL;
+		goto exit_unlock;
+	}
+
+	/* unload all belonging to load_owner */
+	cscfg_unload_owned_cfgs_feats(owner_info);
+
+	/* remove from load order list */
+	list_del(&load_list_item->item);
+
+exit_unlock:
+	mutex_unlock(&cscfg_mutex);
+	return err;
+}
+EXPORT_SYMBOL_GPL(cscfg_unload_config_sets);
 
 /* Handle coresight device registration and add configs and features to devices */
 
