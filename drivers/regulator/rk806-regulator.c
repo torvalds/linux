@@ -9,11 +9,11 @@
 
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mfd/rk806.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include "internal.h"
@@ -64,31 +64,31 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define RK806_RAMP_RATE_1LSB_PER_13CLK	0x06/* LDO 1.9mV/uS buck 961mV/us */
 #define RK806_RAMP_RATE_1LSB_PER_32CLK	0x07/* LDO 0.78mV/uS buck 0.39mV/us */
 
-static int gpio_dvs_id[] = {
-	BUCK1_SLP_CTR_SEL,
-	BUCK2_SLP_CTR_SEL,
-	BUCK3_SLP_CTR_SEL,
-	BUCK4_SLP_CTR_SEL,
-	BUCK5_SLP_CTR_SEL,
-	BUCK6_SLP_CTR_SEL,
-	BUCK7_SLP_CTR_SEL,
-	BUCK8_SLP_CTR_SEL,
-	BUCK9_SLP_CTR_SEL,
-	BUCK10_SLP_CTR_SEL,
-	NLDO1_SLP_CTR_SEL,
-	NLDO2_SLP_CTR_SEL,
-	NLDO3_SLP_CTR_SEL,
-	NLDO4_SLP_CTR_SEL,
-	NLDO5_SLP_CTR_SEL,
-	PLDO1_SLP_CTR_SEL,
-	PLDO2_SLP_CTR_SEL,
-	PLDO3_SLP_CTR_SEL,
-	PLDO4_SLP_CTR_SEL,
-	PLDO5_SLP_CTR_SEL,
-	PLDO6_SLP_CTR_SEL,
+static int vsel_ctr_sel_id[RK806_ID_END] = {
+	BUCK1_VSEL_CTR_SEL,
+	BUCK2_VSEL_CTR_SEL,
+	BUCK3_VSEL_CTR_SEL,
+	BUCK4_VSEL_CTR_SEL,
+	BUCK5_VSEL_CTR_SEL,
+	BUCK6_VSEL_CTR_SEL,
+	BUCK7_VSEL_CTR_SEL,
+	BUCK8_VSEL_CTR_SEL,
+	BUCK9_VSEL_CTR_SEL,
+	BUCK10_VSEL_CTR_SEL,
+	NLDO1_VSEL_CTR_SEL,
+	NLDO2_VSEL_CTR_SEL,
+	NLDO3_VSEL_CTR_SEL,
+	NLDO4_VSEL_CTR_SEL,
+	NLDO5_VSEL_CTR_SEL,
+	PLDO1_VSEL_CTR_SEL,
+	PLDO2_VSEL_CTR_SEL,
+	PLDO3_VSEL_CTR_SEL,
+	PLDO4_VSEL_CTR_SEL,
+	PLDO5_VSEL_CTR_SEL,
+	PLDO6_VSEL_CTR_SEL,
 };
 
-static int start_dvs_id[] = {
+static int start_dvs_id[RK806_ID_END] = {
 	BUCK1_DVS_CTR_SEL,
 	BUCK2_DVS_CTR_SEL,
 	BUCK3_DVS_CTR_SEL,
@@ -131,7 +131,7 @@ struct rk806_dvs_field {
 	int sleep_en;
 	int on_vsel;
 	int sleep_vsel;
-	int sleep_ctrl_sel;
+	int vsel_ctrl_sel;
 };
 
 struct rk806_dvs_status {
@@ -140,7 +140,7 @@ struct rk806_dvs_status {
 	int sleep_en_val;
 	int on_vsel_val;
 	int sleep_vsel_val;
-	int sleep_ctrl_sel_val;
+	int vsel_ctrl_sel_val;
 	int dvs_gpio_level[3];
 };
 
@@ -152,76 +152,79 @@ struct rk806_regulator_data {
 
 	int dvs_ctrl_mode_init[RK806_ID_END];
 	int dvs_ctrl_mode[RK806_ID_END];
-	int dvs_gpios[3];
+	int dvs_ctrl_id[RK806_ID_END];
+	int vsel_ctrl_id[RK806_ID_END];
 
 	int dvs_flag[RK806_DVS_END];
 	int dvs_used[RK806_DVS_END];
 	int dvs_count[RK806_DVS_END];
+
 	int regulator_init;
 	int support_dvs;
+	struct gpio_desc *dvs_gpios[3];
 	struct rk806 *rk806;
 };
 
 #define INIT_DVS_FIELD(_en_reg, _en_bit, _sleep_en, _on_vsel,	\
-			_sleep_vsel, _sleep_ctrl_sel)	\
+			_sleep_vsel, _vsel_ctrl_sel)	\
 {	\
 	.en_reg = _en_reg,	\
 	.en_bit = _en_bit,	\
 	.sleep_en = _sleep_en,	\
 	.on_vsel = _on_vsel,	\
 	.sleep_vsel = _sleep_vsel,	\
-	.sleep_ctrl_sel = _sleep_ctrl_sel,	\
+	.vsel_ctrl_sel = _vsel_ctrl_sel,	\
 }
 
-static const struct rk806_dvs_field rk806_dvs_field[] = {
+static const struct rk806_dvs_field rk806_dvs_fields[RK806_ID_END] = {
 	INIT_DVS_FIELD(POWER_EN0, BIT(0), BUCK1_SLP_EN,
-		       BUCK1_ON_VSEL, BUCK1_SLP_VSEL, BUCK1_SLP_CTR_SEL),
+		       BUCK1_ON_VSEL, BUCK1_SLP_VSEL, BUCK1_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN0, BIT(1), BUCK2_SLP_EN,
-		       BUCK2_ON_VSEL, BUCK2_SLP_VSEL, BUCK2_SLP_CTR_SEL),
+		       BUCK2_ON_VSEL, BUCK2_SLP_VSEL, BUCK2_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN0, BIT(2), BUCK3_SLP_EN,
-		       BUCK3_ON_VSEL, BUCK3_SLP_VSEL, BUCK3_SLP_CTR_SEL),
+		       BUCK3_ON_VSEL, BUCK3_SLP_VSEL, BUCK3_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN0, BIT(3), BUCK4_SLP_EN,
-		       BUCK4_ON_VSEL, BUCK4_SLP_VSEL, BUCK4_SLP_CTR_SEL),
+		       BUCK4_ON_VSEL, BUCK4_SLP_VSEL, BUCK4_VSEL_CTR_SEL),
 
 	INIT_DVS_FIELD(POWER_EN1, BIT(0), BUCK5_SLP_EN,
-		       BUCK5_ON_VSEL, BUCK5_SLP_VSEL, BUCK5_SLP_CTR_SEL),
+		       BUCK5_ON_VSEL, BUCK5_SLP_VSEL, BUCK5_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN1, BIT(1), BUCK6_SLP_EN,
-		       BUCK6_ON_VSEL, BUCK6_SLP_VSEL, BUCK6_SLP_CTR_SEL),
+		       BUCK6_ON_VSEL, BUCK6_SLP_VSEL, BUCK6_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN1, BIT(2), BUCK7_SLP_EN,
-		       BUCK7_ON_VSEL, BUCK7_SLP_VSEL, BUCK7_SLP_CTR_SEL),
+		       BUCK7_ON_VSEL, BUCK7_SLP_VSEL, BUCK7_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN1, BIT(3), BUCK8_SLP_EN,
-		       BUCK8_ON_VSEL, BUCK8_SLP_VSEL, BUCK8_SLP_CTR_SEL),
+		       BUCK8_ON_VSEL, BUCK8_SLP_VSEL, BUCK8_VSEL_CTR_SEL),
 
 	INIT_DVS_FIELD(POWER_EN2, BIT(0), BUCK9_SLP_EN,
-		       BUCK9_ON_VSEL, BUCK9_SLP_VSEL, BUCK9_SLP_CTR_SEL),
+		       BUCK9_ON_VSEL, BUCK9_SLP_VSEL, BUCK9_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN2, BIT(1), BUCK10_SLP_EN,
-		       BUCK10_ON_VSEL, BUCK10_SLP_VSEL, BUCK10_SLP_CTR_SEL),
+		       BUCK10_ON_VSEL, BUCK10_SLP_VSEL, BUCK10_VSEL_CTR_SEL),
 
 	INIT_DVS_FIELD(POWER_EN3, BIT(0), NLDO1_SLP_EN,
-		       NLDO1_ON_VSEL, NLDO1_SLP_VSEL, NLDO1_SLP_CTR_SEL),
+		       NLDO1_ON_VSEL, NLDO1_SLP_VSEL, NLDO1_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN3, BIT(1), NLDO2_SLP_EN,
-		       NLDO2_ON_VSEL, NLDO2_SLP_VSEL, NLDO2_SLP_CTR_SEL),
+		       NLDO2_ON_VSEL, NLDO2_SLP_VSEL, NLDO2_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN3, BIT(2), NLDO3_SLP_EN,
-		       NLDO3_ON_VSEL, NLDO3_SLP_VSEL, NLDO3_SLP_CTR_SEL),
+		       NLDO3_ON_VSEL, NLDO3_SLP_VSEL, NLDO3_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN3, BIT(3), NLDO4_SLP_EN,
-		       NLDO4_ON_VSEL, NLDO4_SLP_VSEL, NLDO4_SLP_CTR_SEL),
+		       NLDO4_ON_VSEL, NLDO4_SLP_VSEL, NLDO4_VSEL_CTR_SEL),
 
 	INIT_DVS_FIELD(POWER_EN5, BIT(2), NLDO5_SLP_EN,
-		       NLDO5_ON_VSEL, NLDO5_SLP_VSEL, NLDO5_SLP_CTR_SEL),
+		       NLDO5_ON_VSEL, NLDO5_SLP_VSEL, NLDO5_VSEL_CTR_SEL),
 
 	INIT_DVS_FIELD(POWER_EN4, BIT(0), PLDO1_SLP_EN,
-		       PLDO1_ON_VSEL, PLDO1_SLP_VSEL, PLDO1_SLP_CTR_SEL),
+		       PLDO1_ON_VSEL, PLDO1_SLP_VSEL, PLDO1_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN4, BIT(1), PLDO2_SLP_EN,
-		       PLDO2_ON_VSEL, PLDO2_SLP_VSEL, PLDO2_SLP_CTR_SEL),
+		       PLDO2_ON_VSEL, PLDO2_SLP_VSEL, PLDO2_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN4, BIT(2), PLDO3_SLP_EN,
-		       PLDO3_ON_VSEL, PLDO3_SLP_VSEL, PLDO3_SLP_CTR_SEL),
+		       PLDO3_ON_VSEL, PLDO3_SLP_VSEL, PLDO3_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN4, BIT(3), PLDO4_SLP_EN,
-		       PLDO4_ON_VSEL, PLDO4_SLP_VSEL, PLDO4_SLP_CTR_SEL),
+		       PLDO4_ON_VSEL, PLDO4_SLP_VSEL, PLDO4_VSEL_CTR_SEL),
 
 	INIT_DVS_FIELD(POWER_EN5, BIT(0), PLDO5_SLP_EN,
-		       PLDO5_ON_VSEL, PLDO5_SLP_VSEL, PLDO5_SLP_CTR_SEL),
+		       PLDO5_ON_VSEL, PLDO5_SLP_VSEL, PLDO5_VSEL_CTR_SEL),
 	INIT_DVS_FIELD(POWER_EN5, BIT(1), PLDO6_SLP_EN,
-		       PLDO6_ON_VSEL, PLDO6_SLP_VSEL, PLDO6_SLP_CTR_SEL),
+		       PLDO6_ON_VSEL, PLDO6_SLP_VSEL, PLDO6_VSEL_CTR_SEL),
 };
 
 static const struct linear_range rk806_buck_voltage_ranges[] = {
@@ -248,49 +251,79 @@ static int get_count(int value)
 	return count;
 }
 
-static int get_dvs_mode(struct regulator_dev *rdev)
+static void rk806_dvs_start_fun_init(struct regulator_dev *rdev)
 {
 	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
 	struct rk806 *rk806 = pdata->rk806;
 	int rid = rdev_get_id(rdev);
-	int i, j;
 
-	if (!pdata->support_dvs)
-		return RK806_DVS_NOT_SUPPORT;
+	rk806_field_write(rk806,
+			  pdata->dvs_ctrl_id[rid],
+			  pdata->dvs_ctrl_mode[rid]);
+}
 
-	if (pdata->dvs_ctrl_mode_init[rid] || pdata->regulator_init)
-		return pdata->dvs_ctrl_mode[rid];
+static void rk806_dvs_pwrctrl_fun_init(struct regulator_dev *rdev)
+{
+	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
+	struct rk806 *rk806 = pdata->rk806;
+	int rid = rdev_get_id(rdev);
+	int offset;
 
-	for (i = 0; i < RK806_DVS_END; i++) {
+	/* init dvs pin function */
+	offset = pdata->dvs_ctrl_mode[rid] - RK806_DVS_PWRCTRL1;
+	rk806_field_write(rk806, PWRCTRL1_FUN + offset, PWRCTRL_DVS_FUN);
+
+	rk806_field_write(rk806,
+			  pdata->dvs_ctrl_id[rid],
+			  pdata->dvs_ctrl_mode[rid] - RK806_DVS_START3);
+}
+
+static void rk806_dvs_start_pwrctrl_fun_init(struct regulator_dev *rdev)
+{
+	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
+	struct rk806 *rk806 = pdata->rk806;
+	int rid = rdev_get_id(rdev);
+	int offset;
+
+	/* init dvs pin function */
+	offset = pdata->dvs_ctrl_mode[rid] - RK806_DVS_START_PWRCTR1;
+	/*set pin polarity, active high */
+	rk806_field_write(rk806, PWRCTRL1_POL + offset, POL_HIGH);
+	rk806_field_write(rk806, PWRCTRL1_FUN + offset, PWRCTRL_DVS_FUN);
+
+	/* enable start bit dvs  function */
+	rk806_field_write(rk806,
+			  pdata->dvs_ctrl_id[rid],
+			  pdata->dvs_ctrl_mode[rid] - RK806_DVS_PWRCTRL3);
+	rk806_field_write(rk806,
+			  pdata->vsel_ctrl_id[rid],
+			  pdata->dvs_ctrl_mode[rid] - RK806_DVS_PWRCTRL3);
+
+}
+
+static int rk806_dvs_mode_init(struct regulator_dev *rdev)
+{
+	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
+	int rid = rdev_get_id(rdev);
+	int mode, j;
+
+	for (mode = RK806_DVS_START1; mode < RK806_DVS_END; mode++) {
 		for (j = 0; j < RK806_ID_END; j++) {
-			if ((pdata->dvs_dn[i][j] == NULL) ||
-			    (strcmp(pdata->dvs_dn[i][j]->name, rdev->desc->name)))
+			if ((pdata->dvs_dn[mode][j] == NULL) ||
+			    (strcmp(pdata->dvs_dn[mode][j]->name, rdev->desc->name)))
 				continue;
 
-			pdata->dvs_ctrl_mode[rid] = i;
+			pdata->dvs_ctrl_mode[rid] = mode;
 			pdata->dvs_ctrl_mode_init[rid] = 1;
-			pdata->dvs_flag[i] |= BIT(rid);
-			pdata->dvs_field[j] = rk806_dvs_field[j];
-
-			/* init dvs pin function */
-			if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN1)
-				rk806_field_write(rk806, SLP1_FUN, RK806_PIN_FUN_DVS);
-			else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN2)
-				rk806_field_write(rk806, SLP2_FUN, RK806_PIN_FUN_DVS);
-			else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN3)
-				rk806_field_write(rk806, SLP3_FUN, RK806_PIN_FUN_DVS);
+			pdata->dvs_flag[mode] |= BIT(rid);
 
 			/* init dvs function, dvs-pin or start bit */
-			if ((pdata->dvs_ctrl_mode[rid] >= RK806_DVS_BY_CTR_PIN1) &&
-			    (pdata->dvs_ctrl_mode[rid] <= RK806_DVS_BY_CTR_PIN3))
-				rk806_field_write(rk806, gpio_dvs_id[rid], pdata->dvs_ctrl_mode[rid]);
-
-			if ((pdata->dvs_ctrl_mode[rid] >= RK806_DVS_BY_CTR_START1) &&
-			    (pdata->dvs_ctrl_mode[rid] <= RK806_DVS_BY_CTR_START3))
-				rk806_field_write(rk806,
-						  start_dvs_id[rid],
-						  pdata->dvs_ctrl_mode[rid] - RK806_DVS_BY_CTR_PIN3);
-
+			if (mode <= RK806_DVS_START3)
+				rk806_dvs_start_fun_init(rdev);
+			else if (mode <= RK806_DVS_PWRCTRL3)
+				rk806_dvs_pwrctrl_fun_init(rdev);
+			else if (mode <= RK806_DVS_START_PWRCTR3)
+				rk806_dvs_start_pwrctrl_fun_init(rdev);
 			return pdata->dvs_ctrl_mode[rid];
 		}
 	}
@@ -298,9 +331,28 @@ static int get_dvs_mode(struct regulator_dev *rdev)
 	return pdata->dvs_ctrl_mode[rid];
 }
 
-static int get_gpio_id(struct regulator_dev *rdev)
+static int get_dvs_mode(struct regulator_dev *rdev)
 {
-	return get_dvs_mode(rdev) - 1;
+	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
+	int rid = rdev_get_id(rdev);
+
+	if (!pdata->support_dvs)
+		return RK806_DVS_NOT_SUPPORT;
+
+	if (pdata->dvs_ctrl_mode_init[rid] || pdata->regulator_init)
+		return pdata->dvs_ctrl_mode[rid];
+
+	return rk806_dvs_mode_init(rdev);
+}
+
+static int get_gpio_id(int mode)
+{
+	int pid = -1;
+
+	if ((mode >= RK806_DVS_PWRCTRL1) && (mode <= RK806_DVS_PWRCTRL3))
+		pid = mode - RK806_DVS_PWRCTRL1;
+
+	return pid;
 }
 
 static int rk806_get_reg_offset(int id)
@@ -325,19 +377,16 @@ static int rk806_get_read_vsel_register(struct regulator_dev *rdev)
 	int rid = rdev_get_id(rdev);
 	int mode;
 
+	vsel_reg = rdev->desc->vsel_reg;
+	if (!pdata->support_dvs)
+		return vsel_reg;
+
 	mode = get_dvs_mode(rdev);
-	if (mode == RK806_DVS_NOT_SUPPORT)
-		return rdev->desc->vsel_reg;
-
-	if ((mode < RK806_DVS_BY_CTR_PIN1) || (mode > RK806_DVS_BY_CTR_PIN3)) {
-		vsel_reg = rdev->desc->vsel_reg;
-	} else {
-		pid = get_gpio_id(rdev);
-		level = gpio_get_value(pdata->dvs_gpios[pid]);
-
+	pid = get_gpio_id(mode);
+	if ((pid >= 0) && (pdata->dvs_gpios[pid] != NULL)) {
+		level = gpiod_get_value(pdata->dvs_gpios[pid]);
+		/* level == 0, the Output high level, the SLP_VSEL output */
 		if (level == 0)
-			vsel_reg = rdev->desc->vsel_reg;
-		else
 			vsel_reg = rdev->desc->vsel_reg + rk806_get_reg_offset(rid);
 	}
 
@@ -351,19 +400,16 @@ static int rk806_get_write_vsel_register(struct regulator_dev *rdev)
 	int rid = rdev_get_id(rdev);
 	int mode;
 
+	vsel_reg = rdev->desc->vsel_reg;
+	if (!pdata->support_dvs)
+		return vsel_reg;
+
 	mode = get_dvs_mode(rdev);
-	if (mode == RK806_DVS_NOT_SUPPORT)
-		return rdev->desc->vsel_reg;
-
-	if ((mode < RK806_DVS_BY_CTR_PIN1) || (mode > RK806_DVS_BY_CTR_PIN3)) {
-		vsel_reg = rdev->desc->vsel_reg;
-	} else {
-		pid = get_gpio_id(rdev);
-		level = gpio_get_value(pdata->dvs_gpios[pid]);
-
+	pid = get_gpio_id(mode);
+	if ((pid >= 0) && (pdata->dvs_gpios[pid] != NULL)) {
+		level = gpiod_get_value(pdata->dvs_gpios[pid]);
+		/* level == 1, output low level, the ON_VSEL output, next SLP_VSEL */
 		if (level == 1)
-			vsel_reg = rdev->desc->vsel_reg;
-		else
 			vsel_reg = rdev->desc->vsel_reg + rk806_get_reg_offset(rid);
 	}
 
@@ -373,76 +419,78 @@ static int rk806_get_write_vsel_register(struct regulator_dev *rdev)
 static void rk806_do_gpio_dvs(struct regulator_dev *rdev)
 {
 	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
-	char dvs_ctrl_name[7][32] = { "dvs_default",
-				      "dvs_pin1_ctrl",
-				      "dvs_pin2_ctrl",
-				      "dvs_pin3_ctrl",
-				      "start_dvs1_ctrl",
-				      "start_dvs2_ctrl",
-				      "start_dvs3_ctrl" };
+	char dvs_ctrl_name[10][32] = {
+					"dvs_default",
+					"start_dvs1_ctrl",
+					"start_dvs2_ctrl",
+					"start_dvs3_ctrl",
+					"dvs_pin1_ctrl",
+					"dvs_pin2_ctrl",
+					"dvs_pin3_ctrl",
+					"start_and_pwrctrl1",
+					"start_and_pwrctrl2",
+					"start_and_pwrctrl3"};
 	int rid = rdev_get_id(rdev);
 	int gpio_level, pid;
 	int mode, count;
 
 	mode = get_dvs_mode(rdev);
-	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
-	    (mode <= RK806_DVS_BY_CTR_PIN3)) {
-		pid = get_gpio_id(rdev);
-		pdata->dvs_used[mode] |= BIT(rid);
-		count = get_count(pdata->dvs_used[mode]);
+	pdata->dvs_used[mode] |= BIT(rid);
+	count = get_count(pdata->dvs_used[mode]);
 
-		if ((pdata->dvs_used[mode] != pdata->dvs_flag[mode]) ||
-		    (count != pdata->dvs_count[mode]))
-			return;
+	if ((pdata->dvs_used[mode] != pdata->dvs_flag[mode]) ||
+	    (count != pdata->dvs_count[mode]))
+		return;
 
-		pdata->dvs_used[mode] = 0;
-		gpio_level = gpio_get_value(pdata->dvs_gpios[pid]);
+	pdata->dvs_used[mode] = 0;
 
-		if (gpio_level == 0)
-			gpio_set_value(pdata->dvs_gpios[pid], 1);
+	pid = get_gpio_id(mode);
+	if ((pid >= 0) && (pdata->dvs_gpios[pid] != NULL)) {
+		gpio_level = gpiod_get_value(pdata->dvs_gpios[pid]);
+		if (gpio_level == 1)
+			gpiod_set_value(pdata->dvs_gpios[pid], 0);
 		else
-			gpio_set_value(pdata->dvs_gpios[pid], 0);
-
-		REG_DBG("pin: name: %s, %s\n", dvs_ctrl_name[mode], rdev->desc->name);
+			gpiod_set_value(pdata->dvs_gpios[pid], 1);
 	}
+	REG_DBG("pin: name: %s, %s\n", dvs_ctrl_name[mode], rdev->desc->name);
 }
 
 static void rk806_do_soft_dvs(struct regulator_dev *rdev)
 {
 	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
-	char dvs_ctrl_name[7][32] = { "dvs_default",
-				      "dvs_pin1_ctrl",
-				      "dvs_pin2_ctrl",
-				      "dvs_pin3_ctrl",
-				      "start_dvs1_ctrl",
-				      "start_dvs2_ctrl",
-				      "start_dvs3_ctrl" };
+	char dvs_ctrl_name[10][32] = {
+					"dvs_default",
+					"start_dvs1_ctrl",
+					"start_dvs2_ctrl",
+					"start_dvs3_ctrl",
+					"dvs_pin1_ctrl",
+					"dvs_pin2_ctrl",
+					"dvs_pin3_ctrl",
+					"start_and_pwrctrl1",
+					"start_and_pwrctrl2",
+					"start_and_pwrctrl3"};
 	struct rk806 *rk806 = pdata->rk806;
 	int rid = rdev_get_id(rdev);
 	int soft_mode, count;
+	int offset;
 
 	soft_mode = get_dvs_mode(rdev);
+	pdata->dvs_used[soft_mode] |= BIT(rid);
+	count = get_count(pdata->dvs_used[soft_mode]);
 
-	if ((soft_mode >= RK806_DVS_BY_CTR_START1) &&
-	    (soft_mode <= RK806_DVS_BY_CTR_START3)) {
-		pdata->dvs_used[soft_mode] |= BIT(rid);
-		count = get_count(pdata->dvs_used[soft_mode]);
+	if ((pdata->dvs_used[soft_mode] != pdata->dvs_flag[soft_mode]) ||
+	    (count != pdata->dvs_count[soft_mode]))
+		return;
 
-		if ((pdata->dvs_used[soft_mode] != pdata->dvs_flag[soft_mode]) ||
-		    (count != pdata->dvs_count[soft_mode]))
-			return;
+	pdata->dvs_used[soft_mode] = 0;
 
-		pdata->dvs_used[soft_mode] = 0;
+	if (soft_mode < RK806_DVS_START_PWRCTR1)
+		offset = soft_mode - RK806_DVS_START1;
+	else
+		offset = soft_mode - RK806_DVS_START_PWRCTR1;
 
-		if (soft_mode == RK806_DVS_BY_CTR_START1)
-			rk806_field_write(rk806, DVS_START1, 0x01);
-		else if (soft_mode == RK806_DVS_BY_CTR_START2)
-			rk806_field_write(rk806, DVS_START2, 0x01);
-		else if (soft_mode == RK806_DVS_BY_CTR_START3)
-			rk806_field_write(rk806, DVS_START3, 0x01);
-
-		REG_DBG("soft:%s, %s\n", dvs_ctrl_name[soft_mode], rdev->desc->name);
-	}
+	rk806_field_write(rk806, DVS_START1 + offset, 0x01);
+	REG_DBG("soft:%s, %s\n", dvs_ctrl_name[soft_mode], rdev->desc->name);
 }
 
 static void rk806_regulator_sync_voltage(struct regulator_dev *rdev)
@@ -453,7 +501,7 @@ static void rk806_regulator_sync_voltage(struct regulator_dev *rdev)
 	if (mode == RK806_DVS_NOT_SUPPORT)
 		return;
 
-	if ((mode >= RK806_DVS_BY_CTR_PIN1) && (mode <= RK806_DVS_BY_CTR_PIN3))
+	if ((mode >= RK806_DVS_PWRCTRL1) && (mode <= RK806_DVS_PWRCTRL3))
 		rk806_do_gpio_dvs(rdev);
 	else
 		rk806_do_soft_dvs(rdev);
@@ -484,8 +532,8 @@ static int rk806_set_suspend_enable_ctrl(struct regulator_dev *rdev,
 	else
 		val = 0;
 
-	if ((get_dvs_mode(rdev) < RK806_DVS_BY_CTR_PIN1) ||
-	    (get_dvs_mode(rdev) > RK806_DVS_BY_CTR_PIN3))
+	if ((get_dvs_mode(rdev) < RK806_DVS_PWRCTRL1) ||
+	    (get_dvs_mode(rdev) > RK806_DVS_PWRCTRL3))
 		return rk806_field_write(rk806, pdata->dvs_field[rid].sleep_en, val);
 
 	pdata->sleep_mode[rid].sleep_en_val = val;
@@ -558,18 +606,19 @@ static int rk806_regulator_sleep2dvs_mode(struct regulator_dev *rdev)
 {
 	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
 	struct rk806 *rk806 = pdata->rk806;
-	int rid = rdev_get_id(rdev);
-	int gpio_id = get_gpio_id(rdev);
 	int mode = get_dvs_mode(rdev);
+	int rid = rdev_get_id(rdev);
+	int pid = get_gpio_id(mode);
 	int gpio_level, j;
 
 	/* set slp_fun NULL*/
-	if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN1)
-		rk806_field_write(rk806, SLP1_FUN, RK806_DVS_BY_CTR_PIN1);
-	else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN2)
-		rk806_field_write(rk806, SLP2_FUN, RK806_DVS_BY_CTR_PIN2);
-	else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN3)
-		rk806_field_write(rk806, SLP3_FUN, RK806_DVS_BY_CTR_PIN3);
+	if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_PWRCTRL1)
+		rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_DVS_FUN);
+	else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_PWRCTRL2)
+		rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_DVS_FUN);
+	else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_PWRCTRL3)
+		rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_DVS_FUN);
+
 
 	/* 3.check the used count 1*/
 	pdata->dvs_used[mode] |= BIT(rid);
@@ -581,19 +630,20 @@ static int rk806_regulator_sleep2dvs_mode(struct regulator_dev *rdev)
 	for (j = 0; j < RK806_ID_END; j++)
 		if (pdata->dvs_ctrl_mode[j] == mode)
 			rk806_field_write(rk806,
-					  pdata->dvs_field[j].sleep_ctrl_sel,
+					  pdata->dvs_field[j].vsel_ctrl_sel,
 					  pdata->dvs_ctrl_mode[j]);
 
-	gpio_level = pdata->dvs_mode[rid].dvs_gpio_level[gpio_id];
-
-	if (gpio_level == 1) {
-		gpio_set_value(pdata->dvs_gpios[gpio_id], 1);
-		rk806_field_write(rk806,
-				  pdata->dvs_field[rid].on_vsel,
-				  pdata->dvs_mode[rid].on_vsel_val);
-		rk806_field_write(rk806,
-				  pdata->dvs_field[rid].en_reg,
-				  pdata->dvs_mode[rid].en_reg_val | (pdata->dvs_field[rid].en_bit << 4));
+	if ((pid >= 0) && (pdata->dvs_gpios[pid] != NULL)) {
+		gpio_level = pdata->dvs_mode[rid].dvs_gpio_level[pid];
+		if (gpio_level == 1) {
+			gpiod_set_value(pdata->dvs_gpios[pid], 0);
+			rk806_field_write(rk806,
+					  pdata->dvs_field[rid].on_vsel,
+					  pdata->dvs_mode[rid].on_vsel_val);
+			rk806_field_write(rk806,
+					  pdata->dvs_field[rid].en_reg,
+					  pdata->dvs_mode[rid].en_reg_val | (pdata->dvs_field[rid].en_bit << 4));
+		}
 	}
 	return 0;
 }
@@ -605,10 +655,13 @@ static int rk806_regulator_resume(struct regulator_dev *rdev)
 	int rid = rdev_get_id(rdev);
 	int j;
 
+	if (!pdata->support_dvs)
+		return 0;
+
 	if (rid == RK806_ID_DCDC1) {
 		for (j = 0; j < RK806_ID_END; j++) {
 			rk806_field_write(rk806,
-					  pdata->dvs_field[j].sleep_ctrl_sel,
+					  pdata->dvs_field[j].vsel_ctrl_sel,
 					  0x00);
 			rk806_field_write(rk806,
 					  pdata->dvs_field[j].sleep_vsel,
@@ -619,136 +672,11 @@ static int rk806_regulator_resume(struct regulator_dev *rdev)
 		}
 	}
 
-	if ((get_dvs_mode(rdev) >= RK806_DVS_BY_CTR_PIN1) &&
-	    (get_dvs_mode(rdev) <= RK806_DVS_BY_CTR_PIN3))
+	if ((get_dvs_mode(rdev) >= RK806_DVS_PWRCTRL1) &&
+	    (get_dvs_mode(rdev) <= RK806_DVS_PWRCTRL3))
 		rk806_regulator_sleep2dvs_mode(rdev);
-
 	return 0;
 }
-
-static int rk806_regulator_dvs2sleep_mode(struct regulator_dev *rdev)
-{
-	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
-	struct rk806 *rk806 = pdata->rk806;
-	int rid = rdev_get_id(rdev);
-	int gpio_id = get_gpio_id(rdev);
-	int mode = get_dvs_mode(rdev);
-	int gpio_level, j;
-
-	/* 1. save  ON_VSEL/ON_EN, SLP_VSEL/SLP_EN, dvs_pin level, SLP_CTRL_SEL */
-	gpio_level = gpio_get_value(pdata->dvs_gpios[gpio_id]);
-	pdata->dvs_mode[rid].dvs_gpio_level[gpio_id] = gpio_level;
-
-	if (gpio_level == 1) {
-		/* 2.if dvs_pin high level, the output voltage from SLP_VSEL/SLP_EN */
-		rk806_field_write(rk806,
-				  pdata->dvs_field[rid].on_vsel,
-				  pdata->dvs_mode[rid].sleep_vsel_val);
-		rk806_field_write(rk806,
-				  pdata->dvs_field[rid].en_reg,
-				  pdata->dvs_mode[rid].sleep_en_val | (pdata->dvs_field[rid].en_bit << 4));
-	}
-
-	/* 3.check the used count 1 */
-	pdata->dvs_used[mode] |= BIT(rid);
-	if (pdata->dvs_used[mode] != pdata->dvs_flag[mode])
-		return 0;
-
-	pdata->dvs_used[mode] = 0;
-	/* 4.switch to ON_VSEL/ON_EN */
-	gpio_set_value(pdata->dvs_gpios[gpio_id], 0);
-
-	/*first set SLEEP_CTRL_SEL, then set SLP_FUN */
-	/* 5.clear the SLP_CTRL_SEL */
-	for (j = 0; j < RK806_ID_END; j++)
-		if (pdata->dvs_ctrl_mode[j] == mode)
-			rk806_field_write(rk806,
-					  pdata->dvs_field[j].sleep_ctrl_sel,
-					  0x00);
-
-	/* set slp_fun NULL */
-	if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN1)
-		rk806_field_write(rk806, SLP1_FUN, RK806_PIN_FUN_NULL);
-	else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN2)
-		rk806_field_write(rk806, SLP2_FUN, RK806_PIN_FUN_NULL);
-	else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN3)
-		rk806_field_write(rk806, SLP3_FUN, RK806_PIN_FUN_NULL);
-
-	if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN1) {
-		/* 6.the slp pin avctive high */
-		/* rk806_field_write(rk806, SLP1_POL, 0x01); */
-		/* 7.switch to sleep function */
-		rk806_field_write(rk806, SLP1_FUN, RK806_PIN_FUN_SLP);
-	}
-
-	/* 8.set the SLP_VSEL/SLP_EN */
-	for (j = 0; j < RK806_ID_END; j++) {
-		if (pdata->dvs_ctrl_mode[j] == mode) {
-			if (pdata->sleep_mode[j].sleep_en_val != 0)
-				rk806_field_write(rk806,
-						  pdata->dvs_field[j].sleep_vsel,
-						  pdata->sleep_mode[j].sleep_vsel_val);
-			rk806_field_write(rk806,
-					  pdata->dvs_field[j].sleep_en,
-					  pdata->sleep_mode[j].sleep_en_val);
-		}
-	}
-
-	if (rk806->pins && rk806->pins->p && rk806->pins->sleep)
-		pinctrl_select_state(rk806->pins->p, rk806->pins->sleep);
-
-	return 0;
-}
-
-
-static int rk806_regulator_dvs2noeffect_mode(struct platform_device *pdev)
-{
-	struct rk806_regulator_data *pdata = platform_get_drvdata(pdev);
-	struct rk806 *rk806 = pdata->rk806;
-	int rid;
-	int mode;
-	int gpio_level;
-
-
-	for (rid = RK806_ID_DCDC1; rid < RK806_ID_END; rid++) {
-		mode = pdata->dvs_ctrl_mode[rid];
-			if ((mode < RK806_DVS_BY_CTR_PIN1) || (mode < RK806_DVS_BY_CTR_PIN3))
-				break;
-
-		/* 1. get the ctrl pin level */
-		gpio_level = gpio_get_value(pdata->dvs_gpios[mode - 1]);
-
-		if (gpio_level == 1) {
-			/* 2.if dvs_pin high level, the output voltage from SLP_VSEL/SLP_EN */
-			rk806_field_write(rk806,
-					  pdata->dvs_field[rid].on_vsel,
-					  pdata->dvs_mode[rid].sleep_vsel_val);
-			rk806_field_write(rk806,
-					  pdata->dvs_field[rid].en_reg,
-					  pdata->dvs_mode[rid].sleep_en_val |
-					  (pdata->dvs_field[rid].en_bit << 4));
-		}
-
-		/* 3.check the used count 1 */
-		pdata->dvs_used[mode] |= BIT(rid);
-		if (pdata->dvs_used[mode] != pdata->dvs_flag[mode])
-			break;
-		pdata->dvs_used[mode] = 0;
-		/* 4.switch to ON_VSEL/ON_EN */
-		gpio_set_value(pdata->dvs_gpios[mode - 1], 0);
-
-		/* set slp_fun NULL */
-		if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN1)
-			rk806_field_write(rk806, SLP1_FUN, RK806_PIN_FUN_NULL);
-		else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN2)
-			rk806_field_write(rk806, SLP2_FUN, RK806_PIN_FUN_NULL);
-		else if (pdata->dvs_ctrl_mode[rid] == RK806_DVS_BY_CTR_PIN3)
-			rk806_field_write(rk806, SLP3_FUN, RK806_PIN_FUN_NULL);
-	}
-
-	return 0;
-}
-
 
 static int rk806_set_suspend_voltage_range(struct regulator_dev *rdev, int uv)
 {
@@ -757,52 +685,17 @@ static int rk806_set_suspend_voltage_range(struct regulator_dev *rdev, int uv)
 	struct rk806 *rk806 = pdata->rk806;
 	int rid = rdev_get_id(rdev);
 	int reg_offset;
-	unsigned int reg, j;
-
+	unsigned int reg;
 
 	if (sel < 0)
 		return -EINVAL;
 
-	pdata->dvs_mode[rid].en_reg_val = rk806_field_read(rk806,
-							   pdata->dvs_field[rid].en_reg);
-	pdata->dvs_mode[rid].on_vsel_val = rk806_field_read(rk806,
-							    pdata->dvs_field[rid].on_vsel);
-	pdata->dvs_mode[rid].sleep_vsel_val = rk806_field_read(rk806,
-							       pdata->dvs_field[rid].sleep_vsel);
-	pdata->dvs_mode[rid].sleep_en_val = rk806_field_read(rk806,
-							     pdata->dvs_field[rid].sleep_en);
-	pdata->dvs_mode[rid].sleep_ctrl_sel_val = rk806_field_read(rk806,
-								   pdata->dvs_field[rid].sleep_ctrl_sel);
+	reg_offset = rk806_get_reg_offset(rid);
+	reg = rdev->desc->vsel_reg + reg_offset;
 
-	if ((get_dvs_mode(rdev) < RK806_DVS_BY_CTR_PIN1) ||
-	    (get_dvs_mode(rdev) > RK806_DVS_BY_CTR_PIN3)) {
-		reg_offset = rk806_get_reg_offset(rid);
-		reg = rdev->desc->vsel_reg + reg_offset;
-
-		if (rid == RK806_ID_PLDO6) {
-			for (j = 0; j < RK806_ID_END; j++)
-				rk806_field_write(rk806,
-						  pdata->dvs_field[j].sleep_ctrl_sel,
-						  RK806_PIN_FUN_SLP);
-			/* rk806_field_write(rk806, SLP1_POL, 0x01); */
-		}
-		return regmap_update_bits(rdev->regmap, reg,
-					  rdev->desc->vsel_mask,
-					  sel);
-	} else {
-		pdata->sleep_mode[rid].sleep_vsel_val = sel;
-		rk806_regulator_dvs2sleep_mode(rdev);
-
-		if (rid == RK806_ID_PLDO6) {
-			for (j = 0; j < RK806_ID_END; j++)
-				rk806_field_write(rk806,
-						  gpio_dvs_id[j],
-						  RK806_PIN_FUN_SLP);
-			/* rk806_field_write(rk806, SLP1_POL, 0x01); */
-		}
-	}
-
-	return 0;
+	return regmap_update_bits(rk806->regmap, reg,
+				  rdev->desc->vsel_mask,
+				  sel);
 }
 
 static int rk806_get_voltage_sel_regmap(struct regulator_dev *rdev)
@@ -848,12 +741,11 @@ static int rk806_set_voltage(struct regulator_dev *rdev,
 				 rdev->desc->vsel_mask, sel);
 
 	mode = get_dvs_mode(rdev);
-
 	if (mode == RK806_DVS_NOT_SUPPORT)
 		return ret;
 
-	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
-	    (mode <= RK806_DVS_BY_CTR_PIN3))
+	if ((mode >= RK806_DVS_PWRCTRL1) &&
+	    (mode <= RK806_DVS_PWRCTRL3))
 		rk806_do_gpio_dvs(rdev);
 	else
 		rk806_do_soft_dvs(rdev);
@@ -871,13 +763,10 @@ static int rk806_regulator_is_enabled_regmap(struct regulator_dev *rdev)
 	int mode;
 
 	mode = get_dvs_mode(rdev);
-
-	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
-	    (mode <= RK806_DVS_BY_CTR_PIN3)) {
-		pid = get_gpio_id(rdev);
-		gpio_level = gpio_get_value(pdata->dvs_gpios[pid]);
-
-		if (gpio_level == 1)
+	pid = get_gpio_id(mode);
+	if ((pid >= 0) && (pdata->dvs_gpios[pid] != NULL)) {
+		gpio_level = gpiod_get_value(pdata->dvs_gpios[pid]);
+		if (gpio_level == 0)
 			return rk806_field_read(rk806, pdata->dvs_field[rid].sleep_en);
 	}
 
@@ -894,13 +783,10 @@ static int rk806_regulator_enable_regmap(struct regulator_dev *rdev)
 	int mode;
 
 	mode = get_dvs_mode(rdev);
-
-	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
-	    (mode <= RK806_DVS_BY_CTR_PIN3)) {
-		pid = get_gpio_id(rdev);
-		gpio_level = gpio_get_value(pdata->dvs_gpios[pid]);
-
-		if (gpio_level == 1)
+	pid = get_gpio_id(mode);
+	if ((pid >= 0) && (pdata->dvs_gpios[pid] != NULL)) {
+		gpio_level = gpiod_get_value(pdata->dvs_gpios[pid]);
+		if (gpio_level == 0)
 			return rk806_field_write(rk806,
 						 pdata->dvs_field[rid].sleep_en,
 						 0x01);
@@ -920,13 +806,10 @@ static int rk806_regulator_disable_regmap(struct regulator_dev *rdev)
 	int mode;
 
 	mode = get_dvs_mode(rdev);
-
-	if ((mode >= RK806_DVS_BY_CTR_PIN1) &&
-	    (mode <= RK806_DVS_BY_CTR_PIN3)) {
-		pid = get_gpio_id(rdev);
-		gpio_level = gpio_get_value(pdata->dvs_gpios[pid]);
-
-		if (gpio_level == 1)
+	pid = get_gpio_id(mode);
+	if ((pid >= 0) && (pdata->dvs_gpios[pid] != NULL)) {
+		gpio_level = gpiod_get_value(pdata->dvs_gpios[pid]);
+		if (gpio_level == 0)
 			return rk806_field_write(rk806,
 						 pdata->dvs_field[rid].sleep_en,
 						 0x00);
@@ -1135,23 +1018,24 @@ static const struct regulator_desc rk806_regulators[] = {
 
 	RK806_REGULATOR("PLDO_REG1", "vcc11", RK806_ID_PLDO1, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO1_ON_VSEL,
-			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 0),
+			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 1),
 	RK806_REGULATOR("PLDO_REG2", "vcc11", RK806_ID_PLDO2, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO2_ON_VSEL,
-			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 1),
+			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 2),
 	RK806_REGULATOR("PLDO_REG3", "vcc11", RK806_ID_PLDO3, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO3_ON_VSEL,
-			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 2),
-	RK806_REGULATOR("PLDO_REG4", "vcc12", RK806_ID_PLDO4, rk806_ops_ldo,
-			RK806_LDO_SEL_CNT, RK806_PLDO4_ON_VSEL,
 			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 3),
 
+	RK806_REGULATOR("PLDO_REG4", "vcc12", RK806_ID_PLDO4, rk806_ops_ldo,
+			RK806_LDO_SEL_CNT, RK806_PLDO4_ON_VSEL,
+			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 0),
 	RK806_REGULATOR("PLDO_REG5", "vcc12", RK806_ID_PLDO5, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO5_ON_VSEL,
-			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 0),
+			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 1),
+
 	RK806_REGULATOR("PLDO_REG6", "vcca", RK806_ID_PLDO6, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO6_ON_VSEL,
-			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 1),
+			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 0),
 };
 
 static void rk806_regulator_dt_parse_pdata(struct rk806 *rk806,
@@ -1159,21 +1043,31 @@ static void rk806_regulator_dt_parse_pdata(struct rk806 *rk806,
 					   struct rk806_regulator_data *pdata)
 
 {
-	char dvs_ctrl_name[7][32] = { "dvs_default",
-				      "dvs_pin1_ctrl",
-				      "dvs_pin2_ctrl",
-				      "dvs_pin3_ctrl",
-				      "start_dvs1_ctrl",
-				      "start_dvs2_ctrl",
-				      "start_dvs3_ctrl" };
+	char dvs_ctrl_name[10][32] = {
+					"dvs_default",
+					"start_dvs1_ctrl",
+					"start_dvs2_ctrl",
+					"start_dvs3_ctrl",
+					"dvs_pin1_ctrl",
+					"dvs_pin2_ctrl",
+					"dvs_pin3_ctrl",
+					"start_and_pwrctrl1",
+					"start_and_pwrctrl2",
+					"start_and_pwrctrl3"};
 	char dvs_pin_name[3][30] = { "rk806,pmic-dvs-gpio1",
 				     "rk806,pmic-dvs-gpio2",
 				     "rk806,pmic-dvs-gpio3" };
 	struct device_node *np = rk806->dev->of_node;
 	struct device_node *dn;
-	int i, j, gpio;
+	int i, j;
 
 	pdata->support_dvs = 0;
+
+	for (i = 0; i < RK806_ID_END; i++) {
+		pdata->dvs_field[i] = rk806_dvs_fields[i];
+		pdata->dvs_ctrl_id[i] = start_dvs_id[i];
+		pdata->vsel_ctrl_id[i] = vsel_ctr_sel_id[i];
+	}
 
 	for (j = 1; j < RK806_DVS_END; j++) {
 		if (device_property_present(rk806->dev, dvs_ctrl_name[j])) {
@@ -1192,24 +1086,16 @@ static void rk806_regulator_dt_parse_pdata(struct rk806 *rk806,
 			}
 		}
 	}
-
 	if (!pdata->support_dvs)
 		return;
 
 	for (i = 0; i < 3; i++) {
-		gpio = of_get_named_gpio(np, dvs_pin_name[i], i);
-		if (!gpio_is_valid(gpio)) {
-			dev_err(rk806->dev, "invalid gpio[%d]: %d\n", i, gpio);
-			break;
-		}
-
-		pdata->dvs_gpios[i] = gpio;
-	}
-
-	for (i = 0; i < 3; i++) {
-		if (pdata->dvs_gpios[i] >= 0) {
-			gpio_request(pdata->dvs_gpios[i], dvs_pin_name[i]);
-			gpio_direction_output(pdata->dvs_gpios[i], 0);
+		pdata->dvs_gpios[i] = devm_gpiod_get_optional(rk806->dev,
+							      dvs_pin_name[i],
+							      GPIOD_OUT_HIGH);
+		if (IS_ERR(pdata->dvs_gpios[i])) {
+			pdata->dvs_gpios[i] = NULL;
+			dev_info(rk806->dev, "Failed to get %s\n", dvs_pin_name[i]);
 		}
 	}
 }
@@ -1257,8 +1143,16 @@ static int rk806_regulator_probe(struct platform_device *pdev)
 static int __maybe_unused rk806_suspend(struct device *dev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(dev->parent);
+	int i;
 
-	pinctrl_select_state(rk806->pins->p, rk806->pins->sleep);
+	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
+	rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_NULL_FUN);
+	rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_NULL_FUN);
+
+	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
+		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_NO_EFFECT);
+
+	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_SLP_FUN);
 
 	return 0;
 }
@@ -1267,7 +1161,7 @@ static int __maybe_unused rk806_resume(struct device *dev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(dev->parent);
 
-	pinctrl_select_state(rk806->pins->p, rk806->pins->default_st);
+	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
 
 	return 0;
 }
@@ -1276,8 +1170,6 @@ SIMPLE_DEV_PM_OPS(rk806_pm_ops, rk806_suspend, rk806_resume);
 static void rk806_regulator_shutdown(struct platform_device *pdev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(pdev->dev.parent);
-
-	rk806_regulator_dvs2noeffect_mode(pdev);
 
 	if (system_state == SYSTEM_POWER_OFF)
 		if ((rk806->pins->p) && (rk806->pins->power_off))
