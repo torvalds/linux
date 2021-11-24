@@ -547,16 +547,6 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 					access);
 }
 
-#if PTTYPE != PTTYPE_EPT
-static int FNAME(walk_addr_nested)(struct guest_walker *walker,
-				   struct kvm_vcpu *vcpu, gva_t addr,
-				   u32 access)
-{
-	return FNAME(walk_addr_generic)(walker, vcpu, &vcpu->arch.nested_mmu,
-					addr, access);
-}
-#endif
-
 static bool
 FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		     u64 *spte, pt_element_t gpte, bool no_dirty_log)
@@ -1000,14 +990,20 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 }
 
 /* Note, @addr is a GPA when gva_to_gpa() translates an L2 GPA to an L1 GPA. */
-static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gpa_t addr, u32 access,
+static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+			       gpa_t addr, u32 access,
 			       struct x86_exception *exception)
 {
 	struct guest_walker walker;
 	gpa_t gpa = UNMAPPED_GVA;
 	int r;
 
-	r = FNAME(walk_addr)(&walker, vcpu, addr, access);
+#ifndef CONFIG_X86_64
+	/* A 64-bit GVA should be impossible on 32-bit KVM. */
+	WARN_ON_ONCE((addr >> 32) && mmu == vcpu->arch.walk_mmu);
+#endif
+
+	r = FNAME(walk_addr_generic)(&walker, vcpu, mmu, addr, access);
 
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
@@ -1017,33 +1013,6 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gpa_t addr, u32 access,
 
 	return gpa;
 }
-
-#if PTTYPE != PTTYPE_EPT
-/* Note, gva_to_gpa_nested() is only used to translate L2 GVAs. */
-static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gpa_t vaddr,
-				      u32 access,
-				      struct x86_exception *exception)
-{
-	struct guest_walker walker;
-	gpa_t gpa = UNMAPPED_GVA;
-	int r;
-
-#ifndef CONFIG_X86_64
-	/* A 64-bit GVA should be impossible on 32-bit KVM. */
-	WARN_ON_ONCE(vaddr >> 32);
-#endif
-
-	r = FNAME(walk_addr_nested)(&walker, vcpu, vaddr, access);
-
-	if (r) {
-		gpa = gfn_to_gpa(walker.gfn);
-		gpa |= vaddr & ~PAGE_MASK;
-	} else if (exception)
-		*exception = walker.fault;
-
-	return gpa;
-}
-#endif
 
 /*
  * Using the cached information from sp->gfns is safe because:
