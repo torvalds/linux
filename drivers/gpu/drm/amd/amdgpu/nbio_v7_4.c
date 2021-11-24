@@ -694,6 +694,9 @@ static void nbio_v7_4_program_aspm(struct amdgpu_device *adev)
 {
 	uint32_t def, data;
 
+	if (adev->ip_versions[NBIO_HWIP][0] == IP_VERSION(7, 4, 4))
+		return;
+
 	def = data = RREG32_PCIE(smnPCIE_LC_CNTL);
 	data &= ~PCIE_LC_CNTL__LC_L1_INACTIVITY_MASK;
 	data &= ~PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK;
