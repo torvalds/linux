@@ -504,6 +504,9 @@ int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state)
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int i, count = 0;
 
+	WARN_ON(gpu->needs_hw_init);
+	WARN_ON(!mutex_is_locked(&gpu->lock));
+
 	kref_init(&state->ref);
 
 	ktime_get_real_ts64(&state->time);
