@@ -764,7 +764,7 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
  *	      call to ima_post_load_data().
  *
  * Callers of this LSM hook can not measure, appraise, or audit the
- * data provided by userspace.  Enforce policy rules requring a file
+ * data provided by userspace.  Enforce policy rules requiring a file
  * signature (eg. kexec'ed kernel image).
  *
  * For permission return 0, otherwise return -EACCES.

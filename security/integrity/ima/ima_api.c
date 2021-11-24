@@ -238,7 +238,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 		goto out;
 
 	/*
-	 * Dectecting file change is based on i_version. On filesystems
+	 * Detecting file change is based on i_version. On filesystems
 	 * which do not support i_version, support is limited to an initial
 	 * measurement/appraisal/audit.
 	 */

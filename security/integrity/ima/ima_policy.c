@@ -429,7 +429,7 @@ static int ima_lsm_update_rule(struct ima_rule_entry *entry)
 	/*
 	 * ima_lsm_copy_rule() shallow copied all references, except for the
 	 * LSM references, from entry to nentry so we only want to free the LSM
-	 * references and the entry itself. All other memory refrences will now
+	 * references and the entry itself. All other memory references will now
 	 * be owned by nentry.
 	 */
 	ima_lsm_free_rule(entry);
