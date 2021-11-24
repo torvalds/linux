@@ -994,16 +994,6 @@ static bool intel_fbc_cfb_size_changed(struct intel_fbc *fbc)
 	return fbc->state_cache.cfb_size > fbc->compressed_fb.size * fbc->limit;
 }
 
-static bool intel_fbc_can_enable(struct intel_fbc *fbc)
-{
-	if (fbc->underrun_detected) {
-		fbc->no_fbc_reason = "underrun detected";
-		return false;
-	}
-
-	return true;
-}
-
 static int intel_fbc_check_plane(struct intel_atomic_state *state,
 				 struct intel_plane *plane)
 {
@@ -1123,19 +1113,8 @@ static bool intel_fbc_can_activate(struct intel_fbc *fbc)
 	struct drm_i915_private *i915 = fbc->i915;
 	struct intel_fbc_state *cache = &fbc->state_cache;
 
-	if (!intel_fbc_can_enable(fbc))
-		return false;
-
 	if (cache->no_fbc_reason) {
 		fbc->no_fbc_reason = cache->no_fbc_reason;
-		return false;
-	}
-
-	/* We don't need to use a state cache here since this information is
-	 * global for all CRTC.
-	 */
-	if (fbc->underrun_detected) {
-		fbc->no_fbc_reason = "underrun detected";
 		return false;
 	}
 
@@ -1467,6 +1446,11 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 	if (cache->no_fbc_reason)
 		return;
 
+	if (fbc->underrun_detected) {
+		fbc->no_fbc_reason = "FIFO underrun";
+		return;
+	}
+
 	if (intel_fbc_alloc_cfb(fbc, intel_fbc_cfb_size(plane_state), min_limit)) {
 		fbc->no_fbc_reason = "not enough stolen memory";
 		return;
@@ -1567,6 +1551,9 @@ static void intel_fbc_underrun_work_fn(struct work_struct *work)
 	fbc->underrun_detected = true;
 
 	intel_fbc_deactivate(fbc, "FIFO underrun");
+	if (!fbc->flip_pending)
+		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(i915, fbc->plane->pipe));
+	__intel_fbc_disable(fbc);
 out:
 	mutex_unlock(&fbc->lock);
 }
