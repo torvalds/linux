@@ -679,8 +679,10 @@ static u64 intel_fbc_stolen_end(struct drm_i915_private *i915)
 	return min(end, intel_fbc_cfb_base_max(i915));
 }
 
-static int intel_fbc_min_limit(int fb_cpp)
+static int intel_fbc_min_limit(const struct intel_plane_state *plane_state)
 {
+	int fb_cpp = plane_state->hw.fb ? plane_state->hw.fb->format->cpp[0] : 0;
+
 	return fb_cpp == 2 ? 2 : 1;
 }
 
@@ -1466,8 +1468,7 @@ static void intel_fbc_enable(struct intel_atomic_state *state,
 
 	cache = &fbc->state_cache;
 
-	min_limit = intel_fbc_min_limit(plane_state->hw.fb ?
-					plane_state->hw.fb->format->cpp[0] : 0);
+	min_limit = intel_fbc_min_limit(plane_state);
 
 	mutex_lock(&fbc->lock);
 
