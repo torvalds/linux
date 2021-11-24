@@ -13,6 +13,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
 #include <mali_kbase_config.h>
+#include <backend/gpu/mali_kbase_devfreq.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <backend/gpu/mali_kbase_pm_defs.h>
 
@@ -238,12 +239,12 @@ static void rk_pm_callback_power_off(struct kbase_device *kbdev)
 			   msecs_to_jiffies(platform->delay_ms));
 }
 
-int rk_kbase_device_runtime_init(struct kbase_device *kbdev)
+static int rk_kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	return 0;
 }
 
-void rk_kbase_device_runtime_disable(struct kbase_device *kbdev)
+static void rk_kbase_device_runtime_disable(struct kbase_device *kbdev)
 {
 }
 
@@ -262,20 +263,6 @@ struct kbase_pm_callback_conf pm_callbacks = {
 	.power_runtime_off_callback = NULL,
 #endif				/* CONFIG_PM */
 };
-
-int kbase_platform_early_init(void)
-{
-	/* Nothing needed at this stage */
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-
-void kbase_platform_rk_shutdown(struct kbase_device *kbdev)
-{
-	I("to make vdd_gpu enabled for turning off pd_gpu in pm_framework.");
-	rk_pm_enable_regulator(kbdev);
-}
 
 /*---------------------------------------------------------------------------*/
 

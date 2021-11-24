@@ -2952,7 +2952,7 @@ struct kbasep_debug_command {
 	kbasep_debug_command_func *func;
 };
 
-void kbasep_ktrace_dump_wrapper(struct kbase_device *kbdev)
+static void kbasep_ktrace_dump_wrapper(struct kbase_device *kbdev)
 {
 	KBASE_KTRACE_DUMP(kbdev);
 }

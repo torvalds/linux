@@ -23,6 +23,7 @@
 
 #include <mali_kbase.h>
 #include <tl/mali_kbase_tracepoints.h>
+#include <backend/gpu/mali_kbase_devfreq.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
 #include <linux/of.h>
