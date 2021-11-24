@@ -695,6 +695,8 @@ struct intel_plane_state {
 
 	/* Clear Color Value */
 	u64 ccval;
+
+	const char *no_fbc_reason;
 };
 
 struct intel_initial_plane_config {
@@ -1124,8 +1126,6 @@ struct intel_crtc_state {
 	bool ips_enabled;
 
 	bool crc_enabled;
-
-	bool enable_fbc;
 
 	bool double_wide;
 

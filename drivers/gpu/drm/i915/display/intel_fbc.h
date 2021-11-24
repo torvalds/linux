@@ -17,8 +17,7 @@ struct intel_crtc_state;
 struct intel_fbc;
 struct intel_plane_state;
 
-void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
-			   struct intel_atomic_state *state);
+int intel_fbc_atomic_check(struct intel_atomic_state *state);
 bool intel_fbc_is_active(struct intel_fbc *fbc);
 bool intel_fbc_is_compressing(struct intel_fbc *fbc);
 bool intel_fbc_pre_update(struct intel_atomic_state *state,
