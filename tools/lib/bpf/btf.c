@@ -2626,14 +2626,10 @@ void btf_ext__free(struct btf_ext *btf_ext)
 	free(btf_ext);
 }
 
-struct btf_ext *btf_ext__new(__u8 *data, __u32 size)
+struct btf_ext *btf_ext__new(const __u8 *data, __u32 size)
 {
 	struct btf_ext *btf_ext;
 	int err;
-
-	err = btf_ext_parse_hdr(data, size);
-	if (err)
-		return libbpf_err_ptr(err);
 
 	btf_ext = calloc(1, sizeof(struct btf_ext));
 	if (!btf_ext)
@@ -2646,6 +2642,10 @@ struct btf_ext *btf_ext__new(__u8 *data, __u32 size)
 		goto done;
 	}
 	memcpy(btf_ext->data, data, size);
+
+	err = btf_ext_parse_hdr(btf_ext->data, size);
+	if (err)
+		goto done;
 
 	if (btf_ext->hdr->hdr_len < offsetofend(struct btf_ext_header, line_info_len)) {
 		err = -EINVAL;
