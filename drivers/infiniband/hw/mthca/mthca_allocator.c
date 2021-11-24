@@ -51,7 +51,7 @@ u32 mthca_alloc(struct mthca_alloc *alloc)
 	}
 
 	if (obj < alloc->max) {
-		set_bit(obj, alloc->table);
+		__set_bit(obj, alloc->table);
 		obj |= alloc->top;
 	} else
 		obj = -1;
@@ -69,7 +69,7 @@ void mthca_free(struct mthca_alloc *alloc, u32 obj)
 
 	spin_lock_irqsave(&alloc->lock, flags);
 
-	clear_bit(obj, alloc->table);
+	__clear_bit(obj, alloc->table);
 	alloc->last = min(alloc->last, obj);
 	alloc->top = (alloc->top + alloc->max) & alloc->mask;
 
