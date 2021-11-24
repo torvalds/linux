@@ -196,6 +196,30 @@ static const struct clk_div_table ast2600_emmc_extclk_div_table[] = {
 	{ 0 }
 };
 
+static const struct clk_div_table ast2600_sd_div_a1_table[] = {
+	{ 0x0, 2 },
+	{ 0x1, 4 },
+	{ 0x2, 6 },
+	{ 0x3, 8 },
+	{ 0x4, 10 },
+	{ 0x5, 12 },
+	{ 0x6, 14 },
+	{ 0x7, 16 },
+	{ 0 }
+};
+
+static const struct clk_div_table ast2600_sd_div_a2_table[] = {
+	{ 0x0, 2 },
+	{ 0x1, 4 },
+	{ 0x2, 6 },
+	{ 0x3, 8 },
+	{ 0x4, 10 },
+	{ 0x5, 12 },
+	{ 0x6, 14 },
+	{ 0x7, 1 },
+	{ 0 }
+};
+
 static const struct clk_div_table ast2600_mac_div_table[] = {
 	{ 0x0, 4 },
 	{ 0x1, 4 },
@@ -571,48 +595,87 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = hw;
 
-	/* EMMC ext clock */
-	hw = clk_hw_register_fixed_factor(dev, "emmc_extclk_hpll_in", "hpll",
-					  0, 1, 2);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
+	regmap_read(map, 0x04, &val);
+	if ((val & GENMASK(23, 16)) >> 16) {
+		/* After A1 (including A1, A2 and A3), use mpll for fit 200Mhz.
+		 * hpll is 12.G and 200MHz cannot be gotten by setting SCU300[14:12].
+		 * mpll is 400MHz and 200MHz can be gotten by setting SCU300[14:12]
+		 * to 3b'000.
+		 */
+		regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(14, 11), BIT(11));
 
-	hw = clk_hw_register_mux(dev, "emmc_extclk_mux",
-				 emmc_extclk_parent_names,
-				 ARRAY_SIZE(emmc_extclk_parent_names), 0,
-				 scu_g6_base + ASPEED_G6_CLK_SELECTION1, 11, 1,
-				 0, &aspeed_g6_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
+		/* EMMC ext clock divider */
+		hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "mpll", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
+						&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
 
-	hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "emmc_extclk_mux",
-				  0, scu_g6_base + ASPEED_G6_CLK_SELECTION1,
-				  15, 0, &aspeed_g6_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
+		//ast2600 emmc clk should under 200Mhz
+		hw = clk_hw_register_divider_table(dev, "emmc_extclk", "emmc_extclk_gate", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 12, 3, 0,
+						ast2600_emmc_extclk_div_table,
+						&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+		aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
+	} else {
+		/* EMMC ext clock divider */
+		hw = clk_hw_register_gate(dev, "emmc_extclk_gate", "hpll", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION1, 15, 0,
+						&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
 
-	hw = clk_hw_register_divider_table(dev, "emmc_extclk",
-					   "emmc_extclk_gate", 0,
-					   scu_g6_base +
+		//ast2600 emmc clk should under 200Mhz
+		hw = clk_hw_register_divider_table(dev, "emmc_extclk",
+						"emmc_extclk_gate", 0,
+						scu_g6_base +
 						ASPEED_G6_CLK_SELECTION1, 12,
-					   3, 0, ast2600_emmc_extclk_div_table,
-					   &aspeed_g6_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
+						3, 0, ast2600_emmc_extclk_div_table,
+						&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+		aspeed_g6_clk_data->hws[ASPEED_CLK_EMMC] = hw;
+	}
 
-	/* SD/SDIO clock divider and gate */
-	hw = clk_hw_register_gate(dev, "sd_extclk_gate", "hpll", 0,
-			scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
-			&aspeed_g6_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
-			0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
-			ast2600_div_table,
-			&aspeed_g6_clk_lock);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
+	clk_hw_register_fixed_rate(NULL, "hclk", NULL, 0, 200000000);
+
+	regmap_read(map, 0x310, &val);
+	if (val & BIT(8)) {
+		/* SD/SDIO clock divider and gate */
+		hw = clk_hw_register_gate(dev, "sd_extclk_gate", "apll", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
+						&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+	} else {
+		/* SD/SDIO clock divider and gate */
+		hw = clk_hw_register_gate(dev, "sd_extclk_gate", "hclk", 0,
+						scu_g6_base + ASPEED_G6_CLK_SELECTION4, 31, 0,
+						&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+	}
+
+	regmap_read(map, 0x14, &val);
+	if (((val & GENMASK(23, 16)) >> 16) >= 2) {
+		/* A2 and A3 clock divisor is different from A1 and A0 */
+		hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
+					0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
+					ast2600_sd_div_a2_table,
+					&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+	} else {
+		hw = clk_hw_register_divider_table(dev, "sd_extclk", "sd_extclk_gate",
+					0, scu_g6_base + ASPEED_G6_CLK_SELECTION4, 28, 3, 0,
+					ast2600_sd_div_a1_table,
+					&aspeed_g6_clk_lock);
+		if (IS_ERR(hw))
+			return PTR_ERR(hw);
+	}
+
 	aspeed_g6_clk_data->hws[ASPEED_CLK_SDIO] = hw;
 
 	/* MAC1/2 RMII 50MHz RCLK */
