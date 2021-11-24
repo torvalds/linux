@@ -201,7 +201,6 @@ bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex)
 {
 	int key_size, value_size, max_entries, map_flags;
 	__u32 btf_key_type_id = 0, btf_value_type_id = 0;
-	struct bpf_create_map_attr attr = {};
 	int fd = -1, btf_fd = -1, fd_inner;
 
 	key_size	= sizeof(__u32);
@@ -271,34 +270,35 @@ bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex)
 
 	if (map_type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
 	    map_type == BPF_MAP_TYPE_HASH_OF_MAPS) {
+		LIBBPF_OPTS(bpf_map_create_opts, opts);
+
 		/* TODO: probe for device, once libbpf has a function to create
 		 * map-in-map for offload
 		 */
 		if (ifindex)
 			return false;
 
-		fd_inner = bpf_create_map(BPF_MAP_TYPE_HASH,
-					  sizeof(__u32), sizeof(__u32), 1, 0);
+		fd_inner = bpf_map_create(BPF_MAP_TYPE_HASH, NULL,
+					  sizeof(__u32), sizeof(__u32), 1, NULL);
 		if (fd_inner < 0)
 			return false;
-		fd = bpf_create_map_in_map(map_type, NULL, sizeof(__u32),
-					   fd_inner, 1, 0);
+
+		opts.inner_map_fd = fd_inner;
+		fd = bpf_map_create(map_type, NULL, sizeof(__u32), sizeof(__u32), 1, &opts);
 		close(fd_inner);
 	} else {
+		LIBBPF_OPTS(bpf_map_create_opts, opts);
+
 		/* Note: No other restriction on map type probes for offload */
-		attr.map_type = map_type;
-		attr.key_size = key_size;
-		attr.value_size = value_size;
-		attr.max_entries = max_entries;
-		attr.map_flags = map_flags;
-		attr.map_ifindex = ifindex;
+		opts.map_flags = map_flags;
+		opts.map_ifindex = ifindex;
 		if (btf_fd >= 0) {
-			attr.btf_fd = btf_fd;
-			attr.btf_key_type_id = btf_key_type_id;
-			attr.btf_value_type_id = btf_value_type_id;
+			opts.btf_fd = btf_fd;
+			opts.btf_key_type_id = btf_key_type_id;
+			opts.btf_value_type_id = btf_value_type_id;
 		}
 
-		fd = bpf_create_map_xattr(&attr);
+		fd = bpf_map_create(map_type, NULL, key_size, value_size, max_entries, &opts);
 	}
 	if (fd >= 0)
 		close(fd);

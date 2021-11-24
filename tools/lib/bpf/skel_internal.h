@@ -65,8 +65,7 @@ static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 	int map_fd = -1, prog_fd = -1, key = 0, err;
 	union bpf_attr attr;
 
-	map_fd = bpf_create_map_name(BPF_MAP_TYPE_ARRAY, "__loader.map", 4,
-				     opts->data_sz, 1, 0);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "__loader.map", 4, opts->data_sz, 1, NULL);
 	if (map_fd < 0) {
 		opts->errstr = "failed to create loader map";
 		err = -errno;
