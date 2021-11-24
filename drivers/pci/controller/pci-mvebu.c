@@ -1005,45 +1005,6 @@ static int mvebu_pcie_parse_request_resources(struct mvebu_pcie *pcie)
 	return 0;
 }
 
-/*
- * This is a copy of pci_host_probe(), except that it does the I/O
- * remap as the last step, once we are sure we won't fail.
- *
- * It should be removed once the I/O remap error handling issue has
- * been sorted out.
- */
-static int mvebu_pci_host_probe(struct pci_host_bridge *bridge)
-{
-	struct pci_bus *bus, *child;
-	int ret;
-
-	ret = pci_scan_root_bus_bridge(bridge);
-	if (ret < 0) {
-		dev_err(bridge->dev.parent, "Scanning root bridge failed");
-		return ret;
-	}
-
-	bus = bridge->bus;
-
-	/*
-	 * We insert PCI resources into the iomem_resource and
-	 * ioport_resource trees in either pci_bus_claim_resources()
-	 * or pci_bus_assign_resources().
-	 */
-	if (pci_has_flag(PCI_PROBE_ONLY)) {
-		pci_bus_claim_resources(bus);
-	} else {
-		pci_bus_size_bridges(bus);
-		pci_bus_assign_resources(bus);
-
-		list_for_each_entry(child, &bus->children, node)
-			pcie_bus_configure_settings(child);
-	}
-
-	pci_bus_add_devices(bus);
-	return 0;
-}
-
 static int mvebu_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1118,7 +1079,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	bridge->ops = &mvebu_pcie_ops;
 	bridge->align_resource = mvebu_pcie_align_resource;
 
-	return mvebu_pci_host_probe(bridge);
+	return pci_host_probe(bridge);
 }
 
 static const struct of_device_id mvebu_pcie_of_match_table[] = {
