@@ -272,7 +272,7 @@ static void hci_cc_delete_stored_link_key(struct hci_dev *hdev,
 		return;
 
 	if (rp->num_keys <= hdev->stored_num_keys)
-		hdev->stored_num_keys -= rp->num_keys;
+		hdev->stored_num_keys -= le16_to_cpu(rp->num_keys);
 	else
 		hdev->stored_num_keys = 0;
 }

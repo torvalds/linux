@@ -1058,7 +1058,7 @@ struct hci_cp_delete_stored_link_key {
 } __packed;
 struct hci_rp_delete_stored_link_key {
 	__u8     status;
-	__u8     num_keys;
+	__le16   num_keys;
 } __packed;
 
 #define HCI_MAX_NAME_LENGTH		248
