@@ -218,11 +218,9 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	mvif->phy = phy;
 	mvif->band_idx = ext_phy;
 
-	if (dev->mt76.phy2)
-		mvif->wmm_idx = ext_phy * (MT7915_MAX_WMM_SETS / 2) +
-				mvif->idx % (MT7915_MAX_WMM_SETS / 2);
-	else
-		mvif->wmm_idx = mvif->idx % MT7915_MAX_WMM_SETS;
+	mvif->wmm_idx = vif->type != NL80211_IFTYPE_AP;
+	if (ext_phy)
+		mvif->wmm_idx += 2;
 
 	ret = mt7915_mcu_add_dev_info(phy, vif, true);
 	if (ret)
