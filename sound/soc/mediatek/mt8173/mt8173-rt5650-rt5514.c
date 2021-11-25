@@ -231,9 +231,7 @@ static struct platform_driver mt8173_rt5650_rt5514_driver = {
 	.driver = {
 		   .name = "mtk-rt5650-rt5514",
 		   .of_match_table = mt8173_rt5650_rt5514_dt_match,
-#ifdef CONFIG_PM
 		   .pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = mt8173_rt5650_rt5514_dev_probe,
 };
