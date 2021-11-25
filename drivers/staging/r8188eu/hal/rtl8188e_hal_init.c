@@ -1218,19 +1218,6 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo, bool AutoL
 	DBG_88E("Board Type: 0x%2x\n", pHalData->BoardType);
 }
 
-void Hal_EfuseParseEEPROMVer88E(struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail)
-{
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(padapter);
-
-	if (!AutoLoadFail) {
-		pHalData->EEPROMVersion = hwinfo[EEPROM_VERSION_88E];
-		if (pHalData->EEPROMVersion == 0xFF)
-			pHalData->EEPROMVersion = EEPROM_Default_Version;
-	} else {
-		pHalData->EEPROMVersion = 1;
-	}
-}
-
 void rtl8188e_EfuseParseChnlPlan(struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail)
 {
 	padapter->mlmepriv.ChannelPlan =
