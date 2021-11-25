@@ -470,6 +470,10 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		if (ret < 0)
 			return ret;
 
+		ret = snd_sof_pcm_platform_hw_free(sdev, substream);
+		if (ret < 0)
+			return ret;
+
 		/* free widget list only for SUSPEND trigger */
 		if (free_widget_list)
 			ret = sof_widget_list_free(sdev, spcm, substream->stream);
