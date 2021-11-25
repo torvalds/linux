@@ -3,7 +3,8 @@
 
 ALL_TESTS="vlmc_control_test vlmc_querier_test vlmc_igmp_mld_version_test \
 	   vlmc_last_member_test vlmc_startup_query_test vlmc_membership_test \
-	   vlmc_querier_intvl_test vlmc_query_intvl_test vlmc_query_response_intvl_test"
+	   vlmc_querier_intvl_test vlmc_query_intvl_test vlmc_query_response_intvl_test \
+	   vlmc_router_port_test"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="239.10.10.10"
@@ -469,6 +470,57 @@ vlmc_query_response_intvl_test()
 	log_test "Vlan 10 mcast_query_response_interval option changed to 200"
 
 	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_query_response_interval 1000
+}
+
+vlmc_router_port_test()
+{
+	RET=0
+	local goutput=`bridge -j -d vlan show`
+	echo -n $goutput |
+		jq -e ".[] | select(.ifname == \"$swp1\" and \
+				    .vlans[].vlan == 10)" &>/dev/null
+	check_err $? "Could not find port vlan 10's options"
+
+	echo -n $goutput |
+		jq -e ".[] | select(.ifname == \"$swp1\" and \
+				    .vlans[].vlan == 10 and \
+				    .vlans[].mcast_router == 1)" &>/dev/null
+	check_err $? "Wrong default port mcast_router option value"
+	log_test "Port vlan 10 option mcast_router default value"
+
+	RET=0
+	bridge vlan set vid 10 dev $swp1 mcast_router 2
+	check_err $? "Could not set port vlan 10's mcast_router option"
+	log_test "Port vlan 10 mcast_router option changed to 2"
+
+	RET=0
+	tc filter add dev $swp1 egress pref 10 prot 802.1Q \
+		flower vlan_id 10 vlan_ethtype ipv4 dst_ip 239.1.1.1 ip_proto udp action pass
+	tc filter add dev $swp2 egress pref 10 prot 802.1Q \
+		flower vlan_id 10 vlan_ethtype ipv4 dst_ip 239.1.1.1 ip_proto udp action pass
+	bridge vlan set vid 10 dev $swp2 mcast_router 0
+	# we need to enable querier and disable query response interval to
+	# make sure packets are flooded only to router ports
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_querier 1 \
+					      mcast_query_response_interval 0
+	bridge vlan add vid 10 dev br0 self
+	sleep 1
+	mausezahn br0 -Q 10 -c 10 -p 128 -b 01:00:5e:01:01:01 -B 239.1.1.1 \
+			-t udp "dp=1024" &>/dev/null
+	local swp1_tcstats=$(tc_rule_stats_get $swp1 10 egress)
+	if [[ $swp1_tcstats != 10 ]]; then
+		check_err 1 "Wrong number of vlan 10 multicast packets flooded"
+	fi
+	local swp2_tcstats=$(tc_rule_stats_get $swp2 10 egress)
+	check_err $swp2_tcstats "Vlan 10 multicast packets flooded to non-router port"
+	log_test "Flood unknown vlan multicast packets to router port only"
+
+	tc filter del dev $swp2 egress pref 10
+	tc filter del dev $swp1 egress pref 10
+	bridge vlan del vid 10 dev br0 self
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_query_response_interval 1000
+	bridge vlan set vid 10 dev $swp2 mcast_router 1
+	bridge vlan set vid 10 dev $swp1 mcast_router 1
 }
 
 trap cleanup EXIT
