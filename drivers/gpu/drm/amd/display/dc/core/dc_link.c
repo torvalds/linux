@@ -2750,8 +2750,23 @@ static bool dp_active_dongle_validate_timing(
 		return false;
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps > 0) { // DP to HDMI FRL converter
+		struct dc_crtc_timing outputTiming = *timing;
+
+		if (timing->flags.DSC && !timing->dsc_cfg.is_frl)
+			/* DP input has DSC, HDMI FRL output doesn't have DSC, remove DSC from output timing */
+			outputTiming.flags.DSC = 0;
+		if (dc_bandwidth_in_kbps_from_timing(&outputTiming) > dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps)
+			return false;
+	} else { // DP to HDMI TMDS converter
+		if (get_timing_pixel_clock_100hz(timing) > (dongle_caps->dp_hdmi_max_pixel_clk_in_khz * 10))
+			return false;
+	}
+#else
 	if (get_timing_pixel_clock_100hz(timing) > (dongle_caps->dp_hdmi_max_pixel_clk_in_khz * 10))
 		return false;
+#endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	}

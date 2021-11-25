@@ -4313,6 +4313,56 @@ static int translate_dpcd_max_bpc(enum dpcd_downstream_port_max_bpc bpc)
 	return -1;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw)
+{
+	switch (bw) {
+	case 0b001:
+		return 9000000;
+	case 0b010:
+		return 18000000;
+	case 0b011:
+		return 24000000;
+	case 0b100:
+		return 32000000;
+	case 0b101:
+		return 40000000;
+	case 0b110:
+		return 48000000;
+	}
+
+	return 0;
+}
+
+/**
+ * Return PCON's post FRL link training supported BW if its non-zero, otherwise return max_supported_frl_bw.
+ */
+static uint32_t intersect_frl_link_bw_support(
+	const uint32_t max_supported_frl_bw_in_kbps,
+	const union hdmi_encoded_link_bw hdmi_encoded_link_bw)
+{
+	uint32_t supported_bw_in_kbps = max_supported_frl_bw_in_kbps;
+
+	// HDMI_ENCODED_LINK_BW bits are only valid if HDMI Link Configuration bit is 1 (FRL mode)
+	if (hdmi_encoded_link_bw.bits.FRL_MODE) {
+		if (hdmi_encoded_link_bw.bits.BW_48Gbps)
+			supported_bw_in_kbps = 48000000;
+		else if (hdmi_encoded_link_bw.bits.BW_40Gbps)
+			supported_bw_in_kbps = 40000000;
+		else if (hdmi_encoded_link_bw.bits.BW_32Gbps)
+			supported_bw_in_kbps = 32000000;
+		else if (hdmi_encoded_link_bw.bits.BW_24Gbps)
+			supported_bw_in_kbps = 24000000;
+		else if (hdmi_encoded_link_bw.bits.BW_18Gbps)
+			supported_bw_in_kbps = 18000000;
+		else if (hdmi_encoded_link_bw.bits.BW_9Gbps)
+			supported_bw_in_kbps = 9000000;
+	}
+
+	return supported_bw_in_kbps;
+}
+#endif
+
 static void read_dp_device_vendor_id(struct dc_link *link)
 {
 	struct dp_device_vendor_id dp_id;
@@ -4423,6 +4473,27 @@ static void get_active_converter_info(
 					link->dpcd_caps.dongle_caps.dp_hdmi_max_bpc =
 						translate_dpcd_max_bpc(
 							hdmi_color_caps.bits.MAX_BITS_PER_COLOR_COMPONENT);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+					if (link->dc->caps.hdmi_frl_pcon_support) {
+						union hdmi_encoded_link_bw hdmi_encoded_link_bw;
+
+						link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps =
+								dc_link_bw_kbps_from_raw_frl_link_rate_data(
+										hdmi_color_caps.bits.MAX_ENCODED_LINK_BW_SUPPORT);
+
+						// Intersect reported max link bw support with the supported link rate post FRL link training
+						if (core_link_read_dpcd(link, DP_PCON_HDMI_POST_FRL_STATUS,
+								&hdmi_encoded_link_bw.raw, sizeof(hdmi_encoded_link_bw)) == DC_OK) {
+							link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps = intersect_frl_link_bw_support(
+									link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps,
+									hdmi_encoded_link_bw);
+						}
+
+						if (link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps > 0)
+							link->dpcd_caps.dongle_caps.extendedCapValid = true;
+					}
+#endif
 
 					if (link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk_in_khz != 0)
 						link->dpcd_caps.dongle_caps.extendedCapValid = true;

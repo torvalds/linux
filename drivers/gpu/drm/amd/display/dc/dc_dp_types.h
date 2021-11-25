@@ -378,7 +378,14 @@ enum dpcd_downstream_port_detailed_type {
 union dwnstream_port_caps_byte2 {
 	struct {
 		uint8_t MAX_BITS_PER_COLOR_COMPONENT:2;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		uint8_t MAX_ENCODED_LINK_BW_SUPPORT:3;
+		uint8_t SOURCE_CONTROL_MODE_SUPPORT:1;
+		uint8_t CONCURRENT_LINK_BRING_UP_SEQ_SUPPORT:1;
+		uint8_t RESERVED:1;
+#else
 		uint8_t RESERVED:6;
+#endif
 	} bits;
 	uint8_t raw;
 };
@@ -415,6 +422,30 @@ union dwnstream_port_caps_byte3_hdmi {
 	} bits;
 	uint8_t raw;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+union hdmi_sink_encoded_link_bw_support {
+	struct {
+		uint8_t HDMI_SINK_ENCODED_LINK_BW_SUPPORT:3;
+		uint8_t RESERVED:5;
+	} bits;
+	uint8_t raw;
+};
+
+union hdmi_encoded_link_bw {
+	struct {
+		uint8_t FRL_MODE:1; // Bit 0
+		uint8_t BW_9Gbps:1;
+		uint8_t BW_18Gbps:1;
+		uint8_t BW_24Gbps:1;
+		uint8_t BW_32Gbps:1;
+		uint8_t BW_40Gbps:1;
+		uint8_t BW_48Gbps:1;
+		uint8_t RESERVED:1; // Bit 7
+	} bits;
+	uint8_t raw;
+};
+#endif
 
 /*4-byte structure for detailed capabilities of a down-stream port
 (DP-to-TMDS converter).*/

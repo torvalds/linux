@@ -430,6 +430,7 @@ struct dc_dongle_caps {
 	uint32_t dp_hdmi_max_bpc;
 	uint32_t dp_hdmi_max_pixel_clk_in_khz;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+	uint32_t dp_hdmi_frl_max_link_bw_in_kbps;
 	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
 #endif
 };

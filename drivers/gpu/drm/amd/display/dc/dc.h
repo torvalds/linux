@@ -187,6 +187,7 @@ struct dc_caps {
 	struct dc_color_caps color;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool dp_hpo;
+	bool hdmi_frl_pcon_support;
 #endif
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
@@ -1294,6 +1295,11 @@ struct dc_sink_dsc_caps {
 	// 'true' if these are virtual DPCD's DSC caps (immediately upstream of sink in MST topology),
 	// 'false' if they are sink's DSC caps
 	bool is_virtual_dpcd_dsc;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	// 'true' if MST topology supports DSC passthrough for sink
+	// 'false' if MST topology does not support DSC passthrough
+	bool is_dsc_passthrough_supported;
+#endif
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
