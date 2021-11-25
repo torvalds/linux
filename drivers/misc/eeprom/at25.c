@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * at25.c -- support most SPI EEPROMs, such as Atmel AT25 models
- *	     and Cypress FRAMs FM25 models
+ * Driver for most of the SPI EEPROMs, such as Atmel AT25 models
+ * and Cypress FRAMs FM25 models.
  *
  * Copyright (C) 2006 David Brownell
  */
@@ -21,7 +21,7 @@
 #include <linux/nvmem-provider.h>
 
 /*
- * NOTE: this is an *EEPROM* driver.  The vagaries of product naming
+ * NOTE: this is an *EEPROM* driver. The vagaries of product naming
  * mean that some AT25 products are EEPROMs, and others are FLASH.
  * Handle FLASH chips with the drivers/mtd/devices/m25p80.c driver,
  * not this one!
@@ -57,13 +57,14 @@ struct at25_data {
 #define	AT25_SR_BP1	0x08
 #define	AT25_SR_WPEN	0x80		/* writeprotect enable */
 
-#define	AT25_INSTR_BIT3	0x08		/* Additional address bit in instr */
+#define	AT25_INSTR_BIT3	0x08		/* additional address bit in instr */
 
 #define	FM25_ID_LEN	9		/* ID length */
 
 #define EE_MAXADDRLEN	3		/* 24 bit addresses, up to 2 MBytes */
 
-/* Specs often allow 5 msec for a page write, sometimes 20 msec;
+/*
+ * Specs often allow 5ms for a page write, sometimes 20ms;
  * it's important to recover from write timeouts.
  */
 #define	EE_TIMEOUT	25
@@ -108,7 +109,7 @@ static int at25_ee_read(void *priv, unsigned int offset,
 		*cp++ = offset >> 8;
 		fallthrough;
 	case 1:
-	case 0:	/* can't happen: for better codegen */
+	case 0:	/* can't happen: for better code generation */
 		*cp++ = offset >> 0;
 	}
 
@@ -125,11 +126,12 @@ static int at25_ee_read(void *priv, unsigned int offset,
 
 	mutex_lock(&at25->lock);
 
-	/* Read it all at once.
+	/*
+	 * Read it all at once.
 	 *
 	 * REVISIT that's potentially a problem with large chips, if
 	 * other devices on the bus need to be accessed regularly or
-	 * this chip is clocked very slowly
+	 * this chip is clocked very slowly.
 	 */
 	status = spi_sync(at25->spi, &m);
 	dev_dbg(&at25->spi->dev, "read %zu bytes at %d --> %zd\n",
@@ -139,9 +141,7 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	return status;
 }
 
-/*
- * read extra registers as ID or serial number
- */
+/* Read extra registers as ID or serial number */
 static int fm25_aux_read(struct at25_data *at25, u8 *buf, uint8_t command,
 			 int len)
 {
@@ -207,7 +207,8 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 	if (!bounce)
 		return -ENOMEM;
 
-	/* For write, rollover is within the page ... so we write at
+	/*
+	 * For write, rollover is within the page ... so we write at
 	 * most one page, then manually roll over to the next page.
 	 */
 	mutex_lock(&at25->lock);
@@ -241,7 +242,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 			*cp++ = offset >> 8;
 			fallthrough;
 		case 1:
-		case 0:	/* can't happen: for better codegen */
+		case 0:	/* can't happen: for better code generation */
 			*cp++ = offset >> 0;
 		}
 
@@ -257,8 +258,9 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		if (status < 0)
 			break;
 
-		/* REVISIT this should detect (or prevent) failed writes
-		 * to readonly sections of the EEPROM...
+		/*
+		 * REVISIT this should detect (or prevent) failed writes
+		 * to read-only sections of the EEPROM...
 		 */
 
 		/* Wait for non-busy status */
@@ -427,8 +429,9 @@ static int at25_probe(struct spi_device *spi)
 	else
 		is_fram = false;
 
-	/* Ping the chip ... the status register is pretty portable,
-	 * unlike probing manufacturer IDs.  We do expect that system
+	/*
+	 * Ping the chip ... the status register is pretty portable,
+	 * unlike probing manufacturer IDs. We do expect that system
 	 * firmware didn't write it in the past few milliseconds!
 	 */
 	sr = spi_w8r8(spi, AT25_RDSR);
