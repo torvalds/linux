@@ -461,36 +461,59 @@
 		};
 
 		gpu:gpu@18000000{
-				compatible = "img-gpu";
-				interrupt-parent = <&plic>;
-				interrupts = <87>;
-				reg = <0x0 0x18000000 0x0 0x100000 0x0 0x130C000 0x0 0x10000>;
-				clocks = <&gpu_core_clk>, <&gpu_sys_clk>;
-				clock-names = "gpu_core_clk","gpu_sys_clk";
-				current-clock = <8000000>;
-				status = "okay";
+			compatible = "img-gpu";
+			interrupt-parent = <&plic>;
+			interrupts = <87>;
+			reg = <0x0 0x18000000 0x0 0x100000 0x0 0x130C000 0x0 0x10000>;
+			clocks = <&gpu_core_clk>, <&gpu_sys_clk>;
+			clock-names = "gpu_core_clk","gpu_sys_clk";
+			current-clock = <8000000>;
+			status = "okay";
 		};
 
-                spi0:spi0@10060000 {
-                        compatible = "arm,pl022", "arm,primecell";
-                        reg = <0x0 0x10060000 0x0 0x10000>;
-                        clocks = <&ahb1clk>;
-                        clock-names = "apb_pclk";
-                        dmas = <&dma 14 1>, <&dma 15 1>;
-                        dma-names = "rx","tx";                  
-                        #address-cells = <1>;
-                        #size-cells = <0>;
-                        arm,primecell-periphid = <0x00041022>;
-                        interrupt-parent = <&plic>;
-                        interrupts = <38>;
-                        num-cs = <1>;
-                        spi_dev0: spi@0 {
-                                compatible = "rohm,dh2228fv";
-                                pl022,com-mode = <1>;
-                                spi-max-frequency = <10000000>;
-                                reg = <0>;
-                                status = "okay";
-                        };
-               };
+		spi0:spi0@10060000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0x10060000 0x0 0x10000>;
+			clocks = <&ahb1clk>;
+			clock-names = "apb_pclk";
+			dmas = <&dma 14 1>, <&dma 15 1>;
+			dma-names = "rx","tx";                  
+			#address-cells = <1>;
+			#size-cells = <0>;
+			arm,primecell-periphid = <0x00041022>;
+			interrupt-parent = <&plic>;
+			interrupts = <38>;
+			num-cs = <1>;
+			spi_dev0: spi@0 {
+				compatible = "rohm,dh2228fv";
+				pl022,com-mode = <1>;
+				spi-max-frequency = <10000000>;
+				reg = <0>;
+				status = "okay";
+			};
+		};
+
+		pcie0:pcie0@2B000000 {
+			compatible = "plda,pci-xpressrich3-axi";
+			reg = <0x0 0x2B000000 0x0 0x1000000
+					0x9 0x40000000 0x0 0x10000000>;
+			reg-names = "reg", "config";
+			device_type = "pci";
+			bus-range = <0x0 0xff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			ranges = <0x82000000  0x0 0x30000000  0x0 0x30000000 0x0 0x06000000>;
+			msi-parent = <&plic>;
+			interrupts = <56>;
+			interrupt-controller;
+			interrupt-names = "msi";
+			interrupt-parent = <&plic>;
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &plic 0x1>,
+							<0x0 0x0 0x0 0x2 &plic 0x2>,
+							<0x0 0x0 0x0 0x3 &plic 0x3>,
+							<0x0 0x0 0x0 0x4 &plic 0x4>;
+		};
 	};
 };

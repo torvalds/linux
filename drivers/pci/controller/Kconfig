@@ -312,6 +312,14 @@ config PCIE_HISI_ERR
 	  Say Y here if you want error handling support
 	  for the PCIe controller's errors on HiSilicon HIP SoCs
 
+config PCIE_PLDA
+	tristate "PLDA XpressRICH3-AXI PCIe controller"
+	depends on OF
+	select PCI_MSI_IRQ_DOMAIN
+	help
+	  Say 'Y' here if you want kernel to support the PLDA XpressRICH3-AXI
+	  (with ECAM disabled) PCIe Host driver.
+
 source "drivers/pci/controller/dwc/Kconfig"
 source "drivers/pci/controller/mobiveil/Kconfig"
 source "drivers/pci/controller/cadence/Kconfig"
