@@ -1916,7 +1916,7 @@ static int bq25700_register_host_nb(struct bq25700_device *charger)
 		charger->cable_host_nb.notifier_call =
 			bq25700_host_evt_notifier;
 		ret = extcon_register_notifier(charger->cable_edev,
-					       EXTCON_USB_HOST,
+					       EXTCON_USB_VBUS_EN,
 					       &charger->cable_host_nb);
 		if (ret < 0) {
 			dev_err(charger->dev,
@@ -1931,7 +1931,7 @@ static int bq25700_register_host_nb(struct bq25700_device *charger)
 		charger->cable_host_nb1.notifier_call =
 			bq25700_host_evt_notifier1;
 		ret = extcon_register_notifier(charger->cable_edev_1,
-					       EXTCON_USB_HOST,
+					       EXTCON_USB_VBUS_EN,
 					       &charger->cable_host_nb1);
 		if (ret < 0) {
 			dev_err(charger->dev,
