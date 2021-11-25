@@ -63,7 +63,7 @@ int pvrdma_uar_table_init(struct pvrdma_dev *dev)
 	tbl->max = num;
 	tbl->mask = mask;
 	spin_lock_init(&tbl->lock);
-	tbl->table = kcalloc(BITS_TO_LONGS(num), sizeof(long), GFP_KERNEL);
+	tbl->table = bitmap_zalloc(num, GFP_KERNEL);
 	if (!tbl->table)
 		return -ENOMEM;
 
@@ -77,7 +77,7 @@ void pvrdma_uar_table_cleanup(struct pvrdma_dev *dev)
 {
 	struct pvrdma_id_table *tbl = &dev->uar_table.tbl;
 
-	kfree(tbl->table);
+	bitmap_free(tbl->table);
 }
 
 int pvrdma_uar_alloc(struct pvrdma_dev *dev, struct pvrdma_uar_map *uar)
