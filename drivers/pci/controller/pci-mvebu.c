@@ -214,7 +214,7 @@ static void mvebu_pcie_setup_wins(struct mvebu_pcie_port *port)
 
 static void mvebu_pcie_setup_hw(struct mvebu_pcie_port *port)
 {
-	u32 ctrl, cmd, mask;
+	u32 ctrl, cmd, dev_rev, mask;
 
 	/* Setup PCIe controller to Root Complex mode. */
 	ctrl = mvebu_readl(port, PCIE_CTRL_OFF);
@@ -225,6 +225,32 @@ static void mvebu_pcie_setup_hw(struct mvebu_pcie_port *port)
 	cmd = mvebu_readl(port, PCIE_CMD_OFF);
 	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
 	mvebu_writel(port, cmd, PCIE_CMD_OFF);
+
+	/*
+	 * Change Class Code of PCI Bridge device to PCI Bridge (0x6004)
+	 * because default value is Memory controller (0x5080).
+	 *
+	 * Note that this mvebu PCI Bridge does not have compliant Type 1
+	 * Configuration Space. Header Type is reported as Type 0 and it
+	 * has format of Type 0 config space.
+	 *
+	 * Moreover Type 0 BAR registers (ranges 0x10 - 0x28 and 0x30 - 0x34)
+	 * have the same format in Marvell's specification as in PCIe
+	 * specification, but their meaning is totally different and they do
+	 * different things: they are aliased into internal mvebu registers
+	 * (e.g. PCIE_BAR_LO_OFF) and these should not be changed or
+	 * reconfigured by pci device drivers.
+	 *
+	 * Therefore driver uses emulation of PCI Bridge which emulates
+	 * access to configuration space via internal mvebu registers or
+	 * emulated configuration buffer. Driver access these PCI Bridge
+	 * directly for simplification, but these registers can be accessed
+	 * also via standard mvebu way for accessing PCI config space.
+	 */
+	dev_rev = mvebu_readl(port, PCIE_DEV_REV_OFF);
+	dev_rev &= ~0xffffff00;
+	dev_rev |= (PCI_CLASS_BRIDGE_PCI << 8) << 8;
+	mvebu_writel(port, dev_rev, PCIE_DEV_REV_OFF);
 
 	/* Point PCIe unit MBUS decode windows to DRAM space. */
 	mvebu_pcie_setup_wins(port);
