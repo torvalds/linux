@@ -840,6 +840,14 @@
 	status = "disabled";
 };
 
+&vdpu {
+	status = "okay";
+};
+
+&vdpu_mmu {
+	status = "okay";
+};
+
 &vop {
 	assigned-clocks = <&cru DCLK_VOP2_SRC>, <&cru DCLK_VOP2_SRC>,
 			  <&cru DCLK_VOP2_SRC>, <&cru DCLK_VOP3>;
