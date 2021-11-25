@@ -1542,15 +1542,18 @@ static u32 ocelot_get_bond_mask(struct ocelot *ocelot, struct net_device *bond,
 	return mask;
 }
 
-static u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port,
-				      struct net_device *bridge)
+static u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[src_port];
+	const struct net_device *bridge;
 	u32 mask = 0;
 	int port;
 
-	if (!ocelot_port || ocelot_port->bridge != bridge ||
-	    ocelot_port->stp_state != BR_STATE_FORWARDING)
+	if (!ocelot_port || ocelot_port->stp_state != BR_STATE_FORWARDING)
+		return 0;
+
+	bridge = ocelot_port->bridge;
+	if (!bridge)
 		return 0;
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
@@ -1617,10 +1620,9 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot)
 			mask = GENMASK(ocelot->num_phys_ports - 1, 0);
 			mask &= ~cpu_fwd_mask;
 		} else if (ocelot_port->bridge) {
-			struct net_device *bridge = ocelot_port->bridge;
 			struct net_device *bond = ocelot_port->bond;
 
-			mask = ocelot_get_bridge_fwd_mask(ocelot, port, bridge);
+			mask = ocelot_get_bridge_fwd_mask(ocelot, port);
 			mask |= cpu_fwd_mask;
 			mask &= ~BIT(port);
 			if (bond) {
