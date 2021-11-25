@@ -304,33 +304,35 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 {
 	u32 val;
+	int err;
 
 	memset(chip, 0, sizeof(*chip));
 	strncpy(chip->name, "at25", sizeof(chip->name));
 
-	if (device_property_read_u32(dev, "size", &val) == 0 ||
-	    device_property_read_u32(dev, "at25,byte-len", &val) == 0) {
-		chip->byte_len = val;
-	} else {
+	err = device_property_read_u32(dev, "size", &val);
+	if (err)
+		err = device_property_read_u32(dev, "at25,byte-len", &val);
+	if (err) {
 		dev_err(dev, "Error: missing \"size\" property\n");
-		return -ENODEV;
+		return err;
 	}
+	chip->byte_len = val;
 
-	if (device_property_read_u32(dev, "pagesize", &val) == 0 ||
-	    device_property_read_u32(dev, "at25,page-size", &val) == 0) {
-		chip->page_size = val;
-	} else {
+	err = device_property_read_u32(dev, "pagesize", &val);
+	if (err)
+		err = device_property_read_u32(dev, "at25,page-size", &val);
+	if (err) {
 		dev_err(dev, "Error: missing \"pagesize\" property\n");
-		return -ENODEV;
+		return err;
 	}
+	chip->page_size = val;
 
-	if (device_property_read_u32(dev, "at25,addr-mode", &val) == 0) {
-		chip->flags = (u16)val;
-	} else {
-		if (device_property_read_u32(dev, "address-width", &val)) {
-			dev_err(dev,
-				"Error: missing \"address-width\" property\n");
-			return -ENODEV;
+	err = device_property_read_u32(dev, "at25,addr-mode", &val);
+	if (err) {
+		err = device_property_read_u32(dev, "address-width", &val);
+		if (err) {
+			dev_err(dev, "Error: missing \"address-width\" property\n");
+			return err;
 		}
 		switch (val) {
 		case 9:
@@ -353,6 +355,8 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 		}
 		if (device_property_present(dev, "read-only"))
 			chip->flags |= EE_READONLY;
+	} else {
+		chip->flags = (u16)val;
 	}
 	return 0;
 }
