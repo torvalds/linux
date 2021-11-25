@@ -330,7 +330,7 @@
 
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PD2 IRQ_TYPE_LEVEL_LOW>;
-		otg-mode-en-gpio = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		otg-mode-en-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&charger_ok>;
 		extcon = <&u2phy0>;
@@ -785,8 +785,8 @@
 &usbdp_phy0 {
 	orientation-switch;
 	svid = <0xff01>;
-	sbu1-dc-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
-	sbu2-dc-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+	sbu1-dc-gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
+	sbu2-dc-gpios = <&gpio1 RK_PB7 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	port {
