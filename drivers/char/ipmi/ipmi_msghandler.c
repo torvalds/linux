@@ -4457,13 +4457,24 @@ return_unspecified:
 		msg->rsp[2] = IPMI_ERR_UNSPECIFIED;
 		msg->rsp_size = 3;
 	} else if (msg->type == IPMI_SMI_MSG_TYPE_IPMB_DIRECT) {
-		/* commands must have at least 3 bytes, responses 4. */
-		if (is_cmd && (msg->rsp_size < 3)) {
+		/* commands must have at least 4 bytes, responses 5. */
+		if (is_cmd && (msg->rsp_size < 4)) {
 			ipmi_inc_stat(intf, invalid_commands);
 			goto out;
 		}
-		if (!is_cmd && (msg->rsp_size < 4))
-			goto return_unspecified;
+		if (!is_cmd && (msg->rsp_size < 5)) {
+			ipmi_inc_stat(intf, invalid_ipmb_responses);
+			/* Construct a valid error response. */
+			msg->rsp[0] = msg->data[0] & 0xfc; /* NetFN */
+			msg->rsp[0] |= (1 << 2); /* Make it a response */
+			msg->rsp[0] |= msg->data[2] & 3; /* rqLUN */
+			msg->rsp[1] = msg->data[1]; /* Addr */
+			msg->rsp[2] = msg->data[2] & 0xfc; /* rqSeq */
+			msg->rsp[2] |= msg->data[0] & 0x3; /* rsLUN */
+			msg->rsp[3] = msg->data[3]; /* Cmd */
+			msg->rsp[4] = IPMI_ERR_UNSPECIFIED;
+			msg->rsp_size = 5;
+		}
 	} else if ((msg->data_size >= 2)
 	    && (msg->data[0] == (IPMI_NETFN_APP_REQUEST << 2))
 	    && (msg->data[1] == IPMI_SEND_MSG_CMD)
