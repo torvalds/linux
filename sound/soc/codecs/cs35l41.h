@@ -538,7 +538,6 @@
 #define CS35L41_OTP_TRIM_35		0x0000400C
 #define CS35L41_OTP_TRIM_36		0x00002030
 
-#define CS35L41_MAX_CACHE_REG		36
 #define CS35L41_OTP_SIZE_WORDS		32
 #define CS35L41_NUM_OTP_ELEM		100
 #define CS35L41_NUM_OTP_MAPS		5
@@ -734,9 +733,8 @@
 #define CS35L41_RX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 #define CS35L41_TX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
-bool cs35l41_readable_reg(struct device *dev, unsigned int reg);
-bool cs35l41_precious_reg(struct device *dev, unsigned int reg);
-bool cs35l41_volatile_reg(struct device *dev, unsigned int reg);
+extern struct regmap_config cs35l41_regmap_i2c;
+extern struct regmap_config cs35l41_regmap_spi;
 
 struct cs35l41_otp_packed_element_t {
 	u32 reg;
@@ -752,7 +750,6 @@ struct cs35l41_otp_map_element_t {
 	u32 word_offset;
 };
 
-extern const struct reg_default cs35l41_reg[CS35L41_MAX_CACHE_REG];
 extern const struct cs35l41_otp_map_element_t
 				cs35l41_otp_map_map[CS35L41_NUM_OTP_MAPS];
 

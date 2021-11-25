@@ -8,7 +8,7 @@
 
 #include "cs35l41.h"
 
-const struct reg_default cs35l41_reg[CS35L41_MAX_CACHE_REG] = {
+static const struct reg_default cs35l41_reg[] = {
 	{ CS35L41_PWR_CTRL1,			0x00000000 },
 	{ CS35L41_PWR_CTRL3,			0x01000010 },
 	{ CS35L41_GPIO_PAD_CONTROL,		0x00000000 },
@@ -47,7 +47,7 @@ const struct reg_default cs35l41_reg[CS35L41_MAX_CACHE_REG] = {
 	{ CS35L41_MIXER_NGATE_CH2_CFG,		0x00000303 },
 };
 
-bool cs35l41_readable_reg(struct device *dev, unsigned int reg)
+static bool cs35l41_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS35L41_DEVID:
@@ -331,7 +331,7 @@ bool cs35l41_readable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-bool cs35l41_precious_reg(struct device *dev, unsigned int reg)
+static bool cs35l41_precious_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS35L41_OTP_MEM0 ... CS35L41_OTP_MEM31:
@@ -344,7 +344,7 @@ bool cs35l41_precious_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-bool cs35l41_volatile_reg(struct device *dev, unsigned int reg)
+static bool cs35l41_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS35L41_DEVID:
@@ -688,3 +688,36 @@ const struct cs35l41_otp_map_element_t cs35l41_otp_map_map[CS35L41_NUM_OTP_MAPS]
 		.word_offset = 2,
 	},
 };
+
+struct regmap_config cs35l41_regmap_i2c = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = CS35L41_REGSTRIDE,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS35L41_LASTREG,
+	.reg_defaults = cs35l41_reg,
+	.num_reg_defaults = ARRAY_SIZE(cs35l41_reg),
+	.volatile_reg = cs35l41_volatile_reg,
+	.readable_reg = cs35l41_readable_reg,
+	.precious_reg = cs35l41_precious_reg,
+	.cache_type = REGCACHE_RBTREE,
+};
+EXPORT_SYMBOL_GPL(cs35l41_regmap_i2c);
+
+struct regmap_config cs35l41_regmap_spi = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.pad_bits = 16,
+	.reg_stride = CS35L41_REGSTRIDE,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS35L41_LASTREG,
+	.reg_defaults = cs35l41_reg,
+	.num_reg_defaults = ARRAY_SIZE(cs35l41_reg),
+	.volatile_reg = cs35l41_volatile_reg,
+	.readable_reg = cs35l41_readable_reg,
+	.precious_reg = cs35l41_precious_reg,
+	.cache_type = REGCACHE_RBTREE,
+};
+EXPORT_SYMBOL_GPL(cs35l41_regmap_spi);
