@@ -46,7 +46,7 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed, enum LED_PIN_8
 	ResetLedStatus(pLed);
 
 	timer_setup(&pLed->BlinkTimer, BlinkTimerCallback, 0);
-	_init_workitem(&pLed->BlinkWorkItem, BlinkWorkItemCallback, pLed);
+	INIT_WORK(&pLed->BlinkWorkItem, BlinkWorkItemCallback);
 }
 
 void DeInitLed871x(struct LED_871x *pLed)
