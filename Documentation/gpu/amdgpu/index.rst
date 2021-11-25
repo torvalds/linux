@@ -334,3 +334,10 @@ smartshift_bias
 
 .. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
    :doc: smartshift_bias
+
+AMDGPU Glossary
+===============
+
+.. toctree::
+
+   amdgpu-glossary.rst

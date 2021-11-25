@@ -26,3 +26,4 @@ table of content:
    display-manager.rst
    dc-debug.rst
    dcn-overview.rst
+   dc-glossary.rst
