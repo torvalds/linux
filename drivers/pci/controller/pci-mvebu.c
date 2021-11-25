@@ -845,6 +845,11 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 	port->devfn = of_pci_get_devfn(child);
 	if (port->devfn < 0)
 		goto skip;
+	if (PCI_FUNC(port->devfn) != 0) {
+		dev_err(dev, "%s: invalid function number, must be zero\n",
+			port->name);
+		goto skip;
+	}
 
 	ret = mvebu_get_tgt_attr(dev->of_node, port->devfn, IORESOURCE_MEM,
 				 &port->mem_target, &port->mem_attr);
