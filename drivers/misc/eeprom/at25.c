@@ -390,7 +390,10 @@ static int at25_probe(struct spi_device *spi)
 
 	/* Chip description */
 	if (!spi->dev.platform_data) {
-		if (!is_fram) {
+		if (is_fram) {
+			/* We file fields for FRAM case later on */
+			memset(&chip, 0, sizeof(chip));
+		} else {
 			err = at25_fw_to_chip(&spi->dev, &chip);
 			if (err)
 				return err;
