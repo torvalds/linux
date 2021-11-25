@@ -8,9 +8,6 @@
 #include "../include/rtw_efuse.h"
 #include "../include/rtl8188e_hal.h"
 
-#define REG_EFUSE_CTRL		0x0030
-#define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
-
 /*  */
 /* 	Description: */
 /* 		Execute E-Fuse read byte operation. */
