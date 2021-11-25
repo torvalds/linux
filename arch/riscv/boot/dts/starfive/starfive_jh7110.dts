@@ -470,5 +470,27 @@
 				current-clock = <8000000>;
 				status = "okay";
 		};
+
+                spi0:spi0@10060000 {
+                        compatible = "arm,pl022", "arm,primecell";
+                        reg = <0x0 0x10060000 0x0 0x10000>;
+                        clocks = <&ahb1clk>;
+                        clock-names = "apb_pclk";
+                        dmas = <&dma 14 1>, <&dma 15 1>;
+                        dma-names = "rx","tx";                  
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+                        arm,primecell-periphid = <0x00041022>;
+                        interrupt-parent = <&plic>;
+                        interrupts = <38>;
+                        num-cs = <1>;
+                        spi_dev0: spi@0 {
+                                compatible = "rohm,dh2228fv";
+                                pl022,com-mode = <1>;
+                                spi-max-frequency = <10000000>;
+                                reg = <0>;
+                                status = "okay";
+                        };
+               };
 	};
 };

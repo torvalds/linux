@@ -117,6 +117,7 @@ config RISCV
 	select TRACE_IRQFLAGS_SUPPORT
 	select UACCESS_MEMCPY if !MMU
 	select ZONE_DMA32 if 64BIT
+	select ARM_AMBA
 
 config ARCH_MMAP_RND_BITS_MIN
 	default 18 if 64BIT
