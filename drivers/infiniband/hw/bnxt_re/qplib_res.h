@@ -185,12 +185,6 @@ struct bnxt_qplib_sgid_tbl {
 	u8				*vlan;
 };
 
-struct bnxt_qplib_pkey_tbl {
-	u16				*tbl;
-	u16				max;
-	u16				active;
-};
-
 struct bnxt_qplib_dpi {
 	u32				dpi;
 	void __iomem			*dbr;
@@ -258,7 +252,6 @@ struct bnxt_qplib_res {
 	struct bnxt_qplib_rcfw		*rcfw;
 	struct bnxt_qplib_pd_tbl	pd_tbl;
 	struct bnxt_qplib_sgid_tbl	sgid_tbl;
-	struct bnxt_qplib_pkey_tbl	pkey_tbl;
 	struct bnxt_qplib_dpi_tbl	dpi_tbl;
 	bool				prio;
 	bool                            is_vf;
