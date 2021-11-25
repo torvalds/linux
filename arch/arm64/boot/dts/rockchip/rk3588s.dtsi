@@ -2368,6 +2368,9 @@
 				#size-cells = <0>;
 				reg = <2>;
 
+				assigned-clocks = <&cru DCLK_VOP2_SRC>;
+				assigned-clock-parents = <&cru PLL_V0PLL>;
+
 				vp2_out_dp0: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&dp0_in_vp2>;
