@@ -552,8 +552,7 @@ extern void kvm_hv_vm_activated(void);
 extern void kvm_hv_vm_deactivated(void);
 extern bool kvm_hv_mode_active(void);
 
-extern void kvmppc_check_need_tlb_flush(struct kvm *kvm, int pcpu,
-					struct kvm_nested_guest *nested);
+extern void kvmppc_check_need_tlb_flush(struct kvm *kvm, int pcpu);
 
 #else
 static inline void __init kvm_cma_reserve(void)
@@ -760,6 +759,7 @@ void kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu);
 void kvmppc_subcore_enter_guest(void);
 void kvmppc_subcore_exit_guest(void);
 long kvmppc_realmode_hmi_handler(void);
+long kvmppc_p9_realmode_hmi_handler(struct kvm_vcpu *vcpu);
 long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
                     long pte_index, unsigned long pteh, unsigned long ptel);
 long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
