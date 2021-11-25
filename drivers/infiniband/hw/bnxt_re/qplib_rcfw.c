@@ -555,7 +555,7 @@ skip_ctx_setup:
 
 void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 {
-	kfree(rcfw->cmdq.cmdq_bitmap);
+	bitmap_free(rcfw->cmdq.cmdq_bitmap);
 	kfree(rcfw->qp_tbl);
 	kfree(rcfw->crsqe_tbl);
 	bnxt_qplib_free_hwq(rcfw->res, &rcfw->cmdq.hwq);
@@ -572,7 +572,6 @@ int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 	struct bnxt_qplib_sg_info sginfo = {};
 	struct bnxt_qplib_cmdq_ctx *cmdq;
 	struct bnxt_qplib_creq_ctx *creq;
-	u32 bmap_size = 0;
 
 	rcfw->pdev = res->pdev;
 	cmdq = &rcfw->cmdq;
@@ -613,8 +612,7 @@ int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 	if (!rcfw->crsqe_tbl)
 		goto fail;
 
-	bmap_size = BITS_TO_LONGS(rcfw->cmdq_depth) * sizeof(unsigned long);
-	cmdq->cmdq_bitmap = kzalloc(bmap_size, GFP_KERNEL);
+	cmdq->cmdq_bitmap = bitmap_zalloc(rcfw->cmdq_depth, GFP_KERNEL);
 	if (!cmdq->cmdq_bitmap)
 		goto fail;
 
