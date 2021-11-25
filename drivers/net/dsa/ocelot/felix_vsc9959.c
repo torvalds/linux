@@ -2125,6 +2125,80 @@ static void vsc9959_psfp_init(struct ocelot *ocelot)
 	INIT_LIST_HEAD(&psfp->sgi_list);
 }
 
+/* When using cut-through forwarding and the egress port runs at a higher data
+ * rate than the ingress port, the packet currently under transmission would
+ * suffer an underrun since it would be transmitted faster than it is received.
+ * The Felix switch implementation of cut-through forwarding does not check in
+ * hardware whether this condition is satisfied or not, so we must restrict the
+ * list of ports that have cut-through forwarding enabled on egress to only be
+ * the ports operating at the lowest link speed within their respective
+ * forwarding domain.
+ */
+static void vsc9959_cut_through_fwd(struct ocelot *ocelot)
+{
+	struct felix *felix = ocelot_to_felix(ocelot);
+	struct dsa_switch *ds = felix->ds;
+	int port, other_port;
+
+	lockdep_assert_held(&ocelot->fwd_domain_lock);
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct ocelot_port *ocelot_port = ocelot->ports[port];
+		int min_speed = ocelot_port->speed;
+		unsigned long mask = 0;
+		u32 tmp, val = 0;
+
+		/* Disable cut-through on ports that are down */
+		if (ocelot_port->speed <= 0)
+			goto set;
+
+		if (dsa_is_cpu_port(ds, port)) {
+			/* Ocelot switches forward from the NPI port towards
+			 * any port, regardless of it being in the NPI port's
+			 * forwarding domain or not.
+			 */
+			mask = dsa_user_ports(ds);
+		} else {
+			mask = ocelot_get_bridge_fwd_mask(ocelot, port);
+			mask &= ~BIT(port);
+			if (ocelot->npi >= 0)
+				mask |= BIT(ocelot->npi);
+			else
+				mask |= ocelot_get_dsa_8021q_cpu_mask(ocelot);
+		}
+
+		/* Calculate the minimum link speed, among the ports that are
+		 * up, of this source port's forwarding domain.
+		 */
+		for_each_set_bit(other_port, &mask, ocelot->num_phys_ports) {
+			struct ocelot_port *other_ocelot_port;
+
+			other_ocelot_port = ocelot->ports[other_port];
+			if (other_ocelot_port->speed <= 0)
+				continue;
+
+			if (min_speed > other_ocelot_port->speed)
+				min_speed = other_ocelot_port->speed;
+		}
+
+		/* Enable cut-through forwarding for all traffic classes. */
+		if (ocelot_port->speed == min_speed)
+			val = GENMASK(7, 0);
+
+set:
+		tmp = ocelot_read_rix(ocelot, ANA_CUT_THRU_CFG, port);
+		if (tmp == val)
+			continue;
+
+		dev_dbg(ocelot->dev,
+			"port %d fwd mask 0x%lx speed %d min_speed %d, %s cut-through forwarding\n",
+			port, mask, ocelot_port->speed, min_speed,
+			val ? "enabling" : "disabling");
+
+		ocelot_write_rix(ocelot, val, ANA_CUT_THRU_CFG, port);
+	}
+}
+
 static const struct ocelot_ops vsc9959_ops = {
 	.reset			= vsc9959_reset,
 	.wm_enc			= vsc9959_wm_enc,
@@ -2136,6 +2210,7 @@ static const struct ocelot_ops vsc9959_ops = {
 	.psfp_filter_add	= vsc9959_psfp_filter_add,
 	.psfp_filter_del	= vsc9959_psfp_filter_del,
 	.psfp_stats_get		= vsc9959_psfp_stats_get,
+	.cut_through_fwd	= vsc9959_cut_through_fwd,
 };
 
 static const struct felix_info felix_info_vsc9959 = {

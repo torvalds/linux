@@ -240,24 +240,32 @@ static int felix_tag_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
  */
 static void felix_8021q_cpu_port_init(struct ocelot *ocelot, int port)
 {
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	ocelot->ports[port]->is_dsa_8021q_cpu = true;
 	ocelot->npi = -1;
 
 	/* Overwrite PGID_CPU with the non-tagging port */
 	ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, PGID_CPU);
 
-	ocelot_apply_bridge_fwd_mask(ocelot);
+	ocelot_apply_bridge_fwd_mask(ocelot, true);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 
 static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
 {
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	ocelot->ports[port]->is_dsa_8021q_cpu = false;
 
 	/* Restore PGID_CPU */
 	ocelot_write_rix(ocelot, BIT(ocelot->num_phys_ports), ANA_PGID_PGID,
 			 PGID_CPU);
 
-	ocelot_apply_bridge_fwd_mask(ocelot);
+	ocelot_apply_bridge_fwd_mask(ocelot, true);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 
 /* Set up a VCAP IS2 rule for delivering PTP frames to the CPU port module.

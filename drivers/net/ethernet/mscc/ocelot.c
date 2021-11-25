@@ -663,8 +663,16 @@ void ocelot_phylink_mac_link_down(struct ocelot *ocelot, int port,
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int err;
 
+	ocelot_port->speed = SPEED_UNKNOWN;
+
 	ocelot_port_rmwl(ocelot_port, 0, DEV_MAC_ENA_CFG_RX_ENA,
 			 DEV_MAC_ENA_CFG);
+
+	if (ocelot->ops->cut_through_fwd) {
+		mutex_lock(&ocelot->fwd_domain_lock);
+		ocelot->ops->cut_through_fwd(ocelot);
+		mutex_unlock(&ocelot->fwd_domain_lock);
+	}
 
 	ocelot_fields_write(ocelot, port, QSYS_SWITCH_PORT_MODE_PORT_ENA, 0);
 
@@ -696,6 +704,8 @@ void ocelot_phylink_mac_link_up(struct ocelot *ocelot, int port,
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int mac_speed, mode = 0;
 	u32 mac_fc_cfg;
+
+	ocelot_port->speed = speed;
 
 	/* The MAC might be integrated in systems where the MAC speed is fixed
 	 * and it's the PCS who is performing the rate adaptation, so we have
@@ -768,6 +778,15 @@ void ocelot_phylink_mac_link_up(struct ocelot *ocelot, int port,
 	 */
 	ocelot_port_writel(ocelot_port, DEV_MAC_ENA_CFG_RX_ENA |
 			   DEV_MAC_ENA_CFG_TX_ENA, DEV_MAC_ENA_CFG);
+
+	/* If the port supports cut-through forwarding, update the masks before
+	 * enabling forwarding on the port.
+	 */
+	if (ocelot->ops->cut_through_fwd) {
+		mutex_lock(&ocelot->fwd_domain_lock);
+		ocelot->ops->cut_through_fwd(ocelot);
+		mutex_unlock(&ocelot->fwd_domain_lock);
+	}
 
 	/* Core: Enable port for frame transfer */
 	ocelot_fields_write(ocelot, port,
@@ -1542,7 +1561,7 @@ static u32 ocelot_get_bond_mask(struct ocelot *ocelot, struct net_device *bond,
 	return mask;
 }
 
-static u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port)
+u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[src_port];
 	const struct net_device *bridge;
@@ -1569,8 +1588,9 @@ static u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port)
 
 	return mask;
 }
+EXPORT_SYMBOL_GPL(ocelot_get_bridge_fwd_mask);
 
-static u32 ocelot_get_dsa_8021q_cpu_mask(struct ocelot *ocelot)
+u32 ocelot_get_dsa_8021q_cpu_mask(struct ocelot *ocelot)
 {
 	u32 mask = 0;
 	int port;
@@ -1587,11 +1607,21 @@ static u32 ocelot_get_dsa_8021q_cpu_mask(struct ocelot *ocelot)
 
 	return mask;
 }
+EXPORT_SYMBOL_GPL(ocelot_get_dsa_8021q_cpu_mask);
 
-void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot)
+void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 {
 	unsigned long cpu_fwd_mask;
 	int port;
+
+	lockdep_assert_held(&ocelot->fwd_domain_lock);
+
+	/* If cut-through forwarding is supported, update the masks before a
+	 * port joins the forwarding domain, to avoid potential underruns if it
+	 * has the highest speed from the new domain.
+	 */
+	if (joining && ocelot->ops->cut_through_fwd)
+		ocelot->ops->cut_through_fwd(ocelot);
 
 	/* If a DSA tag_8021q CPU exists, it needs to be included in the
 	 * regular forwarding path of the front ports regardless of whether
@@ -1639,6 +1669,16 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot)
 
 		ocelot_write_rix(ocelot, mask, ANA_PGID_PGID, PGID_SRC + port);
 	}
+
+	/* If cut-through forwarding is supported and a port is leaving, there
+	 * is a chance that cut-through was disabled on the other ports due to
+	 * the port which is leaving (it has a higher link speed). We need to
+	 * update the cut-through masks of the remaining ports no earlier than
+	 * after the port has left, to prevent underruns from happening between
+	 * the cut-through update and the forwarding domain update.
+	 */
+	if (!joining && ocelot->ops->cut_through_fwd)
+		ocelot->ops->cut_through_fwd(ocelot);
 }
 EXPORT_SYMBOL(ocelot_apply_bridge_fwd_mask);
 
@@ -1646,6 +1686,8 @@ void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u32 learn_ena = 0;
+
+	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot_port->stp_state = state;
 
@@ -1656,7 +1698,9 @@ void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state)
 	ocelot_rmw_gix(ocelot, learn_ena, ANA_PORT_PORT_CFG_LEARN_ENA,
 		       ANA_PORT_PORT_CFG, port);
 
-	ocelot_apply_bridge_fwd_mask(ocelot);
+	ocelot_apply_bridge_fwd_mask(ocelot, state == BR_STATE_FORWARDING);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 EXPORT_SYMBOL(ocelot_bridge_stp_state_set);
 
@@ -1886,9 +1930,13 @@ void ocelot_port_bridge_join(struct ocelot *ocelot, int port,
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	ocelot_port->bridge = bridge;
 
-	ocelot_apply_bridge_fwd_mask(ocelot);
+	ocelot_apply_bridge_fwd_mask(ocelot, true);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 EXPORT_SYMBOL(ocelot_port_bridge_join);
 
@@ -1897,11 +1945,15 @@ void ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	ocelot_port->bridge = NULL;
 
 	ocelot_port_set_pvid(ocelot, port, NULL);
 	ocelot_port_manage_port_tag(ocelot, port);
-	ocelot_apply_bridge_fwd_mask(ocelot);
+	ocelot_apply_bridge_fwd_mask(ocelot, false);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 EXPORT_SYMBOL(ocelot_port_bridge_leave);
 
@@ -2023,11 +2075,15 @@ int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH)
 		return -EOPNOTSUPP;
 
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	ocelot->ports[port]->bond = bond;
 
 	ocelot_setup_logical_port_ids(ocelot);
-	ocelot_apply_bridge_fwd_mask(ocelot);
+	ocelot_apply_bridge_fwd_mask(ocelot, true);
 	ocelot_set_aggr_pgids(ocelot);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 
 	return 0;
 }
@@ -2036,11 +2092,15 @@ EXPORT_SYMBOL(ocelot_port_lag_join);
 void ocelot_port_lag_leave(struct ocelot *ocelot, int port,
 			   struct net_device *bond)
 {
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	ocelot->ports[port]->bond = NULL;
 
 	ocelot_setup_logical_port_ids(ocelot);
-	ocelot_apply_bridge_fwd_mask(ocelot);
+	ocelot_apply_bridge_fwd_mask(ocelot, false);
 	ocelot_set_aggr_pgids(ocelot);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 EXPORT_SYMBOL(ocelot_port_lag_leave);
 
@@ -2331,6 +2391,7 @@ int ocelot_init(struct ocelot *ocelot)
 	mutex_init(&ocelot->stats_lock);
 	mutex_init(&ocelot->ptp_lock);
 	mutex_init(&ocelot->mact_lock);
+	mutex_init(&ocelot->fwd_domain_lock);
 	spin_lock_init(&ocelot->ptp_clock_lock);
 	spin_lock_init(&ocelot->ts_id_lock);
 	snprintf(queue_name, sizeof(queue_name), "%s-stats",
