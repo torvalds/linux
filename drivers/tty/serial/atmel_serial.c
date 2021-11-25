@@ -1009,6 +1009,8 @@ static void atmel_tx_dma(struct uart_port *port)
 				atmel_port->cookie_tx);
 			return;
 		}
+
+		dma_async_issue_pending(chan);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -1268,6 +1270,8 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 			atmel_port->cookie_rx);
 		goto chan_err;
 	}
+
+	dma_async_issue_pending(atmel_port->chan_rx);
 
 	return 0;
 
