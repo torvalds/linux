@@ -47,6 +47,10 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		pm8226_spmi_regulators: pm8226-regulators {
+			compatible = "qcom,pm8226-regulators";
+		};
+
 		pm8226_vib: vibrator@c000 {
 			compatible = "qcom,pm8916-vib";
 			reg = <0xc000>;
