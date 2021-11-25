@@ -1279,10 +1279,13 @@ out_err:
 	return ret;
 }
 
-int fuse_dax_conn_alloc(struct fuse_conn *fc, struct dax_device *dax_dev)
+int fuse_dax_conn_alloc(struct fuse_conn *fc, enum fuse_dax_mode dax_mode,
+			struct dax_device *dax_dev)
 {
 	struct fuse_conn_dax *fcd;
 	int err;
+
+	fc->dax_mode = dax_mode;
 
 	if (!dax_dev)
 		return 0;
@@ -1330,7 +1333,15 @@ static const struct address_space_operations fuse_dax_file_aops  = {
 static bool fuse_should_enable_dax(struct inode *inode)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	enum fuse_dax_mode dax_mode = fc->dax_mode;
 
+	if (dax_mode == FUSE_DAX_NEVER)
+		return false;
+
+	/*
+	 * fc->dax may be NULL in 'inode' mode when filesystem device doesn't
+	 * support DAX, in which case it will silently fallback to 'never' mode.
+	 */
 	if (!fc->dax)
 		return false;
 
