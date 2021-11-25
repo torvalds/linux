@@ -299,21 +299,25 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: free stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
 
+	/* free PCM in the DSP */
 	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
 	if (ret < 0)
 		err = ret;
 
-	ret = sof_widget_list_free(sdev, spcm, substream->stream);
-	if (ret < 0)
-		err = ret;
 
-	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
-
+	/* stop DMA */
 	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
 	if (ret < 0) {
 		dev_err(component->dev, "error: platform hw free failed\n");
 		err = ret;
 	}
+
+	/* free the DAPM widget list */
+	ret = sof_widget_list_free(sdev, spcm, substream->stream);
+	if (ret < 0)
+		err = ret;
+
+	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
 	return err;
 }
