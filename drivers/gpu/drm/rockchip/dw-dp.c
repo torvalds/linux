@@ -145,7 +145,7 @@
 #define DPTX_AUX_STATUS				0x0b04
 #define AUX_TIMEOUT				BIT(17)
 #define AUX_BYTES_READ				GENMASK(23, 19)
-#define AUX_STATUS				GENMASK(7, 0)
+#define AUX_STATUS				GENMASK(7, 4)
 #define DPTX_AUX_DATA0				0x0b08
 #define DPTX_AUX_DATA1				0x0b0c
 #define DPTX_AUX_DATA2				0x0b10
