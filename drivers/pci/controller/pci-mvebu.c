@@ -250,6 +250,9 @@ static int mvebu_pcie_hw_rd_conf(struct mvebu_pcie_port *port,
 	case 4:
 		*val = readl_relaxed(conf_data);
 		break;
+	default:
+		*val = 0xffffffff;
+		return PCIBIOS_BAD_REGISTER_NUMBER;
 	}
 
 	return PCIBIOS_SUCCESSFUL;
