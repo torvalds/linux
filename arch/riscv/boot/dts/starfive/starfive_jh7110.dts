@@ -387,22 +387,27 @@
 			post-power-on-delay-ms = <200>;
 		};
 		jpu: jpu@11900000 {
-		    compatible = "cm,codaj12-jpu";
+		    compatible = "starfive,jpu";
 		    reg = <0x0 0x13090000 0x0 0x300>;
 		    interrupt-parent = <&plic>;
 		    interrupts = <14>;
 		    clocks = <&jpuclk>;
-		    clock-names = "jpege";
+		    clock-names = "axi_clk", "core_clk", "apb_clk";
 		    status = "okay";
 		};
 
 		vpu_dec: vpu_dec@130A0000 {
-		    compatible = "c&m,cm511-vpu";
+		    compatible = "starfive,vdec";
 		    reg = <0 0x130A0000 0 0x10000>;
 		    interrupt-parent = <&plic>;
 		    interrupts = <13>;
 		    clocks = <&vdec_rootclk>;
-		    clock-names = "vcodec";
+		    clock-names = "axi_clk",
+				"bpu_clk",
+				"vce_clk",
+				"apb_clk",
+				"aximem_128b";
+		    //starfive,vdec_noc_ctrl;
 		    status = "okay";
 		};
 		vpu_enc:vpu_enc@130B0000 {
