@@ -1764,7 +1764,6 @@ static void visornic_channel_interrupt(struct visor_device *dev)
 		napi_schedule(&devdata->napi);
 
 	atomic_set(&devdata->interrupt_rcvd, 0);
-
 }
 
 /* visornic_probe - probe function for visornic devices
