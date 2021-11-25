@@ -127,4 +127,17 @@ config ST_ISM303DAC_ACCEL_IIO_LIMIT_FIFO
           can be limited by software or hardware.
 
           Set 0 to disable the limit.
+
+config IIO_ST_LIS3DHH
+        tristate "STMicroelectronics LIS3DHH/IIS3DHHC Accelerometer driver"
+        depends on SPI_MASTER && SYSFS
+        select IIO_BUFFER
+        select IIO_KFIFO_BUF
+        help
+          Say yes here to build support for STMicroelectronics LIS3DHH and
+          IIS3DHHC accelerometers
+
+          This driver can also be built as a module. If so, will be named
+          st_lis3dhh
+
 endmenu
