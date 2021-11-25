@@ -342,7 +342,7 @@ static int sunxi_de2_clk_probe(struct platform_device *pdev)
 		goto err_disable_mod_clk;
 	}
 
-	ret = sunxi_ccu_probe(pdev->dev.of_node, reg, ccu_desc);
+	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, ccu_desc);
 	if (ret)
 		goto err_assert_reset;
 

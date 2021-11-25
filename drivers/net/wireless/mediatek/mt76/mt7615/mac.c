@@ -755,12 +755,15 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
 		txwi[3] |= cpu_to_le32(MT_TXD3_NO_ACK);
 
-	txwi[7] = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
-		  FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype) |
-		  FIELD_PREP(MT_TXD7_SPE_IDX, 0x18);
-	if (!is_mmio)
-		txwi[8] = FIELD_PREP(MT_TXD8_L_TYPE, fc_type) |
-			  FIELD_PREP(MT_TXD8_L_SUB_TYPE, fc_stype);
+	val = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
+	      FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype) |
+	      FIELD_PREP(MT_TXD7_SPE_IDX, 0x18);
+	txwi[7] = cpu_to_le32(val);
+	if (!is_mmio) {
+		val = FIELD_PREP(MT_TXD8_L_TYPE, fc_type) |
+		      FIELD_PREP(MT_TXD8_L_SUB_TYPE, fc_stype);
+		txwi[8] = cpu_to_le32(val);
+	}
 
 	return 0;
 }
@@ -1494,30 +1497,39 @@ out:
 }
 
 static void
+mt7615_txwi_free(struct mt7615_dev *dev, struct mt76_txwi_cache *txwi)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+	__le32 *txwi_data;
+	u32 val;
+	u8 wcid;
+
+	mt7615_txp_skb_unmap(mdev, txwi);
+	if (!txwi->skb)
+		goto out;
+
+	txwi_data = (__le32 *)mt76_get_txwi_ptr(mdev, txwi);
+	val = le32_to_cpu(txwi_data[1]);
+	wcid = FIELD_GET(MT_TXD1_WLAN_IDX, val);
+	mt76_tx_complete_skb(mdev, wcid, txwi->skb);
+
+out:
+	txwi->skb = NULL;
+	mt76_put_txwi(mdev, txwi);
+}
+
+static void
 mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_txwi_cache *txwi;
-	__le32 *txwi_data;
-	u32 val;
-	u8 wcid;
 
 	trace_mac_tx_free(dev, token);
 	txwi = mt76_token_put(mdev, token);
 	if (!txwi)
 		return;
 
-	txwi_data = (__le32 *)mt76_get_txwi_ptr(mdev, txwi);
-	val = le32_to_cpu(txwi_data[1]);
-	wcid = FIELD_GET(MT_TXD1_WLAN_IDX, val);
-
-	mt7615_txp_skb_unmap(mdev, txwi);
-	if (txwi->skb) {
-		mt76_tx_complete_skb(mdev, wcid, txwi->skb);
-		txwi->skb = NULL;
-	}
-
-	mt76_put_txwi(mdev, txwi);
+	mt7615_txwi_free(dev, txwi);
 }
 
 static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
@@ -2026,16 +2038,8 @@ void mt7615_tx_token_put(struct mt7615_dev *dev)
 	int id;
 
 	spin_lock_bh(&dev->mt76.token_lock);
-	idr_for_each_entry(&dev->mt76.token, txwi, id) {
-		mt7615_txp_skb_unmap(&dev->mt76, txwi);
-		if (txwi->skb) {
-			struct ieee80211_hw *hw;
-
-			hw = mt76_tx_status_get_hw(&dev->mt76, txwi->skb);
-			ieee80211_free_txskb(hw, txwi->skb);
-		}
-		mt76_put_txwi(&dev->mt76, txwi);
-	}
+	idr_for_each_entry(&dev->mt76.token, txwi, id)
+		mt7615_txwi_free(dev, txwi);
 	spin_unlock_bh(&dev->mt76.token_lock);
 	idr_destroy(&dev->mt76.token);
 }

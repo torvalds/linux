@@ -193,10 +193,12 @@ static inline pte_t pte_wrprotect(pte_t pte)
 }
 #endif
 
+#ifndef pte_mkexec
 static inline pte_t pte_mkexec(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_EXEC);
 }
+#endif
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
@@ -306,30 +308,29 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 }
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
+#ifndef ptep_set_wrprotect
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pte_t *ptep)
 {
-	unsigned long clr = ~pte_val(pte_wrprotect(__pte(~0)));
-	unsigned long set = pte_val(pte_wrprotect(__pte(0)));
-
-	pte_update(mm, addr, ptep, clr, set, 0);
+	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
 }
+#endif
 
+#ifndef __ptep_set_access_flags
 static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 					   pte_t *ptep, pte_t entry,
 					   unsigned long address,
 					   int psize)
 {
-	pte_t pte_set = pte_mkyoung(pte_mkdirty(pte_mkwrite(pte_mkexec(__pte(0)))));
-	pte_t pte_clr = pte_mkyoung(pte_mkdirty(pte_mkwrite(pte_mkexec(__pte(~0)))));
-	unsigned long set = pte_val(entry) & pte_val(pte_set);
-	unsigned long clr = ~pte_val(entry) & ~pte_val(pte_clr);
+	unsigned long set = pte_val(entry) &
+			    (_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
 	int huge = psize > mmu_virtual_psize ? 1 : 0;
 
-	pte_update(vma->vm_mm, address, ptep, clr, set, huge);
+	pte_update(vma->vm_mm, address, ptep, 0, set, huge);
 
 	flush_tlb_page(vma, address);
 }
+#endif
 
 static inline int pte_young(pte_t pte)
 {

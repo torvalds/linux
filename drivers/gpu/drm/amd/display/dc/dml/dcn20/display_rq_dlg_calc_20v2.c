@@ -768,12 +768,12 @@ static void dml20v2_rq_dlg_get_rq_params(struct display_mode_lib *mode_lib,
 
 void dml20v2_rq_dlg_get_rq_reg(struct display_mode_lib *mode_lib,
 		display_rq_regs_st *rq_regs,
-		const display_pipe_params_st pipe_param)
+		const display_pipe_params_st *pipe_param)
 {
 	display_rq_params_st rq_param = {0};
 
 	memset(rq_regs, 0, sizeof(*rq_regs));
-	dml20v2_rq_dlg_get_rq_params(mode_lib, &rq_param, pipe_param.src);
+	dml20v2_rq_dlg_get_rq_params(mode_lib, &rq_param, pipe_param->src);
 	extract_rq_regs(mode_lib, rq_regs, rq_param);
 
 	print__rq_regs_st(mode_lib, *rq_regs);
@@ -1550,7 +1550,7 @@ static void dml20v2_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 void dml20v2_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 		display_dlg_regs_st *dlg_regs,
 		display_ttu_regs_st *ttu_regs,
-		display_e2e_pipe_params_st *e2e_pipe_param,
+		const display_e2e_pipe_params_st *e2e_pipe_param,
 		const unsigned int num_pipes,
 		const unsigned int pipe_idx,
 		const bool cstate_en,

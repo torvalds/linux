@@ -375,6 +375,14 @@
 #define RT5682_R_VOL_MASK			(0x3f)
 #define RT5682_R_VOL_SFT			0
 
+/* Headphone Amp Control 2 (0x0003) */
+#define RT5682_HP_C2_DAC_AMP_MUTE_SFT		15
+#define RT5682_HP_C2_DAC_AMP_MUTE		(0x1 << 15)
+#define RT5682_HP_C2_DAC_L_EN_SFT		14
+#define RT5682_HP_C2_DAC_L_EN			(0x1 << 14)
+#define RT5682_HP_C2_DAC_R_EN_SFT		13
+#define RT5682_HP_C2_DAC_R_EN			(0x1 << 13)
+
 /*Headphone Amp L/R Analog Gain and Digital NG2 Gain Control (0x0005 0x0006)*/
 #define RT5682_G_HP				(0xf << 8)
 #define RT5682_G_HP_SFT				8
@@ -1265,6 +1273,10 @@
 #define RT5682_HPA_CP_BIAS_6UA			(0x3 << 2)
 
 /* Charge Pump Internal Register1 (0x0125) */
+#define RT5682_CP_SW_SIZE_MASK			(0x7 << 8)
+#define RT5682_CP_SW_SIZE_L			(0x4 << 8)
+#define RT5682_CP_SW_SIZE_M			(0x2 << 8)
+#define RT5682_CP_SW_SIZE_S			(0x1 << 8)
 #define RT5682_CP_CLK_HP_MASK			(0x3 << 4)
 #define RT5682_CP_CLK_HP_100KHZ			(0x0 << 4)
 #define RT5682_CP_CLK_HP_200KHZ			(0x1 << 4)
@@ -1314,6 +1326,14 @@
 /* Stereo1 DAC Silence Detection Control (0x0190) */
 #define RT5682_DEB_STO_DAC_MASK			(0x7 << 4)
 #define RT5682_DEB_80_MS			(0x0 << 4)
+
+/* HP Behavior Logic Control 2 (0x01db) */
+#define RT5682_HP_LC2_SIG_SOUR2_MASK		(0x1 << 4)
+#define RT5682_HP_LC2_SIG_SOUR2_REG		(0x1 << 4)
+#define RT5682_HP_LC2_SIG_SOUR2_DC_CAL		(0x0 << 4)
+#define RT5682_HP_LC2_SIG_SOUR1_MASK		(0x7)
+#define RT5682_HP_LC2_SIG_SOUR1_1BIT		(0x7)
+#define RT5682_HP_LC2_SIG_SOUR1_LEGA		(0x2)
 
 /* SAR ADC Inline Command Control 1 (0x0210) */
 #define RT5682_SAR_BUTT_DET_MASK		(0x1 << 15)

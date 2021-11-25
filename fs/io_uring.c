@@ -10684,7 +10684,9 @@ static int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 
 	BUILD_BUG_ON(sizeof(new_count) != sizeof(ctx->iowq_limits));
 
-	memcpy(ctx->iowq_limits, new_count, sizeof(new_count));
+	for (i = 0; i < ARRAY_SIZE(new_count); i++)
+		if (new_count[i])
+			ctx->iowq_limits[i] = new_count[i];
 	ctx->iowq_limits_set = true;
 
 	ret = -EINVAL;

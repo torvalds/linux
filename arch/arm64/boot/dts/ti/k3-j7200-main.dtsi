@@ -606,10 +606,10 @@
 		clock-names = "fck";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		bus-range = <0x0 0xf>;
+		bus-range = <0x0 0xff>;
 		cdns,no-bar-match-nbits = <64>;
-		vendor-id = /bits/ 16 <0x104c>;
-		device-id = /bits/ 16 <0xb00f>;
+		vendor-id = <0x104c>;
+		device-id = <0xb00f>;
 		msi-map = <0x0 &gic_its 0x0 0x10000>;
 		dma-coherent;
 		ranges = <0x01000000 0x0 0x18001000  0x00 0x18001000  0x0 0x0010000>,

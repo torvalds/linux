@@ -566,37 +566,37 @@ static int moxart_probe(struct platform_device *pdev)
 	if (!mmc) {
 		dev_err(dev, "mmc_alloc_host failed\n");
 		ret = -ENOMEM;
-		goto out;
+		goto out_mmc;
 	}
 
 	ret = of_address_to_resource(node, 0, &res_mmc);
 	if (ret) {
 		dev_err(dev, "of_address_to_resource failed\n");
-		goto out;
+		goto out_mmc;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
 		dev_err(dev, "irq_of_parse_and_map failed\n");
 		ret = -EINVAL;
-		goto out;
+		goto out_mmc;
 	}
 
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		goto out;
+		goto out_mmc;
 	}
 
 	reg_mmc = devm_ioremap_resource(dev, &res_mmc);
 	if (IS_ERR(reg_mmc)) {
 		ret = PTR_ERR(reg_mmc);
-		goto out;
+		goto out_mmc;
 	}
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto out;
+		goto out_mmc;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -620,6 +620,14 @@ static int moxart_probe(struct platform_device *pdev)
 		    PTR_ERR(host->dma_chan_rx) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
 			goto out;
+		}
+		if (!IS_ERR(host->dma_chan_tx)) {
+			dma_release_channel(host->dma_chan_tx);
+			host->dma_chan_tx = NULL;
+		}
+		if (!IS_ERR(host->dma_chan_rx)) {
+			dma_release_channel(host->dma_chan_rx);
+			host->dma_chan_rx = NULL;
 		}
 		dev_dbg(dev, "PIO mode transfer enabled\n");
 		host->have_dma = false;
@@ -675,6 +683,11 @@ static int moxart_probe(struct platform_device *pdev)
 	return 0;
 
 out:
+	if (!IS_ERR_OR_NULL(host->dma_chan_tx))
+		dma_release_channel(host->dma_chan_tx);
+	if (!IS_ERR_OR_NULL(host->dma_chan_rx))
+		dma_release_channel(host->dma_chan_rx);
+out_mmc:
 	if (mmc)
 		mmc_free_host(mmc);
 	return ret;
@@ -687,9 +700,9 @@ static int moxart_remove(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, NULL);
 
-	if (!IS_ERR(host->dma_chan_tx))
+	if (!IS_ERR_OR_NULL(host->dma_chan_tx))
 		dma_release_channel(host->dma_chan_tx);
-	if (!IS_ERR(host->dma_chan_rx))
+	if (!IS_ERR_OR_NULL(host->dma_chan_rx))
 		dma_release_channel(host->dma_chan_rx);
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);

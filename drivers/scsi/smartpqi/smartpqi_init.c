@@ -234,15 +234,46 @@ static inline bool pqi_is_hba_lunid(u8 *scsi3addr)
 	return pqi_scsi3addr_equal(scsi3addr, RAID_CTLR_LUNID);
 }
 
+#define PQI_DRIVER_SCRATCH_PQI_MODE			0x1
+#define PQI_DRIVER_SCRATCH_FW_TRIAGE_SUPPORTED		0x2
+
 static inline enum pqi_ctrl_mode pqi_get_ctrl_mode(struct pqi_ctrl_info *ctrl_info)
 {
-	return sis_read_driver_scratch(ctrl_info);
+	return sis_read_driver_scratch(ctrl_info) & PQI_DRIVER_SCRATCH_PQI_MODE ? PQI_MODE : SIS_MODE;
 }
 
 static inline void pqi_save_ctrl_mode(struct pqi_ctrl_info *ctrl_info,
 	enum pqi_ctrl_mode mode)
 {
-	sis_write_driver_scratch(ctrl_info, mode);
+	u32 driver_scratch;
+
+	driver_scratch = sis_read_driver_scratch(ctrl_info);
+
+	if (mode == PQI_MODE)
+		driver_scratch |= PQI_DRIVER_SCRATCH_PQI_MODE;
+	else
+		driver_scratch &= ~PQI_DRIVER_SCRATCH_PQI_MODE;
+
+	sis_write_driver_scratch(ctrl_info, driver_scratch);
+}
+
+static inline bool pqi_is_fw_triage_supported(struct pqi_ctrl_info *ctrl_info)
+{
+	return (sis_read_driver_scratch(ctrl_info) & PQI_DRIVER_SCRATCH_FW_TRIAGE_SUPPORTED) != 0;
+}
+
+static inline void pqi_save_fw_triage_setting(struct pqi_ctrl_info *ctrl_info, bool is_supported)
+{
+	u32 driver_scratch;
+
+	driver_scratch = sis_read_driver_scratch(ctrl_info);
+
+	if (is_supported)
+		driver_scratch |= PQI_DRIVER_SCRATCH_FW_TRIAGE_SUPPORTED;
+	else
+		driver_scratch &= ~PQI_DRIVER_SCRATCH_FW_TRIAGE_SUPPORTED;
+
+	sis_write_driver_scratch(ctrl_info, driver_scratch);
 }
 
 static inline void pqi_ctrl_block_scan(struct pqi_ctrl_info *ctrl_info)
@@ -7301,6 +7332,7 @@ static void pqi_ctrl_update_feature_flags(struct pqi_ctrl_info *ctrl_info,
 		ctrl_info->unique_wwid_in_report_phys_lun_supported =
 			firmware_feature->enabled;
 		break;
+		pqi_save_fw_triage_setting(ctrl_info, firmware_feature->enabled);
 	}
 
 	pqi_firmware_feature_status(ctrl_info, firmware_feature);
@@ -7627,6 +7659,11 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	u32 product_id;
 
 	if (reset_devices) {
+		if (pqi_is_fw_triage_supported(ctrl_info)) {
+			rc = sis_wait_for_fw_triage_completion(ctrl_info);
+			if (rc)
+				return rc;
+		}
 		sis_soft_reset(ctrl_info);
 		msleep(PQI_POST_RESET_DELAY_SECS * PQI_HZ);
 	} else {

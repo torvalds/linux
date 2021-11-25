@@ -988,8 +988,9 @@ static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 		}
 	}
 
-	entry = tracefs_create_file("function_profile_enabled", 0644,
-				    d_tracer, NULL, &ftrace_profile_fops);
+	entry = tracefs_create_file("function_profile_enabled",
+				    TRACE_MODE_WRITE, d_tracer, NULL,
+				    &ftrace_profile_fops);
 	if (!entry)
 		pr_warn("Could not create tracefs 'function_profile_enabled' entry\n");
 }
@@ -6109,10 +6110,10 @@ void ftrace_create_filter_files(struct ftrace_ops *ops,
 				struct dentry *parent)
 {
 
-	trace_create_file("set_ftrace_filter", 0644, parent,
+	trace_create_file("set_ftrace_filter", TRACE_MODE_WRITE, parent,
 			  ops, &ftrace_filter_fops);
 
-	trace_create_file("set_ftrace_notrace", 0644, parent,
+	trace_create_file("set_ftrace_notrace", TRACE_MODE_WRITE, parent,
 			  ops, &ftrace_notrace_fops);
 }
 
@@ -6139,19 +6140,19 @@ void ftrace_destroy_filter_files(struct ftrace_ops *ops)
 static __init int ftrace_init_dyn_tracefs(struct dentry *d_tracer)
 {
 
-	trace_create_file("available_filter_functions", 0444,
+	trace_create_file("available_filter_functions", TRACE_MODE_READ,
 			d_tracer, NULL, &ftrace_avail_fops);
 
-	trace_create_file("enabled_functions", 0444,
+	trace_create_file("enabled_functions", TRACE_MODE_READ,
 			d_tracer, NULL, &ftrace_enabled_fops);
 
 	ftrace_create_filter_files(&global_ops, d_tracer);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	trace_create_file("set_graph_function", 0644, d_tracer,
+	trace_create_file("set_graph_function", TRACE_MODE_WRITE, d_tracer,
 				    NULL,
 				    &ftrace_graph_fops);
-	trace_create_file("set_graph_notrace", 0644, d_tracer,
+	trace_create_file("set_graph_notrace", TRACE_MODE_WRITE, d_tracer,
 				    NULL,
 				    &ftrace_graph_notrace_fops);
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
@@ -7494,10 +7495,10 @@ static const struct file_operations ftrace_no_pid_fops = {
 
 void ftrace_init_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 {
-	trace_create_file("set_ftrace_pid", 0644, d_tracer,
+	trace_create_file("set_ftrace_pid", TRACE_MODE_WRITE, d_tracer,
 			    tr, &ftrace_pid_fops);
-	trace_create_file("set_ftrace_notrace_pid", 0644, d_tracer,
-			    tr, &ftrace_no_pid_fops);
+	trace_create_file("set_ftrace_notrace_pid", TRACE_MODE_WRITE,
+			  d_tracer, tr, &ftrace_no_pid_fops);
 }
 
 void __init ftrace_init_tracefs_toplevel(struct trace_array *tr,

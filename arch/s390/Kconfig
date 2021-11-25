@@ -47,7 +47,7 @@ config ARCH_SUPPORTS_UPROBES
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
-	default 0x18000000000000
+	default 0x1C000000000000
 
 config S390
 	def_bool y

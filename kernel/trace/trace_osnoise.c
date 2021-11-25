@@ -1856,38 +1856,38 @@ static int init_tracefs(void)
 	if (!top_dir)
 		return 0;
 
-	tmp = tracefs_create_file("period_us", 0640, top_dir,
+	tmp = tracefs_create_file("period_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_period, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("runtime_us", 0644, top_dir,
+	tmp = tracefs_create_file("runtime_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_runtime, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("stop_tracing_us", 0640, top_dir,
+	tmp = tracefs_create_file("stop_tracing_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_stop_tracing_in, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("stop_tracing_total_us", 0640, top_dir,
+	tmp = tracefs_create_file("stop_tracing_total_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_stop_tracing_total, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = trace_create_file("cpus", 0644, top_dir, NULL, &cpus_fops);
+	tmp = trace_create_file("cpus", TRACE_MODE_WRITE, top_dir, NULL, &cpus_fops);
 	if (!tmp)
 		goto err;
 #ifdef CONFIG_TIMERLAT_TRACER
 #ifdef CONFIG_STACKTRACE
-	tmp = tracefs_create_file("print_stack", 0640, top_dir,
+	tmp = tracefs_create_file("print_stack", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_print_stack, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 #endif
 
-	tmp = tracefs_create_file("timerlat_period_us", 0640, top_dir,
+	tmp = tracefs_create_file("timerlat_period_us", TRACE_MODE_WRITE, top_dir,
 				  &timerlat_period, &trace_min_max_fops);
 	if (!tmp)
 		goto err;

@@ -1085,12 +1085,16 @@ static unsigned long calculate_inst_freq(struct venus_inst *inst,
 	if (inst->state != INST_START)
 		return 0;
 
-	if (inst->session_type == VIDC_SESSION_TYPE_ENC)
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC) {
 		vpp_freq_per_mb = inst->flags & VENUS_LOW_POWER ?
 			inst->clk_data.low_power_freq :
 			inst->clk_data.vpp_freq;
 
-	vpp_freq = mbs_per_sec * vpp_freq_per_mb;
+		vpp_freq = mbs_per_sec * vpp_freq_per_mb;
+	} else {
+		vpp_freq = mbs_per_sec * inst->clk_data.vpp_freq;
+	}
+
 	/* 21 / 20 is overhead factor */
 	vpp_freq += vpp_freq / 20;
 	vsp_freq = mbs_per_sec * inst->clk_data.vsp_freq;

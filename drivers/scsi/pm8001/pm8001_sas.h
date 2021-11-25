@@ -457,6 +457,7 @@ struct outbound_queue_table {
 	__le32			producer_index;
 	u32			consumer_idx;
 	spinlock_t		oq_lock;
+	unsigned long		lock_flags;
 };
 struct pm8001_hba_memspace {
 	void __iomem  		*memvirtaddr;
@@ -516,6 +517,7 @@ struct pm8001_hba_info {
 	u32			iomb_size; /* SPC and SPCV IOMB size */
 	struct pm8001_device	*devices;
 	struct pm8001_ccb_info	*ccb_info;
+	u32			ccb_count;
 #ifdef PM8001_USE_MSIX
 	int			number_of_intr;/*will be used in remove()*/
 	char			intr_drvname[PM8001_MAX_MSIX_VEC]
@@ -738,9 +740,7 @@ pm8001_ccb_task_free_done(struct pm8001_hba_info *pm8001_ha,
 {
 	pm8001_ccb_task_free(pm8001_ha, task, ccb, ccb_idx);
 	smp_mb(); /*in order to force CPU ordering*/
-	spin_unlock(&pm8001_ha->lock);
 	task->task_done(task);
-	spin_lock(&pm8001_ha->lock);
 }
 
 #endif

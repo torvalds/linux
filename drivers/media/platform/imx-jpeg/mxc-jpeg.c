@@ -575,6 +575,10 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	if (!dst_buf || !src_buf) {
+		dev_err(dev, "No source or destination buffer.\n");
+		goto job_unlock;
+	}
 	jpeg_src_buf = vb2_to_mxc_buf(&src_buf->vb2_buf);
 
 	if (dec_ret & SLOT_STATUS_ENC_CONFIG_ERR) {
@@ -2088,6 +2092,8 @@ err_m2m:
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 
 err_register:
+	mxc_jpeg_detach_pm_domains(jpeg);
+
 err_irq:
 	return ret;
 }

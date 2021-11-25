@@ -19,6 +19,7 @@ config SMB_SERVER
 	select CRYPTO_GCM
 	select ASN1
 	select OID_REGISTRY
+	select CRC32
 	default n
 	help
 	  Choose Y here if you want to allow SMB3 compliant clients
