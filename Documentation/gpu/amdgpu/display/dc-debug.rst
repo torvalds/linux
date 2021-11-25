@@ -2,8 +2,18 @@
 Display Core Debug tools
 ========================
 
-DC Debugfs
-==========
+DC Visual Confirmation
+======================
+
+Display core provides a feature named visual confirmation, which is a set of
+bars added at the scanout time by the driver to convey some specific
+information. In general, you can enable this debug option by using::
+
+  echo <N> > /sys/kernel/debug/dri/0/amdgpu_dm_visual_confirm
+
+Where `N` is an integer number for some specific scenarios that the developer
+wants to enable, you will see some of these debug cases in the following
+subsection.
 
 Multiple Planes Debug
 ---------------------
@@ -34,3 +44,17 @@ split configuration.
 * There should **not** be any cursor corruption
 * Multiple plane **may** be briefly disabled during window transitions or
   resizing but should come back after the action has finished
+
+Pipe Split Debug
+----------------
+
+Sometimes we need to debug if DCN is splitting pipes correctly, and visual
+confirmation is also handy for this case. Similar to the MPO case, you can use
+the below command to enable visual confirmation::
+
+  echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_visual_confirm
+
+In this case, if you have a pipe split, you will see one small red bar at the
+bottom of the display covering the entire display width and another bar
+covering the second pipe. In other words, you will see a bit high bar in the
+second pipe.
