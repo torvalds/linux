@@ -622,7 +622,7 @@ int smp_store_status(int cpu)
 		return -EIO;
 	if (!MACHINE_HAS_VX && !MACHINE_HAS_GS)
 		return 0;
-	pa = __pa(lc->mcesad & MCESA_ORIGIN_MASK);
+	pa = lc->mcesad & MCESA_ORIGIN_MASK;
 	if (MACHINE_HAS_GS)
 		pa |= lc->mcesad & MCESA_LC_MASK;
 	if (__pcpu_sigp_relax(pcpu->address, SIGP_STORE_ADDITIONAL_STATUS,

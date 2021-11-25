@@ -68,7 +68,7 @@ void __init nmi_alloc_boot_cpu(struct lowcore *lc)
 {
 	if (!nmi_needs_mcesa())
 		return;
-	lc->mcesad = (unsigned long) &boot_mcesa;
+	lc->mcesad = __pa(&boot_mcesa);
 	if (MACHINE_HAS_GS)
 		lc->mcesad |= ilog2(MCESA_MAX_SIZE);
 }
@@ -94,7 +94,7 @@ static int __init nmi_init(void)
 	__ctl_store(cr0, 0, 0);
 	__ctl_clear_bit(0, 28); /* disable lowcore protection */
 	/* Replace boot_mcesa on the boot CPU */
-	S390_lowcore.mcesad = origin | mcesa_origin_lc;
+	S390_lowcore.mcesad = __pa(origin) | mcesa_origin_lc;
 	__ctl_load(cr0, 0, 0);
 	return 0;
 }
@@ -111,7 +111,7 @@ int nmi_alloc_per_cpu(struct lowcore *lc)
 		return -ENOMEM;
 	/* The pointer is stored with mcesa_bits ORed in */
 	kmemleak_not_leak((void *) origin);
-	lc->mcesad = origin | mcesa_origin_lc;
+	lc->mcesad = __pa(origin) | mcesa_origin_lc;
 	return 0;
 }
 
@@ -119,7 +119,7 @@ void nmi_free_per_cpu(struct lowcore *lc)
 {
 	if (!nmi_needs_mcesa())
 		return;
-	kmem_cache_free(mcesa_cache, (void *)(lc->mcesad & MCESA_ORIGIN_MASK));
+	kmem_cache_free(mcesa_cache, __va(lc->mcesad & MCESA_ORIGIN_MASK));
 }
 
 static notrace void s390_handle_damage(void)
@@ -246,7 +246,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			: "Q" (S390_lowcore.fpt_creg_save_area));
 	}
 
-	mcesa = (struct mcesa *)(S390_lowcore.mcesad & MCESA_ORIGIN_MASK);
+	mcesa = __va(S390_lowcore.mcesad & MCESA_ORIGIN_MASK);
 	if (!MACHINE_HAS_VX) {
 		/* Validate floating point registers */
 		asm volatile(
