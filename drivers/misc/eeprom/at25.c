@@ -31,9 +31,9 @@
 
 #define	FM25_SN_LEN	8		/* serial number length */
 struct at25_data {
+	struct spi_eeprom	chip;
 	struct spi_device	*spi;
 	struct mutex		lock;
-	struct spi_eeprom	chip;
 	unsigned		addrlen;
 	struct nvmem_config	nvmem_config;
 	struct nvmem_device	*nvmem;
@@ -360,6 +360,44 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 	return 0;
 }
 
+static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
+{
+	struct at25_data *at25 = container_of(chip, struct at25_data, chip);
+	u8 sernum[FM25_SN_LEN];
+	u8 id[FM25_ID_LEN];
+	int i;
+
+	strncpy(chip->name, "fm25", sizeof(chip->name));
+
+	/* Get ID of chip */
+	fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);
+	if (id[6] != 0xc2) {
+		dev_err(dev, "Error: no Cypress FRAM (id %02x)\n", id[6]);
+		return -ENODEV;
+	}
+	/* Set size found in ID */
+	if (id[7] < 0x21 || id[7] > 0x26) {
+		dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
+		return -ENODEV;
+	}
+
+	chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
+	if (chip->byte_len > 64 * 1024)
+		chip->flags |= EE_ADDR3;
+	else
+		chip->flags |= EE_ADDR2;
+
+	if (id[8]) {
+		fm25_aux_read(at25, sernum, FM25_RDSN, FM25_SN_LEN);
+		/* Swap byte order */
+		for (i = 0; i < FM25_SN_LEN; i++)
+			at25->sernum[i] = sernum[FM25_SN_LEN - 1 - i];
+	}
+
+	chip->page_size = PAGE_SIZE;
+	return 0;
+}
+
 static const struct of_device_id at25_of_match[] = {
 	{ .compatible = "atmel,at25",},
 	{ .compatible = "cypress,fm25",},
@@ -380,10 +418,7 @@ static int at25_probe(struct spi_device *spi)
 	int			err;
 	int			sr;
 	struct spi_eeprom *pdata;
-	u8 id[FM25_ID_LEN];
-	u8 sernum[FM25_SN_LEN];
 	bool is_fram;
-	int i;
 
 	err = device_property_match_string(&spi->dev, "compatible", "cypress,fm25");
 	if (err >= 0)
@@ -414,44 +449,12 @@ static int at25_probe(struct spi_device *spi)
 	if (pdata) {
 		at25->chip = *pdata;
 	} else {
-		if (is_fram) {
-			/* We file fields for FRAM case later on */
-		} else {
-			err = at25_fw_to_chip(&spi->dev, &at25->chip);
-			if (err)
-				return err;
-		}
-	}
-
-	if (is_fram) {
-		/* Get ID of chip */
-		fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);
-		if (id[6] != 0xc2) {
-			dev_err(&spi->dev,
-				"Error: no Cypress FRAM (id %02x)\n", id[6]);
-			return -ENODEV;
-		}
-		/* set size found in ID */
-		if (id[7] < 0x21 || id[7] > 0x26) {
-			dev_err(&spi->dev, "Error: unsupported size (id %02x)\n", id[7]);
-			return -ENODEV;
-		}
-
-		at25->chip.byte_len = BIT(id[7] - 0x21 + 4) * 1024;
-		if (at25->chip.byte_len > 64 * 1024)
-			at25->chip.flags |= EE_ADDR3;
+		if (is_fram)
+			err = at25_fram_to_chip(&spi->dev, &at25->chip);
 		else
-			at25->chip.flags |= EE_ADDR2;
-
-		if (id[8]) {
-			fm25_aux_read(at25, sernum, FM25_RDSN, FM25_SN_LEN);
-			/* swap byte order */
-			for (i = 0; i < FM25_SN_LEN; i++)
-				at25->sernum[i] = sernum[FM25_SN_LEN - 1 - i];
-		}
-
-		at25->chip.page_size = PAGE_SIZE;
-		strncpy(at25->chip.name, "fm25", sizeof(at25->chip.name));
+			err = at25_fw_to_chip(&spi->dev, &at25->chip);
+		if (err)
+			return err;
 	}
 
 	/* For now we only support 8/16/24 bit addressing */
