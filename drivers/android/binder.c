@@ -1933,7 +1933,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		case BINDER_TYPE_FD: {
 			/*
 			 * No need to close the file here since user-space
-			 * closes it for for successfully delivered
+			 * closes it for successfully delivered
 			 * transactions. For transactions that weren't
 			 * delivered, the new fd was never allocated so
 			 * there is no need to close and the fput on the
