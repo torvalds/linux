@@ -286,6 +286,7 @@ void *aspeed_espi_flash_alloc(struct device *dev, struct aspeed_espi_ctrl *espi_
 		return ERR_PTR(-ENOMEM);
 
 	espi_flash->ctrl = espi_ctrl;
+	espi_flash->safs_mode = SAFS_MODE_HW;
 
 	init_waitqueue_head(&espi_flash->wq);
 
