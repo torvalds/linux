@@ -2127,6 +2127,8 @@ static void bfq_update_io_intensity(struct bfq_queue *bfqq, u64 now_ns)
 static void bfq_check_waker(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			    u64 now_ns)
 {
+	char waker_name[MAX_BFQQ_NAME_LENGTH];
+
 	if (!bfqd->last_completed_rq_bfqq ||
 	    bfqd->last_completed_rq_bfqq == bfqq ||
 	    bfq_bfqq_has_short_ttime(bfqq) ||
@@ -2154,12 +2156,18 @@ static void bfq_check_waker(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			bfqd->last_completed_rq_bfqq;
 		bfqq->num_waker_detections = 1;
 		bfqq->waker_detection_started = now_ns;
+		bfq_bfqq_name(bfqq->tentative_waker_bfqq, waker_name,
+			      MAX_BFQQ_NAME_LENGTH);
+		bfq_log_bfqq(bfqd, bfqq, "set tenative waker %s", waker_name);
 	} else /* Same tentative waker queue detected again */
 		bfqq->num_waker_detections++;
 
 	if (bfqq->num_waker_detections == 3) {
 		bfqq->waker_bfqq = bfqd->last_completed_rq_bfqq;
 		bfqq->tentative_waker_bfqq = NULL;
+		bfq_bfqq_name(bfqq->waker_bfqq, waker_name,
+			      MAX_BFQQ_NAME_LENGTH);
+		bfq_log_bfqq(bfqd, bfqq, "set waker %s", waker_name);
 
 		/*
 		 * If the waker queue disappears, then
