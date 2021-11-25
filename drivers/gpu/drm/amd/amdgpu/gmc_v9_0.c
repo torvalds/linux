@@ -1294,7 +1294,8 @@ static int gmc_v9_0_late_init(void *handle)
 	if (!amdgpu_sriov_vf(adev) &&
 	    (adev->ip_versions[UMC_HWIP][0] == IP_VERSION(6, 0, 0))) {
 		if (!(adev->ras_enabled & (1 << AMDGPU_RAS_BLOCK__UMC))) {
-			if (adev->df.funcs->enable_ecc_force_par_wr_rmw)
+			if (adev->df.funcs &&
+			    adev->df.funcs->enable_ecc_force_par_wr_rmw)
 				adev->df.funcs->enable_ecc_force_par_wr_rmw(adev, false);
 		}
 	}
@@ -1505,9 +1506,11 @@ static int gmc_v9_0_sw_init(void *handle)
 			chansize = 64;
 		else
 			chansize = 128;
-
-		numchan = adev->df.funcs->get_hbm_channel_number(adev);
-		adev->gmc.vram_width = numchan * chansize;
+		if (adev->df.funcs &&
+		    adev->df.funcs->get_hbm_channel_number) {
+			numchan = adev->df.funcs->get_hbm_channel_number(adev);
+			adev->gmc.vram_width = numchan * chansize;
+		}
 	}
 
 	adev->gmc.vram_type = vram_type;
