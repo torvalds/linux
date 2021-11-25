@@ -606,6 +606,9 @@ static struct mvebu_pcie_port *mvebu_pcie_find_port(struct mvebu_pcie *pcie,
 	for (i = 0; i < pcie->nports; i++) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
 
+		if (!port->base)
+			continue;
+
 		if (bus->number == 0 && port->devfn == devfn)
 			return port;
 		if (bus->number != 0 &&
@@ -781,6 +784,8 @@ static int mvebu_pcie_suspend(struct device *dev)
 	pcie = dev_get_drvdata(dev);
 	for (i = 0; i < pcie->nports; i++) {
 		struct mvebu_pcie_port *port = pcie->ports + i;
+		if (!port->base)
+			continue;
 		port->saved_pcie_stat = mvebu_readl(port, PCIE_STAT_OFF);
 	}
 
@@ -795,6 +800,8 @@ static int mvebu_pcie_resume(struct device *dev)
 	pcie = dev_get_drvdata(dev);
 	for (i = 0; i < pcie->nports; i++) {
 		struct mvebu_pcie_port *port = pcie->ports + i;
+		if (!port->base)
+			continue;
 		mvebu_writel(port, port->saved_pcie_stat, PCIE_STAT_OFF);
 		mvebu_pcie_setup_hw(port);
 	}
