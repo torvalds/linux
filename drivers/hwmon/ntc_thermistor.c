@@ -28,8 +28,7 @@ enum ntc_thermistor_type {
 
 struct ntc_thermistor_platform_data {
 	/*
-	 * pullup_uV, pullup_ohm, pulldown_ohm, and connect are required to use
-	 * read_uV()
+	 * pullup_uV, pullup_ohm, pulldown_ohm, and connect are required.
 	 *
 	 * How to setup pullup_ohm, pulldown_ohm, and connect is
 	 * described at Documentation/hwmon/ntc_thermistor.rst
@@ -39,9 +38,7 @@ struct ntc_thermistor_platform_data {
 	 * chan: iio_channel pointer to communicate with the ADC which the
 	 * thermistor is using for conversion of the analog values.
 	 */
-	int (*read_uv)(struct ntc_thermistor_platform_data *);
 	unsigned int pullup_uv;
-
 	unsigned int pullup_ohm;
 	unsigned int pulldown_ohm;
 	enum { NTC_CONNECTED_POSITIVE, NTC_CONNECTED_GROUND } connect;
@@ -346,7 +343,6 @@ struct ntc_data {
 	int n_comp;
 };
 
-#if defined(CONFIG_OF) && IS_ENABLED(CONFIG_IIO)
 static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 {
 	struct iio_channel *channel = pdata->chan;
@@ -451,20 +447,9 @@ ntc_thermistor_parse_dt(struct device *dev)
 		pdata->connect = NTC_CONNECTED_GROUND;
 
 	pdata->chan = chan;
-	pdata->read_uv = ntc_adc_iio_read;
 
 	return pdata;
 }
-#else
-static struct ntc_thermistor_platform_data *
-ntc_thermistor_parse_dt(struct device *dev)
-{
-	return NULL;
-}
-
-#define ntc_match	NULL
-
-#endif
 
 static inline u64 div64_u64_safe(u64 dividend, u64 divisor)
 {
@@ -594,13 +579,10 @@ static int ntc_thermistor_get_ohm(struct ntc_data *data)
 {
 	int read_uv;
 
-	if (data->pdata->read_uv) {
-		read_uv = data->pdata->read_uv(data->pdata);
-		if (read_uv < 0)
-			return read_uv;
-		return get_ohm_of_thermistor(data, read_uv);
-	}
-	return -EINVAL;
+	read_uv = ntc_adc_iio_read(data->pdata);
+	if (read_uv < 0)
+		return read_uv;
+	return get_ohm_of_thermistor(data, read_uv);
 }
 
 static int ntc_read(struct device *dev, enum hwmon_sensor_types type,
@@ -681,19 +663,14 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!pdata->read_uv) {
-		dev_err(dev, "read_uv missing\n");
-		return -EINVAL;
-	}
-
-	if (pdata->read_uv && (pdata->pullup_uv == 0 ||
-				(pdata->pullup_ohm == 0 && pdata->connect ==
-				 NTC_CONNECTED_GROUND) ||
-				(pdata->pulldown_ohm == 0 && pdata->connect ==
-				 NTC_CONNECTED_POSITIVE) ||
-				(pdata->connect != NTC_CONNECTED_POSITIVE &&
-				 pdata->connect != NTC_CONNECTED_GROUND))) {
-		dev_err(dev, "Required data to use read_uv not supplied.\n");
+	if (pdata->pullup_uv == 0 ||
+	    (pdata->pullup_ohm == 0 && pdata->connect ==
+	     NTC_CONNECTED_GROUND) ||
+	    (pdata->pulldown_ohm == 0 && pdata->connect ==
+	     NTC_CONNECTED_POSITIVE) ||
+	    (pdata->connect != NTC_CONNECTED_POSITIVE &&
+	     pdata->connect != NTC_CONNECTED_GROUND)) {
+		dev_err(dev, "Required data to use NTC driver not supplied.\n");
 		return -EINVAL;
 	}
 

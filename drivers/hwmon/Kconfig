@@ -1414,8 +1414,9 @@ config SENSORS_PC87427
 	  will be called pc87427.
 
 config SENSORS_NTC_THERMISTOR
-	tristate "NTC thermistor support from Murata"
-	depends on !OF || IIO=n || IIO
+	tristate "NTC thermistor support"
+	depends on OF
+	depends on IIO
 	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver supports NTC thermistors sensor reading and its
