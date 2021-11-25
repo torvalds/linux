@@ -2,28 +2,27 @@
 drm/amd/display - Display Core (DC)
 ===================================
 
-*placeholder - general description of supported platforms, what dc is, etc.*
-
-Because it is partially shared with other operating systems, the Display Core
-Driver is divided in two pieces.
+AMD display engine is partially shared with other operating systems; for this
+reason, our Display Core Driver is divided into two pieces:
 
 1. **Display Core (DC)** contains the OS-agnostic components. Things like
    hardware programming and resource management are handled here.
 2. **Display Manager (DM)** contains the OS-dependent components. Hooks to the
    amdgpu base driver and DRM are implemented here.
 
-It doesn't help that the entire package is frequently referred to as DC. But
-with the context in mind, it should be clear.
+The display pipe is responsible for "scanning out" a rendered frame from the
+GPU memory (also called VRAM, FrameBuffer, etc.) to a display. In other words,
+it would:
 
-When CONFIG_DRM_AMD_DC is enabled, DC will be initialized by default for
-supported ASICs. To force disable, set `amdgpu.dc=0` on kernel command line.
-Likewise, to force enable on unsupported ASICs, set `amdgpu.dc=1`.
+1. Read frame information from memory;
+2. Perform required transformation;
+3. Send pixel data to sink devices.
 
-To determine if DC is loaded, search dmesg for the following entry:
+If you want to learn more about our driver details, take a look at the below
+table of content:
 
 .. toctree::
 
    display-manager.rst
    dc-debug.rst
-
-``Display Core initialized with <version number here>``
+   dcn-overview.rst
