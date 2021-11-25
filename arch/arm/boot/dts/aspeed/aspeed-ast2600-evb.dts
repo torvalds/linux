@@ -357,3 +357,8 @@
 	oob,dma-rx-desc-num = <0x8>;
 	flash,dma-mode;
 };
+
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
