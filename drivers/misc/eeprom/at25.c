@@ -400,15 +400,15 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 }
 
 static const struct of_device_id at25_of_match[] = {
-	{ .compatible = "atmel,at25",},
-	{ .compatible = "cypress,fm25",},
+	{ .compatible = "atmel,at25" },
+	{ .compatible = "cypress,fm25" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, at25_of_match);
 
 static const struct spi_device_id at25_spi_ids[] = {
-	{ .name = "at25",},
-	{ .name = "fm25",},
+	{ .name = "at25" },
+	{ .name = "fm25" },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, at25_spi_ids);
