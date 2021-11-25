@@ -87,6 +87,10 @@
 #define ASPEED_CLK_MAC2RCLK		68
 #define ASPEED_CLK_MAC3RCLK		69
 #define ASPEED_CLK_MAC4RCLK		70
+#define ASPEED_CLK_HUARTX		71
+#define ASPEED_CLK_UXCLK		72
+#define ASPEED_CLK_HUXCLK		73
+#define ASPEED_CLK_I3C			74
 
 /* Only list resets here that are not part of a gate */
 #define ASPEED_RESET_ESPI		57
@@ -122,6 +126,11 @@
 #define ASPEED_RESET_PCIE_DEV_O		20
 #define ASPEED_RESET_PCIE_RC_OE		19
 #define ASPEED_RESET_PCIE_RC_O		18
+#define ASPEED_RESET_CRT		13	//for controller register
+#define ASPEED_RESET_MAC2		12
+#define ASPEED_RESET_MAC1		11
+#define ASPEED_RESET_RVAS		9
+#define ASPEED_RESET_VIDEO		6
 #define ASPEED_RESET_PCI_DP		5
 #define ASPEED_RESET_AHB		1
 #define ASPEED_RESET_SDRAM		0
