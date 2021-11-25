@@ -192,23 +192,23 @@ static int tegra210_mixer_get_gain(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int tegra210_mixer_put_gain(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
+static int tegra210_mixer_apply_gain(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol,
+				     bool instant_gain)
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mixer *mixer = snd_soc_component_get_drvdata(cmpnt);
 	unsigned int reg = mc->reg, id;
-	bool instant_gain = false;
 	int err;
-
-	if (strstr(kcontrol->id.name, "Instant Gain Volume"))
-		instant_gain = true;
 
 	/* Save gain value for specific MIXER input */
 	id = (reg - TEGRA210_MIXER_GAIN_CFG_RAM_ADDR_0) /
 	     TEGRA210_MIXER_GAIN_CFG_RAM_ADDR_STRIDE;
+
+	if (mixer->gain_value[id] == ucontrol->value.integer.value[0])
+		return 0;
 
 	mixer->gain_value[id] = ucontrol->value.integer.value[0];
 
@@ -219,6 +219,18 @@ static int tegra210_mixer_put_gain(struct snd_kcontrol *kcontrol,
 	}
 
 	return 1;
+}
+
+static int tegra210_mixer_put_gain(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	return tegra210_mixer_apply_gain(kcontrol, ucontrol, false);
+}
+
+static int tegra210_mixer_put_instant_gain(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *ucontrol)
+{
+	return tegra210_mixer_apply_gain(kcontrol, ucontrol, true);
 }
 
 static int tegra210_mixer_set_audio_cif(struct tegra210_mixer *mixer,
@@ -388,7 +400,7 @@ ADDER_CTRL_DECL(adder5, TEGRA210_MIXER_TX5_ADDER_CONFIG);
 	SOC_SINGLE_EXT("RX" #id " Instant Gain Volume",		\
 		       MIXER_GAIN_CFG_RAM_ADDR((id) - 1), 0,	\
 		       0x20000, 0, tegra210_mixer_get_gain,	\
-		       tegra210_mixer_put_gain),
+		       tegra210_mixer_put_instant_gain),
 
 /* Volume controls for all MIXER inputs */
 static const struct snd_kcontrol_new tegra210_mixer_gain_ctls[] = {
