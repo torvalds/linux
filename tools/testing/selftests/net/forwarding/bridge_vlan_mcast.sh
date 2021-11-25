@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 ALL_TESTS="vlmc_control_test vlmc_querier_test vlmc_igmp_mld_version_test \
-	   vlmc_last_member_test vlmc_startup_query_test"
+	   vlmc_last_member_test vlmc_startup_query_test vlmc_membership_test"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="239.10.10.10"
@@ -356,6 +356,32 @@ vlmc_startup_query_test()
 
 	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_startup_query_interval 3125
 	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_startup_query_count 2
+}
+
+vlmc_membership_test()
+{
+	RET=0
+	local goutput=`bridge -j vlan global show`
+	echo -n $goutput |
+		jq -e ".[].vlans[] | select(.vlan == 10)" &>/dev/null
+	check_err $? "Could not find vlan 10's global options"
+
+	echo -n $goutput |
+		jq -e ".[].vlans[] | select(.vlan == 10 and \
+					    .mcast_membership_interval == 26000) " &>/dev/null
+	check_err $? "Wrong default mcast_membership_interval global vlan option value"
+	log_test "Vlan mcast_membership_interval global option default value"
+
+	RET=0
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_membership_interval 200
+	check_err $? "Could not set mcast_membership_interval in vlan 10"
+	log_test "Vlan 10 mcast_membership_interval option changed to 200"
+
+	RET=0
+	vlmc_v2join_test 1
+	log_test "Vlan 10 mcast_membership_interval mdb entry expire"
+
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_membership_interval 26000
 }
 
 trap cleanup EXIT
