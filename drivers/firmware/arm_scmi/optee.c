@@ -282,23 +282,6 @@ static void scmi_optee_clear_channel(struct scmi_chan_info *cinfo)
 	shmem_clear_channel(channel->shmem);
 }
 
-static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *channel)
-{
-	const size_t msg_size = SCMI_OPTEE_MAX_MSG_SIZE;
-
-	channel->tee_shm = tee_shm_alloc_kernel_buf(scmi_optee_private->tee_ctx, msg_size);
-	if (IS_ERR(channel->tee_shm)) {
-		dev_err(channel->cinfo->dev, "shmem allocation failed\n");
-		return -ENOMEM;
-	}
-
-	channel->shmem = (void *)tee_shm_get_va(channel->tee_shm, 0);
-	memset(channel->shmem, 0, msg_size);
-	shmem_clear_channel(channel->shmem);
-
-	return 0;
-}
-
 static int setup_static_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 			      struct scmi_optee_channel *channel)
 {
@@ -342,7 +325,7 @@ static int setup_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 	if (of_find_property(cinfo->dev->of_node, "shmem", NULL))
 		return setup_static_shmem(dev, cinfo, channel);
 	else
-		return setup_dynamic_shmem(dev, channel);
+		return -ENOMEM;
 }
 
 static int scmi_optee_chan_setup(struct scmi_chan_info *cinfo, struct device *dev, bool tx)
