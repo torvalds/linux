@@ -7,17 +7,18 @@
  */
 
 #include <linux/bits.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/property.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
+
+#include <linux/spi/eeprom.h>
+#include <linux/spi/spi.h>
 
 #include <linux/nvmem-provider.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/eeprom.h>
-#include <linux/property.h>
 
 /*
  * NOTE: this is an *EEPROM* driver.  The vagaries of product naming
