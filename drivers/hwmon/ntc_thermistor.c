@@ -28,10 +28,6 @@ enum ntc_thermistor_type {
 
 struct ntc_thermistor_platform_data {
 	/*
-	 * One (not both) of read_uV and read_ohm should be provided and only
-	 * one of the two should be provided.
-	 * Both functions should return negative value for an error case.
-	 *
 	 * pullup_uV, pullup_ohm, pulldown_ohm, and connect are required to use
 	 * read_uV()
 	 *
@@ -50,8 +46,6 @@ struct ntc_thermistor_platform_data {
 	unsigned int pulldown_ohm;
 	enum { NTC_CONNECTED_POSITIVE, NTC_CONNECTED_GROUND } connect;
 	struct iio_channel *chan;
-
-	int (*read_ohm)(void);
 };
 
 struct ntc_compensation {
@@ -600,9 +594,6 @@ static int ntc_thermistor_get_ohm(struct ntc_data *data)
 {
 	int read_uv;
 
-	if (data->pdata->read_ohm)
-		return data->pdata->read_ohm();
-
 	if (data->pdata->read_uv) {
 		read_uv = data->pdata->read_uv(data->pdata);
 		if (read_uv < 0)
@@ -690,17 +681,9 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Either one of the two is required. */
-	if (!pdata->read_uv && !pdata->read_ohm) {
-		dev_err(dev,
-			"Both read_uv and read_ohm missing. Need either one of the two.\n");
+	if (!pdata->read_uv) {
+		dev_err(dev, "read_uv missing\n");
 		return -EINVAL;
-	}
-
-	if (pdata->read_uv && pdata->read_ohm) {
-		dev_warn(dev,
-			 "Only one of read_uv and read_ohm is needed; ignoring read_uv.\n");
-		pdata->read_uv = NULL;
 	}
 
 	if (pdata->read_uv && (pdata->pullup_uv == 0 ||
