@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="vlmc_control_test vlmc_querier_test"
+ALL_TESTS="vlmc_control_test vlmc_querier_test vlmc_igmp_mld_version_test"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="239.10.10.10"
@@ -239,6 +239,49 @@ vlmc_querier_test()
 	vlmc_check_query mld 1 $swp1 1 1
 	check_err $? "No vlan tagged MLD general query packets sent"
 	log_test "Vlan 10 tagged MLD general query sent"
+}
+
+vlmc_igmp_mld_version_test()
+{
+	RET=0
+	local goutput=`bridge -j vlan global show`
+	echo -n $goutput |
+		jq -e ".[].vlans[] | select(.vlan == 10)" &>/dev/null
+	check_err $? "Could not find vlan 10's global options"
+
+	echo -n $goutput |
+		jq -e ".[].vlans[] | select(.vlan == 10 and .mcast_igmp_version == 2) " &>/dev/null
+	check_err $? "Wrong default mcast_igmp_version global vlan option value"
+	log_test "Vlan mcast_igmp_version global option default value"
+
+	RET=0
+	echo -n $goutput |
+		jq -e ".[].vlans[] | select(.vlan == 10 and .mcast_mld_version == 1) " &>/dev/null
+	check_err $? "Wrong default mcast_mld_version global vlan option value"
+	log_test "Vlan mcast_mld_version global option default value"
+
+	RET=0
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_igmp_version 3
+	check_err $? "Could not set mcast_igmp_version in vlan 10"
+	log_test "Vlan 10 mcast_igmp_version option changed to 3"
+
+	RET=0
+	vlmc_check_query igmp 3 $swp1 1 1
+	check_err $? "No vlan tagged IGMPv3 general query packets sent"
+	log_test "Vlan 10 tagged IGMPv3 general query sent"
+
+	RET=0
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_mld_version 2
+	check_err $? "Could not set mcast_mld_version in vlan 10"
+	log_test "Vlan 10 mcast_mld_version option changed to 2"
+
+	RET=0
+	vlmc_check_query mld 2 $swp1 1 1
+	check_err $? "No vlan tagged MLDv2 general query packets sent"
+	log_test "Vlan 10 tagged MLDv2 general query sent"
+
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_igmp_version 2
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_mld_version 1
 }
 
 trap cleanup EXIT
