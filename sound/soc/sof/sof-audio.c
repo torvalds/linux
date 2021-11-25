@@ -751,10 +751,17 @@ static int sof_tear_down_left_over_pipelines(struct snd_sof_dev *sdev)
 				continue;
 
 			if (spcm->stream[dir].list) {
+				/* Free PCM in the DSP */
 				ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
 				if (ret < 0)
 					return ret;
 
+				/* stop DMA */
+				ret = snd_sof_pcm_platform_hw_free(sdev, substream);
+				if (ret < 0)
+					return ret;
+
+				/* free the DAPM widget list */
 				ret = sof_widget_list_free(sdev, spcm, dir);
 				if (ret < 0) {
 					dev_err(sdev->dev, "failed to free widgets during suspend\n");
