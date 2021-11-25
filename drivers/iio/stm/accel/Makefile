@@ -19,3 +19,10 @@ st_lis2dw12-y:= st_lis2dw12_core.o st_lis2dw12_buffer.o
 obj-$(CONFIG_IIO_ST_LIS2DW12) += st_lis2dw12.o
 obj-$(CONFIG_IIO_ST_LIS2DW12_I2C) += st_lis2dw12_i2c.o
 obj-$(CONFIG_IIO_ST_LIS2DW12_SPI) += st_lis2dw12_spi.o
+
+ism303dac_accel-y += st_ism303dac_accel_core.o st_ism303dac_accel_buffer.o \
+	st_ism303dac_accel_trigger.o
+obj-$(CONFIG_IIO_ST_ISM303DAC_ACCEL) += ism303dac_accel.o
+obj-$(CONFIG_IIO_ST_ISM303DAC_ACCEL_I2C) += st_ism303dac_accel_i2c.o
+obj-$(CONFIG_IIO_ST_ISM303DAC_ACCEL_SPI) += st_ism303dac_accel_spi.o
+
