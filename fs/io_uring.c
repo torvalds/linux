@@ -7095,10 +7095,10 @@ static void io_init_req_drain(struct io_kiocb *req)
 		 * If we need to drain a request in the middle of a link, drain
 		 * the head request and the next request/link after the current
 		 * link. Considering sequential execution of links,
-		 * IOSQE_IO_DRAIN will be maintained for every request of our
+		 * REQ_F_IO_DRAIN will be maintained for every request of our
 		 * link.
 		 */
-		head->flags |= IOSQE_IO_DRAIN | REQ_F_FORCE_ASYNC;
+		head->flags |= REQ_F_IO_DRAIN | REQ_F_FORCE_ASYNC;
 		ctx->drain_next = true;
 	}
 }
@@ -7149,7 +7149,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		if (unlikely(ctx->drain_next) && !ctx->submit_state.link.head) {
 			ctx->drain_next = false;
 			ctx->drain_active = true;
-			req->flags |= IOSQE_IO_DRAIN | REQ_F_FORCE_ASYNC;
+			req->flags |= REQ_F_IO_DRAIN | REQ_F_FORCE_ASYNC;
 		}
 	}
 
