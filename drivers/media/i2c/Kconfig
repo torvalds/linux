@@ -1283,6 +1283,7 @@ config VIDEO_OV50C40
 	depends on GPIOLIB && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
 	select V4L2_FWNODE
+	select VIDEO_OTP_EEPROM
 	help
 	  This is a Video4Linux2 sensor driver for the Omnivision
 	  OV50C40 camera sensor with a MIPI CSI-2 interface.
