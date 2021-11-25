@@ -472,10 +472,8 @@ static int thunderbay_emmc_phy_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tbh_phy->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(tbh_phy->reg_base)) {
-		dev_err(&pdev->dev, "region map failed\n");
+	if (IS_ERR(tbh_phy->reg_base))
 		return PTR_ERR(tbh_phy->reg_base);
-	}
 
 	tbh_phy->phy_power_sts = PHY_UNINITIALIZED;
 	id = of_match_node(thunderbay_emmc_phy_of_match, pdev->dev.of_node);
