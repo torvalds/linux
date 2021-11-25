@@ -11,22 +11,6 @@
 #define REG_EFUSE_CTRL		0x0030
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 
-/*  11/16/2008 MH Add description. Get current efuse area enabled word!!. */
-u8
-Efuse_CalculateWordCnts(u8 word_en)
-{
-	u8 word_cnts = 0;
-	if (!(word_en & BIT(0)))
-		word_cnts++; /*  0 : write enable */
-	if (!(word_en & BIT(1)))
-		word_cnts++;
-	if (!(word_en & BIT(2)))
-		word_cnts++;
-	if (!(word_en & BIT(3)))
-		word_cnts++;
-	return word_cnts;
-}
-
 /*  */
 /* 	Description: */
 /* 		Execute E-Fuse read byte operation. */
