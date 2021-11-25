@@ -659,6 +659,11 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 							hstream);
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	u32 mask = 0x1 << stream->index;
+	int ret;
+
+	ret = hda_dsp_stream_reset(sdev, stream);
+	if (ret < 0)
+		return ret;
 
 	spin_lock_irq(&bus->reg_lock);
 	/* couple host and link DMA if link DMA channel is idle */
