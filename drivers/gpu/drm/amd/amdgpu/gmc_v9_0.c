@@ -657,6 +657,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		case IP_VERSION(2, 4, 0):
 			mmhub_cid = mmhub_client_ids_renoir[cid][rw];
 			break;
+		case IP_VERSION(1, 8, 0):
 		case IP_VERSION(9, 4, 2):
 			mmhub_cid = mmhub_client_ids_aldebaran[cid][rw];
 			break;
@@ -735,7 +736,8 @@ static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid,
 static bool gmc_v9_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 				       uint32_t vmhub)
 {
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2))
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ||
+	    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
 		return false;
 
 	return ((vmhub == AMDGPU_MMHUB_0 ||
@@ -1144,6 +1146,7 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(9, 4, 3):
 		if (is_vram) {
 			if (bo_adev == adev) {
 				if (uncached)
@@ -1155,8 +1158,8 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 				/* FIXME: is this still needed? Or does
 				 * amdgpu_ttm_tt_pde_flags already handle this?
 				 */
-				if (adev->ip_versions[GC_HWIP][0] ==
-					IP_VERSION(9, 4, 2) &&
+				if ((adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ||
+				     adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) &&
 				    adev->gmc.xgmi.connected_to_cpu)
 					snoop = true;
 			} else {
@@ -1544,6 +1547,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		case IP_VERSION(9, 4, 0):
 		case IP_VERSION(9, 4, 1):
 		case IP_VERSION(9, 4, 2):
+		case IP_VERSION(9, 4, 3):
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -1673,6 +1677,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 3, 0):
 	case IP_VERSION(9, 4, 2):
+	case IP_VERSION(9, 4, 3):
 		adev->num_vmhubs = 2;
 
 
@@ -1769,7 +1774,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	 */
 	adev->vm_manager.first_kfd_vmid =
 		(adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 1) ||
-		 adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2)) ? 3 : 8;
+		 adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ||
+		 adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) ? 3 : 8;
 
 	amdgpu_vm_manager_init(adev);
 
