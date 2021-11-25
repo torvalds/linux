@@ -433,9 +433,9 @@ static int at25_probe(struct spi_device *spi)
 			dev_err(&spi->dev, "Error: unsupported size (id %02x)\n", id[7]);
 			return -ENODEV;
 		}
-		chip.byte_len = int_pow(2, id[7] - 0x21 + 4) * 1024;
 
-		if (at25->chip.byte_len > 64 * 1024)
+		chip.byte_len = int_pow(2, id[7] - 0x21 + 4) * 1024;
+		if (chip.byte_len > 64 * 1024)
 			at25->chip.flags |= EE_ADDR3;
 		else
 			at25->chip.flags |= EE_ADDR2;
