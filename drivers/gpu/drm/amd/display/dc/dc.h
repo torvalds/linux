@@ -522,7 +522,8 @@ union dpia_debug_options {
 		uint32_t force_non_lttpr:1;
 		uint32_t extend_aux_rd_interval:1;
 		uint32_t disable_mst_dsc_work_around:1;
-		uint32_t reserved:28;
+		uint32_t hpd_delay_in_ms:12;
+		uint32_t reserved:16;
 	} bits;
 	uint32_t raw;
 };
