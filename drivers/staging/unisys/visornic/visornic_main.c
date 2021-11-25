@@ -1759,9 +1759,8 @@ static void visornic_channel_interrupt(struct visor_device *dev)
 	if (!devdata)
 		return;
 
-	if (!visorchannel_signalempty(
-				   devdata->dev->visorchannel,
-				   IOCHAN_FROM_IOPART))
+	if (!visorchannel_signalempty(devdata->dev->visorchannel,
+				      IOCHAN_FROM_IOPART))
 		napi_schedule(&devdata->napi);
 
 	atomic_set(&devdata->interrupt_rcvd, 0);
