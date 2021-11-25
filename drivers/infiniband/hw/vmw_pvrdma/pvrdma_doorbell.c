@@ -68,7 +68,7 @@ int pvrdma_uar_table_init(struct pvrdma_dev *dev)
 		return -ENOMEM;
 
 	/* 0th UAR is taken by the device. */
-	set_bit(0, tbl->table);
+	__set_bit(0, tbl->table);
 
 	return 0;
 }
@@ -100,7 +100,7 @@ int pvrdma_uar_alloc(struct pvrdma_dev *dev, struct pvrdma_uar_map *uar)
 		return -ENOMEM;
 	}
 
-	set_bit(obj, tbl->table);
+	__set_bit(obj, tbl->table);
 	obj |= tbl->top;
 
 	spin_unlock_irqrestore(&tbl->lock, flags);
@@ -120,7 +120,7 @@ void pvrdma_uar_free(struct pvrdma_dev *dev, struct pvrdma_uar_map *uar)
 
 	obj = uar->index & (tbl->max - 1);
 	spin_lock_irqsave(&tbl->lock, flags);
-	clear_bit(obj, tbl->table);
+	__clear_bit(obj, tbl->table);
 	tbl->last = min(tbl->last, obj);
 	tbl->top = (tbl->top + tbl->max) & tbl->mask;
 	spin_unlock_irqrestore(&tbl->lock, flags);
