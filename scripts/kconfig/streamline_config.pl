@@ -170,7 +170,7 @@ sub read_kconfig {
 	$source =~ s/\$\($env\)/$ENV{$env}/;
     }
 
-    open(my $kinfile, '<', $source) || die "Can't open $kconfig";
+    open(my $kinfile, '<', $source) || die "Can't open $source";
     while (<$kinfile>) {
 	chomp;
 
