@@ -686,6 +686,15 @@ static struct pci_ops mvebu_pcie_ops = {
 	.write = mvebu_pcie_wr_conf,
 };
 
+static int mvebu_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	/* Interrupt support on mvebu emulated bridges is not implemented yet */
+	if (dev->bus->number == 0)
+		return 0; /* Proper return code 0 == NO_IRQ */
+
+	return of_irq_parse_and_map_pci(dev, slot, pin);
+}
+
 static resource_size_t mvebu_pcie_align_resource(struct pci_dev *dev,
 						 const struct resource *res,
 						 resource_size_t start,
@@ -1102,6 +1111,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	bridge->sysdata = pcie;
 	bridge->ops = &mvebu_pcie_ops;
 	bridge->align_resource = mvebu_pcie_align_resource;
+	bridge->map_irq = mvebu_pcie_map_irq;
 
 	return pci_host_probe(bridge);
 }
