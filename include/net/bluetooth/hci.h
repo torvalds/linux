@@ -1047,8 +1047,8 @@ struct hci_cp_read_stored_link_key {
 } __packed;
 struct hci_rp_read_stored_link_key {
 	__u8     status;
-	__u8     max_keys;
-	__u8     num_keys;
+	__le16   max_keys;
+	__le16   num_keys;
 } __packed;
 
 #define HCI_OP_DELETE_STORED_LINK_KEY	0x0c12

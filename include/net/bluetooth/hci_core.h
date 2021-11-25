@@ -352,8 +352,8 @@ struct hci_dev {
 	__u16		lmp_subver;
 	__u16		voice_setting;
 	__u8		num_iac;
-	__u8		stored_max_keys;
-	__u8		stored_num_keys;
+	__u16		stored_max_keys;
+	__u16		stored_num_keys;
 	__u8		io_capability;
 	__s8		inq_tx_power;
 	__u8		err_data_reporting;

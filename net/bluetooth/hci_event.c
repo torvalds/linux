@@ -256,8 +256,8 @@ static void hci_cc_read_stored_link_key(struct hci_dev *hdev,
 		return;
 
 	if (!rp->status && sent->read_all == 0x01) {
-		hdev->stored_max_keys = rp->max_keys;
-		hdev->stored_num_keys = rp->num_keys;
+		hdev->stored_max_keys = le16_to_cpu(rp->max_keys);
+		hdev->stored_num_keys = le16_to_cpu(rp->num_keys);
 	}
 }
 
