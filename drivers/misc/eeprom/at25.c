@@ -327,13 +327,15 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 	}
 	chip->page_size = val;
 
-	err = device_property_read_u32(dev, "at25,addr-mode", &val);
+	err = device_property_read_u32(dev, "address-width", &val);
 	if (err) {
-		err = device_property_read_u32(dev, "address-width", &val);
+		err = device_property_read_u32(dev, "at25,addr-mode", &val);
 		if (err) {
 			dev_err(dev, "Error: missing \"address-width\" property\n");
 			return err;
 		}
+		chip->flags = (u16)val;
+	} else {
 		switch (val) {
 		case 9:
 			chip->flags |= EE_INSTR_BIT3_IS_ADDR;
@@ -355,8 +357,6 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 		}
 		if (device_property_present(dev, "read-only"))
 			chip->flags |= EE_READONLY;
-	} else {
-		chip->flags = (u16)val;
 	}
 	return 0;
 }
