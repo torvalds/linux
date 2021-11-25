@@ -378,7 +378,7 @@ MODULE_DEVICE_TABLE(spi, at25_spi_ids);
 static int at25_probe(struct spi_device *spi)
 {
 	struct at25_data	*at25 = NULL;
-	struct spi_eeprom	chip;
+	struct spi_eeprom	chip, *pdata;
 	int			err;
 	int			sr;
 	u8 id[FM25_ID_LEN];
@@ -393,7 +393,8 @@ static int at25_probe(struct spi_device *spi)
 		is_fram = false;
 
 	/* Chip description */
-	if (!spi->dev.platform_data) {
+	pdata = dev_get_platdata(&spi->dev);
+	if (!pdata) {
 		if (is_fram) {
 			/* We file fields for FRAM case later on */
 			memset(&chip, 0, sizeof(chip));
@@ -403,7 +404,7 @@ static int at25_probe(struct spi_device *spi)
 				return err;
 		}
 	} else
-		chip = *(struct spi_eeprom *)spi->dev.platform_data;
+		chip = *pdata;
 
 	/* Ping the chip ... the status register is pretty portable,
 	 * unlike probing manufacturer IDs.  We do expect that system
