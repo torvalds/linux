@@ -30,6 +30,8 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 
+struct link_resource;
+
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
 	dc_link_fec_ready,
@@ -359,14 +361,17 @@ void dc_link_remove_remote_sink(
 
 void dc_link_dp_set_drive_settings(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	struct link_training_settings *lt_settings);
 
 bool dc_link_dp_perform_link_training_skip_aux(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	const struct dc_link_settings *link_setting);
 
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	const struct dc_link_settings *link_settings,
 	bool skip_video_pattern);
 
@@ -374,6 +379,7 @@ bool dc_link_dp_sync_lt_begin(struct dc_link *link);
 
 enum link_training_result dc_link_dp_sync_lt_attempt(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	struct dc_link_settings *link_setting,
 	struct dc_link_training_overrides *lt_settings);
 
@@ -454,4 +460,6 @@ bool dc_link_should_enable_fec(const struct dc_link *link);
 uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw);
 enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc_link *link);
 #endif
+
+const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link);
 #endif /* DC_LINK_H_ */

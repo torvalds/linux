@@ -334,6 +334,11 @@ struct plane_resource {
 	struct dcn_fe_bandwidth bw;
 };
 
+/* all mappable hardware resources used to enable a link */
+struct link_resource {
+	void *dummy;
+};
+
 union pipe_update_flags {
 	struct {
 		uint32_t enable : 1;
@@ -361,6 +366,7 @@ struct pipe_ctx {
 
 	struct plane_resource plane_res;
 	struct stream_resource stream_res;
+	struct link_resource link_res;
 
 	struct clock_source *clock_source;
 
