@@ -6,6 +6,7 @@
  * Copyright (C) 2006 David Brownell
  */
 
+#include <linux/bits.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -17,7 +18,6 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
 #include <linux/property.h>
-#include <linux/math.h>
 
 /*
  * NOTE: this is an *EEPROM* driver.  The vagaries of product naming
@@ -94,7 +94,7 @@ static int at25_ee_read(void *priv, unsigned int offset,
 
 	instr = AT25_READ;
 	if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
-		if (offset >= (1U << (at25->addrlen * 8)))
+		if (offset >= BIT(at25->addrlen * 8))
 			instr |= AT25_INSTR_BIT3;
 	*cp++ = instr;
 
@@ -227,7 +227,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 
 		instr = AT25_WRITE;
 		if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
-			if (offset >= (1U << (at25->addrlen * 8)))
+			if (offset >= BIT(at25->addrlen * 8))
 				instr |= AT25_INSTR_BIT3;
 		*cp++ = instr;
 
@@ -437,7 +437,7 @@ static int at25_probe(struct spi_device *spi)
 			return -ENODEV;
 		}
 
-		at25->chip.byte_len = int_pow(2, id[7] - 0x21 + 4) * 1024;
+		at25->chip.byte_len = BIT(id[7] - 0x21 + 4) * 1024;
 		if (at25->chip.byte_len > 64 * 1024)
 			at25->chip.flags |= EE_ADDR3;
 		else
