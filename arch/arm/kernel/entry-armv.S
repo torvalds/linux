@@ -35,15 +35,14 @@
 	.macro	irq_handler, from_user:req
 	mov	r0, sp
 #ifdef CONFIG_IRQSTACKS
-	mov_l	r2, irq_stack_ptr	@ Take base address
-	mrc	p15, 0, r3, c13, c0, 4	@ Get CPU offset
 #ifdef CONFIG_UNWINDER_ARM
 	mov	fpreg, sp		@ Preserve original SP
 #else
 	mov	r8, fp			@ Preserve original FP
 	mov	r9, sp			@ Preserve original SP
 #endif
-	ldr	sp, [r2, r3]		@ Load SP from per-CPU var
+	ldr_this_cpu sp, irq_stack_ptr, r2, r3
+
 	.if	\from_user == 0
 UNWIND(	.setfp	fpreg, sp		)
 	@
@@ -876,16 +875,7 @@ __bad_stack:
 THUMB(	bx	pc		)
 THUMB(	nop			)
 THUMB(	.arm			)
-	mrc	p15, 0, ip, c13, c0, 4		@ Get per-CPU offset
-
-	.globl	overflow_stack_ptr
-	.reloc	0f, R_ARM_ALU_PC_G0_NC, overflow_stack_ptr
-	.reloc	1f, R_ARM_ALU_PC_G1_NC, overflow_stack_ptr
-	.reloc	2f, R_ARM_LDR_PC_G2, overflow_stack_ptr
-	add	ip, ip, pc
-0:	add	ip, ip, #-4
-1:	add	ip, ip, #0
-2:	ldr	ip, [ip, #4]
+	ldr_this_cpu_armv6 ip, overflow_stack_ptr
 
 	str	sp, [ip, #-4]!			@ Preserve original SP value
 	mov	sp, ip				@ Switch to overflow stack

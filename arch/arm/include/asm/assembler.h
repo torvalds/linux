@@ -220,9 +220,7 @@ THUMB(	fpreg	.req	r7	)
 
 	.macro	reload_current, t1:req, t2:req
 #ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
-	adr_l	\t1, __entry_task		@ get __entry_task base address
-	mrc	p15, 0, \t2, c13, c0, 4		@ get per-CPU offset
-	ldr	\t1, [\t1, \t2]			@ load variable
+	ldr_this_cpu \t1, __entry_task, \t1, \t2
 	mcr	p15, 0, \t1, c13, c0, 3		@ store in TPIDRURO
 #endif
 	.endm
@@ -311,6 +309,26 @@ THUMB(	fpreg	.req	r7	)
 #define ALT_UP(instr...) instr
 #define ALT_UP_B(label) b label
 #endif
+
+	/*
+	 * this_cpu_offset - load the per-CPU offset of this CPU into
+	 * 		     register 'rd'
+	 */
+	.macro		this_cpu_offset, rd:req
+#ifdef CONFIG_SMP
+ALT_SMP(mrc		p15, 0, \rd, c13, c0, 4)
+#ifdef CONFIG_CPU_V6
+ALT_UP_B(.L1_\@)
+.L0_\@:
+	.subsection	1
+.L1_\@: ldr_va		\rd, __per_cpu_offset
+	b		.L0_\@
+	.previous
+#endif
+#else
+	mov		\rd, #0
+#endif
+	.endm
 
 /*
  * Instruction barrier
@@ -646,6 +664,41 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	 */
 	.macro		str_va, rn:req, sym:req, tmp:req, cond
 	__ldst_va	str, \rn, \tmp, \sym, \cond
+	.endm
+
+	/*
+	 * ldr_this_cpu_armv6 - Load a 32-bit word from the per-CPU variable 'sym',
+	 *			without using a temp register. Supported in ARM mode
+	 *			only.
+	 */
+	.macro		ldr_this_cpu_armv6, rd:req, sym:req
+	this_cpu_offset	\rd
+	.globl		\sym
+	.reloc		.L0_\@, R_ARM_ALU_PC_G0_NC, \sym
+	.reloc		.L1_\@, R_ARM_ALU_PC_G1_NC, \sym
+	.reloc		.L2_\@, R_ARM_LDR_PC_G2, \sym
+	add		\rd, \rd, pc
+.L0_\@: sub		\rd, \rd, #4
+.L1_\@: sub		\rd, \rd, #0
+.L2_\@: ldr		\rd, [\rd, #4]
+	.endm
+
+	/*
+	 * ldr_this_cpu - Load a 32-bit word from the per-CPU variable 'sym'
+	 *		  into register 'rd', which may be the stack pointer,
+	 *		  using 't1' and 't2' as general temp registers. These
+	 *		  are permitted to overlap with 'rd' if != sp
+	 */
+	.macro		ldr_this_cpu, rd:req, sym:req, t1:req, t2:req
+#if __LINUX_ARM_ARCH__ >= 7 || \
+    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) || \
+    (defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
+	this_cpu_offset	\t1
+	mov_l		\t2, \sym
+	ldr		\rd, [\t1, \t2]
+#else
+	ldr_this_cpu_armv6 \rd, \sym
+#endif
 	.endm
 
 	/*

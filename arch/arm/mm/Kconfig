@@ -386,6 +386,7 @@ config CPU_V6
 	select CPU_PABRT_V6
 	select CPU_THUMB_CAPABLE
 	select CPU_TLB_V6 if MMU
+	select SMP_ON_UP if SMP
 
 # ARMv6k
 config CPU_V6K
