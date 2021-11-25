@@ -14,6 +14,15 @@
 #define ISP3X_REG_WR_MASK		BIT(31) //disable write protect
 #define ISP3X_NOBIG_OVERFLOW_SIZE	(2688 * 1536)
 #define ISP3X_AUTO_BIGMODE_WIDTH	2688
+#define ISP3X_VIR2_NOBIG_OVERFLOW_SIZE	(1920 * 1080)
+#define ISP3X_VIR2_AUTO_BIGMODE_WIDTH	1920
+#define ISP3X_VIR4_NOBIG_OVERFLOW_SIZE	(1280 * 800)
+#define ISP3X_VIR4_AUTO_BIGMODE_WIDTH	1280
+
+#define ISP3X_VIR2_MAX_WIDTH		3840
+#define ISP3X_VIR2_MAX_SIZE		(3840 * 2160)
+#define ISP3X_VIR4_MAX_WIDTH		2560
+#define ISP3X_VIR4_MAX_SIZE		(2560 * 1536)
 
 static inline void
 isp3_param_write_direct(struct rkisp_isp_params_vdev *params_vdev,
@@ -79,15 +88,6 @@ isp3_param_clear_bits(struct rkisp_isp_params_vdev *params_vdev,
 		rkisp_clear_bits(params_vdev->dev, reg, bit_mask, false);
 	else
 		rkisp_next_clear_bits(params_vdev->dev, reg, bit_mask, false);
-}
-
-static inline size_t
-isp_param_get_insize(struct rkisp_isp_params_vdev *params_vdev)
-{
-	struct rkisp_device *dev = params_vdev->dev;
-	struct rkisp_isp_subdev *isp_sdev = &dev->isp_sdev;
-
-	return isp_sdev->in_crop.width * isp_sdev->in_crop.height;
 }
 
 static void
@@ -4042,8 +4042,26 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
 	struct v4l2_rect *out_crop = &params_vdev->dev->isp_sdev.out_crop;
 	u32 width = hw->max_in.w ? hw->max_in.w : out_crop->width;
-	u32 size = hw->max_in.w ? hw->max_in.w * hw->max_in.h : isp_param_get_insize(params_vdev);
+	u32 height = hw->max_in.h ? hw->max_in.h : out_crop->height;
+	u32 size = width * height;
+	u32 bigmode_max_w, bigmode_max_size;
 
+	if (hw->dev_num > 2) {
+		bigmode_max_w = ISP3X_VIR4_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP3X_VIR4_NOBIG_OVERFLOW_SIZE;
+		if (width > ISP3X_VIR4_MAX_WIDTH || size > ISP3X_VIR4_MAX_SIZE)
+			dev_err(dev, "%dx%d > max:2560x1536 for %d virtual isp\n",
+				width, height, hw->dev_num);
+	} else if (hw->dev_num > 1) {
+		bigmode_max_w = ISP3X_VIR2_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP3X_VIR2_NOBIG_OVERFLOW_SIZE;
+		if (width > ISP3X_VIR2_MAX_WIDTH || size > ISP3X_VIR2_MAX_SIZE)
+			dev_err(dev, "%dx%d > max:3840x2160 for %d virtual isp\n",
+				width, height, hw->dev_num);
+	} else {
+		bigmode_max_w = ISP3X_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP3X_NOBIG_OVERFLOW_SIZE;
+	}
 	rkisp_alloc_bay3d_buf(params_vdev, params_vdev->isp3x_params);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
@@ -4061,7 +4079,7 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	if (hw->is_unite) {
 		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
 		size = width * out_crop->height;
-		if (width > ISP3X_AUTO_BIGMODE_WIDTH || size > ISP3X_NOBIG_OVERFLOW_SIZE) {
+		if (width > bigmode_max_w || size > bigmode_max_size) {
 			priv_val->is_bigmode = true;
 			rkisp_next_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 					    ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
@@ -4070,13 +4088,13 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 		__isp_isr_other_en(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_meas_en(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
-		if (width > ISP3X_AUTO_BIGMODE_WIDTH || size > ISP3X_NOBIG_OVERFLOW_SIZE) {
+		if (width > bigmode_max_w || size > bigmode_max_size) {
 			priv_val->is_bigmode = true;
 			rkisp_next_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 					    ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
 		}
 	}
-	if (width > ISP3X_AUTO_BIGMODE_WIDTH || size > ISP3X_NOBIG_OVERFLOW_SIZE) {
+	if (width > bigmode_max_w || size > bigmode_max_size) {
 		priv_val->is_bigmode = true;
 		rkisp_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 			       ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
