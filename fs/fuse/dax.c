@@ -1349,7 +1349,7 @@ static bool fuse_should_enable_dax(struct inode *inode, unsigned int flags)
 		return true;
 
 	/* dax_mode is FUSE_DAX_INODE* */
-	return flags & FUSE_ATTR_DAX;
+	return fc->inode_dax && (flags & FUSE_ATTR_DAX);
 }
 
 void fuse_dax_inode_init(struct inode *inode, unsigned int flags)
