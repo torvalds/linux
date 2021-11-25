@@ -55,6 +55,7 @@
 #define  PCIE_MASK_ENABLE_INTS          0x0f000000
 #define PCIE_CTRL_OFF		0x1a00
 #define  PCIE_CTRL_X1_MODE		0x0001
+#define  PCIE_CTRL_RC_MODE		BIT(1)
 #define PCIE_STAT_OFF		0x1a04
 #define  PCIE_STAT_BUS                  0xff00
 #define  PCIE_STAT_DEV                  0x1f0000
@@ -218,7 +219,12 @@ static void mvebu_pcie_setup_wins(struct mvebu_pcie_port *port)
 
 static void mvebu_pcie_setup_hw(struct mvebu_pcie_port *port)
 {
-	u32 cmd, mask;
+	u32 ctrl, cmd, mask;
+
+	/* Setup PCIe controller to Root Complex mode. */
+	ctrl = mvebu_readl(port, PCIE_CTRL_OFF);
+	ctrl |= PCIE_CTRL_RC_MODE;
+	mvebu_writel(port, ctrl, PCIE_CTRL_OFF);
 
 	/* Disable Root Bridge I/O space, memory space and bus mastering. */
 	cmd = mvebu_readl(port, PCIE_CMD_OFF);
