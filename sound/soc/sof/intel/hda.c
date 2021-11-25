@@ -41,7 +41,7 @@
 #define EXCEPT_MAX_HDR_SIZE	0x400
 #define HDA_EXT_ROM_STATUS_SIZE 8
 
-int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w)
+int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w, unsigned int quirk_flags)
 {
 	struct snd_sof_widget *swidget = w->dobj.private;
 	struct snd_soc_component *component = swidget->scomp;
@@ -58,6 +58,13 @@ int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w)
 		return -EINVAL;
 	}
 
+	/* DAI already configured, reset it before reconfiguring it */
+	if (sof_dai->configured) {
+		ret = hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE);
+		if (ret < 0)
+			return ret;
+	}
+
 	config = &sof_dai->dai_config[sof_dai->current_config];
 
 	/*
@@ -71,8 +78,10 @@ int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w)
 		return ret;
 	}
 
-	/* set HW_PARAMS flag */
-	config->flags = FIELD_PREP(SOF_DAI_CONFIG_FLAGS_MASK, SOF_DAI_CONFIG_FLAGS_HW_PARAMS);
+	/* set HW_PARAMS flag along with quirks */
+	config->flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS |
+		       quirk_flags << SOF_DAI_CONFIG_FLAGS_QUIRK_SHIFT;
+
 
 	/* send DAI_CONFIG IPC */
 	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
@@ -87,7 +96,7 @@ int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w)
 	return 0;
 }
 
-int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w)
+int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w, unsigned int quirk_flags)
 {
 	struct snd_sof_widget *swidget = w->dobj.private;
 	struct snd_soc_component *component = swidget->scomp;
@@ -110,8 +119,9 @@ int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w)
 
 	config = &sof_dai->dai_config[sof_dai->current_config];
 
-	/* set HW_FREE flag */
-	config->flags = FIELD_PREP(SOF_DAI_CONFIG_FLAGS_MASK, SOF_DAI_CONFIG_FLAGS_HW_FREE);
+	/* set HW_FREE flag along with any quirks */
+	config->flags = SOF_DAI_CONFIG_FLAGS_HW_FREE |
+		       quirk_flags << SOF_DAI_CONFIG_FLAGS_QUIRK_SHIFT;
 
 	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
 				 &reply, sizeof(reply));
@@ -166,9 +176,9 @@ static int sdw_dai_config_ipc(struct snd_sof_dev *sdev,
 	config->alh.stream_id = alh_stream_id;
 
 	if (setup)
-		return hda_ctrl_dai_widget_setup(w);
+		return hda_ctrl_dai_widget_setup(w, SOF_DAI_CONFIG_FLAGS_NONE);
 
-	return hda_ctrl_dai_widget_free(w);
+	return hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE);
 }
 
 static int sdw_params_stream(struct device *dev,

@@ -197,9 +197,9 @@ static int hda_link_dai_widget_update(struct sof_intel_hda_stream *hda_stream,
 
 	/* set up/free DAI widget and send DAI_CONFIG IPC */
 	if (widget_setup)
-		return hda_ctrl_dai_widget_setup(w);
+		return hda_ctrl_dai_widget_setup(w, SOF_DAI_CONFIG_FLAGS_2_STEP_STOP);
 
-	return hda_ctrl_dai_widget_free(w);
+	return hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE);
 }
 
 static int hda_link_hw_params(struct snd_pcm_substream *substream,
@@ -452,9 +452,9 @@ static int ssp_dai_setup_or_free(struct snd_pcm_substream *substream, struct snd
 		return 0;
 
 	if (setup)
-		return hda_ctrl_dai_widget_setup(w);
+		return hda_ctrl_dai_widget_setup(w, SOF_DAI_CONFIG_FLAGS_NONE);
 
-	return hda_ctrl_dai_widget_free(w);
+	return hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE);
 }
 
 static int ssp_dai_startup(struct snd_pcm_substream *substream,
