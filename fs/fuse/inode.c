@@ -1109,72 +1109,74 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 		process_init_limits(fc, arg);
 
 		if (arg->minor >= 6) {
+			u64 flags = arg->flags | (u64) arg->flags2 << 32;
+
 			ra_pages = arg->max_readahead / PAGE_SIZE;
-			if (arg->flags & FUSE_ASYNC_READ)
+			if (flags & FUSE_ASYNC_READ)
 				fc->async_read = 1;
-			if (!(arg->flags & FUSE_POSIX_LOCKS))
+			if (!(flags & FUSE_POSIX_LOCKS))
 				fc->no_lock = 1;
 			if (arg->minor >= 17) {
-				if (!(arg->flags & FUSE_FLOCK_LOCKS))
+				if (!(flags & FUSE_FLOCK_LOCKS))
 					fc->no_flock = 1;
 			} else {
-				if (!(arg->flags & FUSE_POSIX_LOCKS))
+				if (!(flags & FUSE_POSIX_LOCKS))
 					fc->no_flock = 1;
 			}
-			if (arg->flags & FUSE_ATOMIC_O_TRUNC)
+			if (flags & FUSE_ATOMIC_O_TRUNC)
 				fc->atomic_o_trunc = 1;
 			if (arg->minor >= 9) {
 				/* LOOKUP has dependency on proto version */
-				if (arg->flags & FUSE_EXPORT_SUPPORT)
+				if (flags & FUSE_EXPORT_SUPPORT)
 					fc->export_support = 1;
 			}
-			if (arg->flags & FUSE_BIG_WRITES)
+			if (flags & FUSE_BIG_WRITES)
 				fc->big_writes = 1;
-			if (arg->flags & FUSE_DONT_MASK)
+			if (flags & FUSE_DONT_MASK)
 				fc->dont_mask = 1;
-			if (arg->flags & FUSE_AUTO_INVAL_DATA)
+			if (flags & FUSE_AUTO_INVAL_DATA)
 				fc->auto_inval_data = 1;
-			else if (arg->flags & FUSE_EXPLICIT_INVAL_DATA)
+			else if (flags & FUSE_EXPLICIT_INVAL_DATA)
 				fc->explicit_inval_data = 1;
-			if (arg->flags & FUSE_DO_READDIRPLUS) {
+			if (flags & FUSE_DO_READDIRPLUS) {
 				fc->do_readdirplus = 1;
-				if (arg->flags & FUSE_READDIRPLUS_AUTO)
+				if (flags & FUSE_READDIRPLUS_AUTO)
 					fc->readdirplus_auto = 1;
 			}
-			if (arg->flags & FUSE_ASYNC_DIO)
+			if (flags & FUSE_ASYNC_DIO)
 				fc->async_dio = 1;
-			if (arg->flags & FUSE_WRITEBACK_CACHE)
+			if (flags & FUSE_WRITEBACK_CACHE)
 				fc->writeback_cache = 1;
-			if (arg->flags & FUSE_PARALLEL_DIROPS)
+			if (flags & FUSE_PARALLEL_DIROPS)
 				fc->parallel_dirops = 1;
-			if (arg->flags & FUSE_HANDLE_KILLPRIV)
+			if (flags & FUSE_HANDLE_KILLPRIV)
 				fc->handle_killpriv = 1;
 			if (arg->time_gran && arg->time_gran <= 1000000000)
 				fm->sb->s_time_gran = arg->time_gran;
-			if ((arg->flags & FUSE_POSIX_ACL)) {
+			if ((flags & FUSE_POSIX_ACL)) {
 				fc->default_permissions = 1;
 				fc->posix_acl = 1;
 				fm->sb->s_xattr = fuse_acl_xattr_handlers;
 			}
-			if (arg->flags & FUSE_CACHE_SYMLINKS)
+			if (flags & FUSE_CACHE_SYMLINKS)
 				fc->cache_symlinks = 1;
-			if (arg->flags & FUSE_ABORT_ERROR)
+			if (flags & FUSE_ABORT_ERROR)
 				fc->abort_err = 1;
-			if (arg->flags & FUSE_MAX_PAGES) {
+			if (flags & FUSE_MAX_PAGES) {
 				fc->max_pages =
 					min_t(unsigned int, fc->max_pages_limit,
 					max_t(unsigned int, arg->max_pages, 1));
 			}
 			if (IS_ENABLED(CONFIG_FUSE_DAX) &&
-			    arg->flags & FUSE_MAP_ALIGNMENT &&
+			    flags & FUSE_MAP_ALIGNMENT &&
 			    !fuse_dax_check_alignment(fc, arg->map_alignment)) {
 				ok = false;
 			}
-			if (arg->flags & FUSE_HANDLE_KILLPRIV_V2) {
+			if (flags & FUSE_HANDLE_KILLPRIV_V2) {
 				fc->handle_killpriv_v2 = 1;
 				fm->sb->s_flags |= SB_NOSEC;
 			}
-			if (arg->flags & FUSE_SETXATTR_EXT)
+			if (flags & FUSE_SETXATTR_EXT)
 				fc->setxattr_ext = 1;
 		} else {
 			ra_pages = fc->max_read / PAGE_SIZE;
@@ -1203,13 +1205,14 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 void fuse_send_init(struct fuse_mount *fm)
 {
 	struct fuse_init_args *ia;
+	u64 flags;
 
 	ia = kzalloc(sizeof(*ia), GFP_KERNEL | __GFP_NOFAIL);
 
 	ia->in.major = FUSE_KERNEL_VERSION;
 	ia->in.minor = FUSE_KERNEL_MINOR_VERSION;
 	ia->in.max_readahead = fm->sb->s_bdi->ra_pages * PAGE_SIZE;
-	ia->in.flags |=
+	flags =
 		FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_ATOMIC_O_TRUNC |
 		FUSE_EXPORT_SUPPORT | FUSE_BIG_WRITES | FUSE_DONT_MASK |
 		FUSE_SPLICE_WRITE | FUSE_SPLICE_MOVE | FUSE_SPLICE_READ |
@@ -1219,13 +1222,16 @@ void fuse_send_init(struct fuse_mount *fm)
 		FUSE_PARALLEL_DIROPS | FUSE_HANDLE_KILLPRIV | FUSE_POSIX_ACL |
 		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS |
 		FUSE_NO_OPENDIR_SUPPORT | FUSE_EXPLICIT_INVAL_DATA |
-		FUSE_HANDLE_KILLPRIV_V2 | FUSE_SETXATTR_EXT;
+		FUSE_HANDLE_KILLPRIV_V2 | FUSE_SETXATTR_EXT | FUSE_INIT_EXT;
 #ifdef CONFIG_FUSE_DAX
 	if (fm->fc->dax)
-		ia->in.flags |= FUSE_MAP_ALIGNMENT;
+		flags |= FUSE_MAP_ALIGNMENT;
 #endif
 	if (fm->fc->auto_submounts)
-		ia->in.flags |= FUSE_SUBMOUNTS;
+		flags |= FUSE_SUBMOUNTS;
+
+	ia->in.flags = flags;
+	ia->in.flags2 = flags >> 32;
 
 	ia->args.opcode = FUSE_INIT;
 	ia->args.in_numargs = 1;
