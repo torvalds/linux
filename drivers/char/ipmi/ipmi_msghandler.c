@@ -3920,9 +3920,11 @@ static int handle_ipmb_direct_rcv_cmd(struct ipmi_smi *intf,
 		/* We didn't find a user, deliver an error response. */
 		ipmi_inc_stat(intf, unhandled_commands);
 
-		msg->data[0] = ((netfn + 1) << 2) | (msg->rsp[4] & 0x3);
-		msg->data[1] = msg->rsp[2];
-		msg->data[2] = msg->rsp[4] & ~0x3;
+		msg->data[0] = (netfn + 1) << 2;
+		msg->data[0] |= msg->rsp[2] & 0x3; /* rqLUN */
+		msg->data[1] = msg->rsp[1]; /* Addr */
+		msg->data[2] = msg->rsp[2] & ~0x3; /* rqSeq */
+		msg->data[2] |= msg->rsp[0] & 0x3; /* rsLUN */
 		msg->data[3] = cmd;
 		msg->data[4] = IPMI_INVALID_CMD_COMPLETION_CODE;
 		msg->data_size = 5;
