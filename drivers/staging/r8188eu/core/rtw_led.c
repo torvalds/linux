@@ -12,7 +12,7 @@ void BlinkTimerCallback(struct timer_list *t)
 	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped))
 		return;
 
-	_set_workitem(&pLed->BlinkWorkItem);
+	schedule_work(&pLed->BlinkWorkItem);
 }
 
 void BlinkWorkItemCallback(struct work_struct *work)

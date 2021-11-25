@@ -79,11 +79,6 @@ static inline void _init_workitem(struct work_struct *pwork, void *pfunc, void *
 	INIT_WORK(pwork, pfunc);
 }
 
-static inline void _set_workitem(struct work_struct *pwork)
-{
-	schedule_work(pwork);
-}
-
 static inline void _cancel_workitem_sync(struct work_struct *pwork)
 {
 	cancel_work_sync(pwork);
