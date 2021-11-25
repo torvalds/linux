@@ -348,3 +348,12 @@
 	status = "okay";
 	memory-region = <&gfx_memory>;
 };
+
+&espi_ctrl {
+	status = "okay";
+	perif,dma-mode;
+	oob,dma-mode;
+	oob,dma-tx-desc-num = <0x2>;
+	oob,dma-rx-desc-num = <0x8>;
+	flash,dma-mode;
+};
