@@ -84,6 +84,9 @@ struct qcom_fg_chip {
 
 	struct power_supply *batt_psy;
 	struct power_supply_battery_info *batt_info;
+	struct power_supply *chg_psy;
+	int status;
+
 	struct completion sram_access_granted;
 	struct completion sram_access_revoked;
 	struct workqueue_struct *sram_wq;
@@ -803,6 +806,8 @@ static const struct qcom_fg_ops ops_fg_gen3 = {
 };
 
 static enum power_supply_property qcom_fg_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
@@ -827,6 +832,11 @@ static int qcom_fg_get_property(struct power_supply *psy,
 	dev_dbg(chip->dev, "Getting property: %d", psp);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_STATUS:
+	case POWER_SUPPLY_PROP_HEALTH:
+		/* Get property from charger */
+		ret = power_supply_get_property(chip->chg_psy, psp, val);
+		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
 		break;
@@ -865,12 +875,21 @@ static int qcom_fg_get_property(struct power_supply *psy,
 	return ret;
 }
 
+static void qcom_fg_external_power_changed(struct power_supply *psy)
+{
+	struct qcom_fg_chip *chip = power_supply_get_drvdata(psy);
+
+	dev_dbg(chip->dev, "External power changed\n");
+	power_supply_changed(chip->batt_psy);
+}
+
 static const struct power_supply_desc batt_psy_desc = {
 	.name = "qcom-battery",
 	.type = POWER_SUPPLY_TYPE_BATTERY,
 	.properties = qcom_fg_props,
 	.num_properties = ARRAY_SIZE(qcom_fg_props),
 	.get_property = qcom_fg_get_property,
+	.external_power_changed	= qcom_fg_external_power_changed,
 };
 
 /********************
@@ -1063,6 +1082,15 @@ static int qcom_fg_probe(struct platform_device *pdev)
 			error_present ? BIT(0) : 0);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to write dma_ctl: %d\n", ret);
+		return ret;
+	}
+
+	/* Get charger power supply */
+	chip->chg_psy = devm_power_supply_get_by_phandle(chip->dev,
+							"power-supplies");
+	if (IS_ERR(chip->chg_psy)) {
+		ret = PTR_ERR(chip->chg_psy);
+		dev_err(chip->dev, "Failed to get charger supply: %d\n", ret);
 		return ret;
 	}
 
