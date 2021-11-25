@@ -487,6 +487,8 @@ struct sof_intel_hda_stream {
 	(SOF_HDA_ADSP_SD_ENTRY_SIZE * ((s)->index) \
 	 + SOF_HDA_ADSP_LOADER_BASE)
 
+#define SOF_STREAM_SD_OFFSET_CRST 0x1
+
 /*
  * DSP Core services.
  */

@@ -279,6 +279,45 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 	return 0;
 }
 
+static int hda_dsp_stream_reset(struct snd_sof_dev *sdev, struct hdac_stream *hstream)
+{
+	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+	int timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
+	u32 val;
+
+	/* enter stream reset */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset, SOF_STREAM_SD_OFFSET_CRST,
+				SOF_STREAM_SD_OFFSET_CRST);
+	do {
+		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, sd_offset);
+		if (val & SOF_STREAM_SD_OFFSET_CRST)
+			break;
+	} while (--timeout);
+	if (timeout == 0) {
+		dev_err(sdev->dev, "timeout waiting for stream reset\n");
+		return -ETIMEDOUT;
+	}
+
+	timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
+
+	/* exit stream reset and wait to read a zero before reading any other register */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset, SOF_STREAM_SD_OFFSET_CRST, 0x0);
+
+	/* wait for hardware to report that stream is out of reset */
+	udelay(3);
+	do {
+		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, sd_offset);
+		if ((val & SOF_STREAM_SD_OFFSET_CRST) == 0)
+			break;
+	} while (--timeout);
+	if (timeout == 0) {
+		dev_err(sdev->dev, "timeout waiting for stream to exit reset\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 			   struct hdac_ext_stream *stream, int cmd)
 {
@@ -436,9 +475,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-	int ret, timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
+	int ret;
 	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
-	u32 val, mask;
+	u32 mask;
 	u32 run;
 
 	if (!stream) {
@@ -483,36 +522,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 				SOF_HDA_CL_DMA_SD_INT_MASK);
 
 	/* stream reset */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset, 0x1,
-				0x1);
-	udelay(3);
-	do {
-		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-				       sd_offset);
-		if (val & 0x1)
-			break;
-	} while (--timeout);
-	if (timeout == 0) {
-		dev_err(sdev->dev, "error: stream reset failed\n");
-		return -ETIMEDOUT;
-	}
-
-	timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset, 0x1,
-				0x0);
-
-	/* wait for hardware to report that stream is out of reset */
-	udelay(3);
-	do {
-		val = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-				       sd_offset);
-		if ((val & 0x1) == 0)
-			break;
-	} while (--timeout);
-	if (timeout == 0) {
-		dev_err(sdev->dev, "error: timeout waiting for stream reset\n");
-		return -ETIMEDOUT;
-	}
+	ret = hda_dsp_stream_reset(sdev, hstream);
+	if (ret < 0)
+		return ret;
 
 	if (hstream->posbuf)
 		*hstream->posbuf = 0;
