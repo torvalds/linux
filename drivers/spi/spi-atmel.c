@@ -467,7 +467,6 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as, u8 bits_per_word)
 	 * So we'd rather write only one data at the time. Hence the transmit
 	 * path works the same whether FIFOs are available (and enabled) or not.
 	 */
-	slave_config.direction = DMA_MEM_TO_DEV;
 	if (dmaengine_slave_config(master->dma_tx, &slave_config)) {
 		dev_err(&as->pdev->dev,
 			"failed to configure tx dma channel\n");
@@ -482,7 +481,6 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as, u8 bits_per_word)
 	 * So the receive path works the same whether FIFOs are available (and
 	 * enabled) or not.
 	 */
-	slave_config.direction = DMA_DEV_TO_MEM;
 	if (dmaengine_slave_config(master->dma_rx, &slave_config)) {
 		dev_err(&as->pdev->dev,
 			"failed to configure rx dma channel\n");
