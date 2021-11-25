@@ -179,13 +179,14 @@ static void watchdog_smp_panic(int cpu)
 {
 	static cpumask_t wd_smp_cpus_ipi; // protected by reporting
 	unsigned long flags;
-	u64 tb;
+	u64 tb, last_reset;
 	int c;
 
 	wd_smp_lock(&flags);
 	/* Double check some things under lock */
 	tb = get_tb();
-	if ((s64)(tb - wd_smp_last_reset_tb) < (s64)wd_smp_panic_timeout_tb)
+	last_reset = wd_smp_last_reset_tb;
+	if ((s64)(tb - last_reset) < (s64)wd_smp_panic_timeout_tb)
 		goto out;
 	if (cpumask_test_cpu(cpu, &wd_smp_cpus_pending))
 		goto out;
@@ -210,8 +211,7 @@ static void watchdog_smp_panic(int cpu)
 	pr_emerg("CPU %d detected hard LOCKUP on other CPUs %*pbl\n",
 		 cpu, cpumask_pr_args(&wd_smp_cpus_ipi));
 	pr_emerg("CPU %d TB:%lld, last SMP heartbeat TB:%lld (%lldms ago)\n",
-		 cpu, tb, wd_smp_last_reset_tb,
-		 tb_to_ns(tb - wd_smp_last_reset_tb) / 1000000);
+		 cpu, tb, last_reset, tb_to_ns(tb - last_reset) / 1000000);
 
 	if (!sysctl_hardlockup_all_cpu_backtrace) {
 		/*
