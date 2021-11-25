@@ -195,6 +195,7 @@ static bool rt5640_volatile_register(struct device *dev, unsigned int reg)
 	case RT5640_PRIV_DATA:
 	case RT5640_PGM_REG_ARR1:
 	case RT5640_PGM_REG_ARR3:
+	case RT5640_DUMMY2:
 	case RT5640_VENDOR_ID:
 	case RT5640_VENDOR_ID1:
 	case RT5640_VENDOR_ID2:
@@ -2301,6 +2302,38 @@ static void rt5640_jack_work(struct work_struct *work)
 	struct snd_soc_component *component = rt5640->component;
 	int status;
 
+	if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER) {
+		int val, jack_type = 0, hda_mic_plugged, hda_hp_plugged;
+
+		/* mic jack */
+		val = snd_soc_component_read(component, RT5640_INT_IRQ_ST);
+		hda_mic_plugged = !(val & RT5640_JD_STATUS);
+		dev_dbg(component->dev, "mic jack status %d\n",
+			hda_mic_plugged);
+
+		snd_soc_component_update_bits(component, RT5640_IRQ_CTRL1,
+			RT5640_JD_P_MASK, !hda_mic_plugged << RT5640_JD_P_SFT);
+
+		if (hda_mic_plugged)
+			jack_type |= SND_JACK_MICROPHONE;
+
+		/* headphone jack */
+		val = snd_soc_component_read(component, RT5640_DUMMY2);
+		hda_hp_plugged = !(val & (0x1 << 11));
+		dev_dbg(component->dev, "headphone jack status %d\n",
+			hda_hp_plugged);
+
+		snd_soc_component_update_bits(component, RT5640_DUMMY2,
+			(0x1 << 10), !hda_hp_plugged << 10);
+
+		if (hda_hp_plugged)
+			jack_type |= SND_JACK_HEADPHONE;
+
+		snd_soc_jack_report(rt5640->jack, jack_type, SND_JACK_HEADSET);
+
+		return;
+	}
+
 	if (!rt5640_jack_inserted(component)) {
 		/* Jack removed, or spurious IRQ? */
 		if (rt5640->jack->status & SND_JACK_HEADPHONE) {
@@ -2478,13 +2511,57 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	queue_work(system_long_wq, &rt5640->jack_work);
 }
 
+static void rt5640_enable_hda_jack_detect(
+	struct snd_soc_component *component, struct snd_soc_jack *jack)
+{
+	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	/* Select JD1 for Mic */
+	snd_soc_component_update_bits(component, RT5640_JD_CTRL,
+		RT5640_JD_MASK, RT5640_JD_JD1_IN4P);
+	snd_soc_component_write(component, RT5640_IRQ_CTRL1, RT5640_IRQ_JD_NOR);
+
+	/* Select JD2 for Headphone */
+	snd_soc_component_update_bits(component, RT5640_DUMMY2, 0x1100, 0x1100);
+
+	/* Selecting GPIO01 as an interrupt */
+	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL1,
+		RT5640_GP1_PIN_MASK, RT5640_GP1_PIN_IRQ);
+
+	/* Set GPIO1 output */
+	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL3,
+		RT5640_GP1_PF_MASK, RT5640_GP1_PF_OUT);
+
+	snd_soc_component_update_bits(component, RT5640_DUMMY1, 0x700, 0x300);
+
+	rt5640->jack = jack;
+
+	ret = request_irq(rt5640->irq, rt5640_irq,
+			  IRQF_TRIGGER_RISING | IRQF_ONESHOT, "rt5640", rt5640);
+	if (ret) {
+		dev_warn(component->dev, "Failed to reguest IRQ %d: %d\n", rt5640->irq, ret);
+		rt5640->irq = -ENXIO;
+		return;
+	}
+
+	/* sync initial jack state */
+	queue_work(system_long_wq, &rt5640->jack_work);
+}
+
 static int rt5640_set_jack(struct snd_soc_component *component,
 			   struct snd_soc_jack *jack, void *data)
 {
-	if (jack)
-		rt5640_enable_jack_detect(component, jack);
-	else
+	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+
+	if (jack) {
+		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
+			rt5640_enable_hda_jack_detect(component, jack);
+		else
+			rt5640_enable_jack_detect(component, jack);
+	} else {
 		rt5640_disable_jack_detect(component);
+	}
 
 	return 0;
 }
@@ -2576,6 +2653,8 @@ static int rt5640_probe(struct snd_soc_component *component)
 				     "realtek,jack-detect-source", &val) == 0) {
 		if (val <= RT5640_JD_SRC_GPIO4)
 			rt5640->jd_src = val << RT5640_JD_SFT;
+		else if (val == RT5640_JD_SRC_HDA_HEADER)
+			rt5640->jd_src = RT5640_JD_SRC_HDA_HEADER;
 		else
 			dev_warn(component->dev, "Warning: Invalid jack-detect-source value: %d, leaving jack-detect disabled\n",
 				 val);
@@ -2632,6 +2711,7 @@ static int rt5640_suspend(struct snd_soc_component *component)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 
+	rt5640_cancel_work(rt5640);
 	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
 	rt5640_reset(component);
 	regcache_cache_only(rt5640->regmap, true);
@@ -2653,6 +2733,17 @@ static int rt5640_resume(struct snd_soc_component *component)
 
 	regcache_cache_only(rt5640->regmap, false);
 	regcache_sync(rt5640->regmap);
+
+	if (rt5640->jd_src) {
+		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
+			snd_soc_component_update_bits(component,
+				RT5640_DUMMY2, 0x1100, 0x1100);
+		else
+			snd_soc_component_write(component, RT5640_DUMMY2,
+				0x4001);
+
+		queue_work(system_long_wq, &rt5640->jack_work);
+	}
 
 	return 0;
 }
