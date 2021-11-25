@@ -1,7 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="vlmc_control_test vlmc_querier_test vlmc_igmp_mld_version_test vlmc_last_member_test"
+ALL_TESTS="vlmc_control_test vlmc_querier_test vlmc_igmp_mld_version_test \
+	   vlmc_last_member_test vlmc_startup_query_test"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="239.10.10.10"
@@ -316,6 +317,45 @@ vlmc_last_member_test()
 	check_err $? "Could not set mcast_last_member_interval in vlan 10"
 	log_test "Vlan 10 mcast_last_member_interval option changed to 200"
 	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_last_member_interval 100
+}
+
+vlmc_startup_query_test()
+{
+	RET=0
+	local goutput=`bridge -j vlan global show`
+	echo -n $goutput |
+		jq -e ".[].vlans[] | select(.vlan == 10)" &>/dev/null
+	check_err $? "Could not find vlan 10's global options"
+
+	echo -n $goutput |
+		jq -e ".[].vlans[] | select(.vlan == 10 and \
+					    .mcast_startup_query_interval == 3125) " &>/dev/null
+	check_err $? "Wrong default mcast_startup_query_interval global vlan option value"
+	log_test "Vlan mcast_startup_query_interval global option default value"
+
+	RET=0
+	echo -n $goutput |
+		jq -e ".[].vlans[] | select(.vlan == 10 and \
+					    .mcast_startup_query_count == 2) " &>/dev/null
+	check_err $? "Wrong default mcast_startup_query_count global vlan option value"
+	log_test "Vlan mcast_startup_query_count global option default value"
+
+	RET=0
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_startup_query_interval 100
+	check_err $? "Could not set mcast_startup_query_interval in vlan 10"
+	vlmc_check_query igmp 2 $swp1 2 3
+	check_err $? "Wrong number of tagged IGMPv2 general queries sent"
+	log_test "Vlan 10 mcast_startup_query_interval option changed to 100"
+
+	RET=0
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_startup_query_count 3
+	check_err $? "Could not set mcast_startup_query_count in vlan 10"
+	vlmc_check_query igmp 2 $swp1 3 4
+	check_err $? "Wrong number of tagged IGMPv2 general queries sent"
+	log_test "Vlan 10 mcast_startup_query_count option changed to 3"
+
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_startup_query_interval 3125
+	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_startup_query_count 2
 }
 
 trap cleanup EXIT
