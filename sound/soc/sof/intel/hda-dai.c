@@ -329,6 +329,8 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
+		snd_hdac_ext_link_stream_clear(link_dev);
+
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			w = dai->playback_widget;
 		else
@@ -347,8 +349,7 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 		}
 
 		link_dev->link_prepared = 0;
-
-		fallthrough;
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		snd_hdac_ext_link_stream_clear(link_dev);
 		break;
