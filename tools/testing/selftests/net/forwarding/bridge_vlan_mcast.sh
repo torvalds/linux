@@ -4,7 +4,7 @@
 ALL_TESTS="vlmc_control_test vlmc_querier_test vlmc_igmp_mld_version_test \
 	   vlmc_last_member_test vlmc_startup_query_test vlmc_membership_test \
 	   vlmc_querier_intvl_test vlmc_query_intvl_test vlmc_query_response_intvl_test \
-	   vlmc_router_port_test"
+	   vlmc_router_port_test vlmc_filtering_test"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="239.10.10.10"
@@ -521,6 +521,16 @@ vlmc_router_port_test()
 	bridge vlan global set vid 10 dev br0 mcast_snooping 1 mcast_query_response_interval 1000
 	bridge vlan set vid 10 dev $swp2 mcast_router 1
 	bridge vlan set vid 10 dev $swp1 mcast_router 1
+}
+
+vlmc_filtering_test()
+{
+	RET=0
+	ip link set dev br0 type bridge vlan_filtering 0
+	ip -j -d link show dev bridge | \
+	jq -e "select(.[0].linkinfo.info_data.mcast_vlan_snooping == 1)" &>/dev/null
+	check_fail $? "Vlan filtering is disabled but multicast vlan snooping is still enabled"
+	log_test "Disable multicast vlan snooping when vlan filtering is disabled"
 }
 
 trap cleanup EXIT
