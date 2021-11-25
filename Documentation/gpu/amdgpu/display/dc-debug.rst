@@ -58,3 +58,20 @@ In this case, if you have a pipe split, you will see one small red bar at the
 bottom of the display covering the entire display width and another bar
 covering the second pipe. In other words, you will see a bit high bar in the
 second pipe.
+
+DTN Debug
+=========
+
+DC (DCN) provides an extensive log that dumps multiple details from our
+hardware configuration. Via debugfs, you can capture those status values by
+using Display Test Next (DTN) log, which can be captured via debugfs by using::
+
+  cat /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
+
+Since this log is updated accordingly with DCN status, you can also follow the
+change in real-time by using something like::
+
+  sudo watch -d cat /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
+
+When reporting a bug related to DC, consider attaching this log before and
+after you reproduce the bug.
