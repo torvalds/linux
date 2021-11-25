@@ -1502,10 +1502,10 @@ static void io_prep_async_link(struct io_kiocb *req)
 	if (req->flags & REQ_F_LINK_TIMEOUT) {
 		struct io_ring_ctx *ctx = req->ctx;
 
-		spin_lock(&ctx->completion_lock);
+		spin_lock_irq(&ctx->timeout_lock);
 		io_for_each_link(cur, req)
 			io_prep_async_work(cur);
-		spin_unlock(&ctx->completion_lock);
+		spin_unlock_irq(&ctx->timeout_lock);
 	} else {
 		io_for_each_link(cur, req)
 			io_prep_async_work(cur);
@@ -5699,6 +5699,7 @@ static __cold bool io_poll_remove_all(struct io_ring_ctx *ctx,
 	int posted = 0, i;
 
 	spin_lock(&ctx->completion_lock);
+	spin_lock_irq(&ctx->timeout_lock);
 	for (i = 0; i < (1U << ctx->cancel_hash_bits); i++) {
 		struct hlist_head *list;
 
@@ -5708,6 +5709,7 @@ static __cold bool io_poll_remove_all(struct io_ring_ctx *ctx,
 				posted += io_poll_remove_one(req);
 		}
 	}
+	spin_unlock_irq(&ctx->timeout_lock);
 	spin_unlock(&ctx->completion_lock);
 
 	if (posted)
@@ -9568,9 +9570,9 @@ static bool io_cancel_task_cb(struct io_wq_work *work, void *data)
 		struct io_ring_ctx *ctx = req->ctx;
 
 		/* protect against races with linked timeouts */
-		spin_lock(&ctx->completion_lock);
+		spin_lock_irq(&ctx->timeout_lock);
 		ret = io_match_task(req, cancel->task, cancel->all);
-		spin_unlock(&ctx->completion_lock);
+		spin_unlock_irq(&ctx->timeout_lock);
 	} else {
 		ret = io_match_task(req, cancel->task, cancel->all);
 	}
@@ -9585,12 +9587,14 @@ static __cold bool io_cancel_defer_files(struct io_ring_ctx *ctx,
 	LIST_HEAD(list);
 
 	spin_lock(&ctx->completion_lock);
+	spin_lock_irq(&ctx->timeout_lock);
 	list_for_each_entry_reverse(de, &ctx->defer_list, list) {
 		if (io_match_task(de->req, task, cancel_all)) {
 			list_cut_position(&list, &ctx->defer_list, &de->list);
 			break;
 		}
 	}
+	spin_unlock_irq(&ctx->timeout_lock);
 	spin_unlock(&ctx->completion_lock);
 	if (list_empty(&list))
 		return false;
@@ -9764,7 +9768,7 @@ static __cold void io_uring_clean_tctx(struct io_uring_task *tctx)
 	}
 	if (wq) {
 		/*
-		 * Must be after io_uring_del_task_file() (removes nodes under
+		 * Must be after io_uring_del_tctx_node() (removes nodes under
 		 * uring_lock) to avoid race with io_uring_try_cancel_iowq().
 		 */
 		io_wq_put_and_exit(wq);
