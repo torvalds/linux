@@ -466,17 +466,10 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 
 	/* free PCM if reset_hw_params is set and the STOP IPC is successful */
 	if (!ret && reset_hw_params) {
-		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
+		ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream,
+					  free_widget_list);
 		if (ret < 0)
 			return ret;
-
-		ret = snd_sof_pcm_platform_hw_free(sdev, substream);
-		if (ret < 0)
-			return ret;
-
-		/* free widget list only for SUSPEND trigger */
-		if (free_widget_list)
-			ret = sof_widget_list_free(sdev, spcm, substream->stream);
 	}
 
 	return ret;

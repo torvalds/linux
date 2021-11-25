@@ -728,6 +728,31 @@ int sof_set_up_pipelines(struct snd_sof_dev *sdev, bool verify)
 	return 0;
 }
 
+int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
+			struct snd_sof_pcm *spcm, int dir, bool free_widget_list)
+{
+	int ret;
+
+	/* Send PCM_FREE IPC to reset pipeline */
+	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
+	if (ret < 0)
+		return ret;
+
+	/* stop the DMA */
+	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
+	if (ret < 0)
+		return ret;
+
+	/* free widget list */
+	if (free_widget_list) {
+		ret = sof_widget_list_free(sdev, spcm, dir);
+		if (ret < 0)
+			dev_err(sdev->dev, "failed to free widgets during suspend\n");
+	}
+
+	return ret;
+}
+
 /*
  * Free the PCM, its associated widgets and set the prepared flag to false for all PCMs that
  * did not get suspended(ex: paused streams) so the widgets can be set up again during resume.
@@ -751,22 +776,9 @@ static int sof_tear_down_left_over_pipelines(struct snd_sof_dev *sdev)
 				continue;
 
 			if (spcm->stream[dir].list) {
-				/* Free PCM in the DSP */
-				ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
+				ret = sof_pcm_stream_free(sdev, substream, spcm, dir, true);
 				if (ret < 0)
 					return ret;
-
-				/* stop DMA */
-				ret = snd_sof_pcm_platform_hw_free(sdev, substream);
-				if (ret < 0)
-					return ret;
-
-				/* free the DAPM widget list */
-				ret = sof_widget_list_free(sdev, spcm, dir);
-				if (ret < 0) {
-					dev_err(sdev->dev, "failed to free widgets during suspend\n");
-					return ret;
-				}
 			}
 		}
 
