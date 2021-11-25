@@ -439,9 +439,6 @@ static int mctp_serial_open(struct tty_struct *tty)
 	if (!tty->ops->write)
 		return -EOPNOTSUPP;
 
-	if (tty->disc_data)
-		return -EEXIST;
-
 	idx = ida_alloc(&mctp_serial_ida, GFP_KERNEL);
 	if (idx < 0)
 		return idx;
