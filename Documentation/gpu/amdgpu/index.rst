@@ -1,6 +1,6 @@
-=========================
+==========================
  drm/amdgpu AMDgpu driver
-=========================
+==========================
 
 The drm/amdgpu driver supports all AMD Radeon GPUs based on the Graphics Core
 Next (GCN) architecture.
@@ -71,13 +71,25 @@ Interrupt Handling
    :internal:
 
 IP Blocks
-------------------
+---------
 
 .. kernel-doc:: drivers/gpu/drm/amd/include/amd_shared.h
    :doc: IP Blocks
 
 .. kernel-doc:: drivers/gpu/drm/amd/include/amd_shared.h
    :identifiers: amd_ip_block_type amd_ip_funcs
+
+Display Core
+============
+
+This section covers Display core.
+
+.. toctree::
+
+  display/index
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+   :doc: overview
 
 AMDGPU XGMI Support
 ===================
