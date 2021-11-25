@@ -306,7 +306,6 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 	u32 val;
 	int err;
 
-	memset(chip, 0, sizeof(*chip));
 	strncpy(chip->name, "at25", sizeof(chip->name));
 
 	err = device_property_read_u32(dev, "size", &val);
@@ -378,9 +377,9 @@ MODULE_DEVICE_TABLE(spi, at25_spi_ids);
 static int at25_probe(struct spi_device *spi)
 {
 	struct at25_data	*at25 = NULL;
-	struct spi_eeprom	chip, *pdata;
 	int			err;
 	int			sr;
+	struct spi_eeprom *pdata;
 	u8 id[FM25_ID_LEN];
 	u8 sernum[FM25_SN_LEN];
 	bool is_fram;
@@ -391,20 +390,6 @@ static int at25_probe(struct spi_device *spi)
 		is_fram = true;
 	else
 		is_fram = false;
-
-	/* Chip description */
-	pdata = dev_get_platdata(&spi->dev);
-	if (!pdata) {
-		if (is_fram) {
-			/* We file fields for FRAM case later on */
-			memset(&chip, 0, sizeof(chip));
-		} else {
-			err = at25_fw_to_chip(&spi->dev, &chip);
-			if (err)
-				return err;
-		}
-	} else
-		chip = *pdata;
 
 	/* Ping the chip ... the status register is pretty portable,
 	 * unlike probing manufacturer IDs.  We do expect that system
@@ -421,9 +406,22 @@ static int at25_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	mutex_init(&at25->lock);
-	at25->chip = chip;
 	at25->spi = spi;
 	spi_set_drvdata(spi, at25);
+
+	/* Chip description */
+	pdata = dev_get_platdata(&spi->dev);
+	if (pdata) {
+		at25->chip = *pdata;
+	} else {
+		if (is_fram) {
+			/* We file fields for FRAM case later on */
+		} else {
+			err = at25_fw_to_chip(&spi->dev, &at25->chip);
+			if (err)
+				return err;
+		}
+	}
 
 	if (is_fram) {
 		/* Get ID of chip */
