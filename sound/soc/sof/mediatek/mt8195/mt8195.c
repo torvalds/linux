@@ -43,6 +43,7 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 	}
 
 	ret = of_address_to_resource(mem_region, 0, &res);
+	of_node_put(mem_region);
 	if (ret) {
 		dev_err(dev, "of_address_to_resource dma failed\n");
 		return ret;
@@ -64,6 +65,7 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 	}
 
 	ret = of_address_to_resource(mem_region, 0, &res);
+	of_node_put(mem_region);
 	if (ret) {
 		dev_err(dev, "of_address_to_resource sysmem failed\n");
 		return ret;
