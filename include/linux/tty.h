@@ -263,26 +263,72 @@ struct tty_file_private {
 /* tty magic number */
 #define TTY_MAGIC		0x5401
 
-/*
- * These bits are used in the flags field of the tty structure.
+/**
+ * DOC: TTY Struct Flags
+ *
+ * These bits are used in the :c:member:`tty_struct.flags` field.
  *
  * So that interrupts won't be able to mess up the queues,
  * copy_to_cooked must be atomic with respect to itself, as must
  * tty->write.  Thus, you must use the inline functions set_bit() and
  * clear_bit() to make things atomic.
+ *
+ * TTY_THROTTLED
+ *	Driver input is throttled. The ldisc should call
+ *	:c:member:`tty_driver.unthrottle()` in order to resume reception when
+ *	it is ready to process more data (at threshold min).
+ *
+ * TTY_IO_ERROR
+ *	If set, causes all subsequent userspace read/write calls on the tty to
+ *	fail, returning -%EIO. (May be no ldisc too.)
+ *
+ * TTY_OTHER_CLOSED
+ *	Device is a pty and the other side has closed.
+ *
+ * TTY_EXCLUSIVE
+ *	Exclusive open mode (a single opener).
+ *
+ * TTY_DO_WRITE_WAKEUP
+ *	If set, causes the driver to call the
+ *	:c:member:`tty_ldisc_ops.write_wakeup()` method in order to resume
+ *	transmission when it can accept more data to transmit.
+ *
+ * TTY_LDISC_OPEN
+ *	Indicates that a line discipline is open. For debugging purposes only.
+ *
+ * TTY_PTY_LOCK
+ *	A flag private to pty code to implement %TIOCSPTLCK/%TIOCGPTLCK logic.
+ *
+ * TTY_NO_WRITE_SPLIT
+ *	Prevent driver from splitting up writes into smaller chunks (preserve
+ *	write boundaries to driver).
+ *
+ * TTY_HUPPED
+ *	The TTY was hung up. This is set post :c:member:`tty_driver.hangup()`.
+ *
+ * TTY_HUPPING
+ *	The TTY is in the process of hanging up to abort potential readers.
+ *
+ * TTY_LDISC_CHANGING
+ *	Line discipline for this TTY is being changed. I/O should not block
+ *	when this is set. Use tty_io_nonblock() to check.
+ *
+ * TTY_LDISC_HALTED
+ *	Line discipline for this TTY was stopped. No work should be queued to
+ *	this ldisc.
  */
-#define TTY_THROTTLED 		0	/* Call unthrottle() at threshold min */
-#define TTY_IO_ERROR 		1	/* Cause an I/O error (may be no ldisc too) */
-#define TTY_OTHER_CLOSED 	2	/* Other side (if any) has closed */
-#define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
-#define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
-#define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
-#define TTY_PTY_LOCK 		16	/* pty private */
-#define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
-#define TTY_HUPPED 		18	/* Post driver->hangup() */
-#define TTY_HUPPING		19	/* Hangup in progress */
-#define TTY_LDISC_CHANGING	20	/* Change pending - non-block IO */
-#define TTY_LDISC_HALTED	22	/* Line discipline is halted */
+#define TTY_THROTTLED		0
+#define TTY_IO_ERROR		1
+#define TTY_OTHER_CLOSED	2
+#define TTY_EXCLUSIVE		3
+#define TTY_DO_WRITE_WAKEUP	5
+#define TTY_LDISC_OPEN		11
+#define TTY_PTY_LOCK		16
+#define TTY_NO_WRITE_SPLIT	17
+#define TTY_HUPPED		18
+#define TTY_HUPPING		19
+#define TTY_LDISC_CHANGING	20
+#define TTY_LDISC_HALTED	22
 
 static inline bool tty_io_nonblock(struct tty_struct *tty, struct file *file)
 {

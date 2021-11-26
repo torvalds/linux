@@ -47,28 +47,8 @@ These are documented as a part of struct tty_operations.
 Flags
 ^^^^^
 
-Line discipline methods have access to tty->flags field containing the
-following interesting flags:
-
-======================= =======================================================
-TTY_THROTTLED		Driver input is throttled. The ldisc should call
-			tty->driver->unthrottle() in order to resume
-			reception when it is ready to process more data.
-
-TTY_DO_WRITE_WAKEUP	If set, causes the driver to call the ldisc's
-			write_wakeup() method in order to resume
-			transmission when it can accept more data
-			to transmit.
-
-TTY_IO_ERROR		If set, causes all subsequent userspace read/write
-			calls on the tty to fail, returning -EIO.
-
-TTY_OTHER_CLOSED	Device is a pty and the other side has closed.
-
-TTY_NO_WRITE_SPLIT	Prevent driver from splitting up writes into
-			smaller chunks.
-======================= =======================================================
-
+Line discipline methods have access to :c:member:`tty_struct.flags` field. See
+:doc:`tty_struct`.
 
 Locking
 ^^^^^^^
