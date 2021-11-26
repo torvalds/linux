@@ -1469,7 +1469,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 			RK3588_CLKSEL_CON(84), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3588_CLKGATE_CON(35), 6, GFLAGS),
 
-	GATE(ACLK_PHP_GIC_ITS, "aclk_php_gic_its", "aclk_pcie_root", 0,
+	GATE(ACLK_PHP_GIC_ITS, "aclk_php_gic_its", "aclk_pcie_root", CLK_IS_CRITICAL,
 			RK3588_CLKGATE_CON(34), 6, GFLAGS),
 	GATE(ACLK_MMU_PCIE, "aclk_mmu_pcie", "aclk_pcie_root", 0,
 			RK3588_CLKGATE_CON(34), 7, GFLAGS),
