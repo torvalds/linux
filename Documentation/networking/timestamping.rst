@@ -486,8 +486,8 @@ of packets.
 Drivers are free to use a more permissive configuration than the requested
 configuration. It is expected that drivers should only implement directly the
 most generic mode that can be supported. For example if the hardware can
-support HWTSTAMP_FILTER_V2_EVENT, then it should generally always upscale
-HWTSTAMP_FILTER_V2_L2_SYNC_MESSAGE, and so forth, as HWTSTAMP_FILTER_V2_EVENT
+support HWTSTAMP_FILTER_PTP_V2_EVENT, then it should generally always upscale
+HWTSTAMP_FILTER_PTP_V2_L2_SYNC, and so forth, as HWTSTAMP_FILTER_PTP_V2_EVENT
 is more generic (and more useful to applications).
 
 A driver which supports hardware time stamping shall update the struct

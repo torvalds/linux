@@ -128,6 +128,13 @@ static inline void resv_map_dup_hugetlb_cgroup_uncharge_info(
 		css_get(resv_map->css);
 }
 
+static inline void resv_map_put_hugetlb_cgroup_uncharge_info(
+						struct resv_map *resv_map)
+{
+	if (resv_map->css)
+		css_put(resv_map->css);
+}
+
 extern int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
 					struct hugetlb_cgroup **ptr);
 extern int hugetlb_cgroup_charge_cgroup_rsvd(int idx, unsigned long nr_pages,
@@ -207,6 +214,11 @@ static inline void hugetlb_cgroup_put_rsvd_cgroup(struct hugetlb_cgroup *h_cg)
 }
 
 static inline void resv_map_dup_hugetlb_cgroup_uncharge_info(
+						struct resv_map *resv_map)
+{
+}
+
+static inline void resv_map_put_hugetlb_cgroup_uncharge_info(
 						struct resv_map *resv_map)
 {
 }
