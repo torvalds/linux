@@ -149,7 +149,6 @@ struct dvobj_priv {
 	u8	ishighspeed;
 	u8	RtNumInPipes;
 	u8	RtNumOutPipes;
-	int	ep_num[5]; /* endpoint number */
 	int	RegUsbSS;
 	struct semaphore usb_suspend_sema;
 	struct mutex  usb_vendor_req_mutex;
