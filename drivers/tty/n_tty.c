@@ -596,7 +596,7 @@ break_out:
 }
 
 /**
- *	process_echoes	-	write pending echo characters
+ *	__process_echoes	-	write pending echo characters
  *	@tty: terminal device
  *
  *	Write previously buffered echo (and other ldisc-generated)
@@ -619,7 +619,6 @@ break_out:
  *
  *	Locking: callers must hold output_lock
  */
-
 static size_t __process_echoes(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1091,6 +1090,16 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 		finish_erasing(ldata);
 }
 
+
+static void __isig(int sig, struct tty_struct *tty)
+{
+	struct pid *tty_pgrp = tty_get_pgrp(tty);
+	if (tty_pgrp) {
+		kill_pgrp(tty_pgrp, sig, 1);
+		put_pid(tty_pgrp);
+	}
+}
+
 /**
  *	isig		-	handle the ISIG optio
  *	@sig: signal
@@ -1105,16 +1114,6 @@ static void eraser(unsigned char c, struct tty_struct *tty)
  *
  *	Locking: ctrl.lock
  */
-
-static void __isig(int sig, struct tty_struct *tty)
-{
-	struct pid *tty_pgrp = tty_get_pgrp(tty);
-	if (tty_pgrp) {
-		kill_pgrp(tty_pgrp, sig, 1);
-		put_pid(tty_pgrp);
-	}
-}
-
 static void isig(int sig, struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1247,19 +1246,6 @@ n_tty_receive_signal_char(struct tty_struct *tty, int signal, unsigned char c)
 		process_echoes(tty);
 }
 
-/**
- *	n_tty_receive_char	-	perform processing
- *	@tty: terminal device
- *	@c: character
- *
- *	Process an individual character of input received from the driver.
- *	This is serialized with respect to itself by the rules for the
- *	driver above.
- *
- *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
- *		publishes canon_head if canonical mode is active
- */
 static void n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -1394,6 +1380,19 @@ handle_newline:
 	put_tty_queue(c, ldata);
 }
 
+/**
+ *	n_tty_receive_char	-	perform processing
+ *	@tty: terminal device
+ *	@c: character
+ *
+ *	Process an individual character of input received from the driver.
+ *	This is serialized with respect to itself by the rules for the
+ *	driver above.
+ *
+ *	n_tty_receive_buf()/producer path:
+ *		caller holds non-exclusive termios_rwsem
+ *		publishes canon_head if canonical mode is active
+ */
 static void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
@@ -2046,8 +2045,10 @@ static int job_control(struct tty_struct *tty, struct file *file)
  *	n_tty_read		-	read function for tty
  *	@tty: tty device
  *	@file: file object
- *	@buf: userspace buffer pointer
+ *	@kbuf: kernelspace buffer pointer
  *	@nr: size of I/O
+ *	@cookie: if non-%NULL, this is a continuation read
+ *	@offset: where to continue reading from (unused in n_tty)
  *
  *	Perform reads for the line discipline. We are guaranteed that the
  *	line discipline will not be closed under us but we may get multiple
