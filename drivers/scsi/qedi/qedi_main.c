@@ -1538,7 +1538,6 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 	int i;
 	struct scsi_bd *pbl;
 	u64 *list;
-	dma_addr_t page;
 
 	/* Alloc dma memory for BDQ buffers */
 	for (i = 0; i < QEDI_BDQ_NUM; i++) {
@@ -1608,11 +1607,9 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 	qedi->bdq_pbl_list_num_entries = qedi->bdq_pbl_mem_size /
 					 QEDI_PAGE_SIZE;
 	list = (u64 *)qedi->bdq_pbl_list;
-	page = qedi->bdq_pbl_list_dma;
 	for (i = 0; i < qedi->bdq_pbl_list_num_entries; i++) {
 		*list = qedi->bdq_pbl_dma;
 		list++;
-		page += QEDI_PAGE_SIZE;
 	}
 
 	return 0;
