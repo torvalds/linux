@@ -1121,15 +1121,18 @@ static void virtio_mem_clear_fake_offline(unsigned long pfn,
  */
 static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
 {
-	const unsigned long max_nr_pages = MAX_ORDER_NR_PAGES;
+	unsigned long order = MAX_ORDER - 1;
 	unsigned long i;
 
 	/*
-	 * We are always called at least with MAX_ORDER_NR_PAGES
-	 * granularity/alignment (e.g., the way subblocks work). All pages
-	 * inside such a block are alike.
+	 * We might get called for ranges that don't cover properly aligned
+	 * MAX_ORDER - 1 pages; however, we can only online properly aligned
+	 * pages with an order of MAX_ORDER - 1 at maximum.
 	 */
-	for (i = 0; i < nr_pages; i += max_nr_pages) {
+	while (!IS_ALIGNED(pfn | nr_pages, 1 << order))
+		order--;
+
+	for (i = 0; i < nr_pages; i += 1 << order) {
 		struct page *page = pfn_to_page(pfn + i);
 
 		/*
@@ -1139,14 +1142,12 @@ static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
 		 * alike.
 		 */
 		if (PageDirty(page)) {
-			virtio_mem_clear_fake_offline(pfn + i, max_nr_pages,
-						      false);
-			generic_online_page(page, MAX_ORDER - 1);
+			virtio_mem_clear_fake_offline(pfn + i, 1 << order, false);
+			generic_online_page(page, order);
 		} else {
-			virtio_mem_clear_fake_offline(pfn + i, max_nr_pages,
-						      true);
-			free_contig_range(pfn + i, max_nr_pages);
-			adjust_managed_page_count(page, max_nr_pages);
+			virtio_mem_clear_fake_offline(pfn + i, 1 << order, true);
+			free_contig_range(pfn + i, 1 << order);
+			adjust_managed_page_count(page, 1 << order);
 		}
 	}
 }
@@ -2477,7 +2478,6 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 	/*
 	 * We want subblocks to span at least MAX_ORDER_NR_PAGES and
 	 * pageblock_nr_pages pages. This:
-	 * - Simplifies our fake page onlining code (virtio_mem_fake_online).
 	 * - Is required for now for alloc_contig_range() to work reliably -
 	 *   it doesn't properly handle smaller granularity on ZONE_NORMAL.
 	 */
