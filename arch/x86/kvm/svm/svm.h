@@ -326,6 +326,16 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_svm, vcpu);
 }
 
+/*
+ * Only the PDPTRs are loaded on demand into the shadow MMU.  All other
+ * fields are synchronized in handle_exit, because accessing the VMCB is cheap.
+ *
+ * CR3 might be out of date in the VMCB but it is not marked dirty; instead,
+ * KVM_REQ_LOAD_MMU_PGD is always requested when the cached vcpu->arch.cr3
+ * is changed.  svm_load_mmu_pgd() then syncs the new CR3 value into the VMCB.
+ */
+#define SVM_REGS_LAZY_LOAD_SET	(1 << VCPU_EXREG_PDPTR)
+
 static inline void vmcb_set_intercept(struct vmcb_control_area *control, u32 bit)
 {
 	WARN_ON_ONCE(bit >= 32 * MAX_INTERCEPT);

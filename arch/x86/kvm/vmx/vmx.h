@@ -473,19 +473,21 @@ BUILD_CONTROLS_SHADOW(pin, PIN_BASED_VM_EXEC_CONTROL)
 BUILD_CONTROLS_SHADOW(exec, CPU_BASED_VM_EXEC_CONTROL)
 BUILD_CONTROLS_SHADOW(secondary_exec, SECONDARY_VM_EXEC_CONTROL)
 
-static inline void vmx_register_cache_reset(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP)
-				  | (1 << VCPU_EXREG_RFLAGS)
-				  | (1 << VCPU_EXREG_PDPTR)
-				  | (1 << VCPU_EXREG_SEGMENTS)
-				  | (1 << VCPU_EXREG_CR0)
-				  | (1 << VCPU_EXREG_CR3)
-				  | (1 << VCPU_EXREG_CR4)
-				  | (1 << VCPU_EXREG_EXIT_INFO_1)
-				  | (1 << VCPU_EXREG_EXIT_INFO_2));
-	vcpu->arch.regs_dirty = 0;
-}
+/*
+ * VMX_REGS_LAZY_LOAD_SET - The set of registers that will be updated in the
+ * cache on demand.  Other registers not listed here are synced to
+ * the cache immediately after VM-Exit.
+ */
+#define VMX_REGS_LAZY_LOAD_SET	((1 << VCPU_REGS_RIP) |         \
+				(1 << VCPU_REGS_RSP) |          \
+				(1 << VCPU_EXREG_RFLAGS) |      \
+				(1 << VCPU_EXREG_PDPTR) |       \
+				(1 << VCPU_EXREG_SEGMENTS) |    \
+				(1 << VCPU_EXREG_CR0) |         \
+				(1 << VCPU_EXREG_CR3) |         \
+				(1 << VCPU_EXREG_CR4) |         \
+				(1 << VCPU_EXREG_EXIT_INFO_1) | \
+				(1 << VCPU_EXREG_EXIT_INFO_2))
 
 static inline struct kvm_vmx *to_kvm_vmx(struct kvm *kvm)
 {

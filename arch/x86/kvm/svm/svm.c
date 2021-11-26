@@ -3946,6 +3946,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
 		vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
 	}
+	vcpu->arch.regs_dirty = 0;
 
 	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
 		kvm_before_interrupt(vcpu);
@@ -3980,7 +3981,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->arch.apf.host_apf_flags =
 			kvm_read_and_reset_apf_flags();
 
-	kvm_register_clear_available(vcpu, VCPU_EXREG_PDPTR);
+	vcpu->arch.regs_avail &= ~SVM_REGS_LAZY_LOAD_SET;
 
 	/*
 	 * We need to handle MC intercepts here before the vcpu has a chance to

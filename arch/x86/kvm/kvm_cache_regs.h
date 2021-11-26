@@ -43,6 +43,13 @@ BUILD_KVM_GPR_ACCESSORS(r14, R14)
 BUILD_KVM_GPR_ACCESSORS(r15, R15)
 #endif
 
+/*
+ * avail  dirty
+ * 0	  0	  register in VMCS/VMCB
+ * 0	  1	  *INVALID*
+ * 1	  0	  register in vcpu->arch
+ * 1	  1	  register in vcpu->arch, needs to be stored back
+ */
 static inline bool kvm_register_is_available(struct kvm_vcpu *vcpu,
 					     enum kvm_reg reg)
 {

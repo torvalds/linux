@@ -269,7 +269,13 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 	vmx_sync_vmcs_host_state(vmx, prev);
 	put_cpu();
 
-	vmx_register_cache_reset(vcpu);
+	vcpu->arch.regs_avail = ~VMX_REGS_LAZY_LOAD_SET;
+
+	/*
+	 * All lazily updated registers will be reloaded from VMCS12 on both
+	 * vmentry and vmexit.
+	 */
+	vcpu->arch.regs_dirty = 0;
 }
 
 /*
