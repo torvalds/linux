@@ -1094,7 +1094,6 @@
 
 &usbdrd_dwc3_0 {
 	dr_mode = "otg";
-	maximum-speed = "high-speed";
 	status = "okay";
 
 	usb-role-switch;
