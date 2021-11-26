@@ -175,7 +175,7 @@ void put_io_context(struct io_context *ioc)
  * Undo get_io_context_active().  If active reference reaches zero after
  * put, @ioc can never issue further IOs and ioscheds are notified.
  */
-void put_io_context_active(struct io_context *ioc)
+static void put_io_context_active(struct io_context *ioc)
 {
 	struct io_cq *icq;
 
