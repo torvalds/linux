@@ -355,21 +355,15 @@ extern void aspeed_h2x_msi_disable(struct aspeed_pcie *pcie)
 #endif
 void aspeed_h2x_rc_intr_handler(struct aspeed_pcie *pcie)
 {
-	u32 bit;
-	u32 virq;
-	unsigned long status;
-	int i;
 	unsigned long intx = readl(pcie->h2x_rc_base + 0x08) & 0xf;
+	unsigned long status;
+	u32 bit;
+	int i;
 
 	//intx isr
 	if (intx) {
-		for_each_set_bit(bit, &intx, PCI_NUM_INTX) {
-			virq = irq_find_mapping(pcie->leg_domain, bit);
-			if (virq)
-				generic_handle_domain_irq(pcie->leg_domain, virq);
-			else
-				dev_err(pcie->dev, "unexpected Int - X\n");
-		}
+		for_each_set_bit(bit, &intx, PCI_NUM_INTX)
+			generic_handle_domain_irq(pcie->leg_domain, bit);
 	}
 	//msi isr
 	for (i = 0; i < 2; i++) {

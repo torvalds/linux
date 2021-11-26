@@ -143,32 +143,32 @@ static struct irq_chip aspeed_msi_bottom_irq_chip = {
 };
 
 static int aspeed_irq_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
-											unsigned int nr_irqs, void *args)
+					unsigned int nr_irqs, void *args)
 {
-	int i;
 	int bit;
 
-	bit = bitmap_find_free_region(msi_irq_in_use, MAX_MSI_HOST_IRQS,
-				      get_count_order(nr_irqs));
-	if (bit < 0)
+	bit = find_first_zero_bit(msi_irq_in_use, MAX_MSI_HOST_IRQS);
+	if (bit >= MAX_MSI_HOST_IRQS)
 		return -ENOSPC;
 
-	for (i = 0; i < nr_irqs; i++) {
-		irq_domain_set_info(domain, virq + i, bit + i, &aspeed_msi_bottom_irq_chip,
-				domain->host_data, handle_simple_irq,
-				NULL, NULL);
-	}
+	set_bit(bit, msi_irq_in_use);
+
+	irq_domain_set_info(domain, virq, bit, &aspeed_msi_bottom_irq_chip,
+				domain->host_data, handle_edge_irq, NULL, NULL);
 
 	return 0;
 }
 
 static void aspeed_irq_msi_domain_free(struct irq_domain *domain, unsigned int virq,
-											unsigned int nr_irqs)
+					unsigned int nr_irqs)
 {
 	struct irq_data *data = irq_domain_get_irq_data(domain, virq);
+	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(data);
 
-	bitmap_release_region(msi_irq_in_use, data->hwirq,
-			      get_count_order(nr_irqs));
+	if (test_bit(data->hwirq, msi_irq_in_use))
+		__clear_bit(data->hwirq, msi_irq_in_use);
+	else
+		dev_err(pcie->dev, "trying to free unused MSI%lu\n", data->hwirq);
 
 }
 
@@ -187,7 +187,7 @@ static struct irq_chip aspeed_msi_irq_chip = {
 
 static struct msi_domain_info aspeed_msi_domain_info = {
 	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-				MSI_FLAG_MULTI_PCI_MSI),
+				MSI_FLAG_PCI_MSIX),
 	.chip = &aspeed_msi_irq_chip,
 };
 
