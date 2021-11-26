@@ -249,18 +249,15 @@ void ioc_clear_queue(struct request_queue *q)
 	__ioc_clear_queue(&icq_list);
 }
 
-static int create_task_io_context(struct task_struct *task, gfp_t gfp_flags,
-		int node)
+static struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 {
 	struct io_context *ioc;
-	int ret;
 
 	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags | __GFP_ZERO,
 				    node);
 	if (unlikely(!ioc))
-		return -ENOMEM;
+		return NULL;
 
-	/* initialize */
 	atomic_long_set(&ioc->refcount, 1);
 	atomic_set(&ioc->nr_tasks, 1);
 	atomic_set(&ioc->active_ref, 1);
@@ -268,6 +265,18 @@ static int create_task_io_context(struct task_struct *task, gfp_t gfp_flags,
 	INIT_RADIX_TREE(&ioc->icq_tree, GFP_ATOMIC);
 	INIT_HLIST_HEAD(&ioc->icq_list);
 	INIT_WORK(&ioc->release_work, ioc_release_fn);
+	return ioc;
+}
+
+static int create_task_io_context(struct task_struct *task, gfp_t gfp_flags,
+		int node)
+{
+	struct io_context *ioc;
+	int ret;
+
+	ioc = alloc_io_context(gfp_flags, node);
+	if (!ioc)
+		return -ENOMEM;
 
 	/*
 	 * Try to install.  ioc shouldn't be installed if someone else
