@@ -726,7 +726,7 @@ EXPORT_SYMBOL_GPL(dma_resv_test_signaled);
  */
 void dma_resv_describe(struct dma_resv *obj, struct seq_file *seq)
 {
-	static const char *usage[] = { "write", "read" };
+	static const char *usage[] = { "kernel", "write", "read" };
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 
