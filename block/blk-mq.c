@@ -2543,8 +2543,7 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	return NULL;
 }
 
-static inline bool blk_mq_can_use_cached_rq(struct request *rq,
-		struct bio *bio)
+static inline bool blk_mq_can_use_cached_rq(struct request *rq, struct bio *bio)
 {
 	if (blk_mq_get_hctx_type(bio->bi_opf) != rq->mq_hctx->type)
 		return false;
@@ -2565,7 +2564,6 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 	bool checked = false;
 
 	if (plug) {
-
 		rq = rq_list_peek(&plug->cached_rq);
 		if (rq && rq->q == q) {
 			if (unlikely(!submit_bio_checks(bio)))
@@ -2587,12 +2585,14 @@ static inline struct request *blk_mq_get_request(struct request_queue *q,
 fallback:
 	if (unlikely(bio_queue_enter(bio)))
 		return NULL;
-	if (!checked && !submit_bio_checks(bio))
-		return NULL;
+	if (unlikely(!checked && !submit_bio_checks(bio)))
+		goto out_put;
 	rq = blk_mq_get_new_requests(q, plug, bio, nsegs, same_queue_rq);
-	if (!rq)
-		blk_queue_exit(q);
-	return rq;
+	if (rq)
+		return rq;
+out_put:
+	blk_queue_exit(q);
+	return NULL;
 }
 
 /**
@@ -2647,8 +2647,10 @@ void blk_mq_submit_bio(struct bio *bio)
 		return;
 	}
 
-	if (op_is_flush(bio->bi_opf) && blk_insert_flush(rq))
+	if (op_is_flush(bio->bi_opf)) {
+		blk_insert_flush(rq);
 		return;
+	}
 
 	if (plug && (q->nr_hw_queues == 1 ||
 	    blk_mq_is_shared_tags(rq->mq_hctx->flags) ||
@@ -4416,6 +4418,19 @@ unsigned int blk_mq_rq_cpu(struct request *rq)
 	return rq->mq_ctx->cpu;
 }
 EXPORT_SYMBOL(blk_mq_rq_cpu);
+
+void blk_mq_cancel_work_sync(struct request_queue *q)
+{
+	if (queue_is_mq(q)) {
+		struct blk_mq_hw_ctx *hctx;
+		int i;
+
+		cancel_delayed_work_sync(&q->requeue_work);
+
+		queue_for_each_hw_ctx(q, hctx, i)
+			cancel_delayed_work_sync(&hctx->run_work);
+	}
+}
 
 static int __init blk_mq_init(void)
 {

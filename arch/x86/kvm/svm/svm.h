@@ -247,7 +247,7 @@ static __always_inline bool sev_es_guest(struct kvm *kvm)
 #ifdef CONFIG_KVM_AMD_SEV
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 
-	return sev_guest(kvm) && sev->es_active;
+	return sev->es_active && !WARN_ON_ONCE(!sev->active);
 #else
 	return false;
 #endif

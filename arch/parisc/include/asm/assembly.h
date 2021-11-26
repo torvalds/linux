@@ -3,38 +3,19 @@
  * Copyright (C) 1999 Hewlett-Packard (Frank Rowand)
  * Copyright (C) 1999 Philipp Rumpf <prumpf@tux.org>
  * Copyright (C) 1999 SuSE GmbH
+ * Copyright (C) 2021 Helge Deller <deller@gmx.de>
  */
 
 #ifndef _PARISC_ASSEMBLY_H
 #define _PARISC_ASSEMBLY_H
 
-#define CALLEE_FLOAT_FRAME_SIZE	80
-
 #ifdef CONFIG_64BIT
-#define LDREG	ldd
-#define STREG	std
-#define LDREGX  ldd,s
-#define LDREGM	ldd,mb
-#define STREGM	std,ma
-#define SHRREG	shrd
-#define SHLREG	shld
-#define ANDCM   andcm,*
-#define	COND(x)	* ## x
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
 #define CALLEE_REG_FRAME_SIZE	144
 #define REG_SZ		8
 #define ASM_ULONG_INSN	.dword
 #else	/* CONFIG_64BIT */
-#define LDREG	ldw
-#define STREG	stw
-#define LDREGX  ldwx,s
-#define LDREGM	ldwm
-#define STREGM	stwm
-#define SHRREG	shr
-#define SHLREG	shlw
-#define ANDCM   andcm
-#define COND(x)	x
 #define RP_OFFSET	20
 #define FRAME_SIZE	64
 #define CALLEE_REG_FRAME_SIZE	128
@@ -45,6 +26,7 @@
 /* Frame alignment for 32- and 64-bit */
 #define FRAME_ALIGN     64
 
+#define CALLEE_FLOAT_FRAME_SIZE	80
 #define CALLEE_SAVE_FRAME_SIZE (CALLEE_REG_FRAME_SIZE + CALLEE_FLOAT_FRAME_SIZE)
 
 #ifdef CONFIG_PA20
@@ -66,6 +48,28 @@
 #define PRIV_KERNEL	0
 
 #ifdef __ASSEMBLY__
+
+#ifdef CONFIG_64BIT
+#define LDREG	ldd
+#define STREG	std
+#define LDREGX  ldd,s
+#define LDREGM	ldd,mb
+#define STREGM	std,ma
+#define SHRREG	shrd
+#define SHLREG	shld
+#define ANDCM   andcm,*
+#define	COND(x)	* ## x
+#else	/* CONFIG_64BIT */
+#define LDREG	ldw
+#define STREG	stw
+#define LDREGX  ldwx,s
+#define LDREGM	ldwm
+#define STREGM	stwm
+#define SHRREG	shr
+#define SHLREG	shlw
+#define ANDCM   andcm
+#define COND(x)	x
+#endif
 
 #ifdef CONFIG_64BIT
 /* the 64-bit pa gnu assembler unfortunately defaults to .level 1.1 or 2.0 so
