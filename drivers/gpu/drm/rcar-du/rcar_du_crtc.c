@@ -262,12 +262,13 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		rcar_du_group_write(rcrtc->group, DPLLCR, dpllcr);
 
 		escr = ESCR_DCLKSEL_DCLKIN | div;
-	} else if (rcdu->info->lvds_clk_mask & BIT(rcrtc->index)) {
+	} else if (rcdu->info->lvds_clk_mask & BIT(rcrtc->index) ||
+		   rcdu->info->dsi_clk_mask & BIT(rcrtc->index)) {
 		/*
-		 * Use the LVDS PLL output as the dot clock when outputting to
-		 * the LVDS encoder on an SoC that supports this clock routing
-		 * option. We use the clock directly in that case, without any
-		 * additional divider.
+		 * Use the external LVDS or DSI PLL output as the dot clock when
+		 * outputting to the LVDS or DSI encoder on an SoC that supports
+		 * this clock routing option. We use the clock directly in that
+		 * case, without any additional divider.
 		 */
 		escr = ESCR_DCLKSEL_DCLKIN;
 	} else {
