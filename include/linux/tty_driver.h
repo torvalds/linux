@@ -291,23 +291,61 @@ struct tty_operations {
 	int (*proc_show)(struct seq_file *, void *);
 } __randomize_layout;
 
+/**
+ * struct tty_driver -- driver for TTY devices
+ *
+ * @magic: set to %TTY_DRIVER_MAGIC in __tty_alloc_driver()
+ * @kref: reference counting. Reaching zero frees all the internals and the
+ *	  driver.
+ * @cdevs: allocated/registered character /dev devices
+ * @owner: modules owning this driver. Used drivers cannot be rmmod'ed.
+ *	   Automatically set by tty_alloc_driver().
+ * @driver_name: name of the driver used in /proc/tty
+ * @name: used for constructing /dev node name
+ * @name_base: used as a number base for constructing /dev node name
+ * @major: major /dev device number (zero for autoassignment)
+ * @minor_start: the first minor /dev device number
+ * @num: number of devices allocated
+ * @type: type of tty driver (%TTY_DRIVER_TYPE_)
+ * @subtype: subtype of tty driver (%SYSTEM_TYPE_, %PTY_TYPE_, %SERIAL_TYPE_)
+ * @init_termios: termios to set to each tty initially (e.g. %tty_std_termios)
+ * @flags: tty driver flags (%TTY_DRIVER_)
+ * @proc_entry: proc fs entry, used internally
+ * @other: driver of the linked tty; only used for the PTY driver
+ * @ttys: array of active &struct tty_struct, set by tty_standard_install()
+ * @ports: array of &struct tty_port; can be set during initialization by
+ *	   tty_port_link_device() and similar
+ * @termios: storage for termios at each TTY close for the next open
+ * @driver_state: pointer to driver's arbitrary data
+ * @ops: driver hooks for TTYs. Set them using tty_set_operations(). Use &struct
+ *	 tty_port helpers in them as much as possible.
+ * @tty_drivers: used internally to link tty_drivers together
+ *
+ * The usual handling of &struct tty_driver is to allocate it by
+ * tty_alloc_driver(), set up all the necessary members, and register it by
+ * tty_register_driver(). At last, the driver is torn down by calling
+ * tty_unregister_driver() followed by tty_driver_kref_put().
+ *
+ * The fields required to be set before calling tty_register_driver() include
+ * @driver_name, @name, @type, @subtype, @init_termios, and @ops.
+ */
 struct tty_driver {
-	int	magic;		/* magic number for this structure */
-	struct kref kref;	/* Reference management */
+	int	magic;
+	struct kref kref;
 	struct cdev **cdevs;
 	struct module	*owner;
 	const char	*driver_name;
 	const char	*name;
-	int	name_base;	/* offset of printed name */
-	int	major;		/* major device number */
-	int	minor_start;	/* start of minor device number */
-	unsigned int	num;	/* number of devices allocated */
-	short	type;		/* type of tty driver */
-	short	subtype;	/* subtype of tty driver */
-	struct ktermios init_termios; /* Initial termios */
-	unsigned long	flags;		/* tty driver flags */
-	struct proc_dir_entry *proc_entry; /* /proc fs entry */
-	struct tty_driver *other; /* only used for the PTY driver */
+	int	name_base;
+	int	major;
+	int	minor_start;
+	unsigned int	num;
+	short	type;
+	short	subtype;
+	struct ktermios init_termios;
+	unsigned long	flags;
+	struct proc_dir_entry *proc_entry;
+	struct tty_driver *other;
 
 	/*
 	 * Pointer to the tty data structures
