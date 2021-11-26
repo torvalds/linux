@@ -2908,10 +2908,13 @@ static int crc_win_update_set(void *data, u64 val)
 	struct amdgpu_device *adev = drm_to_adev(new_crtc->dev);
 	struct crc_rd_work *crc_rd_wrk = adev->dm.crc_rd_wrk;
 
+	if (!crc_rd_wrk)
+		return 0;
+
 	if (val) {
 		spin_lock_irq(&adev_to_drm(adev)->event_lock);
 		spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
-		if (crc_rd_wrk && crc_rd_wrk->crtc) {
+		if (crc_rd_wrk->crtc) {
 			old_crtc = crc_rd_wrk->crtc;
 			old_acrtc = to_amdgpu_crtc(old_crtc);
 		}
