@@ -492,49 +492,53 @@ static inline void tty_set_operations(struct tty_driver *driver,
 /* tty driver magic number */
 #define TTY_DRIVER_MAGIC		0x5402
 
-/*
- * tty driver flags
- * 
- * TTY_DRIVER_RESET_TERMIOS --- requests the tty layer to reset the
- * 	termios setting when the last process has closed the device.
- * 	Used for PTY's, in particular.
- * 
- * TTY_DRIVER_REAL_RAW --- if set, indicates that the driver will
- * 	guarantee never to set any special character handling
- * 	flags if ((IGNBRK || (!BRKINT && !PARMRK)) && (IGNPAR ||
- * 	!INPCK)).  That is, if there is no reason for the driver to
- * 	send notifications of parity and break characters up to the
- * 	line driver, it won't do so.  This allows the line driver to
- *	optimize for this case if this flag is set.  (Note that there
- * 	is also a promise, if the above case is true, not to signal
- * 	overruns, either.)
+/**
+ * DOC: TTY Driver Flags
  *
- * TTY_DRIVER_DYNAMIC_DEV --- if set, the individual tty devices need
- *	to be registered with a call to tty_register_device() when the
- *	device is found in the system and unregistered with a call to
- *	tty_unregister_device() so the devices will be show up
- *	properly in sysfs.  If not set, driver->num entries will be
- *	created by the tty core in sysfs when tty_register_driver() is
- *	called.  This is to be used by drivers that have tty devices
- *	that can appear and disappear while the main tty driver is
- *	registered with the tty core.
+ * TTY_DRIVER_RESET_TERMIOS
+ *	Requests the tty layer to reset the termios setting when the last
+ *	process has closed the device. Used for PTYs, in particular.
  *
- * TTY_DRIVER_DEVPTS_MEM -- don't use the standard arrays, instead
- *	use dynamic memory keyed through the devpts filesystem.  This
- *	is only applicable to the pty driver.
+ * TTY_DRIVER_REAL_RAW
+ *	Indicates that the driver will guarantee not to set any special
+ *	character handling flags if this is set for the tty:
  *
- * TTY_DRIVER_HARDWARE_BREAK -- hardware handles break signals. Pass
- *	the requested timeout to the caller instead of using a simple
- *	on/off interface.
+ *	``(IGNBRK || (!BRKINT && !PARMRK)) && (IGNPAR || !INPCK)``
  *
- * TTY_DRIVER_DYNAMIC_ALLOC -- do not allocate structures which are
- *	needed per line for this driver as it would waste memory.
- *	The driver will take care.
+ *	That is, if there is no reason for the driver to
+ *	send notifications of parity and break characters up to the line
+ *	driver, it won't do so.  This allows the line driver to optimize for
+ *	this case if this flag is set.  (Note that there is also a promise, if
+ *	the above case is true, not to signal overruns, either.)
  *
- * TTY_DRIVER_UNNUMBERED_NODE -- do not create numbered /dev nodes. In
- *	other words create /dev/ttyprintk and not /dev/ttyprintk0.
- *	Applicable only when a driver for a single tty device is
- *	being allocated.
+ * TTY_DRIVER_DYNAMIC_DEV
+ *	The individual tty devices need to be registered with a call to
+ *	tty_register_device() when the device is found in the system and
+ *	unregistered with a call to tty_unregister_device() so the devices will
+ *	be show up properly in sysfs.  If not set, all &tty_driver.num entries
+ *	will be created by the tty core in sysfs when tty_register_driver() is
+ *	called.  This is to be used by drivers that have tty devices that can
+ *	appear and disappear while the main tty driver is registered with the
+ *	tty core.
+ *
+ * TTY_DRIVER_DEVPTS_MEM
+ *	Don't use the standard arrays (&tty_driver.ttys and
+ *	&tty_driver.termios), instead use dynamic memory keyed through the
+ *	devpts filesystem. This is only applicable to the PTY driver.
+ *
+ * TTY_DRIVER_HARDWARE_BREAK
+ *	Hardware handles break signals. Pass the requested timeout to the
+ *	&tty_operations.break_ctl instead of using a simple on/off interface.
+ *
+ * TTY_DRIVER_DYNAMIC_ALLOC
+ *	Do not allocate structures which are needed per line for this driver
+ *	(&tty_driver.ports) as it would waste memory. The driver will take
+ *	care. This is only applicable to the PTY driver.
+ *
+ * TTY_DRIVER_UNNUMBERED_NODE
+ *	Do not create numbered ``/dev`` nodes. For example, create
+ *	``/dev/ttyprintk`` and not ``/dev/ttyprintk0``. Applicable only when a
+ *	driver for a single tty device is being allocated.
  */
 #define TTY_DRIVER_INSTALLED		0x0001
 #define TTY_DRIVER_RESET_TERMIOS	0x0002
