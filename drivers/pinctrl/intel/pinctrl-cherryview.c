@@ -711,6 +711,7 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 			      unsigned int function, unsigned int group)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	struct device *dev = pctrl->dev;
 	const struct intel_pingroup *grp;
 	unsigned long flags;
 	int i;
@@ -722,9 +723,8 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	/* Check first that the pad is not locked */
 	for (i = 0; i < grp->npins; i++) {
 		if (chv_pad_locked(pctrl, grp->pins[i])) {
-			dev_warn(pctrl->dev, "unable to set mode for locked pin %u\n",
-				 grp->pins[i]);
 			raw_spin_unlock_irqrestore(&chv_lock, flags);
+			dev_warn(dev, "unable to set mode for locked pin %u\n", grp->pins[i]);
 			return -EBUSY;
 		}
 	}
@@ -759,8 +759,8 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 			value |= CHV_PADCTRL1_INVRXTX_TXENABLE;
 		chv_writel(pctrl, pin, CHV_PADCTRL1, value);
 
-		dev_dbg(pctrl->dev, "configured pin %u mode %u OE %sinverted\n",
-			pin, mode, invert_oe ? "" : "not ");
+		dev_dbg(dev, "configured pin %u mode %u OE %sinverted\n", pin, mode,
+			invert_oe ? "" : "not ");
 	}
 
 	raw_spin_unlock_irqrestore(&chv_lock, flags);
@@ -1060,6 +1060,7 @@ static int chv_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			  unsigned long *configs, unsigned int nconfigs)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	struct device *dev = pctrl->dev;
 	enum pin_config_param param;
 	int i, ret;
 	u32 arg;
@@ -1096,8 +1097,7 @@ static int chv_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			return -ENOTSUPP;
 		}
 
-		dev_dbg(pctrl->dev, "pin %d set config %d arg %u\n", pin,
-			param, arg);
+		dev_dbg(dev, "pin %d set config %d arg %u\n", pin, param, arg);
 	}
 
 	return 0;
@@ -1304,6 +1304,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 	if (irqd_get_trigger_type(d) == IRQ_TYPE_NONE) {
 		struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 		struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
+		struct device *dev = pctrl->dev;
 		struct intel_community_context *cctx = &pctrl->context.communities[0];
 		unsigned int pin = irqd_to_hwirq(d);
 		irq_flow_handler_t handler;
@@ -1323,7 +1324,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 
 		if (cctx->intr_lines[intsel] == CHV_INVALID_HWIRQ) {
 			irq_set_handler_locked(d, handler);
-			dev_dbg(pctrl->dev, "using interrupt line %u for IRQ_TYPE_NONE on pin %u\n",
+			dev_dbg(dev, "using interrupt line %u for IRQ_TYPE_NONE on pin %u\n",
 				intsel, pin);
 			cctx->intr_lines[intsel] = pin;
 		}
@@ -1336,6 +1337,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 
 static int chv_gpio_set_intr_line(struct intel_pinctrl *pctrl, unsigned int pin)
 {
+	struct device *dev = pctrl->dev;
 	struct intel_community_context *cctx = &pctrl->context.communities[0];
 	const struct intel_community *community = &pctrl->communities[0];
 	u32 value, intsel;
@@ -1348,7 +1350,7 @@ static int chv_gpio_set_intr_line(struct intel_pinctrl *pctrl, unsigned int pin)
 		return 0;
 
 	if (cctx->intr_lines[intsel] == CHV_INVALID_HWIRQ) {
-		dev_dbg(pctrl->dev, "using interrupt line %u for pin %u\n", intsel, pin);
+		dev_dbg(dev, "using interrupt line %u for pin %u\n", intsel, pin);
 		cctx->intr_lines[intsel] = pin;
 		return 0;
 	}
@@ -1360,8 +1362,8 @@ static int chv_gpio_set_intr_line(struct intel_pinctrl *pctrl, unsigned int pin)
 	 * IRQ which was not expected to be used as such by the BIOS authors,
 	 * so log this at info level only.
 	 */
-	dev_info(pctrl->dev, "interrupt line %u is used by both pin %u and pin %u\n",
-		 intsel, cctx->intr_lines[intsel], pin);
+	dev_info(dev, "interrupt line %u is used by both pin %u and pin %u\n", intsel,
+		 cctx->intr_lines[intsel], pin);
 
 	if (chv_pad_locked(pctrl, pin))
 		return -EBUSY;
@@ -1377,7 +1379,7 @@ static int chv_gpio_set_intr_line(struct intel_pinctrl *pctrl, unsigned int pin)
 	if (i < 0)
 		return -EBUSY;
 
-	dev_info(pctrl->dev, "changing the interrupt line for pin %u to %d\n", pin, i);
+	dev_info(dev, "changing the interrupt line for pin %u to %d\n", pin, i);
 
 	value = (value & ~CHV_PADCTRL0_INTSEL_MASK) | (i << CHV_PADCTRL0_INTSEL_SHIFT);
 	chv_writel(pctrl, pin, CHV_PADCTRL0, value);
@@ -1450,6 +1452,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
+	struct device *dev = pctrl->dev;
 	const struct intel_community *community = &pctrl->communities[0];
 	struct intel_community_context *cctx = &pctrl->context.communities[0];
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -1468,8 +1471,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 
 		offset = cctx->intr_lines[intr_line];
 		if (offset == CHV_INVALID_HWIRQ) {
-			dev_err(pctrl->dev, "interrupt on unused interrupt line %u\n",
-				intr_line);
+			dev_err(dev, "interrupt on unused interrupt line %u\n", intr_line);
 			continue;
 		}
 
@@ -1573,17 +1575,16 @@ static int chv_gpio_irq_init_hw(struct gpio_chip *chip)
 static int chv_gpio_add_pin_ranges(struct gpio_chip *chip)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
+	struct device *dev = pctrl->dev;
 	const struct intel_community *community = &pctrl->communities[0];
 	const struct intel_padgroup *gpp;
 	int ret, i;
 
 	for (i = 0; i < community->ngpps; i++) {
 		gpp = &community->gpps[i];
-		ret = gpiochip_add_pin_range(chip, dev_name(pctrl->dev),
-					     gpp->base, gpp->base,
-					     gpp->size);
+		ret = gpiochip_add_pin_range(chip, dev_name(dev), gpp->base, gpp->base, gpp->size);
 		if (ret) {
-			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
+			dev_err(dev, "failed to add GPIO pin range\n");
 			return ret;
 		}
 	}
@@ -1596,15 +1597,16 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	const struct intel_community *community = &pctrl->communities[0];
 	const struct intel_padgroup *gpp;
 	struct gpio_chip *chip = &pctrl->chip;
+	struct device *dev = pctrl->dev;
 	bool need_valid_mask = !dmi_check_system(chv_no_valid_mask);
 	int ret, i, irq_base;
 
 	*chip = chv_gpio_chip;
 
 	chip->ngpio = pctrl->soc->pins[pctrl->soc->npins - 1].number + 1;
-	chip->label = dev_name(pctrl->dev);
+	chip->label = dev_name(dev);
 	chip->add_pin_ranges = chv_gpio_add_pin_ranges;
-	chip->parent = pctrl->dev;
+	chip->parent = dev;
 	chip->base = -1;
 
 	pctrl->irq = irq;
@@ -1626,17 +1628,16 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	if (need_valid_mask) {
 		chip->irq.init_valid_mask = chv_init_irq_valid_mask;
 	} else {
-		irq_base = devm_irq_alloc_descs(pctrl->dev, -1, 0,
-						pctrl->soc->npins, NUMA_NO_NODE);
+		irq_base = devm_irq_alloc_descs(dev, -1, 0, pctrl->soc->npins, NUMA_NO_NODE);
 		if (irq_base < 0) {
-			dev_err(pctrl->dev, "Failed to allocate IRQ numbers\n");
+			dev_err(dev, "Failed to allocate IRQ numbers\n");
 			return irq_base;
 		}
 	}
 
-	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
+	ret = devm_gpiochip_add_data(dev, chip, pctrl);
 	if (ret) {
-		dev_err(pctrl->dev, "Failed to register gpiochip\n");
+		dev_err(dev, "Failed to register gpiochip\n");
 		return ret;
 	}
 
@@ -1834,15 +1835,15 @@ static int chv_pinctrl_resume_noirq(struct device *dev)
 		val &= ~CHV_PADCTRL0_GPIORXSTATE;
 		if (ctx->padctrl0 != val) {
 			chv_writel(pctrl, desc->number, CHV_PADCTRL0, ctx->padctrl0);
-			dev_dbg(pctrl->dev, "restored pin %2u ctrl0 0x%08x\n",
-				desc->number, chv_readl(pctrl, desc->number, CHV_PADCTRL0));
+			dev_dbg(dev, "restored pin %2u ctrl0 0x%08x\n", desc->number,
+				chv_readl(pctrl, desc->number, CHV_PADCTRL0));
 		}
 
 		val = chv_readl(pctrl, desc->number, CHV_PADCTRL1);
 		if (ctx->padctrl1 != val) {
 			chv_writel(pctrl, desc->number, CHV_PADCTRL1, ctx->padctrl1);
-			dev_dbg(pctrl->dev, "restored pin %2u ctrl1 0x%08x\n",
-				desc->number, chv_readl(pctrl, desc->number, CHV_PADCTRL1));
+			dev_dbg(dev, "restored pin %2u ctrl1 0x%08x\n", desc->number,
+				chv_readl(pctrl, desc->number, CHV_PADCTRL1));
 		}
 	}
 
