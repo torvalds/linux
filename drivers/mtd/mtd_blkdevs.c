@@ -54,17 +54,11 @@ static blk_status_t do_blktrans_request(struct mtd_blktrans_ops *tr,
 	block = blk_rq_pos(req) << 9 >> tr->blkshift;
 	nsect = blk_rq_cur_bytes(req) >> tr->blkshift;
 
-	if (req_op(req) == REQ_OP_FLUSH) {
+	switch (req_op(req)) {
+	case REQ_OP_FLUSH:
 		if (tr->flush(dev))
 			return BLK_STS_IOERR;
 		return BLK_STS_OK;
-	}
-
-	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
-	    get_capacity(req->rq_disk))
-		return BLK_STS_IOERR;
-
-	switch (req_op(req)) {
 	case REQ_OP_DISCARD:
 		if (tr->discard(dev, block, nsect))
 			return BLK_STS_IOERR;
