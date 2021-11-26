@@ -2713,7 +2713,6 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	struct blk_mq_alloc_data data = {
 		.q		= q,
 		.nr_tags	= 1,
-		.cmd_flags	= bio->bi_opf,
 	};
 	struct request *rq;
 
@@ -2726,6 +2725,8 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 
 	rq_qos_throttle(q, bio);
 
+	/* ->bi_opf is finalized after submit_bio_checks() returns */
+	data.cmd_flags	= bio->bi_opf;
 	if (plug) {
 		data.nr_tags = plug->nr_ios;
 		plug->nr_ios = 1;
