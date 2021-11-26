@@ -113,22 +113,6 @@ struct io_context {
 	struct work_struct release_work;
 };
 
-/**
- * get_io_context_active - get active reference on ioc
- * @ioc: ioc of interest
- *
- * Only iocs with active reference can issue new IOs.  This function
- * acquires an active reference on @ioc.  The caller must already have an
- * active reference on @ioc.
- */
-static inline void get_io_context_active(struct io_context *ioc)
-{
-	WARN_ON_ONCE(atomic_long_read(&ioc->refcount) <= 0);
-	WARN_ON_ONCE(atomic_read(&ioc->active_ref) <= 0);
-	atomic_long_inc(&ioc->refcount);
-	atomic_inc(&ioc->active_ref);
-}
-
 struct task_struct;
 #ifdef CONFIG_BLOCK
 void put_io_context(struct io_context *ioc);

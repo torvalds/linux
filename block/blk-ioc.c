@@ -173,7 +173,7 @@ EXPORT_SYMBOL_GPL(put_io_context);
  * put_io_context_active - put active reference on ioc
  * @ioc: ioc of interest
  *
- * Undo get_io_context_active().  If active reference reaches zero after
+ * Put an active reference to an ioc.  If active reference reaches zero after
  * put, @ioc can never issue further IOs and ioscheds are notified.
  */
 static void put_io_context_active(struct io_context *ioc)
@@ -333,11 +333,9 @@ int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
 	 * Share io context with parent, if CLONE_IO is set
 	 */
 	if (clone_flags & CLONE_IO) {
-		get_io_context_active(ioc);
-
-		WARN_ON_ONCE(atomic_read(&ioc->nr_tasks) <= 0);
+		atomic_long_inc(&ioc->refcount);
+		atomic_inc(&ioc->active_ref);
 		atomic_inc(&ioc->nr_tasks);
-
 		tsk->io_context = ioc;
 	} else if (ioprio_valid(ioc->ioprio)) {
 		new_ioc = get_task_io_context(tsk, GFP_KERNEL, NUMA_NO_NODE);
