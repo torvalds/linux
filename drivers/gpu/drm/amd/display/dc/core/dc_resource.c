@@ -2161,6 +2161,7 @@ enum dc_status resource_map_pool_resources(
 					&context->res_ctx, pool,
 					pipe_ctx->stream_res.hpo_dp_stream_enc,
 					true);
+			pipe_ctx->link_res.hpo_dp_link_enc = stream->link->hpo_dp_link_enc;
 		}
 	}
 #endif

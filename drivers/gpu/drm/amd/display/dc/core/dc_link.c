@@ -881,6 +881,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	enum dc_connection_type pre_connection_type = dc_connection_none;
 	bool perform_dp_seamless_boot = false;
 	const uint32_t post_oui_delay = 30; // 30ms
+	struct link_resource link_res = { 0 };
 
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -974,8 +975,10 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			}
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-			if (dp_get_link_encoding_format(&link->reported_link_cap) == DP_128b_132b_ENCODING)
+			if (dp_get_link_encoding_format(&link->reported_link_cap) == DP_128b_132b_ENCODING) {
 				add_dp_hpo_link_encoder_to_link(link);
+				link_res.hpo_dp_link_enc = link->hpo_dp_link_enc;
+			}
 #endif
 
 			if (link->type == dc_connection_mst_branch) {
@@ -986,7 +989,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 				 * empty which leads to allocate_mst_payload() has "0"
 				 * pbn_per_slot value leading to exception on dc_fixpt_div()
 				 */
-				dp_verify_mst_link_cap(link, NULL);
+				dp_verify_mst_link_cap(link, &link_res);
 
 				/*
 				 * This call will initiate MST topology discovery. Which
@@ -1150,7 +1153,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			// verify link cap for SST non-seamless boot
 			if (!perform_dp_seamless_boot)
 				dp_verify_link_cap_with_retries(link,
-								NULL,
+								&link_res,
 								&link->reported_link_cap,
 								LINK_TRAINING_MAX_VERIFY_RETRY);
 		} else {

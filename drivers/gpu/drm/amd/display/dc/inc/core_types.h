@@ -336,7 +336,11 @@ struct plane_resource {
 
 /* all mappable hardware resources used to enable a link */
 struct link_resource {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct hpo_dp_link_encoder *hpo_dp_link_enc;
+#else
 	void *dummy;
+#endif
 };
 
 union pipe_update_flags {
