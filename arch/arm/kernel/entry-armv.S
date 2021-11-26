@@ -19,9 +19,6 @@
 #include <asm/glue-df.h>
 #include <asm/glue-pf.h>
 #include <asm/vfpmacros.h>
-#ifndef CONFIG_GENERIC_IRQ_MULTI_HANDLER
-#include <mach/entry-macro.S>
-#endif
 #include <asm/thread_notify.h>
 #include <asm/unwind.h>
 #include <asm/unistd.h>
@@ -30,14 +27,12 @@
 #include <asm/uaccess-asm.h>
 
 #include "entry-header.S"
-#include <asm/entry-macro-multi.S>
 #include <asm/probes.h>
 
 /*
  * Interrupt handling.
  */
 	.macro	irq_handler, from_user:req
-#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
 	mov	r0, sp
 #ifdef CONFIG_IRQSTACKS
 	mov_l	r2, irq_stack_ptr	@ Take base address
@@ -92,9 +87,6 @@ UNWIND(	.setfp	fpreg, sp		)
 	mov	sp, r9			@ Restore original SP
 #endif // CONFIG_UNWINDER_ARM
 #endif // CONFIG_IRQSTACKS
-#else
-	arch_irq_handler_default
-#endif
 	.endm
 
 	.macro	pabt_helper
