@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -26,6 +27,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/nospec.h>
 #include <linux/workqueue.h>
+#include <linux/dma-iommu.h>
 #include <soc/rockchip/pm_domains.h>
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>
@@ -137,6 +139,31 @@ struct rkvenc_task {
 	u32 task_no;
 };
 
+#define RKVENC_MAX_RCB_NUM		(4)
+
+struct rcb_info_elem {
+	u32 index;
+	u32 size;
+};
+
+struct rkvenc2_rcb_info {
+	u32 cnt;
+	struct rcb_info_elem elem[RKVENC_MAX_RCB_NUM];
+};
+
+struct rkvenc2_session_priv {
+	struct rw_semaphore rw_sem;
+	/* codec info from user */
+	struct {
+		/* show mode */
+		u32 flag;
+		/* item data */
+		u64 val;
+	} codec_info[ENC_INFO_BUTT];
+	/* rcb_info for sram */
+	struct rkvenc2_rcb_info rcb_inf;
+};
+
 struct rkvenc_dev {
 	struct mpp_dev mpp;
 	struct rkvenc_hw_info *hw_info;
@@ -155,6 +182,13 @@ struct rkvenc_dev {
 	struct rkvenc_ccu *ccu;
 	struct list_head core_link;
 	u32 disable_work;
+
+	/* internal rcb-memory */
+	u32 sram_size;
+	u32 sram_used;
+	dma_addr_t sram_iova;
+	u32 sram_enabled;
+	struct page *rcb_page;
 };
 
 struct rkvenc_ccu {
@@ -392,7 +426,27 @@ static u32 *rkvenc_get_class_reg(struct rkvenc_task *task, u32 addr)
 	return (u32 *)reg;
 }
 
-static int rkvenc_extract_task_msg(struct rkvenc_task *task,
+static int rkvenc2_extract_rcb_info(struct rkvenc2_rcb_info *rcb_inf,
+				    struct mpp_request *req)
+{
+	int max_size = ARRAY_SIZE(rcb_inf->elem);
+	int cnt = req->size / sizeof(rcb_inf->elem[0]);
+
+	if (req->size > sizeof(rcb_inf->elem)) {
+		mpp_err("count %d,max_size %d\n", cnt, max_size);
+		return -EINVAL;
+	}
+	if (copy_from_user(rcb_inf->elem, req->data, req->size)) {
+		mpp_err("copy_from_user failed\n");
+		return -EINVAL;
+	}
+	rcb_inf->cnt = cnt;
+
+	return 0;
+}
+
+static int rkvenc_extract_task_msg(struct mpp_session *session,
+				   struct rkvenc_task *task,
 				   struct mpp_task_msgs *msgs)
 {
 	int ret;
@@ -455,6 +509,12 @@ static int rkvenc_extract_task_msg(struct rkvenc_task *task,
 		} break;
 		case MPP_CMD_SET_REG_ADDR_OFFSET: {
 			mpp_extract_reg_offset_info(&task->off_inf, req);
+		} break;
+		case MPP_CMD_SET_RCB_INFO: {
+			struct rkvenc2_session_priv *priv = session->priv;
+
+			if (priv)
+				rkvenc2_extract_rcb_info(&priv->rcb_inf, req);
 		} break;
 		default:
 			break;
@@ -528,6 +588,51 @@ static struct rkvenc_dev *rkvenc_core_balance(struct rkvenc_ccu *ccu)
 	return enc;
 }
 
+static int rkvenc2_set_rcbbuf(struct mpp_dev *mpp, struct mpp_session *session,
+			      struct rkvenc_task *task)
+{
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct rkvenc2_session_priv *priv = session->priv;
+	u32 sram_enabled = 0;
+
+	mpp_debug_enter();
+
+	if (priv && enc->sram_iova) {
+		int i;
+		u32 *reg;
+		u32 reg_idx, rcb_size, rcb_offset;
+		struct rkvenc2_rcb_info *rcb_inf = &priv->rcb_inf;
+
+		rcb_offset = 0;
+		for (i = 0; i < rcb_inf->cnt; i++) {
+			reg_idx = rcb_inf->elem[i].index;
+			rcb_size = rcb_inf->elem[i].size;
+
+			if (rcb_offset > enc->sram_size ||
+			    (rcb_offset + rcb_size) > enc->sram_used)
+				continue;
+
+			mpp_debug(DEBUG_SRAM_INFO, "rcb: reg %d offset %d, size %d\n",
+				  reg_idx, rcb_offset, rcb_size);
+
+			reg = rkvenc_get_class_reg(task, reg_idx * sizeof(u32));
+			if (reg)
+				*reg = enc->sram_iova + rcb_offset;
+
+			rcb_offset += rcb_size;
+			sram_enabled = 1;
+		}
+	}
+	if (enc->sram_enabled != sram_enabled) {
+		mpp_debug(DEBUG_SRAM_INFO, "sram %s\n", sram_enabled ? "enabled" : "disabled");
+		enc->sram_enabled = sram_enabled;
+	}
+
+	mpp_debug_leave();
+
+	return 0;
+}
+
 static void *rkvenc_alloc_task(struct mpp_session *session,
 			       struct mpp_task_msgs *msgs)
 {
@@ -547,7 +652,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	mpp_task->hw_info = mpp->var->hw_info;
 	task->hw_info = to_rkvenc_info(mpp_task->hw_info);
 	/* extract reqs for current task */
-	ret = rkvenc_extract_task_msg(task, msgs);
+	ret = rkvenc_extract_task_msg(session, task, msgs);
 	if (ret)
 		goto free_task;
 	mpp_task->reg = task->reg[0].data;
@@ -585,6 +690,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 			}
 		}
 	}
+	rkvenc2_set_rcbbuf(mpp, session, task);
 	task->clk_mode = CLK_MODE_NORMAL;
 
 	mpp_debug_leave();
@@ -625,6 +731,9 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
 
 	mpp_debug_enter();
+
+	/* clear hardware counter */
+	mpp_write_relaxed(mpp, 0x5300, 0x2);
 
 	for (i = 0; i < task->w_req_cnt; i++) {
 		int ret;
@@ -788,6 +897,77 @@ static int rkvenc_free_task(struct mpp_session *session,
 	return 0;
 }
 
+static int rkvenc_control(struct mpp_session *session, struct mpp_request *req)
+{
+	switch (req->cmd) {
+	case MPP_CMD_SEND_CODEC_INFO: {
+		int i;
+		int cnt;
+		struct codec_info_elem elem;
+		struct rkvenc2_session_priv *priv;
+
+		if (!session || !session->priv) {
+			mpp_err("session info null\n");
+			return -EINVAL;
+		}
+		priv = session->priv;
+
+		cnt = req->size / sizeof(elem);
+		cnt = (cnt > ENC_INFO_BUTT) ? ENC_INFO_BUTT : cnt;
+		mpp_debug(DEBUG_IOCTL, "codec info count %d\n", cnt);
+		for (i = 0; i < cnt; i++) {
+			if (copy_from_user(&elem, req->data + i * sizeof(elem), sizeof(elem))) {
+				mpp_err("copy_from_user failed\n");
+				continue;
+			}
+			if (elem.type > ENC_INFO_BASE && elem.type < ENC_INFO_BUTT &&
+			    elem.flag > CODEC_INFO_FLAG_NULL && elem.flag < CODEC_INFO_FLAG_BUTT) {
+				elem.type = array_index_nospec(elem.type, ENC_INFO_BUTT);
+				priv->codec_info[elem.type].flag = elem.flag;
+				priv->codec_info[elem.type].val = elem.data;
+			} else {
+				mpp_err("codec info invalid, type %d, flag %d\n",
+					elem.type, elem.flag);
+			}
+		}
+	} break;
+	default: {
+		mpp_err("unknown mpp ioctl cmd %x\n", req->cmd);
+	} break;
+	}
+
+	return 0;
+}
+
+static int rkvenc_free_session(struct mpp_session *session)
+{
+	if (session && session->priv) {
+		kfree(session->priv);
+		session->priv = NULL;
+	}
+
+	return 0;
+}
+
+static int rkvenc_init_session(struct mpp_session *session)
+{
+	struct rkvenc2_session_priv *priv;
+
+	if (!session) {
+		mpp_err("session is null\n");
+		return -EINVAL;
+	}
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	init_rwsem(&priv->rw_sem);
+	session->priv = priv;
+
+	return 0;
+}
+
 #ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int rkvenc_procfs_remove(struct mpp_dev *mpp)
 {
@@ -797,6 +977,71 @@ static int rkvenc_procfs_remove(struct mpp_dev *mpp)
 		proc_remove(enc->procfs);
 		enc->procfs = NULL;
 	}
+
+	return 0;
+}
+
+static int rkvenc_dump_session(struct mpp_session *session, struct seq_file *seq)
+{
+	int i;
+	struct rkvenc2_session_priv *priv = session->priv;
+
+	down_read(&priv->rw_sem);
+	/* item name */
+	seq_puts(seq, "------------------------------------------------------");
+	seq_puts(seq, "------------------------------------------------------\n");
+	seq_printf(seq, "|%8s|", (const char *)"session");
+	seq_printf(seq, "%8s|", (const char *)"device");
+	for (i = ENC_INFO_BASE; i < ENC_INFO_BUTT; i++) {
+		bool show = priv->codec_info[i].flag;
+
+		if (show)
+			seq_printf(seq, "%8s|", enc_info_item_name[i]);
+	}
+	seq_puts(seq, "\n");
+	/* item data*/
+	seq_printf(seq, "|%8p|", session);
+	seq_printf(seq, "%8s|", mpp_device_name[session->device_type]);
+	for (i = ENC_INFO_BASE; i < ENC_INFO_BUTT; i++) {
+		u32 flag = priv->codec_info[i].flag;
+
+		if (!flag)
+			continue;
+		if (flag == CODEC_INFO_FLAG_NUMBER) {
+			u32 data = priv->codec_info[i].val;
+
+			seq_printf(seq, "%8d|", data);
+		} else if (flag == CODEC_INFO_FLAG_STRING) {
+			const char *name = (const char *)&priv->codec_info[i].val;
+
+			seq_printf(seq, "%8s|", name);
+		} else {
+			seq_printf(seq, "%8s|", (const char *)"null");
+		}
+	}
+	seq_puts(seq, "\n");
+	up_read(&priv->rw_sem);
+
+	return 0;
+}
+
+static int rkvenc_show_session_info(struct seq_file *seq, void *offset)
+{
+	struct mpp_session *session = NULL, *n;
+	struct mpp_dev *mpp = seq->private;
+
+	mutex_lock(&mpp->srv->session_lock);
+	list_for_each_entry_safe(session, n,
+				 &mpp->srv->session_list,
+				 session_link) {
+		if (session->device_type != MPP_DEVICE_RKVENC)
+			continue;
+		if (!session->priv)
+			continue;
+		if (mpp->dev_ops->dump_session)
+			mpp->dev_ops->dump_session(session, seq);
+	}
+	mutex_unlock(&mpp->srv->session_lock);
 
 	return 0;
 }
@@ -818,6 +1063,9 @@ static int rkvenc_procfs_init(struct mpp_dev *mpp)
 			      enc->procfs, &enc->core_clk_info.debug_rate_hz);
 	mpp_procfs_create_u32("session_buffers", 0644,
 			      enc->procfs, &mpp->session_max_buffers);
+	/* for show session info */
+	proc_create_single_data("sessions-info", 0444,
+				enc->procfs, rkvenc_show_session_info, mpp);
 
 	return 0;
 }
@@ -971,6 +1219,10 @@ static struct mpp_dev_ops rkvenc_dev_ops_v2 = {
 	.finish = rkvenc_finish,
 	.result = rkvenc_result,
 	.free_task = rkvenc_free_task,
+	.ioctl = rkvenc_control,
+	.init_session = rkvenc_init_session,
+	.free_session = rkvenc_free_session,
+	.dump_session = rkvenc_dump_session,
 };
 
 static struct mpp_dev_ops rkvenc_ccu_dev_ops = {
@@ -981,6 +1233,10 @@ static struct mpp_dev_ops rkvenc_ccu_dev_ops = {
 	.finish = rkvenc_finish,
 	.result = rkvenc_result,
 	.free_task = rkvenc_free_task,
+	.ioctl = rkvenc_control,
+	.init_session = rkvenc_init_session,
+	.free_session = rkvenc_free_session,
+	.dump_session = rkvenc_dump_session,
 };
 
 
@@ -1086,6 +1342,105 @@ static int rkvenc_attach_ccu(struct device *dev, struct rkvenc_dev *enc)
 	return 0;
 }
 
+static int rkvenc2_alloc_rcbbuf(struct platform_device *pdev, struct rkvenc_dev *enc)
+{
+	int ret;
+	u32 vals[2];
+	dma_addr_t iova;
+	u32 sram_used, sram_size;
+	struct device_node *sram_np;
+	struct resource sram_res;
+	resource_size_t sram_start, sram_end;
+	struct iommu_domain *domain;
+	struct device *dev = &pdev->dev;
+
+	/* get rcb iova start and size */
+	ret = device_property_read_u32_array(dev, "rockchip,rcb-iova", vals, 2);
+	if (ret) {
+		dev_err(dev, "could not find property rcb-iova\n");
+		return ret;
+	}
+	iova = PAGE_ALIGN(vals[0]);
+	sram_used = PAGE_ALIGN(vals[1]);
+	if (!sram_used) {
+		dev_err(dev, "sram rcb invalid.\n");
+		return -EINVAL;
+	}
+	/* alloc reserve iova for rcb */
+	ret = iommu_dma_reserve_iova(dev, iova, sram_used);
+	if (ret) {
+		dev_err(dev, "alloc rcb iova error.\n");
+		return ret;
+	}
+	/* get sram device node */
+	sram_np = of_parse_phandle(dev->of_node, "rockchip,sram", 0);
+	if (!sram_np) {
+		dev_err(dev, "could not find phandle sram\n");
+		return -ENODEV;
+	}
+	/* get sram start and size */
+	ret = of_address_to_resource(sram_np, 0, &sram_res);
+	of_node_put(sram_np);
+	if (ret) {
+		dev_err(dev, "find sram res error\n");
+		return ret;
+	}
+	/* check sram start and size is PAGE_SIZE align */
+	sram_start = round_up(sram_res.start, PAGE_SIZE);
+	sram_end = round_down(sram_res.start + resource_size(&sram_res), PAGE_SIZE);
+	if (sram_end <= sram_start) {
+		dev_err(dev, "no available sram, phy_start %pa, phy_end %pa\n",
+			&sram_start, &sram_end);
+		return -ENOMEM;
+	}
+	sram_size = sram_end - sram_start;
+	sram_size = sram_used < sram_size ? sram_used : sram_size;
+	/* iova map to sram */
+	domain = enc->mpp.iommu_info->domain;
+	ret = iommu_map(domain, iova, sram_start, sram_size, IOMMU_READ | IOMMU_WRITE);
+	if (ret) {
+		dev_err(dev, "sram iommu_map error.\n");
+		return ret;
+	}
+	/* alloc dma for the remaining buffer, sram + dma */
+	if (sram_size < sram_used) {
+		struct page *page;
+		size_t page_size = PAGE_ALIGN(sram_used - sram_size);
+
+		page = alloc_pages(GFP_KERNEL | __GFP_ZERO, get_order(page_size));
+		if (!page) {
+			dev_err(dev, "unable to allocate pages\n");
+			ret = -ENOMEM;
+			goto err_sram_map;
+		}
+		/* iova map to dma */
+		ret = iommu_map(domain, iova + sram_size, page_to_phys(page),
+				page_size, IOMMU_READ | IOMMU_WRITE);
+		if (ret) {
+			dev_err(dev, "page iommu_map error.\n");
+			__free_pages(page, get_order(page_size));
+			goto err_sram_map;
+		}
+		enc->rcb_page = page;
+	}
+
+	enc->sram_size = sram_size;
+	enc->sram_used = sram_used;
+	enc->sram_iova = iova;
+	enc->sram_enabled = -1;
+	dev_info(dev, "sram_start %pa\n", &sram_start);
+	dev_info(dev, "sram_iova %pad\n", &enc->sram_iova);
+	dev_info(dev, "sram_size %u\n", enc->sram_size);
+	dev_info(dev, "sram_used %u\n", enc->sram_used);
+
+	return 0;
+
+err_sram_map:
+	iommu_unmap(domain, iova, sram_size);
+
+	return ret;
+}
+
 static int rkvenc_core_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1111,6 +1466,8 @@ static int rkvenc_core_probe(struct platform_device *pdev)
 	ret = mpp_dev_probe(mpp, pdev);
 	if (ret)
 		return ret;
+
+	rkvenc2_alloc_rcbbuf(pdev, enc);
 
 	/* attach core to ccu */
 	ret = rkvenc_attach_ccu(dev, enc);
@@ -1165,6 +1522,8 @@ static int rkvenc_probe_default(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	rkvenc2_alloc_rcbbuf(pdev, enc);
+
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
 					mpp_dev_isr_sched,
@@ -1207,6 +1566,23 @@ static int rkvenc_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int rkvenc2_free_rcbbuf(struct platform_device *pdev, struct rkvenc_dev *enc)
+{
+	struct iommu_domain *domain;
+
+	if (enc->rcb_page) {
+		size_t page_size = PAGE_ALIGN(enc->sram_used - enc->sram_size);
+
+		__free_pages(enc->rcb_page, get_order(page_size));
+	}
+	if (enc->sram_iova) {
+		domain = enc->mpp.iommu_info->domain;
+		iommu_unmap(domain, enc->sram_iova, enc->sram_used);
+	}
+
+	return 0;
+}
+
 static int rkvenc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1224,12 +1600,14 @@ static int rkvenc_remove(struct platform_device *pdev)
 			enc->ccu->core_num--;
 			mutex_unlock(&enc->ccu->lock);
 		}
+		rkvenc2_free_rcbbuf(pdev, enc);
 		mpp_dev_remove(&enc->mpp);
 		rkvenc_procfs_remove(&enc->mpp);
 	} else {
 		struct rkvenc_dev *enc = platform_get_drvdata(pdev);
 
 		dev_info(dev, "remove device\n");
+		rkvenc2_free_rcbbuf(pdev, enc);
 		mpp_dev_remove(&enc->mpp);
 		rkvenc_procfs_remove(&enc->mpp);
 	}
