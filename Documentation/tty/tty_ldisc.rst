@@ -28,6 +28,12 @@ enter and exit although this detail matters not).
 .. kernel-doc:: drivers/tty/tty_ldisc.c
    :identifiers: tty_register_ldisc tty_unregister_ldisc
 
+Other Functions
+===============
+
+.. kernel-doc:: drivers/tty/tty_ldisc.c
+   :identifiers: tty_set_ldisc tty_ldisc_flush
+
 Line Discipline Operations Reference
 ====================================
 
@@ -53,31 +59,21 @@ Callers to the line discipline functions from the tty layer are required to
 take line discipline locks. The same is true of calls from the driver side
 but not yet enforced.
 
-Three calls are now provided::
-
-	ldisc = tty_ldisc_ref(tty);
-
-takes a handle to the line discipline in the tty and returns it. If no ldisc
-is currently attached or the ldisc is being closed and re-opened at this
-point then NULL is returned. While this handle is held the ldisc will not
-change or go away::
-
-	tty_ldisc_deref(ldisc)
-
-Returns the ldisc reference and allows the ldisc to be closed. Returning the
-reference takes away your right to call the ldisc functions until you take
-a new reference::
-
-	ldisc = tty_ldisc_ref_wait(tty);
-
-Performs the same function as tty_ldisc_ref except that it will wait for an
-ldisc change to complete and then return a reference to the new ldisc.
+.. kernel-doc:: drivers/tty/tty_ldisc.c
+   :identifiers: tty_ldisc_ref_wait tty_ldisc_ref tty_ldisc_deref
 
 While these functions are slightly slower than the old code they should have
 minimal impact as most receive logic uses the flip buffers and they only
 need to take a reference when they push bits up through the driver.
 
-A caution: The ldisc->open(), ldisc->close() and driver->set_ldisc
-functions are called with the ldisc unavailable. Thus tty_ldisc_ref will
-fail in this situation if used within these functions. Ldisc and driver
-code calling its own functions must be careful in this case.
+A caution: The :c:member:`tty_ldisc_ops.open()`,
+:c:member:`tty_ldisc_ops.close()` and :c:member:`tty_driver.set_ldisc()`
+functions are called with the ldisc unavailable. Thus tty_ldisc_ref() will fail
+in this situation if used within these functions.  Ldisc and driver code
+calling its own functions must be careful in this case.
+
+Internal Functions
+==================
+
+.. kernel-doc:: drivers/tty/tty_ldisc.c
+   :internal:
