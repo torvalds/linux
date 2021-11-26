@@ -158,7 +158,7 @@ static void hisi_sas_slot_index_clear(struct hisi_hba *hisi_hba, int slot_idx)
 {
 	void *bitmap = hisi_hba->slot_index_tags;
 
-	clear_bit(slot_idx, bitmap);
+	__clear_bit(slot_idx, bitmap);
 }
 
 static void hisi_sas_slot_index_free(struct hisi_hba *hisi_hba, int slot_idx)
@@ -175,7 +175,7 @@ static void hisi_sas_slot_index_set(struct hisi_hba *hisi_hba, int slot_idx)
 {
 	void *bitmap = hisi_hba->slot_index_tags;
 
-	set_bit(slot_idx, bitmap);
+	__set_bit(slot_idx, bitmap);
 }
 
 static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
