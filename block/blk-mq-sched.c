@@ -18,8 +18,9 @@
 #include "blk-mq-tag.h"
 #include "blk-wbt.h"
 
-struct io_cq *blk_mq_sched_get_icq(struct request_queue *q)
+void blk_mq_sched_assign_ioc(struct request *rq)
 {
+	struct request_queue *q = rq->q;
 	struct io_context *ioc;
 	struct io_cq *icq;
 
@@ -27,27 +28,22 @@ struct io_cq *blk_mq_sched_get_icq(struct request_queue *q)
 	if (unlikely(!current->io_context))
 		create_task_io_context(current, GFP_ATOMIC, q->node);
 
-	/* May not have an IO context if context creation failed */
+	/*
+	 * May not have an IO context if it's a passthrough request
+	 */
 	ioc = current->io_context;
 	if (!ioc)
-		return NULL;
+		return;
 
 	spin_lock_irq(&q->queue_lock);
 	icq = ioc_lookup_icq(ioc, q);
 	spin_unlock_irq(&q->queue_lock);
-	if (icq)
-		return icq;
-	return ioc_create_icq(ioc, q, GFP_ATOMIC);
-}
-EXPORT_SYMBOL(blk_mq_sched_get_icq);
 
-void blk_mq_sched_assign_ioc(struct request *rq)
-{
-	struct io_cq *icq;
-
-	icq = blk_mq_sched_get_icq(rq->q);
-	if (!icq)
-		return;
+	if (!icq) {
+		icq = ioc_create_icq(ioc, q, GFP_ATOMIC);
+		if (!icq)
+			return;
+	}
 	get_io_context(icq->ioc);
 	rq->elv.icq = icq;
 }
