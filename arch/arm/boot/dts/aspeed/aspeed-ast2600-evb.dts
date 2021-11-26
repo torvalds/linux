@@ -362,3 +362,13 @@
 	status = "okay";
 	snoop-ports = <0x80>;
 };
+
+&kcs3 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca2>;
+};
+
+&kcs4 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca4>;
+};
