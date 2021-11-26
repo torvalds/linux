@@ -357,9 +357,15 @@ static int rga_job_assign(struct rga_job *job)
 	unsigned long flags;
 
 	/* assigned by userspace */
-	/* TODO: valid value */
-	if (rga_base->core > RGA_NONE_CORE)
-		return rga_base->core;
+	if (rga_base->core > RGA_NONE_CORE) {
+		if (rga_base->core > RGA_CORE_MASK) {
+			pr_err("invalid setting core by user\n");
+			goto finish;
+		} else if (rga_base->core & RGA_CORE_MASK) {
+			optional_cores = rga_base->core;
+			goto skip_functional_policy;
+		}
+	}
 
 	feature = rga_set_feature(rga_base);
 
@@ -452,6 +458,7 @@ static int rga_job_assign(struct rga_job *job)
 		goto finish;
 	}
 
+skip_functional_policy:
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
 		scheduler = rga_drvdata->rga_scheduler[i];
 
