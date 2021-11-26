@@ -361,7 +361,7 @@ static int arc_pmu_add(struct perf_event *event, int flags)
 {
 	struct arc_pmu_cpu *pmu_cpu = this_cpu_ptr(&arc_pmu_cpu);
 	struct hw_perf_event *hwc = &event->hw;
-	int idx = hwc->idx;
+	int idx;
 
 	idx = ffz(pmu_cpu->used_mask[0]);
 	if (idx == arc_pmu->n_counters)
