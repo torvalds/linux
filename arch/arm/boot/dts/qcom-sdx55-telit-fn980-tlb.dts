@@ -236,6 +236,12 @@
 	status = "ok";
 };
 
+&ipa {
+	status = "okay";
+
+	memory-region = <&ipa_fw_mem>;
+};
+
 &pcie0_phy {
 	status = "okay";
 
