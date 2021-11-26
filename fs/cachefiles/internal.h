@@ -66,6 +66,20 @@ struct cachefiles_cache {
 #include <trace/events/cachefiles.h>
 
 /*
+ * note change of state for daemon
+ */
+static inline void cachefiles_state_changed(struct cachefiles_cache *cache)
+{
+	set_bit(CACHEFILES_STATE_CHANGED, &cache->flags);
+	wake_up_all(&cache->daemon_pollwq);
+}
+
+/*
+ * daemon.c
+ */
+extern const struct file_operations cachefiles_daemon_fops;
+
+/*
  * error_inject.c
  */
 #ifdef CONFIG_CACHEFILES_ERROR_INJECTION
