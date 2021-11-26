@@ -129,7 +129,6 @@ struct rt_firmware {
 
 struct dvobj_priv {
 	struct adapter *if1;
-	struct adapter *if2;
 
 	/* For 92D, DMDP have 2 interface. */
 	u8	InterfaceNumber;
