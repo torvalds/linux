@@ -6569,6 +6569,16 @@ static void bfq_finish_requeue_request(struct request *rq)
 	rq->elv.priv[1] = NULL;
 }
 
+static void bfq_finish_request(struct request *rq)
+{
+	bfq_finish_requeue_request(rq);
+
+	if (rq->elv.icq) {
+		put_io_context(rq->elv.icq->ioc);
+		rq->elv.icq = NULL;
+	}
+}
+
 /*
  * Removes the association between the current task and bfqq, assuming
  * that bic points to the bfq iocontext of the task.
@@ -7388,7 +7398,7 @@ static struct elevator_type iosched_bfq_mq = {
 		.limit_depth		= bfq_limit_depth,
 		.prepare_request	= bfq_prepare_request,
 		.requeue_request        = bfq_finish_requeue_request,
-		.finish_request		= bfq_finish_requeue_request,
+		.finish_request		= bfq_finish_request,
 		.exit_icq		= bfq_exit_icq,
 		.insert_requests	= bfq_insert_requests,
 		.dispatch_request	= bfq_dispatch_request,

@@ -400,7 +400,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	if (rq->rq_flags & RQF_ELV) {
 		struct elevator_queue *e = data->q->elevator;
 
-		rq->elv.icq = NULL;
 		INIT_HLIST_NODE(&rq->hash);
 		RB_CLEAR_NODE(&rq->rb_node);
 
@@ -631,16 +630,9 @@ void blk_mq_free_request(struct request *rq)
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
-	if (rq->rq_flags & RQF_ELVPRIV) {
-		struct elevator_queue *e = q->elevator;
-
-		if (e->type->ops.finish_request)
-			e->type->ops.finish_request(rq);
-		if (rq->elv.icq) {
-			put_io_context(rq->elv.icq->ioc);
-			rq->elv.icq = NULL;
-		}
-	}
+	if ((rq->rq_flags & RQF_ELVPRIV) &&
+	    q->elevator->type->ops.finish_request)
+		q->elevator->type->ops.finish_request(rq);
 
 	if (rq->rq_flags & RQF_MQ_INFLIGHT)
 		__blk_mq_dec_active_requests(hctx);

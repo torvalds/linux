@@ -167,6 +167,7 @@ void put_io_context(struct io_context *ioc)
 	if (free_ioc)
 		kmem_cache_free(iocontext_cachep, ioc);
 }
+EXPORT_SYMBOL_GPL(put_io_context);
 
 /**
  * put_io_context_active - put active reference on ioc
