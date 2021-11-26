@@ -777,6 +777,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 			NLA_POLICY_NESTED(nl80211_mbssid_config_policy),
 	[NL80211_ATTR_MBSSID_ELEMS] = { .type = NLA_NESTED },
 	[NL80211_ATTR_RADAR_BACKGROUND] = { .type = NLA_FLAG },
+	[NL80211_ATTR_AP_SETTINGS_FLAGS] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -5714,8 +5715,11 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 
 	nl80211_calculate_ap_params(params);
 
-	if (info->attrs[NL80211_ATTR_EXTERNAL_AUTH_SUPPORT])
-		params->flags |= AP_SETTINGS_EXTERNAL_AUTH_SUPPORT;
+	if (info->attrs[NL80211_ATTR_AP_SETTINGS_FLAGS])
+		params->flags = nla_get_u32(
+			info->attrs[NL80211_ATTR_AP_SETTINGS_FLAGS]);
+	else if (info->attrs[NL80211_ATTR_EXTERNAL_AUTH_SUPPORT])
+		params->flags |= NL80211_AP_SETTINGS_EXTERNAL_AUTH_SUPPORT;
 
 	wdev_lock(wdev);
 	err = rdev_start_ap(rdev, dev, params);
