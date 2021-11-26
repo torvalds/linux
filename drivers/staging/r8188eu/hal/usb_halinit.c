@@ -948,12 +948,10 @@ unsigned int rtl8188eu_inirp_init(struct adapter *Adapter)
 
 	status = _SUCCESS;
 
-	precvpriv->ff_hwaddr = RECV_BULK_IN_ADDR;
-
 	/* issue Rx irp to receive data */
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		if (!rtw_read_port(Adapter, precvpriv->ff_hwaddr, (unsigned char *)precvbuf)) {
+		if (!rtw_read_port(Adapter, (unsigned char *)precvbuf)) {
 			status = _FAIL;
 			goto exit;
 		}
