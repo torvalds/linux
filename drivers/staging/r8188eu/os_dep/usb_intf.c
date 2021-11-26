@@ -69,6 +69,7 @@ static struct rtw_usb_drv *usb_drv = &rtl8188e_usb_drv;
 static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 {
 	int	i;
+	u8	rt_num_in_pipes = 0;
 	struct dvobj_priv *pdvobjpriv;
 	struct usb_host_config		*phost_conf;
 	struct usb_config_descriptor	*pconf_desc;
@@ -79,14 +80,13 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 	pdvobjpriv = kzalloc(sizeof(*pdvobjpriv), GFP_KERNEL);
 	if (!pdvobjpriv)
-		goto exit;
+		goto err;
 
 	pdvobjpriv->pusbintf = usb_intf;
 	pusbd = interface_to_usbdev(usb_intf);
 	pdvobjpriv->pusbdev = pusbd;
 	usb_set_intfdata(usb_intf, pdvobjpriv);
 
-	pdvobjpriv->RtNumInPipes = 0;
 	pdvobjpriv->RtNumOutPipes = 0;
 
 	phost_conf = pusbd->actconfig;
@@ -105,17 +105,17 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 		ep_num = usb_endpoint_num(pendp_desc);
 
 		if (usb_endpoint_is_bulk_in(pendp_desc)) {
-			pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] = ep_num;
-			pdvobjpriv->RtNumInPipes++;
-		} else if (usb_endpoint_is_int_in(pendp_desc)) {
-			pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] = ep_num;
-			pdvobjpriv->RtNumInPipes++;
+			pdvobjpriv->RtInPipe = ep_num;
+			rt_num_in_pipes++;
 		} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
 			pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
 				ep_num;
 			pdvobjpriv->RtNumOutPipes++;
 		}
 	}
+
+	if (rt_num_in_pipes != 1)
+		goto err;
 
 	if (pusbd->speed == USB_SPEED_HIGH) {
 		pdvobjpriv->ishighspeed = true;
@@ -130,9 +130,11 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	rtw_reset_continual_urb_error(pdvobjpriv);
 
 	usb_get_dev(pusbd);
-
-exit:
 	return pdvobjpriv;
+
+err:
+	kfree(pdvobjpriv);
+	return NULL;
 }
 
 static void usb_dvobj_deinit(struct usb_interface *usb_intf)

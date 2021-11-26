@@ -507,7 +507,7 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 	purb = precvbuf->purb;
 
 	/* translate DMA FIFO addr to pipehandle */
-	pipe = usb_rcvbulkpipe(pusbd, pdvobj->RtInPipe[0]);
+	pipe = usb_rcvbulkpipe(pusbd, pdvobj->RtInPipe);
 
 	usb_fill_bulk_urb(purb, pusbd, pipe,
 			  precvbuf->pbuf,

@@ -40,24 +40,11 @@ static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
 	DBG_88E("%s OutEpQueueSel(0x%02x), OutEpNumber(%d)\n", __func__, haldata->OutEpQueueSel, haldata->OutEpNumber);
 }
 
-static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumInPipe, u8 NumOutPipe)
+static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumOutPipe)
 {
-	struct hal_data_8188e	*haldata	= GET_HAL_DATA(adapt);
-	bool			result		= false;
 
 	_ConfigNormalChipOutEP_8188E(adapt, NumOutPipe);
-
-	/*  Normal chip with one IN and one OUT doesn't have interrupt IN EP. */
-	if (1 == haldata->OutEpNumber) {
-		if (1 != NumInPipe)
-			return result;
-	}
-
-	/*  All config other than above support one Bulk IN and one Interrupt IN. */
-
-	result = Hal_MappingOutPipe(adapt, NumOutPipe);
-
-	return result;
+	return Hal_MappingOutPipe(adapt, NumOutPipe);
 }
 
 void rtl8188eu_interface_configure(struct adapter *adapt)
@@ -81,8 +68,7 @@ void rtl8188eu_interface_configure(struct adapter *adapt)
 	haldata->UsbRxAggPageCount	= 48; /* uint :128 b 0x0A;	10 = MAX_RX_DMA_BUFFER_SIZE/2/haldata->UsbBulkOutSize */
 	haldata->UsbRxAggPageTimeout	= 0x4; /* 6, absolute time = 34ms/(2^6) */
 
-	HalUsbSetQueuePipeMapping8188EUsb(adapt,
-				pdvobjpriv->RtNumInPipes, pdvobjpriv->RtNumOutPipes);
+	HalUsbSetQueuePipeMapping8188EUsb(adapt, pdvobjpriv->RtNumOutPipes);
 }
 
 u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
