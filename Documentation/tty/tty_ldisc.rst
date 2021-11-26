@@ -1,13 +1,10 @@
-=================
-The Lockronomicon
-=================
+.. SPDX-License-Identifier: GPL-2.0
 
-Your guide to the ancient and twisted locking policies of the tty layer and
-the warped logic behind them. Beware all ye who read on.
+===================
+TTY Line Discipline
+===================
 
-
-Line Discipline
----------------
+.. contents:: :local:
 
 Line disciplines are registered with tty_register_ldisc() passing the
 discipline number and the ldisc structure. At the point of registration the
@@ -33,25 +30,25 @@ counts the number of threads of execution within an ldisc method (plus those
 about to enter and exit although this detail matters not).
 
 Line Discipline Methods
------------------------
+=======================
 
 .. kernel-doc:: include/linux/tty_ldisc.h
    :identifiers: tty_ldisc_ops
 
 Driver Access
-^^^^^^^^^^^^^
+=============
 
 Line discipline methods can call the methods of the underlying hardware driver.
 These are documented as a part of struct tty_operations.
 
-Flags
-^^^^^
+TTY Flags
+=========
 
 Line discipline methods have access to :c:member:`tty_struct.flags` field. See
 :doc:`tty_struct`.
 
 Locking
-^^^^^^^
+=======
 
 Callers to the line discipline functions from the tty layer are required to
 take line discipline locks. The same is true of calls from the driver side
