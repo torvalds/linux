@@ -389,9 +389,7 @@ EXPORT_SYMBOL(ioc_lookup_icq);
 
 /**
  * ioc_create_icq - create and link io_cq
- * @ioc: io_context of interest
  * @q: request_queue of interest
- * @gfp_mask: allocation mask
  *
  * Make sure io_cq linking @ioc and @q exists.  If icq doesn't exist, they
  * will be created using @gfp_mask.
@@ -399,19 +397,19 @@ EXPORT_SYMBOL(ioc_lookup_icq);
  * The caller is responsible for ensuring @ioc won't go away and @q is
  * alive and will stay alive until this function returns.
  */
-static struct io_cq *ioc_create_icq(struct io_context *ioc,
-		struct request_queue *q, gfp_t gfp_mask)
+static struct io_cq *ioc_create_icq(struct request_queue *q)
 {
+	struct io_context *ioc = current->io_context;
 	struct elevator_type *et = q->elevator->type;
 	struct io_cq *icq;
 
 	/* allocate stuff */
-	icq = kmem_cache_alloc_node(et->icq_cache, gfp_mask | __GFP_ZERO,
+	icq = kmem_cache_alloc_node(et->icq_cache, GFP_ATOMIC | __GFP_ZERO,
 				    q->node);
 	if (!icq)
 		return NULL;
 
-	if (radix_tree_maybe_preload(gfp_mask) < 0) {
+	if (radix_tree_maybe_preload(GFP_ATOMIC) < 0) {
 		kmem_cache_free(et->icq_cache, icq);
 		return NULL;
 	}
@@ -461,7 +459,7 @@ struct io_cq *ioc_find_get_icq(struct request_queue *q)
 	}
 
 	if (!icq) {
-		icq = ioc_create_icq(ioc, q, GFP_ATOMIC);
+		icq = ioc_create_icq(q);
 		if (!icq) {
 			put_io_context(ioc);
 			return NULL;
