@@ -1106,6 +1106,11 @@ hns3_dbg_page_pool_info(struct hnae3_handle *h, char *buf, int len)
 		return -EFAULT;
 	}
 
+	if (!priv->ring[h->kinfo.num_tqps].page_pool) {
+		dev_err(&h->pdev->dev, "page pool is not initialized\n");
+		return -EFAULT;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(page_pool_info_items); i++)
 		result[i] = &data_str[i][0];
 
