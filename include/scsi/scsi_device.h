@@ -275,9 +275,9 @@ scmd_printk(const char *, const struct scsi_cmnd *, const char *, ...);
 	do {								\
 		struct request *__rq = scsi_cmd_to_rq((scmd));		\
 									\
-		if (__rq->rq_disk)					\
+		if (__rq->q->disk)					\
 			sdev_dbg((scmd)->device, "[%s] " fmt,		\
-				 __rq->rq_disk->disk_name, ##a);	\
+				 __rq->q->disk->disk_name, ##a);	\
 		else							\
 			sdev_dbg((scmd)->device, fmt, ##a);		\
 	} while (0)

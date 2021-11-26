@@ -690,7 +690,7 @@ static void pcd_request(void)
 	if (!pcd_req && !set_next_request())
 		return;
 
-	cd = pcd_req->rq_disk->private_data;
+	cd = pcd_req->q->disk->private_data;
 	if (cd != pcd_current)
 		pcd_bufblk = -1;
 	pcd_current = cd;

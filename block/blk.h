@@ -324,7 +324,7 @@ int blk_dev_init(void);
  */
 static inline bool blk_do_io_stat(struct request *rq)
 {
-	return (rq->rq_flags & RQF_IO_STAT) && rq->rq_disk;
+	return (rq->rq_flags & RQF_IO_STAT) && rq->q->disk;
 }
 
 void update_io_ticks(struct block_device *part, unsigned long now, bool end);

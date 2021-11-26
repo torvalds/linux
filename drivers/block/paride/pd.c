@@ -430,7 +430,7 @@ static void run_fsm(void)
 		int stop = 0;
 
 		if (!phase) {
-			pd_current = pd_req->rq_disk->private_data;
+			pd_current = pd_req->q->disk->private_data;
 			pi_current = pd_current->pi;
 			phase = do_pd_io_start;
 		}
@@ -492,7 +492,7 @@ static enum action do_pd_io_start(void)
 	case REQ_OP_WRITE:
 		pd_block = blk_rq_pos(pd_req);
 		pd_count = blk_rq_cur_sectors(pd_req);
-		if (pd_block + pd_count > get_capacity(pd_req->rq_disk))
+		if (pd_block + pd_count > get_capacity(pd_req->q->disk))
 			return Fail;
 		pd_run = blk_rq_sectors(pd_req);
 		pd_buf = bio_data(pd_req->bio);

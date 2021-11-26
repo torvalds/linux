@@ -377,7 +377,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		rq->start_time_ns = ktime_get_ns();
 	else
 		rq->start_time_ns = 0;
-	rq->rq_disk = NULL;
 	rq->part = NULL;
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
 	rq->alloc_time_ns = alloc_time_ns;
@@ -659,7 +658,7 @@ void blk_mq_free_plug_rqs(struct blk_plug *plug)
 void blk_dump_rq_flags(struct request *rq, char *msg)
 {
 	printk(KERN_INFO "%s: dev %s: flags=%llx\n", msg,
-		rq->rq_disk ? rq->rq_disk->disk_name : "?",
+		rq->q->disk ? rq->q->disk->disk_name : "?",
 		(unsigned long long) rq->cmd_flags);
 
 	printk(KERN_INFO "  sector %llu, nr/cnr %u/%u\n",
@@ -712,7 +711,7 @@ static void blk_print_req_error(struct request *req, blk_status_t status)
 		"%s error, dev %s, sector %llu op 0x%x:(%s) flags 0x%x "
 		"phys_seg %u prio class %u\n",
 		blk_status_to_str(status),
-		req->rq_disk ? req->rq_disk->disk_name : "?",
+		req->q->disk ? req->q->disk->disk_name : "?",
 		blk_rq_pos(req), req_op(req), blk_op_str(req_op(req)),
 		req->cmd_flags & ~REQ_OP_MASK,
 		req->nr_phys_segments,
@@ -853,8 +852,8 @@ static void __blk_account_io_start(struct request *rq)
 	/* passthrough requests can hold bios that do not have ->bi_bdev set */
 	if (rq->bio && rq->bio->bi_bdev)
 		rq->part = rq->bio->bi_bdev;
-	else
-		rq->part = rq->rq_disk->part0;
+	else if (rq->q->disk)
+		rq->part = rq->q->disk->part0;
 
 	part_stat_lock();
 	update_io_ticks(rq->part, jiffies, false);
@@ -1172,7 +1171,6 @@ void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
 	WARN_ON(irqs_disabled());
 	WARN_ON(!blk_rq_is_passthrough(rq));
 
-	rq->rq_disk = bd_disk;
 	rq->end_io = done;
 
 	blk_account_io_start(rq);
@@ -2902,8 +2900,8 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 	if (ret != BLK_STS_OK)
 		return ret;
 
-	if (rq->rq_disk &&
-	    should_fail_request(rq->rq_disk->part0, blk_rq_bytes(rq)))
+	if (rq->q->disk &&
+	    should_fail_request(rq->q->disk->part0, blk_rq_bytes(rq)))
 		return BLK_STS_IOERR;
 
 	if (blk_crypto_insert_cloned_request(rq))
