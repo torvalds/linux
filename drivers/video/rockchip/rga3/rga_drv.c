@@ -15,11 +15,6 @@
 #include "rga_fence.h"
 #include "rga_hw_config.h"
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-#include <linux/pm_runtime.h>
-#include <linux/dma-buf.h>
-#endif
-
 #include "rga2_mmu_info.h"
 #include "rga_debugger.h"
 
@@ -56,17 +51,13 @@ int rga_mpi_commit(struct rga_req *cmd, struct rga_mpi_job_t *mpi_job)
 EXPORT_SYMBOL_GPL(rga_mpi_commit);
 
 #ifndef CONFIG_ROCKCHIP_FPGA
-static int rga_power_enable(struct rga_scheduler_t *rga_scheduler)
+int rga_power_enable(struct rga_scheduler_t *rga_scheduler)
 {
 	int ret = -EINVAL;
 	int i;
 
-	ret = pm_runtime_get_sync(rga_scheduler->dev);
-	if (ret < 0) {
-		pr_err("failed to get pm runtime, ret = %d\n",
-			 ret);
-		return ret;
-	}
+	pm_runtime_get_sync(rga_scheduler->dev);
+	pm_stay_awake(rga_scheduler->dev);
 
 	for (i = 0; i < rga_scheduler->num_clks; i++) {
 		if (!IS_ERR(rga_scheduler->clks[i])) {
@@ -83,10 +74,13 @@ err_enable_clk:
 		if (!IS_ERR(rga_scheduler->clks[i]))
 			clk_disable_unprepare(rga_scheduler->clks[i]);
 
+	pm_relax(rga_scheduler->dev);
+	pm_runtime_put_sync_suspend(rga_scheduler->dev);
+
 	return ret;
 }
 
-static int rga_power_disable(struct rga_scheduler_t *rga_scheduler)
+int rga_power_disable(struct rga_scheduler_t *rga_scheduler)
 {
 	int i;
 
@@ -94,10 +88,21 @@ static int rga_power_disable(struct rga_scheduler_t *rga_scheduler)
 		if (!IS_ERR(rga_scheduler->clks[i]))
 			clk_disable_unprepare(rga_scheduler->clks[i]);
 
-	pm_runtime_put(rga_scheduler->dev);
+	pm_relax(rga_scheduler->dev);
+	pm_runtime_put_sync_suspend(rga_scheduler->dev);
 
 	return 0;
 }
+
+void rga_kref_disable_power(struct kref *ref)
+{
+	struct rga_scheduler_t *rga_scheduler = NULL;
+
+	rga_scheduler = container_of(ref, struct rga_scheduler_t, pd_refcount);
+
+	rga_power_disable(rga_scheduler);
+}
+
 #endif //CONFIG_ROCKCHIP_FPGA
 
 static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
@@ -562,13 +567,28 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rga_scheduler);
 
+	device_init_wakeup(dev, true);
+
 	/* PM init */
 #ifndef CONFIG_ROCKCHIP_FPGA
 	pm_runtime_enable(&pdev->dev);
 
-	ret = rga_power_enable(rga_scheduler);
-	if (ret)
-		return ret;
+	ret = pm_runtime_get_sync(rga_scheduler->dev);
+	if (ret < 0) {
+		pr_err("failed to get pm runtime, ret = %d\n",
+			 ret);
+		goto failed;
+	}
+
+	for (i = 0; i < rga_scheduler->num_clks; i++) {
+		if (!IS_ERR(rga_scheduler->clks[i])) {
+			ret = clk_prepare_enable(rga_scheduler->clks[i]);
+			if (ret < 0) {
+				pr_err("failed to enable clk\n");
+				goto failed;
+			}
+		}
+	}
 #endif //CONFIG_ROCKCHIP_FPGA
 
 	rga_scheduler->ops->get_version(rga_scheduler);
@@ -579,19 +599,27 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	data->num_of_scheduler++;
 
+	for (i = rga_scheduler->num_clks - 1; i >= 0; i--)
+		if (!IS_ERR(rga_scheduler->clks[i]))
+			clk_disable_unprepare(rga_scheduler->clks[i]);
+
+	pm_runtime_put_sync(&pdev->dev);
+
 	pr_err("probe successfully\n");
 
 	return 0;
+
+failed:
+	device_init_wakeup(dev, false);
+	pm_runtime_disable(dev);
+
+	return ret;
 }
 
 static int rga_drv_remove(struct platform_device *pdev)
 {
-	struct rga_scheduler_t *rga_scheduler =
-		platform_get_drvdata(pdev);
-
+	device_init_wakeup(&pdev->dev, false);
 #ifndef CONFIG_ROCKCHIP_FPGA
-	rga_power_disable(rga_scheduler);
-
 	pm_runtime_disable(&pdev->dev);
 #endif //CONFIG_ROCKCHIP_FPGA
 
@@ -673,7 +701,6 @@ static int __init rga_init(void)
 		return -ENOMEM;
 	}
 
-	mutex_init(&rga_drvdata->mutex);
 	mutex_init(&rga_drvdata->lock);
 
 	wake_lock_init(&rga_drvdata->wake_lock, WAKE_LOCK_SUSPEND, "rga");

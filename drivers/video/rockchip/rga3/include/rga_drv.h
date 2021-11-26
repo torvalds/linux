@@ -42,6 +42,7 @@
 #include <linux/version.h>
 #include <linux/wait.h>
 #include <linux/wakelock.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/cacheflush.h>
 
@@ -212,6 +213,8 @@ struct rga_scheduler_t {
 	struct clk *clks[RGA_MAX_BUS_CLK];
 	int num_clks;
 
+	struct kref pd_refcount;
+
 	struct rga_job *running_job;
 	struct list_head todo_list;
 	spinlock_t irq_lock;
@@ -229,8 +232,6 @@ struct rga_drvdata_t {
 	struct miscdevice miscdev;
 
 	struct rga_fence_context *fence_ctx;
-
-	struct mutex mutex; // mutex
 
 	/* used by rga2's mmu lock */
 	struct mutex lock;
@@ -270,5 +271,9 @@ static inline void rga_write(int value, int offset, struct rga_scheduler_t *rga_
 {
 	writel(value, rga_scheduler->rga_base + offset);
 }
+
+int rga_power_enable(struct rga_scheduler_t *rga_scheduler);
+int rga_power_disable(struct rga_scheduler_t *rga_scheduler);
+void rga_kref_disable_power(struct kref *ref);
 
 #endif /* __LINUX_RGA_FENCE_H_ */

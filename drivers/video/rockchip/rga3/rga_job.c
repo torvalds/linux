@@ -13,6 +13,37 @@
 #include "rga_hw_config.h"
 #include "rga2_mmu_info.h"
 
+struct rga_job *
+rga_scheduler_get_pending_job_list(struct rga_scheduler_t *scheduler)
+{
+	unsigned long flags;
+	struct rga_job *job;
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	job = list_first_entry_or_null(&scheduler->todo_list,
+		struct rga_job, head);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	return job;
+}
+
+struct rga_job *
+rga_scheduler_get_running_job(struct rga_scheduler_t *scheduler)
+{
+	unsigned long flags;
+	struct rga_job *job;
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	job = scheduler->running_job;
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	return job;
+}
+
 static struct rga_scheduler_t *get_scheduler(struct rga_job *job)
 {
 	struct rga_scheduler_t *scheduler = NULL;
@@ -82,25 +113,26 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	ret = rga_dma_get_info(job);
 	if (ret < 0) {
 		pr_err("dma buf get failed");
-		return ret;
+		goto failed;
 	}
 
 	ret = scheduler->ops->init_reg(job);
 	if (ret < 0) {
 		pr_err("init reg failed");
-		return ret;
+		goto failed;
 	}
 
 	ret = scheduler->ops->set_reg(job, scheduler);
 	if (ret < 0) {
 		pr_err("set reg failed");
-		return ret;
+		goto failed;
 	}
 
 	/* for debug */
 	if (RGA_DEBUG_MSG)
 		print_job_info(job);
 
+failed:
 	return ret;
 }
 
@@ -172,9 +204,13 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 		pr_err("%s use time = %lld\n", __func__,
 			ktime_to_us(ktime_sub(now, job->timestamp)));
 
-	rga2_dma_flush_cache_for_virtual_address(&job->vir_page_table, rga_scheduler);
+	if (job->core == RGA2_SCHEDULER_CORE0)
+		rga2_dma_flush_cache_for_virtual_address(&job->vir_page_table,
+			rga_scheduler);
 
 	rga_dma_put_info(job);
+
+	kref_put(&rga_scheduler->pd_refcount, rga_kref_disable_power);
 
 	if (job->out_fence)
 		dma_fence_signal(job->out_fence);
@@ -496,6 +532,8 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	struct rga_scheduler_t *scheduler = NULL;
 	struct rga_job *job_pos;
 	bool first_match = 0;
+	bool first_open_pd = false;
+	int ret = 0;
 
 	if (rga_drvdata->num_of_scheduler > 1) {
 		job->core = rga_job_assign(job);
@@ -514,6 +552,13 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	}
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	if (list_empty(&scheduler->todo_list) && !scheduler->running_job) {
+		kref_init(&scheduler->pd_refcount);
+		first_open_pd = true;
+	} else {
+		kref_get(&scheduler->pd_refcount);
+	}
 
 	/* priority policy set by userspace */
 	if (list_empty(&scheduler->todo_list)
@@ -542,6 +587,15 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	scheduler->job_count++;
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	/* enable power */
+	if (first_open_pd) {
+		ret = rga_power_enable(scheduler);
+		if (ret < 0) {
+			pr_err("power enable failed");
+			return NULL;
+		}
+	}
 
 	rga_job_next(scheduler);
 
@@ -644,7 +698,7 @@ int rga_commit(struct rga_req *rga_command_base, int flags)
 		job->flags |= RGA_JOB_ASYNC;
 		rga_command_base->out_fence_fd = rga_out_fence_get_fd(job);
 
-		//TODO: job timeout clean
+		//TODO: job timeout clean, need add pd disable
 
 		if (RGA_DEBUG_MSG)
 			pr_err("in_fence_fd = %d",
