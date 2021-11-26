@@ -268,15 +268,14 @@ static struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 	return ioc;
 }
 
-static int create_task_io_context(struct task_struct *task, gfp_t gfp_flags,
-		int node)
+static struct io_context *create_task_io_context(struct task_struct *task,
+		gfp_t gfp_flags, int node)
 {
 	struct io_context *ioc;
-	int ret;
 
 	ioc = alloc_io_context(gfp_flags, node);
 	if (!ioc)
-		return -ENOMEM;
+		return NULL;
 
 	/*
 	 * Try to install.  ioc shouldn't be installed if someone else
@@ -292,11 +291,11 @@ static int create_task_io_context(struct task_struct *task, gfp_t gfp_flags,
 	else
 		kmem_cache_free(iocontext_cachep, ioc);
 
-	ret = task->io_context ? 0 : -EBUSY;
-
+	ioc = task->io_context;
+	if (ioc)
+		get_io_context(ioc);
 	task_unlock(task);
-
-	return ret;
+	return ioc;
 }
 
 /**
@@ -319,18 +318,15 @@ struct io_context *get_task_io_context(struct task_struct *task,
 
 	might_sleep_if(gfpflags_allow_blocking(gfp_flags));
 
-	do {
-		task_lock(task);
-		ioc = task->io_context;
-		if (likely(ioc)) {
-			get_io_context(ioc);
-			task_unlock(task);
-			return ioc;
-		}
+	task_lock(task);
+	ioc = task->io_context;
+	if (unlikely(!ioc)) {
 		task_unlock(task);
-	} while (!create_task_io_context(task, gfp_flags, node));
-
-	return NULL;
+		return create_task_io_context(task, gfp_flags, node);
+	}
+	get_io_context(ioc);
+	task_unlock(task);
+	return ioc;
 }
 
 int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
@@ -449,30 +445,28 @@ static struct io_cq *ioc_create_icq(struct io_context *ioc,
 
 struct io_cq *ioc_find_get_icq(struct request_queue *q)
 {
-	struct io_context *ioc;
-	struct io_cq *icq;
+	struct io_context *ioc = current->io_context;
+	struct io_cq *icq = NULL;
 
-	/* create task io_context, if we don't have one already */
-	if (unlikely(!current->io_context))
-		create_task_io_context(current, GFP_ATOMIC, q->node);
+	if (unlikely(!ioc)) {
+		ioc = create_task_io_context(current, GFP_ATOMIC, q->node);
+		if (!ioc)
+			return NULL;
+	} else {
+		get_io_context(ioc);
 
-	/*
-	 * May not have an IO context if it's a passthrough request
-	 */
-	ioc = current->io_context;
-	if (!ioc)
-		return NULL;
-
-	spin_lock_irq(&q->queue_lock);
-	icq = ioc_lookup_icq(ioc, q);
-	spin_unlock_irq(&q->queue_lock);
+		spin_lock_irq(&q->queue_lock);
+		icq = ioc_lookup_icq(ioc, q);
+		spin_unlock_irq(&q->queue_lock);
+	}
 
 	if (!icq) {
 		icq = ioc_create_icq(ioc, q, GFP_ATOMIC);
-		if (!icq)
+		if (!icq) {
+			put_io_context(ioc);
 			return NULL;
+		}
 	}
-	get_io_context(icq->ioc);
 	return icq;
 }
 EXPORT_SYMBOL_GPL(ioc_find_get_icq);
