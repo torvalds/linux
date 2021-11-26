@@ -6,31 +6,30 @@ TTY Line Discipline
 
 .. contents:: :local:
 
-Line disciplines are registered with tty_register_ldisc() passing the
-discipline number and the ldisc structure. At the point of registration the
-discipline must be ready to use and it is possible it will get used before
-the call returns success. If the call returns an error then it won't get
-called. Do not re-use ldisc numbers as they are part of the userspace ABI
-and writing over an existing ldisc will cause demons to eat your computer.
-After the return the ldisc data has been copied so you may free your own
-copy of the structure. You must not re-register over the top of the line
-discipline even with the same data or your computer again will be eaten by
-demons.
+Registration
+============
 
-In order to remove a line discipline call tty_unregister_ldisc().
-In ancient times this always worked. In modern times the function will
-return -EBUSY if the ldisc is currently in use. Since the ldisc referencing
-code manages the module counts this should not usually be a concern.
+Line disciplines are registered with tty_register_ldisc() passing the ldisc
+structure. At the point of registration the discipline must be ready to use and
+it is possible it will get used before the call returns success. If the call
+returns an error then it won’t get called. Do not re-use ldisc numbers as they
+are part of the userspace ABI and writing over an existing ldisc will cause
+demons to eat your computer. You must not re-register over the top of the line
+discipline even with the same data or your computer again will be eaten by
+demons. In order to remove a line discipline call tty_unregister_ldisc().
 
 Heed this warning: the reference count field of the registered copies of the
 tty_ldisc structure in the ldisc table counts the number of lines using this
-discipline. The reference count of the tty_ldisc structure within a tty
-counts the number of active users of the ldisc at this instant. In effect it
-counts the number of threads of execution within an ldisc method (plus those
-about to enter and exit although this detail matters not).
+discipline. The reference count of the tty_ldisc structure within a tty counts
+the number of active users of the ldisc at this instant. In effect it counts
+the number of threads of execution within an ldisc method (plus those about to
+enter and exit although this detail matters not).
 
-Line Discipline Methods
-=======================
+.. kernel-doc:: drivers/tty/tty_ldisc.c
+   :identifiers: tty_register_ldisc tty_unregister_ldisc
+
+Line Discipline Operations Reference
+====================================
 
 .. kernel-doc:: include/linux/tty_ldisc.h
    :identifiers: tty_ldisc_ops
