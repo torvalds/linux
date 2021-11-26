@@ -13,11 +13,11 @@
 #define LED_BLINK_SLOWLY_INTERVAL		200
 #define LED_BLINK_LONG_INTERVAL			400
 
-#define LED_BLINK_NO_LINK_INTERVAL_ALPHA	1000
-#define LED_BLINK_LINK_INTERVAL_ALPHA		500	/* 500 */
-#define LED_BLINK_SCAN_INTERVAL_ALPHA		180	/* 150 */
-#define LED_BLINK_FASTER_INTERVAL_ALPHA		50
-#define LED_BLINK_WPS_SUCESS_INTERVAL_ALPHA	5000
+#define LED_BLINK_NO_LINK_INTVL			msecs_to_jiffies(1000)
+#define LED_BLINK_LINK_INTVL			msecs_to_jiffies(500)
+#define LED_BLINK_SCAN_INTVL			msecs_to_jiffies(180)
+#define LED_BLINK_FASTER_INTVL			msecs_to_jiffies(50)
+#define LED_BLINK_WPS_SUCESS_INTVL		msecs_to_jiffies(5000)
 
 #define LED_BLINK_NORMAL_INTERVAL_NETTRONIX	100
 #define LED_BLINK_SLOWLY_INTERVAL_NETTRONIX	2000
@@ -105,15 +105,12 @@ struct LED_871x {
 
 	u32 BlinkTimes; /*  Number of times to toggle led state for blinking. */
 
-	struct timer_list BlinkTimer; /*  Timer object for led blinking. */
-
 	/*  ALPHA, added by chiyoko, 20090106 */
 	u8 bLedNoLinkBlinkInProgress;
 	u8 bLedLinkBlinkInProgress;
 	u8 bLedStartToLinkBlinkInProgress;
 	u8 bLedScanBlinkInProgress;
-	struct work_struct BlinkWorkItem; /* Workitem used by BlinkTimer to
-					   * manipulate H/W to blink LED. */
+	struct delayed_work blink_work;
 };
 
 #define IS_LED_WPS_BLINKING(_LED_871x)					\
@@ -143,7 +140,6 @@ struct led_priv{
 			(adapt)->ledpriv.LedControlHandler((adapt), (action)); \
 	} while (0)
 
-void BlinkTimerCallback(struct timer_list *t);
 void BlinkWorkItemCallback(struct work_struct *work);
 
 void ResetLedStatus(struct LED_871x * pLed);
