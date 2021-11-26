@@ -336,7 +336,6 @@ struct io_context *get_task_io_context(struct task_struct *task,
 int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct io_context *ioc = current->io_context;
-	struct io_context *new_ioc;
 
 	/*
 	 * Share io context with parent, if CLONE_IO is set
@@ -347,12 +346,10 @@ int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
 		atomic_inc(&ioc->nr_tasks);
 		tsk->io_context = ioc;
 	} else if (ioprio_valid(ioc->ioprio)) {
-		new_ioc = get_task_io_context(tsk, GFP_KERNEL, NUMA_NO_NODE);
-		if (unlikely(!new_ioc))
+		tsk->io_context = alloc_io_context(GFP_KERNEL, NUMA_NO_NODE);
+		if (!tsk->io_context)
 			return -ENOMEM;
-
-		new_ioc->ioprio = ioc->ioprio;
-		put_io_context(new_ioc);
+		tsk->io_context->ioprio = ioc->ioprio;
 	}
 
 	return 0;
