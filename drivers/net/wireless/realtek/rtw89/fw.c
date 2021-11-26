@@ -780,7 +780,7 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 	if (!ppe_th) {
 		u8 pad;
 
-		pad = FIELD_GET(IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK,
+		pad = FIELD_GET(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK,
 				sta->he_cap.he_cap_elem.phy_cap_info[9]);
 
 		for (i = 0; i < RTW89_PPE_BW_NUM; i++)
