@@ -18,37 +18,6 @@
 #include "blk-mq-tag.h"
 #include "blk-wbt.h"
 
-void blk_mq_sched_assign_ioc(struct request *rq)
-{
-	struct request_queue *q = rq->q;
-	struct io_context *ioc;
-	struct io_cq *icq;
-
-	/* create task io_context, if we don't have one already */
-	if (unlikely(!current->io_context))
-		create_task_io_context(current, GFP_ATOMIC, q->node);
-
-	/*
-	 * May not have an IO context if it's a passthrough request
-	 */
-	ioc = current->io_context;
-	if (!ioc)
-		return;
-
-	spin_lock_irq(&q->queue_lock);
-	icq = ioc_lookup_icq(ioc, q);
-	spin_unlock_irq(&q->queue_lock);
-
-	if (!icq) {
-		icq = ioc_create_icq(ioc, q, GFP_ATOMIC);
-		if (!icq)
-			return;
-	}
-	get_io_context(icq->ioc);
-	rq->elv.icq = icq;
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_assign_ioc);
-
 /*
  * Mark a hardware queue as needing a restart. For shared queues, maintain
  * a count of how many hardware queues are marked for restart.

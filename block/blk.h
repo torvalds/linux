@@ -363,13 +363,9 @@ static inline unsigned int bio_aligned_discard_max_sectors(
 /*
  * Internal io_context interface
  */
-void get_io_context(struct io_context *ioc);
+struct io_cq *ioc_find_get_icq(struct request_queue *q);
 struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q);
-struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
-			     gfp_t gfp_mask);
 void ioc_clear_queue(struct request_queue *q);
-
-int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 extern ssize_t blk_throtl_sample_time_show(struct request_queue *q, char *page);

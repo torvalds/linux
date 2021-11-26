@@ -6666,7 +6666,7 @@ static struct bfq_queue *bfq_get_bfqq_handle_split(struct bfq_data *bfqd,
  */
 static void bfq_prepare_request(struct request *rq)
 {
-	blk_mq_sched_assign_ioc(rq);
+	rq->elv.icq = ioc_find_get_icq(rq->q);
 
 	/*
 	 * Regardless of whether we have an icq attached, we have to
