@@ -407,7 +407,7 @@ double expr__get_literal(const char *literal)
 	static struct cpu_topology *topology;
 	double result = NAN;
 
-	if (!strcmp("#smt_on", literal)) {
+	if (!strcasecmp("#smt_on", literal)) {
 		result = smt_on() > 0 ? 1.0 : 0.0;
 		goto out;
 	}
