@@ -1275,6 +1275,14 @@ void tty_init_termios(struct tty_struct *tty)
 }
 EXPORT_SYMBOL_GPL(tty_init_termios);
 
+/**
+ * tty_standard_install - usual tty->ops->install
+ * @driver: the driver for the tty
+ * @tty: the tty
+ *
+ * If the @driver overrides @tty->ops->install, it still can call this function
+ * to perform the standard install operations.
+ */
 int tty_standard_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	tty_init_termios(tty);
