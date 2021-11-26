@@ -14,9 +14,9 @@
  *
  */
 #define futex_atomic_cmpxchg_inatomic(uval, uaddr, oldval, newval) \
-	futex_atomic_cmpxchg_inatomic_local_generic(uval, uaddr, oldval, newval)
+	futex_atomic_cmpxchg_inatomic_local(uval, uaddr, oldval, newval)
 #define arch_futex_atomic_op_inuser(op, oparg, oval, uaddr) \
-	arch_futex_atomic_op_inuser_local_generic(op, oparg, oval, uaddr)
+	futex_atomic_op_inuser_local(op, oparg, oval, uaddr)
 #endif /* CONFIG_SMP */
 #endif
 
