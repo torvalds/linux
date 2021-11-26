@@ -444,7 +444,7 @@ static struct bfq_io_cq *bfq_bic_lookup(struct request_queue *q)
 		return NULL;
 
 	spin_lock_irqsave(&q->queue_lock, flags);
-	icq = icq_to_bic(ioc_lookup_icq(current->io_context, q));
+	icq = icq_to_bic(ioc_lookup_icq(q));
 	spin_unlock_irqrestore(&q->queue_lock, flags);
 
 	return icq;

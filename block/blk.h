@@ -364,7 +364,7 @@ static inline unsigned int bio_aligned_discard_max_sectors(
  * Internal io_context interface
  */
 struct io_cq *ioc_find_get_icq(struct request_queue *q);
-struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q);
+struct io_cq *ioc_lookup_icq(struct request_queue *q);
 void ioc_clear_queue(struct request_queue *q);
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW

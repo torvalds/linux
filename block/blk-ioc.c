@@ -353,14 +353,14 @@ int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
 
 /**
  * ioc_lookup_icq - lookup io_cq from ioc
- * @ioc: the associated io_context
  * @q: the associated request_queue
  *
  * Look up io_cq associated with @ioc - @q pair from @ioc.  Must be called
  * with @q->queue_lock held.
  */
-struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q)
+struct io_cq *ioc_lookup_icq(struct request_queue *q)
 {
+	struct io_context *ioc = current->io_context;
 	struct io_cq *icq;
 
 	lockdep_assert_held(&q->queue_lock);
@@ -430,7 +430,7 @@ static struct io_cq *ioc_create_icq(struct request_queue *q)
 			et->ops.init_icq(icq);
 	} else {
 		kmem_cache_free(et->icq_cache, icq);
-		icq = ioc_lookup_icq(ioc, q);
+		icq = ioc_lookup_icq(q);
 		if (!icq)
 			printk(KERN_ERR "cfq: icq link failed!\n");
 	}
@@ -454,7 +454,7 @@ struct io_cq *ioc_find_get_icq(struct request_queue *q)
 		get_io_context(ioc);
 
 		spin_lock_irq(&q->queue_lock);
-		icq = ioc_lookup_icq(ioc, q);
+		icq = ioc_lookup_icq(q);
 		spin_unlock_irq(&q->queue_lock);
 	}
 
