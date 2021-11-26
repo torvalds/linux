@@ -471,9 +471,6 @@ static int __init init_dtpm(void)
 		return PTR_ERR(pct);
 	}
 
-	for_each_dtpm_table(dtpm_descr)
-		dtpm_descr->init();
-
 	return 0;
 }
 late_initcall(init_dtpm);
