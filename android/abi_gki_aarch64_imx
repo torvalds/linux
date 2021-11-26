@@ -874,6 +874,7 @@
   soc_device_match
   sort
   __spi_alloc_controller
+  spi_mem_default_supports_op
   __spi_register_driver
   sprintf
   sscanf
@@ -2184,6 +2185,20 @@
 
 # required by spi-imx.ko
   sg_last
+
+# required by spi-nor.ko
+  devm_spi_mem_dirmap_create
+  spi_mem_adjust_op_size
+  spi_mem_dirmap_read
+  spi_mem_dirmap_write
+  spi_mem_driver_register_with_owner
+  spi_mem_driver_unregister
+  spi_mem_exec_op
+  spi_mem_get_name
+  spi_mem_supports_op
+
+# required by spi-nxp-fspi.ko
+  spi_mem_dtr_supports_op
 
 # required by spidev.ko
   find_next_zero_bit
