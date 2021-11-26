@@ -410,7 +410,14 @@ static const struct net_device_ops mctp_serial_netdev_ops = {
 static void mctp_serial_setup(struct net_device *ndev)
 {
 	ndev->type = ARPHRD_MCTP;
+
+	/* we limit at the fixed MTU, which is also the MCTP-standard
+	 * baseline MTU, so is also our minimum
+	 */
 	ndev->mtu = MCTP_SERIAL_MTU;
+	ndev->max_mtu = MCTP_SERIAL_MTU;
+	ndev->min_mtu = MCTP_SERIAL_MTU;
+
 	ndev->hard_header_len = 0;
 	ndev->addr_len = 0;
 	ndev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
@@ -431,9 +438,6 @@ static int mctp_serial_open(struct tty_struct *tty)
 
 	if (!tty->ops->write)
 		return -EOPNOTSUPP;
-
-	if (tty->disc_data)
-		return -EEXIST;
 
 	idx = ida_alloc(&mctp_serial_ida, GFP_KERNEL);
 	if (idx < 0)
@@ -479,6 +483,7 @@ static void mctp_serial_close(struct tty_struct *tty)
 	int idx = dev->idx;
 
 	unregister_netdev(dev->netdev);
+	cancel_work_sync(&dev->tx_work);
 	ida_free(&mctp_serial_ida, idx);
 }
 
