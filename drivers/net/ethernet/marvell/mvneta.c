@@ -38,6 +38,7 @@
 #include <net/ipv6.h>
 #include <net/tso.h>
 #include <net/page_pool.h>
+#include <net/pkt_cls.h>
 #include <linux/bpf_trace.h>
 
 /* Registers */
@@ -4908,14 +4909,14 @@ static void mvneta_setup_rx_prio_map(struct mvneta_port *pp)
 }
 
 static int mvneta_setup_mqprio(struct net_device *dev,
-			       struct tc_mqprio_qopt *qopt)
+			       struct tc_mqprio_qopt_offload *mqprio)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 	u8 num_tc;
 	int i;
 
-	qopt->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-	num_tc = qopt->num_tc;
+	mqprio->qopt.hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	num_tc = mqprio->qopt.num_tc;
 
 	if (num_tc > rxq_number)
 		return -EINVAL;
@@ -4926,13 +4927,15 @@ static int mvneta_setup_mqprio(struct net_device *dev,
 		return 0;
 	}
 
-	memcpy(pp->prio_tc_map, qopt->prio_tc_map, sizeof(pp->prio_tc_map));
+	memcpy(pp->prio_tc_map, mqprio->qopt.prio_tc_map,
+	       sizeof(pp->prio_tc_map));
 
 	mvneta_setup_rx_prio_map(pp);
 
-	netdev_set_num_tc(dev, qopt->num_tc);
-	for (i = 0; i < qopt->num_tc; i++)
-		netdev_set_tc_queue(dev, i, qopt->count[i], qopt->offset[i]);
+	netdev_set_num_tc(dev, mqprio->qopt.num_tc);
+	for (i = 0; i < mqprio->qopt.num_tc; i++)
+		netdev_set_tc_queue(dev, i, mqprio->qopt.count[i],
+				    mqprio->qopt.offset[i]);
 
 	return 0;
 }
