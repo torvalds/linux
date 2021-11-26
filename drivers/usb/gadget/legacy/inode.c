@@ -1242,7 +1242,7 @@ out:
 	return mask;
 }
 
-static long dev_ioctl (struct file *fd, unsigned code, unsigned long value)
+static long gadget_dev_ioctl (struct file *fd, unsigned code, unsigned long value)
 {
 	struct dev_data		*dev = fd->private_data;
 	struct usb_gadget	*gadget = dev->gadget;
@@ -1904,7 +1904,7 @@ fail:
 }
 
 static int
-dev_open (struct inode *inode, struct file *fd)
+gadget_dev_open (struct inode *inode, struct file *fd)
 {
 	struct dev_data		*dev = inode->i_private;
 	int			value = -EBUSY;
@@ -1924,12 +1924,12 @@ dev_open (struct inode *inode, struct file *fd)
 static const struct file_operations ep0_operations = {
 	.llseek =	no_llseek,
 
-	.open =		dev_open,
+	.open =		gadget_dev_open,
 	.read =		ep0_read,
 	.write =	dev_config,
 	.fasync =	ep0_fasync,
 	.poll =		ep0_poll,
-	.unlocked_ioctl = dev_ioctl,
+	.unlocked_ioctl = gadget_dev_ioctl,
 	.release =	dev_release,
 };
 
