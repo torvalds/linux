@@ -97,7 +97,7 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 		 * "Plane N strech max must be programmed to 11b (x1)
 		 *  when Async flips are enabled on that plane."
 		 */
-		if (!IS_GEMINILAKE(dev_priv) && intel_vtd_active())
+		if (!IS_GEMINILAKE(dev_priv) && intel_vtd_active(dev_priv))
 			intel_uncore_rmw(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
 					 SKL_PLANE1_STRETCH_MAX_MASK, SKL_PLANE1_STRETCH_MAX_X1);
 	}
