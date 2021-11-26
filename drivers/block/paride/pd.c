@@ -781,7 +781,7 @@ static int pd_special_command(struct pd_unit *disk,
 	req = blk_mq_rq_to_pdu(rq);
 
 	req->func = func;
-	blk_execute_rq(disk->gd, rq, 0);
+	blk_execute_rq(rq, false);
 	blk_mq_free_request(rq);
 	return 0;
 }

@@ -722,7 +722,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	if (cgc->quiet)
 		rq->rq_flags |= RQF_QUIET;
 
-	blk_execute_rq(pd->bdev->bd_disk, rq, 0);
+	blk_execute_rq(rq, false);
 	if (scsi_req(rq)->result)
 		ret = -EIO;
 out:

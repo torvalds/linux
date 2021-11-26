@@ -483,7 +483,7 @@ static int sg_io(struct scsi_device *sdev, struct gendisk *disk,
 
 	start_time = jiffies;
 
-	blk_execute_rq(disk, rq, at_head);
+	blk_execute_rq(rq, at_head);
 
 	hdr->duration = jiffies_to_msecs(jiffies - start_time);
 
@@ -620,7 +620,7 @@ static int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk,
 			goto error;
 	}
 
-	blk_execute_rq(disk, rq, 0);
+	blk_execute_rq(rq, false);
 
 	err = req->result & 0xff;	/* only 8 bit SCSI status */
 	if (err) {

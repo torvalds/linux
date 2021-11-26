@@ -924,10 +924,9 @@ int blk_rq_unmap_user(struct bio *);
 int blk_rq_map_kern(struct request_queue *, struct request *, void *,
 		unsigned int, gfp_t);
 int blk_rq_append_bio(struct request *rq, struct bio *bio);
-void blk_execute_rq_nowait(struct gendisk *, struct request *, int,
-		rq_end_io_fn *);
-blk_status_t blk_execute_rq(struct gendisk *bd_disk, struct request *rq,
-		int at_head);
+void blk_execute_rq_nowait(struct request *rq, bool at_head,
+		rq_end_io_fn *end_io);
+blk_status_t blk_execute_rq(struct request *rq, bool at_head);
 
 struct req_iterator {
 	struct bvec_iter iter;
