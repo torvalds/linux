@@ -1138,6 +1138,25 @@ static void vop2_wait_for_port_mux_done(struct vop2 *vop2)
 			      port_mux_cfg, vop2->port_mux_cfg);
 }
 
+static u32 vop2_read_layer_cfg(struct vop2 *vop2)
+{
+	return vop2_readl(vop2, RK3568_OVL_LAYER_SEL);
+}
+
+static void vop2_wait_for_layer_cfg_done(struct vop2 *vop2, u32 cfg)
+{
+	u32 atv_layer_cfg;
+	int ret;
+
+	/*
+	 * Spin until the previous layer configuration is done.
+	 */
+	ret = readx_poll_timeout_atomic(vop2_read_layer_cfg, vop2, atv_layer_cfg,
+					atv_layer_cfg == cfg, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait layer cfg done timeout: 0x%x--0x%x\n",
+			      atv_layer_cfg, cfg);
+}
 
 static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 {
@@ -6561,6 +6580,15 @@ static void vop2_setup_port_mux(struct vop2_video_port *vp, uint16_t port_mux_cf
 	spin_unlock(&vop2->reg_lock);
 }
 
+static u32 vop2_layer_cfg_update(struct vop2_layer *layer, u32 old_layer_cfg, u8 win_layer_id)
+{
+	const struct vop_reg *reg = &layer->regs->layer_sel;
+	u32 mask = reg->mask;
+	u32 shift = reg->shift;
+
+	return (old_layer_cfg & ~(mask << shift)) | ((win_layer_id & mask) << shift);
+}
+
 static u16 vop2_calc_bg_ovl_and_port_mux(struct vop2_video_port *vp)
 {
 	struct vop2_video_port *prev_vp;
@@ -6609,14 +6637,18 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 {
 	struct vop2_video_port *prev_vp;
 	struct vop2 *vop2 = vp->vop2;
+	struct vop2_layer *layer = &vop2->layers[0];
 	u8 port_id = vp->id;
-	uint8_t nr_layers = vp->nr_layers;
 	const struct vop2_zpos *zpos;
 	struct vop2_win *win;
-	struct vop2_layer *layer;
 	u8 used_layers = 0;
 	u8 layer_id, win_phys_id;
 	u16 port_mux_cfg;
+	u32 layer_cfg_reg_offset = layer->regs->layer_sel.offset;
+	u8 nr_layers = vp->nr_layers;
+	u32 old_layer_cfg = 0;
+	u32 new_layer_cfg = 0;
+	u32 atv_layer_cfg;
 	int i;
 
 	port_mux_cfg = vop2_calc_bg_ovl_and_port_mux(vp);
@@ -6633,6 +6665,8 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		used_layers += hweight32(prev_vp->win_mask);
 	}
 
+	old_layer_cfg = vop2->regsbak[layer_cfg_reg_offset >> 2];
+	new_layer_cfg = old_layer_cfg;
 	for (i = 0; i < nr_layers; i++) {
 		layer = &vop2->layers[used_layers + i];
 		zpos = &vop2_zpos[i];
@@ -6640,16 +6674,25 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		layer_id = win->layer_id;
 		win_phys_id = layer->win_phys_id;
 		VOP_CTRL_SET(vop2, win_vp_id[win->phys_id], port_id);
-		VOP_MODULE_SET(vop2, layer, layer_sel, win->layer_sel_id);
+		new_layer_cfg = vop2_layer_cfg_update(layer, new_layer_cfg, win->layer_sel_id);
 		win->layer_id = layer->id;
 		layer->win_phys_id = win->phys_id;
 		layer = &vop2->layers[layer_id];
 		win = vop2_find_win_by_phys_id(vop2, win_phys_id);
-		VOP_MODULE_SET(vop2, layer, layer_sel, win->layer_sel_id);
+		new_layer_cfg = vop2_layer_cfg_update(layer, new_layer_cfg, win->layer_sel_id);
+		win->layer_id = layer->id;
 		win->layer_id = layer_id;
 		layer->win_phys_id = win_phys_id;
 	}
 
+	atv_layer_cfg = vop2_read_layer_cfg(vop2);
+	if ((new_layer_cfg != old_layer_cfg) &&
+	    (atv_layer_cfg != old_layer_cfg) &&
+	    !vp->splice_mode_right) {
+		dev_printk(KERN_DEBUG, vop2->dev, "wait old_layer_sel: 0x%x\n", old_layer_cfg);
+		vop2_wait_for_layer_cfg_done(vop2, old_layer_cfg);
+	}
+	vop2_writel(vop2, RK3568_OVL_LAYER_SEL, new_layer_cfg);
 	VOP_CTRL_SET(vop2, ovl_cfg_done_port, vp->id);
 	VOP_CTRL_SET(vop2, ovl_port_mux_cfg_done_imd, 0);
 	vop2_setup_port_mux(vp, port_mux_cfg);
