@@ -518,7 +518,7 @@ static struct psp_gfx_cmd_resp *acquire_psp_cmd_buf(struct psp_context *psp)
 	return cmd;
 }
 
-void release_psp_cmd_buf(struct psp_context *psp)
+static void release_psp_cmd_buf(struct psp_context *psp)
 {
 	mutex_unlock(&psp->mutex);
 }
