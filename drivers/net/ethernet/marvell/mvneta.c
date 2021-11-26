@@ -493,7 +493,6 @@ struct mvneta_port {
 	u8 mcast_count[256];
 	u16 tx_ring_size;
 	u16 rx_ring_size;
-	u8 prio_tc_map[8];
 
 	phy_interface_t phy_interface;
 	struct device_node *dn;
@@ -4897,13 +4896,12 @@ static void mvneta_clear_rx_prio_map(struct mvneta_port *pp)
 	mvreg_write(pp, MVNETA_VLAN_PRIO_TO_RXQ, 0);
 }
 
-static void mvneta_setup_rx_prio_map(struct mvneta_port *pp)
+static void mvneta_map_vlan_prio_to_rxq(struct mvneta_port *pp, u8 pri, u8 rxq)
 {
-	u32 val = 0;
-	int i;
+	u32 val = mvreg_read(pp, MVNETA_VLAN_PRIO_TO_RXQ);
 
-	for (i = 0; i < rxq_number; i++)
-		val |= MVNETA_VLAN_PRIO_RXQ_MAP(i, pp->prio_tc_map[i]);
+	val &= ~MVNETA_VLAN_PRIO_RXQ_MAP(pri, 0x7);
+	val |= MVNETA_VLAN_PRIO_RXQ_MAP(pri, rxq);
 
 	mvreg_write(pp, MVNETA_VLAN_PRIO_TO_RXQ, val);
 }
@@ -4912,8 +4910,8 @@ static int mvneta_setup_mqprio(struct net_device *dev,
 			       struct tc_mqprio_qopt_offload *mqprio)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
+	int rxq, tc;
 	u8 num_tc;
-	int i;
 
 	if (mqprio->qopt.hw != TC_MQPRIO_HW_OFFLOAD_TCS)
 		return 0;
@@ -4923,21 +4921,28 @@ static int mvneta_setup_mqprio(struct net_device *dev,
 	if (num_tc > rxq_number)
 		return -EINVAL;
 
+	mvneta_clear_rx_prio_map(pp);
+
 	if (!num_tc) {
-		mvneta_clear_rx_prio_map(pp);
 		netdev_reset_tc(dev);
 		return 0;
 	}
 
-	memcpy(pp->prio_tc_map, mqprio->qopt.prio_tc_map,
-	       sizeof(pp->prio_tc_map));
-
-	mvneta_setup_rx_prio_map(pp);
-
 	netdev_set_num_tc(dev, mqprio->qopt.num_tc);
-	for (i = 0; i < mqprio->qopt.num_tc; i++)
-		netdev_set_tc_queue(dev, i, mqprio->qopt.count[i],
-				    mqprio->qopt.offset[i]);
+
+	for (tc = 0; tc < mqprio->qopt.num_tc; tc++) {
+		netdev_set_tc_queue(dev, tc, mqprio->qopt.count[tc],
+				    mqprio->qopt.offset[tc]);
+
+		for (rxq = mqprio->qopt.offset[tc];
+		     rxq < mqprio->qopt.count[tc] + mqprio->qopt.offset[tc];
+		     rxq++) {
+			if (rxq >= rxq_number)
+				return -EINVAL;
+
+			mvneta_map_vlan_prio_to_rxq(pp, tc, rxq);
+		}
+	}
 
 	return 0;
 }
