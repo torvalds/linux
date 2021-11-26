@@ -777,8 +777,7 @@ static struct request *attempt_merge(struct request_queue *q,
 	if (req_op(req) != req_op(next))
 		return NULL;
 
-	if (rq_data_dir(req) != rq_data_dir(next)
-	    || req->rq_disk != next->rq_disk)
+	if (rq_data_dir(req) != rq_data_dir(next))
 		return NULL;
 
 	if (req_op(req) == REQ_OP_WRITE_SAME &&
@@ -903,10 +902,6 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 
 	/* different data direction or already started, don't merge */
 	if (bio_data_dir(bio) != rq_data_dir(rq))
-		return false;
-
-	/* must be same device */
-	if (rq->rq_disk != bio->bi_bdev->bd_disk)
 		return false;
 
 	/* only merge integrity protected bio into ditto rq */
