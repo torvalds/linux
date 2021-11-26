@@ -6,6 +6,12 @@ TTY Line Discipline
 
 .. contents:: :local:
 
+TTY line discipline process all incoming and outgoing character from/to a tty
+device. The default line discipline is :doc:`N_TTY <n_tty>`. It is also a
+fallback if establishing any other discipline for a tty fails. If even N_TTY
+fails, N_NULL takes over. That never fails, but also does not process any
+characters -- it throws them away.
+
 Registration
 ============
 
