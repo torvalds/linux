@@ -100,6 +100,7 @@ static const struct dp_lt_fallback_entry dp_lt_fallbacks[] = {
 #endif
 
 static bool decide_fallback_link_setting(
+		struct dc_link *link,
 		struct dc_link_settings initial_link_settings,
 		struct dc_link_settings *current_link_setting,
 		enum link_training_result training_result);
@@ -2609,7 +2610,7 @@ bool perform_link_training_with_retries(
 			uint32_t req_bw;
 			uint32_t link_bw;
 
-			decide_fallback_link_setting(*link_setting, &current_setting, status);
+			decide_fallback_link_setting(link, *link_setting, &current_setting, status);
 			/* Fail link training if reduced link bandwidth no longer meets
 			 * stream requirements.
 			 */
@@ -3124,7 +3125,7 @@ bool dp_verify_link_cap(
 		 * based on the actual mode we're driving
 		 */
 		dp_disable_link_phy(link, link->connector_signal);
-	} while (!success && decide_fallback_link_setting(
+	} while (!success && decide_fallback_link_setting(link,
 			initial_link_settings, cur, status));
 
 	/* Link Training failed for all Link Settings
@@ -3376,6 +3377,7 @@ static bool decide_fallback_link_setting_max_bw_policy(
  *					and no further fallback could be done
  */
 static bool decide_fallback_link_setting(
+		struct dc_link *link,
 		struct dc_link_settings initial_link_settings,
 		struct dc_link_settings *current_link_setting,
 		enum link_training_result training_result)
@@ -3383,7 +3385,8 @@ static bool decide_fallback_link_setting(
 	if (!current_link_setting)
 		return false;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (dp_get_link_encoding_format(&initial_link_settings) == DP_128b_132b_ENCODING)
+	if (dp_get_link_encoding_format(&initial_link_settings) == DP_128b_132b_ENCODING ||
+			link->dc->debug.force_dp2_lt_fallback_method)
 		return decide_fallback_link_setting_max_bw_policy(&initial_link_settings,
 				current_link_setting);
 #endif
