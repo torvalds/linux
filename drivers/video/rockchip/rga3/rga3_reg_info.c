@@ -996,7 +996,7 @@ static void RGA3_set_reg_wr_info(u8 *base, struct rga3_req *msg)
 			uv_stride = ((msg->wr.vir_w + 15) & ~15);
 		/* RGB888 */
 		else if (wr_format == 0x5)
-			uv_stride = ((msg->wr.vir_w + 15) & ~15) >> 2 * 3;
+			uv_stride = (((msg->wr.vir_w + 15) & ~15) >> 2) * 3;
 		/* RGB565, yuv422 8bit, yuv420 10bit */
 		else if (wr_format == 0x4 || wr_format == 0x1 || wr_format == 0x2)
 			uv_stride = ((msg->wr.vir_w + 15) & ~15) >> 1;
