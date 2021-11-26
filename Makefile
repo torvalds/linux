@@ -3,7 +3,7 @@ VERSION = 5
 PATCHLEVEL = 16
 SUBLEVEL = 0
 EXTRAVERSION = -rc2
-NAME = Trick or Treat
+NAME = Gobble Gobble
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
