@@ -665,7 +665,7 @@ static void blkdev_flush_mapping(struct block_device *bdev)
 static int blkdev_get_whole(struct block_device *bdev, fmode_t mode)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int ret = 0;
+	int ret;
 
 	if (disk->fops->open) {
 		ret = disk->fops->open(bdev, mode);
