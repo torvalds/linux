@@ -6,6 +6,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -154,6 +155,30 @@ static void mvebu_pcie_set_local_dev_nr(struct mvebu_pcie_port *port, int nr)
 	mvebu_writel(port, stat, PCIE_STAT_OFF);
 }
 
+static void mvebu_pcie_disable_wins(struct mvebu_pcie_port *port)
+{
+	int i;
+
+	mvebu_writel(port, 0, PCIE_BAR_LO_OFF(0));
+	mvebu_writel(port, 0, PCIE_BAR_HI_OFF(0));
+
+	for (i = 1; i < 3; i++) {
+		mvebu_writel(port, 0, PCIE_BAR_CTRL_OFF(i));
+		mvebu_writel(port, 0, PCIE_BAR_LO_OFF(i));
+		mvebu_writel(port, 0, PCIE_BAR_HI_OFF(i));
+	}
+
+	for (i = 0; i < 5; i++) {
+		mvebu_writel(port, 0, PCIE_WIN04_CTRL_OFF(i));
+		mvebu_writel(port, 0, PCIE_WIN04_BASE_OFF(i));
+		mvebu_writel(port, 0, PCIE_WIN04_REMAP_OFF(i));
+	}
+
+	mvebu_writel(port, 0, PCIE_WIN5_CTRL_OFF);
+	mvebu_writel(port, 0, PCIE_WIN5_BASE_OFF);
+	mvebu_writel(port, 0, PCIE_WIN5_REMAP_OFF);
+}
+
 /*
  * Setup PCIE BARs and Address Decode Wins:
  * BAR[0] -> internal registers (needed for MSI)
@@ -170,21 +195,7 @@ static void mvebu_pcie_setup_wins(struct mvebu_pcie_port *port)
 	dram = mv_mbus_dram_info();
 
 	/* First, disable and clear BARs and windows. */
-	for (i = 1; i < 3; i++) {
-		mvebu_writel(port, 0, PCIE_BAR_CTRL_OFF(i));
-		mvebu_writel(port, 0, PCIE_BAR_LO_OFF(i));
-		mvebu_writel(port, 0, PCIE_BAR_HI_OFF(i));
-	}
-
-	for (i = 0; i < 5; i++) {
-		mvebu_writel(port, 0, PCIE_WIN04_CTRL_OFF(i));
-		mvebu_writel(port, 0, PCIE_WIN04_BASE_OFF(i));
-		mvebu_writel(port, 0, PCIE_WIN04_REMAP_OFF(i));
-	}
-
-	mvebu_writel(port, 0, PCIE_WIN5_CTRL_OFF);
-	mvebu_writel(port, 0, PCIE_WIN5_BASE_OFF);
-	mvebu_writel(port, 0, PCIE_WIN5_REMAP_OFF);
+	mvebu_pcie_disable_wins(port);
 
 	/* Setup windows for DDR banks.  Count total DDR size on the fly. */
 	size = 0;
@@ -1327,6 +1338,52 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	return pci_host_probe(bridge);
 }
 
+static int mvebu_pcie_remove(struct platform_device *pdev)
+{
+	struct mvebu_pcie *pcie = platform_get_drvdata(pdev);
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
+	u32 cmd;
+	int i;
+
+	/* Remove PCI bus with all devices. */
+	pci_lock_rescan_remove();
+	pci_stop_root_bus(bridge->bus);
+	pci_remove_root_bus(bridge->bus);
+	pci_unlock_rescan_remove();
+
+	for (i = 0; i < pcie->nports; i++) {
+		struct mvebu_pcie_port *port = &pcie->ports[i];
+
+		if (!port->base)
+			continue;
+
+		/* Disable Root Bridge I/O space, memory space and bus mastering. */
+		cmd = mvebu_readl(port, PCIE_CMD_OFF);
+		cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+		mvebu_writel(port, cmd, PCIE_CMD_OFF);
+
+		/* Mask all interrupt sources. */
+		mvebu_writel(port, 0, PCIE_MASK_OFF);
+
+		/* Free config space for emulated root bridge. */
+		pci_bridge_emul_cleanup(&port->bridge);
+
+		/* Disable and clear BARs and windows. */
+		mvebu_pcie_disable_wins(port);
+
+		/* Delete PCIe IO and MEM windows. */
+		if (port->iowin.size)
+			mvebu_pcie_del_windows(port, port->iowin.base, port->iowin.size);
+		if (port->memwin.size)
+			mvebu_pcie_del_windows(port, port->memwin.base, port->memwin.size);
+
+		/* Power down card and disable clocks. Must be the last step. */
+		mvebu_pcie_powerdown(port);
+	}
+
+	return 0;
+}
+
 static const struct of_device_id mvebu_pcie_of_match_table[] = {
 	{ .compatible = "marvell,armada-xp-pcie", },
 	{ .compatible = "marvell,armada-370-pcie", },
@@ -1343,10 +1400,14 @@ static struct platform_driver mvebu_pcie_driver = {
 	.driver = {
 		.name = "mvebu-pcie",
 		.of_match_table = mvebu_pcie_of_match_table,
-		/* driver unloading/unbinding currently not supported */
-		.suppress_bind_attrs = true,
 		.pm = &mvebu_pcie_pm_ops,
 	},
 	.probe = mvebu_pcie_probe,
+	.remove = mvebu_pcie_remove,
 };
-builtin_platform_driver(mvebu_pcie_driver);
+module_platform_driver(mvebu_pcie_driver);
+
+MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@bootlin.com>");
+MODULE_AUTHOR("Pali Rohár <pali@kernel.org>");
+MODULE_DESCRIPTION("Marvell EBU PCIe controller");
+MODULE_LICENSE("GPL v2");

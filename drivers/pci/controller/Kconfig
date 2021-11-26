@@ -4,7 +4,7 @@ menu "PCI controller drivers"
 	depends on PCI
 
 config PCI_MVEBU
-	bool "Marvell EBU PCIe controller"
+	tristate "Marvell EBU PCIe controller"
 	depends on ARCH_MVEBU || ARCH_DOVE || COMPILE_TEST
 	depends on MVEBU_MBUS
 	depends on ARM
