@@ -1394,6 +1394,14 @@ static int sata_fsl_init_controller(struct ata_host *host)
 	return 0;
 }
 
+static void sata_fsl_host_stop(struct ata_host *host)
+{
+        struct sata_fsl_host_priv *host_priv = host->private_data;
+
+        iounmap(host_priv->hcr_base);
+        kfree(host_priv);
+}
+
 /*
  * scsi mid-layer and libata interface structures
  */
@@ -1425,6 +1433,8 @@ static struct ata_port_operations sata_fsl_ops = {
 
 	.port_start = sata_fsl_port_start,
 	.port_stop = sata_fsl_port_stop,
+
+	.host_stop      = sata_fsl_host_stop,
 
 	.pmp_attach = sata_fsl_pmp_attach,
 	.pmp_detach = sata_fsl_pmp_detach,
@@ -1558,8 +1568,6 @@ static int sata_fsl_remove(struct platform_device *ofdev)
 	ata_host_detach(host);
 
 	irq_dispose_mapping(host_priv->irq);
-	iounmap(host_priv->hcr_base);
-	kfree(host_priv);
 
 	return 0;
 }
