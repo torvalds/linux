@@ -1,0 +1,37 @@
+What:		/sys/bus/vdpa/driver_autoprobe
+Date:		March 2020
+Contact:	virtualization@lists.linux-foundation.org
+Description:
+		This file determines whether new devices are immediately bound
+		to a driver after the creation. It initially contains 1, which
+		means the kernel automatically binds devices to a compatible
+		driver immediately after they are created.
+
+		Writing "0" to this file disable this feature, any other string
+		enable it.
+
+What:		/sys/bus/vdpa/driver_probe
+Date:		March 2020
+Contact:	virtualization@lists.linux-foundation.org
+Description:
+		Writing a device name to this file will cause the kernel binds
+		devices to a compatible driver.
+
+		This can be useful when /sys/bus/vdpa/driver_autoprobe is
+		disabled.
+
+What:		/sys/bus/vdpa/drivers/.../bind
+Date:		March 2020
+Contact:	virtualization@lists.linux-foundation.org
+Description:
+		Writing a device name to this file will cause the driver to
+		attempt to bind to the device. This is useful for overriding
+		default bindings.
+
+What:		/sys/bus/vdpa/drivers/.../unbind
+Date:		March 2020
+Contact:	virtualization@lists.linux-foundation.org
+Description:
+		Writing a device name to this file will cause the driver to
+		attempt to unbind from the device. This may be useful when
+		overriding default bindings.
