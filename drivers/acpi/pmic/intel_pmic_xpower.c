@@ -293,7 +293,7 @@ static int intel_xpower_exec_mipi_pmic_seq_element(struct regmap *regmap,
 	return ret;
 }
 
-static struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
+static const struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
 	.get_power = intel_xpower_pmic_get_power,
 	.update_power = intel_xpower_pmic_update_power,
 	.get_raw_temp = intel_xpower_pmic_get_raw_temp,

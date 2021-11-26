@@ -94,7 +94,7 @@ static int chtdc_ti_pmic_get_raw_temp(struct regmap *regmap, int reg)
 	return ((buf[0] & 0x03) << 8) | buf[1];
 }
 
-static struct intel_pmic_opregion_data chtdc_ti_pmic_opregion_data = {
+static const struct intel_pmic_opregion_data chtdc_ti_pmic_opregion_data = {
 	.get_power = chtdc_ti_pmic_get_power,
 	.update_power = chtdc_ti_pmic_update_power,
 	.get_raw_temp = chtdc_ti_pmic_get_raw_temp,

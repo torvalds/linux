@@ -369,7 +369,7 @@ intel_bxtwc_pmic_update_policy(struct regmap *regmap,
 	return regmap_update_bits(regmap, reg, mask, val);
 }
 
-static struct intel_pmic_opregion_data intel_bxtwc_pmic_opregion_data = {
+static const struct intel_pmic_opregion_data intel_bxtwc_pmic_opregion_data = {
 	.get_power      = intel_bxtwc_pmic_get_power,
 	.update_power   = intel_bxtwc_pmic_update_power,
 	.get_raw_temp   = intel_bxtwc_pmic_get_raw_temp,

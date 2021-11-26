@@ -25,6 +25,8 @@ struct intel_pmic_opregion_data {
 	int pmic_i2c_address;
 };
 
-int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle, struct regmap *regmap, struct intel_pmic_opregion_data *d);
+int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
+					struct regmap *regmap,
+					const struct intel_pmic_opregion_data *d);
 
 #endif

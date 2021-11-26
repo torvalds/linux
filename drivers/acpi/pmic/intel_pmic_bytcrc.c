@@ -271,7 +271,7 @@ static int intel_crc_pmic_update_policy(struct regmap *regmap,
 	return 0;
 }
 
-static struct intel_pmic_opregion_data intel_crc_pmic_opregion_data = {
+static const struct intel_pmic_opregion_data intel_crc_pmic_opregion_data = {
 	.get_power	= intel_crc_pmic_get_power,
 	.update_power	= intel_crc_pmic_update_power,
 	.get_raw_temp	= intel_crc_pmic_get_raw_temp,
