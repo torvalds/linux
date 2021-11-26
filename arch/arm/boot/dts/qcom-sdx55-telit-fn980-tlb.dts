@@ -236,6 +236,13 @@
 	status = "ok";
 };
 
+&pcie0_phy {
+	status = "okay";
+
+	vdda-phy-supply = <&vreg_l1e_bb_1p2>;
+	vdda-pll-supply = <&vreg_l4e_bb_0p875>;
+};
+
 &qpic_bam {
 	status = "ok";
 };
