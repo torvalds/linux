@@ -262,7 +262,7 @@ struct mlx5_eswitch {
 	/* Protects eswitch mode change that occurs via one or more
 	 * user commands, i.e. sriov state change, devlink commands.
 	 */
-	struct mutex mode_lock;
+	struct rw_semaphore mode_lock;
 
 	struct {
 		bool            enabled;

@@ -287,13 +287,14 @@ static u8 smcr_next_link_id(struct smc_link_group *lgr)
 	int i;
 
 	while (1) {
+again:
 		link_id = ++lgr->next_link_id;
 		if (!link_id)	/* skip zero as link_id */
 			link_id = ++lgr->next_link_id;
 		for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
 			if (smc_link_usable(&lgr->lnk[i]) &&
 			    lgr->lnk[i].link_id == link_id)
-				continue;
+				goto again;
 		}
 		break;
 	}

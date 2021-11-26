@@ -1871,8 +1871,6 @@ void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pfram
 	struct list_head	*plist, *phead;
 	struct	xmit_frame	*pxmitframe;
 
-	spin_lock_bh(&pframequeue->lock);
-
 	phead = get_list_head(pframequeue);
 	plist = get_next(phead);
 
@@ -1883,7 +1881,6 @@ void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pfram
 
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
 	}
-	spin_unlock_bh(&pframequeue->lock);
 }
 
 s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe)
@@ -1946,6 +1943,7 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	struct sta_info *psta;
 	struct tx_servq	*ptxservq;
 	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
+	struct xmit_priv *xmit_priv = &padapter->xmitpriv;
 	struct hw_xmit	*phwxmits =  padapter->xmitpriv.hwxmits;
 	sint res = _SUCCESS;
 
@@ -1974,12 +1972,14 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 
 	ptxservq = rtw_get_sta_pending(padapter, psta, pattrib->priority, (u8 *)(&ac_index));
 
+	spin_lock_bh(&xmit_priv->lock);
 	if (list_empty(&ptxservq->tx_pending))
 		list_add_tail(&ptxservq->tx_pending, get_list_head(phwxmits[ac_index].sta_queue));
 
 	list_add_tail(&pxmitframe->list, get_list_head(&ptxservq->sta_pending));
 	ptxservq->qcnt++;
 	phwxmits[ac_index].accnt++;
+	spin_unlock_bh(&xmit_priv->lock);
 
 exit:
 
@@ -2397,11 +2397,10 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 	struct list_head	*xmitframe_plist, *xmitframe_phead;
 	struct xmit_frame *pxmitframe = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	psta_bmc = rtw_get_bcmc_stainfo(padapter);
 
-	spin_lock_bh(&pxmitpriv->lock);
+	spin_lock_bh(&psta->sleep_q.lock);
 
 	xmitframe_phead = get_list_head(&psta->sleep_q);
 	xmitframe_plist = get_next(xmitframe_phead);
@@ -2509,7 +2508,7 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 
 _exit:
 
-	spin_unlock_bh(&pxmitpriv->lock);
+	spin_unlock_bh(&psta->sleep_q.lock);
 
 	if (update_mask)
 		update_beacon(padapter, _TIM_IE_, NULL, true);
@@ -2521,9 +2520,8 @@ void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *pst
 	struct list_head	*xmitframe_plist, *xmitframe_phead;
 	struct xmit_frame *pxmitframe = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	spin_lock_bh(&pxmitpriv->lock);
+	spin_lock_bh(&psta->sleep_q.lock);
 
 	xmitframe_phead = get_list_head(&psta->sleep_q);
 	xmitframe_plist = get_next(xmitframe_phead);
@@ -2579,7 +2577,7 @@ void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *pst
 		}
 	}
 
-	spin_unlock_bh(&pxmitpriv->lock);
+	spin_unlock_bh(&psta->sleep_q.lock);
 }
 
 void enqueue_pending_xmitbuf(
