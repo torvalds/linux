@@ -408,6 +408,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 			folio_wait_writeback(folio);
 			truncate_inode_folio(mapping, folio);
 			folio_unlock(folio);
+			index = folio_index(folio) + folio_nr_pages(folio) - 1;
 		}
 		truncate_exceptional_pvec_entries(mapping, &pvec, indices);
 		pagevec_release(&pvec);
