@@ -445,7 +445,7 @@ THUMB(	it	ne						)
 	@ in such cases so just carry on.
 	@
 	str	ip, [r0, #12]			@ Stash IP on the mode stack
-	ldr_l	ip, high_memory			@ Start of VMALLOC space
+	ldr_va	ip, high_memory			@ Start of VMALLOC space
 ARM(	cmp	sp, ip			)	@ SP in vmalloc space?
 THUMB(	cmp	r1, ip			)
 THUMB(	itt	lo			)

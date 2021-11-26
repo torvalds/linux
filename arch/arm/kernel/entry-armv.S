@@ -53,7 +53,7 @@ UNWIND(	.setfp	fpreg, sp		)
 	subs	r2, sp, r0		@ SP above bottom of IRQ stack?
 	rsbscs	r2, r2, #THREAD_SIZE	@ ... and below the top?
 #ifdef CONFIG_VMAP_STACK
-	ldr_l	r2, high_memory, cc	@ End of the linear region
+	ldr_va	r2, high_memory, cc	@ End of the linear region
 	cmpcc	r2, r0			@ Stack pointer was below it?
 #endif
 	movcs	sp, r0			@ If so, revert to incoming SP

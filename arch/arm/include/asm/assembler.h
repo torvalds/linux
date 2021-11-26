@@ -568,12 +568,12 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	/*
 	 * mov_l - move a constant value or [relocated] address into a register
 	 */
-	.macro		mov_l, dst:req, imm:req
+	.macro		mov_l, dst:req, imm:req, cond
 	.if		__LINUX_ARM_ARCH__ < 7
-	ldr		\dst, =\imm
+	ldr\cond	\dst, =\imm
 	.else
-	movw		\dst, #:lower16:\imm
-	movt		\dst, #:upper16:\imm
+	movw\cond	\dst, #:lower16:\imm
+	movt\cond	\dst, #:upper16:\imm
 	.endif
 	.endm
 
@@ -609,6 +609,43 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	 */
 	.macro		str_l, src:req, sym:req, tmp:req, cond
 	__adldst_l	str, \src, \sym, \tmp, \cond
+	.endm
+
+	.macro		__ldst_va, op, reg, tmp, sym, cond
+#if __LINUX_ARM_ARCH__ >= 7 || \
+    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) || \
+    (defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
+	mov_l		\tmp, \sym, \cond
+	\op\cond	\reg, [\tmp]
+#else
+	/*
+	 * Avoid a literal load, by emitting a sequence of ADD/LDR instructions
+	 * with the appropriate relocations. The combined sequence has a range
+	 * of -/+ 256 MiB, which should be sufficient for the core kernel and
+	 * for modules loaded into the module region.
+	 */
+	.globl		\sym
+	.reloc		.L0_\@, R_ARM_ALU_PC_G0_NC, \sym
+	.reloc		.L1_\@, R_ARM_ALU_PC_G1_NC, \sym
+	.reloc		.L2_\@, R_ARM_LDR_PC_G2, \sym
+.L0_\@: sub\cond	\tmp, pc, #8
+.L1_\@: sub\cond	\tmp, \tmp, #4
+.L2_\@: \op\cond	\reg, [\tmp, #0]
+#endif
+	.endm
+
+	/*
+	 * ldr_va - load a 32-bit word from the virtual address of \sym
+	 */
+	.macro		ldr_va, rd:req, sym:req, cond
+	__ldst_va	ldr, \rd, \rd, \sym, \cond
+	.endm
+
+	/*
+	 * str_va - store a 32-bit word to the virtual address of \sym
+	 */
+	.macro		str_va, rn:req, sym:req, tmp:req, cond
+	__ldst_va	str, \rn, \tmp, \sym, \cond
 	.endm
 
 	/*
