@@ -61,33 +61,45 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  * @name: name of this ldisc rendered in /proc/tty/ldiscs
  * @num: ``N_*`` number (%N_TTY, %N_HDLC, ...) reserved to this ldisc
  *
- * @open: ``int ()(struct tty_struct *tty)``
+ * @open: [TTY] ``int ()(struct tty_struct *tty)``
  *
  *	This function is called when the line discipline is associated with the
- *	@tty. The line discipline can use this as an opportunity to initialize
- *	any state needed by the ldisc routines.
+ *	@tty. No other call into the line discipline for this tty will occur
+ *	until it completes successfully. It should initialize any state needed
+ *	by the ldisc, and set @tty->receive_room to the maximum amount of data
+ *	the line discipline is willing to accept from the driver with a single
+ *	call to @receive_buf(). Returning an error will prevent the ldisc from
+ *	being attached.
  *
- * @close: ``void ()(struct tty_struct *tty)``
+ *	Can sleep.
+ *
+ * @close: [TTY] ``void ()(struct tty_struct *tty)``
  *
  *	This function is called when the line discipline is being shutdown,
  *	either because the @tty is being closed or because the @tty is being
- *	changed to use a new line discipline
+ *	changed to use a new line discipline. At the point of execution no
+ *	further users will enter the ldisc code for this tty.
  *
- * @flush_buffer: ``void ()(struct tty_struct *tty)``
+ *	Can sleep.
+ *
+ * @flush_buffer: [TTY] ``void ()(struct tty_struct *tty)``
  *
  *	This function instructs the line discipline to clear its buffers of any
  *	input characters it may have queued to be delivered to the user mode
- *	process.
+ *	process. It may be called at any point between open and close.
  *
- * @read: ``ssize_t ()(struct tty_struct *tty, struct file *file,
+ * @read: [TTY] ``ssize_t ()(struct tty_struct *tty, struct file *file,
  *		unsigned char *buf, size_t nr)``
  *
  *	This function is called when the user requests to read from the @tty.
  *	The line discipline will return whatever characters it has buffered up
  *	for the user. If this function is not defined, the user will receive
- *	an %EIO error.
+ *	an %EIO error. Multiple read calls may occur in parallel and the ldisc
+ *	must deal with serialization issues.
  *
- * @write: ``ssize_t ()(struct tty_struct *tty, struct file *file,
+ *	Can sleep.
+ *
+ * @write: [TTY] ``ssize_t ()(struct tty_struct *tty, struct file *file,
  *		const unsigned char *buf, size_t nr)``
  *
  *	This function is called when the user requests to write to the @tty.
@@ -96,7 +108,9 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	characters first. If this function is not defined, the user will
  *	receive an %EIO error.
  *
- * @ioctl: ``int ()(struct tty_struct *tty, unsigned int cmd,
+ *	Can sleep.
+ *
+ * @ioctl: [TTY] ``int ()(struct tty_struct *tty, unsigned int cmd,
  *		unsigned long arg)``
  *
  *	This function is called when the user requests an ioctl which is not
@@ -106,7 +120,7 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	discpline. So a low-level driver can "grab" an ioctl request before
  *	the line discpline has a chance to see it.
  *
- * @compat_ioctl: ``int ()(struct tty_struct *tty, unsigned int cmd,
+ * @compat_ioctl: [TTY] ``int ()(struct tty_struct *tty, unsigned int cmd,
  *		unsigned long arg)``
  *
  *	Process ioctl calls from 32-bit process on 64-bit system.
@@ -116,27 +130,29 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	a pointer to wordsize-sensitive structure belongs here, but most of
  *	ldiscs will happily leave it %NULL.
  *
- * @set_termios: ``void ()(struct tty_struct *tty, struct ktermios *old)``
+ * @set_termios: [TTY] ``void ()(struct tty_struct *tty, struct ktermios *old)``
  *
  *	This function notifies the line discpline that a change has been made
  *	to the termios structure.
  *
- * @poll: ``int ()(struct tty_struct *tty, struct file *file,
+ * @poll: [TTY] ``int ()(struct tty_struct *tty, struct file *file,
  *		  struct poll_table_struct *wait)``
  *
  *	This function is called when a user attempts to select/poll on a @tty
  *	device. It is solely the responsibility of the line discipline to
  *	handle poll requests.
  *
- * @hangup: ``void ()(struct tty_struct *tty)``
+ * @hangup: [TTY] ``void ()(struct tty_struct *tty)``
  *
  *	Called on a hangup. Tells the discipline that it should cease I/O to
- *	the tty driver. Can sleep. The driver should seek to perform this
- *	action quickly but should wait until any pending driver I/O is
- *	completed.
+ *	the tty driver. The driver should seek to perform this action quickly
+ *	but should wait until any pending driver I/O is completed. No further
+ *	calls into the ldisc code will occur.
  *
- * @receive_buf: ``void ()(struct tty_struct *tty, const unsigned char *cp,
- *		       const char *fp, int count)``
+ *	Can sleep.
+ *
+ * @receive_buf: [DRV] ``void ()(struct tty_struct *tty,
+ *		       const unsigned char *cp, const char *fp, int count)``
  *
  *	This function is called by the low-level tty driver to send characters
  *	received by the hardware to the line discpline for processing. @cp is
@@ -145,7 +161,7 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	character was received with a parity error, etc. @fp may be %NULL to
  *	indicate all data received is %TTY_NORMAL.
  *
- * @write_wakeup: ``void ()(struct tty_struct *tty)``
+ * @write_wakeup: [DRV] ``void ()(struct tty_struct *tty)``
  *
  *	This function is called by the low-level tty driver to signal that line
  *	discpline should try to send more characters to the low-level driver
@@ -154,13 +170,13 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	send, please arise a tasklet or workqueue to do the real data transfer.
  *	Do not send data in this hook, it may lead to a deadlock.
  *
- * @dcd_change: ``void ()(struct tty_struct *tty, unsigned int status)``
+ * @dcd_change: [DRV] ``void ()(struct tty_struct *tty, unsigned int status)``
  *
  *	Tells the discipline that the DCD pin has changed its status. Used
  *	exclusively by the %N_PPS (Pulse-Per-Second) line discipline.
  *
- * @receive_buf2: ``int ()(struct tty_struct *tty, const unsigned char *cp,
- *			const char *fp, int count)``
+ * @receive_buf2: [DRV] ``int ()(struct tty_struct *tty,
+ *			const unsigned char *cp, const char *fp, int count)``
  *
  *	This function is called by the low-level tty driver to send characters
  *	received by the hardware to the line discpline for processing. @cp is a
@@ -176,6 +192,9 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  * implementation and the tty routines. The above routines can be defined.
  * Unless noted otherwise, they are optional, and can be filled in with a %NULL
  * pointer.
+ *
+ * Hooks marked [TTY] are invoked from the TTY core, the [DRV] ones from the
+ * tty_driver side.
  */
 struct tty_ldisc_ops {
 	char	*name;
