@@ -59,6 +59,15 @@ const struct tty_port_client_operations tty_port_default_client_ops = {
 };
 EXPORT_SYMBOL_GPL(tty_port_default_client_ops);
 
+/**
+ * tty_port_init -- initialize tty_port
+ * @port: tty_port to initialize
+ *
+ * Initializes the state of struct tty_port. When a port was initialized using
+ * this function, one has to destroy the port by tty_port_destroy(). Either
+ * indirectly by using &tty_port refcounting (tty_port_put()) or directly if
+ * refcounting is not used.
+ */
 void tty_port_init(struct tty_port *port)
 {
 	memset(port, 0, sizeof(*port));
@@ -267,6 +276,13 @@ static void tty_port_destructor(struct kref *kref)
 		kfree(port);
 }
 
+/**
+ * tty_port_put -- drop a reference to tty_port
+ * @port: port to drop a reference of (can be NULL)
+ *
+ * The final put will destroy and free up the @port using
+ * @port->ops->destruct() hook, or using kfree() if not provided.
+ */
 void tty_port_put(struct tty_port *port)
 {
 	if (port)
@@ -312,6 +328,16 @@ void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
 }
 EXPORT_SYMBOL(tty_port_tty_set);
 
+/**
+ * tty_port_shutdown - internal helper to shutdown the device
+ * @port: tty port to be shut down
+ * @tty: the associated tty
+ *
+ * It is used by tty_port_hangup() and tty_port_close(). Its task is to
+ * shutdown the device if it was initialized (note consoles remain
+ * functioning). It lowers DTR/RTS (if @tty has HUPCL set) and invokes
+ * @port->ops->shutdown().
+ */
 static void tty_port_shutdown(struct tty_port *port, struct tty_struct *tty)
 {
 	mutex_lock(&port->mutex);
@@ -559,7 +585,21 @@ static void tty_port_drain_delay(struct tty_port *port, struct tty_struct *tty)
 	schedule_timeout_interruptible(timeout);
 }
 
-/* Caller holds tty lock. */
+/**
+ * tty_port_close_start - helper for tty->ops->close, part 1/2
+ * @port: tty_port of the device
+ * @tty: tty being closed
+ * @filp: passed file pointer
+ *
+ * Decrements and checks open count. Flushes the port if this is the last
+ * close. That means, dropping the data from the outpu buffer on the device and
+ * waiting for sending logic to finish. The rest of close handling is performed
+ * in tty_port_close_end().
+ *
+ * Locking: Caller holds tty lock.
+ *
+ * Return: 1 if this is the last close, otherwise 0
+ */
 int tty_port_close_start(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp)
 {
@@ -605,7 +645,17 @@ int tty_port_close_start(struct tty_port *port,
 }
 EXPORT_SYMBOL(tty_port_close_start);
 
-/* Caller holds tty lock */
+/**
+ * tty_port_close_end - helper for tty->ops->close, part 2/2
+ * @port: tty_port of the device
+ * @tty: tty being closed
+ *
+ * This is a continuation of the first part: tty_port_close_start(). This
+ * should be called after turning off the device. It flushes the data from the
+ * line discipline and delays the close by @port->close_delay.
+ *
+ * Locking: Caller holds tty lock.
+ */
 void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 {
 	unsigned long flags;
