@@ -1096,7 +1096,7 @@ struct amdgpu_device {
 	pci_channel_state_t		pci_channel_state;
 
 	struct amdgpu_reset_control     *reset_cntl;
-	uint32_t                        ip_versions[HW_ID_MAX][HWIP_MAX_INSTANCE];
+	uint32_t                        ip_versions[MAX_HWIP][HWIP_MAX_INSTANCE];
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
