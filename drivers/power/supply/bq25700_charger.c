@@ -1280,7 +1280,7 @@ static int bq2570x_pd_notifier_call(struct notifier_block *nb,
 						&prop);
 		if (ret != 0)
 			return NOTIFY_OK;
-		vol_idx = bq25700_find_idx((prop.intval - 1280), TBL_INPUTVOL);
+		vol_idx = bq25700_find_idx((prop.intval - 1280000 - 3200000), TBL_INPUTVOL);
 		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW,
 						&prop);
 		if (ret != 0)
@@ -1402,7 +1402,7 @@ static void bq25700_pd_connect(struct bq25700_device *charger,
 				msleep(1000);
 				i++;
 			}
-			vol_idx = bq25700_find_idx((vol - 1280) * 1000,
+			vol_idx = bq25700_find_idx((vol - 1280 - 3200) * 1000,
 						   TBL_INPUTVOL);
 			cur_idx = bq25700_find_idx(cur * 1000, TBL_INPUTCUR);
 			bq25700_field_write(charger, INPUT_VOLTAGE, vol_idx);
@@ -1894,7 +1894,7 @@ static int bq25700_register_pd_nb(struct bq25700_device *charger)
 			return ret;
 
 		cur_idx = bq25700_find_idx(prop.intval, TBL_INPUTCUR);
-		vol_idx = bq25700_find_idx((prop.intval - 1280), TBL_INPUTVOL);
+		vol_idx = bq25700_find_idx((prop.intval - 1280000 - 3200000), TBL_INPUTVOL);
 		bq25700_field_write(charger, INPUT_CURRENT, cur_idx);
 		bq25700_field_write(charger, INPUT_VOLTAGE, vol_idx);
 		bq25700_field_write(charger, CHARGE_CURRENT,
