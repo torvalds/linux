@@ -3028,9 +3028,10 @@
 		bus-range = <0x30 0x3f>;
 		clocks = <&cru ACLK_PCIE_1L1_MSTR>, <&cru ACLK_PCIE_1L1_SLV>,
 			 <&cru ACLK_PCIE_1L1_DBI>, <&cru PCLK_PCIE_1L1>,
-			 <&cru CLK_PCIE_AUX3>;
+			 <&cru CLK_PCIE_AUX3>, <&cru CLK_PCIE1L1_PIPE>;
 		clock-names = "aclk_mst", "aclk_slv",
-			      "aclk_dbi", "pclk", "aux";
+			      "aclk_dbi", "pclk",
+			      "aux", "pipe";
 		device_type = "pci";
 		interrupts = <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>,
@@ -3080,9 +3081,10 @@
 		bus-range = <0x40 0x4f>;
 		clocks = <&cru ACLK_PCIE_1L2_MSTR>, <&cru ACLK_PCIE_1L2_SLV>,
 			 <&cru ACLK_PCIE_1L2_DBI>, <&cru PCLK_PCIE_1L2>,
-			 <&cru CLK_PCIE_AUX4>;
+			 <&cru CLK_PCIE_AUX4>, <&cru CLK_PCIE1L2_PIPE>;
 		clock-names = "aclk_mst", "aclk_slv",
-			      "aclk_dbi", "pclk", "aux";
+			      "aclk_dbi", "pclk",
+			      "aux", "pipe";
 		device_type = "pci";
 		interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>,
