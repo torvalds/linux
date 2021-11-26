@@ -95,7 +95,7 @@ static int pmic_read_temp(struct intel_pmic_opregion *opregion,
 		return 0;
 	}
 
-	temp = acpi_lpat_raw_to_temp(opregion->lpat_table, raw_temp);
+	temp = opregion->data->lpat_raw_to_temp(opregion->lpat_table, raw_temp);
 	if (temp < 0)
 		return temp;
 

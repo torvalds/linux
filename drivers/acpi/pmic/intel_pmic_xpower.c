@@ -298,6 +298,7 @@ static const struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
 	.update_power = intel_xpower_pmic_update_power,
 	.get_raw_temp = intel_xpower_pmic_get_raw_temp,
 	.exec_mipi_pmic_seq_element = intel_xpower_exec_mipi_pmic_seq_element,
+	.lpat_raw_to_temp = acpi_lpat_raw_to_temp,
 	.power_table = power_table,
 	.power_table_count = ARRAY_SIZE(power_table),
 	.thermal_table = thermal_table,

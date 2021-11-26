@@ -98,6 +98,7 @@ static const struct intel_pmic_opregion_data chtdc_ti_pmic_opregion_data = {
 	.get_power = chtdc_ti_pmic_get_power,
 	.update_power = chtdc_ti_pmic_update_power,
 	.get_raw_temp = chtdc_ti_pmic_get_raw_temp,
+	.lpat_raw_to_temp = acpi_lpat_raw_to_temp,
 	.power_table = chtdc_ti_power_table,
 	.power_table_count = ARRAY_SIZE(chtdc_ti_power_table),
 	.thermal_table = chtdc_ti_thermal_table,
