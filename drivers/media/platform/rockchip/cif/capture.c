@@ -3092,36 +3092,33 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
 			pm_runtime_put_sync(dev->dev);
 		}
-
-		if (stream->cur_stream_mode == 0) {
-			if (dev->hdr.hdr_mode == HDR_X2) {
-				if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
-				    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY) {
-					dev->can_be_reset = true;
-				}
-			} else if (dev->hdr.hdr_mode == HDR_X3) {
-				if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
-				    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY &&
-				    dev->stream[RKCIF_STREAM_MIPI_ID2].state == RKCIF_STATE_READY) {
-					dev->can_be_reset = true;
-				}
-			} else {
+		if (dev->hdr.hdr_mode == HDR_X2) {
+			if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
+			    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY) {
 				dev->can_be_reset = true;
 			}
+		} else if (dev->hdr.hdr_mode == HDR_X3) {
+			if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
+			    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY &&
+			    dev->stream[RKCIF_STREAM_MIPI_ID2].state == RKCIF_STATE_READY) {
+				dev->can_be_reset = true;
+			}
+		} else {
+			dev->can_be_reset = true;
+		}
 
-			for (i = 0; i < hw_dev->dev_num; i++) {
-				if (atomic_read(&hw_dev->cif_dev[i]->pipe.stream_cnt) != 0) {
-					can_reset = false;
-					break;
-				}
+		for (i = 0; i < hw_dev->dev_num; i++) {
+			if (atomic_read(&hw_dev->cif_dev[i]->pipe.stream_cnt) != 0) {
+				can_reset = false;
+				break;
 			}
-			if (dev->can_be_reset && dev->chip_id >= CHIP_RK3588_CIF)
-				rkcif_do_soft_reset(dev);
-			if (dev->can_be_reset && can_reset) {
-				rkcif_do_cru_reset(dev);
-				dev->can_be_reset = false;
-				dev->reset_work_cancel = true;
-			}
+		}
+		if (dev->can_be_reset && dev->chip_id >= CHIP_RK3588_CIF)
+			rkcif_do_soft_reset(dev);
+		if (dev->can_be_reset && can_reset) {
+			rkcif_do_cru_reset(dev);
+			dev->can_be_reset = false;
+			dev->reset_work_cancel = true;
 		}
 	}
 	if (!atomic_read(&dev->pipe.stream_cnt) && dev->dummy_buf.vaddr)
@@ -7103,7 +7100,8 @@ void rkcif_irq_handle_toisp(struct rkcif_device *cif_dev, unsigned int intstat_g
 		} else if (priv->toisp_inf.link_mode == TOISP1 &&
 			   i == 1) {
 			to_check = true;
-		} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
+		} else if (priv->toisp_inf.link_mode == TOISP_UNITE &&
+			   i == 1) {
 			to_check = true;
 		}
 		if (to_check)

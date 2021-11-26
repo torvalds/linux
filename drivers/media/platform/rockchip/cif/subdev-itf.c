@@ -426,12 +426,12 @@ static int sditf_stop_stream(struct sditf_priv *priv)
 	if (priv->hdr_cfg.hdr_mode == NO_HDR) {
 		rkcif_do_stop_stream(&cif_dev->stream[0], RKCIF_STREAM_MODE_TOISP);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
-		rkcif_do_stop_stream(&cif_dev->stream[1], RKCIF_STREAM_MODE_TOISP);
 		rkcif_do_stop_stream(&cif_dev->stream[0], RKCIF_STREAM_MODE_TOISP);
+		rkcif_do_stop_stream(&cif_dev->stream[1], RKCIF_STREAM_MODE_TOISP);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
-		rkcif_do_stop_stream(&cif_dev->stream[2], RKCIF_STREAM_MODE_TOISP);
-		rkcif_do_stop_stream(&cif_dev->stream[1], RKCIF_STREAM_MODE_TOISP);
 		rkcif_do_stop_stream(&cif_dev->stream[0], RKCIF_STREAM_MODE_TOISP);
+		rkcif_do_stop_stream(&cif_dev->stream[1], RKCIF_STREAM_MODE_TOISP);
+		rkcif_do_stop_stream(&cif_dev->stream[2], RKCIF_STREAM_MODE_TOISP);
 	}
 	return 0;
 }
