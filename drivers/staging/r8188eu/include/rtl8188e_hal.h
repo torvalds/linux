@@ -331,6 +331,5 @@ void rtl8188e_read_chip_version(struct adapter *padapter);
 
 s32 rtl8188e_iol_efuse_patch(struct adapter *padapter);
 void rtw_cancel_all_timer(struct adapter *padapter);
-void _ps_open_RF(struct adapter *adapt);
 
 #endif /* __RTL8188E_HAL_H__ */
