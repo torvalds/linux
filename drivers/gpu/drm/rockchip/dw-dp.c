@@ -544,8 +544,7 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 
 	dw_dp_link_reset(link);
 
-	ret = drm_dp_dpcd_read(&dp->aux, DP_DPCD_REV, link->dpcd,
-			       sizeof(link->dpcd));
+	ret = drm_dp_read_dpcd_caps(&dp->aux, link->dpcd);
 	if (ret < 0)
 		return ret;
 
@@ -560,6 +559,7 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 
 	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(link->dpcd);
 	link->caps.tps3_supported = drm_dp_tps3_supported(link->dpcd);
+	link->caps.tps4_supported = drm_dp_tps4_supported(link->dpcd);
 	link->caps.fast_training = drm_dp_fast_training_cap(link->dpcd);
 	link->caps.channel_coding = drm_dp_channel_coding_supported(link->dpcd);
 	link->caps.ssc = !!(link->dpcd[DP_MAX_DOWNSPREAD] & DP_MAX_DOWNSPREAD_0_5);
