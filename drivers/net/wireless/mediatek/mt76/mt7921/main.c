@@ -178,7 +178,7 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 			if (vht_cap->cap & IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN)
 				cap |= IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
 
-			data->he_6ghz_capa.capa = cpu_to_le16(cap);
+			data[idx].he_6ghz_capa.capa = cpu_to_le16(cap);
 		}
 		idx++;
 	}
