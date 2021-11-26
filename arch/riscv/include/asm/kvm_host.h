@@ -218,6 +218,7 @@ void kvm_riscv_stage2_free_pgd(struct kvm *kvm);
 void kvm_riscv_stage2_update_hgatp(struct kvm_vcpu *vcpu);
 void kvm_riscv_stage2_mode_detect(void);
 unsigned long kvm_riscv_stage2_mode(void);
+int kvm_riscv_stage2_gpa_bits(void);
 
 void kvm_riscv_stage2_vmid_detect(void);
 unsigned long kvm_riscv_stage2_vmid_bits(void);

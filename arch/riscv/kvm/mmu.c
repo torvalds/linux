@@ -769,3 +769,8 @@ unsigned long kvm_riscv_stage2_mode(void)
 {
 	return stage2_mode >> HGATP_MODE_SHIFT;
 }
+
+int kvm_riscv_stage2_gpa_bits(void)
+{
+	return stage2_gpa_bits;
+}
