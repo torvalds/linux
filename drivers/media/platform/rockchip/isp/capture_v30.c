@@ -109,6 +109,13 @@ struct stream_config rkisp_bp_stream_config = {
 	},
 };
 
+static bool is_fbc_stream_stopped(void __iomem *base)
+{
+	u32 ret = readl(base + ISP3X_MPFBC_CTRL);
+
+	return !(ret & ISP3X_MPFBC_EN_SHD);
+}
+
 static int get_stream_irq_mask(struct rkisp_stream *stream)
 {
 	int ret;
@@ -669,7 +676,7 @@ static struct streams_ops rkisp_fbc_streams_ops = {
 	.config_mi = fbc_config_mi,
 	.enable_mi = fbc_enable_mi,
 	.disable_mi = fbc_disable_mi,
-	.is_stream_stopped = is_mpfbc_stopped,
+	.is_stream_stopped = is_fbc_stream_stopped,
 	.update_mi = update_mi,
 	.frame_end = mi_frame_end,
 };
