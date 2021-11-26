@@ -702,6 +702,7 @@ static int cachefiles_daemon_bind(struct cachefiles_cache *cache, char *args)
 
 	pr_warn("Cache is disabled for development\n");
 	return -ENOANO; // Don't allow the cache to operate yet
+	//return cachefiles_add_cache(cache);
 }
 
 /*
@@ -711,10 +712,11 @@ static void cachefiles_daemon_unbind(struct cachefiles_cache *cache)
 {
 	_enter("");
 
-	if (test_bit(CACHEFILES_READY, &cache->flags)) {
-		// PLACEHOLDER: Withdraw cache
-	}
+	if (test_bit(CACHEFILES_READY, &cache->flags))
+		cachefiles_withdraw_cache(cache);
 
+	cachefiles_put_directory(cache->graveyard);
+	cachefiles_put_directory(cache->store);
 	mntput(cache->mnt);
 
 	kfree(cache->rootdirname);

@@ -6,6 +6,7 @@
 cachefiles-y := \
 	cache.o \
 	daemon.o \
+	interface.o \
 	main.o \
 	namei.o \
 	security.o

@@ -32,6 +32,8 @@ struct cachefiles_object {
 struct cachefiles_cache {
 	struct fscache_cache		*cache;		/* Cache cookie */
 	struct vfsmount			*mnt;		/* mountpoint holding the cache */
+	struct dentry			*store;		/* Directory into which live objects go */
+	struct dentry			*graveyard;	/* directory into which dead objects go */
 	struct file			*cachefilesd;	/* manager daemon handle */
 	const struct cred		*cache_cred;	/* security override for accessing cache */
 	struct mutex			daemon_mutex;	/* command serialisation mutex */
@@ -78,8 +80,10 @@ static inline void cachefiles_state_changed(struct cachefiles_cache *cache)
 /*
  * cache.c
  */
+extern int cachefiles_add_cache(struct cachefiles_cache *cache);
 extern int cachefiles_has_space(struct cachefiles_cache *cache,
 				unsigned fnr, unsigned bnr);
+extern void cachefiles_withdraw_cache(struct cachefiles_cache *cache);
 
 /*
  * daemon.c
@@ -124,6 +128,11 @@ static inline int cachefiles_inject_remove_error(void)
 {
 	return cachefiles_error_injection_state & 2 ? -EIO : 0;
 }
+
+/*
+ * interface.c
+ */
+extern const struct fscache_cache_ops cachefiles_cache_ops;
 
 /*
  * namei.c
