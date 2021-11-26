@@ -177,21 +177,21 @@ void do_invalidatepage(struct page *page, unsigned int offset,
  * its lock, b) when a concurrent invalidate_mapping_pages got there first and
  * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
  */
-static void truncate_cleanup_page(struct page *page)
+static void truncate_cleanup_folio(struct folio *folio)
 {
-	if (page_mapped(page))
-		unmap_mapping_page(page);
+	if (folio_mapped(folio))
+		unmap_mapping_page(&folio->page);
 
-	if (page_has_private(page))
-		do_invalidatepage(page, 0, thp_size(page));
+	if (folio_has_private(folio))
+		do_invalidatepage(&folio->page, 0, folio_size(folio));
 
 	/*
 	 * Some filesystems seem to re-dirty the page even after
 	 * the VM has canceled the dirty bit (eg ext3 journaling).
 	 * Hence dirty accounting check is placed after invalidation.
 	 */
-	cancel_dirty_page(page);
-	ClearPageMappedToDisk(page);
+	folio_cancel_dirty(folio);
+	folio_clear_mappedtodisk(folio);
 }
 
 /*
@@ -220,13 +220,14 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 
 int truncate_inode_page(struct address_space *mapping, struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	VM_BUG_ON_PAGE(PageTail(page), page);
 
 	if (page->mapping != mapping)
 		return -EIO;
 
-	truncate_cleanup_page(page);
-	delete_from_page_cache(page);
+	truncate_cleanup_folio(folio);
+	filemap_remove_folio(folio);
 	return 0;
 }
 
@@ -332,7 +333,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 		index = indices[pagevec_count(&pvec) - 1] + 1;
 		truncate_exceptional_pvec_entries(mapping, &pvec, indices);
 		for (i = 0; i < pagevec_count(&pvec); i++)
-			truncate_cleanup_page(pvec.pages[i]);
+			truncate_cleanup_folio(page_folio(pvec.pages[i]));
 		delete_from_page_cache_batch(mapping, &pvec);
 		for (i = 0; i < pagevec_count(&pvec); i++)
 			unlock_page(pvec.pages[i]);
