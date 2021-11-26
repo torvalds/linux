@@ -957,6 +957,15 @@
 				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
+			bmc_dev: bmc_dev@1e7e0000 {
+				compatible = "aspeed,ast2600-bmc-device";
+				reg = <0x1e7e0000 0xB000>;
+				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+				aspeed,scu = <&syscon>;
+				pcie2lpc;
+				status = "disabled";
+			};
+
 		};
 	};
 };

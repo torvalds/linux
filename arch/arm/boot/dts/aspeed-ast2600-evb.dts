@@ -28,6 +28,13 @@
 		#size-cells = <1>;
 		ranges;
 
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
 		pci_msi_memory: pci_msi_memory {
 			no-map;
 			reg = <0x9e770000 0x100>;
@@ -354,6 +361,11 @@
 	vmmc-supply = <&vcc_sdhci1>;
 	vqmmc-supply = <&vccq_sdhci1>;
 	clk-phase-sd-hs = <7>, <200>;
+};
+
+&bmc_dev {
+	status = "okay";
+	memory-region = <&bmc_dev_memory>;
 };
 
 &pcie {
