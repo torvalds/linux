@@ -4915,7 +4915,9 @@ static int mvneta_setup_mqprio(struct net_device *dev,
 	u8 num_tc;
 	int i;
 
-	mqprio->qopt.hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	if (mqprio->qopt.hw != TC_MQPRIO_HW_OFFLOAD_TCS)
+		return 0;
+
 	num_tc = mqprio->qopt.num_tc;
 
 	if (num_tc > rxq_number)
