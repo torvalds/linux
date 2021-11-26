@@ -1608,6 +1608,14 @@
   __irq_domain_add
   irq_domain_xlate_onecell
 
+# required by kfifo_buf.ko
+  iio_buffer_init
+  iio_buffer_put
+  __kfifo_alloc
+  __kfifo_free
+  __kfifo_in
+  __kfifo_to_user
+
 # required by leds-gpio.ko
   device_get_child_node_count
   device_get_next_child_node
@@ -2182,6 +2190,18 @@
   spi_setup
   spi_sync
   stream_open
+
+# required by st_lsm6dsx.ko
+  devm_iio_device_alloc
+  __devm_iio_device_register
+  iio_device_attach_buffer
+  iio_device_claim_direct_mode
+  iio_device_release_direct_mode
+  iio_get_time_ns
+  iio_push_event
+  iio_push_to_buffers
+  iio_read_mount_matrix
+  iio_show_mount_matrix
 
 # required by st_lsm6dsx_i3c.ko
   i3c_device_match_id
