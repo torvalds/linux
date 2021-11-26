@@ -47,15 +47,17 @@ struct serial_struct;
  *	routine is mandatory; if this routine is not filled in, the attempted
  *	open will fail with %ENODEV.
  *
- *	Required method. Called with tty lock held.
+ *	Required method. Called with tty lock held. May sleep.
  *
  * @close: ``void ()(struct tty_struct *tty, struct file *)``
  *
- *	This routine is called when a particular @tty device is closed.
+ *	This routine is called when a particular @tty device is closed. At the
+ *	point of return from this call the driver must make no further ldisc
+ *	calls of any kind.
  *
  *	Remark: called even if the corresponding @open() failed.
  *
- *	Required method. Called with tty lock held.
+ *	Required method. Called with tty lock held. May sleep.
  *
  * @shutdown: ``void ()(struct tty_struct *tty)``
  *
@@ -77,7 +79,10 @@ struct serial_struct;
  *	user space or kernel space.  This routine will return the
  *	number of characters actually accepted for writing.
  *
- *	Optional: Required for writable devices.
+ *	May occur in parallel in special cases. Because this includes panic
+ *	paths drivers generally shouldn't try and do clever locking here.
+ *
+ *	Optional: Required for writable devices. May not sleep.
  *
  * @put_char: ``int ()(struct tty_struct *tty, unsigned char ch)``
  *
@@ -104,6 +109,9 @@ struct serial_struct;
  *	will accept for queuing to be written.  This number is subject
  *	to change as output buffers get emptied, or if the output flow
  *	control is acted.
+ *
+ *	The ldisc is responsible for being intelligent about multi-threading of
+ *	write_room/write calls
  *
  *	Required if @write method is provided else not needed. Do not call this
  *	function directly, call tty_write_room()
@@ -136,14 +144,21 @@ struct serial_struct;
  * @set_termios: ``void ()(struct tty_struct *tty, struct ktermios *old)``
  *
  *	This routine allows the @tty driver to be notified when device's
- *	termios settings have changed.
+ *	termios settings have changed. New settings are in @tty->termios.
+ *	Previous settings are passed in the @old argument.
  *
- *	Optional: Called under the @tty->termios_rwsem.
+ *	The API is defined such that the driver should return the actual modes
+ *	selected. This means that the driver is responsible for modifying any
+ *	bits in @tty->termios it cannot fulfill to indicate the actual modes
+ *	being used.
+ *
+ *	Optional. Called under the @tty->termios_rwsem. May sleep.
  *
  * @set_ldisc: ``void ()(struct tty_struct *tty)``
  *
  *	This routine allows the @tty driver to be notified when the device's
- *	line discipline is being changed.
+ *	line discipline is being changed. At the point this is done the
+ *	discipline is not yet usable.
  *
  *	Optional. Called under the @tty->ldisc_sem and @tty->termios_rwsem.
  *
@@ -152,6 +167,9 @@ struct serial_struct;
  *	This routine notifies the @tty driver that input buffers for the line
  *	discipline are close to full, and it should somehow signal that no more
  *	characters should be sent to the @tty.
+ *
+ *	Serialization including with @unthrottle() is the job of the ldisc
+ *	layer.
  *
  *	Optional: Always invoke via tty_throttle_safe(). Called under the
  *	@tty->termios_rwsem.
@@ -204,7 +222,7 @@ struct serial_struct;
  *	hardware is expected to do the delay work itself. 0 and -1 are still
  *	used for on/off.
  *
- *	Optional: Required for %TCSBRK/%BRKP/etc. handling.
+ *	Optional: Required for %TCSBRK/%BRKP/etc. handling. May sleep.
  *
  * @flush_buffer: ``void ()(struct tty_struct *tty)``
  *
@@ -222,7 +240,7 @@ struct serial_struct;
  *	reached.
  *
  *	Optional: If not provided, the device is assumed to have no FIFO.
- *	Usually correct to invoke via tty_wait_until_sent().
+ *	Usually correct to invoke via tty_wait_until_sent(). May sleep.
  *
  * @send_xchar: ``void ()(struct tty_struct *tty, char ch)``
  *
