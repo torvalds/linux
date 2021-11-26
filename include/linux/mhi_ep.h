@@ -1,0 +1,136 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2022, Linaro Ltd.
+ *
+ */
+#ifndef _MHI_EP_H_
+#define _MHI_EP_H_
+
+#include <linux/dma-direction.h>
+#include <linux/mhi.h>
+
+#define MHI_EP_DEFAULT_MTU 0x8000
+
+/**
+ * struct mhi_ep_channel_config - Channel configuration structure for controller
+ * @name: The name of this channel
+ * @num: The number assigned to this channel
+ * @num_elements: The number of elements that can be queued to this channel
+ * @dir: Direction that data may flow on this channel
+ */
+struct mhi_ep_channel_config {
+	char *name;
+	u32 num;
+	u32 num_elements;
+	enum dma_data_direction dir;
+};
+
+/**
+ * struct mhi_ep_cntrl_config - MHI Endpoint controller configuration
+ * @mhi_version: MHI spec version supported by the controller
+ * @max_channels: Maximum number of channels supported
+ * @num_channels: Number of channels defined in @ch_cfg
+ * @ch_cfg: Array of defined channels
+ */
+struct mhi_ep_cntrl_config {
+	u32 mhi_version;
+	u32 max_channels;
+	u32 num_channels;
+	const struct mhi_ep_channel_config *ch_cfg;
+};
+
+/**
+ * struct mhi_ep_db_info - MHI Endpoint doorbell info
+ * @mask: Mask of the doorbell interrupt
+ * @status: Status of the doorbell interrupt
+ */
+struct mhi_ep_db_info {
+	u32 mask;
+	u32 status;
+};
+
+/**
+ * struct mhi_ep_cntrl - MHI Endpoint controller structure
+ * @cntrl_dev: Pointer to the struct device of physical bus acting as the MHI
+ *             Endpoint controller
+ * @mhi_dev: MHI Endpoint device instance for the controller
+ * @mmio: MMIO region containing the MHI registers
+ * @mhi_chan: Points to the channel configuration table
+ * @mhi_event: Points to the event ring configurations table
+ * @mhi_cmd: Points to the command ring configurations table
+ * @sm: MHI Endpoint state machine
+ * @raise_irq: CB function for raising IRQ to the host
+ * @alloc_map: CB function for allocating memory in endpoint for storing host context and mapping it
+ * @unmap_free: CB function to unmap and free the allocated memory in endpoint for storing host context
+ * @read_from_host: CB function for reading from host memory from endpoint
+ * @write_to_host: CB function for writing to host memory from endpoint
+ * @mhi_state: MHI Endpoint state
+ * @max_chan: Maximum channels supported by the endpoint controller
+ * @mru: MRU (Maximum Receive Unit) value of the endpoint controller
+ * @index: MHI Endpoint controller index
+ */
+struct mhi_ep_cntrl {
+	struct device *cntrl_dev;
+	struct mhi_ep_device *mhi_dev;
+	void __iomem *mmio;
+
+	struct mhi_ep_chan *mhi_chan;
+	struct mhi_ep_event *mhi_event;
+	struct mhi_ep_cmd *mhi_cmd;
+	struct mhi_ep_sm *sm;
+
+	void (*raise_irq)(struct mhi_ep_cntrl *mhi_cntrl, u32 vector);
+	int (*alloc_map)(struct mhi_ep_cntrl *mhi_cntrl, u64 pci_addr, phys_addr_t *phys_ptr,
+			 void __iomem **virt, size_t size);
+	void (*unmap_free)(struct mhi_ep_cntrl *mhi_cntrl, u64 pci_addr, phys_addr_t phys,
+			   void __iomem *virt, size_t size);
+	int (*read_from_host)(struct mhi_ep_cntrl *mhi_cntrl, u64 from, void *to, size_t size);
+	int (*write_to_host)(struct mhi_ep_cntrl *mhi_cntrl, void *from, u64 to, size_t size);
+
+	enum mhi_state mhi_state;
+
+	u32 max_chan;
+	u32 mru;
+	u32 index;
+};
+
+/**
+ * struct mhi_ep_device - Structure representing an MHI Endpoint device that binds
+ *                     to channels or is associated with controllers
+ * @dev: Driver model device node for the MHI Endpoint device
+ * @mhi_cntrl: Controller the device belongs to
+ * @id: Pointer to MHI Endpoint device ID struct
+ * @name: Name of the associated MHI Endpoint device
+ * @ul_chan: UL channel for the device
+ * @dl_chan: DL channel for the device
+ * @dev_type: MHI device type
+ */
+struct mhi_ep_device {
+	struct device dev;
+	struct mhi_ep_cntrl *mhi_cntrl;
+	const struct mhi_device_id *id;
+	const char *name;
+	struct mhi_ep_chan *ul_chan;
+	struct mhi_ep_chan *dl_chan;
+	enum mhi_device_type dev_type;
+};
+
+#define to_mhi_ep_device(dev) container_of(dev, struct mhi_ep_device, dev)
+
+/**
+ * mhi_ep_register_controller - Register MHI Endpoint controller
+ * @mhi_cntrl: MHI Endpoint controller to register
+ * @config: Configuration to use for the controller
+ *
+ * Return: 0 if controller registrations succeeds, a negative error code otherwise.
+ */
+int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
+			       const struct mhi_ep_cntrl_config *config);
+
+/**
+ * mhi_ep_unregister_controller - Unregister MHI Endpoint controller
+ * @mhi_cntrl: MHI Endpoint controller to unregister
+ */
+void mhi_ep_unregister_controller(struct mhi_ep_cntrl *mhi_cntrl);
+
+#endif
