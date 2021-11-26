@@ -322,6 +322,33 @@ struct io_context *get_task_io_context(struct task_struct *task,
 	return NULL;
 }
 
+int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
+{
+	struct io_context *ioc = current->io_context;
+	struct io_context *new_ioc;
+
+	/*
+	 * Share io context with parent, if CLONE_IO is set
+	 */
+	if (clone_flags & CLONE_IO) {
+		get_io_context_active(ioc);
+
+		WARN_ON_ONCE(atomic_read(&ioc->nr_tasks) <= 0);
+		atomic_inc(&ioc->nr_tasks);
+
+		tsk->io_context = ioc;
+	} else if (ioprio_valid(ioc->ioprio)) {
+		new_ioc = get_task_io_context(tsk, GFP_KERNEL, NUMA_NO_NODE);
+		if (unlikely(!new_ioc))
+			return -ENOMEM;
+
+		new_ioc->ioprio = ioc->ioprio;
+		put_io_context(new_ioc);
+	}
+
+	return 0;
+}
+
 /**
  * ioc_lookup_icq - lookup io_cq from ioc
  * @ioc: the associated io_context

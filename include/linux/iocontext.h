@@ -129,14 +129,6 @@ static inline void get_io_context_active(struct io_context *ioc)
 	atomic_inc(&ioc->active_ref);
 }
 
-static inline void ioc_task_link(struct io_context *ioc)
-{
-	get_io_context_active(ioc);
-
-	WARN_ON_ONCE(atomic_read(&ioc->nr_tasks) <= 0);
-	atomic_inc(&ioc->nr_tasks);
-}
-
 struct task_struct;
 #ifdef CONFIG_BLOCK
 void put_io_context(struct io_context *ioc);
@@ -144,10 +136,21 @@ void put_io_context_active(struct io_context *ioc);
 void exit_io_context(struct task_struct *task);
 struct io_context *get_task_io_context(struct task_struct *task,
 				       gfp_t gfp_flags, int node);
+int __copy_io(unsigned long clone_flags, struct task_struct *tsk);
+static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk)
+{
+	if (!current->io_context)
+		return 0;
+	return __copy_io(clone_flags, tsk);
+}
 #else
 struct io_context;
 static inline void put_io_context(struct io_context *ioc) { }
 static inline void exit_io_context(struct task_struct *task) { }
-#endif
+static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk)
+{
+	return 0;
+}
+#endif /* CONFIG_BLOCK */
 
-#endif
+#endif /* IOCONTEXT_H */
