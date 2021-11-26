@@ -338,7 +338,7 @@ static void system_heap_buf_free(struct deferred_freelist_item *item,
 			reason = DF_UNDER_PRESSURE; // On failure, just free
 
 	table = &buffer->sg_table;
-	for_each_sg(table->sgl, sg, table->nents, i) {
+	for_each_sgtable_sg(table, sg, i) {
 		struct page *page = sg_page(sg);
 
 		if (reason == DF_UNDER_PRESSURE) {
