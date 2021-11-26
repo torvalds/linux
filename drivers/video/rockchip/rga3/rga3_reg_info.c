@@ -1978,7 +1978,7 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 		p = job->cmd_reg;
 		pr_info("CMD_REG\n");
-		for (i = 0; i < 13; i++)
+		for (i = 0; i < 12; i++)
 			pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
 				p[0 + i * 4], p[1 + i * 4],
 				p[2 + i * 4], p[3 + i * 4]);
@@ -2016,7 +2016,7 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		uint32_t i;
 
 		pr_info("CMD_READ_BACK_REG\n");
-		for (i = 0; i < 13; i++)
+		for (i = 0; i < 12; i++)
 			pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
 				rga_read(0x100 + i * 16 + 0, scheduler),
 				rga_read(0x100 + i * 16 + 4, scheduler),

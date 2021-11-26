@@ -162,7 +162,7 @@ next_job:
 
 	job->ret = rga_job_run(job, rga_scheduler);
 
-	/* If some error on ASYNC mode before hw run */
+	/* If some error before hw run */
 	if (job->ret < 0) {
 		pr_err("some error on rga_job_run, %s(%d)\n", __func__,
 			 __LINE__);
@@ -178,6 +178,12 @@ next_job:
 
 		if (job->flags & RGA_JOB_ASYNC)
 			rga_job_cleanup(job);
+		else {
+			job->flags |= RGA_JOB_DONE;
+			wake_up(&rga_scheduler->job_done_wq);
+		}
+
+		rga_dma_put_info(job);
 
 		goto next_job;
 	}
@@ -635,7 +641,7 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 	int ret;
 
 	left_time = wait_event_interruptible_timeout(rga_scheduler->job_done_wq,
-		job->flags & RGA_JOB_DONE, RGA_ASYNC_TIMEOUT_DELAY);
+		job->flags & RGA_JOB_DONE, RGA_SYNC_TIMEOUT_DELAY);
 
 	if (left_time <= 0) {
 		ret = left_time < 0 ? left_time : -ETIMEDOUT;
@@ -689,6 +695,18 @@ int rga_commit(struct rga_req *rga_command_base, int flags)
 		return -ENOMEM;
 	}
 
+	/*
+	 * because fd can not pass on other thread,
+	 * so need to get dma_buf first.
+	 */
+	ret = rga_dma_buf_get(job);
+	if (ret < 0) {
+		pr_err("%s: failed to get dma buf from fd\n",
+				__func__);
+		rga_job_free(job);
+		return ret;
+	}
+
 	if (flags == RGA_BLIT_ASYNC) {
 		ret = rga_out_fence_alloc(job);
 		if (ret) {
@@ -730,18 +748,6 @@ int rga_commit(struct rga_req *rga_command_base, int flags)
 				}
 				/* if input fence is valid */
 			} else if (ret == 0) {
-				/*
-				 * because fd can not pass on dma_fence_callback,
-				 * so need to get dma_buf first.
-				 */
-				ret = rga_dma_buf_get(job);
-				if (ret < 0) {
-					pr_err("%s: failed to get dma buf from fd\n",
-						 __func__);
-					rga_job_free(job);
-					return ret;
-				}
-
 				ret = rga_add_dma_fence_callback(job,
 					in_fence, rga_input_fence_signaled);
 				if (ret < 0) {

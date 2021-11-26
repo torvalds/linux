@@ -35,8 +35,6 @@ struct rga2_mmu_info_t {
 	u8 pages_order;
 };
 
-void rga2_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *scheduler);
-dma_addr_t rga2_dma_map_flush_page(struct page *page, int map, struct rga_scheduler_t *scheduler);
 void rga2_dma_flush_cache_for_virtual_address(struct rga2_mmu_other_t *reg,
 		struct rga_scheduler_t *scheduler);
 

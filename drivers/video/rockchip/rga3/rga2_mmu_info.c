@@ -44,13 +44,13 @@ static struct rga_scheduler_t *get_scheduler(int core)
 	return scheduler;
 }
 
-void rga2_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *scheduler)
+static void rga2_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *scheduler)
 {
 	dma_sync_single_for_device(scheduler->dev, virt_to_phys(pstart),
 				 pend - pstart, DMA_TO_DEVICE);
 }
 
-dma_addr_t rga2_dma_map_flush_page(struct page *page, int map, struct rga_scheduler_t *scheduler)
+static dma_addr_t rga2_dma_map_flush_page(struct page *page, int map, struct rga_scheduler_t *scheduler)
 {
 	dma_addr_t paddr = 0;
 

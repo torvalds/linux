@@ -62,11 +62,12 @@
 /* Driver information */
 #define DRIVER_DESC		"RGA multicore Device Driver"
 #define DRIVER_NAME		"rga_multicore"
-#define DRIVER_VERSION		"1.1.1"
+#define DRIVER_VERSION		"1.1.3"
 #define RGA3_VERSION		"2.000"
 
 /* time limit */
 #define RGA_ASYNC_TIMEOUT_DELAY		HZ
+#define RGA_SYNC_TIMEOUT_DELAY		HZ
 #define RGA_RESET_TIMEOUT			1000
 
 #define RGA_MAX_SCHEDULER	3
