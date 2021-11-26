@@ -151,8 +151,15 @@ int h_query_vas_capabilities(const u64 hcall, u8 query_type, u64 result)
 	if (rc == H_SUCCESS)
 		return 0;
 
-	pr_err("HCALL(%llx) error %ld, query_type %u, result buffer 0x%llx\n",
-			hcall, rc, query_type, result);
+	/* H_FUNCTION means HV does not support VAS so don't print an error */
+	if (rc != H_FUNCTION) {
+		pr_err("%s error %ld, query_type %u, result buffer 0x%llx\n",
+			(hcall == H_QUERY_VAS_CAPABILITIES) ?
+				"H_QUERY_VAS_CAPABILITIES" :
+				"H_QUERY_NX_CAPABILITIES",
+			rc, query_type, result);
+	}
+
 	return -EIO;
 }
 EXPORT_SYMBOL_GPL(h_query_vas_capabilities);
