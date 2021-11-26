@@ -3580,13 +3580,14 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/b44.*
 
-BROADCOM B53 ETHERNET SWITCH DRIVER
+BROADCOM B53/SF2 ETHERNET SWITCH DRIVER
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	netdev@vger.kernel.org
 L:	openwrt-devel@lists.openwrt.org (subscribers-only)
 S:	Supported
 F:	Documentation/devicetree/bindings/net/dsa/brcm,b53.yaml
 F:	drivers/net/dsa/b53/*
+F:	drivers/net/dsa/bcm_sf2*
 F:	include/linux/dsa/brcm.h
 F:	include/linux/platform_data/b53.h
 
@@ -18493,6 +18494,7 @@ F:	include/uapi/linux/pkt_sched.h
 F:	include/uapi/linux/tc_act/
 F:	include/uapi/linux/tc_ematch/
 F:	net/sched/
+F:	tools/testing/selftests/tc-testing
 
 TC90522 MEDIA DRIVER
 M:	Akihiro Tsukada <tskd08@gmail.com>
