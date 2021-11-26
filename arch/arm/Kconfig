@@ -1154,7 +1154,7 @@ config SMP_ON_UP
 
 config CURRENT_POINTER_IN_TPIDRURO
 	def_bool y
-	depends on SMP && CPU_32v6K && !CPU_V6
+	depends on CPU_32v6K && !CPU_V6
 
 config IRQSTACKS
 	def_bool y
