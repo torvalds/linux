@@ -35,3 +35,23 @@ Description:
 		Writing a device name to this file will cause the driver to
 		attempt to unbind from the device. This may be useful when
 		overriding default bindings.
+
+What:		/sys/bus/vdpa/devices/.../driver_override
+Date:		November 2021
+Contact:	virtualization@lists.linux-foundation.org
+Description:
+		This file allows the driver for a device to be specified.
+		When specified, only a driver with a name matching the value
+		written to driver_override will have an opportunity to bind to
+		the device. The override is specified by writing a string to the
+		driver_override file (echo vhost-vdpa > driver_override) and may
+		be cleared with an empty string (echo > driver_override).
+		This returns the device to standard matching rules binding.
+		Writing to driver_override does not automatically unbind the
+		device from its current driver or make any attempt to
+		automatically load the specified driver. If no driver with a
+		matching name is currently loaded in the kernel, the device will
+		not bind to any driver. This also allows devices to opt-out of
+		driver binding using a driver_override name such as "none".
+		Only a single driver may be specified in the override, there is
+		no support for parsing delimiters.
