@@ -1118,11 +1118,19 @@ static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 
 void rkisp_stats_first_ddr_config_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 {
+	int i;
+
 	stats_vdev->rd_stats_from_ddr = false;
 	stats_vdev->priv_ops = &rkisp_stats_reg_ops_v21;
 
-	if (!IS_HDR_RDBK(stats_vdev->dev->hdr.op_mode) &&
-	    stats_vdev->stats_buf[0].mem_priv) {
+	if (!IS_HDR_RDBK(stats_vdev->dev->hdr.op_mode)) {
+		for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++) {
+			stats_vdev->stats_buf[i].is_need_vaddr = true;
+			stats_vdev->stats_buf[i].size = RKISP_RD_STATS_BUF_SIZE;
+			if (rkisp_alloc_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]))
+				goto err;
+		}
+
 		stats_vdev->priv_ops = &rkisp_stats_ddr_ops_v21;
 		stats_vdev->rd_stats_from_ddr = true;
 		stats_vdev->rd_buf_idx = 0;
@@ -1135,12 +1143,15 @@ void rkisp_stats_first_ddr_config_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_set_bits(stats_vdev->dev, CTRL_SWS_CFG, SW_3A_DDR_WRITE_EN,
 			       SW_3A_DDR_WRITE_EN, false);
 	}
+	return;
+err:
+	for (i -= 1; i >= 0; i--)
+		rkisp_free_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]);
+	dev_err(stats_vdev->dev->dev, "alloc stats ddr buf fail\n");
 }
 
 void rkisp_init_stats_vdev_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 {
-	int i;
-
 	stats_vdev->vdev_fmt.fmt.meta.dataformat =
 		V4L2_META_FMT_RK_ISP1_STAT_3A;
 	stats_vdev->vdev_fmt.fmt.meta.buffersize =
@@ -1149,19 +1160,10 @@ void rkisp_init_stats_vdev_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 	stats_vdev->ops = &rkisp_isp_stats_ops_tbl;
 	stats_vdev->priv_ops = &rkisp_stats_reg_ops_v21;
 	stats_vdev->rd_stats_from_ddr = false;
-
-	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++) {
-		stats_vdev->stats_buf[i].is_need_vaddr = true;
-		stats_vdev->stats_buf[i].size = RKISP_RD_STATS_BUF_SIZE;
-		rkisp_alloc_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]);
-	}
 }
 
 void rkisp_uninit_stats_vdev_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 {
-	int i;
 
-	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)
-		rkisp_free_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]);
 }
 

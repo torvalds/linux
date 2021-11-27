@@ -3712,32 +3712,68 @@ void rkisp_params_cfgsram_v21(struct rkisp_isp_params_vdev *params_vdev)
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist3, 0, true);
 }
 
-static void
-rkisp_alloc_bay3d_buf(struct rkisp_isp_params_vdev *params_vdev,
-		      const struct isp21_isp_params_cfg *new_params)
+static int
+rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
+			 const struct isp21_isp_params_cfg *new_params)
 {
 	struct rkisp_device *ispdev = params_vdev->dev;
 	struct rkisp_isp_subdev *isp_sdev = &ispdev->isp_sdev;
 	struct rkisp_isp_params_val_v21 *priv_val;
 	u64 module_en_update, module_ens;
 	u32 w, h, size;
-	int ret;
+	int ret, i;
 
+	priv_val = (struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
 	module_en_update = new_params->module_en_update;
 	module_ens = new_params->module_ens;
+
+	priv_val->buf_3dlut_idx = 0;
+	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++) {
+		priv_val->buf_3dlut[i].is_need_vaddr = true;
+		priv_val->buf_3dlut[i].size = RKISP_PARAM_3DLUT_BUF_SIZE;
+		ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_3dlut[i]);
+		if (ret) {
+			dev_err(ispdev->dev, "can not alloc buffer\n");
+			goto err_3dlut;
+		}
+	}
+
+	priv_val->buf_lsclut_idx = 0;
+	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++) {
+		priv_val->buf_lsclut[i].is_need_vaddr = true;
+		priv_val->buf_lsclut[i].size = RKISP_PARAM_LSC_LUT_BUF_SIZE;
+		ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_lsclut[i]);
+		if (ret) {
+			dev_err(ispdev->dev, "can not alloc buffer\n");
+			goto err_lsclut;
+		}
+	}
 
 	if ((module_en_update & ISP2X_MODULE_BAY3D) &&
 	    (module_ens & ISP2X_MODULE_BAY3D)) {
 		w = isp_sdev->in_crop.width;
 		h = isp_sdev->in_crop.height;
 		size = 2 * ALIGN((ALIGN(w, 16) + (w + 15) / 8) * h, 16);
-		priv_val = (struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
-		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr);
 		priv_val->buf_3dnr.size = size;
 		ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr);
-		if (ret)
+		if (ret) {
 			dev_err(ispdev->dev, "can not alloc bay3d buffer\n");
+			goto err_bay3d;
+		}
 	}
+
+	return 0;
+err_bay3d:
+	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr);
+	i = RKISP_PARAM_LSC_LUT_BUF_NUM;
+err_lsclut:
+	for (i -= 1; i >= 0; i--)
+		rkisp_free_buffer(ispdev, &priv_val->buf_lsclut[i]);
+	i = RKISP_PARAM_3DLUT_BUF_NUM;
+err_3dlut:
+	for (i -= 1; i >= 0; i--)
+		rkisp_free_buffer(ispdev, &priv_val->buf_3dlut[i]);
+	return ret;
 }
 
 /* Not called when the camera active, thus not isr protection. */
@@ -3752,7 +3788,7 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	u32 width = hw->max_in.w ? hw->max_in.w : out_crop->width;
 	u32 size = hw->max_in.w ? hw->max_in.w * hw->max_in.h : isp_param_get_insize(params_vdev);
 
-	rkisp_alloc_bay3d_buf(params_vdev, params_vdev->isp21_params);
+	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp21_params);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
 	if (!params_vdev->isp21_params->module_cfg_update &&
@@ -3900,9 +3936,16 @@ rkisp_params_stream_stop_v2x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_device *ispdev = params_vdev->dev;
 	struct rkisp_isp_params_val_v21 *priv_val;
+	int i;
 
 	priv_val = (struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr);
+	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++)
+		rkisp_free_buffer(ispdev, &priv_val->buf_3dlut[i]);
+	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++)
+		rkisp_free_buffer(ispdev, &priv_val->buf_lsclut[i]);
+	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)
+		rkisp_free_buffer(ispdev, &ispdev->stats_vdev.stats_buf[i]);
 }
 
 static void
@@ -4107,9 +4150,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 
 int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)
 {
-	struct device *dev = params_vdev->dev->dev;
 	struct rkisp_isp_params_val_v21 *priv_val;
-	int i, ret;
 
 	priv_val = kzalloc(sizeof(*priv_val), GFP_KERNEL);
 	if (!priv_val)
@@ -4121,62 +4162,18 @@ int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)
 		return -ENOMEM;
 	}
 
-	priv_val->buf_3dlut_idx = 0;
-	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++) {
-		priv_val->buf_3dlut[i].is_need_vaddr = true;
-		priv_val->buf_3dlut[i].size = RKISP_PARAM_3DLUT_BUF_SIZE;
-		ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_3dlut[i]);
-		if (ret) {
-			dev_err(dev, "can not alloc buffer\n");
-			goto err;
-		}
-	}
-
-	priv_val->buf_lsclut_idx = 0;
-	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++) {
-		priv_val->buf_lsclut[i].is_need_vaddr = true;
-		priv_val->buf_lsclut[i].size = RKISP_PARAM_LSC_LUT_BUF_SIZE;
-		ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
-		if (ret) {
-			dev_err(dev, "can not alloc buffer\n");
-			goto err;
-		}
-	}
-
 	params_vdev->priv_val = (void *)priv_val;
 	params_vdev->ops = &rkisp_isp_params_ops_tbl;
 	params_vdev->priv_ops = &rkisp_v21_isp_params_ops;
 	rkisp_clear_first_param_v2x(params_vdev);
 	return 0;
-
-err:
-	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++)
-		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_3dlut[i]);
-
-	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++)
-		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
-	vfree(params_vdev->isp21_params);
-
-	return ret;
 }
 
 void rkisp_uninit_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)
 {
-	struct rkisp_isp_params_val_v21 *priv_val;
-	int i;
-
-	priv_val = params_vdev->priv_val;
-	if (!priv_val)
-		return;
-
-	rkisp_deinit_ldch_buf(params_vdev);
-	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++)
-		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_3dlut[i]);
-
-	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++)
-		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
-	vfree(params_vdev->isp21_params);
-	kfree(priv_val);
+	if (params_vdev->isp21_params)
+		vfree(params_vdev->isp21_params);
+	kfree(params_vdev->priv_val);
 	params_vdev->priv_val = NULL;
 }
 

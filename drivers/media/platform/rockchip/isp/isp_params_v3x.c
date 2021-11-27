@@ -3980,22 +3980,46 @@ void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	}
 }
 
-static void
-rkisp_alloc_bay3d_buf(struct rkisp_isp_params_vdev *params_vdev,
-		      const struct isp3x_isp_params_cfg *new_params)
+static int
+rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
+			 const struct isp3x_isp_params_cfg *new_params)
 {
 	struct rkisp_device *ispdev = params_vdev->dev;
 	struct rkisp_isp_subdev *isp_sdev = &ispdev->isp_sdev;
 	struct rkisp_isp_params_val_v3x *priv_val;
 	u64 module_en_update, module_ens;
-	u32 w, h, size, id;
+	int ret, w, h, size, id, i;
 
+	priv_val = (struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
 	module_en_update = new_params->module_en_update;
 	module_ens = new_params->module_ens;
 
+	for (id = 0; id <= ispdev->hw_dev->is_unite; id++) {
+		priv_val->buf_3dlut_idx[id] = 0;
+		for (i = 0; i < ISP3X_3DLUT_BUF_NUM; i++) {
+			priv_val->buf_3dlut[id][i].is_need_vaddr = true;
+			priv_val->buf_3dlut[id][i].size = ISP3X_3DLUT_BUF_SIZE;
+			ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_3dlut[id][i]);
+			if (ret) {
+				dev_err(ispdev->dev, "alloc 3dlut buf fail:%d\n", ret);
+				goto err_3dlut;
+			}
+		}
+
+		priv_val->buf_lsclut_idx[id] = 0;
+		for (i = 0; i < ISP3X_LSC_LUT_BUF_NUM; i++) {
+			priv_val->buf_lsclut[id][i].is_need_vaddr = true;
+			priv_val->buf_lsclut[id][i].size = ISP3X_LSC_LUT_BUF_SIZE;
+			ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_lsclut[id][i]);
+			if (ret) {
+				dev_err(ispdev->dev, "alloc lsclut buf fail:%d\n", ret);
+				goto err_lsclut;
+			}
+		}
+	}
+
 	if ((module_en_update & ISP3X_MODULE_BAY3D) &&
 	    (module_ens & ISP3X_MODULE_BAY3D)) {
-		priv_val = (struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
 		w = ALIGN(isp_sdev->in_crop.width, 16);
 		h = ALIGN(isp_sdev->in_crop.height, 16);
 		if (ispdev->hw_dev->is_unite)
@@ -4004,32 +4028,56 @@ rkisp_alloc_bay3d_buf(struct rkisp_isp_params_vdev *params_vdev,
 		for (id = 0; id <= ispdev->hw_dev->is_unite; id++) {
 			size = ALIGN((w + w / 8) * h * 2, 16);
 
-			rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir[id]);
 			priv_val->buf_3dnr_iir[id].size = size;
-			if (rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr_iir[id]))
-				goto err;
+			ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr_iir[id]);
+			if (ret) {
+				dev_err(ispdev->dev, "alloc bay3d iir buf fail:%d\n", ret);
+				goto err_3dnr;
+			}
 
-			rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur[id]);
 			priv_val->buf_3dnr_cur[id].size = size;
-			if (rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr_cur[id]))
-				goto err;
+			ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr_cur[id]);
+			if (ret) {
+				rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir[id]);
+				dev_err(ispdev->dev, "alloc bay3d cur buf fail:%d\n", ret);
+				goto err_3dnr;
+			}
 
 			size = 2 * ALIGN(w * h / 64, 16);
-			rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_ds[id]);
 			priv_val->buf_3dnr_ds[id].size = size;
-			if (rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr_ds[id]))
-				goto err;
+			ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr_ds[id]);
+			if (ret) {
+				rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir[id]);
+				rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur[id]);
+				dev_err(ispdev->dev, "alloc bay3d ds buf fail:%d\n", ret);
+				goto err_3dnr;
+			}
 		}
 	}
-
-	return;
-err:
-	for (id = 0; id <= ispdev->hw_dev->is_unite; id++) {
+	return 0;
+err_3dnr:
+	for (id -= 1; id >= 0; id--) {
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir[id]);
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur[id]);
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_ds[id]);
 	}
-	dev_err(ispdev->dev, "can not alloc bay3d buffer\n");
+	id = ispdev->hw_dev->is_unite ? 1 : 0;
+	i = ISP3X_LSC_LUT_BUF_NUM;
+err_lsclut:
+	for (; id >= 0; id--) {
+		for (i -= 1; i >= 0; i--)
+			rkisp_free_buffer(ispdev, &priv_val->buf_lsclut[id][i]);
+		i = ISP3X_LSC_LUT_BUF_NUM;
+	}
+	id = ispdev->hw_dev->is_unite ? 1 : 0;
+	i = ISP3X_3DLUT_BUF_NUM;
+err_3dlut:
+	for (; id >= 0; id--) {
+		for (i -= 1; i >= 0; i--)
+			rkisp_free_buffer(ispdev, &priv_val->buf_3dlut[id][i]);
+		i = ISP3X_3DLUT_BUF_NUM;
+	}
+	return ret;
 }
 
 /* Not called when the camera active, thus not isr protection. */
@@ -4062,7 +4110,7 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 		bigmode_max_w = ISP3X_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_NOBIG_OVERFLOW_SIZE;
 	}
-	rkisp_alloc_bay3d_buf(params_vdev, params_vdev->isp3x_params);
+	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp3x_params);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
 	if (!params_vdev->isp3x_params->module_cfg_update &&
@@ -4270,14 +4318,20 @@ rkisp_params_stream_stop_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_device *ispdev = params_vdev->dev;
 	struct rkisp_isp_params_val_v3x *priv_val;
-	u32 id;
+	u32 id, i;
 
 	priv_val = (struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
 	for (id = 0; id <= ispdev->hw_dev->is_unite; id++) {
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir[id]);
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur[id]);
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_ds[id]);
+		for (i = 0; i < ISP3X_3DLUT_BUF_NUM; i++)
+			rkisp_free_buffer(ispdev, &priv_val->buf_3dlut[id][i]);
+		for (i = 0; i < ISP3X_LSC_LUT_BUF_NUM; i++)
+			rkisp_free_buffer(ispdev, &priv_val->buf_lsclut[id][i]);
 	}
+	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)
+		rkisp_free_buffer(ispdev, &ispdev->stats_vdev.stats_buf[i]);
 }
 
 static void
@@ -4513,9 +4567,8 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 int rkisp_init_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_device *ispdev = params_vdev->dev;
-	struct device *dev = ispdev->dev;
 	struct rkisp_isp_params_val_v3x *priv_val;
-	int i, ret, id, size;
+	int size;
 
 	priv_val = kzalloc(sizeof(*priv_val), GFP_KERNEL);
 	if (!priv_val)
@@ -4530,69 +4583,17 @@ int rkisp_init_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev)
 		return -ENOMEM;
 	}
 
-	for (id = 0; id <= ispdev->hw_dev->is_unite; id++) {
-		priv_val->buf_3dlut_idx[id] = 0;
-		for (i = 0; i < ISP3X_3DLUT_BUF_NUM; i++) {
-			priv_val->buf_3dlut[id][i].is_need_vaddr = true;
-			priv_val->buf_3dlut[id][i].size = ISP3X_3DLUT_BUF_SIZE;
-			ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_3dlut[id][i]);
-			if (ret) {
-				dev_err(dev, "can not alloc 3dlut buffer\n");
-				goto err;
-			}
-		}
-
-		priv_val->buf_lsclut_idx[id] = 0;
-		for (i = 0; i < ISP3X_LSC_LUT_BUF_NUM; i++) {
-			priv_val->buf_lsclut[id][i].is_need_vaddr = true;
-			priv_val->buf_lsclut[id][i].size = ISP3X_LSC_LUT_BUF_SIZE;
-			ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_lsclut[id][i]);
-			if (ret) {
-				dev_err(dev, "can not alloc lsclut buffer\n");
-				goto err;
-			}
-		}
-	}
-
 	params_vdev->priv_val = (void *)priv_val;
 	params_vdev->ops = &rkisp_isp_params_ops_tbl;
 	params_vdev->priv_ops = &isp_params_ops_v3x;
 	rkisp_clear_first_param_v3x(params_vdev);
 	return 0;
-
-err:
-	for (id = 0; id <= ispdev->hw_dev->is_unite; id++) {
-		for (i = 0; i < ISP3X_3DLUT_BUF_NUM; i++)
-			rkisp_free_buffer(params_vdev->dev, &priv_val->buf_3dlut[id][i]);
-
-		for (i = 0; i < ISP3X_LSC_LUT_BUF_NUM; i++)
-			rkisp_free_buffer(params_vdev->dev, &priv_val->buf_lsclut[id][i]);
-	}
-	vfree(params_vdev->isp3x_params);
-
-	return ret;
 }
 
 void rkisp_uninit_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
-	struct rkisp_device *ispdev = params_vdev->dev;
-	struct rkisp_isp_params_val_v3x *priv_val;
-	int i, id;
-
-	priv_val = params_vdev->priv_val;
-	if (!priv_val)
-		return;
-
-	for (id = 0; id <= ispdev->hw_dev->is_unite; id++) {
-		rkisp_deinit_mesh_buf(params_vdev, ISP3X_MODULE_LDCH, id);
-		rkisp_deinit_mesh_buf(params_vdev, ISP3X_MODULE_CAC, id);
-		for (i = 0; i < ISP3X_3DLUT_BUF_NUM; i++)
-			rkisp_free_buffer(params_vdev->dev, &priv_val->buf_3dlut[id][i]);
-
-		for (i = 0; i < ISP3X_LSC_LUT_BUF_NUM; i++)
-			rkisp_free_buffer(params_vdev->dev, &priv_val->buf_lsclut[id][i]);
-	}
-	vfree(params_vdev->isp3x_params);
-	kfree(priv_val);
+	if (params_vdev->isp3x_params)
+		vfree(params_vdev->isp3x_params);
+	kfree(params_vdev->priv_val);
 	params_vdev->priv_val = NULL;
 }
