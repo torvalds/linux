@@ -437,6 +437,8 @@ static int upphy_set_typec_default_mapping(struct rockchip_udphy *udphy)
 		udphy->lane_mux_sel[3] = PHY_LANE_MUX_USB;
 		udphy->dp_aux_dout_sel = PHY_AUX_DP_DATA_POL_INVERT;
 		udphy->dp_aux_din_sel = PHY_AUX_DP_DATA_POL_INVERT;
+		gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 1);
+		gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 0);
 	} else {
 		udphy->dp_lane_sel[0] = 2;
 		udphy->dp_lane_sel[1] = 3;
@@ -448,6 +450,8 @@ static int upphy_set_typec_default_mapping(struct rockchip_udphy *udphy)
 		udphy->lane_mux_sel[3] = PHY_LANE_MUX_DP;
 		udphy->dp_aux_dout_sel = PHY_AUX_DP_DATA_POL_NORMAL;
 		udphy->dp_aux_din_sel = PHY_AUX_DP_DATA_POL_NORMAL;
+		gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 0);
+		gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 1);
 	}
 
 	udphy->mode = UDPHY_MODE_DP_USB;
@@ -463,6 +467,8 @@ static int udphy_orien_sw_set(struct typec_switch *sw,
 	mutex_lock(&udphy->mutex);
 
 	if (orien == TYPEC_ORIENTATION_NONE) {
+		gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 0);
+		gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 0);
 		/* unattached */
 		udphy_usb_bvalid_enable(udphy, false);
 		goto unlock_ret;
@@ -908,16 +914,6 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 		struct typec_displayport_data *data = state->data;
 		bool hpd = !!(data && (data->status & DP_STATUS_HPD_STATE));
 
-		if (hpd && udphy->sbu1_dc_gpio && udphy->sbu1_dc_gpio) {
-			if (udphy->flip) {
-				gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 1);
-				gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 0);
-			} else {
-				gpiod_set_value_cansleep(udphy->sbu1_dc_gpio, 0);
-				gpiod_set_value_cansleep(udphy->sbu2_dc_gpio, 1);
-			}
-		}
-
 		if (hpd && udphy->mode != mode) {
 			udphy->mode = mode;
 			udphy->mode_change = true;
@@ -925,7 +921,6 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 
 		if (cfg->hpd_event_trigger)
 			cfg->hpd_event_trigger(udphy, hpd);
-
 	}
 
 	return 0;
