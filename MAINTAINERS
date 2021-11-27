@@ -15727,6 +15727,14 @@ W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath9k
 F:	Documentation/devicetree/bindings/net/wireless/qca,ath9k.yaml
 F:	drivers/net/wireless/ath/ath9k/
 
+QUALCOMM BAM-DMUX WWAN NETWORK DRIVER
+M:	Stephan Gerhold <stephan@gerhold.net>
+L:	netdev@vger.kernel.org
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/qcom,bam-dmux.yaml
+F:	drivers/net/wwan/qcom_bam_dmux.c
+
 QUALCOMM CAMERA SUBSYSTEM DRIVER
 M:	Robert Foss <robert.foss@linaro.org>
 M:	Todor Tomov <todor.too@gmail.com>
