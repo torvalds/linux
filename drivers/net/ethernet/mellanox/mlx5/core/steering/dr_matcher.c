@@ -924,11 +924,12 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 
 	/* Check that all mask data was consumed */
 	for (i = 0; i < consumed_mask.match_sz; i++) {
-		if (consumed_mask.match_buf[i]) {
-			mlx5dr_dbg(dmn, "Match param mask contains unsupported parameters\n");
-			ret = -EOPNOTSUPP;
-			goto free_consumed_mask;
-		}
+		if (!((u8 *)consumed_mask.match_buf)[i])
+			continue;
+
+		mlx5dr_dbg(dmn, "Match param mask contains unsupported parameters\n");
+		ret = -EOPNOTSUPP;
+		goto free_consumed_mask;
 	}
 
 	ret =  0;

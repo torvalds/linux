@@ -19,23 +19,6 @@ inline int RTW_STATUS_CODE(int error_code)
 	return _FAIL;
 }
 
-u32 rtw_atoi(u8 *s)
-{
-	int num = 0, flag = 0;
-	int i;
-	for (i = 0; i <= strlen(s); i++) {
-		if (s[i] >= '0' && s[i] <= '9')
-			num = num * 10 + s[i] - '0';
-		else if (s[0] == '-' && i == 0)
-			flag = 1;
-		else
-			break;
-	}
-	if (flag == 1)
-		num = num * -1;
-	return num;
-}
-
 void *rtw_malloc2d(int h, int w, int size)
 {
 	int j;
@@ -58,30 +41,6 @@ Otherwise, there will be racing condition.
 /*
 Caller must check if the list is empty before calling rtw_list_delete
 */
-
-u32 _rtw_down_sema(struct semaphore *sema)
-{
-	if (down_interruptible(sema))
-		return _FAIL;
-	else
-		return _SUCCESS;
-}
-
-void	_rtw_mutex_init(struct mutex *pmutex)
-{
-	mutex_init(pmutex);
-}
-
-void	_rtw_mutex_free(struct mutex *pmutex)
-{
-	mutex_destroy(pmutex);
-}
-
-void	_rtw_init_queue(struct __queue *pqueue)
-{
-	INIT_LIST_HEAD(&pqueue->queue);
-	spin_lock_init(&pqueue->lock);
-}
 
 inline u32 rtw_systime_to_ms(u32 systime)
 {
@@ -106,8 +65,6 @@ void rtw_usleep_os(int us)
 	else
 		msleep((us / 1000) + 1);
 }
-
-#define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
 
 static const struct device_type wlan_type = {
 	.name = "wlan",
@@ -198,8 +155,6 @@ int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 	else
 		unregister_netdevice(cur_pnetdev);
 
-	rtw_proc_remove_one(cur_pnetdev);
-
 	rereg_priv->old_pnetdev = cur_pnetdev;
 
 	pnetdev = rtw_init_netdev(padapter);
@@ -212,7 +167,7 @@ int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 
 	rtw_init_netdev_name(pnetdev, ifname);
 
-	memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
+	eth_hw_addr_set(pnetdev, padapter->eeprompriv.mac_addr);
 
 	if (!rtnl_is_locked())
 		ret = register_netdev(pnetdev);
@@ -221,7 +176,6 @@ int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 	if (ret != 0)
 		goto error;
 
-	rtw_proc_init_one(pnetdev);
 	return 0;
 error:
 	return -1;
@@ -259,17 +213,6 @@ keep_ori:
 }
 
 /**
- * rtw_cbuf_full - test if cbuf is full
- * @cbuf: pointer of struct rtw_cbuf
- *
- * Returns: true if cbuf is full
- */
-inline bool rtw_cbuf_full(struct rtw_cbuf *cbuf)
-{
-	return (cbuf->write == cbuf->read - 1) ? true : false;
-}
-
-/**
  * rtw_cbuf_empty - test if cbuf is empty
  * @cbuf: pointer of struct rtw_cbuf
  *
@@ -278,27 +221,6 @@ inline bool rtw_cbuf_full(struct rtw_cbuf *cbuf)
 inline bool rtw_cbuf_empty(struct rtw_cbuf *cbuf)
 {
 	return (cbuf->write == cbuf->read) ? true : false;
-}
-
-/**
- * rtw_cbuf_push - push a pointer into cbuf
- * @cbuf: pointer of struct rtw_cbuf
- * @buf: pointer to push in
- *
- * Lock free operation, be careful of the use scheme
- * Returns: true push success
- */
-bool rtw_cbuf_push(struct rtw_cbuf *cbuf, void *buf)
-{
-	if (rtw_cbuf_full(cbuf))
-		return _FAIL;
-
-	if (0)
-		DBG_88E("%s on %u\n", __func__, cbuf->write);
-	cbuf->bufs[cbuf->write] = buf;
-	cbuf->write = (cbuf->write + 1) % cbuf->size;
-
-	return _SUCCESS;
 }
 
 /**
@@ -332,7 +254,7 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
 {
 	struct rtw_cbuf *cbuf;
 
-	cbuf = kmalloc(sizeof(*cbuf) + sizeof(void *) * size, GFP_KERNEL);
+	cbuf = kmalloc(struct_size(cbuf, bufs, size), GFP_KERNEL);
 
 	if (cbuf) {
 		cbuf->write = 0;

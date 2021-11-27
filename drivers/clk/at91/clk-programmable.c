@@ -24,6 +24,7 @@ struct clk_programmable {
 	u32 *mux_table;
 	u8 id;
 	const struct clk_programmable_layout *layout;
+	struct at91_clk_pms pms;
 };
 
 #define to_clk_programmable(hw) container_of(hw, struct clk_programmable, hw)
@@ -177,12 +178,38 @@ static int clk_programmable_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+static int clk_programmable_save_context(struct clk_hw *hw)
+{
+	struct clk_programmable *prog = to_clk_programmable(hw);
+	struct clk_hw *parent_hw = clk_hw_get_parent(hw);
+
+	prog->pms.parent = clk_programmable_get_parent(hw);
+	prog->pms.parent_rate = clk_hw_get_rate(parent_hw);
+	prog->pms.rate = clk_programmable_recalc_rate(hw, prog->pms.parent_rate);
+
+	return 0;
+}
+
+static void clk_programmable_restore_context(struct clk_hw *hw)
+{
+	struct clk_programmable *prog = to_clk_programmable(hw);
+	int ret;
+
+	ret = clk_programmable_set_parent(hw, prog->pms.parent);
+	if (ret)
+		return;
+
+	clk_programmable_set_rate(hw, prog->pms.rate, prog->pms.parent_rate);
+}
+
 static const struct clk_ops programmable_ops = {
 	.recalc_rate = clk_programmable_recalc_rate,
 	.determine_rate = clk_programmable_determine_rate,
 	.get_parent = clk_programmable_get_parent,
 	.set_parent = clk_programmable_set_parent,
 	.set_rate = clk_programmable_set_rate,
+	.save_context = clk_programmable_save_context,
+	.restore_context = clk_programmable_restore_context,
 };
 
 struct clk_hw * __init
@@ -221,8 +248,6 @@ at91_clk_register_programmable(struct regmap *regmap,
 	if (ret) {
 		kfree(prog);
 		hw = ERR_PTR(ret);
-	} else {
-		pmc_register_pck(id);
 	}
 
 	return hw;

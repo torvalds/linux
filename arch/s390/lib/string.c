@@ -101,32 +101,6 @@ EXPORT_SYMBOL(strcpy);
 #endif
 
 /**
- * strlcpy - Copy a %NUL terminated string into a sized buffer
- * @dest: Where to copy the string to
- * @src: Where to copy the string from
- * @size: size of destination buffer
- *
- * Compatible with *BSD: the result is always a valid
- * NUL-terminated string that fits in the buffer (unless,
- * of course, the buffer size is zero). It does not pad
- * out the result like strncpy() does.
- */
-#ifdef __HAVE_ARCH_STRLCPY
-size_t strlcpy(char *dest, const char *src, size_t size)
-{
-	size_t ret = __strend(src) - src;
-
-	if (size) {
-		size_t len = (ret >= size) ? size-1 : ret;
-		dest[len] = '\0';
-		memcpy(dest, src, len);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(strlcpy);
-#endif
-
-/**
  * strncpy - Copy a length-limited, %NUL-terminated string
  * @dest: Where to copy the string to
  * @src: Where to copy the string from
@@ -252,25 +226,6 @@ int strcmp(const char *s1, const char *s2)
 	return ret;
 }
 EXPORT_SYMBOL(strcmp);
-#endif
-
-/**
- * strrchr - Find the last occurrence of a character in a string
- * @s: The string to be searched
- * @c: The character to search for
- */
-#ifdef __HAVE_ARCH_STRRCHR
-char *strrchr(const char *s, int c)
-{
-	ssize_t len = __strend(s) - s;
-
-	do {
-		if (s[len] == (char)c)
-			return (char *)s + len;
-	} while (--len >= 0);
-	return NULL;
-}
-EXPORT_SYMBOL(strrchr);
 #endif
 
 static inline int clcle(const char *s1, unsigned long l1,

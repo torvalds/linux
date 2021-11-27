@@ -16,6 +16,7 @@
 #include <linux/vringh.h>
 #include <linux/vdpa.h>
 #include <uapi/linux/virtio_net.h>
+#include <uapi/linux/vdpa.h>
 
 #include "vdpa_sim.h"
 
@@ -28,12 +29,6 @@
 				 (1ULL << VIRTIO_NET_F_MAC))
 
 #define VDPASIM_NET_VQ_NUM	2
-
-static char *macaddr;
-module_param(macaddr, charp, 0);
-MODULE_PARM_DESC(macaddr, "Ethernet MAC address");
-
-static u8 macaddr_buf[ETH_ALEN];
 
 static void vdpasim_net_work(struct work_struct *work)
 {
@@ -112,9 +107,21 @@ static void vdpasim_net_get_config(struct vdpasim *vdpasim, void *config)
 {
 	struct virtio_net_config *net_config = config;
 
-	net_config->mtu = cpu_to_vdpasim16(vdpasim, 1500);
 	net_config->status = cpu_to_vdpasim16(vdpasim, VIRTIO_NET_S_LINK_UP);
-	memcpy(net_config->mac, macaddr_buf, ETH_ALEN);
+}
+
+static void vdpasim_net_setup_config(struct vdpasim *vdpasim,
+				     const struct vdpa_dev_set_config *config)
+{
+	struct virtio_net_config *vio_config = vdpasim->config;
+
+	if (config->mask & (1 << VDPA_ATTR_DEV_NET_CFG_MACADDR))
+		memcpy(vio_config->mac, config->net.mac, ETH_ALEN);
+	if (config->mask & (1 << VDPA_ATTR_DEV_NET_CFG_MTU))
+		vio_config->mtu = cpu_to_vdpasim16(vdpasim, config->net.mtu);
+	else
+		/* Setup default MTU to be 1500 */
+		vio_config->mtu = cpu_to_vdpasim16(vdpasim, 1500);
 }
 
 static void vdpasim_net_mgmtdev_release(struct device *dev)
@@ -126,7 +133,8 @@ static struct device vdpasim_net_mgmtdev = {
 	.release = vdpasim_net_mgmtdev_release,
 };
 
-static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
+static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
+			       const struct vdpa_dev_set_config *config)
 {
 	struct vdpasim_dev_attr dev_attr = {};
 	struct vdpasim *simdev;
@@ -145,6 +153,8 @@ static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
 	simdev = vdpasim_create(&dev_attr);
 	if (IS_ERR(simdev))
 		return PTR_ERR(simdev);
+
+	vdpasim_net_setup_config(simdev, config);
 
 	ret = _vdpa_register_device(&simdev->vdpa, VDPASIM_NET_VQ_NUM);
 	if (ret)
@@ -179,19 +189,13 @@ static struct vdpa_mgmt_dev mgmt_dev = {
 	.device = &vdpasim_net_mgmtdev,
 	.id_table = id_table,
 	.ops = &vdpasim_net_mgmtdev_ops,
+	.config_attr_mask = (1 << VDPA_ATTR_DEV_NET_CFG_MACADDR |
+			     1 << VDPA_ATTR_DEV_NET_CFG_MTU),
 };
 
 static int __init vdpasim_net_init(void)
 {
 	int ret;
-
-	if (macaddr) {
-		mac_pton(macaddr, macaddr_buf);
-		if (!is_valid_ether_addr(macaddr_buf))
-			return -EADDRNOTAVAIL;
-	} else {
-		eth_random_addr(macaddr_buf);
-	}
 
 	ret = device_register(&vdpasim_net_mgmtdev);
 	if (ret)

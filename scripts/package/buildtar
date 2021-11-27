@@ -39,6 +39,10 @@ case "${1}" in
 		opts="-I ${XZ}"
 		tarball=${tarball}.xz
 		;;
+	tarzst-pkg)
+		opts="-I ${ZSTD}"
+		tarball=${tarball}.zst
+		;;
 	*)
 		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
 		exit 1

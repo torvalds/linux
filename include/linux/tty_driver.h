@@ -327,11 +327,11 @@ struct tty_driver {
 
 extern struct list_head tty_drivers;
 
-extern struct tty_driver *__tty_alloc_driver(unsigned int lines,
-		struct module *owner, unsigned long flags);
-extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
+struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
+		unsigned long flags);
+struct tty_driver *tty_find_polling_driver(char *name, int *line);
 
-extern void tty_driver_kref_put(struct tty_driver *driver);
+void tty_driver_kref_put(struct tty_driver *driver);
 
 /* Use TTY_DRIVER_* flags below */
 #define tty_alloc_driver(lines, flags) \
@@ -360,7 +360,7 @@ static inline void tty_set_operations(struct tty_driver *driver,
  * 	Used for PTY's, in particular.
  * 
  * TTY_DRIVER_REAL_RAW --- if set, indicates that the driver will
- * 	guarantee never not to set any special character handling
+ * 	guarantee never to set any special character handling
  * 	flags if ((IGNBRK || (!BRKINT && !PARMRK)) && (IGNPAR ||
  * 	!INPCK)).  That is, if there is no reason for the driver to
  * 	send notifications of parity and break characters up to the

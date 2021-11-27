@@ -63,7 +63,7 @@ struct mlx5_control_vq {
 	unsigned short head;
 };
 
-struct mlx5_ctrl_wq_ent {
+struct mlx5_vdpa_wq_ent {
 	struct work_struct work;
 	struct mlx5_vdpa_dev *mvdev;
 };

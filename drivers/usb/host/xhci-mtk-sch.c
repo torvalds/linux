@@ -734,7 +734,7 @@ static void drop_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 	if (!need_bw_sch(udev, ep))
 		return;
 
-	xhci_err(xhci, "%s %s\n", __func__, decode_ep(ep, udev->speed));
+	xhci_dbg(xhci, "%s %s\n", __func__, decode_ep(ep, udev->speed));
 
 	hash_for_each_possible_safe(mtk->sch_ep_hash, sch_ep,
 				    hn, hentry, (unsigned long)ep) {

@@ -114,7 +114,7 @@ static int mptctl_do_reset(MPT_ADAPTER *iocp, unsigned long arg);
 static int mptctl_hp_hostinfo(MPT_ADAPTER *iocp, unsigned long arg, unsigned int cmd);
 static int mptctl_hp_targetinfo(MPT_ADAPTER *iocp, unsigned long arg);
 
-static int  mptctl_probe(struct pci_dev *, const struct pci_device_id *);
+static int  mptctl_probe(struct pci_dev *);
 static void mptctl_remove(struct pci_dev *);
 
 #ifdef CONFIG_COMPAT
@@ -2838,7 +2838,7 @@ static long compat_mpctl_ioctl(struct file *f, unsigned int cmd, unsigned long a
  */
 
 static int
-mptctl_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+mptctl_probe(struct pci_dev *pdev)
 {
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 

@@ -68,7 +68,7 @@ static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
 	 * potentially being migrated away.
 	 */
 	if (cpu < 0)
-		cpu = smp_processor_id();
+		cpu = raw_smp_processor_id();
 
 	/* If a specific cpu was requested, pick it up immediately */
 	return dpio_by_cpu[cpu];
@@ -500,7 +500,7 @@ int dpaa2_io_service_enqueue_multiple_fq(struct dpaa2_io *d,
 	qbman_eq_desc_set_no_orp(&ed, 0);
 	qbman_eq_desc_set_fq(&ed, fqid);
 
-	return qbman_swp_enqueue_multiple(d->swp, &ed, fd, 0, nb);
+	return qbman_swp_enqueue_multiple(d->swp, &ed, fd, NULL, nb);
 }
 EXPORT_SYMBOL(dpaa2_io_service_enqueue_multiple_fq);
 

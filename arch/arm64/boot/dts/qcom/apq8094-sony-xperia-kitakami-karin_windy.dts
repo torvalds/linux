@@ -11,6 +11,7 @@
 / {
 	model = "Sony Xperia Z4 Tablet (Wi-Fi)";
 	compatible = "sony,karin_windy", "qcom,apq8094";
+	chassis-type = "tablet";
 
 	/*
 	 * This model uses the APQ variant of MSM8994 (APQ8094).

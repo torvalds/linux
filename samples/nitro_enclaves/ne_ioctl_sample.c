@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
 
 /**
@@ -184,7 +184,6 @@ static int ne_create_vm(int ne_dev_fd, unsigned long *slot_uid, int *enclave_fd)
 
 	return 0;
 }
-
 
 /**
  * ne_poll_enclave_fd() - Thread function for polling the enclave fd.
@@ -560,8 +559,8 @@ static int ne_add_vcpu(int enclave_fd, unsigned int *vcpu_id)
 
 		default:
 			printf("Error in add vcpu [%m]\n");
-
 		}
+
 		return rc;
 	}
 
@@ -638,7 +637,7 @@ static int ne_start_enclave(int enclave_fd,  struct ne_enclave_start_info *encla
 }
 
 /**
- * ne_start_enclave_check_booted() - Start the enclave and wait for a hearbeat
+ * ne_start_enclave_check_booted() - Start the enclave and wait for a heartbeat
  *				     from it, on a newly created vsock channel,
  *				     to check it has booted.
  * @enclave_fd :	The file descriptor associated with the enclave.

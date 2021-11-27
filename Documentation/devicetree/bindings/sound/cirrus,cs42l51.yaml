@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: CS42L51 audio codec DT bindings
 
 maintainers:
-  - Olivier Moysan <olivier.moysan@st.com>
+  - Olivier Moysan <olivier.moysan@foss.st.com>
 
 properties:
   compatible:

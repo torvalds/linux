@@ -1396,6 +1396,9 @@ remap_pages(struct drm_i915_gem_object *obj,
 {
 	unsigned int row;
 
+	if (!width || !height)
+		return sg;
+
 	if (alignment_pad) {
 		st->nents++;
 

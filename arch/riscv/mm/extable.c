@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 
-#ifdef CONFIG_BPF_JIT
+#if defined(CONFIG_BPF_JIT) && defined(CONFIG_ARCH_RV64I)
 int rv_bpf_fixup_exception(const struct exception_table_entry *ex, struct pt_regs *regs);
 #endif
 
@@ -23,7 +23,7 @@ int fixup_exception(struct pt_regs *regs)
 	if (!fixup)
 		return 0;
 
-#ifdef CONFIG_BPF_JIT
+#if defined(CONFIG_BPF_JIT) && defined(CONFIG_ARCH_RV64I)
 	if (regs->epc >= BPF_JIT_REGION_START && regs->epc < BPF_JIT_REGION_END)
 		return rv_bpf_fixup_exception(fixup, regs);
 #endif

@@ -378,7 +378,7 @@ static int __net_init seg6_net_init(struct net *net)
 		kfree(rcu_dereference_raw(sdata->tun_src));
 		kfree(sdata);
 		return -ENOMEM;
-	};
+	}
 #endif
 
 	return 0;

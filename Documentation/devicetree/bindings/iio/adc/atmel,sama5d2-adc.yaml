@@ -15,6 +15,7 @@ properties:
     enum:
       - atmel,sama5d2-adc
       - microchip,sam9x60-adc
+      - microchip,sama7g5-adc
 
   reg:
     maxItems: 1

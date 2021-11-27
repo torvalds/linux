@@ -224,19 +224,18 @@ void rtrs_clt_update_all_stats(struct rtrs_clt_io_req *req, int dir);
 int rtrs_clt_reset_rdma_lat_distr_stats(struct rtrs_clt_stats *stats,
 					 bool enable);
 ssize_t rtrs_clt_stats_rdma_lat_distr_to_str(struct rtrs_clt_stats *stats,
-					      char *page, size_t len);
+					      char *page);
 int rtrs_clt_reset_cpu_migr_stats(struct rtrs_clt_stats *stats, bool enable);
-int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats, char *buf,
-					 size_t len);
+int rtrs_clt_stats_migration_from_cnt_to_str(struct rtrs_clt_stats *stats, char *buf);
+int rtrs_clt_stats_migration_to_cnt_to_str(struct rtrs_clt_stats *stats, char *buf);
 int rtrs_clt_reset_reconnects_stat(struct rtrs_clt_stats *stats, bool enable);
-int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf,
-				     size_t len);
+int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf);
 int rtrs_clt_reset_rdma_stats(struct rtrs_clt_stats *stats, bool enable);
 ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
-				    char *page, size_t len);
+				    char *page);
 int rtrs_clt_reset_all_stats(struct rtrs_clt_stats *stats, bool enable);
 ssize_t rtrs_clt_reset_all_help(struct rtrs_clt_stats *stats,
-				 char *page, size_t len);
+				 char *page);
 
 /* rtrs-clt-sysfs.c */
 

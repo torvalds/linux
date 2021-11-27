@@ -24,6 +24,7 @@ properties:
       - socionext,uniphier-ld11-pinctrl
       - socionext,uniphier-ld20-pinctrl
       - socionext,uniphier-pxs3-pinctrl
+      - socionext,uniphier-nx1-pinctrl
 
 required:
   - compatible

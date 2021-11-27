@@ -70,7 +70,8 @@
 #define TMC_AXICTL_PROT_CTL_B0	BIT(0)
 #define TMC_AXICTL_PROT_CTL_B1	BIT(1)
 #define TMC_AXICTL_SCT_GAT_MODE	BIT(7)
-#define TMC_AXICTL_WR_BURST_16	0xF00
+#define TMC_AXICTL_WR_BURST(v)	(((v) & 0xf) << 8)
+#define TMC_AXICTL_WR_BURST_16	0xf
 /* Write-back Read and Write-allocate */
 #define TMC_AXICTL_AXCACHE_OS	(0xf << 2)
 #define TMC_AXICTL_ARCACHE_OS	(0xf << 16)
@@ -174,6 +175,8 @@ struct etr_buf {
  * @etr_buf:	details of buffer used in TMC-ETR
  * @len:	size of the available trace for ETF/ETB.
  * @size:	trace buffer size for this TMC (common for all modes).
+ * @max_burst_size: The maximum burst size that can be initiated by
+ *		TMC-ETR on AXI bus.
  * @mode:	how this TMC is being used.
  * @config_type: TMC variant, must be of type @tmc_config_type.
  * @memwidth:	width of the memory interface databus, in bytes.
@@ -198,6 +201,7 @@ struct tmc_drvdata {
 	};
 	u32			len;
 	u32			size;
+	u32			max_burst_size;
 	u32			mode;
 	enum tmc_config_type	config_type;
 	enum tmc_mem_intf_width	memwidth;

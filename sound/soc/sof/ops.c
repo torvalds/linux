@@ -157,6 +157,9 @@ void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset)
 		dev_dbg(sdev->dev, "panic: dsp_oops_offset %zu offset %d\n",
 			sdev->dsp_oops_offset, offset);
 
+	/* We want to see the DSP panic! */
+	sdev->dbg_dump_printed = false;
+
 	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_trace_notify_for_error(sdev);
 }

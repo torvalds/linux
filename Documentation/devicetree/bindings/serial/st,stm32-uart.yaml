@@ -5,7 +5,7 @@ $id: http://devicetree.org/schemas/serial/st,stm32-uart.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 maintainers:
-  - Erwan Le Ray <erwan.leray@st.com>
+  - Erwan Le Ray <erwan.leray@foss.st.com>
 
 title: STMicroelectronics STM32 USART bindings
 

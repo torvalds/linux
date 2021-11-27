@@ -1750,14 +1750,12 @@ static int add_default_attributes(void)
 	(PERF_COUNT_HW_CACHE_OP_PREFETCH	<<  8) |
 	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
 };
-	struct parse_events_error errinfo;
-
 	/* Set attrs if no event is selected and !null_run: */
 	if (stat_config.null_run)
 		return 0;
 
-	bzero(&errinfo, sizeof(errinfo));
 	if (transaction_run) {
+		struct parse_events_error errinfo;
 		/* Handle -T as -M transaction. Once platform specific metrics
 		 * support has been added to the json files, all architectures
 		 * will use this approach. To determine transaction support
@@ -1772,6 +1770,7 @@ static int add_default_attributes(void)
 							 &stat_config.metric_events);
 		}
 
+		parse_events_error__init(&errinfo);
 		if (pmu_have_event("cpu", "cycles-ct") &&
 		    pmu_have_event("cpu", "el-start"))
 			err = parse_events(evsel_list, transaction_attrs,
@@ -1782,13 +1781,14 @@ static int add_default_attributes(void)
 					   &errinfo);
 		if (err) {
 			fprintf(stderr, "Cannot set up transaction events\n");
-			parse_events_print_error(&errinfo, transaction_attrs);
-			return -1;
+			parse_events_error__print(&errinfo, transaction_attrs);
 		}
-		return 0;
+		parse_events_error__exit(&errinfo);
+		return err ? -1 : 0;
 	}
 
 	if (smi_cost) {
+		struct parse_events_error errinfo;
 		int smi;
 
 		if (sysfs__read_int(FREEZE_ON_SMI_PATH, &smi) < 0) {
@@ -1804,23 +1804,23 @@ static int add_default_attributes(void)
 			smi_reset = true;
 		}
 
-		if (pmu_have_event("msr", "aperf") &&
-		    pmu_have_event("msr", "smi")) {
-			if (!force_metric_only)
-				stat_config.metric_only = true;
-			err = parse_events(evsel_list, smi_cost_attrs, &errinfo);
-		} else {
+		if (!pmu_have_event("msr", "aperf") ||
+		    !pmu_have_event("msr", "smi")) {
 			fprintf(stderr, "To measure SMI cost, it needs "
 				"msr/aperf/, msr/smi/ and cpu/cycles/ support\n");
-			parse_events_print_error(&errinfo, smi_cost_attrs);
 			return -1;
 		}
+		if (!force_metric_only)
+			stat_config.metric_only = true;
+
+		parse_events_error__init(&errinfo);
+		err = parse_events(evsel_list, smi_cost_attrs, &errinfo);
 		if (err) {
-			parse_events_print_error(&errinfo, smi_cost_attrs);
+			parse_events_error__print(&errinfo, smi_cost_attrs);
 			fprintf(stderr, "Cannot set up SMI cost events\n");
-			return -1;
 		}
-		return 0;
+		parse_events_error__exit(&errinfo);
+		return err ? -1 : 0;
 	}
 
 	if (topdown_run) {
@@ -1875,18 +1875,22 @@ static int add_default_attributes(void)
 			return -1;
 		}
 		if (topdown_attrs[0] && str) {
+			struct parse_events_error errinfo;
 			if (warn)
 				arch_topdown_group_warn();
 setup_metrics:
+			parse_events_error__init(&errinfo);
 			err = parse_events(evsel_list, str, &errinfo);
 			if (err) {
 				fprintf(stderr,
 					"Cannot set up top down events %s: %d\n",
 					str, err);
-				parse_events_print_error(&errinfo, str);
+				parse_events_error__print(&errinfo, str);
+				parse_events_error__exit(&errinfo);
 				free(str);
 				return -1;
 			}
+			parse_events_error__exit(&errinfo);
 		} else {
 			fprintf(stderr, "System does not support topdown\n");
 			return -1;
@@ -1896,6 +1900,7 @@ setup_metrics:
 
 	if (!evsel_list->core.nr_entries) {
 		if (perf_pmu__has_hybrid()) {
+			struct parse_events_error errinfo;
 			const char *hybrid_str = "cycles,instructions,branches,branch-misses";
 
 			if (target__has_cpu(&target))
@@ -1906,15 +1911,16 @@ setup_metrics:
 				return -1;
 			}
 
+			parse_events_error__init(&errinfo);
 			err = parse_events(evsel_list, hybrid_str, &errinfo);
 			if (err) {
 				fprintf(stderr,
 					"Cannot set up hybrid events %s: %d\n",
 					hybrid_str, err);
-				parse_events_print_error(&errinfo, hybrid_str);
-				return -1;
+				parse_events_error__print(&errinfo, hybrid_str);
 			}
-			return err;
+			parse_events_error__exit(&errinfo);
+			return err ? -1 : 0;
 		}
 
 		if (target__has_cpu(&target))

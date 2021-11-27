@@ -1420,44 +1420,6 @@ void irdma_sc_send_lsmm(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size,
 }
 
 /**
- * irdma_sc_send_lsmm_nostag - for privilege qp
- * @qp: sc qp struct
- * @lsmm_buf: buffer with lsmm message
- * @size: size of lsmm buffer
- */
-void irdma_sc_send_lsmm_nostag(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size)
-{
-	__le64 *wqe;
-	u64 hdr;
-	struct irdma_qp_uk *qp_uk;
-
-	qp_uk = &qp->qp_uk;
-	wqe = qp_uk->sq_base->elem;
-
-	set_64bit_val(wqe, 0, (uintptr_t)lsmm_buf);
-
-	if (qp->qp_uk.uk_attrs->hw_rev == IRDMA_GEN_1)
-		set_64bit_val(wqe, 8,
-			      FIELD_PREP(IRDMAQPSQ_GEN1_FRAG_LEN, size));
-	else
-		set_64bit_val(wqe, 8,
-			      FIELD_PREP(IRDMAQPSQ_FRAG_LEN, size) |
-			      FIELD_PREP(IRDMAQPSQ_VALID, qp->qp_uk.swqe_polarity));
-	set_64bit_val(wqe, 16, 0);
-
-	hdr = FIELD_PREP(IRDMAQPSQ_OPCODE, IRDMAQP_OP_RDMA_SEND) |
-	      FIELD_PREP(IRDMAQPSQ_STREAMMODE, 1) |
-	      FIELD_PREP(IRDMAQPSQ_WAITFORRCVPDU, 1) |
-	      FIELD_PREP(IRDMAQPSQ_VALID, qp->qp_uk.swqe_polarity);
-	dma_wmb(); /* make sure WQE is written before valid bit is set */
-
-	set_64bit_val(wqe, 24, hdr);
-
-	print_hex_dump_debug("WQE: SEND_LSMM_NOSTAG WQE", DUMP_PREFIX_OFFSET,
-			     16, 8, wqe, IRDMA_QP_WQE_MIN_SIZE, false);
-}
-
-/**
  * irdma_sc_send_rtt - send last read0 or write0
  * @qp: sc qp struct
  * @read: Do read0 or write0
@@ -2501,7 +2463,6 @@ static inline void irdma_sc_cq_ack(struct irdma_sc_cq *cq)
 enum irdma_status_code irdma_sc_cq_init(struct irdma_sc_cq *cq,
 					struct irdma_cq_init_info *info)
 {
-	enum irdma_status_code ret_code;
 	u32 pble_obj_cnt;
 
 	pble_obj_cnt = info->dev->hmc_info->hmc_obj[IRDMA_HMC_IW_PBLE].cnt;
@@ -2513,9 +2474,7 @@ enum irdma_status_code irdma_sc_cq_init(struct irdma_sc_cq *cq,
 	cq->ceq_id = info->ceq_id;
 	info->cq_uk_init_info.cqe_alloc_db = cq->dev->cq_arm_db;
 	info->cq_uk_init_info.cq_ack_db = cq->dev->cq_ack_db;
-	ret_code = irdma_uk_cq_init(&cq->cq_uk, &info->cq_uk_init_info);
-	if (ret_code)
-		return ret_code;
+	irdma_uk_cq_init(&cq->cq_uk, &info->cq_uk_init_info);
 
 	cq->virtual_map = info->virtual_map;
 	cq->pbl_chunk_size = info->pbl_chunk_size;

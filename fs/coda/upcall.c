@@ -744,7 +744,8 @@ static int coda_upcall(struct venus_comm *vcp,
 	list_add_tail(&req->uc_chain, &vcp->vc_pending);
 	wake_up_interruptible(&vcp->vc_waitq);
 
-	if (req->uc_flags & CODA_REQ_ASYNC) {
+	/* We can return early on asynchronous requests */
+	if (outSize == NULL) {
 		mutex_unlock(&vcp->vc_mutex);
 		return 0;
 	}

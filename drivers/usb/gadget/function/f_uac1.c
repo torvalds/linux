@@ -1321,6 +1321,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		audio->params.c_fu.volume_res = audio_opts->c_volume_res;
 	}
 	audio->params.req_number = audio_opts->req_number;
+	audio->params.fb_max = FBACK_FAST_MAX;
 	if (FUOUT_EN(audio_opts) || FUIN_EN(audio_opts))
 		audio->notify = audio_notify;
 

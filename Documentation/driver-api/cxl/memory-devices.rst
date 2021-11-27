@@ -39,11 +39,17 @@ CXL Core
 .. kernel-doc:: drivers/cxl/core/bus.c
    :doc: cxl core
 
+.. kernel-doc:: drivers/cxl/core/bus.c
+   :identifiers:
+
 .. kernel-doc:: drivers/cxl/core/pmem.c
    :doc: cxl pmem
 
 .. kernel-doc:: drivers/cxl/core/regs.c
    :doc: cxl registers
+
+.. kernel-doc:: drivers/cxl/core/mbox.c
+   :doc: cxl mbox
 
 External Interfaces
 ===================

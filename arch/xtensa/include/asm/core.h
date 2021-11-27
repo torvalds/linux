@@ -26,4 +26,15 @@
 #define XCHAL_SPANNING_WAY 0
 #endif
 
+#if XCHAL_HAVE_WINDOWED
+#if defined(CONFIG_USER_ABI_DEFAULT) || defined(CONFIG_USER_ABI_CALL0_PROBE)
+/* Whether windowed ABI is supported in userspace. */
+#define USER_SUPPORT_WINDOWED
+#endif
+#if defined(__XTENSA_WINDOWED_ABI__) || defined(USER_SUPPORT_WINDOWED)
+/* Whether windowed ABI is supported either in userspace or in the kernel. */
+#define SUPPORT_WINDOWED
+#endif
+#endif
+
 #endif

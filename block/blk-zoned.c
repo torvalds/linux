@@ -429,9 +429,10 @@ int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 		op = REQ_OP_ZONE_RESET;
 
 		/* Invalidate the page cache, including dirty pages. */
+		filemap_invalidate_lock(bdev->bd_inode->i_mapping);
 		ret = blkdev_truncate_zone_range(bdev, mode, &zrange);
 		if (ret)
-			return ret;
+			goto fail;
 		break;
 	case BLKOPENZONE:
 		op = REQ_OP_ZONE_OPEN;
@@ -449,15 +450,9 @@ int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 	ret = blkdev_zone_mgmt(bdev, op, zrange.sector, zrange.nr_sectors,
 			       GFP_KERNEL);
 
-	/*
-	 * Invalidate the page cache again for zone reset: writes can only be
-	 * direct for zoned devices so concurrent writes would not add any page
-	 * to the page cache after/during reset. The page cache may be filled
-	 * again due to concurrent reads though and dropping the pages for
-	 * these is fine.
-	 */
-	if (!ret && cmd == BLKRESETZONE)
-		ret = blkdev_truncate_zone_range(bdev, mode, &zrange);
+fail:
+	if (cmd == BLKRESETZONE)
+		filemap_invalidate_unlock(bdev->bd_inode->i_mapping);
 
 	return ret;
 }

@@ -312,7 +312,7 @@ int lis3lv02d_joystick_enable(struct lis3lv02d *lis3);
 void lis3lv02d_joystick_disable(struct lis3lv02d *lis3);
 void lis3lv02d_poweroff(struct lis3lv02d *lis3);
 int lis3lv02d_poweron(struct lis3lv02d *lis3);
-int lis3lv02d_remove_fs(struct lis3lv02d *lis3);
+void lis3lv02d_remove_fs(struct lis3lv02d *lis3);
 int lis3lv02d_init_dt(struct lis3lv02d *lis3);
 
 extern struct lis3lv02d lis3_dev;

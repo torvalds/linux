@@ -2270,7 +2270,7 @@ void dcn20_reset_hw_ctx_wrap(
 
 			dcn20_reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
 			if (hws->funcs.enable_stream_gating)
-				hws->funcs.enable_stream_gating(dc, pipe_ctx);
+				hws->funcs.enable_stream_gating(dc, pipe_ctx_old);
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 		}
@@ -2397,6 +2397,9 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	 * BY this, it is logic clean to separate stream and link
 	 */
 	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		if (pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control)
+			pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control(
+				pipe_ctx->stream->ctx->dc->hwseq, true);
 		setup_dp_hpo_stream(pipe_ctx, true);
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->enable_stream(
 				pipe_ctx->stream_res.hpo_dp_stream_enc);

@@ -17,6 +17,12 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		battery-type = "lithium-ion-polymer";
+		thermistor-on-batctrl;
+	};
+
 	en_3v3_reg: en_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "en-3v3-fixed-supply";

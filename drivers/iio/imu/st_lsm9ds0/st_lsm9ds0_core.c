@@ -24,10 +24,10 @@ static int st_lsm9ds0_power_enable(struct device *dev, struct st_lsm9ds0 *lsm9ds
 
 	/* Regulators not mandatory, but if requested we should enable them. */
 	lsm9ds0->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(lsm9ds0->vdd)) {
-		dev_err(dev, "unable to get Vdd supply\n");
-		return PTR_ERR(lsm9ds0->vdd);
-	}
+	if (IS_ERR(lsm9ds0->vdd))
+		return dev_err_probe(dev, PTR_ERR(lsm9ds0->vdd),
+				     "unable to get Vdd supply\n");
+
 	ret = regulator_enable(lsm9ds0->vdd);
 	if (ret) {
 		dev_warn(dev, "Failed to enable specified Vdd supply\n");
@@ -36,9 +36,9 @@ static int st_lsm9ds0_power_enable(struct device *dev, struct st_lsm9ds0 *lsm9ds
 
 	lsm9ds0->vdd_io = devm_regulator_get(dev, "vddio");
 	if (IS_ERR(lsm9ds0->vdd_io)) {
-		dev_err(dev, "unable to get Vdd_IO supply\n");
 		regulator_disable(lsm9ds0->vdd);
-		return PTR_ERR(lsm9ds0->vdd_io);
+		return dev_err_probe(dev, PTR_ERR(lsm9ds0->vdd_io),
+				     "unable to get Vdd_IO supply\n");
 	}
 	ret = regulator_enable(lsm9ds0->vdd_io);
 	if (ret) {
@@ -90,7 +90,6 @@ static int st_lsm9ds0_probe_accel(struct st_lsm9ds0 *lsm9ds0, struct regmap *reg
 
 	data = iio_priv(lsm9ds0->accel);
 	data->sensor_settings = (struct st_sensor_settings *)settings;
-	data->dev = dev;
 	data->irq = lsm9ds0->irq;
 	data->regmap = regmap;
 	data->vdd = lsm9ds0->vdd;
@@ -119,7 +118,6 @@ static int st_lsm9ds0_probe_magn(struct st_lsm9ds0 *lsm9ds0, struct regmap *regm
 
 	data = iio_priv(lsm9ds0->magn);
 	data->sensor_settings = (struct st_sensor_settings *)settings;
-	data->dev = dev;
 	data->irq = lsm9ds0->irq;
 	data->regmap = regmap;
 	data->vdd = lsm9ds0->vdd;
@@ -142,22 +140,9 @@ int st_lsm9ds0_probe(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap)
 		return ret;
 
 	/* Setup magnetometer device */
-	ret = st_lsm9ds0_probe_magn(lsm9ds0, regmap);
-	if (ret)
-		st_accel_common_remove(lsm9ds0->accel);
-
-	return ret;
+	return st_lsm9ds0_probe_magn(lsm9ds0, regmap);
 }
 EXPORT_SYMBOL_GPL(st_lsm9ds0_probe);
-
-int st_lsm9ds0_remove(struct st_lsm9ds0 *lsm9ds0)
-{
-	st_magn_common_remove(lsm9ds0->magn);
-	st_accel_common_remove(lsm9ds0->accel);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(st_lsm9ds0_remove);
 
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_DESCRIPTION("STMicroelectronics LSM9DS0 IMU core driver");

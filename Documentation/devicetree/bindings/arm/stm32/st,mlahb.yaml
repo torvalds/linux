@@ -7,8 +7,8 @@ $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 title: STMicroelectronics STM32 ML-AHB interconnect bindings
 
 maintainers:
-  - Fabien Dessenne <fabien.dessenne@st.com>
-  - Arnaud Pouliquen <arnaud.pouliquen@st.com>
+  - Fabien Dessenne <fabien.dessenne@foss.st.com>
+  - Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
 
 description: |
   These bindings describe the STM32 SoCs ML-AHB interconnect bus which connects

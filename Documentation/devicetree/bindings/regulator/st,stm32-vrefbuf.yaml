@@ -12,7 +12,7 @@ description: |
   components through the dedicated VREF+ pin.
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 allOf:
   - $ref: "regulator.yaml#"

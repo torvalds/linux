@@ -54,7 +54,11 @@ sd_desc
 seq_operations
 sirfsoc_padmux
 snd_ac97_build_ops
+snd_pcm_ops
+snd_rawmidi_ops
 snd_soc_component_driver
+snd_soc_dai_ops
+snd_soc_ops
 soc_pcmcia_socket_ops
 stacktrace_ops
 sysfs_ops

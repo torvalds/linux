@@ -453,50 +453,57 @@ err:
 }
 EXPORT_SYMBOL_GPL(cxl_add_dport);
 
-static struct cxl_decoder *
-cxl_decoder_alloc(struct cxl_port *port, int nr_targets, resource_size_t base,
-		  resource_size_t len, int interleave_ways,
-		  int interleave_granularity, enum cxl_decoder_type type,
-		  unsigned long flags)
+static int decoder_populate_targets(struct cxl_decoder *cxld,
+				    struct cxl_port *port, int *target_map)
 {
-	struct cxl_decoder *cxld;
+	int rc = 0, i;
+
+	if (!target_map)
+		return 0;
+
+	device_lock(&port->dev);
+	if (list_empty(&port->dports)) {
+		rc = -EINVAL;
+		goto out_unlock;
+	}
+
+	for (i = 0; i < cxld->nr_targets; i++) {
+		struct cxl_dport *dport = find_dport(port, target_map[i]);
+
+		if (!dport) {
+			rc = -ENXIO;
+			goto out_unlock;
+		}
+		cxld->target[i] = dport;
+	}
+
+out_unlock:
+	device_unlock(&port->dev);
+
+	return rc;
+}
+
+struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port, int nr_targets)
+{
+	struct cxl_decoder *cxld, cxld_const_init = {
+		.nr_targets = nr_targets,
+	};
 	struct device *dev;
 	int rc = 0;
 
-	if (interleave_ways < 1)
+	if (nr_targets > CXL_DECODER_MAX_INTERLEAVE || nr_targets < 1)
 		return ERR_PTR(-EINVAL);
-
-	device_lock(&port->dev);
-	if (list_empty(&port->dports))
-		rc = -EINVAL;
-	device_unlock(&port->dev);
-	if (rc)
-		return ERR_PTR(rc);
 
 	cxld = kzalloc(struct_size(cxld, target, nr_targets), GFP_KERNEL);
 	if (!cxld)
 		return ERR_PTR(-ENOMEM);
+	memcpy(cxld, &cxld_const_init, sizeof(cxld_const_init));
 
 	rc = ida_alloc(&port->decoder_ida, GFP_KERNEL);
 	if (rc < 0)
 		goto err;
 
-	*cxld = (struct cxl_decoder) {
-		.id = rc,
-		.range = {
-			.start = base,
-			.end = base + len - 1,
-		},
-		.flags = flags,
-		.interleave_ways = interleave_ways,
-		.interleave_granularity = interleave_granularity,
-		.target_type = type,
-	};
-
-	/* handle implied target_list */
-	if (interleave_ways == 1)
-		cxld->target[0] =
-			list_first_entry(&port->dports, struct cxl_dport, list);
+	cxld->id = rc;
 	dev = &cxld->dev;
 	device_initialize(dev);
 	device_set_pm_not_required(dev);
@@ -514,41 +521,47 @@ err:
 	kfree(cxld);
 	return ERR_PTR(rc);
 }
+EXPORT_SYMBOL_GPL(cxl_decoder_alloc);
 
-struct cxl_decoder *
-devm_cxl_add_decoder(struct device *host, struct cxl_port *port, int nr_targets,
-		     resource_size_t base, resource_size_t len,
-		     int interleave_ways, int interleave_granularity,
-		     enum cxl_decoder_type type, unsigned long flags)
+int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map)
 {
-	struct cxl_decoder *cxld;
+	struct cxl_port *port;
 	struct device *dev;
 	int rc;
 
-	cxld = cxl_decoder_alloc(port, nr_targets, base, len, interleave_ways,
-				 interleave_granularity, type, flags);
-	if (IS_ERR(cxld))
-		return cxld;
+	if (WARN_ON_ONCE(!cxld))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(IS_ERR(cxld)))
+		return PTR_ERR(cxld);
+
+	if (cxld->interleave_ways < 1)
+		return -EINVAL;
+
+	port = to_cxl_port(cxld->dev.parent);
+	rc = decoder_populate_targets(cxld, port, target_map);
+	if (rc)
+		return rc;
 
 	dev = &cxld->dev;
 	rc = dev_set_name(dev, "decoder%d.%d", port->id, cxld->id);
 	if (rc)
-		goto err;
+		return rc;
 
-	rc = device_add(dev);
-	if (rc)
-		goto err;
-
-	rc = devm_add_action_or_reset(host, unregister_cxl_dev, dev);
-	if (rc)
-		return ERR_PTR(rc);
-	return cxld;
-
-err:
-	put_device(dev);
-	return ERR_PTR(rc);
+	return device_add(dev);
 }
-EXPORT_SYMBOL_GPL(devm_cxl_add_decoder);
+EXPORT_SYMBOL_GPL(cxl_decoder_add);
+
+static void cxld_unregister(void *dev)
+{
+	device_unregister(dev);
+}
+
+int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld)
+{
+	return devm_add_action_or_reset(host, cxld_unregister, &cxld->dev);
+}
+EXPORT_SYMBOL_GPL(cxl_decoder_autoremove);
 
 /**
  * __cxl_driver_register - register a driver for the cxl bus
@@ -635,6 +648,8 @@ static __init int cxl_core_init(void)
 {
 	int rc;
 
+	cxl_mbox_init();
+
 	rc = cxl_memdev_init();
 	if (rc)
 		return rc;
@@ -646,6 +661,7 @@ static __init int cxl_core_init(void)
 
 err:
 	cxl_memdev_exit();
+	cxl_mbox_exit();
 	return rc;
 }
 
@@ -653,6 +669,7 @@ static void cxl_core_exit(void)
 {
 	bus_unregister(&cxl_bus_type);
 	cxl_memdev_exit();
+	cxl_mbox_exit();
 }
 
 module_init(cxl_core_init);

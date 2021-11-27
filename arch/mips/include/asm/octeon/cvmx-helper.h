@@ -94,13 +94,6 @@ extern int cvmx_helper_ipd_and_packet_input_enable(void);
 extern int cvmx_helper_initialize_packet_io_global(void);
 
 /**
- * Does core local initialization for packet io
- *
- * Returns Zero on success, non-zero on failure
- */
-extern int cvmx_helper_initialize_packet_io_local(void);
-
-/**
  * Returns the number of ports on the given interface.
  * The interface must be initialized before the port count
  * can be returned.

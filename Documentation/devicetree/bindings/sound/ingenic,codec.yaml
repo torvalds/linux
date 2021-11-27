@@ -48,7 +48,7 @@ required:
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4740-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
     codec: audio-codec@10020080 {
       compatible = "ingenic,jz4740-codec";
       reg = <0x10020080 0x8>;

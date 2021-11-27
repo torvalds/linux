@@ -19,6 +19,7 @@ properties:
       - microchip,cap1106
       - microchip,cap1126
       - microchip,cap1188
+      - microchip,cap1206
 
   reg:
     maxItems: 1

@@ -103,7 +103,7 @@ void usnic_fwd_dev_free(struct usnic_fwd_dev *ufdev)
 	kfree(ufdev);
 }
 
-void usnic_fwd_set_mac(struct usnic_fwd_dev *ufdev, char mac[ETH_ALEN])
+void usnic_fwd_set_mac(struct usnic_fwd_dev *ufdev, const char mac[ETH_ALEN])
 {
 	spin_lock(&ufdev->lock);
 	memcpy(&ufdev->mac, mac, sizeof(ufdev->mac));

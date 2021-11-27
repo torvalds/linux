@@ -58,7 +58,7 @@ config RESET_BRCMSTB
 	  a SUN_TOP_CTRL_SW_INIT style controller.
 
 config RESET_BRCMSTB_RESCAL
-	bool "Broadcom STB RESCAL reset controller"
+	tristate "Broadcom STB RESCAL reset controller"
 	depends on HAS_IOMEM
 	depends on ARCH_BRCMSTB || COMPILE_TEST
 	default ARCH_BRCMSTB
@@ -116,7 +116,7 @@ config RESET_LPC18XX
 
 config RESET_MCHP_SPARX5
 	bool "Microchip Sparx5 reset driver"
-	depends on ARCH_SPARX5 || COMPILE_TEST
+	depends on ARCH_SPARX5 || SOC_LAN966 || COMPILE_TEST
 	default y if SPARX5_SWITCH
 	select MFD_SYSCON
 	help
