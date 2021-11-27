@@ -250,7 +250,7 @@ static const struct v4l2_subdev_pad_ops max96712_pad_ops = {
 	.set_fmt = max96712_get_pad_format,
 };
 
-static struct v4l2_subdev_ops max96712_subdev_ops = {
+static const struct v4l2_subdev_ops max96712_subdev_ops = {
 	.video = &max96712_video_ops,
 	.pad = &max96712_pad_ops,
 };
