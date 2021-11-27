@@ -5073,6 +5073,7 @@ static int rkcif_try_fmt_vid_cap_mplane(struct file *file, void *fh,
 static int rkcif_enum_framesizes(struct file *file, void *prov,
 				 struct v4l2_frmsizeenum *fsize)
 {
+	struct v4l2_frmsize_discrete *d = &fsize->discrete;
 	struct v4l2_frmsize_stepwise *s = &fsize->stepwise;
 	struct rkcif_stream *stream = video_drvdata(file);
 	struct rkcif_device *dev = stream->cifdev;
@@ -5093,13 +5094,19 @@ static int rkcif_enum_framesizes(struct file *file, void *prov,
 			      &input_rect, stream->id,
 			      &csi_info);
 
-	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
-	s->min_width = CIF_MIN_WIDTH;
-	s->min_height = CIF_MIN_HEIGHT;
-	s->max_width = input_rect.width;
-	s->max_height = input_rect.height;
-	s->step_width = OUTPUT_STEP_WISE;
-	s->step_height = OUTPUT_STEP_WISE;
+	if (dev->hw_dev->adapt_to_usbcamerahal) {
+		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		d->width = input_rect.width;
+		d->height = input_rect.height;
+	} else {
+		fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+		s->min_width = CIF_MIN_WIDTH;
+		s->min_height = CIF_MIN_HEIGHT;
+		s->max_width = input_rect.width;
+		s->max_height = input_rect.height;
+		s->step_width = OUTPUT_STEP_WISE;
+		s->step_height = OUTPUT_STEP_WISE;
+	}
 
 	return 0;
 }
@@ -5131,13 +5138,19 @@ static int rkcif_enum_frameintervals(struct file *file, void *fh,
 		fi.interval.denominator = 30;
 	}
 
-	fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
-	fival->stepwise.step.numerator = 1;
-	fival->stepwise.step.denominator = 1;
-	fival->stepwise.max.numerator = 1;
-	fival->stepwise.max.denominator = 1;
-	fival->stepwise.min.numerator = fi.interval.numerator;
-	fival->stepwise.min.denominator = fi.interval.denominator;
+	if (dev->hw_dev->adapt_to_usbcamerahal) {
+		fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+		fival->discrete.numerator = fi.interval.numerator;
+		fival->discrete.denominator = fi.interval.denominator;
+	} else {
+		fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
+		fival->stepwise.step.numerator = 1;
+		fival->stepwise.step.denominator = 1;
+		fival->stepwise.max.numerator = 1;
+		fival->stepwise.max.denominator = 1;
+		fival->stepwise.min.numerator = fi.interval.numerator;
+		fival->stepwise.min.denominator = fi.interval.denominator;
+	}
 
 	return 0;
 }
