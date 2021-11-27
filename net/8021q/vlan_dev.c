@@ -615,6 +615,9 @@ static int vlan_dev_init(struct net_device *dev)
 	if (!vlan->vlan_pcpu_stats)
 		return -ENOMEM;
 
+	/* Get vlan's reference to real_dev */
+	dev_hold(real_dev);
+
 	return 0;
 }
 
