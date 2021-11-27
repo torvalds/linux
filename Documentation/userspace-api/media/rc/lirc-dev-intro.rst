@@ -117,11 +117,9 @@ on the following table.
 
     ``LIRC_MODE2_TIMEOUT``
 
-        If timeout reports are enabled with
-        :ref:`lirc_set_rec_timeout_reports`, when the timeout set with
-        :ref:`lirc_set_rec_timeout` expires due to no IR being detected,
-        this packet will be sent, with the number of microseconds with
-        no IR.
+        When the timeout set with :ref:`lirc_set_rec_timeout` expires due
+        to no IR being detected, this packet will be sent, with the number
+        of microseconds with no IR.
 
 .. _lirc-mode-pulse:
 
