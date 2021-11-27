@@ -419,6 +419,18 @@ static bool dw_dp_bandwidth_ok(struct dw_dp *dp,
 	return true;
 }
 
+static bool dw_dp_detect(struct dw_dp *dp)
+{
+	u32 value;
+
+	if (dp->hpd_gpio)
+		return gpiod_get_value_cansleep(dp->hpd_gpio);
+
+	regmap_read(dp->regmap, DPTX_HPD_STATUS, &value);
+
+	return !!(value & HPD_STATUS);
+}
+
 static enum drm_connector_status
 dw_dp_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -1707,7 +1719,8 @@ static bool dw_dp_needs_link_retrain(struct dw_dp *dp)
 
 static void dw_dp_link_disable(struct dw_dp *dp)
 {
-	dw_dp_link_power_down(dp);
+	if (dw_dp_detect(dp))
+		dw_dp_link_power_down(dp);
 
 	dw_dp_phy_xmit_enable(dp, 0);
 
@@ -1774,18 +1787,6 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
 
 	video->stream_on = false;
-}
-
-static bool dw_dp_detect(struct dw_dp *dp)
-{
-	u32 value;
-
-	if (dp->hpd_gpio)
-		return gpiod_get_value_cansleep(dp->hpd_gpio);
-
-	regmap_read(dp->regmap, DPTX_HPD_STATUS, &value);
-
-	return !!(value & HPD_STATUS);
 }
 
 static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
