@@ -37,7 +37,7 @@ struct apple_gpio_pinctrl {
 	struct pinctrl_desc pinctrl_desc;
 	struct gpio_chip gpio_chip;
 	struct irq_chip irq_chip;
-	u8 irqgrps[0];
+	u8 irqgrps[];
 };
 
 #define REG_GPIO(x)          (4 * (x))
