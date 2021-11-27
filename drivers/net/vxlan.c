@@ -3747,7 +3747,7 @@ static int vxlan_config_validate(struct net *src_net, struct vxlan_config *conf,
 
 	if (!conf->dst_port) {
 		if (conf->flags & VXLAN_F_GPE)
-			conf->dst_port = htons(4790); /* IANA VXLAN-GPE port */
+			conf->dst_port = htons(IANA_VXLAN_GPE_UDP_PORT);
 		else
 			conf->dst_port = htons(vxlan_port);
 	}
