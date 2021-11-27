@@ -93,7 +93,7 @@ static int aif1_startup(struct snd_pcm_substream *substream)
 			&constraints_48000);
 }
 
-static struct snd_soc_ops aif1_ops = {
+static const struct snd_soc_ops aif1_ops = {
 	.startup = aif1_startup,
 };
 
