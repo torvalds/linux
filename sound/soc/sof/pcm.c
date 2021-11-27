@@ -107,6 +107,9 @@ int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev
 	struct sof_ipc_reply reply;
 	int ret;
 
+	if (!spcm->prepared[substream->stream])
+		return 0;
+
 	stream.hdr.size = sizeof(stream);
 	stream.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_FREE;
 	stream.comp_id = spcm->stream[substream->stream].comp_id;
@@ -178,11 +181,9 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	 * Handle repeated calls to hw_params() without free_pcm() in
 	 * between. At least ALSA OSS emulation depends on this.
 	 */
-	if (spcm->prepared[substream->stream]) {
-		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
-		if (ret < 0)
-			return ret;
-	}
+	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
+	if (ret < 0)
+		return ret;
 
 	dev_dbg(component->dev, "pcm: hw params stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
@@ -298,23 +299,25 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: free stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
 
-	if (spcm->prepared[substream->stream]) {
-		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
-		if (ret < 0)
-			err = ret;
-	}
-
-	ret = sof_widget_list_free(sdev, spcm, substream->stream);
+	/* free PCM in the DSP */
+	ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
 	if (ret < 0)
 		err = ret;
 
-	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
+	/* stop DMA */
 	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
 	if (ret < 0) {
 		dev_err(component->dev, "error: platform hw free failed\n");
 		err = ret;
 	}
+
+	/* free the DAPM widget list */
+	ret = sof_widget_list_free(sdev, spcm, substream->stream);
+	if (ret < 0)
+		err = ret;
+
+	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
 	return err;
 }
@@ -466,13 +469,10 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 
 	/* free PCM if reset_hw_params is set and the STOP IPC is successful */
 	if (!ret && reset_hw_params) {
-		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
+		ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream,
+					  free_widget_list);
 		if (ret < 0)
 			return ret;
-
-		/* free widget list only for SUSPEND trigger */
-		if (free_widget_list)
-			ret = sof_widget_list_free(sdev, spcm, substream->stream);
 	}
 
 	return ret;
