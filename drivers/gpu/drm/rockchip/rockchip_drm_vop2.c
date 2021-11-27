@@ -3667,15 +3667,19 @@ static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
 	struct drm_rect *src = &vpstate->src;
 	u16 half_hdisplay = mode->crtc_hdisplay >> 1;
 	int hscale = drm_rect_calc_hscale(src, dst, 0, INT_MAX);
-	int dsp_w = drm_rect_width(dst);
+	int dst_w = drm_rect_width(dst);
+	int src_w = drm_rect_width(src) >> 16;
 	int left_src_w, left_dst_w, right_dst_w;
 
 	left_dst_w = min_t(u16, half_hdisplay, dst->x2) - dst->x1;
 	if (left_dst_w < 0)
 		left_dst_w = 0;
-	right_dst_w = dsp_w - left_dst_w;
+	right_dst_w = dst_w - left_dst_w;
 
-	left_src_w = (left_dst_w * hscale) >> 16;
+	if (!right_dst_w)
+		left_src_w = src_w;
+	else
+		left_src_w = (left_dst_w * hscale) >> 16;
 	left_src->x1 = src->x1;
 	left_src->x2 = src->x1 + (left_src_w << 16);
 	left_dst->x1 = dst->x1;
@@ -3828,7 +3832,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 
 	vop2_win_enable(win);
 	spin_lock(&vop2->reg_lock);
-	DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@%dx%d] fmt[%.4s_%s] addr[%pad]\n",
+	DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@(%d, %d)] fmt[%.4s_%s] addr[%pad]\n",
 		      vp->id, win->name, actual_w, actual_h, dsp_w, dsp_h,
 		      dsp_stx, dsp_sty,
 		      drm_get_format_name(fb->format->format, &format_name),
@@ -4004,7 +4008,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	}
 
 	if (vcstate->splice_mode) {
-		DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@%dx%d] fmt[%.4s_%s] addr[%pad]\n",
+		DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@(%d,%d)] fmt[%.4s_%s] addr[%pad]\n",
 			      vp->id, win->name, drm_rect_width(&vpstate->src) >> 16,
 			      drm_rect_height(&vpstate->src) >> 16,
 			      drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
