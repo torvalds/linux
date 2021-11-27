@@ -243,7 +243,7 @@ void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	struct hpo_dp_link_encoder *hpo_link_enc = link->hpo_dp_link_enc;
+	struct hpo_dp_link_encoder *hpo_link_enc = link_res->hpo_dp_link_enc;
 #endif
 	struct link_encoder *link_enc;
 
@@ -366,8 +366,8 @@ void dp_set_hw_lane_settings(
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (dp_get_link_encoding_format(&link_settings->link_settings) ==
 			DP_128b_132b_ENCODING) {
-		link->hpo_dp_link_enc->funcs->set_ffe(
-				link->hpo_dp_link_enc,
+		link_res->hpo_dp_link_enc->funcs->set_ffe(
+				link_res->hpo_dp_link_enc,
 				&link_settings->link_settings,
 				link_settings->lane_settings[0].FFE_PRESET.raw);
 	} else if (dp_get_link_encoding_format(&link_settings->link_settings)
@@ -412,8 +412,8 @@ void dp_set_hw_test_pattern(
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	switch (link_encoding_format) {
 	case DP_128b_132b_ENCODING:
-		link->hpo_dp_link_enc->funcs->set_link_test_pattern(
-				link->hpo_dp_link_enc, &pattern_param);
+		link_res->hpo_dp_link_enc->funcs->set_link_test_pattern(
+				link_res->hpo_dp_link_enc, &pattern_param);
 		break;
 	case DP_8b_10b_ENCODING:
 		ASSERT(encoder);
@@ -797,8 +797,8 @@ void enable_dp_hpo_output(struct dc_link *link,
 		}
 	} else {
 		/* DP2.0 HW: call transmitter control to enable PHY */
-		link->hpo_dp_link_enc->funcs->enable_link_phy(
-				link->hpo_dp_link_enc,
+		link_res->hpo_dp_link_enc->funcs->enable_link_phy(
+				link_res->hpo_dp_link_enc,
 				link_settings,
 				link->link_enc->transmitter);
 	}
@@ -814,11 +814,11 @@ void enable_dp_hpo_output(struct dc_link *link,
 		phyd32clk = get_phyd32clk_src(link);
 		dc->res_pool->dccg->funcs->enable_symclk32_le(
 				dc->res_pool->dccg,
-				link->hpo_dp_link_enc->inst,
+				link_res->hpo_dp_link_enc->inst,
 				phyd32clk);
-		link->hpo_dp_link_enc->funcs->link_enable(
-					link->hpo_dp_link_enc,
-					link_settings->lane_count);
+		link_res->hpo_dp_link_enc->funcs->link_enable(
+				link_res->hpo_dp_link_enc,
+				link_settings->lane_count);
 	}
 }
 
@@ -828,12 +828,12 @@ void disable_dp_hpo_output(struct dc_link *link,
 {
 	const struct dc *dc = link->dc;
 
-	link->hpo_dp_link_enc->funcs->link_disable(link->hpo_dp_link_enc);
+	link_res->hpo_dp_link_enc->funcs->link_disable(link_res->hpo_dp_link_enc);
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		dc->res_pool->dccg->funcs->disable_symclk32_le(
 					dc->res_pool->dccg,
-					link->hpo_dp_link_enc->inst);
+					link_res->hpo_dp_link_enc->inst);
 
 		dc->res_pool->dccg->funcs->set_physymclk(
 					dc->res_pool->dccg,
@@ -844,8 +844,8 @@ void disable_dp_hpo_output(struct dc_link *link,
 		dm_set_phyd32clk(dc->ctx, 0);
 	} else {
 		/* DP2.0 HW: call transmitter control to disable PHY */
-		link->hpo_dp_link_enc->funcs->disable_link_phy(
-				link->hpo_dp_link_enc,
+		link_res->hpo_dp_link_enc->funcs->disable_link_phy(
+				link_res->hpo_dp_link_enc,
 				signal);
 	}
 }

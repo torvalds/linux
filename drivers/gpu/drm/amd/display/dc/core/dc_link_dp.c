@@ -3211,9 +3211,11 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link,
 	if (link_enc)
 		link_enc->funcs->get_max_link_cap(link_enc, &max_link_cap);
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (max_link_cap.link_rate >= LINK_RATE_UHBR10 &&
-			!link->hpo_dp_link_enc)
-		max_link_cap.link_rate = LINK_RATE_HIGH3;
+	if (max_link_cap.link_rate >= LINK_RATE_UHBR10) {
+		if (!link_res->hpo_dp_link_enc ||
+				link->dc->debug.disable_uhbr)
+			max_link_cap.link_rate = LINK_RATE_HIGH3;
+	}
 #endif
 
 	/* Lower link settings based on sink's link cap */
@@ -7016,8 +7018,10 @@ struct fixed31_32 calculate_sst_avg_time_slots_per_mtp(
 
 bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx)
 {
+	/* If this assert is hit then we have a link encoder dynamic management issue */
+	ASSERT(pipe_ctx->stream_res.hpo_dp_stream_enc ? pipe_ctx->link_res.hpo_dp_link_enc != NULL : true);
 	return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
-			pipe_ctx->stream->link->hpo_dp_link_enc &&
+			pipe_ctx->link_res.hpo_dp_link_enc &&
 			dc_is_dp_signal(pipe_ctx->stream->signal));
 }
 #endif

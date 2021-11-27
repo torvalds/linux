@@ -3426,7 +3426,7 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
-	struct hpo_dp_link_encoder *hpo_dp_link_encoder = link->hpo_dp_link_enc;
+	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
 	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
 	struct link_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp;
@@ -3508,7 +3508,7 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct link_encoder *link_encoder = NULL;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	struct hpo_dp_link_encoder *hpo_dp_link_encoder = link->hpo_dp_link_enc;
+	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
 	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
 #endif
 	struct dp_mst_stream_allocation_table proposed_table = {0};
@@ -3838,7 +3838,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct link_encoder *link_encoder = NULL;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	struct hpo_dp_link_encoder *hpo_dp_link_encoder = link->hpo_dp_link_enc;
+	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
 	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
 #endif
 	struct dp_mst_stream_allocation_table proposed_table = {0};
@@ -4164,12 +4164,12 @@ static void fpga_dp_hpo_enable_link_and_stream(struct dc_state *state, struct pi
 		proposed_table.stream_allocations[0].hpo_dp_stream_enc = pipe_ctx->stream_res.hpo_dp_stream_enc;
 	}
 
-	stream->link->hpo_dp_link_enc->funcs->update_stream_allocation_table(
-			stream->link->hpo_dp_link_enc,
+	pipe_ctx->link_res.hpo_dp_link_enc->funcs->update_stream_allocation_table(
+			pipe_ctx->link_res.hpo_dp_link_enc,
 			&proposed_table);
 
-	stream->link->hpo_dp_link_enc->funcs->set_throttled_vcp_size(
-			stream->link->hpo_dp_link_enc,
+	pipe_ctx->link_res.hpo_dp_link_enc->funcs->set_throttled_vcp_size(
+			pipe_ctx->link_res.hpo_dp_link_enc,
 			pipe_ctx->stream_res.hpo_dp_stream_enc->inst,
 			avg_time_slots_per_mtp);
 
@@ -4674,11 +4674,9 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 	if (link_setting != NULL) {
 		link->preferred_link_setting = *link_setting;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-		if (dp_get_link_encoding_format(link_setting) ==
-				DP_128b_132b_ENCODING && !link->hpo_dp_link_enc) {
-			if (!add_dp_hpo_link_encoder_to_link(link))
-				memset(&link->preferred_link_setting, 0, sizeof(link->preferred_link_setting));
-		}
+		if (dp_get_link_encoding_format(link_setting) == DP_128b_132b_ENCODING)
+			/* TODO: add dc update for acquiring link res  */
+			skip_immediate_retrain = true;
 #endif
 	} else {
 		link->preferred_link_setting.lane_count = LANE_COUNT_UNKNOWN;

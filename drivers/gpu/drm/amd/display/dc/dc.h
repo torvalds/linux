@@ -691,6 +691,7 @@ struct dc_debug_options {
 	/* TODO - remove once tested */
 	bool legacy_dp2_lt;
 	bool set_mst_en_for_sst;
+	bool disable_uhbr;
 	bool force_dp2_lt_fallback_method;
 #endif
 	union mem_low_power_enable_options enable_mem_low_power;

@@ -2414,7 +2414,7 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->map_stream_to_link(
 				pipe_ctx->stream_res.hpo_dp_stream_enc,
 				pipe_ctx->stream_res.hpo_dp_stream_enc->inst,
-				link->hpo_dp_link_enc->inst);
+				pipe_ctx->link_res.hpo_dp_link_enc->inst);
 	}
 
 	if (!is_dp_128b_132b_signal(pipe_ctx) && link_enc)
