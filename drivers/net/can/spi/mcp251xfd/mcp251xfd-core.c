@@ -979,7 +979,6 @@ static u8 mcp251xfd_get_normal_mode(const struct mcp251xfd_priv *priv)
 {
 	u8 mode;
 
-
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		mode = MCP251XFD_REG_CON_MODE_INT_LOOPBACK;
 	else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
