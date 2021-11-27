@@ -581,7 +581,7 @@ ssize_t mtk_pctrl_show_one_pin(struct mtk_pinctrl *hw,
 {
 	int pinmux, pullup, pullen, len = 0, r1 = -1, r0 = -1, rsel = -1;
 	const struct mtk_pin_desc *desc;
-	u32 try_all_type;
+	u32 try_all_type = 0;
 
 	if (gpio >= hw->soc->npins)
 		return -EINVAL;
