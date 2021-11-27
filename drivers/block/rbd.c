@@ -6191,7 +6191,7 @@ static inline size_t next_token(const char **buf)
         * These are the characters that produce nonzero for
         * isspace() in the "C" and "POSIX" locales.
         */
-        const char *spaces = " \f\n\r\t\v";
+	static const char spaces[] = " \f\n\r\t\v";
 
         *buf += strspn(*buf, spaces);	/* Find start of token */
 
