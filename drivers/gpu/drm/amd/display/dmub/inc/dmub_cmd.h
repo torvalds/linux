@@ -408,7 +408,14 @@ enum dmub_cmd_vbios_type {
 	 * Enables or disables power gating.
 	 */
 	DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING = 3,
+	/**
+	 * Controls embedded panels.
+	 */
 	DMUB_CMD__VBIOS_LVTMA_CONTROL = 15,
+	/**
+	 * Query DP alt status on a transmitter.
+	 */
+	DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT  = 26,
 };
 
 //==============================================================================
@@ -2394,6 +2401,24 @@ struct dmub_rb_cmd_lvtma_control {
 };
 
 /**
+ * Data passed in/out in a DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT command.
+ */
+struct dmub_rb_cmd_transmitter_query_dp_alt_data {
+	uint8_t phy_id; /**< 0=UNIPHYA, 1=UNIPHYB, 2=UNIPHYC, 3=UNIPHYD, 4=UNIPHYE, 5=UNIPHYF */
+	uint8_t is_usb; /**< is phy is usb */
+	uint8_t is_dp_alt_disable; /**< is dp alt disable */
+	uint8_t is_dp4; /**< is dp in 4 lane */
+};
+
+/**
+ * Definition of a DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT command.
+ */
+struct dmub_rb_cmd_transmitter_query_dp_alt {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_rb_cmd_transmitter_query_dp_alt_data data; /**< payload */
+};
+
+/**
  * Maximum number of bytes a chunk sent to DMUB for parsing
  */
 #define DMUB_EDID_CEA_DATA_CHUNK_BYTES 8
@@ -2600,6 +2625,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */
 	struct dmub_rb_cmd_lvtma_control lvtma_control;
+	/**
+	 * Definition of a DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT command.
+	 */
+	struct dmub_rb_cmd_transmitter_query_dp_alt query_dp_alt;
 	/**
 	 * Definition of a DMUB_CMD__DPIA_DIG1_CONTROL command.
 	 */
