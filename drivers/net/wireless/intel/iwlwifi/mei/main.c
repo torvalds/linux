@@ -119,6 +119,7 @@ struct iwl_sap_shared_mem_ctrl_blk {
 struct iwl_mei_shared_mem_ptrs {
 	struct iwl_sap_shared_mem_ctrl_blk *ctrl;
 	void *q_head[SAP_DIRECTION_MAX][SAP_QUEUE_IDX_MAX];
+	size_t q_size[SAP_DIRECTION_MAX][SAP_QUEUE_IDX_MAX];
 };
 
 struct iwl_mei_filters {
@@ -209,7 +210,7 @@ static void iwl_mei_free_shared_mem(struct mei_cl_device *cldev)
 	struct iwl_mei *mei = mei_cldev_get_drvdata(cldev);
 
 	if (mei_cldev_dma_unmap(cldev))
-		dev_err(&cldev->dev, "Coudln't unmap the shared mem properly\n");
+		dev_err(&cldev->dev, "Couldn't unmap the shared mem properly\n");
 	memset(&mei->shared_mem, 0, sizeof(mei->shared_mem));
 }
 
@@ -271,6 +272,8 @@ static void iwl_mei_init_shared_mem(struct iwl_mei *mei)
 			mem->q_head[dir][queue] = q_head;
 			q_head +=
 				le32_to_cpu(mem->ctrl->dir[dir].q_ctrl_blk[queue].size);
+			mem->q_size[dir][queue] =
+				le32_to_cpu(mem->ctrl->dir[dir].q_ctrl_blk[queue].size);
 		}
 	}
 
@@ -280,11 +283,11 @@ static void iwl_mei_init_shared_mem(struct iwl_mei *mei)
 static ssize_t iwl_mei_write_cyclic_buf(struct mei_cl_device *cldev,
 					struct iwl_sap_q_ctrl_blk *notif_q,
 					u8 *q_head,
-					const struct iwl_sap_hdr *hdr)
+					const struct iwl_sap_hdr *hdr,
+					u32 q_sz)
 {
 	u32 rd = le32_to_cpu(READ_ONCE(notif_q->rd_ptr));
 	u32 wr = le32_to_cpu(READ_ONCE(notif_q->wr_ptr));
-	u32 q_sz = le32_to_cpu(notif_q->size);
 	size_t room_in_buf;
 	size_t tx_sz = sizeof(*hdr) + le16_to_cpu(hdr->len);
 
@@ -382,6 +385,7 @@ static int iwl_mei_send_sap_msg_payload(struct mei_cl_device *cldev,
 	struct iwl_sap_q_ctrl_blk *notif_q;
 	struct iwl_sap_dir *dir;
 	void *q_head;
+	u32 q_sz;
 	int ret;
 
 	lockdep_assert_held(&iwl_mei_mutex);
@@ -404,7 +408,8 @@ static int iwl_mei_send_sap_msg_payload(struct mei_cl_device *cldev,
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_HOST_TO_ME];
 	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_NOTIF];
 	q_head = mei->shared_mem.q_head[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_NOTIF];
-	ret = iwl_mei_write_cyclic_buf(q_head, notif_q, q_head, hdr);
+	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_NOTIF];
+	ret = iwl_mei_write_cyclic_buf(q_head, notif_q, q_head, hdr, q_sz);
 
 	if (ret < 0)
 		return ret;
@@ -454,10 +459,10 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_HOST_TO_ME];
 	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_DATA];
 	q_head = mei->shared_mem.q_head[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_DATA];
+	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_HOST_TO_ME][SAP_QUEUE_IDX_DATA];
 
 	rd = le32_to_cpu(READ_ONCE(notif_q->rd_ptr));
 	wr = le32_to_cpu(READ_ONCE(notif_q->wr_ptr));
-	q_sz = le32_to_cpu(notif_q->size);
 	hdr_sz = cb_tx ? sizeof(struct iwl_sap_cb_data) :
 			 sizeof(struct iwl_sap_hdr);
 	tx_sz = skb->len + hdr_sz;
@@ -1074,11 +1079,11 @@ static void iwl_mei_handle_sap_rx_cmd(struct mei_cl_device *cldev,
 static void iwl_mei_handle_sap_rx(struct mei_cl_device *cldev,
 				  struct iwl_sap_q_ctrl_blk *notif_q,
 				  const u8 *q_head,
-				  struct sk_buff_head *skbs)
+				  struct sk_buff_head *skbs,
+				  u32 q_sz)
 {
 	u32 rd = le32_to_cpu(READ_ONCE(notif_q->rd_ptr));
 	u32 wr = le32_to_cpu(READ_ONCE(notif_q->wr_ptr));
-	u32 q_sz = le32_to_cpu(notif_q->size);
 	ssize_t valid_rx_sz;
 
 	if (rd > q_sz || wr > q_sz) {
@@ -1110,6 +1115,7 @@ static void iwl_mei_handle_check_shared_area(struct mei_cl_device *cldev)
 	struct sk_buff_head tx_skbs;
 	struct iwl_sap_dir *dir;
 	void *q_head;
+	u32 q_sz;
 
 	if (!mei->shared_mem.ctrl)
 		return;
@@ -1117,22 +1123,24 @@ static void iwl_mei_handle_check_shared_area(struct mei_cl_device *cldev)
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_ME_TO_HOST];
 	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_NOTIF];
 	q_head = mei->shared_mem.q_head[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_NOTIF];
+	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_NOTIF];
 
 	/*
 	 * Do not hold the mutex here, but rather each and every message
 	 * handler takes it.
 	 * This allows message handlers to take it at a certain time.
 	 */
-	iwl_mei_handle_sap_rx(cldev, notif_q, q_head, NULL);
+	iwl_mei_handle_sap_rx(cldev, notif_q, q_head, NULL, q_sz);
 
 	mutex_lock(&iwl_mei_mutex);
 	dir = &mei->shared_mem.ctrl->dir[SAP_DIRECTION_ME_TO_HOST];
 	notif_q = &dir->q_ctrl_blk[SAP_QUEUE_IDX_DATA];
 	q_head = mei->shared_mem.q_head[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_DATA];
+	q_sz = mei->shared_mem.q_size[SAP_DIRECTION_ME_TO_HOST][SAP_QUEUE_IDX_DATA];
 
 	__skb_queue_head_init(&tx_skbs);
 
-	iwl_mei_handle_sap_rx(cldev, notif_q, q_head, &tx_skbs);
+	iwl_mei_handle_sap_rx(cldev, notif_q, q_head, &tx_skbs, q_sz);
 
 	if (skb_queue_empty(&tx_skbs)) {
 		mutex_unlock(&iwl_mei_mutex);
