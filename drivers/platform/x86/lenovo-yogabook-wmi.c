@@ -3,6 +3,9 @@
 
 #include <linux/acpi.h>
 #include <linux/devm-helpers.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/leds.h>
 #include <linux/wmi.h>
@@ -22,6 +25,7 @@ enum {
 	YB_KBD_IS_ON,
 	YB_DIGITIZER_IS_ON,
 	YB_DIGITIZER_MODE,
+	YB_TABLET_MODE,
 	YB_SUSPENDED,
 };
 
@@ -31,6 +35,8 @@ struct yogabook_wmi {
 	struct acpi_device *dig_adev;
 	struct device *kbd_dev;
 	struct device *dig_dev;
+	struct gpio_desc *backside_hall_gpio;
+	int backside_hall_irq;
 	struct work_struct work;
 	struct led_classdev kbd_bl_led;
 	unsigned long flags;
@@ -109,7 +115,10 @@ static void yogabook_wmi_work(struct work_struct *work)
 	if (test_bit(YB_SUSPENDED, &data->flags))
 		return;
 
-	if (test_bit(YB_DIGITIZER_MODE, &data->flags)) {
+	if (test_bit(YB_TABLET_MODE, &data->flags)) {
+		kbd_on = false;
+		digitizer_on = false;
+	} else if (test_bit(YB_DIGITIZER_MODE, &data->flags)) {
 		digitizer_on = true;
 		kbd_on = false;
 	} else {
@@ -171,6 +180,20 @@ static void yogabook_wmi_notify(struct wmi_device *wdev, union acpi_object *dumm
 	schedule_work(&data->work);
 }
 
+static irqreturn_t yogabook_backside_hall_irq(int irq, void *_data)
+{
+	struct yogabook_wmi *data = _data;
+
+	if (gpiod_get_value(data->backside_hall_gpio))
+		set_bit(YB_TABLET_MODE, &data->flags);
+	else
+		clear_bit(YB_TABLET_MODE, &data->flags);
+
+	schedule_work(&data->work);
+
+	return IRQ_HANDLED;
+}
+
 static enum led_brightness kbd_brightness_get(struct led_classdev *cdev)
 {
 	struct yogabook_wmi *data =
@@ -195,6 +218,19 @@ static int kbd_brightness_set(struct led_classdev *cdev,
 		return 0;
 
 	return yogabook_wmi_set_kbd_backlight(wdev, data->brightness);
+}
+
+static struct gpiod_lookup_table yogabook_wmi_gpios = {
+	.dev_id		= "243FEC1D-1963-41C1-8100-06A9D82A94B4",
+	.table		= {
+		GPIO_LOOKUP("INT33FF:02", 18, "backside_hall_sw", GPIO_ACTIVE_LOW),
+		{}
+	},
+};
+
+static void yogabook_wmi_rm_gpio_lookup(void *unused)
+{
+	gpiod_remove_lookup_table(&yogabook_wmi_gpios);
 }
 
 static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
@@ -239,6 +275,36 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 	data->dig_dev = get_device(acpi_get_first_physical_node(data->dig_adev));
 	if (!data->dig_dev || !data->dig_dev->driver) {
 		r = -EPROBE_DEFER;
+		goto error_put_devs;
+	}
+
+	gpiod_add_lookup_table(&yogabook_wmi_gpios);
+
+	r = devm_add_action_or_reset(&wdev->dev, yogabook_wmi_rm_gpio_lookup, NULL);
+	if (r)
+		goto error_put_devs;
+
+	data->backside_hall_gpio =
+		devm_gpiod_get(&wdev->dev, "backside_hall_sw", GPIOD_IN);
+	if (IS_ERR(data->backside_hall_gpio)) {
+		r = PTR_ERR(data->backside_hall_gpio);
+		dev_err_probe(&wdev->dev, r, "Getting backside_hall_sw GPIO\n");
+		goto error_put_devs;
+	}
+
+	r = gpiod_to_irq(data->backside_hall_gpio);
+	if (r < 0) {
+		dev_err_probe(&wdev->dev, r, "Getting backside_hall_sw IRQ\n");
+		goto error_put_devs;
+	}
+	data->backside_hall_irq = r;
+
+	r = devm_request_irq(&wdev->dev, data->backside_hall_irq,
+			     yogabook_backside_hall_irq,
+			     IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			     "backside_hall_sw", data);
+	if (r) {
+		dev_err_probe(&wdev->dev, r, "Requesting backside_hall_sw IRQ\n");
 		goto error_put_devs;
 	}
 
@@ -306,6 +372,9 @@ static int __maybe_unused yogabook_wmi_resume(struct device *dev)
 		yogabook_wmi_do_action(wdev, YB_PAD_ENABLE);
 
 	clear_bit(YB_SUSPENDED, &data->flags);
+
+	/* Check for YB_TABLET_MODE changes made during suspend */
+	schedule_work(&data->work);
 
 	return 0;
 }
