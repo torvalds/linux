@@ -177,8 +177,7 @@ secondary_start_sbi:
 	REG_L sp, (a4)
 	REG_L tp, (a5)
 
-	.global secondary_start_common
-secondary_start_common:
+.Lsecondary_start_common:
 
 #ifdef CONFIG_MMU
 	/* Enable virtual memory and relocate to virtual address */
@@ -365,7 +364,7 @@ clear_bss_done:
 	beqz tp, .Lwait_for_cpu_up
 	fence
 
-	tail secondary_start_common
+	tail .Lsecondary_start_common
 #endif
 
 END(_start_kernel)
