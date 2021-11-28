@@ -475,20 +475,6 @@ static int __bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k,
 
 /* replicas delta list: */
 
-bool bch2_replicas_delta_list_marked(struct bch_fs *c,
-				     struct replicas_delta_list *r)
-{
-	struct replicas_delta *d = r->d;
-	struct replicas_delta *top = (void *) r->d + r->used;
-
-	percpu_rwsem_assert_held(&c->mark_lock);
-
-	for (d = r->d; d != top; d = replicas_delta_next(d))
-		if (bch2_replicas_entry_idx(c, &d->r) < 0)
-			return false;
-	return true;
-}
-
 int bch2_replicas_delta_list_mark(struct bch_fs *c,
 				  struct replicas_delta_list *r)
 {

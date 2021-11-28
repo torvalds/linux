@@ -48,7 +48,6 @@ replicas_delta_next(struct replicas_delta *d)
 	return (void *) d + replicas_entry_bytes(&d->r) + 8;
 }
 
-bool bch2_replicas_delta_list_marked(struct bch_fs *, struct replicas_delta_list *);
 int bch2_replicas_delta_list_mark(struct bch_fs *, struct replicas_delta_list *);
 
 void bch2_bkey_to_replicas(struct bch_replicas_entry *, struct bkey_s_c);

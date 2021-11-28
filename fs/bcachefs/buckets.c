@@ -1363,14 +1363,14 @@ void fs_usage_apply_warn(struct btree_trans *trans,
 	__WARN();
 }
 
-void bch2_trans_fs_usage_apply(struct btree_trans *trans,
-			       struct replicas_delta_list *deltas)
+int bch2_trans_fs_usage_apply(struct btree_trans *trans,
+			      struct replicas_delta_list *deltas)
 {
 	struct bch_fs *c = trans->c;
 	static int warned_disk_usage = 0;
 	bool warn = false;
 	unsigned disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
-	struct replicas_delta *d = deltas->d;
+	struct replicas_delta *d = deltas->d, *d2;
 	struct replicas_delta *top = (void *) deltas->d + deltas->used;
 	struct bch_fs_usage *dst;
 	s64 added = 0, should_not_have_added;
@@ -1389,7 +1389,8 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 			added += d->delta;
 		}
 
-		BUG_ON(__update_replicas(c, dst, &d->r, d->delta));
+		if (__update_replicas(c, dst, &d->r, d->delta))
+			goto need_mark;
 	}
 
 	dst->nr_inodes += deltas->nr_inodes;
@@ -1427,6 +1428,14 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 
 	if (unlikely(warn) && !xchg(&warned_disk_usage, 1))
 		fs_usage_apply_warn(trans, disk_res_sectors, should_not_have_added);
+	return 0;
+need_mark:
+	/* revert changes: */
+	for (d2 = deltas->d; d2 != d; d2 = replicas_delta_next(d2))
+		BUG_ON(__update_replicas(c, dst, &d2->r, -d2->delta));
+
+	preempt_enable();
+	return -1;
 }
 
 /* trans_mark: */

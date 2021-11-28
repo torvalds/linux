@@ -438,17 +438,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 			marking = true;
 	}
 
-	if (marking) {
-		percpu_down_read(&c->mark_lock);
-	}
-
-	/* Must be called under mark_lock: */
-	if (marking && trans->fs_usage_deltas &&
-	    !bch2_replicas_delta_list_marked(c, trans->fs_usage_deltas)) {
-		ret = BTREE_INSERT_NEED_MARK_REPLICAS;
-		goto err;
-	}
-
 	/*
 	 * Don't get journal reservation until after we know insert will
 	 * succeed:
@@ -457,7 +446,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		ret = bch2_trans_journal_res_get(trans,
 				JOURNAL_RES_GET_NONBLOCK);
 		if (ret)
-			goto err;
+			return ret;
 	} else {
 		trans->journal_res.seq = c->journal.replay_journal_seq;
 	}
@@ -485,22 +474,27 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 				i->k->k.version = MAX_VERSION;
 	}
 
+	if (marking)
+		percpu_down_read(&c->mark_lock);
+
+	if (marking && trans->fs_usage_deltas &&
+	    bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas)) {
+		percpu_up_read(&c->mark_lock);
+		return BTREE_INSERT_NEED_MARK_REPLICAS;
+	}
+
 	trans_for_each_update(trans, i)
 		if (BTREE_NODE_TYPE_HAS_MEM_TRIGGERS & (1U << i->bkey_type))
 			bch2_mark_update(trans, i->path, i->k, i->flags);
-
-	if (marking && trans->fs_usage_deltas)
-		bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas);
 
 	if (unlikely(c->gc_pos.phase))
 		bch2_trans_mark_gc(trans);
 
 	trans_for_each_update(trans, i)
 		do_btree_insert_one(trans, i);
-err:
-	if (marking) {
+
+	if (marking)
 		percpu_up_read(&c->mark_lock);
-	}
 
 	return ret;
 }
