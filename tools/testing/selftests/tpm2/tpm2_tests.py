@@ -27,7 +27,17 @@ class SmokeTest(unittest.TestCase):
         result = self.client.unseal(self.root_key, blob, auth, None)
         self.assertEqual(data, result)
 
+    def determine_bank_alg(self, mask):
+        pcr_banks = self.client.get_cap_pcrs()
+        for bank_alg, pcrSelection in pcr_banks.items():
+            if pcrSelection & mask == mask:
+                return bank_alg
+        return None
+
     def test_seal_with_policy(self):
+        bank_alg = self.determine_bank_alg(1 << 16)
+        self.assertIsNotNone(bank_alg)
+
         handle = self.client.start_auth_session(tpm2.TPM2_SE_TRIAL)
 
         data = ('X' * 64).encode()
@@ -35,7 +45,7 @@ class SmokeTest(unittest.TestCase):
         pcrs = [16]
 
         try:
-            self.client.policy_pcr(handle, pcrs)
+            self.client.policy_pcr(handle, pcrs, bank_alg=bank_alg)
             self.client.policy_password(handle)
 
             policy_dig = self.client.get_policy_digest(handle)
@@ -47,7 +57,7 @@ class SmokeTest(unittest.TestCase):
         handle = self.client.start_auth_session(tpm2.TPM2_SE_POLICY)
 
         try:
-            self.client.policy_pcr(handle, pcrs)
+            self.client.policy_pcr(handle, pcrs, bank_alg=bank_alg)
             self.client.policy_password(handle)
 
             result = self.client.unseal(self.root_key, blob, auth, handle)
@@ -72,6 +82,9 @@ class SmokeTest(unittest.TestCase):
         self.assertEqual(rc, tpm2.TPM2_RC_AUTH_FAIL)
 
     def test_unseal_with_wrong_policy(self):
+        bank_alg = self.determine_bank_alg(1 << 16 | 1 << 1)
+        self.assertIsNotNone(bank_alg)
+
         handle = self.client.start_auth_session(tpm2.TPM2_SE_TRIAL)
 
         data = ('X' * 64).encode()
@@ -79,7 +92,7 @@ class SmokeTest(unittest.TestCase):
         pcrs = [16]
 
         try:
-            self.client.policy_pcr(handle, pcrs)
+            self.client.policy_pcr(handle, pcrs, bank_alg=bank_alg)
             self.client.policy_password(handle)
 
             policy_dig = self.client.get_policy_digest(handle)
@@ -91,13 +104,13 @@ class SmokeTest(unittest.TestCase):
         # Extend first a PCR that is not part of the policy and try to unseal.
         # This should succeed.
 
-        ds = tpm2.get_digest_size(tpm2.TPM2_ALG_SHA1)
-        self.client.extend_pcr(1, ('X' * ds).encode())
+        ds = tpm2.get_digest_size(bank_alg)
+        self.client.extend_pcr(1, ('X' * ds).encode(), bank_alg=bank_alg)
 
         handle = self.client.start_auth_session(tpm2.TPM2_SE_POLICY)
 
         try:
-            self.client.policy_pcr(handle, pcrs)
+            self.client.policy_pcr(handle, pcrs, bank_alg=bank_alg)
             self.client.policy_password(handle)
 
             result = self.client.unseal(self.root_key, blob, auth, handle)
@@ -109,14 +122,14 @@ class SmokeTest(unittest.TestCase):
 
         # Then, extend a PCR that is part of the policy and try to unseal.
         # This should fail.
-        self.client.extend_pcr(16, ('X' * ds).encode())
+        self.client.extend_pcr(16, ('X' * ds).encode(), bank_alg=bank_alg)
 
         handle = self.client.start_auth_session(tpm2.TPM2_SE_POLICY)
 
         rc = 0
 
         try:
-            self.client.policy_pcr(handle, pcrs)
+            self.client.policy_pcr(handle, pcrs, bank_alg=bank_alg)
             self.client.policy_password(handle)
 
             result = self.client.unseal(self.root_key, blob, auth, handle)
