@@ -348,8 +348,7 @@ static void add_new_bucket(struct bch_fs *c,
 	ob_push(c, ptrs, ob);
 }
 
-enum bucket_alloc_ret
-bch2_bucket_alloc_set(struct bch_fs *c,
+int bch2_bucket_alloc_set(struct bch_fs *c,
 		      struct open_buckets *ptrs,
 		      struct dev_stripe_state *stripe,
 		      struct bch_devs_mask *devs_may_alloc,
@@ -363,7 +362,7 @@ bch2_bucket_alloc_set(struct bch_fs *c,
 	struct dev_alloc_list devs_sorted =
 		bch2_dev_alloc_list(c, stripe, devs_may_alloc);
 	struct bch_dev *ca;
-	enum bucket_alloc_ret ret = INSUFFICIENT_DEVICES;
+	int ret = -INSUFFICIENT_DEVICES;
 	unsigned i;
 
 	BUG_ON(*nr_effective >= nr_replicas);
@@ -381,7 +380,7 @@ bch2_bucket_alloc_set(struct bch_fs *c,
 		ob = bch2_bucket_alloc(c, ca, reserve,
 				flags & BUCKET_MAY_ALLOC_PARTIAL, cl);
 		if (IS_ERR(ob)) {
-			ret = -PTR_ERR(ob);
+			ret = PTR_ERR(ob);
 
 			if (cl)
 				return ret;
@@ -394,7 +393,7 @@ bch2_bucket_alloc_set(struct bch_fs *c,
 		bch2_dev_stripe_increment(ca, stripe);
 
 		if (*nr_effective >= nr_replicas)
-			return ALLOC_SUCCESS;
+			return 0;
 	}
 
 	return ret;
@@ -408,8 +407,7 @@ bch2_bucket_alloc_set(struct bch_fs *c,
  * it's to a device we don't want:
  */
 
-static enum bucket_alloc_ret
-bucket_alloc_from_stripe(struct bch_fs *c,
+static int bucket_alloc_from_stripe(struct bch_fs *c,
 			 struct open_buckets *ptrs,
 			 struct write_point *wp,
 			 struct bch_devs_mask *devs_may_alloc,
@@ -505,8 +503,7 @@ static void get_buckets_from_writepoint(struct bch_fs *c,
 	wp->ptrs = ptrs_skip;
 }
 
-static enum bucket_alloc_ret
-open_bucket_add_buckets(struct bch_fs *c,
+static int open_bucket_add_buckets(struct bch_fs *c,
 			struct open_buckets *ptrs,
 			struct write_point *wp,
 			struct bch_devs_list *devs_have,
@@ -522,7 +519,7 @@ open_bucket_add_buckets(struct bch_fs *c,
 	struct bch_devs_mask devs;
 	struct open_bucket *ob;
 	struct closure *cl = NULL;
-	enum bucket_alloc_ret ret;
+	int ret;
 	unsigned i;
 
 	rcu_read_lock();
@@ -550,8 +547,8 @@ open_bucket_add_buckets(struct bch_fs *c,
 						 target, erasure_code,
 						 nr_replicas, nr_effective,
 						 have_cache, flags, _cl);
-			if (ret == FREELIST_EMPTY ||
-			    ret == OPEN_BUCKETS_EMPTY)
+			if (ret == -FREELIST_EMPTY ||
+			    ret == -OPEN_BUCKETS_EMPTY)
 				return ret;
 			if (*nr_effective >= nr_replicas)
 				return 0;
@@ -575,7 +572,7 @@ retry_blocking:
 	ret = bch2_bucket_alloc_set(c, ptrs, &wp->stripe, &devs,
 				nr_replicas, nr_effective, have_cache,
 				reserve, flags, cl);
-	if (ret && ret != INSUFFICIENT_DEVICES && !cl && _cl) {
+	if (ret && ret != -INSUFFICIENT_DEVICES && !cl && _cl) {
 		cl = _cl;
 		goto retry_blocking;
 	}
@@ -772,7 +769,7 @@ struct write_point *bch2_alloc_sectors_start(struct bch_fs *c,
 	unsigned nr_effective, write_points_nr;
 	unsigned ob_flags = 0;
 	bool have_cache;
-	enum bucket_alloc_ret ret;
+	int ret;
 	int i;
 
 	if (!(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS))
@@ -821,7 +818,7 @@ alloc_done:
 	if (erasure_code && !ec_open_bucket(c, &ptrs))
 		pr_debug("failed to get ec bucket: ret %u", ret);
 
-	if (ret == INSUFFICIENT_DEVICES &&
+	if (ret == -INSUFFICIENT_DEVICES &&
 	    nr_effective >= nr_replicas_required)
 		ret = 0;
 
@@ -854,15 +851,15 @@ err:
 
 	mutex_unlock(&wp->lock);
 
-	if (ret == FREELIST_EMPTY &&
+	if (ret == -FREELIST_EMPTY &&
 	    try_decrease_writepoints(c, write_points_nr))
 		goto retry;
 
 	switch (ret) {
-	case OPEN_BUCKETS_EMPTY:
-	case FREELIST_EMPTY:
+	case -OPEN_BUCKETS_EMPTY:
+	case -FREELIST_EMPTY:
 		return cl ? ERR_PTR(-EAGAIN) : ERR_PTR(-ENOSPC);
-	case INSUFFICIENT_DEVICES:
+	case -INSUFFICIENT_DEVICES:
 		return ERR_PTR(-EROFS);
 	default:
 		BUG();

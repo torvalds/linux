@@ -200,6 +200,7 @@
 #include <linux/zstd.h>
 
 #include "bcachefs_format.h"
+#include "errcode.h"
 #include "fifo.h"
 #include "opts.h"
 #include "util.h"
