@@ -1620,6 +1620,7 @@ static SIMPLE_DEV_PM_OPS(rvin_pm_ops, rvin_suspend, rvin_resume);
 static struct platform_driver rcar_vin_driver = {
 	.driver = {
 		.name = "rcar-vin",
+		.suppress_bind_attrs = true,
 		.pm = &rvin_pm_ops,
 		.of_match_table = rvin_of_id_table,
 	},
