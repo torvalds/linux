@@ -59,6 +59,7 @@ static_assert(__alignof__(struct guid_block) == 1);
 
 enum {	/* wmi_block flags */
 	WMI_READ_TAKES_NO_ARGS,
+	WMI_PROBED,
 };
 
 struct wmi_block {
@@ -1008,6 +1009,7 @@ static int wmi_dev_probe(struct device *dev)
 		}
 	}
 
+	set_bit(WMI_PROBED, &wblock->flags);
 	return 0;
 
 probe_misc_failure:
@@ -1024,6 +1026,8 @@ static void wmi_dev_remove(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
+
+	clear_bit(WMI_PROBED, &wblock->flags);
 
 	if (wdriver->filter_callback) {
 		misc_deregister(&wblock->char_dev);
@@ -1322,7 +1326,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		return;
 
 	/* If a driver is bound, then notify the driver. */
-	if (wblock->dev.dev.driver) {
+	if (test_bit(WMI_PROBED, &wblock->flags) && wblock->dev.dev.driver) {
 		struct wmi_driver *driver = drv_to_wdrv(wblock->dev.dev.driver);
 		struct acpi_buffer evdata = { ACPI_ALLOCATE_BUFFER, NULL };
 		acpi_status status;
