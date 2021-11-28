@@ -180,7 +180,7 @@ void do_invalidatepage(struct page *page, unsigned int offset,
 static void truncate_cleanup_folio(struct folio *folio)
 {
 	if (folio_mapped(folio))
-		unmap_mapping_page(&folio->page);
+		unmap_mapping_folio(folio);
 
 	if (folio_has_private(folio))
 		do_invalidatepage(&folio->page, 0, folio_size(folio));
@@ -670,7 +670,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 			wait_on_page_writeback(page);
 
 			if (page_mapped(page))
-				unmap_mapping_page(page);
+				unmap_mapping_folio(page_folio(page));
 			BUG_ON(page_mapped(page));
 
 			ret2 = do_launder_page(mapping, page);
