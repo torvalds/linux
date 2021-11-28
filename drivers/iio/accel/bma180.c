@@ -938,7 +938,7 @@ static int bma180_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	if (client->dev.of_node)
-		chip = (enum chip_ids)of_device_get_match_data(dev);
+		chip = (uintptr_t)of_device_get_match_data(dev);
 	else
 		chip = id->driver_data;
 	data->part_info = &bma180_part_info[chip];
