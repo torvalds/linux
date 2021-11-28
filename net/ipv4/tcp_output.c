@@ -2524,8 +2524,11 @@ static bool tcp_small_queue_check(struct sock *sk, const struct sk_buff *skb,
 		 * test again the condition.
 		 */
 		smp_mb__after_atomic();
-		if (refcount_read(&sk->sk_wmem_alloc) > limit)
+		if (refcount_read(&sk->sk_wmem_alloc) > limit) {
+			NET_INC_STATS(sock_net(sk),
+				      LINUX_MIB_TCPSMALLQUEUEFAILURE);
 			return true;
+		}
 	}
 	return false;
 }
