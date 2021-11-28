@@ -668,7 +668,7 @@ struct vop2 {
 	struct regmap *sys_grf;
 	struct regmap *vo0_grf;
 	struct regmap *vo1_grf;
-	struct regmap *pmu;
+	struct regmap *sys_pmu;
 
 	/* physical map length of vop2 register */
 	uint32_t len;
@@ -777,6 +777,15 @@ static inline void vop2_grf_writel(struct regmap *regmap, struct vop_reg reg, u3
 	}
 }
 
+static inline uint32_t vop2_grf_readl(struct regmap *regmap, const struct vop_reg *reg)
+{
+	uint32_t v;
+
+	regmap_read(regmap, reg->offset, &v);
+
+	return v;
+}
+
 static inline void vop2_writel(struct vop2 *vop2, uint32_t offset, uint32_t v)
 {
 	writel(v, vop2->regs + offset);
@@ -792,6 +801,11 @@ static inline uint32_t vop2_read_reg(struct vop2 *vop2, uint32_t base,
 				     const struct vop_reg *reg)
 {
 	return (vop2_readl(vop2, base + reg->offset) >> reg->shift) & reg->mask;
+}
+
+static inline uint32_t vop2_read_grf_reg(struct regmap *regmap, const struct vop_reg *reg)
+{
+	return (vop2_grf_readl(regmap, reg) >> reg->shift) & reg->mask;
 }
 
 static inline void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
@@ -1314,7 +1328,10 @@ static uint32_t vop2_power_domain_status(struct vop2_power_domain *pd)
 {
 	struct vop2 *vop2 = pd->vop2;
 
-	return vop2_read_reg(vop2, 0, &pd->data->regs->status);
+	if (vop2_read_grf_reg(vop2->sys_pmu, &pd->data->regs->bisr_en_status))
+		return vop2_read_grf_reg(vop2->sys_pmu, &pd->data->regs->pmu_status);
+	else
+		return vop2_read_reg(vop2, 0, &pd->data->regs->status);
 }
 
 static void vop2_wait_power_domain_off(struct vop2_power_domain *pd)
@@ -8223,7 +8240,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 	vop2->grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vop-grf");
 	vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo1-grf");
-	vop2->pmu = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pmu");
+	vop2->sys_pmu = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pmu");
 
 	vop2->hclk = devm_clk_get(vop2->dev, "hclk_vop");
 	if (IS_ERR(vop2->hclk)) {

@@ -1939,36 +1939,50 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 const struct vop2_power_domain_regs rk3588_cluster0_pd_regs = {
 	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 0),
 	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 8),
+	.pmu_status = VOP_REG(RK3588_PMU_BISR_STATUS5, 0x1, 9),
+	.bisr_en_status = VOP_REG(RK3588_PMU_BISR_CON3, 0x1, 9),
 };
 
 const struct vop2_power_domain_regs rk3588_cluster1_pd_regs = {
 	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 1),
 	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 9),
+	.pmu_status = VOP_REG(RK3588_PMU_BISR_STATUS5, 0x1, 10),
+	.bisr_en_status = VOP_REG(RK3588_PMU_BISR_CON3, 0x1, 10),
 };
 
 const struct vop2_power_domain_regs rk3588_cluster2_pd_regs = {
 	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 2),
 	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 10),
+	.pmu_status = VOP_REG(RK3588_PMU_BISR_STATUS5, 0x1, 11),
+	.bisr_en_status = VOP_REG(RK3588_PMU_BISR_CON3, 0x1, 11),
 };
 
 const struct vop2_power_domain_regs rk3588_cluster3_pd_regs = {
 	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 3),
 	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 11),
+	.pmu_status = VOP_REG(RK3588_PMU_BISR_STATUS5, 0x1, 12),
+	.bisr_en_status = VOP_REG(RK3588_PMU_BISR_CON3, 0x1, 12),
 };
 
 const struct vop2_power_domain_regs rk3588_esmart_pd_regs = {
 	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 7),
 	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 15),
+	.pmu_status = VOP_REG(RK3588_PMU_BISR_STATUS5, 0x1, 15),
+	.bisr_en_status = VOP_REG(RK3588_PMU_BISR_CON3, 0x1, 15),
 };
 
 const struct vop2_power_domain_regs rk3588_dsc_8k_pd_regs = {
 	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 5),
 	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 13),
+	.pmu_status = VOP_REG(RK3588_PMU_BISR_STATUS5, 0x1, 13),
+	.bisr_en_status = VOP_REG(RK3588_PMU_BISR_CON3, 0x1, 13),
 };
 
 const struct vop2_power_domain_regs rk3588_dsc_4k_pd_regs = {
 	.pd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 6),
 	.status = VOP_REG(RK3568_SYS_STATUS0, 0x1, 14),
+	.pmu_status = VOP_REG(RK3588_PMU_BISR_STATUS5, 0x1, 14),
+	.bisr_en_status = VOP_REG(RK3588_PMU_BISR_CON3, 0x1, 14),
 };
 
 /*

@@ -702,6 +702,8 @@ struct vop2_video_port_regs {
 struct vop2_power_domain_regs {
 	struct vop_reg pd;
 	struct vop_reg status;
+	struct vop_reg bisr_en_status;
+	struct vop_reg pmu_status;
 };
 
 struct vop2_dsc_regs {
