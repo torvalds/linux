@@ -290,7 +290,6 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 		strlcpy(info->bus_info, pci_name(priv->plat->pdev),
 			sizeof(info->bus_info));
 	}
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
