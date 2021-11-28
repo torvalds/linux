@@ -715,7 +715,6 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	unsigned flags =
 		BTREE_TRIGGER_GC|
 		(initial ? BTREE_TRIGGER_NOATOMIC : 0);
-	char buf[200];
 	int ret = 0;
 
 	deleted.p = k->k->p;
@@ -733,18 +732,6 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 				k->k->version.lo,
 				atomic64_read(&c->key_version)))
 			atomic64_set(&c->key_version, k->k->version.lo);
-
-		if (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
-		    fsck_err_on(!bch2_bkey_replicas_marked(c, *k), c,
-				"superblock not marked as containing replicas\n"
-				"  while marking %s",
-				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
-			ret = bch2_mark_bkey_replicas(c, *k);
-			if (ret) {
-				bch_err(c, "error marking bkey replicas: %i", ret);
-				goto err;
-			}
-		}
 	}
 
 	ptrs = bch2_bkey_ptrs_c(*k);

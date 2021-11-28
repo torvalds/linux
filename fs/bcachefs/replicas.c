@@ -434,45 +434,6 @@ int bch2_mark_replicas(struct bch_fs *c, struct bch_replicas_entry *r)
 	return __bch2_mark_replicas(c, r, false);
 }
 
-static int __bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k,
-				     bool check)
-{
-	struct bch_replicas_padded search;
-	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
-	unsigned i;
-	int ret;
-
-	memset(&search, 0, sizeof(search));
-
-	for (i = 0; i < cached.nr; i++) {
-		bch2_replicas_entry_cached(&search.e, cached.devs[i]);
-
-		ret = __bch2_mark_replicas(c, &search.e, check);
-		if (ret)
-			return ret;
-	}
-
-	bch2_bkey_to_replicas(&search.e, k);
-
-	ret = __bch2_mark_replicas(c, &search.e, check);
-	if (ret)
-		return ret;
-
-	if (search.e.data_type == BCH_DATA_parity) {
-		search.e.data_type = BCH_DATA_cached;
-		ret = __bch2_mark_replicas(c, &search.e, check);
-		if (ret)
-			return ret;
-
-		search.e.data_type = BCH_DATA_user;
-		ret = __bch2_mark_replicas(c, &search.e, check);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 /* replicas delta list: */
 
 int bch2_replicas_delta_list_mark(struct bch_fs *c,
@@ -485,19 +446,6 @@ int bch2_replicas_delta_list_mark(struct bch_fs *c,
 	for (d = r->d; !ret && d != top; d = replicas_delta_next(d))
 		ret = bch2_mark_replicas(c, &d->r);
 	return ret;
-}
-
-/* bkey replicas: */
-
-bool bch2_bkey_replicas_marked(struct bch_fs *c,
-			       struct bkey_s_c k)
-{
-	return __bch2_mark_bkey_replicas(c, k, true) == 0;
-}
-
-int bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
-{
-	return __bch2_mark_bkey_replicas(c, k, false);
 }
 
 /*

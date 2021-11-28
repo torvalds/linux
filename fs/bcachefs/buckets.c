@@ -420,16 +420,30 @@ static inline int __update_replicas(struct bch_fs *c,
 	return 0;
 }
 
-static inline int update_replicas(struct bch_fs *c,
+static inline int update_replicas(struct bch_fs *c, struct bkey_s_c k,
 			struct bch_replicas_entry *r, s64 sectors,
 			unsigned journal_seq, bool gc)
 {
 	struct bch_fs_usage __percpu *fs_usage;
 	int idx, ret = 0;
+	char buf[200];
 
 	percpu_down_read(&c->mark_lock);
 
 	idx = bch2_replicas_entry_idx(c, r);
+	if (idx < 0 &&
+	    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
+	     fsck_err(c, "no replicas entry\n"
+		      "  while marking %s",
+		      (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf)))) {
+		percpu_up_read(&c->mark_lock);
+		ret = bch2_mark_replicas(c, r);
+		if (ret)
+			return ret;
+
+		percpu_down_read(&c->mark_lock);
+		idx = bch2_replicas_entry_idx(c, r);
+	}
 	if (idx < 0) {
 		ret = -1;
 		goto err;
@@ -441,11 +455,13 @@ static inline int update_replicas(struct bch_fs *c,
 	fs_usage->replicas[idx]		+= sectors;
 	preempt_enable();
 err:
+fsck_err:
 	percpu_up_read(&c->mark_lock);
 	return ret;
 }
 
 static inline int update_cached_sectors(struct bch_fs *c,
+			struct bkey_s_c k,
 			unsigned dev, s64 sectors,
 			unsigned journal_seq, bool gc)
 {
@@ -453,7 +469,7 @@ static inline int update_cached_sectors(struct bch_fs *c,
 
 	bch2_replicas_entry_cached(&r.e, dev);
 
-	return update_replicas(c, &r.e, sectors, journal_seq, gc);
+	return update_replicas(c, k, &r.e, sectors, journal_seq, gc);
 }
 
 static struct replicas_delta_list *
@@ -618,8 +634,9 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 
 	if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
 	    old_m.cached_sectors) {
-		ret = update_cached_sectors(c, ca->dev_idx, -old_m.cached_sectors,
-					  journal_seq, gc);
+		ret = update_cached_sectors(c, new, ca->dev_idx,
+					    -old_m.cached_sectors,
+					    journal_seq, gc);
 		if (ret) {
 			bch2_fs_fatal_error(c, "bch2_mark_alloc(): no replicas entry while updating cached sectors");
 			return ret;
@@ -920,6 +937,7 @@ err:
 }
 
 static int bch2_mark_stripe_ptr(struct btree_trans *trans,
+				struct bkey_s_c k,
 				struct bch_extent_stripe_ptr p,
 				enum bch_data_type data_type,
 				s64 sectors,
@@ -959,7 +977,7 @@ static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 	spin_unlock(&c->ec_stripes_heap_lock);
 
 	r.e.data_type = data_type;
-	update_replicas(c, &r.e, sectors, trans->journal_res.seq, gc);
+	update_replicas(c, k, &r.e, sectors, trans->journal_res.seq, gc);
 
 	return 0;
 }
@@ -1005,8 +1023,8 @@ static int bch2_mark_extent(struct btree_trans *trans,
 
 		if (p.ptr.cached) {
 			if (!stale) {
-				ret = update_cached_sectors(c, p.ptr.dev, disk_sectors,
-							    journal_seq, gc);
+				ret = update_cached_sectors(c, k, p.ptr.dev,
+						disk_sectors, journal_seq, gc);
 				if (ret) {
 					bch2_fs_fatal_error(c, "bch2_mark_extent(): no replicas entry while updating cached sectors");
 					return ret;
@@ -1016,7 +1034,7 @@ static int bch2_mark_extent(struct btree_trans *trans,
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
-			ret = bch2_mark_stripe_ptr(trans, p.ec, data_type,
+			ret = bch2_mark_stripe_ptr(trans, k, p.ec, data_type,
 					disk_sectors, flags);
 			if (ret)
 				return ret;
@@ -1031,7 +1049,7 @@ static int bch2_mark_extent(struct btree_trans *trans,
 	}
 
 	if (r.e.nr_devs) {
-		ret = update_replicas(c, &r.e, dirty_sectors, journal_seq, gc);
+		ret = update_replicas(c, k, &r.e, dirty_sectors, journal_seq, gc);
 		if (ret) {
 			char buf[200];
 
@@ -1119,7 +1137,7 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 				return ret;
 		}
 
-		ret = update_replicas(c, &m->r.e,
+		ret = update_replicas(c, new, &m->r.e,
 				      ((s64) m->sectors * m->nr_redundant),
 				      journal_seq, gc);
 		if (ret) {

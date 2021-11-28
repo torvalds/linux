@@ -51,8 +51,6 @@ replicas_delta_next(struct replicas_delta *d)
 int bch2_replicas_delta_list_mark(struct bch_fs *, struct replicas_delta_list *);
 
 void bch2_bkey_to_replicas(struct bch_replicas_entry *, struct bkey_s_c);
-bool bch2_bkey_replicas_marked(struct bch_fs *, struct bkey_s_c);
-int bch2_mark_bkey_replicas(struct bch_fs *, struct bkey_s_c);
 
 static inline void bch2_replicas_entry_cached(struct bch_replicas_entry *e,
 					      unsigned dev)
