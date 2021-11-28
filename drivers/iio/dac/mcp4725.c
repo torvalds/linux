@@ -386,7 +386,7 @@ static int mcp4725_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	if (dev_fwnode(&client->dev))
-		data->id = (enum chip_id)device_get_match_data(&client->dev);
+		data->id = (uintptr_t)device_get_match_data(&client->dev);
 	else
 		data->id = id->driver_data;
 	pdata = dev_get_platdata(&client->dev);
