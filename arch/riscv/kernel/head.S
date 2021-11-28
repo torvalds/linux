@@ -447,7 +447,3 @@ ENTRY(reset_regs)
 	ret
 END(reset_regs)
 #endif /* CONFIG_RISCV_M_MODE */
-
-__PAGE_ALIGNED_BSS
-	/* Empty zero page */
-	.balign PAGE_SIZE
