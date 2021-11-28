@@ -1331,10 +1331,12 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		struct acpi_buffer evdata = { ACPI_ALLOCATE_BUFFER, NULL };
 		acpi_status status;
 
-		status = get_event_data(wblock, &evdata);
-		if (ACPI_FAILURE(status)) {
-			dev_warn(&wblock->dev.dev, "failed to get event data\n");
-			return;
+		if (!driver->no_notify_data) {
+			status = get_event_data(wblock, &evdata);
+			if (ACPI_FAILURE(status)) {
+				dev_warn(&wblock->dev.dev, "failed to get event data\n");
+				return;
+			}
 		}
 
 		if (driver->notify)
