@@ -950,7 +950,7 @@ static int ads1015_probe(struct i2c_client *client,
 	indio_dev->name = ADS1015_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	chip = (enum chip_ids)device_get_match_data(&client->dev);
+	chip = (uintptr_t)device_get_match_data(&client->dev);
 	if (chip == ADSXXXX)
 		chip = id->driver_data;
 	switch (chip) {
