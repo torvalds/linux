@@ -14,6 +14,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/regulator/driver.h>
 #include <linux/of_device.h>
 #include <linux/delay.h>
 #include <linux/usb/phy.h>
@@ -194,6 +195,7 @@ struct bq25700_device {
 	struct gpio_desc		*typec1_discharge_io;
 	struct gpio_desc		*otg_mode_en_io;
 
+	struct regulator_dev		*otg_vbus_reg;
 	struct regmap			*regmap;
 	struct regmap_field		*rmap_fields[F_MAX_FIELDS];
 	int				chip_id;
@@ -1583,24 +1585,25 @@ static int bq25700_charger_evt_notifier1(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static void bq25700_set_otg_vbus(struct bq25700_device *charger, bool enable)
+{
+	DBG("OTG %s\n", enable ? "enable" : "disable");
+
+	if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
+		gpiod_direction_output(charger->otg_mode_en_io, enable);
+	bq25700_field_write(charger, EN_OTG, enable);
+}
+
 static void bq25700_host_evt_worker(struct work_struct *work)
 {
 	struct bq25700_device *charger =
 		container_of(work, struct bq25700_device, host_work.work);
 	struct extcon_dev *edev = charger->cable_edev;
 
-	/* Determine charger type */
-	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
-		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
-			gpiod_direction_output(charger->otg_mode_en_io, 1);
-		bq25700_field_write(charger, EN_OTG, 1);
-		DBG("OTG enable\n");
-	} else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
-		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
-			gpiod_direction_output(charger->otg_mode_en_io, 0);
-		bq25700_field_write(charger, EN_OTG, 0);
-		DBG("OTG disable\n");
-	}
+	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0)
+		bq25700_set_otg_vbus(charger, true);
+	else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0)
+		bq25700_set_otg_vbus(charger, false);
 }
 
 static void bq25700_host_evt_worker1(struct work_struct *work)
@@ -1609,18 +1612,10 @@ static void bq25700_host_evt_worker1(struct work_struct *work)
 		container_of(work, struct bq25700_device, host_work1.work);
 	struct extcon_dev *edev = charger->cable_edev_1;
 
-	/* Determine charger type */
-	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
-		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
-			gpiod_direction_output(charger->otg_mode_en_io, 1);
-		bq25700_field_write(charger, EN_OTG, 1);
-		DBG("OTG enable\n");
-	} else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
-		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
-			gpiod_direction_output(charger->otg_mode_en_io, 0);
-		bq25700_field_write(charger, EN_OTG, 0);
-		DBG("OTG disable\n");
-	}
+	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0)
+		bq25700_set_otg_vbus(charger, true);
+	else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0)
+		bq25700_set_otg_vbus(charger, false);
 }
 
 static int bq25700_host_evt_notifier(struct notifier_block *nb,
@@ -1943,6 +1938,77 @@ static int bq25700_register_host_nb(struct bq25700_device *charger)
 	return 0;
 }
 
+static int bq25700_otg_vbus_enable(struct regulator_dev *dev)
+{
+	struct bq25700_device *charger = rdev_get_drvdata(dev);
+
+	bq25700_set_otg_vbus(charger, true);
+
+	return 0;
+}
+
+static int bq25700_otg_vbus_disable(struct regulator_dev *dev)
+{
+	struct bq25700_device *charger = rdev_get_drvdata(dev);
+
+	bq25700_set_otg_vbus(charger, false);
+
+	return 0;
+}
+
+static int bq25700_otg_vbus_is_enabled(struct regulator_dev *dev)
+{
+	struct bq25700_device *charger = rdev_get_drvdata(dev);
+	u8 val;
+	int gpio_status = 1;
+
+	val = bq25700_field_read(charger, EN_OTG);
+	if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
+		gpio_status = gpiod_get_value(charger->otg_mode_en_io);
+
+	return val && gpio_status ? 1 : 0;
+}
+
+static const struct regulator_ops bq25700_otg_vbus_ops = {
+	.enable = bq25700_otg_vbus_enable,
+	.disable = bq25700_otg_vbus_disable,
+	.is_enabled = bq25700_otg_vbus_is_enabled,
+};
+
+static const struct regulator_desc bq25700_otg_vbus_desc = {
+	.name = "otg-vbus",
+	.of_match = "otg-vbus",
+	.regulators_node = of_match_ptr("regulators"),
+	.owner = THIS_MODULE,
+	.ops = &bq25700_otg_vbus_ops,
+	.type = REGULATOR_VOLTAGE,
+	.fixed_uV = 5000000,
+	.n_voltages = 1,
+};
+
+static int bq25700_register_otg_vbus_regulator(struct bq25700_device *charger)
+{
+	struct device_node *np;
+	struct regulator_config config = { };
+
+	np = of_get_child_by_name(charger->dev->of_node, "regulators");
+	if (!np) {
+		dev_warn(charger->dev, "cannot find regulators node\n");
+		return -ENXIO;
+	}
+
+	config.dev = charger->dev;
+	config.driver_data = charger;
+
+	charger->otg_vbus_reg = devm_regulator_register(charger->dev,
+							&bq25700_otg_vbus_desc,
+							&config);
+	if (IS_ERR(charger->otg_vbus_reg))
+		return PTR_ERR(charger->otg_vbus_reg);
+
+	return 0;
+}
+
 static long bq25700_init_usb(struct bq25700_device *charger)
 {
 	struct extcon_dev *edev, *edev1;
@@ -1976,18 +2042,27 @@ static long bq25700_init_usb(struct bq25700_device *charger)
 
 	if (!charger->pd_charge_only)
 		bq25700_register_cg_nb(charger);
-	bq25700_register_host_nb(charger);
+
+	if (bq25700_register_otg_vbus_regulator(charger) < 0) {
+		dev_warn(charger->dev,
+			 "Cannot register otg vbus regulator\n");
+		charger->otg_vbus_reg = NULL;
+		bq25700_register_host_nb(charger);
+	}
+
 	bq25700_register_discnt_nb(charger);
 	bq25700_register_pd_nb(charger);
 
 	if (charger->cable_edev) {
-		schedule_delayed_work(&charger->host_work, 0);
+		if (!charger->otg_vbus_reg)
+			schedule_delayed_work(&charger->host_work, 0);
 		schedule_delayed_work(&charger->pd_work, 0);
 		if (!charger->pd_charge_only)
 			schedule_delayed_work(&charger->usb_work, 0);
 	}
 	if (charger->cable_edev_1) {
-		schedule_delayed_work(&charger->host_work1, 0);
+		if (!charger->otg_vbus_reg)
+			schedule_delayed_work(&charger->host_work1, 0);
 		schedule_delayed_work(&charger->pd_work1, 0);
 		if (!charger->pd_charge_only)
 			schedule_delayed_work(&charger->usb_work1, 0);
