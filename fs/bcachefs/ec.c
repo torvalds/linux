@@ -1635,12 +1635,16 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 
 static int bch2_stripes_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 {
+	struct bkey deleted = KEY(0, 0, 0);
+	struct bkey_s_c old = (struct bkey_s_c) { &deleted, NULL };
 	struct bch_fs *c = trans->c;
 	int ret = 0;
 
+	deleted.p = k.k->p;
+
 	if (k.k->type == KEY_TYPE_stripe)
 		ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL) ?:
-			bch2_mark_key(trans, k,
+			bch2_mark_key(trans, old, k,
 				      BTREE_TRIGGER_NOATOMIC);
 
 	return ret;

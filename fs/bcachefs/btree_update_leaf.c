@@ -474,14 +474,9 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 				i->k->k.version = MAX_VERSION;
 	}
 
-	if (marking)
-		percpu_down_read(&c->mark_lock);
-
-	if (marking && trans->fs_usage_deltas &&
-	    bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas)) {
-		percpu_up_read(&c->mark_lock);
+	if (trans->fs_usage_deltas &&
+	    bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas))
 		return BTREE_INSERT_NEED_MARK_REPLICAS;
-	}
 
 	trans_for_each_update(trans, i)
 		if (BTREE_NODE_TYPE_HAS_MEM_TRIGGERS & (1U << i->bkey_type))
@@ -492,9 +487,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 	trans_for_each_update(trans, i)
 		do_btree_insert_one(trans, i);
-
-	if (marking)
-		percpu_up_read(&c->mark_lock);
 
 	return ret;
 }

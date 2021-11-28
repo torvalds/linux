@@ -710,11 +710,15 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs;
 	const struct bch_extent_ptr *ptr;
+	struct bkey deleted = KEY(0, 0, 0);
+	struct bkey_s_c old = (struct bkey_s_c) { &deleted, NULL };
 	unsigned flags =
 		BTREE_TRIGGER_GC|
 		(initial ? BTREE_TRIGGER_NOATOMIC : 0);
 	char buf[200];
 	int ret = 0;
+
+	deleted.p = k->k->p;
 
 	if (initial) {
 		BUG_ON(bch2_journal_seq_verify &&
@@ -754,7 +758,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 		*max_stale = max(*max_stale, ptr_stale(ca, ptr));
 	}
 
-	ret = bch2_mark_key(trans, *k, flags);
+	ret = bch2_mark_key(trans, old, *k, flags);
 fsck_err:
 err:
 	if (ret)
