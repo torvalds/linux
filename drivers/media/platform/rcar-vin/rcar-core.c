@@ -349,12 +349,10 @@ out:
 
 static void rvin_group_notifier_cleanup(struct rvin_dev *vin)
 {
-	mutex_lock(&vin->group->lock);
 	if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
 		v4l2_async_nf_unregister(&vin->group->notifier);
 		v4l2_async_nf_cleanup(&vin->group->notifier);
 	}
-	mutex_unlock(&vin->group->lock);
 }
 
 static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
