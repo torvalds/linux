@@ -84,7 +84,7 @@ static int hw_atl2_shared_buffer_read_block(struct aq_hw_s *self,
 			if (cnt > AQ_A2_FW_READ_TRY_MAX)
 				return -ETIME;
 			if (tid1.transaction_cnt_a != tid1.transaction_cnt_b)
-				udelay(1);
+				mdelay(1);
 		} while (tid1.transaction_cnt_a != tid1.transaction_cnt_b);
 
 		hw_atl2_mif_shared_buf_read(self, offset, (u32 *)data, dwords);
@@ -339,8 +339,11 @@ static int aq_a2_fw_update_stats(struct aq_hw_s *self)
 {
 	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
 	struct statistics_s stats;
+	int err;
 
-	hw_atl2_shared_buffer_read_safe(self, stats, &stats);
+	err = hw_atl2_shared_buffer_read_safe(self, stats, &stats);
+	if (err)
+		return err;
 
 #define AQ_SDELTA(_N_, _F_) (self->curr_stats._N_ += \
 			stats.msm._F_ - priv->last_stats.msm._F_)
