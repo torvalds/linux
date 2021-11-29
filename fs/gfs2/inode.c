@@ -208,19 +208,14 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 			gfs2_glock_dq_uninit(&i_gh);
 
 		gfs2_set_iop(inode);
+		unlock_new_inode(inode);
 	}
 
 	if (no_formal_ino && ip->i_no_formal_ino &&
 	    no_formal_ino != ip->i_no_formal_ino) {
-		error = -ESTALE;
-		if (inode->i_state & I_NEW)
-			goto fail;
 		iput(inode);
-		return ERR_PTR(error);
+		return ERR_PTR(-ESTALE);
 	}
-
-	if (inode->i_state & I_NEW)
-		unlock_new_inode(inode);
 
 	return inode;
 
