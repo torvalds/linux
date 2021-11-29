@@ -86,7 +86,7 @@ define_siblings_read_func(package_cpus, core_cpumask);
 static BIN_ATTR_RO(package_cpus, 0);
 static BIN_ATTR_RO(package_cpus_list, 0);
 
-#ifdef CONFIG_SCHED_BOOK
+#ifdef TOPOLOGY_BOOK_SYSFS
 define_id_show_func(book_id);
 static DEVICE_ATTR_RO(book_id);
 define_siblings_read_func(book_siblings, book_cpumask);
@@ -94,7 +94,7 @@ static BIN_ATTR_RO(book_siblings, 0);
 static BIN_ATTR_RO(book_siblings_list, 0);
 #endif
 
-#ifdef CONFIG_SCHED_DRAWER
+#ifdef TOPOLOGY_DRAWER_SYSFS
 define_id_show_func(drawer_id);
 static DEVICE_ATTR_RO(drawer_id);
 define_siblings_read_func(drawer_siblings, drawer_cpumask);
@@ -119,11 +119,11 @@ static struct bin_attribute *bin_attrs[] = {
 #endif
 	&bin_attr_package_cpus,
 	&bin_attr_package_cpus_list,
-#ifdef CONFIG_SCHED_BOOK
+#ifdef TOPOLOGY_BOOK_SYSFS
 	&bin_attr_book_siblings,
 	&bin_attr_book_siblings_list,
 #endif
-#ifdef CONFIG_SCHED_DRAWER
+#ifdef TOPOLOGY_DRAWER_SYSFS
 	&bin_attr_drawer_siblings,
 	&bin_attr_drawer_siblings_list,
 #endif
@@ -139,10 +139,10 @@ static struct attribute *default_attrs[] = {
 	&dev_attr_cluster_id.attr,
 #endif
 	&dev_attr_core_id.attr,
-#ifdef CONFIG_SCHED_BOOK
+#ifdef TOPOLOGY_BOOK_SYSFS
 	&dev_attr_book_id.attr,
 #endif
-#ifdef CONFIG_SCHED_DRAWER
+#ifdef TOPOLOGY_DRAWER_SYSFS
 	&dev_attr_drawer_id.attr,
 #endif
 	NULL
