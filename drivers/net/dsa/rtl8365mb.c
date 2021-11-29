@@ -760,7 +760,8 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_smi *smi, int port,
 	 *     0 = no delay, 1 = 2 ns delay
 	 *   RX delay:
 	 *     0 = no delay, 7 = maximum delay
-	 *     No units are specified, but there are a total of 8 steps.
+	 *     Each step is approximately 0.3 ns, so the maximum delay is about
+	 *     2.1 ns.
 	 *
 	 * The vendor driver also states that this must be configured *before*
 	 * forcing the external interface into a particular mode, which is done
@@ -771,10 +772,6 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_smi *smi, int port,
 	 * specified. We ignore the detail of the RGMII interface mode
 	 * (RGMII_{RXID, TXID, etc.}), as this is considered to be a PHY-only
 	 * property.
-	 *
-	 * For the RX delay, we assume that a register value of 4 corresponds to
-	 * 2 ns. But this is just an educated guess, so ignore all other values
-	 * to avoid too much confusion.
 	 */
 	if (!of_property_read_u32(dn, "tx-internal-delay-ps", &val)) {
 		val = val / 1000; /* convert to ns */
@@ -787,13 +784,13 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_smi *smi, int port,
 	}
 
 	if (!of_property_read_u32(dn, "rx-internal-delay-ps", &val)) {
-		val = val / 1000; /* convert to ns */
+		val = DIV_ROUND_CLOSEST(val, 300); /* convert to 0.3 ns step */
 
-		if (val == 0 || val == 2)
-			rx_delay = val * 2;
+		if (val <= 7)
+			rx_delay = val;
 		else
 			dev_warn(smi->dev,
-				 "EXT port RX delay must be 0 to 2 ns\n");
+				 "EXT port RX delay must be 0 to 2.1 ns\n");
 	}
 
 	ret = regmap_update_bits(
