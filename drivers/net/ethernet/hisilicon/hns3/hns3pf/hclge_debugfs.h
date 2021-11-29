@@ -94,6 +94,11 @@ struct hclge_dbg_func {
 			    char *buf, int len);
 };
 
+struct hclge_dbg_status_dfx_info {
+	u32  offset;
+	char message[HCLGE_DBG_MAX_DFX_MSG_LEN];
+};
+
 static const struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {
 	{false, "Reserved"},
 	{true,	"BP_CPU_STATE"},

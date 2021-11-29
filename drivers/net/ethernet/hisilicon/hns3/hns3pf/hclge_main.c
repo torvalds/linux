@@ -2653,11 +2653,38 @@ static u8 hclge_check_speed_dup(u8 duplex, int speed)
 	return duplex;
 }
 
+struct hclge_mac_speed_map hclge_mac_speed_map_to_fw[] = {
+	{HCLGE_MAC_SPEED_10M, HCLGE_FW_MAC_SPEED_10M},
+	{HCLGE_MAC_SPEED_100M, HCLGE_FW_MAC_SPEED_100M},
+	{HCLGE_MAC_SPEED_1G, HCLGE_FW_MAC_SPEED_1G},
+	{HCLGE_MAC_SPEED_10G, HCLGE_FW_MAC_SPEED_10G},
+	{HCLGE_MAC_SPEED_25G, HCLGE_FW_MAC_SPEED_25G},
+	{HCLGE_MAC_SPEED_40G, HCLGE_FW_MAC_SPEED_40G},
+	{HCLGE_MAC_SPEED_50G, HCLGE_FW_MAC_SPEED_50G},
+	{HCLGE_MAC_SPEED_100G, HCLGE_FW_MAC_SPEED_100G},
+	{HCLGE_MAC_SPEED_200G, HCLGE_FW_MAC_SPEED_200G},
+};
+
+static int hclge_convert_to_fw_speed(u32 speed_drv, u32 *speed_fw)
+{
+	u16 i;
+
+	for (i = 0; i < ARRAY_SIZE(hclge_mac_speed_map_to_fw); i++) {
+		if (hclge_mac_speed_map_to_fw[i].speed_drv == speed_drv) {
+			*speed_fw = hclge_mac_speed_map_to_fw[i].speed_fw;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
 				      u8 duplex)
 {
 	struct hclge_config_mac_speed_dup_cmd *req;
 	struct hclge_desc desc;
+	u32 speed_fw;
 	int ret;
 
 	req = (struct hclge_config_mac_speed_dup_cmd *)desc.data;
@@ -2667,48 +2694,14 @@ static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
 	if (duplex)
 		hnae3_set_bit(req->speed_dup, HCLGE_CFG_DUPLEX_B, 1);
 
-	switch (speed) {
-	case HCLGE_MAC_SPEED_10M:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_10M);
-		break;
-	case HCLGE_MAC_SPEED_100M:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_100M);
-		break;
-	case HCLGE_MAC_SPEED_1G:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_1G);
-		break;
-	case HCLGE_MAC_SPEED_10G:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_10G);
-		break;
-	case HCLGE_MAC_SPEED_25G:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_25G);
-		break;
-	case HCLGE_MAC_SPEED_40G:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_40G);
-		break;
-	case HCLGE_MAC_SPEED_50G:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_50G);
-		break;
-	case HCLGE_MAC_SPEED_100G:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_100G);
-		break;
-	case HCLGE_MAC_SPEED_200G:
-		hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M,
-				HCLGE_CFG_SPEED_S, HCLGE_FW_MAC_SPEED_200G);
-		break;
-	default:
+	ret = hclge_convert_to_fw_speed(speed, &speed_fw);
+	if (ret) {
 		dev_err(&hdev->pdev->dev, "invalid speed (%d)\n", speed);
-		return -EINVAL;
+		return ret;
 	}
 
+	hnae3_set_field(req->speed_dup, HCLGE_CFG_SPEED_M, HCLGE_CFG_SPEED_S,
+			speed_fw);
 	hnae3_set_bit(req->mac_change_fec_en, HCLGE_CFG_MAC_SPEED_CHANGE_EN_B,
 		      1);
 
@@ -11589,24 +11582,20 @@ static void hclge_reset_prepare_general(struct hnae3_ae_dev *ae_dev,
 	int retry_cnt = 0;
 	int ret;
 
-retry:
-	down(&hdev->reset_sem);
-	set_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
-	hdev->reset_type = rst_type;
-	ret = hclge_reset_prepare(hdev);
-	if (ret || hdev->reset_pending) {
-		dev_err(&hdev->pdev->dev, "fail to prepare to reset, ret=%d\n",
-			ret);
-		if (hdev->reset_pending ||
-		    retry_cnt++ < HCLGE_RESET_RETRY_CNT) {
-			dev_err(&hdev->pdev->dev,
-				"reset_pending:0x%lx, retry_cnt:%d\n",
-				hdev->reset_pending, retry_cnt);
-			clear_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
-			up(&hdev->reset_sem);
-			msleep(HCLGE_RESET_RETRY_WAIT_MS);
-			goto retry;
-		}
+	while (retry_cnt++ < HCLGE_RESET_RETRY_CNT) {
+		down(&hdev->reset_sem);
+		set_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
+		hdev->reset_type = rst_type;
+		ret = hclge_reset_prepare(hdev);
+		if (!ret && !hdev->reset_pending)
+			break;
+
+		dev_err(&hdev->pdev->dev,
+			"failed to prepare to reset, ret=%d, reset_pending:0x%lx, retry_cnt:%d\n",
+			ret, hdev->reset_pending, retry_cnt);
+		clear_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
+		up(&hdev->reset_sem);
+		msleep(HCLGE_RESET_RETRY_WAIT_MS);
 	}
 
 	/* disable misc vector before reset done */
