@@ -4,6 +4,8 @@
 
 #include <asm/ppc-opcode.h>
 #include <asm/reg.h>
+#include <asm/disassemble.h>
+#include <asm/uaccess.h>
 
 #define ___get_user_instr(gu_op, dest, ptr)				\
 ({									\
@@ -148,6 +150,27 @@ static inline char *__ppc_inst_as_str(char str[PPC_INST_STR_LEN], ppc_inst_t x)
 	__str;				\
 })
 
-int copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src);
+static inline int copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src)
+{
+	unsigned int val, suffix;
+
+	if (unlikely(!is_kernel_addr((unsigned long)src)))
+		return -ERANGE;
+
+/* See https://github.com/ClangBuiltLinux/linux/issues/1521 */
+#if defined(CONFIG_CC_IS_CLANG) && CONFIG_CLANG_VERSION < 140000
+	val = suffix = 0;
+#endif
+	__get_kernel_nofault(&val, src, u32, Efault);
+	if (IS_ENABLED(CONFIG_PPC64) && get_op(val) == OP_PREFIX) {
+		__get_kernel_nofault(&suffix, src + 1, u32, Efault);
+		*inst = ppc_inst_prefix(val, suffix);
+	} else {
+		*inst = ppc_inst(val);
+	}
+	return 0;
+Efault:
+	return -EFAULT;
+}
 
 #endif /* _ASM_POWERPC_INST_H */
