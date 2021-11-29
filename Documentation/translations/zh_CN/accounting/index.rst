@@ -16,10 +16,10 @@
    :maxdepth: 1
 
    psi
+   taskstats
 
 Todolist:
 
    cgroupstats
    delay-accounting
-   taskstats
    taskstats-struct
