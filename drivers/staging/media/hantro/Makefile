@@ -33,3 +33,6 @@ hantro-vpu-$(CONFIG_VIDEO_HANTRO_SAMA5D4) += \
 
 hantro-vpu-$(CONFIG_VIDEO_HANTRO_ROCKCHIP) += \
 		rockchip_vpu_hw.o
+
+hantro-vpu-$(CONFIG_VIDEO_HANTRO_SUNXI) += \
+		sunxi_vpu_hw.o
