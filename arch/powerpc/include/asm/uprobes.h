@@ -11,7 +11,6 @@
 
 #include <linux/notifier.h>
 #include <asm/probes.h>
-#include <asm/inst.h>
 
 typedef ppc_opcode_t uprobe_opcode_t;
 

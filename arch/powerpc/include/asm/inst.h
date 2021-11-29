@@ -3,6 +3,7 @@
 #define _ASM_POWERPC_INST_H
 
 #include <asm/ppc-opcode.h>
+#include <asm/reg.h>
 
 #define ___get_user_instr(gu_op, dest, ptr)				\
 ({									\
@@ -35,13 +36,6 @@
  */
 
 #if defined(CONFIG_PPC64) || defined(__CHECKER__)
-typedef struct {
-	u32 val;
-#ifdef CONFIG_PPC64
-	u32 suffix;
-#endif
-} __packed ppc_inst_t;
-
 static inline u32 ppc_inst_val(ppc_inst_t x)
 {
 	return x.val;
@@ -50,8 +44,6 @@ static inline u32 ppc_inst_val(ppc_inst_t x)
 #define ppc_inst(x) ((ppc_inst_t){ .val = (x) })
 
 #else
-typedef u32 ppc_inst_t;
-
 static inline u32 ppc_inst_val(ppc_inst_t x)
 {
 	return x;
