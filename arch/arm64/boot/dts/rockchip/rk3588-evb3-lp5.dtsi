@@ -44,6 +44,12 @@
 		};
 	};
 
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm6 0 50000 0>;
+	};
+
 	hall_sensor: hall-mh248 {
 		compatible = "hall-mh248";
 		pinctrl-names = "default";
@@ -1094,6 +1100,11 @@
 			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+};
+
+&pwm6 {
+	pinctrl-0 = <&pwm6m1_pins>;
+	status = "okay";
 };
 
 &pwm15 {

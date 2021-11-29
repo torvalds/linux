@@ -43,6 +43,12 @@
 		};
 	};
 
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm9 0 50000 0>;
+	};
+
 	pcie20_avdd0v85: pcie20-avdd0v85 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie20_avdd0v85";
@@ -419,6 +425,11 @@
 &pwm3 {
 	status = "okay";
 	pinctrl-0 = <&pwm3m1_pins>;
+};
+
+&pwm9 {
+	pinctrl-0 = <&pwm9m2_pins>;
+	status = "okay";
 };
 
 &sata0 {

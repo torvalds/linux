@@ -28,6 +28,12 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm7 0 50000 0>;
+	};
+
 	vcc3v3_pcie20: vcc3v3-pcie20 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie20";
@@ -207,10 +213,6 @@
 	status = "disabled";
 };
 
-&sdmmc {
-	status = "okay";
-};
-
 &pcie2x1l2 {
 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie20>;
@@ -241,6 +243,14 @@
 			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&pwm11 {
+	status = "okay";
+};
+
+&sdmmc {
+	status = "okay";
 };
 
 &sata2 {

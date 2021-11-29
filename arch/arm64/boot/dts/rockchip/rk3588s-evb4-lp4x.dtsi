@@ -62,6 +62,12 @@
 		};
 	};
 
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm11 0 50000 0>;
+	};
+
 	rk_headset: rk-headset {
 		status = "okay";
 		compatible = "rockchip_headset";
@@ -586,6 +592,11 @@
 			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+};
+
+&pwm11 {
+	pinctrl-0 = <&pwm11m1_pins>;
+	status = "okay";
 };
 
 &pwm13 {

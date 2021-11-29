@@ -10,6 +10,12 @@
 #include "rk3588-rk806-single.dtsi"
 
 / {
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pwms = <&pwm14 0 50000 0>;
+	};
+
 	pcie30_avdd1v8: pcie30-avdd1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd1v8";
@@ -314,6 +320,11 @@
 };
 
 &pwm3 {
+	status = "okay";
+};
+
+&pwm14 {
+	pinctrl-0 = <&pwm14m1_pins>;
 	status = "okay";
 };
 
