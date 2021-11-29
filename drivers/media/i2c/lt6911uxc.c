@@ -3,6 +3,9 @@
  * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
  *
  * Author: Dingxian Wen <shawn.wen@rock-chips.com>
+ * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 fix if plugin_gpio was not used.
+ * V0.0X01.0X02 modify driver init level to late_initcall.
  */
 
 #include <linux/clk.h>
@@ -30,7 +33,7 @@
 #include <media/v4l2-fwnode.h>
 #include "lt6911uxc.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x2)
 #define LT6911UXC_NAME			"LT6911UXC"
 
 #define LT6911UXC_LINK_FREQ_HIGH	400000000
@@ -287,14 +290,27 @@ static void lt6911uxc_i2c_disable(struct v4l2_subdev *sd)
 
 static inline bool tx_5v_power_present(struct v4l2_subdev *sd)
 {
-	int val;
+	bool ret;
+	int val, i, cnt;
 	struct lt6911uxc *lt6911uxc = to_state(sd);
 
-	val = gpiod_get_value(lt6911uxc->plugin_det_gpio);
-	v4l2_dbg(1, debug, sd, "%s plug det: %s!\n", __func__,
-			(val > 0) ? "int" : "out");
+	/* if not use plugin det gpio */
+	if (!lt6911uxc->plugin_det_gpio)
+		return true;
 
-	return  (val > 0);
+	cnt = 0;
+	for (i = 0; i < 5; i++) {
+		val = gpiod_get_value(lt6911uxc->plugin_det_gpio);
+
+		if (val > 0)
+			cnt++;
+		usleep_range(500, 600);
+	}
+
+	ret = (cnt >= 3) ? true : false;
+	v4l2_dbg(1, debug, sd, "%s: %d\n", __func__, ret);
+
+	return ret;
 }
 
 static inline bool no_signal(struct v4l2_subdev *sd)
@@ -1355,20 +1371,15 @@ static int lt6911uxc_probe(struct i2c_client *client,
 	}
 
 	lt6911uxc->plugin_irq = gpiod_to_irq(lt6911uxc->plugin_det_gpio);
-	if (lt6911uxc->plugin_irq < 0) {
-		dev_err(dev, "failed to get plugin det irq\n");
-		err = lt6911uxc->plugin_irq;
-		goto err_work_queues;
-	}
+	if (lt6911uxc->plugin_irq < 0)
+		dev_err(dev, "failed to get plugin det irq, maybe no use\n");
 
 	err = devm_request_threaded_irq(dev, lt6911uxc->plugin_irq, NULL,
 			plugin_detect_irq_handler, IRQF_TRIGGER_FALLING |
 			IRQF_TRIGGER_RISING | IRQF_ONESHOT, "lt6911uxc",
 			lt6911uxc);
-	if (err) {
-		dev_err(dev, "failed to register plugin det irq (%d)\n", err);
-		goto err_work_queues;
-	}
+	if (err)
+		dev_err(dev, "failed to register plugin det irq (%d), maybe no use\n", err);
 
 	err = v4l2_ctrl_handler_setup(sd->ctrl_handler);
 	if (err) {
@@ -1441,7 +1452,7 @@ static void __exit lt6911uxc_driver_exit(void)
 	i2c_del_driver(&lt6911uxc_driver);
 }
 
-device_initcall_sync(lt6911uxc_driver_init);
+late_initcall(lt6911uxc_driver_init);
 module_exit(lt6911uxc_driver_exit);
 
 MODULE_DESCRIPTION("Lontium LT6911UXC HDMI to MIPI CSI-2 bridge driver");
