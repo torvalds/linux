@@ -2696,8 +2696,9 @@ static bool nvme_validate_cntlid(struct nvme_subsystem *subsys,
 
 		if (tmp->cntlid == ctrl->cntlid) {
 			dev_err(ctrl->device,
-				"Duplicate cntlid %u with %s, rejecting\n",
-				ctrl->cntlid, dev_name(tmp->device));
+				"Duplicate cntlid %u with %s, subsys %s, rejecting\n",
+				ctrl->cntlid, dev_name(tmp->device),
+				subsys->subnqn);
 			return false;
 		}
 
