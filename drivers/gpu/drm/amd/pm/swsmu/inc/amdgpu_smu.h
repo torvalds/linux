@@ -487,7 +487,6 @@ struct smu_context
 	const struct cmn2asic_mapping	*pwr_src_map;
 	const struct cmn2asic_mapping	*workload_map;
 	struct mutex			sensor_lock;
-	struct mutex			metrics_lock;
 	struct mutex			message_lock;
 	uint64_t pool_size;
 
