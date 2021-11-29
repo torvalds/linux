@@ -18,6 +18,93 @@
 
 static DEFINE_IDA(mhi_ep_cntrl_ida);
 
+static int mhi_ep_send_event(struct mhi_ep_cntrl *mhi_cntrl, u32 ring_idx,
+			     struct mhi_ring_element *el, bool bei)
+{
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	union mhi_ep_ring_ctx *ctx;
+	struct mhi_ep_ring *ring;
+	int ret;
+
+	mutex_lock(&mhi_cntrl->event_lock);
+	ring = &mhi_cntrl->mhi_event[ring_idx].ring;
+	ctx = (union mhi_ep_ring_ctx *)&mhi_cntrl->ev_ctx_cache[ring_idx];
+	if (!ring->started) {
+		ret = mhi_ep_ring_start(mhi_cntrl, ring, ctx);
+		if (ret) {
+			dev_err(dev, "Error starting event ring (%u)\n", ring_idx);
+			goto err_unlock;
+		}
+	}
+
+	/* Add element to the event ring */
+	ret = mhi_ep_ring_add_element(ring, el);
+	if (ret) {
+		dev_err(dev, "Error adding element to event ring (%u)\n", ring_idx);
+		goto err_unlock;
+	}
+
+	mutex_unlock(&mhi_cntrl->event_lock);
+
+	/*
+	 * Raise IRQ to host only if the BEI flag is not set in TRE. Host might
+	 * set this flag for interrupt moderation as per MHI protocol.
+	 */
+	if (!bei)
+		mhi_cntrl->raise_irq(mhi_cntrl, ring->irq_vector);
+
+	return 0;
+
+err_unlock:
+	mutex_unlock(&mhi_cntrl->event_lock);
+
+	return ret;
+}
+
+static int mhi_ep_send_completion_event(struct mhi_ep_cntrl *mhi_cntrl, struct mhi_ep_ring *ring,
+					struct mhi_ring_element *tre, u32 len, enum mhi_ev_ccs code)
+{
+	struct mhi_ring_element event = {};
+
+	event.ptr = cpu_to_le64(ring->rbase + ring->rd_offset * sizeof(*tre));
+	event.dword[0] = MHI_TRE_EV_DWORD0(code, len);
+	event.dword[1] = MHI_TRE_EV_DWORD1(ring->ch_id, MHI_PKT_TYPE_TX_EVENT);
+
+	return mhi_ep_send_event(mhi_cntrl, ring->er_index, &event, MHI_TRE_DATA_GET_BEI(tre));
+}
+
+int mhi_ep_send_state_change_event(struct mhi_ep_cntrl *mhi_cntrl, enum mhi_state state)
+{
+	struct mhi_ring_element event = {};
+
+	event.dword[0] = MHI_SC_EV_DWORD0(state);
+	event.dword[1] = MHI_SC_EV_DWORD1(MHI_PKT_TYPE_STATE_CHANGE_EVENT);
+
+	return mhi_ep_send_event(mhi_cntrl, 0, &event, 0);
+}
+
+int mhi_ep_send_ee_event(struct mhi_ep_cntrl *mhi_cntrl, enum mhi_ee_type exec_env)
+{
+	struct mhi_ring_element event = {};
+
+	event.dword[0] = MHI_EE_EV_DWORD0(exec_env);
+	event.dword[1] = MHI_SC_EV_DWORD1(MHI_PKT_TYPE_EE_EVENT);
+
+	return mhi_ep_send_event(mhi_cntrl, 0, &event, 0);
+}
+
+static int mhi_ep_send_cmd_comp_event(struct mhi_ep_cntrl *mhi_cntrl, enum mhi_ev_ccs code)
+{
+	struct mhi_ep_ring *ring = &mhi_cntrl->mhi_cmd->ring;
+	struct mhi_ring_element event = {};
+
+	event.ptr = cpu_to_le64(ring->rbase + ring->rd_offset * sizeof(struct mhi_ring_element));
+	event.dword[0] = MHI_CC_EV_DWORD0(code);
+	event.dword[1] = MHI_CC_EV_DWORD1(MHI_PKT_TYPE_CMD_COMPLETION_EVENT);
+
+	return mhi_ep_send_event(mhi_cntrl, 0, &event, 0);
+}
+
 static void mhi_ep_release_device(struct device *dev)
 {
 	struct mhi_ep_device *mhi_dev = to_mhi_ep_device(dev);
@@ -226,6 +313,8 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 		ret = -ENOMEM;
 		goto err_free_ch;
 	}
+
+	mutex_init(&mhi_cntrl->event_lock);
 
 	/* Set MHI version and AMSS EE before enumeration */
 	mhi_ep_mmio_write(mhi_cntrl, EP_MHIVER, config->mhi_version);
