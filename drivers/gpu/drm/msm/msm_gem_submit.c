@@ -887,7 +887,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	 * to the underlying fence.
 	 */
 	submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
-			submit->user_fence, 0, INT_MAX, GFP_KERNEL);
+			submit->user_fence, 1, INT_MAX, GFP_KERNEL);
 	if (submit->fence_id < 0) {
 		ret = submit->fence_id = 0;
 		submit->fence_id = 0;
