@@ -481,7 +481,6 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 {
 	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
-	int ret = 0;
 
 	feature_id = smu_cmn_to_asic_specific_index(smu,
 						    CMN2ASIC_MAPPING_FEATURE,
@@ -491,11 +490,7 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 
 	WARN_ON(feature_id > feature->feature_num);
 
-	mutex_lock(&feature->mutex);
-	ret = test_bit(feature_id, feature->supported);
-	mutex_unlock(&feature->mutex);
-
-	return ret;
+	return test_bit(feature_id, feature->supported);
 }
 
 int smu_cmn_feature_is_enabled(struct smu_context *smu,
@@ -504,7 +499,6 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
 	int feature_id;
-	int ret = 0;
 
 	if (smu->is_apu && adev->family < AMDGPU_FAMILY_VGH)
 		return 1;
@@ -517,11 +511,7 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 
 	WARN_ON(feature_id > feature->feature_num);
 
-	mutex_lock(&feature->mutex);
-	ret = test_bit(feature_id, feature->enabled);
-	mutex_unlock(&feature->mutex);
-
-	return ret;
+	return test_bit(feature_id, feature->enabled);
 }
 
 bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
@@ -666,14 +656,12 @@ int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 			return ret;
 	}
 
-	mutex_lock(&feature->mutex);
 	if (enabled)
 		bitmap_or(feature->enabled, feature->enabled,
 				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
 	else
 		bitmap_andnot(feature->enabled, feature->enabled,
 				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
-	mutex_unlock(&feature->mutex);
 
 	return ret;
 }
@@ -843,11 +831,8 @@ int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
 	}
 
 	if (no_hw_disablement) {
-		mutex_lock(&feature->mutex);
 		bitmap_andnot(feature->enabled, feature->enabled,
 				(unsigned long *)(&features_to_disable), SMU_FEATURE_MAX);
-		mutex_unlock(&feature->mutex);
-
 		return 0;
 	} else {
 		return smu_cmn_feature_update_enable_state(smu,

@@ -391,7 +391,6 @@ struct smu_feature
 	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(allowed, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(enabled, SMU_FEATURE_MAX);
-	struct mutex mutex;
 };
 
 struct smu_clocks {
