@@ -42,6 +42,8 @@ source "fs/nilfs2/Kconfig"
 source "fs/f2fs/Kconfig"
 source "fs/zonefs/Kconfig"
 
+endif # BLOCK
+
 config FS_DAX
 	bool "File system based Direct Access (DAX) support"
 	depends on MMU
@@ -88,8 +90,6 @@ config FS_DAX_PMD
 # direct-I/O to a DAX mapping.
 config FS_DAX_LIMITED
 	bool
-
-endif # BLOCK
 
 # Posix ACL utility routines
 #
