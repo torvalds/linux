@@ -3552,7 +3552,7 @@
 	};
 
 	can0: can@fea50000 {
-		compatible = "rockchip,canfd-1.0";
+		compatible = "rockchip,can-2.0";
 		reg = <0x0 0xfea50000 0x0 0x1000>;
 		iinterrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_CAN0>, <&cru PCLK_CAN0>;
@@ -3567,7 +3567,7 @@
 	};
 
 	can1: can@fea60000 {
-		compatible = "rockchip,canfd-1.0";
+		compatible = "rockchip,can-2.0";
 		reg = <0x0 0xfea60000 0x0 0x1000>;
 		interrupts = <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_CAN1>, <&cru PCLK_CAN1>;
@@ -3582,7 +3582,7 @@
 	};
 
 	can2: can@fea70000 {
-		compatible = "rockchip,canfd-1.0";
+		compatible = "rockchip,can-2.0";
 		reg = <0x0 0xfea70000 0x0 0x1000>;
 		interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_CAN2>, <&cru PCLK_CAN2>;
