@@ -47,6 +47,10 @@ struct stack_info {
  * @prev_type:   The type of stack this frame record was on, or a synthetic
  *               value of STACK_TYPE_UNKNOWN. This is used to detect a
  *               transition from one stack to another.
+ *
+ * @kr_cur:      When KRETPROBES is selected, holds the kretprobe instance
+ *               associated with the most recently encountered replacement lr
+ *               value.
  */
 struct stackframe {
 	unsigned long fp;
