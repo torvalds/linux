@@ -2512,6 +2512,8 @@ struct last_error_session_info {
  * @state_dump_specs: constants and dictionaries needed to dump system state.
  * @multi_cs_completion: array of multi-CS completion.
  * @clk_throttling: holds information about current/previous clock throttling events
+ * @last_error: holds information about last session in which CS timeout or razwi error occurred.
+ * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
