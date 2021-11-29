@@ -100,6 +100,11 @@ enum rockchip_canfd_reg {
 	CAN_TXEFRD = 0x500,
 };
 
+enum {
+	ROCKCHIP_CANFD_MODE = 0,
+	ROCKCHIP_CAN_MODE,
+};
+
 #define DATE_LENGTH_12_BYTE	(0x9)
 #define DATE_LENGTH_16_BYTE	(0xa)
 #define DATE_LENGTH_20_BYTE	(0xb)
@@ -214,6 +219,7 @@ struct rockchip_canfd {
 	struct reset_control *reset;
 	void __iomem *base;
 	u32 irqstatus;
+	unsigned long mode;
 };
 
 static inline u32 rockchip_canfd_read(const struct rockchip_canfd *priv,
@@ -401,13 +407,11 @@ static int rockchip_canfd_start(struct net_device *ndev)
 	rockchip_canfd_write(rcan, CAN_RXFC,
 			     rockchip_canfd_read(rcan, CAN_RXFC) | FIFO_ENABLE);
 
-	/* Canfd Mode */
-	if (rcan->can.ctrlmode & CAN_CTRLMODE_FD) {
-		val |= MODE_FDOE;
-		rockchip_canfd_write(rcan, CAN_TXFIC,
-				     rockchip_canfd_read(rcan, CAN_TXFIC) |
-				     TX_FD_ENABLE);
-	}
+	/* Mode */
+	val |= MODE_FDOE;
+	rockchip_canfd_write(rcan, CAN_TXFIC,
+			     rockchip_canfd_read(rcan, CAN_TXFIC) |
+			     TX_FD_ENABLE);
 
 	/* Loopback Mode */
 	if (rcan->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
@@ -916,7 +920,14 @@ static const struct dev_pm_ops rockchip_canfd_dev_pm_ops = {
 };
 
 static const struct of_device_id rockchip_canfd_of_match[] = {
-	{ .compatible = "rockchip,canfd-1.0" },
+	{
+		.compatible = "rockchip,canfd-1.0",
+		.data = (void *)ROCKCHIP_CANFD_MODE
+	},
+	{
+		.compatible = "rockchip,can-2.0",
+		.data = (void *)ROCKCHIP_CAN_MODE
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_canfd_of_match);
@@ -965,20 +976,37 @@ static int rockchip_canfd_probe(struct platform_device *pdev)
 	if (rcan->num_clks < 1)
 		return -ENODEV;
 
+	rcan->mode = (unsigned long)of_device_get_match_data(&pdev->dev);
+
 	rcan->base = addr;
 	rcan->can.clock.freq = clk_get_rate(rcan->clks[0].clk);
 	rcan->dev = &pdev->dev;
 	rcan->can.state = CAN_STATE_STOPPED;
-	rcan->can.bittiming_const = &rockchip_canfd_bittiming_const;
-	rcan->can.data_bittiming_const = &rockchip_canfd_data_bittiming_const;
-	rcan->can.do_set_mode = rockchip_canfd_set_mode;
-	rcan->can.do_get_berr_counter = rockchip_canfd_get_berr_counter;
-	rcan->can.do_set_bittiming = rockchip_canfd_set_bittiming;
-	rcan->can.do_set_data_bittiming = rockchip_canfd_set_bittiming;
-	rcan->can.ctrlmode = CAN_CTRLMODE_FD;
-	/* IFI CANFD can do both Bosch FD and ISO FD */
-	rcan->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-				       CAN_CTRLMODE_FD;
+	switch (rcan->mode) {
+	case ROCKCHIP_CANFD_MODE:
+		rcan->can.bittiming_const = &rockchip_canfd_bittiming_const;
+		rcan->can.data_bittiming_const = &rockchip_canfd_data_bittiming_const;
+		rcan->can.do_set_mode = rockchip_canfd_set_mode;
+		rcan->can.do_get_berr_counter = rockchip_canfd_get_berr_counter;
+		rcan->can.do_set_bittiming = rockchip_canfd_set_bittiming;
+		rcan->can.do_set_data_bittiming = rockchip_canfd_set_bittiming;
+		rcan->can.ctrlmode = CAN_CTRLMODE_FD;
+		/* IFI CANFD can do both Bosch FD and ISO FD */
+		rcan->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
+					       CAN_CTRLMODE_FD;
+		break;
+	case ROCKCHIP_CAN_MODE:
+		rcan->can.bittiming_const = &rockchip_canfd_bittiming_const;
+		rcan->can.do_set_mode = rockchip_canfd_set_mode;
+		rcan->can.do_get_berr_counter = rockchip_canfd_get_berr_counter;
+		rcan->can.ctrlmode_supported = CAN_CTRLMODE_BERR_REPORTING |
+					       CAN_CTRLMODE_LISTENONLY |
+					       CAN_CTRLMODE_LOOPBACK |
+					       CAN_CTRLMODE_3_SAMPLES;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ndev->netdev_ops = &rockchip_canfd_netdev_ops;
 	ndev->irq = irq;
