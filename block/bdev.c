@@ -750,14 +750,6 @@ struct block_device *blkdev_get_no_open(dev_t dev)
 	if (!kobject_get_unless_zero(&bdev->bd_device.kobj))
 		bdev = NULL;
 	iput(inode);
-
-	if (!bdev)
-		return NULL;
-	if ((bdev->bd_disk->flags & GENHD_FL_HIDDEN)) {
-		put_device(&bdev->bd_device);
-		return NULL;
-	}
-
 	return bdev;
 }
 
