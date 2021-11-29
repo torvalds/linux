@@ -207,6 +207,7 @@ config DA9055_WATCHDOG
 config DA9063_WATCHDOG
 	tristate "Dialog DA9063 Watchdog"
 	depends on MFD_DA9063 || COMPILE_TEST
+	depends on I2C
 	select WATCHDOG_CORE
 	help
 	  Support for the watchdog in the DA9063 PMIC.
