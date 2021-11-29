@@ -66,7 +66,8 @@ struct rcu_tasks_percpu {
  * @call_func: This flavor's call_rcu()-equivalent function.
  * @rtpcpu: This flavor's rcu_tasks_percpu structure.
  * @percpu_enqueue_shift: Shift down CPU ID this much when enqueuing callbacks.
- * @percpu_enqueue_lim: Number of per-CPU callback queues in use.
+ * @percpu_enqueue_lim: Number of per-CPU callback queues in use for enqueuing.
+ * @percpu_dequeue_lim: Number of per-CPU callback queues in use for dequeuing.
  * @barrier_q_mutex: Serialize barrier operations.
  * @barrier_q_count: Number of queues being waited on.
  * @barrier_q_completion: Barrier wait/wakeup mechanism.
@@ -96,6 +97,7 @@ struct rcu_tasks {
 	struct rcu_tasks_percpu __percpu *rtpcpu;
 	int percpu_enqueue_shift;
 	int percpu_enqueue_lim;
+	int percpu_dequeue_lim;
 	struct mutex barrier_q_mutex;
 	atomic_t barrier_q_count;
 	struct completion barrier_q_completion;
@@ -121,6 +123,7 @@ static struct rcu_tasks rt_name =							\
 	.name = n,									\
 	.percpu_enqueue_shift = ilog2(CONFIG_NR_CPUS),					\
 	.percpu_enqueue_lim = 1,							\
+	.percpu_dequeue_lim = 1,							\
 	.barrier_q_mutex = __MUTEX_INITIALIZER(rt_name.barrier_q_mutex),		\
 	.barrier_q_seq = (0UL - 50UL) << RCU_SEQ_CTR_SHIFT,				\
 	.kname = #rt_name,								\
@@ -223,6 +226,7 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 	if (lim > nr_cpu_ids)
 		lim = nr_cpu_ids;
 	WRITE_ONCE(rtp->percpu_enqueue_shift, ilog2(nr_cpu_ids / lim));
+	WRITE_ONCE(rtp->percpu_dequeue_lim, lim);
 	smp_store_release(&rtp->percpu_enqueue_lim, lim);
 	for_each_possible_cpu(cpu) {
 		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
@@ -290,6 +294,7 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 		raw_spin_lock_irqsave(&rtp->cbs_gbl_lock, flags);
 		if (rtp->percpu_enqueue_lim != nr_cpu_ids) {
 			WRITE_ONCE(rtp->percpu_enqueue_shift, ilog2(nr_cpu_ids));
+			WRITE_ONCE(rtp->percpu_enqueue_lim, nr_cpu_ids);
 			smp_store_release(&rtp->percpu_enqueue_lim, nr_cpu_ids);
 			pr_info("Switching %s to per-CPU callback queuing.\n", rtp->name);
 		}
@@ -342,7 +347,7 @@ static void rcu_barrier_tasks_generic(struct rcu_tasks *rtp)
 	init_completion(&rtp->barrier_q_completion);
 	atomic_set(&rtp->barrier_q_count, 2);
 	for_each_possible_cpu(cpu) {
-		if (cpu >= smp_load_acquire(&rtp->percpu_enqueue_lim))
+		if (cpu >= smp_load_acquire(&rtp->percpu_dequeue_lim))
 			break;
 		rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
 		rtpcp->barrier_q_head.func = rcu_barrier_tasks_generic_cb;
@@ -366,7 +371,7 @@ static int rcu_tasks_need_gpcb(struct rcu_tasks *rtp)
 	unsigned long flags;
 	int needgpcb = 0;
 
-	for (cpu = 0; cpu < smp_load_acquire(&rtp->percpu_enqueue_lim); cpu++) {
+	for (cpu = 0; cpu < smp_load_acquire(&rtp->percpu_dequeue_lim); cpu++) {
 		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
 
 		/* Advance and accelerate any new callbacks. */
@@ -397,11 +402,11 @@ static void rcu_tasks_invoke_cbs(struct rcu_tasks *rtp, struct rcu_tasks_percpu 
 
 	cpu = rtpcp->cpu;
 	cpunext = cpu * 2 + 1;
-	if (cpunext < smp_load_acquire(&rtp->percpu_enqueue_lim)) {
+	if (cpunext < smp_load_acquire(&rtp->percpu_dequeue_lim)) {
 		rtpcp_next = per_cpu_ptr(rtp->rtpcpu, cpunext);
 		queue_work_on(cpunext, system_wq, &rtpcp_next->rtp_work);
 		cpunext++;
-		if (cpunext < smp_load_acquire(&rtp->percpu_enqueue_lim)) {
+		if (cpunext < smp_load_acquire(&rtp->percpu_dequeue_lim)) {
 			rtpcp_next = per_cpu_ptr(rtp->rtpcpu, cpunext);
 			queue_work_on(cpunext, system_wq, &rtpcp_next->rtp_work);
 		}
