@@ -36,7 +36,13 @@
 #define BUS_WIDTH_256			3
 
 #define g2_strm_swap		G2_DEC_REG(2, 28, 0xf)
+#define g2_strm_swap_old	G2_DEC_REG(2, 27, 0x1f)
+#define g2_pic_swap		G2_DEC_REG(2, 22, 0x1f)
 #define g2_dirmv_swap		G2_DEC_REG(2, 20, 0xf)
+#define g2_dirmv_swap_old	G2_DEC_REG(2, 17, 0x1f)
+#define g2_tab0_swap_old	G2_DEC_REG(2, 12, 0x1f)
+#define g2_tab1_swap_old	G2_DEC_REG(2, 7, 0x1f)
+#define g2_tab2_swap_old	G2_DEC_REG(2, 2, 0x1f)
 
 #define g2_mode			G2_DEC_REG(3, 27, 0x1f)
 #define g2_compress_swap	G2_DEC_REG(3, 20, 0xf)
@@ -45,6 +51,8 @@
 #define g2_out_dis		G2_DEC_REG(3, 15, 0x1)
 #define g2_out_filtering_dis	G2_DEC_REG(3, 14, 0x1)
 #define g2_write_mvs_e		G2_DEC_REG(3, 12, 0x1)
+#define g2_tab3_swap_old	G2_DEC_REG(3, 7, 0x1f)
+#define g2_rscan_swap		G2_DEC_REG(3, 2, 0x1f)
 
 #define g2_pic_width_in_cbs	G2_DEC_REG(4, 19, 0x1fff)
 #define g2_pic_height_in_cbs	G2_DEC_REG(4, 6,  0x1fff)
@@ -58,6 +66,7 @@
 #define g2_tempor_mvp_e		G2_DEC_REG(5, 11, 0x1)
 #define g2_max_cu_qpd_depth	G2_DEC_REG(5, 5,  0x3f)
 #define g2_cu_qpd_e		G2_DEC_REG(5, 4,  0x1)
+#define g2_pix_shift		G2_DEC_REG(5, 0,  0xf)
 
 #define g2_stream_len		G2_DEC_REG(6, 0,  0xffffffff)
 
@@ -80,21 +89,28 @@
 
 #define g2_const_intra_e	G2_DEC_REG(8, 31, 0x1)
 #define g2_filt_ctrl_pres	G2_DEC_REG(8, 30, 0x1)
+#define g2_bit_depth_y		G2_DEC_REG(8, 21, 0xf)
+#define g2_bit_depth_c		G2_DEC_REG(8, 17, 0xf)
 #define g2_idr_pic_e		G2_DEC_REG(8, 16, 0x1)
 #define g2_bit_depth_pcm_y	G2_DEC_REG(8, 12, 0xf)
 #define g2_bit_depth_pcm_c	G2_DEC_REG(8, 8,  0xf)
 #define g2_bit_depth_y_minus8	G2_DEC_REG(8, 6,  0x3)
 #define g2_bit_depth_c_minus8	G2_DEC_REG(8, 4,  0x3)
+#define g2_rs_out_bit_depth	G2_DEC_REG(8, 4,  0xf)
 #define g2_output_8_bits	G2_DEC_REG(8, 3,  0x1)
 #define g2_output_format	G2_DEC_REG(8, 0,  0x7)
+#define g2_pp_pix_shift		G2_DEC_REG(8, 0,  0xf)
 
 #define g2_refidx1_active	G2_DEC_REG(9, 19, 0x1f)
 #define g2_refidx0_active	G2_DEC_REG(9, 14, 0x1f)
 #define g2_hdr_skip_length	G2_DEC_REG(9, 0,  0x3fff)
 
 #define g2_start_code_e		G2_DEC_REG(10, 31, 0x1)
+#define g2_init_qp_old		G2_DEC_REG(10, 25, 0x3f)
 #define g2_init_qp		G2_DEC_REG(10, 24, 0x3f)
+#define g2_num_tile_cols_old	G2_DEC_REG(10, 20, 0x1f)
 #define g2_num_tile_cols	G2_DEC_REG(10, 19, 0x1f)
+#define g2_num_tile_rows_old	G2_DEC_REG(10, 15, 0x1f)
 #define g2_num_tile_rows	G2_DEC_REG(10, 14, 0x1f)
 #define g2_tile_e		G2_DEC_REG(10, 1,  0x1)
 #define g2_entropy_sync_e	G2_DEC_REG(10, 0,  0x1)

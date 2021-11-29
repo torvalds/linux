@@ -150,7 +150,8 @@ static void config_output(struct hantro_ctx *ctx,
 	dma_addr_t luma_addr, chroma_addr, mv_addr;
 
 	hantro_reg_write(ctx->dev, &g2_out_dis, 0);
-	hantro_reg_write(ctx->dev, &g2_output_format, 0);
+	if (!ctx->dev->variant->legacy_regs)
+		hantro_reg_write(ctx->dev, &g2_output_format, 0);
 
 	luma_addr = hantro_get_dec_buf_addr(ctx, &dst->base.vb.vb2_buf);
 	hantro_write_addr(ctx->dev, G2_OUT_LUMA_ADDR, luma_addr);
@@ -327,6 +328,7 @@ config_tiles(struct hantro_ctx *ctx,
 	struct hantro_aux_buf *tile_edge = &vp9_ctx->tile_edge;
 	dma_addr_t addr;
 	unsigned short *tile_mem;
+	unsigned int rows, cols;
 
 	addr = misc->dma + vp9_ctx->tile_info_offset;
 	hantro_write_addr(ctx->dev, G2_TILE_SIZES_ADDR, addr);
@@ -344,17 +346,24 @@ config_tiles(struct hantro_ctx *ctx,
 
 		fill_tile_info(ctx, tile_r, tile_c, sbs_r, sbs_c, tile_mem);
 
+		cols = tile_c;
+		rows = tile_r;
 		hantro_reg_write(ctx->dev, &g2_tile_e, 1);
-		hantro_reg_write(ctx->dev, &g2_num_tile_cols, tile_c);
-		hantro_reg_write(ctx->dev, &g2_num_tile_rows, tile_r);
-
 	} else {
 		tile_mem[0] = hantro_vp9_num_sbs(dst->vp9.width);
 		tile_mem[1] = hantro_vp9_num_sbs(dst->vp9.height);
 
+		cols = 1;
+		rows = 1;
 		hantro_reg_write(ctx->dev, &g2_tile_e, 0);
-		hantro_reg_write(ctx->dev, &g2_num_tile_cols, 1);
-		hantro_reg_write(ctx->dev, &g2_num_tile_rows, 1);
+	}
+
+	if (ctx->dev->variant->legacy_regs) {
+		hantro_reg_write(ctx->dev, &g2_num_tile_cols_old, cols);
+		hantro_reg_write(ctx->dev, &g2_num_tile_rows_old, rows);
+	} else {
+		hantro_reg_write(ctx->dev, &g2_num_tile_cols, cols);
+		hantro_reg_write(ctx->dev, &g2_num_tile_rows, rows);
 	}
 
 	/* provide aux buffers even if no tiles are used */
@@ -505,8 +514,22 @@ static void config_picture_dimensions(struct hantro_ctx *ctx, struct hantro_deco
 static void
 config_bit_depth(struct hantro_ctx *ctx, const struct v4l2_ctrl_vp9_frame *dec_params)
 {
-	hantro_reg_write(ctx->dev, &g2_bit_depth_y_minus8, dec_params->bit_depth - 8);
-	hantro_reg_write(ctx->dev, &g2_bit_depth_c_minus8, dec_params->bit_depth - 8);
+	if (ctx->dev->variant->legacy_regs) {
+		u8 pp_shift = 0;
+
+		hantro_reg_write(ctx->dev, &g2_bit_depth_y, dec_params->bit_depth);
+		hantro_reg_write(ctx->dev, &g2_bit_depth_c, dec_params->bit_depth);
+		hantro_reg_write(ctx->dev, &g2_rs_out_bit_depth, dec_params->bit_depth);
+
+		if (dec_params->bit_depth > 8)
+			pp_shift = 16 - dec_params->bit_depth;
+
+		hantro_reg_write(ctx->dev, &g2_pp_pix_shift, pp_shift);
+		hantro_reg_write(ctx->dev, &g2_pix_shift, 0);
+	} else {
+		hantro_reg_write(ctx->dev, &g2_bit_depth_y_minus8, dec_params->bit_depth - 8);
+		hantro_reg_write(ctx->dev, &g2_bit_depth_c_minus8, dec_params->bit_depth - 8);
+	}
 }
 
 static inline bool is_lossless(const struct v4l2_vp9_quantization *quant)
@@ -784,9 +807,13 @@ config_source(struct hantro_ctx *ctx, const struct v4l2_ctrl_vp9_frame *dec_para
 		     + dec_params->compressed_header_size;
 
 	stream_base = vb2_dma_contig_plane_dma_addr(&vb2_src->vb2_buf, 0);
-	hantro_write_addr(ctx->dev, G2_STREAM_ADDR, stream_base);
 
 	tmp_addr = stream_base + headres_size;
+	if (ctx->dev->variant->legacy_regs)
+		hantro_write_addr(ctx->dev, G2_STREAM_ADDR, (tmp_addr & ~0xf));
+	else
+		hantro_write_addr(ctx->dev, G2_STREAM_ADDR, stream_base);
+
 	start_bit = (tmp_addr & 0xf) * 8;
 	hantro_reg_write(ctx->dev, &g2_start_bit, start_bit);
 
@@ -794,10 +821,12 @@ config_source(struct hantro_ctx *ctx, const struct v4l2_ctrl_vp9_frame *dec_para
 	src_len += start_bit / 8 - headres_size;
 	hantro_reg_write(ctx->dev, &g2_stream_len, src_len);
 
-	tmp_addr &= ~0xf;
-	hantro_reg_write(ctx->dev, &g2_strm_start_offset, tmp_addr - stream_base);
-	src_buf_len = vb2_plane_size(&vb2_src->vb2_buf, 0);
-	hantro_reg_write(ctx->dev, &g2_strm_buffer_len, src_buf_len);
+	if (!ctx->dev->variant->legacy_regs) {
+		tmp_addr &= ~0xf;
+		hantro_reg_write(ctx->dev, &g2_strm_start_offset, tmp_addr - stream_base);
+		src_buf_len = vb2_plane_size(&vb2_src->vb2_buf, 0);
+		hantro_reg_write(ctx->dev, &g2_strm_buffer_len, src_buf_len);
+	}
 }
 
 static void
@@ -837,13 +866,24 @@ config_registers(struct hantro_ctx *ctx, const struct v4l2_ctrl_vp9_frame *dec_p
 
 	/* configure basic registers */
 	hantro_reg_write(ctx->dev, &g2_mode, VP9_DEC_MODE);
-	hantro_reg_write(ctx->dev, &g2_strm_swap, 0xf);
-	hantro_reg_write(ctx->dev, &g2_dirmv_swap, 0xf);
-	hantro_reg_write(ctx->dev, &g2_compress_swap, 0xf);
+	if (!ctx->dev->variant->legacy_regs) {
+		hantro_reg_write(ctx->dev, &g2_strm_swap, 0xf);
+		hantro_reg_write(ctx->dev, &g2_dirmv_swap, 0xf);
+		hantro_reg_write(ctx->dev, &g2_compress_swap, 0xf);
+		hantro_reg_write(ctx->dev, &g2_ref_compress_bypass, 1);
+	} else {
+		hantro_reg_write(ctx->dev, &g2_strm_swap_old, 0x1f);
+		hantro_reg_write(ctx->dev, &g2_pic_swap, 0x10);
+		hantro_reg_write(ctx->dev, &g2_dirmv_swap_old, 0x10);
+		hantro_reg_write(ctx->dev, &g2_tab0_swap_old, 0x10);
+		hantro_reg_write(ctx->dev, &g2_tab1_swap_old, 0x10);
+		hantro_reg_write(ctx->dev, &g2_tab2_swap_old, 0x10);
+		hantro_reg_write(ctx->dev, &g2_tab3_swap_old, 0x10);
+		hantro_reg_write(ctx->dev, &g2_rscan_swap, 0x10);
+	}
 	hantro_reg_write(ctx->dev, &g2_buswidth, BUS_WIDTH_128);
 	hantro_reg_write(ctx->dev, &g2_max_burst, 16);
 	hantro_reg_write(ctx->dev, &g2_apf_threshold, 8);
-	hantro_reg_write(ctx->dev, &g2_ref_compress_bypass, 1);
 	hantro_reg_write(ctx->dev, &g2_clk_gate_e, 1);
 	hantro_reg_write(ctx->dev, &g2_max_cb_size, 6);
 	hantro_reg_write(ctx->dev, &g2_min_cb_size, 3);
