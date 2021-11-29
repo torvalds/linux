@@ -92,6 +92,7 @@ static int esw_acl_ingress_mod_metadata_create(struct mlx5_eswitch *esw,
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_MOD_HDR | MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 	flow_act.modify_hdr = vport->ingress.offloads.modify_metadata;
+	flow_act.fg = vport->ingress.offloads.metadata_allmatch_grp;
 	vport->ingress.offloads.modify_metadata_rule =
 				mlx5_add_flow_rules(vport->ingress.acl,
 						    NULL, &flow_act, NULL, 0);
@@ -115,6 +116,36 @@ static void esw_acl_ingress_mod_metadata_destroy(struct mlx5_eswitch *esw,
 	mlx5_del_flow_rules(vport->ingress.offloads.modify_metadata_rule);
 	mlx5_modify_header_dealloc(esw->dev, vport->ingress.offloads.modify_metadata);
 	vport->ingress.offloads.modify_metadata_rule = NULL;
+}
+
+static int esw_acl_ingress_src_port_drop_create(struct mlx5_eswitch *esw,
+						struct mlx5_vport *vport)
+{
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *flow_rule;
+	int err = 0;
+
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
+	flow_act.fg = vport->ingress.offloads.drop_grp;
+	flow_rule = mlx5_add_flow_rules(vport->ingress.acl, NULL, &flow_act, NULL, 0);
+	if (IS_ERR(flow_rule)) {
+		err = PTR_ERR(flow_rule);
+		goto out;
+	}
+
+	vport->ingress.offloads.drop_rule = flow_rule;
+out:
+	return err;
+}
+
+static void esw_acl_ingress_src_port_drop_destroy(struct mlx5_eswitch *esw,
+						  struct mlx5_vport *vport)
+{
+	if (!vport->ingress.offloads.drop_rule)
+		return;
+
+	mlx5_del_flow_rules(vport->ingress.offloads.drop_rule);
+	vport->ingress.offloads.drop_rule = NULL;
 }
 
 static int esw_acl_ingress_ofld_rules_create(struct mlx5_eswitch *esw,
@@ -154,6 +185,7 @@ static void esw_acl_ingress_ofld_rules_destroy(struct mlx5_eswitch *esw,
 {
 	esw_acl_ingress_allow_rule_destroy(vport);
 	esw_acl_ingress_mod_metadata_destroy(esw, vport);
+	esw_acl_ingress_src_port_drop_destroy(esw, vport);
 }
 
 static int esw_acl_ingress_ofld_groups_create(struct mlx5_eswitch *esw,
@@ -170,10 +202,29 @@ static int esw_acl_ingress_ofld_groups_create(struct mlx5_eswitch *esw,
 	if (!flow_group_in)
 		return -ENOMEM;
 
+	if (vport->vport == MLX5_VPORT_UPLINK) {
+		/* This group can hold an FTE to drop all traffic.
+		 * Need in case LAG is enabled.
+		 */
+		MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, flow_index);
+		MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, flow_index);
+
+		g = mlx5_create_flow_group(vport->ingress.acl, flow_group_in);
+		if (IS_ERR(g)) {
+			ret = PTR_ERR(g);
+			esw_warn(esw->dev, "vport[%d] ingress create drop flow group, err(%d)\n",
+				 vport->vport, ret);
+			goto drop_err;
+		}
+		vport->ingress.offloads.drop_grp = g;
+		flow_index++;
+	}
+
 	if (esw_acl_ingress_prio_tag_enabled(esw, vport)) {
 		/* This group is to hold FTE to match untagged packets when prio_tag
 		 * is enabled.
 		 */
+		memset(flow_group_in, 0, inlen);
 		match_criteria = MLX5_ADDR_OF(create_flow_group_in,
 					      flow_group_in, match_criteria);
 		MLX5_SET(create_flow_group_in, flow_group_in,
@@ -221,6 +272,11 @@ metadata_err:
 		vport->ingress.offloads.metadata_prio_tag_grp = NULL;
 	}
 prio_tag_err:
+	if (!IS_ERR_OR_NULL(vport->ingress.offloads.drop_grp)) {
+		mlx5_destroy_flow_group(vport->ingress.offloads.drop_grp);
+		vport->ingress.offloads.drop_grp = NULL;
+	}
+drop_err:
 	kvfree(flow_group_in);
 	return ret;
 }
@@ -235,6 +291,11 @@ static void esw_acl_ingress_ofld_groups_destroy(struct mlx5_vport *vport)
 	if (vport->ingress.offloads.metadata_prio_tag_grp) {
 		mlx5_destroy_flow_group(vport->ingress.offloads.metadata_prio_tag_grp);
 		vport->ingress.offloads.metadata_prio_tag_grp = NULL;
+	}
+
+	if (vport->ingress.offloads.drop_grp) {
+		mlx5_destroy_flow_group(vport->ingress.offloads.drop_grp);
+		vport->ingress.offloads.drop_grp = NULL;
 	}
 }
 
@@ -251,6 +312,8 @@ int esw_acl_ingress_ofld_setup(struct mlx5_eswitch *esw,
 	esw_acl_ingress_allow_rule_destroy(vport);
 
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw))
+		num_ftes++;
+	if (vport->vport == MLX5_VPORT_UPLINK)
 		num_ftes++;
 	if (esw_acl_ingress_prio_tag_enabled(esw, vport))
 		num_ftes++;
@@ -319,4 +382,28 @@ int mlx5_esw_acl_ingress_vport_bond_update(struct mlx5_eswitch *esw, u16 vport_n
 out:
 	vport->metadata = vport->default_metadata;
 	return err;
+}
+
+int mlx5_esw_acl_ingress_vport_drop_rule_create(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	struct mlx5_vport *vport = mlx5_eswitch_get_vport(esw, vport_num);
+
+	if (IS_ERR(vport)) {
+		esw_warn(esw->dev, "vport(%d) invalid!\n", vport_num);
+		return PTR_ERR(vport);
+	}
+
+	return esw_acl_ingress_src_port_drop_create(esw, vport);
+}
+
+void mlx5_esw_acl_ingress_vport_drop_rule_destroy(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	struct mlx5_vport *vport = mlx5_eswitch_get_vport(esw, vport_num);
+
+	if (WARN_ON_ONCE(IS_ERR(vport))) {
+		esw_warn(esw->dev, "vport(%d) invalid!\n", vport_num);
+		return;
+	}
+
+	esw_acl_ingress_src_port_drop_destroy(esw, vport);
 }
