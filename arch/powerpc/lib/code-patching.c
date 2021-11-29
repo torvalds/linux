@@ -18,7 +18,7 @@
 #include <asm/setup.h>
 #include <asm/inst.h>
 
-static int __patch_instruction(u32 *exec_addr, struct ppc_inst instr, u32 *patch_addr)
+static int __patch_instruction(u32 *exec_addr, ppc_inst_t instr, u32 *patch_addr)
 {
 	if (!ppc_inst_prefixed(instr)) {
 		u32 val = ppc_inst_val(instr);
@@ -39,7 +39,7 @@ failed:
 	return -EFAULT;
 }
 
-int raw_patch_instruction(u32 *addr, struct ppc_inst instr)
+int raw_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	return __patch_instruction(addr, instr, addr);
 }
@@ -141,7 +141,7 @@ static inline int unmap_patch_area(unsigned long addr)
 	return 0;
 }
 
-static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
+static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	int err;
 	u32 *patch_addr = NULL;
@@ -180,14 +180,14 @@ out:
 }
 #else /* !CONFIG_STRICT_KERNEL_RWX */
 
-static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
+static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	return raw_patch_instruction(addr, instr);
 }
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
-int patch_instruction(u32 *addr, struct ppc_inst instr)
+int patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	/* Make sure we aren't patching a freed init section */
 	if (init_mem_is_free && init_section_contains(addr, 4)) {
@@ -200,7 +200,7 @@ NOKPROBE_SYMBOL(patch_instruction);
 
 int patch_branch(u32 *addr, unsigned long target, int flags)
 {
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 
 	create_branch(&instr, addr, target, flags);
 	return patch_instruction(addr, instr);
@@ -237,7 +237,7 @@ bool is_offset_in_cond_branch_range(long offset)
  * Helper to check if a given instruction is a conditional branch
  * Derived from the conditional checks in analyse_instr()
  */
-bool is_conditional_branch(struct ppc_inst instr)
+bool is_conditional_branch(ppc_inst_t instr)
 {
 	unsigned int opcode = ppc_inst_primary_opcode(instr);
 
@@ -255,7 +255,7 @@ bool is_conditional_branch(struct ppc_inst instr)
 }
 NOKPROBE_SYMBOL(is_conditional_branch);
 
-int create_branch(struct ppc_inst *instr, const u32 *addr,
+int create_branch(ppc_inst_t *instr, const u32 *addr,
 		  unsigned long target, int flags)
 {
 	long offset;
@@ -275,7 +275,7 @@ int create_branch(struct ppc_inst *instr, const u32 *addr,
 	return 0;
 }
 
-int create_cond_branch(struct ppc_inst *instr, const u32 *addr,
+int create_cond_branch(ppc_inst_t *instr, const u32 *addr,
 		       unsigned long target, int flags)
 {
 	long offset;
@@ -294,22 +294,22 @@ int create_cond_branch(struct ppc_inst *instr, const u32 *addr,
 	return 0;
 }
 
-static unsigned int branch_opcode(struct ppc_inst instr)
+static unsigned int branch_opcode(ppc_inst_t instr)
 {
 	return ppc_inst_primary_opcode(instr) & 0x3F;
 }
 
-static int instr_is_branch_iform(struct ppc_inst instr)
+static int instr_is_branch_iform(ppc_inst_t instr)
 {
 	return branch_opcode(instr) == 18;
 }
 
-static int instr_is_branch_bform(struct ppc_inst instr)
+static int instr_is_branch_bform(ppc_inst_t instr)
 {
 	return branch_opcode(instr) == 16;
 }
 
-int instr_is_relative_branch(struct ppc_inst instr)
+int instr_is_relative_branch(ppc_inst_t instr)
 {
 	if (ppc_inst_val(instr) & BRANCH_ABSOLUTE)
 		return 0;
@@ -317,7 +317,7 @@ int instr_is_relative_branch(struct ppc_inst instr)
 	return instr_is_branch_iform(instr) || instr_is_branch_bform(instr);
 }
 
-int instr_is_relative_link_branch(struct ppc_inst instr)
+int instr_is_relative_link_branch(ppc_inst_t instr)
 {
 	return instr_is_relative_branch(instr) && (ppc_inst_val(instr) & BRANCH_SET_LINK);
 }
@@ -364,7 +364,7 @@ unsigned long branch_target(const u32 *instr)
 	return 0;
 }
 
-int translate_branch(struct ppc_inst *instr, const u32 *dest, const u32 *src)
+int translate_branch(ppc_inst_t *instr, const u32 *dest, const u32 *src)
 {
 	unsigned long target;
 	target = branch_target(src);
@@ -417,7 +417,7 @@ static void __init test_trampoline(void)
 static void __init test_branch_iform(void)
 {
 	int err;
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 	u32 tmp[2];
 	u32 *iptr = tmp;
 	unsigned long addr = (unsigned long)tmp;
@@ -499,7 +499,7 @@ static void __init test_create_function_call(void)
 {
 	u32 *iptr;
 	unsigned long dest;
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 
 	/* Check we can create a function call */
 	iptr = (u32 *)ppc_function_entry(test_trampoline);
@@ -513,7 +513,7 @@ static void __init test_branch_bform(void)
 {
 	int err;
 	unsigned long addr;
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 	u32 tmp[2];
 	u32 *iptr = tmp;
 	unsigned int flags;
@@ -591,7 +591,7 @@ static void __init test_translate_branch(void)
 {
 	unsigned long addr;
 	void *p, *q;
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 	void *buf;
 
 	buf = vmalloc(PAGE_ALIGN(0x2000000 + 1));

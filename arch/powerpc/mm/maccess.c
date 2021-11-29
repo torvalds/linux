@@ -12,7 +12,7 @@ bool copy_from_kernel_nofault_allowed(const void *unsafe_src, size_t size)
 	return is_kernel_addr((unsigned long)unsafe_src);
 }
 
-int copy_inst_from_kernel_nofault(struct ppc_inst *inst, u32 *src)
+int copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src)
 {
 	unsigned int val, suffix;
 	int err;

@@ -47,7 +47,7 @@ static u32 *calc_addr(struct fixup_entry *fcur, long offset)
 static int patch_alt_instruction(u32 *src, u32 *dest, u32 *alt_start, u32 *alt_end)
 {
 	int err;
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 
 	instr = ppc_inst_read(src);
 
@@ -624,7 +624,7 @@ void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 static void do_final_fixups(void)
 {
 #if defined(CONFIG_PPC64) && defined(CONFIG_RELOCATABLE)
-	struct ppc_inst inst;
+	ppc_inst_t inst;
 	u32 *src, *dest, *end;
 
 	if (PHYSICAL_START == 0)

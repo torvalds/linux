@@ -153,7 +153,7 @@ static void patch_imm_load_insns(unsigned long val, int reg, kprobe_opcode_t *ad
 
 int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 {
-	struct ppc_inst branch_op_callback, branch_emulate_step, temp;
+	ppc_inst_t branch_op_callback, branch_emulate_step, temp;
 	unsigned long op_callback_addr, emulate_step_addr;
 	kprobe_opcode_t *buff;
 	long b_offset;
@@ -269,7 +269,7 @@ int arch_check_optimized_kprobe(struct optimized_kprobe *op)
 
 void arch_optimize_kprobes(struct list_head *oplist)
 {
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 	struct optimized_kprobe *op;
 	struct optimized_kprobe *tmp;
 
