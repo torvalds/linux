@@ -39,21 +39,18 @@ struct prev_queue {
 
 struct wg_device {
 	struct net_device *dev;
-	struct crypt_queue encrypt_queue, decrypt_queue;
+	struct crypt_queue encrypt_queue, decrypt_queue, handshake_queue;
 	struct sock __rcu *sock4, *sock6;
 	struct net __rcu *creating_net;
 	struct noise_static_identity static_identity;
-	struct workqueue_struct *handshake_receive_wq, *handshake_send_wq;
-	struct workqueue_struct *packet_crypt_wq;
-	struct sk_buff_head incoming_handshakes;
-	int incoming_handshake_cpu;
-	struct multicore_worker __percpu *incoming_handshakes_worker;
+	struct workqueue_struct *packet_crypt_wq,*handshake_receive_wq, *handshake_send_wq;
 	struct cookie_checker cookie_checker;
 	struct pubkey_hashtable *peer_hashtable;
 	struct index_hashtable *index_hashtable;
 	struct allowedips peer_allowedips;
 	struct mutex device_update_lock, socket_update_lock;
 	struct list_head device_list, peer_list;
+	atomic_t handshake_queue_len;
 	unsigned int num_peers, device_update_gen;
 	u32 fwmark;
 	u16 incoming_port;
