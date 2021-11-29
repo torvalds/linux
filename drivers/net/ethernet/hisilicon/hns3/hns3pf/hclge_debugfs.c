@@ -258,12 +258,29 @@ hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 	return 0;
 }
 
+static const struct hclge_dbg_status_dfx_info hclge_dbg_mac_en_status[] = {
+	{HCLGE_MAC_TX_EN_B,  "mac_trans_en"},
+	{HCLGE_MAC_RX_EN_B,  "mac_rcv_en"},
+	{HCLGE_MAC_PAD_TX_B, "pad_trans_en"},
+	{HCLGE_MAC_PAD_RX_B, "pad_rcv_en"},
+	{HCLGE_MAC_1588_TX_B, "1588_trans_en"},
+	{HCLGE_MAC_1588_RX_B, "1588_rcv_en"},
+	{HCLGE_MAC_APP_LP_B,  "mac_app_loop_en"},
+	{HCLGE_MAC_LINE_LP_B, "mac_line_loop_en"},
+	{HCLGE_MAC_FCS_TX_B,  "mac_fcs_tx_en"},
+	{HCLGE_MAC_RX_OVERSIZE_TRUNCATE_B, "mac_rx_oversize_truncate_en"},
+	{HCLGE_MAC_RX_FCS_STRIP_B, "mac_rx_fcs_strip_en"},
+	{HCLGE_MAC_RX_FCS_B, "mac_rx_fcs_en"},
+	{HCLGE_MAC_TX_UNDER_MIN_ERR_B, "mac_tx_under_min_err_en"},
+	{HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B, "mac_tx_oversize_truncate_en"}
+};
+
 static int  hclge_dbg_dump_mac_enable_status(struct hclge_dev *hdev, char *buf,
 					     int len, int *pos)
 {
 	struct hclge_config_mac_mode_cmd *req;
 	struct hclge_desc desc;
-	u32 loop_en;
+	u32 loop_en, i, offset;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, true);
@@ -278,39 +295,12 @@ static int  hclge_dbg_dump_mac_enable_status(struct hclge_dev *hdev, char *buf,
 	req = (struct hclge_config_mac_mode_cmd *)desc.data;
 	loop_en = le32_to_cpu(req->txrx_pad_fcs_loop_en);
 
-	*pos += scnprintf(buf + *pos, len - *pos, "mac_trans_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_TX_EN_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "mac_rcv_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_RX_EN_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "pad_trans_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_PAD_TX_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "pad_rcv_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_PAD_RX_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "1588_trans_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_1588_TX_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "1588_rcv_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_1588_RX_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "mac_app_loop_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_APP_LP_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "mac_line_loop_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_LINE_LP_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "mac_fcs_tx_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_FCS_TX_B));
-	*pos += scnprintf(buf + *pos, len - *pos,
-			  "mac_rx_oversize_truncate_en: %#x\n",
-			  hnae3_get_bit(loop_en,
-					HCLGE_MAC_RX_OVERSIZE_TRUNCATE_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "mac_rx_fcs_strip_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_RX_FCS_STRIP_B));
-	*pos += scnprintf(buf + *pos, len - *pos, "mac_rx_fcs_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_RX_FCS_B));
-	*pos += scnprintf(buf + *pos, len - *pos,
-			  "mac_tx_under_min_err_en: %#x\n",
-			  hnae3_get_bit(loop_en, HCLGE_MAC_TX_UNDER_MIN_ERR_B));
-	*pos += scnprintf(buf + *pos, len - *pos,
-			  "mac_tx_oversize_truncate_en: %#x\n",
-			  hnae3_get_bit(loop_en,
-					HCLGE_MAC_TX_OVERSIZE_TRUNCATE_B));
+	for (i = 0; i < ARRAY_SIZE(hclge_dbg_mac_en_status); i++) {
+		offset = hclge_dbg_mac_en_status[i].offset;
+		*pos += scnprintf(buf + *pos, len - *pos, "%s: %#x\n",
+				  hclge_dbg_mac_en_status[i].message,
+				  hnae3_get_bit(loop_en, offset));
+	}
 
 	return 0;
 }
@@ -1614,8 +1604,19 @@ static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
+static const struct hclge_dbg_status_dfx_info hclge_dbg_rst_info[] = {
+	{HCLGE_MISC_VECTOR_REG_BASE, "vector0 interrupt enable status"},
+	{HCLGE_MISC_RESET_STS_REG,   "reset interrupt source"},
+	{HCLGE_MISC_VECTOR_INT_STS,  "reset interrupt status"},
+	{HCLGE_RAS_PF_OTHER_INT_STS_REG, "RAS interrupt status"},
+	{HCLGE_GLOBAL_RESET_REG,  "hardware reset status"},
+	{HCLGE_NIC_CSQ_DEPTH_REG, "handshake status"},
+	{HCLGE_FUN_RST_ING, "function reset status"}
+};
+
 int hclge_dbg_dump_rst_info(struct hclge_dev *hdev, char *buf, int len)
 {
+	u32 i, offset;
 	int pos = 0;
 
 	pos += scnprintf(buf + pos, len - pos, "PF reset count: %u\n",
@@ -1634,22 +1635,14 @@ int hclge_dbg_dump_rst_info(struct hclge_dev *hdev, char *buf, int len)
 			 hdev->rst_stats.reset_cnt);
 	pos += scnprintf(buf + pos, len - pos, "reset fail count: %u\n",
 			 hdev->rst_stats.reset_fail_cnt);
-	pos += scnprintf(buf + pos, len - pos,
-			 "vector0 interrupt enable status: 0x%x\n",
-			 hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_REG_BASE));
-	pos += scnprintf(buf + pos, len - pos, "reset interrupt source: 0x%x\n",
-			 hclge_read_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG));
-	pos += scnprintf(buf + pos, len - pos, "reset interrupt status: 0x%x\n",
-			 hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS));
-	pos += scnprintf(buf + pos, len - pos, "RAS interrupt status: 0x%x\n",
-			 hclge_read_dev(&hdev->hw,
-					HCLGE_RAS_PF_OTHER_INT_STS_REG));
-	pos += scnprintf(buf + pos, len - pos, "hardware reset status: 0x%x\n",
-			 hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG));
-	pos += scnprintf(buf + pos, len - pos, "handshake status: 0x%x\n",
-			 hclge_read_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG));
-	pos += scnprintf(buf + pos, len - pos, "function reset status: 0x%x\n",
-			 hclge_read_dev(&hdev->hw, HCLGE_FUN_RST_ING));
+
+	for (i = 0; i < ARRAY_SIZE(hclge_dbg_rst_info); i++) {
+		offset = hclge_dbg_rst_info[i].offset;
+		pos += scnprintf(buf + pos, len - pos, "%s: 0x%x\n",
+				 hclge_dbg_rst_info[i].message,
+				 hclge_read_dev(&hdev->hw, offset));
+	}
+
 	pos += scnprintf(buf + pos, len - pos, "hdev state: 0x%lx\n",
 			 hdev->state);
 
