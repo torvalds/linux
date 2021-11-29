@@ -1314,7 +1314,7 @@ static irqreturn_t rockchip_hdmi_hardirq(int irq, void *dev_id)
 			val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_MSK,
 					    RK3588_HDMI0_HPD_INT_MSK);
 		else
-			val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_MSK,
+			val = HIWORD_UPDATE(RK3588_HDMI1_HPD_INT_MSK,
 					    RK3588_HDMI1_HPD_INT_MSK);
 		regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 		return IRQ_WAKE_THREAD;
@@ -3046,7 +3046,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	}
 
 	val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_MSK, RK3588_HDMI0_HPD_INT_MSK) |
-	      HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_MSK, RK3588_HDMI1_HPD_INT_MSK);
+	      HIWORD_UPDATE(RK3588_HDMI1_HPD_INT_MSK, RK3588_HDMI1_HPD_INT_MSK);
 	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 
 	if (hdmi->is_hdmi_qp) {
