@@ -122,7 +122,7 @@ struct async_scan_data {
 	struct completion prev_finished;
 };
 
-/**
+/*
  * scsi_enable_async_suspend - Enable async suspend and resume
  */
 void scsi_enable_async_suspend(struct device *dev)
