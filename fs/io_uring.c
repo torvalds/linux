@@ -6111,6 +6111,8 @@ static int io_timeout_remove_prep(struct io_kiocb *req,
 			return -EINVAL;
 		if (get_timespec64(&tr->ts, u64_to_user_ptr(sqe->addr2)))
 			return -EFAULT;
+		if (tr->ts.tv_sec < 0 || tr->ts.tv_nsec < 0)
+			return -EINVAL;
 	} else if (tr->flags) {
 		/* timeout removal doesn't support flags */
 		return -EINVAL;
