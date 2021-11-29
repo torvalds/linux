@@ -8,7 +8,6 @@
 #define _HISI_SAS_H_
 
 #include <linux/acpi.h>
-#include <linux/async.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-mq-pci.h>
 #include <linux/clk.h>

@@ -3,7 +3,6 @@
 #define _SCSI_PRIV_H
 
 #include <linux/device.h>
-#include <linux/async.h>
 #include <scsi/scsi_device.h>
 #include <linux/sbitmap.h>
 

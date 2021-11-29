@@ -8,7 +8,6 @@
 
 #include <linux/pm_runtime.h>
 #include <linux/export.h>
-#include <linux/async.h>
 #include <linux/blk-pm.h>
 
 #include <scsi/scsi.h>
