@@ -1496,7 +1496,14 @@ static void dw_dp_encoder_enable(struct drm_encoder *encoder)
 
 static void dw_dp_encoder_disable(struct drm_encoder *encoder)
 {
+	struct dw_dp *dp = encoder_to_dp(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
+	if (dp->split_mode)
+		s->output_if &= ~(VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1);
+	else
+		s->output_if &= ~(dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0);
 }
 
 static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
@@ -1519,7 +1526,7 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 		s->output_flags |= dp->id ? ROCKCHIP_OUTPUT_DATA_SWAP : 0;
 		s->output_if |= VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1;
 	} else {
-		s->output_if = dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
+		s->output_if |= dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
 	}
 	s->output_bpc = di->bpc;
 	s->bus_flags = di->bus_flags;
