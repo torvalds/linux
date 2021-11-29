@@ -11717,7 +11717,9 @@ enum skl_power_gate {
 #define TGL_DSI_CHKN_REG(port)		_MMIO_PORT(port,	\
 						    _TGL_DSI_CHKN_REG_0, \
 						    _TGL_DSI_CHKN_REG_1)
-#define TGL_DSI_CHKN_LSHS_GB			REG_GENMASK(15, 12)
+#define TGL_DSI_CHKN_LSHS_GB_MASK		REG_GENMASK(15, 12)
+#define TGL_DSI_CHKN_LSHS_GB(byte_clocks)	REG_FIELD_PREP(TGL_DSI_CHKN_LSHS_GB_MASK, \
+							       (byte_clocks))
 
 /* Display Stream Splitter Control */
 #define DSS_CTL1				_MMIO(0x67400)

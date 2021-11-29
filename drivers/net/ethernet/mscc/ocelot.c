@@ -1278,6 +1278,225 @@ int ocelot_fdb_dump(struct ocelot *ocelot, int port,
 }
 EXPORT_SYMBOL(ocelot_fdb_dump);
 
+static void ocelot_populate_l2_ptp_trap_key(struct ocelot_vcap_filter *trap)
+{
+	trap->key_type = OCELOT_VCAP_KEY_ETYPE;
+	*(__be16 *)trap->key.etype.etype.value = htons(ETH_P_1588);
+	*(__be16 *)trap->key.etype.etype.mask = htons(0xffff);
+}
+
+static void
+ocelot_populate_ipv4_ptp_event_trap_key(struct ocelot_vcap_filter *trap)
+{
+	trap->key_type = OCELOT_VCAP_KEY_IPV4;
+	trap->key.ipv4.dport.value = PTP_EV_PORT;
+	trap->key.ipv4.dport.mask = 0xffff;
+}
+
+static void
+ocelot_populate_ipv6_ptp_event_trap_key(struct ocelot_vcap_filter *trap)
+{
+	trap->key_type = OCELOT_VCAP_KEY_IPV6;
+	trap->key.ipv6.dport.value = PTP_EV_PORT;
+	trap->key.ipv6.dport.mask = 0xffff;
+}
+
+static void
+ocelot_populate_ipv4_ptp_general_trap_key(struct ocelot_vcap_filter *trap)
+{
+	trap->key_type = OCELOT_VCAP_KEY_IPV4;
+	trap->key.ipv4.dport.value = PTP_GEN_PORT;
+	trap->key.ipv4.dport.mask = 0xffff;
+}
+
+static void
+ocelot_populate_ipv6_ptp_general_trap_key(struct ocelot_vcap_filter *trap)
+{
+	trap->key_type = OCELOT_VCAP_KEY_IPV6;
+	trap->key.ipv6.dport.value = PTP_GEN_PORT;
+	trap->key.ipv6.dport.mask = 0xffff;
+}
+
+static int ocelot_trap_add(struct ocelot *ocelot, int port,
+			   unsigned long cookie,
+			   void (*populate)(struct ocelot_vcap_filter *f))
+{
+	struct ocelot_vcap_block *block_vcap_is2;
+	struct ocelot_vcap_filter *trap;
+	bool new = false;
+	int err;
+
+	block_vcap_is2 = &ocelot->block[VCAP_IS2];
+
+	trap = ocelot_vcap_block_find_filter_by_id(block_vcap_is2, cookie,
+						   false);
+	if (!trap) {
+		trap = kzalloc(sizeof(*trap), GFP_KERNEL);
+		if (!trap)
+			return -ENOMEM;
+
+		populate(trap);
+		trap->prio = 1;
+		trap->id.cookie = cookie;
+		trap->id.tc_offload = false;
+		trap->block_id = VCAP_IS2;
+		trap->type = OCELOT_VCAP_FILTER_OFFLOAD;
+		trap->lookup = 0;
+		trap->action.cpu_copy_ena = true;
+		trap->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
+		trap->action.port_mask = 0;
+		new = true;
+	}
+
+	trap->ingress_port_mask |= BIT(port);
+
+	if (new)
+		err = ocelot_vcap_filter_add(ocelot, trap, NULL);
+	else
+		err = ocelot_vcap_filter_replace(ocelot, trap);
+	if (err) {
+		trap->ingress_port_mask &= ~BIT(port);
+		if (!trap->ingress_port_mask)
+			kfree(trap);
+		return err;
+	}
+
+	return 0;
+}
+
+static int ocelot_trap_del(struct ocelot *ocelot, int port,
+			   unsigned long cookie)
+{
+	struct ocelot_vcap_block *block_vcap_is2;
+	struct ocelot_vcap_filter *trap;
+
+	block_vcap_is2 = &ocelot->block[VCAP_IS2];
+
+	trap = ocelot_vcap_block_find_filter_by_id(block_vcap_is2, cookie,
+						   false);
+	if (!trap)
+		return 0;
+
+	trap->ingress_port_mask &= ~BIT(port);
+	if (!trap->ingress_port_mask)
+		return ocelot_vcap_filter_del(ocelot, trap);
+
+	return ocelot_vcap_filter_replace(ocelot, trap);
+}
+
+static int ocelot_l2_ptp_trap_add(struct ocelot *ocelot, int port)
+{
+	unsigned long l2_cookie = ocelot->num_phys_ports + 1;
+
+	return ocelot_trap_add(ocelot, port, l2_cookie,
+			       ocelot_populate_l2_ptp_trap_key);
+}
+
+static int ocelot_l2_ptp_trap_del(struct ocelot *ocelot, int port)
+{
+	unsigned long l2_cookie = ocelot->num_phys_ports + 1;
+
+	return ocelot_trap_del(ocelot, port, l2_cookie);
+}
+
+static int ocelot_ipv4_ptp_trap_add(struct ocelot *ocelot, int port)
+{
+	unsigned long ipv4_gen_cookie = ocelot->num_phys_ports + 2;
+	unsigned long ipv4_ev_cookie = ocelot->num_phys_ports + 3;
+	int err;
+
+	err = ocelot_trap_add(ocelot, port, ipv4_ev_cookie,
+			      ocelot_populate_ipv4_ptp_event_trap_key);
+	if (err)
+		return err;
+
+	err = ocelot_trap_add(ocelot, port, ipv4_gen_cookie,
+			      ocelot_populate_ipv4_ptp_general_trap_key);
+	if (err)
+		ocelot_trap_del(ocelot, port, ipv4_ev_cookie);
+
+	return err;
+}
+
+static int ocelot_ipv4_ptp_trap_del(struct ocelot *ocelot, int port)
+{
+	unsigned long ipv4_gen_cookie = ocelot->num_phys_ports + 2;
+	unsigned long ipv4_ev_cookie = ocelot->num_phys_ports + 3;
+	int err;
+
+	err = ocelot_trap_del(ocelot, port, ipv4_ev_cookie);
+	err |= ocelot_trap_del(ocelot, port, ipv4_gen_cookie);
+	return err;
+}
+
+static int ocelot_ipv6_ptp_trap_add(struct ocelot *ocelot, int port)
+{
+	unsigned long ipv6_gen_cookie = ocelot->num_phys_ports + 4;
+	unsigned long ipv6_ev_cookie = ocelot->num_phys_ports + 5;
+	int err;
+
+	err = ocelot_trap_add(ocelot, port, ipv6_ev_cookie,
+			      ocelot_populate_ipv6_ptp_event_trap_key);
+	if (err)
+		return err;
+
+	err = ocelot_trap_add(ocelot, port, ipv6_gen_cookie,
+			      ocelot_populate_ipv6_ptp_general_trap_key);
+	if (err)
+		ocelot_trap_del(ocelot, port, ipv6_ev_cookie);
+
+	return err;
+}
+
+static int ocelot_ipv6_ptp_trap_del(struct ocelot *ocelot, int port)
+{
+	unsigned long ipv6_gen_cookie = ocelot->num_phys_ports + 4;
+	unsigned long ipv6_ev_cookie = ocelot->num_phys_ports + 5;
+	int err;
+
+	err = ocelot_trap_del(ocelot, port, ipv6_ev_cookie);
+	err |= ocelot_trap_del(ocelot, port, ipv6_gen_cookie);
+	return err;
+}
+
+static int ocelot_setup_ptp_traps(struct ocelot *ocelot, int port,
+				  bool l2, bool l4)
+{
+	int err;
+
+	if (l2)
+		err = ocelot_l2_ptp_trap_add(ocelot, port);
+	else
+		err = ocelot_l2_ptp_trap_del(ocelot, port);
+	if (err)
+		return err;
+
+	if (l4) {
+		err = ocelot_ipv4_ptp_trap_add(ocelot, port);
+		if (err)
+			goto err_ipv4;
+
+		err = ocelot_ipv6_ptp_trap_add(ocelot, port);
+		if (err)
+			goto err_ipv6;
+	} else {
+		err = ocelot_ipv4_ptp_trap_del(ocelot, port);
+
+		err |= ocelot_ipv6_ptp_trap_del(ocelot, port);
+	}
+	if (err)
+		return err;
+
+	return 0;
+
+err_ipv6:
+	ocelot_ipv4_ptp_trap_del(ocelot, port);
+err_ipv4:
+	if (l2)
+		ocelot_l2_ptp_trap_del(ocelot, port);
+	return err;
+}
+
 int ocelot_hwstamp_get(struct ocelot *ocelot, int port, struct ifreq *ifr)
 {
 	return copy_to_user(ifr->ifr_data, &ocelot->hwtstamp_config,
@@ -1288,7 +1507,9 @@ EXPORT_SYMBOL(ocelot_hwstamp_get);
 int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	bool l2 = false, l4 = false;
 	struct hwtstamp_config cfg;
+	int err;
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
@@ -1320,27 +1541,39 @@ int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		break;
-	case HWTSTAMP_FILTER_ALL:
-	case HWTSTAMP_FILTER_SOME:
-	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
-	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
-	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-	case HWTSTAMP_FILTER_NTP_ALL:
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		l4 = true;
+		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+		l2 = true;
+		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		l2 = true;
+		l4 = true;
 		break;
 	default:
 		mutex_unlock(&ocelot->ptp_lock);
 		return -ERANGE;
 	}
+
+	err = ocelot_setup_ptp_traps(ocelot, port, l2, l4);
+	if (err)
+		return err;
+
+	if (l2 && l4)
+		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+	else if (l2)
+		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+	else if (l4)
+		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+	else
+		cfg.rx_filter = HWTSTAMP_FILTER_NONE;
 
 	/* Commit back the result & save it */
 	memcpy(&ocelot->hwtstamp_config, &cfg, sizeof(cfg));
@@ -1444,7 +1677,10 @@ int ocelot_get_ts_info(struct ocelot *ocelot, int port,
 				 SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON) |
 			 BIT(HWTSTAMP_TX_ONESTEP_SYNC);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_EVENT) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT);
 
 	return 0;
 }

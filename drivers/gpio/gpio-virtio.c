@@ -434,7 +434,7 @@ static void virtio_gpio_event_vq(struct virtqueue *vq)
 		ret = generic_handle_domain_irq(vgpio->gc.irq.domain, gpio);
 		if (ret)
 			dev_err(dev, "failed to handle interrupt: %d\n", ret);
-	};
+	}
 }
 
 static void virtio_gpio_request_vq(struct virtqueue *vq)
