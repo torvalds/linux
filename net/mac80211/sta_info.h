@@ -176,6 +176,7 @@ struct sta_info;
  * @failed_bar_ssn: ssn of the last failed BAR tx attempt
  * @bar_pending: BAR needs to be re-sent
  * @amsdu: support A-MSDU withing A-MDPU
+ * @ssn: starting sequence number of the session
  *
  * This structure's lifetime is managed by RCU, assignments to
  * the array holding it must hold the aggregation mutex.
