@@ -605,12 +605,9 @@ static int rockchip_canfd_err(struct net_device *ndev, u8 isr)
 {
 	struct rockchip_canfd *rcan = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
-	enum can_state state = rcan->can.state;
-	enum can_state rx_state, tx_state;
 	struct can_frame *cf;
 	struct sk_buff *skb;
 	unsigned int rxerr, txerr;
-	u32 ecc, alc;
 	u32 sta_reg;
 
 	skb = alloc_can_err_skb(ndev, &cf);
@@ -624,105 +621,41 @@ static int rockchip_canfd_err(struct net_device *ndev, u8 isr)
 		cf->data[7] = rxerr;
 	}
 
-	if (isr & RX_BUF_OV_INT) {
-		/* data overrun interrupt */
-		netdev_dbg(ndev, "data overrun interrupt\n");
+	if (isr & BUS_OFF_INT) {
+		rcan->can.state = CAN_STATE_BUS_OFF;
+		rcan->can.can_stats.bus_off++;
+		cf->can_id |= CAN_ERR_BUSOFF;
+	} else if (isr & ERR_WARN_INT) {
+		rcan->can.can_stats.error_warning++;
+		rcan->can.state = CAN_STATE_ERROR_WARNING;
+		/* error warning state */
 		if (likely(skb)) {
 			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
+			cf->data[1] = (txerr > rxerr) ?
+				CAN_ERR_CRTL_TX_WARNING :
+				CAN_ERR_CRTL_RX_WARNING;
+			cf->data[6] = txerr;
+			cf->data[7] = rxerr;
 		}
-		stats->rx_over_errors++;
-		stats->rx_errors++;
-
-		/* reset the CAN IP by entering reset mode
-		 * ignoring timeout error
-		 */
-		set_reset_mode(ndev);
-		set_normal_mode(ndev);
+	} else if (isr & PASSIVE_ERR_INT) {
+		rcan->can.can_stats.error_passive++;
+		rcan->can.state = CAN_STATE_ERROR_PASSIVE;
+		/* error passive state */
+		cf->can_id |= CAN_ERR_CRTL;
+		cf->data[1] = (txerr > rxerr) ?
+					CAN_ERR_CRTL_TX_WARNING :
+					CAN_ERR_CRTL_RX_WARNING;
+		cf->data[6] = txerr;
+		cf->data[7] = rxerr;
 	}
 
-	if (isr & ERR_WARN_INT) {
-		/* error warning interrupt */
-		netdev_dbg(ndev, "error warning interrupt\n");
+	if (rcan->can.state >= CAN_STATE_BUS_OFF ||
+	    ((sta_reg & 0x20) == 0x20))
+		can_bus_off(ndev);
 
-		if (sta_reg & BUS_OFF_INT)
-			state = CAN_STATE_BUS_OFF;
-		else if (sta_reg & ERR_WARN_INT)
-			state = CAN_STATE_ERROR_WARNING;
-		else
-			state = CAN_STATE_ERROR_ACTIVE;
-	}
-
-	if (isr & BUS_ERR_INT) {
-		/* bus error interrupt */
-		netdev_dbg(ndev, "bus error interrupt, retry it.\n");
-		rcan->can.can_stats.bus_error++;
-		stats->rx_errors++;
-
-		if (likely(skb)) {
-			ecc = rockchip_canfd_read(rcan, CAN_ERR_CODE);
-
-			cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
-
-			switch ((ecc & ERR_TYPE_MASK) >> ERR_TYPE_SHIFT) {
-			case BIT_ERR:
-				cf->data[2] |= CAN_ERR_PROT_BIT;
-				break;
-			case FORM_ERR:
-				cf->data[2] |= CAN_ERR_PROT_FORM;
-				break;
-			case STUFF_ERR:
-				cf->data[2] |= CAN_ERR_PROT_STUFF;
-				break;
-			default:
-				cf->data[3] = ecc & ERR_LOC_MASK;
-				break;
-			}
-			/* error occurred during transmission? */
-			if ((ecc & ERR_DIR_RX) == 0)
-				cf->data[2] |= CAN_ERR_PROT_TX;
-		}
-	}
-
-	if (isr & PASSIVE_ERR_INT) {
-		/* error passive interrupt */
-		netdev_dbg(ndev, "error passive interrupt\n");
-		if (state == CAN_STATE_ERROR_PASSIVE)
-			state = CAN_STATE_ERROR_WARNING;
-		else
-			state = CAN_STATE_ERROR_PASSIVE;
-	}
-	if (isr & TX_LOSTARB_INT) {
-		/* arbitration lost interrupt */
-		netdev_dbg(ndev, "arbitration lost interrupt\n");
-		alc = rockchip_canfd_read(rcan, CAN_LOSTARB_CODE);
-		rcan->can.can_stats.arbitration_lost++;
-		stats->tx_errors++;
-		if (likely(skb)) {
-			cf->can_id |= CAN_ERR_LOSTARB;
-			cf->data[0] = alc;
-		}
-	}
-
-	if (state != rcan->can.state) {
-		tx_state = txerr >= rxerr ? state : 0;
-		rx_state = txerr <= rxerr ? state : 0;
-
-		if (likely(skb))
-			can_change_state(ndev, cf, tx_state, rx_state);
-		else
-			rcan->can.state = state;
-		if (state == CAN_STATE_BUS_OFF)
-			can_bus_off(ndev);
-	}
-
-	if (likely(skb)) {
-		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
-		netif_rx(skb);
-	} else {
-		return -ENOMEM;
-	}
+	stats->rx_packets++;
+	stats->rx_bytes += cf->can_dlc;
+	netif_receive_skb(skb);
 
 	return 0;
 }
@@ -1011,6 +944,7 @@ static int rockchip_canfd_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &rockchip_canfd_netdev_ops;
 	ndev->irq = irq;
 	ndev->flags |= IFF_ECHO;
+	rcan->can.restart_ms = 1;
 
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
