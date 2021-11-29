@@ -4,11 +4,15 @@
 #define __LAN966X_MAIN_H__
 
 #include <linux/etherdevice.h>
+#include <linux/jiffies.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
 
 #include "lan966x_regs.h"
 #include "lan966x_ifh.h"
+
+#define TABLE_UPDATE_SLEEP_US		10
+#define TABLE_UPDATE_TIMEOUT_US		100000
 
 #define LAN966X_BUFFER_CELL_SZ		64
 #define LAN966X_BUFFER_MEMORY		(160 * 1024)
@@ -39,6 +43,19 @@
 
 #define CPU_PORT			8
 
+/* MAC table entry types.
+ * ENTRYTYPE_NORMAL is subject to aging.
+ * ENTRYTYPE_LOCKED is not subject to aging.
+ * ENTRYTYPE_MACv4 is not subject to aging. For IPv4 multicast.
+ * ENTRYTYPE_MACv6 is not subject to aging. For IPv6 multicast.
+ */
+enum macaccess_entry_type {
+	ENTRYTYPE_NORMAL = 0,
+	ENTRYTYPE_LOCKED,
+	ENTRYTYPE_MACV4,
+	ENTRYTYPE_MACV6,
+};
+
 struct lan966x_port;
 
 struct lan966x {
@@ -50,6 +67,8 @@ struct lan966x {
 	void __iomem *regs[NUM_TARGETS];
 
 	int shared_queue_sz;
+
+	u8 base_mac[ETH_ALEN];
 
 	/* interrupts */
 	int xtr_irq;
@@ -90,6 +109,18 @@ void lan966x_port_status_get(struct lan966x_port *port,
 int lan966x_port_pcs_set(struct lan966x_port *port,
 			 struct lan966x_port_config *config);
 void lan966x_port_init(struct lan966x_port *port);
+
+int lan966x_mac_learn(struct lan966x *lan966x, int port,
+		      const unsigned char mac[ETH_ALEN],
+		      unsigned int vid,
+		      enum macaccess_entry_type type);
+int lan966x_mac_forget(struct lan966x *lan966x,
+		       const unsigned char mac[ETH_ALEN],
+		       unsigned int vid,
+		       enum macaccess_entry_type type);
+int lan966x_mac_cpu_learn(struct lan966x *lan966x, const char *addr, u16 vid);
+int lan966x_mac_cpu_forget(struct lan966x *lan966x, const char *addr, u16 vid);
+void lan966x_mac_init(struct lan966x *lan966x);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,
