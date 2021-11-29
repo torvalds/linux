@@ -180,6 +180,10 @@ static inline int cpu_to_mem(int cpu)
 
 #endif	/* [!]CONFIG_HAVE_MEMORYLESS_NODES */
 
+#if defined(topology_die_id) && defined(topology_die_cpumask)
+#define TOPOLOGY_DIE_SYSFS
+#endif
+
 #ifndef topology_physical_package_id
 #define topology_physical_package_id(cpu)	((void)(cpu), -1)
 #endif

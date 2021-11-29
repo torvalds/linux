@@ -11,6 +11,9 @@ Architecture-neutral, drivers/base/topology.c, exports these attributes.
 However, the book and drawer related sysfs files will only be created if
 CONFIG_SCHED_BOOK and CONFIG_SCHED_DRAWER are selected, respectively.
 
+The die hierarchy related sysfs files will only be created if an architecture
+provides the related macros as described below.
+
 CONFIG_SCHED_BOOK and CONFIG_SCHED_DRAWER are currently only used on s390,
 where they reflect the cpu and cache hierarchy.
 
