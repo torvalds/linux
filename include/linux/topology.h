@@ -183,6 +183,9 @@ static inline int cpu_to_mem(int cpu)
 #if defined(topology_die_id) && defined(topology_die_cpumask)
 #define TOPOLOGY_DIE_SYSFS
 #endif
+#if defined(topology_cluster_id) && defined(topology_cluster_cpumask)
+#define TOPOLOGY_CLUSTER_SYSFS
+#endif
 
 #ifndef topology_physical_package_id
 #define topology_physical_package_id(cpu)	((void)(cpu), -1)

@@ -50,8 +50,10 @@ define_id_show_func(die_id);
 static DEVICE_ATTR_RO(die_id);
 #endif
 
+#ifdef TOPOLOGY_CLUSTER_SYSFS
 define_id_show_func(cluster_id);
 static DEVICE_ATTR_RO(cluster_id);
+#endif
 
 define_id_show_func(core_id);
 static DEVICE_ATTR_RO(core_id);
@@ -68,9 +70,11 @@ define_siblings_read_func(core_siblings, core_cpumask);
 static BIN_ATTR_RO(core_siblings, 0);
 static BIN_ATTR_RO(core_siblings_list, 0);
 
+#ifdef TOPOLOGY_CLUSTER_SYSFS
 define_siblings_read_func(cluster_cpus, cluster_cpumask);
 static BIN_ATTR_RO(cluster_cpus, 0);
 static BIN_ATTR_RO(cluster_cpus_list, 0);
+#endif
 
 #ifdef TOPOLOGY_DIE_SYSFS
 define_siblings_read_func(die_cpus, die_cpumask);
@@ -105,8 +109,10 @@ static struct bin_attribute *bin_attrs[] = {
 	&bin_attr_thread_siblings_list,
 	&bin_attr_core_siblings,
 	&bin_attr_core_siblings_list,
+#ifdef TOPOLOGY_CLUSTER_SYSFS
 	&bin_attr_cluster_cpus,
 	&bin_attr_cluster_cpus_list,
+#endif
 #ifdef TOPOLOGY_DIE_SYSFS
 	&bin_attr_die_cpus,
 	&bin_attr_die_cpus_list,
@@ -129,7 +135,9 @@ static struct attribute *default_attrs[] = {
 #ifdef TOPOLOGY_DIE_SYSFS
 	&dev_attr_die_id.attr,
 #endif
+#ifdef TOPOLOGY_CLUSTER_SYSFS
 	&dev_attr_cluster_id.attr,
+#endif
 	&dev_attr_core_id.attr,
 #ifdef CONFIG_SCHED_BOOK
 	&dev_attr_book_id.attr,
