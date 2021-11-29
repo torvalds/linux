@@ -40,6 +40,11 @@
 #include "lag.h"
 #include "mp.h"
 
+enum {
+	MLX5_LAG_EGRESS_PORT_1 = 1,
+	MLX5_LAG_EGRESS_PORT_2,
+};
+
 /* General purpose, use for short periods of time.
  * Beware of lock dependencies (preferably, no locks should be acquired
  * under it).
@@ -193,15 +198,15 @@ static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 	p2en = tracker->netdev_state[MLX5_LAG_P2].tx_enabled &&
 	       tracker->netdev_state[MLX5_LAG_P2].link_up;
 
-	*port1 = 1;
-	*port2 = 2;
+	*port1 = MLX5_LAG_EGRESS_PORT_1;
+	*port2 = MLX5_LAG_EGRESS_PORT_2;
 	if ((!p1en && !p2en) || (p1en && p2en))
 		return;
 
 	if (p1en)
-		*port2 = 1;
+		*port2 = MLX5_LAG_EGRESS_PORT_1;
 	else
-		*port1 = 2;
+		*port1 = MLX5_LAG_EGRESS_PORT_2;
 }
 
 static int _mlx5_modify_lag(struct mlx5_lag *ldev, u8 v2p_port1, u8 v2p_port2)
