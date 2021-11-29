@@ -89,6 +89,141 @@
 				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
+
+	fan0: pwm-fan0 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 0 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan1: pwm-fan1 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 1 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan2: pwm-fan2 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 2 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan3: pwm-fan3 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 3 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan4: pwm-fan4 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 4 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan5: pwm-fan5 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 5 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan6: pwm-fan6 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 6 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan7: pwm-fan7 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 7 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan8: pwm-fan8 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 8 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan9: pwm-fan9 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 9 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan10: pwm-fan10 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 10 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan11: pwm-fan11 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 11 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan12: pwm-fan12 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 12 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan13: pwm-fan13 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 13 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	fan14: pwm-fan14 {
+		compatible = "pwm-fan";
+		pwms = <&pwm 14 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
 };
 
 &adc0 {
@@ -115,6 +250,26 @@
 
 &peci0 {
 	status = "okay";
+};
+
+&pwm {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_default
+			&pinctrl_pwm1_default
+			&pinctrl_pwm2_default
+			&pinctrl_pwm3_default
+			&pinctrl_pwm4_default
+			&pinctrl_pwm5_default
+			&pinctrl_pwm6_default
+			&pinctrl_pwm7_default
+			&pinctrl_pwm8g1_default
+			&pinctrl_pwm9g1_default
+			&pinctrl_pwm10g1_default
+			&pinctrl_pwm11g1_default
+			&pinctrl_pwm12g1_default
+			&pinctrl_pwm13g1_default
+			&pinctrl_pwm14g1_default>;
 };
 
 &mdio0 {
