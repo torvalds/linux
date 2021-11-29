@@ -1676,14 +1676,18 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 
 static void print_request_ring(struct drm_printer *m, struct i915_request *rq)
 {
+	struct i915_vma_snapshot *vsnap = &rq->batch_snapshot;
 	void *ring;
 	int size;
+
+	if (!i915_vma_snapshot_present(vsnap))
+		vsnap = NULL;
 
 	drm_printf(m,
 		   "[head %04x, postfix %04x, tail %04x, batch 0x%08x_%08x]:\n",
 		   rq->head, rq->postfix, rq->tail,
-		   rq->batch ? upper_32_bits(rq->batch->node.start) : ~0u,
-		   rq->batch ? lower_32_bits(rq->batch->node.start) : ~0u);
+		   vsnap ? upper_32_bits(vsnap->gtt_offset) : ~0u,
+		   vsnap ? lower_32_bits(vsnap->gtt_offset) : ~0u);
 
 	size = rq->tail - rq->head;
 	if (rq->tail < rq->head)
