@@ -56,7 +56,6 @@ static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static struct svc_serv		*nlmsvc_serv;
 static struct task_struct	*nlmsvc_task;
-static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
 
 unsigned int lockd_net_id;
@@ -182,6 +181,11 @@ lockd(void *vrqstp)
 	nlm_shutdown_hosts();
 	cancel_delayed_work_sync(&ln->grace_period_end);
 	locks_end_grace(&ln->lockd_manager);
+
+	dprintk("lockd_down: service stopped\n");
+
+	svc_exit_thread(rqstp);
+
 	return 0;
 }
 
@@ -358,13 +362,14 @@ static void lockd_unregister_notifiers(void)
 static int lockd_start_svc(struct svc_serv *serv)
 {
 	int error;
+	struct svc_rqst *rqst;
 
 	/*
 	 * Create the kernel thread and wait for it to start.
 	 */
-	nlmsvc_rqst = svc_prepare_thread(serv, &serv->sv_pools[0], NUMA_NO_NODE);
-	if (IS_ERR(nlmsvc_rqst)) {
-		error = PTR_ERR(nlmsvc_rqst);
+	rqst = svc_prepare_thread(serv, &serv->sv_pools[0], NUMA_NO_NODE);
+	if (IS_ERR(rqst)) {
+		error = PTR_ERR(rqst);
 		printk(KERN_WARNING
 			"lockd_up: svc_rqst allocation failed, error=%d\n",
 			error);
@@ -374,24 +379,23 @@ static int lockd_start_svc(struct svc_serv *serv)
 	svc_sock_update_bufs(serv);
 	serv->sv_maxconn = nlm_max_connections;
 
-	nlmsvc_task = kthread_create(lockd, nlmsvc_rqst, "%s", serv->sv_name);
+	nlmsvc_task = kthread_create(lockd, rqst, "%s", serv->sv_name);
 	if (IS_ERR(nlmsvc_task)) {
 		error = PTR_ERR(nlmsvc_task);
 		printk(KERN_WARNING
 			"lockd_up: kthread_run failed, error=%d\n", error);
 		goto out_task;
 	}
-	nlmsvc_rqst->rq_task = nlmsvc_task;
+	rqst->rq_task = nlmsvc_task;
 	wake_up_process(nlmsvc_task);
 
 	dprintk("lockd_up: service started\n");
 	return 0;
 
 out_task:
-	svc_exit_thread(nlmsvc_rqst);
+	svc_exit_thread(rqst);
 	nlmsvc_task = NULL;
 out_rqst:
-	nlmsvc_rqst = NULL;
 	return error;
 }
 
@@ -500,9 +504,6 @@ lockd_down(struct net *net)
 	}
 	lockd_unregister_notifiers();
 	kthread_stop(nlmsvc_task);
-	dprintk("lockd_down: service stopped\n");
-	svc_exit_thread(nlmsvc_rqst);
-	nlmsvc_rqst = NULL;
 	dprintk("lockd_down: service destroyed\n");
 	nlmsvc_serv = NULL;
 	nlmsvc_task = NULL;
