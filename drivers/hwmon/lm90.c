@@ -1345,17 +1345,18 @@ static const u8 lm90_temp_emerg_index[3] = {
 	LOCAL_EMERG, REMOTE_EMERG, REMOTE2_EMERG
 };
 
-static const u8 lm90_min_alarm_bits[3] = { 5, 3, 11 };
-static const u8 lm90_max_alarm_bits[3] = { 6, 4, 12 };
-static const u8 lm90_crit_alarm_bits[3] = { 0, 1, 9 };
-static const u8 lm90_crit_alarm_bits_swapped[3] = { 1, 0, 9 };
-static const u8 lm90_emergency_alarm_bits[3] = { 15, 13, 14 };
-static const u8 lm90_fault_bits[3] = { 0, 2, 10 };
+static const u16 lm90_min_alarm_bits[3] = { BIT(5), BIT(3), BIT(11) };
+static const u16 lm90_max_alarm_bits[3] = { BIT(6), BIT(4), BIT(12) };
+static const u16 lm90_crit_alarm_bits[3] = { BIT(0), BIT(1), BIT(9) };
+static const u16 lm90_crit_alarm_bits_swapped[3] = { BIT(1), BIT(0), BIT(9) };
+static const u16 lm90_emergency_alarm_bits[3] = { BIT(15), BIT(13), BIT(14) };
+static const u16 lm90_fault_bits[3] = { BIT(0), BIT(2), BIT(10) };
 
 static int lm90_temp_read(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct lm90_data *data = dev_get_drvdata(dev);
-	int err, bit;
+	int err;
+	u16 bit;
 
 	mutex_lock(&data->update_lock);
 	err = lm90_update_device(dev);
@@ -1374,22 +1375,22 @@ static int lm90_temp_read(struct device *dev, u32 attr, int channel, long *val)
 	case hwmon_temp_fault:
 		switch (attr) {
 		case hwmon_temp_min_alarm:
-			bit = BIT(lm90_min_alarm_bits[channel]);
+			bit = lm90_min_alarm_bits[channel];
 			break;
 		case hwmon_temp_max_alarm:
-			bit = BIT(lm90_max_alarm_bits[channel]);
+			bit = lm90_max_alarm_bits[channel];
 			break;
 		case hwmon_temp_crit_alarm:
 			if (data->flags & LM90_HAVE_CRIT_ALRM_SWP)
-				bit = BIT(lm90_crit_alarm_bits_swapped[channel]);
+				bit = lm90_crit_alarm_bits_swapped[channel];
 			else
-				bit = BIT(lm90_crit_alarm_bits[channel]);
+				bit = lm90_crit_alarm_bits[channel];
 			break;
 		case hwmon_temp_emergency_alarm:
-			bit = BIT(lm90_emergency_alarm_bits[channel]);
+			bit = lm90_emergency_alarm_bits[channel];
 			break;
 		case hwmon_temp_fault:
-			bit = BIT(lm90_fault_bits[channel]);
+			bit = lm90_fault_bits[channel];
 			break;
 		}
 		*val = !!(data->alarms & bit);
