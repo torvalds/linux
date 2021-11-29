@@ -4663,12 +4663,12 @@ out:
 static int f2fs_file_fadvise(struct file *filp, loff_t offset, loff_t len,
 		int advice)
 {
-	struct inode *inode;
 	struct address_space *mapping;
 	struct backing_dev_info *bdi;
+	struct inode *inode = file_inode(filp);
+	int err;
 
 	if (advice == POSIX_FADV_SEQUENTIAL) {
-		inode = file_inode(filp);
 		if (S_ISFIFO(inode->i_mode))
 			return -ESPIPE;
 
@@ -4685,7 +4685,13 @@ static int f2fs_file_fadvise(struct file *filp, loff_t offset, loff_t len,
 		return 0;
 	}
 
-	return generic_fadvise(filp, offset, len, advice);
+	err = generic_fadvise(filp, offset, len, advice);
+	if (!err && advice == POSIX_FADV_DONTNEED &&
+		test_opt(F2FS_I_SB(inode), COMPRESS_CACHE) &&
+		f2fs_compressed_file(inode))
+		f2fs_invalidate_compress_pages(F2FS_I_SB(inode), inode->i_ino);
+
+	return err;
 }
 
 #ifdef CONFIG_COMPAT
