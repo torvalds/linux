@@ -718,13 +718,13 @@ static bool
 cfg80211_offchan_chain_is_active(struct cfg80211_registered_device *rdev,
 				 struct ieee80211_channel *channel)
 {
-	if (!rdev->offchan_radar_wdev)
+	if (!rdev->background_radar_wdev)
 		return false;
 
-	if (!cfg80211_chandef_valid(&rdev->offchan_radar_chandef))
+	if (!cfg80211_chandef_valid(&rdev->background_radar_chandef))
 		return false;
 
-	return cfg80211_is_sub_chan(&rdev->offchan_radar_chandef, channel);
+	return cfg80211_is_sub_chan(&rdev->background_radar_chandef, channel);
 }
 
 bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,

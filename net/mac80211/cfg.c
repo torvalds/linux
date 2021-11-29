@@ -4414,15 +4414,15 @@ out:
 }
 
 static int
-ieee80211_set_radar_offchan(struct wiphy *wiphy,
-			    struct cfg80211_chan_def *chandef)
+ieee80211_set_radar_background(struct wiphy *wiphy,
+			       struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 
-	if (!local->ops->set_radar_offchan)
+	if (!local->ops->set_radar_background)
 		return -EOPNOTSUPP;
 
-	return local->ops->set_radar_offchan(&local->hw, chandef);
+	return local->ops->set_radar_background(&local->hw, chandef);
 }
 
 const struct cfg80211_ops mac80211_config_ops = {
@@ -4529,5 +4529,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.reset_tid_config = ieee80211_reset_tid_config,
 	.set_sar_specs = ieee80211_set_sar_specs,
 	.color_change = ieee80211_color_change,
-	.set_radar_offchan = ieee80211_set_radar_offchan,
+	.set_radar_background = ieee80211_set_radar_background,
 };

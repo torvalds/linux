@@ -3677,7 +3677,7 @@ TRACE_EVENT(cfg80211_bss_color_notify,
 		  __entry->color_bitmap)
 );
 
-TRACE_EVENT(rdev_set_radar_offchan,
+TRACE_EVENT(rdev_set_radar_background,
 	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
 
 	TP_ARGS(wiphy, chandef),

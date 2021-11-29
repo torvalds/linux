@@ -776,7 +776,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_MBSSID_CONFIG] =
 			NLA_POLICY_NESTED(nl80211_mbssid_config_policy),
 	[NL80211_ATTR_MBSSID_ELEMS] = { .type = NLA_NESTED },
-	[NL80211_ATTR_RADAR_OFFCHAN] = { .type = NLA_FLAG },
+	[NL80211_ATTR_RADAR_BACKGROUND] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -9305,9 +9305,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 		goto unlock;
 	}
 
-	if (nla_get_flag(info->attrs[NL80211_ATTR_RADAR_OFFCHAN])) {
-		err = cfg80211_start_offchan_radar_detection(rdev, wdev,
-							     &chandef);
+	if (nla_get_flag(info->attrs[NL80211_ATTR_RADAR_BACKGROUND])) {
+		err = cfg80211_start_background_radar_detection(rdev, wdev,
+								&chandef);
 		goto unlock;
 	}
 
