@@ -2693,7 +2693,7 @@ trace_create_new_event(struct trace_event_call *call,
 					     lockdep_is_held(&event_mutex));
 
 	if (!trace_pid_list_first(pid_list, &first) ||
-	    !trace_pid_list_first(pid_list, &first))
+	    !trace_pid_list_first(no_pid_list, &first))
 		file->flags |= EVENT_FILE_FL_PID_FILTER;
 
 	file->event_call = call;
