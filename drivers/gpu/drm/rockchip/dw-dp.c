@@ -205,6 +205,8 @@ struct dw_dp_link {
 	unsigned int lanes;
 	struct drm_dp_link_caps caps;
 	struct drm_dp_link_train train;
+	struct drm_dp_desc desc;
+	int sink_count;
 };
 
 struct dw_dp_video {
@@ -212,7 +214,6 @@ struct dw_dp_video {
 	u8 pixel_mode;
 	u8 color_format;
 	u8 bpc;
-	bool stream_on;
 };
 
 struct dw_dp_audio {
@@ -224,6 +225,11 @@ struct dw_dp_sdp {
 	struct dp_sdp_header header;
 	u8 db[32];
 	unsigned long flags;
+};
+
+struct dw_dp_hotplug {
+	bool long_hpd;
+	bool status;
 };
 
 struct dw_dp {
@@ -238,8 +244,10 @@ struct dw_dp {
 	int irq;
 	int id;
 	bool phy_enabled;
-	struct delayed_work hpd_work;
+	struct work_struct hpd_work;
 	struct gpio_desc *hpd_gpio;
+	struct dw_dp_hotplug hotplug;
+	struct mutex irq_lock;
 
 	struct drm_bridge bridge;
 	struct drm_connector connector;
@@ -492,6 +500,7 @@ static void dw_dp_link_caps_reset(struct drm_dp_link_caps *caps)
 
 static void dw_dp_link_reset(struct dw_dp_link *link)
 {
+	link->sink_count = 0;
 	link->revision = 0;
 
 	dw_dp_link_caps_reset(&link->caps);
@@ -549,6 +558,14 @@ static int dw_dp_link_power_down(struct dw_dp *dp)
 	return 0;
 }
 
+static bool dw_dp_has_sink_count(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				 const struct drm_dp_desc *desc)
+{
+	return dpcd[DP_DPCD_REV] >= DP_DPCD_REV_11 &&
+	       dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT &&
+	       !drm_dp_has_quirk(desc, 0, DP_DPCD_QUIRK_NO_SINK_COUNT);
+}
+
 static int dw_dp_link_probe(struct dw_dp *dp)
 {
 	struct dw_dp_link *link = &dp->link;
@@ -560,14 +577,24 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 	if (ret < 0)
 		return ret;
 
+	drm_dp_read_desc(&dp->aux, &link->desc, drm_dp_is_branch(link->dpcd));
+
+	if (dw_dp_has_sink_count(link->dpcd, &link->desc)) {
+		ret = drm_dp_read_sink_count(&dp->aux);
+		if (ret < 0)
+			return ret;
+
+		link->sink_count = ret;
+
+		/* Dongle connected, but no display */
+		if (!link->sink_count)
+			return -ENODEV;
+	}
+
 	link->revision = link->dpcd[DP_DPCD_REV];
 	link->rate = drm_dp_max_link_rate(link->dpcd);
 	link->lanes = min_t(u8, phy_get_bus_width(dp->phy),
 			    drm_dp_max_lane_count(link->dpcd));
-
-	ret = dw_dp_link_power_up(dp);
-	if (ret < 0)
-		return ret;
 
 	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(link->dpcd);
 	link->caps.tps3_supported = drm_dp_tps3_supported(link->dpcd);
@@ -1428,18 +1455,36 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 {
 	struct dw_dp *dp = arg;
+	bool hpd = dw_dp_detect(dp);
 
-	schedule_delayed_work(&dp->hpd_work, msecs_to_jiffies(20));
+	mutex_lock(&dp->irq_lock);
+
+	dp->hotplug.long_hpd = true;
+
+	if (dp->hotplug.status && !hpd) {
+		usleep_range(2000, 2001);
+
+		hpd = dw_dp_detect(dp);
+		if (hpd)
+			dp->hotplug.long_hpd = false;
+	}
+
+	dp->hotplug.status = hpd;
+
+	mutex_unlock(&dp->irq_lock);
+
+	schedule_work(&dp->hpd_work);
 
 	return IRQ_HANDLED;
 }
 
 static void dw_dp_hpd_init(struct dw_dp *dp)
 {
+	dp->hotplug.status = dw_dp_detect(dp);
+
 	if (dp->hpd_gpio) {
 		regmap_update_bits(dp->regmap, DPTX_CCTL, FORCE_HPD,
 				   FIELD_PREP(FORCE_HPD, 1));
-		schedule_delayed_work(&dp->hpd_work, msecs_to_jiffies(20));
 		return;
 	}
 
@@ -1715,7 +1760,11 @@ static void dw_dp_bridge_mode_set(struct drm_bridge *bridge,
 
 static bool dw_dp_needs_link_retrain(struct dw_dp *dp)
 {
+	struct dw_dp_link *link = &dp->link;
 	u8 link_status[DP_LINK_STATUS_SIZE];
+
+	if (!dw_dp_link_train_valid(&link->train))
+		return false;
 
 	if (drm_dp_dpcd_read_link_status(&dp->aux, link_status) < 0)
 		return false;
@@ -1726,6 +1775,8 @@ static bool dw_dp_needs_link_retrain(struct dw_dp *dp)
 
 static void dw_dp_link_disable(struct dw_dp *dp)
 {
+	struct dw_dp_link *link = &dp->link;
+
 	if (dw_dp_detect(dp))
 		dw_dp_link_power_down(dp);
 
@@ -1733,6 +1784,9 @@ static void dw_dp_link_disable(struct dw_dp *dp)
 
 	if (dp->phy_enabled)
 		dw_dp_phy_power_off(dp);
+
+	link->train.clock_recovered = false;
+	link->train.channel_equalized = false;
 }
 
 static int dw_dp_link_enable(struct dw_dp *dp)
@@ -1742,11 +1796,9 @@ static int dw_dp_link_enable(struct dw_dp *dp)
 	if (!dp->phy_enabled)
 		dw_dp_phy_power_on(dp);
 
-	ret = dw_dp_link_probe(dp);
-	if (ret < 0) {
-		dev_err(dp->dev, "failed to probe DP link: %d\n", ret);
+	ret = dw_dp_link_power_up(dp);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = dw_dp_link_train(dp);
 	if (ret < 0) {
@@ -1761,17 +1813,14 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 				       struct drm_bridge_state *old_state)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
-	struct dw_dp_video *video = &dp->video;
 	int ret;
 
 	set_bit(0, dp->sdp_reg_bank);
 
-	if (dw_dp_needs_link_retrain(dp)) {
-		ret = dw_dp_link_enable(dp);
-		if (ret < 0) {
-			dev_err(dp->dev, "failed to enable link: %d\n", ret);
-			return;
-		}
+	ret = dw_dp_link_enable(dp);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to enable link: %d\n", ret);
+		return;
 	}
 
 	ret = dw_dp_video_enable(dp);
@@ -1779,21 +1828,29 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 		dev_err(dp->dev, "failed to enable video: %d\n", ret);
 		return;
 	}
-
-	video->stream_on = true;
 }
 
 static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 					struct drm_bridge_state *old_bridge_state)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
-	struct dw_dp_video *video = &dp->video;
 
 	dw_dp_video_disable(dp);
 	dw_dp_link_disable(dp);
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
+}
 
-	video->stream_on = false;
+static enum drm_connector_status dw_dp_detect_dpcd(struct dw_dp *dp)
+{
+	int ret;
+
+	ret = dw_dp_link_probe(dp);
+	if (ret) {
+		dev_err(dp->dev, "failed to probe DP link: %d\n", ret);
+		return connector_status_disconnected;
+	}
+
+	return connector_status_connected;
 }
 
 static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
@@ -1802,7 +1859,7 @@ static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 	enum drm_connector_status status;
 
 	if (dw_dp_detect(dp))
-		status = connector_status_connected;
+		status = dw_dp_detect_dpcd(dp);
 	else
 		status = connector_status_disconnected;
 
@@ -1831,64 +1888,83 @@ static const struct drm_bridge_funcs dw_dp_bridge_funcs = {
 	.get_edid = dw_dp_bridge_get_edid,
 };
 
-static void dw_dp_hpd_work(struct work_struct *work)
+static int dw_dp_link_retrain(struct dw_dp *dp)
 {
-	struct dw_dp *dp = container_of(to_delayed_work(work), struct dw_dp,
-					hpd_work);
-	struct dw_dp_video *video = &dp->video;
+	struct drm_device *dev = dp->bridge.dev;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	mutex_lock(&dp->bridge.dev->mode_config.mutex);
+	if (!dw_dp_needs_link_retrain(dp))
+		return 0;
 
-	if (dw_dp_detect(dp)) {
-		if (dw_dp_needs_link_retrain(dp)) {
-			if (video->stream_on)
-				dw_dp_video_disable(dp);
+	dev_dbg(dp->dev, "Retraining link\n");
 
-			ret = dw_dp_link_enable(dp);
-			if (ret) {
-				dev_err(dp->dev, "failed to enable link: %d\n", ret);
-				goto unlock;
-			}
+	drm_modeset_acquire_init(&ctx, 0);
+	for (;;) {
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+		if (ret != -EDEADLK)
+			break;
 
-			if (video->stream_on) {
-				ret = dw_dp_video_enable(dp);
-				if (ret) {
-					dev_err(dp->dev, "failed to enable video: %d\n", ret);
-					goto unlock;
-				}
-			}
-		}
+		drm_modeset_backoff(&ctx);
 	}
 
-unlock:
-	mutex_unlock(&dp->bridge.dev->mode_config.mutex);
+	ret = dw_dp_link_train(dp);
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
-	drm_helper_hpd_irq_event(dp->bridge.dev);
+	return ret;
+}
+
+static void dw_dp_hpd_work(struct work_struct *work)
+{
+	struct dw_dp *dp = container_of(work, struct dw_dp, hpd_work);
+	bool long_hpd;
+	int ret;
+
+	mutex_lock(&dp->irq_lock);
+	long_hpd = dp->hotplug.long_hpd;
+	mutex_unlock(&dp->irq_lock);
+
+	dev_dbg(dp->dev, "got hpd irq - %s\n", long_hpd ? "long" : "short");
+
+	if (!long_hpd) {
+		ret = dw_dp_link_retrain(dp);
+		if (ret)
+			dev_warn(dp->dev, "Retrain link failed\n");
+	} else {
+		drm_helper_hpd_irq_event(dp->bridge.dev);
+	}
 }
 
 static void dw_dp_handle_hpd_event(struct dw_dp *dp)
 {
 	u32 value;
 
+	mutex_lock(&dp->irq_lock);
+
 	regmap_read(dp->regmap, DPTX_HPD_STATUS, &value);
 
 	if (value & HPD_IRQ) {
 		dev_dbg(dp->dev, "IRQ from the HPD\n");
+		dp->hotplug.long_hpd = false;
 		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_IRQ);
 	}
 
 	if (value & HPD_HOT_PLUG) {
 		dev_dbg(dp->dev, "Hot plug detected\n");
+		dp->hotplug.long_hpd = true;
 		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_HOT_PLUG);
 	}
 
 	if (value & HPD_HOT_UNPLUG) {
 		dev_dbg(dp->dev, "Unplug detected\n");
+		dp->hotplug.long_hpd = true;
 		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_HOT_UNPLUG);
 	}
 
-	schedule_delayed_work(&dp->hpd_work, 0);
+	mutex_unlock(&dp->irq_lock);
+
+	schedule_work(&dp->hpd_work);
 }
 
 static irqreturn_t dw_dp_irq_handler(int irq, void *data)
@@ -2189,7 +2265,8 @@ static int dw_dp_probe(struct platform_device *pdev)
 	dp->video.pixel_mode = DPTX_MP_QUAD_PIXEL;
 	dp->video.bpc = 8;
 
-	INIT_DELAYED_WORK(&dp->hpd_work, dw_dp_hpd_work);
+	mutex_init(&dp->irq_lock);
+	INIT_WORK(&dp->hpd_work, dw_dp_hpd_work);
 	init_completion(&dp->complete);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -2224,9 +2301,11 @@ static int dw_dp_probe(struct platform_device *pdev)
 	if (dp->hpd_gpio) {
 		int hpd_irq = gpiod_to_irq(dp->hpd_gpio);
 
-		ret = devm_request_irq(dev, hpd_irq, dw_dp_hpd_irq_handler,
-				       IRQF_TRIGGER_RISING |
-				       IRQF_TRIGGER_FALLING, "dw-dp-hpd", dp);
+		ret = devm_request_threaded_irq(dev, hpd_irq, NULL,
+						dw_dp_hpd_irq_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT, "dw-dp-hpd", dp);
 		if (ret) {
 			dev_err(dev, "failed to request HPD interrupt\n");
 			return ret;
@@ -2292,7 +2371,7 @@ static int dw_dp_remove(struct platform_device *pdev)
 	struct dw_dp *dp = platform_get_drvdata(pdev);
 
 	component_del(dp->dev, &dw_dp_component_ops);
-	cancel_delayed_work(&dp->hpd_work);
+	cancel_work_sync(&dp->hpd_work);
 
 	return 0;
 }
