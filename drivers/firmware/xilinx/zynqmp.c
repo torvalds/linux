@@ -23,6 +23,7 @@
 #include <linux/hashtable.h>
 
 #include <linux/firmware/xlnx-zynqmp.h>
+#include <linux/firmware/xlnx-event-manager.h>
 #include "zynqmp-debug.h"
 
 /* Max HashMap Order for PM API feature check (1<<7 = 128) */
@@ -37,6 +38,8 @@
 
 static bool feature_check_enabled;
 static DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
+
+static struct platform_device *em_dev;
 
 /**
  * struct pm_api_feature_data - PM API Feature data
@@ -1492,6 +1495,15 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 
 	zynqmp_pm_api_debugfs_init();
 
+	np = of_find_compatible_node(NULL, NULL, "xlnx,versal");
+	if (np) {
+		em_dev = platform_device_register_data(&pdev->dev, "xlnx_event_manager",
+						       -1, NULL, 0);
+		if (IS_ERR(em_dev))
+			dev_err_probe(&pdev->dev, PTR_ERR(em_dev), "EM register fail with error\n");
+	}
+	of_node_put(np);
+
 	return of_platform_populate(dev->of_node, NULL, NULL, dev);
 }
 
@@ -1508,6 +1520,8 @@ static int zynqmp_firmware_remove(struct platform_device *pdev)
 		hash_del(&feature_data->hentry);
 		kfree(feature_data);
 	}
+
+	platform_device_unregister(em_dev);
 
 	return 0;
 }
