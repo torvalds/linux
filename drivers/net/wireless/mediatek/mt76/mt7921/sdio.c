@@ -62,6 +62,10 @@ static int mt7921s_parse_intr(struct mt76_dev *dev, struct mt76s_intr *intr)
 	if (err < 0)
 		return err;
 
+	if (irq_data->rx.num[0] > 16 ||
+	    irq_data->rx.num[1] > 128)
+		return -EINVAL;
+
 	intr->isr = irq_data->isr;
 	intr->rec_mb = irq_data->rec_mb;
 	intr->tx.wtqcr = irq_data->tx.wtqcr;
