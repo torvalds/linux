@@ -4043,6 +4043,39 @@ static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
 	skb_set_hash(skb, rss_hash, rss_type);
 }
 
+static void hns3_handle_rx_ts_info(struct net_device *netdev,
+				   struct hns3_desc *desc, struct sk_buff *skb,
+				   u32 bd_base_info)
+{
+	if (unlikely(bd_base_info & BIT(HNS3_RXD_TS_VLD_B))) {
+		struct hnae3_handle *h = hns3_get_handle(netdev);
+		u32 nsec = le32_to_cpu(desc->ts_nsec);
+		u32 sec = le32_to_cpu(desc->ts_sec);
+
+		if (h->ae_algo->ops->get_rx_hwts)
+			h->ae_algo->ops->get_rx_hwts(h, skb, nsec, sec);
+	}
+}
+
+static void hns3_handle_rx_vlan_tag(struct hns3_enet_ring *ring,
+				    struct hns3_desc *desc, struct sk_buff *skb,
+				    u32 l234info)
+{
+	struct net_device *netdev = ring_to_netdev(ring);
+
+	/* Based on hw strategy, the tag offloaded will be stored at
+	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
+	 * in one layer tag case.
+	 */
+	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
+		u16 vlan_tag;
+
+		if (hns3_parse_vlan_tag(ring, desc, l234info, &vlan_tag))
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       vlan_tag);
+	}
+}
+
 static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 {
 	struct net_device *netdev = ring_to_netdev(ring);
@@ -4065,26 +4098,9 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 	ol_info = le32_to_cpu(desc->rx.ol_info);
 	csum = le16_to_cpu(desc->csum);
 
-	if (unlikely(bd_base_info & BIT(HNS3_RXD_TS_VLD_B))) {
-		struct hnae3_handle *h = hns3_get_handle(netdev);
-		u32 nsec = le32_to_cpu(desc->ts_nsec);
-		u32 sec = le32_to_cpu(desc->ts_sec);
+	hns3_handle_rx_ts_info(netdev, desc, skb, bd_base_info);
 
-		if (h->ae_algo->ops->get_rx_hwts)
-			h->ae_algo->ops->get_rx_hwts(h, skb, nsec, sec);
-	}
-
-	/* Based on hw strategy, the tag offloaded will be stored at
-	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
-	 * in one layer tag case.
-	 */
-	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
-		u16 vlan_tag;
-
-		if (hns3_parse_vlan_tag(ring, desc, l234info, &vlan_tag))
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
-					       vlan_tag);
-	}
+	hns3_handle_rx_vlan_tag(ring, desc, skb, l234info);
 
 	if (unlikely(!desc->rx.pkt_len || (l234info & (BIT(HNS3_RXD_TRUNCAT_B) |
 				  BIT(HNS3_RXD_L2E_B))))) {
