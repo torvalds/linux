@@ -23,6 +23,8 @@
 #include <linux/reset.h>
 #include <linux/v4l2-dv-timings.h>
 #include <linux/workqueue.h>
+#include <media/cec.h>
+#include <media/cec-notifier.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -34,6 +36,7 @@
 #include <media/videobuf2-v4l2.h>
 #include <sound/hdmi-codec.h>
 #include "rk_hdmirx.h"
+#include "rk_hdmirx_cec.h"
 
 static int debug;
 module_param(debug, int, 0644);
@@ -174,6 +177,8 @@ struct rk_hdmirx_dev {
 	struct hdmirx_audiostate audio_state;
 	hdmi_codec_plugged_cb plugged_cb;
 	struct device *codec_dev;
+	struct hdmirx_cec *cec;
+	struct cec_notifier *cec_notifier;
 };
 
 static bool tx_5v_power_present(struct rk_hdmirx_dev *hdmirx_dev);
@@ -2418,6 +2423,11 @@ static irqreturn_t hdmirx_5v_det_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static const struct hdmirx_cec_ops hdmirx_cec_ops = {
+	.write = hdmirx_writel,
+	.read = hdmirx_readl,
+};
+
 static int hdmirx_parse_dt(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	struct device *dev = hdmirx_dev->dev;
@@ -2598,6 +2608,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	struct v4l2_ctrl_handler *hdl;
 	struct resource *res;
 	int ret, irq;
+	struct hdmirx_cec_data cec_data;
 
 	hdmirx_dev = devm_kzalloc(dev, sizeof(*hdmirx_dev), GFP_KERNEL);
 	if (!hdmirx_dev)
@@ -2724,6 +2735,28 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	schedule_delayed_work(&hdmirx_dev->delayed_work_hotplug,
 			msecs_to_jiffies(2000));
+
+	hdmirx_dev->cec_notifier = cec_notifier_conn_register(dev, NULL, NULL);
+	if (!hdmirx_dev->cec_notifier) {
+		ret = -ENOMEM;
+		goto err_hdl;
+	}
+
+	irq = platform_get_irq_byname(pdev, "cec");
+	if (irq < 0) {
+		dev_err(dev, "get hdmi cec irq failed!\n");
+		cec_notifier_conn_unregister(hdmirx_dev->cec_notifier);
+		ret = irq;
+		goto err_hdl;
+	}
+
+	cec_data.hdmirx = hdmirx_dev;
+	cec_data.dev = hdmirx_dev->dev;
+	cec_data.ops = &hdmirx_cec_ops;
+	cec_data.irq = irq;
+	cec_data.edid = edid_init_data;
+	hdmirx_dev->cec = rk_hdmirx_cec_register(&cec_data);
+
 	dev_info(dev, "%s driver probe ok!\n", dev_name(dev));
 
 	return 0;
@@ -2756,6 +2789,11 @@ static int hdmirx_remove(struct platform_device *pdev)
 	cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
 	clk_bulk_disable_unprepare(hdmirx_dev->num_clks, hdmirx_dev->clks);
 	reset_control_assert(hdmirx_dev->reset);
+
+	if (hdmirx_dev->cec)
+		rk_hdmirx_cec_unregister(hdmirx_dev->cec);
+	if (hdmirx_dev->cec_notifier)
+		cec_notifier_conn_unregister(hdmirx_dev->cec_notifier);
 
 	video_unregister_device(&hdmirx_dev->stream.vdev);
 	v4l2_ctrl_handler_free(&hdmirx_dev->hdl);
