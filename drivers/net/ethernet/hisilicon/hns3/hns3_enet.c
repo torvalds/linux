@@ -1355,44 +1355,9 @@ static void hns3_set_outer_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 			       HNS3_TUN_NVGRE);
 }
 
-static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
-			   u8 il4_proto, u32 *type_cs_vlan_tso,
-			   u32 *ol_type_vlan_len_msec)
+static void hns3_set_l3_type(struct sk_buff *skb, union l3_hdr_info l3,
+			     u32 *type_cs_vlan_tso)
 {
-	unsigned char *l2_hdr = skb->data;
-	u32 l4_proto = ol4_proto;
-	union l4_hdr_info l4;
-	union l3_hdr_info l3;
-	u32 l2_len, l3_len;
-
-	l4.hdr = skb_transport_header(skb);
-	l3.hdr = skb_network_header(skb);
-
-	/* handle encapsulation skb */
-	if (skb->encapsulation) {
-		/* If this is a not UDP/GRE encapsulation skb */
-		if (!(ol4_proto == IPPROTO_UDP || ol4_proto == IPPROTO_GRE)) {
-			/* drop the skb tunnel packet if hardware don't support,
-			 * because hardware can't calculate csum when TSO.
-			 */
-			if (skb_is_gso(skb))
-				return -EDOM;
-
-			/* the stack computes the IP header already,
-			 * driver calculate l4 checksum when not TSO.
-			 */
-			return skb_checksum_help(skb);
-		}
-
-		hns3_set_outer_l2l3l4(skb, ol4_proto, ol_type_vlan_len_msec);
-
-		/* switch to inner header */
-		l2_hdr = skb_inner_mac_header(skb);
-		l3.hdr = skb_inner_network_header(skb);
-		l4.hdr = skb_inner_transport_header(skb);
-		l4_proto = il4_proto;
-	}
-
 	if (l3.v4->version == 4) {
 		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3T_S,
 			       HNS3_L3T_IPV4);
@@ -1406,15 +1371,11 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3T_S,
 			       HNS3_L3T_IPV6);
 	}
+}
 
-	/* compute inner(/normal) L2 header size, defined in 2 Bytes */
-	l2_len = l3.hdr - l2_hdr;
-	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_S, l2_len >> 1);
-
-	/* compute inner(/normal) L3 header size, defined in 4 Bytes */
-	l3_len = l4.hdr - l3.hdr;
-	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3LEN_S, l3_len >> 2);
-
+static int hns3_set_l4_csum_length(struct sk_buff *skb, union l4_hdr_info l4,
+				   u32 l4_proto, u32 *type_cs_vlan_tso)
+{
 	/* compute inner(/normal) L4 header size, defined in 4 Bytes */
 	switch (l4_proto) {
 	case IPPROTO_TCP:
@@ -1458,6 +1419,57 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 	}
 
 	return 0;
+}
+
+static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
+			   u8 il4_proto, u32 *type_cs_vlan_tso,
+			   u32 *ol_type_vlan_len_msec)
+{
+	unsigned char *l2_hdr = skb->data;
+	u32 l4_proto = ol4_proto;
+	union l4_hdr_info l4;
+	union l3_hdr_info l3;
+	u32 l2_len, l3_len;
+
+	l4.hdr = skb_transport_header(skb);
+	l3.hdr = skb_network_header(skb);
+
+	/* handle encapsulation skb */
+	if (skb->encapsulation) {
+		/* If this is a not UDP/GRE encapsulation skb */
+		if (!(ol4_proto == IPPROTO_UDP || ol4_proto == IPPROTO_GRE)) {
+			/* drop the skb tunnel packet if hardware don't support,
+			 * because hardware can't calculate csum when TSO.
+			 */
+			if (skb_is_gso(skb))
+				return -EDOM;
+
+			/* the stack computes the IP header already,
+			 * driver calculate l4 checksum when not TSO.
+			 */
+			return skb_checksum_help(skb);
+		}
+
+		hns3_set_outer_l2l3l4(skb, ol4_proto, ol_type_vlan_len_msec);
+
+		/* switch to inner header */
+		l2_hdr = skb_inner_mac_header(skb);
+		l3.hdr = skb_inner_network_header(skb);
+		l4.hdr = skb_inner_transport_header(skb);
+		l4_proto = il4_proto;
+	}
+
+	hns3_set_l3_type(skb, l3, type_cs_vlan_tso);
+
+	/* compute inner(/normal) L2 header size, defined in 2 Bytes */
+	l2_len = l3.hdr - l2_hdr;
+	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_S, l2_len >> 1);
+
+	/* compute inner(/normal) L3 header size, defined in 4 Bytes */
+	l3_len = l4.hdr - l3.hdr;
+	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3LEN_S, l3_len >> 2);
+
+	return hns3_set_l4_csum_length(skb, l4, l4_proto, type_cs_vlan_tso);
 }
 
 static int hns3_handle_vtags(struct hns3_enet_ring *tx_ring,
