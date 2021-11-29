@@ -847,6 +847,8 @@ config_registers(struct hantro_ctx *ctx, const struct v4l2_ctrl_vp9_frame *dec_p
 	hantro_reg_write(ctx->dev, &g2_clk_gate_e, 1);
 	hantro_reg_write(ctx->dev, &g2_max_cb_size, 6);
 	hantro_reg_write(ctx->dev, &g2_min_cb_size, 3);
+	if (ctx->dev->variant->double_buffer)
+		hantro_reg_write(ctx->dev, &g2_double_buffer_e, 1);
 
 	config_output(ctx, dst, dec_params);
 

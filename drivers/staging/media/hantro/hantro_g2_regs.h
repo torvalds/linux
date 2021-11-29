@@ -270,6 +270,7 @@
 #define g2_apf_threshold	G2_DEC_REG(55, 0, 0xffff)
 
 #define g2_clk_gate_e		G2_DEC_REG(58, 16, 0x1)
+#define g2_double_buffer_e	G2_DEC_REG(58, 15, 0x1)
 #define g2_buswidth		G2_DEC_REG(58, 8,  0x7)
 #define g2_max_burst		G2_DEC_REG(58, 0,  0xff)
 
