@@ -1631,6 +1631,7 @@ struct rtw_dm_info {
 	u8 cck_gi_u_bnd;
 	u8 cck_gi_l_bnd;
 
+	u8 fix_rate;
 	u8 tx_rate;
 	u32 rrsr_val_init;
 	u32 rrsr_mask_min;

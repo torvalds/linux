@@ -312,7 +312,9 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hw *hw = rtwdev->hw;
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	struct rtw_sta_info *si;
+	u8 fix_rate;
 	u16 seq;
 	u8 ampdu_factor = 0;
 	u8 ampdu_density = 0;
@@ -364,6 +366,13 @@ out:
 	pkt_info->bw = bw;
 	pkt_info->stbc = stbc;
 	pkt_info->ldpc = ldpc;
+
+	fix_rate = dm_info->fix_rate;
+	if (fix_rate < DESC_RATE_MAX) {
+		pkt_info->rate = fix_rate;
+		pkt_info->dis_rate_fallback = true;
+		pkt_info->use_rate = true;
+	}
 }
 
 void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
