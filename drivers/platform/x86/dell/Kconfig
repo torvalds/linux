@@ -187,7 +187,7 @@ config DELL_WMI_AIO
 
 config DELL_WMI_DESCRIPTOR
 	tristate
-	default m
+	default n
 	depends on ACPI_WMI
 
 config DELL_WMI_LED
