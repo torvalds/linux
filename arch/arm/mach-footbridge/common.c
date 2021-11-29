@@ -27,6 +27,91 @@
 
 #include "common.h"
 
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+#include <asm/hardware/dec21285.h>
+
+static int dc21285_get_irq(void)
+{
+	void __iomem *irqstatus = (void __iomem *)CSR_IRQ_STATUS;
+	u32 mask = readl(irqstatus);
+
+	if (mask & IRQ_MASK_SDRAMPARITY)
+		return IRQ_SDRAMPARITY;
+
+	if (mask & IRQ_MASK_UART_RX)
+		return IRQ_CONRX;
+
+	if (mask & IRQ_MASK_DMA1)
+		return IRQ_DMA1;
+
+	if (mask & IRQ_MASK_DMA2)
+		return IRQ_DMA2;
+
+	if (mask & IRQ_MASK_IN0)
+		return IRQ_IN0;
+
+	if (mask & IRQ_MASK_IN1)
+		return IRQ_IN1;
+
+	if (mask & IRQ_MASK_IN2)
+		return IRQ_IN2;
+
+	if (mask & IRQ_MASK_IN3)
+		return IRQ_IN3;
+
+	if (mask & IRQ_MASK_PCI)
+		return IRQ_PCI;
+
+	if (mask & IRQ_MASK_DOORBELLHOST)
+		return IRQ_DOORBELLHOST;
+
+	if (mask & IRQ_MASK_I2OINPOST)
+		return IRQ_I2OINPOST;
+
+	if (mask & IRQ_MASK_TIMER1)
+		return IRQ_TIMER1;
+
+	if (mask & IRQ_MASK_TIMER2)
+		return IRQ_TIMER2;
+
+	if (mask & IRQ_MASK_TIMER3)
+		return IRQ_TIMER3;
+
+	if (mask & IRQ_MASK_UART_TX)
+		return IRQ_CONTX;
+
+	if (mask & IRQ_MASK_PCI_ABORT)
+		return IRQ_PCI_ABORT;
+
+	if (mask & IRQ_MASK_PCI_SERR)
+		return IRQ_PCI_SERR;
+
+	if (mask & IRQ_MASK_DISCARD_TIMER)
+		return IRQ_DISCARD_TIMER;
+
+	if (mask & IRQ_MASK_PCI_DPERR)
+		return IRQ_PCI_DPERR;
+
+	if (mask & IRQ_MASK_PCI_PERR)
+		return IRQ_PCI_PERR;
+
+	return 0;
+}
+
+static void dc21285_handle_irq(struct pt_regs *regs)
+{
+	int irq;
+	do {
+		irq = dc21285_get_irq();
+		if (!irq)
+			break;
+
+		generic_handle_irq(irq);
+	} while (1);
+}
+
+
 unsigned int mem_fclk_21285 = 50000000;
 
 EXPORT_SYMBOL(mem_fclk_21285);
@@ -108,6 +193,8 @@ static void __init __fb_init_irq(void)
 
 void __init footbridge_init_irq(void)
 {
+	set_handle_irq(dc21285_handle_irq);
+
 	__fb_init_irq();
 
 	if (!footbridge_cfn_mode())

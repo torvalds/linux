@@ -362,6 +362,7 @@ config ARCH_FOOTBRIDGE
 	select FOOTBRIDGE
 	select NEED_MACH_IO_H if !MMU
 	select NEED_MACH_MEMORY_H
+	select GENERIC_IRQ_MULTI_HANDLER
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
