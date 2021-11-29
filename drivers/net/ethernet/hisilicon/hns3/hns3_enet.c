@@ -2659,18 +2659,8 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 	return ret;
 }
 
-static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
+static int hns3_get_timeout_queue(struct net_device *ndev)
 {
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hnae3_handle *h = hns3_get_handle(ndev);
-	struct hns3_enet_ring *tx_ring;
-	struct napi_struct *napi;
-	int timeout_queue = 0;
-	int hw_head, hw_tail;
-	int fbd_num, fbd_oft;
-	int ebd_num, ebd_oft;
-	int bd_num, bd_err;
-	int ring_en, tc;
 	int i;
 
 	/* Find the stopped queue the same way the stack does */
@@ -2690,7 +2680,6 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 				    dql->last_obj_cnt, dql->num_queued,
 				    dql->adj_limit, dql->num_completed);
 #endif
-			timeout_queue = i;
 			netdev_info(ndev, "queue state: 0x%lx, delta msecs: %u\n",
 				    q->state,
 				    jiffies_to_msecs(jiffies - trans_start));
@@ -2698,17 +2687,15 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 		}
 	}
 
-	if (i == ndev->num_tx_queues) {
-		netdev_info(ndev,
-			    "no netdev TX timeout queue found, timeout count: %llu\n",
-			    priv->tx_timeout_count);
-		return false;
-	}
+	return i;
+}
 
-	priv->tx_timeout_count++;
-
-	tx_ring = &priv->ring[timeout_queue];
-	napi = &tx_ring->tqp_vector->napi;
+static void hns3_dump_queue_stats(struct net_device *ndev,
+				  struct hns3_enet_ring *tx_ring,
+				  int timeout_queue)
+{
+	struct napi_struct *napi = &tx_ring->tqp_vector->napi;
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
 
 	netdev_info(ndev,
 		    "tx_timeout count: %llu, queue id: %d, SW_NTU: 0x%x, SW_NTC: 0x%x, napi state: %lu\n",
@@ -2724,6 +2711,48 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 		    "seg_pkt_cnt: %llu, tx_more: %llu, restart_queue: %llu, tx_busy: %llu\n",
 		    tx_ring->stats.seg_pkt_cnt, tx_ring->stats.tx_more,
 		    tx_ring->stats.restart_queue, tx_ring->stats.tx_busy);
+}
+
+static void hns3_dump_queue_reg(struct net_device *ndev,
+				struct hns3_enet_ring *tx_ring)
+{
+	netdev_info(ndev,
+		    "BD_NUM: 0x%x HW_HEAD: 0x%x, HW_TAIL: 0x%x, BD_ERR: 0x%x, INT: 0x%x\n",
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_TX_RING_BD_NUM_REG),
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_TX_RING_HEAD_REG),
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_TX_RING_TAIL_REG),
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_TX_RING_BD_ERR_REG),
+		    readl(tx_ring->tqp_vector->mask_addr));
+	netdev_info(ndev,
+		    "RING_EN: 0x%x, TC: 0x%x, FBD_NUM: 0x%x FBD_OFT: 0x%x, EBD_NUM: 0x%x, EBD_OFT: 0x%x\n",
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_EN_REG),
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_TX_RING_TC_REG),
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_TX_RING_FBDNUM_REG),
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_TX_RING_OFFSET_REG),
+		    hns3_tqp_read_reg(tx_ring, HNS3_RING_TX_RING_EBDNUM_REG),
+		    hns3_tqp_read_reg(tx_ring,
+				      HNS3_RING_TX_RING_EBD_OFFSET_REG));
+}
+
+static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+	struct hns3_enet_ring *tx_ring;
+	int timeout_queue;
+
+	timeout_queue = hns3_get_timeout_queue(ndev);
+	if (timeout_queue >= ndev->num_tx_queues) {
+		netdev_info(ndev,
+			    "no netdev TX timeout queue found, timeout count: %llu\n",
+			    priv->tx_timeout_count);
+		return false;
+	}
+
+	priv->tx_timeout_count++;
+
+	tx_ring = &priv->ring[timeout_queue];
+	hns3_dump_queue_stats(ndev, tx_ring, timeout_queue);
 
 	/* When mac received many pause frames continuous, it's unable to send
 	 * packets, which may cause tx timeout
@@ -2736,32 +2765,7 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 			    mac_stats.tx_pause_cnt, mac_stats.rx_pause_cnt);
 	}
 
-	hw_head = readl_relaxed(tx_ring->tqp->io_base +
-				HNS3_RING_TX_RING_HEAD_REG);
-	hw_tail = readl_relaxed(tx_ring->tqp->io_base +
-				HNS3_RING_TX_RING_TAIL_REG);
-	fbd_num = readl_relaxed(tx_ring->tqp->io_base +
-				HNS3_RING_TX_RING_FBDNUM_REG);
-	fbd_oft = readl_relaxed(tx_ring->tqp->io_base +
-				HNS3_RING_TX_RING_OFFSET_REG);
-	ebd_num = readl_relaxed(tx_ring->tqp->io_base +
-				HNS3_RING_TX_RING_EBDNUM_REG);
-	ebd_oft = readl_relaxed(tx_ring->tqp->io_base +
-				HNS3_RING_TX_RING_EBD_OFFSET_REG);
-	bd_num = readl_relaxed(tx_ring->tqp->io_base +
-			       HNS3_RING_TX_RING_BD_NUM_REG);
-	bd_err = readl_relaxed(tx_ring->tqp->io_base +
-			       HNS3_RING_TX_RING_BD_ERR_REG);
-	ring_en = readl_relaxed(tx_ring->tqp->io_base + HNS3_RING_EN_REG);
-	tc = readl_relaxed(tx_ring->tqp->io_base + HNS3_RING_TX_RING_TC_REG);
-
-	netdev_info(ndev,
-		    "BD_NUM: 0x%x HW_HEAD: 0x%x, HW_TAIL: 0x%x, BD_ERR: 0x%x, INT: 0x%x\n",
-		    bd_num, hw_head, hw_tail, bd_err,
-		    readl(tx_ring->tqp_vector->mask_addr));
-	netdev_info(ndev,
-		    "RING_EN: 0x%x, TC: 0x%x, FBD_NUM: 0x%x FBD_OFT: 0x%x, EBD_NUM: 0x%x, EBD_OFT: 0x%x\n",
-		    ring_en, tc, fbd_num, fbd_oft, ebd_num, ebd_oft);
+	hns3_dump_queue_reg(ndev, tx_ring);
 
 	return true;
 }
