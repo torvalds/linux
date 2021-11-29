@@ -628,11 +628,3 @@
 &usbhost_dwc3_0 {
 	status = "disabled";
 };
-
-&vop {
-	assigned-clocks = <&cru DCLK_VOP0_SRC>,
-			  <&cru DCLK_VOP1_SRC>,
-			  <&cru DCLK_VOP2_SRC>,
-			  <&cru DCLK_VOP3>;
-	assigned-clock-parents = <0>, <0>, <&cru PLL_V0PLL>, <0>;
-};
