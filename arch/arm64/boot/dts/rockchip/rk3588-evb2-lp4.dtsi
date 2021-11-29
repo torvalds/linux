@@ -433,6 +433,11 @@
 	status = "okay";
 };
 
+&route_dsi1 {
+	status = "okay";
+	connect = <&vp3_out_dsi1>;
+};
+
 &sata0 {
 	status = "okay";
 };

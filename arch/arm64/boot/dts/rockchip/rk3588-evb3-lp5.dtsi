@@ -1113,6 +1113,11 @@
 	status = "okay";
 };
 
+&route_dsi0 {
+	status = "okay";
+	connect = <&vp3_out_dsi0>;
+};
+
 &sata1 {
 	status = "okay";
 };
