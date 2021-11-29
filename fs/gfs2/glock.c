@@ -411,14 +411,14 @@ static void do_error(struct gfs2_glock *gl, const int ret)
 static void demote_incompat_holders(struct gfs2_glock *gl,
 				    struct gfs2_holder *new_gh)
 {
-	struct gfs2_holder *gh;
+	struct gfs2_holder *gh, *tmp;
 
 	/*
 	 * Demote incompatible holders before we make ourselves eligible.
 	 * (This holder may or may not allow auto-demoting, but we don't want
 	 * to demote the new holder before it's even granted.)
 	 */
-	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
+	list_for_each_entry_safe(gh, tmp, &gl->gl_holders, gh_list) {
 		/*
 		 * Since holders are at the front of the list, we stop when we
 		 * find the first non-holder.
@@ -496,7 +496,7 @@ again:
 	 * Since we unlock the lockref lock, we set a flag to indicate
 	 * instantiate is in progress.
 	 */
-	if (test_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags)) {
+	if (test_and_set_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags)) {
 		wait_on_bit(&gl->gl_flags, GLF_INSTANTIATE_IN_PROG,
 			    TASK_UNINTERRUPTIBLE);
 		/*
@@ -509,14 +509,10 @@ again:
 		goto again;
 	}
 
-	set_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
-
 	ret = glops->go_instantiate(gh);
 	if (!ret)
 		clear_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags);
-	clear_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
-	smp_mb__after_atomic();
-	wake_up_bit(&gl->gl_flags, GLF_INSTANTIATE_IN_PROG);
+	clear_and_wake_up_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
 	return ret;
 }
 

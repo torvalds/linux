@@ -102,7 +102,7 @@ static int rsnd_dmaen_stop(struct rsnd_mod *mod,
 	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 
 	if (dmaen->chan)
-		dmaengine_terminate_sync(dmaen->chan);
+		dmaengine_terminate_async(dmaen->chan);
 
 	return 0;
 }

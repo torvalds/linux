@@ -5558,7 +5558,7 @@ static int mem_cgroup_move_account(struct page *page,
 
 	VM_BUG_ON(from == to);
 	VM_BUG_ON_FOLIO(folio_test_lru(folio), folio);
-	VM_BUG_ON(compound && !folio_test_multi(folio));
+	VM_BUG_ON(compound && !folio_test_large(folio));
 
 	/*
 	 * Prevent mem_cgroup_migrate() from looking at

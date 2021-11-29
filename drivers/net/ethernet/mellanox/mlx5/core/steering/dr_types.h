@@ -764,6 +764,7 @@ struct mlx5dr_roce_cap {
 
 struct mlx5dr_vports {
 	struct mlx5dr_cmd_vport_cap esw_manager_caps;
+	struct mlx5dr_cmd_vport_cap uplink_caps;
 	struct xarray vports_caps_xa;
 };
 

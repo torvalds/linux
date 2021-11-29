@@ -2576,28 +2576,27 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 
 	/* Split the expression string at the root operator */
 	if (!sep)
-		goto free;
+		return ERR_PTR(-EINVAL);
+
 	*sep = '\0';
 	operand1_str = str;
 	str = sep+1;
 
 	/* Binary operator requires both operands */
 	if (*operand1_str == '\0' || *str == '\0')
-		goto free;
+		return ERR_PTR(-EINVAL);
 
 	operand_flags = 0;
 
 	/* LHS of string is an expression e.g. a+b in a+b+c */
 	operand1 = parse_expr(hist_data, file, operand1_str, operand_flags, NULL, n_subexprs);
-	if (IS_ERR(operand1)) {
-		ret = PTR_ERR(operand1);
-		operand1 = NULL;
-		goto free;
-	}
+	if (IS_ERR(operand1))
+		return ERR_CAST(operand1);
+
 	if (operand1->flags & HIST_FIELD_FL_STRING) {
 		hist_err(file->tr, HIST_ERR_INVALID_STR_OPERAND, errpos(operand1_str));
 		ret = -EINVAL;
-		goto free;
+		goto free_op1;
 	}
 
 	/* RHS of string is another expression e.g. c in a+b+c */
@@ -2605,13 +2604,12 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 	operand2 = parse_expr(hist_data, file, str, operand_flags, NULL, n_subexprs);
 	if (IS_ERR(operand2)) {
 		ret = PTR_ERR(operand2);
-		operand2 = NULL;
-		goto free;
+		goto free_op1;
 	}
 	if (operand2->flags & HIST_FIELD_FL_STRING) {
 		hist_err(file->tr, HIST_ERR_INVALID_STR_OPERAND, errpos(str));
 		ret = -EINVAL;
-		goto free;
+		goto free_operands;
 	}
 
 	switch (field_op) {
@@ -2629,12 +2627,12 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 		break;
 	default:
 		ret = -EINVAL;
-		goto free;
+		goto free_operands;
 	}
 
 	ret = check_expr_operands(file->tr, operand1, operand2, &var1, &var2);
 	if (ret)
-		goto free;
+		goto free_operands;
 
 	operand_flags = var1 ? var1->flags : operand1->flags;
 	operand2_flags = var2 ? var2->flags : operand2->flags;
@@ -2653,12 +2651,13 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 	expr = create_hist_field(hist_data, NULL, flags, var_name);
 	if (!expr) {
 		ret = -ENOMEM;
-		goto free;
+		goto free_operands;
 	}
 
 	operand1->read_once = true;
 	operand2->read_once = true;
 
+	/* The operands are now owned and free'd by 'expr' */
 	expr->operands[0] = operand1;
 	expr->operands[1] = operand2;
 
@@ -2669,7 +2668,7 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 		if (!divisor) {
 			hist_err(file->tr, HIST_ERR_DIVISION_BY_ZERO, errpos(str));
 			ret = -EDOM;
-			goto free;
+			goto free_expr;
 		}
 
 		/*
@@ -2709,18 +2708,22 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 		expr->type = kstrdup_const(operand1->type, GFP_KERNEL);
 		if (!expr->type) {
 			ret = -ENOMEM;
-			goto free;
+			goto free_expr;
 		}
 
 		expr->name = expr_str(expr, 0);
 	}
 
 	return expr;
-free:
-	destroy_hist_field(operand1, 0);
-	destroy_hist_field(operand2, 0);
-	destroy_hist_field(expr, 0);
 
+free_operands:
+	destroy_hist_field(operand2, 0);
+free_op1:
+	destroy_hist_field(operand1, 0);
+	return ERR_PTR(ret);
+
+free_expr:
+	destroy_hist_field(expr, 0);
 	return ERR_PTR(ret);
 }
 

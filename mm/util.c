@@ -670,7 +670,7 @@ bool folio_mapped(struct folio *folio)
 {
 	long i, nr;
 
-	if (folio_test_single(folio))
+	if (!folio_test_large(folio))
 		return atomic_read(&folio->_mapcount) >= 0;
 	if (atomic_read(folio_mapcount_ptr(folio)) >= 0)
 		return true;
