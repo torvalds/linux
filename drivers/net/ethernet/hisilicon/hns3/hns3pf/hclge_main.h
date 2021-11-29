@@ -1095,6 +1095,11 @@ struct hclge_speed_bit_map {
 	u32 speed_bit;
 };
 
+struct hclge_mac_speed_map {
+	u32 speed_drv; /* speed defined in driver */
+	u32 speed_fw; /* speed defined in firmware */
+};
+
 int hclge_set_vport_promisc_mode(struct hclge_vport *vport, bool en_uc_pmc,
 				 bool en_mc_pmc, bool en_bc_pmc);
 int hclge_add_uc_addr_common(struct hclge_vport *vport,
