@@ -138,6 +138,26 @@ static inline void fanotify_info_init(struct fanotify_info *info)
 	info->name_len = 0;
 }
 
+/* These set/copy helpers MUST be called by order */
+static inline void fanotify_info_set_dir_fh(struct fanotify_info *info,
+					    unsigned int totlen)
+{
+	if (WARN_ON_ONCE(info->file_fh_totlen > 0) ||
+	    WARN_ON_ONCE(info->name_len > 0))
+		return;
+
+	info->dir_fh_totlen = totlen;
+}
+
+static inline void fanotify_info_set_file_fh(struct fanotify_info *info,
+					     unsigned int totlen)
+{
+	if (WARN_ON_ONCE(info->name_len > 0))
+		return;
+
+	info->file_fh_totlen = totlen;
+}
+
 static inline void fanotify_info_copy_name(struct fanotify_info *info,
 					   const struct qstr *name)
 {

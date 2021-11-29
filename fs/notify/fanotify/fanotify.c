@@ -576,7 +576,7 @@ static struct fanotify_event *fanotify_alloc_fid_event(struct inode *id,
 	return &ffe->fae;
 }
 
-static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
+static struct fanotify_event *fanotify_alloc_name_event(struct inode *dir,
 							__kernel_fsid_t *fsid,
 							const struct qstr *name,
 							struct inode *child,
@@ -586,15 +586,17 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
 	struct fanotify_name_event *fne;
 	struct fanotify_info *info;
 	struct fanotify_fh *dfh, *ffh;
-	unsigned int dir_fh_len = fanotify_encode_fh_len(id);
+	unsigned int dir_fh_len = fanotify_encode_fh_len(dir);
 	unsigned int child_fh_len = fanotify_encode_fh_len(child);
-	unsigned int size;
+	unsigned long name_len = name ? name->len : 0;
+	unsigned int len, size;
 
-	size = sizeof(*fne) + FANOTIFY_FH_HDR_LEN + dir_fh_len;
+	/* Reserve terminating null byte even for empty name */
+	size = sizeof(*fne) + name_len + 1;
+	if (dir_fh_len)
+		size += FANOTIFY_FH_HDR_LEN + dir_fh_len;
 	if (child_fh_len)
 		size += FANOTIFY_FH_HDR_LEN + child_fh_len;
-	if (name)
-		size += name->len + 1;
 	fne = kmalloc(size, gfp);
 	if (!fne)
 		return NULL;
@@ -604,22 +606,23 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
 	*hash ^= fanotify_hash_fsid(fsid);
 	info = &fne->info;
 	fanotify_info_init(info);
-	dfh = fanotify_info_dir_fh(info);
-	info->dir_fh_totlen = fanotify_encode_fh(dfh, id, dir_fh_len, hash, 0);
+	if (dir_fh_len) {
+		dfh = fanotify_info_dir_fh(info);
+		len = fanotify_encode_fh(dfh, dir, dir_fh_len, hash, 0);
+		fanotify_info_set_dir_fh(info, len);
+	}
 	if (child_fh_len) {
 		ffh = fanotify_info_file_fh(info);
-		info->file_fh_totlen = fanotify_encode_fh(ffh, child,
-							child_fh_len, hash, 0);
+		len = fanotify_encode_fh(ffh, child, child_fh_len, hash, 0);
+		fanotify_info_set_file_fh(info, len);
 	}
-	if (name) {
-		long salt = name->len;
-
+	if (name_len) {
 		fanotify_info_copy_name(info, name);
-		*hash ^= full_name_hash((void *)salt, name->name, name->len);
+		*hash ^= full_name_hash((void *)name_len, name->name, name_len);
 	}
 
-	pr_debug("%s: ino=%lu size=%u dir_fh_len=%u child_fh_len=%u name_len=%u name='%.*s'\n",
-		 __func__, id->i_ino, size, dir_fh_len, child_fh_len,
+	pr_debug("%s: size=%u dir_fh_len=%u child_fh_len=%u name_len=%u name='%.*s'\n",
+		 __func__, size, dir_fh_len, child_fh_len,
 		 info->name_len, info->name_len, fanotify_info_name(info));
 
 	return &fne->fae;
