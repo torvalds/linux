@@ -1724,6 +1724,94 @@ static void update_hpo_dp_stream_engine_usage(
 			res_ctx->is_hpo_dp_stream_enc_acquired[i] = acquired;
 	}
 }
+
+static inline int find_acquired_hpo_dp_link_enc_for_link(
+		const struct resource_context *res_ctx,
+		const struct dc_link *link)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(res_ctx->hpo_dp_link_enc_to_link_idx); i++)
+		if (res_ctx->hpo_dp_link_enc_ref_cnts[i] > 0 &&
+				res_ctx->hpo_dp_link_enc_to_link_idx[i] == link->link_index)
+			return i;
+
+	return -1;
+}
+
+static inline int find_free_hpo_dp_link_enc(const struct resource_context *res_ctx,
+		const struct resource_pool *pool)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(res_ctx->hpo_dp_link_enc_ref_cnts); i++)
+		if (res_ctx->hpo_dp_link_enc_ref_cnts[i] == 0)
+			break;
+
+	return (i < ARRAY_SIZE(res_ctx->hpo_dp_link_enc_ref_cnts) &&
+			i < pool->hpo_dp_link_enc_count) ? i : -1;
+}
+
+static inline void acquire_hpo_dp_link_enc(
+		struct resource_context *res_ctx,
+		unsigned int link_index,
+		int enc_index)
+{
+	res_ctx->hpo_dp_link_enc_to_link_idx[enc_index] = link_index;
+	res_ctx->hpo_dp_link_enc_ref_cnts[enc_index] = 1;
+}
+
+static inline void retain_hpo_dp_link_enc(
+		struct resource_context *res_ctx,
+		int enc_index)
+{
+	res_ctx->hpo_dp_link_enc_ref_cnts[enc_index]++;
+}
+
+static inline void release_hpo_dp_link_enc(
+		struct resource_context *res_ctx,
+		int enc_index)
+{
+	ASSERT(res_ctx->hpo_dp_link_enc_ref_cnts[enc_index] > 0);
+	res_ctx->hpo_dp_link_enc_ref_cnts[enc_index]--;
+}
+
+static bool add_hpo_dp_link_enc_to_ctx(struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_stream_state *stream)
+{
+	int enc_index;
+
+	enc_index = find_acquired_hpo_dp_link_enc_for_link(res_ctx, stream->link);
+
+	if (enc_index >= 0) {
+		retain_hpo_dp_link_enc(res_ctx, enc_index);
+	} else {
+		enc_index = find_free_hpo_dp_link_enc(res_ctx, pool);
+		if (enc_index >= 0)
+			acquire_hpo_dp_link_enc(res_ctx, stream->link->link_index, enc_index);
+	}
+
+	if (enc_index >= 0)
+		pipe_ctx->link_res.hpo_dp_link_enc = pool->hpo_dp_link_enc[enc_index];
+
+	return pipe_ctx->link_res.hpo_dp_link_enc != NULL;
+}
+
+static void remove_hpo_dp_link_enc_from_ctx(struct resource_context *res_ctx,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_stream_state *stream)
+{
+	int enc_index;
+
+	enc_index = find_acquired_hpo_dp_link_enc_for_link(res_ctx, stream->link);
+
+	if (enc_index >= 0) {
+		release_hpo_dp_link_enc(res_ctx, enc_index);
+		pipe_ctx->link_res.hpo_dp_link_enc = NULL;
+	}
+}
 #endif
 
 /* TODO: release audio object */
@@ -1886,6 +1974,7 @@ enum dc_status dc_remove_stream_from_ctx(
 			&new_ctx->res_ctx, dc->res_pool,
 			del_pipe->stream_res.hpo_dp_stream_enc,
 			false);
+		remove_hpo_dp_link_enc_from_ctx(&new_ctx->res_ctx, del_pipe, del_pipe->stream);
 	}
 #endif
 
@@ -2161,7 +2250,8 @@ enum dc_status resource_map_pool_resources(
 					&context->res_ctx, pool,
 					pipe_ctx->stream_res.hpo_dp_stream_enc,
 					true);
-			pipe_ctx->link_res.hpo_dp_link_enc = stream->link->hpo_dp_link_enc;
+			if (!add_hpo_dp_link_enc_to_ctx(&context->res_ctx, pool, pipe_ctx, stream))
+				return DC_NO_LINK_ENC_RESOURCE;
 		}
 	}
 #endif
@@ -2837,6 +2927,8 @@ bool pipe_need_reprogram(
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (pipe_ctx_old->stream_res.hpo_dp_stream_enc != pipe_ctx->stream_res.hpo_dp_stream_enc)
 		return true;
+	if (pipe_ctx_old->link_res.hpo_dp_link_enc != pipe_ctx->link_res.hpo_dp_link_enc)
+		return true;
 #endif
 
 	/* DIG link encoder resource assignment for stream changed. */
@@ -3105,22 +3197,23 @@ void get_audio_check(struct audio_info *aud_modes,
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-struct hpo_dp_link_encoder *resource_get_unused_hpo_dp_link_encoder(
-		const struct resource_pool *pool)
+struct hpo_dp_link_encoder *resource_get_hpo_dp_link_enc_for_det_lt(
+		const struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		const struct dc_link *link)
 {
-	uint8_t i;
-	struct hpo_dp_link_encoder *enc = NULL;
+	struct hpo_dp_link_encoder *hpo_dp_link_enc = NULL;
+	int enc_index;
 
-	ASSERT(pool->hpo_dp_link_enc_count <= MAX_HPO_DP2_LINK_ENCODERS);
+	enc_index = find_acquired_hpo_dp_link_enc_for_link(res_ctx, link);
 
-	for (i = 0; i < pool->hpo_dp_link_enc_count; i++) {
-		if (pool->hpo_dp_link_enc[i]->transmitter == TRANSMITTER_UNKNOWN) {
-			enc = pool->hpo_dp_link_enc[i];
-			break;
-		}
-	}
+	if (enc_index < 0)
+		enc_index = find_free_hpo_dp_link_enc(res_ctx, pool);
 
-	return enc;
+	if (enc_index >= 0)
+		hpo_dp_link_enc = pool->hpo_dp_link_enc[enc_index];
+
+	return hpo_dp_link_enc;
 }
 #endif
 

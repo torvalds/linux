@@ -800,7 +800,8 @@ void enable_dp_hpo_output(struct dc_link *link,
 		link_res->hpo_dp_link_enc->funcs->enable_link_phy(
 				link_res->hpo_dp_link_enc,
 				link_settings,
-				link->link_enc->transmitter);
+				link->link_enc->transmitter,
+				link->link_enc->hpd_source);
 	}
 
 	/* DCCG muxing and DTBCLK DTO */

@@ -66,31 +66,6 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-static bool add_dp_hpo_link_encoder_to_link(struct dc_link *link)
-{
-	struct hpo_dp_link_encoder *enc = resource_get_unused_hpo_dp_link_encoder(
-					link->dc->res_pool);
-
-	if (!link->hpo_dp_link_enc && enc) {
-		link->hpo_dp_link_enc = enc;
-		link->hpo_dp_link_enc->transmitter = link->link_enc->transmitter;
-		link->hpo_dp_link_enc->hpd_source = link->link_enc->hpd_source;
-	}
-
-	return (link->hpo_dp_link_enc != NULL);
-}
-
-static void remove_dp_hpo_link_encoder_from_link(struct dc_link *link)
-{
-	if (link->hpo_dp_link_enc) {
-		link->hpo_dp_link_enc->hpd_source = HPD_SOURCEID_UNKNOWN;
-		link->hpo_dp_link_enc->transmitter = TRANSMITTER_UNKNOWN;
-		link->hpo_dp_link_enc = NULL;
-	}
-}
-#endif
-
 static void dc_link_destruct(struct dc_link *link)
 {
 	int i;
@@ -117,12 +92,6 @@ static void dc_link_destruct(struct dc_link *link)
 		}
 		link->link_enc->funcs->destroy(&link->link_enc);
 	}
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (link->hpo_dp_link_enc) {
-		remove_dp_hpo_link_encoder_from_link(link);
-	}
-#endif
 
 	if (link->local_sink)
 		dc_sink_release(link->local_sink);
@@ -975,10 +944,11 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			}
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-			if (dp_get_link_encoding_format(&link->reported_link_cap) == DP_128b_132b_ENCODING) {
-				add_dp_hpo_link_encoder_to_link(link);
-				link_res.hpo_dp_link_enc = link->hpo_dp_link_enc;
-			}
+			if (dp_get_link_encoding_format(&link->reported_link_cap) == DP_128b_132b_ENCODING)
+				link_res.hpo_dp_link_enc = resource_get_hpo_dp_link_enc_for_det_lt(
+						&link->dc->current_state->res_ctx,
+						link->dc->res_pool,
+						link);
 #endif
 
 			if (link->type == dc_connection_mst_branch) {
@@ -4083,7 +4053,8 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 			config.link_enc_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 		if (is_dp_128b_132b_signal(pipe_ctx)) {
 			config.stream_enc_idx = pipe_ctx->stream_res.hpo_dp_stream_enc->id - ENGINE_ID_HPO_DP_0;
-			config.link_enc_idx = pipe_ctx->stream->link->hpo_dp_link_enc->inst;
+
+			config.link_enc_idx = pipe_ctx->link_res.hpo_dp_link_enc->inst;
 			config.dp2_enabled = 1;
 		}
 #endif
