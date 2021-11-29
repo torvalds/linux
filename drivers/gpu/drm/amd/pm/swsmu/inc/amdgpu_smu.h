@@ -428,7 +428,6 @@ enum smu_baco_state
 
 struct smu_baco_context
 {
-	struct mutex mutex;
 	uint32_t state;
 	bool platform_support;
 };

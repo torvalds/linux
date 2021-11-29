@@ -1617,13 +1617,8 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	enum smu_baco_state baco_state;
 
-	mutex_lock(&smu_baco->mutex);
-	baco_state = smu_baco->state;
-	mutex_unlock(&smu_baco->mutex);
-
-	return baco_state;
+	return smu_baco->state;
 }
 
 #define D3HOT_BACO_SEQUENCE 0
@@ -1639,8 +1634,6 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 
 	if (smu_v11_0_baco_get_state(smu) == state)
 		return 0;
-
-	mutex_lock(&smu_baco->mutex);
 
 	if (state == SMU_BACO_STATE_ENTER) {
 		switch (adev->ip_versions[MP1_HWIP][0]) {
@@ -1682,18 +1675,16 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 	} else {
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_ExitBaco, NULL);
 		if (ret)
-			goto out;
+			return ret;
 
 		/* clear vbios scratch 6 and 7 for coming asic reinit */
 		WREG32(adev->bios_scratch_reg_offset + 6, 0);
 		WREG32(adev->bios_scratch_reg_offset + 7, 0);
 	}
-	if (ret)
-		goto out;
 
-	smu_baco->state = state;
-out:
-	mutex_unlock(&smu_baco->mutex);
+	if (!ret)
+		smu_baco->state = state;
+
 	return ret;
 }
 
