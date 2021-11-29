@@ -98,7 +98,7 @@ static void idxd_int_handle_revoke_drain(struct idxd_irq_entry *ie)
 	if (wq_dedicated(wq)) {
 		iosubmit_cmds512(portal, &desc, 1);
 	} else {
-		rc = enqcmds(portal, &desc);
+		rc = idxd_enqcmds(wq, portal, &desc);
 		/* This should not fail unless hardware failed. */
 		if (rc < 0)
 			dev_warn(dev, "Failed to submit drain desc on wq %d\n", wq->id);

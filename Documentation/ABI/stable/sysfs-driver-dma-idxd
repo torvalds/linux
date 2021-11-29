@@ -220,6 +220,13 @@ Contact:	dmaengine@vger.kernel.org
 Description:	Show the current number of entries in this WQ if WQ Occupancy
 		Support bit WQ capabilities is 1.
 
+What:		/sys/bus/dsa/devices/wq<m>.<n>/enqcmds_retries
+Date		Oct 29, 2021
+KernelVersion:	5.17.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Indicate the number of retires for an enqcmds submission on a shared wq.
+		A max value to set attribute is capped at 64.
+
 What:           /sys/bus/dsa/devices/engine<m>.<n>/group_id
 Date:           Oct 25, 2019
 KernelVersion:  5.6.0

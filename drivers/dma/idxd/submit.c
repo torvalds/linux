@@ -123,6 +123,29 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 		idxd_dma_complete_txd(found, IDXD_COMPLETE_ABORT, false);
 }
 
+/*
+ * ENQCMDS typically fail when the WQ is inactive or busy. On host submission, the driver
+ * has better control of number of descriptors being submitted to a shared wq by limiting
+ * the number of driver allocated descriptors to the wq size. However, when the swq is
+ * exported to a guest kernel, it may be shared with multiple guest kernels. This means
+ * the likelihood of getting busy returned on the swq when submitting goes significantly up.
+ * Having a tunable retry mechanism allows the driver to keep trying for a bit before giving
+ * up. The sysfs knob can be tuned by the system administrator.
+ */
+int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
+{
+	int rc, retries = 0;
+
+	do {
+		rc = enqcmds(portal, desc);
+		if (rc == 0)
+			break;
+		cpu_relax();
+	} while (retries++ < wq->enqcmds_retries);
+
+	return rc;
+}
+
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 {
 	struct idxd_device *idxd = wq->idxd;
@@ -166,13 +189,7 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	if (wq_dedicated(wq)) {
 		iosubmit_cmds512(portal, desc->hw, 1);
 	} else {
-		/*
-		 * It's not likely that we would receive queue full rejection
-		 * since the descriptor allocation gates at wq size. If we
-		 * receive a -EAGAIN, that means something went wrong such as the
-		 * device is not accepting descriptor at all.
-		 */
-		rc = enqcmds(portal, desc->hw);
+		rc = idxd_enqcmds(wq, portal, desc->hw);
 		if (rc < 0) {
 			percpu_ref_put(&wq->wq_active);
 			/* abort operation frees the descriptor */

@@ -945,6 +945,41 @@ static ssize_t wq_occupancy_show(struct device *dev, struct device_attribute *at
 static struct device_attribute dev_attr_wq_occupancy =
 		__ATTR(occupancy, 0444, wq_occupancy_show, NULL);
 
+static ssize_t wq_enqcmds_retries_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+
+	if (wq_dedicated(wq))
+		return -EOPNOTSUPP;
+
+	return sysfs_emit(buf, "%u\n", wq->enqcmds_retries);
+}
+
+static ssize_t wq_enqcmds_retries_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	int rc;
+	unsigned int retries;
+
+	if (wq_dedicated(wq))
+		return -EOPNOTSUPP;
+
+	rc = kstrtouint(buf, 10, &retries);
+	if (rc < 0)
+		return rc;
+
+	if (retries > IDXD_ENQCMDS_MAX_RETRIES)
+		retries = IDXD_ENQCMDS_MAX_RETRIES;
+
+	wq->enqcmds_retries = retries;
+	return count;
+}
+
+static struct device_attribute dev_attr_wq_enqcmds_retries =
+		__ATTR(enqcmds_retries, 0644, wq_enqcmds_retries_show, wq_enqcmds_retries_store);
+
 static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_clients.attr,
 	&dev_attr_wq_state.attr,
@@ -961,6 +996,7 @@ static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_max_batch_size.attr,
 	&dev_attr_wq_ats_disable.attr,
 	&dev_attr_wq_occupancy.attr,
+	&dev_attr_wq_enqcmds_retries.attr,
 	NULL,
 };
 

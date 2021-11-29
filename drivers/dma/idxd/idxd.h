@@ -52,6 +52,9 @@ enum idxd_type {
 #define IDXD_NAME_SIZE		128
 #define IDXD_PMU_EVENT_MAX	64
 
+#define IDXD_ENQCMDS_RETRIES		32
+#define IDXD_ENQCMDS_MAX_RETRIES	64
+
 struct idxd_device_driver {
 	const char *name;
 	enum idxd_dev_type *type;
@@ -173,6 +176,7 @@ struct idxd_dma_chan {
 struct idxd_wq {
 	void __iomem *portal;
 	u32 portal_offset;
+	unsigned int enqcmds_retries;
 	struct percpu_ref wq_active;
 	struct completion wq_dead;
 	struct completion wq_resurrect;
@@ -584,6 +588,7 @@ int idxd_wq_init_percpu_ref(struct idxd_wq *wq);
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc);
 struct idxd_desc *idxd_alloc_desc(struct idxd_wq *wq, enum idxd_op_type optype);
 void idxd_free_desc(struct idxd_wq *wq, struct idxd_desc *desc);
+int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc);
 
 /* dmaengine */
 int idxd_register_dma_device(struct idxd_device *idxd);
