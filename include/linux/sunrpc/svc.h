@@ -85,6 +85,7 @@ struct svc_serv {
 	struct svc_program *	sv_program;	/* RPC program */
 	struct svc_stat *	sv_stats;	/* RPC statistics */
 	spinlock_t		sv_lock;
+	struct kref		sv_refcnt;
 	unsigned int		sv_nrthreads;	/* # of server threads */
 	unsigned int		sv_maxconn;	/* max connections allowed or
 						 * '0' causing max to be based
@@ -119,19 +120,14 @@ struct svc_serv {
  * @serv:  the svc_serv to have count incremented
  *
  * Returns: the svc_serv that was passed in.
- *
- * We use sv_nrthreads as a reference count.  svc_put() drops
- * this refcount, so we need to bump it up around operations that
- * change the number of threads.  Horrible, but there it is.
- * Should be called with the "service mutex" held.
  */
 static inline struct svc_serv *svc_get(struct svc_serv *serv)
 {
-	serv->sv_nrthreads++;
+	kref_get(&serv->sv_refcnt);
 	return serv;
 }
 
-void svc_destroy(struct svc_serv *serv);
+void svc_destroy(struct kref *);
 
 /**
  * svc_put - decrement reference count on a SUNRPC serv
@@ -142,9 +138,7 @@ void svc_destroy(struct svc_serv *serv);
  */
 static inline void svc_put(struct svc_serv *serv)
 {
-	serv->sv_nrthreads -= 1;
-	if (serv->sv_nrthreads == 0)
-		svc_destroy(serv);
+	kref_put(&serv->sv_refcnt, svc_destroy);
 }
 
 /*

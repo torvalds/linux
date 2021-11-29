@@ -60,13 +60,13 @@ static __be32			nfsd_init_request(struct svc_rqst *,
  * extent ->sv_temp_socks and ->sv_permsocks. It also protects nfsdstats.th_cnt
  *
  * If (out side the lock) nn->nfsd_serv is non-NULL, then it must point to a
- * properly initialised 'struct svc_serv' with ->sv_nrthreads > 0. That number
- * of nfsd threads must exist and each must listed in ->sp_all_threads in each
- * entry of ->sv_pools[].
+ * properly initialised 'struct svc_serv' with ->sv_nrthreads > 0 (unless
+ * nn->keep_active is set).  That number of nfsd threads must
+ * exist and each must be listed in ->sp_all_threads in some entry of
+ * ->sv_pools[].
  *
- * Transitions of the thread count between zero and non-zero are of particular
- * interest since the svc_serv needs to be created and initialized at that
- * point, or freed.
+ * Each active thread holds a counted reference on nn->nfsd_serv, as does
+ * the nn->keep_active flag and various transient calls to svc_get().
  *
  * Finally, the nfsd_mutex also protects some of the global variables that are
  * accessed when nfsd starts and that are settable via the write_* routines in
@@ -700,14 +700,22 @@ int nfsd_get_nrthreads(int n, int *nthreads, struct net *net)
 	return 0;
 }
 
+/* This is the callback for kref_put() below.
+ * There is no code here as the first thing to be done is
+ * call svc_shutdown_net(), but we cannot get the 'net' from
+ * the kref.  So do all the work when kref_put returns true.
+ */
+static void nfsd_noop(struct kref *ref)
+{
+}
+
 void nfsd_put(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	nn->nfsd_serv->sv_nrthreads -= 1;
-	if (nn->nfsd_serv->sv_nrthreads == 0) {
+	if (kref_put(&nn->nfsd_serv->sv_refcnt, nfsd_noop)) {
 		svc_shutdown_net(nn->nfsd_serv, net);
-		svc_destroy(nn->nfsd_serv);
+		svc_destroy(&nn->nfsd_serv->sv_refcnt);
 		nfsd_complete_shutdown(net);
 	}
 }
@@ -803,15 +811,14 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 			NULL, nrservs);
 	if (error)
 		goto out_shutdown;
-	/* We are holding a reference to nn->nfsd_serv which
-	 * we don't want to count in the return value,
-	 * so subtract 1
-	 */
-	error = nn->nfsd_serv->sv_nrthreads - 1;
+	error = nn->nfsd_serv->sv_nrthreads;
 out_shutdown:
 	if (error < 0 && !nfsd_up_before)
 		nfsd_shutdown_net(net);
 out_put:
+	/* Threads now hold service active */
+	if (xchg(&nn->keep_active, 0))
+		nfsd_put(net);
 	nfsd_put(net);
 out:
 	mutex_unlock(&nfsd_mutex);
@@ -980,11 +987,15 @@ nfsd(void *vrqstp)
 	nfsdstats.th_cnt --;
 
 out:
-	rqstp->rq_server = NULL;
+	/* Take an extra ref so that the svc_put in svc_exit_thread()
+	 * doesn't call svc_destroy()
+	 */
+	svc_get(nn->nfsd_serv);
 
 	/* Release the thread */
 	svc_exit_thread(rqstp);
 
+	/* Now if needed we call svc_destroy in appropriate context */
 	nfsd_put(net);
 
 	/* Release module */
@@ -1099,7 +1110,6 @@ int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 		mutex_unlock(&nfsd_mutex);
 		return -ENODEV;
 	}
-	/* bump up the psudo refcount while traversing */
 	svc_get(nn->nfsd_serv);
 	ret = svc_pool_stats_open(nn->nfsd_serv, file);
 	mutex_unlock(&nfsd_mutex);

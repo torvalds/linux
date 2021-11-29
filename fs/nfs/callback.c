@@ -169,7 +169,7 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 	if (nrservs < NFS4_MIN_NR_CALLBACK_THREADS)
 		nrservs = NFS4_MIN_NR_CALLBACK_THREADS;
 
-	if (serv->sv_nrthreads-1 == nrservs)
+	if (serv->sv_nrthreads == nrservs)
 		return 0;
 
 	ret = serv->sv_ops->svo_setup(serv, NULL, nrservs);
