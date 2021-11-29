@@ -352,6 +352,12 @@
 		ti,otg-voltage = <5000000>;
 		ti,otg-current = <500000>;
 		pd-charge-only = <0>;
+		regulators {
+			vbus5v0_typec: vbus5v0-typec {
+				regulator-compatible = "otg-vbus";
+				regulator-name = "vbus5v0_typec";
+			};
+		};
 	};
 };
 
@@ -646,6 +652,7 @@
 		interrupts = <RK_PD3 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usbc0_int>;
+		vbus-supply = <&vbus5v0_typec>;
 		status = "okay";
 
 		ports {
