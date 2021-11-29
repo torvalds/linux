@@ -3,7 +3,12 @@
 #ifndef __LAN966X_MAIN_H__
 #define __LAN966X_MAIN_H__
 
+#include <linux/etherdevice.h>
+#include <linux/phy.h>
+#include <linux/phylink.h>
+
 #include "lan966x_regs.h"
+#include "lan966x_ifh.h"
 
 #define LAN966X_BUFFER_CELL_SZ		64
 #define LAN966X_BUFFER_MEMORY		(160 * 1024)
@@ -27,6 +32,7 @@
 #define PGID_MCIPV6			(PGID_AGGR - 1)
 
 #define LAN966X_SPEED_NONE		0
+#define LAN966X_SPEED_2500		1
 #define LAN966X_SPEED_1000		1
 #define LAN966X_SPEED_100		2
 #define LAN966X_SPEED_10		3
@@ -44,14 +50,46 @@ struct lan966x {
 	void __iomem *regs[NUM_TARGETS];
 
 	int shared_queue_sz;
+
+	/* interrupts */
+	int xtr_irq;
+};
+
+struct lan966x_port_config {
+	phy_interface_t portmode;
+	const unsigned long *advertising;
+	int speed;
+	int duplex;
+	u32 pause;
+	bool inband;
+	bool autoneg;
 };
 
 struct lan966x_port {
+	struct net_device *dev;
 	struct lan966x *lan966x;
 
 	u8 chip_port;
 	u16 pvid;
+
+	struct phylink_config phylink_config;
+	struct phylink_pcs phylink_pcs;
+	struct lan966x_port_config config;
+	struct phylink *phylink;
+	struct phy *serdes;
+	struct fwnode_handle *fwnode;
 };
+
+extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
+extern const struct phylink_pcs_ops lan966x_phylink_pcs_ops;
+
+void lan966x_port_config_down(struct lan966x_port *port);
+void lan966x_port_config_up(struct lan966x_port *port);
+void lan966x_port_status_get(struct lan966x_port *port,
+			     struct phylink_link_state *state);
+int lan966x_port_pcs_set(struct lan966x_port *port,
+			 struct lan966x_port_config *config);
+void lan966x_port_init(struct lan966x_port *port);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,
