@@ -1487,15 +1487,14 @@ static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
 }
 #endif
 
-static const struct itco_wdt_platform_data spt_tco_platform_data = {
-	.name = "Intel PCH",
-	.version = 4,
-};
-
 static struct platform_device *
 i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 		 struct resource *tco_res)
 {
+	static const struct itco_wdt_platform_data pldata = {
+		.name = "Intel PCH",
+		.version = 4,
+	};
 	struct resource *res;
 	unsigned int devfn;
 	u64 base64_addr;
@@ -1538,22 +1537,20 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 	res->flags = IORESOURCE_MEM;
 
 	return platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
-					tco_res, 2, &spt_tco_platform_data,
-					sizeof(spt_tco_platform_data));
+					tco_res, 2, &pldata, sizeof(pldata));
 }
-
-static const struct itco_wdt_platform_data cnl_tco_platform_data = {
-	.name = "Intel PCH",
-	.version = 6,
-};
 
 static struct platform_device *
 i801_add_tco_cnl(struct i801_priv *priv, struct pci_dev *pci_dev,
 		 struct resource *tco_res)
 {
-	return platform_device_register_resndata(&pci_dev->dev,
-			"iTCO_wdt", -1, tco_res, 1, &cnl_tco_platform_data,
-			sizeof(cnl_tco_platform_data));
+	static const struct itco_wdt_platform_data pldata = {
+		.name = "Intel PCH",
+		.version = 6,
+	};
+
+	return platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
+						 tco_res, 1, &pldata, sizeof(pldata));
 }
 
 static void i801_add_tco(struct i801_priv *priv)
