@@ -359,9 +359,6 @@ static int lockd_start_svc(struct svc_serv *serv)
 {
 	int error;
 
-	if (nlmsvc_rqst)
-		return 0;
-
 	/*
 	 * Create the kernel thread and wait for it to start.
 	 */
@@ -406,6 +403,7 @@ static const struct svc_serv_ops lockd_sv_ops = {
 static int lockd_create_svc(void)
 {
 	struct svc_serv *serv;
+	int error;
 
 	/*
 	 * Check whether we're already up and running.
@@ -432,6 +430,13 @@ static int lockd_create_svc(void)
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return -ENOMEM;
 	}
+
+	error = lockd_start_svc(serv);
+	/* The thread now holds the only reference */
+	svc_put(serv);
+	if (error < 0)
+		return error;
+
 	nlmsvc_serv = serv;
 	register_inetaddr_notifier(&lockd_inetaddr_notifier);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -446,7 +451,6 @@ static int lockd_create_svc(void)
  */
 int lockd_up(struct net *net, const struct cred *cred)
 {
-	struct svc_serv *serv;
 	int error;
 
 	mutex_lock(&nlmsvc_mutex);
@@ -454,25 +458,19 @@ int lockd_up(struct net *net, const struct cred *cred)
 	error = lockd_create_svc();
 	if (error)
 		goto err_create;
-	serv = nlmsvc_serv;
 
-	error = lockd_up_net(serv, net, cred);
+	error = lockd_up_net(nlmsvc_serv, net, cred);
 	if (error < 0) {
 		goto err_put;
 	}
 
-	error = lockd_start_svc(serv);
-	if (error < 0) {
-		lockd_down_net(serv, net);
-		goto err_put;
-	}
 	nlmsvc_users++;
 err_put:
 	if (nlmsvc_users == 0) {
 		lockd_unregister_notifiers();
+		kthread_stop(nlmsvc_task);
 		nlmsvc_serv = NULL;
 	}
-	svc_put(serv);
 err_create:
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
