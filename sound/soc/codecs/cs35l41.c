@@ -612,6 +612,12 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("ASPTX3", NULL, 0, CS35L41_SP_ENABLES, 2, 0),
 	SND_SOC_DAPM_AIF_OUT("ASPTX4", NULL, 0, CS35L41_SP_ENABLES, 3, 0),
 
+	SND_SOC_DAPM_SIGGEN("VSENSE"),
+	SND_SOC_DAPM_SIGGEN("ISENSE"),
+	SND_SOC_DAPM_SIGGEN("VP"),
+	SND_SOC_DAPM_SIGGEN("VBST"),
+	SND_SOC_DAPM_SIGGEN("TEMP"),
+
 	SND_SOC_DAPM_ADC("VMON ADC", NULL, CS35L41_PWR_CTRL2, 12, 0),
 	SND_SOC_DAPM_ADC("IMON ADC", NULL, CS35L41_PWR_CTRL2, 13, 0),
 	SND_SOC_DAPM_ADC("VPMON ADC", NULL, CS35L41_PWR_CTRL2, 8, 0),
@@ -622,12 +628,6 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV_E("Main AMP", CS35L41_PWR_CTRL2, 0, 0, NULL, 0,
 			       cs35l41_main_amp_event,
 			       SND_SOC_DAPM_POST_PMD |	SND_SOC_DAPM_POST_PMU),
-
-	SND_SOC_DAPM_INPUT("VP"),
-	SND_SOC_DAPM_INPUT("VBST"),
-	SND_SOC_DAPM_INPUT("ISENSE"),
-	SND_SOC_DAPM_INPUT("VSENSE"),
-	SND_SOC_DAPM_INPUT("TEMP"),
 
 	SND_SOC_DAPM_MUX("ASP TX1 Source", SND_SOC_NOPM, 0, 0, &asp_tx1_mux),
 	SND_SOC_DAPM_MUX("ASP TX2 Source", SND_SOC_NOPM, 0, 0, &asp_tx2_mux),
@@ -674,8 +674,8 @@ static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
 	{"VMON ADC", NULL, "VSENSE"},
 	{"IMON ADC", NULL, "ISENSE"},
 	{"VPMON ADC", NULL, "VP"},
-	{"TEMPMON ADC", NULL, "TEMP"},
 	{"VBSTMON ADC", NULL, "VBST"},
+	{"TEMPMON ADC", NULL, "TEMP"},
 
 	{"ASPRX1", NULL, "AMP Playback"},
 	{"ASPRX2", NULL, "AMP Playback"},
