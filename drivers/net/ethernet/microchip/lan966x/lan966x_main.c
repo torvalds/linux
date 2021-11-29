@@ -373,6 +373,7 @@ static const struct net_device_ops lan966x_port_netdev_ops = {
 	.ndo_change_mtu			= lan966x_port_change_mtu,
 	.ndo_set_rx_mode		= lan966x_port_set_rx_mode,
 	.ndo_get_phys_port_name		= lan966x_port_get_phys_port_name,
+	.ndo_get_stats64		= lan966x_stats_get,
 	.ndo_set_mac_address		= lan966x_port_set_mac_address,
 	.ndo_get_port_parent_id		= lan966x_port_get_parent_id,
 };
@@ -588,6 +589,7 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 	dev->max_mtu = ETH_MAX_MTU;
 
 	dev->netdev_ops = &lan966x_port_netdev_ops;
+	dev->ethtool_ops = &lan966x_ethtool_ops;
 	dev->needed_headroom = IFH_LEN * sizeof(u32);
 
 	eth_hw_addr_gen(dev, lan966x->base_mac, p + 1);
@@ -875,6 +877,7 @@ static int lan966x_probe(struct platform_device *pdev)
 
 	/* init switch */
 	lan966x_init(lan966x);
+	lan966x_stats_init(lan966x);
 
 	/* go over the child nodes */
 	fwnode_for_each_available_child_node(ports, portnp) {
@@ -908,6 +911,10 @@ cleanup_ports:
 
 	lan966x_cleanup_ports(lan966x);
 
+	cancel_delayed_work_sync(&lan966x->stats_work);
+	destroy_workqueue(lan966x->stats_queue);
+	mutex_destroy(&lan966x->stats_lock);
+
 	return err;
 }
 
@@ -916,6 +923,10 @@ static int lan966x_remove(struct platform_device *pdev)
 	struct lan966x *lan966x = platform_get_drvdata(pdev);
 
 	lan966x_cleanup_ports(lan966x);
+
+	cancel_delayed_work_sync(&lan966x->stats_work);
+	destroy_workqueue(lan966x->stats_queue);
+	mutex_destroy(&lan966x->stats_lock);
 
 	return 0;
 }

@@ -58,6 +58,11 @@ enum macaccess_entry_type {
 
 struct lan966x_port;
 
+struct lan966x_stat_layout {
+	u32 offset;
+	char name[ETH_GSTRING_LEN];
+};
+
 struct lan966x {
 	struct device *dev;
 
@@ -69,6 +74,16 @@ struct lan966x {
 	int shared_queue_sz;
 
 	u8 base_mac[ETH_ALEN];
+
+	/* stats */
+	const struct lan966x_stat_layout *stats_layout;
+	u32 num_stats;
+
+	/* workqueue for reading stats */
+	struct mutex stats_lock;
+	u64 *stats;
+	struct delayed_work stats_work;
+	struct workqueue_struct *stats_queue;
 
 	/* interrupts */
 	int xtr_irq;
@@ -101,6 +116,11 @@ struct lan966x_port {
 
 extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
 extern const struct phylink_pcs_ops lan966x_phylink_pcs_ops;
+extern const struct ethtool_ops lan966x_ethtool_ops;
+
+void lan966x_stats_get(struct net_device *dev,
+		       struct rtnl_link_stats64 *stats);
+int lan966x_stats_init(struct lan966x *lan966x);
 
 void lan966x_port_config_down(struct lan966x_port *port);
 void lan966x_port_config_up(struct lan966x_port *port);
