@@ -3404,6 +3404,8 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	int min_scale = win->regs->scl ? FRAC_16_16(1, 8) : DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = win->regs->scl ? FRAC_16_16(8, 1) : DRM_PLANE_HELPER_NO_SCALING;
+	int max_input_w;
+	int max_input_h;
 	unsigned long offset;
 	dma_addr_t dma_addr;
 	int ret;
@@ -3424,6 +3426,9 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 	mode = &cstate->mode;
 	vcstate = to_rockchip_crtc_state(cstate);
 
+	max_input_w = vop2_data->max_input.width;
+	max_input_h = vop2_data->max_input.height;
+
 	if (vop2_has_feature(win->vop2, VOP_FEATURE_SPLICE)) {
 		if (mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
 			vcstate->splice_mode = true;
@@ -3434,6 +3439,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 			splice_win->splice_mode_right = true;
 			splice_win->left_win = win;
 			win->splice_win = splice_win;
+			max_input_w <<= 1;
 		}
 	}
 
@@ -3486,13 +3492,13 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 		return 0;
 	}
 
-	if (drm_rect_width(src) >> 16 > vop2_data->max_input.width ||
-	    drm_rect_height(src) >> 16 > vop2_data->max_input.height) {
+	if (drm_rect_width(src) >> 16 > max_input_w ||
+	    drm_rect_height(src) >> 16 > max_input_h) {
 		DRM_ERROR("Invalid source: %dx%d. max input: %dx%d\n",
 			  drm_rect_width(src) >> 16,
 			  drm_rect_height(src) >> 16,
-			  vop2_data->max_input.width,
-			  vop2_data->max_input.height);
+			  max_input_w,
+			  max_input_h);
 		return -EINVAL;
 	}
 
