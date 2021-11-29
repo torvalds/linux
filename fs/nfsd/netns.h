@@ -131,9 +131,6 @@ struct nfsd_net {
 	 */
 	int keep_active;
 
-	wait_queue_head_t ntf_wq;
-	atomic_t ntf_refcnt;
-
 	/*
 	 * clientid and stateid data for construction of net unique COPY
 	 * stateids.
