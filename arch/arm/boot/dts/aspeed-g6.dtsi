@@ -340,6 +340,28 @@
 			#size-cells = <1>;
 			ranges;
 
+			pwm_tach: pwm_tach@1e610000 {
+				compatible = "aspeed,ast2600-pwm-tach", "simple-mfd", "syscon";
+				reg = <0x1e610000 0x100>;
+				clocks = <&syscon ASPEED_CLK_AHB>;
+				resets = <&syscon ASPEED_RESET_PWM>;
+
+				pwm: pwm {
+					compatible = "aspeed,ast2600-pwm";
+					#pwm-cells = <3>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					status = "disabled";
+				};
+
+				tach: tach {
+					compatible = "aspeed,ast2600-tach";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					status = "disabled";
+				};
+			};
+
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,ast2600-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1000>;
