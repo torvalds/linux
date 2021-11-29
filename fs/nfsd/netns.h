@@ -134,9 +134,6 @@ struct nfsd_net {
 	wait_queue_head_t ntf_wq;
 	atomic_t ntf_refcnt;
 
-	/* Allow umount to wait for nfsd state cleanup */
-	struct completion nfsd_shutdown_complete;
-
 	/*
 	 * clientid and stateid data for construction of net unique COPY
 	 * stateids.

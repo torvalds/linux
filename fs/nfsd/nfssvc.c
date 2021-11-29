@@ -593,19 +593,9 @@ static const struct svc_serv_ops nfsd_thread_sv_ops = {
 	.svo_shutdown		= nfsd_last_thread,
 	.svo_function		= nfsd,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
-	.svo_setup		= svc_set_num_threads,
+	.svo_setup		= svc_set_num_threads_sync,
 	.svo_module		= THIS_MODULE,
 };
-
-static void nfsd_complete_shutdown(struct net *net)
-{
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-
-	WARN_ON(!mutex_is_locked(&nfsd_mutex));
-
-	nn->nfsd_serv = NULL;
-	complete(&nn->nfsd_shutdown_complete);
-}
 
 void nfsd_shutdown_threads(struct net *net)
 {
@@ -624,8 +614,6 @@ void nfsd_shutdown_threads(struct net *net)
 	serv->sv_ops->svo_setup(serv, NULL, 0);
 	nfsd_put(net);
 	mutex_unlock(&nfsd_mutex);
-	/* Wait for shutdown of nfsd_serv to complete */
-	wait_for_completion(&nn->nfsd_shutdown_complete);
 }
 
 bool i_am_nfsd(void)
@@ -650,7 +638,6 @@ int nfsd_create_serv(struct net *net)
 						&nfsd_thread_sv_ops);
 	if (nn->nfsd_serv == NULL)
 		return -ENOMEM;
-	init_completion(&nn->nfsd_shutdown_complete);
 
 	nn->nfsd_serv->sv_maxconn = nn->max_connections;
 	error = svc_bind(nn->nfsd_serv, net);
@@ -659,7 +646,7 @@ int nfsd_create_serv(struct net *net)
 		 * been set up yet.
 		 */
 		svc_put(nn->nfsd_serv);
-		nfsd_complete_shutdown(net);
+		nn->nfsd_serv = NULL;
 		return error;
 	}
 
@@ -715,7 +702,7 @@ void nfsd_put(struct net *net)
 	if (kref_put(&nn->nfsd_serv->sv_refcnt, nfsd_noop)) {
 		svc_shutdown_net(nn->nfsd_serv, net);
 		svc_destroy(&nn->nfsd_serv->sv_refcnt);
-		nfsd_complete_shutdown(net);
+		nn->nfsd_serv = NULL;
 	}
 }
 
@@ -743,7 +730,7 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
 	if (tot > NFSD_MAXSERVS) {
 		/* total too large: scale down requested numbers */
 		for (i = 0; i < n && tot > 0; i++) {
-		    	int new = nthreads[i] * NFSD_MAXSERVS / tot;
+			int new = nthreads[i] * NFSD_MAXSERVS / tot;
 			tot -= (nthreads[i] - new);
 			nthreads[i] = new;
 		}
@@ -989,10 +976,22 @@ out:
 	/* Release the thread */
 	svc_exit_thread(rqstp);
 
-	/* Now if needed we call svc_destroy in appropriate context */
-	mutex_lock(&nfsd_mutex);
-	nfsd_put(net);
-	mutex_unlock(&nfsd_mutex);
+	/* We need to drop a ref, but may not drop the last reference
+	 * without holding nfsd_mutex, and we cannot wait for nfsd_mutex as that
+	 * could deadlock with nfsd_shutdown_threads() waiting for us.
+	 * So three options are:
+	 * - drop a non-final reference,
+	 * - get the mutex without waiting
+	 * - sleep briefly andd try the above again
+	 */
+	while (!svc_put_not_last(nn->nfsd_serv)) {
+		if (mutex_trylock(&nfsd_mutex)) {
+			nfsd_put(net);
+			mutex_unlock(&nfsd_mutex);
+			break;
+		}
+		msleep(20);
+	}
 
 	/* Release module */
 	module_put_and_exit(0);
