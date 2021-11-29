@@ -1103,8 +1103,11 @@ static int __sched task_blocks_on_rt_mutex(struct rt_mutex_base *lock,
 	 * the other will detect the deadlock and return -EDEADLOCK,
 	 * which is wrong, as the other waiter is not in a deadlock
 	 * situation.
+	 *
+	 * Except for ww_mutex, in that case the chain walk must already deal
+	 * with spurious cycles, see the comments at [3] and [6].
 	 */
-	if (owner == task)
+	if (owner == task && !(build_ww_mutex() && ww_ctx))
 		return -EDEADLK;
 
 	raw_spin_lock(&task->pi_lock);
