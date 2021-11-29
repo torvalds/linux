@@ -55,8 +55,7 @@ static int smu_force_smuclk_levels(struct smu_context *smu,
 				   uint32_t mask);
 static int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
-			   enum amd_pp_task task_id,
-			   bool lock_needed);
+			   enum amd_pp_task task_id);
 static int smu_reset(struct smu_context *smu);
 static int smu_set_fan_speed_pwm(void *handle, u32 speed);
 static int smu_set_fan_control_mode(void *handle, u32 value);
@@ -68,36 +67,22 @@ static int smu_sys_get_pp_feature_mask(void *handle,
 				       char *buf)
 {
 	struct smu_context *smu = handle;
-	int size = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
-	size = smu_get_pp_feature_mask(smu, buf);
-
-	mutex_unlock(&smu->mutex);
-
-	return size;
+	return smu_get_pp_feature_mask(smu, buf);
 }
 
 static int smu_sys_set_pp_feature_mask(void *handle,
 				       uint64_t new_mask)
 {
 	struct smu_context *smu = handle;
-	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
-	ret = smu_set_pp_feature_mask(smu, new_mask);
-
-	mutex_unlock(&smu->mutex);
-
-	return ret;
+	return smu_set_pp_feature_mask(smu, new_mask);
 }
 
 int smu_get_status_gfxoff(struct smu_context *smu, uint32_t *value)
@@ -117,15 +102,11 @@ int smu_set_soft_freq_range(struct smu_context *smu,
 {
 	int ret = 0;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->set_soft_freq_limited_range)
 		ret = smu->ppt_funcs->set_soft_freq_limited_range(smu,
 								  clk_type,
 								  min,
 								  max);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -140,15 +121,11 @@ int smu_get_dpm_freq_range(struct smu_context *smu,
 	if (!min && !max)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->get_dpm_ultimate_freq)
 		ret = smu->ppt_funcs->get_dpm_ultimate_freq(smu,
 							    clk_type,
 							    min,
 							    max);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -482,7 +459,6 @@ static int smu_sys_get_pp_table(void *handle,
 {
 	struct smu_context *smu = handle;
 	struct smu_table_context *smu_table = &smu->smu_table;
-	uint32_t powerplay_table_size;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
@@ -490,18 +466,12 @@ static int smu_sys_get_pp_table(void *handle,
 	if (!smu_table->power_play_table && !smu_table->hardcode_pptable)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu_table->hardcode_pptable)
 		*table = smu_table->hardcode_pptable;
 	else
 		*table = smu_table->power_play_table;
 
-	powerplay_table_size = smu_table->power_play_table_size;
-
-	mutex_unlock(&smu->mutex);
-
-	return powerplay_table_size;
+	return smu_table->power_play_table_size;
 }
 
 static int smu_sys_set_pp_table(void *handle,
@@ -521,12 +491,10 @@ static int smu_sys_set_pp_table(void *handle,
 		return -EIO;
 	}
 
-	mutex_lock(&smu->mutex);
-	if (!smu_table->hardcode_pptable)
-		smu_table->hardcode_pptable = kzalloc(size, GFP_KERNEL);
 	if (!smu_table->hardcode_pptable) {
-		ret = -ENOMEM;
-		goto failed;
+		smu_table->hardcode_pptable = kzalloc(size, GFP_KERNEL);
+		if (!smu_table->hardcode_pptable)
+			return -ENOMEM;
 	}
 
 	memcpy(smu_table->hardcode_pptable, buf, size);
@@ -545,8 +513,6 @@ static int smu_sys_set_pp_table(void *handle,
 
 	smu->uploading_custom_pp_table = false;
 
-failed:
-	mutex_unlock(&smu->mutex);
 	return ret;
 }
 
@@ -633,7 +599,6 @@ static int smu_early_init(void *handle)
 	smu->adev = adev;
 	smu->pm_enabled = !!amdgpu_dpm;
 	smu->is_apu = false;
-	mutex_init(&smu->mutex);
 	mutex_init(&smu->smu_baco.mutex);
 	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
 	smu->smu_baco.platform_support = false;
@@ -736,8 +701,7 @@ static int smu_late_init(void *handle)
 
 	smu_handle_task(smu,
 			smu->smu_dpm.dpm_level,
-			AMD_PP_TASK_COMPLETE_INIT,
-			false);
+			AMD_PP_TASK_COMPLETE_INIT);
 
 	smu_restore_dpm_user_profile(smu);
 
@@ -1013,12 +977,8 @@ static void smu_interrupt_work_fn(struct work_struct *work)
 	struct smu_context *smu = container_of(work, struct smu_context,
 					       interrupt_work);
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs && smu->ppt_funcs->interrupt_work)
 		smu->ppt_funcs->interrupt_work(smu);
-
-	mutex_unlock(&smu->mutex);
 }
 
 static int smu_sw_init(void *handle)
@@ -1632,8 +1592,6 @@ static int smu_display_configuration_change(void *handle,
 	if (!display_config)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	smu_set_min_dcef_deep_sleep(smu,
 				    display_config->min_dcef_deep_sleep_set_clk / 100);
 
@@ -1641,8 +1599,6 @@ static int smu_display_configuration_change(void *handle,
 		if (display_config->displays[index].controller_id != 0)
 			num_of_active_display++;
 	}
-
-	mutex_unlock(&smu->mutex);
 
 	return 0;
 }
@@ -1766,22 +1722,18 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 
 static int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
-			   enum amd_pp_task task_id,
-			   bool lock_needed)
+			   enum amd_pp_task task_id)
 {
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	if (lock_needed)
-		mutex_lock(&smu->mutex);
-
 	switch (task_id) {
 	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:
 		ret = smu_pre_display_config_changed(smu);
 		if (ret)
-			goto out;
+			return ret;
 		ret = smu_adjust_power_state_dynamic(smu, level, false);
 		break;
 	case AMD_PP_TASK_COMPLETE_INIT:
@@ -1791,10 +1743,6 @@ static int smu_handle_task(struct smu_context *smu,
 	default:
 		break;
 	}
-
-out:
-	if (lock_needed)
-		mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -1806,7 +1754,7 @@ static int smu_handle_dpm_task(void *handle,
 	struct smu_context *smu = handle;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	return smu_handle_task(smu, smu_dpm->dpm_level, task_id, true);
+	return smu_handle_task(smu, smu_dpm->dpm_level, task_id);
 
 }
 
@@ -1825,8 +1773,6 @@ static int smu_switch_power_profile(void *handle,
 	if (!(type < PP_SMC_POWER_PROFILE_CUSTOM))
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	if (!en) {
 		smu->workload_mask &= ~(1 << smu->workload_prority[type]);
 		index = fls(smu->workload_mask);
@@ -1843,8 +1789,6 @@ static int smu_switch_power_profile(void *handle,
 		smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
 		smu_bump_power_profile_mode(smu, &workload, 0);
 
-	mutex_unlock(&smu->mutex);
-
 	return 0;
 }
 
@@ -1852,7 +1796,6 @@ static enum amd_dpm_forced_level smu_get_performance_level(void *handle)
 {
 	struct smu_context *smu = handle;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	enum amd_dpm_forced_level level;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
@@ -1860,11 +1803,7 @@ static enum amd_dpm_forced_level smu_get_performance_level(void *handle)
 	if (!smu->is_apu && !smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
-	mutex_lock(&(smu->mutex));
-	level = smu_dpm_ctx->dpm_level;
-	mutex_unlock(&(smu->mutex));
-
-	return level;
+	return smu_dpm_ctx->dpm_level;
 }
 
 static int smu_force_performance_level(void *handle,
@@ -1880,19 +1819,12 @@ static int smu_force_performance_level(void *handle,
 	if (!smu->is_apu && !smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu_enable_umd_pstate(smu, &level);
-	if (ret) {
-		mutex_unlock(&smu->mutex);
+	if (ret)
 		return ret;
-	}
 
 	ret = smu_handle_task(smu, level,
-			      AMD_PP_TASK_READJUST_POWER_STATE,
-			      false);
-
-	mutex_unlock(&smu->mutex);
+			      AMD_PP_TASK_READJUST_POWER_STATE);
 
 	/* reset user dpm clock state */
 	if (!ret && smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
@@ -1906,16 +1838,11 @@ static int smu_force_performance_level(void *handle,
 static int smu_set_display_count(void *handle, uint32_t count)
 {
 	struct smu_context *smu = handle;
-	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-	ret = smu_init_display_count(smu, count);
-	mutex_unlock(&smu->mutex);
-
-	return ret;
+	return smu_init_display_count(smu, count);
 }
 
 static int smu_force_smuclk_levels(struct smu_context *smu,
@@ -1933,8 +1860,6 @@ static int smu_force_smuclk_levels(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs && smu->ppt_funcs->force_clk_levels) {
 		ret = smu->ppt_funcs->force_clk_levels(smu, clk_type, mask);
 		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
@@ -1942,8 +1867,6 @@ static int smu_force_smuclk_levels(struct smu_context *smu,
 			smu_set_user_clk_dependencies(smu, clk_type);
 		}
 	}
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2003,13 +1926,9 @@ static int smu_set_mp1_state(void *handle,
 	if (!smu->pm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs &&
 	    smu->ppt_funcs->set_mp1_state)
 		ret = smu->ppt_funcs->set_mp1_state(smu, mp1_state);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2026,13 +1945,9 @@ static int smu_set_df_cstate(void *handle,
 	if (!smu->ppt_funcs || !smu->ppt_funcs->set_df_cstate)
 		return 0;
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu->ppt_funcs->set_df_cstate(smu, state);
 	if (ret)
 		dev_err(smu->adev->dev, "[SetDfCstate] failed!\n");
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2047,38 +1962,25 @@ int smu_allow_xgmi_power_down(struct smu_context *smu, bool en)
 	if (!smu->ppt_funcs || !smu->ppt_funcs->allow_xgmi_power_down)
 		return 0;
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu->ppt_funcs->allow_xgmi_power_down(smu, en);
 	if (ret)
 		dev_err(smu->adev->dev, "[AllowXgmiPowerDown] failed!\n");
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
 
 int smu_write_watermarks_table(struct smu_context *smu)
 {
-	int ret = 0;
-
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
-	ret = smu_set_watermarks_table(smu, NULL);
-
-	mutex_unlock(&smu->mutex);
-
-	return ret;
+	return smu_set_watermarks_table(smu, NULL);
 }
 
 static int smu_set_watermarks_for_clock_ranges(void *handle,
 					       struct pp_smu_wm_range_sets *clock_ranges)
 {
 	struct smu_context *smu = handle;
-	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
@@ -2086,13 +1988,7 @@ static int smu_set_watermarks_for_clock_ranges(void *handle,
 	if (smu->disable_watermark)
 		return 0;
 
-	mutex_lock(&smu->mutex);
-
-	ret = smu_set_watermarks_table(smu, clock_ranges);
-
-	mutex_unlock(&smu->mutex);
-
-	return ret;
+	return smu_set_watermarks_table(smu, clock_ranges);
 }
 
 int smu_set_ac_dc(struct smu_context *smu)
@@ -2106,14 +2002,12 @@ int smu_set_ac_dc(struct smu_context *smu)
 	if (smu->dc_controlled_by_gpio)
 		return 0;
 
-	mutex_lock(&smu->mutex);
 	ret = smu_set_power_source(smu,
 				   smu->adev->pm.ac_power ? SMU_POWER_SOURCE_AC :
 				   SMU_POWER_SOURCE_DC);
 	if (ret)
 		dev_err(smu->adev->dev, "Failed to switch to %s mode!\n",
 		       smu->adev->pm.ac_power ? "AC" : "DC");
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2200,12 +2094,8 @@ static int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled)
 {
 	int ret = 0;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->set_gfx_cgpg)
 		ret = smu->ppt_funcs->set_gfx_cgpg(smu, enabled);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2224,8 +2114,6 @@ static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 	if (speed == U32_MAX)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu->ppt_funcs->set_fan_speed_rpm(smu, speed);
 	if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
 		smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_RPM;
@@ -2235,8 +2123,6 @@ static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 		smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_PWM;
 		smu->user_dpm_profile.fan_speed_pwm = 0;
 	}
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2293,8 +2179,6 @@ int smu_get_power_limit(void *handle,
 		break;
 	}
 
-	mutex_lock(&smu->mutex);
-
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT) {
 		if (smu->ppt_funcs->get_ppt_limit)
 			ret = smu->ppt_funcs->get_ppt_limit(smu, limit, limit_type, limit_level);
@@ -2328,8 +2212,6 @@ int smu_get_power_limit(void *handle,
 		}
 	}
 
-	mutex_unlock(&smu->mutex);
-
 	return ret;
 }
 
@@ -2342,21 +2224,16 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	limit &= (1<<24)-1;
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
-		if (smu->ppt_funcs->set_power_limit) {
-			ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
-			goto out;
-		}
+		if (smu->ppt_funcs->set_power_limit)
+			return smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
 
 	if (limit > smu->max_power_limit) {
 		dev_err(smu->adev->dev,
 			"New power limit (%d) is over the max allowed %d\n",
 			limit, smu->max_power_limit);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	if (!limit)
@@ -2368,9 +2245,6 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
 			smu->user_dpm_profile.power_limit = limit;
 	}
 
-out:
-	mutex_unlock(&smu->mutex);
-
 	return ret;
 }
 
@@ -2381,12 +2255,8 @@ static int smu_print_smuclk_levels(struct smu_context *smu, enum smu_clk_type cl
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->print_clk_levels)
 		ret = smu->ppt_funcs->print_clk_levels(smu, clk_type, buf);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2444,13 +2314,9 @@ static int smu_od_edit_dpm_table(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->od_edit_dpm_table) {
 		ret = smu->ppt_funcs->od_edit_dpm_table(smu, type, input, size);
 	}
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2474,8 +2340,6 @@ static int smu_read_sensor(void *handle,
 
 	size_val = *size_arg;
 	size = &size_val;
-
-	mutex_lock(&smu->mutex);
 
 	if (smu->ppt_funcs->read_sensor)
 		if (!smu->ppt_funcs->read_sensor(smu, sensor, data, size))
@@ -2517,8 +2381,6 @@ static int smu_read_sensor(void *handle,
 	}
 
 unlock:
-	mutex_unlock(&smu->mutex);
-
 	// assign uint32_t to int
 	*size_arg = size_val;
 
@@ -2528,7 +2390,6 @@ unlock:
 static int smu_get_power_profile_mode(void *handle, char *buf)
 {
 	struct smu_context *smu = handle;
-	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
 	    !smu->ppt_funcs->get_power_profile_mode)
@@ -2536,13 +2397,7 @@ static int smu_get_power_profile_mode(void *handle, char *buf)
 	if (!buf)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
-	ret = smu->ppt_funcs->get_power_profile_mode(smu, buf);
-
-	mutex_unlock(&smu->mutex);
-
-	return ret;
+	return smu->ppt_funcs->get_power_profile_mode(smu, buf);
 }
 
 static int smu_set_power_profile_mode(void *handle,
@@ -2550,19 +2405,12 @@ static int smu_set_power_profile_mode(void *handle,
 				      uint32_t param_size)
 {
 	struct smu_context *smu = handle;
-	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
 	    !smu->ppt_funcs->set_power_profile_mode)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
-	smu_bump_power_profile_mode(smu, param, param_size);
-
-	mutex_unlock(&smu->mutex);
-
-	return ret;
+	return smu_bump_power_profile_mode(smu, param, param_size);
 }
 
 
@@ -2579,11 +2427,7 @@ static int smu_get_fan_control_mode(void *handle, u32 *fan_mode)
 	if (!fan_mode)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	*fan_mode = smu->ppt_funcs->get_fan_control_mode(smu);
-
-	mutex_unlock(&smu->mutex);
 
 	return 0;
 }
@@ -2602,8 +2446,6 @@ static int smu_set_fan_control_mode(void *handle, u32 value)
 	if (value == U32_MAX)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu->ppt_funcs->set_fan_control_mode(smu, value);
 	if (ret)
 		goto out;
@@ -2620,8 +2462,6 @@ static int smu_set_fan_control_mode(void *handle, u32 value)
 	}
 
 out:
-	mutex_unlock(&smu->mutex);
-
 	return ret;
 }
 
@@ -2639,11 +2479,7 @@ static int smu_get_fan_speed_pwm(void *handle, u32 *speed)
 	if (!speed)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu->ppt_funcs->get_fan_speed_pwm(smu, speed);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2662,8 +2498,6 @@ static int smu_set_fan_speed_pwm(void *handle, u32 speed)
 	if (speed == U32_MAX)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu->ppt_funcs->set_fan_speed_pwm(smu, speed);
 	if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
 		smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_PWM;
@@ -2673,8 +2507,6 @@ static int smu_set_fan_speed_pwm(void *handle, u32 speed)
 		smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_RPM;
 		smu->user_dpm_profile.fan_speed_rpm = 0;
 	}
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2693,11 +2525,7 @@ static int smu_get_fan_speed_rpm(void *handle, uint32_t *speed)
 	if (!speed)
 		return -EINVAL;
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu->ppt_funcs->get_fan_speed_rpm(smu, speed);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2705,18 +2533,11 @@ static int smu_get_fan_speed_rpm(void *handle, uint32_t *speed)
 static int smu_set_deep_sleep_dcefclk(void *handle, uint32_t clk)
 {
 	struct smu_context *smu = handle;
-	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
-	ret = smu_set_min_dcef_deep_sleep(smu, clk);
-
-	mutex_unlock(&smu->mutex);
-
-	return ret;
+	return smu_set_min_dcef_deep_sleep(smu, clk);
 }
 
 static int smu_get_clock_by_type_with_latency(void *handle,
@@ -2729,8 +2550,6 @@ static int smu_get_clock_by_type_with_latency(void *handle,
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
-
-	mutex_lock(&smu->mutex);
 
 	if (smu->ppt_funcs->get_clock_by_type_with_latency) {
 		switch (type) {
@@ -2748,14 +2567,11 @@ static int smu_get_clock_by_type_with_latency(void *handle,
 			break;
 		default:
 			dev_err(smu->adev->dev, "Invalid clock type!\n");
-			mutex_unlock(&smu->mutex);
 			return -EINVAL;
 		}
 
 		ret = smu->ppt_funcs->get_clock_by_type_with_latency(smu, clk_type, clocks);
 	}
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2769,12 +2585,8 @@ static int smu_display_clock_voltage_request(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->display_clock_voltage_request)
 		ret = smu->ppt_funcs->display_clock_voltage_request(smu, clock_req);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2789,12 +2601,8 @@ static int smu_display_disable_memory_clock_switch(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->display_disable_memory_clock_switch)
 		ret = smu->ppt_funcs->display_disable_memory_clock_switch(smu, disable_memory_clock_switch);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2808,12 +2616,8 @@ static int smu_set_xgmi_pstate(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->set_xgmi_pstate)
 		ret = smu->ppt_funcs->set_xgmi_pstate(smu, pstate);
-
-	mutex_unlock(&smu->mutex);
 
 	if(ret)
 		dev_err(smu->adev->dev, "Failed to set XGMI pstate!\n");
@@ -2824,21 +2628,16 @@ static int smu_set_xgmi_pstate(void *handle,
 static int smu_get_baco_capability(void *handle, bool *cap)
 {
 	struct smu_context *smu = handle;
-	int ret = 0;
 
 	*cap = false;
 
 	if (!smu->pm_enabled)
 		return 0;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs && smu->ppt_funcs->baco_is_support)
 		*cap = smu->ppt_funcs->baco_is_support(smu);
 
-	mutex_unlock(&smu->mutex);
-
-	return ret;
+	return 0;
 }
 
 static int smu_baco_set_state(void *handle, int state)
@@ -2850,20 +2649,11 @@ static int smu_baco_set_state(void *handle, int state)
 		return -EOPNOTSUPP;
 
 	if (state == 0) {
-		mutex_lock(&smu->mutex);
-
 		if (smu->ppt_funcs->baco_exit)
 			ret = smu->ppt_funcs->baco_exit(smu);
-
-		mutex_unlock(&smu->mutex);
 	} else if (state == 1) {
-		mutex_lock(&smu->mutex);
-
 		if (smu->ppt_funcs->baco_enter)
 			ret = smu->ppt_funcs->baco_enter(smu);
-
-		mutex_unlock(&smu->mutex);
-
 	} else {
 		return -EINVAL;
 	}
@@ -2882,12 +2672,8 @@ bool smu_mode1_reset_is_support(struct smu_context *smu)
 	if (!smu->pm_enabled)
 		return false;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs && smu->ppt_funcs->mode1_reset_is_support)
 		ret = smu->ppt_funcs->mode1_reset_is_support(smu);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2899,12 +2685,8 @@ bool smu_mode2_reset_is_support(struct smu_context *smu)
 	if (!smu->pm_enabled)
 		return false;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs && smu->ppt_funcs->mode2_reset_is_support)
 		ret = smu->ppt_funcs->mode2_reset_is_support(smu);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2916,12 +2698,8 @@ int smu_mode1_reset(struct smu_context *smu)
 	if (!smu->pm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->mode1_reset)
 		ret = smu->ppt_funcs->mode1_reset(smu);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2934,12 +2712,8 @@ static int smu_mode2_reset(void *handle)
 	if (!smu->pm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->mode2_reset)
 		ret = smu->ppt_funcs->mode2_reset(smu);
-
-	mutex_unlock(&smu->mutex);
 
 	if (ret)
 		dev_err(smu->adev->dev, "Mode2 reset failed!\n");
@@ -2956,12 +2730,8 @@ static int smu_get_max_sustainable_clocks_by_dc(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->get_max_sustainable_clocks_by_dc)
 		ret = smu->ppt_funcs->get_max_sustainable_clocks_by_dc(smu, max_clocks);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2976,12 +2746,8 @@ static int smu_get_uclk_dpm_states(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->get_uclk_dpm_states)
 		ret = smu->ppt_funcs->get_uclk_dpm_states(smu, clock_values_in_khz, num_states);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2994,12 +2760,8 @@ static enum amd_pm_state_type smu_get_current_power_state(void *handle)
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->get_current_power_state)
 		pm_state = smu->ppt_funcs->get_current_power_state(smu);
-
-	mutex_unlock(&smu->mutex);
 
 	return pm_state;
 }
@@ -3013,12 +2775,8 @@ static int smu_get_dpm_clock_table(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->get_dpm_clock_table)
 		ret = smu->ppt_funcs->get_dpm_clock_table(smu, clock_table);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -3026,7 +2784,6 @@ static int smu_get_dpm_clock_table(void *handle,
 static ssize_t smu_sys_get_gpu_metrics(void *handle, void **table)
 {
 	struct smu_context *smu = handle;
-	ssize_t size;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
@@ -3034,13 +2791,7 @@ static ssize_t smu_sys_get_gpu_metrics(void *handle, void **table)
 	if (!smu->ppt_funcs->get_gpu_metrics)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
-	size = smu->ppt_funcs->get_gpu_metrics(smu, table);
-
-	mutex_unlock(&smu->mutex);
-
-	return size;
+	return smu->ppt_funcs->get_gpu_metrics(smu, table);
 }
 
 static int smu_enable_mgpu_fan_boost(void *handle)
@@ -3051,12 +2802,8 @@ static int smu_enable_mgpu_fan_boost(void *handle)
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->enable_mgpu_fan_boost)
 		ret = smu->ppt_funcs->enable_mgpu_fan_boost(smu);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -3067,10 +2814,8 @@ static int smu_gfx_state_change_set(void *handle,
 	struct smu_context *smu = handle;
 	int ret = 0;
 
-	mutex_lock(&smu->mutex);
 	if (smu->ppt_funcs->gfx_state_change_set)
 		ret = smu->ppt_funcs->gfx_state_change_set(smu, state);
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -3079,10 +2824,8 @@ int smu_handle_passthrough_sbr(struct smu_context *smu, bool enable)
 {
 	int ret = 0;
 
-	mutex_lock(&smu->mutex);
 	if (smu->ppt_funcs->smu_handle_passthrough_sbr)
 		ret = smu->ppt_funcs->smu_handle_passthrough_sbr(smu, enable);
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -3091,11 +2834,9 @@ int smu_get_ecc_info(struct smu_context *smu, void *umc_ecc)
 {
 	int ret = -EOPNOTSUPP;
 
-	mutex_lock(&smu->mutex);
 	if (smu->ppt_funcs &&
 		smu->ppt_funcs->get_ecc_info)
 		ret = smu->ppt_funcs->get_ecc_info(smu, umc_ecc);
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 
@@ -3112,12 +2853,10 @@ static int smu_get_prv_buffer_details(void *handle, void **addr, size_t *size)
 
 	*addr = NULL;
 	*size = 0;
-	mutex_lock(&smu->mutex);
 	if (memory_pool->bo) {
 		*addr = memory_pool->cpu_addr;
 		*size = memory_pool->size;
 	}
-	mutex_unlock(&smu->mutex);
 
 	return 0;
 }
@@ -3181,11 +2920,8 @@ int smu_wait_for_event(struct smu_context *smu, enum smu_event_type event,
 {
 	int ret = -EINVAL;
 
-	if (smu->ppt_funcs->wait_for_event) {
-		mutex_lock(&smu->mutex);
+	if (smu->ppt_funcs->wait_for_event)
 		ret = smu->ppt_funcs->wait_for_event(smu, event, event_arg);
-		mutex_unlock(&smu->mutex);
-	}
 
 	return ret;
 }
