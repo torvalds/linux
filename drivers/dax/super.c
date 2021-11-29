@@ -107,42 +107,6 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 	return dax_dev;
 }
 EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
-
-bool generic_fsdax_supported(struct dax_device *dax_dev,
-		struct block_device *bdev, int blocksize, sector_t start,
-		sector_t sectors)
-{
-	if (blocksize != PAGE_SIZE) {
-		pr_info("%pg: error: unsupported blocksize for dax\n", bdev);
-		return false;
-	}
-
-	if (!dax_dev) {
-		pr_debug("%pg: error: dax unsupported by block device\n", bdev);
-		return false;
-	}
-
-	return true;
-}
-EXPORT_SYMBOL_GPL(generic_fsdax_supported);
-
-bool dax_supported(struct dax_device *dax_dev, struct block_device *bdev,
-		int blocksize, sector_t start, sector_t len)
-{
-	bool ret = false;
-	int id;
-
-	if (!dax_dev)
-		return false;
-
-	id = dax_read_lock();
-	if (dax_alive(dax_dev) && dax_dev->ops->dax_supported)
-		ret = dax_dev->ops->dax_supported(dax_dev, bdev, blocksize,
-						  start, len);
-	dax_read_unlock(id);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dax_supported);
 #endif /* CONFIG_BLOCK && CONFIG_FS_DAX */
 
 enum dax_device_flags {

@@ -331,25 +331,20 @@ xfs_set_inode_alloc(
 	return xfs_is_inode32(mp) ? maxagi : agcount;
 }
 
-static bool
-xfs_buftarg_is_dax(
-	struct super_block	*sb,
-	struct xfs_buftarg	*bt)
-{
-	return dax_supported(bt->bt_daxdev, bt->bt_bdev, sb->s_blocksize, 0,
-			bdev_nr_sectors(bt->bt_bdev));
-}
-
 static int
 xfs_setup_dax_always(
 	struct xfs_mount	*mp)
 {
-	struct super_block	*sb = mp->m_super;
-
-	if (!xfs_buftarg_is_dax(sb, mp->m_ddev_targp) &&
-	   (!mp->m_rtdev_targp || !xfs_buftarg_is_dax(sb, mp->m_rtdev_targp))) {
+	if (!mp->m_ddev_targp->bt_daxdev &&
+	    (!mp->m_rtdev_targp || !mp->m_rtdev_targp->bt_daxdev)) {
 		xfs_alert(mp,
 			"DAX unsupported by block device. Turning off DAX.");
+		goto disable_dax;
+	}
+
+	if (mp->m_super->s_blocksize != PAGE_SIZE) {
+		xfs_alert(mp,
+			"DAX not supported for blocksize. Turning off DAX.");
 		goto disable_dax;
 	}
 
