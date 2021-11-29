@@ -38,6 +38,7 @@
 #include "lib/devcom.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
+#include "esw/acl/ofld.h"
 #include "lag.h"
 #include "mp.h"
 
@@ -210,6 +211,62 @@ static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 		*port1 = MLX5_LAG_EGRESS_PORT_2;
 }
 
+static bool mlx5_lag_has_drop_rule(struct mlx5_lag *ldev)
+{
+	return ldev->pf[MLX5_LAG_P1].has_drop || ldev->pf[MLX5_LAG_P2].has_drop;
+}
+
+static void mlx5_lag_drop_rule_cleanup(struct mlx5_lag *ldev)
+{
+	int i;
+
+	for (i = 0; i < MLX5_MAX_PORTS; i++) {
+		if (!ldev->pf[i].has_drop)
+			continue;
+
+		mlx5_esw_acl_ingress_vport_drop_rule_destroy(ldev->pf[i].dev->priv.eswitch,
+							     MLX5_VPORT_UPLINK);
+		ldev->pf[i].has_drop = false;
+	}
+}
+
+static void mlx5_lag_drop_rule_setup(struct mlx5_lag *ldev,
+				     struct lag_tracker *tracker)
+{
+	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
+	struct mlx5_core_dev *inactive;
+	u8 v2p_port1, v2p_port2;
+	int inactive_idx;
+	int err;
+
+	/* First delete the current drop rule so there won't be any dropped
+	 * packets
+	 */
+	mlx5_lag_drop_rule_cleanup(ldev);
+
+	if (!ldev->tracker.has_inactive)
+		return;
+
+	mlx5_infer_tx_affinity_mapping(tracker, &v2p_port1, &v2p_port2);
+
+	if (v2p_port1 == MLX5_LAG_EGRESS_PORT_1) {
+		inactive = dev1;
+		inactive_idx = MLX5_LAG_P2;
+	} else {
+		inactive = dev0;
+		inactive_idx = MLX5_LAG_P1;
+	}
+
+	err = mlx5_esw_acl_ingress_vport_drop_rule_create(inactive->priv.eswitch,
+							  MLX5_VPORT_UPLINK);
+	if (!err)
+		ldev->pf[inactive_idx].has_drop = true;
+	else
+		mlx5_core_err(inactive,
+			      "Failed to create lag drop rule, error: %d", err);
+}
+
 static int _mlx5_modify_lag(struct mlx5_lag *ldev, u8 v2p_port1, u8 v2p_port2)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
@@ -244,6 +301,10 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 			       ldev->v2p_map[MLX5_LAG_P1],
 			       ldev->v2p_map[MLX5_LAG_P2]);
 	}
+
+	if (tracker->tx_type == NETDEV_LAG_TX_TYPE_ACTIVEBACKUP &&
+	    !(ldev->flags & MLX5_LAG_FLAG_ROCE))
+		mlx5_lag_drop_rule_setup(ldev, tracker);
 }
 
 static void mlx5_lag_set_port_sel_mode(struct mlx5_lag *ldev,
@@ -345,6 +406,10 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 		return err;
 	}
 
+	if (tracker->tx_type == NETDEV_LAG_TX_TYPE_ACTIVEBACKUP &&
+	    !roce_lag)
+		mlx5_lag_drop_rule_setup(ldev, tracker);
+
 	ldev->flags |= flags;
 	ldev->shared_fdb = shared_fdb;
 	return 0;
@@ -379,11 +444,15 @@ static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 				      "Failed to deactivate VF LAG; driver restart required\n"
 				      "Make sure all VFs are unbound prior to VF LAG activation or deactivation\n");
 		}
-	} else if (flags & MLX5_LAG_FLAG_HASH_BASED) {
-		mlx5_lag_port_sel_destroy(ldev);
+		return err;
 	}
 
-	return err;
+	if (flags & MLX5_LAG_FLAG_HASH_BASED)
+		mlx5_lag_port_sel_destroy(ldev);
+	if (mlx5_lag_has_drop_rule(ldev))
+		mlx5_lag_drop_rule_cleanup(ldev);
+
+	return 0;
 }
 
 static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)

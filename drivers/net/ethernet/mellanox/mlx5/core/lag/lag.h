@@ -28,6 +28,7 @@ enum {
 struct lag_func {
 	struct mlx5_core_dev *dev;
 	struct net_device    *netdev;
+	bool has_drop;
 };
 
 /* Used for collection of netdev event info. */
