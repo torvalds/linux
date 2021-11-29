@@ -831,6 +831,21 @@ static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
 			netif_wake_queue(netdev);
 	}
 
+	/* When sending UDP packets, we may never receive a packet to activate
+	 * the NAPI BH. And hence we don't have chance to free the TX data.
+	 * The workaround is to enable FTGMAC100_INT_XPKT_ETH, then the NAPI BH
+	 * can be woke up in the ISR.
+	 */
+	if (skb->protocol == (cpu_to_be16(ETH_P_IP)) &&
+	    (ip_hdr(skb)->protocol == IPPROTO_UDP)) {
+		u32 ier = ioread32(priv->base + FTGMAC100_OFFSET_IER);
+
+		/* IER == FTGMAC100_INT_ALL implies NAPI is not running */
+		if (ier == FTGMAC100_INT_ALL)
+			iowrite32(ier | FTGMAC100_INT_XPKT_ETH,
+				  priv->base + FTGMAC100_OFFSET_IER);
+	}
+
 	/* Poke transmitter to read the updated TX descriptors */
 	iowrite32(1, priv->base + FTGMAC100_OFFSET_NPTXPD);
 
