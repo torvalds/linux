@@ -1,0 +1,103 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+
+#ifndef __LAN966X_MAIN_H__
+#define __LAN966X_MAIN_H__
+
+#include "lan966x_regs.h"
+
+#define LAN966X_BUFFER_CELL_SZ		64
+#define LAN966X_BUFFER_MEMORY		(160 * 1024)
+#define LAN966X_BUFFER_MIN_SZ		60
+
+#define PGID_AGGR			64
+#define PGID_SRC			80
+#define PGID_ENTRIES			89
+
+#define PORT_PVID			0
+
+/* Reserved amount for (SRC, PRIO) at index 8*SRC + PRIO */
+#define QSYS_Q_RSRV			95
+
+/* Reserved PGIDs */
+#define PGID_CPU			(PGID_AGGR - 6)
+#define PGID_UC				(PGID_AGGR - 5)
+#define PGID_BC				(PGID_AGGR - 4)
+#define PGID_MC				(PGID_AGGR - 3)
+#define PGID_MCIPV4			(PGID_AGGR - 2)
+#define PGID_MCIPV6			(PGID_AGGR - 1)
+
+#define LAN966X_SPEED_NONE		0
+#define LAN966X_SPEED_1000		1
+#define LAN966X_SPEED_100		2
+#define LAN966X_SPEED_10		3
+
+#define CPU_PORT			8
+
+struct lan966x_port;
+
+struct lan966x {
+	struct device *dev;
+
+	u8 num_phys_ports;
+	struct lan966x_port **ports;
+
+	void __iomem *regs[NUM_TARGETS];
+
+	int shared_queue_sz;
+};
+
+struct lan966x_port {
+	struct lan966x *lan966x;
+
+	u8 chip_port;
+	u16 pvid;
+};
+
+static inline void __iomem *lan_addr(void __iomem *base[],
+				     int id, int tinst, int tcnt,
+				     int gbase, int ginst,
+				     int gcnt, int gwidth,
+				     int raddr, int rinst,
+				     int rcnt, int rwidth)
+{
+	WARN_ON((tinst) >= tcnt);
+	WARN_ON((ginst) >= gcnt);
+	WARN_ON((rinst) >= rcnt);
+	return base[id + (tinst)] +
+		gbase + ((ginst) * gwidth) +
+		raddr + ((rinst) * rwidth);
+}
+
+static inline u32 lan_rd(struct lan966x *lan966x, int id, int tinst, int tcnt,
+			 int gbase, int ginst, int gcnt, int gwidth,
+			 int raddr, int rinst, int rcnt, int rwidth)
+{
+	return readl(lan_addr(lan966x->regs, id, tinst, tcnt, gbase, ginst,
+			      gcnt, gwidth, raddr, rinst, rcnt, rwidth));
+}
+
+static inline void lan_wr(u32 val, struct lan966x *lan966x,
+			  int id, int tinst, int tcnt,
+			  int gbase, int ginst, int gcnt, int gwidth,
+			  int raddr, int rinst, int rcnt, int rwidth)
+{
+	writel(val, lan_addr(lan966x->regs, id, tinst, tcnt,
+			     gbase, ginst, gcnt, gwidth,
+			     raddr, rinst, rcnt, rwidth));
+}
+
+static inline void lan_rmw(u32 val, u32 mask, struct lan966x *lan966x,
+			   int id, int tinst, int tcnt,
+			   int gbase, int ginst, int gcnt, int gwidth,
+			   int raddr, int rinst, int rcnt, int rwidth)
+{
+	u32 nval;
+
+	nval = readl(lan_addr(lan966x->regs, id, tinst, tcnt, gbase, ginst,
+			      gcnt, gwidth, raddr, rinst, rcnt, rwidth));
+	nval = (nval & ~mask) | (val & mask);
+	writel(nval, lan_addr(lan966x->regs, id, tinst, tcnt, gbase, ginst,
+			      gcnt, gwidth, raddr, rinst, rcnt, rwidth));
+}
+
+#endif /* __LAN966X_MAIN_H__ */
