@@ -527,7 +527,7 @@ vlmc_filtering_test()
 {
 	RET=0
 	ip link set dev br0 type bridge vlan_filtering 0
-	ip -j -d link show dev bridge | \
+	ip -j -d link show dev br0 | \
 	jq -e "select(.[0].linkinfo.info_data.mcast_vlan_snooping == 1)" &>/dev/null
 	check_fail $? "Vlan filtering is disabled but multicast vlan snooping is still enabled"
 	log_test "Disable multicast vlan snooping when vlan filtering is disabled"
