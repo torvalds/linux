@@ -334,7 +334,6 @@ static int si470x_i2c_probe(struct i2c_client *client)
 {
 	struct si470x_device *radio;
 	int retval = 0;
-	unsigned char version_warning = 0;
 
 	/* private data allocation and initialization */
 	radio = devm_kzalloc(&client->dev, sizeof(*radio), GFP_KERNEL);
@@ -410,20 +409,10 @@ static int si470x_i2c_probe(struct i2c_client *client)
 			radio->registers[DEVICEID], radio->registers[SI_CHIPID]);
 	if ((radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
 		dev_warn(&client->dev,
-			"This driver is known to work with firmware version %u,\n",
-			RADIO_FW_VERSION);
-		dev_warn(&client->dev,
-			"but the device has firmware version %u.\n",
+			"This driver is known to work with firmware version %u, but the device has firmware version %u.\n"
+			"If you have some trouble using this driver, please report to V4L ML at linux-media@vger.kernel.org\n",
+			RADIO_FW_VERSION,
 			radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE);
-		version_warning = 1;
-	}
-
-	/* give out version warning */
-	if (version_warning == 1) {
-		dev_warn(&client->dev,
-			"If you have some trouble using this driver,\n");
-		dev_warn(&client->dev,
-			"please report to V4L ML at linux-media@vger.kernel.org\n");
 	}
 
 	/* set initial frequency */
