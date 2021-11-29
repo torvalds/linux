@@ -184,7 +184,8 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 
 	r_p->v.idx = cpu_to_le64(bkey_start_offset(&r_v->k));
 
-	ret = bch2_trans_update(trans, extent_iter, &r_p->k_i, 0);
+	ret = bch2_trans_update(trans, extent_iter, &r_p->k_i,
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 err:
 	c->reflink_hint = reflink_iter.pos.offset;
 	bch2_trans_iter_exit(trans, &reflink_iter);
