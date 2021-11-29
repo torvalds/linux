@@ -1700,6 +1700,22 @@ static void ww_test_fail_acquire(void)
 #endif
 }
 
+#ifdef CONFIG_PREEMPT_RT
+#define ww_mutex_base_lock(b)			rt_mutex_lock(b)
+#define ww_mutex_base_trylock(b)		rt_mutex_trylock(b)
+#define ww_mutex_base_lock_nest_lock(b, b2)	rt_mutex_lock_nest_lock(b, b2)
+#define ww_mutex_base_lock_interruptible(b)	rt_mutex_lock_interruptible(b)
+#define ww_mutex_base_lock_killable(b)		rt_mutex_lock_killable(b)
+#define ww_mutex_base_unlock(b)			rt_mutex_unlock(b)
+#else
+#define ww_mutex_base_lock(b)			mutex_lock(b)
+#define ww_mutex_base_trylock(b)		mutex_trylock(b)
+#define ww_mutex_base_lock_nest_lock(b, b2)	mutex_lock_nest_lock(b, b2)
+#define ww_mutex_base_lock_interruptible(b)	mutex_lock_interruptible(b)
+#define ww_mutex_base_lock_killable(b)		mutex_lock_killable(b)
+#define ww_mutex_base_unlock(b)			mutex_unlock(b)
+#endif
+
 static void ww_test_normal(void)
 {
 	int ret;
@@ -1714,50 +1730,50 @@ static void ww_test_normal(void)
 
 	/* mutex_lock (and indirectly, mutex_lock_nested) */
 	o.ctx = (void *)~0UL;
-	mutex_lock(&o.base);
-	mutex_unlock(&o.base);
+	ww_mutex_base_lock(&o.base);
+	ww_mutex_base_unlock(&o.base);
 	WARN_ON(o.ctx != (void *)~0UL);
 
 	/* mutex_lock_interruptible (and *_nested) */
 	o.ctx = (void *)~0UL;
-	ret = mutex_lock_interruptible(&o.base);
+	ret = ww_mutex_base_lock_interruptible(&o.base);
 	if (!ret)
-		mutex_unlock(&o.base);
+		ww_mutex_base_unlock(&o.base);
 	else
 		WARN_ON(1);
 	WARN_ON(o.ctx != (void *)~0UL);
 
 	/* mutex_lock_killable (and *_nested) */
 	o.ctx = (void *)~0UL;
-	ret = mutex_lock_killable(&o.base);
+	ret = ww_mutex_base_lock_killable(&o.base);
 	if (!ret)
-		mutex_unlock(&o.base);
+		ww_mutex_base_unlock(&o.base);
 	else
 		WARN_ON(1);
 	WARN_ON(o.ctx != (void *)~0UL);
 
 	/* trylock, succeeding */
 	o.ctx = (void *)~0UL;
-	ret = mutex_trylock(&o.base);
+	ret = ww_mutex_base_trylock(&o.base);
 	WARN_ON(!ret);
 	if (ret)
-		mutex_unlock(&o.base);
+		ww_mutex_base_unlock(&o.base);
 	else
 		WARN_ON(1);
 	WARN_ON(o.ctx != (void *)~0UL);
 
 	/* trylock, failing */
 	o.ctx = (void *)~0UL;
-	mutex_lock(&o.base);
-	ret = mutex_trylock(&o.base);
+	ww_mutex_base_lock(&o.base);
+	ret = ww_mutex_base_trylock(&o.base);
 	WARN_ON(ret);
-	mutex_unlock(&o.base);
+	ww_mutex_base_unlock(&o.base);
 	WARN_ON(o.ctx != (void *)~0UL);
 
 	/* nest_lock */
 	o.ctx = (void *)~0UL;
-	mutex_lock_nest_lock(&o.base, &t);
-	mutex_unlock(&o.base);
+	ww_mutex_base_lock_nest_lock(&o.base, &t);
+	ww_mutex_base_unlock(&o.base);
 	WARN_ON(o.ctx != (void *)~0UL);
 }
 
@@ -1770,7 +1786,7 @@ static void ww_test_two_contexts(void)
 static void ww_test_diff_class(void)
 {
 	WWAI(&t);
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef DEBUG_WW_MUTEXES
 	t.ww_class = NULL;
 #endif
 	WWL(&o, &t);
@@ -1834,7 +1850,7 @@ static void ww_test_edeadlk_normal(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	o2.ctx = &t2;
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 
@@ -1850,7 +1866,7 @@ static void ww_test_edeadlk_normal(void)
 
 	o2.ctx = NULL;
 	mutex_acquire(&o2.base.dep_map, 0, 1, _THIS_IP_);
-	mutex_unlock(&o2.base);
+	ww_mutex_base_unlock(&o2.base);
 	WWU(&o);
 
 	WWL(&o2, &t);
@@ -1860,7 +1876,7 @@ static void ww_test_edeadlk_normal_slow(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 	o2.ctx = &t2;
 
@@ -1876,7 +1892,7 @@ static void ww_test_edeadlk_normal_slow(void)
 
 	o2.ctx = NULL;
 	mutex_acquire(&o2.base.dep_map, 0, 1, _THIS_IP_);
-	mutex_unlock(&o2.base);
+	ww_mutex_base_unlock(&o2.base);
 	WWU(&o);
 
 	ww_mutex_lock_slow(&o2, &t);
@@ -1886,7 +1902,7 @@ static void ww_test_edeadlk_no_unlock(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	o2.ctx = &t2;
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 
@@ -1902,7 +1918,7 @@ static void ww_test_edeadlk_no_unlock(void)
 
 	o2.ctx = NULL;
 	mutex_acquire(&o2.base.dep_map, 0, 1, _THIS_IP_);
-	mutex_unlock(&o2.base);
+	ww_mutex_base_unlock(&o2.base);
 
 	WWL(&o2, &t);
 }
@@ -1911,7 +1927,7 @@ static void ww_test_edeadlk_no_unlock_slow(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 	o2.ctx = &t2;
 
@@ -1927,7 +1943,7 @@ static void ww_test_edeadlk_no_unlock_slow(void)
 
 	o2.ctx = NULL;
 	mutex_acquire(&o2.base.dep_map, 0, 1, _THIS_IP_);
-	mutex_unlock(&o2.base);
+	ww_mutex_base_unlock(&o2.base);
 
 	ww_mutex_lock_slow(&o2, &t);
 }
@@ -1936,7 +1952,7 @@ static void ww_test_edeadlk_acquire_more(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 	o2.ctx = &t2;
 
@@ -1957,7 +1973,7 @@ static void ww_test_edeadlk_acquire_more_slow(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 	o2.ctx = &t2;
 
@@ -1978,11 +1994,11 @@ static void ww_test_edeadlk_acquire_more_edeadlk(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 	o2.ctx = &t2;
 
-	mutex_lock(&o3.base);
+	ww_mutex_base_lock(&o3.base);
 	mutex_release(&o3.base.dep_map, _THIS_IP_);
 	o3.ctx = &t2;
 
@@ -2004,11 +2020,11 @@ static void ww_test_edeadlk_acquire_more_edeadlk_slow(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 	o2.ctx = &t2;
 
-	mutex_lock(&o3.base);
+	ww_mutex_base_lock(&o3.base);
 	mutex_release(&o3.base.dep_map, _THIS_IP_);
 	o3.ctx = &t2;
 
@@ -2029,7 +2045,7 @@ static void ww_test_edeadlk_acquire_wrong(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 	o2.ctx = &t2;
 
@@ -2054,7 +2070,7 @@ static void ww_test_edeadlk_acquire_wrong_slow(void)
 {
 	int ret;
 
-	mutex_lock(&o2.base);
+	ww_mutex_base_lock(&o2.base);
 	mutex_release(&o2.base.dep_map, _THIS_IP_);
 	o2.ctx = &t2;
 
