@@ -70,6 +70,7 @@ struct mhi_ep_db_info {
  * @list_lock: Lock for protecting state transition and channel doorbell lists
  * @state_lock: Lock for protecting state transitions
  * @st_transition_list: List of state transitions
+ * @ch_db_list: List of queued channel doorbells
  * @wq: Dedicated workqueue for handling rings and state changes
  * @state_work: State transition worker
  * @raise_irq: CB function for raising IRQ to the host
@@ -85,6 +86,7 @@ struct mhi_ep_db_info {
  * @chdb_offset: Channel doorbell offset set by the host
  * @erdb_offset: Event ring doorbell offset set by the host
  * @index: MHI Endpoint controller index
+ * @irq: IRQ used by the endpoint controller
  */
 struct mhi_ep_cntrl {
 	struct device *cntrl_dev;
@@ -109,6 +111,7 @@ struct mhi_ep_cntrl {
 	spinlock_t state_lock;
 
 	struct list_head st_transition_list;
+	struct list_head ch_db_list;
 
 	struct workqueue_struct *wq;
 	struct work_struct state_work;
@@ -130,6 +133,7 @@ struct mhi_ep_cntrl {
 	u32 chdb_offset;
 	u32 erdb_offset;
 	u32 index;
+	int irq;
 };
 
 /**
