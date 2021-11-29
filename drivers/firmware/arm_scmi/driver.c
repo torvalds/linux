@@ -757,6 +757,11 @@ static int scmi_wait_for_message_response(struct scmi_chan_info *cinfo,
 	struct device *dev = info->dev;
 	int ret = 0, timeout_ms = info->desc->max_rx_timeout_ms;
 
+	trace_scmi_xfer_response_wait(xfer->transfer_id, xfer->hdr.id,
+				      xfer->hdr.protocol_id, xfer->hdr.seq,
+				      timeout_ms,
+				      xfer->hdr.poll_completion);
+
 	if (xfer->hdr.poll_completion) {
 		ktime_t stop = ktime_add_ms(ktime_get(), timeout_ms);
 
