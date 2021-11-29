@@ -6,6 +6,7 @@ config MACH_TX39XX
 
 config MACH_TX49XX
 	bool
+	select BOOT_ELF32
 	select MACH_TXX9
 	select CEVT_R4K
 	select CSRC_R4K
