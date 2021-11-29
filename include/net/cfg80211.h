@@ -8287,6 +8287,18 @@ bool cfg80211_iftype_allowed(struct wiphy *wiphy, enum nl80211_iftype iftype,
 			     bool is_4addr, u8 check_swif);
 
 
+/**
+ * cfg80211_assoc_comeback - notification of association that was
+ * temporarly rejected with a comeback
+ * @netdev: network device
+ * @bss: the bss entry with which association is in progress.
+ * @timeout: timeout interval value TUs.
+ *
+ * this function may sleep. the caller must hold the corresponding wdev's mutex.
+ */
+void cfg80211_assoc_comeback(struct net_device *netdev,
+			     struct cfg80211_bss *bss, u32 timeout);
+
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
 /* wiphy_printk helpers, similar to dev_printk */
