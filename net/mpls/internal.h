@@ -158,7 +158,7 @@ struct mpls_route { /* next hop label forwarding entry */
 };
 
 #define for_nexthops(rt) {						\
-	int nhsel; struct mpls_nh *nh;					\
+	int nhsel; const struct mpls_nh *nh;				\
 	for (nhsel = 0, nh = (rt)->rt_nh;				\
 	     nhsel < (rt)->rt_nhn;					\
 	     nh = (void *)nh + (rt)->rt_nh_size, nhsel++)
