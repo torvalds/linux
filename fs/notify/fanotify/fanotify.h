@@ -373,6 +373,13 @@ static inline int fanotify_event_dir_fh_len(struct fanotify_event *event)
 	return info ? fanotify_info_dir_fh_len(info) : 0;
 }
 
+static inline int fanotify_event_dir2_fh_len(struct fanotify_event *event)
+{
+	struct fanotify_info *info = fanotify_event_info(event);
+
+	return info ? fanotify_info_dir2_fh_len(info) : 0;
+}
+
 static inline bool fanotify_event_has_object_fh(struct fanotify_event *event)
 {
 	/* For error events, even zeroed fh are reported. */
@@ -384,6 +391,17 @@ static inline bool fanotify_event_has_object_fh(struct fanotify_event *event)
 static inline bool fanotify_event_has_dir_fh(struct fanotify_event *event)
 {
 	return fanotify_event_dir_fh_len(event) > 0;
+}
+
+static inline bool fanotify_event_has_dir2_fh(struct fanotify_event *event)
+{
+	return fanotify_event_dir2_fh_len(event) > 0;
+}
+
+static inline bool fanotify_event_has_any_dir_fh(struct fanotify_event *event)
+{
+	return fanotify_event_has_dir_fh(event) ||
+		fanotify_event_has_dir2_fh(event);
 }
 
 struct fanotify_path_event {
