@@ -55,7 +55,6 @@ EXPORT_SYMBOL_GPL(nlmsvc_ops);
 static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static struct svc_serv		*nlmsvc_serv;
-static struct task_struct	*nlmsvc_task;
 unsigned long			nlmsvc_timeout;
 
 unsigned int lockd_net_id;
@@ -186,7 +185,7 @@ lockd(void *vrqstp)
 
 	svc_exit_thread(rqstp);
 
-	return 0;
+	module_put_and_exit(0);
 }
 
 static int create_lockd_listener(struct svc_serv *serv, const char *name,
@@ -292,8 +291,8 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 				__func__, net->ns.inum);
 		}
 	} else {
-		pr_err("%s: no users! task=%p, net=%x\n",
-			__func__, nlmsvc_task, net->ns.inum);
+		pr_err("%s: no users! net=%x\n",
+			__func__, net->ns.inum);
 		BUG();
 	}
 }
@@ -351,49 +350,11 @@ static struct notifier_block lockd_inet6addr_notifier = {
 };
 #endif
 
-static int lockd_start_svc(struct svc_serv *serv)
-{
-	int error;
-	struct svc_rqst *rqst;
-
-	/*
-	 * Create the kernel thread and wait for it to start.
-	 */
-	rqst = svc_prepare_thread(serv, &serv->sv_pools[0], NUMA_NO_NODE);
-	if (IS_ERR(rqst)) {
-		error = PTR_ERR(rqst);
-		printk(KERN_WARNING
-			"lockd_up: svc_rqst allocation failed, error=%d\n",
-			error);
-		goto out_rqst;
-	}
-
-	svc_sock_update_bufs(serv);
-	serv->sv_maxconn = nlm_max_connections;
-
-	nlmsvc_task = kthread_create(lockd, rqst, "%s", serv->sv_name);
-	if (IS_ERR(nlmsvc_task)) {
-		error = PTR_ERR(nlmsvc_task);
-		printk(KERN_WARNING
-			"lockd_up: kthread_run failed, error=%d\n", error);
-		goto out_task;
-	}
-	rqst->rq_task = nlmsvc_task;
-	wake_up_process(nlmsvc_task);
-
-	dprintk("lockd_up: service started\n");
-	return 0;
-
-out_task:
-	svc_exit_thread(rqst);
-	nlmsvc_task = NULL;
-out_rqst:
-	return error;
-}
-
 static const struct svc_serv_ops lockd_sv_ops = {
 	.svo_shutdown		= svc_rpcb_cleanup,
+	.svo_function		= lockd,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
+	.svo_module		= THIS_MODULE,
 };
 
 static int lockd_get(void)
@@ -425,7 +386,8 @@ static int lockd_get(void)
 		return -ENOMEM;
 	}
 
-	error = lockd_start_svc(serv);
+	serv->sv_maxconn = nlm_max_connections;
+	error = svc_set_num_threads(serv, NULL, 1);
 	/* The thread now holds the only reference */
 	svc_put(serv);
 	if (error < 0)
@@ -453,11 +415,7 @@ static void lockd_put(void)
 	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
 #endif
 
-	if (nlmsvc_task) {
-		kthread_stop(nlmsvc_task);
-		dprintk("lockd_down: service stopped\n");
-		nlmsvc_task = NULL;
-	}
+	svc_set_num_threads(nlmsvc_serv, NULL, 0);
 	nlmsvc_serv = NULL;
 	dprintk("lockd_down: service destroyed\n");
 }
