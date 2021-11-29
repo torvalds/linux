@@ -10,7 +10,6 @@
 #include <crypto/internal/kpp.h>
 #include <crypto/kpp.h>
 #include <crypto/dh.h>
-#include <linux/fips.h>
 #include <linux/mpi.h>
 
 struct dh_ctx {
