@@ -159,6 +159,15 @@ struct nested_vmx {
 	bool dirty_vmcs12;
 
 	/*
+	 * Indicates whether MSR bitmap for L2 needs to be rebuilt due to
+	 * changes in MSR bitmap for L1 or switching to a different L2. Note,
+	 * this flag can only be used reliably in conjunction with a paravirt L1
+	 * which informs L0 whether any changes to MSR bitmap for L2 were done
+	 * on its side.
+	 */
+	bool force_msr_bitmap_recalc;
+
+	/*
 	 * Indicates lazily loaded guest state has not yet been decached from
 	 * vmcs02.
 	 */
