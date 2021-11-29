@@ -34,7 +34,6 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_hashtab.h>
 #include <drm/drm_rect.h>
 
 #include <drm/ttm/ttm_bo_driver.h>
@@ -43,6 +42,7 @@
 #include "ttm_object.h"
 
 #include "vmwgfx_fence.h"
+#include "vmwgfx_hashtab.h"
 #include "vmwgfx_reg.h"
 #include "vmwgfx_validation.h"
 
@@ -133,7 +133,7 @@ struct vmw_buffer_object {
  */
 struct vmw_validate_buffer {
 	struct ttm_validate_buffer base;
-	struct drm_hash_item hash;
+	struct vmwgfx_hash_item hash;
 	bool validate_as_mob;
 };
 
@@ -406,7 +406,7 @@ struct vmw_ctx_validation_info;
  * @ctx: The validation context
  */
 struct vmw_sw_context{
-	struct drm_open_hash res_ht;
+	struct vmwgfx_open_hash res_ht;
 	bool res_ht_initialized;
 	bool kernel;
 	struct vmw_fpriv *fp;

@@ -42,9 +42,8 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 
-#include <drm/drm_hashtab.h>
-
 #include "ttm_memory.h"
+#include "vmwgfx_hashtab.h"
 
 /**
  * enum ttm_ref_type
