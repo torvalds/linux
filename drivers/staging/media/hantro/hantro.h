@@ -75,6 +75,7 @@ struct hantro_irq {
  * @num_regs:			number of register range names in the array
  * @double_buffer:		core needs double buffering
  * @legacy_regs:		core uses legacy register set
+ * @late_postproc:		postproc must be set up at the end of the job
  */
 struct hantro_variant {
 	unsigned int enc_offset;
@@ -98,6 +99,7 @@ struct hantro_variant {
 	int num_regs;
 	unsigned int double_buffer : 1;
 	unsigned int legacy_regs : 1;
+	unsigned int late_postproc : 1;
 };
 
 /**
