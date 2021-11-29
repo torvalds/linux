@@ -7,7 +7,7 @@
 #include "dt-bindings/usb/pd.h"
 #include "rk3588.dtsi"
 #include "rk3588-evb.dtsi"
-#include "rk3588-rk806-daul.dtsi"
+#include "rk3588-rk806-dual.dtsi"
 
 / {
 	es7202_sound_micarray: es7202-sound-micarray {
