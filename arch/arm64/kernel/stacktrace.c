@@ -33,8 +33,8 @@
  */
 
 
-void start_backtrace(struct stackframe *frame, unsigned long fp,
-		     unsigned long pc)
+static void start_backtrace(struct stackframe *frame, unsigned long fp,
+			    unsigned long pc)
 {
 	frame->fp = fp;
 	frame->pc = pc;
@@ -63,7 +63,8 @@ void start_backtrace(struct stackframe *frame, unsigned long fp,
  * records (e.g. a cycle), determined based on the location and fp value of A
  * and the location (but not the fp value) of B.
  */
-int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
+static int notrace unwind_frame(struct task_struct *tsk,
+				struct stackframe *frame)
 {
 	unsigned long fp = frame->fp;
 	struct stack_info info;
@@ -141,8 +142,9 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 }
 NOKPROBE_SYMBOL(unwind_frame);
 
-void notrace walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
-			     bool (*fn)(void *, unsigned long), void *data)
+static void notrace walk_stackframe(struct task_struct *tsk,
+				    struct stackframe *frame,
+				    bool (*fn)(void *, unsigned long), void *data)
 {
 	while (1) {
 		int ret;
