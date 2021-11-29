@@ -3730,6 +3730,10 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	    elems->timeout_int &&
 	    elems->timeout_int->type == WLAN_TIMEOUT_ASSOC_COMEBACK) {
 		u32 tu, ms;
+
+		cfg80211_assoc_comeback(sdata->dev, assoc_data->bss,
+					le32_to_cpu(elems->timeout_int->value));
+
 		tu = le32_to_cpu(elems->timeout_int->value);
 		ms = tu * 1024 / 1000;
 		sdata_info(sdata,
