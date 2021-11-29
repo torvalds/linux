@@ -1302,7 +1302,7 @@ static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 	if (!(!skb->encapsulation &&
 	      (l4.udp->dest == htons(IANA_VXLAN_UDP_PORT) ||
 	      l4.udp->dest == htons(GENEVE_UDP_PORT) ||
-	      l4.udp->dest == htons(4790))))
+	      l4.udp->dest == htons(IANA_VXLAN_GPE_UDP_PORT))))
 		return false;
 
 	return true;
