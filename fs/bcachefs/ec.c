@@ -15,6 +15,7 @@
 #include "io.h"
 #include "keylist.h"
 #include "recovery.h"
+#include "replicas.h"
 #include "super-io.h"
 #include "util.h"
 
@@ -1635,17 +1636,41 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 
 static int bch2_stripes_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 {
-	struct bkey deleted = KEY(0, 0, 0);
-	struct bkey_s_c old = (struct bkey_s_c) { &deleted, NULL };
+	const struct bch_stripe *s;
 	struct bch_fs *c = trans->c;
+	struct stripe *m;
+	unsigned i;
 	int ret = 0;
 
-	deleted.p = k.k->p;
+	if (k.k->type != KEY_TYPE_stripe)
+		return 0;
 
-	if (k.k->type == KEY_TYPE_stripe)
-		ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL) ?:
-			bch2_mark_key(trans, old, k,
-				      BTREE_TRIGGER_NOATOMIC);
+	ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	s = bkey_s_c_to_stripe(k).v;
+
+	m = genradix_ptr(&c->stripes[0], k.k->p.offset);
+	m->alive	= true;
+	m->sectors	= le16_to_cpu(s->sectors);
+	m->algorithm	= s->algorithm;
+	m->nr_blocks	= s->nr_blocks;
+	m->nr_redundant	= s->nr_redundant;
+	m->blocks_nonempty = 0;
+
+	for (i = 0; i < s->nr_blocks; i++) {
+		m->block_sectors[i] =
+			stripe_blockcount_get(s, i);
+		m->blocks_nonempty += !!m->block_sectors[i];
+		m->ptrs[i] = s->ptrs[i];
+	}
+
+	bch2_bkey_to_replicas(&m->r.e, k);
+
+	spin_lock(&c->ec_stripes_heap_lock);
+	bch2_stripes_heap_update(c, m, k.k->p.offset);
+	spin_unlock(&c->ec_stripes_heap_lock);
 
 	return ret;
 }

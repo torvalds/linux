@@ -336,6 +336,9 @@ static int bch2_alloc_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 	g->_mark.data_type	= u.data_type;
 	g->_mark.dirty_sectors	= u.dirty_sectors;
 	g->_mark.cached_sectors	= u.cached_sectors;
+	g->_mark.stripe		= u.stripe != 0;
+	g->stripe		= u.stripe;
+	g->stripe_redundancy	= u.stripe_redundancy;
 	g->io_time[READ]	= u.read_time;
 	g->io_time[WRITE]	= u.write_time;
 	g->oldest_gen		= u.oldest_gen;

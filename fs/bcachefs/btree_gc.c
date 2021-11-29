@@ -1176,14 +1176,14 @@ static int bch2_gc_done(struct bch_fs *c,
 		set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);		\
 	}
 #define copy_bucket_field(_f)						\
-	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
+	if (dst->b[b]._f != src->b[b]._f) {				\
 		if (verify)						\
 			fsck_err(c, "bucket %u:%zu gen %u data type %s has wrong " #_f	\
 				": got %u, should be %u", dev, b,	\
 				dst->b[b].mark.gen,			\
 				bch2_data_types[dst->b[b].mark.data_type],\
-				dst->b[b].mark._f, src->b[b].mark._f);	\
-		dst->b[b]._mark._f = src->b[b].mark._f;			\
+				dst->b[b]._f, src->b[b]._f);		\
+		dst->b[b]._f = src->b[b]._f;				\
 		set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);		\
 	}
 #define copy_dev_field(_f, _msg, ...)					\
@@ -1229,11 +1229,13 @@ static int bch2_gc_done(struct bch_fs *c,
 		size_t b;
 
 		for (b = 0; b < src->nbuckets; b++) {
-			copy_bucket_field(gen);
-			copy_bucket_field(data_type);
+			copy_bucket_field(_mark.gen);
+			copy_bucket_field(_mark.data_type);
+			copy_bucket_field(_mark.stripe);
+			copy_bucket_field(_mark.dirty_sectors);
+			copy_bucket_field(_mark.cached_sectors);
+			copy_bucket_field(stripe_redundancy);
 			copy_bucket_field(stripe);
-			copy_bucket_field(dirty_sectors);
-			copy_bucket_field(cached_sectors);
 
 			dst->b[b].oldest_gen = src->b[b].oldest_gen;
 		}

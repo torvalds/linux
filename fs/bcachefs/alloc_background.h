@@ -65,6 +65,8 @@ alloc_mem_to_key(struct btree_iter *iter,
 		.cached_sectors	= m.cached_sectors,
 		.read_time	= g->io_time[READ],
 		.write_time	= g->io_time[WRITE],
+		.stripe		= g->stripe,
+		.stripe_redundancy = g->stripe_redundancy,
 	};
 }
 
