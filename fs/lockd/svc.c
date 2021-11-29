@@ -54,6 +54,7 @@ EXPORT_SYMBOL_GPL(nlmsvc_ops);
 
 static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
+static struct svc_serv		*nlmsvc_serv;
 static struct task_struct	*nlmsvc_task;
 static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
@@ -306,13 +307,12 @@ static int lockd_inetaddr_event(struct notifier_block *this,
 	    !atomic_inc_not_zero(&nlm_ntf_refcnt))
 		goto out;
 
-	if (nlmsvc_rqst) {
+	if (nlmsvc_serv) {
 		dprintk("lockd_inetaddr_event: removed %pI4\n",
 			&ifa->ifa_local);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = ifa->ifa_local;
-		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
-			(struct sockaddr *)&sin);
+		svc_age_temp_xprts_now(nlmsvc_serv, (struct sockaddr *)&sin);
 	}
 	atomic_dec(&nlm_ntf_refcnt);
 	wake_up(&nlm_ntf_wq);
@@ -336,14 +336,13 @@ static int lockd_inet6addr_event(struct notifier_block *this,
 	    !atomic_inc_not_zero(&nlm_ntf_refcnt))
 		goto out;
 
-	if (nlmsvc_rqst) {
+	if (nlmsvc_serv) {
 		dprintk("lockd_inet6addr_event: removed %pI6\n", &ifa->addr);
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_addr = ifa->addr;
 		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
-		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
-			(struct sockaddr *)&sin6);
+		svc_age_temp_xprts_now(nlmsvc_serv, (struct sockaddr *)&sin6);
 	}
 	atomic_dec(&nlm_ntf_refcnt);
 	wake_up(&nlm_ntf_wq);
@@ -423,15 +422,17 @@ static const struct svc_serv_ops lockd_sv_ops = {
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 };
 
-static struct svc_serv *lockd_create_svc(void)
+static int lockd_create_svc(void)
 {
 	struct svc_serv *serv;
 
 	/*
 	 * Check whether we're already up and running.
 	 */
-	if (nlmsvc_rqst)
-		return svc_get(nlmsvc_rqst->rq_server);
+	if (nlmsvc_serv) {
+		svc_get(nlmsvc_serv);
+		return 0;
+	}
 
 	/*
 	 * Sanity check: if there's no pid,
@@ -448,14 +449,15 @@ static struct svc_serv *lockd_create_svc(void)
 	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, &lockd_sv_ops);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
+	nlmsvc_serv = serv;
 	register_inetaddr_notifier(&lockd_inetaddr_notifier);
 #if IS_ENABLED(CONFIG_IPV6)
 	register_inet6addr_notifier(&lockd_inet6addr_notifier);
 #endif
 	dprintk("lockd_up: service created\n");
-	return serv;
+	return 0;
 }
 
 /*
@@ -468,11 +470,10 @@ int lockd_up(struct net *net, const struct cred *cred)
 
 	mutex_lock(&nlmsvc_mutex);
 
-	serv = lockd_create_svc();
-	if (IS_ERR(serv)) {
-		error = PTR_ERR(serv);
+	error = lockd_create_svc();
+	if (error)
 		goto err_create;
-	}
+	serv = nlmsvc_serv;
 
 	error = lockd_up_net(serv, net, cred);
 	if (error < 0) {
@@ -487,6 +488,8 @@ int lockd_up(struct net *net, const struct cred *cred)
 	}
 	nlmsvc_users++;
 err_put:
+	if (nlmsvc_users == 0)
+		nlmsvc_serv = NULL;
 	svc_put(serv);
 err_create:
 	mutex_unlock(&nlmsvc_mutex);
@@ -501,7 +504,7 @@ void
 lockd_down(struct net *net)
 {
 	mutex_lock(&nlmsvc_mutex);
-	lockd_down_net(nlmsvc_rqst->rq_server, net);
+	lockd_down_net(nlmsvc_serv, net);
 	if (nlmsvc_users) {
 		if (--nlmsvc_users)
 			goto out;
@@ -519,6 +522,7 @@ lockd_down(struct net *net)
 	dprintk("lockd_down: service stopped\n");
 	lockd_svc_exit_thread();
 	dprintk("lockd_down: service destroyed\n");
+	nlmsvc_serv = NULL;
 	nlmsvc_task = NULL;
 	nlmsvc_rqst = NULL;
 out:
