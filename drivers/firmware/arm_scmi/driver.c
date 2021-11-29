@@ -766,6 +766,10 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 		return -EINVAL;
 	}
 
+	cinfo = idr_find(&info->tx_idr, pi->proto->id);
+	if (unlikely(!cinfo))
+		return -EINVAL;
+
 	/*
 	 * Initialise protocol id now from protocol handle to avoid it being
 	 * overridden by mistake (or malice) by the protocol code mangling with
@@ -773,10 +777,6 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 	 */
 	xfer->hdr.protocol_id = pi->proto->id;
 	reinit_completion(&xfer->done);
-
-	cinfo = idr_find(&info->tx_idr, xfer->hdr.protocol_id);
-	if (unlikely(!cinfo))
-		return -EINVAL;
 
 	trace_scmi_xfer_begin(xfer->transfer_id, xfer->hdr.id,
 			      xfer->hdr.protocol_id, xfer->hdr.seq,
