@@ -370,6 +370,9 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 #ifdef CONFIG_PPC_BOOK3S_64
+unsigned int mmu_lpid_bits;
+unsigned int mmu_pid_bits;
+
 static bool disable_radix = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
 
 static int __init parse_disable_radix(char *p)
@@ -437,11 +440,52 @@ static void __init early_check_vec5(void)
 	}
 }
 
+static int __init dt_scan_mmu_pid_width(unsigned long node,
+					   const char *uname, int depth,
+					   void *data)
+{
+	int size = 0;
+	const __be32 *prop;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+
+	/* We are scanning "cpu" nodes only */
+	if (type == NULL || strcmp(type, "cpu") != 0)
+		return 0;
+
+	/* Find MMU LPID, PID register size */
+	prop = of_get_flat_dt_prop(node, "ibm,mmu-lpid-bits", &size);
+	if (prop && size == 4)
+		mmu_lpid_bits = be32_to_cpup(prop);
+
+	prop = of_get_flat_dt_prop(node, "ibm,mmu-pid-bits", &size);
+	if (prop && size == 4)
+		mmu_pid_bits = be32_to_cpup(prop);
+
+	if (!mmu_pid_bits && !mmu_lpid_bits)
+		return 0;
+
+	return 1;
+}
+
 void __init mmu_early_init_devtree(void)
 {
+	bool hvmode = !!(mfmsr() & MSR_HV);
+
 	/* Disable radix mode based on kernel command line. */
 	if (disable_radix)
 		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+
+	of_scan_flat_dt(dt_scan_mmu_pid_width, NULL);
+	if (hvmode && !mmu_lpid_bits) {
+		if (early_cpu_has_feature(CPU_FTR_ARCH_207S))
+			mmu_lpid_bits = 12; /* POWER8-10 */
+		else
+			mmu_lpid_bits = 10; /* POWER7 */
+	}
+	if (!mmu_pid_bits) {
+		if (early_cpu_has_feature(CPU_FTR_ARCH_300))
+			mmu_pid_bits = 20; /* POWER9-10 */
+	}
 
 	/*
 	 * Check /chosen/ibm,architecture-vec-5 if running as a guest.
@@ -449,7 +493,7 @@ void __init mmu_early_init_devtree(void)
 	 * even though the ibm,architecture-vec-5 property created by
 	 * skiboot doesn't have the necessary bits set.
 	 */
-	if (!(mfmsr() & MSR_HV))
+	if (!hvmode)
 		early_check_vec5();
 
 	if (early_radix_enabled()) {

@@ -33,7 +33,6 @@
 
 #include <trace/events/thp.h>
 
-unsigned int mmu_pid_bits;
 unsigned int mmu_base_pid;
 unsigned long radix_mem_block_size __ro_after_init;
 
@@ -357,18 +356,13 @@ static void __init radix_init_pgtable(void)
 						-1, PAGE_KERNEL));
 	}
 
-	/* Find out how many PID bits are supported */
 	if (!cpu_has_feature(CPU_FTR_HVMODE) &&
 			cpu_has_feature(CPU_FTR_P9_RADIX_PREFETCH_BUG)) {
 		/*
 		 * Older versions of KVM on these machines perfer if the
 		 * guest only uses the low 19 PID bits.
 		 */
-		if (!mmu_pid_bits)
-			mmu_pid_bits = 19;
-	} else {
-		if (!mmu_pid_bits)
-			mmu_pid_bits = 20;
+		mmu_pid_bits = 19;
 	}
 	mmu_base_pid = 1;
 
@@ -448,11 +442,6 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
-
-	/* Find MMU PID size */
-	prop = of_get_flat_dt_prop(node, "ibm,mmu-pid-bits", &size);
-	if (prop && size == 4)
-		mmu_pid_bits = be32_to_cpup(prop);
 
 	/* Grab page size encodings */
 	prop = of_get_flat_dt_prop(node, "ibm,processor-radix-AP-encodings", &size);
