@@ -145,16 +145,23 @@ static struct irq_chip aspeed_msi_bottom_irq_chip = {
 static int aspeed_irq_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 					unsigned int nr_irqs, void *args)
 {
+	struct aspeed_pcie *pcie = domain->host_data;
 	int bit;
 
+	mutex_lock(&pcie->lock);
+
 	bit = find_first_zero_bit(msi_irq_in_use, MAX_MSI_HOST_IRQS);
-	if (bit >= MAX_MSI_HOST_IRQS)
+	if (bit >= MAX_MSI_HOST_IRQS) {
+		mutex_unlock(&pcie->lock);
 		return -ENOSPC;
+	}
 
 	set_bit(bit, msi_irq_in_use);
 
 	irq_domain_set_info(domain, virq, bit, &aspeed_msi_bottom_irq_chip,
-				domain->host_data, handle_edge_irq, NULL, NULL);
+				domain->host_data, handle_simple_irq, NULL, NULL);
+
+	mutex_unlock(&pcie->lock);
 
 	return 0;
 }
@@ -165,10 +172,14 @@ static void aspeed_irq_msi_domain_free(struct irq_domain *domain, unsigned int v
 	struct irq_data *data = irq_domain_get_irq_data(domain, virq);
 	struct aspeed_pcie *pcie = irq_data_get_irq_chip_data(data);
 
+	mutex_lock(&pcie->lock);
+
 	if (test_bit(data->hwirq, msi_irq_in_use))
 		__clear_bit(data->hwirq, msi_irq_in_use);
 	else
 		dev_err(pcie->dev, "trying to free unused MSI%lu\n", data->hwirq);
+
+	mutex_unlock(&pcie->lock);
 
 }
 
@@ -365,6 +376,7 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	mutex_init(&pcie->lock);
 	err = aspeed_pcie_init_irq_domain(pcie);
 	if (err) {
 		dev_err(dev, "Failed creating IRQ Domain\n");

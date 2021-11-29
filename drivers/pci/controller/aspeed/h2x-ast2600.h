@@ -32,6 +32,7 @@ struct aspeed_pcie {
 	void __iomem *h2x_rc_base;
 	int irq_h2x;
 	u8 txTag;
+	struct mutex lock;		/* protect bitmap variable */
 	struct reset_control *h2x_reset;
 };
 
