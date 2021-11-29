@@ -1762,7 +1762,7 @@ static void iwl_mei_dbgfs_register(struct iwl_mei *mei)
 			     mei->dbgfs_dir, &iwl_mei_status);
 	debugfs_create_file("send_start_message", S_IWUSR, mei->dbgfs_dir,
 			    mei, &iwl_mei_dbgfs_send_start_message_ops);
-	debugfs_create_file("req_ownserhip", S_IWUSR, mei->dbgfs_dir,
+	debugfs_create_file("req_ownership", S_IWUSR, mei->dbgfs_dir,
 			    mei, &iwl_mei_dbgfs_req_ownership_ops);
 }
 
