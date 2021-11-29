@@ -351,6 +351,7 @@ static struct kbase_va_region *kbase_region_tracker_find_region_meeting_reqs(
 
 /**
  * Remove a region object from the global list.
+ * @kbdev: The kbase device
  * @reg: Region object to remove
  *
  * The region reg is removed, possibly by merging with other free and
@@ -358,7 +359,8 @@ static struct kbase_va_region *kbase_region_tracker_find_region_meeting_reqs(
  * region lock held. The associated memory is not released (see
  * kbase_free_alloced_region). Internal use only.
  */
-int kbase_remove_va_region(struct kbase_va_region *reg)
+void kbase_remove_va_region(struct kbase_device *kbdev,
+			    struct kbase_va_region *reg)
 {
 	struct rb_node *rbprev;
 	struct kbase_va_region *prev = NULL;
@@ -368,9 +370,11 @@ int kbase_remove_va_region(struct kbase_va_region *reg)
 
 	int merged_front = 0;
 	int merged_back = 0;
-	int err = 0;
 
 	reg_rbtree = reg->rbtree;
+
+	if (WARN_ON(RB_EMPTY_ROOT(reg_rbtree)))
+		return;
 
 	/* Try to merge with the previous block first */
 	rbprev = rb_prev(&(reg->rblink));
@@ -378,10 +382,14 @@ int kbase_remove_va_region(struct kbase_va_region *reg)
 		prev = rb_entry(rbprev, struct kbase_va_region, rblink);
 		if (prev->flags & KBASE_REG_FREE) {
 			/* We're compatible with the previous VMA, merge with
-			 * it
+			 * it, handling any gaps for robustness.
 			 */
+			u64 prev_end_pfn = prev->start_pfn + prev->nr_pages;
+
 			WARN_ON((prev->flags & KBASE_REG_ZONE_MASK) !=
 					    (reg->flags & KBASE_REG_ZONE_MASK));
+			if (!WARN_ON(reg->start_pfn < prev_end_pfn))
+				prev->nr_pages += reg->start_pfn - prev_end_pfn;
 			prev->nr_pages += reg->nr_pages;
 			rb_erase(&(reg->rblink), reg_rbtree);
 			reg = prev;
@@ -393,11 +401,17 @@ int kbase_remove_va_region(struct kbase_va_region *reg)
 	/* Note we do the lookup here as the tree may have been rebalanced. */
 	rbnext = rb_next(&(reg->rblink));
 	if (rbnext) {
-		/* We're compatible with the next VMA, merge with it */
 		next = rb_entry(rbnext, struct kbase_va_region, rblink);
 		if (next->flags & KBASE_REG_FREE) {
+			/* We're compatible with the next VMA, merge with it,
+			 * handling any gaps for robustness.
+			 */
+			u64 reg_end_pfn = reg->start_pfn + reg->nr_pages;
+
 			WARN_ON((next->flags & KBASE_REG_ZONE_MASK) !=
 					    (reg->flags & KBASE_REG_ZONE_MASK));
+			if (!WARN_ON(next->start_pfn < reg_end_pfn))
+				next->nr_pages += next->start_pfn - reg_end_pfn;
 			next->start_pfn = reg->start_pfn;
 			next->nr_pages += reg->nr_pages;
 			rb_erase(&(reg->rblink), reg_rbtree);
@@ -412,8 +426,8 @@ int kbase_remove_va_region(struct kbase_va_region *reg)
 	/* If we failed to merge then we need to add a new block */
 	if (!(merged_front || merged_back)) {
 		/*
-		 * We didn't merge anything. Add a new free
-		 * placeholder and remove the original one.
+		 * We didn't merge anything. Try to add a new free
+		 * placeholder, and in any case, remove the original one.
 		 */
 		struct kbase_va_region *free_reg;
 
@@ -421,14 +435,37 @@ int kbase_remove_va_region(struct kbase_va_region *reg)
 				reg->start_pfn, reg->nr_pages,
 				reg->flags & KBASE_REG_ZONE_MASK);
 		if (!free_reg) {
-			err = -ENOMEM;
+			/* In case of failure, we cannot allocate a replacement
+			 * free region, so we will be left with a 'gap' in the
+			 * region tracker's address range (though, the rbtree
+			 * will itself still be correct after erasing
+			 * 'reg').
+			 *
+			 * The gap will be rectified when an adjacent region is
+			 * removed by one of the above merging paths. Other
+			 * paths will gracefully fail to allocate if they try
+			 * to allocate in the gap.
+			 *
+			 * There is nothing that the caller can do, since free
+			 * paths must not fail. The existing 'reg' cannot be
+			 * repurposed as the free region as callers must have
+			 * freedom of use with it by virtue of it being owned
+			 * by them, not the region tracker insert/remove code.
+			 */
+			dev_warn(
+				kbdev->dev,
+				"Could not alloc a replacement free region for 0x%.16llx..0x%.16llx",
+				(unsigned long long)reg->start_pfn << PAGE_SHIFT,
+				(unsigned long long)(reg->start_pfn + reg->nr_pages) << PAGE_SHIFT);
+			rb_erase(&(reg->rblink), reg_rbtree);
+
 			goto out;
 		}
 		rb_replace_node(&(reg->rblink), &(free_reg->rblink), reg_rbtree);
 	}
 
- out:
-	return err;
+out:
+	return;
 }
 
 KBASE_EXPORT_TEST_API(kbase_remove_va_region);
@@ -456,6 +493,9 @@ static int kbase_insert_va_region_nolock(struct kbase_va_region *new_reg,
 	KBASE_DEBUG_ASSERT((start_pfn >= at_reg->start_pfn) && (start_pfn < at_reg->start_pfn + at_reg->nr_pages));
 	/* at least nr_pages from start_pfn should be contained within at_reg */
 	KBASE_DEBUG_ASSERT(start_pfn + nr_pages <= at_reg->start_pfn + at_reg->nr_pages);
+	/* having at_reg means the rb_tree should not be empty */
+	if (WARN_ON(RB_EMPTY_ROOT(reg_rbtree)))
+		return -ENOMEM;
 
 	new_reg->start_pfn = start_pfn;
 	new_reg->nr_pages = nr_pages;
@@ -862,6 +902,8 @@ static bool kbase_region_tracker_has_allocs(struct kbase_context *kctx)
 		unsigned long zone_bits = KBASE_REG_ZONE(zone_idx);
 		unsigned long reg_zone;
 
+		if (!kbase_is_ctx_reg_zone(zone_bits))
+			continue;
 		zone = kbase_ctx_reg_zone_get(kctx, zone_bits);
 		zone_base_addr = zone->base_pfn << PAGE_SHIFT;
 
@@ -1457,7 +1499,9 @@ void kbase_free_alloced_region(struct kbase_va_region *reg)
 
 KBASE_EXPORT_TEST_API(kbase_free_alloced_region);
 
-int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 addr, size_t nr_pages, size_t align)
+int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg,
+		   u64 addr, size_t nr_pages, size_t align,
+		   enum kbase_caller_mmu_sync_info mmu_sync_info)
 {
 	int err;
 	size_t i = 0;
@@ -1494,14 +1538,16 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 		KBASE_DEBUG_ASSERT(alloc->imported.alias.aliased);
 		for (i = 0; i < alloc->imported.alias.nents; i++) {
 			if (alloc->imported.alias.aliased[i].alloc) {
-				err = kbase_mmu_insert_pages(kctx->kbdev,
-						&kctx->mmu,
-						reg->start_pfn + (i * stride),
-						alloc->imported.alias.aliased[i].alloc->pages + alloc->imported.alias.aliased[i].offset,
-						alloc->imported.alias.aliased[i].length,
-						reg->flags & gwt_mask,
-						kctx->as_nr,
-						group_id);
+				err = kbase_mmu_insert_pages(
+					kctx->kbdev, &kctx->mmu,
+					reg->start_pfn + (i * stride),
+					alloc->imported.alias.aliased[i]
+							.alloc->pages +
+						alloc->imported.alias.aliased[i]
+							.offset,
+					alloc->imported.alias.aliased[i].length,
+					reg->flags & gwt_mask, kctx->as_nr,
+					group_id, mmu_sync_info);
 				if (err)
 					goto bad_insert;
 
@@ -1509,26 +1555,24 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 				 * creation time
 				 */
 			} else {
-				err = kbase_mmu_insert_single_page(kctx,
-					reg->start_pfn + i * stride,
+				err = kbase_mmu_insert_single_page(
+					kctx, reg->start_pfn + i * stride,
 					kctx->aliasing_sink_page,
 					alloc->imported.alias.aliased[i].length,
 					(reg->flags & mask & gwt_mask) | attr,
-					group_id);
+					group_id, mmu_sync_info);
 
 				if (err)
 					goto bad_insert;
 			}
 		}
 	} else {
-		err = kbase_mmu_insert_pages(kctx->kbdev,
-				&kctx->mmu,
-				reg->start_pfn,
-				kbase_get_gpu_phy_pages(reg),
-				kbase_reg_current_backed_size(reg),
-				reg->flags & gwt_mask,
-				kctx->as_nr,
-				group_id);
+		err = kbase_mmu_insert_pages(kctx->kbdev, &kctx->mmu,
+					     reg->start_pfn,
+					     kbase_get_gpu_phy_pages(reg),
+					     kbase_reg_current_backed_size(reg),
+					     reg->flags & gwt_mask, kctx->as_nr,
+					     group_id, mmu_sync_info);
 		if (err)
 			goto bad_insert;
 		kbase_mem_phy_alloc_gpu_mapped(alloc);
@@ -1548,13 +1592,12 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, u64 
 		 * Assume reg->gpu_alloc->nents is the number of actual pages
 		 * in the dma-buf memory.
 		 */
-		err = kbase_mmu_insert_single_page(kctx,
-				reg->start_pfn + reg->gpu_alloc->nents,
-				kctx->aliasing_sink_page,
-				reg->nr_pages - reg->gpu_alloc->nents,
-				(reg->flags | KBASE_REG_GPU_RD) &
-				~KBASE_REG_GPU_WR,
-				KBASE_MEM_GROUP_SINK);
+		err = kbase_mmu_insert_single_page(
+			kctx, reg->start_pfn + reg->gpu_alloc->nents,
+			kctx->aliasing_sink_page,
+			reg->nr_pages - reg->gpu_alloc->nents,
+			(reg->flags | KBASE_REG_GPU_RD) & ~KBASE_REG_GPU_WR,
+			KBASE_MEM_GROUP_SINK, mmu_sync_info);
 		if (err)
 			goto bad_insert;
 	}
@@ -1566,7 +1609,7 @@ bad_insert:
 				 reg->start_pfn, reg->nr_pages,
 				 kctx->as_nr);
 
-	kbase_remove_va_region(reg);
+	kbase_remove_va_region(kctx->kbdev, reg);
 
 	return err;
 }
@@ -1588,7 +1631,28 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 
 	/* Tear down down GPU page tables, depending on memory type. */
 	switch (reg->gpu_alloc->type) {
-	case KBASE_MEM_TYPE_ALIAS: /* Fall-through */
+	case KBASE_MEM_TYPE_ALIAS: {
+		size_t i = 0;
+		struct kbase_mem_phy_alloc *alloc = reg->gpu_alloc;
+
+		/* Due to the way the number of valid PTEs and ATEs are tracked
+		 * currently, only the GPU virtual range that is backed & mapped
+		 * should be passed to the kbase_mmu_teardown_pages() function,
+		 * hence individual aliased regions needs to be unmapped
+		 * separately.
+		 */
+		for (i = 0; i < alloc->imported.alias.nents; i++) {
+			if (alloc->imported.alias.aliased[i].alloc) {
+				err = kbase_mmu_teardown_pages(
+					kctx->kbdev, &kctx->mmu,
+					reg->start_pfn +
+						(i *
+						 alloc->imported.alias.stride),
+					alloc->imported.alias.aliased[i].length,
+					kctx->as_nr);
+			}
+		}
+	} break;
 	case KBASE_MEM_TYPE_IMPORTED_UMM:
 		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu,
 				reg->start_pfn, reg->nr_pages, kctx->as_nr);
@@ -1622,7 +1686,7 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 				}
 			}
 		}
-		/* Fall-through */
+		fallthrough;
 	default:
 		kbase_mem_phy_alloc_gpu_unmapped(reg->gpu_alloc);
 		break;
@@ -3698,7 +3762,8 @@ static size_t kbase_mem_jit_trim_pages(struct kbase_context *kctx,
 static int kbase_jit_grow(struct kbase_context *kctx,
 			  const struct base_jit_alloc_info *info,
 			  struct kbase_va_region *reg,
-			  struct kbase_sub_alloc **prealloc_sas)
+			  struct kbase_sub_alloc **prealloc_sas,
+			  enum kbase_caller_mmu_sync_info mmu_sync_info)
 {
 	size_t delta;
 	size_t pages_required;
@@ -3795,7 +3860,7 @@ static int kbase_jit_grow(struct kbase_context *kctx,
 	spin_unlock(&kctx->mem_partials_lock);
 
 	ret = kbase_mem_grow_gpu_mapping(kctx, reg, info->commit_pages,
-			old_size);
+					 old_size, mmu_sync_info);
 	/*
 	 * The grow failed so put the allocation back in the
 	 * pool and return failure.
@@ -4010,6 +4075,11 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 	struct kbase_sub_alloc *prealloc_sas[2] = { NULL, NULL };
 	int i;
 
+	/* Calls to this function are inherently synchronous, with respect to
+	 * MMU operations.
+	 */
+	const enum kbase_caller_mmu_sync_info mmu_sync_info = CALLER_MMU_SYNC;
+
 #if MALI_USE_CSF
 	lockdep_assert_held(&kctx->csf.kcpu_queues.lock);
 #else
@@ -4102,7 +4172,8 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 		 * so any state protected by that lock might need to be
 		 * re-evaluated if more code is added here in future.
 		 */
-		ret = kbase_jit_grow(kctx, info, reg, prealloc_sas);
+		ret = kbase_jit_grow(kctx, info, reg, prealloc_sas,
+				     mmu_sync_info);
 
 #if MALI_JIT_PRESSURE_LIMIT_BASE
 		if (!ignore_pressure_limit)
@@ -4150,7 +4221,7 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 			flags |= BASE_MEM_TILER_ALIGN_TOP;
 #endif /* !MALI_USE_CSF */
 
-		flags |= base_mem_group_id_set(kctx->jit_group_id);
+		flags |= kbase_mem_group_id_set(kctx->jit_group_id);
 #if MALI_JIT_PRESSURE_LIMIT_BASE
 		if (!ignore_pressure_limit) {
 			flags |= BASEP_MEM_PERFORM_JIT_TRIM;
@@ -4166,7 +4237,8 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 		kbase_gpu_vm_unlock(kctx);
 
 		reg = kbase_mem_alloc(kctx, info->va_pages, info->commit_pages,
-				      info->extension, &flags, &gpu_addr);
+				      info->extension, &flags, &gpu_addr,
+				      mmu_sync_info);
 		if (!reg) {
 			/* Most likely not enough GPU virtual space left for
 			 * the new JIT allocation.
@@ -4455,6 +4527,15 @@ void kbase_jit_report_update_pressure(struct kbase_context *kctx,
 }
 #endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
 
+void kbase_unpin_user_buf_page(struct page *page)
+{
+#if KERNEL_VERSION(5, 9, 0) > LINUX_VERSION_CODE
+	put_page(page);
+#else
+	unpin_user_page(page);
+#endif
+}
+
 #if MALI_USE_CSF
 static void kbase_jd_user_buf_unpin_pages(struct kbase_mem_phy_alloc *alloc)
 {
@@ -4465,7 +4546,7 @@ static void kbase_jd_user_buf_unpin_pages(struct kbase_mem_phy_alloc *alloc)
 		WARN_ON(alloc->nents != alloc->imported.user_buf.nr_pages);
 
 		for (i = 0; i < alloc->nents; i++)
-			put_page(pages[i]);
+			kbase_unpin_user_buf_page(pages[i]);
 	}
 }
 #endif
@@ -4524,11 +4605,10 @@ KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE
 			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,
 			pages, NULL, NULL);
 #else
-	pinned_pages = get_user_pages_remote(mm,
-			address,
-			alloc->imported.user_buf.nr_pages,
-			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,
-			pages, NULL, NULL);
+	pinned_pages = pin_user_pages_remote(
+		mm, address, alloc->imported.user_buf.nr_pages,
+		reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0, pages, NULL,
+		NULL);
 #endif
 
 	if (pinned_pages <= 0)
@@ -4536,7 +4616,7 @@ KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE
 
 	if (pinned_pages != alloc->imported.user_buf.nr_pages) {
 		for (i = 0; i < pinned_pages; i++)
-			put_page(pages[i]);
+			kbase_unpin_user_buf_page(pages[i]);
 		return -ENOMEM;
 	}
 
@@ -4559,6 +4639,11 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 	unsigned long local_size;
 	unsigned long gwt_mask = ~0;
 	int err = kbase_jd_user_buf_pin_pages(kctx, reg);
+
+	/* Calls to this function are inherently asynchronous, with respect to
+	 * MMU operations.
+	 */
+	const enum kbase_caller_mmu_sync_info mmu_sync_info = CALLER_MMU_ASYNC;
 
 	if (err)
 		return err;
@@ -4596,9 +4681,9 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 #endif
 
 	err = kbase_mmu_insert_pages(kctx->kbdev, &kctx->mmu, reg->start_pfn,
-			pa, kbase_reg_current_backed_size(reg),
-			reg->flags & gwt_mask, kctx->as_nr,
-			alloc->group_id);
+				     pa, kbase_reg_current_backed_size(reg),
+				     reg->flags & gwt_mask, kctx->as_nr,
+				     alloc->group_id, mmu_sync_info);
 	if (err == 0)
 		return 0;
 
@@ -4612,7 +4697,7 @@ unwind:
 	}
 
 	while (++i < pinned_pages) {
-		put_page(pages[i]);
+		kbase_unpin_user_buf_page(pages[i]);
 		pages[i] = NULL;
 	}
 
@@ -4642,7 +4727,7 @@ static void kbase_jd_user_buf_unmap(struct kbase_context *kctx,
 		if (writeable)
 			set_page_dirty_lock(pages[i]);
 #if !MALI_USE_CSF
-		put_page(pages[i]);
+		kbase_unpin_user_buf_page(pages[i]);
 		pages[i] = NULL;
 #endif
 

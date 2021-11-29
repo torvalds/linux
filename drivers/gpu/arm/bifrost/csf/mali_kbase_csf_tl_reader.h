@@ -43,9 +43,9 @@ struct kbase_device;
  * struct kbase_ts_converter -
  * System timestamp to CPU timestamp converter state.
  *
- * @multiplier:	Numerator of the converter's fraction.
- * @divisor:	Denominator of the converter's fraction.
- * @offset:	Converter's offset term.
+ * @multiplier:		Numerator of the converter's fraction.
+ * @divisor:		Denominator of the converter's fraction.
+ * @offset:		Converter's offset term.
  *
  * According to Generic timer spec, system timer:
  * - Increments at a fixed frequency

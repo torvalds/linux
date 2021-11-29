@@ -66,8 +66,6 @@ static u64 encode_chunk_ptr(u32 const chunk_size, u64 const chunk_addr)
 static struct kbase_csf_tiler_heap_chunk *get_last_chunk(
 	struct kbase_csf_tiler_heap *const heap)
 {
-	lockdep_assert_held(&heap->kctx->csf.tiler_heaps.lock);
-
 	if (list_empty(&heap->chunks_list))
 		return NULL;
 
@@ -176,7 +174,7 @@ static int init_chunk(struct kbase_csf_tiler_heap *const heap,
  * Return: 0 if successful or a negative error code on failure.
  */
 static int create_chunk(struct kbase_csf_tiler_heap *const heap,
-		bool link_with_prev)
+			bool link_with_prev)
 {
 	int err = 0;
 	struct kbase_context *const kctx = heap->kctx;
@@ -186,13 +184,16 @@ static int create_chunk(struct kbase_csf_tiler_heap *const heap,
 		BASE_MEM_COHERENT_LOCAL;
 	struct kbase_csf_tiler_heap_chunk *chunk = NULL;
 
-	flags |= base_mem_group_id_set(kctx->jit_group_id);
+	/* Calls to this function are inherently synchronous, with respect to
+	 * MMU operations.
+	 */
+	const enum kbase_caller_mmu_sync_info mmu_sync_info = CALLER_MMU_SYNC;
+
+	flags |= kbase_mem_group_id_set(kctx->jit_group_id);
 
 #if defined(CONFIG_MALI_BIFROST_DEBUG) || defined(CONFIG_MALI_VECTOR_DUMP)
 	flags |= BASE_MEM_PROT_CPU_RD;
 #endif
-
-	lockdep_assert_held(&kctx->csf.tiler_heaps.lock);
 
 	chunk = kzalloc(sizeof(*chunk), GFP_KERNEL);
 	if (unlikely(!chunk)) {
@@ -203,8 +204,8 @@ static int create_chunk(struct kbase_csf_tiler_heap *const heap,
 
 	/* Allocate GPU memory for the new chunk. */
 	INIT_LIST_HEAD(&chunk->link);
-	chunk->region = kbase_mem_alloc(kctx, nr_pages, nr_pages, 0,
-		&flags, &chunk->gpu_va);
+	chunk->region = kbase_mem_alloc(kctx, nr_pages, nr_pages, 0, &flags,
+					&chunk->gpu_va, mmu_sync_info);
 
 	if (unlikely(!chunk->region)) {
 		dev_err(kctx->kbdev->dev,
@@ -251,8 +252,6 @@ static void delete_chunk(struct kbase_csf_tiler_heap *const heap,
 {
 	struct kbase_context *const kctx = heap->kctx;
 
-	lockdep_assert_held(&kctx->csf.tiler_heaps.lock);
-
 	kbase_gpu_vm_lock(kctx);
 	chunk->region->flags &= ~KBASE_REG_NO_USER_FREE;
 	kbase_mem_free_region(kctx, chunk->region);
@@ -273,9 +272,6 @@ static void delete_chunk(struct kbase_csf_tiler_heap *const heap,
 static void delete_all_chunks(struct kbase_csf_tiler_heap *heap)
 {
 	struct list_head *entry = NULL, *tmp = NULL;
-	struct kbase_context *const kctx = heap->kctx;
-
-	lockdep_assert_held(&kctx->csf.tiler_heaps.lock);
 
 	list_for_each_safe(entry, tmp, &heap->chunks_list) {
 		struct kbase_csf_tiler_heap_chunk *chunk = list_entry(
@@ -429,6 +425,9 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx,
 		"Creating a tiler heap with %u chunks (limit: %u) of size %u\n",
 		initial_chunks, max_chunks, chunk_size);
 
+	if (!kbase_mem_allow_alloc(kctx))
+		return -EINVAL;
+
 	if (chunk_size == 0)
 		return -EINVAL;
 
@@ -459,11 +458,9 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx,
 
 	heap->gpu_va = kbase_csf_heap_context_allocator_alloc(ctx_alloc);
 
-	mutex_lock(&kctx->csf.tiler_heaps.lock);
-
 	if (unlikely(!heap->gpu_va)) {
-		dev_err(kctx->kbdev->dev,
-			"Failed to allocate a tiler heap context\n");
+		dev_dbg(kctx->kbdev->dev,
+			"Failed to allocate a tiler heap context");
 		err = -ENOMEM;
 	} else {
 		err = create_initial_chunks(heap, initial_chunks);
@@ -480,12 +477,13 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx,
 			list_first_entry(&heap->chunks_list,
 				struct kbase_csf_tiler_heap_chunk, link);
 
+		*heap_gpu_va = heap->gpu_va;
+		*first_chunk_va = first_chunk->gpu_va;
+
+		mutex_lock(&kctx->csf.tiler_heaps.lock);
 		kctx->csf.tiler_heaps.nr_of_heaps++;
 		heap->heap_id = kctx->csf.tiler_heaps.nr_of_heaps;
 		list_add(&heap->link, &kctx->csf.tiler_heaps.list);
-
-		*heap_gpu_va = heap->gpu_va;
-		*first_chunk_va = first_chunk->gpu_va;
 
 		KBASE_TLSTREAM_AUX_TILER_HEAP_STATS(
 			kctx->kbdev, kctx->id, heap->heap_id,
@@ -496,9 +494,8 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx,
 
 		dev_dbg(kctx->kbdev->dev, "Created tiler heap 0x%llX\n",
 			heap->gpu_va);
+		mutex_unlock(&kctx->csf.tiler_heaps.lock);
 	}
-
-	mutex_unlock(&kctx->csf.tiler_heaps.lock);
 
 	return err;
 }

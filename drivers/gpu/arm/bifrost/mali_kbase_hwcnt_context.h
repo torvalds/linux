@@ -19,7 +19,7 @@
  *
  */
 
-/**
+/*
  * Hardware counter context API.
  */
 

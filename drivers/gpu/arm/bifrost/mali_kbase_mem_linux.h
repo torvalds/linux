@@ -45,12 +45,14 @@ struct kbase_hwc_dma_mapping {
  *                properties for the new allocation.
  * @gpu_va:       Start address of the memory region which was allocated from GPU
  *                virtual address space.
+ * @mmu_sync_info: Indicates whether this call is synchronous wrt MMU ops.
  *
  * Return: 0 on success or error code
  */
-struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx,
-					u64 va_pages, u64 commit_pages,
-					u64 extension, u64 *flags, u64 *gpu_va);
+struct kbase_va_region *
+kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages, u64 commit_pages,
+		u64 extension, u64 *flags, u64 *gpu_va,
+		enum kbase_caller_mmu_sync_info mmu_sync_info);
 
 /**
  * kbase_mem_query - Query properties of a GPU memory region
@@ -169,6 +171,7 @@ void kbase_mem_evictable_deinit(struct kbase_context *kctx);
  * @reg:       The GPU region
  * @new_pages: The number of pages after the grow
  * @old_pages: The number of pages before the grow
+ * @mmu_sync_info: Indicates whether this call is synchronous wrt MMU ops.
  *
  * Return: 0 on success, -errno on error.
  *
@@ -178,8 +181,9 @@ void kbase_mem_evictable_deinit(struct kbase_context *kctx);
  * Note: Caller must be holding the region lock.
  */
 int kbase_mem_grow_gpu_mapping(struct kbase_context *kctx,
-		struct kbase_va_region *reg,
-		u64 new_pages, u64 old_pages);
+			       struct kbase_va_region *reg, u64 new_pages,
+			       u64 old_pages,
+			       enum kbase_caller_mmu_sync_info mmu_sync_info);
 
 /**
  * kbase_mem_evictable_make - Make a physical allocation eligible for eviction

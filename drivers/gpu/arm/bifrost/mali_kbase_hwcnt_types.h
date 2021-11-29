@@ -19,7 +19,7 @@
  *
  */
 
-/**
+/*
  * Hardware counter types.
  * Contains structures for describing the physical layout of hardware counter
  * dump buffers and enable maps within a system.
@@ -61,7 +61,7 @@
  *   An array of u64 bitfields, where each bit either enables exactly one
  *   block value, or is unused (padding).
  * Dump Buffer:
- *   An array of u32 values, where each u32 corresponds either to one block
+ *   An array of u64 values, where each u64 corresponds either to one block
  *   value, or is unused (padding).
  * Availability Mask:
  *   A bitfield, where each bit corresponds to whether a block instance is
@@ -81,6 +81,7 @@
 #define _KBASE_HWCNT_TYPES_H_
 
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -91,8 +92,11 @@
 /* Number of bits in each bitfield */
 #define KBASE_HWCNT_BITFIELD_BITS (KBASE_HWCNT_BITFIELD_BYTES * BITS_PER_BYTE)
 
-/* Number of bytes for each counter value */
-#define KBASE_HWCNT_VALUE_BYTES (sizeof(u32))
+/* Number of bytes for each counter value.
+ * Use 64-bit per counter in driver to avoid HW 32-bit register values
+ * overflow after a long time accumulation.
+ */
+#define KBASE_HWCNT_VALUE_BYTES (sizeof(u64))
 
 /* Number of bits in an availability mask (i.e. max total number of block
  * instances supported in a Hardware Counter System)
@@ -119,8 +123,8 @@
  *                                        contiguous, Hardware Counter Blocks.
  * @type:     The arbitrary identifier used to identify the type of the block.
  * @inst_cnt: The number of Instances of the block.
- * @hdr_cnt:  The number of 32-bit Block Headers in the block.
- * @ctr_cnt:  The number of 32-bit Block Counters in the block.
+ * @hdr_cnt:  The number of 64-bit Block Headers in the block.
+ * @ctr_cnt:  The number of 64-bit Block Counters in the block.
  */
 struct kbase_hwcnt_block_description {
 	u64 type;
@@ -165,17 +169,17 @@ struct kbase_hwcnt_description {
  * @type:              The arbitrary identifier used to identify the type of the
  *                     block.
  * @inst_cnt:          The number of Instances of the block.
- * @hdr_cnt:           The number of 32-bit Block Headers in the block.
- * @ctr_cnt:           The number of 32-bit Block Counters in the block.
+ * @hdr_cnt:           The number of 64-bit Block Headers in the block.
+ * @ctr_cnt:           The number of 64-bit Block Counters in the block.
  * @enable_map_index:  Index in u64s into the parent's Enable Map where the
  *                     Enable Map bitfields of the Block Instances described by
  *                     this metadata start.
  * @enable_map_stride: Stride in u64s between the Enable Maps of each of the
  *                     Block Instances described by this metadata.
- * @dump_buf_index:    Index in u32s into the parent's Dump Buffer where the
+ * @dump_buf_index:    Index in u64s into the parent's Dump Buffer where the
  *                     Dump Buffers of the Block Instances described by this
  *                     metadata start.
- * @dump_buf_stride:   Stride in u32s between the Dump Buffers of each of the
+ * @dump_buf_stride:   Stride in u64s between the Dump Buffers of each of the
  *                     Block Instances described by this metadata.
  * @avail_mask_index:  Index in bits into the parent's Availability Mask where
  *                     the Availability Masks of the Block Instances described
@@ -208,7 +212,7 @@ struct kbase_hwcnt_block_metadata {
  * @enable_map_index: Index in u64s into the parent's Enable Map where the
  *                    Enable Maps of the blocks within the group described by
  *                    this metadata start.
- * @dump_buf_index:   Index in u32s into the parent's Dump Buffer where the
+ * @dump_buf_index:   Index in u64s into the parent's Dump Buffer where the
  *                    Dump Buffers of the blocks within the group described by
  *                    metadata start.
  * @avail_mask_index: Index in bits into the parent's Availability Mask where
@@ -225,7 +229,7 @@ struct kbase_hwcnt_group_metadata {
 };
 
 /**
- * struct kbase_hwcnt_metadata - Metadata describing the physical layout
+ * struct kbase_hwcnt_metadata - Metadata describing the memory layout
  *                               of Dump Buffers and Enable Maps within a
  *                               Hardware Counter System.
  * @grp_cnt:          The number of Hardware Counter Groups.
@@ -264,18 +268,17 @@ struct kbase_hwcnt_enable_map {
 };
 
 /**
- * struct kbase_hwcnt_dump_buffer - Hardware Counter Dump Buffer. Array of u32
- *                                  values.
+ * struct kbase_hwcnt_dump_buffer - Hardware Counter Dump Buffer.
  * @metadata: Non-NULL pointer to metadata used to identify, and to describe
  *            the layout of the Dump Buffer.
- * @dump_buf: Non-NULL pointer of size metadata->dump_buf_bytes to an array
- *            of u32 values.
+ * @dump_buf: Non-NULL pointer to an array of u64 values, the array size is
+ *            metadata->dump_buf_bytes.
  * @clk_cnt_buf: A pointer to an array of u64 values for cycle count elapsed
  *               for each clock domain.
  */
 struct kbase_hwcnt_dump_buffer {
 	const struct kbase_hwcnt_metadata *metadata;
-	u32 *dump_buf;
+	u64 *dump_buf;
 	u64 *clk_cnt_buf;
 };
 
@@ -283,7 +286,8 @@ struct kbase_hwcnt_dump_buffer {
  * struct kbase_hwcnt_dump_buffer_array - Hardware Counter Dump Buffer array.
  * @page_addr:  Address of allocated pages. A single allocation is used for all
  *              Dump Buffers in the array.
- * @page_order: The allocation order of the pages.
+ * @page_order: The allocation order of the pages, the order is on a logarithmic
+ *              scale.
  * @buf_cnt:    The number of allocated Dump Buffers.
  * @bufs:       Non-NULL pointer to the array of Dump Buffers.
  */
@@ -319,8 +323,14 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  *
  * Return: Number of hardware counter groups described by metadata.
  */
-#define kbase_hwcnt_metadata_group_count(metadata) \
-	((metadata)->grp_cnt)
+static inline size_t
+kbase_hwcnt_metadata_group_count(const struct kbase_hwcnt_metadata *metadata)
+{
+	if (WARN_ON(!metadata))
+		return 0;
+
+	return metadata->grp_cnt;
+}
 
 /**
  * kbase_hwcnt_metadata_group_type() - Get the arbitrary type of a group.
@@ -329,8 +339,15 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  *
  * Return: Type of the group grp.
  */
-#define kbase_hwcnt_metadata_group_type(metadata, grp) \
-	((metadata)->grp_metadata[(grp)].type)
+static inline u64
+kbase_hwcnt_metadata_group_type(const struct kbase_hwcnt_metadata *metadata,
+				size_t grp)
+{
+	if (WARN_ON(!metadata) || WARN_ON(grp >= metadata->grp_cnt))
+		return 0;
+
+	return metadata->grp_metadata[grp].type;
+}
 
 /**
  * kbase_hwcnt_metadata_block_count() - Get the number of blocks in a group.
@@ -339,8 +356,15 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  *
  * Return: Number of blocks in group grp.
  */
-#define kbase_hwcnt_metadata_block_count(metadata, grp) \
-	((metadata)->grp_metadata[(grp)].blk_cnt)
+static inline size_t
+kbase_hwcnt_metadata_block_count(const struct kbase_hwcnt_metadata *metadata,
+				 size_t grp)
+{
+	if (WARN_ON(!metadata) || WARN_ON(grp >= metadata->grp_cnt))
+		return 0;
+
+	return metadata->grp_metadata[grp].blk_cnt;
+}
 
 /**
  * kbase_hwcnt_metadata_block_type() - Get the arbitrary type of a block.
@@ -350,8 +374,16 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  *
  * Return: Type of the block blk in group grp.
  */
-#define kbase_hwcnt_metadata_block_type(metadata, grp, blk) \
-	((metadata)->grp_metadata[(grp)].blk_metadata[(blk)].type)
+static inline u64
+kbase_hwcnt_metadata_block_type(const struct kbase_hwcnt_metadata *metadata,
+				size_t grp, size_t blk)
+{
+	if (WARN_ON(!metadata) || WARN_ON(grp >= metadata->grp_cnt) ||
+	    WARN_ON(blk >= metadata->grp_metadata[grp].blk_cnt))
+		return 0;
+
+	return metadata->grp_metadata[grp].blk_metadata[blk].type;
+}
 
 /**
  * kbase_hwcnt_metadata_block_instance_count() - Get the number of instances of
@@ -362,8 +394,15 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  *
  * Return: Number of instances of block blk in group grp.
  */
-#define kbase_hwcnt_metadata_block_instance_count(metadata, grp, blk) \
-	((metadata)->grp_metadata[(grp)].blk_metadata[(blk)].inst_cnt)
+static inline size_t kbase_hwcnt_metadata_block_instance_count(
+	const struct kbase_hwcnt_metadata *metadata, size_t grp, size_t blk)
+{
+	if (WARN_ON(!metadata) || WARN_ON(grp >= metadata->grp_cnt) ||
+	    WARN_ON(blk >= metadata->grp_metadata[grp].blk_cnt))
+		return 0;
+
+	return metadata->grp_metadata[grp].blk_metadata[blk].inst_cnt;
+}
 
 /**
  * kbase_hwcnt_metadata_block_headers_count() - Get the number of counter
@@ -374,8 +413,15 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  *
  * Return: Number of counter headers in each instance of block blk in group grp.
  */
-#define kbase_hwcnt_metadata_block_headers_count(metadata, grp, blk) \
-	((metadata)->grp_metadata[(grp)].blk_metadata[(blk)].hdr_cnt)
+static inline size_t kbase_hwcnt_metadata_block_headers_count(
+	const struct kbase_hwcnt_metadata *metadata, size_t grp, size_t blk)
+{
+	if (WARN_ON(!metadata) || WARN_ON(grp >= metadata->grp_cnt) ||
+	    WARN_ON(blk >= metadata->grp_metadata[grp].blk_cnt))
+		return 0;
+
+	return metadata->grp_metadata[grp].blk_metadata[blk].hdr_cnt;
+}
 
 /**
  * kbase_hwcnt_metadata_block_counters_count() - Get the number of counters.
@@ -385,8 +431,15 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  *
  * Return: Number of counters in each instance of block blk in group grp.
  */
-#define kbase_hwcnt_metadata_block_counters_count(metadata, grp, blk) \
-	((metadata)->grp_metadata[(grp)].blk_metadata[(blk)].ctr_cnt)
+static inline size_t kbase_hwcnt_metadata_block_counters_count(
+	const struct kbase_hwcnt_metadata *metadata, size_t grp, size_t blk)
+{
+	if (WARN_ON(!metadata) || WARN_ON(grp >= metadata->grp_cnt) ||
+	    WARN_ON(blk >= metadata->grp_metadata[grp].blk_cnt))
+		return 0;
+
+	return metadata->grp_metadata[grp].blk_metadata[blk].ctr_cnt;
+}
 
 /**
  * kbase_hwcnt_metadata_block_enable_map_stride() - Get the enable map stride.
@@ -396,8 +449,15 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  *
  * Return: enable map stride in each instance of block blk in group grp.
  */
-#define kbase_hwcnt_metadata_block_enable_map_stride(metadata, grp, blk)       \
-	((metadata)->grp_metadata[(grp)].blk_metadata[(blk)].enable_map_stride)
+static inline size_t kbase_hwcnt_metadata_block_enable_map_stride(
+	const struct kbase_hwcnt_metadata *metadata, size_t grp, size_t blk)
+{
+	if (WARN_ON(!metadata) || WARN_ON(grp >= metadata->grp_cnt) ||
+	    WARN_ON(blk >= metadata->grp_metadata[grp].blk_cnt))
+		return 0;
+
+	return metadata->grp_metadata[grp].blk_metadata[blk].enable_map_stride;
+}
 
 /**
  * kbase_hwcnt_metadata_block_values_count() - Get the number of values.
@@ -408,9 +468,16 @@ void kbase_hwcnt_metadata_destroy(const struct kbase_hwcnt_metadata *metadata);
  * Return: Number of headers plus counters in each instance of block blk
  *         in group grp.
  */
-#define kbase_hwcnt_metadata_block_values_count(metadata, grp, blk) \
-	(kbase_hwcnt_metadata_block_counters_count((metadata), (grp), (blk)) \
-	+ kbase_hwcnt_metadata_block_headers_count((metadata), (grp), (blk)))
+static inline size_t kbase_hwcnt_metadata_block_values_count(
+	const struct kbase_hwcnt_metadata *metadata, size_t grp, size_t blk)
+{
+	if (WARN_ON(!metadata) || WARN_ON(grp >= metadata->grp_cnt) ||
+	    WARN_ON(blk >= metadata->grp_metadata[grp].blk_cnt))
+		return 0;
+
+	return kbase_hwcnt_metadata_block_counters_count(metadata, grp, blk) +
+	       kbase_hwcnt_metadata_block_headers_count(metadata, grp, blk);
+}
 
 /**
  * kbase_hwcnt_metadata_for_each_block() - Iterate over each block instance in
@@ -496,19 +563,28 @@ void kbase_hwcnt_enable_map_free(struct kbase_hwcnt_enable_map *enable_map);
 /**
  * kbase_hwcnt_enable_map_block_instance() - Get the pointer to a block
  *                                           instance's enable map.
- * @map:      Non-NULL pointer to (const) enable map.
+ * @map:      Non-NULL pointer to enable map.
  * @grp:      Index of the group in the metadata.
  * @blk:      Index of the block in the group.
  * @blk_inst: Index of the block instance in the block.
  *
- * Return: (const) u64* to the bitfield(s) used as the enable map for the
+ * Return: u64* to the bitfield(s) used as the enable map for the
  *         block instance.
  */
-#define kbase_hwcnt_enable_map_block_instance(map, grp, blk, blk_inst) \
-	((map)->hwcnt_enable_map + \
-	 (map)->metadata->grp_metadata[(grp)].enable_map_index + \
-	 (map)->metadata->grp_metadata[(grp)].blk_metadata[(blk)].enable_map_index + \
-	 (map)->metadata->grp_metadata[(grp)].blk_metadata[(blk)].enable_map_stride * (blk_inst))
+static inline u64 *
+kbase_hwcnt_enable_map_block_instance(const struct kbase_hwcnt_enable_map *map,
+				      size_t grp, size_t blk, size_t blk_inst)
+{
+	return map->hwcnt_enable_map +
+	       map->metadata->grp_metadata[grp].enable_map_index +
+	       map->metadata->grp_metadata[grp]
+		       .blk_metadata[blk]
+		       .enable_map_index +
+	       (map->metadata->grp_metadata[grp]
+			.blk_metadata[blk]
+			.enable_map_stride *
+		blk_inst);
+}
 
 /**
  * kbase_hwcnt_bitfield_count() - Calculate the number of u64 bitfields required
@@ -593,8 +669,8 @@ static inline void kbase_hwcnt_enable_map_block_enable_all(
 }
 
 /**
- * kbase_hwcnt_enable_map_block_enable_all() - Enable all values in an enable
- *                                             map.
+ * kbase_hwcnt_enable_map_enable_all() - Enable all values in an enable
+ *                                       map.
  * @dst: Non-NULL pointer to enable map.
  */
 static inline void kbase_hwcnt_enable_map_enable_all(
@@ -827,18 +903,24 @@ void kbase_hwcnt_dump_buffer_array_free(
 /**
  * kbase_hwcnt_dump_buffer_block_instance() - Get the pointer to a block
  *                                            instance's dump buffer.
- * @buf:      Non-NULL pointer to (const) dump buffer.
+ * @buf:      Non-NULL pointer to dump buffer.
  * @grp:      Index of the group in the metadata.
  * @blk:      Index of the block in the group.
  * @blk_inst: Index of the block instance in the block.
  *
- * Return: (const) u32* to the dump buffer for the block instance.
+ * Return: u64* to the dump buffer for the block instance.
  */
-#define kbase_hwcnt_dump_buffer_block_instance(buf, grp, blk, blk_inst) \
-	((buf)->dump_buf + \
-	 (buf)->metadata->grp_metadata[(grp)].dump_buf_index + \
-	 (buf)->metadata->grp_metadata[(grp)].blk_metadata[(blk)].dump_buf_index + \
-	 (buf)->metadata->grp_metadata[(grp)].blk_metadata[(blk)].dump_buf_stride * (blk_inst))
+static inline u64 *kbase_hwcnt_dump_buffer_block_instance(
+	const struct kbase_hwcnt_dump_buffer *buf, size_t grp, size_t blk,
+	size_t blk_inst)
+{
+	return buf->dump_buf + buf->metadata->grp_metadata[grp].dump_buf_index +
+	       buf->metadata->grp_metadata[grp].blk_metadata[blk].dump_buf_index +
+	       (buf->metadata->grp_metadata[grp]
+			.blk_metadata[blk]
+			.dump_buf_stride *
+		blk_inst);
+}
 
 /**
  * kbase_hwcnt_dump_buffer_zero() - Zero all enabled values in dst.
@@ -859,9 +941,8 @@ void kbase_hwcnt_dump_buffer_zero(
  *           kbase_hwcnt_dump_buffer_block_instance.
  * @val_cnt: Number of values in the block.
  */
-static inline void kbase_hwcnt_dump_buffer_block_zero(
-	u32 *dst_blk,
-	size_t val_cnt)
+static inline void kbase_hwcnt_dump_buffer_block_zero(u64 *dst_blk,
+						      size_t val_cnt)
 {
 	memset(dst_blk, 0, (val_cnt * KBASE_HWCNT_VALUE_BYTES));
 }
@@ -904,10 +985,9 @@ void kbase_hwcnt_dump_buffer_zero_non_enabled(
  *           kbase_hwcnt_enable_map_block_instance.
  * @val_cnt: Number of values in the block.
  */
-static inline void kbase_hwcnt_dump_buffer_block_zero_non_enabled(
-	u32 *dst_blk,
-	const u64 *blk_em,
-	size_t val_cnt)
+static inline void
+kbase_hwcnt_dump_buffer_block_zero_non_enabled(u64 *dst_blk, const u64 *blk_em,
+					       size_t val_cnt)
 {
 	size_t val;
 
@@ -941,10 +1021,9 @@ void kbase_hwcnt_dump_buffer_copy(
  *           kbase_hwcnt_dump_buffer_block_instance.
  * @val_cnt: Number of values in the block.
  */
-static inline void kbase_hwcnt_dump_buffer_block_copy(
-	u32 *dst_blk,
-	const u32 *src_blk,
-	size_t val_cnt)
+static inline void kbase_hwcnt_dump_buffer_block_copy(u64 *dst_blk,
+						      const u64 *src_blk,
+						      size_t val_cnt)
 {
 	/* Copy all the counters in the block instance.
 	 * Values of non-enabled counters are undefined.
@@ -987,11 +1066,10 @@ void kbase_hwcnt_dump_buffer_copy_strict(
  *
  * After the copy, any disabled values in dst will be zero.
  */
-static inline void kbase_hwcnt_dump_buffer_block_copy_strict(
-	u32 *dst_blk,
-	const u32 *src_blk,
-	const u64 *blk_em,
-	size_t val_cnt)
+static inline void kbase_hwcnt_dump_buffer_block_copy_strict(u64 *dst_blk,
+							     const u64 *src_blk,
+							     const u64 *blk_em,
+							     size_t val_cnt)
 {
 	size_t val;
 
@@ -1032,11 +1110,10 @@ void kbase_hwcnt_dump_buffer_accumulate(
  * @hdr_cnt: Number of headers in the block.
  * @ctr_cnt: Number of counters in the block.
  */
-static inline void kbase_hwcnt_dump_buffer_block_accumulate(
-	u32 *dst_blk,
-	const u32 *src_blk,
-	size_t hdr_cnt,
-	size_t ctr_cnt)
+static inline void kbase_hwcnt_dump_buffer_block_accumulate(u64 *dst_blk,
+							    const u64 *src_blk,
+							    size_t hdr_cnt,
+							    size_t ctr_cnt)
 {
 	size_t ctr;
 	/* Copy all the headers in the block instance.
@@ -1047,21 +1124,8 @@ static inline void kbase_hwcnt_dump_buffer_block_accumulate(
 	/* Accumulate all the counters in the block instance.
 	 * Values of non-enabled counters are undefined.
 	 */
-	for (ctr = hdr_cnt; ctr < ctr_cnt + hdr_cnt; ctr++) {
-		u32 *dst_ctr = dst_blk + ctr;
-		const u32 *src_ctr = src_blk + ctr;
-
-		const u32 src_counter = *src_ctr;
-		const u32 dst_counter = *dst_ctr;
-
-		/* Saturating add */
-		u32 accumulated = src_counter + dst_counter;
-
-		if (accumulated < src_counter)
-			accumulated = U32_MAX;
-
-		*dst_ctr = accumulated;
-	}
+	for (ctr = hdr_cnt; ctr < ctr_cnt + hdr_cnt; ctr++)
+		dst_blk[ctr] += src_blk[ctr];
 }
 
 /**
@@ -1103,10 +1167,7 @@ void kbase_hwcnt_dump_buffer_accumulate_strict(
  * @ctr_cnt: Number of counters in the block.
  */
 static inline void kbase_hwcnt_dump_buffer_block_accumulate_strict(
-	u32 *dst_blk,
-	const u32 *src_blk,
-	const u64 *blk_em,
-	size_t hdr_cnt,
+	u64 *dst_blk, const u64 *src_blk, const u64 *blk_em, size_t hdr_cnt,
 	size_t ctr_cnt)
 {
 	size_t ctr;
@@ -1118,25 +1179,16 @@ static inline void kbase_hwcnt_dump_buffer_block_accumulate_strict(
 		bool ctr_enabled = kbase_hwcnt_enable_map_block_value_enabled(
 			blk_em, ctr);
 
-		u32 *dst_ctr = dst_blk + ctr;
-		const u32 *src_ctr = src_blk + ctr;
-
-		const u32 src_counter = *src_ctr;
-		const u32 dst_counter = *dst_ctr;
-
-		/* Saturating add */
-		u32 accumulated = src_counter + dst_counter;
-
-		if (accumulated < src_counter)
-			accumulated = U32_MAX;
-
-		*dst_ctr = ctr_enabled ? accumulated : 0;
+		if (ctr_enabled)
+			dst_blk[ctr] += src_blk[ctr];
+		else
+			dst_blk[ctr] = 0;
 	}
 }
 
 /**
- * Iterate over each clock domain in the metadata.
- *
+ * kbase_hwcnt_metadata_for_each_clock() - Iterate over each clock domain in the
+ *                                         metadata.
  * @md:          Non-NULL pointer to metadata.
  * @clk:         size_t variable used as clock iterator.
  */

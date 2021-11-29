@@ -44,6 +44,8 @@
  * - Add ioctl 40: kbase_ioctl_cs_queue_register_ex, this is a new
  *   queue registration call with extended format for supporting CS
  *   trace configurations with CSF trace_command.
+ * 1.6:
+ * - Added new HW performance counters interface to all GPUs.
  */
 
 #define BASE_UK_VERSION_MAJOR 1

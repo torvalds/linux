@@ -76,6 +76,7 @@ static void jd_mark_atom_complete(struct kbase_jd_atom *katom)
 	kbase_kinstr_jm_atom_complete(katom);
 	dev_dbg(katom->kctx->kbdev->dev, "Atom %pK status to completed\n",
 		(void *)katom);
+	KBASE_TLSTREAM_TL_JD_ATOM_COMPLETE(katom->kctx->kbdev, katom);
 }
 
 /* Runs an atom, either by handing to the JS or by immediately running it in the case of soft-jobs
@@ -139,7 +140,13 @@ void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom)
 		/* katom dep complete, attempt to run it */
 		bool resched = false;
 
+		KBASE_TLSTREAM_TL_RUN_ATOM_START(
+			katom->kctx->kbdev, katom,
+			kbase_jd_atom_id(katom->kctx, katom));
 		resched = jd_run_atom(katom);
+		KBASE_TLSTREAM_TL_RUN_ATOM_END(katom->kctx->kbdev, katom,
+						  kbase_jd_atom_id(katom->kctx,
+								   katom));
 
 		if (katom->status == KBASE_JD_ATOM_STATE_COMPLETED) {
 			/* The atom has already finished */
@@ -715,6 +722,8 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 	bool need_to_try_schedule_context = false;
 	int i;
 
+	KBASE_TLSTREAM_TL_JD_DONE_NO_LOCK_START(kctx->kbdev, katom);
+
 	INIT_LIST_HEAD(&completed_jobs);
 	INIT_LIST_HEAD(&runnable_jobs);
 
@@ -736,6 +745,7 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 	}
 
 	jd_mark_atom_complete(katom);
+
 	list_add_tail(&katom->jd_item, &completed_jobs);
 
 	while (!list_empty(&completed_jobs)) {
@@ -767,7 +777,13 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 
 			if (node->status != KBASE_JD_ATOM_STATE_COMPLETED &&
 					!kbase_ctx_flag(kctx, KCTX_DYING)) {
+				KBASE_TLSTREAM_TL_RUN_ATOM_START(
+					kctx->kbdev, node,
+					kbase_jd_atom_id(kctx, node));
 				need_to_try_schedule_context |= jd_run_atom(node);
+				KBASE_TLSTREAM_TL_RUN_ATOM_END(
+					kctx->kbdev, node,
+					kbase_jd_atom_id(kctx, node));
 			} else {
 				node->event_code = katom->event_code;
 
@@ -811,7 +827,7 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 			 */
 			wake_up(&kctx->jctx.zero_jobs_wait);
 	}
-
+	KBASE_TLSTREAM_TL_JD_DONE_NO_LOCK_END(kctx->kbdev, katom);
 	return need_to_try_schedule_context;
 }
 
@@ -984,7 +1000,6 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 				 * dependencies.
 				 */
 				jd_trace_atom_submit(kctx, katom, NULL);
-
 				return jd_done_nolock(katom, NULL);
 			}
 		}
@@ -1049,7 +1064,6 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 				if (err >= 0)
 					kbase_finish_soft_job(katom);
 			}
-
 			return jd_done_nolock(katom, NULL);
 		}
 
@@ -1378,10 +1392,10 @@ while (false)
 			}
 			mutex_lock(&jctx->lock);
 		}
-
+		KBASE_TLSTREAM_TL_JD_SUBMIT_ATOM_START(kbdev, katom);
 		need_to_try_schedule_context |= jd_submit_atom(kctx, &user_atom,
 			&user_jc_incr, katom);
-
+		KBASE_TLSTREAM_TL_JD_SUBMIT_ATOM_END(kbdev, katom);
 		/* Register a completed job as a disjoint event when the GPU is in a disjoint state
 		 * (ie. being reset).
 		 */
@@ -1479,7 +1493,6 @@ void kbase_jd_done_worker(struct work_struct *data)
 	kbasep_js_remove_job(kbdev, kctx, katom);
 	mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
 	mutex_unlock(&js_devdata->queue_mutex);
-	katom->atom_flags &= ~KBASE_KATOM_FLAG_HOLDING_CTX_REF;
 	/* jd_done_nolock() requires the jsctx_mutex lock to be dropped */
 	jd_done_nolock(katom, &kctx->completed_jobs);
 
@@ -1498,22 +1511,23 @@ void kbase_jd_done_worker(struct work_struct *data)
 		 * drop our reference. But do not call kbase_jm_idle_ctx(), as
 		 * the context is active and fast-starting is allowed.
 		 *
-		 * If an atom has been fast-started then kctx->atoms_pulled will
-		 * be non-zero but KCTX_ACTIVE will still be false (as the
-		 * previous pm reference has been inherited). Do NOT drop our
-		 * reference, as it has been re-used, and leave the context as
-		 * active.
+		 * If an atom has been fast-started then
+		 * kbase_jsctx_atoms_pulled(kctx) will return non-zero but
+		 * KCTX_ACTIVE will still be false (as the previous pm
+		 * reference has been inherited). Do NOT drop our reference, as
+		 * it has been re-used, and leave the context as active.
 		 *
-		 * If no new atoms have been started then KCTX_ACTIVE will still
-		 * be false and atoms_pulled will be zero, so drop the reference
-		 * and call kbase_jm_idle_ctx().
+		 * If no new atoms have been started then KCTX_ACTIVE will
+		 * still be false and kbase_jsctx_atoms_pulled(kctx) will
+		 * return zero, so drop the reference and call
+		 * kbase_jm_idle_ctx().
 		 *
 		 * As the checks are done under both the queue_mutex and
 		 * hwaccess_lock is should be impossible for this to race
 		 * with the scheduler code.
 		 */
 		if (kbase_ctx_flag(kctx, KCTX_ACTIVE) ||
-		    !atomic_read(&kctx->atoms_pulled)) {
+		    !kbase_jsctx_atoms_pulled(kctx)) {
 			/* Calling kbase_jm_idle_ctx() here will ensure that
 			 * atoms are not fast-started when we drop the
 			 * hwaccess_lock. This is not performed if

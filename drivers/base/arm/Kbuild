@@ -28,6 +28,7 @@ subdir-ccflags-y += $(ccflags-y)
 #
 # Kernel modules
 #
+obj-$(CONFIG_DMA_BUF_LOCK) += dma_buf_lock/src/
 obj-$(CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER) += dma_buf_test_exporter/
 obj-$(CONFIG_MALI_MEMORY_GROUP_MANAGER) += memory_group_manager/
 obj-$(CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR) += protected_memory_allocator/

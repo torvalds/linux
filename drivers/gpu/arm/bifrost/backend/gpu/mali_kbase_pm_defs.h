@@ -29,6 +29,10 @@
 #include "mali_kbase_pm_always_on.h"
 #include "mali_kbase_pm_coarse_demand.h"
 
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM)
+#define KBASE_PM_RUNTIME 1
+#endif
+
 /* Forward definition - see mali_kbase.h */
 struct kbase_device;
 struct kbase_jd_atom;
@@ -271,10 +275,18 @@ union kbase_pm_policy_data {
  *                             &struct kbase_pm_callback_conf
  * @callback_power_runtime_off: Callback when the GPU may be turned off. See
  *                              &struct kbase_pm_callback_conf
- * @callback_power_runtime_idle: Optional callback when the GPU may be idle. See
- *                              &struct kbase_pm_callback_conf
+ * @callback_power_runtime_idle: Optional callback invoked by runtime PM core
+ *                               when the GPU may be idle. See
+ *                               &struct kbase_pm_callback_conf
  * @callback_soft_reset: Optional callback to software reset the GPU. See
  *                       &struct kbase_pm_callback_conf
+ * @callback_power_runtime_gpu_idle: Callback invoked by Kbase when GPU has
+ *                                   become idle.
+ *                                   See &struct kbase_pm_callback_conf.
+ * @callback_power_runtime_gpu_active: Callback when GPU has become active and
+ *                                     @callback_power_runtime_gpu_idle was
+ *                                     called previously.
+ *                                     See &struct kbase_pm_callback_conf.
  * @ca_cores_enabled: Cores that are currently available
  * @mcu_state: The current state of the micro-control unit, only applicable
  *             to GPUs that have such a component
@@ -312,6 +324,34 @@ union kbase_pm_policy_data {
  * @policy_change_lock: Used to serialize the policy change calls. In CSF case,
  *                      the change of policy may involve the scheduler to
  *                      suspend running CSGs and then reconfigure the MCU.
+ * @gpu_sleep_supported: Flag to indicate that if GPU sleep feature can be
+ *                       supported by the kernel driver or not. If this
+ *                       flag is not set, then HW state is directly saved
+ *                       when GPU idle notification is received.
+ * @gpu_sleep_mode_active: Flag to indicate that the GPU needs to be in sleep
+ *                         mode. It is set when the GPU idle notification is
+ *                         received and is cleared when HW state has been
+ *                         saved in the runtime suspend callback function or
+ *                         when the GPU power down is aborted if GPU became
+ *                         active whilst it was in sleep mode. The flag is
+ *                         guarded with hwaccess_lock spinlock.
+ * @exit_gpu_sleep_mode: Flag to indicate the GPU can now exit the sleep
+ *                       mode due to the submission of work from Userspace.
+ *                       The flag is guarded with hwaccess_lock spinlock.
+ *                       The @gpu_sleep_mode_active flag is not immediately
+ *                       reset when this flag is set, this is to ensure that
+ *                       MCU doesn't gets disabled undesirably without the
+ *                       suspend of CSGs. That could happen when
+ *                       scheduler_pm_active() and scheduler_pm_idle() gets
+ *                       called before the Scheduler gets reactivated.
+ * @gpu_idled: Flag to ensure that the gpu_idle & gpu_active callbacks are
+ *             always called in pair. The flag is guarded with pm.lock mutex.
+ * @gpu_wakeup_override: Flag to force the power up of L2 cache & reactivation
+ *                       of MCU. This is set during the runtime suspend
+ *                       callback function, when GPU needs to exit the sleep
+ *                       mode for the saving the HW state before power down.
+ * @db_mirror_interrupt_enabled: Flag tracking if the Doorbell mirror interrupt
+ *                               is enabled or not.
  * @in_reset: True if a GPU is resetting and normal power manager operation is
  *            suspended
  * @partial_shaderoff: True if we want to partial power off shader cores,
@@ -398,6 +438,8 @@ struct kbase_pm_backend_data {
 	void (*callback_power_runtime_off)(struct kbase_device *kbdev);
 	int (*callback_power_runtime_idle)(struct kbase_device *kbdev);
 	int (*callback_soft_reset)(struct kbase_device *kbdev);
+	void (*callback_power_runtime_gpu_idle)(struct kbase_device *kbdev);
+	void (*callback_power_runtime_gpu_active)(struct kbase_device *kbdev);
 
 	u64 ca_cores_enabled;
 
@@ -413,6 +455,15 @@ struct kbase_pm_backend_data {
 	bool policy_change_clamp_state_to_off;
 	unsigned int csf_pm_sched_flags;
 	struct mutex policy_change_lock;
+
+#ifdef KBASE_PM_RUNTIME
+	bool gpu_sleep_supported;
+	bool gpu_sleep_mode_active;
+	bool exit_gpu_sleep_mode;
+	bool gpu_idled;
+	bool gpu_wakeup_override;
+	bool db_mirror_interrupt_enabled;
+#endif
 #endif
 	bool l2_desired;
 	bool l2_always_on;
@@ -420,11 +471,13 @@ struct kbase_pm_backend_data {
 
 	bool in_reset;
 
+#if !MALI_USE_CSF
 	bool partial_shaderoff;
 
 	bool protected_entry_transition_override;
 	bool protected_transition_override;
 	int protected_l2_override;
+#endif
 
 	bool hwcnt_desired;
 	bool hwcnt_disabled;
@@ -566,7 +619,7 @@ struct kbase_pm_policy {
 	 */
 	bool (*get_core_active)(struct kbase_device *kbdev);
 
-	/**
+	/*
 	 * Function called when a power event occurs
 	 *
 	 * @kbdev: The kbase device structure for the device (must be a

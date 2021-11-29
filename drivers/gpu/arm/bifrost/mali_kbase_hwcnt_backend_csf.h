@@ -19,7 +19,7 @@
  *
  */
 
-/**
+/*
  * Concrete implementation of mali_kbase_hwcnt_backend interface for CSF
  * backend.
  */

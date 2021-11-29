@@ -247,7 +247,7 @@ static void kbase_ipa_model_debugfs_init(struct kbase_ipa_model *model)
 	dir = debugfs_create_dir(model->ops->name,
 				 model->kbdev->mali_debugfs_directory);
 
-	if (!dir) {
+	if (IS_ERR_OR_NULL(dir)) {
 		dev_err(model->kbdev->dev,
 			"Couldn't create mali debugfs %s directory",
 			model->ops->name);

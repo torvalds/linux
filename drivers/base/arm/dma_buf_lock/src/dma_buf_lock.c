@@ -85,7 +85,7 @@ static struct cdev dma_buf_lock_cdev;
 static struct class *dma_buf_lock_class;
 static char dma_buf_lock_dev_name[] = "dma_buf_lock";
 
-#ifdef HAVE_UNLOCKED_IOCTL
+#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL) || ((KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE))
 static long dma_buf_lock_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 #else
 static int dma_buf_lock_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
@@ -94,12 +94,15 @@ static int dma_buf_lock_ioctl(struct inode *inode, struct file *filp, unsigned i
 static struct file_operations dma_buf_lock_fops =
 {
 	.owner   = THIS_MODULE,
-#ifdef HAVE_UNLOCKED_IOCTL
+#if defined(HAVE_UNLOCKED_IOCTL) || ((KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE))
 	.unlocked_ioctl   = dma_buf_lock_ioctl,
-#else
+#endif
+#if defined(HAVE_COMPAT_IOCTL) || ((KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE))
+	.compat_ioctl   = dma_buf_lock_ioctl,
+#endif
+#if !defined(HAVE_UNLOCKED_IOCTL) && !defined(HAVE_COMPAT_IOCTL) && ((KERNEL_VERSION(2, 6, 36) > LINUX_VERSION_CODE))
 	.ioctl   = dma_buf_lock_ioctl,
 #endif
-	.compat_ioctl   = dma_buf_lock_ioctl,
 };
 
 typedef struct dma_buf_lock_resource
@@ -343,8 +346,10 @@ dma_buf_lock_add_fence_reservation_callback(dma_buf_lock_resource *resource,
 
 #if (KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE)
 	err = reservation_object_get_fences_rcu(
-#else
+#elif (KERNEL_VERSION(5, 14, 0) > LINUX_VERSION_CODE)
 	err = dma_resv_get_fences_rcu(
+#else
+	err = dma_resv_get_fences(
 #endif
 						resv,
 						&excl_fence,
@@ -810,7 +815,9 @@ static int __init dma_buf_lock_init(void)
 			else
 			{
 				struct device *mdev;
-				mdev = device_create(dma_buf_lock_class, NULL, dma_buf_lock_dev, NULL, dma_buf_lock_dev_name);
+				mdev = device_create(
+					dma_buf_lock_class, NULL, dma_buf_lock_dev,
+					NULL, "%s", dma_buf_lock_dev_name);
 				if (!IS_ERR(mdev))
 					return 0;
 
@@ -861,7 +868,7 @@ static void __exit dma_buf_lock_exit(void)
 	unregister_chrdev_region(dma_buf_lock_dev, 1);
 }
 
-#ifdef HAVE_UNLOCKED_IOCTL
+#if defined(HAVE_UNLOCKED_IOCTL) || defined(HAVE_COMPAT_IOCTL) || ((KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE))
 static long dma_buf_lock_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #else
 static int dma_buf_lock_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)

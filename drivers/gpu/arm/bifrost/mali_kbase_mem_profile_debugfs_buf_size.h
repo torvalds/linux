@@ -30,8 +30,7 @@
  * The size of the buffer to accumulate the histogram report text in
  * @see @ref CCTXP_HIST_BUF_SIZE_MAX_LENGTH_REPORT
  */
-#define KBASE_MEM_PROFILE_MAX_BUF_SIZE \
-	((size_t) (64 + ((80 + (56 * 64)) * 53) + 56))
+#define KBASE_MEM_PROFILE_MAX_BUF_SIZE ((size_t)(64 + ((80 + (56 * 64)) * 54) + 56))
 
 #endif  /*_KBASE_MEM_PROFILE_DEBUGFS_BUF_SIZE_H_*/
 

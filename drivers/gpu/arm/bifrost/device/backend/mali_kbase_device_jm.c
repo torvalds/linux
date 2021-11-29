@@ -185,6 +185,8 @@ static const struct kbase_device_init dev_init[] = {
 	  "Timeline stream initialization failed" },
 	{ kbase_clk_rate_trace_manager_init, kbase_clk_rate_trace_manager_term,
 	  "Clock rate trace manager initialization failed" },
+	{ kbase_lowest_gpu_freq_init, NULL,
+	  "Lowest freq initialization failed" },
 	{ kbase_instr_backend_init, kbase_instr_backend_term,
 	  "Instrumentation backend initialization failed" },
 	{ kbase_device_hwcnt_backend_jm_init,
@@ -197,6 +199,8 @@ static const struct kbase_device_init dev_init[] = {
 	  "GPU hwcnt virtualizer initialization failed" },
 	{ kbase_device_vinstr_init, kbase_device_vinstr_term,
 	  "Virtual instrumentation initialization failed" },
+	{ kbase_device_kinstr_prfcnt_init, kbase_device_kinstr_prfcnt_term,
+	  "Performance counter instrumentation initialization failed" },
 	{ kbase_backend_late_init, kbase_backend_late_term,
 	  "Late backend initialization failed" },
 #ifdef MALI_KBASE_BUILD

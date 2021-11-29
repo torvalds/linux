@@ -223,7 +223,7 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	u32 prfcnt_hw_size = 0;
 	u32 prfcnt_fw_size = 0;
 	u32 prfcnt_block_size = KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK *
-				KBASE_HWCNT_VALUE_BYTES;
+				KBASE_HWCNT_VALUE_HW_BYTES;
 
 	WARN_ON(!ctx);
 	WARN_ON(!prfcnt_info);
@@ -235,6 +235,16 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	prfcnt_fw_size = (prfcnt_size >> 16) << 8;
 	fw_ctx->buf_bytes = prfcnt_hw_size + prfcnt_fw_size;
 
+	/* Read the block size if the GPU has the register PRFCNT_FEATURES
+	 * which was introduced in architecture version 11.x.7.
+	 */
+	if ((kbdev->gpu_props.props.raw_props.gpu_id & GPU_ID2_PRODUCT_MODEL) >=
+	    GPU_ID2_PRODUCT_TTUX) {
+		prfcnt_block_size =
+			PRFCNT_FEATURES_COUNTER_BLOCK_SIZE_GET(kbase_reg_read(
+				kbdev, GPU_CONTROL_REG(PRFCNT_FEATURES)))
+			<< 8;
+	}
 
 	prfcnt_info->dump_bytes = fw_ctx->buf_bytes;
 	prfcnt_info->prfcnt_block_size = prfcnt_block_size;
@@ -246,7 +256,7 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	prfcnt_info->clearing_samples = true;
 
 	/* Block size must be multiple of counter size. */
-	WARN_ON((prfcnt_info->prfcnt_block_size % KBASE_HWCNT_VALUE_BYTES) !=
+	WARN_ON((prfcnt_info->prfcnt_block_size % KBASE_HWCNT_VALUE_HW_BYTES) !=
 		0);
 	/* Total size must be multiple of block size. */
 	WARN_ON((prfcnt_info->dump_bytes % prfcnt_info->prfcnt_block_size) !=
@@ -273,6 +283,11 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx =
 		(struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
+
+	/* Calls to this function are inherently asynchronous, with respect to
+	 * MMU operations.
+	 */
+	const enum kbase_caller_mmu_sync_info mmu_sync_info = CALLER_MMU_ASYNC;
 
 	WARN_ON(!ctx);
 	WARN_ON(!cpu_dump_base);
@@ -322,7 +337,8 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 	/* Update MMU table */
 	ret = kbase_mmu_insert_pages(kbdev, &kbdev->csf.mcu_mmu,
 				     gpu_va_base >> PAGE_SHIFT, phys, num_pages,
-				     flags, MCU_AS_NR, KBASE_MEM_GROUP_CSF_FW);
+				     flags, MCU_AS_NR, KBASE_MEM_GROUP_CSF_FW,
+				     mmu_sync_info);
 	if (ret)
 		goto mmu_insert_failed;
 
@@ -683,7 +699,7 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_gpu_cycle_count(
 }
 
 /**
- * kbasep_hwcnt_backedn_csf_if_fw_cts_destroy() - Destroy a CSF FW interface context.
+ * kbasep_hwcnt_backend_csf_if_fw_ctx_destroy() - Destroy a CSF FW interface context.
  *
  * @fw_ctx: Pointer to context to destroy.
  */

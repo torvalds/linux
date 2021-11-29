@@ -20,7 +20,6 @@
  */
 
 /**
- * @file
  * Mali structures define to support arbitration feature
  */
 

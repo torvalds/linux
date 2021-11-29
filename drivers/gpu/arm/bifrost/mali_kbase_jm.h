@@ -84,7 +84,7 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev);
  * by kbase_js_use_ctx().
  *
  * The context should have no atoms currently pulled from it
- * (kctx->atoms_pulled == 0).
+ * (kbase_jsctx_atoms_pulled(kctx) == 0).
  *
  * Caller must hold the hwaccess_lock
  */

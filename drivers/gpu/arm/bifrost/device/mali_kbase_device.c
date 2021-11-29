@@ -40,6 +40,7 @@
 #include <linux/priority_control_manager.h>
 
 #include <tl/mali_kbase_timeline.h>
+#include "mali_kbase_kinstr_prfcnt.h"
 #include "mali_kbase_vinstr.h"
 #include "mali_kbase_hwcnt_context.h"
 #include "mali_kbase_hwcnt_virtualizer.h"
@@ -49,6 +50,7 @@
 #include "backend/gpu/mali_kbase_pm_internal.h"
 #include "backend/gpu/mali_kbase_irq_internal.h"
 #include "mali_kbase_regs_history_debugfs.h"
+#include "mali_kbase_pbha.h"
 
 #ifdef CONFIG_MALI_ARBITER_SUPPORT
 #include "arbiter/mali_kbase_arbiter_pm.h"
@@ -161,9 +163,9 @@ void kbase_device_pcm_dev_term(struct kbase_device *const kbdev)
 /**
  * mali_oom_notifier_handler - Mali driver out-of-memory handler
  *
- * @nb - notifier block - used to retrieve kbdev pointer
- * @action - action (unused)
- * @data - data pointer (unused)
+ * @nb: notifier block - used to retrieve kbdev pointer
+ * @action: action (unused)
+ * @data: data pointer (unused)
  * This function simply lists memory usage by the Mali driver, per GPU device,
  * for diagnostic purposes.
  */
@@ -273,6 +275,14 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 	if (err)
 		goto dma_set_mask_failed;
 
+	/* There is no limit for Mali, so set to max. We only do this if dma_parms
+	 * is already allocated by the platform.
+	 */
+	if (kbdev->dev->dma_parms)
+		err = dma_set_max_seg_size(kbdev->dev, UINT_MAX);
+	if (err)
+		goto dma_set_mask_failed;
+
 	kbdev->nr_hw_address_spaces = kbdev->gpu_props.num_address_spaces;
 
 	err = kbase_device_all_as_init(kbdev);
@@ -282,6 +292,9 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 	err = kbase_ktrace_init(kbdev);
 	if (err)
 		goto term_as;
+	err = kbase_pbha_read_dtb(kbdev);
+	if (err)
+		goto term_ktrace;
 
 	init_waitqueue_head(&kbdev->cache_clean_wait);
 
@@ -309,6 +322,8 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 	}
 	return 0;
 
+term_ktrace:
+	kbase_ktrace_term(kbdev);
 term_as:
 	kbase_device_all_as_term(kbdev);
 dma_set_mask_failed:
@@ -396,6 +411,17 @@ void kbase_device_vinstr_term(struct kbase_device *kbdev)
 }
 
 #if defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+int kbase_device_kinstr_prfcnt_init(struct kbase_device *kbdev)
+{
+	return kbase_kinstr_prfcnt_init(kbdev->hwcnt_gpu_virt,
+					&kbdev->kinstr_prfcnt_ctx);
+}
+
+void kbase_device_kinstr_prfcnt_term(struct kbase_device *kbdev)
+{
+	kbase_kinstr_prfcnt_term(kbdev->kinstr_prfcnt_ctx);
+}
+
 int kbase_device_io_history_init(struct kbase_device *kbdev)
 {
 	return kbase_io_history_init(&kbdev->io_history,
@@ -463,6 +489,11 @@ int kbase_device_early_init(struct kbase_device *kbdev)
 	if (err)
 		goto fail_runtime_pm;
 
+	/* This spinlock is initialized before doing the first access to GPU
+	 * registers and installing interrupt handlers.
+	 */
+	spin_lock_init(&kbdev->hwaccess_lock);
+
 	/* Ensure we can access the GPU registers */
 	kbase_pm_register_access_enable(kbdev);
 
@@ -472,10 +503,6 @@ int kbase_device_early_init(struct kbase_device *kbdev)
 	/* We're done accessing the GPU registers for now. */
 	kbase_pm_register_access_disable(kbdev);
 
-	/* This spinlock has to be initialized before installing interrupt
-	 * handlers that require to hold it to process interrupts.
-	 */
-	spin_lock_init(&kbdev->hwaccess_lock);
 #ifdef CONFIG_MALI_ARBITER_SUPPORT
 	if (kbdev->arb.arb_if)
 		err = kbase_arbiter_pm_install_interrupts(kbdev);

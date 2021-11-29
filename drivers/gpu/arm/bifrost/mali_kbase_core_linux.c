@@ -53,6 +53,7 @@
 #include "mali_kbase_hwcnt_context.h"
 #include "mali_kbase_hwcnt_virtualizer.h"
 #include "mali_kbase_hwcnt_legacy.h"
+#include "mali_kbase_kinstr_prfcnt.h"
 #include "mali_kbase_vinstr.h"
 #if MALI_USE_CSF
 #include "csf/mali_kbase_csf_firmware.h"
@@ -71,6 +72,9 @@
 #endif
 #include "backend/gpu/mali_kbase_pm_internal.h"
 #include "mali_kbase_dvfs_debugfs.h"
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+#include "mali_kbase_pbha_debugfs.h"
+#endif
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -402,6 +406,22 @@ static int kbase_api_handshake_dummy(struct kbase_file *kfile,
 		struct kbase_ioctl_version_check *version)
 {
 	return -EPERM;
+}
+
+static int kbase_api_kinstr_prfcnt_enum_info(
+	struct kbase_file *kfile,
+	struct kbase_ioctl_kinstr_prfcnt_enum_info *prfcnt_enum_info)
+{
+	return kbase_kinstr_prfcnt_enum_info(kfile->kbdev->kinstr_prfcnt_ctx,
+					     prfcnt_enum_info);
+}
+
+static int kbase_api_kinstr_prfcnt_setup(
+	struct kbase_file *kfile,
+	union kbase_ioctl_kinstr_prfcnt_setup *prfcnt_setup)
+{
+	return kbase_kinstr_prfcnt_setup(kfile->kbdev->kinstr_prfcnt_ctx,
+					 prfcnt_setup);
 }
 
 static struct kbase_device *to_kbase_device(struct device *dev)
@@ -809,16 +829,13 @@ static int kbase_api_mem_alloc(struct kbase_context *kctx,
 	u64 flags = alloc->in.flags;
 	u64 gpu_va;
 
-	rcu_read_lock();
-	/* Don't allow memory allocation until user space has set up the
-	 * tracking page (which sets kctx->process_mm). Also catches when we've
-	 * forked.
+	/* Calls to this function are inherently asynchronous, with respect to
+	 * MMU operations.
 	 */
-	if (rcu_dereference(kctx->process_mm) != current->mm) {
-		rcu_read_unlock();
+	const enum kbase_caller_mmu_sync_info mmu_sync_info = CALLER_MMU_ASYNC;
+
+	if (!kbase_mem_allow_alloc(kctx))
 		return -EINVAL;
-	}
-	rcu_read_unlock();
 
 	if (flags & BASEP_MEM_FLAGS_KERNEL_ONLY)
 		return -ENOMEM;
@@ -850,7 +867,8 @@ static int kbase_api_mem_alloc(struct kbase_context *kctx,
 #endif
 
 	reg = kbase_mem_alloc(kctx, alloc->in.va_pages, alloc->in.commit_pages,
-			      alloc->in.extension, &flags, &gpu_va);
+			      alloc->in.extension, &flags, &gpu_va,
+			      mmu_sync_info);
 
 	if (!reg)
 		return -ENOMEM;
@@ -1643,6 +1661,20 @@ static long kbase_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				kbase_api_set_flags,
 				struct kbase_ioctl_set_flags,
 				kfile);
+		break;
+
+	case KBASE_IOCTL_KINSTR_PRFCNT_ENUM_INFO:
+		KBASE_HANDLE_IOCTL_INOUT(
+			KBASE_IOCTL_KINSTR_PRFCNT_ENUM_INFO,
+			kbase_api_kinstr_prfcnt_enum_info,
+			struct kbase_ioctl_kinstr_prfcnt_enum_info, kfile);
+		break;
+
+	case KBASE_IOCTL_KINSTR_PRFCNT_SETUP:
+		KBASE_HANDLE_IOCTL_INOUT(KBASE_IOCTL_KINSTR_PRFCNT_SETUP,
+					 kbase_api_kinstr_prfcnt_setup,
+					 union kbase_ioctl_kinstr_prfcnt_setup,
+					 kfile);
 		break;
 	}
 
@@ -3098,6 +3130,10 @@ static ssize_t kbase_show_gpuinfo(struct device *dev,
 		  .name = "Mali-G510" },
 		{ .id = GPU_ID2_PRODUCT_TVAX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
 		  .name = "Mali-G310" },
+		{ .id = GPU_ID2_PRODUCT_TTUX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
+		  .name = "Mali-TTUX" },
+		{ .id = GPU_ID2_PRODUCT_LTUX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
+		  .name = "Mali-LTUX" },
 	};
 	const char *product_name = "(Unknown Mali GPU)";
 	struct kbase_device *kbdev;
@@ -4595,25 +4631,31 @@ MAKE_QUIRK_ACCESSORS(tiler);
 MAKE_QUIRK_ACCESSORS(mmu);
 MAKE_QUIRK_ACCESSORS(gpu);
 
-static ssize_t kbase_device_debugfs_reset_write(struct file *file,
-		const char __user *ubuf, size_t count, loff_t *ppos)
+/**
+ * kbase_device_debugfs_reset_write() - Reset the GPU
+ *
+ * @data:           Pointer to the Kbase device.
+ * @wait_for_reset: Value written to the file.
+ *
+ * This function will perform the GPU reset, and if the value written to
+ * the file is 1 it will also wait for the reset to complete.
+ *
+ * Return: 0 in case of no error otherwise a negative value.
+ */
+static int kbase_device_debugfs_reset_write(void *data, u64 wait_for_reset)
 {
-	struct kbase_device *kbdev = file->private_data;
-	CSTD_UNUSED(ubuf);
-	CSTD_UNUSED(count);
-	CSTD_UNUSED(ppos);
+	struct kbase_device *kbdev = data;
 
 	trigger_reset(kbdev);
 
-	return count;
+	if (wait_for_reset == 1)
+		return kbase_reset_gpu_wait(kbdev);
+
+	return 0;
 }
 
-static const struct file_operations fops_trigger_reset = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.write = kbase_device_debugfs_reset_write,
-	.llseek = default_llseek,
-};
+DEFINE_SIMPLE_ATTRIBUTE(fops_trigger_reset,
+		NULL, &kbase_device_debugfs_reset_write, "%llu\n");
 
 /**
  * debugfs_protected_debug_mode_read - "protected_debug_mode" debugfs read
@@ -4713,7 +4755,7 @@ int kbase_device_debugfs_init(struct kbase_device *kbdev)
 
 	kbdev->mali_debugfs_directory = debugfs_create_dir(kbdev->devname,
 			NULL);
-	if (!kbdev->mali_debugfs_directory) {
+	if (IS_ERR_OR_NULL(kbdev->mali_debugfs_directory)) {
 		dev_err(kbdev->dev,
 			"Couldn't create mali debugfs directory: %s\n",
 			kbdev->devname);
@@ -4723,7 +4765,7 @@ int kbase_device_debugfs_init(struct kbase_device *kbdev)
 
 	kbdev->debugfs_ctx_directory = debugfs_create_dir("ctx",
 			kbdev->mali_debugfs_directory);
-	if (!kbdev->debugfs_ctx_directory) {
+	if (IS_ERR_OR_NULL(kbdev->debugfs_ctx_directory)) {
 		dev_err(kbdev->dev, "Couldn't create mali debugfs ctx directory\n");
 		err = -ENOMEM;
 		goto out;
@@ -4731,7 +4773,7 @@ int kbase_device_debugfs_init(struct kbase_device *kbdev)
 
 	kbdev->debugfs_instr_directory = debugfs_create_dir("instrumentation",
 			kbdev->mali_debugfs_directory);
-	if (!kbdev->debugfs_instr_directory) {
+	if (IS_ERR_OR_NULL(kbdev->debugfs_instr_directory)) {
 		dev_err(kbdev->dev, "Couldn't create mali debugfs instrumentation directory\n");
 		err = -ENOMEM;
 		goto out;
@@ -4739,7 +4781,7 @@ int kbase_device_debugfs_init(struct kbase_device *kbdev)
 
 	debugfs_ctx_defaults_directory = debugfs_create_dir("defaults",
 			kbdev->debugfs_ctx_directory);
-	if (!debugfs_ctx_defaults_directory) {
+	if (IS_ERR_OR_NULL(debugfs_ctx_defaults_directory)) {
 		dev_err(kbdev->dev, "Couldn't create mali debugfs ctx defaults directory\n");
 		err = -ENOMEM;
 		goto out;
@@ -4756,6 +4798,8 @@ int kbase_device_debugfs_init(struct kbase_device *kbdev)
 #ifdef CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS
 	kbase_instr_backend_debugfs_init(kbdev);
 #endif
+	kbase_pbha_debugfs_init(kbdev);
+
 	/* fops_* variables created by invocations of macro
 	 * MAKE_QUIRK_ACCESSORS() above.
 	 */
@@ -5314,11 +5358,19 @@ static int kbase_device_resume(struct device *dev)
 static int kbase_device_runtime_suspend(struct device *dev)
 {
 	struct kbase_device *kbdev = to_kbase_device(dev);
+	int ret = 0;
 
 	if (!kbdev)
 		return -ENODEV;
 
 	dev_dbg(dev, "Callback %s\n", __func__);
+	KBASE_KTRACE_ADD(kbdev, PM_RUNTIME_SUSPEND_CALLBACK, NULL, 0);
+
+#if MALI_USE_CSF
+	ret = kbase_pm_handle_runtime_suspend(kbdev);
+	if (ret)
+		return ret;
+#endif
 
 #ifdef CONFIG_MALI_BIFROST_DVFS
 	kbase_pm_metrics_stop(kbdev);
@@ -5333,7 +5385,7 @@ static int kbase_device_runtime_suspend(struct device *dev)
 		kbdev->pm.backend.callback_power_runtime_off(kbdev);
 		dev_dbg(dev, "runtime suspend\n");
 	}
-	return 0;
+	return ret;
 }
 #endif /* KBASE_PM_RUNTIME */
 
@@ -5357,6 +5409,7 @@ static int kbase_device_runtime_resume(struct device *dev)
 		return -ENODEV;
 
 	dev_dbg(dev, "Callback %s\n", __func__);
+	// KBASE_KTRACE_ADD(kbdev, PM_RUNTIME_RESUME_CALLBACK, NULL, 0);
 	if (kbdev->pm.backend.callback_power_runtime_on) {
 		ret = kbdev->pm.backend.callback_power_runtime_on(kbdev);
 		dev_dbg(dev, "runtime resume\n");

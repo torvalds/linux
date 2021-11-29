@@ -28,44 +28,6 @@
 #include <mmu/mali_kbase_mmu.h>
 
 #if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-void kbase_reg_write(struct kbase_device *kbdev, u32 offset, u32 value)
-{
-	KBASE_DEBUG_ASSERT(kbdev->pm.backend.gpu_powered);
-	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
-
-	writel(value, kbdev->reg + offset);
-
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-	if (unlikely(kbdev->io_history.enabled))
-		kbase_io_history_add(&kbdev->io_history, kbdev->reg + offset,
-				value, 1);
-#endif /* CONFIG_DEBUG_FS */
-	dev_dbg(kbdev->dev, "w: reg %08x val %08x", offset, value);
-}
-
-KBASE_EXPORT_TEST_API(kbase_reg_write);
-
-u32 kbase_reg_read(struct kbase_device *kbdev, u32 offset)
-{
-	u32 val;
-
-	KBASE_DEBUG_ASSERT(kbdev->pm.backend.gpu_powered);
-	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
-
-	val = readl(kbdev->reg + offset);
-
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-	if (unlikely(kbdev->io_history.enabled))
-		kbase_io_history_add(&kbdev->io_history, kbdev->reg + offset,
-				val, 0);
-#endif /* CONFIG_DEBUG_FS */
-	dev_dbg(kbdev->dev, "r: reg %08x val %08x", offset, val);
-
-	return val;
-}
-
-KBASE_EXPORT_TEST_API(kbase_reg_read);
-
 bool kbase_is_gpu_removed(struct kbase_device *kbdev)
 {
 	u32 val;
@@ -99,7 +61,7 @@ void kbase_gpu_start_cache_clean_nolock(struct kbase_device *kbdev)
 
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_CLEAN_INV_CACHES, NULL, 0);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
-					GPU_COMMAND_CLEAN_INV_CACHES);
+			GPU_COMMAND_CACHE_CLN_INV_L2);
 
 	kbdev->cache_clean_in_progress = true;
 }
@@ -134,7 +96,7 @@ void kbase_clean_caches_done(struct kbase_device *kbdev)
 
 		KBASE_KTRACE_ADD(kbdev, CORE_GPU_CLEAN_INV_CACHES, NULL, 0);
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
-				GPU_COMMAND_CLEAN_INV_CACHES);
+				GPU_COMMAND_CACHE_CLN_INV_L2);
 	} else {
 		/* Disable interrupt */
 		irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));

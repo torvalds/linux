@@ -39,18 +39,17 @@
 #define ORDER_OF_PAGES_PER_BITFIELD_ELEM 6
 
 /**
- * struct simple_pma_device -	Simple implementation of a protected memory
- *				allocator device
- *
- * @pma_dev:			Protected memory allocator device pointer
- * @dev:  			Device pointer
- * @alloc_pages_bitfield_arr:	Status of all the physical memory pages within the
- *				protected memory region, one bit per page
- * @rmem_base:			Base address of the reserved memory region
- * @rmem_size:			Size of the reserved memory region, in pages
- * @num_free_pages:		Number of free pages in the memory region
- * @rmem_lock:			Lock to serialize the allocation and freeing of
- *				physical pages from the protected memory region
+ * struct simple_pma_device - Simple implementation of a protected memory
+ *                            allocator device
+ * @pma_dev: Protected memory allocator device pointer
+ * @dev:     Device pointer
+ * @allocated_pages_bitfield_arr: Status of all the physical memory pages within the
+ *                                protected memory region, one bit per page
+ * @rmem_base:      Base address of the reserved memory region
+ * @rmem_size:      Size of the reserved memory region, in pages
+ * @num_free_pages: Number of free pages in the memory region
+ * @rmem_lock:      Lock to serialize the allocation and freeing of
+ *                  physical pages from the protected memory region
  */
 struct simple_pma_device {
 	struct protected_memory_allocator_device pma_dev;
@@ -66,12 +65,20 @@ struct simple_pma_device {
  * Number of elements in array 'allocated_pages_bitfield_arr'. If the number of
  * pages required does not divide exactly by PAGES_PER_BITFIELD_ELEM, adds an
  * extra page for the remainder.
+ * @num_pages: number of pages
  */
 #define ALLOC_PAGES_BITFIELD_ARR_SIZE(num_pages) \
 	((PAGES_PER_BITFIELD_ELEM * (0 != (num_pages % PAGES_PER_BITFIELD_ELEM)) + \
 	num_pages) / PAGES_PER_BITFIELD_ELEM)
 
 /**
+ * small_granularity_alloc() - Allocate 1-32 power-of-two pages.
+ * @epma_dev: protected memory allocator device structure.
+ * @alloc_bitfield_idx: index of the relevant bitfield.
+ * @start_bit: starting bitfield index.
+ * @order: bitshift for number of pages. Order of 0 to 5 equals 1 to 32 pages.
+ * @pma: protected_memory_allocation struct.
+ *
  * Allocate a power-of-two number of pages, N, where
  * 0 <= N <= ORDER_OF_PAGES_PER_BITFIELD_ELEM - 1.  ie, Up to 32 pages. The routine
  * fills-in a pma structure and sets the appropriate bits in the allocated-pages
@@ -127,6 +134,12 @@ static void small_granularity_alloc(struct simple_pma_device *const epma_dev,
 }
 
 /**
+ * large_granularity_alloc() - Allocate pages at multiples of 64 pages.
+ * @epma_dev: protected memory allocator device structure.
+ * @start_alloc_bitfield_idx: index of the starting bitfield.
+ * @order: bitshift for number of pages. Order of 6+ equals 64+ pages.
+ * @pma: protected_memory_allocation struct.
+ *
  * Allocate a power-of-two number of pages, N, where
  * N >= ORDER_OF_PAGES_PER_BITFIELD_ELEM. ie, 64 pages or more. The routine fills-in
  * a pma structure and sets the appropriate bits in the allocated-pages bitfield array

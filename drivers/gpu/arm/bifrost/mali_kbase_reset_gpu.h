@@ -91,7 +91,8 @@ int kbase_reset_gpu_prevent_and_wait(struct kbase_device *kbdev);
  * Refer to kbase_reset_gpu_prevent_and_wait() for more information.
  *
  * Return: 0 on success. -EAGAIN if a reset is currently happening. Other
- * negative error codes on failure.
+ * negative error codes on failure, where -ENOMEM indicates that GPU reset
+ * had failed.
  */
 int kbase_reset_gpu_try_prevent(struct kbase_device *kbdev);
 
@@ -168,7 +169,7 @@ bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev,
  * kbase_prepare_to_reset_gpu - Prepare for resetting the GPU.
  * @kbdev: Device pointer
  * @flags: Bitfield indicating impact of reset (see flag defines)
-
+ *
  * Return: a boolean which should be interpreted as follows:
  * - true  - Prepared for reset, kbase_reset_gpu should be called.
  * - false - Another thread is performing a reset, kbase_reset_gpu should

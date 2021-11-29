@@ -71,10 +71,11 @@ void kbasep_ktrace_backend_format_msg(struct kbase_ktrace_msg *trace_msg,
 }
 
 void kbasep_ktrace_add_jm(struct kbase_device *kbdev,
-		enum kbase_ktrace_code code, struct kbase_context *kctx,
-		struct kbase_jd_atom *katom, u64 gpu_addr,
-		kbase_ktrace_flag_t flags, int refcount, int jobslot,
-		u64 info_val)
+			  enum kbase_ktrace_code code,
+			  struct kbase_context *kctx,
+			  const struct kbase_jd_atom *katom, u64 gpu_addr,
+			  kbase_ktrace_flag_t flags, int refcount, int jobslot,
+			  u64 info_val)
 {
 	unsigned long irqflags;
 	struct kbase_ktrace_msg *trace_msg;

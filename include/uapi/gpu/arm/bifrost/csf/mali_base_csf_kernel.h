@@ -186,17 +186,17 @@
 #define BASE_MEM_FLAGS_RESERVED \
 	BASE_MEM_RESERVED_BIT_8 | BASE_MEM_RESERVED_BIT_20
 
-#define BASEP_MEM_INVALID_HANDLE               (0ull  << 12)
-#define BASE_MEM_MMU_DUMP_HANDLE               (1ull  << 12)
-#define BASE_MEM_TRACE_BUFFER_HANDLE           (2ull  << 12)
-#define BASE_MEM_MAP_TRACKING_HANDLE           (3ull  << 12)
-#define BASEP_MEM_WRITE_ALLOC_PAGES_HANDLE     (4ull  << 12)
+#define BASEP_MEM_INVALID_HANDLE (0ul)
+#define BASE_MEM_MMU_DUMP_HANDLE (1ul << LOCAL_PAGE_SHIFT)
+#define BASE_MEM_TRACE_BUFFER_HANDLE (2ul << LOCAL_PAGE_SHIFT)
+#define BASE_MEM_MAP_TRACKING_HANDLE (3ul << LOCAL_PAGE_SHIFT)
+#define BASEP_MEM_WRITE_ALLOC_PAGES_HANDLE (4ul << LOCAL_PAGE_SHIFT)
 /* reserved handles ..-47<<PAGE_SHIFT> for future special handles */
-#define BASEP_MEM_CSF_USER_REG_PAGE_HANDLE     (47ul  << 12)
-#define BASEP_MEM_CSF_USER_IO_PAGES_HANDLE     (48ul  << 12)
-#define BASE_MEM_COOKIE_BASE                   (64ul  << 12)
-#define BASE_MEM_FIRST_FREE_ADDRESS            ((BITS_PER_LONG << 12) + \
-						BASE_MEM_COOKIE_BASE)
+#define BASEP_MEM_CSF_USER_REG_PAGE_HANDLE (47ul << LOCAL_PAGE_SHIFT)
+#define BASEP_MEM_CSF_USER_IO_PAGES_HANDLE (48ul << LOCAL_PAGE_SHIFT)
+#define BASE_MEM_COOKIE_BASE (64ul << LOCAL_PAGE_SHIFT)
+#define BASE_MEM_FIRST_FREE_ADDRESS                                            \
+	((BITS_PER_LONG << LOCAL_PAGE_SHIFT) + BASE_MEM_COOKIE_BASE)
 
 #define KBASE_CSF_NUM_USER_IO_PAGES_HANDLE \
 	((BASE_MEM_COOKIE_BASE - BASEP_MEM_CSF_USER_IO_PAGES_HANDLE) >> \
@@ -301,41 +301,6 @@ typedef __u32 base_context_create_flags;
  */
 #define BASEP_KCPU_CQS_MAX_NUM_OBJS ((size_t)32)
 
-#if MALI_UNIT_TEST
-/**
- * enum base_kcpu_command_type - Kernel CPU queue command type.
- * @BASE_KCPU_COMMAND_TYPE_FENCE_SIGNAL:       fence_signal,
- * @BASE_KCPU_COMMAND_TYPE_FENCE_WAIT:         fence_wait,
- * @BASE_KCPU_COMMAND_TYPE_CQS_WAIT:           cqs_wait,
- * @BASE_KCPU_COMMAND_TYPE_CQS_SET:            cqs_set,
- * @BASE_KCPU_COMMAND_TYPE_CQS_WAIT_OPERATION: cqs_wait_operation,
- * @BASE_KCPU_COMMAND_TYPE_CQS_SET_OPERATION:  cqs_set_operation,
- * @BASE_KCPU_COMMAND_TYPE_MAP_IMPORT:         map_import,
- * @BASE_KCPU_COMMAND_TYPE_UNMAP_IMPORT:       unmap_import,
- * @BASE_KCPU_COMMAND_TYPE_UNMAP_IMPORT_FORCE: unmap_import_force,
- * @BASE_KCPU_COMMAND_TYPE_JIT_ALLOC:          jit_alloc,
- * @BASE_KCPU_COMMAND_TYPE_JIT_FREE:           jit_free,
- * @BASE_KCPU_COMMAND_TYPE_GROUP_SUSPEND:      group_suspend,
- * @BASE_KCPU_COMMAND_TYPE_ERROR_BARRIER:      error_barrier,
- * @BASE_KCPU_COMMAND_TYPE_SAMPLE_TIME:        sample_time,
- */
-enum base_kcpu_command_type {
-	BASE_KCPU_COMMAND_TYPE_FENCE_SIGNAL,
-	BASE_KCPU_COMMAND_TYPE_FENCE_WAIT,
-	BASE_KCPU_COMMAND_TYPE_CQS_WAIT,
-	BASE_KCPU_COMMAND_TYPE_CQS_SET,
-	BASE_KCPU_COMMAND_TYPE_CQS_WAIT_OPERATION,
-	BASE_KCPU_COMMAND_TYPE_CQS_SET_OPERATION,
-	BASE_KCPU_COMMAND_TYPE_MAP_IMPORT,
-	BASE_KCPU_COMMAND_TYPE_UNMAP_IMPORT,
-	BASE_KCPU_COMMAND_TYPE_UNMAP_IMPORT_FORCE,
-	BASE_KCPU_COMMAND_TYPE_JIT_ALLOC,
-	BASE_KCPU_COMMAND_TYPE_JIT_FREE,
-	BASE_KCPU_COMMAND_TYPE_GROUP_SUSPEND,
-	BASE_KCPU_COMMAND_TYPE_ERROR_BARRIER,
-	BASE_KCPU_COMMAND_TYPE_SAMPLE_TIME,
-};
-#else
 /**
  * enum base_kcpu_command_type - Kernel CPU queue command type.
  * @BASE_KCPU_COMMAND_TYPE_FENCE_SIGNAL:       fence_signal,
@@ -365,9 +330,8 @@ enum base_kcpu_command_type {
 	BASE_KCPU_COMMAND_TYPE_JIT_ALLOC,
 	BASE_KCPU_COMMAND_TYPE_JIT_FREE,
 	BASE_KCPU_COMMAND_TYPE_GROUP_SUSPEND,
-	BASE_KCPU_COMMAND_TYPE_ERROR_BARRIER,
+	BASE_KCPU_COMMAND_TYPE_ERROR_BARRIER
 };
-#endif /* MALI_UNIT_TEST */
 
 /**
  * enum base_queue_group_priority - Priority of a GPU Command Queue Group.
@@ -426,7 +390,7 @@ struct base_kcpu_command_cqs_set_info {
 };
 
 /**
- * basep_cqs_data_type - Enumeration of CQS Data Types
+ * typedef basep_cqs_data_type - Enumeration of CQS Data Types
  *
  * @BASEP_CQS_DATA_TYPE_U32: The Data Type of a CQS Object's value
  *                           is an unsigned 32-bit integer
@@ -439,7 +403,7 @@ typedef enum PACKED {
 } basep_cqs_data_type;
 
 /**
- * basep_cqs_wait_operation_op - Enumeration of CQS Object Wait
+ * typedef basep_cqs_wait_operation_op - Enumeration of CQS Object Wait
  *                                Operation conditions
  *
  * @BASEP_CQS_WAIT_OPERATION_LE: CQS Wait Operation indicating that a
@@ -480,7 +444,7 @@ struct base_kcpu_command_cqs_wait_operation_info {
 };
 
 /**
- * basep_cqs_set_operation_op - Enumeration of CQS Set Operations
+ * typedef basep_cqs_set_operation_op - Enumeration of CQS Set Operations
  *
  * @BASEP_CQS_SET_OPERATION_ADD: CQS Set operation for adding a value
  *                                to a synchronization object
@@ -569,11 +533,6 @@ struct base_kcpu_command_group_suspend_info {
 	__u8 padding[3];
 };
 
-#if MALI_UNIT_TEST
-struct base_kcpu_command_sample_time_info {
-	__u64 time;
-};
-#endif /* MALI_UNIT_TEST */
 
 /**
  * struct base_kcpu_command - kcpu command.
@@ -604,9 +563,6 @@ struct base_kcpu_command {
 		struct base_kcpu_command_jit_alloc_info jit_alloc;
 		struct base_kcpu_command_jit_free_info jit_free;
 		struct base_kcpu_command_group_suspend_info suspend_buf_copy;
-#if MALI_UNIT_TEST
-		struct base_kcpu_command_sample_time_info sample_time;
-#endif /* MALI_UNIT_TEST */
 		__u64 padding[2]; /* No sub-struct should be larger */
 	} info;
 };

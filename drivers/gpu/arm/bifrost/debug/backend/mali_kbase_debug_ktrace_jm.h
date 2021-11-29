@@ -41,10 +41,11 @@
  * PRIVATE: do not use directly. Use KBASE_KTRACE_ADD_JM() instead.
  */
 void kbasep_ktrace_add_jm(struct kbase_device *kbdev,
-		enum kbase_ktrace_code code, struct kbase_context *kctx,
-		struct kbase_jd_atom *katom, u64 gpu_addr,
-		kbase_ktrace_flag_t flags, int refcount, int jobslot,
-		u64 info_val);
+			  enum kbase_ktrace_code code,
+			  struct kbase_context *kctx,
+			  const struct kbase_jd_atom *katom, u64 gpu_addr,
+			  kbase_ktrace_flag_t flags, int refcount, int jobslot,
+			  u64 info_val);
 
 #define KBASE_KTRACE_RBUF_ADD_JM(kbdev, code, kctx, katom, gpu_addr, flags, \
 		refcount, jobslot, info_val) \

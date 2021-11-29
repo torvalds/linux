@@ -461,11 +461,14 @@ static void kbase_csf_reset_gpu_worker(struct work_struct *data)
 {
 	struct kbase_device *kbdev = container_of(data, struct kbase_device,
 						  csf.reset.work);
+	bool gpu_sleep_mode_active = false;
 	bool firmware_inited;
 	unsigned long flags;
 	int err = 0;
 	const enum kbase_csf_reset_gpu_state initial_reset_state =
 		atomic_read(&kbdev->csf.reset.state);
+	const bool silent =
+		kbase_csf_reset_state_is_silent(initial_reset_state);
 
 	/* Ensure any threads (e.g. executing the CSF scheduler) have finished
 	 * using the HW
@@ -474,13 +477,29 @@ static void kbase_csf_reset_gpu_worker(struct work_struct *data)
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	firmware_inited = kbdev->csf.firmware_inited;
+#ifdef KBASE_PM_RUNTIME
+	gpu_sleep_mode_active = kbdev->pm.backend.gpu_sleep_mode_active;
+#endif
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
-	if (!kbase_pm_context_active_handle_suspend(kbdev,
-			KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE)) {
-		bool silent =
-			kbase_csf_reset_state_is_silent(initial_reset_state);
+	if (unlikely(gpu_sleep_mode_active)) {
+#ifdef KBASE_PM_RUNTIME
+		/* As prior to GPU reset all on-slot groups are suspended,
+		 * need to wake up the MCU from sleep.
+		 * No pm active reference is taken here since GPU is in sleep
+		 * state and both runtime & system suspend synchronize with the
+		 * GPU reset before they wake up the GPU to suspend on-slot
+		 * groups. GPUCORE-29850 would add the proper handling.
+		 */
+		kbase_pm_lock(kbdev);
+		if (kbase_pm_force_mcu_wakeup_after_sleep(kbdev))
+			dev_warn(kbdev->dev, "Wait for MCU wake up failed on GPU reset");
+		kbase_pm_unlock(kbdev);
 
+		err = kbase_csf_reset_gpu_now(kbdev, firmware_inited, silent);
+#endif
+	} else if (!kbase_pm_context_active_handle_suspend(kbdev,
+			KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE)) {
 		err = kbase_csf_reset_gpu_now(kbdev, firmware_inited, silent);
 		kbase_pm_context_idle(kbdev);
 	}
@@ -599,6 +618,8 @@ int kbase_reset_gpu_wait(struct kbase_device *kbdev)
 
 	if (!remaining) {
 		dev_warn(kbdev->dev, "Timed out waiting for the GPU reset to complete");
+
+
 		return -ETIMEDOUT;
 	} else if (atomic_read(&kbdev->csf.reset.state) ==
 			KBASE_CSF_RESET_GPU_FAILED) {

@@ -45,9 +45,12 @@
  *
  * ftrace backend now outputs kctx field (as %d_%u format).
  *
+ * 2.2:
+ * Add tracing codes for pulling, unpulling, and returns atoms to JS for
+ * diagnosing soft-stop path and preemption problems
  */
 #define KBASE_KTRACE_VERSION_MAJOR 2
-#define KBASE_KTRACE_VERSION_MINOR 1
+#define KBASE_KTRACE_VERSION_MINOR 2
 #endif /* KBASE_KTRACE_TARGET_RBUF */
 
 /*

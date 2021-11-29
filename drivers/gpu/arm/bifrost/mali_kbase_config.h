@@ -170,6 +170,12 @@ struct kbase_pm_callback_conf {
 	 * the clocks to the GPU, or to completely power down the GPU.
 	 * The platform specific private pointer kbase_device::platform_context can be accessed and modified in here. It is the
 	 * platform \em callbacks responsibility to initialize and terminate this pointer if used (see @ref kbase_platform_funcs_conf).
+	 *
+	 * If runtime PM is enabled and @power_runtime_gpu_idle_callback is used
+	 * then this callback should power off the GPU (or switch off the clocks
+	 * to GPU) immediately. If @power_runtime_gpu_idle_callback is not used,
+	 * then this callback can set the autosuspend timeout (if desired) and
+	 * let the GPU be powered down later.
 	 */
 	void (*power_off_callback)(struct kbase_device *kbdev);
 
@@ -289,6 +295,49 @@ struct kbase_pm_callback_conf {
 	 * be raised. On error, return the corresponding OS error code.
 	 */
 	int (*soft_reset_callback)(struct kbase_device *kbdev);
+
+	/*
+	 * Optional callback invoked after GPU becomes idle, not supported on
+	 * JM GPUs.
+	 *
+	 * This callback will be invoked by the Kbase when GPU becomes idle.
+	 * For JM GPUs or when runtime PM is disabled, Kbase will not invoke
+	 * this callback and @power_off_callback will be invoked directly.
+	 *
+	 * This callback is supposed to decrement the runtime PM core reference
+	 * count to zero and trigger the auto-suspend timer, which implies that
+	 * @power_off_callback shouldn't initiate the runtime suspend.
+	 *
+	 * GPU registers still remain accessible until @power_off_callback gets
+	 * invoked later on the expiry of auto-suspend timer.
+	 *
+	 * Note: The Linux kernel must have CONFIG_PM_RUNTIME enabled to use
+	 * this feature.
+	 */
+	void (*power_runtime_gpu_idle_callback)(struct kbase_device *kbdev);
+
+	/*
+	 * Optional callback invoked to change the runtime PM core state to
+	 * active.
+	 *
+	 * This callback will be invoked by Kbase when GPU needs to be
+	 * reactivated, but only if @power_runtime_gpu_idle_callback was invoked
+	 * previously. So both @power_runtime_gpu_idle_callback and this
+	 * callback needs to be implemented at the same time.
+	 *
+	 * Kbase will invoke @power_on_callback first before invoking this
+	 * callback if the GPU was powered down previously, otherwise directly.
+	 *
+	 * This callback is supposed to increment the runtime PM core reference
+	 * count to 1, which implies that @power_on_callback shouldn't initiate
+	 * the runtime resume. The runtime resume may not happen synchronously
+	 * to avoid a potential deadlock due to the runtime suspend happening
+	 * simultaneously from some other thread.
+	 *
+	 * Note: The Linux kernel must have CONFIG_PM_RUNTIME enabled to use
+	 * this feature.
+	 */
+	void (*power_runtime_gpu_active_callback)(struct kbase_device *kbdev);
 };
 
 /* struct kbase_gpu_clk_notifier_data - Data for clock rate change notifier.

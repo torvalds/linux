@@ -374,7 +374,11 @@ static inline bool kbase_csf_scheduler_protected_mode_in_use(
  * kbase_csf_scheduler_pm_active - Perform scheduler power active operation
  *
  * Note: This function will increase the scheduler's internal pm_active_count
- * value, ensuring that both GPU and MCU are powered for access.
+ * value, ensuring that both GPU and MCU are powered for access. The MCU may
+ * not have actually become active when this function returns, so need to
+ * call kbase_csf_scheduler_wait_mcu_active() for that.
+ *
+ * This function should not be called with global scheduler lock held.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
@@ -384,11 +388,25 @@ void kbase_csf_scheduler_pm_active(struct kbase_device *kbdev);
  * kbase_csf_scheduler_pm_idle - Perform the scheduler power idle operation
  *
  * Note: This function will decrease the scheduler's internal pm_active_count
- * value. On reaching 0, the MCU and GPU could be powered off.
+ * value. On reaching 0, the MCU and GPU could be powered off. This function
+ * should not be called with global scheduler lock held.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_scheduler_pm_idle(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_wait_mcu_active - Wait for the MCU to actually become active
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * This function will wait for the MCU to actually become active. It is supposed
+ * to be called after calling kbase_csf_scheduler_pm_active(). It is needed as
+ * kbase_csf_scheduler_pm_active() may not make the MCU active right away.
+ *
+ * Return: 0 if the MCU was successfully activated otherwise an error code.
+ */
+int kbase_csf_scheduler_wait_mcu_active(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_scheduler_pm_resume - Reactivate the scheduler on system resume
@@ -472,6 +490,26 @@ static inline void kbase_csf_scheduler_advance_tick(struct kbase_device *kbdev)
 }
 
 /**
+ * kbase_csf_scheduler_invoke_tick() - Invoke the scheduling tick
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function will queue the scheduling tick work item for immediate
+ * execution if tick timer is not active. This can be called from interrupt
+ * context to resume the scheduling after GPU was put to sleep.
+ */
+static inline void kbase_csf_scheduler_invoke_tick(struct kbase_device *kbdev)
+{
+	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
+	unsigned long flags;
+
+	spin_lock_irqsave(&scheduler->interrupt_lock, flags);
+	if (!scheduler->tick_timer_active)
+		queue_work(scheduler->wq, &scheduler->tick_work);
+	spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
+}
+
+/**
  * kbase_csf_scheduler_queue_has_trace() - report whether the queue has been
  *                                         configured to operate with the
  *                                         cs_trace feature.
@@ -490,5 +528,98 @@ static inline bool kbase_csf_scheduler_queue_has_trace(struct kbase_queue *queue
 	 */
 	return (queue->trace_buffer_size && queue->trace_buffer_base);
 }
+
+#ifdef KBASE_PM_RUNTIME
+/**
+ * kbase_csf_scheduler_reval_idleness_post_sleep() - Check GPU's idleness after
+ *                                                   putting MCU to sleep state
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function re-evaluates the idleness of on-slot queue groups after MCU
+ * was put to the sleep state and invokes the scheduling tick if any of the
+ * on-slot queue group became non-idle.
+ * CSG_OUTPUT_BLOCK.CSG_STATUS_STATE.IDLE bit is checked to determine the
+ * idleness which is updated by MCU firmware on handling of the sleep request.
+ *
+ * This function is needed to detect if more work was flushed in the window
+ * between the GPU idle notification and the enabling of Doorbell mirror
+ * interrupt (from MCU state machine). Once Doorbell mirror interrupt is
+ * enabled, Host can receive the notification on User doorbell rings.
+ */
+void kbase_csf_scheduler_reval_idleness_post_sleep(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_handle_runtime_suspend() - Handle runtime suspend by
+ *                                                suspending CSGs.
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function is called from the runtime suspend callback function for
+ * suspending all the on-slot queue groups. If any of the group is found to
+ * be non-idle after the completion of CSG suspend operation or the CSG
+ * suspend operation times out, then the scheduling tick is invoked and an
+ * error is returned so that the GPU power down can be aborted.
+ *
+ * Return: 0 if all the CSGs were suspended, otherwise an error code.
+ */
+int kbase_csf_scheduler_handle_runtime_suspend(struct kbase_device *kbdev);
+#endif
+
+/**
+ * kbase_csf_scheduler_get_nr_active_csgs() - Get the number of active CSGs
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function calculates the number of CSG slots that have a queue group
+ * resident on them.
+ *
+ * Note: This function should not be used if the interrupt_lock is held. Use
+ * kbase_csf_scheduler_get_nr_active_csgs_locked() instead.
+ *
+ * Return: number of active CSGs.
+ */
+u32 kbase_csf_scheduler_get_nr_active_csgs(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_get_nr_active_csgs_locked() - Get the number of active
+ *                                                   CSGs
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function calculates the number of CSG slots that have a queue group
+ * resident on them.
+ *
+ * Note: This function should be called with interrupt_lock held.
+ *
+ * Return: number of active CSGs.
+ */
+u32 kbase_csf_scheduler_get_nr_active_csgs_locked(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_scheduler_force_wakeup() - Forcefully resume the scheduling of CSGs
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function is called to forcefully resume the scheduling of CSGs, even
+ * when there wasn't any work submitted for them.
+ * This function is only used for testing purpose.
+ */
+void kbase_csf_scheduler_force_wakeup(struct kbase_device *kbdev);
+
+#ifdef KBASE_PM_RUNTIME
+/**
+ * kbase_csf_scheduler_force_sleep() - Forcefully put the Scheduler to sleeping
+ *                                     state.
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function is called to forcefully put the Scheduler to sleeping state
+ * and trigger the sleep of MCU. If the CSGs are not idle, then the Scheduler
+ * would get reactivated again immediately.
+ * This function is only used for testing purpose.
+ */
+void kbase_csf_scheduler_force_sleep(struct kbase_device *kbdev);
+#endif
 
 #endif /* _KBASE_CSF_SCHEDULER_H_ */

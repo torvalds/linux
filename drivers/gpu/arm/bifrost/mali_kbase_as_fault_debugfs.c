@@ -93,7 +93,10 @@ void kbase_as_fault_debugfs_init(struct kbase_device *kbdev)
 	debugfs_directory = debugfs_create_dir("address_spaces",
 					       kbdev->mali_debugfs_directory);
 
-	if (debugfs_directory) {
+	if (IS_ERR_OR_NULL(debugfs_directory)) {
+		dev_warn(kbdev->dev,
+			 "unable to create address_spaces debugfs directory");
+	} else {
 		for (i = 0; i < kbdev->nr_hw_address_spaces; i++) {
 			snprintf(as_name, ARRAY_SIZE(as_name), "as%u", i);
 			debugfs_create_file(as_name, S_IRUGO,
@@ -101,9 +104,6 @@ void kbase_as_fault_debugfs_init(struct kbase_device *kbdev)
 					    (void *)(uintptr_t)i,
 					    &as_fault_fops);
 		}
-	} else {
-		dev_warn(kbdev->dev,
-			 "unable to create address_spaces debugfs directory");
 	}
 
 #endif /* CONFIG_MALI_BIFROST_DEBUG */

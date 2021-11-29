@@ -219,11 +219,19 @@ enum kbase_csf_csg_slot_state {
  *                      management reference. This can happen if the GPU
  *                      becomes idle for a duration exceeding a threshold,
  *                      or due to a system triggered suspend action.
+ * @SCHED_SLEEPING:     The scheduler is in low-power mode with scheduling
+ *                      operations suspended and is not holding the power
+ *                      management reference. This state is set, only for the
+ *                      GPUs that supports the sleep feature, when GPU idle
+ *                      notification is received. The state is changed to
+ *                      @SCHED_SUSPENDED from the runtime suspend callback
+ *                      function after the suspend of CSGs.
  */
 enum kbase_csf_scheduler_state {
 	SCHED_BUSY,
 	SCHED_INACTIVE,
 	SCHED_SUSPENDED,
+	SCHED_SLEEPING,
 };
 
 /**
@@ -561,7 +569,9 @@ struct kbase_csf_heap_context_allocator {
  * @kbase_context. It is not the same as a heap context structure allocated by
  * the kernel for use by the firmware.
  *
- * @lock:        Lock preventing concurrent access to the tiler heaps.
+ * @lock:        Lock to prevent the concurrent access to tiler heaps (after the
+ *               initialization), a tiler heap can be terminated whilst an OoM
+ *               event is being handled for it.
  * @list:        List of tiler heaps.
  * @ctx_alloc:   Allocator for heap context structures.
  * @nr_of_heaps: Total number of tiler heaps that were added during the
@@ -802,6 +812,11 @@ struct kbase_csf_csg_slot {
  * @active_protm_grp:       Indicates if firmware has been permitted to let GPU
  *                          enter protected mode with the given group. On exit
  *                          from protected mode the pointer is reset to NULL.
+ *                          This pointer is set and PROTM_ENTER request is sent
+ *                          atomically with @interrupt_lock held.
+ *                          This pointer being set doesn't necessarily indicates
+ *                          that GPU is in protected mode, kbdev->protected_mode
+ *                          needs to be checked for that.
  * @gpu_idle_fw_timer_enabled: Whether the CSF scheduler has activiated the
  *                            firmware idle hysteresis timer for preparing a
  *                            GPU suspend on idle.

@@ -192,15 +192,15 @@
 #define BASE_MEM_FLAGS_RESERVED \
 	(BASE_MEM_RESERVED_BIT_8 | BASE_MEM_RESERVED_BIT_19)
 
-#define BASEP_MEM_INVALID_HANDLE               (0ull  << 12)
-#define BASE_MEM_MMU_DUMP_HANDLE               (1ull  << 12)
-#define BASE_MEM_TRACE_BUFFER_HANDLE           (2ull  << 12)
-#define BASE_MEM_MAP_TRACKING_HANDLE           (3ull  << 12)
-#define BASEP_MEM_WRITE_ALLOC_PAGES_HANDLE     (4ull  << 12)
+#define BASEP_MEM_INVALID_HANDLE (0ul)
+#define BASE_MEM_MMU_DUMP_HANDLE (1ul << LOCAL_PAGE_SHIFT)
+#define BASE_MEM_TRACE_BUFFER_HANDLE (2ul << LOCAL_PAGE_SHIFT)
+#define BASE_MEM_MAP_TRACKING_HANDLE (3ul << LOCAL_PAGE_SHIFT)
+#define BASEP_MEM_WRITE_ALLOC_PAGES_HANDLE (4ul << LOCAL_PAGE_SHIFT)
 /* reserved handles ..-47<<PAGE_SHIFT> for future special handles */
-#define BASE_MEM_COOKIE_BASE                   (64ul  << 12)
-#define BASE_MEM_FIRST_FREE_ADDRESS            ((BITS_PER_LONG << 12) + \
-						BASE_MEM_COOKIE_BASE)
+#define BASE_MEM_COOKIE_BASE (64ul << LOCAL_PAGE_SHIFT)
+#define BASE_MEM_FIRST_FREE_ADDRESS                                            \
+	((BITS_PER_LONG << LOCAL_PAGE_SHIFT) + BASE_MEM_COOKIE_BASE)
 
 /* Similar to BASE_MEM_TILER_ALIGN_TOP, memory starting from the end of the
  * initial commit is aligned to 'extension' pages, where 'extension' must be a power

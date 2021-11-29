@@ -19,7 +19,7 @@
  *
  */
 
-/**
+/*
  * Hardware counter accumulator API.
  */
 

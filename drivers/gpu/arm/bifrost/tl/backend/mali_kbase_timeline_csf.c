@@ -25,6 +25,8 @@
 
 #include <mali_kbase.h>
 
+#define GPU_FEATURES_CROSS_STREAM_SYNC_MASK (1ull << 3ull)
+
 void kbase_create_timeline_objects(struct kbase_device *kbdev)
 {
 	unsigned int as_nr;
@@ -33,6 +35,15 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 	struct kbase_timeline *timeline = kbdev->timeline;
 	struct kbase_tlstream *summary =
 		&kbdev->timeline->streams[TL_STREAM_TYPE_OBJ_SUMMARY];
+	u32 const kbdev_has_cross_stream_sync =
+		(kbdev->gpu_props.props.raw_props.gpu_features &
+		 GPU_FEATURES_CROSS_STREAM_SYNC_MASK) ?
+			1 :
+			0;
+	u32 const arch_maj = (kbdev->gpu_props.props.raw_props.gpu_id &
+			      GPU_ID2_ARCH_MAJOR) >>
+			     GPU_ID2_ARCH_MAJOR_SHIFT;
+	u32 const num_sb_entries = arch_maj >= 11 ? 16 : 8;
 
 	/* Summarize the Address Space objects. */
 	for (as_nr = 0; as_nr < kbdev->nr_hw_address_spaces; as_nr++)
@@ -51,10 +62,11 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 				kbdev);
 
 	/* Trace the creation of a new kbase device and set its properties. */
-	__kbase_tlstream_tl_kbase_new_device(summary,
-		kbdev->gpu_props.props.raw_props.gpu_id,
+	__kbase_tlstream_tl_kbase_new_device(
+		summary, kbdev->gpu_props.props.raw_props.gpu_id,
 		kbdev->gpu_props.num_cores, kbdev->csf.global_iface.group_num,
-		kbdev->nr_hw_address_spaces);
+		kbdev->nr_hw_address_spaces, num_sb_entries,
+		kbdev_has_cross_stream_sync);
 
 	/* Lock the context list, to ensure no changes to the list are made
 	 * while we're summarizing the contexts and their contents.
@@ -74,9 +86,10 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 			kbdev->csf.scheduler.csg_slots[slot_i].resident_group;
 
 		if (group)
-			__kbase_tlstream_tl_kbase_device_program_csg(summary,
+			__kbase_tlstream_tl_kbase_device_program_csg(
+				summary,
 				kbdev->gpu_props.props.raw_props.gpu_id,
-				group->handle, slot_i);
+				group->kctx->id, group->handle, slot_i);
 	}
 
 	/* Reset body stream buffers while holding the kctx lock.

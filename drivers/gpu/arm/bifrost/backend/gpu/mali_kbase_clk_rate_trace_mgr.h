@@ -61,6 +61,21 @@ struct kbase_clk_data {
 int kbase_clk_rate_trace_manager_init(struct kbase_device *kbdev);
 
 /**
+ * kbase_init_lowest_gpu_freq() - Find the lowest frequency that the GPU can
+ *                                run as using the device tree, and save this
+ *                                within kbdev.
+ *
+ * This function could be called from kbase_clk_rate_trace_manager_init,
+ * but is left separate as it can be called as soon as
+ * dev_pm_opp_of_add_table() has been called to initialize the OPP table.
+ *
+ * @kbdev: Pointer to kbase device.
+ *
+ * Return: 0 in any case.
+ */
+int kbase_lowest_gpu_freq_init(struct kbase_device *kbdev);
+
+/**
  * kbase_clk_rate_trace_manager_term - Terminate GPU clock rate trace manager.
  *
  *  @kbdev:      Device pointer

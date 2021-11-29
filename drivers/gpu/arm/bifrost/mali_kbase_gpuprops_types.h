@@ -35,6 +35,7 @@ struct kbase_gpuprops_regdump {
 	u32 gpu_id;
 	u32 l2_features;
 	u32 l2_config;
+	u32 l2_asn_hash[ASN_HASH_COUNT];
 	u32 core_features;
 	u32 tiler_features;
 	u32 mem_features;

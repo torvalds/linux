@@ -154,7 +154,9 @@ bob_defaults {
         // (catch-all for experimental CS code without separating it into
         // different features).
         "MALI_INCREMENTAL_RENDERING={{.incremental_rendering}}",
-        "GPU_TIMESTAMP_CORRECTION={{.gpu_timestamp_correction}}",
+        "MALI_GPU_TIMESTAMP_CORRECTION={{.gpu_timestamp_correction}}",
+        "MALI_BASE_CSF_PERFORMANCE_TESTS={{.base_csf_performance_tests}}",
+        "MALI_GPU_TIMESTAMP_INTERPOLATION={{.gpu_timestamp_interpolation}}",
     ],
 }
 

@@ -42,14 +42,18 @@ const char *kbase_gpu_exception_name(u32 const exception_code)
 	case CS_FATAL_EXCEPTION_TYPE_CS_ENDPOINT_FAULT:
 		e = "FATAL_CS_ENDPOINT_FAULT";
 		break;
-	case CS_FATAL_EXCEPTION_TYPE_CS_BUS_FAULT:
-		e = "FATAL_CS_BUS_FAULT";
-		break;
 	case CS_FATAL_EXCEPTION_TYPE_CS_INVALID_INSTRUCTION:
 		e = "FATAL_CS_INVALID_INSTRUCTION";
 		break;
 	case CS_FATAL_EXCEPTION_TYPE_CS_CALL_STACK_OVERFLOW:
 		e = "FATAL_CS_CALL_STACK_OVERFLOW";
+		break;
+	/*
+	 * CS_FAULT_EXCEPTION_TYPE_CS_BUS_FAULT and CS_FATAL_EXCEPTION_TYPE_CS_BUS_FAULT share the same error code
+	 * Type of CS_BUS_FAULT will be differentiated by CSF exception handler
+	 */
+	case CS_FAULT_EXCEPTION_TYPE_CS_BUS_FAULT:
+		e = "CS_BUS_FAULT";
 		break;
 	/* Shader exceptions */
 	case CS_FAULT_EXCEPTION_TYPE_INSTR_INVALID_PC:
@@ -60,6 +64,10 @@ const char *kbase_gpu_exception_name(u32 const exception_code)
 		break;
 	case CS_FAULT_EXCEPTION_TYPE_INSTR_BARRIER_FAULT:
 		e = "INSTR_BARRIER_FAULT";
+		break;
+	/* Iterator exceptions */
+	case CS_FAULT_EXCEPTION_TYPE_KABOOM:
+		e = "KABOOM";
 		break;
 	/* Misc exceptions */
 	case CS_FAULT_EXCEPTION_TYPE_DATA_INVALID_FAULT:

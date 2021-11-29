@@ -22,6 +22,29 @@
 #ifndef _KBASE_MMU_H_
 #define _KBASE_MMU_H_
 
+#include <uapi/gpu/arm/bifrost/mali_base_kernel.h>
+
+#define KBASE_MMU_PAGE_ENTRIES 512
+
+struct kbase_context;
+struct kbase_mmu_table;
+
+/**
+ * MMU-synchronous caller info. A pointer to this type is passed down from the outer-most callers
+ * in the kbase module - where the information resides as to the synchronous / asynchronous
+ * nature of the call flow, with respect to MMU operations. ie - does the call flow relate to
+ * existing GPU work does it come from requests (like ioctl) from user-space, power management,
+ * etc.
+ */
+enum kbase_caller_mmu_sync_info {
+	/* default value must be invalid to avoid accidental choice ov a 'valid' value. */
+	CALLER_MMU_UNSET_SYNCHRONICITY,
+	/* Arbitrary value for 'synchronous that isn't easy to choose by accident. */
+	CALLER_MMU_SYNC = 0x02,
+	/* Also hard to choose by accident */
+	CALLER_MMU_ASYNC
+};
+
 /**
  * kbase_mmu_as_init() - Initialising GPU address space object.
  *
@@ -111,10 +134,12 @@ int kbase_mmu_insert_pages_no_flush(struct kbase_device *kbdev,
 int kbase_mmu_insert_pages(struct kbase_device *kbdev,
 			   struct kbase_mmu_table *mmut, u64 vpfn,
 			   struct tagged_addr *phys, size_t nr,
-			   unsigned long flags, int as_nr, int group_id);
+			   unsigned long flags, int as_nr, int group_id,
+			   enum kbase_caller_mmu_sync_info mmu_sync_info);
 int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
-					struct tagged_addr phys, size_t nr,
-					unsigned long flags, int group_id);
+				 struct tagged_addr phys, size_t nr,
+				 unsigned long flags, int group_id,
+				 enum kbase_caller_mmu_sync_info mmu_sync_info);
 
 int kbase_mmu_teardown_pages(struct kbase_device *kbdev,
 			     struct kbase_mmu_table *mmut, u64 vpfn,
@@ -151,5 +176,23 @@ int kbase_mmu_bus_fault_interrupt(struct kbase_device *kbdev, u32 status,
  */
 void kbase_mmu_gpu_fault_interrupt(struct kbase_device *kbdev, u32 status,
 		u32 as_nr, u64 address, bool as_valid);
+
+/**
+ * kbase_context_mmu_group_id_get - Decode a memory group ID from
+ *                                 base_context_create_flags
+ *
+ * Memory allocated for GPU page tables will come from the returned group.
+ *
+ * @flags: Bitmask of flags to pass to base_context_init.
+ *
+ * Return: Physical memory group ID. Valid range is 0..(BASE_MEM_GROUP_COUNT-1).
+ */
+static inline int
+kbase_context_mmu_group_id_get(base_context_create_flags const flags)
+{
+	KBASE_DEBUG_ASSERT(flags ==
+			   (flags & BASEP_CONTEXT_CREATE_ALLOWED_FLAGS));
+	return (int)BASE_CONTEXT_MMU_GROUP_ID_GET(flags);
+}
 
 #endif /* _KBASE_MMU_H_ */

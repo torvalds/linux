@@ -53,6 +53,12 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 		goto out_err;
 	}
 
+	if (kbase_is_gpu_removed(kbdev)) {
+		/* GPU has been removed by Arbiter */
+		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
+		goto out_err;
+	}
+
 	/* Enable interrupt */
 	irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK), irq_mask |
@@ -152,6 +158,14 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 	kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_DISABLED;
 	kbdev->hwcnt.backend.triggered = 0;
 
+	if (kbase_is_gpu_removed(kbdev)) {
+		/* GPU has been removed by Arbiter */
+		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
+		err = 0;
+		goto out;
+	}
+
 	/* Disable interrupt */
 	irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
@@ -192,6 +206,11 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
 		/* HW counters are disabled or another dump is ongoing, or we're
 		 * resetting
 		 */
+		goto unlock;
+	}
+
+	if (kbase_is_gpu_removed(kbdev)) {
+		/* GPU has been removed by Arbiter */
 		goto unlock;
 	}
 
@@ -309,6 +328,11 @@ int kbase_instr_hwcnt_clear(struct kbase_context *kctx)
 	if (kbdev->hwcnt.kctx != kctx || kbdev->hwcnt.backend.state !=
 							KBASE_INSTR_STATE_IDLE)
 		goto out;
+
+	if (kbase_is_gpu_removed(kbdev)) {
+		/* GPU has been removed by Arbiter */
+		goto out;
+	}
 
 	/* Clear the counters */
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_PRFCNT_CLEAR, NULL, 0);

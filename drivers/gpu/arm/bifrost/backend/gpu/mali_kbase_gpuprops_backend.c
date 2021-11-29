@@ -26,6 +26,7 @@
 #include <mali_kbase.h>
 #include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
+#include <backend/gpu/mali_kbase_cache_policy_backend.h>
 #include <mali_kbase_hwaccess_gpuprops.h>
 
 int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
@@ -146,7 +147,7 @@ int kbase_backend_gpuprops_get_curr_config(struct kbase_device *kbdev,
 	curr_config_regdump->l2_present_hi = kbase_reg_read(kbdev,
 					GPU_CONTROL_REG(L2_PRESENT_HI));
 
-	if (WARN_ON(kbase_is_gpu_removed(kbdev)))
+	if (kbase_is_gpu_removed(kbdev))
 		return -EIO;
 
 	return 0;
@@ -156,30 +157,22 @@ int kbase_backend_gpuprops_get_curr_config(struct kbase_device *kbdev,
 int kbase_backend_gpuprops_get_features(struct kbase_device *kbdev,
 					struct kbase_gpuprops_regdump *regdump)
 {
-	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_COHERENCY_REG)) {
-		u32 coherency_features;
+	u32 coherency_features;
+	int error = 0;
 
-		/* Ensure we can access the GPU registers */
-		kbase_pm_register_access_enable(kbdev);
+	/* Ensure we can access the GPU registers */
+	kbase_pm_register_access_enable(kbdev);
 
-		coherency_features = kbase_reg_read(kbdev,
-				GPU_CONTROL_REG(COHERENCY_FEATURES));
+	coherency_features = kbase_cache_get_coherency_features(kbdev);
 
-		if (kbase_is_gpu_removed(kbdev))
-			return -EIO;
+	if (kbase_is_gpu_removed(kbdev))
+		error = -EIO;
 
-		regdump->coherency_features = coherency_features;
+	regdump->coherency_features = coherency_features;
 
-		/* We're done accessing the GPU registers for now. */
-		kbase_pm_register_access_disable(kbdev);
-	} else {
-		/* Pre COHERENCY_FEATURES we only supported ACE_LITE */
-		regdump->coherency_features =
-				COHERENCY_FEATURE_BIT(COHERENCY_NONE) |
-				COHERENCY_FEATURE_BIT(COHERENCY_ACE_LITE);
-	}
+	kbase_pm_register_access_disable(kbdev);
 
-	return 0;
+	return error;
 }
 
 int kbase_backend_gpuprops_get_l2_features(struct kbase_device *kbdev,
@@ -190,13 +183,24 @@ int kbase_backend_gpuprops_get_l2_features(struct kbase_device *kbdev,
 				GPU_CONTROL_REG(L2_FEATURES));
 		u32 l2_config =
 			kbase_reg_read(kbdev, GPU_CONTROL_REG(L2_CONFIG));
+		u32 asn_hash[ASN_HASH_COUNT] = {
+			0,
+		};
+		int i;
 
+		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_ASN_HASH)) {
+			for (i = 0; i < ASN_HASH_COUNT; i++)
+				asn_hash[i] = kbase_reg_read(
+					kbdev, GPU_CONTROL_REG(ASN_HASH(i)));
+		}
 
 		if (kbase_is_gpu_removed(kbdev))
 			return -EIO;
 
 		regdump->l2_features = l2_features;
 		regdump->l2_config = l2_config;
+		for (i = 0; i < ASN_HASH_COUNT; i++)
+			regdump->l2_asn_hash[i] = asn_hash[i];
 	}
 
 	return 0;

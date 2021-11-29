@@ -249,8 +249,10 @@ kbase_dma_fence_add_reservation_callback(struct kbase_jd_atom *katom,
 
 #if (KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE)
 	err = reservation_object_get_fences_rcu(
-#else
+#elif (KERNEL_VERSION(5, 14, 0) > LINUX_VERSION_CODE)
 	err = dma_resv_get_fences_rcu(
+#else
+	err = dma_resv_get_fences(
 #endif
 						resv,
 						&excl_fence,

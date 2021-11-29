@@ -180,7 +180,7 @@ void kbase_tlstream_term(struct kbase_tlstream *stream)
 }
 
 /**
- * kbase_tlstream_msgbuf_submit - submit packet to user space
+ * kbasep_tlstream_msgbuf_submit - submit packet to user space
  * @stream:     Pointer to the stream structure
  * @wb_idx_raw: Write buffer index
  * @wb_size:    Length of data stored in the current buffer

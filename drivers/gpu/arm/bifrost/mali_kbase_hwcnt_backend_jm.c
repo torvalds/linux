@@ -35,17 +35,47 @@
 /**
  * struct kbase_hwcnt_backend_jm_info - Information used to create an instance
  *                                      of a JM hardware counter backend.
- * @kbdev:         KBase device.
- * @counter_set:   The performance counter set to use.
- * @metadata:      Hardware counter metadata.
- * @dump_bytes:    Bytes of GPU memory required to perform a
- *                 hardware counter dump.
+ * @kbdev:          KBase device.
+ * @counter_set:    The performance counter set to use.
+ * @metadata:       Hardware counter metadata.
+ * @dump_bytes:     Bytes of GPU memory required to perform a
+ *                  hardware counter dump.
+ * @hwcnt_gpu_info: Hardware counter block information.
  */
 struct kbase_hwcnt_backend_jm_info {
 	struct kbase_device *kbdev;
 	enum kbase_hwcnt_set counter_set;
 	const struct kbase_hwcnt_metadata *metadata;
 	size_t dump_bytes;
+	struct kbase_hwcnt_gpu_info hwcnt_gpu_info;
+};
+
+/**
+ * struct kbase_hwcnt_jm_physical_layout - HWC sample memory physical layout
+ *                                         information.
+ * @fe_cnt:             Front end block count.
+ * @tiler_cnt:          Tiler block count.
+ * @mmu_l2_cnt:         Memory system(MMU and L2 cache) block count.
+ * @shader_cnt:         Shader Core block count.
+ * @block_cnt:          Total block count (sum of all other block counts).
+ * @shader_avail_mask:  Bitmap of all shader cores in the system.
+ * @enable_mask_offset: Offset in array elements of enable mask in each block
+ *                      starting from the beginning of block.
+ * @headers_per_block:  Header size per block.
+ * @counters_per_block: Counters size per block.
+ * @values_per_block:   Total size per block.
+ */
+struct kbase_hwcnt_jm_physical_layout {
+	u8 fe_cnt;
+	u8 tiler_cnt;
+	u8 mmu_l2_cnt;
+	u8 shader_cnt;
+	u8 block_cnt;
+	u64 shader_avail_mask;
+	size_t enable_mask_offset;
+	size_t headers_per_block;
+	size_t counters_per_block;
+	size_t values_per_block;
 };
 
 /**
@@ -56,11 +86,13 @@ struct kbase_hwcnt_backend_jm_info {
  * @gpu_dump_va:      GPU hardware counter dump buffer virtual address.
  * @cpu_dump_va:      CPU mapping of gpu_dump_va.
  * @vmap:             Dump buffer vmap.
+ * @to_user_buf:      HWC sample buffer for client user, size
+ *                    metadata.dump_buf_bytes.
  * @enabled:          True if dumping has been enabled, else false.
  * @pm_core_mask:     PM state sync-ed shaders core mask for the enabled
  *                    dumping.
- * @curr_config:      Current allocated hardware resources to correctly map the src
- *                    raw dump buffer to the dst dump buffer.
+ * @curr_config:      Current allocated hardware resources to correctly map the
+ *                    source raw dump buffer to the destination dump buffer.
  * @clk_enable_map:   The enable map specifying enabled clock domains.
  * @cycle_count_elapsed:
  *                    Cycle count elapsed for a given sample period.
@@ -71,6 +103,7 @@ struct kbase_hwcnt_backend_jm_info {
  *                    sample period.
  * @rate_listener:    Clock rate listener callback state.
  * @ccswe_shader_cores: Shader cores cycle count software estimator.
+ * @phys_layout:      Physical memory layout information of HWC sample buffer.
  */
 struct kbase_hwcnt_backend_jm {
 	const struct kbase_hwcnt_backend_jm_info *info;
@@ -78,6 +111,7 @@ struct kbase_hwcnt_backend_jm {
 	u64 gpu_dump_va;
 	void *cpu_dump_va;
 	struct kbase_vmap_struct *vmap;
+	u64 *to_user_buf;
 	bool enabled;
 	u64 pm_core_mask;
 	struct kbase_hwcnt_curr_config curr_config;
@@ -86,6 +120,7 @@ struct kbase_hwcnt_backend_jm {
 	u64 prev_cycle_count[BASE_MAX_NR_CLOCKS_REGULATORS];
 	struct kbase_clk_rate_listener rate_listener;
 	struct kbase_ccswe ccswe_shader_cores;
+	struct kbase_hwcnt_jm_physical_layout phys_layout;
 };
 
 /**
@@ -125,6 +160,63 @@ kbasep_hwcnt_backend_jm_gpu_info_init(struct kbase_device *kbdev,
 	info->clk_cnt = clk;
 
 	return 0;
+}
+
+static void kbasep_hwcnt_backend_jm_init_layout(
+	const struct kbase_hwcnt_gpu_info *gpu_info,
+	struct kbase_hwcnt_jm_physical_layout *phys_layout)
+{
+	u8 shader_core_cnt;
+
+	WARN_ON(!gpu_info);
+	WARN_ON(!phys_layout);
+
+	shader_core_cnt = fls64(gpu_info->core_mask);
+
+	*phys_layout = (struct kbase_hwcnt_jm_physical_layout){
+		.fe_cnt = KBASE_HWCNT_V5_FE_BLOCK_COUNT,
+		.tiler_cnt = KBASE_HWCNT_V5_TILER_BLOCK_COUNT,
+		.mmu_l2_cnt = gpu_info->l2_count,
+		.shader_cnt = shader_core_cnt,
+		.block_cnt = KBASE_HWCNT_V5_FE_BLOCK_COUNT +
+			     KBASE_HWCNT_V5_TILER_BLOCK_COUNT +
+			     gpu_info->l2_count + shader_core_cnt,
+		.shader_avail_mask = gpu_info->core_mask,
+		.headers_per_block = KBASE_HWCNT_V5_HEADERS_PER_BLOCK,
+		.values_per_block = gpu_info->prfcnt_values_per_block,
+		.counters_per_block = gpu_info->prfcnt_values_per_block -
+				      KBASE_HWCNT_V5_HEADERS_PER_BLOCK,
+		.enable_mask_offset = KBASE_HWCNT_V5_PRFCNT_EN_HEADER,
+	};
+}
+
+static void kbasep_hwcnt_backend_jm_dump_sample(
+	const struct kbase_hwcnt_backend_jm *const backend_jm)
+{
+	size_t block_idx;
+	const u32 *new_sample_buf = backend_jm->cpu_dump_va;
+	const u32 *new_block = new_sample_buf;
+	u64 *dst_buf = backend_jm->to_user_buf;
+	u64 *dst_block = dst_buf;
+	const size_t values_per_block =
+		backend_jm->phys_layout.values_per_block;
+	const size_t dump_bytes = backend_jm->info->dump_bytes;
+
+	for (block_idx = 0; block_idx < backend_jm->phys_layout.block_cnt;
+	     block_idx++) {
+		size_t ctr_idx;
+
+		for (ctr_idx = 0; ctr_idx < values_per_block; ctr_idx++)
+			dst_block[ctr_idx] = new_block[ctr_idx];
+
+		new_block += values_per_block;
+		dst_block += values_per_block;
+	}
+
+	WARN_ON(new_block !=
+		new_sample_buf + (dump_bytes / KBASE_HWCNT_VALUE_HW_BYTES));
+	WARN_ON(dst_block !=
+		dst_buf + (dump_bytes / KBASE_HWCNT_VALUE_HW_BYTES));
 }
 
 /**
@@ -487,6 +579,9 @@ static int kbasep_hwcnt_backend_jm_dump_get(
 	kbase_sync_mem_regions(
 		backend_jm->kctx, backend_jm->vmap, KBASE_SYNC_TO_CPU);
 
+	/* Dump sample to the internal 64-bit user buffer. */
+	kbasep_hwcnt_backend_jm_dump_sample(backend_jm);
+
 	kbase_hwcnt_metadata_for_each_clock(dst_enable_map->metadata, clk) {
 		if (!kbase_hwcnt_clk_enable_map_enabled(
 			dst_enable_map->clk_enable_map, clk))
@@ -496,7 +591,7 @@ static int kbasep_hwcnt_backend_jm_dump_get(
 		dst->clk_cnt_buf[clk] = backend_jm->cycle_count_elapsed[clk];
 	}
 
-	return kbase_hwcnt_jm_dump_get(dst, backend_jm->cpu_dump_va,
+	return kbase_hwcnt_jm_dump_get(dst, backend_jm->to_user_buf,
 				       dst_enable_map, backend_jm->pm_core_mask,
 				       &backend_jm->curr_config, accumulate);
 }
@@ -519,6 +614,11 @@ static int kbasep_hwcnt_backend_jm_dump_alloc(
 	u64 flags;
 	u64 nr_pages;
 
+	/* Calls to this function are inherently asynchronous, with respect to
+	 * MMU operations.
+	 */
+	const enum kbase_caller_mmu_sync_info mmu_sync_info = CALLER_MMU_ASYNC;
+
 	WARN_ON(!info);
 	WARN_ON(!kctx);
 	WARN_ON(!gpu_dump_va);
@@ -531,7 +631,8 @@ static int kbasep_hwcnt_backend_jm_dump_alloc(
 
 	nr_pages = PFN_UP(info->dump_bytes);
 
-	reg = kbase_mem_alloc(kctx, nr_pages, nr_pages, 0, &flags, gpu_dump_va);
+	reg = kbase_mem_alloc(kctx, nr_pages, nr_pages, 0, &flags, gpu_dump_va,
+			      mmu_sync_info);
 
 	if (!reg)
 		return -ENOMEM;
@@ -580,6 +681,8 @@ static void kbasep_hwcnt_backend_jm_destroy(
 		kbase_destroy_context(kctx);
 	}
 
+	kfree(backend->to_user_buf);
+
 	kfree(backend);
 }
 
@@ -608,6 +711,8 @@ static int kbasep_hwcnt_backend_jm_create(
 		goto alloc_error;
 
 	backend->info = info;
+	kbasep_hwcnt_backend_jm_init_layout(&info->hwcnt_gpu_info,
+					    &backend->phys_layout);
 
 	backend->kctx = kbase_create_context(kbdev, true,
 		BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED, 0, NULL);
@@ -623,7 +728,12 @@ static int kbasep_hwcnt_backend_jm_create(
 
 	backend->cpu_dump_va = kbase_phy_alloc_mapping_get(backend->kctx,
 		backend->gpu_dump_va, &backend->vmap);
-	if (!backend->cpu_dump_va)
+	if (!backend->cpu_dump_va || !backend->vmap)
+		goto alloc_error;
+
+	backend->to_user_buf =
+		kzalloc(info->metadata->dump_buf_bytes, GFP_KERNEL);
+	if (!backend->to_user_buf)
 		goto alloc_error;
 
 	kbase_ccswe_init(&backend->ccswe_shader_cores);
@@ -710,19 +820,14 @@ static int kbasep_hwcnt_backend_jm_info_create(
 	const struct kbase_hwcnt_backend_jm_info **out_info)
 {
 	int errcode = -ENOMEM;
-	struct kbase_hwcnt_gpu_info hwcnt_gpu_info;
 	struct kbase_hwcnt_backend_jm_info *info = NULL;
 
 	WARN_ON(!kbdev);
 	WARN_ON(!out_info);
 
-	errcode = kbasep_hwcnt_backend_jm_gpu_info_init(kbdev, &hwcnt_gpu_info);
-	if (errcode)
-		return errcode;
-
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		goto error;
+		return errcode;
 
 	info->kbdev = kbdev;
 
@@ -735,7 +840,12 @@ static int kbasep_hwcnt_backend_jm_info_create(
 	info->counter_set = KBASE_HWCNT_SET_PRIMARY;
 #endif
 
-	errcode = kbase_hwcnt_jm_metadata_create(&hwcnt_gpu_info,
+	errcode = kbasep_hwcnt_backend_jm_gpu_info_init(kbdev,
+							&info->hwcnt_gpu_info);
+	if (errcode)
+		goto error;
+
+	errcode = kbase_hwcnt_jm_metadata_create(&info->hwcnt_gpu_info,
 						 info->counter_set,
 						 &info->metadata,
 						 &info->dump_bytes);

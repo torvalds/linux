@@ -113,6 +113,9 @@ for details.
 		     Valid values are between 0 to 0x3F (including).
 -  l2-size : Override L2 cache size on GPU that supports it
 -  l2-hash : Override L2 hash function on GPU that supports it
+-  l2-hash-values : Override L2 hash function using provided hash values, on GPUs that supports it.
+		    It is mutually exclusive with 'l2-hash'. Only one or the other must be
+		    used in a supported GPU.
 -  arbiter_if : Phandle to the arbif platform device, used to provide KBASE with an interface
 		to the Arbiter. This is required when using arbitration; setting to a non-NULL
 		value will enable arbitration.
@@ -122,7 +125,8 @@ for details.
 		- #cooling-cells
 		- operating-points-v2                 (no dvfs in kbase with arbitration)
 		- system-coherency with a value of 1  (no full coherency with arbitration)
-
+- int_id_override: list of <ID Setting[7:0]> tuples defining the IDs needed to be
+		   set and the setting coresponding to the SYSC_ALLOC register.
 
 
 Example for a Mali GPU with 1 clock and no regulators:
@@ -151,7 +155,7 @@ gpu@0xfc010000 {
 
 	idvs-group-size = <0x7>;
 	l2-size = /bits/ 8 <0x10>;
-	l2-hash = /bits/ 8 <0x04>;
+	l2-hash = /bits/ 8 <0x04>; /* or l2-hash-values = <0x12345678 0x8765 0xAB>; */
 };
 
 gpu_opp_table: opp_table0 {
@@ -223,4 +227,14 @@ gpu_opp_table: opp_table0 {
 		opp-microvolt = <620000>, <700000>;
 		opp-core-mask = /bits/ 64 <0x3>;
 	};
+};
+
+Example for a Mali GPU supporting PBHA configuration via DTB (default):
+
+gpu@0xfc010000 {
+    ...
+    pbha {
+        int_id_override = <2 0x32>, <9 0x05>, <16 0x32>;
+    };
+    ...
 };

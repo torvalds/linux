@@ -20,7 +20,6 @@
  */
 
 /**
- * @file
  * Mali arbiter power manager state machine and APIs
  */
 
@@ -108,6 +107,7 @@ int kbase_arbiter_pm_install_interrupts(struct kbase_device *kbdev);
 /**
  * kbase_arbiter_pm_vm_event() - Dispatch VM event to the state machine
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ * @event: The event to dispatch
  *
  * The state machine function. Receives events and transitions states
  * according the event received and the current state

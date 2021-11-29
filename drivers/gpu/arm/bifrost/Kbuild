@@ -48,6 +48,10 @@ ifeq ($(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND),n)
     $(error CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND must be set in Kernel configuration)
 endif
 
+ifeq ($(CONFIG_FW_LOADER), n)
+    $(error CONFIG_FW_LOADER must be set in Kernel configuration)
+endif
+
 ifeq ($(CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS), y)
     ifneq ($(CONFIG_DEBUG_FS), y)
         $(error CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS depends on CONFIG_DEBUG_FS to be set in Kernel configuration)
@@ -67,7 +71,7 @@ endif
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= '"g7p1-01bet0"'
+MALI_RELEASE_NAME ?= '"g9p0-01eac0"'
 # Set up defaults if not defined by build system
 ifeq ($(CONFIG_MALI_BIFROST_DEBUG), y)
     MALI_UNIT_TEST = 1
@@ -90,6 +94,7 @@ else
     MALI_JIT_PRESSURE_LIMIT_BASE ?= 1
     MALI_USE_CSF ?= 0
 endif
+
 
 ifneq ($(CONFIG_MALI_KUTF), n)
     MALI_KERNEL_TEST_API ?= 1
@@ -155,9 +160,11 @@ bifrost_kbase-y := \
     mali_kbase_gpuprops.o \
     mali_kbase_pm.o \
     mali_kbase_config.o \
+    mali_kbase_kinstr_prfcnt.o \
     mali_kbase_vinstr.o \
     mali_kbase_hwcnt.o \
     mali_kbase_hwcnt_gpu.o \
+    mali_kbase_hwcnt_gpu_narrow.o \
     mali_kbase_hwcnt_legacy.o \
     mali_kbase_hwcnt_types.o \
     mali_kbase_hwcnt_virtualizer.o \
@@ -179,7 +186,10 @@ bifrost_kbase-y := \
     mali_kbase_regs_history_debugfs.o \
     mali_kbase_dvfs_debugfs.o \
     mali_power_gpu_frequency_trace.o \
-    mali_kbase_trace_gpu_mem.o
+    mali_kbase_trace_gpu_mem.o \
+    mali_kbase_pbha.o
+
+bifrost_kbase-$(CONFIG_DEBUG_FS) += mali_kbase_pbha_debugfs.o
 
 bifrost_kbase-$(CONFIG_MALI_CINSTR_GWT) += mali_kbase_gwt.o
 

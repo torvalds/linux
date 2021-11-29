@@ -100,7 +100,7 @@ static ssize_t progress_timeout_store(struct device * const dev,
 	if (!err) {
 		kbase_csf_scheduler_pm_active(kbdev);
 
-		err = kbase_pm_wait_for_desired_state(kbdev);
+		err = kbase_csf_scheduler_wait_mcu_active(kbdev);
 		if (!err)
 			err = kbase_csf_firmware_set_timeout(kbdev, timeout);
 

@@ -27,7 +27,7 @@
 
 #include "mali_kbase_mipe_proto.h"
 
-/**
+/*
  * This header generates MIPE tracepoint declaration BLOB at
  * compile time.
  *
@@ -57,7 +57,7 @@
 #define MIPE_HEADER_BLOB_VAR_ATTRIBUTE
 #endif
 
-/**
+/*
  * A compiler attribute for packing structures
  *
  * e.g. __packed
@@ -68,7 +68,7 @@
 #define MIPE_HEADER_PACKED_ATTRIBUTE __attribute__((__packed__))
 #endif
 
-/**
+/*
  * MIPE stream id.
  *
  * See enum tl_stream_id.
@@ -140,7 +140,7 @@
 #define MIPE_HEADER_ENUM_LIST
 #endif
 
-/**
+/*
  * The MIPE tracepoint declaration BLOB.
  */
 const struct

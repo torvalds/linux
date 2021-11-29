@@ -31,7 +31,7 @@ struct protected_mode_device;
  * @protected_mode_disable: Callback to disable protected mode for device
  */
 struct protected_mode_ops {
-	/**
+	/*
 	 * protected_mode_enable() - Enable protected mode on device
 	 * @dev:	The struct device
 	 *
@@ -40,7 +40,7 @@ struct protected_mode_ops {
 	int (*protected_mode_enable)(
 			struct protected_mode_device *protected_dev);
 
-	/**
+	/*
 	 * protected_mode_disable() - Disable protected mode on device, and
 	 *                            reset device
 	 * @dev:	The struct device
@@ -54,8 +54,8 @@ struct protected_mode_ops {
 /**
  * struct protected_mode_device - Device structure for protected mode devices
  *
- * @ops  - Callbacks associated with this device
- * @data - Pointer to device private data
+ * @ops:  Callbacks associated with this device
+ * @data: Pointer to device private data
  *
  * This structure should be registered with the platform device using
  * platform_set_drvdata().

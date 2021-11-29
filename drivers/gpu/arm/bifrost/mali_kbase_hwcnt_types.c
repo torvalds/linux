@@ -32,7 +32,7 @@ int kbase_hwcnt_metadata_create(
 	struct kbase_hwcnt_group_metadata *grp_mds;
 	size_t grp;
 	size_t enable_map_count; /* Number of u64 bitfields (inc padding) */
-	size_t dump_buf_count; /* Number of u32 values (inc padding) */
+	size_t dump_buf_count; /* Number of u64 values (inc padding) */
 	size_t avail_mask_bits; /* Number of availability mask bits */
 
 	size_t size;
@@ -220,7 +220,7 @@ int kbase_hwcnt_dump_buffer_alloc(
 		return -ENOMEM;
 
 	dump_buf->metadata = metadata;
-	dump_buf->dump_buf = (u32 *)buf;
+	dump_buf->dump_buf = (u64 *)buf;
 	dump_buf->clk_cnt_buf = (u64 *)(buf + dump_buf_bytes);
 
 	return 0;
@@ -282,7 +282,7 @@ int kbase_hwcnt_dump_buffer_array_alloc(
 			(dump_buf_bytes * n) + (clk_cnt_buf_bytes * buf_idx);
 
 		buffers[buf_idx].metadata = metadata;
-		buffers[buf_idx].dump_buf = (u32 *)(addr + dump_buf_offset);
+		buffers[buf_idx].dump_buf = (u64 *)(addr + dump_buf_offset);
 		buffers[buf_idx].clk_cnt_buf =
 			(u64 *)(addr + clk_cnt_buf_offset);
 	}
@@ -316,7 +316,7 @@ void kbase_hwcnt_dump_buffer_zero(
 	metadata = dst->metadata;
 
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
-		u32 *dst_blk;
+		u64 *dst_blk;
 		size_t val_cnt;
 
 		if (!kbase_hwcnt_enable_map_block_enabled(
@@ -362,7 +362,7 @@ void kbase_hwcnt_dump_buffer_zero_non_enabled(
 	metadata = dst->metadata;
 
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
-		u32 *dst_blk = kbase_hwcnt_dump_buffer_block_instance(
+		u64 *dst_blk = kbase_hwcnt_dump_buffer_block_instance(
 			dst, grp, blk, blk_inst);
 		const u64 *blk_em = kbase_hwcnt_enable_map_block_instance(
 			dst_enable_map, grp, blk, blk_inst);
@@ -406,8 +406,8 @@ void kbase_hwcnt_dump_buffer_copy(
 	metadata = dst->metadata;
 
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
-		u32 *dst_blk;
-		const u32 *src_blk;
+		u64 *dst_blk;
+		const u64 *src_blk;
 		size_t val_cnt;
 
 		if (!kbase_hwcnt_enable_map_block_enabled(
@@ -451,9 +451,9 @@ void kbase_hwcnt_dump_buffer_copy_strict(
 	metadata = dst->metadata;
 
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
-		u32 *dst_blk = kbase_hwcnt_dump_buffer_block_instance(
+		u64 *dst_blk = kbase_hwcnt_dump_buffer_block_instance(
 			dst, grp, blk, blk_inst);
-		const u32 *src_blk = kbase_hwcnt_dump_buffer_block_instance(
+		const u64 *src_blk = kbase_hwcnt_dump_buffer_block_instance(
 			src, grp, blk, blk_inst);
 		const u64 *blk_em = kbase_hwcnt_enable_map_block_instance(
 			dst_enable_map, grp, blk, blk_inst);
@@ -497,8 +497,8 @@ void kbase_hwcnt_dump_buffer_accumulate(
 	metadata = dst->metadata;
 
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
-		u32 *dst_blk;
-		const u32 *src_blk;
+		u64 *dst_blk;
+		const u64 *src_blk;
 		size_t hdr_cnt;
 		size_t ctr_cnt;
 
@@ -546,9 +546,9 @@ void kbase_hwcnt_dump_buffer_accumulate_strict(
 	metadata = dst->metadata;
 
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
-		u32 *dst_blk = kbase_hwcnt_dump_buffer_block_instance(
+		u64 *dst_blk = kbase_hwcnt_dump_buffer_block_instance(
 			dst, grp, blk, blk_inst);
-		const u32 *src_blk = kbase_hwcnt_dump_buffer_block_instance(
+		const u64 *src_blk = kbase_hwcnt_dump_buffer_block_instance(
 			src, grp, blk, blk_inst);
 		const u64 *blk_em = kbase_hwcnt_enable_map_block_instance(
 			dst_enable_map, grp, blk, blk_inst);

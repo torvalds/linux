@@ -55,7 +55,7 @@ ifeq ($(CONFIG_MALI_BIFROST),m)
         CONFIG_MALI_DMA_BUF_LEGACY_COMPAT = n
     endif
 
-    ifeq ($(CONFIG_BSP_HAS_HYPERVISOR),y)
+    ifeq ($(CONFIG_XEN),y)
         ifneq ($(CONFIG_MALI_ARBITRATION), n)
             CONFIG_MALI_XEN ?= m
         endif

@@ -87,8 +87,6 @@
 #define KBASE_KATOM_FLAG_FAIL_BLOCKER (1<<8)
 /* Atom is currently in the list of atoms blocked on cross-slot dependencies */
 #define KBASE_KATOM_FLAG_JSCTX_IN_X_DEP_LIST (1<<9)
-/* Atom is currently holding a context reference */
-#define KBASE_KATOM_FLAG_HOLDING_CTX_REF (1<<10)
 /* Atom requires GPU to be in protected mode */
 #define KBASE_KATOM_FLAG_PROTECTED (1<<11)
 /* Atom has been stored in runnable_tree */
@@ -176,7 +174,7 @@ struct kbase_jd_atom_dependency {
 static inline const struct kbase_jd_atom *
 kbase_jd_katom_dep_atom(const struct kbase_jd_atom_dependency *dep)
 {
-	LOCAL_ASSERT(dep != NULL);
+	KBASE_DEBUG_ASSERT(dep != NULL);
 
 	return (const struct kbase_jd_atom *)(dep->atom);
 }
@@ -191,7 +189,7 @@ kbase_jd_katom_dep_atom(const struct kbase_jd_atom_dependency *dep)
 static inline u8 kbase_jd_katom_dep_type(
 		const struct kbase_jd_atom_dependency *dep)
 {
-	LOCAL_ASSERT(dep != NULL);
+	KBASE_DEBUG_ASSERT(dep != NULL);
 
 	return dep->dep_type;
 }
@@ -209,7 +207,7 @@ static inline void kbase_jd_katom_dep_set(
 {
 	struct kbase_jd_atom_dependency *dep;
 
-	LOCAL_ASSERT(const_dep != NULL);
+	KBASE_DEBUG_ASSERT(const_dep != NULL);
 
 	dep = (struct kbase_jd_atom_dependency *)const_dep;
 
@@ -227,7 +225,7 @@ static inline void kbase_jd_katom_dep_clear(
 {
 	struct kbase_jd_atom_dependency *dep;
 
-	LOCAL_ASSERT(const_dep != NULL);
+	KBASE_DEBUG_ASSERT(const_dep != NULL);
 
 	dep = (struct kbase_jd_atom_dependency *)const_dep;
 
@@ -651,6 +649,48 @@ static inline bool kbase_jd_katom_is_protected(
 		const struct kbase_jd_atom *katom)
 {
 	return (bool)(katom->atom_flags & KBASE_KATOM_FLAG_PROTECTED);
+}
+
+/**
+ * kbase_atom_is_younger - query if one atom is younger by age than another
+ * @katom_a the first atom
+ * @katom_a the second atom
+ *
+ * Return: true if the first atom is strictly younger than the second, false
+ * otherwise.
+ */
+static inline bool kbase_jd_atom_is_younger(const struct kbase_jd_atom *katom_a,
+					    const struct kbase_jd_atom *katom_b)
+{
+	return ((s32)(katom_a->age - katom_b->age) < 0);
+}
+
+/**
+ * kbase_jd_atom_is_earlier
+ * @katom_a: the first atom
+ * @katom_b: the second atom
+ *
+ * Return: true if the first atom has been submitted earlier than the
+ * second atom. It is used to understand if an atom that is ready has been
+ * submitted earlier than the currently running atom, so that the currently
+ * running atom should be preempted to allow the ready atom to run.
+ */
+static inline bool kbase_jd_atom_is_earlier(const struct kbase_jd_atom *katom_a,
+					    const struct kbase_jd_atom *katom_b)
+{
+	/* No seq_nr set? */
+	if (!katom_a->seq_nr || !katom_b->seq_nr)
+		return false;
+
+	/* Efficiently handle the unlikely case of wrapping.
+	 * The following code assumes that the delta between the sequence number
+	 * of the two atoms is less than INT64_MAX.
+	 * In the extremely unlikely case where the delta is higher, the comparison
+	 * defaults for no preemption.
+	 * The code also assumes that the conversion from unsigned to signed types
+	 * works because the signed integers are 2's complement.
+	 */
+	return (s64)(katom_a->seq_nr - katom_b->seq_nr) < 0;
 }
 
 /*

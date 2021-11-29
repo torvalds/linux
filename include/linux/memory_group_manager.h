@@ -46,7 +46,7 @@ struct memory_group_manager_import_data;
  * @mgm_vmf_insert_pfn_prot:  Callback to map a physical memory page for the CPU
  */
 struct memory_group_manager_ops {
-	/**
+	/*
 	 * mgm_alloc_page - Allocate a physical memory page in a group
 	 *
 	 * @mgm_dev:  The memory group manager through which the request is
@@ -65,7 +65,7 @@ struct memory_group_manager_ops {
 		struct memory_group_manager_device *mgm_dev, int group_id,
 		gfp_t gfp_mask, unsigned int order);
 
-	/**
+	/*
 	 * mgm_free_page - Free a physical memory page in a group
 	 *
 	 * @mgm_dev:  The memory group manager through which the request
@@ -84,7 +84,7 @@ struct memory_group_manager_ops {
 		struct memory_group_manager_device *mgm_dev, int group_id,
 		struct page *page, unsigned int order);
 
-	/**
+	/*
 	 * mgm_get_import_memory_id - Get the physical memory group ID for the
 	 *                            imported memory
 	 *
@@ -103,7 +103,7 @@ struct memory_group_manager_ops {
 		struct memory_group_manager_device *mgm_dev,
 		struct memory_group_manager_import_data *import_data);
 
-	/**
+	/*
 	 * mgm_update_gpu_pte - Modify a GPU page table entry for a memory group
 	 *
 	 * @mgm_dev:   The memory group manager through which the request
@@ -127,7 +127,7 @@ struct memory_group_manager_ops {
 	u64 (*mgm_update_gpu_pte)(struct memory_group_manager_device *mgm_dev,
 			int group_id, int mmu_level, u64 pte);
 
-	/**
+	/*
 	 * mgm_vmf_insert_pfn_prot - Map a physical page in a group for the CPU
 	 *
 	 * @mgm_dev:   The memory group manager through which the request
@@ -158,8 +158,9 @@ struct memory_group_manager_ops {
  * struct memory_group_manager_device - Device structure for a memory group
  *                                      manager
  *
- * @ops  - Callbacks associated with this device
- * @data - Pointer to device private data
+ * @ops:   Callbacks associated with this device
+ * @data:  Pointer to device private data
+ * @owner: pointer to owning module
  *
  * In order for a systems integrator to provide custom behaviors for memory
  * operations performed by the kbase module (controller driver), they must
@@ -183,8 +184,8 @@ enum memory_group_manager_import_type {
  * struct memory_group_manager_import_data - Structure describing the imported
  *                                           memory
  *
- * @type  - type of imported memory
- * @u     - Union describing the imported memory
+ * @type:  - type of imported memory
+ * @u:     - Union describing the imported memory
  *
  */
 struct memory_group_manager_import_data {

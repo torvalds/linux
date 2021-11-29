@@ -50,8 +50,8 @@ static u64 sub_alloc(struct kbase_csf_heap_context_allocator *const ctx_alloc)
 		MAX_TILER_HEAPS);
 
 	if (unlikely(heap_nr >= MAX_TILER_HEAPS)) {
-		dev_err(kctx->kbdev->dev,
-			"No free tiler heap contexts in the pool\n");
+		dev_dbg(kctx->kbdev->dev,
+			"No free tiler heap contexts in the pool");
 		return 0;
 	}
 
@@ -159,6 +159,11 @@ u64 kbase_csf_heap_context_allocator_alloc(
 	u64 nr_pages = PFN_UP(HEAP_CTX_REGION_SIZE);
 	u64 heap_gpu_va = 0;
 
+	/* Calls to this function are inherently asynchronous, with respect to
+	 * MMU operations.
+	 */
+	const enum kbase_caller_mmu_sync_info mmu_sync_info = CALLER_MMU_ASYNC;
+
 #ifdef CONFIG_MALI_VECTOR_DUMP
 	flags |= BASE_MEM_PROT_CPU_RD;
 #endif
@@ -169,13 +174,14 @@ u64 kbase_csf_heap_context_allocator_alloc(
 	 * allocate it.
 	 */
 	if (!ctx_alloc->region) {
-		ctx_alloc->region = kbase_mem_alloc(kctx, nr_pages, nr_pages,
-					0, &flags, &ctx_alloc->gpu_va);
+		ctx_alloc->region =
+			kbase_mem_alloc(kctx, nr_pages, nr_pages, 0, &flags,
+					&ctx_alloc->gpu_va, mmu_sync_info);
 	}
 
 	/* If the pool still isn't allocated then an error occurred. */
 	if (unlikely(!ctx_alloc->region)) {
-		dev_err(kctx->kbdev->dev, "Failed to allocate a pool of tiler heap contexts\n");
+		dev_dbg(kctx->kbdev->dev, "Failed to allocate a pool of tiler heap contexts");
 	} else {
 		heap_gpu_va = sub_alloc(ctx_alloc);
 	}

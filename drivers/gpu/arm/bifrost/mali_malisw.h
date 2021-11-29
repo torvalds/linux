@@ -96,4 +96,9 @@
  */
 #define CSTD_STR2(x)	CSTD_STR1(x)
 
+/* LINUX_VERSION_CODE < 5.4 */
+#if (KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE)
+#define fallthrough	CSTD_NOP(...)	/* fallthrough */
+#endif
+
 #endif /* _MALISW_H_ */

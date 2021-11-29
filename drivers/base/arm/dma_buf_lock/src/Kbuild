@@ -18,6 +18,6 @@
 #
 #
 
-ifeq ($(CONFIG_DMA_SHARED_BUFFER), y)
+ifeq ($(CONFIG_DMA_BUF_LOCK), y)
 obj-m := dma_buf_lock.o
 endif

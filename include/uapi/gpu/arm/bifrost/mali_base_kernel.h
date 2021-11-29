@@ -42,18 +42,6 @@ struct base_mem_handle {
 
 #define BASE_MAX_COHERENT_GROUPS 16
 
-#if defined(CDBG_ASSERT)
-#define LOCAL_ASSERT CDBG_ASSERT
-#elif defined(KBASE_DEBUG_ASSERT)
-#define LOCAL_ASSERT KBASE_DEBUG_ASSERT
-#else
-#if defined(__KERNEL__)
-#error assert macro not defined!
-#else
-#define LOCAL_ASSERT(...)	((void)#__VA_ARGS__)
-#endif
-#endif
-
 #if defined(PAGE_MASK) && defined(PAGE_SHIFT)
 #define LOCAL_PAGE_SHIFT PAGE_SHIFT
 #define LOCAL_PAGE_LSB ~PAGE_MASK
@@ -635,7 +623,7 @@ struct mali_base_gpu_coherent_group_info {
  * @thread_max_barrier_size: Maximum number of threads per barrier
  * @thread_features: Thread features
  * @coherency_mode: Note: This is the _selected_ coherency mode rather than the
- * 	available modes as exposed in the coherency_features register
+ *                  available modes as exposed in the coherency_features register
  * @thread_tls_alloc: Number of threads per core that TLS must be allocated for
  * @gpu_features: GPU features
  *
@@ -699,7 +687,7 @@ struct gpu_raw_gpu_props {
  * values from which the value of the other members are derived. The derived
  * members exist to allow for efficient access and/or shielding the details
  * of the layout of the registers.
- * */
+ */
 struct base_gpu_props {
 	struct mali_base_gpu_core_props core_props;
 	struct mali_base_gpu_l2_cache_props l2_props;
@@ -716,82 +704,24 @@ struct base_gpu_props {
 #include "jm/mali_base_jm_kernel.h"
 #endif
 
-/**
- * base_mem_group_id_get() - Get group ID from flags
- * @flags: Flags to pass to base_mem_alloc
- *
- * This inline function extracts the encoded group ID from flags
- * and converts it into numeric value (0~15).
- *
- * Return: group ID(0~15) extracted from the parameter
- */
-static __inline__ int base_mem_group_id_get(base_mem_alloc_flags flags)
-{
-	LOCAL_ASSERT((flags & ~BASE_MEM_FLAGS_INPUT_MASK) == 0);
-	return (int)((flags & BASE_MEM_GROUP_ID_MASK) >>
-			BASEP_MEM_GROUP_ID_SHIFT);
-}
+#define BASE_MEM_GROUP_ID_GET(flags)                                           \
+	((flags & BASE_MEM_GROUP_ID_MASK) >> BASEP_MEM_GROUP_ID_SHIFT)
 
-/**
- * base_mem_group_id_set() - Set group ID into base_mem_alloc_flags
- * @id: group ID(0~15) you want to encode
- *
- * This inline function encodes specific group ID into base_mem_alloc_flags.
- * Parameter 'id' should lie in-between 0 to 15.
- *
- * Return: base_mem_alloc_flags with the group ID (id) encoded
- *
- * The return value can be combined with other flags against base_mem_alloc
- * to identify a specific memory group.
- */
-static __inline__ base_mem_alloc_flags base_mem_group_id_set(int id)
-{
-	if ((id < 0) || (id >= BASE_MEM_GROUP_COUNT)) {
-		/* Set to default value when id is out of range. */
-		id = BASE_MEM_GROUP_DEFAULT;
-	}
+#define BASE_MEM_GROUP_ID_SET(id)                                              \
+	(((base_mem_alloc_flags)((id < 0 || id >= BASE_MEM_GROUP_COUNT) ?      \
+					 BASE_MEM_GROUP_DEFAULT :              \
+					 id)                                   \
+	  << BASEP_MEM_GROUP_ID_SHIFT) &                                       \
+	 BASE_MEM_GROUP_ID_MASK)
 
-	return ((base_mem_alloc_flags)id << BASEP_MEM_GROUP_ID_SHIFT) &
-		BASE_MEM_GROUP_ID_MASK;
-}
+#define BASE_CONTEXT_MMU_GROUP_ID_SET(group_id)                                \
+	(BASEP_CONTEXT_MMU_GROUP_ID_MASK &                                     \
+	 ((base_context_create_flags)(group_id)                                \
+	  << BASEP_CONTEXT_MMU_GROUP_ID_SHIFT))
 
-/**
- * base_context_mmu_group_id_set - Encode a memory group ID in
- *                                 base_context_create_flags
- *
- * Memory allocated for GPU page tables will come from the specified group.
- *
- * @group_id: Physical memory group ID. Range is 0..(BASE_MEM_GROUP_COUNT-1).
- *
- * Return: Bitmask of flags to pass to base_context_init.
- */
-static __inline__ base_context_create_flags base_context_mmu_group_id_set(
-	int const group_id)
-{
-	LOCAL_ASSERT(group_id >= 0);
-	LOCAL_ASSERT(group_id < BASE_MEM_GROUP_COUNT);
-	return BASEP_CONTEXT_MMU_GROUP_ID_MASK &
-		((base_context_create_flags)group_id <<
-		BASEP_CONTEXT_MMU_GROUP_ID_SHIFT);
-}
-
-/**
- * base_context_mmu_group_id_get - Decode a memory group ID from
- *                                 base_context_create_flags
- *
- * Memory allocated for GPU page tables will come from the returned group.
- *
- * @flags: Bitmask of flags to pass to base_context_init.
- *
- * Return: Physical memory group ID. Valid range is 0..(BASE_MEM_GROUP_COUNT-1).
- */
-static __inline__ int base_context_mmu_group_id_get(
-	base_context_create_flags const flags)
-{
-	LOCAL_ASSERT(flags == (flags & BASEP_CONTEXT_CREATE_ALLOWED_FLAGS));
-	return (int)((flags & BASEP_CONTEXT_MMU_GROUP_ID_MASK) >>
-			BASEP_CONTEXT_MMU_GROUP_ID_SHIFT);
-}
+#define BASE_CONTEXT_MMU_GROUP_ID_GET(flags)                                   \
+	((flags & BASEP_CONTEXT_MMU_GROUP_ID_MASK) >>                          \
+	 BASEP_CONTEXT_MMU_GROUP_ID_SHIFT)
 
 /*
  * A number of bit flags are defined for requesting cpu_gpu_timeinfo. These

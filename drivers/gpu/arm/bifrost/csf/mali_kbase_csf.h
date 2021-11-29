@@ -39,9 +39,12 @@
  */
 #define KBASEP_USER_DB_NR_INVALID ((s8)-1)
 
-#define FIRMWARE_PING_INTERVAL_MS (4000) /* 4 seconds */
+#define FIRMWARE_PING_INTERVAL_MS (8000) /* 8 seconds */
 
 #define FIRMWARE_IDLE_HYSTERESIS_TIME_MS (10) /* Default 10 milliseconds */
+
+/* Idle hysteresis time can be scaled down when GPU sleep feature is used */
+#define FIRMWARE_IDLE_HYSTERESIS_GPU_SLEEP_SCALER (5)
 
 /**
  * enum kbase_csf_event_callback_action - return type for CSF event callbacks.

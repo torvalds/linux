@@ -26,6 +26,16 @@ menuconfig MALI_BASE_MODULES
 	  Those modules provide extra features or debug interfaces and,
 	  are optional for the use of the Mali GPU modules.
 
+config DMA_BUF_LOCK
+	bool "Build dma-buf lock module"
+	depends on MALI_BASE_MODULES && MALI_DMA_FENCE
+	default y
+	help
+	  This option will build the dma_buf_lock module.
+
+	  Modules:
+	    - dma_buf_lock.ko
+
 config DMA_SHARED_BUFFER_TEST_EXPORTER
 	bool "Build dma-buf framework test exporter module"
 	depends on MALI_BASE_MODULES

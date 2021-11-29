@@ -28,8 +28,13 @@
 #error "Cannot be compiled with JM"
 #endif
 
-/* IPA control registers */
+/* GPU_CONTROL_MCU base address */
+#define GPU_CONTROL_MCU_BASE 0x3000
 
+/* MCU_SUBSYSTEM base address */
+#define MCU_SUBSYSTEM_BASE 0x20000
+
+/* IPA control registers */
 #define IPA_CONTROL_BASE       0x40000
 #define IPA_CONTROL_REG(r)     (IPA_CONTROL_BASE+(r))
 #define COMMAND                0x000 /* (WO) Command register */
@@ -62,8 +67,6 @@
 #define VALUE_SHADER_BASE      0x1C0
 #define VALUE_SHADER_REG_LO(n) (VALUE_SHADER_BASE + ((n) << 3))     /* (RO) Counter value #n, low word */
 #define VALUE_SHADER_REG_HI(n) (VALUE_SHADER_BASE + ((n) << 3) + 4) /* (RO) Counter value #n, high word */
-
-#include "../../csf/mali_gpu_csf_control_registers.h"
 
 /* Set to implementation defined, outer caching */
 #define AS_MEMATTR_AARCH64_OUTER_IMPL_DEF 0x88ull
@@ -116,6 +119,9 @@
 #define MCU_CNTRL_ENABLE        (1 << 0)
 #define MCU_CNTRL_AUTO          (1 << 1)
 #define MCU_CNTRL_DISABLE       (0)
+
+#define MCU_CNTRL_DOORBELL_DISABLE_SHIFT (31)
+#define MCU_CNTRL_DOORBELL_DISABLE_MASK (1 << MCU_CNTRL_DOORBELL_DISABLE_SHIFT)
 
 #define MCU_STATUS_HALTED        (1 << 1)
 
@@ -181,11 +187,19 @@
 #define GPU_COMMAND_TIME_DISABLE 0x00 /* Disable cycle counter */
 #define GPU_COMMAND_TIME_ENABLE  0x01 /* Enable cycle counter */
 
-/* GPU_COMMAND_FLUSH_CACHES payloads */
-#define GPU_COMMAND_FLUSH_PAYLOAD_NONE             0x00 /* No flush */
-#define GPU_COMMAND_FLUSH_PAYLOAD_CLEAN            0x01 /* Clean the caches */
-#define GPU_COMMAND_FLUSH_PAYLOAD_INVALIDATE       0x02 /* Invalidate the caches */
-#define GPU_COMMAND_FLUSH_PAYLOAD_CLEAN_INVALIDATE 0x03 /* Clean and invalidate the caches */
+/* GPU_COMMAND_FLUSH_CACHES payloads bits for L2 caches */
+#define GPU_COMMAND_FLUSH_PAYLOAD_L2_NONE 0x000 /* No flush */
+#define GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN 0x001 /* CLN only */
+#define GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN_INVALIDATE 0x003 /* CLN + INV */
+
+/* GPU_COMMAND_FLUSH_CACHES payloads bits for Load-store caches */
+#define GPU_COMMAND_FLUSH_PAYLOAD_LSC_NONE 0x000 /* No flush */
+#define GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN 0x010 /* CLN only */
+#define GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN_INVALIDATE 0x030 /* CLN + INV */
+
+/* GPU_COMMAND_FLUSH_CACHES payloads bits for Other caches */
+#define GPU_COMMAND_FLUSH_PAYLOAD_OTHER_NONE 0x000 /* No flush */
+#define GPU_COMMAND_FLUSH_PAYLOAD_OTHER_INVALIDATE 0x200 /* INV only */
 
 /* GPU_COMMAND command + payload */
 #define GPU_COMMAND_CODE_PAYLOAD(opcode, payload) \
@@ -220,13 +234,21 @@
 #define GPU_COMMAND_CYCLE_COUNT_STOP \
 	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_TIME, GPU_COMMAND_TIME_DISABLE)
 
-/* Clean all caches */
-#define GPU_COMMAND_CLEAN_CACHES \
-	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_CACHES, GPU_COMMAND_FLUSH_PAYLOAD_CLEAN)
+/* Clean and invalidate L2 cache (Equivalent to FLUSH_PT) */
+#define GPU_COMMAND_CACHE_CLN_INV_L2                                           \
+	GPU_COMMAND_CODE_PAYLOAD(                                              \
+		GPU_COMMAND_CODE_FLUSH_CACHES,                                 \
+		(GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN_INVALIDATE |               \
+		 GPU_COMMAND_FLUSH_PAYLOAD_LSC_NONE |                          \
+		 GPU_COMMAND_FLUSH_PAYLOAD_OTHER_NONE))
 
-/* Clean and invalidate all caches */
-#define GPU_COMMAND_CLEAN_INV_CACHES \
-	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_CACHES, GPU_COMMAND_FLUSH_PAYLOAD_CLEAN_INVALIDATE)
+/* Clean and invalidate L2 and LSC caches (Equivalent to FLUSH_MEM) */
+#define GPU_COMMAND_CACHE_CLN_INV_L2_LSC                                       \
+	GPU_COMMAND_CODE_PAYLOAD(                                              \
+		GPU_COMMAND_CODE_FLUSH_CACHES,                                 \
+		(GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN_INVALIDATE |               \
+		 GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN_INVALIDATE |              \
+		 GPU_COMMAND_FLUSH_PAYLOAD_OTHER_NONE))
 
 /* Places the GPU in protected mode */
 #define GPU_COMMAND_SET_PROTECTED_MODE \

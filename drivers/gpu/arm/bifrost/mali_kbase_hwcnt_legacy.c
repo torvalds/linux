@@ -23,6 +23,7 @@
 #include "mali_kbase_hwcnt_virtualizer.h"
 #include "mali_kbase_hwcnt_types.h"
 #include "mali_kbase_hwcnt_gpu.h"
+#include "mali_kbase_hwcnt_gpu_narrow.h"
 #include <uapi/gpu/arm/bifrost/mali_kbase_ioctl.h>
 
 #include <linux/slab.h>
@@ -32,14 +33,22 @@
  * struct kbase_hwcnt_legacy_client - Legacy hardware counter client.
  * @user_dump_buf: Pointer to a non-NULL user buffer, where dumps are returned.
  * @enable_map:    Counter enable map.
- * @dump_buf:      Dump buffer used to manipulate dumps before copied to user.
+ * @dump_buf:      Dump buffer used to manipulate dumps from virtualizer.
  * @hvcli:         Hardware counter virtualizer client.
+ * @dump_buf_user: Narrow dump buffer used to manipulate dumps before they are
+ *                 copied to user.
+ * @metadata_user: For compatibility with the user driver interface, this
+ *                 contains a narrowed version of the hardware counter metadata
+ *                 which is limited to 64 entries per block and 32-bit for each
+ *                 entry.
  */
 struct kbase_hwcnt_legacy_client {
 	void __user *user_dump_buf;
 	struct kbase_hwcnt_enable_map enable_map;
 	struct kbase_hwcnt_dump_buffer dump_buf;
 	struct kbase_hwcnt_virtualizer_client *hvcli;
+	struct kbase_hwcnt_dump_buffer_narrow dump_buf_user;
+	const struct kbase_hwcnt_metadata_narrow *metadata_user;
 };
 
 int kbase_hwcnt_legacy_client_create(
@@ -60,6 +69,16 @@ int kbase_hwcnt_legacy_client_create(
 	hlcli = kzalloc(sizeof(*hlcli), GFP_KERNEL);
 	if (!hlcli)
 		return -ENOMEM;
+
+	errcode = kbase_hwcnt_gpu_metadata_narrow_create(&hlcli->metadata_user,
+							 metadata);
+	if (errcode)
+		goto error;
+
+	errcode = kbase_hwcnt_dump_buffer_narrow_alloc(hlcli->metadata_user,
+						       &hlcli->dump_buf_user);
+	if (errcode)
+		goto error;
 
 	hlcli->user_dump_buf = (void __user *)(uintptr_t)enable->dump_buffer;
 
@@ -99,6 +118,8 @@ void kbase_hwcnt_legacy_client_destroy(struct kbase_hwcnt_legacy_client *hlcli)
 	kbase_hwcnt_virtualizer_client_destroy(hlcli->hvcli);
 	kbase_hwcnt_dump_buffer_free(&hlcli->dump_buf);
 	kbase_hwcnt_enable_map_free(&hlcli->enable_map);
+	kbase_hwcnt_dump_buffer_narrow_free(&hlcli->dump_buf_user);
+	kbase_hwcnt_gpu_metadata_narrow_destroy(hlcli->metadata_user);
 	kfree(hlcli);
 }
 
@@ -123,13 +144,20 @@ int kbase_hwcnt_legacy_client_dump(struct kbase_hwcnt_legacy_client *hlcli)
 	kbase_hwcnt_gpu_patch_dump_headers(
 		&hlcli->dump_buf, &hlcli->enable_map);
 
-	/* Zero all non-enabled counters (current values are undefined) */
-	kbase_hwcnt_dump_buffer_zero_non_enabled(
-		&hlcli->dump_buf, &hlcli->enable_map);
+	/* Copy the dump buffer to the userspace visible buffer. The strict
+	 * variant will explicitly zero any non-enabled counters to ensure
+	 * nothing except exactly what the user asked for is made visible.
+	 *
+	 * A narrow copy is required since virtualizer has a bigger buffer
+	 * but user only needs part of it.
+	 */
+	kbase_hwcnt_dump_buffer_copy_strict_narrow(
+		&hlcli->dump_buf_user, &hlcli->dump_buf, &hlcli->enable_map);
 
 	/* Copy into the user's buffer */
-	errcode = copy_to_user(hlcli->user_dump_buf, hlcli->dump_buf.dump_buf,
-		hlcli->dump_buf.metadata->dump_buf_bytes);
+	errcode = copy_to_user(hlcli->user_dump_buf,
+			       hlcli->dump_buf_user.dump_buf,
+			       hlcli->dump_buf_user.md_narrow->dump_buf_bytes);
 	/* Non-zero errcode implies user buf was invalid or too small */
 	if (errcode)
 		return -EFAULT;

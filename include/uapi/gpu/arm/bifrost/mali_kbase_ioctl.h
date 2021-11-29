@@ -186,12 +186,15 @@ struct kbase_ioctl_hwcnt_enable {
 	__u32 mmu_l2_bm;
 };
 
+/* This IOCTL is deprecated as of R33, and will be removed in R35. */
 #define KBASE_IOCTL_HWCNT_ENABLE \
 	_IOW(KBASE_IOCTL_TYPE, 9, struct kbase_ioctl_hwcnt_enable)
 
+/* This IOCTL is deprecated as of R33, and will be removed in R35. */
 #define KBASE_IOCTL_HWCNT_DUMP \
 	_IO(KBASE_IOCTL_TYPE, 10)
 
+/* This IOCTL is deprecated as of R33, and will be removed in R35. */
 #define KBASE_IOCTL_HWCNT_CLEAR \
 	_IO(KBASE_IOCTL_TYPE, 11)
 
@@ -686,6 +689,55 @@ struct kbase_ioctl_set_limited_core_count {
 #define KBASE_IOCTL_SET_LIMITED_CORE_COUNT \
 	_IOW(KBASE_IOCTL_TYPE, 55, struct kbase_ioctl_set_limited_core_count)
 
+/**
+ * struct kbase_ioctl_kinstr_prfcnt_enum_info - Enum Performance counter
+ *                                              information
+ * @info_item_size:  Performance counter item size in bytes.
+ * @info_item_count: Performance counter item count in the info_list_ptr.
+ * @info_list_ptr:   Performance counter item list pointer which points to a
+ *                   list with info_item_count of items.
+ *
+ * On success: returns info_item_size and info_item_count if info_list_ptr is
+ * NULL, returns performance counter information if info_list_ptr is not NULL.
+ * On error: returns a negative error code.
+ */
+struct kbase_ioctl_kinstr_prfcnt_enum_info {
+	__u32 info_item_size;
+	__u32 info_item_count;
+	__u64 info_list_ptr;
+};
+
+#define KBASE_IOCTL_KINSTR_PRFCNT_ENUM_INFO                                    \
+	_IOWR(KBASE_IOCTL_TYPE, 56, struct kbase_ioctl_kinstr_prfcnt_enum_info)
+
+/**
+ * struct kbase_ioctl_hwcnt_reader_setup - Setup HWC dumper/reader
+ * @in: input parameters.
+ * @in.request_item_count: Number of requests in the requests array.
+ * @in.request_item_size:  Size in bytes of each request in the requests array.
+ * @in.requests_ptr:       Pointer to the requests array.
+ * @out: output parameters.
+ * @out.prfcnt_metadata_item_size: Size of each item in the metadata array for
+ *                                 each sample.
+ * @out.prfcnt_mmap_size_bytes:    Size in bytes that user-space should mmap
+ *                                 for reading performance counter samples.
+ *
+ * A fd is returned from the ioctl if successful, or a negative value on error.
+ */
+union kbase_ioctl_kinstr_prfcnt_setup {
+	struct {
+		__u32 request_item_count;
+		__u32 request_item_size;
+		__u64 requests_ptr;
+	} in;
+	struct {
+		__u32 prfcnt_metadata_item_size;
+		__u32 prfcnt_mmap_size_bytes;
+	} out;
+};
+
+#define KBASE_IOCTL_KINSTR_PRFCNT_SETUP                                        \
+	_IOWR(KBASE_IOCTL_TYPE, 57, union kbase_ioctl_kinstr_prfcnt_setup)
 
 /***************
  * test ioctls *

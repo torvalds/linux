@@ -78,9 +78,6 @@
 /* Maximum CSs per csg. */
 #define MAX_SUPPORTED_STREAMS_PER_GROUP 32
 
-/* Waiting timeout for status change acknowledgment, in milliseconds */
-#define CSF_FIRMWARE_TIMEOUT_MS (3000) /* Relaxed to 3000ms from 800ms due to Android */
-
 struct kbase_device;
 
 
@@ -442,12 +439,26 @@ int kbase_csf_firmware_set_timeout(struct kbase_device *kbdev, u64 timeout);
 
 /**
  * kbase_csf_enter_protected_mode - Send the Global request to firmware to
- *                                  enter protected mode and wait for its
- *                                  completion.
+ *                                  enter protected mode.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * The function must be called with kbdev->csf.scheduler.interrupt_lock held
+ * and it does not wait for the protected mode entry to complete.
  */
 void kbase_csf_enter_protected_mode(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_wait_protected_mode_enter - Wait for the completion of PROTM_ENTER
+ *                                       Global request sent to firmware.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * This function needs to be called after kbase_csf_wait_protected_mode_enter()
+ * to wait for the protected mode entry to complete. GPU reset is triggered if
+ * the wait is unsuccessful.
+ */
+void kbase_csf_wait_protected_mode_enter(struct kbase_device *kbdev);
 
 static inline bool kbase_csf_firmware_mcu_halted(struct kbase_device *kbdev)
 {
@@ -496,6 +507,26 @@ static inline void kbase_csf_firmware_disable_mcu(struct kbase_device *kbdev)
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_firmware_disable_mcu_wait(struct kbase_device *kbdev);
+
+#ifdef KBASE_PM_RUNTIME
+/**
+ * kbase_csf_firmware_trigger_mcu_sleep - Send the command to put MCU in sleep
+ *                                        state.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ */
+void kbase_csf_firmware_trigger_mcu_sleep(struct kbase_device *kbdev);
+
+/**
+ * kbase_csf_firmware_is_mcu_in_sleep - Check if sleep request has completed
+ *                                      and MCU has halted.
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Return: true if sleep request has completed, otherwise false.
+ */
+bool kbase_csf_firmware_is_mcu_in_sleep(struct kbase_device *kbdev);
+#endif
 
 /**
  * kbase_trigger_firmware_reload - Trigger the reboot of MCU firmware, for the

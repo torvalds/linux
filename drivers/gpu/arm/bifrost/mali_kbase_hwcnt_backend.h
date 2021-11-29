@@ -56,8 +56,8 @@ struct kbase_hwcnt_backend;
  *
  * Return: Non-NULL pointer to immutable hardware counter metadata.
  */
-typedef const struct kbase_hwcnt_metadata *
-kbase_hwcnt_backend_metadata_fn(const struct kbase_hwcnt_backend_info *info);
+typedef const struct kbase_hwcnt_metadata *kbase_hwcnt_backend_metadata_fn(
+	const struct kbase_hwcnt_backend_info *info);
 
 /**
  * typedef kbase_hwcnt_backend_init_fn - Initialise a counter backend.
@@ -69,9 +69,9 @@ kbase_hwcnt_backend_metadata_fn(const struct kbase_hwcnt_backend_info *info);
  *
  * Return: 0 on success, else error code.
  */
-typedef int
-kbase_hwcnt_backend_init_fn(const struct kbase_hwcnt_backend_info *info,
-			    struct kbase_hwcnt_backend **out_backend);
+typedef int kbase_hwcnt_backend_init_fn(
+	const struct kbase_hwcnt_backend_info *info,
+	struct kbase_hwcnt_backend **out_backend);
 
 /**
  * typedef kbase_hwcnt_backend_term_fn - Terminate a counter backend.
@@ -86,8 +86,8 @@ typedef void kbase_hwcnt_backend_term_fn(struct kbase_hwcnt_backend *backend);
  *
  * Return: Backend timestamp in nanoseconds.
  */
-typedef u64
-kbase_hwcnt_backend_timestamp_ns_fn(struct kbase_hwcnt_backend *backend);
+typedef u64 kbase_hwcnt_backend_timestamp_ns_fn(
+	struct kbase_hwcnt_backend *backend);
 
 /**
  * typedef kbase_hwcnt_backend_dump_enable_fn - Start counter dumping with the
@@ -130,8 +130,8 @@ typedef int kbase_hwcnt_backend_dump_enable_nolock_fn(
  * If the backend is already disabled, does nothing.
  * Any undumped counter values since the last dump get will be lost.
  */
-typedef void
-kbase_hwcnt_backend_dump_disable_fn(struct kbase_hwcnt_backend *backend);
+typedef void kbase_hwcnt_backend_dump_disable_fn(
+	struct kbase_hwcnt_backend *backend);
 
 /**
  * typedef kbase_hwcnt_backend_dump_clear_fn - Reset all the current undumped
@@ -142,8 +142,8 @@ kbase_hwcnt_backend_dump_disable_fn(struct kbase_hwcnt_backend *backend);
  *
  * Return: 0 on success, else error code.
  */
-typedef int
-kbase_hwcnt_backend_dump_clear_fn(struct kbase_hwcnt_backend *backend);
+typedef int kbase_hwcnt_backend_dump_clear_fn(
+	struct kbase_hwcnt_backend *backend);
 
 /**
  * typedef kbase_hwcnt_backend_dump_request_fn - Request an asynchronous counter
@@ -157,9 +157,9 @@ kbase_hwcnt_backend_dump_clear_fn(struct kbase_hwcnt_backend *backend);
  *
  * Return: 0 on success, else error code.
  */
-typedef int
-kbase_hwcnt_backend_dump_request_fn(struct kbase_hwcnt_backend *backend,
-				    u64 *dump_time_ns);
+typedef int kbase_hwcnt_backend_dump_request_fn(
+	struct kbase_hwcnt_backend *backend,
+	u64 *dump_time_ns);
 
 /**
  * typedef kbase_hwcnt_backend_dump_wait_fn - Wait until the last requested
@@ -170,8 +170,8 @@ kbase_hwcnt_backend_dump_request_fn(struct kbase_hwcnt_backend *backend,
  *
  * Return: 0 on success, else error code.
  */
-typedef int
-kbase_hwcnt_backend_dump_wait_fn(struct kbase_hwcnt_backend *backend);
+typedef int kbase_hwcnt_backend_dump_wait_fn(
+	struct kbase_hwcnt_backend *backend);
 
 /**
  * typedef kbase_hwcnt_backend_dump_get_fn - Copy or accumulate enable the
@@ -189,11 +189,11 @@ kbase_hwcnt_backend_dump_wait_fn(struct kbase_hwcnt_backend *backend);
  *
  * Return: 0 on success, else error code.
  */
-typedef int
-kbase_hwcnt_backend_dump_get_fn(struct kbase_hwcnt_backend *backend,
-				struct kbase_hwcnt_dump_buffer *dump_buffer,
-				const struct kbase_hwcnt_enable_map *enable_map,
-				bool accumulate);
+typedef int kbase_hwcnt_backend_dump_get_fn(
+	struct kbase_hwcnt_backend *backend,
+	struct kbase_hwcnt_dump_buffer *dump_buffer,
+	const struct kbase_hwcnt_enable_map *enable_map,
+	bool accumulate);
 
 /**
  * struct kbase_hwcnt_backend_interface - Hardware counter backend virtual

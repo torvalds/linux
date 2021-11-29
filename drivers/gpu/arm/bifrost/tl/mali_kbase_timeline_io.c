@@ -140,7 +140,7 @@ static inline int copy_stream_header(char __user *buffer, size_t size,
 }
 
 /**
- * kbasep_timeline_copy_header - copy timeline headers to the user
+ * kbasep_timeline_copy_headers - copy timeline headers to the user
  *
  * @timeline:    Timeline instance
  * @buffer:      Pointer to the buffer provided by user

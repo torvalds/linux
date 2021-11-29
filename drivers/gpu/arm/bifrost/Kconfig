@@ -24,6 +24,7 @@ menuconfig MALI_BIFROST
 	select DMA_SHARED_BUFFER
 	select PM_DEVFREQ
 	select DEVFREQ_THERMAL
+	select FW_LOADER
 	default n
 	help
 	  Enable this option to build support for a ARM Mali Bifrost GPU.
@@ -39,7 +40,7 @@ config MALI_PLATFORM_NAME
 	default "devicetree"
 	help
 	  Enter the name of the desired platform configuration directory to
-	  include in the build. 'platform/$(MALI_PLATFORM_NAME)/Makefile' must
+	  include in the build. 'platform/$(MALI_PLATFORM_NAME)/Kbuild' must
 	  exist.
 
 config MALI_REAL_HW
@@ -47,7 +48,7 @@ config MALI_REAL_HW
 	def_bool !MALI_BIFROST_NO_MALI
 
 menu "Platform specific options"
-source "drivers/gpu/arm/midgard/platform/Kconfig"
+source "drivers/gpu/arm/bifrost/platform/Kconfig"
 endmenu
 
 config MALI_CSF_SUPPORT
@@ -364,7 +365,7 @@ config MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
 endif
 
 config MALI_ARBITRATION
-	bool "Enable Virtualization reference code"
+	tristate "Enable Virtualization reference code"
 	depends on MALI_BIFROST
 	default n
 	help
@@ -372,6 +373,10 @@ config MALI_ARBITRATION
 	  virtualization setup for Mali
 	  If unsure, say N.
 
-source "drivers/gpu/arm/midgard/tests/Kconfig"
+if MALI_ARBITRATION
+source "drivers/gpu/arm/bifrost/arbitration/Kconfig"
+endif
+
+# source "drivers/gpu/arm/bifrost/tests/Kconfig"
 
 endif

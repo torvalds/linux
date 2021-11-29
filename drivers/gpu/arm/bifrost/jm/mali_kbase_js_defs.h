@@ -187,6 +187,33 @@ enum {
  */
 #define KBASE_JS_ATOM_SCHED_PRIO_DEFAULT KBASE_JS_ATOM_SCHED_PRIO_MED
 
+/* Atom priority bitmaps, where bit 0 is the highest priority, and higher bits
+ * indicate successively lower KBASE_JS_ATOM_SCHED_PRIO_<...> levels.
+ *
+ * Must be strictly larger than the number of bits to represent a bitmap of
+ * priorities, so that we can do calculations such as:
+ *   (1 << KBASE_JS_ATOM_SCHED_PRIO_COUNT) - 1
+ * ...without causing undefined behavior due to a shift beyond the width of the
+ * type
+ *
+ * If KBASE_JS_ATOM_SCHED_PRIO_COUNT starts requiring 32 bits, then it's worth
+ * moving to DECLARE_BITMAP()
+ */
+typedef u8 kbase_js_prio_bitmap_t;
+
+/* Ordering modification for kbase_js_atom_runs_before() */
+typedef u32 kbase_atom_ordering_flag_t;
+
+/* Atoms of the same context and priority should have their ordering decided by
+ * their seq_nr instead of their age.
+ *
+ * seq_nr is used as a more slowly changing variant of age - it increases once
+ * per group of related atoms, as determined by user-space. Hence, it can be
+ * used to limit re-ordering decisions (such as pre-emption) to only re-order
+ * between such groups, rather than re-order within those groups of atoms.
+ */
+#define KBASE_ATOM_ORDERING_FLAG_SEQNR (((kbase_atom_ordering_flag_t)1) << 0)
+
 /**
  * struct kbasep_js_device_data - KBase Device Data Job Scheduler sub-structure
  * @runpool_irq: Sub-structure to collect together Job Scheduling data used in
@@ -392,5 +419,24 @@ struct kbasep_js_atom_retained_state {
  * Any non-zero difference in time will be at least this size.
  */
 #define KBASEP_JS_TICK_RESOLUTION_US 1
+
+/**
+ * struct kbase_jsctx_slot_tracking - Job Scheduling tracking of a context's
+ *                                    use of a job slot
+ * @blocked: bitmap of priorities that this slot is blocked at
+ * @atoms_pulled: counts of atoms that have been pulled from this slot,
+ *                across all priority levels
+ * @atoms_pulled_pri: counts of atoms that have been pulled from this slot, per
+ *                    priority level
+ *
+ * Controls how a slot from the &struct kbase_context's jsctx_queue is managed,
+ * for example to ensure correct ordering of atoms when atoms of different
+ * priorities are unpulled.
+ */
+struct kbase_jsctx_slot_tracking {
+	kbase_js_prio_bitmap_t blocked;
+	atomic_t atoms_pulled;
+	int atoms_pulled_pri[KBASE_JS_ATOM_SCHED_PRIO_COUNT];
+};
 
 #endif /* _KBASE_JS_DEFS_H_ */

@@ -56,6 +56,14 @@ int dummy_array[] = {
 	 */
 	/* info_val==exit code; gpu_addr==chain gpuaddr */
 	KBASE_KTRACE_CODE_MAKE_CODE(JM_JOB_DONE),
+	/* gpu_addr==JS_HEAD read
+	 * info_val==event code
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(JM_RETURN_ATOM_TO_JS),
+	/* gpu_addr==JS_HEAD read
+	 * info_val==event code
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(JM_MARK_FOR_RETURN_TO_JS),
 	/* gpu_addr==JS_HEAD_NEXT written, info_val==lower 32 bits of
 	 * affinity
 	 */
@@ -120,6 +128,13 @@ int dummy_array[] = {
 	KBASE_KTRACE_CODE_MAKE_CODE(JS_ADD_JOB),
 	/* gpu_addr==last value written/would be written to JS_HEAD */
 	KBASE_KTRACE_CODE_MAKE_CODE(JS_REMOVE_JOB),
+	/* gpu_addr==value to write into JS_HEAD
+	 * info_val==priority of atom as a KBASE_JS_ATOM_SCHED_PRIO_<...> value
+	 * (0 highest)
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(JS_PULL_JOB),
+	/* gpu_addr==value that would be written to JS_HEAD if run again */
+	KBASE_KTRACE_CODE_MAKE_CODE(JS_UNPULL_JOB),
 	KBASE_KTRACE_CODE_MAKE_CODE(JS_TRY_SCHEDULE_HEAD_CTX),
 	/* gpu_addr==value to write into JS_HEAD */
 	KBASE_KTRACE_CODE_MAKE_CODE(JS_JOB_DONE_TRY_RUN_NEXT_JOB),
@@ -146,6 +161,25 @@ int dummy_array[] = {
 	KBASE_KTRACE_CODE_MAKE_CODE(JS_CTX_ATTR_NOW_OFF_CTX),
 	/* info_val == the ctx attribute now off runpool */
 	KBASE_KTRACE_CODE_MAKE_CODE(JS_CTX_ATTR_NOW_OFF_RUNPOOL),
+	/* gpu_addr==value to write into JS_HEAD */
+	KBASE_KTRACE_CODE_MAKE_CODE(JS_RETURN_WORKER),
+	/* gpu_addr==value to write into JS_HEAD */
+	KBASE_KTRACE_CODE_MAKE_CODE(JS_RETURN_WORKER_END),
+	/* info_val==priority level blocked (0 highest) */
+	KBASE_KTRACE_CODE_MAKE_CODE(JS_SLOT_PRIO_BLOCKED),
+	/* info_val==priority level unblocked (0 highest)
+	 * note that the priority level may still be blocked on higher levels
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(JS_SLOT_PRIO_UNBLOCKED),
+	/* gpu_addr==value to write into JS_HEAD
+	 * info_val==priority level unblocked - priorities at this and higher
+	 *           are unblocked (0 highest)
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(JS_SLOT_PRIO_AND_HIGHER_UNBLOCKED),
+	/* gpu_addr==value to write into JS_HEAD
+	 * info_val==priority level blocked (0 highest)
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(JS_SLOT_PRIO_IS_BLOCKED),
 	/*
 	 * Scheduler Policy events
 	 */

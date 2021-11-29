@@ -24,9 +24,31 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <csf/mali_kbase_csf_trace_buffer.h>
+#include <backend/gpu/mali_kbase_pm_internal.h>
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 #include "mali_kbase_csf_tl_reader.h"
+
+#define MAX_SCHED_STATE_STRING_LEN (16)
+static const char *scheduler_state_to_string(struct kbase_device *kbdev,
+			enum kbase_csf_scheduler_state sched_state)
+{
+	switch (sched_state) {
+	case SCHED_BUSY:
+		return "BUSY";
+	case SCHED_INACTIVE:
+		return "INACTIVE";
+	case SCHED_SUSPENDED:
+		return "SUSPENDED";
+#ifdef KBASE_PM_RUNTIME
+	case SCHED_SLEEPING:
+		return "SLEEPING";
+#endif
+	default:
+		dev_warn(kbdev->dev, "Unknown Scheduler state %d", sched_state);
+		return NULL;
+	}
+}
 
 /**
  * blocked_reason_to_string() - Convert blocking reason id to a string
@@ -142,10 +164,6 @@ static void kbasep_csf_scheduler_dump_active_queue(struct seq_file *file,
 		    !queue->group))
 		return;
 
-	/* Ring the doorbell to have firmware update CS_EXTRACT */
-	kbase_csf_ring_cs_user_doorbell(queue->kctx->kbdev, queue);
-	msleep(100);
-
 	addr = (u32 *)queue->user_io_addr;
 	cs_insert = addr[CS_INSERT_LO/4] | ((u64)addr[CS_INSERT_HI/4] << 32);
 
@@ -253,32 +271,68 @@ static void kbasep_csf_scheduler_dump_active_queue(struct seq_file *file,
 /* Waiting timeout for STATUS_UPDATE acknowledgment, in milliseconds */
 #define CSF_STATUS_UPDATE_TO_MS (100)
 
+static void update_active_group_status(struct seq_file *file,
+		struct kbase_queue_group *const group)
+{
+	struct kbase_device *const kbdev = group->kctx->kbdev;
+	struct kbase_csf_cmd_stream_group_info const *const ginfo =
+		&kbdev->csf.global_iface.groups[group->csg_nr];
+	long remaining =
+		kbase_csf_timeout_in_jiffies(CSF_STATUS_UPDATE_TO_MS);
+	unsigned long flags;
+
+	/* Global doorbell ring for CSG STATUS_UPDATE request or User doorbell
+	 * ring for Extract offset update, shall not be made when MCU has been
+	 * put to sleep otherwise it will undesirably make MCU exit the sleep
+	 * state. Also it isn't really needed as FW will implicitly update the
+	 * status of all on-slot groups when MCU sleep request is sent to it.
+	 */
+	if (kbdev->csf.scheduler.state == SCHED_SLEEPING)
+		return;
+
+	/* Ring the User doobell shared between the queues bound to this
+	 * group, to have FW update the CS_EXTRACT for all the queues
+	 * bound to the group. Ring early so that FW gets adequate time
+	 * for the handling.
+	 */
+	kbase_csf_ring_doorbell(kbdev, group->doorbell_nr);
+
+	kbase_csf_scheduler_spin_lock(kbdev, &flags);
+	kbase_csf_firmware_csg_input_mask(ginfo, CSG_REQ,
+			~kbase_csf_firmware_csg_output(ginfo, CSG_ACK),
+			CSG_REQ_STATUS_UPDATE_MASK);
+	kbase_csf_scheduler_spin_unlock(kbdev, flags);
+	kbase_csf_ring_csg_doorbell(kbdev, group->csg_nr);
+
+	remaining = wait_event_timeout(kbdev->csf.event_wait,
+		!((kbase_csf_firmware_csg_input_read(ginfo, CSG_REQ) ^
+		kbase_csf_firmware_csg_output(ginfo, CSG_ACK)) &
+		CSG_REQ_STATUS_UPDATE_MASK), remaining);
+
+	if (!remaining) {
+		dev_err(kbdev->dev,
+			"Timed out for STATUS_UPDATE on group %d on slot %d",
+			group->handle, group->csg_nr);
+
+		seq_printf(file, "*** Warn: Timed out for STATUS_UPDATE on slot %d\n",
+			group->csg_nr);
+		seq_puts(file, "*** The following group-record is likely stale\n");
+	}
+}
+
 static void kbasep_csf_scheduler_dump_active_group(struct seq_file *file,
 		struct kbase_queue_group *const group)
 {
 	if (kbase_csf_scheduler_group_get_slot(group) >= 0) {
 		struct kbase_device *const kbdev = group->kctx->kbdev;
-		unsigned long flags;
 		u32 ep_c, ep_r;
 		char exclusive;
 		struct kbase_csf_cmd_stream_group_info const *const ginfo =
 			&kbdev->csf.global_iface.groups[group->csg_nr];
-		long remaining =
-			kbase_csf_timeout_in_jiffies(CSF_STATUS_UPDATE_TO_MS);
 		u8 slot_priority =
 			kbdev->csf.scheduler.csg_slots[group->csg_nr].priority;
 
-		kbase_csf_scheduler_spin_lock(kbdev, &flags);
-		kbase_csf_firmware_csg_input_mask(ginfo, CSG_REQ,
-				~kbase_csf_firmware_csg_output(ginfo, CSG_ACK),
-				CSG_REQ_STATUS_UPDATE_MASK);
-		kbase_csf_scheduler_spin_unlock(kbdev, flags);
-		kbase_csf_ring_csg_doorbell(kbdev, group->csg_nr);
-
-		remaining = wait_event_timeout(kbdev->csf.event_wait,
-			!((kbase_csf_firmware_csg_input_read(ginfo, CSG_REQ) ^
-			   kbase_csf_firmware_csg_output(ginfo, CSG_ACK)) &
-			   CSG_REQ_STATUS_UPDATE_MASK), remaining);
+		update_active_group_status(file, group);
 
 		ep_c = kbase_csf_firmware_csg_output(ginfo,
 				CSG_STATUS_EP_CURRENT);
@@ -290,16 +344,6 @@ static void kbasep_csf_scheduler_dump_active_group(struct seq_file *file,
 			exclusive = 'F';
 		else
 			exclusive = '0';
-
-		if (!remaining) {
-			dev_err(kbdev->dev,
-				"Timed out for STATUS_UPDATE on group %d on slot %d",
-				group->handle, group->csg_nr);
-
-			seq_printf(file, "*** Warn: Timed out for STATUS_UPDATE on slot %d\n",
-				group->csg_nr);
-			seq_printf(file, "*** The following group-record is likely stale\n");
-		}
 
 		seq_puts(file, "GroupID, CSG NR, CSG Prio, Run State, Priority, C_EP(Alloc/Req), F_EP(Alloc/Req), T_EP(Alloc/Req), Exclusive\n");
 		seq_printf(file, "%7d, %6d, %8d, %9d, %8d, %11d/%3d, %11d/%3d, %11d/%3d, %9c\n",
@@ -315,6 +359,10 @@ static void kbasep_csf_scheduler_dump_active_group(struct seq_file *file,
 			CSG_STATUS_EP_CURRENT_TILER_EP_GET(ep_c),
 			CSG_STATUS_EP_REQ_TILER_EP_GET(ep_r),
 			exclusive);
+
+		/* Wait for the User doobell ring to take effect */
+		if (kbdev->csf.scheduler.state != SCHED_SLEEPING)
+			msleep(100);
 	} else {
 		seq_puts(file, "GroupID, CSG NR, Run State, Priority\n");
 		seq_printf(file, "%7d, %6d, %9d, %8d\n",
@@ -362,6 +410,12 @@ static int kbasep_csf_queue_group_debugfs_show(struct seq_file *file,
 
 	mutex_lock(&kctx->csf.lock);
 	kbase_csf_scheduler_lock(kbdev);
+	if (kbdev->csf.scheduler.state == SCHED_SLEEPING) {
+		/* Wait for the MCU sleep request to complete. Please refer the
+		 * update_active_group_status() function for the explanation.
+		 */
+		kbase_pm_wait_for_desired_state(kbdev);
+	}
 	for (gr = 0; gr < MAX_QUEUE_GROUP_NUM; gr++) {
 		struct kbase_queue_group *const group =
 			kctx->csf.queue_groups[gr];
@@ -395,6 +449,12 @@ static int kbasep_csf_scheduler_dump_active_groups(struct seq_file *file,
 			MALI_CSF_CSG_DEBUGFS_VERSION);
 
 	kbase_csf_scheduler_lock(kbdev);
+	if (kbdev->csf.scheduler.state == SCHED_SLEEPING) {
+		/* Wait for the MCU sleep request to complete. Please refer the
+		 * update_active_group_status() function for the explanation.
+		 */
+		kbase_pm_wait_for_desired_state(kbdev);
+	}
 	for (csg_nr = 0; csg_nr < num_groups; csg_nr++) {
 		struct kbase_queue_group *const group =
 			kbdev->csf.scheduler.csg_slots[csg_nr].resident_group;
@@ -502,59 +562,93 @@ DEFINE_SIMPLE_ATTRIBUTE(kbasep_csf_debugfs_scheduling_timer_kick_fops,
 		"%llu\n");
 
 /**
- * kbase_csf_debugfs_scheduler_suspend_get() - get if the scheduler is suspended.
+ * kbase_csf_debugfs_scheduler_state_get() - Get the state of scheduler.
  *
- * @data: The debugfs dentry private data, a pointer to kbase_device
- * @val: The debugfs output value, boolean: 1 suspended, 0 otherwise
+ * @file:     Object of the file that is being read.
+ * @user_buf: User buffer that contains the string.
+ * @count:    Length of user buffer
+ * @ppos:     Offset within file object
  *
- * Return: 0
+ * This function will return the current Scheduler state to Userspace
+ * Scheduler may exit that state by the time the state string is received
+ * by the Userspace.
+ *
+ * Return: 0 if Scheduler was found in an unexpected state, or the
+ *         size of the state string if it was copied successfully to the
+ *         User buffer or a negative value in case of an error.
  */
-static int kbase_csf_debugfs_scheduler_suspend_get(
-		void *data, u64 *val)
+static ssize_t kbase_csf_debugfs_scheduler_state_get(struct file *file,
+		    char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct kbase_device *kbdev = data;
+	struct kbase_device *kbdev = file->private_data;
 	struct kbase_csf_scheduler *scheduler = &kbdev->csf.scheduler;
+	const char *state_string;
 
 	kbase_csf_scheduler_lock(kbdev);
-	*val = (scheduler->state == SCHED_SUSPENDED);
+	state_string = scheduler_state_to_string(kbdev, scheduler->state);
 	kbase_csf_scheduler_unlock(kbdev);
 
-	return 0;
+	if (!state_string)
+		count = 0;
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       state_string, strlen(state_string));
 }
 
 /**
- * kbase_csf_debugfs_scheduler_suspend_set() - set the scheduler to suspended.
+ * kbase_csf_debugfs_scheduler_state_set() - Set the state of scheduler.
  *
- * @data: The debugfs dentry private data, a pointer to kbase_device
- * @val: The debugfs input value, boolean: 1 suspend, 0 otherwise
+ * @file:  Object of the file that is being written to.
+ * @ubuf:  User buffer that contains the string.
+ * @count: Length of user buffer
+ * @ppos:  Offset within file object
  *
- * Return: Negative value if already in requested state, 0 otherwise.
+ * This function will update the Scheduler state as per the state string
+ * passed by the Userspace. Scheduler may or may not remain in new state
+ * for long.
+ *
+ * Return: Negative value if the string doesn't correspond to a valid Scheduler
+ *         state or if copy from user buffer failed, otherwise the length of
+ *         the User buffer.
  */
-static int kbase_csf_debugfs_scheduler_suspend_set(
-		void *data, u64 val)
+static ssize_t kbase_csf_debugfs_scheduler_state_set(struct file *file,
+		const char __user *ubuf, size_t count, loff_t *ppos)
 {
-	struct kbase_device *kbdev = data;
-	struct kbase_csf_scheduler *scheduler = &kbdev->csf.scheduler;
-	enum kbase_csf_scheduler_state state;
+	struct kbase_device *kbdev = file->private_data;
+	char buf[MAX_SCHED_STATE_STRING_LEN];
+	ssize_t ret = count;
 
-	kbase_csf_scheduler_lock(kbdev);
-	state = scheduler->state;
-	kbase_csf_scheduler_unlock(kbdev);
+	CSTD_UNUSED(ppos);
 
-	if (val && (state != SCHED_SUSPENDED))
+	count = min_t(size_t, sizeof(buf) - 1, count);
+	if (copy_from_user(buf, ubuf, count))
+		return -EFAULT;
+
+	buf[count] = 0;
+
+	if (sysfs_streq(buf, "SUSPENDED"))
 		kbase_csf_scheduler_pm_suspend(kbdev);
-	else if (!val && (state == SCHED_SUSPENDED))
-		kbase_csf_scheduler_pm_resume(kbdev);
-	else
-		return -1;
+#ifdef KBASE_PM_RUNTIME
+	else if (sysfs_streq(buf, "SLEEPING"))
+		kbase_csf_scheduler_force_sleep(kbdev);
+#endif
+	else if (sysfs_streq(buf, "INACTIVE"))
+		kbase_csf_scheduler_force_wakeup(kbdev);
+	else {
+		dev_dbg(kbdev->dev, "Bad scheduler state %s", buf);
+		ret = -EINVAL;
+	}
 
-	return 0;
+	return ret;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(kbasep_csf_debugfs_scheduler_suspend_fops,
-		&kbase_csf_debugfs_scheduler_suspend_get,
-		&kbase_csf_debugfs_scheduler_suspend_set,
-		"%llu\n");
+static const struct file_operations kbasep_csf_debugfs_scheduler_state_fops = {
+	.owner = THIS_MODULE,
+	.read = kbase_csf_debugfs_scheduler_state_get,
+	.write = kbase_csf_debugfs_scheduler_state_set,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
 
 void kbase_csf_debugfs_init(struct kbase_device *kbdev)
 {
@@ -568,9 +662,9 @@ void kbase_csf_debugfs_init(struct kbase_device *kbdev)
 	debugfs_create_file("scheduling_timer_kick", 0200,
 			kbdev->mali_debugfs_directory, kbdev,
 			&kbasep_csf_debugfs_scheduling_timer_kick_fops);
-	debugfs_create_file("scheduler_suspend", 0644,
+	debugfs_create_file("scheduler_state", 0644,
 			kbdev->mali_debugfs_directory, kbdev,
-			&kbasep_csf_debugfs_scheduler_suspend_fops);
+			&kbasep_csf_debugfs_scheduler_state_fops);
 
 	kbase_csf_tl_reader_debugfs_init(kbdev);
 	kbase_csf_firmware_trace_buffer_debugfs_init(kbdev);

@@ -108,6 +108,52 @@ int kbasep_js_kctx_init(struct kbase_context *const kctx);
  */
 void kbasep_js_kctx_term(struct kbase_context *kctx);
 
+/* kbase_jsctx_slot_prio_blocked_set - Set a context as being blocked for a job
+ *                                     slot at and below a given priority level
+ * @kctx: The kbase_context
+ * @js: The job slot
+ * @sched_prio: The priority levels that the context is blocked at for @js (all
+ *              priority levels at this level and below will be blocked)
+ *
+ * To preserve ordering and dependencies of atoms on soft-stopping (both within
+ * an between priority levels), a context must be marked as blocked for that
+ * atom's job slot, for all priority levels at or below the atom's priority.
+ *
+ * This must only be called due to an atom that was pulled from the context,
+ * otherwise there will be no way of unblocking the context when the atom is
+ * completed/unpulled.
+ *
+ * Atoms of higher priority might still be able to be pulled from the context
+ * on @js. This helps with starting a high priority atom as soon as possible.
+ */
+static inline void kbase_jsctx_slot_prio_blocked_set(struct kbase_context *kctx,
+						     int js, int sched_prio)
+{
+	struct kbase_jsctx_slot_tracking *slot_tracking =
+		&kctx->slot_tracking[js];
+
+	lockdep_assert_held(&kctx->kbdev->hwaccess_lock);
+	WARN(!slot_tracking->atoms_pulled_pri[sched_prio],
+	     "When marking slot %d as blocked for priority %d on a kctx, no atoms were pulled - the slot cannot become unblocked",
+	     js, sched_prio);
+
+	slot_tracking->blocked |= ((kbase_js_prio_bitmap_t)1) << sched_prio;
+	KBASE_KTRACE_ADD_JM_SLOT_INFO(kctx->kbdev, JS_SLOT_PRIO_BLOCKED, kctx,
+				      NULL, 0, js, (unsigned int)sched_prio);
+}
+
+/* kbase_jsctx_atoms_pulled - Return number of atoms pulled on a context
+ * @kctx: The kbase_context
+ *
+ * Having atoms pulled indicates the context is not idle.
+ *
+ * Return: the number of atoms pulled on @kctx
+ */
+static inline int kbase_jsctx_atoms_pulled(struct kbase_context *kctx)
+{
+	return atomic_read(&kctx->atoms_pulled_all_slots);
+}
+
 /**
  * kbasep_js_add_job - Add a job chain to the Job Scheduler,
  *                     and take necessary actions to
@@ -947,7 +993,38 @@ static inline base_jd_prio kbasep_js_sched_prio_to_atom_prio(int sched_prio)
  *
  * Return: The same or lower priority than requested.
  */
-
 base_jd_prio kbase_js_priority_check(struct kbase_device *kbdev, base_jd_prio priority);
+
+/**
+ * kbase_js_atom_runs_before - determine if atoms for the same slot have an
+ *                             ordering relation
+ * @kbdev: kbase device
+ * @katom_a: the first atom
+ * @katom_b: the second atom.
+ * @order_flags: combination of KBASE_ATOM_ORDERING_FLAG_<...> for the ordering
+ *               relation
+ *
+ * This is for making consistent decisions about the ordering of atoms when we
+ * need to do pre-emption on a slot, which includes stopping existing atoms
+ * when a new atom is ready to run, and also which other atoms to remove from
+ * the slot when the atom in JSn_HEAD is being pre-empted.
+ *
+ * This only handles @katom_a and @katom_b being for the same job slot, as
+ * pre-emption only operates within a slot.
+ *
+ * Note: there is currently no use-case for this as a sorting comparison
+ * functions, hence only a boolean returned instead of int -1, 0, +1 return. If
+ * required in future, a modification to do so would be better than calling
+ * twice with katom_a and katom_b swapped.
+ *
+ * Return:
+ * true if @katom_a should run before @katom_b, false otherwise.
+ * A false return value does not distinguish between "no ordering relation" and
+ * "@katom_a should run after @katom_b".
+ */
+bool kbase_js_atom_runs_before(struct kbase_device *kbdev,
+			       const struct kbase_jd_atom *katom_a,
+			       const struct kbase_jd_atom *katom_b,
+			       const kbase_atom_ordering_flag_t order_flags);
 
 #endif	/* _KBASE_JM_JS_H_ */

@@ -44,8 +44,9 @@ static inline u32 kbase_ipa_read_hwcnt(
 	u32 offset)
 {
 	u8 *p = (u8 *)model_data->dump_buf.dump_buf;
+	u64 val = *(u64 *)&p[offset];
 
-	return *(u32 *)&p[offset];
+	return (val > U32_MAX) ? U32_MAX : (u32)val;
 }
 
 static inline s64 kbase_ipa_add_saturate(s64 a, s64 b)

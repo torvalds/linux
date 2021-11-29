@@ -35,7 +35,7 @@ config MALI_PLATFORM_NAME
 	default "devicetree"
 	help
 	  Enter the name of the desired platform configuration directory to
-	  include in the build. 'platform/$(MALI_PLATFORM_NAME)/Makefile' must
+	  include in the build. 'platform/$(MALI_PLATFORM_NAME)/Kbuild' must
 	  exist.
 
 	  When PLATFORM_CUSTOM is set, this needs to be set manually to

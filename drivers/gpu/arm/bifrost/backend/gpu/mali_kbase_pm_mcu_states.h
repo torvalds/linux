@@ -42,6 +42,20 @@
  * @POWER_DOWN:               MCU halted operations, pending being disabled.
  * @PEND_OFF:                 MCU is being disabled, pending on powering off.
  * @RESET_WAIT:               The GPU is resetting, MCU state is unknown.
+ * @HCTL_SHADERS_PEND_ON:     Global configuration requests sent to the firmware
+ *                            have completed and shaders have been requested to
+ *                            power on.
+ * @HCTL_CORES_NOTIFY_PEND:   Shader cores have powered up and firmware is being
+ *                            notified of the mask of enabled shader cores.
+ * @HCTL_MCU_ON_RECHECK:      MCU is on and hwcnt disabling is triggered
+ *                            and checks are done to increase the number of
+ *                            enabled cores.
+ * @HCTL_SHADERS_READY_OFF:   MCU has halted and cores need to be powered down
+ * @HCTL_SHADERS_PEND_OFF:    Cores are transitioning to power down.
+ * @ON_SLEEP_INITIATE:        MCU is on and hwcnt has been disabled and MCU
+ *                            is being put to sleep.
+ * @ON_PEND_SLEEP:            MCU sleep is in progress.
+ * @IN_SLEEP:                 Sleep request is completed and MCU has halted.
  */
 KBASEP_MCU_STATE(OFF)
 KBASEP_MCU_STATE(PEND_ON_RELOAD)
@@ -61,3 +75,7 @@ KBASEP_MCU_STATE(HCTL_CORES_NOTIFY_PEND)
 KBASEP_MCU_STATE(HCTL_MCU_ON_RECHECK)
 KBASEP_MCU_STATE(HCTL_SHADERS_READY_OFF)
 KBASEP_MCU_STATE(HCTL_SHADERS_PEND_OFF)
+/* Additional MCU states to support GPU sleep feature */
+KBASEP_MCU_STATE(ON_SLEEP_INITIATE)
+KBASEP_MCU_STATE(ON_PEND_SLEEP)
+KBASEP_MCU_STATE(IN_SLEEP)

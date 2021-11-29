@@ -26,6 +26,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_config_defaults.h>
 #include <linux/clk.h>
+#include <linux/pm_opp.h>
 #include <asm/div64.h>
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 
@@ -46,7 +47,7 @@
  * Return: Pointer to clk trace ops if supported or NULL.
  */
 static struct kbase_clk_rate_trace_op_conf *
-get_clk_rate_trace_callbacks(struct kbase_device *kbdev __maybe_unused)
+get_clk_rate_trace_callbacks(__maybe_unused struct kbase_device *kbdev)
 {
 	/* base case */
 	struct kbase_clk_rate_trace_op_conf *callbacks =
@@ -69,6 +70,49 @@ get_clk_rate_trace_callbacks(struct kbase_device *kbdev __maybe_unused)
 #endif
 
 	return callbacks;
+}
+
+int kbase_lowest_gpu_freq_init(struct kbase_device *kbdev)
+{
+	/* Uses default reference frequency defined in below macro */
+	u64 lowest_freq_khz = DEFAULT_REF_TIMEOUT_FREQ_KHZ;
+
+	/* Only check lowest frequency in cases when OPPs are used and
+	 * present in the device tree.
+	 */
+#ifdef CONFIG_PM_OPP
+	struct dev_pm_opp *opp_ptr;
+	unsigned long found_freq = 0;
+
+	/* find lowest frequency OPP */
+	opp_ptr = dev_pm_opp_find_freq_ceil(kbdev->dev, &found_freq);
+	if (IS_ERR(opp_ptr)) {
+		dev_err(kbdev->dev,
+			"No OPPs found in device tree! Scaling timeouts using %llu kHz",
+			(unsigned long long)lowest_freq_khz);
+	} else {
+#if KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE
+		dev_pm_opp_put(opp_ptr); /* decrease OPP refcount */
+#endif
+		/* convert found frequency to KHz */
+		found_freq /= 1000;
+
+		/* If lowest frequency in OPP table is still higher
+		 * than the reference, then keep the reference frequency
+		 * as the one to use for scaling .
+		 */
+		if (found_freq < lowest_freq_khz)
+			lowest_freq_khz = found_freq;
+	}
+#else
+	dev_err(kbdev->dev,
+		"No operating-points-v2 node or operating-points property in DT");
+#endif
+
+	kbdev->lowest_gpu_freq_khz = lowest_freq_khz;
+	dev_dbg(kbdev->dev, "Lowest frequency identified is %llu kHz",
+		kbdev->lowest_gpu_freq_khz);
+	return 0;
 }
 
 static int gpu_clk_rate_change_notifier(struct notifier_block *nb,

@@ -19,7 +19,7 @@
  *
  */
 
-/**
+/*
  * Legacy hardware counter interface, giving userspace clients simple,
  * synchronous access to hardware counters.
  *

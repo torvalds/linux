@@ -48,3 +48,25 @@ void kbase_backend_get_gpu_time_norequest(struct kbase_device *kbdev,
 					  struct timespec64 *ts);
 
 #endif /* _KBASE_BACKEND_TIME_H_ */
+
+/**
+ * kbase_get_timeout_ms - Choose a timeout value to get a timeout scaled
+ *                        GPU frequency, using a choice from
+ *                        kbase_timeout_selector.
+ *
+ * @kbdev:	KBase device pointer.
+ * @selector:	Value from kbase_scaled_timeout_selector enum.
+ *
+ * Return:	Timeout in milliseconds, as an unsigned integer.
+ */
+unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
+				  enum kbase_timeout_selector selector);
+
+/**
+ * kbase_backend_get_cycle_cnt - Reads the GPU cycle counter
+ *
+ * @kbdev: Instance of a GPU platform device that implements a CSF interface.
+ *
+ * Return: Snapshot of the GPU cycle count register.
+ */
+u64 kbase_backend_get_cycle_cnt(struct kbase_device *kbdev);

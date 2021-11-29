@@ -19,7 +19,7 @@
  *
  */
 
-/**
+/*
  * Hardware counter virtualizer API.
  *
  * Virtualizes a hardware counter context, so multiple clients can access

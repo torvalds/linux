@@ -177,6 +177,19 @@ enum {
  */
 #define DEFAULT_RESET_TIMEOUT_MS (3000) /* 3s */
 
+/* Waiting timeout for status change acknowledgment, in clock cycles
+ * Based on 3000ms timeout at nominal 100MHz, as is required for Android - based
+ * on scaling from a 50MHz GPU system.
+ */
+#define DEFAULT_REF_TIMEOUT_FREQ_KHZ (100000)
+#define CSF_FIRMWARE_TIMEOUT_CYCLES (300000000)
+
+/* A default timeout to be used when an invalid timeout selector is
+ * used to retrieve the timeout, on JM GPUs. CSF GPUs use the Firmware
+ * timeout as the default.
+ */
+#define JM_DEFAULT_TIMEOUT_CYCLES (150000000)
+
 /**
  * Default timeslice that a context is scheduled in for, in nanoseconds.
  *

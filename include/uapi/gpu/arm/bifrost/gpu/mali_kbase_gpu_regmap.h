@@ -30,6 +30,13 @@
 #include "backend/mali_kbase_gpu_regmap_jm.h"
 #endif
 
+/* GPU_U definition */
+#ifdef __ASSEMBLER__
+#define GPU_U(x) x
+#else
+#define GPU_U(x) x##u
+#endif /* __ASSEMBLER__ */
+
 /* Begin Register Offsets */
 /* GPU control registers */
 
@@ -149,6 +156,10 @@
 #define ASN_HASH(n)             (ASN_HASH_0 + (n)*4)
 #define ASN_HASH_COUNT          3
 
+#define SYSC_ALLOC0             0x0340 /* (RW) System cache allocation hint from source ID */
+#define SYSC_ALLOC(n) (SYSC_ALLOC0 + (n)*4)
+#define SYSC_ALLOC_COUNT 8
+
 #define STACK_PWRTRANS_LO       0xE40   /* (RO) Core stack power transition bitmap, low word */
 #define STACK_PWRTRANS_HI       0xE44   /* (RO) Core stack power transition bitmap, high word */
 
@@ -163,6 +174,7 @@
 
 #define COHERENCY_FEATURES      0x300   /* (RO) Coherency features present */
 #define COHERENCY_ENABLE        0x304   /* (RW) Coherency enable */
+
 
 #define SHADER_CONFIG           0xF04   /* (RW) Shader core configuration (implementation-specific) */
 #define TILER_CONFIG            0xF08   /* (RW) Tiler core configuration (implementation-specific) */
@@ -327,16 +339,34 @@
 #define AS_COMMAND_UPDATE      0x01	/* Broadcasts the values in AS_TRANSTAB and ASn_MEMATTR to all MMUs */
 #define AS_COMMAND_LOCK        0x02	/* Issue a lock region command to all MMUs */
 #define AS_COMMAND_UNLOCK      0x03	/* Issue a flush region command to all MMUs */
-/* Flush all L2 caches then issue a flush region command to all MMUs
- * (deprecated - only for use with T60x)
- */
-#define AS_COMMAND_FLUSH 0x04
 /* Flush all L2 caches then issue a flush region command to all MMUs */
 #define AS_COMMAND_FLUSH_PT 0x04
 /* Wait for memory accesses to complete, flush all the L1s cache then flush all
  * L2 caches then issue a flush region command to all MMUs
  */
 #define AS_COMMAND_FLUSH_MEM 0x05
+
+/* AS_LOCKADDR register */
+#define AS_LOCKADDR_LOCKADDR_SIZE_SHIFT GPU_U(0)
+#define AS_LOCKADDR_LOCKADDR_SIZE_MASK                                         \
+	(GPU_U(0x3F) << AS_LOCKADDR_LOCKADDR_SIZE_SHIFT)
+#define AS_LOCKADDR_LOCKADDR_SIZE_GET(reg_val)                                 \
+	(((reg_val)&AS_LOCKADDR_LOCKADDR_SIZE_MASK) >>                               \
+	 AS_LOCKADDR_LOCKADDR_SIZE_SHIFT)
+#define AS_LOCKADDR_LOCKADDR_SIZE_SET(reg_val, value)                          \
+	(((reg_val) & ~AS_LOCKADDR_LOCKADDR_SIZE_MASK) |                             \
+	 (((value) << AS_LOCKADDR_LOCKADDR_SIZE_SHIFT) &                             \
+	 AS_LOCKADDR_LOCKADDR_SIZE_MASK))
+#define AS_LOCKADDR_LOCKADDR_BASE_SHIFT GPU_U(12)
+#define AS_LOCKADDR_LOCKADDR_BASE_MASK                                         \
+	(GPU_U(0xFFFFFFFFFFFFF) << AS_LOCKADDR_LOCKADDR_BASE_SHIFT)
+#define AS_LOCKADDR_LOCKADDR_BASE_GET(reg_val)                                 \
+	(((reg_val)&AS_LOCKADDR_LOCKADDR_BASE_MASK) >>                               \
+	 AS_LOCKADDR_LOCKADDR_BASE_SHIFT)
+#define AS_LOCKADDR_LOCKADDR_BASE_SET(reg_val, value)                          \
+	(((reg_val) & ~AS_LOCKADDR_LOCKADDR_BASE_MASK) |                             \
+	 (((value) << AS_LOCKADDR_LOCKADDR_BASE_SHIFT) &                             \
+	 AS_LOCKADDR_LOCKADDR_BASE_MASK))
 
 /* GPU_STATUS values */
 #define GPU_STATUS_PRFCNT_ACTIVE            (1 << 2)    /* Set if the performance counters are active. */
@@ -427,8 +457,133 @@
 #define L2_CONFIG_ASN_HASH_ENABLE_MASK         (1ul << L2_CONFIG_ASN_HASH_ENABLE_SHIFT)
 /* End L2_CONFIG register */
 
+
 /* IDVS_GROUP register */
 #define IDVS_GROUP_SIZE_SHIFT (16)
 #define IDVS_GROUP_MAX_SIZE (0x3F)
+
+/* SYSC_ALLOC read IDs */
+#define SYSC_ALLOC_ID_R_OTHER       0x00
+#define SYSC_ALLOC_ID_R_CSF         0x02
+#define SYSC_ALLOC_ID_R_MMU         0x04
+#define SYSC_ALLOC_ID_R_TILER_VERT  0x08
+#define SYSC_ALLOC_ID_R_TILER_PTR   0x09
+#define SYSC_ALLOC_ID_R_TILER_INDEX 0x0A
+#define SYSC_ALLOC_ID_R_TILER_OTHER 0x0B
+#define SYSC_ALLOC_ID_R_IC          0x10
+#define SYSC_ALLOC_ID_R_ATTR        0x11
+#define SYSC_ALLOC_ID_R_SCM         0x12
+#define SYSC_ALLOC_ID_R_FSDC        0x13
+#define SYSC_ALLOC_ID_R_VL          0x14
+#define SYSC_ALLOC_ID_R_PLR         0x15
+#define SYSC_ALLOC_ID_R_TEX         0x18
+#define SYSC_ALLOC_ID_R_LSC         0x1c
+
+/* SYSC_ALLOC write IDs */
+#define SYSC_ALLOC_ID_W_OTHER            0x00
+#define SYSC_ALLOC_ID_W_CSF              0x02
+#define SYSC_ALLOC_ID_W_PCB              0x07
+#define SYSC_ALLOC_ID_W_TILER_PTR        0x09
+#define SYSC_ALLOC_ID_W_TILER_VERT_PLIST 0x0A
+#define SYSC_ALLOC_ID_W_TILER_OTHER      0x0B
+#define SYSC_ALLOC_ID_W_L2_EVICT         0x0C
+#define SYSC_ALLOC_ID_W_L2_FLUSH         0x0D
+#define SYSC_ALLOC_ID_W_TIB_COLOR        0x10
+#define SYSC_ALLOC_ID_W_TIB_COLOR_AFBCH  0x11
+#define SYSC_ALLOC_ID_W_TIB_COLOR_AFBCB  0x12
+#define SYSC_ALLOC_ID_W_TIB_CRC          0x13
+#define SYSC_ALLOC_ID_W_TIB_DS           0x14
+#define SYSC_ALLOC_ID_W_TIB_DS_AFBCH     0x15
+#define SYSC_ALLOC_ID_W_TIB_DS_AFBCB     0x16
+#define SYSC_ALLOC_ID_W_LSC              0x1C
+
+/* SYSC_ALLOC values */
+#define SYSC_ALLOC_L2_ALLOC 0x0
+#define SYSC_ALLOC_NEVER_ALLOC 0x2
+#define SYSC_ALLOC_ALWAYS_ALLOC 0x3
+#define SYSC_ALLOC_PTL_ALLOC 0x4
+#define SYSC_ALLOC_L2_PTL_ALLOC 0x5
+
+/* SYSC_ALLOC register */
+#define SYSC_ALLOC_R_SYSC_ALLOC0_SHIFT (0)
+#define SYSC_ALLOC_R_SYSC_ALLOC0_MASK ((0xF) << SYSC_ALLOC_R_SYSC_ALLOC0_SHIFT)
+#define SYSC_ALLOC_R_SYSC_ALLOC0_GET(reg_val)                                  \
+	(((reg_val)&SYSC_ALLOC_R_SYSC_ALLOC0_MASK) >>                          \
+	 SYSC_ALLOC_R_SYSC_ALLOC0_SHIFT)
+#define SYSC_ALLOC_R_SYSC_ALLOC0_SET(reg_val, value)                           \
+	(((reg_val) & ~SYSC_ALLOC_R_SYSC_ALLOC0_MASK) |                        \
+	 (((value) << SYSC_ALLOC_R_SYSC_ALLOC0_SHIFT) &                        \
+	  SYSC_ALLOC_R_SYSC_ALLOC0_MASK))
+/* End of SYSC_ALLOC_R_SYSC_ALLOC0 values */
+#define SYSC_ALLOC_W_SYSC_ALLOC0_SHIFT (4)
+#define SYSC_ALLOC_W_SYSC_ALLOC0_MASK ((0xF) << SYSC_ALLOC_W_SYSC_ALLOC0_SHIFT)
+#define SYSC_ALLOC_W_SYSC_ALLOC0_GET(reg_val)                                  \
+	(((reg_val)&SYSC_ALLOC_W_SYSC_ALLOC0_MASK) >>                          \
+	 SYSC_ALLOC_W_SYSC_ALLOC0_SHIFT)
+#define SYSC_ALLOC_W_SYSC_ALLOC0_SET(reg_val, value)                           \
+	(((reg_val) & ~SYSC_ALLOC_W_SYSC_ALLOC0_MASK) |                        \
+	 (((value) << SYSC_ALLOC_W_SYSC_ALLOC0_SHIFT) &                        \
+	  SYSC_ALLOC_W_SYSC_ALLOC0_MASK))
+/* End of SYSC_ALLOC_W_SYSC_ALLOC0 values */
+#define SYSC_ALLOC_R_SYSC_ALLOC1_SHIFT (8)
+#define SYSC_ALLOC_R_SYSC_ALLOC1_MASK ((0xF) << SYSC_ALLOC_R_SYSC_ALLOC1_SHIFT)
+#define SYSC_ALLOC_R_SYSC_ALLOC1_GET(reg_val)                                  \
+	(((reg_val)&SYSC_ALLOC_R_SYSC_ALLOC1_MASK) >>                          \
+	 SYSC_ALLOC_R_SYSC_ALLOC1_SHIFT)
+#define SYSC_ALLOC_R_SYSC_ALLOC1_SET(reg_val, value)                           \
+	(((reg_val) & ~SYSC_ALLOC_R_SYSC_ALLOC1_MASK) |                        \
+	 (((value) << SYSC_ALLOC_R_SYSC_ALLOC1_SHIFT) &                        \
+	  SYSC_ALLOC_R_SYSC_ALLOC1_MASK))
+/* End of SYSC_ALLOC_R_SYSC_ALLOC1 values */
+#define SYSC_ALLOC_W_SYSC_ALLOC1_SHIFT (12)
+#define SYSC_ALLOC_W_SYSC_ALLOC1_MASK ((0xF) << SYSC_ALLOC_W_SYSC_ALLOC1_SHIFT)
+#define SYSC_ALLOC_W_SYSC_ALLOC1_GET(reg_val)                                  \
+	(((reg_val)&SYSC_ALLOC_W_SYSC_ALLOC1_MASK) >>                          \
+	 SYSC_ALLOC_W_SYSC_ALLOC1_SHIFT)
+#define SYSC_ALLOC_W_SYSC_ALLOC1_SET(reg_val, value)                           \
+	(((reg_val) & ~SYSC_ALLOC_W_SYSC_ALLOC1_MASK) |                        \
+	 (((value) << SYSC_ALLOC_W_SYSC_ALLOC1_SHIFT) &                        \
+	  SYSC_ALLOC_W_SYSC_ALLOC1_MASK))
+/* End of SYSC_ALLOC_W_SYSC_ALLOC1 values */
+#define SYSC_ALLOC_R_SYSC_ALLOC2_SHIFT (16)
+#define SYSC_ALLOC_R_SYSC_ALLOC2_MASK ((0xF) << SYSC_ALLOC_R_SYSC_ALLOC2_SHIFT)
+#define SYSC_ALLOC_R_SYSC_ALLOC2_GET(reg_val)                                  \
+	(((reg_val)&SYSC_ALLOC_R_SYSC_ALLOC2_MASK) >>                          \
+	 SYSC_ALLOC_R_SYSC_ALLOC2_SHIFT)
+#define SYSC_ALLOC_R_SYSC_ALLOC2_SET(reg_val, value)                           \
+	(((reg_val) & ~SYSC_ALLOC_R_SYSC_ALLOC2_MASK) |                        \
+	 (((value) << SYSC_ALLOC_R_SYSC_ALLOC2_SHIFT) &                        \
+	  SYSC_ALLOC_R_SYSC_ALLOC2_MASK))
+/* End of SYSC_ALLOC_R_SYSC_ALLOC2 values */
+#define SYSC_ALLOC_W_SYSC_ALLOC2_SHIFT (20)
+#define SYSC_ALLOC_W_SYSC_ALLOC2_MASK ((0xF) << SYSC_ALLOC_W_SYSC_ALLOC2_SHIFT)
+#define SYSC_ALLOC_W_SYSC_ALLOC2_GET(reg_val)                                  \
+	(((reg_val)&SYSC_ALLOC_W_SYSC_ALLOC2_MASK) >>                          \
+	 SYSC_ALLOC_W_SYSC_ALLOC2_SHIFT)
+#define SYSC_ALLOC_W_SYSC_ALLOC2_SET(reg_val, value)                           \
+	(((reg_val) & ~SYSC_ALLOC_W_SYSC_ALLOC2_MASK) |                        \
+	 (((value) << SYSC_ALLOC_W_SYSC_ALLOC2_SHIFT) &                        \
+	  SYSC_ALLOC_W_SYSC_ALLOC2_MASK))
+/* End of SYSC_ALLOC_W_SYSC_ALLOC2 values */
+#define SYSC_ALLOC_R_SYSC_ALLOC3_SHIFT (24)
+#define SYSC_ALLOC_R_SYSC_ALLOC3_MASK ((0xF) << SYSC_ALLOC_R_SYSC_ALLOC3_SHIFT)
+#define SYSC_ALLOC_R_SYSC_ALLOC3_GET(reg_val)                                  \
+	(((reg_val)&SYSC_ALLOC_R_SYSC_ALLOC3_MASK) >>                          \
+	 SYSC_ALLOC_R_SYSC_ALLOC3_SHIFT)
+#define SYSC_ALLOC_R_SYSC_ALLOC3_SET(reg_val, value)                           \
+	(((reg_val) & ~SYSC_ALLOC_R_SYSC_ALLOC3_MASK) |                        \
+	 (((value) << SYSC_ALLOC_R_SYSC_ALLOC3_SHIFT) &                        \
+	  SYSC_ALLOC_R_SYSC_ALLOC3_MASK))
+/* End of SYSC_ALLOC_R_SYSC_ALLOC3 values */
+#define SYSC_ALLOC_W_SYSC_ALLOC3_SHIFT (28)
+#define SYSC_ALLOC_W_SYSC_ALLOC3_MASK ((0xF) << SYSC_ALLOC_W_SYSC_ALLOC3_SHIFT)
+#define SYSC_ALLOC_W_SYSC_ALLOC3_GET(reg_val)                                  \
+	(((reg_val)&SYSC_ALLOC_W_SYSC_ALLOC3_MASK) >>                          \
+	 SYSC_ALLOC_W_SYSC_ALLOC3_SHIFT)
+#define SYSC_ALLOC_W_SYSC_ALLOC3_SET(reg_val, value)                           \
+	(((reg_val) & ~SYSC_ALLOC_W_SYSC_ALLOC3_MASK) |                        \
+	 (((value) << SYSC_ALLOC_W_SYSC_ALLOC3_SHIFT) &                        \
+	  SYSC_ALLOC_W_SYSC_ALLOC3_MASK))
+/* End of SYSC_ALLOC_W_SYSC_ALLOC3 values */
 
 #endif /* _UAPI_KBASE_GPU_REGMAP_H_ */

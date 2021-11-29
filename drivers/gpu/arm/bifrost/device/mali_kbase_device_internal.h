@@ -39,6 +39,9 @@ struct kbase_device_init {
 int kbase_device_vinstr_init(struct kbase_device *kbdev);
 void kbase_device_vinstr_term(struct kbase_device *kbdev);
 
+int kbase_device_kinstr_prfcnt_init(struct kbase_device *kbdev);
+void kbase_device_kinstr_prfcnt_term(struct kbase_device *kbdev);
+
 int kbase_device_timeline_init(struct kbase_device *kbdev);
 void kbase_device_timeline_term(struct kbase_device *kbdev);
 

@@ -70,22 +70,14 @@ void kbase_io_history_dump(struct kbase_device *kbdev);
 void kbasep_regs_history_debugfs_init(struct kbase_device *kbdev);
 
 #else /* defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
-static inline int kbase_io_history_init(struct kbase_io_history *h, u16 n)
-{
-	return 0;
-}
 
-static inline void kbase_io_history_term(struct kbase_io_history *h)
-{
-}
+#define kbase_io_history_init(...) ((int)0)
 
-static inline void kbase_io_history_dump(struct kbase_device *kbdev)
-{
-}
+#define kbase_io_history_term CSTD_NOP
 
-static inline void kbasep_regs_history_debugfs_init(struct kbase_device *kbdev)
-{
-}
+#define kbase_io_history_dump CSTD_NOP
+
+#define kbasep_regs_history_debugfs_init CSTD_NOP
 
 #endif /* defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 

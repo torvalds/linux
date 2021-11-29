@@ -34,7 +34,7 @@ static DEFINE_SPINLOCK(kbase_csf_fence_lock);
 #endif
 
 static void kcpu_queue_process(struct kbase_kcpu_command_queue *kcpu_queue,
-			bool ignore_waits);
+			       bool drain_queue);
 
 static void kcpu_queue_process_worker(struct work_struct *data);
 
@@ -220,7 +220,7 @@ static int kbase_kcpu_jit_allocate_process(
 	for (i = 0; i < count; i++, info++) {
 		/* The JIT ID is still in use so fail the allocation */
 		if (kctx->jit_alloc[info->id]) {
-			dev_warn(kctx->kbdev->dev, "JIT ID still in use\n");
+			dev_dbg(kctx->kbdev->dev, "JIT ID still in use");
 			return -EINVAL;
 		}
 	}
@@ -458,7 +458,7 @@ static int kbase_kcpu_jit_free_process(struct kbase_kcpu_command_queue *queue,
 		int item_err = 0;
 
 		if (!kctx->jit_alloc[ids[i]]) {
-			dev_warn(kctx->kbdev->dev, "invalid JIT free ID\n");
+			dev_dbg(kctx->kbdev->dev, "invalid JIT free ID");
 			rc = -EINVAL;
 			item_err = rc;
 		} else {
@@ -964,7 +964,7 @@ static int kbase_kcpu_cqs_wait_operation_process(struct kbase_device *kbdev,
 				sig_set = *evt > cqs_wait_operation->objs[i].val;
 				break;
 			default:
-				dev_warn(kbdev->dev,
+				dev_dbg(kbdev->dev,
 					"Unsupported CQS wait operation %d", cqs_wait_operation->objs[i].operation);
 
 				kbase_phy_alloc_mapping_put(queue->kctx, mapping);
@@ -976,8 +976,9 @@ static int kbase_kcpu_cqs_wait_operation_process(struct kbase_device *kbdev,
 			/* Increment evt up to the error_state value depending on the CQS data type */
 			switch (cqs_wait_operation->objs[i].data_type) {
 			default:
-				dev_warn(kbdev->dev, "Unreachable data_type=%d", cqs_wait_operation->objs[i].data_type);
-			/* Fallthrough - hint to compiler that there's really only 2 options at present */
+				dev_dbg(kbdev->dev, "Unreachable data_type=%d", cqs_wait_operation->objs[i].data_type);
+				/* Fallthrough - hint to compiler that there's really only 2 options at present */
+				fallthrough;
 			case BASEP_CQS_DATA_TYPE_U32:
 				evt = (u64 *)((u8 *)evt + sizeof(u32));
 				break;
@@ -1100,7 +1101,7 @@ static void kbase_kcpu_cqs_set_operation_process(
 				*evt = cqs_set_operation->objs[i].val;
 				break;
 			default:
-				dev_warn(kbdev->dev,
+				dev_dbg(kbdev->dev,
 					"Unsupported CQS set operation %d", cqs_set_operation->objs[i].operation);
 				queue->has_error = true;
 				break;
@@ -1109,8 +1110,9 @@ static void kbase_kcpu_cqs_set_operation_process(
 			/* Increment evt up to the error_state value depending on the CQS data type */
 			switch (cqs_set_operation->objs[i].data_type) {
 			default:
-				dev_warn(kbdev->dev, "Unreachable data_type=%d", cqs_set_operation->objs[i].data_type);
-			/* Fallthrough - hint to compiler that there's really only 2 options at present */
+				dev_dbg(kbdev->dev, "Unreachable data_type=%d", cqs_set_operation->objs[i].data_type);
+				/* Fallthrough - hint to compiler that there's really only 2 options at present */
+				fallthrough;
 			case BASEP_CQS_DATA_TYPE_U32:
 				evt = (u64 *)((u8 *)evt + sizeof(u32));
 				break;
@@ -1465,8 +1467,8 @@ static int delete_queue(struct kbase_context *kctx, u32 id)
 
 		kfree(queue);
 	} else {
-		dev_warn(kctx->kbdev->dev,
-			"Attempt to delete a non-existent KCPU queue\n");
+		dev_dbg(kctx->kbdev->dev,
+			"Attempt to delete a non-existent KCPU queue");
 		mutex_unlock(&kctx->csf.kcpu_queues.lock);
 		err = -EINVAL;
 	}
@@ -1525,7 +1527,7 @@ static void KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_FREE_END(
 }
 
 static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
-			bool ignore_waits)
+			       bool drain_queue)
 {
 	struct kbase_device *kbdev = queue->kctx->kbdev;
 	bool process_next = true;
@@ -1548,7 +1550,7 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 
 			status = 0;
 #if IS_ENABLED(CONFIG_SYNC_FILE)
-			if (ignore_waits) {
+			if (drain_queue) {
 				kbase_kcpu_fence_wait_cancel(queue,
 					&cmd->info.fence);
 			} else {
@@ -1601,7 +1603,7 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 			status = kbase_kcpu_cqs_wait_process(kbdev, queue,
 						&cmd->info.cqs_wait);
 
-			if (!status && !ignore_waits) {
+			if (!status && !drain_queue) {
 				process_next = false;
 			} else {
 				/* Either all CQS objects were signaled or
@@ -1623,7 +1625,7 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 			status = kbase_kcpu_cqs_wait_operation_process(kbdev, queue,
 						&cmd->info.cqs_wait_operation);
 
-			if (!status && !ignore_waits) {
+			if (!status && !drain_queue) {
 				process_next = false;
 			} else {
 				/* Either all CQS objects were signaled or
@@ -1651,22 +1653,25 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 		case BASE_KCPU_COMMAND_TYPE_MAP_IMPORT: {
 			struct kbase_ctx_ext_res_meta *meta = NULL;
 
-			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_START(
-				kbdev, queue);
+			if (!drain_queue) {
+				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_START(
+					kbdev, queue);
 
-			kbase_gpu_vm_lock(queue->kctx);
-			meta = kbase_sticky_resource_acquire(
-				queue->kctx, cmd->info.import.gpu_va);
-			kbase_gpu_vm_unlock(queue->kctx);
+				kbase_gpu_vm_lock(queue->kctx);
+				meta = kbase_sticky_resource_acquire(
+					queue->kctx, cmd->info.import.gpu_va);
+				kbase_gpu_vm_unlock(queue->kctx);
 
-			if (meta == NULL) {
-				queue->has_error = true;
-				dev_warn(kbdev->dev,
-						"failed to map an external resource\n");
+				if (meta == NULL) {
+					queue->has_error = true;
+					dev_dbg(
+						kbdev->dev,
+						"failed to map an external resource");
+				}
+
+				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_END(
+					kbdev, queue, meta ? 0 : 1);
 			}
-
-			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_END(
-				kbdev, queue, meta ? 0 : 1);
 			break;
 		}
 		case BASE_KCPU_COMMAND_TYPE_UNMAP_IMPORT: {
@@ -1682,8 +1687,8 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 
 			if (!ret) {
 				queue->has_error = true;
-				dev_warn(kbdev->dev,
-						"failed to release the reference. resource not found\n");
+				dev_dbg(kbdev->dev,
+						"failed to release the reference. resource not found");
 			}
 
 			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_END(
@@ -1703,8 +1708,8 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 
 			if (!ret) {
 				queue->has_error = true;
-				dev_warn(kbdev->dev,
-						"failed to release the reference. resource not found\n");
+				dev_dbg(kbdev->dev,
+						"failed to release the reference. resource not found");
 			}
 
 			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_END(
@@ -1713,24 +1718,32 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 		}
 		case BASE_KCPU_COMMAND_TYPE_JIT_ALLOC:
 		{
-			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_ALLOC_START(
-				kbdev, queue);
-
-			status = kbase_kcpu_jit_allocate_process(queue, cmd);
-			if (status == -EAGAIN) {
-				process_next = false;
-			} else {
-				if (status != 0)
-					queue->has_error = true;
-
-				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_ALLOC_INFO(
-					kbdev, queue, &cmd->info.jit_alloc,
-					status);
-
+			if (drain_queue) {
+				/* We still need to call this function to clean the JIT alloc info up */
 				kbase_kcpu_jit_allocate_finish(queue, cmd);
-				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_ALLOC_END(
+			} else {
+				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_ALLOC_START(
+					kbdev, queue);
+
+				status = kbase_kcpu_jit_allocate_process(queue,
+									 cmd);
+				if (status == -EAGAIN) {
+					process_next = false;
+				} else {
+					if (status != 0)
+						queue->has_error = true;
+
+					KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_ALLOC_INFO(
+						kbdev, queue,
+						&cmd->info.jit_alloc, status);
+
+					kbase_kcpu_jit_allocate_finish(queue,
+								       cmd);
+					KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_ALLOC_END(
 						kbdev, queue);
+				}
 			}
+
 			break;
 		}
 		case BASE_KCPU_COMMAND_TYPE_JIT_FREE:
@@ -1748,56 +1761,39 @@ static void kcpu_queue_process(struct kbase_kcpu_command_queue *queue,
 			struct kbase_suspend_copy_buffer *sus_buf =
 					cmd->info.suspend_buf_copy.sus_buf;
 
-			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_GROUP_SUSPEND_START(
-				kbdev, queue);
+			if (!drain_queue) {
+				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_GROUP_SUSPEND_START(
+					kbdev, queue);
 
-			status = kbase_csf_queue_group_suspend_process(
+				status = kbase_csf_queue_group_suspend_process(
 					queue->kctx, sus_buf,
 					cmd->info.suspend_buf_copy.group_handle);
-			if (status)
-				queue->has_error = true;
+				if (status)
+					queue->has_error = true;
 
-			KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_GROUP_SUSPEND_END(
-				kbdev, queue, status);
+				KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_GROUP_SUSPEND_END(
+					kbdev, queue, status);
 
-			if (!sus_buf->cpu_alloc) {
-				int i;
+				if (!sus_buf->cpu_alloc) {
+					int i;
 
-				for (i = 0; i < sus_buf->nr_pages; i++)
-					put_page(sus_buf->pages[i]);
-			} else {
-				kbase_mem_phy_alloc_kernel_unmapped(
-					sus_buf->cpu_alloc);
-				kbase_mem_phy_alloc_put(sus_buf->cpu_alloc);
+					for (i = 0; i < sus_buf->nr_pages; i++)
+						put_page(sus_buf->pages[i]);
+				} else {
+					kbase_mem_phy_alloc_kernel_unmapped(
+						sus_buf->cpu_alloc);
+					kbase_mem_phy_alloc_put(
+						sus_buf->cpu_alloc);
+				}
 			}
 
 			kfree(sus_buf->pages);
 			kfree(sus_buf);
 			break;
 		}
-#if MALI_UNIT_TEST
-		case BASE_KCPU_COMMAND_TYPE_SAMPLE_TIME: {
-			u64 time = ktime_get_raw_ns();
-			void *target_page = kmap(*cmd->info.sample_time.page);
-
-			if (target_page) {
-				memcpy(target_page +
-					       cmd->info.sample_time.page_offset,
-				       &time, sizeof(time));
-				kunmap(*cmd->info.sample_time.page);
-			} else {
-				dev_warn(kbdev->dev,
-					 "Could not kmap target page\n");
-				queue->has_error = true;
-			}
-			put_page(*cmd->info.sample_time.page);
-			kfree(cmd->info.sample_time.page);
-			break;
-		}
-#endif /* MALI_UNIT_TEST */
 		default:
-			dev_warn(kbdev->dev,
-				"Unrecognized command type\n");
+			dev_dbg(kbdev->dev,
+				"Unrecognized command type");
 			break;
 		} /* switch */
 
@@ -1933,14 +1929,6 @@ static void KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_COMMAND(
 			kbdev, queue, cmd->info.suspend_buf_copy.sus_buf,
 			cmd->info.suspend_buf_copy.group_handle);
 		break;
-#if MALI_UNIT_TEST
-	case BASE_KCPU_COMMAND_TYPE_SAMPLE_TIME:
-		/*
-		 * This is test-only KCPU command, no need to have a timeline
-		 * entry
-		 */
-		break;
-#endif /* MALI_UNIT_TEST */
 	}
 }
 
@@ -1966,8 +1954,8 @@ int kbase_csf_kcpu_queue_enqueue(struct kbase_context *kctx,
 	 * in the set.
 	 */
 	if (enq->nr_commands != 1) {
-		dev_err(kctx->kbdev->dev,
-			"More than one commands enqueued\n");
+		dev_dbg(kctx->kbdev->dev,
+			"More than one commands enqueued");
 		return -EINVAL;
 	}
 
@@ -2081,40 +2069,9 @@ int kbase_csf_kcpu_queue_enqueue(struct kbase_context *kctx,
 					&command.info.suspend_buf_copy,
 					kcpu_cmd);
 			break;
-#if MALI_UNIT_TEST
-		case BASE_KCPU_COMMAND_TYPE_SAMPLE_TIME: {
-			int const page_cnt = 1;
-
-			kcpu_cmd->type = BASE_KCPU_COMMAND_TYPE_SAMPLE_TIME;
-			kcpu_cmd->info.sample_time.page_addr =
-				command.info.sample_time.time & PAGE_MASK;
-			kcpu_cmd->info.sample_time.page_offset =
-				command.info.sample_time.time & ~PAGE_MASK;
-			kcpu_cmd->info.sample_time.page = kcalloc(
-				page_cnt, sizeof(struct page *), GFP_KERNEL);
-			if (!kcpu_cmd->info.sample_time.page) {
-				ret = -ENOMEM;
-			} else {
-				int pinned_pages = get_user_pages_fast(
-					kcpu_cmd->info.sample_time.page_addr,
-					page_cnt, 1,
-					kcpu_cmd->info.sample_time.page);
-
-				if (pinned_pages < 0) {
-					ret = pinned_pages;
-					kfree(kcpu_cmd->info.sample_time.page);
-				} else if (pinned_pages != page_cnt) {
-					ret = -EINVAL;
-					kfree(kcpu_cmd->info.sample_time.page);
-				}
-			}
-
-			break;
-		}
-#endif /* MALI_UNIT_TEST */
 		default:
-			dev_warn(queue->kctx->kbdev->dev,
-				"Unknown command type %u\n", command.type);
+			dev_dbg(queue->kctx->kbdev->dev,
+				"Unknown command type %u", command.type);
 			ret = -EINVAL;
 			break;
 		}

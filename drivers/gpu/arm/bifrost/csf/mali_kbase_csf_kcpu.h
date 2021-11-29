@@ -117,6 +117,8 @@ struct kbase_kcpu_command_cqs_set_operation_info {
  * @signaled:	Bit array used to report the status of the CQS wait objects.
  *              1 is signaled, 0 otherwise.
  * @nr_objs:	Number of CQS objects in the array.
+ * @inherit_err_flags: Bit-pattern for CQSs in the array who's error field is to
+ *                     be used as the source to import into the queue's error-state
  */
 struct kbase_kcpu_command_cqs_wait_operation_info {
 	struct base_cqs_wait_operation_info *objs;
@@ -194,13 +196,6 @@ struct kbase_kcpu_command_group_suspend_info {
 	u8 group_handle;
 };
 
-#if MALI_UNIT_TEST
-struct kbase_kcpu_command_sample_time_info {
-	u64 page_addr;
-	u64 page_offset;
-	struct page **page;
-};
-#endif /* MALI_UNIT_TEST */
 
 /**
  * struct kbase_cpu_command - Command which is to be part of the kernel
@@ -233,9 +228,6 @@ struct kbase_kcpu_command {
 		struct kbase_kcpu_command_jit_alloc_info jit_alloc;
 		struct kbase_kcpu_command_jit_free_info jit_free;
 		struct kbase_kcpu_command_group_suspend_info suspend_buf_copy;
-#if MALI_UNIT_TEST
-		struct kbase_kcpu_command_sample_time_info sample_time;
-#endif /* MALI_UNIT_TEST */
 	} info;
 };
 

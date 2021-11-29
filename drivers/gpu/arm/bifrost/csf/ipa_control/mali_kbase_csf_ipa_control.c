@@ -146,8 +146,12 @@ static int apply_select_config(struct kbase_device *kbdev, u64 *select)
 
 	ret = wait_status(kbdev, STATUS_COMMAND_ACTIVE);
 
-	if (!ret)
+	if (!ret) {
 		kbase_reg_write(kbdev, IPA_CONTROL_REG(COMMAND), COMMAND_APPLY);
+		ret = wait_status(kbdev, STATUS_COMMAND_ACTIVE);
+	} else {
+		dev_err(kbdev->dev, "Wait for the pending command failed");
+	}
 
 	return ret;
 }
@@ -215,6 +219,17 @@ static void build_select_config(struct kbase_ipa_control *ipa_ctrl,
 	}
 }
 
+static int update_select_registers(struct kbase_device *kbdev)
+{
+	u64 select_config[KBASE_IPA_CORE_TYPE_NUM];
+
+	lockdep_assert_held(&kbdev->csf.ipa_control.lock);
+
+	build_select_config(&kbdev->csf.ipa_control, select_config);
+
+	return apply_select_config(kbdev, select_config);
+}
+
 static inline void calc_prfcnt_delta(struct kbase_device *kbdev,
 				     struct kbase_ipa_control_prfcnt *prfcnt,
 				     bool gpu_ready)
@@ -238,7 +253,7 @@ static inline void calc_prfcnt_delta(struct kbase_device *kbdev,
 
 	if (!WARN_ON_ONCE(kbdev->csf.ipa_control.cur_gpu_rate == 0))
 		if (prfcnt->gpu_norm)
-			delta_value /= kbdev->csf.ipa_control.cur_gpu_rate;
+			delta_value = div_u64(delta_value, kbdev->csf.ipa_control.cur_gpu_rate);
 
 	prfcnt->latest_raw_value = raw_value;
 
@@ -285,17 +300,20 @@ kbase_ipa_control_rate_change_notify(struct kbase_clk_rate_listener *listener,
 		/* Interrupts are already disabled and interrupt state is also saved */
 		spin_lock(&ipa_ctrl->lock);
 
-		for (i = 0; i < ipa_ctrl->num_active_sessions; i++) {
-			size_t j;
+		for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++) {
 			struct kbase_ipa_control_session *session = &ipa_ctrl->sessions[i];
 
-			for (j = 0; j < session->num_prfcnts; j++) {
-				struct kbase_ipa_control_prfcnt *prfcnt =
-					&session->prfcnts[j];
+			if (session->active) {
+				size_t j;
 
-				if (prfcnt->gpu_norm)
-					calc_prfcnt_delta(kbdev, prfcnt, true);
-			 }
+				for (j = 0; j < session->num_prfcnts; j++) {
+					struct kbase_ipa_control_prfcnt *prfcnt =
+						&session->prfcnts[j];
+
+					if (prfcnt->gpu_norm)
+						calc_prfcnt_delta(kbdev, prfcnt, true);
+				}
+			}
 		}
 
 		ipa_ctrl->cur_gpu_rate = clk_rate_hz;
@@ -376,6 +394,115 @@ void kbase_ipa_control_term(struct kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 KBASE_EXPORT_TEST_API(kbase_ipa_control_term);
+
+/** session_read_raw_values - Read latest raw values for a sessions
+ * @kbdev:   Pointer to kbase device.
+ * @session: Pointer to the session whose performance counters shall be read.
+ *
+ * Read and update the latest raw values of all the performance counters
+ * belonging to a given session.
+ */
+static void session_read_raw_values(struct kbase_device *kbdev,
+				    struct kbase_ipa_control_session *session)
+{
+	size_t i;
+
+	lockdep_assert_held(&kbdev->csf.ipa_control.lock);
+
+	for (i = 0; i < session->num_prfcnts; i++) {
+		struct kbase_ipa_control_prfcnt *prfcnt = &session->prfcnts[i];
+		u64 raw_value = read_value_cnt(kbdev, (u8)prfcnt->type,
+					       prfcnt->select_idx);
+
+		prfcnt->latest_raw_value = raw_value;
+	}
+}
+
+/** session_gpu_start - Start one or all sessions
+ * @kbdev:     Pointer to kbase device.
+ * @ipa_ctrl:  Pointer to IPA_CONTROL descriptor.
+ * @session:   Pointer to the session to initialize, or NULL to initialize
+ *             all sessions.
+ *
+ * This function starts one or all sessions by capturing a manual sample,
+ * reading the latest raw value of performance counters and possibly enabling
+ * the timer for automatic sampling if necessary.
+ *
+ * If a single session is given, it is assumed to be active, regardless of
+ * the number of active sessions. The number of performance counters belonging
+ * to the session shall be set in advance.
+ *
+ * If no session is given, the function shall start all sessions.
+ * The function does nothing if there are no active sessions.
+ *
+ * Return: 0 on success, or error code on failure.
+ */
+static int session_gpu_start(struct kbase_device *kbdev,
+			     struct kbase_ipa_control *ipa_ctrl,
+			     struct kbase_ipa_control_session *session)
+{
+	bool first_start =
+		(session != NULL) && (ipa_ctrl->num_active_sessions == 0);
+	int ret = 0;
+
+	lockdep_assert_held(&kbdev->csf.ipa_control.lock);
+
+	/*
+	 * Exit immediately if the caller intends to start all sessions
+	 * but there are no active sessions. It's important that no operation
+	 * is done on the IPA_CONTROL interface in that case.
+	 */
+	if (!session && ipa_ctrl->num_active_sessions == 0)
+		return ret;
+
+	/*
+	 * Take a manual sample unconditionally if the caller intends
+	 * to start all sessions. Otherwise, only take a manual sample
+	 * if this is the first session to be initialized, for accumulator
+	 * registers are empty and no timer has been configured for automatic
+	 * sampling.
+	 */
+	if (!session || first_start) {
+		kbase_reg_write(kbdev, IPA_CONTROL_REG(COMMAND),
+				COMMAND_SAMPLE);
+		ret = wait_status(kbdev, STATUS_COMMAND_ACTIVE);
+		if (ret)
+			dev_err(kbdev->dev, "%s: failed to sample new counters",
+				__func__);
+		kbase_reg_write(kbdev, IPA_CONTROL_REG(TIMER),
+				timer_value(ipa_ctrl->cur_gpu_rate));
+	}
+
+	/*
+	 * Read current raw value to start the session.
+	 * This is necessary to put the first query in condition
+	 * to generate a correct value by calculating the difference
+	 * from the beginning of the session. This consideration
+	 * is true regardless of the number of sessions the caller
+	 * intends to start.
+	 */
+	if (!ret) {
+		if (session) {
+			/* On starting a session, value read is required for
+			 * IPA power model's calculation initialization.
+			 */
+			session_read_raw_values(kbdev, session);
+		} else {
+			size_t session_idx;
+
+			for (session_idx = 0;
+			     session_idx < KBASE_IPA_CONTROL_MAX_SESSIONS;
+			     session_idx++) {
+				struct kbase_ipa_control_session *session_to_check = &ipa_ctrl->sessions[session_idx];
+
+				if (session_to_check->active)
+					session_read_raw_values(kbdev, session_to_check);
+			}
+		}
+	}
+
+	return ret;
+}
 
 int kbase_ipa_control_register(
 	struct kbase_device *kbdev,
@@ -539,56 +666,22 @@ int kbase_ipa_control_register(
 	 * before applying the new configuration.
 	 */
 	if (new_config) {
-		u64 select_config[KBASE_IPA_CORE_TYPE_NUM];
-
-		build_select_config(ipa_ctrl, select_config);
-		ret = apply_select_config(kbdev, select_config);
+		ret = update_select_registers(kbdev);
 		if (ret)
 			dev_err(kbdev->dev,
-				"%s: failed to apply SELECT configuration",
+				"%s: failed to apply new SELECT configuration",
 				__func__);
 	}
 
 	if (!ret) {
-		/* Accumulator registers don't contain any sample if the timer
-		 * has not been enabled first. Take a sample manually before
-		 * enabling the timer.
-		 */
-		if (ipa_ctrl->num_active_sessions == 0) {
-			kbase_reg_write(kbdev, IPA_CONTROL_REG(COMMAND),
-					COMMAND_SAMPLE);
-			ret = wait_status(kbdev, STATUS_COMMAND_ACTIVE);
-			if (!ret) {
-				kbase_reg_write(
-					kbdev, IPA_CONTROL_REG(TIMER),
-					timer_value(ipa_ctrl->cur_gpu_rate));
-			} else {
-				dev_err(kbdev->dev,
-					"%s: failed to sample new counters",
-					__func__);
-			}
-		}
+		session->num_prfcnts = num_counters;
+		ret = session_gpu_start(kbdev, ipa_ctrl, session);
 	}
 
 	if (!ret) {
-		session->num_prfcnts = num_counters;
 		session->active = true;
 		ipa_ctrl->num_active_sessions++;
 		*client = session;
-
-		/*
-		 * Read current raw value to initialize the session.
-		 * This is necessary to put the first query in condition
-		 * to generate a correct value by calculating the difference
-		 * from the beginning of the session.
-		 */
-		for (i = 0; i < session->num_prfcnts; i++) {
-			struct kbase_ipa_control_prfcnt *prfcnt =
-				&session->prfcnts[i];
-			u64 raw_value = read_value_cnt(kbdev, (u8)prfcnt->type,
-						       prfcnt->select_idx);
-			prfcnt->latest_raw_value = raw_value;
-		}
 	}
 
 exit:
@@ -662,10 +755,7 @@ int kbase_ipa_control_unregister(struct kbase_device *kbdev, const void *client)
 	}
 
 	if (new_config) {
-		u64 select_config[KBASE_IPA_CORE_TYPE_NUM];
-
-		build_select_config(ipa_ctrl, select_config);
-		ret = apply_select_config(kbdev, select_config);
+		ret = update_select_registers(kbdev);
 		if (ret)
 			dev_err(kbdev->dev,
 				"%s: failed to apply SELECT configuration",
@@ -700,6 +790,12 @@ int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
 
 	ipa_ctrl = &kbdev->csf.ipa_control;
 	session = (struct kbase_ipa_control_session *)client;
+
+	if (WARN_ON(!session->active)) {
+		dev_err(kbdev->dev,
+			"%s: attempt to query inactive session", __func__);
+		return -EINVAL;
+	}
 
 	if (WARN_ON(num_values < session->num_prfcnts)) {
 		dev_err(kbdev->dev,
@@ -778,20 +874,23 @@ void kbase_ipa_control_handle_gpu_power_off(struct kbase_device *kbdev)
 			ret);
 	}
 
-	for (session_idx = 0; session_idx < ipa_ctrl->num_active_sessions;
+	for (session_idx = 0; session_idx < KBASE_IPA_CONTROL_MAX_SESSIONS;
 	     session_idx++) {
+
 		struct kbase_ipa_control_session *session =
 			&ipa_ctrl->sessions[session_idx];
-		size_t i;
 
-		for (i = 0; i < session->num_prfcnts; i++) {
-			struct kbase_ipa_control_prfcnt *prfcnt =
-				&session->prfcnts[i];
+		if (session->active) {
+			size_t i;
 
-			calc_prfcnt_delta(kbdev, prfcnt, true);
+			for (i = 0; i < session->num_prfcnts; i++) {
+				struct kbase_ipa_control_prfcnt *prfcnt =
+					&session->prfcnts[i];
+
+				calc_prfcnt_delta(kbdev, prfcnt, true);
+			}
 		}
 	}
-
 	spin_unlock(&ipa_ctrl->lock);
 }
 
@@ -808,18 +907,16 @@ void kbase_ipa_control_handle_gpu_power_on(struct kbase_device *kbdev)
 	/* Interrupts are already disabled and interrupt state is also saved */
 	spin_lock(&ipa_ctrl->lock);
 
-	/* Re-issue the APPLY command, this is actually needed only for CSHW */
-	kbase_reg_write(kbdev, IPA_CONTROL_REG(COMMAND), COMMAND_APPLY);
-	ret = wait_status(kbdev, STATUS_COMMAND_ACTIVE);
+	ret = update_select_registers(kbdev);
 	if (ret) {
 		dev_err(kbdev->dev,
-			"Wait for the completion of apply command failed: %d",
-			ret);
+			"Failed to reconfigure the select registers: %d", ret);
 	}
 
-	/* Re-enable the timer for periodic sampling */
-	kbase_reg_write(kbdev, IPA_CONTROL_REG(TIMER),
-			timer_value(ipa_ctrl->cur_gpu_rate));
+	/* Accumulator registers would not contain any sample after GPU power
+	 * cycle if the timer has not been enabled first. Initialize all sessions.
+	 */
+	ret = session_gpu_start(kbdev, ipa_ctrl, NULL);
 
 	spin_unlock(&ipa_ctrl->lock);
 }
@@ -895,13 +992,17 @@ void kbase_ipa_control_protm_exited(struct kbase_device *kbdev)
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	for (i = 0; i < ipa_ctrl->num_active_sessions; i++) {
+	for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++) {
+
 		struct kbase_ipa_control_session *session =
 			&ipa_ctrl->sessions[i];
-		u64 protm_time = time_now - MAX(session->last_query_time,
-						ipa_ctrl->protm_start);
 
-		session->protm_time += protm_time;
+		if (session->active) {
+			u64 protm_time = time_now - MAX(session->last_query_time,
+							ipa_ctrl->protm_start);
+
+			session->protm_time += protm_time;
+		}
 	}
 
 	/* Acknowledge the protected_mode bit in the IPA_CONTROL STATUS

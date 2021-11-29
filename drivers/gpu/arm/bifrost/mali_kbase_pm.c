@@ -26,6 +26,7 @@
 #include <mali_kbase.h>
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <mali_kbase_vinstr.h>
+#include <mali_kbase_kinstr_prfcnt.h>
 #include <mali_kbase_hwcnt_context.h>
 
 #include <mali_kbase_pm.h>
@@ -76,13 +77,13 @@ int kbase_pm_context_active_handle_suspend(struct kbase_device *kbdev,
 		case KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE:
 			if (kbdev->pm.active_count != 0)
 				break;
-			/* FALLTHROUGH */
+			fallthrough;
 		case KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE:
 			kbase_pm_unlock(kbdev);
 			return 1;
 
 		case KBASE_PM_SUSPEND_HANDLER_NOT_POSSIBLE:
-			/* FALLTHROUGH */
+			fallthrough;
 		default:
 			KBASE_DEBUG_ASSERT_MSG(false, "unreachable");
 			break;
@@ -147,10 +148,11 @@ void kbase_pm_driver_suspend(struct kbase_device *kbdev)
 {
 	KBASE_DEBUG_ASSERT(kbdev);
 
-	/* Suspend vinstr. This blocks until the vinstr worker and timer are
-	 * no longer running.
+	/* Suspend HW counter intermediaries. This blocks until workers and timers
+	 * are no longer running.
 	 */
 	kbase_vinstr_suspend(kbdev->vinstr_ctx);
+	kbase_kinstr_prfcnt_suspend(kbdev->kinstr_prfcnt_ctx);
 
 	/* Disable GPU hardware counters.
 	 * This call will block until counters are disabled.
@@ -266,8 +268,9 @@ void kbase_pm_driver_resume(struct kbase_device *kbdev, bool arb_gpu_start)
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 #endif
 
-	/* Resume vinstr */
+	/* Resume HW counters intermediaries. */
 	kbase_vinstr_resume(kbdev->vinstr_ctx);
+	kbase_kinstr_prfcnt_resume(kbdev->kinstr_prfcnt_ctx);
 }
 
 void kbase_pm_suspend(struct kbase_device *kbdev)

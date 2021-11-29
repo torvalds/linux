@@ -35,6 +35,7 @@
 
 #include <linux/version.h>
 #include <linux/pm_opp.h>
+#include "mali_kbase_devfreq.h"
 
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>

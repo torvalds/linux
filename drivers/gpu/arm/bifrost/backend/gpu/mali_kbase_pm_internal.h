@@ -137,6 +137,10 @@ void kbase_pm_clock_on(struct kbase_device *kbdev, bool is_resume);
  * off. It should be modified during integration to perform the necessary
  * actions to turn the clock off (if this is possible in the integration).
  *
+ * If runtime PM is enabled and @power_runtime_gpu_idle_callback is used
+ * then this function would usually be invoked from the runtime suspend
+ * callback function.
+ *
  * @kbdev:      The kbase device structure for the device (must be a valid
  *              pointer)
  *
@@ -242,7 +246,7 @@ int kbase_pm_wait_for_desired_state(struct kbase_device *kbdev);
  * NOTE: This may not wait until the correct state is reached if there is a
  * power off in progress. To correctly wait for the desired state the caller
  * must ensure that this is not the case by, for example, calling
- * kbase_pm_wait_for_poweroff_complete()
+ * kbase_pm_wait_for_poweroff_work_complete()
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
@@ -432,12 +436,25 @@ void kbase_pm_release_gpu_cycle_counter(struct kbase_device *kbdev);
 void kbase_pm_release_gpu_cycle_counter_nolock(struct kbase_device *kbdev);
 
 /**
- * kbase_pm_wait_for_poweroff_complete - Wait for the poweroff workqueue to
- *                                       complete
+ * kbase_pm_wait_for_poweroff_work_complete - Wait for the poweroff workqueue to
+ *                                            complete
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * This function effectively just waits for the @gpu_poweroff_wait_work work
+ * item to complete, if it was enqueued. GPU may not have been powered down
+ * before this function returns.
  */
-void kbase_pm_wait_for_poweroff_complete(struct kbase_device *kbdev);
+void kbase_pm_wait_for_poweroff_work_complete(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_wait_for_gpu_power_down - Wait for the GPU power down to complete
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * This function waits for the actual gpu power down to complete.
+ */
+void kbase_pm_wait_for_gpu_power_down(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_runtime_init - Initialize runtime-pm for Mali GPU platform device
@@ -635,6 +652,7 @@ void kbase_pm_reset_start_locked(struct kbase_device *kbdev);
  */
 void kbase_pm_reset_complete(struct kbase_device *kbdev);
 
+#if !MALI_USE_CSF
 /**
  * kbase_pm_protected_override_enable - Enable the protected mode override
  * @kbdev: Device pointer
@@ -707,6 +725,7 @@ int kbase_pm_protected_entry_override_enable(struct kbase_device *kbdev);
  * to enter protected mode.
  */
 void kbase_pm_protected_entry_override_disable(struct kbase_device *kbdev);
+#endif
 
 /* If true, the driver should explicitly control corestack power management,
  * instead of relying on the Power Domain Controller.
@@ -735,6 +754,21 @@ bool kbase_pm_is_l2_desired(struct kbase_device *kbdev);
  * Return: true if MCU needs to be enabled.
  */
 bool kbase_pm_is_mcu_desired(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_is_mcu_inactive - Check if the MCU is inactive (i.e. either
+ *                            it is disabled or it is in sleep)
+ *
+ * @kbdev: kbase device
+ * @state: state of the MCU state machine.
+ *
+ * This function must be called with hwaccess_lock held.
+ * L2 cache can be turned off if this function returns true.
+ *
+ * Return: true if MCU is inactive
+ */
+bool kbase_pm_is_mcu_inactive(struct kbase_device *kbdev,
+			      enum kbase_mcu_state state);
 
 /**
  * kbase_pm_idle_groups_sched_suspendable - Check whether the scheduler can be
@@ -817,5 +851,84 @@ static inline void kbase_pm_unlock(struct kbase_device *kbdev)
 	mutex_unlock(&kbdev->js_data.runpool_mutex);
 #endif /* !MALI_USE_CSF */
 }
+
+#if MALI_USE_CSF && defined(KBASE_PM_RUNTIME)
+/**
+ * kbase_pm_gpu_sleep_allowed - Check if the GPU is allowed to be put in sleep
+ *
+ * @kbdev: Device pointer
+ *
+ * This function is called on GPU idle notification and if it returns false then
+ * GPU power down will be triggered by suspending the CSGs and halting the MCU.
+ *
+ * Return: true if the GPU is allowed to be in the sleep state.
+ */
+static inline bool kbase_pm_gpu_sleep_allowed(struct kbase_device *kbdev)
+{
+	/* If the autosuspend_delay has been set to 0 then it doesn't make
+	 * sense to first put GPU to sleep state and then power it down,
+	 * instead would be better to power it down right away.
+	 * Also need to do the same when autosuspend_delay is set to a negative
+	 * value, which implies that runtime pm is effectively disabled by the
+	 * kernel.
+	 * A high positive value of autosuspend_delay can be used to keep the
+	 * GPU in sleep state for a long time.
+	 */
+	if (unlikely(!kbdev->dev->power.autosuspend_delay ||
+		     (kbdev->dev->power.autosuspend_delay < 0)))
+		return false;
+
+	return kbdev->pm.backend.gpu_sleep_supported;
+}
+
+/**
+ * kbase_pm_enable_db_mirror_interrupt - Enable the doorbell mirror interrupt to
+ *                                       detect the User doorbell rings.
+ *
+ * @kbdev: Device pointer
+ *
+ * This function is called just before sending the sleep request to MCU firmware
+ * so that User doorbell rings can be detected whilst GPU remains in the sleep
+ * state.
+ *
+ */
+static inline void kbase_pm_enable_db_mirror_interrupt(struct kbase_device *kbdev)
+{
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	if (!kbdev->pm.backend.db_mirror_interrupt_enabled) {
+		u32 irq_mask = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(GPU_IRQ_MASK));
+
+		WARN_ON(irq_mask & DOORBELL_MIRROR);
+
+		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
+				irq_mask | DOORBELL_MIRROR);
+		kbdev->pm.backend.db_mirror_interrupt_enabled = true;
+	}
+}
+
+/**
+ * kbase_pm_disable_db_mirror_interrupt - Disable the doorbell mirror interrupt.
+ *
+ * @kbdev: Device pointer
+ *
+ * This function is called when doorbell mirror interrupt is received or MCU
+ * needs to be reactivated by enabling the doorbell notification.
+ */
+static inline void kbase_pm_disable_db_mirror_interrupt(struct kbase_device *kbdev)
+{
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	if (kbdev->pm.backend.db_mirror_interrupt_enabled) {
+		u32 irq_mask = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(GPU_IRQ_MASK));
+
+		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
+				irq_mask & ~DOORBELL_MIRROR);
+		kbdev->pm.backend.db_mirror_interrupt_enabled = false;
+	}
+}
+#endif
 
 #endif /* _KBASE_BACKEND_PM_INTERNAL_H_ */

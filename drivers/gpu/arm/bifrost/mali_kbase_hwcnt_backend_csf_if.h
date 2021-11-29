@@ -28,16 +28,8 @@
 
 #include <linux/types.h>
 
-/**
- * struct kbase_hwcnt_backend_csf_if_ctx - Opaque pointer to a CSF interface
- *                                         context.
- */
 struct kbase_hwcnt_backend_csf_if_ctx;
 
-/**
- * struct kbase_hwcnt_backend_csf_if_ring_buf - Opaque pointer to a CSF
- *                                              interface ring buffer.
- */
 struct kbase_hwcnt_backend_csf_if_ring_buf;
 
 /**
@@ -63,14 +55,14 @@ struct kbase_hwcnt_backend_csf_if_enable {
 /**
  * struct kbase_hwcnt_backend_csf_if_prfcnt_info - Performance counter
  *                                                 information.
- * @dump_bytes:       Bytes of GPU memory required to perform a performance
- *                    counter dump.
- * @prfcnt_block_size Bytes of each performance counter block.
- * @l2_count:         The MMU L2 cache count.
- * @core_mask:        Shader core mask.
- * @clk_cnt:          Clock domain count in the system.
- * @clearing_samples: Indicates whether counters are cleared after each sample
- *                    is taken.
+ * @dump_bytes:        Bytes of GPU memory required to perform a performance
+ *                     counter dump.
+ * @prfcnt_block_size: Bytes of each performance counter block.
+ * @l2_count:          The MMU L2 cache count.
+ * @core_mask:         Shader core mask.
+ * @clk_cnt:           Clock domain count in the system.
+ * @clearing_samples:  Indicates whether counters are cleared after each sample
+ *                     is taken.
  */
 struct kbase_hwcnt_backend_csf_if_prfcnt_info {
 	size_t dump_bytes;
@@ -97,9 +89,9 @@ typedef void kbase_hwcnt_backend_csf_if_assert_lock_held_fn(
  * @flags: Pointer to the memory location that would store the previous
  *         interrupt state.
  */
-typedef void
-kbase_hwcnt_backend_csf_if_lock_fn(struct kbase_hwcnt_backend_csf_if_ctx *ctx,
-				   unsigned long *flags);
+typedef void kbase_hwcnt_backend_csf_if_lock_fn(
+	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
+	unsigned long *flags);
 
 /**
  * typedef kbase_hwcnt_backend_csf_if_unlock_fn - Release backend spinlock.
@@ -108,9 +100,9 @@ kbase_hwcnt_backend_csf_if_lock_fn(struct kbase_hwcnt_backend_csf_if_ctx *ctx,
  * @flags: Previously stored interrupt state when Scheduler interrupt
  *         spinlock was acquired.
  */
-typedef void
-kbase_hwcnt_backend_csf_if_unlock_fn(struct kbase_hwcnt_backend_csf_if_ctx *ctx,
-				     unsigned long flags);
+typedef void kbase_hwcnt_backend_csf_if_unlock_fn(
+	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
+	unsigned long flags);
 
 /**
  * typedef kbase_hwcnt_backend_csf_if_get_prfcnt_info_fn - Get performance

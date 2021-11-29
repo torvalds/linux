@@ -128,7 +128,7 @@ int kbase_instr_hwcnt_clear(struct kbase_context *kctx);
 int kbase_instr_backend_init(struct kbase_device *kbdev);
 
 /**
- * kbase_instr_backend_init() - Terminate the instrumentation backend
+ * kbase_instr_backend_term() - Terminate the instrumentation backend
  * @kbdev:	Kbase device
  *
  * This function should be called during driver termination.
