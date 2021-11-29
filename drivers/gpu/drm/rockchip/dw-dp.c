@@ -2073,6 +2073,13 @@ static void dw_dp_unregister_audio_driver(void *data)
 	}
 }
 
+static void dw_dp_aux_unregister(void *data)
+{
+	struct dw_dp *dp = data;
+
+	drm_dp_aux_unregister(&dp->aux);
+}
+
 static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
@@ -2240,8 +2247,15 @@ static int dw_dp_probe(struct platform_device *pdev)
 		return ret;
 
 	dp->aux.dev = dev;
+	dp->aux.name = dev_name(dev);
 	dp->aux.transfer = dw_dp_aux_transfer;
-	drm_dp_aux_init(&dp->aux);
+	ret = drm_dp_aux_register(&dp->aux);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, dw_dp_aux_unregister, dp);
+	if (ret)
+		return ret;
 
 	dp->bridge.of_node = dev->of_node;
 	dp->bridge.funcs = &dw_dp_bridge_funcs;
