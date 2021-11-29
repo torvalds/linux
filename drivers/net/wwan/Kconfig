@@ -50,6 +50,19 @@ config MHI_WWAN_MBIM
           To compile this driver as a module, choose M here: the module will be
           called mhi_wwan_mbim.
 
+config QCOM_BAM_DMUX
+	tristate "Qualcomm BAM-DMUX WWAN network driver"
+	depends on (DMA_ENGINE && PM && QCOM_SMEM_STATE) || COMPILE_TEST
+	help
+	  The BAM Data Multiplexer provides access to the network data channels
+	  of modems integrated into many older Qualcomm SoCs, e.g. Qualcomm
+	  MSM8916 or MSM8974. The connection can be established via QMI/AT from
+	  userspace with control ports available through the WWAN subsystem
+	  (CONFIG_RPMSG_WWAN_CTRL) or QRTR network sockets (CONFIG_QRTR).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called qcom_bam_dmux.
+
 config RPMSG_WWAN_CTRL
 	tristate "RPMSG WWAN control driver"
 	depends on RPMSG
