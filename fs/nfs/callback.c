@@ -266,14 +266,12 @@ static struct svc_serv *nfs_callback_create_svc(int minorversion)
 	/*
 	 * Check whether we're already up and running.
 	 */
-	if (cb_info->serv) {
+	if (cb_info->serv)
 		/*
 		 * Note: increase service usage, because later in case of error
 		 * svc_destroy() will be called.
 		 */
-		svc_get(cb_info->serv);
-		return cb_info->serv;
-	}
+		return svc_get(cb_info->serv);
 
 	switch (minorversion) {
 	case 0:

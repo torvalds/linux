@@ -120,9 +120,10 @@ struct svc_serv {
  * change the number of threads.  Horrible, but there it is.
  * Should be called with the "service mutex" held.
  */
-static inline void svc_get(struct svc_serv *serv)
+static inline struct svc_serv *svc_get(struct svc_serv *serv)
 {
 	serv->sv_nrthreads++;
+	return serv;
 }
 
 /*
