@@ -30,8 +30,6 @@
 
 #ifndef CONFIG_PREEMPT_RT
 #include "lock_events.h"
-#include <trace/hooks/rwsem.h>
-#include <trace/hooks/dtask.h>
 
 /*
  * The least significant 2 bits of the owner value has the following
@@ -323,7 +321,6 @@ void __init_rwsem(struct rw_semaphore *sem, const char *name,
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 	osq_lock_init(&sem->osq);
 #endif
-	trace_android_vh_rwsem_init(sem);
 }
 EXPORT_SYMBOL(__init_rwsem);
 
@@ -903,7 +900,6 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, long count, unsigned int stat
 	struct rwsem_waiter waiter;
 	DEFINE_WAKE_Q(wake_q);
 	bool wake = false;
-	bool already_on_list = false;
 
 	/*
 	 * To prevent a constant stream of readers from starving a sleeping
@@ -960,11 +956,7 @@ queue:
 		}
 		adjustment += RWSEM_FLAG_WAITERS;
 	}
-	trace_android_vh_alter_rwsem_list_add(
-					&waiter,
-					sem, &already_on_list);
-	if (!already_on_list)
-		list_add_tail(&waiter.list, &sem->wait_list);
+	list_add_tail(&waiter.list, &sem->wait_list);
 
 	/* we're now waiting on the lock, but no longer actively locking */
 	count = atomic_long_add_return(adjustment, &sem->count);
@@ -983,12 +975,10 @@ queue:
 		    (adjustment & RWSEM_FLAG_WAITERS)))
 		rwsem_mark_wake(sem, RWSEM_WAKE_ANY, &wake_q);
 
-	trace_android_vh_rwsem_wake(sem);
 	raw_spin_unlock_irq(&sem->wait_lock);
 	wake_up_q(&wake_q);
 
 	/* wait to be given the lock */
-	trace_android_vh_rwsem_read_wait_start(sem);
 	for (;;) {
 		set_current_state(state);
 		if (!smp_load_acquire(&waiter.task)) {
@@ -1008,7 +998,6 @@ queue:
 	}
 
 	__set_current_state(TASK_RUNNING);
-	trace_android_vh_rwsem_read_wait_finish(sem);
 	lockevent_inc(rwsem_rlock);
 	return sem;
 
@@ -1020,7 +1009,6 @@ out_nolock:
 	}
 	raw_spin_unlock_irq(&sem->wait_lock);
 	__set_current_state(TASK_RUNNING);
-	trace_android_vh_rwsem_read_wait_finish(sem);
 	lockevent_inc(rwsem_rlock_fail);
 	return ERR_PTR(-EINTR);
 }
@@ -1036,7 +1024,6 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 	struct rwsem_waiter waiter;
 	struct rw_semaphore *ret = sem;
 	DEFINE_WAKE_Q(wake_q);
-	bool already_on_list = false;
 
 	/* do optimistic spinning and steal lock if possible */
 	if (rwsem_can_spin_on_owner(sem) && rwsem_optimistic_spin(sem)) {
@@ -1057,11 +1044,7 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 	/* account for this before adding a new element to the list */
 	wstate = list_empty(&sem->wait_list) ? WRITER_FIRST : WRITER_NOT_FIRST;
 
-	trace_android_vh_alter_rwsem_list_add(
-					&waiter,
-					sem, &already_on_list);
-	if (!already_on_list)
-		list_add_tail(&waiter.list, &sem->wait_list);
+	list_add_tail(&waiter.list, &sem->wait_list);
 
 	/* we're now waiting on the lock */
 	if (wstate == WRITER_NOT_FIRST) {
@@ -1097,9 +1080,7 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 	}
 
 wait:
-	trace_android_vh_rwsem_wake(sem);
 	/* wait until we successfully acquire the lock */
-	trace_android_vh_rwsem_write_wait_start(sem);
 	set_current_state(state);
 	for (;;) {
 		if (rwsem_try_write_lock(sem, wstate)) {
@@ -1166,7 +1147,6 @@ trylock_again:
 		raw_spin_lock_irq(&sem->wait_lock);
 	}
 	__set_current_state(TASK_RUNNING);
-	trace_android_vh_rwsem_write_wait_finish(sem);
 	list_del(&waiter.list);
 	raw_spin_unlock_irq(&sem->wait_lock);
 	lockevent_inc(rwsem_wlock);
@@ -1175,7 +1155,6 @@ trylock_again:
 
 out_nolock:
 	__set_current_state(TASK_RUNNING);
-	trace_android_vh_rwsem_write_wait_finish(sem);
 	raw_spin_lock_irq(&sem->wait_lock);
 	list_del(&waiter.list);
 
@@ -1598,7 +1577,6 @@ EXPORT_SYMBOL(up_read);
 void up_write(struct rw_semaphore *sem)
 {
 	rwsem_release(&sem->dep_map, _RET_IP_);
-	trace_android_vh_rwsem_write_finished(sem);
 	__up_write(sem);
 }
 EXPORT_SYMBOL(up_write);
@@ -1609,7 +1587,6 @@ EXPORT_SYMBOL(up_write);
 void downgrade_write(struct rw_semaphore *sem)
 {
 	lock_downgrade(&sem->dep_map, _RET_IP_);
-	trace_android_vh_rwsem_write_finished(sem);
 	__downgrade_write(sem);
 }
 EXPORT_SYMBOL(downgrade_write);
