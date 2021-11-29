@@ -592,21 +592,28 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *dir,
 							__kernel_fsid_t *fsid,
 							const struct qstr *name,
 							struct inode *child,
+							struct dentry *moved,
 							unsigned int *hash,
 							gfp_t gfp)
 {
 	struct fanotify_name_event *fne;
 	struct fanotify_info *info;
 	struct fanotify_fh *dfh, *ffh;
+	struct inode *dir2 = moved ? d_inode(moved->d_parent) : NULL;
+	const struct qstr *name2 = moved ? &moved->d_name : NULL;
 	unsigned int dir_fh_len = fanotify_encode_fh_len(dir);
+	unsigned int dir2_fh_len = fanotify_encode_fh_len(dir2);
 	unsigned int child_fh_len = fanotify_encode_fh_len(child);
 	unsigned long name_len = name ? name->len : 0;
+	unsigned long name2_len = name2 ? name2->len : 0;
 	unsigned int len, size;
 
 	/* Reserve terminating null byte even for empty name */
-	size = sizeof(*fne) + name_len + 1;
+	size = sizeof(*fne) + name_len + name2_len + 2;
 	if (dir_fh_len)
 		size += FANOTIFY_FH_HDR_LEN + dir_fh_len;
+	if (dir2_fh_len)
+		size += FANOTIFY_FH_HDR_LEN + dir2_fh_len;
 	if (child_fh_len)
 		size += FANOTIFY_FH_HDR_LEN + child_fh_len;
 	fne = kmalloc(size, gfp);
@@ -623,6 +630,11 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *dir,
 		len = fanotify_encode_fh(dfh, dir, dir_fh_len, hash, 0);
 		fanotify_info_set_dir_fh(info, len);
 	}
+	if (dir2_fh_len) {
+		dfh = fanotify_info_dir2_fh(info);
+		len = fanotify_encode_fh(dfh, dir2, dir2_fh_len, hash, 0);
+		fanotify_info_set_dir2_fh(info, len);
+	}
 	if (child_fh_len) {
 		ffh = fanotify_info_file_fh(info);
 		len = fanotify_encode_fh(ffh, child, child_fh_len, hash, 0);
@@ -632,10 +644,21 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *dir,
 		fanotify_info_copy_name(info, name);
 		*hash ^= full_name_hash((void *)name_len, name->name, name_len);
 	}
+	if (name2_len) {
+		fanotify_info_copy_name2(info, name2);
+		*hash ^= full_name_hash((void *)name2_len, name2->name,
+					name2_len);
+	}
 
 	pr_debug("%s: size=%u dir_fh_len=%u child_fh_len=%u name_len=%u name='%.*s'\n",
 		 __func__, size, dir_fh_len, child_fh_len,
 		 info->name_len, info->name_len, fanotify_info_name(info));
+
+	if (dir2_fh_len) {
+		pr_debug("%s: dir2_fh_len=%u name2_len=%u name2='%.*s'\n",
+			 __func__, dir2_fh_len, info->name2_len,
+			 info->name2_len, fanotify_info_name2(info));
+	}
 
 	return &fne->fae;
 }
@@ -692,6 +715,7 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	struct inode *dirid = fanotify_dfid_inode(mask, data, data_type, dir);
 	const struct path *path = fsnotify_data_path(data, data_type);
 	struct mem_cgroup *old_memcg;
+	struct dentry *moved = NULL;
 	struct inode *child = NULL;
 	bool name_event = false;
 	unsigned int hash = 0;
@@ -727,6 +751,15 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 		} else if ((mask & ALL_FSNOTIFY_DIRENT_EVENTS) || !ondir) {
 			name_event = true;
 		}
+
+		/*
+		 * In the special case of FAN_RENAME event, we record both
+		 * old and new parent+name.
+		 * 'dirid' and 'file_name' are the old parent+name and
+		 * 'moved' has the new parent+name.
+		 */
+		if (mask & FAN_RENAME)
+			moved = fsnotify_data_dentry(data, data_type);
 	}
 
 	/*
@@ -748,9 +781,9 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	} else if (fanotify_is_error_event(mask)) {
 		event = fanotify_alloc_error_event(group, fsid, data,
 						   data_type, &hash);
-	} else if (name_event && (file_name || child)) {
-		event = fanotify_alloc_name_event(id, fsid, file_name, child,
-						  &hash, gfp);
+	} else if (name_event && (file_name || moved || child)) {
+		event = fanotify_alloc_name_event(dirid, fsid, file_name, child,
+						  moved, &hash, gfp);
 	} else if (fid_mode) {
 		event = fanotify_alloc_fid_event(id, fsid, &hash, gfp);
 	} else {
@@ -860,6 +893,7 @@ static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
 	BUILD_BUG_ON(FAN_OPEN_EXEC != FS_OPEN_EXEC);
 	BUILD_BUG_ON(FAN_OPEN_EXEC_PERM != FS_OPEN_EXEC_PERM);
 	BUILD_BUG_ON(FAN_FS_ERROR != FS_ERROR);
+	BUILD_BUG_ON(FAN_RENAME != FS_RENAME);
 
 	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 20);
 

@@ -28,6 +28,8 @@
 
 #define FAN_EVENT_ON_CHILD	0x08000000	/* Interested in child events */
 
+#define FAN_RENAME		0x10000000	/* File was renamed */
+
 #define FAN_ONDIR		0x40000000	/* Event occurred against dir */
 
 /* helper events */
