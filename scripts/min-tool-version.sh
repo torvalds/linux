@@ -28,7 +28,7 @@ llvm)
 	if [ "$SRCARCH" = s390 ]; then
 		echo 13.0.0
 	else
-		echo 10.0.1
+		echo 11.0.0
 	fi
 	;;
 *)
