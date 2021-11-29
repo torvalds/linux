@@ -500,9 +500,9 @@ u32 hw_atl2_utils_get_fw_version(struct aq_hw_s *self)
 	hw_atl2_shared_buffer_read_safe(self, version, &version);
 
 	/* A2 FW version is stored in reverse order */
-	return version.mac.major << 24 |
-	       version.mac.minor << 16 |
-	       version.mac.build;
+	return version.bundle.major << 24 |
+	       version.bundle.minor << 16 |
+	       version.bundle.build;
 }
 
 int hw_atl2_utils_get_action_resolve_table_caps(struct aq_hw_s *self,
