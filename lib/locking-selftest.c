@@ -139,7 +139,7 @@ static DEFINE_RT_MUTEX(rtmutex_Z2);
 
 #endif
 
-static local_lock_t local_A = INIT_LOCAL_LOCK(local_A);
+static DEFINE_PER_CPU(local_lock_t, local_A);
 
 /*
  * non-inlined runtime initializers, to let separate locks share
@@ -1320,7 +1320,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion3_soft_wlock)
 # define I_MUTEX(x)	lockdep_reset_lock(&mutex_##x.dep_map)
 # define I_RWSEM(x)	lockdep_reset_lock(&rwsem_##x.dep_map)
 # define I_WW(x)	lockdep_reset_lock(&x.dep_map)
-# define I_LOCAL_LOCK(x) lockdep_reset_lock(&local_##x.dep_map)
+# define I_LOCAL_LOCK(x) lockdep_reset_lock(this_cpu_ptr(&local_##x.dep_map))
 #ifdef CONFIG_RT_MUTEXES
 # define I_RTMUTEX(x)	lockdep_reset_lock(&rtmutex_##x.dep_map)
 #endif
@@ -1380,7 +1380,7 @@ static void reset_locks(void)
 	init_shared_classes();
 	raw_spin_lock_init(&raw_lock_A);
 	raw_spin_lock_init(&raw_lock_B);
-	local_lock_init(&local_A);
+	local_lock_init(this_cpu_ptr(&local_A));
 
 	ww_mutex_init(&o, &ww_lockdep); ww_mutex_init(&o2, &ww_lockdep); ww_mutex_init(&o3, &ww_lockdep);
 	memset(&t, 0, sizeof(t)); memset(&t2, 0, sizeof(t2));
@@ -2646,8 +2646,8 @@ static void wait_context_tests(void)
 
 static void local_lock_2(void)
 {
-	local_lock_acquire(&local_A);	/* IRQ-ON */
-	local_lock_release(&local_A);
+	local_lock(&local_A);	/* IRQ-ON */
+	local_unlock(&local_A);
 
 	HARDIRQ_ENTER();
 	spin_lock(&lock_A);		/* IN-IRQ */
@@ -2656,18 +2656,18 @@ static void local_lock_2(void)
 
 	HARDIRQ_DISABLE();
 	spin_lock(&lock_A);
-	local_lock_acquire(&local_A);	/* IN-IRQ <-> IRQ-ON cycle, false */
-	local_lock_release(&local_A);
+	local_lock(&local_A);	/* IN-IRQ <-> IRQ-ON cycle, false */
+	local_unlock(&local_A);
 	spin_unlock(&lock_A);
 	HARDIRQ_ENABLE();
 }
 
 static void local_lock_3A(void)
 {
-	local_lock_acquire(&local_A);	/* IRQ-ON */
+	local_lock(&local_A);	/* IRQ-ON */
 	spin_lock(&lock_B);		/* IRQ-ON */
 	spin_unlock(&lock_B);
-	local_lock_release(&local_A);
+	local_unlock(&local_A);
 
 	HARDIRQ_ENTER();
 	spin_lock(&lock_A);		/* IN-IRQ */
@@ -2676,18 +2676,18 @@ static void local_lock_3A(void)
 
 	HARDIRQ_DISABLE();
 	spin_lock(&lock_A);
-	local_lock_acquire(&local_A);	/* IN-IRQ <-> IRQ-ON cycle only if we count local_lock(), false */
-	local_lock_release(&local_A);
+	local_lock(&local_A);	/* IN-IRQ <-> IRQ-ON cycle only if we count local_lock(), false */
+	local_unlock(&local_A);
 	spin_unlock(&lock_A);
 	HARDIRQ_ENABLE();
 }
 
 static void local_lock_3B(void)
 {
-	local_lock_acquire(&local_A);	/* IRQ-ON */
+	local_lock(&local_A);	/* IRQ-ON */
 	spin_lock(&lock_B);		/* IRQ-ON */
 	spin_unlock(&lock_B);
-	local_lock_release(&local_A);
+	local_unlock(&local_A);
 
 	HARDIRQ_ENTER();
 	spin_lock(&lock_A);		/* IN-IRQ */
@@ -2696,8 +2696,8 @@ static void local_lock_3B(void)
 
 	HARDIRQ_DISABLE();
 	spin_lock(&lock_A);
-	local_lock_acquire(&local_A);	/* IN-IRQ <-> IRQ-ON cycle only if we count local_lock(), false */
-	local_lock_release(&local_A);
+	local_lock(&local_A);	/* IN-IRQ <-> IRQ-ON cycle only if we count local_lock(), false */
+	local_unlock(&local_A);
 	spin_unlock(&lock_A);
 	HARDIRQ_ENABLE();
 
@@ -2812,7 +2812,7 @@ void locking_selftest(void)
 	printk("------------------------\n");
 	printk("| Locking API testsuite:\n");
 	printk("----------------------------------------------------------------------------\n");
-	printk("                                 | spin |wlock |rlock |mutex | wsem | rsem |\n");
+	printk("                                 | spin |wlock |rlock |mutex | wsem | rsem |rtmutex\n");
 	printk("  --------------------------------------------------------------------------\n");
 
 	init_shared_classes();
