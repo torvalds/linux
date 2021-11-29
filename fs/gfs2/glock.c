@@ -477,7 +477,7 @@ find_first_strong_holder(struct gfs2_glock *gl)
 
 /*
  * gfs2_instantiate - Call the glops instantiate function
- * @gl: The glock
+ * @gh: The glock holder
  *
  * Returns: 0 if instantiate was successful, 2 if type specific operation is
  * underway, or error.
