@@ -142,13 +142,11 @@ out:
 static void
 mt7921s_write_txwi(struct mt7921_dev *dev, struct mt76_wcid *wcid,
 		   enum mt76_txq_id qid, struct ieee80211_sta *sta,
-		   int pid, struct sk_buff *skb)
+		   struct ieee80211_key_conf *key, int pid,
+		   struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_key_conf *key = info->control.hw_key;
-	__le32 *txwi;
+	__le32 *txwi = (__le32 *)(skb->data - MT_SDIO_TXD_SIZE);
 
-	txwi = (__le32 *)(skb->data - MT_SDIO_TXD_SIZE);
 	memset(txwi, 0, MT_SDIO_TXD_SIZE);
 	mt7921_mac_write_txwi(dev, txwi, skb, wcid, key, pid, false);
 	skb_push(skb, MT_SDIO_TXD_SIZE);
@@ -161,6 +159,7 @@ int mt7921s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
+	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct sk_buff *skb = tx_info->skb;
 	int err, pad, pktid;
 
@@ -180,7 +179,7 @@ int mt7921s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	}
 
 	pktid = mt76_tx_status_skb_add(&dev->mt76, wcid, skb);
-	mt7921s_write_txwi(dev, wcid, qid, sta, pktid, skb);
+	mt7921s_write_txwi(dev, wcid, qid, sta, key, pktid, skb);
 
 	mt7921_skb_add_sdio_hdr(skb, MT7921_SDIO_DATA);
 	pad = round_up(skb->len, 4) - skb->len;
