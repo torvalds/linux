@@ -3399,7 +3399,7 @@ sh_css_params_write_to_ddr_internal(
 
 	if (params->config_changed[IA_CSS_MACC_ID] && binary->info->sp.enable.macc) {
 		unsigned int i, j, idx;
-		unsigned int idx_map[] = {
+		static const unsigned int idx_map[] = {
 			0, 1, 3, 2, 6, 7, 5, 4, 12, 13, 15, 14, 10, 11, 9, 8
 		};
 
