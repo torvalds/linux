@@ -209,8 +209,6 @@ static int cyan_skillfish_read_sensor(struct smu_context *smu,
 	if (!data || !size)
 		return -EINVAL;
 
-	mutex_lock(&smu->sensor_lock);
-
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		ret = cyan_skillfish_get_smu_metrics_data(smu,
@@ -260,8 +258,6 @@ static int cyan_skillfish_read_sensor(struct smu_context *smu,
 		ret = -EOPNOTSUPP;
 		break;
 	}
-
-	mutex_unlock(&smu->sensor_lock);
 
 	return ret;
 }
