@@ -338,6 +338,7 @@ static inline struct fs_error_report *fsnotify_data_error_report(
 }
 
 enum fsnotify_obj_type {
+	FSNOTIFY_OBJ_TYPE_ANY = -1,
 	FSNOTIFY_OBJ_TYPE_INODE,
 	FSNOTIFY_OBJ_TYPE_PARENT,
 	FSNOTIFY_OBJ_TYPE_VFSMOUNT,
@@ -346,15 +347,9 @@ enum fsnotify_obj_type {
 	FSNOTIFY_OBJ_TYPE_DETACHED = FSNOTIFY_OBJ_TYPE_COUNT
 };
 
-#define FSNOTIFY_OBJ_TYPE_INODE_FL	(1U << FSNOTIFY_OBJ_TYPE_INODE)
-#define FSNOTIFY_OBJ_TYPE_PARENT_FL	(1U << FSNOTIFY_OBJ_TYPE_PARENT)
-#define FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL	(1U << FSNOTIFY_OBJ_TYPE_VFSMOUNT)
-#define FSNOTIFY_OBJ_TYPE_SB_FL		(1U << FSNOTIFY_OBJ_TYPE_SB)
-#define FSNOTIFY_OBJ_ALL_TYPES_MASK	((1U << FSNOTIFY_OBJ_TYPE_COUNT) - 1)
-
-static inline bool fsnotify_valid_obj_type(unsigned int type)
+static inline bool fsnotify_valid_obj_type(unsigned int obj_type)
 {
-	return (type < FSNOTIFY_OBJ_TYPE_COUNT);
+	return (obj_type < FSNOTIFY_OBJ_TYPE_COUNT);
 }
 
 struct fsnotify_iter_info {
@@ -387,7 +382,7 @@ static inline void fsnotify_iter_set_report_type_mark(
 static inline struct fsnotify_mark *fsnotify_iter_##name##_mark( \
 		struct fsnotify_iter_info *iter_info) \
 { \
-	return (iter_info->report_mask & FSNOTIFY_OBJ_TYPE_##NAME##_FL) ? \
+	return (iter_info->report_mask & (1U << FSNOTIFY_OBJ_TYPE_##NAME)) ? \
 		iter_info->marks[FSNOTIFY_OBJ_TYPE_##NAME] : NULL; \
 }
 
@@ -604,11 +599,11 @@ extern int fsnotify_get_conn_fsid(const struct fsnotify_mark_connector *conn,
 				  __kernel_fsid_t *fsid);
 /* attach the mark to the object */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark,
-			     fsnotify_connp_t *connp, unsigned int type,
+			     fsnotify_connp_t *connp, unsigned int obj_type,
 			     int allow_dups, __kernel_fsid_t *fsid);
 extern int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 				    fsnotify_connp_t *connp,
-				    unsigned int type, int allow_dups,
+				    unsigned int obj_type, int allow_dups,
 				    __kernel_fsid_t *fsid);
 
 /* attach the mark to the inode */
@@ -637,22 +632,23 @@ extern void fsnotify_detach_mark(struct fsnotify_mark *mark);
 extern void fsnotify_free_mark(struct fsnotify_mark *mark);
 /* Wait until all marks queued for destruction are destroyed */
 extern void fsnotify_wait_marks_destroyed(void);
-/* run all the marks in a group, and clear all of the marks attached to given object type */
-extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group, unsigned int type);
+/* Clear all of the marks of a group attached to a given object type */
+extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group,
+					  unsigned int obj_type);
 /* run all the marks in a group, and clear all of the vfsmount marks */
 static inline void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 {
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT_FL);
+	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT);
 }
 /* run all the marks in a group, and clear all of the inode marks */
 static inline void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
 {
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_INODE_FL);
+	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_INODE);
 }
 /* run all the marks in a group, and clear all of the sn marks */
 static inline void fsnotify_clear_sb_marks_by_group(struct fsnotify_group *group)
 {
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_SB_FL);
+	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_SB);
 }
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);
 extern void fsnotify_put_mark(struct fsnotify_mark *mark);
