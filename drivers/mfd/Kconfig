@@ -634,7 +634,7 @@ config INTEL_SOC_PMIC_CHTWC
 config INTEL_SOC_PMIC_CHTDC_TI
 	tristate "Support for Intel Cherry Trail Dollar Cove TI PMIC"
 	depends on GPIOLIB
-	depends on I2C
+	depends on I2C=y && I2C_DESIGNWARE_PLATFORM=y
 	depends on ACPI
 	depends on X86
 	select MFD_CORE
@@ -643,6 +643,10 @@ config INTEL_SOC_PMIC_CHTDC_TI
 	help
 	  Select this option for supporting Dollar Cove (TI version) PMIC
 	  device that is found on some Intel Cherry Trail systems.
+
+	  This option is a bool as it provides an ACPI OpRegion which must be
+	  available before any devices using it are probed. This option also
+	  needs the designware-i2c driver to be builtin for the same reason.
 
 config INTEL_SOC_PMIC_MRFLD
 	tristate "Support for Intel Merrifield Basin Cove PMIC"
