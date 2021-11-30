@@ -137,6 +137,7 @@ int iavf_send_vf_config_msg(struct iavf_adapter *adapter)
 	       VIRTCHNL_VF_OFFLOAD_WB_ON_ITR |
 	       VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2 |
 	       VIRTCHNL_VF_OFFLOAD_ENCAP |
+	       VIRTCHNL_VF_OFFLOAD_VLAN_V2 |
 	       VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM |
 	       VIRTCHNL_VF_OFFLOAD_REQ_QUEUES |
 	       VIRTCHNL_VF_OFFLOAD_ADQ |
@@ -153,6 +154,19 @@ int iavf_send_vf_config_msg(struct iavf_adapter *adapter)
 	else
 		return iavf_send_pf_msg(adapter, VIRTCHNL_OP_GET_VF_RESOURCES,
 					NULL, 0);
+}
+
+int iavf_send_vf_offload_vlan_v2_msg(struct iavf_adapter *adapter)
+{
+	adapter->aq_required &= ~IAVF_FLAG_AQ_GET_OFFLOAD_VLAN_V2_CAPS;
+
+	if (!VLAN_V2_ALLOWED(adapter))
+		return -EOPNOTSUPP;
+
+	adapter->current_op = VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS;
+
+	return iavf_send_pf_msg(adapter, VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS,
+				NULL, 0);
 }
 
 /**
@@ -229,6 +243,45 @@ int iavf_get_vf_config(struct iavf_adapter *adapter)
 	if (!err)
 		iavf_validate_num_queues(adapter);
 	iavf_vf_parse_hw_config(hw, adapter->vf_res);
+out_alloc:
+	kfree(event.msg_buf);
+out:
+	return err;
+}
+
+int iavf_get_vf_vlan_v2_caps(struct iavf_adapter *adapter)
+{
+	struct iavf_hw *hw = &adapter->hw;
+	struct iavf_arq_event_info event;
+	enum virtchnl_ops op;
+	enum iavf_status err;
+	u16 len;
+
+	len =  sizeof(struct virtchnl_vlan_caps);
+	event.buf_len = len;
+	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
+	if (!event.msg_buf) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	while (1) {
+		/* When the AQ is empty, iavf_clean_arq_element will return
+		 * nonzero and this loop will terminate.
+		 */
+		err = iavf_clean_arq_element(hw, &event, NULL);
+		if (err)
+			goto out_alloc;
+		op = (enum virtchnl_ops)le32_to_cpu(event.desc.cookie_high);
+		if (op == VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS)
+			break;
+	}
+
+	err = (enum iavf_status)le32_to_cpu(event.desc.cookie_low);
+	if (err)
+		goto out_alloc;
+
+	memcpy(&adapter->vlan_v2_caps, event.msg_buf, min(event.msg_len, len));
 out_alloc:
 	kfree(event.msg_buf);
 out:
@@ -1759,6 +1812,26 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 		}
 
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
+		iavf_parse_vf_resource_msg(adapter);
+
+		/* negotiated VIRTCHNL_VF_OFFLOAD_VLAN_V2, so wait for the
+		 * response to VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS to finish
+		 * configuration
+		 */
+		if (VLAN_V2_ALLOWED(adapter))
+			break;
+		/* fallthrough and finish config if VIRTCHNL_VF_OFFLOAD_VLAN_V2
+		 * wasn't successfully negotiated with the PF
+		 */
+		}
+		fallthrough;
+	case VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS: {
+		if (v_opcode == VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS)
+			memcpy(&adapter->vlan_v2_caps, msg,
+			       min_t(u16, msglen,
+				     sizeof(adapter->vlan_v2_caps)));
+
 		iavf_process_config(adapter);
 
 		/* unlock crit_lock before acquiring rtnl_lock as other
@@ -1766,8 +1839,11 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 		 * crit_lock
 		 */
 		mutex_unlock(&adapter->crit_lock);
+		/* VLAN capabilities can change during VFR, so make sure to
+		 * update the netdev features with the new capabilities
+		 */
 		rtnl_lock();
-		netdev_update_features(adapter->netdev);
+		netdev_update_features(netdev);
 		rtnl_unlock();
 		if (iavf_lock_timeout(&adapter->crit_lock, 10000))
 			dev_warn(&adapter->pdev->dev, "failed to acquire crit_lock in %s\n",
