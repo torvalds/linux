@@ -7,8 +7,11 @@
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/clk/tegra.h>
 
 #include <soc/tegra/pmc.h>
@@ -532,7 +535,7 @@ static unsigned long tegra30_input_freq[] = {
 	[12] = 26000000,
 };
 
-static struct tegra_devclk devclks[] __initdata = {
+static struct tegra_devclk devclks[] = {
 	{ .con_id = "pll_c", .dt_id = TEGRA30_CLK_PLL_C },
 	{ .con_id = "pll_c_out1", .dt_id = TEGRA30_CLK_PLL_C_OUT1 },
 	{ .con_id = "pll_p", .dt_id = TEGRA30_CLK_PLL_P },
@@ -812,11 +815,6 @@ static void __init tegra30_pll_init(void)
 {
 	struct clk *clk;
 
-	/* PLLC */
-	clk = tegra_clk_register_pll("pll_c", "pll_ref", clk_base, pmc_base, 0,
-				     &pll_c_params, NULL);
-	clks[TEGRA30_CLK_PLL_C] = clk;
-
 	/* PLLC_OUT1 */
 	clk = tegra_clk_register_divider("pll_c_out1_div", "pll_c",
 				clk_base + PLLC_OUT, 0, TEGRA_DIVIDER_ROUND_UP,
@@ -825,11 +823,6 @@ static void __init tegra30_pll_init(void)
 				clk_base + PLLC_OUT, 1, 0, CLK_SET_RATE_PARENT,
 				0, NULL);
 	clks[TEGRA30_CLK_PLL_C_OUT1] = clk;
-
-	/* PLLM */
-	clk = tegra_clk_register_pll("pll_m", "pll_ref", clk_base, pmc_base,
-			    CLK_SET_RATE_GATE, &pll_m_params, NULL);
-	clks[TEGRA30_CLK_PLL_M] = clk;
 
 	/* PLLM_OUT1 */
 	clk = tegra_clk_register_divider("pll_m_out1_div", "pll_m",
@@ -880,9 +873,6 @@ static void __init tegra30_pll_init(void)
 			       ARRAY_SIZE(pll_e_parents),
 			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + PLLE_AUX, 2, 1, 0, NULL);
-	clk = tegra_clk_register_plle("pll_e", "pll_e_mux", clk_base, pmc_base,
-			     CLK_GET_RATE_NOCACHE, &pll_e_params, NULL);
-	clks[TEGRA30_CLK_PLL_E] = clk;
 }
 
 static const char *cclk_g_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
@@ -970,14 +960,6 @@ static void __init tegra30_super_clk_init(void)
 				  TEGRA_DIVIDER_2, 4, 8, 9,
 			      NULL);
 	clks[TEGRA30_CLK_CCLK_LP] = clk;
-
-	/* SCLK */
-	clk = tegra_clk_register_super_mux("sclk", sclk_parents,
-				  ARRAY_SIZE(sclk_parents),
-				  CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
-				  clk_base + SCLK_BURST_POLICY,
-				  0, 4, 0, 0, NULL);
-	clks[TEGRA30_CLK_SCLK] = clk;
 
 	/* twd */
 	clk = clk_register_fixed_factor(NULL, "twd", "cclk_g",
@@ -1214,7 +1196,7 @@ static struct tegra_cpu_car_ops tegra30_cpu_car_ops = {
 #endif
 };
 
-static struct tegra_clk_init_table init_table[] __initdata = {
+static struct tegra_clk_init_table init_table[] = {
 	{ TEGRA30_CLK_UARTA, TEGRA30_CLK_PLL_P, 408000000, 0 },
 	{ TEGRA30_CLK_UARTB, TEGRA30_CLK_PLL_P, 408000000, 0 },
 	{ TEGRA30_CLK_UARTC, TEGRA30_CLK_PLL_P, 408000000, 0 },
@@ -1259,11 +1241,6 @@ static struct tegra_clk_init_table init_table[] __initdata = {
 	{ TEGRA30_CLK_CLK_MAX, TEGRA30_CLK_CLK_MAX, 0, 0 },
 };
 
-static void __init tegra30_clock_apply_init_table(void)
-{
-	tegra_init_from_table(init_table, clks, TEGRA30_CLK_CLK_MAX);
-}
-
 /*
  * Some clocks may be used by different drivers depending on the board
  * configuration.  List those here to register them twice in the clock lookup
@@ -1294,11 +1271,23 @@ static struct tegra_audio_clk_info tegra30_audio_plls[] = {
 	{ "pll_a", &pll_a_params, tegra_clk_pll_a, "pll_p_out1" },
 };
 
+static bool tegra30_car_initialized;
+
 static struct clk *tegra30_clk_src_onecell_get(struct of_phandle_args *clkspec,
 					       void *data)
 {
 	struct clk_hw *hw;
 	struct clk *clk;
+
+	/*
+	 * Timer clocks are needed early, the rest of the clocks shouldn't be
+	 * available to device drivers until clock tree is fully initialized.
+	 */
+	if (clkspec->args[0] != TEGRA30_CLK_RTC &&
+	    clkspec->args[0] != TEGRA30_CLK_TWD &&
+	    clkspec->args[0] != TEGRA30_CLK_TIMER &&
+	    !tegra30_car_initialized)
+		return ERR_PTR(-EPROBE_DEFER);
 
 	clk = of_clk_src_onecell_get(clkspec, data);
 	if (IS_ERR(clk))
@@ -1357,10 +1346,75 @@ static void __init tegra30_clock_init(struct device_node *np)
 	tegra_init_dup_clks(tegra_clk_duplicates, clks, TEGRA30_CLK_CLK_MAX);
 
 	tegra_add_of_provider(np, tegra30_clk_src_onecell_get);
-	tegra_register_devclks(devclks, ARRAY_SIZE(devclks));
-
-	tegra_clk_apply_init_table = tegra30_clock_apply_init_table;
 
 	tegra_cpu_car_ops = &tegra30_cpu_car_ops;
 }
-CLK_OF_DECLARE(tegra30, "nvidia,tegra30-car", tegra30_clock_init);
+CLK_OF_DECLARE_DRIVER(tegra30, "nvidia,tegra30-car", tegra30_clock_init);
+
+/*
+ * Clocks that use runtime PM can't be created at the tegra30_clock_init
+ * time because drivers' base isn't initialized yet, and thus platform
+ * devices can't be created for the clocks.  Hence we need to split the
+ * registration of the clocks into two phases.  The first phase registers
+ * essential clocks which don't require RPM and are actually used during
+ * early boot.  The second phase registers clocks which use RPM and this
+ * is done when device drivers' core API is ready.
+ */
+static int tegra30_car_probe(struct platform_device *pdev)
+{
+	struct clk *clk;
+
+	/* PLLC */
+	clk = tegra_clk_register_pll("pll_c", "pll_ref", clk_base, pmc_base, 0,
+				     &pll_c_params, NULL);
+	clks[TEGRA30_CLK_PLL_C] = clk;
+
+	/* PLLE */
+	clk = tegra_clk_register_plle("pll_e", "pll_e_mux", clk_base, pmc_base,
+				      CLK_GET_RATE_NOCACHE, &pll_e_params, NULL);
+	clks[TEGRA30_CLK_PLL_E] = clk;
+
+	/* PLLM */
+	clk = tegra_clk_register_pll("pll_m", "pll_ref", clk_base, pmc_base,
+				     CLK_SET_RATE_GATE, &pll_m_params, NULL);
+	clks[TEGRA30_CLK_PLL_M] = clk;
+
+	/* SCLK */
+	clk = tegra_clk_register_super_mux("sclk", sclk_parents,
+					   ARRAY_SIZE(sclk_parents),
+					   CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
+					   clk_base + SCLK_BURST_POLICY,
+					   0, 4, 0, 0, NULL);
+	clks[TEGRA30_CLK_SCLK] = clk;
+
+	tegra_register_devclks(devclks, ARRAY_SIZE(devclks));
+	tegra_init_from_table(init_table, clks, TEGRA30_CLK_CLK_MAX);
+	tegra30_car_initialized = true;
+
+	return 0;
+}
+
+static const struct of_device_id tegra30_car_match[] = {
+	{ .compatible = "nvidia,tegra30-car" },
+	{ }
+};
+
+static struct platform_driver tegra30_car_driver = {
+	.driver = {
+		.name = "tegra30-car",
+		.of_match_table = tegra30_car_match,
+		.suppress_bind_attrs = true,
+	},
+	.probe = tegra30_car_probe,
+};
+
+/*
+ * Clock driver must be registered before memory controller driver,
+ * which doesn't support deferred probing for today and is registered
+ * from arch init-level.
+ */
+static int tegra30_car_init(void)
+{
+	return platform_driver_register(&tegra30_car_driver);
+}
+postcore_initcall(tegra30_car_init);
