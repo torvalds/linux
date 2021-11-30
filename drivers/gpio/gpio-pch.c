@@ -368,14 +368,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	}
 
 	chip->base = pcim_iomap_table(pdev)[1];
-
-	if (pdev->device == 0x8803)
-		chip->ioh = INTEL_EG20T_PCH;
-	else if (pdev->device == 0x8014)
-		chip->ioh = OKISEMI_ML7223m_IOH;
-	else if (pdev->device == 0x8043)
-		chip->ioh = OKISEMI_ML7223n_IOH;
-
+	chip->ioh = id->driver_data;
 	chip->reg = chip->base;
 	pci_set_drvdata(pdev, chip);
 	spin_lock_init(&chip->spinlock);
@@ -439,10 +432,14 @@ static int __maybe_unused pch_gpio_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(pch_gpio_pm_ops, pch_gpio_suspend, pch_gpio_resume);
 
 static const struct pci_device_id pch_gpio_pcidev_id[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8803) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8014) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8043) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8803) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8803),
+	  .driver_data = INTEL_EG20T_PCH },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8014),
+	  .driver_data = OKISEMI_ML7223m_IOH },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8043),
+	  .driver_data = OKISEMI_ML7223n_IOH },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8803),
+	  .driver_data = INTEL_EG20T_PCH },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, pch_gpio_pcidev_id);
