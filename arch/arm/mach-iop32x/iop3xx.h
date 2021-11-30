@@ -225,6 +225,7 @@ extern int iop3xx_get_init_atu(void);
 #include <linux/reboot.h>
 
 void iop3xx_map_io(void);
+void iop_enable_cp6(void);
 void iop_init_cp6_handler(void);
 void iop_init_time(unsigned long tickrate);
 void iop3xx_restart(enum reboot_mode, const char *);

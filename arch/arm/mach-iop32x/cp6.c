@@ -7,7 +7,7 @@
 #include <asm/traps.h>
 #include <asm/ptrace.h>
 
-static int cp6_trap(struct pt_regs *regs, unsigned int instr)
+void iop_enable_cp6(void)
 {
 	u32 temp;
 
@@ -16,7 +16,15 @@ static int cp6_trap(struct pt_regs *regs, unsigned int instr)
 		"mrc	p15, 0, %0, c15, c1, 0\n\t"
 		"orr	%0, %0, #(1 << 6)\n\t"
 		"mcr	p15, 0, %0, c15, c1, 0\n\t"
+		"mrc	p15, 0, %0, c15, c1, 0\n\t"
+		"mov	%0, %0\n\t"
+		"sub	pc, pc, #4  @ cp_wait\n\t"
 		: "=r"(temp));
+}
+
+static int cp6_trap(struct pt_regs *regs, unsigned int instr)
+{
+	iop_enable_cp6();
 
 	return 0;
 }

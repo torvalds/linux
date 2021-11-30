@@ -29,6 +29,15 @@ static void intstr_write(u32 val)
 	asm volatile("mcr p6, 0, %0, c4, c0, 0" : : "r" (val));
 }
 
+static u32 iintsrc_read(void)
+{
+	int irq;
+
+	asm volatile("mrc p6, 0, %0, c8, c0, 0" : "=r" (irq));
+
+	return irq;
+}
+
 static void
 iop32x_irq_mask(struct irq_data *d)
 {
@@ -50,11 +59,25 @@ struct irq_chip ext_chip = {
 	.irq_unmask	= iop32x_irq_unmask,
 };
 
+void iop_handle_irq(struct pt_regs *regs)
+{
+	u32 mask;
+
+	iop_enable_cp6();
+
+	do {
+		mask = iintsrc_read();
+		if (mask)
+			generic_handle_irq(fls(mask));
+	} while (mask);
+}
+
 void __init iop32x_init_irq(void)
 {
 	int i;
 
 	iop_init_cp6_handler();
+	set_handle_irq(iop_handle_irq);
 
 	intctl_write(0);
 	intstr_write(0);

@@ -227,9 +227,6 @@ config GENERIC_ISA_DMA
 config FIQ
 	bool
 
-config NEED_RET_TO_USER
-	bool
-
 config ARCH_MTD_XIP
 	bool
 
@@ -371,9 +368,9 @@ config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
 	select CPU_XSCALE
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_IOP
 	select GPIOLIB
-	select NEED_RET_TO_USER
 	select FORCE_PCI
 	select PLAT_IOP
 	help
