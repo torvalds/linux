@@ -1744,9 +1744,20 @@ static int nvme_configure_metadata(struct nvme_ns *ns, struct nvme_id_ns *id)
 		 */
 		if (WARN_ON_ONCE(!(id->flbas & NVME_NS_FLBAS_META_EXT)))
 			return -EINVAL;
-		if (ctrl->max_integrity_segments)
-			ns->features |=
-				(NVME_NS_METADATA_SUPPORTED | NVME_NS_EXT_LBAS);
+
+		ns->features |= NVME_NS_EXT_LBAS;
+
+		/*
+		 * The current fabrics transport drivers support namespace
+		 * metadata formats only if nvme_ns_has_pi() returns true.
+		 * Suppress support for all other formats so the namespace will
+		 * have a 0 capacity and not be usable through the block stack.
+		 *
+		 * Note, this check will need to be modified if any drivers
+		 * gain the ability to use other metadata formats.
+		 */
+		if (ctrl->max_integrity_segments && nvme_ns_has_pi(ns))
+			ns->features |= NVME_NS_METADATA_SUPPORTED;
 	} else {
 		/*
 		 * For PCIe controllers, we can't easily remap the separate
