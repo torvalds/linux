@@ -2746,7 +2746,7 @@ trace_event_buffer_lock_reserve(struct trace_buffer **current_rb,
 
 	if (!tr->no_filter_buffering_ref &&
 	    (trace_file->flags & (EVENT_FILE_FL_SOFT_DISABLED | EVENT_FILE_FL_FILTERED)) &&
-	    (entry = this_cpu_read(trace_buffered_event))) {
+	    (entry = __this_cpu_read(trace_buffered_event))) {
 		/*
 		 * Filtering is on, so try to use the per cpu buffer first.
 		 * This buffer will simulate a ring_buffer_event,
