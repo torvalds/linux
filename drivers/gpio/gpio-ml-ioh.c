@@ -401,6 +401,7 @@ static int ioh_gpio_alloc_generic_chip(struct ioh_gpio *chip,
 static int ioh_gpio_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
 	int i, j;
 	struct ioh_gpio *chip;
@@ -410,19 +411,19 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "%s : pci_enable_device failed", __func__);
+		dev_err(dev, "%s : pci_enable_device failed", __func__);
 		goto err_pci_enable;
 	}
 
 	ret = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (ret) {
-		dev_err(&pdev->dev, "pci_request_regions failed-%d", ret);
+		dev_err(dev, "pci_request_regions failed-%d", ret);
 		goto err_request_regions;
 	}
 
 	base = pci_iomap(pdev, 1, 0);
 	if (!base) {
-		dev_err(&pdev->dev, "%s : pci_iomap failed", __func__);
+		dev_err(dev, "%s : pci_iomap failed", __func__);
 		ret = -ENOMEM;
 		goto err_iomap;
 	}
@@ -435,7 +436,7 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 
 	chip = chip_save;
 	for (i = 0; i < 8; i++, chip++) {
-		chip->dev = &pdev->dev;
+		chip->dev = dev;
 		chip->base = base;
 		chip->reg = chip->base;
 		chip->ch = i;
@@ -443,17 +444,17 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 		ioh_gpio_setup(chip, num_ports[i]);
 		ret = gpiochip_add_data(&chip->gpio, chip);
 		if (ret) {
-			dev_err(&pdev->dev, "IOH gpio: Failed to register GPIO\n");
+			dev_err(dev, "IOH gpio: Failed to register GPIO\n");
 			goto err_gpiochip_add;
 		}
 	}
 
 	chip = chip_save;
 	for (j = 0; j < 8; j++, chip++) {
-		irq_base = devm_irq_alloc_descs(&pdev->dev, -1, IOH_IRQ_BASE,
+		irq_base = devm_irq_alloc_descs(dev, -1, IOH_IRQ_BASE,
 						num_ports[j], NUMA_NO_NODE);
 		if (irq_base < 0) {
-			dev_warn(&pdev->dev,
+			dev_warn(dev,
 				"ml_ioh_gpio: Failed to get IRQ base num\n");
 			ret = irq_base;
 			goto err_gpiochip_add;
@@ -467,11 +468,10 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 	}
 
 	chip = chip_save;
-	ret = devm_request_irq(&pdev->dev, pdev->irq, ioh_gpio_handler,
+	ret = devm_request_irq(dev, pdev->irq, ioh_gpio_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (ret != 0) {
-		dev_err(&pdev->dev,
-			"%s request_irq failed\n", __func__);
+		dev_err(dev, "%s request_irq failed\n", __func__);
 		goto err_gpiochip_add;
 	}
 
@@ -498,7 +498,7 @@ err_request_regions:
 
 err_pci_enable:
 
-	dev_err(&pdev->dev, "%s Failed returns %d\n", __func__, ret);
+	dev_err(dev, "%s Failed returns %d\n", __func__, ret);
 	return ret;
 }
 
