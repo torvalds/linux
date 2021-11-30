@@ -482,6 +482,66 @@ void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 	kvm_pmu_reset(vcpu);
 }
 
+static void kvm_pmu_incr_counter(struct kvm_pmc *pmc)
+{
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+	u64 prev_count;
+
+	prev_count = pmc->counter;
+	pmc->counter = (pmc->counter + 1) & pmc_bitmask(pmc);
+
+	reprogram_counter(pmu, pmc->idx);
+	if (pmc->counter < prev_count)
+		__kvm_perf_overflow(pmc, false);
+}
+
+static inline bool eventsel_match_perf_hw_id(struct kvm_pmc *pmc,
+	unsigned int perf_hw_id)
+{
+	u64 old_eventsel = pmc->eventsel;
+	unsigned int config;
+
+	pmc->eventsel &= (ARCH_PERFMON_EVENTSEL_EVENT | ARCH_PERFMON_EVENTSEL_UMASK);
+	config = kvm_x86_ops.pmu_ops->pmc_perf_hw_id(pmc);
+	pmc->eventsel = old_eventsel;
+	return config == perf_hw_id;
+}
+
+static inline bool cpl_is_matched(struct kvm_pmc *pmc)
+{
+	bool select_os, select_user;
+	u64 config = pmc->current_config;
+
+	if (pmc_is_gp(pmc)) {
+		select_os = config & ARCH_PERFMON_EVENTSEL_OS;
+		select_user = config & ARCH_PERFMON_EVENTSEL_USR;
+	} else {
+		select_os = config & 0x1;
+		select_user = config & 0x2;
+	}
+
+	return (static_call(kvm_x86_get_cpl)(pmc->vcpu) == 0) ? select_os : select_user;
+}
+
+void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
+{
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	struct kvm_pmc *pmc;
+	int i;
+
+	for_each_set_bit(i, pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX) {
+		pmc = kvm_x86_ops.pmu_ops->pmc_idx_to_pmc(pmu, i);
+
+		if (!pmc || !pmc_is_enabled(pmc) || !pmc_speculative_in_use(pmc))
+			continue;
+
+		/* Ignore checks for edge detect, pin control, invert and CMASK bits */
+		if (eventsel_match_perf_hw_id(pmc, perf_hw_id) && cpl_is_matched(pmc))
+			kvm_pmu_incr_counter(pmc);
+	}
+}
+EXPORT_SYMBOL_GPL(kvm_pmu_trigger_event);
+
 int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_pmu_event_filter tmp, *filter;
