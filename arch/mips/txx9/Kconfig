@@ -39,14 +39,6 @@ config TOSHIBA_RBTX4927
 	  This Toshiba board is based on the TX4927 processor. Say Y here to
 	  support this machine type
 
-config TOSHIBA_RBTX4938
-	bool "Toshiba RBTX4938 board"
-	depends on MACH_TX49XX
-	select SOC_TX4938
-	help
-	  This Toshiba board is based on the TX4938 processor. Say Y here to
-	  support this machine type
-
 config TOSHIBA_RBTX4939
 	bool "Toshiba RBTX4939 board"
 	depends on MACH_TX49XX
@@ -104,26 +96,6 @@ config PICMG_PCI_BACKPLANE_DEFAULT
 	bool "Support for PICMG PCI Backplane"
 	depends on PCI && MACH_TXX9
 	default y if !TOSHIBA_FPCIB0
-
-if TOSHIBA_RBTX4938
-
-comment "Multiplex Pin Select"
-choice
-	prompt "PIO[58:61]"
-	default TOSHIBA_RBTX4938_MPLEX_PIO58_61
-
-config TOSHIBA_RBTX4938_MPLEX_PIO58_61
-	bool "PIO"
-config TOSHIBA_RBTX4938_MPLEX_NAND
-	bool "NAND"
-config TOSHIBA_RBTX4938_MPLEX_ATA
-	bool "ATA"
-config TOSHIBA_RBTX4938_MPLEX_KEEP
-	bool "Keep firmware settings"
-
-endchoice
-
-endif
 
 config PCI_TX4927
 	bool
