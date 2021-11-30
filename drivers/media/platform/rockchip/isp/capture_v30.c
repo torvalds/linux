@@ -454,6 +454,9 @@ static int fbc_config_mi(struct rkisp_stream *stream)
 		offs += left_w * mult;
 		rkisp_next_write(stream->ispdev, ISP3X_MPFBC_HEAD_OFFSET, offs, false);
 	}
+	rkisp_unite_set_bits(stream->ispdev, ISP3X_MI_WR_CTRL, 0,
+			     CIF_MI_CTRL_INIT_BASE_EN | CIF_MI_CTRL_INIT_OFFSET_EN,
+			     false, is_unite);
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
 	mi_frame_end(stream);
@@ -493,7 +496,8 @@ static int bp_config_mi(struct rkisp_stream *stream)
 		val = ISP3X_SEPERATE_YUV_CFG | ISP3X_BP_YUV_MODE;
 	mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_BP_YUV_MODE;
 	rkisp_unite_set_bits(dev, ISP3X_MPFBC_CTRL, mask, val, false, is_unite);
-
+	val = CIF_MI_CTRL_INIT_BASE_EN | CIF_MI_CTRL_INIT_OFFSET_EN;
+	rkisp_unite_set_bits(dev, ISP3X_MI_WR_CTRL, 0, val, false, is_unite);
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
 	mi_frame_end(stream);
