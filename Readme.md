@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 24 Nov 2021
+Release Date: 30 Nov 2021
 
-Release Version: V_01-00-24 : Limited-tested version
+Release Version: V_01-00-25 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -169,10 +169,12 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 	#ethtool -s <interface> wol <type - p/g/d>.
 
 	Supported WOL options and meaning:
-	 Option	  |  Meaning
-	  p	  |  Wake on phy activity
-	  g	  |  Wake on MagicPacket(tm)
-	  d	  |  Disable (wake on nothing). (Default)
+	
+	| Option | Meaning |
+	| :-----: | :----: |
+	|  p	  |  Wake on phy activity |
+	|  g	  |  Wake on MagicPacket(tm) |
+	|  d	  |  Disable (wake on nothing). (Default) |
 
 	Example - To wake on phy activity and magic packet use :
 	ethtool -s eth0 wol pg
@@ -330,3 +332,7 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 1. Runtime configuration of EEE supported and LPI interrupts disabled by default.
 2. Module param added to configure EEE and LPI timer.
 3. Driver name corrected in ethtool display.
+
+## TC956X_Host_Driver_20211130_V_01-00-25:
+
+1. Print message correction for PCIe BAR size and Physical Address.

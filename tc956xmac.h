@@ -91,7 +91,9 @@
  *  24 Nov 2021 : 1. EEE macro enabled by default.
  		  2. Module param support for EEE configuration
 		  3. Version update
- *  VERSION     : 01-00-24 
+ *  VERSION     : 01-00-24
+ *  30 Nov 2021 : 1. Version update
+ *  VERSION     : 01-00-25
  */
 
 #ifndef __TC956XMAC_H__
@@ -144,7 +146,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-24"
+#define DRV_MODULE_VERSION	"V_01-00-25"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800

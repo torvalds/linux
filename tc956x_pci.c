@@ -92,6 +92,9 @@
  *  24 Nov 2021 : 1. Module param support for EEE enable/disable and LPI timer configuration.
  		  2. Version update
  *  VERSION     : 01-00-24
+ *  30 Nov 2021 : 1. Print message correction for PCIe BAR size and Physical Address.
+ 		  2. Version update
+ *  VERSION     : 01-00-25
  */
 
 #include <linux/clk-provider.h>
@@ -129,7 +132,7 @@ static unsigned int tc956x_port0_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
 static unsigned int tc956x_port1_enable_eee = DISABLE;
 static unsigned int tc956x_port1_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 4};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 5};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -1893,17 +1896,17 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	dev_info(&(pdev->dev),
-		"BAR0 length = %lld kb\n", (u64)pci_resource_len(pdev, 0));
+		"BAR0 length = %lld bytes\n", (u64)pci_resource_len(pdev, 0));
 	dev_info(&(pdev->dev),
-		"BAR2 length = %lld kb\n", (u64)pci_resource_len(pdev, 2));
+		"BAR2 length = %lld bytes\n", (u64)pci_resource_len(pdev, 2));
 	dev_info(&(pdev->dev),
-		"BAR4 length = %lld kb\n", (u64)pci_resource_len(pdev, 4));
+		"BAR4 length = %lld bytes\n", (u64)pci_resource_len(pdev, 4));
 	dev_info(&(pdev->dev),
-		"BAR0 iommu address = 0x%llx\n", (u64)pci_resource_start(pdev, 0));
+		"BAR0 physical address = 0x%llx\n", (u64)pci_resource_start(pdev, 0));
 	dev_info(&(pdev->dev),
-		"BAR2 iommu address = 0x%llx\n", (u64)pci_resource_start(pdev, 2));
+		"BAR2 physical address = 0x%llx\n", (u64)pci_resource_start(pdev, 2));
 	dev_info(&(pdev->dev),
-		"BAR4 iommu address = 0x%llx\n", (u64)pci_resource_start(pdev, 4));
+		"BAR4 physical address = 0x%llx\n", (u64)pci_resource_start(pdev, 4));
 
 	memset(&res, 0, sizeof(res));
 #ifdef TC956X
