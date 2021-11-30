@@ -67,6 +67,7 @@
   clk_set_parent
   clk_set_rate
   clk_unprepare
+  clockevents_config_and_register
   complete
   complete_all
   completion_done
@@ -590,6 +591,7 @@
   of_alias_get_id
   of_clk_add_hw_provider
   of_clk_get
+  of_clk_get_by_name
   of_clk_hw_onecell_get
   of_count_phandle_with_args
   of_device_get_match_data
@@ -911,6 +913,7 @@
   tasklet_init
   tasklet_kill
   __tasklet_schedule
+  timer_of_init
   trace_event_buffer_commit
   trace_event_buffer_reserve
   trace_event_ignore_this_pid
@@ -1822,7 +1825,6 @@
   clk_unregister
   divider_get_val
   divider_recalc_rate
-  of_clk_get_by_name
   of_clk_get_from_provider
 
 # required by mxc-jpeg-encdec.ko
@@ -2236,9 +2238,10 @@
   dmabuf_page_pool_destroy
   dmabuf_page_pool_free
 
-# required by timer-imx-sysctr.ko
-  clockevents_config_and_register
-  timer_of_init
+# required by timer-imx-tpm.ko
+  clocksource_mmio_init
+  clocksource_mmio_readl_up
+  sched_clock_register
 
 # required by trusty-ipc.ko
   _copy_from_iter
