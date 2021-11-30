@@ -3563,13 +3563,14 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_sta *mvmsta;
+	struct iwl_mvm_sta *mvmsta = NULL;
 	struct iwl_mvm_key_pn *ptk_pn;
 	int keyidx = key->keyidx;
 	int ret, i;
 	u8 key_offset;
 
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	if (sta)
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -3671,7 +3672,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		}
 
 		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
-		    sta && iwl_mvm_has_new_rx_api(mvm) &&
+		    mvmsta && iwl_mvm_has_new_rx_api(mvm) &&
 		    key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
 		    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||
 		     key->cipher == WLAN_CIPHER_SUITE_GCMP ||
@@ -3705,7 +3706,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		else
 			key_offset = STA_KEY_IDX_INVALID;
 
-		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+		if (mvmsta && key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
 			mvmsta->pairwise_cipher = key->cipher;
 
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
@@ -3748,7 +3749,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			break;
 		}
 
-		if (sta && iwl_mvm_has_new_rx_api(mvm) &&
+		if (mvmsta && iwl_mvm_has_new_rx_api(mvm) &&
 		    key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
 		    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||
 		     key->cipher == WLAN_CIPHER_SUITE_GCMP ||

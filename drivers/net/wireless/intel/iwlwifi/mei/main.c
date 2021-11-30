@@ -632,6 +632,8 @@ static void iwl_mei_handle_csme_filters(struct mei_cl_device *cldev,
 					  lockdep_is_held(&iwl_mei_mutex));
 
 	new_filters = kzalloc(sizeof(*new_filters), GFP_KERNEL);
+	if (!new_filters)
+		return;
 
 	/* Copy the OOB filters */
 	new_filters->filters = filters->filters;
