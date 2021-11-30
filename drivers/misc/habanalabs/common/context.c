@@ -97,10 +97,8 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		/* The engines are stopped as there is no executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
-		 * Stop only if this is the compute context, as there can be
-		 * only one compute context
 		 */
-		if ((hdev->in_debug) && (hdev->compute_ctx == ctx))
+		if (hdev->in_debug)
 			hl_device_set_debug_mode(hdev, false);
 
 		hdev->asic_funcs->ctx_fini(ctx);
