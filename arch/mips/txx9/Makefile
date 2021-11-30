@@ -14,4 +14,3 @@ obj-$(CONFIG_TOSHIBA_JMR3927)  += jmr3927/
 # Toshiba RBTX49XX boards
 #
 obj-$(CONFIG_TOSHIBA_RBTX4927) += rbtx4927/
-obj-$(CONFIG_TOSHIBA_RBTX4939) += rbtx4939/

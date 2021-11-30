@@ -315,11 +315,6 @@ static void __init select_board(void)
 		txx9_board_vec = &rbtx4937_vec;
 		break;
 #endif
-#ifdef CONFIG_TOSHIBA_RBTX4939
-	case 0x4939:
-		txx9_board_vec = &rbtx4939_vec;
-		break;
-#endif
 	}
 #endif
 }
@@ -583,21 +578,6 @@ static unsigned long __swizzle_addr_none(unsigned long port)
 }
 unsigned long (*__swizzle_addr_b)(unsigned long port) = __swizzle_addr_none;
 EXPORT_SYMBOL(__swizzle_addr_b);
-#endif
-
-#ifdef NEEDS_TXX9_IOSWABW
-static u16 ioswabw_default(volatile u16 *a, u16 x)
-{
-	return le16_to_cpu(x);
-}
-static u16 __mem_ioswabw_default(volatile u16 *a, u16 x)
-{
-	return x;
-}
-u16 (*ioswabw)(volatile u16 *a, u16 x) = ioswabw_default;
-EXPORT_SYMBOL(ioswabw);
-u16 (*__mem_ioswabw)(volatile u16 *a, u16 x) = __mem_ioswabw_default;
-EXPORT_SYMBOL(__mem_ioswabw);
 #endif
 
 void __init txx9_physmap_flash_init(int no, unsigned long addr,
