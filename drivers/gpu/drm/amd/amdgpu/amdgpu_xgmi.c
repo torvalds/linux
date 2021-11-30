@@ -398,6 +398,14 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 		goto pro_end;
 	}
 
+	hive->reset_domain.wq = alloc_ordered_workqueue("amdgpu-reset-hive", 0);
+	if (!hive->reset_domain.wq) {
+		dev_err(adev->dev, "XGMI: failed allocating wq for reset domain!\n");
+		kfree(hive);
+		hive = NULL;
+		goto pro_end;
+	}
+
 	hive->hive_id = adev->gmc.xgmi.hive_id;
 	INIT_LIST_HEAD(&hive->device_list);
 	INIT_LIST_HEAD(&hive->node);
@@ -407,6 +415,7 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 	task_barrier_init(&hive->tb);
 	hive->pstate = AMDGPU_XGMI_PSTATE_UNKNOWN;
 	hive->hi_req_gpu = NULL;
+
 	/*
 	 * hive pstate on boot is high in vega20 so we have to go to low
 	 * pstate on after boot.

@@ -2398,8 +2398,26 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	if (r)
 		goto init_failed;
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1)
+	if (adev->gmc.xgmi.num_physical_nodes > 1) {
+		struct amdgpu_hive_info *hive;
+
 		amdgpu_xgmi_add_device(adev);
+
+		hive = amdgpu_get_xgmi_hive(adev);
+		if (!hive || !hive->reset_domain.wq) {
+			DRM_ERROR("Failed to obtain reset domain info for XGMI hive:%llx", hive->hive_id);
+			r = -EINVAL;
+			goto init_failed;
+		}
+
+		adev->reset_domain.wq = hive->reset_domain.wq;
+	} else {
+		adev->reset_domain.wq = alloc_ordered_workqueue("amdgpu-reset-dev", 0);
+		if (!adev->reset_domain.wq) {
+			r = -ENOMEM;
+			goto init_failed;
+		}
+	}
 
 	/* Don't init kfd if whole hive need to be reset during init */
 	if (!adev->gmc.xgmi.pending_reset)
