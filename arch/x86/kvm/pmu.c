@@ -55,43 +55,41 @@ static void kvm_pmi_trigger_fn(struct irq_work *irq_work)
 	kvm_pmu_deliver_pmi(vcpu);
 }
 
+static inline void __kvm_perf_overflow(struct kvm_pmc *pmc, bool in_pmi)
+{
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+
+	/* Ignore counters that have been reprogrammed already. */
+	if (test_and_set_bit(pmc->idx, pmu->reprogram_pmi))
+		return;
+
+	__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
+	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
+
+	if (!pmc->intr)
+		return;
+
+	/*
+	 * Inject PMI. If vcpu was in a guest mode during NMI PMI
+	 * can be ejected on a guest mode re-entry. Otherwise we can't
+	 * be sure that vcpu wasn't executing hlt instruction at the
+	 * time of vmexit and is not going to re-enter guest mode until
+	 * woken up. So we should wake it, but this is impossible from
+	 * NMI context. Do it from irq work instead.
+	 */
+	if (in_pmi && !kvm_is_in_guest())
+		irq_work_queue(&pmc_to_pmu(pmc)->irq_work);
+	else
+		kvm_make_request(KVM_REQ_PMI, pmc->vcpu);
+}
+
 static void kvm_perf_overflow(struct perf_event *perf_event,
 			      struct perf_sample_data *data,
 			      struct pt_regs *regs)
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
-	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
-	if (!test_and_set_bit(pmc->idx, pmu->reprogram_pmi)) {
-		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
-		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
-	}
-}
-
-static void kvm_perf_overflow_intr(struct perf_event *perf_event,
-				   struct perf_sample_data *data,
-				   struct pt_regs *regs)
-{
-	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
-	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
-
-	if (!test_and_set_bit(pmc->idx, pmu->reprogram_pmi)) {
-		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
-		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
-
-		/*
-		 * Inject PMI. If vcpu was in a guest mode during NMI PMI
-		 * can be ejected on a guest mode re-entry. Otherwise we can't
-		 * be sure that vcpu wasn't executing hlt instruction at the
-		 * time of vmexit and is not going to re-enter guest mode until
-		 * woken up. So we should wake it, but this is impossible from
-		 * NMI context. Do it from irq work instead.
-		 */
-		if (!kvm_is_in_guest())
-			irq_work_queue(&pmc_to_pmu(pmc)->irq_work);
-		else
-			kvm_make_request(KVM_REQ_PMI, pmc->vcpu);
-	}
+	__kvm_perf_overflow(pmc, true);
 }
 
 static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
@@ -126,7 +124,6 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	}
 
 	event = perf_event_create_kernel_counter(&attr, -1, current,
-						 intr ? kvm_perf_overflow_intr :
 						 kvm_perf_overflow, pmc);
 	if (IS_ERR(event)) {
 		pr_debug_ratelimited("kvm_pmu: event creation failed %ld for pmc->idx = %d\n",
@@ -138,6 +135,7 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	pmc_to_pmu(pmc)->event_count++;
 	clear_bit(pmc->idx, pmc_to_pmu(pmc)->reprogram_pmi);
 	pmc->is_paused = false;
+	pmc->intr = intr;
 }
 
 static void pmc_pause_counter(struct kvm_pmc *pmc)

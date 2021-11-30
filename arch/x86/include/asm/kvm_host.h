@@ -495,6 +495,7 @@ struct kvm_pmc {
 	 */
 	u64 current_config;
 	bool is_paused;
+	bool intr;
 };
 
 struct kvm_pmu {
