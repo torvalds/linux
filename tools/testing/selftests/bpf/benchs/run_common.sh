@@ -33,6 +33,14 @@ function percentage()
 	echo "$*" | sed -E "s/.*Percentage\s=\s+([0-9]+\.[0-9]+).*/\1/"
 }
 
+function ops()
+{
+	echo -n "throughput: "
+	echo -n "$*" | sed -E "s/.*throughput\s+([0-9]+\.[0-9]+ ± [0-9]+\.[0-9]+\sM\sops\/s).*/\1/"
+	echo -n -e ", latency: "
+	echo "$*" | sed -E "s/.*latency\s+([0-9]+\.[0-9]+\sns\/op).*/\1/"
+}
+
 function total()
 {
 	echo "$*" | sed -E "s/.*total operations\s+([0-9]+\.[0-9]+ ± [0-9]+\.[0-9]+M\/s).*/\1/"
@@ -50,6 +58,13 @@ function summarize_percentage()
 	bench="$1"
 	summary=$(echo $2 | tail -n1)
 	printf "%-20s %s%%\n" "$bench" "$(percentage $summary)"
+}
+
+function summarize_ops()
+{
+	bench="$1"
+	summary=$(echo $2 | tail -n1)
+	printf "%-20s %s\n" "$bench" "$(ops $summary)"
 }
 
 function summarize_total()
