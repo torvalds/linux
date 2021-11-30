@@ -121,6 +121,7 @@ struct amd_pmc_dev {
 	u16 minor;
 	u16 rev;
 	struct device *dev;
+	struct pci_dev *rdev;
 	struct mutex lock; /* generic mutex lock */
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;
@@ -533,22 +534,23 @@ static int amd_pmc_probe(struct platform_device *pdev)
 
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!rdev || !pci_match_id(pmc_pci_ids, rdev)) {
-		pci_dev_put(rdev);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_pci_dev_put;
 	}
 
 	dev->cpu_id = rdev->device;
+	dev->rdev = rdev;
 	err = pci_write_config_dword(rdev, AMD_PMC_SMU_INDEX_ADDRESS, AMD_PMC_BASE_ADDR_LO);
 	if (err) {
 		dev_err(dev->dev, "error writing to 0x%x\n", AMD_PMC_SMU_INDEX_ADDRESS);
-		pci_dev_put(rdev);
-		return pcibios_err_to_errno(err);
+		err = pcibios_err_to_errno(err);
+		goto err_pci_dev_put;
 	}
 
 	err = pci_read_config_dword(rdev, AMD_PMC_SMU_INDEX_DATA, &val);
 	if (err) {
-		pci_dev_put(rdev);
-		return pcibios_err_to_errno(err);
+		err = pcibios_err_to_errno(err);
+		goto err_pci_dev_put;
 	}
 
 	base_addr_lo = val & AMD_PMC_BASE_ADDR_HI_MASK;
@@ -556,24 +558,25 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	err = pci_write_config_dword(rdev, AMD_PMC_SMU_INDEX_ADDRESS, AMD_PMC_BASE_ADDR_HI);
 	if (err) {
 		dev_err(dev->dev, "error writing to 0x%x\n", AMD_PMC_SMU_INDEX_ADDRESS);
-		pci_dev_put(rdev);
-		return pcibios_err_to_errno(err);
+		err = pcibios_err_to_errno(err);
+		goto err_pci_dev_put;
 	}
 
 	err = pci_read_config_dword(rdev, AMD_PMC_SMU_INDEX_DATA, &val);
 	if (err) {
-		pci_dev_put(rdev);
-		return pcibios_err_to_errno(err);
+		err = pcibios_err_to_errno(err);
+		goto err_pci_dev_put;
 	}
 
 	base_addr_hi = val & AMD_PMC_BASE_ADDR_LO_MASK;
-	pci_dev_put(rdev);
 	base_addr = ((u64)base_addr_hi << 32 | base_addr_lo);
 
 	dev->regbase = devm_ioremap(dev->dev, base_addr + AMD_PMC_BASE_ADDR_OFFSET,
 				    AMD_PMC_MAPPING_SIZE);
-	if (!dev->regbase)
-		return -ENOMEM;
+	if (!dev->regbase) {
+		err = -ENOMEM;
+		goto err_pci_dev_put;
+	}
 
 	mutex_init(&dev->lock);
 
@@ -582,8 +585,10 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	base_addr_hi = FCH_BASE_PHY_ADDR_HIGH;
 	fch_phys_addr = ((u64)base_addr_hi << 32 | base_addr_lo);
 	dev->fch_virt_addr = devm_ioremap(dev->dev, fch_phys_addr, FCH_SSC_MAPPING_SIZE);
-	if (!dev->fch_virt_addr)
-		return -ENOMEM;
+	if (!dev->fch_virt_addr) {
+		err = -ENOMEM;
+		goto err_pci_dev_put;
+	}
 
 	/* Use SMU to get the s0i3 debug stats */
 	err = amd_pmc_setup_smu_logging(dev);
@@ -594,6 +599,10 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	amd_pmc_dbgfs_register(dev);
 	return 0;
+
+err_pci_dev_put:
+	pci_dev_put(rdev);
+	return err;
 }
 
 static int amd_pmc_remove(struct platform_device *pdev)
@@ -601,6 +610,7 @@ static int amd_pmc_remove(struct platform_device *pdev)
 	struct amd_pmc_dev *dev = platform_get_drvdata(pdev);
 
 	amd_pmc_dbgfs_unregister(dev);
+	pci_dev_put(dev->rdev);
 	mutex_destroy(&dev->lock);
 	return 0;
 }
