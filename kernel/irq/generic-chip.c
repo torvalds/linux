@@ -451,7 +451,7 @@ static void irq_unmap_generic_chip(struct irq_domain *d, unsigned int virq)
 
 }
 
-struct irq_domain_ops irq_generic_chip_ops = {
+const struct irq_domain_ops irq_generic_chip_ops = {
 	.map	= irq_map_generic_chip,
 	.unmap  = irq_unmap_generic_chip,
 	.xlate	= irq_domain_xlate_onetwocell,
