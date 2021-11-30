@@ -759,10 +759,10 @@ int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl,
 {
 	int ret = 0;
 
-	lockdep_assert_held(&ctl->dsp->pwr_lock);
-
 	if (!ctl)
 		return -ENOENT;
+
+	lockdep_assert_held(&ctl->dsp->pwr_lock);
 
 	if (len + off * sizeof(u32) > ctl->len)
 		return -EINVAL;
@@ -827,10 +827,10 @@ int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl,
 {
 	int ret = 0;
 
-	lockdep_assert_held(&ctl->dsp->pwr_lock);
-
 	if (!ctl)
 		return -ENOENT;
+
+	lockdep_assert_held(&ctl->dsp->pwr_lock);
 
 	if (len + off * sizeof(u32) > ctl->len)
 		return -EINVAL;
