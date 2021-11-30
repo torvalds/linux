@@ -334,6 +334,7 @@ extern "C" {
 #define DRM_FORMAT_MOD_VENDOR_ARM     0x08
 #define DRM_FORMAT_MOD_VENDOR_ALLWINNER 0x09
 #define DRM_FORMAT_MOD_VENDOR_AMLOGIC 0x0a
+#define DRM_FORMAT_MOD_VENDOR_ROCKCHIP 0x0b
 
 /* add more to the end as needed */
 
@@ -1057,6 +1058,15 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  * the scatter layout.
  */
 #define AMLOGIC_FBC_OPTION_MEM_SAVING		(1ULL << 0)
+
+#define ROCKCHIP_TILED_BLOCK_SIZE_MASK		0xf
+#define ROCKCHIP_TILED_BLOCK_SIZE_8x8		(1ULL)
+#define ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE0	(2ULL)
+#define ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE1	(3ULL)
+
+#define DRM_FORMAT_MOD_ROCKCHIP_TILED(_mode) fourcc_mod_code(ROCKCHIP, _mode)
+
+#define IS_ROCKCHIP_TILED_MOD(val) (((val) >> 56) == DRM_FORMAT_MOD_VENDOR_ROCKCHIP)
 
 #if defined(__cplusplus)
 }
