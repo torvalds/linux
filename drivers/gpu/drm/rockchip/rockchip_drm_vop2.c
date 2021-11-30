@@ -8020,8 +8020,10 @@ static int vop2_create_crtc(struct vop2 *vop2)
 
 		if (vp->primary_plane_phy_id >= 0) {
 			win = vop2_find_win_by_phys_id(vop2, vp->primary_plane_phy_id);
-			if (win)
+			if (win) {
 				find_primary_plane = true;
+				win->type = DRM_PLANE_TYPE_PRIMARY;
+			}
 		} else {
 			while (j < vop2->registered_num_wins) {
 				be_used_for_primary_plane = false;
