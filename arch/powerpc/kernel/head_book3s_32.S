@@ -50,13 +50,13 @@
 	mtspr	SPRN_DBAT##n##L,RB
 
 	__HEAD
-_ENTRY(_stext);
+_GLOBAL(_stext);
 
 /*
  * _start is defined this way because the XCOFF loader in the OpenFirmware
  * on the powermac expects the entry point to be a procedure descriptor.
  */
-_ENTRY(_start);
+_GLOBAL(_start);
 	/*
 	 * These are here for legacy reasons, the kernel used to
 	 * need to look like a coff function entry for the pmac
@@ -775,7 +775,7 @@ relocate_kernel:
  * r3 = dest addr, r4 = source addr, r5 = copy limit, r6 = start offset
  * on exit, r3, r4, r5 are unchanged, r6 is updated to be >= r5.
  */
-_ENTRY(copy_and_flush)
+_GLOBAL(copy_and_flush)
 	addi	r5,r5,-4
 	addi	r6,r6,-4
 4:	li	r0,L1_CACHE_BYTES/4
@@ -1073,7 +1073,7 @@ BEGIN_MMU_FTR_SECTION
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	blr
 
-_ENTRY(update_bats)
+_GLOBAL(update_bats)
 	lis	r4, 1f@h
 	ori	r4, r4, 1f@l
 	tophys(r4, r4)

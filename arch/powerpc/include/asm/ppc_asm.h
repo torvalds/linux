@@ -203,10 +203,6 @@ GLUE(.,name):
 
 #else /* 32-bit */
 
-#define _ENTRY(n)	\
-	.globl n;	\
-n:
-
 #define _GLOBAL(n)	\
 	.globl n;	\
 n:
