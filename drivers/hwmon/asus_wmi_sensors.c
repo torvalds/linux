@@ -125,7 +125,7 @@ static enum hwmon_sensor_types asus_data_types[] = {
 	[WATER_FLOW]	= hwmon_fan,
 };
 
-static u32 hwmon_attributes[] = {
+static u32 hwmon_attributes[hwmon_max] = {
 	[hwmon_chip]	= HWMON_C_REGISTER_TZ,
 	[hwmon_temp]	= HWMON_T_INPUT | HWMON_T_LABEL,
 	[hwmon_in]	= HWMON_I_INPUT | HWMON_I_LABEL,
