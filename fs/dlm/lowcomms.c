@@ -58,6 +58,7 @@
 #include "dlm_internal.h"
 #include "lowcomms.h"
 #include "midcomms.h"
+#include "memory.h"
 #include "config.h"
 
 #define NEEDED_RMEM (4*1024*1024)
@@ -189,6 +190,19 @@ static const struct dlm_proto_ops *dlm_proto_ops;
 
 static void process_recv_sockets(struct work_struct *work);
 static void process_send_sockets(struct work_struct *work);
+
+static void writequeue_entry_ctor(void *data)
+{
+	struct writequeue_entry *entry = data;
+
+	INIT_LIST_HEAD(&entry->msgs);
+}
+
+struct kmem_cache *dlm_lowcomms_writequeue_cache_create(void)
+{
+	return kmem_cache_create("dlm_writequeue", sizeof(struct writequeue_entry),
+				 0, 0, writequeue_entry_ctor);
+}
 
 /* need to held writequeue_lock */
 static struct writequeue_entry *con_next_wq(struct connection *con)
@@ -728,7 +742,7 @@ static void dlm_page_release(struct kref *kref)
 						  ref);
 
 	__free_page(e->page);
-	kfree(e);
+	dlm_free_writequeue(e);
 }
 
 static void dlm_msg_release(struct kref *kref)
@@ -1177,21 +1191,23 @@ static struct writequeue_entry *new_writequeue_entry(struct connection *con)
 {
 	struct writequeue_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = dlm_allocate_writequeue();
 	if (!entry)
 		return NULL;
 
 	entry->page = alloc_page(GFP_ATOMIC | __GFP_ZERO);
 	if (!entry->page) {
-		kfree(entry);
+		dlm_free_writequeue(entry);
 		return NULL;
 	}
 
+	entry->offset = 0;
+	entry->len = 0;
+	entry->end = 0;
+	entry->dirty = false;
 	entry->con = con;
 	entry->users = 1;
 	kref_init(&entry->ref);
-	INIT_LIST_HEAD(&entry->msgs);
-
 	return entry;
 }
 
