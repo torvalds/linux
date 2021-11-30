@@ -122,8 +122,8 @@ static int ioh_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
-	pm = ioread32(&chip->reg->regs[chip->ch].pm) &
-					(BIT(num_ports[chip->ch]) - 1);
+	pm = ioread32(&chip->reg->regs[chip->ch].pm);
+	pm &= BIT(num_ports[chip->ch]) - 1;
 	pm |= BIT(nr);
 	iowrite32(pm, &chip->reg->regs[chip->ch].pm);
 
@@ -146,8 +146,8 @@ static int ioh_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
-	pm = ioread32(&chip->reg->regs[chip->ch].pm) &
-				(BIT(num_ports[chip->ch]) - 1);
+	pm = ioread32(&chip->reg->regs[chip->ch].pm);
+	pm &= BIT(num_ports[chip->ch]) - 1;
 	pm &= ~BIT(nr);
 	iowrite32(pm, &chip->reg->regs[chip->ch].pm);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
