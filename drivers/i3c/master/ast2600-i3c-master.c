@@ -963,7 +963,7 @@ static int aspeed_i2c_clk_cfg(struct aspeed_i3c_master *master)
 	return 0;
 }
 
-static void aspeed_i3c_master_set_info(struct aspeed_i3c_master *master,
+static int aspeed_i3c_master_set_info(struct aspeed_i3c_master *master,
 				       struct i3c_device_info *info)
 {
 #define ASPEED_SCU_REV_ID_REG 0x14
@@ -975,7 +975,11 @@ static void aspeed_i3c_master_set_info(struct aspeed_i3c_master *master,
 
 	writel(PID_MANUF_ID_ASPEED << 1, master->regs + SLV_MIPI_PID_VALUE);
 
-	scu = syscon_regmap_lookup_by_compatible("aspeed,aspeed-scu");
+	scu = syscon_regmap_lookup_by_phandle(master->dev->of_node, "aspeed,scu");
+	if (IS_ERR(scu)) {
+		dev_err(master->dev, "cannot to find SCU regmap\n");
+		return -ENODEV;
+	}
 	regmap_read(scu, ASPEED_SCU_REV_ID_REG, &reg);
 	part_id = ASPEED_HW_REV(reg);
 	inst_id = master->base.bus.id;
@@ -989,6 +993,8 @@ static void aspeed_i3c_master_set_info(struct aspeed_i3c_master *master,
 	info->bcr = SLV_CHAR_GET_BCR(reg);
 	info->pid = (u64)readl(master->regs + SLV_MIPI_PID_VALUE) << 32;
 	info->pid |= readl(master->regs + SLV_PID_VALUE);
+
+	return 0;
 };
 
 static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
@@ -1035,8 +1041,11 @@ static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
 	}
 
 	memset(&info, 0, sizeof(info));
-	if (master->is_aspeed)
-		aspeed_i3c_master_set_info(master, &info);
+	if (master->is_aspeed) {
+		ret = aspeed_i3c_master_set_info(master, &info);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
