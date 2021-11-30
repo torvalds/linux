@@ -43,6 +43,7 @@
 #include <linux/wait.h>
 #include <linux/wakelock.h>
 #include <linux/pm_runtime.h>
+#include <linux/sched/mm.h>
 
 #include <asm/cacheflush.h>
 
@@ -185,6 +186,8 @@ struct rga_job {
 	struct dma_buf *dma_buf_dst;
 	struct dma_buf *dma_buf_els;
 
+	/* for rga2 virtual_address */
+	struct mm_struct *mm;
 	struct rga2_mmu_other_t vir_page_table;
 
 	struct dma_fence *out_fence;

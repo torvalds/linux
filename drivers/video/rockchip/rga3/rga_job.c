@@ -218,6 +218,8 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 
 	kref_put(&rga_scheduler->pd_refcount, rga_kref_disable_power);
 
+	mmdrop(job->mm);
+
 	if (job->out_fence)
 		dma_fence_signal(job->out_fence);
 
@@ -706,6 +708,9 @@ int rga_commit(struct rga_req *rga_command_base, int flags)
 		rga_job_free(job);
 		return ret;
 	}
+
+	mmgrab(current->mm);
+	job->mm = current->mm;
 
 	if (flags == RGA_BLIT_ASYNC) {
 		ret = rga_out_fence_alloc(job);

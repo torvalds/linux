@@ -402,7 +402,8 @@ static int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format,
 
 static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 				 unsigned long Memory, uint32_t pageCount,
-				 int writeFlag, int map, struct rga_scheduler_t *scheduler)
+				 int writeFlag, int map, struct rga_scheduler_t *scheduler,
+				 struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
 	int32_t result;
@@ -423,25 +424,25 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 	status = 0;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-	mmap_read_lock(current->mm);
+	mmap_read_lock(mm);
 #else
-	down_read(&current->mm->mmap_sem);
+	down_read(&mm->mmap_sem);
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168) && \
 	LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
-	result = get_user_pages(current, current->mm, Memory << PAGE_SHIFT,
+	result = get_user_pages(current, mm, Memory << PAGE_SHIFT,
 		pageCount, writeFlag ? FOLL_WRITE : 0,
 		pages, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
-	result = get_user_pages(current, current->mm, Memory << PAGE_SHIFT,
+	result = get_user_pages(current, mm, Memory << PAGE_SHIFT,
 		pageCount, writeFlag, 0, pages, NULL);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
-	result = get_user_pages_remote(current, current->mm,
+	result = get_user_pages_remote(current, mm,
 		Memory << PAGE_SHIFT,
 		pageCount, writeFlag, pages, NULL, NULL);
 #else
-	result = get_user_pages_remote(current->mm, Memory << PAGE_SHIFT,
+	result = get_user_pages_remote(mm, Memory << PAGE_SHIFT,
 		pageCount, writeFlag, pages, NULL, NULL);
 #endif
 
@@ -456,9 +457,9 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			put_page(pages[i]);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-		mmap_read_unlock(current->mm);
+		mmap_read_unlock(mm);
 #else
-		up_read(&current->mm->mmap_sem);
+		up_read(&mm->mmap_sem);
 #endif
 		return 0;
 	}
@@ -469,7 +470,7 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 	}
 
 	for (i = 0; i < pageCount; i++) {
-		vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
+		vma = find_vma(mm, (Memory + i) << PAGE_SHIFT);
 		if (!vma) {
 			pr_err("failed to get vma, result = %d, pageCount = %d\n",
 				result, pageCount);
@@ -477,7 +478,7 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			break;
 		}
 
-		pgd = pgd_offset(current->mm, (Memory + i) << PAGE_SHIFT);
+		pgd = pgd_offset(mm, (Memory + i) << PAGE_SHIFT);
 		if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd))) {
 			pr_err("failed to get pgd, result = %d, pageCount = %d\n",
 				result, pageCount);
@@ -514,7 +515,7 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			status = RGA_OUT_OF_RESOURCES;
 			break;
 		}
-		pte = pte_offset_map_lock(current->mm, pmd,
+		pte = pte_offset_map_lock(mm, pmd,
 					 (Memory + i) << PAGE_SHIFT, &ptl);
 		if (pte_none(*pte)) {
 			pr_err("failed to get pte, result = %d, pageCount = %d\n",
@@ -535,9 +536,9 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-	mmap_read_unlock(current->mm);
+	mmap_read_unlock(mm);
 #else
-	up_read(&current->mm->mmap_sem);
+	up_read(&mm->mmap_sem);
 #endif
 
 	return status;
@@ -644,7 +645,7 @@ static int rga2_mmu_flush_cache(struct rga2_mmu_other_t *reg,
 						 MMU_Base,
 						 DstStart, DstPageCount, 1,
 						 MMU_MAP_CLEAN |
-						 MMU_MAP_INVALID, scheduler);
+						 MMU_MAP_INVALID, scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 			if (RGA_DEBUG_CHECK_MODE)
 				rga2_user_memory_check(&pages[0],
@@ -763,7 +764,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 		} else {
 			ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
 						 Src0Start, Src0PageCount,
-						 0, MMU_MAP_CLEAN, scheduler);
+						 0, MMU_MAP_CLEAN, scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 			if (RGA_DEBUG_CHECK_MODE)
 				/* TODO: */
@@ -804,7 +805,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 			ret = rga2_MapUserMemory(&pages[0],
 						 MMU_Base + Src0MemSize,
 						 Src1Start, Src1PageCount,
-						 0, MMU_MAP_CLEAN, scheduler);
+						 0, MMU_MAP_CLEAN, scheduler, job->mm);
 
 			/* Save pagetable to unmap. */
 			reg->MMU_src1_base = MMU_Base + Src0MemSize;
@@ -837,7 +838,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 						 + Src0MemSize + Src1MemSize,
 						 DstStart, DstPageCount, 1,
 						 MMU_MAP_CLEAN |
-						 MMU_MAP_INVALID, scheduler);
+						 MMU_MAP_INVALID, scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 			if (RGA_DEBUG_CHECK_MODE)
 				rga2_user_memory_check(&pages[0],
@@ -853,7 +854,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 			ret = rga2_MapUserMemory(&pages[0], MMU_Base
 						 + Src0MemSize + Src1MemSize,
 						 DstStart, DstPageCount,
-						 1, MMU_MAP_INVALID, scheduler);
+						 1, MMU_MAP_INVALID, scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 			if (RGA_DEBUG_CHECK_MODE)
 				rga2_user_memory_check(&pages[0],
@@ -997,7 +998,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_mmu_other_t *reg,
 			} else {
 				ret = rga2_MapUserMemory(&pages[0],
 					&MMU_Base[0], SrcStart, SrcPageCount,
-					0, MMU_MAP_CLEAN, scheduler);
+					0, MMU_MAP_CLEAN, scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 				if (RGA_DEBUG_CHECK_MODE)
 					rga2_user_memory_check(&pages[0],
@@ -1033,7 +1034,7 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_mmu_other_t *reg,
 					rga2_MapUserMemory(&pages[0],
 							 MMU_Base + SrcMemSize,
 							 DstStart, DstPageCount,
-							 1, MMU_MAP_INVALID, scheduler);
+							 1, MMU_MAP_INVALID, scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 				if (RGA_DEBUG_CHECK_MODE)
 					rga2_user_memory_check(&pages[0],
@@ -1137,7 +1138,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 			} else {
 				ret = rga2_MapUserMemory(&pages[0],
 					&MMU_Base[0], DstStart, DstPageCount,
-					1, MMU_MAP_INVALID, scheduler);
+					1, MMU_MAP_INVALID, scheduler, job->mm);
 			}
 			if (ret < 0) {
 				pr_err("map dst memory failed\n");
@@ -1246,7 +1247,7 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_mmu_other_t *reg,
 			} else {
 				ret = rga2_MapUserMemory(&pages[0],
 						&MMU_Base[0], LutStart,
-						LutPageCount, 0, MMU_MAP_CLEAN, scheduler);
+						LutPageCount, 0, MMU_MAP_CLEAN, scheduler, job->mm);
 			}
 			if (ret < 0) {
 				pr_err("rga2 map palette memory failed\n");
