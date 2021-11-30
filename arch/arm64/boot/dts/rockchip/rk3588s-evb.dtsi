@@ -99,18 +99,6 @@
 		};
 	};
 
-	leds: leds {
-		compatible = "gpio-leds";
-		work_led: work {
-			gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-		};
-	};
-
-	test-power {
-		status = "okay";
-	};
-
 	spdif_tx1_dc: spdif-tx1-dc {
 		status = "disabled";
 		compatible = "linux,spdif-dit";
@@ -127,6 +115,10 @@
 		simple-audio-card,codec {
 			sound-dai = <&spdif_tx1_dc>;
 		};
+	};
+
+	test-power {
+		status = "okay";
 	};
 
 	vcc12v_dcin: vcc12v-dcin {
@@ -190,14 +182,6 @@
 &cpu_b2 {
 	cpu-supply = <&vdd_cpu_big1_s0>;
 	mem-supply = <&vdd_cpu_big1_mem_s0>;
-};
-
-&i2s0_8ch {
-	status = "okay";
-	pinctrl-0 = <&i2s0_lrck
-		     &i2s0_sclk
-		     &i2s0_sdi0
-		     &i2s0_sdo0>;
 };
 
 &dsi0 {
@@ -493,7 +477,7 @@
 				hactive = <1080>;
 				vactive = <1920>;
 				hfront-porch = <15>;
-				hsync-len = <2>;
+				hsync-len = <4>;
 				hback-porch = <30>;
 				vfront-porch = <15>;
 				vsync-len = <2>;
@@ -825,7 +809,7 @@
 				hactive = <1080>;
 				vactive = <1920>;
 				hfront-porch = <15>;
-				hsync-len = <2>;
+				hsync-len = <4>;
 				hback-porch = <30>;
 				vfront-porch = <15>;
 				vsync-len = <2>;
@@ -870,6 +854,14 @@
 	status = "okay";
 };
 
+&i2s0_8ch {
+	status = "okay";
+	pinctrl-0 = <&i2s0_lrck
+		     &i2s0_sclk
+		     &i2s0_sdi0
+		     &i2s0_sdo0>;
+};
+
 &iep {
 	status = "okay";
 };
@@ -895,6 +887,30 @@
 };
 
 &mpp_srv {
+	status = "okay";
+};
+
+&rkvdec_ccu {
+	status = "okay";
+};
+
+&rga3_core0 {
+	status = "okay";
+};
+
+&rga3_0_mmu {
+	status = "okay";
+};
+
+&rga3_core1 {
+	status = "okay";
+};
+
+&rga3_1_mmu {
+	status = "okay";
+};
+
+&rga2 {
 	status = "okay";
 };
 
