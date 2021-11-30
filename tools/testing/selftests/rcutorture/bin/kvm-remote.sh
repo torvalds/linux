@@ -144,7 +144,7 @@ do
 	if test "$ret" -ne 0
 	then
 		echo System $i unreachable, giving up. | tee -a "$oldrun/remote-log"
-		exit 4 | tee -a "$oldrun/remote-log"
+		exit 4
 	fi
 done
 
