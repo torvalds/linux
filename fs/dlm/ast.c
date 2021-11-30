@@ -300,6 +300,7 @@ void dlm_callback_resume(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb, *safe;
 	int count = 0, sum = 0;
+	bool empty;
 
 	clear_bit(LSFL_CB_DELAY, &ls->ls_flags);
 
@@ -315,10 +316,11 @@ more:
 		if (count == MAX_CB_QUEUE)
 			break;
 	}
+	empty = list_empty(&ls->ls_cb_delay);
 	mutex_unlock(&ls->ls_cb_mutex);
 
 	sum += count;
-	if (count == MAX_CB_QUEUE) {
+	if (!empty) {
 		count = 0;
 		cond_resched();
 		goto more;
