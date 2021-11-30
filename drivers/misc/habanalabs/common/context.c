@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -13,13 +13,13 @@ void hl_encaps_handle_do_release(struct kref *ref)
 {
 	struct hl_cs_encaps_sig_handle *handle =
 		container_of(ref, struct hl_cs_encaps_sig_handle, refcount);
-	struct hl_ctx *ctx = handle->hdev->compute_ctx;
-	struct hl_encaps_signals_mgr *mgr = &ctx->sig_mgr;
+	struct hl_encaps_signals_mgr *mgr = &handle->ctx->sig_mgr;
 
 	spin_lock(&mgr->lock);
 	idr_remove(&mgr->handles, handle->id);
 	spin_unlock(&mgr->lock);
 
+	hl_ctx_put(handle->ctx);
 	kfree(handle);
 }
 
@@ -27,8 +27,7 @@ static void hl_encaps_handle_do_release_sob(struct kref *ref)
 {
 	struct hl_cs_encaps_sig_handle *handle =
 		container_of(ref, struct hl_cs_encaps_sig_handle, refcount);
-	struct hl_ctx *ctx = handle->hdev->compute_ctx;
-	struct hl_encaps_signals_mgr *mgr = &ctx->sig_mgr;
+	struct hl_encaps_signals_mgr *mgr = &handle->ctx->sig_mgr;
 
 	/* if we're here, then there was a signals reservation but cs with
 	 * encaps signals wasn't submitted, so need to put refcount
@@ -40,6 +39,7 @@ static void hl_encaps_handle_do_release_sob(struct kref *ref)
 	idr_remove(&mgr->handles, handle->id);
 	spin_unlock(&mgr->lock);
 
+	hl_ctx_put(handle->ctx);
 	kfree(handle);
 }
 

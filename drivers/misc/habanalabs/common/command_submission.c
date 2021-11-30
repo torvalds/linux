@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -1829,6 +1829,9 @@ static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
 	}
 
 	handle->count = count;
+
+	hl_ctx_get(hdev, hpriv->ctx);
+	handle->ctx = hpriv->ctx;
 	mgr = &hpriv->ctx->sig_mgr;
 
 	spin_lock(&mgr->lock);
@@ -1838,7 +1841,7 @@ static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
 	if (hdl_id < 0) {
 		dev_err(hdev->dev, "Failed to allocate IDR for a new signal reservation\n");
 		rc = -EINVAL;
-		goto free_handle;
+		goto put_ctx;
 	}
 
 	handle->id = hdl_id;
@@ -1891,7 +1894,8 @@ remove_idr:
 	idr_remove(&mgr->handles, hdl_id);
 	spin_unlock(&mgr->lock);
 
-free_handle:
+put_ctx:
+	hl_ctx_put(handle->ctx);
 	kfree(handle);
 
 out:
@@ -1953,6 +1957,7 @@ static int cs_ioctl_unreserve_signals(struct hl_fpriv *hpriv, u32 handle_id)
 
 		/* Release the id and free allocated memory of the handle */
 		idr_remove(&mgr->handles, handle_id);
+		hl_ctx_put(encaps_sig_hdl->ctx);
 		kfree(encaps_sig_hdl);
 	} else {
 		rc = -EINVAL;

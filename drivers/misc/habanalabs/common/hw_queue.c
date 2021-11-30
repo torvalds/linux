@@ -574,7 +574,7 @@ static int encaps_sig_first_staged_cs_handler
 	struct hl_encaps_signals_mgr *mgr;
 	int rc = 0;
 
-	mgr = &hdev->compute_ctx->sig_mgr;
+	mgr = &cs->ctx->sig_mgr;
 
 	spin_lock(&mgr->lock);
 	encaps_sig_hdl = idr_find(&mgr->handles, cs->encaps_sig_hdl_id);

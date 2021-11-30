@@ -2757,6 +2757,7 @@ struct hl_device {
  *            wait cs are used to wait of the reserved encaps signals.
  * @hdev: pointer to habanalabs device structure.
  * @hw_sob: pointer to  H/W SOB used in the reservation.
+ * @ctx: pointer to the user's context data structure
  * @cs_seq: staged cs sequence which contains encapsulated signals
  * @id: idr handler id to be used to fetch the handler info
  * @q_idx: stream queue index
@@ -2767,6 +2768,7 @@ struct hl_cs_encaps_sig_handle {
 	struct kref refcount;
 	struct hl_device *hdev;
 	struct hl_hw_sob *hw_sob;
+	struct hl_ctx *ctx;
 	u64  cs_seq;
 	u32  id;
 	u32  q_idx;
