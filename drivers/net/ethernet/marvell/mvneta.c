@@ -3948,7 +3948,7 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 		/* SGMII mode receives the state from the PHY */
 		new_ctrl2 |= MVNETA_GMAC2_INBAND_AN_ENABLE;
-		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		new_clk = MVNETA_GMAC_1MS_CLOCK_ENABLE;
 		new_an = (new_an & ~(MVNETA_GMAC_FORCE_LINK_DOWN |
 				     MVNETA_GMAC_FORCE_LINK_PASS |
 				     MVNETA_GMAC_CONFIG_MII_SPEED |
@@ -3960,7 +3960,7 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	} else {
 		/* 802.3z negotiation - only 1000base-X */
 		new_ctrl0 |= MVNETA_GMAC0_PORT_1000BASE_X;
-		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		new_clk = MVNETA_GMAC_1MS_CLOCK_ENABLE;
 		new_an = (new_an & ~(MVNETA_GMAC_FORCE_LINK_DOWN |
 				     MVNETA_GMAC_FORCE_LINK_PASS |
 				     MVNETA_GMAC_CONFIG_MII_SPEED)) |
@@ -3972,6 +3972,10 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 		if (state->pause & MLO_PAUSE_AN && state->an_enabled)
 			new_an |= MVNETA_GMAC_AN_FLOW_CTRL_EN;
 	}
+
+	/* Set the 1ms clock divisor */
+	if (new_clk == MVNETA_GMAC_1MS_CLOCK_ENABLE)
+		new_clk |= clk_get_rate(pp->clk) / 1000;
 
 	/* Armada 370 documentation says we can only change the port mode
 	 * and in-band enable when the link is down, so force it down
