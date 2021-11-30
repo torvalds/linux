@@ -1913,16 +1913,29 @@ static inline int sk_tx_queue_get(const struct sock *sk)
 	return -1;
 }
 
-static inline void sk_rx_queue_set(struct sock *sk, const struct sk_buff *skb)
+static inline void __sk_rx_queue_set(struct sock *sk,
+				     const struct sk_buff *skb,
+				     bool force_set)
 {
 #ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
 	if (skb_rx_queue_recorded(skb)) {
 		u16 rx_queue = skb_get_rx_queue(skb);
 
-		if (unlikely(READ_ONCE(sk->sk_rx_queue_mapping) != rx_queue))
+		if (force_set ||
+		    unlikely(READ_ONCE(sk->sk_rx_queue_mapping) != rx_queue))
 			WRITE_ONCE(sk->sk_rx_queue_mapping, rx_queue);
 	}
 #endif
+}
+
+static inline void sk_rx_queue_set(struct sock *sk, const struct sk_buff *skb)
+{
+	__sk_rx_queue_set(sk, skb, true);
+}
+
+static inline void sk_rx_queue_update(struct sock *sk, const struct sk_buff *skb)
+{
+	__sk_rx_queue_set(sk, skb, false);
 }
 
 static inline void sk_rx_queue_clear(struct sock *sk)
