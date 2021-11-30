@@ -1193,11 +1193,14 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 			pr_devel("DRBG: (re)seeding with %u bytes of entropy\n",
 				 entropylen);
 		} else {
-			/* Get seed from Jitter RNG */
+			/*
+			 * Get seed from Jitter RNG, failures are
+			 * fatal only in FIPS mode.
+			 */
 			ret = crypto_rng_get_bytes(drbg->jent,
 						   entropy + entropylen,
 						   entropylen);
-			if (ret) {
+			if (fips_enabled && ret) {
 				pr_devel("DRBG: jent failed with %d\n", ret);
 
 				/*
