@@ -231,9 +231,7 @@ static void __mctp_key_unlock_drop(struct mctp_sk_key *key, struct net *net,
 	/* and one for the local reference */
 	mctp_key_unref(key);
 
-	if (skb)
-		kfree_skb(skb);
-
+	kfree_skb(skb);
 }
 
 #ifdef CONFIG_MCTP_FLOWS
