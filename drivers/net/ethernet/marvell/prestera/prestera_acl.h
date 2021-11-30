@@ -60,6 +60,10 @@ struct prestera_acl_match {
 	__be32 mask[__PRESTERA_ACL_RULE_MATCH_TYPE_MAX];
 };
 
+struct prestera_acl_action_count {
+	u32 id;
+};
+
 struct prestera_acl_rule_entry_key {
 	u32 prio;
 	struct prestera_acl_match match;
@@ -67,6 +71,9 @@ struct prestera_acl_rule_entry_key {
 
 struct prestera_acl_hw_action_info {
 	enum prestera_acl_rule_action id;
+	union {
+		struct prestera_acl_action_count count;
+	};
 };
 
 /* This struct (arg) used only to be passed as parameter for

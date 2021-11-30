@@ -117,6 +117,12 @@ enum prestera_hw_vtcam_direction_t {
 	PRESTERA_HW_VTCAM_DIR_EGRESS = 1,
 };
 
+enum {
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_0 = 0,
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_1 = 1,
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_2 = 2,
+};
+
 struct prestera_switch;
 struct prestera_port;
 struct prestera_port_stats;
@@ -130,6 +136,7 @@ typedef void (*prestera_event_cb_t)
 struct prestera_rxtx_params;
 struct prestera_acl_hw_action_info;
 struct prestera_acl_iface;
+struct prestera_counter_stats;
 
 /* Switch API */
 int prestera_hw_switch_init(struct prestera_switch *sw);
@@ -210,6 +217,20 @@ int prestera_hw_vtcam_iface_bind(struct prestera_switch *sw,
 int prestera_hw_vtcam_iface_unbind(struct prestera_switch *sw,
 				   struct prestera_acl_iface *iface,
 				   u32 vtcam_id);
+
+/* Counter API */
+int prestera_hw_counter_trigger(struct prestera_switch *sw, u32 block_id);
+int prestera_hw_counter_abort(struct prestera_switch *sw);
+int prestera_hw_counters_get(struct prestera_switch *sw, u32 idx,
+			     u32 *len, bool *done,
+			     struct prestera_counter_stats *stats);
+int prestera_hw_counter_block_get(struct prestera_switch *sw,
+				  u32 client, u32 *block_id, u32 *offset,
+				  u32 *num_counters);
+int prestera_hw_counter_block_release(struct prestera_switch *sw,
+				      u32 block_id);
+int prestera_hw_counter_clear(struct prestera_switch *sw, u32 block_id,
+			      u32 counter_id);
 
 /* SPAN API */
 int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id);

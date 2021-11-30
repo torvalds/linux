@@ -9,6 +9,7 @@
 #include "prestera.h"
 #include "prestera_hw.h"
 #include "prestera_acl.h"
+#include "prestera_counter.h"
 
 #define PRESTERA_SWITCH_INIT_TIMEOUT_MS (30 * 1000)
 
@@ -37,6 +38,13 @@ enum prestera_cmd_type_t {
 	PRESTERA_CMD_TYPE_BRIDGE_DELETE = 0x401,
 	PRESTERA_CMD_TYPE_BRIDGE_PORT_ADD = 0x402,
 	PRESTERA_CMD_TYPE_BRIDGE_PORT_DELETE = 0x403,
+
+	PRESTERA_CMD_TYPE_COUNTER_GET = 0x510,
+	PRESTERA_CMD_TYPE_COUNTER_ABORT = 0x511,
+	PRESTERA_CMD_TYPE_COUNTER_TRIGGER = 0x512,
+	PRESTERA_CMD_TYPE_COUNTER_BLOCK_GET = 0x513,
+	PRESTERA_CMD_TYPE_COUNTER_BLOCK_RELEASE = 0x514,
+	PRESTERA_CMD_TYPE_COUNTER_CLEAR = 0x515,
 
 	PRESTERA_CMD_TYPE_VTCAM_CREATE = 0x540,
 	PRESTERA_CMD_TYPE_VTCAM_DESTROY = 0x541,
@@ -408,7 +416,34 @@ struct prestera_msg_vtcam_resp {
 
 struct prestera_msg_acl_action {
 	__le32 id;
-	__le32 __reserved[7];
+	__le32 __reserved;
+	union {
+		struct {
+			__le32 id;
+		} count;
+		__le32 reserved[6];
+	};
+};
+
+struct prestera_msg_counter_req {
+	struct prestera_msg_cmd cmd;
+	__le32 client;
+	__le32 block_id;
+	__le32 num_counters;
+};
+
+struct prestera_msg_counter_stats {
+	__le64 packets;
+	__le64 bytes;
+};
+
+struct prestera_msg_counter_resp {
+	struct prestera_msg_ret ret;
+	__le32 block_id;
+	__le32 offset;
+	__le32 num_counters;
+	__le32 done;
+	struct prestera_msg_counter_stats stats[0];
 };
 
 struct prestera_msg_span_req {
@@ -512,6 +547,8 @@ static void prestera_hw_build_tests(void)
 	BUILD_BUG_ON(sizeof(struct prestera_msg_vtcam_rule_del_req) != 12);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_vtcam_bind_req) != 20);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_acl_action) != 32);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_req) != 16);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_stats) != 16);
 
 	/* check responses */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_common_resp) != 8);
@@ -523,6 +560,7 @@ static void prestera_hw_build_tests(void)
 	BUILD_BUG_ON(sizeof(struct prestera_msg_span_resp) != 12);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_rxtx_resp) != 12);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_vtcam_resp) != 16);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_resp) != 24);
 
 	/* check events */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_event_port) != 20);
@@ -1071,6 +1109,9 @@ prestera_acl_rule_add_put_action(struct prestera_msg_acl_action *action,
 	case PRESTERA_ACL_RULE_ACTION_DROP:
 	case PRESTERA_ACL_RULE_ACTION_TRAP:
 		/* just rule action id, no specific data */
+		break;
+	case PRESTERA_ACL_RULE_ACTION_COUNT:
+		action->count.id = __cpu_to_le32(info->count.id);
 		break;
 	default:
 		return -EINVAL;
@@ -1830,4 +1871,101 @@ void prestera_hw_event_handler_unregister(struct prestera_switch *sw,
 
 	list_del_rcu(&eh->list);
 	kfree_rcu(eh, rcu);
+}
+
+int prestera_hw_counter_trigger(struct prestera_switch *sw, u32 block_id)
+{
+	struct prestera_msg_counter_req req = {
+		.block_id = __cpu_to_le32(block_id)
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_COUNTER_TRIGGER,
+			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_counter_abort(struct prestera_switch *sw)
+{
+	struct prestera_msg_counter_req req;
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_COUNTER_ABORT,
+			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_counters_get(struct prestera_switch *sw, u32 idx,
+			     u32 *len, bool *done,
+			     struct prestera_counter_stats *stats)
+{
+	struct prestera_msg_counter_resp *resp;
+	struct prestera_msg_counter_req req = {
+		.block_id = __cpu_to_le32(idx),
+		.num_counters = __cpu_to_le32(*len),
+	};
+	size_t size = sizeof(*resp) + sizeof(*resp->stats) * (*len);
+	int err, i;
+
+	resp = kmalloc(size, GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
+
+	err = prestera_cmd_ret(sw, PRESTERA_CMD_TYPE_COUNTER_GET,
+			       &req.cmd, sizeof(req), &resp->ret, size);
+	if (err)
+		goto free_buff;
+
+	for (i = 0; i < __le32_to_cpu(resp->num_counters); i++) {
+		stats[i].packets += __le64_to_cpu(resp->stats[i].packets);
+		stats[i].bytes += __le64_to_cpu(resp->stats[i].bytes);
+	}
+
+	*len = __le32_to_cpu(resp->num_counters);
+	*done = __le32_to_cpu(resp->done);
+
+free_buff:
+	kfree(resp);
+	return err;
+}
+
+int prestera_hw_counter_block_get(struct prestera_switch *sw,
+				  u32 client, u32 *block_id, u32 *offset,
+				  u32 *num_counters)
+{
+	struct prestera_msg_counter_resp resp;
+	struct prestera_msg_counter_req req = {
+		.client = __cpu_to_le32(client)
+	};
+	int err;
+
+	err = prestera_cmd_ret(sw, PRESTERA_CMD_TYPE_COUNTER_BLOCK_GET,
+			       &req.cmd, sizeof(req), &resp.ret, sizeof(resp));
+	if (err)
+		return err;
+
+	*block_id = __le32_to_cpu(resp.block_id);
+	*offset = __le32_to_cpu(resp.offset);
+	*num_counters = __le32_to_cpu(resp.num_counters);
+
+	return 0;
+}
+
+int prestera_hw_counter_block_release(struct prestera_switch *sw,
+				      u32 block_id)
+{
+	struct prestera_msg_counter_req req = {
+		.block_id = __cpu_to_le32(block_id)
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_COUNTER_BLOCK_RELEASE,
+			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_counter_clear(struct prestera_switch *sw, u32 block_id,
+			      u32 counter_id)
+{
+	struct prestera_msg_counter_req req = {
+		.block_id = __cpu_to_le32(block_id),
+		.num_counters = __cpu_to_le32(counter_id)
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_COUNTER_CLEAR,
+			    &req.cmd, sizeof(req));
 }
