@@ -1271,9 +1271,9 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 	}
 }
 
-static int mv88e6393x_serdes_port_errata(struct mv88e6xxx_chip *chip, int lane)
+static int mv88e6393x_serdes_erratum_4_6(struct mv88e6xxx_chip *chip, int lane)
 {
-	u16 reg, pcs;
+	u16 reg;
 	int err;
 
 	/* mv88e6393x family errata 4.6:
@@ -1300,10 +1300,31 @@ static int mv88e6393x_serdes_port_errata(struct mv88e6xxx_chip *chip, int lane)
 		if (err)
 			return err;
 
-		err = mv88e6390_serdes_power_sgmii(chip, lane, false);
-		if (err)
-			return err;
+		return mv88e6390_serdes_power_sgmii(chip, lane, false);
 	}
+
+	return 0;
+}
+
+int mv88e6393x_serdes_setup_errata(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	err = mv88e6393x_serdes_erratum_4_6(chip, MV88E6393X_PORT0_LANE);
+	if (err)
+		return err;
+
+	err = mv88e6393x_serdes_erratum_4_6(chip, MV88E6393X_PORT9_LANE);
+	if (err)
+		return err;
+
+	return mv88e6393x_serdes_erratum_4_6(chip, MV88E6393X_PORT10_LANE);
+}
+
+static int mv88e6393x_serdes_erratum_4_8(struct mv88e6xxx_chip *chip, int lane)
+{
+	u16 reg, pcs;
+	int err;
 
 	/* mv88e6393x family errata 4.8:
 	 * When a SERDES port is operating in 1000BASE-X or SGMII mode link may
@@ -1334,28 +1355,20 @@ static int mv88e6393x_serdes_port_errata(struct mv88e6xxx_chip *chip, int lane)
 				      MV88E6393X_ERRATA_4_8_REG, reg);
 }
 
-int mv88e6393x_serdes_setup_errata(struct mv88e6xxx_chip *chip)
-{
-	int err;
-
-	err = mv88e6393x_serdes_port_errata(chip, MV88E6393X_PORT0_LANE);
-	if (err)
-		return err;
-
-	err = mv88e6393x_serdes_port_errata(chip, MV88E6393X_PORT9_LANE);
-	if (err)
-		return err;
-
-	return mv88e6393x_serdes_port_errata(chip, MV88E6393X_PORT10_LANE);
-}
-
 int mv88e6393x_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 			    bool on)
 {
 	u8 cmode = chip->ports[port].cmode;
+	int err;
 
 	if (port != 0 && port != 9 && port != 10)
 		return -EOPNOTSUPP;
+
+	if (on) {
+		err = mv88e6393x_serdes_erratum_4_8(chip, lane);
+		if (err)
+			return err;
+	}
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
