@@ -165,7 +165,7 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 	hpriv->ctx = ctx;
 
 	/* TODO: remove the following line for multiple process support */
-	hdev->compute_ctx = ctx;
+	hdev->is_compute_ctx_active = true;
 
 	return 0;
 

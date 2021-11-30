@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -827,7 +827,7 @@ static void goya_set_freq_to_low_job(struct work_struct *work)
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (!hdev->compute_ctx)
+	if (!hdev->is_compute_ctx_active)
 		goya_set_frequency(hdev, PLL_LOW);
 
 	mutex_unlock(&hdev->fpriv_list_lock);

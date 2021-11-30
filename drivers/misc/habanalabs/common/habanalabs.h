@@ -2503,7 +2503,6 @@ struct last_error_session_info {
  * @fpriv_list: list of file private data structures. Each structure is created
  *              when a user opens the device
  * @fpriv_list_lock: protects the fpriv_list
- * @compute_ctx: current compute context executing.
  * @aggregated_cs_counters: aggregated cs counters among all contexts
  * @mmu_priv: device-specific MMU data.
  * @mmu_func: device-related MMU functions.
@@ -2601,6 +2600,7 @@ struct last_error_session_info {
  *                        cases where Linux was not loaded to device CPU
  * @supports_wait_for_multi_cs: true if wait for multi CS is supported
  * @is_in_soft_reset: Device is currently in soft reset process.
+ * @is_compute_ctx_active: Whether there is an active compute context executing.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2655,8 +2655,6 @@ struct hl_device {
 
 	struct list_head		fpriv_list;
 	struct mutex			fpriv_list_lock;
-
-	struct hl_ctx			*compute_ctx;
 
 	struct hl_cs_counters_atomic	aggregated_cs_counters;
 
@@ -2730,6 +2728,7 @@ struct hl_device {
 	u8				supports_wait_for_multi_cs;
 	u8				stream_master_qid_arr_size;
 	u8				is_in_soft_reset;
+	u8				is_compute_ctx_active;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;

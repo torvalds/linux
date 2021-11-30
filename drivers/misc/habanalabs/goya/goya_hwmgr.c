@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -258,7 +258,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (hdev->compute_ctx) {
+	if (hdev->is_compute_ctx_active) {
 		dev_err(hdev->dev,
 			"Can't change PM profile while compute context is opened on the device\n");
 		count = -EPERM;

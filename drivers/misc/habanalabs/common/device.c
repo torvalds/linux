@@ -97,12 +97,12 @@ static void hpriv_release(struct kref *ref)
 			|| hdev->reset_upon_device_release)
 		hl_device_reset(hdev, HL_DRV_RESET_DEV_RELEASE);
 
-	/* Now we can mark the compute_ctx as empty. Even if a reset is running in a different
+	/* Now we can mark the compute_ctx as not active. Even if a reset is running in a different
 	 * thread, we don't care because the in_reset is marked so if a user will try to open
-	 * the device it will fail on that, even if compute_ctx is NULL.
+	 * the device it will fail on that, even if compute_ctx is false.
 	 */
 	mutex_lock(&hdev->fpriv_list_lock);
-	hdev->compute_ctx = NULL;
+	hdev->is_compute_ctx_active = false;
 	mutex_unlock(&hdev->fpriv_list_lock);
 
 	kfree(hpriv);
@@ -1150,7 +1150,7 @@ kill_processes:
 			goto out_err;
 		}
 
-		hdev->compute_ctx = NULL;
+		hdev->is_compute_ctx_active = false;
 
 		rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
 		if (rc) {
@@ -1403,7 +1403,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto mmu_fini;
 	}
 
-	hdev->compute_ctx = NULL;
+	hdev->is_compute_ctx_active = false;
 
 	hdev->asic_funcs->state_dump_init(hdev);
 
