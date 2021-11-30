@@ -5221,11 +5221,9 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 		if_pixclk->rate = hdmi_edp_pixclk;
 		if_dclk->rate = hdmi_edp_dclk;
 	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_DisplayPort) {
-		if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)
-			dclk_out_rate = v_pixclk >> 3;
-		else
-			dclk_out_rate = v_pixclk >> 2;
-		if_pixclk->rate = dclk_out_rate / K;
+		dclk_out_rate = v_pixclk >> 2;
+		dclk_out_rate = dclk_out_rate / K;
+		if_pixclk->rate = dclk_out_rate;
 	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_DSI) {
 		if (vcstate->dsc_enable) {
 			dclk_out_rate = dclk_core_rate / K;
