@@ -434,7 +434,7 @@ static int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 		xdp_stat = &rx_ring->rx_stats.xdp_pass;
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(verdict);
+		bpf_warn_invalid_xdp_action(rx_ring->netdev, xdp_prog, verdict);
 		xdp_stat = &rx_ring->rx_stats.xdp_invalid;
 	}
 

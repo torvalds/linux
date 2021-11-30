@@ -3823,7 +3823,7 @@ mvpp2_run_xdp(struct mvpp2_port *port, struct bpf_prog *prog,
 		}
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(port->dev, prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(port->dev, prog, act);

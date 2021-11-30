@@ -4714,7 +4714,7 @@ static int __stmmac_xdp_run_prog(struct stmmac_priv *priv,
 			res = STMMAC_XDP_REDIRECT;
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(priv->dev, prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(priv->dev, prog, act);

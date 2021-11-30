@@ -590,7 +590,7 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 		nicvf_xdp_sq_append_pkt(nic, sq, (u64)xdp.data, dma_addr, len);
 		return true;
 	default:
-		bpf_warn_invalid_xdp_action(action);
+		bpf_warn_invalid_xdp_action(nic->netdev, prog, action);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(nic->netdev, prog, action);

@@ -8180,13 +8180,13 @@ static bool xdp_is_valid_access(int off, int size,
 	return __is_valid_xdp_access(off, size);
 }
 
-void bpf_warn_invalid_xdp_action(u32 act)
+void bpf_warn_invalid_xdp_action(struct net_device *dev, struct bpf_prog *prog, u32 act)
 {
 	const u32 act_max = XDP_REDIRECT;
 
-	pr_warn_once("%s XDP return value %u, expect packet loss!\n",
+	pr_warn_once("%s XDP return value %u on prog %s (id %d) dev %s, expect packet loss!\n",
 		     act > act_max ? "Illegal" : "Driver unsupported",
-		     act);
+		     act, prog->aux->name, prog->aux->id, dev ? dev->name : "N/A");
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
 

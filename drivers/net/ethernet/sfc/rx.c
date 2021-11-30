@@ -338,7 +338,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 		break;
 
 	default:
-		bpf_warn_invalid_xdp_action(xdp_act);
+		bpf_warn_invalid_xdp_action(efx->net_dev, xdp_prog, xdp_act);
 		efx_free_rx_buffers(rx_queue, rx_buf, 1);
 		channel->n_rx_xdp_bad_drops++;
 		trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);

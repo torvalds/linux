@@ -2623,7 +2623,7 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 		}
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(xdp_act);
+		bpf_warn_invalid_xdp_action(priv->net_dev, xdp_prog, xdp_act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);

@@ -1547,7 +1547,7 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 
 		switch (xdp_act) {
 		default:
-			bpf_warn_invalid_xdp_action(xdp_act);
+			bpf_warn_invalid_xdp_action(rx_ring->ndev, prog, xdp_act);
 			fallthrough;
 		case XDP_ABORTED:
 			trace_xdp_exception(rx_ring->ndev, prog, xdp_act);

@@ -4708,7 +4708,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 	case XDP_PASS:
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(skb->dev, xdp_prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(skb->dev, xdp_prog, act);

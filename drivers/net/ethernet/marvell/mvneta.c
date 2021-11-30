@@ -2239,7 +2239,7 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 			mvneta_xdp_put_buff(pp, rxq, xdp, sinfo, sync);
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(pp->dev, prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(pp->dev, prog, act);

@@ -8422,7 +8422,7 @@ static struct sk_buff *igb_run_xdp(struct igb_adapter *adapter,
 		result = IGB_XDP_REDIR;
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(adapter->netdev, xdp_prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 out_failure:
