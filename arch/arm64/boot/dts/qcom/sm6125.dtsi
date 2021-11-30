@@ -448,6 +448,9 @@
 				 <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&xo_board>;
 			clock-names = "iface", "core", "xo";
+
+			power-domains = <&rpmpd SM6125_VDDCX>;
+
 			bus-width = <8>;
 			non-removable;
 			status = "disabled";
@@ -470,6 +473,8 @@
 			pinctrl-0 = <&sdc2_state_on>;
 			pinctrl-1 = <&sdc2_state_off>;
 			pinctrl-names = "default", "sleep";
+
+			power-domains = <&rpmpd SM6125_VDDCX>;
 
 			bus-width = <4>;
 			status = "disabled";
