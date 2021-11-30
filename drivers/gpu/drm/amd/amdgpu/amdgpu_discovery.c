@@ -379,8 +379,21 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				  ip->major, ip->minor,
 				  ip->revision);
 
-			if (le16_to_cpu(ip->hw_id) == VCN_HWID)
+			if (le16_to_cpu(ip->hw_id) == VCN_HWID) {
+				if (amdgpu_sriov_vf(adev)) {
+					/* SR-IOV modifies each VCN’s revision (uint8)
+					 * Bit [5:0]: original revision value
+					 * Bit [7:6]: en/decode capability:
+					 *     0b00 : VCN function normally
+					 *     0b10 : encode is disabled
+					 *     0b01 : decode is disabled
+					 */
+					adev->vcn.sriov_config[adev->vcn.num_vcn_inst] =
+						(ip->revision & 0xc0) >> 6;
+					ip->revision &= ~0xc0;
+				}
 				adev->vcn.num_vcn_inst++;
+			}
 			if (le16_to_cpu(ip->hw_id) == SDMA0_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA1_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA2_HWID ||
@@ -917,10 +930,8 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 			break;
 		case IP_VERSION(3, 0, 0):
 		case IP_VERSION(3, 0, 16):
-		case IP_VERSION(3, 0, 64):
 		case IP_VERSION(3, 1, 1):
 		case IP_VERSION(3, 0, 2):
-		case IP_VERSION(3, 0, 192):
 			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
 			if (!amdgpu_sriov_vf(adev))
 				amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);
