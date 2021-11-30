@@ -489,18 +489,12 @@ __eprobe_trace_func(struct eprobe_data *edata, void *rec)
 	if (trace_trigger_soft_disabled(edata->file))
 		return;
 
-	fbuffer.trace_ctx = tracing_gen_ctx();
-	fbuffer.trace_file = edata->file;
-
 	dsize = get_eprobe_size(&edata->ep->tp, rec);
-	fbuffer.regs = NULL;
 
-	fbuffer.event =
-		trace_event_buffer_lock_reserve(&fbuffer.buffer, edata->file,
-					call->event.type,
-					sizeof(*entry) + edata->ep->tp.size + dsize,
-					fbuffer.trace_ctx);
-	if (!fbuffer.event)
+	entry = trace_event_buffer_reserve(&fbuffer, edata->file,
+					   sizeof(*entry) + edata->ep->tp.size + dsize);
+
+	if (!entry)
 		return;
 
 	entry = fbuffer.entry = ring_buffer_event_data(fbuffer.event);
