@@ -459,6 +459,21 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 1;
 }
 
+static void setup_fixed_pmc_eventsel(struct kvm_pmu *pmu)
+{
+	size_t size = ARRAY_SIZE(fixed_pmc_events);
+	struct kvm_pmc *pmc;
+	u32 event;
+	int i;
+
+	for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
+		pmc = &pmu->fixed_counters[i];
+		event = fixed_pmc_events[array_index_nospec(i, size)];
+		pmc->eventsel = (intel_arch_events[event].unit_mask << 8) |
+			intel_arch_events[event].eventsel;
+	}
+}
+
 static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -507,6 +522,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 			edx.split.bit_width_fixed, x86_pmu.bit_width_fixed);
 		pmu->counter_bitmask[KVM_PMC_FIXED] =
 			((u64)1 << edx.split.bit_width_fixed) - 1;
+		setup_fixed_pmc_eventsel(pmu);
 	}
 
 	pmu->global_ctrl = ((1ull << pmu->nr_arch_gp_counters) - 1) |
