@@ -84,19 +84,6 @@ static struct dw_scl_sda_cfg hsw_config = {
 	.sda_hold = 0x9,
 };
 
-/* Elkhart Lake HCNT/LCNT/SDA hold time */
-static struct dw_scl_sda_cfg ehl_config = {
-	.ss_hcnt = 0x190,
-	.fs_hcnt = 0x4E,
-	.fp_hcnt = 0x1A,
-	.hs_hcnt = 0x1F,
-	.ss_lcnt = 0x1d6,
-	.fs_lcnt = 0x96,
-	.fp_lcnt = 0x32,
-	.hs_lcnt = 0x36,
-	.sda_hold = 0x1E,
-};
-
 /* NAVI-AMD HCNT/LCNT/SDA hold time */
 static struct dw_scl_sda_cfg navi_amd_config = {
 	.ss_hcnt = 0x1ae,
@@ -213,7 +200,6 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 	},
 	[elkhartlake] = {
 		.bus_num = -1,
-		.scl_sda_cfg = &ehl_config,
 		.get_clk_rate_khz = ehl_get_clk_rate_khz,
 	},
 	[navi_amd] = {
