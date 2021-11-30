@@ -84,6 +84,14 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	vcc_5v: regulator-vcc-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+
 	emmc_pwrseq: emmc-pwrseq {
 		compatible = "mmc-pwrseq-emmc";
 		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
@@ -136,6 +144,7 @@
 	status = "okay";
 	pinctrl-0 = <&hdmi_hpd_pins>, <&hdmi_i2c_pins>;
 	pinctrl-names = "default";
+	hdmi-supply = <&vcc_5v>;
 };
 
 &hdmi_tx_tmds_port {
@@ -219,4 +228,8 @@
 &usb {
 	status = "okay";
 	dr_mode = "host";
+};
+
+&usb2_phy0 {
+	phy-supply = <&vcc_5v>;
 };
