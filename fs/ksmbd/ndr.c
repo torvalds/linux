@@ -148,7 +148,7 @@ static int ndr_read_int16(struct ndr *n, __u16 *value)
 static int ndr_read_int32(struct ndr *n, __u32 *value)
 {
 	if (n->offset + sizeof(__u32) > n->length)
-		return 0;
+		return -EINVAL;
 
 	if (value)
 		*value = le32_to_cpu(*(__le32 *)ndr_get_field(n));
