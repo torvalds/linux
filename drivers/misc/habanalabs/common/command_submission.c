@@ -1838,7 +1838,7 @@ static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
 	if (hdl_id < 0) {
 		dev_err(hdev->dev, "Failed to allocate IDR for a new signal reservation\n");
 		rc = -EINVAL;
-		goto out;
+		goto free_handle;
 	}
 
 	handle->id = hdl_id;
@@ -1891,7 +1891,9 @@ remove_idr:
 	idr_remove(&mgr->handles, hdl_id);
 	spin_unlock(&mgr->lock);
 
+free_handle:
 	kfree(handle);
+
 out:
 	return rc;
 }
