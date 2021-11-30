@@ -1064,10 +1064,8 @@ int tegra_pmc_cpu_remove_clamping(unsigned int cpuid)
 	return tegra_powergate_remove_clamping(id);
 }
 
-static int tegra_pmc_restart_notify(struct notifier_block *this,
-				    unsigned long action, void *data)
+static void tegra_pmc_program_reboot_reason(const char *cmd)
 {
-	const char *cmd = data;
 	u32 value;
 
 	value = tegra_pmc_scratch_readl(pmc, pmc->soc->regs->scratch0);
@@ -1085,6 +1083,25 @@ static int tegra_pmc_restart_notify(struct notifier_block *this,
 	}
 
 	tegra_pmc_scratch_writel(pmc, value, pmc->soc->regs->scratch0);
+}
+
+static int tegra_pmc_reboot_notify(struct notifier_block *this,
+				   unsigned long action, void *data)
+{
+	if (action == SYS_RESTART)
+		tegra_pmc_program_reboot_reason(data);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block tegra_pmc_reboot_notifier = {
+	.notifier_call = tegra_pmc_reboot_notify,
+};
+
+static int tegra_pmc_restart_notify(struct notifier_block *this,
+				    unsigned long action, void *data)
+{
+	u32 value;
 
 	/* reset everything but PMC_SCRATCH0 and PMC_RST_STATUS */
 	value = tegra_pmc_readl(pmc, PMC_CNTRL);
@@ -2888,6 +2905,14 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		err = tegra_powergate_debugfs_init();
 		if (err < 0)
 			goto cleanup_sysfs;
+	}
+
+	err = devm_register_reboot_notifier(&pdev->dev,
+					    &tegra_pmc_reboot_notifier);
+	if (err) {
+		dev_err(&pdev->dev, "unable to register reboot notifier, %d\n",
+			err);
+		goto cleanup_debugfs;
 	}
 
 	err = register_restart_handler(&tegra_pmc_restart_handler);
