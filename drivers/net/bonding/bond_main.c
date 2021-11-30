@@ -71,6 +71,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/if_bonding.h>
+#include <linux/phy.h>
 #include <linux/jiffies.h>
 #include <linux/preempt.h>
 #include <net/route.h>
@@ -4091,7 +4092,10 @@ static int bond_eth_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cm
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct mii_ioctl_data *mii = NULL;
-	int res;
+	const struct net_device_ops *ops;
+	struct net_device *real_dev;
+	struct ifreq ifrr;
+	int res = 0;
 
 	netdev_dbg(bond_dev, "bond_eth_ioctl: cmd=%d\n", cmd);
 
@@ -4117,7 +4121,24 @@ static int bond_eth_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cm
 				mii->val_out = BMSR_LSTATUS;
 		}
 
-		return 0;
+		break;
+	case SIOCSHWTSTAMP:
+	case SIOCGHWTSTAMP:
+		rcu_read_lock();
+		real_dev = bond_option_active_slave_get_rcu(bond);
+		rcu_read_unlock();
+		if (real_dev) {
+			strscpy_pad(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
+			ifrr.ifr_ifru = ifr->ifr_ifru;
+
+			ops = real_dev->netdev_ops;
+			if (netif_device_present(real_dev) && ops->ndo_eth_ioctl)
+				res = ops->ndo_eth_ioctl(real_dev, &ifrr, cmd);
+
+			if (!res)
+				ifr->ifr_ifru = ifrr.ifr_ifru;
+		}
+		break;
 	default:
 		res = -EOPNOTSUPP;
 	}
@@ -5319,10 +5340,40 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 		 BOND_ABI_VERSION);
 }
 
+static int bond_ethtool_get_ts_info(struct net_device *bond_dev,
+				    struct ethtool_ts_info *info)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	const struct ethtool_ops *ops;
+	struct net_device *real_dev;
+	struct phy_device *phydev;
+
+	rcu_read_lock();
+	real_dev = bond_option_active_slave_get_rcu(bond);
+	rcu_read_unlock();
+	if (real_dev) {
+		ops = real_dev->ethtool_ops;
+		phydev = real_dev->phydev;
+
+		if (phy_has_tsinfo(phydev)) {
+			return phy_ts_info(phydev, info);
+		} else if (ops->get_ts_info) {
+			return ops->get_ts_info(real_dev, info);
+		}
+	}
+
+	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
+				SOF_TIMESTAMPING_SOFTWARE;
+	info->phc_index = -1;
+
+	return 0;
+}
+
 static const struct ethtool_ops bond_ethtool_ops = {
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_link_ksettings	= bond_ethtool_get_link_ksettings,
+	.get_ts_info		= bond_ethtool_get_ts_info,
 };
 
 static const struct net_device_ops bond_netdev_ops = {
