@@ -219,9 +219,10 @@ EXPORT_SYMBOL(mscc_miim_setup);
 
 static int mscc_miim_probe(struct platform_device *pdev)
 {
-	struct regmap *mii_regmap, *phy_regmap;
+	struct regmap *mii_regmap, *phy_regmap = NULL;
 	void __iomem *regs, *phy_regs;
 	struct mscc_miim_dev *miim;
+	struct resource *res;
 	struct mii_bus *bus;
 	int ret;
 
@@ -239,17 +240,21 @@ static int mscc_miim_probe(struct platform_device *pdev)
 		return PTR_ERR(mii_regmap);
 	}
 
-	phy_regs = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(phy_regs)) {
-		dev_err(&pdev->dev, "Unable to map internal phy registers\n");
-		return PTR_ERR(phy_regs);
-	}
+	/* This resource is optional */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res) {
+		phy_regs = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(phy_regs)) {
+			dev_err(&pdev->dev, "Unable to map internal phy registers\n");
+			return PTR_ERR(phy_regs);
+		}
 
-	phy_regmap = devm_regmap_init_mmio(&pdev->dev, phy_regs,
-					   &mscc_miim_regmap_config);
-	if (IS_ERR(phy_regmap)) {
-		dev_err(&pdev->dev, "Unable to create phy register regmap\n");
-		return PTR_ERR(phy_regmap);
+		phy_regmap = devm_regmap_init_mmio(&pdev->dev, phy_regs,
+						   &mscc_miim_regmap_config);
+		if (IS_ERR(phy_regmap)) {
+			dev_err(&pdev->dev, "Unable to create phy register regmap\n");
+			return PTR_ERR(phy_regmap);
+		}
 	}
 
 	ret = mscc_miim_setup(&pdev->dev, &bus, "mscc_miim", mii_regmap, 0);
