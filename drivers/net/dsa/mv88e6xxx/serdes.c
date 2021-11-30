@@ -1284,26 +1284,20 @@ static int mv88e6393x_serdes_erratum_4_6(struct mv88e6xxx_chip *chip, int lane)
 	 * It seems that after this workaround the SERDES is automatically
 	 * powered up (the bit is cleared), so power it down.
 	 */
-	if (lane == MV88E6393X_PORT0_LANE || lane == MV88E6393X_PORT9_LANE ||
-	    lane == MV88E6393X_PORT10_LANE) {
-		err = mv88e6390_serdes_read(chip, lane,
-					    MDIO_MMD_PHYXS,
-					    MV88E6393X_SERDES_POC, &reg);
-		if (err)
-			return err;
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6393X_SERDES_POC, &reg);
+	if (err)
+		return err;
 
-		reg &= ~MV88E6393X_SERDES_POC_PDOWN;
-		reg |= MV88E6393X_SERDES_POC_RESET;
+	reg &= ~MV88E6393X_SERDES_POC_PDOWN;
+	reg |= MV88E6393X_SERDES_POC_RESET;
 
-		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-					     MV88E6393X_SERDES_POC, reg);
-		if (err)
-			return err;
+	err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				     MV88E6393X_SERDES_POC, reg);
+	if (err)
+		return err;
 
-		return mv88e6390_serdes_power_sgmii(chip, lane, false);
-	}
-
-	return 0;
+	return mv88e6390_serdes_power_sgmii(chip, lane, false);
 }
 
 int mv88e6393x_serdes_setup_errata(struct mv88e6xxx_chip *chip)
