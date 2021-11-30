@@ -19,7 +19,8 @@ int __init kasan_init_region(void *start, size_t size)
 	block = memblock_alloc(k_size, k_size_base);
 
 	if (block && k_size_base >= SZ_128K && k_start == ALIGN(k_start, k_size_base)) {
-		int k_size_more = 1 << (ffs(k_size - k_size_base) - 1);
+		int shift = ffs(k_size - k_size_base);
+		int k_size_more = shift ? 1 << (shift - 1) : 0;
 
 		setbat(-1, k_start, __pa(block), k_size_base, PAGE_KERNEL);
 		if (k_size_more >= SZ_128K)
