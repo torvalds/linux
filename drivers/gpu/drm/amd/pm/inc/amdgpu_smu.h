@@ -481,6 +481,10 @@ struct stb_context {
 };
 
 #define WORKLOAD_POLICY_MAX 7
+
+/* Used to mask smu debug modes */
+#define SMU_DEBUG_HALT_ON_ERROR		0x1
+
 struct smu_context
 {
 	struct amdgpu_device            *adev;
@@ -569,6 +573,11 @@ struct smu_context
 	struct smu_user_dpm_profile user_dpm_profile;
 
 	struct stb_context stb_context;
+
+	/*
+	 * 0 = disabled (default), otherwise enable corresponding debug mode
+	 */
+	uint32_t smu_debug_mask;
 };
 
 struct i2c_adapter;
