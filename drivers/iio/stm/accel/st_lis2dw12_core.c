@@ -1043,3 +1043,7 @@ int st_lis2dw12_probe(struct device *dev, int irq,
 }
 EXPORT_SYMBOL(st_lis2dw12_probe);
 
+MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_DESCRIPTION("STMicroelectronics st_lis2dw12 driver");
+MODULE_LICENSE("GPL v2");
+
