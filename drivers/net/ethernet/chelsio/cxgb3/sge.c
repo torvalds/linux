@@ -1956,7 +1956,7 @@ static int ofld_poll(struct napi_struct *napi, int budget)
  *	@rx_gather: a gather list of packets if we are building a bundle
  *	@gather_idx: index of the next available slot in the bundle
  *
- *	Process an ingress offload pakcet and add it to the offload ingress
+ *	Process an ingress offload packet and add it to the offload ingress
  *	queue. 	Returns the index of the next available slot in the bundle.
  */
 static inline int rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
@@ -2082,7 +2082,7 @@ static void cxgb3_process_iscsi_prov_pack(struct port_info *pi,
  *	@pad: padding
  *	@lro: large receive offload
  *
- *	Process an ingress ethernet pakcet and deliver it to the stack.
+ *	Process an ingress ethernet packet and deliver it to the stack.
  *	The padding is 2 if the packet was delivered in an Rx buffer and 0
  *	if it was immediate data in a response.
  */
