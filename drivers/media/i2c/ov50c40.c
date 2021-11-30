@@ -6201,8 +6201,8 @@ static void ov50c40_get_otp(struct otp_info *otp,
 		for (i = 0; i < h; i++) {
 			for (j = 0; j < w; j++) {
 				inf->pdaf.gainmap[i * w + j] =
-					(otp->pdaf_data.gainmap[(i * w + j) * 2 + 1] << 8) |
-					otp->pdaf_data.gainmap[(i * w + j) * 2];
+					(otp->pdaf_data.gainmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.gainmap[(i * w + j) * 2 + 1];
 			}
 		}
 		w = otp->pdaf_data.dccmap_width;
@@ -6210,8 +6210,8 @@ static void ov50c40_get_otp(struct otp_info *otp,
 		for (i = 0; i < h; i++) {
 			for (j = 0; j < w; j++) {
 				inf->pdaf.dccmap[i * w + j] =
-					(otp->pdaf_data.dccmap[(i * w + j) * 2 + 1] << 8) |
-					otp->pdaf_data.dccmap[(i * w + j) * 2];
+					(otp->pdaf_data.dccmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.dccmap[(i * w + j) * 2 + 1];
 			}
 		}
 	}
