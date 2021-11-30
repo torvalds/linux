@@ -98,9 +98,9 @@ static void ioh_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 	spin_lock_irqsave(&chip->spinlock, flags);
 	reg_val = ioread32(&chip->reg->regs[chip->ch].po);
 	if (val)
-		reg_val |= (1 << nr);
+		reg_val |= BIT(nr);
 	else
-		reg_val &= ~(1 << nr);
+		reg_val &= ~BIT(nr);
 
 	iowrite32(reg_val, &chip->reg->regs[chip->ch].po);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
@@ -110,7 +110,7 @@ static int ioh_gpio_get(struct gpio_chip *gpio, unsigned nr)
 {
 	struct ioh_gpio *chip =	gpiochip_get_data(gpio);
 
-	return !!(ioread32(&chip->reg->regs[chip->ch].pi) & (1 << nr));
+	return !!(ioread32(&chip->reg->regs[chip->ch].pi) & BIT(nr));
 }
 
 static int ioh_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
@@ -123,15 +123,15 @@ static int ioh_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 	pm = ioread32(&chip->reg->regs[chip->ch].pm) &
-					((1 << num_ports[chip->ch]) - 1);
-	pm |= (1 << nr);
+					(BIT(num_ports[chip->ch]) - 1);
+	pm |= BIT(nr);
 	iowrite32(pm, &chip->reg->regs[chip->ch].pm);
 
 	reg_val = ioread32(&chip->reg->regs[chip->ch].po);
 	if (val)
-		reg_val |= (1 << nr);
+		reg_val |= BIT(nr);
 	else
-		reg_val &= ~(1 << nr);
+		reg_val &= ~BIT(nr);
 	iowrite32(reg_val, &chip->reg->regs[chip->ch].po);
 
 	spin_unlock_irqrestore(&chip->spinlock, flags);
@@ -147,8 +147,8 @@ static int ioh_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 	pm = ioread32(&chip->reg->regs[chip->ch].pm) &
-				((1 << num_ports[chip->ch]) - 1);
-	pm &= ~(1 << nr);
+				(BIT(num_ports[chip->ch]) - 1);
+	pm &= ~BIT(nr);
 	iowrite32(pm, &chip->reg->regs[chip->ch].pm);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 
@@ -304,7 +304,7 @@ static void ioh_irq_unmask(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct ioh_gpio *chip = gc->private;
 
-	iowrite32(1 << (d->irq - chip->irq_base),
+	iowrite32(BIT(d->irq - chip->irq_base),
 		  &chip->reg->regs[chip->ch].imaskclr);
 }
 
@@ -313,7 +313,7 @@ static void ioh_irq_mask(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct ioh_gpio *chip = gc->private;
 
-	iowrite32(1 << (d->irq - chip->irq_base),
+	iowrite32(BIT(d->irq - chip->irq_base),
 		  &chip->reg->regs[chip->ch].imask);
 }
 
@@ -326,7 +326,7 @@ static void ioh_irq_disable(struct irq_data *d)
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 	ien = ioread32(&chip->reg->regs[chip->ch].ien);
-	ien &= ~(1 << (d->irq - chip->irq_base));
+	ien &= ~BIT(d->irq - chip->irq_base);
 	iowrite32(ien, &chip->reg->regs[chip->ch].ien);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 }
@@ -340,7 +340,7 @@ static void ioh_irq_enable(struct irq_data *d)
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 	ien = ioread32(&chip->reg->regs[chip->ch].ien);
-	ien |= 1 << (d->irq - chip->irq_base);
+	ien |= BIT(d->irq - chip->irq_base);
 	iowrite32(ien, &chip->reg->regs[chip->ch].ien);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 }
