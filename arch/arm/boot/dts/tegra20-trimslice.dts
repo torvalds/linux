@@ -322,6 +322,7 @@
 		nvidia,core-pwr-good-time = <3845 3845>;
 		nvidia,core-pwr-off-time = <3875>;
 		nvidia,sys-clock-req-active-high;
+		core-supply = <&vdd_core>;
 	};
 
 	pcie@80003000 {
@@ -440,6 +441,14 @@
 		regulator-name = "pci_vdd";
 		regulator-min-microvolt = <1050000>;
 		regulator-max-microvolt = <1050000>;
+		regulator-always-on;
+	};
+
+	vdd_core: regulator-core {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_core";
+		regulator-min-microvolt = <1300000>;
+		regulator-max-microvolt = <1300000>;
 		regulator-always-on;
 	};
 
