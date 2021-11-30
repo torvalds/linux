@@ -134,8 +134,9 @@ static void aspeed_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		dividend = (u64)NSEC_PER_SEC * (div_l + 1) * duty_pt
 				 << div_h;
 		state->duty_cycle = DIV_ROUND_UP_ULL(dividend, rate);
-	} else
+	} else {
 		state->duty_cycle = clk_en ? state->period : 0;
+	}
 	state->polarity = polarity ? PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
 	state->enabled = pin_en;
 	dev_dbg(dev, "get period: %lldns, duty_cycle: %lldns", state->period,
@@ -152,13 +153,10 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u64 div_h, div_l, divisor, expect_period;
 	bool clk_en;
 
-	expect_period = state->period;
+	rate = clk_get_rate(priv->clk);
+	expect_period = min(div64_u64(ULLONG_MAX, (u64)rate), state->period);
 	dev_dbg(dev, "expect period: %lldns, duty_cycle: %lldns", expect_period,
 		state->duty_cycle);
-
-	rate = clk_get_rate(priv->clk);
-	if (expect_period > div64_u64(ULLONG_MAX, (u64)rate))
-		expect_period = div64_u64(ULLONG_MAX, (u64)rate);
 	/*
 	 * Pick the smallest value for div_h so that div_l can be the biggest
 	 * which results in a finer resolution near the target period value.
@@ -197,10 +195,10 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			   PWM_ASPEED_DUTY_CYCLE_PERIOD,
 			   FIELD_PREP(PWM_ASPEED_DUTY_CYCLE_PERIOD,
 				      PWM_ASPEED_FIXED_PERIOD));
-	if (duty_pt == 0)
+	if (duty_pt == 0) {
 		/* emit inactive level and assert the duty counter reset */
 		clk_en = 0;
-	else {
+	} else {
 		clk_en = 1;
 		if (duty_pt >= (PWM_ASPEED_FIXED_PERIOD + 1))
 			duty_pt = 0;
