@@ -248,6 +248,7 @@ struct prestera_switch {
 	u32 mtu_max;
 	u8 id;
 	struct prestera_lag *lags;
+	struct prestera_counter *counter;
 	u8 lag_member_max;
 	u8 lag_max;
 };

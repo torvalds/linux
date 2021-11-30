@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2020 Marvell International Ltd. All rights reserved. */
+/* Copyright (c) 2020-2021 Marvell International Ltd. All rights reserved. */
 
 #ifndef _PRESTERA_FLOWER_H_
 #define _PRESTERA_FLOWER_H_
 
 #include <net/pkt_cls.h>
 
+struct prestera_switch;
 struct prestera_flow_block;
 
 int prestera_flower_replace(struct prestera_flow_block *block,
