@@ -547,7 +547,7 @@ static void jent_gen_entropy(struct rand_data *ec)
 	/* priming of the ->prev_time value */
 	jent_measure_jitter(ec);
 
-	while (1) {
+	while (!jent_health_failure(ec)) {
 		/* If a stuck measurement is received, repeat measurement */
 		if (jent_measure_jitter(ec))
 			continue;
