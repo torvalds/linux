@@ -55,7 +55,8 @@ enum iavf_vsi_state_t {
 struct iavf_vsi {
 	struct iavf_adapter *back;
 	struct net_device *netdev;
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	unsigned long active_cvlans[BITS_TO_LONGS(VLAN_N_VID)];
+	unsigned long active_svlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 seid;
 	u16 id;
 	DECLARE_BITMAP(state, __IAVF_VSI_STATE_SIZE__);
@@ -146,9 +147,15 @@ struct iavf_mac_filter {
 	};
 };
 
+#define IAVF_VLAN(vid, tpid) ((struct iavf_vlan){ vid, tpid })
+struct iavf_vlan {
+	u16 vid;
+	u16 tpid;
+};
+
 struct iavf_vlan_filter {
 	struct list_head list;
-	u16 vlan;
+	struct iavf_vlan vlan;
 	bool remove;		/* filter needs to be removed */
 	bool add;		/* filter needs to be added */
 };
@@ -354,6 +361,12 @@ struct iavf_adapter {
 			  VIRTCHNL_VF_OFFLOAD_VLAN)
 #define VLAN_V2_ALLOWED(_a) ((_a)->vf_res->vf_cap_flags & \
 			     VIRTCHNL_VF_OFFLOAD_VLAN_V2)
+#define VLAN_V2_FILTERING_ALLOWED(_a) \
+	(VLAN_V2_ALLOWED((_a)) && \
+	 ((_a)->vlan_v2_caps.filtering.filtering_support.outer || \
+	  (_a)->vlan_v2_caps.filtering.filtering_support.inner))
+#define VLAN_FILTERING_ALLOWED(_a) \
+	(VLAN_ALLOWED((_a)) || VLAN_V2_FILTERING_ALLOWED((_a)))
 #define ADV_LINK_SUPPORT(_a) ((_a)->vf_res->vf_cap_flags & \
 			      VIRTCHNL_VF_CAP_ADV_LINK_SPEED)
 #define FDIR_FLTR_SUPPORT(_a) ((_a)->vf_res->vf_cap_flags & \
