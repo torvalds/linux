@@ -220,8 +220,8 @@ void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
 void goya_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);
 int goya_cpucp_info_get(struct hl_device *hdev);
-int goya_debug_coresight(struct hl_device *hdev, void *data);
-void goya_halt_coresight(struct hl_device *hdev);
+int goya_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
+void goya_halt_coresight(struct hl_device *hdev, struct hl_ctx *ctx);
 
 int goya_suspend(struct hl_device *hdev);
 int goya_resume(struct hl_device *hdev);

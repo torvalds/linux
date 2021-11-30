@@ -1288,7 +1288,7 @@ struct hl_asic_funcs {
 	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*set_clock_gating)(struct hl_device *hdev);
 	void (*disable_clock_gating)(struct hl_device *hdev);
-	int (*debug_coresight)(struct hl_device *hdev, void *data);
+	int (*debug_coresight)(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, u64 *mask_arr,
 					u8 mask_len, struct seq_file *s);
 	int (*non_hard_reset_late_init)(struct hl_device *hdev);
@@ -1303,7 +1303,7 @@ struct hl_asic_funcs {
 	int (*init_iatu)(struct hl_device *hdev);
 	u32 (*rreg)(struct hl_device *hdev, u32 reg);
 	void (*wreg)(struct hl_device *hdev, u32 reg, u32 val);
-	void (*halt_coresight)(struct hl_device *hdev);
+	void (*halt_coresight)(struct hl_device *hdev, struct hl_ctx *ctx);
 	int (*ctx_init)(struct hl_ctx *ctx);
 	void (*ctx_fini)(struct hl_ctx *ctx);
 	int (*get_clk_rate)(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
@@ -2867,7 +2867,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp);
 bool hl_device_operational(struct hl_device *hdev,
 		enum hl_device_status *status);
 enum hl_device_status hl_device_status(struct hl_device *hdev);
-int hl_device_set_debug_mode(struct hl_device *hdev, bool enable);
+int hl_device_set_debug_mode(struct hl_device *hdev, struct hl_ctx *ctx, bool enable);
 int hl_hw_queues_create(struct hl_device *hdev);
 void hl_hw_queues_destroy(struct hl_device *hdev);
 int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,

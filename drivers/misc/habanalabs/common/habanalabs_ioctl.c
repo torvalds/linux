@@ -158,7 +158,7 @@ static int hw_idle(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(hw_idle))) ? -EFAULT : 0;
 }
 
-static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
+static int debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, struct hl_debug_args *args)
 {
 	struct hl_debug_params *params;
 	void *input = NULL, *output = NULL;
@@ -200,7 +200,7 @@ static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
 		params->output_size = args->output_size;
 	}
 
-	rc = hdev->asic_funcs->debug_coresight(hdev, params);
+	rc = hdev->asic_funcs->debug_coresight(hdev, ctx, params);
 	if (rc) {
 		dev_err(hdev->dev,
 			"debug coresight operation failed %d\n", rc);
@@ -738,13 +738,14 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 				"Rejecting debug configuration request because device not in debug mode\n");
 			return -EFAULT;
 		}
-		args->input_size =
-			min(args->input_size, hl_debug_struct_size[args->op]);
-		rc = debug_coresight(hdev, args);
+		args->input_size = min(args->input_size, hl_debug_struct_size[args->op]);
+		rc = debug_coresight(hdev, hpriv->ctx, args);
 		break;
+
 	case HL_DEBUG_OP_SET_MODE:
-		rc = hl_device_set_debug_mode(hdev, (bool) args->enable);
+		rc = hl_device_set_debug_mode(hdev, hpriv->ctx, (bool) args->enable);
 		break;
+
 	default:
 		dev_err(hdev->dev, "Invalid request %d\n", args->op);
 		rc = -ENOTTY;

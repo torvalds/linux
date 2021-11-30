@@ -622,7 +622,7 @@ int hl_device_utilization(struct hl_device *hdev, u32 *utilization)
 	return 0;
 }
 
-int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)
+int hl_device_set_debug_mode(struct hl_device *hdev, struct hl_ctx *ctx, bool enable)
 {
 	int rc = 0;
 
@@ -637,7 +637,7 @@ int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)
 		}
 
 		if (!hdev->hard_reset_pending)
-			hdev->asic_funcs->halt_coresight(hdev);
+			hdev->asic_funcs->halt_coresight(hdev, ctx);
 
 		hdev->in_debug = 0;
 

@@ -99,7 +99,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		 * related to the stopped engines. Hence stop it explicitly.
 		 */
 		if (hdev->in_debug)
-			hl_device_set_debug_mode(hdev, false);
+			hl_device_set_debug_mode(hdev, ctx, false);
 
 		hdev->asic_funcs->ctx_fini(ctx);
 		hl_cb_va_pool_fini(ctx);
