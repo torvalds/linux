@@ -20,6 +20,8 @@ struct dlm_lkb *dlm_allocate_lkb(struct dlm_ls *ls);
 void dlm_free_lkb(struct dlm_lkb *l);
 char *dlm_allocate_lvb(struct dlm_ls *ls);
 void dlm_free_lvb(char *l);
+struct dlm_mhandle *dlm_allocate_mhandle(void);
+void dlm_free_mhandle(struct dlm_mhandle *mhandle);
 
 #endif		/* __MEMORY_DOT_H__ */
 

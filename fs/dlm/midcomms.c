@@ -137,6 +137,7 @@
 #include "dlm_internal.h"
 #include "lowcomms.h"
 #include "config.h"
+#include "memory.h"
 #include "lock.h"
 #include "util.h"
 #include "midcomms.h"
@@ -220,6 +221,12 @@ DEFINE_STATIC_SRCU(nodes_srcu);
  */
 static DEFINE_MUTEX(close_lock);
 
+struct kmem_cache *dlm_midcomms_cache_create(void)
+{
+	return kmem_cache_create("dlm_mhandle", sizeof(struct dlm_mhandle),
+				 0, 0, NULL);
+}
+
 static inline const char *dlm_state_str(int state)
 {
 	switch (state) {
@@ -279,7 +286,7 @@ static void dlm_mhandle_release(struct rcu_head *rcu)
 	struct dlm_mhandle *mh = container_of(rcu, struct dlm_mhandle, rcu);
 
 	dlm_lowcomms_put_msg(mh->msg);
-	kfree(mh);
+	dlm_free_mhandle(mh);
 }
 
 static void dlm_mhandle_delete(struct midcomms_node *node,
@@ -1073,10 +1080,12 @@ struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 	/* this is a bug, however we going on and hope it will be resolved */
 	WARN_ON(test_bit(DLM_NODE_FLAG_STOP_TX, &node->flags));
 
-	mh = kzalloc(sizeof(*mh), GFP_NOFS);
+	mh = dlm_allocate_mhandle();
 	if (!mh)
 		goto err;
 
+	mh->committed = false;
+	mh->ack_rcv = NULL;
 	mh->idx = idx;
 	mh->node = node;
 
@@ -1085,7 +1094,7 @@ struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 		msg = dlm_lowcomms_new_msg(nodeid, len, allocation, ppc,
 					   NULL, NULL);
 		if (!msg) {
-			kfree(mh);
+			dlm_free_mhandle(mh);
 			goto err;
 		}
 
@@ -1094,13 +1103,13 @@ struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 		msg = dlm_midcomms_get_msg_3_2(mh, nodeid, len, allocation,
 					       ppc);
 		if (!msg) {
-			kfree(mh);
+			dlm_free_mhandle(mh);
 			goto err;
 		}
 
 		break;
 	default:
-		kfree(mh);
+		dlm_free_mhandle(mh);
 		WARN_ON(1);
 		goto err;
 	}
@@ -1136,7 +1145,7 @@ void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
 		dlm_lowcomms_commit_msg(mh->msg);
 		dlm_lowcomms_put_msg(mh->msg);
 		/* mh is not part of rcu list in this case */
-		kfree(mh);
+		dlm_free_mhandle(mh);
 		break;
 	case DLM_VERSION_3_2:
 		dlm_midcomms_commit_msg_3_2(mh);
