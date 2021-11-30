@@ -201,7 +201,10 @@ static struct writequeue_entry *con_next_wq(struct connection *con)
 
 	e = list_first_entry(&con->writequeue, struct writequeue_entry,
 			     list);
-	if (e->len == 0)
+	/* if len is zero nothing is to send, if there are users filling
+	 * buffers we wait until the users are done so we can send more.
+	 */
+	if (e->users || e->len == 0)
 		return NULL;
 
 	return e;
