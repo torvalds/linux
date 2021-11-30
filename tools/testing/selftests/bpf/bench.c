@@ -134,6 +134,39 @@ void hits_drops_report_final(struct bench_res res[], int res_cnt)
 	       total_ops_mean, total_ops_stddev);
 }
 
+void ops_report_progress(int iter, struct bench_res *res, long delta_ns)
+{
+	double hits_per_sec, hits_per_prod;
+
+	hits_per_sec = res->hits / 1000000.0 / (delta_ns / 1000000000.0);
+	hits_per_prod = hits_per_sec / env.producer_cnt;
+
+	printf("Iter %3d (%7.3lfus): ", iter, (delta_ns - 1000000000) / 1000.0);
+
+	printf("hits %8.3lfM/s (%7.3lfM/prod)\n", hits_per_sec, hits_per_prod);
+}
+
+void ops_report_final(struct bench_res res[], int res_cnt)
+{
+	double hits_mean = 0.0, hits_stddev = 0.0;
+	int i;
+
+	for (i = 0; i < res_cnt; i++)
+		hits_mean += res[i].hits / 1000000.0 / (0.0 + res_cnt);
+
+	if (res_cnt > 1)  {
+		for (i = 0; i < res_cnt; i++)
+			hits_stddev += (hits_mean - res[i].hits / 1000000.0) *
+				       (hits_mean - res[i].hits / 1000000.0) /
+				       (res_cnt - 1.0);
+
+		hits_stddev = sqrt(hits_stddev);
+	}
+	printf("Summary: throughput %8.3lf \u00B1 %5.3lf M ops/s (%7.3lfM ops/prod), ",
+	       hits_mean, hits_stddev, hits_mean / env.producer_cnt);
+	printf("latency %8.3lf ns/op\n", 1000.0 / hits_mean * env.producer_cnt);
+}
+
 const char *argp_program_version = "benchmark";
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
 const char argp_program_doc[] =
@@ -171,10 +204,12 @@ static const struct argp_option opts[] = {
 
 extern struct argp bench_ringbufs_argp;
 extern struct argp bench_bloom_map_argp;
+extern struct argp bench_bpf_loop_argp;
 
 static const struct argp_child bench_parsers[] = {
 	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
 	{ &bench_bloom_map_argp, 0, "Bloom filter map benchmark", 0 },
+	{ &bench_bpf_loop_argp, 0, "bpf_loop helper benchmark", 0 },
 	{},
 };
 
@@ -373,6 +408,7 @@ extern const struct bench bench_bloom_update;
 extern const struct bench bench_bloom_false_positive;
 extern const struct bench bench_hashmap_without_bloom;
 extern const struct bench bench_hashmap_with_bloom;
+extern const struct bench bench_bpf_loop;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -404,6 +440,7 @@ static const struct bench *benchs[] = {
 	&bench_bloom_false_positive,
 	&bench_hashmap_without_bloom,
 	&bench_hashmap_with_bloom,
+	&bench_bpf_loop,
 };
 
 static void setup_benchmark()
