@@ -41,12 +41,8 @@ enum dw_pci_ctl_id_t {
 struct dw_scl_sda_cfg {
 	u32 ss_hcnt;
 	u32 fs_hcnt;
-	u32 fp_hcnt;
-	u32 hs_hcnt;
 	u32 ss_lcnt;
 	u32 fs_lcnt;
-	u32 fp_lcnt;
-	u32 hs_lcnt;
 	u32 sda_hold;
 };
 
@@ -310,12 +306,8 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		cfg = controller->scl_sda_cfg;
 		dev->ss_hcnt = cfg->ss_hcnt;
 		dev->fs_hcnt = cfg->fs_hcnt;
-		dev->fp_hcnt = cfg->fp_hcnt;
-		dev->hs_hcnt = cfg->hs_hcnt;
 		dev->ss_lcnt = cfg->ss_lcnt;
 		dev->fs_lcnt = cfg->fs_lcnt;
-		dev->fp_lcnt = cfg->fp_lcnt;
-		dev->hs_lcnt = cfg->hs_lcnt;
 		dev->sda_hold_time = cfg->sda_hold;
 	}
 
