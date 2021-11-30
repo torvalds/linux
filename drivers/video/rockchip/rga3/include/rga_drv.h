@@ -63,7 +63,7 @@
 /* Driver information */
 #define DRIVER_DESC		"RGA multicore Device Driver"
 #define DRIVER_NAME		"rga_multicore"
-#define DRIVER_VERSION		"1.1.3"
+#define DRIVER_VERSION		"1.1.4"
 #define RGA3_VERSION		"2.000"
 
 /* time limit */

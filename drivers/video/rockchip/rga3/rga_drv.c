@@ -705,12 +705,6 @@ static int __init rga_init(void)
 
 	wake_lock_init(&rga_drvdata->wake_lock, WAKE_LOCK_SUSPEND, "rga");
 
-	ret = platform_driver_register(&rga2_driver);
-	if (ret != 0) {
-		pr_err("Platform device rga2_driver register failed (%d).\n", ret);
-		return ret;
-	}
-
 	ret = platform_driver_register(&rga3_core0_driver);
 	if (ret != 0) {
 		pr_err("Platform device rga3_core0_driver register failed (%d).\n", ret);
@@ -720,6 +714,12 @@ static int __init rga_init(void)
 	ret = platform_driver_register(&rga3_core1_driver);
 	if (ret != 0) {
 		pr_err("Platform device rga3_core1_driver register failed (%d).\n", ret);
+		return ret;
+	}
+
+	ret = platform_driver_register(&rga2_driver);
+	if (ret != 0) {
+		pr_err("Platform device rga2_driver register failed (%d).\n", ret);
 		return ret;
 	}
 
