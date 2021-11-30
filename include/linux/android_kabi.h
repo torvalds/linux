@@ -83,7 +83,11 @@
  *   number: the "number" of the padding variable in the structure.  Start with
  *   1 and go up.
  */
+#ifdef CONFIG_ANDROID_STRUCT_PADDING
 #define ANDROID_KABI_RESERVE(number)	_ANDROID_KABI_RESERVE(number)
+#else
+#define ANDROID_KABI_RESERVE(number)
+#endif
 
 
 /*

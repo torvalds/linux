@@ -978,8 +978,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 #ifdef CONFIG_MEMCG
 	tsk->active_memcg = NULL;
 #endif
-	memset(&tsk->android_vendor_data1, 0, sizeof(tsk->android_vendor_data1));
-	memset(&tsk->android_oem_data1, 0, sizeof(tsk->android_oem_data1));
+
+	android_init_vendor_data(tsk, 1);
+	android_init_oem_data(tsk, 1);
+
 	trace_android_vh_dup_task_struct(tsk, orig);
 	return tsk;
 
