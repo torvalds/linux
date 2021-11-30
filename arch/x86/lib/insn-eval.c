@@ -37,8 +37,6 @@ enum reg_type {
  */
 static bool is_string_insn(struct insn *insn)
 {
-	insn_get_opcode(insn);
-
 	/* All string instructions have a 1-byte opcode. */
 	if (insn->opcode.nbytes != 1)
 		return false;
@@ -1403,6 +1401,9 @@ out:
 void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 {
 	if (!insn || !regs)
+		return (void __user *)-1L;
+
+	if (insn_get_opcode(insn))
 		return (void __user *)-1L;
 
 	switch (insn->addr_bytes) {
