@@ -397,6 +397,15 @@ config SENSORS_ASPEED
 	  This driver can also be built as a module. If so, the module
 	  will be called aspeed_pwm_tacho.
 
+config SENSORS_TACH_ASPEED_AST2600
+	tristate "ASPEED ast2600 Tachometer support"
+	select REGMAP
+	help
+	  This driver provides support for Aspeed ast2600 Tachometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tach-aspeed-ast2600.
+
 config SENSORS_ATXP1
 	tristate "Attansic ATXP1 VID controller"
 	depends on I2C
