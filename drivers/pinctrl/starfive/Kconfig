@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config PINCTRL_STARFIVE
+	bool "Pinctrl driver for the StarFive SoC"
+	depends on OF
+	depends on RISCV || COMPILE_TEST
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  Say yes here to support pin control on the StarFive RISC-V SoC.
+	  This also provides an interface to the GPIO pins not used by other
+	  peripherals supporting inputs, outputs, configuring pull-up/pull-down
+	  and interrupts on input changes.
+	  
+config PINCTRL_STARFIVE_JH7110
+	bool "Pinctrl and GPIO driver for the StarFive jh7100 SoC"
+	depends on PINCTRL_STARFIVE
+	help
+	  This selects the pinctrl driver for jh7100 starfive.
