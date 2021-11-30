@@ -204,6 +204,11 @@ struct kmem_cache *dlm_lowcomms_writequeue_cache_create(void)
 				 0, 0, writequeue_entry_ctor);
 }
 
+struct kmem_cache *dlm_lowcomms_msg_cache_create(void)
+{
+	return kmem_cache_create("dlm_msg", sizeof(struct dlm_msg), 0, 0, NULL);
+}
+
 /* need to held writequeue_lock */
 static struct writequeue_entry *con_next_wq(struct connection *con)
 {
@@ -750,7 +755,7 @@ static void dlm_msg_release(struct kref *kref)
 	struct dlm_msg *msg = container_of(kref, struct dlm_msg, ref);
 
 	kref_put(&msg->entry->ref, dlm_page_release);
-	kfree(msg);
+	dlm_free_msg(msg);
 }
 
 static void free_entry(struct writequeue_entry *e)
@@ -1259,7 +1264,7 @@ static struct dlm_msg *dlm_lowcomms_new_msg_con(struct connection *con, int len,
 	struct writequeue_entry *e;
 	struct dlm_msg *msg;
 
-	msg = kzalloc(sizeof(*msg), allocation);
+	msg = dlm_allocate_msg(allocation);
 	if (!msg)
 		return NULL;
 
@@ -1267,10 +1272,12 @@ static struct dlm_msg *dlm_lowcomms_new_msg_con(struct connection *con, int len,
 
 	e = new_wq_entry(con, len, ppc, cb, data);
 	if (!e) {
-		kfree(msg);
+		dlm_free_msg(msg);
 		return NULL;
 	}
 
+	msg->retransmit = false;
+	msg->orig_msg = NULL;
 	msg->ppc = *ppc;
 	msg->len = len;
 	msg->entry = e;
