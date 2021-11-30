@@ -50,9 +50,6 @@
 	mtspr	SPRN_DBAT##n##L,RB
 
 	__HEAD
-	.stabs	"arch/powerpc/kernel/",N_SO,0,0,0f
-	.stabs	"head_book3s_32.S",N_SO,0,0,0f
-0:
 _ENTRY(_stext);
 
 /*

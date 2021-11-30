@@ -208,7 +208,6 @@ GLUE(.,name):
 n:
 
 #define _GLOBAL(n)	\
-	.stabs __stringify(n:F-1),N_FUN,0,0,n;\
 	.globl n;	\
 n:
 
