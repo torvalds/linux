@@ -1419,6 +1419,54 @@ static int mv88e6393x_serdes_erratum_5_2(struct mv88e6xxx_chip *chip, int lane,
 	return 0;
 }
 
+static int mv88e6393x_serdes_fix_2500basex_an(struct mv88e6xxx_chip *chip,
+					      int lane, u8 cmode, bool on)
+{
+	u16 reg;
+	int err;
+
+	if (cmode != MV88E6XXX_PORT_STS_CMODE_2500BASEX)
+		return 0;
+
+	/* Inband AN is broken on Amethyst in 2500base-x mode when set by
+	 * standard mechanism (via cmode).
+	 * We can get around this by configuring the PCS mode to 1000base-x
+	 * and then writing value 0x58 to register 1e.8000. (This must be done
+	 * while SerDes receiver and transmitter are disabled, which is, when
+	 * this function is called.)
+	 * It seem that when we do this configuration to 2500base-x mode (by
+	 * changing PCS mode to 1000base-x and frequency to 3.125 GHz from
+	 * 1.25 GHz) and then configure to sgmii or 1000base-x, the device
+	 * thinks that it already has SerDes at 1.25 GHz and does not change
+	 * the 1e.8000 register, leaving SerDes at 3.125 GHz.
+	 * To avoid this, change PCS mode back to 2500base-x when disabling
+	 * SerDes from 2500base-x mode.
+	 */
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6393X_SERDES_POC, &reg);
+	if (err)
+		return err;
+
+	reg &= ~(MV88E6393X_SERDES_POC_PCS_MASK | MV88E6393X_SERDES_POC_AN);
+	if (on)
+		reg |= MV88E6393X_SERDES_POC_PCS_1000BASEX |
+		       MV88E6393X_SERDES_POC_AN;
+	else
+		reg |= MV88E6393X_SERDES_POC_PCS_2500BASEX;
+	reg |= MV88E6393X_SERDES_POC_RESET;
+
+	err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				     MV88E6393X_SERDES_POC, reg);
+	if (err)
+		return err;
+
+	err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_VEND1, 0x8000, 0x58);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 int mv88e6393x_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 			    bool on)
 {
@@ -1434,6 +1482,11 @@ int mv88e6393x_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 			return err;
 
 		err = mv88e6393x_serdes_erratum_5_2(chip, lane, cmode);
+		if (err)
+			return err;
+
+		err = mv88e6393x_serdes_fix_2500basex_an(chip, lane, cmode,
+							 true);
 		if (err)
 			return err;
 
@@ -1457,8 +1510,14 @@ int mv88e6393x_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 	if (err)
 		return err;
 
-	if (!on)
+	if (!on) {
 		err = mv88e6393x_serdes_power_lane(chip, lane, false);
+		if (err)
+			return err;
+
+		err = mv88e6393x_serdes_fix_2500basex_an(chip, lane, cmode,
+							 false);
+	}
 
 	return err;
 }
