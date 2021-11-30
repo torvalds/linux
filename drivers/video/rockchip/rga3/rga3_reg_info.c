@@ -188,6 +188,16 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
+	case RGA2_FORMAT_ARGB_8888:
+		win_format = 0x7;
+		pixel_width = 4;
+		win_interleaved = 2;
+		break;
+	case RGA2_FORMAT_ABGR_8888:
+		win_format = 0x9;
+		pixel_width = 4;
+		win_interleaved = 2;
+		break;
 	case RGA2_FORMAT_RGB_888:
 		win_format = 0x5;
 		pixel_width = 3;
@@ -581,6 +591,16 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 		break;
 	case RGA2_FORMAT_BGRA_8888:
 		win_format = 0x8;
+		pixel_width = 4;
+		win_interleaved = 2;
+		break;
+	case RGA2_FORMAT_ARGB_8888:
+		win_format = 0x7;
+		pixel_width = 4;
+		win_interleaved = 2;
+		break;
+	case RGA2_FORMAT_ABGR_8888:
+		win_format = 0x9;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
