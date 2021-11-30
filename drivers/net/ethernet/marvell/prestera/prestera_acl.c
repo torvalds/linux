@@ -33,6 +33,10 @@ struct prestera_acl_rule_entry {
 		struct {
 			u8 valid:1;
 		} accept, drop, trap;
+		struct {
+			u32 id;
+			struct prestera_counter_block *block;
+		} counter;
 	};
 };
 
@@ -335,6 +339,10 @@ int prestera_acl_rule_add(struct prestera_switch *sw,
 	rule->re_arg.vtcam_id = ruleset->vtcam_id;
 	rule->re_key.prio = rule->priority;
 
+	/* setup counter */
+	rule->re_arg.count.valid = true;
+	rule->re_arg.count.client = PRESTERA_HW_COUNTER_CLIENT_LOOKUP_0;
+
 	rule->re = prestera_acl_rule_entry_find(sw->acl, &rule->re_key);
 	err = WARN_ON(rule->re) ? -EEXIST : 0;
 	if (err)
@@ -389,9 +397,20 @@ int prestera_acl_rule_get_stats(struct prestera_acl *acl,
 				struct prestera_acl_rule *rule,
 				u64 *packets, u64 *bytes, u64 *last_use)
 {
+	u64 current_packets;
+	u64 current_bytes;
+	int err;
+
+	err = prestera_counter_stats_get(acl->sw->counter,
+					 rule->re->counter.block,
+					 rule->re->counter.id,
+					 &current_packets, &current_bytes);
+	if (err)
+		return err;
+
+	*packets = current_packets;
+	*bytes = current_bytes;
 	*last_use = jiffies;
-	*packets = 0;
-	*bytes = 0;
 
 	return 0;
 }
@@ -437,6 +456,12 @@ static int __prestera_acl_rule_entry2hw_add(struct prestera_switch *sw,
 		act_hw[act_num].id = PRESTERA_ACL_RULE_ACTION_TRAP;
 		act_num++;
 	}
+	/* counter */
+	if (e->counter.block) {
+		act_hw[act_num].id = PRESTERA_ACL_RULE_ACTION_COUNT;
+		act_hw[act_num].count.id = e->counter.id;
+		act_num++;
+	}
 
 	return prestera_hw_vtcam_rule_add(sw, e->vtcam_id, e->key.prio,
 					  e->key.match.key, e->key.match.mask,
@@ -447,7 +472,8 @@ static void
 __prestera_acl_rule_entry_act_destruct(struct prestera_switch *sw,
 				       struct prestera_acl_rule_entry *e)
 {
-	/* destroy action entry */
+	/* counter */
+	prestera_counter_put(sw->counter, e->counter.block, e->counter.id);
 }
 
 void prestera_acl_rule_entry_destroy(struct prestera_acl *acl,
@@ -476,8 +502,22 @@ __prestera_acl_rule_entry_act_construct(struct prestera_switch *sw,
 	e->drop.valid = arg->drop.valid;
 	/* trap */
 	e->trap.valid = arg->trap.valid;
+	/* counter */
+	if (arg->count.valid) {
+		int err;
+
+		err = prestera_counter_get(sw->counter, arg->count.client,
+					   &e->counter.block,
+					   &e->counter.id);
+		if (err)
+			goto err_out;
+	}
 
 	return 0;
+
+err_out:
+	__prestera_acl_rule_entry_act_destruct(sw, e);
+	return -EINVAL;
 }
 
 struct prestera_acl_rule_entry *

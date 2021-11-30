@@ -5,6 +5,7 @@
 #define _PRESTERA_ACL_H_
 
 #include <linux/types.h>
+#include "prestera_counter.h"
 
 #define PRESTERA_ACL_KEYMASK_PCL_ID		0x3FF
 #define PRESTERA_ACL_KEYMASK_PCL_ID_USER			\
@@ -86,6 +87,10 @@ struct prestera_acl_rule_entry_arg {
 		struct {
 			u8 valid:1;
 		} accept, drop, trap;
+		struct {
+			u8 valid:1;
+			u32 client;
+		} count;
 	};
 };
 
