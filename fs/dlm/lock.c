@@ -1626,21 +1626,24 @@ static int remove_from_waiters_ms(struct dlm_lkb *lkb, struct dlm_message *ms)
 }
 
 /* If there's an rsb for the same resource being removed, ensure
-   that the remove message is sent before the new lookup message.
-   It should be rare to need a delay here, but if not, then it may
-   be worthwhile to add a proper wait mechanism rather than a delay. */
+ * that the remove message is sent before the new lookup message.
+ */
+
+#define DLM_WAIT_PENDING_COND(ls, r)		\
+	(ls->ls_remove_len &&			\
+	 !rsb_cmp(r, ls->ls_remove_name,	\
+		  ls->ls_remove_len))
 
 static void wait_pending_remove(struct dlm_rsb *r)
 {
 	struct dlm_ls *ls = r->res_ls;
  restart:
 	spin_lock(&ls->ls_remove_spin);
-	if (ls->ls_remove_len &&
-	    !rsb_cmp(r, ls->ls_remove_name, ls->ls_remove_len)) {
+	if (DLM_WAIT_PENDING_COND(ls, r)) {
 		log_debug(ls, "delay lookup for remove dir %d %s",
-		  	  r->res_dir_nodeid, r->res_name);
+			  r->res_dir_nodeid, r->res_name);
 		spin_unlock(&ls->ls_remove_spin);
-		msleep(1);
+		wait_event(ls->ls_remove_wait, !DLM_WAIT_PENDING_COND(ls, r));
 		goto restart;
 	}
 	spin_unlock(&ls->ls_remove_spin);
@@ -1792,6 +1795,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		memcpy(ls->ls_remove_name, name, DLM_RESNAME_MAXLEN);
 		spin_unlock(&ls->ls_remove_spin);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		wake_up(&ls->ls_remove_wait);
 
 		send_remove(r);
 
@@ -4075,6 +4079,7 @@ static void send_repeat_remove(struct dlm_ls *ls, char *ms_name, int len)
 	memcpy(ls->ls_remove_name, name, DLM_RESNAME_MAXLEN);
 	spin_unlock(&ls->ls_remove_spin);
 	spin_unlock(&ls->ls_rsbtbl[b].lock);
+	wake_up(&ls->ls_remove_wait);
 
 	rv = _create_message(ls, sizeof(struct dlm_message) + len,
 			     dir_nodeid, DLM_MSG_REMOVE, &ms, &mh);
