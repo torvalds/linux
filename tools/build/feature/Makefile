@@ -32,7 +32,6 @@ FILES=                                          \
          test-numa_num_possible_cpus.bin        \
          test-libperl.bin                       \
          test-libpython.bin                     \
-         test-libpython-version.bin             \
          test-libslang.bin                      \
          test-libslang-include-subdir.bin       \
          test-libtraceevent.bin                 \
@@ -222,9 +221,6 @@ $(OUTPUT)test-libperl.bin:
 
 $(OUTPUT)test-libpython.bin:
 	$(BUILD) $(FLAGS_PYTHON_EMBED)
-
-$(OUTPUT)test-libpython-version.bin:
-	$(BUILD)
 
 $(OUTPUT)test-libbfd.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -ldl
