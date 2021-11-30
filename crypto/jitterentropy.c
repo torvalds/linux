@@ -298,10 +298,6 @@ static int jent_stuck(struct rand_data *ec, __u64 current_delta)
  */
 static int jent_health_failure(struct rand_data *ec)
 {
-	/* Test is only enabled in FIPS mode */
-	if (!jent_fips_enabled())
-		return 0;
-
 	return ec->health_failure;
 }
 
