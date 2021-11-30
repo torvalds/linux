@@ -53,7 +53,9 @@
 #define GPIO_SWPORT_DR_STRIDE	0x0c /* register stride 3*32 bits */
 #define GPIO_SWPORT_DDR_STRIDE	0x0c /* register stride 3*32 bits */
 
+#define GPIO_REG_OFFSET_V1	0
 #define GPIO_REG_OFFSET_V2	1
+#define GPIO_REG_OFFSET_MASK	BIT(0)
 
 #define GPIO_INTMASK_V2		0x44
 #define GPIO_INTTYPE_LEVEL_V2	0x34
@@ -141,7 +143,7 @@ static inline u32 gpio_reg_v2_convert(unsigned int offset)
 
 static inline u32 gpio_reg_convert(struct dwapb_gpio *gpio, unsigned int offset)
 {
-	if (gpio->flags & GPIO_REG_OFFSET_V2)
+	if ((gpio->flags & GPIO_REG_OFFSET_MASK) == GPIO_REG_OFFSET_V2)
 		return gpio_reg_v2_convert(offset);
 
 	return offset;
@@ -668,15 +670,15 @@ static int dwapb_get_clks(struct dwapb_gpio *gpio)
 }
 
 static const struct of_device_id dwapb_of_match[] = {
-	{ .compatible = "snps,dw-apb-gpio", .data = (void *)0},
+	{ .compatible = "snps,dw-apb-gpio", .data = (void *)GPIO_REG_OFFSET_V1},
 	{ .compatible = "apm,xgene-gpio-v2", .data = (void *)GPIO_REG_OFFSET_V2},
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dwapb_of_match);
 
 static const struct acpi_device_id dwapb_acpi_match[] = {
-	{"HISI0181", 0},
-	{"APMC0D07", 0},
+	{"HISI0181", GPIO_REG_OFFSET_V1},
+	{"APMC0D07", GPIO_REG_OFFSET_V1},
 	{"APMC0D81", GPIO_REG_OFFSET_V2},
 	{ }
 };
