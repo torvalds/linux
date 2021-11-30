@@ -475,8 +475,10 @@ static void release_job(struct host1x_job *job)
 	kfree(job_data->used_mappings);
 	kfree(job_data);
 
-	if (pm_runtime_enabled(client->base.dev))
+	if (pm_runtime_enabled(client->base.dev)) {
+		pm_runtime_mark_last_busy(client->base.dev);
 		pm_runtime_put_autosuspend(client->base.dev);
+	}
 }
 
 int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
