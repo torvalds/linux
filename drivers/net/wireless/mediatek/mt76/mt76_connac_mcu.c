@@ -1980,12 +1980,12 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 	}
 	batch_size = DIV_ROUND_UP(n_chan, batch_len);
 
-	if (!phy->cap.has_5ghz)
-		last_ch = chan_list_2ghz[n_chan - 1];
-	else if (phy->cap.has_6ghz)
-		last_ch = chan_list_6ghz[n_chan - 1];
+	if (phy->cap.has_6ghz)
+		last_ch = chan_list_6ghz[ARRAY_SIZE(chan_list_6ghz) - 1];
+	else if (phy->cap.has_5ghz)
+		last_ch = chan_list_5ghz[ARRAY_SIZE(chan_list_5ghz) - 1];
 	else
-		last_ch = chan_list_5ghz[n_chan - 1];
+		last_ch = chan_list_2ghz[ARRAY_SIZE(chan_list_2ghz) - 1];
 
 	for (i = 0; i < batch_size; i++) {
 		struct mt76_connac_tx_power_limit_tlv tx_power_tlv = {};
