@@ -1508,6 +1508,6 @@
 };
 
 &emc_icc_dvfs_opp_table {
-	/delete-node/ opp@666000000;
-	/delete-node/ opp@760000000;
+	/delete-node/ opp-666000000;
+	/delete-node/ opp-760000000;
 };
