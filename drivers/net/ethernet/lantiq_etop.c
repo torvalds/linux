@@ -687,13 +687,13 @@ ltq_etop_probe(struct platform_device *pdev)
 	err = device_property_read_u32(&pdev->dev, "lantiq,tx-burst-length", &priv->tx_burst_len);
 	if (err < 0) {
 		dev_err(&pdev->dev, "unable to read tx-burst-length property\n");
-		return err;
+		goto err_free;
 	}
 
 	err = device_property_read_u32(&pdev->dev, "lantiq,rx-burst-length", &priv->rx_burst_len);
 	if (err < 0) {
 		dev_err(&pdev->dev, "unable to read rx-burst-length property\n");
-		return err;
+		goto err_free;
 	}
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
