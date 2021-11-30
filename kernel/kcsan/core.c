@@ -939,6 +939,22 @@ void __kcsan_check_access(const volatile void *ptr, size_t size, int type)
 }
 EXPORT_SYMBOL(__kcsan_check_access);
 
+#define DEFINE_MEMORY_BARRIER(name, order_before_cond)				\
+	void __kcsan_##name(void)						\
+	{									\
+		struct kcsan_scoped_access *sa = get_reorder_access(get_ctx());	\
+		if (!sa)							\
+			return;							\
+		if (order_before_cond)						\
+			sa->size = 0;						\
+	}									\
+	EXPORT_SYMBOL(__kcsan_##name)
+
+DEFINE_MEMORY_BARRIER(mb, true);
+DEFINE_MEMORY_BARRIER(wmb, sa->type & (KCSAN_ACCESS_WRITE | KCSAN_ACCESS_COMPOUND));
+DEFINE_MEMORY_BARRIER(rmb, !(sa->type & KCSAN_ACCESS_WRITE) || (sa->type & KCSAN_ACCESS_COMPOUND));
+DEFINE_MEMORY_BARRIER(release, true);
+
 /*
  * KCSAN uses the same instrumentation that is emitted by supported compilers
  * for ThreadSanitizer (TSAN).
@@ -1123,10 +1139,19 @@ EXPORT_SYMBOL(__tsan_init);
  * functions, whose job is to also execute the operation itself.
  */
 
+static __always_inline void kcsan_atomic_builtin_memorder(int memorder)
+{
+	if (memorder == __ATOMIC_RELEASE ||
+	    memorder == __ATOMIC_SEQ_CST ||
+	    memorder == __ATOMIC_ACQ_REL)
+		__kcsan_release();
+}
+
 #define DEFINE_TSAN_ATOMIC_LOAD_STORE(bits)                                                        \
 	u##bits __tsan_atomic##bits##_load(const u##bits *ptr, int memorder);                      \
 	u##bits __tsan_atomic##bits##_load(const u##bits *ptr, int memorder)                       \
 	{                                                                                          \
+		kcsan_atomic_builtin_memorder(memorder);                                           \
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE, KCSAN_ACCESS_ATOMIC, _RET_IP_);    \
 		}                                                                                  \
@@ -1136,6 +1161,7 @@ EXPORT_SYMBOL(__tsan_init);
 	void __tsan_atomic##bits##_store(u##bits *ptr, u##bits v, int memorder);                   \
 	void __tsan_atomic##bits##_store(u##bits *ptr, u##bits v, int memorder)                    \
 	{                                                                                          \
+		kcsan_atomic_builtin_memorder(memorder);                                           \
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE,                                    \
 				     KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ATOMIC, _RET_IP_);          \
@@ -1148,6 +1174,7 @@ EXPORT_SYMBOL(__tsan_init);
 	u##bits __tsan_atomic##bits##_##op(u##bits *ptr, u##bits v, int memorder);                 \
 	u##bits __tsan_atomic##bits##_##op(u##bits *ptr, u##bits v, int memorder)                  \
 	{                                                                                          \
+		kcsan_atomic_builtin_memorder(memorder);                                           \
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE,                                    \
 				     KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE |                  \
@@ -1180,6 +1207,7 @@ EXPORT_SYMBOL(__tsan_init);
 	int __tsan_atomic##bits##_compare_exchange_##strength(u##bits *ptr, u##bits *exp,          \
 							      u##bits val, int mo, int fail_mo)    \
 	{                                                                                          \
+		kcsan_atomic_builtin_memorder(mo);                                                 \
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE,                                    \
 				     KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE |                  \
@@ -1195,6 +1223,7 @@ EXPORT_SYMBOL(__tsan_init);
 	u##bits __tsan_atomic##bits##_compare_exchange_val(u##bits *ptr, u##bits exp, u##bits val, \
 							   int mo, int fail_mo)                    \
 	{                                                                                          \
+		kcsan_atomic_builtin_memorder(mo);                                                 \
 		if (!IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS)) {                                    \
 			check_access(ptr, bits / BITS_PER_BYTE,                                    \
 				     KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE |                  \
@@ -1226,10 +1255,47 @@ DEFINE_TSAN_ATOMIC_OPS(64);
 void __tsan_atomic_thread_fence(int memorder);
 void __tsan_atomic_thread_fence(int memorder)
 {
+	kcsan_atomic_builtin_memorder(memorder);
 	__atomic_thread_fence(memorder);
 }
 EXPORT_SYMBOL(__tsan_atomic_thread_fence);
 
+/*
+ * In instrumented files, we emit instrumentation for barriers by mapping the
+ * kernel barriers to an __atomic_signal_fence(), which is interpreted specially
+ * and otherwise has no relation to a real __atomic_signal_fence(). No known
+ * kernel code uses __atomic_signal_fence().
+ *
+ * Since fsanitize=thread instrumentation handles __atomic_signal_fence(), which
+ * are turned into calls to __tsan_atomic_signal_fence(), such instrumentation
+ * can be disabled via the __no_kcsan function attribute (vs. an explicit call
+ * which could not). When __no_kcsan is requested, __atomic_signal_fence()
+ * generates no code.
+ *
+ * Note: The result of using __atomic_signal_fence() with KCSAN enabled is
+ * potentially limiting the compiler's ability to reorder operations; however,
+ * if barriers were instrumented with explicit calls (without LTO), the compiler
+ * couldn't optimize much anyway. The result of a hypothetical architecture
+ * using __atomic_signal_fence() in normal code would be KCSAN false negatives.
+ */
 void __tsan_atomic_signal_fence(int memorder);
-void __tsan_atomic_signal_fence(int memorder) { }
+noinline void __tsan_atomic_signal_fence(int memorder)
+{
+	switch (memorder) {
+	case __KCSAN_BARRIER_TO_SIGNAL_FENCE_mb:
+		__kcsan_mb();
+		break;
+	case __KCSAN_BARRIER_TO_SIGNAL_FENCE_wmb:
+		__kcsan_wmb();
+		break;
+	case __KCSAN_BARRIER_TO_SIGNAL_FENCE_rmb:
+		__kcsan_rmb();
+		break;
+	case __KCSAN_BARRIER_TO_SIGNAL_FENCE_release:
+		__kcsan_release();
+		break;
+	default:
+		break;
+	}
+}
 EXPORT_SYMBOL(__tsan_atomic_signal_fence);

@@ -36,6 +36,36 @@
  */
 void __kcsan_check_access(const volatile void *ptr, size_t size, int type);
 
+/*
+ * See definition of __tsan_atomic_signal_fence() in kernel/kcsan/core.c.
+ * Note: The mappings are arbitrary, and do not reflect any real mappings of C11
+ * memory orders to the LKMM memory orders and vice-versa!
+ */
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_mb	__ATOMIC_SEQ_CST
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_wmb	__ATOMIC_ACQ_REL
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_rmb	__ATOMIC_ACQUIRE
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_release	__ATOMIC_RELEASE
+
+/**
+ * __kcsan_mb - full memory barrier instrumentation
+ */
+void __kcsan_mb(void);
+
+/**
+ * __kcsan_wmb - write memory barrier instrumentation
+ */
+void __kcsan_wmb(void);
+
+/**
+ * __kcsan_rmb - read memory barrier instrumentation
+ */
+void __kcsan_rmb(void);
+
+/**
+ * __kcsan_release - release barrier instrumentation
+ */
+void __kcsan_release(void);
+
 /**
  * kcsan_disable_current - disable KCSAN for the current context
  *
@@ -159,6 +189,10 @@ void kcsan_end_scoped_access(struct kcsan_scoped_access *sa);
 static inline void __kcsan_check_access(const volatile void *ptr, size_t size,
 					int type) { }
 
+static inline void __kcsan_mb(void)			{ }
+static inline void __kcsan_wmb(void)			{ }
+static inline void __kcsan_rmb(void)			{ }
+static inline void __kcsan_release(void)		{ }
 static inline void kcsan_disable_current(void)		{ }
 static inline void kcsan_enable_current(void)		{ }
 static inline void kcsan_enable_current_nowarn(void)	{ }
@@ -191,12 +225,45 @@ static inline void kcsan_end_scoped_access(struct kcsan_scoped_access *sa) { }
  */
 #define __kcsan_disable_current kcsan_disable_current
 #define __kcsan_enable_current kcsan_enable_current_nowarn
-#else
+#else /* __SANITIZE_THREAD__ */
 static inline void kcsan_check_access(const volatile void *ptr, size_t size,
 				      int type) { }
 static inline void __kcsan_enable_current(void)  { }
 static inline void __kcsan_disable_current(void) { }
-#endif
+#endif /* __SANITIZE_THREAD__ */
+
+#if defined(CONFIG_KCSAN_WEAK_MEMORY) && defined(__SANITIZE_THREAD__)
+/*
+ * Normal barrier instrumentation is not done via explicit calls, but by mapping
+ * to a repurposed __atomic_signal_fence(), which normally does not generate any
+ * real instructions, but is still intercepted by fsanitize=thread. This means,
+ * like any other compile-time instrumentation, barrier instrumentation can be
+ * disabled with the __no_kcsan function attribute.
+ *
+ * Also see definition of __tsan_atomic_signal_fence() in kernel/kcsan/core.c.
+ */
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE(name)					\
+	static __always_inline void kcsan_##name(void)				\
+	{									\
+		barrier();							\
+		__atomic_signal_fence(__KCSAN_BARRIER_TO_SIGNAL_FENCE_##name);	\
+		barrier();							\
+	}
+__KCSAN_BARRIER_TO_SIGNAL_FENCE(mb)
+__KCSAN_BARRIER_TO_SIGNAL_FENCE(wmb)
+__KCSAN_BARRIER_TO_SIGNAL_FENCE(rmb)
+__KCSAN_BARRIER_TO_SIGNAL_FENCE(release)
+#elif defined(CONFIG_KCSAN_WEAK_MEMORY) && defined(__KCSAN_INSTRUMENT_BARRIERS__)
+#define kcsan_mb	__kcsan_mb
+#define kcsan_wmb	__kcsan_wmb
+#define kcsan_rmb	__kcsan_rmb
+#define kcsan_release	__kcsan_release
+#else /* CONFIG_KCSAN_WEAK_MEMORY && ... */
+static inline void kcsan_mb(void)		{ }
+static inline void kcsan_wmb(void)		{ }
+static inline void kcsan_rmb(void)		{ }
+static inline void kcsan_release(void)		{ }
+#endif /* CONFIG_KCSAN_WEAK_MEMORY && ... */
 
 /**
  * __kcsan_check_read - check regular read access for races
