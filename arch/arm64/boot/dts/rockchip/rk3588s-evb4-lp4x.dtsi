@@ -483,6 +483,7 @@
 		pinctrl-0 = <&hym8563_int>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PB0 IRQ_TYPE_LEVEL_LOW>;
+		status = "okay";
 	};
 };
 
@@ -492,10 +493,6 @@
 
 &mipi_dcphy1 {
 	status = "disabled";
-};
-
-&sdmmc {
-	status = "okay";
 };
 
 &pdm0 {
@@ -597,6 +594,10 @@
 	pinctrl-0 = <&pwm13m1_pins>;
 };
 
+&sdmmc {
+	status = "okay";
+};
+
 &spdif_tx1 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -609,6 +610,13 @@
 
 &spdif_tx1_sound {
 	status = "okay";
+};
+
+&spi2 {
+	pinctrl-names = "default", "high_speed";
+	pinctrl-0 = <&spi2m2_cs0 &spi2m2_pins>;
+	pinctrl-1 = <&spi2m2_cs0 &spi2m2_pins_hs>;
+	num-cs = <1>;
 };
 
 &u2phy2_host {
