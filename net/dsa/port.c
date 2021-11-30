@@ -981,8 +981,11 @@ static void dsa_port_phylink_validate(struct phylink_config *config,
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
 
-	if (!ds->ops->phylink_validate)
+	if (!ds->ops->phylink_validate) {
+		if (config->mac_capabilities)
+			phylink_generic_validate(config, supported, state);
 		return;
+	}
 
 	ds->ops->phylink_validate(ds, dp->index, supported, state);
 }
