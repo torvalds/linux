@@ -33,6 +33,7 @@ properties:
       - qcom,sdm845-rpmhpd
       - qcom,sdx55-rpmhpd
       - qcom,sm6115-rpmpd
+      - qcom,sm6125-rpmpd
       - qcom,sm6350-rpmhpd
       - qcom,sm8150-rpmhpd
       - qcom,sm8250-rpmhpd
