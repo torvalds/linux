@@ -317,6 +317,7 @@ static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "dma_id=%d\n", dma_id);
 
 	p_params.s_fmt = snd_pcm_format_width(params_format(params));
+	p_params.s_cont = snd_pcm_format_physical_width(params_format(params));
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
 	p_params.host_dma_id = dma_id;
@@ -405,6 +406,7 @@ static int skl_be_hw_params(struct snd_pcm_substream *substream,
 	struct skl_pipe_params p_params = {0};
 
 	p_params.s_fmt = snd_pcm_format_width(params_format(params));
+	p_params.s_cont = snd_pcm_format_physical_width(params_format(params));
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
 	p_params.stream = substream->stream;
@@ -569,6 +571,7 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dai_set_tdm_slot(codec_dai, 0, stream_tag, 0, 0);
 
 	p_params.s_fmt = snd_pcm_format_width(params_format(params));
+	p_params.s_cont = snd_pcm_format_physical_width(params_format(params));
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
 	p_params.stream = substream->stream;
