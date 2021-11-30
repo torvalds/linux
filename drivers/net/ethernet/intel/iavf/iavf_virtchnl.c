@@ -1964,6 +1964,8 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			dev_warn(&adapter->pdev->dev, "failed to acquire crit_lock in %s\n",
 				 __FUNCTION__);
 
+		iavf_set_queue_vlan_tag_loc(adapter);
+
 		}
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:

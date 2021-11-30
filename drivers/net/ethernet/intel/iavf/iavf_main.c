@@ -1166,6 +1166,86 @@ static void iavf_free_queues(struct iavf_adapter *adapter)
 }
 
 /**
+ * iavf_set_queue_vlan_tag_loc - set location for VLAN tag offload
+ * @adapter: board private structure
+ *
+ * Based on negotiated capabilities, the VLAN tag needs to be inserted and/or
+ * stripped in certain descriptor fields. Instead of checking the offload
+ * capability bits in the hot path, cache the location the ring specific
+ * flags.
+ */
+void iavf_set_queue_vlan_tag_loc(struct iavf_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_active_queues; i++) {
+		struct iavf_ring *tx_ring = &adapter->tx_rings[i];
+		struct iavf_ring *rx_ring = &adapter->rx_rings[i];
+
+		/* prevent multiple L2TAG bits being set after VFR */
+		tx_ring->flags &=
+			~(IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1 |
+			  IAVF_TXR_FLAGS_VLAN_TAG_LOC_L2TAG2);
+		rx_ring->flags &=
+			~(IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1 |
+			  IAVF_RXR_FLAGS_VLAN_TAG_LOC_L2TAG2_2);
+
+		if (VLAN_ALLOWED(adapter)) {
+			tx_ring->flags |= IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1;
+			rx_ring->flags |= IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1;
+		} else if (VLAN_V2_ALLOWED(adapter)) {
+			struct virtchnl_vlan_supported_caps *stripping_support;
+			struct virtchnl_vlan_supported_caps *insertion_support;
+
+			stripping_support =
+				&adapter->vlan_v2_caps.offloads.stripping_support;
+			insertion_support =
+				&adapter->vlan_v2_caps.offloads.insertion_support;
+
+			if (stripping_support->outer) {
+				if (stripping_support->outer &
+				    VIRTCHNL_VLAN_TAG_LOCATION_L2TAG1)
+					rx_ring->flags |=
+						IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1;
+				else if (stripping_support->outer &
+					 VIRTCHNL_VLAN_TAG_LOCATION_L2TAG2_2)
+					rx_ring->flags |=
+						IAVF_RXR_FLAGS_VLAN_TAG_LOC_L2TAG2_2;
+			} else if (stripping_support->inner) {
+				if (stripping_support->inner &
+				    VIRTCHNL_VLAN_TAG_LOCATION_L2TAG1)
+					rx_ring->flags |=
+						IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1;
+				else if (stripping_support->inner &
+					 VIRTCHNL_VLAN_TAG_LOCATION_L2TAG2_2)
+					rx_ring->flags |=
+						IAVF_RXR_FLAGS_VLAN_TAG_LOC_L2TAG2_2;
+			}
+
+			if (insertion_support->outer) {
+				if (insertion_support->outer &
+				    VIRTCHNL_VLAN_TAG_LOCATION_L2TAG1)
+					tx_ring->flags |=
+						IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1;
+				else if (insertion_support->outer &
+					 VIRTCHNL_VLAN_TAG_LOCATION_L2TAG2)
+					tx_ring->flags |=
+						IAVF_TXR_FLAGS_VLAN_TAG_LOC_L2TAG2;
+			} else if (insertion_support->inner) {
+				if (insertion_support->inner &
+				    VIRTCHNL_VLAN_TAG_LOCATION_L2TAG1)
+					tx_ring->flags |=
+						IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1;
+				else if (insertion_support->inner &
+					 VIRTCHNL_VLAN_TAG_LOCATION_L2TAG2)
+					tx_ring->flags |=
+						IAVF_TXR_FLAGS_VLAN_TAG_LOC_L2TAG2;
+			}
+		}
+	}
+}
+
+/**
  * iavf_alloc_queues - Allocate memory for all rings
  * @adapter: board private structure to initialize
  *
@@ -1225,6 +1305,8 @@ static int iavf_alloc_queues(struct iavf_adapter *adapter)
 	}
 
 	adapter->num_active_queues = num_active_queues;
+
+	iavf_set_queue_vlan_tag_loc(adapter);
 
 	return 0;
 
