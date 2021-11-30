@@ -95,6 +95,9 @@
  *  30 Nov 2021 : 1. Print message correction for PCIe BAR size and Physical Address.
  		  2. Version update
  *  VERSION     : 01-00-25
+ *  30 Nov 2021 : 1. Removed PHY Workqueue Cancellation before suspend.
+ 		  2. Version update
+ *  VERSION     : 01-00-26
  */
 
 #include <linux/clk-provider.h>
@@ -132,7 +135,7 @@ static unsigned int tc956x_port0_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
 static unsigned int tc956x_port1_enable_eee = DISABLE;
 static unsigned int tc956x_port1_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 5};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 6};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -2539,9 +2542,6 @@ static int tc956x_pcie_suspend(struct device *dev)
 	u8 i;
 	u32 val;
 #endif
-	struct phy_device *phydev; /* For cancelling Work queue */
-	int addr = priv->plat->phy_addr;
-	phydev = mdiobus_get_phy(priv->mii, addr);
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 	if (priv->tc956x_port_pm_suspend == true) {
@@ -2550,13 +2550,6 @@ static int tc956x_pcie_suspend(struct device *dev)
 	}
 	/* Set flag to avoid queuing any more work */
 	priv->tc956x_port_pm_suspend = true;
- 	/* Flush all work-queues before suspend start */
-	if(phydev->drv != NULL) {
-		if ((true == priv->plat->phy_interrupt_mode) && (phydev->drv->config_intr)) {
-			DBGPR_FUNC(&(pdev->dev), "%s : (Flush All PHY work-queues) \n", __func__);
-			cancel_work_sync(&priv->emac_phy_work);
-		}
-	}
 
 	mutex_lock(&tc956x_pm_suspend_lock);
 

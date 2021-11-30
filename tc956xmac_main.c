@@ -74,8 +74,10 @@
  *  24 Nov 2021 : 1. EEE update for runtime configuration and LPI interrupt disabled.
  		  2. EEE SW timers removed. Only HW timers used to control EEE LPI entry/exit
  		  3. USXGMII support during link change
- *  VERSION     : 01-00-24 
-*/
+ *  VERSION     : 01-00-24
+ *  30 Nov 2021 : 1. Added PHY Workqueue Cancel during suspend only if network interface available.
+ *  VERSION     : 01-00-26
+ */
 
 #include <linux/clk.h>
 #include <linux/kernel.h>
@@ -10760,6 +10762,9 @@ int tc956xmac_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
+	struct phy_device *phydev; /* For cancelling Work queue */
+	int addr = priv->plat->phy_addr;
+	phydev = mdiobus_get_phy(priv->mii, addr);
 
 	if (!ndev)
 		return 0;
@@ -10776,6 +10781,15 @@ int tc956xmac_suspend(struct device *dev)
 
 	if (!netif_running(ndev))
 		goto clean_exit;
+
+	/* Cancel all work-queues before suspend start only when net interface is up and running */
+	if(phydev->drv != NULL) {
+		if ((true == priv->plat->phy_interrupt_mode) && 
+		(phydev->drv->config_intr)) {
+			DBGPR_FUNC(priv->device, "%s : (Flush All PHY work-queues) \n", __func__);
+			cancel_work_sync(&priv->emac_phy_work);
+		}
+	}
 
 	/* Invoke device driver close only when net inteface is up and running. */
 	rtnl_lock();
