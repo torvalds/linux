@@ -1057,8 +1057,8 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	tsk->reported_split_lock = 0;
 #endif
 
-	memset(&tsk->android_vendor_data1, 0, sizeof(tsk->android_vendor_data1));
-	memset(&tsk->android_oem_data1, 0, sizeof(tsk->android_oem_data1));
+	android_init_vendor_data(tsk, 1);
+	android_init_oem_data(tsk, 1);
 
 	return tsk;
 
