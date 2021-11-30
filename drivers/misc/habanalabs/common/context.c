@@ -272,6 +272,29 @@ int hl_ctx_put(struct hl_ctx *ctx)
 	return kref_put(&ctx->refcount, hl_ctx_do_release);
 }
 
+struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev)
+{
+	struct hl_ctx *ctx = NULL;
+	struct hl_fpriv *hpriv;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node) {
+		/* There can only be a single user which has opened the compute device, so exit
+		 * immediately once we find him
+		 */
+		if (!hpriv->is_control) {
+			ctx = hpriv->ctx;
+			hl_ctx_get(hdev, ctx);
+			break;
+		}
+	}
+
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	return ctx;
+}
+
 /*
  * hl_ctx_get_fence_locked - get CS fence under CS lock
  *

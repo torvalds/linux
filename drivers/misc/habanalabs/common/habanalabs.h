@@ -2906,6 +2906,7 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx);
 void hl_ctx_do_release(struct kref *ref);
 void hl_ctx_get(struct hl_device *hdev,	struct hl_ctx *ctx);
 int hl_ctx_put(struct hl_ctx *ctx);
+struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev);
 struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq);
 int hl_ctx_get_fences(struct hl_ctx *ctx, u64 *seq_arr,
 				struct hl_fence **fence, u32 arr_len);

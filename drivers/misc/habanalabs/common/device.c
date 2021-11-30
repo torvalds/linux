@@ -961,6 +961,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false,
 								reset_upon_device_release = false;
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
+	struct hl_ctx *ctx;
 	int i, rc;
 
 	if (!hdev->init_done) {
@@ -1101,15 +1102,13 @@ kill_processes:
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_reset(hdev, &hdev->completion_queue[i]);
 
-	mutex_lock(&hdev->fpriv_list_lock);
-
 	/* Make sure the context switch phase will run again */
-	if (hdev->compute_ctx) {
-		atomic_set(&hdev->compute_ctx->thread_ctx_switch_token, 1);
-		hdev->compute_ctx->thread_ctx_switch_wait_token = 0;
+	ctx = hl_get_compute_ctx(hdev);
+	if (ctx) {
+		atomic_set(&ctx->thread_ctx_switch_token, 1);
+		ctx->thread_ctx_switch_wait_token = 0;
+		hl_ctx_put(ctx);
 	}
-
-	mutex_unlock(&hdev->fpriv_list_lock);
 
 	/* Finished tear-down, starting to re-initialize */
 

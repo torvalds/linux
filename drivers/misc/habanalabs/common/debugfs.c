@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -327,11 +327,7 @@ static int vm_show(struct seq_file *s, void *data)
 
 	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
 
-	mutex_lock(&dev_entry->hdev->fpriv_list_lock);
-	ctx = dev_entry->hdev->compute_ctx;
-	if (ctx)
-		hl_ctx_get(dev_entry->hdev, ctx);
-	mutex_unlock(&dev_entry->hdev->fpriv_list_lock);
+	ctx = hl_get_compute_ctx(dev_entry->hdev);
 	if (ctx) {
 		seq_puts(s, "\nVA ranges:\n\n");
 		for (i = HL_VA_RANGE_TYPE_HOST ; i < HL_VA_RANGE_TYPE_MAX ; ++i) {
@@ -443,7 +439,7 @@ static int mmu_show(struct seq_file *s, void *data)
 	if (dev_entry->mmu_asid == HL_KERNEL_ASID_ID)
 		ctx = hdev->kernel_ctx;
 	else
-		ctx = hdev->compute_ctx;
+		ctx = hl_get_compute_ctx(hdev);
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
@@ -596,13 +592,15 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 			u64 *phys_addr)
 {
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
-	struct hl_ctx *ctx = hdev->compute_ctx;
+	struct hl_ctx *ctx;
 	struct hl_vm_hash_node *hnode;
 	u64 end_address, range_size;
 	struct hl_userptr *userptr;
 	enum vm_type *vm_type;
 	bool valid = false;
 	int i, rc = 0;
+
+	ctx = hl_get_compute_ctx(hdev);
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
