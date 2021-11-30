@@ -20,6 +20,7 @@
 #define OF_CAMERA_VCMDRV_DLC_ENABLE	"rockchip,vcm-dlc-enable"
 #define OF_CAMERA_VCMDRV_MCLK		"rockchip,vcm-mclk"
 #define OF_CAMERA_VCMDRV_T_SRC		"rockchip,vcm-t-src"
+#define OF_CAMERA_VCMDRV_T_DIV          "rockchip,vcm-t-div"
 #define VCMDRV_SETZOOM_MAXCNT	300U
 
 #define RK_VIDIOC_VCM_TIMEINFO \
