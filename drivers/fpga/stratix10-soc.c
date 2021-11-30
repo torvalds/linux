@@ -428,7 +428,7 @@ static int s10_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, mgr);
-	return ret;
+	return 0;
 
 probe_err:
 	stratix10_svc_free_channel(priv->chan);
