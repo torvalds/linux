@@ -345,27 +345,17 @@ static int vic_open_channel(struct tegra_drm_client *client,
 			    struct tegra_drm_context *context)
 {
 	struct vic *vic = to_vic(client);
-	int err;
-
-	err = pm_runtime_resume_and_get(vic->dev);
-	if (err < 0)
-		return err;
 
 	context->channel = host1x_channel_get(vic->channel);
-	if (!context->channel) {
-		pm_runtime_put(vic->dev);
+	if (!context->channel)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
 
 static void vic_close_channel(struct tegra_drm_context *context)
 {
-	struct vic *vic = to_vic(context->client);
-
 	host1x_channel_put(context->channel);
-	pm_runtime_put(vic->dev);
 }
 
 static const struct tegra_drm_client_ops vic_ops = {

@@ -291,29 +291,17 @@ static int nvdec_open_channel(struct tegra_drm_client *client,
 			    struct tegra_drm_context *context)
 {
 	struct nvdec *nvdec = to_nvdec(client);
-	int err;
-
-	err = pm_runtime_get_sync(nvdec->dev);
-	if (err < 0) {
-		pm_runtime_put(nvdec->dev);
-		return err;
-	}
 
 	context->channel = host1x_channel_get(nvdec->channel);
-	if (!context->channel) {
-		pm_runtime_put(nvdec->dev);
+	if (!context->channel)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
 
 static void nvdec_close_channel(struct tegra_drm_context *context)
 {
-	struct nvdec *nvdec = to_nvdec(context->client);
-
 	host1x_channel_put(context->channel);
-	pm_runtime_put(nvdec->dev);
 }
 
 static const struct tegra_drm_client_ops nvdec_ops = {
