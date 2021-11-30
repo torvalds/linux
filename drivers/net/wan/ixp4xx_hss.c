@@ -1508,7 +1508,6 @@ static int ixp4xx_hss_remove(struct platform_device *pdev)
 	unregister_hdlc_device(port->netdev);
 	free_netdev(port->netdev);
 	npe_release(port->npe);
-	kfree(port);
 	return 0;
 }
 
