@@ -2653,7 +2653,7 @@ static u8 hclge_check_speed_dup(u8 duplex, int speed)
 	return duplex;
 }
 
-struct hclge_mac_speed_map hclge_mac_speed_map_to_fw[] = {
+static struct hclge_mac_speed_map hclge_mac_speed_map_to_fw[] = {
 	{HCLGE_MAC_SPEED_10M, HCLGE_FW_MAC_SPEED_10M},
 	{HCLGE_MAC_SPEED_100M, HCLGE_FW_MAC_SPEED_100M},
 	{HCLGE_MAC_SPEED_1G, HCLGE_FW_MAC_SPEED_1G},
