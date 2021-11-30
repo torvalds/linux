@@ -316,7 +316,9 @@ config ARCH_MULTIPLATFORM
 	select ARCH_SELECT_MEMORY_MODEL
 	select ARM_HAS_SG_CHAIN
 	select ARM_PATCH_PHYS_VIRT
-	select AUTO_ZRELADDR
+# To support AST2605, disconnect the relationship between ARCH_MULTIPLATFORM
+# and AUTO_ZRELADDR.  The physical address is assigned by the build command
+#	select AUTO_ZRELADDR
 	select TIMER_OF
 	select COMMON_CLK
 	select GENERIC_IRQ_MULTI_HANDLER
