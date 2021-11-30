@@ -3526,9 +3526,12 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	if (evmptrld_status == EVMPTRLD_ERROR) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
-	} else if (CC(evmptrld_status == EVMPTRLD_VMFAIL)) {
-		return nested_vmx_failInvalid(vcpu);
 	}
+
+	kvm_pmu_trigger_event(vcpu, PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
+
+	if (CC(evmptrld_status == EVMPTRLD_VMFAIL))
+		return nested_vmx_failInvalid(vcpu);
 
 	if (CC(!evmptr_is_valid(vmx->nested.hv_evmcs_vmptr) &&
 	       vmx->nested.current_vmptr == INVALID_GPA))
