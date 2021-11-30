@@ -74,6 +74,23 @@ config ANDROID_VENDOR_HOOKS
 	  Allow vendor modules to attach to tracepoint "hooks" defined via
 	  DECLARE_HOOK or DECLARE_RESTRICTED_HOOK.
 
+config ANDROID_STRUCT_PADDING
+	bool "Android Struct Padding"
+	default y
+	help
+	  This option enables the padding that the Android GKI kernel adds
+	  to many different kernel structures to support an in-kernel stable ABI
+	  over the lifespan of support for the kernel as well as OEM additional
+	  fields that are needed by some of the Android kernel tracepoints.
+
+	  Only disable this option if you have a system that needs the Android
+	  kernel drivers, but is NOT an Android GKI kernel image and you do NOT
+	  use the Android kernel tracepoints. If disabled it has the possibility
+	  to make the kernel static and runtime image slightly smaller but will
+	  NOT be supported by the Google Android kernel team.
+
+	  If even slightly unsure, say Y.
+
 endif # if ANDROID
 
 endmenu
