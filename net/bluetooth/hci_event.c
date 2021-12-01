@@ -5969,16 +5969,12 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_le_conn_complete_evt(struct hci_dev *hdev, void *data,
+				     struct sk_buff *skb)
 {
-	struct hci_ev_le_conn_complete *ev;
+	struct hci_ev_le_conn_complete *ev = data;
 
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_CONN_COMPLETE,
-				sizeof(*ev));
-	if (!ev)
-		return;
-
-	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	le_conn_complete_evt(hdev, ev->status, &ev->bdaddr, ev->bdaddr_type,
 			     NULL, ev->role, le16_to_cpu(ev->handle),
@@ -5987,17 +5983,12 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			     le16_to_cpu(ev->supervision_timeout));
 }
 
-static void hci_le_enh_conn_complete_evt(struct hci_dev *hdev,
+static void hci_le_enh_conn_complete_evt(struct hci_dev *hdev, void *data,
 					 struct sk_buff *skb)
 {
-	struct hci_ev_le_enh_conn_complete *ev;
+	struct hci_ev_le_enh_conn_complete *ev = data;
 
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_ENHANCED_CONN_COMPLETE,
-				sizeof(*ev));
-	if (!ev)
-		return;
-
-	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	le_conn_complete_evt(hdev, ev->status, &ev->bdaddr, ev->bdaddr_type,
 			     &ev->local_rpa, ev->role, le16_to_cpu(ev->handle),
@@ -6006,18 +5997,14 @@ static void hci_le_enh_conn_complete_evt(struct hci_dev *hdev,
 			     le16_to_cpu(ev->supervision_timeout));
 }
 
-static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
+				    struct sk_buff *skb)
 {
-	struct hci_evt_le_ext_adv_set_term *ev;
+	struct hci_evt_le_ext_adv_set_term *ev = data;
 	struct hci_conn *conn;
 	struct adv_info *adv, *n;
 
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_EXT_ADV_SET_TERM,
-				sizeof(*ev));
-	if (!ev)
-		return;
-
-	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	adv = hci_find_adv_instance(hdev, ev->handle);
 
@@ -6075,18 +6062,13 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 
-static void hci_le_conn_update_complete_evt(struct hci_dev *hdev,
+static void hci_le_conn_update_complete_evt(struct hci_dev *hdev, void *data,
 					    struct sk_buff *skb)
 {
-	struct hci_ev_le_conn_update_complete *ev;
+	struct hci_ev_le_conn_update_complete *ev = data;
 	struct hci_conn *conn;
 
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_CONN_UPDATE_COMPLETE,
-				sizeof(*ev));
-	if (!ev)
-		return;
-
-	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	if (ev->status)
 		return;
@@ -6402,14 +6384,10 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	clear_pending_adv_report(hdev);
 }
 
-static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_le_adv_report_evt(struct hci_dev *hdev, void *data,
+				  struct sk_buff *skb)
 {
-	struct hci_ev_le_advertising_report *ev;
-
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_ADVERTISING_REPORT,
-				sizeof(*ev));
-	if (!ev)
-		return;
+	struct hci_ev_le_advertising_report *ev = data;
 
 	if (!ev->num)
 		return;
@@ -6487,14 +6465,10 @@ invalid:
 	return LE_ADV_INVALID;
 }
 
-static void hci_le_ext_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_le_ext_adv_report_evt(struct hci_dev *hdev, void *data,
+				      struct sk_buff *skb)
 {
-	struct hci_ev_le_ext_adv_report *ev;
-
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_EXT_ADV_REPORT,
-				sizeof(*ev));
-	if (!ev)
-		return;
+	struct hci_ev_le_ext_adv_report *ev = data;
 
 	if (!ev->num)
 		return;
@@ -6528,18 +6502,13 @@ static void hci_le_ext_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
-static void hci_le_remote_feat_complete_evt(struct hci_dev *hdev,
+static void hci_le_remote_feat_complete_evt(struct hci_dev *hdev, void *data,
 					    struct sk_buff *skb)
 {
-	struct hci_ev_le_remote_feat_complete *ev;
+	struct hci_ev_le_remote_feat_complete *ev = data;
 	struct hci_conn *conn;
 
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_EXT_ADV_REPORT,
-				sizeof(*ev));
-	if (!ev)
-		return;
-
-	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	hci_dev_lock(hdev);
 
@@ -6575,19 +6544,16 @@ static void hci_le_remote_feat_complete_evt(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
-static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_le_ltk_request_evt(struct hci_dev *hdev, void *data,
+				   struct sk_buff *skb)
 {
-	struct hci_ev_le_ltk_req *ev;
+	struct hci_ev_le_ltk_req *ev = data;
 	struct hci_cp_le_ltk_reply cp;
 	struct hci_cp_le_ltk_neg_reply neg;
 	struct hci_conn *conn;
 	struct smp_ltk *ltk;
 
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_LTK_REQ, sizeof(*ev));
-	if (!ev)
-		return;
-
-	BT_DBG("%s handle 0x%4.4x", hdev->name, __le16_to_cpu(ev->handle));
+	bt_dev_dbg(hdev, "handle 0x%4.4x", __le16_to_cpu(ev->handle));
 
 	hci_dev_lock(hdev);
 
@@ -6655,18 +6621,15 @@ static void send_conn_param_neg_reply(struct hci_dev *hdev, u16 handle,
 		     &cp);
 }
 
-static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
+static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev, void *data,
 					     struct sk_buff *skb)
 {
-	struct hci_ev_le_remote_conn_param_req *ev;
+	struct hci_ev_le_remote_conn_param_req *ev = data;
 	struct hci_cp_le_conn_param_req_reply cp;
 	struct hci_conn *hcon;
 	u16 handle, min, max, latency, timeout;
 
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_REMOTE_CONN_PARAM_REQ,
-				sizeof(*ev));
-	if (!ev)
-		return;
+	bt_dev_dbg(hdev, "handle 0x%4.4x", __le16_to_cpu(ev->handle));
 
 	handle = le16_to_cpu(ev->handle);
 	min = le16_to_cpu(ev->interval_min);
@@ -6718,16 +6681,11 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_PARAM_REQ_REPLY, sizeof(cp), &cp);
 }
 
-static void hci_le_direct_adv_report_evt(struct hci_dev *hdev,
+static void hci_le_direct_adv_report_evt(struct hci_dev *hdev, void *data,
 					 struct sk_buff *skb)
 {
-	struct hci_ev_le_direct_adv_report *ev;
+	struct hci_ev_le_direct_adv_report *ev = data;
 	int i;
-
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_DIRECT_ADV_REPORT,
-				sizeof(*ev));
-	if (!ev)
-		return;
 
 	if (!hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_DIRECT_ADV_REPORT,
 				flex_array_size(ev, info, ev->num)))
@@ -6750,17 +6708,13 @@ static void hci_le_direct_adv_report_evt(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
-static void hci_le_phy_update_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_le_phy_update_evt(struct hci_dev *hdev, void *data,
+				  struct sk_buff *skb)
 {
-	struct hci_ev_le_phy_update_complete *ev;
+	struct hci_ev_le_phy_update_complete *ev = data;
 	struct hci_conn *conn;
 
-	ev = hci_le_ev_skb_pull(hdev, skb, HCI_EV_LE_PHY_UPDATE_COMPLETE,
-				sizeof(*ev));
-	if (ev)
-		return;
-
-	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	if (ev->status)
 		return;
@@ -6778,59 +6732,102 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+#define HCI_LE_EV_VL(_op, _func, _min_len, _max_len) \
+[_op] = { \
+	.func = _func, \
+	.min_len = _min_len, \
+	.max_len = _max_len, \
+}
+
+#define HCI_LE_EV(_op, _func, _len) \
+	HCI_LE_EV_VL(_op, _func, _len, _len)
+
+#define HCI_LE_EV_STATUS(_op, _func) \
+	HCI_LE_EV(_op, _func, sizeof(struct hci_ev_status))
+
+/* Entries in this table shall have their position according to the subevent
+ * opcode they handle so the use of the macros above is recommend since it does
+ * attempt to initialize at its proper index using Designated Initializers that
+ * way events without a callback function can be ommited.
+ */
+static const struct hci_le_ev {
+	void (*func)(struct hci_dev *hdev, void *data, struct sk_buff *skb);
+	u16  min_len;
+	u16  max_len;
+} hci_le_ev_table[U8_MAX + 1] = {
+	/* [0x01 = HCI_EV_LE_CONN_COMPLETE] */
+	HCI_LE_EV(HCI_EV_LE_CONN_COMPLETE, hci_le_conn_complete_evt,
+		  sizeof(struct hci_ev_le_conn_complete)),
+	/* [0x02 = HCI_EV_LE_ADVERTISING_REPORT] */
+	HCI_LE_EV_VL(HCI_EV_LE_ADVERTISING_REPORT, hci_le_adv_report_evt,
+		     sizeof(struct hci_ev_le_advertising_report),
+		     HCI_MAX_EVENT_SIZE),
+	/* [0x03 = HCI_EV_LE_CONN_UPDATE_COMPLETE] */
+	HCI_LE_EV(HCI_EV_LE_CONN_UPDATE_COMPLETE,
+		  hci_le_conn_update_complete_evt,
+		  sizeof(struct hci_ev_le_conn_update_complete)),
+	/* [0x04 = HCI_EV_LE_REMOTE_FEAT_COMPLETE] */
+	HCI_LE_EV(HCI_EV_LE_REMOTE_FEAT_COMPLETE,
+		  hci_le_remote_feat_complete_evt,
+		  sizeof(struct hci_ev_le_remote_feat_complete)),
+	/* [0x05 = HCI_EV_LE_LTK_REQ] */
+	HCI_LE_EV(HCI_EV_LE_LTK_REQ, hci_le_ltk_request_evt,
+		  sizeof(struct hci_ev_le_ltk_req)),
+	/* [0x06 = HCI_EV_LE_REMOTE_CONN_PARAM_REQ] */
+	HCI_LE_EV(HCI_EV_LE_REMOTE_CONN_PARAM_REQ,
+		  hci_le_remote_conn_param_req_evt,
+		  sizeof(struct hci_ev_le_remote_conn_param_req)),
+	/* [0x0a = HCI_EV_LE_ENHANCED_CONN_COMPLETE] */
+	HCI_LE_EV(HCI_EV_LE_ENHANCED_CONN_COMPLETE,
+		  hci_le_enh_conn_complete_evt,
+		  sizeof(struct hci_ev_le_enh_conn_complete)),
+	/* [0x0b = HCI_EV_LE_DIRECT_ADV_REPORT] */
+	HCI_LE_EV_VL(HCI_EV_LE_DIRECT_ADV_REPORT, hci_le_direct_adv_report_evt,
+		     sizeof(struct hci_ev_le_direct_adv_report),
+		     HCI_MAX_EVENT_SIZE),
+	/* [0x0c = HCI_EV_LE_PHY_UPDATE_COMPLETE] */
+	HCI_LE_EV(HCI_EV_LE_PHY_UPDATE_COMPLETE, hci_le_phy_update_evt,
+		  sizeof(struct hci_ev_le_phy_update_complete)),
+	/* [0x0d = HCI_EV_LE_EXT_ADV_REPORT] */
+	HCI_LE_EV_VL(HCI_EV_LE_EXT_ADV_REPORT, hci_le_ext_adv_report_evt,
+		     sizeof(struct hci_ev_le_ext_adv_report),
+		     HCI_MAX_EVENT_SIZE),
+	/* [0x12 = HCI_EV_LE_EXT_ADV_SET_TERM] */
+	HCI_LE_EV(HCI_EV_LE_EXT_ADV_SET_TERM, hci_le_ext_adv_term_evt,
+		  sizeof(struct hci_evt_le_ext_adv_set_term)),
+};
+
 static void hci_le_meta_evt(struct hci_dev *hdev, void *data,
 			    struct sk_buff *skb)
 {
 	struct hci_ev_le_meta *ev = data;
+	const struct hci_le_ev *subev;
 
-	switch (ev->subevent) {
-	case HCI_EV_LE_CONN_COMPLETE:
-		hci_le_conn_complete_evt(hdev, skb);
-		break;
+	bt_dev_dbg(hdev, "subevent 0x%2.2x", ev->subevent);
 
-	case HCI_EV_LE_CONN_UPDATE_COMPLETE:
-		hci_le_conn_update_complete_evt(hdev, skb);
-		break;
+	subev = &hci_le_ev_table[ev->subevent];
+	if (!subev->func)
+		return;
 
-	case HCI_EV_LE_ADVERTISING_REPORT:
-		hci_le_adv_report_evt(hdev, skb);
-		break;
-
-	case HCI_EV_LE_REMOTE_FEAT_COMPLETE:
-		hci_le_remote_feat_complete_evt(hdev, skb);
-		break;
-
-	case HCI_EV_LE_LTK_REQ:
-		hci_le_ltk_request_evt(hdev, skb);
-		break;
-
-	case HCI_EV_LE_REMOTE_CONN_PARAM_REQ:
-		hci_le_remote_conn_param_req_evt(hdev, skb);
-		break;
-
-	case HCI_EV_LE_DIRECT_ADV_REPORT:
-		hci_le_direct_adv_report_evt(hdev, skb);
-		break;
-
-	case HCI_EV_LE_PHY_UPDATE_COMPLETE:
-		hci_le_phy_update_evt(hdev, skb);
-		break;
-
-	case HCI_EV_LE_EXT_ADV_REPORT:
-		hci_le_ext_adv_report_evt(hdev, skb);
-		break;
-
-	case HCI_EV_LE_ENHANCED_CONN_COMPLETE:
-		hci_le_enh_conn_complete_evt(hdev, skb);
-		break;
-
-	case HCI_EV_LE_EXT_ADV_SET_TERM:
-		hci_le_ext_adv_term_evt(hdev, skb);
-		break;
-
-	default:
-		break;
+	if (skb->len < subev->min_len) {
+		bt_dev_err(hdev, "unexpected subevent 0x%2.2x length: %u < %u",
+			   ev->subevent, skb->len, subev->min_len);
+		return;
 	}
+
+	/* Just warn if the length is over max_len size it still be
+	 * possible to partially parse the event so leave to callback to
+	 * decide if that is acceptable.
+	 */
+	if (skb->len > subev->max_len)
+		bt_dev_warn(hdev, "unexpected subevent 0x%2.2x length: %u > %u",
+			    ev->subevent, skb->len, subev->max_len);
+
+	data = hci_le_ev_skb_pull(hdev, skb, ev->subevent, subev->min_len);
+	if (!data)
+		return;
+
+	subev->func(hdev, data, skb);
 }
 
 static bool hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
