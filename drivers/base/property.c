@@ -1024,9 +1024,9 @@ struct fwnode_handle *
 fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port_id,
 			     u32 endpoint_id)
 {
-	struct fwnode_handle *endpoint = NULL;
+	struct fwnode_handle *endpoint;
 
-	while ((endpoint = fwnode_graph_get_next_endpoint(fwnode, endpoint))) {
+	fwnode_graph_for_each_endpoint(fwnode, endpoint) {
 		struct fwnode_endpoint fwnode_ep;
 		struct fwnode_handle *remote;
 		int ret;
@@ -1085,12 +1085,12 @@ struct fwnode_handle *
 fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 				u32 port, u32 endpoint, unsigned long flags)
 {
-	struct fwnode_handle *ep = NULL, *best_ep = NULL;
+	struct fwnode_handle *ep, *best_ep = NULL;
 	unsigned int best_ep_id = 0;
 	bool endpoint_next = flags & FWNODE_GRAPH_ENDPOINT_NEXT;
 	bool enabled_only = !(flags & FWNODE_GRAPH_DEVICE_DISABLED);
 
-	while ((ep = fwnode_graph_get_next_endpoint(fwnode, ep))) {
+	fwnode_graph_for_each_endpoint(fwnode, ep) {
 		struct fwnode_endpoint fwnode_ep = { 0 };
 		int ret;
 
