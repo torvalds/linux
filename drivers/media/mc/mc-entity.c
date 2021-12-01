@@ -48,12 +48,10 @@ __must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
 					  int idx_max)
 {
 	idx_max = ALIGN(idx_max, BITS_PER_LONG);
-	ent_enum->bmap = kcalloc(idx_max / BITS_PER_LONG, sizeof(long),
-				 GFP_KERNEL);
+	ent_enum->bmap = bitmap_zalloc(idx_max, GFP_KERNEL);
 	if (!ent_enum->bmap)
 		return -ENOMEM;
 
-	bitmap_zero(ent_enum->bmap, idx_max);
 	ent_enum->idx_max = idx_max;
 
 	return 0;
@@ -62,7 +60,7 @@ EXPORT_SYMBOL_GPL(__media_entity_enum_init);
 
 void media_entity_enum_cleanup(struct media_entity_enum *ent_enum)
 {
-	kfree(ent_enum->bmap);
+	bitmap_free(ent_enum->bmap);
 }
 EXPORT_SYMBOL_GPL(media_entity_enum_cleanup);
 
