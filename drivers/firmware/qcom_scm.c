@@ -243,8 +243,7 @@ static bool __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
 	return ret ? false : !!res.result[0];
 }
 
-static int qcom_scm_set_boot_addr(void *entry, const cpumask_t *cpus,
-				  const u8 *cpu_bits)
+static int qcom_scm_set_boot_addr(void *entry, const u8 *cpu_bits)
 {
 	int cpu;
 	unsigned int flags = 0;
@@ -255,7 +254,7 @@ static int qcom_scm_set_boot_addr(void *entry, const cpumask_t *cpus,
 		.owner = ARM_SMCCC_OWNER_SIP,
 	};
 
-	for_each_cpu(cpu, cpus) {
+	for_each_present_cpu(cpu) {
 		if (cpu >= QCOM_SCM_BOOT_MAX_CPUS)
 			return -EINVAL;
 		flags |= cpu_bits[cpu];
@@ -268,27 +267,25 @@ static int qcom_scm_set_boot_addr(void *entry, const cpumask_t *cpus,
 }
 
 /**
- * qcom_scm_set_warm_boot_addr() - Set the warm boot address for cpus
+ * qcom_scm_set_warm_boot_addr() - Set the warm boot address for all cpus
  * @entry: Entry point function for the cpus
- * @cpus: The cpumask of cpus that will use the entry point
  *
  * Set the Linux entry point for the SCM to transfer control to when coming
  * out of a power down. CPU power down may be executed on cpuidle or hotplug.
  */
-int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus)
+int qcom_scm_set_warm_boot_addr(void *entry)
 {
-	return qcom_scm_set_boot_addr(entry, cpus, qcom_scm_cpu_warm_bits);
+	return qcom_scm_set_boot_addr(entry, qcom_scm_cpu_warm_bits);
 }
 EXPORT_SYMBOL(qcom_scm_set_warm_boot_addr);
 
 /**
- * qcom_scm_set_cold_boot_addr() - Set the cold boot address for cpus
+ * qcom_scm_set_cold_boot_addr() - Set the cold boot address for all cpus
  * @entry: Entry point function for the cpus
- * @cpus: The cpumask of cpus that will use the entry point
  */
-int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
+int qcom_scm_set_cold_boot_addr(void *entry)
 {
-	return qcom_scm_set_boot_addr(entry, cpus, qcom_scm_cpu_cold_bits);
+	return qcom_scm_set_boot_addr(entry, qcom_scm_cpu_cold_bits);
 }
 EXPORT_SYMBOL(qcom_scm_set_cold_boot_addr);
 
