@@ -499,4 +499,23 @@ config PINCTRL_EQUILIBRIUM
 	  pin functions, configure GPIO attributes for LGM SoC pins. Pinmux and
 	  pinconf settings are retrieved from device tree.
 
+config PINCTRL_THUNDERBAY
+	tristate "Generic pinctrl and GPIO driver for Intel Thunder Bay SoC"
+	depends on ARCH_THUNDERBAY || (ARM64 && COMPILE_TEST)
+	depends on HAS_IOMEM
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GPIO_GENERIC
+	help
+	  This selects pin control driver for the Intel Thunder Bay SoC.
+	  It provides pin config functions such as pullup, pulldown,
+	  interrupt, drive strength, sec lock, schmitt trigger, slew
+	  rate control and direction control. This module will be
+	  called as pinctrl-thunderbay.
+
 endif
