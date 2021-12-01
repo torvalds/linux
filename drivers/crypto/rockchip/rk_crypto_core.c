@@ -694,6 +694,7 @@ static int rk_crypto_probe(struct platform_device *pdev)
 
 	rk_dev->clks_num = devm_clk_bulk_get_all(dev, &rk_dev->clk_bulks);
 	if (rk_dev->clks_num < 0) {
+		err = rk_dev->clks_num;
 		dev_err(dev, "failed to get clks property\n");
 		goto err_crypto;
 	}
@@ -709,9 +710,14 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	err = devm_request_irq(dev, rk_dev->irq,
 			       rk_crypto_irq_handle, IRQF_SHARED,
 			       "rk-crypto", pdev);
-
 	if (err) {
 		dev_err(dev, "irq request failed.\n");
+		goto err_crypto;
+	}
+
+	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (err) {
+		dev_err(dev, "crypto: No suitable DMA available.\n");
 		goto err_crypto;
 	}
 
@@ -730,7 +736,8 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		goto err_crypto;
 	}
 
-	rk_dev->addr_vir = (void *)__get_free_pages(GFP_KERNEL, RK_BUFFER_ORDER);
+	rk_dev->addr_vir = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA32,
+						    RK_BUFFER_ORDER);
 	if (!rk_dev->addr_vir) {
 		err = -ENOMEM;
 		dev_err(dev, "__get_free_page failed.\n");
