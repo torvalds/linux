@@ -2220,6 +2220,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 
 	switch (type) {
 	case MLX5_FLOW_NAMESPACE_FDB:
+	case MLX5_FLOW_NAMESPACE_FDB_BYPASS:
 		if (steering->fdb_root_ns)
 			return &steering->fdb_root_ns->ns;
 		return NULL;
