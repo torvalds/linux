@@ -222,6 +222,9 @@ static int tegra210_amx_put_byte_map(struct snd_kcontrol *kcontrol,
 	int reg = mc->reg;
 	int value = ucontrol->value.integer.value[0];
 
+	if (value == bytes_map[reg])
+		return 0;
+
 	if (value >= 0 && value <= 255) {
 		/* Update byte map and enable slot */
 		bytes_map[reg] = value;
