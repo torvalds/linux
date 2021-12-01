@@ -1111,7 +1111,6 @@ static int cec_pin_adap_enable(struct cec_adapter *adap, bool enable)
 {
 	struct cec_pin *pin = adap->pin;
 
-	pin->enabled = enable;
 	if (enable) {
 		atomic_set(&pin->work_pin_num_events, 0);
 		pin->work_pin_events_rd = pin->work_pin_events_wr = 0;
