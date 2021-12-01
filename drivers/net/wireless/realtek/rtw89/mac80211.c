@@ -27,6 +27,7 @@ static void rtw89_ops_tx(struct ieee80211_hw *hw,
 	if (ret) {
 		rtw89_err(rtwdev, "failed to transmit skb: %d\n", ret);
 		ieee80211_free_txskb(hw, skb);
+		return;
 	}
 	rtw89_core_tx_kick_off(rtwdev, qsel);
 }
