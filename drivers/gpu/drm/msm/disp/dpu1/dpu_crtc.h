@@ -129,7 +129,6 @@ struct dpu_crtc_frame_event {
  * @drm_requested_vblank : Whether vblanks have been enabled in the encoder
  * @property_info : Opaque structure for generic property support
  * @property_defaults : Array of default values for generic property support
- * @debugfs_root  : Parent of debugfs node
  * @vblank_cb_count : count of vblank callback since last reset
  * @play_count    : frame count between crtc enable and disable
  * @vblank_cb_time  : ktime at vblank count reset
@@ -159,8 +158,6 @@ struct dpu_crtc {
 
 	struct drm_pending_vblank_event *event;
 	u32 vsync_count;
-
-	struct dentry *debugfs_root;
 
 	u32 vblank_cb_count;
 	u64 play_count;
