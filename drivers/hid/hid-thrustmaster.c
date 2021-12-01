@@ -274,6 +274,9 @@ static int thrustmaster_probe(struct hid_device *hdev, const struct hid_device_i
 	int ret = 0;
 	struct tm_wheel *tm_wheel = 0;
 
+	if (!hid_is_usb(hdev))
+		return -EINVAL;
+
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "parse failed with error %d\n", ret);
