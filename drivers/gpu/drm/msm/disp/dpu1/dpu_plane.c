@@ -114,7 +114,6 @@ struct dpu_plane {
 	struct dpu_debugfs_regset32 debugfs_src;
 	struct dpu_debugfs_regset32 debugfs_scaler;
 	struct dpu_debugfs_regset32 debugfs_csc;
-	bool debugfs_default_scale;
 };
 
 static const uint64_t supported_format_modifiers[] = {
@@ -1390,10 +1389,6 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 		dpu_debugfs_create_regset32("scaler_blk", 0400,
 				pdpu->debugfs_root,
 				&pdpu->debugfs_scaler);
-		debugfs_create_bool("default_scaling",
-				0600,
-				pdpu->debugfs_root,
-				&pdpu->debugfs_default_scale);
 	}
 
 	if (cfg->features & BIT(DPU_SSPP_CSC) ||
