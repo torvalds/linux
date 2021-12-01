@@ -1973,7 +1973,7 @@ static int rt5640_set_bias_level(struct snd_soc_component *component,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2);
 			snd_soc_component_update_bits(component, RT5640_DUMMY1,
-						0x0301, 0x0301);
+						0x1, 0x1);
 			snd_soc_component_update_bits(component, RT5640_MICBIAS,
 						0x0030, 0x0030);
 		}
@@ -2533,7 +2533,7 @@ static void rt5640_enable_hda_jack_detect(
 	snd_soc_component_update_bits(component, RT5640_GPIO_CTRL3,
 		RT5640_GP1_PF_MASK, RT5640_GP1_PF_OUT);
 
-	snd_soc_component_update_bits(component, RT5640_DUMMY1, 0x700, 0x300);
+	snd_soc_component_update_bits(component, RT5640_DUMMY1, 0x400, 0x0);
 
 	rt5640->jack = jack;
 
@@ -2651,13 +2651,16 @@ static int rt5640_probe(struct snd_soc_component *component)
 
 	if (device_property_read_u32(component->dev,
 				     "realtek,jack-detect-source", &val) == 0) {
-		if (val <= RT5640_JD_SRC_GPIO4)
+		if (val <= RT5640_JD_SRC_GPIO4) {
 			rt5640->jd_src = val << RT5640_JD_SFT;
-		else if (val == RT5640_JD_SRC_HDA_HEADER)
+		} else if (val == RT5640_JD_SRC_HDA_HEADER) {
 			rt5640->jd_src = RT5640_JD_SRC_HDA_HEADER;
-		else
+			snd_soc_component_update_bits(component, RT5640_DUMMY1,
+				0x0300, 0x0);
+		} else {
 			dev_warn(component->dev, "Warning: Invalid jack-detect-source value: %d, leaving jack-detect disabled\n",
 				 val);
+		}
 	}
 
 	if (!device_property_read_bool(component->dev, "realtek,jack-detect-not-inverted"))
