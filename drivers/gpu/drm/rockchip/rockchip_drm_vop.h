@@ -697,6 +697,10 @@ struct vop2_video_port_regs {
 	struct vop_reg dclk_src_sel;
 
 	struct vop_reg splice_en;
+
+	struct vop_reg edpi_wms_hold_en;
+	struct vop_reg edpi_te_en;
+	struct vop_reg edpi_wms_fs;
 };
 
 struct vop2_power_domain_regs {

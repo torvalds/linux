@@ -4934,6 +4934,17 @@ static void vop2_crtc_close(struct drm_crtc *crtc)
 	mutex_unlock(&vop2->vop2_lock);
 }
 
+static void vop2_crtc_te_handler(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	if (!crtc || !crtc->state->active)
+		return;
+
+	VOP_MODULE_SET(vop2, vp, edpi_wms_fs, 1);
+}
+
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.loader_protect = vop2_crtc_loader_protect,
 	.cancel_pending_vblank = vop2_crtc_cancel_pending_vblank,
@@ -4942,6 +4953,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.regs_dump = vop2_crtc_regs_dump,
 	.bandwidth = vop2_crtc_bandwidth,
 	.crtc_close = vop2_crtc_close,
+	.te_handler = vop2_crtc_te_handler,
 };
 
 static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -5776,6 +5788,10 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, mipi0_mux, port_mux);
 		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
+		if (vcstate->hold_mode) {
+			VOP_MODULE_SET(vop2, vp, edpi_te_en, 1);
+			VOP_MODULE_SET(vop2, vp, edpi_wms_hold_en, 1);
+		}
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI1) {
@@ -5794,6 +5810,14 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, mipi1_mux, port_mux);
 		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
+		if (vcstate->hold_mode) {
+			/* RK3588 VP1->DSC1->DSI1 only can support soft TE mode */
+			if (vop2->version == VOP_VERSION_RK3588 && vp->id == 1)
+				VOP_MODULE_SET(vop2, vp, edpi_te_en, 0);
+			else
+				VOP_MODULE_SET(vop2, vp, edpi_te_en, 1);
+			VOP_MODULE_SET(vop2, vp, edpi_wms_hold_en, 1);
+		}
 	}
 
 	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)

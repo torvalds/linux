@@ -927,6 +927,9 @@ static const struct vop2_video_port_regs rk3588_vop_vp0_regs = {
 	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP0_BCSH_CTRL, 0x3, 2),
 	.bcsh_y2r_en = VOP_REG(RK3568_VP0_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3568_VP0_BCSH_COLOR_BAR, 0x1, 31),
+	.edpi_te_en = VOP_REG(RK3568_VP0_DUAL_CHANNEL_CTRL, 0x1, 28),
+	.edpi_wms_hold_en = VOP_REG(RK3568_VP0_DUAL_CHANNEL_CTRL, 0x1, 30),
+	.edpi_wms_fs = VOP_REG(RK3568_VP0_DUAL_CHANNEL_CTRL, 0x1, 31),
 };
 
 /*
@@ -1009,6 +1012,9 @@ static const struct vop2_video_port_regs rk3588_vop_vp1_regs = {
 	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x3, 2),
 	.bcsh_y2r_en = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3568_VP1_BCSH_COLOR_BAR, 0x1, 31),
+	.edpi_te_en = VOP_REG(RK3568_VP1_DUAL_CHANNEL_CTRL, 0x1, 28),
+	.edpi_wms_hold_en = VOP_REG(RK3568_VP1_DUAL_CHANNEL_CTRL, 0x1, 30),
+	.edpi_wms_fs = VOP_REG(RK3568_VP1_DUAL_CHANNEL_CTRL, 0x1, 31),
 };
 
 static const struct vop2_video_port_regs rk3588_vop_vp2_regs = {
@@ -1057,6 +1063,9 @@ static const struct vop2_video_port_regs rk3588_vop_vp2_regs = {
 	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x3, 2),
 	.bcsh_y2r_en = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3568_VP2_BCSH_COLOR_BAR, 0x1, 31),
+	.edpi_te_en = VOP_REG(RK3568_VP2_DUAL_CHANNEL_CTRL, 0x1, 28),
+	.edpi_wms_hold_en = VOP_REG(RK3568_VP2_DUAL_CHANNEL_CTRL, 0x1, 30),
+	.edpi_wms_fs = VOP_REG(RK3568_VP2_DUAL_CHANNEL_CTRL, 0x1, 31),
 };
 
 static const struct vop2_video_port_regs rk3588_vop_vp3_regs = {
@@ -1105,6 +1114,9 @@ static const struct vop2_video_port_regs rk3588_vop_vp3_regs = {
 	.bcsh_y2r_csc_mode = VOP_REG(RK3588_VP3_BCSH_CTRL, 0x3, 2),
 	.bcsh_y2r_en = VOP_REG(RK3588_VP3_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3588_VP3_BCSH_COLOR_BAR, 0x1, 31),
+	.edpi_te_en = VOP_REG(RK3588_VP3_DUAL_CHANNEL_CTRL, 0x1, 28),
+	.edpi_wms_hold_en = VOP_REG(RK3588_VP3_DUAL_CHANNEL_CTRL, 0x1, 30),
+	.edpi_wms_fs = VOP_REG(RK3588_VP3_DUAL_CHANNEL_CTRL, 0x1, 31),
 };
 
 static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
