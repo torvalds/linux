@@ -481,8 +481,8 @@ static int add_to_accept_list(struct hci_request *req,
 	}
 
 	/* During suspend, only wakeable devices can be in accept list */
-	if (hdev->suspended && !hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
-						   params->current_flags))
+	if (hdev->suspended &&
+	    !test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, params->flags))
 		return 0;
 
 	*num_entries += 1;

@@ -1623,8 +1623,8 @@ static int hci_le_add_accept_list_sync(struct hci_dev *hdev,
 	}
 
 	/* During suspend, only wakeable devices can be in acceptlist */
-	if (hdev->suspended && !hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
-						   params->current_flags))
+	if (hdev->suspended &&
+	    !test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, params->flags))
 		return 0;
 
 	/* Attempt to program the device in the resolving list first to avoid
@@ -4767,8 +4767,7 @@ static int hci_update_event_filter_sync(struct hci_dev *hdev)
 	hci_clear_event_filter_sync(hdev);
 
 	list_for_each_entry(b, &hdev->accept_list, list) {
-		if (!hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
-					b->current_flags))
+		if (!test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, b->flags))
 			continue;
 
 		bt_dev_dbg(hdev, "Adding event filters for %pMR", &b->bdaddr);
