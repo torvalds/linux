@@ -7254,10 +7254,10 @@ enum {
 #define _PLANE_CUS_CTL_1_A			0x701c8
 #define _PLANE_CUS_CTL_2_A			0x702c8
 #define  PLANE_CUS_ENABLE			(1 << 31)
-#define  PLANE_CUS_PLANE_4_RKL			(0 << 30)
-#define  PLANE_CUS_PLANE_5_RKL			(1 << 30)
-#define  PLANE_CUS_PLANE_6			(0 << 30)
-#define  PLANE_CUS_PLANE_7			(1 << 30)
+#define  PLANE_CUS_Y_PLANE_4_RKL		(0 << 30)
+#define  PLANE_CUS_Y_PLANE_5_RKL		(1 << 30)
+#define  PLANE_CUS_Y_PLANE_6_ICL		(0 << 30)
+#define  PLANE_CUS_Y_PLANE_7_ICL		(1 << 30)
 #define  PLANE_CUS_HPHASE_SIGN_NEGATIVE		(1 << 19)
 #define  PLANE_CUS_HPHASE_0			(0 << 16)
 #define  PLANE_CUS_HPHASE_0_25			(1 << 16)
