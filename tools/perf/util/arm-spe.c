@@ -330,6 +330,7 @@ static int arm_spe__synth_mem_sample(struct arm_spe_queue *speq,
 	sample.addr = record->virt_addr;
 	sample.phys_addr = record->phys_addr;
 	sample.data_src = data_src;
+	sample.weight = record->latency;
 
 	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
 }
@@ -347,6 +348,7 @@ static int arm_spe__synth_branch_sample(struct arm_spe_queue *speq,
 	sample.id = spe_events_id;
 	sample.stream_id = spe_events_id;
 	sample.addr = record->to_ip;
+	sample.weight = record->latency;
 
 	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
 }
@@ -993,7 +995,8 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 	attr.type = PERF_TYPE_HARDWARE;
 	attr.sample_type = evsel->core.attr.sample_type & PERF_SAMPLE_MASK;
 	attr.sample_type |= PERF_SAMPLE_IP | PERF_SAMPLE_TID |
-			    PERF_SAMPLE_PERIOD | PERF_SAMPLE_DATA_SRC;
+			    PERF_SAMPLE_PERIOD | PERF_SAMPLE_DATA_SRC |
+			    PERF_SAMPLE_WEIGHT;
 	if (spe->timeless_decoding)
 		attr.sample_type &= ~(u64)PERF_SAMPLE_TIME;
 	else
