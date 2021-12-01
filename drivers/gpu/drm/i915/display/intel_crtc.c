@@ -36,6 +36,48 @@ static void assert_vblank_disabled(struct drm_crtc *crtc)
 		drm_crtc_vblank_put(crtc);
 }
 
+bool intel_pipe_valid(struct drm_i915_private *i915, enum pipe pipe)
+{
+	return (pipe >= 0 &&
+		pipe < ARRAY_SIZE(i915->pipe_to_crtc_mapping) &&
+		INTEL_INFO(i915)->pipe_mask & BIT(pipe) &&
+		i915->pipe_to_crtc_mapping[pipe]);
+}
+
+struct intel_crtc *intel_get_first_crtc(struct drm_i915_private *i915)
+{
+	return to_intel_crtc(drm_crtc_from_index(&i915->drm, 0));
+}
+
+struct intel_crtc *intel_crtc_for_pipe(struct drm_i915_private *i915,
+				       enum pipe pipe)
+{
+	/* pipe_to_crtc_mapping may have hole on any of 3 display pipe system */
+	drm_WARN_ON(&i915->drm,
+		    !(INTEL_INFO(i915)->pipe_mask & BIT(pipe)));
+	return i915->pipe_to_crtc_mapping[pipe];
+}
+
+struct intel_crtc *intel_crtc_for_plane(struct drm_i915_private *i915,
+					enum i9xx_plane_id plane)
+{
+	return i915->plane_to_crtc_mapping[plane];
+}
+
+void intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc)
+{
+	drm_crtc_wait_one_vblank(&crtc->base);
+}
+
+void intel_wait_for_vblank_if_active(struct drm_i915_private *i915,
+				     enum pipe pipe)
+{
+	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, pipe);
+
+	if (crtc->active)
+		intel_crtc_wait_for_next_vblank(crtc);
+}
+
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
