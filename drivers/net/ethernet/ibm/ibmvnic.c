@@ -866,17 +866,9 @@ static bool reuse_tx_pools(struct ibmvnic_adapter *adapter)
 	old_mtu = adapter->prev_mtu;
 	new_mtu = adapter->req_mtu;
 
-	/* Require MTU to be exactly same to reuse pools for now */
-	if (old_mtu != new_mtu)
-		return false;
-
-	if (old_num_pools == new_num_pools && old_pool_size == new_pool_size)
-		return true;
-
-	if (old_num_pools < adapter->min_tx_queues ||
-	    old_num_pools > adapter->max_tx_queues ||
-	    old_pool_size < adapter->min_tx_entries_per_subcrq ||
-	    old_pool_size > adapter->max_tx_entries_per_subcrq)
+	if (old_mtu != new_mtu ||
+	    old_num_pools != new_num_pools ||
+	    old_pool_size != new_pool_size)
 		return false;
 
 	return true;
