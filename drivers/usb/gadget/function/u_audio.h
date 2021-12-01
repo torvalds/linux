@@ -11,24 +11,15 @@
 
 #include <linux/usb/composite.h>
 
-#define UAC_VOLUME_CUR			0x0000
-#define UAC_VOLUME_RES			0x0080 /* 0.5 dB */
-#define UAC_VOLUME_MAX			0x1900 /* 25 dB */
-#define UAC_VOLUME_MIN			0xE700 /* -25 dB */
-#define UAC_VOLUME_NEGATIVE_INFINITY	0x8000
 #define UAC_MAX_RATES 10
 struct uac_params {
 	/* playback */
-	int p_volume;
-	int p_mute;
 	int p_chmask;	/* channel mask */
 	int p_srate[UAC_MAX_RATES];	/* rate in Hz */
 	int p_srate_active;		/* selected rate in Hz */
 	int p_ssize;	/* sample size */
 
 	/* capture */
-	int c_volume;
-	int c_mute;
 	int c_chmask;	/* channel mask */
 	int c_srate[UAC_MAX_RATES];	/* rate in Hz */
 	int c_srate_active;		/* selected rate in Hz */
@@ -42,11 +33,6 @@ enum usb_state_index {
 	SET_INTERFACE_IN,
 	SET_SAMPLE_RATE_OUT,
 	SET_SAMPLE_RATE_IN,
-	SET_VOLUME_OUT,
-	SET_VOLUME_IN,
-	SET_MUTE_OUT,
-	SET_MUTE_IN,
-	SET_USB_STATE_MAX,
 };
 
 enum stream_state_index {
@@ -56,7 +42,7 @@ enum stream_state_index {
 
 struct g_audio {
 	struct device *device;
-	bool usb_state[SET_USB_STATE_MAX];
+	bool usb_state[4];
 	bool stream_state[2];
 	struct work_struct work;
 
@@ -117,7 +103,5 @@ int u_audio_start_playback(struct g_audio *g_audio);
 void u_audio_stop_playback(struct g_audio *g_audio);
 int u_audio_set_capture_srate(struct g_audio *audio_dev, int srate);
 int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate);
-int u_audio_fu_set_cmd(struct usb_audio_control *con, u8 cmd, int value);
-int u_audio_fu_get_cmd(struct usb_audio_control *con, u8 cmd);
 
 #endif /* __U_AUDIO_H */

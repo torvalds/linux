@@ -13,7 +13,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/usb/audio.h>
 #include <sound/control.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -585,46 +584,6 @@ void u_audio_stop_playback(struct g_audio *audio_dev)
 }
 EXPORT_SYMBOL_GPL(u_audio_stop_playback);
 
-int u_audio_fu_set_cmd(struct usb_audio_control *con, u8 cmd, int value)
-{
-	struct g_audio *audio_dev = (struct g_audio *)con->context;
-	struct uac_params *params = &audio_dev->params;
-
-	switch (cmd) {
-	case UAC_SET_CUR:
-		if (!strncmp(con->name, "Capture Mute", 12)) {
-			params->c_mute = value;
-			audio_dev->usb_state[SET_MUTE_OUT] = true;
-		} else if (!strncmp(con->name, "Capture Volume", 14)) {
-			params->c_volume = value;
-			audio_dev->usb_state[SET_VOLUME_OUT] = true;
-		} else if (!strncmp(con->name, "Playback Mute", 13)) {
-			params->p_mute = value;
-			audio_dev->usb_state[SET_MUTE_IN] = true;
-		} else if (!strncmp(con->name, "Playback Volume", 15)) {
-			params->p_volume = value;
-			audio_dev->usb_state[SET_VOLUME_IN] = true;
-		}
-		break;
-	case UAC_SET_RES:
-		fallthrough;
-	default:
-		return 0;
-	}
-
-	con->data[cmd] = value;
-	schedule_work(&audio_dev->work);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(u_audio_fu_set_cmd);
-
-int u_audio_fu_get_cmd(struct usb_audio_control *con, u8 cmd)
-{
-	return con->data[cmd];
-}
-EXPORT_SYMBOL_GPL(u_audio_fu_get_cmd);
-
 static void g_audio_work(struct work_struct *data)
 {
 	struct g_audio *audio = container_of(data, struct g_audio, work);
@@ -632,11 +591,10 @@ static void g_audio_work(struct work_struct *data)
 	struct usb_gadget *gadget = audio->gadget;
 	struct device *dev = &gadget->dev;
 	char *uac_event[4]  = { NULL, NULL, NULL, NULL };
-	char str[19];
-	signed short volume;
+	char srate_str[19];
 	int i;
 
-	for (i = 0; i < SET_USB_STATE_MAX; i++) {
+	for (i = 0; i < 4; i++) {
 		if (!audio->usb_state[i])
 			continue;
 
@@ -656,44 +614,16 @@ static void g_audio_work(struct work_struct *data)
 		case SET_SAMPLE_RATE_OUT:
 			uac_event[0] = "USB_STATE=SET_SAMPLE_RATE";
 			uac_event[1] = "STREAM_DIRECTION=OUT";
-			snprintf(str, sizeof(str), "SAMPLE_RATE=%d",
+			snprintf(srate_str, sizeof(srate_str), "SAMPLE_RATE=%d",
 						params->c_srate_active);
-			uac_event[2] = str;
+			uac_event[2] = srate_str;
 			break;
 		case SET_SAMPLE_RATE_IN:
 			uac_event[0] = "USB_STATE=SET_SAMPLE_RATE";
 			uac_event[1] = "STREAM_DIRECTION=IN";
-			snprintf(str, sizeof(str), "SAMPLE_RATE=%d",
+			snprintf(srate_str, sizeof(srate_str), "SAMPLE_RATE=%d",
 						params->p_srate_active);
-			uac_event[2] = str;
-			break;
-		case SET_MUTE_OUT:
-			uac_event[0] = "USB_STATE=SET_MUTE";
-			uac_event[1] = "STREAM_DIRECTION=OUT";
-			snprintf(str, sizeof(str), "MUTE=%d", params->c_mute);
-			uac_event[2] = str;
-			break;
-		case SET_MUTE_IN:
-			uac_event[0] = "USB_STATE=SET_MUTE";
-			uac_event[1] = "STREAM_DIRECTION=IN";
-			snprintf(str, sizeof(str), "MUTE=%d", params->p_mute);
-			uac_event[2] = str;
-			break;
-		case SET_VOLUME_OUT:
-			uac_event[0] = "USB_STATE=SET_VOLUME";
-			uac_event[1] = "STREAM_DIRECTION=OUT";
-			volume = (signed short)params->c_volume;
-			volume /= UAC_VOLUME_RES;
-			snprintf(str, sizeof(str), "VOLUME=%d%%", volume + 50);
-			uac_event[2] = str;
-			break;
-		case SET_VOLUME_IN:
-			uac_event[0] = "USB_STATE=SET_VOLUME";
-			uac_event[1] = "STREAM_DIRECTION=IN";
-			volume = (signed short)params->p_volume;
-			volume /= UAC_VOLUME_RES;
-			snprintf(str, sizeof(str), "VOLUME=%d%%", volume + 50);
-			uac_event[2] = str;
+			uac_event[2] = srate_str;
 			break;
 		default:
 			break;
