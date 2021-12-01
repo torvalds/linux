@@ -174,13 +174,6 @@ int mt76x02_init_device(struct mt76x02_dev *dev)
 	}
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
-	wiphy->sar_capa = &mt76_sar_capa;
-	dev->mt76.phy.frp = devm_kcalloc(dev->mt76.dev,
-					 wiphy->sar_capa->num_freq_ranges,
-					 sizeof(struct mt76_freq_range_power),
-					 GFP_KERNEL);
-	if (!dev->mt76.phy.frp)
-		return -ENOMEM;
 
 	hw->sta_data_size = sizeof(struct mt76x02_sta);
 	hw->vif_data_size = sizeof(struct mt76x02_vif);

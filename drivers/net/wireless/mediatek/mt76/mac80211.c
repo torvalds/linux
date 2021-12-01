@@ -185,7 +185,6 @@ const struct cfg80211_sar_capa mt76_sar_capa = {
 	.num_freq_ranges = ARRAY_SIZE(mt76_sar_freq_ranges),
 	.freq_ranges = &mt76_sar_freq_ranges[0],
 };
-EXPORT_SYMBOL_GPL(mt76_sar_capa);
 
 static int mt76_led_init(struct mt76_dev *dev)
 {
@@ -393,7 +392,7 @@ mt76_check_sband(struct mt76_phy *phy, struct mt76_sband *msband,
 	phy->hw->wiphy->bands[band] = NULL;
 }
 
-static void
+static int
 mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 {
 	struct mt76_dev *dev = phy->dev;
@@ -414,6 +413,13 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 	wiphy->available_antennas_tx = phy->antenna_mask;
 	wiphy->available_antennas_rx = phy->antenna_mask;
 
+	wiphy->sar_capa = &mt76_sar_capa;
+	phy->frp = devm_kcalloc(dev->dev, wiphy->sar_capa->num_freq_ranges,
+				sizeof(struct mt76_freq_range_power),
+				GFP_KERNEL);
+	if (!phy->frp)
+		return -ENOMEM;
+
 	hw->txq_data_size = sizeof(struct mt76_txq);
 	hw->uapsd_max_sp_len = IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL;
 
@@ -432,6 +438,8 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, AP_LINK_PS);
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+
+	return 0;
 }
 
 struct mt76_phy *
@@ -472,7 +480,9 @@ int mt76_register_phy(struct mt76_phy *phy, bool vht,
 {
 	int ret;
 
-	mt76_phy_init(phy, phy->hw);
+	ret = mt76_phy_init(phy, phy->hw);
+	if (ret)
+		return ret;
 
 	if (phy->cap.has_2ghz) {
 		ret = mt76_init_sband_2g(phy, rates, n_rates);
@@ -591,7 +601,9 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	int ret;
 
 	dev_set_drvdata(dev->dev, dev);
-	mt76_phy_init(phy, hw);
+	ret = mt76_phy_init(phy, hw);
+	if (ret)
+		return ret;
 
 	if (phy->cap.has_2ghz) {
 		ret = mt76_init_sband_2g(phy, rates, n_rates);

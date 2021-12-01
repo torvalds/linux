@@ -810,7 +810,6 @@ struct mt76_ethtool_worker_info {
 }
 
 extern struct ieee80211_rate mt76_rates[12];
-extern const struct cfg80211_sar_capa mt76_sar_capa;
 
 #define __mt76_rr(dev, ...)	(dev)->bus->rr((dev), __VA_ARGS__)
 #define __mt76_wr(dev, ...)	(dev)->bus->wr((dev), __VA_ARGS__)
