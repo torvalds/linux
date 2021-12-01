@@ -1,6 +1,60 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 /* Copyright (c) 2019 Facebook */
 
+#ifdef __KERNEL__
+#include <linux/bpf.h>
+#include <linux/btf.h>
+#include <linux/string.h>
+#include <linux/bpf_verifier.h>
+#include "relo_core.h"
+
+static const char *btf_kind_str(const struct btf_type *t)
+{
+	return btf_type_str(t);
+}
+
+static bool is_ldimm64_insn(struct bpf_insn *insn)
+{
+	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
+}
+
+static const struct btf_type *
+skip_mods_and_typedefs(const struct btf *btf, u32 id, u32 *res_id)
+{
+	return btf_type_skip_modifiers(btf, id, res_id);
+}
+
+static const char *btf__name_by_offset(const struct btf *btf, u32 offset)
+{
+	return btf_name_by_offset(btf, offset);
+}
+
+static s64 btf__resolve_size(const struct btf *btf, u32 type_id)
+{
+	const struct btf_type *t;
+	int size;
+
+	t = btf_type_by_id(btf, type_id);
+	t = btf_resolve_size(btf, t, &size);
+	if (IS_ERR(t))
+		return PTR_ERR(t);
+	return size;
+}
+
+enum libbpf_print_level {
+	LIBBPF_WARN,
+	LIBBPF_INFO,
+	LIBBPF_DEBUG,
+};
+
+#undef pr_warn
+#undef pr_info
+#undef pr_debug
+#define pr_warn(fmt, log, ...)	bpf_log((void *)log, fmt, "", ##__VA_ARGS__)
+#define pr_info(fmt, log, ...)	bpf_log((void *)log, fmt, "", ##__VA_ARGS__)
+#define pr_debug(fmt, log, ...)	bpf_log((void *)log, fmt, "", ##__VA_ARGS__)
+#define libbpf_print(level, fmt, ...)	bpf_log((void *)prog_name, fmt, ##__VA_ARGS__)
+#else
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -12,8 +66,9 @@
 #include "btf.h"
 #include "str_error.h"
 #include "libbpf_internal.h"
+#endif
 
-#define BPF_CORE_SPEC_MAX_LEN 64
+#define BPF_CORE_SPEC_MAX_LEN 32
 
 /* represents BPF CO-RE field or array element accessor */
 struct bpf_core_accessor {
@@ -150,7 +205,7 @@ static bool core_relo_is_enumval_based(enum bpf_core_relo_kind kind)
  * Enum value-based relocations (ENUMVAL_EXISTS/ENUMVAL_VALUE) use access
  * string to specify enumerator's value index that need to be relocated.
  */
-static int bpf_core_parse_spec(const struct btf *btf,
+static int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 			       __u32 type_id,
 			       const char *spec_str,
 			       enum bpf_core_relo_kind relo_kind,
@@ -272,8 +327,8 @@ static int bpf_core_parse_spec(const struct btf *btf,
 				return sz;
 			spec->bit_offset += access_idx * sz * 8;
 		} else {
-			pr_warn("relo for [%u] %s (at idx %d) captures type [%d] of unexpected kind %s\n",
-				type_id, spec_str, i, id, btf_kind_str(t));
+			pr_warn("prog '%s': relo for [%u] %s (at idx %d) captures type [%d] of unexpected kind %s\n",
+				prog_name, type_id, spec_str, i, id, btf_kind_str(t));
 			return -EINVAL;
 		}
 	}
@@ -346,8 +401,6 @@ recur:
 		targ_id = btf_array(targ_type)->type;
 		goto recur;
 	default:
-		pr_warn("unexpected kind %d relocated, local [%d], target [%d]\n",
-			btf_kind(local_type), local_id, targ_id);
 		return 0;
 	}
 }
@@ -1045,7 +1098,7 @@ poison:
  * [<type-id>] (<type-name>) + <raw-spec> => <offset>@<spec>,
  * where <spec> is a C-syntax view of recorded field access, e.g.: x.a[3].b
  */
-static void bpf_core_dump_spec(int level, const struct bpf_core_spec *spec)
+static void bpf_core_dump_spec(const char *prog_name, int level, const struct bpf_core_spec *spec)
 {
 	const struct btf_type *t;
 	const struct btf_enum *e;
@@ -1167,7 +1220,8 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 	if (str_is_empty(spec_str))
 		return -EINVAL;
 
-	err = bpf_core_parse_spec(local_btf, local_id, spec_str, relo->kind, &local_spec);
+	err = bpf_core_parse_spec(prog_name, local_btf, local_id, spec_str,
+				  relo->kind, &local_spec);
 	if (err) {
 		pr_warn("prog '%s': relo #%d: parsing [%d] %s %s + %s failed: %d\n",
 			prog_name, relo_idx, local_id, btf_kind_str(local_type),
@@ -1178,7 +1232,7 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 
 	pr_debug("prog '%s': relo #%d: kind <%s> (%d), spec is ", prog_name,
 		 relo_idx, core_relo_kind_str(relo->kind), relo->kind);
-	bpf_core_dump_spec(LIBBPF_DEBUG, &local_spec);
+	bpf_core_dump_spec(prog_name, LIBBPF_DEBUG, &local_spec);
 	libbpf_print(LIBBPF_DEBUG, "\n");
 
 	/* TYPE_ID_LOCAL relo is special and doesn't need candidate search */
@@ -1204,14 +1258,14 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 		if (err < 0) {
 			pr_warn("prog '%s': relo #%d: error matching candidate #%d ",
 				prog_name, relo_idx, i);
-			bpf_core_dump_spec(LIBBPF_WARN, &cand_spec);
+			bpf_core_dump_spec(prog_name, LIBBPF_WARN, &cand_spec);
 			libbpf_print(LIBBPF_WARN, ": %d\n", err);
 			return err;
 		}
 
 		pr_debug("prog '%s': relo #%d: %s candidate #%d ", prog_name,
 			 relo_idx, err == 0 ? "non-matching" : "matching", i);
-		bpf_core_dump_spec(LIBBPF_DEBUG, &cand_spec);
+		bpf_core_dump_spec(prog_name, LIBBPF_DEBUG, &cand_spec);
 		libbpf_print(LIBBPF_DEBUG, "\n");
 
 		if (err == 0)
