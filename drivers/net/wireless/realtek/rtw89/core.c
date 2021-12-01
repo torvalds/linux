@@ -143,19 +143,14 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 {
 	struct ieee80211_channel *channel = chandef->chan;
 	enum nl80211_chan_width width = chandef->width;
-	u8 *cch_by_bw = chan_param->cch_by_bw;
 	u32 primary_freq, center_freq;
 	u8 center_chan;
 	u8 bandwidth = RTW89_CHANNEL_WIDTH_20;
 	u8 primary_chan_idx = 0;
-	u8 i;
 
 	center_chan = channel->hw_value;
 	primary_freq = channel->center_freq;
 	center_freq = chandef->center_freq1;
-
-	/* assign the center channel used while 20M bw is selected */
-	cch_by_bw[RTW89_CHANNEL_WIDTH_20] = channel->hw_value;
 
 	switch (width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -183,10 +178,6 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 				primary_chan_idx = RTW89_SC_20_UPMOST;
 				center_chan -= 6;
 			}
-			/* assign the center channel used
-			 * while 40M bw is selected
-			 */
-			cch_by_bw[RTW89_CHANNEL_WIDTH_40] = center_chan + 4;
 		} else {
 			if (center_freq - primary_freq == 10) {
 				primary_chan_idx = RTW89_SC_20_LOWER;
@@ -195,10 +186,6 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 				primary_chan_idx = RTW89_SC_20_LOWEST;
 				center_chan += 6;
 			}
-			/* assign the center channel used
-			 * while 40M bw is selected
-			 */
-			cch_by_bw[RTW89_CHANNEL_WIDTH_40] = center_chan - 4;
 		}
 		break;
 	default:
@@ -210,12 +197,6 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 	chan_param->primary_chan = channel->hw_value;
 	chan_param->bandwidth = bandwidth;
 	chan_param->pri_ch_idx = primary_chan_idx;
-
-	/* assign the center channel used while current bw is selected */
-	cch_by_bw[bandwidth] = center_chan;
-
-	for (i = bandwidth + 1; i <= RTW89_MAX_CHANNEL_WIDTH; i++)
-		cch_by_bw[i] = 0;
 }
 
 void rtw89_set_channel(struct rtw89_dev *rtwdev)
@@ -228,7 +209,6 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	u8 center_chan, bandwidth;
 	u8 band_type;
 	bool band_changed;
-	u8 i;
 
 	rtw89_get_channel_params(&hw->conf.chandef, &ch_param);
 	if (WARN(ch_param.center_chan == 0, "Invalid channel\n"))
@@ -260,9 +240,6 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 		hal->current_subband = RTW89_CH_5G_BAND_4;
 		break;
 	}
-
-	for (i = RTW89_CHANNEL_WIDTH_20; i <= RTW89_MAX_CHANNEL_WIDTH; i++)
-		hal->cch_by_bw[i] = ch_param.cch_by_bw[i];
 
 	rtw89_chip_set_channel_prepare(rtwdev, &bak);
 

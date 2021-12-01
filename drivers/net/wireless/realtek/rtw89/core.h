@@ -547,7 +547,6 @@ enum rtw89_ps_mode {
 	RTW89_PS_MODE_PWR_GATED	= 3,
 };
 
-#define RTW89_MAX_CHANNEL_WIDTH RTW89_CHANNEL_WIDTH_80
 #define RTW89_2G_BW_NUM (RTW89_CHANNEL_WIDTH_40 + 1)
 #define RTW89_5G_BW_NUM (RTW89_CHANNEL_WIDTH_80 + 1)
 #define RTW89_PPE_BW_NUM (RTW89_CHANNEL_WIDTH_80 + 1)
@@ -574,7 +573,6 @@ struct rtw89_channel_params {
 	u8 primary_chan;
 	u8 bandwidth;
 	u8 pri_ch_idx;
-	u8 cch_by_bw[RTW89_MAX_CHANNEL_WIDTH + 1];
 };
 
 struct rtw89_channel_help_params {
@@ -2354,10 +2352,6 @@ struct rtw89_hal {
 	enum rtw89_subband current_subband;
 	u8 current_band_width;
 	u8 current_band_type;
-	/* center channel for different available bandwidth,
-	 * val of (bw > current_band_width) is invalid
-	 */
-	u8 cch_by_bw[RTW89_MAX_CHANNEL_WIDTH + 1];
 	u32 sw_amsdu_max_size;
 	u32 antenna_tx;
 	u32 antenna_rx;
