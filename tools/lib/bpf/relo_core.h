@@ -8,8 +8,6 @@
 
 struct bpf_core_cand {
 	const struct btf *btf;
-	const struct btf_type *t;
-	const char *name;
 	__u32 id;
 };
 
