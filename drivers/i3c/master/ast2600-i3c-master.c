@@ -23,7 +23,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
-#define CCC_WORKAROUND
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
@@ -1317,7 +1316,7 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 
 	return 0;
 }
-#ifdef CCC_WORKAROUND
+#ifdef CONFIG_AST2600_I3C_CCC_WORKAROUND
 /*
  * Provide an interface for sending CCC from userspace.  Especially for the
  * transfers with PEC and direct CCC.
@@ -1424,7 +1423,7 @@ static int aspeed_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	    nrxwords > master->caps.datafifodepth)
 		return -ENOTSUPP;
 
-#ifdef CCC_WORKAROUND
+#ifdef CONFIG_AST2600_I3C_CCC_WORKAROUND
 	if (i3c_xfers[0].rnw == 0) {
 		/* write command: check if hit special address */
 		u8 tmp;
@@ -2073,7 +2072,7 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	master->maxdevs = ret >> 16;
 	master->free_pos = GENMASK(master->maxdevs - 1, 0);
 	aspeed_i3c_master_init_group_dat(master);
-#ifdef CCC_WORKAROUND
+#ifdef CONFIG_AST2600_I3C_CCC_WORKAROUND
 	master->free_pos &= ~BIT(master->maxdevs - 1);
 	ret = (even_parity(I3C_BROADCAST_ADDR) << 7) | I3C_BROADCAST_ADDR;
 	master->addrs[master->maxdevs - 1] = ret;

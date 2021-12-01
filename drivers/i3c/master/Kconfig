@@ -41,6 +41,13 @@ config AST2600_I3C_IBI_MAX_PAYLOAD
 config AST2600_I3C_MRL
 	int "Max read length"
 	default 256
+
+config AST2600_I3C_CCC_WORKAROUND
+	bool "Workaround for AST2600A1 errata item#30"
+	default n
+	help
+	  Say y to enable the workaround for AST2600A1 errata item#30.  No need
+	  to enable this option if you are using AST2600A2 or later versions.
 endif
 
 config SVC_I3C_MASTER
