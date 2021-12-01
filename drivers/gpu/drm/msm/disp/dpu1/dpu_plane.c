@@ -108,11 +108,6 @@ struct dpu_plane {
 	bool is_virtual;
 	struct list_head mplane_list;
 	struct dpu_mdss_cfg *catalog;
-
-	/* debugfs related stuff */
-	struct dpu_debugfs_regset32 debugfs_src;
-	struct dpu_debugfs_regset32 debugfs_scaler;
-	struct dpu_debugfs_regset32 debugfs_csc;
 };
 
 static const uint64_t supported_format_modifiers[] = {
@@ -1371,35 +1366,29 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 			debugfs_root, (unsigned long *)&pdpu->pipe_hw->cap->features);
 
 	/* add register dump support */
-	dpu_debugfs_setup_regset32(&pdpu->debugfs_src,
+	dpu_debugfs_create_regset32("src_blk", 0400,
+			debugfs_root,
 			sblk->src_blk.base + cfg->base,
 			sblk->src_blk.len,
 			kms);
-	dpu_debugfs_create_regset32("src_blk", 0400,
-			debugfs_root, &pdpu->debugfs_src);
 
 	if (cfg->features & BIT(DPU_SSPP_SCALER_QSEED3) ||
 			cfg->features & BIT(DPU_SSPP_SCALER_QSEED3LITE) ||
 			cfg->features & BIT(DPU_SSPP_SCALER_QSEED2) ||
-			cfg->features & BIT(DPU_SSPP_SCALER_QSEED4)) {
-		dpu_debugfs_setup_regset32(&pdpu->debugfs_scaler,
+			cfg->features & BIT(DPU_SSPP_SCALER_QSEED4))
+		dpu_debugfs_create_regset32("scaler_blk", 0400,
+				debugfs_root,
 				sblk->scaler_blk.base + cfg->base,
 				sblk->scaler_blk.len,
 				kms);
-		dpu_debugfs_create_regset32("scaler_blk", 0400,
-				debugfs_root,
-				&pdpu->debugfs_scaler);
-	}
 
 	if (cfg->features & BIT(DPU_SSPP_CSC) ||
-			cfg->features & BIT(DPU_SSPP_CSC_10BIT)) {
-		dpu_debugfs_setup_regset32(&pdpu->debugfs_csc,
+			cfg->features & BIT(DPU_SSPP_CSC_10BIT))
+		dpu_debugfs_create_regset32("csc_blk", 0400,
+				debugfs_root,
 				sblk->csc_blk.base + cfg->base,
 				sblk->csc_blk.len,
 				kms);
-		dpu_debugfs_create_regset32("csc_blk", 0400,
-				debugfs_root, &pdpu->debugfs_csc);
-	}
 
 	debugfs_create_u32("xin_id",
 			0400,

@@ -182,6 +182,15 @@ static void dpu_debugfs_danger_init(struct dpu_kms *dpu_kms,
 
 }
 
+/*
+ * Companion structure for dpu_debugfs_create_regset32.
+ */
+struct dpu_debugfs_regset32 {
+	uint32_t offset;
+	uint32_t blk_len;
+	struct dpu_kms *dpu_kms;
+};
+
 static int _dpu_debugfs_show_regset32(struct seq_file *s, void *data)
 {
 	struct dpu_debugfs_regset32 *regset = s->private;
@@ -229,24 +238,23 @@ static const struct file_operations dpu_fops_regset32 = {
 	.release =	single_release,
 };
 
-void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
+void dpu_debugfs_create_regset32(const char *name, umode_t mode,
+		void *parent,
 		uint32_t offset, uint32_t length, struct dpu_kms *dpu_kms)
 {
-	if (regset) {
-		regset->offset = offset;
-		regset->blk_len = length;
-		regset->dpu_kms = dpu_kms;
-	}
-}
+	struct dpu_debugfs_regset32 *regset;
 
-void dpu_debugfs_create_regset32(const char *name, umode_t mode,
-		void *parent, struct dpu_debugfs_regset32 *regset)
-{
-	if (!name || !regset || !regset->dpu_kms || !regset->blk_len)
+	if (WARN_ON(!name || !dpu_kms || !length))
+		return;
+
+	regset = devm_kzalloc(&dpu_kms->pdev->dev, sizeof(*regset), GFP_KERNEL);
+	if (!regset)
 		return;
 
 	/* make sure offset is a multiple of 4 */
-	regset->offset = round_down(regset->offset, 4);
+	regset->offset = round_down(offset, 4);
+	regset->blk_len = length;
+	regset->dpu_kms = dpu_kms;
 
 	debugfs_create_file(name, mode, parent, regset, &dpu_fops_regset32);
 }
