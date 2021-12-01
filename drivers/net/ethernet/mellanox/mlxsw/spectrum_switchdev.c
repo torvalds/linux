@@ -865,17 +865,17 @@ static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 static int mlxsw_sp_smid_router_port_set(struct mlxsw_sp *mlxsw_sp,
 					 u16 mid_idx, bool add)
 {
-	char *smid_pl;
+	char *smid2_pl;
 	int err;
 
-	smid_pl = kmalloc(MLXSW_REG_SMID_LEN, GFP_KERNEL);
-	if (!smid_pl)
+	smid2_pl = kmalloc(MLXSW_REG_SMID2_LEN, GFP_KERNEL);
+	if (!smid2_pl)
 		return -ENOMEM;
 
-	mlxsw_reg_smid_pack(smid_pl, mid_idx,
-			    mlxsw_sp_router_port(mlxsw_sp), add);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid), smid_pl);
-	kfree(smid_pl);
+	mlxsw_reg_smid2_pack(smid2_pl, mid_idx,
+			     mlxsw_sp_router_port(mlxsw_sp), add);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid2), smid2_pl);
+	kfree(smid2_pl);
 	return err;
 }
 
@@ -980,7 +980,7 @@ mlxsw_sp_port_vlan_fid_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	struct mlxsw_sp_bridge_device *bridge_device;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 	u16 vid = mlxsw_sp_port_vlan->vid;
 	struct mlxsw_sp_fid *fid;
 	int err;
@@ -1029,7 +1029,7 @@ mlxsw_sp_port_vlan_fid_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	struct mlxsw_sp_fid *fid = mlxsw_sp_port_vlan->fid;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 	u16 vid = mlxsw_sp_port_vlan->vid;
 
 	mlxsw_sp_port_vlan->fid = NULL;
@@ -1335,7 +1335,7 @@ out:
 	return err;
 }
 
-static int __mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+static int __mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 				     const char *mac, u16 fid, bool adding,
 				     enum mlxsw_reg_sfd_rec_action action,
 				     enum mlxsw_reg_sfd_rec_policy policy)
@@ -1363,7 +1363,7 @@ out:
 	return err;
 }
 
-static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 				   const char *mac, u16 fid, bool adding,
 				   bool dynamic)
 {
@@ -1477,30 +1477,30 @@ static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
 					 long *ports_bitmap,
 					 bool set_router_port)
 {
-	char *smid_pl;
+	char *smid2_pl;
 	int err, i;
 
-	smid_pl = kmalloc(MLXSW_REG_SMID_LEN, GFP_KERNEL);
-	if (!smid_pl)
+	smid2_pl = kmalloc(MLXSW_REG_SMID2_LEN, GFP_KERNEL);
+	if (!smid2_pl)
 		return -ENOMEM;
 
-	mlxsw_reg_smid_pack(smid_pl, mid_idx, 0, false);
+	mlxsw_reg_smid2_pack(smid2_pl, mid_idx, 0, false);
 	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++) {
 		if (mlxsw_sp->ports[i])
-			mlxsw_reg_smid_port_mask_set(smid_pl, i, 1);
+			mlxsw_reg_smid2_port_mask_set(smid2_pl, i, 1);
 	}
 
-	mlxsw_reg_smid_port_mask_set(smid_pl,
-				     mlxsw_sp_router_port(mlxsw_sp), 1);
+	mlxsw_reg_smid2_port_mask_set(smid2_pl,
+				      mlxsw_sp_router_port(mlxsw_sp), 1);
 
 	for_each_set_bit(i, ports_bitmap, mlxsw_core_max_ports(mlxsw_sp->core))
-		mlxsw_reg_smid_port_set(smid_pl, i, 1);
+		mlxsw_reg_smid2_port_set(smid2_pl, i, 1);
 
-	mlxsw_reg_smid_port_set(smid_pl, mlxsw_sp_router_port(mlxsw_sp),
-				set_router_port);
+	mlxsw_reg_smid2_port_set(smid2_pl, mlxsw_sp_router_port(mlxsw_sp),
+				 set_router_port);
 
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid), smid_pl);
-	kfree(smid_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid2), smid2_pl);
+	kfree(smid2_pl);
 	return err;
 }
 
@@ -1508,16 +1508,16 @@ static int mlxsw_sp_port_smid_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				  u16 mid_idx, bool add)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char *smid_pl;
+	char *smid2_pl;
 	int err;
 
-	smid_pl = kmalloc(MLXSW_REG_SMID_LEN, GFP_KERNEL);
-	if (!smid_pl)
+	smid2_pl = kmalloc(MLXSW_REG_SMID2_LEN, GFP_KERNEL);
+	if (!smid2_pl)
 		return -ENOMEM;
 
-	mlxsw_reg_smid_pack(smid_pl, mid_idx, mlxsw_sp_port->local_port, add);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid), smid_pl);
-	kfree(smid_pl);
+	mlxsw_reg_smid2_pack(smid2_pl, mid_idx, mlxsw_sp_port->local_port, add);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid2), smid2_pl);
+	kfree(smid2_pl);
 	return err;
 }
 
@@ -2536,7 +2536,7 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	enum switchdev_notifier_type type;
 	char mac[ETH_ALEN];
-	u8 local_port;
+	u16 local_port;
 	u16 vid, fid;
 	bool do_notification = true;
 	int err;
