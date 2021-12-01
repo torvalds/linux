@@ -1033,10 +1033,6 @@ skl_program_plane_noarm(struct intel_plane *plane,
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	unsigned long irqflags;
 
-	/* Sizes are 0 based */
-	src_w--;
-	src_h--;
-
 	/* The scaler will handle the output position */
 	if (plane_state->scaler_id >= 0) {
 		crtc_x = 0;
@@ -1056,7 +1052,7 @@ skl_program_plane_noarm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_POS(pipe, plane_id),
 			  (crtc_y << 16) | crtc_x);
 	intel_de_write_fw(dev_priv, PLANE_SIZE(pipe, plane_id),
-			  (src_h << 16) | src_w);
+			  ((src_h - 1) << 16) | (src_w - 1));
 
 	if (intel_fb_is_rc_ccs_cc_modifier(fb->modifier)) {
 		intel_de_write_fw(dev_priv, PLANE_CC_VAL(pipe, plane_id, 0),
