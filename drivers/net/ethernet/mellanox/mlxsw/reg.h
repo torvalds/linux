@@ -5828,7 +5828,7 @@ MLXSW_ITEM32(reg, pmtdb, status, 0x00, 0, 4);
  * the module.
  * Access: RO
  */
-MLXSW_ITEM16_INDEXED(reg, pmtdb, port_num, 0x04, 0, 8, 0x02, 0x00, false);
+MLXSW_ITEM16_INDEXED(reg, pmtdb, port_num, 0x04, 0, 10, 0x02, 0x00, false);
 
 static inline void mlxsw_reg_pmtdb_pack(char *payload, u8 slot_index, u8 module,
 					u8 ports_width, u8 num_ports)
