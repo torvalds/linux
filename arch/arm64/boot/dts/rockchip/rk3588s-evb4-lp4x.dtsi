@@ -157,6 +157,10 @@
 	status = "okay";
 };
 
+&combphy2_psu {
+	status = "okay";
+};
+
 &dp0 {
 	status = "okay";
 };
