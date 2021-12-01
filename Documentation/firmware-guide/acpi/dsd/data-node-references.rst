@@ -13,9 +13,9 @@ Hierarchical data extension nodes may not be referred to directly, hence this
 document defines a scheme to implement such references.
 
 A reference consist of the device object name followed by one or more
-hierarchical data extension [1] keys. Specifically, the hierarchical data
-extension node which is referred to by the key shall lie directly under the
-parent object i.e. either the device object or another hierarchical data
+hierarchical data extension [dsd-guide] keys. Specifically, the hierarchical
+data extension node which is referred to by the key shall lie directly under
+the parent object i.e. either the device object or another hierarchical data
 extension node.
 
 The keys in the hierarchical data nodes shall consist of the name of the node,
@@ -33,7 +33,7 @@ extension key.
 Example
 =======
 
-In the ASL snippet below, the "reference" _DSD property [2] contains a
+In the ASL snippet below, the "reference" _DSD property contains a
 device object reference to DEV0 and under that device object, a
 hierarchical data extension key "node@1" referring to the NOD1 object
 and lastly, a hierarchical data extension key "anothernode" referring to
@@ -91,10 +91,6 @@ Documentation/firmware-guide/acpi/dsd/graph.rst.
 References
 ==========
 
-[1] Hierarchical Data Extension UUID For _DSD.
-<https://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf>,
-referenced 2018-07-17.
-
-[2] Device Properties UUID For _DSD.
-<https://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf>,
-referenced 2016-10-04.
+[dsd-guide] DSD Guide.
+    https://github.com/UEFI/DSD-Guide/blob/main/dsd-guide.adoc, referenced
+    2021-11-30.
