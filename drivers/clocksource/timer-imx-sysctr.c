@@ -119,7 +119,7 @@ static struct timer_of to_sysctr = {
 
 static void __init sysctr_clockevent_init(void)
 {
-	to_sysctr.clkevt.cpumask = cpumask_of(0);
+	to_sysctr.clkevt.cpumask = cpu_possible_mask;
 
 	clockevents_config_and_register(&to_sysctr.clkevt,
 					timer_of_rate(&to_sysctr),
