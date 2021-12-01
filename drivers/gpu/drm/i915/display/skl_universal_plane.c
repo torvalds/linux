@@ -1064,15 +1064,24 @@ static void icl_plane_csc_load_black(struct intel_plane *plane)
 	intel_de_write_fw(i915, PLANE_CSC_POSTOFF(pipe, plane_id, 2), 0);
 }
 
+static int skl_plane_color_plane(const struct intel_plane_state *plane_state)
+{
+	/* Program the UV plane on planar master */
+	if (plane_state->planar_linked_plane && !plane_state->planar_slave)
+		return 1;
+	else
+		return 0;
+}
+
 static void
-skl_program_plane_noarm(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state,
-			const struct intel_plane_state *plane_state,
-			int color_plane)
+skl_plane_update_noarm(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
+	int color_plane = skl_plane_color_plane(plane_state);
 	u32 stride = skl_plane_stride(plane_state, color_plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int crtc_x = plane_state->uapi.dst.x1;
@@ -1125,14 +1134,14 @@ skl_program_plane_noarm(struct intel_plane *plane,
 }
 
 static void
-skl_program_plane_arm(struct intel_plane *plane,
-		      const struct intel_crtc_state *crtc_state,
-		      const struct intel_plane_state *plane_state,
-		      int color_plane)
+skl_plane_update_arm(struct intel_plane *plane,
+		     const struct intel_crtc_state *crtc_state,
+		     const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
+	int color_plane = skl_plane_color_plane(plane_state);
 	u32 x = plane_state->view.color_plane[color_plane].x;
 	u32 y = plane_state->view.color_plane[color_plane].y;
 	u32 plane_color_ctl = 0;
@@ -1211,34 +1220,6 @@ skl_plane_async_flip(struct intel_plane *plane,
 			  skl_plane_surf(plane_state, 0));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-}
-
-static void
-skl_plane_update_noarm(struct intel_plane *plane,
-		       const struct intel_crtc_state *crtc_state,
-		       const struct intel_plane_state *plane_state)
-{
-	int color_plane = 0;
-
-	if (plane_state->planar_linked_plane && !plane_state->planar_slave)
-		/* Program the UV plane on planar master */
-		color_plane = 1;
-
-	skl_program_plane_noarm(plane, crtc_state, plane_state, color_plane);
-}
-
-static void
-skl_plane_update_arm(struct intel_plane *plane,
-		     const struct intel_crtc_state *crtc_state,
-		     const struct intel_plane_state *plane_state)
-{
-	int color_plane = 0;
-
-	if (plane_state->planar_linked_plane && !plane_state->planar_slave)
-		/* Program the UV plane on planar master */
-		color_plane = 1;
-
-	skl_program_plane_arm(plane, crtc_state, plane_state, color_plane);
 }
 
 static bool intel_format_is_p01x(u32 format)
