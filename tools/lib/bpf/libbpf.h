@@ -499,6 +499,8 @@ bpf_program__set_expected_attach_type(struct bpf_program *prog,
 
 LIBBPF_API __u32 bpf_program__flags(const struct bpf_program *prog);
 LIBBPF_API int bpf_program__set_flags(struct bpf_program *prog, __u32 flags);
+LIBBPF_API __u32 bpf_program__log_level(const struct bpf_program *prog);
+LIBBPF_API int bpf_program__set_log_level(struct bpf_program *prog, __u32 log_level);
 
 LIBBPF_API int
 bpf_program__set_attach_target(struct bpf_program *prog, int attach_prog_fd,

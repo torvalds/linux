@@ -8475,6 +8475,20 @@ int bpf_program__set_flags(struct bpf_program *prog, __u32 flags)
 	return 0;
 }
 
+__u32 bpf_program__log_level(const struct bpf_program *prog)
+{
+	return prog->log_level;
+}
+
+int bpf_program__set_log_level(struct bpf_program *prog, __u32 log_level)
+{
+	if (prog->obj->loaded)
+		return libbpf_err(-EBUSY);
+
+	prog->log_level = log_level;
+	return 0;
+}
+
 #define SEC_DEF(sec_pfx, ptype, atype, flags, ...) {			    \
 	.sec = sec_pfx,							    \
 	.prog_type = BPF_PROG_TYPE_##ptype,				    \
