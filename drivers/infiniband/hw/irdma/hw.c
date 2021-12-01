@@ -146,6 +146,7 @@ static void irdma_set_flush_fields(struct irdma_sc_qp *qp,
 		qp->flush_code = FLUSH_PROT_ERR;
 		break;
 	case IRDMA_AE_AMP_BAD_QP:
+	case IRDMA_AE_WQE_UNEXPECTED_OPCODE:
 		qp->flush_code = FLUSH_LOC_QP_OP_ERR;
 		break;
 	case IRDMA_AE_AMP_BAD_STAG_KEY:
@@ -156,7 +157,6 @@ static void irdma_set_flush_fields(struct irdma_sc_qp *qp,
 	case IRDMA_AE_PRIV_OPERATION_DENIED:
 	case IRDMA_AE_IB_INVALID_REQUEST:
 	case IRDMA_AE_IB_REMOTE_ACCESS_ERROR:
-	case IRDMA_AE_IB_REMOTE_OP_ERROR:
 		qp->flush_code = FLUSH_REM_ACCESS_ERR;
 		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
 		break;
@@ -183,6 +183,9 @@ static void irdma_set_flush_fields(struct irdma_sc_qp *qp,
 	case IRDMA_AE_AMP_MWBIND_BIND_DISABLED:
 	case IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS:
 		qp->flush_code = FLUSH_MW_BIND_ERR;
+		break;
+	case IRDMA_AE_IB_REMOTE_OP_ERROR:
+		qp->flush_code = FLUSH_REM_OP_ERR;
 		break;
 	default:
 		qp->flush_code = FLUSH_FATAL_ERR;
