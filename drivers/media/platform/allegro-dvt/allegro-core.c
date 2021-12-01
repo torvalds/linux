@@ -2815,7 +2815,7 @@ static void allegro_buf_queue(struct vb2_buffer *vb)
 		unsigned int i;
 
 		for (i = 0; i < vb->num_planes; i++)
-			vb->planes[i].bytesused = 0;
+			vb2_set_plane_payload(vb, i, 0);
 
 		vbuf->field = V4L2_FIELD_NONE;
 		vbuf->sequence = channel->csequence++;
