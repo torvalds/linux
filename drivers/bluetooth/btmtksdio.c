@@ -99,6 +99,7 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 
 #define BTMTKSDIO_TX_WAIT_VND_EVT	1
 #define BTMTKSDIO_HW_TX_READY		2
+#define BTMTKSDIO_FUNC_ENABLED		3
 
 struct mtkbtsdio_hdr {
 	__le16	len;
@@ -539,6 +540,8 @@ static int btmtksdio_open(struct hci_dev *hdev)
 	if (err < 0)
 		goto err_release_host;
 
+	set_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state);
+
 	/* Get ownership from the device */
 	sdio_writel(bdev->func, C_FW_OWN_REQ_CLR, MTK_REG_CHLPCR, &err);
 	if (err < 0)
@@ -640,6 +643,7 @@ static int btmtksdio_close(struct hci_dev *hdev)
 	if (err < 0)
 		bt_dev_err(bdev->hdev, "Cannot return ownership to device");
 
+	clear_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state);
 	sdio_disable_func(bdev->func);
 
 	sdio_release_host(bdev->func);
@@ -1058,6 +1062,9 @@ static int btmtksdio_runtime_suspend(struct device *dev)
 	if (!bdev)
 		return 0;
 
+	if (!test_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state))
+		return 0;
+
 	sdio_claim_host(bdev->func);
 
 	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, &err);
@@ -1083,6 +1090,9 @@ static int btmtksdio_runtime_resume(struct device *dev)
 
 	bdev = sdio_get_drvdata(func);
 	if (!bdev)
+		return 0;
+
+	if (!test_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state))
 		return 0;
 
 	sdio_claim_host(bdev->func);
