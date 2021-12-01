@@ -100,6 +100,12 @@
 #include "xdpxceiver.h"
 #include "../kselftest.h"
 
+/* AF_XDP APIs were moved into libxdp and marked as deprecated in libbpf.
+ * Until xdpxceiver is either moved or re-writed into libxdp, suppress
+ * deprecation warnings in this file
+ */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 static const char *MAC1 = "\x00\x0A\x56\x9E\xEE\x62";
 static const char *MAC2 = "\x00\x0A\x56\x9E\xEE\x61";
 static const char *IP1 = "192.168.100.162";
