@@ -1057,16 +1057,19 @@ skl_program_plane_noarm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_SIZE(pipe, plane_id),
 			  (src_h << 16) | src_w);
 
+	if (intel_fb_is_rc_ccs_cc_modifier(fb->modifier)) {
+		intel_de_write_fw(dev_priv, PLANE_CC_VAL(pipe, plane_id, 0),
+				  lower_32_bits(plane_state->ccval));
+		intel_de_write_fw(dev_priv, PLANE_CC_VAL(pipe, plane_id, 1),
+				  upper_32_bits(plane_state->ccval));
+	}
+
 	if (icl_is_hdr_plane(dev_priv, plane_id))
 		intel_de_write_fw(dev_priv, PLANE_CUS_CTL(pipe, plane_id),
 				  plane_state->cus_ctl);
 
 	if (fb->format->is_yuv && icl_is_hdr_plane(dev_priv, plane_id))
 		icl_program_input_csc(plane, crtc_state, plane_state);
-
-	if (intel_fb_is_rc_ccs_cc_modifier(fb->modifier))
-		intel_uncore_write64_fw(&dev_priv->uncore,
-					PLANE_CC_VAL(pipe, plane_id), plane_state->ccval);
 
 	skl_write_plane_wm(plane, crtc_state);
 
