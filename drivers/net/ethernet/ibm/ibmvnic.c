@@ -628,17 +628,9 @@ static bool reuse_rx_pools(struct ibmvnic_adapter *adapter)
 	old_buff_size = adapter->prev_rx_buf_sz;
 	new_buff_size = adapter->cur_rx_buf_sz;
 
-	/* Require buff size to be exactly same for now */
-	if (old_buff_size != new_buff_size)
-		return false;
-
-	if (old_num_pools == new_num_pools && old_pool_size == new_pool_size)
-		return true;
-
-	if (old_num_pools < adapter->min_rx_queues ||
-	    old_num_pools > adapter->max_rx_queues ||
-	    old_pool_size < adapter->min_rx_add_entries_per_subcrq ||
-	    old_pool_size > adapter->max_rx_add_entries_per_subcrq)
+	if (old_buff_size != new_buff_size ||
+	    old_num_pools != new_num_pools ||
+	    old_pool_size != new_pool_size)
 		return false;
 
 	return true;
