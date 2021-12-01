@@ -1517,7 +1517,7 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 					       reformat_l3_tunnel_to_l2) &&
 		    esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-		priority = FDB_BYPASS_PATH;
+		priority = fs_matcher->priority;
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_RX:
 		max_table_size = BIT(
@@ -1547,7 +1547,7 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 		prio = &dev->flow_db->egress_prios[priority];
 		break;
 	case MLX5_FLOW_NAMESPACE_FDB_BYPASS:
-		prio = &dev->flow_db->fdb;
+		prio = &dev->flow_db->fdb[priority];
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_RX:
 		prio = &dev->flow_db->rdma_rx[priority];
