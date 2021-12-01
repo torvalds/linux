@@ -1048,11 +1048,12 @@ skl_program_plane_noarm(struct intel_plane *plane,
 	if (plane_state->force_black)
 		icl_plane_csc_load_black(plane);
 
-	intel_de_write_fw(dev_priv, PLANE_STRIDE(pipe, plane_id), stride);
+	intel_de_write_fw(dev_priv, PLANE_STRIDE(pipe, plane_id),
+			  PLANE_STRIDE_(stride));
 	intel_de_write_fw(dev_priv, PLANE_POS(pipe, plane_id),
-			  (crtc_y << 16) | crtc_x);
+			  PLANE_POS_Y(crtc_y) | PLANE_POS_X(crtc_x));
 	intel_de_write_fw(dev_priv, PLANE_SIZE(pipe, plane_id),
-			  ((src_h - 1) << 16) | (src_w - 1));
+			  PLANE_HEIGHT(src_h - 1) | PLANE_WIDTH(src_w - 1));
 
 	if (intel_fb_is_rc_ccs_cc_modifier(fb->modifier)) {
 		intel_de_write_fw(dev_priv, PLANE_CC_VAL(pipe, plane_id, 0),
@@ -1111,7 +1112,7 @@ skl_program_plane_arm(struct intel_plane *plane,
 			skl_surf_address(plane_state, color_plane);
 
 		if (DISPLAY_VER(dev_priv) < 12)
-			aux_dist |= skl_plane_stride(plane_state, aux_plane);
+			aux_dist |= PLANE_AUX_STRIDE(skl_plane_stride(plane_state, aux_plane));
 	}
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -1122,14 +1123,14 @@ skl_program_plane_arm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_KEYMAX(pipe, plane_id), keymax);
 
 	intel_de_write_fw(dev_priv, PLANE_OFFSET(pipe, plane_id),
-			  (y << 16) | x);
+			  PLANE_OFFSET_Y(y) | PLANE_OFFSET_X(x));
 
 	intel_de_write_fw(dev_priv, PLANE_AUX_DIST(pipe, plane_id), aux_dist);
 
 	if (DISPLAY_VER(dev_priv) < 11)
 		intel_de_write_fw(dev_priv, PLANE_AUX_OFFSET(pipe, plane_id),
-				  (plane_state->view.color_plane[1].y << 16) |
-				   plane_state->view.color_plane[1].x);
+				  PLANE_OFFSET_Y(plane_state->view.color_plane[1].y) |
+				  PLANE_OFFSET_X(plane_state->view.color_plane[1].x));
 
 	if (DISPLAY_VER(dev_priv) >= 10)
 		intel_de_write_fw(dev_priv, PLANE_COLOR_CTL(pipe, plane_id), plane_color_ctl);
@@ -2289,16 +2290,17 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	val = intel_de_read(dev_priv, PLANE_CTL(pipe, plane_id));
 
 	if (DISPLAY_VER(dev_priv) >= 11)
-		pixel_format = val & ICL_PLANE_CTL_FORMAT_MASK;
+		pixel_format = val & PLANE_CTL_FORMAT_MASK_ICL;
 	else
-		pixel_format = val & PLANE_CTL_FORMAT_MASK;
+		pixel_format = val & PLANE_CTL_FORMAT_MASK_SKL;
 
 	if (DISPLAY_VER(dev_priv) >= 10) {
-		alpha = intel_de_read(dev_priv,
-				      PLANE_COLOR_CTL(pipe, plane_id));
-		alpha &= PLANE_COLOR_ALPHA_MASK;
+		u32 color_ctl;
+
+		color_ctl = intel_de_read(dev_priv, PLANE_COLOR_CTL(pipe, plane_id));
+		alpha = REG_FIELD_GET(PLANE_COLOR_ALPHA_MASK, color_ctl);
 	} else {
-		alpha = val & PLANE_CTL_ALPHA_MASK;
+		alpha = REG_FIELD_GET(PLANE_CTL_ALPHA_MASK, val);
 	}
 
 	fourcc = skl_format_to_fourcc(pixel_format,
@@ -2362,19 +2364,19 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	if (drm_rotation_90_or_270(plane_config->rotation))
 		goto error;
 
-	base = intel_de_read(dev_priv, PLANE_SURF(pipe, plane_id)) & 0xfffff000;
+	base = intel_de_read(dev_priv, PLANE_SURF(pipe, plane_id)) & PLANE_SURF_ADDR_MASK;
 	plane_config->base = base;
 
 	offset = intel_de_read(dev_priv, PLANE_OFFSET(pipe, plane_id));
 
 	val = intel_de_read(dev_priv, PLANE_SIZE(pipe, plane_id));
-	fb->height = ((val >> 16) & 0xffff) + 1;
-	fb->width = ((val >> 0) & 0xffff) + 1;
+	fb->height = REG_FIELD_GET(PLANE_HEIGHT_MASK, val) + 1;
+	fb->width = REG_FIELD_GET(PLANE_WIDTH_MASK, val) + 1;
 
 	val = intel_de_read(dev_priv, PLANE_STRIDE(pipe, plane_id));
 	stride_mult = skl_plane_stride_mult(fb, 0, DRM_MODE_ROTATE_0);
 
-	fb->pitches[0] = (val & PLANE_STRIDE_MASK) * stride_mult;
+	fb->pitches[0] = REG_FIELD_GET(PLANE_STRIDE__MASK, val) * stride_mult;
 
 	aligned_height = intel_fb_align_height(fb, 0, fb->height);
 

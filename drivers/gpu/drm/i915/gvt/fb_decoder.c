@@ -218,7 +218,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (GRAPHICS_VER(dev_priv) >= 9) {
 		plane->tiled = val & PLANE_CTL_TILED_MASK;
 		fmt = skl_format_to_drm(
-			val & PLANE_CTL_FORMAT_MASK,
+			val & PLANE_CTL_FORMAT_MASK_SKL,
 			val & PLANE_CTL_ORDER_RGBX,
 			val & PLANE_CTL_ALPHA_MASK,
 			val & PLANE_CTL_YUV422_ORDER_MASK);

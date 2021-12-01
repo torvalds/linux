@@ -4292,11 +4292,10 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 static void skl_ddb_entry_init_from_hw(struct drm_i915_private *dev_priv,
 				       struct skl_ddb_entry *entry, u32 reg)
 {
-	entry->start = reg & DDB_ENTRY_MASK;
-	entry->end = (reg >> DDB_ENTRY_END_SHIFT) & DDB_ENTRY_MASK;
-
+	entry->start = REG_FIELD_GET(PLANE_BUF_START_MASK, reg);
+	entry->end = REG_FIELD_GET(PLANE_BUF_END_MASK, reg);
 	if (entry->end)
-		entry->end += 1;
+		entry->end++;
 }
 
 static void
@@ -4320,7 +4319,7 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 
 	/* No DDB allocated for disabled planes */
 	if (val & PLANE_CTL_ENABLE)
-		fourcc = skl_format_to_fourcc(val & PLANE_CTL_FORMAT_MASK,
+		fourcc = skl_format_to_fourcc(val & PLANE_CTL_FORMAT_MASK_SKL,
 					      val & PLANE_CTL_ORDER_RGBX,
 					      val & PLANE_CTL_ALPHA_MASK);
 
@@ -5891,7 +5890,8 @@ static void skl_ddb_entry_write(struct drm_i915_private *dev_priv,
 {
 	if (entry->end)
 		intel_de_write_fw(dev_priv, reg,
-				  (entry->end - 1) << 16 | entry->start);
+				  PLANE_BUF_END(entry->end - 1) |
+				  PLANE_BUF_START(entry->start));
 	else
 		intel_de_write_fw(dev_priv, reg, 0);
 }
