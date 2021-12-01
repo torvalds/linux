@@ -992,6 +992,26 @@ static u32 skl_plane_surf(const struct intel_plane_state *plane_state,
 	return plane_surf;
 }
 
+static u32 skl_plane_aux_dist(const struct intel_plane_state *plane_state,
+			      int color_plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	int aux_plane = skl_main_to_aux_plane(fb, color_plane);
+	u32 aux_dist;
+
+	if (!aux_plane)
+		return 0;
+
+	aux_dist = skl_surf_address(plane_state, aux_plane) -
+		skl_surf_address(plane_state, color_plane);
+
+	if (DISPLAY_VER(i915) < 12)
+		aux_dist |= PLANE_AUX_STRIDE(skl_plane_stride(plane_state, aux_plane));
+
+	return aux_dist;
+}
+
 static void icl_plane_csc_load_black(struct intel_plane *plane)
 {
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
@@ -1086,11 +1106,9 @@ skl_program_plane_arm(struct intel_plane *plane,
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int aux_plane = skl_main_to_aux_plane(fb, color_plane);
 	u32 x = plane_state->view.color_plane[color_plane].x;
 	u32 y = plane_state->view.color_plane[color_plane].y;
-	u32 keymsk, keymax, aux_dist = 0, plane_color_ctl = 0;
+	u32 keymsk, keymax, plane_color_ctl = 0;
 	u8 alpha = plane_state->hw.alpha >> 8;
 	u32 plane_ctl = plane_state->ctl;
 	unsigned long irqflags;
@@ -1107,14 +1125,6 @@ skl_program_plane_arm(struct intel_plane *plane,
 	if (alpha < 0xff)
 		keymsk |= PLANE_KEYMSK_ALPHA_ENABLE;
 
-	if (aux_plane) {
-		aux_dist = skl_surf_address(plane_state, aux_plane) -
-			skl_surf_address(plane_state, color_plane);
-
-		if (DISPLAY_VER(dev_priv) < 12)
-			aux_dist |= PLANE_AUX_STRIDE(skl_plane_stride(plane_state, aux_plane));
-	}
-
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, PLANE_KEYVAL(pipe, plane_id),
@@ -1125,7 +1135,8 @@ skl_program_plane_arm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_OFFSET(pipe, plane_id),
 			  PLANE_OFFSET_Y(y) | PLANE_OFFSET_X(x));
 
-	intel_de_write_fw(dev_priv, PLANE_AUX_DIST(pipe, plane_id), aux_dist);
+	intel_de_write_fw(dev_priv, PLANE_AUX_DIST(pipe, plane_id),
+			  skl_plane_aux_dist(plane_state, color_plane));
 
 	if (DISPLAY_VER(dev_priv) < 11)
 		intel_de_write_fw(dev_priv, PLANE_AUX_OFFSET(pipe, plane_id),
