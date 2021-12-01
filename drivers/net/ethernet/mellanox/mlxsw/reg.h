@@ -12255,6 +12255,16 @@ MLXSW_REG_DEFINE(sbsr, MLXSW_REG_SBSR_ID, MLXSW_REG_SBSR_LEN);
  */
 MLXSW_ITEM32(reg, sbsr, clr, 0x00, 31, 1);
 
+#define MLXSW_REG_SBSR_NUM_PORTS_IN_PAGE 256
+
+/* reg_sbsr_port_page
+ * Determines the range of the ports specified in the 'ingress_port_mask'
+ * and 'egress_port_mask' bit masks.
+ * {ingress,egress}_port_mask[x] is (256 * port_page) + x
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbsr, port_page, 0x04, 0, 4);
+
 /* reg_sbsr_ingress_port_mask
  * Bit vector for all ingress network ports.
  * Indicates which of the ports (for which the relevant bit is set)
