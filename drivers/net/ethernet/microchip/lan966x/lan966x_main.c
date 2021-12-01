@@ -512,11 +512,6 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 			*buf = val;
 		}
 
-		if (sz < 0) {
-			err = sz;
-			break;
-		}
-
 		skb->protocol = eth_type_trans(skb, dev);
 
 		netif_rx_ni(skb);
