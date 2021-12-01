@@ -792,6 +792,17 @@ properties:
           - const: variscite,var-som-mx8mm
           - const: fsl,imx8mm
 
+      - description:
+          TQMa8MxML is a series of SOM featuring NXP i.MX8MM system-on-chip
+          variants. It is designed to be soldered on different carrier boards.
+          All variants (TQMa8M[Q,D,S][L]ML) use the same device tree, hence only
+          one compatible is needed.
+        items:
+          - enum:
+              - tq,imx8mm-tqma8mqml-mba8mx # TQ-Systems GmbH i.MX8MM TQMa8MQML SOM on MBa8Mx
+          - const: tq,imx8mm-tqma8mqml     # TQ-Systems GmbH i.MX8MM TQMa8MQML SOM
+          - const: fsl,imx8mm
+
       - description: i.MX8MN based Boards
         items:
           - enum:
