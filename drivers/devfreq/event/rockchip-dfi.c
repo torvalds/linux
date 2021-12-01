@@ -23,6 +23,8 @@
 #define PX30_PMUGRF_OS_REG2		0x208
 #define PX30_PMUGRF_OS_REG3		0x20c
 
+#define RK3588_PMUGRF_OS_REG(n)		(0x200 + (n) * 4)
+
 #define RK3128_GRF_SOC_CON0		0x140
 #define RK3128_GRF_OS_REG1		0x1cc
 #define RK3128_GRF_DFI_WRNUM		0x220
@@ -50,14 +52,18 @@
 #define RK3368_DFI_EN			(0x30003 << 5)
 #define RK3368_DFI_DIS			(0x30000 << 5)
 
-#define MAX_DMC_NUM_CH			2
+#define MAX_DMC_NUM_CH			4
 #define READ_DRAMTYPE_INFO(n)		(((n) >> 13) & 0x7)
 #define READ_CH_INFO(n)			(((n) >> 28) & 0x3)
 #define READ_DRAMTYPE_INFO_V3(n, m)	((((n) >> 13) & 0x7) | ((((m) >> 12) & 0x3) << 3))
 #define READ_SYSREG_VERSION(m)		(((m) >> 28) & 0xf)
+#define READ_LP5_BANK_MODE(m)		(((m) >> 1) & 0x3)
+#define READ_LP5_CKR(m)			(((m) >> 0) & 0x1)
 /* DDRMON_CTRL */
 #define DDRMON_CTRL			0x04
-#define CLR_DDRMON_CTRL			(0x3f0000 << 0)
+#define CLR_DDRMON_CTRL			(0xffff0000 << 0)
+#define LPDDR5_BANK_MODE(m)		((0x30000 | ((m) & 0x3)) << 7)
+#define LPDDR5_EN			(0x10001 << 6)
 #define DDR4_EN				(0x10001 << 5)
 #define LPDDR4_EN			(0x10001 << 4)
 #define HARDWARE_EN			(0x10001 << 3)
@@ -81,12 +87,14 @@ enum {
 	LPDDR3 = 6,
 	LPDDR4 = 7,
 	LPDDR4X = 8,
+	LPDDR5 = 9,
+	DDR5 = 10,
 	UNUSED = 0xFF
 };
 
 struct dmc_usage {
-	u32 access;
-	u32 total;
+	u64 access;
+	u64 total;
 };
 
 /*
@@ -105,6 +113,13 @@ struct rockchip_dfi {
 	struct regmap *regmap_pmugrf;
 	struct clk *clk;
 	u32 dram_type;
+	u32 mon_idx;
+	u32 count_rate;
+	u32 dram_dynamic_info_reg;
+	/* 0: BG mode, 1: 16 Bank mode, 2: 8 bank mode */
+	u32 lp5_bank_mode;
+	/* 0: clk:dqs = 1:2, 1: 1:4 */
+	u32 lp5_ckr;
 	/*
 	 * available mask, 1: available, 0: not available
 	 * each bit represent a channel
@@ -341,28 +356,56 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 {
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	void __iomem *dfi_regs = info->regs;
+	u32 mon_idx = 0, val_6 = 0;
+	u32 i;
 
-	/* clear DDRMON_CTRL setting */
-	writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + DDRMON_CTRL);
+	if (info->mon_idx)
+		mon_idx = info->mon_idx;
 
-	/* set ddr type to dfi */
-	if (info->dram_type == LPDDR3 || info->dram_type == LPDDR2)
-		writel_relaxed(LPDDR2_3_EN, dfi_regs + DDRMON_CTRL);
-	else if (info->dram_type == LPDDR4 || info->dram_type == LPDDR4X)
-		writel_relaxed(LPDDR4_EN, dfi_regs + DDRMON_CTRL);
-	else if (info->dram_type == DDR4)
-		writel_relaxed(DDR4_EN, dfi_regs + DDRMON_CTRL);
+	if (info->dram_dynamic_info_reg)
+		regmap_read(info->regmap_pmugrf, info->dram_dynamic_info_reg, &val_6);
 
-	/* enable count, use software mode */
-	writel_relaxed(SOFTWARE_EN, dfi_regs + DDRMON_CTRL);
+	if (info->dram_type == LPDDR5) {
+		info->lp5_bank_mode = READ_LP5_BANK_MODE(val_6);
+		info->lp5_ckr = READ_LP5_CKR(val_6);
+	}
+
+	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
+		if (!(info->ch_msk & BIT(i)))
+			continue;
+		/* clear DDRMON_CTRL setting */
+		writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + i * mon_idx + DDRMON_CTRL);
+
+		/* set ddr type to dfi */
+		if (info->dram_type == LPDDR3 || info->dram_type == LPDDR2)
+			writel_relaxed(LPDDR2_3_EN, dfi_regs + i * mon_idx + DDRMON_CTRL);
+		else if (info->dram_type == LPDDR4 || info->dram_type == LPDDR4X)
+			writel_relaxed(LPDDR4_EN, dfi_regs + i * mon_idx + DDRMON_CTRL);
+		else if (info->dram_type == DDR4)
+			writel_relaxed(DDR4_EN, dfi_regs + i * mon_idx + DDRMON_CTRL);
+		else if (info->dram_type == LPDDR5)
+			writel_relaxed(LPDDR5_EN | LPDDR5_BANK_MODE(info->lp5_bank_mode),
+				       dfi_regs + i * mon_idx + DDRMON_CTRL);
+
+		/* enable count, use software mode */
+		writel_relaxed(SOFTWARE_EN, dfi_regs + i * mon_idx + DDRMON_CTRL);
+	}
 }
 
 static void rockchip_dfi_stop_hardware_counter(struct devfreq_event_dev *edev)
 {
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	void __iomem *dfi_regs = info->regs;
+	u32 mon_idx = 0, i;
 
-	writel_relaxed(SOFTWARE_DIS, dfi_regs + DDRMON_CTRL);
+	if (info->mon_idx)
+		mon_idx = info->mon_idx;
+
+	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
+		if (!(info->ch_msk & BIT(i)))
+			continue;
+		writel_relaxed(SOFTWARE_DIS, dfi_regs + i * mon_idx + DDRMON_CTRL);
+	}
 }
 
 static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
@@ -371,22 +414,31 @@ static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
 	u32 tmp, max = 0;
 	u32 i, busier_ch = 0;
 	void __iomem *dfi_regs = info->regs;
+	u32 mon_idx = 0x20, count_rate = 1;
 
 	rockchip_dfi_stop_hardware_counter(edev);
+
+	if (info->mon_idx)
+		mon_idx = info->mon_idx;
+	if (info->count_rate)
+		count_rate = info->count_rate;
 
 	/* Find out which channel is busier */
 	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
 		if (!(info->ch_msk & BIT(i)))
 			continue;
 
+		/* rk3588 counter is dfi clk rate */
 		info->ch_usage[i].total = readl_relaxed(dfi_regs +
-				DDRMON_CH0_COUNT_NUM + i * 20);
+				DDRMON_CH0_COUNT_NUM + i * mon_idx) * count_rate;
 
-		/* LPDDR4 and LPDDR4X BL = 16,other DDR type BL = 8 */
+		/* LPDDR5 LPDDR4 and LPDDR4X BL = 16,other DDR type BL = 8 */
 		tmp = readl_relaxed(dfi_regs +
-				DDRMON_CH0_DFI_ACCESS_NUM + i * 20);
+				DDRMON_CH0_DFI_ACCESS_NUM + i * mon_idx);
 		if (info->dram_type == LPDDR4 || info->dram_type == LPDDR4X)
 			tmp *= 8;
+		else if (info->dram_type == LPDDR5)
+			tmp *= 16 / (4 << info->lp5_ckr);
 		else
 			tmp *= 4;
 		info->ch_usage[i].access = tmp;
@@ -458,6 +510,42 @@ static const struct devfreq_event_ops rockchip_dfi_ops = {
 	.get_event = rockchip_dfi_get_event,
 	.set_event = rockchip_dfi_set_event,
 };
+
+static __init int rk3588_dfi_init(struct platform_device *pdev,
+				  struct rockchip_dfi *data,
+				  struct devfreq_event_desc *desc)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct resource *res;
+	u32 val_2, val_3, val_4;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->regs))
+		return PTR_ERR(data->regs);
+
+	data->regmap_pmugrf = syscon_regmap_lookup_by_phandle(np, "rockchip,pmu_grf");
+	if (IS_ERR(data->regmap_pmugrf))
+		return PTR_ERR(data->regmap_pmugrf);
+
+	regmap_read(data->regmap_pmugrf, RK3588_PMUGRF_OS_REG(2), &val_2);
+	regmap_read(data->regmap_pmugrf, RK3588_PMUGRF_OS_REG(3), &val_3);
+	regmap_read(data->regmap_pmugrf, RK3588_PMUGRF_OS_REG(4), &val_4);
+	if (READ_SYSREG_VERSION(val_3) >= 0x3)
+		data->dram_type = READ_DRAMTYPE_INFO_V3(val_2, val_3);
+	else
+		data->dram_type = READ_DRAMTYPE_INFO(val_2);
+
+	data->mon_idx = 0x4000;
+	data->count_rate = 2;
+	data->dram_dynamic_info_reg = RK3588_PMUGRF_OS_REG(6);
+	data->ch_msk = READ_CH_INFO(val_2) | READ_CH_INFO(val_4) << 2;
+	data->clk = NULL;
+
+	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
 
 static __init int px30_dfi_init(struct platform_device *pdev,
 				  struct rockchip_dfi *data,
@@ -641,6 +729,7 @@ static const struct of_device_id rockchip_dfi_id_match[] = {
 	{ .compatible = "rockchip,rk3368-dfi", .data = rk3368_dfi_init },
 	{ .compatible = "rockchip,rk3399-dfi", .data = rockchip_dfi_init },
 	{ .compatible = "rockchip,rk3568-dfi", .data = px30_dfi_init },
+	{ .compatible = "rockchip,rk3588-dfi", .data = rk3588_dfi_init },
 	{ .compatible = "rockchip,rv1126-dfi", .data = px30_dfi_init },
 	{ },
 };
