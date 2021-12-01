@@ -1840,6 +1840,8 @@ deinit_clk:
 disable_vpcie3v3:
 	rk_pcie_disable_power(rk_pcie);
 
+	device_release_driver(dev);
+
 	return ret;
 }
 
