@@ -342,7 +342,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		return -ENODEV;
 
 	val = vgpu_vreg_t(vgpu, CURCNTR(pipe));
-	mode = val & MCURSOR_MODE;
+	mode = val & MCURSOR_MODE_MASK;
 	plane->enabled = (mode != MCURSOR_MODE_DISABLE);
 	if (!plane->enabled)
 		return -ENODEV;

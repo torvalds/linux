@@ -10004,9 +10004,9 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 		    intel_de_read(dev_priv, DSPCNTR(PLANE_C)) &
 		    DISPLAY_PLANE_ENABLE);
 	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, CURCNTR(PIPE_A)) & MCURSOR_MODE);
+		    intel_de_read(dev_priv, CURCNTR(PIPE_A)) & MCURSOR_MODE_MASK);
 	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, CURCNTR(PIPE_B)) & MCURSOR_MODE);
+		    intel_de_read(dev_priv, CURCNTR(PIPE_B)) & MCURSOR_MODE_MASK);
 
 	intel_de_write(dev_priv, PIPECONF(pipe), 0);
 	intel_de_posting_read(dev_priv, PIPECONF(pipe));
