@@ -2195,7 +2195,7 @@ static u8 hci_cc_write_ssp_debug_mode(struct hci_dev *hdev, void *data,
 
 static void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (status) {
 		hci_conn_check_pending(hdev);
@@ -2210,7 +2210,7 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 	struct hci_cp_create_conn *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_CREATE_CONN);
 	if (!cp)
@@ -2220,7 +2220,7 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
 
-	BT_DBG("%s bdaddr %pMR hcon %p", hdev->name, &cp->bdaddr, conn);
+	bt_dev_dbg(hdev, "bdaddr %pMR hcon %p", &cp->bdaddr, conn);
 
 	if (status) {
 		if (conn && conn->state == BT_CONNECT) {
@@ -2249,7 +2249,7 @@ static void hci_cs_add_sco(struct hci_dev *hdev, __u8 status)
 	struct hci_conn *acl, *sco;
 	__u16 handle;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2260,7 +2260,7 @@ static void hci_cs_add_sco(struct hci_dev *hdev, __u8 status)
 
 	handle = __le16_to_cpu(cp->handle);
 
-	BT_DBG("%s handle 0x%4.4x", hdev->name, handle);
+	bt_dev_dbg(hdev, "handle 0x%4.4x", handle);
 
 	hci_dev_lock(hdev);
 
@@ -2283,7 +2283,7 @@ static void hci_cs_auth_requested(struct hci_dev *hdev, __u8 status)
 	struct hci_cp_auth_requested *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2310,7 +2310,7 @@ static void hci_cs_set_conn_encrypt(struct hci_dev *hdev, __u8 status)
 	struct hci_cp_set_conn_encrypt *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2446,7 +2446,7 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 	struct hci_cp_remote_name_req *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	/* If successful wait for the name req complete event before
 	 * checking for the need to do authentication */
@@ -2489,7 +2489,7 @@ static void hci_cs_read_remote_features(struct hci_dev *hdev, __u8 status)
 	struct hci_cp_read_remote_features *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2516,7 +2516,7 @@ static void hci_cs_read_remote_ext_features(struct hci_dev *hdev, __u8 status)
 	struct hci_cp_read_remote_ext_features *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2544,7 +2544,7 @@ static void hci_cs_setup_sync_conn(struct hci_dev *hdev, __u8 status)
 	struct hci_conn *acl, *sco;
 	__u16 handle;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2555,7 +2555,7 @@ static void hci_cs_setup_sync_conn(struct hci_dev *hdev, __u8 status)
 
 	handle = __le16_to_cpu(cp->handle);
 
-	BT_DBG("%s handle 0x%4.4x", hdev->name, handle);
+	bt_dev_dbg(hdev, "handle 0x%4.4x", handle);
 
 	hci_dev_lock(hdev);
 
@@ -2613,7 +2613,7 @@ static void hci_cs_sniff_mode(struct hci_dev *hdev, __u8 status)
 	struct hci_cp_sniff_mode *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2640,7 +2640,7 @@ static void hci_cs_exit_sniff_mode(struct hci_dev *hdev, __u8 status)
 	struct hci_cp_exit_sniff_mode *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2668,6 +2668,8 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
 	bool mgmt_conn;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	/* Wait for HCI_EV_DISCONN_COMPLETE if status 0x00 and not suspended
 	 * otherwise cleanup the connection immediately.
@@ -2802,7 +2804,7 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_le_create_conn *cp;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	/* All connection failure handling is taken care of by the
 	 * hci_le_conn_failed function which is triggered by the HCI
@@ -2827,7 +2829,7 @@ static void hci_cs_le_ext_create_conn(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_le_ext_create_conn *cp;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	/* All connection failure handling is taken care of by the
 	 * hci_le_conn_failed function which is triggered by the HCI
@@ -2853,7 +2855,7 @@ static void hci_cs_le_read_remote_features(struct hci_dev *hdev, u8 status)
 	struct hci_cp_le_read_remote_features *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -2880,7 +2882,7 @@ static void hci_cs_le_start_enc(struct hci_dev *hdev, u8 status)
 	struct hci_cp_le_start_enc *cp;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
 
 	if (!status)
 		return;
@@ -3948,92 +3950,56 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, void *data,
 		queue_work(hdev->workqueue, &hdev->cmd_work);
 }
 
+#define HCI_CS(_op, _func) \
+{ \
+	.op = _op, \
+	.func = _func, \
+}
+
+static const struct hci_cs {
+	u16  op;
+	void (*func)(struct hci_dev *hdev, __u8 status);
+} hci_cs_table[] = {
+	HCI_CS(HCI_OP_INQUIRY, hci_cs_inquiry),
+	HCI_CS(HCI_OP_CREATE_CONN, hci_cs_create_conn),
+	HCI_CS(HCI_OP_DISCONNECT, hci_cs_disconnect),
+	HCI_CS(HCI_OP_ADD_SCO, hci_cs_add_sco),
+	HCI_CS(HCI_OP_AUTH_REQUESTED, hci_cs_auth_requested),
+	HCI_CS(HCI_OP_SET_CONN_ENCRYPT, hci_cs_set_conn_encrypt),
+	HCI_CS(HCI_OP_REMOTE_NAME_REQ, hci_cs_remote_name_req),
+	HCI_CS(HCI_OP_READ_REMOTE_FEATURES, hci_cs_read_remote_features),
+	HCI_CS(HCI_OP_READ_REMOTE_EXT_FEATURES,
+	       hci_cs_read_remote_ext_features),
+	HCI_CS(HCI_OP_SETUP_SYNC_CONN, hci_cs_setup_sync_conn),
+	HCI_CS(HCI_OP_ENHANCED_SETUP_SYNC_CONN,
+	       hci_cs_enhanced_setup_sync_conn),
+	HCI_CS(HCI_OP_SNIFF_MODE, hci_cs_sniff_mode),
+	HCI_CS(HCI_OP_EXIT_SNIFF_MODE, hci_cs_exit_sniff_mode),
+	HCI_CS(HCI_OP_SWITCH_ROLE, hci_cs_switch_role),
+	HCI_CS(HCI_OP_LE_CREATE_CONN, hci_cs_le_create_conn),
+	HCI_CS(HCI_OP_LE_READ_REMOTE_FEATURES, hci_cs_le_read_remote_features),
+	HCI_CS(HCI_OP_LE_START_ENC, hci_cs_le_start_enc),
+	HCI_CS(HCI_OP_LE_EXT_CREATE_CONN, hci_cs_le_ext_create_conn)
+};
+
 static void hci_cmd_status_evt(struct hci_dev *hdev, void *data,
 			       struct sk_buff *skb, u16 *opcode, u8 *status,
 			       hci_req_complete_t *req_complete,
 			       hci_req_complete_skb_t *req_complete_skb)
 {
 	struct hci_ev_cmd_status *ev = data;
+	int i;
 
 	*opcode = __le16_to_cpu(ev->opcode);
 	*status = ev->status;
 
-	switch (*opcode) {
-	case HCI_OP_INQUIRY:
-		hci_cs_inquiry(hdev, ev->status);
-		break;
+	bt_dev_dbg(hdev, "opcode 0x%4.4x", *opcode);
 
-	case HCI_OP_CREATE_CONN:
-		hci_cs_create_conn(hdev, ev->status);
-		break;
-
-	case HCI_OP_DISCONNECT:
-		hci_cs_disconnect(hdev, ev->status);
-		break;
-
-	case HCI_OP_ADD_SCO:
-		hci_cs_add_sco(hdev, ev->status);
-		break;
-
-	case HCI_OP_AUTH_REQUESTED:
-		hci_cs_auth_requested(hdev, ev->status);
-		break;
-
-	case HCI_OP_SET_CONN_ENCRYPT:
-		hci_cs_set_conn_encrypt(hdev, ev->status);
-		break;
-
-	case HCI_OP_REMOTE_NAME_REQ:
-		hci_cs_remote_name_req(hdev, ev->status);
-		break;
-
-	case HCI_OP_READ_REMOTE_FEATURES:
-		hci_cs_read_remote_features(hdev, ev->status);
-		break;
-
-	case HCI_OP_READ_REMOTE_EXT_FEATURES:
-		hci_cs_read_remote_ext_features(hdev, ev->status);
-		break;
-
-	case HCI_OP_SETUP_SYNC_CONN:
-		hci_cs_setup_sync_conn(hdev, ev->status);
-		break;
-
-	case HCI_OP_ENHANCED_SETUP_SYNC_CONN:
-		hci_cs_enhanced_setup_sync_conn(hdev, ev->status);
-		break;
-
-	case HCI_OP_SNIFF_MODE:
-		hci_cs_sniff_mode(hdev, ev->status);
-		break;
-
-	case HCI_OP_EXIT_SNIFF_MODE:
-		hci_cs_exit_sniff_mode(hdev, ev->status);
-		break;
-
-	case HCI_OP_SWITCH_ROLE:
-		hci_cs_switch_role(hdev, ev->status);
-		break;
-
-	case HCI_OP_LE_CREATE_CONN:
-		hci_cs_le_create_conn(hdev, ev->status);
-		break;
-
-	case HCI_OP_LE_READ_REMOTE_FEATURES:
-		hci_cs_le_read_remote_features(hdev, ev->status);
-		break;
-
-	case HCI_OP_LE_START_ENC:
-		hci_cs_le_start_enc(hdev, ev->status);
-		break;
-
-	case HCI_OP_LE_EXT_CREATE_CONN:
-		hci_cs_le_ext_create_conn(hdev, ev->status);
-		break;
-
-	default:
-		BT_DBG("%s opcode 0x%4.4x", hdev->name, *opcode);
-		break;
+	for (i = 0; i < ARRAY_SIZE(hci_cs_table); i++) {
+		if (hci_cs_table[i].op == *opcode) {
+			hci_cs_table[i].func(hdev, ev->status);
+			break;
+		}
 	}
 
 	handle_cmd_cnt_and_timer(hdev, ev->ncmd);
