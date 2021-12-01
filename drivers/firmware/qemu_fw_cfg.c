@@ -389,6 +389,7 @@ static void fw_cfg_sysfs_cache_cleanup(void)
 
 	list_for_each_entry_safe(entry, next, &fw_cfg_entry_cache, list) {
 		fw_cfg_sysfs_cache_delist(entry);
+		kobject_del(&entry->kobj);
 		kobject_put(&entry->kobj);
 	}
 }
