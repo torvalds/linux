@@ -100,6 +100,9 @@
  *  VERSION     : 01-00-26
  *  01 Dec 2021 : 1. Version update
  *  VERSION     : 01-00-27
+ *  01 Dec 2021 : 1. Resetting SRAM Region before loading firmware.
+ 		  2. Version update
+ *  VERSION     : 01-00-28
  */
 
 #include <linux/clk-provider.h>
@@ -137,7 +140,7 @@ static unsigned int tc956x_port0_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
 static unsigned int tc956x_port1_enable_eee = DISABLE;
 static unsigned int tc956x_port1_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 7};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 8};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -1286,6 +1289,26 @@ static const struct tc956xmac_pci_info tc956xmac_xgmac3_2_5g_mdio_pci_info = {
 #endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 
 /*!
+ * \brief API to Reset SRAM Region.
+ *
+ * \details This function Resets both IMEM & DMEM sections of tc956x.
+ *
+ * \param[in] dev  - pointer to device structure.
+ * \param[in] res  - pointer to tc956xmac_resources structure.
+ *
+ * \return none
+ */
+static void tc956x_reset_SRAM(struct device *dev, struct tc956xmac_resources *res)
+{
+	NMSGPR_INFO(dev,  "Resetting SRAM Region start\n");
+	/* Resetting SRAM IMEM Region */
+	memset_io(res->tc956x_SRAM_pci_base_addr, 0x0, 0x10000);
+	/* Resetting SRAM DMEM Region */
+	memset_io((res->tc956x_SRAM_pci_base_addr + 0x40000), 0x0, 0x10000);
+	NMSGPR_INFO(dev,  "Resetting SRAM Region end\n");
+}
+ 
+/*!
  * \brief API to load firmware for CM3.
  *
  * \details This fucntion loads the firmware onto the SRAM of tc956x.
@@ -1333,6 +1356,7 @@ s32 tc956x_load_firmware(struct device *dev, struct tc956xmac_resources *res)
 			TC956X_M3_INIT_DONE));
 	iowrite32(0, (void __iomem *)(res->tc956x_SRAM_pci_base_addr +
 			TC956X_M3_FW_EXIT));
+	tc956x_reset_SRAM(dev, res);
 #endif
 	/* Copy TC956X FW to SRAM */
 	adrs = TC956X_ZERO;/* SRAM Start Address */
@@ -1394,6 +1418,7 @@ s32 tc956x_load_firmware(struct device *dev, struct tc956xmac_resources *res)
 #endif
 
 #ifdef TC956X
+	tc956x_reset_SRAM(dev, res);
 	/* Copy TC956X FW to SRAM */
 	memcpy_toio(res->tc956x_SRAM_pci_base_addr, pfw->data, pfw->size);
 #endif
