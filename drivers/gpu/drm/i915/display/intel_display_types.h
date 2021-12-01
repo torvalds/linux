@@ -1797,7 +1797,7 @@ intel_crtc_for_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 }
 
 static inline struct intel_crtc *
-intel_get_crtc_for_plane(struct drm_i915_private *dev_priv, enum i9xx_plane_id plane)
+intel_crtc_for_plane(struct drm_i915_private *dev_priv, enum i9xx_plane_id plane)
 {
 	return dev_priv->plane_to_crtc_mapping[plane];
 }

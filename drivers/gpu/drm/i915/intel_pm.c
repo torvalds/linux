@@ -2357,7 +2357,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		fifo_size = i830_get_fifo_size(dev_priv, PLANE_A);
 	else
 		fifo_size = i9xx_get_fifo_size(dev_priv, PLANE_A);
-	crtc = intel_get_crtc_for_plane(dev_priv, PLANE_A);
+	crtc = intel_crtc_for_plane(dev_priv, PLANE_A);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *pipe_mode =
 			&crtc->config->hw.pipe_mode;
@@ -2387,7 +2387,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		fifo_size = i830_get_fifo_size(dev_priv, PLANE_B);
 	else
 		fifo_size = i9xx_get_fifo_size(dev_priv, PLANE_B);
-	crtc = intel_get_crtc_for_plane(dev_priv, PLANE_B);
+	crtc = intel_crtc_for_plane(dev_priv, PLANE_B);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *pipe_mode =
 			&crtc->config->hw.pipe_mode;
