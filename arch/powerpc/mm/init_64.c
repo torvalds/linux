@@ -472,8 +472,12 @@ void __init mmu_early_init_devtree(void)
 	bool hvmode = !!(mfmsr() & MSR_HV);
 
 	/* Disable radix mode based on kernel command line. */
-	if (disable_radix)
-		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+	if (disable_radix) {
+		if (IS_ENABLED(CONFIG_PPC_64S_HASH_MMU))
+			cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+		else
+			pr_warn("WARNING: Ignoring cmdline option disable_radix\n");
+	}
 
 	of_scan_flat_dt(dt_scan_mmu_pid_width, NULL);
 	if (hvmode && !mmu_lpid_bits) {
@@ -498,6 +502,7 @@ void __init mmu_early_init_devtree(void)
 
 	if (early_radix_enabled()) {
 		radix__early_init_devtree();
+
 		/*
 		 * We have finalized the translation we are going to use by now.
 		 * Radix mode is not limited by RMA / VRMA addressing.
@@ -507,5 +512,9 @@ void __init mmu_early_init_devtree(void)
 		memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 	} else
 		hash__early_init_devtree();
+
+	if (!(cur_cpu_spec->mmu_features & MMU_FTR_HPTE_TABLE) &&
+	    !(cur_cpu_spec->mmu_features & MMU_FTR_TYPE_RADIX))
+		panic("kernel does not support any MMU type offered by platform");
 }
 #endif /* CONFIG_PPC_BOOK3S_64 */

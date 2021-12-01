@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC_CELL
+	select PPC_64S_HASH_MMU if PPC64
 	bool
 
 config PPC_CELL_COMMON
