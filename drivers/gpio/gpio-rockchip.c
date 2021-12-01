@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2013 MundoReader S.L.
+ * Author: Heiko Stuebner <heiko@sntech.de>
+ *
+ * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/gpio/driver.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -21,11 +24,9 @@
 #include "../pinctrl/core.h"
 #include "../pinctrl/pinctrl-rockchip.h"
 
-#define GPIO_TYPE_V1	(0)           /* GPIO Version ID reserved */
-#define GPIO_TYPE_V2	(0x01000C2B)  /* GPIO Version ID 0x01000C2B */
-#define GPIO_TYPE_V2_1	(0x0101157C)  /* GPIO Version ID 0x0101157C */
-
-#define GPIO_BANK_PIN_NUM	(32)
+#define GPIO_TYPE_V1		(0)           /* GPIO Version ID reserved */
+#define GPIO_TYPE_V2		(0x01000C2B)  /* GPIO Version ID 0x01000C2B */
+#define GPIO_TYPE_V2_1		(0x0101157C)  /* GPIO Version ID 0x0101157C */
 
 static const struct rockchip_gpio_regs gpio_regs_v1 = {
 	.port_dr = 0x00,
@@ -134,7 +135,35 @@ static inline u32 rockchip_gpio_readl_bit(struct rockchip_pin_bank *bank,
 	return data & (0x1);
 }
 
-static void rockchip_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
+static int rockchip_gpio_get_direction(struct gpio_chip *chip,
+				       unsigned int offset)
+{
+	struct rockchip_pin_bank *bank = gpiochip_get_data(chip);
+	u32 data;
+
+	data = rockchip_gpio_readl_bit(bank, offset, bank->gpio_regs->port_ddr);
+	if (data)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
+}
+
+static int rockchip_gpio_set_direction(struct gpio_chip *chip,
+				       unsigned int offset, bool input)
+{
+	struct rockchip_pin_bank *bank = gpiochip_get_data(chip);
+	unsigned long flags;
+	u32 data = input ? 0 : 1;
+
+	raw_spin_lock_irqsave(&bank->slock, flags);
+	rockchip_gpio_writel_bit(bank, offset, data, bank->gpio_regs->port_ddr);
+	raw_spin_unlock_irqrestore(&bank->slock, flags);
+
+	return 0;
+}
+
+static void rockchip_gpio_set(struct gpio_chip *gc, unsigned int offset,
+			      int value)
 {
 	struct rockchip_pin_bank *bank = gpiochip_get_data(gc);
 	unsigned long flags;
@@ -156,41 +185,9 @@ static int rockchip_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	return data;
 }
 
-static int rockchip_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
-{
-	struct rockchip_pin_bank *bank = gpiochip_get_data(chip);
-	u32 data;
-
-	data = rockchip_gpio_readl_bit(bank, offset, bank->gpio_regs->port_ddr);
-
-	return !data;
-}
-
-static int rockchip_gpio_set_direction(struct gpio_chip *chip, unsigned int offset, bool input)
-{
-	struct rockchip_pin_bank *bank = gpiochip_get_data(chip);
-	u32 data = input ? 0 : 1;
-
-	rockchip_gpio_writel_bit(bank, offset, data, bank->gpio_regs->port_ddr);
-
-	return 0;
-}
-
-static int rockchip_gpio_direction_input(struct gpio_chip *gc, unsigned int offset)
-{
-	return rockchip_gpio_set_direction(gc, offset, true);
-}
-
-static int rockchip_gpio_direction_output(struct gpio_chip *gc,
-					  unsigned int offset, int value)
-{
-	rockchip_gpio_set(gc, offset, value);
-
-	return rockchip_gpio_set_direction(gc, offset, false);
-}
-
 static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
-				       unsigned int offset, unsigned int debounce)
+				      unsigned int offset,
+				      unsigned int debounce)
 {
 	struct rockchip_pin_bank *bank = gpiochip_get_data(gc);
 	const struct rockchip_gpio_regs	*reg = bank->gpio_regs;
@@ -199,7 +196,7 @@ static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
 	unsigned int cur_div_reg;
 	u64 div;
 
-	if (!IS_ERR(bank->db_clk)) {
+	if (bank->gpio_type == GPIO_TYPE_V2 && !IS_ERR(bank->db_clk)) {
 		div_debounce_support = true;
 		freq = clk_get_rate(bank->db_clk);
 		max_debounce = (GENMASK(23, 0) + 1) * 2 * 1000000 / freq;
@@ -218,9 +215,11 @@ static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
 	if (debounce) {
 		if (div_debounce_support) {
 			/* Configure the max debounce from consumers */
-			cur_div_reg = readl(bank->reg_base + reg->dbclk_div_con);
+			cur_div_reg = readl(bank->reg_base +
+					    reg->dbclk_div_con);
 			if (cur_div_reg < div_reg)
-				writel(div_reg, bank->reg_base + reg->dbclk_div_con);
+				writel(div_reg, bank->reg_base +
+				       reg->dbclk_div_con);
 			rockchip_gpio_writel_bit(bank, offset, 1,
 						 reg->dbclk_div_en);
 		}
@@ -245,6 +244,20 @@ static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
 	}
 
 	return 0;
+}
+
+static int rockchip_gpio_direction_input(struct gpio_chip *gc,
+					 unsigned int offset)
+{
+	return rockchip_gpio_set_direction(gc, offset, true);
+}
+
+static int rockchip_gpio_direction_output(struct gpio_chip *gc,
+					  unsigned int offset, int value)
+{
+	rockchip_gpio_set(gc, offset, value);
+
+	return rockchip_gpio_set_direction(gc, offset, false);
 }
 
 /*
@@ -317,14 +330,13 @@ static void rockchip_irq_demux(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct rockchip_pin_bank *bank = irq_desc_get_handler_data(desc);
-	const struct rockchip_gpio_regs	*reg = bank->gpio_regs;
 	u32 pend;
 
 	dev_dbg(bank->dev, "got irq for bank %s\n", bank->name);
 
 	chained_irq_enter(chip, desc);
 
-	pend = readl_relaxed(bank->reg_base + reg->int_status);
+	pend = readl_relaxed(bank->reg_base + bank->gpio_regs->int_status);
 
 	while (pend) {
 		unsigned int irq, virq;
@@ -348,24 +360,26 @@ static void rockchip_irq_demux(struct irq_desc *desc)
 			u32 data, data_old, polarity;
 			unsigned long flags;
 
-			data = readl_relaxed(bank->reg_base + reg->ext_port);
+			data = readl_relaxed(bank->reg_base +
+					     bank->gpio_regs->ext_port);
 			do {
 				raw_spin_lock_irqsave(&bank->slock, flags);
 
 				polarity = readl_relaxed(bank->reg_base +
-							 reg->int_polarity);
+							 bank->gpio_regs->int_polarity);
 				if (data & BIT(irq))
 					polarity &= ~BIT(irq);
 				else
 					polarity |= BIT(irq);
-				writel(polarity, bank->reg_base +
-				       reg->int_polarity);
+				writel(polarity,
+				       bank->reg_base +
+				       bank->gpio_regs->int_polarity);
 
 				raw_spin_unlock_irqrestore(&bank->slock, flags);
 
 				data_old = data;
 				data = readl_relaxed(bank->reg_base +
-						     reg->ext_port);
+						     bank->gpio_regs->ext_port);
 			} while ((data & BIT(irq)) != (data_old & BIT(irq)));
 		}
 
@@ -415,8 +429,8 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 			level |= mask;
 
 			/*
-			 * Determine gpio state. If 1 next interrupt should be falling
-			 * otherwise rising.
+			 * Determine gpio state. If 1 next interrupt should be
+			 * falling otherwise rising.
 			 */
 			data = readl(bank->reg_base + bank->gpio_regs->ext_port);
 			if (data & mask)
@@ -475,6 +489,16 @@ static void rockchip_irq_resume(struct irq_data *d)
 	irq_reg_writel(gc, bank->saved_masks, bank->gpio_regs->int_mask);
 }
 
+static void rockchip_irq_enable(struct irq_data *d)
+{
+	irq_gc_mask_clr_bit(d);
+}
+
+static void rockchip_irq_disable(struct irq_data *d)
+{
+	irq_gc_mask_set_bit(d);
+}
+
 static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
@@ -482,19 +506,22 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 	int ret;
 
 	bank->domain = irq_domain_add_linear(bank->of_node, 32,
-					     &irq_generic_chip_ops, NULL);
+					&irq_generic_chip_ops, NULL);
 	if (!bank->domain) {
-		dev_warn(bank->dev, "could not initialize irq domain for bank %s\n", bank->name);
+		dev_warn(bank->dev, "could not init irq domain for bank %s\n",
+			 bank->name);
 		return -EINVAL;
 	}
 
 	ret = irq_alloc_domain_generic_chips(bank->domain, 32, 1,
-					     bank->name, handle_level_irq,
+					     "rockchip_gpio_irq",
+					     handle_level_irq,
 					     clr, 0, 0);
 	if (ret) {
-		dev_err(bank->dev, "could not alloc generic chips for bank %s\n", bank->name);
+		dev_err(bank->dev, "could not alloc generic chips for bank %s\n",
+			bank->name);
 		irq_domain_remove(bank->domain);
-		return ret;
+		return -EINVAL;
 	}
 
 	gc = irq_get_domain_generic_chip(bank->domain, 0);
@@ -502,6 +529,7 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 		gc->reg_writel = gpio_writel_v2;
 		gc->reg_readl = gpio_readl_v2;
 	}
+
 	gc->reg_base = bank->reg_base;
 	gc->private = bank;
 	gc->chip_types[0].regs.mask = bank->gpio_regs->int_mask;
@@ -509,8 +537,8 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 	gc->chip_types[0].chip.irq_ack = irq_gc_ack_set_bit;
 	gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
 	gc->chip_types[0].chip.irq_unmask = irq_gc_mask_clr_bit;
-	gc->chip_types[0].chip.irq_enable = irq_gc_mask_clr_bit;
-	gc->chip_types[0].chip.irq_disable = irq_gc_mask_set_bit;
+	gc->chip_types[0].chip.irq_enable = rockchip_irq_enable;
+	gc->chip_types[0].chip.irq_disable = rockchip_irq_disable;
 	gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
 	gc->chip_types[0].chip.irq_suspend = rockchip_irq_suspend;
 	gc->chip_types[0].chip.irq_resume = rockchip_irq_resume;
@@ -551,7 +579,8 @@ static int rockchip_gpiolib_register(struct rockchip_pin_bank *bank)
 
 	ret = gpiochip_add_data(gc, bank);
 	if (ret) {
-		dev_err(bank->dev, "failed to add gpiochip %s, %d\n", gc->label, ret);
+		dev_err(bank->dev, "failed to add gpiochip %s, %d\n",
+			gc->label, ret);
 		return ret;
 	}
 
@@ -576,7 +605,8 @@ static int rockchip_gpiolib_register(struct rockchip_pin_bank *bank)
 		if (!pctldev)
 			return -ENODEV;
 
-		ret = gpiochip_add_pin_range(gc, dev_name(pctldev->dev), 0, gc->base, gc->ngpio);
+		ret = gpiochip_add_pin_range(gc, dev_name(pctldev->dev), 0,
+					     gc->base, gc->ngpio);
 		if (ret) {
 			dev_err(bank->dev, "Failed to add pin range\n");
 			goto fail;
@@ -602,8 +632,10 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank)
 	struct resource res;
 	int id = 0;
 
-	if (of_address_to_resource(bank->of_node, 0, &res))
+	if (of_address_to_resource(bank->of_node, 0, &res)) {
+		dev_err(bank->dev, "cannot find IO resource for bank\n");
 		return -ENOENT;
+	}
 
 	bank->reg_base = devm_ioremap_resource(bank->dev, &res);
 	if (IS_ERR(bank->reg_base))
@@ -627,7 +659,7 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank)
 		bank->db_clk = of_clk_get(bank->of_node, 1);
 		if (IS_ERR(bank->db_clk)) {
 			dev_err(bank->dev, "cannot find debounce clk\n");
-			bank->db_clk = NULL;
+			clk_disable_unprepare(bank->clk);
 			return -EINVAL;
 		}
 	} else {
@@ -638,7 +670,8 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank)
 	return 0;
 }
 
-static struct rockchip_pin_bank *rockchip_gpio_find_bank(struct pinctrl_dev *pctldev, int id)
+static struct rockchip_pin_bank *
+rockchip_gpio_find_bank(struct pinctrl_dev *pctldev, int id)
 {
 	struct rockchip_pinctrl *info;
 	struct rockchip_pin_bank *bank;
@@ -659,7 +692,7 @@ static struct rockchip_pin_bank *rockchip_gpio_find_bank(struct pinctrl_dev *pct
 static int rockchip_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct device_node *pctlnp = of_get_parent(np);
 	struct pinctrl_dev *pctldev = NULL;
 	struct rockchip_pin_bank *bank = NULL;
@@ -682,7 +715,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	bank->dev = dev;
-	bank->of_node = dev->of_node;
+	bank->of_node = np;
 
 	raw_spin_lock_init(&bank->slock);
 
@@ -691,17 +724,16 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = rockchip_gpiolib_register(bank);
-	if (ret)
-		goto err_clk;
+	if (ret) {
+		clk_disable_unprepare(bank->clk);
+		mutex_unlock(&bank->deferred_lock);
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, bank);
-	dev_info(dev, "probed %s (%s)\n", bank->name, dev_name(dev));
+	dev_info(dev, "probed %pOF\n", np);
 
 	return 0;
-err_clk:
-	clk_disable_unprepare(bank->clk);
-
-	return ret;
 }
 
 static int rockchip_gpio_remove(struct platform_device *pdev)
