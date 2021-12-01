@@ -43,12 +43,12 @@ struct bpf_map_create_opts {
 	__u32 btf_value_type_id;
 	__u32 btf_vmlinux_value_type_id;
 
-	int inner_map_fd;
-	int map_flags;
+	__u32 inner_map_fd;
+	__u32 map_flags;
 	__u64 map_extra;
 
-	int numa_node;
-	int map_ifindex;
+	__u32 numa_node;
+	__u32 map_ifindex;
 };
 #define bpf_map_create_opts__last_field map_ifindex
 
