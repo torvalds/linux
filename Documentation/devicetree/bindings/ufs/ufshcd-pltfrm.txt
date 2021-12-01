@@ -16,6 +16,7 @@ Required properties:
 			    "qcom,sm8150-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
 			    "qcom,sm8250-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
 			    "qcom,sm8350-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
+			    "qcom,sm8450-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
 - interrupts        : <interrupt mapping for UFS host controller IRQ>
 - reg               : <registers mapping>
 
