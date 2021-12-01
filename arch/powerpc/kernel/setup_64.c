@@ -886,7 +886,7 @@ void __init setup_per_cpu_areas(void)
 		atom_size = SZ_1M;
 	} else if (radix_enabled()) {
 		atom_size = PAGE_SIZE;
-	} else {
+	} else if (IS_ENABLED(CONFIG_PPC_64S_HASH_MMU)) {
 		/*
 		 * Linear mapping is one of 4K, 1M and 16M.  For 4K, no need
 		 * to group units.  For larger mappings, use 1M atom which

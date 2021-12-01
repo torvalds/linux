@@ -211,6 +211,7 @@ static void __init pnv_init(void)
 #endif
 		add_preferred_console("hvc", 0, NULL);
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	if (!radix_enabled()) {
 		size_t size = sizeof(struct slb_entry) * mmu_slb_size;
 		int i;
@@ -223,6 +224,7 @@ static void __init pnv_init(void)
 						cpu_to_node(i));
 		}
 	}
+#endif
 }
 
 static void __init pnv_init_IRQ(void)
