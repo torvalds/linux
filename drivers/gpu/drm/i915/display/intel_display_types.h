@@ -47,6 +47,7 @@
 #include <media/cec-notifier.h>
 
 #include "i915_drv.h"
+#include "intel_pm_types.h"
 
 struct drm_printer;
 struct __intel_global_objs_state;
