@@ -417,15 +417,6 @@ static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_uc_system_port_set(payload, rec_index, local_port);
 }
 
-static inline void mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
-					   char *mac, u16 *p_fid_vid,
-					   u8 *p_local_port)
-{
-	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
-	*p_fid_vid = mlxsw_reg_sfd_uc_fid_vid_get(payload, rec_index);
-	*p_local_port = mlxsw_reg_sfd_uc_system_port_get(payload, rec_index);
-}
-
 /* reg_sfd_uc_lag_sub_port
  * LAG sub port.
  * Must be 0 if multichannel VEPA is not enabled.
@@ -476,15 +467,6 @@ mlxsw_reg_sfd_uc_lag_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_uc_lag_fid_vid_set(payload, rec_index, fid_vid);
 	mlxsw_reg_sfd_uc_lag_lag_vid_set(payload, rec_index, lag_vid);
 	mlxsw_reg_sfd_uc_lag_lag_id_set(payload, rec_index, lag_id);
-}
-
-static inline void mlxsw_reg_sfd_uc_lag_unpack(char *payload, int rec_index,
-					       char *mac, u16 *p_vid,
-					       u16 *p_lag_id)
-{
-	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
-	*p_vid = mlxsw_reg_sfd_uc_lag_fid_vid_get(payload, rec_index);
-	*p_lag_id = mlxsw_reg_sfd_uc_lag_lag_id_get(payload, rec_index);
 }
 
 /* reg_sfd_mc_pgi
