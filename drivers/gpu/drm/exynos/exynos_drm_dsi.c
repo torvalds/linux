@@ -1338,7 +1338,7 @@ static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi,
 	if (IS_ERR(dsi->te_gpio)) {
 		dev_err(dsi->dev, "gpio request failed with %ld\n",
 				PTR_ERR(dsi->te_gpio));
-		goto out;
+		return PTR_ERR(dsi->te_gpio);
 	}
 
 	te_gpio_irq = gpiod_to_irq(dsi->te_gpio);
@@ -1348,11 +1348,10 @@ static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi,
 	if (ret) {
 		dev_err(dsi->dev, "request interrupt failed with %d\n", ret);
 		gpiod_put(dsi->te_gpio);
-		goto out;
+		return ret;
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static void exynos_dsi_unregister_te_irq(struct exynos_dsi *dsi)
