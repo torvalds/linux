@@ -110,7 +110,6 @@ struct dpu_plane {
 	struct dpu_mdss_cfg *catalog;
 
 	/* debugfs related stuff */
-	struct dentry *debugfs_root;
 	struct dpu_debugfs_regset32 debugfs_src;
 	struct dpu_debugfs_regset32 debugfs_scaler;
 	struct dpu_debugfs_regset32 debugfs_csc;
@@ -1360,15 +1359,16 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 	struct dpu_kms *kms = _dpu_plane_get_kms(plane);
 	const struct dpu_sspp_cfg *cfg = pdpu->pipe_hw->cap;
 	const struct dpu_sspp_sub_blks *sblk = cfg->sblk;
+	struct dentry *debugfs_root;
 
 	/* create overall sub-directory for the pipe */
-	pdpu->debugfs_root =
+	debugfs_root =
 		debugfs_create_dir(plane->name,
 				plane->dev->primary->debugfs_root);
 
 	/* don't error check these */
 	debugfs_create_xul("features", 0600,
-			pdpu->debugfs_root, (unsigned long *)&pdpu->pipe_hw->cap->features);
+			debugfs_root, (unsigned long *)&pdpu->pipe_hw->cap->features);
 
 	/* add register dump support */
 	dpu_debugfs_setup_regset32(&pdpu->debugfs_src,
@@ -1376,7 +1376,7 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 			sblk->src_blk.len,
 			kms);
 	dpu_debugfs_create_regset32("src_blk", 0400,
-			pdpu->debugfs_root, &pdpu->debugfs_src);
+			debugfs_root, &pdpu->debugfs_src);
 
 	if (cfg->features & BIT(DPU_SSPP_SCALER_QSEED3) ||
 			cfg->features & BIT(DPU_SSPP_SCALER_QSEED3LITE) ||
@@ -1387,7 +1387,7 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 				sblk->scaler_blk.len,
 				kms);
 		dpu_debugfs_create_regset32("scaler_blk", 0400,
-				pdpu->debugfs_root,
+				debugfs_root,
 				&pdpu->debugfs_scaler);
 	}
 
@@ -1398,24 +1398,24 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 				sblk->csc_blk.len,
 				kms);
 		dpu_debugfs_create_regset32("csc_blk", 0400,
-				pdpu->debugfs_root, &pdpu->debugfs_csc);
+				debugfs_root, &pdpu->debugfs_csc);
 	}
 
 	debugfs_create_u32("xin_id",
 			0400,
-			pdpu->debugfs_root,
+			debugfs_root,
 			(u32 *) &cfg->xin_id);
 	debugfs_create_u32("clk_ctrl",
 			0400,
-			pdpu->debugfs_root,
+			debugfs_root,
 			(u32 *) &cfg->clk_ctrl);
 	debugfs_create_x32("creq_vblank",
 			0600,
-			pdpu->debugfs_root,
+			debugfs_root,
 			(u32 *) &sblk->creq_vblank);
 	debugfs_create_x32("danger_vblank",
 			0600,
-			pdpu->debugfs_root,
+			debugfs_root,
 			(u32 *) &sblk->danger_vblank);
 
 	return 0;
@@ -1430,13 +1430,6 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 static int dpu_plane_late_register(struct drm_plane *plane)
 {
 	return _dpu_plane_init_debugfs(plane);
-}
-
-static void dpu_plane_early_unregister(struct drm_plane *plane)
-{
-	struct dpu_plane *pdpu = to_dpu_plane(plane);
-
-	debugfs_remove_recursive(pdpu->debugfs_root);
 }
 
 static bool dpu_plane_format_mod_supported(struct drm_plane *plane,
@@ -1464,7 +1457,6 @@ static const struct drm_plane_funcs dpu_plane_funcs = {
 		.atomic_duplicate_state = dpu_plane_duplicate_state,
 		.atomic_destroy_state = dpu_plane_destroy_state,
 		.late_register = dpu_plane_late_register,
-		.early_unregister = dpu_plane_early_unregister,
 		.format_mod_supported = dpu_plane_format_mod_supported,
 };
 
