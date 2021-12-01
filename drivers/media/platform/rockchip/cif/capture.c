@@ -7003,6 +7003,7 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream)
 {
 	struct rkcif_device *cif_dev = stream->cifdev;
 	struct v4l2_mbus_config *mbus_cfg = &cif_dev->active_sensor->mbus;
+	struct csi_channel_info *channel = &cif_dev->channels[stream->id];
 	u32 val = 0;
 
 	if (stream->dma_en) {
@@ -7012,24 +7013,31 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream)
 	}
 
 	stream->dma_en |= stream->to_en_dma;
-	if (stream->to_en_dma == RKCIF_DMAEN_BY_VICAP)
+	val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
+	if (stream->to_en_dma == RKCIF_DMAEN_BY_VICAP) {
 		rkcif_assign_new_buffer_pingpong(stream,
 						 RKCIF_YUV_ADDR_STATE_INIT,
 						 stream->id);
-	else if (stream->to_en_dma == RKCIF_DMAEN_BY_ISP)
+		rkcif_write_register(cif_dev, get_reg_index_of_frm0_y_vlw(stream->id),
+				     channel->virtual_width);
+		if (stream->is_compact)
+			val |= LVDS_COMPACT;
+		else
+			val &= ~LVDS_COMPACT;
+	} else if (stream->to_en_dma == RKCIF_DMAEN_BY_ISP) {
 		rkcif_assign_new_buffer_pingpong_toisp(stream,
-						 RKCIF_YUV_ADDR_STATE_INIT,
-						 stream->id);
-
+						       RKCIF_YUV_ADDR_STATE_INIT,
+						       stream->id);
+	}
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY ||
 	    mbus_cfg->type == V4L2_MBUS_CCP2) {
-		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
 		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
 			val |= CSI_DMA_ENABLE;
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id), val);
 	}
+
 	stream->to_en_dma = 0;
 }
 
