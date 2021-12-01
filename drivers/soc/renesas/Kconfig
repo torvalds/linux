@@ -235,6 +235,13 @@ config ARCH_R8A77961
 	  This enables support for the Renesas R-Car M3-W+ SoC.
 	  This includes different gradings like R-Car M3e and M3e-2G.
 
+config ARCH_R8A779F0
+	bool "ARM64 Platform support for R-Car S4-8"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A779F0
+	help
+	  This enables support for the Renesas R-Car S4-8 SoC.
+
 config ARCH_R8A77980
 	bool "ARM64 Platform support for R-Car V3H"
 	select ARCH_RCAR_GEN3
