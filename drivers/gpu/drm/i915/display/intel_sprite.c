@@ -1053,7 +1053,7 @@ static u32 g4x_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	u32 dvscntr = 0;
 
 	if (crtc_state->gamma_enable)
-		dvscntr |= DVS_GAMMA_ENABLE;
+		dvscntr |= DVS_PIPE_GAMMA_ENABLE;
 
 	if (crtc_state->csc_enable)
 		dvscntr |= DVS_PIPE_CSC_ENABLE;
@@ -1205,14 +1205,18 @@ g4x_sprite_update_noarm(struct intel_plane *plane,
 	unsigned long irqflags;
 
 	if (crtc_w != src_w || crtc_h != src_h)
-		dvsscale = DVS_SCALE_ENABLE | ((src_w - 1) << 16) | (src_h - 1);
+		dvsscale = DVS_SCALE_ENABLE |
+			DVS_SRC_WIDTH(src_w - 1) |
+			DVS_SRC_HEIGHT(src_h - 1);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DVSSTRIDE(pipe),
 			  plane_state->view.color_plane[0].mapping_stride);
-	intel_de_write_fw(dev_priv, DVSPOS(pipe), (crtc_y << 16) | crtc_x);
-	intel_de_write_fw(dev_priv, DVSSIZE(pipe), ((crtc_h - 1) << 16) | (crtc_w - 1));
+	intel_de_write_fw(dev_priv, DVSPOS(pipe),
+			  DVS_POS_Y(crtc_y) | DVS_POS_X(crtc_x));
+	intel_de_write_fw(dev_priv, DVSSIZE(pipe),
+			  DVS_HEIGHT(crtc_h - 1) | DVS_WIDTH(crtc_w - 1));
 	intel_de_write_fw(dev_priv, DVSSCALE(pipe), dvsscale);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
