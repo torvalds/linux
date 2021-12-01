@@ -1012,6 +1012,34 @@ static u32 skl_plane_aux_dist(const struct intel_plane_state *plane_state,
 	return aux_dist;
 }
 
+static u32 skl_plane_keyval(const struct intel_plane_state *plane_state)
+{
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+
+	return key->min_value;
+}
+
+static u32 skl_plane_keymax(const struct intel_plane_state *plane_state)
+{
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+	u8 alpha = plane_state->hw.alpha >> 8;
+
+	return (key->max_value & 0xffffff) | PLANE_KEYMAX_ALPHA(alpha);
+}
+
+static u32 skl_plane_keymsk(const struct intel_plane_state *plane_state)
+{
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+	u8 alpha = plane_state->hw.alpha >> 8;
+	u32 keymsk;
+
+	keymsk = key->channel_mask & 0x7ffffff;
+	if (alpha < 0xff)
+		keymsk |= PLANE_KEYMSK_ALPHA_ENABLE;
+
+	return keymsk;
+}
+
 static void icl_plane_csc_load_black(struct intel_plane *plane)
 {
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
@@ -1105,11 +1133,9 @@ skl_program_plane_arm(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 x = plane_state->view.color_plane[color_plane].x;
 	u32 y = plane_state->view.color_plane[color_plane].y;
-	u32 keymsk, keymax, plane_color_ctl = 0;
-	u8 alpha = plane_state->hw.alpha >> 8;
+	u32 plane_color_ctl = 0;
 	u32 plane_ctl = plane_state->ctl;
 	unsigned long irqflags;
 
@@ -1119,18 +1145,11 @@ skl_program_plane_arm(struct intel_plane *plane,
 		plane_color_ctl = plane_state->color_ctl |
 			glk_plane_color_ctl_crtc(crtc_state);
 
-	keymax = (key->max_value & 0xffffff) | PLANE_KEYMAX_ALPHA(alpha);
-
-	keymsk = key->channel_mask & 0x7ffffff;
-	if (alpha < 0xff)
-		keymsk |= PLANE_KEYMSK_ALPHA_ENABLE;
-
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	intel_de_write_fw(dev_priv, PLANE_KEYVAL(pipe, plane_id),
-			  key->min_value);
-	intel_de_write_fw(dev_priv, PLANE_KEYMSK(pipe, plane_id), keymsk);
-	intel_de_write_fw(dev_priv, PLANE_KEYMAX(pipe, plane_id), keymax);
+	intel_de_write_fw(dev_priv, PLANE_KEYVAL(pipe, plane_id), skl_plane_keyval(plane_state));
+	intel_de_write_fw(dev_priv, PLANE_KEYMSK(pipe, plane_id), skl_plane_keymsk(plane_state));
+	intel_de_write_fw(dev_priv, PLANE_KEYMAX(pipe, plane_id), skl_plane_keymax(plane_state));
 
 	intel_de_write_fw(dev_priv, PLANE_OFFSET(pipe, plane_id),
 			  PLANE_OFFSET_Y(y) | PLANE_OFFSET_X(x));
