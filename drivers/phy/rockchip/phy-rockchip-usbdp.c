@@ -724,6 +724,9 @@ static int udphy_power_off(struct rockchip_udphy *udphy, u8 mode)
 		return 0;
 	}
 
+	if (!udphy->status)
+		return 0;
+
 	udphy->status &= ~mode;
 
 	if (udphy->status == UDPHY_MODE_NONE) {
