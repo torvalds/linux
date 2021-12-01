@@ -1854,7 +1854,8 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 	ewma_rssi_init(&rtwsta->avg_rssi);
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
-		rtwvif->mgd.ap = sta;
+		/* for station mode, assign the mac_id from itself */
+		rtwsta->mac_id = rtwvif->mac_id;
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_CONN_START);
 		rtw89_chip_rfk_channel(rtwdev);
@@ -1880,6 +1881,7 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 			      struct ieee80211_sta *sta)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	int ret;
 
 	rtw89_mac_bf_monitor_calc(rtwdev, sta, true);
@@ -1901,7 +1903,7 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 	}
 
 	/* update cam aid mac_id net_type */
-	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL);
+	rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c cam\n");
 		return ret;
@@ -1926,10 +1928,6 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	/* for station mode, assign the mac_id from itself */
-	if (vif->type == NL80211_IFTYPE_STATION)
-		rtwsta->mac_id = rtwvif->mac_id;
-
 	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif, 0);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c join info\n");
@@ -1937,7 +1935,7 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 	}
 
 	/* update cam aid mac_id net_type */
-	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL);
+	rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c cam\n");
 		return ret;

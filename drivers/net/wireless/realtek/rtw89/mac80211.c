@@ -336,7 +336,7 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		ether_addr_copy(rtwvif->bssid, conf->bssid);
 		rtw89_cam_bssid_changed(rtwdev, rtwvif);
-		rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL);
+		rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT)
@@ -624,7 +624,7 @@ static void rtw89_ops_sw_scan_start(struct ieee80211_hw *hw,
 	rtw89_btc_ntfy_scan_start(rtwdev, RTW89_PHY_0, hal->current_band_type);
 	rtw89_chip_rfk_scan(rtwdev, true);
 	rtw89_hci_recalc_int_mit(rtwdev);
-	rtw89_fw_h2c_cam(rtwdev, rtwvif, mac_addr);
+	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, mac_addr);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -635,7 +635,7 @@ static void rtw89_ops_sw_scan_complete(struct ieee80211_hw *hw,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 
 	mutex_lock(&rtwdev->mutex);
-	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL);
+	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
 	rtw89_chip_rfk_scan(rtwdev, false);
 	rtw89_btc_ntfy_scan_finish(rtwdev, RTW89_PHY_0);
 	rtwdev->scanning = false;
