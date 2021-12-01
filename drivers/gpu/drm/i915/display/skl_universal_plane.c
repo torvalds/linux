@@ -2374,10 +2374,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	val = intel_de_read(dev_priv, PLANE_STRIDE(pipe, plane_id));
 	stride_mult = skl_plane_stride_mult(fb, 0, DRM_MODE_ROTATE_0);
 
-	if (DISPLAY_VER(dev_priv) >= 13)
-		fb->pitches[0] = (val & PLANE_STRIDE_MASK_XELPD) * stride_mult;
-	else
-		fb->pitches[0] = (val & PLANE_STRIDE_MASK) * stride_mult;
+	fb->pitches[0] = (val & PLANE_STRIDE_MASK) * stride_mult;
 
 	aligned_height = intel_fb_align_height(fb, 0, fb->height);
 
