@@ -313,7 +313,7 @@ static u32 vlv_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	u32 sprctl = 0;
 
 	if (crtc_state->gamma_enable)
-		sprctl |= SP_GAMMA_ENABLE;
+		sprctl |= SP_PIPE_GAMMA_ENABLE;
 
 	return sprctl;
 }
@@ -436,9 +436,9 @@ vlv_sprite_update_noarm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, SPSTRIDE(pipe, plane_id),
 			  plane_state->view.color_plane[0].mapping_stride);
 	intel_de_write_fw(dev_priv, SPPOS(pipe, plane_id),
-			  (crtc_y << 16) | crtc_x);
+			  SP_POS_Y(crtc_y) | SP_POS_X(crtc_x));
 	intel_de_write_fw(dev_priv, SPSIZE(pipe, plane_id),
-			  ((crtc_h - 1) << 16) | (crtc_w - 1));
+			  SP_HEIGHT(crtc_h - 1) | SP_WIDTH(crtc_w - 1));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -479,7 +479,8 @@ vlv_sprite_update_arm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, SPCONSTALPHA(pipe, plane_id), 0);
 
 	intel_de_write_fw(dev_priv, SPLINOFF(pipe, plane_id), linear_offset);
-	intel_de_write_fw(dev_priv, SPTILEOFF(pipe, plane_id), (y << 16) | x);
+	intel_de_write_fw(dev_priv, SPTILEOFF(pipe, plane_id),
+			  SP_OFFSET_Y(y) | SP_OFFSET_X(x));
 
 	/*
 	 * The control register self-arms if the plane was previously
