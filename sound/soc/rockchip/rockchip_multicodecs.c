@@ -19,17 +19,23 @@
  *
  */
 
+#include <linux/extcon-provider.h>
+#include <linux/gpio.h>
+#include <linux/iio/consumer.h>
+#include <linux/iio/iio.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-
-#include "../codecs/rk3308_codec_provider.h"
 
 #define DRV_NAME "rk-multicodecs"
 #define MAX_CODECS	2
@@ -39,11 +45,159 @@
 struct multicodecs_data {
 	struct snd_soc_card snd_card;
 	struct snd_soc_dai_link dai_link;
+	struct snd_soc_jack *jack_headset;
+	struct gpio_desc *hp_ctl_gpio;
+	struct gpio_desc *spk_ctl_gpio;
+	struct gpio_desc *hp_det_gpio;
+	struct iio_channel *adc;
+	struct extcon_dev *extcon;
+	struct delayed_work handler;
 	unsigned int mclk_fs;
 	bool codec_hp_det;
 };
 
-static struct snd_soc_jack mc_hp_jack;
+static struct snd_soc_jack_pin jack_pins[] = {
+	{
+		.pin = "Headphone",
+		.mask = SND_JACK_HEADPHONE,
+	}, {
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
+
+static struct snd_soc_jack_zone headset_zones[] = {
+	{
+		.min_mv = 0,
+		.max_mv = 222,
+		.jack_type = SND_JACK_HEADPHONE,
+	}, {
+		.min_mv = 223,
+		.max_mv = 1500,
+		.jack_type = SND_JACK_HEADSET,
+	}, {
+		.min_mv = 1501,
+		.max_mv = UINT_MAX,
+		.jack_type = SND_JACK_HEADPHONE,
+	}
+};
+
+static const unsigned int headset_extcon_cable[] = {
+	EXTCON_JACK_MICROPHONE,
+	EXTCON_JACK_HEADPHONE,
+	EXTCON_NONE,
+};
+
+static void adc_jack_handler(struct work_struct *work)
+{
+	struct multicodecs_data *mc_data = container_of(to_delayed_work(work),
+						  struct multicodecs_data,
+						  handler);
+	struct snd_soc_jack *jack_headset = mc_data->jack_headset;
+	int adc, ret = 0;
+
+	if (!gpiod_get_value(mc_data->hp_det_gpio)) {
+		snd_soc_jack_report(jack_headset, 0, SND_JACK_HEADSET);
+		extcon_set_state_sync(mc_data->extcon,
+				EXTCON_JACK_HEADPHONE, false);
+		extcon_set_state_sync(mc_data->extcon,
+				EXTCON_JACK_MICROPHONE, false);
+
+		return;
+	}
+	ret = iio_read_channel_processed(mc_data->adc, &adc);
+	if (ret < 0) {
+		/* failed to read ADC, so assume headphone */
+		snd_soc_jack_report(jack_headset, SND_JACK_HEADPHONE, SND_JACK_HEADSET);
+		extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_HEADPHONE, true);
+		extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_MICROPHONE, false);
+
+	} else {
+		snd_soc_jack_report(jack_headset,
+				    snd_soc_jack_get_type(jack_headset, adc),
+				    SND_JACK_HEADSET);
+		extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_HEADPHONE, true);
+
+		if (snd_soc_jack_get_type(jack_headset, adc) == SND_JACK_HEADSET)
+			extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_MICROPHONE, true);
+	}
+};
+
+static irqreturn_t headset_det_irq_thread(int irq, void *data)
+{
+	struct multicodecs_data *mc_data = (struct multicodecs_data *)data;
+
+	queue_delayed_work(system_power_efficient_wq, &mc_data->handler, msecs_to_jiffies(200));
+
+	return IRQ_HANDLED;
+};
+
+static int mc_hp_event(struct snd_soc_dapm_widget *w,
+		       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_card *card = w->dapm->card;
+	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(card);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		gpiod_set_value_cansleep(mc_data->hp_ctl_gpio, 1);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		gpiod_set_value_cansleep(mc_data->hp_ctl_gpio, 0);
+		break;
+	default:
+		return 0;
+
+	}
+
+	return 0;
+}
+
+static int mc_spk_event(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_card *card = w->dapm->card;
+	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(card);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		gpiod_set_value_cansleep(mc_data->spk_ctl_gpio, 1);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		gpiod_set_value_cansleep(mc_data->spk_ctl_gpio, 0);
+		break;
+	default:
+		return 0;
+
+	}
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget mc_dapm_widgets[] = {
+
+	SND_SOC_DAPM_HP("Headphone", NULL),
+	SND_SOC_DAPM_SPK("Speaker", NULL),
+	SND_SOC_DAPM_MIC("Main Mic", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_SUPPLY("Speaker Power",
+			    SND_SOC_NOPM, 0, 0,
+			    mc_spk_event,
+			    SND_SOC_DAPM_POST_PMU |
+			    SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_SUPPLY("Headphone Power",
+			    SND_SOC_NOPM, 0, 0,
+			    mc_hp_event,
+			    SND_SOC_DAPM_POST_PMU |
+			    SND_SOC_DAPM_PRE_PMD),
+};
+
+static const struct snd_kcontrol_new mc_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Speaker"),
+	SOC_DAPM_PIN_SWITCH("Main Mic"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+};
 
 static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
@@ -80,16 +234,51 @@ out:
 static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_jack *jack_headset;
+	int ret, irq;
+
+	jack_headset = devm_kzalloc(card->dev, sizeof(*jack_headset), GFP_KERNEL);
+	if (!jack_headset)
+		return -ENOMEM;
+
+	ret = snd_soc_card_jack_new(card, "Headset",
+				    SND_JACK_HEADSET,
+				    jack_headset,
+				    jack_pins, ARRAY_SIZE(jack_pins));
+	if (ret)
+		return ret;
+	ret = snd_soc_jack_add_zones(jack_headset, ARRAY_SIZE(headset_zones),
+				     headset_zones);
+	if (ret)
+		return ret;
+
+	mc_data->jack_headset = jack_headset;
 
 	if (mc_data->codec_hp_det) {
-		snd_soc_card_jack_new(rtd->card, "Headphones",
-				      SND_JACK_HEADPHONE,
-				      &mc_hp_jack, NULL, 0);
+		struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 
-#ifdef CONFIG_SND_SOC_RK3308
-		if (rk3308_codec_set_jack_detect_cb)
-			rk3308_codec_set_jack_detect_cb(asoc_rtd_to_codec(rtd, 0)->component, &mc_hp_jack);
-#endif
+		snd_soc_component_set_jack(component, jack_headset, NULL);
+	} else {
+		irq = gpiod_to_irq(mc_data->hp_det_gpio);
+		if (irq >= 0) {
+			ret = devm_request_threaded_irq(card->dev, irq, NULL,
+							headset_det_irq_thread,
+							IRQF_TRIGGER_RISING |
+							IRQF_TRIGGER_FALLING |
+							IRQF_ONESHOT,
+							"headset_detect",
+							mc_data);
+			if (ret) {
+				dev_err(card->dev, "Failed to request headset detect irq");
+				return ret;
+			}
+
+			queue_delayed_work(system_power_efficient_wq,
+					   &mc_data->handler, msecs_to_jiffies(50));
+		} else {
+			dev_warn(card->dev, "Failed to map headset detect gpio to irq");
+		}
 	}
 
 	return 0;
@@ -258,9 +447,14 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	link->platforms	= platforms;
 	link->num_cpus	= 1;
 	link->num_platforms = 1;
+	link->ignore_pmdown_time = 1;
 
 	card->dai_link = link;
 	card->num_links = 1;
+	card->dapm_widgets = mc_dapm_widgets;
+	card->num_dapm_widgets = ARRAY_SIZE(mc_dapm_widgets);
+	card->controls = mc_controls;
+	card->num_controls = ARRAY_SIZE(mc_controls);
 	card->num_aux_devs = 0;
 
 	count = of_count_phandle_with_args(np, "rockchip,codec", NULL);
@@ -318,6 +512,50 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 
 	mc_data->codec_hp_det =
 		of_property_read_bool(np, "rockchip,codec-hp-det");
+
+	mc_data->adc = devm_iio_channel_get(&pdev->dev, "adc-detect");
+
+	if (IS_ERR(mc_data->adc)) {
+		if (PTR_ERR(mc_data->adc) != -EPROBE_DEFER)
+			dev_warn(&pdev->dev, "Failed to get ADC channel");
+	} else {
+		if (mc_data->adc->channel->type != IIO_VOLTAGE)
+			return -EINVAL;
+	}
+
+	INIT_DEFERRABLE_WORK(&mc_data->handler, adc_jack_handler);
+
+	mc_data->spk_ctl_gpio = devm_gpiod_get_optional(&pdev->dev,
+							"spk-con",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(mc_data->spk_ctl_gpio))
+		return PTR_ERR(mc_data->spk_ctl_gpio);
+
+	mc_data->hp_ctl_gpio = devm_gpiod_get_optional(&pdev->dev,
+						       "hp-con",
+						       GPIOD_OUT_LOW);
+	if (IS_ERR(mc_data->hp_ctl_gpio))
+		return PTR_ERR(mc_data->hp_ctl_gpio);
+
+	mc_data->hp_det_gpio = devm_gpiod_get_optional(&pdev->dev, "hp-det", GPIOD_IN);
+	if (IS_ERR(mc_data->hp_det_gpio))
+		return PTR_ERR(mc_data->hp_det_gpio);
+
+	mc_data->extcon = devm_extcon_dev_allocate(&pdev->dev, headset_extcon_cable);
+	if (IS_ERR(mc_data->extcon)) {
+		dev_err(&pdev->dev, "allocate extcon failed\n");
+		return PTR_ERR(mc_data->extcon);
+	}
+
+	ret = devm_extcon_dev_register(&pdev->dev, mc_data->extcon);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register extcon: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_of_parse_audio_routing(card, "rockchip,audio-routing");
+	if (ret < 0)
+		dev_warn(&pdev->dev, "Audio routing invalid/unspecified\n");
 
 	snd_soc_card_set_drvdata(card, mc_data);
 
