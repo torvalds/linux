@@ -194,15 +194,15 @@ static inline bool btf_type_kflag(const struct btf_type *t)
 	return BTF_INFO_KFLAG(t->info);
 }
 
-static inline u32 btf_member_bit_offset(const struct btf_type *struct_type,
-					const struct btf_member *member)
+static inline u32 __btf_member_bit_offset(const struct btf_type *struct_type,
+					  const struct btf_member *member)
 {
 	return btf_type_kflag(struct_type) ? BTF_MEMBER_BIT_OFFSET(member->offset)
 					   : member->offset;
 }
 
-static inline u32 btf_member_bitfield_size(const struct btf_type *struct_type,
-					   const struct btf_member *member)
+static inline u32 __btf_member_bitfield_size(const struct btf_type *struct_type,
+					     const struct btf_member *member)
 {
 	return btf_type_kflag(struct_type) ? BTF_MEMBER_BITFIELD_SIZE(member->offset)
 					   : 0;
