@@ -2500,12 +2500,17 @@ struct hci_ev_le_data_len_change {
 
 #define HCI_EV_LE_DIRECT_ADV_REPORT	0x0B
 struct hci_ev_le_direct_adv_info {
-	__u8	 evt_type;
+	__u8	 type;
 	__u8	 bdaddr_type;
 	bdaddr_t bdaddr;
 	__u8	 direct_addr_type;
 	bdaddr_t direct_addr;
 	__s8	 rssi;
+} __packed;
+
+struct hci_ev_le_direct_adv_report {
+	__u8	 num;
+	struct hci_ev_le_direct_adv_info info[];
 } __packed;
 
 #define HCI_EV_LE_PHY_UPDATE_COMPLETE	0x0c
