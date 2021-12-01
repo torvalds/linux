@@ -1049,6 +1049,18 @@ fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port_id,
 }
 EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_node);
 
+static bool fwnode_graph_remote_available(struct fwnode_handle *ep)
+{
+	struct fwnode_handle *dev_node;
+	bool available;
+
+	dev_node = fwnode_graph_get_remote_port_parent(ep);
+	available = fwnode_device_is_available(dev_node);
+	fwnode_handle_put(dev_node);
+
+	return available;
+}
+
 /**
  * fwnode_graph_get_endpoint_by_id - get endpoint by port and endpoint numbers
  * @fwnode: parent fwnode_handle containing the graph
@@ -1082,16 +1094,8 @@ fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 		struct fwnode_endpoint fwnode_ep = { 0 };
 		int ret;
 
-		if (enabled_only) {
-			struct fwnode_handle *dev_node;
-			bool available;
-
-			dev_node = fwnode_graph_get_remote_port_parent(ep);
-			available = fwnode_device_is_available(dev_node);
-			fwnode_handle_put(dev_node);
-			if (!available)
-				continue;
-		}
+		if (enabled_only && !fwnode_graph_remote_available(ep))
+			continue;
 
 		ret = fwnode_graph_parse_endpoint(ep, &fwnode_ep);
 		if (ret < 0)
@@ -1123,6 +1127,31 @@ fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 	return best_ep;
 }
 EXPORT_SYMBOL_GPL(fwnode_graph_get_endpoint_by_id);
+
+/**
+ * fwnode_graph_get_endpoint_count - Count endpoints on a device node
+ * @fwnode: The node related to a device
+ * @flags: fwnode lookup flags
+ * Count endpoints in a device node.
+ *
+ * If FWNODE_GRAPH_DEVICE_DISABLED flag is specified, also unconnected endpoints
+ * and endpoints connected to disabled devices are counted.
+ */
+unsigned int fwnode_graph_get_endpoint_count(struct fwnode_handle *fwnode,
+					     unsigned long flags)
+{
+	struct fwnode_handle *ep;
+	unsigned int count = 0;
+
+	fwnode_graph_for_each_endpoint(fwnode, ep) {
+		if (flags & FWNODE_GRAPH_DEVICE_DISABLED ||
+		    fwnode_graph_remote_available(ep))
+			count++;
+	}
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_endpoint_count);
 
 /**
  * fwnode_graph_parse_endpoint - parse common endpoint node properties
