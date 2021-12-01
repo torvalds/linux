@@ -20,8 +20,8 @@
 
 #define SYS_CTR_CLK_DIV		0x3
 
-static void __iomem *sys_ctr_base;
-static u32 cmpcr;
+static void __iomem *sys_ctr_base __ro_after_init;
+static u32 cmpcr __ro_after_init;
 
 static void sysctr_timer_enable(bool enable)
 {
