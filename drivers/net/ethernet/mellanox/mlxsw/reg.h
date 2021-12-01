@@ -1108,76 +1108,6 @@ mlxsw_reg_sfgc_pack(char *payload, enum mlxsw_reg_sfgc_type type,
 	mlxsw_reg_sfgc_mid_set(payload, MLXSW_PORT_MID);
 }
 
-/* SFTR - Switch Flooding Table Register
- * -------------------------------------
- * The switch flooding table is used for flooding packet replication. The table
- * defines a bit mask of ports for packet replication.
- */
-#define MLXSW_REG_SFTR_ID 0x2012
-#define MLXSW_REG_SFTR_LEN 0x420
-
-MLXSW_REG_DEFINE(sftr, MLXSW_REG_SFTR_ID, MLXSW_REG_SFTR_LEN);
-
-/* reg_sftr_swid
- * Switch partition ID with which to associate the port.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr, swid, 0x00, 24, 8);
-
-/* reg_sftr_flood_table
- * Flooding table index to associate with the specific type on the specific
- * switch partition.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr, flood_table, 0x00, 16, 6);
-
-/* reg_sftr_index
- * Index. Used as an index into the Flooding Table in case the table is
- * configured to use VID / FID or FID Offset.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr, index, 0x00, 0, 16);
-
-/* reg_sftr_table_type
- * See mlxsw_flood_table_type
- * Access: RW
- */
-MLXSW_ITEM32(reg, sftr, table_type, 0x04, 16, 3);
-
-/* reg_sftr_range
- * Range of entries to update
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr, range, 0x04, 0, 16);
-
-/* reg_sftr_port
- * Local port membership (1 bit per port).
- * Access: RW
- */
-MLXSW_ITEM_BIT_ARRAY(reg, sftr, port, 0x20, 0x20, 1);
-
-/* reg_sftr_cpu_port_mask
- * CPU port mask (1 bit per port).
- * Access: W
- */
-MLXSW_ITEM_BIT_ARRAY(reg, sftr, port_mask, 0x220, 0x20, 1);
-
-static inline void mlxsw_reg_sftr_pack(char *payload,
-				       unsigned int flood_table,
-				       unsigned int index,
-				       enum mlxsw_flood_table_type table_type,
-				       unsigned int range, u8 port, bool set)
-{
-	MLXSW_REG_ZERO(sftr, payload);
-	mlxsw_reg_sftr_swid_set(payload, 0);
-	mlxsw_reg_sftr_flood_table_set(payload, flood_table);
-	mlxsw_reg_sftr_index_set(payload, index);
-	mlxsw_reg_sftr_table_type_set(payload, table_type);
-	mlxsw_reg_sftr_range_set(payload, range);
-	mlxsw_reg_sftr_port_set(payload, port, set);
-	mlxsw_reg_sftr_port_mask_set(payload, port, 1);
-}
-
 /* SFDF - Switch Filtering DB Flush
  * --------------------------------
  * The switch filtering DB flush register is used to flush the FDB.
@@ -2103,6 +2033,76 @@ static inline void mlxsw_reg_spevet_pack(char *payload, u16 local_port,
 	MLXSW_REG_ZERO(spevet, payload);
 	mlxsw_reg_spevet_local_port_set(payload, local_port);
 	mlxsw_reg_spevet_et_vlan_set(payload, et_vlan);
+}
+
+/* SFTR-V2 - Switch Flooding Table Version 2 Register
+ * --------------------------------------------------
+ * The switch flooding table is used for flooding packet replication. The table
+ * defines a bit mask of ports for packet replication.
+ */
+#define MLXSW_REG_SFTR2_ID 0x202F
+#define MLXSW_REG_SFTR2_LEN 0x120
+
+MLXSW_REG_DEFINE(sftr2, MLXSW_REG_SFTR2_ID, MLXSW_REG_SFTR2_LEN);
+
+/* reg_sftr2_swid
+ * Switch partition ID with which to associate the port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sftr2, swid, 0x00, 24, 8);
+
+/* reg_sftr2_flood_table
+ * Flooding table index to associate with the specific type on the specific
+ * switch partition.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sftr2, flood_table, 0x00, 16, 6);
+
+/* reg_sftr2_index
+ * Index. Used as an index into the Flooding Table in case the table is
+ * configured to use VID / FID or FID Offset.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sftr2, index, 0x00, 0, 16);
+
+/* reg_sftr2_table_type
+ * See mlxsw_flood_table_type
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sftr2, table_type, 0x04, 16, 3);
+
+/* reg_sftr2_range
+ * Range of entries to update
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sftr2, range, 0x04, 0, 16);
+
+/* reg_sftr2_port
+ * Local port membership (1 bit per port).
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, sftr2, port, 0x20, 0x80, 1);
+
+/* reg_sftr2_port_mask
+ * Local port mask (1 bit per port).
+ * Access: WO
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, sftr2, port_mask, 0xA0, 0x80, 1);
+
+static inline void mlxsw_reg_sftr2_pack(char *payload,
+					unsigned int flood_table,
+					unsigned int index,
+					enum mlxsw_flood_table_type table_type,
+					unsigned int range, u16 port, bool set)
+{
+	MLXSW_REG_ZERO(sftr2, payload);
+	mlxsw_reg_sftr2_swid_set(payload, 0);
+	mlxsw_reg_sftr2_flood_table_set(payload, flood_table);
+	mlxsw_reg_sftr2_index_set(payload, index);
+	mlxsw_reg_sftr2_table_type_set(payload, table_type);
+	mlxsw_reg_sftr2_range_set(payload, range);
+	mlxsw_reg_sftr2_port_set(payload, port, set);
+	mlxsw_reg_sftr2_port_mask_set(payload, port, 1);
 }
 
 /* CWTP - Congetion WRED ECN TClass Profile
@@ -12383,7 +12383,6 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvm),
 	MLXSW_REG(spaft),
 	MLXSW_REG(sfgc),
-	MLXSW_REG(sftr),
 	MLXSW_REG(sfdf),
 	MLXSW_REG(sldr),
 	MLXSW_REG(slcr),
@@ -12396,6 +12395,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvmlr),
 	MLXSW_REG(spvc),
 	MLXSW_REG(spevet),
+	MLXSW_REG(sftr2),
 	MLXSW_REG(cwtp),
 	MLXSW_REG(cwtpm),
 	MLXSW_REG(pgcr),

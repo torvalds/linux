@@ -323,7 +323,7 @@ int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 	const struct mlxsw_sp_fid_ops *ops = fid_family->ops;
 	const struct mlxsw_sp_flood_table *flood_table;
-	char *sftr_pl;
+	char *sftr2_pl;
 	int err;
 
 	if (WARN_ON(!fid_family->flood_tables || !ops->flood_index))
@@ -333,16 +333,16 @@ int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
 	if (!flood_table)
 		return -ESRCH;
 
-	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
-	if (!sftr_pl)
+	sftr2_pl = kmalloc(MLXSW_REG_SFTR2_LEN, GFP_KERNEL);
+	if (!sftr2_pl)
 		return -ENOMEM;
 
-	mlxsw_reg_sftr_pack(sftr_pl, flood_table->table_index,
-			    ops->flood_index(fid), flood_table->table_type, 1,
-			    local_port, member);
-	err = mlxsw_reg_write(fid_family->mlxsw_sp->core, MLXSW_REG(sftr),
-			      sftr_pl);
-	kfree(sftr_pl);
+	mlxsw_reg_sftr2_pack(sftr2_pl, flood_table->table_index,
+			     ops->flood_index(fid), flood_table->table_type, 1,
+			     local_port, member);
+	err = mlxsw_reg_write(fid_family->mlxsw_sp->core, MLXSW_REG(sftr2),
+			      sftr2_pl);
+	kfree(sftr2_pl);
 	return err;
 }
 
