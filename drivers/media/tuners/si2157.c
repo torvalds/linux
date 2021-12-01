@@ -130,6 +130,7 @@ static int si2157_init(struct dvb_frontend *fe)
 	struct i2c_client *client = fe->tuner_priv;
 	struct si2157_dev *dev = i2c_get_clientdata(client);
 	unsigned int chip_id, xtal_trim;
+	unsigned int fw_required;
 	struct si2157_cmd cmd;
 	const char *fw_name;
 	int ret;
@@ -198,6 +199,10 @@ static int si2157_init(struct dvb_frontend *fe)
 	#define SI2146_A10 ('A' << 24 | 46 << 16 | '1' << 8 | '0' << 0)
 	#define SI2141_A10 ('A' << 24 | 41 << 16 | '1' << 8 | '0' << 0)
 
+	/* assume firmware is required, unless verified not to be */
+	/* only the SI2157_A30 has been verified not to yet */
+	fw_required = true;
+
 	switch (chip_id) {
 	case SI2158_A20:
 	case SI2148_A20:
@@ -206,10 +211,13 @@ static int si2157_init(struct dvb_frontend *fe)
 	case SI2141_A10:
 		fw_name = SI2141_A10_FIRMWARE;
 		break;
+	case SI2157_A30:
+		fw_name = SI2157_A30_FIRMWARE;
+		fw_required = false;
+		break;
 	case SI2177_A30:
 		fw_name = SI2157_A30_FIRMWARE;
 		break;
-	case SI2157_A30:
 	case SI2147_A30:
 	case SI2146_A10:
 		fw_name = NULL;
@@ -230,6 +238,9 @@ static int si2157_init(struct dvb_frontend *fe)
 
 	ret = si2157_load_firmware(fe, fw_name);
 	if (ret) {
+		if (!fw_required)
+			goto skip_fw_download;
+
 		dev_err(&client->dev, "firmware file '%s' not found\n",
 			fw_name);
 		goto err;
