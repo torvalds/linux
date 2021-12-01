@@ -6374,4 +6374,23 @@ enum {
 	BTF_F_ZERO	=	(1ULL << 3),
 };
 
+/* bpf_core_relo_kind encodes which aspect of captured field/type/enum value
+ * has to be adjusted by relocations. It is emitted by llvm and passed to
+ * libbpf and later to the kernel.
+ */
+enum bpf_core_relo_kind {
+	BPF_CORE_FIELD_BYTE_OFFSET = 0,      /* field byte offset */
+	BPF_CORE_FIELD_BYTE_SIZE = 1,        /* field size in bytes */
+	BPF_CORE_FIELD_EXISTS = 2,           /* field existence in target kernel */
+	BPF_CORE_FIELD_SIGNED = 3,           /* field signedness (0 - unsigned, 1 - signed) */
+	BPF_CORE_FIELD_LSHIFT_U64 = 4,       /* bitfield-specific left bitshift */
+	BPF_CORE_FIELD_RSHIFT_U64 = 5,       /* bitfield-specific right bitshift */
+	BPF_CORE_TYPE_ID_LOCAL = 6,          /* type ID in local BPF object */
+	BPF_CORE_TYPE_ID_TARGET = 7,         /* type ID in target kernel */
+	BPF_CORE_TYPE_EXISTS = 8,            /* type existence in target kernel */
+	BPF_CORE_TYPE_SIZE = 9,              /* type size in bytes */
+	BPF_CORE_ENUMVAL_EXISTS = 10,        /* enum value existence in target kernel */
+	BPF_CORE_ENUMVAL_VALUE = 11,         /* enum value integer value */
+};
+
 #endif /* _UAPI__LINUX_BPF_H__ */

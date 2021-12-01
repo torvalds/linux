@@ -5523,7 +5523,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 		return -ENOTSUP;
 	}
 
-	if (relo->kind != BPF_TYPE_ID_LOCAL &&
+	if (relo->kind != BPF_CORE_TYPE_ID_LOCAL &&
 	    !hashmap__find(cand_cache, type_key, (void **)&cands)) {
 		cands = bpf_core_find_cands(prog->obj, local_btf, local_id);
 		if (IS_ERR(cands)) {

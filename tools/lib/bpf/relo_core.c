@@ -113,18 +113,18 @@ static bool is_flex_arr(const struct btf *btf,
 static const char *core_relo_kind_str(enum bpf_core_relo_kind kind)
 {
 	switch (kind) {
-	case BPF_FIELD_BYTE_OFFSET: return "byte_off";
-	case BPF_FIELD_BYTE_SIZE: return "byte_sz";
-	case BPF_FIELD_EXISTS: return "field_exists";
-	case BPF_FIELD_SIGNED: return "signed";
-	case BPF_FIELD_LSHIFT_U64: return "lshift_u64";
-	case BPF_FIELD_RSHIFT_U64: return "rshift_u64";
-	case BPF_TYPE_ID_LOCAL: return "local_type_id";
-	case BPF_TYPE_ID_TARGET: return "target_type_id";
-	case BPF_TYPE_EXISTS: return "type_exists";
-	case BPF_TYPE_SIZE: return "type_size";
-	case BPF_ENUMVAL_EXISTS: return "enumval_exists";
-	case BPF_ENUMVAL_VALUE: return "enumval_value";
+	case BPF_CORE_FIELD_BYTE_OFFSET: return "byte_off";
+	case BPF_CORE_FIELD_BYTE_SIZE: return "byte_sz";
+	case BPF_CORE_FIELD_EXISTS: return "field_exists";
+	case BPF_CORE_FIELD_SIGNED: return "signed";
+	case BPF_CORE_FIELD_LSHIFT_U64: return "lshift_u64";
+	case BPF_CORE_FIELD_RSHIFT_U64: return "rshift_u64";
+	case BPF_CORE_TYPE_ID_LOCAL: return "local_type_id";
+	case BPF_CORE_TYPE_ID_TARGET: return "target_type_id";
+	case BPF_CORE_TYPE_EXISTS: return "type_exists";
+	case BPF_CORE_TYPE_SIZE: return "type_size";
+	case BPF_CORE_ENUMVAL_EXISTS: return "enumval_exists";
+	case BPF_CORE_ENUMVAL_VALUE: return "enumval_value";
 	default: return "unknown";
 	}
 }
@@ -132,12 +132,12 @@ static const char *core_relo_kind_str(enum bpf_core_relo_kind kind)
 static bool core_relo_is_field_based(enum bpf_core_relo_kind kind)
 {
 	switch (kind) {
-	case BPF_FIELD_BYTE_OFFSET:
-	case BPF_FIELD_BYTE_SIZE:
-	case BPF_FIELD_EXISTS:
-	case BPF_FIELD_SIGNED:
-	case BPF_FIELD_LSHIFT_U64:
-	case BPF_FIELD_RSHIFT_U64:
+	case BPF_CORE_FIELD_BYTE_OFFSET:
+	case BPF_CORE_FIELD_BYTE_SIZE:
+	case BPF_CORE_FIELD_EXISTS:
+	case BPF_CORE_FIELD_SIGNED:
+	case BPF_CORE_FIELD_LSHIFT_U64:
+	case BPF_CORE_FIELD_RSHIFT_U64:
 		return true;
 	default:
 		return false;
@@ -147,10 +147,10 @@ static bool core_relo_is_field_based(enum bpf_core_relo_kind kind)
 static bool core_relo_is_type_based(enum bpf_core_relo_kind kind)
 {
 	switch (kind) {
-	case BPF_TYPE_ID_LOCAL:
-	case BPF_TYPE_ID_TARGET:
-	case BPF_TYPE_EXISTS:
-	case BPF_TYPE_SIZE:
+	case BPF_CORE_TYPE_ID_LOCAL:
+	case BPF_CORE_TYPE_ID_TARGET:
+	case BPF_CORE_TYPE_EXISTS:
+	case BPF_CORE_TYPE_SIZE:
 		return true;
 	default:
 		return false;
@@ -160,8 +160,8 @@ static bool core_relo_is_type_based(enum bpf_core_relo_kind kind)
 static bool core_relo_is_enumval_based(enum bpf_core_relo_kind kind)
 {
 	switch (kind) {
-	case BPF_ENUMVAL_EXISTS:
-	case BPF_ENUMVAL_VALUE:
+	case BPF_CORE_ENUMVAL_EXISTS:
+	case BPF_CORE_ENUMVAL_VALUE:
 		return true;
 	default:
 		return false;
@@ -624,7 +624,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 
 	*field_sz = 0;
 
-	if (relo->kind == BPF_FIELD_EXISTS) {
+	if (relo->kind == BPF_CORE_FIELD_EXISTS) {
 		*val = spec ? 1 : 0;
 		return 0;
 	}
@@ -637,7 +637,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 
 	/* a[n] accessor needs special handling */
 	if (!acc->name) {
-		if (relo->kind == BPF_FIELD_BYTE_OFFSET) {
+		if (relo->kind == BPF_CORE_FIELD_BYTE_OFFSET) {
 			*val = spec->bit_offset / 8;
 			/* remember field size for load/store mem size */
 			sz = btf__resolve_size(spec->btf, acc->type_id);
@@ -645,7 +645,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 				return -EINVAL;
 			*field_sz = sz;
 			*type_id = acc->type_id;
-		} else if (relo->kind == BPF_FIELD_BYTE_SIZE) {
+		} else if (relo->kind == BPF_CORE_FIELD_BYTE_SIZE) {
 			sz = btf__resolve_size(spec->btf, acc->type_id);
 			if (sz < 0)
 				return -EINVAL;
@@ -697,36 +697,36 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 		*validate = !bitfield;
 
 	switch (relo->kind) {
-	case BPF_FIELD_BYTE_OFFSET:
+	case BPF_CORE_FIELD_BYTE_OFFSET:
 		*val = byte_off;
 		if (!bitfield) {
 			*field_sz = byte_sz;
 			*type_id = field_type_id;
 		}
 		break;
-	case BPF_FIELD_BYTE_SIZE:
+	case BPF_CORE_FIELD_BYTE_SIZE:
 		*val = byte_sz;
 		break;
-	case BPF_FIELD_SIGNED:
+	case BPF_CORE_FIELD_SIGNED:
 		/* enums will be assumed unsigned */
 		*val = btf_is_enum(mt) ||
 		       (btf_int_encoding(mt) & BTF_INT_SIGNED);
 		if (validate)
 			*validate = true; /* signedness is never ambiguous */
 		break;
-	case BPF_FIELD_LSHIFT_U64:
+	case BPF_CORE_FIELD_LSHIFT_U64:
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		*val = 64 - (bit_off + bit_sz - byte_off  * 8);
 #else
 		*val = (8 - byte_sz) * 8 + (bit_off - byte_off * 8);
 #endif
 		break;
-	case BPF_FIELD_RSHIFT_U64:
+	case BPF_CORE_FIELD_RSHIFT_U64:
 		*val = 64 - bit_sz;
 		if (validate)
 			*validate = true; /* right shift is never ambiguous */
 		break;
-	case BPF_FIELD_EXISTS:
+	case BPF_CORE_FIELD_EXISTS:
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -747,20 +747,20 @@ static int bpf_core_calc_type_relo(const struct bpf_core_relo *relo,
 	}
 
 	switch (relo->kind) {
-	case BPF_TYPE_ID_TARGET:
+	case BPF_CORE_TYPE_ID_TARGET:
 		*val = spec->root_type_id;
 		break;
-	case BPF_TYPE_EXISTS:
+	case BPF_CORE_TYPE_EXISTS:
 		*val = 1;
 		break;
-	case BPF_TYPE_SIZE:
+	case BPF_CORE_TYPE_SIZE:
 		sz = btf__resolve_size(spec->btf, spec->root_type_id);
 		if (sz < 0)
 			return -EINVAL;
 		*val = sz;
 		break;
-	case BPF_TYPE_ID_LOCAL:
-	/* BPF_TYPE_ID_LOCAL is handled specially and shouldn't get here */
+	case BPF_CORE_TYPE_ID_LOCAL:
+	/* BPF_CORE_TYPE_ID_LOCAL is handled specially and shouldn't get here */
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -776,10 +776,10 @@ static int bpf_core_calc_enumval_relo(const struct bpf_core_relo *relo,
 	const struct btf_enum *e;
 
 	switch (relo->kind) {
-	case BPF_ENUMVAL_EXISTS:
+	case BPF_CORE_ENUMVAL_EXISTS:
 		*val = spec ? 1 : 0;
 		break;
-	case BPF_ENUMVAL_VALUE:
+	case BPF_CORE_ENUMVAL_VALUE:
 		if (!spec)
 			return -EUCLEAN; /* request instruction poisoning */
 		t = btf_type_by_id(spec->btf, spec->spec[0].type_id);
@@ -1236,7 +1236,7 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 	libbpf_print(LIBBPF_DEBUG, "\n");
 
 	/* TYPE_ID_LOCAL relo is special and doesn't need candidate search */
-	if (relo->kind == BPF_TYPE_ID_LOCAL) {
+	if (relo->kind == BPF_CORE_TYPE_ID_LOCAL) {
 		targ_res.validate = true;
 		targ_res.poison = false;
 		targ_res.orig_val = local_spec.root_type_id;
@@ -1302,7 +1302,7 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 	}
 
 	/*
-	 * For BPF_FIELD_EXISTS relo or when used BPF program has field
+	 * For BPF_CORE_FIELD_EXISTS relo or when used BPF program has field
 	 * existence checks or kernel version/config checks, it's expected
 	 * that we might not find any candidates. In this case, if field
 	 * wasn't found in any candidate, the list of candidates shouldn't
