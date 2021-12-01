@@ -266,6 +266,28 @@ static int qcom_scm_set_boot_addr(void *entry, const u8 *cpu_bits)
 	return qcom_scm_call_atomic(__scm ? __scm->dev : NULL, &desc, NULL);
 }
 
+static int qcom_scm_set_boot_addr_mc(void *entry, unsigned int flags)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_BOOT,
+		.cmd = QCOM_SCM_BOOT_SET_ADDR_MC,
+		.owner = ARM_SMCCC_OWNER_SIP,
+		.arginfo = QCOM_SCM_ARGS(6),
+		.args = {
+			virt_to_phys(entry),
+			/* Apply to all CPUs in all affinity levels */
+			~0ULL, ~0ULL, ~0ULL, ~0ULL,
+			flags,
+		},
+	};
+
+	/* Need a device for DMA of the additional arguments */
+	if (!__scm || __get_convention() == SMC_CONVENTION_LEGACY)
+		return -EOPNOTSUPP;
+
+	return qcom_scm_call(__scm->dev, &desc, NULL);
+}
+
 /**
  * qcom_scm_set_warm_boot_addr() - Set the warm boot address for all cpus
  * @entry: Entry point function for the cpus
@@ -275,7 +297,10 @@ static int qcom_scm_set_boot_addr(void *entry, const u8 *cpu_bits)
  */
 int qcom_scm_set_warm_boot_addr(void *entry)
 {
-	return qcom_scm_set_boot_addr(entry, qcom_scm_cpu_warm_bits);
+	if (qcom_scm_set_boot_addr_mc(entry, QCOM_SCM_BOOT_MC_FLAG_WARMBOOT))
+		/* Fallback to old SCM call */
+		return qcom_scm_set_boot_addr(entry, qcom_scm_cpu_warm_bits);
+	return 0;
 }
 EXPORT_SYMBOL(qcom_scm_set_warm_boot_addr);
 
@@ -285,7 +310,10 @@ EXPORT_SYMBOL(qcom_scm_set_warm_boot_addr);
  */
 int qcom_scm_set_cold_boot_addr(void *entry)
 {
-	return qcom_scm_set_boot_addr(entry, qcom_scm_cpu_cold_bits);
+	if (qcom_scm_set_boot_addr_mc(entry, QCOM_SCM_BOOT_MC_FLAG_COLDBOOT))
+		/* Fallback to old SCM call */
+		return qcom_scm_set_boot_addr(entry, qcom_scm_cpu_cold_bits);
+	return 0;
 }
 EXPORT_SYMBOL(qcom_scm_set_cold_boot_addr);
 
