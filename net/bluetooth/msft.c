@@ -590,7 +590,7 @@ void msft_unregister(struct hci_dev *hdev)
 	kfree(msft);
 }
 
-void msft_vendor_evt(struct hci_dev *hdev, struct sk_buff *skb)
+void msft_vendor_evt(struct hci_dev *hdev, void *data, struct sk_buff *skb)
 {
 	struct msft_data *msft = hdev->msft_data;
 	u8 event;
