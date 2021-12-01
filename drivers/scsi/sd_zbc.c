@@ -62,8 +62,7 @@ static int sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
 	zone.capacity = zone.len;
 	zone.start = logical_to_sectors(sdp, get_unaligned_be64(&buf[16]));
 	zone.wp = logical_to_sectors(sdp, get_unaligned_be64(&buf[24]));
-	if (zone.type != ZBC_ZONE_TYPE_CONV &&
-	    zone.cond == ZBC_ZONE_COND_FULL)
+	if (zone.cond == ZBC_ZONE_COND_FULL)
 		zone.wp = zone.start + zone.len;
 
 	ret = cb(&zone, idx, data);
