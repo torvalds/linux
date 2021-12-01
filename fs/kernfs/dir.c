@@ -961,7 +961,13 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
  */
 void kernfs_destroy_root(struct kernfs_root *root)
 {
-	kernfs_remove(root->kn);	/* will also free @root */
+	/*
+	 *  kernfs_remove holds kernfs_rwsem from the root so the root
+	 *  shouldn't be freed during the operation.
+	 */
+	kernfs_get(root->kn);
+	kernfs_remove(root->kn);
+	kernfs_put(root->kn); /* will also free @root */
 }
 
 /**
