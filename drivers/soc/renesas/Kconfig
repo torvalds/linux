@@ -340,6 +340,10 @@ config SYSC_R8A77961
 	bool "System Controller support for R-Car M3-W+" if COMPILE_TEST
 	select SYSC_RCAR
 
+config SYSC_R8A779F0
+	bool "System Controller support for R-Car S4-8" if COMPILE_TEST
+	select SYSC_RCAR_GEN4
+
 config SYSC_R8A7792
 	bool "System Controller support for R-Car V2H" if COMPILE_TEST
 	select SYSC_RCAR
