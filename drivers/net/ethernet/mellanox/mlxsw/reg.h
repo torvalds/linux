@@ -69,52 +69,6 @@ MLXSW_REG_DEFINE(spad, MLXSW_REG_SPAD_ID, MLXSW_REG_SPAD_LEN);
  */
 MLXSW_ITEM_BUF(reg, spad, base_mac, 0x02, 6);
 
-/* SMID - Switch Multicast ID
- * --------------------------
- * The MID record maps from a MID (Multicast ID), which is a unique identifier
- * of the multicast group within the stacking domain, into a list of local
- * ports into which the packet is replicated.
- */
-#define MLXSW_REG_SMID_ID 0x2007
-#define MLXSW_REG_SMID_LEN 0x240
-
-MLXSW_REG_DEFINE(smid, MLXSW_REG_SMID_ID, MLXSW_REG_SMID_LEN);
-
-/* reg_smid_swid
- * Switch partition ID.
- * Access: Index
- */
-MLXSW_ITEM32(reg, smid, swid, 0x00, 24, 8);
-
-/* reg_smid_mid
- * Multicast identifier - global identifier that represents the multicast group
- * across all devices.
- * Access: Index
- */
-MLXSW_ITEM32(reg, smid, mid, 0x00, 0, 16);
-
-/* reg_smid_port
- * Local port memebership (1 bit per port).
- * Access: RW
- */
-MLXSW_ITEM_BIT_ARRAY(reg, smid, port, 0x20, 0x20, 1);
-
-/* reg_smid_port_mask
- * Local port mask (1 bit per port).
- * Access: W
- */
-MLXSW_ITEM_BIT_ARRAY(reg, smid, port_mask, 0x220, 0x20, 1);
-
-static inline void mlxsw_reg_smid_pack(char *payload, u16 mid,
-				       u8 port, bool set)
-{
-	MLXSW_REG_ZERO(smid, payload);
-	mlxsw_reg_smid_swid_set(payload, 0);
-	mlxsw_reg_smid_mid_set(payload, mid);
-	mlxsw_reg_smid_port_set(payload, port, set);
-	mlxsw_reg_smid_port_mask_set(payload, port, 1);
-}
-
 /* SSPR - Switch System Port Record Register
  * -----------------------------------------
  * Configures the system port to local port mapping.
@@ -2103,6 +2057,52 @@ static inline void mlxsw_reg_sftr2_pack(char *payload,
 	mlxsw_reg_sftr2_range_set(payload, range);
 	mlxsw_reg_sftr2_port_set(payload, port, set);
 	mlxsw_reg_sftr2_port_mask_set(payload, port, 1);
+}
+
+/* SMID-V2 - Switch Multicast ID Version 2 Register
+ * ------------------------------------------------
+ * The MID record maps from a MID (Multicast ID), which is a unique identifier
+ * of the multicast group within the stacking domain, into a list of local
+ * ports into which the packet is replicated.
+ */
+#define MLXSW_REG_SMID2_ID 0x2034
+#define MLXSW_REG_SMID2_LEN 0x120
+
+MLXSW_REG_DEFINE(smid2, MLXSW_REG_SMID2_ID, MLXSW_REG_SMID2_LEN);
+
+/* reg_smid2_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smid2, swid, 0x00, 24, 8);
+
+/* reg_smid2_mid
+ * Multicast identifier - global identifier that represents the multicast group
+ * across all devices.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smid2, mid, 0x00, 0, 16);
+
+/* reg_smid2_port
+ * Local port memebership (1 bit per port).
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, smid2, port, 0x20, 0x80, 1);
+
+/* reg_smid2_port_mask
+ * Local port mask (1 bit per port).
+ * Access: WO
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, smid2, port_mask, 0xA0, 0x80, 1);
+
+static inline void mlxsw_reg_smid2_pack(char *payload, u16 mid, u16 port,
+					bool set)
+{
+	MLXSW_REG_ZERO(smid2, payload);
+	mlxsw_reg_smid2_swid_set(payload, 0);
+	mlxsw_reg_smid2_mid_set(payload, mid);
+	mlxsw_reg_smid2_port_set(payload, port, set);
+	mlxsw_reg_smid2_port_mask_set(payload, port, 1);
 }
 
 /* CWTP - Congetion WRED ECN TClass Profile
@@ -12373,7 +12373,6 @@ static inline void mlxsw_reg_sbib_pack(char *payload, u16 local_port,
 static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(sgcr),
 	MLXSW_REG(spad),
-	MLXSW_REG(smid),
 	MLXSW_REG(sspr),
 	MLXSW_REG(sfdat),
 	MLXSW_REG(sfd),
@@ -12396,6 +12395,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvc),
 	MLXSW_REG(spevet),
 	MLXSW_REG(sftr2),
+	MLXSW_REG(smid2),
 	MLXSW_REG(cwtp),
 	MLXSW_REG(cwtpm),
 	MLXSW_REG(pgcr),
