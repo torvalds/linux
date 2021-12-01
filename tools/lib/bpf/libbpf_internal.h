@@ -172,7 +172,7 @@ static inline void *libbpf_reallocarray(void *ptr, size_t nmemb, size_t size)
 struct btf;
 struct btf_type;
 
-struct btf_type *btf_type_by_id(struct btf *btf, __u32 type_id);
+struct btf_type *btf_type_by_id(const struct btf *btf, __u32 type_id);
 const char *btf_kind_str(const struct btf_type *t);
 const struct btf_type *skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id);
 

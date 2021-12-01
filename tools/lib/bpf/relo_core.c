@@ -51,7 +51,7 @@ static bool is_flex_arr(const struct btf *btf,
 		return false;
 
 	/* has to be the last member of enclosing struct */
-	t = btf__type_by_id(btf, acc->type_id);
+	t = btf_type_by_id(btf, acc->type_id);
 	return acc->idx == btf_vlen(t) - 1;
 }
 
@@ -388,7 +388,7 @@ static int bpf_core_match_member(const struct btf *local_btf,
 		return 0;
 
 	local_id = local_acc->type_id;
-	local_type = btf__type_by_id(local_btf, local_id);
+	local_type = btf_type_by_id(local_btf, local_id);
 	local_member = btf_members(local_type) + local_acc->idx;
 	local_name = btf__name_by_offset(local_btf, local_member->name_off);
 
@@ -580,7 +580,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 		return -EUCLEAN; /* request instruction poisoning */
 
 	acc = &spec->spec[spec->len - 1];
-	t = btf__type_by_id(spec->btf, acc->type_id);
+	t = btf_type_by_id(spec->btf, acc->type_id);
 
 	/* a[n] accessor needs special handling */
 	if (!acc->name) {
@@ -729,7 +729,7 @@ static int bpf_core_calc_enumval_relo(const struct bpf_core_relo *relo,
 	case BPF_ENUMVAL_VALUE:
 		if (!spec)
 			return -EUCLEAN; /* request instruction poisoning */
-		t = btf__type_by_id(spec->btf, spec->spec[0].type_id);
+		t = btf_type_by_id(spec->btf, spec->spec[0].type_id);
 		e = btf_enum(t) + spec->spec[0].idx;
 		*val = e->val;
 		break;
@@ -805,8 +805,8 @@ static int bpf_core_calc_relo(const char *prog_name,
 		if (res->orig_sz != res->new_sz) {
 			const struct btf_type *orig_t, *new_t;
 
-			orig_t = btf__type_by_id(local_spec->btf, res->orig_type_id);
-			new_t = btf__type_by_id(targ_spec->btf, res->new_type_id);
+			orig_t = btf_type_by_id(local_spec->btf, res->orig_type_id);
+			new_t = btf_type_by_id(targ_spec->btf, res->new_type_id);
 
 			/* There are two use cases in which it's safe to
 			 * adjust load/store's mem size:
@@ -1054,7 +1054,7 @@ static void bpf_core_dump_spec(int level, const struct bpf_core_spec *spec)
 	int i;
 
 	type_id = spec->root_type_id;
-	t = btf__type_by_id(spec->btf, type_id);
+	t = btf_type_by_id(spec->btf, type_id);
 	s = btf__name_by_offset(spec->btf, t->name_off);
 
 	libbpf_print(level, "[%u] %s %s", type_id, btf_kind_str(t), str_is_empty(s) ? "<anon>" : s);
@@ -1158,10 +1158,7 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 	int i, j, err;
 
 	local_id = relo->type_id;
-	local_type = btf__type_by_id(local_btf, local_id);
-	if (!local_type)
-		return -EINVAL;
-
+	local_type = btf_type_by_id(local_btf, local_id);
 	local_name = btf__name_by_offset(local_btf, local_type->name_off);
 	if (!local_name)
 		return -EINVAL;
