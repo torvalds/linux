@@ -39,14 +39,10 @@ __irq_entry:
 	@
 	@ Invoke the IRQ handler
 	@
-	mrs	r0, ipsr
-	ldr	r1, =V7M_xPSR_EXCEPTIONNO
-	and	r0, r1
-	sub	r0, #16
-	mov	r1, sp
+	mov	r0, sp
 	stmdb	sp!, {lr}
-	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	bl	nvic_handle_irq
+	@ routine called with r0 = struct pt_regs *
+	bl	generic_handle_arch_irq
 
 	pop	{lr}
 	@
