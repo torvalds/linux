@@ -419,44 +419,6 @@ int u_audio_set_capture_srate(struct g_audio *audio_dev, int srate)
 }
 EXPORT_SYMBOL_GPL(u_audio_set_capture_srate);
 
-static void u_audio_set_playback_pktsize(struct g_audio *audio_dev, int srate)
-{
-	struct uac_params *params = &audio_dev->params;
-	struct snd_uac_chip *uac = audio_dev->uac;
-	struct usb_gadget *gadget = audio_dev->gadget;
-	const struct usb_endpoint_descriptor *ep_desc;
-	struct uac_rtd_params *prm;
-	unsigned int factor;
-
-	prm = &uac->p_prm;
-	/* set srate before starting playback, epin is not configured */
-	if (!prm->ep_enabled)
-		return;
-
-	ep_desc = audio_dev->in_ep->desc;
-
-	/* pre-calculate the playback endpoint's interval */
-	if (gadget->speed == USB_SPEED_FULL)
-		factor = 1000;
-	else
-		factor = 8000;
-
-	/* pre-compute some values for iso_complete() */
-	uac->p_framesize = params->p_ssize *
-			    num_channels(params->p_chmask);
-	uac->p_interval = factor / (1 << (ep_desc->bInterval - 1));
-	uac->p_pktsize = min_t(unsigned int,
-				uac->p_framesize *
-				(params->p_srate_active / uac->p_interval),
-				prm->max_psize);
-
-	if (uac->p_pktsize < prm->max_psize)
-		uac->p_pktsize_residue = uac->p_framesize *
-			(params->p_srate_active % uac->p_interval);
-	else
-		uac->p_pktsize_residue = 0;
-}
-
 int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate)
 {
 	struct snd_kcontrol *ctl = u_audio_get_ctl(audio_dev, "Playback Rate");
@@ -469,7 +431,6 @@ int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate)
 			schedule_work(&audio_dev->work);
 
 			params->p_srate_active = srate;
-			u_audio_set_playback_pktsize(audio_dev, srate);
 			snd_ctl_notify(audio_dev->uac->card,
 					SNDRV_CTL_EVENT_MASK_VALUE, &ctl->id);
 			return 0;
@@ -549,6 +510,8 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	struct usb_ep *ep;
 	struct uac_rtd_params *prm;
 	struct uac_params *params = &audio_dev->params;
+	unsigned int factor, rate;
+	const struct usb_endpoint_descriptor *ep_desc;
 	int req_len, i;
 
 	audio_dev->usb_state[SET_INTERFACE_IN] = true;
@@ -560,12 +523,32 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	prm = &uac->p_prm;
 	config_ep_by_speed(gadget, &audio_dev->func, ep);
 
-	prm->ep_enabled = true;
-	usb_ep_enable(ep);
+	ep_desc = ep->desc;
 
-	u_audio_set_playback_pktsize(audio_dev, params->p_srate_active);
+	/* pre-calculate the playback endpoint's interval */
+	if (gadget->speed == USB_SPEED_FULL)
+		factor = 1000;
+	else
+		factor = 8000;
+
+	/* pre-compute some values for iso_complete() */
+	uac->p_framesize = params->p_ssize *
+			    num_channels(params->p_chmask);
+	rate = params->p_srate_active * uac->p_framesize;
+	uac->p_interval = factor / (1 << (ep_desc->bInterval - 1));
+	uac->p_pktsize = min_t(unsigned int, rate / uac->p_interval,
+				ep->maxpacket);
+
+	if (uac->p_pktsize < ep->maxpacket)
+		uac->p_pktsize_residue = rate % uac->p_interval;
+	else
+		uac->p_pktsize_residue = 0;
+
 	req_len = uac->p_pktsize;
 	uac->p_residue = 0;
+
+	prm->ep_enabled = true;
+	usb_ep_enable(ep);
 
 	for (i = 0; i < params->req_number; i++) {
 		if (!prm->reqs[i]) {
