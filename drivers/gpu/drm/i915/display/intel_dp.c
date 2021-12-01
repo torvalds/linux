@@ -3905,7 +3905,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 			to_intel_crtc_state(crtc->base.state);
 
 		/* Keep underrun reporting disabled until things are stable */
-		intel_wait_for_vblank(dev_priv, crtc->pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
 		if (crtc_state->has_pch_encoder)

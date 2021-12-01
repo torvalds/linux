@@ -321,8 +321,8 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 
 	intel_crt_set_dpms(encoder, crtc_state, DRM_MODE_DPMS_ON);
 
-	intel_wait_for_vblank(dev_priv, pipe);
-	intel_wait_for_vblank(dev_priv, pipe);
+	intel_crtc_wait_for_next_vblank(crtc);
+	intel_crtc_wait_for_next_vblank(crtc);
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 }
