@@ -356,9 +356,11 @@ struct dpu_hw_sspp_ops {
 	 * setup_cdp - setup client driven prefetch
 	 * @ctx: Pointer to pipe context
 	 * @cfg: Pointer to cdp configuration
+	 * @index: rectangle index in multirect
 	 */
 	void (*setup_cdp)(struct dpu_hw_pipe *ctx,
-			struct dpu_hw_pipe_cdp_cfg *cfg);
+			struct dpu_hw_pipe_cdp_cfg *cfg,
+			enum dpu_sspp_multirect_index index);
 };
 
 /**
