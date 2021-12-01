@@ -126,8 +126,7 @@ mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *at
 	post_attr->ft = post_act->ft;
 	post_attr->inner_match_level = MLX5_MATCH_NONE;
 	post_attr->outer_match_level = MLX5_MATCH_NONE;
-	post_attr->action &= ~(MLX5_FLOW_CONTEXT_ACTION_DECAP);
-	post_attr->flags &= ~MLX5_ATTR_FLAG_SAMPLE;
+	post_attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_DECAP;
 
 	handle->ns_type = post_act->ns_type;
 	/* Splits were handled before post action */

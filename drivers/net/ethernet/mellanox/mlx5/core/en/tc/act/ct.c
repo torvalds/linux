@@ -56,8 +56,20 @@ tc_act_parse_ct(struct mlx5e_tc_act_parse_state *parse_state,
 	return 0;
 }
 
+static bool
+tc_act_is_multi_table_act_ct(struct mlx5e_priv *priv,
+			     const struct flow_action_entry *act,
+			     struct mlx5_flow_attr *attr)
+{
+	if (act->ct.action & TCA_CT_ACT_CLEAR)
+		return false;
+
+	return true;
+}
+
 struct mlx5e_tc_act mlx5e_tc_act_ct = {
 	.can_offload = tc_act_can_offload_ct,
 	.parse_action = tc_act_parse_ct,
+	.is_multi_table_act = tc_act_is_multi_table_act_ct,
 };
 
