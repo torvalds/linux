@@ -1883,11 +1883,7 @@ dp_to_lspcon(struct intel_dp *intel_dp)
 	return &dp_to_dig_port(intel_dp)->lspcon;
 }
 
-static inline struct drm_i915_private *
-dp_to_i915(struct intel_dp *intel_dp)
-{
-	return to_i915(dp_to_dig_port(intel_dp)->base.base.dev);
-}
+#define dp_to_i915(__intel_dp) to_i915(dp_to_dig_port(__intel_dp)->base.base.dev)
 
 #define CAN_PSR(intel_dp) ((intel_dp)->psr.sink_support && \
 			   (intel_dp)->psr.source_support)
