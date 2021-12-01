@@ -322,15 +322,28 @@ static int qfprom_reg_read(void *context,
 {
 	struct qfprom_priv *priv = context;
 	u8 *val = _val;
-	int i = 0, words = bytes;
+	int buf_start, buf_end, index, i = 0;
 	void __iomem *base = priv->qfpcorrected;
+	char *buffer = NULL;
+	u32 read_val;
 
 	if (read_raw_data && priv->qfpraw)
 		base = priv->qfpraw;
+	buf_start = ALIGN_DOWN(reg, 4);
+	buf_end = ALIGN(reg + bytes, 4);
+	buffer = kzalloc(buf_end - buf_start, GFP_KERNEL);
+	if (!buffer) {
+		pr_err("memory allocation failed in %s\n", __func__);
+		return -ENOMEM;
+	}
 
-	while (words--)
-		*val++ = readb(base + reg + i++);
+	for (index = buf_start; index < buf_end; index += 4, i += 4) {
+		read_val = readl_relaxed(base + index);
+		memcpy(buffer + i, &read_val, 4);
+	}
 
+	memcpy(val, buffer + reg % 4, bytes);
+	kfree(buffer);
 	return 0;
 }
 
