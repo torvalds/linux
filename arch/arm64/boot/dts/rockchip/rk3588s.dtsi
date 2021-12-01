@@ -1423,7 +1423,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&cru PCLK_VOP_ROOT>,
-					 <&cru HCLK_VOP_ROOT>;
+					 <&cru HCLK_VOP_ROOT>,
+					 <&cru ACLK_VOP>;
 				pm_qos = <&qos_vop_m0>,
 					 <&qos_vop_m1>;
 
