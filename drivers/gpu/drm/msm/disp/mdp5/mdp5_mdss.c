@@ -112,7 +112,7 @@ static const struct irq_domain_ops mdss_hw_irqdomain_ops = {
 
 static int mdss_irq_domain_init(struct mdp5_mdss *mdp5_mdss)
 {
-	struct device *dev = mdp5_mdss->base.dev->dev;
+	struct device *dev = mdp5_mdss->base.dev;
 	struct irq_domain *d;
 
 	d = irq_domain_add_linear(dev->of_node, 32, &mdss_hw_irqdomain_ops,
@@ -155,7 +155,7 @@ static int mdp5_mdss_disable(struct msm_mdss *mdss)
 static int msm_mdss_get_clocks(struct mdp5_mdss *mdp5_mdss)
 {
 	struct platform_device *pdev =
-			to_platform_device(mdp5_mdss->base.dev->dev);
+			to_platform_device(mdp5_mdss->base.dev);
 
 	mdp5_mdss->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(mdp5_mdss->ahb_clk))
@@ -172,10 +172,9 @@ static int msm_mdss_get_clocks(struct mdp5_mdss *mdp5_mdss)
 	return 0;
 }
 
-static void mdp5_mdss_destroy(struct drm_device *dev)
+static void mdp5_mdss_destroy(struct msm_mdss *mdss)
 {
-	struct msm_drm_private *priv = dev->dev_private;
-	struct mdp5_mdss *mdp5_mdss = to_mdp5_mdss(priv->mdss);
+	struct mdp5_mdss *mdp5_mdss = to_mdp5_mdss(mdss);
 
 	if (!mdp5_mdss)
 		return;
@@ -183,7 +182,7 @@ static void mdp5_mdss_destroy(struct drm_device *dev)
 	irq_domain_remove(mdp5_mdss->irqcontroller.domain);
 	mdp5_mdss->irqcontroller.domain = NULL;
 
-	pm_runtime_disable(dev->dev);
+	pm_runtime_disable(mdss->dev);
 }
 
 static const struct msm_mdss_funcs mdss_funcs = {
@@ -192,25 +191,24 @@ static const struct msm_mdss_funcs mdss_funcs = {
 	.destroy = mdp5_mdss_destroy,
 };
 
-int mdp5_mdss_init(struct drm_device *dev)
+int mdp5_mdss_init(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
 	struct mdp5_mdss *mdp5_mdss;
 	int ret;
 
 	DBG("");
 
-	if (!of_device_is_compatible(dev->dev->of_node, "qcom,mdss"))
+	if (!of_device_is_compatible(pdev->dev.of_node, "qcom,mdss"))
 		return 0;
 
-	mdp5_mdss = devm_kzalloc(dev->dev, sizeof(*mdp5_mdss), GFP_KERNEL);
+	mdp5_mdss = devm_kzalloc(&pdev->dev, sizeof(*mdp5_mdss), GFP_KERNEL);
 	if (!mdp5_mdss) {
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	mdp5_mdss->base.dev = dev;
+	mdp5_mdss->base.dev = &pdev->dev;
 
 	mdp5_mdss->mmio = msm_ioremap(pdev, "mdss_phys", "MDSS");
 	if (IS_ERR(mdp5_mdss->mmio)) {
@@ -226,27 +224,27 @@ int mdp5_mdss_init(struct drm_device *dev)
 
 	ret = msm_mdss_get_clocks(mdp5_mdss);
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "failed to get clocks: %d\n", ret);
+		DRM_DEV_ERROR(&pdev->dev, "failed to get clocks: %d\n", ret);
 		goto fail;
 	}
 
-	ret = devm_request_irq(dev->dev, platform_get_irq(pdev, 0),
+	ret = devm_request_irq(&pdev->dev, platform_get_irq(pdev, 0),
 			       mdss_irq, 0, "mdss_isr", mdp5_mdss);
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "failed to init irq: %d\n", ret);
+		DRM_DEV_ERROR(&pdev->dev, "failed to init irq: %d\n", ret);
 		goto fail;
 	}
 
 	ret = mdss_irq_domain_init(mdp5_mdss);
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "failed to init sub-block irqs: %d\n", ret);
+		DRM_DEV_ERROR(&pdev->dev, "failed to init sub-block irqs: %d\n", ret);
 		goto fail;
 	}
 
 	mdp5_mdss->base.funcs = &mdss_funcs;
 	priv->mdss = &mdp5_mdss->base;
 
-	pm_runtime_enable(dev->dev);
+	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 fail:

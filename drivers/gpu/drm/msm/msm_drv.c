@@ -342,7 +342,6 @@ static int msm_drm_uninit(struct device *dev)
 	struct msm_drm_private *priv = platform_get_drvdata(pdev);
 	struct drm_device *ddev = priv->dev;
 	struct msm_kms *kms = priv->kms;
-	struct msm_mdss *mdss = priv->mdss;
 	int i;
 
 	/*
@@ -401,9 +400,6 @@ static int msm_drm_uninit(struct device *dev)
 	}
 
 	component_unbind_all(dev, ddev);
-
-	if (mdss && mdss->funcs)
-		mdss->funcs->destroy(ddev);
 
 	ddev->dev_private = NULL;
 	drm_dev_put(ddev);
@@ -525,20 +521,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	ddev->dev_private = priv;
 	priv->dev = ddev;
 
-	switch (get_mdp_ver(pdev)) {
-	case KMS_MDP5:
-		ret = mdp5_mdss_init(ddev);
-		break;
-	case KMS_DPU:
-		ret = dpu_mdss_init(ddev);
-		break;
-	default:
-		ret = 0;
-		break;
-	}
-	if (ret)
-		goto err_put_drm_dev;
-
 	mdss = priv->mdss;
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
@@ -561,12 +543,12 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 
 	ret = msm_init_vram(ddev);
 	if (ret)
-		goto err_destroy_mdss;
+		return ret;
 
 	/* Bind all our sub-components: */
 	ret = component_bind_all(dev, ddev);
 	if (ret)
-		goto err_destroy_mdss;
+		return ret;
 
 	dma_set_max_seg_size(dev, UINT_MAX);
 
@@ -671,12 +653,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 
 err_msm_uninit:
 	msm_drm_uninit(dev);
-	return ret;
-err_destroy_mdss:
-	if (mdss && mdss->funcs)
-		mdss->funcs->destroy(ddev);
-err_put_drm_dev:
-	drm_dev_put(ddev);
 	return ret;
 }
 
@@ -1386,10 +1362,26 @@ static int msm_pdev_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
+	switch (get_mdp_ver(pdev)) {
+	case KMS_MDP5:
+		ret = mdp5_mdss_init(pdev);
+		break;
+	case KMS_DPU:
+		ret = dpu_mdss_init(pdev);
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+	if (ret) {
+		platform_set_drvdata(pdev, NULL);
+		return ret;
+	}
+
 	if (get_mdp_ver(pdev)) {
 		ret = add_display_components(pdev, &match);
 		if (ret)
-			return ret;
+			goto fail;
 	}
 
 	ret = add_gpu_components(&pdev->dev, &match);
@@ -1411,13 +1403,23 @@ static int msm_pdev_probe(struct platform_device *pdev)
 
 fail:
 	of_platform_depopulate(&pdev->dev);
+
+	if (priv->mdss && priv->mdss->funcs)
+		priv->mdss->funcs->destroy(priv->mdss);
+
 	return ret;
 }
 
 static int msm_pdev_remove(struct platform_device *pdev)
 {
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct msm_mdss *mdss = priv->mdss;
+
 	component_master_del(&pdev->dev, &msm_drm_ops);
 	of_platform_depopulate(&pdev->dev);
+
+	if (mdss && mdss->funcs)
+		mdss->funcs->destroy(mdss);
 
 	return 0;
 }
