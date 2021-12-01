@@ -109,7 +109,7 @@ TRACE_EVENT(intel_cpu_fifo_underrun,
 			     ),
 
 	    TP_fast_assign(
-			    struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+			    struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 			   __entry->pipe = pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -132,7 +132,7 @@ TRACE_EVENT(intel_pch_fifo_underrun,
 
 	    TP_fast_assign(
 			   enum pipe pipe = pch_transcoder;
-			   struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+			   struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 			   __entry->pipe = pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);

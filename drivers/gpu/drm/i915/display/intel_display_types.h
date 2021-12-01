@@ -1788,7 +1788,7 @@ intel_get_first_crtc(struct drm_i915_private *dev_priv)
 }
 
 static inline struct intel_crtc *
-intel_get_crtc_for_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+intel_crtc_for_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	/* pipe_to_crtc_mapping may have hole on any of 3 display pipe system */
 	drm_WARN_ON(&dev_priv->drm,
@@ -2028,7 +2028,7 @@ intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc)
 static inline void
 intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 
 	intel_crtc_wait_for_next_vblank(crtc);
 }
@@ -2036,7 +2036,7 @@ intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 static inline void
 intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 
 	if (crtc->active)
 		intel_crtc_wait_for_next_vblank(crtc);

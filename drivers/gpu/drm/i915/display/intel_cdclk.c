@@ -2592,7 +2592,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		struct intel_crtc_state *crtc_state;
 
 		pipe = ilog2(new_cdclk_state->active_pipes);
-		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+		crtc = intel_crtc_for_pipe(dev_priv, pipe);
 
 		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 		if (IS_ERR(crtc_state))

@@ -1584,8 +1584,8 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 		 */
 		if (!ret && has_dst_key_in_primary_plane(dev_priv)) {
 			struct intel_crtc *crtc =
-				intel_get_crtc_for_pipe(dev_priv,
-							to_intel_plane(plane)->pipe);
+				intel_crtc_for_pipe(dev_priv,
+						    to_intel_plane(plane)->pipe);
 
 			plane_state = drm_atomic_get_plane_state(state,
 								 crtc->base.primary);

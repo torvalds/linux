@@ -989,7 +989,7 @@ static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe)
-		trace_g4x_wm(intel_get_crtc_for_pipe(dev_priv, pipe), wm);
+		trace_g4x_wm(intel_crtc_for_pipe(dev_priv, pipe), wm);
 
 	intel_uncore_write(&dev_priv->uncore, DSPFW1,
 		   FW_WM(wm->sr.plane, SR) |
@@ -1021,7 +1021,7 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
-		trace_vlv_wm(intel_get_crtc_for_pipe(dev_priv, pipe), wm);
+		trace_vlv_wm(intel_crtc_for_pipe(dev_priv, pipe), wm);
 
 		intel_uncore_write(&dev_priv->uncore, VLV_DDL(pipe),
 			   (wm->ddl[pipe].plane[PLANE_CURSOR] << DDL_CURSOR_SHIFT) |
@@ -6909,7 +6909,7 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_crtc *crtc =
-			intel_get_crtc_for_pipe(dev_priv, plane->pipe);
+			intel_crtc_for_pipe(dev_priv, plane->pipe);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
@@ -7065,7 +7065,7 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_crtc *crtc =
-			intel_get_crtc_for_pipe(dev_priv, plane->pipe);
+			intel_crtc_for_pipe(dev_priv, plane->pipe);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =

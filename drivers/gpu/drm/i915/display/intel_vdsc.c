@@ -1116,7 +1116,7 @@ _get_crtc_for_pipe(struct drm_i915_private *i915, enum pipe pipe)
 	if (!intel_pipe_valid(i915, pipe))
 		return NULL;
 
-	return intel_get_crtc_for_pipe(i915, pipe);
+	return intel_crtc_for_pipe(i915, pipe);
 }
 
 struct intel_crtc *
