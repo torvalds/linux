@@ -77,6 +77,8 @@
  *  VERSION     : 01-00-24
  *  30 Nov 2021 : 1. Added PHY Workqueue Cancel during suspend only if network interface available.
  *  VERSION     : 01-00-26
+ *  01 Dec 2021 : 1. Free EMAC IRQ during suspend and request EMAC IRQ during resume.
+ *  VERSION     : 01-00-27
  */
 
 #include <linux/clk.h>
@@ -4339,18 +4341,18 @@ static int tc956xmac_open(struct net_device *dev)
 
 	KPRINT_INFO("%s phylink started", __func__);
 
-	/* Do not re-request host irq resources during resume sequence. */
-	if (priv->tc956x_port_pm_suspend == false) {
-		/* Request the IRQ lines */
-		ret = request_irq(dev->irq, tc956xmac_interrupt,
-				  IRQF_NO_SUSPEND, dev->name, dev);
-		if (unlikely(ret < 0)) {
-			netdev_err(priv->dev,
-				   "%s: ERROR: allocating the IRQ %d (error: %d)\n",
-				   __func__, dev->irq, ret);
-			goto irq_error;
-		}
+	/* Request the IRQ lines */
+	ret = request_irq(dev->irq, tc956xmac_interrupt,
+			  IRQF_NO_SUSPEND, dev->name, dev);
+	if (unlikely(ret < 0)) {
+		netdev_err(priv->dev,
+			   "%s: ERROR: allocating the IRQ %d (error: %d)\n",
+			   __func__, dev->irq, ret);
+		goto irq_error;
+	}
 
+	/* Do not re-request WOL irq resources during resume sequence. */
+	if (priv->tc956x_port_pm_suspend == false) {
 		/* Request the Wake IRQ in case of another line is used for WoL */
 		if (priv->wol_irq != dev->irq) {
 			ret = request_irq(priv->wol_irq, tc956xmac_wol_interrupt,
@@ -4456,11 +4458,10 @@ static int tc956xmac_release(struct net_device *dev)
 			del_timer_sync(&priv->tx_queue[chan].txtimer);
 	}
 #endif
+	/* Free the IRQ lines */
+	free_irq(dev->irq, dev);
 	/* Do not Free Host Irq resources during suspend sequence */
 	if (priv->tc956x_port_pm_suspend == false) {
-		/* Free the IRQ lines */
-		free_irq(dev->irq, dev);
-
 		if (priv->wol_irq != dev->irq)
 			free_irq(priv->wol_irq, dev);
 #ifndef TC956X

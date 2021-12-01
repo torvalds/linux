@@ -98,6 +98,8 @@
  *  30 Nov 2021 : 1. Removed PHY Workqueue Cancellation before suspend.
  		  2. Version update
  *  VERSION     : 01-00-26
+ *  01 Dec 2021 : 1. Version update
+ *  VERSION     : 01-00-27
  */
 
 #include <linux/clk-provider.h>
@@ -135,7 +137,7 @@ static unsigned int tc956x_port0_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
 static unsigned int tc956x_port1_enable_eee = DISABLE;
 static unsigned int tc956x_port1_lpi_auto_entry_timer = TC956XMAC_LPIET_600US;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 6};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 2, 7};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
