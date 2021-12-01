@@ -3,6 +3,12 @@
  * Copyright(c) 2021        Intel Corporation
  */
 
+#if !defined(CONFIG_IWLWIFI_DEVICE_TRACING)
+
+#define trace_iwlmei_sap_data(...)
+
+#else
+
 #if !defined(__IWLWIFI_DEVICE_TRACE_IWLWIFI_SAP_DATA) || defined(TRACE_HEADER_MULTI_READ)
 
 #ifndef __IWLWIFI_DEVICE_TRACE_IWLWIFI_SAP_DATA
@@ -60,6 +66,11 @@ TRACE_EVENT(iwlmei_sap_data,
 		  __entry->trace_type, __get_dynamic_array_len(data))
 );
 
+/*
+ * If you add something here, add a stub in case
+ * !defined(CONFIG_IWLWIFI_DEVICE_TRACING)
+ */
+
 #endif /* __IWLWIFI_DEVICE_TRACE_IWLWIFI_SAP_DATA */
 
 #undef TRACE_INCLUDE_PATH
@@ -67,3 +78,5 @@ TRACE_EVENT(iwlmei_sap_data,
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE trace-data
 #include <trace/define_trace.h>
+
+#endif /* CONFIG_IWLWIFI_DEVICE_TRACING */
