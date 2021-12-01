@@ -430,7 +430,7 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	yuv_order = (val & SPRITE_YUV_ORDER_MASK) >>
 				_SPRITE_YUV_ORDER_SHIFT;
 
-	fmt = (val & SPRITE_PIXFORMAT_MASK) >> _SPRITE_FMT_SHIFT;
+	fmt = (val & SPRITE_FORMAT_MASK) >> _SPRITE_FMT_SHIFT;
 	if (!sprite_pixel_formats[fmt].bpp) {
 		gvt_vgpu_err("Non-supported pixel format (0x%x)\n", fmt);
 		return -EINVAL;
