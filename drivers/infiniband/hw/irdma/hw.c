@@ -60,6 +60,8 @@ static void irdma_iwarp_ce_handler(struct irdma_sc_cq *iwcq)
 {
 	struct irdma_cq *cq = iwcq->back_cq;
 
+	if (!cq->user_mode)
+		cq->armed = false;
 	if (cq->ibcq.comp_handler)
 		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }

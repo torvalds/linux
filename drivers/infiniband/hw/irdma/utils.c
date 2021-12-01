@@ -2531,3 +2531,18 @@ void irdma_ib_qp_event(struct irdma_qp *iwqp, enum irdma_qp_event_type event)
 	ibevent.element.qp = &iwqp->ibqp;
 	iwqp->ibqp.event_handler(&ibevent, iwqp->ibqp.qp_context);
 }
+
+bool irdma_cq_empty(struct irdma_cq *iwcq)
+{
+	struct irdma_cq_uk *ukcq;
+	u64 qword3;
+	__le64 *cqe;
+	u8 polarity;
+
+	ukcq  = &iwcq->sc_cq.cq_uk;
+	cqe = IRDMA_GET_CURRENT_CQ_ELEM(ukcq);
+	get_64bit_val(cqe, 24, &qword3);
+	polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword3);
+
+	return polarity != ukcq->polarity;
+}
