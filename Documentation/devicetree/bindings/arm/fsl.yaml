@@ -865,6 +865,15 @@ properties:
           - const: purism,librem5
           - const: fsl,imx8mq
 
+      - description:
+          TQMa8Mx is a series of SOM featuring NXP i.MX8MQ system-on-chip
+          variants. It is designed to be clicked on different carrier boards.
+        items:
+          - enum:
+              - tq,imx8mq-tqma8mq-mba8mx # TQ-Systems GmbH i.MX8MQ TQMa8Mx SOM on MBa8Mx
+          - const: tq,imx8mq-tqma8mq     # TQ-Systems GmbH i.MX8MQ TQMa8Mx SOM
+          - const: fsl,imx8mq
+
       - description: Zodiac Inflight Innovations Ultra Boards
         items:
           - enum:
