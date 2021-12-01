@@ -501,9 +501,15 @@ static int rkcif_csi2_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh
 	return v4l2_event_subscribe(fh, sub, 0, NULL);
 }
 
+static int rkcif_csi2_s_power(struct v4l2_subdev *sd, int on)
+{
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops csi2_core_ops = {
 	.subscribe_event = rkcif_csi2_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+	.s_power = rkcif_csi2_s_power,
 };
 
 static const struct v4l2_subdev_video_ops csi2_video_ops = {

@@ -459,6 +459,24 @@ static int sditf_s_stream(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+static int sditf_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct sditf_priv *priv = to_sditf_priv(sd);
+	struct rkcif_device *cif_dev = priv->cif_dev;
+	int ret = 0;
+
+	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
+		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+			"%s, toisp mode %d, hdr %d, set power %d\n",
+			__func__, priv->toisp_inf.link_mode, priv->hdr_cfg.hdr_mode, on);
+		if (on)
+			ret = pm_runtime_get_sync(cif_dev->dev);
+		else
+			pm_runtime_put(cif_dev->dev);
+	}
+	return ret;
+}
+
 static const struct v4l2_subdev_pad_ops sditf_subdev_pad_ops = {
 	.set_fmt = sditf_get_set_fmt,
 	.get_fmt = sditf_get_set_fmt,
@@ -476,6 +494,7 @@ static const struct v4l2_subdev_core_ops sditf_core_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = sditf_compat_ioctl32,
 #endif
+	.s_power = sditf_s_power,
 };
 
 static const struct v4l2_subdev_ops sditf_subdev_ops = {

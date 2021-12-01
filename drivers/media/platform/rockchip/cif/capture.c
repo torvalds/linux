@@ -3088,10 +3088,10 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 
 	if (mode == stream->cur_stream_mode) {
 		ret = dev->pipe.close(&dev->pipe);
-		if (ret < 0) {
+		if (ret < 0)
 			v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
-			pm_runtime_put_sync(dev->dev);
-		}
+		pm_runtime_put_sync(dev->dev);
+		v4l2_pipeline_pm_put(&node->vdev.entity);
 		if (dev->hdr.hdr_mode == HDR_X2) {
 			if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
 			    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY) {
@@ -4022,7 +4022,12 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 				 ret);
 			goto  destroy_buf;
 		}
-
+		ret = v4l2_pipeline_pm_get(&node->vdev.entity);
+		if (ret < 0) {
+			v4l2_err(v4l2_dev, "cif pipeline_pm_get fail %d\n",
+				 ret);
+			goto destroy_buf;
+		}
 		ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev, "open cif pipeline failed %d\n",
