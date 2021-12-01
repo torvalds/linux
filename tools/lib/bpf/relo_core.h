@@ -6,59 +6,6 @@
 
 #include <linux/bpf.h>
 
-/* The minimum bpf_core_relo checked by the loader
- *
- * CO-RE relocation captures the following data:
- * - insn_off - instruction offset (in bytes) within a BPF program that needs
- *   its insn->imm field to be relocated with actual field info;
- * - type_id - BTF type ID of the "root" (containing) entity of a relocatable
- *   type or field;
- * - access_str_off - offset into corresponding .BTF string section. String
- *   interpretation depends on specific relocation kind:
- *     - for field-based relocations, string encodes an accessed field using
- *     a sequence of field and array indices, separated by colon (:). It's
- *     conceptually very close to LLVM's getelementptr ([0]) instruction's
- *     arguments for identifying offset to a field.
- *     - for type-based relocations, strings is expected to be just "0";
- *     - for enum value-based relocations, string contains an index of enum
- *     value within its enum type;
- *
- * Example to provide a better feel.
- *
- *   struct sample {
- *       int a;
- *       struct {
- *           int b[10];
- *       };
- *   };
- *
- *   struct sample *s = ...;
- *   int x = &s->a;     // encoded as "0:0" (a is field #0)
- *   int y = &s->b[5];  // encoded as "0:1:0:5" (anon struct is field #1,
- *                      // b is field #0 inside anon struct, accessing elem #5)
- *   int z = &s[10]->b; // encoded as "10:1" (ptr is used as an array)
- *
- * type_id for all relocs in this example  will capture BTF type id of
- * `struct sample`.
- *
- * Such relocation is emitted when using __builtin_preserve_access_index()
- * Clang built-in, passing expression that captures field address, e.g.:
- *
- * bpf_probe_read(&dst, sizeof(dst),
- *		  __builtin_preserve_access_index(&src->a.b.c));
- *
- * In this case Clang will emit field relocation recording necessary data to
- * be able to find offset of embedded `a.b.c` field within `src` struct.
- *
- *   [0] https://llvm.org/docs/LangRef.html#getelementptr-instruction
- */
-struct bpf_core_relo {
-	__u32   insn_off;
-	__u32   type_id;
-	__u32   access_str_off;
-	enum bpf_core_relo_kind kind;
-};
-
 struct bpf_core_cand {
 	const struct btf *btf;
 	const struct btf_type *t;

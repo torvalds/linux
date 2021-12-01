@@ -6439,3 +6439,9 @@ size_t bpf_core_essential_name_len(const char *name)
 	}
 	return n;
 }
+
+int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
+		   int relo_idx, void *insn)
+{
+	return -EOPNOTSUPP;
+}
