@@ -3000,7 +3000,6 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	sc->quirks = quirks;
 	hid_set_drvdata(hdev, sc);
 	sc->hdev = hdev;
-	usbdev = to_usb_device(sc->hdev->dev.parent->parent);
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -3043,6 +3042,11 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (sc->quirks & (GHL_GUITAR_PS3WIIU | GHL_GUITAR_PS4)) {
+		if (!hid_is_usb(hdev))
+			return -EINVAL;
+
+		usbdev = to_usb_device(sc->hdev->dev.parent->parent);
+
 		sc->ghl_urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!sc->ghl_urb)
 			return -ENOMEM;
