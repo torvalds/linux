@@ -80,11 +80,11 @@ static bool mce_in_guest(void)
 #ifdef CONFIG_PPC_BOOK3S_64
 void flush_and_reload_slb(void)
 {
-	/* Invalidate all SLBs */
-	slb_flush_all_realmode();
-
 	if (early_radix_enabled())
 		return;
+
+	/* Invalidate all SLBs */
+	slb_flush_all_realmode();
 
 	/*
 	 * This probably shouldn't happen, but it may be possible it's
