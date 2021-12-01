@@ -47,7 +47,7 @@ static struct workqueue_struct *mlxsw_owq;
 struct mlxsw_core_port {
 	struct devlink_port devlink_port;
 	void *port_driver_priv;
-	u8 local_port;
+	u16 local_port;
 };
 
 void *mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port)
@@ -77,7 +77,7 @@ struct mlxsw_core {
 		bool enable_string_tlv;
 	} emad;
 	struct {
-		u8 *mapping; /* lag_id+port_index to local_port mapping */
+		u16 *mapping; /* lag_id+port_index to local_port mapping */
 	} lag;
 	struct mlxsw_res res;
 	struct mlxsw_hwmon *hwmon;
@@ -718,7 +718,7 @@ static void mlxsw_emad_process_response(struct mlxsw_core *mlxsw_core,
 }
 
 /* called with rcu read lock held */
-static void mlxsw_emad_rx_listener_func(struct sk_buff *skb, u8 local_port,
+static void mlxsw_emad_rx_listener_func(struct sk_buff *skb, u16 local_port,
 					void *priv)
 {
 	struct mlxsw_core *mlxsw_core = priv;
@@ -1959,7 +1959,7 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 
 	if (MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG) &&
 	    MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG_MEMBERS)) {
-		alloc_size = sizeof(u8) *
+		alloc_size = sizeof(*mlxsw_core->lag.mapping) *
 			MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG) *
 			MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG_MEMBERS);
 		mlxsw_core->lag.mapping = kzalloc(alloc_size, GFP_KERNEL);
@@ -2130,7 +2130,7 @@ int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 EXPORT_SYMBOL(mlxsw_core_skb_transmit);
 
 void mlxsw_core_ptp_transmitted(struct mlxsw_core *mlxsw_core,
-				struct sk_buff *skb, u8 local_port)
+				struct sk_buff *skb, u16 local_port)
 {
 	if (mlxsw_core->driver->ptp_transmitted)
 		mlxsw_core->driver->ptp_transmitted(mlxsw_core, skb,
@@ -2208,7 +2208,7 @@ mlxsw_core_rx_listener_state_set(struct mlxsw_core *mlxsw_core,
 	rxl_item->enabled = enabled;
 }
 
-static void mlxsw_core_event_listener_func(struct sk_buff *skb, u8 local_port,
+static void mlxsw_core_event_listener_func(struct sk_buff *skb, u16 local_port,
 					   void *priv)
 {
 	struct mlxsw_event_listener_item *event_listener_item = priv;
@@ -2641,7 +2641,7 @@ void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 {
 	struct mlxsw_rx_listener_item *rxl_item;
 	const struct mlxsw_rx_listener *rxl;
-	u8 local_port;
+	u16 local_port;
 	bool found = false;
 
 	if (rx_info->is_lag) {
@@ -2699,7 +2699,7 @@ static int mlxsw_core_lag_mapping_index(struct mlxsw_core *mlxsw_core,
 }
 
 void mlxsw_core_lag_mapping_set(struct mlxsw_core *mlxsw_core,
-				u16 lag_id, u8 port_index, u8 local_port)
+				u16 lag_id, u8 port_index, u16 local_port)
 {
 	int index = mlxsw_core_lag_mapping_index(mlxsw_core,
 						 lag_id, port_index);
@@ -2708,8 +2708,8 @@ void mlxsw_core_lag_mapping_set(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_lag_mapping_set);
 
-u8 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
-			      u16 lag_id, u8 port_index)
+u16 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
+			       u16 lag_id, u8 port_index)
 {
 	int index = mlxsw_core_lag_mapping_index(mlxsw_core,
 						 lag_id, port_index);
@@ -2719,7 +2719,7 @@ u8 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
 EXPORT_SYMBOL(mlxsw_core_lag_mapping_get);
 
 void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
-				  u16 lag_id, u8 local_port)
+				  u16 lag_id, u16 local_port)
 {
 	int i;
 
@@ -2747,7 +2747,7 @@ u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_res_get);
 
-static int __mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
+static int __mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u16 local_port,
 				  enum devlink_port_flavour flavour,
 				  u32 port_number, bool split,
 				  u32 split_port_subnumber,
@@ -2778,7 +2778,7 @@ static int __mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
 	return err;
 }
 
-static void __mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port)
+static void __mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u16 local_port)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
 					&mlxsw_core->ports[local_port];
@@ -2788,7 +2788,7 @@ static void __mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port)
 	memset(mlxsw_core_port, 0, sizeof(*mlxsw_core_port));
 }
 
-int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
+int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u16 local_port,
 			 u32 port_number, bool split,
 			 u32 split_port_subnumber,
 			 bool splittable, u32 lanes,
@@ -2810,7 +2810,7 @@ int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
 }
 EXPORT_SYMBOL(mlxsw_core_port_init);
 
-void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port)
+void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u16 local_port)
 {
 	atomic_dec(&mlxsw_core->active_ports_count);
 
@@ -2845,7 +2845,7 @@ void mlxsw_core_cpu_port_fini(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_cpu_port_fini);
 
-void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
+void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u16 local_port,
 			     void *port_driver_priv, struct net_device *dev)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
@@ -2857,7 +2857,7 @@ void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 }
 EXPORT_SYMBOL(mlxsw_core_port_eth_set);
 
-void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
+void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u16 local_port,
 			    void *port_driver_priv)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
@@ -2869,7 +2869,7 @@ void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 }
 EXPORT_SYMBOL(mlxsw_core_port_ib_set);
 
-void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
+void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u16 local_port,
 			   void *port_driver_priv)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
@@ -2882,7 +2882,7 @@ void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
 EXPORT_SYMBOL(mlxsw_core_port_clear);
 
 enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
-						u8 local_port)
+						u16 local_port)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
 					&mlxsw_core->ports[local_port];
@@ -2895,7 +2895,7 @@ EXPORT_SYMBOL(mlxsw_core_port_type_get);
 
 struct devlink_port *
 mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
-				 u8 local_port)
+				 u16 local_port)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
 					&mlxsw_core->ports[local_port];
@@ -2905,7 +2905,7 @@ mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_port_devlink_port_get);
 
-bool mlxsw_core_port_is_xm(const struct mlxsw_core *mlxsw_core, u8 local_port)
+bool mlxsw_core_port_is_xm(const struct mlxsw_core *mlxsw_core, u16 local_port)
 {
 	const struct mlxsw_bus_info *bus_info = mlxsw_core->bus_info;
 	int i;

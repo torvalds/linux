@@ -980,7 +980,7 @@ mlxsw_sp_port_vlan_fid_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	struct mlxsw_sp_bridge_device *bridge_device;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 	u16 vid = mlxsw_sp_port_vlan->vid;
 	struct mlxsw_sp_fid *fid;
 	int err;
@@ -1029,7 +1029,7 @@ mlxsw_sp_port_vlan_fid_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	struct mlxsw_sp_fid *fid = mlxsw_sp_port_vlan->fid;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 	u16 vid = mlxsw_sp_port_vlan->vid;
 
 	mlxsw_sp_port_vlan->fid = NULL;
@@ -1335,7 +1335,7 @@ out:
 	return err;
 }
 
-static int __mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+static int __mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 				     const char *mac, u16 fid, bool adding,
 				     enum mlxsw_reg_sfd_rec_action action,
 				     enum mlxsw_reg_sfd_rec_policy policy)
@@ -1363,7 +1363,7 @@ out:
 	return err;
 }
 
-static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 				   const char *mac, u16 fid, bool adding,
 				   bool dynamic)
 {
@@ -2536,7 +2536,7 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	enum switchdev_notifier_type type;
 	char mac[ETH_ALEN];
-	u8 local_port;
+	u16 local_port;
 	u16 vid, fid;
 	bool do_notification = true;
 	int err;
