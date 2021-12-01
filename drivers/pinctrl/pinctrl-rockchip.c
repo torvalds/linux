@@ -20,10 +20,10 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -2967,13 +2967,13 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return rc;
 			break;
 		case PIN_CONFIG_OUTPUT:
-			rc = rockchip_get_mux(bank, pin - bank->pin_base);
-			if (rc != 0) {
-				dev_err(info->dev, "pin-%d has been mux to func%d\n", pin, rc);
+			rc = rockchip_set_mux(bank, pin - bank->pin_base,
+					      RK_FUNC_GPIO);
+			if (rc != RK_FUNC_GPIO)
 				return -EINVAL;
-			}
 
-			rc = gpio->direction_output(gpio, pin - bank->pin_base, arg);
+			rc = gpio->direction_output(gpio, pin - bank->pin_base,
+						    arg);
 			if (rc)
 				return rc;
 			break;
@@ -3045,9 +3045,12 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 	case PIN_CONFIG_OUTPUT:
 		rc = rockchip_get_mux(bank, pin - bank->pin_base);
-		if (rc != 0) {
-			dev_err(info->dev, "pin-%d has been mux to func%d\n", pin, rc);
+		if (rc != RK_FUNC_GPIO)
 			return -EINVAL;
+
+		if (!gpio || !gpio->get) {
+			arg = 0;
+			break;
 		}
 
 		rc = gpio->get(gpio, pin - bank->pin_base);
