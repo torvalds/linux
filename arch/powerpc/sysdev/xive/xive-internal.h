@@ -58,6 +58,7 @@ struct xive_ops {
 	void	(*put_ipi)(unsigned int cpu, struct xive_cpu *xc);
 #endif
 	int	(*debug_show)(struct seq_file *m, void *private);
+	int	(*debug_create)(struct dentry *xive_dir);
 	const char *name;
 };
 
