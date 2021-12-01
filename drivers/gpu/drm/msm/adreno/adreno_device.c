@@ -427,13 +427,6 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 	return gpu;
 }
 
-static void set_gpu_pdev(struct drm_device *dev,
-		struct platform_device *pdev)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	priv->gpu_pdev = pdev;
-}
-
 static int find_chipid(struct device *dev, struct adreno_rev *rev)
 {
 	struct device_node *node = dev->of_node;
@@ -482,8 +475,8 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct adreno_platform_config config = {};
 	const struct adreno_info *info;
-	struct drm_device *drm = dev_get_drvdata(master);
-	struct msm_drm_private *priv = drm->dev_private;
+	struct msm_drm_private *priv = dev_get_drvdata(master);
+	struct drm_device *drm = priv->dev;
 	struct msm_gpu *gpu;
 	int ret;
 
@@ -492,7 +485,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	dev->platform_data = &config;
-	set_gpu_pdev(drm, to_platform_device(dev));
+	priv->gpu_pdev = to_platform_device(dev);
 
 	info = adreno_info(config.rev);
 
@@ -521,12 +514,13 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 static void adreno_unbind(struct device *dev, struct device *master,
 		void *data)
 {
+	struct msm_drm_private *priv = dev_get_drvdata(master);
 	struct msm_gpu *gpu = dev_to_gpu(dev);
 
 	pm_runtime_force_suspend(dev);
 	gpu->funcs->destroy(gpu);
 
-	set_gpu_pdev(dev_get_drvdata(master), NULL);
+	priv->gpu_pdev = NULL;
 }
 
 static const struct component_ops a3xx_ops = {

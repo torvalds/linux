@@ -921,7 +921,8 @@ fail:
 
 static int mdp5_bind(struct device *dev, struct device *master, void *data)
 {
-	struct drm_device *ddev = dev_get_drvdata(master);
+	struct msm_drm_private *priv = dev_get_drvdata(master);
+	struct drm_device *ddev = priv->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 
 	DBG("");

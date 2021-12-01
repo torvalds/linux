@@ -339,8 +339,8 @@ static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 static int msm_drm_uninit(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *ddev = platform_get_drvdata(pdev);
-	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct drm_device *ddev = priv->dev;
 	struct msm_kms *kms = priv->kms;
 	struct msm_mdss *mdss = priv->mdss;
 	int i;
@@ -409,7 +409,6 @@ static int msm_drm_uninit(struct device *dev)
 	drm_dev_put(ddev);
 
 	destroy_workqueue(priv->wq);
-	kfree(priv);
 
 	return 0;
 }
@@ -512,8 +511,8 @@ static int msm_init_vram(struct drm_device *dev)
 static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct msm_drm_private *priv = dev_get_drvdata(dev);
 	struct drm_device *ddev;
-	struct msm_drm_private *priv;
 	struct msm_kms *kms;
 	struct msm_mdss *mdss;
 	int ret, i;
@@ -523,15 +522,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 		DRM_DEV_ERROR(dev, "failed to allocate drm_device\n");
 		return PTR_ERR(ddev);
 	}
-
-	platform_set_drvdata(pdev, ddev);
-
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_put_drm_dev;
-	}
-
 	ddev->dev_private = priv;
 	priv->dev = ddev;
 
@@ -547,7 +537,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 		break;
 	}
 	if (ret)
-		goto err_free_priv;
+		goto err_put_drm_dev;
 
 	mdss = priv->mdss;
 
@@ -685,11 +675,8 @@ err_msm_uninit:
 err_destroy_mdss:
 	if (mdss && mdss->funcs)
 		mdss->funcs->destroy(ddev);
-err_free_priv:
-	kfree(priv);
 err_put_drm_dev:
 	drm_dev_put(ddev);
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
@@ -1136,8 +1123,7 @@ static const struct drm_driver msm_driver = {
 
 static int __maybe_unused msm_runtime_suspend(struct device *dev)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_drm_private *priv = dev_get_drvdata(dev);
 	struct msm_mdss *mdss = priv->mdss;
 
 	DBG("");
@@ -1150,8 +1136,7 @@ static int __maybe_unused msm_runtime_suspend(struct device *dev)
 
 static int __maybe_unused msm_runtime_resume(struct device *dev)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_drm_private *priv = dev_get_drvdata(dev);
 	struct msm_mdss *mdss = priv->mdss;
 
 	DBG("");
@@ -1181,8 +1166,8 @@ static int __maybe_unused msm_pm_resume(struct device *dev)
 
 static int __maybe_unused msm_pm_prepare(struct device *dev)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct msm_drm_private *priv = ddev ? ddev->dev_private : NULL;
+	struct msm_drm_private *priv = dev_get_drvdata(dev);
+	struct drm_device *ddev = priv ? priv->dev : NULL;
 
 	if (!priv || !priv->kms)
 		return 0;
@@ -1192,8 +1177,8 @@ static int __maybe_unused msm_pm_prepare(struct device *dev)
 
 static void __maybe_unused msm_pm_complete(struct device *dev)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct msm_drm_private *priv = ddev ? ddev->dev_private : NULL;
+	struct msm_drm_private *priv = dev_get_drvdata(dev);
+	struct drm_device *ddev = priv ? priv->dev : NULL;
 
 	if (!priv || !priv->kms)
 		return;
@@ -1392,7 +1377,14 @@ static const struct component_master_ops msm_drm_ops = {
 static int msm_pdev_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
+	struct msm_drm_private *priv;
 	int ret;
+
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, priv);
 
 	if (get_mdp_ver(pdev)) {
 		ret = add_display_components(pdev, &match);
@@ -1432,8 +1424,8 @@ static int msm_pdev_remove(struct platform_device *pdev)
 
 static void msm_pdev_shutdown(struct platform_device *pdev)
 {
-	struct drm_device *drm = platform_get_drvdata(pdev);
-	struct msm_drm_private *priv = drm ? drm->dev_private : NULL;
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct drm_device *drm = priv ? priv->dev : NULL;
 
 	if (!priv || !priv->kms)
 		return;

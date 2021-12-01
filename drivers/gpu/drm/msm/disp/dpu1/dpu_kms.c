@@ -1153,9 +1153,9 @@ struct msm_kms *dpu_kms_init(struct drm_device *dev)
 
 static int dpu_bind(struct device *dev, struct device *master, void *data)
 {
-	struct drm_device *ddev = dev_get_drvdata(master);
+	struct msm_drm_private *priv = dev_get_drvdata(master);
 	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_drm_private *priv = ddev->dev_private;
+	struct drm_device *ddev = priv->dev;
 	struct dpu_kms *dpu_kms;
 	struct dss_module_power *mp;
 	int ret = 0;
