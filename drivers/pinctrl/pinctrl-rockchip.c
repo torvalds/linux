@@ -2928,6 +2928,23 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 	return false;
 }
 
+static int rockchip_pinconf_defer_output(struct rockchip_pin_bank *bank,
+					 unsigned int pin, u32 arg)
+{
+	struct rockchip_pin_output_deferred *cfg;
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+
+	cfg->pin = pin;
+	cfg->arg = arg;
+
+	list_add_tail(&cfg->head, &bank->deferred_output);
+
+	return 0;
+}
+
 /* set the pin config settings for a specified pin */
 static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				unsigned long *configs, unsigned num_configs)
@@ -2971,6 +2988,22 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 					      RK_FUNC_GPIO);
 			if (rc != RK_FUNC_GPIO)
 				return -EINVAL;
+
+			/*
+			 * Check for gpio driver not being probed yet.
+			 * The lock makes sure that either gpio-probe has completed
+			 * or the gpio driver hasn't probed yet.
+			 */
+			mutex_lock(&bank->deferred_lock);
+			if (!gpio || !gpio->direction_output) {
+				rc = rockchip_pinconf_defer_output(bank, pin - bank->pin_base, arg);
+				mutex_unlock(&bank->deferred_lock);
+				if (rc)
+					return rc;
+
+				break;
+			}
+			mutex_unlock(&bank->deferred_lock);
 
 			rc = gpio->direction_output(gpio, pin - bank->pin_base,
 						    arg);
@@ -3308,6 +3341,9 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 						pin_bank->name, pin);
 			pdesc++;
 		}
+
+		INIT_LIST_HEAD(&pin_bank->deferred_output);
+		mutex_init(&pin_bank->deferred_lock);
 	}
 
 	ret = rockchip_pinctrl_parse_dt(pdev, info);
@@ -3619,6 +3655,31 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 	dev_info(dev, "probed %s\n", dev_name(dev));
+
+	return 0;
+}
+
+static int rockchip_pinctrl_remove(struct platform_device *pdev)
+{
+	struct rockchip_pinctrl *info = platform_get_drvdata(pdev);
+	struct rockchip_pin_bank *bank;
+	struct rockchip_pin_output_deferred *cfg;
+	int i;
+
+	of_platform_depopulate(&pdev->dev);
+
+	for (i = 0; i < info->ctrl->nr_banks; i++) {
+		bank = &info->ctrl->pin_banks[i];
+
+		mutex_lock(&bank->deferred_lock);
+		while (!list_empty(&bank->deferred_output)) {
+			cfg = list_first_entry(&bank->deferred_output,
+					       struct rockchip_pin_output_deferred, head);
+			list_del(&cfg->head);
+			kfree(cfg);
+		}
+		mutex_unlock(&bank->deferred_lock);
+	}
 
 	return 0;
 }
@@ -4194,6 +4255,7 @@ static const struct of_device_id rockchip_pinctrl_dt_match[] = {
 
 static struct platform_driver rockchip_pinctrl_driver = {
 	.probe		= rockchip_pinctrl_probe,
+	.remove		= rockchip_pinctrl_remove,
 	.driver = {
 		.name	= "rockchip-pinctrl",
 		.pm = &rockchip_pinctrl_dev_pm_ops,
