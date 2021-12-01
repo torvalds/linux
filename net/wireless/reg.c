@@ -1134,9 +1134,8 @@ int reg_reload_regdb(void)
 	request->wiphy_idx = WIPHY_IDX_INVALID;
 	request->alpha2[0] = current_regdomain->alpha2[0];
 	request->alpha2[1] = current_regdomain->alpha2[1];
-	request->initiator = NL80211_USER_REG_HINT_USER;
+	request->initiator = NL80211_REGDOM_SET_BY_CORE;
 	request->user_reg_hint_type = NL80211_USER_REG_HINT_USER;
-	request->reload = true;
 
 	reg_process_hint(request);
 
@@ -2712,8 +2711,7 @@ reg_process_hint_user(struct regulatory_request *user_request)
 
 	treatment = __reg_process_hint_user(user_request);
 	if (treatment == REG_REQ_IGNORE ||
-	    (treatment == REG_REQ_ALREADY_SET &&
-	     !user_request->reload))
+	    treatment == REG_REQ_ALREADY_SET)
 		return REG_REQ_IGNORE;
 
 	user_request->intersect = treatment == REG_REQ_INTERSECT;
