@@ -768,7 +768,6 @@ int kvmhv_vcpu_entry_p9(struct kvm_vcpu *vcpu, u64 time_limit, unsigned long lpc
 	s64 hdec, dec;
 	u64 purr, spurr;
 	u64 *exsave;
-	bool ri_set;
 	int trap;
 	unsigned long msr;
 	unsigned long host_hfscr;
@@ -968,18 +967,12 @@ tm_return_to_guest:
 	/* 0x2 bit for HSRR is only used by PR and P7/8 HV paths, clear it */
 	trap = local_paca->kvm_hstate.scratch0 & ~0x2;
 
-	/* HSRR interrupts leave MSR[RI] unchanged, SRR interrupts clear it. */
-	ri_set = false;
-	if (likely(trap > BOOK3S_INTERRUPT_MACHINE_CHECK)) {
-		if (trap != BOOK3S_INTERRUPT_SYSCALL &&
-				(vcpu->arch.shregs.msr & MSR_RI))
-			ri_set = true;
+	if (likely(trap > BOOK3S_INTERRUPT_MACHINE_CHECK))
 		exsave = local_paca->exgen;
-	} else if (trap == BOOK3S_INTERRUPT_SYSTEM_RESET) {
+	else if (trap == BOOK3S_INTERRUPT_SYSTEM_RESET)
 		exsave = local_paca->exnmi;
-	} else { /* trap == 0x200 */
+	else /* trap == 0x200 */
 		exsave = local_paca->exmc;
-	}
 
 	vcpu->arch.regs.gpr[1] = local_paca->kvm_hstate.scratch1;
 	vcpu->arch.regs.gpr[3] = local_paca->kvm_hstate.scratch2;
