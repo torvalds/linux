@@ -1057,10 +1057,6 @@
 	status = "okay";
 };
 
-&u2phy3 {
-	status = "okay";
-};
-
 &u2phy0_otg {
 	status = "okay";
 };
@@ -1070,24 +1066,11 @@
 	phy-supply = <&vcc5v0_host>;
 };
 
-&u2phy3_host {
-	status = "okay";
-	phy-supply = <&vcc5v0_host>;
-};
-
 &usb_host0_ehci {
 	status = "okay";
 };
 
 &usb_host0_ohci {
-	status = "okay";
-};
-
-&usb_host1_ehci {
-	status = "okay";
-};
-
-&usb_host1_ohci {
 	status = "okay";
 };
 
