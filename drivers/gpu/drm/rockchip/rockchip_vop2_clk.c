@@ -121,7 +121,7 @@ static struct vop2_clk_branch rk3588_vop_clk_branches[] = {
 	MUX("hdmi_edp1_clk_src", mux_hdmi_edp_clk_src_p,
 	    CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
 	DIV("hdmi_edp1_dclk", "hdmi_edp1_clk_src", 0, 2),
-	DIV("hdmi_edp1_pixclk", "hdmi_edp1_clk_src", CLK_SET_RATE_PARENT, 2),
+	DIV("hdmi_edp1_pixclk", "hdmi_edp1_clk_src", CLK_SET_RATE_PARENT, 1),
 
 	MUX("mipi0_clk_src", mux_mipi_clk_src_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
 	DIV("mipi0_pixclk", "mipi0_clk_src", CLK_SET_RATE_PARENT, 2),
