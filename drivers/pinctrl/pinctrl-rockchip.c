@@ -1039,6 +1039,7 @@ static bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
 static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	int iomux_num = (pin / 8);
 	struct regmap *regmap;
 	unsigned int val;
@@ -1083,6 +1084,27 @@ static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
 
 	if (bank->recalced_mask & BIT(pin))
 		rockchip_get_recalced_mux(bank, pin, &reg, &bit, &mask);
+
+	if (ctrl->type == RK3588) {
+		if (bank->bank_num == 0) {
+			if ((pin >= RK_PB4) && (pin <= RK_PD7)) {
+				u32 reg0 = 0;
+
+				reg0 = reg + 0x4000 - 0xC; /* PMU2_IOC_BASE */
+				ret = regmap_read(regmap, reg0, &val);
+				if (ret)
+					return ret;
+
+				if (!(val & BIT(8)))
+					return ((val >> bit) & mask);
+
+				reg = reg + 0x8000; /* BUS_IOC_BASE */
+				regmap = info->regmap_base;
+			}
+		} else if (bank->bank_num > 0) {
+			reg += 0x8000; /* BUS_IOC_BASE */
+		}
+	}
 
 	ret = regmap_read(regmap, reg, &val);
 	if (ret)
