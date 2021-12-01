@@ -2026,14 +2026,6 @@ intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc)
 }
 
 static inline void
-intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
-{
-	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
-
-	intel_crtc_wait_for_next_vblank(crtc);
-}
-
-static inline void
 intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
