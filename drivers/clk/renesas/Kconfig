@@ -149,8 +149,7 @@ config CLK_R8A77995
 
 config CLK_R8A779A0
 	bool "R-Car V3U clock support" if COMPILE_TEST
-	select CLK_RCAR_CPG_LIB
-	select CLK_RENESAS_CPG_MSSR
+	select CLK_RCAR_GEN4_CPG
 
 config CLK_R9A06G032
 	bool "RZ/N1D clock support" if COMPILE_TEST
@@ -175,6 +174,11 @@ config CLK_RCAR_GEN2_CPG
 
 config CLK_RCAR_GEN3_CPG
 	bool "R-Car Gen3 and RZ/G2 CPG clock support" if COMPILE_TEST
+	select CLK_RCAR_CPG_LIB
+	select CLK_RENESAS_CPG_MSSR
+
+config CLK_RCAR_GEN4_CPG
+	bool "R-Car Gen4 clock support" if COMPILE_TEST
 	select CLK_RCAR_CPG_LIB
 	select CLK_RENESAS_CPG_MSSR
 

@@ -88,7 +88,7 @@ struct device_node;
 enum clk_reg_layout {
 	CLK_REG_LAYOUT_RCAR_GEN2_AND_GEN3 = 0,
 	CLK_REG_LAYOUT_RZ_A,
-	CLK_REG_LAYOUT_RCAR_V3U,
+	CLK_REG_LAYOUT_RCAR_GEN4,
 };
 
     /**
