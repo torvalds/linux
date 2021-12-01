@@ -39,6 +39,8 @@ struct bpf_gen {
 	int error;
 	struct ksym_relo_desc *relos;
 	int relo_cnt;
+	struct bpf_core_relo *core_relos;
+	int core_relo_cnt;
 	char attach_target[128];
 	int attach_kind;
 	struct ksym_desc *ksyms;
@@ -64,5 +66,6 @@ void bpf_gen__map_freeze(struct bpf_gen *gen, int map_idx);
 void bpf_gen__record_attach_target(struct bpf_gen *gen, const char *name, enum bpf_attach_type type);
 void bpf_gen__record_extern(struct bpf_gen *gen, const char *name, bool is_weak,
 			    bool is_typeless, int kind, int insn_idx);
+void bpf_gen__record_relo_core(struct bpf_gen *gen, const struct bpf_core_relo *core_relo);
 
 #endif

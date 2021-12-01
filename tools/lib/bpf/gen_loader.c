@@ -829,6 +829,22 @@ clear_src_reg:
 	emit_ksym_relo_log(gen, relo, kdesc->ref);
 }
 
+void bpf_gen__record_relo_core(struct bpf_gen *gen,
+			       const struct bpf_core_relo *core_relo)
+{
+	struct bpf_core_relo *relos;
+
+	relos = libbpf_reallocarray(gen->core_relos, gen->core_relo_cnt + 1, sizeof(*relos));
+	if (!relos) {
+		gen->error = -ENOMEM;
+		return;
+	}
+	gen->core_relos = relos;
+	relos += gen->core_relo_cnt;
+	memcpy(relos, core_relo, sizeof(*relos));
+	gen->core_relo_cnt++;
+}
+
 static void emit_relo(struct bpf_gen *gen, struct ksym_relo_desc *relo, int insns)
 {
 	int insn;
@@ -861,6 +877,15 @@ static void emit_relos(struct bpf_gen *gen, int insns)
 		emit_relo(gen, gen->relos + i, insns);
 }
 
+static void cleanup_core_relo(struct bpf_gen *gen)
+{
+	if (!gen->core_relo_cnt)
+		return;
+	free(gen->core_relos);
+	gen->core_relo_cnt = 0;
+	gen->core_relos = NULL;
+}
+
 static void cleanup_relos(struct bpf_gen *gen, int insns)
 {
 	int i, insn;
@@ -888,6 +913,7 @@ static void cleanup_relos(struct bpf_gen *gen, int insns)
 		gen->relo_cnt = 0;
 		gen->relos = NULL;
 	}
+	cleanup_core_relo(gen);
 }
 
 void bpf_gen__prog_load(struct bpf_gen *gen,
@@ -895,12 +921,13 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 			const char *license, struct bpf_insn *insns, size_t insn_cnt,
 			struct bpf_prog_load_opts *load_attr, int prog_idx)
 {
-	int attr_size = offsetofend(union bpf_attr, fd_array);
-	int prog_load_attr, license_off, insns_off, func_info, line_info;
+	int prog_load_attr, license_off, insns_off, func_info, line_info, core_relos;
+	int attr_size = offsetofend(union bpf_attr, core_relo_rec_size);
 	union bpf_attr attr;
 
 	memset(&attr, 0, attr_size);
-	pr_debug("gen: prog_load: type %d insns_cnt %zd\n", prog_type, insn_cnt);
+	pr_debug("gen: prog_load: type %d insns_cnt %zd progi_idx %d\n",
+		 prog_type, insn_cnt, prog_idx);
 	/* add license string to blob of bytes */
 	license_off = add_data(gen, license, strlen(license) + 1);
 	/* add insns to blob of bytes */
@@ -924,6 +951,11 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 	line_info = add_data(gen, load_attr->line_info,
 			     attr.line_info_cnt * attr.line_info_rec_size);
 
+	attr.core_relo_rec_size = sizeof(struct bpf_core_relo);
+	attr.core_relo_cnt = gen->core_relo_cnt;
+	core_relos = add_data(gen, gen->core_relos,
+			     attr.core_relo_cnt * attr.core_relo_rec_size);
+
 	memcpy(attr.prog_name, prog_name,
 	       min((unsigned)strlen(prog_name), BPF_OBJ_NAME_LEN - 1));
 	prog_load_attr = add_data(gen, &attr, attr_size);
@@ -939,6 +971,9 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 
 	/* populate union bpf_attr with a pointer to line_info */
 	emit_rel_store(gen, attr_field(prog_load_attr, line_info), line_info);
+
+	/* populate union bpf_attr with a pointer to core_relos */
+	emit_rel_store(gen, attr_field(prog_load_attr, core_relos), core_relos);
 
 	/* populate union bpf_attr fd_array with a pointer to data where map_fds are saved */
 	emit_rel_store(gen, attr_field(prog_load_attr, fd_array), gen->fd_array);
