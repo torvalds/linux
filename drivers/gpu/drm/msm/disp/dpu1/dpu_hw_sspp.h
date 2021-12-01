@@ -334,12 +334,10 @@ struct dpu_hw_sspp_ops {
 	 * setup_scaler - setup scaler
 	 * @ctx: Pointer to pipe context
 	 * @pipe_cfg: Pointer to pipe configuration
-	 * @pe_cfg: Pointer to pixel extension configuration
 	 * @scaler_cfg: Pointer to scaler configuration
 	 */
 	void (*setup_scaler)(struct dpu_hw_pipe *ctx,
 		struct dpu_hw_pipe_cfg *pipe_cfg,
-		struct dpu_hw_pixel_ext *pe_cfg,
 		void *scaler_cfg);
 
 	/**

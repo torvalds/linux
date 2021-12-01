@@ -413,13 +413,11 @@ static void dpu_hw_sspp_setup_pe_config(struct dpu_hw_pipe *ctx,
 
 static void _dpu_hw_sspp_setup_scaler3(struct dpu_hw_pipe *ctx,
 		struct dpu_hw_pipe_cfg *sspp,
-		struct dpu_hw_pixel_ext *pe,
 		void *scaler_cfg)
 {
 	u32 idx;
 	struct dpu_hw_scaler3_cfg *scaler3_cfg = scaler_cfg;
 
-	(void)pe;
 	if (_sspp_subblk_offset(ctx, DPU_SSPP_SCALER_QSEED3, &idx) || !sspp
 		|| !scaler3_cfg)
 		return;
