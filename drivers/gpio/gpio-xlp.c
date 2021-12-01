@@ -264,7 +264,6 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->base = 0;
 	gc->parent = &pdev->dev;
 	gc->ngpio = 70;
-	gc->of_node = pdev->dev.of_node;
 	gc->direction_output = xlp_gpio_dir_output;
 	gc->direction_input = xlp_gpio_dir_input;
 	gc->set = xlp_gpio_set;
@@ -297,8 +296,8 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp_gpio_acpi_match[] = {
-	{ "BRCM9006", GPIO_VARIANT_VULCAN },
-	{ "CAV9006",  GPIO_VARIANT_VULCAN },
+	{ "BRCM9006" },
+	{ "CAV9006" },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, xlp_gpio_acpi_match);
