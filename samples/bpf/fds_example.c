@@ -46,12 +46,6 @@ static void usage(void)
 	printf("       -h          Display this help.\n");
 }
 
-static int bpf_map_create(void)
-{
-	return bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(uint32_t),
-			      sizeof(uint32_t), 1024, 0);
-}
-
 static int bpf_prog_create(const char *object)
 {
 	static struct bpf_insn insns[] = {
@@ -79,7 +73,8 @@ static int bpf_do_map(const char *file, uint32_t flags, uint32_t key,
 	int fd, ret;
 
 	if (flags & BPF_F_PIN) {
-		fd = bpf_map_create();
+		fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(uint32_t),
+				    sizeof(uint32_t), 1024, 0);
 		printf("bpf: map fd:%d (%s)\n", fd, strerror(errno));
 		assert(fd > 0);
 
