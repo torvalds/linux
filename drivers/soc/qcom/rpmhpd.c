@@ -253,6 +253,57 @@ static const struct rpmhpd_desc sm8350_desc = {
 	.num_pds = ARRAY_SIZE(sm8350_rpmhpds),
 };
 
+/* SM8450 RPMH powerdomains */
+static struct rpmhpd sm8450_cx_ao;
+static struct rpmhpd sm8450_cx = {
+	.pd = { .name = "cx", },
+	.peer = &sm8450_cx_ao,
+	.res_name = "cx.lvl",
+};
+
+static struct rpmhpd sm8450_cx_ao = {
+	.pd = { .name = "cx_ao", },
+	.active_only = true,
+	.res_name = "cx.lvl",
+};
+
+static struct rpmhpd sm8450_mmcx_ao;
+static struct rpmhpd sm8450_mmcx = {
+	.pd = { .name = "mmcx", },
+	.peer = &sm8450_mmcx_ao,
+	.parent = &sm8450_cx.pd,
+	.res_name = "mmcx.lvl",
+};
+
+static struct rpmhpd sm8450_mmcx_ao = {
+	.pd = { .name = "mmcx_ao", },
+	.active_only = true,
+	.peer = &sm8450_mmcx,
+	.parent = &sm8450_cx_ao.pd,
+	.res_name = "mmcx.lvl",
+};
+
+static struct rpmhpd *sm8450_rpmhpds[] = {
+	[SM8450_CX] = &sm8450_cx,
+	[SM8450_CX_AO] = &sm8450_cx_ao,
+	[SM8450_EBI] = &sdm845_ebi,
+	[SM8450_GFX] = &sdm845_gfx,
+	[SM8450_LCX] = &sdm845_lcx,
+	[SM8450_LMX] = &sdm845_lmx,
+	[SM8450_MMCX] = &sm8450_mmcx,
+	[SM8450_MMCX_AO] = &sm8450_mmcx_ao,
+	[SM8450_MX] = &sdm845_mx,
+	[SM8450_MX_AO] = &sdm845_mx_ao,
+	[SM8450_MXC] = &sm8350_mxc,
+	[SM8450_MXC_AO] = &sm8350_mxc_ao,
+	[SM8450_MSS] = &sdm845_mss,
+};
+
+static const struct rpmhpd_desc sm8450_desc = {
+	.rpmhpds = sm8450_rpmhpds,
+	.num_pds = ARRAY_SIZE(sm8450_rpmhpds),
+};
+
 /* SC7180 RPMH powerdomains */
 static struct rpmhpd *sc7180_rpmhpds[] = {
 	[SC7180_CX] = &sdm845_cx,
@@ -318,6 +369,7 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,sm8150-rpmhpd", .data = &sm8150_desc },
 	{ .compatible = "qcom,sm8250-rpmhpd", .data = &sm8250_desc },
 	{ .compatible = "qcom,sm8350-rpmhpd", .data = &sm8350_desc },
+	{ .compatible = "qcom,sm8450-rpmhpd", .data = &sm8450_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmhpd_match_table);
