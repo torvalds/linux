@@ -155,6 +155,22 @@ static struct platform_driver spm_cpuidle_driver = {
 	},
 };
 
+static bool __init qcom_spm_find_any_cpu(void)
+{
+	struct device_node *cpu_node, *saw_node;
+
+	for_each_of_cpu_node(cpu_node) {
+		saw_node = of_parse_phandle(cpu_node, "qcom,saw", 0);
+		if (of_device_is_available(saw_node)) {
+			of_node_put(saw_node);
+			of_node_put(cpu_node);
+			return true;
+		}
+		of_node_put(saw_node);
+	}
+	return false;
+}
+
 static int __init qcom_spm_cpuidle_init(void)
 {
 	struct platform_device *pdev;
@@ -163,6 +179,10 @@ static int __init qcom_spm_cpuidle_init(void)
 	ret = platform_driver_register(&spm_cpuidle_driver);
 	if (ret)
 		return ret;
+
+	/* Make sure there is actually any CPU managed by the SPM */
+	if (!qcom_spm_find_any_cpu())
+		return 0;
 
 	pdev = platform_device_register_simple("qcom-spm-cpuidle",
 					       -1, NULL, 0);
