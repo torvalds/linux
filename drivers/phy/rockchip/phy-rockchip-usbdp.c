@@ -689,6 +689,7 @@ static int udphy_power_on(struct rockchip_udphy *udphy, u8 mode)
 	}
 
 	if (udphy->status == UDPHY_MODE_NONE) {
+		udphy->mode_change = false;
 		ret = udphy_setup(udphy);
 		if (ret)
 			return ret;
