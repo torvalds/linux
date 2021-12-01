@@ -799,6 +799,7 @@
 		pinctrl-0 = <&touch_gpio>;
 		goodix,rst-gpio = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio4 RK_PB4 IRQ_TYPE_LEVEL_LOW>;
+		power-supply = <&vcc3v3_lcd_n>;
 	};
 };
 

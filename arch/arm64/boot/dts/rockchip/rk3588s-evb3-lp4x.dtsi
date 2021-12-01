@@ -34,6 +34,15 @@
 		pwms = <&pwm7 0 50000 0>;
 	};
 
+	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_lcd0_n";
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_1v8_s0>;
+	};
+
 	vcc3v3_pcie20: vcc3v3-pcie20 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie20";
@@ -130,6 +139,7 @@
 		pinctrl-0 = <&touch_gpio>;
 		goodix,rst-gpio = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio1 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
+		power-supply = <&vcc3v3_lcd_n>;
 	};
 };
 
