@@ -462,4 +462,6 @@ void amdgpu_gfx_cp_init_microcode(struct amdgpu_device *adev, uint32_t ucode_id)
 int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_gfx_poison_consumption_handler(struct amdgpu_device *adev,
 						struct amdgpu_iv_entry *entry);
+
+bool amdgpu_gfx_is_master_xcc(struct amdgpu_device *adev, int xcc_id);
 #endif

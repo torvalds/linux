@@ -1885,9 +1885,13 @@ static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 		if (r)
 			return r;
 
-		for (j = 0; j < adev->gfx.num_compute_rings; j++) {
-			ring = &adev->gfx.compute_ring[j + i * adev->gfx.num_compute_rings];
-			amdgpu_ring_test_helper(ring);
+		/* skip ring test on slave kcq */
+		if (amdgpu_gfx_is_master_xcc(adev, i)) {
+			for (j = 0; j < adev->gfx.num_compute_rings; j++) {
+				ring = &adev->gfx.compute_ring[j +
+					i * adev->gfx.num_compute_rings];
+				amdgpu_ring_test_helper(ring);
+			}
 		}
 
 		gfx_v9_4_3_enable_gui_idle_interrupt(adev, true, i);
