@@ -46,8 +46,8 @@
 #include "spectrum_trap.h"
 
 #define MLXSW_SP1_FWREV_MAJOR 13
-#define MLXSW_SP1_FWREV_MINOR 2008
-#define MLXSW_SP1_FWREV_SUBMINOR 3326
+#define MLXSW_SP1_FWREV_MINOR 2010
+#define MLXSW_SP1_FWREV_SUBMINOR 1006
 #define MLXSW_SP1_FWREV_CAN_RESET_MINOR 1702
 
 static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
@@ -63,8 +63,8 @@ static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
 	"." __stringify(MLXSW_SP1_FWREV_SUBMINOR) ".mfa2"
 
 #define MLXSW_SP2_FWREV_MAJOR 29
-#define MLXSW_SP2_FWREV_MINOR 2008
-#define MLXSW_SP2_FWREV_SUBMINOR 3326
+#define MLXSW_SP2_FWREV_MINOR 2010
+#define MLXSW_SP2_FWREV_SUBMINOR 1006
 
 static const struct mlxsw_fw_rev mlxsw_sp2_fw_rev = {
 	.major = MLXSW_SP2_FWREV_MAJOR,
@@ -78,8 +78,8 @@ static const struct mlxsw_fw_rev mlxsw_sp2_fw_rev = {
 	"." __stringify(MLXSW_SP2_FWREV_SUBMINOR) ".mfa2"
 
 #define MLXSW_SP3_FWREV_MAJOR 30
-#define MLXSW_SP3_FWREV_MINOR 2008
-#define MLXSW_SP3_FWREV_SUBMINOR 3326
+#define MLXSW_SP3_FWREV_MINOR 2010
+#define MLXSW_SP3_FWREV_SUBMINOR 1006
 
 static const struct mlxsw_fw_rev mlxsw_sp3_fw_rev = {
 	.major = MLXSW_SP3_FWREV_MAJOR,
