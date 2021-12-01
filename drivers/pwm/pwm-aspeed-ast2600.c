@@ -229,12 +229,47 @@ static const struct pwm_ops aspeed_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
+static int aspeed_pwm_extend_feature(struct device *dev,
+				     struct device_node *child,
+				     struct aspeed_pwm_data *priv)
+{
+	u32 hwpwm, wdt_reload_duty;
+	bool wdt_reload_en;
+	int ret;
+
+	wdt_reload_en = of_property_read_bool(child, "aspeed,wdt-reload-enable");
+	if (!wdt_reload_en)
+		return wdt_reload_en;
+
+	ret = of_property_read_u32(child, "reg", &hwpwm);
+	if (ret)
+		return ret;
+
+	ret = of_property_read_u32(child, "aspeed,wdt-reload-duty-point",
+				   &wdt_reload_duty);
+	if (ret)
+		return ret;
+
+	regmap_update_bits(
+		priv->regmap, PWM_ASPEED_CTRL(hwpwm),
+		PWM_ASPEED_CTRL_LOAD_SEL_RISING_AS_WDT |
+			PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE,
+		FIELD_PREP(PWM_ASPEED_CTRL_LOAD_SEL_RISING_AS_WDT, 0) |
+			FIELD_PREP(PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE,
+				   wdt_reload_en));
+	regmap_update_bits(priv->regmap, PWM_ASPEED_DUTY_CYCLE(hwpwm),
+			   PWM_ASPEED_DUTY_CYCLE_POINT_AS_WDT,
+			   FIELD_PREP(PWM_ASPEED_DUTY_CYCLE_POINT_AS_WDT,
+				      wdt_reload_duty));
+	return 0;
+}
+
 static int aspeed_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
 	struct aspeed_pwm_data *priv;
-	struct device_node *np;
+	struct device_node *np, *child;
 	struct platform_device *parent_dev;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -270,6 +305,12 @@ static int aspeed_pwm_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err_probe(dev, ret, "Couldn't deassert reset control\n");
 		goto err_disable_clk;
+	}
+
+	for_each_child_of_node(dev->of_node, child) {
+		ret = aspeed_pwm_extend_feature(dev, child, priv);
+		if (ret)
+			dev_warn(dev, "Set extend feature failed %d\n", ret);
 	}
 
 	priv->chip.dev = dev;
