@@ -393,7 +393,8 @@ static void tcf_ct_flow_table_process_conn(struct tcf_ct_flow_table *ct_ft,
 {
 	bool tcp = false;
 
-	if (ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY)
+	if ((ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY) ||
+	    !test_bit(IPS_ASSURED_BIT, &ct->status))
 		return;
 
 	switch (nf_ct_protonum(ct)) {
