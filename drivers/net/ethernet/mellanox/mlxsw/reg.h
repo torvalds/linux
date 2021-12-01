@@ -4910,8 +4910,6 @@ MLXSW_ITEM32(reg, ppcnt, swid, 0x00, 24, 8);
 
 /* reg_ppcnt_local_port
  * Local port number.
- * 255 indicates all ports on the device, and is only allowed
- * for Set() operation.
  * Access: Index
  */
 MLXSW_ITEM32_LP(reg, ppcnt, 0x00, 16, 0x00, 12);
@@ -4962,6 +4960,14 @@ MLXSW_ITEM32(reg, ppcnt, grp, 0x00, 0, 6);
  * Access: OP
  */
 MLXSW_ITEM32(reg, ppcnt, clr, 0x04, 31, 1);
+
+/* reg_ppcnt_lp_gl
+ * Local port global variable.
+ * 0: local_port 255 = all ports of the device.
+ * 1: local_port indicates local port number for all ports.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, ppcnt, lp_gl, 0x04, 30, 1);
 
 /* reg_ppcnt_prio_tc
  * Priority for counter set that support per priority, valid values: 0-7.
@@ -5396,6 +5402,7 @@ static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
 	mlxsw_reg_ppcnt_pnat_set(payload, 0);
 	mlxsw_reg_ppcnt_grp_set(payload, grp);
 	mlxsw_reg_ppcnt_clr_set(payload, 0);
+	mlxsw_reg_ppcnt_lp_gl_set(payload, 1);
 	mlxsw_reg_ppcnt_prio_tc_set(payload, prio_tc);
 }
 
