@@ -545,13 +545,6 @@ static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
 			 * mcs fences.
 			 */
 			fence->mcs_handling_done = true;
-			/*
-			 * Since CS (and its related fence) can be associated with only one
-			 * multi CS context, once it triggered multi CS completion no need to
-			 * continue checking other multi CS contexts.
-			 */
-			spin_unlock(&mcs_compl->lock);
-			break;
 		}
 
 		spin_unlock(&mcs_compl->lock);
@@ -2498,6 +2491,21 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	return rc;
 }
 
+static inline unsigned long hl_usecs64_to_jiffies(const u64 usecs)
+{
+	if (usecs <= U32_MAX)
+		return usecs_to_jiffies(usecs);
+
+	/*
+	 * If the value in nanoseconds is larger than 64 bit, use the largest
+	 * 64 bit value.
+	 */
+	if (usecs >= ((u64)(U64_MAX / NSEC_PER_USEC)))
+		return nsecs_to_jiffies(U64_MAX);
+
+	return nsecs_to_jiffies(usecs * NSEC_PER_USEC);
+}
+
 /*
  * hl_wait_multi_cs_completion_init - init completion structure
  *
@@ -2534,8 +2542,7 @@ static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
 	}
 
 	if (i == MULTI_CS_MAX_USER_CTX) {
-		dev_err(hdev->dev,
-				"no available multi-CS completion structure\n");
+		dev_err(hdev->dev, "no available multi-CS completion structure\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	return mcs_compl;
@@ -2566,26 +2573,17 @@ static void hl_wait_multi_cs_completion_fini(
  *
  * @return 0 on success, otherwise non 0 error code
  */
-static int hl_wait_multi_cs_completion(struct multi_cs_data *mcs_data)
+static int hl_wait_multi_cs_completion(struct multi_cs_data *mcs_data,
+						struct multi_cs_completion *mcs_compl)
 {
-	struct hl_device *hdev = mcs_data->ctx->hdev;
-	struct multi_cs_completion *mcs_compl;
 	long completion_rc;
 
-	mcs_compl = hl_wait_multi_cs_completion_init(hdev,
-					mcs_data->stream_master_qid_map);
-	if (IS_ERR(mcs_compl))
-		return PTR_ERR(mcs_compl);
-
-	completion_rc = wait_for_completion_interruptible_timeout(
-					&mcs_compl->completion,
-					usecs_to_jiffies(mcs_data->timeout_us));
+	completion_rc = wait_for_completion_interruptible_timeout(&mcs_compl->completion,
+									mcs_data->timeout_jiffies);
 
 	/* update timestamp */
 	if (completion_rc > 0)
 		mcs_data->timestamp = mcs_compl->timestamp;
-
-	hl_wait_multi_cs_completion_fini(mcs_compl);
 
 	mcs_data->wait_status = completion_rc;
 
@@ -2619,6 +2617,7 @@ void hl_multi_cs_completion_init(struct hl_device *hdev)
  */
 static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 {
+	struct multi_cs_completion *mcs_compl;
 	struct hl_device *hdev = hpriv->hdev;
 	struct multi_cs_data mcs_data = {0};
 	union hl_wait_cs_args *args = data;
@@ -2686,12 +2685,19 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		goto put_ctx;
 
 	/* wait (with timeout) for the first CS to be completed */
-	mcs_data.timeout_us = args->in.timeout_us;
-	rc = hl_wait_multi_cs_completion(&mcs_data);
-	if (rc)
-		goto put_ctx;
+	mcs_data.timeout_jiffies = hl_usecs64_to_jiffies(args->in.timeout_us);
 
-	if (mcs_data.wait_status > 0) {
+	mcs_compl = hl_wait_multi_cs_completion_init(hdev, mcs_data.stream_master_qid_map);
+	if (IS_ERR(mcs_compl)) {
+		rc = PTR_ERR(mcs_compl);
+		goto put_ctx;
+	}
+
+	while (true) {
+		rc = hl_wait_multi_cs_completion(&mcs_data, mcs_compl);
+		if (rc || (mcs_data.wait_status == 0))
+			break;
+
 		/*
 		 * poll fences once again to update the CS map.
 		 * no timestamp should be updated this time.
@@ -2699,17 +2705,25 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		mcs_data.update_ts = false;
 		rc = hl_cs_poll_fences(&mcs_data);
 
+		if (mcs_data.completion_bitmap)
+			break;
+
 		/*
 		 * if hl_wait_multi_cs_completion returned before timeout (i.e.
-		 * it got a completion) we expect to see at least one CS
-		 * completed after the poll function.
+		 * it got a completion) it either got completed by CS in the multi CS list
+		 * (in which case the indication will be non empty completion_bitmap) or it
+		 * got completed by CS submitted to one of the shared stream master but
+		 * not in the multi CS list (in which case we should wait again but reinit
+		 * the completion, modify the timeout and set timestamp as zero to let a CS
+		 * related to the current multi-CS set a new, relevant, timestamp)
 		 */
-		if (!mcs_data.completion_bitmap) {
-			dev_warn_ratelimited(hdev->dev,
-				"Multi-CS got completion on wait but no CS completed\n");
-			rc = -EFAULT;
-		}
+		/* wait again with modified timeout */
+		mcs_data.timeout_jiffies = mcs_data.wait_status;
+		reinit_completion(&mcs_compl->completion);
+		mcs_compl->timestamp = 0;
 	}
+
+	hl_wait_multi_cs_completion_fini(mcs_compl);
 
 put_ctx:
 	hl_ctx_put(ctx);
@@ -2741,7 +2755,7 @@ free_seq_arr:
 		}
 
 		/* update if some CS was gone */
-		if (mcs_data.timestamp)
+		if (!mcs_data.timestamp)
 			args->out.flags |= HL_WAIT_CS_STATUS_FLAG_GONE;
 	} else {
 		args->out.status = HL_WAIT_CS_STATUS_BUSY;
@@ -2805,21 +2819,6 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	return 0;
-}
-
-static inline unsigned long hl_usecs64_to_jiffies(const u64 usecs)
-{
-	if (usecs <= U32_MAX)
-		return usecs_to_jiffies(usecs);
-
-	/*
-	 * If the value in nanoseconds is larger than 64 bit, use the largest
-	 * 64 bit value.
-	 */
-	if (usecs >= ((u64)(U64_MAX / NSEC_PER_USEC)))
-		return nsecs_to_jiffies(U64_MAX);
-
-	return nsecs_to_jiffies(usecs * NSEC_PER_USEC);
 }
 
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,

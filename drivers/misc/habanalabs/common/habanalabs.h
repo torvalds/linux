@@ -2362,7 +2362,7 @@ struct multi_cs_completion {
  * @ctx: pointer to the context structure
  * @fence_arr: array of fences of all CSs
  * @seq_arr: array of CS sequence numbers
- * @timeout_us: timeout in usec for waiting for CS to complete
+ * @timeout_jiffies: timeout in jiffies for waiting for CS to complete
  * @timestamp: timestamp of first completed CS
  * @wait_status: wait for CS status
  * @completion_bitmap: bitmap of completed CSs (1- completed, otherwise 0)
@@ -2376,7 +2376,7 @@ struct multi_cs_data {
 	struct hl_ctx	*ctx;
 	struct hl_fence	**fence_arr;
 	u64		*seq_arr;
-	s64		timeout_us;
+	s64		timeout_jiffies;
 	s64		timestamp;
 	long		wait_status;
 	u32		completion_bitmap;
