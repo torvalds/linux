@@ -1990,16 +1990,6 @@ intel_crtc_needs_modeset(const struct intel_crtc_state *crtc_state)
 	return drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
 }
 
-static inline bool intel_modifier_uses_dpt(struct drm_i915_private *i915, u64 modifier)
-{
-	return DISPLAY_VER(i915) >= 13 && modifier != DRM_FORMAT_MOD_LINEAR;
-}
-
-static inline bool intel_fb_uses_dpt(const struct drm_framebuffer *fb)
-{
-	return fb && intel_modifier_uses_dpt(to_i915(fb->dev), fb->modifier);
-}
-
 static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
 {
 	return i915_ggtt_offset(plane_state->ggtt_vma);
