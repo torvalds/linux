@@ -148,6 +148,7 @@ static int rkcif_scale_set_fmt(struct rkcif_scale_vdev *scale_vdev,
 
 	if (cif_dev->terminal_sensor.sd) {
 		fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		fmt_src.pad = 0;
 		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd, pad, get_fmt, NULL, &fmt_src);
 		if (ret) {
 			v4l2_err(&scale_vdev->cifdev->v4l2_dev,
@@ -411,6 +412,7 @@ static int rkcif_scale_fh_open(struct file *file)
 	struct video_device *vdev = video_devdata(file);
 	struct rkcif_vdev_node *vnode = vdev_to_node(vdev);
 	struct rkcif_scale_vdev *scale_vdev = to_rkcif_scale_vdev(vnode);
+	struct rkcif_device *cifdev = scale_vdev->cifdev;
 	int ret;
 
 	ret = rkcif_update_sensor_info(scale_vdev->stream);
@@ -421,6 +423,17 @@ static int rkcif_scale_fh_open(struct file *file)
 
 		return ret;
 	}
+
+	ret = pm_runtime_get_sync(cifdev->dev);
+	if (ret < 0)
+		v4l2_err(&cifdev->v4l2_dev, "Failed to get runtime pm, %d\n",
+			 ret);
+
+	mutex_lock(&cifdev->stream_lock);
+	if (!atomic_read(&cifdev->fh_cnt))
+		rkcif_soft_reset(cifdev, true);
+	atomic_inc(&cifdev->fh_cnt);
+	mutex_unlock(&cifdev->stream_lock);
 
 	ret = v4l2_fh_open(file);
 	if (!ret) {
@@ -436,11 +449,15 @@ static int rkcif_scale_fop_release(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct rkcif_vdev_node *vnode = vdev_to_node(vdev);
+	struct rkcif_scale_vdev *scale_vdev = to_rkcif_scale_vdev(vnode);
+	struct rkcif_device *cifdev = scale_vdev->cifdev;
 	int ret;
 
 	ret = vb2_fop_release(file);
 	if (!ret)
 		v4l2_pipeline_pm_put(&vnode->vdev.entity);
+
+	pm_runtime_put_sync(cifdev->dev);
 	return ret;
 }
 
