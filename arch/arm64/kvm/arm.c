@@ -351,7 +351,7 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.has_run_once && unlikely(!irqchip_in_kernel(vcpu->kvm)))
+	if (vcpu_has_run_once(vcpu) && unlikely(!irqchip_in_kernel(vcpu->kvm)))
 		static_branch_dec(&userspace_irqchip_in_use);
 
 	kvm_mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
@@ -584,18 +584,33 @@ static void update_vmid(struct kvm_vmid *vmid)
 	spin_unlock(&kvm_vmid_lock);
 }
 
-static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
+static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.target >= 0;
+}
+
+/*
+ * Handle both the initialisation that is being done when the vcpu is
+ * run for the first time, as well as the updates that must be
+ * performed each time we get a new thread dealing with this vcpu.
+ */
+int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
-	int ret = 0;
+	int ret;
 
-	if (likely(vcpu->arch.has_run_once))
-		return 0;
+	if (!kvm_vcpu_initialized(vcpu))
+		return -ENOEXEC;
 
 	if (!kvm_arm_vcpu_is_finalized(vcpu))
 		return -EPERM;
 
-	vcpu->arch.has_run_once = true;
+	ret = kvm_arch_vcpu_run_map_fp(vcpu);
+	if (ret)
+		return ret;
+
+	if (likely(vcpu_has_run_once(vcpu)))
+		return 0;
 
 	kvm_arm_vcpu_init_debug(vcpu);
 
@@ -607,12 +622,6 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 		ret = kvm_vgic_map_resources(kvm);
 		if (ret)
 			return ret;
-	} else {
-		/*
-		 * Tell the rest of the code that there are userspace irqchip
-		 * VMs in the wild.
-		 */
-		static_branch_inc(&userspace_irqchip_in_use);
 	}
 
 	ret = kvm_timer_enable(vcpu);
@@ -620,6 +629,16 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 		return ret;
 
 	ret = kvm_arm_pmu_v3_enable(vcpu);
+	if (ret)
+		return ret;
+
+	if (!irqchip_in_kernel(kvm)) {
+		/*
+		 * Tell the rest of the code that there are userspace irqchip
+		 * VMs in the wild.
+		 */
+		static_branch_inc(&userspace_irqchip_in_use);
+	}
 
 	/*
 	 * Initialize traps for protected VMs.
@@ -677,11 +696,6 @@ static void vcpu_req_sleep(struct kvm_vcpu *vcpu)
 	 * kvm_psci_vcpu_on().
 	 */
 	smp_rmb();
-}
-
-static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.target >= 0;
 }
 
 static void check_vcpu_requests(struct kvm_vcpu *vcpu)
@@ -778,13 +792,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 	int ret;
-
-	if (unlikely(!kvm_vcpu_initialized(vcpu)))
-		return -ENOEXEC;
-
-	ret = kvm_vcpu_first_run_init(vcpu);
-	if (ret)
-		return ret;
 
 	if (run->exit_reason == KVM_EXIT_MMIO) {
 		ret = kvm_handle_mmio_return(vcpu);
@@ -1123,7 +1130,7 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 	 * need to invalidate the I-cache though, as FWB does *not*
 	 * imply CTR_EL0.DIC.
 	 */
-	if (vcpu->arch.has_run_once) {
+	if (vcpu_has_run_once(vcpu)) {
 		if (!cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
 			stage2_unmap_vm(vcpu->kvm);
 		else
