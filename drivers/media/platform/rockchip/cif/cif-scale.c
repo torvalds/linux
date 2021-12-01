@@ -296,10 +296,11 @@ static int rkcif_scale_try_fmt_vid_cap_mplane(struct file *file, void *fh,
 					      struct v4l2_format *f)
 {
 	struct rkcif_scale_vdev *scale_vdev = video_drvdata(file);
+	int ret = 0;
 
-	rkcif_scale_set_fmt(scale_vdev, &f->fmt.pix_mp, true);
+	ret = rkcif_scale_set_fmt(scale_vdev, &f->fmt.pix_mp, true);
 
-	return 0;
+	return ret;
 }
 
 static int rkcif_scale_enum_frameintervals(struct file *file, void *fh,
@@ -830,7 +831,7 @@ static int rkcif_scale_channel_set(struct rkcif_scale_vdev *scale_vdev)
 }
 
 
-static int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev)
+int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev)
 {
 	int ret = 0;
 	struct rkcif_device *dev = scale_vdev->cifdev;
@@ -879,9 +880,13 @@ rkcif_scale_vb2_start_streaming(struct vb2_queue *queue,
 	struct rkcif_stream *stream = scale_vdev->stream;
 	int ret = 0;
 
-	ret = rkcif_scale_start(scale_vdev);
-	if (ret)
-		return ret;
+	if (stream->state == RKCIF_STATE_STREAMING) {
+		stream->to_en_scale = true;
+	} else {
+		ret = rkcif_scale_start(scale_vdev);
+		if (ret)
+			return ret;
+	}
 
 	rkcif_do_start_stream(stream, RKCIF_STREAM_MODE_TOSCALE);
 	return 0;
@@ -1054,12 +1059,14 @@ void rkcif_irq_handle_scale(struct rkcif_device *cif_dev, unsigned int intstat_g
 void rkcif_init_scale_vdev(struct rkcif_device *cif_dev, u32 ch)
 {
 	struct rkcif_scale_vdev *scale_vdev = &cif_dev->scale_vdev[ch];
+	struct rkcif_stream *stream = &cif_dev->stream[ch];
 	struct v4l2_pix_format_mplane pixm;
 
 	memset(scale_vdev, 0, sizeof(*scale_vdev));
 	memset(&pixm, 0, sizeof(pixm));
 	scale_vdev->cifdev = cif_dev;
-	scale_vdev->stream = &cif_dev->stream[ch];
+	scale_vdev->stream = stream;
+	stream->scale_vdev = scale_vdev;
 	scale_vdev->ch = ch;
 	scale_vdev->ch_src = 0;
 	scale_vdev->frame_idx = 0;

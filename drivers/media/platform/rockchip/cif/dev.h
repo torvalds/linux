@@ -496,6 +496,7 @@ struct rkcif_stream {
 	bool				is_can_stop;
 	bool				is_buf_active;
 	bool				is_high_align;
+	bool				to_en_scale;
 };
 
 struct rkcif_lvds_subdev {
@@ -721,6 +722,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 void rkcif_irq_handle_scale(struct rkcif_device *cif_dev,
 				  unsigned int intstat_glb);
 
+int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev);
+
 const struct
 cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd,
 				 struct v4l2_rect *rect,
@@ -771,7 +774,7 @@ void rkcif_reset_work(struct work_struct *work);
 int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num);
 void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num);
 
-void rkcif_set_fmt(struct rkcif_stream *stream,
+int rkcif_set_fmt(struct rkcif_stream *stream,
 		       struct v4l2_pix_format_mplane *pixm,
 		       bool try);
 void rkcif_enable_dma_capture(struct rkcif_stream *stream);

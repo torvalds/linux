@@ -4175,7 +4175,7 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	return vb2_queue_init(q);
 }
 
-void rkcif_set_fmt(struct rkcif_stream *stream,
+int rkcif_set_fmt(struct rkcif_stream *stream,
 			  struct v4l2_pix_format_mplane *pixm,
 			  bool try)
 {
@@ -4204,6 +4204,10 @@ void rkcif_set_fmt(struct rkcif_stream *stream,
 					   &input_rect, stream->id,
 					   &dev->channels[stream->id]);
 		stream->cif_fmt_in = cif_fmt_in;
+	} else {
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			 "terminal subdev does not exist\n");
+		return -EINVAL;
 	}
 
 	if (dev->terminal_sensor.sd) {
@@ -4321,6 +4325,7 @@ void rkcif_set_fmt(struct rkcif_stream *stream,
 			 pixm->width, pixm->height,
 			 stream->pixm.width, stream->pixm.height);
 	}
+	return 0;
 }
 
 void rkcif_stream_init(struct rkcif_device *dev, u32 id)
@@ -4394,6 +4399,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	stream->dma_en = 0;
 	stream->to_en_dma = 0;
 	stream->to_stop_dma = 0;
+	stream->to_en_scale = false;
 
 }
 
@@ -4494,10 +4500,11 @@ static int rkcif_try_fmt_vid_cap_mplane(struct file *file, void *fh,
 					struct v4l2_format *f)
 {
 	struct rkcif_stream *stream = video_drvdata(file);
+	int ret = 0;
 
-	rkcif_set_fmt(stream, &f->fmt.pix_mp, true);
+	ret = rkcif_set_fmt(stream, &f->fmt.pix_mp, true);
 
-	return 0;
+	return ret;
 }
 
 static int rkcif_enum_framesizes(struct file *file, void *prov,
@@ -4591,15 +4598,16 @@ static int rkcif_s_fmt_vid_cap_mplane(struct file *file,
 {
 	struct rkcif_stream *stream = video_drvdata(file);
 	struct rkcif_device *dev = stream->cifdev;
+	int ret = 0;
 
 	if (vb2_is_busy(&stream->vnode.buf_queue)) {
 		v4l2_err(&dev->v4l2_dev, "%s queue busy\n", __func__);
 		return -EBUSY;
 	}
 
-	rkcif_set_fmt(stream, &f->fmt.pix_mp, false);
+	ret = rkcif_set_fmt(stream, &f->fmt.pix_mp, false);
 
-	return 0;
+	return ret;
 }
 
 static int rkcif_g_fmt_vid_cap_mplane(struct file *file, void *fh,
@@ -7070,6 +7078,10 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 		}
 		if (stream->to_en_dma)
 			rkcif_enable_dma_capture(stream);
+		if (stream->to_en_scale) {
+			stream->to_en_scale = false;
+			rkcif_scale_start(stream->scale_vdev);
+		}
 		switch (ch) {
 		case RKCIF_TOISP_CH0:
 			val = TOISP_END_CH0(index);
@@ -7299,6 +7311,10 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			if (stream->to_stop_dma) {
 				rkcif_stop_dma_capture(stream);
 				wake_up(&stream->wq_stopped);
+			}
+			if (stream->to_en_scale) {
+				stream->to_en_scale = false;
+				rkcif_scale_start(stream->scale_vdev);
 			}
 			rkcif_detect_wake_up_mode_change(stream);
 			if (mipi_id == RKCIF_STREAM_MIPI_ID0) {
