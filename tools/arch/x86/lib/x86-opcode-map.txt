@@ -690,7 +690,10 @@ AVXcode: 2
 45: vpsrlvd/q Vx,Hx,Wx (66),(v)
 46: vpsravd Vx,Hx,Wx (66),(v) | vpsravd/q Vx,Hx,Wx (66),(evo)
 47: vpsllvd/q Vx,Hx,Wx (66),(v)
-# Skip 0x48-0x4b
+# Skip 0x48
+49: TILERELEASE (v1),(000),(11B) | LDTILECFG Mtc (v1)(000) | STTILECFG Mtc (66),(v1),(000) | TILEZERO Vt (F2),(v1),(11B)
+# Skip 0x4a
+4b: TILELOADD Vt,Wsm (F2),(v1) | TILELOADDT1 Vt,Wsm (66),(v1) | TILESTORED Wsm,Vt (F3),(v)
 4c: vrcp14ps/d Vpd,Wpd (66),(ev)
 4d: vrcp14ss/d Vsd,Hpd,Wsd (66),(ev)
 4e: vrsqrt14ps/d Vpd,Wpd (66),(ev)
@@ -705,7 +708,10 @@ AVXcode: 2
 59: vpbroadcastq Vx,Wx (66),(v) | vbroadcasti32x2 Vx,Wx (66),(evo)
 5a: vbroadcasti128 Vqq,Mdq (66),(v) | vbroadcasti32x4/64x2 Vx,Wx (66),(evo)
 5b: vbroadcasti32x8/64x4 Vqq,Mdq (66),(ev)
-# Skip 0x5c-0x61
+5c: TDPBF16PS Vt,Wt,Ht (F3),(v1)
+# Skip 0x5d
+5e: TDPBSSD Vt,Wt,Ht (F2),(v1) | TDPBSUD Vt,Wt,Ht (F3),(v1) | TDPBUSD Vt,Wt,Ht (66),(v1) | TDPBUUD Vt,Wt,Ht (v1)
+# Skip 0x5f-0x61
 62: vpexpandb/w Vx,Wx (66),(ev)
 63: vpcompressb/w Wx,Vx (66),(ev)
 64: vpblendmd/q Vx,Hx,Wx (66),(ev)
