@@ -285,21 +285,6 @@ int create_cond_branch(ppc_inst_t *instr, const u32 *addr,
 	return 0;
 }
 
-static unsigned int branch_opcode(ppc_inst_t instr)
-{
-	return ppc_inst_primary_opcode(instr) & 0x3F;
-}
-
-static int instr_is_branch_iform(ppc_inst_t instr)
-{
-	return branch_opcode(instr) == 18;
-}
-
-static int instr_is_branch_bform(ppc_inst_t instr)
-{
-	return branch_opcode(instr) == 16;
-}
-
 int instr_is_relative_branch(ppc_inst_t instr)
 {
 	if (ppc_inst_val(instr) & BRANCH_ABSOLUTE)
