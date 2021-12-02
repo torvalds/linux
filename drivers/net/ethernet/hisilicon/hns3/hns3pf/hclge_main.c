@@ -1613,12 +1613,39 @@ static void hclge_init_kdump_kernel_config(struct hclge_dev *hdev)
 	hdev->num_rx_desc = HCLGE_MIN_RX_DESC;
 }
 
+static void hclge_init_tc_config(struct hclge_dev *hdev)
+{
+	unsigned int i;
+
+	if (hdev->tc_max > HNAE3_MAX_TC ||
+	    hdev->tc_max < 1) {
+		dev_warn(&hdev->pdev->dev, "TC num = %u.\n",
+			 hdev->tc_max);
+		hdev->tc_max = 1;
+	}
+
+	/* Dev does not support DCB */
+	if (!hnae3_dev_dcb_supported(hdev)) {
+		hdev->tc_max = 1;
+		hdev->pfc_max = 0;
+	} else {
+		hdev->pfc_max = hdev->tc_max;
+	}
+
+	hdev->tm_info.num_tc = 1;
+
+	/* Currently not support uncontiuous tc */
+	for (i = 0; i < hdev->tm_info.num_tc; i++)
+		hnae3_set_bit(hdev->hw_tc_map, i, 1);
+
+	hdev->tx_sch_mode = HCLGE_FLAG_TC_BASE_SCH_MODE;
+}
+
 static int hclge_configure(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	const struct cpumask *cpumask = cpu_online_mask;
 	struct hclge_cfg cfg;
-	unsigned int i;
 	int node, ret;
 
 	ret = hclge_get_cfg(hdev, &cfg);
@@ -1662,29 +1689,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 
 	hdev->hw.mac.max_speed = hclge_get_max_speed(cfg.speed_ability);
 
-	if ((hdev->tc_max > HNAE3_MAX_TC) ||
-	    (hdev->tc_max < 1)) {
-		dev_warn(&hdev->pdev->dev, "TC num = %u.\n",
-			 hdev->tc_max);
-		hdev->tc_max = 1;
-	}
-
-	/* Dev does not support DCB */
-	if (!hnae3_dev_dcb_supported(hdev)) {
-		hdev->tc_max = 1;
-		hdev->pfc_max = 0;
-	} else {
-		hdev->pfc_max = hdev->tc_max;
-	}
-
-	hdev->tm_info.num_tc = 1;
-
-	/* Currently not support uncontiuous tc */
-	for (i = 0; i < hdev->tm_info.num_tc; i++)
-		hnae3_set_bit(hdev->hw_tc_map, i, 1);
-
-	hdev->tx_sch_mode = HCLGE_FLAG_TC_BASE_SCH_MODE;
-
+	hclge_init_tc_config(hdev);
 	hclge_init_kdump_kernel_config(hdev);
 
 	/* Set the affinity based on numa node */
