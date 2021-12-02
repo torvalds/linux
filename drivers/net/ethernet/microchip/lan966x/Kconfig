@@ -3,5 +3,6 @@ config LAN966X_SWITCH
 	depends on HAS_IOMEM
 	depends on OF
 	select PHYLINK
+	select PACKING
 	help
 	  This driver supports the Lan966x network switch device.
