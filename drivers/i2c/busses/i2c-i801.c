@@ -328,22 +328,14 @@ static int i801_check_pre(struct i801_priv *priv)
 
 	status = inb_p(SMBHSTSTS(priv));
 	if (status & SMBHSTSTS_HOST_BUSY) {
-		dev_err(&priv->pci_dev->dev, "SMBus is busy, can't use it!\n");
+		pci_err(priv->pci_dev, "SMBus is busy, can't use it!\n");
 		return -EBUSY;
 	}
 
 	status &= STATUS_FLAGS;
 	if (status) {
-		dev_dbg(&priv->pci_dev->dev, "Clearing status flags (%02x)\n",
-			status);
+		pci_dbg(priv->pci_dev, "Clearing status flags (%02x)\n", status);
 		outb_p(status, SMBHSTSTS(priv));
-		status = inb_p(SMBHSTSTS(priv)) & STATUS_FLAGS;
-		if (status) {
-			dev_err(&priv->pci_dev->dev,
-				"Failed clearing status flags (%02x)\n",
-				status);
-			return -EBUSY;
-		}
 	}
 
 	/*
@@ -356,16 +348,8 @@ static int i801_check_pre(struct i801_priv *priv)
 	if (priv->features & FEATURE_SMBUS_PEC) {
 		status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
 		if (status) {
-			dev_dbg(&priv->pci_dev->dev,
-				"Clearing aux status flags (%02x)\n", status);
+			pci_dbg(priv->pci_dev, "Clearing aux status flags (%02x)\n", status);
 			outb_p(status, SMBAUXSTS(priv));
-			status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
-			if (status) {
-				dev_err(&priv->pci_dev->dev,
-					"Failed clearing aux status flags (%02x)\n",
-					status);
-				return -EBUSY;
-			}
 		}
 	}
 
