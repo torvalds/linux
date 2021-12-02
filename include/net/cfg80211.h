@@ -6386,17 +6386,6 @@ static inline void cfg80211_gen_new_bssid(const u8 *bssid, u8 max_bssid,
 }
 
 /**
- * cfg80211_get_ies_channel_number - returns the channel number from ies
- * @ie: IEs
- * @ielen: length of IEs
- * @band: enum nl80211_band of the channel
- *
- * Returns the channel number, or -1 if none could be determined.
- */
-int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
-				    enum nl80211_band band);
-
-/**
  * cfg80211_is_element_inherited - returns if element ID should be inherited
  * @element: element to check
  * @non_inherit_element: non inheritance element
@@ -6430,6 +6419,19 @@ enum cfg80211_bss_frame_type {
 	CFG80211_BSS_FTYPE_BEACON,
 	CFG80211_BSS_FTYPE_PRESP,
 };
+
+/**
+ * cfg80211_get_ies_channel_number - returns the channel number from ies
+ * @ie: IEs
+ * @ielen: length of IEs
+ * @band: enum nl80211_band of the channel
+ * @ftype: frame type
+ *
+ * Returns the channel number, or -1 if none could be determined.
+ */
+int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
+				    enum nl80211_band band,
+				    enum cfg80211_bss_frame_type ftype);
 
 /**
  * cfg80211_inform_bss_data - inform cfg80211 of a new BSS
