@@ -3,7 +3,6 @@ DEFCONFIG=allmodconfig
 POST_DEFCONFIG_CMDS="update_config"
 function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
-         -d TEST_KMOD  \
          -e UNWINDER_FRAME_POINTER \
 
     (cd ${OUT_DIR} && \
