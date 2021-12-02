@@ -22,11 +22,11 @@
  */
 
 #include <linux/pm_runtime.h>
-#include <asm/iosf_mbi.h>
 
 #include "gt/intel_lrc_reg.h" /* for shadow reg list */
 
 #include "i915_drv.h"
+#include "i915_iosf_mbi.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_pm.h"

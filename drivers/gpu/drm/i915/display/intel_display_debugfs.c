@@ -52,27 +52,12 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	mutex_lock(&fbc->lock);
 
-	if (intel_fbc_is_active(dev_priv))
+	if (intel_fbc_is_active(fbc)) {
 		seq_puts(m, "FBC enabled\n");
-	else
+		seq_printf(m, "Compressing: %s\n",
+			   yesno(intel_fbc_is_compressing(fbc)));
+	} else {
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
-
-	if (intel_fbc_is_active(dev_priv)) {
-		u32 mask;
-
-		if (DISPLAY_VER(dev_priv) >= 8)
-			mask = intel_de_read(dev_priv, IVB_FBC_STATUS2) & BDW_FBC_COMP_SEG_MASK;
-		else if (DISPLAY_VER(dev_priv) >= 7)
-			mask = intel_de_read(dev_priv, IVB_FBC_STATUS2) & IVB_FBC_COMP_SEG_MASK;
-		else if (DISPLAY_VER(dev_priv) >= 5)
-			mask = intel_de_read(dev_priv, ILK_DPFC_STATUS) & ILK_DPFC_COMP_SEG_MASK;
-		else if (IS_G4X(dev_priv))
-			mask = intel_de_read(dev_priv, DPFC_STATUS) & DPFC_COMP_SEG_MASK;
-		else
-			mask = intel_de_read(dev_priv, FBC_STATUS) &
-				(FBC_STAT_COMPRESSING | FBC_STAT_COMPRESSED);
-
-		seq_printf(m, "Compressing: %s\n", yesno(mask));
 	}
 
 	mutex_unlock(&fbc->lock);
@@ -85,9 +70,6 @@ static int i915_fbc_false_color_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
 
-	if (DISPLAY_VER(dev_priv) < 7 || !HAS_FBC(dev_priv))
-		return -ENODEV;
-
 	*val = dev_priv->fbc.false_color;
 
 	return 0;
@@ -96,21 +78,8 @@ static int i915_fbc_false_color_get(void *data, u64 *val)
 static int i915_fbc_false_color_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
-	u32 reg;
 
-	if (DISPLAY_VER(dev_priv) < 7 || !HAS_FBC(dev_priv))
-		return -ENODEV;
-
-	mutex_lock(&dev_priv->fbc.lock);
-
-	reg = intel_de_read(dev_priv, ILK_DPFC_CONTROL);
-	dev_priv->fbc.false_color = val;
-
-	intel_de_write(dev_priv, ILK_DPFC_CONTROL,
-		       val ? (reg | FBC_CTL_FALSE_COLOR) : (reg & ~FBC_CTL_FALSE_COLOR));
-
-	mutex_unlock(&dev_priv->fbc.lock);
-	return 0;
+	return intel_fbc_set_false_color(&dev_priv->fbc, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_fbc_false_color_fops,
@@ -303,8 +272,7 @@ psr_source_status(struct intel_dp *intel_dp, struct seq_file *m)
 		};
 		val = intel_de_read(dev_priv,
 				    EDP_PSR2_STATUS(intel_dp->psr.transcoder));
-		status_val = (val & EDP_PSR2_STATUS_STATE_MASK) >>
-			      EDP_PSR2_STATUS_STATE_SHIFT;
+		status_val = REG_FIELD_GET(EDP_PSR2_STATUS_STATE_MASK, val);
 		if (status_val < ARRAY_SIZE(live_status))
 			status = live_status[status_val];
 	} else {
@@ -503,28 +471,9 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_edp_psr_debug_fops,
 
 static int i915_power_domain_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	int i;
+	struct drm_i915_private *i915 = node_to_i915(m->private);
 
-	mutex_lock(&power_domains->lock);
-
-	seq_printf(m, "%-25s %s\n", "Power well/domain", "Use count");
-	for (i = 0; i < power_domains->power_well_count; i++) {
-		struct i915_power_well *power_well;
-		enum intel_display_power_domain power_domain;
-
-		power_well = &power_domains->power_wells[i];
-		seq_printf(m, "%-25s %d\n", power_well->desc->name,
-			   power_well->count);
-
-		for_each_power_domain(power_domain, power_well->desc->domains)
-			seq_printf(m, "  %-23s %d\n",
-				 intel_display_power_domain_str(power_domain),
-				 power_domains->domain_use_count[power_domain]);
-	}
-
-	mutex_unlock(&power_domains->lock);
+	intel_display_power_debug(i915, m);
 
 	return 0;
 }
@@ -2095,7 +2044,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 			return ret;
 	}
 
-	ret = intel_fbc_reset_underrun(dev_priv);
+	ret = intel_fbc_reset_underrun(&dev_priv->fbc);
 	if (ret)
 		return ret;
 

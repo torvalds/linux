@@ -29,8 +29,8 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
-#include <linux/oom.h>
 #include <linux/module.h>
+#include <linux/oom.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -48,12 +48,14 @@
 #include "display/intel_acpi.h"
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
-#include "display/intel_dmc.h"
 #include "display/intel_display_types.h"
+#include "display/intel_dmc.h"
 #include "display/intel_dp.h"
+#include "display/intel_dpt.h"
 #include "display/intel_fbdev.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
+#include "display/intel_pch_refclk.h"
 #include "display/intel_pipe_crc.h"
 #include "display/intel_pps.h"
 #include "display/intel_sprite.h"
@@ -70,6 +72,7 @@
 #include "pxp/intel_pxp_pm.h"
 
 #include "i915_debugfs.h"
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_ioc32.h"
 #include "i915_irq.h"
@@ -89,7 +92,7 @@
 #include "intel_region_ttm.h"
 #include "vlv_suspend.h"
 
-static const struct drm_driver driver;
+static const struct drm_driver i915_drm_driver;
 
 static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 {
@@ -322,7 +325,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->sb_lock);
 	cpu_latency_qos_add_request(&dev_priv->sb_qos, PM_QOS_DEFAULT_VALUE);
 
-	mutex_init(&dev_priv->av_mutex);
+	mutex_init(&dev_priv->audio.mutex);
 	mutex_init(&dev_priv->wm.wm_mutex);
 	mutex_init(&dev_priv->pps_mutex);
 	mutex_init(&dev_priv->hdcp_comp_mutex);
@@ -766,7 +769,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *device_info;
 	struct drm_i915_private *i915;
 
-	i915 = devm_drm_dev_alloc(&pdev->dev, &driver,
+	i915 = devm_drm_dev_alloc(&pdev->dev, &i915_drm_driver,
 				  struct drm_i915_private, drm);
 	if (IS_ERR(i915))
 		return i915;
@@ -1127,6 +1130,8 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_suspend_hw(dev_priv);
 
+	/* Must be called before GGTT is suspended. */
+	intel_dpt_suspend(dev_priv);
 	i915_ggtt_suspend(&dev_priv->ggtt);
 
 	i915_save_display(dev_priv);
@@ -1183,6 +1188,14 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 		goto out;
 	}
 
+	/*
+	 * FIXME: Temporary hammer to avoid freezing the machine on our DGFX
+	 * This should be totally removed when we handle the pci states properly
+	 * on runtime PM and on s2idle cases.
+	 */
+	if (suspend_to_idle(dev_priv))
+		pci_d3cold_disable(pdev);
+
 	pci_disable_device(pdev);
 	/*
 	 * During hibernation on some platforms the BIOS may try to access
@@ -1207,7 +1220,8 @@ out:
 	return ret;
 }
 
-int i915_suspend_switcheroo(struct drm_i915_private *i915, pm_message_t state)
+int i915_driver_suspend_switcheroo(struct drm_i915_private *i915,
+				   pm_message_t state)
 {
 	int error;
 
@@ -1243,6 +1257,8 @@ static int i915_drm_resume(struct drm_device *dev)
 		drm_err(&dev_priv->drm, "failed to re-enable GGTT\n");
 
 	i915_ggtt_resume(&dev_priv->ggtt);
+	/* Must be called after GGTT is resumed. */
+	intel_dpt_resume(dev_priv);
 
 	intel_dmc_ucode_resume(dev_priv);
 
@@ -1344,6 +1360,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	pci_set_master(pdev);
 
+	pci_d3cold_enable(pdev);
+
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	ret = vlv_resume_prepare(dev_priv, false);
@@ -1364,7 +1382,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	return ret;
 }
 
-int i915_resume_switcheroo(struct drm_i915_private *i915)
+int i915_driver_resume_switcheroo(struct drm_i915_private *i915)
 {
 	int ret;
 
@@ -1520,6 +1538,7 @@ static int intel_runtime_suspend(struct device *kdev)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	int ret;
 
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_RUNTIME_PM(dev_priv)))
@@ -1565,6 +1584,12 @@ static int intel_runtime_suspend(struct device *kdev)
 		drm_err(&dev_priv->drm,
 			"Unclaimed access detected prior to suspending\n");
 
+	/*
+	 * FIXME: Temporary hammer to avoid freezing the machine on our DGFX
+	 * This should be totally removed when we handle the pci states properly
+	 * on runtime PM and on s2idle cases.
+	 */
+	pci_d3cold_disable(pdev);
 	rpm->suspended = true;
 
 	/*
@@ -1603,6 +1628,7 @@ static int intel_runtime_resume(struct device *kdev)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	int ret;
 
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_RUNTIME_PM(dev_priv)))
@@ -1615,6 +1641,7 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 	rpm->suspended = false;
+	pci_d3cold_enable(pdev);
 	if (intel_uncore_unclaimed_mmio(&dev_priv->uncore))
 		drm_dbg(&dev_priv->drm,
 			"Unclaimed access during suspend, bios?\n");
@@ -1777,7 +1804,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_VM_DESTROY, i915_gem_vm_destroy_ioctl, DRM_RENDER_ALLOW),
 };
 
-static const struct drm_driver driver = {
+static const struct drm_driver i915_drm_driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should
 	 * deal with them for Intel hardware.
 	 */

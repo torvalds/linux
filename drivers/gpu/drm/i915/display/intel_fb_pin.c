@@ -142,13 +142,11 @@ retry:
 	if (ret)
 		goto err;
 
-	if (!ret) {
-		vma = i915_gem_object_pin_to_display_plane(obj, &ww, alignment,
-							   view, pinctl);
-		if (IS_ERR(vma)) {
-			ret = PTR_ERR(vma);
-			goto err_unpin;
-		}
+	vma = i915_gem_object_pin_to_display_plane(obj, &ww, alignment,
+						   view, pinctl);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err_unpin;
 	}
 
 	if (uses_fence && i915_vma_is_map_and_fenceable(vma)) {

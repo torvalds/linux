@@ -3016,7 +3016,7 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 	if (IS_CHERRYVIEW(dev_priv))
 		intel_uncore_write(uncore, DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 	else
-		intel_uncore_write(uncore, DPINVGTT, DPINVGTT_STATUS_MASK);
+		intel_uncore_write(uncore, DPINVGTT, DPINVGTT_STATUS_MASK_VLV);
 
 	i915_hotplug_interrupt_update_locked(dev_priv, 0xffffffff, 0);
 	intel_uncore_write(uncore, PORT_HOTPLUG_STAT, intel_uncore_read(&dev_priv->uncore, PORT_HOTPLUG_STAT));
