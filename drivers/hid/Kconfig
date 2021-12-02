@@ -214,7 +214,7 @@ config HID_CHICONY
 
 config HID_CORSAIR
 	tristate "Corsair devices"
-	depends on HID && USB && LEDS_CLASS
+	depends on USB_HID && LEDS_CLASS
 	help
 	Support for Corsair devices that are not fully compliant with the
 	HID standard.
@@ -541,7 +541,7 @@ config HID_LENOVO
 
 config HID_LOGITECH
 	tristate "Logitech devices"
-	depends on HID
+	depends on USB_HID
 	depends on LEDS_CLASS
 	default !EXPERT
 	help
@@ -889,7 +889,7 @@ config HID_SAITEK
 
 config HID_SAMSUNG
 	tristate "Samsung InfraRed remote control or keyboards"
-	depends on HID
+	depends on USB_HID
 	help
 	Support for Samsung InfraRed remote control or keyboards.
 
