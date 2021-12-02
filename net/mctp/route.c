@@ -890,8 +890,7 @@ out_release:
 	if (!ext_rt)
 		mctp_route_release(rt);
 
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 
 	return rc;
 
