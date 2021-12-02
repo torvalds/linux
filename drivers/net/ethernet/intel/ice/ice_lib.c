@@ -853,13 +853,13 @@ static void ice_set_dflt_vsi_ctx(struct ice_vsi_ctx *ctxt)
 	ctxt->info.sw_flags = ICE_AQ_VSI_SW_FLAG_SRC_PRUNE;
 	/* Traffic from VSI can be sent to LAN */
 	ctxt->info.sw_flags2 = ICE_AQ_VSI_SW_FLAG_LAN_ENA;
-	/* By default bits 3 and 4 in vlan_flags are 0's which results in legacy
+	/* By default bits 3 and 4 in inner_vlan_flags are 0's which results in legacy
 	 * behavior (show VLAN, DEI, and UP) in descriptor. Also, allow all
 	 * packets untagged/tagged.
 	 */
-	ctxt->info.vlan_flags = ((ICE_AQ_VSI_VLAN_MODE_ALL &
-				  ICE_AQ_VSI_VLAN_MODE_M) >>
-				 ICE_AQ_VSI_VLAN_MODE_S);
+	ctxt->info.inner_vlan_flags = ((ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL &
+				  ICE_AQ_VSI_INNER_VLAN_TX_MODE_M) >>
+				 ICE_AQ_VSI_INNER_VLAN_TX_MODE_S);
 	/* Have 1:1 UP mapping for both ingress/egress tables */
 	table |= ICE_UP_TABLE_TRANSLATE(0, 0);
 	table |= ICE_UP_TABLE_TRANSLATE(1, 1);

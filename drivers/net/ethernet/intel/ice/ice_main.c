@@ -4066,8 +4066,8 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 	ctxt->info.sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
 
 	/* allow all VLANs on Tx and don't strip on Rx */
-	ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_ALL |
-		ICE_AQ_VSI_VLAN_EMOD_NOTHING;
+	ctxt->info.inner_vlan_flags = ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL |
+		ICE_AQ_VSI_INNER_VLAN_EMODE_NOTHING;
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
@@ -4076,7 +4076,7 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 	} else {
 		vsi->info.sec_flags = ctxt->info.sec_flags;
 		vsi->info.sw_flags2 = ctxt->info.sw_flags2;
-		vsi->info.vlan_flags = ctxt->info.vlan_flags;
+		vsi->info.inner_vlan_flags = ctxt->info.inner_vlan_flags;
 	}
 
 	kfree(ctxt);

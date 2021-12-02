@@ -100,14 +100,14 @@ static int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 		return -ENOMEM;
 
 	/* Here we are configuring the VSI to let the driver add VLAN tags by
-	 * setting vlan_flags to ICE_AQ_VSI_VLAN_MODE_ALL. The actual VLAN tag
+	 * setting inner_vlan_flags to ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL. The actual VLAN tag
 	 * insertion happens in the Tx hot path, in ice_tx_map.
 	 */
-	ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_ALL;
+	ctxt->info.inner_vlan_flags = ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL;
 
 	/* Preserve existing VLAN strip setting */
-	ctxt->info.vlan_flags |= (vsi->info.vlan_flags &
-				  ICE_AQ_VSI_VLAN_EMOD_M);
+	ctxt->info.inner_vlan_flags |= (vsi->info.inner_vlan_flags &
+					ICE_AQ_VSI_INNER_VLAN_EMODE_M);
 
 	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
 
@@ -118,7 +118,7 @@ static int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 		goto out;
 	}
 
-	vsi->info.vlan_flags = ctxt->info.vlan_flags;
+	vsi->info.inner_vlan_flags = ctxt->info.inner_vlan_flags;
 out:
 	kfree(ctxt);
 	return err;
@@ -138,7 +138,7 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	/* do not allow modifying VLAN stripping when a port VLAN is configured
 	 * on this VSI
 	 */
-	if (vsi->info.pvid)
+	if (vsi->info.port_based_inner_vlan)
 		return 0;
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
@@ -151,13 +151,13 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	 */
 	if (ena)
 		/* Strip VLAN tag from Rx packet and put it in the desc */
-		ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_EMOD_STR_BOTH;
+		ctxt->info.inner_vlan_flags = ICE_AQ_VSI_INNER_VLAN_EMODE_STR_BOTH;
 	else
 		/* Disable stripping. Leave tag in packet */
-		ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_EMOD_NOTHING;
+		ctxt->info.inner_vlan_flags = ICE_AQ_VSI_INNER_VLAN_EMODE_NOTHING;
 
 	/* Allow all packets untagged/tagged */
-	ctxt->info.vlan_flags |= ICE_AQ_VSI_VLAN_MODE_ALL;
+	ctxt->info.inner_vlan_flags |= ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL;
 
 	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
 
@@ -168,13 +168,13 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 		goto out;
 	}
 
-	vsi->info.vlan_flags = ctxt->info.vlan_flags;
+	vsi->info.inner_vlan_flags = ctxt->info.inner_vlan_flags;
 out:
 	kfree(ctxt);
 	return err;
 }
 
-int ice_vsi_ena_stripping(struct ice_vsi *vsi, const u16 tpid)
+int ice_vsi_ena_inner_stripping(struct ice_vsi *vsi, const u16 tpid)
 {
 	if (tpid != ETH_P_8021Q) {
 		print_invalid_tpid(vsi, tpid);
@@ -184,12 +184,12 @@ int ice_vsi_ena_stripping(struct ice_vsi *vsi, const u16 tpid)
 	return ice_vsi_manage_vlan_stripping(vsi, true);
 }
 
-int ice_vsi_dis_stripping(struct ice_vsi *vsi)
+int ice_vsi_dis_inner_stripping(struct ice_vsi *vsi)
 {
 	return ice_vsi_manage_vlan_stripping(vsi, false);
 }
 
-int ice_vsi_ena_insertion(struct ice_vsi *vsi, const u16 tpid)
+int ice_vsi_ena_inner_insertion(struct ice_vsi *vsi, const u16 tpid)
 {
 	if (tpid != ETH_P_8021Q) {
 		print_invalid_tpid(vsi, tpid);
@@ -199,18 +199,17 @@ int ice_vsi_ena_insertion(struct ice_vsi *vsi, const u16 tpid)
 	return ice_vsi_manage_vlan_insertion(vsi);
 }
 
-int ice_vsi_dis_insertion(struct ice_vsi *vsi)
+int ice_vsi_dis_inner_insertion(struct ice_vsi *vsi)
 {
 	return ice_vsi_manage_vlan_insertion(vsi);
 }
 
 /**
- * ice_vsi_manage_pvid - Enable or disable port VLAN for VSI
+ * __ice_vsi_set_inner_port_vlan - set port VLAN VSI context settings to enable a port VLAN
  * @vsi: the VSI to update
  * @pvid_info: VLAN ID and QoS used to set the PVID VSI context field
- * @enable: true for enable PVID false for disable
  */
-static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
+static int __ice_vsi_set_inner_port_vlan(struct ice_vsi *vsi, u16 pvid_info)
 {
 	struct ice_hw *hw = &vsi->back->hw;
 	struct ice_aqc_vsi_props *info;
@@ -223,18 +222,12 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 
 	ctxt->info = vsi->info;
 	info = &ctxt->info;
-	if (enable) {
-		info->vlan_flags = ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
-			ICE_AQ_VSI_PVLAN_INSERT_PVID |
-			ICE_AQ_VSI_VLAN_EMOD_STR;
-		info->sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
-	} else {
-		info->vlan_flags = ICE_AQ_VSI_VLAN_EMOD_NOTHING |
-			ICE_AQ_VSI_VLAN_MODE_ALL;
-		info->sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
-	}
+	info->inner_vlan_flags = ICE_AQ_VSI_INNER_VLAN_TX_MODE_ACCEPTUNTAGGED |
+		ICE_AQ_VSI_INNER_VLAN_INSERT_PVID |
+		ICE_AQ_VSI_INNER_VLAN_EMODE_STR;
+	info->sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
 
-	info->pvid = cpu_to_le16(pvid_info);
+	info->port_based_inner_vlan = cpu_to_le16(pvid_info);
 	info->valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
 					   ICE_AQ_VSI_PROP_SW_VALID);
 
@@ -245,15 +238,15 @@ static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
 		goto out;
 	}
 
-	vsi->info.vlan_flags = info->vlan_flags;
+	vsi->info.inner_vlan_flags = info->inner_vlan_flags;
 	vsi->info.sw_flags2 = info->sw_flags2;
-	vsi->info.pvid = info->pvid;
+	vsi->info.port_based_inner_vlan = info->port_based_inner_vlan;
 out:
 	kfree(ctxt);
 	return ret;
 }
 
-int ice_vsi_set_port_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
+int ice_vsi_set_inner_port_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 {
 	u16 port_vlan_info;
 
@@ -265,7 +258,7 @@ int ice_vsi_set_port_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 
 	port_vlan_info = vlan->vid | (vlan->prio << VLAN_PRIO_SHIFT);
 
-	return ice_vsi_manage_pvid(vsi, port_vlan_info, true);
+	return __ice_vsi_set_inner_port_vlan(vsi, port_vlan_info);
 }
 
 /**
