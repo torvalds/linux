@@ -1701,6 +1701,132 @@ static inline int search_for_key_slot(struct extent_buffer *eb,
 	return generic_bin_search(eb, search_low_slot, key, slot);
 }
 
+static int search_leaf(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root,
+		       const struct btrfs_key *key,
+		       struct btrfs_path *path,
+		       int ins_len,
+		       int prev_cmp)
+{
+	struct extent_buffer *leaf = path->nodes[0];
+	int leaf_free_space = -1;
+	int search_low_slot = 0;
+	int ret;
+	bool do_bin_search = true;
+
+	/*
+	 * If we are doing an insertion, the leaf has enough free space and the
+	 * destination slot for the key is not slot 0, then we can unlock our
+	 * write lock on the parent, and any other upper nodes, before doing the
+	 * binary search on the leaf (with search_for_key_slot()), allowing other
+	 * tasks to lock the parent and any other upper nodes.
+	 */
+	if (ins_len > 0) {
+		/*
+		 * Cache the leaf free space, since we will need it later and it
+		 * will not change until then.
+		 */
+		leaf_free_space = btrfs_leaf_free_space(leaf);
+
+		/*
+		 * !path->locks[1] means we have a single node tree, the leaf is
+		 * the root of the tree.
+		 */
+		if (path->locks[1] && leaf_free_space >= ins_len) {
+			struct btrfs_disk_key first_key;
+
+			ASSERT(btrfs_header_nritems(leaf) > 0);
+			btrfs_item_key(leaf, &first_key, 0);
+
+			/*
+			 * Doing the extra comparison with the first key is cheap,
+			 * taking into account that the first key is very likely
+			 * already in a cache line because it immediately follows
+			 * the extent buffer's header and we have recently accessed
+			 * the header's level field.
+			 */
+			ret = comp_keys(&first_key, key);
+			if (ret < 0) {
+				/*
+				 * The first key is smaller than the key we want
+				 * to insert, so we are safe to unlock all upper
+				 * nodes and we have to do the binary search.
+				 *
+				 * We do use btrfs_unlock_up_safe() and not
+				 * unlock_up() because the later does not unlock
+				 * nodes with a slot of 0 - we can safely unlock
+				 * any node even if its slot is 0 since in this
+				 * case the key does not end up at slot 0 of the
+				 * leaf and there's no need to split the leaf.
+				 */
+				btrfs_unlock_up_safe(path, 1);
+				search_low_slot = 1;
+			} else {
+				/*
+				 * The first key is >= then the key we want to
+				 * insert, so we can skip the binary search as
+				 * the target key will be at slot 0.
+				 *
+				 * We can not unlock upper nodes when the key is
+				 * less than the first key, because we will need
+				 * to update the key at slot 0 of the parent node
+				 * and possibly of other upper nodes too.
+				 * If the key matches the first key, then we can
+				 * unlock all the upper nodes, using
+				 * btrfs_unlock_up_safe() instead of unlock_up()
+				 * as stated above.
+				 */
+				if (ret == 0)
+					btrfs_unlock_up_safe(path, 1);
+				/*
+				 * ret is already 0 or 1, matching the result of
+				 * a btrfs_bin_search() call, so there is no need
+				 * to adjust it.
+				 */
+				do_bin_search = false;
+				path->slots[0] = 0;
+			}
+		}
+	}
+
+	if (do_bin_search) {
+		ret = search_for_key_slot(leaf, search_low_slot, key,
+					  prev_cmp, &path->slots[0]);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (ins_len > 0) {
+		/*
+		 * Item key already exists. In this case, if we are allowed to
+		 * insert the item (for example, in dir_item case, item key
+		 * collision is allowed), it will be merged with the original
+		 * item. Only the item size grows, no new btrfs item will be
+		 * added. If search_for_extension is not set, ins_len already
+		 * accounts the size btrfs_item, deduct it here so leaf space
+		 * check will be correct.
+		 */
+		if (ret == 0 && !path->search_for_extension) {
+			ASSERT(ins_len >= sizeof(struct btrfs_item));
+			ins_len -= sizeof(struct btrfs_item);
+		}
+
+		ASSERT(leaf_free_space >= 0);
+
+		if (leaf_free_space < ins_len) {
+			int err;
+
+			err = split_leaf(trans, root, key, path, ins_len,
+					 (ret == 0));
+			BUG_ON(err > 0);
+			if (err)
+				ret = err;
+		}
+	}
+
+	return ret;
+}
+
 /*
  * btrfs_search_slot - look for a key in a tree and perform necessary
  * modifications to preserve tree invariants.
@@ -1862,124 +1988,10 @@ cow_done:
 		}
 
 		if (level == 0) {
-			int leaf_free_space = 0;
-			int search_low_slot = 0;
-
-			/*
-			 * If we are doing an insertion, the leaf has enough free
-			 * space and the destination slot for the key is not slot
-			 * 0, then we can unlock our write lock on the parent, and
-			 * any other upper nodes, before doing the binary search
-			 * on the leaf (with search_for_key_slot()), allowing other
-			 * tasks to lock the parent and any other upper nodes.
-			 */
-			if (ins_len > 0) {
-				struct btrfs_disk_key first_key;
-
-				/*
-				 * Cache the leaf free space, since we will need it
-				 * later and it will not change until then.
-				 */
-				leaf_free_space = btrfs_leaf_free_space(b);
-
-				/*
-				 * !p->locks[1] means we have a single node tree,
-				 * the leaf is the root of the tree.
-				 */
-				if (!p->locks[1] || leaf_free_space < ins_len)
-					goto leaf_search;
-
-				ASSERT(btrfs_header_nritems(b) > 0);
-				btrfs_item_key(b, &first_key, 0);
-
-				/*
-				 * Doing the extra comparison with the first key
-				 * is cheap, taking into account that the first
-				 * key is very likely already in a cache line
-				 * because it immediately follows the extent
-				 * buffer's header and we have recently accessed
-				 * the header's level field.
-				 */
-				ret = comp_keys(&first_key, key);
-				if (ret < 0) {
-					/*
-					 * The first key is smaller than the key
-					 * we want to insert, so we are safe to
-					 * unlock all upper nodes and we have to
-					 * do the binary search.
-					 *
-					 * We do use btrfs_unlock_up_safe() and
-					 * not unlock_up() because the later does
-					 * not unlock nodes with a slot of 0.
-					 * We can safely unlock any node even if
-					 * its slot is 0 since in this case the
-					 * key does not end up at slot 0 of the
-					 * leaf and there's also no need to split
-					 * the leaf.
-					 */
-					btrfs_unlock_up_safe(p, 1);
-					search_low_slot = 1;
-				} else {
-					/*
-					 * The first key is >= then the key we
-					 * want to insert, so we can skip the
-					 * binary search as the target key will
-					 * be at slot 0.
-					 *
-					 * We can not unlock upper nodes when
-					 * the key is less than the first key,
-					 * because we will need to update the key
-					 * at slot 0 of the parent node and
-					 * possibly of other upper nodes too.
-					 * If the key matches the first key, then
-					 * we can unlock all the upper nodes,
-					 * using btrfs_unlock_up_safe() instead
-					 * of unlock_up() as stated above.
-					 */
-					if (ret == 0)
-						btrfs_unlock_up_safe(p, 1);
-					slot = 0;
-					/*
-					 * ret is already 0 or 1, matching the
-					 * result of a btrfs_bin_search() call,
-					 * so there is no need to adjust it.
-					 */
-					goto skip_leaf_search;
-				}
-			}
-leaf_search:
-			ret = search_for_key_slot(b, search_low_slot, key,
-						  prev_cmp, &slot);
-			if (ret < 0)
-				goto done;
-skip_leaf_search:
-			p->slots[level] = slot;
-			/*
-			 * Item key already exists. In this case, if we are
-			 * allowed to insert the item (for example, in dir_item
-			 * case, item key collision is allowed), it will be
-			 * merged with the original item. Only the item size
-			 * grows, no new btrfs item will be added. If
-			 * search_for_extension is not set, ins_len already
-			 * accounts the size btrfs_item, deduct it here so leaf
-			 * space check will be correct.
-			 */
-			if (ret == 0 && ins_len > 0 && !p->search_for_extension) {
-				ASSERT(ins_len >= sizeof(struct btrfs_item));
-				ins_len -= sizeof(struct btrfs_item);
-			}
-			if (ins_len > 0 && leaf_free_space < ins_len) {
+			if (ins_len > 0)
 				ASSERT(write_lock_level >= 1);
 
-				err = split_leaf(trans, root, key,
-						 p, ins_len, ret == 0);
-
-				BUG_ON(err > 0);
-				if (err) {
-					ret = err;
-					goto done;
-				}
-			}
+			ret = search_leaf(trans, root, key, p, ins_len, prev_cmp);
 			if (!p->search_for_split)
 				unlock_up(p, level, lowest_unlock,
 					  min_write_lock_level, NULL);
