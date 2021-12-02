@@ -480,6 +480,11 @@ static int amdgpu_vkms_sw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	adev->amdgpu_vkms_output = kcalloc(adev->mode_info.num_crtc,
+		sizeof(struct amdgpu_vkms_output), GFP_KERNEL);
+	if (!adev->amdgpu_vkms_output)
+		return -ENOMEM;
+
 	adev_to_drm(adev)->max_vblank_count = 0;
 
 	adev_to_drm(adev)->mode_config.funcs = &amdgpu_vkms_mode_funcs;
@@ -495,10 +500,6 @@ static int amdgpu_vkms_sw_init(void *handle)
 	r = amdgpu_display_modeset_create_props(adev);
 	if (r)
 		return r;
-
-	adev->amdgpu_vkms_output = kcalloc(adev->mode_info.num_crtc, sizeof(struct amdgpu_vkms_output), GFP_KERNEL);
-	if (!adev->amdgpu_vkms_output)
-		return -ENOMEM;
 
 	/* allocate crtcs, encoders, connectors */
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
@@ -522,12 +523,13 @@ static int amdgpu_vkms_sw_fini(void *handle)
 		if (adev->mode_info.crtcs[i])
 			hrtimer_cancel(&adev->mode_info.crtcs[i]->vblank_timer);
 
-	kfree(adev->mode_info.bios_hardcoded_edid);
-	kfree(adev->amdgpu_vkms_output);
-
 	drm_kms_helper_poll_fini(adev_to_drm(adev));
+	drm_mode_config_cleanup(adev_to_drm(adev));
 
 	adev->mode_info.mode_config_initialized = false;
+
+	kfree(adev->mode_info.bios_hardcoded_edid);
+	kfree(adev->amdgpu_vkms_output);
 	return 0;
 }
 
