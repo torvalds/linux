@@ -4108,8 +4108,6 @@ do
 	# setup namespaces and config, but do not run any tests
 	setup)		 setup; exit 0;;
 	vrf_setup)	 setup "yes"; exit 0;;
-
-	help)            echo "Test names: $TESTS"; exit 0;;
 	esac
 done
 
