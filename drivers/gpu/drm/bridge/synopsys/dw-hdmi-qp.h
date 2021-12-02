@@ -37,6 +37,11 @@
 #define CMU_CONFIG2					0xa8
 #define CMU_CONFIG3					0xac
 #define CMU_STATUS					0xb0
+#define EARC_BPCLK_OFF					BIT(9)
+#define AUDCLK_OFF					BIT(7)
+#define LINKQPCLK_OFF					BIT(5)
+#define VIDQPCLK_OFF					BIT(3)
+#define IPI_CLK_OFF					BIT(1)
 #define CMU_IPI_CLK_FREQ				0xb4
 #define CMU_VIDQPCLK_FREQ				0xb8
 #define CMU_LINKQPCLK_FREQ				0xbc
