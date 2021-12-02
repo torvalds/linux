@@ -164,9 +164,15 @@ Auxiliary Device Memory Model and Lifespan
 ------------------------------------------
 
 The registering driver is the entity that allocates memory for the
-auxiliary_device and register it on the auxiliary bus.  It is important to note
+auxiliary_device and registers it on the auxiliary bus.  It is important to note
 that, as opposed to the platform bus, the registering driver is wholly
-responsible for the management for the memory used for the driver object.
+responsible for the management of the memory used for the device object.
+
+To be clear the memory for the auxiliary_device is freed in the release()
+callback defined by the registering driver.  The registering driver should only
+call auxiliary_device_delete() and then auxiliary_device_uninit() when it is
+done with the device.  The release() function is then automatically called if
+and when other code releases their reference to the devices.
 
 A parent object, defined in the shared header file, contains the
 auxiliary_device.  It also contains a pointer to the shared object(s), which
@@ -177,18 +183,22 @@ from the pointer to the auxiliary_device, that is passed during the call to the
 auxiliary_driver's probe function, up to the parent object, and then have
 access to the shared object(s).
 
-The memory for the auxiliary_device is freed only in its release() callback
-flow as defined by its registering driver.
-
 The memory for the shared object(s) must have a lifespan equal to, or greater
-than, the lifespan of the memory for the auxiliary_device.  The auxiliary_driver
-should only consider that this shared object is valid as long as the
-auxiliary_device is still registered on the auxiliary bus.  It is up to the
-registering driver to manage (e.g. free or keep available) the memory for the
-shared object beyond the life of the auxiliary_device.
+than, the lifespan of the memory for the auxiliary_device.  The
+auxiliary_driver should only consider that the shared object is valid as long
+as the auxiliary_device is still registered on the auxiliary bus.  It is up to
+the registering driver to manage (e.g. free or keep available) the memory for
+the shared object beyond the life of the auxiliary_device.
 
 The registering driver must unregister all auxiliary devices before its own
-driver.remove() is completed.
+driver.remove() is completed.  An easy way to ensure this is to use the
+devm_add_action_or_reset() call to register a function against the parent device
+which unregisters the auxiliary device object(s).
+
+Finally, any operations which operate on the auxiliary devices must continue to
+function (if only to return an error) after the registering driver unregisters
+the auxiliary device.
+
 
 Auxiliary Drivers
 =================
