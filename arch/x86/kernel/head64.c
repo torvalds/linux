@@ -483,6 +483,8 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 	/* Kill off the identity-map trampoline */
 	reset_early_page_tables();
 
+	__native_tlb_flush_global(native_read_cr4());
+
 	clear_bss();
 
 	clear_page(init_top_pgt);
