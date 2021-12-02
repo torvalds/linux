@@ -91,7 +91,6 @@ static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
 	info->section_num = GET_FW_HDR_SEC_NUM(fw);
 	info->hdr_len = RTW89_FW_HDR_SIZE +
 			info->section_num * RTW89_FW_SECTION_HDR_SIZE;
-	SET_FW_HDR_PART_SIZE(fw, FWDL_SECTION_PER_PKT_LEN);
 
 	bin = fw + info->hdr_len;
 
@@ -275,6 +274,7 @@ static int __rtw89_fw_download_hdr(struct rtw89_dev *rtwdev, const u8 *fw, u32 l
 	}
 
 	skb_put_data(skb, fw, len);
+	SET_FW_HDR_PART_SIZE(skb->data, FWDL_SECTION_PER_PKT_LEN);
 	rtw89_h2c_pkt_set_hdr_fwdl(rtwdev, skb, FWCMD_TYPE_H2C,
 				   H2C_CAT_MAC, H2C_CL_MAC_FWDL,
 				   H2C_FUNC_MAC_FWHDR_DL, len);

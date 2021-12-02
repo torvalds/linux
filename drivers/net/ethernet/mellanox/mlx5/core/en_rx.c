@@ -544,13 +544,13 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 				     u16 klm_entries, u16 index)
 {
 	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
-	u16 entries, pi, i, header_offset, err, wqe_bbs, new_entries;
+	u16 entries, pi, header_offset, err, wqe_bbs, new_entries;
 	u32 lkey = rq->mdev->mlx5e_res.hw_objs.mkey;
 	struct page *page = shampo->last_page;
 	u64 addr = shampo->last_addr;
 	struct mlx5e_dma_info *dma_info;
 	struct mlx5e_umr_wqe *umr_wqe;
-	int headroom;
+	int headroom, i;
 
 	headroom = rq->buff.headroom;
 	new_entries = klm_entries - (shampo->pi & (MLX5_UMR_KLM_ALIGNMENT - 1));
@@ -602,9 +602,7 @@ update_klm:
 
 err_unmap:
 	while (--i >= 0) {
-		if (--index < 0)
-			index = shampo->hd_per_wq - 1;
-		dma_info = &shampo->info[index];
+		dma_info = &shampo->info[--index];
 		if (!(i & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1))) {
 			dma_info->addr = ALIGN_DOWN(dma_info->addr, PAGE_SIZE);
 			mlx5e_page_release(rq, dma_info, true);

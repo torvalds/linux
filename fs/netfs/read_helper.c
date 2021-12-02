@@ -1008,8 +1008,8 @@ out:
 }
 EXPORT_SYMBOL(netfs_readpage);
 
-/**
- * netfs_skip_folio_read - prep a folio for writing without reading first
+/*
+ * Prepare a folio for writing without reading first
  * @folio: The folio being prepared
  * @pos: starting position for the write
  * @len: length of write
