@@ -1931,6 +1931,15 @@ int main(void)
 	asm volatile("tilezero %tmm0");
 	asm volatile("tilezero %tmm7");
 
+	/* User Interrupt */
+
+	asm volatile("clui");
+	asm volatile("senduipi %rax");
+	asm volatile("senduipi %r8");
+	asm volatile("stui");
+	asm volatile("testui");
+	asm volatile("uiret");
+
 #else  /* #ifdef __x86_64__ */
 
 	/* bound r32, mem (same op code as EVEX prefix) */
@@ -3692,6 +3701,19 @@ int main(void)
 	asm volatile("notrack bnd jmp *0x12345678(%eax,%ecx,8)"); /* Expecting: jmp indirect 0 */
 
 #endif /* #ifndef __x86_64__ */
+
+	/* Prediction history reset */
+
+	asm volatile("hreset $0");
+
+	/* Serialize instruction execution */
+
+	asm volatile("serialize");
+
+	/* TSX suspend load address tracking */
+
+	asm volatile("xresldtrk");
+	asm volatile("xsusldtrk");
 
 	/* SGX */
 
