@@ -56,12 +56,21 @@ properties:
 
   ethernet-ports:
     type: object
+
+    properties:
+      '#address-cells':
+        const: 1
+      '#size-cells':
+        const: 0
+
+    additionalProperties: false
+
     patternProperties:
       "^port@[0-9a-f]+$":
         type: object
 
-        allOf:
-          - $ref: "http://devicetree.org/schemas/net/ethernet-controller.yaml#"
+        $ref: "/schemas/net/ethernet-controller.yaml#"
+        unevaluatedProperties: false
 
         properties:
           '#address-cells':
