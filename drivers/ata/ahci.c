@@ -1657,7 +1657,7 @@ static ssize_t remapped_nvme_show(struct device *dev,
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 
-	return sprintf(buf, "%u\n", hpriv->remapped_nvme);
+	return sysfs_emit(buf, "%u\n", hpriv->remapped_nvme);
 }
 
 static DEVICE_ATTR_RO(remapped_nvme);
