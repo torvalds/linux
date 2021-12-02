@@ -274,8 +274,15 @@ static int rk_trng_v1_init(struct hwrng *rng)
 	if (!(status & TRNG_V1_STAT_SEEDED) ||
 	    (status & TRNG_V1_STAT_GENERATING) ||
 	    (status & TRNG_V1_STAT_RESEEDING)) {
-		readl_poll_timeout(rk_rng->mem + TRNG_V1_ISTAT, reg_ctrl,
-				   (reg_ctrl & TRNG_V1_ISTAT_RAND_RDY),
+		uint32_t mask = TRNG_V1_STAT_SEEDED |
+				TRNG_V1_STAT_GENERATING |
+				TRNG_V1_STAT_RESEEDING;
+
+		udelay(10);
+
+		/* wait for GENERATING and RESEEDING flag to clear */
+		readl_poll_timeout(rk_rng->mem + TRNG_V1_STAT, reg_ctrl,
+				   (reg_ctrl & mask) == TRNG_V1_STAT_SEEDED,
 				   ROCKCHIP_POLL_PERIOD_US,
 				   ROCKCHIP_POLL_TIMEOUT_US);
 	}
