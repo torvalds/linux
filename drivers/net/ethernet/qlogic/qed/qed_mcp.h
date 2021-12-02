@@ -15,6 +15,8 @@
 #include "qed_hsi.h"
 #include "qed_dev_api.h"
 
+#define QED_MFW_REPORT_STR_SIZE	256
+
 struct qed_mcp_link_speed_params {
 	bool					autoneg;
 

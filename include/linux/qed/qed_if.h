@@ -807,6 +807,12 @@ struct qed_devlink {
 	struct devlink_health_reporter *fw_reporter;
 };
 
+struct qed_sb_info_dbg {
+	u32 igu_prod;
+	u32 igu_cons;
+	u16 pi[PIS_PER_SB];
+};
+
 struct qed_common_cb_ops {
 	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
 	void (*link_update)(void *dev, struct qed_link_output *link);
@@ -1194,6 +1200,11 @@ struct qed_common_ops {
 	struct devlink* (*devlink_register)(struct qed_dev *cdev);
 
 	void (*devlink_unregister)(struct devlink *devlink);
+
+	__printf(2, 3) void (*mfw_report)(struct qed_dev *cdev, char *fmt, ...);
+
+	int (*get_sb_info)(struct qed_dev *cdev, struct qed_sb_info *sb,
+			   u16 qid, struct qed_sb_info_dbg *sb_dbg);
 };
 
 #define MASK_FIELD(_name, _value) \
