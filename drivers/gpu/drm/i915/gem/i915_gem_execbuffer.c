@@ -3277,6 +3277,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	out_fence = eb_requests_create(&eb, in_fence, out_fence_fd);
 	if (IS_ERR(out_fence)) {
 		err = PTR_ERR(out_fence);
+		out_fence = NULL;
 		if (eb.requests[0])
 			goto err_request;
 		else
