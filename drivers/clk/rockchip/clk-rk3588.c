@@ -14,6 +14,7 @@
 #include "clk.h"
 
 #define RK3588_GRF_SOC_STATUS0		0x600
+#define RK3588_PHYREF_ALT_GATE		0xc38
 #define RK3588_FRAC_MAX_PRATE		1500000000
 #define RK3588_DCLK_MAX_PRATE		400000000
 
@@ -2255,6 +2256,15 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE(CLK_USBDPPHY_MIPIDCPPHY_REF, "clk_usbdpphy_mipidcpphy_ref", mux_24m_ppll_spll_p, CLK_IS_CRITICAL,
 			RK3588_PMU_CLKSEL_CON(14), 7, 2, MFLAGS, 0, 7, DFLAGS,
 			RK3588_PMU_CLKGATE_CON(4), 3, GFLAGS),
+
+	GATE(CLK_PHY0_REF_ALT_P, "clk_phy0_ref_alt_p", "ppll", 0,
+			RK3588_PHYREF_ALT_GATE, 0, GFLAGS),
+	GATE(CLK_PHY0_REF_ALT_M, "clk_phy0_ref_alt_m", "ppll", 0,
+			RK3588_PHYREF_ALT_GATE, 1, GFLAGS),
+	GATE(CLK_PHY1_REF_ALT_P, "clk_phy1_ref_alt_p", "ppll", 0,
+			RK3588_PHYREF_ALT_GATE, 2, GFLAGS),
+	GATE(CLK_PHY1_REF_ALT_M, "clk_phy1_ref_alt_m", "ppll", 0,
+			RK3588_PHYREF_ALT_GATE, 3, GFLAGS),
 
 	GATE(HCLK_SPDIFRX0, "hclk_spdifrx0", "hclk_vo1", 0,
 			RK3588_CLKGATE_CON(63), 12, GFLAGS),
