@@ -62,6 +62,9 @@ patternProperties:
                   USB11BHID, USB2AD, USB2AH, USB2BD, USB2BH, USBCKI, VGABIOSROM, VGAHS,
                   VGAVS, VPI24, VPO, WDTRST1, WDTRST2]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - aspeed,external-nodes
