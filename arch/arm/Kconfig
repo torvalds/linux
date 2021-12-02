@@ -1158,7 +1158,6 @@ config CURRENT_POINTER_IN_TPIDRURO
 
 config IRQSTACKS
 	def_bool y
-	depends on MMU
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_SOFTIRQ_ON_OWN_STACK
 

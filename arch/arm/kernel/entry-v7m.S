@@ -40,11 +40,24 @@ __irq_entry:
 	@ Invoke the IRQ handler
 	@
 	mov	r0, sp
-	stmdb	sp!, {lr}
+	ldr_this_cpu sp, irq_stack_ptr, r1, r2
+
+	@
+	@ If we took the interrupt while running in the kernel, we may already
+	@ be using the IRQ stack, so revert to the original value in that case.
+	@
+	subs	r2, sp, r0		@ SP above bottom of IRQ stack?
+	rsbscs	r2, r2, #THREAD_SIZE	@ ... and below the top?
+	movcs	sp, r0
+
+	push	{r0, lr}		@ preserve LR and original SP
+
 	@ routine called with r0 = struct pt_regs *
 	bl	generic_handle_arch_irq
 
-	pop	{lr}
+	pop	{r0, lr}
+	mov	sp, r0
+
 	@
 	@ Check for any pending work if returning to user
 	@
