@@ -726,21 +726,23 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 }
 
 /*
- * search for key in the extent_buffer.  The items start at offset p,
- * and they are item_size apart.
+ * Search for a key in the given extent_buffer.
  *
- * the slot in the array is returned via slot, and it points to
- * the place where you would insert key if it is not found in
- * the array.
+ * The lower boundary for the search is specified by the slot number @low. Use a
+ * value of 0 to search over the whole extent buffer.
  *
- * Slot may point to total number of items if the key is bigger than
- * all of the keys
+ * The slot in the extent buffer is returned via @slot. If the key exists in the
+ * extent buffer, then @slot will point to the slot where the key is, otherwise
+ * it points to the slot where you would insert the key.
+ *
+ * Slot may point to the total number of items (i.e. one position beyond the last
+ * key) if the key is bigger than the last key in the extent buffer.
  */
-static noinline int generic_bin_search(struct extent_buffer *eb,
-				       unsigned long p, int item_size,
+static noinline int generic_bin_search(struct extent_buffer *eb, int low,
 				       const struct btrfs_key *key, int *slot)
 {
-	int low = 0;
+	unsigned long p;
+	int item_size;
 	int high = btrfs_header_nritems(eb);
 	int ret;
 	const int key_size = sizeof(struct btrfs_disk_key);
@@ -751,6 +753,14 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 			  __func__, low, high, eb->start,
 			  btrfs_header_owner(eb), btrfs_header_level(eb));
 		return -EINVAL;
+	}
+
+	if (btrfs_header_level(eb) == 0) {
+		p = offsetof(struct btrfs_leaf, items);
+		item_size = sizeof(struct btrfs_item);
+	} else {
+		p = offsetof(struct btrfs_node, ptrs);
+		item_size = sizeof(struct btrfs_key_ptr);
 	}
 
 	while (low < high) {
@@ -791,20 +801,13 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 }
 
 /*
- * simple bin_search frontend that does the right thing for
- * leaves vs nodes
+ * Simple binary search on an extent buffer. Works for both leaves and nodes, and
+ * always searches over the whole range of keys (slot 0 to slot 'nritems - 1').
  */
 int btrfs_bin_search(struct extent_buffer *eb, const struct btrfs_key *key,
 		     int *slot)
 {
-	if (btrfs_header_level(eb) == 0)
-		return generic_bin_search(eb,
-					  offsetof(struct btrfs_leaf, items),
-					  sizeof(struct btrfs_item), key, slot);
-	else
-		return generic_bin_search(eb,
-					  offsetof(struct btrfs_node, ptrs),
-					  sizeof(struct btrfs_key_ptr), key, slot);
+	return generic_bin_search(eb, 0, key, slot);
 }
 
 static void root_add_used(struct btrfs_root *root, u32 size)
