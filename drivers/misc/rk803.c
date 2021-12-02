@@ -151,6 +151,9 @@ static long rk803_dev_ioctl(struct file *file, unsigned int cmd,
 static const struct file_operations rk803_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = rk803_dev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = rk803_dev_ioctl
+#endif
 };
 
 static int
