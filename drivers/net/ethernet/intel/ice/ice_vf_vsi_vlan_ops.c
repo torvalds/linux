@@ -43,7 +43,6 @@ void ice_vf_vsi_init_vlan_ops(struct ice_vsi *vsi)
 
 		/* outer VLAN ops regardless of port VLAN config */
 		vlan_ops->add_vlan = ice_vsi_add_vlan;
-		vlan_ops->ena_rx_filtering = ice_vsi_ena_rx_vlan_filtering;
 		vlan_ops->dis_rx_filtering = ice_vsi_dis_rx_vlan_filtering;
 		vlan_ops->ena_tx_filtering = ice_vsi_ena_tx_vlan_filtering;
 		vlan_ops->dis_tx_filtering = ice_vsi_dis_tx_vlan_filtering;
@@ -51,6 +50,8 @@ void ice_vf_vsi_init_vlan_ops(struct ice_vsi *vsi)
 		if (ice_vf_is_port_vlan_ena(vf)) {
 			/* setup outer VLAN ops */
 			vlan_ops->set_port_vlan = ice_vsi_set_outer_port_vlan;
+			vlan_ops->ena_rx_filtering =
+				ice_vsi_ena_rx_vlan_filtering;
 
 			/* setup inner VLAN ops */
 			vlan_ops = &vsi->inner_vlan_ops;
@@ -61,6 +62,12 @@ void ice_vf_vsi_init_vlan_ops(struct ice_vsi *vsi)
 			vlan_ops->ena_insertion = ice_vsi_ena_inner_insertion;
 			vlan_ops->dis_insertion = ice_vsi_dis_inner_insertion;
 		} else {
+			if (!test_bit(ICE_FLAG_VF_VLAN_PRUNING, pf->flags))
+				vlan_ops->ena_rx_filtering = noop_vlan;
+			else
+				vlan_ops->ena_rx_filtering =
+					ice_vsi_ena_rx_vlan_filtering;
+
 			vlan_ops->del_vlan = ice_vsi_del_vlan;
 			vlan_ops->ena_stripping = ice_vsi_ena_outer_stripping;
 			vlan_ops->dis_stripping = ice_vsi_dis_outer_stripping;
@@ -80,14 +87,21 @@ void ice_vf_vsi_init_vlan_ops(struct ice_vsi *vsi)
 
 		/* inner VLAN ops regardless of port VLAN config */
 		vlan_ops->add_vlan = ice_vsi_add_vlan;
-		vlan_ops->ena_rx_filtering = ice_vsi_ena_rx_vlan_filtering;
 		vlan_ops->dis_rx_filtering = ice_vsi_dis_rx_vlan_filtering;
 		vlan_ops->ena_tx_filtering = ice_vsi_ena_tx_vlan_filtering;
 		vlan_ops->dis_tx_filtering = ice_vsi_dis_tx_vlan_filtering;
 
 		if (ice_vf_is_port_vlan_ena(vf)) {
 			vlan_ops->set_port_vlan = ice_vsi_set_inner_port_vlan;
+			vlan_ops->ena_rx_filtering =
+				ice_vsi_ena_rx_vlan_filtering;
 		} else {
+			if (!test_bit(ICE_FLAG_VF_VLAN_PRUNING, pf->flags))
+				vlan_ops->ena_rx_filtering = noop_vlan;
+			else
+				vlan_ops->ena_rx_filtering =
+					ice_vsi_ena_rx_vlan_filtering;
+
 			vlan_ops->del_vlan = ice_vsi_del_vlan;
 			vlan_ops->ena_stripping = ice_vsi_ena_inner_stripping;
 			vlan_ops->dis_stripping = ice_vsi_dis_inner_stripping;
