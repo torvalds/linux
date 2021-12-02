@@ -3300,7 +3300,8 @@ static int hci_le_read_adv_tx_power_sync(struct hci_dev *hdev)
 /* Read LE Min/Max Tx Power*/
 static int hci_le_read_tx_power_sync(struct hci_dev *hdev)
 {
-	if (!(hdev->commands[38] & 0x80))
+	if (!(hdev->commands[38] & 0x80) ||
+	    test_bit(HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER, &hdev->quirks))
 		return 0;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_READ_TRANSMIT_POWER,
