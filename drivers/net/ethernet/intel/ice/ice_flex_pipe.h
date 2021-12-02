@@ -89,6 +89,12 @@ ice_init_prof_result_bm(struct ice_hw *hw);
 int
 ice_get_sw_fv_list(struct ice_hw *hw, u8 *prot_ids, u16 ids_cnt,
 		   unsigned long *bm, struct list_head *fv_list);
+int
+ice_pkg_buf_unreserve_section(struct ice_buf_build *bld, u16 count);
+u16 ice_pkg_buf_get_free_space(struct ice_buf_build *bld);
+int
+ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
+		      u16 buf_size, struct ice_sq_cd *cd);
 bool
 ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port,
 			 enum ice_tunnel_type type);
@@ -96,6 +102,7 @@ int ice_udp_tunnel_set_port(struct net_device *netdev, unsigned int table,
 			    unsigned int idx, struct udp_tunnel_info *ti);
 int ice_udp_tunnel_unset_port(struct net_device *netdev, unsigned int table,
 			      unsigned int idx, struct udp_tunnel_info *ti);
+int ice_set_dvm_boost_entries(struct ice_hw *hw);
 
 /* Rx parser PTYPE functions */
 bool ice_hw_ptype_ena(struct ice_hw *hw, u16 ptype);
@@ -119,4 +126,10 @@ void ice_fill_blk_tbls(struct ice_hw *hw);
 void ice_clear_hw_tbls(struct ice_hw *hw);
 void ice_free_hw_tbls(struct ice_hw *hw);
 int ice_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 id);
+struct ice_buf_build *
+ice_pkg_buf_alloc_single_section(struct ice_hw *hw, u32 type, u16 size,
+				 void **section);
+struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld);
+void ice_pkg_buf_free(struct ice_hw *hw, struct ice_buf_build *bld);
+
 #endif /* _ICE_FLEX_PIPE_H_ */

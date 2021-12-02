@@ -3547,11 +3547,16 @@ static int ice_tc_indir_block_register(struct ice_vsi *vsi)
 static int ice_setup_pf_sw(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
+	bool dvm = ice_is_dvm_ena(&pf->hw);
 	struct ice_vsi *vsi;
 	int status;
 
 	if (ice_is_reset_in_progress(pf->state))
 		return -EBUSY;
+
+	status = ice_aq_set_port_params(pf->hw.port_info, dvm, NULL);
+	if (status)
+		return -EIO;
 
 	vsi = ice_pf_vsi_setup(pf, pf->hw.port_info);
 	if (!vsi)
@@ -6634,6 +6639,7 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
+	bool dvm;
 	int err;
 
 	if (test_bit(ICE_DOWN, pf->state))
@@ -6696,6 +6702,12 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 		dev_err(dev, "set_mac_cfg failed %d\n", err);
 		goto err_init_ctrlq;
 	}
+
+	dvm = ice_is_dvm_ena(hw);
+
+	err = ice_aq_set_port_params(pf->hw.port_info, dvm, NULL);
+	if (err)
+		goto err_init_ctrlq;
 
 	err = ice_sched_init_port(hw->port_info);
 	if (err)

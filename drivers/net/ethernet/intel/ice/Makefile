@@ -23,6 +23,7 @@ ice-y := ice_main.o	\
 	 ice_vsi_vlan_lib.o \
 	 ice_fdir.o	\
 	 ice_ethtool_fdir.o \
+	 ice_vlan_mode.o \
 	 ice_flex_pipe.o \
 	 ice_flow.o	\
 	 ice_idc.o	\

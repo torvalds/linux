@@ -39,20 +39,20 @@ static bool validate_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
  */
 int ice_vsi_add_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 {
-	int err = 0;
+	int err;
 
 	if (!validate_vlan(vsi, vlan))
 		return -EINVAL;
 
-	if (!ice_fltr_add_vlan(vsi, vlan)) {
-		vsi->num_vlan++;
-	} else {
-		err = -ENODEV;
-		dev_err(ice_pf_to_dev(vsi->back), "Failure Adding VLAN %d on VSI %i\n",
-			vlan->vid, vsi->vsi_num);
+	err = ice_fltr_add_vlan(vsi, vlan);
+	if (err && err != -EEXIST) {
+		dev_err(ice_pf_to_dev(vsi->back), "Failure Adding VLAN %d on VSI %i, status %d\n",
+			vlan->vid, vsi->vsi_num, err);
+		return err;
 	}
 
-	return err;
+	vsi->num_vlan++;
+	return 0;
 }
 
 /**
@@ -72,16 +72,13 @@ int ice_vsi_del_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 	dev = ice_pf_to_dev(pf);
 
 	err = ice_fltr_remove_vlan(vsi, vlan);
-	if (!err) {
+	if (!err)
 		vsi->num_vlan--;
-	} else if (err == -ENOENT) {
-		dev_dbg(dev, "Failed to remove VLAN %d on VSI %i, it does not exist\n",
-			vlan->vid, vsi->vsi_num);
+	else if (err == -ENOENT || err == -EBUSY)
 		err = 0;
-	} else {
+	else
 		dev_err(dev, "Error removing VLAN %d on VSI %i error: %d\n",
 			vlan->vid, vsi->vsi_num, err);
-	}
 
 	return err;
 }

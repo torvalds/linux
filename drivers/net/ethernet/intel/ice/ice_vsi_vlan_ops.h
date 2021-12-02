@@ -23,11 +23,6 @@ struct ice_vsi_vlan_ops {
 	int (*set_port_vlan)(struct ice_vsi *vsi, struct ice_vlan *vlan);
 };
 
-static inline bool ice_is_dvm_ena(struct ice_hw __always_unused *hw)
-{
-	return false;
-}
-
 void ice_vsi_init_vlan_ops(struct ice_vsi *vsi);
 struct ice_vsi_vlan_ops *ice_get_compat_vsi_vlan_ops(struct ice_vsi *vsi);
 

@@ -3,6 +3,7 @@
 
 #include "ice_vsi_vlan_ops.h"
 #include "ice_vsi_vlan_lib.h"
+#include "ice_vlan_mode.h"
 #include "ice.h"
 #include "ice_vf_vsi_vlan_ops.h"
 #include "ice_virtchnl_pf.h"
