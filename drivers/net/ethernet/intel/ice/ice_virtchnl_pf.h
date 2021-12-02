@@ -95,6 +95,13 @@ struct ice_vc_vf_ops {
 	int (*handle_rss_cfg_msg)(struct ice_vf *vf, u8 *msg, bool add);
 	int (*add_fdir_fltr_msg)(struct ice_vf *vf, u8 *msg);
 	int (*del_fdir_fltr_msg)(struct ice_vf *vf, u8 *msg);
+	int (*get_offload_vlan_v2_caps)(struct ice_vf *vf);
+	int (*add_vlan_v2_msg)(struct ice_vf *vf, u8 *msg);
+	int (*remove_vlan_v2_msg)(struct ice_vf *vf, u8 *msg);
+	int (*ena_vlan_stripping_v2_msg)(struct ice_vf *vf, u8 *msg);
+	int (*dis_vlan_stripping_v2_msg)(struct ice_vf *vf, u8 *msg);
+	int (*ena_vlan_insertion_v2_msg)(struct ice_vf *vf, u8 *msg);
+	int (*dis_vlan_insertion_v2_msg)(struct ice_vf *vf, u8 *msg);
 };
 
 /* VF information structure */
@@ -121,6 +128,7 @@ struct ice_vf {
 	DECLARE_BITMAP(txq_ena, ICE_MAX_RSS_QS_PER_VF);
 	DECLARE_BITMAP(rxq_ena, ICE_MAX_RSS_QS_PER_VF);
 	struct ice_vlan port_vlan_info;	/* Port VLAN ID, QoS, and TPID */
+	struct virtchnl_vlan_caps vlan_v2_caps;
 	u8 pf_set_mac:1;		/* VF MAC address set by VMM admin */
 	u8 trusted:1;
 	u8 spoofchk:1;

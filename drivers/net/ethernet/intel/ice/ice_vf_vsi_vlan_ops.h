@@ -8,6 +8,9 @@
 
 struct ice_vsi;
 
+void ice_vf_vsi_cfg_dvm_legacy_vlan_mode(struct ice_vsi *vsi);
+void ice_vf_vsi_cfg_svm_legacy_vlan_mode(struct ice_vsi *vsi);
+
 #ifdef CONFIG_PCI_IOV
 void ice_vf_vsi_init_vlan_ops(struct ice_vsi *vsi);
 #else
