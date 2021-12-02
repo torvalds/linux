@@ -943,7 +943,7 @@ int wcn36xx_smd_update_channel_list(struct wcn36xx *wcn, struct cfg80211_scan_re
 
 	INIT_HAL_MSG((*msg_body), WCN36XX_HAL_UPDATE_CHANNEL_LIST_REQ);
 
-	msg_body->num_channel = min_t(u8, req->n_channels, sizeof(msg_body->channels));
+	msg_body->num_channel = min_t(u8, req->n_channels, ARRAY_SIZE(msg_body->channels));
 	for (i = 0; i < msg_body->num_channel; i++) {
 		struct wcn36xx_hal_channel_param *param = &msg_body->channels[i];
 		u32 min_power = WCN36XX_HAL_DEFAULT_MIN_POWER;
