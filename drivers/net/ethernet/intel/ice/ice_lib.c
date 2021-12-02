@@ -839,11 +839,12 @@ static void ice_vsi_set_rss_params(struct ice_vsi *vsi)
 
 /**
  * ice_set_dflt_vsi_ctx - Set default VSI context before adding a VSI
+ * @hw: HW structure used to determine the VLAN mode of the device
  * @ctxt: the VSI context being set
  *
  * This initializes a default VSI context for all sections except the Queues.
  */
-static void ice_set_dflt_vsi_ctx(struct ice_vsi_ctx *ctxt)
+static void ice_set_dflt_vsi_ctx(struct ice_hw *hw, struct ice_vsi_ctx *ctxt)
 {
 	u32 table = 0;
 
@@ -854,13 +855,27 @@ static void ice_set_dflt_vsi_ctx(struct ice_vsi_ctx *ctxt)
 	ctxt->info.sw_flags = ICE_AQ_VSI_SW_FLAG_SRC_PRUNE;
 	/* Traffic from VSI can be sent to LAN */
 	ctxt->info.sw_flags2 = ICE_AQ_VSI_SW_FLAG_LAN_ENA;
-	/* By default bits 3 and 4 in inner_vlan_flags are 0's which results in legacy
-	 * behavior (show VLAN, DEI, and UP) in descriptor. Also, allow all
-	 * packets untagged/tagged.
-	 */
+	/* allow all untagged/tagged packets by default on Tx */
 	ctxt->info.inner_vlan_flags = ((ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL &
 				  ICE_AQ_VSI_INNER_VLAN_TX_MODE_M) >>
 				 ICE_AQ_VSI_INNER_VLAN_TX_MODE_S);
+	/* SVM - by default bits 3 and 4 in inner_vlan_flags are 0's which
+	 * results in legacy behavior (show VLAN, DEI, and UP) in descriptor.
+	 *
+	 * DVM - leave inner VLAN in packet by default
+	 */
+	if (ice_is_dvm_ena(hw)) {
+		ctxt->info.inner_vlan_flags |=
+			ICE_AQ_VSI_INNER_VLAN_EMODE_NOTHING;
+		ctxt->info.outer_vlan_flags =
+			(ICE_AQ_VSI_OUTER_VLAN_TX_MODE_ALL <<
+			 ICE_AQ_VSI_OUTER_VLAN_TX_MODE_S) &
+			ICE_AQ_VSI_OUTER_VLAN_TX_MODE_M;
+		ctxt->info.outer_vlan_flags |=
+			(ICE_AQ_VSI_OUTER_TAG_VLAN_8100 <<
+			 ICE_AQ_VSI_OUTER_TAG_TYPE_S) &
+			ICE_AQ_VSI_OUTER_TAG_TYPE_M;
+	}
 	/* Have 1:1 UP mapping for both ingress/egress tables */
 	table |= ICE_UP_TABLE_TRANSLATE(0, 0);
 	table |= ICE_UP_TABLE_TRANSLATE(1, 1);
@@ -1137,7 +1152,7 @@ static int ice_vsi_init(struct ice_vsi *vsi, bool init_vsi)
 				~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
 	}
 
-	ice_set_dflt_vsi_ctx(ctxt);
+	ice_set_dflt_vsi_ctx(hw, ctxt);
 	if (test_bit(ICE_FLAG_FD_ENA, pf->flags))
 		ice_set_fd_vsi_ctx(ctxt, vsi);
 	/* if the switch is in VEB mode, allow VSI loopback */
