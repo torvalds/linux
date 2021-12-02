@@ -322,6 +322,7 @@ struct rockchip_crtc_funcs {
 					   int output_type);
 	void (*crtc_close)(struct drm_crtc *crtc);
 	void (*crtc_send_mcu_cmd)(struct drm_crtc *crtc, u32 type, u32 value);
+	void (*te_handler)(struct drm_crtc *crtc);
 };
 
 struct rockchip_dclk_pll {
@@ -400,6 +401,7 @@ void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
 void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node);
 int rockchip_drm_add_modes_noedid(struct drm_connector *connector);
+void rockchip_drm_te_handle(struct drm_crtc *crtc);
 void drm_mode_convert_to_split_mode(struct drm_display_mode *mode);
 void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode);
 #if IS_ENABLED(CONFIG_DRM_ROCKCHIP)

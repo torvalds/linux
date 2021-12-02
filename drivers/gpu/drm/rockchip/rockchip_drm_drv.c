@@ -222,6 +222,16 @@ int rockchip_drm_get_sub_dev_type(void)
 }
 EXPORT_SYMBOL(rockchip_drm_get_sub_dev_type);
 
+void rockchip_drm_te_handle(struct drm_crtc *crtc)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (priv->crtc_funcs[pipe] && priv->crtc_funcs[pipe]->te_handler)
+		priv->crtc_funcs[pipe]->te_handler(crtc);
+}
+EXPORT_SYMBOL(rockchip_drm_te_handle);
+
 static const struct drm_display_mode rockchip_drm_default_modes[] = {
 	/* 4 - 1280x720@60Hz 16:9 */
 	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 1390,
