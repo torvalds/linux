@@ -5,6 +5,7 @@
 #define _ICE_LIB_H_
 
 #include "ice.h"
+#include "ice_vlan.h"
 
 const char *ice_vsi_type_str(enum ice_vsi_type vsi_type);
 

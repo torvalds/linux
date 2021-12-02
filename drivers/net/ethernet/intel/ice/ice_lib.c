@@ -3921,7 +3921,10 @@ int ice_set_link(struct ice_vsi *vsi, bool ena)
  */
 int ice_vsi_add_vlan_zero(struct ice_vsi *vsi)
 {
-	return vsi->vlan_ops.add_vlan(vsi, 0, ICE_FWD_TO_VSI);
+	struct ice_vlan vlan;
+
+	vlan = ICE_VLAN(0, 0);
+	return vsi->vlan_ops.add_vlan(vsi, &vlan);
 }
 
 /**

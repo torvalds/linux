@@ -3413,6 +3413,7 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
+	struct ice_vlan vlan;
 	int ret;
 
 	/* VLAN 0 is added by default during load/reset */
@@ -3429,7 +3430,8 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 	/* Add a switch rule for this VLAN ID so its corresponding VLAN tagged
 	 * packets aren't pruned by the device's internal switch on Rx
 	 */
-	ret = vsi->vlan_ops.add_vlan(vsi, vid, ICE_FWD_TO_VSI);
+	vlan = ICE_VLAN(vid, 0);
+	ret = vsi->vlan_ops.add_vlan(vsi, &vlan);
 	if (!ret)
 		set_bit(ICE_VSI_VLAN_FLTR_CHANGED, vsi->state);
 
@@ -3450,6 +3452,7 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
+	struct ice_vlan vlan;
 	int ret;
 
 	/* don't allow removal of VLAN 0 */
@@ -3459,7 +3462,8 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 	/* Make sure VLAN delete is successful before updating VLAN
 	 * information
 	 */
-	ret = vsi->vlan_ops.del_vlan(vsi, vid);
+	vlan = ICE_VLAN(vid, 0);
+	ret = vsi->vlan_ops.del_vlan(vsi, &vlan);
 	if (ret)
 		return ret;
 

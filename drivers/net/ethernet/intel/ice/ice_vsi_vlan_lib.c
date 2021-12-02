@@ -9,20 +9,18 @@
 /**
  * ice_vsi_add_vlan - default add VLAN implementation for all VSI types
  * @vsi: VSI being configured
- * @vid: VLAN ID to be added
- * @action: filter action to be performed on match
+ * @vlan: VLAN filter to add
  */
-int
-ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid, enum ice_sw_fwd_act_type action)
+int ice_vsi_add_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 {
 	int err = 0;
 
-	if (!ice_fltr_add_vlan(vsi, vid, action)) {
+	if (!ice_fltr_add_vlan(vsi, vlan)) {
 		vsi->num_vlan++;
 	} else {
 		err = -ENODEV;
 		dev_err(ice_pf_to_dev(vsi->back), "Failure Adding VLAN %d on VSI %i\n",
-			vid, vsi->vsi_num);
+			vlan->vid, vsi->vsi_num);
 	}
 
 	return err;
@@ -31,9 +29,9 @@ ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid, enum ice_sw_fwd_act_type action)
 /**
  * ice_vsi_del_vlan - default del VLAN implementation for all VSI types
  * @vsi: VSI being configured
- * @vid: VLAN ID to be removed
+ * @vlan: VLAN filter to delete
  */
-int ice_vsi_del_vlan(struct ice_vsi *vsi, u16 vid)
+int ice_vsi_del_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 {
 	struct ice_pf *pf = vsi->back;
 	struct device *dev;
@@ -41,16 +39,16 @@ int ice_vsi_del_vlan(struct ice_vsi *vsi, u16 vid)
 
 	dev = ice_pf_to_dev(pf);
 
-	err = ice_fltr_remove_vlan(vsi, vid, ICE_FWD_TO_VSI);
+	err = ice_fltr_remove_vlan(vsi, vlan);
 	if (!err) {
 		vsi->num_vlan--;
 	} else if (err == -ENOENT) {
 		dev_dbg(dev, "Failed to remove VLAN %d on VSI %i, it does not exist\n",
-			vid, vsi->vsi_num);
+			vlan->vid, vsi->vsi_num);
 		err = 0;
 	} else {
 		dev_err(dev, "Error removing VLAN %d on VSI %i error: %d\n",
-			vid, vsi->vsi_num, err);
+			vlan->vid, vsi->vsi_num, err);
 	}
 
 	return err;
@@ -214,9 +212,16 @@ out:
 	return ret;
 }
 
-int ice_vsi_set_port_vlan(struct ice_vsi *vsi, u16 pvid_info)
+int ice_vsi_set_port_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 {
-	return ice_vsi_manage_pvid(vsi, pvid_info, true);
+	u16 port_vlan_info;
+
+	if (vlan->prio > 7)
+		return -EINVAL;
+
+	port_vlan_info = vlan->vid | (vlan->prio << VLAN_PRIO_SHIFT);
+
+	return ice_vsi_manage_pvid(vsi, port_vlan_info, true);
 }
 
 /**

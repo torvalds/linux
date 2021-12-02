@@ -760,24 +760,25 @@ static int ice_vf_rebuild_host_tx_rate_cfg(struct ice_vf *vf)
  */
 static int ice_vf_rebuild_host_vlan_cfg(struct ice_vf *vf)
 {
+	u8 vlan_prio = (vf->port_vlan_info & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+	u16 vlan_id = vf->port_vlan_info & VLAN_VID_MASK;
 	struct device *dev = ice_pf_to_dev(vf->pf);
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
-	u16 vlan_id = 0;
+	struct ice_vlan vlan;
 	int err;
 
+	vlan = ICE_VLAN(vlan_id, vlan_prio);
 	if (vf->port_vlan_info) {
-		err = vsi->vlan_ops.set_port_vlan(vsi, vf->port_vlan_info);
+		err = vsi->vlan_ops.set_port_vlan(vsi, &vlan);
 		if (err) {
 			dev_err(dev, "failed to configure port VLAN via VSI parameters for VF %u, error %d\n",
 				vf->vf_id, err);
 			return err;
 		}
-
-		vlan_id = vf->port_vlan_info & VLAN_VID_MASK;
 	}
 
 	/* vlan_id will either be 0 or the port VLAN number */
-	err = vsi->vlan_ops.add_vlan(vsi, vlan_id, ICE_FWD_TO_VSI);
+	err = vsi->vlan_ops.add_vlan(vsi, &vlan);
 	if (err) {
 		dev_err(dev, "failed to add %s VLAN %u filter for VF %u, error %d\n",
 			vf->port_vlan_info ? "port" : "", vlan_id, vf->vf_id,
@@ -4232,6 +4233,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 	if (add_v) {
 		for (i = 0; i < vfl->num_elements; i++) {
 			u16 vid = vfl->vlan_id[i];
+			struct ice_vlan vlan;
 
 			if (!ice_is_vf_trusted(vf) &&
 			    vsi->num_vlan >= ICE_MAX_VLAN_PER_VF) {
@@ -4251,7 +4253,8 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			if (!vid)
 				continue;
 
-			status = vsi->vlan_ops.add_vlan(vsi, vid, ICE_FWD_TO_VSI);
+			vlan = ICE_VLAN(vid, 0);
+			status = vsi->vlan_ops.add_vlan(vsi, &vlan);
 			if (status) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				goto error_param;
@@ -4294,6 +4297,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 		num_vf_vlan = vsi->num_vlan;
 		for (i = 0; i < vfl->num_elements && i < num_vf_vlan; i++) {
 			u16 vid = vfl->vlan_id[i];
+			struct ice_vlan vlan;
 
 			/* we add VLAN 0 by default for each VF so we can enable
 			 * Tx VLAN anti-spoof without triggering MDD events so
@@ -4302,7 +4306,8 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			if (!vid)
 				continue;
 
-			status = vsi->vlan_ops.del_vlan(vsi, vid);
+			vlan = ICE_VLAN(vid, 0);
+			status = vsi->vlan_ops.del_vlan(vsi, &vlan);
 			if (status) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				goto error_param;

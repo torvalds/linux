@@ -5,19 +5,18 @@
 #define _ICE_VSI_VLAN_LIB_H_
 
 #include <linux/types.h>
-#include "ice_type.h"
+#include "ice_vlan.h"
 
 struct ice_vsi;
 
-int
-ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid, enum ice_sw_fwd_act_type action);
-int ice_vsi_del_vlan(struct ice_vsi *vsi, u16 vid);
+int ice_vsi_add_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan);
+int ice_vsi_del_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan);
 
 int ice_vsi_ena_stripping(struct ice_vsi *vsi);
 int ice_vsi_dis_stripping(struct ice_vsi *vsi);
 int ice_vsi_ena_insertion(struct ice_vsi *vsi);
 int ice_vsi_dis_insertion(struct ice_vsi *vsi);
-int ice_vsi_set_port_vlan(struct ice_vsi *vsi, u16 pvid_info);
+int ice_vsi_set_port_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan);
 
 int ice_vsi_ena_rx_vlan_filtering(struct ice_vsi *vsi);
 int ice_vsi_dis_rx_vlan_filtering(struct ice_vsi *vsi);
