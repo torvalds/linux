@@ -96,7 +96,7 @@ static int aw8601_write_reg(struct i2c_client *client, u8 reg,
 	while (val_i < 4)
 		buf[buf_i++] = val_p[val_i++];
 
-	if (i2c_master_send(client, buf, len + 2) != len + 2) {
+	if (i2c_master_send(client, buf, len + 1) != len + 1) {
 		dev_err(&client->dev, "Failed to write 0x%04x,0x%x\n", reg, val);
 		return -EIO;
 	}
@@ -468,12 +468,17 @@ static long aw8601_compat_ioctl32(struct v4l2_subdev *sd,
 			&p32->vcm_end_t.tv_usec);
 	} else if (cmd == RK_VIDIOC_GET_VCM_CFG) {
 		ret = aw8601_ioctl(sd, RK_VIDIOC_GET_VCM_CFG, &vcm_cfg);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, &vcm_cfg, sizeof(vcm_cfg));
+			if (ret)
+				ret = -EFAULT;
+		}
 	} else if (cmd == RK_VIDIOC_SET_VCM_CFG) {
 		ret = copy_from_user(&vcm_cfg, up, sizeof(vcm_cfg));
 		if (!ret)
 			ret = aw8601_ioctl(sd, cmd, &vcm_cfg);
+		else
+			ret = -EFAULT;
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
