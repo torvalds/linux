@@ -1179,21 +1179,16 @@ void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
 		goto offload_rule_0;
 
-	if (flow_flag_test(flow, CT)) {
-		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
-		return;
-	}
-
-	if (flow_flag_test(flow, SAMPLE)) {
-		mlx5e_tc_sample_unoffload(get_sample_priv(flow->priv), flow->rule[0], attr);
-		return;
-	}
-
 	if (attr->esw_attr->split_count)
 		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 
+	if (flow_flag_test(flow, CT))
+		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
+	else if (flow_flag_test(flow, SAMPLE))
+		mlx5e_tc_sample_unoffload(get_sample_priv(flow->priv), flow->rule[0], attr);
+	else
 offload_rule_0:
-	mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
+		mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
 }
 
 struct mlx5_flow_handle *
