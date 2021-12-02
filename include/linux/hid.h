@@ -923,6 +923,16 @@ s32 hid_snto32(__u32 value, unsigned n);
 __u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
 		     unsigned offset, unsigned n);
 
+#ifdef CONFIG_PM
+int hid_driver_suspend(struct hid_device *hdev, pm_message_t state);
+int hid_driver_reset_resume(struct hid_device *hdev);
+int hid_driver_resume(struct hid_device *hdev);
+#else
+static inline int hid_driver_suspend(struct hid_device *hdev, pm_message_t state) { return 0; }
+static inline int hid_driver_reset_resume(struct hid_device *hdev) { return 0; }
+static inline int hid_driver_resume(struct hid_device *hdev) { return 0; }
+#endif
+
 /**
  * hid_device_io_start - enable HID input during probe, remove
  *

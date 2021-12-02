@@ -2126,6 +2126,35 @@ void hid_hw_close(struct hid_device *hdev)
 }
 EXPORT_SYMBOL_GPL(hid_hw_close);
 
+#ifdef CONFIG_PM
+int hid_driver_suspend(struct hid_device *hdev, pm_message_t state)
+{
+	if (hdev->driver && hdev->driver->suspend)
+		return hdev->driver->suspend(hdev, state);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hid_driver_suspend);
+
+int hid_driver_reset_resume(struct hid_device *hdev)
+{
+	if (hdev->driver && hdev->driver->reset_resume)
+		return hdev->driver->reset_resume(hdev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hid_driver_reset_resume);
+
+int hid_driver_resume(struct hid_device *hdev)
+{
+	if (hdev->driver && hdev->driver->resume)
+		return hdev->driver->resume(hdev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hid_driver_resume);
+#endif /* CONFIG_PM */
+
 struct hid_dynid {
 	struct list_head list;
 	struct hid_device_id id;
