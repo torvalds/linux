@@ -364,7 +364,7 @@ static void test_split_dup_struct_in_cu()
 			"\t'f2' type_id=1 bits_offset=32");
 
 	/* ..dedup them... */
-	err = btf__dedup(btf1, NULL, NULL);
+	err = btf__dedup(btf1, NULL);
 	if (!ASSERT_OK(err, "btf_dedup"))
 		goto cleanup;
 
@@ -405,7 +405,7 @@ static void test_split_dup_struct_in_cu()
 			"\t'f1' type_id=4 bits_offset=0\n"
 			"\t'f2' type_id=4 bits_offset=32");
 
-	err = btf__dedup(btf2, NULL, NULL);
+	err = btf__dedup(btf2, NULL);
 	if (!ASSERT_OK(err, "btf_dedup"))
 		goto cleanup;
 

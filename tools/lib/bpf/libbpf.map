@@ -419,3 +419,9 @@ LIBBPF_0.6.0 {
 		perf_buffer__new_raw;
 		perf_buffer__new_raw_deprecated;
 } LIBBPF_0.5.0;
+
+LIBBPF_0.7.0 {
+	global:
+		bpf_program__log_level;
+		bpf_program__set_log_level;
+};

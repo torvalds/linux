@@ -16,13 +16,6 @@
 #include <uapi/linux/in.h>
 #include <bpf/bpf_helpers.h>
 
-# define printk(fmt, ...)						\
-		({							\
-			char ____fmt[] = fmt;				\
-			bpf_trace_printk(____fmt, sizeof(____fmt),	\
-				     ##__VA_ARGS__);			\
-		})
-
 struct bpf_elf_map {
 	__u32 type;
 	__u32 size_key;
