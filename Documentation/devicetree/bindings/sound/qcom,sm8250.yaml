@@ -27,6 +27,12 @@ properties:
       being the connection's source. Valid names could be power supplies,
       MicBias of codec and the jacks on the board.
 
+  aux-devs:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      List of phandles pointing to auxiliary devices, such
+      as amplifiers, to be added to the sound card.
+
   model:
     $ref: /schemas/types.yaml#/definitions/string
     description: User visible long sound card name
