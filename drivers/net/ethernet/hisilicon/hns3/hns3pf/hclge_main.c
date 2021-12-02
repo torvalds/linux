@@ -12347,19 +12347,42 @@ static void hclge_get_tqps_and_rss_info(struct hnae3_handle *handle,
 	*max_rss_size = hdev->pf_rss_size_max;
 }
 
+static int hclge_set_rss_tc_mode_cfg(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	u16 tc_offset[HCLGE_MAX_TC_NUM] = {0};
+	struct hclge_dev *hdev = vport->back;
+	u16 tc_size[HCLGE_MAX_TC_NUM] = {0};
+	u16 tc_valid[HCLGE_MAX_TC_NUM];
+	u16 roundup_size;
+	unsigned int i;
+
+	roundup_size = roundup_pow_of_two(vport->nic.kinfo.rss_size);
+	roundup_size = ilog2(roundup_size);
+	/* Set the RSS TC mode according to the new RSS size */
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
+		tc_valid[i] = 0;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		tc_valid[i] = 1;
+		tc_size[i] = roundup_size;
+		tc_offset[i] = vport->nic.kinfo.rss_size * i;
+	}
+
+	return hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
+}
+
 static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 			      bool rxfh_configured)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
-	u16 tc_offset[HCLGE_MAX_TC_NUM] = {0};
 	struct hclge_dev *hdev = vport->back;
-	u16 tc_size[HCLGE_MAX_TC_NUM] = {0};
 	u16 cur_rss_size = kinfo->rss_size;
 	u16 cur_tqps = kinfo->num_tqps;
-	u16 tc_valid[HCLGE_MAX_TC_NUM];
-	u16 roundup_size;
 	u32 *rss_indir;
 	unsigned int i;
 	int ret;
@@ -12372,20 +12395,7 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 		return ret;
 	}
 
-	roundup_size = roundup_pow_of_two(kinfo->rss_size);
-	roundup_size = ilog2(roundup_size);
-	/* Set the RSS TC mode according to the new RSS size */
-	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		tc_valid[i] = 0;
-
-		if (!(hdev->hw_tc_map & BIT(i)))
-			continue;
-
-		tc_valid[i] = 1;
-		tc_size[i] = roundup_size;
-		tc_offset[i] = kinfo->rss_size * i;
-	}
-	ret = hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
+	ret = hclge_set_rss_tc_mode_cfg(handle);
 	if (ret)
 		return ret;
 
