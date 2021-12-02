@@ -85,19 +85,13 @@ void __init poking_init(void)
 static int map_patch_area(void *addr, unsigned long text_poke_addr)
 {
 	unsigned long pfn;
-	int err;
 
 	if (is_vmalloc_or_module_addr(addr))
 		pfn = vmalloc_to_pfn(addr);
 	else
 		pfn = __pa_symbol(addr) >> PAGE_SHIFT;
 
-	err = map_kernel_page(text_poke_addr, (pfn << PAGE_SHIFT), PAGE_KERNEL);
-
-	if (err)
-		return -1;
-
-	return 0;
+	return map_kernel_page(text_poke_addr, (pfn << PAGE_SHIFT), PAGE_KERNEL);
 }
 
 static inline int unmap_patch_area(unsigned long addr)
@@ -156,10 +150,9 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	local_irq_save(flags);
 
 	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr;
-	if (map_patch_area(addr, text_poke_addr)) {
-		err = -1;
+	err = map_patch_area(addr, text_poke_addr);
+	if (err)
 		goto out;
-	}
 
 	patch_addr = (u32 *)(text_poke_addr + (kaddr & ~PAGE_MASK));
 
