@@ -24,6 +24,7 @@ struct cifs_server_key {
 		struct in_addr	ipv4_addr;
 		struct in6_addr	ipv6_addr;
 	};
+	__u64 conn_id;
 } __packed;
 
 /*
@@ -36,6 +37,14 @@ void cifs_fscache_get_client_cookie(struct TCP_Server_Info *server)
 	const struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) sa;
 	struct cifs_server_key key;
 	uint16_t key_len = sizeof(key.hdr);
+
+	/*
+	 * Check if cookie was already initialized so don't reinitialize it.
+	 * In the future, as we integrate with newer fscache features,
+	 * we may want to instead add a check if cookie has changed
+	 */
+	if (server->fscache)
+		return;
 
 	memset(&key, 0, sizeof(key));
 
@@ -62,6 +71,7 @@ void cifs_fscache_get_client_cookie(struct TCP_Server_Info *server)
 		server->fscache = NULL;
 		return;
 	}
+	key.conn_id = server->conn_id;
 
 	server->fscache =
 		fscache_acquire_cookie(cifs_fscache_netfs.primary_index,

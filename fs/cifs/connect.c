@@ -1562,6 +1562,10 @@ smbd_connected:
 	/* fscache server cookies are based on primary channel only */
 	if (!CIFS_SERVER_IS_CHAN(tcp_ses))
 		cifs_fscache_get_client_cookie(tcp_ses);
+#ifdef CONFIG_CIFS_FSCACHE
+	else
+		tcp_ses->fscache = tcp_ses->primary_server->fscache;
+#endif /* CONFIG_CIFS_FSCACHE */
 
 	/* queue echo request delayed work */
 	queue_delayed_work(cifsiod_wq, &tcp_ses->echo, tcp_ses->echo_interval);
