@@ -161,7 +161,6 @@ void free_rtllib(struct net_device *dev)
 				      netdev_priv_rsl(dev);
 
 	kfree(ieee->pHTInfo);
-	ieee->pHTInfo = NULL;
 	rtllib_softmac_free(ieee);
 
 	lib80211_crypt_info_free(&ieee->crypt_info);
