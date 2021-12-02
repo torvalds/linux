@@ -23,4 +23,10 @@ int ice_vsi_dis_rx_vlan_filtering(struct ice_vsi *vsi);
 int ice_vsi_ena_tx_vlan_filtering(struct ice_vsi *vsi);
 int ice_vsi_dis_tx_vlan_filtering(struct ice_vsi *vsi);
 
+int ice_vsi_ena_outer_stripping(struct ice_vsi *vsi, u16 tpid);
+int ice_vsi_dis_outer_stripping(struct ice_vsi *vsi);
+int ice_vsi_ena_outer_insertion(struct ice_vsi *vsi, u16 tpid);
+int ice_vsi_dis_outer_insertion(struct ice_vsi *vsi);
+int ice_vsi_set_outer_port_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan);
+
 #endif /* _ICE_VSI_VLAN_LIB_H_ */

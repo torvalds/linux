@@ -10,6 +10,7 @@
 #include "ice_eswitch.h"
 #include "ice_virtchnl_allowlist.h"
 #include "ice_flex_pipe.h"
+#include "ice_vf_vsi_vlan_ops.h"
 
 #define FIELD_SELECTOR(proto_hdr_field) \
 		BIT((proto_hdr_field) & PROTO_HDR_FIELD_MASK)
@@ -761,7 +762,7 @@ static u8 ice_vf_get_port_vlan_prio(struct ice_vf *vf)
 	return vf->port_vlan_info.prio;
 }
 
-static bool ice_vf_is_port_vlan_ena(struct ice_vf *vf)
+bool ice_vf_is_port_vlan_ena(struct ice_vf *vf)
 {
 	return (ice_vf_get_port_vlan_id(vf) || ice_vf_get_port_vlan_prio(vf));
 }
@@ -769,26 +770,30 @@ static bool ice_vf_is_port_vlan_ena(struct ice_vf *vf)
 /**
  * ice_vf_rebuild_host_vlan_cfg - add VLAN 0 filter or rebuild the Port VLAN
  * @vf: VF to add MAC filters for
+ * @vsi: Pointer to VSI
  *
  * Called after a VF VSI has been re-added/rebuilt during reset. The PF driver
  * always re-adds either a VLAN 0 or port VLAN based filter after reset.
  */
-static int ice_vf_rebuild_host_vlan_cfg(struct ice_vf *vf)
+static int ice_vf_rebuild_host_vlan_cfg(struct ice_vf *vf, struct ice_vsi *vsi)
 {
+	struct ice_vsi_vlan_ops *vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
 	struct device *dev = ice_pf_to_dev(vf->pf);
-	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
 	int err;
 
 	if (ice_vf_is_port_vlan_ena(vf)) {
-		err = vsi->vlan_ops.set_port_vlan(vsi, &vf->port_vlan_info);
+		err = vlan_ops->set_port_vlan(vsi, &vf->port_vlan_info);
 		if (err) {
 			dev_err(dev, "failed to configure port VLAN via VSI parameters for VF %u, error %d\n",
 				vf->vf_id, err);
 			return err;
 		}
+
+		err = vlan_ops->add_vlan(vsi, &vf->port_vlan_info);
+	} else {
+		err = ice_vsi_add_vlan_zero(vsi);
 	}
 
-	err = vsi->vlan_ops.add_vlan(vsi, &vf->port_vlan_info);
 	if (err) {
 		dev_err(dev, "failed to add VLAN %u filter for VF %u during VF rebuild, error %d\n",
 			ice_vf_is_port_vlan_ena(vf) ?
@@ -834,9 +839,12 @@ static int ice_cfg_mac_antispoof(struct ice_vsi *vsi, bool enable)
  */
 static int ice_vsi_ena_spoofchk(struct ice_vsi *vsi)
 {
+	struct ice_vsi_vlan_ops *vlan_ops;
 	int err;
 
-	err = vsi->vlan_ops.ena_tx_filtering(vsi);
+	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
+
+	err = vlan_ops->ena_tx_filtering(vsi);
 	if (err)
 		return err;
 
@@ -849,9 +857,12 @@ static int ice_vsi_ena_spoofchk(struct ice_vsi *vsi)
  */
 static int ice_vsi_dis_spoofchk(struct ice_vsi *vsi)
 {
+	struct ice_vsi_vlan_ops *vlan_ops;
 	int err;
 
-	err = vsi->vlan_ops.dis_tx_filtering(vsi);
+	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
+
+	err = vlan_ops->dis_tx_filtering(vsi);
 	if (err)
 		return err;
 
@@ -1269,7 +1280,7 @@ ice_vf_set_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 	if (ice_vf_is_port_vlan_ena(vf))
 		status = ice_fltr_set_vsi_promisc(hw, vsi->idx, promisc_m,
 						  ice_vf_get_port_vlan_id(vf));
-	else if (vsi->num_vlan > 1)
+	else if (ice_vsi_has_non_zero_vlans(vsi))
 		status = ice_fltr_set_vlan_vsi_promisc(hw, vsi, promisc_m);
 	else
 		status = ice_fltr_set_vsi_promisc(hw, vsi->idx, promisc_m, 0);
@@ -1292,7 +1303,7 @@ ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
 	if (ice_vf_is_port_vlan_ena(vf))
 		status = ice_fltr_clear_vsi_promisc(hw, vsi->idx, promisc_m,
 						    ice_vf_get_port_vlan_id(vf));
-	else if (vsi->num_vlan > 1)
+	else if (ice_vsi_has_non_zero_vlans(vsi))
 		status = ice_fltr_clear_vlan_vsi_promisc(hw, vsi, promisc_m);
 	else
 		status = ice_fltr_clear_vsi_promisc(hw, vsi->idx, promisc_m, 0);
@@ -1377,7 +1388,7 @@ static void ice_vf_rebuild_host_cfg(struct ice_vf *vf)
 		dev_err(dev, "failed to rebuild default MAC configuration for VF %d\n",
 			vf->vf_id);
 
-	if (ice_vf_rebuild_host_vlan_cfg(vf))
+	if (ice_vf_rebuild_host_vlan_cfg(vf, vsi))
 		dev_err(dev, "failed to rebuild VLAN configuration for VF %u\n",
 			vf->vf_id);
 
@@ -3023,6 +3034,7 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 	bool rm_promisc, alluni = false, allmulti = false;
 	struct virtchnl_promisc_info *info =
 	    (struct virtchnl_promisc_info *)msg;
+	struct ice_vsi_vlan_ops *vlan_ops;
 	int mcast_err = 0, ucast_err = 0;
 	struct ice_pf *pf = vf->pf;
 	struct ice_vsi *vsi;
@@ -3061,16 +3073,15 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 
 	rm_promisc = !allmulti && !alluni;
 
-	if (vsi->num_vlan || ice_vf_is_port_vlan_ena(vf)) {
-		if (rm_promisc)
-			ret = vsi->vlan_ops.ena_rx_filtering(vsi);
-		else
-			ret = vsi->vlan_ops.dis_rx_filtering(vsi);
-		if (ret) {
-			dev_err(dev, "Failed to configure VLAN pruning in promiscuous mode\n");
-			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
-			goto error_param;
-		}
+	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
+	if (rm_promisc)
+		ret = vlan_ops->ena_rx_filtering(vsi);
+	else
+		ret = vlan_ops->dis_rx_filtering(vsi);
+	if (ret) {
+		dev_err(dev, "Failed to configure VLAN pruning in promiscuous mode\n");
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		goto error_param;
 	}
 
 	if (!test_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, pf->flags)) {
@@ -3097,7 +3108,8 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 	} else {
 		u8 mcast_m, ucast_m;
 
-		if (ice_vf_is_port_vlan_ena(vf) || vsi->num_vlan > 1) {
+		if (ice_vf_is_port_vlan_ena(vf) ||
+		    ice_vsi_has_non_zero_vlans(vsi)) {
 			mcast_m = ICE_MCAST_VLAN_PROMISC_BITS;
 			ucast_m = ICE_UCAST_VLAN_PROMISC_BITS;
 		} else {
@@ -4165,6 +4177,27 @@ static bool ice_vf_vlan_offload_ena(u32 caps)
 }
 
 /**
+ * ice_vf_has_max_vlans - check if VF already has the max allowed VLAN filters
+ * @vf: VF to check against
+ * @vsi: VF's VSI
+ *
+ * If the VF is trusted then the VF is allowed to add as many VLANs as it
+ * wants to, so return false.
+ *
+ * When the VF is untrusted compare the number of non-zero VLANs + 1 to the max
+ * allowed VLANs for an untrusted VF. Return the result of this comparison.
+ */
+static bool ice_vf_has_max_vlans(struct ice_vf *vf, struct ice_vsi *vsi)
+{
+	if (ice_is_vf_trusted(vf))
+		return false;
+
+#define ICE_VF_ADDED_VLAN_ZERO_FLTRS	1
+	return ((ice_vsi_num_non_zero_vlans(vsi) +
+		ICE_VF_ADDED_VLAN_ZERO_FLTRS) >= ICE_MAX_VLAN_PER_VF);
+}
+
+/**
  * ice_vc_process_vlan_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
@@ -4177,6 +4210,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_vlan_filter_list *vfl =
 	    (struct virtchnl_vlan_filter_list *)msg;
+	struct ice_vsi_vlan_ops *vlan_ops;
 	struct ice_pf *pf = vf->pf;
 	bool vlan_promisc = false;
 	struct ice_vsi *vsi;
@@ -4218,8 +4252,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 		goto error_param;
 	}
 
-	if (add_v && !ice_is_vf_trusted(vf) &&
-	    vsi->num_vlan >= ICE_MAX_VLAN_PER_VF) {
+	if (add_v && ice_vf_has_max_vlans(vf, vsi)) {
 		dev_info(dev, "VF-%d is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n",
 			 vf->vf_id);
 		/* There is no need to let VF know about being not trusted,
@@ -4238,13 +4271,13 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 	    test_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, pf->flags))
 		vlan_promisc = true;
 
+	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
 	if (add_v) {
 		for (i = 0; i < vfl->num_elements; i++) {
 			u16 vid = vfl->vlan_id[i];
 			struct ice_vlan vlan;
 
-			if (!ice_is_vf_trusted(vf) &&
-			    vsi->num_vlan >= ICE_MAX_VLAN_PER_VF) {
+			if (ice_vf_has_max_vlans(vf, vsi)) {
 				dev_info(dev, "VF-%d is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n",
 					 vf->vf_id);
 				/* There is no need to let VF know about being
@@ -4262,7 +4295,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 				continue;
 
 			vlan = ICE_VLAN(ETH_P_8021Q, vid, 0);
-			status = vsi->vlan_ops.add_vlan(vsi, &vlan);
+			status = vsi->inner_vlan_ops.add_vlan(vsi, &vlan);
 			if (status) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				goto error_param;
@@ -4271,7 +4304,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			/* Enable VLAN pruning when non-zero VLAN is added */
 			if (!vlan_promisc && vid &&
 			    !ice_vsi_is_vlan_pruning_ena(vsi)) {
-				status = vsi->vlan_ops.ena_rx_filtering(vsi);
+				status = vlan_ops->ena_rx_filtering(vsi);
 				if (status) {
 					v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 					dev_err(dev, "Enable VLAN pruning on VLAN ID: %d failed error-%d\n",
@@ -4315,16 +4348,16 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 				continue;
 
 			vlan = ICE_VLAN(ETH_P_8021Q, vid, 0);
-			status = vsi->vlan_ops.del_vlan(vsi, &vlan);
+			status = vsi->inner_vlan_ops.del_vlan(vsi, &vlan);
 			if (status) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				goto error_param;
 			}
 
 			/* Disable VLAN pruning when only VLAN 0 is left */
-			if (vsi->num_vlan == 1 &&
+			if (!ice_vsi_has_non_zero_vlans(vsi) &&
 			    ice_vsi_is_vlan_pruning_ena(vsi))
-				status = vsi->vlan_ops.dis_rx_filtering(vsi);
+				status = vlan_ops->dis_rx_filtering(vsi);
 
 			/* Disable Unicast/Multicast VLAN promiscuous mode */
 			if (vlan_promisc) {
@@ -4393,7 +4426,7 @@ static int ice_vc_ena_vlan_stripping(struct ice_vf *vf)
 	}
 
 	vsi = ice_get_vf_vsi(vf);
-	if (vsi->vlan_ops.ena_stripping(vsi, ETH_P_8021Q))
+	if (vsi->inner_vlan_ops.ena_stripping(vsi, ETH_P_8021Q))
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 
 error_param:
@@ -4428,7 +4461,7 @@ static int ice_vc_dis_vlan_stripping(struct ice_vf *vf)
 		goto error_param;
 	}
 
-	if (vsi->vlan_ops.dis_stripping(vsi))
+	if (vsi->inner_vlan_ops.dis_stripping(vsi))
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 
 error_param:
@@ -4458,9 +4491,9 @@ static int ice_vf_init_vlan_stripping(struct ice_vf *vf)
 		return 0;
 
 	if (ice_vf_vlan_offload_ena(vf->driver_caps))
-		return vsi->vlan_ops.ena_stripping(vsi, ETH_P_8021Q);
+		return vsi->inner_vlan_ops.ena_stripping(vsi, ETH_P_8021Q);
 	else
-		return vsi->vlan_ops.dis_stripping(vsi);
+		return vsi->inner_vlan_ops.dis_stripping(vsi);
 }
 
 static struct ice_vc_vf_ops ice_vc_vf_dflt_ops = {

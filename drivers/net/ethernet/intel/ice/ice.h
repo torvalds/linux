@@ -369,7 +369,8 @@ struct ice_vsi {
 	u8 irqs_ready:1;
 	u8 current_isup:1;		 /* Sync 'link up' logging */
 	u8 stat_offsets_loaded:1;
-	struct ice_vsi_vlan_ops vlan_ops;
+	struct ice_vsi_vlan_ops inner_vlan_ops;
+	struct ice_vsi_vlan_ops outer_vlan_ops;
 	u16 num_vlan;
 
 	/* queue information */

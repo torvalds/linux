@@ -8,6 +8,7 @@
 #include "ice_fltr.h"
 #include "ice_dcb_lib.h"
 #include "ice_devlink.h"
+#include "ice_vsi_vlan_ops.h"
 
 /**
  * ice_vsi_type_str - maps VSI type enum to string equivalents
@@ -2458,17 +2459,6 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		if (ret)
 			goto unroll_vector_base;
 
-		/* Always add VLAN ID 0 switch rule by default. This is needed
-		 * in order to allow all untagged and 0 tagged priority traffic
-		 * if Rx VLAN pruning is enabled. Also there are cases where we
-		 * don't get the call to add VLAN 0 via ice_vlan_rx_add_vid()
-		 * so this handles those cases (i.e. adding the PF to a bridge
-		 * without the 8021q module loaded).
-		 */
-		ret = ice_vsi_add_vlan_zero(vsi);
-		if (ret)
-			goto unroll_clear_rings;
-
 		ice_vsi_map_rings_to_vectors(vsi);
 
 		/* ICE_VSI_CTRL does not need RSS so skip RSS processing */
@@ -3918,13 +3908,110 @@ int ice_set_link(struct ice_vsi *vsi, bool ena)
 /**
  * ice_vsi_add_vlan_zero - add VLAN 0 filter(s) for this VSI
  * @vsi: VSI used to add VLAN filters
+ *
+ * In Single VLAN Mode (SVM), single VLAN filters via ICE_SW_LKUP_VLAN are based
+ * on the inner VLAN ID, so the VLAN TPID (i.e. 0x8100 or 0x888a8) doesn't
+ * matter. In Double VLAN Mode (DVM), outer/single VLAN filters via
+ * ICE_SW_LKUP_VLAN are based on the outer/single VLAN ID + VLAN TPID.
+ *
+ * For both modes add a VLAN 0 + no VLAN TPID filter to handle untagged traffic
+ * when VLAN pruning is enabled. Also, this handles VLAN 0 priority tagged
+ * traffic in SVM, since the VLAN TPID isn't part of filtering.
+ *
+ * If DVM is enabled then an explicit VLAN 0 + VLAN TPID filter needs to be
+ * added to allow VLAN 0 priority tagged traffic in DVM, since the VLAN TPID is
+ * part of filtering.
  */
 int ice_vsi_add_vlan_zero(struct ice_vsi *vsi)
 {
+	struct ice_vsi_vlan_ops *vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
 	struct ice_vlan vlan;
+	int err;
 
 	vlan = ICE_VLAN(0, 0, 0);
-	return vsi->vlan_ops.add_vlan(vsi, &vlan);
+	err = vlan_ops->add_vlan(vsi, &vlan);
+	if (err && err != -EEXIST)
+		return err;
+
+	/* in SVM both VLAN 0 filters are identical */
+	if (!ice_is_dvm_ena(&vsi->back->hw))
+		return 0;
+
+	vlan = ICE_VLAN(ETH_P_8021Q, 0, 0);
+	err = vlan_ops->add_vlan(vsi, &vlan);
+	if (err && err != -EEXIST)
+		return err;
+
+	return 0;
+}
+
+/**
+ * ice_vsi_del_vlan_zero - delete VLAN 0 filter(s) for this VSI
+ * @vsi: VSI used to add VLAN filters
+ *
+ * Delete the VLAN 0 filters in the same manner that they were added in
+ * ice_vsi_add_vlan_zero.
+ */
+int ice_vsi_del_vlan_zero(struct ice_vsi *vsi)
+{
+	struct ice_vsi_vlan_ops *vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
+	struct ice_vlan vlan;
+	int err;
+
+	vlan = ICE_VLAN(0, 0, 0);
+	err = vlan_ops->del_vlan(vsi, &vlan);
+	if (err && err != -EEXIST)
+		return err;
+
+	/* in SVM both VLAN 0 filters are identical */
+	if (!ice_is_dvm_ena(&vsi->back->hw))
+		return 0;
+
+	vlan = ICE_VLAN(ETH_P_8021Q, 0, 0);
+	err = vlan_ops->del_vlan(vsi, &vlan);
+	if (err && err != -EEXIST)
+		return err;
+
+	return 0;
+}
+
+/**
+ * ice_vsi_num_zero_vlans - get number of VLAN 0 filters based on VLAN mode
+ * @vsi: VSI used to get the VLAN mode
+ *
+ * If DVM is enabled then 2 VLAN 0 filters are added, else if SVM is enabled
+ * then 1 VLAN 0 filter is added. See ice_vsi_add_vlan_zero for more details.
+ */
+static u16 ice_vsi_num_zero_vlans(struct ice_vsi *vsi)
+{
+#define ICE_DVM_NUM_ZERO_VLAN_FLTRS	2
+#define ICE_SVM_NUM_ZERO_VLAN_FLTRS	1
+	/* no VLAN 0 filter is created when a port VLAN is active */
+	if (vsi->type == ICE_VSI_VF &&
+	    ice_vf_is_port_vlan_ena(&vsi->back->vf[vsi->vf_id]))
+		return 0;
+	if (ice_is_dvm_ena(&vsi->back->hw))
+		return ICE_DVM_NUM_ZERO_VLAN_FLTRS;
+	else
+		return ICE_SVM_NUM_ZERO_VLAN_FLTRS;
+}
+
+/**
+ * ice_vsi_has_non_zero_vlans - check if VSI has any non-zero VLANs
+ * @vsi: VSI used to determine if any non-zero VLANs have been added
+ */
+bool ice_vsi_has_non_zero_vlans(struct ice_vsi *vsi)
+{
+	return (vsi->num_vlan > ice_vsi_num_zero_vlans(vsi));
+}
+
+/**
+ * ice_vsi_num_non_zero_vlans - get the number of non-zero VLANs for this VSI
+ * @vsi: VSI used to get the number of non-zero VLANs added
+ */
+u16 ice_vsi_num_non_zero_vlans(struct ice_vsi *vsi)
+{
+	return (vsi->num_vlan - ice_vsi_num_zero_vlans(vsi));
 }
 
 /**
