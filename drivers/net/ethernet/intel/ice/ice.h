@@ -72,6 +72,7 @@
 #include "ice_repr.h"
 #include "ice_eswitch.h"
 #include "ice_lag.h"
+#include "ice_vsi_vlan_ops.h"
 
 #define ICE_BAR0		0
 #define ICE_REQ_DESC_MULTIPLE	32
@@ -368,6 +369,7 @@ struct ice_vsi {
 	u8 irqs_ready:1;
 	u8 current_isup:1;		 /* Sync 'link up' logging */
 	u8 stat_offsets_loaded:1;
+	struct ice_vsi_vlan_ops vlan_ops;
 	u16 num_vlan;
 
 	/* queue information */

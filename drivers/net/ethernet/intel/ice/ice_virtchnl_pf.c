@@ -643,55 +643,6 @@ static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr, bool is_pfr)
 }
 
 /**
- * ice_vsi_manage_pvid - Enable or disable port VLAN for VSI
- * @vsi: the VSI to update
- * @pvid_info: VLAN ID and QoS used to set the PVID VSI context field
- * @enable: true for enable PVID false for disable
- */
-static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 pvid_info, bool enable)
-{
-	struct ice_hw *hw = &vsi->back->hw;
-	struct ice_aqc_vsi_props *info;
-	struct ice_vsi_ctx *ctxt;
-	int ret;
-
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
-	if (!ctxt)
-		return -ENOMEM;
-
-	ctxt->info = vsi->info;
-	info = &ctxt->info;
-	if (enable) {
-		info->vlan_flags = ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
-			ICE_AQ_VSI_PVLAN_INSERT_PVID |
-			ICE_AQ_VSI_VLAN_EMOD_STR;
-		info->sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
-	} else {
-		info->vlan_flags = ICE_AQ_VSI_VLAN_EMOD_NOTHING |
-			ICE_AQ_VSI_VLAN_MODE_ALL;
-		info->sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
-	}
-
-	info->pvid = cpu_to_le16(pvid_info);
-	info->valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
-					   ICE_AQ_VSI_PROP_SW_VALID);
-
-	ret = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
-	if (ret) {
-		dev_info(ice_hw_to_dev(hw), "update VSI for port VLAN failed, err %d aq_err %s\n",
-			 ret, ice_aq_str(hw->adminq.sq_last_status));
-		goto out;
-	}
-
-	vsi->info.vlan_flags = info->vlan_flags;
-	vsi->info.sw_flags2 = info->sw_flags2;
-	vsi->info.pvid = info->pvid;
-out:
-	kfree(ctxt);
-	return ret;
-}
-
-/**
  * ice_vf_get_port_info - Get the VF's port info structure
  * @vf: VF used to get the port info structure for
  */
@@ -815,7 +766,7 @@ static int ice_vf_rebuild_host_vlan_cfg(struct ice_vf *vf)
 	int err;
 
 	if (vf->port_vlan_info) {
-		err = ice_vsi_manage_pvid(vsi, vf->port_vlan_info, true);
+		err = vsi->vlan_ops.set_port_vlan(vsi, vf->port_vlan_info);
 		if (err) {
 			dev_err(dev, "failed to configure port VLAN via VSI parameters for VF %u, error %d\n",
 				vf->vf_id, err);
@@ -826,7 +777,7 @@ static int ice_vf_rebuild_host_vlan_cfg(struct ice_vf *vf)
 	}
 
 	/* vlan_id will either be 0 or the port VLAN number */
-	err = ice_vsi_add_vlan(vsi, vlan_id, ICE_FWD_TO_VSI);
+	err = vsi->vlan_ops.add_vlan(vsi, vlan_id, ICE_FWD_TO_VSI);
 	if (err) {
 		dev_err(dev, "failed to add %s VLAN %u filter for VF %u, error %d\n",
 			vf->port_vlan_info ? "port" : "", vlan_id, vf->vf_id,
@@ -835,37 +786,6 @@ static int ice_vf_rebuild_host_vlan_cfg(struct ice_vf *vf)
 	}
 
 	return 0;
-}
-
-static int ice_cfg_vlan_antispoof(struct ice_vsi *vsi, bool enable)
-{
-	struct ice_vsi_ctx *ctx;
-	int err;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
-	ctx->info.sec_flags = vsi->info.sec_flags;
-	ctx->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
-
-	if (enable)
-		ctx->info.sec_flags |= ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA <<
-			ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S;
-	else
-		ctx->info.sec_flags &= ~(ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA <<
-					 ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S);
-
-	err = ice_update_vsi(&vsi->back->hw, vsi->idx, ctx, NULL);
-	if (err)
-		dev_err(ice_pf_to_dev(vsi->back), "Failed to configure Tx VLAN anti-spoof %s for VSI %d, error %d\n",
-			enable ? "ON" : "OFF", vsi->vsi_num, err);
-	else
-		vsi->info.sec_flags = ctx->info.sec_flags;
-
-	kfree(ctx);
-
-	return err;
 }
 
 static int ice_cfg_mac_antispoof(struct ice_vsi *vsi, bool enable)
@@ -905,7 +825,7 @@ static int ice_vsi_ena_spoofchk(struct ice_vsi *vsi)
 {
 	int err;
 
-	err = ice_cfg_vlan_antispoof(vsi, true);
+	err = vsi->vlan_ops.ena_tx_filtering(vsi);
 	if (err)
 		return err;
 
@@ -920,7 +840,7 @@ static int ice_vsi_dis_spoofchk(struct ice_vsi *vsi)
 {
 	int err;
 
-	err = ice_cfg_vlan_antispoof(vsi, false);
+	err = vsi->vlan_ops.dis_tx_filtering(vsi);
 	if (err)
 		return err;
 
@@ -3132,9 +3052,9 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 
 	if (vsi->num_vlan || vf->port_vlan_info) {
 		if (rm_promisc)
-			ret = ice_cfg_vlan_pruning(vsi, true);
+			ret = vsi->vlan_ops.ena_rx_filtering(vsi);
 		else
-			ret = ice_cfg_vlan_pruning(vsi, false);
+			ret = vsi->vlan_ops.dis_rx_filtering(vsi);
 		if (ret) {
 			dev_err(dev, "Failed to configure VLAN pruning in promiscuous mode\n");
 			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
@@ -4331,7 +4251,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			if (!vid)
 				continue;
 
-			status = ice_vsi_add_vlan(vsi, vid, ICE_FWD_TO_VSI);
+			status = vsi->vlan_ops.add_vlan(vsi, vid, ICE_FWD_TO_VSI);
 			if (status) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				goto error_param;
@@ -4340,7 +4260,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			/* Enable VLAN pruning when non-zero VLAN is added */
 			if (!vlan_promisc && vid &&
 			    !ice_vsi_is_vlan_pruning_ena(vsi)) {
-				status = ice_cfg_vlan_pruning(vsi, true);
+				status = vsi->vlan_ops.ena_rx_filtering(vsi);
 				if (status) {
 					v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 					dev_err(dev, "Enable VLAN pruning on VLAN ID: %d failed error-%d\n",
@@ -4382,10 +4302,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			if (!vid)
 				continue;
 
-			/* Make sure ice_vsi_kill_vlan is successful before
-			 * updating VLAN information
-			 */
-			status = ice_vsi_kill_vlan(vsi, vid);
+			status = vsi->vlan_ops.del_vlan(vsi, vid);
 			if (status) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				goto error_param;
@@ -4394,7 +4311,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			/* Disable VLAN pruning when only VLAN 0 is left */
 			if (vsi->num_vlan == 1 &&
 			    ice_vsi_is_vlan_pruning_ena(vsi))
-				ice_cfg_vlan_pruning(vsi, false);
+				status = vsi->vlan_ops.dis_rx_filtering(vsi);
 
 			/* Disable Unicast/Multicast VLAN promiscuous mode */
 			if (vlan_promisc) {
@@ -4463,7 +4380,7 @@ static int ice_vc_ena_vlan_stripping(struct ice_vf *vf)
 	}
 
 	vsi = ice_get_vf_vsi(vf);
-	if (ice_vsi_manage_vlan_stripping(vsi, true))
+	if (vsi->vlan_ops.ena_stripping(vsi))
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 
 error_param:
@@ -4498,7 +4415,7 @@ static int ice_vc_dis_vlan_stripping(struct ice_vf *vf)
 		goto error_param;
 	}
 
-	if (ice_vsi_manage_vlan_stripping(vsi, false))
+	if (vsi->vlan_ops.dis_stripping(vsi))
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 
 error_param:
@@ -4528,9 +4445,9 @@ static int ice_vf_init_vlan_stripping(struct ice_vf *vf)
 		return 0;
 
 	if (ice_vf_vlan_offload_ena(vf->driver_caps))
-		return ice_vsi_manage_vlan_stripping(vsi, true);
+		return vsi->vlan_ops.ena_stripping(vsi);
 	else
-		return ice_vsi_manage_vlan_stripping(vsi, false);
+		return vsi->vlan_ops.dis_stripping(vsi);
 }
 
 static struct ice_vc_vf_ops ice_vc_vf_dflt_ops = {

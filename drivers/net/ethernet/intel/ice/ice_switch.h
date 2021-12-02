@@ -33,15 +33,6 @@ struct ice_vsi_ctx {
 	struct ice_q_ctx *rdma_q_ctx[ICE_MAX_TRAFFIC_CLASS];
 };
 
-enum ice_sw_fwd_act_type {
-	ICE_FWD_TO_VSI = 0,
-	ICE_FWD_TO_VSI_LIST, /* Do not use this when adding filter */
-	ICE_FWD_TO_Q,
-	ICE_FWD_TO_QGRP,
-	ICE_DROP_PACKET,
-	ICE_INVAL_ACT
-};
-
 /* Switch recipe ID enum values are specific to hardware */
 enum ice_sw_lkup_type {
 	ICE_SW_LKUP_ETHERTYPE = 0,

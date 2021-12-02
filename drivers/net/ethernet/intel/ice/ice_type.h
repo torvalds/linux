@@ -1008,6 +1008,15 @@ struct ice_hw_port_stats {
 	u64 fd_sb_match;
 };
 
+enum ice_sw_fwd_act_type {
+	ICE_FWD_TO_VSI = 0,
+	ICE_FWD_TO_VSI_LIST, /* Do not use this when adding filter */
+	ICE_FWD_TO_Q,
+	ICE_FWD_TO_QGRP,
+	ICE_DROP_PACKET,
+	ICE_INVAL_ACT
+};
+
 struct ice_aq_get_set_rss_lut_params {
 	u16 vsi_handle;		/* software VSI handle */
 	u16 lut_size;		/* size of the LUT buffer */

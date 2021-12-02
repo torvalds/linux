@@ -117,7 +117,7 @@ static int ice_eswitch_setup_env(struct ice_pf *pf)
 	struct ice_vsi *ctrl_vsi = pf->switchdev.control_vsi;
 	bool rule_added = false;
 
-	ice_vsi_manage_vlan_stripping(ctrl_vsi, false);
+	ctrl_vsi->vlan_ops.dis_stripping(ctrl_vsi);
 
 	ice_remove_vsi_fltr(&pf->hw, uplink_vsi->idx);
 
