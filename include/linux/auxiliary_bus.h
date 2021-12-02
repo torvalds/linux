@@ -66,6 +66,10 @@ void auxiliary_driver_unregister(struct auxiliary_driver *auxdrv);
  * Helper macro for auxiliary drivers which do not do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
+ *
+ * .. code-block:: c
+ *
+ *	module_auxiliary_driver(my_drv);
  */
 #define module_auxiliary_driver(__auxiliary_driver) \
 	module_driver(__auxiliary_driver, auxiliary_driver_register, auxiliary_driver_unregister)
