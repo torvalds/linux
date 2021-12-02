@@ -7,10 +7,12 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/gpio.h>
 #include <linux/iopoll.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -268,6 +270,8 @@ struct dw_mipi_dsi2 {
 
 	const struct dw_mipi_dsi2_plat_data *pdata;
 	struct rockchip_drm_sub_dev sub_dev;
+
+	struct gpio_desc *te_gpio;
 };
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
@@ -858,8 +862,10 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
-	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO))
+	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO)) {
 		s->output_flags |= ROCKCHIP_OUTPUT_MIPI_DS_MODE;
+		s->hold_mode = true;
+	}
 
 	if (dsi2->slave) {
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
@@ -989,6 +995,16 @@ static int dw_mipi_dsi2_dual_channel_probe(struct dw_mipi_dsi2 *dsi2)
 	}
 
 	return 0;
+}
+
+static irqreturn_t dw_mipi_dsi2_te_irq_handler(int irq, void *dev_id)
+{
+	struct dw_mipi_dsi2 *dsi2 = (struct dw_mipi_dsi2 *)dev_id;
+	struct drm_encoder *encoder = &dsi2->encoder;
+
+	rockchip_drm_te_handle(encoder->crtc);
+
+	return IRQ_HANDLED;
 }
 
 static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
@@ -1165,12 +1181,12 @@ static const struct component_ops dw_mipi_dsi2_ops = {
 	.unbind	= dw_mipi_dsi2_unbind,
 };
 
-struct irq_data {
+struct dsi2_irq_data {
 	u32 offeset;
 	char *irq_src;
 };
 
-static const struct irq_data dw_mipi_dsi2_irq_data[] = {
+static const struct dsi2_irq_data dw_mipi_dsi2_irq_data[] = {
 	{DSI2_INT_ST_PHY, "int_st_phy"},
 	{DSI2_INT_ST_TO, "int_st_to"},
 	{DSI2_INT_ST_ACK, "int_st_ack"},
@@ -1422,6 +1438,21 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dsi2->dcphy);
 		DRM_DEV_ERROR(dev, "failed to get mipi dcphy: %d\n", ret);
 		return ret;
+	}
+
+	dsi2->te_gpio = devm_gpiod_get_optional(dsi2->dev, "te", GPIOD_IN);
+	if (IS_ERR(dsi2->te_gpio))
+		dsi2->te_gpio = NULL;
+
+	if (dsi2->te_gpio) {
+		ret = devm_request_threaded_irq(dsi2->dev, gpiod_to_irq(dsi2->te_gpio),
+						NULL, dw_mipi_dsi2_te_irq_handler,
+						IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+						"PANEL-TE", dsi2);
+		if (ret) {
+			dev_err(dsi2->dev, "failed to request TE IRQ: %d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = devm_request_irq(dev, dsi2->irq, dw_mipi_dsi2_irq_handler,
