@@ -71,25 +71,13 @@ they are not physical devices that are controlled by DT/ACPI.  The same
 argument applies for not using MFD in this scenario as MFD relies on individual
 function devices being physical devices.
 
-Auxiliary Device
-================
+Auxiliary Device Creation
+=========================
 
 An auxiliary_device represents a part of its parent device's functionality. It
 is given a name that, combined with the registering drivers KBUILD_MODNAME,
 creates a match_name that is used for driver binding, and an id that combined
 with the match_name provide a unique name to register with the bus subsystem.
-
-Registering an auxiliary_device is a two-step process.  First call
-auxiliary_device_init(), which checks several aspects of the auxiliary_device
-struct and performs a device_initialize().  After this step completes, any
-error state must have a call to auxiliary_device_uninit() in its resolution path.
-The second step in registering an auxiliary_device is to perform a call to
-auxiliary_device_add(), which sets the name of the device and add the device to
-the bus.
-
-Unregistering an auxiliary_device is also a two-step process to mirror the
-register process.  First call auxiliary_device_delete(), then call
-auxiliary_device_uninit().
 
 .. code-block:: c
 
@@ -99,15 +87,68 @@ auxiliary_device_uninit().
 		u32 id;
 	};
 
-If two auxiliary_devices both with a match_name "mod.foo" are registered onto
-the bus, they must have unique id values (e.g. "x" and "y") so that the
-registered devices names are "mod.foo.x" and "mod.foo.y".  If match_name + id
-are not unique, then the device_add fails and generates an error message.
+Registering an auxiliary_device is a three-step process.
+
+First, a 'struct auxiliary_device' needs to be defined or allocated for each
+sub-device desired.  The name, id, dev.release, and dev.parent fields of this
+structure must be filled in as follows.
+
+The 'name' field is to be given a name that is recognized by the auxiliary
+driver.  If two auxiliary_devices with the same match_name, eg
+"mod.MY_DEVICE_NAME", are registered onto the bus, they must have unique id
+values (e.g. "x" and "y") so that the registered devices names are "mod.foo.x"
+and "mod.foo.y".  If match_name + id are not unique, then the device_add fails
+and generates an error message.
 
 The auxiliary_device.dev.type.release or auxiliary_device.dev.release must be
-populated with a non-NULL pointer to successfully register the auxiliary_device.
+populated with a non-NULL pointer to successfully register the
+auxiliary_device.  This release call is where resources associated with the
+auxiliary device must be free'ed.  Because once the device is placed on the bus
+the parent driver can not tell what other code may have a reference to this
+data.
 
-The auxiliary_device.dev.parent must also be populated.
+The auxiliary_device.dev.parent should be set.  Typically to the registering
+drivers device.
+
+Second, call auxiliary_device_init(), which checks several aspects of the
+auxiliary_device struct and performs a device_initialize().  After this step
+completes, any error state must have a call to auxiliary_device_uninit() in its
+resolution path.
+
+The third and final step in registering an auxiliary_device is to perform a
+call to auxiliary_device_add(), which sets the name of the device and adds the
+device to the bus.
+
+.. code-block:: c
+
+	struct auxiliary_device *my_aux_dev = my_aux_dev_alloc(xxx);
+
+        /* Step 1: */
+	my_aux_dev->name = MY_DEVICE_NAME;
+	my_aux_dev->id = my_unique_id_alloc(xxx);
+	my_aux_dev->dev.release = my_aux_dev_release;
+	my_aux_dev->dev.parent = my_dev;
+
+        /* Step 2: */
+        if (auxiliary_device_init(my_aux_dev))
+                goto fail;
+
+        /* Step 3: */
+        if (auxiliary_device_add(my_aux_dev)) {
+                auxiliary_device_uninit(my_aux_dev);
+                goto fail;
+        }
+
+Unregistering an auxiliary_device is a two-step process to mirror the register
+process.  First call auxiliary_device_delete(), then call
+auxiliary_device_uninit().
+
+
+.. code-block:: c
+
+        auxiliary_device_delete(my_dev->my_aux_dev);
+        auxiliary_device_uninit(my_dev->my_aux_dev);
+
 
 Auxiliary Device Memory Model and Lifespan
 ------------------------------------------

@@ -117,7 +117,7 @@ static struct bus_type auxiliary_bus_type = {
  * auxiliary_device_init - check auxiliary_device and initialize
  * @auxdev: auxiliary device struct
  *
- * This is the first step in the two-step process to register an
+ * This is the second step in the three-step process to register an
  * auxiliary_device.
  *
  * When this function returns an error code, then the device_initialize will
@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(auxiliary_device_init);
  * @auxdev: auxiliary bus device to add to the bus
  * @modname: name of the parent device's driver module
  *
- * This is the second step in the two-step process to register an
+ * This is the third step in the three-step process to register an
  * auxiliary_device.
  *
  * This function must be called after a successful call to
