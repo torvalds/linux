@@ -131,6 +131,14 @@ static inline unsigned long ppc_inst_as_ulong(ppc_inst_t x)
 		return (u64)ppc_inst_val(x) << 32 | ppc_inst_suffix(x);
 }
 
+static inline void ppc_inst_write(u32 *ptr, ppc_inst_t x)
+{
+	if (!ppc_inst_prefixed(x))
+		*ptr = ppc_inst_val(x);
+	else
+		*(u64 *)ptr = ppc_inst_as_ulong(x);
+}
+
 #define PPC_INST_STR_LEN sizeof("00000000 00000000")
 
 static inline char *__ppc_inst_as_str(char str[PPC_INST_STR_LEN], ppc_inst_t x)

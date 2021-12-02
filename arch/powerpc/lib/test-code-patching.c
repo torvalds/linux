@@ -54,39 +54,39 @@ static void __init test_branch_iform(void)
 	check(!instr_is_branch_iform(ppc_inst(0x7bfffffd)));
 
 	/* Absolute branch to 0x100 */
-	patch_instruction(iptr, ppc_inst(0x48000103));
+	ppc_inst_write(iptr, ppc_inst(0x48000103));
 	check(instr_is_branch_to_addr(iptr, 0x100));
 	/* Absolute branch to 0x420fc */
-	patch_instruction(iptr, ppc_inst(0x480420ff));
+	ppc_inst_write(iptr, ppc_inst(0x480420ff));
 	check(instr_is_branch_to_addr(iptr, 0x420fc));
 	/* Maximum positive relative branch, + 20MB - 4B */
-	patch_instruction(iptr, ppc_inst(0x49fffffc));
+	ppc_inst_write(iptr, ppc_inst(0x49fffffc));
 	check(instr_is_branch_to_addr(iptr, addr + 0x1FFFFFC));
 	/* Smallest negative relative branch, - 4B */
-	patch_instruction(iptr, ppc_inst(0x4bfffffc));
+	ppc_inst_write(iptr, ppc_inst(0x4bfffffc));
 	check(instr_is_branch_to_addr(iptr, addr - 4));
 	/* Largest negative relative branch, - 32 MB */
-	patch_instruction(iptr, ppc_inst(0x4a000000));
+	ppc_inst_write(iptr, ppc_inst(0x4a000000));
 	check(instr_is_branch_to_addr(iptr, addr - 0x2000000));
 
 	/* Branch to self, with link */
 	err = create_branch(&instr, iptr, addr, BRANCH_SET_LINK);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr));
 
 	/* Branch to self - 0x100, with link */
 	err = create_branch(&instr, iptr, addr - 0x100, BRANCH_SET_LINK);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr - 0x100));
 
 	/* Branch to self + 0x100, no link */
 	err = create_branch(&instr, iptr, addr + 0x100, 0);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr + 0x100));
 
 	/* Maximum relative negative offset, - 32 MB */
 	err = create_branch(&instr, iptr, addr - 0x2000000, BRANCH_SET_LINK);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr - 0x2000000));
 
 	/* Out of range relative negative offset, - 32 MB + 4*/
@@ -103,7 +103,7 @@ static void __init test_branch_iform(void)
 
 	/* Check flags are masked correctly */
 	err = create_branch(&instr, iptr, addr, 0xFFFFFFFC);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr));
 	check(ppc_inst_equal(instr, ppc_inst(0x48000000)));
 }
@@ -143,19 +143,19 @@ static void __init test_branch_bform(void)
 	check(!instr_is_branch_bform(ppc_inst(0x7bffffff)));
 
 	/* Absolute conditional branch to 0x100 */
-	patch_instruction(iptr, ppc_inst(0x43ff0103));
+	ppc_inst_write(iptr, ppc_inst(0x43ff0103));
 	check(instr_is_branch_to_addr(iptr, 0x100));
 	/* Absolute conditional branch to 0x20fc */
-	patch_instruction(iptr, ppc_inst(0x43ff20ff));
+	ppc_inst_write(iptr, ppc_inst(0x43ff20ff));
 	check(instr_is_branch_to_addr(iptr, 0x20fc));
 	/* Maximum positive relative conditional branch, + 32 KB - 4B */
-	patch_instruction(iptr, ppc_inst(0x43ff7ffc));
+	ppc_inst_write(iptr, ppc_inst(0x43ff7ffc));
 	check(instr_is_branch_to_addr(iptr, addr + 0x7FFC));
 	/* Smallest negative relative conditional branch, - 4B */
-	patch_instruction(iptr, ppc_inst(0x43fffffc));
+	ppc_inst_write(iptr, ppc_inst(0x43fffffc));
 	check(instr_is_branch_to_addr(iptr, addr - 4));
 	/* Largest negative relative conditional branch, - 32 KB */
-	patch_instruction(iptr, ppc_inst(0x43ff8000));
+	ppc_inst_write(iptr, ppc_inst(0x43ff8000));
 	check(instr_is_branch_to_addr(iptr, addr - 0x8000));
 
 	/* All condition code bits set & link */
@@ -163,22 +163,22 @@ static void __init test_branch_bform(void)
 
 	/* Branch to self */
 	err = create_cond_branch(&instr, iptr, addr, flags);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr));
 
 	/* Branch to self - 0x100 */
 	err = create_cond_branch(&instr, iptr, addr - 0x100, flags);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr - 0x100));
 
 	/* Branch to self + 0x100 */
 	err = create_cond_branch(&instr, iptr, addr + 0x100, flags);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr + 0x100));
 
 	/* Maximum relative negative offset, - 32 KB */
 	err = create_cond_branch(&instr, iptr, addr - 0x8000, flags);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr - 0x8000));
 
 	/* Out of range relative negative offset, - 32 KB + 4*/
@@ -195,7 +195,7 @@ static void __init test_branch_bform(void)
 
 	/* Check flags are masked correctly */
 	err = create_cond_branch(&instr, iptr, addr, 0xFFFFFFFC);
-	patch_instruction(iptr, instr);
+	ppc_inst_write(iptr, instr);
 	check(instr_is_branch_to_addr(iptr, addr));
 	check(ppc_inst_equal(instr, ppc_inst(0x43FF0000)));
 }
@@ -215,20 +215,22 @@ static void __init test_translate_branch(void)
 	/* Simple case, branch to self moved a little */
 	p = buf;
 	addr = (unsigned long)p;
-	patch_branch(p, addr, 0);
+	create_branch(&instr, p, addr, 0);
+	ppc_inst_write(p, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	q = p + 4;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(q, addr));
 
 	/* Maximum negative case, move b . to addr + 32 MB */
 	p = buf;
 	addr = (unsigned long)p;
-	patch_branch(p, addr, 0);
+	create_branch(&instr, p, addr, 0);
+	ppc_inst_write(p, instr);
 	q = buf + 0x2000000;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
 	check(ppc_inst_equal(ppc_inst_read(q), ppc_inst(0x4a000000)));
@@ -236,10 +238,11 @@ static void __init test_translate_branch(void)
 	/* Maximum positive case, move x to x - 32 MB + 4 */
 	p = buf + 0x2000000;
 	addr = (unsigned long)p;
-	patch_branch(p, addr, 0);
+	create_branch(&instr, p, addr, 0);
+	ppc_inst_write(p, instr);
 	q = buf + 4;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
 	check(ppc_inst_equal(ppc_inst_read(q), ppc_inst(0x49fffffc)));
@@ -247,20 +250,22 @@ static void __init test_translate_branch(void)
 	/* Jump to x + 16 MB moved to x + 20 MB */
 	p = buf;
 	addr = 0x1000000 + (unsigned long)buf;
-	patch_branch(p, addr, BRANCH_SET_LINK);
+	create_branch(&instr, p, addr, BRANCH_SET_LINK);
+	ppc_inst_write(p, instr);
 	q = buf + 0x1400000;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
 
 	/* Jump to x + 16 MB moved to x - 16 MB + 4 */
 	p = buf + 0x1000000;
 	addr = 0x2000000 + (unsigned long)buf;
-	patch_branch(p, addr, 0);
+	create_branch(&instr, p, addr, 0);
+	ppc_inst_write(p, instr);
 	q = buf + 4;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
 
@@ -271,21 +276,21 @@ static void __init test_translate_branch(void)
 	p = buf;
 	addr = (unsigned long)p;
 	create_cond_branch(&instr, p, addr, 0);
-	patch_instruction(p, instr);
+	ppc_inst_write(p, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	q = buf + 4;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(q, addr));
 
 	/* Maximum negative case, move b . to addr + 32 KB */
 	p = buf;
 	addr = (unsigned long)p;
 	create_cond_branch(&instr, p, addr, 0xFFFFFFFC);
-	patch_instruction(p, instr);
+	ppc_inst_write(p, instr);
 	q = buf + 0x8000;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
 	check(ppc_inst_equal(ppc_inst_read(q), ppc_inst(0x43ff8000)));
@@ -294,10 +299,10 @@ static void __init test_translate_branch(void)
 	p = buf + 0x8000;
 	addr = (unsigned long)p;
 	create_cond_branch(&instr, p, addr, 0xFFFFFFFC);
-	patch_instruction(p, instr);
+	ppc_inst_write(p, instr);
 	q = buf + 4;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
 	check(ppc_inst_equal(ppc_inst_read(q), ppc_inst(0x43ff7ffc)));
@@ -306,10 +311,10 @@ static void __init test_translate_branch(void)
 	p = buf;
 	addr = 0x3000 + (unsigned long)buf;
 	create_cond_branch(&instr, p, addr, BRANCH_SET_LINK);
-	patch_instruction(p, instr);
+	ppc_inst_write(p, instr);
 	q = buf + 0x5000;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
 
@@ -317,10 +322,10 @@ static void __init test_translate_branch(void)
 	p = buf + 0x2000;
 	addr = 0x4000 + (unsigned long)buf;
 	create_cond_branch(&instr, p, addr, 0);
-	patch_instruction(p, instr);
+	ppc_inst_write(p, instr);
 	q = buf + 4;
 	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
+	ppc_inst_write(q, instr);
 	check(instr_is_branch_to_addr(p, addr));
 	check(instr_is_branch_to_addr(q, addr));
 
