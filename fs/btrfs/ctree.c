@@ -1969,11 +1969,7 @@ skip_leaf_search:
 				ins_len -= sizeof(struct btrfs_item);
 			}
 			if (ins_len > 0 && leaf_free_space < ins_len) {
-				if (write_lock_level < 1) {
-					write_lock_level = 1;
-					btrfs_release_path(p);
-					goto again;
-				}
+				ASSERT(write_lock_level >= 1);
 
 				err = split_leaf(trans, root, key,
 						 p, ins_len, ret == 0);
