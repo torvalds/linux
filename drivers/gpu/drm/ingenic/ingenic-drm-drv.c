@@ -6,6 +6,7 @@
 
 #include "ingenic-drm.h"
 
+#include <linux/bitfield.h>
 #include <linux/component.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -49,6 +50,11 @@ struct ingenic_dma_hwdesc {
 	u32 addr;
 	u32 id;
 	u32 cmd;
+	/* extended hw descriptor for jz4780 */
+	u32 offsize;
+	u32 pagewidth;
+	u32 cpos;
+	u32 dessize;
 } __aligned(16);
 
 struct ingenic_dma_hwdescs {
@@ -60,6 +66,7 @@ struct jz_soc_info {
 	bool needs_dev_clk;
 	bool has_osd;
 	bool map_noncoherent;
+	bool use_extended_hwdesc;
 	unsigned int max_width, max_height;
 	const u32 *formats_f0, *formats_f1;
 	unsigned int num_formats_f0, num_formats_f1;
@@ -446,6 +453,9 @@ static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc)
 		return 0;
 
+	if (plane == &priv->f0)
+		return -EINVAL;
+
 	crtc_state = drm_atomic_get_existing_crtc_state(state,
 							crtc);
 	if (WARN_ON(!crtc_state))
@@ -662,6 +672,33 @@ static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 		hwdesc->cmd = JZ_LCD_CMD_EOF_IRQ | (width * height * cpp / 4);
 		hwdesc->next = dma_hwdesc_addr(priv, next_id);
 
+		if (priv->soc_info->use_extended_hwdesc) {
+			hwdesc->cmd |= JZ_LCD_CMD_FRM_ENABLE;
+
+			/* Extended 8-byte descriptor */
+			hwdesc->cpos = 0;
+			hwdesc->offsize = 0;
+			hwdesc->pagewidth = 0;
+
+			switch (newstate->fb->format->format) {
+			case DRM_FORMAT_XRGB1555:
+				hwdesc->cpos |= JZ_LCD_CPOS_RGB555;
+				fallthrough;
+			case DRM_FORMAT_RGB565:
+				hwdesc->cpos |= JZ_LCD_CPOS_BPP_15_16;
+				break;
+			case DRM_FORMAT_XRGB8888:
+				hwdesc->cpos |= JZ_LCD_CPOS_BPP_18_24;
+				break;
+			}
+			hwdesc->cpos |= (JZ_LCD_CPOS_COEFFICIENT_1 <<
+					 JZ_LCD_CPOS_COEFFICIENT_OFFSET);
+			hwdesc->dessize =
+				(0xff << JZ_LCD_DESSIZE_ALPHA_OFFSET) |
+				FIELD_PREP(JZ_LCD_DESSIZE_HEIGHT_MASK, height - 1) |
+				FIELD_PREP(JZ_LCD_DESSIZE_WIDTH_MASK, width - 1);
+		}
+
 		if (drm_atomic_crtc_needs_modeset(crtc_state)) {
 			fourcc = newstate->fb->format->format;
 
@@ -692,6 +729,9 @@ static void ingenic_drm_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		cfg = JZ_LCD_CFG_PS_DISABLE | JZ_LCD_CFG_CLS_DISABLE
 		    | JZ_LCD_CFG_SPL_DISABLE | JZ_LCD_CFG_REV_DISABLE;
 	}
+
+	if (priv->soc_info->use_extended_hwdesc)
+		cfg |= JZ_LCD_CFG_DESCRIPTOR_8;
 
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		cfg |= JZ_LCD_CFG_HSYNC_ACTIVE_LOW;
@@ -1468,10 +1508,23 @@ static const struct jz_soc_info jz4770_soc_info = {
 	.num_formats_f0 = ARRAY_SIZE(jz4770_formats_f0),
 };
 
+static const struct jz_soc_info jz4780_soc_info = {
+	.needs_dev_clk = true,
+	.has_osd = true,
+	.use_extended_hwdesc = true,
+	.max_width = 4096,
+	.max_height = 2048,
+	.formats_f1 = jz4770_formats_f1,
+	.num_formats_f1 = ARRAY_SIZE(jz4770_formats_f1),
+	.formats_f0 = jz4770_formats_f0,
+	.num_formats_f0 = ARRAY_SIZE(jz4770_formats_f0),
+};
+
 static const struct of_device_id ingenic_drm_of_match[] = {
 	{ .compatible = "ingenic,jz4740-lcd", .data = &jz4740_soc_info },
 	{ .compatible = "ingenic,jz4725b-lcd", .data = &jz4725b_soc_info },
 	{ .compatible = "ingenic,jz4770-lcd", .data = &jz4770_soc_info },
+	{ .compatible = "ingenic,jz4780-lcd", .data = &jz4780_soc_info },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, ingenic_drm_of_match);
