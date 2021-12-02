@@ -1680,6 +1680,27 @@ static int finish_need_commit_sem_search(struct btrfs_path *path)
 	return 0;
 }
 
+static inline int search_for_key_slot(struct extent_buffer *eb,
+				      int search_low_slot,
+				      const struct btrfs_key *key,
+				      int prev_cmp,
+				      int *slot)
+{
+	/*
+	 * If a previous call to btrfs_bin_search() on a parent node returned an
+	 * exact match (prev_cmp == 0), we can safely assume the target key will
+	 * always be at slot 0 on lower levels, since each key pointer
+	 * (struct btrfs_key_ptr) refers to the lowest key accessible from the
+	 * subtree it points to. Thus we can skip searching lower levels.
+	 */
+	if (prev_cmp == 0) {
+		*slot = 0;
+		return 0;
+	}
+
+	return generic_bin_search(eb, search_low_slot, key, slot);
+}
+
 /*
  * btrfs_search_slot - look for a key in a tree and perform necessary
  * modifications to preserve tree invariants.
@@ -1840,25 +1861,98 @@ cow_done:
 			}
 		}
 
-		/*
-		 * If btrfs_bin_search returns an exact match (prev_cmp == 0)
-		 * we can safely assume the target key will always be in slot 0
-		 * on lower levels due to the invariants BTRFS' btree provides,
-		 * namely that a btrfs_key_ptr entry always points to the
-		 * lowest key in the child node, thus we can skip searching
-		 * lower levels
-		 */
-		if (prev_cmp == 0) {
-			slot = 0;
-			ret = 0;
-		} else {
-			ret = btrfs_bin_search(b, key, &slot);
-			prev_cmp = ret;
+		if (level == 0) {
+			int leaf_free_space = 0;
+			int search_low_slot = 0;
+
+			/*
+			 * If we are doing an insertion, the leaf has enough free
+			 * space and the destination slot for the key is not slot
+			 * 0, then we can unlock our write lock on the parent, and
+			 * any other upper nodes, before doing the binary search
+			 * on the leaf (with search_for_key_slot()), allowing other
+			 * tasks to lock the parent and any other upper nodes.
+			 */
+			if (ins_len > 0) {
+				struct btrfs_disk_key first_key;
+
+				/*
+				 * Cache the leaf free space, since we will need it
+				 * later and it will not change until then.
+				 */
+				leaf_free_space = btrfs_leaf_free_space(b);
+
+				/*
+				 * !p->locks[1] means we have a single node tree,
+				 * the leaf is the root of the tree.
+				 */
+				if (!p->locks[1] || leaf_free_space < ins_len)
+					goto leaf_search;
+
+				ASSERT(btrfs_header_nritems(b) > 0);
+				btrfs_item_key(b, &first_key, 0);
+
+				/*
+				 * Doing the extra comparison with the first key
+				 * is cheap, taking into account that the first
+				 * key is very likely already in a cache line
+				 * because it immediately follows the extent
+				 * buffer's header and we have recently accessed
+				 * the header's level field.
+				 */
+				ret = comp_keys(&first_key, key);
+				if (ret < 0) {
+					/*
+					 * The first key is smaller than the key
+					 * we want to insert, so we are safe to
+					 * unlock all upper nodes and we have to
+					 * do the binary search.
+					 *
+					 * We do use btrfs_unlock_up_safe() and
+					 * not unlock_up() because the later does
+					 * not unlock nodes with a slot of 0.
+					 * We can safely unlock any node even if
+					 * its slot is 0 since in this case the
+					 * key does not end up at slot 0 of the
+					 * leaf and there's also no need to split
+					 * the leaf.
+					 */
+					btrfs_unlock_up_safe(p, 1);
+					search_low_slot = 1;
+				} else {
+					/*
+					 * The first key is >= then the key we
+					 * want to insert, so we can skip the
+					 * binary search as the target key will
+					 * be at slot 0.
+					 *
+					 * We can not unlock upper nodes when
+					 * the key is less than the first key,
+					 * because we will need to update the key
+					 * at slot 0 of the parent node and
+					 * possibly of other upper nodes too.
+					 * If the key matches the first key, then
+					 * we can unlock all the upper nodes,
+					 * using btrfs_unlock_up_safe() instead
+					 * of unlock_up() as stated above.
+					 */
+					if (ret == 0)
+						btrfs_unlock_up_safe(p, 1);
+					slot = 0;
+					/*
+					 * ret is already 0 or 1, matching the
+					 * result of a btrfs_bin_search() call,
+					 * so there is no need to adjust it.
+					 */
+					goto skip_leaf_search;
+				}
+			}
+leaf_search:
+			ret = search_for_key_slot(b, search_low_slot, key,
+						  prev_cmp, &slot);
 			if (ret < 0)
 				goto done;
-		}
-
-		if (level == 0) {
+skip_leaf_search:
 			p->slots[level] = slot;
 			/*
 			 * Item key already exists. In this case, if we are
@@ -1874,8 +1968,7 @@ cow_done:
 				ASSERT(ins_len >= sizeof(struct btrfs_item));
 				ins_len -= sizeof(struct btrfs_item);
 			}
-			if (ins_len > 0 &&
-			    btrfs_leaf_free_space(b) < ins_len) {
+			if (ins_len > 0 && leaf_free_space < ins_len) {
 				if (write_lock_level < 1) {
 					write_lock_level = 1;
 					btrfs_release_path(p);
@@ -1896,6 +1989,12 @@ cow_done:
 					  min_write_lock_level, NULL);
 			goto done;
 		}
+
+		ret = search_for_key_slot(b, 0, key, prev_cmp, &slot);
+		if (ret < 0)
+			goto done;
+		prev_cmp = ret;
+
 		if (ret && slot > 0) {
 			dec = 1;
 			slot--;
