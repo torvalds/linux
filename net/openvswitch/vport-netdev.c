@@ -137,8 +137,7 @@ static void vport_netdev_free(struct rcu_head *rcu)
 {
 	struct vport *vport = container_of(rcu, struct vport, rcu);
 
-	if (vport->dev)
-		dev_put(vport->dev);
+	dev_put(vport->dev);
 	ovs_vport_free(vport);
 }
 
