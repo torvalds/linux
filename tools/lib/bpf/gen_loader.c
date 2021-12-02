@@ -829,6 +829,22 @@ clear_src_reg:
 	emit_ksym_relo_log(gen, relo, kdesc->ref);
 }
 
+void bpf_gen__record_relo_core(struct bpf_gen *gen,
+			       const struct bpf_core_relo *core_relo)
+{
+	struct bpf_core_relo *relos;
+
+	relos = libbpf_reallocarray(gen->core_relos, gen->core_relo_cnt + 1, sizeof(*relos));
+	if (!relos) {
+		gen->error = -ENOMEM;
+		return;
+	}
+	gen->core_relos = relos;
+	relos += gen->core_relo_cnt;
+	memcpy(relos, core_relo, sizeof(*relos));
+	gen->core_relo_cnt++;
+}
+
 static void emit_relo(struct bpf_gen *gen, struct ksym_relo_desc *relo, int insns)
 {
 	int insn;
@@ -861,6 +877,15 @@ static void emit_relos(struct bpf_gen *gen, int insns)
 		emit_relo(gen, gen->relos + i, insns);
 }
 
+static void cleanup_core_relo(struct bpf_gen *gen)
+{
+	if (!gen->core_relo_cnt)
+		return;
+	free(gen->core_relos);
+	gen->core_relo_cnt = 0;
+	gen->core_relos = NULL;
+}
+
 static void cleanup_relos(struct bpf_gen *gen, int insns)
 {
 	int i, insn;
@@ -888,6 +913,7 @@ static void cleanup_relos(struct bpf_gen *gen, int insns)
 		gen->relo_cnt = 0;
 		gen->relos = NULL;
 	}
+	cleanup_core_relo(gen);
 }
 
 void bpf_gen__prog_load(struct bpf_gen *gen,
@@ -895,12 +921,13 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 			const char *license, struct bpf_insn *insns, size_t insn_cnt,
 			struct bpf_prog_load_opts *load_attr, int prog_idx)
 {
-	int attr_size = offsetofend(union bpf_attr, fd_array);
-	int prog_load_attr, license_off, insns_off, func_info, line_info;
+	int prog_load_attr, license_off, insns_off, func_info, line_info, core_relos;
+	int attr_size = offsetofend(union bpf_attr, core_relo_rec_size);
 	union bpf_attr attr;
 
 	memset(&attr, 0, attr_size);
-	pr_debug("gen: prog_load: type %d insns_cnt %zd\n", prog_type, insn_cnt);
+	pr_debug("gen: prog_load: type %d insns_cnt %zd progi_idx %d\n",
+		 prog_type, insn_cnt, prog_idx);
 	/* add license string to blob of bytes */
 	license_off = add_data(gen, license, strlen(license) + 1);
 	/* add insns to blob of bytes */
@@ -924,6 +951,11 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 	line_info = add_data(gen, load_attr->line_info,
 			     attr.line_info_cnt * attr.line_info_rec_size);
 
+	attr.core_relo_rec_size = sizeof(struct bpf_core_relo);
+	attr.core_relo_cnt = gen->core_relo_cnt;
+	core_relos = add_data(gen, gen->core_relos,
+			     attr.core_relo_cnt * attr.core_relo_rec_size);
+
 	memcpy(attr.prog_name, prog_name,
 	       min((unsigned)strlen(prog_name), BPF_OBJ_NAME_LEN - 1));
 	prog_load_attr = add_data(gen, &attr, attr_size);
@@ -939,6 +971,9 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 
 	/* populate union bpf_attr with a pointer to line_info */
 	emit_rel_store(gen, attr_field(prog_load_attr, line_info), line_info);
+
+	/* populate union bpf_attr with a pointer to core_relos */
+	emit_rel_store(gen, attr_field(prog_load_attr, core_relos), core_relos);
 
 	/* populate union bpf_attr fd_array with a pointer to data where map_fds are saved */
 	emit_rel_store(gen, attr_field(prog_load_attr, fd_array), gen->fd_array);
@@ -970,9 +1005,11 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 	debug_ret(gen, "prog_load %s insn_cnt %d", attr.prog_name, attr.insn_cnt);
 	/* successful or not, close btf module FDs used in extern ksyms and attach_btf_obj_fd */
 	cleanup_relos(gen, insns_off);
-	if (gen->attach_kind)
+	if (gen->attach_kind) {
 		emit_sys_close_blob(gen,
 				    attr_field(prog_load_attr, attach_btf_obj_fd));
+		gen->attach_kind = 0;
+	}
 	emit_check_err(gen);
 	/* remember prog_fd in the stack, if successful */
 	emit(gen, BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_7,
@@ -1015,6 +1052,33 @@ void bpf_gen__map_update_elem(struct bpf_gen *gen, int map_idx, void *pvalue,
 	/* emit MAP_UPDATE_ELEM command */
 	emit_sys_bpf(gen, BPF_MAP_UPDATE_ELEM, map_update_attr, attr_size);
 	debug_ret(gen, "update_elem idx %d value_size %d", map_idx, value_size);
+	emit_check_err(gen);
+}
+
+void bpf_gen__populate_outer_map(struct bpf_gen *gen, int outer_map_idx, int slot,
+				 int inner_map_idx)
+{
+	int attr_size = offsetofend(union bpf_attr, flags);
+	int map_update_attr, key;
+	union bpf_attr attr;
+
+	memset(&attr, 0, attr_size);
+	pr_debug("gen: populate_outer_map: outer %d key %d inner %d\n",
+		 outer_map_idx, slot, inner_map_idx);
+
+	key = add_data(gen, &slot, sizeof(slot));
+
+	map_update_attr = add_data(gen, &attr, attr_size);
+	move_blob2blob(gen, attr_field(map_update_attr, map_fd), 4,
+		       blob_fd_array_off(gen, outer_map_idx));
+	emit_rel_store(gen, attr_field(map_update_attr, key), key);
+	emit_rel_store(gen, attr_field(map_update_attr, value),
+		       blob_fd_array_off(gen, inner_map_idx));
+
+	/* emit MAP_UPDATE_ELEM command */
+	emit_sys_bpf(gen, BPF_MAP_UPDATE_ELEM, map_update_attr, attr_size);
+	debug_ret(gen, "populate_outer_map outer %d key %d inner %d",
+		  outer_map_idx, slot, inner_map_idx);
 	emit_check_err(gen);
 }
 

@@ -230,13 +230,19 @@ enum reloc_type {
 	RELO_EXTERN_VAR,
 	RELO_EXTERN_FUNC,
 	RELO_SUBPROG_ADDR,
+	RELO_CORE,
 };
 
 struct reloc_desc {
 	enum reloc_type type;
 	int insn_idx;
-	int map_idx;
-	int sym_off;
+	union {
+		const struct bpf_core_relo *core_relo; /* used when type == RELO_CORE */
+		struct {
+			int map_idx;
+			int sym_off;
+		};
+	};
 };
 
 struct bpf_sec_def;
@@ -4965,9 +4971,9 @@ static int init_map_in_map_slots(struct bpf_object *obj, struct bpf_map *map)
 		fd = bpf_map__fd(targ_map);
 
 		if (obj->gen_loader) {
-			pr_warn("// TODO map_update_elem: idx %td key %d value==map_idx %td\n",
-				map - obj->maps, i, targ_map - obj->maps);
-			return -ENOTSUP;
+			bpf_gen__populate_outer_map(obj->gen_loader,
+						    map - obj->maps, i,
+						    targ_map - obj->maps);
 		} else {
 			err = bpf_map_update_elem(map->fd, &i, &fd, 0);
 		}
@@ -5179,15 +5185,18 @@ static int bpf_core_add_cands(struct bpf_core_cand *local_cand,
 			      struct bpf_core_cand_list *cands)
 {
 	struct bpf_core_cand *new_cands, *cand;
-	const struct btf_type *t;
-	const char *targ_name;
+	const struct btf_type *t, *local_t;
+	const char *targ_name, *local_name;
 	size_t targ_essent_len;
 	int n, i;
+
+	local_t = btf__type_by_id(local_cand->btf, local_cand->id);
+	local_name = btf__str_by_offset(local_cand->btf, local_t->name_off);
 
 	n = btf__type_cnt(targ_btf);
 	for (i = targ_start_id; i < n; i++) {
 		t = btf__type_by_id(targ_btf, i);
-		if (btf_kind(t) != btf_kind(local_cand->t))
+		if (btf_kind(t) != btf_kind(local_t))
 			continue;
 
 		targ_name = btf__name_by_offset(targ_btf, t->name_off);
@@ -5198,12 +5207,12 @@ static int bpf_core_add_cands(struct bpf_core_cand *local_cand,
 		if (targ_essent_len != local_essent_len)
 			continue;
 
-		if (strncmp(local_cand->name, targ_name, local_essent_len) != 0)
+		if (strncmp(local_name, targ_name, local_essent_len) != 0)
 			continue;
 
 		pr_debug("CO-RE relocating [%d] %s %s: found target candidate [%d] %s %s in [%s]\n",
-			 local_cand->id, btf_kind_str(local_cand->t),
-			 local_cand->name, i, btf_kind_str(t), targ_name,
+			 local_cand->id, btf_kind_str(local_t),
+			 local_name, i, btf_kind_str(t), targ_name,
 			 targ_btf_name);
 		new_cands = libbpf_reallocarray(cands->cands, cands->len + 1,
 					      sizeof(*cands->cands));
@@ -5212,8 +5221,6 @@ static int bpf_core_add_cands(struct bpf_core_cand *local_cand,
 
 		cand = &new_cands[cands->len];
 		cand->btf = targ_btf;
-		cand->t = t;
-		cand->name = targ_name;
 		cand->id = i;
 
 		cands->cands = new_cands;
@@ -5320,18 +5327,21 @@ bpf_core_find_cands(struct bpf_object *obj, const struct btf *local_btf, __u32 l
 	struct bpf_core_cand local_cand = {};
 	struct bpf_core_cand_list *cands;
 	const struct btf *main_btf;
+	const struct btf_type *local_t;
+	const char *local_name;
 	size_t local_essent_len;
 	int err, i;
 
 	local_cand.btf = local_btf;
-	local_cand.t = btf__type_by_id(local_btf, local_type_id);
-	if (!local_cand.t)
+	local_cand.id = local_type_id;
+	local_t = btf__type_by_id(local_btf, local_type_id);
+	if (!local_t)
 		return ERR_PTR(-EINVAL);
 
-	local_cand.name = btf__name_by_offset(local_btf, local_cand.t->name_off);
-	if (str_is_empty(local_cand.name))
+	local_name = btf__name_by_offset(local_btf, local_t->name_off);
+	if (str_is_empty(local_name))
 		return ERR_PTR(-EINVAL);
-	local_essent_len = bpf_core_essential_name_len(local_cand.name);
+	local_essent_len = bpf_core_essential_name_len(local_name);
 
 	cands = calloc(1, sizeof(*cands));
 	if (!cands)
@@ -5481,6 +5491,24 @@ static void *u32_as_hash_key(__u32 x)
 	return (void *)(uintptr_t)x;
 }
 
+static int record_relo_core(struct bpf_program *prog,
+			    const struct bpf_core_relo *core_relo, int insn_idx)
+{
+	struct reloc_desc *relos, *relo;
+
+	relos = libbpf_reallocarray(prog->reloc_desc,
+				    prog->nr_reloc + 1, sizeof(*relos));
+	if (!relos)
+		return -ENOMEM;
+	relo = &relos[prog->nr_reloc];
+	relo->type = RELO_CORE;
+	relo->insn_idx = insn_idx;
+	relo->core_relo = core_relo;
+	prog->reloc_desc = relos;
+	prog->nr_reloc++;
+	return 0;
+}
+
 static int bpf_core_apply_relo(struct bpf_program *prog,
 			       const struct bpf_core_relo *relo,
 			       int relo_idx,
@@ -5517,13 +5545,15 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 		return -EINVAL;
 
 	if (prog->obj->gen_loader) {
-		pr_warn("// TODO core_relo: prog %td insn[%d] %s kind %d\n",
+		const char *spec_str = btf__name_by_offset(local_btf, relo->access_str_off);
+
+		pr_debug("record_relo_core: prog %td insn[%d] %s %s %s final insn_idx %d\n",
 			prog - prog->obj->programs, relo->insn_off / 8,
-			local_name, relo->kind);
-		return -ENOTSUP;
+			btf_kind_str(local_type), local_name, spec_str, insn_idx);
+		return record_relo_core(prog, relo, insn_idx);
 	}
 
-	if (relo->kind != BPF_TYPE_ID_LOCAL &&
+	if (relo->kind != BPF_CORE_TYPE_ID_LOCAL &&
 	    !hashmap__find(cand_cache, type_key, (void **)&cands)) {
 		cands = bpf_core_find_cands(prog->obj, local_btf, local_id);
 		if (IS_ERR(cands)) {
@@ -5724,6 +5754,9 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			break;
 		case RELO_CALL:
 			/* handled already */
+			break;
+		case RELO_CORE:
+			/* will be handled by bpf_program_record_relos() */
 			break;
 		default:
 			pr_warn("prog '%s': relo #%d: bad relo type %d\n",
@@ -6165,6 +6198,35 @@ bpf_object__free_relocs(struct bpf_object *obj)
 	}
 }
 
+static int cmp_relocs(const void *_a, const void *_b)
+{
+	const struct reloc_desc *a = _a;
+	const struct reloc_desc *b = _b;
+
+	if (a->insn_idx != b->insn_idx)
+		return a->insn_idx < b->insn_idx ? -1 : 1;
+
+	/* no two relocations should have the same insn_idx, but ... */
+	if (a->type != b->type)
+		return a->type < b->type ? -1 : 1;
+
+	return 0;
+}
+
+static void bpf_object__sort_relos(struct bpf_object *obj)
+{
+	int i;
+
+	for (i = 0; i < obj->nr_programs; i++) {
+		struct bpf_program *p = &obj->programs[i];
+
+		if (!p->nr_reloc)
+			continue;
+
+		qsort(p->reloc_desc, p->nr_reloc, sizeof(*p->reloc_desc), cmp_relocs);
+	}
+}
+
 static int
 bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 {
@@ -6179,6 +6241,8 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 				err);
 			return err;
 		}
+		if (obj->gen_loader)
+			bpf_object__sort_relos(obj);
 	}
 
 	/* Before relocating calls pre-process relocations and mark
@@ -6383,21 +6447,6 @@ static int bpf_object__collect_map_relos(struct bpf_object *obj,
 	return 0;
 }
 
-static int cmp_relocs(const void *_a, const void *_b)
-{
-	const struct reloc_desc *a = _a;
-	const struct reloc_desc *b = _b;
-
-	if (a->insn_idx != b->insn_idx)
-		return a->insn_idx < b->insn_idx ? -1 : 1;
-
-	/* no two relocations should have the same insn_idx, but ... */
-	if (a->type != b->type)
-		return a->type < b->type ? -1 : 1;
-
-	return 0;
-}
-
 static int bpf_object__collect_relos(struct bpf_object *obj)
 {
 	int i, err;
@@ -6430,14 +6479,7 @@ static int bpf_object__collect_relos(struct bpf_object *obj)
 			return err;
 	}
 
-	for (i = 0; i < obj->nr_programs; i++) {
-		struct bpf_program *p = &obj->programs[i];
-
-		if (!p->nr_reloc)
-			continue;
-
-		qsort(p->reloc_desc, p->nr_reloc, sizeof(*p->reloc_desc), cmp_relocs);
-	}
+	bpf_object__sort_relos(obj);
 	return 0;
 }
 
@@ -6679,7 +6721,7 @@ out:
 	return ret;
 }
 
-static int bpf_program__record_externs(struct bpf_program *prog)
+static int bpf_program_record_relos(struct bpf_program *prog)
 {
 	struct bpf_object *obj = prog->obj;
 	int i;
@@ -6701,6 +6743,17 @@ static int bpf_program__record_externs(struct bpf_program *prog)
 					       ext->is_weak, false, BTF_KIND_FUNC,
 					       relo->insn_idx);
 			break;
+		case RELO_CORE: {
+			struct bpf_core_relo cr = {
+				.insn_off = relo->insn_idx * 8,
+				.type_id = relo->core_relo->type_id,
+				.access_str_off = relo->core_relo->access_str_off,
+				.kind = relo->core_relo->kind,
+			};
+
+			bpf_gen__record_relo_core(obj->gen_loader, &cr);
+			break;
+		}
 		default:
 			continue;
 		}
@@ -6740,7 +6793,7 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 				prog->name, prog->instances.nr);
 		}
 		if (obj->gen_loader)
-			bpf_program__record_externs(prog);
+			bpf_program_record_relos(prog);
 		err = bpf_object_load_prog_instance(obj, prog,
 						    prog->insns, prog->insns_cnt,
 						    license, kern_ver, &fd);
