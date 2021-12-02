@@ -30,6 +30,9 @@ static int queue_poll_stat_show(void *data, struct seq_file *m)
 	struct request_queue *q = data;
 	int bucket;
 
+	if (!q->poll_stat)
+		return 0;
+
 	for (bucket = 0; bucket < (BLK_MQ_POLL_STATS_BKTS / 2); bucket++) {
 		seq_printf(m, "read  (%d Bytes): ", 1 << (9 + bucket));
 		print_stat(m, &q->poll_stat[2 * bucket]);
