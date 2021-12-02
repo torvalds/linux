@@ -2720,11 +2720,8 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	}
 
 	rq = __blk_mq_alloc_requests(&data);
-	if (!rq)
-		goto fail;
-	return rq;
-
-fail:
+	if (rq)
+		return rq;
 	rq_qos_cleanup(q, bio);
 	if (bio->bi_opf & REQ_NOWAIT)
 		bio_wouldblock_error(bio);
