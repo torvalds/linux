@@ -1910,6 +1910,27 @@ int main(void)
 	asm volatile("notrack bnd jmpq *0x12345678(%rax,%rcx,8)");	/* Expecting: jmp indirect 0 */
 	asm volatile("notrack bnd jmpq *0x12345678(%r8,%rcx,8)");	/* Expecting: jmp indirect 0 */
 
+	/* AMX */
+
+	asm volatile("ldtilecfg (%rax,%rcx,8)");
+	asm volatile("ldtilecfg (%r8,%rcx,8)");
+	asm volatile("sttilecfg (%rax,%rcx,8)");
+	asm volatile("sttilecfg (%r8,%rcx,8)");
+	asm volatile("tdpbf16ps %tmm0, %tmm1, %tmm2");
+	asm volatile("tdpbssd %tmm0, %tmm1, %tmm2");
+	asm volatile("tdpbsud %tmm0, %tmm1, %tmm2");
+	asm volatile("tdpbusd %tmm0, %tmm1, %tmm2");
+	asm volatile("tdpbuud %tmm0, %tmm1, %tmm2");
+	asm volatile("tileloadd (%rax,%rcx,8), %tmm1");
+	asm volatile("tileloadd (%r8,%rcx,8), %tmm2");
+	asm volatile("tileloaddt1 (%rax,%rcx,8), %tmm1");
+	asm volatile("tileloaddt1 (%r8,%rcx,8), %tmm2");
+	asm volatile("tilerelease");
+	asm volatile("tilestored %tmm1, (%rax,%rcx,8)");
+	asm volatile("tilestored %tmm2, (%r8,%rcx,8)");
+	asm volatile("tilezero %tmm0");
+	asm volatile("tilezero %tmm7");
+
 #else  /* #ifdef __x86_64__ */
 
 	/* bound r32, mem (same op code as EVEX prefix) */
