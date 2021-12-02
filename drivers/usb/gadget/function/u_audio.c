@@ -601,6 +601,15 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 	struct uac_params *params = &audio_dev->params;
 	int req_len, i;
 
+	/*
+	 * For better compatibility on some PC Hosts which
+	 * failed to send SetInterface(AltSet=0) to stop
+	 * capture last time. It needs to stop capture
+	 * prior to start capture next time.
+	 */
+	if (audio_dev->stream_state[STATE_OUT])
+		u_audio_stop_capture(audio_dev);
+
 	audio_dev->usb_state[SET_INTERFACE_OUT] = true;
 	audio_dev->stream_state[STATE_OUT] = true;
 	schedule_work(&audio_dev->work);
@@ -704,6 +713,15 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	const struct usb_endpoint_descriptor *ep_desc;
 	int req_len, i;
 	unsigned int p_pktsize;
+
+	/*
+	 * For better compatibility on some PC Hosts which
+	 * failed to send SetInterface(AltSet=0) to stop
+	 * playback last time. It needs to stop playback
+	 * prior to start playback next time.
+	 */
+	if (audio_dev->stream_state[STATE_IN])
+		u_audio_stop_playback(audio_dev);
 
 	audio_dev->usb_state[SET_INTERFACE_IN] = true;
 	audio_dev->stream_state[STATE_IN] = true;
