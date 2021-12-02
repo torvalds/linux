@@ -13,10 +13,12 @@ tc_act_can_offload_sample(struct mlx5e_tc_act_parse_state *parse_state,
 			  struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
+	bool ct_nat;
 
-	if (flow_flag_test(parse_state->flow, CT)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Sample action with connection tracking is not supported");
+	ct_nat = attr->ct_attr.ct_action & TCA_CT_ACT_NAT;
+
+	if (flow_flag_test(parse_state->flow, CT) && ct_nat) {
+		NL_SET_ERR_MSG_MOD(extack, "Sample action with CT NAT is not supported");
 		return false;
 	}
 

@@ -14,12 +14,6 @@ tc_act_can_offload_ct(struct mlx5e_tc_act_parse_state *parse_state,
 	bool clear_action = act->ct.action & TCA_CT_ACT_CLEAR;
 	struct netlink_ext_ack *extack = parse_state->extack;
 
-	if (flow_flag_test(parse_state->flow, SAMPLE)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Sample action with connection tracking is not supported");
-		return false;
-	}
-
 	if (parse_state->ct && !clear_action) {
 		NL_SET_ERR_MSG_MOD(extack, "Multiple CT actions are not supported");
 		return false;
