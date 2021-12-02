@@ -121,7 +121,7 @@ static ssize_t ata_scsi_park_show(struct device *device,
 unlock:
 	spin_unlock_irq(ap->lock);
 
-	return rc ? rc : snprintf(buf, 20, "%u\n", msecs);
+	return rc ? rc : sysfs_emit(buf, "%u\n", msecs);
 }
 
 static ssize_t ata_scsi_park_store(struct device *device,
