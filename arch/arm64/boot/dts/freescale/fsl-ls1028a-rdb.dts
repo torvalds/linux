@@ -22,6 +22,7 @@
 		mmc0 = &esdhc;
 		mmc1 = &esdhc1;
 		rtc1 = &ftm_alarm0;
+		spi0 = &fspi;
 	};
 
 	chosen {
