@@ -322,7 +322,7 @@ static void fsl_sata_set_irq_coalescing(struct ata_host *host,
 static ssize_t fsl_sata_intr_coalescing_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d	%d\n",
+	return sysfs_emit(buf, "%d	%d\n",
 			intr_coalescing_count, intr_coalescing_ticks);
 }
 
@@ -357,9 +357,9 @@ static ssize_t fsl_sata_rx_watermark_show(struct device *dev,
 	spin_lock_irqsave(&host->lock, flags);
 	rx_watermark = ioread32(csr_base + TRANSCFG);
 	rx_watermark &= 0x1f;
-
 	spin_unlock_irqrestore(&host->lock, flags);
-	return sprintf(buf, "%d\n", rx_watermark);
+
+	return sysfs_emit(buf, "%d\n", rx_watermark);
 }
 
 static ssize_t fsl_sata_rx_watermark_store(struct device *dev,
