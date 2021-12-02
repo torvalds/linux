@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -1754,7 +1754,7 @@ static int adc5_gen3_exit(struct platform_device *pdev)
 
 static struct platform_driver adc5_gen3_driver = {
 	.driver = {
-		.name = "qcom-spmi-adc5-gen3.c",
+		.name = "qcom-spmi-adc5-gen3",
 		.of_match_table = adc5_match_table,
 	},
 	.probe = adc5_gen3_probe,
