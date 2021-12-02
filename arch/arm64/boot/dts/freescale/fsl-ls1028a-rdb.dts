@@ -23,6 +23,12 @@
 		mmc1 = &esdhc1;
 		rtc1 = &ftm_alarm0;
 		spi0 = &fspi;
+		ethernet0 = &enetc_port0;
+		ethernet1 = &enetc_port2;
+		ethernet2 = &mscc_felix_port0;
+		ethernet3 = &mscc_felix_port1;
+		ethernet4 = &mscc_felix_port2;
+		ethernet5 = &mscc_felix_port3;
 	};
 
 	chosen {
