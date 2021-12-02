@@ -662,7 +662,7 @@ static int siw_copy_inline_sgl(const struct ib_send_wr *core_wr,
 		kbuf += core_sge->length;
 		core_sge++;
 	}
-	sqe->sge[0].length = bytes > 0 ? bytes : 0;
+	sqe->sge[0].length = max(bytes, 0);
 	sqe->num_sge = bytes > 0 ? 1 : 0;
 
 	return bytes;
