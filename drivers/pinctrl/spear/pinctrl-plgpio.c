@@ -523,6 +523,7 @@ end:
 
 static int plgpio_probe(struct platform_device *pdev)
 {
+	struct device_node *regmap_np;
 	struct plgpio *plgpio;
 	int ret, irq;
 
@@ -530,11 +531,22 @@ static int plgpio_probe(struct platform_device *pdev)
 	if (!plgpio)
 		return -ENOMEM;
 
-	plgpio->regmap = device_node_to_regmap(pdev->dev.of_node);
-	if (IS_ERR(plgpio->regmap)) {
-		dev_err(&pdev->dev, "Init regmap failed (%pe)\n",
-			plgpio->regmap);
-		return PTR_ERR(plgpio->regmap);
+	regmap_np = of_parse_phandle(pdev->dev.of_node, "regmap", 0);
+	if (regmap_np) {
+		plgpio->regmap = device_node_to_regmap(regmap_np);
+		of_node_put(regmap_np);
+		if (IS_ERR(plgpio->regmap)) {
+			dev_err(&pdev->dev, "Retrieve regmap failed (%pe)\n",
+				plgpio->regmap);
+			return PTR_ERR(plgpio->regmap);
+		}
+	} else {
+		plgpio->regmap = device_node_to_regmap(pdev->dev.of_node);
+		if (IS_ERR(plgpio->regmap)) {
+			dev_err(&pdev->dev, "Init regmap failed (%pe)\n",
+				plgpio->regmap);
+			return PTR_ERR(plgpio->regmap);
+		}
 	}
 
 	ret = plgpio_probe_dt(pdev, plgpio);
