@@ -1870,12 +1870,10 @@ err1:
 static bool davinci_mcasp_have_gpiochip(struct davinci_mcasp *mcasp)
 {
 #ifdef CONFIG_OF_GPIO
-	if (mcasp->dev->of_node &&
-	    of_property_read_bool(mcasp->dev->of_node, "gpio-controller"))
-		return true;
-#endif
-
+	return of_property_read_bool(mcasp->dev->of_node, "gpio-controller");
+#else
 	return false;
+#endif
 }
 
 static int davinci_mcasp_get_config(struct davinci_mcasp *mcasp,
