@@ -564,6 +564,14 @@
 		ti,cpts-ext-ts-inputs = <8>;
 	};
 
+	timesync_router: pinctrl@a40000 {
+		compatible = "pinctrl-single";
+		reg = <0x0 0xa40000 0x0 0x800>;
+		#pinctrl-cells = <1>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0x000107ff>;
+	};
+
 	usbss0: cdns-usb@f900000{
 		compatible = "ti,am64-usb";
 		reg = <0x00 0xf900000 0x00 0x100>;
