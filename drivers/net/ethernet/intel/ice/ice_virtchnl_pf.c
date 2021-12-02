@@ -4140,7 +4140,7 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 
 	mutex_lock(&vf->cfg_lock);
 
-	vf->port_vlan_info = ICE_VLAN(vlan_id, qos);
+	vf->port_vlan_info = ICE_VLAN(ETH_P_8021Q, vlan_id, qos);
 	if (ice_vf_is_port_vlan_ena(vf))
 		dev_info(dev, "Setting VLAN %u, QoS %u on VF %d\n",
 			 vlan_id, qos, vf_id);
@@ -4261,7 +4261,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			if (!vid)
 				continue;
 
-			vlan = ICE_VLAN(vid, 0);
+			vlan = ICE_VLAN(ETH_P_8021Q, vid, 0);
 			status = vsi->vlan_ops.add_vlan(vsi, &vlan);
 			if (status) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
@@ -4314,7 +4314,7 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			if (!vid)
 				continue;
 
-			vlan = ICE_VLAN(vid, 0);
+			vlan = ICE_VLAN(ETH_P_8021Q, vid, 0);
 			status = vsi->vlan_ops.del_vlan(vsi, &vlan);
 			if (status) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
@@ -4393,7 +4393,7 @@ static int ice_vc_ena_vlan_stripping(struct ice_vf *vf)
 	}
 
 	vsi = ice_get_vf_vsi(vf);
-	if (vsi->vlan_ops.ena_stripping(vsi))
+	if (vsi->vlan_ops.ena_stripping(vsi, ETH_P_8021Q))
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 
 error_param:
@@ -4458,7 +4458,7 @@ static int ice_vf_init_vlan_stripping(struct ice_vf *vf)
 		return 0;
 
 	if (ice_vf_vlan_offload_ena(vf->driver_caps))
-		return vsi->vlan_ops.ena_stripping(vsi);
+		return vsi->vlan_ops.ena_stripping(vsi, ETH_P_8021Q);
 	else
 		return vsi->vlan_ops.dis_stripping(vsi);
 }

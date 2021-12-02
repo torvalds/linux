@@ -12,9 +12,9 @@ struct ice_vsi;
 int ice_vsi_add_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan);
 int ice_vsi_del_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan);
 
-int ice_vsi_ena_stripping(struct ice_vsi *vsi);
+int ice_vsi_ena_stripping(struct ice_vsi *vsi, u16 tpid);
 int ice_vsi_dis_stripping(struct ice_vsi *vsi);
-int ice_vsi_ena_insertion(struct ice_vsi *vsi);
+int ice_vsi_ena_insertion(struct ice_vsi *vsi, u16 tpid);
 int ice_vsi_dis_insertion(struct ice_vsi *vsi);
 int ice_vsi_set_port_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan);
 

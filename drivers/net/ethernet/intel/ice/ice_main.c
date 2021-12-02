@@ -3402,14 +3402,13 @@ ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 /**
  * ice_vlan_rx_add_vid - Add a VLAN ID filter to HW offload
  * @netdev: network interface to be adjusted
- * @proto: unused protocol
+ * @proto: VLAN TPID
  * @vid: VLAN ID to be added
  *
  * net_device_ops implementation for adding VLAN IDs
  */
 static int
-ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
-		    u16 vid)
+ice_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -3430,7 +3429,7 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 	/* Add a switch rule for this VLAN ID so its corresponding VLAN tagged
 	 * packets aren't pruned by the device's internal switch on Rx
 	 */
-	vlan = ICE_VLAN(vid, 0);
+	vlan = ICE_VLAN(be16_to_cpu(proto), vid, 0);
 	ret = vsi->vlan_ops.add_vlan(vsi, &vlan);
 	if (!ret)
 		set_bit(ICE_VSI_VLAN_FLTR_CHANGED, vsi->state);
@@ -3441,14 +3440,13 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 /**
  * ice_vlan_rx_kill_vid - Remove a VLAN ID filter from HW offload
  * @netdev: network interface to be adjusted
- * @proto: unused protocol
+ * @proto: VLAN TPID
  * @vid: VLAN ID to be removed
  *
  * net_device_ops implementation for removing VLAN IDs
  */
 static int
-ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
-		     u16 vid)
+ice_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -3462,7 +3460,7 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 	/* Make sure VLAN delete is successful before updating VLAN
 	 * information
 	 */
-	vlan = ICE_VLAN(vid, 0);
+	vlan = ICE_VLAN(be16_to_cpu(proto), vid, 0);
 	ret = vsi->vlan_ops.del_vlan(vsi, &vlan);
 	if (ret)
 		return ret;
@@ -5608,14 +5606,14 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 
 	if ((features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_RX))
-		ret = vsi->vlan_ops.ena_stripping(vsi);
+		ret = vsi->vlan_ops.ena_stripping(vsi, ETH_P_8021Q);
 	else if (!(features & NETIF_F_HW_VLAN_CTAG_RX) &&
 		 (netdev->features & NETIF_F_HW_VLAN_CTAG_RX))
 		ret = vsi->vlan_ops.dis_stripping(vsi);
 
 	if ((features & NETIF_F_HW_VLAN_CTAG_TX) &&
 	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_TX))
-		ret = vsi->vlan_ops.ena_insertion(vsi);
+		ret = vsi->vlan_ops.ena_insertion(vsi, ETH_P_8021Q);
 	else if (!(features & NETIF_F_HW_VLAN_CTAG_TX) &&
 		 (netdev->features & NETIF_F_HW_VLAN_CTAG_TX))
 		ret = vsi->vlan_ops.dis_insertion(vsi);
@@ -5661,9 +5659,9 @@ static int ice_vsi_vlan_setup(struct ice_vsi *vsi)
 	int ret = 0;
 
 	if (vsi->netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
-		ret = vsi->vlan_ops.ena_stripping(vsi);
+		ret = vsi->vlan_ops.ena_stripping(vsi, ETH_P_8021Q);
 	if (vsi->netdev->features & NETIF_F_HW_VLAN_CTAG_TX)
-		ret = vsi->vlan_ops.ena_insertion(vsi);
+		ret = vsi->vlan_ops.ena_insertion(vsi, ETH_P_8021Q);
 
 	return ret;
 }

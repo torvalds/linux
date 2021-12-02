@@ -77,6 +77,8 @@ struct ice_fltr_info {
 		} mac_vlan;
 		struct {
 			u16 vlan_id;
+			u16 tpid;
+			u8 tpid_valid;
 		} vlan;
 		/* Set lkup_type as ICE_SW_LKUP_ETHERTYPE
 		 * if just using ethertype as filter. Set lkup_type as

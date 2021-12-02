@@ -217,6 +217,8 @@ ice_fltr_add_vlan_to_list(struct ice_vsi *vsi, struct list_head *list,
 	info.fltr_act = ICE_FWD_TO_VSI;
 	info.vsi_handle = vsi->idx;
 	info.l_data.vlan.vlan_id = vlan->vid;
+	info.l_data.vlan.tpid = vlan->tpid;
+	info.l_data.vlan.tpid_valid = true;
 
 	return ice_fltr_add_entry_to_list(ice_pf_to_dev(vsi->back), &info,
 					  list);

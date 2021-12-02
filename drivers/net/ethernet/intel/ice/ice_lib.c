@@ -3923,7 +3923,7 @@ int ice_vsi_add_vlan_zero(struct ice_vsi *vsi)
 {
 	struct ice_vlan vlan;
 
-	vlan = ICE_VLAN(0, 0);
+	vlan = ICE_VLAN(0, 0, 0);
 	return vsi->vlan_ops.add_vlan(vsi, &vlan);
 }
 

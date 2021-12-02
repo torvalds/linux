@@ -8,10 +8,11 @@
 #include "ice_type.h"
 
 struct ice_vlan {
+	u16 tpid;
 	u16 vid;
 	u8 prio;
 };
 
-#define ICE_VLAN(vid, prio) ((struct ice_vlan){ vid, prio })
+#define ICE_VLAN(tpid, vid, prio) ((struct ice_vlan){ tpid, vid, prio })
 
 #endif /* _ICE_VLAN_H_ */

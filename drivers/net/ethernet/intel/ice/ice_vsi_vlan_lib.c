@@ -6,6 +6,31 @@
 #include "ice_fltr.h"
 #include "ice.h"
 
+static void print_invalid_tpid(struct ice_vsi *vsi, u16 tpid)
+{
+	dev_err(ice_pf_to_dev(vsi->back), "%s %d specified invalid VLAN tpid 0x%04x\n",
+		ice_vsi_type_str(vsi->type), vsi->idx, tpid);
+}
+
+/**
+ * validate_vlan - check if the ice_vlan passed in is valid
+ * @vsi: VSI used for printing error message
+ * @vlan: ice_vlan structure to validate
+ *
+ * Return true if the VLAN TPID is valid or if the VLAN TPID is 0 and the VLAN
+ * VID is 0, which allows for non-zero VLAN filters with the specified VLAN TPID
+ * and untagged VLAN 0 filters to be added to the prune list respectively.
+ */
+static bool validate_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
+{
+	if (vlan->tpid != ETH_P_8021Q && (vlan->tpid || vlan->vid)) {
+		print_invalid_tpid(vsi, vlan->tpid);
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * ice_vsi_add_vlan - default add VLAN implementation for all VSI types
  * @vsi: VSI being configured
@@ -14,6 +39,9 @@
 int ice_vsi_add_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 {
 	int err = 0;
+
+	if (!validate_vlan(vsi, vlan))
+		return -EINVAL;
 
 	if (!ice_fltr_add_vlan(vsi, vlan)) {
 		vsi->num_vlan++;
@@ -36,6 +64,9 @@ int ice_vsi_del_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 	struct ice_pf *pf = vsi->back;
 	struct device *dev;
 	int err;
+
+	if (!validate_vlan(vsi, vlan))
+		return -EINVAL;
 
 	dev = ice_pf_to_dev(pf);
 
@@ -143,8 +174,13 @@ out:
 	return err;
 }
 
-int ice_vsi_ena_stripping(struct ice_vsi *vsi)
+int ice_vsi_ena_stripping(struct ice_vsi *vsi, const u16 tpid)
 {
+	if (tpid != ETH_P_8021Q) {
+		print_invalid_tpid(vsi, tpid);
+		return -EINVAL;
+	}
+
 	return ice_vsi_manage_vlan_stripping(vsi, true);
 }
 
@@ -153,8 +189,13 @@ int ice_vsi_dis_stripping(struct ice_vsi *vsi)
 	return ice_vsi_manage_vlan_stripping(vsi, false);
 }
 
-int ice_vsi_ena_insertion(struct ice_vsi *vsi)
+int ice_vsi_ena_insertion(struct ice_vsi *vsi, const u16 tpid)
 {
+	if (tpid != ETH_P_8021Q) {
+		print_invalid_tpid(vsi, tpid);
+		return -EINVAL;
+	}
+
 	return ice_vsi_manage_vlan_insertion(vsi);
 }
 
@@ -215,6 +256,9 @@ out:
 int ice_vsi_set_port_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 {
 	u16 port_vlan_info;
+
+	if (vlan->tpid != ETH_P_8021Q)
+		return -EINVAL;
 
 	if (vlan->prio > 7)
 		return -EINVAL;
