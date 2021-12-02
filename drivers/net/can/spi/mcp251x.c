@@ -600,9 +600,6 @@ static int mcp251x_gpio_setup(struct mcp251x_priv *priv)
 	gpio->ngpio = ARRAY_SIZE(mcp251x_gpio_names);
 	gpio->names = mcp251x_gpio_names;
 	gpio->can_sleep = true;
-#ifdef CONFIG_OF_GPIO
-	gpio->of_node = priv->spi->dev.of_node;
-#endif
 
 	return devm_gpiochip_add_data(&priv->spi->dev, gpio, priv);
 }
