@@ -876,7 +876,7 @@ static ssize_t ata_ncq_prio_enable_show(struct device *device,
 		ncq_prio_enable = dev->flags & ATA_DFLAG_NCQ_PRIO_ENABLE;
 	spin_unlock_irq(ap->lock);
 
-	return rc ? rc : snprintf(buf, 20, "%u\n", ncq_prio_enable);
+	return rc ? rc : sysfs_emit(buf, "%u\n", ncq_prio_enable);
 }
 
 static ssize_t ata_ncq_prio_enable_store(struct device *device,
@@ -972,7 +972,7 @@ ata_scsi_em_message_type_show(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ata_port *ap = ata_shost_to_port(shost);
 
-	return snprintf(buf, 23, "%d\n", ap->em_message_type);
+	return sysfs_emit(buf, "%d\n", ap->em_message_type);
 }
 DEVICE_ATTR(em_message_type, S_IRUGO,
 		  ata_scsi_em_message_type_show, NULL);
