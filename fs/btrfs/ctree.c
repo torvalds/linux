@@ -1818,7 +1818,9 @@ static int search_leaf(struct btrfs_trans_handle *trans,
 
 			err = split_leaf(trans, root, key, path, ins_len,
 					 (ret == 0));
-			BUG_ON(err > 0);
+			ASSERT(err <= 0);
+			if (WARN_ON(err > 0))
+				err = -EUCLEAN;
 			if (err)
 				ret = err;
 		}
