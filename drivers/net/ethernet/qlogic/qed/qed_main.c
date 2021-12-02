@@ -447,7 +447,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 			dev_info->wol_support = true;
 
 		dev_info->smart_an = qed_mcp_is_smart_an_supported(p_hwfn);
-
+		dev_info->esl = qed_mcp_is_esl_supported(p_hwfn);
 		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
@@ -3028,6 +3028,28 @@ static u8 qed_get_affin_hwfn_idx(struct qed_dev *cdev)
 	return QED_AFFIN_HWFN_IDX(cdev);
 }
 
+static int qed_get_esl_status(struct qed_dev *cdev, bool *esl_active)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int rc = 0;
+
+	*esl_active = false;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_mcp_get_esl_status(hwfn, ptt, esl_active);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
+}
+
 static struct qed_selftest_ops qed_selftest_ops_pass = {
 	.selftest_memory = &qed_selftest_memory,
 	.selftest_interrupt = &qed_selftest_interrupt,
@@ -3085,6 +3107,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.set_grc_config = &qed_set_grc_config,
 	.mfw_report = &qed_mfw_report,
 	.get_sb_info = &qed_get_sb_info,
+	.get_esl_status = &qed_get_esl_status,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,

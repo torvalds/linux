@@ -652,6 +652,7 @@ struct qed_dev_info {
 
 	bool wol_support;
 	bool smart_an;
+	bool esl;
 
 	/* MBI version */
 	u32 mbi_version;
@@ -1205,6 +1206,8 @@ struct qed_common_ops {
 
 	int (*get_sb_info)(struct qed_dev *cdev, struct qed_sb_info *sb,
 			   u16 qid, struct qed_sb_info_dbg *sb_dbg);
+
+	int (*get_esl_status)(struct qed_dev *cdev, bool *esl_active);
 };
 
 #define MASK_FIELD(_name, _value) \
