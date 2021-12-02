@@ -4,12 +4,6 @@
 #ifndef	__HALDMOUTSRC_H__
 #define __HALDMOUTSRC_H__
 
-/*  Add for AP/ADSLpseudo DM structuer requirement. */
-/*  We need to remove to other position??? */
-struct rtl8192cd_priv {
-	u8		temp;
-};
-
 struct rtw_dig {
 	u8		Dig_Enable_Flag;
 	u8		Dig_Ext_Port_Stage;
@@ -459,13 +453,7 @@ enum ant_div_type {
 
 /* Copy from SD4 defined structure. We use to support PHY DM integration. */
 struct odm_dm_struct {
-	/* 	Add for different team use temporarily */
 	struct adapter *Adapter;	/*  For CE/NIC team */
-	struct rtl8192cd_priv *priv;	/*  For AP/ADSL team */
-	/*  WHen you use above pointers, they must be initialized. */
-	bool	odm_ready;
-
-	struct rtl8192cd_priv *fake_priv;
 
 /*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
 	bool	bCckHighPower;
@@ -485,11 +473,6 @@ struct odm_dm_struct {
 
 	/*  Dynamic Value */
 /*  POINTER REFERENCE----------- */
-
-	u8	u8_temp;
-	bool	bool_temp;
-	struct adapter *adapter_temp;
-
 	/* TX Unicast byte count */
 	u64	*pNumTxBytesUnicast;
 	/* RX Unicast byte count */
@@ -504,18 +487,11 @@ struct odm_dm_struct {
 	u8	*pBandWidth;
 	/*  Central channel location Ch1/Ch2/.... */
 	u8	*pChannel;	/* central channel number */
-	/*  Common info for 92D DMSP */
 
-	bool	*pbGetValueFromOtherMac;
-	struct adapter **pBuddyAdapter;
-	bool	*pbMasterOfDMSP; /* MAC0: master, MAC1: slave */
 	/*  Common info for Status */
 	bool	*pbScanInProcess;
 	bool	*pbPowerSaving;
-	/*  CCA Path 2-path/path-A/path-B = 0/1/2; using ODM_CCA_PATH_E. */
-	u8	*pOnePathCCA;
-	/* pMgntInfo->AntennaTest */
-	u8	*pAntennaTest;
+
 	bool	*pbNet_closed;
 /*  POINTER REFERENCE----------- */
 	/*  */
@@ -524,16 +500,8 @@ struct odm_dm_struct {
 	bool	bWIFI_Display;
 	bool	bLinked;
 	u8	RSSI_Min;
-	u8	InterfaceIndex; /*  Add for 92D  dual MAC: 0--Mac0 1--Mac1 */
 	bool	bIsMPChip;
 	bool	bOneEntryOnly;
-	/*  Common info for BTDM */
-	bool	bBtDisabled;	/*  BT is disabled */
-	bool	bBtHsOperation;	/*  BT HS mode is under progress */
-	u8	btHsDigVal;	/*  use BT rssi to decide the DIG value */
-	bool	bBtDisableEdcaTurbo;/* Under some condition, don't enable the
-				     * EDCA Turbo */
-	bool	bBtBusy;			/*  BT is busy. */
 /* CALL BY VALUE------------- */
 
 	/* 2 Define STA info. */
@@ -549,38 +517,18 @@ struct odm_dm_struct {
 	/*  Latest packet phy info (ODM write) */
 	struct odm_phy_dbg_info PhyDbgInfo;
 
-	/*  Latest packet phy info (ODM write) */
-	struct odm_mac_status_info *pMacInfo;
-
-	/*  Different Team independt structure?? */
-
 	/* ODM Structure */
 	struct fast_ant_train DM_FatTable;
 	struct rtw_dig	DM_DigTable;
 	struct rtl_ps	DM_PSTable;
 	struct dyn_primary_cca DM_PriCCA;
-	struct rx_hpc	DM_RXHP_Table;
 	struct false_alarm_stats FalseAlmCnt;
-	struct false_alarm_stats FlaseAlmCntBuddyAdapter;
 	struct sw_ant_switch DM_SWAT_Table;
 	bool		RSSI_test;
 
 	struct edca_turbo DM_EDCA_Table;
-	u32		WMMEDCA_BE;
-	/*  Copy from SD4 structure */
-	/*  */
-	/*  ================================================== */
-	/*  */
-
-	bool	*pbDriverStopped;
-	bool	*pbDriverIsGoingToPnpSetPowerSleep;
-	bool	*pinit_adpt_in_progress;
 
 	/* PSD */
-	bool	bUserAssignLevel;
-	struct timer_list PSDTimer;
-	u8	RSSI_BT;			/* come from BT */
-	bool	bPSDinProcess;
 	bool	bDMInitialGainEnable;
 
 	struct odm_rate_adapt RateAdaptive;
@@ -596,14 +544,7 @@ struct odm_dm_struct {
 	u8	BbSwingIdxCckCurrent;
 	u8	BbSwingIdxCckBase;
 	bool	BbSwingFlagCck;
-	/*  ODM system resource. */
-
-	/*  ODM relative time. */
-	struct timer_list PathDivSwitchTimer;
-	/* 2011.09.27 add for Path Diversity */
-	struct timer_list CCKPathDiversityTimer;
-	struct timer_list FastAntTrainingTimer;
-};		/*  DM_Dynamic_Mechanism_Structure */
+};
 
 enum odm_bb_config_type {
     CONFIG_BB_PHY_REG,
