@@ -94,7 +94,7 @@ static int map_patch_area(void *addr, unsigned long text_poke_addr)
 	return map_kernel_page(text_poke_addr, (pfn << PAGE_SHIFT), PAGE_KERNEL);
 }
 
-static inline int unmap_patch_area(unsigned long addr)
+static void unmap_patch_area(unsigned long addr)
 {
 	pte_t *ptep;
 	pmd_t *pmdp;
@@ -103,32 +103,30 @@ static inline int unmap_patch_area(unsigned long addr)
 	pgd_t *pgdp;
 
 	pgdp = pgd_offset_k(addr);
-	if (unlikely(!pgdp))
-		return -EINVAL;
+	if (WARN_ON(pgd_none(*pgdp)))
+		return;
 
 	p4dp = p4d_offset(pgdp, addr);
-	if (unlikely(!p4dp))
-		return -EINVAL;
+	if (WARN_ON(p4d_none(*p4dp)))
+		return;
 
 	pudp = pud_offset(p4dp, addr);
-	if (unlikely(!pudp))
-		return -EINVAL;
+	if (WARN_ON(pud_none(*pudp)))
+		return;
 
 	pmdp = pmd_offset(pudp, addr);
-	if (unlikely(!pmdp))
-		return -EINVAL;
+	if (WARN_ON(pmd_none(*pmdp)))
+		return;
 
 	ptep = pte_offset_kernel(pmdp, addr);
-	if (unlikely(!ptep))
-		return -EINVAL;
+	if (WARN_ON(pte_none(*ptep)))
+		return;
 
 	/*
 	 * In hash, pte_clear flushes the tlb, in radix, we have to
 	 */
 	pte_clear(&init_mm, addr, ptep);
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-
-	return 0;
 }
 
 static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
@@ -156,11 +154,9 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 
 	patch_addr = (u32 *)(text_poke_addr + (kaddr & ~PAGE_MASK));
 
-	__patch_instruction(addr, instr, patch_addr);
+	err = __patch_instruction(addr, instr, patch_addr);
 
-	err = unmap_patch_area(text_poke_addr);
-	if (err)
-		pr_warn("failed to unmap %lx\n", text_poke_addr);
+	unmap_patch_area(text_poke_addr);
 
 out:
 	local_irq_restore(flags);
