@@ -370,22 +370,6 @@ int translate_branch(ppc_inst_t *instr, const u32 *dest, const u32 *src)
 	return 1;
 }
 
-#ifdef CONFIG_PPC_BOOK3E_64
-void __patch_exception(int exc, unsigned long addr)
-{
-	extern unsigned int interrupt_base_book3e;
-	unsigned int *ibase = &interrupt_base_book3e;
-
-	/* Our exceptions vectors start with a NOP and -then- a branch
-	 * to deal with single stepping from userspace which stops on
-	 * the second instruction. Thus we need to patch the second
-	 * instruction of the exception, not the first one
-	 */
-
-	patch_branch(ibase + (exc / 4) + 1, addr, 0);
-}
-#endif
-
 #ifdef CONFIG_CODE_PATCHING_SELFTEST
 
 static int __init instr_is_branch_to_addr(const u32 *instr, unsigned long addr)
