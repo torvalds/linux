@@ -576,6 +576,7 @@
 	csi2_dcphy1: csi2-dcphy1 {
 		compatible = "rockchip,rk3588-csi2-dcphy";
 		rockchip,hw = <&csi2_dcphy1_hw>;
+		status = "disabled";
 	};
 
 	/* dphy0 full mode */
