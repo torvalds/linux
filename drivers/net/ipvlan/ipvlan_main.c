@@ -100,8 +100,7 @@ static void ipvlan_port_destroy(struct net_device *dev)
 	netdev_rx_handler_unregister(dev);
 	cancel_work_sync(&port->wq);
 	while ((skb = __skb_dequeue(&port->backlog)) != NULL) {
-		if (skb->dev)
-			dev_put(skb->dev);
+		dev_put(skb->dev);
 		kfree_skb(skb);
 	}
 	ida_destroy(&port->ida);
