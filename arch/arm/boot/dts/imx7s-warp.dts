@@ -248,7 +248,6 @@
 
 &mipi_csi {
 	clock-frequency = <166000000>;
-	fsl,csis-hs-settle = <3>;
 	status = "okay";
 
 	port@0 {
