@@ -87,11 +87,15 @@ int igt_check_plane_state(void *ignored)
 				DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC)
 		},
 	};
+	struct drm_plane plane = {
+		.dev = NULL
+	};
 	struct drm_framebuffer fb = {
 		.width = 2048,
 		.height = 2048
 	};
 	struct drm_plane_state plane_state = {
+		.plane = &plane,
 		.crtc = ZERO_SIZE_PTR,
 		.fb = &fb,
 		.rotation = DRM_MODE_ROTATE_0
