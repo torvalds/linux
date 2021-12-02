@@ -1002,9 +1002,7 @@ static bool hns3_can_use_tx_bounce(struct hns3_enet_ring *ring,
 		return false;
 
 	if (ALIGN(len, dma_get_cache_alignment()) > space) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.tx_spare_full++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, tx_spare_full);
 		return false;
 	}
 
@@ -1021,9 +1019,7 @@ static bool hns3_can_use_tx_sgl(struct hns3_enet_ring *ring,
 		return false;
 
 	if (space < HNS3_MAX_SGL_SIZE) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.tx_spare_full++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, tx_spare_full);
 		return false;
 	}
 
@@ -1548,92 +1544,122 @@ static bool hns3_check_hw_tx_csum(struct sk_buff *skb)
 	return true;
 }
 
-static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
-			      struct sk_buff *skb, struct hns3_desc *desc,
-			      struct hns3_desc_cb *desc_cb)
+struct hns3_desc_param {
+	u32 paylen_ol4cs;
+	u32 ol_type_vlan_len_msec;
+	u32 type_cs_vlan_tso;
+	u16 mss_hw_csum;
+	u16 inner_vtag;
+	u16 out_vtag;
+};
+
+static void hns3_init_desc_data(struct sk_buff *skb, struct hns3_desc_param *pa)
 {
-	u32 ol_type_vlan_len_msec = 0;
-	u32 paylen_ol4cs = skb->len;
-	u32 type_cs_vlan_tso = 0;
-	u16 mss_hw_csum = 0;
-	u16 inner_vtag = 0;
-	u16 out_vtag = 0;
+	pa->paylen_ol4cs = skb->len;
+	pa->ol_type_vlan_len_msec = 0;
+	pa->type_cs_vlan_tso = 0;
+	pa->mss_hw_csum = 0;
+	pa->inner_vtag = 0;
+	pa->out_vtag = 0;
+}
+
+static int hns3_handle_vlan_info(struct hns3_enet_ring *ring,
+				 struct sk_buff *skb,
+				 struct hns3_desc_param *param)
+{
 	int ret;
 
 	ret = hns3_handle_vtags(ring, skb);
 	if (unlikely(ret < 0)) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.tx_vlan_err++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, tx_vlan_err);
 		return ret;
 	} else if (ret == HNS3_INNER_VLAN_TAG) {
-		inner_vtag = skb_vlan_tag_get(skb);
-		inner_vtag |= (skb->priority << VLAN_PRIO_SHIFT) &
+		param->inner_vtag = skb_vlan_tag_get(skb);
+		param->inner_vtag |= (skb->priority << VLAN_PRIO_SHIFT) &
 				VLAN_PRIO_MASK;
-		hns3_set_field(type_cs_vlan_tso, HNS3_TXD_VLAN_B, 1);
+		hns3_set_field(param->type_cs_vlan_tso, HNS3_TXD_VLAN_B, 1);
 	} else if (ret == HNS3_OUTER_VLAN_TAG) {
-		out_vtag = skb_vlan_tag_get(skb);
-		out_vtag |= (skb->priority << VLAN_PRIO_SHIFT) &
+		param->out_vtag = skb_vlan_tag_get(skb);
+		param->out_vtag |= (skb->priority << VLAN_PRIO_SHIFT) &
 				VLAN_PRIO_MASK;
-		hns3_set_field(ol_type_vlan_len_msec, HNS3_TXD_OVLAN_B,
+		hns3_set_field(param->ol_type_vlan_len_msec, HNS3_TXD_OVLAN_B,
 			       1);
 	}
+	return 0;
+}
+
+static int hns3_handle_csum_partial(struct hns3_enet_ring *ring,
+				    struct sk_buff *skb,
+				    struct hns3_desc_cb *desc_cb,
+				    struct hns3_desc_param *param)
+{
+	u8 ol4_proto, il4_proto;
+	int ret;
+
+	if (hns3_check_hw_tx_csum(skb)) {
+		/* set checksum start and offset, defined in 2 Bytes */
+		hns3_set_field(param->type_cs_vlan_tso, HNS3_TXD_CSUM_START_S,
+			       skb_checksum_start_offset(skb) >> 1);
+		hns3_set_field(param->ol_type_vlan_len_msec,
+			       HNS3_TXD_CSUM_OFFSET_S,
+			       skb->csum_offset >> 1);
+		param->mss_hw_csum |= BIT(HNS3_TXD_HW_CS_B);
+		return 0;
+	}
+
+	skb_reset_mac_len(skb);
+
+	ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
+	if (unlikely(ret < 0)) {
+		hns3_ring_stats_update(ring, tx_l4_proto_err);
+		return ret;
+	}
+
+	ret = hns3_set_l2l3l4(skb, ol4_proto, il4_proto,
+			      &param->type_cs_vlan_tso,
+			      &param->ol_type_vlan_len_msec);
+	if (unlikely(ret < 0)) {
+		hns3_ring_stats_update(ring, tx_l2l3l4_err);
+		return ret;
+	}
+
+	ret = hns3_set_tso(skb, &param->paylen_ol4cs, &param->mss_hw_csum,
+			   &param->type_cs_vlan_tso, &desc_cb->send_bytes);
+	if (unlikely(ret < 0)) {
+		hns3_ring_stats_update(ring, tx_tso_err);
+		return ret;
+	}
+	return 0;
+}
+
+static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
+			      struct sk_buff *skb, struct hns3_desc *desc,
+			      struct hns3_desc_cb *desc_cb)
+{
+	struct hns3_desc_param param;
+	int ret;
+
+	hns3_init_desc_data(skb, &param);
+	ret = hns3_handle_vlan_info(ring, skb, &param);
+	if (unlikely(ret < 0))
+		return ret;
 
 	desc_cb->send_bytes = skb->len;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		u8 ol4_proto, il4_proto;
-
-		if (hns3_check_hw_tx_csum(skb)) {
-			/* set checksum start and offset, defined in 2 Bytes */
-			hns3_set_field(type_cs_vlan_tso, HNS3_TXD_CSUM_START_S,
-				       skb_checksum_start_offset(skb) >> 1);
-			hns3_set_field(ol_type_vlan_len_msec,
-				       HNS3_TXD_CSUM_OFFSET_S,
-				       skb->csum_offset >> 1);
-			mss_hw_csum |= BIT(HNS3_TXD_HW_CS_B);
-			goto out_hw_tx_csum;
-		}
-
-		skb_reset_mac_len(skb);
-
-		ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
-		if (unlikely(ret < 0)) {
-			u64_stats_update_begin(&ring->syncp);
-			ring->stats.tx_l4_proto_err++;
-			u64_stats_update_end(&ring->syncp);
+		ret = hns3_handle_csum_partial(ring, skb, desc_cb, &param);
+		if (ret)
 			return ret;
-		}
-
-		ret = hns3_set_l2l3l4(skb, ol4_proto, il4_proto,
-				      &type_cs_vlan_tso,
-				      &ol_type_vlan_len_msec);
-		if (unlikely(ret < 0)) {
-			u64_stats_update_begin(&ring->syncp);
-			ring->stats.tx_l2l3l4_err++;
-			u64_stats_update_end(&ring->syncp);
-			return ret;
-		}
-
-		ret = hns3_set_tso(skb, &paylen_ol4cs, &mss_hw_csum,
-				   &type_cs_vlan_tso, &desc_cb->send_bytes);
-		if (unlikely(ret < 0)) {
-			u64_stats_update_begin(&ring->syncp);
-			ring->stats.tx_tso_err++;
-			u64_stats_update_end(&ring->syncp);
-			return ret;
-		}
 	}
 
-out_hw_tx_csum:
 	/* Set txbd */
 	desc->tx.ol_type_vlan_len_msec =
-		cpu_to_le32(ol_type_vlan_len_msec);
-	desc->tx.type_cs_vlan_tso_len = cpu_to_le32(type_cs_vlan_tso);
-	desc->tx.paylen_ol4cs = cpu_to_le32(paylen_ol4cs);
-	desc->tx.mss_hw_csum = cpu_to_le16(mss_hw_csum);
-	desc->tx.vlan_tag = cpu_to_le16(inner_vtag);
-	desc->tx.outer_vlan_tag = cpu_to_le16(out_vtag);
+		cpu_to_le32(param.ol_type_vlan_len_msec);
+	desc->tx.type_cs_vlan_tso_len = cpu_to_le32(param.type_cs_vlan_tso);
+	desc->tx.paylen_ol4cs = cpu_to_le32(param.paylen_ol4cs);
+	desc->tx.mss_hw_csum = cpu_to_le16(param.mss_hw_csum);
+	desc->tx.vlan_tag = cpu_to_le16(param.inner_vtag);
+	desc->tx.outer_vlan_tag = cpu_to_le16(param.out_vtag);
 
 	return 0;
 }
@@ -1713,9 +1739,7 @@ static int hns3_map_and_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	}
 
 	if (unlikely(dma_mapping_error(dev, dma))) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.sw_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, sw_err_cnt);
 		return -ENOMEM;
 	}
 
@@ -1861,9 +1885,7 @@ static int hns3_skb_linearize(struct hns3_enet_ring *ring,
 	 * recursion level of over HNS3_MAX_RECURSION_LEVEL.
 	 */
 	if (bd_num == UINT_MAX) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.over_max_recursion++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, over_max_recursion);
 		return -ENOMEM;
 	}
 
@@ -1872,16 +1894,12 @@ static int hns3_skb_linearize(struct hns3_enet_ring *ring,
 	 */
 	if (skb->len > HNS3_MAX_TSO_SIZE ||
 	    (!skb_is_gso(skb) && skb->len > HNS3_MAX_NON_TSO_SIZE)) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.hw_limitation++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, hw_limitation);
 		return -ENOMEM;
 	}
 
 	if (__skb_linearize(skb)) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.sw_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, sw_err_cnt);
 		return -ENOMEM;
 	}
 
@@ -1911,9 +1929,7 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 
 		bd_num = hns3_tx_bd_count(skb->len);
 
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.tx_copy++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, tx_copy);
 	}
 
 out:
@@ -1933,9 +1949,7 @@ out:
 		return bd_num;
 	}
 
-	u64_stats_update_begin(&ring->syncp);
-	ring->stats.tx_busy++;
-	u64_stats_update_end(&ring->syncp);
+	hns3_ring_stats_update(ring, tx_busy);
 
 	return -EBUSY;
 }
@@ -2020,9 +2034,7 @@ static void hns3_tx_doorbell(struct hns3_enet_ring *ring, int num,
 	ring->pending_buf += num;
 
 	if (!doorbell) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.tx_more++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, tx_more);
 		return;
 	}
 
@@ -2072,9 +2084,7 @@ static int hns3_handle_tx_bounce(struct hns3_enet_ring *ring,
 	ret = skb_copy_bits(skb, 0, buf, size);
 	if (unlikely(ret < 0)) {
 		hns3_tx_spare_rollback(ring, cb_len);
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.copy_bits_err++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, copy_bits_err);
 		return ret;
 	}
 
@@ -2097,9 +2107,8 @@ static int hns3_handle_tx_bounce(struct hns3_enet_ring *ring,
 	dma_sync_single_for_device(ring_to_dev(ring), dma, size,
 				   DMA_TO_DEVICE);
 
-	u64_stats_update_begin(&ring->syncp);
-	ring->stats.tx_bounce++;
-	u64_stats_update_end(&ring->syncp);
+	hns3_ring_stats_update(ring, tx_bounce);
+
 	return bd_num;
 }
 
@@ -2129,9 +2138,7 @@ static int hns3_handle_tx_sgl(struct hns3_enet_ring *ring,
 	nents = skb_to_sgvec(skb, sgt->sgl, 0, skb->len);
 	if (unlikely(nents < 0)) {
 		hns3_tx_spare_rollback(ring, cb_len);
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.skb2sgl_err++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, skb2sgl_err);
 		return -ENOMEM;
 	}
 
@@ -2140,9 +2147,7 @@ static int hns3_handle_tx_sgl(struct hns3_enet_ring *ring,
 				DMA_TO_DEVICE);
 	if (unlikely(!sgt->nents)) {
 		hns3_tx_spare_rollback(ring, cb_len);
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.map_sg_err++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, map_sg_err);
 		return -ENOMEM;
 	}
 
@@ -2154,10 +2159,7 @@ static int hns3_handle_tx_sgl(struct hns3_enet_ring *ring,
 	for (i = 0; i < sgt->nents; i++)
 		bd_num += hns3_fill_desc(ring, sg_dma_address(sgt->sgl + i),
 					 sg_dma_len(sgt->sgl + i));
-
-	u64_stats_update_begin(&ring->syncp);
-	ring->stats.tx_sgl++;
-	u64_stats_update_end(&ring->syncp);
+	hns3_ring_stats_update(ring, tx_sgl);
 
 	return bd_num;
 }
@@ -2182,23 +2184,45 @@ out:
 	return hns3_fill_skb_to_desc(ring, skb, DESC_TYPE_SKB);
 }
 
+static int hns3_handle_skb_desc(struct hns3_enet_ring *ring,
+				struct sk_buff *skb,
+				struct hns3_desc_cb *desc_cb,
+				int next_to_use_head)
+{
+	int ret;
+
+	ret = hns3_fill_skb_desc(ring, skb, &ring->desc[ring->next_to_use],
+				 desc_cb);
+	if (unlikely(ret < 0))
+		goto fill_err;
+
+	/* 'ret < 0' means filling error, 'ret == 0' means skb->len is
+	 * zero, which is unlikely, and 'ret > 0' means how many tx desc
+	 * need to be notified to the hw.
+	 */
+	ret = hns3_handle_desc_filling(ring, skb);
+	if (likely(ret > 0))
+		return ret;
+
+fill_err:
+	hns3_clear_desc(ring, next_to_use_head);
+	return ret;
+}
+
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hns3_enet_ring *ring = &priv->ring[skb->queue_mapping];
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
 	struct netdev_queue *dev_queue;
-	int pre_ntu, next_to_use_head;
+	int pre_ntu, ret;
 	bool doorbell;
-	int ret;
 
 	/* Hardware can only handle short frames above 32 bytes */
 	if (skb_put_padto(skb, HNS3_MIN_TX_LEN)) {
 		hns3_tx_doorbell(ring, 0, !netdev_xmit_more());
 
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.sw_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, sw_err_cnt);
 
 		return NETDEV_TX_OK;
 	}
@@ -2217,20 +2241,9 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out_err_tx_ok;
 	}
 
-	next_to_use_head = ring->next_to_use;
-
-	ret = hns3_fill_skb_desc(ring, skb, &ring->desc[ring->next_to_use],
-				 desc_cb);
-	if (unlikely(ret < 0))
-		goto fill_err;
-
-	/* 'ret < 0' means filling error, 'ret == 0' means skb->len is
-	 * zero, which is unlikely, and 'ret > 0' means how many tx desc
-	 * need to be notified to the hw.
-	 */
-	ret = hns3_handle_desc_filling(ring, skb);
+	ret = hns3_handle_skb_desc(ring, skb, desc_cb, ring->next_to_use);
 	if (unlikely(ret <= 0))
-		goto fill_err;
+		goto out_err_tx_ok;
 
 	pre_ntu = ring->next_to_use ? (ring->next_to_use - 1) :
 					(ring->desc_num - 1);
@@ -2251,9 +2264,6 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	hns3_tx_doorbell(ring, ret, doorbell);
 
 	return NETDEV_TX_OK;
-
-fill_err:
-	hns3_clear_desc(ring, next_to_use_head);
 
 out_err_tx_ok:
 	dev_kfree_skb_any(skb);
@@ -3522,17 +3532,13 @@ static bool hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 	for (i = 0; i < cleand_count; i++) {
 		desc_cb = &ring->desc_cb[ring->next_to_use];
 		if (desc_cb->reuse_flag) {
-			u64_stats_update_begin(&ring->syncp);
-			ring->stats.reuse_pg_cnt++;
-			u64_stats_update_end(&ring->syncp);
+			hns3_ring_stats_update(ring, reuse_pg_cnt);
 
 			hns3_reuse_buffer(ring, ring->next_to_use);
 		} else {
 			ret = hns3_alloc_and_map_buffer(ring, &res_cbs);
 			if (ret) {
-				u64_stats_update_begin(&ring->syncp);
-				ring->stats.sw_err_cnt++;
-				u64_stats_update_end(&ring->syncp);
+				hns3_ring_stats_update(ring, sw_err_cnt);
 
 				hns3_rl_err(ring_to_netdev(ring),
 					    "alloc rx buffer failed: %d\n",
@@ -3544,9 +3550,7 @@ static bool hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 			}
 			hns3_replace_buffer(ring, ring->next_to_use, &res_cbs);
 
-			u64_stats_update_begin(&ring->syncp);
-			ring->stats.non_reuse_pg++;
-			u64_stats_update_end(&ring->syncp);
+			hns3_ring_stats_update(ring, non_reuse_pg);
 		}
 
 		ring_ptr_move_fw(ring, next_to_use);
@@ -3573,9 +3577,7 @@ static int hns3_handle_rx_copybreak(struct sk_buff *skb, int i,
 	void *frag = napi_alloc_frag(frag_size);
 
 	if (unlikely(!frag)) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.frag_alloc_err++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, frag_alloc_err);
 
 		hns3_rl_err(ring_to_netdev(ring),
 			    "failed to allocate rx frag\n");
@@ -3587,9 +3589,7 @@ static int hns3_handle_rx_copybreak(struct sk_buff *skb, int i,
 	skb_add_rx_frag(skb, i, virt_to_page(frag),
 			offset_in_page(frag), frag_size, frag_size);
 
-	u64_stats_update_begin(&ring->syncp);
-	ring->stats.frag_alloc++;
-	u64_stats_update_end(&ring->syncp);
+	hns3_ring_stats_update(ring, frag_alloc);
 	return 0;
 }
 
@@ -3722,9 +3722,7 @@ static bool hns3_checksum_complete(struct hns3_enet_ring *ring,
 	    hns3_rx_ptype_tbl[ptype].ip_summed != CHECKSUM_COMPLETE)
 		return false;
 
-	u64_stats_update_begin(&ring->syncp);
-	ring->stats.csum_complete++;
-	u64_stats_update_end(&ring->syncp);
+	hns3_ring_stats_update(ring, csum_complete);
 	skb->ip_summed = CHECKSUM_COMPLETE;
 	skb->csum = csum_unfold((__force __sum16)csum);
 
@@ -3798,9 +3796,7 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 	if (unlikely(l234info & (BIT(HNS3_RXD_L3E_B) | BIT(HNS3_RXD_L4E_B) |
 				 BIT(HNS3_RXD_OL3E_B) |
 				 BIT(HNS3_RXD_OL4E_B)))) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.l3l4_csum_err++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, l3l4_csum_err);
 
 		return;
 	}
@@ -3891,10 +3887,7 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 	skb = ring->skb;
 	if (unlikely(!skb)) {
 		hns3_rl_err(netdev, "alloc rx skb fail\n");
-
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.sw_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, sw_err_cnt);
 
 		return -ENOMEM;
 	}
@@ -3925,9 +3918,7 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 	if (ring->page_pool)
 		skb_mark_for_recycle(skb);
 
-	u64_stats_update_begin(&ring->syncp);
-	ring->stats.seg_pkt_cnt++;
-	u64_stats_update_end(&ring->syncp);
+	hns3_ring_stats_update(ring, seg_pkt_cnt);
 
 	ring->pull_len = eth_get_headlen(netdev, va, HNS3_RX_HEAD_SIZE);
 	__skb_put(skb, ring->pull_len);
@@ -4135,9 +4126,7 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 	ret = hns3_set_gro_and_checksum(ring, skb, l234info,
 					bd_base_info, ol_info, csum);
 	if (unlikely(ret)) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.rx_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
+		hns3_ring_stats_update(ring, rx_err_cnt);
 		return ret;
 	}
 
@@ -4353,87 +4342,70 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	return rx_pkt_total;
 }
 
-static int hns3_get_vector_ring_chain(struct hns3_enet_tqp_vector *tqp_vector,
-				      struct hnae3_ring_chain_node *head)
+static int hns3_create_ring_chain(struct hns3_enet_tqp_vector *tqp_vector,
+				  struct hnae3_ring_chain_node **head,
+				  bool is_tx)
 {
+	u32 bit_value = is_tx ? HNAE3_RING_TYPE_TX : HNAE3_RING_TYPE_RX;
+	u32 field_value = is_tx ? HNAE3_RING_GL_TX : HNAE3_RING_GL_RX;
+	struct hnae3_ring_chain_node *cur_chain = *head;
 	struct pci_dev *pdev = tqp_vector->handle->pdev;
-	struct hnae3_ring_chain_node *cur_chain = head;
 	struct hnae3_ring_chain_node *chain;
-	struct hns3_enet_ring *tx_ring;
-	struct hns3_enet_ring *rx_ring;
+	struct hns3_enet_ring *ring;
 
-	tx_ring = tqp_vector->tx_group.ring;
-	if (tx_ring) {
-		cur_chain->tqp_index = tx_ring->tqp->tqp_index;
-		hnae3_set_bit(cur_chain->flag, HNAE3_RING_TYPE_B,
-			      HNAE3_RING_TYPE_TX);
-		hnae3_set_field(cur_chain->int_gl_idx, HNAE3_RING_GL_IDX_M,
-				HNAE3_RING_GL_IDX_S, HNAE3_RING_GL_TX);
+	ring = is_tx ? tqp_vector->tx_group.ring : tqp_vector->rx_group.ring;
 
-		cur_chain->next = NULL;
-
-		while (tx_ring->next) {
-			tx_ring = tx_ring->next;
-
-			chain = devm_kzalloc(&pdev->dev, sizeof(*chain),
-					     GFP_KERNEL);
-			if (!chain)
-				goto err_free_chain;
-
-			cur_chain->next = chain;
-			chain->tqp_index = tx_ring->tqp->tqp_index;
-			hnae3_set_bit(chain->flag, HNAE3_RING_TYPE_B,
-				      HNAE3_RING_TYPE_TX);
-			hnae3_set_field(chain->int_gl_idx,
-					HNAE3_RING_GL_IDX_M,
-					HNAE3_RING_GL_IDX_S,
-					HNAE3_RING_GL_TX);
-
-			cur_chain = chain;
-		}
+	if (cur_chain) {
+		while (cur_chain->next)
+			cur_chain = cur_chain->next;
 	}
 
-	rx_ring = tqp_vector->rx_group.ring;
-	if (!tx_ring && rx_ring) {
-		cur_chain->next = NULL;
-		cur_chain->tqp_index = rx_ring->tqp->tqp_index;
-		hnae3_set_bit(cur_chain->flag, HNAE3_RING_TYPE_B,
-			      HNAE3_RING_TYPE_RX);
-		hnae3_set_field(cur_chain->int_gl_idx, HNAE3_RING_GL_IDX_M,
-				HNAE3_RING_GL_IDX_S, HNAE3_RING_GL_RX);
-
-		rx_ring = rx_ring->next;
-	}
-
-	while (rx_ring) {
+	while (ring) {
 		chain = devm_kzalloc(&pdev->dev, sizeof(*chain), GFP_KERNEL);
 		if (!chain)
-			goto err_free_chain;
-
-		cur_chain->next = chain;
-		chain->tqp_index = rx_ring->tqp->tqp_index;
+			return -ENOMEM;
+		if (cur_chain)
+			cur_chain->next = chain;
+		else
+			*head = chain;
+		chain->tqp_index = ring->tqp->tqp_index;
 		hnae3_set_bit(chain->flag, HNAE3_RING_TYPE_B,
-			      HNAE3_RING_TYPE_RX);
-		hnae3_set_field(chain->int_gl_idx, HNAE3_RING_GL_IDX_M,
-				HNAE3_RING_GL_IDX_S, HNAE3_RING_GL_RX);
+				bit_value);
+		hnae3_set_field(chain->int_gl_idx,
+				HNAE3_RING_GL_IDX_M,
+				HNAE3_RING_GL_IDX_S, field_value);
 
 		cur_chain = chain;
 
-		rx_ring = rx_ring->next;
+		ring = ring->next;
 	}
 
 	return 0;
+}
+
+static struct hnae3_ring_chain_node *
+hns3_get_vector_ring_chain(struct hns3_enet_tqp_vector *tqp_vector)
+{
+	struct pci_dev *pdev = tqp_vector->handle->pdev;
+	struct hnae3_ring_chain_node *cur_chain = NULL;
+	struct hnae3_ring_chain_node *chain;
+
+	if (hns3_create_ring_chain(tqp_vector, &cur_chain, true))
+		goto err_free_chain;
+
+	if (hns3_create_ring_chain(tqp_vector, &cur_chain, false))
+		goto err_free_chain;
+
+	return cur_chain;
 
 err_free_chain:
-	cur_chain = head->next;
 	while (cur_chain) {
 		chain = cur_chain->next;
 		devm_kfree(&pdev->dev, cur_chain);
 		cur_chain = chain;
 	}
-	head->next = NULL;
 
-	return -ENOMEM;
+	return NULL;
 }
 
 static void hns3_free_vector_ring_chain(struct hns3_enet_tqp_vector *tqp_vector,
@@ -4442,7 +4414,7 @@ static void hns3_free_vector_ring_chain(struct hns3_enet_tqp_vector *tqp_vector,
 	struct pci_dev *pdev = tqp_vector->handle->pdev;
 	struct hnae3_ring_chain_node *chain_tmp, *chain;
 
-	chain = head->next;
+	chain = head;
 
 	while (chain) {
 		chain_tmp = chain->next;
@@ -4557,7 +4529,7 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 	}
 
 	for (i = 0; i < priv->vector_num; i++) {
-		struct hnae3_ring_chain_node vector_ring_chain;
+		struct hnae3_ring_chain_node *vector_ring_chain;
 
 		tqp_vector = &priv->tqp_vector[i];
 
@@ -4567,15 +4539,16 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 		tqp_vector->tx_group.total_packets = 0;
 		tqp_vector->handle = h;
 
-		ret = hns3_get_vector_ring_chain(tqp_vector,
-						 &vector_ring_chain);
-		if (ret)
+		vector_ring_chain = hns3_get_vector_ring_chain(tqp_vector);
+		if (!vector_ring_chain) {
+			ret = -ENOMEM;
 			goto map_ring_fail;
+		}
 
 		ret = h->ae_algo->ops->map_ring_to_vector(h,
-			tqp_vector->vector_irq, &vector_ring_chain);
+			tqp_vector->vector_irq, vector_ring_chain);
 
-		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
+		hns3_free_vector_ring_chain(tqp_vector, vector_ring_chain);
 
 		if (ret)
 			goto map_ring_fail;
@@ -4674,7 +4647,7 @@ static void hns3_clear_ring_group(struct hns3_enet_ring_group *group)
 
 static void hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 {
-	struct hnae3_ring_chain_node vector_ring_chain;
+	struct hnae3_ring_chain_node *vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	int i;
@@ -4689,13 +4662,14 @@ static void hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		 * chain between vector and ring, we should go on to deal with
 		 * the remaining options.
 		 */
-		if (hns3_get_vector_ring_chain(tqp_vector, &vector_ring_chain))
+		vector_ring_chain = hns3_get_vector_ring_chain(tqp_vector);
+		if (!vector_ring_chain)
 			dev_warn(priv->dev, "failed to get ring chain\n");
 
 		h->ae_algo->ops->unmap_ring_from_vector(h,
-			tqp_vector->vector_irq, &vector_ring_chain);
+			tqp_vector->vector_irq, vector_ring_chain);
 
-		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
+		hns3_free_vector_ring_chain(tqp_vector, vector_ring_chain);
 
 		hns3_clear_ring_group(&tqp_vector->rx_group);
 		hns3_clear_ring_group(&tqp_vector->tx_group);
@@ -5347,9 +5321,7 @@ static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 		if (!ring->desc_cb[ring->next_to_use].reuse_flag) {
 			ret = hns3_alloc_and_map_buffer(ring, &res_cbs);
 			if (ret) {
-				u64_stats_update_begin(&ring->syncp);
-				ring->stats.sw_err_cnt++;
-				u64_stats_update_end(&ring->syncp);
+				hns3_ring_stats_update(ring, sw_err_cnt);
 				/* if alloc new buffer fail, exit directly
 				 * and reclear in up flow.
 				 */

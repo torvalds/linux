@@ -660,6 +660,13 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 
 #define hns3_buf_size(_ring) ((_ring)->buf_size)
 
+#define hns3_ring_stats_update(ring, cnt) do { \
+	typeof(ring) (tmp) = (ring); \
+	u64_stats_update_begin(&(tmp)->syncp); \
+	((tmp)->stats.cnt)++; \
+	u64_stats_update_end(&(tmp)->syncp); \
+} while (0) \
+
 static inline unsigned int hns3_page_order(struct hns3_enet_ring *ring)
 {
 #if (PAGE_SIZE < 8192)
