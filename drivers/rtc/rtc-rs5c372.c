@@ -30,6 +30,8 @@
 #define RS5C372_REG_TRIM	7
 #	define RS5C372_TRIM_XSL		0x80
 #	define RS5C372_TRIM_MASK	0x7F
+#	define R2221TL_TRIM_DEV		(1 << 7)	/* only if R2221TL */
+#	define RS5C372_TRIM_DECR	(1 << 6)
 
 #define RS5C_REG_ALARM_A_MIN	8			/* or ALARM_W */
 #define RS5C_REG_ALARM_A_HOURS	9
@@ -539,6 +541,122 @@ static int rs5c372_ioctl(struct device *dev, unsigned int cmd, unsigned long arg
 #define rs5c372_ioctl	NULL
 #endif
 
+static int rs5c372_read_offset(struct device *dev, long *offset)
+{
+	struct rs5c372 *rs5c = i2c_get_clientdata(to_i2c_client(dev));
+	u8 val = rs5c->regs[RS5C372_REG_TRIM];
+	long ppb_per_step = 0;
+	bool decr = val & RS5C372_TRIM_DECR;
+
+	switch (rs5c->type) {
+	case rtc_r2221tl:
+		ppb_per_step = val & R2221TL_TRIM_DEV ? 1017 : 3051;
+		break;
+	case rtc_rs5c372a:
+	case rtc_rs5c372b:
+		ppb_per_step = val & RS5C372_TRIM_XSL ? 3125 : 3051;
+		break;
+	default:
+		ppb_per_step = 3051;
+		break;
+	}
+
+	/* Only bits[0:5] repsents the time counts */
+	val &= 0x3F;
+
+	/* If bits[1:5] are all 0, it means no increment or decrement */
+	if (!(val & 0x3E)) {
+		*offset = 0;
+	} else {
+		if (decr)
+			*offset = -(((~val) & 0x3F) + 1) * ppb_per_step;
+		else
+			*offset = (val - 1) * ppb_per_step;
+	}
+
+	return 0;
+}
+
+static int rs5c372_set_offset(struct device *dev, long offset)
+{
+	struct rs5c372 *rs5c = i2c_get_clientdata(to_i2c_client(dev));
+	int addr = RS5C_ADDR(RS5C372_REG_TRIM);
+	u8 val = 0;
+	u8 tmp = 0;
+	long ppb_per_step = 3051;
+	long steps = LONG_MIN;
+
+	switch (rs5c->type) {
+	case rtc_rs5c372a:
+	case rtc_rs5c372b:
+		tmp = rs5c->regs[RS5C372_REG_TRIM];
+		if (tmp & RS5C372_TRIM_XSL) {
+			ppb_per_step = 3125;
+			val |= RS5C372_TRIM_XSL;
+		}
+		break;
+	case rtc_r2221tl:
+		/*
+		 * Check if it is possible to use high resolution mode (DEV=1).
+		 * In this mode, the minimum resolution is 2 / (32768 * 20 * 3),
+		 * which is about 1017 ppb.
+		 */
+		steps = DIV_ROUND_CLOSEST(offset, 1017);
+		if (steps >= -0x3E && steps <= 0x3E) {
+			ppb_per_step = 1017;
+			val |= R2221TL_TRIM_DEV;
+		} else {
+			/*
+			 * offset is out of the range of high resolution mode.
+			 * Try to use low resolution mode (DEV=0). In this mode,
+			 * the minimum resolution is 2 / (32768 * 20), which is
+			 * about 3051 ppb.
+			 */
+			steps = LONG_MIN;
+		}
+		break;
+	default:
+		break;
+	}
+
+	if (steps == LONG_MIN) {
+		steps = DIV_ROUND_CLOSEST(offset, ppb_per_step);
+		if (steps > 0x3E || steps < -0x3E)
+			return -ERANGE;
+	}
+
+	if (steps > 0) {
+		val |= steps + 1;
+	} else {
+		val |= RS5C372_TRIM_DECR;
+		val |= (~(-steps - 1)) & 0x3F;
+	}
+
+	if (!steps || !(val & 0x3E)) {
+		/*
+		 * if offset is too small, set oscillation adjustment register
+		 * or time trimming register with its default value whic means
+		 * no increment or decrement. But for rs5c372[a|b], the XSL bit
+		 * should be kept unchanged.
+		 */
+		if (rs5c->type == rtc_rs5c372a || rs5c->type == rtc_rs5c372b)
+			val &= RS5C372_TRIM_XSL;
+		else
+			val = 0;
+	}
+
+	dev_dbg(&rs5c->client->dev, "write 0x%x for offset %ld\n", val, offset);
+
+	if (i2c_smbus_write_byte_data(rs5c->client, addr, val) < 0) {
+		dev_err(&rs5c->client->dev, "failed to write 0x%x to reg %d\n", val, addr);
+		return -EIO;
+	}
+
+	rs5c->regs[RS5C372_REG_TRIM] = val;
+
+	return 0;
+}
+
 static const struct rtc_class_ops rs5c372_rtc_ops = {
 	.proc		= rs5c372_rtc_proc,
 	.read_time	= rs5c372_rtc_read_time,
@@ -547,6 +665,8 @@ static const struct rtc_class_ops rs5c372_rtc_ops = {
 	.set_alarm	= rs5c_set_alarm,
 	.alarm_irq_enable = rs5c_rtc_alarm_irq_enable,
 	.ioctl		= rs5c372_ioctl,
+	.read_offset    = rs5c372_read_offset,
+	.set_offset     = rs5c372_set_offset,
 };
 
 #if IS_ENABLED(CONFIG_RTC_INTF_SYSFS)
