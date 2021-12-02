@@ -819,7 +819,6 @@
 				power-domains = <&pgc_mipi_phy>;
 				phy-supply = <&reg_1p0d>;
 				resets = <&src IMX7_RESET_MIPI_PHY_MRST>;
-				reset-names = "mrst";
 				status = "disabled";
 
 				port@0 {
