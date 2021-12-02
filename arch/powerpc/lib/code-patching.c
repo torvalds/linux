@@ -95,7 +95,6 @@ static int map_patch_area(void *addr, unsigned long text_poke_addr)
 
 	err = map_kernel_page(text_poke_addr, (pfn << PAGE_SHIFT), PAGE_KERNEL);
 
-	pr_devel("Mapped addr %lx with pfn %lx:%d\n", text_poke_addr, pfn, err);
 	if (err)
 		return -1;
 
@@ -129,8 +128,6 @@ static inline int unmap_patch_area(unsigned long addr)
 	ptep = pte_offset_kernel(pmdp, addr);
 	if (unlikely(!ptep))
 		return -EINVAL;
-
-	pr_devel("clearing mm %p, pte %p, addr %lx\n", &init_mm, ptep, addr);
 
 	/*
 	 * In hash, pte_clear flushes the tlb, in radix, we have to
@@ -190,10 +187,9 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 int patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	/* Make sure we aren't patching a freed init section */
-	if (init_mem_is_free && init_section_contains(addr, 4)) {
-		pr_debug("Skipping init section patching addr: 0x%px\n", addr);
+	if (init_mem_is_free && init_section_contains(addr, 4))
 		return 0;
-	}
+
 	return do_patch_instruction(addr, instr);
 }
 NOKPROBE_SYMBOL(patch_instruction);
@@ -411,8 +407,10 @@ static void __init test_trampoline(void)
 	asm ("nop;\n");
 }
 
-#define check(x)	\
-	if (!(x)) printk("code-patching: test failed at line %d\n", __LINE__);
+#define check(x)	do {	\
+	if (!(x))		\
+		pr_err("code-patching: test failed at line %d\n", __LINE__); \
+} while (0)
 
 static void __init test_branch_iform(void)
 {
@@ -737,7 +735,7 @@ static inline void test_prefixed_patching(void) {}
 
 static int __init test_code_patching(void)
 {
-	printk(KERN_DEBUG "Running code patching self-tests ...\n");
+	pr_info("Running code patching self-tests ...\n");
 
 	test_branch_iform();
 	test_branch_bform();
