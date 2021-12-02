@@ -426,6 +426,7 @@ void btrfs_init_root_block_rsv(struct btrfs_root *root)
 	switch (root->root_key.objectid) {
 	case BTRFS_CSUM_TREE_OBJECTID:
 	case BTRFS_EXTENT_TREE_OBJECTID:
+	case BTRFS_FREE_SPACE_TREE_OBJECTID:
 		root->block_rsv = &fs_info->delayed_refs_rsv;
 		break;
 	case BTRFS_ROOT_TREE_OBJECTID:
