@@ -981,8 +981,11 @@ static void dsa_port_phylink_validate(struct phylink_config *config,
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
 
-	if (!ds->ops->phylink_validate)
+	if (!ds->ops->phylink_validate) {
+		if (config->mac_capabilities)
+			phylink_generic_validate(config, supported, state);
 		return;
+	}
 
 	ds->ops->phylink_validate(ds, dp->index, supported, state);
 }
@@ -1072,7 +1075,7 @@ static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 				     speed, duplex, tx_pause, rx_pause);
 }
 
-const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
+static const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
 	.validate = dsa_port_phylink_validate,
 	.mac_pcs_get_state = dsa_port_phylink_mac_pcs_get_state,
 	.mac_config = dsa_port_phylink_mac_config,
@@ -1080,6 +1083,29 @@ const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
 	.mac_link_down = dsa_port_phylink_mac_link_down,
 	.mac_link_up = dsa_port_phylink_mac_link_up,
 };
+
+int dsa_port_phylink_create(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	phy_interface_t mode;
+	int err;
+
+	err = of_get_phy_mode(dp->dn, &mode);
+	if (err)
+		mode = PHY_INTERFACE_MODE_NA;
+
+	if (ds->ops->phylink_get_caps)
+		ds->ops->phylink_get_caps(ds, dp->index, &dp->pl_config);
+
+	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
+				mode, &dsa_port_phylink_mac_ops);
+	if (IS_ERR(dp->pl)) {
+		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
+		return PTR_ERR(dp->pl);
+	}
+
+	return 0;
+}
 
 static int dsa_port_setup_phy_of(struct dsa_port *dp, bool enable)
 {
@@ -1157,27 +1183,15 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct device_node *port_dn = dp->dn;
-	phy_interface_t mode;
 	int err;
-
-	err = of_get_phy_mode(port_dn, &mode);
-	if (err)
-		mode = PHY_INTERFACE_MODE_NA;
 
 	dp->pl_config.dev = ds->dev;
 	dp->pl_config.type = PHYLINK_DEV;
 	dp->pl_config.pcs_poll = ds->pcs_poll;
 
-	if (ds->ops->phylink_get_interfaces)
-		ds->ops->phylink_get_interfaces(ds, dp->index,
-					dp->pl_config.supported_interfaces);
-
-	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn),
-				mode, &dsa_port_phylink_mac_ops);
-	if (IS_ERR(dp->pl)) {
-		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
-		return PTR_ERR(dp->pl);
-	}
+	err = dsa_port_phylink_create(dp);
+	if (err)
+		return err;
 
 	err = phylink_of_phy_connect(dp->pl, port_dn, 0);
 	if (err && err != -ENODEV) {
