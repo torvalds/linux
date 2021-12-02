@@ -424,6 +424,8 @@ enum ice_rx_flex_desc_status_error_0_bits {
 enum ice_rx_flex_desc_status_error_1_bits {
 	/* Note: These are predefined bit offsets */
 	ICE_RX_FLEX_DESC_STATUS1_NAT_S = 4,
+	 /* [10:5] reserved */
+	ICE_RX_FLEX_DESC_STATUS1_L2TAG2P_S = 11,
 	ICE_RX_FLEX_DESC_STATUS1_LAST /* this entry must be last!!! */
 };
 
