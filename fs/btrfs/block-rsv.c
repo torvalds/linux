@@ -352,25 +352,29 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	struct btrfs_space_info *sinfo = block_rsv->space_info;
-	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, 0);
-	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, 0);
-	u64 num_bytes;
-	unsigned min_items;
+	struct btrfs_root *root, *tmp;
+	u64 num_bytes = btrfs_root_used(&fs_info->tree_root->root_item);
+	unsigned int min_items = 1;
 
 	/*
 	 * The global block rsv is based on the size of the extent tree, the
 	 * checksum tree and the root tree.  If the fs is empty we want to set
 	 * it to a minimal amount for safety.
+	 *
+	 * We also are going to need to modify the minimum of the tree root and
+	 * any global roots we could touch.
 	 */
-	num_bytes = btrfs_root_used(&extent_root->root_item) +
-		btrfs_root_used(&csum_root->root_item) +
-		btrfs_root_used(&fs_info->tree_root->root_item);
-
-	/*
-	 * We at a minimum are going to modify the csum root, the tree root, and
-	 * the extent root.
-	 */
-	min_items = 3;
+	read_lock(&fs_info->global_root_lock);
+	rbtree_postorder_for_each_entry_safe(root, tmp, &fs_info->global_root_tree,
+					     rb_node) {
+		if (root->root_key.objectid == BTRFS_EXTENT_TREE_OBJECTID ||
+		    root->root_key.objectid == BTRFS_CSUM_TREE_OBJECTID ||
+		    root->root_key.objectid == BTRFS_FREE_SPACE_TREE_OBJECTID) {
+			num_bytes += btrfs_root_used(&root->root_item);
+			min_items++;
+		}
+	}
+	read_unlock(&fs_info->global_root_lock);
 
 	/*
 	 * But we also want to reserve enough space so we can do the fallback
