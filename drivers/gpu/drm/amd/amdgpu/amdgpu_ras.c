@@ -897,6 +897,10 @@ static void amdgpu_ras_get_ecc_info(struct amdgpu_device *adev, struct ras_err_d
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 	int ret = 0;
 
+	/* skip get ecc info during gpu recovery */
+	if (atomic_read(&ras->in_recovery) == 1)
+		return;
+
 	/*
 	 * choosing right query method according to
 	 * whether smu support query error information
