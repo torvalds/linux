@@ -218,12 +218,9 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 	return ret;
 }
 
-int truncate_inode_page(struct address_space *mapping, struct page *page)
+int truncate_inode_folio(struct address_space *mapping, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-	VM_BUG_ON_PAGE(PageTail(page), page);
-
-	if (page->mapping != mapping)
+	if (folio->mapping != mapping)
 		return -EIO;
 
 	truncate_cleanup_folio(folio);
@@ -236,6 +233,8 @@ int truncate_inode_page(struct address_space *mapping, struct page *page)
  */
 int generic_error_remove_page(struct address_space *mapping, struct page *page)
 {
+	VM_BUG_ON_PAGE(PageTail(page), page);
+
 	if (!mapping)
 		return -EINVAL;
 	/*
@@ -244,7 +243,7 @@ int generic_error_remove_page(struct address_space *mapping, struct page *page)
 	 */
 	if (!S_ISREG(mapping->host->i_mode))
 		return -EIO;
-	return truncate_inode_page(mapping, page);
+	return truncate_inode_folio(mapping, page_folio(page));
 }
 EXPORT_SYMBOL(generic_error_remove_page);
 
@@ -395,18 +394,20 @@ void truncate_inode_pages_range(struct address_space *mapping,
 
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
+			struct folio *folio;
 
 			/* We rely upon deletion not changing page->index */
 			index = indices[i];
 
 			if (xa_is_value(page))
 				continue;
+			folio = page_folio(page);
 
-			lock_page(page);
-			WARN_ON(page_to_index(page) != index);
-			wait_on_page_writeback(page);
-			truncate_inode_page(mapping, page);
-			unlock_page(page);
+			folio_lock(folio);
+			VM_BUG_ON_FOLIO(!folio_contains(folio, index), folio);
+			folio_wait_writeback(folio);
+			truncate_inode_folio(mapping, folio);
+			folio_unlock(folio);
 		}
 		truncate_exceptional_pvec_entries(mapping, &pvec, indices);
 		pagevec_release(&pvec);

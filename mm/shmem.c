@@ -950,7 +950,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 			index += folio_nr_pages(folio) - 1;
 
 			if (!unfalloc || !folio_test_uptodate(folio))
-				truncate_inode_page(mapping, &folio->page);
+				truncate_inode_folio(mapping, folio);
 			folio_unlock(folio);
 		}
 		pagevec_remove_exceptionals(&pvec);
@@ -1027,7 +1027,8 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 				}
 				VM_BUG_ON_PAGE(PageWriteback(page), page);
 				if (shmem_punch_compound(page, start, end))
-					truncate_inode_page(mapping, page);
+					truncate_inode_folio(mapping,
+							     page_folio(page));
 				else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
 					/* Wipe the page and don't get stuck */
 					clear_highpage(page);

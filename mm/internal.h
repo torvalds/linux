@@ -92,6 +92,7 @@ static inline void force_page_cache_readahead(struct address_space *mapping,
 
 unsigned find_lock_entries(struct address_space *mapping, pgoff_t start,
 		pgoff_t end, struct pagevec *pvec, pgoff_t *indices);
+int truncate_inode_folio(struct address_space *mapping, struct folio *folio);
 
 /**
  * folio_evictable - Test whether a folio is evictable.
