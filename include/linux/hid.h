@@ -1066,6 +1066,12 @@ int __must_check hid_hw_start(struct hid_device *hdev,
 void hid_hw_stop(struct hid_device *hdev);
 int __must_check hid_hw_open(struct hid_device *hdev);
 void hid_hw_close(struct hid_device *hdev);
+void hid_hw_request(struct hid_device *hdev,
+		    struct hid_report *report, int reqtype);
+int hid_hw_raw_request(struct hid_device *hdev,
+		       unsigned char reportnum, __u8 *buf,
+		       size_t len, unsigned char rtype, int reqtype);
+int hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len);
 
 /**
  * hid_hw_power - requests underlying HW to go into given power mode
@@ -1082,68 +1088,6 @@ static inline int hid_hw_power(struct hid_device *hdev, int level)
 	return hdev->ll_driver->power ? hdev->ll_driver->power(hdev, level) : 0;
 }
 
-
-/**
- * hid_hw_request - send report request to device
- *
- * @hdev: hid device
- * @report: report to send
- * @reqtype: hid request type
- */
-static inline void hid_hw_request(struct hid_device *hdev,
-				  struct hid_report *report, int reqtype)
-{
-	if (hdev->ll_driver->request)
-		return hdev->ll_driver->request(hdev, report, reqtype);
-
-	__hid_request(hdev, report, reqtype);
-}
-
-/**
- * hid_hw_raw_request - send report request to device
- *
- * @hdev: hid device
- * @reportnum: report ID
- * @buf: in/out data to transfer
- * @len: length of buf
- * @rtype: HID report type
- * @reqtype: HID_REQ_GET_REPORT or HID_REQ_SET_REPORT
- *
- * Return: count of data transferred, negative if error
- *
- * Same behavior as hid_hw_request, but with raw buffers instead.
- */
-static inline int hid_hw_raw_request(struct hid_device *hdev,
-				  unsigned char reportnum, __u8 *buf,
-				  size_t len, unsigned char rtype, int reqtype)
-{
-	if (len < 1 || len > HID_MAX_BUFFER_SIZE || !buf)
-		return -EINVAL;
-
-	return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
-						    rtype, reqtype);
-}
-
-/**
- * hid_hw_output_report - send output report to device
- *
- * @hdev: hid device
- * @buf: raw data to transfer
- * @len: length of buf
- *
- * Return: count of data transferred, negative if error
- */
-static inline int hid_hw_output_report(struct hid_device *hdev, __u8 *buf,
-					size_t len)
-{
-	if (len < 1 || len > HID_MAX_BUFFER_SIZE || !buf)
-		return -EINVAL;
-
-	if (hdev->ll_driver->output_report)
-		return hdev->ll_driver->output_report(hdev, buf, len);
-
-	return -ENOSYS;
-}
 
 /**
  * hid_hw_idle - send idle request to device
