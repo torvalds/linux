@@ -86,10 +86,7 @@ examples:
         audio-routing = "SpkrLeft IN", "WSA_SPK1 OUT",
                     "SpkrRight IN", "WSA_SPK2 OUT",
                     "VA DMIC0", "vdd-micb",
-                    "VA DMIC1", "vdd-micb",
-                    "MM_DL1",  "MultiMedia1 Playback",
-                    "MM_DL2",  "MultiMedia2 Playback",
-                    "MultiMedia3 Capture", "MM_UL3";
+                    "VA DMIC1", "vdd-micb";
 
         mm1-dai-link {
             link-name = "MultiMedia0";
