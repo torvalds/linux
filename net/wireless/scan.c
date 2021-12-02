@@ -1796,51 +1796,49 @@ int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
 				    enum nl80211_band band,
 				    enum cfg80211_bss_frame_type ftype)
 {
-	const u8 *tmp;
-	int channel_number = -1;
+	const struct element *tmp;
 
 	if (band == NL80211_BAND_6GHZ) {
-		const struct element *elem;
 		struct ieee80211_he_operation *he_oper;
 
-		elem = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION, ie,
-					      ielen);
-		if (elem && elem->datalen >= sizeof(*he_oper) &&
-		    elem->datalen >= ieee80211_he_oper_size(&elem->data[1])) {
+		tmp = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION, ie,
+					     ielen);
+		if (tmp && tmp->datalen >= sizeof(*he_oper) &&
+		    tmp->datalen >= ieee80211_he_oper_size(&tmp->data[1])) {
 			const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
 
-			he_oper = (void *)&elem->data[1];
+			he_oper = (void *)&tmp->data[1];
 
 			he_6ghz_oper = ieee80211_he_6ghz_oper(he_oper);
 			if (!he_6ghz_oper)
-				return channel_number;
+				return -1;
 
 			if (ftype != CFG80211_BSS_FTYPE_BEACON ||
 			    he_6ghz_oper->control & IEEE80211_HE_6GHZ_OPER_CTRL_DUP_BEACON)
-				channel_number = he_6ghz_oper->primary;
+				return he_6ghz_oper->primary;
 		}
 	} else if (band == NL80211_BAND_S1GHZ) {
-		tmp = cfg80211_find_ie(WLAN_EID_S1G_OPERATION, ie, ielen);
-		if (tmp && tmp[1] >= sizeof(struct ieee80211_s1g_oper_ie)) {
-			struct ieee80211_s1g_oper_ie *s1gop = (void *)(tmp + 2);
+		tmp = cfg80211_find_elem(WLAN_EID_S1G_OPERATION, ie, ielen);
+		if (tmp && tmp->datalen >= sizeof(struct ieee80211_s1g_oper_ie)) {
+			struct ieee80211_s1g_oper_ie *s1gop = (void *)tmp->data;
 
-			channel_number = s1gop->primary_ch;
+			return s1gop->primary_ch;
 		}
 	} else {
-		tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ie, ielen);
-		if (tmp && tmp[1] == 1) {
-			channel_number = tmp[2];
-		} else {
-			tmp = cfg80211_find_ie(WLAN_EID_HT_OPERATION, ie, ielen);
-			if (tmp && tmp[1] >= sizeof(struct ieee80211_ht_operation)) {
-				struct ieee80211_ht_operation *htop = (void *)(tmp + 2);
+		tmp = cfg80211_find_elem(WLAN_EID_DS_PARAMS, ie, ielen);
+		if (tmp && tmp->datalen == 1)
+			return tmp->data[0];
 
-				channel_number = htop->primary_chan;
-			}
+		tmp = cfg80211_find_elem(WLAN_EID_HT_OPERATION, ie, ielen);
+		if (tmp &&
+		    tmp->datalen >= sizeof(struct ieee80211_ht_operation)) {
+			struct ieee80211_ht_operation *htop = (void *)tmp->data;
+
+			return htop->primary_chan;
 		}
 	}
 
-	return channel_number;
+	return -1;
 }
 EXPORT_SYMBOL(cfg80211_get_ies_channel_number);
 
