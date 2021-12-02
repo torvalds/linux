@@ -234,7 +234,6 @@ enum odm_common_info_def {
 
 	ODM_CMNINFO_SCAN,
 	ODM_CMNINFO_POWER_SAVING,
-	ODM_CMNINFO_NET_CLOSED,
 /*  POINTER REFERENCE----------- */
 
 /* CALL BY VALUE------------- */
@@ -491,8 +490,6 @@ struct odm_dm_struct {
 	/*  Common info for Status */
 	bool	*pbScanInProcess;
 	bool	*pbPowerSaving;
-
-	bool	*pbNet_closed;
 /*  POINTER REFERENCE----------- */
 	/*  */
 /* CALL BY VALUE------------- */
