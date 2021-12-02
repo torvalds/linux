@@ -2731,7 +2731,7 @@ queue_exit:
 }
 
 static inline struct request *blk_mq_get_cached_request(struct request_queue *q,
-		struct blk_plug *plug, struct bio *bio, unsigned int nsegs)
+		struct blk_plug *plug, struct bio **bio, unsigned int nsegs)
 {
 	struct request *rq;
 
@@ -2741,19 +2741,21 @@ static inline struct request *blk_mq_get_cached_request(struct request_queue *q,
 	if (!rq || rq->q != q)
 		return NULL;
 
-	if (unlikely(!submit_bio_checks(bio)))
+	if (unlikely(!submit_bio_checks(*bio)))
 		return NULL;
-	if (blk_mq_attempt_bio_merge(q, bio, nsegs))
+	if (blk_mq_attempt_bio_merge(q, *bio, nsegs)) {
+		*bio = NULL;
 		return NULL;
-	if (blk_mq_get_hctx_type(bio->bi_opf) != rq->mq_hctx->type)
+	}
+	if (blk_mq_get_hctx_type((*bio)->bi_opf) != rq->mq_hctx->type)
 		return NULL;
-	if (op_is_flush(rq->cmd_flags) != op_is_flush(bio->bi_opf))
+	if (op_is_flush(rq->cmd_flags) != op_is_flush((*bio)->bi_opf))
 		return NULL;
 
-	rq->cmd_flags = bio->bi_opf;
+	rq->cmd_flags = (*bio)->bi_opf;
 	plug->cached_rq = rq_list_next(rq);
 	INIT_LIST_HEAD(&rq->queuelist);
-	rq_qos_throttle(q, bio);
+	rq_qos_throttle(q, *bio);
 	return rq;
 }
 
@@ -2789,8 +2791,10 @@ void blk_mq_submit_bio(struct bio *bio)
 	if (!bio_integrity_prep(bio))
 		return;
 
-	rq = blk_mq_get_cached_request(q, plug, bio, nr_segs);
+	rq = blk_mq_get_cached_request(q, plug, &bio, nr_segs);
 	if (!rq) {
+		if (!bio)
+			return;
 		rq = blk_mq_get_new_requests(q, plug, bio, nr_segs);
 		if (unlikely(!rq))
 			return;
