@@ -1664,6 +1664,10 @@ bool dc_is_stream_unchanged(
 	if (old_stream->ignore_msa_timing_param != stream->ignore_msa_timing_param)
 		return false;
 
+	// Only Have Audio left to check whether it is same or not. This is a corner case for Tiled sinks
+	if (old_stream->audio_info.mode_count != stream->audio_info.mode_count)
+		return false;
+
 	return true;
 }
 
@@ -2252,16 +2256,6 @@ enum dc_status dc_validate_global_state(
 
 	if (!new_ctx)
 		return DC_ERROR_UNEXPECTED;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-
-	/*
-	 * Update link encoder to stream assignment.
-	 * TODO: Split out reason allocation from validation.
-	 */
-	if (dc->res_pool->funcs->link_encs_assign && fast_validate == false)
-		dc->res_pool->funcs->link_encs_assign(
-			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
-#endif
 
 	if (dc->res_pool->funcs->validate_global) {
 		result = dc->res_pool->funcs->validate_global(dc, new_ctx);
@@ -2312,6 +2306,16 @@ enum dc_status dc_validate_global_state(
 	if (result == DC_OK)
 		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate))
 			result = DC_FAIL_BANDWIDTH_VALIDATE;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/*
+	 * Only update link encoder to stream assignment after bandwidth validation passed.
+	 * TODO: Split out assignment and validation.
+	 */
+	if (result == DC_OK && dc->res_pool->funcs->link_encs_assign && fast_validate == false)
+		dc->res_pool->funcs->link_encs_assign(
+			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
+#endif
 
 	return result;
 }
