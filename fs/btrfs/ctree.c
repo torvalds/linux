@@ -1964,10 +1964,6 @@ again:
 		}
 cow_done:
 		p->nodes[level] = b;
-		/*
-		 * Leave path with blocking locks to avoid massive
-		 * lock context switch, this is made on purpose.
-		 */
 
 		/*
 		 * we have a lock on b and as long as we aren't changing
