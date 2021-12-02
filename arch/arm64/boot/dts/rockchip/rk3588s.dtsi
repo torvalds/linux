@@ -1046,8 +1046,9 @@
 	usbhost3_0: usbhost3_0 {
 		compatible = "rockchip,rk3588-dwc3", "rockchip,rk3399-dwc3";
 		clocks = <&cru REF_CLK_USB3OTG2>, <&cru SUSPEND_CLK_USB3OTG2>,
-			 <&cru ACLK_USB3OTG2>, <&cru CLK_UTMI_OTG2>;
-		clock-names = "ref", "suspend", "bus", "utmi";
+			 <&cru ACLK_USB3OTG2>, <&cru CLK_UTMI_OTG2>,
+			 <&cru PCLK_PHP_ROOT>, <&cru CLK_PIPEPHY2_PIPE_U3_G>;
+		clock-names = "ref", "suspend", "bus", "utmi", "php", "pipe";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
