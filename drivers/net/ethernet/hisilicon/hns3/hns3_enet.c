@@ -1637,7 +1637,6 @@ static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
 			      struct hns3_desc_cb *desc_cb)
 {
 	struct hns3_desc_param param;
-	u8 fd_op;
 	int ret;
 
 	hns3_init_desc_data(skb, &param);
@@ -2185,15 +2184,39 @@ out:
 	return hns3_fill_skb_to_desc(ring, skb, DESC_TYPE_SKB);
 }
 
+static int hns3_handle_skb_desc(struct hns3_enet_ring *ring,
+				struct sk_buff *skb,
+				struct hns3_desc_cb *desc_cb,
+				int next_to_use_head)
+{
+	int ret;
+
+	ret = hns3_fill_skb_desc(ring, skb, &ring->desc[ring->next_to_use],
+				 desc_cb);
+	if (unlikely(ret < 0))
+		goto fill_err;
+
+	/* 'ret < 0' means filling error, 'ret == 0' means skb->len is
+	 * zero, which is unlikely, and 'ret > 0' means how many tx desc
+	 * need to be notified to the hw.
+	 */
+	ret = hns3_handle_desc_filling(ring, skb);
+	if (likely(ret > 0))
+		return ret;
+
+fill_err:
+	hns3_clear_desc(ring, next_to_use_head);
+	return ret;
+}
+
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hns3_enet_ring *ring = &priv->ring[skb->queue_mapping];
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
 	struct netdev_queue *dev_queue;
-	int pre_ntu, next_to_use_head;
+	int pre_ntu, ret;
 	bool doorbell;
-	int ret;
 
 	/* Hardware can only handle short frames above 32 bytes */
 	if (skb_put_padto(skb, HNS3_MIN_TX_LEN)) {
@@ -2218,20 +2241,9 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out_err_tx_ok;
 	}
 
-	next_to_use_head = ring->next_to_use;
-
-	ret = hns3_fill_skb_desc(ring, skb, &ring->desc[ring->next_to_use],
-				 desc_cb);
-	if (unlikely(ret < 0))
-		goto fill_err;
-
-	/* 'ret < 0' means filling error, 'ret == 0' means skb->len is
-	 * zero, which is unlikely, and 'ret > 0' means how many tx desc
-	 * need to be notified to the hw.
-	 */
-	ret = hns3_handle_desc_filling(ring, skb);
+	ret = hns3_handle_skb_desc(ring, skb, desc_cb, ring->next_to_use);
 	if (unlikely(ret <= 0))
-		goto fill_err;
+		goto out_err_tx_ok;
 
 	pre_ntu = ring->next_to_use ? (ring->next_to_use - 1) :
 					(ring->desc_num - 1);
@@ -2252,9 +2264,6 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	hns3_tx_doorbell(ring, ret, doorbell);
 
 	return NETDEV_TX_OK;
-
-fill_err:
-	hns3_clear_desc(ring, next_to_use_head);
 
 out_err_tx_ok:
 	dev_kfree_skb_any(skb);
