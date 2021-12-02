@@ -15,7 +15,6 @@
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <asm/code-patching.h>
-#include <asm/setup.h>
 #include <asm/inst.h>
 
 static int __patch_instruction(u32 *exec_addr, ppc_inst_t instr, u32 *patch_addr)
@@ -187,7 +186,7 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 int patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	/* Make sure we aren't patching a freed init section */
-	if (init_mem_is_free && init_section_contains(addr, 4))
+	if (system_state >= SYSTEM_FREEING_INITMEM && init_section_contains(addr, 4))
 		return 0;
 
 	return do_patch_instruction(addr, instr);
