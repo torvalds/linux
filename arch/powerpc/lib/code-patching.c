@@ -129,13 +129,30 @@ static void unmap_patch_area(unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 }
 
+static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
+{
+	int err;
+	u32 *patch_addr;
+	unsigned long text_poke_addr;
+
+	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr;
+	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
+
+	err = map_patch_area(addr, text_poke_addr);
+	if (err)
+		return err;
+
+	err = __patch_instruction(addr, instr, patch_addr);
+
+	unmap_patch_area(text_poke_addr);
+
+	return err;
+}
+
 static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	int err;
-	u32 *patch_addr = NULL;
 	unsigned long flags;
-	unsigned long text_poke_addr;
-	unsigned long kaddr = (unsigned long)addr;
 
 	/*
 	 * During early early boot patch_instruction is called
@@ -146,19 +163,7 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 		return raw_patch_instruction(addr, instr);
 
 	local_irq_save(flags);
-
-	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr;
-	err = map_patch_area(addr, text_poke_addr);
-	if (err)
-		goto out;
-
-	patch_addr = (u32 *)(text_poke_addr + (kaddr & ~PAGE_MASK));
-
-	err = __patch_instruction(addr, instr, patch_addr);
-
-	unmap_patch_area(text_poke_addr);
-
-out:
+	err = __do_patch_instruction(addr, instr);
 	local_irq_restore(flags);
 
 	return err;
