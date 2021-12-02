@@ -237,9 +237,6 @@ void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	case	ODM_CMNINFO_SEC_CHNL_OFFSET:
 		pDM_Odm->pSecChOffset = (u8 *)pValue;
 		break;
-	case	ODM_CMNINFO_SEC_MODE:
-		pDM_Odm->pSecurity = (u8 *)pValue;
-		break;
 	case	ODM_CMNINFO_BW:
 		pDM_Odm->pBandWidth = (u8 *)pValue;
 		break;

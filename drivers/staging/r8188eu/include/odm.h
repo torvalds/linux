@@ -228,7 +228,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_RX_UNI,
 	ODM_CMNINFO_WM_MODE,		/*  ODM_WIRELESS_MODE_E */
 	ODM_CMNINFO_SEC_CHNL_OFFSET,	/*  ODM_SEC_CHNL_OFFSET_E */
-	ODM_CMNINFO_SEC_MODE,		/*  ODM_SECURITY_E */
 	ODM_CMNINFO_BW,			/*  ODM_BW_E */
 	ODM_CMNINFO_CHNL,
 
@@ -480,8 +479,6 @@ struct odm_dm_struct {
 	u8	*pWirelessMode; /* ODM_WIRELESS_MODE_E */
 	/*  Secondary channel offset don't_care/below/above = 0/1/2 */
 	u8	*pSecChOffset;
-	/*  Security mode Open/WEP/AES/TKIP = 0/1/2/3 */
-	u8	*pSecurity;
 	/*  BW info 20M/40M/80M = 0/1/2 */
 	u8	*pBandWidth;
 	/*  Central channel location Ch1/Ch2/.... */
