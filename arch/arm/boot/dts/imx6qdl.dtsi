@@ -481,7 +481,7 @@
 					status = "okay";
 				};
 
-				spba@203c000 {
+				spba-bus@203c000 {
 					reg = <0x0203c000 0x4000>;
 				};
 			};
