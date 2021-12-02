@@ -191,7 +191,9 @@ int patch_branch(u32 *addr, unsigned long target, int flags)
 {
 	ppc_inst_t instr;
 
-	create_branch(&instr, addr, target, flags);
+	if (create_branch(&instr, addr, target, flags))
+		return -ERANGE;
+
 	return patch_instruction(addr, instr);
 }
 
