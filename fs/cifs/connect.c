@@ -3426,6 +3426,7 @@ static int connect_dfs_root(struct mount_ctx *mnt_ctx, struct dfs_cache_tgt_list
 	 */
 	mount_put_conns(mnt_ctx);
 	mount_get_dfs_conns(mnt_ctx);
+	set_root_ses(mnt_ctx);
 
 	full_path = build_unc_path_to_root(ctx, cifs_sb, true);
 	if (IS_ERR(full_path))
