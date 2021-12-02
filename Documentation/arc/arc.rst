@@ -9,24 +9,27 @@ Other sources of information
 Below are some resources where more information can be found on
 ARC processors and relevant open source projects.
 
-1. `<https://embarc.org/>`_ - Community portal for open source on ARC.
-Good place to start to find relevant FOSS projects, toolchain releases,
-news items and more.
+- `<https://embarc.org>`_ - Community portal for open source on ARC.
+  Good place to start to find relevant FOSS projects, toolchain releases,
+  news items and more.
 
-2. `<https://github.com/foss-for-synopsys-dwc-arc-processors>`_ -
-Home for all development activities regarding open source projects for
-ARC processors. Some of the projects are forks of various upstream projects,
-where "work in progress" is hosted prior to submission to upstream projects.
-Other projects are developed by Synopsys and made available to community
-as open source for use on ARC Processors.
+- `<https://github.com/foss-for-synopsys-dwc-arc-processors>`_ -
+  Home for all development activities regarding open source projects for
+  ARC processors. Some of the projects are forks of various upstream projects,
+  where "work in progress" is hosted prior to submission to upstream projects.
+  Other projects are developed by Synopsys and made available to community
+  as open source for use on ARC Processors.
 
-3. `<https://www.synopsys.com/designware-ip/processor-solutions.html>`_ -
-Official Synopsys ARC Processors website location, with access to some IP
-documentation (Programmer's Reference Manuals, AKA "PRM's", see
-`<https://www.synopsys.com/dw/doc.php/ds/cc/programmers-reference-manual-ARC-HS.pdf>`_)
-and commercial tools (Free nSIM,
-`<https://www.synopsys.com/cgi-bin/dwarcnsim/req1.cgi>`_ and
-MetaWare Light Edition, `<https://www.synopsys.com/cgi-bin/arcmwtk_lite/reg1.cgi>`_)
+- `Official Synopsys ARC Processors website
+  <https://www.synopsys.com/designware-ip/processor-solutions.html>`_ -
+  location, with access to some IP documentation (`Programmer's Reference
+  Manual, AKA PRM for ARC HS processors
+  <https://www.synopsys.com/dw/doc.php/ds/cc/programmers-reference-manual-ARC-HS.pdf>`_)
+  and free versions of some commercial tools (`Free nSIM
+  <https://www.synopsys.com/cgi-bin/dwarcnsim/req1.cgi>`_ and
+  `MetaWare Light Edition <https://www.synopsys.com/cgi-bin/arcmwtk_lite/reg1.cgi>`_).
+  Please note though, registration is required to access both the documentation and
+  the tools.
 
 Important note on ARC processors configurability
 ################################################
@@ -52,22 +55,23 @@ Building the Linux kernel for ARC processors
 The process of kernel building for ARC processors is the same as for any other
 architecture and could be done in 2 ways:
 
-1. cross-compilation: process of compiling for ARC targets on a development
-host with a different processor architecture (generally x86_64/amd64).
-
-2. native compilation: process of compiling for ARC on a ARC platform
-(hardware board or a simulator like QEMU) with complete development environment
-(GNU toolchain, dtc, make etc) installed on the platform.
+- Cross-compilation: process of compiling for ARC targets on a development
+  host with a different processor architecture (generally x86_64/amd64).
+- Native compilation: process of compiling for ARC on a ARC platform
+  (hardware board or a simulator like QEMU) with complete development environment
+  (GNU toolchain, dtc, make etc) installed on the platform.
 
 In both cases, up-to-date GNU toolchain for ARC for the host is needed.
 Synopsys offers prebuilt toolchain releases which can be used for this purpose,
 available from:
 
-1. Synopsys GNU toolchain releases:
-`<https://github.com/foss-for-synopsys-dwc-arc-processors/toolchain/releases>`_
-2. Linux kernel compilers collection:
-`<https://mirrors.edge.kernel.org/pub/tools/crosstool/>`_
-3. Bootlin's toolchain collection: `<https://toolchains.bootlin.com/>`_
+- Synopsys GNU toolchain releases:
+  `<https://github.com/foss-for-synopsys-dwc-arc-processors/toolchain/releases>`_
+
+- Linux kernel compilers collection:
+  `<https://mirrors.edge.kernel.org/pub/tools/crosstool>`_
+
+- Bootlin's toolchain collection: `<https://toolchains.bootlin.com>`_
 
 Once the toolchain is installed in the system, make sure its "bin" folder
 is added in your ``PATH`` environment variable. Then set ``ARCH=arc`` &
