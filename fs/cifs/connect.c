@@ -3046,12 +3046,6 @@ static int mount_get_conns(struct mount_ctx *mnt_ctx)
 				cifs_dbg(VFS, "read only mount of RW share\n");
 			/* no need to log a RW mount of a typical RW share */
 		}
-		/*
-		 * The cookie is initialized from volume info returned above.
-		 * Inside cifs_fscache_get_super_cookie it checks
-		 * that we do not get super cookie twice.
-		 */
-		cifs_fscache_get_super_cookie(tcon);
 	}
 
 	/*

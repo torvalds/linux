@@ -92,7 +92,7 @@ void cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 	 * In the future, as we integrate with newer fscache features,
 	 * we may want to instead add a check if cookie has changed
 	 */
-	if (tcon->fscache == NULL)
+	if (tcon->fscache)
 		return;
 
 	sharename = extract_sharename(tcon->treeName);
