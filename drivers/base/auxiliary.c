@@ -202,6 +202,8 @@ EXPORT_SYMBOL_GPL(__auxiliary_device_add);
  * This function returns a reference to a device that is 'found'
  * for later use, as determined by the @match callback.
  *
+ * The reference returned should be released with put_device().
+ *
  * The callback should return 0 if the device doesn't match and non-zero
  * if it does.  If the callback returns non-zero, this function will
  * return to the caller and not iterate over any more devices.
