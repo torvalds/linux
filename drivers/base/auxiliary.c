@@ -225,6 +225,11 @@ EXPORT_SYMBOL_GPL(auxiliary_find_device);
  * @auxdrv: auxiliary_driver structure
  * @owner: owning module/driver
  * @modname: KBUILD_MODNAME for parent driver
+ *
+ * The expectation is that users will call the "auxiliary_driver_register"
+ * macro so that the caller's KBUILD_MODNAME is automatically inserted for the
+ * modname parameter.  Only if a user requires a custom name would this version
+ * be called directly.
  */
 int __auxiliary_driver_register(struct auxiliary_driver *auxdrv,
 				struct module *owner, const char *modname)
