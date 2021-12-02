@@ -1211,6 +1211,19 @@
 				reg = <0x32e50200 0x200>;
 			};
 
+			pcie_phy: pcie-phy@32f00000 {
+				compatible = "fsl,imx8mm-pcie-phy";
+				reg = <0x32f00000 0x10000>;
+				clocks = <&clk IMX8MM_CLK_PCIE1_PHY>;
+				clock-names = "ref";
+				assigned-clocks = <&clk IMX8MM_CLK_PCIE1_PHY>;
+				assigned-clock-rates = <100000000>;
+				assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_100M>;
+				resets = <&src IMX8MQ_RESET_PCIEPHY>;
+				reset-names = "pciephy";
+				#phy-cells = <0>;
+				status = "disabled";
+			};
 		};
 
 		dma_apbh: dma-controller@33000000 {
