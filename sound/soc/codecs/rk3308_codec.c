@@ -44,7 +44,6 @@
 #include <sound/tlv.h>
 
 #include "rk3308_codec.h"
-#include "rk3308_codec_provider.h"
 
 #if defined(CONFIG_DEBUG_FS)
 #include <linux/fs.h>
@@ -4089,6 +4088,24 @@ static void rk3308_remove(struct snd_soc_component *component)
 	regcache_sync(rk3308->regmap);
 }
 
+static int rk3308_codec_set_jack(struct snd_soc_component *component,
+				 struct snd_soc_jack *jack, void *data)
+{
+	struct rk3308_codec_priv *rk3308 = snd_soc_component_get_drvdata(component);
+
+	rk3308->hpdet_jack = jack;
+
+	/* To detect jack once during startup */
+	disable_irq_nosync(rk3308->irq);
+	queue_delayed_work(system_power_efficient_wq,
+			   &rk3308->hpdet_work, msecs_to_jiffies(10));
+
+	dev_info(rk3308->plat_dev, "%s: Request detect hp jack once\n",
+		 __func__);
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_codec_dev_rk3308 = {
 	.probe = rk3308_probe,
 	.remove = rk3308_remove,
@@ -4097,6 +4114,7 @@ static const struct snd_soc_component_driver soc_codec_dev_rk3308 = {
 	.set_bias_level = rk3308_set_bias_level,
 	.controls = rk3308_codec_dapm_controls,
 	.num_controls = ARRAY_SIZE(rk3308_codec_dapm_controls),
+	.set_jack = rk3308_codec_set_jack,
 };
 
 static const struct reg_default rk3308_codec_reg_defaults[] = {
@@ -4259,26 +4277,6 @@ static irqreturn_t rk3308_codec_hpdet_isr(int irq, void *data)
 			   &rk3308->hpdet_work, msecs_to_jiffies(10));
 
 	return IRQ_HANDLED;
-}
-
-void (*rk3308_codec_set_jack_detect_cb)(struct snd_soc_component *component,
-					struct snd_soc_jack *hpdet_jack);
-EXPORT_SYMBOL_GPL(rk3308_codec_set_jack_detect_cb);
-
-static void rk3308_codec_set_jack_detect(struct snd_soc_component *component,
-				  struct snd_soc_jack *hpdet_jack)
-{
-	struct rk3308_codec_priv *rk3308 = snd_soc_component_get_drvdata(component);
-
-	rk3308->hpdet_jack = hpdet_jack;
-
-	/* To detect jack once during startup */
-	disable_irq_nosync(rk3308->irq);
-	queue_delayed_work(system_power_efficient_wq,
-			   &rk3308->hpdet_work, msecs_to_jiffies(10));
-
-	dev_info(rk3308->plat_dev, "%s: Request detect hp jack once\n",
-		 __func__);
 }
 
 static const struct regmap_config rk3308_codec_regmap_config = {
@@ -5061,8 +5059,6 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 				     (HPDET_BOTH_NEG_POS << 16) |
 				      HPDET_BOTH_NEG_POS);
 		}
-
-		rk3308_codec_set_jack_detect_cb = rk3308_codec_set_jack_detect;
 	}
 
 	if (rk3308->codec_ver == ACODEC_VERSION_A)
