@@ -93,20 +93,27 @@ static inline struct kthread *__to_kthread(struct task_struct *p)
 	return kthread;
 }
 
-void set_kthread_struct(struct task_struct *p)
+bool set_kthread_struct(struct task_struct *p)
 {
 	struct kthread *kthread;
 
-	if (__to_kthread(p))
-		return;
+	if (WARN_ON_ONCE(to_kthread(p)))
+		return false;
 
 	kthread = kzalloc(sizeof(*kthread), GFP_KERNEL);
+	if (!kthread)
+		return false;
+
+	init_completion(&kthread->exited);
+	init_completion(&kthread->parked);
+	p->vfork_done = &kthread->exited;
+
 	/*
 	 * We abuse ->set_child_tid to avoid the new member and because it
-	 * can't be wrongly copied by copy_process(). We also rely on fact
-	 * that the caller can't exec, so PF_KTHREAD can't be cleared.
+	 * can't be wrongly copied by copy_process().
 	 */
 	p->set_child_tid = (__force void __user *)kthread;
+	return true;
 }
 
 void free_kthread_struct(struct task_struct *k)
@@ -114,13 +121,13 @@ void free_kthread_struct(struct task_struct *k)
 	struct kthread *kthread;
 
 	/*
-	 * Can be NULL if this kthread was created by kernel_thread()
-	 * or if kmalloc() in kthread() failed.
+	 * Can be NULL if kmalloc() in set_kthread_struct() failed.
 	 */
 	kthread = to_kthread(k);
 #ifdef CONFIG_BLK_CGROUP
 	WARN_ON_ONCE(kthread && kthread->blkcg_css);
 #endif
+	k->set_child_tid = (__force void __user *)NULL;
 	kfree(kthread);
 }
 
@@ -315,7 +322,6 @@ static int kthread(void *_create)
 	struct kthread *self;
 	int ret;
 
-	set_kthread_struct(current);
 	self = to_kthread(current);
 
 	/* If user was SIGKILLed, I release the structure. */
@@ -325,17 +331,8 @@ static int kthread(void *_create)
 		kthread_exit(-EINTR);
 	}
 
-	if (!self) {
-		create->result = ERR_PTR(-ENOMEM);
-		complete(done);
-		kthread_exit(-ENOMEM);
-	}
-
 	self->threadfn = threadfn;
 	self->data = data;
-	init_completion(&self->exited);
-	init_completion(&self->parked);
-	current->vfork_done = &self->exited;
 
 	/*
 	 * The new thread inherited kthreadd's priority and CPU mask. Reset
