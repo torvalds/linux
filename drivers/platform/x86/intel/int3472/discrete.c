@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/uuid.h>
 
-#include "intel_skl_int3472_common.h"
+#include "common.h"
 
 /*
  * 79234640-9e10-4fea-a5c1-b5aa8b19756f
@@ -332,7 +332,9 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 	return 0;
 }
 
-int skl_int3472_discrete_probe(struct platform_device *pdev)
+static int skl_int3472_discrete_remove(struct platform_device *pdev);
+
+static int skl_int3472_discrete_probe(struct platform_device *pdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
 	struct int3472_discrete_device *int3472;
@@ -395,7 +397,7 @@ err_put_sensor:
 	return ret;
 }
 
-int skl_int3472_discrete_remove(struct platform_device *pdev)
+static int skl_int3472_discrete_remove(struct platform_device *pdev)
 {
 	struct int3472_discrete_device *int3472 = platform_get_drvdata(pdev);
 
@@ -411,3 +413,23 @@ int skl_int3472_discrete_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+static const struct acpi_device_id int3472_device_id[] = {
+	{ "INT3472", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, int3472_device_id);
+
+static struct platform_driver int3472_discrete = {
+	.driver = {
+		.name = "int3472-discrete",
+		.acpi_match_table = int3472_device_id,
+	},
+	.probe = skl_int3472_discrete_probe,
+	.remove = skl_int3472_discrete_remove,
+};
+module_platform_driver(int3472_discrete);
+
+MODULE_DESCRIPTION("Intel SkyLake INT3472 ACPI Discrete Device Driver");
+MODULE_AUTHOR("Daniel Scally <djrscally@gmail.com>");
+MODULE_LICENSE("GPL v2");
