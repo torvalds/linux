@@ -1373,15 +1373,16 @@ out:
 }
 
 static void
-mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
+mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
 {
-	struct mt7915_tx_free *free = (struct mt7915_tx_free *)skb->data;
+	struct mt7915_tx_free *free = (struct mt7915_tx_free *)data;
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_phy *mphy_ext = mdev->phy2;
 	struct mt76_txwi_cache *txwi;
 	struct ieee80211_sta *sta = NULL;
 	LIST_HEAD(free_list);
-	struct sk_buff *tmp;
+	struct sk_buff *skb, *tmp;
+	void *end = data + len;
 	u8 i, count;
 	bool wake = false;
 
@@ -1399,6 +1400,9 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 	 * Should avoid accessing WTBL to get Tx airtime, and use it instead.
 	 */
 	count = FIELD_GET(MT_TX_FREE_MSDU_CNT, le16_to_cpu(free->ctrl));
+	if (WARN_ON_ONCE((void *)&free->info[count] > end))
+		return;
+
 	for (i = 0; i < count; i++) {
 		u32 msdu, info = le32_to_cpu(free->info[i]);
 
@@ -1440,8 +1444,6 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 		mt76_set_tx_blocked(&dev->mt76, false);
 
 	mt76_worker_schedule(&dev->mt76.tx_worker);
-
-	napi_consume_skb(skb, 1);
 
 	list_for_each_entry_safe(skb, tmp, &free_list, list) {
 		skb_list_del_init(skb);
@@ -1617,6 +1619,27 @@ out:
 	rcu_read_unlock();
 }
 
+bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len)
+{
+	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
+	__le32 *rxd = (__le32 *)data;
+	__le32 *end = (__le32 *)&rxd[len / 4];
+	enum rx_pkt_type type;
+
+	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	switch (type) {
+	case PKT_TYPE_TXRX_NOTIFY:
+		mt7915_mac_tx_free(dev, data, len);
+		return false;
+	case PKT_TYPE_TXS:
+		for (rxd += 2; rxd + 8 <= end; rxd += 8)
+		    mt7915_mac_add_txs(dev, rxd);
+		return false;
+	default:
+		return true;
+	}
+}
+
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)
 {
@@ -1629,7 +1652,8 @@ void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
-		mt7915_mac_tx_free(dev, skb);
+		mt7915_mac_tx_free(dev, skb->data, skb->len);
+		napi_consume_skb(skb, 1);
 		break;
 	case PKT_TYPE_RX_EVENT:
 		mt7915_mcu_rx_event(dev, skb);
