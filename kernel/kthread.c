@@ -52,6 +52,7 @@ struct kthread_create_info
 struct kthread {
 	unsigned long flags;
 	unsigned int cpu;
+	int result;
 	int (*threadfn)(void *);
 	void *data;
 	mm_segment_t oldfs;
@@ -287,7 +288,9 @@ EXPORT_SYMBOL_GPL(kthread_parkme);
  */
 void __noreturn kthread_exit(long result)
 {
-	do_exit(result);
+	struct kthread *kthread = to_kthread(current);
+	kthread->result = result;
+	do_exit(0);
 }
 
 /**
@@ -679,7 +682,7 @@ int kthread_stop(struct task_struct *k)
 	kthread_unpark(k);
 	wake_up_process(k);
 	wait_for_completion(&kthread->exited);
-	ret = k->exit_code;
+	ret = kthread->result;
 	put_task_struct(k);
 
 	trace_sched_kthread_stop_ret(ret);
