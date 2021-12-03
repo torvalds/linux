@@ -358,22 +358,6 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 		goto err2;
 	}
 
-	if (IS_ENABLED(CONFIG_NO_GKI)) {
-		heap->heap_dev->dma_parms = kzalloc(sizeof(*heap->heap_dev->dma_parms), GFP_KERNEL);
-		if (!heap->heap_dev->dma_parms) {
-			err_ret = ERR_PTR(-ENOMEM);
-			goto err3;
-		}
-
-		ret = dma_set_max_seg_size(heap->heap_dev, (unsigned int)DMA_BIT_MASK(32));
-		if (ret) {
-			pr_err("dma_heap: Unable to set seg size\n");
-			kfree(heap->heap_dev->dma_parms);
-			err_ret = ERR_PTR(ret);
-			goto err3;
-		}
-	}
-
 	/* Make sure it doesn't disappear on us */
 	heap->heap_dev = get_device(heap->heap_dev);
 
@@ -384,8 +368,6 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 
 	return heap;
 
-err3:
-	device_destroy(dma_heap_class, heap->heap_devt);
 err2:
 	cdev_del(&heap->heap_cdev);
 err1:
