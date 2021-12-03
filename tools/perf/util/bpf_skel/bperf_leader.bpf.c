@@ -3,7 +3,6 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "bperf.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -12,8 +11,19 @@ struct {
 	__uint(map_flags, BPF_F_PRESERVE_ELEMS);
 } events SEC(".maps");
 
-reading_map prev_readings SEC(".maps");
-reading_map diff_readings SEC(".maps");
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(struct bpf_perf_event_value));
+	__uint(max_entries, 1);
+} prev_readings SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(struct bpf_perf_event_value));
+	__uint(max_entries, 1);
+} diff_readings SEC(".maps");
 
 SEC("raw_tp/sched_switch")
 int BPF_PROG(on_switch)
