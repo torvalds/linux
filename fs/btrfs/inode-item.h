@@ -19,10 +19,24 @@ struct extent_buffer;
  */
 #define BTRFS_NEED_TRUNCATE_BLOCK		1
 
+struct btrfs_truncate_control {
+	/* IN: the size we're truncating to. */
+	u64 new_size;
+
+	/* OUT: the number of extents truncated. */
+	u64 extents_found;
+
+	/*
+	 * IN: minimum key type to remove.  All key types with this type are
+	 * removed only if their offset >= new_size.
+	 */
+	u32 min_type;
+};
+
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       struct btrfs_inode *inode, u64 new_size,
-			       u32 min_type, u64 *extents_found);
+			       struct btrfs_inode *inode,
+			       struct btrfs_truncate_control *control);
 int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   const char *name, int name_len,

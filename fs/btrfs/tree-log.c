@@ -4098,11 +4098,15 @@ static int truncate_inode_items(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *inode,
 				u64 new_size, u32 min_type)
 {
+	struct btrfs_truncate_control control = {
+		.new_size = new_size,
+		.min_type = min_type,
+	};
 	int ret;
 
 	do {
 		ret = btrfs_truncate_inode_items(trans, log_root, inode,
-						 new_size, min_type, NULL);
+						 &control);
 	} while (ret == -EAGAIN);
 
 	return ret;

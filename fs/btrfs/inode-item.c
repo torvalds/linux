@@ -425,16 +425,8 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
  * @trans:		A transaction handle.
  * @root:		The root from which to remove items.
  * @inode:		The inode whose items we want to remove.
- * @new_size:		The new i_size for the inode. This is only applicable when
- *			@min_type is BTRFS_EXTENT_DATA_KEY, must be 0 otherwise.
- * @min_type:		The minimum key type to remove. All keys with a type
- *			greater than this value are removed and all keys with
- *			this type are removed only if their offset is >= @new_size.
- * @extents_found:	Output parameter that will contain the number of file
- *			extent items that were removed or adjusted to the new
- *			inode i_size. The caller is responsible for initializing
- *			the counter. Also, it can be NULL if the caller does not
- *			need this counter.
+ * @control:		The btrfs_truncate_control to control how and what we
+ *			are truncating.
  *
  * Remove all keys associated with the inode from the given root that have a key
  * with a type greater than or equals to @min_type. When @min_type has a value of
@@ -448,8 +440,7 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
 			       struct btrfs_inode *inode,
-			       u64 new_size, u32 min_type,
-			       u64 *extents_found)
+			       struct btrfs_truncate_control *control)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
@@ -457,6 +448,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
+	u64 new_size = control->new_size;
 	u64 extent_num_bytes = 0;
 	u64 extent_offset = 0;
 	u64 item_end = 0;
@@ -472,7 +464,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	bool be_nice = false;
 	bool should_throttle = false;
 
-	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
+	BUG_ON(new_size > 0 && control->min_type != BTRFS_EXTENT_DATA_KEY);
 
 	/*
 	 * For shareable roots we want to back off from time to time, this turns
@@ -525,7 +517,7 @@ search_again:
 		if (found_key.objectid != ino)
 			break;
 
-		if (found_type < min_type)
+		if (found_type < control->min_type)
 			break;
 
 		item_end = found_key.offset;
@@ -548,7 +540,7 @@ search_again:
 			}
 			item_end--;
 		}
-		if (found_type > min_type) {
+		if (found_type > control->min_type) {
 			del_item = 1;
 		} else {
 			if (item_end < new_size)
@@ -563,8 +555,7 @@ search_again:
 		if (found_type != BTRFS_EXTENT_DATA_KEY)
 			goto delete;
 
-		if (extents_found != NULL)
-			(*extents_found)++;
+		control->extents_found++;
 
 		if (extent_type != BTRFS_FILE_EXTENT_INLINE) {
 			u64 num_dec;

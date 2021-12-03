@@ -291,6 +291,10 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group *block_group,
 				    struct inode *vfs_inode)
 {
+	struct btrfs_truncate_control control = {
+		.new_size = 0,
+		.min_type = BTRFS_EXTENT_DATA_KEY,
+	};
 	struct btrfs_inode *inode = BTRFS_I(vfs_inode);
 	struct btrfs_root *root = inode->root;
 	struct extent_state *cached_state = NULL;
@@ -333,8 +337,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 	 * We skip the throttling logic for free space cache inodes, so we don't
 	 * need to check for -EAGAIN.
 	 */
-	ret = btrfs_truncate_inode_items(trans, root, inode, 0,
-					 BTRFS_EXTENT_DATA_KEY, NULL);
+	ret = btrfs_truncate_inode_items(trans, root, inode, &control);
 	unlock_extent_cached(&inode->io_tree, 0, (u64)-1, &cached_state);
 	if (ret)
 		goto fail;
