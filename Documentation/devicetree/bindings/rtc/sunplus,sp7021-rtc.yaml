@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd. 2021
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/sunplus,sp7021-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SP7021 Real Time Clock controller
+
+maintainers:
+  - Vincent Shih <vincent.sunplus@gmail.com>
+
+properties:
+  compatible:
+    const: sunplus,sp7021-rtc
+
+  reg:
+    maxItems: 1
+
+  reg-names:
+    items:
+      - const: rtc
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - resets
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    rtc: serial@9c003a00 {
+        compatible = "sunplus,sp7021-rtc";
+        reg = <0x9c003a00 0x80>;
+        reg-names = "rtc";
+        clocks = <&clkc 0x12>;
+        resets = <&rstc 0x02>;
+        interrupt-parent = <&intc>;
+        interrupts = <163 IRQ_TYPE_EDGE_RISING>;
+    };
+...
