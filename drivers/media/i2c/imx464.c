@@ -2893,7 +2893,7 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 	u32 vts = 0;
 	int ret = 0;
 	u32 shr0 = 0;
-	//u32 flip = 0;
+	u32 flip = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -2969,8 +2969,64 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 			vts);
 		break;
 	case V4L2_CID_HFLIP:
+		ret = imx464_write_reg(client,
+				       IMX464_GROUP_HOLD_REG,
+				       IMX464_REG_VALUE_08BIT,
+				       IMX464_GROUP_HOLD_START);
+		ret |= imx464_write_reg(IMX464->client, IMX464_HREVERSE_REG,
+				       IMX464_REG_VALUE_08BIT, !!ctrl->val);
+		ret |= imx464_write_reg(client,
+					IMX464_GROUP_HOLD_REG,
+					IMX464_REG_VALUE_08BIT,
+					IMX464_GROUP_HOLD_END);
 		break;
 	case V4L2_CID_VFLIP:
+		flip = ctrl->val;
+		ret = imx464_write_reg(client,
+				       IMX464_GROUP_HOLD_REG,
+				       IMX464_REG_VALUE_08BIT,
+				       IMX464_GROUP_HOLD_START);
+		ret |= imx464_write_reg(IMX464->client, IMX464_VREVERSE_REG,
+				IMX464_REG_VALUE_08BIT, !!flip);
+		if (flip) {
+			ret |= imx464_write_reg(IMX464->client, 0x3074,
+				IMX464_REG_VALUE_08BIT, 0x40);
+			ret |= imx464_write_reg(IMX464->client, 0x3075,
+				IMX464_REG_VALUE_08BIT, 0x06);
+			ret |= imx464_write_reg(IMX464->client, 0x3080,
+				IMX464_REG_VALUE_08BIT, 0xff);
+			ret |= imx464_write_reg(IMX464->client, 0x30ad,
+				IMX464_REG_VALUE_08BIT, 0x7e);
+			ret |= imx464_write_reg(IMX464->client, 0x30b6,
+				IMX464_REG_VALUE_08BIT, 0xff);
+			ret |= imx464_write_reg(IMX464->client, 0x30b7,
+				IMX464_REG_VALUE_08BIT, 0x01);
+			ret |= imx464_write_reg(IMX464->client, 0x30d8,
+				IMX464_REG_VALUE_08BIT, 0x45);
+			ret |= imx464_write_reg(IMX464->client, 0x3114,
+				IMX464_REG_VALUE_08BIT, 0x01);
+		} else {
+			ret |= imx464_write_reg(IMX464->client, 0x3074,
+				IMX464_REG_VALUE_08BIT, 0x3c);
+			ret |= imx464_write_reg(IMX464->client, 0x3075,
+				IMX464_REG_VALUE_08BIT, 0x00);
+			ret |= imx464_write_reg(IMX464->client, 0x3080,
+				IMX464_REG_VALUE_08BIT, 0x01);
+			ret |= imx464_write_reg(IMX464->client, 0x30ad,
+				IMX464_REG_VALUE_08BIT, 0x02);
+			ret |= imx464_write_reg(IMX464->client, 0x30b6,
+				IMX464_REG_VALUE_08BIT, 0x00);
+			ret |= imx464_write_reg(IMX464->client, 0x30b7,
+				IMX464_REG_VALUE_08BIT, 0x00);
+			ret |= imx464_write_reg(IMX464->client, 0x30d8,
+				IMX464_REG_VALUE_08BIT, 0x44);
+			ret |= imx464_write_reg(IMX464->client, 0x3114,
+				IMX464_REG_VALUE_08BIT, 0x02);
+		}
+		ret |= imx464_write_reg(client,
+					IMX464_GROUP_HOLD_REG,
+					IMX464_REG_VALUE_08BIT,
+					IMX464_GROUP_HOLD_END);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
