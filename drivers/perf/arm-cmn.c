@@ -35,14 +35,9 @@
 #define CMN_CHILD_NODE_ADDR		GENMASK(27, 0)
 #define CMN_CHILD_NODE_EXTERNAL		BIT(31)
 
-#define CMN_ADDR_NODE_PTR		GENMASK(27, 14)
-
-#define CMN_NODE_PTR_DEVID(ptr)		(((ptr) >> 2) & 3)
-#define CMN_NODE_PTR_PID(ptr)		((ptr) & 1)
-#define CMN_NODE_PTR_X(ptr, bits)	((ptr) >> (6 + (bits)))
-#define CMN_NODE_PTR_Y(ptr, bits)	(((ptr) >> 6) & ((1U << (bits)) - 1))
-
-#define CMN_MAX_XPS			(8 * 8)
+#define CMN_MAX_DIMENSION		8
+#define CMN_MAX_XPS			(CMN_MAX_DIMENSION * CMN_MAX_DIMENSION)
+#define CMN_MAX_DTMS			CMN_MAX_XPS
 
 /* The CFG node has one other useful purpose */
 #define CMN_CFGM_PERIPH_ID_2		0x0010
@@ -190,30 +185,30 @@ struct arm_cmn_node {
 	u16 id, logid;
 	enum cmn_node_type type;
 
+	int dtm;
 	union {
-		/* Device node */
+		/* DN/HN-F/CXHA */
 		struct {
-			int to_xp;
-			/* DN/HN-F/CXHA */
-			unsigned int occupid_val;
-			unsigned int occupid_count;
+			u8 occupid_val;
+			u8 occupid_count;
 		};
 		/* XP */
-		struct {
-			int dtc;
-			u32 pmu_config_low;
-			union {
-				u8 input_sel[4];
-				__le32 pmu_config_high;
-			};
-			s8 wp_event[4];
-		};
+		int dtc;
 	};
-
 	union {
 		u8 event[4];
 		__le32 event_sel;
 	};
+};
+
+struct arm_cmn_dtm {
+	void __iomem *base;
+	u32 pmu_config_low;
+	union {
+		u8 input_sel[4];
+		__le32 pmu_config_high;
+	};
+	s8 wp_event[4];
 };
 
 struct arm_cmn_dtc {
@@ -241,6 +236,7 @@ struct arm_cmn {
 	struct arm_cmn_node *xps;
 	struct arm_cmn_node *dns;
 
+	struct arm_cmn_dtm *dtms;
 	struct arm_cmn_dtc *dtc;
 	unsigned int num_dtcs;
 
@@ -282,20 +278,14 @@ static struct arm_cmn_nodeid arm_cmn_nid(const struct arm_cmn *cmn, u16 id)
 	return nid;
 }
 
-static void arm_cmn_init_node_to_xp(const struct arm_cmn *cmn,
-				    struct arm_cmn_node *dn)
+static struct arm_cmn_node *arm_cmn_node_to_xp(const struct arm_cmn *cmn,
+					       const struct arm_cmn_node *dn)
 {
 	struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
 	int xp_idx = cmn->mesh_x * nid.y + nid.x;
 
-	dn->to_xp = (cmn->xps + xp_idx) - dn;
+	return cmn->xps + xp_idx;
 }
-
-static struct arm_cmn_node *arm_cmn_node_to_xp(struct arm_cmn_node *dn)
-{
-	return dn->type == CMN_TYPE_XP ? dn : dn + dn->to_xp;
-}
-
 static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
 					 enum cmn_node_type type)
 {
@@ -706,9 +696,9 @@ static u64 arm_cmn_read_dtm(struct arm_cmn *cmn, struct arm_cmn_hw_event *hw,
 
 	offset = snapshot ? CMN_DTM_PMEVCNTSR : CMN_DTM_PMEVCNT;
 	for_each_hw_dn(hw, dn, i) {
-		struct arm_cmn_node *xp = arm_cmn_node_to_xp(dn);
+		struct arm_cmn_dtm *dtm = &cmn->dtms[dn->dtm];
 		int dtm_idx = arm_cmn_get_index(hw->dtm_idx, i);
-		u64 reg = readq_relaxed(xp->pmu_base + offset);
+		u64 reg = readq_relaxed(dtm->base + offset);
 		u16 dtm_count = reg >> (dtm_idx * 16);
 
 		count += dtm_count;
@@ -835,9 +825,9 @@ static void arm_cmn_event_stop(struct perf_event *event, int flags)
 }
 
 struct arm_cmn_val {
-	u8 dtm_count[CMN_MAX_XPS];
-	u8 occupid[CMN_MAX_XPS];
-	u8 wp[CMN_MAX_XPS][4];
+	u8 dtm_count[CMN_MAX_DTMS];
+	u8 occupid[CMN_MAX_DTMS];
+	u8 wp[CMN_MAX_DTMS][4];
 	int dtc_count;
 	bool cycles;
 };
@@ -866,16 +856,16 @@ static void arm_cmn_val_add_event(struct arm_cmn_val *val, struct perf_event *ev
 		occupid = 0;
 
 	for_each_hw_dn(hw, dn, i) {
-		int wp_idx, xp = arm_cmn_node_to_xp(dn)->logid;
+		int wp_idx, dtm = dn->dtm;
 
-		val->dtm_count[xp]++;
-		val->occupid[xp] = occupid;
+		val->dtm_count[dtm]++;
+		val->occupid[dtm] = occupid;
 
 		if (type != CMN_TYPE_WP)
 			continue;
 
 		wp_idx = arm_cmn_wp_idx(event);
-		val->wp[xp][wp_idx] = CMN_EVENT_WP_COMBINE(event) + 1;
+		val->wp[dtm][wp_idx] = CMN_EVENT_WP_COMBINE(event) + 1;
 	}
 }
 
@@ -914,22 +904,22 @@ static int arm_cmn_validate_group(struct perf_event *event)
 		occupid = 0;
 
 	for_each_hw_dn(hw, dn, i) {
-		int wp_idx, wp_cmb, xp = arm_cmn_node_to_xp(dn)->logid;
+		int wp_idx, wp_cmb, dtm = dn->dtm;
 
-		if (val.dtm_count[xp] == CMN_DTM_NUM_COUNTERS)
+		if (val.dtm_count[dtm] == CMN_DTM_NUM_COUNTERS)
 			return -EINVAL;
 
-		if (occupid && val.occupid[xp] && occupid != val.occupid[xp])
+		if (occupid && val.occupid[dtm] && occupid != val.occupid[dtm])
 			return -EINVAL;
 
 		if (type != CMN_TYPE_WP)
 			continue;
 
 		wp_idx = arm_cmn_wp_idx(event);
-		if (val.wp[xp][wp_idx])
+		if (val.wp[dtm][wp_idx])
 			return -EINVAL;
 
-		wp_cmb = val.wp[xp][wp_idx ^ 1];
+		wp_cmb = val.wp[dtm][wp_idx ^ 1];
 		if (wp_cmb && wp_cmb != CMN_EVENT_WP_COMBINE(event) + 1)
 			return -EINVAL;
 	}
@@ -1010,17 +1000,17 @@ static void arm_cmn_event_clear(struct arm_cmn *cmn, struct perf_event *event,
 	enum cmn_node_type type = CMN_EVENT_TYPE(event);
 
 	while (i--) {
-		struct arm_cmn_node *xp = arm_cmn_node_to_xp(hw->dn + i);
+		struct arm_cmn_dtm *dtm = &cmn->dtms[hw->dn[i].dtm];
 		unsigned int dtm_idx = arm_cmn_get_index(hw->dtm_idx, i);
 
 		if (type == CMN_TYPE_WP)
-			hw->dn[i].wp_event[arm_cmn_wp_idx(event)] = -1;
+			dtm->wp_event[arm_cmn_wp_idx(event)] = -1;
 
 		if (arm_cmn_is_occup_event(type, CMN_EVENT_EVENTID(event)))
 			hw->dn[i].occupid_count--;
 
-		xp->pmu_config_low &= ~CMN__PMEVCNT_PAIRED(dtm_idx);
-		writel_relaxed(xp->pmu_config_low, xp->pmu_base + CMN_DTM_PMU_CONFIG);
+		dtm->pmu_config_low &= ~CMN__PMEVCNT_PAIRED(dtm_idx);
+		writel_relaxed(dtm->pmu_config_low, dtm->base + CMN_DTM_PMU_CONFIG);
 	}
 	memset(hw->dtm_idx, 0, sizeof(hw->dtm_idx));
 
@@ -1062,12 +1052,12 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 
 	/* ...then the local counters to feed it. */
 	for_each_hw_dn(hw, dn, i) {
-		struct arm_cmn_node *xp = arm_cmn_node_to_xp(dn);
+		struct arm_cmn_dtm *dtm = &cmn->dtms[dn->dtm];
 		unsigned int dtm_idx, shift;
 		u64 reg;
 
 		dtm_idx = 0;
-		while (xp->pmu_config_low & CMN__PMEVCNT_PAIRED(dtm_idx))
+		while (dtm->pmu_config_low & CMN__PMEVCNT_PAIRED(dtm_idx))
 			if (++dtm_idx == CMN_DTM_NUM_COUNTERS)
 				goto free_dtms;
 
@@ -1077,17 +1067,17 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 			int tmp, wp_idx = arm_cmn_wp_idx(event);
 			u32 cfg = arm_cmn_wp_config(event);
 
-			if (dn->wp_event[wp_idx] >= 0)
+			if (dtm->wp_event[wp_idx] >= 0)
 				goto free_dtms;
 
-			tmp = dn->wp_event[wp_idx ^ 1];
+			tmp = dtm->wp_event[wp_idx ^ 1];
 			if (tmp >= 0 && CMN_EVENT_WP_COMBINE(event) !=
 					CMN_EVENT_WP_COMBINE(dtc->counters[tmp]))
 				goto free_dtms;
 
 			input_sel = CMN__PMEVCNT0_INPUT_SEL_WP + wp_idx;
-			dn->wp_event[wp_idx] = dtc_idx;
-			writel_relaxed(cfg, dn->pmu_base + CMN_DTM_WPn_CONFIG(wp_idx));
+			dtm->wp_event[wp_idx] = dtc_idx;
+			writel_relaxed(cfg, dtm->base + CMN_DTM_WPn_CONFIG(wp_idx));
 		} else {
 			struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
 
@@ -1095,7 +1085,7 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 				    (nid.port << 4) + (nid.dev << 2);
 
 			if (arm_cmn_is_occup_event(type, CMN_EVENT_EVENTID(event))) {
-				int occupid = CMN_EVENT_OCCUPID(event);
+				u8 occupid = CMN_EVENT_OCCUPID(event);
 
 				if (dn->occupid_count == 0) {
 					dn->occupid_val = occupid;
@@ -1110,13 +1100,13 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 
 		arm_cmn_set_index(hw->dtm_idx, i, dtm_idx);
 
-		xp->input_sel[dtm_idx] = input_sel;
+		dtm->input_sel[dtm_idx] = input_sel;
 		shift = CMN__PMEVCNTn_GLOBAL_NUM_SHIFT(dtm_idx);
-		xp->pmu_config_low &= ~(CMN__PMEVCNT0_GLOBAL_NUM << shift);
-		xp->pmu_config_low |= FIELD_PREP(CMN__PMEVCNT0_GLOBAL_NUM, dtc_idx) << shift;
-		xp->pmu_config_low |= CMN__PMEVCNT_PAIRED(dtm_idx);
-		reg = (u64)le32_to_cpu(xp->pmu_config_high) << 32 | xp->pmu_config_low;
-		writeq_relaxed(reg, xp->pmu_base + CMN_DTM_PMU_CONFIG);
+		dtm->pmu_config_low &= ~(CMN__PMEVCNT0_GLOBAL_NUM << shift);
+		dtm->pmu_config_low |= FIELD_PREP(CMN__PMEVCNT0_GLOBAL_NUM, dtc_idx) << shift;
+		dtm->pmu_config_low |= CMN__PMEVCNT_PAIRED(dtm_idx);
+		reg = (u64)le32_to_cpu(dtm->pmu_config_high) << 32 | dtm->pmu_config_low;
+		writeq_relaxed(reg, dtm->base + CMN_DTM_PMU_CONFIG);
 	}
 
 	/* Go go go! */
@@ -1276,23 +1266,22 @@ static int arm_cmn_init_irqs(struct arm_cmn *cmn)
 	return 0;
 }
 
-static void arm_cmn_init_dtm(struct arm_cmn_node *xp)
+static void arm_cmn_init_dtm(struct arm_cmn_dtm *dtm, struct arm_cmn_node *xp)
 {
 	int i;
 
+	dtm->base = xp->pmu_base;
+	dtm->pmu_config_low = CMN_DTM_PMU_CONFIG_PMU_EN;
 	for (i = 0; i < 4; i++) {
-		xp->wp_event[i] = -1;
-		writeq_relaxed(0, xp->pmu_base + CMN_DTM_WPn_MASK(i));
-		writeq_relaxed(~0ULL, xp->pmu_base + CMN_DTM_WPn_VAL(i));
+		dtm->wp_event[i] = -1;
+		writeq_relaxed(0, dtm->base + CMN_DTM_WPn_MASK(i));
+		writeq_relaxed(~0ULL, dtm->base + CMN_DTM_WPn_VAL(i));
 	}
-	xp->pmu_config_low = CMN_DTM_PMU_CONFIG_PMU_EN;
-	xp->dtc = -1;
 }
 
 static int arm_cmn_init_dtc(struct arm_cmn *cmn, struct arm_cmn_node *dn, int idx)
 {
 	struct arm_cmn_dtc *dtc = cmn->dtc + idx;
-	struct arm_cmn_node *xp;
 
 	dtc->base = dn->pmu_base - CMN_PMU_OFFSET;
 	dtc->irq = platform_get_irq(to_platform_device(cmn->dev), idx);
@@ -1302,10 +1291,6 @@ static int arm_cmn_init_dtc(struct arm_cmn *cmn, struct arm_cmn_node *dn, int id
 	writel_relaxed(0, dtc->base + CMN_DT_PMCR);
 	writel_relaxed(0x1ff, dtc->base + CMN_DT_PMOVSR_CLR);
 	writel_relaxed(CMN_DT_PMCR_OVFL_INTR_EN, dtc->base + CMN_DT_PMCR);
-
-	/* We do at least know that a DTC's XP must be in that DTC's domain */
-	xp = arm_cmn_node_to_xp(dn);
-	xp->dtc = idx;
 
 	return 0;
 }
@@ -1323,7 +1308,7 @@ static int arm_cmn_node_cmp(const void *a, const void *b)
 
 static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 {
-	struct arm_cmn_node *dn;
+	struct arm_cmn_node *dn, *xp;
 	int dtc_idx = 0;
 
 	cmn->dtc = devm_kcalloc(cmn->dev, cmn->num_dtcs, sizeof(cmn->dtc[0]), GFP_KERNEL);
@@ -1335,13 +1320,24 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 	cmn->xps = arm_cmn_node(cmn, CMN_TYPE_XP);
 
 	for (dn = cmn->dns; dn->type; dn++) {
-		if (dn->type != CMN_TYPE_XP)
-			arm_cmn_init_node_to_xp(cmn, dn);
-		else if (cmn->num_dtcs == 1)
-			dn->dtc = 0;
+		if (dn->type == CMN_TYPE_XP) {
+			if (dn->dtc < 0 && cmn->num_dtcs == 1)
+				dn->dtc = 0;
+			continue;
+		}
 
-		if (dn->type == CMN_TYPE_DTC)
-			arm_cmn_init_dtc(cmn, dn, dtc_idx++);
+		xp = arm_cmn_node_to_xp(cmn, dn);
+		dn->dtm = xp->dtm;
+
+		if (dn->type == CMN_TYPE_DTC) {
+			int err;
+			/* We do at least know that a DTC's XP must be in that DTC's domain */
+			if (xp->dtc < 0)
+				xp->dtc = dtc_idx;
+			err = arm_cmn_init_dtc(cmn, dn, dtc_idx++);
+			if (err)
+				return err;
+		}
 
 		/* To the PMU, RN-Ds don't add anything over RN-Is, so smoosh them together */
 		if (dn->type == CMN_TYPE_RND)
@@ -1380,6 +1376,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 {
 	void __iomem *cfg_region;
 	struct arm_cmn_node cfg, *dn;
+	struct arm_cmn_dtm *dtm;
 	u16 child_count, child_poff;
 	u32 xp_offset[CMN_MAX_XPS];
 	u64 reg;
@@ -1416,14 +1413,18 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	if (!dn)
 		return -ENOMEM;
 
+	dtm = devm_kcalloc(cmn->dev, cmn->num_xps, sizeof(*dtm), GFP_KERNEL);
+	if (!dtm)
+		return -ENOMEM;
+
 	/* Pass 2: now we can actually populate the nodes */
 	cmn->dns = dn;
+	cmn->dtms = dtm;
 	for (i = 0; i < cmn->num_xps; i++) {
 		void __iomem *xp_region = cmn->base + xp_offset[i];
 		struct arm_cmn_node *xp = dn++;
 
 		arm_cmn_init_node_info(cmn, xp_offset[i], xp);
-		arm_cmn_init_dtm(xp);
 		/*
 		 * Thanks to the order in which XP logical IDs seem to be
 		 * assigned, we can handily infer the mesh X dimension by
@@ -1432,6 +1433,10 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 		 */
 		if (xp->id == (1 << 3))
 			cmn->mesh_x = xp->logid;
+
+		xp->dtc = -1;
+		xp->dtm = dtm - cmn->dtms;
+		arm_cmn_init_dtm(dtm++, xp);
 
 		reg = readq_relaxed(xp_region + CMN_CHILD_INFO);
 		child_count = FIELD_GET(CMN_CI_CHILD_COUNT, reg);
