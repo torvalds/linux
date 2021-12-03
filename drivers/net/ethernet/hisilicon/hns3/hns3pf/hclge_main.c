@@ -1890,7 +1890,7 @@ static int hclge_map_tqp(struct hclge_dev *hdev)
 	u16 i, num_vport;
 
 	num_vport = hdev->num_req_vfs + 1;
-	for (i = 0; i < num_vport; i++)	{
+	for (i = 0; i < num_vport; i++) {
 		int ret;
 
 		ret = hclge_map_tqp_to_vport(hdev, vport);
