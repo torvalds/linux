@@ -716,6 +716,7 @@ enum cif_reg_index {
 #define CIF_SCALE_SW_MODE(val, ch)	((val & 0x3) << (1 + ch * 8))
 #define CIF_SCALE_EN(ch)		(1 << (ch * 8))
 #define SW_SCALE_END(intstat, ch)	((intstat >> ((ch + 1) * 2)) & 0x3)
+#define SCALE_SOFT_RESET(ch)		(0x1 << (ch + 16))
 
 /* CIF_CSI_ID_CTRL0 */
 #define CSI_DISABLE_CAPTURE		(0x0 << 0)

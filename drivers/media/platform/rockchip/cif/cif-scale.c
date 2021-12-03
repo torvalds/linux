@@ -796,6 +796,12 @@ static int rkcif_scale_channel_set(struct rkcif_scale_vdev *scale_vdev)
 		v4l2_err(&dev->v4l2_dev, "scale_vdev[%d] has been used by other device\n", ch);
 		return -EINVAL;
 	}
+
+	rkcif_assign_scale_buffer_pingpong(scale_vdev,
+					   RKCIF_YUV_ADDR_STATE_INIT,
+					   ch);
+	rkcif_write_register_or(dev, CIF_REG_SCL_CTRL, SCALE_SOFT_RESET(scale_vdev->ch));
+
 	rkcif_write_register_and(dev, CIF_REG_GLB_INTST,
 				 ~(SCALE_END_INTSTAT(ch) |
 				 SCALE_FIFO_OVERFLOW(ch)));
@@ -819,9 +825,6 @@ static int rkcif_scale_channel_set(struct rkcif_scale_vdev *scale_vdev)
 			     val);
 	rkcif_write_register(dev, get_reg_index_of_scale_vlw(ch),
 			     scale_vdev->ch_info.vir_width);
-	rkcif_assign_scale_buffer_pingpong(scale_vdev,
-					   RKCIF_YUV_ADDR_STATE_INIT,
-					   ch);
 	val = CIF_SCALE_SW_SRC_CH(scale_vdev->ch_src, ch) |
 	      CIF_SCALE_SW_MODE(scale_vdev->scale_mode, ch) |
 	      CIF_SCALE_EN(ch);
