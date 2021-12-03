@@ -846,9 +846,6 @@ struct drm_i915_private {
 
 	/* Kernel Modesetting */
 
-	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
-	struct intel_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
-
 	/**
 	 * dpll and cdclk state is protected by connection_mutex
 	 * dpll.lock serializes intel_{prepare,enable,disable}_shared_dpll.
