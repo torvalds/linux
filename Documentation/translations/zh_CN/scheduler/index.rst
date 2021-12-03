@@ -18,11 +18,11 @@ Linux调度器
     :maxdepth: 1
 
     completion
+    sched-arch
 
 
 TODOList:
 
-    sched-arch
     sched-bwc
     sched-deadline
     sched-design-CFS
