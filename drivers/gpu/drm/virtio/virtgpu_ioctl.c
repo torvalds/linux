@@ -54,7 +54,7 @@ static int virtio_gpu_fence_event_create(struct drm_device *dev,
 	if (!e)
 		return -ENOMEM;
 
-	e->event.type = VIRTGPU_EVENT_FENCE_SIGNALED_INTERNAL;
+	e->event.type = VIRTGPU_EVENT_FENCE_SIGNALED;
 	e->event.length = sizeof(e->event);
 
 	ret = drm_event_reserve_init(dev, file, &e->base, &e->event);
