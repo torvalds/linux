@@ -385,9 +385,9 @@ do {								\
 		int srcu_idx;					\
 								\
 		might_sleep();					\
-		srcu_idx = srcu_read_lock((hctx)->srcu);	\
+		srcu_idx = srcu_read_lock((hctx)->queue->srcu);	\
 		(dispatch_ops);					\
-		srcu_read_unlock((hctx)->srcu, srcu_idx);	\
+		srcu_read_unlock((hctx)->queue->srcu, srcu_idx); \
 	}							\
 } while (0)
 
