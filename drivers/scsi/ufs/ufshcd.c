@@ -1070,13 +1070,31 @@ static bool ufshcd_is_devfreq_scaling_required(struct ufs_hba *hba,
 	return false;
 }
 
+/*
+ * Determine the number of pending commands by counting the bits in the SCSI
+ * device budget maps. This approach has been selected because a bit is set in
+ * the budget map before scsi_host_queue_ready() checks the host_self_blocked
+ * flag. The host_self_blocked flag can be modified by calling
+ * scsi_block_requests() or scsi_unblock_requests().
+ */
+static u32 ufshcd_pending_cmds(struct ufs_hba *hba)
+{
+	struct scsi_device *sdev;
+	u32 pending = 0;
+
+	shost_for_each_device(sdev, hba->host)
+		pending += sbitmap_weight(&sdev->budget_map);
+
+	return pending;
+}
+
 static int ufshcd_wait_for_doorbell_clr(struct ufs_hba *hba,
 					u64 wait_timeout_us)
 {
 	unsigned long flags;
 	int ret = 0;
 	u32 tm_doorbell;
-	u32 tr_doorbell;
+	u32 tr_pending;
 	bool timeout = false, do_last_check = false;
 	ktime_t start;
 
@@ -1094,8 +1112,8 @@ static int ufshcd_wait_for_doorbell_clr(struct ufs_hba *hba,
 		}
 
 		tm_doorbell = ufshcd_readl(hba, REG_UTP_TASK_REQ_DOOR_BELL);
-		tr_doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
-		if (!tm_doorbell && !tr_doorbell) {
+		tr_pending = ufshcd_pending_cmds(hba);
+		if (!tm_doorbell && !tr_pending) {
 			timeout = false;
 			break;
 		} else if (do_last_check) {
@@ -1115,12 +1133,12 @@ static int ufshcd_wait_for_doorbell_clr(struct ufs_hba *hba,
 			do_last_check = true;
 		}
 		spin_lock_irqsave(hba->host->host_lock, flags);
-	} while (tm_doorbell || tr_doorbell);
+	} while (tm_doorbell || tr_pending);
 
 	if (timeout) {
 		dev_err(hba->dev,
 			"%s: timedout waiting for doorbell to clear (tm=0x%x, tr=0x%x)\n",
-			__func__, tm_doorbell, tr_doorbell);
+			__func__, tm_doorbell, tr_pending);
 		ret = -EBUSY;
 	}
 out:
@@ -2681,9 +2699,6 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	WARN_ONCE(tag < 0, "Invalid tag %d\n", tag);
 
-	if (!down_read_trylock(&hba->clk_scaling_lock))
-		return SCSI_MLQUEUE_HOST_BUSY;
-
 	/*
 	 * Allows the UFS error handler to wait for prior ufshcd_queuecommand()
 	 * calls.
@@ -2771,8 +2786,6 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 out:
 	rcu_read_unlock();
-
-	up_read(&hba->clk_scaling_lock);
 
 	if (ufs_trigger_eh()) {
 		unsigned long flags;
