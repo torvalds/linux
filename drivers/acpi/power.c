@@ -81,9 +81,9 @@ struct acpi_power_resource *to_power_resource(struct acpi_device *device)
 
 static struct acpi_power_resource *acpi_power_get_context(acpi_handle handle)
 {
-	struct acpi_device *device;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 
-	if (acpi_bus_get_device(handle, &device))
+	if (!device)
 		return NULL;
 
 	return to_power_resource(device);
@@ -916,15 +916,14 @@ static void acpi_power_add_resource_to_list(struct acpi_power_resource *resource
 
 struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 {
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	struct acpi_power_resource *resource;
-	struct acpi_device *device = NULL;
 	union acpi_object acpi_object;
 	struct acpi_buffer buffer = { sizeof(acpi_object), &acpi_object };
 	acpi_status status;
 	u8 state_dummy;
 	int result;
 
-	acpi_bus_get_device(handle, &device);
 	if (device)
 		return device;
 
