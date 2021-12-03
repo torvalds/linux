@@ -975,6 +975,7 @@
   kfree_skb
   kfree_skb_list
   kill_anon_super
+  kill_pid
   kimage_vaddr
   kimage_voffset
   __kmalloc
@@ -1022,6 +1023,7 @@
   kthread_destroy_worker
   kthread_flush_work
   kthread_flush_worker
+  kthread_freezable_should_stop
   __kthread_init_worker
   kthread_queue_delayed_work
   kthread_queue_work
@@ -2056,6 +2058,7 @@
   trace_raw_output_prep
   trace_seq_printf
   trace_seq_putc
+  trace_set_clr_event
   tracing_off
   try_wait_for_completion
   tty_flip_buffer_push
@@ -2370,6 +2373,7 @@
   vscnprintf
   vsnprintf
   vsprintf
+  vsscanf
   vunmap
   vzalloc
   wait_for_completion

@@ -2585,6 +2585,9 @@
   __traceiter_android_vh_alter_rwsem_list_add
   __traceiter_android_vh_arch_set_freq_scale
   __traceiter_android_vh_binder_alloc_new_buf_locked
+  __traceiter_android_vh_binder_new_ref
+  __traceiter_android_vh_binder_del_ref
+  __traceiter_android_vh_binder_proc_transaction
   __traceiter_android_vh_binder_preset
   __traceiter_android_vh_binder_priority_skip
   __traceiter_android_vh_binder_reply
@@ -2776,6 +2779,9 @@
   __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_arch_set_freq_scale
   __tracepoint_android_vh_binder_alloc_new_buf_locked
+  __tracepoint_android_vh_binder_new_ref
+  __tracepoint_android_vh_binder_del_ref
+  __tracepoint_android_vh_binder_proc_transaction
   __tracepoint_android_vh_binder_preset
   __tracepoint_android_vh_binder_priority_skip
   __tracepoint_android_vh_binder_reply

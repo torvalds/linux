@@ -71,6 +71,7 @@ SECTIONS {
 		*(.text..L.cfi.jumptable .text..L.cfi.jumptable.*)
 		__cfi_jt_end = .;
 		*(.text.._end)
+		*(.text.._fips140_unchecked)
 	}
 #endif
 }

@@ -2501,6 +2501,7 @@
   __traceiter_android_rvh_cpu_cgroup_online
   __traceiter_android_rvh_cpufreq_transition
   __traceiter_android_rvh_dequeue_task
+  __traceiter_android_rvh_do_sched_yield
   __traceiter_android_rvh_enqueue_task
   __traceiter_android_rvh_find_busiest_queue
   __traceiter_android_rvh_find_lowest_rq
@@ -2612,6 +2613,7 @@
   __tracepoint_android_rvh_cpu_cgroup_online
   __tracepoint_android_rvh_cpufreq_transition
   __tracepoint_android_rvh_dequeue_task
+  __tracepoint_android_rvh_do_sched_yield
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_find_busiest_queue
   __tracepoint_android_rvh_find_lowest_rq

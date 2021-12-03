@@ -1105,6 +1105,9 @@
   anon_inode_getfile
   compat_ptr_ioctl
 
+# required by usbip-core.ko
+  sock_recvmsg
+
 # required by vcan.ko
   sock_efree
 
@@ -1123,6 +1126,11 @@
   bgpio_init
   devm_gpiochip_add_data_with_key
   devm_mfd_add_devices
+
+# required by vhci-hcd.ko
+  kernel_sock_shutdown
+  platform_bus
+  sockfd_lookup
 
 # required by virt_wifi.ko
   __module_get

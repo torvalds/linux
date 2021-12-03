@@ -30,15 +30,6 @@
 #include "internal.h"
 
 /*
- * This option allows deliberately failing the self-tests for a particular
- * algorithm.  This is for FIPS lab testing only.
- */
-#ifdef CONFIG_CRYPTO_FIPS140_MOD_ERROR_INJECTION
-char *fips140_broken_alg;
-module_param_named(broken_alg, fips140_broken_alg, charp, 0);
-#endif
-
-/*
  * FIPS 140-2 prefers the use of HMAC with a public key over a plain hash.
  */
 u8 __initdata fips140_integ_hmac_key[] = "The quick brown fox jumps over the lazy dog";
@@ -397,6 +388,8 @@ static bool __init check_fips140_module_hmac(void)
 				  offset_to_ptr(&fips140_rela_rodata.offset),
 				  fips140_rela_rodata.count);
 
+	fips140_inject_integrity_failure(textcopy);
+
 	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
 	if (IS_ERR(tfm)) {
 		pr_err("failed to allocate hmac tfm (%ld)\n", PTR_ERR(tfm));
@@ -543,6 +536,9 @@ fips140_init(void)
 	complete_all(&fips140_tests_done);
 
 	if (!update_fips140_library_routines())
+		goto panic;
+
+	if (!fips140_eval_testing_init())
 		goto panic;
 
 	pr_info("module successfully loaded\n");

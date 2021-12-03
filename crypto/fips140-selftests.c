@@ -146,11 +146,7 @@ static int __init __must_check
 fips_check_result(u8 *result, const u8 *expected_result, size_t result_size,
 		  const char *impl, const char *operation)
 {
-#ifdef CONFIG_CRYPTO_FIPS140_MOD_ERROR_INJECTION
-	/* Inject a failure (via corrupting the result) if requested. */
-	if (fips140_broken_alg && strcmp(impl, fips140_broken_alg) == 0)
-		result[0] ^= 0xff;
-#endif
+	fips140_inject_selftest_failure(impl, result);
 	if (memcmp(result, expected_result, result_size) != 0) {
 		pr_err("wrong result from %s %s\n", impl, operation);
 		return -EBADMSG;

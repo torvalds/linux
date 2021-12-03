@@ -239,11 +239,14 @@ fips140-objs := \
 	fips140-refs.o \
 	fips140-selftests.o \
 	crypto-fips.a
+fips140-$(CONFIG_CRYPTO_FIPS140_MOD_EVAL_TESTING) += \
+	fips140-eval-testing.o
 obj-m += fips140.o
 
 CFLAGS_fips140-alg-registration.o += $(FIPS140_CFLAGS)
 CFLAGS_fips140-module.o += $(FIPS140_CFLAGS)
 CFLAGS_fips140-selftests.o += $(FIPS140_CFLAGS)
+CFLAGS_fips140-eval-testing.o += $(FIPS140_CFLAGS)
 
 hostprogs-always-y := fips140_gen_hmac
 HOSTLDLIBS_fips140_gen_hmac := -lcrypto -lelf

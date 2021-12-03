@@ -53,14 +53,14 @@ config CRYPTO_FIPS140_MOD
 	  meet FIPS 140 and NIAP FPT_TST_EXT.1 requirements.  It shouldn't be
 	  used if you don't need to meet these requirements.
 
-config CRYPTO_FIPS140_MOD_ERROR_INJECTION
-	bool "Support injecting failures into the FIPS 140 self-tests"
+config CRYPTO_FIPS140_MOD_EVAL_TESTING
+	bool "Enable evaluation testing features in FIPS 140 module"
 	depends on CRYPTO_FIPS140_MOD
 	help
-	  This option adds a module parameter "broken_alg" to the fips140 module
-	  which can be used to fail the self-tests for a particular algorithm,
-	  causing a kernel panic.  This option is for FIPS lab testing only, and
-	  it shouldn't be enabled on production systems.
+	  This option adds some features to the FIPS 140 module which are needed
+	  for lab evaluation testing of the module, e.g. support for injecting
+	  errors and support for a userspace interface to some of the module's
+	  services.  This option should not be enabled in production builds.
 
 config CRYPTO_ALGAPI
 	tristate
