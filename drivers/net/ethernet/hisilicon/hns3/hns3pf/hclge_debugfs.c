@@ -1764,7 +1764,7 @@ hclge_dbg_get_imp_stats_info(struct hclge_dev *hdev, char *buf, int len)
 #define HCLGE_MAX_NCL_CONFIG_LENGTH	16384
 
 static void hclge_ncl_config_data_print(struct hclge_desc *desc, int *index,
-					char *buf, int *len, int *pos)
+					char *buf, int len, int *pos)
 {
 #define HCLGE_CMD_DATA_NUM		6
 
@@ -1776,7 +1776,7 @@ static void hclge_ncl_config_data_print(struct hclge_desc *desc, int *index,
 			if (i == 0 && j == 0)
 				continue;
 
-			*pos += scnprintf(buf + *pos, *len - *pos,
+			*pos += scnprintf(buf + *pos, len - *pos,
 					  "0x%04x | 0x%08x\n", offset,
 					  le32_to_cpu(desc[i].data[j]));
 
@@ -1814,7 +1814,7 @@ hclge_dbg_dump_ncl_config(struct hclge_dev *hdev, char *buf, int len)
 		if (ret)
 			return ret;
 
-		hclge_ncl_config_data_print(desc, &index, buf, &len, &pos);
+		hclge_ncl_config_data_print(desc, &index, buf, len, &pos);
 	}
 
 	return 0;
