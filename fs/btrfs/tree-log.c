@@ -4107,8 +4107,7 @@ static int truncate_inode_items(struct btrfs_trans_handle *trans,
 	int ret;
 
 	do {
-		ret = btrfs_truncate_inode_items(trans, log_root, inode,
-						 &control);
+		ret = btrfs_truncate_inode_items(trans, log_root, &control);
 	} while (ret == -EAGAIN);
 
 	return ret;

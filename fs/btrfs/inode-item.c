@@ -419,6 +419,20 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 	return ret;
 }
 
+static inline void btrfs_trace_truncate(struct btrfs_inode *inode,
+					struct extent_buffer *leaf,
+					struct btrfs_file_extent_item *fi,
+					u64 offset, int extent_type, int slot)
+{
+	if (!inode)
+		return;
+	if (extent_type == BTRFS_FILE_EXTENT_INLINE)
+		trace_btrfs_truncate_show_fi_inline(inode, leaf, fi, slot,
+						    offset);
+	else
+		trace_btrfs_truncate_show_fi_regular(inode, leaf, fi, offset);
+}
+
 /*
  * Remove inode items from a given root.
  *
@@ -439,7 +453,6 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
  */
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       struct btrfs_inode *inode,
 			       struct btrfs_truncate_control *control)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -462,6 +475,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	bool be_nice = false;
 	bool should_throttle = false;
 
+	ASSERT(control->inode || !control->clear_extent_range);
 	BUG_ON(new_size > 0 && control->min_type != BTRFS_EXTENT_DATA_KEY);
 
 	control->last_size = new_size;
@@ -526,19 +540,15 @@ search_again:
 			fi = btrfs_item_ptr(leaf, path->slots[0],
 					    struct btrfs_file_extent_item);
 			extent_type = btrfs_file_extent_type(leaf, fi);
-			if (extent_type != BTRFS_FILE_EXTENT_INLINE) {
+			if (extent_type != BTRFS_FILE_EXTENT_INLINE)
 				item_end +=
 				    btrfs_file_extent_num_bytes(leaf, fi);
-
-				trace_btrfs_truncate_show_fi_regular(
-					inode, leaf, fi, found_key.offset);
-			} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
+			else if (extent_type == BTRFS_FILE_EXTENT_INLINE)
 				item_end += btrfs_file_extent_ram_bytes(leaf, fi);
 
-				trace_btrfs_truncate_show_fi_inline(
-					inode, leaf, fi, path->slots[0],
-					found_key.offset);
-			}
+			btrfs_trace_truncate(control->inode, leaf, fi,
+					     found_key.offset, extent_type,
+					     path->slots[0]);
 			item_end--;
 		}
 		if (found_type > control->min_type) {
@@ -628,7 +638,7 @@ delete:
 		 * normal truncate path.
 		 */
 		if (control->clear_extent_range) {
-			ret = btrfs_inode_clear_file_extent_range(inode,
+			ret = btrfs_inode_clear_file_extent_range(control->inode,
 						  clear_start, clear_len);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);

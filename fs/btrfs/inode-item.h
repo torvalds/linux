@@ -20,6 +20,12 @@ struct extent_buffer;
 #define BTRFS_NEED_TRUNCATE_BLOCK		1
 
 struct btrfs_truncate_control {
+	/*
+	 * IN: the inode we're operating on, this can be NULL if
+	 * ->clear_extent_range is false.
+	 */
+	struct btrfs_inode *inode;
+
 	/* IN: the size we're truncating to. */
 	u64 new_size;
 
@@ -56,7 +62,6 @@ struct btrfs_truncate_control {
 
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       struct btrfs_inode *inode,
 			       struct btrfs_truncate_control *control);
 int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,

@@ -5252,6 +5252,7 @@ void btrfs_evict_inode(struct inode *inode)
 
 	while (1) {
 		struct btrfs_truncate_control control = {
+			.inode = BTRFS_I(inode),
 			.ino = btrfs_ino(BTRFS_I(inode)),
 			.new_size = 0,
 			.min_type = 0,
@@ -5263,8 +5264,7 @@ void btrfs_evict_inode(struct inode *inode)
 
 		trans->block_rsv = rsv;
 
-		ret = btrfs_truncate_inode_items(trans, root, BTRFS_I(inode),
-						 &control);
+		ret = btrfs_truncate_inode_items(trans, root, &control);
 		trans->block_rsv = &fs_info->trans_block_rsv;
 		btrfs_end_transaction(trans);
 		btrfs_btree_balance_dirty(fs_info);
@@ -8534,6 +8534,7 @@ out_noreserve:
 static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 {
 	struct btrfs_truncate_control control = {
+		.inode = BTRFS_I(inode),
 		.ino = btrfs_ino(BTRFS_I(inode)),
 		.min_type = BTRFS_EXTENT_DATA_KEY,
 		.clear_extent_range = true,
@@ -8621,8 +8622,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 					ALIGN(new_size, fs_info->sectorsize),
 					(u64)-1, 0);
 
-		ret = btrfs_truncate_inode_items(trans, root, BTRFS_I(inode),
-						 &control);
+		ret = btrfs_truncate_inode_items(trans, root, &control);
 
 		inode_sub_bytes(inode, control.sub_bytes);
 		btrfs_inode_safe_disk_i_size_write(BTRFS_I(inode), control.last_size);
