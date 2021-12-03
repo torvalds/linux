@@ -1301,6 +1301,12 @@ int do_send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p
 	return ret;
 }
 
+enum sig_handler {
+	HANDLER_CURRENT, /* If reachable use the current handler */
+	HANDLER_SIG_DFL, /* Always use SIG_DFL handler semantics */
+	HANDLER_EXIT,	 /* Only visible as the process exit code */
+};
+
 /*
  * Force a signal that the process can't ignore: if necessary
  * we unblock the signal and change any SIG_IGN to SIG_DFL.
@@ -1313,7 +1319,8 @@ int do_send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p
  * that is why we also clear SIGNAL_UNKILLABLE.
  */
 static int
-force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t, bool sigdfl)
+force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t,
+	enum sig_handler handler)
 {
 	unsigned long int flags;
 	int ret, blocked, ignored;
@@ -1324,9 +1331,10 @@ force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t, bool 
 	action = &t->sighand->action[sig-1];
 	ignored = action->sa.sa_handler == SIG_IGN;
 	blocked = sigismember(&t->blocked, sig);
-	if (blocked || ignored || sigdfl) {
+	if (blocked || ignored || (handler != HANDLER_CURRENT)) {
 		action->sa.sa_handler = SIG_DFL;
-		action->sa.sa_flags |= SA_IMMUTABLE;
+		if (handler == HANDLER_EXIT)
+			action->sa.sa_flags |= SA_IMMUTABLE;
 		if (blocked) {
 			sigdelset(&t->blocked, sig);
 			recalc_sigpending_and_wake(t);
@@ -1346,7 +1354,7 @@ force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t, bool 
 
 int force_sig_info(struct kernel_siginfo *info)
 {
-	return force_sig_info_to_task(info, current, false);
+	return force_sig_info_to_task(info, current, HANDLER_CURRENT);
 }
 
 /*
@@ -1663,7 +1671,20 @@ void force_fatal_sig(int sig)
 	info.si_code = SI_KERNEL;
 	info.si_pid = 0;
 	info.si_uid = 0;
-	force_sig_info_to_task(&info, current, true);
+	force_sig_info_to_task(&info, current, HANDLER_SIG_DFL);
+}
+
+void force_exit_sig(int sig)
+{
+	struct kernel_siginfo info;
+
+	clear_siginfo(&info);
+	info.si_signo = sig;
+	info.si_errno = 0;
+	info.si_code = SI_KERNEL;
+	info.si_pid = 0;
+	info.si_uid = 0;
+	force_sig_info_to_task(&info, current, HANDLER_EXIT);
 }
 
 /*
@@ -1696,7 +1717,7 @@ int force_sig_fault_to_task(int sig, int code, void __user *addr
 	info.si_flags = flags;
 	info.si_isr = isr;
 #endif
-	return force_sig_info_to_task(&info, t, false);
+	return force_sig_info_to_task(&info, t, HANDLER_CURRENT);
 }
 
 int force_sig_fault(int sig, int code, void __user *addr
@@ -1816,7 +1837,8 @@ int force_sig_seccomp(int syscall, int reason, bool force_coredump)
 	info.si_errno = reason;
 	info.si_arch = syscall_get_arch(current);
 	info.si_syscall = syscall;
-	return force_sig_info_to_task(&info, current, force_coredump);
+	return force_sig_info_to_task(&info, current,
+		force_coredump ? HANDLER_EXIT : HANDLER_CURRENT);
 }
 
 /* For the crazy architectures that include trap information in
