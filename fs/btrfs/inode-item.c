@@ -659,8 +659,7 @@ delete:
 		}
 		should_throttle = false;
 
-		if (del_item && extent_start != 0 &&
-		    root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
+		if (del_item && extent_start != 0 && !control->skip_ref_updates) {
 			struct btrfs_ref ref = { 0 };
 
 			bytes_deleted += extent_num_bytes;

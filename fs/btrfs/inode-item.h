@@ -37,6 +37,12 @@ struct btrfs_truncate_control {
 	 * removed only if their offset >= new_size.
 	 */
 	u32 min_type;
+
+	/*
+	 * IN: true if we don't want to do extent reference updates for any file
+	 * extents we drop.
+	 */
+	bool skip_ref_updates;
 };
 
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
