@@ -86,9 +86,9 @@
 		: "memory");						\
 	} else {							\
 		/* fallback for non-SMP */				\
-		ret = arch_futex_atomic_op_inuser_local(op, oparg, oval,\
-							uaddr);	\
-	}
+		ret = futex_atomic_op_inuser_local(op, oparg, oval, uaddr);	\
+	}								\
+}
 
 static inline int
 arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)

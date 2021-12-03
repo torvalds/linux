@@ -109,7 +109,7 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 
 	return ret;
 #else
-	return arch_futex_atomic_op_inuser_local(op, oparg, oval, uaddr);
+	return futex_atomic_op_inuser_local(op, oparg, oval, uaddr);
 #endif
 }
 

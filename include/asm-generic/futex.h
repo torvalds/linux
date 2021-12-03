@@ -21,7 +21,7 @@
 #endif
 
 /**
- * arch_futex_atomic_op_inuser_local() - Atomic arithmetic operation with constant
+ * futex_atomic_op_inuser_local() - Atomic arithmetic operation with constant
  *			  argument and comparison of the previous
  *			  futex value with another constant.
  *
