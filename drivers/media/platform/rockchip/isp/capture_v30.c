@@ -158,12 +158,12 @@ static int rkisp_stream_config_dcrop(struct rkisp_stream *stream, bool async)
 		return 0;
 	}
 
-	rkisp_config_dcrop(stream, dcrop, async);
-
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "stream %d crop: %dx%d -> %dx%d\n", stream->id,
 		 input_win->width, input_win->height,
 		 dcrop->width, dcrop->height);
+
+	rkisp_config_dcrop(stream, dcrop, async);
 
 	return 0;
 }

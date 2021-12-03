@@ -78,25 +78,27 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 	else
 		val |= CIF_DUAL_CROP_CFG_UPD;
 	if (is_unite) {
+		u32 right_w, left_w = tmp.width;
+
 		reg = stream->config->dual_crop.h_offset;
 		rkisp_next_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, false);
 		reg = stream->config->dual_crop.h_size;
-		if (stream->id == RKISP_STREAM_FBC)
-			tmp.width = rect->width - tmp.width;
-		rkisp_next_write(dev, reg, tmp.width, false);
-
+		right_w = rect->width - left_w;
+		rkisp_next_write(dev, reg, right_w, false);
 		reg = stream->config->dual_crop.ctrl;
 		rkisp_next_set_bits(dev, reg, 0, val, false);
-		/* output with scale, crop by scl output */
-		if (stream->out_fmt.width < rect->width)
-			val = 0;
-		else
-			v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-				 "left dcrop (%d, %d) %dx%d\n",
-				 tmp.top, tmp.left, tmp.width, tmp.height);
+		/* output with scale */
+		if (stream->out_fmt.width < rect->width) {
+			left_w += RKMOUDLE_UNITE_EXTEND_PIXEL;
+			reg = stream->config->dual_crop.h_size;
+			rkisp_write(dev, reg, left_w, false);
+		}
+		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+			 "left dcrop (%d, %d) %dx%d\n",
+			 tmp.left, tmp.top, left_w, tmp.height);
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 			 "right dcrop (%d, %d) %dx%d\n",
-			 RKMOUDLE_UNITE_EXTEND_PIXEL, tmp.top, tmp.width, tmp.height);
+			 RKMOUDLE_UNITE_EXTEND_PIXEL, tmp.top, right_w, tmp.height);
 	}
 	if (val) {
 		reg = stream->config->dual_crop.ctrl;

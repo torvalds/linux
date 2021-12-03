@@ -1463,6 +1463,10 @@ static struct v4l2_rect *rkisp_update_crop(struct rkisp_stream *stream,
 					    struct v4l2_rect *sel,
 					    const struct v4l2_rect *in)
 {
+	struct rkisp_device *dev = stream->ispdev;
+	bool is_unite = dev->hw_dev->is_unite;
+	u32 align = is_unite ? 4 : 2;
+
 	/* Not crop for MP bayer raw data and dmatx path */
 	if ((stream->id == RKISP_STREAM_MP &&
 	     stream->out_isp_fmt.fmt_type == FMT_BAYER) ||
@@ -1478,7 +1482,7 @@ static struct v4l2_rect *rkisp_update_crop(struct rkisp_stream *stream,
 	}
 
 	sel->left = ALIGN(sel->left, 2);
-	sel->width = ALIGN(sel->width, 2);
+	sel->width = ALIGN(sel->width, align);
 	sel->left = clamp_t(u32, sel->left, 0,
 			    in->width - STREAM_MIN_MP_SP_INPUT_WIDTH);
 	sel->top = clamp_t(u32, sel->top, 0,
@@ -1487,6 +1491,12 @@ static struct v4l2_rect *rkisp_update_crop(struct rkisp_stream *stream,
 			     in->width - sel->left);
 	sel->height = clamp_t(u32, sel->height, STREAM_MIN_MP_SP_INPUT_HEIGHT,
 			      in->height - sel->top);
+	if (is_unite && (sel->width + 2 * sel->left) != in->width) {
+		sel->left = ALIGN_DOWN((in->width - sel->width) / 2, 2);
+		v4l2_warn(&dev->v4l2_dev,
+			  "try horizontal center crop(%d,%d)/%dx%d for dual isp\n",
+			  sel->left, sel->top, sel->width, sel->height);
+	}
 	return sel;
 }
 
