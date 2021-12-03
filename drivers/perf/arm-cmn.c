@@ -7,6 +7,7 @@
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -122,11 +123,11 @@
 
 
 /* Event attributes */
-#define CMN_CONFIG_TYPE			GENMASK(15, 0)
-#define CMN_CONFIG_EVENTID		GENMASK(23, 16)
-#define CMN_CONFIG_OCCUPID		GENMASK(27, 24)
-#define CMN_CONFIG_BYNODEID		BIT(31)
-#define CMN_CONFIG_NODEID		GENMASK(47, 32)
+#define CMN_CONFIG_TYPE			GENMASK_ULL(15, 0)
+#define CMN_CONFIG_EVENTID		GENMASK_ULL(23, 16)
+#define CMN_CONFIG_OCCUPID		GENMASK_ULL(27, 24)
+#define CMN_CONFIG_BYNODEID		BIT_ULL(31)
+#define CMN_CONFIG_NODEID		GENMASK_ULL(47, 32)
 
 #define CMN_EVENT_TYPE(event)		FIELD_GET(CMN_CONFIG_TYPE, (event)->attr.config)
 #define CMN_EVENT_EVENTID(event)	FIELD_GET(CMN_CONFIG_EVENTID, (event)->attr.config)
@@ -134,13 +135,13 @@
 #define CMN_EVENT_BYNODEID(event)	FIELD_GET(CMN_CONFIG_BYNODEID, (event)->attr.config)
 #define CMN_EVENT_NODEID(event)		FIELD_GET(CMN_CONFIG_NODEID, (event)->attr.config)
 
-#define CMN_CONFIG_WP_COMBINE		GENMASK(27, 24)
-#define CMN_CONFIG_WP_DEV_SEL		BIT(48)
-#define CMN_CONFIG_WP_CHN_SEL		GENMASK(50, 49)
-#define CMN_CONFIG_WP_GRP		BIT(52)
-#define CMN_CONFIG_WP_EXCLUSIVE		BIT(53)
-#define CMN_CONFIG1_WP_VAL		GENMASK(63, 0)
-#define CMN_CONFIG2_WP_MASK		GENMASK(63, 0)
+#define CMN_CONFIG_WP_COMBINE		GENMASK_ULL(27, 24)
+#define CMN_CONFIG_WP_DEV_SEL		BIT_ULL(48)
+#define CMN_CONFIG_WP_CHN_SEL		GENMASK_ULL(50, 49)
+#define CMN_CONFIG_WP_GRP		BIT_ULL(52)
+#define CMN_CONFIG_WP_EXCLUSIVE		BIT_ULL(53)
+#define CMN_CONFIG1_WP_VAL		GENMASK_ULL(63, 0)
+#define CMN_CONFIG2_WP_MASK		GENMASK_ULL(63, 0)
 
 #define CMN_EVENT_WP_COMBINE(event)	FIELD_GET(CMN_CONFIG_WP_COMBINE, (event)->attr.config)
 #define CMN_EVENT_WP_DEV_SEL(event)	FIELD_GET(CMN_CONFIG_WP_DEV_SEL, (event)->attr.config)
