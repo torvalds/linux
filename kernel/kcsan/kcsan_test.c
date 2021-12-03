@@ -300,6 +300,8 @@ static struct {
 	long val[8];
 } test_struct;
 static DEFINE_SEQLOCK(test_seqlock);
+static DEFINE_SPINLOCK(test_spinlock);
+static DEFINE_MUTEX(test_mutex);
 
 /*
  * Helper to avoid compiler optimizing out reads, and to generate source values
@@ -523,8 +525,6 @@ static void test_barrier_nothreads(struct kunit *test)
 	struct kcsan_scoped_access *reorder_access = NULL;
 #endif
 	arch_spinlock_t arch_spinlock = __ARCH_SPIN_LOCK_UNLOCKED;
-	DEFINE_SPINLOCK(spinlock);
-	DEFINE_MUTEX(mutex);
 	atomic_t dummy;
 
 	KCSAN_TEST_REQUIRES(test, reorder_access != NULL);
@@ -542,6 +542,15 @@ static void test_barrier_nothreads(struct kunit *test)
 #define KCSAN_EXPECT_READ_BARRIER(b, o)  __KCSAN_EXPECT_BARRIER(0, b, o, #b)
 #define KCSAN_EXPECT_WRITE_BARRIER(b, o) __KCSAN_EXPECT_BARRIER(KCSAN_ACCESS_WRITE, b, o, #b)
 #define KCSAN_EXPECT_RW_BARRIER(b, o)    __KCSAN_EXPECT_BARRIER(KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE, b, o, #b)
+
+	/*
+	 * Lockdep initialization can strengthen certain locking operations due
+	 * to calling into instrumented files; "warm up" our locks.
+	 */
+	spin_lock(&test_spinlock);
+	spin_unlock(&test_spinlock);
+	mutex_lock(&test_mutex);
+	mutex_unlock(&test_mutex);
 
 	/* Force creating a valid entry in reorder_access first. */
 	test_var = 0;
@@ -592,10 +601,10 @@ static void test_barrier_nothreads(struct kunit *test)
 	KCSAN_EXPECT_READ_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
 	KCSAN_EXPECT_READ_BARRIER(arch_spin_lock(&arch_spinlock), false);
 	KCSAN_EXPECT_READ_BARRIER(arch_spin_unlock(&arch_spinlock), true);
-	KCSAN_EXPECT_READ_BARRIER(spin_lock(&spinlock), false);
-	KCSAN_EXPECT_READ_BARRIER(spin_unlock(&spinlock), true);
-	KCSAN_EXPECT_READ_BARRIER(mutex_lock(&mutex), false);
-	KCSAN_EXPECT_READ_BARRIER(mutex_unlock(&mutex), true);
+	KCSAN_EXPECT_READ_BARRIER(spin_lock(&test_spinlock), false);
+	KCSAN_EXPECT_READ_BARRIER(spin_unlock(&test_spinlock), true);
+	KCSAN_EXPECT_READ_BARRIER(mutex_lock(&test_mutex), false);
+	KCSAN_EXPECT_READ_BARRIER(mutex_unlock(&test_mutex), true);
 
 	KCSAN_EXPECT_WRITE_BARRIER(mb(), true);
 	KCSAN_EXPECT_WRITE_BARRIER(wmb(), true);
@@ -638,10 +647,10 @@ static void test_barrier_nothreads(struct kunit *test)
 	KCSAN_EXPECT_WRITE_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
 	KCSAN_EXPECT_WRITE_BARRIER(arch_spin_lock(&arch_spinlock), false);
 	KCSAN_EXPECT_WRITE_BARRIER(arch_spin_unlock(&arch_spinlock), true);
-	KCSAN_EXPECT_WRITE_BARRIER(spin_lock(&spinlock), false);
-	KCSAN_EXPECT_WRITE_BARRIER(spin_unlock(&spinlock), true);
-	KCSAN_EXPECT_WRITE_BARRIER(mutex_lock(&mutex), false);
-	KCSAN_EXPECT_WRITE_BARRIER(mutex_unlock(&mutex), true);
+	KCSAN_EXPECT_WRITE_BARRIER(spin_lock(&test_spinlock), false);
+	KCSAN_EXPECT_WRITE_BARRIER(spin_unlock(&test_spinlock), true);
+	KCSAN_EXPECT_WRITE_BARRIER(mutex_lock(&test_mutex), false);
+	KCSAN_EXPECT_WRITE_BARRIER(mutex_unlock(&test_mutex), true);
 
 	KCSAN_EXPECT_RW_BARRIER(mb(), true);
 	KCSAN_EXPECT_RW_BARRIER(wmb(), true);
@@ -684,10 +693,10 @@ static void test_barrier_nothreads(struct kunit *test)
 	KCSAN_EXPECT_RW_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
 	KCSAN_EXPECT_RW_BARRIER(arch_spin_lock(&arch_spinlock), false);
 	KCSAN_EXPECT_RW_BARRIER(arch_spin_unlock(&arch_spinlock), true);
-	KCSAN_EXPECT_RW_BARRIER(spin_lock(&spinlock), false);
-	KCSAN_EXPECT_RW_BARRIER(spin_unlock(&spinlock), true);
-	KCSAN_EXPECT_RW_BARRIER(mutex_lock(&mutex), false);
-	KCSAN_EXPECT_RW_BARRIER(mutex_unlock(&mutex), true);
+	KCSAN_EXPECT_RW_BARRIER(spin_lock(&test_spinlock), false);
+	KCSAN_EXPECT_RW_BARRIER(spin_unlock(&test_spinlock), true);
+	KCSAN_EXPECT_RW_BARRIER(mutex_lock(&test_mutex), false);
+	KCSAN_EXPECT_RW_BARRIER(mutex_unlock(&test_mutex), true);
 
 	kcsan_nestable_atomic_end();
 }
