@@ -135,12 +135,12 @@ bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent)
 static acpi_status acpi_bus_offline(acpi_handle handle, u32 lvl, void *data,
 				    void **ret_p)
 {
-	struct acpi_device *device = NULL;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	struct acpi_device_physical_node *pn;
 	bool second_pass = (bool)data;
 	acpi_status status = AE_OK;
 
-	if (acpi_bus_get_device(handle, &device))
+	if (!device)
 		return AE_OK;
 
 	if (device->handler && !device->handler->hotplug.enabled) {
@@ -180,10 +180,10 @@ static acpi_status acpi_bus_offline(acpi_handle handle, u32 lvl, void *data,
 static acpi_status acpi_bus_online(acpi_handle handle, u32 lvl, void *data,
 				   void **ret_p)
 {
-	struct acpi_device *device = NULL;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	struct acpi_device_physical_node *pn;
 
-	if (acpi_bus_get_device(handle, &device))
+	if (!device)
 		return AE_OK;
 
 	mutex_lock(&device->physical_node_lock);
@@ -599,6 +599,19 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 }
 EXPORT_SYMBOL(acpi_bus_get_device);
 
+/**
+ * acpi_fetch_acpi_dev - Retrieve ACPI device object.
+ * @handle: ACPI handle associated with the requested ACPI device object.
+ *
+ * Return a pointer to the ACPI device object associated with @handle, if
+ * present, or NULL otherwise.
+ */
+struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle)
+{
+	return handle_to_device(handle, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_fetch_acpi_dev);
+
 static void get_acpi_device(void *dev)
 {
 	acpi_dev_get(dev);
@@ -799,7 +812,7 @@ static const char * const acpi_ignore_dep_ids[] = {
 
 static struct acpi_device *acpi_bus_get_parent(acpi_handle handle)
 {
-	struct acpi_device *device = NULL;
+	struct acpi_device *device;
 	acpi_status status;
 
 	/*
@@ -814,7 +827,9 @@ static struct acpi_device *acpi_bus_get_parent(acpi_handle handle)
 		status = acpi_get_parent(handle, &handle);
 		if (ACPI_FAILURE(status))
 			return status == AE_NULL_ENTRY ? NULL : acpi_root;
-	} while (acpi_bus_get_device(handle, &device));
+
+		device = acpi_fetch_acpi_dev(handle);
+	} while (!device);
 	return device;
 }
 
@@ -2003,11 +2018,10 @@ static bool acpi_bus_scan_second_pass;
 static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
 				      struct acpi_device **adev_p)
 {
-	struct acpi_device *device = NULL;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	acpi_object_type acpi_type;
 	int type;
 
-	acpi_bus_get_device(handle, &device);
 	if (device)
 		goto out;
 
@@ -2548,8 +2562,8 @@ int __init acpi_scan_init(void)
 	if (result)
 		goto out;
 
-	result = acpi_bus_get_device(ACPI_ROOT_OBJECT, &acpi_root);
-	if (result)
+	acpi_root = acpi_fetch_acpi_dev(ACPI_ROOT_OBJECT);
+	if (!acpi_root)
 		goto out;
 
 	/* Fixed feature devices do not exist on HW-reduced platform */
