@@ -777,7 +777,7 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 	}
 
 	if (!hdr_trans) {
-		struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
+		struct ieee80211_hdr *hdr;
 
 		if (insert_ccmp_hdr) {
 			u8 key_id = FIELD_GET(MT_RXD1_NORMAL_KEY_ID, rxd1);
@@ -785,6 +785,7 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 			mt76_insert_ccmp_hdr(skb, key_id);
 		}
 
+		hdr = mt76_skb_get_hdr(skb);
 		fc = hdr->frame_control;
 		if (ieee80211_is_data_qos(fc)) {
 			seq_ctrl = le16_to_cpu(hdr->seq_ctrl);

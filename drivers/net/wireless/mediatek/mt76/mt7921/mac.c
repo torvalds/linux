@@ -772,7 +772,7 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 	}
 
 	if (!hdr_trans) {
-		struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
+		struct ieee80211_hdr *hdr;
 
 		if (insert_ccmp_hdr) {
 			u8 key_id = FIELD_GET(MT_RXD1_NORMAL_KEY_ID, rxd1);
