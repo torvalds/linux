@@ -8620,6 +8620,9 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 
 		ret = btrfs_truncate_inode_items(trans, root, BTRFS_I(inode),
 						 &control);
+
+		btrfs_inode_safe_disk_i_size_write(BTRFS_I(inode), control.last_size);
+
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start,
 				     (u64)-1, &cached_state);
 

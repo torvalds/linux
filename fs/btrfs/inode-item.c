@@ -452,7 +452,6 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	u64 extent_num_bytes = 0;
 	u64 extent_offset = 0;
 	u64 item_end = 0;
-	u64 last_size = new_size;
 	u32 found_type = (u8)-1;
 	int del_item;
 	int pending_del_nr = 0;
@@ -465,6 +464,8 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	bool should_throttle = false;
 
 	BUG_ON(new_size > 0 && control->min_type != BTRFS_EXTENT_DATA_KEY);
+
+	control->last_size = new_size;
 
 	/*
 	 * For shareable roots we want to back off from time to time, this turns
@@ -644,9 +645,9 @@ delete:
 		}
 
 		if (del_item)
-			last_size = found_key.offset;
+			control->last_size = found_key.offset;
 		else
-			last_size = new_size;
+			control->last_size = new_size;
 		if (del_item) {
 			if (!pending_del_nr) {
 				/* No pending yet, add ourselves */
@@ -739,12 +740,10 @@ out:
 			ret = err;
 		}
 	}
-	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
-		ASSERT(last_size >= new_size);
-		if (!ret && last_size > new_size)
-			last_size = new_size;
-		btrfs_inode_safe_disk_i_size_write(inode, last_size);
-	}
+
+	ASSERT(control->last_size >= new_size);
+	if (!ret && control->last_size > new_size)
+		control->last_size = new_size;
 
 	btrfs_free_path(path);
 	return ret;
