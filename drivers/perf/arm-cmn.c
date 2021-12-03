@@ -24,7 +24,10 @@
 #define CMN_NI_LOGICAL_ID		GENMASK_ULL(47, 32)
 
 #define CMN_NODEID_DEVID(reg)		((reg) & 3)
+#define CMN_NODEID_EXT_DEVID(reg)	((reg) & 1)
 #define CMN_NODEID_PID(reg)		(((reg) >> 2) & 1)
+#define CMN_NODEID_EXT_PID(reg)		(((reg) >> 1) & 3)
+#define CMN_NODEID_1x1_PID(reg)		(((reg) >> 2) & 7)
 #define CMN_NODEID_X(reg, bits)		((reg) >> (3 + (bits)))
 #define CMN_NODEID_Y(reg, bits)		(((reg) >> 3) & ((1U << (bits)) - 1))
 
@@ -37,13 +40,26 @@
 
 #define CMN_MAX_DIMENSION		8
 #define CMN_MAX_XPS			(CMN_MAX_DIMENSION * CMN_MAX_DIMENSION)
-#define CMN_MAX_DTMS			CMN_MAX_XPS
+#define CMN_MAX_DTMS			(CMN_MAX_XPS + (CMN_MAX_DIMENSION - 1) * 4)
 
-/* The CFG node has one other useful purpose */
+/* The CFG node has various info besides the discovery tree */
 #define CMN_CFGM_PERIPH_ID_2		0x0010
 #define CMN_CFGM_PID2_REVISION		GENMASK(7, 4)
 
-/* PMU registers occupy the 3rd 4KB page of each node's 16KB space */
+#define CMN_CFGM_INFO_GLOBAL		0x900
+#define CMN_INFO_MULTIPLE_DTM_EN	BIT_ULL(63)
+#define CMN_INFO_RSP_VC_NUM		GENMASK_ULL(53, 52)
+#define CMN_INFO_DAT_VC_NUM		GENMASK_ULL(51, 50)
+
+/* XPs also have some local topology info which has uses too */
+#define CMN_MXP__CONNECT_INFO_P0	0x0008
+#define CMN_MXP__CONNECT_INFO_P1	0x0010
+#define CMN_MXP__CONNECT_INFO_P2	0x0028
+#define CMN_MXP__CONNECT_INFO_P3	0x0030
+#define CMN_MXP__CONNECT_INFO_P4	0x0038
+#define CMN_MXP__CONNECT_INFO_P5	0x0040
+
+/* PMU registers occupy the 3rd 4KB page of each node's region */
 #define CMN_PMU_OFFSET			0x2000
 
 /* For most nodes, this is all there is */
@@ -53,6 +69,7 @@
 /* DTMs live in the PMU space of XP registers */
 #define CMN_DTM_WPn(n)			(0x1A0 + (n) * 0x18)
 #define CMN_DTM_WPn_CONFIG(n)		(CMN_DTM_WPn(n) + 0x00)
+#define CMN_DTM_WPn_CONFIG_WP_DEV_SEL2	GENMASK_ULL(18,17)
 #define CMN_DTM_WPn_CONFIG_WP_COMBINE	BIT(6)
 #define CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE	BIT(5)
 #define CMN_DTM_WPn_CONFIG_WP_GRP	BIT(4)
@@ -77,7 +94,11 @@
 
 #define CMN_DTM_PMEVCNTSR		0x240
 
+#define CMN_DTM_UNIT_INFO		0x0910
+
 #define CMN_DTM_NUM_COUNTERS		4
+/* Want more local counters? Why not replicate the whole DTM! Ugh... */
+#define CMN_DTM_OFFSET(n)		((n) * 0x200)
 
 /* The DTC node is where the magic happens */
 #define CMN_DT_DTC_CTL			0x0a00
@@ -131,10 +152,10 @@
 #define CMN_EVENT_NODEID(event)		FIELD_GET(CMN_CONFIG_NODEID, (event)->attr.config)
 
 #define CMN_CONFIG_WP_COMBINE		GENMASK_ULL(27, 24)
-#define CMN_CONFIG_WP_DEV_SEL		BIT_ULL(48)
-#define CMN_CONFIG_WP_CHN_SEL		GENMASK_ULL(50, 49)
-#define CMN_CONFIG_WP_GRP		BIT_ULL(52)
-#define CMN_CONFIG_WP_EXCLUSIVE		BIT_ULL(53)
+#define CMN_CONFIG_WP_DEV_SEL		GENMASK_ULL(50, 48)
+#define CMN_CONFIG_WP_CHN_SEL		GENMASK_ULL(55, 51)
+#define CMN_CONFIG_WP_GRP		BIT_ULL(56)
+#define CMN_CONFIG_WP_EXCLUSIVE		BIT_ULL(57)
 #define CMN_CONFIG1_WP_VAL		GENMASK_ULL(63, 0)
 #define CMN_CONFIG2_WP_MASK		GENMASK_ULL(63, 0)
 
@@ -176,9 +197,12 @@ enum cmn_node_type {
 	CMN_TYPE_HNF,
 	CMN_TYPE_XP,
 	CMN_TYPE_SBSX,
-	CMN_TYPE_RNI = 0xa,
+	CMN_TYPE_MPAM_S,
+	CMN_TYPE_MPAM_NS,
+	CMN_TYPE_RNI,
 	CMN_TYPE_RND = 0xd,
 	CMN_TYPE_RNSAM = 0xf,
+	CMN_TYPE_MTSX,
 	CMN_TYPE_CXRA = 0x100,
 	CMN_TYPE_CXHA = 0x101,
 	CMN_TYPE_CXLA = 0x102,
@@ -233,6 +257,7 @@ struct arm_cmn_dtc {
 struct arm_cmn {
 	struct device *dev;
 	void __iomem *base;
+	unsigned int state;
 
 	enum cmn_revision rev;
 	enum cmn_model model;
@@ -240,6 +265,13 @@ struct arm_cmn {
 	u8 mesh_y;
 	u16 num_xps;
 	u16 num_dns;
+	bool multi_dtm;
+	u8 ports_used;
+	struct {
+		unsigned int rsp_vc_num : 2;
+		unsigned int dat_vc_num : 2;
+	};
+
 	struct arm_cmn_node *xps;
 	struct arm_cmn_node *dns;
 
@@ -250,7 +282,6 @@ struct arm_cmn {
 	int cpu;
 	struct hlist_node cpuhp_node;
 
-	unsigned int state;
 	struct pmu pmu;
 };
 
@@ -275,13 +306,25 @@ static int arm_cmn_xyidbits(const struct arm_cmn *cmn)
 static struct arm_cmn_nodeid arm_cmn_nid(const struct arm_cmn *cmn, u16 id)
 {
 	struct arm_cmn_nodeid nid;
-	int bits = arm_cmn_xyidbits(cmn);
 
-	nid.x = CMN_NODEID_X(id, bits);
-	nid.y = CMN_NODEID_Y(id, bits);
-	nid.port = CMN_NODEID_PID(id);
-	nid.dev = CMN_NODEID_DEVID(id);
+	if (cmn->num_xps == 1) {
+		nid.x = 0;
+		nid.y = 0;
+		nid.port = CMN_NODEID_1x1_PID(id);
+		nid.dev = CMN_NODEID_DEVID(id);
+	} else {
+		int bits = arm_cmn_xyidbits(cmn);
 
+		nid.x = CMN_NODEID_X(id, bits);
+		nid.y = CMN_NODEID_Y(id, bits);
+		if (cmn->ports_used & 0xc) {
+			nid.port = CMN_NODEID_EXT_PID(id);
+			nid.dev = CMN_NODEID_EXT_DEVID(id);
+		} else {
+			nid.port = CMN_NODEID_PID(id);
+			nid.dev = CMN_NODEID_DEVID(id);
+		}
+	}
 	return nid;
 }
 
@@ -310,6 +353,7 @@ struct arm_cmn_hw_event {
 	unsigned int dtc_idx;
 	u8 dtcs_used;
 	u8 num_dns;
+	u8 dtm_offset;
 };
 
 #define for_each_hw_dn(hw, dn, i) \
@@ -354,7 +398,8 @@ struct arm_cmn_format_attr {
 		.occupid = _occupid,					\
 	}})[0].attr.attr)
 
-static bool arm_cmn_is_occup_event(enum cmn_node_type type, unsigned int id)
+static bool arm_cmn_is_occup_event(enum cmn_model model,
+				   enum cmn_node_type type, unsigned int id)
 {
 	return (type == CMN_TYPE_DVM && id == 0x05) ||
 	       (type == CMN_TYPE_HNF && id == 0x0f);
@@ -375,7 +420,7 @@ static ssize_t arm_cmn_event_show(struct device *dev,
 				  "type=0x%x,eventid=0x%x,wp_dev_sel=?,wp_chn_sel=?,wp_grp=?,wp_val=?,wp_mask=?\n",
 				  eattr->type, eattr->eventid);
 
-	if (arm_cmn_is_occup_event(eattr->type, eattr->eventid))
+	if (arm_cmn_is_occup_event(eattr->model, eattr->type, eattr->eventid))
 		return sysfs_emit(buf, "type=0x%x,eventid=0x%x,occupid=0x%x\n",
 				  eattr->type, eattr->eventid, eattr->occupid);
 
@@ -390,25 +435,36 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct arm_cmn *cmn = to_cmn(dev_get_drvdata(dev));
 	struct arm_cmn_event_attr *eattr;
-	enum cmn_node_type type;
 
 	eattr = container_of(attr, typeof(*eattr), attr.attr);
-	type = eattr->type;
 
 	if (!(eattr->model & cmn->model))
 		return 0;
 
-	/* Watchpoints aren't nodes */
-	if (type == CMN_TYPE_WP)
-		type = CMN_TYPE_XP;
+	/* Watchpoints aren't nodes, so avoid confusion */
+	if (eattr->type == CMN_TYPE_WP)
+		return attr->mode;
 
-	/* Revision-specific differences */
-	if (cmn->model == CMN600 && cmn->rev < CMN600_R1P2) {
-		if (type == CMN_TYPE_HNF && eattr->eventid == 0x1b)
+	/* Hide XP events for unused interfaces/channels */
+	if (eattr->type == CMN_TYPE_XP) {
+		unsigned int intf = (eattr->eventid >> 2) & 7;
+		unsigned int chan = eattr->eventid >> 5;
+
+		if ((intf & 4) && !(cmn->ports_used & BIT(intf & 3)))
+			return 0;
+
+		if ((chan == 5 && cmn->rsp_vc_num < 2) ||
+		    (chan == 6 && cmn->dat_vc_num < 2))
 			return 0;
 	}
 
-	if (!arm_cmn_node(cmn, type))
+	/* Revision-specific differences */
+	if (cmn->model == CMN600 && cmn->rev < CMN600_R1P2) {
+		if (eattr->type == CMN_TYPE_HNF && eattr->eventid == 0x1b)
+			return 0;
+	}
+
+	if (!arm_cmn_node(cmn, eattr->type))
 		return 0;
 
 	return attr->mode;
@@ -669,7 +725,8 @@ static u32 arm_cmn_wp_config(struct perf_event *event)
 	config = FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_DEV_SEL, dev) |
 		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_CHN_SEL, chn) |
 		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_GRP, grp) |
-		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE, exc);
+		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_EXCLUSIVE, exc) |
+		 FIELD_PREP(CMN_DTM_WPn_CONFIG_WP_DEV_SEL2, dev >> 1);
 	if (combine && !grp)
 		config |= CMN_DTM_WPn_CONFIG_WP_COMBINE;
 
@@ -712,7 +769,7 @@ static u64 arm_cmn_read_dtm(struct arm_cmn *cmn, struct arm_cmn_hw_event *hw,
 	offset = snapshot ? CMN_DTM_PMEVCNTSR : CMN_DTM_PMEVCNT;
 	for_each_hw_dn(hw, dn, i) {
 		if (dtm != &cmn->dtms[dn->dtm]) {
-			dtm = &cmn->dtms[dn->dtm];
+			dtm = &cmn->dtms[dn->dtm] + hw->dtm_offset;
 			reg = readq_relaxed(dtm->base + offset);
 		}
 		dtm_idx = arm_cmn_get_index(hw->dtm_idx, i);
@@ -800,8 +857,10 @@ static void arm_cmn_event_start(struct perf_event *event, int flags)
 		u64 mask = CMN_EVENT_WP_MASK(event);
 
 		for_each_hw_dn(hw, dn, i) {
-			writeq_relaxed(val, dn->pmu_base + CMN_DTM_WPn_VAL(wp_idx));
-			writeq_relaxed(mask, dn->pmu_base + CMN_DTM_WPn_MASK(wp_idx));
+			void __iomem *base = dn->pmu_base + CMN_DTM_OFFSET(hw->dtm_offset);
+
+			writeq_relaxed(val, base + CMN_DTM_WPn_VAL(wp_idx));
+			writeq_relaxed(mask, base + CMN_DTM_WPn_MASK(wp_idx));
 		}
 	} else for_each_hw_dn(hw, dn, i) {
 		int dtm_idx = arm_cmn_get_index(hw->dtm_idx, i);
@@ -826,8 +885,10 @@ static void arm_cmn_event_stop(struct perf_event *event, int flags)
 		int wp_idx = arm_cmn_wp_idx(event);
 
 		for_each_hw_dn(hw, dn, i) {
-			writeq_relaxed(0, dn->pmu_base + CMN_DTM_WPn_MASK(wp_idx));
-			writeq_relaxed(~0ULL, dn->pmu_base + CMN_DTM_WPn_VAL(wp_idx));
+			void __iomem *base = dn->pmu_base + CMN_DTM_OFFSET(hw->dtm_offset);
+
+			writeq_relaxed(0, base + CMN_DTM_WPn_MASK(wp_idx));
+			writeq_relaxed(~0ULL, base + CMN_DTM_WPn_VAL(wp_idx));
 		}
 	} else for_each_hw_dn(hw, dn, i) {
 		int dtm_idx = arm_cmn_get_index(hw->dtm_idx, i);
@@ -847,7 +908,8 @@ struct arm_cmn_val {
 	bool cycles;
 };
 
-static void arm_cmn_val_add_event(struct arm_cmn_val *val, struct perf_event *event)
+static void arm_cmn_val_add_event(struct arm_cmn *cmn, struct arm_cmn_val *val,
+				  struct perf_event *event)
 {
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
 	struct arm_cmn_node *dn;
@@ -865,7 +927,7 @@ static void arm_cmn_val_add_event(struct arm_cmn_val *val, struct perf_event *ev
 	}
 
 	val->dtc_count++;
-	if (arm_cmn_is_occup_event(type, CMN_EVENT_EVENTID(event)))
+	if (arm_cmn_is_occup_event(cmn->model, type, CMN_EVENT_EVENTID(event)))
 		occupid = CMN_EVENT_OCCUPID(event) + 1;
 	else
 		occupid = 0;
@@ -884,7 +946,7 @@ static void arm_cmn_val_add_event(struct arm_cmn_val *val, struct perf_event *ev
 	}
 }
 
-static int arm_cmn_validate_group(struct perf_event *event)
+static int arm_cmn_validate_group(struct arm_cmn *cmn, struct perf_event *event)
 {
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
 	struct arm_cmn_node *dn;
@@ -904,9 +966,9 @@ static int arm_cmn_validate_group(struct perf_event *event)
 	if (!val)
 		return -ENOMEM;
 
-	arm_cmn_val_add_event(val, leader);
+	arm_cmn_val_add_event(cmn, val, leader);
 	for_each_sibling_event(sibling, leader)
-		arm_cmn_val_add_event(val, sibling);
+		arm_cmn_val_add_event(cmn, val, sibling);
 
 	type = CMN_EVENT_TYPE(event);
 	if (type == CMN_TYPE_DTC) {
@@ -917,7 +979,7 @@ static int arm_cmn_validate_group(struct perf_event *event)
 	if (val->dtc_count == CMN_DT_NUM_COUNTERS)
 		goto done;
 
-	if (arm_cmn_is_occup_event(type, CMN_EVENT_EVENTID(event)))
+	if (arm_cmn_is_occup_event(cmn->model, type, CMN_EVENT_EVENTID(event)))
 		occupid = CMN_EVENT_OCCUPID(event) + 1;
 	else
 		occupid = 0;
@@ -980,6 +1042,9 @@ static int arm_cmn_event_init(struct perf_event *event)
 		eventid = CMN_EVENT_EVENTID(event);
 		if (eventid != CMN_WP_UP && eventid != CMN_WP_DOWN)
 			return -EINVAL;
+		/* ...but the DTM may depend on which port we're watching */
+		if (cmn->multi_dtm)
+			hw->dtm_offset = CMN_EVENT_WP_DEV_SEL(event) / 2;
 	}
 
 	bynodeid = CMN_EVENT_BYNODEID(event);
@@ -1007,7 +1072,7 @@ static int arm_cmn_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	return arm_cmn_validate_group(event);
+	return arm_cmn_validate_group(cmn, event);
 }
 
 static void arm_cmn_event_clear(struct arm_cmn *cmn, struct perf_event *event,
@@ -1017,13 +1082,13 @@ static void arm_cmn_event_clear(struct arm_cmn *cmn, struct perf_event *event,
 	enum cmn_node_type type = CMN_EVENT_TYPE(event);
 
 	while (i--) {
-		struct arm_cmn_dtm *dtm = &cmn->dtms[hw->dn[i].dtm];
+		struct arm_cmn_dtm *dtm = &cmn->dtms[hw->dn[i].dtm] + hw->dtm_offset;
 		unsigned int dtm_idx = arm_cmn_get_index(hw->dtm_idx, i);
 
 		if (type == CMN_TYPE_WP)
 			dtm->wp_event[arm_cmn_wp_idx(event)] = -1;
 
-		if (arm_cmn_is_occup_event(type, CMN_EVENT_EVENTID(event)))
+		if (arm_cmn_is_occup_event(cmn->model, type, CMN_EVENT_EVENTID(event)))
 			hw->dn[i].occupid_count--;
 
 		dtm->pmu_config_low &= ~CMN__PMEVCNT_PAIRED(dtm_idx);
@@ -1069,7 +1134,7 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 
 	/* ...then the local counters to feed it. */
 	for_each_hw_dn(hw, dn, i) {
-		struct arm_cmn_dtm *dtm = &cmn->dtms[dn->dtm];
+		struct arm_cmn_dtm *dtm = &cmn->dtms[dn->dtm] + hw->dtm_offset;
 		unsigned int dtm_idx, shift;
 		u64 reg;
 
@@ -1098,10 +1163,13 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 		} else {
 			struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
 
+			if (cmn->multi_dtm)
+				nid.port %= 2;
+
 			input_sel = CMN__PMEVCNT0_INPUT_SEL_DEV + dtm_idx +
 				    (nid.port << 4) + (nid.dev << 2);
 
-			if (arm_cmn_is_occup_event(type, CMN_EVENT_EVENTID(event))) {
+			if (arm_cmn_is_occup_event(cmn->model, type, CMN_EVENT_EVENTID(event))) {
 				u8 occupid = CMN_EVENT_OCCUPID(event);
 
 				if (dn->occupid_count == 0) {
@@ -1283,11 +1351,11 @@ static int arm_cmn_init_irqs(struct arm_cmn *cmn)
 	return 0;
 }
 
-static void arm_cmn_init_dtm(struct arm_cmn_dtm *dtm, struct arm_cmn_node *xp)
+static void arm_cmn_init_dtm(struct arm_cmn_dtm *dtm, struct arm_cmn_node *xp, int idx)
 {
 	int i;
 
-	dtm->base = xp->pmu_base;
+	dtm->base = xp->pmu_base + CMN_DTM_OFFSET(idx);
 	dtm->pmu_config_low = CMN_DTM_PMU_CONFIG_PMU_EN;
 	for (i = 0; i < 4; i++) {
 		dtm->wp_event[i] = -1;
@@ -1345,6 +1413,8 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 
 		xp = arm_cmn_node_to_xp(cmn, dn);
 		dn->dtm = xp->dtm;
+		if (cmn->multi_dtm)
+			dn->dtm += arm_cmn_nid(cmn, dn->id).port / 2;
 
 		if (dn->type == CMN_TYPE_DTC) {
 			int err;
@@ -1408,6 +1478,11 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	reg = readl_relaxed(cfg_region + CMN_CFGM_PERIPH_ID_2);
 	cmn->rev = FIELD_GET(CMN_CFGM_PID2_REVISION, reg);
 
+	reg = readq_relaxed(cfg_region + CMN_CFGM_INFO_GLOBAL);
+	cmn->multi_dtm = reg & CMN_INFO_MULTIPLE_DTM_EN;
+	cmn->rsp_vc_num = FIELD_GET(CMN_INFO_RSP_VC_NUM, reg);
+	cmn->dat_vc_num = FIELD_GET(CMN_INFO_DAT_VC_NUM, reg);
+
 	reg = readq_relaxed(cfg_region + CMN_CHILD_INFO);
 	child_count = FIELD_GET(CMN_CI_CHILD_COUNT, reg);
 	child_poff = FIELD_GET(CMN_CI_CHILD_PTR_OFFSET, reg);
@@ -1429,7 +1504,11 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	if (!dn)
 		return -ENOMEM;
 
-	dtm = devm_kcalloc(cmn->dev, cmn->num_xps, sizeof(*dtm), GFP_KERNEL);
+	/* Initial safe upper bound on DTMs for any possible mesh layout */
+	i = cmn->num_xps;
+	if (cmn->multi_dtm)
+		i += cmn->num_xps + 1;
+	dtm = devm_kcalloc(cmn->dev, i, sizeof(*dtm), GFP_KERNEL);
 	if (!dtm)
 		return -ENOMEM;
 
@@ -1439,6 +1518,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	for (i = 0; i < cmn->num_xps; i++) {
 		void __iomem *xp_region = cmn->base + xp_offset[i];
 		struct arm_cmn_node *xp = dn++;
+		unsigned int xp_ports = 0;
 
 		arm_cmn_init_node_info(cmn, xp_offset[i], xp);
 		/*
@@ -1450,9 +1530,39 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 		if (xp->id == (1 << 3))
 			cmn->mesh_x = xp->logid;
 
-		xp->dtc = 0xf;
+		if (cmn->model == CMN600)
+			xp->dtc = 0xf;
+		else
+			xp->dtc = 1 << readl_relaxed(xp_region + CMN_DTM_UNIT_INFO);
+
 		xp->dtm = dtm - cmn->dtms;
-		arm_cmn_init_dtm(dtm++, xp);
+		arm_cmn_init_dtm(dtm++, xp, 0);
+		/*
+		 * Keeping track of connected ports will let us filter out
+		 * unnecessary XP events easily. We can also reliably infer the
+		 * "extra device ports" configuration for the node ID format
+		 * from this, since in that case we will see at least one XP
+		 * with port 2 connected, for the HN-D.
+		 */
+		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P0))
+			xp_ports |= BIT(0);
+		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P1))
+			xp_ports |= BIT(1);
+		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P2))
+			xp_ports |= BIT(2);
+		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P3))
+			xp_ports |= BIT(3);
+		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P4))
+			xp_ports |= BIT(4);
+		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P5))
+			xp_ports |= BIT(5);
+
+		if (cmn->multi_dtm && (xp_ports & 0xc))
+			arm_cmn_init_dtm(dtm++, xp, 1);
+		if (cmn->multi_dtm && (xp_ports & 0x30))
+			arm_cmn_init_dtm(dtm++, xp, 2);
+
+		cmn->ports_used |= xp_ports;
 
 		reg = readq_relaxed(xp_region + CMN_CHILD_INFO);
 		child_count = FIELD_GET(CMN_CI_CHILD_COUNT, reg);
@@ -1488,11 +1598,14 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 			case CMN_TYPE_SBSX:
 			case CMN_TYPE_RNI:
 			case CMN_TYPE_RND:
+			case CMN_TYPE_MTSX:
 			case CMN_TYPE_CXRA:
 			case CMN_TYPE_CXHA:
 				dn++;
 				break;
 			/* Nothing to see here */
+			case CMN_TYPE_MPAM_S:
+			case CMN_TYPE_MPAM_NS:
 			case CMN_TYPE_RNSAM:
 			case CMN_TYPE_CXLA:
 				break;
@@ -1512,6 +1625,11 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	if (dn)
 		cmn->dns = dn;
 
+	sz = (void *)dtm - (void *)cmn->dtms;
+	dtm = devm_krealloc(cmn->dev, cmn->dtms, sz, GFP_KERNEL);
+	if (dtm)
+		cmn->dtms = dtm;
+
 	/*
 	 * If mesh_x wasn't set during discovery then we never saw
 	 * an XP at (0,1), thus we must have an Nx1 configuration.
@@ -1520,9 +1638,15 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 		cmn->mesh_x = cmn->num_xps;
 	cmn->mesh_y = cmn->num_xps / cmn->mesh_x;
 
+	/* 1x1 config plays havoc with XP event encodings */
+	if (cmn->num_xps == 1)
+		dev_warn(cmn->dev, "1x1 config not fully supported, translate XP events manually\n");
+
 	dev_dbg(cmn->dev, "model %d, periph_id_2 revision %d\n", cmn->model, cmn->rev);
-	dev_dbg(cmn->dev, "mesh %dx%d, ID width %d\n",
-		cmn->mesh_x, cmn->mesh_y, arm_cmn_xyidbits(cmn));
+	reg = cmn->ports_used;
+	dev_dbg(cmn->dev, "mesh %dx%d, ID width %d, ports %6pbl%s\n",
+		cmn->mesh_x, cmn->mesh_y, arm_cmn_xyidbits(cmn), &reg,
+		cmn->multi_dtm ? ", multi-DTM" : "");
 
 	return 0;
 }
