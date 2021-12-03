@@ -68,33 +68,6 @@ enum libbpf_print_level {
 #include "libbpf_internal.h"
 #endif
 
-#define BPF_CORE_SPEC_MAX_LEN 32
-
-/* represents BPF CO-RE field or array element accessor */
-struct bpf_core_accessor {
-	__u32 type_id;		/* struct/union type or array element type */
-	__u32 idx;		/* field index or array index */
-	const char *name;	/* field name or NULL for array accessor */
-};
-
-struct bpf_core_spec {
-	const struct btf *btf;
-	/* high-level spec: named fields and array indices only */
-	struct bpf_core_accessor spec[BPF_CORE_SPEC_MAX_LEN];
-	/* original unresolved (no skip_mods_or_typedefs) root type ID */
-	__u32 root_type_id;
-	/* CO-RE relocation kind */
-	enum bpf_core_relo_kind relo_kind;
-	/* high-level spec length */
-	int len;
-	/* raw, low-level spec: 1-to-1 with accessor spec string */
-	int raw_spec[BPF_CORE_SPEC_MAX_LEN];
-	/* raw spec length */
-	int raw_len;
-	/* field bit offset represented by spec */
-	__u32 bit_offset;
-};
-
 static bool is_flex_arr(const struct btf *btf,
 			const struct bpf_core_accessor *acc,
 			const struct btf_array *arr)
@@ -1200,9 +1173,12 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 			     const struct bpf_core_relo *relo,
 			     int relo_idx,
 			     const struct btf *local_btf,
-			     struct bpf_core_cand_list *cands)
+			     struct bpf_core_cand_list *cands,
+			     struct bpf_core_spec *specs_scratch)
 {
-	struct bpf_core_spec local_spec, cand_spec, targ_spec = {};
+	struct bpf_core_spec *local_spec = &specs_scratch[0];
+	struct bpf_core_spec *cand_spec = &specs_scratch[1];
+	struct bpf_core_spec *targ_spec = &specs_scratch[2];
 	struct bpf_core_relo_res cand_res, targ_res;
 	const struct btf_type *local_type;
 	const char *local_name;
@@ -1221,7 +1197,7 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 		return -EINVAL;
 
 	err = bpf_core_parse_spec(prog_name, local_btf, local_id, spec_str,
-				  relo->kind, &local_spec);
+				  relo->kind, local_spec);
 	if (err) {
 		pr_warn("prog '%s': relo #%d: parsing [%d] %s %s + %s failed: %d\n",
 			prog_name, relo_idx, local_id, btf_kind_str(local_type),
@@ -1232,15 +1208,15 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 
 	pr_debug("prog '%s': relo #%d: kind <%s> (%d), spec is ", prog_name,
 		 relo_idx, core_relo_kind_str(relo->kind), relo->kind);
-	bpf_core_dump_spec(prog_name, LIBBPF_DEBUG, &local_spec);
+	bpf_core_dump_spec(prog_name, LIBBPF_DEBUG, local_spec);
 	libbpf_print(LIBBPF_DEBUG, "\n");
 
 	/* TYPE_ID_LOCAL relo is special and doesn't need candidate search */
 	if (relo->kind == BPF_CORE_TYPE_ID_LOCAL) {
 		targ_res.validate = true;
 		targ_res.poison = false;
-		targ_res.orig_val = local_spec.root_type_id;
-		targ_res.new_val = local_spec.root_type_id;
+		targ_res.orig_val = local_spec->root_type_id;
+		targ_res.new_val = local_spec->root_type_id;
 		goto patch_insn;
 	}
 
@@ -1253,38 +1229,38 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 
 
 	for (i = 0, j = 0; i < cands->len; i++) {
-		err = bpf_core_spec_match(&local_spec, cands->cands[i].btf,
-					  cands->cands[i].id, &cand_spec);
+		err = bpf_core_spec_match(local_spec, cands->cands[i].btf,
+					  cands->cands[i].id, cand_spec);
 		if (err < 0) {
 			pr_warn("prog '%s': relo #%d: error matching candidate #%d ",
 				prog_name, relo_idx, i);
-			bpf_core_dump_spec(prog_name, LIBBPF_WARN, &cand_spec);
+			bpf_core_dump_spec(prog_name, LIBBPF_WARN, cand_spec);
 			libbpf_print(LIBBPF_WARN, ": %d\n", err);
 			return err;
 		}
 
 		pr_debug("prog '%s': relo #%d: %s candidate #%d ", prog_name,
 			 relo_idx, err == 0 ? "non-matching" : "matching", i);
-		bpf_core_dump_spec(prog_name, LIBBPF_DEBUG, &cand_spec);
+		bpf_core_dump_spec(prog_name, LIBBPF_DEBUG, cand_spec);
 		libbpf_print(LIBBPF_DEBUG, "\n");
 
 		if (err == 0)
 			continue;
 
-		err = bpf_core_calc_relo(prog_name, relo, relo_idx, &local_spec, &cand_spec, &cand_res);
+		err = bpf_core_calc_relo(prog_name, relo, relo_idx, local_spec, cand_spec, &cand_res);
 		if (err)
 			return err;
 
 		if (j == 0) {
 			targ_res = cand_res;
-			targ_spec = cand_spec;
-		} else if (cand_spec.bit_offset != targ_spec.bit_offset) {
+			*targ_spec = *cand_spec;
+		} else if (cand_spec->bit_offset != targ_spec->bit_offset) {
 			/* if there are many field relo candidates, they
 			 * should all resolve to the same bit offset
 			 */
 			pr_warn("prog '%s': relo #%d: field offset ambiguity: %u != %u\n",
-				prog_name, relo_idx, cand_spec.bit_offset,
-				targ_spec.bit_offset);
+				prog_name, relo_idx, cand_spec->bit_offset,
+				targ_spec->bit_offset);
 			return -EINVAL;
 		} else if (cand_res.poison != targ_res.poison || cand_res.new_val != targ_res.new_val) {
 			/* all candidates should result in the same relocation
@@ -1328,7 +1304,7 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 			 prog_name, relo_idx);
 
 		/* calculate single target relo result explicitly */
-		err = bpf_core_calc_relo(prog_name, relo, relo_idx, &local_spec, NULL, &targ_res);
+		err = bpf_core_calc_relo(prog_name, relo, relo_idx, local_spec, NULL, &targ_res);
 		if (err)
 			return err;
 	}
