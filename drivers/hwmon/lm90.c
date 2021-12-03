@@ -69,6 +69,9 @@
  * / ON Semiconductor. The chips are similar to ADT7461 but support two external
  * temperature sensors.
  *
+ * This driver also supports NCT72 and NCT214 from ON Semiconductor. The chips
+ * are similar to ADT7461/ADT7461A but have full PEC support (undocumented).
+ *
  * This driver also supports the SA56004 from Philips. This device is
  * pin-compatible with the LM86, the ED/EDP parts are also address-compatible.
  *
@@ -125,7 +128,7 @@ static const unsigned short normal_i2c[] = {
 enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
 	g781, lm84, lm90, lm99,
 	max1617, max6642, max6646, max6648, max6654, max6657, max6659, max6680, max6696,
-	nct210, sa56004, tmp451, tmp461, w83l771,
+	nct210, nct72, sa56004, tmp451, tmp461, w83l771,
 };
 
 /*
@@ -258,6 +261,8 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "mc1066", max1617 },
 	{ "nct1008", adt7461a },
 	{ "nct210", nct210 },
+	{ "nct214", nct72 },
+	{ "nct72", nct72 },
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
 	{ "thmc10", max1617 },
@@ -347,6 +352,14 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	{
 		.compatible = "onnn,nct1008",
 		.data = (void *)adt7461a
+	},
+	{
+		.compatible = "onnn,nct214",
+		.data = (void *)nct72
+	},
+	{
+		.compatible = "onnn,nct72",
+		.data = (void *)nct72
 	},
 	{
 		.compatible = "winbond,w83l771",
@@ -533,6 +546,15 @@ static const struct lm90_params lm90_params[] = {
 		.max_convrate = 6,
 		.reg_status2 = MAX6696_REG_STATUS2,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
+	},
+	[nct72] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
+		  | LM90_HAVE_CRIT | LM90_HAVE_PEC | LM90_HAVE_UNSIGNED_TEMP
+		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
+		.alert_alarms = 0x7c,
+		.max_convrate = 10,
+		.resolution = 10,
 	},
 	[nct210] = {
 		.flags = LM90_HAVE_ALARMS | LM90_HAVE_BROKEN_ALERT
@@ -1818,11 +1840,22 @@ static const char *lm90_detect_analog(struct i2c_client *client, bool common_add
 		    convrate <= 0x0a)
 			name = "nct1008";
 		break;
+	case 0x55:	/* NCT72 */
+		if (man_id2 == 0x41 && chip_id2 == 0x61 &&
+		    (address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
+		    convrate <= 0x0a)
+			name = "nct72";
+		break;
 	case 0x57:	/* ADT7461A, NCT1008 (datasheet rev. 3) */
 		if (man_id2 == 0x41 && chip_id2 == 0x61 &&
 		    (address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
 		    convrate <= 0x0a)
 			name = "adt7461a";
+		break;
+	case 0x5a:	/* NCT214 */
+		if (man_id2 == 0x41 && chip_id2 == 0x61 &&
+		    common_address && !(config1 & 0x1b) && convrate <= 0x0a)
+			name = "nct214";
 		break;
 	case 0x62:	/* ADT7481, undocumented */
 		if (man_id2 == 0x41 && chip_id2 == 0x81 &&

@@ -147,6 +147,26 @@ Supported chips:
 
 	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT210
 
+  * ON Semiconductor NCT214
+
+    Prefix: 'nct214'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT214
+
+  * ON Semiconductor NCT72
+
+    Prefix: 'nct72'
+
+    Addresses scanned: I2C 0x4c - 0x4d
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT72
+
   * Maxim MAX1617
 
     Prefix: 'max1617'
