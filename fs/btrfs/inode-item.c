@@ -457,13 +457,11 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	u64 extent_start = 0;
 	u64 extent_num_bytes = 0;
 	u64 extent_offset = 0;
 	u64 item_end = 0;
 	u64 last_size = new_size;
 	u32 found_type = (u8)-1;
-	int found_extent;
 	int del_item;
 	int pending_del_nr = 0;
 	int pending_del_slot = 0;
@@ -517,7 +515,7 @@ search_again:
 	}
 
 	while (1) {
-		u64 clear_start = 0, clear_len = 0;
+		u64 clear_start = 0, clear_len = 0, extent_start = 0;
 
 		fi = NULL;
 		leaf = path->nodes[0];
@@ -560,7 +558,7 @@ search_again:
 			else
 				del_item = 0;
 		}
-		found_extent = 0;
+
 		/* FIXME, shrink the extent if the ref count is only 1 */
 		if (found_type != BTRFS_EXTENT_DATA_KEY)
 			goto delete;
@@ -598,7 +596,6 @@ search_again:
 				/* FIXME blocksize != 4096 */
 				num_dec = btrfs_file_extent_num_bytes(leaf, fi);
 				if (extent_start != 0) {
-					found_extent = 1;
 					if (test_bit(BTRFS_ROOT_SHAREABLE,
 						     &root->state))
 						inode_sub_bytes(&inode->vfs_inode,
@@ -677,7 +674,7 @@ delete:
 		}
 		should_throttle = false;
 
-		if (found_extent &&
+		if (del_item && extent_start != 0 &&
 		    root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
 			struct btrfs_ref ref = { 0 };
 
