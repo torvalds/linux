@@ -77,6 +77,10 @@ static const struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
 		       .cmd = HCLGE_OPC_DFX_TQP_REG } },
 };
 
+/* make sure: len(name) + interval >= maxlen(item data) + 2,
+ * for example, name = "pkt_num"(len: 7), the prototype of item data is u32,
+ * and print as "%u"(maxlen: 10), so the interval should be at least 5.
+ */
 static void hclge_dbg_fill_content(char *content, u16 len,
 				   const struct hclge_dbg_item *items,
 				   const char **result, u16 size)
