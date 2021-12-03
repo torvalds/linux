@@ -6776,12 +6776,16 @@ static int ov50c40_set_ctrl(struct v4l2_ctrl *ctrl)
 	u32 again, dgain;
 	u32 val = 0;
 	u32 vts = 0;
+	u32 exp = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = ov50c40->cur_mode->height + ctrl->val - 22;
+		if (ov50c40->cur_mode->height == 6144)
+			max = ov50c40->cur_mode->height + ctrl->val - 44;
+		else
+			max = ov50c40->cur_mode->height + ctrl->val - 22;
 		__v4l2_ctrl_modify_range(ov50c40->exposure,
 					 ov50c40->exposure->minimum, max,
 					 ov50c40->exposure->step,
@@ -6794,10 +6798,14 @@ static int ov50c40_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
+		if (ov50c40->cur_mode->height == 6144)
+			exp = ctrl->val / 2;
+		else
+			exp = ctrl->val;
 		ret = ov50c40_write_reg(ov50c40->client,
 					OV50C40_REG_EXP_LONG_H,
 					OV50C40_REG_VALUE_24BIT,
-					ctrl->val);
+					exp);
 		dev_dbg(&client->dev, "set exposure 0x%x\n",
 			ctrl->val);
 		break;
@@ -6914,8 +6922,10 @@ static int ov50c40_initialize_controls(struct ov50c40 *ov50c40)
 				V4L2_CID_VBLANK, vblank_def,
 				OV50C40_VTS_MAX - mode->height,
 				1, vblank_def);
-
-	exposure_max = mode->vts_def - 22;
+	if (mode->height == 6144)
+		exposure_max = mode->vts_def - 44;
+	else
+		exposure_max = mode->vts_def - 22;
 	ov50c40->exposure = v4l2_ctrl_new_std(handler, &ov50c40_ctrl_ops,
 				V4L2_CID_EXPOSURE, OV50C40_EXPOSURE_MIN,
 				exposure_max, OV50C40_EXPOSURE_STEP,
