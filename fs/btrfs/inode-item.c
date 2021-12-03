@@ -473,7 +473,6 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	int ret;
 	u64 bytes_deleted = 0;
 	bool be_nice = false;
-	bool should_throttle = false;
 
 	ASSERT(control->inode || !control->clear_extent_range);
 	ASSERT(new_size == 0 || control->min_type == BTRFS_EXTENT_DATA_KEY);
@@ -523,6 +522,7 @@ search_again:
 
 	while (1) {
 		u64 clear_start = 0, clear_len = 0, extent_start = 0;
+		bool should_throttle = false;
 
 		fi = NULL;
 		leaf = path->nodes[0];
@@ -665,7 +665,6 @@ delete:
 			control->last_size = new_size;
 			break;
 		}
-		should_throttle = false;
 
 		if (del_item && extent_start != 0 && !control->skip_ref_updates) {
 			struct btrfs_ref ref = { 0 };
