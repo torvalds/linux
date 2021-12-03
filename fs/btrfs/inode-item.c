@@ -476,7 +476,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	bool should_throttle = false;
 
 	ASSERT(control->inode || !control->clear_extent_range);
-	BUG_ON(new_size > 0 && control->min_type != BTRFS_EXTENT_DATA_KEY);
+	ASSERT(new_size == 0 || control->min_type == BTRFS_EXTENT_DATA_KEY);
 
 	control->last_size = new_size;
 	control->sub_bytes = 0;
