@@ -175,6 +175,7 @@
 enum cmn_model {
 	CMN_ANY = -1,
 	CMN600 = 1,
+	CI700 = 2,
 };
 
 /* CMN-600 r0px shouldn't exist in silicon, thankfully */
@@ -186,6 +187,9 @@ enum cmn_revision {
 	CMN600_R2P0,
 	CMN600_R3P0,
 	CMN600_R3P1,
+	CI700_R0P0 = 0,
+	CI700_R1P0,
+	CI700_R2P0,
 };
 
 enum cmn_node_type {
@@ -401,8 +405,10 @@ struct arm_cmn_format_attr {
 static bool arm_cmn_is_occup_event(enum cmn_model model,
 				   enum cmn_node_type type, unsigned int id)
 {
-	return (type == CMN_TYPE_DVM && id == 0x05) ||
-	       (type == CMN_TYPE_HNF && id == 0x0f);
+	if (type == CMN_TYPE_DVM)
+		return (model == CMN600 && id == 0x05) ||
+		       (model == CI700 && id == 0x0c);
+	return type == CMN_TYPE_HNF && id == 0x0f;
 }
 
 static ssize_t arm_cmn_event_show(struct device *dev,
@@ -497,14 +503,19 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	__CMN_EVENT_XP(n_##_name, (_event) | (2 << 2)),		\
 	__CMN_EVENT_XP(s_##_name, (_event) | (3 << 2)),		\
 	__CMN_EVENT_XP(p0_##_name, (_event) | (4 << 2)),	\
-	__CMN_EVENT_XP(p1_##_name, (_event) | (5 << 2))
+	__CMN_EVENT_XP(p1_##_name, (_event) | (5 << 2)),	\
+	__CMN_EVENT_XP(p2_##_name, (_event) | (6 << 2)),	\
+	__CMN_EVENT_XP(p3_##_name, (_event) | (7 << 2))
 
 /* Good thing there are only 3 fundamental XP events... */
 #define CMN_EVENT_XP(_name, _event)				\
 	_CMN_EVENT_XP(req_##_name, (_event) | (0 << 5)),	\
 	_CMN_EVENT_XP(rsp_##_name, (_event) | (1 << 5)),	\
 	_CMN_EVENT_XP(snp_##_name, (_event) | (2 << 5)),	\
-	_CMN_EVENT_XP(dat_##_name, (_event) | (3 << 5))
+	_CMN_EVENT_XP(dat_##_name, (_event) | (3 << 5)),	\
+	_CMN_EVENT_XP(pub_##_name, (_event) | (4 << 5)),	\
+	_CMN_EVENT_XP(rsp2_##_name, (_event) | (5 << 5)),	\
+	_CMN_EVENT_XP(dat2_##_name, (_event) | (6 << 5))
 
 
 static struct attribute *arm_cmn_event_attrs[] = {
@@ -522,6 +533,20 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	_CMN_EVENT_DVM(CMN600, rxreq_trk_occupancy_all, 0x05, 0),
 	_CMN_EVENT_DVM(CMN600, rxreq_trk_occupancy_dvmop, 0x05, 1),
 	_CMN_EVENT_DVM(CMN600, rxreq_trk_occupancy_dvmsync, 0x05, 2),
+	CMN_EVENT_DVM(CI700, dvmop_tlbi,		0x01),
+	CMN_EVENT_DVM(CI700, dvmop_bpi,			0x02),
+	CMN_EVENT_DVM(CI700, dvmop_pici,		0x03),
+	CMN_EVENT_DVM(CI700, dvmop_vici,		0x04),
+	CMN_EVENT_DVM(CI700, dvmsync,			0x05),
+	CMN_EVENT_DVM(CI700, vmid_filtered,		0x06),
+	CMN_EVENT_DVM(CI700, rndop_filtered,		0x07),
+	CMN_EVENT_DVM(CI700, retry,			0x08),
+	CMN_EVENT_DVM(CI700, txsnp_flitv,		0x09),
+	CMN_EVENT_DVM(CI700, txsnp_stall,		0x0a),
+	CMN_EVENT_DVM(CI700, trkfull,			0x0b),
+	_CMN_EVENT_DVM(CI700, trk_occupancy_all,	0x0c, 0),
+	_CMN_EVENT_DVM(CI700, trk_occupancy_dvmop,	0x0c, 1),
+	_CMN_EVENT_DVM(CI700, trk_occupancy_dvmsync,	0x0c, 2),
 
 	CMN_EVENT_HNF(CMN_ANY, cache_miss,		0x01),
 	CMN_EVENT_HNF(CMN_ANY, slc_sf_cache_access,	0x02),
@@ -558,6 +583,9 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_HNF(CMN_ANY, stash_snp_sent,		0x1d),
 	CMN_EVENT_HNF(CMN_ANY, stash_data_pull,		0x1e),
 	CMN_EVENT_HNF(CMN_ANY, snp_fwded,		0x1f),
+	CMN_EVENT_HNF(CI700, atomic_fwd,		0x20),
+	CMN_EVENT_HNF(CI700, mpam_hardlim,		0x21),
+	CMN_EVENT_HNF(CI700, mpam_softlim,		0x22),
 
 	CMN_EVENT_HNI(rrt_rd_occ_cnt_ovfl,		0x20),
 	CMN_EVENT_HNI(rrt_wr_occ_cnt_ovfl,		0x21),
@@ -598,6 +626,7 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_SBSX(CMN_ANY, wdb_occ_cnt_ovfl,	0x14),
 	CMN_EVENT_SBSX(CMN_ANY, rd_axi_trkr_occ_cnt_ovfl, 0x15),
 	CMN_EVENT_SBSX(CMN_ANY, cmo_axi_trkr_occ_cnt_ovfl, 0x16),
+	CMN_EVENT_SBSX(CI700, rdb_occ_cnt_ovfl,		0x17),
 	CMN_EVENT_SBSX(CMN_ANY, arvalid_no_arready,	0x21),
 	CMN_EVENT_SBSX(CMN_ANY, awvalid_no_awready,	0x22),
 	CMN_EVENT_SBSX(CMN_ANY, wvalid_no_wready,	0x23),
@@ -624,6 +653,25 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_RNID(CMN600, rdb_replay,		0x12),
 	CMN_EVENT_RNID(CMN600, rdb_hybrid,		0x13),
 	CMN_EVENT_RNID(CMN600, rdb_ord,			0x14),
+	CMN_EVENT_RNID(CI700, padb_occ_ovfl,		0x11),
+	CMN_EVENT_RNID(CI700, rpdb_occ_ovfl,		0x12),
+	CMN_EVENT_RNID(CI700, rrt_occup_ovfl_slice1,	0x13),
+	CMN_EVENT_RNID(CI700, rrt_occup_ovfl_slice2,	0x14),
+	CMN_EVENT_RNID(CI700, rrt_occup_ovfl_slice3,	0x15),
+	CMN_EVENT_RNID(CI700, wrt_throttled,		0x16),
+
+	CMN_EVENT_MTSX(tc_lookup,			0x01),
+	CMN_EVENT_MTSX(tc_fill,				0x02),
+	CMN_EVENT_MTSX(tc_miss,				0x03),
+	CMN_EVENT_MTSX(tdb_forward,			0x04),
+	CMN_EVENT_MTSX(tcq_hazard,			0x05),
+	CMN_EVENT_MTSX(tcq_rd_alloc,			0x06),
+	CMN_EVENT_MTSX(tcq_wr_alloc,			0x07),
+	CMN_EVENT_MTSX(tcq_cmo_alloc,			0x08),
+	CMN_EVENT_MTSX(axi_rd_req,			0x09),
+	CMN_EVENT_MTSX(axi_wr_req,			0x0a),
+	CMN_EVENT_MTSX(tcq_occ_cnt_ovfl,		0x0b),
+	CMN_EVENT_MTSX(tdb_occ_cnt_ovfl,		0x0c),
 
 	NULL
 };
@@ -1773,6 +1821,7 @@ static int arm_cmn_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id arm_cmn_of_match[] = {
 	{ .compatible = "arm,cmn-600", .data = (void *)CMN600 },
+	{ .compatible = "arm,ci-700", .data = (void *)CI700 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, arm_cmn_of_match);
