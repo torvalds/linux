@@ -4,6 +4,7 @@
  */
 
 #include "ctree.h"
+#include "inode-item.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "print-tree.h"

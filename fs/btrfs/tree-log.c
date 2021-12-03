@@ -20,6 +20,7 @@
 #include "block-group.h"
 #include "space-info.h"
 #include "zoned.h"
+#include "inode-item.h"
 
 /* magic values for the inode_only field in btrfs_log_inode:
  *

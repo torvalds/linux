@@ -54,6 +54,7 @@
 #include "space-info.h"
 #include "zoned.h"
 #include "subpage.h"
+#include "inode-item.h"
 
 struct btrfs_iget_args {
 	u64 ino;
