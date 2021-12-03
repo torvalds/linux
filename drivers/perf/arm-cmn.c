@@ -5,6 +5,7 @@
 #include <linux/acpi.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
@@ -287,6 +288,7 @@ struct arm_cmn {
 	struct hlist_node cpuhp_node;
 
 	struct pmu pmu;
+	struct dentry *debug;
 };
 
 #define to_cmn(p)	container_of(p, struct arm_cmn, pmu)
@@ -350,6 +352,140 @@ static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
 			return dn;
 	return NULL;
 }
+
+struct dentry *arm_cmn_debugfs;
+
+#ifdef CONFIG_DEBUG_FS
+static const char *arm_cmn_device_type(u8 type)
+{
+	switch(type) {
+		case 0x01: return "  RN-I  |";
+		case 0x02: return "  RN-D  |";
+		case 0x04: return " RN-F_B |";
+		case 0x05: return "RN-F_B_E|";
+		case 0x06: return " RN-F_A |";
+		case 0x07: return "RN-F_A_E|";
+		case 0x08: return "  HN-T  |";
+		case 0x09: return "  HN-I  |";
+		case 0x0a: return "  HN-D  |";
+		case 0x0c: return "  SN-F  |";
+		case 0x0d: return "  SBSX  |";
+		case 0x0e: return "  HN-F  |";
+		case 0x0f: return " SN-F_E |";
+		case 0x10: return " SN-F_D |";
+		case 0x11: return "  CXHA  |";
+		case 0x12: return "  CXRA  |";
+		case 0x13: return "  CXRH  |";
+		case 0x14: return " RN-F_D |";
+		case 0x15: return "RN-F_D_E|";
+		case 0x16: return " RN-F_C |";
+		case 0x17: return "RN-F_C_E|";
+		case 0x1c: return "  MTSX  |";
+		default:   return "        |";
+	}
+}
+
+static void arm_cmn_show_logid(struct seq_file *s, int x, int y, int p, int d)
+{
+	struct arm_cmn *cmn = s->private;
+	struct arm_cmn_node *dn;
+
+	for (dn = cmn->dns; dn->type; dn++) {
+		struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
+
+		if (dn->type == CMN_TYPE_XP)
+			continue;
+		/* Ignore the extra components that will overlap on some ports */
+		if (dn->type < CMN_TYPE_HNI)
+			continue;
+
+		if (nid.x != x || nid.y != y || nid.port != p || nid.dev != d)
+			continue;
+
+		seq_printf(s, "   #%-2d  |", dn->logid);
+		return;
+	}
+	seq_puts(s, "        |");
+}
+
+static int arm_cmn_map_show(struct seq_file *s, void *data)
+{
+	struct arm_cmn *cmn = s->private;
+	int x, y, p, pmax = fls(cmn->ports_used);
+
+	seq_puts(s, "     X");
+	for (x = 0; x < cmn->mesh_x; x++)
+		seq_printf(s, "    %d    ", x);
+	seq_puts(s, "\nY P D+");
+	y = cmn->mesh_y;
+	while (y--) {
+		int xp_base = cmn->mesh_x * y;
+		u8 port[6][CMN_MAX_DIMENSION];
+
+		for (x = 0; x < cmn->mesh_x; x++)
+			seq_puts(s, "--------+");
+
+		seq_printf(s, "\n%d    |", y);
+		for (x = 0; x < cmn->mesh_x; x++) {
+			struct arm_cmn_node *xp = cmn->xps + xp_base + x;
+			void __iomem *base = xp->pmu_base - CMN_PMU_OFFSET;
+
+			port[0][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P0);
+			port[1][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P1);
+			port[2][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P2);
+			port[3][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P3);
+			port[4][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P4);
+			port[5][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P5);
+			seq_printf(s, " XP #%-2d |", xp_base + x);
+		}
+
+		seq_puts(s, "\n     |");
+		for (x = 0; x < cmn->mesh_x; x++) {
+			u8 dtc = cmn->xps[xp_base + x].dtc;
+
+			if (dtc & (dtc - 1))
+				seq_puts(s, " DTC ?? |");
+			else
+				seq_printf(s, " DTC %ld  |", __ffs(dtc));
+		}
+		seq_puts(s, "\n     |");
+		for (x = 0; x < cmn->mesh_x; x++)
+			seq_puts(s, "........|");
+
+		for (p = 0; p < pmax; p++) {
+			seq_printf(s, "\n  %d  |", p);
+			for (x = 0; x < cmn->mesh_x; x++)
+				seq_puts(s, arm_cmn_device_type(port[p][x]));
+			seq_puts(s, "\n    0|");
+			for (x = 0; x < cmn->mesh_x; x++)
+				arm_cmn_show_logid(s, x, y, p, 0);
+			seq_puts(s, "\n    1|");
+			for (x = 0; x < cmn->mesh_x; x++)
+				arm_cmn_show_logid(s, x, y, p, 1);
+		}
+		seq_puts(s, "\n-----+");
+	}
+	for (x = 0; x < cmn->mesh_x; x++)
+		seq_puts(s, "--------+");
+	seq_puts(s, "\n");
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(arm_cmn_map);
+
+static void arm_cmn_debugfs_init(struct arm_cmn *cmn, int id)
+{
+	const char *name  = "map";
+
+	if (id > 0)
+		name = devm_kasprintf(cmn->dev, GFP_KERNEL, "map_%d", id);
+	if (!name)
+		return;
+
+	cmn->debug = debugfs_create_file(name, 0444, arm_cmn_debugfs, cmn, &arm_cmn_map_fops);
+}
+#else
+static void arm_cmn_debugfs_init(struct arm_cmn *cmn, int id) {}
+#endif
 
 struct arm_cmn_hw_event {
 	struct arm_cmn_node *dn;
@@ -1738,7 +1874,7 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	struct arm_cmn *cmn;
 	const char *name;
 	static atomic_t id;
-	int err, rootnode;
+	int err, rootnode, this_id;
 
 	cmn = devm_kzalloc(&pdev->dev, sizeof(*cmn), GFP_KERNEL);
 	if (!cmn)
@@ -1792,7 +1928,8 @@ static int arm_cmn_probe(struct platform_device *pdev)
 		.cancel_txn = arm_cmn_end_txn,
 	};
 
-	name = devm_kasprintf(cmn->dev, GFP_KERNEL, "arm_cmn_%d", atomic_fetch_inc(&id));
+	this_id = atomic_fetch_inc(&id);
+	name = devm_kasprintf(cmn->dev, GFP_KERNEL, "arm_cmn_%d", this_id);
 	if (!name)
 		return -ENOMEM;
 
@@ -1803,6 +1940,8 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	err = perf_pmu_register(&cmn->pmu, name, -1);
 	if (err)
 		cpuhp_state_remove_instance_nocalls(arm_cmn_hp_state, &cmn->cpuhp_node);
+	else
+		arm_cmn_debugfs_init(cmn, this_id);
 
 	return err;
 }
@@ -1815,6 +1954,7 @@ static int arm_cmn_remove(struct platform_device *pdev)
 
 	perf_pmu_unregister(&cmn->pmu);
 	cpuhp_state_remove_instance_nocalls(arm_cmn_hp_state, &cmn->cpuhp_node);
+	debugfs_remove(cmn->debug);
 	return 0;
 }
 
@@ -1857,9 +1997,13 @@ static int __init arm_cmn_init(void)
 		return ret;
 
 	arm_cmn_hp_state = ret;
+	arm_cmn_debugfs = debugfs_create_dir("arm-cmn", NULL);
+
 	ret = platform_driver_register(&arm_cmn_driver);
-	if (ret)
+	if (ret) {
 		cpuhp_remove_multi_state(arm_cmn_hp_state);
+		debugfs_remove(arm_cmn_debugfs);
+	}
 	return ret;
 }
 
@@ -1867,6 +2011,7 @@ static void __exit arm_cmn_exit(void)
 {
 	platform_driver_unregister(&arm_cmn_driver);
 	cpuhp_remove_multi_state(arm_cmn_hp_state);
+	debugfs_remove(arm_cmn_debugfs);
 }
 
 module_init(arm_cmn_init);
