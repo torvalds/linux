@@ -6942,6 +6942,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	unsigned int tag;
 	int err = FAILED, res;
+	bool outstanding;
 	struct ufshcd_lrb *lrbp;
 	u32 reg;
 
@@ -7027,6 +7028,17 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		ufshcd_set_req_abort_skip(hba, hba->outstanding_reqs);
 		goto release;
 	}
+
+	/*
+	 * Clear the corresponding bit from outstanding_reqs since the command
+	 * has been aborted successfully.
+	 */
+	spin_lock_irqsave(host->host_lock, flags);
+	outstanding = __test_and_clear_bit(tag, &hba->outstanding_reqs);
+	spin_unlock_irqrestore(host->host_lock, flags);
+
+	if (outstanding)
+		ufshcd_release_scsi_cmd(hba, lrbp);
 
 	err = SUCCESS;
 
