@@ -458,7 +458,6 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	int pending_del_slot = 0;
 	int extent_type = -1;
 	int ret;
-	u64 ino = btrfs_ino(inode);
 	u64 bytes_deleted = 0;
 	bool be_nice = false;
 	bool should_throttle = false;
@@ -480,7 +479,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	path->reada = READA_BACK;
 
-	key.objectid = ino;
+	key.objectid = control->ino;
 	key.offset = (u64)-1;
 	key.type = (u8)-1;
 
@@ -516,7 +515,7 @@ search_again:
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		found_type = found_key.type;
 
-		if (found_key.objectid != ino)
+		if (found_key.objectid != control->ino)
 			break;
 
 		if (found_type < control->min_type)
@@ -667,7 +666,7 @@ delete:
 			btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF,
 					extent_start, extent_num_bytes, 0);
 			btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
-					ino, extent_offset,
+					control->ino, extent_offset,
 					root->root_key.objectid, false);
 			ret = btrfs_free_extent(trans, &ref);
 			if (ret) {

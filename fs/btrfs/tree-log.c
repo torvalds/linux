@@ -4100,6 +4100,7 @@ static int truncate_inode_items(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_truncate_control control = {
 		.new_size = new_size,
+		.ino = btrfs_ino(inode),
 		.min_type = min_type,
 		.skip_ref_updates = true,
 	};

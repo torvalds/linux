@@ -293,6 +293,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_truncate_control control = {
 		.new_size = 0,
+		.ino = btrfs_ino(BTRFS_I(vfs_inode)),
 		.min_type = BTRFS_EXTENT_DATA_KEY,
 		.clear_extent_range = true,
 	};
