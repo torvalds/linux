@@ -9746,8 +9746,8 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"failed to get vlan filter config, ret = %d.\n", ret);
+		dev_err(&hdev->pdev->dev, "failed to get vport%u vlan filter config, ret = %d.\n",
+			vf_id, ret);
 		return ret;
 	}
 
@@ -9758,8 +9758,8 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
-		dev_err(&hdev->pdev->dev, "failed to set vlan filter, ret = %d.\n",
-			ret);
+		dev_err(&hdev->pdev->dev, "failed to set vport%u vlan filter, ret = %d.\n",
+			vf_id, ret);
 
 	return ret;
 }
