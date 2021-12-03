@@ -642,8 +642,9 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 	while (find_get_entries(mapping, index, end, &pvec, indices)) {
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
+			struct folio *folio;
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion not changing folio->index */
 			index = indices[i];
 
 			if (xa_is_value(page)) {
@@ -652,10 +653,11 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 					ret = -EBUSY;
 				continue;
 			}
+			folio = page_folio(page);
 
-			if (!did_range_unmap && page_mapped(page)) {
+			if (!did_range_unmap && folio_mapped(folio)) {
 				/*
-				 * If page is mapped, before taking its lock,
+				 * If folio is mapped, before taking its lock,
 				 * zap the rest of the file in one hit.
 				 */
 				unmap_mapping_pages(mapping, index,
@@ -663,26 +665,27 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				did_range_unmap = 1;
 			}
 
-			lock_page(page);
-			WARN_ON(page_to_index(page) != index);
-			if (page->mapping != mapping) {
-				unlock_page(page);
+			folio_lock(folio);
+			VM_BUG_ON_FOLIO(!folio_contains(folio, index), folio);
+			if (folio->mapping != mapping) {
+				folio_unlock(folio);
 				continue;
 			}
-			wait_on_page_writeback(page);
+			folio_wait_writeback(folio);
 
-			if (page_mapped(page))
-				unmap_mapping_folio(page_folio(page));
-			BUG_ON(page_mapped(page));
+			if (folio_mapped(folio))
+				unmap_mapping_folio(folio);
+			BUG_ON(folio_mapped(folio));
 
-			ret2 = do_launder_page(mapping, page);
+			ret2 = do_launder_page(mapping, &folio->page);
 			if (ret2 == 0) {
-				if (!invalidate_complete_page2(mapping, page))
+				if (!invalidate_complete_page2(mapping,
+								&folio->page))
 					ret2 = -EBUSY;
 			}
 			if (ret2 < 0)
 				ret = ret2;
-			unlock_page(page);
+			folio_unlock(folio);
 		}
 		pagevec_remove_exceptionals(&pvec);
 		pagevec_release(&pvec);
