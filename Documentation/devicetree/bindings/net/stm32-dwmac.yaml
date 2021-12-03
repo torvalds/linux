@@ -44,6 +44,12 @@ properties:
               - st,stm32-dwmac
           - const: snps,dwmac-3.50a
 
+  reg: true
+
+  reg-names:
+    items:
+      - const: stmmaceth
+
   clocks:
     minItems: 3
     items:

@@ -85,7 +85,6 @@ examples:
         reset-names = "mac", "mdio";
         clocks = <&pll 1>, <&pll 2>;
         clock-names = "eth", "mdio";
-        qca,ethcfg = <&ethcfg>;
         phy-mode = "mii";
         phy-handle = <&phy_port4>;
     };
