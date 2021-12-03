@@ -299,11 +299,11 @@ static struct arm_cmn_node *arm_cmn_node_to_xp(struct arm_cmn_node *dn)
 static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
 					 enum cmn_node_type type)
 {
-	int i;
+	struct arm_cmn_node *dn;
 
-	for (i = 0; i < cmn->num_dns; i++)
-		if (cmn->dns[i].type == type)
-			return &cmn->dns[i];
+	for (dn = cmn->dns; dn->type; dn++)
+		if (dn->type == type)
+			return dn;
 	return NULL;
 }
 
@@ -941,8 +941,8 @@ static int arm_cmn_event_init(struct perf_event *event)
 {
 	struct arm_cmn *cmn = to_cmn(event->pmu);
 	struct arm_cmn_hw_event *hw = to_cmn_hw(event);
+	struct arm_cmn_node *dn;
 	enum cmn_node_type type;
-	unsigned int i;
 	bool bynodeid;
 	u16 nodeid, eventid;
 
@@ -974,10 +974,12 @@ static int arm_cmn_event_init(struct perf_event *event)
 	nodeid = CMN_EVENT_NODEID(event);
 
 	hw->dn = arm_cmn_node(cmn, type);
-	for (i = hw->dn - cmn->dns; i < cmn->num_dns && cmn->dns[i].type == type; i++) {
+	if (!hw->dn)
+		return -EINVAL;
+	for (dn = hw->dn; dn->type == type; dn++) {
 		if (!bynodeid) {
 			hw->num_dns++;
-		} else if (cmn->dns[i].id != nodeid) {
+		} else if (dn->id != nodeid) {
 			hw->dn++;
 		} else {
 			hw->num_dns = 1;
@@ -1332,7 +1334,7 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 
 	cmn->xps = arm_cmn_node(cmn, CMN_TYPE_XP);
 
-	for (dn = cmn->dns; dn < cmn->dns + cmn->num_dns; dn++) {
+	for (dn = cmn->dns; dn->type; dn++) {
 		if (dn->type != CMN_TYPE_XP)
 			arm_cmn_init_node_to_xp(cmn, dn);
 		else if (cmn->num_dtcs == 1)
@@ -1382,6 +1384,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	u32 xp_offset[CMN_MAX_XPS];
 	u64 reg;
 	int i, j;
+	size_t sz;
 
 	cfg_region = cmn->base + rgn_offset;
 	reg = readl_relaxed(cfg_region + CMN_CFGM_PERIPH_ID_2);
@@ -1408,14 +1411,13 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 		cmn->num_dns += FIELD_GET(CMN_CI_CHILD_COUNT, reg);
 	}
 
-	/* Cheeky +1 to help terminate pointer-based iteration */
-	cmn->dns = devm_kcalloc(cmn->dev, cmn->num_dns + 1,
-				sizeof(*cmn->dns), GFP_KERNEL);
-	if (!cmn->dns)
+	/* Cheeky +1 to help terminate pointer-based iteration later */
+	dn = devm_kcalloc(cmn->dev, cmn->num_dns + 1, sizeof(*dn), GFP_KERNEL);
+	if (!dn)
 		return -ENOMEM;
 
 	/* Pass 2: now we can actually populate the nodes */
-	dn = cmn->dns;
+	cmn->dns = dn;
 	for (i = 0; i < cmn->num_xps; i++) {
 		void __iomem *xp_region = cmn->base + xp_offset[i];
 		struct arm_cmn_node *xp = dn++;
@@ -1483,6 +1485,11 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 
 	/* Correct for any nodes we skipped */
 	cmn->num_dns = dn - cmn->dns;
+
+	sz = (void *)(dn + 1) - (void *)cmn->dns;
+	dn = devm_krealloc(cmn->dev, cmn->dns, sz, GFP_KERNEL);
+	if (dn)
+		cmn->dns = dn;
 
 	/*
 	 * If mesh_x wasn't set during discovery then we never saw
