@@ -29,6 +29,9 @@ struct btrfs_truncate_control {
 	/* OUT: the last size we truncated this inode to. */
 	u64 last_size;
 
+	/* OUT: the number of bytes to sub from this inode. */
+	u64 sub_bytes;
+
 	/*
 	 * IN: minimum key type to remove.  All key types with this type are
 	 * removed only if their offset >= new_size.

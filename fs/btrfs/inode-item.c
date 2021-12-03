@@ -466,6 +466,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	BUG_ON(new_size > 0 && control->min_type != BTRFS_EXTENT_DATA_KEY);
 
 	control->last_size = new_size;
+	control->sub_bytes = 0;
 
 	/*
 	 * For shareable roots we want to back off from time to time, this turns
@@ -574,10 +575,8 @@ search_again:
 				btrfs_set_file_extent_num_bytes(leaf, fi,
 							 extent_num_bytes);
 				num_dec = (orig_num_bytes - extent_num_bytes);
-				if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) &&
-				    extent_start != 0)
-					inode_sub_bytes(&inode->vfs_inode,
-							num_dec);
+				if (extent_start != 0)
+					control->sub_bytes += num_dec;
 				btrfs_mark_buffer_dirty(leaf);
 			} else {
 				extent_num_bytes =
@@ -587,12 +586,8 @@ search_again:
 
 				/* FIXME blocksize != 4096 */
 				num_dec = btrfs_file_extent_num_bytes(leaf, fi);
-				if (extent_start != 0) {
-					if (test_bit(BTRFS_ROOT_SHAREABLE,
-						     &root->state))
-						inode_sub_bytes(&inode->vfs_inode,
-								num_dec);
-				}
+				if (extent_start != 0)
+					control->sub_bytes += num_dec;
 			}
 			clear_len = num_dec;
 		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
@@ -625,9 +620,7 @@ search_again:
 				clear_len = fs_info->sectorsize;
 			}
 
-			if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
-				inode_sub_bytes(&inode->vfs_inode,
-						item_end + 1 - new_size);
+			control->sub_bytes += item_end + 1 - new_size;
 		}
 delete:
 		/*

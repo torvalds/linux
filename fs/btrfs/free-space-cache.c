@@ -339,6 +339,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 	 */
 	ret = btrfs_truncate_inode_items(trans, root, inode, &control);
 
+	inode_sub_bytes(&inode->vfs_inode, control.sub_bytes);
 	btrfs_inode_safe_disk_i_size_write(inode, control.last_size);
 
 	unlock_extent_cached(&inode->io_tree, 0, (u64)-1, &cached_state);
