@@ -477,12 +477,10 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
 
 	/*
-	 * For non-free space inodes and non-shareable roots, we want to back
-	 * off from time to time.  This means all inodes in subvolume roots,
-	 * reloc roots, and data reloc roots.
+	 * For shareable roots we want to back off from time to time, this turns
+	 * out to be subvolume roots, reloc roots, and data reloc roots.
 	 */
-	if (!btrfs_is_free_space_inode(inode) &&
-	    test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
+	if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 		be_nice = true;
 
 	path = btrfs_alloc_path();
