@@ -2494,7 +2494,7 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(id));
 		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
-			val &= ~CSI_ENABLE_CAPTURE;
+			val &= ~(CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE);
 		else
 			val &= ~LVDS_ENABLE_CAPTURE;
 
