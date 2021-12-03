@@ -376,8 +376,8 @@ posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
                                 break;
                         case ACL_USER:
 				uid = mapped_kuid_fs(mnt_userns,
-						      &init_user_ns,
-						      pa->e_uid);
+						     i_user_ns(inode),
+						     pa->e_uid);
 				if (uid_eq(uid, current_fsuid()))
                                         goto mask;
 				break;
@@ -391,8 +391,8 @@ posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
 				break;
                         case ACL_GROUP:
 				gid = mapped_kgid_fs(mnt_userns,
-						      &init_user_ns,
-						      pa->e_gid);
+						     i_user_ns(inode),
+						     pa->e_gid);
 				if (in_group_p(gid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
