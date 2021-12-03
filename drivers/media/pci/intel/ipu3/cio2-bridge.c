@@ -308,6 +308,40 @@ err_unregister_sensors:
 	return ret;
 }
 
+/*
+ * The VCM cannot be probed until the PMIC is completely setup. We cannot rely
+ * on -EPROBE_DEFER for this, since the consumer<->supplier relations between
+ * the VCM and regulators/clks are not described in ACPI, instead they are
+ * passed as board-data to the PMIC drivers. Since -PROBE_DEFER does not work
+ * for the clks/regulators the VCM i2c-clients must not be instantiated until
+ * the PMIC is fully setup.
+ *
+ * The sensor/VCM ACPI device has an ACPI _DEP on the PMIC, check this using the
+ * acpi_dev_ready_for_enumeration() helper, like the i2c-core-acpi code does
+ * for the sensors.
+ */
+static int cio2_bridge_sensors_are_ready(void)
+{
+	struct acpi_device *adev;
+	bool ready = true;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(cio2_supported_sensors); i++) {
+		const struct cio2_sensor_config *cfg =
+			&cio2_supported_sensors[i];
+
+		for_each_acpi_dev_match(adev, cfg->hid, NULL, -1) {
+			if (!adev->status.enabled)
+				continue;
+
+			if (!acpi_dev_ready_for_enumeration(adev))
+				ready = false;
+		}
+	}
+
+	return ready;
+}
+
 int cio2_bridge_init(struct pci_dev *cio2)
 {
 	struct device *dev = &cio2->dev;
@@ -315,6 +349,9 @@ int cio2_bridge_init(struct pci_dev *cio2)
 	struct cio2_bridge *bridge;
 	unsigned int i;
 	int ret;
+
+	if (!cio2_bridge_sensors_are_ready())
+		return -EPROBE_DEFER;
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
