@@ -289,9 +289,11 @@ int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
 
 int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group *block_group,
-				    struct inode *inode)
+				    struct inode *vfs_inode)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_inode *inode = BTRFS_I(vfs_inode);
+	struct btrfs_root *root = inode->root;
+	struct extent_state *cached_state = NULL;
 	int ret = 0;
 	bool locked = false;
 
@@ -321,19 +323,23 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 		btrfs_free_path(path);
 	}
 
-	btrfs_i_size_write(BTRFS_I(inode), 0);
-	truncate_pagecache(inode, 0);
+	btrfs_i_size_write(inode, 0);
+	truncate_pagecache(vfs_inode, 0);
+
+	lock_extent_bits(&inode->io_tree, 0, (u64)-1, &cached_state);
+	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
 
 	/*
 	 * We skip the throttling logic for free space cache inodes, so we don't
 	 * need to check for -EAGAIN.
 	 */
-	ret = btrfs_truncate_inode_items(trans, root, BTRFS_I(inode),
-					 0, BTRFS_EXTENT_DATA_KEY, NULL);
+	ret = btrfs_truncate_inode_items(trans, root, inode, 0,
+					 BTRFS_EXTENT_DATA_KEY, NULL);
+	unlock_extent_cached(&inode->io_tree, 0, (u64)-1, &cached_state);
 	if (ret)
 		goto fail;
 
-	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+	ret = btrfs_update_inode(trans, root, inode);
 
 fail:
 	if (locked)

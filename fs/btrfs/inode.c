@@ -8583,10 +8583,28 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 	trans->block_rsv = rsv;
 
 	while (1) {
+		struct extent_state *cached_state = NULL;
+		const u64 new_size = inode->i_size;
+		const u64 lock_start = ALIGN_DOWN(new_size, fs_info->sectorsize);
+
+		lock_extent_bits(&BTRFS_I(inode)->io_tree, lock_start, (u64)-1,
+				 &cached_state);
+		/*
+		 * We want to drop from the next block forward in case this new
+		 * size is not block aligned since we will be keeping the last
+		 * block of the extent just the way it is.
+		 */
+		btrfs_drop_extent_cache(BTRFS_I(inode),
+					ALIGN(new_size, fs_info->sectorsize),
+					(u64)-1, 0);
+
 		ret = btrfs_truncate_inode_items(trans, root, BTRFS_I(inode),
 						 inode->i_size,
 						 BTRFS_EXTENT_DATA_KEY,
 						 &extents_found);
+		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start,
+				     (u64)-1, &cached_state);
+
 		trans->block_rsv = &fs_info->trans_block_rsv;
 		if (ret != -ENOSPC && ret != -EAGAIN)
 			break;

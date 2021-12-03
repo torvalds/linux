@@ -473,8 +473,6 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	u64 bytes_deleted = 0;
 	bool be_nice = false;
 	bool should_throttle = false;
-	const u64 lock_start = ALIGN_DOWN(new_size, fs_info->sectorsize);
-	struct extent_state *cached_state = NULL;
 
 	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
 
@@ -491,20 +489,6 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 	path->reada = READA_BACK;
-
-	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
-		lock_extent_bits(&inode->io_tree, lock_start, (u64)-1,
-				 &cached_state);
-
-		/*
-		 * We want to drop from the next block forward in case this
-		 * new size is not block aligned since we will be keeping the
-		 * last block of the extent just the way it is.
-		 */
-		btrfs_drop_extent_cache(inode, ALIGN(new_size,
-					fs_info->sectorsize),
-					(u64)-1, 0);
-	}
 
 	/*
 	 * This function is also used to drop the items in the log tree before
@@ -783,8 +767,6 @@ out:
 		if (!ret && last_size > new_size)
 			last_size = new_size;
 		btrfs_inode_safe_disk_i_size_write(inode, last_size);
-		unlock_extent_cached(&inode->io_tree, lock_start, (u64)-1,
-				     &cached_state);
 	}
 
 	btrfs_free_path(path);
