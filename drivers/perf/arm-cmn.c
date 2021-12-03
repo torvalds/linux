@@ -690,18 +690,19 @@ static void arm_cmn_pmu_disable(struct pmu *pmu)
 static u64 arm_cmn_read_dtm(struct arm_cmn *cmn, struct arm_cmn_hw_event *hw,
 			    bool snapshot)
 {
+	struct arm_cmn_dtm *dtm = NULL;
 	struct arm_cmn_node *dn;
-	unsigned int i, offset;
-	u64 count = 0;
+	unsigned int i, offset, dtm_idx;
+	u64 reg, count = 0;
 
 	offset = snapshot ? CMN_DTM_PMEVCNTSR : CMN_DTM_PMEVCNT;
 	for_each_hw_dn(hw, dn, i) {
-		struct arm_cmn_dtm *dtm = &cmn->dtms[dn->dtm];
-		int dtm_idx = arm_cmn_get_index(hw->dtm_idx, i);
-		u64 reg = readq_relaxed(dtm->base + offset);
-		u16 dtm_count = reg >> (dtm_idx * 16);
-
-		count += dtm_count;
+		if (dtm != &cmn->dtms[dn->dtm]) {
+			dtm = &cmn->dtms[dn->dtm];
+			reg = readq_relaxed(dtm->base + offset);
+		}
+		dtm_idx = arm_cmn_get_index(hw->dtm_idx, i);
+		count += (u16)(reg >> (dtm_idx * 16));
 	}
 	return count;
 }
