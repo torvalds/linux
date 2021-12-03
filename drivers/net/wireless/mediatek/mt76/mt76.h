@@ -373,6 +373,8 @@ struct mt76_driver_ops {
 
 	bool (*tx_status_data)(struct mt76_dev *dev, u8 *update);
 
+	bool (*rx_check)(struct mt76_dev *dev, void *data, int len);
+
 	void (*rx_skb)(struct mt76_dev *dev, enum mt76_rxq_id q,
 		       struct sk_buff *skb);
 
