@@ -1551,9 +1551,9 @@ static void dw_dp_encoder_disable(struct drm_encoder *encoder)
 		s->output_if &= ~(dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0);
 }
 
-static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
-				      struct drm_crtc_state *crtc_state,
-				      struct drm_connector_state *conn_state)
+static void dw_dp_encoder_atomic_mode_set(struct drm_encoder *encoder,
+					  struct drm_crtc_state *crtc_state,
+					  struct drm_connector_state *conn_state)
 {
 	struct dw_dp *dp = encoder_to_dp(encoder);
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
@@ -1578,14 +1578,12 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
-
-	return 0;
 }
 
 static const struct drm_encoder_helper_funcs dw_dp_encoder_helper_funcs = {
-	.enable		= dw_dp_encoder_enable,
-	.disable	= dw_dp_encoder_disable,
-	.atomic_check	= dw_dp_encoder_atomic_check,
+	.enable			= dw_dp_encoder_enable,
+	.disable		= dw_dp_encoder_disable,
+	.atomic_mode_set	= dw_dp_encoder_atomic_mode_set,
 };
 
 static int dw_dp_aux_write_data(struct dw_dp *dp, const u8 *buffer, size_t size)
