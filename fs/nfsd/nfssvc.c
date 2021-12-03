@@ -986,7 +986,7 @@ out:
 
 	/* Release module */
 	mutex_unlock(&nfsd_mutex);
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 	return 0;
 }
 

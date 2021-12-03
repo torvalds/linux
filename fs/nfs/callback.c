@@ -93,7 +93,7 @@ nfs4_callback_svc(void *vrqstp)
 		svc_process(rqstp);
 	}
 	svc_exit_thread(rqstp);
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 	return 0;
 }
 
@@ -137,7 +137,7 @@ nfs41_callback_svc(void *vrqstp)
 		}
 	}
 	svc_exit_thread(rqstp);
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 	return 0;
 }
 
