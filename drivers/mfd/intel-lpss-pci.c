@@ -17,6 +17,15 @@
 
 #include "intel-lpss.h"
 
+/* Some DSDTs have an unused GEXP ACPI device conflicting with I2C4 resources */
+static const struct pci_device_id ignore_resource_conflicts_ids[] = {
+	/* Microsoft Surface Go (version 1) I2C4 */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_INTEL, 0x9d64, 0x152d, 0x1182), },
+	/* Microsoft Surface Go 2 I2C4 */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_INTEL, 0x9d64, 0x152d, 0x1237), },
+	{ }
+};
+
 static int intel_lpss_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id)
 {
@@ -34,6 +43,9 @@ static int intel_lpss_pci_probe(struct pci_dev *pdev,
 
 	info->mem = &pdev->resource[0];
 	info->irq = pdev->irq;
+
+	if (pci_match_id(ignore_resource_conflicts_ids, pdev))
+		info->ignore_resource_conflicts = true;
 
 	pdev->d3cold_delay = 0;
 
