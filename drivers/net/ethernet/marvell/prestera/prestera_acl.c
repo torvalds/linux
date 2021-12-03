@@ -419,11 +419,8 @@ struct prestera_acl_rule_entry *
 prestera_acl_rule_entry_find(struct prestera_acl *acl,
 			     struct prestera_acl_rule_entry_key *key)
 {
-	struct prestera_acl_rule_entry *e;
-
-	e = rhashtable_lookup_fast(&acl->acl_rule_entry_ht, key,
-				   __prestera_acl_rule_entry_ht_params);
-	return IS_ERR(e) ? NULL : e;
+	return rhashtable_lookup_fast(&acl->acl_rule_entry_ht, key,
+				      __prestera_acl_rule_entry_ht_params);
 }
 
 static int __prestera_acl_rule_entry2hw_del(struct prestera_switch *sw,
