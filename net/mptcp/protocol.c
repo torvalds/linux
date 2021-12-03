@@ -1502,7 +1502,7 @@ static void mptcp_update_post_push(struct mptcp_sock *msk,
 		msk->snd_nxt = snd_nxt_new;
 }
 
-static void mptcp_check_and_set_pending(struct sock *sk)
+void mptcp_check_and_set_pending(struct sock *sk)
 {
 	if (mptcp_send_head(sk) &&
 	    !test_bit(MPTCP_PUSH_PENDING, &mptcp_sk(sk)->flags))
