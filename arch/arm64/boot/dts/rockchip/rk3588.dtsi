@@ -673,8 +673,9 @@
 		compatible = "snps,dwc-ahci";
 		reg = <0 0xfe220000 0 0x1000>;
 		clocks = <&cru ACLK_SATA1>, <&cru CLK_PMALIVE1>,
-			 <&cru CLK_RXOOB1>, <&cru CLK_PIPEPHY1_REF>;
-		clock-names = "sata", "pmalive", "rxoob", "ref";
+			 <&cru CLK_RXOOB1>, <&cru CLK_PIPEPHY1_REF>,
+			 <&cru CLK_PIPEPHY1_PIPE_ASIC_G>;
+		clock-names = "sata", "pmalive", "rxoob", "ref", "asic";
 		interrupts = <GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "hostc";
 		phys = <&combphy1_ps PHY_TYPE_SATA>;
@@ -763,8 +764,9 @@
 		compatible = "rockchip,rk3588-naneng-combphy";
 		reg = <0x0 0xfee10000 0x0 0x100>;
 		#phy-cells = <1>;
-		clocks = <&cru CLK_REF_PIPE_PHY1>, <&cru PCLK_PCIE_COMBO_PIPE_PHY1>;
-		clock-names = "refclk", "apbclk";
+		clocks = <&cru CLK_REF_PIPE_PHY1>, <&cru PCLK_PCIE_COMBO_PIPE_PHY1>,
+			 <&cru PCLK_PHP_ROOT>;
+		clock-names = "refclk", "apbclk", "phpclk";
 		assigned-clocks = <&cru CLK_REF_PIPE_PHY1>;
 		assigned-clock-rates = <100000000>;
 		resets = <&cru SRST_P_PCIE2_PHY1>, <&cru SRST_REF_PIPE_PHY1>;

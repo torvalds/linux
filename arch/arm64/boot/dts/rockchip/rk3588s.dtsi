@@ -3333,8 +3333,9 @@
 		compatible = "snps,dwc-ahci";
 		reg = <0 0xfe210000 0 0x1000>;
 		clocks = <&cru ACLK_SATA0>, <&cru CLK_PMALIVE0>,
-			 <&cru CLK_RXOOB0>, <&cru CLK_PIPEPHY0_REF>;
-		clock-names = "sata", "pmalive", "rxoob", "ref";
+			 <&cru CLK_RXOOB0>, <&cru CLK_PIPEPHY0_REF>,
+			 <&cru CLK_PIPEPHY0_PIPE_ASIC_G>;
+		clock-names = "sata", "pmalive", "rxoob", "ref", "asic";
 		interrupts = <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "hostc";
 		phys = <&combphy0_ps PHY_TYPE_SATA>;
@@ -3348,8 +3349,9 @@
 		compatible = "snps,dwc-ahci";
 		reg = <0 0xfe230000 0 0x1000>;
 		clocks = <&cru ACLK_SATA2>, <&cru CLK_PMALIVE2>,
-			 <&cru CLK_RXOOB2>, <&cru CLK_PIPEPHY2_REF>;
-		clock-names = "sata", "pmalive", "rxoob", "ref";
+			 <&cru CLK_RXOOB2>, <&cru CLK_PIPEPHY2_REF>,
+			 <&cru CLK_PIPEPHY2_PIPE_ASIC_G>;
+		clock-names = "sata", "pmalive", "rxoob", "ref", "asic";
 		interrupts = <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "hostc";
 		phys = <&combphy2_psu PHY_TYPE_SATA>;
@@ -4446,8 +4448,9 @@
 		compatible = "rockchip,rk3588-naneng-combphy";
 		reg = <0x0 0xfee00000 0x0 0x100>;
 		#phy-cells = <1>;
-		clocks = <&cru CLK_REF_PIPE_PHY0>, <&cru PCLK_PCIE_COMBO_PIPE_PHY0>;
-		clock-names = "refclk", "apbclk";
+		clocks = <&cru CLK_REF_PIPE_PHY0>, <&cru PCLK_PCIE_COMBO_PIPE_PHY0>,
+			 <&cru PCLK_PHP_ROOT>;
+		clock-names = "refclk", "apbclk", "phpclk";
 		assigned-clocks = <&cru CLK_REF_PIPE_PHY0>;
 		assigned-clock-rates = <100000000>;
 		resets = <&cru SRST_P_PCIE2_PHY0>, <&cru SRST_REF_PIPE_PHY0>;
@@ -4461,8 +4464,9 @@
 		compatible = "rockchip,rk3588-naneng-combphy";
 		reg = <0x0 0xfee20000 0x0 0x100>;
 		#phy-cells = <1>;
-		clocks = <&cru CLK_REF_PIPE_PHY2>, <&cru PCLK_PCIE_COMBO_PIPE_PHY2>;
-		clock-names = "refclk", "apbclk";
+		clocks = <&cru CLK_REF_PIPE_PHY2>, <&cru PCLK_PCIE_COMBO_PIPE_PHY2>,
+			 <&cru PCLK_PHP_ROOT>;
+		clock-names = "refclk", "apbclk", "phpclk";
 		assigned-clocks = <&cru CLK_REF_PIPE_PHY2>;
 		assigned-clock-rates = <100000000>;
 		resets = <&cru SRST_P_PCIE2_PHY2>, <&cru SRST_REF_PIPE_PHY2>;
