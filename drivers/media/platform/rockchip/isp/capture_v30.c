@@ -320,16 +320,17 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	mask = ISP3X_MI_XTD_FORMAT_MP_UV_SWAP;
 	rkisp_unite_set_bits(dev, ISP3X_MI_WR_XTD_FORMAT_CTRL, mask, val, false, is_unite);
 
+	mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_MP_YUV_MODE;
+	val = rkisp_read_reg_cache(dev, ISP3X_MPFBC_CTRL) & ~mask;
 	if (stream->out_fmt.pixelformat == V4L2_PIX_FMT_NV21 ||
 	    stream->out_fmt.pixelformat == V4L2_PIX_FMT_NV12 ||
 	    stream->out_fmt.pixelformat == V4L2_PIX_FMT_NV21M ||
 	    stream->out_fmt.pixelformat == V4L2_PIX_FMT_NV12M ||
 	    stream->out_fmt.pixelformat == V4L2_PIX_FMT_YUV420)
-		val = ISP3X_SEPERATE_YUV_CFG;
+		val |= ISP3X_SEPERATE_YUV_CFG;
 	else
-		val = ISP3X_SEPERATE_YUV_CFG | ISP3X_MP_YUV_MODE;
-	mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_MP_YUV_MODE;
-	rkisp_unite_set_bits(dev, ISP3X_MPFBC_CTRL, mask, val, false, is_unite);
+		val |= ISP3X_SEPERATE_YUV_CFG | ISP3X_MP_YUV_MODE;
+	rkisp_unite_write(dev, ISP3X_MPFBC_CTRL, val, false, is_unite);
 
 	val = calc_burst_len(stream) | CIF_MI_CTRL_INIT_BASE_EN |
 		CIF_MI_CTRL_INIT_OFFSET_EN | CIF_MI_MP_AUTOUPDATE_ENABLE |
@@ -411,16 +412,17 @@ static int sp_config_mi(struct rkisp_stream *stream)
 	mask = ISP3X_MI_XTD_FORMAT_SP_UV_SWAP;
 	rkisp_unite_set_bits(dev, ISP3X_MI_WR_XTD_FORMAT_CTRL, mask, val, false, is_unite);
 
+	mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_SP_YUV_MODE;
+	val = rkisp_read_reg_cache(dev, ISP3X_MPFBC_CTRL) & ~mask;
 	if (stream->out_fmt.pixelformat == V4L2_PIX_FMT_NV21 ||
 	    stream->out_fmt.pixelformat == V4L2_PIX_FMT_NV12 ||
 	    stream->out_fmt.pixelformat == V4L2_PIX_FMT_NV21M ||
 	    stream->out_fmt.pixelformat == V4L2_PIX_FMT_NV12M ||
 	    stream->out_fmt.pixelformat == V4L2_PIX_FMT_YUV420)
-		val = ISP3X_SEPERATE_YUV_CFG;
+		val |= ISP3X_SEPERATE_YUV_CFG;
 	else
-		val = ISP3X_SEPERATE_YUV_CFG | ISP3X_SP_YUV_MODE;
-	mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_SP_YUV_MODE;
-	rkisp_unite_set_bits(dev, ISP3X_MPFBC_CTRL, mask, val, false, is_unite);
+		val |= ISP3X_SEPERATE_YUV_CFG | ISP3X_SP_YUV_MODE;
+	rkisp_unite_write(dev, ISP3X_MPFBC_CTRL, val, false, is_unite);
 
 	val = calc_burst_len(stream) | CIF_MI_CTRL_INIT_BASE_EN |
 		CIF_MI_CTRL_INIT_OFFSET_EN | stream->out_isp_fmt.write_format |
@@ -489,13 +491,15 @@ static int bp_config_mi(struct rkisp_stream *stream)
 	val = ALIGN(out_fmt->plane_fmt[0].bytesperline, 16);
 	rkisp_unite_write(dev, ISP3X_MI_BP_WR_Y_LLENGTH, val, false, is_unite);
 
+	mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_BP_YUV_MODE;
+	val = rkisp_read_reg_cache(dev, ISP3X_MPFBC_CTRL) & ~mask;
+
 	if (out_fmt->pixelformat == V4L2_PIX_FMT_NV12 ||
 	    out_fmt->pixelformat == V4L2_PIX_FMT_NV12M)
-		val = ISP3X_SEPERATE_YUV_CFG;
+		val |= ISP3X_SEPERATE_YUV_CFG;
 	else
-		val = ISP3X_SEPERATE_YUV_CFG | ISP3X_BP_YUV_MODE;
-	mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_BP_YUV_MODE;
-	rkisp_unite_set_bits(dev, ISP3X_MPFBC_CTRL, mask, val, false, is_unite);
+		val |= ISP3X_SEPERATE_YUV_CFG | ISP3X_BP_YUV_MODE;
+	rkisp_unite_write(dev, ISP3X_MPFBC_CTRL, val, false, is_unite);
 	val = CIF_MI_CTRL_INIT_BASE_EN | CIF_MI_CTRL_INIT_OFFSET_EN;
 	rkisp_unite_set_bits(dev, ISP3X_MI_WR_CTRL, 0, val, false, is_unite);
 	mi_frame_end_int_enable(stream);
@@ -525,13 +529,14 @@ static void sp_enable_mi(struct rkisp_stream *stream)
 
 static void fbc_enable_mi(struct rkisp_stream *stream)
 {
-	u32 mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_MPFBC_YUV_MASK |
-		   ISP3X_MPFBC_SPARSE_MODE;
-	u32 val = stream->out_isp_fmt.write_format |
-		  ISP3X_HEAD_OFFSET_EN | ISP3X_MPFBC_EN;
+	u32 val, mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_MPFBC_YUV_MASK |
+			ISP3X_MPFBC_SPARSE_MODE;
 	bool is_unite = stream->ispdev->hw_dev->is_unite;
 
-	rkisp_unite_set_bits(stream->ispdev, ISP3X_MPFBC_CTRL, mask, val, false, is_unite);
+	/* config no effect immediately, read back is shadow, get config value from cache */
+	val = rkisp_read_reg_cache(stream->ispdev, ISP3X_MPFBC_CTRL) & ~mask;
+	val |= stream->out_isp_fmt.write_format | ISP3X_HEAD_OFFSET_EN | ISP3X_MPFBC_EN;
+	rkisp_unite_write(stream->ispdev, ISP3X_MPFBC_CTRL, val, false, is_unite);
 }
 
 static void bp_enable_mi(struct rkisp_stream *stream)
