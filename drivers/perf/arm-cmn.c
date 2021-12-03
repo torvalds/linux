@@ -1147,23 +1147,47 @@ static int arm_cmn_commit_txn(struct pmu *pmu)
 	return 0;
 }
 
-static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static void arm_cmn_migrate(struct arm_cmn *cmn, unsigned int cpu)
+{
+	unsigned int i;
+
+	perf_pmu_migrate_context(&cmn->pmu, cmn->cpu, cpu);
+	for (i = 0; i < cmn->num_dtcs; i++)
+		irq_set_affinity(cmn->dtc[i].irq, cpumask_of(cpu));
+	cmn->cpu = cpu;
+}
+
+static int arm_cmn_pmu_online_cpu(unsigned int cpu, struct hlist_node *cpuhp_node)
 {
 	struct arm_cmn *cmn;
-	unsigned int i, target;
+	int node;
 
-	cmn = hlist_entry_safe(node, struct arm_cmn, cpuhp_node);
+	cmn = hlist_entry_safe(cpuhp_node, struct arm_cmn, cpuhp_node);
+	node = dev_to_node(cmn->dev);
+	if (node != NUMA_NO_NODE && cpu_to_node(cmn->cpu) != node && cpu_to_node(cpu) == node)
+		arm_cmn_migrate(cmn, cpu);
+	return 0;
+}
+
+static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *cpuhp_node)
+{
+	struct arm_cmn *cmn;
+	unsigned int target;
+	int node;
+	cpumask_t mask;
+
+	cmn = hlist_entry_safe(cpuhp_node, struct arm_cmn, cpuhp_node);
 	if (cpu != cmn->cpu)
 		return 0;
 
-	target = cpumask_any_but(cpu_online_mask, cpu);
-	if (target >= nr_cpu_ids)
-		return 0;
-
-	perf_pmu_migrate_context(&cmn->pmu, cpu, target);
-	for (i = 0; i < cmn->num_dtcs; i++)
-		irq_set_affinity(cmn->dtc[i].irq, cpumask_of(target));
-	cmn->cpu = target;
+	node = dev_to_node(cmn->dev);
+	if (cpumask_and(&mask, cpumask_of_node(node), cpu_online_mask) &&
+	    cpumask_andnot(&mask, &mask, cpumask_of(cpu)))
+		target = cpumask_any(&mask);
+	else
+		target = cpumask_any_but(cpu_online_mask, cpu);
+	if (target < nr_cpu_ids)
+		arm_cmn_migrate(cmn, target);
 	return 0;
 }
 
@@ -1532,7 +1556,7 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	cmn->cpu = raw_smp_processor_id();
+	cmn->cpu = cpumask_local_spread(0, dev_to_node(cmn->dev));
 	cmn->pmu = (struct pmu) {
 		.module = THIS_MODULE,
 		.attr_groups = arm_cmn_attr_groups,
@@ -1608,7 +1632,8 @@ static int __init arm_cmn_init(void)
 	int ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
-				      "perf/arm/cmn:online", NULL,
+				      "perf/arm/cmn:online",
+				      arm_cmn_pmu_online_cpu,
 				      arm_cmn_pmu_offline_cpu);
 	if (ret < 0)
 		return ret;
