@@ -101,6 +101,8 @@
 #define ST_ASM330LHH_REG_OUTY_L_G_ADDR		0x24
 #define ST_ASM330LHH_REG_OUTZ_L_G_ADDR		0x26
 
+#define ST_ASM330LHH_REG_TIMESTAMP0_ADDR	0x40
+
 #define ST_ASM330LHH_REG_TAP_CFG0_ADDR		0x56
 #define ST_ASM330LHH_REG_LIR_MASK		BIT(0)
 
@@ -374,6 +376,8 @@ struct st_asm330lhh_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
  * @enable_mask: Enabled sensor bitmask.
+ * @hw_timestamp_global: hw timestamp value always monotonic where the most
+ *                       significant 8byte are incremented at every disable/enable.
  * @ts_offset: Hw timestamp offset.
  * @ts_delta_ns: Calibrate delta time tick.
  * @hw_ts: Latest hw timestamp from the sensor.
@@ -400,6 +404,8 @@ struct st_asm330lhh_hw {
 	enum st_asm330lhh_fifo_mode fifo_mode;
 	unsigned long state;
 	u32 enable_mask;
+
+	s64 hw_timestamp_global;
 
 	s64 ts_offset;
 	u64 ts_delta_ns;

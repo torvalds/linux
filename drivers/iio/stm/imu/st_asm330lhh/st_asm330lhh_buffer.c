@@ -20,7 +20,6 @@
 #include "st_asm330lhh.h"
 
 #define ST_ASM330LHH_REG_FIFO_STATUS1_ADDR	0x3a
-#define ST_ASM330LHH_REG_TIMESTAMP0_ADDR	0x40
 #define ST_ASM330LHH_REG_TIMESTAMP2_ADDR	0x42
 #define ST_ASM330LHH_REG_FIFO_DATA_OUT_TAG_ADDR	0x78
 
@@ -59,6 +58,9 @@ static inline s64 st_asm330lhh_ewma(s64 old, s64 new, int weight)
 inline int st_asm330lhh_reset_hwts(struct st_asm330lhh_hw *hw)
 {
 	u8 data = 0xaa;
+
+	hw->hw_timestamp_global = (hw->hw_timestamp_global + (1LL << 32)) &
+				  GENMASK_ULL(63, 32);
 
 	hw->ts = st_asm330lhh_get_time_ns(hw->iio_devs[0]);
 	hw->ts_offset = hw->ts;
@@ -206,9 +208,11 @@ static inline void st_asm330lhh_sync_hw_ts(struct st_asm330lhh_hw *hw, s64 ts)
 
 static int st_asm330lhh_read_fifo(struct st_asm330lhh_hw *hw)
 {
-	u8 iio_buf[ALIGN(ST_ASM330LHH_SAMPLE_SIZE, sizeof(s64)) + sizeof(s64)];
+	u8 iio_buf[ALIGN(ST_ASM330LHH_SAMPLE_SIZE, sizeof(s64)) +
+		   sizeof(s64) + sizeof(s64)];
 	u8 buf[6 * ST_ASM330LHH_FIFO_SAMPLE_SIZE], tag, *ptr;
 	int i, err, word_len, fifo_len, read_len;
+	__le64 hw_timestamp_push;
 	struct iio_dev *iio_dev;
 	s64 ts_irq, hw_ts_old;
 	__le16 fifo_status;
@@ -250,6 +254,11 @@ static int st_asm330lhh_read_fifo(struct st_asm330lhh_hw *hw)
 
 			if (tag == ST_ASM330LHH_TS_TAG) {
 				val = get_unaligned_le32(ptr);
+
+				hw->hw_timestamp_global =
+					(hw->hw_timestamp_global &
+					 GENMASK_ULL(63, 32)) |
+					(u32)le32_to_cpu(get_unaligned_le32(ptr));
 
 				if (hw->val_ts_old > val)
 					hw->hw_ts_high++;
@@ -293,9 +302,12 @@ static int st_asm330lhh_read_fifo(struct st_asm330lhh_hw *hw)
 				}
 
 				memcpy(iio_buf, ptr, ST_ASM330LHH_SAMPLE_SIZE);
+				hw_timestamp_push = cpu_to_le64(hw->hw_timestamp_global);
+				memcpy(&iio_buf[ALIGN(ST_ASM330LHH_SAMPLE_SIZE, sizeof(s64))],
+				       &hw_timestamp_push, sizeof(hw_timestamp_push));
 
 				hw->tsample = min_t(s64,
-						    st_asm330lhh_get_time_ns(iio_dev),
+						    st_asm330lhh_get_time_ns(hw->iio_devs[0]),
 						    hw->tsample);
 
 				iio_push_to_buffers_with_timestamp(iio_dev,

@@ -52,7 +52,7 @@ static struct st_asm330lhh_selftest_table {
 
 static struct st_asm330lhh_suspend_resume_entry
 	st_asm330lhh_suspend_resume[ST_ASM330LHH_SUSPEND_RESUME_REGS] = {
-    [ST_ASM330LHH_CTRL1_XL_REG] = {
+	[ST_ASM330LHH_CTRL1_XL_REG] = {
 		.addr = ST_ASM330LHH_CTRL1_XL_ADDR,
 		.mask = GENMASK(3, 2),
 	},
@@ -321,6 +321,18 @@ static const struct iio_chan_spec_ext_info st_asm330lhh_ext_info[] = {
 	{},
 };
 
+#define IIO_CHAN_HW_TIMESTAMP(si) {					\
+	.type = IIO_COUNT,						\
+	.address = ST_ASM330LHH_REG_TIMESTAMP0_ADDR,			\
+	.scan_index = si,						\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = 64,						\
+		.storagebits = 64,					\
+		.endianness = IIO_LE,					\
+	},								\
+}
+
 static const struct iio_chan_spec st_asm330lhh_acc_channels[] = {
 	ST_ASM330LHH_DATA_CHANNEL(IIO_ACCEL, ST_ASM330LHH_REG_OUTX_L_A_ADDR,
 				1, IIO_MOD_X, 0, 16, 16, 's'),
@@ -329,7 +341,8 @@ static const struct iio_chan_spec st_asm330lhh_acc_channels[] = {
 	ST_ASM330LHH_DATA_CHANNEL(IIO_ACCEL, ST_ASM330LHH_REG_OUTZ_L_A_ADDR,
 				1, IIO_MOD_Z, 2, 16, 16, 's'),
 	ST_ASM330LHH_EVENT_CHANNEL(IIO_ACCEL, flush),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	IIO_CHAN_HW_TIMESTAMP(3),
+	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
 static const struct iio_chan_spec st_asm330lhh_gyro_channels[] = {
@@ -340,7 +353,8 @@ static const struct iio_chan_spec st_asm330lhh_gyro_channels[] = {
 	ST_ASM330LHH_DATA_CHANNEL(IIO_ANGL_VEL, ST_ASM330LHH_REG_OUTZ_L_G_ADDR,
 				1, IIO_MOD_Z, 2, 16, 16, 's'),
 	ST_ASM330LHH_EVENT_CHANNEL(IIO_ANGL_VEL, flush),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	IIO_CHAN_HW_TIMESTAMP(3),
+	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
 static
@@ -361,7 +375,8 @@ __maybe_unused const struct iio_chan_spec st_asm330lhh_temp_channels[] = {
 		}
 	},
 	ST_ASM330LHH_EVENT_CHANNEL(IIO_TEMP, flush),
-	IIO_CHAN_SOFT_TIMESTAMP(1),
+	IIO_CHAN_HW_TIMESTAMP(1),
+	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
 int __st_asm330lhh_write_with_mask(struct st_asm330lhh_hw *hw, u8 addr, u8 mask,
@@ -1508,7 +1523,11 @@ static const struct iio_info st_asm330lhh_temp_info = {
 	.write_raw = st_asm330lhh_write_raw,
 };
 
-static const unsigned long st_asm330lhh_available_scan_masks[] = { 0x7, 0x0 };
+static const unsigned long st_asm330lhh_available_scan_masks[] = { BIT(0) |
+								   BIT(1) |
+								   BIT(2) |
+								   BIT(3),
+								   0x0 };
 
 static int st_asm330lhh_reset_device(struct st_asm330lhh_hw *hw)
 {
@@ -1717,6 +1736,7 @@ int st_asm330lhh_probe(struct device *dev, int irq,
 	hw->irq = irq;
 	hw->tf = tf_ops;
 	hw->odr_table_entry = st_asm330lhh_odr_table;
+	hw->hw_timestamp_global = 0;
 
 #ifdef CONFIG_IIO_ST_ASM330LHH_EN_REGULATOR
 	hw->vdd_supply = devm_regulator_get(dev, "vdd");
