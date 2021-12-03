@@ -1605,6 +1605,27 @@ dw_hdmi_connector_set_property(struct drm_connector *connector,
 						     property, val);
 }
 
+static void dw_hdmi_attach_properties(struct dw_hdmi_qp *hdmi)
+{
+	unsigned int color = MEDIA_BUS_FMT_RGB888_1X24;
+	const struct dw_hdmi_property_ops *ops =
+				hdmi->plat_data->property_ops;
+
+	if (ops && ops->attach_properties)
+		return ops->attach_properties(&hdmi->connector, color, 0,
+					      hdmi->plat_data->phy_data);
+}
+
+static void dw_hdmi_destroy_properties(struct dw_hdmi_qp *hdmi)
+{
+	const struct dw_hdmi_property_ops *ops =
+				hdmi->plat_data->property_ops;
+
+	if (ops && ops->destroy_properties)
+		return ops->destroy_properties(&hdmi->connector,
+					       hdmi->plat_data->phy_data);
+}
+
 static struct drm_encoder *
 dw_hdmi_connector_best_encoder(struct drm_connector *connector)
 {
@@ -1770,6 +1791,7 @@ static int dw_hdmi_qp_bridge_attach(struct drm_bridge *bridge,
 			   DRM_MODE_CONNECTOR_HDMIA);
 
 	drm_connector_attach_encoder(connector, encoder);
+	dw_hdmi_attach_properties(hdmi);
 
 	cec_fill_conn_info_from_drm(&conn_info, connector);
 	notifier = cec_notifier_conn_register(hdmi->dev, NULL, &conn_info);
@@ -2244,6 +2266,7 @@ static void __dw_hdmi_remove(struct dw_hdmi_qp *hdmi)
 	if (hdmi->earc_irq)
 		disable_irq(hdmi->earc_irq);
 
+	dw_hdmi_destroy_properties(hdmi);
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 
 	if (hdmi->audio && !IS_ERR(hdmi->audio))

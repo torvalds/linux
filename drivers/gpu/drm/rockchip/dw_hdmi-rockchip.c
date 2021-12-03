@@ -2290,26 +2290,28 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
-	prop = drm_property_create_enum(connector->dev, 0,
-					"output_hdmi_dvi",
-					output_hdmi_dvi_enum_list,
-					ARRAY_SIZE(output_hdmi_dvi_enum_list));
-	if (prop) {
-		hdmi->output_hdmi_dvi = prop;
-		drm_object_attach_property(&connector->base, prop, 0);
-	}
+	if (!hdmi->is_hdmi_qp) {
+		prop = drm_property_create_enum(connector->dev, 0,
+						"output_hdmi_dvi",
+						output_hdmi_dvi_enum_list,
+						ARRAY_SIZE(output_hdmi_dvi_enum_list));
+		if (prop) {
+			hdmi->output_hdmi_dvi = prop;
+			drm_object_attach_property(&connector->base, prop, 0);
+		}
 
-	prop = drm_property_create_enum(connector->dev, 0,
-					 "output_type_capacity",
-					 output_type_cap_list,
-					 ARRAY_SIZE(output_type_cap_list));
-	if (prop) {
-		hdmi->output_type_capacity = prop;
-		drm_object_attach_property(&connector->base, prop, 0);
+		prop = drm_property_create_enum(connector->dev, 0,
+						 "output_type_capacity",
+						 output_type_cap_list,
+						 ARRAY_SIZE(output_type_cap_list));
+		if (prop) {
+			hdmi->output_type_capacity = prop;
+			drm_object_attach_property(&connector->base, prop, 0);
+		}
 	}
 
 	prop = connector->dev->mode_config.hdr_output_metadata_property;
-	if (version >= 0x211a)
+	if (version >= 0x211a || hdmi->is_hdmi_qp)
 		drm_object_attach_property(&connector->base, prop, 0);
 	drm_object_attach_property(&connector->base, private->connector_id_prop, 0);
 }
