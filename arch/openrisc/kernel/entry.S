@@ -1162,15 +1162,13 @@ _fork_save_extra_regs_and_call:
 
 ENTRY(__sys_clone)
 	l.movhi	r29,hi(sys_clone)
-	l.ori	r29,r29,lo(sys_clone)
 	l.j	_fork_save_extra_regs_and_call
-	 l.nop
+	 l.ori	r29,r29,lo(sys_clone)
 
 ENTRY(__sys_fork)
 	l.movhi	r29,hi(sys_fork)
-	l.ori	r29,r29,lo(sys_fork)
 	l.j	_fork_save_extra_regs_and_call
-	 l.nop
+	 l.ori	r29,r29,lo(sys_fork)
 
 ENTRY(sys_rt_sigreturn)
 	l.jal	_sys_rt_sigreturn
