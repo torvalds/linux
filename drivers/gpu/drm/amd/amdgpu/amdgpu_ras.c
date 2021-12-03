@@ -898,7 +898,8 @@ static void amdgpu_ras_get_ecc_info(struct amdgpu_device *adev, struct ras_err_d
 	int ret = 0;
 
 	/* skip get ecc info during gpu recovery */
-	if (atomic_read(&ras->in_recovery) == 1)
+	if (atomic_read(&ras->in_recovery) == 1 &&
+		adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 2))
 		return;
 
 	/*
