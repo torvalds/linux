@@ -9331,7 +9331,6 @@ void ufshcd_remove(struct ufs_hba *hba)
 	ufs_sysfs_remove_nodes(hba->dev);
 	blk_cleanup_queue(hba->tmf_queue);
 	blk_mq_free_tag_set(&hba->tmf_tag_set);
-	blk_cleanup_queue(hba->cmd_queue);
 	scsi_remove_host(hba->host);
 	/* disable interrupts */
 	ufshcd_disable_intr(hba, hba->intr_mask);
@@ -9551,12 +9550,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		goto out_disable;
 	}
 
-	hba->cmd_queue = blk_mq_init_queue(&hba->host->tag_set);
-	if (IS_ERR(hba->cmd_queue)) {
-		err = PTR_ERR(hba->cmd_queue);
-		goto out_remove_scsi_host;
-	}
-
 	hba->tmf_tag_set = (struct blk_mq_tag_set) {
 		.nr_hw_queues	= 1,
 		.queue_depth	= hba->nutmrs,
@@ -9565,7 +9558,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	};
 	err = blk_mq_alloc_tag_set(&hba->tmf_tag_set);
 	if (err < 0)
-		goto free_cmd_queue;
+		goto out_remove_scsi_host;
 	hba->tmf_queue = blk_mq_init_queue(&hba->tmf_tag_set);
 	if (IS_ERR(hba->tmf_queue)) {
 		err = PTR_ERR(hba->tmf_queue);
@@ -9634,8 +9627,6 @@ free_tmf_queue:
 	blk_cleanup_queue(hba->tmf_queue);
 free_tmf_tag_set:
 	blk_mq_free_tag_set(&hba->tmf_tag_set);
-free_cmd_queue:
-	blk_cleanup_queue(hba->cmd_queue);
 out_remove_scsi_host:
 	scsi_remove_host(hba->host);
 out_disable:
