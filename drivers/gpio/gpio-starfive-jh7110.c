@@ -94,7 +94,7 @@ static int sfvic7110_direction_input(struct gpio_chip *gc, unsigned offset)
 
 	if (offset >= gc->ngpio)
 		return -EINVAL;
-	
+
 	raw_spin_lock_irqsave(&chip->lock, flags);
 	v = readl_relaxed(chip->base + GPIO_DOEN_X_REG + (offset & ~0x3));
 	v &= ~(0x3f << ((offset & 0x3) * 8));
@@ -113,7 +113,7 @@ static int sfvic7110_direction_output(struct gpio_chip *gc, unsigned offset, int
 
 	if (offset >= gc->ngpio)
 		return -EINVAL;
-	
+
 	raw_spin_lock_irqsave(&chip->lock, flags);
 	v = readl_relaxed(chip->base + GPIO_DOEN_X_REG + (offset & ~0x3));
 	v &= ~(0x3f << ((offset & 0x3) * 8));
@@ -352,6 +352,22 @@ static struct irq_chip sfvic7110_irqchip = {
 	.irq_enable	= sfvic7110_irq_enable,
 	.irq_disable	= sfvic7110_irq_disable,
 };
+
+
+static int starfive_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
+					     unsigned int child,
+					     unsigned int child_type,
+					     unsigned int *parent,
+					     unsigned int *parent_type)
+{
+	struct sfvic7110_gpio *chip = gpiochip_get_data(gc);
+	struct irq_data *d = irq_get_irq_data(chip->irq_parent[child]);
+
+	*parent_type = IRQ_TYPE_NONE;
+	*parent = irqd_to_hwirq(d);
+
+	return 0;
+}
 
 static irqreturn_t sfvic7110_irq_handler(int irq, void *gc)
 {
@@ -637,6 +653,10 @@ static int sfvic7110_gpio_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, ret, ngpio;
 	int loop;
+	struct gpio_irq_chip *girq;
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *irq_parent;
+	struct irq_domain *parent;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip) {
@@ -666,12 +686,38 @@ static int sfvic7110_gpio_probe(struct platform_device *pdev)
 	chip->gc.parent = dev;
 	chip->gc.owner = THIS_MODULE;
 
+	irq_parent = of_irq_find_parent(node);
+	if (!irq_parent) {
+		dev_err(dev, "no IRQ parent node\n");
+		return -ENODEV;
+	}
+	parent = irq_find_host(irq_parent);
+	if (!parent) {
+		dev_err(dev, "no IRQ parent domain\n");
+		return -ENODEV;
+	}
+
+	girq = &chip->gc.irq;
+	girq->chip = &sfvic7110_irqchip;
+	girq->fwnode = of_node_to_fwnode(node);
+	girq->parent_domain = parent;
+	girq->child_to_parent_hwirq = starfive_gpio_child_to_parent_hwirq;
+	girq->handler = handle_simple_irq;
+	girq->default_type = IRQ_TYPE_NONE;
+
+	/* Disable all GPIO interrupts before enabling parent interrupts */
+	iowrite32(0, chip->base + GPIO_IE_HIGH);
+	iowrite32(0, chip->base + GPIO_IE_LOW);
+	chip->enabled = 0;
+
+	platform_set_drvdata(pdev, chip);
 	ret = gpiochip_add_data(&chip->gc, chip);
 	if (ret){
 		dev_err(dev, "gpiochip_add_data ret=%d!\n", ret);
 		return ret;
 	}
 
+#if 0
 	/* Disable all GPIO interrupts before enabling parent interrupts */
 	iowrite32(0, chip->base + GPIO_IE_HIGH);
 	iowrite32(0, chip->base + GPIO_IE_LOW);
@@ -684,11 +730,15 @@ static int sfvic7110_gpio_probe(struct platform_device *pdev)
 		gpiochip_remove(&chip->gc);
 		return ret;
 	}
+#endif
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(dev, "Cannot get IRQ resource\n");
 		return irq;
 	}
+
+	chip->irq_parent[0] = irq;
 
 	ret = devm_request_irq(dev, irq, sfvic7110_irq_handler, IRQF_SHARED,
 			       dev_name(dev), chip);
