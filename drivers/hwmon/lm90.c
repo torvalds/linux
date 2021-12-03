@@ -1730,13 +1730,42 @@ static const char *lm90_detect_gmt(struct i2c_client *client, int chip_id,
 				   int config1, int convrate)
 {
 	int address = client->addr;
-	const char *name = NULL;
 
-	if ((address == 0x4c || address == 0x4d) && chip_id == 0x01 &&
-	    !(config1 & 0x3f) && convrate <= 0x08)
-		name = "g781";
+	/*
+	 * According to the datasheet, G781 is supposed to be at I2C Address
+	 * 0x4c and have a chip ID of 0x01. G781-1 is supposed to be at I2C
+	 * address 0x4d and have a chip ID of 0x03. However, when support
+	 * for G781 was added, chips at 0x4c and 0x4d were found to have a
+	 * chip ID of 0x01. A G781-1 at I2C address 0x4d was now found with
+	 * chip ID 0x03.
+	 * To avoid detection failures, accept chip ID 0x01 and 0x03 at both
+	 * addresses.
+	 * G784 reports manufacturer ID 0x47 and chip ID 0x01. A public
+	 * datasheet is not available. Extensive testing suggests that
+	 * the chip appears to be fully compatible with G781.
+	 * Available register dumps show that G751 also reports manufacturer
+	 * ID 0x47 and chip ID 0x01 even though that chip does not officially
+	 * support those registers. This makes chip detection somewhat
+	 * vulnerable. To improve detection quality, read the offset low byte
+	 * and alert fault queue registers and verify that only expected bits
+	 * are set.
+	 */
+	if ((chip_id == 0x01 || chip_id == 0x03) &&
+	    (address == 0x4c || address == 0x4d) &&
+	    !(config1 & 0x3f) && convrate <= 0x08) {
+		int reg;
 
-	return name;
+		reg = i2c_smbus_read_byte_data(client, LM90_REG_REMOTE_OFFSL);
+		if (reg < 0 || reg & 0x1f)
+			return NULL;
+		reg = i2c_smbus_read_byte_data(client, TMP451_REG_CONALERT);
+		if (reg < 0 || reg & 0xf1)
+			return NULL;
+
+		return "g781";
+	}
+
+	return NULL;
 }
 
 static const char *lm90_detect_ti(struct i2c_client *client, int chip_id,
