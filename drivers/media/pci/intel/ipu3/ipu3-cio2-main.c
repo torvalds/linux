@@ -1713,11 +1713,6 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	struct cio2_device *cio2;
 	int r;
 
-	cio2 = devm_kzalloc(dev, sizeof(*cio2), GFP_KERNEL);
-	if (!cio2)
-		return -ENOMEM;
-	cio2->pci_dev = pci_dev;
-
 	/*
 	 * On some platforms no connections to sensors are defined in firmware,
 	 * if the device has no endpoints then we can try to build those as
@@ -1734,6 +1729,11 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 		if (r)
 			return r;
 	}
+
+	cio2 = devm_kzalloc(dev, sizeof(*cio2), GFP_KERNEL);
+	if (!cio2)
+		return -ENOMEM;
+	cio2->pci_dev = pci_dev;
 
 	r = pcim_enable_device(pci_dev);
 	if (r) {
