@@ -488,15 +488,6 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	path->reada = READA_BACK;
 
-	/*
-	 * This function is also used to drop the items in the log tree before
-	 * we relog the inode, so if root != BTRFS_I(inode)->root, it means
-	 * it is used to drop the logged items. So we shouldn't kill the delayed
-	 * items.
-	 */
-	if (min_type == 0 && root == inode->root)
-		btrfs_kill_delayed_inode_items(inode);
-
 	key.objectid = ino;
 	key.offset = (u64)-1;
 	key.type = (u8)-1;

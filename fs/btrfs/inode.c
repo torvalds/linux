@@ -5226,9 +5226,21 @@ void btrfs_evict_inode(struct inode *inode)
 		goto no_delete;
 	}
 
+	/*
+	 * This makes sure the inode item in tree is uptodate and the space for
+	 * the inode update is released.
+	 */
 	ret = btrfs_commit_inode_delayed_inode(BTRFS_I(inode));
 	if (ret)
 		goto no_delete;
+
+	/*
+	 * This drops any pending insert or delete operations we have for this
+	 * inode.  We could have a delayed dir index deletion queued up, but
+	 * we're removing the inode completely so that'll be taken care of in
+	 * the truncate.
+	 */
+	btrfs_kill_delayed_inode_items(BTRFS_I(inode));
 
 	rsv = btrfs_alloc_block_rsv(fs_info, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv)
