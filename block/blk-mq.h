@@ -374,5 +374,21 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	return __blk_mq_active_requests(hctx) < depth;
 }
 
+/* run the code block in @dispatch_ops with rcu/srcu read lock held */
+#define blk_mq_run_dispatch_ops(hctx, dispatch_ops)		\
+do {								\
+	if (!((hctx)->flags & BLK_MQ_F_BLOCKING)) {		\
+		rcu_read_lock();				\
+		(dispatch_ops);					\
+		rcu_read_unlock();				\
+	} else {						\
+		int srcu_idx;					\
+								\
+		might_sleep();					\
+		srcu_idx = srcu_read_lock((hctx)->srcu);	\
+		(dispatch_ops);					\
+		srcu_read_unlock((hctx)->srcu, srcu_idx);	\
+	}							\
+} while (0)
 
 #endif
