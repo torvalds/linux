@@ -6,6 +6,12 @@
 
 #include <linux/types.h>
 
+#include "hnae3.h"
+
+struct hclge_dev;
+struct hclge_vport;
+enum hclge_opcode_type;
+
 /* MAC Pause */
 #define HCLGE_TX_MAC_PAUSE_EN_MSK	BIT(0)
 #define HCLGE_RX_MAC_PAUSE_EN_MSK	BIT(1)
