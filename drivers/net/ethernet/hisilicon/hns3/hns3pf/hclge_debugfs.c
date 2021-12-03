@@ -782,7 +782,6 @@ static int hclge_dbg_dump_tm_pg(struct hclge_dev *hdev, char *buf, int len)
 
 	data_str = kcalloc(ARRAY_SIZE(tm_pg_items),
 			   HCLGE_DBG_DATA_STR_LEN, GFP_KERNEL);
-
 	if (!data_str)
 		return -ENOMEM;
 
