@@ -3207,7 +3207,7 @@ static void tcp_enable_tx_delay(void)
  * TCP_CORK can be set together with TCP_NODELAY and it is stronger than
  * TCP_NODELAY.
  */
-static void __tcp_sock_set_cork(struct sock *sk, bool on)
+void __tcp_sock_set_cork(struct sock *sk, bool on)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -3235,7 +3235,7 @@ EXPORT_SYMBOL(tcp_sock_set_cork);
  * However, when TCP_NODELAY is set we make an explicit push, which overrides
  * even TCP_CORK for currently queued segments.
  */
-static void __tcp_sock_set_nodelay(struct sock *sk, bool on)
+void __tcp_sock_set_nodelay(struct sock *sk, bool on)
 {
 	if (on) {
 		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF|TCP_NAGLE_PUSH;
