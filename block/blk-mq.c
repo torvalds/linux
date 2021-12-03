@@ -2464,12 +2464,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 
 static blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
 {
-	blk_status_t ret;
-	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
-
-	blk_mq_run_dispatch_ops(rq->q,
-		ret = __blk_mq_try_issue_directly(hctx, rq, true, last));
-	return ret;
+	return __blk_mq_try_issue_directly(rq->mq_hctx, rq, true, last);
 }
 
 static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
@@ -2526,7 +2521,8 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	plug->rq_count = 0;
 
 	if (!plug->multiple_queues && !plug->has_elevator && !from_schedule) {
-		blk_mq_plug_issue_direct(plug, false);
+		blk_mq_run_dispatch_ops(plug->mq_list->q,
+				blk_mq_plug_issue_direct(plug, false));
 		if (rq_list_empty(plug->mq_list))
 			return;
 	}
@@ -2867,7 +2863,9 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 	 * bypass a potential scheduler on the bottom device for
 	 * insert.
 	 */
-	return blk_mq_request_issue_directly(rq, true);
+	blk_mq_run_dispatch_ops(rq->q,
+			ret = blk_mq_request_issue_directly(rq, true));
+	return ret;
 }
 EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
 
