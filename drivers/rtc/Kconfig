@@ -1455,6 +1455,19 @@ config RTC_DRV_SH
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-sh.
 
+config RTC_DRV_SUNPLUS
+	tristate "Sunplus SP7021 RTC"
+	depends on SOC_SP7021
+	help
+	  Say 'yes' to get support for the real-time clock present in
+	  Sunplus SP7021 - a SoC for industrial applications. It provides
+	  RTC status check, timer/alarm functionalities, user data
+	  reservation with the battery over 2.5V, RTC power status check
+	  and battery charge.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-sunplus.
+
 config RTC_DRV_VR41XX
 	tristate "NEC VR41XX"
 	depends on CPU_VR41XX || COMPILE_TEST
