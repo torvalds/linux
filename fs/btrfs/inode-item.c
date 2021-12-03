@@ -624,11 +624,11 @@ search_again:
 		}
 delete:
 		/*
-		 * We use btrfs_truncate_inode_items() to clean up log trees for
-		 * multiple fsyncs, and in this case we don't want to clear the
-		 * file extent range because it's just the log.
+		 * We only want to clear the file extent range if we're
+		 * modifying the actual inode's mapping, which is just the
+		 * normal truncate path.
 		 */
-		if (root == inode->root) {
+		if (control->clear_extent_range) {
 			ret = btrfs_inode_clear_file_extent_range(inode,
 						  clear_start, clear_len);
 			if (ret) {

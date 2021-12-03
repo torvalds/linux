@@ -8534,6 +8534,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 {
 	struct btrfs_truncate_control control = {
 		.min_type = BTRFS_EXTENT_DATA_KEY,
+		.clear_extent_range = true,
 	};
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;

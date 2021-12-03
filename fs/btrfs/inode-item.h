@@ -43,6 +43,12 @@ struct btrfs_truncate_control {
 	 * extents we drop.
 	 */
 	bool skip_ref_updates;
+
+	/*
+	 * IN: true if we need to clear the file extent range for the inode as
+	 * we drop the file extent items.
+	 */
+	bool clear_extent_range;
 };
 
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
