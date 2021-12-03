@@ -2,13 +2,16 @@
 /* Author: Dan Scally <djrscally@gmail.com> */
 
 #include <linux/i2c.h>
+#include <linux/kernel.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps68470.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/tps68470.h>
 #include <linux/regmap.h>
+#include <linux/string.h>
 
 #include "common.h"
+#include "tps68470.h"
 
 #define DESIGNED_FOR_CHROMEOS		1
 #define DESIGNED_FOR_WINDOWS		2
@@ -95,6 +98,7 @@ static int skl_int3472_tps68470_calc_type(struct acpi_device *adev)
 static int skl_int3472_tps68470_probe(struct i2c_client *client)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
+	const struct int3472_tps68470_board_data *board_data;
 	struct tps68470_clk_platform_data clk_pdata = {};
 	struct mfd_cell *cells;
 	struct regmap *regmap;
@@ -123,6 +127,10 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 	device_type = skl_int3472_tps68470_calc_type(adev);
 	switch (device_type) {
 	case DESIGNED_FOR_WINDOWS:
+		board_data = int3472_tps68470_get_board_data(dev_name(&client->dev));
+		if (!board_data)
+			return dev_err_probe(&client->dev, -ENODEV, "No board-data found for this model\n");
+
 		cells = kcalloc(TPS68470_WIN_MFD_CELL_COUNT, sizeof(*cells), GFP_KERNEL);
 		if (!cells)
 			return -ENOMEM;
@@ -137,12 +145,20 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 		cells[0].platform_data = &clk_pdata;
 		cells[0].pdata_size = sizeof(clk_pdata);
 		cells[1].name = "tps68470-regulator";
+		cells[1].platform_data = (void *)board_data->tps68470_regulator_pdata;
+		cells[1].pdata_size = sizeof(struct tps68470_regulator_platform_data);
 		cells[2].name = "tps68470-gpio";
+
+		gpiod_add_lookup_table(board_data->tps68470_gpio_lookup_table);
 
 		ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
 					   cells, TPS68470_WIN_MFD_CELL_COUNT,
 					   NULL, 0, NULL);
 		kfree(cells);
+
+		if (ret)
+			gpiod_remove_lookup_table(board_data->tps68470_gpio_lookup_table);
+
 		break;
 	case DESIGNED_FOR_CHROMEOS:
 		ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
@@ -157,6 +173,17 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 	return ret;
 }
 
+static int skl_int3472_tps68470_remove(struct i2c_client *client)
+{
+	const struct int3472_tps68470_board_data *board_data;
+
+	board_data = int3472_tps68470_get_board_data(dev_name(&client->dev));
+	if (board_data)
+		gpiod_remove_lookup_table(board_data->tps68470_gpio_lookup_table);
+
+	return 0;
+}
+
 static const struct acpi_device_id int3472_device_id[] = {
 	{ "INT3472", 0 },
 	{ }
@@ -169,6 +196,7 @@ static struct i2c_driver int3472_tps68470 = {
 		.acpi_match_table = int3472_device_id,
 	},
 	.probe_new = skl_int3472_tps68470_probe,
+	.remove = skl_int3472_tps68470_remove,
 };
 module_i2c_driver(int3472_tps68470);
 
