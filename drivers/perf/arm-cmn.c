@@ -255,6 +255,58 @@ struct arm_cmn {
 
 static int arm_cmn_hp_state;
 
+struct arm_cmn_nodeid {
+	u8 x;
+	u8 y;
+	u8 port;
+	u8 dev;
+};
+
+static int arm_cmn_xyidbits(const struct arm_cmn *cmn)
+{
+	int dim = max(cmn->mesh_x, cmn->mesh_y);
+
+	return dim > 4 ? 3 : 2;
+}
+
+static struct arm_cmn_nodeid arm_cmn_nid(const struct arm_cmn *cmn, u16 id)
+{
+	struct arm_cmn_nodeid nid;
+	int bits = arm_cmn_xyidbits(cmn);
+
+	nid.x = CMN_NODEID_X(id, bits);
+	nid.y = CMN_NODEID_Y(id, bits);
+	nid.port = CMN_NODEID_PID(id);
+	nid.dev = CMN_NODEID_DEVID(id);
+
+	return nid;
+}
+
+static void arm_cmn_init_node_to_xp(const struct arm_cmn *cmn,
+				    struct arm_cmn_node *dn)
+{
+	struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
+	int xp_idx = cmn->mesh_x * nid.y + nid.x;
+
+	dn->to_xp = (cmn->xps + xp_idx) - dn;
+}
+
+static struct arm_cmn_node *arm_cmn_node_to_xp(struct arm_cmn_node *dn)
+{
+	return dn->type == CMN_TYPE_XP ? dn : dn + dn->to_xp;
+}
+
+static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
+					 enum cmn_node_type type)
+{
+	int i;
+
+	for (i = 0; i < cmn->num_dns; i++)
+		if (cmn->dns[i].type == type)
+			return &cmn->dns[i];
+	return NULL;
+}
+
 struct arm_cmn_hw_event {
 	struct arm_cmn_node *dn;
 	u64 dtm_idx[2];
@@ -294,38 +346,6 @@ struct arm_cmn_format_attr {
 	u64 field;
 	int config;
 };
-
-static int arm_cmn_xyidbits(const struct arm_cmn *cmn)
-{
-	return cmn->mesh_x > 4 || cmn->mesh_y > 4 ? 3 : 2;
-}
-
-static void arm_cmn_init_node_to_xp(const struct arm_cmn *cmn,
-				    struct arm_cmn_node *dn)
-{
-	int bits = arm_cmn_xyidbits(cmn);
-	int x = CMN_NODEID_X(dn->id, bits);
-	int y = CMN_NODEID_Y(dn->id, bits);
-	int xp_idx = cmn->mesh_x * y + x;
-
-	dn->to_xp = (cmn->xps + xp_idx) - dn;
-}
-
-static struct arm_cmn_node *arm_cmn_node_to_xp(struct arm_cmn_node *dn)
-{
-	return dn->type == CMN_TYPE_XP ? dn : dn + dn->to_xp;
-}
-
-static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
-					 enum cmn_node_type type)
-{
-	int i;
-
-	for (i = 0; i < cmn->num_dns; i++)
-		if (cmn->dns[i].type == type)
-			return &cmn->dns[i];
-	return NULL;
-}
 
 #define CMN_EVENT_ATTR(_name, _type, _eventid, _occupid)		\
 	(&((struct arm_cmn_event_attr[]) {{				\
@@ -966,11 +986,10 @@ static int arm_cmn_event_init(struct perf_event *event)
 	}
 
 	if (!hw->num_dns) {
-		int bits = arm_cmn_xyidbits(cmn);
+		struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, nodeid);
 
 		dev_dbg(cmn->dev, "invalid node 0x%x (%d,%d,%d,%d) type 0x%x\n",
-			nodeid, CMN_NODEID_X(nodeid, bits), CMN_NODEID_Y(nodeid, bits),
-			CMN_NODEID_PID(nodeid), CMN_NODEID_DEVID(nodeid), type);
+			nodeid, nid.x, nid.y, nid.port, nid.dev, type);
 		return -EINVAL;
 	}
 	/*
@@ -1068,11 +1087,10 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 			dn->wp_event[wp_idx] = dtc_idx;
 			writel_relaxed(cfg, dn->pmu_base + CMN_DTM_WPn_CONFIG(wp_idx));
 		} else {
-			unsigned int port = CMN_NODEID_PID(dn->id);
-			unsigned int dev = CMN_NODEID_DEVID(dn->id);
+			struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
 
 			input_sel = CMN__PMEVCNT0_INPUT_SEL_DEV + dtm_idx +
-				    (port << 4) + (dev << 2);
+				    (nid.port << 4) + (nid.dev << 2);
 
 			if (arm_cmn_is_occup_event(type, CMN_EVENT_EVENTID(event))) {
 				int occupid = CMN_EVENT_OCCUPID(event);
