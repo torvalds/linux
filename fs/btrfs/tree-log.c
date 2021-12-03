@@ -4104,13 +4104,8 @@ static int truncate_inode_items(struct btrfs_trans_handle *trans,
 		.min_type = min_type,
 		.skip_ref_updates = true,
 	};
-	int ret;
 
-	do {
-		ret = btrfs_truncate_inode_items(trans, log_root, &control);
-	} while (ret == -EAGAIN);
-
-	return ret;
+	return btrfs_truncate_inode_items(trans, log_root, &control);
 }
 
 static void fill_inode_item(struct btrfs_trans_handle *trans,
