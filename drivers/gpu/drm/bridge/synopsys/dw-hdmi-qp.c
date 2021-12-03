@@ -247,9 +247,6 @@ struct dw_hdmi_qp {
 	bool sink_has_audio;
 	bool hpd_state;
 
-	struct delayed_work work;
-	struct workqueue_struct *workqueue;
-
 	struct mutex mutex;		/* for state below and previous_mode */
 	struct drm_connector *curr_conn;/* current connector (only valid when !disabled) */
 	enum drm_connector_force force;	/* mutex-protected force state */
@@ -2322,8 +2319,6 @@ void dw_hdmi_qp_suspend(struct device *dev, struct dw_hdmi_qp *hdmi)
 	if (hdmi->earc_irq)
 		disable_irq(hdmi->earc_irq);
 
-	cancel_delayed_work(&hdmi->work);
-	flush_workqueue(hdmi->workqueue);
 	pinctrl_pm_select_sleep_state(dev);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_suspend);
@@ -2334,6 +2329,10 @@ void dw_hdmi_qp_resume(struct device *dev, struct dw_hdmi_qp *hdmi)
 		dev_warn(dev, "Hdmi has not been initialized\n");
 		return;
 	}
+
+	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
+	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
+	hdmi_writel(hdmi, 428571429, TIMER_BASE_CONFIG0);
 
 	pinctrl_pm_select_default_state(dev);
 	mutex_lock(&hdmi->mutex);
@@ -2347,21 +2346,7 @@ void dw_hdmi_qp_resume(struct device *dev, struct dw_hdmi_qp *hdmi)
 
 	if (hdmi->earc_irq)
 		enable_irq(hdmi->earc_irq);
-	/*
-	 * HDMI status maybe incorrect in the following condition:
-	 * HDMI plug in -> system sleep ->  HDMI plug out -> system wake up.
-	 * At this time, cat /sys/class/drm/card 0-HDMI-A-1/status is connected.
-	 * There is no hpd interrupt, because HDMI is powerdown during suspend.
-	 * So we need check the current HDMI status in this case.
-	 */
-	if (hdmi->connector.status == connector_status_connected) {
-		if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) ==
-		    connector_status_disconnected) {
-			hdmi->hpd_state = false;
-			mod_delayed_work(hdmi->workqueue, &hdmi->work,
-					 msecs_to_jiffies(20));
-		}
-	}
+
 	mutex_unlock(&hdmi->mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_resume);

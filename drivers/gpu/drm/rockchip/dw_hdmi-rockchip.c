@@ -3184,7 +3184,10 @@ static int dw_hdmi_rockchip_suspend(struct device *dev)
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
 
-	dw_hdmi_suspend(hdmi->hdmi);
+	if (hdmi->is_hdmi_qp)
+		dw_hdmi_qp_suspend(dev, hdmi->hdmi_qp);
+	else
+		dw_hdmi_suspend(hdmi->hdmi);
 	pm_runtime_put_sync(dev);
 
 	return 0;
@@ -3194,7 +3197,12 @@ static int dw_hdmi_rockchip_resume(struct device *dev)
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
 
-	dw_hdmi_resume(hdmi->hdmi);
+	if (hdmi->is_hdmi_qp) {
+		dw_hdmi_qp_resume(dev, hdmi->hdmi_qp);
+		drm_helper_hpd_irq_event(hdmi->encoder.dev);
+	} else {
+		dw_hdmi_resume(hdmi->hdmi);
+	}
 	pm_runtime_get_sync(dev);
 
 	return 0;
