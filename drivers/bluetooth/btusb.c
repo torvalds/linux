@@ -16,6 +16,7 @@
 #include <linux/of_irq.h>
 #include <linux/suspend.h>
 #include <linux/gpio/consumer.h>
+#include <linux/debugfs.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -31,7 +32,6 @@
 static bool disable_scofix;
 static bool force_scofix;
 static bool enable_autosuspend = IS_ENABLED(CONFIG_BT_HCIBTUSB_AUTOSUSPEND);
-
 static bool reset = true;
 
 static struct usb_driver btusb_driver;
@@ -561,8 +561,13 @@ struct btusb_data {
 
 	unsigned long flags;
 
-	struct work_struct work;
-	struct work_struct waker;
+	bool poll_sync;
+	int intr_interval;
+	struct work_struct  work;
+	struct work_struct  waker;
+	struct delayed_work rx_work;
+
+	struct sk_buff_head acl_q;
 
 	struct usb_anchor deferred;
 	struct usb_anchor tx_anchor;
@@ -727,6 +732,16 @@ static inline void btusb_free_frags(struct btusb_data *data)
 	spin_unlock_irqrestore(&data->rxlock, flags);
 }
 
+static int btusb_recv_event(struct btusb_data *data, struct sk_buff *skb)
+{
+	if (data->intr_interval) {
+		/* Trigger dequeue immediatelly if an event is received */
+		schedule_delayed_work(&data->rx_work, 0);
+	}
+
+	return data->recv_event(data->hdev, skb);
+}
+
 static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
 {
 	struct sk_buff *skb;
@@ -772,7 +787,7 @@ static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
 
 		if (!hci_skb_expect(skb)) {
 			/* Complete frame */
-			data->recv_event(data->hdev, skb);
+			btusb_recv_event(data, skb);
 			skb = NULL;
 		}
 	}
@@ -781,6 +796,20 @@ static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
 	spin_unlock_irqrestore(&data->rxlock, flags);
 
 	return err;
+}
+
+static int btusb_recv_acl(struct btusb_data *data, struct sk_buff *skb)
+{
+	/* Only queue ACL packet if intr_interval is set as it means
+	 * force_poll_sync has been enabled.
+	 */
+	if (!data->intr_interval)
+		return data->recv_acl(data->hdev, skb);
+
+	skb_queue_tail(&data->acl_q, skb);
+	schedule_delayed_work(&data->rx_work, data->intr_interval);
+
+	return 0;
 }
 
 static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
@@ -830,7 +859,7 @@ static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
 
 		if (!hci_skb_expect(skb)) {
 			/* Complete frame */
-			data->recv_acl(data->hdev, skb);
+			btusb_recv_acl(data, skb);
 			skb = NULL;
 		}
 	}
@@ -986,6 +1015,28 @@ static int btusb_submit_intr_urb(struct hci_dev *hdev, gfp_t mem_flags)
 		usb_unanchor_urb(urb);
 	}
 
+	/* Only initialize intr_interval if URB poll sync is enabled */
+	if (!data->poll_sync)
+		goto done;
+
+	/* The units are frames (milliseconds) for full and low speed devices,
+	 * and microframes (1/8 millisecond) for highspeed and SuperSpeed
+	 * devices.
+	 *
+	 * This is done once on open/resume so it shouldn't change even if
+	 * force_poll_sync changes.
+	 */
+	switch (urb->dev->speed) {
+	case USB_SPEED_SUPER_PLUS:
+	case USB_SPEED_SUPER:	/* units are 125us */
+		data->intr_interval = usecs_to_jiffies(urb->interval * 125);
+		break;
+	default:
+		data->intr_interval = msecs_to_jiffies(urb->interval);
+		break;
+	}
+
+done:
 	usb_free_urb(urb);
 
 	return err;
@@ -1448,8 +1499,11 @@ static int btusb_close(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
+	cancel_delayed_work(&data->rx_work);
 	cancel_work_sync(&data->work);
 	cancel_work_sync(&data->waker);
+
+	skb_queue_purge(&data->acl_q);
 
 	clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 	clear_bit(BTUSB_BULK_RUNNING, &data->flags);
@@ -1481,6 +1535,10 @@ static int btusb_flush(struct hci_dev *hdev)
 	struct btusb_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
+
+	cancel_delayed_work(&data->rx_work);
+
+	skb_queue_purge(&data->acl_q);
 
 	usb_kill_anchored_urbs(&data->tx_anchor);
 	btusb_free_frags(data);
@@ -1843,6 +1901,17 @@ static void btusb_waker(struct work_struct *work)
 		return;
 
 	usb_autopm_put_interface(data->intf);
+}
+
+static void btusb_rx_work(struct work_struct *work)
+{
+	struct btusb_data *data = container_of(work, struct btusb_data,
+					       rx_work.work);
+	struct sk_buff *skb;
+
+	/* Dequeue ACL data received during the interval */
+	while ((skb = skb_dequeue(&data->acl_q)))
+		data->recv_acl(data->hdev, skb);
 }
 
 static int btusb_setup_bcm92035(struct hci_dev *hdev)
@@ -3402,6 +3471,49 @@ static int btusb_shutdown_qca(struct hci_dev *hdev)
 	return 0;
 }
 
+static ssize_t force_poll_sync_read(struct file *file, char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct btusb_data *data = file->private_data;
+	char buf[3];
+
+	buf[0] = data->poll_sync ? 'Y' : 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t force_poll_sync_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct btusb_data *data = file->private_data;
+	bool enable;
+	int err;
+
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
+
+	/* Only allow changes while the adapter is down */
+	if (test_bit(HCI_UP, &data->hdev->flags))
+		return -EPERM;
+
+	if (data->poll_sync == enable)
+		return -EALREADY;
+
+	data->poll_sync = enable;
+
+	return count;
+}
+
+static const struct file_operations force_poll_sync_fops = {
+	.open		= simple_open,
+	.read		= force_poll_sync_read,
+	.write		= force_poll_sync_write,
+	.llseek		= default_llseek,
+};
+
 static int btusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
@@ -3485,6 +3597,10 @@ static int btusb_probe(struct usb_interface *intf,
 
 	INIT_WORK(&data->work, btusb_work);
 	INIT_WORK(&data->waker, btusb_waker);
+	INIT_DELAYED_WORK(&data->rx_work, btusb_rx_work);
+
+	skb_queue_head_init(&data->acl_q);
+
 	init_usb_anchor(&data->deferred);
 	init_usb_anchor(&data->tx_anchor);
 	spin_lock_init(&data->txlock);
@@ -3749,6 +3865,9 @@ static int btusb_probe(struct usb_interface *intf,
 		goto out_free_dev;
 
 	usb_set_intfdata(intf, data);
+
+	debugfs_create_file("force_poll_sync", 0644, hdev->debugfs, data,
+			    &force_poll_sync_fops);
 
 	return 0;
 
