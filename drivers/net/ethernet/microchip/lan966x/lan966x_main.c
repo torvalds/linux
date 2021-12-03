@@ -83,10 +83,10 @@ static int lan966x_create_targets(struct platform_device *pdev,
 		begin[idx] = devm_ioremap(&pdev->dev,
 					  iores[idx]->start,
 					  resource_size(iores[idx]));
-		if (IS_ERR(begin[idx])) {
+		if (!begin[idx]) {
 			dev_err(&pdev->dev, "Unable to get registers: %s\n",
 				iores[idx]->name);
-			return PTR_ERR(begin[idx]);
+			return -ENOMEM;
 		}
 	}
 
