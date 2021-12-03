@@ -10,6 +10,10 @@
  * V0.0X01.0X03 support enum sensor fmt
  * V0.0X01.0X04 add quick stream on/off
  * V0.0X01.0X05 support get dcg ratio from sensor
+ * V0.0X01.0X06
+ * 1. fix 8K@12 mipi freq index.
+ * 2. fix set_fmt & ioctl get mode unmatched issue.
+ * 3. add debug info.
  */
 #define DEBUG
 #include <linux/clk.h>
@@ -35,7 +39,7 @@
 #include <linux/of_graph.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -5774,7 +5778,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.exp_def = 0x0240,
 		.hts_def = 0x9f6 * 4,
 		.vts_def = 0x0cc3 * 2,
-		.mipi_freq_idx = 2,
+		.mipi_freq_idx = 3,
 		.bpp = 10,
 		.reg_list = ov50c40_10bit_8192x6144_dphy_12fps_regs,
 		.hdr_mode = NO_HDR,
@@ -5990,13 +5994,14 @@ ov50c40_find_best_fit(struct ov50c40 *ov50c40, struct v4l2_subdev_format *fmt)
 
 	for (i = 0; i < ov50c40->cfg_num; i++) {
 		dist = ov50c40_get_reso_dist(&ov50c40->support_modes[i], framefmt);
-		if ((cur_best_fit_dist == -1 || dist <= cur_best_fit_dist) &&
+		if ((cur_best_fit_dist == -1 || dist < cur_best_fit_dist) &&
 			(ov50c40->support_modes[i].bus_fmt == framefmt->code)) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
 		}
 	}
-
+	dev_info(&ov50c40->client->dev, "%s: cur_best_fit(%d)",
+		 __func__, cur_best_fit);
 	return &ov50c40->support_modes[cur_best_fit];
 }
 
@@ -6039,6 +6044,8 @@ static int ov50c40_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(ov50c40->link_freq,
 				   mode->mipi_freq_idx);
 	}
+	dev_info(&ov50c40->client->dev, "%s: mode->mipi_freq_idx(%d)",
+		 __func__, mode->mipi_freq_idx);
 
 	mutex_unlock(&ov50c40->mutex);
 
@@ -6302,6 +6309,8 @@ static long ov50c40_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				"sensor mode: %d\n",
 				ov50c40->cur_mode->hdr_mode);
 		}
+		dev_info(&ov50c40->client->dev, "%s: matched mode index(%d)",
+			 __func__, i);
 		break;
 	case RKMODULE_GET_MODULE_INFO:
 		ov50c40_get_module_inf(ov50c40, (struct rkmodule_inf *)arg);
@@ -6468,6 +6477,12 @@ static int ov50c40_s_stream(struct v4l2_subdev *sd, int on)
 	struct ov50c40 *ov50c40 = to_ov50c40(sd);
 	struct i2c_client *client = ov50c40->client;
 	int ret = 0;
+
+	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+				ov50c40->cur_mode->width,
+				ov50c40->cur_mode->height,
+		DIV_ROUND_CLOSEST(ov50c40->cur_mode->max_fps.denominator,
+				  ov50c40->cur_mode->max_fps.numerator));
 
 	mutex_lock(&ov50c40->mutex);
 	on = !!on;
