@@ -876,8 +876,8 @@ static int arm_cmn_validate_group(struct perf_event *event)
 	struct arm_cmn_node *dn;
 	struct perf_event *sibling, *leader = event->group_leader;
 	enum cmn_node_type type;
-	struct arm_cmn_val val;
-	int i;
+	struct arm_cmn_val *val;
+	int i, ret = -EINVAL;
 	u8 occupid;
 
 	if (leader == event)
@@ -886,18 +886,22 @@ static int arm_cmn_validate_group(struct perf_event *event)
 	if (event->pmu != leader->pmu && !is_software_event(leader))
 		return -EINVAL;
 
-	memset(&val, 0, sizeof(val));
+	val = kzalloc(sizeof(*val), GFP_KERNEL);
+	if (!val)
+		return -ENOMEM;
 
-	arm_cmn_val_add_event(&val, leader);
+	arm_cmn_val_add_event(val, leader);
 	for_each_sibling_event(sibling, leader)
-		arm_cmn_val_add_event(&val, sibling);
+		arm_cmn_val_add_event(val, sibling);
 
 	type = CMN_EVENT_TYPE(event);
-	if (type == CMN_TYPE_DTC)
-		return val.cycles ? -EINVAL : 0;
+	if (type == CMN_TYPE_DTC) {
+		ret = val->cycles ? -EINVAL : 0;
+		goto done;
+	}
 
-	if (val.dtc_count == CMN_DT_NUM_COUNTERS)
-		return -EINVAL;
+	if (val->dtc_count == CMN_DT_NUM_COUNTERS)
+		goto done;
 
 	if (arm_cmn_is_occup_event(type, CMN_EVENT_EVENTID(event)))
 		occupid = CMN_EVENT_OCCUPID(event) + 1;
@@ -907,25 +911,28 @@ static int arm_cmn_validate_group(struct perf_event *event)
 	for_each_hw_dn(hw, dn, i) {
 		int wp_idx, wp_cmb, dtm = dn->dtm;
 
-		if (val.dtm_count[dtm] == CMN_DTM_NUM_COUNTERS)
-			return -EINVAL;
+		if (val->dtm_count[dtm] == CMN_DTM_NUM_COUNTERS)
+			goto done;
 
-		if (occupid && val.occupid[dtm] && occupid != val.occupid[dtm])
-			return -EINVAL;
+		if (occupid && val->occupid[dtm] && occupid != val->occupid[dtm])
+			goto done;
 
 		if (type != CMN_TYPE_WP)
 			continue;
 
 		wp_idx = arm_cmn_wp_idx(event);
-		if (val.wp[dtm][wp_idx])
-			return -EINVAL;
+		if (val->wp[dtm][wp_idx])
+			goto done;
 
-		wp_cmb = val.wp[dtm][wp_idx ^ 1];
+		wp_cmb = val->wp[dtm][wp_idx ^ 1];
 		if (wp_cmb && wp_cmb != CMN_EVENT_WP_COMBINE(event) + 1)
-			return -EINVAL;
+			goto done;
 	}
 
-	return 0;
+	ret = 0;
+done:
+	kfree(val);
+	return ret;
 }
 
 static int arm_cmn_event_init(struct perf_event *event)
