@@ -1890,7 +1890,7 @@ static int hclge_map_tqp(struct hclge_dev *hdev)
 	u16 i, num_vport;
 
 	num_vport = hdev->num_req_vfs + 1;
-	for (i = 0; i < num_vport; i++)	{
+	for (i = 0; i < num_vport; i++) {
 		int ret;
 
 		ret = hclge_map_tqp_to_vport(hdev, vport);
@@ -6806,7 +6806,7 @@ static int hclge_fd_parse_ring_cookie(struct hclge_dev *hdev, u64 ring_cookie,
 		if (vf > hdev->num_req_vfs) {
 			dev_err(&hdev->pdev->dev,
 				"Error: vf id (%u) should be less than %u\n",
-				vf - 1, hdev->num_req_vfs);
+				vf - 1U, hdev->num_req_vfs);
 			return -EINVAL;
 		}
 
@@ -6816,7 +6816,7 @@ static int hclge_fd_parse_ring_cookie(struct hclge_dev *hdev, u64 ring_cookie,
 		if (ring >= tqps) {
 			dev_err(&hdev->pdev->dev,
 				"Error: queue id (%u) > max tqp num (%u)\n",
-				ring, tqps - 1);
+				ring, tqps - 1U);
 			return -EINVAL;
 		}
 
@@ -8000,16 +8000,13 @@ static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
-static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
-				     enum hnae3_loop loop_mode)
+static int hclge_cfg_common_loopback_cmd_send(struct hclge_dev *hdev, bool en,
+					      enum hnae3_loop loop_mode)
 {
-#define HCLGE_COMMON_LB_RETRY_MS	10
-#define HCLGE_COMMON_LB_RETRY_NUM	100
-
 	struct hclge_common_lb_cmd *req;
 	struct hclge_desc desc;
-	int ret, i = 0;
 	u8 loop_mode_b;
+	int ret;
 
 	req = (struct hclge_common_lb_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_COMMON_LOOPBACK, false);
@@ -8026,23 +8023,34 @@ static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
 		break;
 	default:
 		dev_err(&hdev->pdev->dev,
-			"unsupported common loopback mode %d\n", loop_mode);
+			"unsupported loopback mode %d\n", loop_mode);
 		return -ENOTSUPP;
 	}
 
-	if (en) {
+	req->mask = loop_mode_b;
+	if (en)
 		req->enable = loop_mode_b;
-		req->mask = loop_mode_b;
-	} else {
-		req->mask = loop_mode_b;
-	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
+	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"common loopback set fail, ret = %d\n", ret);
-		return ret;
-	}
+			"failed to send loopback cmd, loop_mode = %d, ret = %d\n",
+			loop_mode, ret);
+
+	return ret;
+}
+
+static int hclge_cfg_common_loopback_wait(struct hclge_dev *hdev)
+{
+#define HCLGE_COMMON_LB_RETRY_MS	10
+#define HCLGE_COMMON_LB_RETRY_NUM	100
+
+	struct hclge_common_lb_cmd *req;
+	struct hclge_desc desc;
+	u32 i = 0;
+	int ret;
+
+	req = (struct hclge_common_lb_cmd *)desc.data;
 
 	do {
 		msleep(HCLGE_COMMON_LB_RETRY_MS);
@@ -8051,20 +8059,34 @@ static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
-				"common loopback get, ret = %d\n", ret);
+				"failed to get loopback done status, ret = %d\n",
+				ret);
 			return ret;
 		}
 	} while (++i < HCLGE_COMMON_LB_RETRY_NUM &&
 		 !(req->result & HCLGE_CMD_COMMON_LB_DONE_B));
 
 	if (!(req->result & HCLGE_CMD_COMMON_LB_DONE_B)) {
-		dev_err(&hdev->pdev->dev, "common loopback set timeout\n");
+		dev_err(&hdev->pdev->dev, "wait loopback timeout\n");
 		return -EBUSY;
 	} else if (!(req->result & HCLGE_CMD_COMMON_LB_SUCCESS_B)) {
-		dev_err(&hdev->pdev->dev, "common loopback set failed in fw\n");
+		dev_err(&hdev->pdev->dev, "faile to do loopback test\n");
 		return -EIO;
 	}
-	return ret;
+
+	return 0;
+}
+
+static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
+				     enum hnae3_loop loop_mode)
+{
+	int ret;
+
+	ret = hclge_cfg_common_loopback_cmd_send(hdev, en, loop_mode);
+	if (ret)
+		return ret;
+
+	return hclge_cfg_common_loopback_wait(hdev);
 }
 
 static int hclge_set_common_loopback(struct hclge_dev *hdev, bool en,
@@ -9724,8 +9746,8 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"failed to get vlan filter config, ret = %d.\n", ret);
+		dev_err(&hdev->pdev->dev, "failed to get vport%u vlan filter config, ret = %d.\n",
+			vf_id, ret);
 		return ret;
 	}
 
@@ -9736,8 +9758,8 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
-		dev_err(&hdev->pdev->dev, "failed to set vlan filter, ret = %d.\n",
-			ret);
+		dev_err(&hdev->pdev->dev, "failed to set vport%u vlan filter, ret = %d.\n",
+			vf_id, ret);
 
 	return ret;
 }
@@ -9983,6 +10005,32 @@ static int hclge_set_port_vlan_filter(struct hclge_dev *hdev, __be16 proto,
 	return ret;
 }
 
+static bool hclge_need_update_port_vlan(struct hclge_dev *hdev, u16 vport_id,
+					u16 vlan_id, bool is_kill)
+{
+	/* vlan 0 may be added twice when 8021q module is enabled */
+	if (!is_kill && !vlan_id &&
+	    test_bit(vport_id, hdev->vlan_table[vlan_id]))
+		return false;
+
+	if (!is_kill && test_and_set_bit(vport_id, hdev->vlan_table[vlan_id])) {
+		dev_warn(&hdev->pdev->dev,
+			 "Add port vlan failed, vport %u is already in vlan %u\n",
+			 vport_id, vlan_id);
+		return false;
+	}
+
+	if (is_kill &&
+	    !test_and_clear_bit(vport_id, hdev->vlan_table[vlan_id])) {
+		dev_warn(&hdev->pdev->dev,
+			 "Delete port vlan failed, vport %u is not in vlan %u\n",
+			 vport_id, vlan_id);
+		return false;
+	}
+
+	return true;
+}
+
 static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
 				    u16 vport_id, u16 vlan_id,
 				    bool is_kill)
@@ -10004,25 +10052,8 @@ static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
 		return ret;
 	}
 
-	/* vlan 0 may be added twice when 8021q module is enabled */
-	if (!is_kill && !vlan_id &&
-	    test_bit(vport_id, hdev->vlan_table[vlan_id]))
+	if (!hclge_need_update_port_vlan(hdev, vport_id, vlan_id, is_kill))
 		return 0;
-
-	if (!is_kill && test_and_set_bit(vport_id, hdev->vlan_table[vlan_id])) {
-		dev_err(&hdev->pdev->dev,
-			"Add port vlan failed, vport %u is already in vlan %u\n",
-			vport_id, vlan_id);
-		return -EINVAL;
-	}
-
-	if (is_kill &&
-	    !test_and_clear_bit(vport_id, hdev->vlan_table[vlan_id])) {
-		dev_err(&hdev->pdev->dev,
-			"Delete port vlan failed, vport %u is not in vlan %u\n",
-			vport_id, vlan_id);
-		return -EINVAL;
-	}
 
 	for_each_set_bit(vport_idx, hdev->vlan_table[vlan_id], HCLGE_VPORT_NUM)
 		vport_num++;

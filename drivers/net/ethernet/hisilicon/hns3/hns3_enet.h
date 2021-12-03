@@ -10,6 +10,9 @@
 
 #include "hnae3.h"
 
+struct iphdr;
+struct ipv6hdr;
+
 enum hns3_nic_state {
 	HNS3_NIC_STATE_TESTING,
 	HNS3_NIC_STATE_RESETTING,
