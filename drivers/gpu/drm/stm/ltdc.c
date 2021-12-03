@@ -46,15 +46,15 @@
 #define HWVER_10200 0x010200
 #define HWVER_10300 0x010300
 #define HWVER_20101 0x020101
+#define HWVER_40100 0x040100
 
 /*
  * The address of some registers depends on the HW version: such registers have
- * an extra offset specified with reg_ofs.
+ * an extra offset specified with layer_ofs.
  */
-#define REG_OFS_NONE	0
-#define REG_OFS_4	4		/* Insertion of "Layer Conf. 2" reg */
-#define REG_OFS		(ldev->caps.reg_ofs)
-#define LAY_OFS		0x80		/* Register Offset between 2 layers */
+#define LAY_OFS_0	0x80
+#define LAY_OFS_1	0x100
+#define LAY_OFS	(ldev->caps.layer_ofs)
 
 /* Global register offsets */
 #define LTDC_IDR	0x0000		/* IDentification */
@@ -75,29 +75,34 @@
 #define LTDC_LIPCR	0x0040		/* Line Interrupt Position Conf. */
 #define LTDC_CPSR	0x0044		/* Current Position Status */
 #define LTDC_CDSR	0x0048		/* Current Display Status */
+#define LTDC_FUT	0x0090		/* Fifo underrun Threshold */
 
 /* Layer register offsets */
-#define LTDC_L1LC1R	(0x80)		/* L1 Layer Configuration 1 */
-#define LTDC_L1LC2R	(0x84)		/* L1 Layer Configuration 2 */
-#define LTDC_L1CR	(0x84 + REG_OFS)/* L1 Control */
-#define LTDC_L1WHPCR	(0x88 + REG_OFS)/* L1 Window Hor Position Config */
-#define LTDC_L1WVPCR	(0x8C + REG_OFS)/* L1 Window Vert Position Config */
-#define LTDC_L1CKCR	(0x90 + REG_OFS)/* L1 Color Keying Configuration */
-#define LTDC_L1PFCR	(0x94 + REG_OFS)/* L1 Pixel Format Configuration */
-#define LTDC_L1CACR	(0x98 + REG_OFS)/* L1 Constant Alpha Config */
-#define LTDC_L1DCCR	(0x9C + REG_OFS)/* L1 Default Color Configuration */
-#define LTDC_L1BFCR	(0xA0 + REG_OFS)/* L1 Blend Factors Configuration */
-#define LTDC_L1FBBCR	(0xA4 + REG_OFS)/* L1 FrameBuffer Bus Control */
-#define LTDC_L1AFBCR	(0xA8 + REG_OFS)/* L1 AuxFB Control */
-#define LTDC_L1CFBAR	(0xAC + REG_OFS)/* L1 Color FrameBuffer Address */
-#define LTDC_L1CFBLR	(0xB0 + REG_OFS)/* L1 Color FrameBuffer Length */
-#define LTDC_L1CFBLNR	(0xB4 + REG_OFS)/* L1 Color FrameBuffer Line Nb */
-#define LTDC_L1AFBAR	(0xB8 + REG_OFS)/* L1 AuxFB Address */
-#define LTDC_L1AFBLR	(0xBC + REG_OFS)/* L1 AuxFB Length */
-#define LTDC_L1AFBLNR	(0xC0 + REG_OFS)/* L1 AuxFB Line Number */
-#define LTDC_L1CLUTWR	(0xC4 + REG_OFS)/* L1 CLUT Write */
-#define LTDC_L1YS1R	(0xE0 + REG_OFS)/* L1 YCbCr Scale 1 */
-#define LTDC_L1YS2R	(0xE4 + REG_OFS)/* L1 YCbCr Scale 2 */
+#define LTDC_L1C0R	(ldev->caps.layer_regs[0])	/* L1 configuration 0 */
+#define LTDC_L1C1R	(ldev->caps.layer_regs[1])	/* L1 configuration 1 */
+#define LTDC_L1RCR	(ldev->caps.layer_regs[2])	/* L1 reload control */
+#define LTDC_L1CR	(ldev->caps.layer_regs[3])	/* L1 control register */
+#define LTDC_L1WHPCR	(ldev->caps.layer_regs[4])	/* L1 window horizontal position configuration */
+#define LTDC_L1WVPCR	(ldev->caps.layer_regs[5])	/* L1 window vertical position configuration */
+#define LTDC_L1CKCR	(ldev->caps.layer_regs[6])	/* L1 color keying configuration */
+#define LTDC_L1PFCR	(ldev->caps.layer_regs[7])	/* L1 pixel format configuration */
+#define LTDC_L1CACR	(ldev->caps.layer_regs[8])	/* L1 constant alpha configuration */
+#define LTDC_L1DCCR	(ldev->caps.layer_regs[9])	/* L1 default color configuration */
+#define LTDC_L1BFCR	(ldev->caps.layer_regs[10])	/* L1 blending factors configuration */
+#define LTDC_L1BLCR	(ldev->caps.layer_regs[11])	/* L1 burst length configuration */
+#define LTDC_L1PCR	(ldev->caps.layer_regs[12])	/* L1 planar configuration */
+#define LTDC_L1CFBAR	(ldev->caps.layer_regs[13])	/* L1 color frame buffer address */
+#define LTDC_L1CFBLR	(ldev->caps.layer_regs[14])	/* L1 color frame buffer length */
+#define LTDC_L1CFBLNR	(ldev->caps.layer_regs[15])	/* L1 color frame buffer line number */
+#define LTDC_L1AFBA0R	(ldev->caps.layer_regs[16])	/* L1 auxiliary frame buffer address 0 */
+#define LTDC_L1AFBA1R	(ldev->caps.layer_regs[17])	/* L1 auxiliary frame buffer address 1 */
+#define LTDC_L1AFBLR	(ldev->caps.layer_regs[18])	/* L1 auxiliary frame buffer length */
+#define LTDC_L1AFBLNR	(ldev->caps.layer_regs[19])	/* L1 auxiliary frame buffer line number */
+#define LTDC_L1CLUTWR	(ldev->caps.layer_regs[20])	/* L1 CLUT write */
+#define LTDC_L1CYR0R	(ldev->caps.layer_regs[21])	/* L1 Conversion YCbCr RGB 0 */
+#define LTDC_L1CYR1R	(ldev->caps.layer_regs[22])	/* L1 Conversion YCbCr RGB 1 */
+#define LTDC_L1FPF0R	(ldev->caps.layer_regs[23])	/* L1 Flexible Pixel Format 0 */
+#define LTDC_L1FPF1R	(ldev->caps.layer_regs[24])	/* L1 Flexible Pixel Format 1 */
 
 /* Bit definitions */
 #define SSCR_VSH	GENMASK(10, 0)	/* Vertical Synchronization Height */
@@ -208,7 +213,10 @@ enum ltdc_pix_fmt {
 	/* Indexed formats */
 	PF_L8,			/* Indexed 8 bits [8 bits] */
 	PF_AL44,		/* Alpha:4 bits + indexed 4 bits [8 bits] */
-	PF_AL88			/* Alpha:8 bits + indexed 8 bits [16 bits] */
+	PF_AL88,		/* Alpha:8 bits + indexed 8 bits [16 bits] */
+	PF_ABGR8888,		/* ABGR [32 bits] */
+	PF_BGRA8888,		/* BGRA [32 bits] */
+	PF_BGR565		/* RGB [16 bits] */
 };
 
 /* The index gives the encoding of the pixel format for an HW version */
@@ -232,6 +240,102 @@ static const enum ltdc_pix_fmt ltdc_pix_fmt_a1[NB_PF] = {
 	PF_L8,			/* 0x05 */
 	PF_ARGB1555,		/* 0x06 */
 	PF_ARGB4444		/* 0x07 */
+};
+
+static const enum ltdc_pix_fmt ltdc_pix_fmt_a2[NB_PF] = {
+	PF_ARGB8888,		/* 0x00 */
+	PF_ABGR8888,		/* 0x01 */
+	PF_RGBA8888,		/* 0x02 */
+	PF_BGRA8888,		/* 0x03 */
+	PF_RGB565,		/* 0x04 */
+	PF_BGR565,		/* 0x05 */
+	PF_RGB888,		/* 0x06 */
+	PF_ARGB1555		/* 0x07 */
+};
+
+/* Layer register offsets */
+static const u32 ltdc_layer_regs_a0[] = {
+	0x80,	/* L1 configuration 0 */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0x84,	/* L1 control register */
+	0x88,	/* L1 window horizontal position configuration */
+	0x8c,	/* L1 window vertical position configuration */
+	0x90,	/* L1 color keying configuration */
+	0x94,	/* L1 pixel format configuration */
+	0x98,	/* L1 constant alpha configuration */
+	0x9c,	/* L1 default color configuration */
+	0xa0,	/* L1 blending factors configuration */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0xac,	/* L1 color frame buffer address */
+	0xb0,	/* L1 color frame buffer length */
+	0xb4,	/* L1 color frame buffer line number */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0xc4,	/* L1 CLUT write */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0x00	/* not available */
+};
+
+static const u32 ltdc_layer_regs_a1[] = {
+	0x80,	/* L1 configuration 0 */
+	0x84,	/* L1 configuration 1 */
+	0x00,	/* L1 reload control */
+	0x88,	/* L1 control register */
+	0x8c,	/* L1 window horizontal position configuration */
+	0x90,	/* L1 window vertical position configuration */
+	0x94,	/* L1 color keying configuration */
+	0x98,	/* L1 pixel format configuration */
+	0x9c,	/* L1 constant alpha configuration */
+	0xa0,	/* L1 default color configuration */
+	0xa4,	/* L1 blending factors configuration */
+	0xa8,	/* L1 burst length configuration */
+	0x00,	/* not available */
+	0xac,	/* L1 color frame buffer address */
+	0xb0,	/* L1 color frame buffer length */
+	0xb4,	/* L1 color frame buffer line number */
+	0xb8,	/* L1 auxiliary frame buffer address 0 */
+	0xbc,	/* L1 auxiliary frame buffer address 1 */
+	0xc0,	/* L1 auxiliary frame buffer length */
+	0xc4,	/* L1 auxiliary frame buffer line number */
+	0xc8,	/* L1 CLUT write */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0x00,	/* not available */
+	0x00	/* not available */
+};
+
+static const u32 ltdc_layer_regs_a2[] = {
+	0x100,	/* L1 configuration 0 */
+	0x104,	/* L1 configuration 1 */
+	0x108,	/* L1 reload control */
+	0x10c,	/* L1 control register */
+	0x110,	/* L1 window horizontal position configuration */
+	0x114,	/* L1 window vertical position configuration */
+	0x118,	/* L1 color keying configuration */
+	0x11c,	/* L1 pixel format configuration */
+	0x120,	/* L1 constant alpha configuration */
+	0x124,	/* L1 default color configuration */
+	0x128,	/* L1 blending factors configuration */
+	0x12c,	/* L1 burst length configuration */
+	0x130,	/* L1 planar configuration */
+	0x134,	/* L1 color frame buffer address */
+	0x138,	/* L1 color frame buffer length */
+	0x13c,	/* L1 color frame buffer line number */
+	0x140,	/* L1 auxiliary frame buffer address 0 */
+	0x144,	/* L1 auxiliary frame buffer address 1 */
+	0x148,	/* L1 auxiliary frame buffer length */
+	0x14c,	/* L1 auxiliary frame buffer line number */
+	0x150,	/* L1 CLUT write */
+	0x16c,	/* L1 Conversion YCbCr RGB 0 */
+	0x170,	/* L1 Conversion YCbCr RGB 1 */
+	0x174,	/* L1 Flexible Pixel Format 0 */
+	0x178	/* L1 Flexible Pixel Format 1 */
 };
 
 static const u64 ltdc_format_modifiers[] = {
@@ -1158,7 +1262,8 @@ static int ltdc_get_caps(struct drm_device *ddev)
 	switch (ldev->caps.hw_version) {
 	case HWVER_10200:
 	case HWVER_10300:
-		ldev->caps.reg_ofs = REG_OFS_NONE;
+		ldev->caps.layer_ofs = LAY_OFS_0;
+		ldev->caps.layer_regs = ltdc_layer_regs_a0;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a0;
 		/*
 		 * Hw older versions support non-alpha color formats derived
@@ -1174,11 +1279,20 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.nb_irq = 2;
 		break;
 	case HWVER_20101:
-		ldev->caps.reg_ofs = REG_OFS_4;
+		ldev->caps.layer_ofs = LAY_OFS_0;
+		ldev->caps.layer_regs = ltdc_layer_regs_a1;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a1;
 		ldev->caps.non_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 150000000;
 		ldev->caps.nb_irq = 4;
+		break;
+	case HWVER_40100:
+		ldev->caps.layer_ofs = LAY_OFS_1;
+		ldev->caps.layer_regs = ltdc_layer_regs_a2;
+		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a2;
+		ldev->caps.non_alpha_only_l1 = false;
+		ldev->caps.pad_max_freq_hz = 90000000;
+		ldev->caps.nb_irq = 2;
 		break;
 	default:
 		return -ENODEV;
