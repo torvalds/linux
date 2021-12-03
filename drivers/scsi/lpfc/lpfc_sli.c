@@ -4749,7 +4749,7 @@ void lpfc_reset_barrier(struct lpfc_hba *phba)
 {
 	uint32_t __iomem *resp_buf;
 	uint32_t __iomem *mbox_buf;
-	volatile uint32_t mbox;
+	volatile struct MAILBOX_word0 mbox;
 	uint32_t hc_copy, ha_copy, resp_data;
 	int  i;
 	uint8_t hdrtype;
@@ -4783,13 +4783,13 @@ void lpfc_reset_barrier(struct lpfc_hba *phba)
 		phba->pport->stopped = 1;
 	}
 
-	mbox = 0;
-	((MAILBOX_t *)&mbox)->mbxCommand = MBX_KILL_BOARD;
-	((MAILBOX_t *)&mbox)->mbxOwner = OWN_CHIP;
+	mbox.word0 = 0;
+	mbox.mbxCommand = MBX_KILL_BOARD;
+	mbox.mbxOwner = OWN_CHIP;
 
 	writel(BARRIER_TEST_PATTERN, (resp_buf + 1));
 	mbox_buf = phba->MBslimaddr;
-	writel(mbox, mbox_buf);
+	writel(mbox.word0, mbox_buf);
 
 	for (i = 0; i < 50; i++) {
 		if (lpfc_readl((resp_buf + 1), &resp_data))
@@ -4810,12 +4810,12 @@ void lpfc_reset_barrier(struct lpfc_hba *phba)
 			goto clear_errat;
 	}
 
-	((MAILBOX_t *)&mbox)->mbxOwner = OWN_HOST;
+	mbox.mbxOwner = OWN_HOST;
 	resp_data = 0;
 	for (i = 0; i < 500; i++) {
 		if (lpfc_readl(resp_buf, &resp_data))
 			return;
-		if (resp_data != mbox)
+		if (resp_data != mbox.word0)
 			mdelay(1);
 		else
 			break;
@@ -5085,9 +5085,8 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 static int
 lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 {
-	MAILBOX_t *mb;
+	volatile struct MAILBOX_word0 mb;
 	struct lpfc_sli *psli;
-	volatile uint32_t word0;
 	void __iomem *to_slim;
 	uint32_t hba_aer_enabled;
 
@@ -5104,24 +5103,23 @@ lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 			(phba->pport) ? phba->pport->port_state : 0,
 			psli->sli_flag);
 
-	word0 = 0;
-	mb = (MAILBOX_t *) &word0;
-	mb->mbxCommand = MBX_RESTART;
-	mb->mbxHc = 1;
+	mb.word0 = 0;
+	mb.mbxCommand = MBX_RESTART;
+	mb.mbxHc = 1;
 
 	lpfc_reset_barrier(phba);
 
 	to_slim = phba->MBslimaddr;
-	writel(*(uint32_t *) mb, to_slim);
+	writel(mb.word0, to_slim);
 	readl(to_slim); /* flush */
 
 	/* Only skip post after fc_ffinit is completed */
 	if (phba->pport && phba->pport->port_state)
-		word0 = 1;	/* This is really setting up word1 */
+		mb.word0 = 1;	/* This is really setting up word1 */
 	else
-		word0 = 0;	/* This is really setting up word1 */
+		mb.word0 = 0;	/* This is really setting up word1 */
 	to_slim = phba->MBslimaddr + sizeof (uint32_t);
-	writel(*(uint32_t *) mb, to_slim);
+	writel(mb.word0, to_slim);
 	readl(to_slim); /* flush */
 
 	lpfc_sli_brdreset(phba);
