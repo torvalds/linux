@@ -39,6 +39,8 @@
  *  24 Nov 2021 : 1. Restricted MDIO access when no PHY found or MDIO registration fails
  *                2. Added mdio lock for making mii bus of private member to null to avoid parallel accessing to MDIO bus
  *  VERSION     : 01-00-23
+ *  03 Dec 2021 : 1. Max C22/C45 PHY address changed to PHY_MAX_ADDR.
+ *  VERSION     : 01-00-29
  */
 
 #include <linux/gpio/consumer.h>
@@ -457,7 +459,7 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 	struct tc956xmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	struct device_node *mdio_node = priv->plat->mdio_node;
 	struct device *dev = ndev->dev.parent;
-	int addr, found, max_addr;
+	int addr, found;
 
 	if (!mdio_bus_data)
 		return 0;
@@ -474,9 +476,6 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 	if (priv->plat->has_xgmac) {
 		new_bus->read = &tc956xmac_xgmac2_mdio_read;
 		new_bus->write = &tc956xmac_xgmac2_mdio_write;
-
-		/* Right now only C22 phys are supported */
-		max_addr = PHY_MAX_ADDR + 1;
 #ifndef TC956X
 		/* Check if DT specified an unsupported phy addr */
 		if (priv->plat->phy_addr > MII_XGMAC_MAX_C22ADDR)
@@ -488,7 +487,6 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 	else {
 		new_bus->read = &tc956xmac_mdio_read;
 		new_bus->write = &tc956xmac_mdio_write;
-		max_addr = PHY_MAX_ADDR;
 	}
 #endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 
@@ -519,7 +517,7 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 		goto bus_register_done;
 #endif
 	found = 0;
-	for (addr = 0; addr < max_addr; addr++) {
+	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 
 #ifdef TC956X
 		int phy_reg_read;
@@ -533,10 +531,10 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 			if (phy_reg_read != 0x0000 && phy_reg_read != 0xffff) {
 				if (priv->plat->c45_needed == true) 
 					NMSGPR_ALERT(priv->device,
-					    "TC956X: Phy detected C45 at ID/ADDR %d\n", addr);
+					    "TC956X: [1] Phy detected C45 at ID/ADDR %d\n", addr);
 				else 
 					NMSGPR_ALERT(priv->device,
-					    "TC956X: Phy detected C22 at ID/ADDR %d\n", addr);
+					    "TC956X: [1] Phy detected C22 at ID/ADDR %d\n", addr);
 #else
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
 
@@ -577,7 +575,7 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 	}
 	/* If C22 PHY is not found, probe for C45 based PHY*/
 	if (!found) {
-		for (addr = 0; addr < max_addr; addr++) {
+		for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 
 #ifdef TC956X
 			int phy_reg_read1, phy_reg_read2, phy_id;
@@ -592,7 +590,7 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 				phy_id = ((phy_reg_read1 << 16) | phy_reg_read2);
 				if (phy_id != 0x00000000 && phy_id != 0xffffffff) {
 					NMSGPR_ALERT(priv->device,
-							"TC956X: Phy detected C45 at ID/ADDR %d\n", addr);
+							"TC956X: [2] Phy detected C45 at ID/ADDR %d\n", addr);
 
 #else
 					struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
