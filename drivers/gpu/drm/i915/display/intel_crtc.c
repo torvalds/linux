@@ -54,20 +54,6 @@ struct intel_crtc *intel_crtc_for_pipe(struct drm_i915_private *i915,
 	return NULL;
 }
 
-struct intel_crtc *intel_crtc_for_plane(struct drm_i915_private *i915,
-					enum i9xx_plane_id i9xx_plane)
-{
-	struct intel_plane *plane;
-
-	for_each_intel_plane(&i915->drm, plane) {
-		if (plane->id == PLANE_PRIMARY &&
-		    plane->i9xx_plane == i9xx_plane)
-			return intel_crtc_for_pipe(i915, plane->pipe);
-	}
-
-	return NULL;
-}
-
 void intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc)
 {
 	drm_crtc_wait_one_vblank(&crtc->base);

@@ -32,8 +32,6 @@ void intel_wait_for_vblank_workers(struct intel_atomic_state *state);
 struct intel_crtc *intel_get_first_crtc(struct drm_i915_private *i915);
 struct intel_crtc *intel_crtc_for_pipe(struct drm_i915_private *i915,
 				       enum pipe pipe);
-struct intel_crtc *intel_crtc_for_plane(struct drm_i915_private *i915,
-					enum i9xx_plane_id plane);
 void intel_wait_for_vblank_if_active(struct drm_i915_private *i915,
 				     enum pipe pipe);
 void intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc);

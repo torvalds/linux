@@ -2336,6 +2336,20 @@ static void i965_update_wm(struct drm_i915_private *dev_priv)
 
 #undef FW_WM
 
+static struct intel_crtc *intel_crtc_for_plane(struct drm_i915_private *i915,
+					       enum i9xx_plane_id i9xx_plane)
+{
+	struct intel_plane *plane;
+
+	for_each_intel_plane(&i915->drm, plane) {
+		if (plane->id == PLANE_PRIMARY &&
+		    plane->i9xx_plane == i9xx_plane)
+			return intel_crtc_for_pipe(i915, plane->pipe);
+	}
+
+	return NULL;
+}
+
 static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 {
 	const struct intel_watermark_params *wm_info;
