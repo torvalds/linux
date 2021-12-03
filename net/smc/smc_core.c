@@ -1101,18 +1101,24 @@ static void smcr_buf_unuse(struct smc_buf_desc *rmb_desc,
 		smc_buf_free(lgr, true, rmb_desc);
 	} else {
 		rmb_desc->used = 0;
+		memset(rmb_desc->cpu_addr, 0, rmb_desc->len);
 	}
 }
 
 static void smc_buf_unuse(struct smc_connection *conn,
 			  struct smc_link_group *lgr)
 {
-	if (conn->sndbuf_desc)
+	if (conn->sndbuf_desc) {
 		conn->sndbuf_desc->used = 0;
-	if (conn->rmb_desc && lgr->is_smcd)
+		memset(conn->sndbuf_desc->cpu_addr, 0, conn->sndbuf_desc->len);
+	}
+	if (conn->rmb_desc && lgr->is_smcd) {
 		conn->rmb_desc->used = 0;
-	else if (conn->rmb_desc)
+		memset(conn->rmb_desc->cpu_addr, 0, conn->rmb_desc->len +
+		       sizeof(struct smcd_cdc_msg));
+	} else if (conn->rmb_desc) {
 		smcr_buf_unuse(conn->rmb_desc, lgr);
+	}
 }
 
 /* remove a finished connection from its link group */
@@ -2148,7 +2154,6 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 		if (buf_desc) {
 			SMC_STAT_RMB_SIZE(smc, is_smcd, is_rmb, bufsize);
 			SMC_STAT_BUF_REUSE(smc, is_smcd, is_rmb);
-			memset(buf_desc->cpu_addr, 0, bufsize);
 			break; /* found reusable slot */
 		}
 
