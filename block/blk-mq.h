@@ -375,9 +375,9 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 }
 
 /* run the code block in @dispatch_ops with rcu/srcu read lock held */
-#define blk_mq_run_dispatch_ops(hctx, dispatch_ops)		\
+#define blk_mq_run_dispatch_ops(q, dispatch_ops)		\
 do {								\
-	if (!((hctx)->flags & BLK_MQ_F_BLOCKING)) {		\
+	if (!blk_queue_has_srcu(q)) {				\
 		rcu_read_lock();				\
 		(dispatch_ops);					\
 		rcu_read_unlock();				\
@@ -385,9 +385,9 @@ do {								\
 		int srcu_idx;					\
 								\
 		might_sleep();					\
-		srcu_idx = srcu_read_lock((hctx)->queue->srcu);	\
+		srcu_idx = srcu_read_lock((q)->srcu);		\
 		(dispatch_ops);					\
-		srcu_read_unlock((hctx)->queue->srcu, srcu_idx); \
+		srcu_read_unlock((q)->srcu, srcu_idx);		\
 	}							\
 } while (0)
 
