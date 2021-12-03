@@ -99,7 +99,7 @@ static void hclge_dbg_fill_content(char *content, u16 len,
 static char *hclge_dbg_get_func_id_str(char *buf, u8 id)
 {
 	if (id)
-		sprintf(buf, "vf%u", id - 1);
+		sprintf(buf, "vf%u", id - 1U);
 	else
 		sprintf(buf, "pf");
 
