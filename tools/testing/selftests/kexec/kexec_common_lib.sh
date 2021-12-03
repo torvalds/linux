@@ -138,15 +138,20 @@ kconfig_enabled()
 	return 0
 }
 
-# Attempt to get the kernel config first via proc, and then by
-# extracting it from the kernel image or the configs.ko using
-# scripts/extract-ikconfig.
+# Attempt to get the kernel config first by checking the modules directory
+# then via proc, and finally by extracting it from the kernel image or the
+# configs.ko using scripts/extract-ikconfig.
 # Return 1 for found.
 get_kconfig()
 {
 	local proc_config="/proc/config.gz"
 	local module_dir="/lib/modules/`uname -r`"
-	local configs_module="$module_dir/kernel/kernel/configs.ko"
+	local configs_module="$module_dir/kernel/kernel/configs.ko*"
+
+	if [ -f $module_dir/config ]; then
+		IKCONFIG=$module_dir/config
+		return 1
+	fi
 
 	if [ ! -f $proc_config ]; then
 		modprobe configs > /dev/null 2>&1
