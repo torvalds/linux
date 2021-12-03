@@ -45,7 +45,9 @@ const char *get_driver_name(int ifindex);
 int get_mac_addr(int ifindex, void *mac_addr);
 
 #pragma GCC diagnostic push
+#ifndef __clang__
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
 __attribute__((unused))
 static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 {
