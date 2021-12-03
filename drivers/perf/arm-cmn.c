@@ -193,7 +193,7 @@ struct arm_cmn_node {
 			u8 occupid_count;
 		};
 		/* XP */
-		int dtc;
+		u8 dtc;
 	};
 	union {
 		u8 event[4];
@@ -968,14 +968,14 @@ static int arm_cmn_event_init(struct perf_event *event)
 	if (!hw->dn)
 		return -EINVAL;
 	for (dn = hw->dn; dn->type == type; dn++) {
-		if (!bynodeid) {
-			hw->num_dns++;
-		} else if (dn->id != nodeid) {
+		if (bynodeid && dn->id != nodeid) {
 			hw->dn++;
-		} else {
-			hw->num_dns = 1;
-			break;
+			continue;
 		}
+		hw->dtcs_used |= arm_cmn_node_to_xp(cmn, dn)->dtc;
+		hw->num_dns++;
+		if (bynodeid)
+			break;
 	}
 
 	if (!hw->num_dns) {
@@ -985,11 +985,6 @@ static int arm_cmn_event_init(struct perf_event *event)
 			nodeid, nid.x, nid.y, nid.port, nid.dev, type);
 		return -EINVAL;
 	}
-	/*
-	 * By assuming events count in all DTC domains, we cunningly avoid
-	 * needing to know anything about how XPs are assigned to domains.
-	 */
-	hw->dtcs_used = (1U << cmn->num_dtcs) - 1;
 
 	return arm_cmn_validate_group(event);
 }
@@ -1311,6 +1306,7 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 {
 	struct arm_cmn_node *dn, *xp;
 	int dtc_idx = 0;
+	u8 dtcs_present = (1 << cmn->num_dtcs) - 1;
 
 	cmn->dtc = devm_kcalloc(cmn->dev, cmn->num_dtcs, sizeof(cmn->dtc[0]), GFP_KERNEL);
 	if (!cmn->dtc)
@@ -1322,8 +1318,7 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 
 	for (dn = cmn->dns; dn->type; dn++) {
 		if (dn->type == CMN_TYPE_XP) {
-			if (dn->dtc < 0 && cmn->num_dtcs == 1)
-				dn->dtc = 0;
+			dn->dtc &= dtcs_present;
 			continue;
 		}
 
@@ -1333,8 +1328,8 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 		if (dn->type == CMN_TYPE_DTC) {
 			int err;
 			/* We do at least know that a DTC's XP must be in that DTC's domain */
-			if (xp->dtc < 0)
-				xp->dtc = dtc_idx;
+			if (xp->dtc == 0xf)
+				xp->dtc = 1 << dtc_idx;
 			err = arm_cmn_init_dtc(cmn, dn, dtc_idx++);
 			if (err)
 				return err;
@@ -1435,7 +1430,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 		if (xp->id == (1 << 3))
 			cmn->mesh_x = xp->logid;
 
-		xp->dtc = -1;
+		xp->dtc = 0xf;
 		xp->dtm = dtm - cmn->dtms;
 		arm_cmn_init_dtm(dtm++, xp);
 
