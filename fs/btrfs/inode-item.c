@@ -646,14 +646,11 @@ delete:
 			}
 		}
 
-		if (del_item)
-			control->last_size = found_key.offset;
-		else
-			control->last_size = new_size;
 		if (del_item) {
 			ASSERT(!pending_del_nr ||
 			       ((path->slots[0] + 1) == pending_del_slot));
 
+			control->last_size = found_key.offset;
 			if (!pending_del_nr) {
 				/* No pending yet, add ourselves */
 				pending_del_slot = path->slots[0];
@@ -665,6 +662,7 @@ delete:
 				pending_del_slot = path->slots[0];
 			}
 		} else {
+			control->last_size = new_size;
 			break;
 		}
 		should_throttle = false;
