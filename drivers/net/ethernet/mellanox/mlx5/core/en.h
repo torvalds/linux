@@ -173,7 +173,7 @@ struct page_pool;
 #define MLX5E_KLM_ENTRIES_PER_WQE(wqe_size)\
 	ALIGN_DOWN(MLX5E_KLM_MAX_ENTRIES_PER_WQE(wqe_size), MLX5_UMR_KLM_ALIGNMENT)
 
-#define MLX5E_MAX_KLM_PER_WQE(mdev) \
+#define MLX5E_MAX_KLM_PER_WQE \
 	MLX5E_KLM_ENTRIES_PER_WQE(MLX5E_TX_MPW_MAX_NUM_DS << MLX5_MKEY_BSF_OCTO_SIZE)
 
 #define MLX5E_MSG_LEVEL			NETIF_MSG_LINK
@@ -1057,7 +1057,6 @@ int mlx5e_safe_switch_params(struct mlx5e_priv *priv,
 			     mlx5e_fp_preactivate preactivate,
 			     void *context, bool reset);
 int mlx5e_update_tx_netdev_queues(struct mlx5e_priv *priv);
-int mlx5e_num_channels_changed(struct mlx5e_priv *priv);
 int mlx5e_num_channels_changed_ctx(struct mlx5e_priv *priv, void *context);
 void mlx5e_activate_priv_channels(struct mlx5e_priv *priv);
 void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv);

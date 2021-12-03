@@ -590,6 +590,7 @@ static int esw_qos_create(struct mlx5_eswitch *esw, struct netlink_ext_ack *exta
 		if (IS_ERR(esw->qos.group0)) {
 			esw_warn(dev, "E-Switch create rate group 0 failed (%ld)\n",
 				 PTR_ERR(esw->qos.group0));
+			err = PTR_ERR(esw->qos.group0);
 			goto err_group0;
 		}
 	}

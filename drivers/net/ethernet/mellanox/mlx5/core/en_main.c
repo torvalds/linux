@@ -2598,7 +2598,7 @@ static void mlx5e_set_default_xps_cpumasks(struct mlx5e_priv *priv,
 	}
 }
 
-int mlx5e_num_channels_changed(struct mlx5e_priv *priv)
+static int mlx5e_num_channels_changed(struct mlx5e_priv *priv)
 {
 	u16 count = priv->channels.params.num_channels;
 	int err;

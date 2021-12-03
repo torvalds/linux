@@ -1441,7 +1441,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 							MLX5_FLOW_NAMESPACE_FDB, VPORT_TO_REG,
 							metadata);
 			if (err)
-				return err;
+				goto err_out;
 		}
 	}
 
@@ -1457,13 +1457,15 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		if (attr->chain) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Internal port rule is only supported on chain 0");
-			return -EOPNOTSUPP;
+			err = -EOPNOTSUPP;
+			goto err_out;
 		}
 
 		if (attr->dest_chain) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Internal port rule offload doesn't support goto action");
-			return -EOPNOTSUPP;
+			err = -EOPNOTSUPP;
+			goto err_out;
 		}
 
 		int_port = mlx5e_tc_int_port_get(mlx5e_get_int_port_priv(priv),
@@ -1471,8 +1473,10 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 						 flow_flag_test(flow, EGRESS) ?
 						 MLX5E_TC_INT_PORT_EGRESS :
 						 MLX5E_TC_INT_PORT_INGRESS);
-		if (IS_ERR(int_port))
-			return PTR_ERR(int_port);
+		if (IS_ERR(int_port)) {
+			err = PTR_ERR(int_port);
+			goto err_out;
+		}
 
 		esw_attr->int_port = int_port;
 	}
@@ -3355,11 +3359,9 @@ add_vlan_prio_tag_rewrite_action(struct mlx5e_priv *priv,
 static int validate_goto_chain(struct mlx5e_priv *priv,
 			       struct mlx5e_tc_flow *flow,
 			       const struct flow_action_entry *act,
-			       u32 actions,
 			       struct netlink_ext_ack *extack)
 {
 	bool is_esw = mlx5e_is_eswitch_flow(flow);
-	struct mlx5_flow_attr *attr = flow->attr;
 	bool ft_flow = mlx5e_is_ft_flow(flow);
 	u32 dest_chain = act->chain_index;
 	struct mlx5_fs_chains *chains;
@@ -3380,7 +3382,7 @@ static int validate_goto_chain(struct mlx5e_priv *priv,
 	}
 
 	if (!mlx5_chains_backwards_supported(chains) &&
-	    dest_chain <= attr->chain) {
+	    dest_chain <= flow->attr->chain) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Goto lower numbered chain isn't supported");
 		return -EOPNOTSUPP;
@@ -3392,8 +3394,8 @@ static int validate_goto_chain(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	if (actions & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
-		       MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
+	if (flow->attr->action & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
+				  MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
 	    !reformat_and_fwd) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Goto chain is not allowed if action has reformat or decap");
@@ -3443,19 +3445,9 @@ actions_prepare_mod_hdr_actions(struct mlx5e_priv *priv,
 }
 
 static int
-parse_tc_nic_actions(struct mlx5e_priv *priv,
-		     struct flow_action *flow_action,
-		     struct mlx5e_tc_flow *flow,
-		     struct netlink_ext_ack *extack)
+flow_action_supported(struct flow_action *flow_action,
+		      struct netlink_ext_ack *extack)
 {
-	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct mlx5_flow_attr *attr = flow->attr;
-	struct pedit_headers_action hdrs[2] = {};
-	const struct flow_action_entry *act;
-	struct mlx5_nic_flow_attr *nic_attr;
-	u32 action = 0;
-	int err, i;
-
 	if (!flow_action_has_entries(flow_action)) {
 		NL_SET_ERR_MSG_MOD(extack, "Flow action doesn't have any entries");
 		return -EINVAL;
@@ -3467,6 +3459,26 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
+	return 0;
+}
+
+static int
+parse_tc_nic_actions(struct mlx5e_priv *priv,
+		     struct flow_action *flow_action,
+		     struct mlx5e_tc_flow *flow,
+		     struct netlink_ext_ack *extack)
+{
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5_flow_attr *attr = flow->attr;
+	struct pedit_headers_action hdrs[2] = {};
+	const struct flow_action_entry *act;
+	struct mlx5_nic_flow_attr *nic_attr;
+	int err, i;
+
+	err = flow_action_supported(flow_action, extack);
+	if (err)
+		return err;
+
 	nic_attr = attr->nic_attr;
 	nic_attr->flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
 	parse_attr = attr->parse_attr;
@@ -3474,12 +3486,12 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
 		case FLOW_ACTION_ACCEPT:
-			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			break;
 		case FLOW_ACTION_DROP:
-			action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			break;
 		case FLOW_ACTION_MANGLE:
 		case FLOW_ACTION_ADD:
@@ -3488,19 +3500,19 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 			if (err)
 				return err;
 
-			action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 			break;
 		case FLOW_ACTION_VLAN_MANGLE:
 			err = add_vlan_rewrite_action(priv,
 						      MLX5_FLOW_NAMESPACE_KERNEL,
 						      act, parse_attr, hdrs,
-						      &action, extack);
+						      &attr->action, extack);
 			if (err)
 				return err;
 
 			break;
 		case FLOW_ACTION_CSUM:
-			if (csum_offload_supported(priv, action,
+			if (csum_offload_supported(priv, attr->action,
 						   act->csum_flags,
 						   extack))
 				break;
@@ -3513,8 +3525,8 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 			    same_hw_devs(priv, netdev_priv(peer_dev))) {
 				parse_attr->mirred_ifindex[0] = peer_dev->ifindex;
 				flow_flag_set(flow, HAIRPIN);
-				action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+				attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+						MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			} else {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "device is not on same HW, can't offload");
@@ -3534,17 +3546,16 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 			}
 
 			nic_attr->flow_tag = mark;
-			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 			}
 			break;
 		case FLOW_ACTION_GOTO:
-			err = validate_goto_chain(priv, flow, act, action,
-						  extack);
+			err = validate_goto_chain(priv, flow, act, extack);
 			if (err)
 				return err;
 
-			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			attr->dest_chain = act->chain_index;
 			break;
 		case FLOW_ACTION_CT:
@@ -3562,8 +3573,6 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 			return -EOPNOTSUPP;
 		}
 	}
-
-	attr->action = action;
 
 	if (attr->dest_chain && parse_attr->mirred_ifindex[0]) {
 		NL_SET_ERR_MSG(extack, "Mirroring goto chain rules isn't supported");
@@ -3684,7 +3693,6 @@ static struct net_device *get_fdb_out_dev(struct net_device *uplink_dev,
 static int add_vlan_push_action(struct mlx5e_priv *priv,
 				struct mlx5_flow_attr *attr,
 				struct net_device **out_dev,
-				u32 *action,
 				struct netlink_ext_ack *extack)
 {
 	struct net_device *vlan_dev = *out_dev;
@@ -3696,7 +3704,7 @@ static int add_vlan_push_action(struct mlx5e_priv *priv,
 	};
 	int err;
 
-	err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr, action, extack);
+	err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr, &attr->action, extack);
 	if (err)
 		return err;
 
@@ -3707,14 +3715,13 @@ static int add_vlan_push_action(struct mlx5e_priv *priv,
 		return -ENODEV;
 
 	if (is_vlan_dev(*out_dev))
-		err = add_vlan_push_action(priv, attr, out_dev, action, extack);
+		err = add_vlan_push_action(priv, attr, out_dev, extack);
 
 	return err;
 }
 
 static int add_vlan_pop_action(struct mlx5e_priv *priv,
 			       struct mlx5_flow_attr *attr,
-			       u32 *action,
 			       struct netlink_ext_ack *extack)
 {
 	struct flow_action_entry vlan_act = {
@@ -3725,7 +3732,8 @@ static int add_vlan_pop_action(struct mlx5e_priv *priv,
 	nest_level = attr->parse_attr->filter_dev->lower_level -
 						priv->netdev->lower_level;
 	while (nest_level--) {
-		err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr, action, extack);
+		err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr,
+					   &attr->action, extack);
 		if (err)
 			return err;
 	}
@@ -3882,21 +3890,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	const struct flow_action_entry *act;
 	struct mlx5_esw_flow_attr *esw_attr;
 	bool encap = false, decap = false;
-	u32 action = attr->action;
 	int err, i, if_count = 0;
 	bool ptype_host = false;
 	bool mpls_push = false;
 
-	if (!flow_action_has_entries(flow_action)) {
-		NL_SET_ERR_MSG_MOD(extack, "Flow action doesn't have any entries");
-		return -EINVAL;
-	}
-
-	if (!flow_action_hw_stats_check(flow_action, extack,
-					FLOW_ACTION_HW_STATS_DELAYED_BIT)) {
-		NL_SET_ERR_MSG_MOD(extack, "Flow action HW stats type is not supported");
-		return -EOPNOTSUPP;
-	}
+	err = flow_action_supported(flow_action, extack);
+	if (err)
+		return err;
 
 	esw_attr = attr->esw_attr;
 	parse_attr = attr->parse_attr;
@@ -3904,8 +3904,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
 		case FLOW_ACTION_ACCEPT:
-			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-				MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			attr->flags |= MLX5_ESW_ATTR_FLAG_ACCEPT;
 			break;
 		case FLOW_ACTION_PTYPE:
@@ -3918,8 +3918,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			ptype_host = true;
 			break;
 		case FLOW_ACTION_DROP:
-			action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_DROP |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			break;
 		case FLOW_ACTION_TRAP:
 			if (!flow_offload_has_one_action(flow_action)) {
@@ -3927,8 +3927,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 						   "action trap is supported as a sole action only");
 				return -EOPNOTSUPP;
 			}
-			action |= (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-				   MLX5_FLOW_CONTEXT_ACTION_COUNT);
+			attr->action |= (MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+					 MLX5_FLOW_CONTEXT_ACTION_COUNT);
 			attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
 			break;
 		case FLOW_ACTION_MPLS_PUSH:
@@ -3959,7 +3959,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			}
 
 			parse_attr->eth.h_proto = act->mpls_pop.proto;
-			action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
 			flow_flag_set(flow, L3_TO_L2_DECAP);
 			break;
 		case FLOW_ACTION_MANGLE:
@@ -3970,12 +3970,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				return err;
 
 			if (!flow_flag_test(flow, L3_TO_L2_DECAP)) {
-				action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+				attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 				esw_attr->split_count = esw_attr->out_count;
 			}
 			break;
 		case FLOW_ACTION_CSUM:
-			if (csum_offload_supported(priv, action,
+			if (csum_offload_supported(priv, attr->action,
 						   act->csum_flags, extack))
 				break;
 
@@ -4011,12 +4011,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				return -EOPNOTSUPP;
 			}
 
-			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 
 			err = mlx5e_set_fwd_to_int_port_actions(priv, attr, out_dev->ifindex,
 								MLX5E_TC_INT_PORT_INGRESS,
-								&action, esw_attr->out_count);
+								&attr->action, esw_attr->out_count);
 			if (err)
 				return err;
 
@@ -4061,8 +4061,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				return -EOPNOTSUPP;
 			}
 
-			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			if (encap) {
 				parse_attr->mirred_ifindex[esw_attr->out_count] =
 					out_dev->ifindex;
@@ -4096,16 +4096,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 					return -ENODEV;
 
 				if (is_vlan_dev(out_dev)) {
-					err = add_vlan_push_action(priv, attr,
-								   &out_dev,
-								   &action, extack);
+					err = add_vlan_push_action(priv, attr, &out_dev, extack);
 					if (err)
 						return err;
 				}
 
 				if (is_vlan_dev(parse_attr->filter_dev)) {
-					err = add_vlan_pop_action(priv, attr,
-								  &action, extack);
+					err = add_vlan_pop_action(priv, attr, extack);
 					if (err)
 						return err;
 				}
@@ -4138,7 +4135,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				err = mlx5e_set_fwd_to_int_port_actions(priv, attr,
 									out_dev->ifindex,
 									MLX5E_TC_INT_PORT_EGRESS,
-									&action,
+									&attr->action,
 									esw_attr->out_count);
 				if (err)
 					return err;
@@ -4176,15 +4173,16 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		case FLOW_ACTION_VLAN_PUSH:
 		case FLOW_ACTION_VLAN_POP:
 			if (act->id == FLOW_ACTION_VLAN_PUSH &&
-			    (action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP)) {
+			    (attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP)) {
 				/* Replace vlan pop+push with vlan modify */
-				action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+				attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
 				err = add_vlan_rewrite_action(priv,
 							      MLX5_FLOW_NAMESPACE_FDB,
 							      act, parse_attr, hdrs,
-							      &action, extack);
+							      &attr->action, extack);
 			} else {
-				err = parse_tc_vlan_action(priv, act, esw_attr, &action, extack);
+				err = parse_tc_vlan_action(priv, act, esw_attr, &attr->action,
+							   extack);
 			}
 			if (err)
 				return err;
@@ -4195,7 +4193,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			err = add_vlan_rewrite_action(priv,
 						      MLX5_FLOW_NAMESPACE_FDB,
 						      act, parse_attr, hdrs,
-						      &action, extack);
+						      &attr->action, extack);
 			if (err)
 				return err;
 
@@ -4205,13 +4203,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			decap = true;
 			break;
 		case FLOW_ACTION_GOTO:
-			err = validate_goto_chain(priv, flow, act, action,
-						  extack);
+			err = validate_goto_chain(priv, flow, act, extack);
 			if (err)
 				return err;
 
-			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			attr->dest_chain = act->chain_index;
 			break;
 		case FLOW_ACTION_CT:
@@ -4254,22 +4251,17 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	/* always set IP version for indirect table handling */
-	attr->ip_version = mlx5e_tc_get_ip_version(&parse_attr->spec, true);
-
 	if (MLX5_CAP_GEN(esw->dev, prio_tag_required) &&
-	    action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) {
+	    attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) {
 		/* For prio tag mode, replace vlan pop with rewrite vlan prio
 		 * tag rewrite.
 		 */
-		action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+		attr->action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
 		err = add_vlan_prio_tag_rewrite_action(priv, parse_attr, hdrs,
-						       &action, extack);
+						       &attr->action, extack);
 		if (err)
 			return err;
 	}
-
-	attr->action = action;
 
 	err = actions_prepare_mod_hdr_actions(priv, flow, attr, hdrs, extack);
 	if (err)
@@ -4492,6 +4484,9 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 				   &flow->attr->ct_attr, extack);
 	if (err)
 		goto err_free;
+
+	/* always set IP version for indirect table handling */
+	flow->attr->ip_version = mlx5e_tc_get_ip_version(&parse_attr->spec, true);
 
 	err = parse_tc_fdb_actions(priv, &rule->action, flow, extack);
 	if (err)
