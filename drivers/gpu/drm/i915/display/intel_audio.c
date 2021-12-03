@@ -1020,7 +1020,7 @@ static void glk_force_audio_cdclk(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 	int ret;
 
-	crtc = intel_get_first_crtc(dev_priv);
+	crtc = intel_first_crtc(dev_priv);
 	if (!crtc)
 		return;
 

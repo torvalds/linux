@@ -36,7 +36,7 @@ static void assert_vblank_disabled(struct drm_crtc *crtc)
 		drm_crtc_vblank_put(crtc);
 }
 
-struct intel_crtc *intel_get_first_crtc(struct drm_i915_private *i915)
+struct intel_crtc *intel_first_crtc(struct drm_i915_private *i915)
 {
 	return to_intel_crtc(drm_crtc_from_index(&i915->drm, 0));
 }
