@@ -8000,16 +8000,13 @@ static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
-static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
-				     enum hnae3_loop loop_mode)
+static int hclge_cfg_common_loopback_cmd_send(struct hclge_dev *hdev, bool en,
+					      enum hnae3_loop loop_mode)
 {
-#define HCLGE_COMMON_LB_RETRY_MS	10
-#define HCLGE_COMMON_LB_RETRY_NUM	100
-
 	struct hclge_common_lb_cmd *req;
 	struct hclge_desc desc;
-	int ret, i = 0;
 	u8 loop_mode_b;
+	int ret;
 
 	req = (struct hclge_common_lb_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_COMMON_LOOPBACK, false);
@@ -8026,23 +8023,34 @@ static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
 		break;
 	default:
 		dev_err(&hdev->pdev->dev,
-			"unsupported common loopback mode %d\n", loop_mode);
+			"unsupported loopback mode %d\n", loop_mode);
 		return -ENOTSUPP;
 	}
 
-	if (en) {
+	req->mask = loop_mode_b;
+	if (en)
 		req->enable = loop_mode_b;
-		req->mask = loop_mode_b;
-	} else {
-		req->mask = loop_mode_b;
-	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
+	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"common loopback set fail, ret = %d\n", ret);
-		return ret;
-	}
+			"failed to send loopback cmd, loop_mode = %d, ret = %d\n",
+			loop_mode, ret);
+
+	return ret;
+}
+
+static int hclge_cfg_common_loopback_wait(struct hclge_dev *hdev)
+{
+#define HCLGE_COMMON_LB_RETRY_MS	10
+#define HCLGE_COMMON_LB_RETRY_NUM	100
+
+	struct hclge_common_lb_cmd *req;
+	struct hclge_desc desc;
+	u32 i = 0;
+	int ret;
+
+	req = (struct hclge_common_lb_cmd *)desc.data;
 
 	do {
 		msleep(HCLGE_COMMON_LB_RETRY_MS);
@@ -8051,20 +8059,34 @@ static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
-				"common loopback get, ret = %d\n", ret);
+				"failed to get loopback done status, ret = %d\n",
+				ret);
 			return ret;
 		}
 	} while (++i < HCLGE_COMMON_LB_RETRY_NUM &&
 		 !(req->result & HCLGE_CMD_COMMON_LB_DONE_B));
 
 	if (!(req->result & HCLGE_CMD_COMMON_LB_DONE_B)) {
-		dev_err(&hdev->pdev->dev, "common loopback set timeout\n");
+		dev_err(&hdev->pdev->dev, "wait loopback timeout\n");
 		return -EBUSY;
 	} else if (!(req->result & HCLGE_CMD_COMMON_LB_SUCCESS_B)) {
-		dev_err(&hdev->pdev->dev, "common loopback set failed in fw\n");
+		dev_err(&hdev->pdev->dev, "faile to do loopback test\n");
 		return -EIO;
 	}
-	return ret;
+
+	return 0;
+}
+
+static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
+				     enum hnae3_loop loop_mode)
+{
+	int ret;
+
+	ret = hclge_cfg_common_loopback_cmd_send(hdev, en, loop_mode);
+	if (ret)
+		return ret;
+
+	return hclge_cfg_common_loopback_wait(hdev);
 }
 
 static int hclge_set_common_loopback(struct hclge_dev *hdev, bool en,
