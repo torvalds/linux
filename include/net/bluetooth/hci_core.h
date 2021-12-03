@@ -757,6 +757,7 @@ struct hci_conn_params {
 	struct hci_conn *conn;
 	bool explicit_connect;
 	DECLARE_BITMAP(flags, __HCI_CONN_NUM_FLAGS);
+	u8  privacy_mode;
 };
 
 extern struct list_head hci_dev_list;
