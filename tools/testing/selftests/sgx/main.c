@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*  Copyright(c) 2016-20 Intel Corporation. */
 
+#include <cpuid.h>
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -291,9 +292,7 @@ static unsigned long get_total_epc_mem(void)
 	int section = 0;
 
 	while (true) {
-		eax = SGX_CPUID;
-		ecx = section + SGX_CPUID_EPC;
-		__cpuid(&eax, &ebx, &ecx, &edx);
+		__cpuid_count(SGX_CPUID, section + SGX_CPUID_EPC, eax, ebx, ecx, edx);
 
 		type = eax & SGX_CPUID_EPC_MASK;
 		if (type == SGX_CPUID_EPC_INVALID)
