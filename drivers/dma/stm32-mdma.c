@@ -1279,7 +1279,7 @@ static size_t stm32_mdma_desc_residue(struct stm32_mdma_chan *chan,
 				      u32 curr_hwdesc)
 {
 	struct stm32_mdma_device *dmadev = stm32_mdma_get_dev(chan);
-	struct stm32_mdma_hwdesc *hwdesc = desc->node[0].hwdesc;
+	struct stm32_mdma_hwdesc *hwdesc;
 	u32 cbndtr, residue, modulo, burst_size;
 	int i;
 
