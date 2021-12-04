@@ -5,6 +5,15 @@
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
 
+/* Use 'r' as magic number */
+#define RGA_IOC_MAGIC		'r'
+#define RGA_IOW(nr, type)	_IOW(RGA_IOC_MAGIC, nr, type)
+#define RGA_IOR(nr, type)	_IOR(RGA_IOC_MAGIC, nr, type)
+#define RGA_IOWR(nr, type)	_IOWR(RGA_IOC_MAGIC, nr, type)
+
+#define RGA_IOC_GET_DRVIER_VERSION	RGA_IOR(0x1, struct rga_version_t)
+#define RGA_IOC_GET_HW_VERSION		RGA_IOR(0x2, struct rga_hw_versions_t)
+
 #define RGA_BLIT_SYNC			0x5017
 #define RGA_BLIT_ASYNC			0x5018
 #define RGA_FLUSH			0x5019
@@ -145,6 +154,21 @@ enum {
 
 #define RGA_SCHED_PRIORITY_DEFAULT 0
 #define RGA_SCHED_PRIORITY_MAX 6
+
+#define RGA_VERSION_SIZE	16
+#define RGA_HW_SIZE		5
+
+struct rga_version_t {
+	uint32_t major;
+	uint32_t minor;
+	uint32_t revision;
+	uint8_t str[RGA_VERSION_SIZE];
+};
+
+struct rga_hw_versions_t {
+	struct rga_version_t version[RGA_HW_SIZE];
+	uint32_t size;
+};
 
 struct rga_mmu_info_t {
 	unsigned long src0_base_addr;

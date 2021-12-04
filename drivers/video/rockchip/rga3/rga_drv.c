@@ -108,6 +108,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	int i = 0;
 	int major_version = 0, minor_version = 0;
 	char version[16] = { 0 };
+	struct rga_version_t driver_version;
+	struct rga_hw_versions_t hw_versions;
 
 	if (!rga) {
 		pr_err("rga_drvdata is null, rga is not init\n");
@@ -150,7 +152,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	case RGA_GET_RESULT:
 		break;
 	case RGA_GET_VERSION:
-		sscanf(rga->rga_scheduler[i]->version, "%x.%x.%*x",
+		sscanf(rga->rga_scheduler[i]->version.str, "%x.%x.%*x",
 			 &major_version, &minor_version);
 		snprintf(version, 5, "%x.%02x", major_version, minor_version);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
@@ -167,8 +169,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		for (i = 0; i < rga->num_of_scheduler; i++) {
 			if (rga->rga_scheduler[i]->ops == &rga2_ops) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-				if (copy_to_user((void *)arg, rga->rga_scheduler[i]->version,
-					sizeof(rga->rga_scheduler[i]->version)))
+				if (copy_to_user((void *)arg, rga->rga_scheduler[i]->version.str,
+					sizeof(rga->rga_scheduler[i]->version.str)))
 					ret = -EFAULT;
 #else
 				if (copy_to_user((void *)arg, RGA3_VERSION,
@@ -185,6 +187,37 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		/* This will indicate that the RGA2 version number cannot be obtained. */
 		if (ret != true)
 			ret = -EFAULT;
+
+		break;
+
+	case RGA_IOC_GET_HW_VERSION:
+		/* RGA hardware version */
+		hw_versions.size = rga->num_of_scheduler > RGA_HW_SIZE ?
+			RGA_HW_SIZE : rga->num_of_scheduler;
+
+		for (i = 0; i < hw_versions.size; i++) {
+			memcpy(&hw_versions.version[i], &rga->rga_scheduler[i]->version,
+				sizeof(rga->rga_scheduler[i]->version));
+		}
+
+		if (copy_to_user((void *)arg, &hw_versions, sizeof(hw_versions)))
+			ret = -EFAULT;
+		else
+			ret = true;
+
+		break;
+
+	case RGA_IOC_GET_DRVIER_VERSION:
+		/* Driver version */
+		driver_version.major = DRIVER_MAJOR_VERISON;
+		driver_version.minor = DRIVER_MINOR_VERSION;
+		driver_version.revision = DRIVER_REVISION_VERSION;
+		strncpy((char *)driver_version.str, DRIVER_VERSION, sizeof(driver_version.str));
+
+		if (copy_to_user((void *)arg, &driver_version, sizeof(driver_version)))
+			ret = -EFAULT;
+		else
+			ret = true;
 
 		break;
 
@@ -588,7 +621,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	rga_scheduler->ops->get_version(rga_scheduler);
 	pr_err("Driver loaded successfully rga[%d] ver:%s\n", i,
-		rga_scheduler->version);
+		rga_scheduler->version.str);
 
 	data->rga_scheduler[data->num_of_scheduler] = rga_scheduler;
 

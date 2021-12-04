@@ -63,8 +63,16 @@
 /* Driver information */
 #define DRIVER_DESC		"RGA multicore Device Driver"
 #define DRIVER_NAME		"rga_multicore"
-#define DRIVER_VERSION		"1.1.4"
-#define RGA3_VERSION		"2.000"
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#define DRIVER_MAJOR_VERISON		1
+#define DRIVER_MINOR_VERSION		1
+#define DRIVER_REVISION_VERSION		5
+
+#define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
+			"." STR(DRIVER_REVISION_VERSION))
 
 /* time limit */
 #define RGA_ASYNC_TIMEOUT_DELAY		HZ
@@ -227,7 +235,7 @@ struct rga_scheduler_t {
 	const struct rga_hw_data *data;
 	int job_count;
 	int irq;
-	char version[16];
+	struct rga_version_t version;
 	int core;
 	unsigned int core_offset;
 };

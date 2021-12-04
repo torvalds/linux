@@ -2067,8 +2067,12 @@ int rga3_get_version(struct rga_scheduler_t *scheduler)
 	minor_version = (reg_version & RGA3_MINOR_VERSION_MASK) >> 20;
 	svn_version = (reg_version & RGA3_SVN_VERSION_MASK);
 
-	snprintf(scheduler->version, 10, "%x.%01x.%05x", major_version,
+	snprintf(scheduler->version.str, 10, "%x.%01x.%05x", major_version,
 		 minor_version, svn_version);
+
+	scheduler->version.major = major_version;
+	scheduler->version.minor = minor_version;
+	scheduler->version.revision = svn_version;
 
 	return 0;
 }
