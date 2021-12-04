@@ -91,7 +91,7 @@ struct intel_gvt_gtt_gma_ops {
 };
 
 struct intel_gvt_gtt {
-	struct intel_gvt_gtt_pte_ops *pte_ops;
+	const struct intel_gvt_gtt_pte_ops *pte_ops;
 	const struct intel_gvt_gtt_gma_ops *gma_ops;
 	int (*mm_alloc_page_table)(struct intel_vgpu_mm *mm);
 	void (*mm_free_page_table)(struct intel_vgpu_mm *mm);
