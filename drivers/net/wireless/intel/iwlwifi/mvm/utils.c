@@ -340,25 +340,64 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ieee80211_request_smps(vif, smps_mode);
 }
 
+static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,
+				    struct iwl_rx_packet *pkt, void *data)
+{
+	WARN_ON(pkt->hdr.cmd != STATISTICS_NOTIFICATION);
+
+	return true;
+}
+
 int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 {
 	struct iwl_statistics_cmd scmd = {
 		.flags = clear ? cpu_to_le32(IWL_STATISTICS_FLG_CLEAR) : 0,
 	};
+
 	struct iwl_host_cmd cmd = {
 		.id = STATISTICS_CMD,
 		.len[0] = sizeof(scmd),
 		.data[0] = &scmd,
-		.flags = CMD_WANT_SKB,
 	};
 	int ret;
 
-	ret = iwl_mvm_send_cmd(mvm, &cmd);
-	if (ret)
-		return ret;
+	/* From version 15 - STATISTICS_NOTIFICATION, the reply for
+	 * STATISTICS_CMD is empty, and the response is with
+	 * STATISTICS_NOTIFICATION notification
+	 */
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
+				    STATISTICS_NOTIFICATION, 0) < 15) {
+		cmd.flags = CMD_WANT_SKB;
 
-	iwl_mvm_handle_rx_statistics(mvm, cmd.resp_pkt);
-	iwl_free_resp(&cmd);
+		ret = iwl_mvm_send_cmd(mvm, &cmd);
+		if (ret)
+			return ret;
+
+		iwl_mvm_handle_rx_statistics(mvm, cmd.resp_pkt);
+		iwl_free_resp(&cmd);
+	} else {
+		struct iwl_notification_wait stats_wait;
+		static const u16 stats_complete[] = {
+			STATISTICS_NOTIFICATION,
+		};
+
+		iwl_init_notification_wait(&mvm->notif_wait, &stats_wait,
+					   stats_complete, ARRAY_SIZE(stats_complete),
+					   iwl_wait_stats_complete, NULL);
+
+		ret = iwl_mvm_send_cmd(mvm, &cmd);
+		if (ret) {
+			iwl_remove_notification(&mvm->notif_wait, &stats_wait);
+			return ret;
+		}
+
+		/* 200ms should be enough for FW to collect data from all
+		 * LMACs and send STATISTICS_NOTIFICATION to host
+		 */
+		ret = iwl_wait_notification(&mvm->notif_wait, &stats_wait, HZ / 5);
+		if (ret)
+			return ret;
+	}
 
 	if (clear)
 		iwl_mvm_accu_radio_stats(mvm);
