@@ -55,6 +55,7 @@
 #define IWL_BZ_A_MR_A_FW_PRE		"iwlwifi-bz-a0-mr-a0-"
 #define IWL_BZ_A_FM_A_FW_PRE		"iwlwifi-bz-a0-fm-a0-"
 #define IWL_GL_A_FM_A_FW_PRE		"iwlwifi-gl-a0-fm7-a0-"
+#define IWL_BZ_Z_GF_A_FW_PRE		"iwlwifi-bz-z0-gf-a0-"
 
 
 #define IWL_QU_B_HR_B_MODULE_FIRMWARE(api) \
@@ -113,6 +114,8 @@
 		IWL_BZ_A_FM_A_FW_PRE __stringify(api) ".ucode"
 #define IWL_GL_A_FM_A_MODULE_FIRMWARE(api) \
 		IWL_GL_A_FM_A_FW_PRE __stringify(api) ".ucode"
+#define IWL_BZ_Z_GF_A_MODULE_FIRMWARE(api) \
+	IWL_BZ_Z_GF_A_FW_PRE __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_22000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
@@ -874,6 +877,13 @@ const struct iwl_cfg iwl_cfg_bz_a0_fm_a0 = {
 
 const struct iwl_cfg iwl_cfg_gl_a0_fm_a0 = {
 	.fw_name_pre = IWL_GL_A_FM_A_FW_PRE,
+	.uhb_supported = true,
+	IWL_DEVICE_BZ,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+};
+
+const struct iwl_cfg iwl_cfg_bz_z0_gf_a0 = {
+	.fw_name_pre = IWL_BZ_Z_GF_A_FW_PRE,
 	.uhb_supported = true,
 	IWL_DEVICE_BZ,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,

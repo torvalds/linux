@@ -304,6 +304,7 @@ enum {
 	SILICON_A_STEP = 0,
 	SILICON_B_STEP,
 	SILICON_C_STEP,
+	SILICON_Z_STEP = 0xf,
 };
 
 
