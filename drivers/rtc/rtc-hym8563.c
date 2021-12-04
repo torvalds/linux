@@ -514,12 +514,12 @@ static int hym8563_probe(struct i2c_client *client,
 	struct hym8563 *hym8563;
 	int ret;
 	/*
-	 * hym8563 initial time(2020_1_1_12:00:00),
+	 * hym8563 initial time(2021_1_1_12:00:00),
 	 * avoid hym8563 read time error
 	 */
 	struct rtc_time tm_read, tm = {
 		.tm_wday = 0,
-		.tm_year = 120,
+		.tm_year = 121,
 		.tm_mon = 0,
 		.tm_mday = 1,
 		.tm_hour = 12,
@@ -562,12 +562,12 @@ static int hym8563_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(&client->dev, "rtc information is %s\n",
+	dev_info(&client->dev, "rtc information is %s\n",
 		(ret & HYM8563_SEC_VL) ? "invalid" : "valid");
 
 	hym8563_rtc_read_time(&client->dev, &tm_read);
-	if (((tm_read.tm_year < 70) | (tm_read.tm_year > 200)) |
-	    (tm_read.tm_mon == -1) | (rtc_valid_tm(&tm_read) != 0))
+	if ((ret & HYM8563_SEC_VL) || (tm_read.tm_year < 70) || (tm_read.tm_year > 200) ||
+	    (tm_read.tm_mon == -1) || (rtc_valid_tm(&tm_read) != 0))
 		hym8563_rtc_set_time(&client->dev, &tm);
 
 	hym8563->rtc = devm_rtc_device_register(&client->dev, client->name,
