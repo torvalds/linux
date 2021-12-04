@@ -456,6 +456,11 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 
 		break;
 
+	case 0xcc:
+		/* int3 */
+		*type = INSN_TRAP;
+		break;
+
 	case 0xe3:
 		/* jecxz/jrcxz */
 		*type = INSN_JUMP_CONDITIONAL;
@@ -592,10 +597,10 @@ const char *arch_ret_insn(int len)
 {
 	static const char ret[5][5] = {
 		{ BYTE_RET },
-		{ BYTE_RET, 0x90 },
-		{ BYTE_RET, 0x66, 0x90 },
-		{ BYTE_RET, 0x0f, 0x1f, 0x00 },
-		{ BYTE_RET, 0x0f, 0x1f, 0x40, 0x00 },
+		{ BYTE_RET, 0xcc },
+		{ BYTE_RET, 0xcc, 0x90 },
+		{ BYTE_RET, 0xcc, 0x66, 0x90 },
+		{ BYTE_RET, 0xcc, 0x0f, 0x1f, 0x00 },
 	};
 
 	if (len < 1 || len > 5) {
