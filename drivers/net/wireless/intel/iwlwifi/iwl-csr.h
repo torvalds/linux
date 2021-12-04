@@ -105,6 +105,10 @@
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
+#define CSR_IPC_SLEEP_CONTROL	(CSR_BASE + 0x114)
+#define CSR_IPC_SLEEP_CONTROL_SUSPEND	0x3
+#define CSR_IPC_SLEEP_CONTROL_RESUME	0
+
 /* Doorbell NMI (since Bz) */
 #define CSR_DOORBELL_VECTOR	(CSR_BASE + 0x130)
 #define CSR_DOORBELL_VECTOR_NMI	BIT(1)
