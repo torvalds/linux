@@ -185,7 +185,7 @@ struct gtt_type_table_entry {
 		.pse_entry_type = pse_type, \
 	}
 
-static struct gtt_type_table_entry gtt_type_table[] = {
+static const struct gtt_type_table_entry gtt_type_table[] = {
 	GTT_TYPE_TABLE_ENTRY(GTT_TYPE_PPGTT_ROOT_L4_ENTRY,
 			GTT_TYPE_PPGTT_ROOT_L4_ENTRY,
 			GTT_TYPE_INVALID,
