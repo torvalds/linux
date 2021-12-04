@@ -124,6 +124,9 @@ struct iwl_fw_ini_region_internal_buffer {
  * @hdr: debug header
  * @id: region id. Max id is &IWL_FW_INI_MAX_REGION_ID
  * @type: region type. One of &enum iwl_fw_ini_region_type
+ * @sub_type: region sub type
+ * @sub_type_ver: region sub type
+ * @reserved: not in use
  * @name: region name
  * @dev_addr: device address configuration. Used by
  *	&IWL_FW_INI_REGION_DEVICE_MEMORY, &IWL_FW_INI_REGION_PERIPHERY_MAC,
@@ -146,7 +149,10 @@ struct iwl_fw_ini_region_internal_buffer {
 struct iwl_fw_ini_region_tlv {
 	struct iwl_fw_ini_header hdr;
 	__le32 id;
-	__le32 type;
+	u8 type;
+	u8 sub_type;
+	u8 sub_type_ver;
+	u8 reserved;
 	u8 name[IWL_FW_INI_MAX_NAME];
 	union {
 		struct iwl_fw_ini_region_dev_addr dev_addr;
