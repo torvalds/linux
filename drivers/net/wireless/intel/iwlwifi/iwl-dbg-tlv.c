@@ -473,7 +473,7 @@ void iwl_dbg_tlv_load_bin(struct device *dev, struct iwl_trans *trans)
 	int res;
 
 	if (!iwlwifi_mod_params.enable_ini ||
-	    trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_9000)
+	    trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_8000)
 		return;
 
 	res = firmware_request_nowarn(&fw, yoyo_bin, dev);
