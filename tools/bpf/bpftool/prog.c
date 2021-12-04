@@ -1774,17 +1774,19 @@ static int try_loader(struct gen_loader_opts *gen)
 					     sizeof(struct bpf_prog_desc));
 	int log_buf_sz = (1u << 24) - 1;
 	int err, fds_before, fd_delta;
-	char *log_buf;
+	char *log_buf = NULL;
 
 	ctx = alloca(ctx_sz);
 	memset(ctx, 0, ctx_sz);
 	ctx->sz = ctx_sz;
-	ctx->log_level = 1;
-	ctx->log_size = log_buf_sz;
-	log_buf = malloc(log_buf_sz);
-	if (!log_buf)
-		return -ENOMEM;
-	ctx->log_buf = (long) log_buf;
+	if (verifier_logs) {
+		ctx->log_level = 1 + 2 + 4;
+		ctx->log_size = log_buf_sz;
+		log_buf = malloc(log_buf_sz);
+		if (!log_buf)
+			return -ENOMEM;
+		ctx->log_buf = (long) log_buf;
+	}
 	opts.ctx = ctx;
 	opts.data = gen->data;
 	opts.data_sz = gen->data_sz;
@@ -1793,9 +1795,9 @@ static int try_loader(struct gen_loader_opts *gen)
 	fds_before = count_open_fds();
 	err = bpf_load_and_run(&opts);
 	fd_delta = count_open_fds() - fds_before;
-	if (err < 0) {
+	if (err < 0 || verifier_logs) {
 		fprintf(stderr, "err %d\n%s\n%s", err, opts.errstr, log_buf);
-		if (fd_delta)
+		if (fd_delta && err < 0)
 			fprintf(stderr, "loader prog leaked %d FDs\n",
 				fd_delta);
 	}
