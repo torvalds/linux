@@ -166,5 +166,5 @@ SYM_FUNC_START(__svm_vcpu_run)
 	pop %edi
 #endif
 	pop %_ASM_BP
-	ret
+	RET
 SYM_FUNC_END(__svm_vcpu_run)

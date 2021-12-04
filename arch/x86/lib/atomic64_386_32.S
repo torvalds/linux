@@ -30,7 +30,7 @@ SYM_FUNC_START(atomic64_##op##_386); \
 
 #define RET_IRQ_RESTORE \
 	IRQ_RESTORE v; \
-	ret
+	RET
 
 #define v %ecx
 BEGIN_IRQ_SAVE(read)

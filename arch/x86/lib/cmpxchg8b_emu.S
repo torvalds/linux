@@ -32,7 +32,7 @@ SYM_FUNC_START(cmpxchg8b_emu)
 	movl %ecx, 4(%esi)
 
 	popfl
-	ret
+	RET
 
 .Lnot_same:
 	movl  (%esi), %eax
@@ -40,7 +40,7 @@ SYM_FUNC_START(cmpxchg8b_emu)
 	movl 4(%esi), %edx
 
 	popfl
-	ret
+	RET
 
 SYM_FUNC_END(cmpxchg8b_emu)
 EXPORT_SYMBOL(cmpxchg8b_emu)

@@ -19,17 +19,17 @@ __vsyscall_page:
 
 	mov $__NR_gettimeofday, %rax
 	syscall
-	ret
+	RET
 
 	.balign 1024, 0xcc
 	mov $__NR_time, %rax
 	syscall
-	ret
+	RET
 
 	.balign 1024, 0xcc
 	mov $__NR_getcpu, %rax
 	syscall
-	ret
+	RET
 
 	.balign 4096, 0xcc
 

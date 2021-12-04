@@ -135,10 +135,10 @@ SYM_FUNC_START(__blowfish_enc_blk)
 	jnz .L__enc_xor;
 
 	write_block();
-	ret;
+	RET;
 .L__enc_xor:
 	xor_block();
-	ret;
+	RET;
 SYM_FUNC_END(__blowfish_enc_blk)
 
 SYM_FUNC_START(blowfish_dec_blk)
@@ -170,7 +170,7 @@ SYM_FUNC_START(blowfish_dec_blk)
 
 	movq %r11, %r12;
 
-	ret;
+	RET;
 SYM_FUNC_END(blowfish_dec_blk)
 
 /**********************************************************************
@@ -322,14 +322,14 @@ SYM_FUNC_START(__blowfish_enc_blk_4way)
 
 	popq %rbx;
 	popq %r12;
-	ret;
+	RET;
 
 .L__enc_xor4:
 	xor_block4();
 
 	popq %rbx;
 	popq %r12;
-	ret;
+	RET;
 SYM_FUNC_END(__blowfish_enc_blk_4way)
 
 SYM_FUNC_START(blowfish_dec_blk_4way)
@@ -364,5 +364,5 @@ SYM_FUNC_START(blowfish_dec_blk_4way)
 	popq %rbx;
 	popq %r12;
 
-	ret;
+	RET;
 SYM_FUNC_END(blowfish_dec_blk_4way)
