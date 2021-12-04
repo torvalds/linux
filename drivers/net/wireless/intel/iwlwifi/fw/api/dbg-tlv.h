@@ -7,7 +7,6 @@
 
 #include <linux/bitops.h>
 
-#define IWL_FW_INI_HW_SMEM_REGION_ID		15
 #define IWL_FW_INI_MAX_REGION_ID		64
 #define IWL_FW_INI_MAX_NAME			32
 #define IWL_FW_INI_MAX_CFG_NAME			64
@@ -386,6 +385,8 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_DBGI_SRAM,
 	IWL_FW_INI_REGION_NUM
 }; /* FW_TLV_DEBUG_REGION_TYPE_API_E */
+
+#define IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_HW_SMEM	1
 
 /**
  * enum iwl_fw_ini_time_point
