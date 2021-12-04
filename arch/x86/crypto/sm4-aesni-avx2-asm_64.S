@@ -268,7 +268,7 @@ SYM_FUNC_START_LOCAL(__sm4_crypt_blk16)
 	vpshufb RTMP2, RB3, RB3;
 
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(__sm4_crypt_blk16)
 
 #define inc_le128(x, minus_one, tmp) \
@@ -387,7 +387,7 @@ SYM_FUNC_START(sm4_aesni_avx2_ctr_enc_blk16)
 
 	vzeroall;
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(sm4_aesni_avx2_ctr_enc_blk16)
 
 /*
@@ -441,7 +441,7 @@ SYM_FUNC_START(sm4_aesni_avx2_cbc_dec_blk16)
 
 	vzeroall;
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(sm4_aesni_avx2_cbc_dec_blk16)
 
 /*
@@ -497,5 +497,5 @@ SYM_FUNC_START(sm4_aesni_avx2_cfb_dec_blk16)
 
 	vzeroall;
 	FRAME_END
-	ret;
+	RET;
 SYM_FUNC_END(sm4_aesni_avx2_cfb_dec_blk16)
