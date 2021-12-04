@@ -56,38 +56,70 @@ static struct sk_buff *create_monitor_ctrl_event(__le16 index, u32 cookie,
 	return skb;
 }
 
-int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
-		    void *data, u16 data_len, int flag, struct sock *skip_sk)
+struct sk_buff *mgmt_alloc_skb(struct hci_dev *hdev, u16 opcode,
+			       unsigned int size)
 {
 	struct sk_buff *skb;
-	struct mgmt_hdr *hdr;
 
-	skb = alloc_skb(sizeof(*hdr) + data_len, GFP_KERNEL);
+	skb = alloc_skb(sizeof(struct mgmt_hdr) + size, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return skb;
 
-	hdr = skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(event);
-	if (hdev)
-		hdr->index = cpu_to_le16(hdev->id);
-	else
-		hdr->index = cpu_to_le16(MGMT_INDEX_NONE);
-	hdr->len = cpu_to_le16(data_len);
+	skb_reserve(skb, sizeof(struct mgmt_hdr));
+	bt_cb(skb)->mgmt.hdev = hdev;
+	bt_cb(skb)->mgmt.opcode = opcode;
 
-	if (data)
-		skb_put_data(skb, data, data_len);
+	return skb;
+}
+
+int mgmt_send_event_skb(unsigned short channel, struct sk_buff *skb, int flag,
+			struct sock *skip_sk)
+{
+	struct hci_dev *hdev;
+	struct mgmt_hdr *hdr;
+	int len = skb->len;
+
+	if (!skb)
+		return -EINVAL;
+
+	hdev = bt_cb(skb)->mgmt.hdev;
 
 	/* Time stamp */
 	__net_timestamp(skb);
 
-	hci_send_to_channel(channel, skb, flag, skip_sk);
-
+	/* Send just the data, without headers, to the monitor */
 	if (channel == HCI_CHANNEL_CONTROL)
-		hci_send_monitor_ctrl_event(hdev, event, data, data_len,
+		hci_send_monitor_ctrl_event(hdev, bt_cb(skb)->mgmt.opcode,
+					    skb->data, skb->len,
 					    skb_get_ktime(skb), flag, skip_sk);
+
+	hdr = skb_push(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(bt_cb(skb)->mgmt.opcode);
+	if (hdev)
+		hdr->index = cpu_to_le16(hdev->id);
+	else
+		hdr->index = cpu_to_le16(MGMT_INDEX_NONE);
+	hdr->len = cpu_to_le16(len);
+
+	hci_send_to_channel(channel, skb, flag, skip_sk);
 
 	kfree_skb(skb);
 	return 0;
+}
+
+int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
+		    void *data, u16 data_len, int flag, struct sock *skip_sk)
+{
+	struct sk_buff *skb;
+
+	skb = mgmt_alloc_skb(hdev, event, data_len);
+	if (!skb)
+		return -ENOMEM;
+
+	if (data)
+		skb_put_data(skb, data, data_len);
+
+	return mgmt_send_event_skb(channel, skb, flag, skip_sk);
 }
 
 int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)

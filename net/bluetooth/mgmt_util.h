@@ -32,6 +32,10 @@ struct mgmt_pending_cmd {
 	int (*cmd_complete)(struct mgmt_pending_cmd *cmd, u8 status);
 };
 
+struct sk_buff *mgmt_alloc_skb(struct hci_dev *hdev, u16 opcode,
+			       unsigned int size);
+int mgmt_send_event_skb(unsigned short channel, struct sk_buff *skb, int flag,
+			struct sock *skip_sk);
 int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
 		    void *data, u16 data_len, int flag, struct sock *skip_sk);
 int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status);
