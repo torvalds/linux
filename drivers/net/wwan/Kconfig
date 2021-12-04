@@ -85,6 +85,7 @@ config IOSM
 	tristate "IOSM Driver for Intel M.2 WWAN Device"
 	depends on INTEL_IOMMU
 	select NET_DEVLINK
+	select RELAY
 	help
 	  This driver enables Intel M.2 WWAN Device communication.
 
