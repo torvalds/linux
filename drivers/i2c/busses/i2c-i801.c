@@ -356,11 +356,6 @@ static int i801_check_pre(struct i801_priv *priv)
 	return 0;
 }
 
-/*
- * Convert the status register to an error code, and clear it.
- * Note that status only contains the bits we want to clear, not the
- * actual register value.
- */
 static int i801_check_post(struct i801_priv *priv, int status)
 {
 	int result = 0;
@@ -385,7 +380,6 @@ static int i801_check_post(struct i801_priv *priv, int status)
 		    !(status & SMBHSTSTS_FAILED))
 			dev_err(&priv->pci_dev->dev,
 				"Failed terminating the transaction\n");
-		outb_p(STATUS_FLAGS, SMBHSTSTS(priv));
 		return -ETIMEDOUT;
 	}
 
@@ -423,9 +417,6 @@ static int i801_check_post(struct i801_priv *priv, int status)
 		result = -EAGAIN;
 		dev_dbg(&priv->pci_dev->dev, "Lost arbitration\n");
 	}
-
-	/* Clear status flags except BYTE_DONE, to be cleared by caller */
-	outb_p(status, SMBHSTSTS(priv));
 
 	return result;
 }
@@ -923,8 +914,11 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	}
 
 out:
-	/* Unlock the SMBus device for use by BIOS/ACPI */
-	outb_p(SMBHSTSTS_INUSE_STS, SMBHSTSTS(priv));
+	/*
+	 * Unlock the SMBus device for use by BIOS/ACPI,
+	 * and clear status flags if not done already.
+	 */
+	outb_p(SMBHSTSTS_INUSE_STS | STATUS_FLAGS, SMBHSTSTS(priv));
 
 	pm_runtime_mark_last_busy(&priv->pci_dev->dev);
 	pm_runtime_put_autosuspend(&priv->pci_dev->dev);
