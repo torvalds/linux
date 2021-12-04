@@ -105,9 +105,12 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
 				    UREG_NIC_SET_NMI_DRIVER_RESET_HANDSHAKE);
-	else
+	else if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    UREG_DOORBELL_TO_ISR6_RESET_HANDSHAKE);
+	else
+		iwl_write32(trans, CSR_DOORBELL_VECTOR,
+			    UREG_DOORBELL_TO_ISR6_RESET_HANDSHAKE);
 
 	/* wait 200ms */
 	ret = wait_event_timeout(trans_pcie->fw_reset_waitq,
