@@ -177,7 +177,14 @@ struct bpf_map {
 	atomic64_t usercnt;
 	struct work_struct work;
 	struct mutex freeze_mutex;
+#ifdef __GENKSYMS__
+	/* Preserve the CRC change that commit 33fe044f6a9e ("bpf: Fix toctou on
+	 * read-only map's constant scalar tracking") caused.
+	 */
+	u64 writecnt;
+#else
 	atomic64_t writecnt;
+#endif
 };
 
 static inline bool map_value_has_spin_lock(const struct bpf_map *map)
