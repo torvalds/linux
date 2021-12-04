@@ -942,7 +942,7 @@ struct iwl_scan_channel_params_v6 {
 
 /**
  * struct iwl_scan_general_params_v10
- * @flags: &enum iwl_umac_scan_flags
+ * @flags: &enum iwl_umac_scan_general_flags_v2
  * @reserved: reserved for future
  * @scan_start_mac_id: report the scan start TSF time according to this mac TSF
  * @active_dwell: dwell time for active scan per LMAC
