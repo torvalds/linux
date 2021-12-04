@@ -241,28 +241,30 @@ static inline void __kcsan_disable_current(void) { }
  * disabled with the __no_kcsan function attribute.
  *
  * Also see definition of __tsan_atomic_signal_fence() in kernel/kcsan/core.c.
+ *
+ * These are all macros, like <asm/barrier.h>, since some architectures use them
+ * in non-static inline functions.
  */
 #define __KCSAN_BARRIER_TO_SIGNAL_FENCE(name)					\
-	static __always_inline void kcsan_##name(void)				\
-	{									\
+	do {									\
 		barrier();							\
 		__atomic_signal_fence(__KCSAN_BARRIER_TO_SIGNAL_FENCE_##name);	\
 		barrier();							\
-	}
-__KCSAN_BARRIER_TO_SIGNAL_FENCE(mb)
-__KCSAN_BARRIER_TO_SIGNAL_FENCE(wmb)
-__KCSAN_BARRIER_TO_SIGNAL_FENCE(rmb)
-__KCSAN_BARRIER_TO_SIGNAL_FENCE(release)
+	} while (0)
+#define kcsan_mb()	__KCSAN_BARRIER_TO_SIGNAL_FENCE(mb)
+#define kcsan_wmb()	__KCSAN_BARRIER_TO_SIGNAL_FENCE(wmb)
+#define kcsan_rmb()	__KCSAN_BARRIER_TO_SIGNAL_FENCE(rmb)
+#define kcsan_release()	__KCSAN_BARRIER_TO_SIGNAL_FENCE(release)
 #elif defined(CONFIG_KCSAN_WEAK_MEMORY) && defined(__KCSAN_INSTRUMENT_BARRIERS__)
 #define kcsan_mb	__kcsan_mb
 #define kcsan_wmb	__kcsan_wmb
 #define kcsan_rmb	__kcsan_rmb
 #define kcsan_release	__kcsan_release
 #else /* CONFIG_KCSAN_WEAK_MEMORY && ... */
-static inline void kcsan_mb(void)		{ }
-static inline void kcsan_wmb(void)		{ }
-static inline void kcsan_rmb(void)		{ }
-static inline void kcsan_release(void)		{ }
+#define kcsan_mb()	do { } while (0)
+#define kcsan_wmb()	do { } while (0)
+#define kcsan_rmb()	do { } while (0)
+#define kcsan_release()	do { } while (0)
 #endif /* CONFIG_KCSAN_WEAK_MEMORY && ... */
 
 /**
