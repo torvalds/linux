@@ -5484,7 +5484,7 @@ lpfc_cgn_buffer_read(struct file *file, char __user *buf, size_t nbytes,
 		if (len > (LPFC_CGN_BUF_SIZE - LPFC_DEBUG_OUT_LINE_SZ)) {
 			len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
 					 "Truncated . . .\n");
-			break;
+			goto out;
 		}
 		len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
 				 "%03x: %08x %08x %08x %08x "
@@ -5495,6 +5495,17 @@ lpfc_cgn_buffer_read(struct file *file, char __user *buf, size_t nbytes,
 		cnt += 32;
 		ptr += 8;
 	}
+	if (len > (LPFC_CGN_BUF_SIZE - LPFC_DEBUG_OUT_LINE_SZ)) {
+		len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+				 "Truncated . . .\n");
+		goto out;
+	}
+	len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+			 "Parameter Data\n");
+	ptr = (uint32_t *)&phba->cgn_p;
+	len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+			 "%08x %08x %08x %08x\n",
+			 *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3));
 out:
 	return simple_read_from_buffer(buf, nbytes, ppos, buffer, len);
 }
