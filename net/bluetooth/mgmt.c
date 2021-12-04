@@ -9027,11 +9027,19 @@ void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
 void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 			   u8 *name, u8 name_len)
 {
-	char buf[512];
-	struct mgmt_ev_device_connected *ev = (void *) buf;
+	struct sk_buff *skb;
+	struct mgmt_ev_device_connected *ev;
 	u16 eir_len = 0;
 	u32 flags = 0;
 
+	if (conn->le_adv_data_len > 0)
+		skb = mgmt_alloc_skb(hdev, MGMT_EV_DEVICE_CONNECTED,
+				     conn->le_adv_data_len);
+	else
+		skb = mgmt_alloc_skb(hdev, MGMT_EV_DEVICE_CONNECTED,
+				     2 + name_len + 5);
+
+	ev = skb_put(skb, sizeof(*ev));
 	bacpy(&ev->addr.bdaddr, &conn->dst);
 	ev->addr.type = link_to_bdaddr(conn->type, conn->dst_type);
 
@@ -9045,24 +9053,26 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 	 * adding any BR/EDR data to the LE adv.
 	 */
 	if (conn->le_adv_data_len > 0) {
-		memcpy(&ev->eir[eir_len],
-		       conn->le_adv_data, conn->le_adv_data_len);
+		skb_put_data(skb, conn->le_adv_data, conn->le_adv_data_len);
 		eir_len = conn->le_adv_data_len;
 	} else {
-		if (name_len > 0)
+		if (name_len > 0) {
 			eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE,
 						  name, name_len);
+			skb_put(skb, eir_len);
+		}
 
-		if (memcmp(conn->dev_class, "\0\0\0", 3) != 0)
+		if (memcmp(conn->dev_class, "\0\0\0", 3) != 0) {
 			eir_len = eir_append_data(ev->eir, eir_len,
 						  EIR_CLASS_OF_DEV,
 						  conn->dev_class, 3);
+			skb_put(skb, 5);
+		}
 	}
 
 	ev->eir_len = cpu_to_le16(eir_len);
 
-	mgmt_event(MGMT_EV_DEVICE_CONNECTED, hdev, buf,
-		    sizeof(*ev) + eir_len, NULL);
+	mgmt_event_skb(skb, NULL);
 }
 
 static void disconnect_rsp(struct mgmt_pending_cmd *cmd, void *data)
