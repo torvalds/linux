@@ -173,8 +173,8 @@ static inline void skb_gro_postpull_rcsum(struct sk_buff *skb,
 					const void *start, unsigned int len)
 {
 	if (NAPI_GRO_CB(skb)->csum_valid)
-		NAPI_GRO_CB(skb)->csum = ~csum_partial(start, len,
-						       ~NAPI_GRO_CB(skb)->csum);
+		NAPI_GRO_CB(skb)->csum = wsum_negate(csum_partial(start, len,
+						wsum_negate(NAPI_GRO_CB(skb)->csum)));
 }
 
 /* GRO checksum functions. These are logical equivalents of the normal
