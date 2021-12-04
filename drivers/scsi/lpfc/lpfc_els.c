@@ -10978,10 +10978,19 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_can_disctmo(vport);
 	}
 
+	if (ndlp->save_flags & NLP_WAIT_FOR_LOGO) {
+		/* Wake up lpfc_vport_delete if waiting...*/
+		if (ndlp->logo_waitq)
+			wake_up(ndlp->logo_waitq);
+		spin_lock_irq(&ndlp->lock);
+		ndlp->nlp_flag &= ~(NLP_ISSUE_LOGO | NLP_LOGO_SND);
+		ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
+		spin_unlock_irq(&ndlp->lock);
+	}
+
 	/* Safe to release resources now. */
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
-	vport->unreg_vpi_cmpl = VPORT_ERROR;
 }
 
 /**
