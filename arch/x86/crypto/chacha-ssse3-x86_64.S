@@ -108,7 +108,7 @@ SYM_FUNC_START_LOCAL(chacha_permute)
 	sub		$2,%r8d
 	jnz		.Ldoubleround
 
-	ret
+	RET
 SYM_FUNC_END(chacha_permute)
 
 SYM_FUNC_START(chacha_block_xor_ssse3)
@@ -166,7 +166,7 @@ SYM_FUNC_START(chacha_block_xor_ssse3)
 
 .Ldone:
 	FRAME_END
-	ret
+	RET
 
 .Lxorpart:
 	# xor remaining bytes from partial register into output
@@ -217,7 +217,7 @@ SYM_FUNC_START(hchacha_block_ssse3)
 	movdqu		%xmm3,0x10(%rsi)
 
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(hchacha_block_ssse3)
 
 SYM_FUNC_START(chacha_4block_xor_ssse3)
@@ -762,7 +762,7 @@ SYM_FUNC_START(chacha_4block_xor_ssse3)
 
 .Ldone4:
 	lea		-8(%r10),%rsp
-	ret
+	RET
 
 .Lxorpart4:
 	# xor remaining bytes from partial register into output

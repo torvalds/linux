@@ -37,11 +37,11 @@ SYM_FUNC_START(this_cpu_cmpxchg16b_emu)
 
 	popfq
 	mov $1, %al
-	ret
+	RET
 
 .Lnot_same:
 	popfq
 	xor %al,%al
-	ret
+	RET
 
 SYM_FUNC_END(this_cpu_cmpxchg16b_emu)

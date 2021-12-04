@@ -85,5 +85,5 @@ SYM_FUNC_START(sev_verify_cbit)
 #endif
 	/* Return page-table pointer */
 	movq	%rdi, %rax
-	ret
+	RET
 SYM_FUNC_END(sev_verify_cbit)

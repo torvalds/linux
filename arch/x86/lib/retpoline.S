@@ -23,7 +23,7 @@
 .Ldo_rop_\@:
 	mov     %\reg, (%_ASM_SP)
 	UNWIND_HINT_FUNC
-	ret
+	RET
 .endm
 
 .macro THUNK reg

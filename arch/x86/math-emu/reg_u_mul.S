@@ -144,7 +144,7 @@ L_exit:
 	popl	%edi
 	popl	%esi
 	leave
-	ret
+	RET
 #endif /* PARANOID */ 
 
 SYM_FUNC_END(FPU_u_mul)

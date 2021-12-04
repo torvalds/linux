@@ -148,7 +148,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	pop %edi
 #endif
 	pop %_ASM_BP
-	ret
+	RET
 
 3:	cmpb $0, kvm_rebooting
 	jne 2b
@@ -202,7 +202,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	pop %edi
 #endif
 	pop %_ASM_BP
-	ret
+	RET
 
 3:	cmpb $0, kvm_rebooting
 	jne 2b
