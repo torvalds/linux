@@ -98,6 +98,13 @@
 	mem-supply = <&vdd_cpu_big1_mem_s0>;
 };
 
+&gpu_opp_table {
+	/delete-node/ opp-198000000;
+	/delete-node/ opp-297000000;
+	/delete-node/ opp-396000000;
+	/delete-node/ opp-594000000;
+};
+
 &gpu {
 	mali-supply = <&vdd_gpu_s0>;
 	mem-supply = <&vdd_gpu_mem_s0>;
