@@ -518,7 +518,6 @@ static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
 			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_D);
 	}
 }
-
 #else /* CONFIG_ACPI */
 
 static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
@@ -526,6 +525,49 @@ static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
 {
 }
 #endif /* CONFIG_ACPI */
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_EFI)
+static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
+{
+	u8 cmd_ver;
+	int ret;
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
+			      SAR_OFFSET_MAPPING_TABLE_CMD),
+		.flags = 0,
+		.data[0] = &mvm->fwrt.sgom_table,
+		.len[0] =  sizeof(mvm->fwrt.sgom_table),
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+	};
+
+	if (!mvm->fwrt.sgom_enabled) {
+		IWL_DEBUG_RADIO(mvm, "SGOM table is disabled\n");
+		return 0;
+	}
+
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, REGULATORY_AND_NVM_GROUP,
+					SAR_OFFSET_MAPPING_TABLE_CMD,
+					IWL_FW_CMD_VER_UNKNOWN);
+
+	if (cmd_ver != 2) {
+		IWL_DEBUG_RADIO(mvm, "command version is unsupported. version = %d\n",
+				cmd_ver);
+		return 0;
+	}
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret < 0)
+		IWL_ERR(mvm, "failed to send SAR_OFFSET_MAPPING_CMD (%d)\n", ret);
+
+	return ret;
+}
+#else
+
+static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
+{
+	return 0;
+}
+#endif
 
 static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 {
@@ -1340,6 +1382,7 @@ static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
 {
 }
+
 #endif /* CONFIG_ACPI */
 
 void iwl_mvm_send_recovery_cmd(struct iwl_mvm *mvm, u32 flags)
@@ -1632,6 +1675,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret == 0)
 		ret = iwl_mvm_sar_geo_init(mvm);
 	else if (ret < 0)
+		goto error;
+
+	ret = iwl_mvm_sgom_init(mvm);
+	if (ret)
 		goto error;
 
 	iwl_mvm_tas_init(mvm);

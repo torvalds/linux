@@ -852,6 +852,8 @@ read_table:
 		}
 	}
 
+	fwrt->geo_num_profiles = num_profiles;
+	fwrt->geo_enabled = true;
 	ret = 0;
 out_free:
 	kfree(data);
