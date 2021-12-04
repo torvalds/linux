@@ -1651,8 +1651,12 @@ static void iwl_mvm_convert_key_counters(struct iwl_wowlan_status_data *status,
 
 static void iwl_mvm_set_key_rx_seq(struct iwl_mvm *mvm,
 				   struct ieee80211_key_conf *key,
-				   struct iwl_wowlan_status_data *status)
+				   struct iwl_wowlan_status_data *status,
+				   bool installed)
 {
+	if (status->num_of_gtk_rekeys && !installed)
+		return;
+
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
@@ -1740,8 +1744,9 @@ static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 
 	if (data->status->num_of_gtk_rekeys)
 		ieee80211_remove_key(key);
-	else if (data->last_gtk == key)
-		iwl_mvm_set_key_rx_seq(data->mvm, key, data->status);
+
+	if (data->last_gtk == key)
+		iwl_mvm_set_key_rx_seq(data->mvm, key, data->status, false);
 }
 
 static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
@@ -1825,7 +1830,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 		key = ieee80211_gtk_rekey_add(vif, &conf.conf);
 		if (IS_ERR(key))
 			return false;
-		iwl_mvm_set_key_rx_seq(mvm, key, status);
+		iwl_mvm_set_key_rx_seq(mvm, key, status, true);
 
 		replay_ctr = cpu_to_be64(status->replay_ctr);
 
