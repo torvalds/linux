@@ -629,7 +629,7 @@ const struct iwl_cfg iwl_ax200_cfg_cc = {
 };
 
 const struct iwl_cfg killer1650s_2ax_cfg_qu_b0_hr_b0 = {
-	.name = "Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)",
+	.name = "Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW)",
 	.fw_name_pre = IWL_QU_B_HR_B_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
@@ -642,7 +642,7 @@ const struct iwl_cfg killer1650s_2ax_cfg_qu_b0_hr_b0 = {
 };
 
 const struct iwl_cfg killer1650i_2ax_cfg_qu_b0_hr_b0 = {
-	.name = "Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)",
+	.name = "Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W)",
 	.fw_name_pre = IWL_QU_B_HR_B_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
@@ -655,7 +655,7 @@ const struct iwl_cfg killer1650i_2ax_cfg_qu_b0_hr_b0 = {
 };
 
 const struct iwl_cfg killer1650s_2ax_cfg_qu_c0_hr_b0 = {
-	.name = "Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)",
+	.name = "Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW)",
 	.fw_name_pre = IWL_QU_C_HR_B_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
@@ -668,7 +668,7 @@ const struct iwl_cfg killer1650s_2ax_cfg_qu_c0_hr_b0 = {
 };
 
 const struct iwl_cfg killer1650i_2ax_cfg_qu_c0_hr_b0 = {
-	.name = "Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)",
+	.name = "Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W)",
 	.fw_name_pre = IWL_QU_C_HR_B_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
