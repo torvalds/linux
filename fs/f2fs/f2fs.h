@@ -3115,12 +3115,16 @@ static inline int is_file(struct inode *inode, int type)
 
 static inline void set_file(struct inode *inode, int type)
 {
+	if (is_file(inode, type))
+		return;
 	F2FS_I(inode)->i_advise |= type;
 	f2fs_mark_inode_dirty_sync(inode, true);
 }
 
 static inline void clear_file(struct inode *inode, int type)
 {
+	if (!is_file(inode, type))
+		return;
 	F2FS_I(inode)->i_advise &= ~type;
 	f2fs_mark_inode_dirty_sync(inode, true);
 }
