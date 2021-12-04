@@ -1394,8 +1394,8 @@ static u32 iwl_mvm_scan_umac_ooc_priority(struct iwl_mvm_scan_params *params)
 }
 
 static void
-iwl_mvm_scan_umac_dwell_v10(struct iwl_mvm *mvm,
-			    struct iwl_scan_general_params_v10 *general_params,
+iwl_mvm_scan_umac_dwell_v11(struct iwl_mvm *mvm,
+			    struct iwl_scan_general_params_v11 *general_params,
 			    struct iwl_mvm_scan_params *params)
 {
 	struct iwl_mvm_scan_timing_params *timing, *hb_timing;
@@ -2238,15 +2238,15 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 }
 
 static void
-iwl_mvm_scan_umac_fill_general_p_v10(struct iwl_mvm *mvm,
+iwl_mvm_scan_umac_fill_general_p_v11(struct iwl_mvm *mvm,
 				     struct iwl_mvm_scan_params *params,
 				     struct ieee80211_vif *vif,
-				     struct iwl_scan_general_params_v10 *gp,
+				     struct iwl_scan_general_params_v11 *gp,
 				     u16 gen_flags)
 {
 	struct iwl_mvm_vif *scan_vif = iwl_mvm_vif_from_mac80211(vif);
 
-	iwl_mvm_scan_umac_dwell_v10(mvm, gp, params);
+	iwl_mvm_scan_umac_dwell_v11(mvm, gp, params);
 
 	gp->flags = cpu_to_le16(gen_flags);
 
@@ -2350,7 +2350,7 @@ static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->uid = cpu_to_le32(uid);
 
 	gen_flags = iwl_mvm_scan_umac_flags_v2(mvm, params, vif, type);
-	iwl_mvm_scan_umac_fill_general_p_v10(mvm, params, vif,
+	iwl_mvm_scan_umac_fill_general_p_v11(mvm, params, vif,
 					     &scan_p->general_params,
 					     gen_flags);
 
@@ -2367,12 +2367,13 @@ static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static int iwl_mvm_scan_umac_v14(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				 struct iwl_mvm_scan_params *params, int type,
-				 int uid)
+static int iwl_mvm_scan_umac_v14_and_above(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif,
+					   struct iwl_mvm_scan_params *params,
+					   int type, int uid, u32 version)
 {
-	struct iwl_scan_req_umac_v14 *cmd = mvm->scan_cmd;
-	struct iwl_scan_req_params_v14 *scan_p = &cmd->scan_params;
+	struct iwl_scan_req_umac_v15 *cmd = mvm->scan_cmd;
+	struct iwl_scan_req_params_v15 *scan_p = &cmd->scan_params;
 	struct iwl_scan_channel_params_v6 *cp = &scan_p->channel_params;
 	struct iwl_scan_probe_params_v4 *pb = &scan_p->probe_params;
 	int ret;
@@ -2385,7 +2386,7 @@ static int iwl_mvm_scan_umac_v14(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->uid = cpu_to_le32(uid);
 
 	gen_flags = iwl_mvm_scan_umac_flags_v2(mvm, params, vif, type);
-	iwl_mvm_scan_umac_fill_general_p_v10(mvm, params, vif,
+	iwl_mvm_scan_umac_fill_general_p_v11(mvm, params, vif,
 					     &scan_p->general_params,
 					     gen_flags);
 
@@ -2423,6 +2424,20 @@ static int iwl_mvm_scan_umac_v14(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		cp->flags |= IWL_SCAN_CHANNEL_FLAG_6G_PSC_NO_FILTER;
 
 	return 0;
+}
+
+static int iwl_mvm_scan_umac_v14(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				 struct iwl_mvm_scan_params *params, int type,
+				 int uid)
+{
+	return iwl_mvm_scan_umac_v14_and_above(mvm, vif, params, type, uid, 14);
+}
+
+static int iwl_mvm_scan_umac_v15(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				 struct iwl_mvm_scan_params *params, int type,
+				 int uid)
+{
+	return iwl_mvm_scan_umac_v14_and_above(mvm, vif, params, type, uid, 15);
 }
 
 static int iwl_mvm_num_scans(struct iwl_mvm *mvm)
@@ -2540,6 +2555,7 @@ struct iwl_scan_umac_handler {
 
 static const struct iwl_scan_umac_handler iwl_scan_umac_handlers[] = {
 	/* set the newest version first to shorten the list traverse time */
+	IWL_SCAN_UMAC_HANDLER(15),
 	IWL_SCAN_UMAC_HANDLER(14),
 	IWL_SCAN_UMAC_HANDLER(12),
 };
@@ -2940,15 +2956,14 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 				     1 * HZ);
 }
 
-#define IWL_SCAN_REQ_UMAC_HANDLE_SIZE(_ver) {				\
-	case (_ver): return sizeof(struct iwl_scan_req_umac_v##_ver);	\
-}
-
 static int iwl_scan_req_umac_get_size(u8 scan_ver)
 {
 	switch (scan_ver) {
-		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(14);
-		IWL_SCAN_REQ_UMAC_HANDLE_SIZE(12);
+	case 12:
+		return sizeof(struct iwl_scan_req_umac_v12);
+	case 14:
+	case 15:
+		return sizeof(struct iwl_scan_req_umac_v15);
 	}
 
 	return 0;
