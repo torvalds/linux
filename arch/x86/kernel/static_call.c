@@ -11,6 +11,8 @@ enum insn_type {
 	RET = 3,  /* tramp / site cond-tail-call */
 };
 
+static const u8 retinsn[] = { RET_INSN_OPCODE, 0xcc, 0xcc, 0xcc, 0xcc };
+
 static void __ref __static_call_transform(void *insn, enum insn_type type, void *func)
 {
 	int size = CALL_INSN_SIZE;
@@ -30,8 +32,7 @@ static void __ref __static_call_transform(void *insn, enum insn_type type, void 
 		break;
 
 	case RET:
-		code = text_gen_insn(RET_INSN_OPCODE, insn, func);
-		size = RET_INSN_SIZE;
+		code = &retinsn;
 		break;
 	}
 
