@@ -516,7 +516,7 @@ static struct intel_gvt_gtt_pte_ops gen8_gtt_pte_ops = {
 	.set_pfn = gen8_gtt_set_pfn,
 };
 
-static struct intel_gvt_gtt_gma_ops gen8_gtt_gma_ops = {
+static const struct intel_gvt_gtt_gma_ops gen8_gtt_gma_ops = {
 	.gma_to_ggtt_pte_index = gma_to_ggtt_pte_index,
 	.gma_to_pte_index = gen8_gma_to_pte_index,
 	.gma_to_pde_index = gen8_gma_to_pde_index,
@@ -2097,7 +2097,7 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm, unsigned long gma)
 	struct intel_vgpu *vgpu = mm->vgpu;
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_gtt_pte_ops *pte_ops = gvt->gtt.pte_ops;
-	struct intel_gvt_gtt_gma_ops *gma_ops = gvt->gtt.gma_ops;
+	const struct intel_gvt_gtt_gma_ops *gma_ops = gvt->gtt.gma_ops;
 	unsigned long gpa = INTEL_GVT_INVALID_ADDR;
 	unsigned long gma_index[4];
 	struct intel_gvt_gtt_entry e;
