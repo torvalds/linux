@@ -500,6 +500,7 @@ static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
 	HCMD_NAME(FW_ERROR_RECOVERY_CMD),
 	HCMD_NAME(RFI_CONFIG_CMD),
 	HCMD_NAME(RFI_GET_FREQ_TABLE_CMD),
+	HCMD_NAME(SYSTEM_FEATURES_CONTROL_CMD),
 };
 
 /* Please keep this array *SORTED* by hex value.

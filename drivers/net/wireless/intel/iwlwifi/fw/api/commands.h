@@ -614,6 +614,11 @@ enum iwl_system_subcmd_ids {
 	 * @RFI_GET_FREQ_TABLE_CMD: &struct iwl_rfi_config_cmd
 	 */
 	RFI_GET_FREQ_TABLE_CMD = 0xc,
+
+	/**
+	 * @SYSTEM_FEATURES_CONTROL_CMD: &struct iwl_system_features_control_cmd
+	 */
+	SYSTEM_FEATURES_CONTROL_CMD = 0xd,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */
