@@ -593,7 +593,7 @@ struct iwl_trans_ops {
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
-	void (*sw_reset)(struct iwl_trans *trans);
+	int (*sw_reset)(struct iwl_trans *trans, bool retake_ownership);
 	bool (*grab_nic_access)(struct iwl_trans *trans);
 	void (*release_nic_access)(struct iwl_trans *trans);
 	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
@@ -1386,10 +1386,12 @@ static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 		trans->ops->set_pmi(trans, state);
 }
 
-static inline void iwl_trans_sw_reset(struct iwl_trans *trans)
+static inline int iwl_trans_sw_reset(struct iwl_trans *trans,
+				     bool retake_ownership)
 {
 	if (trans->ops->sw_reset)
-		trans->ops->sw_reset(trans);
+		return trans->ops->sw_reset(trans, retake_ownership);
+	return 0;
 }
 
 static inline void
