@@ -441,6 +441,10 @@ int amdgpu_dpm_odn_edit_dpm_table(struct amdgpu_device *adev,
 int amdgpu_dpm_print_clock_levels(struct amdgpu_device *adev,
 				  enum pp_clock_type type,
 				  char *buf);
+int amdgpu_dpm_emit_clock_levels(struct amdgpu_device *adev,
+				  enum pp_clock_type type,
+				  char *buf,
+				  int *offset);
 int amdgpu_dpm_set_ppfeature_status(struct amdgpu_device *adev,
 				    uint64_t ppfeature_masks);
 int amdgpu_dpm_get_ppfeature_status(struct amdgpu_device *adev, char *buf);

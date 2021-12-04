@@ -2216,11 +2216,8 @@ static int smu_print_smuclk_levels(struct smu_context *smu, enum smu_clk_type cl
 	return ret;
 }
 
-static int smu_print_ppclk_levels(void *handle,
-				  enum pp_clock_type type,
-				  char *buf)
+static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 {
-	struct smu_context *smu = handle;
 	enum smu_clk_type clk_type;
 
 	switch (type) {
@@ -2253,10 +2250,44 @@ static int smu_print_ppclk_levels(void *handle,
 	case OD_CCLK:
 		clk_type = SMU_OD_CCLK; break;
 	default:
-		return -EINVAL;
+		clk_type = SMU_CLK_COUNT; break;
 	}
 
+	return clk_type;
+}
+
+static int smu_print_ppclk_levels(void *handle,
+				  enum pp_clock_type type,
+				  char *buf)
+{
+	struct smu_context *smu = handle;
+	enum smu_clk_type clk_type;
+
+	clk_type = smu_convert_to_smuclk(type);
+	if (clk_type == SMU_CLK_COUNT)
+		return -EINVAL;
+
 	return smu_print_smuclk_levels(smu, clk_type, buf);
+}
+
+static int smu_emit_ppclk_levels(void *handle, enum pp_clock_type type, char *buf, int *offset)
+{
+	struct smu_context *smu = handle;
+	enum smu_clk_type clk_type;
+	int ret = 0;
+
+	clk_type = smu_convert_to_smuclk(type);
+	if (clk_type == SMU_CLK_COUNT)
+		return -EINVAL;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->ppt_funcs->emit_clk_levels)
+		ret = -ENOENT;
+
+	return smu->ppt_funcs->emit_clk_levels(smu, clk_type, buf, offset);
+
 }
 
 static int smu_od_edit_dpm_table(void *handle,
@@ -2824,6 +2855,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_fan_speed_pwm   = smu_get_fan_speed_pwm,
 	.force_clock_level       = smu_force_ppclk_levels,
 	.print_clock_levels      = smu_print_ppclk_levels,
+	.emit_clock_levels       = smu_emit_ppclk_levels,
 	.force_performance_level = smu_force_performance_level,
 	.read_sensor             = smu_read_sensor,
 	.get_performance_level   = smu_get_performance_level,

@@ -605,8 +605,22 @@ struct pptable_funcs {
 	 *                    to buffer. Star current level.
 	 *
 	 * Used for sysfs interfaces.
+	 * Return: Number of characters written to the buffer
 	 */
 	int (*print_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
+
+	/**
+	 * @emit_clk_levels: Print DPM clock levels for a clock domain
+	 *                    to buffer using sysfs_emit_at. Star current level.
+	 *
+	 * Used for sysfs interfaces.
+	 * &buf: sysfs buffer
+	 * &offset: offset within buffer to start printing, which is updated by the
+	 * function.
+	 *
+	 * Return: 0 on Success or Negative to indicate an error occurred.
+	 */
+	int (*emit_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf, int *offset);
 
 	/**
 	 * @force_clk_levels: Set a range of allowed DPM levels for a clock
