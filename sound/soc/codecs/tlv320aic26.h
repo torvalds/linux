@@ -6,8 +6,8 @@
  * Copyright (C) 2008 Secret Lab Technologies Ltd.
  */
 
-#ifndef _TLV320AIC16_H_
-#define _TLV320AIC16_H_
+#ifndef _TLV320AIC26_H_
+#define _TLV320AIC26_H_
 
 /* AIC26 Registers */
 #define AIC26_PAGE_ADDR(page, offset)	((page << 11) | offset << 5)
@@ -88,4 +88,4 @@ enum aic26_wlen {
 	AIC26_WLEN_32	= 3 << 10,
 };
 
-#endif /* _TLV320AIC16_H_ */
+#endif /* _TLV320AIC26_H_ */
