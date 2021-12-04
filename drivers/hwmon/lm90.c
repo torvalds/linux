@@ -170,6 +170,7 @@ enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
 #define LM90_FLAG_ADT7461_EXT	BIT(0)	/* ADT7461 extended mode	*/
 /* Device features */
 #define LM90_HAVE_OFFSET	BIT(1)	/* temperature offset register	*/
+#define LM90_HAVE_UNSIGNED_TEMP	BIT(2)	/* temperatures are unsigned	*/
 #define LM90_HAVE_REM_LIMIT_EXT	BIT(3)	/* extended remote limit	*/
 #define LM90_HAVE_EMERGENCY	BIT(4)	/* 3rd upper (emergency) limit	*/
 #define LM90_HAVE_EMERGENCY_ALARM BIT(5)/* emergency alarm		*/
@@ -354,6 +355,11 @@ static const struct lm90_params lm90_params[] = {
 		.max_convrate = 10,
 	},
 	[adt7461] = {
+		/*
+		 * Standard temperature range is supposed to be unsigned,
+		 * but that does not match reality. Negative temperatures
+		 * are always reported.
+		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_CRIT | LM90_HAVE_PARTIAL_PEC,
@@ -392,7 +398,8 @@ static const struct lm90_params lm90_params[] = {
 		.max_convrate = 9,
 	},
 	[max6646] = {
-		.flags = LM90_HAVE_CRIT | LM90_HAVE_BROKEN_ALERT,
+		.flags = LM90_HAVE_CRIT | LM90_HAVE_BROKEN_ALERT
+		  | LM90_HAVE_UNSIGNED_TEMP,
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
@@ -416,6 +423,11 @@ static const struct lm90_params lm90_params[] = {
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
 	},
 	[max6680] = {
+		/*
+		 * Apparent temperatures of 128 degrees C or higher are reported
+		 * and treated as negative temperatures (meaning min_alarm will
+		 * be set).
+		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_CRIT
 		  | LM90_HAVE_CRIT_ALRM_SWP | LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
@@ -434,6 +446,11 @@ static const struct lm90_params lm90_params[] = {
 		.max_convrate = 8,
 	},
 	[sa56004] = {
+		/*
+		 * Apparent temperatures of 128 degrees C or higher are reported
+		 * and treated as negative temperatures (meaning min_alarm will
+		 * be set).
+		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
@@ -441,7 +458,8 @@ static const struct lm90_params lm90_params[] = {
 	},
 	[tmp451] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT
+		  | LM90_HAVE_UNSIGNED_TEMP,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.reg_local_ext = TMP451_REG_LOCAL_TEMPL,
@@ -1118,33 +1136,27 @@ static inline int temp_from_u16_adt7461(struct lm90_data *data, u16 val)
 static u8 temp_to_u8_adt7461(struct lm90_data *data, long val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT) {
-		if (val <= -64000)
-			return 0;
-		if (val >= 191000)
-			return 0xFF;
-		return (val + 500 + 64000) / 1000;
+		val = clamp_val(val, -64000, 191000);
+		val += 64000;
+	} else if (data->flags & LM90_HAVE_UNSIGNED_TEMP) {
+		val = clamp_val(val, 0, 127000);
+	} else {
+		val = clamp_val(val, -128000, 127000);
 	}
-	if (val <= 0)
-		return 0;
-	if (val >= 127000)
-		return 127;
-	return (val + 500) / 1000;
+	return DIV_ROUND_CLOSEST(val, 1000);
 }
 
 static u16 temp_to_u16_adt7461(struct lm90_data *data, long val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT) {
-		if (val <= -64000)
-			return 0;
-		if (val >= 191750)
-			return 0xFFC0;
-		return (val + 64000 + 125) / 250 * 64;
+		val = clamp_val(val, -64000, 191000);
+		val += 64000;
+	} else if (data->flags & LM90_HAVE_UNSIGNED_TEMP) {
+		val = clamp_val(val, 0, 127000);
+	} else {
+		val = clamp_val(val, -128000, 127000);
 	}
-	if (val <= 0)
-		return 0;
-	if (val >= 127750)
-		return 0x7FC0;
-	return (val + 125) / 250 * 64;
+	return DIV_ROUND_CLOSEST(val, 1000) & 0xfff0;
 }
 
 /* pec used for devices with PEC support */
@@ -1190,7 +1202,7 @@ static int lm90_get_temp11(struct lm90_data *data, int index)
 
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		temp = temp_from_u16_adt7461(data, temp11);
-	else if (data->kind == max6646)
+	else if (data->flags & LM90_HAVE_UNSIGNED_TEMP)
 		temp = temp_from_u16(temp11);
 	else
 		temp = temp_from_s16(temp11);
@@ -1227,7 +1239,7 @@ static int lm90_set_temp11(struct lm90_data *data, int index, long val)
 
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		data->temp11[index] = temp_to_u16_adt7461(data, val);
-	else if (data->kind == max6646)
+	else if (data->flags & LM90_HAVE_UNSIGNED_TEMP)
 		data->temp11[index] = temp_to_u8(val) << 8;
 	else if (data->flags & LM90_HAVE_REM_LIMIT_EXT)
 		data->temp11[index] = temp_to_s16(val);
@@ -1253,7 +1265,7 @@ static int lm90_get_temp8(struct lm90_data *data, int index)
 
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		temp = temp_from_u8_adt7461(data, temp8);
-	else if (data->kind == max6646)
+	else if (data->flags & LM90_HAVE_UNSIGNED_TEMP)
 		temp = temp_from_u8(temp8);
 	else
 		temp = temp_from_s8(temp8);
@@ -1289,7 +1301,7 @@ static int lm90_set_temp8(struct lm90_data *data, int index, long val)
 
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		data->temp8[index] = temp_to_u8_adt7461(data, val);
-	else if (data->kind == max6646)
+	else if (data->flags & LM90_HAVE_UNSIGNED_TEMP)
 		data->temp8[index] = temp_to_u8(val);
 	else
 		data->temp8[index] = temp_to_s8(val);
@@ -1307,7 +1319,7 @@ static int lm90_get_temphyst(struct lm90_data *data, int index)
 
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		temp = temp_from_u8_adt7461(data, data->temp8[index]);
-	else if (data->kind == max6646)
+	else if (data->flags & LM90_HAVE_UNSIGNED_TEMP)
 		temp = temp_from_u8(data->temp8[index]);
 	else
 		temp = temp_from_s8(data->temp8[index]);
@@ -1326,7 +1338,7 @@ static int lm90_set_temphyst(struct lm90_data *data, long val)
 
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP)
 		temp = temp_from_u8_adt7461(data, data->temp8[LOCAL_CRIT]);
-	else if (data->kind == max6646)
+	else if (data->flags & LM90_HAVE_UNSIGNED_TEMP)
 		temp = temp_from_u8(data->temp8[LOCAL_CRIT]);
 	else
 		temp = temp_from_s8(data->temp8[LOCAL_CRIT]);
@@ -1901,6 +1913,8 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	 * Put MAX6680/MAX8881 into extended resolution (bit 0x10,
 	 * 0.125 degree resolution) and range (0x08, extend range
 	 * to -64 degree) mode for the remote temperature sensor.
+	 * Note that expeciments with an actual chip do not show a difference
+	 * if bit 3 is set or not.
 	 */
 	if (data->kind == max6680)
 		config |= 0x18;
