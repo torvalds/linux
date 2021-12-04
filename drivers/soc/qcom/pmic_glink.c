@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"PMIC_GLINK: %s: " fmt, __func__
@@ -496,7 +497,7 @@ static struct rpmsg_driver pmic_glink_rpmsg_driver = {
 #ifdef CONFIG_DEBUG_FS
 static void pmic_glink_add_debugfs(struct pmic_glink_dev *pgdev)
 {
-	struct dentry *dir, *file;
+	struct dentry *dir;
 
 	dir = debugfs_create_dir(dev_name(pgdev->dev), NULL);
 	if (IS_ERR(dir)) {
@@ -505,17 +506,9 @@ static void pmic_glink_add_debugfs(struct pmic_glink_dev *pgdev)
 		return;
 	}
 
-	debugfs_create_u32("filter", 0600, dir, &pgdev->log_filter);
-
-	file = debugfs_create_bool("enable", 0600, dir, &pgdev->log_enable);
-	if (IS_ERR(file)) {
-		pr_err("Failed to create enable debugfs file rc=%d\n",
-			PTR_ERR(file));
-		debugfs_remove_recursive(dir);
-		return;
-	}
-
 	pgdev->debugfs_dir = dir;
+	debugfs_create_u32("filter", 0600, dir, &pgdev->log_filter);
+	debugfs_create_bool("enable", 0600, dir, &pgdev->log_enable);
 }
 #else
 static inline void pmic_glink_add_debugfs(struct pmic_glink_dev *pgdev)
