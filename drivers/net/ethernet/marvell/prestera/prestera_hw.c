@@ -443,7 +443,7 @@ struct prestera_msg_counter_resp {
 	__le32 offset;
 	__le32 num_counters;
 	__le32 done;
-	struct prestera_msg_counter_stats stats[0];
+	struct prestera_msg_counter_stats stats[];
 };
 
 struct prestera_msg_span_req {
@@ -1900,7 +1900,7 @@ int prestera_hw_counters_get(struct prestera_switch *sw, u32 idx,
 		.block_id = __cpu_to_le32(idx),
 		.num_counters = __cpu_to_le32(*len),
 	};
-	size_t size = sizeof(*resp) + sizeof(*resp->stats) * (*len);
+	size_t size = struct_size(resp, stats, *len);
 	int err, i;
 
 	resp = kmalloc(size, GFP_KERNEL);
