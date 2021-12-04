@@ -123,13 +123,15 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_lmac_alive *lmac2 = NULL;
 	u16 status;
 	u32 lmac_error_event_table, umac_error_table;
+	u32 version = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
+					      UCODE_ALIVE_NTFY, 0);
 
 	/*
 	 * For v5 and above, we can check the version, for older
 	 * versions we need to check the size.
 	 */
-	if (iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
-				    UCODE_ALIVE_NTFY, 0) == 5) {
+	if (version == 5 || version == 6) {
+		/* v5 and v6 are compatible (only IMR addition) */
 		struct iwl_alive_ntf_v5 *palive;
 
 		if (pkt_len < sizeof(*palive))
