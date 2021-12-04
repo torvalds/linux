@@ -110,6 +110,13 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int ret = 0;
 
+	/* enable power */
+	ret = rga_power_enable(scheduler);
+	if (ret < 0) {
+		pr_err("power enable failed");
+		return ret;
+	}
+
 	ret = rga_dma_get_info(job);
 	if (ret < 0) {
 		pr_err("dma buf get failed");
@@ -132,7 +139,11 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	if (RGA_DEBUG_MSG)
 		print_job_info(job);
 
+	return ret;
+
 failed:
+	rga_power_disable(scheduler);
+
 	return ret;
 }
 
@@ -197,8 +208,10 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 	ktime_t now;
 
 	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+
 	job = rga_scheduler->running_job;
 	rga_scheduler->running_job = NULL;
+
 	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
 
 	job->flags |= RGA_JOB_DONE;
@@ -216,8 +229,6 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 
 	rga_dma_put_info(job);
 
-	kref_put(&rga_scheduler->pd_refcount, rga_kref_disable_power);
-
 	mmdrop(job->mm);
 
 	if (job->out_fence)
@@ -229,6 +240,8 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 		rga_job_cleanup(job);
 
 	rga_job_next(rga_scheduler);
+
+	rga_power_disable(rga_scheduler);
 }
 
 static int rga_set_feature(struct rga_req *rga_base)
@@ -540,8 +553,6 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	struct rga_scheduler_t *scheduler = NULL;
 	struct rga_job *job_pos;
 	bool first_match = 0;
-	bool first_open_pd = false;
-	int ret = 0;
 
 	if (rga_drvdata->num_of_scheduler > 1) {
 		job->core = rga_job_assign(job);
@@ -560,13 +571,6 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	}
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-	if (list_empty(&scheduler->todo_list) && !scheduler->running_job) {
-		kref_init(&scheduler->pd_refcount);
-		first_open_pd = true;
-	} else {
-		kref_get(&scheduler->pd_refcount);
-	}
 
 	/* priority policy set by userspace */
 	if (list_empty(&scheduler->todo_list)
@@ -595,15 +599,6 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	scheduler->job_count++;
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-	/* enable power */
-	if (first_open_pd) {
-		ret = rga_power_enable(scheduler);
-		if (ret < 0) {
-			pr_err("power enable failed");
-			return NULL;
-		}
-	}
 
 	rga_job_next(scheduler);
 

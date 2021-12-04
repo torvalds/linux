@@ -217,7 +217,7 @@ struct rga_scheduler_t {
 	struct clk *clks[RGA_MAX_BUS_CLK];
 	int num_clks;
 
-	struct kref pd_refcount;
+	int pd_refcount;
 
 	struct rga_job *running_job;
 	struct list_head todo_list;
@@ -278,6 +278,5 @@ static inline void rga_write(int value, int offset, struct rga_scheduler_t *rga_
 
 int rga_power_enable(struct rga_scheduler_t *rga_scheduler);
 int rga_power_disable(struct rga_scheduler_t *rga_scheduler);
-void rga_kref_disable_power(struct kref *ref);
 
 #endif /* __LINUX_RGA_FENCE_H_ */

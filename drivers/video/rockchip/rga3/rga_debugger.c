@@ -156,6 +156,7 @@ static int rga_scheduler_show(struct seq_file *m, void *data)
 		seq_printf(m, "scheduler[%d]: core = %d\n",
 			i, rga_scheduler->core);
 		seq_printf(m, "-----------------------------------\n");
+		seq_printf(m, "pd_ref = %d\n", rga_scheduler->pd_refcount);
 	}
 
 	return 0;

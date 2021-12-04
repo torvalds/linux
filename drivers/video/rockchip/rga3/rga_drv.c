@@ -77,6 +77,8 @@ err_enable_clk:
 	pm_relax(rga_scheduler->dev);
 	pm_runtime_put_sync_suspend(rga_scheduler->dev);
 
+	rga_scheduler->pd_refcount++;
+
 	return ret;
 }
 
@@ -91,16 +93,9 @@ int rga_power_disable(struct rga_scheduler_t *rga_scheduler)
 	pm_relax(rga_scheduler->dev);
 	pm_runtime_put_sync_suspend(rga_scheduler->dev);
 
+	rga_scheduler->pd_refcount--;
+
 	return 0;
-}
-
-void rga_kref_disable_power(struct kref *ref)
-{
-	struct rga_scheduler_t *rga_scheduler = NULL;
-
-	rga_scheduler = container_of(ref, struct rga_scheduler_t, pd_refcount);
-
-	rga_power_disable(rga_scheduler);
 }
 
 #endif //CONFIG_ROCKCHIP_FPGA
