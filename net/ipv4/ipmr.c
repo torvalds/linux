@@ -696,7 +696,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 	if (v->flags & (VIFF_TUNNEL | VIFF_REGISTER) && !notify)
 		unregister_netdevice_queue(dev, head);
 
-	dev_put(dev);
+	dev_put_track(dev, &v->dev_tracker);
 	return 0;
 }
 
@@ -896,6 +896,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
 	v->dev = dev;
+	netdev_tracker_alloc(dev, &v->dev_tracker, GFP_ATOMIC);
 	if (v->flags & VIFF_REGISTER)
 		mrt->mroute_reg_vif_num = vifi;
 	if (vifi+1 > mrt->maxvif)
