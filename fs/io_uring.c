@@ -1273,22 +1273,24 @@ static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 	}
 }
 
-static unsigned int io_put_kbuf(struct io_kiocb *req, struct io_buffer *kbuf)
+static unsigned int __io_put_kbuf(struct io_kiocb *req)
 {
+	struct io_buffer *kbuf = req->kbuf;
 	unsigned int cflags;
 
 	cflags = kbuf->bid << IORING_CQE_BUFFER_SHIFT;
 	cflags |= IORING_CQE_F_BUFFER;
 	req->flags &= ~REQ_F_BUFFER_SELECTED;
 	kfree(kbuf);
+	req->kbuf = NULL;
 	return cflags;
 }
 
-static inline unsigned int io_put_rw_kbuf(struct io_kiocb *req)
+static inline unsigned int io_put_kbuf(struct io_kiocb *req)
 {
 	if (likely(!(req->flags & REQ_F_BUFFER_SELECTED)))
 		return 0;
-	return io_put_kbuf(req, req->kbuf);
+	return __io_put_kbuf(req);
 }
 
 static void io_refs_resurrect(struct percpu_ref *ref, struct completion *compl)
@@ -2532,14 +2534,14 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 	prev = start;
 	wq_list_for_each_resume(pos, prev) {
 		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
-		u32 cflags;
 
 		/* order with io_complete_rw_iopoll(), e.g. ->result updates */
 		if (!smp_load_acquire(&req->iopoll_completed))
 			break;
-		cflags = io_put_rw_kbuf(req);
+
 		if (!(req->flags & REQ_F_CQE_SKIP))
-			__io_fill_cqe(ctx, req->user_data, req->result, cflags);
+			__io_fill_cqe(ctx, req->user_data, req->result,
+				      io_put_kbuf(req));
 		nr_events++;
 	}
 
@@ -2715,7 +2717,7 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 
 static void io_req_task_complete(struct io_kiocb *req, bool *locked)
 {
-	unsigned int cflags = io_put_rw_kbuf(req);
+	unsigned int cflags = io_put_kbuf(req);
 	int res = req->result;
 
 	if (*locked) {
@@ -2731,7 +2733,7 @@ static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 {
 	if (__io_complete_rw_common(req, res))
 		return;
-	__io_req_complete(req, issue_flags, req->result, io_put_rw_kbuf(req));
+	__io_req_complete(req, issue_flags, req->result, io_put_kbuf(req));
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res)
@@ -4979,11 +4981,6 @@ static struct io_buffer *io_recv_buffer_select(struct io_kiocb *req,
 	return io_buffer_select(req, &sr->len, sr->bgid, issue_flags);
 }
 
-static inline unsigned int io_put_recv_kbuf(struct io_kiocb *req)
-{
-	return io_put_kbuf(req, req->kbuf);
-}
-
 static int io_recvmsg_prep_async(struct io_kiocb *req)
 {
 	int ret;
@@ -5021,8 +5018,7 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	struct socket *sock;
 	struct io_buffer *kbuf;
 	unsigned flags;
-	int min_ret = 0;
-	int ret, cflags = 0;
+	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 
 	sock = sock_from_file(req->file);
@@ -5066,13 +5062,11 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 		req_set_fail(req);
 	}
 
-	if (req->flags & REQ_F_BUFFER_SELECTED)
-		cflags = io_put_recv_kbuf(req);
 	/* fast path, check for non-NULL to avoid function call */
 	if (kmsg->free_iov)
 		kfree(kmsg->free_iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	__io_req_complete(req, issue_flags, ret, cflags);
+	__io_req_complete(req, issue_flags, ret, io_put_kbuf(req));
 	return 0;
 }
 
@@ -5085,8 +5079,7 @@ static int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	struct socket *sock;
 	struct iovec iov;
 	unsigned flags;
-	int min_ret = 0;
-	int ret, cflags = 0;
+	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 
 	sock = sock_from_file(req->file);
@@ -5128,9 +5121,8 @@ out_free:
 	} else if ((flags & MSG_WAITALL) && (msg.msg_flags & (MSG_TRUNC | MSG_CTRUNC))) {
 		req_set_fail(req);
 	}
-	if (req->flags & REQ_F_BUFFER_SELECTED)
-		cflags = io_put_recv_kbuf(req);
-	__io_req_complete(req, issue_flags, ret, cflags);
+
+	__io_req_complete(req, issue_flags, ret, io_put_kbuf(req));
 	return 0;
 }
 
@@ -6578,10 +6570,8 @@ fail:
 
 static void io_clean_op(struct io_kiocb *req)
 {
-	if (req->flags & REQ_F_BUFFER_SELECTED) {
-		kfree(req->kbuf);
-		req->kbuf = NULL;
-	}
+	if (req->flags & REQ_F_BUFFER_SELECTED)
+		io_put_kbuf(req);
 
 	if (req->flags & REQ_F_NEED_CLEANUP) {
 		switch (req->opcode) {
