@@ -7,38 +7,11 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-#define MSECS(t)        (HZ * ((t) / 1000) + (HZ * ((t) % 1000)) / 1000)
-
-#define LED_BLINK_NORMAL_INTERVAL		100
-#define LED_BLINK_SLOWLY_INTERVAL		200
-#define LED_BLINK_LONG_INTERVAL			400
-
 #define LED_BLINK_NO_LINK_INTVL			msecs_to_jiffies(1000)
 #define LED_BLINK_LINK_INTVL			msecs_to_jiffies(500)
 #define LED_BLINK_SCAN_INTVL			msecs_to_jiffies(180)
 #define LED_BLINK_FASTER_INTVL			msecs_to_jiffies(50)
 #define LED_BLINK_WPS_SUCESS_INTVL		msecs_to_jiffies(5000)
-
-#define LED_BLINK_NORMAL_INTERVAL_NETTRONIX	100
-#define LED_BLINK_SLOWLY_INTERVAL_NETTRONIX	2000
-
-#define LED_BLINK_SLOWLY_INTERVAL_PORNET	1000
-#define LED_BLINK_NORMAL_INTERVAL_PORNET	100
-
-#define LED_BLINK_FAST_INTERVAL_BITLAND		30
-
-/*  060403, rcnjko: Customized for AzWave. */
-#define LED_CM2_BLINK_ON_INTERVAL		250
-#define LED_CM2_BLINK_OFF_INTERVAL		4750
-
-#define LED_CM8_BLINK_INTERVAL			500	/* for QMI */
-#define LED_CM8_BLINK_OFF_INTERVAL		3750	/* for QMI */
-
-/*  080124, lanhsin: Customized for RunTop */
-#define LED_RunTop_BLINK_INTERVAL		300
-
-/*  060421, rcnjko: Customized for Sercomm Printer Server case. */
-#define LED_CM3_BLINK_INTERVAL			1500
 
 enum LED_CTL_MODE {
 	LED_CTL_POWER_ON = 1,
@@ -53,8 +26,6 @@ enum LED_CTL_MODE {
 	LED_CTL_STOP_WPS = 10,
 	LED_CTL_START_WPS_BOTTON = 11, /* added for runtop */
 	LED_CTL_STOP_WPS_FAIL = 12, /* added for ALPHA */
-	LED_CTL_STOP_WPS_FAIL_OVERLAP = 13, /* added for BELKIN */
-	LED_CTL_CONNECTION_NO_TRANSFER = 14,
 };
 
 enum LED_STATE_871x {
@@ -81,11 +52,8 @@ enum LED_STATE_871x {
 };
 
 enum LED_PIN_871x {
-	LED_PIN_NULL = 0,
 	LED_PIN_LED0 = 1,
 	LED_PIN_LED1 = 2,
-	LED_PIN_LED2 = 3,
-	LED_PIN_GPIO0 = 4,
 };
 
 struct LED_871x {
