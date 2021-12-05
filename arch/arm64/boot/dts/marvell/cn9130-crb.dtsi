@@ -17,6 +17,8 @@
 		ethernet0 = &cp0_eth0;
 		ethernet1 = &cp0_eth1;
 		ethernet2 = &cp0_eth2;
+		gpio1 = &cp0_gpio1;
+		gpio2 = &cp0_gpio2;
 	};
 
 	memory@0 {
@@ -112,6 +114,14 @@
 			marvell,function = "spi1";
 		};
 	};
+};
+
+&cp0_gpio1 {
+	status = "okay";
+};
+
+&cp0_gpio2 {
+	status = "okay";
 };
 
 &cp0_i2c0 {
