@@ -36,7 +36,6 @@ void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
 {
 	u8	LedCfg;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
 
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		goto exit;
@@ -45,16 +44,11 @@ void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
 
 	switch (pLed->LedPin) {
 	case LED_PIN_LED0:
-		if (pHalData->bLedOpenDrain) {
-			/*  Open-drain arrangement for controlling the LED) */
-			LedCfg &= 0x90; /*  Set to software control. */
-			rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
-			LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
-			LedCfg &= 0xFE;
-			rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
-		} else {
-			rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3) | BIT(5) | BIT(6)));
-		}
+		LedCfg &= 0x90; /*  Set to software control. */
+		rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
+		LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
+		LedCfg &= 0xFE;
+		rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
 		break;
 	case LED_PIN_LED1:
 		LedCfg &= 0x0f; /*  Set to software control. */
