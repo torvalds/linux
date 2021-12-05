@@ -5740,6 +5740,7 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		smp_wmb();
 		kvm->arch.irqchip_mode = KVM_IRQCHIP_SPLIT;
 		kvm->arch.nr_reserved_ioapic_pins = cap->args[0];
+		kvm_request_apicv_update(kvm, true, APICV_INHIBIT_REASON_ABSENT);
 		r = 0;
 split_irqchip_unlock:
 		mutex_unlock(&kvm->lock);
@@ -6120,6 +6121,7 @@ set_identity_unlock:
 		/* Write kvm->irq_routing before enabling irqchip_in_kernel. */
 		smp_wmb();
 		kvm->arch.irqchip_mode = KVM_IRQCHIP_KERNEL;
+		kvm_request_apicv_update(kvm, true, APICV_INHIBIT_REASON_ABSENT);
 	create_irqchip_unlock:
 		mutex_unlock(&kvm->lock);
 		break;
@@ -8818,10 +8820,9 @@ static void kvm_apicv_init(struct kvm *kvm)
 {
 	init_rwsem(&kvm->arch.apicv_update_lock);
 
-	if (enable_apicv)
-		clear_bit(APICV_INHIBIT_REASON_DISABLE,
-			  &kvm->arch.apicv_inhibit_reasons);
-	else
+	set_bit(APICV_INHIBIT_REASON_ABSENT,
+		&kvm->arch.apicv_inhibit_reasons);
+	if (!enable_apicv)
 		set_bit(APICV_INHIBIT_REASON_DISABLE,
 			&kvm->arch.apicv_inhibit_reasons);
 }
