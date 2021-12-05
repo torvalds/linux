@@ -310,7 +310,7 @@ static int journal_entry_open(struct journal *j)
 
 	mod_delayed_work(c->io_complete_wq,
 			 &j->write_work,
-			 msecs_to_jiffies(j->write_delay_ms));
+			 msecs_to_jiffies(c->opts.journal_flush_delay));
 	journal_wake(j);
 	return 0;
 }
@@ -1102,9 +1102,6 @@ int bch2_fs_journal_init(struct journal *j)
 	mutex_init(&j->discard_lock);
 
 	lockdep_init_map(&j->res_map, "journal res", &res_key, 0);
-
-	j->write_delay_ms	= 1000;
-	j->reclaim_delay_ms	= 100;
 
 	atomic64_set(&j->reservations.counter,
 		((union journal_res_state)

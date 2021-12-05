@@ -257,13 +257,23 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Extra debugging information during mount/recovery")\
+	x(journal_flush_delay,		u32,				\
+	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_UINT(0, U32_MAX),						\
+	  BCH_SB_JOURNAL_FLUSH_DELAY,	1000,				\
+	  NULL,		"Delay in milliseconds before automatic journal commits")\
 	x(journal_flush_disabled,	u8,				\
 	  OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
-	  NO_SB_OPT,			false,				\
+	  BCH_SB_JOURNAL_FLUSH_DISABLED,false,				\
 	  NULL,		"Disable journal flush on sync/fsync\n"		\
 			"If enabled, writes can be lost, but only since the\n"\
 			"last journal write (default 1 second)")	\
+	x(journal_reclaim_delay,	u32,				\
+	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_UINT(0, U32_MAX),						\
+	  BCH_SB_JOURNAL_RECLAIM_DELAY,	100,				\
+	  NULL,		"Delay in milliseconds before automatic journal reclaim")\
 	x(fsck,				u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\

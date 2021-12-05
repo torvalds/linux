@@ -637,7 +637,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 		 * make sure to flush at least one journal pin:
 		 */
 		if (time_after(jiffies, j->last_flushed +
-			       msecs_to_jiffies(j->reclaim_delay_ms)))
+			       msecs_to_jiffies(c->opts.journal_reclaim_delay)))
 			min_nr = 1;
 
 		if (j->prereserved.reserved * 4 > j->prereserved.remaining)
@@ -683,6 +683,7 @@ int bch2_journal_reclaim(struct journal *j)
 static int bch2_journal_reclaim_thread(void *arg)
 {
 	struct journal *j = arg;
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	unsigned long delay, now;
 	int ret = 0;
 
@@ -700,7 +701,7 @@ static int bch2_journal_reclaim_thread(void *arg)
 		mutex_unlock(&j->reclaim_lock);
 
 		now = jiffies;
-		delay = msecs_to_jiffies(j->reclaim_delay_ms);
+		delay = msecs_to_jiffies(c->opts.journal_reclaim_delay);
 		j->next_reclaim = j->last_flushed + delay;
 
 		if (!time_in_range(j->next_reclaim, now, now + delay))

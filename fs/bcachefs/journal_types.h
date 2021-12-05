@@ -262,8 +262,6 @@ struct journal {
 	struct mutex		discard_lock;
 	bool			can_discard;
 
-	unsigned		write_delay_ms;
-	unsigned		reclaim_delay_ms;
 	unsigned long		last_flush_write;
 
 	u64			res_get_blocked_start;

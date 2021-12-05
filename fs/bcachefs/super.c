@@ -752,6 +752,15 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	scnprintf(c->name, sizeof(c->name), "%pU", &c->sb.user_uuid);
 
+	/* Compat: */
+	if (sb->version <= bcachefs_metadata_version_inode_v2 &&
+	    !BCH_SB_JOURNAL_FLUSH_DELAY(sb))
+		SET_BCH_SB_JOURNAL_FLUSH_DELAY(sb, 1000);
+
+	if (sb->version <= bcachefs_metadata_version_inode_v2 &&
+	    !BCH_SB_JOURNAL_RECLAIM_DELAY(sb))
+		SET_BCH_SB_JOURNAL_RECLAIM_DELAY(sb, 100);
+
 	c->opts = bch2_opts_default;
 	bch2_opts_apply(&c->opts, bch2_opts_from_sb(sb));
 	bch2_opts_apply(&c->opts, opts);

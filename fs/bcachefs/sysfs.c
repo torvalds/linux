@@ -140,8 +140,6 @@ rw_attribute(gc_gens_pos);
 read_attribute(uuid);
 read_attribute(minor);
 read_attribute(bucket_size);
-read_attribute(block_size);
-read_attribute(btree_node_size);
 read_attribute(first_bucket);
 read_attribute(nbuckets);
 read_attribute(durability);
@@ -177,9 +175,6 @@ write_attribute(wake_allocator);
 read_attribute(read_realloc_races);
 read_attribute(extent_migrate_done);
 read_attribute(extent_migrate_raced);
-
-rw_attribute(journal_write_delay_ms);
-rw_attribute(journal_reclaim_delay_ms);
 
 rw_attribute(discard);
 rw_attribute(cache_replacement_policy);
@@ -357,11 +352,6 @@ SHOW(bch2_fs)
 	sysfs_print(minor,			c->minor);
 	sysfs_printf(internal_uuid, "%pU",	c->sb.uuid.b);
 
-	sysfs_print(journal_write_delay_ms,	c->journal.write_delay_ms);
-	sysfs_print(journal_reclaim_delay_ms,	c->journal.reclaim_delay_ms);
-
-	sysfs_print(block_size,			block_bytes(c));
-	sysfs_print(btree_node_size,		btree_bytes(c));
 	sysfs_hprint(btree_cache_size,		bch2_btree_cache_size(c));
 	sysfs_hprint(btree_avg_write_size,	bch2_btree_avg_write_size(c));
 
@@ -475,9 +465,6 @@ STORE(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
 
-	sysfs_strtoul(journal_write_delay_ms, c->journal.write_delay_ms);
-	sysfs_strtoul(journal_reclaim_delay_ms, c->journal.reclaim_delay_ms);
-
 	if (attr == &sysfs_btree_gc_periodic) {
 		ssize_t ret = strtoul_safe(buf, c->btree_gc_periodic)
 			?: (ssize_t) size;
@@ -564,13 +551,8 @@ SYSFS_OPS(bch2_fs);
 
 struct attribute *bch2_fs_files[] = {
 	&sysfs_minor,
-	&sysfs_block_size,
-	&sysfs_btree_node_size,
 	&sysfs_btree_cache_size,
 	&sysfs_btree_avg_write_size,
-
-	&sysfs_journal_write_delay_ms,
-	&sysfs_journal_reclaim_delay_ms,
 
 	&sysfs_promote_whole_extents,
 
@@ -846,7 +828,6 @@ SHOW(bch2_dev)
 	sysfs_printf(uuid,		"%pU\n", ca->uuid.b);
 
 	sysfs_print(bucket_size,	bucket_bytes(ca));
-	sysfs_print(block_size,		block_bytes(c));
 	sysfs_print(first_bucket,	ca->mi.first_bucket);
 	sysfs_print(nbuckets,		ca->mi.nbuckets);
 	sysfs_print(durability,		ca->mi.durability);
@@ -978,7 +959,6 @@ SYSFS_OPS(bch2_dev);
 struct attribute *bch2_dev_files[] = {
 	&sysfs_uuid,
 	&sysfs_bucket_size,
-	&sysfs_block_size,
 	&sysfs_first_bucket,
 	&sysfs_nbuckets,
 	&sysfs_durability,
