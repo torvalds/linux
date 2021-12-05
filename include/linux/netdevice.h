@@ -586,6 +586,8 @@ struct netdev_queue {
  * read-mostly part
  */
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
+
 	struct Qdisc __rcu	*qdisc;
 	struct Qdisc		*qdisc_sleeping;
 #ifdef CONFIG_SYSFS
