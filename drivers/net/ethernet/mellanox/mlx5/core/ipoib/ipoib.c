@@ -449,7 +449,6 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(REGULAR),
 	.stats_grps        = mlx5i_stats_grps,
 	.stats_grps_num    = mlx5i_stats_grps_num,
-	.rx_ptp_support    = false,
 };
 
 /* mlx5i netdev NDos */

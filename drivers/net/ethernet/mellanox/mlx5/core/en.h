@@ -956,6 +956,10 @@ struct mlx5e_rx_handlers {
 
 extern const struct mlx5e_rx_handlers mlx5e_rx_handlers_nic;
 
+enum mlx5e_profile_feature {
+	MLX5E_PROFILE_FEATURE_PTP_RX,
+};
+
 struct mlx5e_profile {
 	int	(*init)(struct mlx5_core_dev *mdev,
 			struct net_device *netdev);
@@ -974,8 +978,11 @@ struct mlx5e_profile {
 	const struct mlx5e_rx_handlers *rx_handlers;
 	int	max_tc;
 	u8	rq_groups;
-	bool	rx_ptp_support;
+	u32     features;
 };
+
+#define mlx5e_profile_feature_cap(profile, feature)	\
+	((profile)->features & (MLX5E_PROFILE_FEATURE_## feature))
 
 void mlx5e_build_ptys2ethtool_map(void);
 

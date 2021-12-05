@@ -4038,7 +4038,7 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 		goto err_unlock;
 	}
 
-	if (!priv->profile->rx_ptp_support)
+	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
 		err = mlx5e_hwstamp_config_no_ptp_rx(priv,
 						     config.rx_filter != HWTSTAMP_FILTER_NONE);
 	else
@@ -5093,7 +5093,7 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(XSK),
 	.stats_grps	   = mlx5e_nic_stats_grps,
 	.stats_grps_num	   = mlx5e_nic_stats_grps_num,
-	.rx_ptp_support    = true,
+	.features          = BIT(MLX5E_PROFILE_FEATURE_PTP_RX),
 };
 
 static unsigned int
