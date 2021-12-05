@@ -41,6 +41,7 @@ bcachefs-y		:=	\
 	journal_sb.o		\
 	journal_seq_blacklist.o	\
 	keylist.o		\
+	lru.o			\
 	migrate.o		\
 	move.o			\
 	movinggc.o		\

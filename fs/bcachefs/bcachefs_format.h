@@ -352,7 +352,8 @@ static inline void bkey_init(struct bkey *k)
 	x(snapshot,		22)			\
 	x(inode_v2,		23)			\
 	x(alloc_v3,		24)			\
-	x(set,			25)
+	x(set,			25)			\
+	x(lru,			26)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -1023,6 +1024,15 @@ LE32_BITMASK(BCH_SNAPSHOT_DELETED,	struct bch_snapshot, flags,  0,  1)
 
 /* True if a subvolume points to this snapshot node: */
 LE32_BITMASK(BCH_SNAPSHOT_SUBVOL,	struct bch_snapshot, flags,  1,  2)
+
+/* LRU btree: */
+
+struct bch_lru {
+	struct bch_val		v;
+	__le64			idx;
+} __attribute__((packed, aligned(8)));
+
+#define LRU_ID_STRIPES		(1U << 16)
 
 /* Optional/variable size superblock sections: */
 
@@ -1838,7 +1848,8 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 	x(stripes,	6)			\
 	x(reflink,	7)			\
 	x(subvolumes,	8)			\
-	x(snapshots,	9)
+	x(snapshots,	9)			\
+	x(lru,		10)
 
 enum btree_id {
 #define x(kwd, val) BTREE_ID_##kwd = val,

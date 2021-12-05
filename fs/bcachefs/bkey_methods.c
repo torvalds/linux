@@ -9,6 +9,7 @@
 #include "error.h"
 #include "extents.h"
 #include "inode.h"
+#include "lru.h"
 #include "quota.h"
 #include "reflink.h"
 #include "subvolume.h"
@@ -165,6 +166,9 @@ static unsigned bch2_key_types_allowed[] = {
 	[BKEY_TYPE_snapshots] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_snapshot),
+	[BKEY_TYPE_lru] =
+		(1U << KEY_TYPE_deleted)|
+		(1U << KEY_TYPE_lru),
 	[BKEY_TYPE_btree] =
 		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_btree_ptr)|
