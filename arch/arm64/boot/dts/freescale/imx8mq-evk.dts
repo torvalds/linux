@@ -331,6 +331,10 @@
 	power-supply = <&sw1a_reg>;
 };
 
+&pgc_vpu {
+	power-supply = <&sw1c_reg>;
+};
+
 &qspi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_qspi>;
