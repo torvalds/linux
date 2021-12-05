@@ -3883,6 +3883,23 @@ static inline void dev_put_track(struct net_device *dev,
 	}
 }
 
+static inline void dev_replace_track(struct net_device *odev,
+				     struct net_device *ndev,
+				     netdevice_tracker *tracker,
+				     gfp_t gfp)
+{
+#ifdef CONFIG_NET_DEV_REFCNT_TRACKER
+	if (odev)
+		ref_tracker_free(&odev->refcnt_tracker, tracker);
+#endif
+	dev_hold(ndev);
+	dev_put(odev);
+#ifdef CONFIG_NET_DEV_REFCNT_TRACKER
+	if (ndev)
+		ref_tracker_alloc(&ndev->refcnt_tracker, tracker, gfp);
+#endif
+}
+
 /* Carrier loss detection, dial on demand. The functions netif_carrier_on
  * and _off may be called from IRQ context, but it is caller
  * who is responsible for serialization of these calls.
