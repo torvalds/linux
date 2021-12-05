@@ -137,6 +137,7 @@
 		regulator-name = "vcc3v3_lcd_edp";
 		gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		regulator-boot-on;
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
@@ -498,6 +499,11 @@
 
 &pwm12 {
 	pinctrl-0 = <&pwm12m1_pins>;
+	status = "okay";
+};
+
+&route_edp0 {
+	connect = <&vp2_out_edp0>;
 	status = "okay";
 };
 
