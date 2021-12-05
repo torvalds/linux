@@ -1257,7 +1257,7 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		req.access = qp->access;
 
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_PKEY)
-		req.pkey = IB_DEFAULT_PKEY_FULL;
+		req.pkey = cpu_to_le16(IB_DEFAULT_PKEY_FULL);
 
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_QKEY)
 		req.qkey = cpu_to_le32(qp->qkey);
