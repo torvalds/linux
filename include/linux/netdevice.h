@@ -1950,6 +1950,7 @@ enum netdev_ml_priv_type {
  *			keep a list of interfaces to be deleted.
  *
  *	@dev_addr_shadow:	Copy of @dev_addr to catch direct writes.
+ *	@linkwatch_dev_tracker:	refcount tracker used by linkwatch.
  *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
@@ -2280,6 +2281,7 @@ struct net_device {
 	struct bpf_xdp_entity	xdp_state[__MAX_XDP_MODE];
 
 	u8 dev_addr_shadow[MAX_ADDR_LEN];
+	netdevice_tracker	linkwatch_dev_tracker;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
