@@ -879,7 +879,7 @@ static int venc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int venc_runtime_suspend(struct device *dev)
+static __maybe_unused int venc_runtime_suspend(struct device *dev)
 {
 	struct venc_device *venc = dev_get_drvdata(dev);
 
@@ -889,7 +889,7 @@ static int venc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int venc_runtime_resume(struct device *dev)
+static __maybe_unused int venc_runtime_resume(struct device *dev)
 {
 	struct venc_device *venc = dev_get_drvdata(dev);
 

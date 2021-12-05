@@ -4869,7 +4869,7 @@ static int dispc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int dispc_runtime_suspend(struct device *dev)
+static __maybe_unused int dispc_runtime_suspend(struct device *dev)
 {
 	struct dispc_device *dispc = dev_get_drvdata(dev);
 
@@ -4884,7 +4884,7 @@ static int dispc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int dispc_runtime_resume(struct device *dev)
+static __maybe_unused int dispc_runtime_resume(struct device *dev)
 {
 	struct dispc_device *dispc = dev_get_drvdata(dev);
 
