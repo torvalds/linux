@@ -1238,8 +1238,7 @@ use_clean:
 		 */
 		bch_verbose(c, "writing allocation info");
 		err = "error writing out alloc info";
-		ret = bch2_stripes_write(c, BTREE_INSERT_LAZY_RW) ?:
-			bch2_alloc_write(c, BTREE_INSERT_LAZY_RW);
+		ret = bch2_alloc_write(c, BTREE_INSERT_LAZY_RW);
 		if (ret) {
 			bch_err(c, "error writing alloc info");
 			goto err;

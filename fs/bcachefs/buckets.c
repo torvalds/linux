@@ -953,38 +953,33 @@ static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 	bool gc = flags & BTREE_TRIGGER_GC;
 	struct bch_fs *c = trans->c;
 	struct bch_replicas_padded r;
-	struct stripe *m;
-	unsigned i, blocks_nonempty = 0;
 
-	m = genradix_ptr(&c->stripes[gc], p.idx);
+	if (!gc) {
+		BUG();
+	} else {
+		struct gc_stripe *m = genradix_ptr_alloc(&c->gc_stripes, p.idx, GFP_KERNEL);
 
-	spin_lock(&c->ec_stripes_heap_lock);
+		if (!m)
+			return -ENOMEM;
 
-	if (!m || !m->alive) {
+		spin_lock(&c->ec_stripes_heap_lock);
+
+		if (!m || !m->alive) {
+			spin_unlock(&c->ec_stripes_heap_lock);
+			bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
+					    (u64) p.idx);
+			bch2_inconsistent_error(c);
+			return -EIO;
+		}
+
+		m->block_sectors[p.block] += sectors;
+
+		r = m->r;
 		spin_unlock(&c->ec_stripes_heap_lock);
-		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
-				    (u64) p.idx);
-		bch2_inconsistent_error(c);
-		return -EIO;
+
+		r.e.data_type = data_type;
+		update_replicas(c, k, &r.e, sectors, trans->journal_res.seq, gc);
 	}
-
-	m->block_sectors[p.block] += sectors;
-
-	r = m->r;
-
-	for (i = 0; i < m->nr_blocks; i++)
-		blocks_nonempty += m->block_sectors[i] != 0;
-
-	if (m->blocks_nonempty != blocks_nonempty) {
-		m->blocks_nonempty = blocks_nonempty;
-		if (!gc)
-			bch2_stripes_heap_update(c, m, p.idx);
-	}
-
-	spin_unlock(&c->ec_stripes_heap_lock);
-
-	r.e.data_type = data_type;
-	update_replicas(c, k, &r.e, sectors, trans->journal_res.seq, gc);
 
 	return 0;
 }
@@ -1081,67 +1076,69 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 		? bkey_s_c_to_stripe(old).v : NULL;
 	const struct bch_stripe *new_s = new.k->type == KEY_TYPE_stripe
 		? bkey_s_c_to_stripe(new).v : NULL;
-	struct stripe *m = genradix_ptr(&c->stripes[gc], idx);
 	unsigned i;
 	int ret;
 
 	BUG_ON(gc && old_s);
 
-	if (!m || (old_s && !m->alive)) {
-		char buf1[200], buf2[200];
+	if (!gc) {
+		struct stripe *m = genradix_ptr(&c->stripes, idx);
 
-		bch2_bkey_val_to_text(&PBUF(buf1), c, old);
-		bch2_bkey_val_to_text(&PBUF(buf2), c, new);
-		bch_err_ratelimited(c, "error marking nonexistent stripe %zu while marking\n"
-				    "old %s\n"
-				    "new %s", idx, buf1, buf2);
-		bch2_inconsistent_error(c);
-		return -1;
-	}
+		if (!m || (old_s && !m->alive)) {
+			char buf1[200], buf2[200];
 
-	if (!new_s) {
-		spin_lock(&c->ec_stripes_heap_lock);
-		bch2_stripes_heap_del(c, m, idx);
-		spin_unlock(&c->ec_stripes_heap_lock);
-
-		memset(m, 0, sizeof(*m));
-	} else {
-		m->alive	= true;
-		m->sectors	= le16_to_cpu(new_s->sectors);
-		m->algorithm	= new_s->algorithm;
-		m->nr_blocks	= new_s->nr_blocks;
-		m->nr_redundant	= new_s->nr_redundant;
-		m->blocks_nonempty = 0;
-
-		for (i = 0; i < new_s->nr_blocks; i++) {
-			m->block_sectors[i] =
-				stripe_blockcount_get(new_s, i);
-			m->blocks_nonempty += !!m->block_sectors[i];
-
-			m->ptrs[i] = new_s->ptrs[i];
+			bch2_bkey_val_to_text(&PBUF(buf1), c, old);
+			bch2_bkey_val_to_text(&PBUF(buf2), c, new);
+			bch_err_ratelimited(c, "error marking nonexistent stripe %zu while marking\n"
+					    "old %s\n"
+					    "new %s", idx, buf1, buf2);
+			bch2_inconsistent_error(c);
+			return -1;
 		}
 
-		bch2_bkey_to_replicas(&m->r.e, new);
+		if (!new_s) {
+			spin_lock(&c->ec_stripes_heap_lock);
+			bch2_stripes_heap_del(c, m, idx);
+			spin_unlock(&c->ec_stripes_heap_lock);
 
-		if (!gc) {
+			memset(m, 0, sizeof(*m));
+		} else {
+			m->alive	= true;
+			m->sectors	= le16_to_cpu(new_s->sectors);
+			m->algorithm	= new_s->algorithm;
+			m->nr_blocks	= new_s->nr_blocks;
+			m->nr_redundant	= new_s->nr_redundant;
+			m->blocks_nonempty = 0;
+
+			for (i = 0; i < new_s->nr_blocks; i++)
+				m->blocks_nonempty += !!stripe_blockcount_get(new_s, i);
+
 			spin_lock(&c->ec_stripes_heap_lock);
 			bch2_stripes_heap_update(c, m, idx);
 			spin_unlock(&c->ec_stripes_heap_lock);
 		}
-	}
+	} else {
+		struct gc_stripe *m = genradix_ptr(&c->gc_stripes, idx);
 
-	if (gc) {
 		/*
 		 * This will be wrong when we bring back runtime gc: we should
 		 * be unmarking the old key and then marking the new key
 		 */
+		m->alive	= true;
+		m->sectors	= le16_to_cpu(new_s->sectors);
+		m->nr_blocks	= new_s->nr_blocks;
+		m->nr_redundant	= new_s->nr_redundant;
+
+		for (i = 0; i < new_s->nr_blocks; i++)
+			m->ptrs[i] = new_s->ptrs[i];
+
+		bch2_bkey_to_replicas(&m->r.e, new);
 
 		/*
 		 * gc recalculates this field from stripe ptr
 		 * references:
 		 */
 		memset(m->block_sectors, 0, sizeof(m->block_sectors));
-		m->blocks_nonempty = 0;
 
 		for (i = 0; i < new_s->nr_blocks; i++) {
 			ret = mark_stripe_bucket(trans, new, i, journal_seq, flags);
@@ -1602,6 +1599,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 	stripe_blockcount_set(&s->v, p.ec.block,
 		stripe_blockcount_get(&s->v, p.ec.block) +
 		sectors);
+
 	ret = bch2_trans_update(trans, &iter, &s->k_i, 0);
 	if (ret)
 		goto err;

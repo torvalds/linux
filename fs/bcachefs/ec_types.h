@@ -21,6 +21,15 @@ struct stripe {
 	unsigned		alive:1; /* does a corresponding key exist in stripes btree? */
 	unsigned		on_heap:1;
 	u8			blocks_nonempty;
+};
+
+struct gc_stripe {
+	u16			sectors;
+
+	u8			nr_blocks;
+	u8			nr_redundant;
+
+	unsigned		alive:1; /* does a corresponding key exist in stripes btree? */
 	u16			block_sectors[BCH_BKEY_PTRS_MAX];
 	struct bch_extent_ptr	ptrs[BCH_BKEY_PTRS_MAX];
 

@@ -108,7 +108,7 @@ static inline bool bch2_ptr_matches_stripe(const struct bch_stripe *s,
 					 le16_to_cpu(s->sectors));
 }
 
-static inline bool bch2_ptr_matches_stripe_m(const struct stripe *m,
+static inline bool bch2_ptr_matches_stripe_m(const struct gc_stripe *m,
 					     struct extent_ptr_decoded p)
 {
 	unsigned nr_data = m->nr_blocks - m->nr_redundant;
@@ -216,7 +216,6 @@ void bch2_ec_flush_new_stripes(struct bch_fs *);
 void bch2_stripes_heap_start(struct bch_fs *);
 
 int bch2_stripes_read(struct bch_fs *);
-int bch2_stripes_write(struct bch_fs *, unsigned);
 
 int bch2_ec_mem_alloc(struct bch_fs *, bool);
 

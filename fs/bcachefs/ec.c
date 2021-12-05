@@ -545,11 +545,11 @@ static int __ec_stripe_mem_alloc(struct bch_fs *c, size_t idx, gfp_t gfp)
 		free_heap(&n);
 	}
 
-	if (!genradix_ptr_alloc(&c->stripes[0], idx, gfp))
+	if (!genradix_ptr_alloc(&c->stripes, idx, gfp))
 		return -ENOMEM;
 
 	if (c->gc_pos.phase != GC_PHASE_NOT_RUNNING &&
-	    !genradix_ptr_alloc(&c->stripes[1], idx, gfp))
+	    !genradix_ptr_alloc(&c->gc_stripes, idx, gfp))
 		return -ENOMEM;
 
 	return 0;
@@ -594,13 +594,13 @@ static inline void ec_stripes_heap_set_backpointer(ec_stripes_heap *h,
 {
 	struct bch_fs *c = container_of(h, struct bch_fs, ec_stripes_heap);
 
-	genradix_ptr(&c->stripes[0], h->data[i].idx)->heap_idx = i;
+	genradix_ptr(&c->stripes, h->data[i].idx)->heap_idx = i;
 }
 
 static void heap_verify_backpointer(struct bch_fs *c, size_t idx)
 {
 	ec_stripes_heap *h = &c->ec_stripes_heap;
-	struct stripe *m = genradix_ptr(&c->stripes[0], idx);
+	struct stripe *m = genradix_ptr(&c->stripes, idx);
 
 	BUG_ON(!m->alive);
 	BUG_ON(m->heap_idx >= h->used);
@@ -692,7 +692,7 @@ static void ec_stripe_delete_work(struct work_struct *work)
 			break;
 		}
 
-		bch2_stripes_heap_del(c, genradix_ptr(&c->stripes[0], idx), idx);
+		bch2_stripes_heap_del(c, genradix_ptr(&c->stripes, idx), idx);
 		spin_unlock(&c->ec_stripes_heap_lock);
 
 		if (ec_stripe_delete(c, idx))
@@ -702,22 +702,18 @@ static void ec_stripe_delete_work(struct work_struct *work)
 
 /* stripe creation: */
 
-static int ec_stripe_bkey_insert(struct bch_fs *c,
+static int ec_stripe_bkey_insert(struct btree_trans *trans,
 				 struct bkey_i_stripe *stripe,
 				 struct disk_reservation *res)
 {
-	struct btree_trans trans;
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bpos min_pos = POS(0, 1);
 	struct bpos start_pos = bpos_max(min_pos, POS(0, c->ec_stripe_hint));
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
-retry:
-	bch2_trans_begin(&trans);
-
-	for_each_btree_key(&trans, iter, BTREE_ID_stripes, start_pos,
+	for_each_btree_key(trans, iter, BTREE_ID_stripes, start_pos,
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0) {
 			if (start_pos.offset) {
@@ -738,29 +734,24 @@ retry:
 found_slot:
 	start_pos = iter.pos;
 
-	ret = ec_stripe_mem_alloc(&trans, &iter);
+	ret = ec_stripe_mem_alloc(trans, &iter);
 	if (ret)
 		goto err;
 
 	stripe->k.p = iter.pos;
 
-	ret   = bch2_trans_update(&trans, &iter, &stripe->k_i, 0) ?:
-		bch2_trans_commit(&trans, res, NULL,
-				BTREE_INSERT_NOFAIL);
+	ret = bch2_trans_update(trans, &iter, &stripe->k_i, 0);
+
+	c->ec_stripe_hint = start_pos.offset;
 err:
-	bch2_trans_iter_exit(&trans, &iter);
-
-	if (ret == -EINTR)
-		goto retry;
-
-	c->ec_stripe_hint = ret ? start_pos.offset : start_pos.offset + 1;
-	bch2_trans_exit(&trans);
+	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;
 }
 
 static int ec_stripe_bkey_update(struct btree_trans *trans,
-				 struct bkey_i_stripe *new)
+				 struct bkey_i_stripe *new,
+				 struct disk_reservation *res)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -947,10 +938,10 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 		goto err_put_writes;
 	}
 
-	ret = s->have_existing_stripe
-		? bch2_trans_do(c, &s->res, NULL, BTREE_INSERT_NOFAIL,
-				ec_stripe_bkey_update(&trans, &s->new_stripe.key))
-		: ec_stripe_bkey_insert(c, &s->new_stripe.key, &s->res);
+	ret = bch2_trans_do(c, &s->res, NULL, BTREE_INSERT_NOFAIL,
+			    s->have_existing_stripe
+			    ? ec_stripe_bkey_update(&trans, &s->new_stripe.key, &s->res)
+			    : ec_stripe_bkey_insert(&trans, &s->new_stripe.key, &s->res));
 	if (ret) {
 		bch_err(c, "error creating stripe: error creating stripe key");
 		goto err_put_writes;
@@ -965,7 +956,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	}
 
 	spin_lock(&c->ec_stripes_heap_lock);
-	m = genradix_ptr(&c->stripes[0], s->new_stripe.key.k.p.offset);
+	m = genradix_ptr(&c->stripes, s->new_stripe.key.k.p.offset);
 
 	BUG_ON(m->on_heap);
 	bch2_stripes_heap_insert(c, m, s->new_stripe.key.k.p.offset);
@@ -1381,7 +1372,7 @@ static s64 get_existing_stripe(struct bch_fs *c,
 			continue;
 
 		stripe_idx = h->data[heap_idx].idx;
-		m = genradix_ptr(&c->stripes[0], stripe_idx);
+		m = genradix_ptr(&c->stripes, stripe_idx);
 
 		if (m->algorithm	== head->algo &&
 		    m->nr_redundant	== head->redundancy &&
@@ -1555,83 +1546,9 @@ void bch2_stripes_heap_start(struct bch_fs *c)
 	struct genradix_iter iter;
 	struct stripe *m;
 
-	genradix_for_each(&c->stripes[0], iter, m)
+	genradix_for_each(&c->stripes, iter, m)
 		if (m->alive)
 			bch2_stripes_heap_insert(c, m, iter.pos);
-}
-
-static int __bch2_stripe_write_key(struct btree_trans *trans,
-				   struct btree_iter *iter,
-				   struct stripe *m,
-				   size_t idx,
-				   struct bkey_i_stripe *new_key)
-{
-	const struct bch_stripe *v;
-	struct bkey_s_c k;
-	unsigned i;
-	int ret;
-
-	bch2_btree_iter_set_pos(iter, POS(0, idx));
-
-	k = bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
-
-	if (k.k->type != KEY_TYPE_stripe)
-		return -EIO;
-
-	v = bkey_s_c_to_stripe(k).v;
-	for (i = 0; i < v->nr_blocks; i++)
-		if (m->block_sectors[i] != stripe_blockcount_get(v, i))
-			goto write;
-	return 0;
-write:
-	bkey_reassemble(&new_key->k_i, k);
-
-	for (i = 0; i < new_key->v.nr_blocks; i++)
-		stripe_blockcount_set(&new_key->v, i,
-				      m->block_sectors[i]);
-
-	return bch2_trans_update(trans, iter, &new_key->k_i, 0);
-}
-
-int bch2_stripes_write(struct bch_fs *c, unsigned flags)
-{
-	struct btree_trans trans;
-	struct btree_iter iter;
-	struct genradix_iter giter;
-	struct bkey_i_stripe *new_key;
-	struct stripe *m;
-	int ret = 0;
-
-	new_key = kmalloc(255 * sizeof(u64), GFP_KERNEL);
-	BUG_ON(!new_key);
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_stripes, POS_MIN,
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-
-	genradix_for_each(&c->stripes[0], giter, m) {
-		if (!m->alive)
-			continue;
-
-		ret = __bch2_trans_do(&trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|flags,
-			__bch2_stripe_write_key(&trans, &iter, m,
-					giter.pos, new_key));
-
-		if (ret)
-			break;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
-
-	bch2_trans_exit(&trans);
-
-	kfree(new_key);
-
-	return ret;
 }
 
 static int bch2_stripes_read_fn(struct btree_trans *trans, struct bkey_s_c k)
@@ -1651,7 +1568,7 @@ static int bch2_stripes_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 
 	s = bkey_s_c_to_stripe(k).v;
 
-	m = genradix_ptr(&c->stripes[0], k.k->p.offset);
+	m = genradix_ptr(&c->stripes, k.k->p.offset);
 	m->alive	= true;
 	m->sectors	= le16_to_cpu(s->sectors);
 	m->algorithm	= s->algorithm;
@@ -1659,14 +1576,8 @@ static int bch2_stripes_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 	m->nr_redundant	= s->nr_redundant;
 	m->blocks_nonempty = 0;
 
-	for (i = 0; i < s->nr_blocks; i++) {
-		m->block_sectors[i] =
-			stripe_blockcount_get(s, i);
-		m->blocks_nonempty += !!m->block_sectors[i];
-		m->ptrs[i] = s->ptrs[i];
-	}
-
-	bch2_bkey_to_replicas(&m->r.e, k);
+	for (i = 0; i < s->nr_blocks; i++)
+		m->blocks_nonempty += !!stripe_blockcount_get(s, i);
 
 	spin_lock(&c->ec_stripes_heap_lock);
 	bch2_stripes_heap_update(c, m, k.k->p.offset);
@@ -1722,7 +1633,9 @@ int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 	ret = genradix_prealloc(&c->stripes[gc], idx, GFP_KERNEL);
 #else
 	for (i = 0; i < idx; i++)
-		if (!genradix_ptr_alloc(&c->stripes[gc], i, GFP_KERNEL))
+		if (!gc
+		    ? !genradix_ptr_alloc(&c->stripes, i, GFP_KERNEL)
+		    : !genradix_ptr_alloc(&c->gc_stripes, i, GFP_KERNEL))
 			return -ENOMEM;
 #endif
 	return 0;
@@ -1736,7 +1649,7 @@ void bch2_stripes_heap_to_text(struct printbuf *out, struct bch_fs *c)
 
 	spin_lock(&c->ec_stripes_heap_lock);
 	for (i = 0; i < min_t(size_t, h->used, 20); i++) {
-		m = genradix_ptr(&c->stripes[0], h->data[i].idx);
+		m = genradix_ptr(&c->stripes, h->data[i].idx);
 
 		pr_buf(out, "%zu %u/%u+%u\n", h->data[i].idx,
 		       h->data[i].blocks_nonempty,
@@ -1794,7 +1707,7 @@ void bch2_fs_ec_exit(struct bch_fs *c)
 	BUG_ON(!list_empty(&c->ec_stripe_new_list));
 
 	free_heap(&c->ec_stripes_heap);
-	genradix_free(&c->stripes[0]);
+	genradix_free(&c->stripes);
 	bioset_exit(&c->ec_bioset);
 }
 

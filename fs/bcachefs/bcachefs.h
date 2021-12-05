@@ -826,7 +826,8 @@ mempool_t		bio_bounce_pages;
 	struct mutex		data_progress_lock;
 
 	/* STRIPES: */
-	GENRADIX(struct stripe) stripes[2];
+	GENRADIX(struct stripe) stripes;
+	GENRADIX(struct gc_stripe) gc_stripes;
 
 	ec_stripes_heap		ec_stripes_heap;
 	spinlock_t		ec_stripes_heap_lock;

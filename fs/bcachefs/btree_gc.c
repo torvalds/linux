@@ -597,7 +597,7 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 		}
 
 		if (p.has_ec) {
-			struct stripe *m = genradix_ptr(&c->stripes[true], p.ec.idx);
+			struct gc_stripe *m = genradix_ptr(&c->gc_stripes, p.ec.idx);
 
 			if (fsck_err_on(!m || !m->alive, c,
 					"pointer to nonexistent stripe %llu\n"
@@ -665,7 +665,7 @@ again:
 			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
 			bkey_extent_entry_for_each(ptrs, entry) {
 				if (extent_entry_type(entry) == BCH_EXTENT_ENTRY_stripe_ptr) {
-					struct stripe *m = genradix_ptr(&c->stripes[true],
+					struct gc_stripe *m = genradix_ptr(&c->gc_stripes,
 									entry->stripe_ptr.idx);
 					union bch_extent_entry *next_ptr;
 
@@ -1132,7 +1132,8 @@ static void bch2_gc_free(struct bch_fs *c)
 	struct bch_dev *ca;
 	unsigned i;
 
-	genradix_free(&c->stripes[1]);
+	genradix_free(&c->reflink_gc_table);
+	genradix_free(&c->gc_stripes);
 
 	for_each_member_device(ca, c, i) {
 		kvpfree(rcu_dereference_protected(ca->buckets[1], 1),
@@ -1190,35 +1191,6 @@ static int bch2_gc_done(struct bch_fs *c,
 	copy_field(_f, "dev %u has wrong " _msg, dev, ##__VA_ARGS__)
 #define copy_fs_field(_f, _msg, ...)					\
 	copy_field(_f, "fs has wrong " _msg, ##__VA_ARGS__)
-
-	if (!metadata_only) {
-		struct genradix_iter iter = genradix_iter_init(&c->stripes[1], 0);
-		struct stripe *dst, *src;
-
-		while ((src = genradix_iter_peek(&iter, &c->stripes[1]))) {
-			dst = genradix_ptr_alloc(&c->stripes[0], iter.pos, GFP_KERNEL);
-
-			if (dst->alive		!= src->alive ||
-			    dst->sectors	!= src->sectors ||
-			    dst->algorithm	!= src->algorithm ||
-			    dst->nr_blocks	!= src->nr_blocks ||
-			    dst->nr_redundant	!= src->nr_redundant) {
-				bch_err(c, "unexpected stripe inconsistency at bch2_gc_done, confused");
-				ret = -EINVAL;
-				goto fsck_err;
-			}
-
-			for (i = 0; i < ARRAY_SIZE(dst->block_sectors); i++)
-				copy_stripe_field(block_sectors[i],
-						  "block_sectors[%u]", i);
-
-			dst->blocks_nonempty = 0;
-			for (i = 0; i < dst->nr_blocks; i++)
-				dst->blocks_nonempty += dst->block_sectors[i] != 0;
-
-			genradix_iter_advance(&iter, &c->stripes[1]);
-		}
-	}
 
 	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
 		bch2_fs_usage_acc_to_base(c, i);
@@ -1510,8 +1482,78 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool initial,
 fsck_err:
 	bch2_trans_iter_exit(&trans, &iter);
 out:
-	genradix_free(&c->reflink_gc_table);
 	c->reflink_gc_nr = 0;
+	bch2_trans_exit(&trans);
+	return ret;
+}
+
+static int bch2_gc_stripes_done_initial_fn(struct btree_trans *trans,
+					   struct bkey_s_c k)
+{
+	struct bch_fs *c = trans->c;
+	struct gc_stripe *m;
+	const struct bch_stripe *s;
+	char buf[200];
+	unsigned i;
+	int ret = 0;
+
+	if (k.k->type != KEY_TYPE_stripe)
+		return 0;
+
+	s = bkey_s_c_to_stripe(k).v;
+
+	m = genradix_ptr(&c->gc_stripes, k.k->p.offset);
+
+	for (i = 0; i < s->nr_blocks; i++)
+		if (stripe_blockcount_get(s, i) != (m ? m->block_sectors[i] : 0))
+			goto inconsistent;
+	return 0;
+inconsistent:
+	if (fsck_err_on(true, c,
+			"stripe has wrong block sector count %u:\n"
+			"  %s\n"
+			"  should be %u", i,
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
+			m ? m->block_sectors[i] : 0)) {
+		struct bkey_i_stripe *new;
+
+		new = kmalloc(bkey_bytes(k.k), GFP_KERNEL);
+		if (!new) {
+			ret = -ENOMEM;
+			goto fsck_err;
+		}
+
+		bkey_reassemble(&new->k_i, k);
+
+		for (i = 0; i < new->v.nr_blocks; i++)
+			stripe_blockcount_set(&new->v, i, m ? m->block_sectors[i] : 0);
+
+		ret = bch2_journal_key_insert(c, BTREE_ID_stripes, 0, &new->k_i);
+		if (ret)
+			kfree(new);
+	}
+fsck_err:
+	return ret;
+}
+
+static int bch2_gc_stripes_done(struct bch_fs *c, bool initial,
+				bool metadata_only)
+{
+	struct btree_trans trans;
+	int ret = 0;
+
+	if (metadata_only)
+		return 0;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	if (initial) {
+		ret = bch2_btree_and_journal_walk(&trans, BTREE_ID_stripes,
+				bch2_gc_stripes_done_initial_fn);
+	} else {
+		BUG();
+	}
+
 	bch2_trans_exit(&trans);
 	return ret;
 }
@@ -1551,7 +1593,6 @@ static int bch2_gc_reflink_start(struct bch_fs *c, bool initial,
 		return 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	genradix_free(&c->reflink_gc_table);
 	c->reflink_gc_nr = 0;
 
 	if (initial) {
@@ -1685,6 +1726,7 @@ out:
 
 		percpu_down_write(&c->mark_lock);
 		ret   = bch2_gc_reflink_done(c, initial, metadata_only) ?:
+			bch2_gc_stripes_done(c, initial, metadata_only) ?:
 			bch2_gc_done(c, initial, metadata_only);
 
 		bch2_journal_unblock(&c->journal);
