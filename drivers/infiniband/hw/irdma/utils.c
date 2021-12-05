@@ -2239,14 +2239,9 @@ enum irdma_status_code irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
 
 	sizeofbitmap = (u64)pchunk->size >> pprm->pble_shift;
 
-	pchunk->bitmapmem.size = sizeofbitmap >> 3;
-	pchunk->bitmapmem.va = kzalloc(pchunk->bitmapmem.size, GFP_KERNEL);
-
-	if (!pchunk->bitmapmem.va)
+	pchunk->bitmapbuf = bitmap_zalloc(sizeofbitmap, GFP_KERNEL);
+	if (!pchunk->bitmapbuf)
 		return IRDMA_ERR_NO_MEMORY;
-
-	pchunk->bitmapbuf = pchunk->bitmapmem.va;
-	bitmap_zero(pchunk->bitmapbuf, sizeofbitmap);
 
 	pchunk->sizeofbitmap = sizeofbitmap;
 	/* each pble is 8 bytes hence shift by 3 */
