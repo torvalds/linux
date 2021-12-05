@@ -1118,22 +1118,16 @@ static void hal_get_chnl_group_88e(u8 chnl, u8 *group)
 void Hal_ReadPowerSavingMode88E(struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail)
 {
 	if (AutoLoadFail) {
-		padapter->pwrctrlpriv.bHWPowerdown = false;
 		padapter->pwrctrlpriv.bSupportRemoteWakeup = false;
 	} else {
 		/* hw power down mode selection , 0:rf-off / 1:power down */
-
-		if (padapter->registrypriv.hwpdn_mode == 2)
-			padapter->pwrctrlpriv.bHWPowerdown = (hwinfo[EEPROM_RF_FEATURE_OPTION_88E] & BIT(4));
-		else
-			padapter->pwrctrlpriv.bHWPowerdown = padapter->registrypriv.hwpdn_mode;
 
 		/*  decide hw if support remote wakeup function */
 		/*  if hw supported, 8051 (SIE) will generate WeakUP signal(D+/D- toggle) when autoresume */
 		padapter->pwrctrlpriv.bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0] & BIT(1)) ? true : false;
 
-		DBG_88E("%s...bHWPowerdown(%x) , bSupportRemoteWakeup(%x)\n", __func__,
-			padapter->pwrctrlpriv.bHWPowerdown, padapter->pwrctrlpriv.bSupportRemoteWakeup);
+		DBG_88E("%s , bSupportRemoteWakeup(%x)\n", __func__,
+			padapter->pwrctrlpriv.bSupportRemoteWakeup);
 
 		DBG_88E("### PS params =>  power_mgnt(%x), usbss_enable(%x) ###\n", padapter->registrypriv.power_mgnt, padapter->registrypriv.usbss_enable);
 	}
