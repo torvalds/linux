@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
@@ -18,7 +19,7 @@
 #include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
@@ -156,7 +157,6 @@ static int cm3605_probe(struct platform_device *pdev)
 	struct cm3605 *cm3605;
 	struct iio_dev *indio_dev;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	enum iio_chan_type ch_type;
 	u32 rset;
 	int irq;
@@ -171,7 +171,7 @@ static int cm3605_probe(struct platform_device *pdev)
 	cm3605->dev = dev;
 	cm3605->dir = IIO_EV_DIR_FALLING;
 
-	ret = of_property_read_u32(np, "capella,aset-resistance-ohms", &rset);
+	ret = device_property_read_u32(dev, "capella,aset-resistance-ohms", &rset);
 	if (ret) {
 		dev_info(dev, "no RSET specified, assuming 100K\n");
 		rset = 100000;
