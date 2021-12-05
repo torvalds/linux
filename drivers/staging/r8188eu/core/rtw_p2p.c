@@ -1941,7 +1941,6 @@ int rtw_p2p_enable(struct adapter *padapter, enum P2P_ROLE role)
 		/* Enable P2P function */
 		init_wifidirect_info(padapter, role);
 
-		rtl8188e_SetHalODMVar(padapter, HAL_ODM_P2P_STATE, NULL, true);
 	} else if (role == P2P_ROLE_DISABLE) {
 		if (_FAIL == rtw_pwr_wakeup(padapter)) {
 			ret = _FAIL;
@@ -1959,8 +1958,6 @@ int rtw_p2p_enable(struct adapter *padapter, enum P2P_ROLE role)
 			rtw_p2p_set_role(pwdinfo, P2P_ROLE_DISABLE);
 			memset(&pwdinfo->rx_prov_disc_info, 0x00, sizeof(struct rx_provdisc_req_info));
 		}
-
-		rtl8188e_SetHalODMVar(padapter, HAL_ODM_P2P_STATE, NULL, false);
 
 		/* Restore to initial setting. */
 		update_tx_basic_rate(padapter, padapter->registrypriv.wireless_mode);
