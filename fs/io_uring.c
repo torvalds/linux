@@ -2538,10 +2538,10 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 		/* order with io_complete_rw_iopoll(), e.g. ->result updates */
 		if (!smp_load_acquire(&req->iopoll_completed))
 			break;
+		if (unlikely(req->flags & REQ_F_CQE_SKIP))
+			continue;
 
-		if (!(req->flags & REQ_F_CQE_SKIP))
-			__io_fill_cqe(ctx, req->user_data, req->result,
-				      io_put_kbuf(req));
+		__io_fill_cqe(ctx, req->user_data, req->result, io_put_kbuf(req));
 		nr_events++;
 	}
 
