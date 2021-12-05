@@ -136,7 +136,5 @@ void storePwrIndexDiffRateOffset(struct adapter *adapter, u32 regaddr,
 
 #define PHY_QueryBBReg(adapt, regaddr, mask)			\
 	 rtl8188e_PHY_QueryBBReg((adapt), (regaddr), (mask))
-#define PHY_SetBBReg(adapt, regaddr, bitmask, data)		\
-	 rtl8188e_PHY_SetBBReg((adapt), (regaddr), (bitmask), (data))
 
 #endif	/*  __INC_HAL8192CPHYCFG_H */

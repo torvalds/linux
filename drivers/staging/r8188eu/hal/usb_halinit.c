@@ -556,8 +556,8 @@ static void _BeaconFunctionEnable(struct adapter *Adapter,
 /*  Set CCK and OFDM Block "ON" */
 static void _BBTurnOnBlock(struct adapter *Adapter)
 {
-	PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bCCKEn, 0x1);
-	PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
+	rtl8188e_PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bCCKEn, 0x1);
+	rtl8188e_PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
 }
 
 enum {
@@ -574,7 +574,7 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
 	DBG_88E("==>  %s ....\n", __func__);
 
 	rtw_write32(Adapter, REG_LEDCFG0, rtw_read32(Adapter, REG_LEDCFG0) | BIT(23));
-	PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, BIT(13), 0x01);
+	rtl8188e_PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, BIT(13), 0x01);
 
 	if (PHY_QueryBBReg(Adapter, rFPGA0_XA_RFInterfaceOE, 0x300) == Antenna_A)
 		haldata->CurAntenna = Antenna_A;
