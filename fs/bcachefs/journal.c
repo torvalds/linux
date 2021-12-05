@@ -1134,44 +1134,29 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	union journal_res_state s;
 	struct bch_dev *ca;
+	unsigned long now = jiffies;
 	unsigned i;
 
 	rcu_read_lock();
 	s = READ_ONCE(j->reservations);
 
-	pr_buf(out,
-	       "active journal entries:\t%llu\n"
-	       "seq:\t\t\t%llu\n"
-	       "last_seq:\t\t%llu\n"
-	       "last_seq_ondisk:\t%llu\n"
-	       "flushed_seq_ondisk:\t%llu\n"
-	       "prereserved:\t\t%u/%u\n"
-	       "each entry reserved:\t%u\n"
-	       "nr flush writes:\t%llu\n"
-	       "nr noflush writes:\t%llu\n"
-	       "nr direct reclaim:\t%llu\n"
-	       "nr background reclaim:\t%llu\n"
-	       "reclaim kicked:\t\t%u\n"
-	       "reclaim runs in:\t%u ms\n"
-	       "current entry sectors:\t%u\n"
-	       "current entry error:\t%u\n"
-	       "current entry:\t\t",
-	       fifo_used(&j->pin),
-	       journal_cur_seq(j),
-	       journal_last_seq(j),
-	       j->last_seq_ondisk,
-	       j->flushed_seq_ondisk,
-	       j->prereserved.reserved,
-	       j->prereserved.remaining,
-	       j->entry_u64s_reserved,
-	       j->nr_flush_writes,
-	       j->nr_noflush_writes,
-	       j->nr_direct_reclaim,
-	       j->nr_background_reclaim,
-	       j->reclaim_kicked,
-	       jiffies_to_msecs(j->next_reclaim - jiffies),
-	       j->cur_entry_sectors,
-	       j->cur_entry_error);
+	pr_buf(out, "active journal entries:\t%llu\n",	fifo_used(&j->pin));
+	pr_buf(out, "seq:\t\t\t%llu\n",			journal_cur_seq(j));
+	pr_buf(out, "last_seq:\t\t%llu\n",		journal_last_seq(j));
+	pr_buf(out, "last_seq_ondisk:\t%llu\n",		j->last_seq_ondisk);
+	pr_buf(out, "flushed_seq_ondisk:\t%llu\n",	j->flushed_seq_ondisk);
+	pr_buf(out, "prereserved:\t\t%u/%u\n",		j->prereserved.reserved, j->prereserved.remaining);
+	pr_buf(out, "each entry reserved:\t%u\n",	j->entry_u64s_reserved);
+	pr_buf(out, "nr flush writes:\t%llu\n",		j->nr_flush_writes);
+	pr_buf(out, "nr noflush writes:\t%llu\n",	j->nr_noflush_writes);
+	pr_buf(out, "nr direct reclaim:\t%llu\n",	j->nr_direct_reclaim);
+	pr_buf(out, "nr background reclaim:\t%llu\n",	j->nr_background_reclaim);
+	pr_buf(out, "reclaim kicked:\t\t%u\n",		j->reclaim_kicked);
+	pr_buf(out, "reclaim runs in:\t%u ms\n",	time_after(j->next_reclaim, now)
+	       ? jiffies_to_msecs(j->next_reclaim - jiffies) : 0);
+	pr_buf(out, "current entry sectors:\t%u\n",	j->cur_entry_sectors);
+	pr_buf(out, "current entry error:\t%u\n",	j->cur_entry_error);
+	pr_buf(out, "current entry:\t\t");
 
 	switch (s.cur_entry_offset) {
 	case JOURNAL_ENTRY_ERROR_VAL:
@@ -1181,15 +1166,11 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 		pr_buf(out, "closed\n");
 		break;
 	default:
-		pr_buf(out, "%u/%u\n",
-		       s.cur_entry_offset,
-		       j->cur_entry_u64s);
+		pr_buf(out, "%u/%u\n", s.cur_entry_offset, j->cur_entry_u64s);
 		break;
 	}
 
-	pr_buf(out,
-	       "current entry:\t\tidx %u refcount %u\n",
-	       s.idx, journal_state_count(s, s.idx));
+	pr_buf(out, "current entry:\t\tidx %u refcount %u\n", s.idx, journal_state_count(s, s.idx));
 
 	i = s.idx;
 	while (i != s.unwritten_idx) {
@@ -1229,22 +1210,14 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 		if (!ja->nr)
 			continue;
 
-		pr_buf(out,
-		       "dev %u:\n"
-		       "\tnr\t\t%u\n"
-		       "\tbucket size\t%u\n"
-		       "\tavailable\t%u:%u\n"
-		       "\tdiscard_idx\t%u\n"
-		       "\tdirty_ondisk\t%u (seq %llu)\n"
-		       "\tdirty_idx\t%u (seq %llu)\n"
-		       "\tcur_idx\t\t%u (seq %llu)\n",
-		       i, ja->nr, ca->mi.bucket_size,
-		       bch2_journal_dev_buckets_available(j, ja, journal_space_discarded),
-		       ja->sectors_free,
-		       ja->discard_idx,
-		       ja->dirty_idx_ondisk,	ja->bucket_seq[ja->dirty_idx_ondisk],
-		       ja->dirty_idx,		ja->bucket_seq[ja->dirty_idx],
-		       ja->cur_idx,		ja->bucket_seq[ja->cur_idx]);
+		pr_buf(out, "dev %u:\n",		i);
+		pr_buf(out, "\tnr\t\t%u\n",		ja->nr);
+		pr_buf(out, "\tbucket size\t%u\n",	ca->mi.bucket_size);
+		pr_buf(out, "\tavailable\t%u:%u\n",	bch2_journal_dev_buckets_available(j, ja, journal_space_discarded), ja->sectors_free);
+		pr_buf(out, "\tdiscard_idx\t%u\n",	ja->discard_idx);
+		pr_buf(out, "\tdirty_ondisk\t%u (seq %llu)\n", ja->dirty_idx_ondisk,	ja->bucket_seq[ja->dirty_idx_ondisk]);
+		pr_buf(out, "\tdirty_idx\t%u (seq %llu)\n", ja->dirty_idx,		ja->bucket_seq[ja->dirty_idx]);
+		pr_buf(out, "\tcur_idx\t\t%u (seq %llu)\n", ja->cur_idx,		ja->bucket_seq[ja->cur_idx]);
 	}
 
 	rcu_read_unlock();
