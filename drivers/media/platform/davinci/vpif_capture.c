@@ -1467,7 +1467,6 @@ probe_out:
 	for (k = 0; k < j; k++) {
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[k];
-		common = &ch->common[k];
 		/* Unregister video device */
 		video_unregister_device(&ch->video_dev);
 	}
