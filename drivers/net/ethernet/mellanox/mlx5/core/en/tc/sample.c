@@ -513,7 +513,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	sample_flow = kzalloc(sizeof(*sample_flow), GFP_KERNEL);
 	if (!sample_flow)
 		return ERR_PTR(-ENOMEM);
-	sample_attr = attr->sample_attr;
+	sample_attr = &attr->sample_attr;
 	sample_attr->sample_flow = sample_flow;
 
 	/* For NICs with reg_c_preserve support or decap action, use
@@ -546,6 +546,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 		err = PTR_ERR(sample_flow->sampler);
 		goto err_sampler;
 	}
+	sample_attr->sampler_id = sample_flow->sampler->sampler_id;
 
 	/* Create an id mapping reg_c0 value to sample object. */
 	restore_obj.type = MLX5_MAPPED_OBJ_SAMPLE;
@@ -585,8 +586,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	pre_attr->outer_match_level = attr->outer_match_level;
 	pre_attr->chain = attr->chain;
 	pre_attr->prio = attr->prio;
-	pre_attr->sample_attr = attr->sample_attr;
-	sample_attr->sampler_id = sample_flow->sampler->sampler_id;
+	pre_attr->sample_attr = *sample_attr;
 	pre_esw_attr = pre_attr->esw_attr;
 	pre_esw_attr->in_mdev = esw_attr->in_mdev;
 	pre_esw_attr->in_rep = esw_attr->in_rep;
@@ -633,11 +633,11 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 	 * will hit fw syndromes.
 	 */
 	esw = tc_psample->esw;
-	sample_flow = attr->sample_attr->sample_flow;
+	sample_flow = attr->sample_attr.sample_flow;
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->pre_rule, sample_flow->pre_attr);
 
 	sample_restore_put(tc_psample, sample_flow->restore);
-	mapping_remove(esw->offloads.reg_c0_obj_pool, attr->sample_attr->restore_obj_id);
+	mapping_remove(esw->offloads.reg_c0_obj_pool, attr->sample_attr.restore_obj_id);
 	sampler_put(tc_psample, sample_flow->sampler);
 	if (sample_flow->post_act_handle)
 		mlx5e_tc_post_act_del(tc_psample->post_act, sample_flow->post_act_handle);
