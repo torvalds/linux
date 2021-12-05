@@ -57,8 +57,6 @@ void rtl8188eu_interface_configure(struct adapter *adapt)
 	else
 		haldata->UsbBulkOutSize = USB_FULL_SPEED_BULK_SIZE;/* 64 bytes */
 
-	haldata->interfaceIndex = pdvobjpriv->InterfaceNumber;
-
 	haldata->UsbTxAggMode		= 1;
 	haldata->UsbTxAggDescNum	= 0x6;	/*  only 4 bits */
 

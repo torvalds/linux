@@ -255,9 +255,6 @@ struct hal_data_8188e {
 	/*  2010/08/09 MH Add CU power down mode. */
 	bool		pwrdown;
 
-	/*  Add for dual MAC  0--Mac0 1--Mac1 */
-	u32	interfaceIndex;
-
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
 
