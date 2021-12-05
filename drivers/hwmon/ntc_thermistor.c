@@ -368,41 +368,6 @@ static int ntc_adc_iio_read(struct ntc_data *data)
 	return uv;
 }
 
-static const struct of_device_id ntc_match[] = {
-	{ .compatible = "epcos,b57330v2103",
-		.data = &ntc_thermistor_id[NTC_B57330V2103]},
-	{ .compatible = "epcos,b57891s0103",
-		.data = &ntc_thermistor_id[NTC_B57891S0103] },
-	{ .compatible = "murata,ncp03wb473",
-		.data = &ntc_thermistor_id[NTC_NCP03WB473] },
-	{ .compatible = "murata,ncp03wf104",
-		.data = &ntc_thermistor_id[NTC_NCP03WF104] },
-	{ .compatible = "murata,ncp15wb473",
-		.data = &ntc_thermistor_id[NTC_NCP15WB473] },
-	{ .compatible = "murata,ncp15wl333",
-		.data = &ntc_thermistor_id[NTC_NCP15WL333] },
-	{ .compatible = "murata,ncp15xh103",
-		.data = &ntc_thermistor_id[NTC_NCP15XH103] },
-	{ .compatible = "murata,ncp18wb473",
-		.data = &ntc_thermistor_id[NTC_NCP18WB473] },
-	{ .compatible = "murata,ncp21wb473",
-		.data = &ntc_thermistor_id[NTC_NCP21WB473] },
-
-	/* Usage of vendor name "ntc" is deprecated */
-	{ .compatible = "ntc,ncp03wb473",
-		.data = &ntc_thermistor_id[NTC_NCP03WB473] },
-	{ .compatible = "ntc,ncp15wb473",
-		.data = &ntc_thermistor_id[NTC_NCP15WB473] },
-	{ .compatible = "ntc,ncp15wl333",
-		.data = &ntc_thermistor_id[NTC_NCP15WL333] },
-	{ .compatible = "ntc,ncp18wb473",
-		.data = &ntc_thermistor_id[NTC_NCP18WB473] },
-	{ .compatible = "ntc,ncp21wb473",
-		.data = &ntc_thermistor_id[NTC_NCP21WB473] },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, ntc_match);
-
 static inline u64 div64_u64_safe(u64 dividend, u64 divisor)
 {
 	if (divisor == 0 && dividend == 0)
@@ -686,6 +651,41 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 
 	return 0;
 }
+
+static const struct of_device_id ntc_match[] = {
+	{ .compatible = "epcos,b57330v2103",
+		.data = &ntc_thermistor_id[NTC_B57330V2103]},
+	{ .compatible = "epcos,b57891s0103",
+		.data = &ntc_thermistor_id[NTC_B57891S0103] },
+	{ .compatible = "murata,ncp03wb473",
+		.data = &ntc_thermistor_id[NTC_NCP03WB473] },
+	{ .compatible = "murata,ncp03wf104",
+		.data = &ntc_thermistor_id[NTC_NCP03WF104] },
+	{ .compatible = "murata,ncp15wb473",
+		.data = &ntc_thermistor_id[NTC_NCP15WB473] },
+	{ .compatible = "murata,ncp15wl333",
+		.data = &ntc_thermistor_id[NTC_NCP15WL333] },
+	{ .compatible = "murata,ncp15xh103",
+		.data = &ntc_thermistor_id[NTC_NCP15XH103] },
+	{ .compatible = "murata,ncp18wb473",
+		.data = &ntc_thermistor_id[NTC_NCP18WB473] },
+	{ .compatible = "murata,ncp21wb473",
+		.data = &ntc_thermistor_id[NTC_NCP21WB473] },
+
+	/* Usage of vendor name "ntc" is deprecated */
+	{ .compatible = "ntc,ncp03wb473",
+		.data = &ntc_thermistor_id[NTC_NCP03WB473] },
+	{ .compatible = "ntc,ncp15wb473",
+		.data = &ntc_thermistor_id[NTC_NCP15WB473] },
+	{ .compatible = "ntc,ncp15wl333",
+		.data = &ntc_thermistor_id[NTC_NCP15WL333] },
+	{ .compatible = "ntc,ncp18wb473",
+		.data = &ntc_thermistor_id[NTC_NCP18WB473] },
+	{ .compatible = "ntc,ncp21wb473",
+		.data = &ntc_thermistor_id[NTC_NCP21WB473] },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ntc_match);
 
 static struct platform_driver ntc_thermistor_driver = {
 	.driver = {
