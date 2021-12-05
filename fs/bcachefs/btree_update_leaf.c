@@ -1312,8 +1312,8 @@ static int need_whiteout_for_snapshot(struct btree_trans *trans,
 	return ret;
 }
 
-int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
-		      struct bkey_i *k, enum btree_update_flags flags)
+int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
+				   struct bkey_i *k, enum btree_update_flags flags)
 {
 	struct btree_insert_entry *i, n;
 

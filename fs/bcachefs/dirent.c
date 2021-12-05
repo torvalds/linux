@@ -367,7 +367,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		}
 	}
 
-	bch2_trans_update(trans, &dst_iter, &new_dst->k_i, 0);
+	ret = bch2_trans_update(trans, &dst_iter, &new_dst->k_i, 0);
+	if (ret)
+		goto out;
 out_set_src:
 
 	/*
@@ -384,7 +386,9 @@ out_set_src:
 		src_update_flags |= BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE;
 	}
 
-	bch2_trans_update(trans, &src_iter, &new_src->k_i, src_update_flags);
+	ret = bch2_trans_update(trans, &src_iter, &new_src->k_i, src_update_flags);
+	if (ret)
+		goto out;
 
 	if (mode == BCH_RENAME_EXCHANGE)
 		*src_offset = new_src->k.p.offset;

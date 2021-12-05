@@ -73,8 +73,8 @@ int bch2_btree_node_update_key(struct btree_trans *, struct btree_iter *,
 int bch2_btree_node_update_key_get_iter(struct btree_trans *,
 				struct btree *, struct bkey_i *, bool);
 
-int bch2_trans_update(struct btree_trans *, struct btree_iter *,
-		      struct bkey_i *, enum btree_update_flags);
+int __must_check bch2_trans_update(struct btree_trans *, struct btree_iter *,
+				   struct bkey_i *, enum btree_update_flags);
 void bch2_trans_commit_hook(struct btree_trans *,
 			    struct btree_trans_commit_hook *);
 int __bch2_trans_commit(struct btree_trans *);

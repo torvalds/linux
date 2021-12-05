@@ -584,10 +584,10 @@ static int rand_mixed_trans(struct btree_trans *trans,
 	if (!(i & 3) && k.k) {
 		bkey_cookie_init(&cookie->k_i);
 		cookie->k.p = iter->pos;
-		bch2_trans_update(trans, iter, &cookie->k_i, 0);
+		ret = bch2_trans_update(trans, iter, &cookie->k_i, 0);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int rand_mixed(struct bch_fs *c, u64 nr)
