@@ -5953,15 +5953,6 @@ err:
 	return 0;
 }
 
-static void io_req_task_timeout(struct io_kiocb *req, bool *locked)
-{
-	struct io_timeout_data *data = req->async_data;
-
-	if (!(data->flags & IORING_TIMEOUT_ETIME_SUCCESS))
-		req_set_fail(req);
-	io_req_complete_post(req, -ETIME, 0);
-}
-
 static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 {
 	struct io_timeout_data *data = container_of(timer,
@@ -5976,7 +5967,11 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 		atomic_read(&req->ctx->cq_timeouts) + 1);
 	spin_unlock_irqrestore(&ctx->timeout_lock, flags);
 
-	req->io_task_work.func = io_req_task_timeout;
+	if (!(data->flags & IORING_TIMEOUT_ETIME_SUCCESS))
+		req_set_fail(req);
+
+	req->result = -ETIME;
+	req->io_task_work.func = io_req_task_complete;
 	io_req_task_work_add(req);
 	return HRTIMER_NORESTART;
 }
