@@ -225,7 +225,7 @@ struct hal_data_8188e {
 
 	u32	AcParam_BE; /* Original parameter for BE, use for EDCA turbo. */
 
-	struct bb_reg_def PHYRegDef[4];	/* Radio A/B/C/D */
+	struct bb_reg_def PHYRegDef[2];	/* Radio A/B */
 
 	u32	RfRegChnlVal[2];
 
