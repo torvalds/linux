@@ -139,7 +139,7 @@ static int bch2_copygc(struct bch_fs *c)
 	struct copygc_heap_entry e, *i;
 	struct bucket_array *buckets;
 	struct bch_move_stats move_stats;
-	u64 sectors_to_move = 0, sectors_not_moved = 0;
+	u64 sectors_to_move = 0, sectors_to_write = 0, sectors_not_moved = 0;
 	u64 sectors_reserved = 0;
 	u64 buckets_to_move, buckets_not_moved = 0;
 	struct bch_dev *ca;
@@ -205,22 +205,23 @@ static int bch2_copygc(struct bch_fs *c)
 		up_read(&ca->bucket_lock);
 	}
 
+	/*
+	 * Our btree node allocations also come out of RESERVE_MOVINGGC:
+	 */
+	sectors_reserved = (sectors_reserved * 3) / 4;
 	if (!sectors_reserved) {
 		bch2_fs_fatal_error(c, "stuck, ran out of copygc reserve!");
 		return -1;
 	}
 
-	/*
-	 * Our btree node allocations also come out of RESERVE_MOVINGGC:
-	 */
-	sectors_to_move = (sectors_to_move * 3) / 4;
+	for (i = h->data; i < h->data + h->used; i++) {
+		sectors_to_move += i->sectors;
+		sectors_to_write += i->sectors * i->replicas;
+	}
 
-	for (i = h->data; i < h->data + h->used; i++)
-		sectors_to_move += i->sectors * i->replicas;
-
-	while (sectors_to_move > sectors_reserved) {
+	while (sectors_to_write > sectors_reserved) {
 		BUG_ON(!heap_pop(h, e, -fragmentation_cmp, NULL));
-		sectors_to_move -= e.sectors * e.replicas;
+		sectors_to_write -= e.sectors * e.replicas;
 	}
 
 	buckets_to_move = h->used;

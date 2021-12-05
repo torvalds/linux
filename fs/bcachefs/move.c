@@ -768,8 +768,7 @@ static int __bch2_move_data(struct bch_fs *c,
 		if (rate)
 			bch2_ratelimit_increment(rate, k.k->size);
 next:
-		atomic64_add(k.k->size * bch2_bkey_nr_ptrs_allocated(k),
-			     &stats->sectors_seen);
+		atomic64_add(k.k->size, &stats->sectors_seen);
 next_nondata:
 		bch2_btree_iter_advance(&iter);
 	}
