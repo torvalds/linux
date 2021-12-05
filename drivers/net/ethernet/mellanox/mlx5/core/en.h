@@ -906,7 +906,7 @@ struct mlx5e_priv {
 	struct net_device         *netdev;
 	struct mlx5e_trap         *en_trap;
 	struct mlx5e_stats         stats;
-	struct mlx5e_channel_stats *channel_stats;
+	struct mlx5e_channel_stats **channel_stats;
 	struct mlx5e_channel_stats trap_stats;
 	struct mlx5e_ptp_stats     ptp_stats;
 	u16                        stats_nch;

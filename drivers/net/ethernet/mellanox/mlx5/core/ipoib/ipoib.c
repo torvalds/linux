@@ -117,7 +117,7 @@ static void mlx5i_grp_sw_update_stats(struct mlx5e_priv *priv)
 		struct mlx5e_channel_stats *channel_stats;
 		struct mlx5e_rq_stats *rq_stats;
 
-		channel_stats = &priv->channel_stats[i];
+		channel_stats = priv->channel_stats[i];
 		rq_stats = &channel_stats->rq;
 
 		s.rx_packets += rq_stats->packets;

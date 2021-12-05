@@ -479,7 +479,7 @@ static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	rq->mdev         = mdev;
 	rq->hw_mtu       = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	rq->xdpsq        = &c->rq_xdpsq;
-	rq->stats        = &c->priv->channel_stats[c->ix].rq;
+	rq->stats        = &c->priv->channel_stats[c->ix]->rq;
 	rq->ptp_cyc2time = mlx5_rq_ts_translator(mdev);
 	err = mlx5e_rq_set_handlers(rq, params, NULL);
 	if (err)
@@ -1161,10 +1161,10 @@ static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 	sq->xsk_pool  = xsk_pool;
 
 	sq->stats = sq->xsk_pool ?
-		&c->priv->channel_stats[c->ix].xsksq :
+		&c->priv->channel_stats[c->ix]->xsksq :
 		is_redirect ?
-			&c->priv->channel_stats[c->ix].xdpsq :
-			&c->priv->channel_stats[c->ix].rq_xdpsq;
+			&c->priv->channel_stats[c->ix]->xdpsq :
+			&c->priv->channel_stats[c->ix]->rq_xdpsq;
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -1928,7 +1928,7 @@ static int mlx5e_open_sqs(struct mlx5e_channel *c,
 		err = mlx5e_open_txqsq(c, c->priv->tisn[c->lag_port][tc], txq_ix,
 				       params, &cparam->txq_sq, &c->sq[tc], tc,
 				       qos_queue_group_id,
-				       &c->priv->channel_stats[c->ix].sq[tc]);
+				       &c->priv->channel_stats[c->ix]->sq[tc]);
 		if (err)
 			goto err_close_sqs;
 	}
@@ -2207,7 +2207,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey);
 	c->num_tc   = mlx5e_get_dcb_num_tc(params);
 	c->xdp      = !!params->xdp_prog;
-	c->stats    = &priv->channel_stats[ix].ch;
+	c->stats    = &priv->channel_stats[ix]->ch;
 	c->aff_mask = irq_get_effective_affinity_mask(irq);
 	c->lag_port = mlx5e_enumerate_lag_port(priv->mdev, ix);
 
@@ -3371,7 +3371,7 @@ void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 	int i;
 
 	for (i = 0; i < priv->stats_nch; i++) {
-		struct mlx5e_channel_stats *channel_stats = &priv->channel_stats[i];
+		struct mlx5e_channel_stats *channel_stats = priv->channel_stats[i];
 		struct mlx5e_rq_stats *xskrq_stats = &channel_stats->xskrq;
 		struct mlx5e_rq_stats *rq_stats = &channel_stats->rq;
 		int j;
@@ -5196,8 +5196,20 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	if (!priv->channel_stats)
 		goto err_free_channel_tc2realtxq;
 
+	for (i = 0; i < priv->stats_nch; i++) {
+		priv->channel_stats[i] = kvzalloc_node(sizeof(**priv->channel_stats),
+						       GFP_KERNEL, node);
+		if (!priv->channel_stats[i])
+			goto err_free_channel_stats;
+	}
+
 	return 0;
 
+err_free_channel_stats:
+	while (--i >= 0)
+		kvfree(priv->channel_stats[i]);
+	kfree(priv->channel_stats);
+	i = nch;
 err_free_channel_tc2realtxq:
 	while (--i >= 0)
 		kfree(priv->channel_tc2realtxq[i]);
@@ -5221,6 +5233,8 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 	if (!priv->mdev)
 		return;
 
+	for (i = 0; i < priv->stats_nch; i++)
+		kvfree(priv->channel_stats[i]);
 	kfree(priv->channel_stats);
 	for (i = 0; i < priv->max_nch; i++)
 		kfree(priv->channel_tc2realtxq[i]);
