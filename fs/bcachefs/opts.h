@@ -45,11 +45,12 @@ LE64_BITMASK(NO_SB_OPT,		struct bch_sb, flags[0], 0, 0);
 
 /* When can be set: */
 enum opt_mode {
-	OPT_FORMAT	= (1 << 0),
-	OPT_MOUNT	= (1 << 1),
-	OPT_RUNTIME	= (1 << 2),
-	OPT_INODE	= (1 << 3),
-	OPT_DEVICE	= (1 << 4),
+	OPT_FS		= (1 << 0),	/* Filesystem option */
+	OPT_DEVICE	= (1 << 1),	/* Device option */
+	OPT_INODE	= (1 << 2),	/* Inode option */
+	OPT_FORMAT	= (1 << 3),	/* May be specified at format time */
+	OPT_MOUNT	= (1 << 4),	/* May be specified at mount time */
+	OPT_RUNTIME	= (1 << 5),	/* May be specified at runtime */
 };
 
 enum opt_type {
@@ -87,226 +88,226 @@ enum opt_type {
 
 #define BCH_OPTS()							\
 	x(block_size,			u16,				\
-	  OPT_FORMAT,							\
+	  OPT_FS|OPT_FORMAT,						\
 	  OPT_SECTORS(1, 128),						\
 	  BCH_SB_BLOCK_SIZE,		8,				\
 	  "size",	NULL)						\
 	x(btree_node_size,		u16,				\
-	  OPT_FORMAT,							\
+	  OPT_FS|OPT_FORMAT,						\
 	  OPT_SECTORS(1, 512),						\
 	  BCH_SB_BTREE_NODE_SIZE,	512,				\
 	  "size",	"Btree node size, default 256k")		\
 	x(errors,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_STR(bch2_error_actions),					\
 	  BCH_SB_ERROR_ACTION,		BCH_ON_ERROR_ro,		\
 	  NULL,		"Action to take on filesystem error")		\
 	x(metadata_replicas,		u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_UINT(1, BCH_REPLICAS_MAX),				\
 	  BCH_SB_META_REPLICAS_WANT,	1,				\
 	  "#",		"Number of metadata replicas")			\
 	x(data_replicas,		u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_UINT(1, BCH_REPLICAS_MAX),				\
 	  BCH_SB_DATA_REPLICAS_WANT,	1,				\
 	  "#",		"Number of data replicas")			\
 	x(metadata_replicas_required, u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_UINT(1, BCH_REPLICAS_MAX),				\
 	  BCH_SB_META_REPLICAS_REQ,	1,				\
 	  "#",		NULL)						\
 	x(data_replicas_required,	u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_UINT(1, BCH_REPLICAS_MAX),				\
 	  BCH_SB_DATA_REPLICAS_REQ,	1,				\
 	  "#",		NULL)						\
 	x(metadata_checksum,		u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_STR(bch2_csum_opts),					\
 	  BCH_SB_META_CSUM_TYPE,	BCH_CSUM_OPT_crc32c,		\
 	  NULL,		NULL)						\
 	x(data_checksum,		u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_STR(bch2_csum_opts),					\
 	  BCH_SB_DATA_CSUM_TYPE,	BCH_CSUM_OPT_crc32c,		\
 	  NULL,		NULL)						\
 	x(compression,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_STR(bch2_compression_opts),				\
 	  BCH_SB_COMPRESSION_TYPE,	BCH_COMPRESSION_OPT_none,	\
 	  NULL,		NULL)						\
 	x(background_compression,	u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_STR(bch2_compression_opts),				\
 	  BCH_SB_BACKGROUND_COMPRESSION_TYPE,BCH_COMPRESSION_OPT_none,	\
 	  NULL,		NULL)						\
 	x(str_hash,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_STR(bch2_str_hash_opts),					\
 	  BCH_SB_STR_HASH_TYPE,		BCH_STR_HASH_OPT_siphash,	\
 	  NULL,		"Hash function for directory entries and xattrs")\
 	x(metadata_target,		u16,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_FN(bch2_opt_target),					\
 	  BCH_SB_METADATA_TARGET,	0,				\
 	  "(target)",	"Device or disk group for metadata writes")	\
 	x(foreground_target,		u16,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_FN(bch2_opt_target),					\
 	  BCH_SB_FOREGROUND_TARGET,	0,				\
 	  "(target)",	"Device or disk group for foreground writes")	\
 	x(background_target,		u16,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_FN(bch2_opt_target),					\
 	  BCH_SB_BACKGROUND_TARGET,	0,				\
 	  "(target)",	"Device or disk group to move data to in the background")\
 	x(promote_target,		u16,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_FN(bch2_opt_target),					\
 	  BCH_SB_PROMOTE_TARGET,	0,				\
 	  "(target)",	"Device or disk group to promote data to on read")\
 	x(erasure_code,			u16,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_BOOL(),							\
 	  BCH_SB_ERASURE_CODE,		false,				\
 	  NULL,		"Enable erasure coding (DO NOT USE YET)")	\
 	x(inodes_32bit,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_BOOL(),							\
 	  BCH_SB_INODE_32BIT,		true,				\
 	  NULL,		"Constrain inode numbers to 32 bits")		\
 	x(shard_inode_numbers,		u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_BOOL(),							\
 	  BCH_SB_SHARD_INUMS,		true,				\
 	  NULL,		"Shard new inode numbers by CPU id")		\
 	x(inodes_use_key_cache,	u8,					\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_BOOL(),							\
 	  BCH_SB_INODES_USE_KEY_CACHE,	true,				\
 	  NULL,		"Use the btree key cache for the inodes btree")	\
 	x(btree_node_mem_ptr_optimization, u8,				\
-	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			true,				\
 	  NULL,		"Stash pointer to in memory btree node in btree ptr")\
 	x(gc_reserve_percent,		u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_UINT(5, 21),						\
 	  BCH_SB_GC_RESERVE,		8,				\
 	  "%",		"Percentage of disk space to reserve for copygc")\
 	x(gc_reserve_bytes,		u64,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_SECTORS(0, U64_MAX),					\
 	  BCH_SB_GC_RESERVE_BYTES,	0,				\
 	  "%",		"Amount of disk space to reserve for copygc\n"	\
 			"Takes precedence over gc_reserve_percent if set")\
 	x(root_reserve_percent,		u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_UINT(0, 100),						\
 	  BCH_SB_ROOT_RESERVE,		0,				\
 	  "%",		"Percentage of disk space to reserve for superuser")\
 	x(wide_macs,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_BOOL(),							\
 	  BCH_SB_128_BIT_MACS,		false,				\
 	  NULL,		"Store full 128 bits of cryptographic MACs, instead of 80")\
 	x(inline_data,			u8,				\
-	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			true,				\
 	  NULL,		"Enable inline data extents")			\
 	x(acl,				u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_BOOL(),							\
 	  BCH_SB_POSIX_ACL,		true,				\
 	  NULL,		"Enable POSIX acls")				\
 	x(usrquota,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_BOOL(),							\
 	  BCH_SB_USRQUOTA,		false,				\
 	  NULL,		"Enable user quotas")				\
 	x(grpquota,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_BOOL(),							\
 	  BCH_SB_GRPQUOTA,		false,				\
 	  NULL,		"Enable group quotas")				\
 	x(prjquota,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT,						\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
 	  OPT_BOOL(),							\
 	  BCH_SB_PRJQUOTA,		false,				\
 	  NULL,		"Enable project quotas")			\
 	x(degraded,			u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Allow mounting in degraded mode")		\
 	x(very_degraded,		u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Allow mounting in when data will be missing")	\
 	x(discard,			u8,				\
-	  OPT_MOUNT|OPT_DEVICE,						\
+	  OPT_FS|OPT_MOUNT|OPT_DEVICE,					\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Enable discard/TRIM support")			\
 	x(verbose,			u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Extra debugging information during mount/recovery")\
 	x(journal_flush_delay,		u32,				\
-	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_UINT(0, U32_MAX),						\
 	  BCH_SB_JOURNAL_FLUSH_DELAY,	1000,				\
 	  NULL,		"Delay in milliseconds before automatic journal commits")\
 	x(journal_flush_disabled,	u8,				\
-	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH_SB_JOURNAL_FLUSH_DISABLED,false,				\
 	  NULL,		"Disable journal flush on sync/fsync\n"		\
 			"If enabled, writes can be lost, but only since the\n"\
 			"last journal write (default 1 second)")	\
 	x(journal_reclaim_delay,	u32,				\
-	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_UINT(0, U32_MAX),						\
 	  BCH_SB_JOURNAL_RECLAIM_DELAY,	100,				\
 	  NULL,		"Delay in milliseconds before automatic journal reclaim")\
 	x(fsck,				u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Run fsck on mount")				\
 	x(fix_errors,			u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Fix errors during fsck without asking")	\
 	x(ratelimit_errors,		u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			RATELIMIT_ERRORS,		\
 	  NULL,		"Ratelimit error messages during fsck")		\
 	x(nochanges,			u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Super read only mode - no writes at all will be issued,\n"\
 			"even if we have to replay the journal")	\
 	x(norecovery,			u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Don't replay the journal")			\
 	x(rebuild_replicas,		u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Rebuild the superblock replicas section")	\
 	x(keep_journal,			u8,				\
-	  OPT_MOUNT,							\
+	  0,								\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Don't free journal entries/keys after startup")\
@@ -316,7 +317,7 @@ enum opt_type {
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Read all journal entries, not just dirty ones")\
 	x(noexcl,			u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Don't open device in exclusive mode")		\
@@ -326,7 +327,7 @@ enum opt_type {
 	  NO_SB_OPT,			BCH_SB_SECTOR,			\
 	  "offset",	"Sector offset of superblock")			\
 	x(read_only,			u8,				\
-	  0,								\
+	  OPT_FS,							\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		NULL)						\
@@ -336,12 +337,12 @@ enum opt_type {
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Don\'t start filesystem, only open devices")	\
 	x(reconstruct_alloc,		u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Reconstruct alloc btree")			\
 	x(version_upgrade,		u8,				\
-	  OPT_MOUNT,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Set superblock to latest version,\n"		\

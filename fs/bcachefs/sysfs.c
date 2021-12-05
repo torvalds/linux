@@ -685,7 +685,7 @@ int bch2_opts_create_sysfs_files(struct kobject *kobj)
 	for (i = bch2_opt_table;
 	     i < bch2_opt_table + bch2_opts_nr;
 	     i++) {
-		if (!(i->mode & (OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME)))
+		if (!(i->mode & OPT_FS))
 			continue;
 
 		ret = sysfs_create_file(kobj, &i->attr);
