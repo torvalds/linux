@@ -6537,6 +6537,7 @@ static __latent_entropy void net_rx_action(struct softirq_action *h)
 
 struct netdev_adjacent {
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 
 	/* upper master flag, there can only be one master device per list */
 	bool master;
@@ -7301,7 +7302,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	adj->ref_nr = 1;
 	adj->private = private;
 	adj->ignore = false;
-	dev_hold(adj_dev);
+	dev_hold_track(adj_dev, &adj->dev_tracker, GFP_KERNEL);
 
 	pr_debug("Insert adjacency: dev %s adj_dev %s adj->ref_nr %d; dev_hold on %s\n",
 		 dev->name, adj_dev->name, adj->ref_nr, adj_dev->name);
@@ -7330,8 +7331,8 @@ remove_symlinks:
 	if (netdev_adjacent_is_neigh_list(dev, adj_dev, dev_list))
 		netdev_adjacent_sysfs_del(dev, adj_dev->name, dev_list);
 free_adj:
+	dev_put_track(adj_dev, &adj->dev_tracker);
 	kfree(adj);
-	dev_put(adj_dev);
 
 	return ret;
 }
@@ -7372,7 +7373,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 	list_del_rcu(&adj->list);
 	pr_debug("adjacency: dev_put for %s, because link removed from %s to %s\n",
 		 adj_dev->name, dev->name, adj_dev->name);
-	dev_put(adj_dev);
+	dev_put_track(adj_dev, &adj->dev_tracker);
 	kfree_rcu(adj, rcu);
 }
 
