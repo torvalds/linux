@@ -504,7 +504,6 @@ static u32 sh_pfc_pinconf_find_drive_strength_reg(struct sh_pfc *pfc,
 static int sh_pfc_pinconf_get_drive_strength(struct sh_pfc *pfc,
 					     unsigned int pin)
 {
-	unsigned long flags;
 	unsigned int offset;
 	unsigned int size;
 	u32 reg;
@@ -514,11 +513,7 @@ static int sh_pfc_pinconf_get_drive_strength(struct sh_pfc *pfc,
 	if (!reg)
 		return -EINVAL;
 
-	spin_lock_irqsave(&pfc->lock, flags);
-	val = sh_pfc_read(pfc, reg);
-	spin_unlock_irqrestore(&pfc->lock, flags);
-
-	val = (val >> offset) & GENMASK(size - 1, 0);
+	val = (sh_pfc_read(pfc, reg) >> offset) & GENMASK(size - 1, 0);
 
 	/* Convert the value to mA based on a full drive strength value of 24mA.
 	 * We can make the full value configurable later if needed.
@@ -648,9 +643,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 		if (WARN(bit < 0, "invalid pin %#x", _pin))
 			return bit;
 
-		spin_lock_irqsave(&pfc->lock, flags);
 		val = sh_pfc_read(pfc, pocctrl);
-		spin_unlock_irqrestore(&pfc->lock, flags);
 
 		lower_voltage = (pin->configs & SH_PFC_PIN_VOLTAGE_25_33) ?
 			2500 : 1800;
