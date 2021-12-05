@@ -1562,6 +1562,10 @@ smbd_connected:
 	/* fscache server cookies are based on primary channel only */
 	if (!CIFS_SERVER_IS_CHAN(tcp_ses))
 		cifs_fscache_get_client_cookie(tcp_ses);
+#ifdef CONFIG_CIFS_FSCACHE
+	else
+		tcp_ses->fscache = tcp_ses->primary_server->fscache;
+#endif /* CONFIG_CIFS_FSCACHE */
 
 	/* queue echo request delayed work */
 	queue_delayed_work(cifsiod_wq, &tcp_ses->echo, tcp_ses->echo_interval);
@@ -3046,12 +3050,6 @@ static int mount_get_conns(struct mount_ctx *mnt_ctx)
 				cifs_dbg(VFS, "read only mount of RW share\n");
 			/* no need to log a RW mount of a typical RW share */
 		}
-		/*
-		 * The cookie is initialized from volume info returned above.
-		 * Inside cifs_fscache_get_super_cookie it checks
-		 * that we do not get super cookie twice.
-		 */
-		cifs_fscache_get_super_cookie(tcon);
 	}
 
 	/*
@@ -3426,6 +3424,7 @@ static int connect_dfs_root(struct mount_ctx *mnt_ctx, struct dfs_cache_tgt_list
 	 */
 	mount_put_conns(mnt_ctx);
 	mount_get_dfs_conns(mnt_ctx);
+	set_root_ses(mnt_ctx);
 
 	full_path = build_unc_path_to_root(ctx, cifs_sb, true);
 	if (IS_ERR(full_path))
