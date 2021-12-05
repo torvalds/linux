@@ -113,12 +113,6 @@ struct registry_priv {
 	u8	notch_filter;
 };
 
-/* For registry parameters */
-#define RGTRY_OFT(field) ((u32)FIELD_OFFSET(struct registry_priv, field))
-#define RGTRY_SZ(field)   sizeof(((struct registry_priv *)0)->field)
-#define BSSID_OFT(field) ((u32)FIELD_OFFSET(struct wlan_bssid_ex, field))
-#define BSSID_SZ(field)   sizeof(((struct wlan_bssid_ex *)0)->field)
-
 #define MAX_CONTINUAL_URB_ERR		4
 
 struct rt_firmware {
