@@ -12,7 +12,7 @@
 static void ocelot_xmit_get_vlan_info(struct sk_buff *skb, struct dsa_port *dp,
 				      u64 *vlan_tci, u64 *tag_type)
 {
-	struct net_device *br = READ_ONCE(dp->bridge_dev);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct vlan_ethhdr *hdr;
 	u16 proto, tci;
 

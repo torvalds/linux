@@ -599,6 +599,27 @@ struct net_device *dsa_port_to_bridge_port(const struct dsa_port *dp)
 	return dp->slave;
 }
 
+static inline struct net_device *
+dsa_port_bridge_dev_get(const struct dsa_port *dp)
+{
+	return dp->bridge_dev;
+}
+
+static inline unsigned int dsa_port_bridge_num_get(struct dsa_port *dp)
+{
+	return dp->bridge_num;
+}
+
+static inline bool dsa_port_bridge_same(const struct dsa_port *a,
+					const struct dsa_port *b)
+{
+	struct net_device *br_a = dsa_port_bridge_dev_get(a);
+	struct net_device *br_b = dsa_port_bridge_dev_get(b);
+
+	/* Standalone ports are not in the same bridge with one another */
+	return (!br_a || !br_b) ? false : (br_a == br_b);
+}
+
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
 			      bool is_static, void *data);
 struct dsa_switch_ops {

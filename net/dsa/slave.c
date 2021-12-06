@@ -363,7 +363,7 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	/* Deny adding a bridge VLAN when there is already an 802.1Q upper with
 	 * the same VID.
 	 */
-	if (br_vlan_enabled(dp->bridge_dev)) {
+	if (br_vlan_enabled(dsa_port_bridge_dev_get(dp))) {
 		rcu_read_lock();
 		err = dsa_slave_vlan_check_for_8021q_uppers(dev, &vlan);
 		rcu_read_unlock();
@@ -1580,7 +1580,7 @@ static void dsa_bridge_mtu_normalization(struct dsa_port *dp)
 			if (other_dp->type != DSA_PORT_TYPE_USER)
 				continue;
 
-			if (other_dp->bridge_dev != dp->bridge_dev)
+			if (!dsa_port_bridge_same(dp, other_dp))
 				continue;
 
 			if (!other_dp->ds->mtu_enforcement_ingress)
@@ -2220,7 +2220,7 @@ dsa_prevent_bridging_8021q_upper(struct net_device *dev,
 				 struct netdev_notifier_changeupper_info *info)
 {
 	struct netlink_ext_ack *ext_ack;
-	struct net_device *slave;
+	struct net_device *slave, *br;
 	struct dsa_port *dp;
 
 	ext_ack = netdev_notifier_info_to_extack(&info->info);
@@ -2233,11 +2233,12 @@ dsa_prevent_bridging_8021q_upper(struct net_device *dev,
 		return NOTIFY_DONE;
 
 	dp = dsa_slave_to_port(slave);
-	if (!dp->bridge_dev)
+	br = dsa_port_bridge_dev_get(dp);
+	if (!br)
 		return NOTIFY_DONE;
 
 	/* Deny enslaving a VLAN device into a VLAN-aware bridge */
-	if (br_vlan_enabled(dp->bridge_dev) &&
+	if (br_vlan_enabled(br) &&
 	    netif_is_bridge_master(info->upper_dev) && info->linking) {
 		NL_SET_ERR_MSG_MOD(ext_ack,
 				   "Cannot enslave VLAN device into VLAN aware bridge");
@@ -2252,7 +2253,7 @@ dsa_slave_check_8021q_upper(struct net_device *dev,
 			    struct netdev_notifier_changeupper_info *info)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
-	struct net_device *br = dp->bridge_dev;
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct bridge_vlan_info br_info;
 	struct netlink_ext_ack *extack;
 	int err = NOTIFY_DONE;

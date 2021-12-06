@@ -337,7 +337,7 @@ dsa_port_tag_8021q_bridge_match(struct dsa_port *dp,
 		return false;
 
 	if (dsa_port_is_user(dp))
-		return dp->bridge_dev == info->br;
+		return dsa_port_bridge_dev_get(dp) == info->br;
 
 	return false;
 }

@@ -278,7 +278,7 @@ static inline bool dsa_port_offloads_bridge(struct dsa_port *dp,
 	/* DSA ports connected to a bridge, and event was emitted
 	 * for the bridge.
 	 */
-	return dp->bridge_dev == bridge_dev;
+	return dsa_port_bridge_dev_get(dp) == bridge_dev;
 }
 
 /* Returns true if any port of this tree offloads the given net_device */
@@ -345,7 +345,7 @@ dsa_slave_to_master(const struct net_device *dev)
 static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 {
 	struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-	struct net_device *br = dp->bridge_dev;
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct net_device *dev = skb->dev;
 	struct net_device *upper_dev;
 	u16 vid, pvid, proto;

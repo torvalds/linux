@@ -221,7 +221,7 @@ static int dsa_port_switchdev_sync_attrs(struct dsa_port *dp,
 					 struct netlink_ext_ack *extack)
 {
 	struct net_device *brport_dev = dsa_port_to_bridge_port(dp);
-	struct net_device *br = dp->bridge_dev;
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	int err;
 
 	err = dsa_port_inherit_brport_flags(dp, extack);
@@ -372,7 +372,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 		goto out_rollback;
 
 	tx_fwd_offload = dsa_port_bridge_tx_fwd_offload(dp, br,
-							dp->bridge_num);
+							dsa_port_bridge_num_get(dp));
 
 	err = switchdev_bridge_port_offload(brport_dev, dev, dp,
 					    &dsa_slave_switchdev_notifier,
@@ -415,13 +415,13 @@ void dsa_port_pre_bridge_leave(struct dsa_port *dp, struct net_device *br)
 
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 {
+	unsigned int bridge_num = dsa_port_bridge_num_get(dp);
 	struct dsa_notifier_bridge_info info = {
 		.tree_index = dp->ds->dst->index,
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.br = br,
 	};
-	int bridge_num = dp->bridge_num;
 	int err;
 
 	/* Here the port is already unbridged. Reflect the current configuration
@@ -507,12 +507,15 @@ err_lag_join:
 
 void dsa_port_pre_lag_leave(struct dsa_port *dp, struct net_device *lag)
 {
-	if (dp->bridge_dev)
-		dsa_port_pre_bridge_leave(dp, dp->bridge_dev);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
+
+	if (br)
+		dsa_port_pre_bridge_leave(dp, br);
 }
 
 void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag)
 {
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct dsa_notifier_lag_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
@@ -526,8 +529,8 @@ void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag)
 	/* Port might have been part of a LAG that in turn was
 	 * attached to a bridge.
 	 */
-	if (dp->bridge_dev)
-		dsa_port_bridge_leave(dp, dp->bridge_dev);
+	if (br)
+		dsa_port_bridge_leave(dp, br);
 
 	dp->lag_tx_enabled = false;
 	dp->lag_dev = NULL;
@@ -556,8 +559,8 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 	 * as long as we have 8021q uppers.
 	 */
 	if (vlan_filtering && dsa_port_is_user(dp)) {
+		struct net_device *br = dsa_port_bridge_dev_get(dp);
 		struct net_device *upper_dev, *slave = dp->slave;
-		struct net_device *br = dp->bridge_dev;
 		struct list_head *iter;
 
 		netdev_for_each_upper_dev_rcu(slave, upper_dev, iter) {
@@ -591,17 +594,15 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 	 * different setting than what is being requested.
 	 */
 	dsa_switch_for_each_port(other_dp, ds) {
-		struct net_device *other_bridge;
+		struct net_device *other_br = dsa_port_bridge_dev_get(other_dp);
 
-		other_bridge = other_dp->bridge_dev;
-		if (!other_bridge)
-			continue;
 		/* If it's the same bridge, it also has same
 		 * vlan_filtering setting => no need to check
 		 */
-		if (other_bridge == dp->bridge_dev)
+		if (!other_br || other_br == dsa_port_bridge_dev_get(dp))
 			continue;
-		if (br_vlan_enabled(other_bridge) != vlan_filtering) {
+
+		if (br_vlan_enabled(other_br) != vlan_filtering) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "VLAN filtering is a global setting");
 			return false;
@@ -685,13 +686,13 @@ restore:
  */
 bool dsa_port_skip_vlan_configuration(struct dsa_port *dp)
 {
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct dsa_switch *ds = dp->ds;
 
-	if (!dp->bridge_dev)
+	if (!br)
 		return false;
 
-	return (!ds->configure_vlan_while_not_filtering &&
-		!br_vlan_enabled(dp->bridge_dev));
+	return !ds->configure_vlan_while_not_filtering && !br_vlan_enabled(br);
 }
 
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock)
