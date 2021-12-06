@@ -8,9 +8,16 @@
 static int
 mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base)
 {
+	struct mt7915_dev *dev = phy->dev;
 	int i, err;
 
-	err = mt76_init_tx_queue(phy->mt76, 0, idx, n_desc, ring_base);
+	if (mtk_wed_device_active(&phy->dev->mt76.mmio.wed)) {
+		ring_base = MT_WED_TX_RING_BASE;
+		idx -= MT_TXQ_ID(0);
+	}
+
+	err = mt76_init_tx_queue(phy->mt76, 0, idx, n_desc, ring_base,
+				 MT_WED_Q_TX(idx));
 	if (err < 0)
 		return err;
 
@@ -319,6 +326,14 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
 	if (dev->dbdc_support || dev->phy.band_idx)
 		irq_mask |= MT_INT_BAND1_RX_DONE;
 
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+		u32 wed_irq_mask = irq_mask;
+
+		wed_irq_mask |= MT_INT_TX_DONE_BAND0 | MT_INT_TX_DONE_BAND1;
+		mt76_wr(dev, MT_INT_WED_MASK_CSR, wed_irq_mask);
+		mtk_wed_device_start(&dev->mt76.mmio.wed, wed_irq_mask);
+	}
+
 	mt7915_irq_enable(dev, irq_mask);
 
 	return 0;
@@ -327,6 +342,7 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
 int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 {
 	struct mt76_dev *mdev = &dev->mt76;
+	u32 wa_rx_base, wa_rx_idx;
 	u32 hif1_ofs = 0;
 	int ret;
 
@@ -338,6 +354,17 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
 
 	mt7915_dma_disable(dev, true);
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+		mt76_set(dev, MT_WFDMA_HOST_CONFIG, MT_WFDMA_HOST_CONFIG_WED);
+
+		mt76_wr(dev, MT_WFDMA_WED_RING_CONTROL,
+			FIELD_PREP(MT_WFDMA_WED_RING_CONTROL_TX0, 18) |
+			FIELD_PREP(MT_WFDMA_WED_RING_CONTROL_TX1, 19) |
+			FIELD_PREP(MT_WFDMA_WED_RING_CONTROL_RX1, 1));
+	} else {
+		mt76_clear(dev, MT_WFDMA_HOST_CONFIG, MT_WFDMA_HOST_CONFIG_WED);
+	}
 
 	/* init tx queue */
 	ret = mt7915_init_tx_queues(&dev->phy,
@@ -390,11 +417,17 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 		return ret;
 
 	/* event from WA */
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+		wa_rx_base = MT_WED_RX_RING_BASE;
+		wa_rx_idx = MT7915_RXQ_MCU_WA;
+		dev->mt76.q_rx[MT_RXQ_MCU_WA].flags = MT_WED_Q_TXFREE;
+	} else {
+		wa_rx_base = MT_RXQ_RING_BASE(MT_RXQ_MCU_WA);
+		wa_rx_idx = MT_RXQ_ID(MT_RXQ_MCU_WA);
+	}
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
-			       MT_RXQ_ID(MT_RXQ_MCU_WA),
-			       MT7915_RX_MCU_RING_SIZE,
-			       MT_RX_BUF_SIZE,
-			       MT_RXQ_RING_BASE(MT_RXQ_MCU_WA));
+			       wa_rx_idx, MT7915_RX_MCU_RING_SIZE,
+			       MT_RX_BUF_SIZE, wa_rx_base);
 	if (ret)
 		return ret;
 

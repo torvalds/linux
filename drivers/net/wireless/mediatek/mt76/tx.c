@@ -726,6 +726,12 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
 	if (token >= 0)
 		dev->token_count++;
 
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	if (mtk_wed_device_active(&dev->mmio.wed) &&
+	    token >= dev->mmio.wed.wlan.token_start)
+		dev->wed_token_count++;
+#endif
+
 	if (dev->token_count >= dev->token_size - MT76_TOKEN_FREE_THR)
 		__mt76_set_tx_blocked(dev, true);
 
@@ -743,8 +749,16 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
 	spin_lock_bh(&dev->token_lock);
 
 	txwi = idr_remove(&dev->token, token);
-	if (txwi)
+	if (txwi) {
 		dev->token_count--;
+
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+		if (mtk_wed_device_active(&dev->mmio.wed) &&
+		    token >= dev->mmio.wed.wlan.token_start &&
+		    --dev->wed_token_count == 0)
+			wake_up(&dev->tx_wait);
+#endif
+	}
 
 	if (dev->token_count < dev->token_size - MT76_TOKEN_FREE_THR &&
 	    dev->phy.q_tx[0]->blocked)

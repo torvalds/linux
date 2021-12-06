@@ -7,9 +7,36 @@
 #include "mt76.h"
 #include "dma.h"
 
-#define Q_READ(_dev, _q, _field)		readl(&(_q)->regs->_field)
-#define Q_WRITE(_dev, _q, _field, _val)		writel(_val, &(_q)->regs->_field)
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_SOC_WED)
 
+#define Q_READ(_dev, _q, _field) ({					\
+	u32 _offset = offsetof(struct mt76_queue_regs, _field);		\
+	u32 _val;							\
+	if ((_q)->flags & MT_QFLAG_WED)					\
+		_val = mtk_wed_device_reg_read(&(_dev)->mmio.wed,	\
+					       ((_q)->wed_regs +	\
+					        _offset));		\
+	else								\
+		_val = readl(&(_q)->regs->_field);			\
+	_val;								\
+})
+
+#define Q_WRITE(_dev, _q, _field, _val)	do {				\
+	u32 _offset = offsetof(struct mt76_queue_regs, _field);		\
+	if ((_q)->flags & MT_QFLAG_WED)					\
+		mtk_wed_device_reg_write(&(_dev)->mmio.wed,		\
+					 ((_q)->wed_regs + _offset),	\
+					 _val);				\
+	else								\
+		writel(_val, &(_q)->regs->_field);			\
+} while (0)
+
+#else
+
+#define Q_READ(_dev, _q, _field)	readl(&(_q)->regs->_field)
+#define Q_WRITE(_dev, _q, _field, _val)	writel(_val, &(_q)->regs->_field)
+
+#endif
 
 static struct mt76_txwi_cache *
 mt76_alloc_txwi(struct mt76_dev *dev)
@@ -109,36 +136,6 @@ mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q)
 	Q_WRITE(dev, q, cpu_idx, 0);
 	Q_WRITE(dev, q, dma_idx, 0);
 	mt76_dma_sync_idx(dev, q);
-}
-
-static int
-mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
-		     int idx, int n_desc, int bufsize,
-		     u32 ring_base)
-{
-	int size;
-
-	spin_lock_init(&q->lock);
-	spin_lock_init(&q->cleanup_lock);
-
-	q->regs = dev->mmio.regs + ring_base + idx * MT_RING_SIZE;
-	q->ndesc = n_desc;
-	q->buf_size = bufsize;
-	q->hw_idx = idx;
-
-	size = q->ndesc * sizeof(struct mt76_desc);
-	q->desc = dmam_alloc_coherent(dev->dma_dev, size, &q->desc_dma, GFP_KERNEL);
-	if (!q->desc)
-		return -ENOMEM;
-
-	size = q->ndesc * sizeof(*q->entry);
-	q->entry = devm_kzalloc(dev->dev, size, GFP_KERNEL);
-	if (!q->entry)
-		return -ENOMEM;
-
-	mt76_dma_queue_reset(dev, q);
-
-	return 0;
 }
 
 static int
@@ -486,6 +483,85 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
 	return frames;
 }
 
+static int
+mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	struct mtk_wed_device *wed = &dev->mmio.wed;
+	int ret, type, ring;
+	u8 flags = q->flags;
+
+	if (!mtk_wed_device_active(wed))
+		q->flags &= ~MT_QFLAG_WED;
+
+	if (!(q->flags & MT_QFLAG_WED))
+		return 0;
+
+	type = FIELD_GET(MT_QFLAG_WED_TYPE, q->flags);
+	ring = FIELD_GET(MT_QFLAG_WED_RING, q->flags);
+
+	switch (type) {
+	case MT76_WED_Q_TX:
+		ret = mtk_wed_device_tx_ring_setup(wed, ring, q->regs);
+		if (!ret)
+			q->wed_regs = wed->tx_ring[ring].reg_base;
+		break;
+	case MT76_WED_Q_TXFREE:
+		/* WED txfree queue needs ring to be initialized before setup */
+		q->flags = 0;
+		mt76_dma_queue_reset(dev, q);
+		mt76_dma_rx_fill(dev, q);
+		q->flags = flags;
+
+		ret = mtk_wed_device_txfree_ring_setup(wed, q->regs);
+		if (!ret)
+			q->wed_regs = wed->txfree_ring.reg_base;
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+#else
+	return 0;
+#endif
+}
+
+static int
+mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
+		     int idx, int n_desc, int bufsize,
+		     u32 ring_base)
+{
+	int ret, size;
+
+	spin_lock_init(&q->lock);
+	spin_lock_init(&q->cleanup_lock);
+
+	q->regs = dev->mmio.regs + ring_base + idx * MT_RING_SIZE;
+	q->ndesc = n_desc;
+	q->buf_size = bufsize;
+	q->hw_idx = idx;
+
+	size = q->ndesc * sizeof(struct mt76_desc);
+	q->desc = dmam_alloc_coherent(dev->dma_dev, size, &q->desc_dma, GFP_KERNEL);
+	if (!q->desc)
+		return -ENOMEM;
+
+	size = q->ndesc * sizeof(*q->entry);
+	q->entry = devm_kzalloc(dev->dev, size, GFP_KERNEL);
+	if (!q->entry)
+		return -ENOMEM;
+
+	ret = mt76_dma_wed_setup(dev, q);
+	if (ret)
+		return ret;
+
+	if (q->flags != MT_WED_Q_TXFREE)
+		mt76_dma_queue_reset(dev, q);
+
+	return 0;
+}
+
 static void
 mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 {
@@ -567,13 +643,28 @@ mt76_add_fragment(struct mt76_dev *dev, struct mt76_queue *q, void *data,
 static int
 mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 {
-	int len, data_len, done = 0;
+	int len, data_len, done = 0, dma_idx;
 	struct sk_buff *skb;
 	unsigned char *data;
+	bool check_ddone = false;
 	bool more;
+
+	if (IS_ENABLED(CONFIG_NET_MEDIATEK_SOC_WED) &&
+	    q->flags == MT_WED_Q_TXFREE) {
+		dma_idx = Q_READ(dev, q, dma_idx);
+		check_ddone = true;
+	}
 
 	while (done < budget) {
 		u32 info;
+
+		if (check_ddone) {
+			if (q->tail == dma_idx)
+				dma_idx = Q_READ(dev, q, dma_idx);
+
+			if (q->tail == dma_idx)
+				break;
+		}
 
 		data = mt76_dma_dequeue(dev, q, false, &len, &info, &more);
 		if (!data)
@@ -715,5 +806,8 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 	}
 
 	mt76_free_pending_txwi(dev);
+
+	if (mtk_wed_device_active(&dev->mmio.wed))
+		mtk_wed_device_detach(&dev->mmio.wed);
 }
 EXPORT_SYMBOL_GPL(mt76_dma_cleanup);
