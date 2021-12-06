@@ -2055,6 +2055,7 @@
 		clock-names = "aclk", "iface";
 		rockchip,disable-mmu-reset;
 		rockchip,enable-cmd-retry;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		power-domains = <&power RK3588_PD_VENC0>;
 		status = "disabled";
@@ -2091,6 +2092,7 @@
 		lock-names = "aclk", "iface";
 		rockchip,disable-mmu-reset;
 		rockchip,enable-cmd-retry;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		power-domains = <&power RK3588_PD_VENC1>;
 		status = "disabled";
@@ -2145,6 +2147,7 @@
 		clock-names = "aclk", "iface";
 		rockchip,disable-mmu-reset;
 		rockchip,enable-cmd-retry;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		power-domains = <&power RK3588_PD_RKVDEC0>;
 		status = "disabled";
@@ -2187,6 +2190,7 @@
 		clock-names = "aclk", "iface";
 		rockchip,disable-mmu-reset;
 		rockchip,enable-cmd-retry;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		power-domains = <&power RK3588_PD_RKVDEC1>;
 		status = "disabled";
