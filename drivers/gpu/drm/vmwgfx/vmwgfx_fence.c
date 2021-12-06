@@ -596,9 +596,10 @@ int vmw_user_fence_create(struct drm_file *file_priv,
 	 * vmw_user_fence_base_release.
 	 */
 	tmp = vmw_fence_obj_reference(&ufence->fence);
+
 	ret = ttm_base_object_init(tfile, &ufence->base, false,
 				   VMW_RES_FENCE,
-				   &vmw_user_fence_base_release, NULL);
+				   &vmw_user_fence_base_release);
 
 
 	if (unlikely(ret != 0)) {
@@ -801,8 +802,7 @@ out:
 	 */
 
 	if (ret == 0 && (arg->wait_options & DRM_VMW_WAIT_OPTION_UNREF))
-		return ttm_ref_object_base_unref(tfile, arg->handle,
-						 TTM_REF_USAGE);
+		return ttm_ref_object_base_unref(tfile, arg->handle);
 	return ret;
 }
 
@@ -844,8 +844,7 @@ int vmw_fence_obj_unref_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_fence_arg *) data;
 
 	return ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
-					 arg->handle,
-					 TTM_REF_USAGE);
+					 arg->handle);
 }
 
 /**
@@ -1091,7 +1090,7 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 
 		if (user_fence_rep != NULL) {
 			ret = ttm_ref_object_add(vmw_fp->tfile, base,
-						 TTM_REF_USAGE, NULL, false);
+						 NULL, false);
 			if (unlikely(ret != 0)) {
 				DRM_ERROR("Failed to reference a fence "
 					  "object.\n");
@@ -1134,7 +1133,7 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 	return 0;
 out_no_create:
 	if (user_fence_rep != NULL)
-		ttm_ref_object_base_unref(tfile, handle, TTM_REF_USAGE);
+		ttm_ref_object_base_unref(tfile, handle);
 out_no_ref_obj:
 	vmw_fence_obj_unreference(&fence);
 	return ret;

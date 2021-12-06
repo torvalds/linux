@@ -50,6 +50,7 @@
 #include <linux/atomic.h>
 #include <linux/module.h>
 #include "ttm_object.h"
+#include "vmwgfx_drv.h"
 
 MODULE_IMPORT_NS(DMA_BUF);
 
@@ -73,7 +74,7 @@ struct ttm_object_file {
 	struct ttm_object_device *tdev;
 	spinlock_t lock;
 	struct list_head ref_list;
-	struct vmwgfx_open_hash ref_hash[TTM_REF_NUM];
+	struct vmwgfx_open_hash ref_hash;
 	struct kref refcount;
 };
 
@@ -124,7 +125,6 @@ struct ttm_ref_object {
 	struct vmwgfx_hash_item hash;
 	struct list_head head;
 	struct kref kref;
-	enum ttm_ref_type ref_type;
 	struct ttm_base_object *obj;
 	struct ttm_object_file *tfile;
 };
@@ -160,9 +160,7 @@ int ttm_base_object_init(struct ttm_object_file *tfile,
 			 struct ttm_base_object *base,
 			 bool shareable,
 			 enum ttm_object_type object_type,
-			 void (*refcount_release) (struct ttm_base_object **),
-			 void (*ref_obj_release) (struct ttm_base_object *,
-						  enum ttm_ref_type ref_type))
+			 void (*refcount_release) (struct ttm_base_object **))
 {
 	struct ttm_object_device *tdev = tfile->tdev;
 	int ret;
@@ -170,7 +168,6 @@ int ttm_base_object_init(struct ttm_object_file *tfile,
 	base->shareable = shareable;
 	base->tfile = ttm_object_file_ref(tfile);
 	base->refcount_release = refcount_release;
-	base->ref_obj_release = ref_obj_release;
 	base->object_type = object_type;
 	kref_init(&base->refcount);
 	idr_preload(GFP_KERNEL);
@@ -182,7 +179,7 @@ int ttm_base_object_init(struct ttm_object_file *tfile,
 		return ret;
 
 	base->handle = ret;
-	ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL, false);
+	ret = ttm_ref_object_add(tfile, base, NULL, false);
 	if (unlikely(ret != 0))
 		goto out_err1;
 
@@ -246,7 +243,7 @@ struct ttm_base_object *
 ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key)
 {
 	struct vmwgfx_hash_item *hash;
-	struct vmwgfx_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash;
 	int ret;
 
 	rcu_read_lock();
@@ -266,7 +263,7 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 {
 	struct ttm_base_object *base = NULL;
 	struct vmwgfx_hash_item *hash;
-	struct vmwgfx_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash;
 	int ret;
 
 	rcu_read_lock();
@@ -297,57 +294,12 @@ ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key)
 	return base;
 }
 
-/**
- * ttm_ref_object_exists - Check whether a caller has a valid ref object
- * (has opened) a base object.
- *
- * @tfile: Pointer to a struct ttm_object_file identifying the caller.
- * @base: Pointer to a struct base object.
- *
- * Checks wether the caller identified by @tfile has put a valid USAGE
- * reference object on the base object identified by @base.
- */
-bool ttm_ref_object_exists(struct ttm_object_file *tfile,
-			   struct ttm_base_object *base)
-{
-	struct vmwgfx_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
-	struct vmwgfx_hash_item *hash;
-	struct ttm_ref_object *ref;
-
-	rcu_read_lock();
-	if (unlikely(vmwgfx_ht_find_item_rcu(ht, base->handle, &hash) != 0))
-		goto out_false;
-
-	/*
-	 * Verify that the ref object is really pointing to our base object.
-	 * Our base object could actually be dead, and the ref object pointing
-	 * to another base object with the same handle.
-	 */
-	ref = drm_hash_entry(hash, struct ttm_ref_object, hash);
-	if (unlikely(base != ref->obj))
-		goto out_false;
-
-	/*
-	 * Verify that the ref->obj pointer was actually valid!
-	 */
-	rmb();
-	if (unlikely(kref_read(&ref->kref) == 0))
-		goto out_false;
-
-	rcu_read_unlock();
-	return true;
-
- out_false:
-	rcu_read_unlock();
-	return false;
-}
-
 int ttm_ref_object_add(struct ttm_object_file *tfile,
 		       struct ttm_base_object *base,
-		       enum ttm_ref_type ref_type, bool *existed,
+		       bool *existed,
 		       bool require_existed)
 {
-	struct vmwgfx_open_hash *ht = &tfile->ref_hash[ref_type];
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash;
 	struct ttm_ref_object *ref;
 	struct vmwgfx_hash_item *hash;
 	int ret = -EINVAL;
@@ -382,7 +334,6 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		ref->hash.key = base->handle;
 		ref->obj = base;
 		ref->tfile = tfile;
-		ref->ref_type = ref_type;
 		kref_init(&ref->kref);
 
 		spin_lock(&tfile->lock);
@@ -411,17 +362,13 @@ ttm_ref_object_release(struct kref *kref)
 {
 	struct ttm_ref_object *ref =
 	    container_of(kref, struct ttm_ref_object, kref);
-	struct ttm_base_object *base = ref->obj;
 	struct ttm_object_file *tfile = ref->tfile;
 	struct vmwgfx_open_hash *ht;
 
-	ht = &tfile->ref_hash[ref->ref_type];
+	ht = &tfile->ref_hash;
 	(void)vmwgfx_ht_remove_item_rcu(ht, &ref->hash);
 	list_del(&ref->head);
 	spin_unlock(&tfile->lock);
-
-	if (ref->ref_type != TTM_REF_USAGE && base->ref_obj_release)
-		base->ref_obj_release(base, ref->ref_type);
 
 	ttm_base_object_unref(&ref->obj);
 	kfree_rcu(ref, rcu_head);
@@ -429,9 +376,9 @@ ttm_ref_object_release(struct kref *kref)
 }
 
 int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
-			      unsigned long key, enum ttm_ref_type ref_type)
+			      unsigned long key)
 {
-	struct vmwgfx_open_hash *ht = &tfile->ref_hash[ref_type];
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash;
 	struct ttm_ref_object *ref;
 	struct vmwgfx_hash_item *hash;
 	int ret;
@@ -452,7 +399,6 @@ void ttm_object_file_release(struct ttm_object_file **p_tfile)
 {
 	struct ttm_ref_object *ref;
 	struct list_head *list;
-	unsigned int i;
 	struct ttm_object_file *tfile = *p_tfile;
 
 	*p_tfile = NULL;
@@ -470,8 +416,7 @@ void ttm_object_file_release(struct ttm_object_file **p_tfile)
 	}
 
 	spin_unlock(&tfile->lock);
-	for (i = 0; i < TTM_REF_NUM; ++i)
-		vmwgfx_ht_remove(&tfile->ref_hash[i]);
+	vmwgfx_ht_remove(&tfile->ref_hash);
 
 	ttm_object_file_unref(&tfile);
 }
@@ -480,8 +425,6 @@ struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev,
 					     unsigned int hash_order)
 {
 	struct ttm_object_file *tfile = kmalloc(sizeof(*tfile), GFP_KERNEL);
-	unsigned int i;
-	unsigned int j = 0;
 	int ret;
 
 	if (unlikely(tfile == NULL))
@@ -492,18 +435,13 @@ struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev,
 	kref_init(&tfile->refcount);
 	INIT_LIST_HEAD(&tfile->ref_list);
 
-	for (i = 0; i < TTM_REF_NUM; ++i) {
-		ret = vmwgfx_ht_create(&tfile->ref_hash[i], hash_order);
-		if (ret) {
-			j = i;
-			goto out_err;
-		}
-	}
+	ret = vmwgfx_ht_create(&tfile->ref_hash, hash_order);
+	if (ret)
+		goto out_err;
 
 	return tfile;
 out_err:
-	for (i = 0; i < j; ++i)
-		vmwgfx_ht_remove(&tfile->ref_hash[i]);
+	vmwgfx_ht_remove(&tfile->ref_hash);
 
 	kfree(tfile);
 
@@ -526,7 +464,15 @@ ttm_object_device_init(unsigned int hash_order,
 	if (ret != 0)
 		goto out_no_object_hash;
 
-	idr_init_base(&tdev->idr, 1);
+	/*
+	 * Our base is at VMWGFX_NUM_MOB + 1 because we want to create
+	 * a seperate namespace for GEM handles (which are
+	 * 1..VMWGFX_NUM_MOB) and the surface handles. Some ioctl's
+	 * can take either handle as an argument so we want to
+	 * easily be able to tell whether the handle refers to a
+	 * GEM buffer or a surface.
+	 */
+	idr_init_base(&tdev->idr, VMWGFX_NUM_MOB + 1);
 	tdev->ops = *ops;
 	tdev->dmabuf_release = tdev->ops.release;
 	tdev->ops.release = ttm_prime_dmabuf_release;
@@ -647,7 +593,7 @@ int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
 	prime = (struct ttm_prime_object *) dma_buf->priv;
 	base = &prime->base;
 	*handle = base->handle;
-	ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL, false);
+	ret = ttm_ref_object_add(tfile, base, NULL, false);
 
 	dma_buf_put(dma_buf);
 
@@ -741,7 +687,6 @@ out_unref:
  * @shareable: See ttm_base_object_init
  * @type: See ttm_base_object_init
  * @refcount_release: See ttm_base_object_init
- * @ref_obj_release: See ttm_base_object_init
  *
  * Initializes an object which is compatible with the drm_prime model
  * for data sharing between processes and devices.
@@ -749,9 +694,7 @@ out_unref:
 int ttm_prime_object_init(struct ttm_object_file *tfile, size_t size,
 			  struct ttm_prime_object *prime, bool shareable,
 			  enum ttm_object_type type,
-			  void (*refcount_release) (struct ttm_base_object **),
-			  void (*ref_obj_release) (struct ttm_base_object *,
-						   enum ttm_ref_type ref_type))
+			  void (*refcount_release) (struct ttm_base_object **))
 {
 	mutex_init(&prime->mutex);
 	prime->size = PAGE_ALIGN(size);
@@ -760,6 +703,5 @@ int ttm_prime_object_init(struct ttm_object_file *tfile, size_t size,
 	prime->refcount_release = refcount_release;
 	return ttm_base_object_init(tfile, &prime->base, shareable,
 				    ttm_prime_type,
-				    ttm_prime_refcount_release,
-				    ref_obj_release);
+				    ttm_prime_refcount_release);
 }

@@ -34,6 +34,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_sysfs.h>
+#include <drm/drm_gem_ttm_helper.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_range_manager.h>
 #include <drm/ttm/ttm_placement.h>
@@ -162,7 +163,7 @@
 static const struct drm_ioctl_desc vmw_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VMW_GET_PARAM, vmw_getparam_ioctl,
 			  DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(VMW_ALLOC_DMABUF, vmw_bo_alloc_ioctl,
+	DRM_IOCTL_DEF_DRV(VMW_ALLOC_DMABUF, vmw_gem_object_create_ioctl,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VMW_UNREF_DMABUF, vmw_bo_unref_ioctl,
 			  DRM_RENDER_ALLOW),
@@ -396,13 +397,9 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	 * immediately succeed. This is because we're the only
 	 * user of the bo currently.
 	 */
-	vbo = kzalloc(sizeof(*vbo), GFP_KERNEL);
-	if (!vbo)
-		return -ENOMEM;
-
-	ret = vmw_bo_init(dev_priv, vbo, PAGE_SIZE,
-			  &vmw_sys_placement, false, true,
-			  &vmw_bo_bo_free);
+	ret = vmw_bo_create(dev_priv, PAGE_SIZE,
+			    &vmw_sys_placement, false, true,
+			    &vmw_bo_bo_free, &vbo);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1578,7 +1575,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 
 static const struct drm_driver driver = {
 	.driver_features =
-	DRIVER_MODESET | DRIVER_RENDER | DRIVER_ATOMIC,
+	DRIVER_MODESET | DRIVER_RENDER | DRIVER_ATOMIC | DRIVER_GEM,
 	.ioctls = vmw_ioctls,
 	.num_ioctls = ARRAY_SIZE(vmw_ioctls),
 	.master_set = vmw_master_set,
@@ -1587,8 +1584,7 @@ static const struct drm_driver driver = {
 	.postclose = vmw_postclose,
 
 	.dumb_create = vmw_dumb_create,
-	.dumb_map_offset = vmw_dumb_map_offset,
-	.dumb_destroy = vmw_dumb_destroy,
+	.dumb_map_offset = drm_gem_ttm_dumb_map_offset,
 
 	.prime_fd_to_handle = vmw_prime_fd_to_handle,
 	.prime_handle_to_fd = vmw_prime_handle_to_fd,
@@ -1641,6 +1637,8 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = drm_dev_register(&vmw->drm, 0);
 	if (ret)
 		goto out_unload;
+
+	vmw_debugfs_gem_init(vmw);
 
 	return 0;
 out_unload:

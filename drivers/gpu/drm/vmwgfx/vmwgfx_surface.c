@@ -46,13 +46,11 @@
  * @base:           The TTM base object handling user-space visibility.
  * @srf:            The surface metadata.
  * @master:         Master of the creating client. Used for security check.
- * @backup_base:    The TTM base object of the backup buffer.
  */
 struct vmw_user_surface {
 	struct ttm_prime_object prime;
 	struct vmw_surface srf;
 	struct drm_master *master;
-	struct ttm_base_object *backup_base;
 };
 
 /**
@@ -686,8 +684,6 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 	struct vmw_resource *res = &user_srf->srf.res;
 
 	*p_base = NULL;
-	if (user_srf->backup_base)
-		ttm_base_object_unref(&user_srf->backup_base);
 	vmw_resource_unreference(&res);
 }
 
@@ -705,7 +701,7 @@ int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_surface_arg *arg = (struct drm_vmw_surface_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 
-	return ttm_ref_object_base_unref(tfile, arg->sid, TTM_REF_USAGE);
+	return ttm_ref_object_base_unref(tfile, arg->sid);
 }
 
 /**
@@ -851,22 +847,22 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (dev_priv->has_mob && req->shareable) {
 		uint32_t backup_handle;
 
-		ret = vmw_user_bo_alloc(dev_priv, tfile,
-					res->backup_size,
-					true,
-					&backup_handle,
-					&res->backup,
-					&user_srf->backup_base);
+		ret = vmw_gem_object_create_with_handle(dev_priv,
+							file_priv,
+							res->backup_size,
+							&backup_handle,
+							&res->backup);
 		if (unlikely(ret != 0)) {
 			vmw_resource_unreference(&res);
 			goto out_unlock;
 		}
+		vmw_bo_reference(res->backup);
 	}
 
 	tmp = vmw_resource_reference(&srf->res);
 	ret = ttm_prime_object_init(tfile, res->backup_size, &user_srf->prime,
 				    req->shareable, VMW_RES_SURFACE,
-				    &vmw_user_surface_base_release, NULL);
+				    &vmw_user_surface_base_release);
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&tmp);
@@ -921,7 +917,6 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		VMW_DEBUG_USER("Referenced object is not a surface.\n");
 		goto out_bad_resource;
 	}
-
 	if (handle_type != DRM_VMW_HANDLE_PRIME) {
 		bool require_exist = false;
 
@@ -946,8 +941,7 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
 
-		ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL,
-					 require_exist);
+		ret = ttm_ref_object_add(tfile, base, NULL, require_exist);
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Could not add a reference to a surface.\n");
 			goto out_bad_resource;
@@ -961,7 +955,7 @@ out_bad_resource:
 	ttm_base_object_unref(&base);
 out_no_lookup:
 	if (handle_type == DRM_VMW_HANDLE_PRIME)
-		(void) ttm_ref_object_base_unref(tfile, handle, TTM_REF_USAGE);
+		(void) ttm_ref_object_base_unref(tfile, handle);
 
 	return ret;
 }
@@ -1011,7 +1005,7 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0)) {
 		VMW_DEBUG_USER("copy_to_user failed %p %u\n", user_sizes,
 			       srf->metadata.num_sizes);
-		ttm_ref_object_base_unref(tfile, base->handle, TTM_REF_USAGE);
+		ttm_ref_object_base_unref(tfile, base->handle);
 		ret = -EFAULT;
 	}
 
@@ -1498,9 +1492,8 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	res = &user_srf->srf.res;
 
 	if (req->base.buffer_handle != SVGA3D_INVALID_ID) {
-		ret = vmw_user_bo_lookup(tfile, req->base.buffer_handle,
-					 &res->backup,
-					 &user_srf->backup_base);
+		ret = vmw_user_bo_lookup(file_priv, req->base.buffer_handle,
+					 &res->backup);
 		if (ret == 0) {
 			if (res->backup->base.base.size < res->backup_size) {
 				VMW_DEBUG_USER("Surface backup buffer too small.\n");
@@ -1513,14 +1506,15 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		}
 	} else if (req->base.drm_surface_flags &
 		   (drm_vmw_surface_flag_create_buffer |
-		    drm_vmw_surface_flag_coherent))
-		ret = vmw_user_bo_alloc(dev_priv, tfile,
-					res->backup_size,
-					req->base.drm_surface_flags &
-					drm_vmw_surface_flag_shareable,
-					&backup_handle,
-					&res->backup,
-					&user_srf->backup_base);
+		    drm_vmw_surface_flag_coherent)) {
+		ret = vmw_gem_object_create_with_handle(dev_priv, file_priv,
+							res->backup_size,
+							&backup_handle,
+							&res->backup);
+		if (ret == 0)
+			vmw_bo_reference(res->backup);
+
+	}
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&res);
@@ -1552,7 +1546,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 				    req->base.drm_surface_flags &
 				    drm_vmw_surface_flag_shareable,
 				    VMW_RES_SURFACE,
-				    &vmw_user_surface_base_release, NULL);
+				    &vmw_user_surface_base_release);
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&tmp);
@@ -1572,7 +1566,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		rep->buffer_size = 0;
 		rep->buffer_handle = SVGA3D_INVALID_ID;
 	}
-
 	vmw_resource_unreference(&res);
 
 out_unlock:
@@ -1595,12 +1588,11 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 				  struct drm_file *file_priv)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct vmw_surface *srf;
 	struct vmw_user_surface *user_srf;
 	struct vmw_surface_metadata *metadata;
 	struct ttm_base_object *base;
-	uint32_t backup_handle;
+	u32 backup_handle;
 	int ret;
 
 	ret = vmw_surface_handle_reference(dev_priv, file_priv, req->sid,
@@ -1617,14 +1609,12 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	metadata = &srf->metadata;
 
 	mutex_lock(&dev_priv->cmdbuf_mutex); /* Protect res->backup */
-	ret = vmw_user_bo_reference(tfile, srf->res.backup, &backup_handle);
+	ret = drm_gem_handle_create(file_priv, &srf->res.backup->base.base,
+				    &backup_handle);
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
-
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Could not add a reference to a GB surface "
-			  "backup buffer.\n");
-		(void) ttm_ref_object_base_unref(tfile, base->handle,
-						 TTM_REF_USAGE);
+	if (ret != 0) {
+		drm_err(dev, "Wasn't able to create a backing handle for surface sid = %u.\n",
+			req->sid);
 		goto out_bad_resource;
 	}
 

@@ -361,6 +361,19 @@ struct vmw_piter {
 	dma_addr_t (*dma_address)(struct vmw_piter *);
 };
 
+
+struct vmw_ttm_tt {
+	struct ttm_tt dma_ttm;
+	struct vmw_private *dev_priv;
+	int gmr_id;
+	struct vmw_mob *mob;
+	int mem_type;
+	struct sg_table sgt;
+	struct vmw_sg_table vsgt;
+	bool mapped;
+	bool bound;
+};
+
 /*
  * enum vmw_display_unit_type - Describes the display unit
  */
@@ -411,6 +424,7 @@ struct vmw_sw_context{
 	bool res_ht_initialized;
 	bool kernel;
 	struct vmw_fpriv *fp;
+	struct drm_file *filp;
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
 	struct vmw_buffer_object *cur_query_bo;
@@ -643,6 +657,11 @@ struct vmw_private {
 #endif
 };
 
+static inline struct vmw_buffer_object *gem_to_vmw_bo(struct drm_gem_object *gobj)
+{
+	return container_of((gobj), struct vmw_buffer_object, base.base);
+}
+
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
 {
 	return container_of(res, struct vmw_surface, res);
@@ -765,7 +784,7 @@ extern int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
 				bool no_backup);
 extern bool vmw_resource_needs_backup(const struct vmw_resource *res);
 extern int vmw_user_lookup_handle(struct vmw_private *dev_priv,
-				  struct ttm_object_file *tfile,
+				  struct drm_file *filp,
 				  uint32_t handle,
 				  struct vmw_surface **out_surf,
 				  struct vmw_buffer_object **out_buf);
@@ -831,6 +850,7 @@ static inline void vmw_user_resource_noref_release(void)
 /**
  * Buffer object helper functions - vmwgfx_bo.c
  */
+extern bool vmw_bo_is_vmw_bo(struct ttm_buffer_object *bo);
 extern int vmw_bo_pin_in_placement(struct vmw_private *vmw_priv,
 				   struct vmw_buffer_object *bo,
 				   struct ttm_placement *placement,
@@ -855,32 +875,23 @@ extern int vmw_bo_create_kernel(struct vmw_private *dev_priv,
 				unsigned long size,
 				struct ttm_placement *placement,
 				struct ttm_buffer_object **p_bo);
+extern int vmw_bo_create(struct vmw_private *dev_priv,
+			 size_t size, struct ttm_placement *placement,
+			 bool interruptible, bool pin,
+			 void (*bo_free)(struct ttm_buffer_object *bo),
+			 struct vmw_buffer_object **p_bo);
 extern int vmw_bo_init(struct vmw_private *dev_priv,
 		       struct vmw_buffer_object *vmw_bo,
 		       size_t size, struct ttm_placement *placement,
 		       bool interruptible, bool pin,
 		       void (*bo_free)(struct ttm_buffer_object *bo));
-extern int vmw_user_bo_verify_access(struct ttm_buffer_object *bo,
-				     struct ttm_object_file *tfile);
-extern int vmw_user_bo_alloc(struct vmw_private *dev_priv,
-			     struct ttm_object_file *tfile,
-			     uint32_t size,
-			     bool shareable,
-			     uint32_t *handle,
-			     struct vmw_buffer_object **p_dma_buf,
-			     struct ttm_base_object **p_base);
-extern int vmw_user_bo_reference(struct ttm_object_file *tfile,
-				 struct vmw_buffer_object *dma_buf,
-				 uint32_t *handle);
-extern int vmw_bo_alloc_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
 extern int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 extern int vmw_user_bo_synccpu_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
-extern int vmw_user_bo_lookup(struct ttm_object_file *tfile,
-			      uint32_t id, struct vmw_buffer_object **out,
-			      struct ttm_base_object **base);
+extern int vmw_user_bo_lookup(struct drm_file *filp,
+			      uint32_t handle,
+			      struct vmw_buffer_object **out);
 extern void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 				struct vmw_fence_obj *fence);
 extern void *vmw_bo_map_and_cache(struct vmw_buffer_object *vbo);
@@ -889,16 +900,7 @@ extern void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 			       struct ttm_resource *mem);
 extern void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
 extern struct vmw_buffer_object *
-vmw_user_bo_noref_lookup(struct ttm_object_file *tfile, u32 handle);
-
-/**
- * vmw_user_bo_noref_release - release a buffer object pointer looked up
- * without reference
- */
-static inline void vmw_user_bo_noref_release(void)
-{
-	ttm_base_object_noref_release();
-}
+vmw_user_bo_noref_lookup(struct drm_file *filp, u32 handle);
 
 /**
  * vmw_bo_adjust_prio - Adjust the buffer object eviction priority
@@ -948,6 +950,19 @@ static inline void vmw_bo_prio_del(struct vmw_buffer_object *vbo, int prio)
 	if (--vbo->res_prios[prio] == 0)
 		vmw_bo_prio_adjust(vbo);
 }
+
+/**
+ * GEM related functionality - vmwgfx_gem.c
+ */
+extern int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
+					     struct drm_file *filp,
+					     uint32_t size,
+					     uint32_t *handle,
+					     struct vmw_buffer_object **p_vbo);
+extern int vmw_gem_object_create_ioctl(struct drm_device *dev, void *data,
+				       struct drm_file *filp);
+extern void vmw_gem_destroy(struct ttm_buffer_object *bo);
+extern void vmw_debugfs_gem_init(struct vmw_private *vdev);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
@@ -1212,13 +1227,6 @@ void vmw_kms_lost_device(struct drm_device *dev);
 int vmw_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args);
-
-int vmw_dumb_map_offset(struct drm_file *file_priv,
-			struct drm_device *dev, uint32_t handle,
-			uint64_t *offset);
-int vmw_dumb_destroy(struct drm_file *file_priv,
-		     struct drm_device *dev,
-		     uint32_t handle);
 extern int vmw_resource_pin(struct vmw_resource *res, bool interruptible);
 extern void vmw_resource_unpin(struct vmw_resource *res);
 extern enum vmw_res_type vmw_res_type(const struct vmw_resource *res);

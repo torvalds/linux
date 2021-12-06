@@ -1171,14 +1171,13 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 	int ret;
 
 	vmw_validation_preload_bo(sw_context->ctx);
-	vmw_bo = vmw_user_bo_noref_lookup(sw_context->fp->tfile, handle);
-	if (IS_ERR(vmw_bo)) {
+	vmw_bo = vmw_user_bo_noref_lookup(sw_context->filp, handle);
+	if (IS_ERR_OR_NULL(vmw_bo)) {
 		VMW_DEBUG_USER("Could not find or use MOB buffer.\n");
 		return PTR_ERR(vmw_bo);
 	}
-
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, true, false);
-	vmw_user_bo_noref_release();
+	ttm_bo_put(&vmw_bo->base);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1226,14 +1225,13 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	int ret;
 
 	vmw_validation_preload_bo(sw_context->ctx);
-	vmw_bo = vmw_user_bo_noref_lookup(sw_context->fp->tfile, handle);
-	if (IS_ERR(vmw_bo)) {
+	vmw_bo = vmw_user_bo_noref_lookup(sw_context->filp, handle);
+	if (IS_ERR_OR_NULL(vmw_bo)) {
 		VMW_DEBUG_USER("Could not find or use GMR region.\n");
 		return PTR_ERR(vmw_bo);
 	}
-
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, false, false);
-	vmw_user_bo_noref_release();
+	ttm_bo_put(&vmw_bo->base);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -3869,8 +3867,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 			fence_rep.fd = -1;
 		}
 
-		ttm_ref_object_base_unref(vmw_fp->tfile, fence_handle,
-					  TTM_REF_USAGE);
+		ttm_ref_object_base_unref(vmw_fp->tfile, fence_handle);
 		VMW_DEBUG_USER("Fence copy error. Syncing.\n");
 		(void) vmw_fence_obj_wait(fence, false, false,
 					  VMW_FENCE_WAIT_TIMEOUT);
@@ -4099,6 +4096,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 		sw_context->kernel = true;
 	}
 
+	sw_context->filp = file_priv;
 	sw_context->fp = vmw_fpriv(file_priv);
 	INIT_LIST_HEAD(&sw_context->ctx_list);
 	sw_context->cur_query_bo = dev_priv->pinned_bo;

@@ -715,7 +715,7 @@ int vmw_context_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_context_arg *arg = (struct drm_vmw_context_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 
-	return ttm_ref_object_base_unref(tfile, arg->cid, TTM_REF_USAGE);
+	return ttm_ref_object_base_unref(tfile, arg->cid);
 }
 
 static int vmw_context_define(struct drm_device *dev, void *data,
@@ -754,7 +754,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 
 	tmp = vmw_resource_reference(&ctx->res);
 	ret = ttm_base_object_init(tfile, &ctx->base, false, VMW_RES_CONTEXT,
-				   &vmw_user_context_base_release, NULL);
+				   &vmw_user_context_base_release);
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&tmp);

@@ -172,7 +172,7 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 	tmp = vmw_resource_reference(res);
 	ret = ttm_base_object_init(tfile, &usimple->base, false,
 				   func->ttm_res_type,
-				   &vmw_simple_resource_base_release, NULL);
+				   &vmw_simple_resource_base_release);
 
 	if (ret) {
 		vmw_resource_unreference(&tmp);

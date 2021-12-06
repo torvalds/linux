@@ -676,8 +676,7 @@ int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_shader_arg *arg = (struct drm_vmw_shader_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 
-	return ttm_ref_object_base_unref(tfile, arg->handle,
-					 TTM_REF_USAGE);
+	return ttm_ref_object_base_unref(tfile, arg->handle);
 }
 
 static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
@@ -718,7 +717,7 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 	tmp = vmw_resource_reference(res);
 	ret = ttm_base_object_init(tfile, &ushader->base, false,
 				   VMW_RES_SHADER,
-				   &vmw_user_shader_base_release, NULL);
+				   &vmw_user_shader_base_release);
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&tmp);
@@ -777,8 +776,7 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 	int ret;
 
 	if (buffer_handle != SVGA3D_INVALID_ID) {
-		ret = vmw_user_bo_lookup(tfile, buffer_handle,
-					     &buffer, NULL);
+		ret = vmw_user_bo_lookup(file_priv, buffer_handle, &buffer);
 		if (unlikely(ret != 0)) {
 			VMW_DEBUG_USER("Couldn't find buffer for shader creation.\n");
 			return ret;
@@ -894,13 +892,8 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	if (!vmw_shader_id_ok(user_key, shader_type))
 		return -EINVAL;
 
-	/* Allocate and pin a DMA buffer */
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
-	if (unlikely(!buf))
-		return -ENOMEM;
-
-	ret = vmw_bo_init(dev_priv, buf, size, &vmw_sys_placement,
-			      true, true, vmw_bo_bo_free);
+	ret = vmw_bo_create(dev_priv, size, &vmw_sys_placement,
+			    true, true, vmw_bo_bo_free, &buf);
 	if (unlikely(ret != 0))
 		goto out;
 

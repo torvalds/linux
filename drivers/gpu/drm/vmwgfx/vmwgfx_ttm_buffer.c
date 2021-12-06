@@ -167,18 +167,6 @@ struct ttm_placement vmw_nonfixed_placement = {
 	.busy_placement = &sys_placement_flags
 };
 
-struct vmw_ttm_tt {
-	struct ttm_tt dma_ttm;
-	struct vmw_private *dev_priv;
-	int gmr_id;
-	struct vmw_mob *mob;
-	int mem_type;
-	struct sg_table sgt;
-	struct vmw_sg_table vsgt;
-	bool mapped;
-	bool bound;
-};
-
 const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
 
 /**
@@ -311,11 +299,12 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 	vsgt->pages = vmw_tt->dma_ttm.pages;
 	vsgt->num_pages = vmw_tt->dma_ttm.num_pages;
 	vsgt->addrs = vmw_tt->dma_ttm.dma_address;
-	vsgt->sgt = &vmw_tt->sgt;
+	vsgt->sgt = NULL;
 
 	switch (dev_priv->map_mode) {
 	case vmw_dma_map_bind:
 	case vmw_dma_map_populate:
+		vsgt->sgt = &vmw_tt->sgt;
 		ret = sg_alloc_table_from_pages_segment(
 			&vmw_tt->sgt, vsgt->pages, vsgt->num_pages, 0,
 			(unsigned long)vsgt->num_pages << PAGE_SHIFT,
