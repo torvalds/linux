@@ -1564,7 +1564,7 @@ static void dsa_bridge_mtu_normalization(struct dsa_port *dp)
 	if (!dp->ds->mtu_enforcement_ingress)
 		return;
 
-	if (!dp->bridge_dev)
+	if (!dp->bridge)
 		return;
 
 	INIT_LIST_HEAD(&hw_port_list);

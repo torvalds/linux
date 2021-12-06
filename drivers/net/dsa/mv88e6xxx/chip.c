@@ -2410,7 +2410,7 @@ static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
-				struct net_device *br)
+				struct dsa_bridge bridge)
 {
 	struct dsa_switch *ds = chip->ds;
 	struct dsa_switch_tree *dst = ds->dst;
@@ -2418,7 +2418,7 @@ static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 	int err;
 
 	list_for_each_entry(dp, &dst->ports, list) {
-		if (dsa_port_bridge_dev_get(dp) == br) {
+		if (dsa_port_offloads_bridge(dp, &bridge)) {
 			if (dp->ds == ds) {
 				/* This is a local bridge group member,
 				 * remap its Port VLAN Map.
@@ -2442,14 +2442,14 @@ static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 }
 
 static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
-				      struct net_device *br)
+				      struct dsa_bridge bridge)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
 
-	err = mv88e6xxx_bridge_map(chip, br);
+	err = mv88e6xxx_bridge_map(chip, bridge);
 	if (err)
 		goto unlock;
 
@@ -2464,14 +2464,14 @@ unlock:
 }
 
 static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
-					struct net_device *br)
+					struct dsa_bridge bridge)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
 
-	if (mv88e6xxx_bridge_map(chip, br) ||
+	if (mv88e6xxx_bridge_map(chip, bridge) ||
 	    mv88e6xxx_port_vlan_map(chip, port))
 		dev_err(ds->dev, "failed to remap in-chip Port VLAN\n");
 
@@ -2486,7 +2486,7 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
 
 static int mv88e6xxx_crosschip_bridge_join(struct dsa_switch *ds,
 					   int tree_index, int sw_index,
-					   int port, struct net_device *br)
+					   int port, struct dsa_bridge bridge)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -2503,7 +2503,7 @@ static int mv88e6xxx_crosschip_bridge_join(struct dsa_switch *ds,
 
 static void mv88e6xxx_crosschip_bridge_leave(struct dsa_switch *ds,
 					     int tree_index, int sw_index,
-					     int port, struct net_device *br)
+					     int port, struct dsa_bridge bridge)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 
@@ -2535,19 +2535,17 @@ static int mv88e6xxx_map_virtual_bridge_to_pvt(struct dsa_switch *ds,
 }
 
 static int mv88e6xxx_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
-					   struct net_device *br,
-					   unsigned int bridge_num)
+					   struct dsa_bridge bridge)
 {
-	return mv88e6xxx_map_virtual_bridge_to_pvt(ds, bridge_num);
+	return mv88e6xxx_map_virtual_bridge_to_pvt(ds, bridge.num);
 }
 
 static void mv88e6xxx_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
-					      struct net_device *br,
-					      unsigned int bridge_num)
+					      struct dsa_bridge bridge)
 {
 	int err;
 
-	err = mv88e6xxx_map_virtual_bridge_to_pvt(ds, bridge_num);
+	err = mv88e6xxx_map_virtual_bridge_to_pvt(ds, bridge.num);
 	if (err) {
 		dev_err(ds->dev, "failed to remap cross-chip Port VLAN: %pe\n",
 			ERR_PTR(err));

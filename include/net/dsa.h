@@ -219,6 +219,11 @@ struct dsa_mall_tc_entry {
 	};
 };
 
+struct dsa_bridge {
+	struct net_device *dev;
+	unsigned int num;
+	refcount_t refcount;
+};
 
 struct dsa_port {
 	/* A CPU port is physically connected to a master device.
@@ -256,8 +261,7 @@ struct dsa_port {
 	/* Managed by DSA on user ports and by drivers on CPU and DSA ports */
 	bool			learning;
 	u8			stp_state;
-	struct net_device	*bridge_dev;
-	unsigned int		bridge_num;
+	struct dsa_bridge	*bridge;
 	struct devlink_port	devlink_port;
 	bool			devlink_port_setup;
 	struct phylink		*pl;
@@ -588,7 +592,7 @@ static inline bool dsa_port_is_vlan_filtering(const struct dsa_port *dp)
 static inline
 struct net_device *dsa_port_to_bridge_port(const struct dsa_port *dp)
 {
-	if (!dp->bridge_dev)
+	if (!dp->bridge)
 		return NULL;
 
 	if (dp->lag_dev)
@@ -602,12 +606,12 @@ struct net_device *dsa_port_to_bridge_port(const struct dsa_port *dp)
 static inline struct net_device *
 dsa_port_bridge_dev_get(const struct dsa_port *dp)
 {
-	return dp->bridge_dev;
+	return dp->bridge ? dp->bridge->dev : NULL;
 }
 
 static inline unsigned int dsa_port_bridge_num_get(struct dsa_port *dp)
 {
-	return dp->bridge_num;
+	return dp->bridge ? dp->bridge->num : 0;
 }
 
 static inline bool dsa_port_bridge_same(const struct dsa_port *a,
@@ -634,6 +638,12 @@ dsa_port_offloads_bridge_dev(struct dsa_port *dp,
 	 * for the bridge.
 	 */
 	return dsa_port_bridge_dev_get(dp) == bridge_dev;
+}
+
+static inline bool dsa_port_offloads_bridge(struct dsa_port *dp,
+					    const struct dsa_bridge *bridge)
+{
+	return dsa_port_bridge_dev_get(dp) == bridge->dev;
 }
 
 /* Returns true if any port of this tree offloads the given net_device */
@@ -812,17 +822,15 @@ struct dsa_switch_ops {
 	 */
 	int	(*set_ageing_time)(struct dsa_switch *ds, unsigned int msecs);
 	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
-				    struct net_device *bridge);
+				    struct dsa_bridge bridge);
 	void	(*port_bridge_leave)(struct dsa_switch *ds, int port,
-				     struct net_device *bridge);
+				     struct dsa_bridge bridge);
 	/* Called right after .port_bridge_join() */
 	int	(*port_bridge_tx_fwd_offload)(struct dsa_switch *ds, int port,
-					      struct net_device *bridge,
-					      unsigned int bridge_num);
+					      struct dsa_bridge bridge);
 	/* Called right before .port_bridge_leave() */
 	void	(*port_bridge_tx_fwd_unoffload)(struct dsa_switch *ds, int port,
-						struct net_device *bridge,
-						unsigned int bridge_num);
+						struct dsa_bridge bridge);
 	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
 				      u8 state);
 	void	(*port_fast_age)(struct dsa_switch *ds, int port);
@@ -894,10 +902,10 @@ struct dsa_switch_ops {
 	 */
 	int	(*crosschip_bridge_join)(struct dsa_switch *ds, int tree_index,
 					 int sw_index, int port,
-					 struct net_device *br);
+					 struct dsa_bridge bridge);
 	void	(*crosschip_bridge_leave)(struct dsa_switch *ds, int tree_index,
 					  int sw_index, int port,
-					  struct net_device *br);
+					  struct dsa_bridge bridge);
 	int	(*crosschip_lag_change)(struct dsa_switch *ds, int sw_index,
 					int port);
 	int	(*crosschip_lag_join)(struct dsa_switch *ds, int sw_index,
