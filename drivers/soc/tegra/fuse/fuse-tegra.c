@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013-2014, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2013-2021, NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -162,6 +162,12 @@ static const struct nvmem_cell_info tegra_fuse_cells[] = {
 		.bit_offset = 0,
 		.nbits = 32,
 	}, {
+		.name = "gcplex-config-fuse",
+		.offset = 0x1c8,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
 		.name = "tsensor-realignment",
 		.offset = 0x1fc,
 		.bytes = 4,
@@ -176,6 +182,18 @@ static const struct nvmem_cell_info tegra_fuse_cells[] = {
 	}, {
 		.name = "xusb-pad-calibration-ext",
 		.offset = 0x250,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "pdi0",
+		.offset = 0x300,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "pdi1",
+		.offset = 0x304,
 		.bytes = 4,
 		.bit_offset = 0,
 		.nbits = 32,
