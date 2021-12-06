@@ -1630,7 +1630,7 @@ static void kvm_invalidate_memslot(struct kvm *kvm,
 	 *	- gfn_to_hva (kvm_read_guest, gfn_to_pfn)
 	 *	- kvm_is_visible_gfn (mmu_check_root)
 	 */
-	kvm_arch_flush_shadow_memslot(kvm, working_slot);
+	kvm_arch_flush_shadow_memslot(kvm, old);
 
 	/* Was released by kvm_swap_active_memslots, reacquire. */
 	mutex_lock(&kvm->slots_arch_lock);
