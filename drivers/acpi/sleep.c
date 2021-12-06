@@ -903,8 +903,6 @@ static int acpi_hibernation_enter(void)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FLUSH_CPU_CACHE();
-
 	/* This shouldn't return.  If it returns, we have a problem */
 	status = acpi_enter_sleep_state(ACPI_STATE_S4);
 	/* Reprogram control registers */
