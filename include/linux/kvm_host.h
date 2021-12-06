@@ -31,6 +31,7 @@
 #include <linux/notifier.h>
 #include <linux/hashtable.h>
 #include <linux/interval_tree.h>
+#include <linux/rbtree.h>
 #include <linux/xarray.h>
 #include <asm/signal.h>
 
@@ -358,11 +359,13 @@ struct kvm_vcpu {
 	struct kvm_dirty_ring dirty_ring;
 
 	/*
-	 * The index of the most recently used memslot by this vCPU. It's ok
-	 * if this becomes stale due to memslot changes since we always check
-	 * it is a valid slot.
+	 * The most recently used memslot by this vCPU and the slots generation
+	 * for which it is valid.
+	 * No wraparound protection is needed since generations won't overflow in
+	 * thousands of years, even assuming 1M memslot operations per second.
 	 */
-	int last_used_slot;
+	struct kvm_memory_slot *last_used_slot;
+	u64 last_used_slot_gen;
 };
 
 /* must be called with irqs disabled */
@@ -427,9 +430,26 @@ static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
  */
 #define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
 
+/*
+ * Since at idle each memslot belongs to two memslot sets it has to contain
+ * two embedded nodes for each data structure that it forms a part of.
+ *
+ * Two memslot sets (one active and one inactive) are necessary so the VM
+ * continues to run on one memslot set while the other is being modified.
+ *
+ * These two memslot sets normally point to the same set of memslots.
+ * They can, however, be desynchronized when performing a memslot management
+ * operation by replacing the memslot to be modified by its copy.
+ * After the operation is complete, both memslot sets once again point to
+ * the same, common set of memslot data.
+ *
+ * The memslots themselves are independent of each other so they can be
+ * individually added or deleted.
+ */
 struct kvm_memory_slot {
-	struct hlist_node id_node;
-	struct interval_tree_node hva_node;
+	struct hlist_node id_node[2];
+	struct interval_tree_node hva_node[2];
+	struct rb_node gfn_node[2];
 	gfn_t base_gfn;
 	unsigned long npages;
 	unsigned long *dirty_bitmap;
@@ -524,16 +544,13 @@ static inline int kvm_arch_vcpu_memslots_id(struct kvm_vcpu *vcpu)
 }
 #endif
 
-/*
- * Note:
- * memslots are not sorted by id anymore, please use id_to_memslot()
- * to get the memslot by its id.
- */
 struct kvm_memslots {
 	u64 generation;
+	atomic_long_t last_used_slot;
 	struct rb_root_cached hva_tree;
+	struct rb_root gfn_tree;
 	/*
-	 * The mapping table from slot id to the index in memslots[].
+	 * The mapping table from slot id to memslot.
 	 *
 	 * 7-bit bucket count matches the size of the old id to index array for
 	 * 512 slots, while giving good performance with this slot count.
@@ -541,9 +558,7 @@ struct kvm_memslots {
 	 * always result in higher memory usage (even for lower memslot counts).
 	 */
 	DECLARE_HASHTABLE(id_hash, 7);
-	atomic_t last_used_slot;
-	int used_slots;
-	struct kvm_memory_slot memslots[];
+	int node_idx;
 };
 
 struct kvm {
@@ -565,6 +580,9 @@ struct kvm {
 	struct mutex slots_arch_lock;
 	struct mm_struct *mm; /* userspace tied to this vm */
 	unsigned long nr_memslot_pages;
+	/* The two memslot sets - active and inactive (per address space) */
+	struct kvm_memslots __memslots[KVM_ADDRESS_SPACE_NUM][2];
+	/* The current active memslot set for each address space */
 	struct kvm_memslots __rcu *memslots[KVM_ADDRESS_SPACE_NUM];
 	struct xarray vcpu_array;
 
@@ -739,11 +757,10 @@ static inline struct kvm_vcpu *kvm_get_vcpu_by_id(struct kvm *kvm, int id)
 	return NULL;
 }
 
-#define kvm_for_each_memslot(memslot, slots)				\
-	for (memslot = &slots->memslots[0];				\
-	     memslot < slots->memslots + slots->used_slots; memslot++)	\
-		if (WARN_ON_ONCE(!memslot->npages)) {			\
-		} else
+static inline int kvm_vcpu_get_idx(struct kvm_vcpu *vcpu)
+{
+	return vcpu->vcpu_idx;
+}
 
 void kvm_destroy_vcpus(struct kvm *kvm);
 
@@ -805,12 +822,23 @@ static inline struct kvm_memslots *kvm_vcpu_memslots(struct kvm_vcpu *vcpu)
 	return __kvm_memslots(vcpu->kvm, as_id);
 }
 
+static inline bool kvm_memslots_empty(struct kvm_memslots *slots)
+{
+	return RB_EMPTY_ROOT(&slots->gfn_tree);
+}
+
+#define kvm_for_each_memslot(memslot, bkt, slots)			      \
+	hash_for_each(slots->id_hash, bkt, memslot, id_node[slots->node_idx]) \
+		if (WARN_ON_ONCE(!memslot->npages)) {			      \
+		} else
+
 static inline
 struct kvm_memory_slot *id_to_memslot(struct kvm_memslots *slots, int id)
 {
 	struct kvm_memory_slot *slot;
+	int idx = slots->node_idx;
 
-	hash_for_each_possible(slots->id_hash, slot, id_node, id) {
+	hash_for_each_possible(slots->id_hash, slot, id_node[idx], id) {
 		if (slot->id == id)
 			return slot;
 	}
@@ -1214,24 +1242,14 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 bool kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args);
 
 /*
- * Returns a pointer to the memslot at slot_index if it contains gfn.
+ * Returns a pointer to the memslot if it contains gfn.
  * Otherwise returns NULL.
  */
 static inline struct kvm_memory_slot *
-try_get_memslot(struct kvm_memslots *slots, int slot_index, gfn_t gfn)
+try_get_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
 {
-	struct kvm_memory_slot *slot;
-
-	if (slot_index < 0 || slot_index >= slots->used_slots)
+	if (!slot)
 		return NULL;
-
-	/*
-	 * slot_index can come from vcpu->last_used_slot which is not kept
-	 * in sync with userspace-controllable memslot deletion. So use nospec
-	 * to prevent the CPU from speculating past the end of memslots[].
-	 */
-	slot_index = array_index_nospec(slot_index, slots->used_slots);
-	slot = &slots->memslots[slot_index];
 
 	if (gfn >= slot->base_gfn && gfn < slot->base_gfn + slot->npages)
 		return slot;
@@ -1240,65 +1258,46 @@ try_get_memslot(struct kvm_memslots *slots, int slot_index, gfn_t gfn)
 }
 
 /*
- * Returns a pointer to the memslot that contains gfn and records the index of
- * the slot in index. Otherwise returns NULL.
+ * Returns a pointer to the memslot that contains gfn. Otherwise returns NULL.
  *
  * With "approx" set returns the memslot also when the address falls
  * in a hole. In that case one of the memslots bordering the hole is
  * returned.
- *
- * IMPORTANT: Slots are sorted from highest GFN to lowest GFN!
  */
 static inline struct kvm_memory_slot *
-search_memslots(struct kvm_memslots *slots, gfn_t gfn, int *index, bool approx)
+search_memslots(struct kvm_memslots *slots, gfn_t gfn, bool approx)
 {
-	int start = 0, end = slots->used_slots;
-	struct kvm_memory_slot *memslots = slots->memslots;
 	struct kvm_memory_slot *slot;
+	struct rb_node *node;
+	int idx = slots->node_idx;
 
-	if (unlikely(!slots->used_slots))
-		return NULL;
-
-	while (start < end) {
-		int slot = start + (end - start) / 2;
-
-		if (gfn >= memslots[slot].base_gfn)
-			end = slot;
-		else
-			start = slot + 1;
+	slot = NULL;
+	for (node = slots->gfn_tree.rb_node; node; ) {
+		slot = container_of(node, struct kvm_memory_slot, gfn_node[idx]);
+		if (gfn >= slot->base_gfn) {
+			if (gfn < slot->base_gfn + slot->npages)
+				return slot;
+			node = node->rb_right;
+		} else
+			node = node->rb_left;
 	}
 
-	if (approx && start >= slots->used_slots) {
-		*index = slots->used_slots - 1;
-		return &memslots[slots->used_slots - 1];
-	}
-
-	slot = try_get_memslot(slots, start, gfn);
-	if (slot) {
-		*index = start;
-		return slot;
-	}
-	if (approx) {
-		*index = start;
-		return &memslots[start];
-	}
-
-	return NULL;
+	return approx ? slot : NULL;
 }
 
 static inline struct kvm_memory_slot *
 ____gfn_to_memslot(struct kvm_memslots *slots, gfn_t gfn, bool approx)
 {
 	struct kvm_memory_slot *slot;
-	int slot_index = atomic_read(&slots->last_used_slot);
 
-	slot = try_get_memslot(slots, slot_index, gfn);
+	slot = (struct kvm_memory_slot *)atomic_long_read(&slots->last_used_slot);
+	slot = try_get_memslot(slot, gfn);
 	if (slot)
 		return slot;
 
-	slot = search_memslots(slots, gfn, &slot_index, approx);
+	slot = search_memslots(slots, gfn, approx);
 	if (slot) {
-		atomic_set(&slots->last_used_slot, slot_index);
+		atomic_long_set(&slots->last_used_slot, (unsigned long)slot);
 		return slot;
 	}
 
