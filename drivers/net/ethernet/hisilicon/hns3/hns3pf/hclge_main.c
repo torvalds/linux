@@ -8070,7 +8070,7 @@ static int hclge_cfg_common_loopback_wait(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev, "wait loopback timeout\n");
 		return -EBUSY;
 	} else if (!(req->result & HCLGE_CMD_COMMON_LB_SUCCESS_B)) {
-		dev_err(&hdev->pdev->dev, "faile to do loopback test\n");
+		dev_err(&hdev->pdev->dev, "failed to do loopback test\n");
 		return -EIO;
 	}
 
