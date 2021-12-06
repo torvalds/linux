@@ -272,8 +272,9 @@ static inline bool dsa_port_offloads_bridge_port(struct dsa_port *dp,
 	return dsa_port_to_bridge_port(dp) == dev;
 }
 
-static inline bool dsa_port_offloads_bridge(struct dsa_port *dp,
-					    const struct net_device *bridge_dev)
+static inline bool
+dsa_port_offloads_bridge_dev(struct dsa_port *dp,
+			     const struct net_device *bridge_dev)
 {
 	/* DSA ports connected to a bridge, and event was emitted
 	 * for the bridge.
@@ -295,13 +296,14 @@ static inline bool dsa_tree_offloads_bridge_port(struct dsa_switch_tree *dst,
 }
 
 /* Returns true if any port of this tree offloads the given bridge */
-static inline bool dsa_tree_offloads_bridge(struct dsa_switch_tree *dst,
-					    const struct net_device *bridge_dev)
+static inline bool
+dsa_tree_offloads_bridge_dev(struct dsa_switch_tree *dst,
+			     const struct net_device *bridge_dev)
 {
 	struct dsa_port *dp;
 
 	list_for_each_entry(dp, &dst->ports, list)
-		if (dsa_port_offloads_bridge(dp, bridge_dev))
+		if (dsa_port_offloads_bridge_dev(dp, bridge_dev))
 			return true;
 
 	return false;
