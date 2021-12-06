@@ -390,6 +390,7 @@ static struct drm_plane *amdgpu_vkms_plane_init(struct drm_device *dev,
 						int index)
 {
 	struct drm_plane *plane;
+	uint64_t modifiers[] = {DRM_FORMAT_MOD_LINEAR, DRM_FORMAT_MOD_INVALID};
 	int ret;
 
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
@@ -400,7 +401,7 @@ static struct drm_plane *amdgpu_vkms_plane_init(struct drm_device *dev,
 				       &amdgpu_vkms_plane_funcs,
 				       amdgpu_vkms_formats,
 				       ARRAY_SIZE(amdgpu_vkms_formats),
-				       NULL, type, NULL);
+				       modifiers, type, NULL);
 	if (ret) {
 		kfree(plane);
 		return ERR_PTR(ret);
