@@ -60,8 +60,6 @@ static int vmw_dx_streamoutput_unbind(struct vmw_resource *res, bool readback,
 static void vmw_dx_streamoutput_commit_notify(struct vmw_resource *res,
 					      enum vmw_cmdbuf_res_state state);
 
-static size_t vmw_streamoutput_size;
-
 static const struct vmw_res_func vmw_dx_streamoutput_func = {
 	.res_type = vmw_res_streamoutput,
 	.needs_backup = true,
@@ -254,12 +252,10 @@ vmw_dx_streamoutput_lookup(struct vmw_cmdbuf_res_manager *man,
 
 static void vmw_dx_streamoutput_res_free(struct vmw_resource *res)
 {
-	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_dx_streamoutput *so = vmw_res_to_dx_streamoutput(res);
 
 	vmw_resource_unreference(&so->cotable);
 	kfree(so);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), vmw_streamoutput_size);
 }
 
 static void vmw_dx_streamoutput_hw_destroy(struct vmw_resource *res)
@@ -284,27 +280,10 @@ int vmw_dx_streamoutput_add(struct vmw_cmdbuf_res_manager *man,
 	struct vmw_dx_streamoutput *so;
 	struct vmw_resource *res;
 	struct vmw_private *dev_priv = ctx->dev_priv;
-	struct ttm_operation_ctx ttm_opt_ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	int ret;
-
-	if (!vmw_streamoutput_size)
-		vmw_streamoutput_size = ttm_round_pot(sizeof(*so));
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   vmw_streamoutput_size, &ttm_opt_ctx);
-	if (ret) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for streamout.\n");
-		return ret;
-	}
 
 	so = kmalloc(sizeof(*so), GFP_KERNEL);
 	if (!so) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv),
-				    vmw_streamoutput_size);
 		return -ENOMEM;
 	}
 

@@ -1327,8 +1327,7 @@ static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind)
 }
 
 /**
- * vmw_binding_state_alloc - Allocate a struct vmw_ctx_binding_state with
- * memory accounting.
+ * vmw_binding_state_alloc - Allocate a struct vmw_ctx_binding_state.
  *
  * @dev_priv: Pointer to a device private structure.
  *
@@ -1338,20 +1337,9 @@ struct vmw_ctx_binding_state *
 vmw_binding_state_alloc(struct vmw_private *dev_priv)
 {
 	struct vmw_ctx_binding_state *cbs;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
-	int ret;
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), sizeof(*cbs),
-				&ctx);
-	if (ret)
-		return ERR_PTR(ret);
 
 	cbs = vzalloc(sizeof(*cbs));
 	if (!cbs) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv), sizeof(*cbs));
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1362,17 +1350,13 @@ vmw_binding_state_alloc(struct vmw_private *dev_priv)
 }
 
 /**
- * vmw_binding_state_free - Free a struct vmw_ctx_binding_state and its
- * memory accounting info.
+ * vmw_binding_state_free - Free a struct vmw_ctx_binding_state.
  *
  * @cbs: Pointer to the struct vmw_ctx_binding_state to be freed.
  */
 void vmw_binding_state_free(struct vmw_ctx_binding_state *cbs)
 {
-	struct vmw_private *dev_priv = cbs->dev_priv;
-
 	vfree(cbs);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), sizeof(*cbs));
 }
 
 /**

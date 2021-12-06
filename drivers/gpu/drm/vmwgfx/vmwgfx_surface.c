@@ -45,14 +45,12 @@
  * @prime:          The TTM prime object.
  * @base:           The TTM base object handling user-space visibility.
  * @srf:            The surface metadata.
- * @size:           TTM accounting size for the surface.
  * @master:         Master of the creating client. Used for security check.
  * @backup_base:    The TTM base object of the backup buffer.
  */
 struct vmw_user_surface {
 	struct ttm_prime_object prime;
 	struct vmw_surface srf;
-	uint32_t size;
 	struct drm_master *master;
 	struct ttm_base_object *backup_base;
 };
@@ -74,13 +72,11 @@ struct vmw_surface_offset {
 /**
  * struct vmw_surface_dirty - Surface dirty-tracker
  * @cache: Cached layout information of the surface.
- * @size: Accounting size for the struct vmw_surface_dirty.
  * @num_subres: Number of subresources.
  * @boxes: Array of SVGA3dBoxes indicating dirty regions. One per subresource.
  */
 struct vmw_surface_dirty {
 	struct vmw_surface_cache cache;
-	size_t size;
 	u32 num_subres;
 	SVGA3dBox boxes[];
 };
@@ -128,9 +124,6 @@ static const struct vmw_user_resource_conv user_surface_conv = {
 
 const struct vmw_user_resource_conv *user_surface_converter =
 	&user_surface_conv;
-
-
-static uint64_t vmw_user_surface_size;
 
 static const struct vmw_res_func vmw_legacy_surface_func = {
 	.res_type = vmw_res_surface,
@@ -359,7 +352,7 @@ static void vmw_surface_dma_encode(struct vmw_surface *srf,
  *              vmw_surface.
  *
  * Destroys a the device surface associated with a struct vmw_surface if
- * any, and adjusts accounting and resource count accordingly.
+ * any, and adjusts resource count accordingly.
  */
 static void vmw_hw_surface_destroy(struct vmw_resource *res)
 {
@@ -666,8 +659,6 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	struct vmw_surface *srf = vmw_res_to_srf(res);
 	struct vmw_user_surface *user_srf =
 	    container_of(srf, struct vmw_user_surface, srf);
-	struct vmw_private *dev_priv = srf->res.dev_priv;
-	uint32_t size = user_srf->size;
 
 	WARN_ON_ONCE(res->dirty);
 	if (user_srf->master)
@@ -676,7 +667,6 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	kfree(srf->metadata.sizes);
 	kfree(srf->snooper.image);
 	ttm_prime_object_kfree(user_srf, prime);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 }
 
 /**
@@ -740,22 +730,13 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_surface_create_req *req = &arg->req;
 	struct drm_vmw_surface_arg *rep = &arg->rep;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	int ret;
 	int i, j;
 	uint32_t cur_bo_offset;
 	struct drm_vmw_size *cur_size;
 	struct vmw_surface_offset *cur_offset;
 	uint32_t num_sizes;
-	uint32_t size;
 	const SVGA3dSurfaceDesc *desc;
-
-	if (unlikely(vmw_user_surface_size == 0))
-		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
-			VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
 	num_sizes = 0;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i) {
@@ -768,10 +749,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	    num_sizes == 0)
 		return -EINVAL;
 
-	size = vmw_user_surface_size +
-		ttm_round_pot(num_sizes * sizeof(struct drm_vmw_size)) +
-		ttm_round_pot(num_sizes * sizeof(struct vmw_surface_offset));
-
 	desc = vmw_surface_get_desc(req->format);
 	if (unlikely(desc->blockDesc == SVGA3DBLOCKDESC_NONE)) {
 		VMW_DEBUG_USER("Invalid format %d for surface creation.\n",
@@ -779,18 +756,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   size, &ctx);
-	if (unlikely(ret != 0)) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for surface.\n");
-		goto out_unlock;
-	}
-
 	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
 	if (unlikely(!user_srf)) {
 		ret = -ENOMEM;
-		goto out_no_user_srf;
+		goto out_unlock;
 	}
 
 	srf = &user_srf->srf;
@@ -805,7 +774,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	memcpy(metadata->mip_levels, req->mip_levels,
 	       sizeof(metadata->mip_levels));
 	metadata->num_sizes = num_sizes;
-	user_srf->size = size;
 	metadata->sizes =
 		memdup_user((struct drm_vmw_size __user *)(unsigned long)
 			    req->size_addr,
@@ -916,8 +884,6 @@ out_no_offsets:
 	kfree(metadata->sizes);
 out_no_sizes:
 	ttm_prime_object_kfree(user_srf, prime);
-out_no_user_srf:
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
 	return ret;
 }
@@ -1459,7 +1425,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	struct vmw_resource *res;
 	struct vmw_resource *tmp;
 	int ret = 0;
-	uint32_t size;
 	uint32_t backup_handle = 0;
 	SVGA3dSurfaceAllFlags svga3d_flags_64 =
 		SVGA3D_FLAGS_64(req->svga3d_flags_upper_32_bits,
@@ -1506,12 +1471,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	if (unlikely(vmw_user_surface_size == 0))
-		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
-			VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
-
-	size = vmw_user_surface_size;
-
 	metadata.flags = svga3d_flags_64;
 	metadata.format = req->base.format;
 	metadata.mip_levels[0] = req->base.mip_levels;
@@ -1526,7 +1485,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		drm_vmw_surface_flag_scanout;
 
 	/* Define a surface based on the parameters. */
-	ret = vmw_gb_surface_define(dev_priv, size, &metadata, &srf);
+	ret = vmw_gb_surface_define(dev_priv, &metadata, &srf);
 	if (ret != 0) {
 		VMW_DEBUG_USER("Failed to define surface.\n");
 		return ret;
@@ -1955,11 +1914,7 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 	u32 num_mip;
 	u32 num_subres;
 	u32 num_samples;
-	size_t dirty_size, acc_size;
-	static struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
+	size_t dirty_size;
 	int ret;
 
 	if (metadata->array_size)
@@ -1973,14 +1928,6 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 
 	num_subres = num_layers * num_mip;
 	dirty_size = struct_size(dirty, boxes, num_subres);
-	acc_size = ttm_round_pot(dirty_size);
-	ret = ttm_mem_global_alloc(vmw_mem_glob(res->dev_priv),
-				   acc_size, &ctx);
-	if (ret) {
-		VMW_DEBUG_USER("Out of graphics memory for surface "
-			       "dirty tracker.\n");
-		return ret;
-	}
 
 	dirty = kvzalloc(dirty_size, GFP_KERNEL);
 	if (!dirty) {
@@ -1990,13 +1937,12 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 
 	num_samples = max_t(u32, 1, metadata->multisample_count);
 	ret = vmw_surface_setup_cache(&metadata->base_size, metadata->format,
-					num_mip, num_layers, num_samples,
-					&dirty->cache);
+				      num_mip, num_layers, num_samples,
+				      &dirty->cache);
 	if (ret)
 		goto out_no_cache;
 
 	dirty->num_subres = num_subres;
-	dirty->size = acc_size;
 	res->dirty = (struct vmw_resource_dirty *) dirty;
 
 	return 0;
@@ -2004,7 +1950,6 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 out_no_cache:
 	kvfree(dirty);
 out_no_dirty:
-	ttm_mem_global_free(vmw_mem_glob(res->dev_priv), acc_size);
 	return ret;
 }
 
@@ -2015,10 +1960,8 @@ static void vmw_surface_dirty_free(struct vmw_resource *res)
 {
 	struct vmw_surface_dirty *dirty =
 		(struct vmw_surface_dirty *) res->dirty;
-	size_t acc_size = dirty->size;
 
 	kvfree(dirty);
-	ttm_mem_global_free(vmw_mem_glob(res->dev_priv), acc_size);
 	res->dirty = NULL;
 }
 
@@ -2051,8 +1994,6 @@ static int vmw_surface_clean(struct vmw_resource *res)
  * vmw_gb_surface_define - Define a private GB surface
  *
  * @dev_priv: Pointer to a device private.
- * @user_accounting_size:  Used to track user-space memory usage, set
- *                         to 0 for kernel mode only memory
  * @metadata: Metadata representing the surface to create.
  * @user_srf_out: allocated user_srf. Set to NULL on failure.
  *
@@ -2062,17 +2003,12 @@ static int vmw_surface_clean(struct vmw_resource *res)
  * it available to user mode drivers.
  */
 int vmw_gb_surface_define(struct vmw_private *dev_priv,
-			  uint32_t user_accounting_size,
 			  const struct vmw_surface_metadata *req,
 			  struct vmw_surface **srf_out)
 {
 	struct vmw_surface_metadata *metadata;
 	struct vmw_user_surface *user_srf;
 	struct vmw_surface *srf;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	u32 sample_count = 1;
 	u32 num_layers = 1;
 	int ret;
@@ -2113,22 +2049,13 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	if (req->sizes != NULL)
 		return -EINVAL;
 
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   user_accounting_size, &ctx);
-	if (ret != 0) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for surface.\n");
-		goto out_unlock;
-	}
-
 	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
 	if (unlikely(!user_srf)) {
 		ret = -ENOMEM;
-		goto out_no_user_srf;
+		goto out_unlock;
 	}
 
 	*srf_out  = &user_srf->srf;
-	user_srf->size = user_accounting_size;
 	user_srf->prime.base.shareable = false;
 	user_srf->prime.base.tfile = NULL;
 
@@ -2178,9 +2105,6 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	ret = vmw_surface_init(dev_priv, srf, vmw_user_surface_free);
 
 	return ret;
-
-out_no_user_srf:
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), user_accounting_size);
 
 out_unlock:
 	return ret;

@@ -50,9 +50,6 @@
 #define VMW_MIN_INITIAL_WIDTH 800
 #define VMW_MIN_INITIAL_HEIGHT 600
 
-#define VMWGFX_VALIDATION_MEM_GRAN (16*PAGE_SIZE)
-
-
 /*
  * Fully encoded drm commands. Might move to vmw_drm.h
  */
@@ -986,8 +983,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		goto out_err0;
 	}
 
-	dev_priv->tdev = ttm_object_device_init(&ttm_mem_glob, 12,
-						&vmw_prime_dmabuf_ops);
+	dev_priv->tdev = ttm_object_device_init(12, &vmw_prime_dmabuf_ops);
 
 	if (unlikely(dev_priv->tdev == NULL)) {
 		drm_err(&dev_priv->drm,
@@ -1082,8 +1078,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_DXCONTEXT))
 			dev_priv->sm_type = VMW_SM_4;
 	}
-
-	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
 
 	/* SVGA_CAP2_DX2 (DefineGBSurface_v3) is needed for SM4_1 support */
 	if (has_sm4_context(dev_priv) &&
@@ -1397,7 +1391,6 @@ static void vmw_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	ttm_mem_global_release(&ttm_mem_glob);
 	drm_dev_unregister(dev);
 	vmw_driver_unload(dev);
 }
@@ -1641,13 +1634,9 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, &vmw->drm);
 
-	ret = ttm_mem_global_init(&ttm_mem_glob, &pdev->dev);
-	if (ret)
-		goto out_error;
-
 	ret = vmw_driver_load(vmw, ent->device);
 	if (ret)
-		goto out_release;
+		goto out_error;
 
 	ret = drm_dev_register(&vmw->drm, 0);
 	if (ret)
@@ -1656,8 +1645,6 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 out_unload:
 	vmw_driver_unload(&vmw->drm);
-out_release:
-	ttm_mem_global_release(&ttm_mem_glob);
 out_error:
 	return ret;
 }

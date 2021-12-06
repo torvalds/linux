@@ -392,39 +392,6 @@ void vmw_bo_unmap(struct vmw_buffer_object *vbo)
 
 
 /**
- * vmw_bo_acc_size - Calculate the pinned memory usage of buffers
- *
- * @dev_priv: Pointer to a struct vmw_private identifying the device.
- * @size: The requested buffer size.
- * @user: Whether this is an ordinary dma buffer or a user dma buffer.
- */
-static size_t vmw_bo_acc_size(struct vmw_private *dev_priv, size_t size,
-			      bool user)
-{
-	static size_t struct_size, user_struct_size;
-	size_t num_pages = PFN_UP(size);
-	size_t page_array_size = ttm_round_pot(num_pages * sizeof(void *));
-
-	if (unlikely(struct_size == 0)) {
-		size_t backend_size = ttm_round_pot(vmw_tt_size);
-
-		struct_size = backend_size +
-			ttm_round_pot(sizeof(struct vmw_buffer_object));
-		user_struct_size = backend_size +
-		  ttm_round_pot(sizeof(struct vmw_user_buffer_object)) +
-				      TTM_OBJ_EXTRA_SIZE;
-	}
-
-	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
-		page_array_size +=
-			ttm_round_pot(num_pages * sizeof(dma_addr_t));
-
-	return ((user) ? user_struct_size : struct_size) +
-		page_array_size;
-}
-
-
-/**
  * vmw_bo_bo_free - vmw buffer object destructor
  *
  * @bo: Pointer to the embedded struct ttm_buffer_object
@@ -471,23 +438,16 @@ int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
 			 struct ttm_placement *placement,
 			 struct ttm_buffer_object **p_bo)
 {
-	struct ttm_operation_ctx ctx = { false, false };
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	struct ttm_buffer_object *bo;
-	size_t acc_size;
 	int ret;
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (unlikely(!bo))
 		return -ENOMEM;
-
-	acc_size = ttm_round_pot(sizeof(*bo));
-	acc_size += ttm_round_pot(PFN_UP(size) * sizeof(void *));
-	acc_size += ttm_round_pot(sizeof(struct ttm_tt));
-
-	ret = ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);
-	if (unlikely(ret))
-		goto error_free;
-
 
 	bo->base.size = size;
 	dma_resv_init(&bo->base._resv);
@@ -497,16 +457,13 @@ int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
 				   ttm_bo_type_kernel, placement, 0,
 				   &ctx, NULL, NULL, NULL);
 	if (unlikely(ret))
-		goto error_account;
+		goto error_free;
 
 	ttm_bo_pin(bo);
 	ttm_bo_unreserve(bo);
 	*p_bo = bo;
 
 	return 0;
-
-error_account:
-	ttm_mem_global_free(&ttm_mem_glob, acc_size);
 
 error_free:
 	kfree(bo);
@@ -533,23 +490,20 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 		bool interruptible, bool pin,
 		void (*bo_free)(struct ttm_buffer_object *bo))
 {
-	struct ttm_operation_ctx ctx = { interruptible, false };
+	struct ttm_operation_ctx ctx = {
+		.interruptible = interruptible,
+		.no_wait_gpu = false
+	};
 	struct ttm_device *bdev = &dev_priv->bdev;
-	size_t acc_size;
 	int ret;
 	bool user = (bo_free == &vmw_user_bo_destroy);
 
 	WARN_ON_ONCE(!bo_free && (!user && (bo_free != vmw_bo_bo_free)));
-
-	acc_size = vmw_bo_acc_size(dev_priv, size, user);
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
 	BUILD_BUG_ON(TTM_MAX_BO_PRIORITY <= 3);
 	vmw_bo->base.priority = 3;
 	vmw_bo->res_tree = RB_ROOT;
 
-	ret = ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);
-	if (unlikely(ret))
-		return ret;
 
 	vmw_bo->base.base.size = size;
 	dma_resv_init(&vmw_bo->base.base._resv);
@@ -559,7 +513,6 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 				   ttm_bo_type_device, placement,
 				   0, &ctx, NULL, NULL, bo_free);
 	if (unlikely(ret)) {
-		ttm_mem_global_free(&ttm_mem_glob, acc_size);
 		return ret;
 	}
 

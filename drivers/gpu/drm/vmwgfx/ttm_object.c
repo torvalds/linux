@@ -93,10 +93,8 @@ struct ttm_object_device {
 	spinlock_t object_lock;
 	struct vmwgfx_open_hash object_hash;
 	atomic_t object_count;
-	struct ttm_mem_global *mem_glob;
 	struct dma_buf_ops ops;
 	void (*dmabuf_release)(struct dma_buf *dma_buf);
-	size_t dma_buf_size;
 	struct idr idr;
 };
 
@@ -352,11 +350,6 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 	struct vmwgfx_open_hash *ht = &tfile->ref_hash[ref_type];
 	struct ttm_ref_object *ref;
 	struct vmwgfx_hash_item *hash;
-	struct ttm_mem_global *mem_glob = tfile->tdev->mem_glob;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
 	int ret = -EINVAL;
 
 	if (base->tfile != tfile && !base->shareable)
@@ -381,13 +374,8 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		if (require_existed)
 			return -EPERM;
 
-		ret = ttm_mem_global_alloc(mem_glob, sizeof(*ref),
-					   &ctx);
-		if (unlikely(ret != 0))
-			return ret;
 		ref = kmalloc(sizeof(*ref), GFP_KERNEL);
 		if (unlikely(ref == NULL)) {
-			ttm_mem_global_free(mem_glob, sizeof(*ref));
 			return -ENOMEM;
 		}
 
@@ -412,7 +400,6 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		spin_unlock(&tfile->lock);
 		BUG_ON(ret != -EINVAL);
 
-		ttm_mem_global_free(mem_glob, sizeof(*ref));
 		kfree(ref);
 	}
 
@@ -427,7 +414,6 @@ ttm_ref_object_release(struct kref *kref)
 	struct ttm_base_object *base = ref->obj;
 	struct ttm_object_file *tfile = ref->tfile;
 	struct vmwgfx_open_hash *ht;
-	struct ttm_mem_global *mem_glob = tfile->tdev->mem_glob;
 
 	ht = &tfile->ref_hash[ref->ref_type];
 	(void)vmwgfx_ht_remove_item_rcu(ht, &ref->hash);
@@ -438,7 +424,6 @@ ttm_ref_object_release(struct kref *kref)
 		base->ref_obj_release(base, ref->ref_type);
 
 	ttm_base_object_unref(&ref->obj);
-	ttm_mem_global_free(mem_glob, sizeof(*ref));
 	kfree_rcu(ref, rcu_head);
 	spin_lock(&tfile->lock);
 }
@@ -526,8 +511,7 @@ out_err:
 }
 
 struct ttm_object_device *
-ttm_object_device_init(struct ttm_mem_global *mem_glob,
-		       unsigned int hash_order,
+ttm_object_device_init(unsigned int hash_order,
 		       const struct dma_buf_ops *ops)
 {
 	struct ttm_object_device *tdev = kmalloc(sizeof(*tdev), GFP_KERNEL);
@@ -536,7 +520,6 @@ ttm_object_device_init(struct ttm_mem_global *mem_glob,
 	if (unlikely(tdev == NULL))
 		return NULL;
 
-	tdev->mem_glob = mem_glob;
 	spin_lock_init(&tdev->object_lock);
 	atomic_set(&tdev->object_count, 0);
 	ret = vmwgfx_ht_create(&tdev->object_hash, hash_order);
@@ -547,8 +530,6 @@ ttm_object_device_init(struct ttm_mem_global *mem_glob,
 	tdev->ops = *ops;
 	tdev->dmabuf_release = tdev->ops.release;
 	tdev->ops.release = ttm_prime_dmabuf_release;
-	tdev->dma_buf_size = ttm_round_pot(sizeof(struct dma_buf)) +
-		ttm_round_pot(sizeof(struct file));
 	return tdev;
 
 out_no_object_hash:
@@ -633,7 +614,6 @@ static void ttm_prime_dmabuf_release(struct dma_buf *dma_buf)
 	if (prime->dma_buf == dma_buf)
 		prime->dma_buf = NULL;
 	mutex_unlock(&prime->mutex);
-	ttm_mem_global_free(tdev->mem_glob, tdev->dma_buf_size);
 	ttm_base_object_unref(&base);
 }
 
@@ -715,30 +695,18 @@ int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 	dma_buf = prime->dma_buf;
 	if (!dma_buf || !get_dma_buf_unless_doomed(dma_buf)) {
 		DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
-		struct ttm_operation_ctx ctx = {
-			.interruptible = true,
-			.no_wait_gpu = false
-		};
 		exp_info.ops = &tdev->ops;
 		exp_info.size = prime->size;
 		exp_info.flags = flags;
 		exp_info.priv = prime;
 
 		/*
-		 * Need to create a new dma_buf, with memory accounting.
+		 * Need to create a new dma_buf
 		 */
-		ret = ttm_mem_global_alloc(tdev->mem_glob, tdev->dma_buf_size,
-					   &ctx);
-		if (unlikely(ret != 0)) {
-			mutex_unlock(&prime->mutex);
-			goto out_unref;
-		}
 
 		dma_buf = dma_buf_export(&exp_info);
 		if (IS_ERR(dma_buf)) {
 			ret = PTR_ERR(dma_buf);
-			ttm_mem_global_free(tdev->mem_glob,
-					    tdev->dma_buf_size);
 			mutex_unlock(&prime->mutex);
 			goto out_unref;
 		}

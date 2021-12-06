@@ -42,7 +42,6 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 
-#include "ttm_memory.h"
 #include "vmwgfx_hashtab.h"
 
 /**
@@ -296,7 +295,6 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
 /**
  * ttm_object device init - initialize a struct ttm_object_device
  *
- * @mem_glob: struct ttm_mem_global for memory accounting.
  * @hash_order: Order of hash table used to hash the base objects.
  * @ops: DMA buf ops for prime objects of this device.
  *
@@ -305,8 +303,7 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
  */
 
 extern struct ttm_object_device *
-ttm_object_device_init(struct ttm_mem_global *mem_glob,
-		       unsigned int hash_order,
+ttm_object_device_init(unsigned int hash_order,
 		       const struct dma_buf_ops *ops);
 
 /**
@@ -351,13 +348,6 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 
 #define ttm_prime_object_kfree(__obj, __prime)		\
 	kfree_rcu(__obj, __prime.base.rhead)
-
-/*
- * Extra memory required by the base object's idr storage, which is allocated
- * separately from the base object itself. We estimate an on-average 128 bytes
- * per idr.
- */
-#define TTM_OBJ_EXTRA_SIZE 128
 
 struct ttm_base_object *
 ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key);

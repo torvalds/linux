@@ -628,9 +628,6 @@ struct vmw_private {
 	struct vmw_cmdbuf_man *cman;
 	DECLARE_BITMAP(irqthread_pending, VMW_IRQTHREAD_MAX);
 
-	/* Validation memory reservation */
-	struct vmw_validation_mem vvm;
-
 	uint32 *devcaps;
 
 	/*
@@ -1028,9 +1025,6 @@ vmw_is_cursor_bypass3_enabled(const struct vmw_private *dev_priv)
 
 extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 
-extern void vmw_validation_mem_init_ttm(struct vmw_private *dev_priv,
-					size_t gran);
-
 /**
  * TTM buffer object driver - vmwgfx_ttm_buffer.c
  */
@@ -1328,18 +1322,6 @@ extern int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file_priv);
 extern int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 					  struct drm_file *file_priv);
-int vmw_surface_gb_priv_define(struct drm_device *dev,
-			       uint32_t user_accounting_size,
-			       SVGA3dSurfaceAllFlags svga3d_flags,
-			       SVGA3dSurfaceFormat format,
-			       bool for_scanout,
-			       uint32_t num_mip_levels,
-			       uint32_t multisample_count,
-			       uint32_t array_size,
-			       struct drm_vmw_size size,
-			       SVGA3dMSPattern multisample_pattern,
-			       SVGA3dMSQualityLevel quality_level,
-			       struct vmw_surface **srf_out);
 extern int vmw_gb_surface_define_ext_ioctl(struct drm_device *dev,
 					   void *data,
 					   struct drm_file *file_priv);
@@ -1348,7 +1330,6 @@ extern int vmw_gb_surface_reference_ext_ioctl(struct drm_device *dev,
 					      struct drm_file *file_priv);
 
 int vmw_gb_surface_define(struct vmw_private *dev_priv,
-			  uint32_t user_accounting_size,
 			  const struct vmw_surface_metadata *req,
 			  struct vmw_surface **srf_out);
 
@@ -1409,7 +1390,6 @@ void vmw_dx_streamoutput_cotable_list_scrub(struct vmw_private *dev_priv,
 extern struct vmw_cmdbuf_res_manager *
 vmw_cmdbuf_res_man_create(struct vmw_private *dev_priv);
 extern void vmw_cmdbuf_res_man_destroy(struct vmw_cmdbuf_res_manager *man);
-extern size_t vmw_cmdbuf_res_man_size(void);
 extern struct vmw_resource *
 vmw_cmdbuf_res_lookup(struct vmw_cmdbuf_res_manager *man,
 		      enum vmw_cmdbuf_res_type res_type,
@@ -1604,11 +1584,6 @@ vmw_bo_reference(struct vmw_buffer_object *buf)
 {
 	ttm_bo_get(&buf->base);
 	return buf;
-}
-
-static inline struct ttm_mem_global *vmw_mem_glob(struct vmw_private *dev_priv)
-{
-	return &ttm_mem_glob;
 }
 
 static inline void vmw_fifo_resource_inc(struct vmw_private *dev_priv)
