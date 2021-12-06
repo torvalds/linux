@@ -403,49 +403,6 @@ static const struct of_device_id ntc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ntc_match);
 
-static struct ntc_data *ntc_thermistor_parse_dt(struct device *dev)
-{
-	struct ntc_data *data;
-	struct iio_channel *chan;
-	enum iio_chan_type type;
-	struct device_node *np = dev->of_node;
-	int ret;
-
-	if (!np)
-		return NULL;
-
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	chan = devm_iio_channel_get(dev, NULL);
-	if (IS_ERR(chan))
-		return ERR_CAST(chan);
-
-	ret = iio_get_channel_type(chan, &type);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	if (type != IIO_VOLTAGE)
-		return ERR_PTR(-EINVAL);
-
-	if (of_property_read_u32(np, "pullup-uv", &data->pullup_uv))
-		return ERR_PTR(-ENODEV);
-	if (of_property_read_u32(np, "pullup-ohm", &data->pullup_ohm))
-		return ERR_PTR(-ENODEV);
-	if (of_property_read_u32(np, "pulldown-ohm", &data->pulldown_ohm))
-		return ERR_PTR(-ENODEV);
-
-	if (of_find_property(np, "connected-positive", NULL))
-		data->connect = NTC_CONNECTED_POSITIVE;
-	else /* status change should be possible if not always on. */
-		data->connect = NTC_CONNECTED_GROUND;
-
-	data->chan = chan;
-
-	return data;
-}
-
 static inline u64 div64_u64_safe(u64 dividend, u64 divisor)
 {
 	if (divisor == 0 && dividend == 0)
@@ -638,6 +595,42 @@ static const struct hwmon_chip_info ntc_chip_info = {
 	.info = ntc_info,
 };
 
+static int ntc_thermistor_parse_dt(struct device *dev,
+				   struct ntc_data *data)
+{
+	struct iio_channel *chan;
+	enum iio_chan_type type;
+	struct device_node *np = dev->of_node;
+	int ret;
+
+	chan = devm_iio_channel_get(dev, NULL);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+
+	ret = iio_get_channel_type(chan, &type);
+	if (ret < 0)
+		return ret;
+
+	if (type != IIO_VOLTAGE)
+		return -EINVAL;
+
+	if (of_property_read_u32(np, "pullup-uv", &data->pullup_uv))
+		return -ENODEV;
+	if (of_property_read_u32(np, "pullup-ohm", &data->pullup_ohm))
+		return -ENODEV;
+	if (of_property_read_u32(np, "pulldown-ohm", &data->pulldown_ohm))
+		return -ENODEV;
+
+	if (of_find_property(np, "connected-positive", NULL))
+		data->connect = NTC_CONNECTED_POSITIVE;
+	else /* status change should be possible if not always on. */
+		data->connect = NTC_CONNECTED_GROUND;
+
+	data->chan = chan;
+
+	return 0;
+}
+
 static int ntc_thermistor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -646,15 +639,15 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	const struct platform_device_id *pdev_id;
 	struct device *hwmon_dev;
 	struct ntc_data *data;
+	int ret;
 
-	data = ntc_thermistor_parse_dt(dev);
-	if (IS_ERR(data))
-		return PTR_ERR(data);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
-	if (!data) {
-		dev_err(dev, "No platform init data supplied.\n");
-		return -ENODEV;
-	}
+	ret = ntc_thermistor_parse_dt(dev, data);
+	if (ret)
+		return ret;
 
 	if (data->pullup_uv == 0 ||
 	    (data->pullup_ohm == 0 && data->connect ==
