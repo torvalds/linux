@@ -1312,7 +1312,7 @@ int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)
-		netdev_err(vif->ndev, "Failed to get mac address\n");
+		netdev_err(vif->ndev, "Failed to set mac address\n");
 
 	return result;
 }
