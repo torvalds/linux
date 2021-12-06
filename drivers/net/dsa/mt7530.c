@@ -1188,27 +1188,31 @@ static int
 mt7530_port_bridge_join(struct dsa_switch *ds, int port,
 			struct net_device *bridge)
 {
-	struct mt7530_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_to_port(ds, port), *other_dp;
 	u32 port_bitmap = BIT(MT7530_CPU_PORT);
-	int i;
+	struct mt7530_priv *priv = ds->priv;
 
 	mutex_lock(&priv->reg_mutex);
 
-	for (i = 0; i < MT7530_NUM_PORTS; i++) {
+	dsa_switch_for_each_user_port(other_dp, ds) {
+		int other_port = other_dp->index;
+
+		if (dp == other_dp)
+			continue;
+
 		/* Add this port to the port matrix of the other ports in the
 		 * same bridge. If the port is disabled, port matrix is kept
 		 * and not being setup until the port becomes enabled.
 		 */
-		if (dsa_is_user_port(ds, i) && i != port) {
-			if (dsa_to_port(ds, i)->bridge_dev != bridge)
-				continue;
-			if (priv->ports[i].enable)
-				mt7530_set(priv, MT7530_PCR_P(i),
-					   PCR_MATRIX(BIT(port)));
-			priv->ports[i].pm |= PCR_MATRIX(BIT(port));
+		if (other_dp->bridge_dev != bridge)
+			continue;
 
-			port_bitmap |= BIT(i);
-		}
+		if (priv->ports[other_port].enable)
+			mt7530_set(priv, MT7530_PCR_P(other_port),
+				   PCR_MATRIX(BIT(port)));
+		priv->ports[other_port].pm |= PCR_MATRIX(BIT(port));
+
+		port_bitmap |= BIT(other_port);
 	}
 
 	/* Add the all other ports to this port matrix. */
@@ -1301,24 +1305,28 @@ static void
 mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 			 struct net_device *bridge)
 {
+	struct dsa_port *dp = dsa_to_port(ds, port), *other_dp;
 	struct mt7530_priv *priv = ds->priv;
-	int i;
 
 	mutex_lock(&priv->reg_mutex);
 
-	for (i = 0; i < MT7530_NUM_PORTS; i++) {
+	dsa_switch_for_each_user_port(other_dp, ds) {
+		int other_port = other_dp->index;
+
+		if (dp == other_dp)
+			continue;
+
 		/* Remove this port from the port matrix of the other ports
 		 * in the same bridge. If the port is disabled, port matrix
 		 * is kept and not being setup until the port becomes enabled.
 		 */
-		if (dsa_is_user_port(ds, i) && i != port) {
-			if (dsa_to_port(ds, i)->bridge_dev != bridge)
-				continue;
-			if (priv->ports[i].enable)
-				mt7530_clear(priv, MT7530_PCR_P(i),
-					     PCR_MATRIX(BIT(port)));
-			priv->ports[i].pm &= ~PCR_MATRIX(BIT(port));
-		}
+		if (other_dp->bridge_dev != bridge)
+			continue;
+
+		if (priv->ports[other_port].enable)
+			mt7530_clear(priv, MT7530_PCR_P(other_port),
+				     PCR_MATRIX(BIT(port)));
+		priv->ports[other_port].pm &= ~PCR_MATRIX(BIT(port));
 	}
 
 	/* Set the cpu port to be the only one in the port matrix of
