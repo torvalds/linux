@@ -71,6 +71,12 @@ enum fscache_cookie_trace {
 	fscache_cookie_see_work,
 };
 
+enum fscache_active_trace {
+	fscache_active_use,
+	fscache_active_use_modify,
+	fscache_active_unuse,
+};
+
 enum fscache_access_trace {
 	fscache_access_acquire_volume,
 	fscache_access_acquire_volume_end,
@@ -145,6 +151,11 @@ enum fscache_access_trace {
 	EM(fscache_cookie_see_relinquish,	"-   x-rlq")		\
 	EM(fscache_cookie_see_withdraw,		"-   x-wth")		\
 	E_(fscache_cookie_see_work,		"-   work ")
+
+#define fscache_active_traces		\
+	EM(fscache_active_use,			"USE          ")	\
+	EM(fscache_active_use_modify,		"USE-m        ")	\
+	E_(fscache_active_unuse,		"UNUSE        ")
 
 #define fscache_access_traces		\
 	EM(fscache_access_acquire_volume,	"BEGIN acq_vol")	\
@@ -262,6 +273,39 @@ TRACE_EVENT(fscache_cookie,
 		      __entry->cookie,
 		      __print_symbolic(__entry->where, fscache_cookie_traces),
 		      __entry->ref)
+	    );
+
+TRACE_EVENT(fscache_active,
+	    TP_PROTO(unsigned int cookie_debug_id,
+		     int ref,
+		     int n_active,
+		     int n_accesses,
+		     enum fscache_active_trace why),
+
+	    TP_ARGS(cookie_debug_id, ref, n_active, n_accesses, why),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		cookie		)
+		    __field(int,			ref		)
+		    __field(int,			n_active	)
+		    __field(int,			n_accesses	)
+		    __field(enum fscache_active_trace,	why		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie	= cookie_debug_id;
+		    __entry->ref	= ref;
+		    __entry->n_active	= n_active;
+		    __entry->n_accesses	= n_accesses;
+		    __entry->why	= why;
+			   ),
+
+	    TP_printk("c=%08x %s r=%d a=%d c=%d",
+		      __entry->cookie,
+		      __print_symbolic(__entry->why, fscache_active_traces),
+		      __entry->ref,
+		      __entry->n_accesses,
+		      __entry->n_active)
 	    );
 
 TRACE_EVENT(fscache_access_cache,

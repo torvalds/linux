@@ -556,6 +556,7 @@ void __fscache_use_cookie(struct fscache_cookie *cookie, bool will_modify)
 {
 	enum fscache_cookie_state state;
 	bool queue = false;
+	int n_active;
 
 	_enter("c=%08x", cookie->debug_id);
 
@@ -565,7 +566,11 @@ void __fscache_use_cookie(struct fscache_cookie *cookie, bool will_modify)
 
 	spin_lock(&cookie->lock);
 
-	atomic_inc(&cookie->n_active);
+	n_active = atomic_inc_return(&cookie->n_active);
+	trace_fscache_active(cookie->debug_id, refcount_read(&cookie->ref),
+			     n_active, atomic_read(&cookie->n_accesses),
+			     will_modify ?
+			     fscache_active_use_modify : fscache_active_use);
 
 again:
 	state = fscache_cookie_state(cookie);
@@ -638,13 +643,29 @@ static void fscache_unuse_cookie_locked(struct fscache_cookie *cookie)
 void __fscache_unuse_cookie(struct fscache_cookie *cookie,
 			    const void *aux_data, const loff_t *object_size)
 {
+	unsigned int debug_id = cookie->debug_id;
+	unsigned int r = refcount_read(&cookie->ref);
+	unsigned int a = atomic_read(&cookie->n_accesses);
+	unsigned int c;
+
 	if (aux_data || object_size)
 		__fscache_update_cookie(cookie, aux_data, object_size);
 
-	if (atomic_dec_and_lock(&cookie->n_active, &cookie->lock)) {
-		fscache_unuse_cookie_locked(cookie);
-		spin_unlock(&cookie->lock);
+	/* Subtract 1 from counter unless that drops it to 0 (ie. it was 1) */
+	c = atomic_fetch_add_unless(&cookie->n_active, -1, 1);
+	if (c != 1) {
+		trace_fscache_active(debug_id, r, c - 1, a, fscache_active_unuse);
+		return;
 	}
+
+	spin_lock(&cookie->lock);
+	r = refcount_read(&cookie->ref);
+	a = atomic_read(&cookie->n_accesses);
+	c = atomic_dec_return(&cookie->n_active);
+	trace_fscache_active(debug_id, r, c, a, fscache_active_unuse);
+	if (c == 0)
+		fscache_unuse_cookie_locked(cookie);
+	spin_unlock(&cookie->lock);
 }
 EXPORT_SYMBOL(__fscache_unuse_cookie);
 
