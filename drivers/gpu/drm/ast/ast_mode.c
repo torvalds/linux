@@ -1210,9 +1210,9 @@ static int ast_get_modes(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
 	struct ast_private *ast = to_ast_private(connector->dev);
-	struct edid *edid;
-	int ret;
+	struct edid *edid = NULL;
 	bool flags = false;
+	int ret;
 
 	if (ast->tx_chip_type == AST_TX_DP501) {
 		ast->dp501_maxclk = 0xff;
@@ -1226,7 +1226,7 @@ static int ast_get_modes(struct drm_connector *connector)
 		else
 			kfree(edid);
 	}
-	if (!flags)
+	if (!flags && ast_connector->i2c)
 		edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
 	if (edid) {
 		drm_connector_update_edid_property(&ast_connector->base, edid);
@@ -1332,10 +1332,13 @@ static int ast_connector_init(struct drm_device *dev)
 	if (!ast_connector->i2c)
 		drm_err(dev, "failed to add ddc bus for connector\n");
 
-	drm_connector_init_with_ddc(dev, connector,
-				    &ast_connector_funcs,
-				    DRM_MODE_CONNECTOR_VGA,
-				    &ast_connector->i2c->adapter);
+	if (ast_connector->i2c)
+		drm_connector_init_with_ddc(dev, connector, &ast_connector_funcs,
+					    DRM_MODE_CONNECTOR_VGA,
+					    &ast_connector->i2c->adapter);
+	else
+		drm_connector_init(dev, connector, &ast_connector_funcs,
+				   DRM_MODE_CONNECTOR_VGA);
 
 	drm_connector_helper_add(connector, &ast_connector_helper_funcs);
 
