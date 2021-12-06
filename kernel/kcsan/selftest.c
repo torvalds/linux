@@ -169,7 +169,6 @@ static bool __init test_barrier(void)
 	KCSAN_CHECK_READ_BARRIER(test_and_change_bit(0, &test_var));
 	KCSAN_CHECK_READ_BARRIER(clear_bit_unlock(0, &test_var));
 	KCSAN_CHECK_READ_BARRIER(__clear_bit_unlock(0, &test_var));
-	KCSAN_CHECK_READ_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
 	arch_spin_lock(&arch_spinlock);
 	KCSAN_CHECK_READ_BARRIER(arch_spin_unlock(&arch_spinlock));
 	spin_lock(&test_spinlock);
@@ -199,7 +198,6 @@ static bool __init test_barrier(void)
 	KCSAN_CHECK_WRITE_BARRIER(test_and_change_bit(0, &test_var));
 	KCSAN_CHECK_WRITE_BARRIER(clear_bit_unlock(0, &test_var));
 	KCSAN_CHECK_WRITE_BARRIER(__clear_bit_unlock(0, &test_var));
-	KCSAN_CHECK_WRITE_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
 	arch_spin_lock(&arch_spinlock);
 	KCSAN_CHECK_WRITE_BARRIER(arch_spin_unlock(&arch_spinlock));
 	spin_lock(&test_spinlock);
@@ -232,12 +230,16 @@ static bool __init test_barrier(void)
 	KCSAN_CHECK_RW_BARRIER(test_and_change_bit(0, &test_var));
 	KCSAN_CHECK_RW_BARRIER(clear_bit_unlock(0, &test_var));
 	KCSAN_CHECK_RW_BARRIER(__clear_bit_unlock(0, &test_var));
-	KCSAN_CHECK_RW_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
 	arch_spin_lock(&arch_spinlock);
 	KCSAN_CHECK_RW_BARRIER(arch_spin_unlock(&arch_spinlock));
 	spin_lock(&test_spinlock);
 	KCSAN_CHECK_RW_BARRIER(spin_unlock(&test_spinlock));
 
+#ifdef clear_bit_unlock_is_negative_byte
+	KCSAN_CHECK_RW_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
+	KCSAN_CHECK_READ_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
+	KCSAN_CHECK_WRITE_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
+#endif
 	kcsan_nestable_atomic_end();
 
 	return ret;

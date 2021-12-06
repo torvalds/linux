@@ -598,7 +598,6 @@ static void test_barrier_nothreads(struct kunit *test)
 	KCSAN_EXPECT_READ_BARRIER(test_and_change_bit(0, &test_var), true);
 	KCSAN_EXPECT_READ_BARRIER(clear_bit_unlock(0, &test_var), true);
 	KCSAN_EXPECT_READ_BARRIER(__clear_bit_unlock(0, &test_var), true);
-	KCSAN_EXPECT_READ_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
 	KCSAN_EXPECT_READ_BARRIER(arch_spin_lock(&arch_spinlock), false);
 	KCSAN_EXPECT_READ_BARRIER(arch_spin_unlock(&arch_spinlock), true);
 	KCSAN_EXPECT_READ_BARRIER(spin_lock(&test_spinlock), false);
@@ -644,7 +643,6 @@ static void test_barrier_nothreads(struct kunit *test)
 	KCSAN_EXPECT_WRITE_BARRIER(test_and_change_bit(0, &test_var), true);
 	KCSAN_EXPECT_WRITE_BARRIER(clear_bit_unlock(0, &test_var), true);
 	KCSAN_EXPECT_WRITE_BARRIER(__clear_bit_unlock(0, &test_var), true);
-	KCSAN_EXPECT_WRITE_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
 	KCSAN_EXPECT_WRITE_BARRIER(arch_spin_lock(&arch_spinlock), false);
 	KCSAN_EXPECT_WRITE_BARRIER(arch_spin_unlock(&arch_spinlock), true);
 	KCSAN_EXPECT_WRITE_BARRIER(spin_lock(&test_spinlock), false);
@@ -690,7 +688,6 @@ static void test_barrier_nothreads(struct kunit *test)
 	KCSAN_EXPECT_RW_BARRIER(test_and_change_bit(0, &test_var), true);
 	KCSAN_EXPECT_RW_BARRIER(clear_bit_unlock(0, &test_var), true);
 	KCSAN_EXPECT_RW_BARRIER(__clear_bit_unlock(0, &test_var), true);
-	KCSAN_EXPECT_RW_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
 	KCSAN_EXPECT_RW_BARRIER(arch_spin_lock(&arch_spinlock), false);
 	KCSAN_EXPECT_RW_BARRIER(arch_spin_unlock(&arch_spinlock), true);
 	KCSAN_EXPECT_RW_BARRIER(spin_lock(&test_spinlock), false);
@@ -698,6 +695,11 @@ static void test_barrier_nothreads(struct kunit *test)
 	KCSAN_EXPECT_RW_BARRIER(mutex_lock(&test_mutex), false);
 	KCSAN_EXPECT_RW_BARRIER(mutex_unlock(&test_mutex), true);
 
+#ifdef clear_bit_unlock_is_negative_byte
+	KCSAN_EXPECT_READ_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
+	KCSAN_EXPECT_WRITE_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
+	KCSAN_EXPECT_RW_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var), true);
+#endif
 	kcsan_nestable_atomic_end();
 }
 
