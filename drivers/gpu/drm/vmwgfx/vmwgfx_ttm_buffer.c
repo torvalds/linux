@@ -288,8 +288,6 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 {
 	struct vmw_private *dev_priv = vmw_tt->dev_priv;
 	struct vmw_sg_table *vsgt = &vmw_tt->vsgt;
-	struct vmw_piter iter;
-	dma_addr_t old;
 	int ret = 0;
 
 	if (vmw_tt->mapped)
@@ -319,16 +317,6 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 		break;
 	default:
 		break;
-	}
-
-	old = ~((dma_addr_t) 0);
-	vmw_tt->vsgt.num_regions = 0;
-	for (vmw_piter_start(&iter, vsgt, 0); vmw_piter_next(&iter);) {
-		dma_addr_t cur = vmw_piter_dma_addr(&iter);
-
-		if (cur != old + PAGE_SIZE)
-			vmw_tt->vsgt.num_regions++;
-		old = cur;
 	}
 
 	vmw_tt->mapped = true;

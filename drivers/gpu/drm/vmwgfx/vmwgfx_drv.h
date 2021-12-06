@@ -333,7 +333,6 @@ struct vmw_sg_table {
 	struct page **pages;
 	const dma_addr_t *addrs;
 	struct sg_table *sgt;
-	unsigned long num_regions;
 	unsigned long num_pages;
 };
 
