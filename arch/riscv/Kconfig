@@ -160,12 +160,12 @@ config PAGE_OFFSET
 	hex
 	default 0xC0000000 if 32BIT
 	default 0x80000000 if 64BIT && !MMU
-	default 0xffffffe000000000 if 64BIT
+	default 0xffffffd800000000 if 64BIT
 
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN_GENERIC
-	default 0xdfffffc800000000 if 64BIT
+	default 0xdfffffff00000000 if 64BIT
 	default 0xffffffff if 32BIT
 
 config ARCH_FLATMEM_ENABLE

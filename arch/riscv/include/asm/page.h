@@ -33,8 +33,6 @@
  */
 #define PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
 
-#define KERN_VIRT_SIZE (-PAGE_OFFSET)
-
 #ifndef __ASSEMBLY__
 
 #define clear_page(pgaddr)			memset((pgaddr), 0, PAGE_SIZE)

@@ -24,6 +24,17 @@
 #define KERNEL_LINK_ADDR	PAGE_OFFSET
 #endif
 
+/* Number of entries in the page global directory */
+#define PTRS_PER_PGD    (PAGE_SIZE / sizeof(pgd_t))
+/* Number of entries in the page table */
+#define PTRS_PER_PTE    (PAGE_SIZE / sizeof(pte_t))
+
+/*
+ * Half of the kernel address space (half of the entries of the page global
+ * directory) is for the direct mapping.
+ */
+#define KERN_VIRT_SIZE          ((PTRS_PER_PGD / 2 * PGDIR_SIZE) / 2)
+
 #define VMALLOC_SIZE     (KERN_VIRT_SIZE >> 1)
 #define VMALLOC_END      (PAGE_OFFSET - 1)
 #define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)
@@ -39,8 +50,10 @@
 
 /* Modules always live before the kernel */
 #ifdef CONFIG_64BIT
-#define MODULES_VADDR	(PFN_ALIGN((unsigned long)&_end) - SZ_2G)
-#define MODULES_END	(PFN_ALIGN((unsigned long)&_start))
+/* This is used to define the end of the KASAN shadow region */
+#define MODULES_LOWEST_VADDR	(KERNEL_LINK_ADDR - SZ_2G)
+#define MODULES_VADDR		(PFN_ALIGN((unsigned long)&_end) - SZ_2G)
+#define MODULES_END		(PFN_ALIGN((unsigned long)&_start))
 #endif
 
 /*
@@ -108,11 +121,6 @@
 #endif /* CONFIG_XIP_KERNEL */
 
 #ifdef CONFIG_MMU
-/* Number of entries in the page global directory */
-#define PTRS_PER_PGD    (PAGE_SIZE / sizeof(pgd_t))
-/* Number of entries in the page table */
-#define PTRS_PER_PTE    (PAGE_SIZE / sizeof(pte_t))
-
 /* Number of PGD entries that a user-mode program can use */
 #define USER_PTRS_PER_PGD   (TASK_SIZE / PGDIR_SIZE)
 
