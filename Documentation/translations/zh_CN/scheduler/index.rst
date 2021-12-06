@@ -17,10 +17,11 @@ Linux调度器
 .. toctree::
     :maxdepth: 1
 
+    completion
+
 
 TODOList:
 
-    completion
     sched-arch
     sched-bwc
     sched-deadline
