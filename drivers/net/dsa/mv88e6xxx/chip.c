@@ -1250,10 +1250,10 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 	/* dev is a virtual bridge */
 	} else {
 		list_for_each_entry(dp, &dst->ports, list) {
-			if (dp->bridge_num < 0)
+			if (!dp->bridge_num)
 				continue;
 
-			if (dp->bridge_num + 1 + dst->last_switch != dev)
+			if (dp->bridge_num + dst->last_switch != dev)
 				continue;
 
 			br = dp->bridge_dev;
@@ -2527,9 +2527,9 @@ static void mv88e6xxx_crosschip_bridge_leave(struct dsa_switch *ds,
  * physical switches, so start from beyond that range.
  */
 static int mv88e6xxx_map_virtual_bridge_to_pvt(struct dsa_switch *ds,
-					       int bridge_num)
+					       unsigned int bridge_num)
 {
-	u8 dev = bridge_num + ds->dst->last_switch + 1;
+	u8 dev = bridge_num + ds->dst->last_switch;
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
@@ -2542,14 +2542,14 @@ static int mv88e6xxx_map_virtual_bridge_to_pvt(struct dsa_switch *ds,
 
 static int mv88e6xxx_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
 					   struct net_device *br,
-					   int bridge_num)
+					   unsigned int bridge_num)
 {
 	return mv88e6xxx_map_virtual_bridge_to_pvt(ds, bridge_num);
 }
 
 static void mv88e6xxx_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
 					      struct net_device *br,
-					      int bridge_num)
+					      unsigned int bridge_num)
 {
 	int err;
 

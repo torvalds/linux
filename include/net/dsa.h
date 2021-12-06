@@ -257,7 +257,7 @@ struct dsa_port {
 	bool			learning;
 	u8			stp_state;
 	struct net_device	*bridge_dev;
-	int			bridge_num;
+	unsigned int		bridge_num;
 	struct devlink_port	devlink_port;
 	bool			devlink_port_setup;
 	struct phylink		*pl;
@@ -754,11 +754,11 @@ struct dsa_switch_ops {
 	/* Called right after .port_bridge_join() */
 	int	(*port_bridge_tx_fwd_offload)(struct dsa_switch *ds, int port,
 					      struct net_device *bridge,
-					      int bridge_num);
+					      unsigned int bridge_num);
 	/* Called right before .port_bridge_leave() */
 	void	(*port_bridge_tx_fwd_unoffload)(struct dsa_switch *ds, int port,
 						struct net_device *bridge,
-						int bridge_num);
+						unsigned int bridge_num);
 	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
 				      u8 state);
 	void	(*port_fast_age)(struct dsa_switch *ds, int port);

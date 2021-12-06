@@ -273,14 +273,14 @@ static void dsa_port_switchdev_unsync_attrs(struct dsa_port *dp)
 static void dsa_port_bridge_tx_fwd_unoffload(struct dsa_port *dp,
 					     struct net_device *bridge_dev)
 {
-	int bridge_num = dp->bridge_num;
+	unsigned int bridge_num = dp->bridge_num;
 	struct dsa_switch *ds = dp->ds;
 
 	/* No bridge TX forwarding offload => do nothing */
-	if (!ds->ops->port_bridge_tx_fwd_unoffload || dp->bridge_num == -1)
+	if (!ds->ops->port_bridge_tx_fwd_unoffload || !dp->bridge_num)
 		return;
 
-	dp->bridge_num = -1;
+	dp->bridge_num = 0;
 
 	dsa_bridge_num_put(bridge_dev, bridge_num);
 
@@ -295,14 +295,15 @@ static bool dsa_port_bridge_tx_fwd_offload(struct dsa_port *dp,
 					   struct net_device *bridge_dev)
 {
 	struct dsa_switch *ds = dp->ds;
-	int bridge_num, err;
+	unsigned int bridge_num;
+	int err;
 
 	if (!ds->ops->port_bridge_tx_fwd_offload)
 		return false;
 
 	bridge_num = dsa_bridge_num_get(bridge_dev,
 					ds->num_fwd_offloading_bridges);
-	if (bridge_num < 0)
+	if (!bridge_num)
 		return false;
 
 	dp->bridge_num = bridge_num;

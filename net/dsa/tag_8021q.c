@@ -67,10 +67,12 @@
 #define DSA_8021Q_PORT(x)		(((x) << DSA_8021Q_PORT_SHIFT) & \
 						 DSA_8021Q_PORT_MASK)
 
-u16 dsa_8021q_bridge_tx_fwd_offload_vid(int bridge_num)
+u16 dsa_8021q_bridge_tx_fwd_offload_vid(unsigned int bridge_num)
 {
-	/* The VBID value of 0 is reserved for precise TX */
-	return DSA_8021Q_DIR_TX | DSA_8021Q_VBID(bridge_num + 1);
+	/* The VBID value of 0 is reserved for precise TX, but it is also
+	 * reserved/invalid for the bridge_num, so all is well.
+	 */
+	return DSA_8021Q_DIR_TX | DSA_8021Q_VBID(bridge_num);
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_bridge_tx_fwd_offload_vid);
 
@@ -409,7 +411,7 @@ int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
 
 int dsa_tag_8021q_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
 					struct net_device *br,
-					int bridge_num)
+					unsigned int bridge_num)
 {
 	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
 
@@ -420,7 +422,7 @@ EXPORT_SYMBOL_GPL(dsa_tag_8021q_bridge_tx_fwd_offload);
 
 void dsa_tag_8021q_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
 					   struct net_device *br,
-					   int bridge_num)
+					   unsigned int bridge_num)
 {
 	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
 
