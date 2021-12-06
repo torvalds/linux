@@ -115,23 +115,14 @@ static struct rga_scheduler_t *get_scheduler(int core)
 
 static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 {
-	u32 *bRGA_SRC_INFO;
 	u32 *bRGA_SRC_X_FACTOR;
 	u32 *bRGA_SRC_Y_FACTOR;
 	u32 sw, sh;
 	u32 dw, dh;
 	u32 param_x, param_y;
-	u8 x_flag, y_flag;
-
-	u32 reg;
-
-	bRGA_SRC_INFO = (u32 *) (base + RGA2_SRC_INFO_OFFSET);
-	reg = *bRGA_SRC_INFO;
 
 	bRGA_SRC_X_FACTOR = (u32 *) (base + RGA2_SRC_X_FACTOR_OFFSET);
 	bRGA_SRC_Y_FACTOR = (u32 *) (base + RGA2_SRC_Y_FACTOR_OFFSET);
-
-	x_flag = y_flag = 0;
 
 	if (((msg->rotate_mode & 0x3) == 1) ||
 		((msg->rotate_mode & 0x3) == 3)) {
@@ -146,7 +137,6 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 	sh = msg->src.act_h;
 
 	if (sw > dw) {
-		x_flag = 1;
 #if SCALE_DOWN_LARGE
 		param_x = ((dw) << 16) / (sw) + 1;
 #else
@@ -154,7 +144,6 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 #endif
 		*bRGA_SRC_X_FACTOR |= ((param_x & 0xffff) << 0);
 	} else if (sw < dw) {
-		x_flag = 2;
 #if SCALE_UP_LARGE
 		param_x = ((sw - 1) << 16) / (dw - 1);
 #else
@@ -166,7 +155,6 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 	}
 
 	if (sh > dh) {
-		y_flag = 1;
 #if SCALE_DOWN_LARGE
 		param_y = ((dh) << 16) / (sh) + 1;
 #else
@@ -174,7 +162,6 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 #endif
 		*bRGA_SRC_Y_FACTOR |= ((param_y & 0xffff) << 0);
 	} else if (sh < dh) {
-		y_flag = 2;
 #if SCALE_UP_LARGE
 		param_y = ((sh - 1) << 16) / (dh - 1);
 #else
@@ -184,13 +171,6 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 	} else {
 		*bRGA_SRC_Y_FACTOR = 0;	//((1 << 14) << 16) | (1 << 14);
 	}
-
-	reg =
-		((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_HSCL_MODE)) |
-		 (s_RGA2_SRC_INFO_SW_SW_SRC_HSCL_MODE(x_flag)));
-	reg =
-		((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_VSCL_MODE)) |
-		 (s_RGA2_SRC_INFO_SW_SW_SRC_VSCL_MODE(y_flag)));
 }
 
 static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)

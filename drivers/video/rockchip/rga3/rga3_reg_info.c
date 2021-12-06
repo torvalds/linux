@@ -18,13 +18,14 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 	u32 *bRGA3_WIN0_Y_BASE, *bRGA3_WIN0_U_BASE, *bRGA3_WIN0_V_BASE;
 	u32 *bRGA3_WIN0_VIR_STRIDE;
 	u32 *bRGA3_WIN0_UV_VIR_STRIDE;
-	u32 *bRGA3_WIN0_FBC_OFF;
 	u32 *bRGA3_WIN0_SRC_SIZE;
 	u32 *bRGA3_WIN0_ACT_OFF;
 	u32 *bRGA3_WIN0_ACT_SIZE;
 	u32 *bRGA3_WIN0_DST_SIZE;
 
 	u32 *bRGA3_WIN0_SCL_FAC;
+	/* Not used yet. */
+	// u32 *bRGA3_WIN0_FBC_OFF;
 
 	u32 sw = 0, sh = 0;
 	u32 dw = 0, dh = 0;
@@ -69,7 +70,8 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 	bRGA3_WIN0_UV_VIR_STRIDE =
 		(u32 *) (base + RGA3_WIN0_UV_VIR_STRIDE_OFFSET);
 
-	bRGA3_WIN0_FBC_OFF = (u32 *) (base + RGA3_WIN0_FBC_OFF_OFFSET);
+	/* Not used yet. */
+	// bRGA3_WIN0_FBC_OFF = (u32 *) (base + RGA3_WIN0_FBC_OFF_OFFSET);
 	bRGA3_WIN0_ACT_OFF = (u32 *) (base + RGA3_WIN0_ACT_OFF_OFFSET);
 	bRGA3_WIN0_SRC_SIZE = (u32 *) (base + RGA3_WIN0_SRC_SIZE_OFFSET);
 	bRGA3_WIN0_ACT_SIZE = (u32 *) (base + RGA3_WIN0_ACT_SIZE_OFFSET);
@@ -428,13 +430,14 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 	u32 *bRGA3_WIN1_Y_BASE, *bRGA3_WIN1_U_BASE, *bRGA3_WIN1_V_BASE;
 	u32 *bRGA3_WIN1_VIR_STRIDE;
 	u32 *bRGA3_WIN1_UV_VIR_STRIDE;
-	u32 *bRGA3_WIN1_FBC_OFF;
 	u32 *bRGA3_WIN1_SRC_SIZE;
 	u32 *bRGA3_WIN1_ACT_OFF;
 	u32 *bRGA3_WIN1_ACT_SIZE;
 	u32 *bRGA3_WIN1_DST_SIZE;
 
 	u32 *bRGA3_WIN1_SCL_FAC;
+	/* Not used yet. */
+	// u32 *bRGA3_WIN1_FBC_OFF;
 
 	u32 sw = 0, sh = 0;
 	u32 dw = 0, dh = 0;
@@ -479,7 +482,8 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 	bRGA3_WIN1_UV_VIR_STRIDE =
 		(u32 *) (base + RGA3_WIN1_UV_VIR_STRIDE_OFFSET);
 
-	bRGA3_WIN1_FBC_OFF = (u32 *) (base + RGA3_WIN1_FBC_OFF_OFFSET);
+	/* Not used yet. */
+	// bRGA3_WIN1_FBC_OFF = (u32 *) (base + RGA3_WIN1_FBC_OFF_OFFSET);
 	bRGA3_WIN1_ACT_OFF = (u32 *) (base + RGA3_WIN1_ACT_OFF_OFFSET);
 	bRGA3_WIN1_SRC_SIZE = (u32 *) (base + RGA3_WIN1_SRC_SIZE_OFFSET);
 	bRGA3_WIN1_ACT_SIZE = (u32 *) (base + RGA3_WIN1_ACT_SIZE_OFFSET);
