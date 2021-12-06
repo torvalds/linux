@@ -547,7 +547,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 static void
 mmc_spi_setup_data_message(
 	struct mmc_spi_host	*host,
-	int			multiple,
+	bool			multiple,
 	enum dma_data_direction	direction)
 {
 	struct spi_transfer	*t;
@@ -862,7 +862,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	enum dma_data_direction	direction;
 	struct scatterlist	*sg;
 	unsigned		n_sg;
-	int			multiple = (data->blocks > 1);
+	bool			multiple = (data->blocks > 1);
 	u32			clock_rate;
 	unsigned long		timeout;
 
