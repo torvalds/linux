@@ -562,8 +562,6 @@ int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			ret = -ENOSPC;
 			if (ops->handle_error)
 				ret = ops->handle_error(domain, desc, ret);
-			if (ops->msi_finish)
-				ops->msi_finish(&arg, ret);
 			return ret;
 		}
 
@@ -572,9 +570,6 @@ int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			irq_debugfs_copy_devname(virq + i, dev);
 		}
 	}
-
-	if (ops->msi_finish)
-		ops->msi_finish(&arg, 0);
 
 	can_reserve = msi_check_reservation_mode(domain, info, dev);
 
