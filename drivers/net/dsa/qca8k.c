@@ -1823,7 +1823,7 @@ qca8k_port_bridge_join(struct dsa_switch *ds, int port, struct net_device *br)
 	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
 		if (dsa_is_cpu_port(ds, i))
 			continue;
-		if (dsa_to_port(ds, i)->bridge_dev != br)
+		if (dsa_port_bridge_dev_get(dsa_to_port(ds, i)) != br)
 			continue;
 		/* Add this port to the portvlan mask of the other ports
 		 * in the bridge
@@ -1855,7 +1855,7 @@ qca8k_port_bridge_leave(struct dsa_switch *ds, int port, struct net_device *br)
 	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
 		if (dsa_is_cpu_port(ds, i))
 			continue;
-		if (dsa_to_port(ds, i)->bridge_dev != br)
+		if (dsa_port_bridge_dev_get(dsa_to_port(ds, i)) != br)
 			continue;
 		/* Remove this port to the portvlan mask of the other ports
 		 * in the bridge

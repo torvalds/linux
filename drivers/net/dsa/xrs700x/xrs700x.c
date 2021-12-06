@@ -513,14 +513,14 @@ static int xrs700x_bridge_common(struct dsa_switch *ds, int port,
 
 		cpu_mask |= BIT(i);
 
-		if (dsa_to_port(ds, i)->bridge_dev == bridge)
+		if (dsa_port_bridge_dev_get(dsa_to_port(ds, i)) == bridge)
 			continue;
 
 		mask |= BIT(i);
 	}
 
 	for (i = 0; i < ds->num_ports; i++) {
-		if (dsa_to_port(ds, i)->bridge_dev != bridge)
+		if (dsa_port_bridge_dev_get(dsa_to_port(ds, i)) != bridge)
 			continue;
 
 		/* 1 = Disable forwarding to the port */

@@ -1204,7 +1204,7 @@ mt7530_port_bridge_join(struct dsa_switch *ds, int port,
 		 * same bridge. If the port is disabled, port matrix is kept
 		 * and not being setup until the port becomes enabled.
 		 */
-		if (other_dp->bridge_dev != bridge)
+		if (dsa_port_bridge_dev_get(other_dp) != bridge)
 			continue;
 
 		if (priv->ports[other_port].enable)
@@ -1240,7 +1240,7 @@ mt7530_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 	/* This is called after .port_bridge_leave when leaving a VLAN-aware
 	 * bridge. Don't set standalone ports to fallback mode.
 	 */
-	if (dsa_to_port(ds, port)->bridge_dev)
+	if (dsa_port_bridge_dev_get(dsa_to_port(ds, port)))
 		mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
 			   MT7530_PORT_FALLBACK_MODE);
 
@@ -1320,7 +1320,7 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 		 * in the same bridge. If the port is disabled, port matrix
 		 * is kept and not being setup until the port becomes enabled.
 		 */
-		if (other_dp->bridge_dev != bridge)
+		if (dsa_port_bridge_dev_get(other_dp) != bridge)
 			continue;
 
 		if (priv->ports[other_port].enable)

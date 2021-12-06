@@ -118,13 +118,14 @@ static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
 static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
 {
 	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_vlan_lookup_entry *vlan;
 	bool drop_untagged = false;
 	int match, rc;
 	u16 pvid;
 
-	if (dp->bridge_dev && br_vlan_enabled(dp->bridge_dev))
+	if (br && br_vlan_enabled(br))
 		pvid = priv->bridge_pvid[port];
 	else
 		pvid = priv->tag_8021q_pvid[port];
@@ -2004,7 +2005,7 @@ static int sja1105_bridge_member(struct dsa_switch *ds, int port,
 		 */
 		if (i == port)
 			continue;
-		if (dsa_to_port(ds, i)->bridge_dev != br)
+		if (dsa_port_bridge_dev_get(dsa_to_port(ds, i)) != br)
 			continue;
 		sja1105_port_allow_traffic(l2_fwd, i, port, member);
 		sja1105_port_allow_traffic(l2_fwd, port, i, member);
@@ -2587,8 +2588,9 @@ static int sja1105_prechangeupper(struct dsa_switch *ds, int port,
 
 	if (netif_is_bridge_master(upper)) {
 		list_for_each_entry(dp, &dst->ports, list) {
-			if (dp->bridge_dev && dp->bridge_dev != upper &&
-			    br_vlan_enabled(dp->bridge_dev)) {
+			struct net_device *br = dsa_port_bridge_dev_get(dp);
+
+			if (br && br != upper && br_vlan_enabled(br)) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Only one VLAN-aware bridge is supported");
 				return -EBUSY;

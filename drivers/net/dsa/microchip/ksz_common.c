@@ -43,7 +43,7 @@ void ksz_update_port_member(struct ksz_device *dev, int port)
 			continue;
 		if (port == i)
 			continue;
-		if (!dp->bridge_dev || dp->bridge_dev != other_dp->bridge_dev)
+		if (!dsa_port_bridge_same(dp, other_dp))
 			continue;
 
 		if (other_p->stp_state == BR_STATE_FORWARDING &&

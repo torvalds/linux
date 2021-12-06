@@ -1247,10 +1247,12 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 	/* dev is a virtual bridge */
 	} else {
 		list_for_each_entry(dp, &dst->ports, list) {
-			if (!dp->bridge_num)
+			unsigned int bridge_num = dsa_port_bridge_num_get(dp);
+
+			if (!bridge_num)
 				continue;
 
-			if (dp->bridge_num + dst->last_switch != dev)
+			if (bridge_num + dst->last_switch != dev)
 				continue;
 
 			found = true;
@@ -1274,7 +1276,7 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 	dsa_switch_for_each_port(other_dp, ds)
 		if (other_dp->type == DSA_PORT_TYPE_CPU ||
 		    other_dp->type == DSA_PORT_TYPE_DSA ||
-		    (dp->bridge_dev && dp->bridge_dev == other_dp->bridge_dev))
+		    dsa_port_bridge_same(dp, other_dp))
 			pvlan |= BIT(other_dp->index);
 
 	return pvlan;
@@ -1659,19 +1661,21 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 		return 0;
 
 	dsa_switch_for_each_user_port(other_dp, ds) {
+		struct net_device *other_br;
+
 		if (vlan.member[other_dp->index] ==
 		    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 			continue;
 
-		if (dp->bridge_dev == other_dp->bridge_dev)
+		if (dsa_port_bridge_same(dp, other_dp))
 			break; /* same bridge, check next VLAN */
 
-		if (!other_dp->bridge_dev)
+		other_br = dsa_port_bridge_dev_get(other_dp);
+		if (!other_br)
 			continue;
 
 		dev_err(ds->dev, "p%d: hw VLAN %d already used by port %d in %s\n",
-			port, vlan.vid, other_dp->index,
-			netdev_name(other_dp->bridge_dev));
+			port, vlan.vid, other_dp->index, netdev_name(other_br));
 		return -EOPNOTSUPP;
 	}
 
@@ -1681,13 +1685,14 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 static int mv88e6xxx_port_commit_pvid(struct mv88e6xxx_chip *chip, int port)
 {
 	struct dsa_port *dp = dsa_to_port(chip->ds, port);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct mv88e6xxx_port *p = &chip->ports[port];
 	u16 pvid = MV88E6XXX_VID_STANDALONE;
 	bool drop_untagged = false;
 	int err;
 
-	if (dp->bridge_dev) {
-		if (br_vlan_enabled(dp->bridge_dev)) {
+	if (br) {
+		if (br_vlan_enabled(br)) {
 			pvid = p->bridge_pvid.vid;
 			drop_untagged = !p->bridge_pvid.valid;
 		} else {
@@ -2413,7 +2418,7 @@ static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 	int err;
 
 	list_for_each_entry(dp, &dst->ports, list) {
-		if (dp->bridge_dev == br) {
+		if (dsa_port_bridge_dev_get(dp) == br) {
 			if (dp->ds == ds) {
 				/* This is a local bridge group member,
 				 * remap its Port VLAN Map.
