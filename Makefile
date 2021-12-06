@@ -1284,15 +1284,6 @@ headers: $(version_h) scripts_unifdef uapi-asm-generic archheaders archscripts
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi
 	$(Q)$(MAKE) $(hdr-inst)=arch/$(SRCARCH)/include/uapi
 
-# Deprecated. It is no-op now.
-PHONY += headers_check
-headers_check:
-	@echo >&2 "=================== WARNING ==================="
-	@echo >&2 "Since Linux 5.5, 'make headers_check' is no-op,"
-	@echo >&2 "and will be removed after Linux 5.15 release."
-	@echo >&2 "Please remove headers_check from your scripts."
-	@echo >&2 "==============================================="
-
 ifdef CONFIG_HEADERS_INSTALL
 prepare: headers
 endif
