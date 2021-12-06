@@ -266,49 +266,6 @@ void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr);
 int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid, bool broadcast);
 void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid, bool broadcast);
 
-static inline bool dsa_port_offloads_bridge_port(struct dsa_port *dp,
-						 const struct net_device *dev)
-{
-	return dsa_port_to_bridge_port(dp) == dev;
-}
-
-static inline bool
-dsa_port_offloads_bridge_dev(struct dsa_port *dp,
-			     const struct net_device *bridge_dev)
-{
-	/* DSA ports connected to a bridge, and event was emitted
-	 * for the bridge.
-	 */
-	return dsa_port_bridge_dev_get(dp) == bridge_dev;
-}
-
-/* Returns true if any port of this tree offloads the given net_device */
-static inline bool dsa_tree_offloads_bridge_port(struct dsa_switch_tree *dst,
-						 const struct net_device *dev)
-{
-	struct dsa_port *dp;
-
-	list_for_each_entry(dp, &dst->ports, list)
-		if (dsa_port_offloads_bridge_port(dp, dev))
-			return true;
-
-	return false;
-}
-
-/* Returns true if any port of this tree offloads the given bridge */
-static inline bool
-dsa_tree_offloads_bridge_dev(struct dsa_switch_tree *dst,
-			     const struct net_device *bridge_dev)
-{
-	struct dsa_port *dp;
-
-	list_for_each_entry(dp, &dst->ports, list)
-		if (dsa_port_offloads_bridge_dev(dp, bridge_dev))
-			return true;
-
-	return false;
-}
-
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 extern struct notifier_block dsa_slave_switchdev_notifier;
