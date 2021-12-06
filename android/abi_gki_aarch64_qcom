@@ -1104,6 +1104,7 @@
   idr_replace
   iio_channel_get_all
   iio_read_channel_processed
+  iio_write_channel_raw
   import_iovec
   in4_pton
   in6_pton
