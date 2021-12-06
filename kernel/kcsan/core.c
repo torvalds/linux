@@ -412,11 +412,20 @@ set_reorder_access(struct kcsan_ctx *ctx, const volatile void *ptr, size_t size,
 	if (!reorder_access || !kcsan_weak_memory)
 		return;
 
+	/*
+	 * To avoid nested interrupts or scheduler (which share kcsan_ctx)
+	 * reading an inconsistent reorder_access, ensure that the below has
+	 * exclusive access to reorder_access by disallowing concurrent use.
+	 */
+	ctx->disable_scoped++;
+	barrier();
 	reorder_access->ptr		= ptr;
 	reorder_access->size		= size;
 	reorder_access->type		= type | KCSAN_ACCESS_SCOPED;
 	reorder_access->ip		= ip;
 	reorder_access->stack_depth	= get_kcsan_stack_depth();
+	barrier();
+	ctx->disable_scoped--;
 }
 
 /*
