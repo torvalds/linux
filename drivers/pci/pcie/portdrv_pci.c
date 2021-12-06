@@ -108,6 +108,9 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 	    ((type != PCI_EXP_TYPE_ROOT_PORT) &&
 	     (type != PCI_EXP_TYPE_UPSTREAM) &&
 	     (type != PCI_EXP_TYPE_DOWNSTREAM) &&
+#ifdef CONFIG_ASPEED_HOST_BMC_DEV
+	     (type != PCI_EXP_TYPE_PCI_BRIDGE) &&
+#endif
 	     (type != PCI_EXP_TYPE_RC_EC)))
 		return -ENODEV;
 
