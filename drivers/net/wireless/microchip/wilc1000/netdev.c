@@ -27,7 +27,7 @@ static irqreturn_t isr_uh_routine(int irq, void *user_data)
 	struct wilc *wilc = user_data;
 
 	if (wilc->close) {
-		pr_err("Can't handle UH interrupt");
+		pr_err("Can't handle UH interrupt\n");
 		return IRQ_HANDLED;
 	}
 	return IRQ_WAKE_THREAD;
