@@ -727,10 +727,12 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 		spin_unlock_irqrestore(&dwc2->lock, flags);
 	}
 
-	/* Need to restore FORCEDEVMODE/FORCEHOSTMODE */
-	dwc2_force_dr_mode(dwc2);
-
-	dwc2_drd_resume(dwc2);
+	if (!dwc2->role_sw) {
+		/* Need to restore FORCEDEVMODE/FORCEHOSTMODE */
+		dwc2_force_dr_mode(dwc2);
+	} else {
+		dwc2_drd_resume(dwc2);
+	}
 
 	if (dwc2_is_device_mode(dwc2))
 		ret = dwc2_hsotg_resume(dwc2);
