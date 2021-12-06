@@ -364,6 +364,7 @@ static void vmw_print_sm_type(struct vmw_private *dev_priv)
 		[VMW_SM_4] = "SM4",
 		[VMW_SM_4_1] = "SM4_1",
 		[VMW_SM_5] = "SM_5",
+		[VMW_SM_5_1X] = "SM_5_1X",
 		[VMW_SM_MAX] = "Invalid"
 	};
 	BUILD_BUG_ON(ARRAY_SIZE(names) != (VMW_SM_MAX + 1));
@@ -1083,8 +1084,11 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 			dev_priv->sm_type = VMW_SM_4_1;
 		if (has_sm4_1_context(dev_priv) &&
 				(dev_priv->capabilities2 & SVGA_CAP2_DX3)) {
-			if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_SM5))
+			if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_SM5)) {
 				dev_priv->sm_type = VMW_SM_5;
+				if (vmw_devcap_get(dev_priv, SVGA3D_DEVCAP_GL43))
+					dev_priv->sm_type = VMW_SM_5_1X;
+			}
 		}
 	}
 

@@ -1070,7 +1070,7 @@ static int vmw_emit_set_uav(struct vmw_ctx_binding_state *cbs)
 	size_t cmd_size, view_id_size;
 	const struct vmw_resource *ctx = vmw_cbs_context(cbs);
 
-	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_UAVIEWS);
+	vmw_collect_view_ids(cbs, loc, vmw_max_num_uavs(cbs->dev_priv));
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
@@ -1100,7 +1100,7 @@ static int vmw_emit_set_cs_uav(struct vmw_ctx_binding_state *cbs)
 	size_t cmd_size, view_id_size;
 	const struct vmw_resource *ctx = vmw_cbs_context(cbs);
 
-	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_UAVIEWS);
+	vmw_collect_view_ids(cbs, loc, vmw_max_num_uavs(cbs->dev_priv));
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);

@@ -2916,7 +2916,7 @@ static int vmw_cmd_set_uav(struct vmw_private *dev_priv,
 	if (!has_sm5_context(dev_priv))
 		return -EINVAL;
 
-	if (num_uav > SVGA3D_MAX_UAVIEWS) {
+	if (num_uav > vmw_max_num_uavs(dev_priv)) {
 		VMW_DEBUG_USER("Invalid UAV binding.\n");
 		return -EINVAL;
 	}
@@ -2948,7 +2948,7 @@ static int vmw_cmd_set_cs_uav(struct vmw_private *dev_priv,
 	if (!has_sm5_context(dev_priv))
 		return -EINVAL;
 
-	if (num_uav > SVGA3D_MAX_UAVIEWS) {
+	if (num_uav > vmw_max_num_uavs(dev_priv)) {
 		VMW_DEBUG_USER("Invalid UAV binding.\n");
 		return -EINVAL;
 	}

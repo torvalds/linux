@@ -488,6 +488,7 @@ enum {
  * @VMW_SM_4: Context support upto SM4.
  * @VMW_SM_4_1: Context support upto SM4_1.
  * @VMW_SM_5: Context support up to SM5.
+ * @VMW_SM_5_1X: Adds support for sm5_1 and gl43 extensions.
  * @VMW_SM_MAX: Should be the last.
  */
 enum vmw_sm_type {
@@ -495,6 +496,7 @@ enum vmw_sm_type {
 	VMW_SM_4,
 	VMW_SM_4_1,
 	VMW_SM_5,
+	VMW_SM_5_1X,
 	VMW_SM_MAX
 };
 
@@ -753,6 +755,24 @@ static inline bool has_sm4_1_context(const struct vmw_private *dev_priv)
 static inline bool has_sm5_context(const struct vmw_private *dev_priv)
 {
 	return (dev_priv->sm_type >= VMW_SM_5);
+}
+
+/**
+ * has_gl43_context - Does the device support GL43 context.
+ * @dev_priv: Device private.
+ *
+ * Return: Bool value if device support SM5 context or not.
+ */
+static inline bool has_gl43_context(const struct vmw_private *dev_priv)
+{
+	return (dev_priv->sm_type >= VMW_SM_5_1X);
+}
+
+
+static inline u32 vmw_max_num_uavs(struct vmw_private *dev_priv)
+{
+	return (has_gl43_context(dev_priv) ?
+			SVGA3D_DX11_1_MAX_UAVIEWS : SVGA3D_MAX_UAVIEWS);
 }
 
 extern void vmw_svga_enable(struct vmw_private *dev_priv);

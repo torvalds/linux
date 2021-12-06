@@ -200,7 +200,7 @@ struct vmw_dx_shader_bindings {
  * @splice_index: The device splice index set by user-space.
  */
 struct vmw_ctx_bindinfo_uav {
-	struct vmw_ctx_bindinfo_view views[SVGA3D_MAX_UAVIEWS];
+	struct vmw_ctx_bindinfo_view views[SVGA3D_DX11_1_MAX_UAVIEWS];
 	uint32 index;
 };
 
