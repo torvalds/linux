@@ -1228,8 +1228,7 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 {
 	struct dsa_switch *ds = chip->ds;
 	struct dsa_switch_tree *dst = ds->dst;
-	struct net_device *br;
-	struct dsa_port *dp;
+	struct dsa_port *dp, *other_dp;
 	bool found = false;
 	u16 pvlan;
 
@@ -1238,11 +1237,9 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 		list_for_each_entry(dp, &dst->ports, list) {
 			if (dp->ds->index == dev && dp->index == port) {
 				/* dp might be a DSA link or a user port, so it
-				 * might or might not have a bridge_dev
-				 * pointer. Use the "found" variable for both
-				 * cases.
+				 * might or might not have a bridge.
+				 * Use the "found" variable for both cases.
 				 */
-				br = dp->bridge_dev;
 				found = true;
 				break;
 			}
@@ -1256,7 +1253,6 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 			if (dp->bridge_num + dst->last_switch != dev)
 				continue;
 
-			br = dp->bridge_dev;
 			found = true;
 			break;
 		}
@@ -1275,12 +1271,11 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 	/* Frames from user ports can egress any local DSA links and CPU ports,
 	 * as well as any local member of their bridge group.
 	 */
-	list_for_each_entry(dp, &dst->ports, list)
-		if (dp->ds == ds &&
-		    (dp->type == DSA_PORT_TYPE_CPU ||
-		     dp->type == DSA_PORT_TYPE_DSA ||
-		     (br && dp->bridge_dev == br)))
-			pvlan |= BIT(dp->index);
+	dsa_switch_for_each_port(other_dp, ds)
+		if (other_dp->type == DSA_PORT_TYPE_CPU ||
+		    other_dp->type == DSA_PORT_TYPE_DSA ||
+		    (dp->bridge_dev && dp->bridge_dev == other_dp->bridge_dev))
+			pvlan |= BIT(other_dp->index);
 
 	return pvlan;
 }
