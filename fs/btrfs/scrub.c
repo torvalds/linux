@@ -49,11 +49,10 @@ struct scrub_ctx;
 #define SCRUB_BIOS_PER_SCTX	64	/* 8MB per device in flight */
 
 /*
- * the following value times PAGE_SIZE needs to be large enough to match the
+ * The following value times PAGE_SIZE needs to be large enough to match the
  * largest node/leaf/sector size that shall be supported.
- * Values larger than BTRFS_STRIPE_LEN are not supported.
  */
-#define SCRUB_MAX_PAGES_PER_BLOCK	16	/* 64k per node/leaf/sector */
+#define SCRUB_MAX_PAGES_PER_BLOCK	(BTRFS_MAX_METADATA_BLOCKSIZE / SZ_4K)
 
 struct scrub_recover {
 	refcount_t		refs;
@@ -1313,7 +1312,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		recover->bioc = bioc;
 		recover->map_length = mapped_length;
 
-		BUG_ON(page_index >= SCRUB_MAX_PAGES_PER_BLOCK);
+		ASSERT(page_index < SCRUB_MAX_PAGES_PER_BLOCK);
 
 		nmirrors = min(scrub_nr_raid_mirrors(bioc), BTRFS_MAX_MIRRORS);
 
@@ -2297,7 +2296,7 @@ leave_nomem:
 			scrub_block_put(sblock);
 			return -ENOMEM;
 		}
-		BUG_ON(index >= SCRUB_MAX_PAGES_PER_BLOCK);
+		ASSERT(index < SCRUB_MAX_PAGES_PER_BLOCK);
 		scrub_page_get(spage);
 		sblock->pagev[index] = spage;
 		spage->sblock = sblock;
@@ -2631,7 +2630,7 @@ leave_nomem:
 			scrub_block_put(sblock);
 			return -ENOMEM;
 		}
-		BUG_ON(index >= SCRUB_MAX_PAGES_PER_BLOCK);
+		ASSERT(index < SCRUB_MAX_PAGES_PER_BLOCK);
 		/* For scrub block */
 		scrub_page_get(spage);
 		sblock->pagev[index] = spage;
