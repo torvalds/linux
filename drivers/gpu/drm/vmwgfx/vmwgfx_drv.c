@@ -254,8 +254,8 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 };
 
 static const struct pci_device_id vmw_pci_id_list[] = {
-	{ PCI_DEVICE(0x15ad, VMWGFX_PCI_ID_SVGA2) },
-	{ PCI_DEVICE(0x15ad, VMWGFX_PCI_ID_SVGA3) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, VMWGFX_PCI_ID_SVGA2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, VMWGFX_PCI_ID_SVGA3) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, vmw_pci_id_list);
