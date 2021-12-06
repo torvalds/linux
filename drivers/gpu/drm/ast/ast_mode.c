@@ -40,6 +40,7 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
@@ -48,7 +49,6 @@
 #include "ast_tables.h"
 
 static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
-static void ast_i2c_destroy(struct ast_i2c_chan *i2c);
 
 static inline void ast_load_palette_index(struct ast_private *ast,
 				     u8 index, u8 red, u8 green,
@@ -1300,14 +1300,6 @@ static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 	return flags;
 }
 
-static void ast_connector_destroy(struct drm_connector *connector)
-{
-	struct ast_connector *ast_connector = to_ast_connector(connector);
-
-	ast_i2c_destroy(ast_connector->i2c);
-	drm_connector_cleanup(connector);
-}
-
 static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
 	.get_modes = ast_get_modes,
 	.mode_valid = ast_mode_valid,
@@ -1316,7 +1308,7 @@ static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
 static const struct drm_connector_funcs ast_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = ast_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
@@ -1493,6 +1485,14 @@ static void set_data(void *i2c_priv, int data)
 	}
 }
 
+static void ast_i2c_release(struct drm_device *dev, void *res)
+{
+	struct ast_i2c_chan *i2c = res;
+
+	i2c_del_adapter(&i2c->adapter);
+	kfree(i2c);
+}
+
 static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
 {
 	struct ast_i2c_chan *i2c;
@@ -1521,19 +1521,15 @@ static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
 	ret = i2c_bit_add_bus(&i2c->adapter);
 	if (ret) {
 		drm_err(dev, "Failed to register bit i2c\n");
-		goto out_free;
+		goto out_kfree;
 	}
 
+	ret = drmm_add_action_or_reset(dev, ast_i2c_release, i2c);
+	if (ret)
+		return NULL;
 	return i2c;
-out_free:
+
+out_kfree:
 	kfree(i2c);
 	return NULL;
-}
-
-static void ast_i2c_destroy(struct ast_i2c_chan *i2c)
-{
-	if (!i2c)
-		return;
-	i2c_del_adapter(&i2c->adapter);
-	kfree(i2c);
 }
