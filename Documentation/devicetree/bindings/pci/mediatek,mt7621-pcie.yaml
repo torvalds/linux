@@ -45,6 +45,9 @@ patternProperties:
       phys:
         maxItems: 1
 
+      phy-names:
+        pattern: '^pcie-phy[0-2]$'
+
     required:
       - "#interrupt-cells"
       - interrupt-map-mask

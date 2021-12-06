@@ -46,6 +46,24 @@ properties:
   msi-parent:
     description: MSI controller the device is capable of using.
 
+  interrupt-controller:
+    type: object
+    properties:
+      '#address-cells':
+        const: 0
+
+      '#interrupt-cells':
+        const: 1
+
+      interrupt-controller: true
+
+    required:
+      - '#address-cells'
+      - '#interrupt-cells'
+      - interrupt-controller
+
+    additionalProperties: false
+
 required:
   - reg
   - reg-names
