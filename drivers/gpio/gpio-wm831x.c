@@ -262,6 +262,8 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 	struct wm831x_pdata *pdata = &wm831x->pdata;
 	struct wm831x_gpio *wm831x_gpio;
 
+	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+
 	wm831x_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm831x_gpio),
 				   GFP_KERNEL);
 	if (wm831x_gpio == NULL)
@@ -275,9 +277,6 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 		wm831x_gpio->gpio_chip.base = pdata->gpio_base;
 	else
 		wm831x_gpio->gpio_chip.base = -1;
-#ifdef CONFIG_OF_GPIO
-	wm831x_gpio->gpio_chip.of_node = wm831x->dev->of_node;
-#endif
 
 	return devm_gpiochip_add_data(&pdev->dev, &wm831x_gpio->gpio_chip, wm831x_gpio);
 }
