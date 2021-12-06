@@ -43,8 +43,6 @@ u64 sme_me_mask __section(".data") = 0;
 u64 sev_status __section(".data") = 0;
 u64 sev_check_data __section(".data") = 0;
 EXPORT_SYMBOL(sme_me_mask);
-DEFINE_STATIC_KEY_FALSE(sev_enable_key);
-EXPORT_SYMBOL_GPL(sev_enable_key);
 
 /* Buffer used for early in-place encryption by BSP, no locking needed */
 static char sme_early_buffer[PAGE_SIZE] __initdata __aligned(PAGE_SIZE);
@@ -498,14 +496,6 @@ void __init mem_encrypt_init(void)
 
 	/* Call into SWIOTLB to update the SWIOTLB DMA buffers */
 	swiotlb_update_mem_attributes();
-
-	/*
-	 * With SEV, we need to unroll the rep string I/O instructions,
-	 * but SEV-ES supports them through the #VC handler.
-	 */
-	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT) &&
-	    !cc_platform_has(CC_ATTR_GUEST_STATE_ENCRYPT))
-		static_branch_enable(&sev_enable_key);
 
 	print_mem_encrypt_feature_info();
 }

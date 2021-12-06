@@ -50,6 +50,14 @@ static bool amd_cc_platform_has(enum cc_attr attr)
 	case CC_ATTR_GUEST_STATE_ENCRYPT:
 		return sev_status & MSR_AMD64_SEV_ES_ENABLED;
 
+	/*
+	 * With SEV, the rep string I/O instructions need to be unrolled
+	 * but SEV-ES supports them through the #VC handler.
+	 */
+	case CC_ATTR_GUEST_UNROLL_STRING_IO:
+		return (sev_status & MSR_AMD64_SEV_ENABLED) &&
+			!(sev_status & MSR_AMD64_SEV_ES_ENABLED);
+
 	default:
 		return false;
 	}
