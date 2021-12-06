@@ -2074,7 +2074,8 @@ static void sja1105_bridge_stp_state_set(struct dsa_switch *ds, int port,
 }
 
 static int sja1105_bridge_join(struct dsa_switch *ds, int port,
-			       struct dsa_bridge bridge)
+			       struct dsa_bridge bridge,
+			       bool *tx_fwd_offload)
 {
 	return sja1105_bridge_member(ds, port, bridge, true);
 }

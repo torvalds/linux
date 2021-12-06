@@ -2442,7 +2442,8 @@ static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 }
 
 static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
-				      struct dsa_bridge bridge)
+				      struct dsa_bridge bridge,
+				      bool *tx_fwd_offload)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;

@@ -1103,7 +1103,8 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port)
 }
 
 static int lan9303_port_bridge_join(struct dsa_switch *ds, int port,
-				    struct dsa_bridge bridge)
+				    struct dsa_bridge bridge,
+				    bool *tx_fwd_offload)
 {
 	struct lan9303 *chip = ds->priv;
 

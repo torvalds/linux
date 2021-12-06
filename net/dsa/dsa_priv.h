@@ -56,6 +56,7 @@ struct dsa_notifier_bridge_info {
 	int tree_index;
 	int sw_index;
 	int port;
+	bool tx_fwd_offload;
 };
 
 /* DSA_NOTIFIER_FDB_* */

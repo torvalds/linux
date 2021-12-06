@@ -674,7 +674,8 @@ static int hellcreek_bridge_flags(struct dsa_switch *ds, int port,
 }
 
 static int hellcreek_port_bridge_join(struct dsa_switch *ds, int port,
-				      struct dsa_bridge bridge)
+				      struct dsa_bridge bridge,
+				      bool *tx_fwd_offload)
 {
 	struct hellcreek *hellcreek = ds->priv;
 
