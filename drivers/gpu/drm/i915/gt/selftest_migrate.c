@@ -49,6 +49,7 @@ static int copy(struct intel_migrate *migrate,
 	if (IS_ERR(src))
 		return 0;
 
+	sz = src->base.size;
 	dst = i915_gem_object_create_internal(i915, sz);
 	if (IS_ERR(dst))
 		goto err_free_src;
