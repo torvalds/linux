@@ -121,6 +121,9 @@ properties:
       - const: ahb
       - const: per
 
+  power-domains:
+    maxItems: 1
+
   pinctrl-names:
     oneOf:
       - minItems: 3

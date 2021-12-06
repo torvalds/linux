@@ -60,6 +60,14 @@ properties:
     minItems: 1
     maxItems: 2
 
+  dmas:
+    maxItems: 2
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
   power-domains: true
 
   resets:
@@ -213,7 +221,6 @@ examples:
       arm,primecell-periphid = <0x10153180>;
       reg = <0x52007000 0x1000>;
       interrupts = <49>;
-      interrupt-names = "cmd_irq";
       clocks = <&rcc 0>;
       clock-names = "apb_pclk";
       resets = <&rcc 1>;
