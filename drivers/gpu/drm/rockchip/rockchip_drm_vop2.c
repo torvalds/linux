@@ -3158,12 +3158,9 @@ static void vop2_initial(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	const struct vop2_data *vop2_data = vop2->data;
 	uint32_t current_vp_id = vp->id;
 	struct vop2_wb *wb = &vop2->wb;
-	struct vop2_dsc *dsc;
 	int ret;
-	int i;
 
 	if (vop2->enable_count == 0) {
 
@@ -3181,12 +3178,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		if (vop2_soc_is_rk3566())
 			VOP_CTRL_SET(vop2, otp_en, 1);
-
-		/* dsc must deassert rst before its register can accessed */
-		for (i = 0; i < vop2_data->nr_dscs; i++) {
-			dsc = &vop2->dscs[i];
-			VOP_MODULE_SET(vop2, dsc, rst_deassert, 1);
-		}
 
 		/*
 		 * rk3588 don't support access mmio by memcpy
@@ -3265,8 +3256,10 @@ static void vop2_crtc_disable_dsc(struct vop2 *vop2, u8 dsc_id)
 	struct vop2_dsc *dsc = &vop2->dscs[dsc_id];
 
 	VOP_MODULE_SET(vop2, dsc, dsc_mer, 1);
+	VOP_MODULE_SET(vop2, dsc, dsc_interface_mode, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_en, 0);
-	VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+	VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 0);
+	VOP_MODULE_SET(vop2, dsc, rst_deassert, 0);
 
 	dsc->attach_vp_id = -1;
 }
@@ -5422,7 +5415,7 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	 * bits_per_pixel = [8-12];
 	 * As only support 1/2/4 div, so we set dsc_cds = crtc_clock / 8;
 	 */
-	vcstate->dsc_cds_clk_rate = adjusted_mode->crtc_clock / 8 * 1000;
+	vcstate->dsc_cds_clk_rate = v_pixclk / 8;
 
 	return 0;
 }
@@ -5548,13 +5541,7 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 	if (dsc->pd)
 		vop2_power_domain_get(dsc->pd);
 
-	VOP_MODULE_SET(vop2, dsc, rst_deassert, 1);
 	VOP_MODULE_SET(vop2, dsc, scan_timing_para_imd_en, 1);
-
-	/* read current dsc register and backup to regsbak */
-	offset = dsc->regs->dsc_en.offset;
-	vop2->regsbak[offset >> 2] = reg_base[offset >> 2];
-
 	VOP_MODULE_SET(vop2, dsc, dsc_port_sel, vp->id);
 	if (vcstate->output_if & (VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1)) {
 		dsc_interface_mode = VOP_DSC_IF_HDMI;
@@ -5618,13 +5605,19 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 		VOP_MODULE_SET(vop2, dsc, dsc_vact_st_end, vact_end << 16 | vact_st);
 	}
 
+	VOP_MODULE_SET(vop2, dsc, rst_deassert, 1);
+	udelay(10);
+	/* read current dsc core register and backup to regsbak */
+	offset = dsc->regs->dsc_en.offset;
+	vop2->regsbak[offset >> 2] = reg_base[offset >> 2];
+
 	VOP_MODULE_SET(vop2, dsc, dsc_en, 1);
 	vop2_crtc_load_pps(crtc, dsc_id);
 
 	VOP_MODULE_SET(vop2, dsc, dsc_rbit, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_rbyt, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_flal, 1);
-	VOP_MODULE_SET(vop2, dsc, dsc_mer, 0);
+	VOP_MODULE_SET(vop2, dsc, dsc_mer, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_epb, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_epl, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_nslc, ilog2(vcstate->dsc_slice_num));
