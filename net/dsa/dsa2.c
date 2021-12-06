@@ -152,7 +152,9 @@ unsigned int dsa_bridge_num_get(const struct net_device *bridge_dev, int max)
 	unsigned int bridge_num = dsa_bridge_num_find(bridge_dev);
 
 	if (!bridge_num) {
-		/* First port that offloads TX forwarding for this bridge */
+		/* First port that requests FDB isolation or TX forwarding
+		 * offload for this bridge
+		 */
 		bridge_num = find_next_zero_bit(&dsa_fwd_offloading_bridges,
 						DSA_MAX_NUM_OFFLOADING_BRIDGES,
 						1);

@@ -271,18 +271,14 @@ static void dsa_port_switchdev_unsync_attrs(struct dsa_port *dp)
 }
 
 static void dsa_port_bridge_tx_fwd_unoffload(struct dsa_port *dp,
-					     struct net_device *bridge_dev)
+					     struct net_device *bridge_dev,
+					     unsigned int bridge_num)
 {
-	unsigned int bridge_num = dp->bridge_num;
 	struct dsa_switch *ds = dp->ds;
 
 	/* No bridge TX forwarding offload => do nothing */
-	if (!ds->ops->port_bridge_tx_fwd_unoffload || !dp->bridge_num)
+	if (!ds->ops->port_bridge_tx_fwd_unoffload || !bridge_num)
 		return;
-
-	dp->bridge_num = 0;
-
-	dsa_bridge_num_put(bridge_dev, bridge_num);
 
 	/* Notify the chips only once the offload has been deactivated, so
 	 * that they can update their configuration accordingly.
@@ -292,31 +288,60 @@ static void dsa_port_bridge_tx_fwd_unoffload(struct dsa_port *dp,
 }
 
 static bool dsa_port_bridge_tx_fwd_offload(struct dsa_port *dp,
-					   struct net_device *bridge_dev)
+					   struct net_device *bridge_dev,
+					   unsigned int bridge_num)
 {
 	struct dsa_switch *ds = dp->ds;
-	unsigned int bridge_num;
 	int err;
 
-	if (!ds->ops->port_bridge_tx_fwd_offload)
+	/* FDB isolation is required for TX forwarding offload */
+	if (!ds->ops->port_bridge_tx_fwd_offload || !bridge_num)
 		return false;
-
-	bridge_num = dsa_bridge_num_get(bridge_dev,
-					ds->num_fwd_offloading_bridges);
-	if (!bridge_num)
-		return false;
-
-	dp->bridge_num = bridge_num;
 
 	/* Notify the driver */
 	err = ds->ops->port_bridge_tx_fwd_offload(ds, dp->index, bridge_dev,
 						  bridge_num);
-	if (err) {
-		dsa_port_bridge_tx_fwd_unoffload(dp, bridge_dev);
-		return false;
+
+	return err ? false : true;
+}
+
+static int dsa_port_bridge_create(struct dsa_port *dp,
+				  struct net_device *br,
+				  struct netlink_ext_ack *extack)
+{
+	struct dsa_switch *ds = dp->ds;
+	unsigned int bridge_num;
+
+	dp->bridge_dev = br;
+
+	if (!ds->max_num_bridges)
+		return 0;
+
+	bridge_num = dsa_bridge_num_get(br, ds->max_num_bridges);
+	if (!bridge_num) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Range of offloadable bridges exceeded");
+		return -EOPNOTSUPP;
 	}
 
-	return true;
+	dp->bridge_num = bridge_num;
+
+	return 0;
+}
+
+static void dsa_port_bridge_destroy(struct dsa_port *dp,
+				    const struct net_device *br)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	dp->bridge_dev = NULL;
+
+	if (ds->max_num_bridges) {
+		int bridge_num = dp->bridge_num;
+
+		dp->bridge_num = 0;
+		dsa_bridge_num_put(br, bridge_num);
+	}
 }
 
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
@@ -336,7 +361,9 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 	/* Here the interface is already bridged. Reflect the current
 	 * configuration so that drivers can program their chips accordingly.
 	 */
-	dp->bridge_dev = br;
+	err = dsa_port_bridge_create(dp, br, extack);
+	if (err)
+		return err;
 
 	brport_dev = dsa_port_to_bridge_port(dp);
 
@@ -344,7 +371,8 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 	if (err)
 		goto out_rollback;
 
-	tx_fwd_offload = dsa_port_bridge_tx_fwd_offload(dp, br);
+	tx_fwd_offload = dsa_port_bridge_tx_fwd_offload(dp, br,
+							dp->bridge_num);
 
 	err = switchdev_bridge_port_offload(brport_dev, dev, dp,
 					    &dsa_slave_switchdev_notifier,
@@ -366,7 +394,7 @@ out_rollback_unoffload:
 out_rollback_unbridge:
 	dsa_broadcast(DSA_NOTIFIER_BRIDGE_LEAVE, &info);
 out_rollback:
-	dp->bridge_dev = NULL;
+	dsa_port_bridge_destroy(dp, br);
 	return err;
 }
 
@@ -393,14 +421,15 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 		.port = dp->index,
 		.br = br,
 	};
+	int bridge_num = dp->bridge_num;
 	int err;
 
 	/* Here the port is already unbridged. Reflect the current configuration
 	 * so that drivers can program their chips accordingly.
 	 */
-	dp->bridge_dev = NULL;
+	dsa_port_bridge_destroy(dp, br);
 
-	dsa_port_bridge_tx_fwd_unoffload(dp, br);
+	dsa_port_bridge_tx_fwd_unoffload(dp, br, bridge_num);
 
 	err = dsa_broadcast(DSA_NOTIFIER_BRIDGE_LEAVE, &info);
 	if (err)
