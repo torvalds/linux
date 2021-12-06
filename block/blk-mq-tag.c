@@ -215,7 +215,7 @@ void blk_mq_put_tags(struct blk_mq_tags *tags, int *tag_array, int nr_tags)
 
 struct bt_iter_data {
 	struct blk_mq_hw_ctx *hctx;
-	busy_iter_fn *fn;
+	busy_tag_iter_fn *fn;
 	void *data;
 	bool reserved;
 };
@@ -274,7 +274,7 @@ static bool bt_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
  *		bitmap_tags member of struct blk_mq_tags.
  */
 static void bt_for_each(struct blk_mq_hw_ctx *hctx, struct sbitmap_queue *bt,
-			busy_iter_fn *fn, void *data, bool reserved)
+			busy_tag_iter_fn *fn, void *data, bool reserved)
 {
 	struct bt_iter_data iter_data = {
 		.hctx = hctx,
@@ -457,7 +457,7 @@ EXPORT_SYMBOL(blk_mq_tagset_wait_completed_request);
  * called for all requests on all queues that share that tag set and not only
  * for requests associated with @q.
  */
-void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
+void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_tag_iter_fn *fn,
 		void *priv)
 {
 	struct blk_mq_hw_ctx *hctx;
