@@ -1452,8 +1452,10 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	tcp_ses->max_in_flight = 0;
 	tcp_ses->credits = 1;
 	if (primary_server) {
+		spin_lock(&cifs_tcp_ses_lock);
 		++primary_server->srv_count;
 		tcp_ses->primary_server = primary_server;
+		spin_unlock(&cifs_tcp_ses_lock);
 	}
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
@@ -4111,18 +4113,6 @@ cifs_prune_tlinks(struct work_struct *work)
 }
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
-static void mark_tcon_tcp_ses_for_reconnect(struct cifs_tcon *tcon)
-{
-	int i;
-
-	for (i = 0; i < tcon->ses->chan_count; i++) {
-		spin_lock(&GlobalMid_Lock);
-		if (tcon->ses->chans[i].server->tcpStatus != CifsExiting)
-			tcon->ses->chans[i].server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&GlobalMid_Lock);
-	}
-}
-
 /* Update dfs referral path of superblock */
 static int update_server_fullpath(struct TCP_Server_Info *server, struct cifs_sb_info *cifs_sb,
 				  const char *target)
@@ -4299,7 +4289,7 @@ static int tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tco
 	 */
 	if (rc && server->current_fullpath != server->origin_fullpath) {
 		server->current_fullpath = server->origin_fullpath;
-		mark_tcon_tcp_ses_for_reconnect(tcon);
+		cifs_ses_mark_for_reconnect(tcon->ses);
 	}
 
 	dfs_cache_free_tgts(tl);

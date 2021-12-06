@@ -154,38 +154,155 @@ u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZ
 }
 EXPORT_SYMBOL(drm_dp_get_adjust_request_post_cursor);
 
+static int __8b10b_clock_recovery_delay_us(const struct drm_dp_aux *aux, u8 rd_interval)
+{
+	if (rd_interval > 4)
+		drm_dbg_kms(aux->drm_dev, "%s: invalid AUX interval 0x%02x (max 4)\n",
+			    aux->name, rd_interval);
+
+	if (rd_interval == 0)
+		return 100;
+
+	return rd_interval * 4 * USEC_PER_MSEC;
+}
+
+static int __8b10b_channel_eq_delay_us(const struct drm_dp_aux *aux, u8 rd_interval)
+{
+	if (rd_interval > 4)
+		drm_dbg_kms(aux->drm_dev, "%s: invalid AUX interval 0x%02x (max 4)\n",
+			    aux->name, rd_interval);
+
+	if (rd_interval == 0)
+		return 400;
+
+	return rd_interval * 4 * USEC_PER_MSEC;
+}
+
+static int __128b132b_channel_eq_delay_us(const struct drm_dp_aux *aux, u8 rd_interval)
+{
+	switch (rd_interval) {
+	default:
+		drm_dbg_kms(aux->drm_dev, "%s: invalid AUX interval 0x%02x\n",
+			    aux->name, rd_interval);
+		fallthrough;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_400_US:
+		return 400;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_4_MS:
+		return 4000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_8_MS:
+		return 8000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_12_MS:
+		return 12000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_16_MS:
+		return 16000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_32_MS:
+		return 32000;
+	case DP_128B132B_TRAINING_AUX_RD_INTERVAL_64_MS:
+		return 64000;
+	}
+}
+
+/*
+ * The link training delays are different for:
+ *
+ *  - Clock recovery vs. channel equalization
+ *  - DPRX vs. LTTPR
+ *  - 128b/132b vs. 8b/10b
+ *  - DPCD rev 1.3 vs. later
+ *
+ * Get the correct delay in us, reading DPCD if necessary.
+ */
+static int __read_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			enum drm_dp_phy dp_phy, bool uhbr, bool cr)
+{
+	int (*parse)(const struct drm_dp_aux *aux, u8 rd_interval);
+	unsigned int offset;
+	u8 rd_interval, mask;
+
+	if (dp_phy == DP_PHY_DPRX) {
+		if (uhbr) {
+			if (cr)
+				return 100;
+
+			offset = DP_128B132B_TRAINING_AUX_RD_INTERVAL;
+			mask = DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK;
+			parse = __128b132b_channel_eq_delay_us;
+		} else {
+			if (cr && dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
+				return 100;
+
+			offset = DP_TRAINING_AUX_RD_INTERVAL;
+			mask = DP_TRAINING_AUX_RD_MASK;
+			if (cr)
+				parse = __8b10b_clock_recovery_delay_us;
+			else
+				parse = __8b10b_channel_eq_delay_us;
+		}
+	} else {
+		if (uhbr) {
+			offset = DP_128B132B_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy);
+			mask = DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK;
+			parse = __128b132b_channel_eq_delay_us;
+		} else {
+			if (cr)
+				return 100;
+
+			offset = DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy);
+			mask = DP_TRAINING_AUX_RD_MASK;
+			parse = __8b10b_channel_eq_delay_us;
+		}
+	}
+
+	if (offset < DP_RECEIVER_CAP_SIZE) {
+		rd_interval = dpcd[offset];
+	} else {
+		if (drm_dp_dpcd_readb(aux, offset, &rd_interval) != 1) {
+			drm_dbg_kms(aux->drm_dev, "%s: failed rd interval read\n",
+				    aux->name);
+			/* arbitrary default delay */
+			return 400;
+		}
+	}
+
+	return parse(aux, rd_interval & mask);
+}
+
+int drm_dp_read_clock_recovery_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				     enum drm_dp_phy dp_phy, bool uhbr)
+{
+	return __read_delay(aux, dpcd, dp_phy, uhbr, true);
+}
+EXPORT_SYMBOL(drm_dp_read_clock_recovery_delay);
+
+int drm_dp_read_channel_eq_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				 enum drm_dp_phy dp_phy, bool uhbr)
+{
+	return __read_delay(aux, dpcd, dp_phy, uhbr, false);
+}
+EXPORT_SYMBOL(drm_dp_read_channel_eq_delay);
+
 void drm_dp_link_train_clock_recovery_delay(const struct drm_dp_aux *aux,
 					    const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-					 DP_TRAINING_AUX_RD_MASK;
+	u8 rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+		DP_TRAINING_AUX_RD_MASK;
+	int delay_us;
 
-	if (rd_interval > 4)
-		drm_dbg_kms(aux->drm_dev, "%s: AUX interval %lu, out of range (max 4)\n",
-			    aux->name, rd_interval);
-
-	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
-		rd_interval = 100;
+	if (dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
+		delay_us = 100;
 	else
-		rd_interval *= 4 * USEC_PER_MSEC;
+		delay_us = __8b10b_clock_recovery_delay_us(aux, rd_interval);
 
-	usleep_range(rd_interval, rd_interval * 2);
+	usleep_range(delay_us, delay_us * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 static void __drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
-						 unsigned long rd_interval)
+						 u8 rd_interval)
 {
-	if (rd_interval > 4)
-		drm_dbg_kms(aux->drm_dev, "%s: AUX interval %lu, out of range (max 4)\n",
-			    aux->name, rd_interval);
+	int delay_us = __8b10b_channel_eq_delay_us(aux, rd_interval);
 
-	if (rd_interval == 0)
-		rd_interval = 400;
-	else
-		rd_interval *= 4 * USEC_PER_MSEC;
-
-	usleep_range(rd_interval, rd_interval * 2);
+	usleep_range(delay_us, delay_us * 2);
 }
 
 void drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
@@ -3173,6 +3290,10 @@ int drm_edp_backlight_set_level(struct drm_dp_aux *aux, const struct drm_edp_bac
 	int ret;
 	u8 buf[2] = { 0 };
 
+	/* The panel uses the PWM for controlling brightness levels */
+	if (!bl->aux_set)
+		return 0;
+
 	if (bl->lsb_reg_used) {
 		buf[0] = (level & 0xff00) >> 8;
 		buf[1] = (level & 0x00ff);
@@ -3199,7 +3320,7 @@ drm_edp_backlight_set_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
 	int ret;
 	u8 buf;
 
-	/* The panel uses something other then DPCD for enabling its backlight */
+	/* This panel uses the EDP_BL_PWR GPIO for enablement */
 	if (!bl->aux_enable)
 		return 0;
 
@@ -3234,11 +3355,11 @@ drm_edp_backlight_set_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
  * restoring any important backlight state such as the given backlight level, the brightness byte
  * count, backlight frequency, etc.
  *
- * Note that certain panels, while supporting brightness level controls over DPCD, may not support
- * having their backlights enabled via the standard %DP_EDP_DISPLAY_CONTROL_REGISTER. On such panels
- * &drm_edp_backlight_info.aux_enable will be set to %false, this function will skip the step of
- * programming the %DP_EDP_DISPLAY_CONTROL_REGISTER, and the driver must perform the required
- * implementation specific step for enabling the backlight after calling this function.
+ * Note that certain panels do not support being enabled or disabled via DPCD, but instead require
+ * that the driver handle enabling/disabling the panel through implementation-specific means using
+ * the EDP_BL_PWR GPIO. For such panels, &drm_edp_backlight_info.aux_enable will be set to %false,
+ * this function becomes a no-op, and the driver is expected to handle powering the panel on using
+ * the EDP_BL_PWR GPIO.
  *
  * Returns: %0 on success, negative error code on failure.
  */
@@ -3246,27 +3367,18 @@ int drm_edp_backlight_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
 			     const u16 level)
 {
 	int ret;
-	u8 dpcd_buf, new_dpcd_buf;
+	u8 dpcd_buf;
 
-	ret = drm_dp_dpcd_readb(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &dpcd_buf);
-	if (ret != 1) {
-		drm_dbg_kms(aux->drm_dev,
-			    "%s: Failed to read backlight mode: %d\n", aux->name, ret);
-		return ret < 0 ? ret : -EIO;
-	}
+	if (bl->aux_set)
+		dpcd_buf = DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
+	else
+		dpcd_buf = DP_EDP_BACKLIGHT_CONTROL_MODE_PWM;
 
-	new_dpcd_buf = dpcd_buf;
-
-	if ((dpcd_buf & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK) != DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD) {
-		new_dpcd_buf &= ~DP_EDP_BACKLIGHT_CONTROL_MODE_MASK;
-		new_dpcd_buf |= DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
-
-		if (bl->pwmgen_bit_count) {
-			ret = drm_dp_dpcd_writeb(aux, DP_EDP_PWMGEN_BIT_COUNT, bl->pwmgen_bit_count);
-			if (ret != 1)
-				drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux pwmgen bit count: %d\n",
-					    aux->name, ret);
-		}
+	if (bl->pwmgen_bit_count) {
+		ret = drm_dp_dpcd_writeb(aux, DP_EDP_PWMGEN_BIT_COUNT, bl->pwmgen_bit_count);
+		if (ret != 1)
+			drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux pwmgen bit count: %d\n",
+				    aux->name, ret);
 	}
 
 	if (bl->pwm_freq_pre_divider) {
@@ -3276,16 +3388,14 @@ int drm_edp_backlight_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
 				    "%s: Failed to write aux backlight frequency: %d\n",
 				    aux->name, ret);
 		else
-			new_dpcd_buf |= DP_EDP_BACKLIGHT_FREQ_AUX_SET_ENABLE;
+			dpcd_buf |= DP_EDP_BACKLIGHT_FREQ_AUX_SET_ENABLE;
 	}
 
-	if (new_dpcd_buf != dpcd_buf) {
-		ret = drm_dp_dpcd_writeb(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, new_dpcd_buf);
-		if (ret != 1) {
-			drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux backlight mode: %d\n",
-				    aux->name, ret);
-			return ret < 0 ? ret : -EIO;
-		}
+	ret = drm_dp_dpcd_writeb(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, dpcd_buf);
+	if (ret != 1) {
+		drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux backlight mode: %d\n",
+			    aux->name, ret);
+		return ret < 0 ? ret : -EIO;
 	}
 
 	ret = drm_edp_backlight_set_level(aux, bl, level);
@@ -3304,12 +3414,13 @@ EXPORT_SYMBOL(drm_edp_backlight_enable);
  * @aux: The DP AUX channel to use
  * @bl: Backlight capability info from drm_edp_backlight_init()
  *
- * This function handles disabling DPCD backlight controls on a panel over AUX. Note that some
- * panels have backlights that are enabled/disabled by other means, despite having their brightness
- * values controlled through DPCD. On such panels &drm_edp_backlight_info.aux_enable will be set to
- * %false, this function will become a no-op (and we will skip updating
- * %DP_EDP_DISPLAY_CONTROL_REGISTER), and the driver must take care to perform it's own
- * implementation specific step for disabling the backlight.
+ * This function handles disabling DPCD backlight controls on a panel over AUX.
+ *
+ * Note that certain panels do not support being enabled or disabled via DPCD, but instead require
+ * that the driver handle enabling/disabling the panel through implementation-specific means using
+ * the EDP_BL_PWR GPIO. For such panels, &drm_edp_backlight_info.aux_enable will be set to %false,
+ * this function becomes a no-op, and the driver is expected to handle powering the panel off using
+ * the EDP_BL_PWR GPIO.
  *
  * Returns: %0 on success or no-op, negative error code on failure.
  */
@@ -3332,6 +3443,9 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 	int fxp, fxp_min, fxp_max, fxp_actual, f = 1;
 	int ret;
 	u8 pn, pn_min, pn_max;
+
+	if (!bl->aux_set)
+		return 0;
 
 	ret = drm_dp_dpcd_readb(aux, DP_EDP_PWMGEN_BIT_COUNT, &pn);
 	if (ret != 1) {
@@ -3418,7 +3532,7 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 }
 
 static inline int
-drm_edp_backlight_probe_level(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl,
+drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl,
 			      u8 *current_mode)
 {
 	int ret;
@@ -3433,6 +3547,9 @@ drm_edp_backlight_probe_level(struct drm_dp_aux *aux, struct drm_edp_backlight_i
 	}
 
 	*current_mode = (mode_reg & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK);
+	if (!bl->aux_set)
+		return 0;
+
 	if (*current_mode == DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD) {
 		int size = 1 + bl->lsb_reg_used;
 
@@ -3463,7 +3580,7 @@ drm_edp_backlight_probe_level(struct drm_dp_aux *aux, struct drm_edp_backlight_i
  * @bl: The &drm_edp_backlight_info struct to fill out with information on the backlight
  * @driver_pwm_freq_hz: Optional PWM frequency from the driver in hz
  * @edp_dpcd: A cached copy of the eDP DPCD
- * @current_level: Where to store the probed brightness level
+ * @current_level: Where to store the probed brightness level, if any
  * @current_mode: Where to store the currently set backlight control mode
  *
  * Initializes a &drm_edp_backlight_info struct by probing @aux for it's backlight capabilities,
@@ -3483,24 +3600,38 @@ drm_edp_backlight_init(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl
 
 	if (edp_dpcd[1] & DP_EDP_BACKLIGHT_AUX_ENABLE_CAP)
 		bl->aux_enable = true;
+	if (edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_AUX_SET_CAP)
+		bl->aux_set = true;
 	if (edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_BYTE_COUNT)
 		bl->lsb_reg_used = true;
+
+	/* Sanity check caps */
+	if (!bl->aux_set && !(edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_PWM_PIN_CAP)) {
+		drm_dbg_kms(aux->drm_dev,
+			    "%s: Panel supports neither AUX or PWM brightness control? Aborting\n",
+			    aux->name);
+		return -EINVAL;
+	}
 
 	ret = drm_edp_backlight_probe_max(aux, bl, driver_pwm_freq_hz, edp_dpcd);
 	if (ret < 0)
 		return ret;
 
-	ret = drm_edp_backlight_probe_level(aux, bl, current_mode);
+	ret = drm_edp_backlight_probe_state(aux, bl, current_mode);
 	if (ret < 0)
 		return ret;
 	*current_level = ret;
 
 	drm_dbg_kms(aux->drm_dev,
-		    "%s: Found backlight level=%d/%d pwm_freq_pre_divider=%d mode=%x\n",
-		    aux->name, *current_level, bl->max, bl->pwm_freq_pre_divider, *current_mode);
-	drm_dbg_kms(aux->drm_dev,
-		    "%s: Backlight caps: pwmgen_bit_count=%d lsb_reg_used=%d aux_enable=%d\n",
-		    aux->name, bl->pwmgen_bit_count, bl->lsb_reg_used, bl->aux_enable);
+		    "%s: Found backlight: aux_set=%d aux_enable=%d mode=%d\n",
+		    aux->name, bl->aux_set, bl->aux_enable, *current_mode);
+	if (bl->aux_set) {
+		drm_dbg_kms(aux->drm_dev,
+			    "%s: Backlight caps: level=%d/%d pwm_freq_pre_divider=%d lsb_reg_used=%d\n",
+			    aux->name, *current_level, bl->max, bl->pwm_freq_pre_divider,
+			    bl->lsb_reg_used);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_edp_backlight_init);

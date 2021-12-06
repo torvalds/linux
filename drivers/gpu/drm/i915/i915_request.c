@@ -96,9 +96,9 @@ static signed long i915_fence_wait(struct dma_fence *fence,
 				   bool interruptible,
 				   signed long timeout)
 {
-	return i915_request_wait(to_request(fence),
-				 interruptible | I915_WAIT_PRIORITY,
-				 timeout);
+	return i915_request_wait_timeout(to_request(fence),
+					 interruptible | I915_WAIT_PRIORITY,
+					 timeout);
 }
 
 struct kmem_cache *i915_request_slab_cache(void)
@@ -1857,23 +1857,27 @@ static void request_wait_wake(struct dma_fence *fence, struct dma_fence_cb *cb)
 }
 
 /**
- * i915_request_wait - wait until execution of request has finished
+ * i915_request_wait_timeout - wait until execution of request has finished
  * @rq: the request to wait upon
  * @flags: how to wait
  * @timeout: how long to wait in jiffies
  *
- * i915_request_wait() waits for the request to be completed, for a
+ * i915_request_wait_timeout() waits for the request to be completed, for a
  * maximum of @timeout jiffies (with MAX_SCHEDULE_TIMEOUT implying an
  * unbounded wait).
  *
  * Returns the remaining time (in jiffies) if the request completed, which may
- * be zero or -ETIME if the request is unfinished after the timeout expires.
+ * be zero if the request is unfinished after the timeout expires.
+ * If the timeout is 0, it will return 1 if the fence is signaled.
+ *
  * May return -EINTR is called with I915_WAIT_INTERRUPTIBLE and a signal is
  * pending before the request completes.
+ *
+ * NOTE: This function has the same wait semantics as dma-fence.
  */
-long i915_request_wait(struct i915_request *rq,
-		       unsigned int flags,
-		       long timeout)
+long i915_request_wait_timeout(struct i915_request *rq,
+			       unsigned int flags,
+			       long timeout)
 {
 	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
@@ -1883,7 +1887,7 @@ long i915_request_wait(struct i915_request *rq,
 	GEM_BUG_ON(timeout < 0);
 
 	if (dma_fence_is_signaled(&rq->fence))
-		return timeout;
+		return timeout ?: 1;
 
 	if (!timeout)
 		return -ETIME;
@@ -1990,6 +1994,39 @@ out:
 	mutex_release(&rq->engine->gt->reset.mutex.dep_map, _THIS_IP_);
 	trace_i915_request_wait_end(rq);
 	return timeout;
+}
+
+/**
+ * i915_request_wait - wait until execution of request has finished
+ * @rq: the request to wait upon
+ * @flags: how to wait
+ * @timeout: how long to wait in jiffies
+ *
+ * i915_request_wait() waits for the request to be completed, for a
+ * maximum of @timeout jiffies (with MAX_SCHEDULE_TIMEOUT implying an
+ * unbounded wait).
+ *
+ * Returns the remaining time (in jiffies) if the request completed, which may
+ * be zero or -ETIME if the request is unfinished after the timeout expires.
+ * May return -EINTR is called with I915_WAIT_INTERRUPTIBLE and a signal is
+ * pending before the request completes.
+ *
+ * NOTE: This function behaves differently from dma-fence wait semantics for
+ * timeout = 0. It returns 0 on success, and -ETIME if not signaled.
+ */
+long i915_request_wait(struct i915_request *rq,
+		       unsigned int flags,
+		       long timeout)
+{
+	long ret = i915_request_wait_timeout(rq, flags, timeout);
+
+	if (!ret)
+		return -ETIME;
+
+	if (ret > 0 && !timeout)
+		return 0;
+
+	return ret;
 }
 
 static int print_sched_attr(const struct i915_sched_attr *attr,

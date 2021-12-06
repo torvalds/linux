@@ -30,7 +30,7 @@ subdir-ccflags-y += -I$(srctree)/$(src)
 # Please keep these build lists sorted!
 
 # core driver code
-i915-y += i915_drv.o \
+i915-y += i915_driver.o \
 	  i915_config.o \
 	  i915_irq.o \
 	  i915_getparam.o \
@@ -226,6 +226,8 @@ i915-y += \
 	display/intel_hotplug.o \
 	display/intel_lpe_audio.o \
 	display/intel_overlay.o \
+	display/intel_pch_display.o \
+	display/intel_pch_refclk.o \
 	display/intel_plane_initial.o \
 	display/intel_psr.o \
 	display/intel_quirks.o \

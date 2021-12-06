@@ -122,7 +122,7 @@ void try_to_clear_window_buffer(struct pt_regs *regs, int who)
 		if ((sp & 7) ||
 		    copy_to_user((char __user *) sp, &tp->reg_window[window],
 				 sizeof(struct reg_window32))) {
-			force_fatal_sig(SIGILL);
+			force_exit_sig(SIGILL);
 			return;
 		}
 	}

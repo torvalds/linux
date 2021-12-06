@@ -48,7 +48,7 @@ bool syscall_user_dispatch(struct pt_regs *regs)
 		 * the selector is loaded by userspace.
 		 */
 		if (unlikely(__get_user(state, sd->selector))) {
-			force_fatal_sig(SIGSEGV);
+			force_exit_sig(SIGSEGV);
 			return true;
 		}
 
@@ -56,7 +56,7 @@ bool syscall_user_dispatch(struct pt_regs *regs)
 			return false;
 
 		if (state != SYSCALL_DISPATCH_FILTER_BLOCK) {
-			force_fatal_sig(SIGSYS);
+			force_exit_sig(SIGSYS);
 			return true;
 		}
 	}

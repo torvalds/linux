@@ -156,6 +156,7 @@ void put_pages_list(struct list_head *pages)
 	}
 
 	free_unref_page_list(pages);
+	INIT_LIST_HEAD(pages);
 }
 EXPORT_SYMBOL(put_pages_list);
 
