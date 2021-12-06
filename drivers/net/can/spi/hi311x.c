@@ -830,17 +830,26 @@ static int hi3110_can_probe(struct spi_device *spi)
 {
 	const struct of_device_id *of_id = of_match_device(hi3110_of_match,
 							   &spi->dev);
+	struct device *dev = &spi->dev;
 	struct net_device *net;
 	struct hi3110_priv *priv;
 	struct clk *clk;
-	int freq, ret;
+	u32 freq;
+	int ret;
 
 	clk = devm_clk_get_optional(&spi->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&spi->dev, "no CAN clock source defined\n");
 		return PTR_ERR(clk);
 	}
-	freq = clk_get_rate(clk);
+
+	if (clk) {
+		freq = clk_get_rate(clk);
+	} else {
+		ret = device_property_read_u32(dev, "clock-frequency", &freq);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to get clock-frequency!\n");
+	}
 
 	/* Sanity check */
 	if (freq > 40000000)
