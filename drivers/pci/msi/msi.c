@@ -16,7 +16,7 @@
 #include <linux/of_irq.h>
 #include <linux/pci.h>
 
-#include "pci.h"
+#include "../pci.h"
 
 #ifdef CONFIG_PCI_MSI
 
