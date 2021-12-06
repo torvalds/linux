@@ -21,7 +21,6 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/ktime.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <media/rc-core.h>
@@ -75,13 +74,6 @@ struct streamzap_ir {
 
 	/* track what state we're in */
 	enum StreamzapDecoderState decoder_state;
-	/* tracks whether we are currently receiving some signal */
-	bool			idle;
-	/* sum of signal lengths received since signal start */
-	unsigned long		sum;
-	/* start time of signal; necessary for gap tracking */
-	ktime_t			signal_last;
-	ktime_t			signal_start;
 
 	char			phys[64];
 };
@@ -115,37 +107,11 @@ static void sz_push(struct streamzap_ir *sz, struct ir_raw_event rawir)
 static void sz_push_full_pulse(struct streamzap_ir *sz,
 			       unsigned char value)
 {
-	struct ir_raw_event rawir = {};
+	struct ir_raw_event rawir = {
+		.pulse = true,
+		.duration = value * SZ_RESOLUTION + SZ_RESOLUTION / 2,
+	};
 
-	if (sz->idle) {
-		int delta;
-
-		sz->signal_last = sz->signal_start;
-		sz->signal_start = ktime_get_real();
-
-		delta = ktime_us_delta(sz->signal_start, sz->signal_last);
-		rawir.pulse = false;
-		if (delta > (15 * USEC_PER_SEC)) {
-			/* really long time */
-			rawir.duration = IR_MAX_DURATION;
-		} else {
-			rawir.duration = delta;
-			rawir.duration -= sz->sum;
-			rawir.duration = (rawir.duration > IR_MAX_DURATION) ?
-					 IR_MAX_DURATION : rawir.duration;
-		}
-		sz_push(sz, rawir);
-
-		sz->idle = false;
-		sz->sum = 0;
-	}
-
-	rawir.pulse = true;
-	rawir.duration = ((int) value) * SZ_RESOLUTION;
-	rawir.duration += SZ_RESOLUTION / 2;
-	sz->sum += rawir.duration;
-	rawir.duration = (rawir.duration > IR_MAX_DURATION) ?
-			 IR_MAX_DURATION : rawir.duration;
 	sz_push(sz, rawir);
 }
 
@@ -158,12 +124,11 @@ static void sz_push_half_pulse(struct streamzap_ir *sz,
 static void sz_push_full_space(struct streamzap_ir *sz,
 			       unsigned char value)
 {
-	struct ir_raw_event rawir = {};
+	struct ir_raw_event rawir = {
+		.pulse = false,
+		.duration = value * SZ_RESOLUTION + SZ_RESOLUTION / 2,
+	};
 
-	rawir.pulse = false;
-	rawir.duration = ((int) value) * SZ_RESOLUTION;
-	rawir.duration += SZ_RESOLUTION / 2;
-	sz->sum += rawir.duration;
 	sz_push(sz, rawir);
 }
 
@@ -235,7 +200,6 @@ static void streamzap_callback(struct urb *urb)
 					.pulse = false,
 					.duration = sz->rdev->timeout
 				};
-				sz->idle = true;
 				sz_push(sz, rawir);
 			} else {
 				sz_push_full_space(sz, sz->buf_in[i]);
@@ -368,7 +332,6 @@ static int streamzap_probe(struct usb_interface *intf,
 	if (!sz->rdev)
 		goto rc_dev_fail;
 
-	sz->idle = true;
 	sz->decoder_state = PulseSpace;
 	/* FIXME: don't yet have a way to set this */
 	sz->rdev->timeout = SZ_TIMEOUT * SZ_RESOLUTION;
@@ -378,8 +341,6 @@ static int streamzap_probe(struct usb_interface *intf,
 	sz->min_timeout = SZ_TIMEOUT * SZ_RESOLUTION;
 	sz->max_timeout = SZ_TIMEOUT * SZ_RESOLUTION;
 	#endif
-
-	sz->signal_start = ktime_get_real();
 
 	/* Complete final initialisations */
 	usb_fill_int_urb(sz->urb_in, usbdev, pipe, sz->buf_in,
