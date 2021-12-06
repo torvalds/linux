@@ -37,15 +37,15 @@ To be consistent on all architectures, include/linux/topology.h
 provides default definitions for any of the above macros that are
 not defined by include/asm-XXX/topology.h:
 
- 1) topology_physical_package_id: -1
- 2) topology_die_id: -1
- 3) topology_cluster_id: -1
- 4) topology_core_id: 0
- 5) topology_book_id: -1
- 6) topology_drawer_id: -1
- 7) topology_sibling_cpumask: just the given CPU
- 8) topology_core_cpumask: just the given CPU
- 9) topology_cluster_cpumask: just the given CPU
+1) topology_physical_package_id: -1
+2) topology_die_id: -1
+3) topology_cluster_id: -1
+4) topology_core_id: 0
+5) topology_book_id: -1
+6) topology_drawer_id: -1
+7) topology_sibling_cpumask: just the given CPU
+8) topology_core_cpumask: just the given CPU
+9) topology_cluster_cpumask: just the given CPU
 10) topology_die_cpumask: just the given CPU
 11) topology_book_cpumask:  just the given CPU
 12) topology_drawer_cpumask: just the given CPU
