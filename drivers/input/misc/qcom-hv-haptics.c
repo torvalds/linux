@@ -160,6 +160,7 @@
 #define VMAX_HDRM_MAX_MV			6350
 
 #define HAP_CFG_VSET_CFG_REG			0x68
+#define FORCE_VSET_ACK_BIT			BIT(1) /* This is only for HAP525_HV */
 #define FORCE_VREG_RDY_BIT			BIT(0)
 
 #define HAP_CFG_MOD_STATUS_SEL_REG		0x70
@@ -1376,14 +1377,18 @@ static int haptics_enable_hpwr_vreg(struct haptics_chip *chip, bool en)
 static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
 {
 	int rc = 0;
-	u8 val;
+	u8 mask, val;
+
+	mask = FORCE_VREG_RDY_BIT;
+	if (chip->hw_type == HAP525_HV)
+		mask |= FORCE_VSET_ACK_BIT;
 
 	if ((is_boost_vreg_enabled_in_open_loop(chip) ||
 	     is_haptics_external_powered(chip)) && en) {
 		/* Force VREG_RDY */
+		val = mask;
 		rc = haptics_masked_write(chip, chip->cfg_addr_base,
-				HAP_CFG_VSET_CFG_REG, FORCE_VREG_RDY_BIT,
-				FORCE_VREG_RDY_BIT);
+				HAP_CFG_VSET_CFG_REG, mask, val);
 		if (rc < 0)
 			return rc;
 
@@ -1414,8 +1419,7 @@ static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
 		}
 	} else if (!is_haptics_external_powered(chip)) {
 		rc = haptics_masked_write(chip, chip->cfg_addr_base,
-				HAP_CFG_VSET_CFG_REG,
-				FORCE_VREG_RDY_BIT, 0);
+				HAP_CFG_VSET_CFG_REG, mask, 0);
 	}
 
 	return rc;
