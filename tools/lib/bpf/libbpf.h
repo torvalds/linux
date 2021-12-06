@@ -112,8 +112,30 @@ struct bpf_object_open_opts {
 #define bpf_object_open_opts__last_field btf_custom_path
 
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
+
+/**
+ * @brief **bpf_object__open_file()** creates a bpf_object by opening
+ * the BPF ELF object file pointed to by the passed path and loading it
+ * into memory.
+ * @param path BPF object file path
+ * @param opts options for how to load the bpf object, this parameter is
+ * optional and can be set to NULL
+ * @return pointer to the new bpf_object; or NULL is returned on error,
+ * error code is stored in errno
+ */
 LIBBPF_API struct bpf_object *
 bpf_object__open_file(const char *path, const struct bpf_object_open_opts *opts);
+
+/**
+ * @brief **bpf_object__open_mem()** creates a bpf_object by reading
+ * the BPF objects raw bytes from a memory buffer containing a valid
+ * BPF ELF object file.
+ * @param obj_buf pointer to the buffer containing ELF file bytes
+ * @param obj_buf_sz number of bytes in the buffer
+ * @param opts options for how to load the bpf object
+ * @return pointer to the new bpf_object; or NULL is returned on error,
+ * error code is stored in errno
+ */
 LIBBPF_API struct bpf_object *
 bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
 		     const struct bpf_object_open_opts *opts);
@@ -348,10 +370,41 @@ struct bpf_uprobe_opts {
 };
 #define bpf_uprobe_opts__last_field retprobe
 
+/**
+ * @brief **bpf_program__attach_uprobe()** attaches a BPF program
+ * to the userspace function which is found by binary path and
+ * offset. You can optionally specify a particular proccess to attach
+ * to. You can also optionally attach the program to the function
+ * exit instead of entry.
+ *
+ * @param prog BPF program to attach
+ * @param retprobe Attach to function exit
+ * @param pid Process ID to attach the uprobe to, 0 for self (own process),
+ * -1 for all processes
+ * @param binary_path Path to binary that contains the function symbol
+ * @param func_offset Offset within the binary of the function symbol
+ * @return Reference to the newly created BPF link; or NULL is returned on error,
+ * error code is stored in errno
+ */
 LIBBPF_API struct bpf_link *
 bpf_program__attach_uprobe(const struct bpf_program *prog, bool retprobe,
 			   pid_t pid, const char *binary_path,
 			   size_t func_offset);
+
+/**
+ * @brief **bpf_program__attach_uprobe_opts()** is just like
+ * bpf_program__attach_uprobe() except with a options struct
+ * for various configurations.
+ *
+ * @param prog BPF program to attach
+ * @param pid Process ID to attach the uprobe to, 0 for self (own process),
+ * -1 for all processes
+ * @param binary_path Path to binary that contains the function symbol
+ * @param func_offset Offset within the binary of the function symbol
+ * @param opts Options for altering program attachment
+ * @return Reference to the newly created BPF link; or NULL is returned on error,
+ * error code is stored in errno
+ */
 LIBBPF_API struct bpf_link *
 bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 				const char *binary_path, size_t func_offset,
