@@ -13,6 +13,9 @@ properties:
   compatible:
     const: intel,keembay-dwc3
 
+  reg:
+    maxItems: 1
+
   clocks:
     maxItems: 4
 
