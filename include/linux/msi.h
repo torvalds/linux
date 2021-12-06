@@ -259,17 +259,6 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc);
 void arch_teardown_msi_irq(unsigned int irq);
 int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type);
 void arch_teardown_msi_irqs(struct pci_dev *dev);
-#else
-static inline int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
-{
-	WARN_ON_ONCE(1);
-	return -ENODEV;
-}
-
-static inline void arch_teardown_msi_irqs(struct pci_dev *dev)
-{
-	WARN_ON_ONCE(1);
-}
 #endif
 
 /*

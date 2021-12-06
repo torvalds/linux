@@ -4,8 +4,7 @@
  *
  * Legacy architecture specific setup and teardown mechanism.
  */
-#include <linux/msi.h>
-#include <linux/pci.h>
+#include "msi.h"
 
 /* Arch hooks */
 int __weak arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
@@ -49,4 +48,14 @@ void __weak arch_teardown_msi_irqs(struct pci_dev *dev)
 				arch_teardown_msi_irq(desc->irq + i);
 		}
 	}
+}
+
+int pci_msi_legacy_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	return arch_setup_msi_irqs(dev, nvec, type);
+}
+
+void pci_msi_legacy_teardown_msi_irqs(struct pci_dev *dev)
+{
+	arch_teardown_msi_irqs(dev);
 }
