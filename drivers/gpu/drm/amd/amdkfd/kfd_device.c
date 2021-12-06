@@ -315,6 +315,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		/* Aldebaran */
 		case IP_VERSION(9, 4, 2):
+		case IP_VERSION(9, 4, 3):
 			gfx_target_version = 90010;
 			f2g = &aldebaran_kfd2kgd;
 			break;
@@ -447,6 +448,10 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			kfd->cwsr_isa = cwsr_trap_arcturus_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_arcturus_hex);
 		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_aldebaran_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_aldebaran_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_aldebaran_hex);
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_aldebaran_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_aldebaran_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_aldebaran_hex);
