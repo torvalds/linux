@@ -1336,8 +1336,9 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		req->alpha_mode_1 = 0x0a00;
 	}
 
-	/* if blend refer to yqw */
-	if (!((req_rga->alpha_rop_flag) & 1)) {
+	/* simple win can not support dst offset */
+	if ((!((req_rga->alpha_rop_flag) & 1)) &&
+	    (req_rga->dst.x_offset == 0 && req_rga->dst.y_offset == 0)) {
 		set_win_info(&req->win0, &req_rga->src);
 
 		/* enable win0 rotate */
@@ -1394,6 +1395,10 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		/* set win1 dst size */
 		req->win1.dst_act_w = req_rga->dst.act_w;
 		req->win1.dst_act_h = req_rga->dst.act_h;
+
+		/* dst offset need to config overlap offset */
+		req->wr.x_offset = req_rga->dst.x_offset;
+		req->wr.y_offset = req_rga->dst.y_offset;
 	}
 	set_wr_info(req_rga, req);
 
