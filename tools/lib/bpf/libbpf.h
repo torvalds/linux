@@ -1038,11 +1038,11 @@ struct bpf_object_skeleton {
 	struct bpf_object **obj;
 
 	int map_cnt;
-	int map_skel_sz; /* sizeof(struct bpf_skeleton_map) */
+	int map_skel_sz; /* sizeof(struct bpf_map_skeleton) */
 	struct bpf_map_skeleton *maps;
 
 	int prog_cnt;
-	int prog_skel_sz; /* sizeof(struct bpf_skeleton_prog) */
+	int prog_skel_sz; /* sizeof(struct bpf_prog_skeleton) */
 	struct bpf_prog_skeleton *progs;
 };
 
