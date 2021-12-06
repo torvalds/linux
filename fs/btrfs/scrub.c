@@ -39,14 +39,14 @@ struct scrub_block;
 struct scrub_ctx;
 
 /*
- * the following three values only influence the performance.
+ * The following three values only influence the performance.
+ *
  * The last one configures the number of parallel and outstanding I/O
- * operations. The first two values configure an upper limit for the number
+ * operations. The first one configures an upper limit for the number
  * of (dynamically allocated) pages that are added to a bio.
  */
-#define SCRUB_PAGES_PER_RD_BIO	32	/* 128k per bio */
-#define SCRUB_PAGES_PER_WR_BIO	32	/* 128k per bio */
-#define SCRUB_BIOS_PER_SCTX	64	/* 8MB per device in flight */
+#define SCRUB_PAGES_PER_BIO	32	/* 128KiB per bio for x86 */
+#define SCRUB_BIOS_PER_SCTX	64	/* 8MiB per device in flight for x86 */
 
 /*
  * The following value times PAGE_SIZE needs to be large enough to match the
@@ -87,11 +87,7 @@ struct scrub_bio {
 	blk_status_t		status;
 	u64			logical;
 	u64			physical;
-#if SCRUB_PAGES_PER_WR_BIO >= SCRUB_PAGES_PER_RD_BIO
-	struct scrub_page	*pagev[SCRUB_PAGES_PER_WR_BIO];
-#else
-	struct scrub_page	*pagev[SCRUB_PAGES_PER_RD_BIO];
-#endif
+	struct scrub_page	*pagev[SCRUB_PAGES_PER_BIO];
 	int			page_count;
 	int			next_free;
 	struct btrfs_work	work;
@@ -162,7 +158,7 @@ struct scrub_ctx {
 	struct list_head	csum_list;
 	atomic_t		cancel_req;
 	int			readonly;
-	int			pages_per_rd_bio;
+	int			pages_per_bio;
 
 	/* State of IO submission throttling affecting the associated device */
 	ktime_t			throttle_deadline;
@@ -173,7 +169,6 @@ struct scrub_ctx {
 
 	struct scrub_bio        *wr_curr_bio;
 	struct mutex            wr_lock;
-	int                     pages_per_wr_bio; /* <= SCRUB_PAGES_PER_WR_BIO */
 	struct btrfs_device     *wr_tgtdev;
 	bool                    flush_all_writes;
 
@@ -577,7 +572,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 		goto nomem;
 	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
-	sctx->pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
+	sctx->pages_per_bio = SCRUB_PAGES_PER_BIO;
 	sctx->curr = -1;
 	sctx->fs_info = fs_info;
 	INIT_LIST_HEAD(&sctx->csum_list);
@@ -615,7 +610,6 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	sctx->wr_curr_bio = NULL;
 	if (is_dev_replace) {
 		WARN_ON(!fs_info->dev_replace.tgtdev);
-		sctx->pages_per_wr_bio = SCRUB_PAGES_PER_WR_BIO;
 		sctx->wr_tgtdev = fs_info->dev_replace.tgtdev;
 		sctx->flush_all_writes = false;
 	}
@@ -1674,7 +1668,7 @@ again:
 		sbio->dev = sctx->wr_tgtdev;
 		bio = sbio->bio;
 		if (!bio) {
-			bio = btrfs_bio_alloc(sctx->pages_per_wr_bio);
+			bio = btrfs_bio_alloc(sctx->pages_per_bio);
 			sbio->bio = bio;
 		}
 
@@ -1707,7 +1701,7 @@ again:
 	sbio->pagev[sbio->page_count] = spage;
 	scrub_page_get(spage);
 	sbio->page_count++;
-	if (sbio->page_count == sctx->pages_per_wr_bio)
+	if (sbio->page_count == sctx->pages_per_bio)
 		scrub_wr_submit(sctx);
 	mutex_unlock(&sctx->wr_lock);
 
@@ -1754,7 +1748,7 @@ static void scrub_wr_bio_end_io_worker(struct btrfs_work *work)
 	struct scrub_ctx *sctx = sbio->sctx;
 	int i;
 
-	WARN_ON(sbio->page_count > SCRUB_PAGES_PER_WR_BIO);
+	ASSERT(sbio->page_count <= SCRUB_PAGES_PER_BIO);
 	if (sbio->status) {
 		struct btrfs_dev_replace *dev_replace =
 			&sbio->sctx->fs_info->dev_replace;
@@ -2100,7 +2094,7 @@ again:
 		sbio->dev = spage->dev;
 		bio = sbio->bio;
 		if (!bio) {
-			bio = btrfs_bio_alloc(sctx->pages_per_rd_bio);
+			bio = btrfs_bio_alloc(sctx->pages_per_bio);
 			sbio->bio = bio;
 		}
 
@@ -2134,7 +2128,7 @@ again:
 	scrub_block_get(sblock); /* one for the page added to the bio */
 	atomic_inc(&sblock->outstanding_pages);
 	sbio->page_count++;
-	if (sbio->page_count == sctx->pages_per_rd_bio)
+	if (sbio->page_count == sctx->pages_per_bio)
 		scrub_submit(sctx);
 
 	return 0;
@@ -2368,7 +2362,7 @@ static void scrub_bio_end_io_worker(struct btrfs_work *work)
 	struct scrub_ctx *sctx = sbio->sctx;
 	int i;
 
-	BUG_ON(sbio->page_count > SCRUB_PAGES_PER_RD_BIO);
+	ASSERT(sbio->page_count <= SCRUB_PAGES_PER_BIO);
 	if (sbio->status) {
 		for (i = 0; i < sbio->page_count; i++) {
 			struct scrub_page *spage = sbio->pagev[i];
