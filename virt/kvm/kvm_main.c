@@ -1503,23 +1503,25 @@ static int kvm_prepare_memory_region(struct kvm *kvm,
 	 * new and KVM isn't using a ring buffer, allocate and initialize a
 	 * new bitmap.
 	 */
-	if (!(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
-		new->dirty_bitmap = NULL;
-	else if (old->dirty_bitmap)
-		new->dirty_bitmap = old->dirty_bitmap;
-	else if (!kvm->dirty_ring_size) {
-		r = kvm_alloc_dirty_bitmap(new);
-		if (r)
-			return r;
+	if (change != KVM_MR_DELETE) {
+		if (!(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
+			new->dirty_bitmap = NULL;
+		else if (old && old->dirty_bitmap)
+			new->dirty_bitmap = old->dirty_bitmap;
+		else if (!kvm->dirty_ring_size) {
+			r = kvm_alloc_dirty_bitmap(new);
+			if (r)
+				return r;
 
-		if (kvm_dirty_log_manual_protect_and_init_set(kvm))
-			bitmap_set(new->dirty_bitmap, 0, new->npages);
+			if (kvm_dirty_log_manual_protect_and_init_set(kvm))
+				bitmap_set(new->dirty_bitmap, 0, new->npages);
+		}
 	}
 
 	r = kvm_arch_prepare_memory_region(kvm, old, new, change);
 
 	/* Free the bitmap on failure if it was allocated above. */
-	if (r && new->dirty_bitmap && !old->dirty_bitmap)
+	if (r && new && new->dirty_bitmap && old && !old->dirty_bitmap)
 		kvm_destroy_dirty_bitmap(new);
 
 	return r;
@@ -1606,16 +1608,16 @@ static void kvm_copy_memslot(struct kvm_memory_slot *dest,
 
 static void kvm_invalidate_memslot(struct kvm *kvm,
 				   struct kvm_memory_slot *old,
-				   struct kvm_memory_slot *working_slot)
+				   struct kvm_memory_slot *invalid_slot)
 {
 	/*
 	 * Mark the current slot INVALID.  As with all memslot modifications,
 	 * this must be done on an unreachable slot to avoid modifying the
 	 * current slot in the active tree.
 	 */
-	kvm_copy_memslot(working_slot, old);
-	working_slot->flags |= KVM_MEMSLOT_INVALID;
-	kvm_replace_memslot(kvm, old, working_slot);
+	kvm_copy_memslot(invalid_slot, old);
+	invalid_slot->flags |= KVM_MEMSLOT_INVALID;
+	kvm_replace_memslot(kvm, old, invalid_slot);
 
 	/*
 	 * Activate the slot that is now marked INVALID, but don't propagate
@@ -1642,20 +1644,15 @@ static void kvm_invalidate_memslot(struct kvm *kvm,
 	 * above.  Writers are required to retrieve memslots *after* acquiring
 	 * slots_arch_lock, thus the active slot's data is guaranteed to be fresh.
 	 */
-	old->arch = working_slot->arch;
+	old->arch = invalid_slot->arch;
 }
 
 static void kvm_create_memslot(struct kvm *kvm,
-			       const struct kvm_memory_slot *new,
-			       struct kvm_memory_slot *working)
+			       struct kvm_memory_slot *new)
 {
-	/*
-	 * Add the new memslot to the inactive set as a copy of the
-	 * new memslot data provided by userspace.
-	 */
-	kvm_copy_memslot(working, new);
-	kvm_replace_memslot(kvm, NULL, working);
-	kvm_activate_memslot(kvm, NULL, working);
+	/* Add the new memslot to the inactive set and activate. */
+	kvm_replace_memslot(kvm, NULL, new);
+	kvm_activate_memslot(kvm, NULL, new);
 }
 
 static void kvm_delete_memslot(struct kvm *kvm,
@@ -1664,65 +1661,36 @@ static void kvm_delete_memslot(struct kvm *kvm,
 {
 	/*
 	 * Remove the old memslot (in the inactive memslots) by passing NULL as
-	 * the "new" slot.
+	 * the "new" slot, and for the invalid version in the active slots.
 	 */
 	kvm_replace_memslot(kvm, old, NULL);
-
-	/* And do the same for the invalid version in the active slot. */
 	kvm_activate_memslot(kvm, invalid_slot, NULL);
-
-	/* Free the invalid slot, the caller will clean up the old slot. */
-	kfree(invalid_slot);
 }
 
-static struct kvm_memory_slot *kvm_move_memslot(struct kvm *kvm,
-						struct kvm_memory_slot *old,
-						const struct kvm_memory_slot *new,
-						struct kvm_memory_slot *invalid_slot)
+static void kvm_move_memslot(struct kvm *kvm,
+			     struct kvm_memory_slot *old,
+			     struct kvm_memory_slot *new,
+			     struct kvm_memory_slot *invalid_slot)
 {
-	struct kvm_memslots *slots = kvm_get_inactive_memslots(kvm, old->as_id);
-
 	/*
-	 * The memslot's gfn is changing, remove it from the inactive tree, it
-	 * will be re-added with its updated gfn. Because its range is
-	 * changing, an in-place replace is not possible.
+	 * Replace the old memslot in the inactive slots, and then swap slots
+	 * and replace the current INVALID with the new as well.
 	 */
-	kvm_erase_gfn_node(slots, old);
-
-	/*
-	 * The old slot is now fully disconnected, reuse its memory for the
-	 * persistent copy of "new".
-	 */
-	kvm_copy_memslot(old, new);
-
-	/* Re-add to the gfn tree with the updated gfn */
-	kvm_insert_gfn_node(slots, old);
-
-	/* Replace the current INVALID slot with the updated memslot. */
-	kvm_activate_memslot(kvm, invalid_slot, old);
-
-	/*
-	 * Clear the INVALID flag so that the invalid_slot is now a perfect
-	 * copy of the old slot.  Return it for cleanup in the caller.
-	 */
-	WARN_ON_ONCE(!(invalid_slot->flags & KVM_MEMSLOT_INVALID));
-	invalid_slot->flags &= ~KVM_MEMSLOT_INVALID;
-	return invalid_slot;
+	kvm_replace_memslot(kvm, old, new);
+	kvm_activate_memslot(kvm, invalid_slot, new);
 }
 
 static void kvm_update_flags_memslot(struct kvm *kvm,
 				     struct kvm_memory_slot *old,
-				     const struct kvm_memory_slot *new,
-				     struct kvm_memory_slot *working_slot)
+				     struct kvm_memory_slot *new)
 {
 	/*
 	 * Similar to the MOVE case, but the slot doesn't need to be zapped as
 	 * an intermediate step. Instead, the old memslot is simply replaced
 	 * with a new, updated copy in both memslot sets.
 	 */
-	kvm_copy_memslot(working_slot, new);
-	kvm_replace_memslot(kvm, old, working_slot);
-	kvm_activate_memslot(kvm, old, working_slot);
+	kvm_replace_memslot(kvm, old, new);
+	kvm_activate_memslot(kvm, old, new);
 }
 
 static int kvm_set_memslot(struct kvm *kvm,
@@ -1730,18 +1698,8 @@ static int kvm_set_memslot(struct kvm *kvm,
 			   struct kvm_memory_slot *new,
 			   enum kvm_mr_change change)
 {
-	struct kvm_memory_slot *working;
+	struct kvm_memory_slot *invalid_slot;
 	int r;
-
-	/*
-	 * Modifications are done on an unreachable slot.  Any changes are then
-	 * (eventually) propagated to both the active and inactive slots.  This
-	 * allocation would ideally be on-demand (in helpers), but is done here
-	 * to avoid having to handle failure after kvm_prepare_memory_region().
-	 */
-	working = kzalloc(sizeof(*working), GFP_KERNEL_ACCOUNT);
-	if (!working)
-		return -ENOMEM;
 
 	/*
 	 * Released in kvm_swap_active_memslots.
@@ -1767,9 +1725,19 @@ static int kvm_set_memslot(struct kvm *kvm,
 	 * (and without a lock), a window would exist between effecting the
 	 * delete/move and committing the changes in arch code where KVM or a
 	 * guest could access a non-existent memslot.
+	 *
+	 * Modifications are done on a temporary, unreachable slot.  The old
+	 * slot needs to be preserved in case a later step fails and the
+	 * invalidation needs to be reverted.
 	 */
-	if (change == KVM_MR_DELETE || change == KVM_MR_MOVE)
-		kvm_invalidate_memslot(kvm, old, working);
+	if (change == KVM_MR_DELETE || change == KVM_MR_MOVE) {
+		invalid_slot = kzalloc(sizeof(*invalid_slot), GFP_KERNEL_ACCOUNT);
+		if (!invalid_slot) {
+			mutex_unlock(&kvm->slots_arch_lock);
+			return -ENOMEM;
+		}
+		kvm_invalidate_memslot(kvm, old, invalid_slot);
+	}
 
 	r = kvm_prepare_memory_region(kvm, old, new, change);
 	if (r) {
@@ -1779,11 +1747,12 @@ static int kvm_set_memslot(struct kvm *kvm,
 		 * in the inactive slots.  Changing the active memslots also
 		 * release slots_arch_lock.
 		 */
-		if (change == KVM_MR_DELETE || change == KVM_MR_MOVE)
-			kvm_activate_memslot(kvm, working, old);
-		else
+		if (change == KVM_MR_DELETE || change == KVM_MR_MOVE) {
+			kvm_activate_memslot(kvm, invalid_slot, old);
+			kfree(invalid_slot);
+		} else {
 			mutex_unlock(&kvm->slots_arch_lock);
-		kfree(working);
+		}
 		return r;
 	}
 
@@ -1795,15 +1764,19 @@ static int kvm_set_memslot(struct kvm *kvm,
 	 * old slot is detached but otherwise preserved.
 	 */
 	if (change == KVM_MR_CREATE)
-		kvm_create_memslot(kvm, new, working);
+		kvm_create_memslot(kvm, new);
 	else if (change == KVM_MR_DELETE)
-		kvm_delete_memslot(kvm, old, working);
+		kvm_delete_memslot(kvm, old, invalid_slot);
 	else if (change == KVM_MR_MOVE)
-		old = kvm_move_memslot(kvm, old, new, working);
+		kvm_move_memslot(kvm, old, new, invalid_slot);
 	else if (change == KVM_MR_FLAGS_ONLY)
-		kvm_update_flags_memslot(kvm, old, new, working);
+		kvm_update_flags_memslot(kvm, old, new);
 	else
 		BUG();
+
+	/* Free the temporary INVALID slot used for DELETE and MOVE. */
+	if (change == KVM_MR_DELETE || change == KVM_MR_MOVE)
+		kfree(invalid_slot);
 
 	/*
 	 * No need to refresh new->arch, changes after dropping slots_arch_lock
@@ -1839,8 +1812,7 @@ static bool kvm_check_memslot_overlap(struct kvm_memslots *slots, int id,
 int __kvm_set_memory_region(struct kvm *kvm,
 			    const struct kvm_userspace_memory_region *mem)
 {
-	struct kvm_memory_slot *old;
-	struct kvm_memory_slot new;
+	struct kvm_memory_slot *old, *new;
 	struct kvm_memslots *slots;
 	enum kvm_mr_change change;
 	unsigned long npages;
@@ -1889,11 +1861,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		if (WARN_ON_ONCE(kvm->nr_memslot_pages < old->npages))
 			return -EIO;
 
-		memset(&new, 0, sizeof(new));
-		new.id = id;
-		new.as_id = as_id;
-
-		return kvm_set_memslot(kvm, old, &new, KVM_MR_DELETE);
+		return kvm_set_memslot(kvm, old, NULL, KVM_MR_DELETE);
 	}
 
 	base_gfn = (mem->guest_phys_addr >> PAGE_SHIFT);
@@ -1926,14 +1894,22 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	    kvm_check_memslot_overlap(slots, id, base_gfn, base_gfn + npages))
 		return -EEXIST;
 
-	new.as_id = as_id;
-	new.id = id;
-	new.base_gfn = base_gfn;
-	new.npages = npages;
-	new.flags = mem->flags;
-	new.userspace_addr = mem->userspace_addr;
+	/* Allocate a slot that will persist in the memslot. */
+	new = kzalloc(sizeof(*new), GFP_KERNEL_ACCOUNT);
+	if (!new)
+		return -ENOMEM;
 
-	return kvm_set_memslot(kvm, old, &new, change);
+	new->as_id = as_id;
+	new->id = id;
+	new->base_gfn = base_gfn;
+	new->npages = npages;
+	new->flags = mem->flags;
+	new->userspace_addr = mem->userspace_addr;
+
+	r = kvm_set_memslot(kvm, old, new, change);
+	if (r)
+		kfree(new);
+	return r;
 }
 EXPORT_SYMBOL_GPL(__kvm_set_memory_region);
 
