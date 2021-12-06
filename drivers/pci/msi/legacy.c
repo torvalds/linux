@@ -80,4 +80,5 @@ void pci_msi_legacy_teardown_msi_irqs(struct pci_dev *dev)
 {
 	msi_device_destroy_sysfs(&dev->dev);
 	arch_teardown_msi_irqs(dev);
+	msi_free_msi_descs(&dev->dev);
 }
