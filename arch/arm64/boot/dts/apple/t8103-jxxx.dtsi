@@ -13,6 +13,7 @@
 	aliases {
 		serial0 = &serial0;
 		serial2 = &serial2;
+		wifi0 = &wifi0;
 	};
 
 	chosen {
@@ -69,4 +70,9 @@
  */
 &port00 {
 	bus-range = <1 1>;
+	wifi0: network@0,0 {
+		reg = <0x10000 0x0 0x0 0x0 0x0>;
+		/* To be filled by the loader */
+		local-mac-address = [00 00 00 00 00 00];
+	};
 };
