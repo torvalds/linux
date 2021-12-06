@@ -127,8 +127,7 @@ struct mq_inflight {
 	unsigned int inflight[2];
 };
 
-static bool blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
-				  struct request *rq, void *priv,
+static bool blk_mq_check_inflight(struct request *rq, void *priv,
 				  bool reserved)
 {
 	struct mq_inflight *mi = priv;
@@ -1308,14 +1307,15 @@ void blk_mq_delay_kick_requeue_list(struct request_queue *q,
 }
 EXPORT_SYMBOL(blk_mq_delay_kick_requeue_list);
 
-static bool blk_mq_rq_inflight(struct blk_mq_hw_ctx *hctx, struct request *rq,
-			       void *priv, bool reserved)
+static bool blk_mq_rq_inflight(struct request *rq, void *priv,
+			       bool reserved)
 {
 	/*
-	 * If we find a request that isn't idle and the queue matches,
-	 * we know the queue is busy. Return false to stop the iteration.
+	 * If we find a request that isn't idle we know the queue is busy
+	 * as it's checked in the iter.
+	 * Return false to stop the iteration.
 	 */
-	if (blk_mq_request_started(rq) && rq->q == hctx->queue) {
+	if (blk_mq_request_started(rq)) {
 		bool *busy = priv;
 
 		*busy = true;
@@ -1377,8 +1377,7 @@ void blk_mq_put_rq_ref(struct request *rq)
 		__blk_mq_free_request(rq);
 }
 
-static bool blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
-		struct request *rq, void *priv, bool reserved)
+static bool blk_mq_check_expired(struct request *rq, void *priv, bool reserved)
 {
 	unsigned long *next = priv;
 
