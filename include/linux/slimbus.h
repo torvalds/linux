@@ -207,6 +207,8 @@ int slim_stream_prepare(struct slim_stream_runtime *stream,
 int slim_stream_enable(struct slim_stream_runtime *stream);
 int slim_stream_disable(struct slim_stream_runtime *stream);
 int slim_stream_unprepare(struct slim_stream_runtime *stream);
+int slim_stream_unprepare_disconnect_port(struct slim_stream_runtime *stream,
+		bool disconnect_ports, bool is_session_completed);
 int slim_stream_free(struct slim_stream_runtime *stream);
 
 #endif /* _LINUX_SLIMBUS_H */
