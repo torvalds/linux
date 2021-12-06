@@ -227,12 +227,10 @@ static void __init setup_bootmem(void)
 }
 
 #ifdef CONFIG_MMU
-static struct pt_alloc_ops _pt_ops __initdata;
+static struct pt_alloc_ops pt_ops __initdata;
 
 #ifdef CONFIG_XIP_KERNEL
-#define pt_ops (*(struct pt_alloc_ops *)XIP_FIXUP(&_pt_ops))
-#else
-#define pt_ops _pt_ops
+#define pt_ops (*(struct pt_alloc_ops *)XIP_FIXUP(&pt_ops))
 #endif
 
 unsigned long riscv_pfn_base __ro_after_init;
