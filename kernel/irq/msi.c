@@ -672,10 +672,8 @@ int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		virq = __irq_domain_alloc_irqs(domain, -1, desc->nvec_used,
 					       dev_to_node(dev), &arg, false,
 					       desc->affinity);
-		if (virq < 0) {
-			ret = msi_handle_pci_fail(domain, desc, allocated);
-			goto cleanup;
-		}
+		if (virq < 0)
+			return msi_handle_pci_fail(domain, desc, allocated);
 
 		for (i = 0; i < desc->nvec_used; i++) {
 			irq_set_msi_desc_off(virq, i, desc);
@@ -709,7 +707,7 @@ int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		}
 		ret = irq_domain_activate_irq(irq_data, can_reserve);
 		if (ret)
-			goto cleanup;
+			return ret;
 	}
 
 skip_activate:
@@ -724,9 +722,44 @@ skip_activate:
 		}
 	}
 	return 0;
+}
+
+/**
+ * msi_domain_alloc_irqs_descs_locked - Allocate interrupts from a MSI interrupt domain
+ * @domain:	The domain to allocate from
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are allocated
+ * @nvec:	The number of interrupts to allocate
+ *
+ * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
+ * pair. Use this for MSI irqdomains which implement their own vector
+ * allocation/free.
+ *
+ * Return: %0 on success or an error code.
+ */
+int msi_domain_alloc_irqs_descs_locked(struct irq_domain *domain, struct device *dev,
+				       int nvec)
+{
+	struct msi_domain_info *info = domain->host_data;
+	struct msi_domain_ops *ops = info->ops;
+	int ret;
+
+	lockdep_assert_held(&dev->msi.data->mutex);
+
+	ret = ops->domain_alloc_irqs(domain, dev, nvec);
+	if (ret)
+		goto cleanup;
+
+	if (!(info->flags & MSI_FLAG_DEV_SYSFS))
+		return 0;
+
+	ret = msi_device_populate_sysfs(dev);
+	if (ret)
+		goto cleanup;
+	return 0;
 
 cleanup:
-	msi_domain_free_irqs(domain, dev);
+	msi_domain_free_irqs_descs_locked(domain, dev);
 	return ret;
 }
 
@@ -739,23 +772,13 @@ cleanup:
  *
  * Return: %0 on success or an error code.
  */
-int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
-			  int nvec)
+int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev, int nvec)
 {
-	struct msi_domain_info *info = domain->host_data;
-	struct msi_domain_ops *ops = info->ops;
 	int ret;
 
-	ret = ops->domain_alloc_irqs(domain, dev, nvec);
-	if (ret)
-		return ret;
-
-	if (!(info->flags & MSI_FLAG_DEV_SYSFS))
-		return 0;
-
-	ret = msi_device_populate_sysfs(dev);
-	if (ret)
-		msi_domain_free_irqs(domain, dev);
+	msi_lock_descs(dev);
+	ret = msi_domain_alloc_irqs_descs_locked(domain, dev, nvec);
+	msi_unlock_descs(dev);
 	return ret;
 }
 
@@ -785,6 +808,28 @@ void __msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
 }
 
 /**
+ * msi_domain_free_irqs_descs_locked - Free interrupts from a MSI interrupt @domain associated to @dev
+ * @domain:	The domain to managing the interrupts
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are free
+ *
+ * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
+ * pair. Use this for MSI irqdomains which implement their own vector
+ * allocation.
+ */
+void msi_domain_free_irqs_descs_locked(struct irq_domain *domain, struct device *dev)
+{
+	struct msi_domain_info *info = domain->host_data;
+	struct msi_domain_ops *ops = info->ops;
+
+	lockdep_assert_held(&dev->msi.data->mutex);
+
+	if (info->flags & MSI_FLAG_DEV_SYSFS)
+		msi_device_destroy_sysfs(dev);
+	ops->domain_free_irqs(domain, dev);
+}
+
+/**
  * msi_domain_free_irqs - Free interrupts from a MSI interrupt @domain associated to @dev
  * @domain:	The domain to managing the interrupts
  * @dev:	Pointer to device struct of the device for which the interrupts
@@ -792,12 +837,9 @@ void __msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
  */
 void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
 {
-	struct msi_domain_info *info = domain->host_data;
-	struct msi_domain_ops *ops = info->ops;
-
-	if (info->flags & MSI_FLAG_DEV_SYSFS)
-		msi_device_destroy_sysfs(dev);
-	ops->domain_free_irqs(domain, dev);
+	msi_lock_descs(dev);
+	msi_domain_free_irqs_descs_locked(domain, dev);
+	msi_unlock_descs(dev);
 }
 
 /**
