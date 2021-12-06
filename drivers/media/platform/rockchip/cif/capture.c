@@ -4590,6 +4590,20 @@ static int rkcif_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 	fmt = &out_fmts[f->index];
 	f->pixelformat = fmt->fourcc;
 
+	switch (f->pixelformat) {
+	case V4l2_PIX_FMT_EBD8:
+		strscpy(f->description,
+			"Embedded data 8-bit",
+			sizeof(f->description));
+		break;
+	case V4l2_PIX_FMT_SPD16:
+		strscpy(f->description,
+			"Shield pix data 16-bit",
+			sizeof(f->description));
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
