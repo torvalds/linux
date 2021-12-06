@@ -138,9 +138,9 @@ void __weak arch_restore_msi_irqs(struct pci_dev *dev)
 static inline __attribute_const__ u32 msi_multi_mask(struct msi_desc *desc)
 {
 	/* Don't shift by >= width of type */
-	if (desc->msi_attrib.multi_cap >= 5)
+	if (desc->pci.msi_attrib.multi_cap >= 5)
 		return 0xffffffff;
-	return (1 << (1 << desc->msi_attrib.multi_cap)) - 1;
+	return (1 << (1 << desc->pci.msi_attrib.multi_cap)) - 1;
 }
 
 static noinline void pci_msi_update_mask(struct msi_desc *desc, u32 clear, u32 set)
@@ -148,14 +148,14 @@ static noinline void pci_msi_update_mask(struct msi_desc *desc, u32 clear, u32 s
 	raw_spinlock_t *lock = &desc->dev->msi_lock;
 	unsigned long flags;
 
-	if (!desc->msi_attrib.can_mask)
+	if (!desc->pci.msi_attrib.can_mask)
 		return;
 
 	raw_spin_lock_irqsave(lock, flags);
-	desc->msi_mask &= ~clear;
-	desc->msi_mask |= set;
-	pci_write_config_dword(msi_desc_to_pci_dev(desc), desc->mask_pos,
-			       desc->msi_mask);
+	desc->pci.msi_mask &= ~clear;
+	desc->pci.msi_mask |= set;
+	pci_write_config_dword(msi_desc_to_pci_dev(desc), desc->pci.mask_pos,
+			       desc->pci.msi_mask);
 	raw_spin_unlock_irqrestore(lock, flags);
 }
 
@@ -171,7 +171,7 @@ static inline void pci_msi_unmask(struct msi_desc *desc, u32 mask)
 
 static inline void __iomem *pci_msix_desc_addr(struct msi_desc *desc)
 {
-	return desc->mask_base + desc->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
+	return desc->pci.mask_base + desc->pci.msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
 }
 
 /*
@@ -184,27 +184,27 @@ static void pci_msix_write_vector_ctrl(struct msi_desc *desc, u32 ctrl)
 {
 	void __iomem *desc_addr = pci_msix_desc_addr(desc);
 
-	if (desc->msi_attrib.can_mask)
+	if (desc->pci.msi_attrib.can_mask)
 		writel(ctrl, desc_addr + PCI_MSIX_ENTRY_VECTOR_CTRL);
 }
 
 static inline void pci_msix_mask(struct msi_desc *desc)
 {
-	desc->msix_ctrl |= PCI_MSIX_ENTRY_CTRL_MASKBIT;
-	pci_msix_write_vector_ctrl(desc, desc->msix_ctrl);
+	desc->pci.msix_ctrl |= PCI_MSIX_ENTRY_CTRL_MASKBIT;
+	pci_msix_write_vector_ctrl(desc, desc->pci.msix_ctrl);
 	/* Flush write to device */
-	readl(desc->mask_base);
+	readl(desc->pci.mask_base);
 }
 
 static inline void pci_msix_unmask(struct msi_desc *desc)
 {
-	desc->msix_ctrl &= ~PCI_MSIX_ENTRY_CTRL_MASKBIT;
-	pci_msix_write_vector_ctrl(desc, desc->msix_ctrl);
+	desc->pci.msix_ctrl &= ~PCI_MSIX_ENTRY_CTRL_MASKBIT;
+	pci_msix_write_vector_ctrl(desc, desc->pci.msix_ctrl);
 }
 
 static void __pci_msi_mask_desc(struct msi_desc *desc, u32 mask)
 {
-	if (desc->msi_attrib.is_msix)
+	if (desc->pci.msi_attrib.is_msix)
 		pci_msix_mask(desc);
 	else
 		pci_msi_mask(desc, mask);
@@ -212,7 +212,7 @@ static void __pci_msi_mask_desc(struct msi_desc *desc, u32 mask)
 
 static void __pci_msi_unmask_desc(struct msi_desc *desc, u32 mask)
 {
-	if (desc->msi_attrib.is_msix)
+	if (desc->pci.msi_attrib.is_msix)
 		pci_msix_unmask(desc);
 	else
 		pci_msi_unmask(desc, mask);
@@ -256,10 +256,10 @@ void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 
 	BUG_ON(dev->current_state != PCI_D0);
 
-	if (entry->msi_attrib.is_msix) {
+	if (entry->pci.msi_attrib.is_msix) {
 		void __iomem *base = pci_msix_desc_addr(entry);
 
-		if (WARN_ON_ONCE(entry->msi_attrib.is_virtual))
+		if (WARN_ON_ONCE(entry->pci.msi_attrib.is_virtual))
 			return;
 
 		msg->address_lo = readl(base + PCI_MSIX_ENTRY_LOWER_ADDR);
@@ -271,7 +271,7 @@ void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 
 		pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_LO,
 				      &msg->address_lo);
-		if (entry->msi_attrib.is_64) {
+		if (entry->pci.msi_attrib.is_64) {
 			pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_HI,
 					      &msg->address_hi);
 			pci_read_config_word(dev, pos + PCI_MSI_DATA_64, &data);
@@ -289,12 +289,12 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 
 	if (dev->current_state != PCI_D0 || pci_dev_is_disconnected(dev)) {
 		/* Don't touch the hardware now */
-	} else if (entry->msi_attrib.is_msix) {
+	} else if (entry->pci.msi_attrib.is_msix) {
 		void __iomem *base = pci_msix_desc_addr(entry);
-		u32 ctrl = entry->msix_ctrl;
+		u32 ctrl = entry->pci.msix_ctrl;
 		bool unmasked = !(ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT);
 
-		if (entry->msi_attrib.is_virtual)
+		if (entry->pci.msi_attrib.is_virtual)
 			goto skip;
 
 		/*
@@ -323,12 +323,12 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 
 		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &msgctl);
 		msgctl &= ~PCI_MSI_FLAGS_QSIZE;
-		msgctl |= entry->msi_attrib.multiple << 4;
+		msgctl |= entry->pci.msi_attrib.multiple << 4;
 		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, msgctl);
 
 		pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_LO,
 				       msg->address_lo);
-		if (entry->msi_attrib.is_64) {
+		if (entry->pci.msi_attrib.is_64) {
 			pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_HI,
 					       msg->address_hi);
 			pci_write_config_word(dev, pos + PCI_MSI_DATA_64,
@@ -376,9 +376,9 @@ static void free_msi_irqs(struct pci_dev *dev)
 	pci_msi_teardown_msi_irqs(dev);
 
 	list_for_each_entry_safe(entry, tmp, msi_list, list) {
-		if (entry->msi_attrib.is_msix) {
+		if (entry->pci.msi_attrib.is_msix) {
 			if (list_is_last(&entry->list, msi_list))
-				iounmap(entry->mask_base);
+				iounmap(entry->pci.mask_base);
 		}
 
 		list_del(&entry->list);
@@ -420,7 +420,7 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
 	pci_msi_update_mask(entry, 0, 0);
 	control &= ~PCI_MSI_FLAGS_QSIZE;
-	control |= (entry->msi_attrib.multiple << 4) | PCI_MSI_FLAGS_ENABLE;
+	control |= (entry->pci.msi_attrib.multiple << 4) | PCI_MSI_FLAGS_ENABLE;
 	pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, control);
 }
 
@@ -449,7 +449,7 @@ static void __pci_restore_msix_state(struct pci_dev *dev)
 
 	arch_restore_msi_irqs(dev);
 	for_each_pci_msi_entry(entry, dev)
-		pci_msix_write_vector_ctrl(entry, entry->msix_ctrl);
+		pci_msix_write_vector_ctrl(entry, entry->pci.msix_ctrl);
 
 	pci_msix_clear_and_set_ctrl(dev, PCI_MSIX_FLAGS_MASKALL, 0);
 }
@@ -481,24 +481,24 @@ msi_setup_entry(struct pci_dev *dev, int nvec, struct irq_affinity *affd)
 	if (dev->dev_flags & PCI_DEV_FLAGS_HAS_MSI_MASKING)
 		control |= PCI_MSI_FLAGS_MASKBIT;
 
-	entry->msi_attrib.is_msix	= 0;
-	entry->msi_attrib.is_64		= !!(control & PCI_MSI_FLAGS_64BIT);
-	entry->msi_attrib.is_virtual    = 0;
-	entry->msi_attrib.entry_nr	= 0;
-	entry->msi_attrib.can_mask	= !pci_msi_ignore_mask &&
+	entry->pci.msi_attrib.is_msix	= 0;
+	entry->pci.msi_attrib.is_64		= !!(control & PCI_MSI_FLAGS_64BIT);
+	entry->pci.msi_attrib.is_virtual    = 0;
+	entry->pci.msi_attrib.entry_nr	= 0;
+	entry->pci.msi_attrib.can_mask	= !pci_msi_ignore_mask &&
 					  !!(control & PCI_MSI_FLAGS_MASKBIT);
-	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
-	entry->msi_attrib.multi_cap	= (control & PCI_MSI_FLAGS_QMASK) >> 1;
-	entry->msi_attrib.multiple	= ilog2(__roundup_pow_of_two(nvec));
+	entry->pci.msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
+	entry->pci.msi_attrib.multi_cap	= (control & PCI_MSI_FLAGS_QMASK) >> 1;
+	entry->pci.msi_attrib.multiple	= ilog2(__roundup_pow_of_two(nvec));
 
 	if (control & PCI_MSI_FLAGS_64BIT)
-		entry->mask_pos = dev->msi_cap + PCI_MSI_MASK_64;
+		entry->pci.mask_pos = dev->msi_cap + PCI_MSI_MASK_64;
 	else
-		entry->mask_pos = dev->msi_cap + PCI_MSI_MASK_32;
+		entry->pci.mask_pos = dev->msi_cap + PCI_MSI_MASK_32;
 
 	/* Save the initial mask status */
-	if (entry->msi_attrib.can_mask)
-		pci_read_config_dword(dev, entry->mask_pos, &entry->msi_mask);
+	if (entry->pci.msi_attrib.can_mask)
+		pci_read_config_dword(dev, entry->pci.mask_pos, &entry->pci.msi_mask);
 
 out:
 	kfree(masks);
@@ -630,26 +630,26 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 			goto out;
 		}
 
-		entry->msi_attrib.is_msix	= 1;
-		entry->msi_attrib.is_64		= 1;
+		entry->pci.msi_attrib.is_msix	= 1;
+		entry->pci.msi_attrib.is_64	= 1;
 
 		if (entries)
-			entry->msi_attrib.entry_nr = entries[i].entry;
+			entry->pci.msi_attrib.entry_nr = entries[i].entry;
 		else
-			entry->msi_attrib.entry_nr = i;
+			entry->pci.msi_attrib.entry_nr = i;
 
-		entry->msi_attrib.is_virtual =
-			entry->msi_attrib.entry_nr >= vec_count;
+		entry->pci.msi_attrib.is_virtual =
+			entry->pci.msi_attrib.entry_nr >= vec_count;
 
-		entry->msi_attrib.can_mask	= !pci_msi_ignore_mask &&
-						  !entry->msi_attrib.is_virtual;
+		entry->pci.msi_attrib.can_mask	= !pci_msi_ignore_mask &&
+						  !entry->pci.msi_attrib.is_virtual;
 
-		entry->msi_attrib.default_irq	= dev->irq;
-		entry->mask_base		= base;
+		entry->pci.msi_attrib.default_irq	= dev->irq;
+		entry->pci.mask_base			= base;
 
-		if (entry->msi_attrib.can_mask) {
+		if (entry->pci.msi_attrib.can_mask) {
 			addr = pci_msix_desc_addr(entry);
-			entry->msix_ctrl = readl(addr + PCI_MSIX_ENTRY_VECTOR_CTRL);
+			entry->pci.msix_ctrl = readl(addr + PCI_MSIX_ENTRY_VECTOR_CTRL);
 		}
 
 		list_add_tail(&entry->list, dev_to_msi_list(&dev->dev));
@@ -874,7 +874,7 @@ static void pci_msi_shutdown(struct pci_dev *dev)
 	pci_msi_unmask(desc, msi_multi_mask(desc));
 
 	/* Restore dev->irq to its default pin-assertion IRQ */
-	dev->irq = desc->msi_attrib.default_irq;
+	dev->irq = desc->pci.msi_attrib.default_irq;
 	pcibios_alloc_irq(dev);
 }
 
@@ -1203,7 +1203,7 @@ int pci_irq_vector(struct pci_dev *dev, unsigned int nr)
 		struct msi_desc *entry;
 
 		for_each_pci_msi_entry(entry, dev) {
-			if (entry->msi_attrib.entry_nr == nr)
+			if (entry->pci.msi_attrib.entry_nr == nr)
 				return entry->irq;
 		}
 		WARN_ON_ONCE(1);
@@ -1242,7 +1242,7 @@ const struct cpumask *pci_irq_get_affinity(struct pci_dev *dev, int nr)
 		struct msi_desc *entry;
 
 		for_each_pci_msi_entry(entry, dev) {
-			if (entry->msi_attrib.entry_nr == nr)
+			if (entry->pci.msi_attrib.entry_nr == nr)
 				return &entry->affinity->mask;
 		}
 		WARN_ON_ONCE(1);
@@ -1295,14 +1295,14 @@ static irq_hw_number_t pci_msi_domain_calc_hwirq(struct msi_desc *desc)
 {
 	struct pci_dev *dev = msi_desc_to_pci_dev(desc);
 
-	return (irq_hw_number_t)desc->msi_attrib.entry_nr |
+	return (irq_hw_number_t)desc->pci.msi_attrib.entry_nr |
 		pci_dev_id(dev) << 11 |
 		(pci_domain_nr(dev->bus) & 0xFFFFFFFF) << 27;
 }
 
 static inline bool pci_msi_desc_is_multi_msi(struct msi_desc *desc)
 {
-	return !desc->msi_attrib.is_msix && desc->nvec_used > 1;
+	return !desc->pci.msi_attrib.is_msix && desc->nvec_used > 1;
 }
 
 /**
@@ -1326,7 +1326,7 @@ int pci_msi_domain_check_cap(struct irq_domain *domain,
 	if (pci_msi_desc_is_multi_msi(desc) &&
 	    !(info->flags & MSI_FLAG_MULTI_PCI_MSI))
 		return 1;
-	else if (desc->msi_attrib.is_msix && !(info->flags & MSI_FLAG_PCI_MSIX))
+	else if (desc->pci.msi_attrib.is_msix && !(info->flags & MSI_FLAG_PCI_MSIX))
 		return -ENOTSUPP;
 
 	return 0;

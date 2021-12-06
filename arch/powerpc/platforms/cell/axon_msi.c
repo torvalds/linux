@@ -212,7 +212,7 @@ static int setup_msi_msg_address(struct pci_dev *dev, struct msi_msg *msg)
 	entry = first_pci_msi_entry(dev);
 
 	for (; dn; dn = of_get_next_parent(dn)) {
-		if (entry->msi_attrib.is_64) {
+		if (entry->pci.msi_attrib.is_64) {
 			prop = of_get_property(dn, "msi-address-64", &len);
 			if (prop)
 				break;

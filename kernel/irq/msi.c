@@ -91,7 +91,7 @@ static ssize_t msi_mode_show(struct device *dev, struct device_attribute *attr,
 		return -ENODEV;
 
 	if (dev_is_pci(dev))
-		is_msix = entry->msi_attrib.is_msix;
+		is_msix = entry->pci.msi_attrib.is_msix;
 
 	return sysfs_emit(buf, "%s\n", is_msix ? "msix" : "msi");
 }
@@ -535,7 +535,7 @@ static bool msi_check_reservation_mode(struct irq_domain *domain,
 	 * masking and MSI does so when the can_mask attribute is set.
 	 */
 	desc = first_msi_entry(dev);
-	return desc->msi_attrib.is_msix || desc->msi_attrib.can_mask;
+	return desc->pci.msi_attrib.is_msix || desc->pci.msi_attrib.can_mask;
 }
 
 int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,

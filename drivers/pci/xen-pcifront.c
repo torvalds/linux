@@ -263,7 +263,7 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 
 	i = 0;
 	for_each_pci_msi_entry(entry, dev) {
-		op.msix_entries[i].entry = entry->msi_attrib.entry_nr;
+		op.msix_entries[i].entry = entry->pci.msi_attrib.entry_nr;
 		/* Vector is useless at this point. */
 		op.msix_entries[i].vector = -1;
 		i++;
