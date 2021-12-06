@@ -9,17 +9,16 @@
 		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rw rootwait";
 	};
 
-	fiq_debugger: fiq-debugger {
-		compatible = "rockchip,fiq-debugger";
-		rockchip,serial-id = <2>;
-		rockchip,wake-irq = <0>;
-		/* If enable uart uses irq instead of fiq */
-		rockchip,irq-mode-enable = <1>;
-		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
-		interrupts = <GIC_SPI 423 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart2m0_xfer>;
-		status = "okay";
+	cspmu: cspmu@fd10c000 {
+		compatible = "rockchip,cspmu";
+		reg = <0x0 0xfd10c000 0x0 0x1000>,
+		      <0x0 0xfd10d000 0x0 0x1000>,
+		      <0x0 0xfd10e000 0x0 0x1000>,
+		      <0x0 0xfd10f000 0x0 0x1000>,
+		      <0x0 0xfd12c000 0x0 0x1000>,
+		      <0x0 0xfd12d000 0x0 0x1000>,
+		      <0x0 0xfd12e000 0x0 0x1000>,
+		      <0x0 0xfd12f000 0x0 0x1000>;
 	};
 
 	debug: debug@fd104000 {
@@ -34,20 +33,52 @@
 		      <0x0 0xfd127000 0x0 0x1000>;
 	};
 
-	cspmu: cspmu@fd10c000 {
-		compatible = "rockchip,cspmu";
-		reg = <0x0 0xfd10c000 0x0 0x1000>,
-		      <0x0 0xfd10d000 0x0 0x1000>,
-		      <0x0 0xfd10e000 0x0 0x1000>,
-		      <0x0 0xfd10f000 0x0 0x1000>,
-		      <0x0 0xfd12c000 0x0 0x1000>,
-		      <0x0 0xfd12d000 0x0 0x1000>,
-		      <0x0 0xfd12e000 0x0 0x1000>,
-		      <0x0 0xfd12f000 0x0 0x1000>;
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 423 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m0_xfer>;
+		status = "okay";
+	};
+
+	ramoops: ramoops@110000 {
+		compatible = "ramoops";
+		reg = <0x0 0x110000 0x0 0xf0000>;
+		record-size = <0x20000>;
+		console-size = <0x80000>;
+		ftrace-size = <0x00000>;
+		pmsg-size = <0x50000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 (8 * 0x100000)>;
+			linux,cma-default;
+		};
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
+		drm_cubic_lut: drm-cubic-lut@00000000 {
+			compatible = "rockchip,drm-cubic-lut";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
 	};
 };
 
 &rng {
 	status = "okay";
 };
-
