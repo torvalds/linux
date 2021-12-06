@@ -354,6 +354,27 @@ void vmw_binding_add(struct vmw_ctx_binding_state *cbs,
 }
 
 /**
+ * vmw_binding_cb_offset_update: Update the offset of a cb binding
+ *
+ * @cbs: Pointer to the context binding state tracker.
+ * @shader_slot: The shader slot of the binding.
+ * @slot: The slot of the binding.
+ * @offsetInBytes: The new offset of the binding.
+ *
+ * Updates the offset of an existing cb binding in the context binding
+ * state structure @cbs.
+ */
+void vmw_binding_cb_offset_update(struct vmw_ctx_binding_state *cbs,
+				  u32 shader_slot, u32 slot, u32 offsetInBytes)
+{
+	struct vmw_ctx_bindinfo *loc =
+		vmw_binding_loc(cbs, vmw_ctx_binding_cb, shader_slot, slot);
+	struct vmw_ctx_bindinfo_cb *loc_cb =
+		(struct vmw_ctx_bindinfo_cb *)((u8 *) loc);
+	loc_cb->offset = offsetInBytes;
+}
+
+/**
  * vmw_binding_add_uav_index - Add UAV index for tracking.
  * @cbs: Pointer to the context binding state tracker.
  * @slot: UAV type to which bind this index.

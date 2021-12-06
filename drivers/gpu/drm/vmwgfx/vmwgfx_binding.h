@@ -217,6 +217,8 @@ struct vmw_ctx_bindinfo_so {
 extern void vmw_binding_add(struct vmw_ctx_binding_state *cbs,
 			    const struct vmw_ctx_bindinfo *ci,
 			    u32 shader_slot, u32 slot);
+extern void vmw_binding_cb_offset_update(struct vmw_ctx_binding_state *cbs,
+					 u32 shader_slot, u32 slot, u32 offsetInBytes);
 extern void vmw_binding_add_uav_index(struct vmw_ctx_binding_state *cbs,
 				      uint32 slot, uint32 splice_index);
 extern void
