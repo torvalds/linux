@@ -987,6 +987,16 @@ out_err1:
  * Buffer-object framebuffer code
  */
 
+static int vmw_framebuffer_bo_create_handle(struct drm_framebuffer *fb,
+					    struct drm_file *file_priv,
+					    unsigned int *handle)
+{
+	struct vmw_framebuffer_bo *vfbd =
+			vmw_framebuffer_to_vfbd(fb);
+
+	return drm_gem_handle_create(file_priv, &vfbd->buffer->base.base, handle);
+}
+
 static void vmw_framebuffer_bo_destroy(struct drm_framebuffer *framebuffer)
 {
 	struct vmw_framebuffer_bo *vfbd =
@@ -1059,6 +1069,7 @@ static int vmw_framebuffer_bo_dirty_ext(struct drm_framebuffer *framebuffer,
 }
 
 static const struct drm_framebuffer_funcs vmw_framebuffer_bo_funcs = {
+	.create_handle = vmw_framebuffer_bo_create_handle,
 	.destroy = vmw_framebuffer_bo_destroy,
 	.dirty = vmw_framebuffer_bo_dirty_ext,
 };
