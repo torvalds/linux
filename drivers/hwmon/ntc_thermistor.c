@@ -9,10 +9,10 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/math64.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/err.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/fixp-arith.h>
 #include <linux/iio/consumer.h>
 #include <linux/hwmon.h>
@@ -595,12 +595,11 @@ static const struct hwmon_chip_info ntc_chip_info = {
 	.info = ntc_info,
 };
 
-static int ntc_thermistor_parse_dt(struct device *dev,
-				   struct ntc_data *data)
+static int ntc_thermistor_parse_props(struct device *dev,
+				      struct ntc_data *data)
 {
 	struct iio_channel *chan;
 	enum iio_chan_type type;
-	struct device_node *np = dev->of_node;
 	int ret;
 
 	chan = devm_iio_channel_get(dev, NULL);
@@ -614,14 +613,19 @@ static int ntc_thermistor_parse_dt(struct device *dev,
 	if (type != IIO_VOLTAGE)
 		return -EINVAL;
 
-	if (of_property_read_u32(np, "pullup-uv", &data->pullup_uv))
-		return -ENODEV;
-	if (of_property_read_u32(np, "pullup-ohm", &data->pullup_ohm))
-		return -ENODEV;
-	if (of_property_read_u32(np, "pulldown-ohm", &data->pulldown_ohm))
-		return -ENODEV;
+	ret = device_property_read_u32(dev, "pullup-uv", &data->pullup_uv);
+	if (ret)
+		return dev_err_probe(dev,  ret, "pullup-uv not specified\n");
 
-	if (of_find_property(np, "connected-positive", NULL))
+	ret = device_property_read_u32(dev, "pullup-ohm", &data->pullup_ohm);
+	if (ret)
+		return dev_err_probe(dev,  ret, "pullup-ohm not specified\n");
+
+	ret = device_property_read_u32(dev, "pulldown-ohm", &data->pulldown_ohm);
+	if (ret)
+		return dev_err_probe(dev,  ret, "pulldown-ohm not specified\n");
+
+	if (device_property_read_bool(dev, "connected-positive"))
 		data->connect = NTC_CONNECTED_POSITIVE;
 	else /* status change should be possible if not always on. */
 		data->connect = NTC_CONNECTED_GROUND;
@@ -634,8 +638,6 @@ static int ntc_thermistor_parse_dt(struct device *dev,
 static int ntc_thermistor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id =
-			of_match_device(of_match_ptr(ntc_match), dev);
 	const struct platform_device_id *pdev_id;
 	struct device *hwmon_dev;
 	struct ntc_data *data;
@@ -645,7 +647,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	ret = ntc_thermistor_parse_dt(dev, data);
+	ret = ntc_thermistor_parse_props(dev, data);
 	if (ret)
 		return ret;
 
@@ -660,7 +662,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
+	pdev_id = device_get_match_data(dev);
 
 	if (pdev_id->driver_data >= ARRAY_SIZE(ntc_type)) {
 		dev_err(dev, "Unknown device type: %lu(%s)\n",
@@ -688,7 +690,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 static struct platform_driver ntc_thermistor_driver = {
 	.driver = {
 		.name = "ntc-thermistor",
-		.of_match_table = of_match_ptr(ntc_match),
+		.of_match_table = ntc_match,
 	},
 	.probe = ntc_thermistor_probe,
 	.id_table = ntc_thermistor_id,
