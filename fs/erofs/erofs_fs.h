@@ -209,7 +209,7 @@ struct erofs_xattr_ibody_header {
 	__le32 h_reserved;
 	__u8   h_shared_count;
 	__u8   h_reserved2[7];
-	__le32 h_shared_xattrs[0];      /* shared xattr id array */
+	__le32 h_shared_xattrs[];       /* shared xattr id array */
 };
 
 /* Name indexes */
@@ -226,7 +226,7 @@ struct erofs_xattr_entry {
 	__u8   e_name_index;    /* attribute name index */
 	__le16 e_value_size;    /* size of attribute value */
 	/* followed by e_name and e_value */
-	char   e_name[0];       /* attribute name */
+	char   e_name[];        /* attribute name */
 };
 
 static inline unsigned int erofs_xattr_ibody_size(__le16 i_xattr_icount)
