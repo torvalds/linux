@@ -73,7 +73,7 @@ required:
   - reg-names
   - compatible
 
-unevaluatedProperties: false
+additionalProperties: true
 
 examples:
   - |
