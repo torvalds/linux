@@ -12,44 +12,6 @@
 #include <asm/pgalloc.h>
 
 extern pgd_t early_pg_dir[PTRS_PER_PGD];
-asmlinkage void __init kasan_early_init(void)
-{
-	uintptr_t i;
-	pgd_t *pgd = early_pg_dir + pgd_index(KASAN_SHADOW_START);
-
-	BUILD_BUG_ON(KASAN_SHADOW_OFFSET !=
-		KASAN_SHADOW_END - (1UL << (64 - KASAN_SHADOW_SCALE_SHIFT)));
-
-	for (i = 0; i < PTRS_PER_PTE; ++i)
-		set_pte(kasan_early_shadow_pte + i,
-			mk_pte(virt_to_page(kasan_early_shadow_page),
-			       PAGE_KERNEL));
-
-	for (i = 0; i < PTRS_PER_PMD; ++i)
-		set_pmd(kasan_early_shadow_pmd + i,
-			pfn_pmd(PFN_DOWN
-				(__pa((uintptr_t) kasan_early_shadow_pte)),
-				__pgprot(_PAGE_TABLE)));
-
-	for (i = KASAN_SHADOW_START; i < KASAN_SHADOW_END;
-	     i += PGDIR_SIZE, ++pgd)
-		set_pgd(pgd,
-			pfn_pgd(PFN_DOWN
-				(__pa(((uintptr_t) kasan_early_shadow_pmd))),
-				__pgprot(_PAGE_TABLE)));
-
-	/* init for swapper_pg_dir */
-	pgd = pgd_offset_k(KASAN_SHADOW_START);
-
-	for (i = KASAN_SHADOW_START; i < KASAN_SHADOW_END;
-	     i += PGDIR_SIZE, ++pgd)
-		set_pgd(pgd,
-			pfn_pgd(PFN_DOWN
-				(__pa(((uintptr_t) kasan_early_shadow_pmd))),
-				__pgprot(_PAGE_TABLE)));
-
-	local_flush_tlb_all();
-}
 
 static void __init kasan_populate_pte(pmd_t *pmd, unsigned long vaddr, unsigned long end)
 {
@@ -108,26 +70,35 @@ static void __init kasan_populate_pmd(pgd_t *pgd, unsigned long vaddr, unsigned 
 	set_pgd(pgd, pfn_pgd(PFN_DOWN(__pa(base_pmd)), PAGE_TABLE));
 }
 
-static void __init kasan_populate_pgd(unsigned long vaddr, unsigned long end)
+static void __init kasan_populate_pgd(pgd_t *pgdp,
+				      unsigned long vaddr, unsigned long end,
+				      bool early)
 {
 	phys_addr_t phys_addr;
-	pgd_t *pgdp = pgd_offset_k(vaddr);
 	unsigned long next;
 
 	do {
 		next = pgd_addr_end(vaddr, end);
 
-		/*
-		 * pgdp can't be none since kasan_early_init initialized all KASAN
-		 * shadow region with kasan_early_shadow_pmd: if this is stillthe case,
-		 * that means we can try to allocate a hugepage as a replacement.
-		 */
-		if (pgd_page_vaddr(*pgdp) == (unsigned long)lm_alias(kasan_early_shadow_pmd) &&
-		    IS_ALIGNED(vaddr, PGDIR_SIZE) && (next - vaddr) >= PGDIR_SIZE) {
-			phys_addr = memblock_phys_alloc(PGDIR_SIZE, PGDIR_SIZE);
-			if (phys_addr) {
-				set_pgd(pgdp, pfn_pgd(PFN_DOWN(phys_addr), PAGE_KERNEL));
+		if (IS_ALIGNED(vaddr, PGDIR_SIZE) && (next - vaddr) >= PGDIR_SIZE) {
+			if (early) {
+				phys_addr = __pa((uintptr_t)kasan_early_shadow_pgd_next);
+				set_pgd(pgdp, pfn_pgd(PFN_DOWN(phys_addr), PAGE_TABLE));
 				continue;
+			} else if (pgd_page_vaddr(*pgdp) ==
+				   (unsigned long)lm_alias(kasan_early_shadow_pgd_next)) {
+				/*
+				 * pgdp can't be none since kasan_early_init
+				 * initialized all KASAN shadow region with
+				 * kasan_early_shadow_pud: if this is still the
+				 * case, that means we can try to allocate a
+				 * hugepage as a replacement.
+				 */
+				phys_addr = memblock_phys_alloc(PGDIR_SIZE, PGDIR_SIZE);
+				if (phys_addr) {
+					set_pgd(pgdp, pfn_pgd(PFN_DOWN(phys_addr), PAGE_KERNEL));
+					continue;
+				}
 			}
 		}
 
@@ -135,12 +106,52 @@ static void __init kasan_populate_pgd(unsigned long vaddr, unsigned long end)
 	} while (pgdp++, vaddr = next, vaddr != end);
 }
 
+asmlinkage void __init kasan_early_init(void)
+{
+	uintptr_t i;
+
+	BUILD_BUG_ON(KASAN_SHADOW_OFFSET !=
+		KASAN_SHADOW_END - (1UL << (64 - KASAN_SHADOW_SCALE_SHIFT)));
+
+	for (i = 0; i < PTRS_PER_PTE; ++i)
+		set_pte(kasan_early_shadow_pte + i,
+			mk_pte(virt_to_page(kasan_early_shadow_page),
+			       PAGE_KERNEL));
+
+	for (i = 0; i < PTRS_PER_PMD; ++i)
+		set_pmd(kasan_early_shadow_pmd + i,
+			pfn_pmd(PFN_DOWN
+				(__pa((uintptr_t)kasan_early_shadow_pte)),
+				PAGE_TABLE));
+
+	if (pgtable_l4_enabled) {
+		for (i = 0; i < PTRS_PER_PUD; ++i)
+			set_pud(kasan_early_shadow_pud + i,
+				pfn_pud(PFN_DOWN
+					(__pa(((uintptr_t)kasan_early_shadow_pmd))),
+					PAGE_TABLE));
+	}
+
+	kasan_populate_pgd(early_pg_dir + pgd_index(KASAN_SHADOW_START),
+			   KASAN_SHADOW_START, KASAN_SHADOW_END, true);
+
+	local_flush_tlb_all();
+}
+
+void __init kasan_swapper_init(void)
+{
+	kasan_populate_pgd(pgd_offset_k(KASAN_SHADOW_START),
+			   KASAN_SHADOW_START, KASAN_SHADOW_END, true);
+
+	local_flush_tlb_all();
+}
+
 static void __init kasan_populate(void *start, void *end)
 {
 	unsigned long vaddr = (unsigned long)start & PAGE_MASK;
 	unsigned long vend = PAGE_ALIGN((unsigned long)end);
 
-	kasan_populate_pgd(vaddr, vend);
+	kasan_populate_pgd(pgd_offset_k(vaddr), vaddr, vend, false);
 
 	local_flush_tlb_all();
 	memset(start, KASAN_SHADOW_INIT, end - start);
