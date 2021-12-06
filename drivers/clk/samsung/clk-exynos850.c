@@ -9,93 +9,13 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include <dt-bindings/clock/exynos850.h>
 
 #include "clk.h"
-
-/* Gate register bits */
-#define GATE_MANUAL		BIT(20)
-#define GATE_ENABLE_HWACG	BIT(28)
-
-/* Gate register offsets range */
-#define GATE_OFF_START		0x2000
-#define GATE_OFF_END		0x2fff
-
-/**
- * exynos850_init_clocks - Set clocks initial configuration
- * @np:			CMU device tree node with "reg" property (CMU addr)
- * @reg_offs:		Register offsets array for clocks to init
- * @reg_offs_len:	Number of register offsets in reg_offs array
- *
- * Set manual control mode for all gate clocks.
- */
-static void __init exynos850_init_clocks(struct device_node *np,
-		const unsigned long *reg_offs, size_t reg_offs_len)
-{
-	void __iomem *reg_base;
-	size_t i;
-
-	reg_base = of_iomap(np, 0);
-	if (!reg_base)
-		panic("%s: failed to map registers\n", __func__);
-
-	for (i = 0; i < reg_offs_len; ++i) {
-		void __iomem *reg = reg_base + reg_offs[i];
-		u32 val;
-
-		/* Modify only gate clock registers */
-		if (reg_offs[i] < GATE_OFF_START || reg_offs[i] > GATE_OFF_END)
-			continue;
-
-		val = readl(reg);
-		val |= GATE_MANUAL;
-		val &= ~GATE_ENABLE_HWACG;
-		writel(val, reg);
-	}
-
-	iounmap(reg_base);
-}
-
-/**
- * exynos850_register_cmu - Register specified Exynos850 CMU domain
- * @dev:	Device object; may be NULL if this function is not being
- *		called from platform driver probe function
- * @np:		CMU device tree node
- * @cmu:	CMU data
- *
- * Register specified CMU domain, which includes next steps:
- *
- * 1. Enable parent clock of @cmu CMU
- * 2. Set initial registers configuration for @cmu CMU clocks
- * 3. Register @cmu CMU clocks using Samsung clock framework API
- */
-static void __init exynos850_register_cmu(struct device *dev,
-		struct device_node *np, const struct samsung_cmu_info *cmu)
-{
-	/* Keep CMU parent clock running (needed for CMU registers access) */
-	if (cmu->clk_name) {
-		struct clk *parent_clk;
-
-		if (dev)
-			parent_clk = clk_get(dev, cmu->clk_name);
-		else
-			parent_clk = of_clk_get_by_name(np, cmu->clk_name);
-
-		if (IS_ERR(parent_clk)) {
-			pr_err("%s: could not find bus clock %s; err = %ld\n",
-			       __func__, cmu->clk_name, PTR_ERR(parent_clk));
-		} else {
-			clk_prepare_enable(parent_clk);
-		}
-	}
-
-	exynos850_init_clocks(np, cmu->clk_regs, cmu->nr_clk_regs);
-	samsung_cmu_register_one(np, cmu);
-}
+#include "clk-exynos-arm64.h"
 
 /* ---- CMU_TOP ------------------------------------------------------------- */
 
@@ -404,7 +324,7 @@ static const struct samsung_cmu_info top_cmu_info __initconst = {
 
 static void __init exynos850_cmu_top_init(struct device_node *np)
 {
-	exynos850_register_cmu(NULL, np, &top_cmu_info);
+	exynos_arm64_register_cmu(NULL, np, &top_cmu_info);
 }
 
 /* Register CMU_TOP early, as it's a dependency for other early domains */
@@ -911,7 +831,7 @@ static const struct samsung_cmu_info peri_cmu_info __initconst = {
 
 static void __init exynos850_cmu_peri_init(struct device_node *np)
 {
-	exynos850_register_cmu(NULL, np, &peri_cmu_info);
+	exynos_arm64_register_cmu(NULL, np, &peri_cmu_info);
 }
 
 /* Register CMU_PERI early, as it's needed for MCT timer */
@@ -1098,7 +1018,7 @@ static int __init exynos850_cmu_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	info = of_device_get_match_data(dev);
-	exynos850_register_cmu(dev, dev->of_node, info);
+	exynos_arm64_register_cmu(dev, dev->of_node, info);
 
 	return 0;
 }
