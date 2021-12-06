@@ -18,7 +18,7 @@
 static u64 gen8_pde_encode(const dma_addr_t addr,
 			   const enum i915_cache_level level)
 {
-	u64 pde = addr | _PAGE_PRESENT | _PAGE_RW;
+	u64 pde = addr | GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
 
 	if (level != I915_CACHE_NONE)
 		pde |= PPAT_CACHED_PDE;
@@ -32,10 +32,10 @@ static u64 gen8_pte_encode(dma_addr_t addr,
 			   enum i915_cache_level level,
 			   u32 flags)
 {
-	gen8_pte_t pte = addr | _PAGE_PRESENT | _PAGE_RW;
+	gen8_pte_t pte = addr | GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
 
 	if (unlikely(flags & PTE_READ_ONLY))
-		pte &= ~_PAGE_RW;
+		pte &= ~GEN8_PAGE_RW;
 
 	if (flags & PTE_LM)
 		pte |= GEN12_PPGTT_PTE_LM;
