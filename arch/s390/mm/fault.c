@@ -115,7 +115,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		pr_cont("R1:%016lx ", *table);
 		if (*table & _REGION_ENTRY_INVALID)
 			goto out;
-		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = __va(*table & _REGION_ENTRY_ORIGIN);
 		fallthrough;
 	case _ASCE_TYPE_REGION2:
 		table += (address & _REGION2_INDEX) >> _REGION2_SHIFT;
@@ -124,7 +124,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		pr_cont("R2:%016lx ", *table);
 		if (*table & _REGION_ENTRY_INVALID)
 			goto out;
-		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = __va(*table & _REGION_ENTRY_ORIGIN);
 		fallthrough;
 	case _ASCE_TYPE_REGION3:
 		table += (address & _REGION3_INDEX) >> _REGION3_SHIFT;
@@ -133,7 +133,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		pr_cont("R3:%016lx ", *table);
 		if (*table & (_REGION_ENTRY_INVALID | _REGION3_ENTRY_LARGE))
 			goto out;
-		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = __va(*table & _REGION_ENTRY_ORIGIN);
 		fallthrough;
 	case _ASCE_TYPE_SEGMENT:
 		table += (address & _SEGMENT_INDEX) >> _SEGMENT_SHIFT;
@@ -142,7 +142,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		pr_cont("S:%016lx ", *table);
 		if (*table & (_SEGMENT_ENTRY_INVALID | _SEGMENT_ENTRY_LARGE))
 			goto out;
-		table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
+		table = __va(*table & _SEGMENT_ENTRY_ORIGIN);
 	}
 	table += (address & _PAGE_INDEX) >> _PAGE_SHIFT;
 	if (bad_address(table))
