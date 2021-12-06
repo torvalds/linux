@@ -191,8 +191,9 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		r = amdgpu_fence_driver_init_ring(ring, sched_hw_submission,
-						  sched_score);
+		ring->num_hw_submission = sched_hw_submission;
+		ring->sched_score = sched_score;
+		r = amdgpu_fence_driver_init_ring(ring);
 		if (r)
 			return r;
 	}
