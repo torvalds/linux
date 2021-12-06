@@ -25,11 +25,11 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -828,11 +828,10 @@ MODULE_DEVICE_TABLE(spi, hi3110_id_table);
 
 static int hi3110_can_probe(struct spi_device *spi)
 {
-	const struct of_device_id *of_id = of_match_device(hi3110_of_match,
-							   &spi->dev);
 	struct device *dev = &spi->dev;
 	struct net_device *net;
 	struct hi3110_priv *priv;
+	const void *match;
 	struct clk *clk;
 	u32 freq;
 	int ret;
@@ -877,8 +876,9 @@ static int hi3110_can_probe(struct spi_device *spi)
 		CAN_CTRLMODE_LISTENONLY |
 		CAN_CTRLMODE_BERR_REPORTING;
 
-	if (of_id)
-		priv->model = (enum hi3110_model)(uintptr_t)of_id->data;
+	match = device_get_match_data(dev);
+	if (match)
+		priv->model = (enum hi3110_model)(uintptr_t)match;
 	else
 		priv->model = spi_get_device_id(spi)->driver_data;
 	priv->net = net;
