@@ -2250,7 +2250,7 @@
 		};
 	};
 
-	vdd_sd: regulator@100 {
+	vdd_sd: regulator-vdd-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "SD_CARD_SW_PWR";
 		regulator-min-microvolt = <3300000>;
@@ -2262,7 +2262,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_hdmi: regulator@101 {
+	vdd_hdmi: regulator-vdd-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_HDMI_5V0";
 		regulator-min-microvolt = <5000000>;
@@ -2274,7 +2274,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb0: regulator@102 {
+	vdd_usb0: regulator-vdd-usb0 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_USB0";
 		regulator-min-microvolt = <5000000>;
@@ -2286,7 +2286,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb1: regulator@103 {
+	vdd_usb1: regulator-vdd-usb1 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_USB1";
 		regulator-min-microvolt = <5000000>;

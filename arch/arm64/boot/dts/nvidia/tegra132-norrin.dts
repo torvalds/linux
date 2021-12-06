@@ -1057,7 +1057,7 @@
 		ddc-i2c-bus = <&dpaux>;
 	};
 
-	vdd_mux: regulator@0 {
+	vdd_mux: regulator-vdd-mux {
 		compatible = "regulator-fixed";
 		regulator-name = "+VDD_MUX";
 		regulator-min-microvolt = <19000000>;
@@ -1066,7 +1066,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_5v0_sys: regulator@1 {
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_SYS";
 		regulator-min-microvolt = <5000000>;
@@ -1076,7 +1076,7 @@
 		vin-supply = <&vdd_mux>;
 	};
 
-	vdd_3v3_sys: regulator@2 {
+	vdd_3v3_sys: regulator-vdd-3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_SYS";
 		regulator-min-microvolt = <3300000>;
@@ -1086,7 +1086,7 @@
 		vin-supply = <&vdd_mux>;
 	};
 
-	vdd_3v3_run: regulator@3 {
+	vdd_3v3_run: regulator-vdd-3v3-run {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_RUN";
 		regulator-min-microvolt = <3300000>;
@@ -1098,7 +1098,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_3v3_hdmi: regulator@4 {
+	vdd_3v3_hdmi: regulator-vdd-3v3-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_AVDD_HDMI_AP_GATED";
 		regulator-min-microvolt = <3300000>;
@@ -1106,7 +1106,7 @@
 		vin-supply = <&vdd_3v3_run>;
 	};
 
-	vdd_led: regulator@5 {
+	vdd_led: regulator-vdd-led {
 		compatible = "regulator-fixed";
 		regulator-name = "+VDD_LED";
 		regulator-min-microvolt = <3300000>;
@@ -1116,7 +1116,7 @@
 		vin-supply = <&vdd_mux>;
 	};
 
-	vdd_usb1_vbus: regulator@6 {
+	vdd_usb1_vbus: regulator-vdd-usb1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_USB_HS";
 		regulator-min-microvolt = <5000000>;
@@ -1127,7 +1127,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb3_vbus: regulator@7 {
+	vdd_usb3_vbus: regulator-vdd-usb3-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_USB_SS";
 		regulator-min-microvolt = <5000000>;
@@ -1138,7 +1138,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_3v3_panel: regulator@8 {
+	vdd_3v3_panel: regulator-vdd-3v3-panel {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_PANEL";
 		regulator-min-microvolt = <3300000>;
@@ -1148,7 +1148,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_hdmi_pll: regulator@9 {
+	vdd_hdmi_pll: regulator-vdd-hdmi-pll {
 		compatible = "regulator-fixed";
 		regulator-name = "+1.05V_RUN_AVDD_HDMI_PLL_AP_GATE";
 		regulator-min-microvolt = <1050000>;
@@ -1157,7 +1157,7 @@
 		vin-supply = <&vdd_1v05_run>;
 	};
 
-	vdd_5v0_hdmi: regulator@10 {
+	vdd_5v0_hdmi: regulator-vdd-5v0-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_HDMI_CON";
 		regulator-min-microvolt = <5000000>;
@@ -1167,7 +1167,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_5v0_ts: regulator@11 {
+	vdd_5v0_ts: regulator-vdd-5v0-ts {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_VDD_TS";
 		regulator-min-microvolt = <5000000>;
@@ -1178,7 +1178,7 @@
 		enable-active-high;
 	};
 
-	vdd_3v3_lp0: regulator@12 {
+	vdd_3v3_lp0: regulator-vdd-3v3-lp0 {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_LP0";
 		regulator-min-microvolt = <3300000>;

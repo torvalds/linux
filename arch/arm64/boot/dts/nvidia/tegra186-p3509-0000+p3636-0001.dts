@@ -593,7 +593,7 @@
 		method = "smc";
 	};
 
-	gnd: regulator@0 {
+	gnd: regulator-gnd {
 		compatible = "regulator-fixed";
 		regulator-name = "GND";
 		regulator-min-microvolt = <0>;
@@ -602,7 +602,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_5v0_sys: regulator@1 {
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V0_SYS";
 		regulator-min-microvolt = <5000000>;
@@ -611,7 +611,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_1v8_ap: regulator@2 {
+	vdd_1v8_ap: regulator-vdd-1v8-ap {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_1V8_AP";
 		regulator-min-microvolt = <1800000>;
@@ -623,7 +623,7 @@
 		vin-supply = <&vdd_1v8>;
 	};
 
-	vdd_hdmi: regulator@3 {
+	vdd_hdmi: regulator-vdd-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V0_HDMI_CON";
 		regulator-min-microvolt = <5000000>;

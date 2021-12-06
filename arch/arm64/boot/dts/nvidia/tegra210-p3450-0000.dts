@@ -1762,7 +1762,7 @@
 		method = "smc";
 	};
 
-	vdd_5v0_sys: regulator@0 {
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_5V0_SYS";
@@ -1772,7 +1772,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_3v3_sys: regulator@1 {
+	vdd_3v3_sys: regulator-vdd-3v3-sys {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_3V3_SYS";
@@ -1789,7 +1789,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_3v3_sd: regulator@2 {
+	vdd_3v3_sd: regulator-vdd-3v3-sd {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_3V3_SD";
@@ -1802,7 +1802,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_hdmi: regulator@3 {
+	vdd_hdmi: regulator-vdd-hdmi-5v0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_HDMI_5V0";
@@ -1812,7 +1812,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_hub_3v3: regulator@4 {
+	vdd_hub_3v3: regulator-vdd-hub-3v3 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_HUB_3V3";
@@ -1825,7 +1825,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_cpu: regulator@5 {
+	vdd_cpu: regulator-vdd-cpu {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_CPU";
@@ -1840,7 +1840,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_gpu: regulator@6 {
+	vdd_gpu: regulator-vdd-gpu {
 		compatible = "pwm-regulator";
 		pwms = <&pwm 1 8000>;
 
@@ -1855,7 +1855,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	avdd_io_edp_1v05: regulator@7 {
+	avdd_io_edp_1v05: regulator-avdd-io-epd-1v05 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "AVDD_IO_EDP_1V05";
@@ -1868,7 +1868,7 @@
 		vin-supply = <&avdd_1v05_pll>;
 	};
 
-	vdd_5v0_usb: regulator@8 {
+	vdd_5v0_usb: regulator-vdd-5v-usb {
 		compatible = "regulator-fixed";
 
 		regulator-name = "VDD_5V_USB";

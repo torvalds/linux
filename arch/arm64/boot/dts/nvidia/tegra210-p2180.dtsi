@@ -336,7 +336,7 @@
 		method = "smc";
 	};
 
-	vdd_gpu: regulator@100 {
+	vdd_gpu: regulator-vdd-gpu {
 		compatible = "pwm-regulator";
 		pwms = <&pwm 1 8000>;
 		regulator-name = "VDD_GPU";
