@@ -357,4 +357,7 @@ bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
 
+/* ast_i2c.c */
+struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
+
 #endif
