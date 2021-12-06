@@ -274,6 +274,8 @@ struct dw_mipi_dsi2 {
 	struct rockchip_drm_sub_dev sub_dev;
 
 	struct gpio_desc *te_gpio;
+	bool user_split_mode;
+	struct drm_property *user_split_mode_prop;
 };
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
@@ -1137,6 +1139,7 @@ static int dw_mipi_dsi2_bind(struct device *dev, struct device *master,
 	struct drm_encoder *encoder = &dsi2->encoder;
 	struct drm_connector *connector = &dsi2->connector;
 	struct device_node *of_node = dsi2->dev->of_node;
+	struct drm_property *prop;
 	int ret;
 
 	ret = dw_mipi_dsi2_dual_channel_probe(dsi2);
@@ -1176,11 +1179,24 @@ static int dw_mipi_dsi2_bind(struct device *dev, struct device *master,
 
 		drm_connector_helper_add(connector,
 					 &dw_mipi_dsi2_connector_helper_funcs);
-		drm_connector_attach_encoder(connector, encoder);
+		ret = drm_connector_attach_encoder(connector, encoder);
 		if (ret < 0) {
 			DRM_DEV_ERROR(dev, "Failed to attach encoder: %d\n", ret);
 			goto connector_cleanup;
 		}
+
+		prop = drm_property_create_bool(drm_dev, DRM_MODE_PROP_IMMUTABLE,
+						"USER_SPLIT_MODE");
+		if (!prop) {
+			ret = -EINVAL;
+			DRM_DEV_ERROR(dev, "create user split mode prop failed\n");
+			goto connector_cleanup;
+		}
+
+		dsi2->user_split_mode_prop = prop;
+		drm_object_attach_property(&dsi2->connector.base,
+					   dsi2->user_split_mode_prop,
+					   dsi2->user_split_mode ? 1 : 0);
 
 		dsi2->sub_dev.connector = &dsi2->connector;
 		dsi2->sub_dev.of_node = dev->of_node;
@@ -1438,6 +1454,7 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	dsi2->id = id;
 	dsi2->pdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, dsi2);
+	dsi2->user_split_mode = device_property_read_bool(dev, "user-split-mode");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
