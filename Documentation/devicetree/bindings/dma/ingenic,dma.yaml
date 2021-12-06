@@ -14,15 +14,23 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - ingenic,jz4740-dma
-      - ingenic,jz4725b-dma
-      - ingenic,jz4760-dma
-      - ingenic,jz4760b-dma
-      - ingenic,jz4770-dma
-      - ingenic,jz4780-dma
-      - ingenic,x1000-dma
-      - ingenic,x1830-dma
+    oneOf:
+      - enum:
+          - ingenic,jz4740-dma
+          - ingenic,jz4725b-dma
+          - ingenic,jz4760-dma
+          - ingenic,jz4760-bdma
+          - ingenic,jz4760-mdma
+          - ingenic,jz4760b-dma
+          - ingenic,jz4760b-bdma
+          - ingenic,jz4760b-mdma
+          - ingenic,jz4770-dma
+          - ingenic,jz4780-dma
+          - ingenic,x1000-dma
+          - ingenic,x1830-dma
+      - items:
+          - const: ingenic,jz4770-bdma
+          - const: ingenic,jz4760b-bdma
 
   reg:
     items:
