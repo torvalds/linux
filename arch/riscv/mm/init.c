@@ -161,13 +161,13 @@ early_param("mem", early_mem);
 static void __init setup_bootmem(void)
 {
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
-	phys_addr_t vmlinux_start = __pa_symbol(&_start);
 	phys_addr_t max_mapped_addr;
-	phys_addr_t phys_ram_end;
+	phys_addr_t phys_ram_end, vmlinux_start;
 
-#ifdef CONFIG_XIP_KERNEL
-	vmlinux_start = __pa_symbol(&_sdata);
-#endif
+	if (IS_ENABLED(CONFIG_XIP_KERNEL))
+		vmlinux_start = __pa_symbol(&_sdata);
+	else
+		vmlinux_start = __pa_symbol(&_start);
 
 	memblock_enforce_memory_limit(memory_limit);
 
@@ -183,11 +183,9 @@ static void __init setup_bootmem(void)
 	 */
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
-
 	phys_ram_end = memblock_end_of_DRAM();
-#ifndef CONFIG_XIP_KERNEL
-	phys_ram_base = memblock_start_of_DRAM();
-#endif
+	if (!IS_ENABLED(CONFIG_XIP_KERNEL))
+		phys_ram_base = memblock_start_of_DRAM();
 	/*
 	 * memblock allocator is not aware of the fact that last 4K bytes of
 	 * the addressable memory can not be mapped because of IS_ERR_VALUE
