@@ -51,7 +51,7 @@ static void note_irq_disable(void *u1, unsigned long u2, unsigned long u3)
 	this_cpu_write(irq_disabled_ts, sched_clock());
 }
 
-static void test_irq_disable_long(void *u1, unsigned long u2, unsigned long u3)
+static void test_irq_disable_long(void *u1, unsigned long ip, unsigned long parent_ip)
 {
 	u64 ts = this_cpu_read(irq_disabled_ts);
 
@@ -62,10 +62,10 @@ static void test_irq_disable_long(void *u1, unsigned long u2, unsigned long u3)
 	ts = sched_clock() - ts;
 
 	if (ts > sysctl_irqsoff_tracing_threshold_ns) {
-		trace_irq_disable_long(ts);
+		trace_irq_disable_long(ts, ip, parent_ip, CALLER_ADDR4, CALLER_ADDR5);
 
 		if (sysctl_irqsoff_dmesg_output_enabled == IRQSOFF_SENTINEL)
-			printk_deferred("D=%llu C:(%ps<-%ps<-%ps<-%ps)\n",
+			printk_deferred("irqs off exceeds thresh delta=%llu C:(%ps<-%ps<-%ps<-%ps)\n",
 					ts, (void *)CALLER_ADDR2,
 					(void *)CALLER_ADDR3,
 					(void *)CALLER_ADDR4,
@@ -90,8 +90,8 @@ static void note_preempt_disable(void *u1, unsigned long u2, unsigned long u3)
 	ps->ncsw = current->nvcsw + current->nivcsw;
 }
 
-static void test_preempt_disable_long(void *u1, unsigned long u2,
-				      unsigned long u3)
+static void test_preempt_disable_long(void *u1, unsigned long ip,
+				      unsigned long parent_ip)
 {
 	struct preempt_store *ps = &per_cpu(the_ps, raw_smp_processor_id());
 	u64 delta = 0;
@@ -114,7 +114,7 @@ static void test_preempt_disable_long(void *u1, unsigned long u2,
 
 	ps->ts = 0;
 	if (delta > sysctl_preemptoff_tracing_threshold_ns)
-		trace_preempt_disable_long(delta);
+		trace_preempt_disable_long(delta, ip, parent_ip, CALLER_ADDR4, CALLER_ADDR5);
 }
 
 static struct ctl_table preemptirq_long_table[] = {
