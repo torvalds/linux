@@ -1641,6 +1641,7 @@ static struct iio_dev *st_asm330lhh_alloc_iiodev(struct st_asm330lhh_hw *hw,
 	sensor->id = id;
 	sensor->hw = hw;
 	sensor->watermark = 1;
+	sensor->last_fifo_timestamp = 0;
 
 #ifdef ST_ASM330LHH_DEBUG_DISCHARGE
 	sensor->discharged_samples = 0;

@@ -47,3 +47,9 @@ config IIO_ST_ASM330LHH_EN_REGULATOR
 	  Add the vdd-supply and vddio-supply entries into device tree to
 	  automatically manage the sensor power supply.
 
+config IIO_ST_ASM330LHH_ASYNC_HW_TIMESTAMP
+       bool "Enable async hw timestamp read"
+       depends on IIO_ST_ASM330LHH
+       help
+         Enable async task that sends over hw timestamp events.
+

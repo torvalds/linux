@@ -14,6 +14,9 @@
 #include <linux/device.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
+#include <linux/hrtimer.h>
+#include <linux/spinlock.h>
 
 #define ST_ASM330LHH_DRV_VERSION		"1.1"
 #define ST_ASM330LHH_DEBUG_DISCHARGE
@@ -135,6 +138,9 @@
 #define ST_ASM330LHH_FIFO_SAMPLE_SIZE	(ST_ASM330LHH_SAMPLE_SIZE + \
 					 ST_ASM330LHH_TAG_SIZE)
 #define ST_ASM330LHH_MAX_FIFO_DEPTH	416
+
+#define ST_ASM330LHH_DEFAULT_KTIME		(200000000)
+#define ST_ASM330LHH_FAST_KTIME		(5000000)
 
 #define ST_ASM330LHH_DATA_CHANNEL(chan_type, addr, mod, ch2, scan_idx,	\
 				rb, sb, sg)				\
@@ -378,6 +384,12 @@ struct st_asm330lhh_sensor {
  * @enable_mask: Enabled sensor bitmask.
  * @hw_timestamp_global: hw timestamp value always monotonic where the most
  *                       significant 8byte are incremented at every disable/enable.
+ * @timesync_workqueue: runs the async task in private workqueue.
+ * @timesync_work: actual work to be done in the async task workqueue.
+ * @timesync_timer: hrtimer used to schedule period read for the async task.
+ * @hwtimestamp_lock: spinlock for the 64bit timestamp value.
+ * @timesync_ktime: interval value used by the hrtimer.
+ * @timestamp_c: counter used for counting number of timesync updates.
  * @ts_offset: Hw timestamp offset.
  * @ts_delta_ns: Calibrate delta time tick.
  * @hw_ts: Latest hw timestamp from the sensor.
@@ -407,6 +419,15 @@ struct st_asm330lhh_hw {
 
 	s64 hw_timestamp_global;
 
+#if defined (CONFIG_IIO_ST_ASM330LHH_ASYNC_HW_TIMESTAMP)
+	struct workqueue_struct *timesync_workqueue;
+	struct work_struct timesync_work;
+	struct hrtimer timesync_timer;
+	spinlock_t hwtimestamp_lock;
+	ktime_t timesync_ktime;
+	int timesync_c;
+#endif /* CONFIG_IIO_ST_ASM330LHH_ASYNC_HW_TIMESTAMP */
+
 	s64 ts_offset;
 	u64 ts_delta_ns;
 	s64 hw_ts;
@@ -415,6 +436,7 @@ struct st_asm330lhh_hw {
 	s64 tsample;
 	s64 delta_ts;
 	s64 ts;
+
 	const struct st_asm330lhh_odr_table_entry *odr_table_entry;
 	struct iio_dev *iio_devs[ST_ASM330LHH_ID_MAX];
 
@@ -534,4 +556,13 @@ int st_asm330lhh_set_6D_threshold(struct st_asm330lhh_hw *hw, int deg);
 int st_asm330lhh_read_with_mask(struct st_asm330lhh_hw *hw, u8 addr, u8 mask,
 				u8 *val);
 #endif /* CONFIG_IIO_ST_ASM330LHH_EN_BASIC_FEATURES */
+
+#if defined (CONFIG_IIO_ST_ASM330LHH_ASYNC_HW_TIMESTAMP)
+int st_asm330lhh_hwtimesync_init(struct st_asm330lhh_hw *hw);
+#else /* CONFIG_IIO_ST_ASM330LHH_ASYNC_HW_TIMESTAMP */
+static inline int st_asm330lhh_hwtimesync_init(struct st_asm330lhh_hw *hw)
+{
+	return 0;
+}
+#endif /* CONFIG_IIO_ST_ASM330LHH_ASYNC_HW_TIMESTAMP */
 #endif /* ST_ASM330LHH_H */
