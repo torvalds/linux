@@ -938,6 +938,14 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 		jzchan->vchan.desc_free = jz4780_dma_desc_free;
 	}
 
+	/*
+	 * On JZ4760, chan0 won't enable properly the first time.
+	 * Enabling then disabling chan1 will magically make chan0 work
+	 * correctly.
+	 */
+	jz4780_dma_chan_enable(jzdma, 1);
+	jz4780_dma_chan_disable(jzdma, 1);
+
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
 		goto err_disable_clk;
