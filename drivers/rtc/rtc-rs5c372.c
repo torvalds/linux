@@ -28,7 +28,7 @@
 #define RS5C372_REG_MONTH	5
 #define RS5C372_REG_YEAR	6
 #define RS5C372_REG_TRIM	7
-#	define RS5C372_TRIM_XSL		0x80
+#	define RS5C372_TRIM_XSL		0x80		/* only if RS5C372[a|b] */
 #	define RS5C372_TRIM_MASK	0x7F
 #	define R2221TL_TRIM_DEV		(1 << 7)	/* only if R2221TL */
 #	define RS5C372_TRIM_DECR	(1 << 6)
@@ -326,8 +326,12 @@ static int rs5c372_get_trim(struct i2c_client *client, int *osc, int *trim)
 	struct rs5c372 *rs5c372 = i2c_get_clientdata(client);
 	u8 tmp = rs5c372->regs[RS5C372_REG_TRIM];
 
-	if (osc)
-		*osc = (tmp & RS5C372_TRIM_XSL) ? 32000 : 32768;
+	if (osc) {
+		if (rs5c372->type == rtc_rs5c372a || rs5c372->type == rtc_rs5c372b)
+			*osc = (tmp & RS5C372_TRIM_XSL) ? 32000 : 32768;
+		else
+			*osc = 32768;
+	}
 
 	if (trim) {
 		dev_dbg(&client->dev, "%s: raw trim=%x\n", __func__, tmp);
