@@ -351,7 +351,6 @@ struct aspeed_i3c_master {
 	char version[5];
 	char type[5];
 	u8 addrs[MAX_DEVS];
-	u8 is_aspeed;
 	bool secondary;
 	struct {
 		u32 *buf;
@@ -1040,11 +1039,9 @@ static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
 	}
 
 	memset(&info, 0, sizeof(info));
-	if (master->is_aspeed) {
-		ret = aspeed_i3c_master_set_info(master, &info);
-		if (ret < 0)
-			return ret;
-	}
+	ret = aspeed_i3c_master_set_info(master, &info);
+	if (ret < 0)
+		return ret;
 
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
@@ -1832,8 +1829,7 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 	ret = i3c_master_enec_locked(m, dev->info.dyn_addr,
 				     I3C_CCC_EVENT_SIR);
 
-	if (master->is_aspeed)
-		aspeed_i3c_master_extend_ibi_payload(m, dev);
+	aspeed_i3c_master_extend_ibi_payload(m, dev);
 
 	if (ret) {
 		spin_lock_irqsave(&master->ibi.lock, flags);
@@ -1948,20 +1944,18 @@ static int aspeed_i3c_maser_send_sir(struct i3c_master_controller *m,
 	init_completion(&master->sir_complete);
 
 	act_len = payload->len;
-	if (master->is_aspeed) {
-		/*
-		 * AST2600 HW does not export the max ibi payload length to the
-		 * software interface, so we can only send fixed length SIR.
-		 *
-		 * Another consideration is if the bus main master is AST2600,
-		 * it cannot receive IBI with data length (4n + 1) including the
-		 * MDB.  Which means the length of the user payload must not be
-		 * 4n bytes.  Thus we pad 3 bytes for workaround.
-		 */
-		act_len = CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD;
-		if ((act_len & 0x3) == 0x0)
-			act_len += 3;
-	}
+	/*
+	 * AST2600 HW does not export the max ibi payload length to the
+	 * software interface, so we can only send fixed length SIR.
+	 *
+	 * Another consideration is if the bus main master is AST2600,
+	 * it cannot receive IBI with data length (4n + 1) including the
+	 * MDB.  Which means the length of the user payload must not be
+	 * 4n bytes.  Thus we pad 3 bytes for workaround.
+	 */
+	act_len = CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD;
+	if ((act_len & 0x3) == 0x0)
+		act_len += 3;
 
 	aspeed_i3c_master_wr_tx_fifo(master, buf, act_len);
 	writel(1, master->regs + SLV_INTR_REQ);
@@ -2050,11 +2044,6 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	np = pdev->dev.of_node;
-	if (np && (of_device_is_compatible(np, "aspeed,ast2600-i3c")))
-		master->is_aspeed = 1;
-	else
-		master->is_aspeed = 0;
-
 	if (of_get_property(np, "secondary", NULL))
 		master->secondary = true;
 	else
