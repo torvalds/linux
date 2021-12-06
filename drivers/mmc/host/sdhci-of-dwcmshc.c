@@ -550,6 +550,11 @@ static int dwcmshc_runtime_resume(struct device *dev)
 	clk_set_rate(pltfm_host->clk, priv->cclk_rate);
 	sdhci_set_clock(host, priv->actual_clk);
 	ret = clk_bulk_prepare_enable(ROCKCHIP_MAX_CLKS, priv->rockchip_clks);
+	/*
+	 * DLL will not LOCK after frequency reduction,
+	 * and it needs to be reconfigured.
+	 */
+	dwcmshc_rk_set_clock(host, priv->cclk_rate);
 
 	return ret;
 }
