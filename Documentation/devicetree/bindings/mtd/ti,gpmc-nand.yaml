@@ -53,6 +53,11 @@ properties:
     enum: [8, 16]
     default: 8
 
+  rb-gpios:
+    description:
+      GPIO connection to R/B signal from NAND chip
+    maxItems: 1
+
 patternProperties:
   "@[0-9a-f]+$":
     $ref: "/schemas/mtd/partitions/partition.yaml"
