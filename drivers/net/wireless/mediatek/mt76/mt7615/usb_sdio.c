@@ -43,19 +43,11 @@ EXPORT_SYMBOL_GPL(mt7663_usb_sdio_reg_map);
 static void
 mt7663_usb_sdio_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			   enum mt76_txq_id qid, struct ieee80211_sta *sta,
+			   struct ieee80211_key_conf *key, int pid,
 			   struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_key_conf *key = info->control.hw_key;
-	__le32 *txwi;
-	int pid;
+	__le32 *txwi = (__le32 *)(skb->data - MT_USB_TXD_SIZE);
 
-	if (!wcid)
-		wcid = &dev->mt76.global_wcid;
-
-	pid = mt76_tx_status_skb_add(&dev->mt76, wcid, skb);
-
-	txwi = (__le32 *)(skb->data - MT_USB_TXD_SIZE);
 	memset(txwi, 0, MT_USB_TXD_SIZE);
 	mt7615_mac_write_txwi(dev, txwi, skb, wcid, sta, pid, key, false);
 	skb_push(skb, MT_USB_TXD_SIZE);
@@ -194,10 +186,14 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct sk_buff *skb = tx_info->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct mt7615_sta *msta;
-	int pad;
+	int pad, err, pktid;
 
 	msta = wcid ? container_of(wcid, struct mt7615_sta, wcid) : NULL;
+	if (!wcid)
+		wcid = &dev->mt76.global_wcid;
+
 	if ((info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) &&
 	    msta && !msta->rate_probe) {
 		/* request to configure sampling rate */
@@ -207,7 +203,8 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		spin_unlock_bh(&dev->mt76.lock);
 	}
 
-	mt7663_usb_sdio_write_txwi(dev, wcid, qid, sta, skb);
+	pktid = mt76_tx_status_skb_add(&dev->mt76, wcid, skb);
+	mt7663_usb_sdio_write_txwi(dev, wcid, qid, sta, key, pktid, skb);
 	if (mt76_is_usb(mdev)) {
 		u32 len = skb->len;
 
@@ -217,7 +214,12 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		pad = round_up(skb->len, 4) - skb->len;
 	}
 
-	return mt76_skb_adjust_pad(skb, pad);
+	err = mt76_skb_adjust_pad(skb, pad);
+	if (err)
+		/* Release pktid in case of error. */
+		idr_remove(&wcid->pktid, pktid);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_prepare_skb);
 

@@ -1468,7 +1468,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 			dev_err(adev->dev, "Failed to disable smu features.\n");
 	}
 
-	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 0, 0) &&
+	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 4, 2) &&
 	    adev->gfx.rlc.funcs->stop)
 		adev->gfx.rlc.funcs->stop(adev);
 

@@ -625,18 +625,17 @@ int smcd_nl_get_lgr(struct sk_buff *skb, struct netlink_callback *cb)
 void smc_lgr_cleanup_early(struct smc_connection *conn)
 {
 	struct smc_link_group *lgr = conn->lgr;
-	struct list_head *lgr_list;
 	spinlock_t *lgr_lock;
 
 	if (!lgr)
 		return;
 
 	smc_conn_free(conn);
-	lgr_list = smc_lgr_list_head(lgr, &lgr_lock);
+	smc_lgr_list_head(lgr, &lgr_lock);
 	spin_lock_bh(lgr_lock);
 	/* do not use this link group for new connections */
-	if (!list_empty(lgr_list))
-		list_del_init(lgr_list);
+	if (!list_empty(&lgr->list))
+		list_del_init(&lgr->list);
 	spin_unlock_bh(lgr_lock);
 	__smc_lgr_terminate(lgr, true);
 }

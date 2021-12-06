@@ -12,14 +12,12 @@
 #include <linux/types.h>
 #include <linux/kvm.h>
 #include <linux/kvm_types.h>
+#include <asm/csr.h>
 #include <asm/kvm_vcpu_fp.h>
 #include <asm/kvm_vcpu_timer.h>
 
-#ifdef CONFIG_64BIT
-#define KVM_MAX_VCPUS			(1U << 16)
-#else
-#define KVM_MAX_VCPUS			(1U << 9)
-#endif
+#define KVM_MAX_VCPUS			\
+	((HGATP_VMID_MASK >> HGATP_VMID_SHIFT) + 1)
 
 #define KVM_HALT_POLL_NS_DEFAULT	500000
 
