@@ -894,7 +894,7 @@
 		};
 
 		palmas: tps65913@58 {
-			compatible = "ti,palmas";
+			compatible = "ti,tps65913", "ti,palmas";
 			reg = <0x58>;
 			interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
 
