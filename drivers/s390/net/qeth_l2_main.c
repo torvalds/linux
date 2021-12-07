@@ -726,7 +726,8 @@ struct qeth_l2_br2dev_event_work {
 	unsigned char addr[ETH_ALEN];
 };
 
-static const struct net_device_ops qeth_l2_netdev_ops;
+static const struct net_device_ops qeth_l2_iqd_netdev_ops;
+static const struct net_device_ops qeth_l2_osa_netdev_ops;
 
 static bool qeth_l2_must_learn(struct net_device *netdev,
 			       struct net_device *dstdev)
@@ -738,7 +739,8 @@ static bool qeth_l2_must_learn(struct net_device *netdev,
 		(priv->brport_features & BR_LEARNING_SYNC) &&
 		!(br_port_flag_is_set(netdev, BR_ISOLATED) &&
 		  br_port_flag_is_set(dstdev, BR_ISOLATED)) &&
-		netdev->netdev_ops == &qeth_l2_netdev_ops);
+		(netdev->netdev_ops == &qeth_l2_iqd_netdev_ops ||
+		 netdev->netdev_ops == &qeth_l2_osa_netdev_ops));
 }
 
 /**
@@ -1051,7 +1053,28 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	return rc;
 }
 
-static const struct net_device_ops qeth_l2_netdev_ops = {
+static const struct net_device_ops qeth_l2_iqd_netdev_ops = {
+	.ndo_open		= qeth_open,
+	.ndo_stop		= qeth_stop,
+	.ndo_get_stats64	= qeth_get_stats64,
+	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
+	.ndo_features_check	= qeth_features_check,
+	.ndo_select_queue	= qeth_l2_select_queue,
+	.ndo_validate_addr	= qeth_l2_validate_addr,
+	.ndo_set_rx_mode	= qeth_l2_set_rx_mode,
+	.ndo_eth_ioctl		= qeth_do_ioctl,
+	.ndo_siocdevprivate	= qeth_siocdevprivate,
+	.ndo_set_mac_address	= qeth_l2_set_mac_address,
+	.ndo_vlan_rx_add_vid	= qeth_l2_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= qeth_l2_vlan_rx_kill_vid,
+	.ndo_tx_timeout		= qeth_tx_timeout,
+	.ndo_fix_features	= qeth_fix_features,
+	.ndo_set_features	= qeth_set_features,
+	.ndo_bridge_getlink	= qeth_l2_bridge_getlink,
+	.ndo_bridge_setlink	= qeth_l2_bridge_setlink,
+};
+
+static const struct net_device_ops qeth_l2_osa_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
 	.ndo_get_stats64	= qeth_get_stats64,
@@ -1074,8 +1097,9 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 
 static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
+	card->dev->netdev_ops = IS_IQD(card) ? &qeth_l2_iqd_netdev_ops :
+					       &qeth_l2_osa_netdev_ops;
 	card->dev->needed_headroom = sizeof(struct qeth_hdr);
-	card->dev->netdev_ops = &qeth_l2_netdev_ops;
 	card->dev->priv_flags |= IFF_UNICAST_FLT;
 
 	if (IS_OSM(card)) {
