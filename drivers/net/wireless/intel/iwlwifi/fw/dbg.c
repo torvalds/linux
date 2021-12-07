@@ -880,7 +880,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 		dump_info->hw_type =
 			cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->hw_rev));
 		dump_info->hw_step =
-			cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
+			cpu_to_le32(fwrt->trans->hw_rev_step);
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
 		       sizeof(dump_info->fw_human_readable));
 		strncpy(dump_info->dev_human_readable, fwrt->trans->name,
@@ -2099,7 +2099,7 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	dump->ver_type = cpu_to_le32(fwrt->dump.fw_ver.type);
 	dump->ver_subtype = cpu_to_le32(fwrt->dump.fw_ver.subtype);
 
-	dump->hw_step = cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
+	dump->hw_step = cpu_to_le32(fwrt->trans->hw_rev_step);
 
 	/*
 	 * Several HWs all have type == 0x42, so we'll override this value

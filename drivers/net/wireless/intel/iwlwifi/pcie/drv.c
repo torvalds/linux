@@ -1450,7 +1450,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_info = iwl_pci_find_dev_info(pdev->device, pdev->subsystem_device,
 					 CSR_HW_REV_TYPE(iwl_trans->hw_rev),
-					 CSR_HW_REV_STEP(iwl_trans->hw_rev),
+					 iwl_trans->hw_rev_step,
 					 CSR_HW_RFID_TYPE(iwl_trans->hw_rf_id),
 					 CSR_HW_RFID_IS_CDB(iwl_trans->hw_rf_id),
 					 IWL_SUBDEVICE_RF_ID(pdev->subsystem_device),

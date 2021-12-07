@@ -78,7 +78,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u8 radio_cfg_type, radio_cfg_step, radio_cfg_dash;
-	u32 reg_val = 0;
+	u32 reg_val;
 	u32 phy_config = iwl_mvm_get_phy_config(mvm);
 
 	radio_cfg_type = (phy_config & FW_PHY_CFG_RADIO_TYPE) >>
@@ -89,10 +89,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 			 FW_PHY_CFG_RADIO_DASH_POS;
 
 	/* SKU control */
-	reg_val |= CSR_HW_REV_STEP(mvm->trans->hw_rev) <<
-				CSR_HW_IF_CONFIG_REG_POS_MAC_STEP;
-	reg_val |= CSR_HW_REV_DASH(mvm->trans->hw_rev) <<
-				CSR_HW_IF_CONFIG_REG_POS_MAC_DASH;
+	reg_val = CSR_HW_REV_STEP_DASH(mvm->trans->hw_rev);
 
 	/* radio configuration */
 	reg_val |= radio_cfg_type << CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE;
@@ -117,8 +114,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 		reg_val |= CSR_HW_IF_CONFIG_REG_D3_DEBUG;
 
 	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
-				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP |
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP_DASH |
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH |
