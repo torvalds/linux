@@ -31,7 +31,7 @@ enum task_boost_type {
 };
 
 #define WALT_NR_CPUS 8
-#define RAVG_HIST_SIZE_MAX 5
+#define RAVG_HIST_SIZE_MAX 8
 #define NUM_BUSY_BUCKETS 10
 
 struct walt_related_thread_group {

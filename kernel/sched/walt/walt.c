@@ -154,7 +154,7 @@ static inline void release_rq_locks_irqrestore(const cpumask_t *cpus,
 
 static unsigned int walt_cpu_high_irqload;
 
-static __read_mostly unsigned int sched_ravg_hist_size = 5;
+static __read_mostly unsigned int sched_ravg_hist_size = RAVG_HIST_SIZE_MAX;
 
 static __read_mostly unsigned int sched_io_is_busy = 1;
 
