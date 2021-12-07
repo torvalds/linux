@@ -845,8 +845,8 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	have_csum = sblock_to_check->pagev[0]->have_csum;
 	dev = sblock_to_check->pagev[0]->dev;
 
-	if (btrfs_is_zoned(fs_info) && !sctx->is_dev_replace)
-		return btrfs_repair_one_zone(fs_info, logical);
+	if (!sctx->is_dev_replace && btrfs_repair_one_zone(fs_info, logical))
+		return 0;
 
 	/*
 	 * We must use GFP_NOFS because the scrub task might be waiting for a

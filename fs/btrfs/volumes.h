@@ -637,6 +637,6 @@ enum btrfs_raid_types __attribute_const__ btrfs_bg_flags_to_raid_index(u64 flags
 int btrfs_bg_type_to_factor(u64 flags);
 const char *btrfs_bg_type_to_raid_name(u64 flags);
 int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info);
-int btrfs_repair_one_zone(struct btrfs_fs_info *fs_info, u64 logical);
+bool btrfs_repair_one_zone(struct btrfs_fs_info *fs_info, u64 logical);
 
 #endif
