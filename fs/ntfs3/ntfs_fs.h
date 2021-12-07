@@ -839,6 +839,9 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits);
 void wnd_zone_set(struct wnd_bitmap *wnd, size_t Lcn, size_t Len);
 int ntfs_trim_fs(struct ntfs_sb_info *sbi, struct fstrim_range *range);
 
+void ntfs_bitmap_set_le(unsigned long *map, unsigned int start, int len);
+void ntfs_bitmap_clear_le(unsigned long *map, unsigned int start, int len);
+
 /* Globals from upcase.c */
 int ntfs_cmp_names(const __le16 *s1, size_t l1, const __le16 *s2, size_t l2,
 		   const u16 *upcase, bool bothcase);

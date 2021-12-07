@@ -736,7 +736,7 @@ int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 
 		lock_buffer(bh);
 
-		__bitmap_clear(buf, wbit, op);
+		ntfs_bitmap_clear_le(buf, wbit, op);
 
 		wnd->free_bits[iw] += op;
 
@@ -788,7 +788,7 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 
 		lock_buffer(bh);
 
-		__bitmap_set(buf, wbit, op);
+		ntfs_bitmap_set_le(buf, wbit, op);
 		wnd->free_bits[iw] -= op;
 
 		set_buffer_uptodate(bh);
@@ -1363,7 +1363,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		lock_buffer(bh);
 		buf = (ulong *)bh->b_data;
 
-		__bitmap_clear(buf, b0, blocksize * 8 - b0);
+		ntfs_bitmap_clear_le(buf, b0, blocksize * 8 - b0);
 		frb = wbits - __bitmap_weight(buf, wbits);
 		wnd->total_zeroes += frb - wnd->free_bits[iw];
 		wnd->free_bits[iw] = frb;
@@ -1480,4 +1480,44 @@ out:
 	up_read(&wnd->rw_lock);
 
 	return err;
+}
+
+void ntfs_bitmap_set_le(unsigned long *map, unsigned int start, int len)
+{
+	unsigned long *p = map + BIT_WORD(start);
+	const unsigned int size = start + len;
+	int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
+	unsigned long mask_to_set = cpu_to_le32(BITMAP_FIRST_WORD_MASK(start));
+
+	while (len - bits_to_set >= 0) {
+		*p |= mask_to_set;
+		len -= bits_to_set;
+		bits_to_set = BITS_PER_LONG;
+		mask_to_set = ~0UL;
+		p++;
+	}
+	if (len) {
+		mask_to_set &= cpu_to_le32(BITMAP_LAST_WORD_MASK(size));
+		*p |= mask_to_set;
+	}
+}
+
+void ntfs_bitmap_clear_le(unsigned long *map, unsigned int start, int len)
+{
+	unsigned long *p = map + BIT_WORD(start);
+	const unsigned int size = start + len;
+	int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
+	unsigned long mask_to_clear = cpu_to_le32(BITMAP_FIRST_WORD_MASK(start));
+
+	while (len - bits_to_clear >= 0) {
+		*p &= ~mask_to_clear;
+		len -= bits_to_clear;
+		bits_to_clear = BITS_PER_LONG;
+		mask_to_clear = ~0UL;
+		p++;
+	}
+	if (len) {
+		mask_to_clear &= cpu_to_le32(BITMAP_LAST_WORD_MASK(size));
+		*p &= ~mask_to_clear;
+	}
 }
