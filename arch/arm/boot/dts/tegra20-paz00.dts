@@ -533,8 +533,6 @@
 
 	usb@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
-			GPIO_ACTIVE_LOW>;
 	};
 
 	usb-phy@c5004000 {
