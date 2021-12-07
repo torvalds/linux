@@ -126,6 +126,18 @@ static void __dwc3_set_mode(struct work_struct *work)
 
 	pm_runtime_get_sync(dwc->dev);
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	if (dwc->desired_role_sw_mode == USB_DR_MODE_PERIPHERAL &&
+	    dwc->desired_role_sw_mode != dwc->current_role_sw_mode)
+		pm_runtime_get(dwc->dev);
+	else if ((dwc->desired_role_sw_mode == USB_DR_MODE_UNKNOWN ||
+		  dwc->desired_role_sw_mode == USB_DR_MODE_HOST) &&
+		  dwc->current_role_sw_mode == USB_DR_MODE_PERIPHERAL)
+		pm_runtime_put(dwc->dev);
+
+	dwc->current_role_sw_mode = dwc->desired_role_sw_mode;
+#endif
+
 	if (dwc->current_dr_role == DWC3_GCTL_PRTCAP_OTG)
 		dwc3_otg_update(dwc, 0);
 
@@ -1664,6 +1676,9 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (dwc->dr_mode == USB_DR_MODE_OTG &&
 	    of_device_is_compatible(dev->parent->of_node,
 				    "rockchip,rk3399-dwc3")) {
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+		pm_runtime_set_autosuspend_delay(dev, 100);
+#endif
 		pm_runtime_allow(dev);
 		pm_runtime_put_sync_suspend(dev);
 	} else {
