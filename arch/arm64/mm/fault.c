@@ -297,6 +297,8 @@ static void die_kernel_fault(const char *msg, unsigned long addr,
 	pr_alert("Unable to handle kernel %s at virtual address %016lx\n", msg,
 		 addr);
 
+	kasan_non_canonical_hook(addr);
+
 	mem_abort_decode(esr);
 
 	show_pte(addr);
