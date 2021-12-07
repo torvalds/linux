@@ -3635,12 +3635,10 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 	if ((atomic_read(&queue->used_buffers) <= QETH_LOW_WATERMARK_PACK) ||
 	    !atomic_read(&queue->set_pci_flags_count)) {
 		unsigned int index, flush_cnt;
-		bool q_was_packing;
 
 		spin_lock(&queue->lock);
 
 		index = queue->next_buf_to_fill;
-		q_was_packing = queue->do_pack;
 
 		flush_cnt = qeth_switch_to_nonpacking_if_needed(queue);
 		if (!flush_cnt && !atomic_read(&queue->set_pci_flags_count))
@@ -3648,8 +3646,7 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 
 		if (flush_cnt) {
 			qeth_flush_buffers(queue, index, flush_cnt);
-			if (q_was_packing)
-				QETH_TXQ_STAT_ADD(queue, bufs_pack, flush_cnt);
+			QETH_TXQ_STAT_ADD(queue, bufs_pack, flush_cnt);
 		}
 
 		spin_unlock(&queue->lock);
