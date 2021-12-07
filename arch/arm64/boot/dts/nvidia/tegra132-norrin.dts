@@ -885,14 +885,12 @@
 	pmc@7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <0>;
-		#wake-cells = <3>;
 		nvidia,cpu-pwr-good-time = <500>;
 		nvidia,cpu-pwr-off-time = <300>;
 		nvidia,core-pwr-good-time = <641 3845>;
 		nvidia,core-pwr-off-time = <61036>;
 		nvidia,core-power-req-active-high;
 		nvidia,sys-clock-req-active-high;
-		nvidia,reset-gpio = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
 	};
 
 	usb@70090000 {
