@@ -14,3 +14,239 @@
 	model = "Rockchip RK3588 EVB1 LP4 V10 Board";
 	compatible = "rockchip,rk3588-evb1-lp4-v10", "rockchip,rk3588";
 };
+
+&backlight {
+	status = "disabled";
+};
+
+&combphy0_ps {
+	status = "disabled";
+};
+
+&combphy1_ps {
+	status = "disabled";
+};
+
+&combphy2_psu {
+	status = "disabled";
+};
+
+&dp0 {
+	status = "disabled";
+};
+
+&dp0_in_vp2 {
+	status = "disabled";
+};
+
+&dp1 {
+	status = "disabled";
+};
+
+&dp1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
+&dsi0_panel {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	status = "disabled";
+};
+
+&gt1x {
+	status = "disabled";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi0_sound {
+	status = "disabled";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdmi1_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi1_sound {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2c6 {
+	status = "disabled";
+};
+
+&i2s5_8ch {
+	status = "disabled";
+};
+
+&i2s6_8ch {
+	status = "disabled";
+};
+
+&jpegd {
+	status = "disabled";
+};
+
+&jpegd_mmu {
+	status = "disabled";
+};
+
+&leds {
+	status = "disabled";
+};
+
+&mipi_dcphy0 {
+	status = "disabled";
+};
+
+&pcie2x1l0 {
+	status = "disabled";
+};
+
+&pcie2x1l1 {
+	status = "disabled";
+};
+
+&pcie30phy {
+	status = "disabled";
+};
+
+&pcie3x4 {
+	status = "disabled";
+};
+
+&pwm2 {
+	status = "disabled";
+};
+
+&rkvdec0 {
+	status = "disabled";
+};
+
+&rkvdec0_mmu {
+	status = "disabled";
+};
+
+&rkvdec1_mmu {
+	status = "disabled";
+};
+
+&rkvdec_ccu {
+	status = "disabled";
+};
+
+&rk_headset {
+	status = "disabled";
+};
+
+&sata0 {
+	status = "disabled";
+};
+
+&uart8 {
+	status = "disabled";
+};
+
+&usbdp_phy1 {
+	status = "disabled";
+};
+
+&usbdp_phy1_dp {
+	status = "disabled";
+};
+
+&usbdp_phy1_u3 {
+	status = "disabled";
+};
+
+&usbdrd3_1 {
+	status = "disabled";
+};
+
+&usbdrd_dwc3_1 {
+	status = "disabled";
+};
+
+&usb_host0_ehci {
+	status = "disabled";
+};
+
+&usb_host0_ohci {
+	status = "disabled";
+};
+
+&usb_host1_ehci {
+	status = "disabled";
+};
+
+&usb_host1_ohci {
+	status = "disabled";
+};
+
+&u2phy1 {
+	status = "disabled";
+};
+
+&u2phy1_otg {
+	status = "disabled";
+};
+
+&u2phy2 {
+	status = "disabled";
+};
+
+&u2phy2_host {
+	status = "disabled";
+};
+
+&u2phy3 {
+	status = "disabled";
+};
+
+&u2phy3_host {
+	status = "disabled";
+};
+
+&vdpu {
+	status = "disabled";
+};
+
+&vdpu_mmu {
+	status = "disabled";
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
