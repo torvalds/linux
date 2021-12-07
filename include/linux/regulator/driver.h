@@ -90,15 +90,19 @@ enum regulator_detection_severity {
  * @set_over_current_protection: Support enabling of and setting limits for over
  *	current situation detection. Detection can be configured for three
  *	levels of severity.
- *	REGULATOR_SEVERITY_PROT should automatically shut down the regulator(s).
- *	REGULATOR_SEVERITY_ERR should indicate that over-current situation is
- *		caused by an unrecoverable error but HW does not perform
- *		automatic shut down.
- *	REGULATOR_SEVERITY_WARN should indicate situation where hardware is
- *		still believed to not be damaged but that a board sepcific
- *		recovery action is needed. If lim_uA is 0 the limit should not
- *		be changed but the detection should just be enabled/disabled as
- *		is requested.
+ *
+ *	- REGULATOR_SEVERITY_PROT should automatically shut down the regulator(s).
+ *
+ *	- REGULATOR_SEVERITY_ERR should indicate that over-current situation is
+ *		  caused by an unrecoverable error but HW does not perform
+ *		  automatic shut down.
+ *
+ *	- REGULATOR_SEVERITY_WARN should indicate situation where hardware is
+ *		  still believed to not be damaged but that a board sepcific
+ *		  recovery action is needed. If lim_uA is 0 the limit should not
+ *		  be changed but the detection should just be enabled/disabled as
+ *		  is requested.
+ *
  * @set_over_voltage_protection: Support enabling of and setting limits for over
  *	voltage situation detection. Detection can be configured for same
  *	severities as over current protection. Units of uV.
