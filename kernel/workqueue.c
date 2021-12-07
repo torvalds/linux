@@ -4979,6 +4979,9 @@ static void unbind_workers(int cpu)
 		 * We've blocked all attach/detach operations. Make all workers
 		 * unbound and set DISASSOCIATED.  Before this, all workers
 		 * must be on the cpu.  After this, they may become diasporas.
+		 * And the preemption disabled section in their sched callbacks
+		 * are guaranteed to see WORKER_UNBOUND since the code here
+		 * is on the same cpu.
 		 */
 		for_each_pool_worker(worker, pool)
 			worker->flags |= WORKER_UNBOUND;
@@ -4993,14 +4996,6 @@ static void unbind_workers(int cpu)
 		}
 
 		mutex_unlock(&wq_pool_attach_mutex);
-
-		/*
-		 * Call schedule() so that we cross rq->lock and thus can
-		 * guarantee sched callbacks see the %WORKER_UNBOUND flag.
-		 * This is necessary as scheduler callbacks may be invoked
-		 * from other cpus.
-		 */
-		schedule();
 
 		/*
 		 * Sched callbacks are disabled now.  Zap nr_running.
