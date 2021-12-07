@@ -1097,6 +1097,8 @@ struct amdgpu_device {
 
 	struct amdgpu_reset_control     *reset_cntl;
 	uint32_t                        ip_versions[MAX_HWIP][HWIP_MAX_INSTANCE];
+
+	bool				ram_is_direct_mapped;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
