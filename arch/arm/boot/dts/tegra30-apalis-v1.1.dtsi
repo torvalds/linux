@@ -1050,9 +1050,6 @@
 			regulator-max-microvolt = <1400000>;
 			regulator-boot-on;
 			regulator-always-on;
-			ti,vsel0-state-low;
-			/* VSEL1: EN_CORE_DVFS_N low for DVFS */
-			ti,vsel1-state-low;
 		};
 	};
 
