@@ -141,5 +141,5 @@ int ipc_imem_sys_devlink_read(struct iosm_devlink *ipc_devlink, u8 *data,
  */
 int ipc_imem_sys_devlink_write(struct iosm_devlink *ipc_devlink,
 			       unsigned char *buf, int count);
-struct iosm_trace *ipc_imem_trace_channel_init(struct iosm_imem *ipc_imem);
+
 #endif

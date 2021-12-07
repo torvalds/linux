@@ -554,7 +554,7 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 		ctrl_chl_idx++;
 	}
 
-	ipc_imem->trace = ipc_imem_trace_channel_init(ipc_imem);
+	ipc_imem->trace = ipc_trace_init(ipc_imem);
 	if (!ipc_imem->trace) {
 		dev_err(ipc_imem->dev, "trace channel init failed");
 		return;
