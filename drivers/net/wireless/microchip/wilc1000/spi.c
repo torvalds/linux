@@ -99,8 +99,6 @@ static int wilc_spi_reset(struct wilc *wilc);
 #define DATA_PKT_LOG_SZ				DATA_PKT_LOG_SZ_MAX
 #define DATA_PKT_SZ				(1 << DATA_PKT_LOG_SZ)
 
-#define USE_SPI_DMA				0
-
 #define WILC_SPI_COMMAND_STAT_SUCCESS		0
 #define WILC_GET_RESP_HDR_START(h)		(((h) >> 4) & 0xf)
 
@@ -247,7 +245,6 @@ static int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
 		msg.spi = spi;
-		msg.is_dma_mapped = USE_SPI_DMA;
 		spi_message_add_tail(&tr, &msg);
 
 		ret = spi_sync(spi, &msg);
@@ -291,7 +288,6 @@ static int wilc_spi_rx(struct wilc *wilc, u8 *rb, u32 rlen)
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
 		msg.spi = spi;
-		msg.is_dma_mapped = USE_SPI_DMA;
 		spi_message_add_tail(&tr, &msg);
 
 		ret = spi_sync(spi, &msg);
@@ -330,7 +326,6 @@ static int wilc_spi_tx_rx(struct wilc *wilc, u8 *wb, u8 *rb, u32 rlen)
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
 		msg.spi = spi;
-		msg.is_dma_mapped = USE_SPI_DMA;
 
 		spi_message_add_tail(&tr, &msg);
 		ret = spi_sync(spi, &msg);
