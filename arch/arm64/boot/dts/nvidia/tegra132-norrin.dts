@@ -564,7 +564,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&as3722_default>;
 
-			as3722_default: pinmux@0 {
+			as3722_default: pinmux {
 				gpio0 {
 					pins = "gpio0";
 					function = "gpio";
@@ -770,7 +770,7 @@
 
 				google,remote-bus = <0>;
 
-				charger: bq24735 {
+				charger: bq24735@9 {
 					compatible = "ti,bq24735";
 					reg = <0x9>;
 					interrupt-parent = <&gpio>;
@@ -781,7 +781,7 @@
 							GPIO_ACTIVE_HIGH>;
 				};
 
-				battery: smart-battery {
+				battery: smart-battery@b {
 					compatible = "sbs,sbs-battery";
 					reg = <0xb>;
 					sbs,i2c-retry-count = <2>;
