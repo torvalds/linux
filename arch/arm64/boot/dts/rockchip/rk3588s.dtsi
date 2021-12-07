@@ -1317,6 +1317,11 @@
 		reg = <0x0 0xfd5a0000 0x0 0x100>;
 	};
 
+	npu_grf: syscon@fd5a2000 {
+		compatible = "rockchip,rk3588-npu-grf", "syscon";
+		reg = <0x0 0xfd5a2000 0x0 0x100>;
+	};
+
 	vop_grf: syscon@fd5a4000 {
 		compatible = "rockchip,rk3588-vop-grf", "syscon";
 		reg = <0x0 0xfd5a4000 0x0 0x2000>;
@@ -1926,14 +1931,16 @@
 			     <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "npu0_irq", "npu1_irq", "npu2_irq";
-		clocks = <&cru ACLK_NPU0>, <&cru ACLK_NPU1>, <&cru ACLK_NPU2>,
-			 <&cru HCLK_NPU0>, <&cru HCLK_NPU1>, <&cru HCLK_NPU2>,
-			 <&cru PCLK_NPU_ROOT>;
-		clock-names = "aclk0", "aclk1", "aclk2",
-			      "hclk0", "hclk1", "hclk2",
-			      "pclk";
+		clocks = <&scmi_clk SCMI_CLK_NPU>, <&cru ACLK_NPU0>,
+			 <&cru ACLK_NPU1>, <&cru ACLK_NPU2>,
+			 <&cru HCLK_NPU0>, <&cru HCLK_NPU1>,
+			 <&cru HCLK_NPU2>, <&cru PCLK_NPU_ROOT>;
+		clock-names = "clk_npu", "aclk0",
+			      "aclk1", "aclk2",
+			      "hclk0", "hclk1",
+			      "hclk2", "pclk";
 		assigned-clocks = <&cru CLK_NPU_DSU0>;
-		assigned-clock-rates = <800000000>;
+		assigned-clock-rates = <200000000>;
 		resets = <&cru SRST_A_RKNN0>, <&cru SRST_A_RKNN1>, <&cru SRST_A_RKNN2>,
 			 <&cru SRST_H_RKNN0>, <&cru SRST_H_RKNN1>, <&cru SRST_H_RKNN2>;
 		reset-names = "srst_a0", "srst_a1", "srst_a2",
@@ -1942,8 +1949,71 @@
 				<&power RK3588_PD_NPU1>,
 				<&power RK3588_PD_NPU2>;
 		power-domain-names = "npu0", "npu1", "npu2";
+		operating-points-v2 = <&npu_opp_table>;
 		iommus = <&rknpu_mmu>;
 		status = "disabled";
+	};
+
+	npu_opp_table: npu-opp-table {
+		compatible = "operating-points-v2";
+
+		clocks = <&cru PCLK_NPU_GRF>;
+		clock-names = "pclk";
+		rockchip,grf = <&npu_grf>;
+		volt-mem-read-margin = <
+			855000	1
+			765000	2
+			675000	3
+			585000	4
+		>;
+
+		rockchip,init-freq = <1000000>; /* KHz */
+
+		opp-198000000 {
+			opp-hz = /bits/ 64 <198000000>;
+			opp-microvolt = <675000 675000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-297000000 {
+			opp-hz = /bits/ 64 <297000000>;
+			opp-microvolt = <675000 675000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-396000000 {
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <675000 675000 850000>,
+					<675000 675000 850000>;
+		};
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <675000 675000 850000>,
+					<675000 675000 850000>;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <675000 675000 850000>,
+					<675000 675000 850000>;
+		};
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <700000 700000 850000>,
+					<700000 700000 850000>;
+		};
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-900000000 {
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = <800000 800000 850000>,
+					<800000 800000 850000>;
+		};
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <850000 850000 850000>,
+					<850000 850000 850000>;
+		};
 	};
 
 	rknpu_mmu: iommu@fdab9000 {
