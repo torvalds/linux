@@ -64,6 +64,7 @@ struct aspeed_gfx_config {
 	u32 vga_scratch_reg;	/* VGA scratch register in SCU */
 	u32 throd_val;		/* Default Threshold Seting */
 	u32 scan_line_max;	/* Max memory size of one scan line */
+	u32 gfx_flags;		/* Flags for gfx chip caps */
 };
 
 static const struct aspeed_gfx_config ast2400_config = {
@@ -72,6 +73,7 @@ static const struct aspeed_gfx_config ast2400_config = {
 	.vga_scratch_reg = 0x50,
 	.throd_val = CRT_THROD_LOW(0x1e) | CRT_THROD_HIGH(0x12),
 	.scan_line_max = 64,
+	.gfx_flags = 0,
 };
 
 static const struct aspeed_gfx_config ast2500_config = {
@@ -80,6 +82,7 @@ static const struct aspeed_gfx_config ast2500_config = {
 	.vga_scratch_reg = 0x50,
 	.throd_val = CRT_THROD_LOW(0x24) | CRT_THROD_HIGH(0x3c),
 	.scan_line_max = 128,
+	.gfx_flags = 0,
 };
 
 static const struct aspeed_gfx_config ast2600_config = {
@@ -88,6 +91,7 @@ static const struct aspeed_gfx_config ast2600_config = {
 	.vga_scratch_reg = 0x50,
 	.throd_val = CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70),
 	.scan_line_max = 128,
+	.gfx_flags = RESET_G6 | CLK_G6,
 };
 
 static const struct of_device_id aspeed_gfx_match[] = {
@@ -138,6 +142,44 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
+static int aspeed_gfx_reset(struct drm_device *drm)
+{
+	struct platform_device *pdev = to_platform_device(drm->dev);
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
+
+	switch (priv->flags & RESET_MASK) {
+	case RESET_G6:
+		priv->rst_crt = devm_reset_control_get(&pdev->dev, "crt");
+		if (IS_ERR(priv->rst_crt)) {
+			dev_err(&pdev->dev,
+				"missing or invalid crt reset controller device tree entry");
+			return PTR_ERR(priv->rst_crt);
+		}
+		reset_control_deassert(priv->rst_crt);
+
+		priv->rst_engine = devm_reset_control_get(&pdev->dev, "engine");
+		if (IS_ERR(priv->rst_engine)) {
+			dev_err(&pdev->dev,
+				"missing or invalid engine reset controller device tree entry");
+			return PTR_ERR(priv->rst_engine);
+		}
+		reset_control_deassert(priv->rst_engine);
+		break;
+
+	default:
+		priv->rst_crt = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+		if (IS_ERR(priv->rst_crt)) {
+			dev_err(&pdev->dev,
+				"missing or invalid reset controller device tree entry");
+			return PTR_ERR(priv->rst_crt);
+		}
+		reset_control_deassert(priv->rst_crt);
+		break;
+	}
+
+	return 0;
+}
+
 static int aspeed_gfx_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
@@ -163,6 +205,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	priv->vga_scratch_reg = config->vga_scratch_reg;
 	priv->throd_val = config->throd_val;
 	priv->scan_line_max = config->scan_line_max;
+	priv->flags = config->gfx_flags;
 
 	priv->scu = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(priv->scu)) {
@@ -186,13 +229,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return ret;
 	}
 
-	priv->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(priv->rst)) {
+	ret = aspeed_gfx_reset(drm);
+	if (ret) {
 		dev_err(&pdev->dev,
 			"missing or invalid reset controller device tree entry");
-		return PTR_ERR(priv->rst);
+		return ret;
 	}
-	reset_control_deassert(priv->rst);
 
 	priv->clk = devm_clk_get(drm->dev, NULL);
 	if (IS_ERR(priv->clk)) {

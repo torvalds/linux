@@ -8,7 +8,8 @@ struct aspeed_gfx {
 	struct drm_device		drm;
 	void __iomem			*base;
 	struct clk			*clk;
-	struct reset_control		*rst;
+	struct reset_control		*rst_crt;
+	struct reset_control		*rst_engine;
 	struct regmap			*scu;
 
 	u32				dac_reg;
@@ -16,6 +17,7 @@ struct aspeed_gfx {
 	u32				vga_scratch_reg;
 	u32				throd_val;
 	u32				scan_line_max;
+	u32				flags;
 
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
@@ -106,3 +108,15 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 /* CRT_THROD */
 #define CRT_THROD_LOW(x)		(x)
 #define CRT_THROD_HIGH(x)		((x) << 8)
+
+/* SCU control */
+#define SCU_G6_CLK_COURCE		0x300
+
+/* GFX FLAGS */
+#define RESET_MASK			BIT(0)
+#define RESET_G6			BIT(0)
+#define CLK_MASK			BIT(4)
+#define CLK_G6				BIT(4)
+
+#define G6_CLK_MASK			(BIT(8) | BIT(9) | BIT(10))
+#define G6_USB_40_CLK			BIT(9)
