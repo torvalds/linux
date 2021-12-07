@@ -632,8 +632,6 @@ static int rockchip_spi_slave_abort(struct spi_controller *ctlr)
 	if (atomic_read(&rs->state) & RXDMA) {
 		dmaengine_pause(ctlr->dma_rx);
 		status = dmaengine_tx_status(ctlr->dma_rx, ctlr->dma_rx->cookie, &state);
-		dmaengine_terminate_sync(ctlr->dma_rx);
-		atomic_set(&rs->state, 0);
 		if (status == DMA_ERROR) {
 			rs->rx = rs->xfer->rx_buf;
 			rs->xfer->len = 0;
@@ -663,6 +661,11 @@ static int rockchip_spi_slave_abort(struct spi_controller *ctlr)
 	}
 
 out:
+	if (atomic_read(&rs->state) & RXDMA)
+		dmaengine_terminate_sync(ctlr->dma_rx);
+	if (atomic_read(&rs->state) & TXDMA)
+		dmaengine_terminate_sync(ctlr->dma_tx);
+	atomic_set(&rs->state, 0);
 	spi_enable_chip(rs, false);
 	rs->slave_abort = true;
 	complete(&ctlr->xfer_completion);
