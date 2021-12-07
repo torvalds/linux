@@ -82,8 +82,9 @@
 	};
 
 	uartc: serial@70006200 {
-		status = "okay";
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
+		status = "okay";
 
 		nvidia,adjust-baud-rates = <0 9600 100>,
 					   <9600 115200 200>,

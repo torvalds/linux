@@ -1389,6 +1389,7 @@
 	 */
 	serial@70006000 {
 		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 	};
 
@@ -1401,6 +1402,7 @@
 	 */
 	serial@70006040 {
 		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 	};
 

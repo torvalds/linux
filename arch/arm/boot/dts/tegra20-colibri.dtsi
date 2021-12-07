@@ -428,10 +428,12 @@
 
 	serial@70006040 {
 		compatible = "nvidia,tegra20-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	serial@70006300 {
 		compatible = "nvidia,tegra20-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	nand-controller@70008000 {
