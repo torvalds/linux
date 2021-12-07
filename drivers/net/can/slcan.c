@@ -218,7 +218,9 @@ static void slc_bump(struct slcan *sl)
 	skb_put_data(skb, &cf, sizeof(struct can_frame));
 
 	sl->dev->stats.rx_packets++;
-	sl->dev->stats.rx_bytes += cf.len;
+	if (!(cf.can_id & CAN_RTR_FLAG))
+		sl->dev->stats.rx_bytes += cf.len;
+
 	netif_rx_ni(skb);
 }
 

@@ -518,13 +518,13 @@ static int m_can_read_fifo(struct net_device *dev, u32 rxfs)
 				      cf->data, DIV_ROUND_UP(cf->len, 4));
 		if (err)
 			goto out_free_skb;
+
+		stats->rx_bytes += cf->len;
 	}
+	stats->rx_packets++;
 
 	/* acknowledge rx fifo 0 */
 	m_can_write(cdev, M_CAN_RXF0A, fgi);
-
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 
 	timestamp = FIELD_GET(RX_BUF_RXTS_MASK, fifo_header.dlc);
 

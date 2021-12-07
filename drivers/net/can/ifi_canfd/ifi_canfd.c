@@ -309,14 +309,14 @@ static void ifi_canfd_read_fifo(struct net_device *ndev)
 			*(u32 *)(cf->data + i) =
 				readl(priv->base + IFI_CANFD_RXFIFO_DATA + i);
 		}
+
+		stats->rx_bytes += cf->len;
 	}
+	stats->rx_packets++;
 
 	/* Remove the packet from FIFO */
 	writel(IFI_CANFD_RXSTCMD_REMOVE_MSG, priv->base + IFI_CANFD_RXSTCMD);
 	writel(rx_irq_mask, priv->base + IFI_CANFD_INTERRUPT);
-
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 
 	netif_receive_skb(skb);
 }

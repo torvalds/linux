@@ -688,12 +688,12 @@ static int pch_can_rx_normal(struct net_device *ndev, u32 obj_num, int quota)
 				cf->data[i] = data_reg;
 				cf->data[i + 1] = data_reg >> 8;
 			}
-		}
 
-		rcv_pkts++;
+			stats->rx_bytes += cf->len;
+		}
 		stats->rx_packets++;
+		rcv_pkts++;
 		quota--;
-		stats->rx_bytes += cf->len;
 		netif_receive_skb(skb);
 
 		pch_fifo_thresh(priv, obj_num);

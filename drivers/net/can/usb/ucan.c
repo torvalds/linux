@@ -623,7 +623,8 @@ static void ucan_rx_can_msg(struct ucan_priv *up, struct ucan_message_in *m)
 	/* don't count error frames as real packets */
 	if (!(cf->can_id & CAN_ERR_FLAG)) {
 		stats->rx_packets++;
-		stats->rx_bytes += cf->len;
+		if (!(cf->can_id & CAN_RTR_FLAG))
+			stats->rx_bytes += cf->len;
 	}
 
 	/* pass it to Linux */

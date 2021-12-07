@@ -403,10 +403,10 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, u32 ctrl)
 				frame->data[i + 1] = data >> 8;
 			}
 		}
-	}
 
+		stats->rx_bytes += frame->len;
+	}
 	stats->rx_packets++;
-	stats->rx_bytes += frame->len;
 
 	netif_receive_skb(skb);
 	return 0;

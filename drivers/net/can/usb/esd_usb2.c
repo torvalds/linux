@@ -332,10 +332,11 @@ static void esd_usb2_rx_can_msg(struct esd_usb2_net_priv *priv,
 		} else {
 			for (i = 0; i < cf->len; i++)
 				cf->data[i] = msg->msg.rx.data[i];
-		}
 
+			stats->rx_bytes += cf->len;
+		}
 		stats->rx_packets++;
-		stats->rx_bytes += cf->len;
+
 		netif_rx(skb);
 	}
 

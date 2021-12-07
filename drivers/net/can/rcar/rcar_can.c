@@ -662,12 +662,13 @@ static void rcar_can_rx_pkt(struct rcar_can_priv *priv)
 		for (dlc = 0; dlc < cf->len; dlc++)
 			cf->data[dlc] =
 			readb(&priv->regs->mb[RCAR_CAN_RX_FIFO_MBX].data[dlc]);
+
+		stats->rx_bytes += cf->len;
 	}
+	stats->rx_packets++;
 
 	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
 
-	stats->rx_bytes += cf->len;
-	stats->rx_packets++;
 	netif_receive_skb(skb);
 }
 

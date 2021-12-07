@@ -343,14 +343,15 @@ static void hi3110_hw_rx(struct spi_device *spi)
 	/* Data length */
 	frame->len = can_cc_dlc2len(buf[HI3110_FIFO_WOTIME_DLC_OFF] & 0x0F);
 
-	if (buf[HI3110_FIFO_WOTIME_ID_OFF + 3] & HI3110_FIFO_WOTIME_ID_RTR)
+	if (buf[HI3110_FIFO_WOTIME_ID_OFF + 3] & HI3110_FIFO_WOTIME_ID_RTR) {
 		frame->can_id |= CAN_RTR_FLAG;
-	else
+	} else {
 		memcpy(frame->data, buf + HI3110_FIFO_WOTIME_DAT_OFF,
 		       frame->len);
 
+		priv->net->stats.rx_bytes += frame->len;
+	}
 	priv->net->stats.rx_packets++;
-	priv->net->stats.rx_bytes += frame->len;
 
 	can_led_event(priv->net, CAN_LED_EVENT_RX);
 

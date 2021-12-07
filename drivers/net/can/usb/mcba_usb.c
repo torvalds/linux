@@ -452,13 +452,14 @@ static void mcba_usb_process_can(struct mcba_priv *priv,
 
 	cf->len = can_cc_dlc2len(msg->dlc & MCBA_DLC_MASK);
 
-	if (msg->dlc & MCBA_DLC_RTR_MASK)
+	if (msg->dlc & MCBA_DLC_RTR_MASK) {
 		cf->can_id |= CAN_RTR_FLAG;
-	else
+	} else {
 		memcpy(cf->data, msg->data, cf->len);
 
+		stats->rx_bytes += cf->len;
+	}
 	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 
 	can_led_event(priv->netdev, CAN_LED_EVENT_RX);
 	netif_rx(skb);
