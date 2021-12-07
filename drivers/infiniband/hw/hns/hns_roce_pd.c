@@ -115,6 +115,9 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 	} else {
 		uar->pfn = ((pci_resource_start(hr_dev->pci_dev, 2))
 			   >> PAGE_SHIFT);
+		if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_DIRECT_WQE)
+			hr_dev->dwqe_page =
+				pci_resource_start(hr_dev->pci_dev, 4);
 	}
 
 	return 0;

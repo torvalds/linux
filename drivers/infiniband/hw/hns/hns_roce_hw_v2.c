@@ -1989,7 +1989,8 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->gid_table_len[0] = HNS_ROCE_V2_GID_INDEX_NUM;
 
 	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
-		caps->flags |= HNS_ROCE_CAP_FLAG_STASH;
+		caps->flags |= HNS_ROCE_CAP_FLAG_STASH |
+			       HNS_ROCE_CAP_FLAG_DIRECT_WQE;
 		caps->max_sq_inline = HNS_ROCE_V3_MAX_SQ_INLINE;
 	} else {
 		caps->max_sq_inline = HNS_ROCE_V2_MAX_SQ_INLINE;

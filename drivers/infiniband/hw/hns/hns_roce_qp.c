@@ -379,6 +379,11 @@ err_out:
 	return ret;
 }
 
+static void qp_user_mmap_entry_remove(struct hns_roce_qp *hr_qp)
+{
+	rdma_user_mmap_entry_remove(&hr_qp->dwqe_mmap_entry->rdma_entry);
+}
+
 void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
 	struct xarray *xa = &hr_dev->qp_table_xa;
@@ -780,7 +785,11 @@ static int alloc_qp_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		goto err_inline;
 	}
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_DIRECT_WQE)
+		hr_qp->en_flags |= HNS_ROCE_QP_CAP_DIRECT_WQE;
+
 	return 0;
+
 err_inline:
 	free_rq_inline_buf(hr_qp);
 
@@ -820,6 +829,35 @@ static inline bool kernel_qp_has_rdb(struct hns_roce_dev *hr_dev,
 {
 	return ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB) &&
 		hns_roce_qp_has_rq(init_attr));
+}
+
+static int qp_mmap_entry(struct hns_roce_qp *hr_qp,
+			 struct hns_roce_dev *hr_dev,
+			 struct ib_udata *udata,
+			 struct hns_roce_ib_create_qp_resp *resp)
+{
+	struct hns_roce_ucontext *uctx =
+		rdma_udata_to_drv_context(udata,
+			struct hns_roce_ucontext, ibucontext);
+	struct rdma_user_mmap_entry *rdma_entry;
+	u64 address;
+
+	address = hr_dev->dwqe_page + hr_qp->qpn * HNS_ROCE_DWQE_SIZE;
+
+	hr_qp->dwqe_mmap_entry =
+		hns_roce_user_mmap_entry_insert(&uctx->ibucontext, address,
+						HNS_ROCE_DWQE_SIZE,
+						HNS_ROCE_MMAP_TYPE_DWQE);
+
+	if (!hr_qp->dwqe_mmap_entry) {
+		ibdev_err(&hr_dev->ib_dev, "failed to get dwqe mmap entry.\n");
+		return -ENOMEM;
+	}
+
+	rdma_entry = &hr_qp->dwqe_mmap_entry->rdma_entry;
+	resp->dwqe_mmap_key = rdma_user_mmap_get_offset(rdma_entry);
+
+	return 0;
 }
 
 static int alloc_user_qp_db(struct hns_roce_dev *hr_dev,
@@ -909,10 +947,16 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		hr_qp->en_flags |= HNS_ROCE_QP_CAP_OWNER_DB;
 
 	if (udata) {
+		if (hr_qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE) {
+			ret = qp_mmap_entry(hr_qp, hr_dev, udata, resp);
+			if (ret)
+				return ret;
+		}
+
 		ret = alloc_user_qp_db(hr_dev, hr_qp, init_attr, udata, ucmd,
 				       resp);
 		if (ret)
-			return ret;
+			goto err_remove_qp;
 	} else {
 		ret = alloc_kernel_qp_db(hr_dev, hr_qp, init_attr);
 		if (ret)
@@ -920,6 +964,12 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	}
 
 	return 0;
+
+err_remove_qp:
+	if (hr_qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE)
+		qp_user_mmap_entry_remove(hr_qp);
+
+	return ret;
 }
 
 static void free_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
@@ -933,6 +983,8 @@ static void free_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			hns_roce_db_unmap_user(uctx, &hr_qp->rdb);
 		if (hr_qp->en_flags & HNS_ROCE_QP_CAP_SQ_RECORD_DB)
 			hns_roce_db_unmap_user(uctx, &hr_qp->sdb);
+		if (hr_qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE)
+			qp_user_mmap_entry_remove(hr_qp);
 	} else {
 		if (hr_qp->en_flags & HNS_ROCE_QP_CAP_RQ_RECORD_DB)
 			hns_roce_free_db(hr_dev, &hr_qp->rdb);

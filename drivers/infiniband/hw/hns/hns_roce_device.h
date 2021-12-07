@@ -182,6 +182,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_FRMR                  = BIT(8),
 	HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL		= BIT(9),
 	HNS_ROCE_CAP_FLAG_ATOMIC		= BIT(10),
+	HNS_ROCE_CAP_FLAG_DIRECT_WQE		= BIT(12),
 	HNS_ROCE_CAP_FLAG_SDI_MODE		= BIT(14),
 	HNS_ROCE_CAP_FLAG_STASH			= BIT(17),
 };
@@ -228,6 +229,7 @@ struct hns_roce_uar {
 enum hns_roce_mmap_type {
 	HNS_ROCE_MMAP_TYPE_DB = 1,
 	HNS_ROCE_MMAP_TYPE_TPTR,
+	HNS_ROCE_MMAP_TYPE_DWQE,
 };
 
 struct hns_user_mmap_entry {
@@ -627,10 +629,6 @@ struct hns_roce_work {
 	u32 queue_num;
 };
 
-enum {
-	HNS_ROCE_QP_CAP_DIRECT_WQE = BIT(5),
-};
-
 struct hns_roce_qp {
 	struct ib_qp		ibqp;
 	struct hns_roce_wq	rq;
@@ -675,6 +673,7 @@ struct hns_roce_qp {
 	struct list_head	node; /* all qps are on a list */
 	struct list_head	rq_node; /* all recv qps are on a list */
 	struct list_head	sq_node; /* all send qps are on a list */
+	struct hns_user_mmap_entry *dwqe_mmap_entry;
 };
 
 struct hns_roce_ib_iboe {
@@ -1010,6 +1009,7 @@ struct hns_roce_dev {
 	u32 func_num;
 	u32 is_vf;
 	u32 cong_algo_tmpl_id;
+	u64 dwqe_page;
 };
 
 static inline struct hns_roce_dev *to_hr_dev(struct ib_device *ib_dev)
