@@ -137,7 +137,7 @@ EXPORT_SYMBOL_NS(max_98373_set_codec_conf, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 /*
  * Maxim MAX98390
  */
-const struct snd_soc_dapm_route max_98390_dapm_routes[] = {
+static const struct snd_soc_dapm_route max_98390_dapm_routes[] = {
 	/* speaker */
 	{ "Left Spk", NULL, "Left BE_OUT" },
 	{ "Right Spk", NULL, "Right BE_OUT" },
@@ -153,7 +153,7 @@ static const struct snd_soc_dapm_widget max_98390_tt_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("TR Spk", NULL),
 };
 
-const struct snd_soc_dapm_route max_98390_tt_dapm_routes[] = {
+static const struct snd_soc_dapm_route max_98390_tt_dapm_routes[] = {
 	/* Tweeter speaker */
 	{ "TL Spk", NULL, "Tweeter Left BE_OUT" },
 	{ "TR Spk", NULL, "Tweeter Right BE_OUT" },
