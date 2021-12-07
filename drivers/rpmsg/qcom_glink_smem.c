@@ -317,6 +317,9 @@ EXPORT_SYMBOL(qcom_glink_smem_start);
 
 void qcom_glink_smem_unregister(struct qcom_glink *glink)
 {
+	if (!glink)
+		return;
+
 	qcom_glink_native_remove(glink);
 	qcom_glink_native_unregister(glink);
 }
