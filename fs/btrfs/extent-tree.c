@@ -3805,22 +3805,34 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 	spin_unlock(&fs_info->relocation_bg_lock);
 	if (skip)
 		return 1;
+
 	/* Check RO and no space case before trying to activate it */
 	spin_lock(&block_group->lock);
 	if (block_group->ro ||
 	    block_group->alloc_offset == block_group->zone_capacity) {
-		spin_unlock(&block_group->lock);
-		return 1;
+		ret = 1;
+		/*
+		 * May need to clear fs_info->{treelog,data_reloc}_bg.
+		 * Return the error after taking the locks.
+		 */
 	}
 	spin_unlock(&block_group->lock);
 
-	if (!btrfs_zone_activate(block_group))
-		return 1;
+	if (!ret && !btrfs_zone_activate(block_group)) {
+		ret = 1;
+		/*
+		 * May need to clear fs_info->{treelog,data_reloc}_bg.
+		 * Return the error after taking the locks.
+		 */
+	}
 
 	spin_lock(&space_info->lock);
 	spin_lock(&block_group->lock);
 	spin_lock(&fs_info->treelog_bg_lock);
 	spin_lock(&fs_info->relocation_bg_lock);
+
+	if (ret)
+		goto out;
 
 	ASSERT(!ffe_ctl->for_treelog ||
 	       block_group->start == fs_info->treelog_bg ||
