@@ -813,11 +813,8 @@ void do_mem_abort(unsigned long far, unsigned int esr, struct pt_regs *regs)
 	if (!inf->fn(far, esr, regs))
 		return;
 
-	if (!user_mode(regs)) {
-		pr_alert("Unhandled fault at 0x%016lx\n", addr);
-		mem_abort_decode(esr);
-		show_pte(addr);
-	}
+	if (!user_mode(regs))
+		die_kernel_fault(inf->name, addr, esr, regs);
 
 	/*
 	 * At this point we have an unrecognized fault type whose tag bits may
