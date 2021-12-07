@@ -2877,7 +2877,7 @@
 		iommus = <&smmu TEGRA194_SID_APE>;
 	};
 
-	tcu: tcu {
+	tcu: serial {
 		compatible = "nvidia,tegra194-tcu";
 		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(0)>,
 		         <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(1)>;
