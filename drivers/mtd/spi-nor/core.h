@@ -336,7 +336,6 @@ struct flash_info {
 	u32		flags;
 #define SECT_4K			BIT(0)	/* SPINOR_OP_BE_4K works uniformly */
 #define SPI_NOR_NO_ERASE	BIT(1)	/* No erase command needed */
-#define SST_WRITE		BIT(2)	/* use SST byte programming */
 #define SPI_NOR_NO_FR		BIT(3)	/* Can't do fastread */
 #define SECT_4K_PMC		BIT(4)	/* SPINOR_OP_BE_4K_PMC works uniformly */
 #define SPI_NOR_DUAL_READ	BIT(5)	/* Flash supports Dual Read */
@@ -384,6 +383,12 @@ struct flash_info {
 					 * Flash has volatile software write
 					 * protection bits. Usually these will
 					 * power-up in a write-protected state.
+					 */
+	u8 mfr_flags;			/*
+					 * Manufacturer private flags. Used in
+					 * the manufacturer fixup hooks to
+					 * differentiate support between flashes
+					 * of the same manufacturer.
 					 */
 
 	const struct spi_nor_otp_organization otp_org;
@@ -449,6 +454,9 @@ struct flash_info {
 			.offset = (_offset),				\
 			.n_regions = (_n_regions),			\
 		},
+
+#define MFR_FLAGS(_mfr_flags)						\
+		.mfr_flags = (_mfr_flags),				\
 
 /**
  * struct spi_nor_manufacturer - SPI NOR manufacturer object
