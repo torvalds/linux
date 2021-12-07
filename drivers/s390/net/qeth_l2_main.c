@@ -1091,8 +1091,6 @@ static const struct net_device_ops qeth_l2_osa_netdev_ops = {
 	.ndo_tx_timeout		= qeth_tx_timeout,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
-	.ndo_bridge_getlink	= qeth_l2_bridge_getlink,
-	.ndo_bridge_setlink	= qeth_l2_bridge_setlink,
 };
 
 static int qeth_l2_setup_netdev(struct qeth_card *card)
