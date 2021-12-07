@@ -17,17 +17,9 @@ void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return;
+
 	LedCfg = rtw_read8(padapter, REG_LEDCFG2);
-	switch (pLed->LedPin) {
-	case LED_PIN_LED0:
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg & 0xf0) | BIT(5) | BIT(6)); /*  SW control led0 on. */
-		break;
-	case LED_PIN_LED1:
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg & 0x0f) | BIT(5)); /*  SW control led1 on. */
-		break;
-	default:
-		break;
-	}
+	rtw_write8(padapter, REG_LEDCFG2, (LedCfg & 0xf0) | BIT(5) | BIT(6)); /*  SW control led0 on. */
 	pLed->bLedOn = true;
 }
 
@@ -42,21 +34,11 @@ void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
 
 	LedCfg = rtw_read8(padapter, REG_LEDCFG2);/* 0x4E */
 
-	switch (pLed->LedPin) {
-	case LED_PIN_LED0:
-		LedCfg &= 0x90; /*  Set to software control. */
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
-		LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
-		LedCfg &= 0xFE;
-		rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
-		break;
-	case LED_PIN_LED1:
-		LedCfg &= 0x0f; /*  Set to software control. */
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
-		break;
-	default:
-		break;
-	}
+	LedCfg &= 0x90; /*  Set to software control. */
+	rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
+	LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
+	LedCfg &= 0xFE;
+	rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
 exit:
 	pLed->bLedOn = false;
 }

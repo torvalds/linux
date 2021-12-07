@@ -53,7 +53,6 @@ enum LED_STATE_871x {
 
 enum LED_PIN_871x {
 	LED_PIN_LED0 = 1,
-	LED_PIN_LED1 = 2,
 };
 
 struct LED_871x {
