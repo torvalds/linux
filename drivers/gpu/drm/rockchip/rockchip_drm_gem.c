@@ -36,10 +36,6 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	int prot = IOMMU_READ | IOMMU_WRITE;
 	ssize_t ret;
 
-#ifdef IOMMU_TLB_SHOT_ENTIRE
-	prot |= IOMMU_TLB_SHOT_ENTIRE;
-#endif
-
 	mutex_lock(&private->mm_lock);
 	ret = drm_mm_insert_node_generic(&private->mm, &rk_obj->mm,
 					 rk_obj->base.size, PAGE_SIZE,
