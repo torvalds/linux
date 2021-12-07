@@ -214,16 +214,12 @@ static inline void tb_xdp_fill_header(struct tb_xdp_header *hdr, u64 route,
 	memcpy(&hdr->uuid, &tb_xdp_uuid, sizeof(tb_xdp_uuid));
 }
 
-static int tb_xdp_handle_error(const struct tb_xdp_header *hdr)
+static int tb_xdp_handle_error(const struct tb_xdp_error_response *res)
 {
-	const struct tb_xdp_error_response *error;
-
-	if (hdr->type != ERROR_RESPONSE)
+	if (res->hdr.type != ERROR_RESPONSE)
 		return 0;
 
-	error = (const struct tb_xdp_error_response *)hdr;
-
-	switch (error->error) {
+	switch (res->error) {
 	case ERROR_UNKNOWN_PACKET:
 	case ERROR_UNKNOWN_DOMAIN:
 		return -EIO;
@@ -257,7 +253,7 @@ static int tb_xdp_uuid_request(struct tb_ctl *ctl, u64 route, int retry,
 	if (ret)
 		return ret;
 
-	ret = tb_xdp_handle_error(&res.hdr);
+	ret = tb_xdp_handle_error(&res.err);
 	if (ret)
 		return ret;
 
@@ -329,7 +325,7 @@ static int tb_xdp_properties_request(struct tb_ctl *ctl, u64 route,
 		if (ret)
 			goto err;
 
-		ret = tb_xdp_handle_error(&res->hdr);
+		ret = tb_xdp_handle_error(&res->err);
 		if (ret)
 			goto err;
 
@@ -462,7 +458,7 @@ static int tb_xdp_properties_changed_request(struct tb_ctl *ctl, u64 route,
 	if (ret)
 		return ret;
 
-	return tb_xdp_handle_error(&res.hdr);
+	return tb_xdp_handle_error(&res.err);
 }
 
 static int
