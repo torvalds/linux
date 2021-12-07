@@ -2681,6 +2681,8 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 	if (ret)
 		ath11k_warn(ar->ab, "failed to set vdev %i OBSS PD parameters: %d\n",
 			    arvif->vdev_id, ret);
+
+	ath11k_mac_11d_scan_stop_all(ar->ab);
 }
 
 static void ath11k_bss_disassoc(struct ieee80211_hw *hw,
@@ -3410,6 +3412,7 @@ static int ath11k_start_scan(struct ath11k *ar,
 			     struct scan_req_params *arg)
 {
 	int ret;
+	unsigned long timeout = 1 * HZ;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -3420,7 +3423,14 @@ static int ath11k_start_scan(struct ath11k *ar,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&ar->scan.started, 1 * HZ);
+	if (test_bit(WMI_TLV_SERVICE_11D_OFFLOAD, ar->ab->wmi_ab.svc_map)) {
+		timeout = 5 * HZ;
+
+		if (ar->supports_6ghz)
+			timeout += 5 * HZ;
+	}
+
+	ret = wait_for_completion_timeout(&ar->scan.started, timeout);
 	if (ret == 0) {
 		ret = ath11k_scan_stop(ar);
 		if (ret)
@@ -3476,6 +3486,26 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 
 	if (ret)
 		goto exit;
+
+	/* Currently the pending_11d=true only happened 1 time while
+	 * wlan interface up in ath11k_mac_11d_scan_start(), it is called by
+	 * ath11k_mac_op_add_interface(), after wlan interface up,
+	 * pending_11d=false always.
+	 * If remove below wait, it always happened scan fail and lead connect
+	 * fail while wlan interface up, because it has a 11d scan which is running
+	 * in firmware, and lead this scan failed.
+	 */
+	if (ar->pending_11d) {
+		long time_left;
+		unsigned long timeout = 5 * HZ;
+
+		if (ar->supports_6ghz)
+			timeout += 5 * HZ;
+
+		time_left = wait_for_completion_timeout(&ar->finish_11d_ch_list, timeout);
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+			   "mac wait 11d channel list time left %ld\n", time_left);
+	}
 
 	memset(&arg, 0, sizeof(arg));
 	ath11k_wmi_start_scan_init(ar, &arg);
@@ -5635,6 +5665,7 @@ static void ath11k_mac_op_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&ar->scan.timeout);
 	cancel_work_sync(&ar->regd_update_work);
+	cancel_work_sync(&ar->ab->update_11d_work);
 
 	spin_lock_bh(&ar->data_lock);
 	list_for_each_entry_safe(ppdu_stats, tmp, &ar->ppdu_stats_info, list) {
@@ -5788,6 +5819,122 @@ static void ath11k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
 	}
 }
 
+static bool ath11k_mac_vif_ap_active_any(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	struct ath11k_pdev *pdev;
+	struct ath11k_vif *arvif;
+	int i;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+		list_for_each_entry(arvif, &ar->arvifs, list) {
+			if (arvif->is_up && arvif->vdev_type == WMI_VDEV_TYPE_AP)
+				return true;
+		}
+	}
+	return false;
+}
+
+void ath11k_mac_11d_scan_start(struct ath11k *ar, u32 vdev_id, bool wait)
+{
+	struct wmi_11d_scan_start_params param;
+	int ret;
+
+	mutex_lock(&ar->ab->vdev_id_11d_lock);
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac vdev id for 11d scan %d\n",
+		   ar->vdev_id_11d_scan);
+
+	if (ar->regdom_set_by_user)
+		goto fin;
+
+	if (ar->vdev_id_11d_scan != ATH11K_11D_INVALID_VDEV_ID)
+		goto fin;
+
+	if (!test_bit(WMI_TLV_SERVICE_11D_OFFLOAD, ar->ab->wmi_ab.svc_map))
+		goto fin;
+
+	if (ath11k_mac_vif_ap_active_any(ar->ab))
+		goto fin;
+
+	param.vdev_id = vdev_id;
+	param.start_interval_msec = 0;
+	param.scan_period_msec = ATH11K_SCAN_11D_INTERVAL;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac start 11d scan\n");
+
+	if (wait)
+		reinit_completion(&ar->finish_11d_scan);
+
+	ret = ath11k_wmi_send_11d_scan_start_cmd(ar, &param);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to start 11d scan vdev %d ret: %d\n",
+			    vdev_id, ret);
+	} else {
+		ar->vdev_id_11d_scan = vdev_id;
+		if (wait) {
+			ar->pending_11d = true;
+			ret = wait_for_completion_timeout(&ar->finish_11d_scan,
+							  5 * HZ);
+			ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+				   "mac 11d scan left time %d\n", ret);
+
+			if (!ret)
+				ar->pending_11d = false;
+		}
+	}
+
+fin:
+	mutex_unlock(&ar->ab->vdev_id_11d_lock);
+}
+
+void ath11k_mac_11d_scan_stop(struct ath11k *ar)
+{
+	int ret;
+	u32 vdev_id;
+
+	if (!test_bit(WMI_TLV_SERVICE_11D_OFFLOAD, ar->ab->wmi_ab.svc_map))
+		return;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac stop 11d scan\n");
+
+	mutex_lock(&ar->ab->vdev_id_11d_lock);
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac stop 11d vdev id %d\n",
+		   ar->vdev_id_11d_scan);
+
+	if (ar->vdev_id_11d_scan != ATH11K_11D_INVALID_VDEV_ID) {
+		vdev_id = ar->vdev_id_11d_scan;
+
+		ret = ath11k_wmi_send_11d_scan_stop_cmd(ar, vdev_id);
+		if (ret)
+			ath11k_warn(ar->ab,
+				    "failed to stopt 11d scan vdev %d ret: %d\n",
+				    vdev_id, ret);
+		else
+			ar->vdev_id_11d_scan = ATH11K_11D_INVALID_VDEV_ID;
+	}
+	mutex_unlock(&ar->ab->vdev_id_11d_lock);
+}
+
+void ath11k_mac_11d_scan_stop_all(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	struct ath11k_pdev *pdev;
+	int i;
+
+	ath11k_dbg(ab, ATH11K_DBG_MAC, "mac stop soc 11d scan\n");
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+
+		ath11k_mac_11d_scan_stop(ar);
+	}
+}
+
 static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif)
 {
@@ -5921,6 +6068,8 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 			goto err_peer_del;
 		}
+
+		ath11k_mac_11d_scan_stop_all(ar->ab);
 		break;
 	case WMI_VDEV_TYPE_STA:
 		param_id = WMI_STA_PS_PARAM_RX_WAKE_POLICY;
@@ -5960,6 +6109,9 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 			goto err_peer_del;
 		}
+
+		ath11k_mac_11d_scan_start(ar, arvif->vdev_id, true);
+
 		break;
 	case WMI_VDEV_TYPE_MONITOR:
 		set_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags);
@@ -6060,6 +6212,9 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 
 	ath11k_dbg(ab, ATH11K_DBG_MAC, "mac remove interface (vdev %d)\n",
 		   arvif->vdev_id);
+
+	if (arvif->vdev_type == WMI_VDEV_TYPE_STA)
+		ath11k_mac_11d_scan_stop(ar);
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
 		ret = ath11k_peer_delete(ar, arvif->vdev_id, vif->addr);
@@ -6778,6 +6933,9 @@ ath11k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			ath11k_warn(ar->ab, "failed to stop monitor during vif channel context unassignment: %d",
 				    ret);
 	}
+
+	if (arvif->vdev_type == WMI_VDEV_TYPE_STA)
+		ath11k_mac_11d_scan_start(ar, arvif->vdev_id, false);
 
 	mutex_unlock(&ar->conf_mutex);
 }
@@ -8180,6 +8338,9 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
 
 		ar->monitor_vdev_id = -1;
 		clear_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags);
+		ar->vdev_id_11d_scan = ATH11K_11D_INVALID_VDEV_ID;
+		init_completion(&ar->finish_11d_scan);
+		init_completion(&ar->finish_11d_ch_list);
 	}
 
 	return 0;
