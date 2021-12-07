@@ -660,7 +660,7 @@ bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp) {
-		s32 timeout = ct->timeout - nfct_time_stamp;
+		s32 timeout = READ_ONCE(ct->timeout) - nfct_time_stamp;
 
 		tstamp->stop = ktime_get_real_ns();
 		if (timeout < 0)
@@ -980,7 +980,7 @@ static int nf_ct_resolve_clash_harder(struct sk_buff *skb, u32 repl_idx)
 	}
 
 	/* We want the clashing entry to go away real soon: 1 second timeout. */
-	loser_ct->timeout = nfct_time_stamp + HZ;
+	WRITE_ONCE(loser_ct->timeout, nfct_time_stamp + HZ);
 
 	/* IPS_NAT_CLASH removes the entry automatically on the first
 	 * reply.  Also prevents UDP tracker from moving the entry to
@@ -1487,7 +1487,7 @@ __nf_conntrack_alloc(struct net *net,
 	/* save hash for reusing when confirming */
 	*(unsigned long *)(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev) = hash;
 	ct->status = 0;
-	ct->timeout = 0;
+	WRITE_ONCE(ct->timeout, 0);
 	write_pnet(&ct->ct_net, net);
 	memset(&ct->__nfct_init_offset, 0,
 	       offsetof(struct nf_conn, proto) -
