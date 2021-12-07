@@ -932,6 +932,7 @@ static const struct vop2_video_port_regs rk3588_vop_vp0_regs = {
 	.edpi_wms_hold_en = VOP_REG(RK3568_VP0_DUAL_CHANNEL_CTRL, 0x1, 30),
 	.edpi_wms_fs = VOP_REG(RK3568_VP0_DUAL_CHANNEL_CTRL, 0x1, 31),
 
+	.lut_dma_rid = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0xf, 4),
 	.cubic_lut_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 0),
 	.cubic_lut_update_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 2),
 	.cubic_lut_mst = VOP_REG(RK3568_VP0_3D_LUT_MST, 0xffffffff, 0),
@@ -1022,6 +1023,7 @@ static const struct vop2_video_port_regs rk3588_vop_vp1_regs = {
 	.edpi_wms_hold_en = VOP_REG(RK3568_VP1_DUAL_CHANNEL_CTRL, 0x1, 30),
 	.edpi_wms_fs = VOP_REG(RK3568_VP1_DUAL_CHANNEL_CTRL, 0x1, 31),
 
+	.lut_dma_rid = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0xf, 4),
 	.cubic_lut_en = VOP_REG(RK3588_VP1_3D_LUT_CTRL, 0x1, 0),
 	.cubic_lut_update_en = VOP_REG(RK3588_VP1_3D_LUT_CTRL, 0x1, 2),
 	.cubic_lut_mst = VOP_REG(RK3588_VP1_3D_LUT_MST, 0xffffffff, 0),
@@ -1078,6 +1080,7 @@ static const struct vop2_video_port_regs rk3588_vop_vp2_regs = {
 	.edpi_wms_hold_en = VOP_REG(RK3568_VP2_DUAL_CHANNEL_CTRL, 0x1, 30),
 	.edpi_wms_fs = VOP_REG(RK3568_VP2_DUAL_CHANNEL_CTRL, 0x1, 31),
 
+	.lut_dma_rid = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0xf, 4),
 	.cubic_lut_en = VOP_REG(RK3588_VP2_3D_LUT_CTRL, 0x1, 0),
 	.cubic_lut_update_en = VOP_REG(RK3588_VP2_3D_LUT_CTRL, 0x1, 2),
 	.cubic_lut_mst = VOP_REG(RK3588_VP2_3D_LUT_MST, 0xffffffff, 0),
@@ -1139,6 +1142,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	{
 	 .id = 0,
 	 .splice_vp_id = 1,
+	 .lut_dma_rid = 1,
 	 .soc_id = { 0x3588, 0x3588 },
 	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE |
 			VOP_FEATURE_HDR10 | VOP_FEATURE_NEXT_HDR,
@@ -1154,6 +1158,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	},
 	{
 	 .id = 1,
+	 .lut_dma_rid = 14,
 	 .soc_id = { 0x3588, 0x3588 },
 	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_HDR10,
 	 .gamma_lut_len = 1024,
@@ -1168,6 +1173,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	},
 	{
 	 .id = 2,
+	 .lut_dma_rid = 14,
 	 .soc_id = { 0x3588, 0x3588 },
 	 .feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	 .gamma_lut_len = 1024,
@@ -2466,7 +2472,7 @@ static const struct vop2_win_data rk3588_vop_win_data[] = {
 	  .area_size = ARRAY_SIZE(rk3568_area_data),
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .axi_id = 0,
-	  .axi_yrgb_id = 0x01,
+	  .axi_yrgb_id = 0x0c,
 	  .axi_uv_id = 0x0d,
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
@@ -2672,7 +2678,6 @@ static const struct vop2_ctrl rk3588_vop_ctrl = {
 	.win_dly[ROCKCHIP_VOP2_ESMART1] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 8),
 	.win_dly[ROCKCHIP_VOP2_ESMART2] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 16),
 	.win_dly[ROCKCHIP_VOP2_ESMART3] = VOP_REG(RK3568_SMART_DLY_NUM, 0xff, 24),
-
 };
 
 static const struct vop2_data rk3568_vop = {

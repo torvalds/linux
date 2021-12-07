@@ -586,6 +586,11 @@ struct vop2_video_port {
 	bool gamma_lut_active;
 
 	/**
+	 * @lut_dma_rid: lut dma id
+	 */
+	u16 lut_dma_rid;
+
+	/**
 	 * @gamma_lut: atomic gamma look up table
 	 */
 	struct drm_color_lut *gamma_lut;
@@ -2898,6 +2903,7 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 		*cubic_lut_kvaddr = 0;
 	}
 
+	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 1);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_en, 1);
@@ -7751,6 +7757,7 @@ static int vop2_gamma_init(struct vop2 *vop2)
 		vp_data = &vop2_data->vp[vp->id];
 		lut_len = vp_data->gamma_lut_len;
 		vp->gamma_lut_len = vp_data->gamma_lut_len;
+		vp->lut_dma_rid = vp_data->lut_dma_rid;
 		vp->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vp->lut),
 					     GFP_KERNEL);
 		if (!vp->lut)
