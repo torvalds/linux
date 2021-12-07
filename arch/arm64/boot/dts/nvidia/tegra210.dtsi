@@ -181,6 +181,12 @@
 		tsec@54100000 {
 			compatible = "nvidia,tegra210-tsec";
 			reg = <0x0 0x54100000 0x0 0x00040000>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA210_CLK_TSEC>;
+			clock-names = "tsec";
+			resets = <&tegra_car 83>;
+			reset-names = "tsec";
+			status = "disabled";
 		};
 
 		dc@54200000 {
@@ -283,6 +289,11 @@
 		tsec@54500000 {
 			compatible = "nvidia,tegra210-tsec";
 			reg = <0x0 0x54500000 0x0 0x00040000>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA210_CLK_TSECB>;
+			clock-names = "tsec";
+			resets = <&tegra_car 206>;
+			reset-names = "tsec";
 			status = "disabled";
 		};
 
