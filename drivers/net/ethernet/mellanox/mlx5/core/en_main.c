@@ -5093,7 +5093,9 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(XSK),
 	.stats_grps	   = mlx5e_nic_stats_grps,
 	.stats_grps_num	   = mlx5e_nic_stats_grps_num,
-	.features          = BIT(MLX5E_PROFILE_FEATURE_PTP_RX),
+	.features          = BIT(MLX5E_PROFILE_FEATURE_PTP_RX) |
+		BIT(MLX5E_PROFILE_FEATURE_PTP_TX) |
+		BIT(MLX5E_PROFILE_FEATURE_QOS_HTB),
 };
 
 static unsigned int
@@ -5181,12 +5183,43 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 	memset(priv, 0, sizeof(*priv));
 }
 
+static unsigned int mlx5e_get_max_num_txqs(struct mlx5_core_dev *mdev,
+					   const struct mlx5e_profile *profile)
+{
+	unsigned int nch, ptp_txqs, qos_txqs;
+
+	nch = mlx5e_get_max_num_channels(mdev);
+
+	ptp_txqs = MLX5_CAP_GEN(mdev, ts_cqe_to_dest_cqn) &&
+		mlx5e_profile_feature_cap(profile, PTP_TX) ?
+		profile->max_tc : 0;
+
+	qos_txqs = mlx5_qos_is_supported(mdev) &&
+		mlx5e_profile_feature_cap(profile, QOS_HTB) ?
+		mlx5e_qos_max_leaf_nodes(mdev) : 0;
+
+	return nch * profile->max_tc + ptp_txqs + qos_txqs;
+}
+
+static unsigned int mlx5e_get_max_num_rxqs(struct mlx5_core_dev *mdev,
+					   const struct mlx5e_profile *profile)
+{
+	unsigned int nch;
+
+	nch = mlx5e_get_max_num_channels(mdev);
+
+	return nch * profile->rq_groups;
+}
+
 struct net_device *
-mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *profile,
-		    unsigned int txqs, unsigned int rxqs)
+mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *profile)
 {
 	struct net_device *netdev;
+	unsigned int txqs, rxqs;
 	int err;
+
+	txqs = mlx5e_get_max_num_txqs(mdev, profile);
+	rxqs = mlx5e_get_max_num_rxqs(mdev, profile);
 
 	netdev = alloc_etherdev_mqs(sizeof(struct mlx5e_priv), txqs, rxqs);
 	if (!netdev) {
@@ -5432,22 +5465,10 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 	struct mlx5_core_dev *mdev = edev->mdev;
 	struct net_device *netdev;
 	pm_message_t state = {};
-	unsigned int txqs, rxqs, ptp_txqs = 0;
 	struct mlx5e_priv *priv;
-	int qos_sqs = 0;
 	int err;
-	int nch;
 
-	if (MLX5_CAP_GEN(mdev, ts_cqe_to_dest_cqn))
-		ptp_txqs = profile->max_tc;
-
-	if (mlx5_qos_is_supported(mdev))
-		qos_sqs = mlx5e_qos_max_leaf_nodes(mdev);
-
-	nch = mlx5e_get_max_num_channels(mdev);
-	txqs = nch * profile->max_tc + ptp_txqs + qos_sqs;
-	rxqs = nch * profile->rq_groups;
-	netdev = mlx5e_create_netdev(mdev, profile, txqs, rxqs);
+	netdev = mlx5e_create_netdev(mdev, profile);
 	if (!netdev) {
 		mlx5_core_err(mdev, "mlx5e_create_netdev failed\n");
 		return -ENOMEM;

@@ -958,6 +958,8 @@ extern const struct mlx5e_rx_handlers mlx5e_rx_handlers_nic;
 
 enum mlx5e_profile_feature {
 	MLX5E_PROFILE_FEATURE_PTP_RX,
+	MLX5E_PROFILE_FEATURE_PTP_TX,
+	MLX5E_PROFILE_FEATURE_QOS_HTB,
 };
 
 struct mlx5e_profile {
@@ -1195,8 +1197,7 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 		    struct mlx5_core_dev *mdev);
 void mlx5e_priv_cleanup(struct mlx5e_priv *priv);
 struct net_device *
-mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *profile,
-		    unsigned int txqs, unsigned int rxqs);
+mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *profile);
 int mlx5e_attach_netdev(struct mlx5e_priv *priv);
 void mlx5e_detach_netdev(struct mlx5e_priv *priv);
 void mlx5e_destroy_netdev(struct mlx5e_priv *priv);

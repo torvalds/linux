@@ -1183,14 +1183,10 @@ mlx5e_vport_vf_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	struct devlink_port *dl_port;
 	struct net_device *netdev;
 	struct mlx5e_priv *priv;
-	unsigned int txqs, rxqs;
-	int nch, err;
+	int err;
 
 	profile = &mlx5e_rep_profile;
-	nch = mlx5e_get_max_num_channels(dev);
-	txqs = nch * profile->max_tc;
-	rxqs = nch * profile->rq_groups;
-	netdev = mlx5e_create_netdev(dev, profile, txqs, rxqs);
+	netdev = mlx5e_create_netdev(dev, profile);
 	if (!netdev) {
 		mlx5_core_warn(dev,
 			       "Failed to create representor netdev for vport %d\n",
