@@ -239,7 +239,7 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 
 	if (wg_policy->cached_raw_freq && freq == wg_policy->cached_raw_freq &&
 		!wg_policy->need_freq_update)
-		return wg_policy->next_freq;
+		return 0;
 
 	wg_policy->need_freq_update = false;
 
