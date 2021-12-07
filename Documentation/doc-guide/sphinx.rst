@@ -138,6 +138,9 @@ To pass extra options to Sphinx, you can use the ``SPHINXOPTS`` make
 variable. For example, use ``make SPHINXOPTS=-v htmldocs`` to get more verbose
 output.
 
+It is also possible to pass an extra DOCS_CSS overlay file, in order to customize
+the html layout, by using the ``DOCS_CSS`` make variable.
+
 By default, the build will try to use the Read the Docs sphinx theme:
 
     https://github.com/readthedocs/sphinx_rtd_theme

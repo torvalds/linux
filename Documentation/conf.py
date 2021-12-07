@@ -210,6 +210,7 @@ highlight_language = 'none'
 
 # Default theme
 html_theme = 'sphinx_rtd_theme'
+html_css_files = []
 
 if "DOCS_THEME" in os.environ:
     html_theme = os.environ["DOCS_THEME"]
@@ -228,6 +229,12 @@ if html_theme == 'sphinx_rtd_theme':
         ]
     except ImportError:
         html_theme = 'classic'
+
+if "DOCS_CSS" in os.environ:
+    css = os.environ["DOCS_CSS"].split(" ")
+
+    for l in css:
+        html_css_files.append(l)
 
 if major <= 1 and minor < 8:
     html_context = {

@@ -20,6 +20,7 @@ SPHINXBUILD   = sphinx-build
 SPHINXOPTS    =
 SPHINXDIRS    = .
 DOCS_THEME    =
+DOCS_CSS      =
 _SPHINXDIRS   = $(sort $(patsubst $(srctree)/Documentation/%/index.rst,%,$(wildcard $(srctree)/Documentation/*/index.rst)))
 SPHINX_CONF   = conf.py
 PAPER         =
@@ -85,7 +86,10 @@ quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4)
 	-D version=$(KERNELVERSION) -D release=$(KERNELRELEASE) \
 	$(ALLSPHINXOPTS) \
 	$(abspath $(srctree)/$(src)/$5) \
-	$(abspath $(BUILDDIR)/$3/$4)
+	$(abspath $(BUILDDIR)/$3/$4) && \
+	if [ "x$(DOCS_CSS)" != "x" ]; then \
+		cp $(DOCS_CSS) $(BUILDDIR)/$3/_static/; \
+	fi
 
 htmldocs:
 	@$(srctree)/scripts/sphinx-pre-install --version-check
@@ -156,5 +160,7 @@ dochelp:
 	@echo  '  configuration. This is e.g. useful to build with nit-picking config.'
 	@echo
 	@echo '   make DOCS_THEME={sphinx-theme} selects a different Sphinx theme.'
+	@echo
+	@echo '   make DOCS_CSS={a .css file} adds a DOCS_CSS override file for html/epub output.'
 	@echo
 	@echo  '  Default location for the generated documents is Documentation/output'
