@@ -358,7 +358,7 @@
 		};
 
 		gyrometer@68 {
-			compatible = "invn,mpu3050";
+			compatible = "invensense,mpu3050";
 			reg = <0x68>;
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(Z, 4) IRQ_TYPE_LEVEL_HIGH>;
