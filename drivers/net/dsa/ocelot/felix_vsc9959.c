@@ -1505,11 +1505,9 @@ static int vsc9959_stream_table_add(struct ocelot *ocelot,
 	struct felix_stream *stream_entry;
 	int ret;
 
-	stream_entry = kzalloc(sizeof(*stream_entry), GFP_KERNEL);
+	stream_entry = kmemdup(stream, sizeof(*stream_entry), GFP_KERNEL);
 	if (!stream_entry)
 		return -ENOMEM;
-
-	memcpy(stream_entry, stream, sizeof(*stream_entry));
 
 	if (!stream->dummy) {
 		ret = vsc9959_mact_stream_set(ocelot, stream_entry, extack);
@@ -1626,11 +1624,10 @@ static int vsc9959_psfp_sfi_list_add(struct ocelot *ocelot,
 	struct felix_stream_filter *sfi_entry;
 	int ret;
 
-	sfi_entry = kzalloc(sizeof(*sfi_entry), GFP_KERNEL);
+	sfi_entry = kmemdup(sfi, sizeof(*sfi_entry), GFP_KERNEL);
 	if (!sfi_entry)
 		return -ENOMEM;
 
-	memcpy(sfi_entry, sfi, sizeof(*sfi_entry));
 	refcount_set(&sfi_entry->refcount, 1);
 
 	ret = vsc9959_psfp_sfi_set(ocelot, sfi_entry);
