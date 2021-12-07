@@ -688,7 +688,7 @@
 					i2s4_port: port@1 {
 						reg = <1>;
 
-						i2s4_dap_ep: endpoint@0 {
+						i2s4_dap_ep: endpoint {
 							dai-format = "i2s";
 							/* Placeholder for external Codec */
 						};
@@ -706,7 +706,7 @@
 					port@0 {
 						reg = <0>;
 
-						dmic1_cif_ep: endpoint@0 {
+						dmic1_cif_ep: endpoint {
 							remote-endpoint = <&xbar_dmic1_ep>;
 						};
 					};
@@ -714,7 +714,7 @@
 					dmic1_port: port@1 {
 						reg = <1>;
 
-						dmic1_dap_ep: endpoint@0 {
+						dmic1_dap_ep: endpoint {
 							/* Placeholder for external Codec */
 						};
 					};
@@ -731,7 +731,7 @@
 					port@0 {
 						reg = <0>;
 
-						dmic2_cif_ep: endpoint@0 {
+						dmic2_cif_ep: endpoint {
 							remote-endpoint = <&xbar_dmic2_ep>;
 						};
 					};
@@ -739,7 +739,7 @@
 					dmic2_port: port@1 {
 						reg = <1>;
 
-						dmic2_dap_ep: endpoint@0 {
+						dmic2_dap_ep: endpoint {
 							/* Placeholder for external Codec */
 						};
 					};
