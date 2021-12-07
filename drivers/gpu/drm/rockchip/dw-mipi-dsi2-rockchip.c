@@ -431,9 +431,7 @@ static void dw_mipi_dsi2_set_cmd_mode(struct dw_mipi_dsi2 *dsi2)
 
 static void dw_mipi_dsi2_disable(struct dw_mipi_dsi2 *dsi2)
 {
-	regmap_write(dsi2->regmap, DSI2_PWR_UP, RESET);
 	regmap_write(dsi2->regmap, DSI2_IPI_PIX_PKT_CFG, 0);
-	regmap_write(dsi2->regmap, DSI2_PWR_UP, POWER_UP);
 	dw_mipi_dsi2_set_cmd_mode(dsi2);
 
 	if (dsi2->slave)
@@ -903,6 +901,37 @@ dw_mipi_dsi2_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		drm_mode_copy(&dsi2->slave->mode, &crtc_state->adjusted_mode);
 }
 
+static void dw_mipi_dsi2_loader_protect(struct dw_mipi_dsi2 *dsi2, bool on)
+{
+	if (on) {
+		pm_runtime_get_sync(dsi2->dev);
+		phy_init(dsi2->dcphy);
+		dsi2->phy_enabled = true;
+		if (dsi2->dcphy)
+			dsi2->dcphy->power_count++;
+	} else {
+		pm_runtime_put(dsi2->dev);
+		phy_exit(dsi2->dcphy);
+		dsi2->phy_enabled = false;
+		if (dsi2->dcphy)
+			dsi2->dcphy->power_count--;
+	}
+
+	if (dsi2->slave)
+		dw_mipi_dsi2_loader_protect(dsi2->slave, on);
+}
+
+static void dw_mipi_dsi2_encoder_loader_protect(struct drm_encoder *encoder,
+					      bool on)
+{
+	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
+
+	if (dsi2->panel)
+		panel_simple_loader_protect(dsi2->panel);
+
+	dw_mipi_dsi2_loader_protect(dsi2, on);
+}
+
 static const struct drm_encoder_helper_funcs
 dw_mipi_dsi2_encoder_helper_funcs = {
 	.enable = dw_mipi_dsi2_encoder_enable,
@@ -1132,6 +1161,7 @@ static int dw_mipi_dsi2_bind(struct device *dev, struct device *master,
 
 		dsi2->sub_dev.connector = &dsi2->connector;
 		dsi2->sub_dev.of_node = dev->of_node;
+		dsi2->sub_dev.loader_protect = dw_mipi_dsi2_encoder_loader_protect;
 		rockchip_drm_register_sub_dev(&dsi2->sub_dev);
 	} else {
 		dsi2->bridge->driver_private = &dsi2->host;
