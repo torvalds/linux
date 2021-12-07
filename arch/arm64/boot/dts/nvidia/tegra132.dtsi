@@ -635,10 +635,8 @@
 		      <0x0 0x70020000 0x0 0x7000>; /* SATA */
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_SATA>,
-			 <&tegra_car TEGRA124_CLK_SATA_OOB>,
-			 <&tegra_car TEGRA124_CLK_CML1>,
-			 <&tegra_car TEGRA124_CLK_PLL_E>;
-		clock-names = "sata", "sata-oob", "cml1", "pll_e";
+			 <&tegra_car TEGRA124_CLK_SATA_OOB>;
+		clock-names = "sata", "sata-oob";
 		resets = <&tegra_car 124>,
 			 <&tegra_car 129>,
 			 <&tegra_car 123>;
