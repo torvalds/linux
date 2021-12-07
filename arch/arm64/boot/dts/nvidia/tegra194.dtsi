@@ -2886,7 +2886,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "nvidia,carmel-pmu";
 		interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 386 IRQ_TYPE_LEVEL_HIGH>,

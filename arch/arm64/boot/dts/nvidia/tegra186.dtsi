@@ -1980,14 +1980,14 @@
 	};
 
 	pmu_denver {
-		compatible = "nvidia,denver-pmu", "arm,armv8-pmuv3";
+		compatible = "nvidia,denver-pmu";
 		interrupts = <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&denver_0 &denver_1>;
 	};
 
 	pmu_a57 {
-		compatible = "arm,cortex-a57-pmu", "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
