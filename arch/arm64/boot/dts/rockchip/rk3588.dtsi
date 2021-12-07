@@ -670,7 +670,7 @@
 	};
 
 	sata1: sata@fe220000 {
-		compatible = "snps,dwc-ahci";
+		compatible = "rockchip,rk-ahci", "snps,dwc-ahci";
 		reg = <0 0xfe220000 0 0x1000>;
 		clocks = <&cru ACLK_SATA1>, <&cru CLK_PMALIVE1>,
 			 <&cru CLK_RXOOB1>, <&cru CLK_PIPEPHY1_REF>,
