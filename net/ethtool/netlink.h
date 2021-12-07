@@ -222,6 +222,7 @@ static inline unsigned int ethnl_reply_header_size(void)
 /**
  * struct ethnl_req_info - base type of request information for GET requests
  * @dev:   network device the request is for (may be null)
+ * @dev_tracker: refcount tracker for @dev reference
  * @flags: request flags common for all request types
  *
  * This is a common base for request specific structures holding data from
@@ -230,6 +231,7 @@ static inline unsigned int ethnl_reply_header_size(void)
  */
 struct ethnl_req_info {
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
 	u32			flags;
 };
 

@@ -141,6 +141,7 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 	}
 
 	req_info->dev = dev;
+	netdev_tracker_alloc(dev, &req_info->dev_tracker, GFP_KERNEL);
 	req_info->flags = flags;
 	return 0;
 }
@@ -399,7 +400,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 		ops->cleanup_data(reply_data);
 
 	genlmsg_end(rskb, reply_payload);
-	dev_put(req_info->dev);
+	dev_put_track(req_info->dev, &req_info->dev_tracker);
 	kfree(reply_data);
 	kfree(req_info);
 	return genlmsg_reply(rskb, info);
@@ -411,7 +412,7 @@ err_cleanup:
 	if (ops->cleanup_data)
 		ops->cleanup_data(reply_data);
 err_dev:
-	dev_put(req_info->dev);
+	dev_put_track(req_info->dev, &req_info->dev_tracker);
 	kfree(reply_data);
 	kfree(req_info);
 	return ret;
@@ -547,7 +548,7 @@ static int ethnl_default_start(struct netlink_callback *cb)
 		 * same parser as for non-dump (doit) requests is used, it
 		 * would take reference to the device if it finds one
 		 */
-		dev_put(req_info->dev);
+		dev_put_track(req_info->dev, &req_info->dev_tracker);
 		req_info->dev = NULL;
 	}
 	if (ret < 0)
@@ -624,6 +625,7 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	}
 
 	req_info->dev = dev;
+	netdev_tracker_alloc(dev, &req_info->dev_tracker, GFP_KERNEL);
 	req_info->flags |= ETHTOOL_FLAG_COMPACT_BITSETS;
 
 	ethnl_init_reply_data(reply_data, ops, dev);
