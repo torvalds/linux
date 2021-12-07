@@ -1453,6 +1453,13 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_dc_feature_mask & DC_EDP_NO_POWER_SEQUENCING)
 		init_data.flags.edp_no_power_sequencing = true;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	if (amdgpu_dc_feature_mask & DC_DISABLE_LTTPR_DP1_4A)
+		init_data.flags.allow_lttpr_non_transparent_mode.bits.DP1_4A = true;
+	if (amdgpu_dc_feature_mask & DC_DISABLE_LTTPR_DP2_0)
+		init_data.flags.allow_lttpr_non_transparent_mode.bits.DP2_0 = true;
+#endif
+
 	init_data.flags.power_down_display_on_boot = true;
 
 	if (check_seamless_boot_capability(adev)) {
