@@ -35,23 +35,20 @@
 
 .macro __mcount suffix
 	mcount_enter
-	ldr	r0, =ftrace_trace_function
-	ldr	r2, [r0]
+	ldr_va	r2, ftrace_trace_function
 	badr	r0, .Lftrace_stub
 	cmp	r0, r2
 	bne	1f
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	ldr     r1, =ftrace_graph_return
-	ldr     r2, [r1]
-	cmp     r0, r2
-	bne     ftrace_graph_caller\suffix
+	ldr_va	r2, ftrace_graph_return
+	cmp	r0, r2
+	bne	ftrace_graph_caller\suffix
 
-	ldr     r1, =ftrace_graph_entry
-	ldr     r2, [r1]
-	ldr     r0, =ftrace_graph_entry_stub
-	cmp     r0, r2
-	bne     ftrace_graph_caller\suffix
+	ldr_va	r2, ftrace_graph_entry
+	mov_l	r0, ftrace_graph_entry_stub
+	cmp	r0, r2
+	bne	ftrace_graph_caller\suffix
 #endif
 
 	mcount_exit
@@ -87,8 +84,7 @@
 
 	mov	r3, sp				@ struct pt_regs*
 
-	ldr r2, =function_trace_op
-	ldr r2, [r2]				@ pointer to the current
+	ldr_va	r2, function_trace_op		@ pointer to the current
 						@ function tracing op
 
 	ldr	r1, [sp, #S_LR]			@ lr of instrumented func
@@ -141,8 +137,7 @@ ftrace_graph_regs_call:
 	mcount_adjust_addr	r0, lr		@ instrumented function
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
-	ldr r2, =function_trace_op
-	ldr r2, [r2]				@ pointer to the current
+	ldr_va	r2, function_trace_op		@ pointer to the current
 						@ function tracing op
 	mov r3, #0				@ regs is NULL
 #endif
