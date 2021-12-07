@@ -508,7 +508,9 @@
 				reg = <0x1e6e6000 0x1000>;
 				reg-io-width = <4>;
 				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
-				resets = <&syscon ASPEED_RESET_GRAPHICS>;
+				resets = <&syscon ASPEED_RESET_CRT>,
+					 <&syscon ASPEED_RESET_GRAPHICS>;
+				reset-names = "crt", "engine";
 				syscon = <&syscon>;
 				status = "disabled";
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
