@@ -837,7 +837,7 @@ static const char *btf_show_name(struct btf_show *show)
 	const char *ptr_suffix = &ptr_suffixes[strlen(ptr_suffixes)];
 	const char *name = NULL, *prefix = "", *parens = "";
 	const struct btf_member *m = show->state.member;
-	const struct btf_type *t = show->state.type;
+	const struct btf_type *t;
 	const struct btf_array *array;
 	u32 id = show->state.type_id;
 	const char *member = NULL;
