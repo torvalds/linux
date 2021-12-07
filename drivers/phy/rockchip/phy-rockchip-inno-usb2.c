@@ -2417,6 +2417,14 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		 */
 		ret |= regmap_write(rphy->grf, 0x000c,
 				    GENMASK(20, 16) | 0x0015);
+
+		/* HS DC Voltage Level Adjustment 4'b1001 : +5.89% */
+		ret |= regmap_write(rphy->grf, 0x0004,
+				   GENMASK(27, 24) | 0x0900);
+
+		/* HS Transmitter Pre-Emphasis Current Control 2'b10 : 2x */
+		ret |= regmap_write(rphy->grf, 0x0008,
+				   GENMASK(20, 19) | 0x0010);
 	} else if (rphy->phy_cfg->reg == 0x4000) {
 		/*
 		 * Set USB2 PHY1 suspend configuration for USB3_1
@@ -2426,6 +2434,14 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		 */
 		ret |= regmap_write(rphy->grf, 0x000c,
 				    GENMASK(20, 16) | 0x0015);
+
+		/* HS DC Voltage Level Adjustment 4'b1001 : +5.89% */
+		ret |= regmap_write(rphy->grf, 0x0004,
+				   GENMASK(27, 24) | 0x0900);
+
+		/* HS Transmitter Pre-Emphasis Current Control 2'b10 : 2x */
+		ret |= regmap_write(rphy->grf, 0x0008,
+				   GENMASK(20, 19) | 0x0010);
 	} else if (rphy->phy_cfg->reg == 0x8000) {
 		/*
 		 * Set USB2 PHY2 suspend configuration for USB2_0
@@ -2435,6 +2451,14 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		 */
 		ret |= regmap_write(rphy->grf, 0x000c,
 				    GENMASK(20, 16) | 0x0014);
+
+		/* HS DC Voltage Level Adjustment 4'b1001 : +5.89% */
+		ret |= regmap_write(rphy->grf, 0x0004,
+				   GENMASK(27, 24) | 0x0900);
+
+		/* HS Transmitter Pre-Emphasis Current Control 2'b10 : 2x */
+		ret |= regmap_write(rphy->grf, 0x0008,
+				   GENMASK(20, 19) | 0x0010);
 	} else if (rphy->phy_cfg->reg == 0xc000) {
 		/*
 		 * Set USB2 PHY3 suspend configuration for USB2_1
@@ -2444,6 +2468,14 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		 */
 		ret |= regmap_write(rphy->grf, 0x000c,
 				    GENMASK(20, 16) | 0x0014);
+
+		/* HS DC Voltage Level Adjustment 4'b1001 : +5.89% */
+		ret |= regmap_write(rphy->grf, 0x0004,
+				   GENMASK(27, 24) | 0x0900);
+
+		/* HS Transmitter Pre-Emphasis Current Control 2'b10 : 2x */
+		ret |= regmap_write(rphy->grf, 0x0008,
+				   GENMASK(20, 19) | 0x0010);
 	}
 
 	return ret;
