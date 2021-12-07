@@ -2016,7 +2016,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			trips {
 				cpu-shutdown-trip {
 					temperature = <101000>;
@@ -2026,7 +2026,7 @@
 			};
 		};
 
-		mem {
+		mem-thermal {
 			trips {
 				mem-shutdown-trip {
 					temperature = <101000>;
@@ -2036,7 +2036,7 @@
 			};
 		};
 
-		gpu {
+		gpu-thermal {
 			trips {
 				gpu-shutdown-trip {
 					temperature = <101000>;
