@@ -533,8 +533,8 @@ static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
 					mcs_compl->stream_master_qid_map)) {
 			/* extract the timestamp only of first completed CS */
 			if (!mcs_compl->timestamp)
-				mcs_compl->timestamp =
-						ktime_to_ns(fence->timestamp);
+				mcs_compl->timestamp = ktime_to_ns(fence->timestamp);
+
 			complete_all(&mcs_compl->completion);
 
 			/*
@@ -2369,16 +2369,18 @@ static int hl_wait_for_fence(struct hl_ctx *ctx, u64 seq, struct hl_fence *fence
  * hl_cs_poll_fences - iterate CS fences to check for CS completion
  *
  * @mcs_data: multi-CS internal data
+ * @mcs_compl: multi-CS completion structure
  *
  * @return 0 on success, otherwise non 0 error code
  *
  * The function iterates on all CS sequence in the list and set bit in
  * completion_bitmap for each completed CS.
- * while iterating, the function can extracts the stream map to be later
- * used by the waiting function.
- * this function shall be called after taking context ref
+ * While iterating, the function sets the stream map of each fence in the fence
+ * array in the completion QID stream map to be used by CSs to perform
+ * completion to the multi-CS context.
+ * This function shall be called after taking context ref
  */
-static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
+static int hl_cs_poll_fences(struct multi_cs_data *mcs_data, struct multi_cs_completion *mcs_compl)
 {
 	struct hl_fence **fence_ptr = mcs_data->fence_arr;
 	struct hl_device *hdev = mcs_data->ctx->hdev;
@@ -2395,6 +2397,15 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 		return rc;
 
 	/*
+	 * re-initialize the completion here to handle 2 possible cases:
+	 * 1. CS will complete the multi-CS prior clearing the completion. in which
+	 *    case the fence iteration is guaranteed to catch the CS completion.
+	 * 2. the completion will occur after re-init of the completion.
+	 *    in which case we will wake up immediately in wait_for_completion.
+	 */
+	reinit_completion(&mcs_compl->completion);
+
+	/*
 	 * set to maximum time to verify timestamp is valid: if at the end
 	 * this value is maintained- no timestamp was updated
 	 */
@@ -2403,6 +2414,21 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 
 	for (i = 0; i < arr_len; i++, fence_ptr++) {
 		struct hl_fence *fence = *fence_ptr;
+
+		/*
+		 * In order to prevent case where we wait until timeout even though a CS associated
+		 * with the multi-CS actually completed we do things in the below order:
+		 * 1. for each fence set it's QID map in the multi-CS completion QID map. This way
+		 *    any CS can, potentially, complete the multi CS for the specific QID (note
+		 *    that once completion is initialized, calling complete* and then wait on the
+		 *    completion will cause it to return at once)
+		 * 2. only after allowing multi-CS completion for the specific QID we check whether
+		 *    the specific CS already completed (and thus the wait for completion part will
+		 *    be skipped). if the CS not completed it is guaranteed that completing CS will
+		 *    wake up the completion.
+		 */
+		if (fence)
+			mcs_compl->stream_master_qid_map |= fence->stream_master_qid_map;
 
 		/*
 		 * function won't sleep as it is called with timeout 0 (i.e.
@@ -2419,9 +2445,7 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 
 		switch (status) {
 		case CS_WAIT_STATUS_BUSY:
-			/* CS did not finished, keep waiting on its QID*/
-			mcs_data->stream_master_qid_map |=
-					fence->stream_master_qid_map;
+			/* CS did not finished, QID to wait on already stored */
 			break;
 		case CS_WAIT_STATUS_COMPLETED:
 			/*
@@ -2519,9 +2543,7 @@ static inline unsigned long hl_usecs64_to_jiffies(const u64 usecs)
  * the function gets the first available completion (by marking it "used")
  * and initialize its values.
  */
-static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
-							struct hl_device *hdev,
-							u8 stream_master_bitmap)
+static struct multi_cs_completion *hl_wait_multi_cs_completion_init(struct hl_device *hdev)
 {
 	struct multi_cs_completion *mcs_compl;
 	int i;
@@ -2533,8 +2555,11 @@ static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
 		if (!mcs_compl->used) {
 			mcs_compl->used = 1;
 			mcs_compl->timestamp = 0;
-			mcs_compl->stream_master_qid_map = stream_master_bitmap;
-			reinit_completion(&mcs_compl->completion);
+			/*
+			 * init QID map to 0 to avoid completion by CSs. the actual QID map
+			 * to multi-CS CSs will be set incrementally at a later stage
+			 */
+			mcs_compl->stream_master_qid_map = 0;
 			spin_unlock(&mcs_compl->lock);
 			break;
 		}
@@ -2672,9 +2697,17 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	hl_ctx_get(hdev, ctx);
 
+	/* wait (with timeout) for the first CS to be completed */
+	mcs_data.timeout_jiffies = hl_usecs64_to_jiffies(args->in.timeout_us);
+	mcs_compl = hl_wait_multi_cs_completion_init(hdev);
+	if (IS_ERR(mcs_compl)) {
+		rc = PTR_ERR(mcs_compl);
+		goto put_ctx;
+	}
+
 	/* poll all CS fences, extract timestamp */
 	mcs_data.update_ts = true;
-	rc = hl_cs_poll_fences(&mcs_data);
+	rc = hl_cs_poll_fences(&mcs_data, mcs_compl);
 	/*
 	 * skip wait for CS completion when one of the below is true:
 	 * - an error on the poll function
@@ -2682,16 +2715,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	 * - the user called ioctl with timeout 0
 	 */
 	if (rc || mcs_data.completion_bitmap || !args->in.timeout_us)
-		goto put_ctx;
-
-	/* wait (with timeout) for the first CS to be completed */
-	mcs_data.timeout_jiffies = hl_usecs64_to_jiffies(args->in.timeout_us);
-
-	mcs_compl = hl_wait_multi_cs_completion_init(hdev, mcs_data.stream_master_qid_map);
-	if (IS_ERR(mcs_compl)) {
-		rc = PTR_ERR(mcs_compl);
-		goto put_ctx;
-	}
+		goto completion_fini;
 
 	while (true) {
 		rc = hl_wait_multi_cs_completion(&mcs_data, mcs_compl);
@@ -2703,7 +2727,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		 * no timestamp should be updated this time.
 		 */
 		mcs_data.update_ts = false;
-		rc = hl_cs_poll_fences(&mcs_data);
+		rc = hl_cs_poll_fences(&mcs_data, mcs_compl);
 
 		if (mcs_data.completion_bitmap)
 			break;
@@ -2713,16 +2737,15 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		 * it got a completion) it either got completed by CS in the multi CS list
 		 * (in which case the indication will be non empty completion_bitmap) or it
 		 * got completed by CS submitted to one of the shared stream master but
-		 * not in the multi CS list (in which case we should wait again but reinit
-		 * the completion, modify the timeout and set timestamp as zero to let a CS
-		 * related to the current multi-CS set a new, relevant, timestamp)
+		 * not in the multi CS list (in which case we should wait again but modify
+		 * the timeout and set timestamp as zero to let a CS related to the current
+		 * multi-CS set a new, relevant, timestamp)
 		 */
-		/* wait again with modified timeout */
 		mcs_data.timeout_jiffies = mcs_data.wait_status;
-		reinit_completion(&mcs_compl->completion);
 		mcs_compl->timestamp = 0;
 	}
 
+completion_fini:
 	hl_wait_multi_cs_completion_fini(mcs_compl);
 
 put_ctx:

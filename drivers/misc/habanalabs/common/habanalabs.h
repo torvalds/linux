@@ -2364,8 +2364,6 @@ struct multi_cs_completion {
  * @timestamp: timestamp of first completed CS
  * @wait_status: wait for CS status
  * @completion_bitmap: bitmap of completed CSs (1- completed, otherwise 0)
- * @stream_master_qid_map: bitmap of all stream master QIDs on which the
- *                         multi-CS is waiting
  * @arr_len: fence_arr and seq_arr array length
  * @gone_cs: indication of gone CS (1- there was gone CS, otherwise 0)
  * @update_ts: update timestamp. 1- update the timestamp, otherwise 0.
@@ -2378,7 +2376,6 @@ struct multi_cs_data {
 	s64		timestamp;
 	long		wait_status;
 	u32		completion_bitmap;
-	u32		stream_master_qid_map;
 	u8		arr_len;
 	u8		gone_cs;
 	u8		update_ts;
