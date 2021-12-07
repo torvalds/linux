@@ -335,9 +335,9 @@ static int clk_throttle_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 			ktime_to_us(hdev->clk_throttling.timestamp[i].start);
 
 		if (ktime_compare(hdev->clk_throttling.timestamp[i].end, zero_time))
-			end_time = ktime_get();
-		else
 			end_time = hdev->clk_throttling.timestamp[i].end;
+		else
+			end_time = ktime_get();
 
 		clk_throttle.clk_throttling_duration_ns[i] =
 			ktime_to_ns(ktime_sub(end_time,
