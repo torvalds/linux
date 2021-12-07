@@ -61,7 +61,7 @@
 		};
 	};
 
-	gpu@0,57000000 {
+	gpu@57000000 {
 		status = "okay";
 
 		vdd-supply = <&vdd_gpu>;

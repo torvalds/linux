@@ -223,12 +223,7 @@
 		interrupt-parent = <&gic>;
 	};
 
-	/*
-	 * Please keep the following 0, notation in place as a former mainline
-	 * U-Boot version was looking for that particular notation in order to
-	 * perform required fix-ups on that GPU node.
-	 */
-	gpu@0,57000000 {
+	gpu@57000000 {
 		compatible = "nvidia,gk20a";
 		reg = <0x0 0x57000000 0x0 0x01000000>,
 		      <0x0 0x58000000 0x0 0x01000000>;
