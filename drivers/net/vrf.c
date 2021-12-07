@@ -814,9 +814,9 @@ static void vrf_rt6_release(struct net_device *dev, struct net_vrf *vrf)
 	 */
 	if (rt6) {
 		dst = &rt6->dst;
-		dev_put(dst->dev);
+		dev_replace_track(dst->dev, net->loopback_dev,
+				  &dst->dev_tracker, GFP_KERNEL);
 		dst->dev = net->loopback_dev;
-		dev_hold(dst->dev);
 		dst_release(dst);
 	}
 }
@@ -1061,9 +1061,9 @@ static void vrf_rtable_release(struct net_device *dev, struct net_vrf *vrf)
 	 */
 	if (rth) {
 		dst = &rth->dst;
-		dev_put(dst->dev);
+		dev_replace_track(dst->dev, net->loopback_dev,
+				  &dst->dev_tracker, GFP_KERNEL);
 		dst->dev = net->loopback_dev;
-		dev_hold(dst->dev);
 		dst_release(dst);
 	}
 }
