@@ -1746,6 +1746,7 @@ struct kvm_hv_hcall {
 	u64 ingpa;
 	u64 outgpa;
 	u16 code;
+	u16 var_cnt;
 	u16 rep_cnt;
 	u16 rep_idx;
 	bool fast;
@@ -1765,7 +1766,6 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc, bool
 	unsigned long *vcpu_mask;
 	u64 valid_bank_mask;
 	u64 sparse_banks[64];
-	int sparse_banks_len;
 	bool all_cpus;
 
 	if (!ex) {
@@ -1815,24 +1815,28 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc, bool
 		all_cpus = flush_ex.hv_vp_set.format !=
 			HV_GENERIC_SET_SPARSE_4K;
 
-		sparse_banks_len = bitmap_weight((unsigned long *)&valid_bank_mask, 64);
+		if (hc->var_cnt != bitmap_weight((unsigned long *)&valid_bank_mask, 64))
+			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
-		if (!sparse_banks_len && !all_cpus)
+		if (!hc->var_cnt && !all_cpus)
 			goto ret_success;
 
 		if (!all_cpus) {
 			if (hc->fast) {
-				if (sparse_banks_len > HV_HYPERCALL_MAX_XMM_REGISTERS - 1)
+				if (hc->var_cnt > HV_HYPERCALL_MAX_XMM_REGISTERS - 1)
 					return HV_STATUS_INVALID_HYPERCALL_INPUT;
-				for (i = 0; i < sparse_banks_len; i += 2) {
+				for (i = 0; i < hc->var_cnt; i += 2) {
 					sparse_banks[i] = sse128_lo(hc->xmm[i / 2 + 1]);
 					sparse_banks[i + 1] = sse128_hi(hc->xmm[i / 2 + 1]);
 				}
 			} else {
+				if (hc->var_cnt > 64)
+					return HV_STATUS_INVALID_HYPERCALL_INPUT;
+
 				gpa = hc->ingpa + offsetof(struct hv_tlb_flush_ex,
 							   hv_vp_set.bank_contents);
 				if (unlikely(kvm_read_guest(kvm, gpa, sparse_banks,
-							    sparse_banks_len *
+							    hc->var_cnt *
 							    sizeof(sparse_banks[0]))))
 					return HV_STATUS_INVALID_HYPERCALL_INPUT;
 			}
@@ -1888,7 +1892,6 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc, bool 
 	unsigned long *vcpu_mask;
 	unsigned long valid_bank_mask;
 	u64 sparse_banks[64];
-	int sparse_banks_len;
 	u32 vector;
 	bool all_cpus;
 
@@ -1921,22 +1924,25 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc, bool 
 
 		vector = send_ipi_ex.vector;
 		valid_bank_mask = send_ipi_ex.vp_set.valid_bank_mask;
-		sparse_banks_len = bitmap_weight(&valid_bank_mask, 64) *
-			sizeof(sparse_banks[0]);
-
 		all_cpus = send_ipi_ex.vp_set.format == HV_GENERIC_SET_ALL;
+
+		if (hc->var_cnt != bitmap_weight(&valid_bank_mask, 64))
+			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
 		if (all_cpus)
 			goto check_and_send_ipi;
 
-		if (!sparse_banks_len)
+		if (!hc->var_cnt)
 			goto ret_success;
+
+		if (hc->var_cnt > 64)
+			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
 		if (kvm_read_guest(kvm,
 				   hc->ingpa + offsetof(struct hv_send_ipi_ex,
 							vp_set.bank_contents),
 				   sparse_banks,
-				   sparse_banks_len))
+				   hc->var_cnt * sizeof(sparse_banks[0])))
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 	}
 
@@ -2194,13 +2200,14 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	}
 
 	hc.code = hc.param & 0xffff;
+	hc.var_cnt = (hc.param & HV_HYPERCALL_VARHEAD_MASK) >> HV_HYPERCALL_VARHEAD_OFFSET;
 	hc.fast = !!(hc.param & HV_HYPERCALL_FAST_BIT);
 	hc.rep_cnt = (hc.param >> HV_HYPERCALL_REP_COMP_OFFSET) & 0xfff;
 	hc.rep_idx = (hc.param >> HV_HYPERCALL_REP_START_OFFSET) & 0xfff;
 	hc.rep = !!(hc.rep_cnt || hc.rep_idx);
 
-	trace_kvm_hv_hypercall(hc.code, hc.fast, hc.rep_cnt, hc.rep_idx,
-			       hc.ingpa, hc.outgpa);
+	trace_kvm_hv_hypercall(hc.code, hc.fast, hc.var_cnt, hc.rep_cnt,
+			       hc.rep_idx, hc.ingpa, hc.outgpa);
 
 	if (unlikely(!hv_check_hypercall_access(hv_vcpu, hc.code))) {
 		ret = HV_STATUS_ACCESS_DENIED;
