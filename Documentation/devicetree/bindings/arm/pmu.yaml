@@ -54,6 +54,8 @@ properties:
           - arm,neoverse-v1-pmu
           - brcm,vulcan-pmu
           - cavium,thunder-pmu
+          - nvidia,denver-pmu
+          - nvidia,carmel-pmu
           - qcom,krait-pmu
           - qcom,scorpion-pmu
           - qcom,scorpion-mp-pmu
