@@ -361,9 +361,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
 
-	/* step 2. allocate HalData */
-	rtl8188eu_alloc_haldata(padapter);
-
 	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;
 
@@ -385,7 +382,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	/* step 5. */
 	if (rtw_init_drv_sw(padapter) == _FAIL)
-		goto free_hal_data;
+		goto handle_dualmac;
 
 #ifdef CONFIG_PM
 	if (padapter->pwrctrlpriv.bSupportRemoteWakeup) {
@@ -413,7 +410,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	/* step 6. Tell the network stack we exist */
 	if (register_netdev(pnetdev) != 0)
-		goto free_hal_data;
+		goto handle_dualmac;
 
 	DBG_88E("bDriverStopped:%d, bSurpriseRemoved:%d, bup:%d, hw_init_completed:%d\n"
 		, padapter->bDriverStopped
@@ -424,9 +421,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	status = _SUCCESS;
 
-free_hal_data:
-	if (status != _SUCCESS)
-		kfree(padapter->HalData);
 handle_dualmac:
 	if (status != _SUCCESS)
 		rtw_handle_dualmac(padapter, 0);

@@ -13,11 +13,10 @@
 #include "rtl8188e_recv.h"
 #include "rtl8188e_xmit.h"
 #include "rtl8188e_cmd.h"
-#include "Hal8188EPwrSeq.h"
 #include "rtl8188e_sreset.h"
 #include "rtw_efuse.h"
-
 #include "odm_precomp.h"
+#include "odm.h"
 
 /* 		RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
 #define Rtl8188E_NIC_PWR_ON_FLOW		rtl8188E_power_on_flow
@@ -291,9 +290,6 @@ struct hal_data_8188e {
 	u8	UsbRxAggPageCount;	/*  8192C DMA page count */
 	u8	UsbRxAggPageTimeout;
 };
-
-#define GET_HAL_DATA(__pAdapter)				\
-	((struct hal_data_8188e *)((__pAdapter)->HalData))
 
 /*  rtl8188e_hal_init.c */
 s32 rtl8188e_FirmwareDownload(struct adapter *padapter);

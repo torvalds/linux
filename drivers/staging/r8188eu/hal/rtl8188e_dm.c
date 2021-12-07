@@ -24,7 +24,7 @@ static void dm_InitGPIOSetting(struct adapter *Adapter)
 /*  */
 static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = &Adapter->haldata;
 	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 
@@ -48,7 +48,7 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = &Adapter->haldata;
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
 	int i;
@@ -82,7 +82,7 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 
 void rtl8188e_InitHalDm(struct adapter *Adapter)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = &Adapter->haldata;
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 
 	dm_InitGPIOSetting(Adapter);
@@ -94,7 +94,7 @@ void rtl8188e_InitHalDm(struct adapter *Adapter)
 void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 {
 	u8 hw_init_completed = Adapter->hw_init_completed;
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = &Adapter->haldata;
 	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 	u8 bLinked = false;
 
@@ -116,7 +116,7 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 
 void rtl8188e_init_dm_priv(struct adapter *Adapter)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = &Adapter->haldata;
 	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
 
 	memset(pdmpriv, 0, sizeof(struct dm_priv));
@@ -127,7 +127,7 @@ void rtl8188e_init_dm_priv(struct adapter *Adapter)
 /*  Compare RSSI for deciding antenna */
 void AntDivCompare8188E(struct adapter *Adapter, struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = &Adapter->haldata;
 
 	if (0 != hal_data->AntDivCfg) {
 		/* select optimum_antenna for before linked =>For antenna diversity */
@@ -141,7 +141,7 @@ void AntDivCompare8188E(struct adapter *Adapter, struct wlan_bssid_ex *dst, stru
 /*  Add new function to reset the state of antenna diversity before link. */
 u8 AntDivBeforeLink8188E(struct adapter *Adapter)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *hal_data = &Adapter->haldata;
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 	struct sw_ant_switch *dm_swat_tbl = &dm_odm->DM_SWAT_Table;
 	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;

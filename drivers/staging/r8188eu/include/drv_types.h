@@ -34,6 +34,7 @@
 #include "rtw_p2p.h"
 #include "rtw_ap.h"
 #include "rtw_br_ext.h"
+#include "rtl8188e_hal.h"
 
 #define DRIVERVERSION	"v4.1.4_6773.20130222"
 
@@ -199,8 +200,7 @@ struct adapter {
 	struct	hostapd_priv	*phostapdpriv;
 	struct wifidirect_info	wdinfo;
 
-	void *HalData;
-	u32 hal_data_sz;
+	struct hal_data_8188e haldata;
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;

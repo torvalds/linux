@@ -789,7 +789,7 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 
 static void FindMinimumRSSI(struct adapter *pAdapter)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
+	struct hal_data_8188e *pHalData = &pAdapter->haldata;
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
 
@@ -804,7 +804,7 @@ static void FindMinimumRSSI(struct adapter *pAdapter)
 void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	int	i;
 	int	tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
@@ -928,7 +928,7 @@ void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
 	u64	cur_tx_bytes = 0;
 	u64	cur_rx_bytes = 0;
 	u8	bbtchange = false;
-	struct hal_data_8188e		*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct xmit_priv		*pxmitpriv = &Adapter->xmitpriv;
 	struct recv_priv		*precvpriv = &Adapter->recvpriv;
 	struct registry_priv	*pregpriv = &Adapter->registrypriv;

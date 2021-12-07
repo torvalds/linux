@@ -98,7 +98,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	struct adapter *Adapter
 	)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u8 ThermalValue = 0, delta, delta_LCK, delta_IQK, offset;
 	u8 ThermalValue_AVG_count = 0;
 	u32 ThermalValue_AVG = 0;
@@ -365,7 +365,7 @@ phy_PathA_IQK_8188E(struct adapter *adapt)
 {
 	u32 regeac, regE94, regE9C;
 	u8 result = 0x00;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	/* 1 Tx IQK */
@@ -403,7 +403,7 @@ phy_PathA_RxIQK(struct adapter *adapt)
 {
 	u32 regeac, regE94, regE9C, regEA4, u4tmp;
 	u8 result = 0x00;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	/* 1 Get TXIMR setting */
@@ -506,7 +506,7 @@ static void patha_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u
 {
 	u32 Oldval_0, X, TX0_A, reg;
 	s32 Y, TX0_C;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	if (final_candidate == 0xFF) {
@@ -549,7 +549,7 @@ static void patha_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u
 void _PHY_SaveADDARegisters(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegisterNum)
 {
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	for (i = 0; i < RegisterNum; i++) {
@@ -574,7 +574,7 @@ static void _PHY_SaveMACRegisters(
 static void reload_adda_reg(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
 {
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	for (i = 0; i < RegiesterNum; i++)
@@ -602,7 +602,7 @@ _PHY_PathADDAOn(
 		u32 *ADDAReg)
 {
 	u32 i;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	ODM_SetBBReg(dm_odm, ADDAReg[0], bMaskDWord, 0x0b1b25a0);
@@ -634,7 +634,7 @@ static void _PHY_PIModeSwitch(
 	)
 {
 	u32 mode;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	mode = PIMode ? 0x01000100 : 0x01000000;
@@ -723,7 +723,7 @@ static bool phy_SimularityCompare_8188E(
 
 static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 	u32 i;
 	u8 PathAOK;
@@ -839,7 +839,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 {
 	u8 tmpreg;
 	u32 RF_Amode = 0, RF_Bmode = 0, LC_Cal;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	/* Check continuous TX and Packet TX */
@@ -894,7 +894,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 
 void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 	s32 result[4][8];	/* last is final result */
 	u8 i, final_candidate;
@@ -1006,7 +1006,7 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 {
 	bool singletone = false, carrier_sup = false;
 	u32 timeout = 2000, timecount = 0;
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))

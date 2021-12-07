@@ -185,7 +185,7 @@ int rtw_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *data)
 
 static void interrupt_handler_8188eu(struct adapter *adapt, u16 pkt_len, u8 *pbuf)
 {
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *haldata = &adapt->haldata;
 
 	if (pkt_len != INTERRUPT_MSG_FORMAT_LEN) {
 		DBG_88E("%s Invalid interrupt content length (%d)!\n", __func__, pkt_len);
@@ -213,7 +213,7 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 	struct sk_buff *pkt_copy = NULL;
 	struct recv_frame	*precvframe = NULL;
 	struct rx_pkt_attrib	*pattrib = NULL;
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *haldata = &adapt->haldata;
 	struct recv_priv	*precvpriv = &adapt->recvpriv;
 	struct __queue *pfree_recv_queue = &precvpriv->free_recv_queue;
 

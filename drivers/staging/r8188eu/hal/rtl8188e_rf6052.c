@@ -46,7 +46,7 @@
 void rtl8188e_PHY_RF6052SetBandwidth(struct adapter *Adapter,
 				     enum ht_channel_width Bandwidth)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	switch (Bandwidth) {
 	case HT_CHANNEL_WIDTH_20:
@@ -84,7 +84,7 @@ rtl8188e_PHY_RF6052SetCckTxPower(
 		struct adapter *Adapter,
 		u8 *pPowerlevel)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
 	u32 TxAGC[2] = {0, 0}, tmpval = 0, pwrtrac_value;
 	bool TurboScanOff = false;
@@ -166,7 +166,7 @@ rtl8188e_PHY_RF6052SetCckTxPower(
 static void getpowerbase88e(struct adapter *Adapter, u8 *pPowerLevelOFDM,
 			    u8 *pPowerLevelBW20, u8 *pPowerLevelBW40, u8 Channel, u32 *OfdmBase, u32 *MCSBase)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 powerBase0, powerBase1;
 	u8 i;
 
@@ -190,7 +190,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 				    u8 index, u32 *powerBase0, u32 *powerBase1,
 				    u32 *pOutWriteVal)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u8	i, chnlGroup = 0, pwr_diff_limit[4], customer_pwr_limit;
 	s8	pwr_diff = 0;
 	u32	writeVal, customer_limit, rf;
@@ -349,7 +349,7 @@ rtl8188e_PHY_RF6052SetOFDMTxPower(
 		u8 *pPowerLevelBW40,
 		u8 Channel)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 writeVal[2], powerBase0[2], powerBase1[2], pwrtrac_value;
 	u8 direction;
 	u8 index = 0;
@@ -379,7 +379,7 @@ rtl8188e_PHY_RF6052SetOFDMTxPower(
 static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 {
 	struct bb_reg_def *pPhyReg;
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 u4RegValue = 0;
 	u8 eRFPath = 0;
 	int rtStatus = _SUCCESS;

@@ -143,7 +143,7 @@ phy_RFSerialRead(
 	)
 {
 	u32 retValue = 0;
-	struct hal_data_8188e				*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct bb_reg_def *pPhyReg = &pHalData->PHYRegDef[eRFPath];
 	u32 NewOffset;
 	u32 tmplong, tmplong2;
@@ -242,7 +242,7 @@ phy_RFSerialWrite(
 	)
 {
 	u32 DataAndAddr = 0;
-	struct hal_data_8188e				*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct bb_reg_def *pPhyReg = &pHalData->PHYRegDef[eRFPath];
 	u32 NewOffset;
 
@@ -355,7 +355,7 @@ rtl8188e_PHY_SetRFReg(
  *---------------------------------------------------------------------------*/
 s32 PHY_MACConfig8188E(struct adapter *Adapter)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	int rtStatus = _SUCCESS;
 
 	/*  */
@@ -387,7 +387,7 @@ phy_InitBBRFRegisterDefinition(
 		struct adapter *Adapter
 )
 {
-	struct hal_data_8188e		*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	/*  RF Interface Sowrtware Control */
 	pHalData->PHYRegDef[RF_PATH_A].rfintfs = rFPGA0_XAB_RFInterfaceSW; /*  16 LSBs if read 32-bit from 0x870 */
@@ -464,7 +464,7 @@ phy_InitBBRFRegisterDefinition(
 
 void storePwrIndexDiffRateOffset(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u32 Data)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	if (RegAddr == rTxAGC_A_Rate18_06)
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][0] = Data;
@@ -505,7 +505,7 @@ void storePwrIndexDiffRateOffset(struct adapter *Adapter, u32 RegAddr, u32 BitMa
 static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 {
 	struct eeprom_priv *pEEPROM = &Adapter->eeprompriv;
-	struct hal_data_8188e		*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	int			rtStatus = _SUCCESS;
 
 	/*  */
@@ -546,7 +546,7 @@ PHY_BBConfig8188E(
 	)
 {
 	int	rtStatus = _SUCCESS;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 RegVal;
 	u8 CrystalCap;
 
@@ -585,7 +585,7 @@ static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPower
 			       u8 *ofdmPowerLevel, u8 *BW20PowerLevel,
 			       u8 *BW40PowerLevel)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u8 index = (channel - 1);
 
 	/*  1. CCK */
@@ -603,7 +603,7 @@ static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPower
 static void phy_PowerIndexCheck88E(struct adapter *Adapter, u8 channel, u8 *cckPowerLevel,
 				   u8 *ofdmPowerLevel, u8 *BW20PowerLevel, u8 *BW40PowerLevel)
 {
-	struct hal_data_8188e		*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	pHalData->CurrentCckTxPwrIdx = cckPowerLevel[0];
 	pHalData->CurrentOfdm24GTxPwrIdx = ofdmPowerLevel[0];
@@ -667,7 +667,7 @@ _PHY_SetBWMode92C(
 		struct adapter *Adapter
 )
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u8 regBwOpMode;
 	u8 regRRSR_RSC;
 
@@ -742,7 +742,7 @@ _PHY_SetBWMode92C(
 void PHY_SetBWMode8188E(struct adapter *Adapter, enum ht_channel_width Bandwidth,	/*  20M or 40M */
 			unsigned char	Offset)		/*  Upper, Lower, or Don't care */
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	enum ht_channel_width tmpBW = pHalData->CurrentChannelBW;
 
 	pHalData->CurrentChannelBW = Bandwidth;
@@ -759,7 +759,7 @@ static void _PHY_SwChnl8192C(struct adapter *Adapter, u8 channel)
 {
 	u8 eRFPath = 0;
 	u32 param1, param2;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	if (Adapter->bNotifyChannelChange)
 		DBG_88E("[%s] ch = %d\n", __func__, channel);
@@ -777,7 +777,7 @@ static void _PHY_SwChnl8192C(struct adapter *Adapter, u8 channel)
 void PHY_SwChnl8188E(struct adapter *Adapter, u8 channel)
 {
 	/*  Call after initialization */
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	if (channel == 0)
 		channel = 1;
