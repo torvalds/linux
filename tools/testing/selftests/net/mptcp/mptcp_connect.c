@@ -73,11 +73,19 @@ static uint32_t cfg_mark;
 struct cfg_cmsg_types {
 	unsigned int cmsg_enabled:1;
 	unsigned int timestampns:1;
+	unsigned int tcp_inq:1;
 };
 
 struct cfg_sockopt_types {
 	unsigned int transparent:1;
 };
+
+struct tcp_inq_state {
+	unsigned int last;
+	bool expect_eof;
+};
+
+static struct tcp_inq_state tcp_inq;
 
 static struct cfg_cmsg_types cfg_cmsg_types;
 static struct cfg_sockopt_types cfg_sockopt_types;
@@ -389,7 +397,9 @@ static size_t do_write(const int fd, char *buf, const size_t len)
 static void process_cmsg(struct msghdr *msgh)
 {
 	struct __kernel_timespec ts;
+	bool inq_found = false;
 	bool ts_found = false;
+	unsigned int inq = 0;
 	struct cmsghdr *cmsg;
 
 	for (cmsg = CMSG_FIRSTHDR(msgh); cmsg ; cmsg = CMSG_NXTHDR(msgh, cmsg)) {
@@ -398,11 +408,26 @@ static void process_cmsg(struct msghdr *msgh)
 			ts_found = true;
 			continue;
 		}
+		if (cmsg->cmsg_level == IPPROTO_TCP && cmsg->cmsg_type == TCP_CM_INQ) {
+			memcpy(&inq, CMSG_DATA(cmsg), sizeof(inq));
+			inq_found = true;
+			continue;
+		}
+
 	}
 
 	if (cfg_cmsg_types.timestampns) {
 		if (!ts_found)
 			xerror("TIMESTAMPNS not present\n");
+	}
+
+	if (cfg_cmsg_types.tcp_inq) {
+		if (!inq_found)
+			xerror("TCP_INQ not present\n");
+
+		if (inq > 1024)
+			xerror("tcp_inq %u is larger than one kbyte\n", inq);
+		tcp_inq.last = inq;
 	}
 }
 
@@ -420,10 +445,23 @@ static ssize_t do_recvmsg_cmsg(const int fd, char *buf, const size_t len)
 		.msg_controllen = sizeof(msg_buf),
 	};
 	int flags = 0;
+	unsigned int last_hint = tcp_inq.last;
 	int ret = recvmsg(fd, &msg, flags);
 
-	if (ret <= 0)
+	if (ret <= 0) {
+		if (ret == 0 && tcp_inq.expect_eof)
+			return ret;
+
+		if (ret == 0 && cfg_cmsg_types.tcp_inq)
+			if (last_hint != 1 && last_hint != 0)
+				xerror("EOF but last tcp_inq hint was %u\n", last_hint);
+
 		return ret;
+	}
+
+	if (tcp_inq.expect_eof)
+		xerror("expected EOF, last_hint %u, now %u\n",
+		       last_hint, tcp_inq.last);
 
 	if (msg.msg_controllen && !cfg_cmsg_types.cmsg_enabled)
 		xerror("got %lu bytes of cmsg data, expected 0\n",
@@ -434,6 +472,19 @@ static ssize_t do_recvmsg_cmsg(const int fd, char *buf, const size_t len)
 
 	if (msg.msg_controllen)
 		process_cmsg(&msg);
+
+	if (cfg_cmsg_types.tcp_inq) {
+		if ((size_t)ret < len && last_hint > (unsigned int)ret) {
+			if (ret + 1 != (int)last_hint) {
+				int next = read(fd, msg_buf, sizeof(msg_buf));
+
+				xerror("read %u of %u, last_hint was %u tcp_inq hint now %u next_read returned %d/%m\n",
+				       ret, (unsigned int)len, last_hint, tcp_inq.last, next);
+			} else {
+				tcp_inq.expect_eof = true;
+			}
+		}
+	}
 
 	return ret;
 }
@@ -944,6 +995,8 @@ static void apply_cmsg_types(int fd, const struct cfg_cmsg_types *cmsg)
 
 	if (cmsg->timestampns)
 		xsetsockopt(fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW, &on, sizeof(on));
+	if (cmsg->tcp_inq)
+		xsetsockopt(fd, IPPROTO_TCP, TCP_INQ, &on, sizeof(on));
 }
 
 static void parse_cmsg_types(const char *type)
@@ -962,6 +1015,11 @@ static void parse_cmsg_types(const char *type)
 
 	if (strncmp(type, "TIMESTAMPNS", len) == 0) {
 		cfg_cmsg_types.timestampns = 1;
+		return;
+	}
+
+	if (strncmp(type, "TCPINQ", len) == 0) {
+		cfg_cmsg_types.tcp_inq = 1;
 		return;
 	}
 
