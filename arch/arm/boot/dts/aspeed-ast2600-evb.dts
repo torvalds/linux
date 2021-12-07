@@ -423,7 +423,6 @@
 	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 
-
 &mac1 {
 	status = "okay";
 
@@ -663,6 +662,26 @@
 
 &kcs4 {
 	kcs_addr = <0xca4>;
+	status = "okay";
+};
+
+&pcie_kcs1 {
+	kcs_addr = <0x3a0>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs_addr = <0x3a8>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs_addr = <0x3a2>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs_addr = <0x3a4>;
 	status = "okay";
 };
 
