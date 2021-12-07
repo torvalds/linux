@@ -1691,6 +1691,14 @@ config GPIO_VIRTIO
 	  These virtual GPIOs can be routed to real GPIOs or attached to
 	  simulators on the host (like QEMU).
 
+config GPIO_SIM
+	tristate "GPIO Simulator Module"
+	select IRQ_SIM
+	select CONFIGFS_FS
+	help
+	  This enables the GPIO simulator - a configfs-based GPIO testing
+	  driver.
+
 endmenu
 
 endif
