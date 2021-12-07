@@ -1588,7 +1588,6 @@
 		vin-supply = <&vdd_sys_mux>;
 
 		regulator-enable-ramp-delay = <160>;
-		regulator-disable-ramp-delay = <10000>;
 	};
 
 	vdd_5v0_io: regulator-vdd-5v0-io {
@@ -1610,7 +1609,6 @@
 		vin-supply = <&vdd_3v3_sys>;
 
 		regulator-enable-ramp-delay = <472>;
-		regulator-disable-ramp-delay = <4880>;
 	};
 
 	vdd_dsi_csi: regulator-vdd-dsi-csi {

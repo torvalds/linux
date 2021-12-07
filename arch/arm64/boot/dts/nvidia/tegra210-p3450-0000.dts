@@ -266,7 +266,6 @@
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1170000>;
 					regulator-enable-ramp-delay = <146>;
-					regulator-disable-ramp-delay = <4080>;
 					regulator-ramp-delay = <27500>;
 					regulator-ramp-delay-scale = <300>;
 					regulator-always-on;
@@ -282,7 +281,6 @@
 					regulator-min-microvolt = <1150000>;
 					regulator-max-microvolt = <1150000>;
 					regulator-enable-ramp-delay = <176>;
-					regulator-disable-ramp-delay = <145800>;
 					regulator-ramp-delay = <27500>;
 					regulator-ramp-delay-scale = <300>;
 					regulator-always-on;
@@ -298,7 +296,6 @@
 					regulator-min-microvolt = <1350000>;
 					regulator-max-microvolt = <1350000>;
 					regulator-enable-ramp-delay = <176>;
-					regulator-disable-ramp-delay = <32000>;
 					regulator-ramp-delay = <27500>;
 					regulator-ramp-delay-scale = <350>;
 					regulator-always-on;
@@ -314,7 +311,6 @@
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-enable-ramp-delay = <242>;
-					regulator-disable-ramp-delay = <118000>;
 					regulator-ramp-delay = <27500>;
 					regulator-ramp-delay-scale = <360>;
 					regulator-always-on;
@@ -330,7 +326,6 @@
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 					regulator-enable-ramp-delay = <26>;
-					regulator-disable-ramp-delay = <626>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 					regulator-always-on;
@@ -346,7 +341,6 @@
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
 					regulator-enable-ramp-delay = <22>;
-					regulator-disable-ramp-delay = <650>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
@@ -360,7 +354,6 @@
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-enable-ramp-delay = <62>;
-					regulator-disable-ramp-delay = <650>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
@@ -378,7 +371,6 @@
 					regulator-min-microvolt = <850000>;
 					regulator-max-microvolt = <1100000>;
 					regulator-enable-ramp-delay = <22>;
-					regulator-disable-ramp-delay = <610>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 					regulator-disable-active-discharge;
@@ -403,7 +395,6 @@
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
 					regulator-enable-ramp-delay = <24>;
-					regulator-disable-ramp-delay = <2768>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
@@ -417,7 +408,6 @@
 					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1050000>;
 					regulator-enable-ramp-delay = <22>;
-					regulator-disable-ramp-delay = <1160>;
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
@@ -1779,7 +1769,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-enable-ramp-delay = <240>;
-		regulator-disable-ramp-delay = <11340>;
 		regulator-always-on;
 		regulator-boot-on;
 
