@@ -18,11 +18,74 @@
 #include "hda-ipc.h"
 #include "../sof-audio.h"
 
+#define ICL_DSP_HPRO_CORE_ID 3
+
 static const struct snd_sof_debugfs_map icl_dsp_debugfs[] = {
 	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
 	{"pp", HDA_DSP_PP_BAR,  0, 0x1000, SOF_DEBUGFS_ACCESS_ALWAYS},
 	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
 };
+
+static int icl_dsp_core_stall(struct snd_sof_dev *sdev, unsigned int core_mask)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	/* make sure core_mask in host managed cores */
+	core_mask &= chip->host_managed_cores_mask;
+	if (!core_mask) {
+		dev_err(sdev->dev, "error: core_mask is not in host managed cores\n");
+		return -EINVAL;
+	}
+
+	/* stall core */
+	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPCS,
+					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask),
+					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
+
+	return 0;
+}
+
+/*
+ * post fw run operation for ICL.
+ * Core 3 will be powered up and in stall when HPRO is enabled
+ */
+static int icl_dsp_post_fw_run(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	int ret;
+
+	if (sdev->first_boot) {
+		ret = hda_sdw_startup(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: could not startup SoundWire links\n");
+			return ret;
+		}
+	}
+
+	hda_sdw_int_enable(sdev, true);
+
+	/*
+	 * The recommended HW programming sequence for ICL is to
+	 * power up core 3 and keep it in stall if HPRO is enabled.
+	 */
+	if (!hda->clk_config_lpro) {
+		ret = hda_dsp_enable_core(sdev, BIT(ICL_DSP_HPRO_CORE_ID));
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: dsp core power up failed on core %d\n",
+				ICL_DSP_HPRO_CORE_ID);
+			return ret;
+		}
+
+		sdev->enabled_cores_mask |= BIT(ICL_DSP_HPRO_CORE_ID);
+		sdev->dsp_core_ref_count[ICL_DSP_HPRO_CORE_ID]++;
+
+		snd_sof_dsp_stall(sdev, BIT(ICL_DSP_HPRO_CORE_ID));
+	}
+
+	/* re-enable clock gating and power gating */
+	return hda_dsp_ctrl_clock_power_gating(sdev, true);
+}
 
 /* Icelake ops */
 const struct snd_sof_dsp_ops sof_icl_ops = {
@@ -93,7 +156,7 @@ const struct snd_sof_dsp_ops sof_icl_ops = {
 
 	/* pre/post fw run */
 	.pre_fw_run = hda_dsp_pre_fw_run,
-	.post_fw_run = hda_dsp_post_fw_run_icl,
+	.post_fw_run = icl_dsp_post_fw_run,
 
 	/* parse platform specific extended manifest */
 	.parse_platform_ext_manifest = hda_dsp_ext_man_get_cavs_config_data,
@@ -103,7 +166,7 @@ const struct snd_sof_dsp_ops sof_icl_ops = {
 
 	/* firmware run */
 	.run = hda_dsp_cl_boot_firmware_iccmax,
-	.stall = hda_dsp_core_stall_icl,
+	.stall = icl_dsp_core_stall,
 
 	/* trace callback */
 	.trace_init = hda_dsp_trace_init,

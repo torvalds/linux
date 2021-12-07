@@ -618,8 +618,6 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev);
 /* pre and post fw run ops */
 int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev);
 int hda_dsp_post_fw_run(struct snd_sof_dev *sdev);
-int hda_dsp_post_fw_run_icl(struct snd_sof_dev *sdev);
-int hda_dsp_core_stall_icl(struct snd_sof_dev *sdev, unsigned int core_mask);
 
 /* parse platform specific ext manifest ops */
 int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
