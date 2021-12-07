@@ -180,6 +180,7 @@ static struct platform_driver sprd_drm_driver = {
 
 static struct platform_driver *sprd_drm_drivers[]  = {
 	&sprd_drm_driver,
+	&sprd_dpu_driver,
 };
 
 static int __init sprd_drm_init(void)
