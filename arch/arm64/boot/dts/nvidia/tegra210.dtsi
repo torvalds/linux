@@ -911,35 +911,33 @@
 			};
 		};
 
-		sdmmc1_3v3: sdmmc1-3v3 {
-			pins = "sdmmc1";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-		};
+		pinmux {
+			sdmmc1_3v3: sdmmc1-3v3 {
+				pins = "sdmmc1";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
 
-		sdmmc1_1v8: sdmmc1-1v8 {
-			pins = "sdmmc1";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
-		};
+			sdmmc1_1v8: sdmmc1-1v8 {
+				pins = "sdmmc1";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
 
-		sdmmc3_3v3: sdmmc3-3v3 {
-			pins = "sdmmc3";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-		};
+			sdmmc3_3v3: sdmmc3-3v3 {
+				pins = "sdmmc3";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
 
-		sdmmc3_1v8: sdmmc3-1v8 {
-			pins = "sdmmc3";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
-		};
+			sdmmc3_1v8: sdmmc3-1v8 {
+				pins = "sdmmc3";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
 
-		pex_dpd_disable: pex_en {
-			pex-dpd-disable {
+			pex_dpd_disable: pex-dpd-disable {
 				pins = "pex-bias", "pex-clk1", "pex-clk2";
 				low-power-disable;
 			};
-		};
 
-		pex_dpd_enable: pex_dis {
-			pex-dpd-enable {
+			pex_dpd_enable: pex-dpd-enable {
 				pins = "pex-bias", "pex-clk1", "pex-clk2";
 				low-power-enable;
 			};
