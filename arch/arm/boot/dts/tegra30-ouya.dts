@@ -70,7 +70,6 @@
 
 	gpio: gpio@6000d000 {
 		gpio-ranges = <&pinmux 0 0 248>;
-		#reset-cells = <1>;
 	};
 
 	pinmux@70000868 {
