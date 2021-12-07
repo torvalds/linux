@@ -244,6 +244,36 @@ if major <= 1 and minor < 8:
     for l in html_css_files:
         html_context['css_files'].append('_static/' + l)
 
+if  html_theme == 'classic':
+    html_theme_options = {
+        'rightsidebar':        False,
+        'stickysidebar':       True,
+        'collapsiblesidebar':  True,
+        'externalrefs':        False,
+
+        'footerbgcolor':       "white",
+        'footertextcolor':     "white",
+        'sidebarbgcolor':      "white",
+        'sidebarbtncolor':     "black",
+        'sidebartextcolor':    "black",
+        'sidebarlinkcolor':    "#686bff",
+        'relbarbgcolor':       "#133f52",
+        'relbartextcolor':     "white",
+        'relbarlinkcolor':     "white",
+        'bgcolor':             "white",
+        'textcolor':           "black",
+        'headbgcolor':         "#f2f2f2",
+        'headtextcolor':       "#20435c",
+        'headlinkcolor':       "#c60f0f",
+        'linkcolor':           "#355f7c",
+        'visitedlinkcolor':    "#355f7c",
+        'codebgcolor':         "#3f3f3f",
+        'codetextcolor':       "white",
+
+        'bodyfont':            "serif",
+        'headfont':            "sans-serif",
+    }
+
 sys.stderr.write("Using %s theme\n" % html_theme)
 
 # Theme options are theme-specific and customize the look and feel of a theme
