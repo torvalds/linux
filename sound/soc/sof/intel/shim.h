@@ -151,6 +151,9 @@
 #define PCI_PMCS		0x84
 #define PCI_PMCS_PS_MASK	0x3
 
+/* Intel quirks */
+#define SOF_INTEL_PROCEN_FMT_QUIRK BIT(0)
+
 /* DSP hardware descriptor */
 struct sof_intel_dsp_desc {
 	int cores_num;
@@ -166,6 +169,7 @@ struct sof_intel_dsp_desc {
 	int ssp_base_offset;		/* base address of the SSPs */
 	u32 sdw_shim_base;
 	u32 sdw_alh_base;
+	u32 quirks;
 	bool (*check_sdw_irq)(struct snd_sof_dev *sdev);
 };
 
