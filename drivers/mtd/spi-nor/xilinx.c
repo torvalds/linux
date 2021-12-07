@@ -70,7 +70,6 @@ static int xilinx_nor_setup(struct spi_nor *nor,
 		nor->params->page_size = page_size;
 		nor->mtd.writebufsize = page_size;
 		nor->params->size = 8 * page_size * nor->info->n_sectors;
-		nor->mtd.size = nor->params->size;
 		nor->mtd.erasesize = 8 * page_size;
 	} else {
 		/* Flash in Default addressing mode */
