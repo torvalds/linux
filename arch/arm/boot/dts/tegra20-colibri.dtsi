@@ -113,7 +113,7 @@
 			};
 
 			/* Colibri Backlight PWM<A>, PWM<B> */
-			pwm-a-b {
+			sdc {
 				nvidia,pins = "sdc";
 				nvidia,function = "pwm";
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
@@ -242,7 +242,7 @@
 			};
 
 			/* Colibri PWM<C>, PWM<D> */
-			pwm-c-d {
+			sdb_sdd {
 				nvidia,pins = "sdb", "sdd";
 				nvidia,function = "pwm";
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
