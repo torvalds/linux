@@ -136,7 +136,6 @@ EXPORT_SYMBOL_GPL(can_change_state);
 static void can_restart(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
-	struct net_device_stats *stats = &dev->stats;
 	struct sk_buff *skb;
 	struct can_frame *cf;
 	int err;
@@ -154,9 +153,6 @@ static void can_restart(struct net_device *dev)
 		goto restart;
 
 	cf->can_id |= CAN_ERR_RESTARTED;
-
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 
 	netif_rx_ni(skb);
 
