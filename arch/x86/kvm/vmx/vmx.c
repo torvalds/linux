@@ -5882,17 +5882,13 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		vmx_flush_pml_buffer(vcpu);
 
 	/*
-	 * We should never reach this point with a pending nested VM-Enter, and
-	 * more specifically emulation of L2 due to invalid guest state (see
-	 * below) should never happen as that means we incorrectly allowed a
-	 * nested VM-Enter with an invalid vmcs12.
+	 * KVM should never reach this point with a pending nested VM-Enter.
+	 * More specifically, short-circuiting VM-Entry to emulate L2 due to
+	 * invalid guest state should never happen as that means KVM knowingly
+	 * allowed a nested VM-Enter with an invalid vmcs12.  More below.
 	 */
 	if (KVM_BUG_ON(vmx->nested.nested_run_pending, vcpu->kvm))
 		return -EIO;
-
-	/* If guest state is invalid, start emulating */
-	if (vmx->emulation_required)
-		return handle_invalid_guest_state(vcpu);
 
 	if (is_guest_mode(vcpu)) {
 		/*
@@ -5915,9 +5911,29 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		 */
 		nested_mark_vmcs12_pages_dirty(vcpu);
 
+		/*
+		 * Synthesize a triple fault if L2 state is invalid.  In normal
+		 * operation, nested VM-Enter rejects any attempt to enter L2
+		 * with invalid state.  However, those checks are skipped if
+		 * state is being stuffed via RSM or KVM_SET_NESTED_STATE.  If
+		 * L2 state is invalid, it means either L1 modified SMRAM state
+		 * or userspace provided bad state.  Synthesize TRIPLE_FAULT as
+		 * doing so is architecturally allowed in the RSM case, and is
+		 * the least awful solution for the userspace case without
+		 * risking false positives.
+		 */
+		if (vmx->emulation_required) {
+			nested_vmx_vmexit(vcpu, EXIT_REASON_TRIPLE_FAULT, 0, 0);
+			return 1;
+		}
+
 		if (nested_vmx_reflect_vmexit(vcpu))
 			return 1;
 	}
+
+	/* If guest state is invalid, start emulating.  L2 is handled above. */
+	if (vmx->emulation_required)
+		return handle_invalid_guest_state(vcpu);
 
 	if (exit_reason.failed_vmentry) {
 		dump_vmcs(vcpu);
