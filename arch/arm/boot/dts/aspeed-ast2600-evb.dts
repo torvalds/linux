@@ -646,14 +646,24 @@
 	snoop-ports = <0x80>;
 };
 
-&kcs3 {
+&kcs1 {
+	kcs_addr = <0xca0>;
 	status = "okay";
-	aspeed,lpc-io-reg = <0xca2>;
+};
+
+&kcs2 {
+	kcs_addr = <0xca8>;
+	status = "okay";
+};
+
+&kcs3 {
+	kcs_addr = <0xca2>;
+	status = "okay";
 };
 
 &kcs4 {
+	kcs_addr = <0xca4>;
 	status = "okay";
-	aspeed,lpc-io-reg = <0xca4>;
 };
 
 /*
