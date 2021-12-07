@@ -94,7 +94,6 @@ struct rcar_can_priv {
 	struct rcar_can_regs __iomem *regs;
 	struct clk *clk;
 	struct clk *can_clk;
-	u8 tx_dlc[RCAR_CAN_FIFO_DEPTH];
 	u32 tx_head;
 	u32 tx_tail;
 	u8 clock_select;
@@ -379,10 +378,11 @@ static void rcar_can_tx_done(struct net_device *ndev)
 		if (priv->tx_head - priv->tx_tail <= unsent)
 			break;
 		stats->tx_packets++;
-		stats->tx_bytes += priv->tx_dlc[priv->tx_tail %
-						RCAR_CAN_FIFO_DEPTH];
-		priv->tx_dlc[priv->tx_tail % RCAR_CAN_FIFO_DEPTH] = 0;
-		can_get_echo_skb(ndev, priv->tx_tail % RCAR_CAN_FIFO_DEPTH, NULL);
+		stats->tx_bytes +=
+			can_get_echo_skb(ndev,
+					 priv->tx_tail % RCAR_CAN_FIFO_DEPTH,
+					 NULL);
+
 		priv->tx_tail++;
 		netif_wake_queue(ndev);
 	}
@@ -612,7 +612,6 @@ static netdev_tx_t rcar_can_start_xmit(struct sk_buff *skb,
 
 	writeb(cf->len, &priv->regs->mb[RCAR_CAN_TX_FIFO_MBX].dlc);
 
-	priv->tx_dlc[priv->tx_head % RCAR_CAN_FIFO_DEPTH] = cf->len;
 	can_put_echo_skb(skb, ndev, priv->tx_head % RCAR_CAN_FIFO_DEPTH, 0);
 	priv->tx_head++;
 	/* Start Tx: write 0xff to the TFPCR register to increment
