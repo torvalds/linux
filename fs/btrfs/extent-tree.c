@@ -3981,6 +3981,15 @@ static bool can_allocate_chunk(struct btrfs_fs_info *fs_info,
 	case BTRFS_EXTENT_ALLOC_CLUSTERED:
 		return true;
 	case BTRFS_EXTENT_ALLOC_ZONED:
+		/*
+		 * If we have enough free space left in an already
+		 * active block group and we can't activate any other
+		 * zone now, do not allow allocating a new chunk and
+		 * let find_free_extent() retry with a smaller size.
+		 */
+		if (ffe_ctl->max_extent_size >= ffe_ctl->min_alloc_size &&
+		    !btrfs_can_activate_zone(fs_info->fs_devices, ffe_ctl->flags))
+			return false;
 		return true;
 	default:
 		BUG();
@@ -4025,18 +4034,6 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 	if (ins->objectid) {
 		found_extent(ffe_ctl, ins);
 		return 0;
-	}
-
-	if (ffe_ctl->max_extent_size >= ffe_ctl->min_alloc_size &&
-	    !btrfs_can_activate_zone(fs_info->fs_devices, ffe_ctl->index)) {
-		/*
-		 * If we have enough free space left in an already active block
-		 * group and we can't activate any other zone now, retry the
-		 * active ones with a smaller allocation size.  Returning early
-		 * from here will tell btrfs_reserve_extent() to haven the
-		 * size.
-		 */
-		return -ENOSPC;
 	}
 
 	if (ffe_ctl->loop >= LOOP_CACHING_WAIT && ffe_ctl->have_caching_bg)

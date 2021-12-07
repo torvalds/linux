@@ -73,8 +73,7 @@ struct btrfs_device *btrfs_zoned_get_device(struct btrfs_fs_info *fs_info,
 					    u64 logical, u64 length);
 bool btrfs_zone_activate(struct btrfs_block_group *block_group);
 int btrfs_zone_finish(struct btrfs_block_group *block_group);
-bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices,
-			     int raid_index);
+bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags);
 void btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical,
 			     u64 length);
 void btrfs_clear_data_reloc_bg(struct btrfs_block_group *bg);
@@ -226,7 +225,7 @@ static inline int btrfs_zone_finish(struct btrfs_block_group *block_group)
 }
 
 static inline bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices,
-					   int raid_index)
+					   u64 flags)
 {
 	return true;
 }

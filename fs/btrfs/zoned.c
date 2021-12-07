@@ -1925,7 +1925,7 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group)
 	return ret;
 }
 
-bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, int raid_index)
+bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags)
 {
 	struct btrfs_device *device;
 	bool ret = false;
@@ -1934,8 +1934,7 @@ bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, int raid_index
 		return true;
 
 	/* Non-single profiles are not supported yet */
-	if (raid_index != BTRFS_RAID_SINGLE)
-		return false;
+	ASSERT((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0);
 
 	/* Check if there is a device with active zones left */
 	mutex_lock(&fs_devices->device_list_mutex);
