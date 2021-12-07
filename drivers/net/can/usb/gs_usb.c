@@ -9,6 +9,7 @@
  * Many thanks to all socketcan devs!
  */
 
+#include <linux/bitfield.h>
 #include <linux/ethtool.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -100,6 +101,7 @@ struct gs_device_config {
 /* GS_CAN_FEATURE_USER_ID BIT(6) */
 #define GS_CAN_MODE_PAD_PKTS_TO_MAX_PKT_SIZE BIT(7)
 #define GS_CAN_MODE_FD BIT(8)
+/* GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX BIT(9) */
 
 struct gs_device_mode {
 	__le32 mode;
@@ -133,6 +135,8 @@ struct gs_identify_mode {
 #define GS_CAN_FEATURE_USER_ID BIT(6)
 #define GS_CAN_FEATURE_PAD_PKTS_TO_MAX_PKT_SIZE BIT(7)
 #define GS_CAN_FEATURE_FD BIT(8)
+#define GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX BIT(9)
+#define GS_CAN_FEATURE_MASK GENMASK(9, 0)
 
 struct gs_device_bt_const {
 	__le32 feature;
@@ -156,8 +160,18 @@ struct classic_can {
 	u8 data[8];
 } __packed;
 
+struct classic_can_quirk {
+	u8 data[8];
+	u8 quirk;
+} __packed;
+
 struct canfd {
 	u8 data[64];
+} __packed;
+
+struct canfd_quirk {
+	u8 data[64];
+	u8 quirk;
 } __packed;
 
 struct gs_host_frame {
@@ -171,7 +185,9 @@ struct gs_host_frame {
 
 	union {
 		DECLARE_FLEX_ARRAY(struct classic_can, classic_can);
+		DECLARE_FLEX_ARRAY(struct classic_can_quirk, classic_can_quirk);
 		DECLARE_FLEX_ARRAY(struct canfd, canfd);
+		DECLARE_FLEX_ARRAY(struct canfd_quirk, canfd_quirk);
 	};
 } __packed;
 /* The GS USB devices make use of the same flags and masks as in
@@ -204,6 +220,7 @@ struct gs_can {
 	struct can_bittiming_const bt_const;
 	unsigned int channel;	/* channel number */
 
+	u32 feature;
 	unsigned int hf_size_tx;
 
 	/* This lock prevents a race condition between xmit and receive. */
@@ -666,9 +683,16 @@ static int gs_can_open(struct net_device *netdev)
 	ctrlmode = dev->can.ctrlmode;
 	if (ctrlmode & CAN_CTRLMODE_FD) {
 		flags |= GS_CAN_MODE_FD;
-		dev->hf_size_tx = struct_size(hf, canfd, 1);
+
+		if (dev->feature & GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX)
+			dev->hf_size_tx = struct_size(hf, canfd_quirk, 1);
+		else
+			dev->hf_size_tx = struct_size(hf, canfd, 1);
 	} else {
-		dev->hf_size_tx = struct_size(hf, classic_can, 1);
+		if (dev->feature & GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX)
+			dev->hf_size_tx = struct_size(hf, classic_can_quirk, 1);
+		else
+			dev->hf_size_tx = struct_size(hf, classic_can, 1);
 	}
 
 	if (!parent->active_channels) {
@@ -938,6 +962,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	dev->can.ctrlmode_supported = CAN_CTRLMODE_CC_LEN8_DLC;
 
 	feature = le32_to_cpu(bt_const->feature);
+	dev->feature = FIELD_GET(GS_CAN_FEATURE_MASK, feature);
 	if (feature & GS_CAN_FEATURE_LISTEN_ONLY)
 		dev->can.ctrlmode_supported |= CAN_CTRLMODE_LISTENONLY;
 
