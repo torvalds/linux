@@ -519,19 +519,11 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static u16 qeth_l2_select_queue(struct net_device *dev, struct sk_buff *skb,
-				struct net_device *sb_dev)
+static u16 qeth_l2_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
+				    struct net_device *sb_dev)
 {
-	struct qeth_card *card = dev->ml_priv;
-
-	if (IS_IQD(card))
-		return qeth_iqd_select_queue(dev, skb,
-					     qeth_get_ether_cast_type(skb),
-					     sb_dev);
-	if (qeth_uses_tx_prio_queueing(card))
-		return qeth_get_priority_queue(card, skb);
-
-	return netdev_pick_tx(dev, skb, sb_dev);
+	return qeth_iqd_select_queue(dev, skb, qeth_get_ether_cast_type(skb),
+				     sb_dev);
 }
 
 static void qeth_l2_set_rx_mode(struct net_device *dev)
@@ -1059,7 +1051,7 @@ static const struct net_device_ops qeth_l2_iqd_netdev_ops = {
 	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
 	.ndo_features_check	= qeth_features_check,
-	.ndo_select_queue	= qeth_l2_select_queue,
+	.ndo_select_queue	= qeth_l2_iqd_select_queue,
 	.ndo_validate_addr	= qeth_l2_validate_addr,
 	.ndo_set_rx_mode	= qeth_l2_set_rx_mode,
 	.ndo_eth_ioctl		= qeth_do_ioctl,
@@ -1080,7 +1072,7 @@ static const struct net_device_ops qeth_l2_osa_netdev_ops = {
 	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
 	.ndo_features_check	= qeth_features_check,
-	.ndo_select_queue	= qeth_l2_select_queue,
+	.ndo_select_queue	= qeth_osa_select_queue,
 	.ndo_validate_addr	= qeth_l2_validate_addr,
 	.ndo_set_rx_mode	= qeth_l2_set_rx_mode,
 	.ndo_eth_ioctl		= qeth_do_ioctl,
