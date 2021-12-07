@@ -25,6 +25,7 @@
 
 #include "sprd_drm.h"
 #include "sprd_dpu.h"
+#include "sprd_dsi.h"
 
 /* Global control registers */
 #define REG_DPU_CTRL	0x04
@@ -618,8 +619,20 @@ static void sprd_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct sprd_dpu *dpu = to_sprd_crtc(crtc);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_encoder *encoder;
+	struct sprd_dsi *dsi;
 
 	drm_display_mode_to_videomode(mode, &dpu->ctx.vm);
+
+	drm_for_each_encoder_mask(encoder, crtc->dev,
+				  crtc->state->encoder_mask) {
+		dsi = encoder_to_dsi(encoder);
+
+		if (dsi->slave->mode_flags & MIPI_DSI_MODE_VIDEO)
+			dpu->ctx.if_type = SPRD_DPU_IF_DPI;
+		else
+			dpu->ctx.if_type = SPRD_DPU_IF_EDPI;
+	}
 
 	sprd_dpi_init(dpu);
 }

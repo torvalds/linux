@@ -14,5 +14,6 @@ struct sprd_drm {
 };
 
 extern struct platform_driver sprd_dpu_driver;
+extern struct platform_driver sprd_dsi_driver;
 
 #endif /* _SPRD_DRM_H_ */
