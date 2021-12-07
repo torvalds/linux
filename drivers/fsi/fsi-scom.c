@@ -289,7 +289,7 @@ static int put_scom(struct scom_device *scom, uint64_t value,
 	int rc;
 
 	rc = raw_put_scom(scom, value, addr, &status);
-	if (rc == -ENODEV)
+	if (rc)
 		return rc;
 
 	rc = handle_fsi2pib_status(scom, status);
@@ -308,7 +308,7 @@ static int get_scom(struct scom_device *scom, uint64_t *value,
 	int rc;
 
 	rc = raw_get_scom(scom, value, addr, &status);
-	if (rc == -ENODEV)
+	if (rc)
 		return rc;
 
 	rc = handle_fsi2pib_status(scom, status);
