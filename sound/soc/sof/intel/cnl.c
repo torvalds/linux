@@ -358,6 +358,13 @@ const struct sof_intel_dsp_desc cnl_chip_info = {
 };
 EXPORT_SYMBOL_NS(cnl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 
+/*
+ * JasperLake is technically derived from IceLake, and should be in
+ * described in icl.c. However since JasperLake was designed with
+ * two cores, it cannot support the IceLake-specific power-up sequences
+ * which rely on core3. To simplify, JasperLake uses the CannonLake ops and
+ * is described in cnl.c
+ */
 const struct sof_intel_dsp_desc jsl_chip_info = {
 	/* Jasperlake */
 	.cores_num = 2,
