@@ -958,7 +958,7 @@ int netfs_readpage(struct file *file,
 	rreq = netfs_alloc_read_request(ops, netfs_priv, file);
 	if (!rreq) {
 		if (netfs_priv)
-			ops->cleanup(netfs_priv, page_file_mapping(page));
+			ops->cleanup(page_file_mapping(page), netfs_priv);
 		unlock_page(page);
 		return -ENOMEM;
 	}
@@ -1185,7 +1185,7 @@ have_page:
 		goto error;
 have_page_no_wait:
 	if (netfs_priv)
-		ops->cleanup(netfs_priv, mapping);
+		ops->cleanup(mapping, netfs_priv);
 	*_page = page;
 	_leave(" = 0");
 	return 0;
@@ -1196,7 +1196,7 @@ error:
 	unlock_page(page);
 	put_page(page);
 	if (netfs_priv)
-		ops->cleanup(netfs_priv, mapping);
+		ops->cleanup(mapping, netfs_priv);
 	_leave(" = %d", ret);
 	return ret;
 }
