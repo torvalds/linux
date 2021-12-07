@@ -953,6 +953,7 @@
 		#size-cells = <0>;
 
 		asix@1 {
+			compatible = "usbb95,772b";
 			reg = <1>;
 			local-mac-address = [00 00 00 00 00 00];
 		};
