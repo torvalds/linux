@@ -5575,29 +5575,9 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 #endif
 
 static void qeth_receive_skb(struct qeth_card *card, struct sk_buff *skb,
-			     struct qeth_hdr *hdr, bool uses_frags)
+			     bool uses_frags, bool is_cso)
 {
 	struct napi_struct *napi = &card->napi;
-	bool is_cso;
-
-	switch (hdr->hdr.l2.id) {
-#if IS_ENABLED(CONFIG_QETH_L3)
-	case QETH_HEADER_TYPE_LAYER3:
-		qeth_l3_rebuild_skb(card, skb, hdr);
-		is_cso = hdr->hdr.l3.ext_flags & QETH_HDR_EXT_CSUM_TRANSP_REQ;
-		break;
-#endif
-	case QETH_HEADER_TYPE_LAYER2:
-		is_cso = hdr->hdr.l2.flags[1] & QETH_HDR_EXT_CSUM_TRANSP_REQ;
-		break;
-	default:
-		/* never happens */
-		if (uses_frags)
-			napi_free_frags(napi);
-		else
-			kfree_skb(skb);
-		return;
-	}
 
 	if (is_cso && (card->dev->features & NETIF_F_RXCSUM)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -5654,6 +5634,7 @@ static int qeth_extract_skb(struct qeth_card *card,
 	struct qeth_hdr *hdr;
 	struct sk_buff *skb;
 	int skb_len = 0;
+	bool is_cso;
 
 	element = &buffer->element[*element_no];
 
@@ -5673,11 +5654,15 @@ next_packet:
 	switch (hdr->hdr.l2.id) {
 	case QETH_HEADER_TYPE_LAYER2:
 		skb_len = hdr->hdr.l2.pkt_length;
+		is_cso = hdr->hdr.l2.flags[1] & QETH_HDR_EXT_CSUM_TRANSP_REQ;
+
 		linear_len = ETH_HLEN;
 		headroom = 0;
 		break;
 	case QETH_HEADER_TYPE_LAYER3:
 		skb_len = hdr->hdr.l3.length;
+		is_cso = hdr->hdr.l3.ext_flags & QETH_HDR_EXT_CSUM_TRANSP_REQ;
+
 		if (!IS_LAYER3(card)) {
 			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
 			goto walk_packet;
@@ -5804,7 +5789,12 @@ walk_packet:
 	*element_no = element - &buffer->element[0];
 	*__offset = offset;
 
-	qeth_receive_skb(card, skb, hdr, uses_frags);
+#if IS_ENABLED(CONFIG_QETH_L3)
+	if (hdr->hdr.l2.id == QETH_HEADER_TYPE_LAYER3)
+		qeth_l3_rebuild_skb(card, skb, hdr);
+#endif
+
+	qeth_receive_skb(card, skb, uses_frags, is_cso);
 	return 0;
 }
 
