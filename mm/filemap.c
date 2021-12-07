@@ -270,30 +270,29 @@ void filemap_remove_folio(struct folio *folio)
 }
 
 /*
- * page_cache_delete_batch - delete several pages from page cache
- * @mapping: the mapping to which pages belong
- * @pvec: pagevec with pages to delete
+ * page_cache_delete_batch - delete several folios from page cache
+ * @mapping: the mapping to which folios belong
+ * @fbatch: batch of folios to delete
  *
- * The function walks over mapping->i_pages and removes pages passed in @pvec
- * from the mapping. The function expects @pvec to be sorted by page index
- * and is optimised for it to be dense.
- * It tolerates holes in @pvec (mapping entries at those indices are not
- * modified). The function expects only THP head pages to be present in the
- * @pvec.
+ * The function walks over mapping->i_pages and removes folios passed in
+ * @fbatch from the mapping. The function expects @fbatch to be sorted
+ * by page index and is optimised for it to be dense.
+ * It tolerates holes in @fbatch (mapping entries at those indices are not
+ * modified).
  *
  * The function expects the i_pages lock to be held.
  */
 static void page_cache_delete_batch(struct address_space *mapping,
-			     struct pagevec *pvec)
+			     struct folio_batch *fbatch)
 {
-	XA_STATE(xas, &mapping->i_pages, pvec->pages[0]->index);
+	XA_STATE(xas, &mapping->i_pages, fbatch->folios[0]->index);
 	int total_pages = 0;
 	int i = 0;
 	struct folio *folio;
 
 	mapping_set_update(&xas, mapping);
 	xas_for_each(&xas, folio, ULONG_MAX) {
-		if (i >= pagevec_count(pvec))
+		if (i >= folio_batch_count(fbatch))
 			break;
 
 		/* A swap/dax/shadow entry got inserted? Skip it. */
@@ -306,9 +305,9 @@ static void page_cache_delete_batch(struct address_space *mapping,
 		 * means our page has been removed, which shouldn't be
 		 * possible because we're holding the PageLock.
 		 */
-		if (&folio->page != pvec->pages[i]) {
+		if (folio != fbatch->folios[i]) {
 			VM_BUG_ON_FOLIO(folio->index >
-						pvec->pages[i]->index, folio);
+					fbatch->folios[i]->index, folio);
 			continue;
 		}
 
@@ -316,12 +315,11 @@ static void page_cache_delete_batch(struct address_space *mapping,
 
 		if (folio->index == xas.xa_index)
 			folio->mapping = NULL;
-		/* Leave page->index set: truncation lookup relies on it */
+		/* Leave folio->index set: truncation lookup relies on it */
 
 		/*
-		 * Move to the next page in the vector if this is a regular
-		 * page or the index is of the last sub-page of this compound
-		 * page.
+		 * Move to the next folio in the batch if this is a regular
+		 * folio or the index is of the last sub-page of this folio.
 		 */
 		if (folio->index + folio_nr_pages(folio) - 1 == xas.xa_index)
 			i++;
@@ -332,29 +330,29 @@ static void page_cache_delete_batch(struct address_space *mapping,
 }
 
 void delete_from_page_cache_batch(struct address_space *mapping,
-				  struct pagevec *pvec)
+				  struct folio_batch *fbatch)
 {
 	int i;
 
-	if (!pagevec_count(pvec))
+	if (!folio_batch_count(fbatch))
 		return;
 
 	spin_lock(&mapping->host->i_lock);
 	xa_lock_irq(&mapping->i_pages);
-	for (i = 0; i < pagevec_count(pvec); i++) {
-		struct folio *folio = page_folio(pvec->pages[i]);
+	for (i = 0; i < folio_batch_count(fbatch); i++) {
+		struct folio *folio = fbatch->folios[i];
 
 		trace_mm_filemap_delete_from_page_cache(folio);
 		filemap_unaccount_folio(mapping, folio);
 	}
-	page_cache_delete_batch(mapping, pvec);
+	page_cache_delete_batch(mapping, fbatch);
 	xa_unlock_irq(&mapping->i_pages);
 	if (mapping_shrinkable(mapping))
 		inode_add_lru(mapping->host);
 	spin_unlock(&mapping->host->i_lock);
 
-	for (i = 0; i < pagevec_count(pvec); i++)
-		filemap_free_folio(mapping, page_folio(pvec->pages[i]));
+	for (i = 0; i < folio_batch_count(fbatch); i++)
+		filemap_free_folio(mapping, fbatch->folios[i]);
 }
 
 int filemap_check_errors(struct address_space *mapping)
@@ -2052,8 +2050,8 @@ unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
  * @mapping:	The address_space to search.
  * @start:	The starting page cache index.
  * @end:	The final page index (inclusive).
- * @pvec:	Where the resulting entries are placed.
- * @indices:	The cache indices of the entries in @pvec.
+ * @fbatch:	Where the resulting entries are placed.
+ * @indices:	The cache indices of the entries in @fbatch.
  *
  * find_lock_entries() will return a batch of entries from @mapping.
  * Swap, shadow and DAX entries are included.  Folios are returned
@@ -2068,7 +2066,7 @@ unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
  * Return: The number of entries which were found.
  */
 unsigned find_lock_entries(struct address_space *mapping, pgoff_t start,
-		pgoff_t end, struct pagevec *pvec, pgoff_t *indices)
+		pgoff_t end, struct folio_batch *fbatch, pgoff_t *indices)
 {
 	XA_STATE(xas, &mapping->i_pages, start);
 	struct folio *folio;
@@ -2088,8 +2086,8 @@ unsigned find_lock_entries(struct address_space *mapping, pgoff_t start,
 			VM_BUG_ON_FOLIO(!folio_contains(folio, xas.xa_index),
 					folio);
 		}
-		indices[pvec->nr] = xas.xa_index;
-		if (!pagevec_add(pvec, &folio->page))
+		indices[fbatch->nr] = xas.xa_index;
+		if (!folio_batch_add(fbatch, folio))
 			break;
 		goto next;
 unlock:
@@ -2106,7 +2104,7 @@ next:
 	}
 	rcu_read_unlock();
 
-	return pagevec_count(pvec);
+	return folio_batch_count(fbatch);
 }
 
 /**

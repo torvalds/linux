@@ -919,7 +919,6 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 	pgoff_t end = (lend + 1) >> PAGE_SHIFT;
 	unsigned int partial_start = lstart & (PAGE_SIZE - 1);
 	unsigned int partial_end = (lend + 1) & (PAGE_SIZE - 1);
-	struct pagevec pvec;
 	struct folio_batch fbatch;
 	pgoff_t indices[PAGEVEC_SIZE];
 	long nr_swaps_freed = 0;
@@ -932,12 +931,12 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 	if (info->fallocend > start && info->fallocend <= end && !unfalloc)
 		info->fallocend = start;
 
-	pagevec_init(&pvec);
+	folio_batch_init(&fbatch);
 	index = start;
 	while (index < end && find_lock_entries(mapping, index, end - 1,
-			&pvec, indices)) {
-		for (i = 0; i < pagevec_count(&pvec); i++) {
-			struct folio *folio = (struct folio *)pvec.pages[i];
+			&fbatch, indices)) {
+		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+			struct folio *folio = fbatch.folios[i];
 
 			index = indices[i];
 
@@ -954,8 +953,8 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 				truncate_inode_folio(mapping, folio);
 			folio_unlock(folio);
 		}
-		pagevec_remove_exceptionals(&pvec);
-		pagevec_release(&pvec);
+		folio_batch_remove_exceptionals(&fbatch);
+		folio_batch_release(&fbatch);
 		cond_resched();
 		index++;
 	}
@@ -988,7 +987,6 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 	if (start >= end)
 		return;
 
-	folio_batch_init(&fbatch);
 	index = start;
 	while (index < end) {
 		cond_resched();
