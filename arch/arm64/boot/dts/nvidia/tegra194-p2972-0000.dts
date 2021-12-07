@@ -2097,7 +2097,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <500>;
 			status = "okay";
@@ -2151,7 +2151,7 @@
 			};
 		};
 
-		gpu {
+		gpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <500>;
 			status = "okay";
@@ -2165,7 +2165,7 @@
 			};
 		};
 
-		aux {
+		aux-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <500>;
 			status = "okay";

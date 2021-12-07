@@ -2903,39 +2903,33 @@
 	};
 
 	thermal-zones {
-		cpu {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_CPU>;
+		cpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_CPU>;
 			status = "disabled";
 		};
 
-		gpu {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_GPU>;
+		gpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_GPU>;
 			status = "disabled";
 		};
 
-		aux {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_AUX>;
+		aux-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_AUX>;
 			status = "disabled";
 		};
 
-		pllx {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_PLLX>;
+		pllx-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_PLLX>;
 			status = "disabled";
 		};
 
-		ao {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_AO>;
+		ao-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_AO>;
 			status = "disabled";
 		};
 
-		tj {
-			thermal-sensors = <&{/bpmp/thermal}
-					   TEGRA194_BPMP_THERMAL_ZONE_TJ_MAX>;
+		tj-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA194_BPMP_THERMAL_ZONE_TJ_MAX>;
 			status = "disabled";
 		};
 	};

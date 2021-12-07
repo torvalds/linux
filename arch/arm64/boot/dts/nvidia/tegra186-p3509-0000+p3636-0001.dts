@@ -633,7 +633,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <500>;
 			status = "okay";
@@ -687,21 +687,7 @@
 			};
 		};
 
-		gpu {
-			polling-delay = <0>;
-			polling-delay-passive = <500>;
-			status = "okay";
-
-			trips {
-				gpu_alert0: critical {
-					temperature = <99000>;
-					hysteresis = <0>;
-					type = "critical";
-				};
-			};
-		};
-
-		aux {
+		aux-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <500>;
 			status = "okay";
@@ -709,6 +695,20 @@
 			trips {
 				aux_alert0: critical {
 					temperature = <90000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+
+		gpu-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <500>;
+			status = "okay";
+
+			trips {
+				gpu_alert0: critical {
+					temperature = <99000>;
 					hysteresis = <0>;
 					type = "critical";
 				};

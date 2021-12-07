@@ -1684,7 +1684,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			trips {
 				cpu_trip_critical: critical {
 					temperature = <96500>;

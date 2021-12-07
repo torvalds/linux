@@ -1976,12 +1976,12 @@
 	};
 
 	thermal-zones {
-		a57 {
+		/* Cortex-A57 cluster */
+		cpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_CPU>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_CPU>;
 
 			trips {
 				critical {
@@ -1995,12 +1995,12 @@
 			};
 		};
 
-		denver {
+		/* Denver cluster */
+		aux-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AUX>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AUX>;
 
 			trips {
 				critical {
@@ -2014,12 +2014,11 @@
 			};
 		};
 
-		gpu {
+		gpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_GPU>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_GPU>;
 
 			trips {
 				critical {
@@ -2033,12 +2032,11 @@
 			};
 		};
 
-		pll {
+		pll-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_PLLX>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_PLLX>;
 
 			trips {
 				critical {
@@ -2052,12 +2050,11 @@
 			};
 		};
 
-		always_on {
+		ao-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AO>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AO>;
 
 			trips {
 				critical {
