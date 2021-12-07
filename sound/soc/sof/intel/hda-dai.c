@@ -21,8 +21,6 @@
 #endif
 
 struct hda_pipe_params {
-	u8 host_dma_id;
-	u8 link_dma_id;
 	u32 ch;
 	u32 s_freq;
 	u32 s_fmt;
@@ -30,7 +28,6 @@ struct hda_pipe_params {
 	snd_pcm_format_t format;
 	int link_index;
 	int stream;
-	unsigned int host_bps;
 	unsigned int link_bps;
 };
 
@@ -256,7 +253,6 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
 	p_params.stream = substream->stream;
-	p_params.link_dma_id = stream_tag - 1;
 	p_params.link_index = link->index;
 	p_params.format = params_format(params);
 
