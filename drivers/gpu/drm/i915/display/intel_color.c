@@ -1574,6 +1574,8 @@ static int glk_color_check(struct intel_crtc_state *crtc_state)
 
 static u32 icl_gamma_mode(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	u32 gamma_mode = 0;
 
 	if (crtc_state->hw.degamma_lut)
@@ -1586,6 +1588,13 @@ static u32 icl_gamma_mode(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->hw.gamma_lut ||
 	    crtc_state_is_legacy_gamma(crtc_state))
 		gamma_mode |= GAMMA_MODE_MODE_8BIT;
+	/*
+	 * Enable 10bit gamma for D13
+	 * ToDo: Extend to Logarithmic Gamma once the new UAPI
+	 * is acccepted and implemented by a userspace consumer
+	 */
+	else if (DISPLAY_VER(i915) >= 13)
+		gamma_mode |= GAMMA_MODE_MODE_10BIT;
 	else
 		gamma_mode |= GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED;
 
