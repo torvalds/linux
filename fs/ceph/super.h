@@ -21,7 +21,6 @@
 #include <linux/ceph/libceph.h>
 
 #ifdef CONFIG_CEPH_FSCACHE
-#define FSCACHE_USE_NEW_IO_API
 #include <linux/fscache.h>
 #endif
 
@@ -135,7 +134,7 @@ struct ceph_fs_client {
 #endif
 
 #ifdef CONFIG_CEPH_FSCACHE
-	struct fscache_cookie *fscache;
+	struct fscache_volume *fscache;
 #endif
 };
 
