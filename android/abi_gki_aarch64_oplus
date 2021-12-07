@@ -3327,6 +3327,7 @@
   woken_wake_function
   work_busy
   work_on_cpu
+  wq_worker_comm
   ww_mutex_lock
   ww_mutex_unlock
   __xa_alloc
