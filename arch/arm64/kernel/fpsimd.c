@@ -1213,7 +1213,8 @@ void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *st, void *sve_state,
 /*
  * Load the userland FPSIMD state of 'current' from memory, but only if the
  * FPSIMD state already held in the registers is /not/ the most recent FPSIMD
- * state of 'current'
+ * state of 'current'.  This is called when we are preparing to return to
+ * userspace to ensure that userspace sees a good register state.
  */
 void fpsimd_restore_current_state(void)
 {
@@ -1244,7 +1245,9 @@ void fpsimd_restore_current_state(void)
 /*
  * Load an updated userland FPSIMD state for 'current' from memory and set the
  * flag that indicates that the FPSIMD register contents are the most recent
- * FPSIMD state of 'current'
+ * FPSIMD state of 'current'. This is used by the signal code to restore the
+ * register state when returning from a signal handler in FPSIMD only cases,
+ * any SVE context will be discarded.
  */
 void fpsimd_update_current_state(struct user_fpsimd_state const *state)
 {
