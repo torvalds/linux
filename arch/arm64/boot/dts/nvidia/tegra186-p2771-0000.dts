@@ -1945,19 +1945,19 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			channel@0 {
+			input@0 {
 				reg = <0x0>;
 				label = "VDD_MUX";
 				shunt-resistor-micro-ohms = <20000>;
 			};
 
-			channel@1 {
+			input@1 {
 				reg = <0x1>;
 				label = "VDD_5V0_IO_SYS";
 				shunt-resistor-micro-ohms = <5000>;
 			};
 
-			channel@2 {
+			input@2 {
 				reg = <0x2>;
 				label = "VDD_3V3_SYS";
 				shunt-resistor-micro-ohms = <10000>;
@@ -1970,19 +1970,19 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			channel@0 {
+			input@0 {
 				reg = <0x0>;
 				label = "VDD_3V3_IO_SLP";
 				shunt-resistor-micro-ohms = <10000>;
 			};
 
-			channel@1 {
+			input@1 {
 				reg = <0x1>;
 				label = "VDD_1V8_IO";
 				shunt-resistor-micro-ohms = <10000>;
 			};
 
-			channel@2 {
+			input@2 {
 				reg = <0x2>;
 				label = "VDD_M2_IN";
 				shunt-resistor-micro-ohms = <10000>;
