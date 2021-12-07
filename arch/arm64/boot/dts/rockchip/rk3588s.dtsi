@@ -1567,7 +1567,8 @@
 					reg = <RK3588_PD_ISP1>;
 					clocks = <&cru HCLK_ISP1>,
 						 <&cru ACLK_ISP1>,
-						 <&cru HCLK_VI_ROOT>;
+						 <&cru HCLK_VI_ROOT>,
+						 <&cru PCLK_VI_ROOT>;
 					pm_qos = <&qos_isp1_mwo>,
 						 <&qos_isp1_mro>;
 				};
@@ -1576,7 +1577,8 @@
 					clocks = <&cru HCLK_FISHEYE0>,
 						 <&cru ACLK_FISHEYE0>,
 						 <&cru HCLK_FISHEYE1>,
-						 <&cru ACLK_FISHEYE1>;
+						 <&cru ACLK_FISHEYE1>,
+						 <&cru PCLK_VI_ROOT>;
 					pm_qos = <&qos_fisheye0>,
 						 <&qos_fisheye1>;
 				};
