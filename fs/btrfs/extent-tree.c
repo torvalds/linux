@@ -3974,6 +3974,19 @@ static void found_extent(struct find_free_extent_ctl *ffe_ctl,
 	}
 }
 
+static bool can_allocate_chunk(struct btrfs_fs_info *fs_info,
+			       struct find_free_extent_ctl *ffe_ctl)
+{
+	switch (ffe_ctl->policy) {
+	case BTRFS_EXTENT_ALLOC_CLUSTERED:
+		return true;
+	case BTRFS_EXTENT_ALLOC_ZONED:
+		return true;
+	default:
+		BUG();
+	}
+}
+
 static int chunk_allocation_failed(struct find_free_extent_ctl *ffe_ctl)
 {
 	switch (ffe_ctl->policy) {
@@ -4060,6 +4073,10 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 		if (ffe_ctl->loop == LOOP_ALLOC_CHUNK) {
 			struct btrfs_trans_handle *trans;
 			int exist = 0;
+
+			/*Check if allocation policy allows to create a new chunk */
+			if (!can_allocate_chunk(fs_info, ffe_ctl))
+				return -ENOSPC;
 
 			trans = current->journal_info;
 			if (trans)
