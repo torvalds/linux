@@ -896,11 +896,9 @@ static void sci_receive_chars(struct uart_port *port)
 				if (status & SCxSR_FER(port)) {
 					flag = TTY_FRAME;
 					port->icount.frame++;
-					dev_notice(port->dev, "frame error\n");
 				} else if (status & SCxSR_PER(port)) {
 					flag = TTY_PARITY;
 					port->icount.parity++;
-					dev_notice(port->dev, "parity error\n");
 				} else
 					flag = TTY_NORMAL;
 
@@ -940,8 +938,6 @@ static int sci_handle_errors(struct uart_port *port)
 		/* overrun error */
 		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
 			copied++;
-
-		dev_notice(port->dev, "overrun error\n");
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -950,8 +946,6 @@ static int sci_handle_errors(struct uart_port *port)
 
 		if (tty_insert_flip_char(tport, 0, TTY_FRAME))
 			copied++;
-
-		dev_notice(port->dev, "frame error\n");
 	}
 
 	if (status & SCxSR_PER(port)) {
@@ -960,8 +954,6 @@ static int sci_handle_errors(struct uart_port *port)
 
 		if (tty_insert_flip_char(tport, 0, TTY_PARITY))
 			copied++;
-
-		dev_notice(port->dev, "parity error\n");
 	}
 
 	if (copied)
@@ -991,8 +983,6 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		tty_flip_buffer_push(tport);
-
-		dev_dbg(port->dev, "overrun error\n");
 		copied++;
 	}
 
@@ -1014,8 +1004,6 @@ static int sci_handle_breaks(struct uart_port *port)
 		/* Notify of BREAK */
 		if (tty_insert_flip_char(tport, 0, TTY_BREAK))
 			copied++;
-
-		dev_dbg(port->dev, "BREAK detected\n");
 	}
 
 	if (copied)
