@@ -272,7 +272,7 @@ static void ipc_imem_dl_skb_process(struct iosm_imem *ipc_imem,
 		if (port_id == IPC_MEM_CTRL_CHL_ID_7)
 			ipc_imem_sys_devlink_notify_rx(ipc_imem->ipc_devlink,
 						       skb);
-		else if (port_id == ipc_imem->trace->chl_id)
+		else if (ipc_is_trace_channel(ipc_imem, port_id))
 			ipc_trace_port_rx(ipc_imem->trace, skb);
 		else
 			wwan_port_rx(ipc_imem->ipc_port[port_id]->iosm_port,
@@ -555,10 +555,8 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 	}
 
 	ipc_imem->trace = ipc_trace_init(ipc_imem);
-	if (!ipc_imem->trace) {
-		dev_err(ipc_imem->dev, "trace channel init failed");
-		return;
-	}
+	if (!ipc_imem->trace)
+		dev_warn(ipc_imem->dev, "trace channel init failed");
 
 	ipc_task_queue_send_task(ipc_imem, ipc_imem_send_mdm_rdy_cb, 0, NULL, 0,
 				 false);
