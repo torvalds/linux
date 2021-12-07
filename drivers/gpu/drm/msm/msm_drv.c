@@ -967,28 +967,17 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 	return ret;
 }
 
-static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
-		struct drm_file *file)
+static int wait_fence(struct msm_gpu_submitqueue *queue, uint32_t fence_id,
+		      ktime_t timeout)
 {
-	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_msm_wait_fence *args = data;
-	ktime_t timeout = to_ktime(args->timeout);
-	struct msm_gpu_submitqueue *queue;
-	struct msm_gpu *gpu = priv->gpu;
 	struct dma_fence *fence;
 	int ret;
 
-	if (args->pad) {
-		DRM_ERROR("invalid pad: %08x\n", args->pad);
+	if (fence_id > queue->last_fence) {
+		DRM_ERROR_RATELIMITED("waiting on invalid fence: %u (of %u)\n",
+				      fence_id, queue->last_fence);
 		return -EINVAL;
 	}
-
-	if (!gpu)
-		return 0;
-
-	queue = msm_submitqueue_get(file->driver_priv, args->queueid);
-	if (!queue)
-		return -ENOENT;
 
 	/*
 	 * Map submitqueue scoped "seqno" (which is actually an idr key)
@@ -1001,7 +990,7 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 	ret = mutex_lock_interruptible(&queue->lock);
 	if (ret)
 		return ret;
-	fence = idr_find(&queue->fence_idr, args->fence);
+	fence = idr_find(&queue->fence_idr, fence_id);
 	if (fence)
 		fence = dma_fence_get_rcu(fence);
 	mutex_unlock(&queue->lock);
@@ -1017,6 +1006,32 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 	}
 
 	dma_fence_put(fence);
+
+	return ret;
+}
+
+static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
+		struct drm_file *file)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_msm_wait_fence *args = data;
+	struct msm_gpu_submitqueue *queue;
+	int ret;
+
+	if (args->pad) {
+		DRM_ERROR("invalid pad: %08x\n", args->pad);
+		return -EINVAL;
+	}
+
+	if (!priv->gpu)
+		return 0;
+
+	queue = msm_submitqueue_get(file->driver_priv, args->queueid);
+	if (!queue)
+		return -ENOENT;
+
+	ret = wait_fence(queue, args->fence, to_ktime(args->timeout));
+
 	msm_submitqueue_put(queue);
 
 	return ret;

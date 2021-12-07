@@ -1256,8 +1256,12 @@ qca8k_setup(struct dsa_switch *ds)
 		/* Set initial MTU for every port.
 		 * We have only have a general MTU setting. So track
 		 * every port and set the max across all port.
+		 * Set per port MTU to 1500 as the MTU change function
+		 * will add the overhead and if its set to 1518 then it
+		 * will apply the overhead again and we will end up with
+		 * MTU of 1536 instead of 1518
 		 */
-		priv->port_mtu[i] = ETH_FRAME_LEN + ETH_FCS_LEN;
+		priv->port_mtu[i] = ETH_DATA_LEN;
 	}
 
 	/* Special GLOBAL_FC_THRESH value are needed for ar8327 switch */
@@ -1433,6 +1437,12 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 
 		qca8k_write(priv, QCA8K_REG_SGMII_CTRL, val);
 
+		/* From original code is reported port instability as SGMII also
+		 * require delay set. Apply advised values here or take them from DT.
+		 */
+		if (state->interface == PHY_INTERFACE_MODE_SGMII)
+			qca8k_mac_config_setup_internal_delay(priv, cpu_port_index, reg);
+
 		/* For qca8327/qca8328/qca8334/qca8338 sgmii is unique and
 		 * falling edge is set writing in the PORT0 PAD reg
 		 */
@@ -1454,12 +1464,6 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 					QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE |
 					QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE,
 					val);
-
-		/* From original code is reported port instability as SGMII also
-		 * require delay set. Apply advised values here or take them from DT.
-		 */
-		if (state->interface == PHY_INTERFACE_MODE_SGMII)
-			qca8k_mac_config_setup_internal_delay(priv, cpu_port_index, reg);
 
 		break;
 	default:

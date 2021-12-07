@@ -1533,7 +1533,7 @@ config SERIAL_LITEUART
 	tristate "LiteUART serial port support"
 	depends on HAS_IOMEM
 	depends on OF || COMPILE_TEST
-	depends on LITEX
+	depends on LITEX || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  This driver is for the FPGA-based LiteUART serial controller from LiteX

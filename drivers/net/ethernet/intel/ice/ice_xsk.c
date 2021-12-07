@@ -383,6 +383,7 @@ bool ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
 	while (i--) {
 		dma = xsk_buff_xdp_get_dma(*xdp);
 		rx_desc->read.pkt_addr = cpu_to_le64(dma);
+		rx_desc->wb.status_error0 = 0;
 
 		rx_desc++;
 		xdp++;

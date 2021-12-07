@@ -95,9 +95,9 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 	}
 
 	if (!(ses->server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
-		cifs_dbg(VFS, "server %s does not support multichannel\n", ses->server->hostname);
 		ses->chan_max = 1;
 		spin_unlock(&ses->chan_lock);
+		cifs_dbg(VFS, "server %s does not support multichannel\n", ses->server->hostname);
 		return 0;
 	}
 	spin_unlock(&ses->chan_lock);
@@ -222,6 +222,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	/* Auth */
 	ctx.domainauto = ses->domainAuto;
 	ctx.domainname = ses->domainName;
+	ctx.server_hostname = ses->server->hostname;
 	ctx.username = ses->user_name;
 	ctx.password = ses->password;
 	ctx.sectype = ses->sectype;
@@ -316,6 +317,19 @@ out:
 		cifs_put_tcp_session(chan->server, 0);
 
 	return rc;
+}
+
+/* Mark all session channels for reconnect */
+void cifs_ses_mark_for_reconnect(struct cifs_ses *ses)
+{
+	int i;
+
+	for (i = 0; i < ses->chan_count; i++) {
+		spin_lock(&GlobalMid_Lock);
+		if (ses->chans[i].server->tcpStatus != CifsExiting)
+			ses->chans[i].server->tcpStatus = CifsNeedReconnect;
+		spin_unlock(&GlobalMid_Lock);
+	}
 }
 
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)

@@ -69,7 +69,7 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 {
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	enum sof_ipc_ctrl_type ctrl_type;
+	u32 ipc_cmd;
 	int ret;
 
 	if (!scontrol->comp_data_dirty)
@@ -79,9 +79,9 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 		return;
 
 	if (scontrol->cmd == SOF_CTRL_CMD_BINARY)
-		ctrl_type = SOF_IPC_COMP_GET_DATA;
+		ipc_cmd = SOF_IPC_COMP_GET_DATA;
 	else
-		ctrl_type = SOF_IPC_COMP_GET_VALUE;
+		ipc_cmd = SOF_IPC_COMP_GET_VALUE;
 
 	/* set the ABI header values */
 	cdata->data->magic = SOF_ABI_MAGIC;
@@ -89,7 +89,7 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 
 	/* refresh the component data from DSP */
 	scontrol->comp_data_dirty = false;
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, ctrl_type,
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, ipc_cmd,
 					    SOF_CTRL_TYPE_VALUE_CHAN_GET,
 					    scontrol->cmd, false);
 	if (ret < 0) {

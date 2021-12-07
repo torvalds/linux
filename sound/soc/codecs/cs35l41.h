@@ -726,7 +726,7 @@
 #define CS35L41_FS2_WINDOW_MASK		0x00FFF800
 #define CS35L41_FS2_WINDOW_SHIFT	12
 
-#define CS35L41_SPI_MAX_FREQ_OTP	4000000
+#define CS35L41_SPI_MAX_FREQ		4000000
 
 #define CS35L41_RX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 #define CS35L41_TX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
@@ -764,8 +764,6 @@ struct cs35l41_private {
 	int irq;
 	/* GPIO for /RST */
 	struct gpio_desc *reset_gpio;
-	void (*otp_setup)(struct cs35l41_private *cs35l41, bool is_pre_setup,
-			  unsigned int *freq);
 };
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,
