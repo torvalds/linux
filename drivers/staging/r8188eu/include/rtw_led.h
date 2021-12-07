@@ -51,15 +51,9 @@ enum LED_STATE_871x {
 	LED_BLINK_ALWAYS_ON = 16,
 };
 
-enum LED_PIN_871x {
-	LED_PIN_LED0 = 1,
-};
-
 struct LED_871x {
 	struct adapter *padapter;
 
-	enum LED_PIN_871x	LedPin;	/* Identify how to implement this
-					 * SW led. */
 	enum LED_STATE_871x	CurrLedState; /*  Current LED state. */
 	enum LED_STATE_871x	BlinkingLedState; /*  Next state for blinking,
 				   * either RTW_LED_ON or RTW_LED_OFF are. */
@@ -110,9 +104,7 @@ void BlinkWorkItemCallback(struct work_struct *work);
 
 void ResetLedStatus(struct LED_871x * pLed);
 
-void InitLed871x(struct adapter *padapter, struct LED_871x *pLed,
-		 enum LED_PIN_871x LedPin);
-
+void InitLed871x(struct adapter *padapter, struct LED_871x *pLed);
 void DeInitLed871x(struct LED_871x *pLed);
 
 /* hal... */

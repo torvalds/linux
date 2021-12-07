@@ -8,9 +8,6 @@
 
 /*  LED object. */
 
-/*  LED_819xUsb routines. */
-/*	Description: */
-/*		Turn on LED according to LedPin specified. */
 void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 {
 	u8	LedCfg;
@@ -23,8 +20,6 @@ void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 	pLed->bLedOn = true;
 }
 
-/*	Description: */
-/*		Turn off LED according to LedPin specified. */
 void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
 {
 	u8	LedCfg;
@@ -54,7 +49,7 @@ void rtl8188eu_InitSwLeds(struct adapter *padapter)
 
 	pledpriv->LedControlHandler = LedControl8188eu;
 
-	InitLed871x(padapter, &pledpriv->SwLed0, LED_PIN_LED0);
+	InitLed871x(padapter, &pledpriv->SwLed0);
 }
 
 /*	Description: */
