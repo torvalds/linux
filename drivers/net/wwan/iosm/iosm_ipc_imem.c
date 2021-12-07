@@ -274,7 +274,7 @@ static void ipc_imem_dl_skb_process(struct iosm_imem *ipc_imem,
 			ipc_imem_sys_devlink_notify_rx(ipc_imem->ipc_devlink,
 						       skb);
 		else if (ipc_is_trace_channel(ipc_imem, port_id))
-			ipc_trace_port_rx(ipc_imem->trace, skb);
+			ipc_trace_port_rx(ipc_imem, skb);
 		else
 			wwan_port_rx(ipc_imem->ipc_port[port_id]->iosm_port,
 				     skb);

@@ -17,11 +17,13 @@
 
 /**
  * ipc_trace_port_rx - Receive trace packet from cp and write to relay buffer
- * @ipc_trace:  Pointer to the ipc trace data-struct
+ * @ipc_imem:   Pointer to iosm_imem structure
  * @skb:        Pointer to struct sk_buff
  */
-void ipc_trace_port_rx(struct iosm_trace *ipc_trace, struct sk_buff *skb)
+void ipc_trace_port_rx(struct iosm_imem *ipc_imem, struct sk_buff *skb)
 {
+	struct iosm_trace *ipc_trace = ipc_imem->trace;
+
 	if (ipc_trace->ipc_rchan)
 		relay_write(ipc_trace->ipc_rchan, skb->data, skb->len);
 
