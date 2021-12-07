@@ -32,7 +32,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 		return AE_OK;
 
 	/* It needs to reference this NHI */
-	if (nhi->pdev->dev.fwnode != args.fwnode)
+	if (dev_fwnode(&nhi->pdev->dev) != args.fwnode)
 		goto out_put;
 
 	/*
