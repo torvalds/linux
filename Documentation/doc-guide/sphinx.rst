@@ -138,6 +138,14 @@ To pass extra options to Sphinx, you can use the ``SPHINXOPTS`` make
 variable. For example, use ``make SPHINXOPTS=-v htmldocs`` to get more verbose
 output.
 
+By default, the build will try to use the Read the Docs sphinx theme:
+
+    https://github.com/readthedocs/sphinx_rtd_theme
+
+If the theme is not available, it will fall-back to the classic one.
+
+The Sphinx theme can be overriden by using the ``DOCS_THEME`` make variable.
+
 To remove the generated documentation, run ``make cleandocs``.
 
 Writing Documentation

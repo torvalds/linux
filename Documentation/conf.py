@@ -208,16 +208,36 @@ highlight_language = 'none'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 
-# The Read the Docs theme is available from
-# - https://github.com/snide/sphinx_rtd_theme
-# - https://pypi.python.org/pypi/sphinx_rtd_theme
-# - python-sphinx-rtd-theme package (on Debian)
-try:
-    import sphinx_rtd_theme
-    html_theme = 'sphinx_rtd_theme'
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-except ImportError:
-    sys.stderr.write('Warning: The Sphinx \'sphinx_rtd_theme\' HTML theme was not found. Make sure you have the theme installed to produce pretty HTML output. Falling back to the default theme.\n')
+# Default theme
+html_theme = 'sphinx_rtd_theme'
+
+if "DOCS_THEME" in os.environ:
+    html_theme = os.environ["DOCS_THEME"]
+
+if html_theme == 'sphinx_rtd_theme':
+    # Read the Docs theme
+    try:
+        import sphinx_rtd_theme
+        html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+        # Add any paths that contain custom static files (such as style sheets) here,
+        # relative to this directory. They are copied after the builtin static files,
+        # so a file named "default.css" will overwrite the builtin "default.css".
+        html_css_files = [
+            'theme_overrides.css',
+        ]
+    except ImportError:
+        html_theme = 'classic'
+
+if major <= 1 and minor < 8:
+    html_context = {
+        'css_files': [],
+    }
+
+    for l in html_css_files:
+        html_context['css_files'].append('_static/' + l)
+
+sys.stderr.write("Using %s theme\n" % html_theme)
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -246,19 +266,7 @@ except ImportError:
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-
 html_static_path = ['sphinx-static']
-
-html_css_files = [
-    'theme_overrides.css',
-]
-
-if major <= 1 and minor < 8:
-    html_context = {
-        'css_files': [
-            '_static/theme_overrides.css',
-        ],
-    }
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
