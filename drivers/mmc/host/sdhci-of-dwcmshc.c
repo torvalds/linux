@@ -46,12 +46,15 @@
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
 
 #define DLL_TXCLK_TAPNUM_DEFAULT	0x10
-#define DLL_TXCLK_TAPNUM_90_DEGREES	0x8
+#define DLL_TXCLK_TAPNUM_90_DEGREES	0xA
 #define DLL_TXCLK_TAPNUM_FROM_SW	BIT(24)
 #define DLL_TXCLK_NO_INVERTER		BIT(29)
 
 #define DLL_STRBIN_TAPNUM_DEFAULT	0x8
 #define DLL_STRBIN_TAPNUM_FROM_SW	BIT(24)
+#define DLL_STRBIN_DELAY_NUM_SEL	BIT(26)
+#define DLL_STRBIN_DELAY_NUM_OFFSET	16
+#define DLL_STRBIN_DELAY_NUM_DEFAULT	0x16
 
 #define DLL_RXCLK_NO_INVERTER		BIT(29)
 
@@ -193,8 +196,11 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	host->mmc->actual_clock = 0;
 
-	if (clock == 0)
+	if (clock == 0) {
+		/* Disable interface clock at initial state. */
+		sdhci_set_clock(host, clock);
 		return;
+	}
 
 	/* Rockchip platform only support 375KHz for identify mode */
 	if (clock <= 400000)
@@ -217,6 +223,15 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_RXCLK);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
 		sdhci_writel(host, 0, DECMSHC_EMMC_DLL_CMDOUT);
+		/*
+		 * Before switching to hs400es mode, the driver will enable
+		 * enhanced strobe first. PHY needs to configure the parameters
+		 * of enhanced strobe first.
+		 */
+		extra = DWCMSHC_EMMC_DLL_DLYENA |
+			DLL_STRBIN_DELAY_NUM_SEL |
+			DLL_STRBIN_DELAY_NUM_DEFAULT << DLL_STRBIN_DELAY_NUM_OFFSET;
+		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
 		return;
 	}
 
@@ -259,7 +274,10 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 		txclk_tapnum = DLL_TXCLK_TAPNUM_90_DEGREES;
 
 		extra = DLL_CMDOUT_SRC_CLK_NEG |
-			DLL_CMDOUT_EN_SRC_CLK_NEG;
+			DLL_CMDOUT_EN_SRC_CLK_NEG |
+			DWCMSHC_EMMC_DLL_DLYENA |
+			DLL_CMDOUT_TAPNUM_90_DEGREES |
+			DLL_CMDOUT_TAPNUM_FROM_SW;
 		sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
 	}
 
