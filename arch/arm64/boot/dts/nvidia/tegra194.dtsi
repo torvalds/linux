@@ -2169,7 +2169,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <1>;
-		num-viewport = <8>;
 		linux,pci-domain = <1>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_1>;
@@ -2202,7 +2201,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE1R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE1W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE1>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE1 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2223,7 +2221,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <1>;
-		num-viewport = <8>;
 		linux,pci-domain = <2>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_2>;
@@ -2256,7 +2253,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE2AR &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE2AW &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE2>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE2 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2277,7 +2273,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <1>;
-		num-viewport = <8>;
 		linux,pci-domain = <3>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_3>;
@@ -2310,7 +2305,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE3R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE3W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE3>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE3 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2331,7 +2325,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <4>;
-		num-viewport = <8>;
 		linux,pci-domain = <4>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_4>;
@@ -2364,7 +2357,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE4R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE4W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE4>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE4 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2385,7 +2377,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <8>;
-		num-viewport = <8>;
 		linux,pci-domain = <0>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX0_CORE_0>;
@@ -2418,7 +2409,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE0R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE0W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE0>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE0 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2439,7 +2429,6 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		num-lanes = <8>;
-		num-viewport = <8>;
 		linux,pci-domain = <5>;
 
 		pinctrl-names = "default";
@@ -2476,7 +2465,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE5R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE5W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE5>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE5 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2516,7 +2504,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE4R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE4W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE4>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE4 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2556,7 +2543,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE0R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE0W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE0>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE0 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
@@ -2599,7 +2585,6 @@
 		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE5R &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_PCIE5W &emc>;
 		interconnect-names = "dma-mem", "write";
-		iommus = <&smmu TEGRA194_SID_PCIE5>;
 		iommu-map = <0x0 &smmu TEGRA194_SID_PCIE5 0x1000>;
 		iommu-map-mask = <0x0>;
 		dma-coherent;
