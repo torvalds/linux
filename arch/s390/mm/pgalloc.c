@@ -409,9 +409,9 @@ static int base_segment_walk(unsigned long origin, unsigned long addr,
 			table = base_pgt_alloc();
 			if (!table)
 				return -ENOMEM;
-			*ste = table | _SEGMENT_ENTRY;
+			*ste = __pa(table) | _SEGMENT_ENTRY;
 		}
-		table = *ste & _SEGMENT_ENTRY_ORIGIN;
+		table = (unsigned long)__va(*ste & _SEGMENT_ENTRY_ORIGIN);
 		rc = base_page_walk(table, addr, next, alloc);
 		if (rc)
 			return rc;
@@ -438,9 +438,9 @@ static int base_region3_walk(unsigned long origin, unsigned long addr,
 			table = base_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			if (!table)
 				return -ENOMEM;
-			*rtte = table | _REGION3_ENTRY;
+			*rtte = __pa(table) | _REGION3_ENTRY;
 		}
-		table = *rtte & _REGION_ENTRY_ORIGIN;
+		table = (unsigned long)__va(*rtte & _REGION_ENTRY_ORIGIN);
 		rc = base_segment_walk(table, addr, next, alloc);
 		if (rc)
 			return rc;
@@ -466,9 +466,9 @@ static int base_region2_walk(unsigned long origin, unsigned long addr,
 			table = base_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!table)
 				return -ENOMEM;
-			*rste = table | _REGION2_ENTRY;
+			*rste = __pa(table) | _REGION2_ENTRY;
 		}
-		table = *rste & _REGION_ENTRY_ORIGIN;
+		table = (unsigned long)__va(*rste & _REGION_ENTRY_ORIGIN);
 		rc = base_region3_walk(table, addr, next, alloc);
 		if (rc)
 			return rc;
@@ -494,9 +494,9 @@ static int base_region1_walk(unsigned long origin, unsigned long addr,
 			table = base_crst_alloc(_REGION2_ENTRY_EMPTY);
 			if (!table)
 				return -ENOMEM;
-			*rfte = table | _REGION1_ENTRY;
+			*rfte = __pa(table) | _REGION1_ENTRY;
 		}
-		table = *rfte & _REGION_ENTRY_ORIGIN;
+		table = (unsigned long)__va(*rfte & _REGION_ENTRY_ORIGIN);
 		rc = base_region2_walk(table, addr, next, alloc);
 		if (rc)
 			return rc;
@@ -515,7 +515,7 @@ static int base_region1_walk(unsigned long origin, unsigned long addr,
  */
 void base_asce_free(unsigned long asce)
 {
-	unsigned long table = asce & _ASCE_ORIGIN;
+	unsigned long table = (unsigned long)__va(asce & _ASCE_ORIGIN);
 
 	if (!asce)
 		return;
@@ -578,25 +578,25 @@ unsigned long base_asce_alloc(unsigned long addr, unsigned long num_pages)
 		if (!table)
 			return 0;
 		rc = base_segment_walk(table, addr, end, 1);
-		asce = table | _ASCE_TYPE_SEGMENT | _ASCE_TABLE_LENGTH;
+		asce = __pa(table) | _ASCE_TYPE_SEGMENT | _ASCE_TABLE_LENGTH;
 	} else if (end <= _REGION2_SIZE) {
 		table = base_crst_alloc(_REGION3_ENTRY_EMPTY);
 		if (!table)
 			return 0;
 		rc = base_region3_walk(table, addr, end, 1);
-		asce = table | _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
+		asce = __pa(table) | _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 	} else if (end <= _REGION1_SIZE) {
 		table = base_crst_alloc(_REGION2_ENTRY_EMPTY);
 		if (!table)
 			return 0;
 		rc = base_region2_walk(table, addr, end, 1);
-		asce = table | _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
+		asce = __pa(table) | _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
 	} else {
 		table = base_crst_alloc(_REGION1_ENTRY_EMPTY);
 		if (!table)
 			return 0;
 		rc = base_region1_walk(table, addr, end, 1);
-		asce = table | _ASCE_TYPE_REGION1 | _ASCE_TABLE_LENGTH;
+		asce = __pa(table) | _ASCE_TYPE_REGION1 | _ASCE_TABLE_LENGTH;
 	}
 	if (rc) {
 		base_asce_free(asce);
