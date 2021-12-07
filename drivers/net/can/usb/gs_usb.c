@@ -993,6 +993,29 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 		dev->can.do_set_data_bittiming = gs_usb_set_data_bittiming;
 	}
 
+	/* The CANtact Pro from LinkLayer Labs is based on the
+	 * LPC54616 µC, which is affected by the NXP LPC USB transfer
+	 * erratum. However, the current firmware (version 2) doesn't
+	 * set the GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX bit. Set the
+	 * feature GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX to workaround
+	 * this issue.
+	 *
+	 * For the GS_USB_BREQ_DATA_BITTIMING USB control message the
+	 * CANtact Pro firmware uses a request value, which is already
+	 * used by the candleLight firmware for a different purpose
+	 * (GS_USB_BREQ_GET_USER_ID). Set the feature
+	 * GS_CAN_FEATURE_QUIRK_BREQ_CANTACT_PRO to workaround this
+	 * issue.
+	 */
+	if (dev->udev->descriptor.idVendor == cpu_to_le16(USB_GSUSB_1_VENDOR_ID) &&
+	    dev->udev->descriptor.idProduct == cpu_to_le16(USB_GSUSB_1_PRODUCT_ID) &&
+	    dev->udev->manufacturer && dev->udev->product &&
+	    !strcmp(dev->udev->manufacturer, "LinkLayer Labs") &&
+	    !strcmp(dev->udev->product, "CANtact Pro") &&
+	    (le32_to_cpu(dconf->sw_version) <= 2))
+		dev->feature |= GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX |
+			GS_CAN_FEATURE_QUIRK_BREQ_CANTACT_PRO;
+
 	if (le32_to_cpu(dconf->sw_version) > 1)
 		if (feature & GS_CAN_FEATURE_IDENTIFY)
 			netdev->ethtool_ops = &gs_usb_ethtool_ops;
