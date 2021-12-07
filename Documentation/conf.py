@@ -215,7 +215,7 @@ html_css_files = []
 if "DOCS_THEME" in os.environ:
     html_theme = os.environ["DOCS_THEME"]
 
-if html_theme == 'sphinx_rtd_theme':
+if html_theme == 'sphinx_rtd_theme' or html_theme == 'sphinx_rtd_dark_mode':
     # Read the Docs theme
     try:
         import sphinx_rtd_theme
@@ -227,6 +227,19 @@ if html_theme == 'sphinx_rtd_theme':
         html_css_files = [
             'theme_overrides.css',
         ]
+
+        # Read the Docs dark mode override theme
+        if html_theme == 'sphinx_rtd_dark_mode':
+            try:
+                import sphinx_rtd_dark_mode
+                extensions.append('sphinx_rtd_dark_mode')
+            except ImportError:
+                html_theme == 'sphinx_rtd_theme'
+
+        if html_theme == 'sphinx_rtd_theme':
+                # Add color-specific RTD normal mode
+                html_css_files.append('theme_rtd_colors.css')
+
     except ImportError:
         html_theme = 'classic'
 
