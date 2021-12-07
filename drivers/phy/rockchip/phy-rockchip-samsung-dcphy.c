@@ -1662,10 +1662,7 @@ static int samsung_mipi_dcphy_power_on(struct phy *phy)
 	struct samsung_mipi_dcphy *samsung = phy_get_drvdata(phy);
 	enum phy_mode mode = phy_get_mode(phy);
 
-	clk_prepare_enable(samsung->pclk);
-	clk_prepare_enable(samsung->ref_clk);
 	pm_runtime_get_sync(samsung->dev);
-
 
 	switch (mode) {
 	case PHY_MODE_MIPI_DPHY:
@@ -1695,8 +1692,6 @@ static int samsung_mipi_dcphy_power_off(struct phy *phy)
 	samsung_mipi_dcphy_bias_block_disable(samsung);
 
 	pm_runtime_put(samsung->dev);
-	clk_disable_unprepare(samsung->ref_clk);
-	clk_disable_unprepare(samsung->pclk);
 
 	return 0;
 }
@@ -1810,11 +1805,31 @@ static int samsung_mipi_dcphy_configure(struct phy *phy,
 
 	return 0;
 }
+
+static int samsung_mipi_dcphy_init(struct phy *phy)
+{
+	struct samsung_mipi_dcphy *samsung = phy_get_drvdata(phy);
+
+	pm_runtime_get_sync(samsung->dev);
+
+	return 0;
+}
+
+static int samsung_mipi_dcphy_exit(struct phy *phy)
+{
+	struct samsung_mipi_dcphy *samsung = phy_get_drvdata(phy);
+
+	pm_runtime_put(samsung->dev);
+
+	return 0;
+}
 static const struct phy_ops samsung_mipi_dcphy_ops = {
 	.configure = samsung_mipi_dcphy_configure,
 	.set_mode = samsung_mipi_dcphy_set_mode,
 	.power_on  = samsung_mipi_dcphy_power_on,
 	.power_off = samsung_mipi_dcphy_power_off,
+	.init = samsung_mipi_dcphy_init,
+	.exit = samsung_mipi_dcphy_exit,
 	.owner	   = THIS_MODULE,
 };
 
@@ -1921,6 +1936,31 @@ static int samsung_mipi_dcphy_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static __maybe_unused int samsung_mipi_dcphy_runtime_suspend(struct device *dev)
+{
+	struct samsung_mipi_dcphy *samsung = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(samsung->pclk);
+	clk_disable_unprepare(samsung->ref_clk);
+
+	return 0;
+}
+
+static __maybe_unused int samsung_mipi_dcphy_runtime_resume(struct device *dev)
+{
+	struct samsung_mipi_dcphy *samsung = dev_get_drvdata(dev);
+
+	clk_prepare_enable(samsung->pclk);
+	clk_prepare_enable(samsung->ref_clk);
+
+	return 0;
+}
+
+static const struct dev_pm_ops samsung_mipi_dcphy_pm_ops = {
+	SET_RUNTIME_PM_OPS(samsung_mipi_dcphy_runtime_suspend,
+			   samsung_mipi_dcphy_runtime_resume, NULL)
+};
+
 static const struct of_device_id samsung_mipi_dcphy_of_match[] = {
 	{ .compatible = "rockchip,rk3588-mipi-dcphy", },
 	{}
@@ -1931,6 +1971,7 @@ static struct platform_driver samsung_mipi_dcphy_driver = {
 	.driver = {
 		.name = "samsung-mipi-dcphy",
 		.of_match_table	= of_match_ptr(samsung_mipi_dcphy_of_match),
+		.pm = &samsung_mipi_dcphy_pm_ops,
 	},
 	.probe	= samsung_mipi_dcphy_probe,
 	.remove = samsung_mipi_dcphy_remove,
