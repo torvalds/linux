@@ -36,6 +36,7 @@
 #include "../debug.h"
 #include "../dso.h"
 #include "../callchain.h"
+#include "../env.h"
 #include "../evsel.h"
 #include "../event.h"
 #include "../thread.h"
@@ -687,7 +688,7 @@ static void set_sample_datasrc_in_dict(PyObject *dict,
 			_PyUnicode_FromString(decode));
 }
 
-static void regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
+static void regs_map(struct regs_dump *regs, uint64_t mask, const char *arch, char *bf, int size)
 {
 	unsigned int i = 0, r;
 	int printed = 0;
@@ -702,7 +703,7 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, char *bf, int size)
 
 		printed += scnprintf(bf + printed, size - printed,
 				     "%5s:0x%" PRIx64 " ",
-				     perf_reg_name(r), val);
+				     perf_reg_name(r, arch), val);
 	}
 }
 
@@ -711,6 +712,7 @@ static void set_regs_in_dict(PyObject *dict,
 			     struct evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
+	const char *arch = perf_env__arch(evsel__env(evsel));
 
 	/*
 	 * Here value 28 is a constant size which can be used to print
@@ -722,12 +724,12 @@ static void set_regs_in_dict(PyObject *dict,
 	int size = __sw_hweight64(attr->sample_regs_intr) * 28;
 	char bf[size];
 
-	regs_map(&sample->intr_regs, attr->sample_regs_intr, bf, sizeof(bf));
+	regs_map(&sample->intr_regs, attr->sample_regs_intr, arch, bf, sizeof(bf));
 
 	pydict_set_item_string_decref(dict, "iregs",
 			_PyUnicode_FromString(bf));
 
-	regs_map(&sample->user_regs, attr->sample_regs_user, bf, sizeof(bf));
+	regs_map(&sample->user_regs, attr->sample_regs_user, arch, bf, sizeof(bf));
 
 	pydict_set_item_string_decref(dict, "uregs",
 			_PyUnicode_FromString(bf));

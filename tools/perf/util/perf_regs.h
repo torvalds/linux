@@ -31,14 +31,8 @@ extern const struct sample_reg sample_reg_masks[];
 
 #define DWARF_MINIMAL_REGS ((1ULL << PERF_REG_IP) | (1ULL << PERF_REG_SP))
 
+const char *perf_reg_name(int id, const char *arch);
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id);
-
-static inline const char *perf_reg_name(int id)
-{
-	const char *reg_name = __perf_reg_name(id);
-
-	return reg_name ?: "unknown";
-}
 
 #else
 #define PERF_REGS_MASK	0
@@ -46,7 +40,7 @@ static inline const char *perf_reg_name(int id)
 
 #define DWARF_MINIMAL_REGS PERF_REGS_MASK
 
-static inline const char *perf_reg_name(int id __maybe_unused)
+static inline const char *perf_reg_name(int id __maybe_unused, const char *arch __maybe_unused)
 {
 	return "unknown";
 }
