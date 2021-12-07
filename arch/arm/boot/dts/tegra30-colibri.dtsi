@@ -1044,7 +1044,7 @@
 };
 
 &gpio {
-	lan-reset-n {
+	lan-reset-n-hog {
 		gpio-hog;
 		gpios = <TEGRA_GPIO(DD, 0) GPIO_ACTIVE_HIGH>;
 		output-high;
