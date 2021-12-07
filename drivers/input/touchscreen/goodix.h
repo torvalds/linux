@@ -51,6 +51,7 @@ struct goodix_ts_data {
 	struct gpio_desc *gpiod_rst;
 	int gpio_count;
 	int gpio_int_idx;
+	enum gpiod_flags gpiod_rst_flags;
 	char id[GOODIX_ID_MAX_LEN + 1];
 	u16 version;
 	const char *cfg_name;
