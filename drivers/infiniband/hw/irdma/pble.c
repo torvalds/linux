@@ -283,7 +283,6 @@ add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 		  "PBLE: next_fpm_addr = %llx chunk_size[%llu] = 0x%llx\n",
 		  pble_rsrc->next_fpm_addr, chunk->size, chunk->size);
 	pble_rsrc->unallocated_pble -= (u32)(chunk->size >> 3);
-	list_add(&chunk->list, &pble_rsrc->pinfo.clist);
 	sd_reg_val = (sd_entry_type == IRDMA_SD_TYPE_PAGED) ?
 			     sd_entry->u.pd_table.pd_page_addr.pa :
 			     sd_entry->u.bp.addr.pa;
@@ -295,6 +294,7 @@ add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 			goto error;
 	}
 
+	list_add(&chunk->list, &pble_rsrc->pinfo.clist);
 	sd_entry->valid = true;
 	return 0;
 
