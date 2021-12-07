@@ -6560,6 +6560,7 @@ static struct bpf_cand_cache *populate_cand_cache(struct bpf_cand_cache *cands,
 	return new_cands;
 }
 
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 static void __purge_cand_cache(struct btf *btf, struct bpf_cand_cache **cache,
 			       int cache_size)
 {
@@ -6598,6 +6599,7 @@ static void purge_cand_cache(struct btf *btf)
 	__purge_cand_cache(btf, module_cand_cache, MODULE_CAND_CACHE_SIZE);
 	mutex_unlock(&cand_cache_mutex);
 }
+#endif
 
 static struct bpf_cand_cache *
 bpf_core_add_cands(struct bpf_cand_cache *cands, const struct btf *targ_btf,
