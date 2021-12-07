@@ -323,7 +323,7 @@ static int indx_mark_used(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (err)
 		return err;
 
-	__set_bit(bit - bbuf.bit, bbuf.buf);
+	__set_bit_le(bit - bbuf.bit, bbuf.buf);
 
 	bmp_buf_put(&bbuf, true);
 
@@ -343,7 +343,7 @@ static int indx_mark_free(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (err)
 		return err;
 
-	__clear_bit(bit - bbuf.bit, bbuf.buf);
+	__clear_bit_le(bit - bbuf.bit, bbuf.buf);
 
 	bmp_buf_put(&bbuf, true);
 
@@ -457,7 +457,7 @@ next_run:
 
 static bool scan_for_free(const ulong *buf, u32 bit, u32 bits, size_t *ret)
 {
-	size_t pos = find_next_zero_bit(buf, bits, bit);
+	size_t pos = find_next_zero_bit_le(buf, bits, bit);
 
 	if (pos >= bits)
 		return false;
@@ -489,7 +489,7 @@ static int indx_find_free(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	if (!b->non_res) {
 		u32 nbits = 8 * le32_to_cpu(b->res.data_size);
-		size_t pos = find_next_zero_bit(resident_data(b), nbits, 0);
+		size_t pos = find_next_zero_bit_le(resident_data(b), nbits, 0);
 
 		if (pos < nbits)
 			*bit = pos;
@@ -505,7 +505,7 @@ static int indx_find_free(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 static bool scan_for_used(const ulong *buf, u32 bit, u32 bits, size_t *ret)
 {
-	size_t pos = find_next_bit(buf, bits, bit);
+	size_t pos = find_next_bit_le(buf, bits, bit);
 
 	if (pos >= bits)
 		return false;
@@ -536,7 +536,7 @@ int indx_used_bit(struct ntfs_index *indx, struct ntfs_inode *ni, size_t *bit)
 
 	if (!b->non_res) {
 		u32 nbits = le32_to_cpu(b->res.data_size) * 8;
-		size_t pos = find_next_bit(resident_data(b), nbits, from);
+		size_t pos = find_next_bit_le(resident_data(b), nbits, from);
 
 		if (pos < nbits)
 			*bit = pos;
@@ -1953,7 +1953,7 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 		if (bit >= nbits)
 			return 0;
 
-		pos = find_next_bit(bm, nbits, bit);
+		pos = find_next_bit_le(bm, nbits, bit);
 		if (pos < nbits)
 			return 0;
 	} else {

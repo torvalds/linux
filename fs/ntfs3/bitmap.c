@@ -66,7 +66,7 @@ static size_t wnd_scan(const ulong *buf, size_t wbit, u32 wpos, u32 wend,
 	while (wpos < wend) {
 		size_t free_len;
 		u32 free_bits, end;
-		u32 used = find_next_zero_bit(buf, wend, wpos);
+		u32 used = find_next_zero_bit_le(buf, wend, wpos);
 
 		if (used >= wend) {
 			if (*b_len < *prev_tail) {
@@ -92,7 +92,7 @@ static size_t wnd_scan(const ulong *buf, size_t wbit, u32 wpos, u32 wend,
 		 * Now we have a fragment [wpos, wend) staring with 0.
 		 */
 		end = wpos + to_alloc - *prev_tail;
-		free_bits = find_next_bit(buf, min(end, wend), wpos);
+		free_bits = find_next_bit_le(buf, min(end, wend), wpos);
 
 		free_len = *prev_tail + free_bits - wpos;
 
@@ -574,7 +574,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 			wbits = wnd->nbits - wbit;
 
 		do {
-			used = find_next_zero_bit(buf, wbits, wpos);
+			used = find_next_zero_bit_le(buf, wbits, wpos);
 
 			if (used > wpos && prev_tail) {
 				wnd_add_free_ext(wnd, wbit + wpos - prev_tail,
@@ -590,7 +590,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 				break;
 			}
 
-			frb = find_next_bit(buf, wbits, wpos);
+			frb = find_next_bit_le(buf, wbits, wpos);
 			if (frb >= wbits) {
 				/* Keep last free block. */
 				prev_tail += frb - wpos;
@@ -1449,7 +1449,7 @@ int ntfs_trim_fs(struct ntfs_sb_info *sbi, struct fstrim_range *range)
 		buf = (ulong *)bh->b_data;
 
 		for (; wbit < wbits; wbit++) {
-			if (!test_bit(wbit, buf)) {
+			if (!test_bit_le(wbit, buf)) {
 				if (!len)
 					lcn = lcn_wnd + wbit;
 				len += 1;
