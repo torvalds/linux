@@ -57,7 +57,7 @@ static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
 /*
  * Unconditionally remove exceptional entries. Usually called from truncate
  * path. Note that the folio_batch may be altered by this function by removing
- * exceptional entries similar to what pagevec_remove_exceptionals does.
+ * exceptional entries similar to what folio_batch_remove_exceptionals() does.
  */
 static void truncate_folio_batch_exceptionals(struct address_space *mapping,
 				struct folio_batch *fbatch, pgoff_t *indices)
