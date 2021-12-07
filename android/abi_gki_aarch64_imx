@@ -20,6 +20,9 @@
   bcmp
   bdput
   __bitmap_and
+  blocking_notifier_call_chain
+  blocking_notifier_chain_register
+  blocking_notifier_chain_unregister
   bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
@@ -103,6 +106,7 @@
   debugfs_create_dir
   debugfs_create_file
   debugfs_remove
+  default_llseek
   deferred_free
   delayed_work_timer_fn
   del_timer
@@ -161,6 +165,7 @@
   devm_phy_create
   devm_phy_get
   devm_pinctrl_get
+  devm_pinctrl_put
   devm_platform_ioremap_resource
   __devm_regmap_init
   __devm_regmap_init_i2c
@@ -202,6 +207,12 @@
   dma_buf_map_attachment
   dma_buf_put
   dma_buf_unmap_attachment
+  dma_fence_context_alloc
+  dma_fence_default_wait
+  dma_fence_init
+  dma_fence_release
+  dma_fence_signal_locked
+  dma_fence_wait_timeout
   dma_free_attrs
   dma_heap_add
   dma_heap_get_dev
@@ -369,6 +380,7 @@
   event_triggers_call
   extcon_set_state_sync
   failure_tracking
+  fd_install
   find_next_bit
   finish_wait
   flush_work
@@ -399,6 +411,7 @@
   get_cpu_device
   get_device
   get_random_bytes
+  get_unused_fd_flags
   gic_nonsecure_priorities
   gpiochip_generic_free
   gpiochip_generic_request
@@ -431,6 +444,7 @@
   i2c_recover_bus
   i2c_register_driver
   i2c_smbus_read_byte_data
+  i2c_smbus_write_byte_data
   i2c_transfer
   i2c_transfer_buffer_flags
   i2c_unregister_device
@@ -511,6 +525,7 @@
   __list_add_valid
   __list_del_entry_valid
   __local_bh_enable_ip
+  __lock_page
   __log_post_read_mmio
   __log_read_mmio
   __log_write_mmio
@@ -532,6 +547,7 @@
   __memcpy_fromio
   memdup_user
   memmove
+  memparse
   memset
   __memset_io
   memstart_addr
@@ -616,6 +632,7 @@
   of_get_next_child
   of_get_parent
   of_get_property
+  of_get_regulator_init_data
   of_graph_get_next_endpoint
   of_graph_get_port_by_id
   of_graph_get_remote_node
@@ -883,6 +900,7 @@
   __stack_chk_fail
   __stack_chk_guard
   strcasecmp
+  strcat
   strcmp
   strcpy
   strlcpy
@@ -891,11 +909,14 @@
   strncpy
   strrchr
   strscpy
+  strsep
   strstr
   __sw_hweight16
   __sw_hweight32
   __sw_hweight64
   __sw_hweight8
+  sync_file_create
+  sync_file_get_fence
   synchronize_irq
   synchronize_net
   synchronize_rcu
@@ -948,6 +969,7 @@
   uart_update_timeout
   uart_write_wakeup
   __udelay
+  unlock_page
   __unregister_chrdev
   unregister_chrdev_region
   unregister_inet6addr_notifier
@@ -1061,6 +1083,7 @@
   vmap
   vsnprintf
   vunmap
+  wait_for_completion
   wait_for_completion_interruptible
   wait_for_completion_interruptible_timeout
   wait_for_completion_timeout
@@ -1252,9 +1275,6 @@
   mmc_cqe_request_done
 
 # required by device_cooling.ko
-  blocking_notifier_call_chain
-  blocking_notifier_chain_register
-  blocking_notifier_chain_unregister
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
 
@@ -1285,6 +1305,29 @@
 # required by dw_hdmi-imx.ko
   devm_phy_optional_get
   drm_of_encoder_active_endpoint
+
+# required by fb.ko
+  __arch_copy_in_user
+  compat_alloc_user_space
+  console_lock
+  console_unlock
+  fb_mode_option
+  file_update_time
+  file_write_and_wait_range
+  ignore_console_lock_warning
+  int_sqrt
+  is_console_locked
+  __memcpy_toio
+  of_get_videomode
+  page_mkclean
+  proc_create_seq_private
+  simple_strtol
+  vm_get_page_prot
+  vm_iomap_memory
+
+# required by fb_fence.ko
+  put_unused_fd
+  system_unbound_wq
 
 # required by fec.ko
   ethtool_op_get_ts_info
@@ -1332,6 +1375,12 @@
   tso_count_descs
   tso_start
 
+# required by fp9931-core.ko
+  devm_mfd_add_devices
+
+# required by fp9931-regulator.ko
+  gpiod_get_raw_value
+
 # required by fsl-edma-v3.ko
   dma_get_slave_channel
   of_dma_controller_free
@@ -1358,13 +1407,7 @@
   dev_pm_opp_add
   dev_pm_opp_remove
   dma_fence_array_ops
-  dma_fence_context_alloc
-  dma_fence_default_wait
-  dma_fence_init
-  dma_fence_release
   dma_fence_signal
-  dma_fence_signal_locked
-  dma_fence_wait_timeout
   down
   driver_create_file
   driver_remove_file
@@ -1372,10 +1415,8 @@
   drm_gem_object_lookup
   drm_gem_object_release
   drm_gem_private_object_init
-  fd_install
   find_vma
   find_vpid
-  get_unused_fd_flags
   get_user_pages
   hrtimer_resolution
   iommu_attach_device
@@ -1392,16 +1433,11 @@
   platform_bus_type
   reset_control_reset
   schedule_hrtimeout
-  sync_file_create
-  sync_file_get_fence
   __task_pid_nr_ns
   _totalram_pages
   vm_mmap
   vm_munmap
   vm_zone_stat
-
-# required by gmsl-max9286.ko
-  i2c_smbus_write_byte_data
 
 # required by goodix.ko
   gpiod_direction_input
@@ -1409,7 +1445,6 @@
   input_mt_sync_frame
   touchscreen_parse_properties
   touchscreen_report_pos
-  wait_for_completion
 
 # required by gpio-imx-rpmsg.ko
   __irq_alloc_descs
@@ -1444,7 +1479,6 @@
 # required by gpio-regulator.ko
   devm_kstrdup
   gpiod_count
-  of_get_regulator_init_data
 
 # required by gpio-reset.ko
   reset_controller_register
@@ -1762,11 +1796,9 @@
   sdio_writeb
   sdio_writesb
   skb_realloc_headroom
-  strcat
   strchr
   strim
   strncasecmp
-  strsep
   vprintk
   wakeup_source_add
   wakeup_source_remove
@@ -1831,6 +1863,9 @@
   v4l2_m2m_dqbuf
   v4l2_m2m_qbuf
 
+# required by mxc_epdc_v2_fb.ko
+  fb_get_options
+
 # required by mxs-dma.ko
   dmaenginem_async_device_register
   tasklet_setup
@@ -1867,9 +1902,6 @@
   v4l2_ctrl_subdev_subscribe_event
   v4l2_event_subdev_unsubscribe
   __v4l2_find_nearest_size
-
-# required by ov5640_camera_mipi_v2.ko
-  devm_pinctrl_put
 
 # required by panel-raydium-rm67191.ko
   devm_backlight_device_register
@@ -2125,7 +2157,6 @@
   snd_interval_refine
 
 # required by snd-soc-imx-audmux.ko
-  default_llseek
   simple_open
   simple_read_from_buffer
 
@@ -2339,7 +2370,6 @@
   fsync_bdev
   __get_free_pages
   __init_rwsem
-  memparse
   memset64
   __num_online_cpus
   page_endio
@@ -2362,7 +2392,6 @@
   kern_mount
   kern_unmount
   kill_anon_super
-  __lock_page
   page_mapping
   _raw_read_lock
   _raw_read_unlock
@@ -2370,5 +2399,4 @@
   _raw_write_unlock
   register_shrinker
   __SetPageMovable
-  unlock_page
   unregister_shrinker
