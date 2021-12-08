@@ -1824,7 +1824,6 @@ struct hl_debug_params {
  * @dev_node: node in the device list of file private data
  * @refcount: number of related contexts.
  * @restore_phase_mutex: lock for context switch and restore phase.
- * @is_control: true for control device, false otherwise
  */
 struct hl_fpriv {
 	struct hl_device	*hdev;
@@ -1837,7 +1836,6 @@ struct hl_fpriv {
 	struct list_head	dev_node;
 	struct kref		refcount;
 	struct mutex		restore_phase_mutex;
-	u8			is_control;
 };
 
 
@@ -2502,7 +2500,10 @@ struct last_error_session_info {
  * @internal_cb_va_base: internal cb pool mmu virtual address base
  * @fpriv_list: list of file private data structures. Each structure is created
  *              when a user opens the device
+ * @fpriv_ctrl_list: list of file private data structures. Each structure is created
+ *              when a user opens the control device
  * @fpriv_list_lock: protects the fpriv_list
+ * @fpriv_ctrl_list_lock: protects the fpriv_ctrl_list
  * @aggregated_cs_counters: aggregated cs counters among all contexts
  * @mmu_priv: device-specific MMU data.
  * @mmu_func: device-related MMU functions.
@@ -2655,7 +2656,9 @@ struct hl_device {
 	u64				internal_cb_va_base;
 
 	struct list_head		fpriv_list;
+	struct list_head		fpriv_ctrl_list;
 	struct mutex			fpriv_list_lock;
+	struct mutex			fpriv_ctrl_list_lock;
 
 	struct hl_cs_counters_atomic	aggregated_cs_counters;
 

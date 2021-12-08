@@ -220,12 +220,11 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 	hpriv->filp = filp;
-	hpriv->is_control = true;
 	nonseekable_open(inode, filp);
 
 	hpriv->taskpid = find_get_pid(current->pid);
 
-	mutex_lock(&hdev->fpriv_list_lock);
+	mutex_lock(&hdev->fpriv_ctrl_list_lock);
 
 	if (!hl_device_operational(hdev, NULL)) {
 		dev_err_ratelimited(hdev->dev_ctrl,
@@ -235,13 +234,13 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
-	list_add(&hpriv->dev_node, &hdev->fpriv_list);
-	mutex_unlock(&hdev->fpriv_list_lock);
+	list_add(&hpriv->dev_node, &hdev->fpriv_ctrl_list);
+	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 
 	return 0;
 
 out_err:
-	mutex_unlock(&hdev->fpriv_list_lock);
+	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 	filp->private_data = NULL;
 	put_pid(hpriv->taskpid);
 

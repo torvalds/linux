@@ -283,11 +283,9 @@ struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev)
 		/* There can only be a single user which has opened the compute device, so exit
 		 * immediately once we find him
 		 */
-		if (!hpriv->is_control) {
-			ctx = hpriv->ctx;
-			hl_ctx_get(hdev, ctx);
-			break;
-		}
+		ctx = hpriv->ctx;
+		hl_ctx_get(hdev, ctx);
+		break;
 	}
 
 	mutex_unlock(&hdev->fpriv_list_lock);
