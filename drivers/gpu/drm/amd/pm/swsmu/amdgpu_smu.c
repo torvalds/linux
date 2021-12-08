@@ -2341,7 +2341,7 @@ static int smu_read_sensor(void *handle,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
-		ret = smu_feature_get_enabled_mask(smu, (uint32_t *)data, 2);
+		ret = smu_feature_get_enabled_mask(smu, (uint64_t *)data);
 		*size = 8;
 		break;
 	case AMDGPU_PP_SENSOR_UVD_POWER:

@@ -989,10 +989,9 @@ struct pptable_funcs {
 	/**
 	 * @get_enabled_mask: Get a mask of features that are currently enabled
 	 *                    on the SMU.
-	 * &feature_mask: Array representing enabled feature mask.
-	 * &num: Elements in &feature_mask.
+	 * &feature_mask: Enabled feature mask.
 	 */
-	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+	int (*get_enabled_mask)(struct smu_context *smu, uint64_t *feature_mask);
 
 	/**
 	 * @feature_is_enabled: Test if a feature is enabled.

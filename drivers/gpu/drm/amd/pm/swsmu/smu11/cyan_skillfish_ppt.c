@@ -350,19 +350,15 @@ static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-	uint32_t feature_mask[2];
 	uint64_t feature_enabled;
 
 	/* we need to re-init after suspend so return false */
 	if (adev->in_suspend)
 		return false;
 
-	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
-
-	feature_enabled = (uint64_t)feature_mask[0] |
-				((uint64_t)feature_mask[1] << 32);
 
 	/*
 	 * cyan_skillfish specific, query default sclk inseted of hard code.

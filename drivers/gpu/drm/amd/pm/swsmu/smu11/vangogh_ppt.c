@@ -500,20 +500,16 @@ static bool vangogh_is_dpm_running(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-	uint32_t feature_mask[2];
 	uint64_t feature_enabled;
 
 	/* we need to re-init after suspend so return false */
 	if (adev->in_suspend)
 		return false;
 
-	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 
 	if (ret)
 		return false;
-
-	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
-				((uint64_t)feature_mask[1] << 32));
 
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
@@ -1952,7 +1948,7 @@ static int vangogh_system_features_control(struct smu_context *smu, bool en)
 {
 	struct amdgpu_device *adev = smu->adev;
 	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_mask[2];
+	uint64_t feature_mask;
 	int ret = 0;
 
 	if (adev->pm.fw_version >= 0x43f1700 && !en)
@@ -1965,7 +1961,7 @@ static int vangogh_system_features_control(struct smu_context *smu, bool en)
 	if (!en)
 		return ret;
 
-	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_cmn_get_enabled_mask(smu, &feature_mask);
 	if (ret)
 		return ret;
 

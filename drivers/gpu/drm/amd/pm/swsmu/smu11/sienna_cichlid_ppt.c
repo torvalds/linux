@@ -1297,14 +1297,11 @@ static int sienna_cichlid_display_config_changed(struct smu_context *smu)
 static bool sienna_cichlid_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint32_t feature_mask[2];
 	uint64_t feature_enabled;
 
-	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
-
-	feature_enabled = (uint64_t)feature_mask[1] << 32 | feature_mask[0];
 
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }

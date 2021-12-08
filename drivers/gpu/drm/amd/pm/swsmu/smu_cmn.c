@@ -542,8 +542,7 @@ bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
 }
 
 int smu_cmn_get_enabled_mask(struct smu_context *smu,
-			     uint32_t *feature_mask,
-			     uint32_t num)
+			     uint64_t *feature_mask)
 {
 	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
@@ -551,7 +550,7 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 	uint32_t *feature_mask_low;
 	int ret = 0;
 
-	if (!feature_mask || num < 2)
+	if (!feature_mask)
 		return -EINVAL;
 
 	if (!bitmap_empty(feature->enabled, feature->feature_num)) {
@@ -561,8 +560,8 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 		return 0;
 	}
 
-	feature_mask_low = &feature_mask[0];
-	feature_mask_high = &feature_mask[1];
+	feature_mask_low = &((uint32_t *)feature_mask)[0];
+	feature_mask_high = &((uint32_t *)feature_mask)[1];
 
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(11, 0, 8):
@@ -695,7 +694,7 @@ static const char *smu_get_feature_name(struct smu_context *smu,
 size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 				   char *buf)
 {
-	uint32_t feature_mask[2] = { 0 };
+	uint64_t feature_mask;
 	int feature_index = 0;
 	uint32_t count = 0;
 	int8_t sort_feature[SMU_FEATURE_COUNT];
@@ -703,13 +702,12 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	int ret = 0, i;
 
 	ret = smu_cmn_get_enabled_mask(smu,
-				       feature_mask,
-				       2);
+				       &feature_mask);
 	if (ret)
 		return 0;
 
 	size =  sysfs_emit_at(buf, size, "features high: 0x%08x low: 0x%08x\n",
-			feature_mask[1], feature_mask[0]);
+			upper_32_bits(feature_mask), lower_32_bits(feature_mask));
 
 	memset(sort_feature, -1, sizeof(sort_feature));
 
@@ -745,22 +743,17 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 				uint64_t new_mask)
 {
 	int ret = 0;
-	uint32_t feature_mask[2] = { 0 };
+	uint64_t feature_mask;
 	uint64_t feature_2_enabled = 0;
 	uint64_t feature_2_disabled = 0;
-	uint64_t feature_enables = 0;
 
 	ret = smu_cmn_get_enabled_mask(smu,
-				       feature_mask,
-				       2);
+				       &feature_mask);
 	if (ret)
 		return ret;
 
-	feature_enables = ((uint64_t)feature_mask[1] << 32 |
-			   (uint64_t)feature_mask[0]);
-
-	feature_2_enabled  = ~feature_enables & new_mask;
-	feature_2_disabled = feature_enables & ~new_mask;
+	feature_2_enabled  = ~feature_mask & new_mask;
+	feature_2_disabled = feature_mask & ~new_mask;
 
 	if (feature_2_enabled) {
 		ret = smu_cmn_feature_update_enable_state(smu,

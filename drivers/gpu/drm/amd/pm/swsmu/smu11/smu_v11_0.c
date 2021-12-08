@@ -799,7 +799,7 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 					     bool en)
 {
 	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_mask[2];
+	uint64_t feature_mask;
 	int ret = 0;
 
 	ret = smu_cmn_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
@@ -811,7 +811,7 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 	bitmap_zero(feature->supported, feature->feature_num);
 
 	if (en) {
-		ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
+		ret = smu_cmn_get_enabled_mask(smu, &feature_mask);
 		if (ret)
 			return ret;
 
