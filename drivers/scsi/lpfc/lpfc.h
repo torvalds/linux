@@ -496,52 +496,50 @@ struct lpfc_cgn_info {
 	__le32   cgn_alarm_hr[24];
 	__le32   cgn_alarm_day[LPFC_MAX_CGN_DAYS];
 
-	/* Start of congestion statistics */
-	uint8_t  cgn_stat_npm;		/* Notifications per minute */
+	struct_group(cgn_stat,
+		uint8_t  cgn_stat_npm;		/* Notifications per minute */
 
-	/* Start Time */
-	uint8_t  cgn_stat_month;
-	uint8_t  cgn_stat_day;
-	uint8_t  cgn_stat_year;
-	uint8_t  cgn_stat_hour;
-	uint8_t  cgn_stat_minute;
-	uint8_t  cgn_pad2[2];
+		/* Start Time */
+		uint8_t  cgn_stat_month;
+		uint8_t  cgn_stat_day;
+		uint8_t  cgn_stat_year;
+		uint8_t  cgn_stat_hour;
+		uint8_t  cgn_stat_minute;
+		uint8_t  cgn_pad2[2];
 
-	__le32   cgn_notification;
-	__le32   cgn_peer_notification;
-	__le32   link_integ_notification;
-	__le32   delivery_notification;
+		__le32   cgn_notification;
+		__le32   cgn_peer_notification;
+		__le32   link_integ_notification;
+		__le32   delivery_notification;
 
-	uint8_t  cgn_stat_cgn_month; /* Last congestion notification FPIN */
-	uint8_t  cgn_stat_cgn_day;
-	uint8_t  cgn_stat_cgn_year;
-	uint8_t  cgn_stat_cgn_hour;
-	uint8_t  cgn_stat_cgn_min;
-	uint8_t  cgn_stat_cgn_sec;
+		uint8_t  cgn_stat_cgn_month; /* Last congestion notification FPIN */
+		uint8_t  cgn_stat_cgn_day;
+		uint8_t  cgn_stat_cgn_year;
+		uint8_t  cgn_stat_cgn_hour;
+		uint8_t  cgn_stat_cgn_min;
+		uint8_t  cgn_stat_cgn_sec;
 
-	uint8_t  cgn_stat_peer_month; /* Last peer congestion FPIN */
-	uint8_t  cgn_stat_peer_day;
-	uint8_t  cgn_stat_peer_year;
-	uint8_t  cgn_stat_peer_hour;
-	uint8_t  cgn_stat_peer_min;
-	uint8_t  cgn_stat_peer_sec;
+		uint8_t  cgn_stat_peer_month; /* Last peer congestion FPIN */
+		uint8_t  cgn_stat_peer_day;
+		uint8_t  cgn_stat_peer_year;
+		uint8_t  cgn_stat_peer_hour;
+		uint8_t  cgn_stat_peer_min;
+		uint8_t  cgn_stat_peer_sec;
 
-	uint8_t  cgn_stat_lnk_month; /* Last link integrity FPIN */
-	uint8_t  cgn_stat_lnk_day;
-	uint8_t  cgn_stat_lnk_year;
-	uint8_t  cgn_stat_lnk_hour;
-	uint8_t  cgn_stat_lnk_min;
-	uint8_t  cgn_stat_lnk_sec;
+		uint8_t  cgn_stat_lnk_month; /* Last link integrity FPIN */
+		uint8_t  cgn_stat_lnk_day;
+		uint8_t  cgn_stat_lnk_year;
+		uint8_t  cgn_stat_lnk_hour;
+		uint8_t  cgn_stat_lnk_min;
+		uint8_t  cgn_stat_lnk_sec;
 
-	uint8_t  cgn_stat_del_month; /* Last delivery notification FPIN */
-	uint8_t  cgn_stat_del_day;
-	uint8_t  cgn_stat_del_year;
-	uint8_t  cgn_stat_del_hour;
-	uint8_t  cgn_stat_del_min;
-	uint8_t  cgn_stat_del_sec;
-#define LPFC_CGN_STAT_SIZE	48
-#define LPFC_CGN_DATA_SIZE	(sizeof(struct lpfc_cgn_info) -  \
-				LPFC_CGN_STAT_SIZE - sizeof(uint32_t))
+		uint8_t  cgn_stat_del_month; /* Last delivery notification FPIN */
+		uint8_t  cgn_stat_del_day;
+		uint8_t  cgn_stat_del_year;
+		uint8_t  cgn_stat_del_hour;
+		uint8_t  cgn_stat_del_min;
+		uint8_t  cgn_stat_del_sec;
+	);
 
 	__le32   cgn_info_crc;
 #define LPFC_CGN_CRC32_MAGIC_NUMBER	0x1EDC6F41
