@@ -6,12 +6,14 @@
  *         Manasi Navare <manasi.d.navare@intel.com>
  */
 #include <linux/limits.h>
+
 #include "i915_drv.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
-#include "intel_vdsc.h"
 #include "intel_qp_tables.h"
+#include "intel_vdsc.h"
 
 enum ROW_INDEX_BPP {
 	ROW_INDEX_6BPP = 0,

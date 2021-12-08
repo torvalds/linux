@@ -31,6 +31,7 @@
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_cdclk.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_lpe_audio.h"
