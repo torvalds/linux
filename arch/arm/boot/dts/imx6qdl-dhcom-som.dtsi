@@ -132,7 +132,8 @@
 		#size-cells = <0>;
 
 		ethphy0: ethernet-phy@0 { /* SMSC LAN8710Ai */
-			compatible = "ethernet-phy-ieee802.3-c22";
+			compatible = "ethernet-phy-id0007.c0f0",
+				     "ethernet-phy-ieee802.3-c22";
 			interrupt-parent = <&gpio4>;
 			interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
 			pinctrl-0 = <&pinctrl_ethphy0>;
