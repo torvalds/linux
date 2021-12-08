@@ -15,7 +15,6 @@ extern struct memblock_region kvm_nvhe_sym(hyp_memory)[];
 extern unsigned int kvm_nvhe_sym(hyp_memblock_nr);
 extern struct kvm_pgtable pkvm_pgtable;
 extern hyp_spinlock_t pkvm_pgd_lock;
-extern struct hyp_pool hpool;
 extern u64 __io_map_base;
 
 int hyp_create_idmap(u32 hyp_va_bits);
