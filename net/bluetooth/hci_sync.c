@@ -1701,10 +1701,8 @@ static int hci_pause_advertising_sync(struct hci_dev *hdev)
 	int err;
 	int old_state;
 
-	/* If there are no instances or advertising has already been paused
-	 * there is nothing to do.
-	 */
-	if (!hdev->adv_instance_cnt || hdev->advertising_paused)
+	/* If already been paused there is nothing to do. */
+	if (hdev->advertising_paused)
 		return 0;
 
 	bt_dev_dbg(hdev, "Pausing directed advertising");
