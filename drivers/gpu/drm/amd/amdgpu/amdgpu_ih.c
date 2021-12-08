@@ -188,8 +188,8 @@ int amdgpu_ih_wait_on_checkpoint_process_ts(struct amdgpu_device *adev,
 	checkpoint_ts = amdgpu_ih_decode_iv_ts(adev, ih, checkpoint_wptr, -1);
 
 	return wait_event_interruptible_timeout(ih->wait_process,
-		    !amdgpu_ih_ts_after(ih->processed_timestamp, checkpoint_ts),
-		    timeout);
+		    amdgpu_ih_ts_after(checkpoint_ts, ih->processed_timestamp) ||
+		    ih->rptr == amdgpu_ih_get_wptr(adev, ih), timeout);
 }
 
 /**
