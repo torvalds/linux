@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
 #undef CONFIG_DMABUF_CACHE
-#include <linux/dma-cache.h>
+#include <linux/dma-buf-cache.h>
 
 struct dma_buf_cache_list {
 	struct list_head head;
