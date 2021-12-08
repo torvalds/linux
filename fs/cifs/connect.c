@@ -3064,6 +3064,13 @@ static int mount_get_conns(struct mount_ctx *mnt_ctx)
 	    (cifs_sb->ctx->rsize > server->ops->negotiate_rsize(tcon, ctx)))
 		cifs_sb->ctx->rsize = server->ops->negotiate_rsize(tcon, ctx);
 
+	/*
+	 * The cookie is initialized from volume info returned above.
+	 * Inside cifs_fscache_get_super_cookie it checks
+	 * that we do not get super cookie twice.
+	 */
+	cifs_fscache_get_super_cookie(tcon);
+
 out:
 	mnt_ctx->server = server;
 	mnt_ctx->ses = ses;
