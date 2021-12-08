@@ -831,6 +831,7 @@ struct perf_event_context {
 
 	int				nr_events;
 	int				nr_active;
+	int				nr_user;
 	int				is_active;
 	int				nr_stat;
 	int				nr_freq;
