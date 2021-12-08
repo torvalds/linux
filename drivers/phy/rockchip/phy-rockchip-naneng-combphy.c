@@ -748,7 +748,23 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 		break;
 	case 100000000:
 		param_write(priv->phy_grf, &cfg->pipe_clk_100m, true);
-		if (priv->mode == PHY_TYPE_SATA) {
+		if (priv->mode == PHY_TYPE_PCIE) {
+			/* PLL KVCO tuning fine */
+			val = readl(priv->mmio + (0x20 << 2));
+			val &= ~GENMASK(4, 2);
+			val |= 0x4 << 2;
+			writel(val, priv->mmio + (0x20 << 2));
+
+			/* Set up rx_trim: PLL LPF C1 85pf R1 1.25kohm */
+			val = 0x4c;
+			writel(val, priv->mmio + (0x1b << 2));
+
+			/* Set up su_trim:  */
+			val = 0xf0;
+			writel(val, priv->mmio + (0xa << 2));
+			val = 0x4;
+			writel(val, priv->mmio + (0xb << 2));
+		} else if (priv->mode == PHY_TYPE_SATA) {
 			/* downward spread spectrum +500ppm */
 			val = readl(priv->mmio + (0x1f << 2));
 			val &= ~GENMASK(7, 4);
