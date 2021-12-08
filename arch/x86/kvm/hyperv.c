@@ -112,6 +112,9 @@ static void synic_update_vector(struct kvm_vcpu_hv_synic *synic,
 	if (!!auto_eoi_old == !!auto_eoi_new)
 		return;
 
+	if (!enable_apicv)
+		return;
+
 	down_write(&vcpu->kvm->arch.apicv_update_lock);
 
 	if (auto_eoi_new)
