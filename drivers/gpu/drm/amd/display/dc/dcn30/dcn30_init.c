@@ -29,6 +29,8 @@
 #include "dcn21/dcn21_hwseq.h"
 #include "dcn30_hwseq.h"
 
+#include "dcn30_init.h"
+
 static const struct hw_sequencer_funcs dcn30_funcs = {
 	.program_gamut_remap = dcn10_program_gamut_remap,
 	.init_hw = dcn30_init_hw,

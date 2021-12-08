@@ -33,6 +33,8 @@
 #include "mp/mp_12_0_0_offset.h"
 #include "mp/mp_12_0_0_sh_mask.h"
 
+#include "rn_clk_mgr_vbios_smu.h"
+
 #define REG(reg_name) \
 	(MP0_BASE.instance[0].segment[mm ## reg_name ## _BASE_IDX] + mm ## reg_name)
 

@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 
+#include "amdgpu.h"
 #include "amd_acpi.h"
 
 #define AMDGPU_PX_QUIRK_FORCE_ATPX  (1 << 0)
