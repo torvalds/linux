@@ -1224,7 +1224,8 @@ int wilc_wlan_stop(struct wilc *wilc, struct wilc_vif *vif)
 
 	ret = 0;
 release:
-	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP);
+	/* host comm is disabled - we can't issue sleep command anymore: */
+	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
 
 	return ret;
 }
