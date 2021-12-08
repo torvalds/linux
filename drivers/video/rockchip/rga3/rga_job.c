@@ -673,12 +673,17 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 	left_time = wait_event_interruptible_timeout(rga_scheduler->job_done_wq,
 		job->flags & RGA_JOB_DONE, RGA_SYNC_TIMEOUT_DELAY);
 
-	if (left_time <= 0) {
-		ret = left_time < 0 ? left_time : -ETIMEDOUT;
-		if (ret < 0)
-			rga_scheduler->ops->soft_reset(rga_scheduler);
-
-		return ret;
+	switch (left_time) {
+	case 0:
+		pr_err("%s timeout", __func__);
+		ret = -EBUSY;
+		break;
+	case -ERESTARTSYS:
+		ret = -ERESTARTSYS;
+		break;
+	default:
+		ret = 0;
+		break;
 	}
 
 	now = ktime_get();
@@ -687,7 +692,7 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 		pr_err("%s use time = %lld\n", __func__,
 			 ktime_to_us(ktime_sub(now, job->timestamp)));
 
-	return 0;
+	return ret;
 }
 
 static void rga_input_fence_signaled(struct dma_fence *fence,
@@ -823,7 +828,6 @@ int rga_commit(struct rga_req *rga_command_base, int flags)
 
 		ret = rga_job_wait(scheduler, job);
 		if (ret < 0) {
-			pr_err("failed to wait rga job! May be timeout\n");
 			goto running_job_abort;
 		}
 
@@ -879,7 +883,6 @@ int rga_kernel_commit(struct rga_req *rga_command_base,
 
 		ret = rga_job_wait(scheduler, job);
 		if (ret < 0) {
-			pr_err("failed to wait rga job! May be timeout\n");
 			goto running_job_abort;
 		}
 		rga_job_cleanup(job);
