@@ -1360,9 +1360,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 5, 0):
 		case IP_VERSION(11, 0, 12):
 		case IP_VERSION(11, 0, 13):
-			return smu_disable_all_features_with_exception(smu,
-								       true,
-								       SMU_FEATURE_COUNT);
+			return 0;
 		default:
 			break;
 		}
@@ -1378,9 +1376,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 5):
 		case IP_VERSION(11, 0, 9):
-			return smu_disable_all_features_with_exception(smu,
-								       true,
-								       SMU_FEATURE_BACO_BIT);
+			return 0;
 		default:
 			break;
 		}
@@ -1392,7 +1388,6 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (use_baco && smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)) {
 		ret = smu_disable_all_features_with_exception(smu,
-							      false,
 							      SMU_FEATURE_BACO_BIT);
 		if (ret)
 			dev_err(adev->dev, "Failed to disable smu features except BACO.\n");

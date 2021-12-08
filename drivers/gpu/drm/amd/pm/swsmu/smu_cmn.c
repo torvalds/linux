@@ -767,9 +767,6 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
  *                                               @mask
  *
  * @smu:               smu_context pointer
- * @no_hw_disablement: whether real dpm disablement should be performed
- *                     true: update the cache(about dpm enablement state) only
- *                     false: real dpm disablement plus cache update
  * @mask:              the dpm feature which should not be disabled
  *                     SMU_FEATURE_COUNT: no exception, all dpm features
  *                     to disable
@@ -778,7 +775,6 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
  * 0 on success or a negative error code on failure.
  */
 int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
-						bool no_hw_disablement,
 						enum smu_feature_mask mask)
 {
 	uint64_t features_to_disable = U64_MAX;
@@ -793,9 +789,6 @@ int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
 
 		features_to_disable &= ~(1ULL << skipped_feature_id);
 	}
-
-	if (no_hw_disablement)
-		return 0;
 
 	return smu_cmn_feature_update_enable_state(smu,
 						   features_to_disable,
