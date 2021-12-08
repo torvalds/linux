@@ -228,9 +228,6 @@ static void sev_mirror_create(int dst_fd, int src_fd)
 static void test_sev_mirror(bool es)
 {
 	struct kvm_vm *src_vm, *dst_vm;
-	struct kvm_sev_launch_start start = {
-		.policy = es ? SEV_POLICY_ES : 0
-	};
 	int i;
 
 	src_vm = sev_vm_create(es);
@@ -241,7 +238,7 @@ static void test_sev_mirror(bool es)
 	/* Check that we can complete creation of the mirror VM.  */
 	for (i = 0; i < NR_MIGRATE_TEST_VCPUS; ++i)
 		vm_vcpu_add(dst_vm, i);
-	sev_ioctl(dst_vm->fd, KVM_SEV_LAUNCH_START, &start);
+
 	if (es)
 		sev_ioctl(dst_vm->fd, KVM_SEV_LAUNCH_UPDATE_VMSA, NULL);
 
