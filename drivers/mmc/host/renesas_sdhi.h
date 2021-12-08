@@ -18,6 +18,8 @@ struct renesas_sdhi_scc {
 	u32 tap_hs400_4tap;	/* sampling clock position for HS400 (4 TAP) */
 };
 
+#define SDHI_FLAG_NEED_CLKH_FALLBACK	BIT(0)
+
 struct renesas_sdhi_of_data {
 	unsigned long tmio_flags;
 	u32	      tmio_ocr_mask;
@@ -31,6 +33,7 @@ struct renesas_sdhi_of_data {
 	int taps_num;
 	unsigned int max_blk_count;
 	unsigned short max_segs;
+	unsigned long sdhi_flags;
 };
 
 #define SDHI_CALIB_TABLE_MAX 32
@@ -57,6 +60,7 @@ struct tmio_mmc_dma {
 
 struct renesas_sdhi {
 	struct clk *clk;
+	struct clk *clkh;
 	struct clk *clk_cd;
 	struct tmio_mmc_data mmc_data;
 	struct tmio_mmc_dma dma_priv;

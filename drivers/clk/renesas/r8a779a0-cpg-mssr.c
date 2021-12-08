@@ -34,6 +34,7 @@ enum rcar_r8a779a0_clk_types {
 	CLK_TYPE_R8A779A0_PLL2X_3X,	/* PLL[23][01] */
 	CLK_TYPE_R8A779A0_PLL5,
 	CLK_TYPE_R8A779A0_Z,
+	CLK_TYPE_R8A779A0_SDH,
 	CLK_TYPE_R8A779A0_SD,
 	CLK_TYPE_R8A779A0_MDSEL,	/* Select parent/divider using mode pin */
 	CLK_TYPE_R8A779A0_OSC,	/* OSC EXTAL predivider and fixed divider */
@@ -91,6 +92,9 @@ enum clk_ids {
 #define DEF_Z(_name, _id, _parent, _div, _offset)	\
 	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_Z, _parent, .div = _div,	\
 		 .offset = _offset)
+
+#define DEF_SDH(_name, _id, _parent, _offset)   \
+	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_SDH, _parent, .offset = _offset)
 
 #define DEF_SD(_name, _id, _parent, _offset)   \
 	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_SD, _parent, .offset = _offset)
@@ -159,7 +163,8 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_FIXED("cp",		R8A779A0_CLK_CP,	CLK_EXTAL,	2, 1),
 	DEF_FIXED("cl16mck",	R8A779A0_CLK_CL16MCK,	CLK_PLL1_DIV2,	64, 1),
 
-	DEF_SD("sd0",		R8A779A0_CLK_SD0,	CLK_SDSRC,	0x870),
+	DEF_SDH("sdh0",		R8A779A0_CLK_SD0H,	CLK_SDSRC,	   0x870),
+	DEF_SD("sd0",		R8A779A0_CLK_SD0,	R8A779A0_CLK_SD0H, 0x870),
 
 	DEF_DIV6P1("mso",	R8A779A0_CLK_MSO,	CLK_PLL5_DIV4,	0x87c),
 	DEF_DIV6P1("canfd",	R8A779A0_CLK_CANFD,	CLK_PLL5_DIV4,	0x878),
@@ -469,11 +474,13 @@ static struct clk * __init rcar_r8a779a0_cpg_clk_register(struct device *dev,
 		return cpg_z_clk_register(core->name, __clk_get_name(parent),
 					  base, core->div, core->offset);
 
+	case CLK_TYPE_R8A779A0_SDH:
+		return cpg_sdh_clk_register(core->name, base + core->offset,
+					   __clk_get_name(parent), notifiers);
+
 	case CLK_TYPE_R8A779A0_SD:
-		return cpg_sd_clk_register(core->name, base, core->offset,
-					   __clk_get_name(parent), notifiers,
-					   false);
-		break;
+		return cpg_sd_clk_register(core->name, base + core->offset,
+					   __clk_get_name(parent));
 
 	case CLK_TYPE_R8A779A0_MDSEL:
 		/*

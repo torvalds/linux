@@ -552,6 +552,11 @@ void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 		pm_clk_destroy(dev);
 }
 
+static void cpg_mssr_genpd_remove(void *data)
+{
+	pm_genpd_remove(data);
+}
+
 static int __init cpg_mssr_add_clk_domain(struct device *dev,
 					  const unsigned int *core_pm_clks,
 					  unsigned int num_core_pm_clks)
@@ -560,6 +565,7 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 	struct generic_pm_domain *genpd;
 	struct cpg_mssr_clk_domain *pd;
 	size_t pm_size = num_core_pm_clks * sizeof(core_pm_clks[0]);
+	int ret;
 
 	pd = devm_kzalloc(dev, sizeof(*pd) + pm_size, GFP_KERNEL);
 	if (!pd)
@@ -574,11 +580,17 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 		       GENPD_FLAG_ACTIVE_WAKEUP;
 	genpd->attach_dev = cpg_mssr_attach_dev;
 	genpd->detach_dev = cpg_mssr_detach_dev;
-	pm_genpd_init(genpd, &pm_domain_always_on_gov, false);
+	ret = pm_genpd_init(genpd, &pm_domain_always_on_gov, false);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, cpg_mssr_genpd_remove, genpd);
+	if (ret)
+		return ret;
+
 	cpg_mssr_clk_domain = pd;
 
-	of_genpd_add_provider_simple(np, genpd);
-	return 0;
+	return of_genpd_add_provider_simple(np, genpd);
 }
 
 #ifdef CONFIG_RESET_CONTROLLER
