@@ -229,15 +229,16 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 
 	rga_dma_put_info(job);
 
+	mmput(job->mm);
 	mmdrop(job->mm);
 
 	if (job->out_fence)
 		dma_fence_signal(job->out_fence);
 
-	wake_up(&rga_scheduler->job_done_wq);
-
 	if (job->flags & RGA_JOB_ASYNC)
 		rga_job_cleanup(job);
+
+	wake_up(&rga_scheduler->job_done_wq);
 
 	rga_job_next(rga_scheduler);
 
@@ -566,6 +567,7 @@ static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
 
 		rga_dma_put_info(job);
 
+		mmput(job->mm);
 		mmdrop(job->mm);
 
 		if (job->out_fence)
@@ -736,6 +738,7 @@ int rga_commit(struct rga_req *rga_command_base, int flags)
 	}
 
 	mmgrab(current->mm);
+	mmget(current->mm);
 	job->mm = current->mm;
 
 	if (flags == RGA_BLIT_ASYNC) {
