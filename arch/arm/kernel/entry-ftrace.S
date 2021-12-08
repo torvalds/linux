@@ -27,7 +27,7 @@
  * allows it to be clobbered in subroutines and doesn't use it to hold
  * parameters.)
  *
- * When using dynamic ftrace, we patch out the mcount call by a "pop {lr}"
+ * When using dynamic ftrace, we patch out the mcount call by a "add sp, #4"
  * instead of the __gnu_mcount_nc call (see arch/arm/kernel/ftrace.c).
  */
 
