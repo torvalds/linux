@@ -8,6 +8,8 @@
 #include <linux/platform_device.h>
 
 #define PCIE_SET_DATA_LEN(x, val)	((x)->len_lo |= (val))
+#define PCIE_GET_DATA_LEN(x)		((x)->len_lo)
+#define PCIE_GET_PAD_LEN(x)		(((x)->tag >> 4) & 0x3)
 #define PCIE_SET_TARGET_ID(x, val)	((x)->target |= (swab16(val)))
 #define PCIE_PKT_ALIGN(x)		ALIGN(x, sizeof(u32))
 #define PCIE_GET_REQUESTER_ID(x)	(swab16((x)->requester))
@@ -182,6 +184,8 @@ mctp_peci_send_receive(struct peci_adapter *adapter, struct node_cfg *cpu,
 	u8 tag = priv->tag;
 	struct mctp_pcie_packet *tx_packet, *rx_packet;
 	unsigned long current_time, end_time;
+	struct pcie_transport_hdr *pcie_hdr;
+	u32 payload_len, rx_packet_size;
 	int ret;
 
 	tx_packet = aspeed_mctp_packet_alloc(GFP_KERNEL);
@@ -191,6 +195,8 @@ mctp_peci_send_receive(struct peci_adapter *adapter, struct node_cfg *cpu,
 	prepare_tx_packet(tx_packet, cpu, tx_len, rx_len, tx_buf, tag);
 
 	aspeed_mctp_flush_rx_queue(priv->peci_client);
+
+	print_hex_dump_bytes("TX : ", DUMP_PREFIX_NONE, &tx_packet->data, tx_packet->size);
 
 	ret = aspeed_mctp_send_packet(priv->peci_client, tx_packet);
 	if (ret) {
@@ -219,6 +225,11 @@ retry:
 		timeout = ((long)end_time - (long)current_time);
 		goto retry;
 	}
+
+	pcie_hdr = (struct pcie_transport_hdr *)rx_packet;
+	payload_len = PCIE_GET_DATA_LEN(pcie_hdr) * sizeof(u32) - PCIE_GET_PAD_LEN(pcie_hdr);
+	rx_packet_size = payload_len + PCIE_VDM_HDR_SIZE;
+	print_hex_dump_bytes("RX : ", DUMP_PREFIX_NONE, &rx_packet->data, rx_packet_size);
 
 	return rx_packet;
 }
