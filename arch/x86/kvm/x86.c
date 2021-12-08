@@ -9679,8 +9679,7 @@ void __kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 
 	lockdep_assert_held_write(&kvm->arch.apicv_update_lock);
 
-	if (!kvm_x86_ops.check_apicv_inhibit_reasons ||
-	    !static_call(kvm_x86_check_apicv_inhibit_reasons)(bit))
+	if (!static_call(kvm_x86_check_apicv_inhibit_reasons)(bit))
 		return;
 
 	old = new = kvm->arch.apicv_inhibit_reasons;
