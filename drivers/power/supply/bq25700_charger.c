@@ -169,22 +169,16 @@ struct bq25700_device {
 	struct workqueue_struct		*dc_charger_wq;
 	struct workqueue_struct		*finish_sig_wq;
 	struct delayed_work		usb_work;
-	struct delayed_work		pd_work;
 	struct delayed_work		host_work;
 	struct delayed_work		discnt_work;
 	struct delayed_work		usb_work1;
-	struct delayed_work		pd_work1;
 	struct delayed_work		host_work1;
 	struct delayed_work		discnt_work1;
 	struct delayed_work		irq_work;
 	struct notifier_block		cable_cg_nb;
-	struct notifier_block		cable_pd_nb;
 	struct notifier_block		cable_host_nb;
-	struct notifier_block		cable_discnt_nb;
 	struct notifier_block		cable_cg_nb1;
-	struct notifier_block		cable_pd_nb1;
 	struct notifier_block		cable_host_nb1;
-	struct notifier_block		cable_discnt_nb1;
 	struct extcon_dev		*cable_edev;
 	struct extcon_dev		*cable_edev_1;
 	int				typec0_status;
@@ -1269,7 +1263,8 @@ static int bq2570x_pd_notifier_call(struct notifier_block *nb,
 		return NOTIFY_OK;
 	/* online=0: USB out */
 	if (prop.intval == 0) {
-		bq25700_discnt(bq, USB_TYPEC_0);
+		queue_delayed_work(bq->usb_charger_wq, &bq->discnt_work,
+				   msecs_to_jiffies(10));
 		return NOTIFY_OK;
 	}
 
@@ -1366,101 +1361,6 @@ static void bq25700_typec1_discharge(struct bq25700_device *charger)
 	msleep(20);
 	if (!IS_ERR_OR_NULL(charger->typec1_discharge_io))
 		gpiod_direction_output(charger->typec1_discharge_io, 0);
-}
-
-static void bq25700_pd_connect(struct bq25700_device *charger,
-			       struct extcon_dev *edev,
-			       enum tpyec_port_t port)
-{
-	union extcon_property_value prop_val;
-	struct bq25700_state state;
-	int ret;
-	int vol, cur;
-	int vol_idx, cur_idx;
-	int i;
-
-	if (charger->typec0_status == USB_STATUS_PD ||
-	    charger->typec1_status == USB_STATUS_PD)
-		return;
-
-	if (extcon_get_state(edev, EXTCON_CHG_USB_FAST) > 0) {
-		ret = extcon_get_property(edev, EXTCON_CHG_USB_FAST,
-					  EXTCON_PROP_USB_TYPEC_POLARITY,
-					  &prop_val);
-		DBG("usb pd charge...\n");
-		vol = prop_val.intval & 0xffff;
-		cur = prop_val.intval >> 15;
-		if (ret == 0) {
-			if (port == USB_TYPEC_0) {
-				charger->typec0_status = USB_STATUS_PD;
-				bq25700_enable_typec0(charger);
-			} else {
-				charger->typec1_status = USB_STATUS_PD;
-				bq25700_enable_typec1(charger);
-			}
-
-			i = 0;
-			while (!bq25700_field_read(charger, AC_STAT) && i < 5) {
-				msleep(1000);
-				i++;
-			}
-			vol_idx = bq25700_find_idx((vol - 1280 - 3200) * 1000,
-						   TBL_INPUTVOL);
-			cur_idx = bq25700_find_idx(cur * 1000, TBL_INPUTCUR);
-			bq25700_field_write(charger, INPUT_VOLTAGE, vol_idx);
-			bq25700_field_write(charger, INPUT_CURRENT, cur_idx);
-			bq25700_field_write(charger, CHARGE_CURRENT,
-					    charger->init_data.ichg);
-		}
-
-		bq25700_get_chip_state(charger, &state);
-		charger->state = state;
-		power_supply_changed(charger->supply_charger);
-	}
-}
-
-static void bq25700_pd_evt_worker(struct work_struct *work)
-{
-	struct bq25700_device *charger = container_of(work,
-				struct bq25700_device, pd_work.work);
-	struct extcon_dev *edev = charger->cable_edev;
-
-	bq25700_pd_connect(charger, edev, USB_TYPEC_0);
-}
-
-static void bq25700_pd_evt_worker1(struct work_struct *work)
-{
-	struct bq25700_device *charger = container_of(work,
-				struct bq25700_device, pd_work1.work);
-	struct extcon_dev *edev = charger->cable_edev_1;
-
-	bq25700_pd_connect(charger, edev, USB_TYPEC_1);
-}
-
-static int bq25700_pd_evt_notifier(struct notifier_block *nb,
-				   unsigned long event,
-				   void *ptr)
-{
-	struct bq25700_device *charger =
-		container_of(nb, struct bq25700_device, cable_pd_nb);
-
-	queue_delayed_work(charger->usb_charger_wq, &charger->pd_work,
-			   msecs_to_jiffies(10));
-
-	return NOTIFY_DONE;
-}
-
-static int bq25700_pd_evt_notifier1(struct notifier_block *nb,
-				    unsigned long event,
-				    void *ptr)
-{
-	struct bq25700_device *charger =
-		container_of(nb, struct bq25700_device, cable_pd_nb1);
-
-	queue_delayed_work(charger->usb_charger_wq, &charger->pd_work1,
-			   msecs_to_jiffies(10));
-
-	return NOTIFY_DONE;
 }
 
 static void bq25700_charger_evt_handel(struct bq25700_device *charger,
@@ -1677,42 +1577,6 @@ static void bq25700_discnt_evt_worker(struct work_struct *work)
 	bq25700_discnt(charger, USB_TYPEC_0);
 }
 
-static void bq25700_discnt_evt_worker1(struct work_struct *work)
-{
-	struct bq25700_device *charger = container_of(work,
-						      struct bq25700_device,
-						      discnt_work1.work);
-	bq25700_discnt(charger, USB_TYPEC_1);
-}
-
-static int bq25700_discnt_evt_notfier(struct notifier_block *nb,
-				      unsigned long event,
-				      void *ptr)
-{
-	struct bq25700_device *charger =
-		container_of(nb, struct bq25700_device, cable_discnt_nb);
-
-	queue_delayed_work(charger->usb_charger_wq,
-			   &charger->discnt_work,
-			   msecs_to_jiffies(0));
-
-	return NOTIFY_DONE;
-}
-
-static int bq25700_discnt_evt_notfier1(struct notifier_block *nb,
-				       unsigned long event,
-				       void *ptr)
-{
-	struct bq25700_device *charger =
-		container_of(nb, struct bq25700_device, cable_discnt_nb1);
-
-	queue_delayed_work(charger->usb_charger_wq,
-			   &charger->discnt_work1,
-			   msecs_to_jiffies(0));
-
-	return NOTIFY_DONE;
-}
-
 static int bq25700_register_cg_extcon(struct bq25700_device *charger,
 				      struct extcon_dev *edev,
 				      struct notifier_block *able_cg_nb)
@@ -1787,44 +1651,6 @@ static int bq25700_register_cg_nb(struct bq25700_device *charger)
 	return 0;
 }
 
-static int bq25700_register_discnt_nb(struct bq25700_device *charger)
-{
-	int ret;
-
-	/* Register discnt usb */
-	if (charger->cable_edev) {
-		INIT_DELAYED_WORK(&charger->discnt_work,
-				  bq25700_discnt_evt_worker);
-		charger->cable_discnt_nb.notifier_call =
-			bq25700_discnt_evt_notfier;
-		ret = extcon_register_notifier(charger->cable_edev,
-					       EXTCON_USB,
-					       &charger->cable_discnt_nb);
-		if (ret < 0) {
-			dev_err(charger->dev,
-				"failed to register notifier for HOST\n");
-			return ret;
-		}
-	}
-
-	if (charger->cable_edev_1) {
-		INIT_DELAYED_WORK(&charger->discnt_work1,
-				  bq25700_discnt_evt_worker1);
-		charger->cable_discnt_nb1.notifier_call =
-			bq25700_discnt_evt_notfier1;
-		ret = extcon_register_notifier(charger->cable_edev_1,
-					       EXTCON_USB,
-					       &charger->cable_discnt_nb1);
-		if (ret < 0) {
-			dev_err(charger->dev,
-				"failed to register notifier for HOST\n");
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int bq25700_register_pd_nb(struct bq25700_device *charger)
 {
 	struct power_supply *notify_psy = NULL;
@@ -1832,25 +1658,9 @@ static int bq25700_register_pd_nb(struct bq25700_device *charger)
 	int ret;
 	union power_supply_propval prop;
 
-	if (!charger->notify_node) {
-		if (charger->cable_edev) {
-			INIT_DELAYED_WORK(&charger->pd_work, bq25700_pd_evt_worker);
-			charger->cable_pd_nb.notifier_call = bq25700_pd_evt_notifier;
-			extcon_register_notifier(charger->cable_edev,
-						 EXTCON_CHG_USB_FAST,
-						 &charger->cable_pd_nb);
-		}
-		if (charger->cable_edev_1) {
-			INIT_DELAYED_WORK(&charger->pd_work1, bq25700_pd_evt_worker1);
-			charger->cable_pd_nb1.notifier_call = bq25700_pd_evt_notifier1;
-			extcon_register_notifier(charger->cable_edev_1,
-						 EXTCON_CHG_USB_FAST,
-						 &charger->cable_pd_nb1);
-		}
-		return 0;
-	}
-
 	if (charger->notify_node || charger->plat_data.notify_device) {
+		INIT_DELAYED_WORK(&charger->discnt_work,
+				  bq25700_discnt_evt_worker);
 		charger->nb.notifier_call = bq2570x_pd_notifier_call;
 		ret = power_supply_reg_notifier(&charger->nb);
 		if (ret) {
@@ -2050,20 +1860,17 @@ static long bq25700_init_usb(struct bq25700_device *charger)
 		bq25700_register_host_nb(charger);
 	}
 
-	bq25700_register_discnt_nb(charger);
 	bq25700_register_pd_nb(charger);
 
 	if (charger->cable_edev) {
 		if (!charger->otg_vbus_reg)
 			schedule_delayed_work(&charger->host_work, 0);
-		schedule_delayed_work(&charger->pd_work, 0);
 		if (!charger->pd_charge_only)
 			schedule_delayed_work(&charger->usb_work, 0);
 	}
 	if (charger->cable_edev_1) {
 		if (!charger->otg_vbus_reg)
 			schedule_delayed_work(&charger->host_work1, 0);
-		schedule_delayed_work(&charger->pd_work1, 0);
 		if (!charger->pd_charge_only)
 			schedule_delayed_work(&charger->usb_work1, 0);
 	}
