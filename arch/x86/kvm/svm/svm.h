@@ -592,8 +592,8 @@ int svm_deliver_avic_intr(struct kvm_vcpu *vcpu, int vec);
 bool svm_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
 int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 		       uint32_t guest_irq, bool set);
-void svm_vcpu_blocking(struct kvm_vcpu *vcpu);
-void svm_vcpu_unblocking(struct kvm_vcpu *vcpu);
+void avic_vcpu_blocking(struct kvm_vcpu *vcpu);
+void avic_vcpu_unblocking(struct kvm_vcpu *vcpu);
 
 /* sev.c */
 
