@@ -2980,7 +2980,9 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 	}
 
 	/* Request the interrupt */
-	chan->irq = irq_of_parse_and_map(node, chan->tdest);
+	chan->irq = of_irq_get(node, chan->tdest);
+	if (chan->irq < 0)
+		return dev_err_probe(xdev->dev, chan->irq, "failed to get irq\n");
 	err = request_irq(chan->irq, xdev->dma_config->irq_handler,
 			  IRQF_SHARED, "xilinx-dma-controller", chan);
 	if (err) {
@@ -3054,8 +3056,11 @@ static int xilinx_dma_child_probe(struct xilinx_dma_device *xdev,
 	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIMCDMA && ret < 0)
 		dev_warn(xdev->dev, "missing dma-channels property\n");
 
-	for (i = 0; i < nr_channels; i++)
-		xilinx_dma_chan_probe(xdev, node);
+	for (i = 0; i < nr_channels; i++) {
+		ret = xilinx_dma_chan_probe(xdev, node);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
