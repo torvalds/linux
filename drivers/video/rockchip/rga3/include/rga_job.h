@@ -23,6 +23,8 @@ int rga_commit(struct rga_req *rga_command_base, int flags);
 int rga_kernel_commit(struct rga_req *rga_command_base,
 	struct rga_mpi_job_t *mpi_job, int flags);
 
+int rga_job_assign(struct rga_job *job);
+
 struct rga_job *
 rga_scheduler_get_pending_job_list(struct rga_scheduler_t *scheduler);
 
