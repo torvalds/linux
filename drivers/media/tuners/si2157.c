@@ -76,16 +76,63 @@ err_mutex_unlock:
 	return ret;
 }
 
-static int si2157_init(struct dvb_frontend *fe)
+static int si2157_load_firmware(struct dvb_frontend *fe,
+				const char *fw_name)
 {
 	struct i2c_client *client = fe->tuner_priv;
-	struct si2157_dev *dev = i2c_get_clientdata(client);
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	const struct firmware *fw;
 	int ret, len, remaining;
 	struct si2157_cmd cmd;
-	const struct firmware *fw;
-	const char *fw_name;
+
+	/* request the firmware, this will block and timeout */
+	ret = request_firmware(&fw, fw_name, &client->dev);
+	if (ret)
+		return ret;
+
+	/* firmware should be n chunks of 17 bytes */
+	if (fw->size % 17 != 0) {
+		dev_err(&client->dev, "firmware file '%s' is invalid\n",
+			fw_name);
+		ret = -EINVAL;
+		goto err_release_firmware;
+	}
+
+	dev_info(&client->dev, "downloading firmware from file '%s'\n",
+		 fw_name);
+
+	for (remaining = fw->size; remaining > 0; remaining -= 17) {
+		len = fw->data[fw->size - remaining];
+		if (len > SI2157_ARGLEN) {
+			dev_err(&client->dev, "Bad firmware length\n");
+			ret = -EINVAL;
+			goto err_release_firmware;
+		}
+		memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
+		cmd.wlen = len;
+		cmd.rlen = 1;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret) {
+			dev_err(&client->dev, "firmware download failed %d\n",
+					ret);
+			goto err_release_firmware;
+		}
+	}
+
+err_release_firmware:
+	release_firmware(fw);
+
+	return ret;
+}
+
+static int si2157_init(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct i2c_client *client = fe->tuner_priv;
+	struct si2157_dev *dev = i2c_get_clientdata(client);
 	unsigned int chip_id, xtal_trim;
+	struct si2157_cmd cmd;
+	const char *fw_name;
+	int ret;
 
 	dev_dbg(&client->dev, "\n");
 
@@ -181,44 +228,12 @@ static int si2157_init(struct dvb_frontend *fe)
 	if (fw_name == NULL)
 		goto skip_fw_download;
 
-	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_name, &client->dev);
+	ret = si2157_load_firmware(fe, fw_name);
 	if (ret) {
 		dev_err(&client->dev, "firmware file '%s' not found\n",
-				fw_name);
+			fw_name);
 		goto err;
 	}
-
-	/* firmware should be n chunks of 17 bytes */
-	if (fw->size % 17 != 0) {
-		dev_err(&client->dev, "firmware file '%s' is invalid\n",
-				fw_name);
-		ret = -EINVAL;
-		goto err_release_firmware;
-	}
-
-	dev_info(&client->dev, "downloading firmware from file '%s'\n",
-			fw_name);
-
-	for (remaining = fw->size; remaining > 0; remaining -= 17) {
-		len = fw->data[fw->size - remaining];
-		if (len > SI2157_ARGLEN) {
-			dev_err(&client->dev, "Bad firmware length\n");
-			ret = -EINVAL;
-			goto err_release_firmware;
-		}
-		memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
-		cmd.wlen = len;
-		cmd.rlen = 1;
-		ret = si2157_cmd_execute(client, &cmd);
-		if (ret) {
-			dev_err(&client->dev, "firmware download failed %d\n",
-					ret);
-			goto err_release_firmware;
-		}
-	}
-
-	release_firmware(fw);
 
 skip_fw_download:
 	/* reboot the tuner with new firmware? */
@@ -270,8 +285,7 @@ warm:
 
 	dev->active = true;
 	return 0;
-err_release_firmware:
-	release_firmware(fw);
+
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
