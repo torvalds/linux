@@ -2577,6 +2577,7 @@
 		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		rockchip,disable-device-link-resume;
+		rockchip,shootdown-entire;
 		status = "disabled";
 	};
 
