@@ -814,7 +814,6 @@ static int api_chain_init(struct hinic_api_cmd_chain *chain,
 {
 	struct hinic_hwif *hwif = attr->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	size_t cell_ctxt_size;
 
 	chain->hwif = hwif;
 	chain->chain_type  = attr->chain_type;
@@ -826,8 +825,8 @@ static int api_chain_init(struct hinic_api_cmd_chain *chain,
 
 	sema_init(&chain->sem, 1);
 
-	cell_ctxt_size = chain->num_cells * sizeof(*chain->cell_ctxt);
-	chain->cell_ctxt = devm_kzalloc(&pdev->dev, cell_ctxt_size, GFP_KERNEL);
+	chain->cell_ctxt = devm_kcalloc(&pdev->dev, chain->num_cells,
+					sizeof(*chain->cell_ctxt), GFP_KERNEL);
 	if (!chain->cell_ctxt)
 		return -ENOMEM;
 
