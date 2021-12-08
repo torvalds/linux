@@ -212,7 +212,8 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
-	u32 tmp, expected_ack_val;
+	struct hl_bd *sent_bd;
+	u32 tmp, expected_ack_val, pi;
 	int rc = 0;
 
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
@@ -237,6 +238,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	/* set fence to a non valid value */
 	pkt->fence = cpu_to_le32(UINT_MAX);
+	pi = queue->pi;
 
 	/*
 	 * The CPU queue is a synchronous queue with an effective depth of
@@ -246,7 +248,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	 * Which means that we don't need to lock the access to the entire H/W
 	 * queues module when submitting a JOB to the CPU queue.
 	 */
-	hl_hw_queue_submit_bd(hdev, queue, 0, len, pkt_dma_addr);
+	hl_hw_queue_submit_bd(hdev, queue, hl_queue_inc_ptr(queue->pi), len, pkt_dma_addr);
 
 	if (prop->fw_app_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
 		expected_ack_val = queue->pi;
@@ -277,6 +279,14 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	} else if (result) {
 		*result = le64_to_cpu(pkt->result);
 	}
+
+	/* Scrub previous buffer descriptor 'ctl' field which contains the
+	 * previous PI value written during packet submission.
+	 * We must do this or else F/W can read an old value upon queue wraparound.
+	 */
+	sent_bd = queue->kernel_address;
+	sent_bd += hl_pi_2_offset(pi);
+	sent_bd->ctl = cpu_to_le32(UINT_MAX);
 
 out:
 	mutex_unlock(&hdev->send_cpu_message_lock);
