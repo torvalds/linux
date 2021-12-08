@@ -367,10 +367,14 @@ static void rcar_i2c_next_msg(struct rcar_i2c_priv *priv)
 	rcar_i2c_prepare_msg(priv);
 }
 
-static void rcar_i2c_dma_unmap(struct rcar_i2c_priv *priv)
+static void rcar_i2c_cleanup_dma(struct rcar_i2c_priv *priv, bool terminate)
 {
 	struct dma_chan *chan = priv->dma_direction == DMA_FROM_DEVICE
 		? priv->dma_rx : priv->dma_tx;
+
+	/* only allowed from thread context! */
+	if (terminate)
+		dmaengine_terminate_sync(chan);
 
 	dma_unmap_single(chan->device->dev, sg_dma_address(&priv->sg),
 			 sg_dma_len(&priv->sg), priv->dma_direction);
@@ -386,25 +390,13 @@ static void rcar_i2c_dma_unmap(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICDMAER, 0);
 }
 
-static void rcar_i2c_cleanup_dma(struct rcar_i2c_priv *priv)
-{
-	if (priv->dma_direction == DMA_NONE)
-		return;
-	else if (priv->dma_direction == DMA_FROM_DEVICE)
-		dmaengine_terminate_all(priv->dma_rx);
-	else if (priv->dma_direction == DMA_TO_DEVICE)
-		dmaengine_terminate_all(priv->dma_tx);
-
-	rcar_i2c_dma_unmap(priv);
-}
-
 static void rcar_i2c_dma_callback(void *data)
 {
 	struct rcar_i2c_priv *priv = data;
 
 	priv->pos += sg_dma_len(&priv->sg);
 
-	rcar_i2c_dma_unmap(priv);
+	rcar_i2c_cleanup_dma(priv, false);
 }
 
 static bool rcar_i2c_dma(struct rcar_i2c_priv *priv)
@@ -456,7 +448,7 @@ static bool rcar_i2c_dma(struct rcar_i2c_priv *priv)
 					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc) {
 		dev_dbg(dev, "dma prep slave sg failed, using PIO\n");
-		rcar_i2c_cleanup_dma(priv);
+		rcar_i2c_cleanup_dma(priv, false);
 		return false;
 	}
 
@@ -466,7 +458,7 @@ static bool rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	cookie = dmaengine_submit(txdesc);
 	if (dma_submit_error(cookie)) {
 		dev_dbg(dev, "submitting dma failed, using PIO\n");
-		rcar_i2c_cleanup_dma(priv);
+		rcar_i2c_cleanup_dma(priv, false);
 		return false;
 	}
 
@@ -846,7 +838,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 	/* cleanup DMA if it couldn't complete properly due to an error */
 	if (priv->dma_direction != DMA_NONE)
-		rcar_i2c_cleanup_dma(priv);
+		rcar_i2c_cleanup_dma(priv, true);
 
 	if (!time_left) {
 		rcar_i2c_init(priv);
