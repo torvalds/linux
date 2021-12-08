@@ -25,15 +25,15 @@
 #define MAX_SEGMENT                                        5
 
 
-struct IP_BASE_INSTANCE 
+struct IP_BASE_INSTANCE
 {
     unsigned int segment[MAX_SEGMENT];
-};
- 
-struct IP_BASE 
+} __maybe_unused;
+
+struct IP_BASE
 {
     struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
-};
+} __maybe_unused;
 
 
 static const struct IP_BASE ATHUB_BASE            ={ { { { 0x00000C00, 0, 0, 0, 0 } },
