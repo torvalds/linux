@@ -41,7 +41,7 @@ static int x25_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 		return 0;
 	}
 
-	if (!more && x25->fraglen > 0) {	/* End of fragment */
+	if (x25->fraglen > 0) {	/* End of fragment */
 		int len = x25->fraglen + skb->len;
 
 		if ((skbn = alloc_skb(len, GFP_ATOMIC)) == NULL){
