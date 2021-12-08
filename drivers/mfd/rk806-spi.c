@@ -26,34 +26,17 @@ static int rk806_spi_write(struct spi_device *spi,
 	char write_cmd = RK806_CMD_WRITE | (data_len - 1);
 	char addrh = RK806_REG_H;
 	struct spi_message m;
-	char addrl = addr;
-	int ret = 0;
-
+	int buffer, ret = 0;
 	struct spi_transfer write_cmd_packet = {
-		.tx_buf	= &write_cmd,
-		.len	= sizeof(write_cmd),
-	};
-	struct spi_transfer addrl_packet = {
-		.tx_buf	= &addrl,
-		.len	= sizeof(addrl),
-	};
-	struct spi_transfer addrh_packet = {
-		.tx_buf	= &addrh,
-		.len	= sizeof(addrh),
+		.tx_buf	= &buffer,
+		.len	= sizeof(buffer),
 	};
 
-	struct spi_transfer data_packet = {
-		.tx_buf	= data,
-		.len	= data_len,
-	};
+	buffer = write_cmd | (addr << 8) | (addrh << 16) | (*data << 24);
 
 	spi_message_init(&m);
 	spi_message_add_tail(&write_cmd_packet, &m);
-	spi_message_add_tail(&addrl_packet, &m);
-	spi_message_add_tail(&addrh_packet, &m);
-	spi_message_add_tail(&data_packet, &m);
 	ret = spi_sync(spi, &m);
-
 	return ret;
 }
 
