@@ -4150,12 +4150,6 @@ static int mtip_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	int rv = 0;
 	struct driver_data *dd = pci_get_drvdata(pdev);
 
-	if (!dd) {
-		dev_err(&pdev->dev,
-			"Driver private datastructure is NULL\n");
-		return -EFAULT;
-	}
-
 	set_bit(MTIP_DDF_RESUME_BIT, &dd->dd_flag);
 
 	/* Disable ports & interrupts then send standby immediate */
@@ -4189,14 +4183,7 @@ static int mtip_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 static int mtip_pci_resume(struct pci_dev *pdev)
 {
 	int rv = 0;
-	struct driver_data *dd;
-
-	dd = pci_get_drvdata(pdev);
-	if (!dd) {
-		dev_err(&pdev->dev,
-			"Driver private datastructure is NULL\n");
-		return -EFAULT;
-	}
+	struct driver_data *dd = pci_get_drvdata(pdev);
 
 	/* Move the device to active State */
 	pci_set_power_state(pdev, PCI_D0);
