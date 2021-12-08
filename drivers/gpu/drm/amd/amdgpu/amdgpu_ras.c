@@ -1161,9 +1161,9 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 
 /**
  * amdgpu_ras_query_error_count -- Get error counts of all IPs
- * adev: pointer to AMD GPU device
- * ce_count: pointer to an integer to be set to the count of correctible errors.
- * ue_count: pointer to an integer to be set to the count of uncorrectible
+ * @adev: pointer to AMD GPU device
+ * @ce_count: pointer to an integer to be set to the count of correctible errors.
+ * @ue_count: pointer to an integer to be set to the count of uncorrectible
  * errors.
  *
  * If set, @ce_count or @ue_count, count and return the corresponding

@@ -165,7 +165,7 @@ static void amdgpu_atpx_parse_functions(struct amdgpu_atpx_functions *f, u32 mas
 }
 
 /**
- * amdgpu_atpx_validate_functions - validate ATPX functions
+ * amdgpu_atpx_validate - validate ATPX functions
  *
  * @atpx: amdgpu atpx struct
  *

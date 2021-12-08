@@ -331,7 +331,7 @@ void amdgpu_device_mm_access(struct amdgpu_device *adev, loff_t pos,
 }
 
 /**
- * amdgpu_device_vram_access - access vram by vram aperature
+ * amdgpu_device_aper_access - access vram by vram aperature
  *
  * @adev: amdgpu_device pointer
  * @pos: offset of the buffer in vram
@@ -3801,7 +3801,7 @@ static void amdgpu_device_unmap_mmio(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_device_fini - tear down the driver
+ * amdgpu_device_fini_hw - tear down the driver
  *
  * @adev: amdgpu_device pointer
  *

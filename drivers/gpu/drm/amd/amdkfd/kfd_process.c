@@ -251,14 +251,13 @@ cleanup:
 }
 
 /**
- * @kfd_get_cu_occupancy - Collect number of waves in-flight on this device
+ * kfd_get_cu_occupancy - Collect number of waves in-flight on this device
  * by current process. Translates acquired wave count into number of compute units
  * that are occupied.
  *
- * @atr: Handle of attribute that allows reporting of wave count. The attribute
+ * @attr: Handle of attribute that allows reporting of wave count. The attribute
  * handle encapsulates GPU device it is associated with, thereby allowing collection
  * of waves in flight, etc
- *
  * @buffer: Handle of user provided buffer updated with wave count
  *
  * Return: Number of bytes written to user buffer or an error value

@@ -1650,6 +1650,10 @@ out_reschedule:
 
 /**
  * svm_range_evict - evict svm range
+ * @prange: svm range structure
+ * @mm: current process mm_struct
+ * @start: starting process queue number
+ * @last: last process queue number
  *
  * Stop all queues of the process to ensure GPU doesn't access the memory, then
  * return to let CPU evict the buffer and proceed CPU pagetable update.
@@ -2161,6 +2165,9 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 
 /**
  * svm_range_cpu_invalidate_pagetables - interval notifier callback
+ * @mni: mmu_interval_notifier struct
+ * @range: mmu_notifier_range struct
+ * @cur_seq: value to pass to mmu_interval_set_seq()
  *
  * If event is MMU_NOTIFY_UNMAP, this is from CPU unmap range, otherwise, it
  * is from migration, or CPU page invalidation callback.

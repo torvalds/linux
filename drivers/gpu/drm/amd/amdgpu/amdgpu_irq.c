@@ -390,7 +390,7 @@ void amdgpu_irq_fini_hw(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_irq_fini - shut down interrupt handling
+ * amdgpu_irq_fini_sw - shut down interrupt handling
  *
  * @adev: amdgpu device pointer
  *

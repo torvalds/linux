@@ -94,7 +94,7 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 
 /**
  * __smu_cmn_poll_stat -- poll for a status from the SMU
- * smu: a pointer to SMU context
+ * @smu: a pointer to SMU context
  *
  * Returns the status of the SMU, which could be,
  *    0, the SMU is busy with your command;
