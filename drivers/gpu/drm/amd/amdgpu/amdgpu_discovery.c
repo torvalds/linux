@@ -380,18 +380,15 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				  ip->revision);
 
 			if (le16_to_cpu(ip->hw_id) == VCN_HWID) {
-				if (amdgpu_sriov_vf(adev)) {
-					/* SR-IOV modifies each VCN’s revision (uint8)
-					 * Bit [5:0]: original revision value
-					 * Bit [7:6]: en/decode capability:
-					 *     0b00 : VCN function normally
-					 *     0b10 : encode is disabled
-					 *     0b01 : decode is disabled
-					 */
-					adev->vcn.sriov_config[adev->vcn.num_vcn_inst] =
-						(ip->revision & 0xc0) >> 6;
-					ip->revision &= ~0xc0;
-				}
+				/* Bit [5:0]: original revision value
+				 * Bit [7:6]: en/decode capability:
+				 *     0b00 : VCN function normally
+				 *     0b10 : encode is disabled
+				 *     0b01 : decode is disabled
+				 */
+				adev->vcn.vcn_config[adev->vcn.num_vcn_inst] =
+					ip->revision & 0xc0;
+				ip->revision &= ~0xc0;
 				adev->vcn.num_vcn_inst++;
 			}
 			if (le16_to_cpu(ip->hw_id) == SDMA0_HWID ||
@@ -483,14 +480,6 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id, int n
 	}
 
 	return -EINVAL;
-}
-
-
-int amdgpu_discovery_get_vcn_version(struct amdgpu_device *adev, int vcn_instance,
-				     int *major, int *minor, int *revision)
-{
-	return amdgpu_discovery_get_ip_version(adev, VCN_HWID,
-					       vcn_instance, major, minor, revision);
 }
 
 void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
