@@ -81,6 +81,8 @@
  *  VERSION     : 01-00-27
  *  03 Dec 2021 : 1. Added error check for phydev in tc956xmac_suspend().
  *  VERSION     : 01-00-29
+ *  08 Dec 2021 : 1. Added Module parameter for Rx & Tx Queue Size configuration.
+ *  VERSION     : 01-00-30
  */
 
 #include <linux/clk.h>
@@ -3123,10 +3125,10 @@ static void tc956xmac_dma_operation_mode(struct tc956xmac_priv *priv)
 #ifdef TC956X
 		switch (chan) {
 		case 0:
-			rxfifosz = RX_QUEUE0_SIZE;
+			rxfifosz = priv->plat->rx_queues_cfg[0].size;
 			break;
 		case 1:
-			rxfifosz = RX_QUEUE1_SIZE;
+			rxfifosz = priv->plat->rx_queues_cfg[1].size;
 			break;
 		case 2:
 			rxfifosz = RX_QUEUE2_SIZE;
@@ -3168,10 +3170,10 @@ static void tc956xmac_dma_operation_mode(struct tc956xmac_priv *priv)
 #ifdef TC956X
 		switch (chan) {
 		case 0:
-			txfifosz = TX_QUEUE0_SIZE;
+			txfifosz = priv->plat->tx_queues_cfg[0].size;
 			break;
 		case 1:
-			txfifosz = TX_QUEUE1_SIZE;
+			txfifosz = priv->plat->tx_queues_cfg[1].size;
 			break;
 		case 2:
 			txfifosz = TX_QUEUE2_SIZE;
@@ -3377,12 +3379,12 @@ static void tc956xmac_set_dma_operation_mode(struct tc956xmac_priv *priv, u32 tx
 #ifdef TC956X
 	switch (chan) {
 	case 0:
-		rxfifosz = RX_QUEUE0_SIZE;
-		txfifosz = TX_QUEUE0_SIZE;
+		rxfifosz = priv->plat->rx_queues_cfg[0].size;
+		txfifosz = priv->plat->tx_queues_cfg[0].size;
 		break;
 	case 1:
-		rxfifosz = RX_QUEUE1_SIZE;
-		txfifosz = TX_QUEUE1_SIZE;
+		rxfifosz = priv->plat->rx_queues_cfg[1].size;
+		txfifosz = priv->plat->tx_queues_cfg[1].size;
 		break;
 	case 2:
 		rxfifosz = RX_QUEUE2_SIZE;

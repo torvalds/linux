@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 03 Dec 2021
+Release Date: 08 Dec 2021
 
-Release Version: V_01-00-29 : Limited-tested version
+Release Version: V_01-00-30 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -30,11 +30,14 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 	#modprobe phylink
 4.  Load the driver
 
-	#insmod tc956x_pcie_eth.ko tc956x_speed=X
+	#insmod tc956x_pcie_eth.ko pcie_link_speed=X
 
-	In the module parameter tc956x_speed, X is the desired PCIe Gen speed. X can be 3 or 2 or 1.
-	Passing module parameter (tc956x_speed=X) is optional.
+	In the module parameter pcie_link_speed, X is the desired PCIe Gen speed. X can be 3 or 2 or 1.
+	Passing module parameter (pcie_link_speed=X) is optional.
 	If module parameter is not passed, by default Gen3 speed will be selected by the driver.
+
+	Please note that driver should be compiled using below command to use this feature:
+	#make TC956X_PCIE_GEN3_SETTING=1
 5.  Remove the driver
 
 	#rmmod tc956x_pcie_eth
@@ -57,11 +60,11 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 2. Use the below command to insert the kernel module with specific modes for interfaces:
 	
-    #insmod tc956x_pcie_eth.ko tc956x_port0_interface=x tc956x_port1_interface=y
+    #insmod tc956x_pcie_eth.ko mac0_interface=x mac1_interface=y
 
        argument info:
-	     tc956x_port0_interface: For PORT0 interface mode setting
-	     tc956x_port1_interface: For PORT1 interface mode setting
+	     mac0_interface: For PORT0 interface mode setting
+	     mac1_interface: For PORT1 interface mode setting
 	     x = [0: USXGMII, 1: XFI (default), 2: RGMII (unsupported), 3: SGMII]
 	     y = [0: USXGMII (unsupported), 1: XFI (unsupported), 2: RGMII, 3: SGMII(default)]
   
@@ -153,11 +156,11 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 10. Please use the below command to insert the kernel module for passing pause frames to application except pause frames from PHY:
 
-	#insmod tc956x_pcie_eth.ko tc956x_port0_filter_phy_pause_frames=x tc956x_port1_filter_phy_pause_frames=x
+	#insmod tc956x_pcie_eth.ko mac0_filter_phy_pause=x mac1_filter_phy_pause=x
 
 	argument info:
-		tc956x_port0_filter_phy_pause_frames: For PORT0
-		tc956x_port1_filter_phy_pause_frames: For PORT1
+		mac0_filter_phy_pause: For PORT0
+		mac1_filter_phy_pause: For PORT1
 		x = [0: DISABLE (default), 1: ENABLE]
 
 	If invalid values are passed as kernel module parameter, the default value will be selected.
@@ -181,18 +184,18 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 13. Please use the below command to insert the kernel module to enable EEE and configure LPI Auto Entry timer:
 
-	#insmod tc956x_pcie_eth.ko tc956x_port0_enable_eee=X tc956x_port0_lpi_auto_entry_timer=Y tc956x_port1_enable_eee=X tc956x_port1_lpi_auto_entry_timer=Y
+	#insmod tc956x_pcie_eth.ko mac0_eee_enable=X mac0_lpi_timer=Y mac1_eee_enable=X mac1_lpi_timer=Y
 
 	argument info:
 
-		tc956x_port0_enable_eee: For PORT0
-		tc956x_port1_enable_eee: For PORT1
+		mac0_eee_enable: For PORT0
+		mac1_eee_enable: For PORT1
 		X = [0: DISABLE (default), 1: ENABLE]
 		This module parameter is to Enable/Disable EEE for Port 0/1 - default is 0.
 		If invalid values are passed as kernel module parameter, the default value will be selected.		
 
-		tc956x_port0_lpi_auto_entry_timer: For PORT0
-		tc956x_port1_lpi_auto_entry_timer: For PORT1
+		mac0_lpi_timer: For PORT0
+		mac1_lpi_timer: For PORT1
 		Y = [0..1048568 (us)]
 		This module parameter is to configure LPI Automatic Entry Timer for Port 0/1 - default is 600 (us).
 		If invalid values are passed as kernel module parameter, the default value will be selected.		
@@ -203,6 +206,41 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 	Use below command to check the status of EEE configuration
 	#ethtool --show-eee <interface>
+
+14. Please use the below command to insert the kernel module for RX Queue size, Flow control thresholds & TX Queue size configuration.
+
+	#insmod tc956x_pcie_eth.ko mac0_rxq0_size=x mac0_rxq0_rfd=y mac0_rxq0_rfa=y
+		mac0_rxq1_size=x mac0_rxq1_rfd=y mac0_rxq1_rfa=y
+		mac0_txq0_size=x mac0_txq1_size=x
+		mac1_rxq0_size=x mac1_rxq0_rfd=y mac1_rxq0_rfa=y
+		mac1_rxq1_size=x mac1_rxq1_rfd=y mac1_rxq1_rfa=y
+		mac1_txq0_size=x mac1_txq1_size=x
+
+	argument info:
+		mac0_rxq0_size: For PORT0 RX Queue-0
+		mac0_rxq1_size: For PORT0 RX Queue-1
+		mac1_rxq0_size: For PORT1 RX Queue-0
+		mac1_rxq1_size: For PORT1 RX Queue-1
+		mac0_txq0_size: For PORT0 TX Queue-0
+		mac0_txq1_size: For PORT0 TX Queue-1
+		mac1_txq0_size: For PORT1 TX Queue-0
+		mac1_txq1_size: For PORT1 TX Queue-1
+		x = [Range Supported : 3072..44032 (bytes)], default is 18432 (bytes)
+
+		mac0_rxq0_rfd: For PORT0 Queue-0 threshold for Disable flow control
+		mac0_rxq1_rfd: For PORT0 Queue-1 threshold for Disable flow control
+		mac0_rxq0_rfa: For PORT0 Queue-0 threshold for Enable flow control
+		mac0_rxq1_rfa: For PORT0 Queue-1 threshold for Enable flow control
+		mac1_rxq0_rfd: For PORT1 Queue-0 threshold for Disable flow control
+		mac1_rxq1_rfd: For PORT1 Queue-1 threshold for Disable flow control
+		mac1_rxq0_rfa: For PORT1 Queue-0 threshold for Enable flow control
+		mac1_rxq1_rfa: For PORT1 Queue-1 threshold for Enable flow control
+		y = [Range Supported : 0..84], default is 24 (13KB)
+
+	If invalid values are passed as kernel module parameter, the default value will be selected for Queue Sizes and for Flow control 80% of Queue size will be used.
+
+	Note:
+	1. Please configure flow control thresholds (RFD & RFA) as per Queue size (Default values are for Default Queue size which is 18KB).
 
 # Release Versions:
 
@@ -353,3 +391,8 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 1. Max C22/C45 PHY address changed to PHY_MAX_ADDR.
 2. Added error check for phydev in tc956xmac_suspend().
+
+## TC956X_Host_Driver_20211208_V_01-00-30:
+
+1. Added module parameters for Rx Queue Size, Flow Control thresholds and Tx Queue Size configuration.
+2. Renamed all module parameters for easy readability.

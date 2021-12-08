@@ -42,6 +42,8 @@
  *  VERSION     : 01-00-09
  *  24 Aug 2021 : 1. Disable TC956X_PCIE_GEN3_SETTING and TC956X_LOAD_FW_HEADER macros and provide support via Makefile
  *  VERSION     : 01-00-10
+ *  08 Dec 2021 : 1. Added Module parameters for Flow control thresholds per Queue.
+ *  VERSION     : 01-00-30
  */
 
 #ifndef __TC956XMAC_PLATFORM_DATA
@@ -206,6 +208,9 @@ struct tc956xmac_rxq_cfg {
 	u8 pkt_route;
 	bool use_prio;
 	u32 prio;
+	u32 size;
+	u32 rfd;
+	u32 rfa;
 };
 
 struct tc956xmac_txq_cfg {
@@ -221,6 +226,7 @@ struct tc956xmac_txq_cfg {
 	u32 tbs_en;
 	u32 tso_en;
 	u8 traffic_class;
+	u32 size;
 };
 
 struct tc956xmac_fpe_cfg {

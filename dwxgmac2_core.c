@@ -57,6 +57,8 @@
  *  24 Nov 2021 : 1. EEE update for runtime configuration and LPI interrupt disabled.
  		  2. USXGMII support during link change
  *  VERSION     : 01-00-24
+ *  08 Dec 2021 : 1. Renamed pause frames module parameter
+ *  VERSION     : 01-00-30
  */
 
 #include <linux/bitrev.h>
@@ -66,8 +68,8 @@
 #include "tc956xmac_ptp.h"
 #include "dwxgmac2.h"
 
-extern unsigned int tc956x_port0_filter_phy_pause_frames;
-extern unsigned int tc956x_port1_filter_phy_pause_frames;
+extern unsigned int mac0_filter_phy_pause;
+extern unsigned int mac1_filter_phy_pause;
 
 static void tc956x_set_mac_addr(struct tc956xmac_priv *priv, struct mac_device_info *hw,
 				const u8 *mac, int index, int vf);
@@ -1028,8 +1030,8 @@ static void dwxgmac2_set_filter(struct tc956xmac_priv *priv, struct mac_device_i
 		   XGMAC_FILTER_RA);
 	value |= XGMAC_FILTER_HPF;
 	/* Configuring to Pass all pause frames to application, PHY pause frames will be filtered by FRP */
-	if ((tc956x_port0_filter_phy_pause_frames == ENABLE && priv->port_num == RM_PF0_ID) ||
-	   (tc956x_port1_filter_phy_pause_frames == ENABLE && priv->port_num == RM_PF1_ID)) {
+	if ((mac0_filter_phy_pause == ENABLE && priv->port_num == RM_PF0_ID) ||
+	   (mac1_filter_phy_pause == ENABLE && priv->port_num == RM_PF1_ID)) {
 		/* setting pcf to 0b10 i.e. pass pause frames of address filter fail to Application */
 		value |= 0x80;
 	}

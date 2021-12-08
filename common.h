@@ -64,7 +64,9 @@
  *  24 Nov 2021 : 1. Single Port Suspend/Resume supported
  *  VERSION     : 01-00-22
  *  24 Nov 2021 : 1. EEE update for runtime configuration and LPI interrupt disabled.
- *  VERSION     : 01-00-24 
+ *  VERSION     : 01-00-24
+ *  08 Dec 2021 : 1. Added Macro for Maximum Tx, Rx Queue Size and byte size.
+ *  VERSION     : 01-00-30
  */
 
 #ifndef __COMMON_H__
@@ -106,6 +108,8 @@ enum TC956X_PORT_PM_STATE {
 
 #define DISABLE		0
 #define ENABLE		1
+#define SIZE_512B	512
+#define SIZE_1KB	1024
 
 /* Synopsys Core versions */
 #define DWMAC_CORE_3_40		0x34
@@ -383,6 +387,9 @@ enum packets_types {
 #define RX_QUEUE5_SIZE		0
 #define RX_QUEUE6_SIZE		0
 #define RX_QUEUE7_SIZE		0
+
+#define MAX_RX_QUEUE_SIZE	47104 /* 46KB Maximun RX Queue size */
+#define MAX_TX_QUEUE_SIZE	47104 /* 46KB Maximun TX Queue size */
 
 /*
  * RX Queue 0: Unicast/Untagged Packets - Packets with

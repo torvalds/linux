@@ -38,6 +38,8 @@
  *  		  Threshold Limit for Activating Flow control 
  *  		  Threshold Limit for Deactivating Flow control 
  *  VERSION     : 01-00-14
+ *  08 Dec 2021 : 1. Added module parameter for Flow control thresholds per Queue
+ *  VERSION     : 01-00-30
  */
 
 #include <linux/iopoll.h>
@@ -254,28 +256,8 @@ static void dwxgmac2_dma_rx_mode(struct tc956xmac_priv *priv,
 
 		value |= XGMAC_EHFC;
 
-		/* Set Threshold for Activating Flow Control to min 2 frames,
-		 * i.e. 1500 * 2 = 3000 bytes.
-		 *
-		 * Set Threshold for Deactivating Flow Control to min 1 frame,
-		 * i.e. 1500 bytes.
-		 */
-		switch (fifosz) {
-		case 4096:
-			/* This violates the above formula because of FIFO size
-			 * limit therefore overflow may occur in spite of this.
-			 */
-			rfd = 0x03; /* Full-2.5K */
-			rfa = 0x01; /* Full-1.5K */
-			break;
-
-		default:
-		/* 13K Clear Trigger when Q(x) is filled with Max Size - 13K */
-			rfd = 24;
-		/* 13K Trigger when Q(x) is filled with Max Size - 13K */
-			rfa = 24;
-			break;
-		}
+		rfd = priv->plat->rx_queues_cfg[channel].rfd;
+		rfa = priv->plat->rx_queues_cfg[channel].rfa;
 
 		flow &= ~XGMAC_RFD;
 		flow |= rfd << XGMAC_RFD_SHIFT;
