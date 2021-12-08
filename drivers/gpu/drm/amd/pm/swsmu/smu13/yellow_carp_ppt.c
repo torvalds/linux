@@ -204,7 +204,6 @@ static int yellow_carp_system_features_control(struct smu_context *smu, bool en)
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
 
 	bitmap_zero(feature->enabled, feature->feature_num);
-	bitmap_zero(feature->supported, feature->feature_num);
 
 	if (!en)
 		return ret;
@@ -214,8 +213,6 @@ static int yellow_carp_system_features_control(struct smu_context *smu, bool en)
 		return ret;
 
 	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-		    feature->feature_num);
-	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
 		    feature->feature_num);
 
 	return 0;

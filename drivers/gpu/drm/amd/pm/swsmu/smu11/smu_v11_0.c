@@ -808,7 +808,6 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 		return ret;
 
 	bitmap_zero(feature->enabled, feature->feature_num);
-	bitmap_zero(feature->supported, feature->feature_num);
 
 	if (en) {
 		ret = smu_cmn_get_enabled_mask(smu, &feature_mask);
@@ -816,8 +815,6 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 			return ret;
 
 		bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-			    feature->feature_num);
-		bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
 			    feature->feature_num);
 	}
 
