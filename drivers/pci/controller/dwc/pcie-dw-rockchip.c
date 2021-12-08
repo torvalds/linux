@@ -1738,13 +1738,13 @@ static int rk_pcie_really_probe(void *p)
 	ret = rk_pcie_reset_control_release(rk_pcie);
 	if (ret) {
 		dev_err(dev, "reset control init failed\n");
-		goto disable_vpcie3v3;
+		goto disable_phy;
 	}
 
 	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
 	if (ret) {
 		dev_err(dev, "pcie irq init failed\n");
-		goto disable_vpcie3v3;
+		goto disable_phy;
 	}
 
 	platform_set_drvdata(pdev, rk_pcie);
@@ -1752,7 +1752,7 @@ static int rk_pcie_really_probe(void *p)
 	ret = rk_pcie_clk_init(rk_pcie);
 	if (ret) {
 		dev_err(dev, "clock init failed\n");
-		goto disable_vpcie3v3;
+		goto disable_phy;
 	}
 
 	dw_pcie_dbi_ro_wr_en(pci);
@@ -1835,6 +1835,9 @@ static int rk_pcie_really_probe(void *p)
 remove_irq_domain:
 	if (rk_pcie->irq_domain)
 		irq_domain_remove(rk_pcie->irq_domain);
+disable_phy:
+	phy_power_off(rk_pcie->phy);
+	phy_exit(rk_pcie->phy);
 deinit_clk:
 	rk_pcie_clk_deinit(rk_pcie);
 disable_vpcie3v3:
