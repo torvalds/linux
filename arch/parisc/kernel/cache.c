@@ -566,7 +566,7 @@ void flush_cache_mm(struct mm_struct *mm)
 	   rp3440, etc.  So, avoid it if the mm isn't too big.  */
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    mm_total_size(mm) >= parisc_cache_flush_threshold) {
-		if (mm->context)
+		if (mm->context.space_id)
 			flush_tlb_all();
 		flush_cache_all();
 		return;
@@ -581,7 +581,7 @@ void flush_cache_range(struct vm_area_struct *vma,
 {
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    end - start >= parisc_cache_flush_threshold) {
-		if (vma->vm_mm->context)
+		if (vma->vm_mm->context.space_id)
 			flush_tlb_range(vma, start, end);
 		flush_cache_all();
 		return;
@@ -594,7 +594,7 @@ void
 flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long pfn)
 {
 	if (pfn_valid(pfn)) {
-		if (likely(vma->vm_mm->context)) {
+		if (likely(vma->vm_mm->context.space_id)) {
 			flush_tlb_page(vma, vmaddr);
 			__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 		} else {

@@ -44,6 +44,16 @@ endif
 
 export LD_BFD
 
+# Set default 32 bits cross compilers for vdso
+CC_ARCHES_32 = hppa hppa2.0 hppa1.1
+CC_SUFFIXES  = linux linux-gnu unknown-linux-gnu
+CROSS32_COMPILE := $(call cc-cross-prefix, \
+	$(foreach a,$(CC_ARCHES_32), \
+	$(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
+CROSS32CC := $(CROSS32_COMPILE)gcc
+export CROSS32CC
+
+# Set default cross compiler for kernel build
 ifdef cross_compiling
 	ifeq ($(CROSS_COMPILE),)
 		CC_SUFFIXES = linux linux-gnu unknown-linux-gnu
@@ -163,6 +173,26 @@ vmlinuz: vmlinux
 	@$(KGZIP) -cf -9 $< > $@
 endif
 
+ifeq ($(KBUILD_EXTMOD),)
+# We need to generate vdso-offsets.h before compiling certain files in kernel/.
+# In order to do that, we should use the archprepare target, but we can't since
+# asm-offsets.h is included in some files used to generate vdso-offsets.h, and
+# asm-offsets.h is built in prepare0, for which archprepare is a dependency.
+# Therefore we need to generate the header after prepare0 has been made, hence
+# this hack.
+prepare: vdso_prepare
+vdso_prepare: prepare0
+	$(if $(CONFIG_64BIT),$(Q)$(MAKE) \
+		$(build)=arch/parisc/kernel/vdso64 include/generated/vdso64-offsets.h)
+	$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso32 include/generated/vdso32-offsets.h
+endif
+
+PHONY += vdso_install
+
+vdso_install:
+	$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso $@
+	$(if $(CONFIG_COMPAT_VDSO), \
+		$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso32 $@)
 install:
 	$(CONFIG_SHELL) $(srctree)/arch/parisc/install.sh \
 			$(KERNELRELEASE) vmlinux System.map "$(INSTALL_PATH)"
