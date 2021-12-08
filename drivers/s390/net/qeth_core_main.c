@@ -3635,12 +3635,10 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 	if ((atomic_read(&queue->used_buffers) <= QETH_LOW_WATERMARK_PACK) ||
 	    !atomic_read(&queue->set_pci_flags_count)) {
 		unsigned int index, flush_cnt;
-		bool q_was_packing;
 
 		spin_lock(&queue->lock);
 
 		index = queue->next_buf_to_fill;
-		q_was_packing = queue->do_pack;
 
 		flush_cnt = qeth_switch_to_nonpacking_if_needed(queue);
 		if (!flush_cnt && !atomic_read(&queue->set_pci_flags_count))
@@ -3648,8 +3646,7 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 
 		if (flush_cnt) {
 			qeth_flush_buffers(queue, index, flush_cnt);
-			if (q_was_packing)
-				QETH_TXQ_STAT_ADD(queue, bufs_pack, flush_cnt);
+			QETH_TXQ_STAT_ADD(queue, bufs_pack, flush_cnt);
 		}
 
 		spin_unlock(&queue->lock);
@@ -3769,7 +3766,7 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 /*
  * Note: Function assumes that we have 4 outbound queues.
  */
-int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb)
+static int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb)
 {
 	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
 	u8 tos;
@@ -3814,7 +3811,6 @@ int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb)
 	}
 	return card->qdio.default_out_queue;
 }
-EXPORT_SYMBOL_GPL(qeth_get_priority_queue);
 
 /**
  * qeth_get_elements_for_frags() -	find number of SBALEs for skb frags.
@@ -5575,29 +5571,9 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 #endif
 
 static void qeth_receive_skb(struct qeth_card *card, struct sk_buff *skb,
-			     struct qeth_hdr *hdr, bool uses_frags)
+			     bool uses_frags, bool is_cso)
 {
 	struct napi_struct *napi = &card->napi;
-	bool is_cso;
-
-	switch (hdr->hdr.l2.id) {
-#if IS_ENABLED(CONFIG_QETH_L3)
-	case QETH_HEADER_TYPE_LAYER3:
-		qeth_l3_rebuild_skb(card, skb, hdr);
-		is_cso = hdr->hdr.l3.ext_flags & QETH_HDR_EXT_CSUM_TRANSP_REQ;
-		break;
-#endif
-	case QETH_HEADER_TYPE_LAYER2:
-		is_cso = hdr->hdr.l2.flags[1] & QETH_HDR_EXT_CSUM_TRANSP_REQ;
-		break;
-	default:
-		/* never happens */
-		if (uses_frags)
-			napi_free_frags(napi);
-		else
-			kfree_skb(skb);
-		return;
-	}
 
 	if (is_cso && (card->dev->features & NETIF_F_RXCSUM)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -5654,6 +5630,7 @@ static int qeth_extract_skb(struct qeth_card *card,
 	struct qeth_hdr *hdr;
 	struct sk_buff *skb;
 	int skb_len = 0;
+	bool is_cso;
 
 	element = &buffer->element[*element_no];
 
@@ -5673,11 +5650,15 @@ next_packet:
 	switch (hdr->hdr.l2.id) {
 	case QETH_HEADER_TYPE_LAYER2:
 		skb_len = hdr->hdr.l2.pkt_length;
+		is_cso = hdr->hdr.l2.flags[1] & QETH_HDR_EXT_CSUM_TRANSP_REQ;
+
 		linear_len = ETH_HLEN;
 		headroom = 0;
 		break;
 	case QETH_HEADER_TYPE_LAYER3:
 		skb_len = hdr->hdr.l3.length;
+		is_cso = hdr->hdr.l3.ext_flags & QETH_HDR_EXT_CSUM_TRANSP_REQ;
+
 		if (!IS_LAYER3(card)) {
 			QETH_CARD_STAT_INC(card, rx_dropped_notsupp);
 			goto walk_packet;
@@ -5804,7 +5785,12 @@ walk_packet:
 	*element_no = element - &buffer->element[0];
 	*__offset = offset;
 
-	qeth_receive_skb(card, skb, hdr, uses_frags);
+#if IS_ENABLED(CONFIG_QETH_L3)
+	if (hdr->hdr.l2.id == QETH_HEADER_TYPE_LAYER3)
+		qeth_l3_rebuild_skb(card, skb, hdr);
+#endif
+
+	qeth_receive_skb(card, skb, uses_frags, is_cso);
 	return 0;
 }
 
@@ -7087,6 +7073,18 @@ u16 qeth_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return (txq == QETH_IQD_MCAST_TXQ) ? QETH_IQD_MIN_UCAST_TXQ : txq;
 }
 EXPORT_SYMBOL_GPL(qeth_iqd_select_queue);
+
+u16 qeth_osa_select_queue(struct net_device *dev, struct sk_buff *skb,
+			  struct net_device *sb_dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (qeth_uses_tx_prio_queueing(card))
+		return qeth_get_priority_queue(card, skb);
+
+	return netdev_pick_tx(dev, skb, sb_dev);
+}
+EXPORT_SYMBOL_GPL(qeth_osa_select_queue);
 
 int qeth_open(struct net_device *dev)
 {
