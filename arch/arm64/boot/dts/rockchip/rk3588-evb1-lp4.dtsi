@@ -154,7 +154,7 @@
 		gpio = <&gpio2 RK_PC4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&mipidcphy0_pwr>;
-		regulator-name = "vcc_mipicsi1";
+		regulator-name = "vcc_mipidcphy0";
 		enable-active-high;
 	};
 
