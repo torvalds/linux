@@ -925,7 +925,6 @@ static int c8sectpfe_remove(struct platform_device *pdev)
 static int configure_channels(struct c8sectpfei *fei)
 {
 	int index = 0, ret;
-	struct channel_info *tsin;
 	struct device_node *child, *np = fei->dev->of_node;
 
 	/* iterate round each tsin and configure memdma descriptor and IB hw */
@@ -943,10 +942,9 @@ static int configure_channels(struct c8sectpfei *fei)
 	return 0;
 
 err_unmap:
-	for (index = 0; index < fei->tsin_count; index++) {
-		tsin = fei->channel_data[index];
-		free_input_block(fei, tsin);
-	}
+	while (--index >= 0)
+		free_input_block(fei, fei->channel_data[index]);
+
 	return ret;
 }
 
