@@ -1855,18 +1855,24 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 	node = interval_tree_iter_first(&svms->objects, start, last);
 	while (node) {
 		struct interval_tree_node *next;
-		struct svm_range *old;
 		unsigned long next_start;
 
 		pr_debug("found overlap node [0x%lx 0x%lx]\n", node->start,
 			 node->last);
 
-		old = container_of(node, struct svm_range, it_node);
+		prange = container_of(node, struct svm_range, it_node);
 		next = interval_tree_iter_next(node, start, last);
 		next_start = min(node->last, last) + 1;
 
-		if (node->start < start || node->last > last) {
-			/* node intersects the updated range, clone+split it */
+		if (svm_range_is_same_attrs(p, prange, nattr, attrs)) {
+			/* nothing to do */
+		} else if (node->start < start || node->last > last) {
+			/* node intersects the update range and its attributes
+			 * will change. Clone and split it, apply updates only
+			 * to the overlapping part
+			 */
+			struct svm_range *old = prange;
+
 			prange = svm_range_clone(old);
 			if (!prange) {
 				r = -ENOMEM;
@@ -1875,6 +1881,7 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 
 			list_add(&old->remove_list, remove_list);
 			list_add(&prange->insert_list, insert_list);
+			list_add(&prange->update_list, update_list);
 
 			if (node->start < start) {
 				pr_debug("change old range start\n");
@@ -1894,16 +1901,12 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 			/* The node is contained within start..last,
 			 * just update it
 			 */
-			prange = old;
-		}
-
-		if (!svm_range_is_same_attrs(p, prange, nattr, attrs))
 			list_add(&prange->update_list, update_list);
+		}
 
 		/* insert a new node if needed */
 		if (node->start > start) {
-			prange = svm_range_new(prange->svms, start,
-					       node->start - 1);
+			prange = svm_range_new(svms, start, node->start - 1);
 			if (!prange) {
 				r = -ENOMEM;
 				goto out;
