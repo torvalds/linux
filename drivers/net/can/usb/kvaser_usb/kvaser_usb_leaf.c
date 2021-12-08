@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/units.h>
 #include <linux/usb.h>
 
 #include <linux/can.h>
@@ -356,7 +357,7 @@ static const struct can_bittiming_const kvaser_usb_leaf_bittiming_const = {
 
 static const struct kvaser_usb_dev_cfg kvaser_usb_leaf_dev_cfg_8mhz = {
 	.clock = {
-		.freq = 8000000,
+		.freq = 8 * MEGA /* Hz */,
 	},
 	.timestamp_freq = 1,
 	.bittiming_const = &kvaser_usb_leaf_bittiming_const,
@@ -364,7 +365,7 @@ static const struct kvaser_usb_dev_cfg kvaser_usb_leaf_dev_cfg_8mhz = {
 
 static const struct kvaser_usb_dev_cfg kvaser_usb_leaf_dev_cfg_16mhz = {
 	.clock = {
-		.freq = 16000000,
+		.freq = 16 * MEGA /* Hz */,
 	},
 	.timestamp_freq = 1,
 	.bittiming_const = &kvaser_usb_leaf_bittiming_const,
@@ -372,7 +373,7 @@ static const struct kvaser_usb_dev_cfg kvaser_usb_leaf_dev_cfg_16mhz = {
 
 static const struct kvaser_usb_dev_cfg kvaser_usb_leaf_dev_cfg_24mhz = {
 	.clock = {
-		.freq = 24000000,
+		.freq = 24 * MEGA /* Hz */,
 	},
 	.timestamp_freq = 1,
 	.bittiming_const = &kvaser_usb_leaf_bittiming_const,
@@ -380,7 +381,7 @@ static const struct kvaser_usb_dev_cfg kvaser_usb_leaf_dev_cfg_24mhz = {
 
 static const struct kvaser_usb_dev_cfg kvaser_usb_leaf_dev_cfg_32mhz = {
 	.clock = {
-		.freq = 32000000,
+		.freq = 32 * MEGA /* Hz */,
 	},
 	.timestamp_freq = 1,
 	.bittiming_const = &kvaser_usb_leaf_bittiming_const,
