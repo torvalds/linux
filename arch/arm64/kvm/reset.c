@@ -193,10 +193,9 @@ static bool vcpu_allowed_register_width(struct kvm_vcpu *vcpu)
  * kvm_reset_vcpu - sets core registers and sys_regs to reset value
  * @vcpu: The VCPU pointer
  *
- * This function finds the right table above and sets the registers on
- * the virtual CPU struct to their architecturally defined reset
- * values, except for registers whose reset is deferred until
- * kvm_arm_vcpu_finalize().
+ * This function sets the registers on the virtual CPU struct to their
+ * architecturally defined reset values, except for registers whose reset is
+ * deferred until kvm_arm_vcpu_finalize().
  *
  * Note: This function can be called from two paths: The KVM_ARM_VCPU_INIT
  * ioctl or as part of handling a request issued by another VCPU in the PSCI
