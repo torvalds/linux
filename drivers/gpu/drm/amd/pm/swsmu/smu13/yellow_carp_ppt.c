@@ -195,27 +195,13 @@ static int yellow_carp_fini_smc_tables(struct smu_context *smu)
 
 static int yellow_carp_system_features_control(struct smu_context *smu, bool en)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
-	uint64_t feature_mask;
 	int ret = 0;
 
 	if (!en && !adev->in_s0ix)
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
 
-	bitmap_zero(feature->enabled, feature->feature_num);
-
-	if (!en)
-		return ret;
-
-	ret = smu_cmn_get_enabled_mask(smu, &feature_mask);
-	if (ret)
-		return ret;
-
-	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-		    feature->feature_num);
-
-	return 0;
+	return ret;
 }
 
 static int yellow_carp_dpm_set_vcn_enable(struct smu_context *smu, bool enable)

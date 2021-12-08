@@ -390,7 +390,6 @@ struct smu_feature
 	uint32_t feature_num;
 	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(allowed, SMU_FEATURE_MAX);
-	DECLARE_BITMAP(enabled, SMU_FEATURE_MAX);
 };
 
 struct smu_clocks {

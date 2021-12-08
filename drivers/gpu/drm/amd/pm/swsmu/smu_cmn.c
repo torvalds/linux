@@ -496,8 +496,8 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 int smu_cmn_feature_is_enabled(struct smu_context *smu,
 			       enum smu_feature_mask mask)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
+	uint64_t enabled_features;
 	int feature_id;
 
 	if (smu->is_apu && adev->family < AMDGPU_FAMILY_VGH)
@@ -509,9 +509,12 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	if (feature_id < 0)
 		return 0;
 
-	WARN_ON(feature_id > feature->feature_num);
+	if (smu_cmn_get_enabled_mask(smu, &enabled_features)) {
+		dev_err(adev->dev, "Failed to retrieve enabled ppfeatures!\n");
+		return 0;
+	}
 
-	return test_bit(feature_id, feature->enabled);
+	return test_bit(feature_id, (unsigned long *)&enabled_features);
 }
 
 bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
@@ -544,7 +547,6 @@ bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
 int smu_cmn_get_enabled_mask(struct smu_context *smu,
 			     uint64_t *feature_mask)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t *feature_mask_high;
 	uint32_t *feature_mask_low;
@@ -552,13 +554,6 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 
 	if (!feature_mask)
 		return -EINVAL;
-
-	if (!bitmap_empty(feature->enabled, feature->feature_num)) {
-		bitmap_copy((unsigned long *)feature_mask,
-			     feature->enabled,
-			     feature->feature_num);
-		return 0;
-	}
 
 	feature_mask_low = &((uint32_t *)feature_mask)[0];
 	feature_mask_high = &((uint32_t *)feature_mask)[1];
@@ -616,7 +611,6 @@ int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 					uint64_t feature_mask,
 					bool enabled)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;
 
 	if (enabled) {
@@ -630,8 +624,6 @@ int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 						  SMU_MSG_EnableSmuFeaturesHigh,
 						  upper_32_bits(feature_mask),
 						  NULL);
-		if (ret)
-			return ret;
 	} else {
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						  SMU_MSG_DisableSmuFeaturesLow,
@@ -643,16 +635,7 @@ int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 						  SMU_MSG_DisableSmuFeaturesHigh,
 						  upper_32_bits(feature_mask),
 						  NULL);
-		if (ret)
-			return ret;
 	}
-
-	if (enabled)
-		bitmap_or(feature->enabled, feature->enabled,
-				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
-	else
-		bitmap_andnot(feature->enabled, feature->enabled,
-				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
 
 	return ret;
 }
@@ -661,7 +644,6 @@ int smu_cmn_feature_set_enabled(struct smu_context *smu,
 				enum smu_feature_mask mask,
 				bool enable)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
 
 	feature_id = smu_cmn_to_asic_specific_index(smu,
@@ -669,8 +651,6 @@ int smu_cmn_feature_set_enabled(struct smu_context *smu,
 						    mask);
 	if (feature_id < 0)
 		return -EINVAL;
-
-	WARN_ON(feature_id > feature->feature_num);
 
 	return smu_cmn_feature_update_enable_state(smu,
 					       1ULL << feature_id,
@@ -793,7 +773,6 @@ int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
 						bool no_hw_disablement,
 						enum smu_feature_mask mask)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	uint64_t features_to_disable = U64_MAX;
 	int skipped_feature_id;
 
@@ -807,15 +786,12 @@ int smu_cmn_disable_all_features_with_exception(struct smu_context *smu,
 		features_to_disable &= ~(1ULL << skipped_feature_id);
 	}
 
-	if (no_hw_disablement) {
-		bitmap_andnot(feature->enabled, feature->enabled,
-				(unsigned long *)(&features_to_disable), SMU_FEATURE_MAX);
+	if (no_hw_disablement)
 		return 0;
-	} else {
-		return smu_cmn_feature_update_enable_state(smu,
-							   features_to_disable,
-							   0);
-	}
+
+	return smu_cmn_feature_update_enable_state(smu,
+						   features_to_disable,
+						   0);
 }
 
 int smu_cmn_get_smc_version(struct smu_context *smu,
