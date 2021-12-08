@@ -2170,6 +2170,7 @@ static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct fb_info *info;
 	struct savagefb_par *par;
 	u_int h_sync, v_sync;
+	unsigned char __maybe_unused *edid;
 	int err, lpitch;
 	int video_len;
 
@@ -2212,9 +2213,9 @@ static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&info->modelist);
 #if defined(CONFIG_FB_SAVAGE_I2C)
 	savagefb_create_i2c_busses(info);
-	savagefb_probe_i2c_connector(info, &par->edid);
-	fb_edid_to_monspecs(par->edid, &info->monspecs);
-	kfree(par->edid);
+	savagefb_probe_i2c_connector(info, &edid);
+	fb_edid_to_monspecs(edid, &info->monspecs);
+	kfree(edid);
 	fb_videomode_to_modelist(info->monspecs.modedb,
 				 info->monspecs.modedb_len,
 				 &info->modelist);
