@@ -2588,7 +2588,6 @@ int nf_conntrack_hash_resize(unsigned int hashsize)
 			hlist_nulls_add_head_rcu(&h->hnnode, &hash[bucket]);
 		}
 	}
-	old_size = nf_conntrack_htable_size;
 	old_hash = nf_conntrack_hash;
 
 	nf_conntrack_hash = hash;
