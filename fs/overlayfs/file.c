@@ -410,45 +410,48 @@ out_unlock:
 	return ret;
 }
 
-static ssize_t ovl_splice_read(struct file *in, loff_t *ppos,
-			 struct pipe_inode_info *pipe, size_t len,
-			 unsigned int flags)
+/*
+ * Calling iter_file_splice_write() directly from overlay's f_op may deadlock
+ * due to lock order inversion between pipe->mutex in iter_file_splice_write()
+ * and file_start_write(real.file) in ovl_write_iter().
+ *
+ * So do everything ovl_write_iter() does and call iter_file_splice_write() on
+ * the real file.
+ */
+static ssize_t ovl_splice_write(struct pipe_inode_info *pipe, struct file *out,
+				loff_t *ppos, size_t len, unsigned int flags)
 {
-	ssize_t ret;
 	struct fd real;
 	const struct cred *old_cred;
+	struct inode *inode = file_inode(out);
+	struct inode *realinode = ovl_inode_real(inode);
+	ssize_t ret;
 
-	ret = ovl_real_fdget(in, &real);
+	inode_lock(inode);
+	/* Update mode */
+	ovl_copyattr(realinode, inode);
+	ret = file_remove_privs(out);
 	if (ret)
-		return ret;
-
-	old_cred = ovl_override_creds(file_inode(in)->i_sb);
-	ret = generic_file_splice_read(real.file, ppos, pipe, len, flags);
-	ovl_revert_creds(file_inode(in)->i_sb, old_cred);
-
-	ovl_file_accessed(in);
-	fdput(real);
-	return ret;
-}
-
-static ssize_t
-ovl_splice_write(struct pipe_inode_info *pipe, struct file *out,
-			  loff_t *ppos, size_t len, unsigned int flags)
-{
-	struct fd real;
-	const struct cred *old_cred;
-	ssize_t ret;
+		goto out_unlock;
 
 	ret = ovl_real_fdget(out, &real);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
-	old_cred = ovl_override_creds(file_inode(out)->i_sb);
+	old_cred = ovl_override_creds(inode->i_sb);
+	file_start_write(real.file);
+
 	ret = iter_file_splice_write(pipe, real.file, ppos, len, flags);
-	ovl_revert_creds(file_inode(out)->i_sb, old_cred);
 
-	ovl_file_accessed(out);
+	file_end_write(real.file);
+	/* Update size */
+	ovl_copyattr(realinode, inode);
+	ovl_revert_creds(inode->i_sb, old_cred);
 	fdput(real);
+
+out_unlock:
+	inode_unlock(inode);
+
 	return ret;
 }
 
@@ -760,7 +763,7 @@ const struct file_operations ovl_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ovl_compat_ioctl,
 #endif
-	.splice_read    = ovl_splice_read,
+	.splice_read    = generic_file_splice_read,
 	.splice_write   = ovl_splice_write,
 
 	.copy_file_range	= ovl_copy_file_range,

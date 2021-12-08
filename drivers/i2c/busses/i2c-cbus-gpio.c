@@ -195,8 +195,9 @@ static u32 cbus_i2c_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm cbus_i2c_algo = {
-	.smbus_xfer	= cbus_i2c_smbus_xfer,
-	.functionality	= cbus_i2c_func,
+	.smbus_xfer		= cbus_i2c_smbus_xfer,
+	.smbus_xfer_atomic	= cbus_i2c_smbus_xfer,
+	.functionality		= cbus_i2c_func,
 };
 
 static int cbus_i2c_remove(struct platform_device *pdev)

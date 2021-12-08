@@ -251,6 +251,11 @@ static const struct config_entry config_table[] = {
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x02c8,
 	},
+	{
+		.flags = FLAG_SOF,
+		.device = 0x02c8,
+		.codec_hid = "ESSX8336",
+	},
 /* Cometlake-H */
 	{
 		.flags = FLAG_SOF,
@@ -274,6 +279,11 @@ static const struct config_entry config_table[] = {
 	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = 0x06c8,
+	},
+		{
+		.flags = FLAG_SOF,
+		.device = 0x06c8,
+		.codec_hid = "ESSX8336",
 	},
 #endif
 

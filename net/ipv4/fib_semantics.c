@@ -222,7 +222,7 @@ void fib_nh_release(struct net *net, struct fib_nh *fib_nh)
 {
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (fib_nh->nh_tclassid)
-		net->ipv4.fib_num_tclassid_users--;
+		atomic_dec(&net->ipv4.fib_num_tclassid_users);
 #endif
 	fib_nh_common_release(&fib_nh->nh_common);
 }
@@ -633,7 +633,7 @@ int fib_nh_init(struct net *net, struct fib_nh *nh,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	nh->nh_tclassid = cfg->fc_flow;
 	if (nh->nh_tclassid)
-		net->ipv4.fib_num_tclassid_users++;
+		atomic_inc(&net->ipv4.fib_num_tclassid_users);
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	nh->fib_nh_weight = nh_weight;
