@@ -1466,7 +1466,11 @@ samsung_mipi_dcphy_pll_round_rate(struct samsung_mipi_dcphy *samsung,
 		/* 0 ≤ S[2:0] ≤ 6 */
 		for (_scaler = 0; _scaler < 7; _scaler++) {
 			fvco = fout << _scaler;
-			if (fvco > max_fout)
+
+			/*
+			 * 2600MHz ≤ FVCO ≤ 6600MHz
+			 */
+			if (fvco < 2600 || fvco > 6600)
 				continue;
 
 			/* 6MHz ≤ Fref(Fin / p) ≤ 30MHz */
