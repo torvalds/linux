@@ -345,6 +345,11 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 	int ret;
 	u32 vtr;
 
+	if (is_protected_kvm_enabled()) {
+		kvm_err("GICv2 not supported in protected mode\n");
+		return -ENXIO;
+	}
+
 	if (!info->vctrl.start) {
 		kvm_err("GICH not present in the firmware table\n");
 		return -ENXIO;
