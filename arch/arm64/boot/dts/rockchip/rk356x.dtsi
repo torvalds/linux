@@ -269,7 +269,7 @@
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm0m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -280,7 +280,7 @@
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm1m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -291,7 +291,7 @@
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm2m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -302,7 +302,7 @@
 		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm3_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -951,7 +951,7 @@
 		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm4_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -962,7 +962,7 @@
 		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm5_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -973,7 +973,7 @@
 		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm6_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -984,7 +984,7 @@
 		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm7_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -995,7 +995,7 @@
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm8m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -1006,7 +1006,7 @@
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm9m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -1017,7 +1017,7 @@
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm10m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -1028,7 +1028,7 @@
 		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm11m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -1039,7 +1039,7 @@
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm12m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -1050,7 +1050,7 @@
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm13m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -1061,7 +1061,7 @@
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm14m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -1072,7 +1072,7 @@
 		clocks = <&cru CLK_PWM3>, <&cru PCLK_PWM3>;
 		clock-names = "pwm", "pclk";
 		pinctrl-0 = <&pwm15m0_pins>;
-		pinctrl-names = "active";
+		pinctrl-names = "default";
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
