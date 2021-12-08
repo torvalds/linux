@@ -3285,10 +3285,10 @@
 		rockchip,grf = <&sys_grf>;
 		rockchip,php_grf = <&php_grf>;
 		clocks = <&cru CLK_GMAC_125M>, <&cru CLK_GMAC_50M>,
-			 <&cru PCLK_GMAC1>, <&cru CLK_GMAC1_PTP_REF>,
-			 <&cru ACLK_GMAC1>;
+			 <&cru PCLK_GMAC1>, <&cru ACLK_GMAC1>,
+			 <&cru CLK_GMAC1_PTP_REF>;
 		clock-names = "stmmaceth", "clk_mac_ref",
-			      "aclk_mac", "pclk_mac",
+			      "pclk_mac", "aclk_mac",
 			      "ptp_ref";
 		resets = <&cru SRST_A_GMAC1>;
 		reset-names = "stmmaceth";
