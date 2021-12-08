@@ -1140,6 +1140,22 @@ int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt, u32 *resp)
 }
 EXPORT_SYMBOL(qcom_scm_hdcp_req);
 
+int qcom_scm_iommu_set_pt_format(u32 sec_id, u32 ctx_num, u32 pt_fmt)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_SMMU_PROGRAM,
+		.cmd = QCOM_SCM_SMMU_PT_FORMAT,
+		.arginfo = QCOM_SCM_ARGS(3),
+		.args[0] = sec_id,
+		.args[1] = ctx_num,
+		.args[2] = pt_fmt, /* 0: LPAE AArch32 - 1: AArch64 */
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+
+	return qcom_scm_call(__scm->dev, &desc, NULL);
+}
+EXPORT_SYMBOL(qcom_scm_iommu_set_pt_format);
+
 int qcom_scm_qsmmu500_wait_safe_toggle(bool en)
 {
 	struct qcom_scm_desc desc = {
