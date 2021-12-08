@@ -409,7 +409,7 @@ void dcn2_init_clocks(struct clk_mgr *clk_mgr)
 	clk_mgr->clks.prev_p_state_change_support = true;
 }
 
-void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
+static void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct pp_smu_funcs_nv *pp_smu = NULL;

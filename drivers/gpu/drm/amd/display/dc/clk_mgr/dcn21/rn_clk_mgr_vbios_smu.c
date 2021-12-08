@@ -88,7 +88,9 @@ static uint32_t rn_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, unsig
 }
 
 
-int rn_vbios_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr, unsigned int msg_id, unsigned int param)
+static int rn_vbios_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
+					    unsigned int msg_id,
+					    unsigned int param)
 {
 	uint32_t result;
 

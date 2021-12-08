@@ -632,7 +632,8 @@ static void dm_dcn_vertical_interrupt0_high_irq(void *interrupt_params)
  * Copies dmub notification to DM which is to be read by AUX command.
  * issuing thread and also signals the event to wake up the thread.
  */
-void dmub_aux_setconfig_callback(struct amdgpu_device *adev, struct dmub_notification *notify)
+static void dmub_aux_setconfig_callback(struct amdgpu_device *adev,
+					struct dmub_notification *notify)
 {
 	if (adev->dm.dmub_notify)
 		memcpy(adev->dm.dmub_notify, notify, sizeof(struct dmub_notification));
@@ -648,7 +649,8 @@ void dmub_aux_setconfig_callback(struct amdgpu_device *adev, struct dmub_notific
  * Dmub Hpd interrupt processing callback. Gets displayindex through the
  * ink index and calls helper to do the processing.
  */
-void dmub_hpd_callback(struct amdgpu_device *adev, struct dmub_notification *notify)
+static void dmub_hpd_callback(struct amdgpu_device *adev,
+			      struct dmub_notification *notify)
 {
 	struct amdgpu_dm_connector *aconnector;
 	struct amdgpu_dm_connector *hpd_aconnector = NULL;
@@ -705,8 +707,10 @@ void dmub_hpd_callback(struct amdgpu_device *adev, struct dmub_notification *not
  * to dmub interrupt handling thread
  * Return: true if successfully registered, false if there is existing registration
  */
-bool register_dmub_notify_callback(struct amdgpu_device *adev, enum dmub_notification_type type,
-dmub_notify_interrupt_callback_t callback, bool dmub_int_thread_offload)
+static bool register_dmub_notify_callback(struct amdgpu_device *adev,
+					  enum dmub_notification_type type,
+					  dmub_notify_interrupt_callback_t callback,
+					  bool dmub_int_thread_offload)
 {
 	if (callback != NULL && type < ARRAY_SIZE(adev->dm.dmub_thread_offload)) {
 		adev->dm.dmub_callback[type] = callback;
@@ -11621,8 +11625,10 @@ uint32_t dm_read_reg_func(const struct dc_context *ctx, uint32_t address,
 	return value;
 }
 
-int amdgpu_dm_set_dmub_async_sync_status(bool is_cmd_aux, struct dc_context *ctx,
-	uint8_t status_type, uint32_t *operation_result)
+static int amdgpu_dm_set_dmub_async_sync_status(bool is_cmd_aux,
+						struct dc_context *ctx,
+						uint8_t status_type,
+						uint32_t *operation_result)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
 	int return_status = -1;

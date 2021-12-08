@@ -1272,7 +1272,7 @@ static struct link_encoder *dcn31_link_enc_create_minimal(
 	return &enc20->enc10.base;
 }
 
-struct panel_cntl *dcn31_panel_cntl_create(const struct panel_cntl_init_data *init_data)
+static struct panel_cntl *dcn31_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
 	struct dcn31_panel_cntl *panel_cntl =
 		kzalloc(sizeof(struct dcn31_panel_cntl), GFP_KERNEL);

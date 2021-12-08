@@ -174,7 +174,7 @@ void dcn31_link_encoder_set_dio_phy_mux(
 	}
 }
 
-void enc31_hw_init(struct link_encoder *enc)
+static void enc31_hw_init(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 

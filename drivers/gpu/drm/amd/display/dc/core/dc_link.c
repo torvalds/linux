@@ -3416,7 +3416,8 @@ static void dc_log_vcp_x_y(const struct dc_link *link, struct fixed31_32 avg_tim
 /*
  * Payload allocation/deallocation for SST introduced in DP2.0
  */
-enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx, bool allocate)
+static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
+						 bool allocate)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;

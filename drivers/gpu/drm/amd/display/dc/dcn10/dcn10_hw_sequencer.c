@@ -77,9 +77,9 @@
 #define PGFSM_POWER_ON 0
 #define PGFSM_POWER_OFF 2
 
-void print_microsec(struct dc_context *dc_ctx,
-	struct dc_log_buffer_ctx *log_ctx,
-	uint32_t ref_cycle)
+static void print_microsec(struct dc_context *dc_ctx,
+			   struct dc_log_buffer_ctx *log_ctx,
+			   uint32_t ref_cycle)
 {
 	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
@@ -132,7 +132,8 @@ static void log_mpc_crc(struct dc *dc,
 		REG_READ(DPP_TOP0_DPP_CRC_VAL_B_A), REG_READ(DPP_TOP0_DPP_CRC_VAL_R_G));
 }
 
-void dcn10_log_hubbub_state(struct dc *dc, struct dc_log_buffer_ctx *log_ctx)
+static void dcn10_log_hubbub_state(struct dc *dc,
+				   struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dcn_hubbub_wm wm;
@@ -1972,10 +1973,9 @@ static bool wait_for_reset_trigger_to_occur(
 	return rc;
 }
 
-uint64_t reduceSizeAndFraction(
-	uint64_t *numerator,
-	uint64_t *denominator,
-	bool checkUint32Bounary)
+static uint64_t reduceSizeAndFraction(uint64_t *numerator,
+				      uint64_t *denominator,
+				      bool checkUint32Bounary)
 {
 	int i;
 	bool ret = checkUint32Bounary == false;
@@ -2023,7 +2023,7 @@ uint64_t reduceSizeAndFraction(
 	return ret;
 }
 
-bool is_low_refresh_rate(struct pipe_ctx *pipe)
+static bool is_low_refresh_rate(struct pipe_ctx *pipe)
 {
 	uint32_t master_pipe_refresh_rate =
 		pipe->stream->timing.pix_clk_100hz * 100 /
@@ -2032,7 +2032,8 @@ bool is_low_refresh_rate(struct pipe_ctx *pipe)
 	return master_pipe_refresh_rate <= 30;
 }
 
-uint8_t get_clock_divider(struct pipe_ctx *pipe, bool account_low_refresh_rate)
+static uint8_t get_clock_divider(struct pipe_ctx *pipe,
+				 bool account_low_refresh_rate)
 {
 	uint32_t clock_divider = 1;
 	uint32_t numpipes = 1;
@@ -2052,10 +2053,8 @@ uint8_t get_clock_divider(struct pipe_ctx *pipe, bool account_low_refresh_rate)
 	return clock_divider;
 }
 
-int dcn10_align_pixel_clocks(
-	struct dc *dc,
-	int group_size,
-	struct pipe_ctx *grouped_pipes[])
+static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
+				    struct pipe_ctx *grouped_pipes[])
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	int i, master = -1, embedded = -1;
@@ -2344,7 +2343,7 @@ static void mmhub_read_vm_context0_settings(struct dcn10_hubp *hubp1,
 }
 
 
-void dcn10_program_pte_vm(struct dce_hwseq *hws, struct hubp *hubp)
+static void dcn10_program_pte_vm(struct dce_hwseq *hws, struct hubp *hubp)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	struct vm_system_aperture_param apt = {0};
