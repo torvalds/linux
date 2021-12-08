@@ -64,6 +64,7 @@ struct smc_pnetentry {
 		struct {
 			char eth_name[IFNAMSIZ + 1];
 			struct net_device *ndev;
+			netdevice_tracker dev_tracker;
 		};
 		struct {
 			char ib_name[IB_DEVICE_NAME_MAX + 1];
@@ -119,7 +120,7 @@ static int smc_pnet_remove_by_pnetid(struct net *net, char *pnet_name)
 		    smc_pnet_match(pnetelem->pnet_name, pnet_name)) {
 			list_del(&pnetelem->list);
 			if (pnetelem->type == SMC_PNET_ETH && pnetelem->ndev) {
-				dev_put(pnetelem->ndev);
+				dev_put_track(pnetelem->ndev, &pnetelem->dev_tracker);
 				pr_warn_ratelimited("smc: net device %s "
 						    "erased user defined "
 						    "pnetid %.16s\n",
@@ -195,7 +196,7 @@ static int smc_pnet_add_by_ndev(struct net_device *ndev)
 	list_for_each_entry_safe(pnetelem, tmp_pe, &pnettable->pnetlist, list) {
 		if (pnetelem->type == SMC_PNET_ETH && !pnetelem->ndev &&
 		    !strncmp(pnetelem->eth_name, ndev->name, IFNAMSIZ)) {
-			dev_hold(ndev);
+			dev_hold_track(ndev, &pnetelem->dev_tracker, GFP_ATOMIC);
 			pnetelem->ndev = ndev;
 			rc = 0;
 			pr_warn_ratelimited("smc: adding net device %s with "
@@ -226,7 +227,7 @@ static int smc_pnet_remove_by_ndev(struct net_device *ndev)
 	write_lock(&pnettable->lock);
 	list_for_each_entry_safe(pnetelem, tmp_pe, &pnettable->pnetlist, list) {
 		if (pnetelem->type == SMC_PNET_ETH && pnetelem->ndev == ndev) {
-			dev_put(pnetelem->ndev);
+			dev_put_track(pnetelem->ndev, &pnetelem->dev_tracker);
 			pnetelem->ndev = NULL;
 			rc = 0;
 			pr_warn_ratelimited("smc: removing net device %s with "
@@ -368,7 +369,7 @@ static int smc_pnet_add_eth(struct smc_pnettable *pnettable, struct net *net,
 	memcpy(new_pe->pnet_name, pnet_name, SMC_MAX_PNETID_LEN);
 	strncpy(new_pe->eth_name, eth_name, IFNAMSIZ);
 	new_pe->ndev = ndev;
-
+	netdev_tracker_alloc(ndev, &new_pe->dev_tracker, GFP_KERNEL);
 	rc = -EEXIST;
 	new_netdev = true;
 	write_lock(&pnettable->lock);

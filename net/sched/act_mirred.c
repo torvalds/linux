@@ -79,7 +79,7 @@ static void tcf_mirred_release(struct tc_action *a)
 
 	/* last reference to action, no need to lock */
 	dev = rcu_dereference_protected(m->tcfm_dev, 1);
-	dev_put(dev);
+	dev_put_track(dev, &m->tcfm_dev_tracker);
 }
 
 static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
@@ -101,7 +101,6 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	bool mac_header_xmit = false;
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
-	struct net_device *dev;
 	bool exists = false;
 	int ret, err;
 	u32 index;
@@ -171,16 +170,19 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	spin_lock_bh(&m->tcf_lock);
 
 	if (parm->ifindex) {
-		dev = dev_get_by_index(net, parm->ifindex);
-		if (!dev) {
+		struct net_device *odev, *ndev;
+
+		ndev = dev_get_by_index(net, parm->ifindex);
+		if (!ndev) {
 			spin_unlock_bh(&m->tcf_lock);
 			err = -ENODEV;
 			goto put_chain;
 		}
-		mac_header_xmit = dev_is_mac_header_xmit(dev);
-		dev = rcu_replace_pointer(m->tcfm_dev, dev,
+		mac_header_xmit = dev_is_mac_header_xmit(ndev);
+		odev = rcu_replace_pointer(m->tcfm_dev, ndev,
 					  lockdep_is_held(&m->tcf_lock));
-		dev_put(dev);
+		dev_put_track(odev, &m->tcfm_dev_tracker);
+		netdev_tracker_alloc(ndev, &m->tcfm_dev_tracker, GFP_ATOMIC);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
@@ -400,7 +402,7 @@ static int mirred_device_event(struct notifier_block *unused,
 		list_for_each_entry(m, &mirred_list, tcfm_list) {
 			spin_lock_bh(&m->tcf_lock);
 			if (tcf_mirred_dev_dereference(m) == dev) {
-				dev_put(dev);
+				dev_put_track(dev, &m->tcfm_dev_tracker);
 				/* Note : no rcu grace period necessary, as
 				 * net_device are already rcu protected.
 				 */
