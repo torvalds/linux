@@ -2853,6 +2853,7 @@ static int vop2_crtc_atomic_gamma_set(struct drm_crtc *crtc,
 static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_state)
 {
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct rockchip_drm_private *private = crtc->dev->dev_private;
 	struct drm_color_lut *lut = vp->cubic_lut;
@@ -2908,6 +2909,16 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 	VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 1);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_en, 1);
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+
+	if (vcstate->splice_mode) {
+		const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
+		struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
+
+		VOP_MODULE_SET(vop2, splice_vp, lut_dma_rid, splice_vp->lut_dma_rid - splice_vp->id);
+		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_mst, cubic_lut_mst);
+		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_update_en, 1);
+		VOP_MODULE_SET(vop2, splice_vp, cubic_lut_en, 1);
+	}
 
 	return 0;
 }
