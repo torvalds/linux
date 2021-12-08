@@ -710,7 +710,8 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	size_t size = 0;
 	int ret = 0, i;
 
-	if (!smu->is_apu) {
+	if (!smu->is_apu ||
+	    (smu->adev->asic_type == CHIP_RENOIR)) {
 		ret = smu_cmn_get_enabled_mask(smu,
 						feature_mask,
 						2);
