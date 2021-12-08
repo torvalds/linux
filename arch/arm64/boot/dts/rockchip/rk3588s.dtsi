@@ -2388,7 +2388,6 @@
 		clock-names = "pclk_csi2host", "iclk_csi2host";
 		resets = <&cru SRST_P_CSI_HOST_0>, <&cru SRST_CSIHOST0_VICAP>;
 		reset-names = "srst_csihost_p", "srst_csihost_vicap";
-		power-domains = <&power RK3588_PD_VI>;
 		status = "disabled";
 	};
 
@@ -2403,7 +2402,6 @@
 		clock-names = "pclk_csi2host", "iclk_csi2host";
 		resets = <&cru SRST_P_CSI_HOST_1>, <&cru SRST_CSIHOST1_VICAP>;
 		reset-names = "srst_csihost_p", "srst_csihost_vicap";
-		power-domains = <&power RK3588_PD_VI>;
 		status = "disabled";
 	};
 
@@ -2418,7 +2416,6 @@
 		clock-names = "pclk_csi2host";
 		resets = <&cru SRST_P_CSI_HOST_2>, <&cru SRST_CSIHOST2_VICAP>;
 		reset-names = "srst_csihost_p", "srst_csihost_vicap";
-		power-domains = <&power RK3588_PD_VI>;
 		status = "disabled";
 	};
 
@@ -2433,7 +2430,6 @@
 		clock-names = "pclk_csi2host";
 		resets = <&cru SRST_P_CSI_HOST_3>, <&cru SRST_CSIHOST3_VICAP>;
 		reset-names = "srst_csihost_p", "srst_csihost_vicap";
-		power-domains = <&power RK3588_PD_VI>;
 		status = "disabled";
 	};
 
