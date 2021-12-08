@@ -130,6 +130,15 @@ struct hw_perf_event_extra {
 };
 
 /**
+ * hw_perf_event::flag values
+ *
+ * PERF_EVENT_FLAG_ARCH bits are reserved for architecture-specific
+ * usage.
+ */
+#define PERF_EVENT_FLAG_ARCH			0x0000ffff
+#define PERF_EVENT_FLAG_USER_READ_CNT		0x80000000
+
+/**
  * struct hw_perf_event - performance event hardware details:
  */
 struct hw_perf_event {
