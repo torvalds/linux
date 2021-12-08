@@ -89,6 +89,19 @@ struct dp_tx_ring {
 	int tx_status_tail;
 };
 
+enum dp_mon_status_buf_state {
+	/* PPDU id matches in dst ring and status ring */
+	DP_MON_STATUS_MATCH,
+	/* status ring dma is not done */
+	DP_MON_STATUS_NO_DMA,
+	/* status ring is lagging, reap status ring */
+	DP_MON_STATUS_LAG,
+	/* status ring is leading, reap dst ring and drop */
+	DP_MON_STATUS_LEAD,
+	/* replinish monitor status ring */
+	DP_MON_STATUS_REPLINISH,
+};
+
 struct ath11k_pdev_mon_stats {
 	u32 status_ppdu_state;
 	u32 status_ppdu_start;
@@ -102,6 +115,12 @@ struct ath11k_pdev_mon_stats {
 	u32 dest_mpdu_drop;
 	u32 dup_mon_linkdesc_cnt;
 	u32 dup_mon_buf_cnt;
+};
+
+struct dp_full_mon_mpdu {
+	struct list_head list;
+	struct sk_buff *head;
+	struct sk_buff *tail;
 };
 
 struct dp_link_desc_bank {
@@ -135,7 +154,11 @@ struct ath11k_mon_data {
 	u32 mon_last_buf_cookie;
 	u64 mon_last_linkdesc_paddr;
 	u16 chan_noise_floor;
-
+	bool hold_mon_dst_ring;
+	enum dp_mon_status_buf_state buf_state;
+	dma_addr_t mon_status_paddr;
+	struct dp_full_mon_mpdu *mon_mpdu;
+	struct hal_sw_mon_ring_entries sw_mon_entries;
 	struct ath11k_pdev_mon_stats rx_mon_stats;
 	/* lock for monitor data */
 	spinlock_t mon_lock;
@@ -245,6 +268,7 @@ struct ath11k_dp {
 	struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
 	struct list_head reo_cmd_list;
 	struct list_head reo_cmd_cache_flush_list;
+	struct list_head dp_full_mon_mpdu_list;
 	u32 reo_cmd_cache_flush_count;
 	/**
 	 * protects access to below fields,
