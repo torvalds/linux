@@ -147,7 +147,7 @@ enum iavf_status iavf_free_virt_mem_d(struct iavf_hw *hw,
  *
  * Returns 0 on success, negative on failure
  **/
-static int iavf_lock_timeout(struct mutex *lock, unsigned int msecs)
+int iavf_lock_timeout(struct mutex *lock, unsigned int msecs)
 {
 	unsigned int wait, delay = 10;
 
@@ -172,6 +172,19 @@ void iavf_schedule_reset(struct iavf_adapter *adapter)
 		adapter->flags |= IAVF_FLAG_RESET_NEEDED;
 		queue_work(iavf_wq, &adapter->reset_task);
 	}
+}
+
+/**
+ * iavf_schedule_request_stats - Set the flags and schedule statistics request
+ * @adapter: board private structure
+ *
+ * Sets IAVF_FLAG_AQ_REQUEST_STATS flag so iavf_watchdog_task() will explicitly
+ * request and refresh ethtool stats
+ **/
+void iavf_schedule_request_stats(struct iavf_adapter *adapter)
+{
+	adapter->aq_required |= IAVF_FLAG_AQ_REQUEST_STATS;
+	mod_delayed_work(iavf_wq, &adapter->watchdog_task, 0);
 }
 
 /**
@@ -704,13 +717,11 @@ static void iavf_del_vlan(struct iavf_adapter *adapter, u16 vlan)
  **/
 static void iavf_restore_filters(struct iavf_adapter *adapter)
 {
-	/* re-add all VLAN filters */
-	if (VLAN_ALLOWED(adapter)) {
-		u16 vid;
+	u16 vid;
 
-		for_each_set_bit(vid, adapter->vsi.active_vlans, VLAN_N_VID)
-			iavf_add_vlan(adapter, vid);
-	}
+	/* re-add all VLAN filters */
+	for_each_set_bit(vid, adapter->vsi.active_vlans, VLAN_N_VID)
+		iavf_add_vlan(adapter, vid);
 }
 
 /**
@@ -744,9 +755,6 @@ static int iavf_vlan_rx_kill_vid(struct net_device *netdev,
 				 __always_unused __be16 proto, u16 vid)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
-
-	if (!VLAN_ALLOWED(adapter))
-		return -EIO;
 
 	iavf_del_vlan(adapter, vid);
 	clear_bit(vid, adapter->vsi.active_vlans);
@@ -1709,6 +1717,11 @@ static int iavf_process_aq_command(struct iavf_adapter *adapter)
 		iavf_del_adv_rss_cfg(adapter);
 		return 0;
 	}
+	if (adapter->aq_required & IAVF_FLAG_AQ_REQUEST_STATS) {
+		iavf_request_stats(adapter);
+		return 0;
+	}
+
 	return -EAGAIN;
 }
 
@@ -2173,7 +2186,6 @@ static void iavf_reset_task(struct work_struct *work)
 	struct net_device *netdev = adapter->netdev;
 	struct iavf_hw *hw = &adapter->hw;
 	struct iavf_mac_filter *f, *ftmp;
-	struct iavf_vlan_filter *vlf;
 	struct iavf_cloud_filter *cf;
 	u32 reg_val;
 	int i = 0, err;
@@ -2254,6 +2266,7 @@ continue_reset:
 		   (adapter->state == __IAVF_RESETTING));
 
 	if (running) {
+		netdev->flags &= ~IFF_UP;
 		netif_carrier_off(netdev);
 		netif_tx_stop_all_queues(netdev);
 		adapter->link_up = false;
@@ -2313,11 +2326,6 @@ continue_reset:
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		f->add = true;
 	}
-	/* re-add all VLAN filters */
-	list_for_each_entry(vlf, &adapter->vlan_filter_list, list) {
-		vlf->add = true;
-	}
-
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
 	/* check if TCs are running and re-add all cloud filters */
@@ -2331,7 +2339,6 @@ continue_reset:
 	spin_unlock_bh(&adapter->cloud_filter_list_lock);
 
 	adapter->aq_required |= IAVF_FLAG_AQ_ADD_MAC_FILTER;
-	adapter->aq_required |= IAVF_FLAG_AQ_ADD_VLAN_FILTER;
 	adapter->aq_required |= IAVF_FLAG_AQ_ADD_CLOUD_FILTER;
 	iavf_misc_irq_enable(adapter);
 
@@ -2365,7 +2372,7 @@ continue_reset:
 		 * to __IAVF_RUNNING
 		 */
 		iavf_up_complete(adapter);
-
+		netdev->flags |= IFF_UP;
 		iavf_irq_enable(adapter, true);
 	} else {
 		iavf_change_state(adapter, __IAVF_DOWN);
@@ -2378,8 +2385,10 @@ continue_reset:
 reset_err:
 	mutex_unlock(&adapter->client_lock);
 	mutex_unlock(&adapter->crit_lock);
-	if (running)
+	if (running) {
 		iavf_change_state(adapter, __IAVF_RUNNING);
+		netdev->flags |= IFF_UP;
+	}
 	dev_err(&adapter->pdev->dev, "failed to allocate resources during reinit\n");
 	iavf_close(netdev);
 }
@@ -3441,11 +3450,16 @@ static int iavf_set_features(struct net_device *netdev,
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
 
-	/* Don't allow changing VLAN_RX flag when adapter is not capable
-	 * of VLAN offload
+	/* Don't allow enabling VLAN features when adapter is not capable
+	 * of VLAN offload/filtering
 	 */
 	if (!VLAN_ALLOWED(adapter)) {
-		if ((netdev->features ^ features) & NETIF_F_HW_VLAN_CTAG_RX)
+		netdev->hw_features &= ~(NETIF_F_HW_VLAN_CTAG_RX |
+					 NETIF_F_HW_VLAN_CTAG_TX |
+					 NETIF_F_HW_VLAN_CTAG_FILTER);
+		if (features & (NETIF_F_HW_VLAN_CTAG_RX |
+				NETIF_F_HW_VLAN_CTAG_TX |
+				NETIF_F_HW_VLAN_CTAG_FILTER))
 			return -EINVAL;
 	} else if ((netdev->features ^ features) & NETIF_F_HW_VLAN_CTAG_RX) {
 		if (features & NETIF_F_HW_VLAN_CTAG_RX)

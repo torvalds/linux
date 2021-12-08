@@ -50,11 +50,22 @@ static int mv88e6390_serdes_write(struct mv88e6xxx_chip *chip,
 }
 
 static int mv88e6xxx_serdes_pcs_get_state(struct mv88e6xxx_chip *chip,
-					  u16 status, u16 lpa,
+					  u16 ctrl, u16 status, u16 lpa,
 					  struct phylink_link_state *state)
 {
+	state->link = !!(status & MV88E6390_SGMII_PHY_STATUS_LINK);
+
 	if (status & MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID) {
-		state->link = !!(status & MV88E6390_SGMII_PHY_STATUS_LINK);
+		/* The Spped and Duplex Resolved register is 1 if AN is enabled
+		 * and complete, or if AN is disabled. So with disabled AN we
+		 * still get here on link up. But we want to set an_complete
+		 * only if AN was enabled, thus we look at BMCR_ANENABLE.
+		 * (According to 802.3-2008 section 22.2.4.2.10, we should be
+		 *  able to get this same value from BMSR_ANEGCAPABLE, but tests
+		 *  show that these Marvell PHYs don't conform to this part of
+		 *  the specificaion - BMSR_ANEGCAPABLE is simply always 1.)
+		 */
+		state->an_complete = !!(ctrl & BMCR_ANENABLE);
 		state->duplex = status &
 				MV88E6390_SGMII_PHY_STATUS_DUPLEX_FULL ?
 			                         DUPLEX_FULL : DUPLEX_HALF;
@@ -81,6 +92,18 @@ static int mv88e6xxx_serdes_pcs_get_state(struct mv88e6xxx_chip *chip,
 			dev_err(chip->dev, "invalid PHY speed\n");
 			return -EINVAL;
 		}
+	} else if (state->link &&
+		   state->interface != PHY_INTERFACE_MODE_SGMII) {
+		/* If Speed and Duplex Resolved register is 0 and link is up, it
+		 * means that AN was enabled, but link partner had it disabled
+		 * and the PHY invoked the Auto-Negotiation Bypass feature and
+		 * linked anyway.
+		 */
+		state->duplex = DUPLEX_FULL;
+		if (state->interface == PHY_INTERFACE_MODE_2500BASEX)
+			state->speed = SPEED_2500;
+		else
+			state->speed = SPEED_1000;
 	} else {
 		state->link = false;
 	}
@@ -168,8 +191,14 @@ int mv88e6352_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
 int mv88e6352_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
 				   int lane, struct phylink_link_state *state)
 {
-	u16 lpa, status;
+	u16 lpa, status, ctrl;
 	int err;
+
+	err = mv88e6352_serdes_read(chip, MII_BMCR, &ctrl);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY control: %d\n", err);
+		return err;
+	}
 
 	err = mv88e6352_serdes_read(chip, 0x11, &status);
 	if (err) {
@@ -183,7 +212,7 @@ int mv88e6352_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
 		return err;
 	}
 
-	return mv88e6xxx_serdes_pcs_get_state(chip, status, lpa, state);
+	return mv88e6xxx_serdes_pcs_get_state(chip, ctrl, status, lpa, state);
 }
 
 int mv88e6352_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
@@ -883,8 +912,15 @@ int mv88e6390_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
 static int mv88e6390_serdes_pcs_get_state_sgmii(struct mv88e6xxx_chip *chip,
 	int port, int lane, struct phylink_link_state *state)
 {
-	u16 lpa, status;
+	u16 lpa, status, ctrl;
 	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_BMCR, &ctrl);
+	if (err) {
+		dev_err(chip->dev, "can't read Serdes PHY control: %d\n", err);
+		return err;
+	}
 
 	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
 				    MV88E6390_SGMII_PHY_STATUS, &status);
@@ -900,7 +936,7 @@ static int mv88e6390_serdes_pcs_get_state_sgmii(struct mv88e6xxx_chip *chip,
 		return err;
 	}
 
-	return mv88e6xxx_serdes_pcs_get_state(chip, status, lpa, state);
+	return mv88e6xxx_serdes_pcs_get_state(chip, ctrl, status, lpa, state);
 }
 
 static int mv88e6390_serdes_pcs_get_state_10g(struct mv88e6xxx_chip *chip,
@@ -1271,9 +1307,31 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 	}
 }
 
-static int mv88e6393x_serdes_port_errata(struct mv88e6xxx_chip *chip, int lane)
+static int mv88e6393x_serdes_power_lane(struct mv88e6xxx_chip *chip, int lane,
+					bool on)
 {
-	u16 reg, pcs;
+	u16 reg;
+	int err;
+
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6393X_SERDES_CTRL1, &reg);
+	if (err)
+		return err;
+
+	if (on)
+		reg &= ~(MV88E6393X_SERDES_CTRL1_TX_PDOWN |
+			 MV88E6393X_SERDES_CTRL1_RX_PDOWN);
+	else
+		reg |= MV88E6393X_SERDES_CTRL1_TX_PDOWN |
+		       MV88E6393X_SERDES_CTRL1_RX_PDOWN;
+
+	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				      MV88E6393X_SERDES_CTRL1, reg);
+}
+
+static int mv88e6393x_serdes_erratum_4_6(struct mv88e6xxx_chip *chip, int lane)
+{
+	u16 reg;
 	int err;
 
 	/* mv88e6393x family errata 4.6:
@@ -1284,26 +1342,45 @@ static int mv88e6393x_serdes_port_errata(struct mv88e6xxx_chip *chip, int lane)
 	 * It seems that after this workaround the SERDES is automatically
 	 * powered up (the bit is cleared), so power it down.
 	 */
-	if (lane == MV88E6393X_PORT0_LANE || lane == MV88E6393X_PORT9_LANE ||
-	    lane == MV88E6393X_PORT10_LANE) {
-		err = mv88e6390_serdes_read(chip, lane,
-					    MDIO_MMD_PHYXS,
-					    MV88E6393X_SERDES_POC, &reg);
-		if (err)
-			return err;
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6393X_SERDES_POC, &reg);
+	if (err)
+		return err;
 
-		reg &= ~MV88E6393X_SERDES_POC_PDOWN;
-		reg |= MV88E6393X_SERDES_POC_RESET;
+	reg &= ~MV88E6393X_SERDES_POC_PDOWN;
+	reg |= MV88E6393X_SERDES_POC_RESET;
 
-		err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-					     MV88E6393X_SERDES_POC, reg);
-		if (err)
-			return err;
+	err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				     MV88E6393X_SERDES_POC, reg);
+	if (err)
+		return err;
 
-		err = mv88e6390_serdes_power_sgmii(chip, lane, false);
-		if (err)
-			return err;
-	}
+	err = mv88e6390_serdes_power_sgmii(chip, lane, false);
+	if (err)
+		return err;
+
+	return mv88e6393x_serdes_power_lane(chip, lane, false);
+}
+
+int mv88e6393x_serdes_setup_errata(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	err = mv88e6393x_serdes_erratum_4_6(chip, MV88E6393X_PORT0_LANE);
+	if (err)
+		return err;
+
+	err = mv88e6393x_serdes_erratum_4_6(chip, MV88E6393X_PORT9_LANE);
+	if (err)
+		return err;
+
+	return mv88e6393x_serdes_erratum_4_6(chip, MV88E6393X_PORT10_LANE);
+}
+
+static int mv88e6393x_serdes_erratum_4_8(struct mv88e6xxx_chip *chip, int lane)
+{
+	u16 reg, pcs;
+	int err;
 
 	/* mv88e6393x family errata 4.8:
 	 * When a SERDES port is operating in 1000BASE-X or SGMII mode link may
@@ -1334,38 +1411,149 @@ static int mv88e6393x_serdes_port_errata(struct mv88e6xxx_chip *chip, int lane)
 				      MV88E6393X_ERRATA_4_8_REG, reg);
 }
 
-int mv88e6393x_serdes_setup_errata(struct mv88e6xxx_chip *chip)
+static int mv88e6393x_serdes_erratum_5_2(struct mv88e6xxx_chip *chip, int lane,
+					 u8 cmode)
 {
+	static const struct {
+		u16 dev, reg, val, mask;
+	} fixes[] = {
+		{ MDIO_MMD_VEND1, 0x8093, 0xcb5a, 0xffff },
+		{ MDIO_MMD_VEND1, 0x8171, 0x7088, 0xffff },
+		{ MDIO_MMD_VEND1, 0x80c9, 0x311a, 0xffff },
+		{ MDIO_MMD_VEND1, 0x80a2, 0x8000, 0xff7f },
+		{ MDIO_MMD_VEND1, 0x80a9, 0x0000, 0xfff0 },
+		{ MDIO_MMD_VEND1, 0x80a3, 0x0000, 0xf8ff },
+		{ MDIO_MMD_PHYXS, MV88E6393X_SERDES_POC,
+		  MV88E6393X_SERDES_POC_RESET, MV88E6393X_SERDES_POC_RESET },
+	};
+	int err, i;
+	u16 reg;
+
+	/* mv88e6393x family errata 5.2:
+	 * For optimal signal integrity the following sequence should be applied
+	 * to SERDES operating in 10G mode. These registers only apply to 10G
+	 * operation and have no effect on other speeds.
+	 */
+	if (cmode != MV88E6393X_PORT_STS_CMODE_10GBASER)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(fixes); ++i) {
+		err = mv88e6390_serdes_read(chip, lane, fixes[i].dev,
+					    fixes[i].reg, &reg);
+		if (err)
+			return err;
+
+		reg &= ~fixes[i].mask;
+		reg |= fixes[i].val;
+
+		err = mv88e6390_serdes_write(chip, lane, fixes[i].dev,
+					     fixes[i].reg, reg);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int mv88e6393x_serdes_fix_2500basex_an(struct mv88e6xxx_chip *chip,
+					      int lane, u8 cmode, bool on)
+{
+	u16 reg;
 	int err;
 
-	err = mv88e6393x_serdes_port_errata(chip, MV88E6393X_PORT0_LANE);
+	if (cmode != MV88E6XXX_PORT_STS_CMODE_2500BASEX)
+		return 0;
+
+	/* Inband AN is broken on Amethyst in 2500base-x mode when set by
+	 * standard mechanism (via cmode).
+	 * We can get around this by configuring the PCS mode to 1000base-x
+	 * and then writing value 0x58 to register 1e.8000. (This must be done
+	 * while SerDes receiver and transmitter are disabled, which is, when
+	 * this function is called.)
+	 * It seem that when we do this configuration to 2500base-x mode (by
+	 * changing PCS mode to 1000base-x and frequency to 3.125 GHz from
+	 * 1.25 GHz) and then configure to sgmii or 1000base-x, the device
+	 * thinks that it already has SerDes at 1.25 GHz and does not change
+	 * the 1e.8000 register, leaving SerDes at 3.125 GHz.
+	 * To avoid this, change PCS mode back to 2500base-x when disabling
+	 * SerDes from 2500base-x mode.
+	 */
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6393X_SERDES_POC, &reg);
 	if (err)
 		return err;
 
-	err = mv88e6393x_serdes_port_errata(chip, MV88E6393X_PORT9_LANE);
+	reg &= ~(MV88E6393X_SERDES_POC_PCS_MASK | MV88E6393X_SERDES_POC_AN);
+	if (on)
+		reg |= MV88E6393X_SERDES_POC_PCS_1000BASEX |
+		       MV88E6393X_SERDES_POC_AN;
+	else
+		reg |= MV88E6393X_SERDES_POC_PCS_2500BASEX;
+	reg |= MV88E6393X_SERDES_POC_RESET;
+
+	err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
+				     MV88E6393X_SERDES_POC, reg);
 	if (err)
 		return err;
 
-	return mv88e6393x_serdes_port_errata(chip, MV88E6393X_PORT10_LANE);
+	err = mv88e6390_serdes_write(chip, lane, MDIO_MMD_VEND1, 0x8000, 0x58);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 int mv88e6393x_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 			    bool on)
 {
 	u8 cmode = chip->ports[port].cmode;
+	int err;
 
 	if (port != 0 && port != 9 && port != 10)
 		return -EOPNOTSUPP;
+
+	if (on) {
+		err = mv88e6393x_serdes_erratum_4_8(chip, lane);
+		if (err)
+			return err;
+
+		err = mv88e6393x_serdes_erratum_5_2(chip, lane, cmode);
+		if (err)
+			return err;
+
+		err = mv88e6393x_serdes_fix_2500basex_an(chip, lane, cmode,
+							 true);
+		if (err)
+			return err;
+
+		err = mv88e6393x_serdes_power_lane(chip, lane, true);
+		if (err)
+			return err;
+	}
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
 	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
 	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		return mv88e6390_serdes_power_sgmii(chip, lane, on);
+		err = mv88e6390_serdes_power_sgmii(chip, lane, on);
+		break;
 	case MV88E6393X_PORT_STS_CMODE_5GBASER:
 	case MV88E6393X_PORT_STS_CMODE_10GBASER:
-		return mv88e6390_serdes_power_10g(chip, lane, on);
+		err = mv88e6390_serdes_power_10g(chip, lane, on);
+		break;
 	}
 
-	return 0;
+	if (err)
+		return err;
+
+	if (!on) {
+		err = mv88e6393x_serdes_power_lane(chip, lane, false);
+		if (err)
+			return err;
+
+		err = mv88e6393x_serdes_fix_2500basex_an(chip, lane, cmode,
+							 false);
+	}
+
+	return err;
 }

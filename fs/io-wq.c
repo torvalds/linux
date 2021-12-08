@@ -714,6 +714,13 @@ static bool io_wq_work_match_all(struct io_wq_work *work, void *data)
 
 static inline bool io_should_retry_thread(long err)
 {
+	/*
+	 * Prevent perpetual task_work retry, if the task (or its group) is
+	 * exiting.
+	 */
+	if (fatal_signal_pending(current))
+		return false;
+
 	switch (err) {
 	case -EAGAIN:
 	case -ERESTARTSYS:

@@ -191,6 +191,8 @@ struct ipmi_user {
 	struct work_struct remove_work;
 };
 
+static struct workqueue_struct *remove_work_wq;
+
 static struct ipmi_user *acquire_ipmi_user(struct ipmi_user *user, int *index)
 	__acquires(user->release_barrier)
 {
@@ -1297,7 +1299,7 @@ static void free_user(struct kref *ref)
 	struct ipmi_user *user = container_of(ref, struct ipmi_user, refcount);
 
 	/* SRCU cleanup must happen in task context. */
-	schedule_work(&user->remove_work);
+	queue_work(remove_work_wq, &user->remove_work);
 }
 
 static void _ipmi_destroy_user(struct ipmi_user *user)
@@ -3918,9 +3920,11 @@ static int handle_ipmb_direct_rcv_cmd(struct ipmi_smi *intf,
 		/* We didn't find a user, deliver an error response. */
 		ipmi_inc_stat(intf, unhandled_commands);
 
-		msg->data[0] = ((netfn + 1) << 2) | (msg->rsp[4] & 0x3);
-		msg->data[1] = msg->rsp[2];
-		msg->data[2] = msg->rsp[4] & ~0x3;
+		msg->data[0] = (netfn + 1) << 2;
+		msg->data[0] |= msg->rsp[2] & 0x3; /* rqLUN */
+		msg->data[1] = msg->rsp[1]; /* Addr */
+		msg->data[2] = msg->rsp[2] & ~0x3; /* rqSeq */
+		msg->data[2] |= msg->rsp[0] & 0x3; /* rsLUN */
 		msg->data[3] = cmd;
 		msg->data[4] = IPMI_INVALID_CMD_COMPLETION_CODE;
 		msg->data_size = 5;
@@ -4455,13 +4459,24 @@ return_unspecified:
 		msg->rsp[2] = IPMI_ERR_UNSPECIFIED;
 		msg->rsp_size = 3;
 	} else if (msg->type == IPMI_SMI_MSG_TYPE_IPMB_DIRECT) {
-		/* commands must have at least 3 bytes, responses 4. */
-		if (is_cmd && (msg->rsp_size < 3)) {
+		/* commands must have at least 4 bytes, responses 5. */
+		if (is_cmd && (msg->rsp_size < 4)) {
 			ipmi_inc_stat(intf, invalid_commands);
 			goto out;
 		}
-		if (!is_cmd && (msg->rsp_size < 4))
-			goto return_unspecified;
+		if (!is_cmd && (msg->rsp_size < 5)) {
+			ipmi_inc_stat(intf, invalid_ipmb_responses);
+			/* Construct a valid error response. */
+			msg->rsp[0] = msg->data[0] & 0xfc; /* NetFN */
+			msg->rsp[0] |= (1 << 2); /* Make it a response */
+			msg->rsp[0] |= msg->data[2] & 3; /* rqLUN */
+			msg->rsp[1] = msg->data[1]; /* Addr */
+			msg->rsp[2] = msg->data[2] & 0xfc; /* rqSeq */
+			msg->rsp[2] |= msg->data[0] & 0x3; /* rsLUN */
+			msg->rsp[3] = msg->data[3]; /* Cmd */
+			msg->rsp[4] = IPMI_ERR_UNSPECIFIED;
+			msg->rsp_size = 5;
+		}
 	} else if ((msg->data_size >= 2)
 	    && (msg->data[0] == (IPMI_NETFN_APP_REQUEST << 2))
 	    && (msg->data[1] == IPMI_SEND_MSG_CMD)
@@ -5031,6 +5046,7 @@ struct ipmi_smi_msg *ipmi_alloc_smi_msg(void)
 	if (rv) {
 		rv->done = free_smi_msg;
 		rv->user_data = NULL;
+		rv->type = IPMI_SMI_MSG_TYPE_NORMAL;
 		atomic_inc(&smi_msg_inuse_count);
 	}
 	return rv;
@@ -5383,6 +5399,13 @@ static int ipmi_init_msghandler(void)
 
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 
+	remove_work_wq = create_singlethread_workqueue("ipmi-msghandler-remove-wq");
+	if (!remove_work_wq) {
+		pr_err("unable to create ipmi-msghandler-remove-wq workqueue");
+		rv = -ENOMEM;
+		goto out;
+	}
+
 	initialized = true;
 
 out:
@@ -5408,6 +5431,8 @@ static void __exit cleanup_ipmi(void)
 	int count;
 
 	if (initialized) {
+		destroy_workqueue(remove_work_wq);
+
 		atomic_notifier_chain_unregister(&panic_notifier_list,
 						 &panic_block);
 

@@ -87,7 +87,7 @@ enum mpls_payload_type {
 };
 
 struct mpls_nh { /* next hop label forwarding entry */
-	struct net_device __rcu *nh_dev;
+	struct net_device	*nh_dev;
 
 	/* nh_flags is accessed under RCU in the packet path; it is
 	 * modified handling netdev events with rtnl lock held

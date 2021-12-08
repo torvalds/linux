@@ -157,6 +157,8 @@ static int hw_id_map[MAX_HWIP] = {
 	[HDP_HWIP]	= HDP_HWID,
 	[SDMA0_HWIP]	= SDMA0_HWID,
 	[SDMA1_HWIP]	= SDMA1_HWID,
+	[SDMA2_HWIP]    = SDMA2_HWID,
+	[SDMA3_HWIP]    = SDMA3_HWID,
 	[MMHUB_HWIP]	= MMHUB_HWID,
 	[ATHUB_HWIP]	= ATHUB_HWID,
 	[NBIO_HWIP]	= NBIF_HWID,
@@ -248,8 +250,8 @@ get_from_vram:
 
 	offset = offsetof(struct binary_header, binary_checksum) +
 		sizeof(bhdr->binary_checksum);
-	size = bhdr->binary_size - offset;
-	checksum = bhdr->binary_checksum;
+	size = le16_to_cpu(bhdr->binary_size) - offset;
+	checksum = le16_to_cpu(bhdr->binary_checksum);
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
 					      size, checksum)) {
@@ -270,7 +272,7 @@ get_from_vram:
 	}
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
-					      ihdr->size, checksum)) {
+					      le16_to_cpu(ihdr->size), checksum)) {
 		DRM_ERROR("invalid ip discovery data table checksum\n");
 		r = -EINVAL;
 		goto out;
@@ -282,7 +284,7 @@ get_from_vram:
 	ghdr = (struct gpu_info_header *)(adev->mman.discovery_bin + offset);
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
-				              ghdr->size, checksum)) {
+				              le32_to_cpu(ghdr->size), checksum)) {
 		DRM_ERROR("invalid gc data table checksum\n");
 		r = -EINVAL;
 		goto out;
@@ -489,10 +491,10 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 			le16_to_cpu(bhdr->table_list[HARVEST_INFO].offset));
 
 	for (i = 0; i < 32; i++) {
-		if (le32_to_cpu(harvest_info->list[i].hw_id) == 0)
+		if (le16_to_cpu(harvest_info->list[i].hw_id) == 0)
 			break;
 
-		switch (le32_to_cpu(harvest_info->list[i].hw_id)) {
+		switch (le16_to_cpu(harvest_info->list[i].hw_id)) {
 		case VCN_HWID:
 			vcn_harvest_count++;
 			if (harvest_info->list[i].number_instance == 0)
@@ -918,6 +920,7 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(3, 0, 64):
 		case IP_VERSION(3, 1, 1):
 		case IP_VERSION(3, 0, 2):
+		case IP_VERSION(3, 0, 192):
 			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
 			if (!amdgpu_sriov_vf(adev))
 				amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);

@@ -698,6 +698,9 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			if (token >= 0)
 				pr_warn("I/O fail on reconnect controller after %d sec\n",
 					token);
+			else
+				token = -1;
+
 			opts->fast_io_fail_tmo = token;
 			break;
 		case NVMF_OPT_HOSTNQN:

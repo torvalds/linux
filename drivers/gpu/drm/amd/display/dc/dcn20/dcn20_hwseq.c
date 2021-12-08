@@ -2270,7 +2270,7 @@ void dcn20_reset_hw_ctx_wrap(
 
 			dcn20_reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
 			if (hws->funcs.enable_stream_gating)
-				hws->funcs.enable_stream_gating(dc, pipe_ctx);
+				hws->funcs.enable_stream_gating(dc, pipe_ctx_old);
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 		}

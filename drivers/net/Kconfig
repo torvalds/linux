@@ -567,9 +567,7 @@ config XEN_NETDEV_BACKEND
 config VMXNET3
 	tristate "VMware VMXNET3 ethernet driver"
 	depends on PCI && INET
-	depends on !(PAGE_SIZE_64KB || ARM64_64K_PAGES || \
-		     IA64_PAGE_SIZE_64KB || PARISC_PAGE_SIZE_64KB || \
-		     PPC_64K_PAGES)
+	depends on PAGE_SIZE_LESS_THAN_64KB
 	help
 	  This driver supports VMware's vmxnet3 virtual ethernet NIC.
 	  To compile this driver as a module, choose M here: the

@@ -193,6 +193,9 @@ static int tegra210_adx_put_byte_map(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;;
 
+	if (value == bytes_map[mc->reg])
+		return 0;
+
 	if (value >= 0 && value <= 255) {
 		/* update byte map and enable slot */
 		bytes_map[mc->reg] = value;
