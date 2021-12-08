@@ -1415,18 +1415,15 @@ static struct i915_vma_coredump *
 create_vma_coredump(const struct intel_gt *gt, struct i915_vma *vma,
 		    const char *name, struct i915_vma_compress *compress)
 {
-	struct i915_vma_coredump *ret = NULL;
+	struct i915_vma_coredump *ret;
 	struct i915_vma_snapshot tmp;
-	bool lockdep_cookie;
 
 	if (!vma)
 		return NULL;
 
+	GEM_WARN_ON(!i915_vma_is_pinned(vma));
 	i915_vma_snapshot_init_onstack(&tmp, vma, name);
-	if (i915_vma_snapshot_resource_pin(&tmp, &lockdep_cookie)) {
-		ret = i915_vma_coredump_create(gt, &tmp, compress);
-		i915_vma_snapshot_resource_unpin(&tmp, lockdep_cookie);
-	}
+	ret = i915_vma_coredump_create(gt, &tmp, compress);
 	i915_vma_snapshot_put_onstack(&tmp);
 
 	return ret;
