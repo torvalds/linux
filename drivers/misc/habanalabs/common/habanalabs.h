@@ -2561,8 +2561,9 @@ struct last_error_session_info {
  * @init_done: is the initialization of the device done.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  * @dma_mask: the dma mask that was set for this device
- * @in_debug: is device under debug. This, together with fpriv_list, enforces
- *            that only a single user is configuring the debug infrastructure.
+ * @in_debug: whether the device is in a state where the profiling/tracing infrastructure
+ *            can be used. This indication is needed because in some ASICs we need to do
+ *            specific operations to enable that infrastructure.
  * @power9_64bit_dma_enable: true to enable 64-bit DMA mask support. Relevant
  *                           only to POWER9 machines.
  * @cdev_sysfs_created: were char devices and sysfs nodes created.

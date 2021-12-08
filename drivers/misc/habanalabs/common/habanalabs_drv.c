@@ -153,14 +153,6 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
-	if (hdev->in_debug) {
-		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is being debugged by another user\n",
-			dev_name(hdev->dev));
-		rc = -EPERM;
-		goto out_err;
-	}
-
 	if (hdev->is_compute_ctx_active) {
 		dev_dbg_ratelimited(hdev->dev,
 			"Can't open %s because another user is working on it\n",
