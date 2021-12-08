@@ -6839,6 +6839,31 @@ out:
 	kfree(vop2_zpos);
 }
 
+static void vop2_bcsh_reg_update(struct rockchip_crtc_state *vcstate,
+				 struct vop2_video_port *vp,
+				 struct rockchip_bcsh_state *bcsh_state)
+{
+	struct vop2 *vop2 = vp->vop2;
+
+	VOP_MODULE_SET(vop2, vp, bcsh_r2y_en, vcstate->post_r2y_en);
+	VOP_MODULE_SET(vop2, vp, bcsh_y2r_en, vcstate->post_y2r_en);
+	VOP_MODULE_SET(vop2, vp, bcsh_r2y_csc_mode, vcstate->post_csc_mode);
+	VOP_MODULE_SET(vop2, vp, bcsh_y2r_csc_mode, vcstate->post_csc_mode);
+	if (!vcstate->bcsh_en) {
+		VOP_MODULE_SET(vop2, vp, bcsh_en, vcstate->bcsh_en);
+		return;
+	}
+
+	VOP_MODULE_SET(vop2, vp, bcsh_brightness, bcsh_state->brightness);
+	VOP_MODULE_SET(vop2, vp, bcsh_contrast, bcsh_state->contrast);
+	VOP_MODULE_SET(vop2, vp, bcsh_sat_con,
+		       bcsh_state->saturation * bcsh_state->contrast / 0x100);
+	VOP_MODULE_SET(vop2, vp, bcsh_sin_hue, bcsh_state->sin_hue);
+	VOP_MODULE_SET(vop2, vp, bcsh_cos_hue, bcsh_state->cos_hue);
+	VOP_MODULE_SET(vop2, vp, bcsh_out_mode, BCSH_OUT_MODE_NORMAL_VIDEO);
+	VOP_MODULE_SET(vop2, vp, bcsh_en, vcstate->bcsh_en);
+}
+
 static void vop2_tv_config_update(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
@@ -6851,6 +6876,7 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
+	struct rockchip_bcsh_state bcsh_state;
 
 	if (!vcstate->tv_state)
 		return;
@@ -6891,14 +6917,6 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	}
 
 	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_space);
-	VOP_MODULE_SET(vop2, vp, bcsh_r2y_en, vcstate->post_r2y_en);
-	VOP_MODULE_SET(vop2, vp, bcsh_y2r_en, vcstate->post_y2r_en);
-	VOP_MODULE_SET(vop2, vp, bcsh_r2y_csc_mode, vcstate->post_csc_mode);
-	VOP_MODULE_SET(vop2, vp, bcsh_y2r_csc_mode, vcstate->post_csc_mode);
-	if (!vcstate->bcsh_en) {
-		VOP_MODULE_SET(vop2, vp, bcsh_en, vcstate->bcsh_en);
-		return;
-	}
 
 	if (vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)
 		brightness = interpolate(0, -128, 100, 127,
@@ -6920,13 +6938,20 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	 */
 	sin_hue = fixp_sin32(hue) >> 23;
 	cos_hue = fixp_cos32(hue) >> 23;
-	VOP_MODULE_SET(vop2, vp, bcsh_brightness, brightness);
-	VOP_MODULE_SET(vop2, vp, bcsh_contrast, contrast);
-	VOP_MODULE_SET(vop2, vp, bcsh_sat_con, saturation * contrast / 0x100);
-	VOP_MODULE_SET(vop2, vp, bcsh_sin_hue, sin_hue);
-	VOP_MODULE_SET(vop2, vp, bcsh_cos_hue, cos_hue);
-	VOP_MODULE_SET(vop2, vp, bcsh_out_mode, BCSH_OUT_MODE_NORMAL_VIDEO);
-	VOP_MODULE_SET(vop2, vp, bcsh_en, vcstate->bcsh_en);
+
+	bcsh_state.brightness = brightness;
+	bcsh_state.contrast = contrast;
+	bcsh_state.saturation = saturation;
+	bcsh_state.sin_hue = sin_hue;
+	bcsh_state.cos_hue = cos_hue;
+
+	vop2_bcsh_reg_update(vcstate, vp, &bcsh_state);
+	if (vcstate->splice_mode) {
+		const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
+		struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
+
+		vop2_bcsh_reg_update(vcstate, splice_vp, &bcsh_state);
+	}
 }
 
 static void vop2_cfg_update(struct drm_crtc *crtc,

@@ -84,6 +84,14 @@ struct rockchip_hdr_state {
 	struct rockchip_sdr2hdr_state sdr2hdr_state;
 };
 
+struct rockchip_bcsh_state {
+	int brightness;
+	int contrast;
+	int saturation;
+	int sin_hue;
+	int cos_hue;
+};
+
 struct rockchip_crtc {
 	struct drm_crtc crtc;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
