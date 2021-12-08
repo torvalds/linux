@@ -1,4 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM i915
+
 #if !defined(_I915_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _I915_TRACE_H_
 
@@ -14,10 +18,6 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM i915
-#define TRACE_INCLUDE_FILE i915_trace
 
 /* watermark/fifo updates */
 
@@ -1337,5 +1337,7 @@ DEFINE_EVENT(i915_context, i915_context_free,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/i915
+#define TRACE_INCLUDE_FILE i915_trace
 #include <trace/define_trace.h>
