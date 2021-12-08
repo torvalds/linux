@@ -2726,19 +2726,12 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 	}
 }
 
-
-static void vop2_crtc_load_lut(struct drm_crtc *crtc)
+static void rk3568_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	int dle = 0, i = 0;
 	u8 vp_enable_gamma_nr = 0;
-
-	if (!vop2->is_enabled || !vp->lut || !vop2->lut_regs)
-		return;
-
-	if (WARN_ON(!drm_modeset_is_locked(&crtc->mutex)))
-		return;
 
 	for (i = 0; i < vop2->data->nr_vps; i++) {
 		struct vop2_video_port *vp = &vop2->vps[i];
@@ -2775,6 +2768,50 @@ static void vop2_crtc_load_lut(struct drm_crtc *crtc)
 
 	spin_unlock(&vop2->reg_lock);
 #undef CTRL_GET
+}
+
+static void rk3588_crtc_load_lut(struct drm_crtc *crtc, u32 *lut)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	int i = 0;
+
+	spin_lock(&vop2->reg_lock);
+
+	VOP_CTRL_SET(vop2, gamma_port_sel, vp->id);
+	for (i = 0; i < vp->gamma_lut_len; i++)
+		vop2_write_lut(vop2, i << 2, lut[i]);
+
+	VOP_MODULE_SET(vop2, vp, dsp_lut_en, 1);
+	VOP_MODULE_SET(vop2, vp, gamma_update_en, 1);
+	vp->gamma_lut_active = true;
+
+	spin_unlock(&vop2->reg_lock);
+}
+
+static void vop2_crtc_load_lut(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	if (!vop2->is_enabled || !vp->lut || !vop2->lut_regs)
+		return;
+
+	if (WARN_ON(!drm_modeset_is_locked(&crtc->mutex)))
+		return;
+
+	if (vop2->version == VOP_VERSION_RK3568)
+		return rk3568_crtc_load_lut(crtc);
+	else if (vop2->version == VOP_VERSION_RK3588) {
+		struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+		const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
+		struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
+
+		rk3588_crtc_load_lut(&vp->rockchip_crtc.crtc, vp->lut);
+		if (vcstate->splice_mode)
+			rk3588_crtc_load_lut(&splice_vp->rockchip_crtc.crtc, vp->lut);
+		vop2_cfg_done(crtc);
+	}
 }
 
 static void rockchip_vop2_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red,
