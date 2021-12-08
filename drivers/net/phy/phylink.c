@@ -1388,6 +1388,7 @@ EXPORT_SYMBOL_GPL(phylink_stop);
  * @mac_wol: true if the MAC needs to receive packets for Wake-on-Lan
  *
  * Handle a network device suspend event. There are several cases:
+ *
  * - If Wake-on-Lan is not active, we can bring down the link between
  *   the MAC and PHY by calling phylink_stop().
  * - If Wake-on-Lan is active, and being handled only by the PHY, we
