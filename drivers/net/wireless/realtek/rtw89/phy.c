@@ -654,6 +654,12 @@ rtw89_phy_cofig_rf_reg_store(struct rtw89_dev *rtwdev,
 	u16 idx = info->curr_idx % RTW89_H2C_RF_PAGE_SIZE;
 	u8 page = info->curr_idx / RTW89_H2C_RF_PAGE_SIZE;
 
+	if (page >= RTW89_H2C_RF_PAGE_NUM) {
+		rtw89_warn(rtwdev, "RF parameters exceed size. path=%d, idx=%d",
+			   rf_path, info->curr_idx);
+		return;
+	}
+
 	info->rtw89_phy_config_rf_h2c[page][idx] =
 		cpu_to_le32((reg->addr << 20) | reg->data);
 	info->curr_idx++;
@@ -662,30 +668,29 @@ rtw89_phy_cofig_rf_reg_store(struct rtw89_dev *rtwdev,
 static int rtw89_phy_config_rf_reg_fw(struct rtw89_dev *rtwdev,
 				      struct rtw89_fw_h2c_rf_reg_info *info)
 {
-	u16 page = info->curr_idx / RTW89_H2C_RF_PAGE_SIZE;
-	u16 len = (info->curr_idx % RTW89_H2C_RF_PAGE_SIZE) * 4;
+	u16 remain = info->curr_idx;
+	u16 len = 0;
 	u8 i;
 	int ret = 0;
 
-	if (page > RTW89_H2C_RF_PAGE_NUM) {
+	if (remain > RTW89_H2C_RF_PAGE_NUM * RTW89_H2C_RF_PAGE_SIZE) {
 		rtw89_warn(rtwdev,
-			   "rf reg h2c total page num %d larger than %d (RTW89_H2C_RF_PAGE_NUM)\n",
-			   page, RTW89_H2C_RF_PAGE_NUM);
-		return -EINVAL;
+			   "rf reg h2c total len %d larger than %d\n",
+			   remain, RTW89_H2C_RF_PAGE_NUM * RTW89_H2C_RF_PAGE_SIZE);
+		ret = -EINVAL;
+		goto out;
 	}
 
-	for (i = 0; i < page; i++) {
-		ret = rtw89_fw_h2c_rf_reg(rtwdev, info,
-					  RTW89_H2C_RF_PAGE_SIZE * 4, i);
+	for (i = 0; i < RTW89_H2C_RF_PAGE_NUM && remain; i++, remain -= len) {
+		len = remain > RTW89_H2C_RF_PAGE_SIZE ? RTW89_H2C_RF_PAGE_SIZE : remain;
+		ret = rtw89_fw_h2c_rf_reg(rtwdev, info, len * 4, i);
 		if (ret)
-			return ret;
+			goto out;
 	}
-	ret = rtw89_fw_h2c_rf_reg(rtwdev, info, len, i);
-	if (ret)
-		return ret;
+out:
 	info->curr_idx = 0;
 
-	return 0;
+	return ret;
 }
 
 static void rtw89_phy_config_rf_reg(struct rtw89_dev *rtwdev,
@@ -1099,9 +1104,15 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev,
 	switch (band) {
 	case RTW89_BAND_2G:
 		lmt = (*chip->txpwr_lmt_2g)[bw][ntx][rs][bf][regd][ch_idx];
+		if (!lmt)
+			lmt = (*chip->txpwr_lmt_2g)[bw][ntx][rs][bf]
+						   [RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
 		lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf][regd][ch_idx];
+		if (!lmt)
+			lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf]
+						   [RTW89_WW][ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -1224,9 +1235,15 @@ static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 	switch (band) {
 	case RTW89_BAND_2G:
 		lmt_ru = (*chip->txpwr_lmt_ru_2g)[ru][ntx][regd][ch_idx];
+		if (!lmt_ru)
+			lmt_ru = (*chip->txpwr_lmt_ru_2g)[ru][ntx]
+							 [RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
 		lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx][regd][ch_idx];
+		if (!lmt_ru)
+			lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx]
+							 [RTW89_WW][ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -1767,7 +1784,7 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 	}
 	rtw89_phy_cfo_crystal_cap_adjust(rtwdev, new_cfo);
 	cfo->cfo_avg_pre = new_cfo;
-	x_cap_update =  cfo->crystal_cap == pre_x_cap ? false : true;
+	x_cap_update =  cfo->crystal_cap != pre_x_cap;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Xcap_up=%d\n", x_cap_update);
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Xcap: D:%x C:%x->%x, ofst=%d\n",
 		    cfo->def_x_cap, pre_x_cap, cfo->crystal_cap,

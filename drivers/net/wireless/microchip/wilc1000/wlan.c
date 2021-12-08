@@ -626,7 +626,6 @@ void chip_wakeup(struct wilc *wilc)
 	u32 clk_status_val = 0, trials = 0;
 	u32 wakeup_reg, wakeup_bit;
 	u32 clk_status_reg, clk_status_bit;
-	u32 to_host_from_fw_reg, to_host_from_fw_bit;
 	u32 from_host_to_fw_reg, from_host_to_fw_bit;
 	const struct wilc_hif_func *hif_func = wilc->hif_func;
 
@@ -637,8 +636,6 @@ void chip_wakeup(struct wilc *wilc)
 		clk_status_bit = WILC_SDIO_CLK_STATUS_BIT;
 		from_host_to_fw_reg = WILC_SDIO_HOST_TO_FW_REG;
 		from_host_to_fw_bit = WILC_SDIO_HOST_TO_FW_BIT;
-		to_host_from_fw_reg = WILC_SDIO_FW_TO_HOST_REG;
-		to_host_from_fw_bit = WILC_SDIO_FW_TO_HOST_BIT;
 	} else {
 		wakeup_reg = WILC_SPI_WAKEUP_REG;
 		wakeup_bit = WILC_SPI_WAKEUP_BIT;
@@ -646,8 +643,6 @@ void chip_wakeup(struct wilc *wilc)
 		clk_status_bit = WILC_SPI_CLK_STATUS_BIT;
 		from_host_to_fw_reg = WILC_SPI_HOST_TO_FW_REG;
 		from_host_to_fw_bit = WILC_SPI_HOST_TO_FW_BIT;
-		to_host_from_fw_reg = WILC_SPI_FW_TO_HOST_REG;
-		to_host_from_fw_bit = WILC_SPI_FW_TO_HOST_BIT;
 	}
 
 	/* indicate host wakeup */

@@ -13,7 +13,7 @@
 
 struct ath11k_dbring_element {
 	dma_addr_t paddr;
-	u8 payload[0];
+	u8 *payload;
 };
 
 struct ath11k_dbring_data {

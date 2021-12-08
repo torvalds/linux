@@ -30,5 +30,6 @@ ccflags-y += -I$(src)
 
 obj-$(CONFIG_IWLDVM)	+= dvm/
 obj-$(CONFIG_IWLMVM)	+= mvm/
+obj-$(CONFIG_IWLMEI)	+= mei/
 
 CFLAGS_iwl-devtrace.o := -I$(src)

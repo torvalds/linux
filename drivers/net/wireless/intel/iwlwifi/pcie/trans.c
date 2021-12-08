@@ -24,6 +24,7 @@
 #include "fw/error-dump.h"
 #include "fw/dbg.h"
 #include "fw/api/tx.h"
+#include "mei/iwl-mei.h"
 #include "internal.h"
 #include "iwl-fh.h"
 #include "iwl-context-info-gen3.h"
@@ -594,8 +595,10 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 	ret = iwl_pcie_set_hw_ready(trans);
 	/* If the card is ready, exit 0 */
-	if (ret >= 0)
+	if (ret >= 0) {
+		trans->csme_own = false;
 		return 0;
+	}
 
 	iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 		    CSR_RESET_LINK_PWR_MGMT_DISABLED);
@@ -608,8 +611,22 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
-			if (ret >= 0)
+			if (ret >= 0) {
+				trans->csme_own = false;
 				return 0;
+			}
+
+			if (iwl_mei_is_connected()) {
+				IWL_DEBUG_INFO(trans,
+					       "Couldn't prepare the card but SAP is connected\n");
+				trans->csme_own = true;
+				if (trans->trans_cfg->device_family !=
+				    IWL_DEVICE_FAMILY_9000)
+					IWL_ERR(trans,
+						"SAP not supported for this NIC family\n");
+
+				return -EBUSY;
+			}
 
 			usleep_range(200, 1000);
 			t += 200;

@@ -2071,9 +2071,11 @@ struct mwifiex_ie_types_robust_coex {
 	__le32 mode;
 } __packed;
 
+#define MWIFIEX_VERSION_STR_LENGTH  128
+
 struct host_cmd_ds_version_ext {
 	u8 version_str_sel;
-	char version_str[128];
+	char version_str[MWIFIEX_VERSION_STR_LENGTH];
 } __packed;
 
 struct host_cmd_ds_mgmt_frame_reg {

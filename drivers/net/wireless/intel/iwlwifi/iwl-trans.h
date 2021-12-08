@@ -924,6 +924,7 @@ struct iwl_trans_txqs {
 /**
  * struct iwl_trans - transport common data
  *
+ * @csme_own - true if we couldn't get ownership on the device
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
  * @trans_cfg: the trans-specific configuration part
@@ -958,6 +959,7 @@ struct iwl_trans_txqs {
  * @iwl_trans_txqs: transport tx queues data.
  */
 struct iwl_trans {
+	bool csme_own;
 	const struct iwl_trans_ops *ops;
 	struct iwl_op_mode *op_mode;
 	const struct iwl_cfg_trans_params *trans_cfg;

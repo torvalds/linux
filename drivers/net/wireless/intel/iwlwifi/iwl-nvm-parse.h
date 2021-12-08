@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2015, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2015, 2018-2021 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_nvm_parse_h__
@@ -8,6 +8,7 @@
 
 #include <net/cfg80211.h>
 #include "iwl-eeprom-parse.h"
+#include "mei/iwl-mei.h"
 
 /**
  * enum iwl_nvm_sbands_flags - modification flags for the channel profiles
@@ -80,5 +81,13 @@ void iwl_nvm_fixups(u32 hw_id, unsigned int section, u8 *data,
  */
 struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 				 const struct iwl_fw *fw);
+
+/**
+ * iwl_parse_mei_nvm_data - parse the mei_nvm_data and get an iwl_nvm_data
+ */
+struct iwl_nvm_data *
+iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+		       const struct iwl_mei_nvm *mei_nvm,
+		       const struct iwl_fw *fw);
 
 #endif /* __iwl_nvm_parse_h__ */

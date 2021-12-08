@@ -1053,10 +1053,10 @@ static void rtw8852a_set_channel_bb(struct rtw89_dev *rtwdev,
 				    struct rtw89_channel_params *param,
 				    enum rtw89_phy_idx phy_idx)
 {
-	bool cck_en = param->center_chan > 14 ? false : true;
+	bool cck_en = param->center_chan <= 14;
 	u8 pri_ch_idx = param->pri_ch_idx;
 
-	if (param->center_chan <= 14)
+	if (cck_en)
 		rtw8852a_ctrl_sco_cck(rtwdev, param->center_chan,
 				      param->primary_chan, param->bandwidth);
 
