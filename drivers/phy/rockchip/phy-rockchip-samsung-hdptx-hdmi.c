@@ -753,6 +753,9 @@ struct ropll_config ropll_tmds_cfg[] = {
 	{ 5940000, 124, 124, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 62, 1, 16, 5, 0,
 		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
 	},
+	{ 3712500, 155, 155, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 62, 1, 16, 5, 0,
+		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
 	{ 2970000, 124, 124, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 62, 1, 16, 5, 0,
 		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
 	},
@@ -1712,11 +1715,11 @@ static int rockchip_hdptx_phy_power_on(struct phy *phy)
 
 	if (bus_width & HDMI_MODE_MASK)
 		if (bit_rate > 24000000)
-			return hdptx_lcpll_frl_mode_config(hdptx, bit_rate);
+			return hdptx_lcpll_frl_mode_config(hdptx, bus_width);
 		else
-			return hdptx_ropll_frl_mode_config(hdptx, bit_rate);
+			return hdptx_ropll_frl_mode_config(hdptx, bus_width);
 	else
-		return hdptx_ropll_tmds_mode_config(hdptx, bit_rate);
+		return hdptx_ropll_tmds_mode_config(hdptx, bus_width);
 }
 
 static int rockchip_hdptx_phy_power_off(struct phy *phy)
