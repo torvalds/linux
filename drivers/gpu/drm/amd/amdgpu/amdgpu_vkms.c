@@ -411,8 +411,8 @@ static struct drm_plane *amdgpu_vkms_plane_init(struct drm_device *dev,
 	return plane;
 }
 
-int amdgpu_vkms_output_init(struct drm_device *dev,
-			    struct amdgpu_vkms_output *output, int index)
+static int amdgpu_vkms_output_init(struct drm_device *dev, struct
+				   amdgpu_vkms_output *output, int index)
 {
 	struct drm_connector *connector = &output->connector;
 	struct drm_encoder *encoder = &output->encoder;
