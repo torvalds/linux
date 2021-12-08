@@ -758,18 +758,6 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 		writel(0, dev->base_addr + CIF_ISP_CSI0_MASK1);
 		writel(0, dev->base_addr + CIF_ISP_CSI0_MASK2);
 		writel(0, dev->base_addr + CIF_ISP_CSI0_MASK3);
-	} else if (dev->isp_ver == ISP_V30) {
-		writel(ISP3X_RAWX_RD_BURST_LEN16 |
-		       ISP3X_RAWX_WR_BURST_LEN16 |
-		       ISP3X_RD_RAWX_GROUP_MODE_X4 |
-		       ISP3X_WR_RAWX_GROUP_MODE_X4,
-		       dev->base_addr + ISP3X_MI_RD_CTRL2);
-		if (dev->is_unite)
-			writel(ISP3X_RAWX_RD_BURST_LEN16 |
-			       ISP3X_RAWX_WR_BURST_LEN16 |
-			       ISP3X_RD_RAWX_GROUP_MODE_X4 |
-			       ISP3X_WR_RAWX_GROUP_MODE_X4,
-			       dev->base_next_addr + ISP3X_MI_RD_CTRL2);
 	}
 
 	return 0;
