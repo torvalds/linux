@@ -372,6 +372,7 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 	switch (left_time) {
 	case 0:
 		pr_err("%s timeout", __func__);
+		rga_scheduler->ops->soft_reset(rga_scheduler);
 		ret = -EBUSY;
 		break;
 	case -ERESTARTSYS:
