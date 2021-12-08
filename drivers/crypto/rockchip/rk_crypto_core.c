@@ -790,7 +790,7 @@ static int rk_crypto_remove(struct platform_device *pdev)
 	tasklet_kill(&rk_dev->queue_task);
 
 	if (rk_dev->addr_vir)
-		free_page((unsigned long)rk_dev->addr_vir);
+		free_pages((unsigned long)rk_dev->addr_vir, RK_BUFFER_ORDER);
 
 	rk_dev->soc_data->hw_deinit(&pdev->dev, rk_dev->hw_info);
 
