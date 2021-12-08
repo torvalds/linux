@@ -883,7 +883,7 @@ static loff_t iomap_zero_iter(struct iomap_iter *iter, bool *did_zero)
 
 	do {
 		unsigned offset = offset_in_page(pos);
-		size_t bytes = min_t(u64, PAGE_SIZE - offset, length);
+		ssize_t bytes = min_t(u64, PAGE_SIZE - offset, length);
 		struct page *page;
 		int status;
 
