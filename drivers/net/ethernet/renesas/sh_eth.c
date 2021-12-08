@@ -3368,8 +3368,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	/* MDIO bus init */
 	ret = sh_mdio_init(mdp, pd);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "MDIO init failed: %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "MDIO init failed\n");
 		goto out_release;
 	}
 
