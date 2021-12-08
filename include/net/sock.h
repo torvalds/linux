@@ -1635,16 +1635,6 @@ static inline void sk_mem_uncharge(struct sock *sk, int size)
 		__sk_mem_reclaim(sk, SK_RECLAIM_CHUNK);
 }
 
-static inline void sock_release_ownership(struct sock *sk)
-{
-	if (sk->sk_lock.owned) {
-		sk->sk_lock.owned = 0;
-
-		/* The sk_lock has mutex_unlock() semantics: */
-		mutex_release(&sk->sk_lock.dep_map, _RET_IP_);
-	}
-}
-
 /*
  * Macro so as to not evaluate some arguments when
  * lockdep is not enabled.
@@ -1771,12 +1761,23 @@ static inline bool sock_owned_by_user_nocheck(const struct sock *sk)
 	return sk->sk_lock.owned;
 }
 
+static inline void sock_release_ownership(struct sock *sk)
+{
+	if (sock_owned_by_user_nocheck(sk)) {
+		sk->sk_lock.owned = 0;
+
+		/* The sk_lock has mutex_unlock() semantics: */
+		mutex_release(&sk->sk_lock.dep_map, _RET_IP_);
+	}
+}
+
 /* no reclassification while locks are held */
 static inline bool sock_allow_reclassification(const struct sock *csk)
 {
 	struct sock *sk = (struct sock *)csk;
 
-	return !sk->sk_lock.owned && !spin_is_locked(&sk->sk_lock.slock);
+	return !sock_owned_by_user_nocheck(sk) &&
+		!spin_is_locked(&sk->sk_lock.slock);
 }
 
 struct sock *sk_alloc(struct net *net, int family, gfp_t priority,

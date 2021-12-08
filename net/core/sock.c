@@ -3292,7 +3292,7 @@ void lock_sock_nested(struct sock *sk, int subclass)
 
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
-	if (sk->sk_lock.owned)
+	if (sock_owned_by_user_nocheck(sk))
 		__lock_sock(sk);
 	sk->sk_lock.owned = 1;
 	spin_unlock_bh(&sk->sk_lock.slock);
@@ -3323,7 +3323,7 @@ bool __lock_sock_fast(struct sock *sk) __acquires(&sk->sk_lock.slock)
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
 
-	if (!sk->sk_lock.owned) {
+	if (!sock_owned_by_user_nocheck(sk)) {
 		/*
 		 * Fast path return with bottom halves disabled and
 		 * sock::sk_lock.slock held.
