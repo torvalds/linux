@@ -76,7 +76,6 @@ struct svm_work_list_item {
  *              aligned, page size is (last - start + 1)
  * @list:       link list node, used to scan all ranges of svms
  * @update_list:link list node used to add to update_list
- * @remove_list:link list node used to add to remove list
  * @mapping:    bo_va mapping structure to create and update GPU page table
  * @npages:     number of pages
  * @dma_addr:   dma mapping address on each GPU for system memory physical page
@@ -112,7 +111,6 @@ struct svm_range {
 	struct interval_tree_node	it_node;
 	struct list_head		list;
 	struct list_head		update_list;
-	struct list_head		remove_list;
 	uint64_t			npages;
 	dma_addr_t			*dma_addr[MAX_GPU_INSTANCE];
 	struct ttm_resource		*ttm_res;
