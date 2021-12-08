@@ -175,8 +175,8 @@ next_job:
 
 	/* If some error before hw run */
 	if (job->ret < 0) {
-		pr_err("some error on rga_job_run, %s(%d)\n", __func__,
-			 __LINE__);
+		pr_err("some error on rga_job_run before hw start, %s(%d)\n",
+			__func__, __LINE__);
 
 		spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
 
@@ -547,6 +547,38 @@ finish:
 	return core;
 }
 
+static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
+{
+	unsigned long flags;
+	struct rga_job *job = NULL;
+	ktime_t now = ktime_get();
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	job = scheduler->running_job;
+	if (job && (job->flags & RGA_JOB_ASYNC) &&
+	   (ktime_to_ms(ktime_sub(now, job->timestamp)) >= RGA_ASYNC_TIMEOUT_DELAY)) {
+		scheduler->running_job = NULL;
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+		scheduler->ops->soft_reset(scheduler);
+
+		rga_dma_put_info(job);
+
+		mmdrop(job->mm);
+
+		if (job->out_fence)
+			dma_fence_signal(job->out_fence);
+
+		rga_job_cleanup(job);
+
+		rga_power_disable(scheduler);
+	} else {
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+}
+
 static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 {
 	unsigned long flags;
@@ -569,6 +601,8 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
 		return NULL;
 	}
+
+	rga_job_timeout_clean(scheduler);
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
@@ -610,19 +644,16 @@ static void rga_running_job_abort(struct rga_job *job,
 {
 	unsigned long flags;
 
-	if (job->ret == -ETIMEDOUT)
-		rga_scheduler->ops->soft_reset(rga_scheduler);
-
 	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
 
 	/* invalid job */
 	if (job == rga_scheduler->running_job) {
 		rga_scheduler->running_job = NULL;
-
-		rga_job_cleanup(job);
 	}
 
 	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+
+	rga_job_cleanup(job);
 }
 
 static void rga_invalid_job_abort(struct rga_job *job)
@@ -716,8 +747,6 @@ int rga_commit(struct rga_req *rga_command_base, int flags)
 		job->flags |= RGA_JOB_ASYNC;
 		rga_command_base->out_fence_fd = rga_out_fence_get_fd(job);
 
-		//TODO: job timeout clean, need add pd disable
-
 		if (RGA_DEBUG_MSG)
 			pr_err("in_fence_fd = %d",
 				rga_command_base->in_fence_fd);
@@ -794,6 +823,7 @@ int rga_commit(struct rga_req *rga_command_base, int flags)
 			pr_err("failed to wait rga job! May be timeout\n");
 			goto running_job_abort;
 		}
+
 		rga_job_cleanup(job);
 	}
 	return ret;
