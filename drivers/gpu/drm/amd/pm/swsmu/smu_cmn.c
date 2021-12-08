@@ -680,6 +680,7 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	int8_t sort_feature[SMU_FEATURE_COUNT];
 	size_t size = 0;
 	int ret = 0, i;
+	int feature_id;
 
 	ret = smu_cmn_get_enabled_mask(smu,
 				       &feature_mask);
@@ -708,11 +709,18 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 		if (sort_feature[i] < 0)
 			continue;
 
+		/* convert to asic spcific feature ID */
+		feature_id = smu_cmn_to_asic_specific_index(smu,
+							    CMN2ASIC_MAPPING_FEATURE,
+							    sort_feature[i]);
+		if (feature_id < 0)
+			continue;
+
 		size += sysfs_emit_at(buf, size, "%02d. %-20s (%2d) : %s\n",
 				count++,
 				smu_get_feature_name(smu, sort_feature[i]),
 				i,
-				!!smu_cmn_feature_is_enabled(smu, sort_feature[i]) ?
+				!!test_bit(feature_id, (unsigned long *)&feature_mask) ?
 				"enabled" : "disabled");
 	}
 
