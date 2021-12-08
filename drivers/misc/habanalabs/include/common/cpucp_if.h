@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2021 HabanaLabs, Ltd.
+ * Copyright 2020-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -761,6 +761,7 @@ struct cpucp_security_info {
  * @fuse_version: silicon production FUSE information.
  * @thermal_version: thermald S/W version.
  * @cpucp_version: CpuCP S/W version.
+ * @infineon_second_stage_version: Infineon 2nd stage DC-DC version.
  * @dram_size: available DRAM size.
  * @card_name: card name that will be displayed in HWMON subsystem on the host
  * @sec_info: security information
@@ -770,6 +771,10 @@ struct cpucp_security_info {
  * @dram_binning_mask: DRAM binning mask, 1 bit per dram instance
  *                     (0 = functional 1 = binned)
  * @memory_repair_flag: eFuse flag indicating memory repair
+ * @edma_binning_mask: EDMA binning mask, 1 bit per EDMA instance
+ *                     (0 = functional 1 = binned)
+ * @xbar_binning_mask: Xbar binning mask, 1 bit per Xbar instance
+ *                     (0 = functional 1 = binned)
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -782,7 +787,7 @@ struct cpucp_info {
 	__u8 fuse_version[VERSION_MAX_LEN];
 	__u8 thermal_version[VERSION_MAX_LEN];
 	__u8 cpucp_version[VERSION_MAX_LEN];
-	__le32 reserved2;
+	__le32 infineon_second_stage_version;
 	__le64 dram_size;
 	char card_name[CARD_NAME_MAX_LEN];
 	__le64 reserved3;
@@ -790,7 +795,9 @@ struct cpucp_info {
 	__u8 reserved5;
 	__u8 dram_binning_mask;
 	__u8 memory_repair_flag;
-	__u8 pad[5];
+	__u8 edma_binning_mask;
+	__u8 xbar_binning_mask;
+	__u8 pad[3];
 	struct cpucp_security_info sec_info;
 	__le32 reserved6;
 	__u8 pll_map[PLL_MAP_LEN];

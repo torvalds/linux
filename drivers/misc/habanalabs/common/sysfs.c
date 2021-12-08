@@ -163,8 +163,13 @@ static ssize_t infineon_ver_show(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "0x%04x\n",
-			hdev->asic_prop.cpucp_info.infineon_version);
+	if (hdev->asic_prop.cpucp_info.infineon_second_stage_version)
+		return sprintf(buf, "%#04x %#04x\n",
+			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_version),
+			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_second_stage_version));
+	else
+		return sprintf(buf, "%#04x\n",
+			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_version));
 }
 
 static ssize_t fuse_ver_show(struct device *dev, struct device_attribute *attr,
