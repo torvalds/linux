@@ -1249,7 +1249,7 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 	 * racing with fallocate can cause us to add fewer sectors than
 	 * expected - but we shouldn't add more sectors than expected:
 	 */
-	BUG_ON(io->op.i_sectors_delta > 0);
+	WARN_ON(io->op.i_sectors_delta > 0);
 
 	/*
 	 * (error (due to going RO) halfway through a page can screw that up
