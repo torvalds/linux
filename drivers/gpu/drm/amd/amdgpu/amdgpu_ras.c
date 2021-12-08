@@ -2372,7 +2372,11 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	}
 
 	/* Init poison supported flag, the default value is false */
-	if (adev->df.funcs &&
+	if (adev->gmc.xgmi.connected_to_cpu) {
+		/* enabled by default when GPU is connected to CPU */
+		con->poison_supported = true;
+	}
+	else if (adev->df.funcs &&
 	    adev->df.funcs->query_ras_poison_mode &&
 	    adev->umc.ras_funcs &&
 	    adev->umc.ras_funcs->query_ras_poison_mode) {
