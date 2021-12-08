@@ -1753,7 +1753,6 @@
 
 		gpu: gpu@3d00000 {
 			compatible = "qcom,adreno-635.0", "qcom,adreno";
-			#stream-id-cells = <16>;
 			reg = <0 0x03d00000 0 0x40000>,
 			      <0 0x03d9e000 0 0x1000>,
 			      <0 0x03d61000 0 0x800>;

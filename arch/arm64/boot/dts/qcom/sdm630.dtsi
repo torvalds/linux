@@ -1019,7 +1019,6 @@
 
 		adreno_gpu: gpu@5000000 {
 			compatible = "qcom,adreno-508.0", "qcom,adreno";
-			#stream-id-cells = <16>;
 
 			reg = <0x05000000 0x40000>;
 			reg-names = "kgsl_3d0_reg_memory";
