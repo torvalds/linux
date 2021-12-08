@@ -1418,7 +1418,7 @@ static const struct rk_gmac_ops rk3568_ops = {
 
 #define RK3588_GMAC_PHY_INTF_SEL_RGMII(id)	\
 	(GRF_BIT(3 + (id) * 6) | GRF_CLR_BIT(4 + (id) * 6) | GRF_CLR_BIT(5 + (id) * 6))
-#define RK3588_GMAC_PHY_INTF_SEL_RMIIi(id)	\
+#define RK3588_GMAC_PHY_INTF_SEL_RMII(id)	\
 	(GRF_CLR_BIT(3 + (id) * 6) | GRF_CLR_BIT(4 + (id) * 6) | GRF_BIT(5 + (id) * 6))
 
 #define RK3588_GMAC_CLK_RMII_MODE(id)		GRF_BIT(5 * (id))
@@ -1477,7 +1477,7 @@ static void rk3588_set_to_rmii(struct rk_priv_data *bsp_priv)
 	}
 
 	regmap_write(bsp_priv->php_grf, RK3588_GRF_GMAC_CON0,
-		     RK3588_GMAC_PHY_INTF_SEL_RGMII(bsp_priv->bus_id));
+		     RK3588_GMAC_PHY_INTF_SEL_RMII(bsp_priv->bus_id));
 
 	regmap_write(bsp_priv->php_grf, RK3588_GRF_CLK_CON1,
 		     RK3588_GMAC_CLK_RMII_MODE(bsp_priv->bus_id));
