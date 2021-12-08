@@ -196,7 +196,7 @@ static int vhost_vdpa_config_validate(struct vhost_vdpa *v,
 		break;
 	}
 
-	if (c->len == 0)
+	if (c->len == 0 || c->off > size)
 		return -EINVAL;
 
 	if (c->len > size - c->off)
