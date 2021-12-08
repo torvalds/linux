@@ -296,6 +296,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 	const Elf_Shdr *sechdrs;
 	Elf_Rela *relas;
 	int i, r_type;
+	int ret;
 
 	/* String & section header string table */
 	sechdrs = (void *)pi->ehdr + pi->ehdr->e_shoff;
@@ -347,7 +348,11 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 		addr = section->sh_addr + relas[i].r_offset;
 
 		r_type = ELF64_R_TYPE(relas[i].r_info);
-		arch_kexec_do_relocs(r_type, loc, val, addr);
+		ret = arch_kexec_do_relocs(r_type, loc, val, addr);
+		if (ret) {
+			pr_err("Unknown rela relocation: %d\n", r_type);
+			return -ENOEXEC;
+		}
 	}
 	return 0;
 }
