@@ -562,7 +562,7 @@
 
 	arm_pmu: arm-pmu {
 		compatible = "arm,armv8-pmuv3";
-		interrupts = <GIC_PPI 8 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-affinity = <&cpu_l0>, <&cpu_l1>, <&cpu_l2>, <&cpu_l3>,
 				     <&cpu_b0>, <&cpu_b1>, <&cpu_b2>, <&cpu_b3>;
 	};
