@@ -129,8 +129,9 @@ static int si2157_init(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct i2c_client *client = fe->tuner_priv;
 	struct si2157_dev *dev = i2c_get_clientdata(client);
+	bool warn_firmware_not_loaded = false;
 	unsigned int chip_id, xtal_trim;
-	unsigned int fw_required;
+	bool fw_required = true;
 	struct si2157_cmd cmd;
 	const char *fw_name;
 	int ret;
@@ -199,10 +200,6 @@ static int si2157_init(struct dvb_frontend *fe)
 	#define SI2146_A10 ('A' << 24 | 46 << 16 | '1' << 8 | '0' << 0)
 	#define SI2141_A10 ('A' << 24 | 41 << 16 | '1' << 8 | '0' << 0)
 
-	/* assume firmware is required, unless verified not to be */
-	/* only the SI2157_A30 has been verified not to yet */
-	fw_required = true;
-
 	switch (chip_id) {
 	case SI2158_A20:
 	case SI2148_A20:
@@ -212,9 +209,8 @@ static int si2157_init(struct dvb_frontend *fe)
 		fw_name = SI2141_A10_FIRMWARE;
 		break;
 	case SI2157_A30:
-		fw_name = SI2157_A30_FIRMWARE;
 		fw_required = false;
-		break;
+		fallthrough;
 	case SI2177_A30:
 		fw_name = SI2157_A30_FIRMWARE;
 		break;
@@ -237,12 +233,11 @@ static int si2157_init(struct dvb_frontend *fe)
 		goto skip_fw_download;
 
 	ret = si2157_load_firmware(fe, fw_name);
-	if (ret) {
-		if (!fw_required)
-			goto skip_fw_download;
-
-		dev_err(&client->dev, "firmware file '%s' not found\n",
-			fw_name);
+	if (fw_required && ret == -ENOENT)
+		warn_firmware_not_loaded = true;
+	else if (ret < 0) {
+		dev_err(&client->dev, "error %d when loading firmware file '%s'\n",
+			ret, fw_name);
 		goto err;
 	}
 
@@ -263,6 +258,11 @@ skip_fw_download:
 	if (ret)
 		goto err;
 
+	if (warn_firmware_not_loaded) {
+		dev_warn(&client->dev, "firmware file '%s' not found. Using firmware from eeprom.\n",
+			 fw_name);
+		warn_firmware_not_loaded = false;
+	}
 	dev_info(&client->dev, "firmware version: %c.%c.%d\n",
 			cmd.args[6], cmd.args[7], cmd.args[8]);
 
@@ -298,6 +298,11 @@ warm:
 	return 0;
 
 err:
+	if (warn_firmware_not_loaded)
+		dev_err(&client->dev,
+			"firmware file '%s' not found. Can't continue without a firmware.\n",
+			fw_name);
+
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
