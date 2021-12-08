@@ -704,6 +704,61 @@ svm_range_apply_attrs(struct kfd_process *p, struct svm_range *prange,
 	}
 }
 
+static bool
+svm_range_is_same_attrs(struct kfd_process *p, struct svm_range *prange,
+			uint32_t nattr, struct kfd_ioctl_svm_attribute *attrs)
+{
+	uint32_t i;
+	int gpuidx;
+
+	for (i = 0; i < nattr; i++) {
+		switch (attrs[i].type) {
+		case KFD_IOCTL_SVM_ATTR_PREFERRED_LOC:
+			if (prange->preferred_loc != attrs[i].value)
+				return false;
+			break;
+		case KFD_IOCTL_SVM_ATTR_PREFETCH_LOC:
+			/* Prefetch should always trigger a migration even
+			 * if the value of the attribute didn't change.
+			 */
+			return false;
+		case KFD_IOCTL_SVM_ATTR_ACCESS:
+		case KFD_IOCTL_SVM_ATTR_ACCESS_IN_PLACE:
+		case KFD_IOCTL_SVM_ATTR_NO_ACCESS:
+			gpuidx = kfd_process_gpuidx_from_gpuid(p,
+							       attrs[i].value);
+			if (attrs[i].type == KFD_IOCTL_SVM_ATTR_NO_ACCESS) {
+				if (test_bit(gpuidx, prange->bitmap_access) ||
+				    test_bit(gpuidx, prange->bitmap_aip))
+					return false;
+			} else if (attrs[i].type == KFD_IOCTL_SVM_ATTR_ACCESS) {
+				if (!test_bit(gpuidx, prange->bitmap_access))
+					return false;
+			} else {
+				if (!test_bit(gpuidx, prange->bitmap_aip))
+					return false;
+			}
+			break;
+		case KFD_IOCTL_SVM_ATTR_SET_FLAGS:
+			if ((prange->flags & attrs[i].value) != attrs[i].value)
+				return false;
+			break;
+		case KFD_IOCTL_SVM_ATTR_CLR_FLAGS:
+			if ((prange->flags & attrs[i].value) != 0)
+				return false;
+			break;
+		case KFD_IOCTL_SVM_ATTR_GRANULARITY:
+			if (prange->granularity != attrs[i].value)
+				return false;
+			break;
+		default:
+			WARN_ONCE(1, "svm_range_check_attrs wasn't called?");
+		}
+	}
+
+	return true;
+}
+
 /**
  * svm_range_debug_dump - print all range information from svms
  * @svms: svm range list header
@@ -739,14 +794,6 @@ static void svm_range_debug_dump(struct svm_range_list *svms)
 			 prange->actual_loc);
 		node = interval_tree_iter_next(node, 0, ~0ULL);
 	}
-}
-
-static bool
-svm_range_is_same_attrs(struct svm_range *old, struct svm_range *new)
-{
-	return (old->prefetch_loc == new->prefetch_loc &&
-		old->flags == new->flags &&
-		old->granularity == new->granularity);
 }
 
 static int
@@ -1795,7 +1842,6 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 	unsigned long last = start + size - 1UL;
 	struct svm_range_list *svms = &p->svms;
 	struct interval_tree_node *node;
-	struct svm_range new = {0};
 	struct svm_range *prange;
 	struct svm_range *tmp;
 	int r = 0;
@@ -1805,7 +1851,6 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 	INIT_LIST_HEAD(update_list);
 	INIT_LIST_HEAD(insert_list);
 	INIT_LIST_HEAD(remove_list);
-	svm_range_apply_attrs(p, &new, nattr, attrs);
 
 	node = interval_tree_iter_first(&svms->objects, start, last);
 	while (node) {
@@ -1852,7 +1897,7 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 			prange = old;
 		}
 
-		if (!svm_range_is_same_attrs(prange, &new))
+		if (!svm_range_is_same_attrs(p, prange, nattr, attrs))
 			list_add(&prange->update_list, update_list);
 
 		/* insert a new node if needed */
