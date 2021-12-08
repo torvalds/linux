@@ -319,9 +319,9 @@ restart_unlock:
 
 }
 
-void rkispp_module_work_event(struct rkispp_device *dev,
-			      void *buf_rd, void *buf_wr,
-			      u32 module, bool is_isr)
+static void rkispp_module_work_event(struct rkispp_device *dev,
+				     void *buf_rd, void *buf_wr,
+				     u32 module, bool is_isr)
 {
 
 	if (dev->hw_dev->is_shutdown)
