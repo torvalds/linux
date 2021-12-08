@@ -9,6 +9,7 @@ function update_config() {
          -d CPU_BIG_ENDIAN \
          -d DYNAMIC_FTRACE \
          -e UNWINDER_FRAME_POINTER \
+	 -d WERROR \
 
     (cd ${OUT_DIR} && \
      make O=${OUT_DIR} $archsubarch CROSS_COMPILE=${CROSS_COMPILE} "${TOOL_ARGS[@]}" ${MAKE_ARGS} olddefconfig)
