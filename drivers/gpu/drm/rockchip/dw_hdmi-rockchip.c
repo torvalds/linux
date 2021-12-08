@@ -1600,6 +1600,9 @@ static void rk3588_set_color_format(struct rockchip_hdmi *hdmi, u64 bus_format,
 		return;
 	}
 
+	if (hdmi->link_cfg.dsc_mode)
+		val = HIWORD_UPDATE(RK3588_COMPRESSED_DATA, RK3588_COLOR_FORMAT_MASK);
+
 	if (depth == 8)
 		val |= HIWORD_UPDATE(RK3588_8BPC, RK3588_COLOR_DEPTH_MASK);
 	else
@@ -1849,8 +1852,8 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 
 	if (hdmi->is_hdmi_qp) {
 		color_depth = hdmi_bus_fmt_color_depth(bus_format);
-		rk3588_set_color_format(hdmi, bus_format, color_depth);
 		hdmi_select_link_config(hdmi, crtc_state);
+		rk3588_set_color_format(hdmi, bus_format, color_depth);
 
 		if (hdmi->link_cfg.frl_mode) {
 			gpiod_set_value(hdmi->enable_gpio, 0);
@@ -2186,7 +2189,6 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		hdmi->quant_range = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
-
 
 	prop = drm_property_create(connector->dev,
 				   DRM_MODE_PROP_BLOB |
