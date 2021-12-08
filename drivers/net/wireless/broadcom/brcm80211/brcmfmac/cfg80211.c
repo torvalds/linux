@@ -3908,9 +3908,9 @@ static int brcmf_keepalive_start(struct brcmf_if *ifp, unsigned int interval)
 
 	/* Configure Null function/data keepalive */
 	kalive.version = cpu_to_le16(1);
-	kalive.period_msec = cpu_to_le16(interval * MSEC_PER_SEC);
+	kalive.period_msec = cpu_to_le32(interval * MSEC_PER_SEC);
 	kalive.len_bytes = cpu_to_le16(0);
-	kalive.keep_alive_id = cpu_to_le16(0);
+	kalive.keep_alive_id = 0;
 
 	ret = brcmf_fil_iovar_data_set(ifp, "mkeep_alive", &kalive, sizeof(kalive));
 	if (ret)
