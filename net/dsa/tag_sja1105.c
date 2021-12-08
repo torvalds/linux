@@ -159,14 +159,16 @@ static u16 sja1105_xmit_tpid(struct dsa_port *dp)
 	 * need to find it.
 	 */
 	dsa_switch_for_each_port(other_dp, ds) {
-		if (!other_dp->bridge_dev)
+		struct net_device *br = dsa_port_bridge_dev_get(other_dp);
+
+		if (!br)
 			continue;
 
 		/* Error is returned only if CONFIG_BRIDGE_VLAN_FILTERING,
 		 * which seems pointless to handle, as our port cannot become
 		 * VLAN-aware in that case.
 		 */
-		br_vlan_get_proto(other_dp->bridge_dev, &proto);
+		br_vlan_get_proto(br, &proto);
 
 		return proto;
 	}
@@ -180,7 +182,8 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 					      struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	struct net_device *br = dp->bridge_dev;
+	unsigned int bridge_num = dsa_port_bridge_num_get(dp);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	u16 tx_vid;
 
 	/* If the port is under a VLAN-aware bridge, just slide the
@@ -196,7 +199,7 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 	 * TX VLAN that targets the bridge's entire broadcast domain,
 	 * instead of just the specific port.
 	 */
-	tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(dp->bridge_num);
+	tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
 
 	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp), tx_vid);
 }

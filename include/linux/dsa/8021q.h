@@ -7,6 +7,7 @@
 
 #include <linux/refcount.h>
 #include <linux/types.h>
+#include <net/dsa.h>
 
 struct dsa_switch;
 struct dsa_port;
@@ -37,14 +38,12 @@ struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 void dsa_8021q_rcv(struct sk_buff *skb, int *source_port, int *switch_id);
 
 int dsa_tag_8021q_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
-					struct net_device *br,
-					int bridge_num);
+					struct dsa_bridge bridge);
 
 void dsa_tag_8021q_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
-					   struct net_device *br,
-					   int bridge_num);
+					   struct dsa_bridge bridge);
 
-u16 dsa_8021q_bridge_tx_fwd_offload_vid(int bridge_num);
+u16 dsa_8021q_bridge_tx_fwd_offload_vid(unsigned int bridge_num);
 
 u16 dsa_tag_8021q_tx_vid(const struct dsa_port *dp);
 
