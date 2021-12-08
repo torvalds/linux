@@ -9741,10 +9741,9 @@ S:	Maintained
 F:	drivers/mfd/intel_soc_pmic*
 F:	include/linux/mfd/intel_soc_pmic*
 
-INTEL PMT DRIVER
-M:	"David E. Box" <david.e.box@linux.intel.com>
-S:	Maintained
-F:	drivers/mfd/intel_pmt.c
+INTEL PMT DRIVERS
+M:	David E. Box <david.e.box@linux.intel.com>
+S:	Supported
 F:	drivers/platform/x86/intel/pmt/
 
 INTEL PRO/WIRELESS 2100, 2200BG, 2915ABG NETWORK CONNECTION SUPPORT
@@ -9810,6 +9809,11 @@ M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel/uncore-frequency.c
+
+INTEL VENDOR SPECIFIC EXTENDED CAPABILITIES DRIVER
+M:	David E. Box <david.e.box@linux.intel.com>
+S:	Supported
+F:	drivers/platform/x86/intel/vsec.*
 
 INTEL VIRTUAL BUTTON DRIVER
 M:	AceLan Kao <acelan.kao@canonical.com>
