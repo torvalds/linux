@@ -1717,6 +1717,14 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_MSLICES(dev_priv) \
 	(INTEL_INFO(dev_priv)->has_mslices)
 
+/*
+ * Set this flag, when platform requires 64K GTT page sizes or larger for
+ * device local memory access. Also this flag implies that we require or
+ * at least support the compact PT layout for the ppGTT when using the 64K
+ * GTT pages.
+ */
+#define HAS_64K_PAGES(dev_priv) (INTEL_INFO(dev_priv)->has_64k_pages)
+
 #define HAS_IPC(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ipc)
 
 #define HAS_REGION(i915, i) (INTEL_INFO(i915)->memory_regions & (i))
