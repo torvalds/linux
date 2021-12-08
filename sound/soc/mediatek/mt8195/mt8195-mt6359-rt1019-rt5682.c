@@ -813,7 +813,7 @@ static int mt8195_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 static int mt8195_mt6359_rt1019_rt5682_card_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *runtime;
-	struct snd_soc_component *sof_comp;
+	struct snd_soc_component *sof_comp = NULL;
 	int i;
 
 	/* 1. find sof component */
