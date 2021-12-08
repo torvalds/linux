@@ -424,18 +424,19 @@ static void clk_core_fill_parent_index(struct clk_core *core, u8 index)
 
 	if (entry->hw) {
 		parent = entry->hw->core;
-		/*
-		 * We have a direct reference but it isn't registered yet?
-		 * Orphan it and let clk_reparent() update the orphan status
-		 * when the parent is registered.
-		 */
-		if (!parent)
-			parent = ERR_PTR(-EPROBE_DEFER);
 	} else {
 		parent = clk_core_get(core, index);
 		if (PTR_ERR(parent) == -ENOENT && entry->name)
 			parent = clk_core_lookup(entry->name);
 	}
+
+	/*
+	 * We have a direct reference but it isn't registered yet?
+	 * Orphan it and let clk_reparent() update the orphan status
+	 * when the parent is registered.
+	 */
+	if (!parent)
+		parent = ERR_PTR(-EPROBE_DEFER);
 
 	/* Only cache it if it's not an error */
 	if (!IS_ERR(parent))
