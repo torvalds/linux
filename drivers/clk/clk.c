@@ -3414,9 +3414,6 @@ static int __clk_core_init(struct clk_core *core)
 	unsigned long rate;
 	int phase;
 
-	if (!core)
-		return -EINVAL;
-
 	clk_prepare_lock();
 
 	ret = clk_pm_runtime_get(core);
