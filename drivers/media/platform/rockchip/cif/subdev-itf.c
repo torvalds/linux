@@ -470,7 +470,7 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 			"%s, toisp mode %d, hdr %d, set power %d\n",
 			__func__, priv->toisp_inf.link_mode, priv->hdr_cfg.hdr_mode, on);
 		if (on)
-			ret = pm_runtime_get_sync(cif_dev->dev);
+			ret = pm_runtime_resume_and_get(cif_dev->dev);
 		else
 			pm_runtime_put(cif_dev->dev);
 	}

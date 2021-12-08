@@ -1857,7 +1857,7 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 	if (atomic_inc_return(&cif_dev->hw_dev->power_cnt) > 1)
 		return 0;
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
-	ret = pm_runtime_get_sync(cif_dev->hw_dev->dev);
+	ret = pm_runtime_resume_and_get(cif_dev->hw_dev->dev);
 	mutex_unlock(&cif_dev->hw_dev->dev_lock);
 	return (ret > 0) ? 0 : ret;
 }

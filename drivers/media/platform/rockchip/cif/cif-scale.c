@@ -425,7 +425,7 @@ static int rkcif_scale_fh_open(struct file *file)
 		return ret;
 	}
 
-	ret = pm_runtime_get_sync(cifdev->dev);
+	ret = pm_runtime_resume_and_get(cifdev->dev);
 	if (ret < 0)
 		v4l2_err(&cifdev->v4l2_dev, "Failed to get runtime pm, %d\n",
 			 ret);

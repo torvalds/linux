@@ -4016,7 +4016,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 
 	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
 		/* enable clocks/power-domains */
-		ret = pm_runtime_get_sync(dev->dev);
+		ret = pm_runtime_resume_and_get(dev->dev);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev, "Failed to get runtime pm, %d\n",
 				 ret);
@@ -4425,6 +4425,12 @@ static int rkcif_fh_open(struct file *filp)
 		return ret;
 	}
 
+	ret = pm_runtime_resume_and_get(cifdev->dev);
+	if (ret < 0) {
+		v4l2_err(vdev, "Failed to get runtime pm, %d\n",
+			 ret);
+		return ret;
+	}
 	/*
 	 * Soft reset via CRU.
 	 * Because CRU would reset iommu too, so there's not chance
@@ -4473,6 +4479,7 @@ static int rkcif_fh_release(struct file *filp)
 		atomic_set(&cifdev->fh_cnt, 0);
 	mutex_unlock(&cifdev->stream_lock);
 
+	pm_runtime_put_sync(cifdev->dev);
 	return ret;
 }
 
