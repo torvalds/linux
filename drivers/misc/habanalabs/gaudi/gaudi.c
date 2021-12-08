@@ -593,21 +593,21 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	else
 		prop->mmu_pgt_size = MMU_PAGE_TABLES_SIZE;
 	prop->mmu_pte_size = HL_PTE_SIZE;
-	prop->mmu_hop_table_size = HOP_TABLE_SIZE;
-	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
+	prop->mmu_hop_table_size = HOP_TABLE_SIZE_512_PTE;
+	prop->mmu_hop0_tables_total_size = HOP0_512_PTE_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
 	prop->dram_supports_virtual_memory = false;
 
-	prop->pmmu.hop0_shift = HOP0_SHIFT;
-	prop->pmmu.hop1_shift = HOP1_SHIFT;
-	prop->pmmu.hop2_shift = HOP2_SHIFT;
-	prop->pmmu.hop3_shift = HOP3_SHIFT;
-	prop->pmmu.hop4_shift = HOP4_SHIFT;
-	prop->pmmu.hop0_mask = HOP0_MASK;
-	prop->pmmu.hop1_mask = HOP1_MASK;
-	prop->pmmu.hop2_mask = HOP2_MASK;
-	prop->pmmu.hop3_mask = HOP3_MASK;
-	prop->pmmu.hop4_mask = HOP4_MASK;
+	prop->pmmu.hop0_shift = MMU_V1_1_HOP0_SHIFT;
+	prop->pmmu.hop1_shift = MMU_V1_1_HOP1_SHIFT;
+	prop->pmmu.hop2_shift = MMU_V1_1_HOP2_SHIFT;
+	prop->pmmu.hop3_shift = MMU_V1_1_HOP3_SHIFT;
+	prop->pmmu.hop4_shift = MMU_V1_1_HOP4_SHIFT;
+	prop->pmmu.hop0_mask = MMU_V1_1_HOP0_MASK;
+	prop->pmmu.hop1_mask = MMU_V1_1_HOP1_MASK;
+	prop->pmmu.hop2_mask = MMU_V1_1_HOP2_MASK;
+	prop->pmmu.hop3_mask = MMU_V1_1_HOP3_MASK;
+	prop->pmmu.hop4_mask = MMU_V1_1_HOP4_MASK;
 	prop->pmmu.start_addr = VA_HOST_SPACE_START;
 	prop->pmmu.end_addr =
 			(VA_HOST_SPACE_START + VA_HOST_SPACE_SIZE / 2) - 1;

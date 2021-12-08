@@ -269,7 +269,7 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 
 	num_of_hop3 = prop->dram_size_for_default_page_mapping;
 	do_div(num_of_hop3, prop->dram_page_size);
-	do_div(num_of_hop3, PTE_ENTRIES_IN_HOP);
+	do_div(num_of_hop3, HOP_PTE_ENTRIES_512);
 
 	/* add hop1 and hop2 */
 	total_hops = num_of_hop3 + 2;
@@ -330,7 +330,7 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 
 	for (i = 0 ; i < num_of_hop3 ; i++) {
 		hop3_pte_addr = ctx->dram_default_hops[i];
-		for (j = 0 ; j < PTE_ENTRIES_IN_HOP ; j++) {
+		for (j = 0 ; j < HOP_PTE_ENTRIES_512 ; j++) {
 			write_final_pte(ctx, hop3_pte_addr, pte_val);
 			get_pte(ctx, ctx->dram_default_hops[i]);
 			hop3_pte_addr += HL_PTE_SIZE;
@@ -369,7 +369,7 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 
 	num_of_hop3 = prop->dram_size_for_default_page_mapping;
 	do_div(num_of_hop3, prop->dram_page_size);
-	do_div(num_of_hop3, PTE_ENTRIES_IN_HOP);
+	do_div(num_of_hop3, HOP_PTE_ENTRIES_512);
 
 	hop0_addr = get_hop0_addr(ctx);
 	/* add hop1 and hop2 */
@@ -379,7 +379,7 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 
 	for (i = 0 ; i < num_of_hop3 ; i++) {
 		hop3_pte_addr = ctx->dram_default_hops[i];
-		for (j = 0 ; j < PTE_ENTRIES_IN_HOP ; j++) {
+		for (j = 0 ; j < HOP_PTE_ENTRIES_512 ; j++) {
 			clear_pte(ctx, hop3_pte_addr);
 			put_pte(ctx, ctx->dram_default_hops[i]);
 			hop3_pte_addr += HL_PTE_SIZE;
