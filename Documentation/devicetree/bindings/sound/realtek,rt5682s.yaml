@@ -61,6 +61,10 @@ properties:
     description: |
       Set the delay time (ms) for the requirement of the particular DMIC.
 
+  realtek,amic-delay-ms:
+    description: |
+      Set the delay time (ms) for the requirement of the particular platform or AMIC.
+
   realtek,dmic-clk-driving-high:
     type: boolean
     description: |
