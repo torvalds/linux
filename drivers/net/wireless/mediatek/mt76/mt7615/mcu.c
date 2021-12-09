@@ -821,7 +821,7 @@ mt7615_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 
 	bss = (struct bss_info_basic *)tlv;
 	bss->network_type = cpu_to_le32(type);
-	bss->bmc_tx_wlan_idx = wlan_idx;
+	bss->bmc_wcid_lo = wlan_idx;
 	bss->wmm_idx = mvif->mt76.wmm_idx;
 	bss->active = enable;
 
@@ -1622,7 +1622,7 @@ static int mt7615_load_firmware(struct mt7615_dev *dev)
 
 	if (!mt76_poll_msec(dev, MT_TOP_MISC2, MT_TOP_MISC2_FW_STATE,
 			    FIELD_PREP(MT_TOP_MISC2_FW_STATE,
-				       FW_STATE_CR4_RDY), 500)) {
+				       FW_STATE_RDY), 500)) {
 		dev_err(dev->mt76.dev, "Timeout for initializing firmware\n");
 		return -EIO;
 	}
