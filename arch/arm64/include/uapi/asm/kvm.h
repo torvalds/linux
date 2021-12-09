@@ -457,6 +457,15 @@ enum {
 #define KVM_PSCI_RET_INVAL		PSCI_RET_INVALID_PARAMS
 #define KVM_PSCI_RET_DENIED		PSCI_RET_DENIED
 
+/* Protected KVM */
+#define KVM_CAP_ARM_PROTECTED_VM_FLAGS_SET_FW_IPA	0
+#define KVM_CAP_ARM_PROTECTED_VM_FLAGS_INFO		1
+
+struct kvm_protected_vm_info {
+	__u64 firmware_size;
+	__u64 __reserved[7];
+};
+
 /* arm64-specific kvm_run::system_event flags */
 /*
  * Reset caused by a PSCI v1.1 SYSTEM_RESET2 call.

@@ -456,11 +456,17 @@ static size_t pkvm_get_last_ran_size(void)
 static void init_pkvm_hyp_vm(struct kvm *host_kvm, struct pkvm_hyp_vm *hyp_vm,
 			     int *last_ran, unsigned int nr_vcpus)
 {
+	u64 pvmfw_load_addr = PVMFW_INVALID_LOAD_ADDR;
+
 	hyp_vm->host_kvm = host_kvm;
 	hyp_vm->kvm.created_vcpus = nr_vcpus;
 	hyp_vm->kvm.arch.vtcr = host_mmu.arch.vtcr;
-	hyp_vm->kvm.arch.pkvm.pvmfw_load_addr = PVMFW_INVALID_LOAD_ADDR;
 	hyp_vm->kvm.arch.pkvm.enabled = READ_ONCE(host_kvm->arch.pkvm.enabled);
+
+	if (hyp_vm->kvm.arch.pkvm.enabled)
+		pvmfw_load_addr = READ_ONCE(host_kvm->arch.pkvm.pvmfw_load_addr);
+	hyp_vm->kvm.arch.pkvm.pvmfw_load_addr = pvmfw_load_addr;
+
 	hyp_vm->kvm.arch.mmu.last_vcpu_ran = last_ran;
 	memset(hyp_vm->kvm.arch.mmu.last_vcpu_ran, -1, pkvm_get_last_ran_size());
 }
