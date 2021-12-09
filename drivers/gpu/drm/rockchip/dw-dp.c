@@ -301,6 +301,13 @@ enum {
 };
 
 enum {
+	SOURCE_STATE_IDLE,
+	SOURCE_STATE_UNPLUG,
+	SOURCE_STATE_HPD_TIMEOUT = 4,
+	SOURCE_STATE_PLUG = 7
+};
+
+enum {
 	DPTX_PHY_PATTERN_NONE,
 	DPTX_PHY_PATTERN_TPS_1,
 	DPTX_PHY_PATTERN_TPS_2,
@@ -451,7 +458,7 @@ static bool dw_dp_detect(struct dw_dp *dp)
 
 	regmap_read(dp->regmap, DPTX_HPD_STATUS, &value);
 
-	return !!(value & HPD_STATUS);
+	return FIELD_GET(HPD_STATE, value) == SOURCE_STATE_PLUG;
 }
 
 static enum drm_connector_status
@@ -1661,8 +1668,10 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	regmap_write(dp->regmap, DPTX_AUX_CMD, value);
 
 	status = wait_for_completion_timeout(&dp->complete, timeout);
-	if (!status)
+	if (!status) {
+		dev_err(dp->dev, "timeout waiting for AUX reply\n");
 		return -ETIMEDOUT;
+	}
 
 	regmap_read(dp->regmap, DPTX_AUX_STATUS, &value);
 	if (value & AUX_TIMEOUT)
