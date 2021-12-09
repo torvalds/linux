@@ -23,6 +23,7 @@ properties:
       - description: infinity2m boards
         items:
           - enum:
+              - 100ask,dongshanpione # 100ask DongShanPiOne
               - honestar,ssd201htv2 # Honestar SSD201_HT_V2 devkit
               - m5stack,unitv2 # M5Stack UnitV2
               - miyoo,miyoo-mini # Miyoo Mini
