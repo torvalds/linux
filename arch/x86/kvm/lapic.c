@@ -1100,6 +1100,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			kvm_lapic_set_irr(vector, apic);
 			kvm_make_request(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
+		} else {
+			trace_kvm_apicv_accept_irq(vcpu->vcpu_id, delivery_mode,
+						   trig_mode, vector);
 		}
 		break;
 
