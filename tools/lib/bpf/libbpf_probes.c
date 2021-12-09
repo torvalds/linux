@@ -164,7 +164,7 @@ int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
 	memcpy(raw_btf + hdr.hdr_len, raw_types, hdr.type_len);
 	memcpy(raw_btf + hdr.hdr_len + hdr.type_len, str_sec, hdr.str_len);
 
-	btf_fd = bpf_load_btf(raw_btf, btf_len, NULL, 0, false);
+	btf_fd = bpf_btf_load(raw_btf, btf_len, NULL);
 
 	free(raw_btf);
 	return btf_fd;

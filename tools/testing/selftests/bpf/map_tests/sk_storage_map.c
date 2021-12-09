@@ -136,7 +136,7 @@ static int load_btf(void)
 	memcpy(raw_btf + sizeof(btf_hdr) + sizeof(btf_raw_types),
 	       btf_str_sec, sizeof(btf_str_sec));
 
-	return bpf_load_btf(raw_btf, sizeof(raw_btf), 0, 0, 0);
+	return bpf_btf_load(raw_btf, sizeof(raw_btf), NULL);
 }
 
 static int create_sk_storage_map(void)

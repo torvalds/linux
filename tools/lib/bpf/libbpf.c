@@ -331,7 +331,11 @@ struct bpf_program {
 
 	struct reloc_desc *reloc_desc;
 	int nr_reloc;
-	int log_level;
+
+	/* BPF verifier log settings */
+	char *log_buf;
+	size_t log_size;
+	__u32 log_level;
 
 	struct {
 		int nr;
@@ -573,6 +577,11 @@ struct bpf_object {
 	size_t btf_module_cnt;
 	size_t btf_module_cap;
 
+	/* optional log settings passed to BPF_BTF_LOAD and BPF_PROG_LOAD commands */
+	char *log_buf;
+	size_t log_size;
+	__u32 log_level;
+
 	void *priv;
 	bpf_object_clear_priv_t clear_priv;
 
@@ -707,6 +716,9 @@ bpf_object__init_prog(struct bpf_object *obj, struct bpf_program *prog,
 
 	prog->instances.fds = NULL;
 	prog->instances.nr = -1;
+
+	/* inherit object's log_level */
+	prog->log_level = obj->log_level;
 
 	prog->sec_name = strdup(sec_name);
 	if (!prog->sec_name)
@@ -3017,7 +3029,9 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 		 */
 		btf__set_fd(kern_btf, 0);
 	} else {
-		err = btf__load_into_kernel(kern_btf);
+		/* currently BPF_BTF_LOAD only supports log_level 1 */
+		err = btf_load_into_kernel(kern_btf, obj->log_buf, obj->log_size,
+					   obj->log_level ? 1 : 0);
 	}
 	if (sanitize) {
 		if (!err) {
@@ -6584,8 +6598,10 @@ static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_prog
 	const char *prog_name = NULL;
 	char *cp, errmsg[STRERR_BUFSIZE];
 	size_t log_buf_size = 0;
-	char *log_buf = NULL;
+	char *log_buf = NULL, *tmp;
 	int btf_fd, ret, err;
+	bool own_log_buf = true;
+	__u32 log_level = prog->log_level;
 
 	if (prog->type == BPF_PROG_TYPE_UNSPEC) {
 		/*
@@ -6620,7 +6636,7 @@ static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_prog
 		load_attr.line_info_rec_size = prog->line_info_rec_size;
 		load_attr.line_info_cnt = prog->line_info_cnt;
 	}
-	load_attr.log_level = prog->log_level;
+	load_attr.log_level = log_level;
 	load_attr.prog_flags = prog->prog_flags;
 	load_attr.fd_array = obj->fd_array;
 
@@ -6641,22 +6657,45 @@ static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_prog
 		*prog_fd = -1;
 		return 0;
 	}
-retry_load:
-	if (log_buf_size) {
-		log_buf = malloc(log_buf_size);
-		if (!log_buf)
-			return -ENOMEM;
 
-		*log_buf = 0;
+retry_load:
+	/* if log_level is zero, we don't request logs initiallly even if
+	 * custom log_buf is specified; if the program load fails, then we'll
+	 * bump log_level to 1 and use either custom log_buf or we'll allocate
+	 * our own and retry the load to get details on what failed
+	 */
+	if (log_level) {
+		if (prog->log_buf) {
+			log_buf = prog->log_buf;
+			log_buf_size = prog->log_size;
+			own_log_buf = false;
+		} else if (obj->log_buf) {
+			log_buf = obj->log_buf;
+			log_buf_size = obj->log_size;
+			own_log_buf = false;
+		} else {
+			log_buf_size = max((size_t)BPF_LOG_BUF_SIZE, log_buf_size * 2);
+			tmp = realloc(log_buf, log_buf_size);
+			if (!tmp) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			log_buf = tmp;
+			log_buf[0] = '\0';
+			own_log_buf = true;
+		}
 	}
 
 	load_attr.log_buf = log_buf;
 	load_attr.log_size = log_buf_size;
-	ret = bpf_prog_load(prog->type, prog_name, license, insns, insns_cnt, &load_attr);
+	load_attr.log_level = log_level;
 
+	ret = bpf_prog_load(prog->type, prog_name, license, insns, insns_cnt, &load_attr);
 	if (ret >= 0) {
-		if (log_buf && load_attr.log_level)
-			pr_debug("verifier log:\n%s", log_buf);
+		if (log_level && own_log_buf) {
+			pr_debug("prog '%s': -- BEGIN PROG LOAD LOG --\n%s-- END PROG LOAD LOG --\n",
+				 prog->name, log_buf);
+		}
 
 		if (obj->has_rodata && kernel_supports(obj, FEAT_PROG_BIND_MAP)) {
 			struct bpf_map *map;
@@ -6669,8 +6708,8 @@ retry_load:
 
 				if (bpf_prog_bind_map(ret, bpf_map__fd(map), NULL)) {
 					cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
-					pr_warn("prog '%s': failed to bind .rodata map: %s\n",
-						prog->name, cp);
+					pr_warn("prog '%s': failed to bind map '%s': %s\n",
+						prog->name, map->real_name, cp);
 					/* Don't fail hard if can't bind rodata. */
 				}
 			}
@@ -6681,45 +6720,37 @@ retry_load:
 		goto out;
 	}
 
-	if (!log_buf || errno == ENOSPC) {
-		log_buf_size = max((size_t)BPF_LOG_BUF_SIZE,
-				   log_buf_size << 1);
-
-		free(log_buf);
+	if (log_level == 0) {
+		log_level = 1;
 		goto retry_load;
 	}
-	ret = errno ? -errno : -LIBBPF_ERRNO__LOAD;
+	/* On ENOSPC, increase log buffer size and retry, unless custom
+	 * log_buf is specified.
+	 * Be careful to not overflow u32, though. Kernel's log buf size limit
+	 * isn't part of UAPI so it can always be bumped to full 4GB. So don't
+	 * multiply by 2 unless we are sure we'll fit within 32 bits.
+	 * Currently, we'll get -EINVAL when we reach (UINT_MAX >> 2).
+	 */
+	if (own_log_buf && errno == ENOSPC && log_buf_size <= UINT_MAX / 2)
+		goto retry_load;
+
+	ret = -errno;
 	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
-	pr_warn("load bpf program failed: %s\n", cp);
+	pr_warn("prog '%s': BPF program load failed: %s\n", prog->name, cp);
 	pr_perm_msg(ret);
 
-	if (log_buf && log_buf[0] != '\0') {
-		ret = -LIBBPF_ERRNO__VERIFY;
-		pr_warn("-- BEGIN DUMP LOG ---\n");
-		pr_warn("\n%s\n", log_buf);
-		pr_warn("-- END LOG --\n");
-	} else if (insns_cnt >= BPF_MAXINSNS) {
-		pr_warn("Program too large (%d insns), at most %d insns\n",
-			insns_cnt, BPF_MAXINSNS);
-		ret = -LIBBPF_ERRNO__PROG2BIG;
-	} else if (prog->type != BPF_PROG_TYPE_KPROBE) {
-		/* Wrong program type? */
-		int fd;
-
-		load_attr.expected_attach_type = 0;
-		load_attr.log_buf = NULL;
-		load_attr.log_size = 0;
-		fd = bpf_prog_load(BPF_PROG_TYPE_KPROBE, prog_name, license,
-				   insns, insns_cnt, &load_attr);
-		if (fd >= 0) {
-			close(fd);
-			ret = -LIBBPF_ERRNO__PROGTYPE;
-			goto out;
-		}
+	if (own_log_buf && log_buf && log_buf[0] != '\0') {
+		pr_warn("prog '%s': -- BEGIN PROG LOAD LOG --\n%s-- END PROG LOAD LOG --\n",
+			prog->name, log_buf);
+	}
+	if (insns_cnt >= BPF_MAXINSNS) {
+		pr_warn("prog '%s': program too large (%d insns), at most %d insns\n",
+			prog->name, insns_cnt, BPF_MAXINSNS);
 	}
 
 out:
-	free(log_buf);
+	if (own_log_buf)
+		free(log_buf);
 	return ret;
 }
 
@@ -6924,14 +6955,16 @@ static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object
 	return 0;
 }
 
-static struct bpf_object *
-__bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
-		   const struct bpf_object_open_opts *opts)
+static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf, size_t obj_buf_sz,
+					  const struct bpf_object_open_opts *opts)
 {
 	const char *obj_name, *kconfig, *btf_tmp_path;
 	struct bpf_object *obj;
 	char tmp_name[64];
 	int err;
+	char *log_buf;
+	size_t log_size;
+	__u32 log_level;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		pr_warn("failed to init libelf for %s\n",
@@ -6954,9 +6987,21 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		pr_debug("loading object '%s' from buffer\n", obj_name);
 	}
 
+	log_buf = OPTS_GET(opts, kernel_log_buf, NULL);
+	log_size = OPTS_GET(opts, kernel_log_size, 0);
+	log_level = OPTS_GET(opts, kernel_log_level, 0);
+	if (log_size > UINT_MAX)
+		return ERR_PTR(-EINVAL);
+	if (log_size && !log_buf)
+		return ERR_PTR(-EINVAL);
+
 	obj = bpf_object__new(path, obj_buf, obj_buf_sz, obj_name);
 	if (IS_ERR(obj))
 		return obj;
+
+	obj->log_buf = log_buf;
+	obj->log_size = log_size;
+	obj->log_level = log_level;
 
 	btf_tmp_path = OPTS_GET(opts, btf_custom_path, NULL);
 	if (btf_tmp_path) {
@@ -7011,7 +7056,7 @@ __bpf_object__open_xattr(struct bpf_object_open_attr *attr, int flags)
 		return NULL;
 
 	pr_debug("loading %s\n", attr->file);
-	return __bpf_object__open(attr->file, NULL, 0, &opts);
+	return bpf_object_open(attr->file, NULL, 0, &opts);
 }
 
 struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
@@ -7037,7 +7082,7 @@ bpf_object__open_file(const char *path, const struct bpf_object_open_opts *opts)
 
 	pr_debug("loading %s\n", path);
 
-	return libbpf_ptr(__bpf_object__open(path, NULL, 0, opts));
+	return libbpf_ptr(bpf_object_open(path, NULL, 0, opts));
 }
 
 struct bpf_object *
@@ -7047,7 +7092,7 @@ bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
 	if (!obj_buf || obj_buf_sz == 0)
 		return libbpf_err_ptr(-EINVAL);
 
-	return libbpf_ptr(__bpf_object__open(NULL, obj_buf, obj_buf_sz, opts));
+	return libbpf_ptr(bpf_object_open(NULL, obj_buf, obj_buf_sz, opts));
 }
 
 struct bpf_object *
@@ -7064,7 +7109,7 @@ bpf_object__open_buffer(const void *obj_buf, size_t obj_buf_sz,
 	if (!obj_buf || obj_buf_sz == 0)
 		return errno = EINVAL, NULL;
 
-	return libbpf_ptr(__bpf_object__open(NULL, obj_buf, obj_buf_sz, &opts));
+	return libbpf_ptr(bpf_object_open(NULL, obj_buf, obj_buf_sz, &opts));
 }
 
 static int bpf_object_unload(struct bpf_object *obj)
@@ -7417,14 +7462,10 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 	return 0;
 }
 
-int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
+static int bpf_object_load(struct bpf_object *obj, int extra_log_level, const char *target_btf_path)
 {
-	struct bpf_object *obj;
 	int err, i;
 
-	if (!attr)
-		return libbpf_err(-EINVAL);
-	obj = attr->obj;
 	if (!obj)
 		return libbpf_err(-EINVAL);
 
@@ -7434,7 +7475,7 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	}
 
 	if (obj->gen_loader)
-		bpf_gen__init(obj->gen_loader, attr->log_level);
+		bpf_gen__init(obj->gen_loader, extra_log_level);
 
 	err = bpf_object__probe_loading(obj);
 	err = err ? : bpf_object__load_vmlinux_btf(obj, false);
@@ -7443,8 +7484,8 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	err = err ? : bpf_object__sanitize_maps(obj);
 	err = err ? : bpf_object__init_kern_struct_ops_maps(obj);
 	err = err ? : bpf_object__create_maps(obj);
-	err = err ? : bpf_object__relocate(obj, obj->btf_custom_path ? : attr->target_btf_path);
-	err = err ? : bpf_object__load_progs(obj, attr->log_level);
+	err = err ? : bpf_object__relocate(obj, obj->btf_custom_path ? : target_btf_path);
+	err = err ? : bpf_object__load_progs(obj, extra_log_level);
 	err = err ? : bpf_object_init_prog_arrays(obj);
 
 	if (obj->gen_loader) {
@@ -7489,13 +7530,14 @@ out:
 	return libbpf_err(err);
 }
 
+int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
+{
+	return bpf_object_load(attr->obj, attr->log_level, attr->target_btf_path);
+}
+
 int bpf_object__load(struct bpf_object *obj)
 {
-	struct bpf_object_load_attr attr = {
-		.obj = obj,
-	};
-
-	return bpf_object__load_xattr(&attr);
+	return bpf_object_load(obj, 0, NULL);
 }
 
 static int make_parent_dir(const char *path)
@@ -8488,6 +8530,26 @@ int bpf_program__set_log_level(struct bpf_program *prog, __u32 log_level)
 		return libbpf_err(-EBUSY);
 
 	prog->log_level = log_level;
+	return 0;
+}
+
+const char *bpf_program__log_buf(const struct bpf_program *prog, size_t *log_size)
+{
+	*log_size = prog->log_size;
+	return prog->log_buf;
+}
+
+int bpf_program__set_log_buf(struct bpf_program *prog, char *log_buf, size_t log_size)
+{
+	if (log_size && !log_buf)
+		return -EINVAL;
+	if (prog->log_size > UINT_MAX)
+		return -EINVAL;
+	if (prog->obj->loaded)
+		return -EBUSY;
+
+	prog->log_buf = log_buf;
+	prog->log_size = log_size;
 	return 0;
 }
 

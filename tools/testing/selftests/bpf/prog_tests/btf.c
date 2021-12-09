@@ -4071,6 +4071,28 @@ done:
 	return raw_btf;
 }
 
+static int load_raw_btf(const void *raw_data, size_t raw_size)
+{
+	LIBBPF_OPTS(bpf_btf_load_opts, opts);
+	int btf_fd;
+
+	if (always_log) {
+		opts.log_buf = btf_log_buf,
+		opts.log_size = BTF_LOG_BUF_SIZE,
+		opts.log_level = 1;
+	}
+
+	btf_fd = bpf_btf_load(raw_data, raw_size, &opts);
+	if (btf_fd < 0 && !always_log) {
+		opts.log_buf = btf_log_buf,
+		opts.log_size = BTF_LOG_BUF_SIZE,
+		opts.log_level = 1;
+		btf_fd = bpf_btf_load(raw_data, raw_size, &opts);
+	}
+
+	return btf_fd;
+}
+
 static void do_test_raw(unsigned int test_num)
 {
 	struct btf_raw_test *test = &raw_tests[test_num - 1];
@@ -4100,16 +4122,14 @@ static void do_test_raw(unsigned int test_num)
 	hdr->str_len = (int)hdr->str_len + test->str_len_delta;
 
 	*btf_log_buf = '\0';
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	free(raw_btf);
 
 	err = ((btf_fd < 0) != test->btf_load_err);
 	if (CHECK(err, "btf_fd:%d test->btf_load_err:%u",
 		  btf_fd, test->btf_load_err) ||
 	    CHECK(test->err_str && !strstr(btf_log_buf, test->err_str),
-		  "expected err_str:%s", test->err_str)) {
+		  "expected err_str:%s\n", test->err_str)) {
 		err = -1;
 		goto done;
 	}
@@ -4227,9 +4247,7 @@ static int test_big_btf_info(unsigned int test_num)
 		goto done;
 	}
 
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	if (CHECK(btf_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -4315,9 +4333,7 @@ static int test_btf_id(unsigned int test_num)
 		info[i].btf_size = raw_btf_size;
 	}
 
-	btf_fd[0] = bpf_load_btf(raw_btf, raw_btf_size,
-				 btf_log_buf, BTF_LOG_BUF_SIZE,
-				 always_log);
+	btf_fd[0] = load_raw_btf(raw_btf, raw_btf_size);
 	if (CHECK(btf_fd[0] < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -4447,9 +4463,7 @@ static void do_test_get_info(unsigned int test_num)
 		goto done;
 	}
 
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	if (CHECK(btf_fd <= 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -5169,12 +5183,10 @@ static void do_test_pprint(int test_num)
 		return;
 
 	*btf_log_buf = '\0';
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	free(raw_btf);
 
-	if (CHECK(btf_fd < 0, "errno:%d", errno)) {
+	if (CHECK(btf_fd < 0, "errno:%d\n", errno)) {
 		err = -1;
 		goto done;
 	}
@@ -6538,9 +6550,7 @@ static void do_test_info_raw(unsigned int test_num)
 		return;
 
 	*btf_log_buf = '\0';
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	free(raw_btf);
 
 	if (CHECK(btf_fd < 0, "invalid btf_fd errno:%d", errno)) {
