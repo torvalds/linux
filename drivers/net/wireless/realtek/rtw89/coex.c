@@ -1622,7 +1622,7 @@ static void _set_rf_trx_para(struct rtw89_dev *rtwdev)
 	_set_bt_rx_gain(rtwdev, para.bt_rx_gain);
 
 	if (bt->enable.now == 0 || wl->status.map.rf_off == 1 ||
-	    wl->status.map.lps == 1)
+	    wl->status.map.lps == BTC_LPS_RF_OFF)
 		wl_stb_chg = 0;
 	else
 		wl_stb_chg = 1;
@@ -4225,16 +4225,16 @@ void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_sta
 	switch (rf_state) {
 	case BTC_RFCTRL_WL_OFF:
 		wl->status.map.rf_off = 1;
-		wl->status.map.lps = 0;
+		wl->status.map.lps = BTC_LPS_OFF;
 		break;
 	case BTC_RFCTRL_FW_CTRL:
 		wl->status.map.rf_off = 0;
-		wl->status.map.lps = 1;
+		wl->status.map.lps = BTC_LPS_RF_OFF;
 		break;
 	case BTC_RFCTRL_WL_ON:
 	default:
 		wl->status.map.rf_off = 0;
-		wl->status.map.lps = 0;
+		wl->status.map.lps = BTC_LPS_OFF;
 		break;
 	}
 
