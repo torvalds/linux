@@ -126,10 +126,8 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dc *dc = clk_mgr_base->ctx->dc;
-	int display_count;
 	bool update_dppclk = false;
 	bool update_dispclk = false;
-	bool enter_display_off = false;
 	bool dpp_clock_lowered = false;
 	bool force_reset = false;
 	bool p_state_change_support;
@@ -145,10 +143,7 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 		dcn2_read_clocks_from_hw_dentist(clk_mgr_base);
 	}
 
-	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
-
-	if (display_count == 0)
-		enter_display_off = true;
+	clk_mgr_helper_get_active_display_cnt(dc, context);
 
 	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr_base->clks.phyclk_khz))
 		clk_mgr_base->clks.phyclk_khz = new_clocks->phyclk_khz;
