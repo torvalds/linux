@@ -73,7 +73,7 @@ static int mt7615_start(struct ieee80211_hw *hw)
 			goto out;
 	}
 
-	ret = mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+	ret = mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD(SET_RX_PATH));
 	if (ret)
 		goto out;
 
@@ -326,7 +326,7 @@ int mt7615_set_channel(struct mt7615_phy *phy)
 			goto out;
 	}
 
-	ret = mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_CHANNEL_SWITCH);
+	ret = mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD(CHANNEL_SWITCH));
 	if (ret)
 		goto out;
 

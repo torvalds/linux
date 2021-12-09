@@ -91,7 +91,7 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 	}
 
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
-				     MCU_EXT_CMD_SET_TX_POWER_CTRL, false);
+				     MCU_EXT_CMD(SET_TX_POWER_CTRL), false);
 }
 
 static void
@@ -228,7 +228,7 @@ mt7615_tm_set_tx_frames(struct mt7615_phy *phy, bool en)
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb = phy->mt76->test.tx_skb;
 
-	mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+	mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD(SET_RX_PATH));
 	mt7615_tm_set_tx_antenna(phy, en);
 	mt7615_tm_set_rx_enable(dev, !en);
 	if (!en || !skb)
