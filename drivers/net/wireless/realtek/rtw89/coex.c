@@ -1126,6 +1126,9 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		wl->ver_info.fw_coex = prpt->wl_fw_coex_ver;
 		wl->ver_info.fw = prpt->wl_fw_ver;
 		dm->wl_fw_cx_offload = !!(prpt->wl_fw_cx_offload);
+
+		btc->cx.cnt_bt[BTC_BCNT_POLUT] =
+			rtw89_mac_get_plt_cnt(rtwdev, RTW89_MAC_0);
 	}
 
 	if (rpt_type >= BTC_RPT_TYPE_BT_VER &&
@@ -4798,7 +4801,6 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 	struct rtw89_btc_module *module = &btc->mdinfo;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	u8 *afh = bt_linfo->afh_map;
-	u16 polt_cnt = 0;
 
 	if (!(btc->dm.coex_info_map & BTC_COEX_INFO_BT))
 		return;
@@ -4884,7 +4886,7 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   " %-15s : Hi-rx = %d, Hi-tx = %d, Lo-rx = %d, Lo-tx = %d (bt_polut_wl_tx = %d)\n",
 		   "[trx_req_cnt]", cx->cnt_bt[BTC_BCNT_HIPRI_RX],
 		   cx->cnt_bt[BTC_BCNT_HIPRI_TX], cx->cnt_bt[BTC_BCNT_LOPRI_RX],
-		   cx->cnt_bt[BTC_BCNT_LOPRI_TX], polt_cnt);
+		   cx->cnt_bt[BTC_BCNT_LOPRI_TX], cx->cnt_bt[BTC_BCNT_POLUT]);
 }
 
 #define CASE_BTC_RSN_STR(e) case BTC_RSN_ ## e: return #e
