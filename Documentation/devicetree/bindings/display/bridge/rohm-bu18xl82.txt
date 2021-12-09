@@ -1,0 +1,159 @@
+ROHM BU18TL82/BU18RL82 Clockless Link-BD Serializer/Deserializer bridge bindings
+
+Required properties:
+ - compatible: "rohm,bu18tl82" or "rohm,bu18rl82"
+ - reg: i2c address of the bridge
+ - serdes-init-sequence: register initial code from Rohm vendor
+
+optional properties:
+ - reset-gpios: a GPIO spec for the reset pin
+ - enable-gpios: a GPIO spec for the enable pin
+ - power-supply: Reference to the regulator powering the serdes power supply pins
+ - sel-mipi: string property for mipi dsi data stream input
+
+Example:
+
+/ {
+	panel {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <87000000>;
+				hactive = <1920>;
+				vactive = <720>;
+				hfront-porch = <32>;
+				hsync-len = <10>;
+				hback-porch = <22>;
+				vfront-porch = <10>;
+				vsync-len = <4>;
+				vback-porch = <7>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel0_in_i2c2_bu18rl82: endpoint {
+					remote-endpoint = <&i2c2_bu18rl82_out_panel0>;
+				};
+			};
+		};
+	};
+};
+
+&dsi {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dsi0_out_i2c2_bu18tl82: endpoint {
+				remote-endpoint = <&i2c2_bu18tl82_in_dsi0>;
+			};
+		};
+	};
+};
+
+&i2c2 {
+	status = "okay";
+
+	bu18tl82: bu18tl82@10 {
+		compatible = "rohm,bu18tl82";
+		reg = <0x10>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ser0_rst_gpio>;
+		reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+		sel-mipi;
+		status = "okay";
+
+		serdes-init-sequence = [
+			/* TL82 Pattern Gen Set 1
+			 * Horizontal Gray Scale 256 steps
+			 */
+			040A 0010
+			040B 0080
+			040C 0080
+			040D 0080
+			0444 0019
+			0445 0020
+			0446 001f
+
+			...
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c2_bu18tl82_in_dsi0: endpoint {
+					remote-endpoint = <&dsi0_out_i2c2_bu18tl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c2_bu18tl82_out_i2c2_bu18rl82: endpoint {
+					remote-endpoint = <&i2c2_bu18rl82_in_i2c2_bu18tl82>;
+				};
+			};
+		};
+	};
+
+	bu18rl82: bu18rl82@30 {
+		compatible = "rohm,bu18rl82";
+		reg = <0x30>;
+		status = "okay";
+		serdes-init-sequence = [
+			/* RL82 Pattern Gen Set
+			 * Vertical Gray Scale Color Bar
+			 */
+			060A 00B0
+			060B 00FF
+			060C 00FF
+			060D 00FF
+			0644 0019
+			0645 0020
+			0646 001f
+			...
+		];
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c2_bu18rl82_in_i2c2_bu18tl82: endpoint {
+					remote-endpoint = <&i2c2_bu18tl82_out_i2c2_bu18rl82>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c2_bu18rl82_out_panel0: endpoint {
+					remote-endpoint = <&panel0_in_i2c2_bu18rl82>;
+				};
+			};
+		};
+	};
+};

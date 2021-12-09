@@ -154,6 +154,16 @@ config DRM_RK1000_TVE
 	help
 	  Rockchip TVE bridge chip driver.
 
+config DRM_ROHM_BU18XL82
+	tristate "Rohm BU18TL82/BU18RL82 Clockless Link-BD Serializer/Deserializer bridge"
+	depends on OF
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select REGMAP_I2C
+	help
+	    Rohm BU18TL82/BU18RL82 Clockless Link-BD Serializer/Deserializer bridge chip driver.
+
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF
