@@ -366,7 +366,13 @@ static inline unsigned int bio_aligned_discard_max_sectors(
  */
 struct io_cq *ioc_find_get_icq(struct request_queue *q);
 struct io_cq *ioc_lookup_icq(struct request_queue *q);
+#ifdef CONFIG_BLK_ICQ
 void ioc_clear_queue(struct request_queue *q);
+#else
+static inline void ioc_clear_queue(struct request_queue *q)
+{
+}
+#endif /* CONFIG_BLK_ICQ */
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 extern ssize_t blk_throtl_sample_time_show(struct request_queue *q, char *page);
