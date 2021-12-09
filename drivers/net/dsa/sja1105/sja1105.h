@@ -249,6 +249,7 @@ struct sja1105_private {
 	bool fixed_link[SJA1105_MAX_NUM_PORTS];
 	unsigned long ucast_egress_floods;
 	unsigned long bcast_egress_floods;
+	unsigned long hwts_tx_en;
 	const struct sja1105_info *info;
 	size_t max_xfer_len;
 	struct spi_device *spidev;

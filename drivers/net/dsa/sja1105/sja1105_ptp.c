@@ -98,10 +98,10 @@ int sja1105_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
 
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
-		priv->ports[port].hwts_tx_en = false;
+		priv->hwts_tx_en &= ~BIT(port);
 		break;
 	case HWTSTAMP_TX_ON:
-		priv->ports[port].hwts_tx_en = true;
+		priv->hwts_tx_en |= BIT(port);
 		break;
 	default:
 		return -ERANGE;
@@ -140,7 +140,7 @@ int sja1105_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr)
 	struct hwtstamp_config config;
 
 	config.flags = 0;
-	if (priv->ports[port].hwts_tx_en)
+	if (priv->hwts_tx_en & BIT(port))
 		config.tx_type = HWTSTAMP_TX_ON;
 	else
 		config.tx_type = HWTSTAMP_TX_OFF;
@@ -486,10 +486,9 @@ void sja1110_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 void sja1105_port_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 {
 	struct sja1105_private *priv = ds->priv;
-	struct sja1105_port *sp = &priv->ports[port];
 	struct sk_buff *clone;
 
-	if (!sp->hwts_tx_en)
+	if (!(priv->hwts_tx_en & BIT(port)))
 		return;
 
 	clone = skb_clone_sk(skb);

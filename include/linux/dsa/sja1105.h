@@ -74,7 +74,6 @@ struct sja1105_skb_cb {
 
 struct sja1105_port {
 	struct sja1105_tagger_data *data;
-	bool hwts_tx_en;
 };
 
 /* Timestamps are in units of 8 ns clock ticks (equivalent to
