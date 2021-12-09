@@ -516,6 +516,23 @@ Description:
 		scheduler module, if it isn't already present in the system.
 
 
+What:		/sys/block/<disk>/queue/stable_writes
+Date:		September 2020
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RW] This file will contain '1' if memory must not be modified
+		while it is being used in a write request to this device.  When
+		this is the case and the kernel is performing writeback of a
+		page, the kernel will wait for writeback to complete before
+		allowing the page to be modified again, rather than allowing
+		immediate modification as is normally the case.  This
+		restriction arises when the device accesses the memory multiple
+		times where the same data must be seen every time -- for
+		example, once to calculate a checksum and once to actually write
+		the data.  If no such restriction exists, this file will contain
+		'0'.  This file is writable for testing purposes.
+
+
 What:		/sys/block/<disk>/queue/throttle_sample_time
 Date:		March 2017
 Contact:	linux-block@vger.kernel.org
