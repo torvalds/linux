@@ -76,6 +76,19 @@ err_mutex_unlock:
 	return ret;
 }
 
+static const struct si2157_tuner_info si2157_tuners[] = {
+	{ SI2141, false, 0x60, SI2141_60_FIRMWARE, SI2141_A10_FIRMWARE },
+	{ SI2141, false, 0x61, SI2141_61_FIRMWARE, SI2141_A10_FIRMWARE },
+	{ SI2146, false, 0x11, SI2146_11_FIRMWARE, NULL },
+	{ SI2147, false, 0x50, SI2147_50_FIRMWARE, NULL },
+	{ SI2148, true,  0x32, SI2148_32_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2148, true,  0x33, SI2148_33_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2157, false, 0x50, SI2157_50_FIRMWARE, SI2157_A30_FIRMWARE },
+	{ SI2158, false, 0x50, SI2158_50_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2158, false, 0x51, SI2158_51_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2177, false, 0x50, SI2177_50_FIRMWARE, SI2157_A30_FIRMWARE },
+};
+
 static int si2157_load_firmware(struct dvb_frontend *fe,
 				const char *fw_name)
 {
@@ -85,7 +98,7 @@ static int si2157_load_firmware(struct dvb_frontend *fe,
 	struct si2157_cmd cmd;
 
 	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_name, &client->dev);
+	ret = firmware_request_nowarn(&fw, fw_name, &client->dev);
 	if (ret)
 		return ret;
 
@@ -124,16 +137,86 @@ err_release_firmware:
 	return ret;
 }
 
+static int si2157_find_and_load_firmware(struct dvb_frontend *fe)
+{
+	struct i2c_client *client = fe->tuner_priv;
+	struct si2157_dev *dev = i2c_get_clientdata(client);
+	const char *fw_alt_name = NULL;
+	unsigned char part_id, rom_id;
+	const char *fw_name = NULL;
+	struct si2157_cmd cmd;
+	bool required = true;
+	int ret, i;
+
+	if (dev->dont_load_firmware) {
+		dev_info(&client->dev,
+			 "device is buggy, skipping firmware download\n");
+		return 0;
+	}
+
+	/* query chip revision */
+	memcpy(cmd.args, "\x02", 1);
+	cmd.wlen = 1;
+	cmd.rlen = 13;
+	ret = si2157_cmd_execute(client, &cmd);
+	if (ret)
+		return ret;
+
+	part_id = cmd.args[2];
+	rom_id = cmd.args[12];
+
+	for (i = 0; i < ARRAY_SIZE(si2157_tuners); i++) {
+		if (si2157_tuners[i].part_id != part_id)
+			continue;
+		required = si2157_tuners[i].required;
+		fw_alt_name = si2157_tuners[i].fw_alt_name;
+
+		/* Both part and rom ID match */
+		if (si2157_tuners[i].rom_id == rom_id) {
+			fw_name = si2157_tuners[i].fw_name;
+			break;
+		}
+	}
+
+	if (!fw_name && !fw_alt_name) {
+		dev_err(&client->dev,
+			"unknown chip version Si21%d-%c%c%c ROM 0x%02x\n",
+			part_id, cmd.args[1], cmd.args[3], cmd.args[4], rom_id);
+		return -EINVAL;
+	}
+
+	dev_info(&client->dev,
+		 "found a 'Silicon Labs Si21%d-%c%c%c ROM 0x%02x'\n",
+		 part_id, cmd.args[1], cmd.args[3], cmd.args[4], rom_id);
+
+	if (fw_name)
+		ret = si2157_load_firmware(fe, fw_name);
+	else
+		ret = -ENOENT;
+
+	/* Try alternate name, if any */
+	if (ret == -ENOENT && fw_alt_name)
+		ret = si2157_load_firmware(fe, fw_alt_name);
+
+	if (ret == -ENOENT) {
+		if (!required) {
+			dev_info(&client->dev, "Using ROM firmware.\n");
+			return 0;
+		}
+		dev_err(&client->dev, "Can't continue without a firmware.\n");
+	} else if (ret < 0) {
+		dev_err(&client->dev, "error %d when loading firmware\n", ret);
+	}
+	return ret;
+}
+
 static int si2157_init(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct i2c_client *client = fe->tuner_priv;
 	struct si2157_dev *dev = i2c_get_clientdata(client);
-	bool warn_firmware_not_loaded = false;
-	unsigned int chip_id, xtal_trim;
-	bool fw_required = true;
+	unsigned int xtal_trim;
 	struct si2157_cmd cmd;
-	const char *fw_name;
 	int ret;
 
 	dev_dbg(&client->dev, "\n");
@@ -176,72 +259,11 @@ static int si2157_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	if (dev->dont_load_firmware) {
-		dev_info(&client->dev, "device is buggy, skipping firmware download\n");
-		goto skip_fw_download;
-	}
-
-	/* query chip revision */
-	memcpy(cmd.args, "\x02", 1);
-	cmd.wlen = 1;
-	cmd.rlen = 13;
-	ret = si2157_cmd_execute(client, &cmd);
-	if (ret)
+	/* Try to load the firmware */
+	ret = si2157_find_and_load_firmware(fe);
+	if (ret < 0)
 		goto err;
 
-	chip_id = cmd.args[1] << 24 | cmd.args[2] << 16 | cmd.args[3] << 8 |
-			cmd.args[4] << 0;
-
-	#define SI2177_A30 ('A' << 24 | 77 << 16 | '3' << 8 | '0' << 0)
-	#define SI2158_A20 ('A' << 24 | 58 << 16 | '2' << 8 | '0' << 0)
-	#define SI2148_A20 ('A' << 24 | 48 << 16 | '2' << 8 | '0' << 0)
-	#define SI2157_A30 ('A' << 24 | 57 << 16 | '3' << 8 | '0' << 0)
-	#define SI2147_A30 ('A' << 24 | 47 << 16 | '3' << 8 | '0' << 0)
-	#define SI2146_A10 ('A' << 24 | 46 << 16 | '1' << 8 | '0' << 0)
-	#define SI2141_A10 ('A' << 24 | 41 << 16 | '1' << 8 | '0' << 0)
-
-	switch (chip_id) {
-	case SI2158_A20:
-	case SI2148_A20:
-		fw_name = SI2158_A20_FIRMWARE;
-		break;
-	case SI2141_A10:
-		fw_name = SI2141_A10_FIRMWARE;
-		break;
-	case SI2157_A30:
-		fw_required = false;
-		fallthrough;
-	case SI2177_A30:
-		fw_name = SI2157_A30_FIRMWARE;
-		break;
-	case SI2147_A30:
-	case SI2146_A10:
-		fw_name = NULL;
-		break;
-	default:
-		dev_err(&client->dev, "unknown chip version Si21%d-%c%c%c\n",
-				cmd.args[2], cmd.args[1],
-				cmd.args[3], cmd.args[4]);
-		ret = -EINVAL;
-		goto err;
-	}
-
-	dev_info(&client->dev, "found a 'Silicon Labs Si21%d-%c%c%c'\n",
-			cmd.args[2], cmd.args[1], cmd.args[3], cmd.args[4]);
-
-	if (fw_name == NULL)
-		goto skip_fw_download;
-
-	ret = si2157_load_firmware(fe, fw_name);
-	if (fw_required && ret == -ENOENT)
-		warn_firmware_not_loaded = true;
-	else if (ret < 0) {
-		dev_err(&client->dev, "error %d when loading firmware file '%s'\n",
-			ret, fw_name);
-		goto err;
-	}
-
-skip_fw_download:
 	/* reboot the tuner with new firmware? */
 	memcpy(cmd.args, "\x01\x01", 2);
 	cmd.wlen = 2;
@@ -258,11 +280,6 @@ skip_fw_download:
 	if (ret)
 		goto err;
 
-	if (warn_firmware_not_loaded) {
-		dev_warn(&client->dev, "firmware file '%s' not found. Using firmware from eeprom.\n",
-			 fw_name);
-		warn_firmware_not_loaded = false;
-	}
 	dev_info(&client->dev, "firmware version: %c.%c.%d\n",
 			cmd.args[6], cmd.args[7], cmd.args[8]);
 
@@ -298,11 +315,6 @@ warm:
 	return 0;
 
 err:
-	if (warn_firmware_not_loaded)
-		dev_err(&client->dev,
-			"firmware file '%s' not found. Can't continue without a firmware.\n",
-			fw_name);
-
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
@@ -968,3 +980,13 @@ MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(SI2158_A20_FIRMWARE);
 MODULE_FIRMWARE(SI2141_A10_FIRMWARE);
 MODULE_FIRMWARE(SI2157_A30_FIRMWARE);
+MODULE_FIRMWARE(SI2141_60_FIRMWARE);
+MODULE_FIRMWARE(SI2141_61_FIRMWARE);
+MODULE_FIRMWARE(SI2146_11_FIRMWARE);
+MODULE_FIRMWARE(SI2147_50_FIRMWARE);
+MODULE_FIRMWARE(SI2148_32_FIRMWARE);
+MODULE_FIRMWARE(SI2148_33_FIRMWARE);
+MODULE_FIRMWARE(SI2157_50_FIRMWARE);
+MODULE_FIRMWARE(SI2158_50_FIRMWARE);
+MODULE_FIRMWARE(SI2158_51_FIRMWARE);
+MODULE_FIRMWARE(SI2177_50_FIRMWARE);
