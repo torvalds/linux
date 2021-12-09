@@ -1635,9 +1635,9 @@ static int rga3_check_param(const struct rga3_req *req)
 {
 	if (!((req->render_mode == COLOR_FILL_MODE))) {
 		if (unlikely((req->win0.src_act_w <= 0) ||
-			(req->win0.src_act_w > 8128)
+			(req->win0.src_act_w > 8176)
 			 || (req->win0.src_act_h <= 0)
-			 || (req->win0.src_act_h > 8128)
+			 || (req->win0.src_act_h > 8176)
 			 || (req->win0.dst_act_w <= 0)
 			 || (req->win0.dst_act_w > 8128)
 			 || (req->win0.dst_act_h <= 0)
@@ -1651,9 +1651,9 @@ static int rga3_check_param(const struct rga3_req *req)
 
 	if (req->win1.yrgb_addr != 0) {
 		if (unlikely((req->win1.src_act_w <= 0) ||
-			(req->win1.src_act_w > 8128)
+			(req->win1.src_act_w > 8176)
 			 || (req->win1.src_act_h <= 0)
-			 || (req->win1.src_act_h > 8128)
+			 || (req->win1.src_act_h > 8176)
 			 || (req->win1.dst_act_w <= 0)
 			 || (req->win1.dst_act_w > 8128)
 			 || (req->win1.dst_act_h <= 0)
@@ -1665,9 +1665,9 @@ static int rga3_check_param(const struct rga3_req *req)
 		}
 
 		if (unlikely
-			((req->win1.vir_w <= 0) || (req->win1.vir_w > 8192)
+			((req->win1.vir_w <= 0) || (req->win1.vir_w > 8192 * 2)
 			 || (req->win1.vir_h <= 0)
-			 || (req->win1.vir_h > 8192))) {
+			 || (req->win1.vir_h > 8192 * 2))) {
 			pr_err("invalid win1 stride vir_w = %d, vir_h = %d\n",
 				 req->win1.vir_w, req->win1.vir_h);
 			return -EINVAL;
@@ -1700,8 +1700,8 @@ static int rga3_check_param(const struct rga3_req *req)
 	}
 
 	if (unlikely
-		((req->wr.vir_w <= 0) || (req->wr.vir_w > 8192)
-		 || (req->wr.vir_h <= 0) || (req->wr.vir_h > 8192))) {
+		((req->wr.vir_w <= 0) || (req->wr.vir_w > 8192 * 2)
+		 || (req->wr.vir_h <= 0) || (req->wr.vir_h > 8192 * 2))) {
 		pr_err("invalid wr vir_w = %d, vir_h = %d\n",
 			 req->wr.vir_w, req->wr.vir_h);
 		return -EINVAL;

@@ -188,7 +188,7 @@ const struct rga_hw_data rga3_data = {
 	.version = 0,
 	.min_input = { 128, 128 },
 	.min_output = { 128, 128 },
-	.max_input = { 8128, 8128 },
+	.max_input = { 8176, 8176 },
 	.max_output = { 8128, 8128 },
 
 	.win = rga3_win_data,
