@@ -213,6 +213,23 @@ LIBBPF_API int bpf_verify_program(enum bpf_prog_type type,
 				  char *log_buf, size_t log_buf_sz,
 				  int log_level);
 
+struct bpf_btf_load_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+
+	/* kernel log options */
+	char *log_buf;
+	__u32 log_level;
+	__u32 log_size;
+};
+#define bpf_btf_load_opts__last_field log_size
+
+LIBBPF_API int bpf_btf_load(const void *btf_data, size_t btf_size,
+			    const struct bpf_btf_load_opts *opts);
+
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_btf_load() instead")
+LIBBPF_API int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf,
+			    __u32 log_buf_size, bool do_log);
+
 LIBBPF_API int bpf_map_update_elem(int fd, const void *key, const void *value,
 				   __u64 flags);
 
@@ -340,8 +357,6 @@ LIBBPF_API int bpf_prog_query(int target_fd, enum bpf_attach_type type,
 			      __u32 query_flags, __u32 *attach_flags,
 			      __u32 *prog_ids, __u32 *prog_cnt);
 LIBBPF_API int bpf_raw_tracepoint_open(const char *name, int prog_fd);
-LIBBPF_API int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf,
-			    __u32 log_buf_size, bool do_log);
 LIBBPF_API int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf,
 				 __u32 *buf_len, __u32 *prog_id, __u32 *fd_type,
 				 __u64 *probe_offset, __u64 *probe_addr);

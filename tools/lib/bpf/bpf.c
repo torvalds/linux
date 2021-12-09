@@ -1047,24 +1047,65 @@ int bpf_raw_tracepoint_open(const char *name, int prog_fd)
 	return libbpf_err_errno(fd);
 }
 
-int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size,
-		 bool do_log)
+int bpf_btf_load(const void *btf_data, size_t btf_size, const struct bpf_btf_load_opts *opts)
 {
-	union bpf_attr attr = {};
+	const size_t attr_sz = offsetofend(union bpf_attr, btf_log_level);
+	union bpf_attr attr;
+	char *log_buf;
+	size_t log_size;
+	__u32 log_level;
 	int fd;
 
-	attr.btf = ptr_to_u64(btf);
+	memset(&attr, 0, attr_sz);
+
+	if (!OPTS_VALID(opts, bpf_btf_load_opts))
+		return libbpf_err(-EINVAL);
+
+	log_buf = OPTS_GET(opts, log_buf, NULL);
+	log_size = OPTS_GET(opts, log_size, 0);
+	log_level = OPTS_GET(opts, log_level, 0);
+
+	if (log_size > UINT_MAX)
+		return libbpf_err(-EINVAL);
+	if (log_size && !log_buf)
+		return libbpf_err(-EINVAL);
+
+	attr.btf = ptr_to_u64(btf_data);
 	attr.btf_size = btf_size;
+	/* log_level == 0 and log_buf != NULL means "try loading without
+	 * log_buf, but retry with log_buf and log_level=1 on error", which is
+	 * consistent across low-level and high-level BTF and program loading
+	 * APIs within libbpf and provides a sensible behavior in practice
+	 */
+	if (log_level) {
+		attr.btf_log_buf = ptr_to_u64(log_buf);
+		attr.btf_log_size = (__u32)log_size;
+		attr.btf_log_level = log_level;
+	}
+
+	fd = sys_bpf_fd(BPF_BTF_LOAD, &attr, attr_sz);
+	if (fd < 0 && log_buf && log_level == 0) {
+		attr.btf_log_buf = ptr_to_u64(log_buf);
+		attr.btf_log_size = (__u32)log_size;
+		attr.btf_log_level = 1;
+		fd = sys_bpf_fd(BPF_BTF_LOAD, &attr, attr_sz);
+	}
+	return libbpf_err_errno(fd);
+}
+
+int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size, bool do_log)
+{
+	LIBBPF_OPTS(bpf_btf_load_opts, opts);
+	int fd;
 
 retry:
 	if (do_log && log_buf && log_buf_size) {
-		attr.btf_log_level = 1;
-		attr.btf_log_size = log_buf_size;
-		attr.btf_log_buf = ptr_to_u64(log_buf);
+		opts.log_buf = log_buf;
+		opts.log_size = log_buf_size;
+		opts.log_level = 1;
 	}
 
-	fd = sys_bpf_fd(BPF_BTF_LOAD, &attr, sizeof(attr));
-
+	fd = bpf_btf_load(btf, btf_size, &opts);
 	if (fd < 0 && !do_log && log_buf && log_buf_size) {
 		do_log = true;
 		goto retry;
