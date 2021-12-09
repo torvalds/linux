@@ -278,6 +278,7 @@ static const u8 aspeed_resets[] = {
 	[ASPEED_RESET_PECI]	= 10,
 	[ASPEED_RESET_I2C]	=  2,
 	[ASPEED_RESET_AHB]	=  1,
+	[ASPEED_RESET_VIDEO]    =  6,
 
 	/*
 	 * SCUD4 resets start at an offset to separate them from
