@@ -482,6 +482,11 @@
 	rockchip,dp-lane-mux = <2 3>;
 };
 
+&usbdrd_dwc3_0 {
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
 &uart9 {
 	status = "okay";
 	pinctrl-names = "default";
