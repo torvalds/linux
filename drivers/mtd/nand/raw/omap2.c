@@ -447,6 +447,11 @@ static void omap_nand_data_in_dma_pref(struct nand_chip *chip, void *buf,
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
+	if (force_8bit) {
+		omap_nand_data_in(chip, buf, len, force_8bit);
+		return;
+	}
+
 	if (len <= mtd->oobsize)
 		omap_nand_data_in_pref(chip, buf, len, false);
 	else
@@ -462,6 +467,11 @@ static void omap_nand_data_out_dma_pref(struct nand_chip *chip,
 					bool force_8bit)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+
+	if (force_8bit) {
+		omap_nand_data_out(chip, buf, len, force_8bit);
+		return;
+	}
 
 	if (len <= mtd->oobsize)
 		omap_nand_data_out_pref(chip, buf, len, false);
