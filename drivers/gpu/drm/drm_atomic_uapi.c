@@ -773,7 +773,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		state->scaling_mode = val;
 	} else if (property == config->content_protection_property) {
 		if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
-			DRM_DEBUG_KMS("only drivers can set CP Enabled\n");
+			drm_dbg_kms(dev, "only drivers can set CP Enabled\n");
 			return -EINVAL;
 		}
 		state->content_protection = val;

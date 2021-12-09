@@ -306,19 +306,10 @@ out:
 	mutex_unlock(&ge_b850v3_lvds_dev_mutex);
 }
 
-static int stdp4028_ge_b850v3_fw_probe(struct i2c_client *stdp4028_i2c,
-				       const struct i2c_device_id *id)
+static int ge_b850v3_register(void)
 {
+	struct i2c_client *stdp4028_i2c = ge_b850v3_lvds_ptr->stdp4028_i2c;
 	struct device *dev = &stdp4028_i2c->dev;
-	int ret;
-
-	ret = ge_b850v3_lvds_init(dev);
-
-	if (ret)
-		return ret;
-
-	ge_b850v3_lvds_ptr->stdp4028_i2c = stdp4028_i2c;
-	i2c_set_clientdata(stdp4028_i2c, ge_b850v3_lvds_ptr);
 
 	/* drm bridge initialization */
 	ge_b850v3_lvds_ptr->bridge.funcs = &ge_b850v3_lvds_funcs;
@@ -341,6 +332,27 @@ static int stdp4028_ge_b850v3_fw_probe(struct i2c_client *stdp4028_i2c,
 			ge_b850v3_lvds_irq_handler,
 			IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 			"ge-b850v3-lvds-dp", ge_b850v3_lvds_ptr);
+}
+
+static int stdp4028_ge_b850v3_fw_probe(struct i2c_client *stdp4028_i2c,
+				       const struct i2c_device_id *id)
+{
+	struct device *dev = &stdp4028_i2c->dev;
+	int ret;
+
+	ret = ge_b850v3_lvds_init(dev);
+
+	if (ret)
+		return ret;
+
+	ge_b850v3_lvds_ptr->stdp4028_i2c = stdp4028_i2c;
+	i2c_set_clientdata(stdp4028_i2c, ge_b850v3_lvds_ptr);
+
+	/* Only register after both bridges are probed */
+	if (!ge_b850v3_lvds_ptr->stdp2690_i2c)
+		return 0;
+
+	return ge_b850v3_register();
 }
 
 static int stdp4028_ge_b850v3_fw_remove(struct i2c_client *stdp4028_i2c)
@@ -386,7 +398,11 @@ static int stdp2690_ge_b850v3_fw_probe(struct i2c_client *stdp2690_i2c,
 	ge_b850v3_lvds_ptr->stdp2690_i2c = stdp2690_i2c;
 	i2c_set_clientdata(stdp2690_i2c, ge_b850v3_lvds_ptr);
 
-	return 0;
+	/* Only register after both bridges are probed */
+	if (!ge_b850v3_lvds_ptr->stdp4028_i2c)
+		return 0;
+
+	return ge_b850v3_register();
 }
 
 static int stdp2690_ge_b850v3_fw_remove(struct i2c_client *stdp2690_i2c)
