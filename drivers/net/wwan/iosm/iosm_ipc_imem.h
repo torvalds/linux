@@ -101,6 +101,7 @@ struct ipc_chnl_cfg;
 #define IOSM_CHIP_INFO_SIZE_MAX 100
 
 #define FULLY_FUNCTIONAL 0
+#define IOSM_DEVLINK_INIT 1
 
 /* List of the supported UL/DL pipes. */
 enum ipc_mem_pipes {

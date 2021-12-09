@@ -450,6 +450,7 @@ void ipc_imem_sys_devlink_close(struct iosm_devlink *ipc_devlink)
 	/* Release the pipe resources */
 	ipc_imem_pipe_cleanup(ipc_imem, &channel->ul_pipe);
 	ipc_imem_pipe_cleanup(ipc_imem, &channel->dl_pipe);
+	ipc_imem->nr_of_channels--;
 }
 
 void ipc_imem_sys_devlink_notify_rx(struct iosm_devlink *ipc_devlink,

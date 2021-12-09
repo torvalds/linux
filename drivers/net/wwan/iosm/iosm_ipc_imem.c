@@ -531,6 +531,9 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 		return;
 	}
 
+	if (test_and_clear_bit(IOSM_DEVLINK_INIT, &ipc_imem->flag))
+		ipc_devlink_deinit(ipc_imem->ipc_devlink);
+
 	if (!ipc_imem_setup_cp_mux_cap_init(ipc_imem, &mux_cfg))
 		ipc_imem->mux = ipc_mux_init(&mux_cfg, ipc_imem);
 
@@ -1171,7 +1174,7 @@ void ipc_imem_cleanup(struct iosm_imem *ipc_imem)
 		ipc_port_deinit(ipc_imem->ipc_port);
 	}
 
-	if (ipc_imem->ipc_devlink)
+	if (test_and_clear_bit(IOSM_DEVLINK_INIT, &ipc_imem->flag))
 		ipc_devlink_deinit(ipc_imem->ipc_devlink);
 
 	ipc_imem_device_ipc_uninit(ipc_imem);
@@ -1335,6 +1338,8 @@ struct iosm_imem *ipc_imem_init(struct iosm_pcie *pcie, unsigned int device_id,
 
 		if (ipc_flash_link_establish(ipc_imem))
 			goto devlink_channel_fail;
+
+		set_bit(IOSM_DEVLINK_INIT, &ipc_imem->flag);
 	}
 	return ipc_imem;
 devlink_channel_fail:
