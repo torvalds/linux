@@ -24,6 +24,7 @@
 #include <linux/time.h>
 
 #include "intel_atomic.h"
+#include "intel_atomic_plane.h"
 #include "intel_audio.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
@@ -68,7 +69,7 @@ void intel_cdclk_get_cdclk(struct drm_i915_private *dev_priv,
 	dev_priv->cdclk_funcs->get_cdclk(dev_priv, cdclk_config);
 }
 
-int intel_cdclk_bw_calc_min_cdclk(struct intel_atomic_state *state)
+static int intel_cdclk_bw_calc_min_cdclk(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	return dev_priv->cdclk_funcs->bw_calc_min_cdclk(state);
@@ -2627,6 +2628,58 @@ intel_atomic_get_cdclk_state(struct intel_atomic_state *state)
 		return ERR_CAST(cdclk_state);
 
 	return to_intel_cdclk_state(cdclk_state);
+}
+
+int intel_cdclk_atomic_check(struct intel_atomic_state *state,
+			     bool *need_cdclk_calc)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_cdclk_state *old_cdclk_state;
+	const struct intel_cdclk_state *new_cdclk_state;
+	struct intel_plane_state *plane_state;
+	struct intel_bw_state *new_bw_state;
+	struct intel_plane *plane;
+	int min_cdclk = 0;
+	enum pipe pipe;
+	int ret;
+	int i;
+
+	/*
+	 * active_planes bitmask has been updated, and potentially affected
+	 * planes are part of the state. We can now compute the minimum cdclk
+	 * for each plane.
+	 */
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		ret = intel_plane_calc_min_cdclk(state, plane, need_cdclk_calc);
+		if (ret)
+			return ret;
+	}
+
+	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
+	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
+
+	if (new_cdclk_state &&
+	    old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk)
+		*need_cdclk_calc = true;
+
+	ret = intel_cdclk_bw_calc_min_cdclk(state);
+	if (ret)
+		return ret;
+
+	new_bw_state = intel_atomic_get_new_bw_state(state);
+
+	if (!new_cdclk_state || !new_bw_state)
+		return 0;
+
+	for_each_pipe(i915, pipe) {
+		min_cdclk = max(new_cdclk_state->min_cdclk[pipe], min_cdclk);
+
+		/* Currently do this change only if we need to increase */
+		if (new_bw_state->min_cdclk > min_cdclk)
+			*need_cdclk_calc = true;
+	}
+
+	return 0;
 }
 
 int intel_cdclk_init(struct drm_i915_private *dev_priv)
