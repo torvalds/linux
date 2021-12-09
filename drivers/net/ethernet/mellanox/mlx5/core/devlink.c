@@ -579,6 +579,8 @@ static const struct devlink_param mlx5_devlink_params[] = {
 			      mlx5_devlink_enable_remote_dev_reset_set, NULL),
 	DEVLINK_PARAM_GENERIC(IO_EQ_SIZE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			      NULL, NULL, mlx5_devlink_eq_depth_validate),
+	DEVLINK_PARAM_GENERIC(EVENT_EQ_SIZE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, mlx5_devlink_eq_depth_validate),
 };
 
 static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
@@ -621,6 +623,11 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 	value.vu32 = MLX5_COMP_EQ_SIZE;
 	devlink_param_driverinit_value_set(devlink,
 					   DEVLINK_PARAM_GENERIC_ID_IO_EQ_SIZE,
+					   value);
+
+	value.vu32 = MLX5_NUM_ASYNC_EQE;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_EVENT_EQ_SIZE,
 					   value);
 }
 
