@@ -423,6 +423,8 @@ LIBBPF_0.6.0 {
 LIBBPF_0.7.0 {
 	global:
 		bpf_btf_load;
+		bpf_program__log_buf;
 		bpf_program__log_level;
+		bpf_program__set_log_buf;
 		bpf_program__set_log_level;
 };
