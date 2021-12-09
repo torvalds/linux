@@ -41,7 +41,6 @@ void ipc_imem_sys_wwan_close(struct iosm_imem *ipc_imem, int if_id,
 static int ipc_imem_tq_cdev_write(struct iosm_imem *ipc_imem, int arg,
 				  void *msg, size_t size)
 {
-	ipc_imem->ev_cdev_write_pending = false;
 	ipc_imem_ul_send(ipc_imem);
 
 	return 0;
@@ -50,11 +49,6 @@ static int ipc_imem_tq_cdev_write(struct iosm_imem *ipc_imem, int arg,
 /* Through tasklet to do sio write. */
 static int ipc_imem_call_cdev_write(struct iosm_imem *ipc_imem)
 {
-	if (ipc_imem->ev_cdev_write_pending)
-		return -1;
-
-	ipc_imem->ev_cdev_write_pending = true;
-
 	return ipc_task_queue_send_task(ipc_imem, ipc_imem_tq_cdev_write, 0,
 					NULL, 0, false);
 }

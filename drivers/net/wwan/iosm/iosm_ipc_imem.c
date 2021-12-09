@@ -1270,7 +1270,6 @@ struct iosm_imem *ipc_imem_init(struct iosm_pcie *pcie, unsigned int device_id,
 
 	ipc_imem->pci_device_id = device_id;
 
-	ipc_imem->ev_cdev_write_pending = false;
 	ipc_imem->cp_version = 0;
 	ipc_imem->device_sleep = IPC_HOST_SLEEP_ENTER_SLEEP;
 
