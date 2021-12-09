@@ -49,6 +49,8 @@ struct a6xx_gpu_state {
 	s32 hfi_queue_history[2][HFI_HISTORY_SZ];
 
 	struct list_head objs;
+
+	bool gpu_initialized;
 };
 
 static inline int CRASHDUMP_WRITE(u64 *in, u32 reg, u32 val)
@@ -1001,7 +1003,8 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 	 * write out GPU state, so we need to skip this when the SMMU is
 	 * stalled in response to an iova fault
 	 */
-	if (!stalled && !a6xx_crashdumper_init(gpu, &_dumper)) {
+	if (!stalled && !gpu->needs_hw_init &&
+	    !a6xx_crashdumper_init(gpu, &_dumper)) {
 		dumper = &_dumper;
 	}
 
@@ -1017,6 +1020,8 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 
 	if (snapshot_debugbus)
 		a6xx_get_debugbus(gpu, a6xx_state);
+
+	a6xx_state->gpu_initialized = !gpu->needs_hw_init;
 
 	return  &a6xx_state->base;
 }
@@ -1245,6 +1250,8 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 
 	if (IS_ERR_OR_NULL(state))
 		return;
+
+	drm_printf(p, "gpu-initialized: %d\n", a6xx_state->gpu_initialized);
 
 	adreno_show(gpu, state, p);
 
