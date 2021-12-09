@@ -2531,6 +2531,7 @@ static int mv88e6xxx_crosschip_bridge_join(struct dsa_switch *ds,
 
 	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_pvt_map(chip, sw_index, port);
+	err = err ? : mv88e6xxx_map_virtual_bridge_to_pvt(ds, bridge.num);
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -2546,7 +2547,8 @@ static void mv88e6xxx_crosschip_bridge_leave(struct dsa_switch *ds,
 		return;
 
 	mv88e6xxx_reg_lock(chip);
-	if (mv88e6xxx_pvt_map(chip, sw_index, port))
+	if (mv88e6xxx_pvt_map(chip, sw_index, port) ||
+	    mv88e6xxx_map_virtual_bridge_to_pvt(ds, bridge.num))
 		dev_err(ds->dev, "failed to remap cross-chip Port VLAN\n");
 	mv88e6xxx_reg_unlock(chip);
 }
