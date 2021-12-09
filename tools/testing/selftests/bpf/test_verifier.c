@@ -641,7 +641,7 @@ static int load_btf(void)
 	memcpy(ptr, btf_str_sec, hdr.str_len);
 	ptr += hdr.str_len;
 
-	btf_fd = bpf_load_btf(raw_btf, ptr - raw_btf, 0, 0, 0);
+	btf_fd = bpf_btf_load(raw_btf, ptr - raw_btf, NULL);
 	free(raw_btf);
 	if (btf_fd < 0)
 		return -1;
