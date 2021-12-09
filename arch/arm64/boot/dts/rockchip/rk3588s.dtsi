@@ -616,9 +616,6 @@
 			scmi_clk: protocol@14 {
 				reg = <0x14>;
 				#clock-cells = <1>;
-
-				assigned-clocks = <&scmi_clk SCMI_SPLL>;
-				assigned-clock-rates = <700000000>;
 			};
 
 			scmi_reset: protocol@16 {
