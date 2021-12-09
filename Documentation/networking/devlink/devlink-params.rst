@@ -132,3 +132,6 @@ own name.
    * - ``io_eq_size``
      - u32
      - Control the size of I/O completion EQs.
+   * - ``event_eq_size``
+     - u32
+     - Control the size of asynchronous control events EQ.
