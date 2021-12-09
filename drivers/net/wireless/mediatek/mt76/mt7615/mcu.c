@@ -106,7 +106,7 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 	txd_len = cmd & __MCU_CMD_FIELD_UNI ? sizeof(*uni_txd) : sizeof(*mcu_txd);
 	txd = (__le32 *)skb_push(skb, txd_len);
 
-	if (cmd != MCU_CMD_FW_SCATTER) {
+	if (cmd != MCU_CMD(FW_SCATTER)) {
 		q_idx = MT_TX_MCU_PORT_RX_Q0;
 		pkt_fmt = MT_TX_TYPE_CMD;
 	} else {
@@ -173,7 +173,7 @@ int mt7615_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	if (seq != rxd->seq)
 		return -EAGAIN;
 
-	if (cmd == MCU_CMD_PATCH_SEM_CONTROL) {
+	if (cmd == MCU_CMD(PATCH_SEM_CONTROL)) {
 		skb_pull(skb, sizeof(*rxd) - 4);
 		ret = *skb->data;
 	} else if (cmd == MCU_EXT_CMD(THERMAL_CTRL)) {
@@ -1377,7 +1377,7 @@ static const struct mt7615_mcu_ops uni_update_ops = {
 
 int mt7615_mcu_restart(struct mt76_dev *dev)
 {
-	return mt76_mcu_send_msg(dev, MCU_CMD_RESTART_DL_REQ, NULL, 0, true);
+	return mt76_mcu_send_msg(dev, MCU_CMD(RESTART_DL_REQ), NULL, 0, true);
 }
 EXPORT_SYMBOL_GPL(mt7615_mcu_restart);
 
@@ -1423,7 +1423,7 @@ static int mt7615_load_patch(struct mt7615_dev *dev, u32 addr, const char *name)
 		goto out;
 	}
 
-	ret = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD_FW_SCATTER,
+	ret = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
 				     fw->data + sizeof(*hdr), len);
 	if (ret) {
 		dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
@@ -1486,7 +1486,7 @@ mt7615_mcu_send_ram_firmware(struct mt7615_dev *dev,
 			return err;
 		}
 
-		err = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD_FW_SCATTER,
+		err = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
 					     data + offset, len);
 		if (err) {
 			dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
@@ -1734,7 +1734,7 @@ static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 			goto out;
 		}
 
-		ret = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD_FW_SCATTER,
+		ret = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
 					     fw->data + offset, len);
 		if (ret) {
 			dev_err(dev->mt76.dev, "Failed to send firmware\n");

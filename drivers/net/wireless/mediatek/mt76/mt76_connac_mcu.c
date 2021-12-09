@@ -13,8 +13,8 @@ int mt76_connac_mcu_start_firmware(struct mt76_dev *dev, u32 addr, u32 option)
 		.addr = cpu_to_le32(addr),
 	};
 
-	return mt76_mcu_send_msg(dev, MCU_CMD_FW_START_REQ, &req, sizeof(req),
-				 true);
+	return mt76_mcu_send_msg(dev, MCU_CMD(FW_START_REQ), &req,
+				 sizeof(req), true);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_start_firmware);
 
@@ -27,8 +27,8 @@ int mt76_connac_mcu_patch_sem_ctrl(struct mt76_dev *dev, bool get)
 		.op = cpu_to_le32(op),
 	};
 
-	return mt76_mcu_send_msg(dev, MCU_CMD_PATCH_SEM_CONTROL, &req,
-				 sizeof(req), true);
+	return mt76_mcu_send_msg(dev, MCU_CMD(PATCH_SEM_CONTROL),
+				 &req, sizeof(req), true);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_patch_sem_ctrl);
 
@@ -41,8 +41,8 @@ int mt76_connac_mcu_start_patch(struct mt76_dev *dev)
 		.check_crc = 0,
 	};
 
-	return mt76_mcu_send_msg(dev, MCU_CMD_PATCH_FINISH_REQ, &req,
-				 sizeof(req), true);
+	return mt76_mcu_send_msg(dev, MCU_CMD(PATCH_FINISH_REQ),
+				 &req, sizeof(req), true);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_start_patch);
 
@@ -64,9 +64,9 @@ int mt76_connac_mcu_init_download(struct mt76_dev *dev, u32 addr, u32 len,
 
 	if (is_mt7921(dev) &&
 	    (req.addr == cpu_to_le32(MCU_PATCH_ADDRESS) || addr == 0x900000))
-		cmd = MCU_CMD_PATCH_START_REQ;
+		cmd = MCU_CMD(PATCH_START_REQ);
 	else
-		cmd = MCU_CMD_TARGET_ADDRESS_LEN_REQ;
+		cmd = MCU_CMD(TARGET_ADDRESS_LEN_REQ);
 
 	return mt76_mcu_send_msg(dev, cmd, &req, sizeof(req), true);
 }
