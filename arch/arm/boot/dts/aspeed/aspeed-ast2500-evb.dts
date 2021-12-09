@@ -25,6 +25,13 @@
 		#size-cells = <1>;
 		ranges;
 
+		video_engine_memory: video {
+			size = <0x02000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
 		gfx_memory: framebuffer {
 			size = <0x01000000>;
 			alignment = <0x01000000>;
@@ -136,6 +143,11 @@
 &gfx {
      status = "okay";
      memory-region = <&gfx_memory>;
+};
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
 };
 
 &rtc {
