@@ -23,6 +23,9 @@ Parameters
    * - ``event_eq_size``
      - driverinit
      - The range is between 64 and 4096.
+   * - ``max_macs``
+     - driverinit
+     - The range is between 1 and 2^31. Only power of 2 values are supported.
 
 The ``mlx5`` driver also implements the following driver-specific
 parameters.
