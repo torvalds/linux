@@ -119,25 +119,6 @@ static int rockchip_p3phy_rk3588_init(struct rockchip_p3phy_priv *priv)
 	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
 		     (0x1 << 8) | (0x1 << 24));
 
-	/* Select correct pcie30_phymode */
-	if (priv->pcie30_phymode > 4)
-		priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
-
-	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
-		     (0x7<<16) | priv->pcie30_phymode);
-
-	/* Set pcie1ln_sel in PHP_GRF_PCIESEL_CON */
-	if (IS_ERR(priv->pipe_grf)) {
-		pr_err("%s failed to find rockchip,pipe_grf regmap\n",
-		       __func__);
-		return PTR_ERR(priv->pipe_grf);
-	};
-
-	reg = priv->pcie30_phymode & 3;
-	if (reg)
-		regmap_write(priv->pipe_grf, PHP_GRF_PCIESEL_CON,
-			     (reg << 16) | reg);
-
 	reset_control_deassert(priv->p30phy);
 
 	ret = regmap_read_poll_timeout(priv->phy_grf,
@@ -204,7 +185,7 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct resource *res;
 	int ret;
-	u32 val;
+	u32 val, reg;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -239,6 +220,21 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		priv->pcie30_phymode = val;
 	else
 		priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
+
+	/* Select correct pcie30_phymode */
+	if (priv->pcie30_phymode > 4)
+		priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
+
+	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
+		     (0x7<<16) | priv->pcie30_phymode);
+
+	/* Set pcie1ln_sel in PHP_GRF_PCIESEL_CON */
+	if (!IS_ERR(priv->pipe_grf)) {
+		reg = priv->pcie30_phymode & 3;
+		if (reg)
+			regmap_write(priv->pipe_grf, PHP_GRF_PCIESEL_CON,
+				     (reg << 16) | reg);
+	};
 
 	priv->phy = devm_phy_create(dev, NULL, &rochchip_p3phy_ops);
 	if (IS_ERR(priv->phy)) {
