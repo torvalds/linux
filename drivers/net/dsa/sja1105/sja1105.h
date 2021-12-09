@@ -261,6 +261,9 @@ struct sja1105_private {
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
+	/* PTP two-step TX timestamp ID, and its serialization lock */
+	spinlock_t ts_id_lock;
+	u8 ts_id;
 	/* Serializes access to the dynamic config interface */
 	struct mutex dynamic_config_lock;
 	struct devlink_region **regions;

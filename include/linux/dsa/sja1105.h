@@ -51,7 +51,6 @@ struct sja1105_tagger_data {
 	 */
 	spinlock_t meta_lock;
 	unsigned long state;
-	u8 ts_id;
 	/* Used on SJA1110 where meta frames are generated only for
 	 * 2-step TX timestamps
 	 */

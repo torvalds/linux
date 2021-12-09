@@ -468,15 +468,15 @@ void sja1110_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 
 	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
-	spin_lock(&tagger_data->meta_lock);
+	spin_lock(&priv->ts_id_lock);
 
-	ts_id = tagger_data->ts_id;
+	ts_id = priv->ts_id;
 	/* Deal automatically with 8-bit wraparound */
-	tagger_data->ts_id++;
+	priv->ts_id++;
 
 	SJA1105_SKB_CB(clone)->ts_id = ts_id;
 
-	spin_unlock(&tagger_data->meta_lock);
+	spin_unlock(&priv->ts_id_lock);
 
 	skb_queue_tail(&tagger_data->skb_txtstamp_queue, clone);
 }
