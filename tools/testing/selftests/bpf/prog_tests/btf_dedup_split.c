@@ -340,7 +340,7 @@ static void btf_add_dup_struct_in_cu(struct btf *btf, int start_id)
 
 static void test_split_dup_struct_in_cu()
 {
-	struct btf *btf1, *btf2;
+	struct btf *btf1, *btf2 = NULL;
 	int err;
 
 	/* generate the base data.. */
