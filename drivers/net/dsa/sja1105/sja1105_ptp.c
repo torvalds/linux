@@ -58,11 +58,10 @@ enum sja1105_ptp_clk_mode {
 #define ptp_data_to_sja1105(d) \
 		container_of((d), struct sja1105_private, ptp_data)
 
-/* Must be called only with the tagger_data->state bit
- * SJA1105_HWTS_RX_EN cleared
+/* Must be called only while the RX timestamping state of the tagger
+ * is turned off
  */
 static int sja1105_change_rxtstamping(struct sja1105_private *priv,
-				      struct sja1105_tagger_data *tagger_data,
 				      bool on)
 {
 	struct sja1105_ptp_data *ptp_data = &priv->ptp_data;
@@ -74,11 +73,6 @@ static int sja1105_change_rxtstamping(struct sja1105_private *priv,
 	general_params->send_meta1 = on;
 	general_params->send_meta0 = on;
 
-	/* Initialize the meta state machine to a known state */
-	if (tagger_data->stampable_skb) {
-		kfree_skb(tagger_data->stampable_skb);
-		tagger_data->stampable_skb = NULL;
-	}
 	ptp_cancel_worker_sync(ptp_data->clock);
 	skb_queue_purge(&ptp_data->skb_txtstamp_queue);
 	skb_queue_purge(&ptp_data->skb_rxtstamp_queue);
@@ -117,17 +111,17 @@ int sja1105_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
 		break;
 	}
 
-	if (rx_on != test_bit(SJA1105_HWTS_RX_EN, &tagger_data->state)) {
-		clear_bit(SJA1105_HWTS_RX_EN, &tagger_data->state);
+	if (rx_on != tagger_data->rxtstamp_get_state(ds)) {
+		tagger_data->rxtstamp_set_state(ds, false);
 
-		rc = sja1105_change_rxtstamping(priv, tagger_data, rx_on);
+		rc = sja1105_change_rxtstamping(priv, rx_on);
 		if (rc < 0) {
 			dev_err(ds->dev,
 				"Failed to change RX timestamping: %d\n", rc);
 			return rc;
 		}
 		if (rx_on)
-			set_bit(SJA1105_HWTS_RX_EN, &tagger_data->state);
+			tagger_data->rxtstamp_set_state(ds, true);
 	}
 
 	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
@@ -146,7 +140,7 @@ int sja1105_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr)
 		config.tx_type = HWTSTAMP_TX_ON;
 	else
 		config.tx_type = HWTSTAMP_TX_OFF;
-	if (test_bit(SJA1105_HWTS_RX_EN, &tagger_data->state))
+	if (tagger_data->rxtstamp_get_state(ds))
 		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
 	else
 		config.rx_filter = HWTSTAMP_FILTER_NONE;
@@ -423,7 +417,7 @@ bool sja1105_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_ptp_data *ptp_data = &priv->ptp_data;
 
-	if (!test_bit(SJA1105_HWTS_RX_EN, &tagger_data->state))
+	if (!tagger_data->rxtstamp_get_state(ds))
 		return false;
 
 	/* We need to read the full PTP clock to reconstruct the Rx

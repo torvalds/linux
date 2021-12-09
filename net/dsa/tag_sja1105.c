@@ -53,6 +53,25 @@
 #define SJA1110_TX_TRAILER_LEN			4
 #define SJA1110_MAX_PADDING_LEN			15
 
+#define SJA1105_HWTS_RX_EN			0
+
+struct sja1105_tagger_private {
+	struct sja1105_tagger_data data; /* Must be first */
+	unsigned long state;
+	/* Protects concurrent access to the meta state machine
+	 * from taggers running on multiple ports on SMP systems
+	 */
+	spinlock_t meta_lock;
+	struct sk_buff *stampable_skb;
+	struct kthread_worker *xmit_worker;
+};
+
+static struct sja1105_tagger_private *
+sja1105_tagger_private(struct dsa_switch *ds)
+{
+	return ds->tagger_data;
+}
+
 /* Similar to is_link_local_ether_addr(hdr->h_dest) but also covers PTP */
 static inline bool sja1105_is_link_local(const struct sk_buff *skb)
 {
@@ -120,12 +139,13 @@ static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 					  struct sk_buff *skb)
 {
 	struct sja1105_tagger_data *tagger_data = sja1105_tagger_data(dp->ds);
+	struct sja1105_tagger_private *priv = sja1105_tagger_private(dp->ds);
 	void (*xmit_work_fn)(struct kthread_work *work);
 	struct sja1105_deferred_xmit_work *xmit_work;
 	struct kthread_worker *xmit_worker;
 
 	xmit_work_fn = tagger_data->xmit_work_fn;
-	xmit_worker = tagger_data->xmit_worker;
+	xmit_worker = priv->xmit_worker;
 
 	if (!xmit_work_fn || !xmit_worker)
 		return NULL;
@@ -362,32 +382,32 @@ static struct sk_buff
 	 */
 	if (is_link_local) {
 		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-		struct sja1105_tagger_data *tagger_data;
+		struct sja1105_tagger_private *priv;
 		struct dsa_switch *ds = dp->ds;
 
-		tagger_data = sja1105_tagger_data(ds);
+		priv = sja1105_tagger_private(ds);
 
-		if (!test_bit(SJA1105_HWTS_RX_EN, &tagger_data->state))
+		if (!test_bit(SJA1105_HWTS_RX_EN, &priv->state))
 			/* Do normal processing. */
 			return skb;
 
-		spin_lock(&tagger_data->meta_lock);
+		spin_lock(&priv->meta_lock);
 		/* Was this a link-local frame instead of the meta
 		 * that we were expecting?
 		 */
-		if (tagger_data->stampable_skb) {
+		if (priv->stampable_skb) {
 			dev_err_ratelimited(ds->dev,
 					    "Expected meta frame, is %12llx "
 					    "in the DSA master multicast filter?\n",
 					    SJA1105_META_DMAC);
-			kfree_skb(tagger_data->stampable_skb);
+			kfree_skb(priv->stampable_skb);
 		}
 
 		/* Hold a reference to avoid dsa_switch_rcv
 		 * from freeing the skb.
 		 */
-		tagger_data->stampable_skb = skb_get(skb);
-		spin_unlock(&tagger_data->meta_lock);
+		priv->stampable_skb = skb_get(skb);
+		spin_unlock(&priv->meta_lock);
 
 		/* Tell DSA we got nothing */
 		return NULL;
@@ -400,22 +420,22 @@ static struct sk_buff
 	 */
 	} else if (is_meta) {
 		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-		struct sja1105_tagger_data *tagger_data;
+		struct sja1105_tagger_private *priv;
 		struct dsa_switch *ds = dp->ds;
 		struct sk_buff *stampable_skb;
 
-		tagger_data = sja1105_tagger_data(ds);
+		priv = sja1105_tagger_private(ds);
 
 		/* Drop the meta frame if we're not in the right state
 		 * to process it.
 		 */
-		if (!test_bit(SJA1105_HWTS_RX_EN, &tagger_data->state))
+		if (!test_bit(SJA1105_HWTS_RX_EN, &priv->state))
 			return NULL;
 
-		spin_lock(&tagger_data->meta_lock);
+		spin_lock(&priv->meta_lock);
 
-		stampable_skb = tagger_data->stampable_skb;
-		tagger_data->stampable_skb = NULL;
+		stampable_skb = priv->stampable_skb;
+		priv->stampable_skb = NULL;
 
 		/* Was this a meta frame instead of the link-local
 		 * that we were expecting?
@@ -423,14 +443,14 @@ static struct sk_buff
 		if (!stampable_skb) {
 			dev_err_ratelimited(ds->dev,
 					    "Unexpected meta frame\n");
-			spin_unlock(&tagger_data->meta_lock);
+			spin_unlock(&priv->meta_lock);
 			return NULL;
 		}
 
 		if (stampable_skb->dev != skb->dev) {
 			dev_err_ratelimited(ds->dev,
 					    "Meta frame on wrong port\n");
-			spin_unlock(&tagger_data->meta_lock);
+			spin_unlock(&priv->meta_lock);
 			return NULL;
 		}
 
@@ -441,10 +461,34 @@ static struct sk_buff
 		skb = stampable_skb;
 		sja1105_transfer_meta(skb, meta);
 
-		spin_unlock(&tagger_data->meta_lock);
+		spin_unlock(&priv->meta_lock);
 	}
 
 	return skb;
+}
+
+static bool sja1105_rxtstamp_get_state(struct dsa_switch *ds)
+{
+	struct sja1105_tagger_private *priv = sja1105_tagger_private(ds);
+
+	return test_bit(SJA1105_HWTS_RX_EN, &priv->state);
+}
+
+static void sja1105_rxtstamp_set_state(struct dsa_switch *ds, bool on)
+{
+	struct sja1105_tagger_private *priv = sja1105_tagger_private(ds);
+
+	if (on)
+		set_bit(SJA1105_HWTS_RX_EN, &priv->state);
+	else
+		clear_bit(SJA1105_HWTS_RX_EN, &priv->state);
+
+	/* Initialize the meta state machine to a known state */
+	if (!priv->stampable_skb)
+		return;
+
+	kfree_skb(priv->stampable_skb);
+	priv->stampable_skb = NULL;
 }
 
 static bool sja1105_skb_has_tag_8021q(const struct sk_buff *skb)
@@ -699,26 +743,27 @@ static void sja1110_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 
 static void sja1105_disconnect(struct dsa_switch_tree *dst)
 {
-	struct sja1105_tagger_data *tagger_data;
+	struct sja1105_tagger_private *priv;
 	struct dsa_port *dp;
 
 	list_for_each_entry(dp, &dst->ports, list) {
-		tagger_data = dp->ds->tagger_data;
+		priv = dp->ds->tagger_data;
 
-		if (!tagger_data)
+		if (!priv)
 			continue;
 
-		if (tagger_data->xmit_worker)
-			kthread_destroy_worker(tagger_data->xmit_worker);
+		if (priv->xmit_worker)
+			kthread_destroy_worker(priv->xmit_worker);
 
-		kfree(tagger_data);
-		dp->ds->tagger_data = NULL;
+		kfree(priv);
+		dp->ds->priv = NULL;
 	}
 }
 
 static int sja1105_connect(struct dsa_switch_tree *dst)
 {
 	struct sja1105_tagger_data *tagger_data;
+	struct sja1105_tagger_private *priv;
 	struct kthread_worker *xmit_worker;
 	struct dsa_port *dp;
 	int err;
@@ -727,13 +772,13 @@ static int sja1105_connect(struct dsa_switch_tree *dst)
 		if (dp->ds->tagger_data)
 			continue;
 
-		tagger_data = kzalloc(sizeof(*tagger_data), GFP_KERNEL);
-		if (!tagger_data) {
+		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+		if (!priv) {
 			err = -ENOMEM;
 			goto out;
 		}
 
-		spin_lock_init(&tagger_data->meta_lock);
+		spin_lock_init(&priv->meta_lock);
 
 		xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",
 						    dst->index, dp->ds->index);
@@ -742,8 +787,12 @@ static int sja1105_connect(struct dsa_switch_tree *dst)
 			goto out;
 		}
 
-		tagger_data->xmit_worker = xmit_worker;
-		dp->ds->tagger_data = tagger_data;
+		priv->xmit_worker = xmit_worker;
+		/* Export functions for switch driver use */
+		tagger_data = &priv->data;
+		tagger_data->rxtstamp_get_state = sja1105_rxtstamp_get_state;
+		tagger_data->rxtstamp_set_state = sja1105_rxtstamp_set_state;
+		dp->ds->tagger_data = priv;
 	}
 
 	return 0;

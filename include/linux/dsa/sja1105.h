@@ -35,8 +35,6 @@
 #define SJA1105_META_SMAC			0x222222222222ull
 #define SJA1105_META_DMAC			0x0180C200000Eull
 
-#define SJA1105_HWTS_RX_EN			0
-
 enum sja1110_meta_tstamp {
 	SJA1110_META_TSTAMP_TX = 0,
 	SJA1110_META_TSTAMP_RX = 1,
@@ -50,16 +48,13 @@ struct sja1105_deferred_xmit_work {
 
 /* Global tagger data */
 struct sja1105_tagger_data {
-	struct sk_buff *stampable_skb;
-	/* Protects concurrent access to the meta state machine
-	 * from taggers running on multiple ports on SMP systems
-	 */
-	spinlock_t meta_lock;
-	unsigned long state;
-	struct kthread_worker *xmit_worker;
+	/* Tagger to switch */
 	void (*xmit_work_fn)(struct kthread_work *work);
 	void (*meta_tstamp_handler)(struct dsa_switch *ds, int port, u8 ts_id,
 				    enum sja1110_meta_tstamp dir, u64 tstamp);
+	/* Switch to tagger */
+	bool (*rxtstamp_get_state)(struct dsa_switch *ds);
+	void (*rxtstamp_set_state)(struct dsa_switch *ds, bool on);
 };
 
 struct sja1105_skb_cb {
