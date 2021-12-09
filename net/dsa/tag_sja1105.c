@@ -4,7 +4,6 @@
 #include <linux/if_vlan.h>
 #include <linux/dsa/sja1105.h>
 #include <linux/dsa/8021q.h>
-#include <linux/skbuff.h>
 #include <linux/packing.h>
 #include "dsa_priv.h"
 
@@ -53,11 +52,6 @@
 #define SJA1110_RX_TRAILER_LEN			13
 #define SJA1110_TX_TRAILER_LEN			4
 #define SJA1110_MAX_PADDING_LEN			15
-
-enum sja1110_meta_tstamp {
-	SJA1110_META_TSTAMP_TX = 0,
-	SJA1110_META_TSTAMP_RX = 1,
-};
 
 /* Similar to is_link_local_ether_addr(hdr->h_dest) but also covers PTP */
 static inline bool sja1105_is_link_local(const struct sk_buff *skb)
@@ -539,44 +533,12 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 					      is_meta);
 }
 
-static void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port,
-					u8 ts_id, enum sja1110_meta_tstamp dir,
-					u64 tstamp)
-{
-	struct sja1105_tagger_data *tagger_data = sja1105_tagger_data(ds);
-	struct sk_buff *skb, *skb_tmp, *skb_match = NULL;
-	struct skb_shared_hwtstamps shwt = {0};
-
-	/* We don't care about RX timestamps on the CPU port */
-	if (dir == SJA1110_META_TSTAMP_RX)
-		return;
-
-	spin_lock(&tagger_data->skb_txtstamp_queue.lock);
-
-	skb_queue_walk_safe(&tagger_data->skb_txtstamp_queue, skb, skb_tmp) {
-		if (SJA1105_SKB_CB(skb)->ts_id != ts_id)
-			continue;
-
-		__skb_unlink(skb, &tagger_data->skb_txtstamp_queue);
-		skb_match = skb;
-
-		break;
-	}
-
-	spin_unlock(&tagger_data->skb_txtstamp_queue.lock);
-
-	if (WARN_ON(!skb_match))
-		return;
-
-	shwt.hwtstamp = ns_to_ktime(sja1105_ticks_to_ns(tstamp));
-	skb_complete_tx_timestamp(skb_match, &shwt);
-}
-
 static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 {
 	u8 *buf = dsa_etype_header_pos_rx(skb) + SJA1110_HEADER_LEN;
 	int switch_id = SJA1110_RX_HEADER_SWITCH_ID(rx_header);
 	int n_ts = SJA1110_RX_HEADER_N_TS(rx_header);
+	struct sja1105_tagger_data *tagger_data;
 	struct net_device *master = skb->dev;
 	struct dsa_port *cpu_dp;
 	struct dsa_switch *ds;
@@ -590,6 +552,10 @@ static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 		return NULL;
 	}
 
+	tagger_data = sja1105_tagger_data(ds);
+	if (!tagger_data->meta_tstamp_handler)
+		return NULL;
+
 	for (i = 0; i <= n_ts; i++) {
 		u8 ts_id, source_port, dir;
 		u64 tstamp;
@@ -599,8 +565,8 @@ static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 		dir = (buf[1] & BIT(3)) >> 3;
 		tstamp = be64_to_cpu(*(__be64 *)(buf + 2));
 
-		sja1110_process_meta_tstamp(ds, source_port, ts_id, dir,
-					    tstamp);
+		tagger_data->meta_tstamp_handler(ds, source_port, ts_id, dir,
+						 tstamp);
 
 		buf += SJA1110_META_TSTAMP_SIZE;
 	}
@@ -767,8 +733,6 @@ static int sja1105_connect(struct dsa_switch_tree *dst)
 			goto out;
 		}
 
-		/* Only used on SJA1110 */
-		skb_queue_head_init(&tagger_data->skb_txtstamp_queue);
 		spin_lock_init(&tagger_data->meta_lock);
 
 		xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",

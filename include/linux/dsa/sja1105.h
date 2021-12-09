@@ -37,6 +37,11 @@
 
 #define SJA1105_HWTS_RX_EN			0
 
+enum sja1110_meta_tstamp {
+	SJA1110_META_TSTAMP_TX = 0,
+	SJA1110_META_TSTAMP_RX = 1,
+};
+
 struct sja1105_deferred_xmit_work {
 	struct dsa_port *dp;
 	struct sk_buff *skb;
@@ -51,12 +56,10 @@ struct sja1105_tagger_data {
 	 */
 	spinlock_t meta_lock;
 	unsigned long state;
-	/* Used on SJA1110 where meta frames are generated only for
-	 * 2-step TX timestamps
-	 */
-	struct sk_buff_head skb_txtstamp_queue;
 	struct kthread_worker *xmit_worker;
 	void (*xmit_work_fn)(struct kthread_work *work);
+	void (*meta_tstamp_handler)(struct dsa_switch *ds, int port, u8 ts_id,
+				    enum sja1110_meta_tstamp dir, u64 tstamp);
 };
 
 struct sja1105_skb_cb {
@@ -68,21 +71,6 @@ struct sja1105_skb_cb {
 
 #define SJA1105_SKB_CB(skb) \
 	((struct sja1105_skb_cb *)((skb)->cb))
-
-/* Timestamps are in units of 8 ns clock ticks (equivalent to
- * a fixed 125 MHz clock).
- */
-#define SJA1105_TICK_NS			8
-
-static inline s64 ns_to_sja1105_ticks(s64 ns)
-{
-	return ns / SJA1105_TICK_NS;
-}
-
-static inline s64 sja1105_ticks_to_ns(s64 ticks)
-{
-	return ticks * SJA1105_TICK_NS;
-}
 
 static inline struct sja1105_tagger_data *
 sja1105_tagger_data(struct dsa_switch *ds)

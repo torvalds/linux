@@ -2714,6 +2714,7 @@ static int sja1105_connect_tag_protocol(struct dsa_switch *ds,
 	case DSA_TAG_PROTO_SJA1105:
 		tagger_data = sja1105_tagger_data(ds);
 		tagger_data->xmit_work_fn = sja1105_port_deferred_xmit;
+		tagger_data->meta_tstamp_handler = sja1110_process_meta_tstamp;
 		return 0;
 	default:
 		return -EPROTONOSUPPORT;
