@@ -125,13 +125,13 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 					  struct sk_buff *skb)
 {
+	struct sja1105_tagger_data *tagger_data = dp->priv;
 	void (*xmit_work_fn)(struct kthread_work *work);
 	struct sja1105_deferred_xmit_work *xmit_work;
-	struct sja1105_port *sp = dp->priv;
 	struct kthread_worker *xmit_worker;
 
-	xmit_work_fn = sp->data->xmit_work_fn;
-	xmit_worker = sp->data->xmit_worker;
+	xmit_work_fn = tagger_data->xmit_work_fn;
+	xmit_worker = tagger_data->xmit_worker;
 
 	if (!xmit_work_fn || !xmit_worker)
 		return NULL;
@@ -368,32 +368,32 @@ static struct sk_buff
 	 */
 	if (is_link_local) {
 		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-		struct sja1105_port *sp = dp->priv;
+		struct sja1105_tagger_data *tagger_data = dp->priv;
 
 		if (unlikely(!dsa_port_is_sja1105(dp)))
 			return skb;
 
-		if (!test_bit(SJA1105_HWTS_RX_EN, &sp->data->state))
+		if (!test_bit(SJA1105_HWTS_RX_EN, &tagger_data->state))
 			/* Do normal processing. */
 			return skb;
 
-		spin_lock(&sp->data->meta_lock);
+		spin_lock(&tagger_data->meta_lock);
 		/* Was this a link-local frame instead of the meta
 		 * that we were expecting?
 		 */
-		if (sp->data->stampable_skb) {
+		if (tagger_data->stampable_skb) {
 			dev_err_ratelimited(dp->ds->dev,
 					    "Expected meta frame, is %12llx "
 					    "in the DSA master multicast filter?\n",
 					    SJA1105_META_DMAC);
-			kfree_skb(sp->data->stampable_skb);
+			kfree_skb(tagger_data->stampable_skb);
 		}
 
 		/* Hold a reference to avoid dsa_switch_rcv
 		 * from freeing the skb.
 		 */
-		sp->data->stampable_skb = skb_get(skb);
-		spin_unlock(&sp->data->meta_lock);
+		tagger_data->stampable_skb = skb_get(skb);
+		spin_unlock(&tagger_data->meta_lock);
 
 		/* Tell DSA we got nothing */
 		return NULL;
@@ -406,7 +406,7 @@ static struct sk_buff
 	 */
 	} else if (is_meta) {
 		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-		struct sja1105_port *sp = dp->priv;
+		struct sja1105_tagger_data *tagger_data = dp->priv;
 		struct sk_buff *stampable_skb;
 
 		if (unlikely(!dsa_port_is_sja1105(dp)))
@@ -415,13 +415,13 @@ static struct sk_buff
 		/* Drop the meta frame if we're not in the right state
 		 * to process it.
 		 */
-		if (!test_bit(SJA1105_HWTS_RX_EN, &sp->data->state))
+		if (!test_bit(SJA1105_HWTS_RX_EN, &tagger_data->state))
 			return NULL;
 
-		spin_lock(&sp->data->meta_lock);
+		spin_lock(&tagger_data->meta_lock);
 
-		stampable_skb = sp->data->stampable_skb;
-		sp->data->stampable_skb = NULL;
+		stampable_skb = tagger_data->stampable_skb;
+		tagger_data->stampable_skb = NULL;
 
 		/* Was this a meta frame instead of the link-local
 		 * that we were expecting?
@@ -429,14 +429,14 @@ static struct sk_buff
 		if (!stampable_skb) {
 			dev_err_ratelimited(dp->ds->dev,
 					    "Unexpected meta frame\n");
-			spin_unlock(&sp->data->meta_lock);
+			spin_unlock(&tagger_data->meta_lock);
 			return NULL;
 		}
 
 		if (stampable_skb->dev != skb->dev) {
 			dev_err_ratelimited(dp->ds->dev,
 					    "Meta frame on wrong port\n");
-			spin_unlock(&sp->data->meta_lock);
+			spin_unlock(&tagger_data->meta_lock);
 			return NULL;
 		}
 
@@ -447,7 +447,7 @@ static struct sk_buff
 		skb = stampable_skb;
 		sja1105_transfer_meta(skb, meta);
 
-		spin_unlock(&sp->data->meta_lock);
+		spin_unlock(&tagger_data->meta_lock);
 	}
 
 	return skb;
@@ -545,8 +545,8 @@ static void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port,
 {
 	struct sk_buff *skb, *skb_tmp, *skb_match = NULL;
 	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct sja1105_tagger_data *tagger_data;
 	struct skb_shared_hwtstamps shwt = {0};
-	struct sja1105_port *sp = dp->priv;
 
 	if (!dsa_port_is_sja1105(dp))
 		return;
@@ -555,19 +555,21 @@ static void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port,
 	if (dir == SJA1110_META_TSTAMP_RX)
 		return;
 
-	spin_lock(&sp->data->skb_txtstamp_queue.lock);
+	tagger_data = dp->priv;
 
-	skb_queue_walk_safe(&sp->data->skb_txtstamp_queue, skb, skb_tmp) {
+	spin_lock(&tagger_data->skb_txtstamp_queue.lock);
+
+	skb_queue_walk_safe(&tagger_data->skb_txtstamp_queue, skb, skb_tmp) {
 		if (SJA1105_SKB_CB(skb)->ts_id != ts_id)
 			continue;
 
-		__skb_unlink(skb, &sp->data->skb_txtstamp_queue);
+		__skb_unlink(skb, &tagger_data->skb_txtstamp_queue);
 		skb_match = skb;
 
 		break;
 	}
 
-	spin_unlock(&sp->data->skb_txtstamp_queue.lock);
+	spin_unlock(&tagger_data->skb_txtstamp_queue.lock);
 
 	if (WARN_ON(!skb_match))
 		return;

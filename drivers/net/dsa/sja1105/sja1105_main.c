@@ -3017,7 +3017,7 @@ static int sja1105_setup_ports(struct sja1105_private *priv)
 	struct sja1105_tagger_data *tagger_data = &priv->tagger_data;
 	struct dsa_switch *ds = priv->ds;
 	struct kthread_worker *worker;
-	int port;
+	struct dsa_port *dp;
 
 	worker = kthread_create_worker(0, "dsa%d:%d_xmit", ds->dst->index,
 				       ds->index);
@@ -3031,17 +3031,8 @@ static int sja1105_setup_ports(struct sja1105_private *priv)
 	tagger_data->xmit_worker = worker;
 	tagger_data->xmit_work_fn = sja1105_port_deferred_xmit;
 
-	/* Connections between dsa_port and sja1105_port */
-	for (port = 0; port < ds->num_ports; port++) {
-		struct sja1105_port *sp = &priv->ports[port];
-		struct dsa_port *dp = dsa_to_port(ds, port);
-
-		if (!dsa_port_is_user(dp))
-			continue;
-
-		dp->priv = sp;
-		sp->data = tagger_data;
-	}
+	dsa_switch_for_each_user_port(dp, ds)
+		dp->priv = tagger_data;
 
 	return 0;
 }

@@ -461,22 +461,24 @@ void sja1110_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb)
 {
 	struct sk_buff *clone = SJA1105_SKB_CB(skb)->clone;
 	struct sja1105_private *priv = ds->priv;
-	struct sja1105_port *sp = &priv->ports[port];
+	struct sja1105_tagger_data *tagger_data;
 	u8 ts_id;
+
+	tagger_data = &priv->tagger_data;
 
 	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
-	spin_lock(&sp->data->meta_lock);
+	spin_lock(&tagger_data->meta_lock);
 
-	ts_id = sp->data->ts_id;
+	ts_id = tagger_data->ts_id;
 	/* Deal automatically with 8-bit wraparound */
-	sp->data->ts_id++;
+	tagger_data->ts_id++;
 
 	SJA1105_SKB_CB(clone)->ts_id = ts_id;
 
-	spin_unlock(&sp->data->meta_lock);
+	spin_unlock(&tagger_data->meta_lock);
 
-	skb_queue_tail(&sp->data->skb_txtstamp_queue, clone);
+	skb_queue_tail(&tagger_data->skb_txtstamp_queue, clone);
 }
 
 /* Called from dsa_skb_tx_timestamp. This callback is just to clone

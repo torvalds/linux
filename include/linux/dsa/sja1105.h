@@ -43,9 +43,7 @@ struct sja1105_deferred_xmit_work {
 	struct kthread_work work;
 };
 
-/* Global tagger data: each struct sja1105_port has a reference to
- * the structure defined in struct sja1105_private.
- */
+/* Global tagger data */
 struct sja1105_tagger_data {
 	struct sk_buff *stampable_skb;
 	/* Protects concurrent access to the meta state machine
@@ -71,10 +69,6 @@ struct sja1105_skb_cb {
 
 #define SJA1105_SKB_CB(skb) \
 	((struct sja1105_skb_cb *)((skb)->cb))
-
-struct sja1105_port {
-	struct sja1105_tagger_data *data;
-};
 
 /* Timestamps are in units of 8 ns clock ticks (equivalent to
  * a fixed 125 MHz clock).
