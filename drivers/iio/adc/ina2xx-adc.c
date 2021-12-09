@@ -550,7 +550,7 @@ static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
 	bool val;
 	int ret;
 
-	ret = strtobool((const char *) buf, &val);
+	ret = strtobool(buf, &val);
 	if (ret)
 		return ret;
 
