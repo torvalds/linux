@@ -264,6 +264,7 @@ static struct rpmhpd sm8450_cx = {
 static struct rpmhpd sm8450_cx_ao = {
 	.pd = { .name = "cx_ao", },
 	.active_only = true,
+	.peer = &sm8450_cx,
 	.res_name = "cx.lvl",
 };
 
