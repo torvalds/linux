@@ -134,7 +134,6 @@ static int ipc_imem_setup_cp_mux_cap_init(struct iosm_imem *ipc_imem,
 	 * for channel alloc function.
 	 */
 	cfg->instance_id = IPC_MEM_MUX_IP_CH_IF_ID;
-	cfg->nr_sessions = IPC_MEM_MUX_IP_SESSION_ENTRIES;
 
 	return 0;
 }
