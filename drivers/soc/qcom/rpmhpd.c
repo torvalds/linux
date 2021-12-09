@@ -325,8 +325,8 @@ static const struct rpmhpd_desc sc7180_desc = {
 
 /* SC7280 RPMH powerdomains */
 static struct rpmhpd *sc7280_rpmhpds[] = {
-	[SC7280_CX] = &cx_w_mx_parent,
-	[SC7280_CX_AO] = &cx_ao_w_mx_parent,
+	[SC7280_CX] = &cx,
+	[SC7280_CX_AO] = &cx_ao,
 	[SC7280_EBI] = &ebi,
 	[SC7280_GFX] = &gfx,
 	[SC7280_MX] = &mx,
