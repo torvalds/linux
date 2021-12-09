@@ -125,7 +125,7 @@ Applications call the ``VIDIOC_DQBUF`` ioctl to dequeue a filled
 queue. They just set the ``type``, ``memory`` and ``reserved`` fields of
 a struct :c:type:`v4l2_buffer` as above, when
 ``VIDIOC_DQBUF`` is called with a pointer to this structure the driver
-fills the remaining fields or returns an error code. The driver may also
+fills all remaining fields or returns an error code. The driver may also
 set ``V4L2_BUF_FLAG_ERROR`` in the ``flags`` field. It indicates a
 non-critical (recoverable) streaming error. In such case the application
 may continue as normal, but should be aware that data in the dequeued
