@@ -148,7 +148,6 @@ struct omap_nand_info {
 	int				gpmc_cs;
 	bool				dev_ready;
 	enum nand_io			xfer_type;
-	int				devsize;
 	enum omap_ecc			ecc_opt;
 	struct device_node		*elm_of_node;
 
@@ -2245,9 +2244,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 
 	if (info->flash_bbt)
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
-
-	/* scan NAND device connected to chip controller */
-	nand_chip->options |= info->devsize & NAND_BUSWIDTH_16;
 
 	/* default operations */
 	info->data_in = omap_nand_data_in;
