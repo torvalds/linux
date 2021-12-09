@@ -368,7 +368,10 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 		(KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 1)
 			&& kfd->mec2_fw_version >= 0x30)   ||
 		(KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2)
-			&& kfd->mec2_fw_version >= 0x28))))
+			&& kfd->mec2_fw_version >= 0x28)   ||
+		(KFD_GC_VERSION(kfd) >= IP_VERSION(10, 3, 0)
+			&& KFD_GC_VERSION(kfd) <= IP_VERSION(10, 3, 5)
+			&& kfd->mec2_fw_version >= 0x42))))
 		ret = amdgpu_amdkfd_alloc_gws(kfd->adev,
 				kfd->adev->gds.gws_size, &kfd->gws);
 
