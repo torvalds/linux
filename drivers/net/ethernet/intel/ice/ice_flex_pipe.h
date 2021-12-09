@@ -33,7 +33,8 @@ enum ice_status
 ice_get_sw_fv_list(struct ice_hw *hw, u8 *prot_ids, u16 ids_cnt,
 		   unsigned long *bm, struct list_head *fv_list);
 bool
-ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port);
+ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port,
+			 enum ice_tunnel_type type);
 int ice_udp_tunnel_set_port(struct net_device *netdev, unsigned int table,
 			    unsigned int idx, struct udp_tunnel_info *ti);
 int ice_udp_tunnel_unset_port(struct net_device *netdev, unsigned int table,
