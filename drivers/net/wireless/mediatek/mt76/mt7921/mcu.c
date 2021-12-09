@@ -187,12 +187,12 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		ret = le32_to_cpu(*(__le32 *)skb->data);
 	} else if (cmd == MCU_EXT_CMD(EFUSE_ACCESS)) {
 		ret = mt7921_mcu_parse_eeprom(mdev, skb);
-	} else if (cmd == MCU_UNI_CMD_DEV_INFO_UPDATE ||
-		   cmd == MCU_UNI_CMD_BSS_INFO_UPDATE ||
-		   cmd == MCU_UNI_CMD_STA_REC_UPDATE ||
-		   cmd == MCU_UNI_CMD_HIF_CTRL ||
-		   cmd == MCU_UNI_CMD_OFFLOAD ||
-		   cmd == MCU_UNI_CMD_SUSPEND) {
+	} else if (cmd == MCU_UNI_CMD(DEV_INFO_UPDATE) ||
+		   cmd == MCU_UNI_CMD(BSS_INFO_UPDATE) ||
+		   cmd == MCU_UNI_CMD(STA_REC_UPDATE) ||
+		   cmd == MCU_UNI_CMD(HIF_CTRL) ||
+		   cmd == MCU_UNI_CMD(OFFLOAD) ||
+		   cmd == MCU_UNI_CMD(SUSPEND)) {
 		struct mt7921_mcu_uni_event *event;
 
 		skb_pull(skb, sizeof(*rxd));
@@ -226,16 +226,12 @@ int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	u32 val;
 	u8 seq;
 
-	switch (cmd) {
-	case MCU_UNI_CMD_HIF_CTRL:
-	case MCU_UNI_CMD_SUSPEND:
-	case MCU_UNI_CMD_OFFLOAD:
+	if (cmd == MCU_UNI_CMD(HIF_CTRL) ||
+	    cmd == MCU_UNI_CMD(SUSPEND) ||
+	    cmd == MCU_UNI_CMD(OFFLOAD))
 		mdev->mcu.timeout = HZ / 3;
-		break;
-	default:
+	else
 		mdev->mcu.timeout = 3 * HZ;
-		break;
-	}
 
 	seq = ++dev->mt76.mcu.msg_seq & 0xf;
 	if (!seq)
@@ -244,7 +240,7 @@ int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (cmd == MCU_CMD_FW_SCATTER)
 		goto exit;
 
-	txd_len = cmd & MCU_UNI_PREFIX ? sizeof(*uni_txd) : sizeof(*mcu_txd);
+	txd_len = cmd & __MCU_CMD_FIELD_UNI ? sizeof(*uni_txd) : sizeof(*mcu_txd);
 	txd = (__le32 *)skb_push(skb, txd_len);
 
 	val = FIELD_PREP(MT_TXD0_TX_BYTES, skb->len) |
@@ -256,7 +252,7 @@ int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	      FIELD_PREP(MT_TXD1_HDR_FORMAT, MT_HDR_FORMAT_CMD);
 	txd[1] = cpu_to_le32(val);
 
-	if (cmd & MCU_UNI_PREFIX) {
+	if (cmd & __MCU_CMD_FIELD_UNI) {
 		uni_txd = (struct mt7921_uni_txd *)txd;
 		uni_txd->len = cpu_to_le16(skb->len - sizeof(uni_txd->txd));
 		uni_txd->option = MCU_CMD_UNI_EXT_ACK;
@@ -558,7 +554,7 @@ int mt7921_mcu_add_key(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 		return ret;
 
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
-				     MCU_UNI_CMD_STA_REC_UPDATE, true);
+				     MCU_UNI_CMD(STA_REC_UPDATE), true);
 }
 
 int mt7921_mcu_uni_tx_ba(struct mt7921_dev *dev,
@@ -1157,7 +1153,7 @@ int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
+	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(BSS_INFO_UPDATE),
 				 &ps_req, sizeof(ps_req), true);
 }
 
@@ -1193,7 +1189,7 @@ mt7921_mcu_uni_bss_bcnft(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return 0;
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD_BSS_INFO_UPDATE,
+	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(BSS_INFO_UPDATE),
 				 &bcnft_req, sizeof(bcnft_req), true);
 }
 
@@ -1248,7 +1244,7 @@ int mt7921_mcu_sta_update(struct mt7921_dev *dev, struct ieee80211_sta *sta,
 		.sta = sta,
 		.vif = vif,
 		.enable = enable,
-		.cmd = MCU_UNI_CMD_STA_REC_UPDATE,
+		.cmd = MCU_UNI_CMD(STA_REC_UPDATE),
 		.state = state,
 		.offload_fw = true,
 		.rcpi = to_rcpi(rssi),

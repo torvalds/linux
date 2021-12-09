@@ -1332,7 +1332,7 @@ static void mt7921_sta_set_decap_offload(struct ieee80211_hw *hw,
 		clear_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
 
 	mt76_connac_mcu_sta_update_hdr_trans(&dev->mt76, vif, &msta->wcid,
-					     MCU_UNI_CMD_STA_REC_UPDATE);
+					     MCU_UNI_CMD(STA_REC_UPDATE));
 }
 
 static int mt7921_set_sar_specs(struct ieee80211_hw *hw,
