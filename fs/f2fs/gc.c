@@ -92,6 +92,18 @@ static int gc_thread_func(void *data)
 		 * So, I'd like to wait some time to collect dirty segments.
 		 */
 		if (sbi->gc_mode == GC_URGENT_HIGH) {
+			spin_lock(&sbi->gc_urgent_high_lock);
+			if (sbi->gc_urgent_high_limited) {
+				if (!sbi->gc_urgent_high_remaining) {
+					sbi->gc_urgent_high_limited = false;
+					spin_unlock(&sbi->gc_urgent_high_lock);
+					sbi->gc_mode = GC_NORMAL;
+					continue;
+				}
+				sbi->gc_urgent_high_remaining--;
+			}
+			spin_unlock(&sbi->gc_urgent_high_lock);
+
 			wait_ms = gc_th->urgent_sleep_time;
 			down_write(&sbi->gc_lock);
 			goto do_gc;
