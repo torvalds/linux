@@ -291,12 +291,18 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 		struct io_context *ioc;
 
 		task_unlock(task);
-		ioc = create_task_io_context(task, GFP_ATOMIC, NUMA_NO_NODE);
-		if (ioc) {
-			ioc->ioprio = ioprio;
-			put_io_context(ioc);
+
+		ioc = alloc_io_context(GFP_ATOMIC, NUMA_NO_NODE);
+		if (!ioc)
+			return -ENOMEM;
+
+		task_lock(task);
+		if (task->io_context || (task->flags & PF_EXITING)) {
+			kmem_cache_free(iocontext_cachep, ioc);
+			ioc = task->io_context;
+		} else {
+			task->io_context = ioc;
 		}
-		return 0;
 	}
 	task->io_context->ioprio = ioprio;
 	task_unlock(task);
