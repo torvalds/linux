@@ -145,6 +145,7 @@ Hardware Monitoring Kernel Drivers
    mlxreg-fan
    mp2888
    mp2975
+   mp5023
    nct6683
    nct6775
    nct7802
