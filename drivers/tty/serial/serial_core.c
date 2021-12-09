@@ -1075,6 +1075,11 @@ uart_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 		goto out;
 
 	if (!tty_io_error(tty)) {
+		if (uport->rs485.flags & SER_RS485_ENABLED) {
+			set &= ~TIOCM_RTS;
+			clear &= ~TIOCM_RTS;
+		}
+
 		uart_update_mctrl(uport, set, clear);
 		ret = 0;
 	}
@@ -1549,6 +1554,7 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = uart_port_check(state);
+	char *buf;
 
 	/*
 	 * At this point, we stop accepting input.  To do this, we
@@ -1570,8 +1576,18 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 	 */
 	tty_port_set_suspended(port, 0);
 
-	uart_change_pm(state, UART_PM_STATE_OFF);
+	/*
+	 * Free the transmit buffer.
+	 */
+	spin_lock_irq(&uport->lock);
+	buf = state->xmit.buf;
+	state->xmit.buf = NULL;
+	spin_unlock_irq(&uport->lock);
 
+	if (buf)
+		free_page((unsigned long)buf);
+
+	uart_change_pm(state, UART_PM_STATE_OFF);
 }
 
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout)

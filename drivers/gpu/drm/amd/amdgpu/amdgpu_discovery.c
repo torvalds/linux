@@ -157,6 +157,8 @@ static int hw_id_map[MAX_HWIP] = {
 	[HDP_HWIP]	= HDP_HWID,
 	[SDMA0_HWIP]	= SDMA0_HWID,
 	[SDMA1_HWIP]	= SDMA1_HWID,
+	[SDMA2_HWIP]    = SDMA2_HWID,
+	[SDMA3_HWIP]    = SDMA3_HWID,
 	[MMHUB_HWIP]	= MMHUB_HWID,
 	[ATHUB_HWIP]	= ATHUB_HWID,
 	[NBIO_HWIP]	= NBIF_HWID,
@@ -918,6 +920,7 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(3, 0, 64):
 		case IP_VERSION(3, 1, 1):
 		case IP_VERSION(3, 0, 2):
+		case IP_VERSION(3, 0, 192):
 			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
 			if (!amdgpu_sriov_vf(adev))
 				amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);

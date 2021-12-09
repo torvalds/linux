@@ -905,6 +905,16 @@ static const struct ts_dmi_data trekstor_primetab_t13b_data = {
 	.properties = trekstor_primetab_t13b_props,
 };
 
+static const struct property_entry trekstor_surftab_duo_w1_props[] = {
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	{ }
+};
+
+static const struct ts_dmi_data trekstor_surftab_duo_w1_data = {
+	.acpi_name	= "GDIX1001:00",
+	.properties	= trekstor_surftab_duo_w1_props,
+};
+
 static const struct property_entry trekstor_surftab_twin_10_1_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 20),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 0),
@@ -1500,6 +1510,14 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Primetab T13B"),
+		},
+	},
+	{
+		/* TrekStor SurfTab duo W1 10.1 ST10432-10b */
+		.driver_data = (void *)&trekstor_surftab_duo_w1_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TrekStor"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SurfTab duo W1 10.1 (VT4)"),
 		},
 	},
 	{

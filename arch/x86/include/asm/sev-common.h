@@ -73,4 +73,15 @@
 
 #define GHCB_RESP_CODE(v)		((v) & GHCB_MSR_INFO_MASK)
 
+/*
+ * Error codes related to GHCB input that can be communicated back to the guest
+ * by setting the lower 32-bits of the GHCB SW_EXITINFO1 field to 2.
+ */
+#define GHCB_ERR_NOT_REGISTERED		1
+#define GHCB_ERR_INVALID_USAGE		2
+#define GHCB_ERR_INVALID_SCRATCH_AREA	3
+#define GHCB_ERR_MISSING_INPUT		4
+#define GHCB_ERR_INVALID_INPUT		5
+#define GHCB_ERR_INVALID_EVENT		6
+
 #endif

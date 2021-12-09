@@ -4060,9 +4060,10 @@ static int gfx_v9_0_hw_fini(void *handle)
 
 	gfx_v9_0_cp_enable(adev, false);
 
-	/* Skip suspend with A+A reset */
-	if (adev->gmc.xgmi.connected_to_cpu && amdgpu_in_reset(adev)) {
-		dev_dbg(adev->dev, "Device in reset. Skipping RLC halt\n");
+	/* Skip stopping RLC with A+A reset or when RLC controls GFX clock */
+	if ((adev->gmc.xgmi.connected_to_cpu && amdgpu_in_reset(adev)) ||
+	    (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 4, 2))) {
+		dev_dbg(adev->dev, "Skipping RLC halt\n");
 		return 0;
 	}
 

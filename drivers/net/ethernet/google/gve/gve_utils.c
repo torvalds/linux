@@ -68,6 +68,9 @@ struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
 		set_protocol = ctx->curr_frag_cnt == ctx->expected_frag_cnt - 1;
 	} else {
 		skb = napi_alloc_skb(napi, len);
+
+		if (unlikely(!skb))
+			return NULL;
 		set_protocol = true;
 	}
 	__skb_put(skb, len);
