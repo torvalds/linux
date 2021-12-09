@@ -52,7 +52,7 @@
  * IN_USE_BY pattern as part of a collision control scheme (see adf_iov_putmsg).
  */
 
-#define ADF_PFVF_COMPATIBILITY_VERSION		0x1	/* PF<->VF compat */
+#define ADF_PFVF_COMPAT_THIS_VERSION		0x1	/* PF<->VF compat */
 
 /* PF->VF messages */
 #define ADF_PF2VF_INT				BIT(0)
@@ -90,13 +90,4 @@
 /* VF->PF Compatible Version Request */
 #define ADF_VF2PF_COMPAT_VER_REQ_SHIFT		22
 
-/* Collision detection */
-#define ADF_IOV_MSG_COLLISION_DETECT_DELAY	10
-#define ADF_IOV_MSG_ACK_DELAY			2
-#define ADF_IOV_MSG_ACK_MAX_RETRY		100
-#define ADF_IOV_MSG_RETRY_DELAY			5
-#define ADF_IOV_MSG_MAX_RETRIES			3
-#define ADF_IOV_MSG_RESP_TIMEOUT	(ADF_IOV_MSG_ACK_DELAY * \
-					 ADF_IOV_MSG_ACK_MAX_RETRY + \
-					 ADF_IOV_MSG_COLLISION_DETECT_DELAY)
 #endif /* ADF_IOV_MSG_H */

@@ -15,8 +15,8 @@
 #include <net/udp.h>
 
 struct net_packet_attrs {
-	unsigned char *src;
-	unsigned char *dst;
+	const unsigned char *src;
+	const unsigned char *dst;
 	u32 ip_src;
 	u32 ip_dst;
 	bool tcp;
@@ -173,8 +173,8 @@ static int net_test_loopback_validate(struct sk_buff *skb,
 				      struct net_device *orig_ndev)
 {
 	struct net_test_priv *tpriv = pt->af_packet_priv;
-	unsigned char *src = tpriv->packet->src;
-	unsigned char *dst = tpriv->packet->dst;
+	const unsigned char *src = tpriv->packet->src;
+	const unsigned char *dst = tpriv->packet->dst;
 	struct netsfhdr *shdr;
 	struct ethhdr *ehdr;
 	struct udphdr *uhdr;
@@ -318,6 +318,15 @@ static int net_test_phy_loopback_udp(struct net_device *ndev)
 	return __net_test_loopback(ndev, &attr);
 }
 
+static int net_test_phy_loopback_udp_mtu(struct net_device *ndev)
+{
+	struct net_packet_attrs attr = { };
+
+	attr.dst = ndev->dev_addr;
+	attr.max_size = ndev->mtu;
+	return __net_test_loopback(ndev, &attr);
+}
+
 static int net_test_phy_loopback_tcp(struct net_device *ndev)
 {
 	struct net_packet_attrs attr = { };
@@ -344,6 +353,9 @@ static const struct net_test {
 	}, {
 		.name = "PHY internal loopback, UDP    ",
 		.fn = net_test_phy_loopback_udp,
+	}, {
+		.name = "PHY internal loopback, MTU    ",
+		.fn = net_test_phy_loopback_udp_mtu,
 	}, {
 		.name = "PHY internal loopback, TCP    ",
 		.fn = net_test_phy_loopback_tcp,

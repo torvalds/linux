@@ -908,6 +908,10 @@ static unsigned persistent_status(struct dm_exception_store *store,
 	case STATUSTYPE_TABLE:
 		DMEMIT(" %s %llu", store->userspace_supports_overflow ? "PO" : "P",
 		       (unsigned long long)store->chunk_size);
+		break;
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 
 	return sz;

@@ -1218,7 +1218,7 @@ static int cxgb4vf_set_mac_addr(struct net_device *dev, void *_addr)
 	if (ret < 0)
 		return ret;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return 0;
 }
 
@@ -1647,7 +1647,9 @@ static int cxgb4vf_set_ringparam(struct net_device *dev,
  * interrupt holdoff timer to be read on all of the device's Queue Sets.
  */
 static int cxgb4vf_get_coalesce(struct net_device *dev,
-				struct ethtool_coalesce *coalesce)
+				struct ethtool_coalesce *coalesce,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	const struct adapter *adapter = pi->adapter;
@@ -1667,7 +1669,9 @@ static int cxgb4vf_get_coalesce(struct net_device *dev,
  * the interrupt holdoff timer on any of the device's Queue Sets.
  */
 static int cxgb4vf_set_coalesce(struct net_device *dev,
-				struct ethtool_coalesce *coalesce)
+				struct ethtool_coalesce *coalesce,
+				struct kernel_ethtool_coalesce *kernel_coal,
+				struct netlink_ext_ack *extack)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
@@ -2837,7 +2841,7 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_set_rx_mode	= cxgb4vf_set_rxmode,
 	.ndo_set_mac_address	= cxgb4vf_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= cxgb4vf_do_ioctl,
+	.ndo_eth_ioctl		= cxgb4vf_do_ioctl,
 	.ndo_change_mtu		= cxgb4vf_change_mtu,
 	.ndo_fix_features	= cxgb4vf_fix_features,
 	.ndo_set_features	= cxgb4vf_set_features,
@@ -2898,10 +2902,8 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Initialize generic PCI device state.
 	 */
 	err = pci_enable_device(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "cannot enable PCI device\n");
 
 	/*
 	 * Reserve PCI resources for the device.  If we can't get them some
@@ -2917,17 +2919,11 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Set up our DMA mask: try for 64-bit address masking first and
 	 * fall back to 32-bit if we can't get 64 bits ...
 	 */
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err == 0) {
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-		if (err) {
-			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for"
-				" coherent allocations\n");
-			goto err_release_regions;
-		}
 		pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err != 0) {
 			dev_err(&pdev->dev, "no usable DMA configuration\n");
 			goto err_release_regions;

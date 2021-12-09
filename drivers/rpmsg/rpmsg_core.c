@@ -327,6 +327,27 @@ int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 }
 EXPORT_SYMBOL(rpmsg_trysend_offchannel);
 
+/**
+ * rpmsg_get_mtu() - get maximum transmission buffer size for sending message.
+ * @ept: the rpmsg endpoint
+ *
+ * This function returns maximum buffer size available for a single outgoing message.
+ *
+ * Return: the maximum transmission size on success and an appropriate error
+ * value on failure.
+ */
+
+ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept)
+{
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->get_mtu)
+		return -ENOTSUPP;
+
+	return ept->ops->get_mtu(ept);
+}
+EXPORT_SYMBOL(rpmsg_get_mtu);
+
 /*
  * match a rpmsg channel with a channel info struct.
  * this is used to make sure we're not creating rpmsg devices for channels
@@ -530,14 +551,13 @@ out:
 	return err;
 }
 
-static int rpmsg_dev_remove(struct device *dev)
+static void rpmsg_dev_remove(struct device *dev)
 {
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
 	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
-	int err = 0;
 
 	if (rpdev->ops->announce_destroy)
-		err = rpdev->ops->announce_destroy(rpdev);
+		rpdev->ops->announce_destroy(rpdev);
 
 	if (rpdrv->remove)
 		rpdrv->remove(rpdev);
@@ -546,8 +566,6 @@ static int rpmsg_dev_remove(struct device *dev)
 
 	if (rpdev->ept)
 		rpmsg_destroy_ept(rpdev->ept);
-
-	return err;
 }
 
 static struct bus_type rpmsg_bus = {

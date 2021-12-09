@@ -209,7 +209,12 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	spin_lock_irqsave(&ndlp->lock, iflags);
 	ndlp->nlp_flag |= NLP_IN_DEV_LOSS;
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+
+	/* If there is a PLOGI in progress, and we are in a
+	 * NLP_NPR_2B_DISC state, don't turn off the flag.
+	 */
+	if (ndlp->nlp_state != NLP_STE_PLOGI_ISSUE)
+		ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 
 	/*
 	 * The backend does not expect any more calls associated with this
@@ -341,6 +346,37 @@ static void lpfc_check_inactive_vmid(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_check_nlp_post_devloss - Check to restore ndlp refcnt after devloss
+ * @vport: Pointer to vport object.
+ * @ndlp: Pointer to remote node object.
+ *
+ * If NLP_IN_RECOV_POST_DEV_LOSS flag was set due to outstanding recovery of
+ * node during dev_loss_tmo processing, then this function restores the nlp_put
+ * kref decrement from lpfc_dev_loss_tmo_handler.
+ **/
+void
+lpfc_check_nlp_post_devloss(struct lpfc_vport *vport,
+			    struct lpfc_nodelist *ndlp)
+{
+	unsigned long iflags;
+
+	spin_lock_irqsave(&ndlp->lock, iflags);
+	if (ndlp->save_flags & NLP_IN_RECOV_POST_DEV_LOSS) {
+		ndlp->save_flags &= ~NLP_IN_RECOV_POST_DEV_LOSS;
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
+		lpfc_nlp_get(ndlp);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY | LOG_NODE,
+				 "8438 Devloss timeout reversed on DID x%x "
+				 "refcnt %d ndlp %p flag x%x "
+				 "port_state = x%x\n",
+				 ndlp->nlp_DID, kref_read(&ndlp->kref), ndlp,
+				 ndlp->nlp_flag, vport->port_state);
+		spin_lock_irqsave(&ndlp->lock, iflags);
+	}
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
+}
+
+/**
  * lpfc_dev_loss_tmo_handler - Remote node devloss timeout handler
  * @ndlp: Pointer to remote node object.
  *
@@ -358,6 +394,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	uint8_t *name;
 	int warn_on = 0;
 	int fcf_inuse = 0;
+	bool recovering = false;
+	struct fc_vport *fc_vport = NULL;
 	unsigned long iflags;
 
 	vport = ndlp->vport;
@@ -394,6 +432,64 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 
 	/* Fabric nodes are done. */
 	if (ndlp->nlp_type & NLP_FABRIC) {
+		spin_lock_irqsave(&ndlp->lock, iflags);
+		/* In massive vport configuration settings, it's possible
+		 * dev_loss_tmo fired during node recovery.  So, check if
+		 * fabric nodes are in discovery states outstanding.
+		 */
+		switch (ndlp->nlp_DID) {
+		case Fabric_DID:
+			fc_vport = vport->fc_vport;
+			if (fc_vport &&
+			    fc_vport->vport_state == FC_VPORT_INITIALIZING)
+				recovering = true;
+			break;
+		case Fabric_Cntl_DID:
+			if (ndlp->nlp_flag & NLP_REG_LOGIN_SEND)
+				recovering = true;
+			break;
+		case FDMI_DID:
+			fallthrough;
+		case NameServer_DID:
+			if (ndlp->nlp_state >= NLP_STE_PLOGI_ISSUE &&
+			    ndlp->nlp_state <= NLP_STE_REG_LOGIN_ISSUE)
+				recovering = true;
+			break;
+		}
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
+
+		/* Mark an NLP_IN_RECOV_POST_DEV_LOSS flag to know if reversing
+		 * the following lpfc_nlp_put is necessary after fabric node is
+		 * recovered.
+		 */
+		if (recovering) {
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_DISCOVERY | LOG_NODE,
+					 "8436 Devloss timeout marked on "
+					 "DID x%x refcnt %d ndlp %p "
+					 "flag x%x port_state = x%x\n",
+					 ndlp->nlp_DID, kref_read(&ndlp->kref),
+					 ndlp, ndlp->nlp_flag,
+					 vport->port_state);
+			spin_lock_irqsave(&ndlp->lock, iflags);
+			ndlp->save_flags |= NLP_IN_RECOV_POST_DEV_LOSS;
+			spin_unlock_irqrestore(&ndlp->lock, iflags);
+		} else if (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
+			/* Fabric node fully recovered before this dev_loss_tmo
+			 * queue work is processed.  Thus, ignore the
+			 * dev_loss_tmo event.
+			 */
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_DISCOVERY | LOG_NODE,
+					 "8437 Devloss timeout ignored on "
+					 "DID x%x refcnt %d ndlp %p "
+					 "flag x%x port_state = x%x\n",
+					 ndlp->nlp_DID, kref_read(&ndlp->kref),
+					 ndlp, ndlp->nlp_flag,
+					 vport->port_state);
+			return fcf_inuse;
+		}
+
 		lpfc_nlp_put(ndlp);
 		return fcf_inuse;
 	}
@@ -421,6 +517,14 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 *(name+4), *(name+5), *(name+6), *(name+7),
 				 ndlp->nlp_DID, ndlp->nlp_flag,
 				 ndlp->nlp_state, ndlp->nlp_rpi);
+	}
+
+	/* If we are devloss, but we are in the process of rediscovering the
+	 * ndlp, don't issue a NLP_EVT_DEVICE_RM event.
+	 */
+	if (ndlp->nlp_state >= NLP_STE_PLOGI_ISSUE &&
+	    ndlp->nlp_state <= NLP_STE_PRLI_ISSUE) {
+		return fcf_inuse;
 	}
 
 	if (!(ndlp->fc4_xpt_flags & NVME_XPT_REGD))
@@ -966,8 +1070,20 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+			/* It's possible the FLOGI to the fabric node never
+			 * successfully completed and never registered with the
+			 * transport.  In this case there is no way to clean up
+			 * the node.
+			 */
+			if (ndlp->nlp_DID == Fabric_DID) {
+				if (ndlp->nlp_prev_state ==
+				    NLP_STE_UNUSED_NODE &&
+				    !ndlp->fc4_xpt_flags)
+					lpfc_nlp_put(ndlp);
+			}
 			continue;
+		}
 
 		if ((phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) ||
 		    ((vport->port_type == LPFC_NPIV_PORT) &&
@@ -3331,6 +3447,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		case LPFC_LINK_SPEED_32GHZ:
 		case LPFC_LINK_SPEED_64GHZ:
 		case LPFC_LINK_SPEED_128GHZ:
+		case LPFC_LINK_SPEED_256GHZ:
 			break;
 		default:
 			phba->fc_linkspeed = LPFC_LINK_SPEED_UNKNOWN;
@@ -3646,6 +3763,10 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 					phba->wait_4_mlo_maint_flg);
 		}
 		lpfc_mbx_process_link_up(phba, la);
+
+		if (phba->cmf_active_mode != LPFC_CFG_OFF)
+			lpfc_cmf_signal_init(phba);
+
 	} else if (attn_type == LPFC_ATT_LINK_DOWN ||
 		   attn_type == LPFC_ATT_UNEXP_WWPN) {
 		phba->fc_stat.LinkDown++;
@@ -4208,6 +4329,7 @@ lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 	struct lpfc_vport *vport = pmb->vport;
+	int rc;
 
 	pmb->ctx_buf = NULL;
 	pmb->ctx_ndlp = NULL;
@@ -4283,9 +4405,23 @@ out:
 		/* Issue SCR just before NameServer GID_FT Query */
 		lpfc_issue_els_scr(vport, 0);
 
-		if (!phba->cfg_enable_mi ||
-		    phba->sli4_hba.pc_sli4_params.mi_ver < LPFC_MIB3_SUPPORT)
+		/* Link was bounced or a Fabric LOGO occurred.  Start EDC
+		 * with initial FW values provided the congestion mode is
+		 * not off.  Note that signals may or may not be supported
+		 * by the adapter but FPIN is provided by default for 1
+		 * or both missing signals support.
+		 */
+		if (phba->cmf_active_mode != LPFC_CFG_OFF) {
+			phba->cgn_reg_fpin = phba->cgn_init_reg_fpin;
+			phba->cgn_reg_signal = phba->cgn_init_reg_signal;
+			rc = lpfc_issue_els_edc(vport, 0);
+			lpfc_printf_log(phba, KERN_INFO,
+					LOG_INIT | LOG_ELS | LOG_DISCOVERY,
+					"4220 EDC issue error x%x, Data: x%x\n",
+					rc, phba->cgn_init_reg_signal);
+		} else {
 			lpfc_issue_els_rdf(vport, 0);
+		}
 	}
 
 	vport->fc_ns_retry = 0;
@@ -4331,6 +4467,8 @@ lpfc_mbx_cmpl_fc_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		goto out;
 	}
 
+	lpfc_check_nlp_post_devloss(vport, ndlp);
+
 	if (phba->sli_rev < LPFC_SLI_REV4)
 		ndlp->nlp_rpi = mb->un.varWords[0];
 
@@ -4340,6 +4478,7 @@ lpfc_mbx_cmpl_fc_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			 ndlp->nlp_state);
 
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
+	ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 
@@ -4429,8 +4568,9 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3183 %s rport x%px DID x%x, role x%x\n",
-			 __func__, rport, rport->port_id, rport->roles);
+			 "3183 %s rport x%px DID x%x, role x%x refcnt %d\n",
+			 __func__, rport, rport->port_id, rport->roles,
+			 kref_read(&ndlp->kref));
 
 	if ((rport->scsi_target_id != -1) &&
 	    (rport->scsi_target_id < LPFC_MAX_TARGET)) {
@@ -4455,8 +4595,9 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 			 "3184 rport unregister x%06x, rport x%px "
-			 "xptflg x%x\n",
-			 ndlp->nlp_DID, rport, ndlp->fc4_xpt_flags);
+			 "xptflg x%x refcnt %d\n",
+			 ndlp->nlp_DID, rport, ndlp->fc4_xpt_flags,
+			 kref_read(&ndlp->kref));
 
 	fc_remote_port_delete(rport);
 	lpfc_nlp_put(ndlp);
@@ -4501,10 +4642,153 @@ lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 	spin_unlock_irqrestore(shost->host_lock, iflags);
 }
 
+/* Register a node with backend if not already done */
+void
+lpfc_nlp_reg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+{
+	unsigned long iflags;
+
+	lpfc_check_nlp_post_devloss(vport, ndlp);
+
+	spin_lock_irqsave(&ndlp->lock, iflags);
+	if (ndlp->fc4_xpt_flags & NLP_XPT_REGD) {
+		/* Already registered with backend, trigger rescan */
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
+
+		if (ndlp->fc4_xpt_flags & NVME_XPT_REGD &&
+		    ndlp->nlp_type & (NLP_NVME_TARGET | NLP_NVME_DISCOVERY)) {
+			lpfc_nvme_rescan_port(vport, ndlp);
+		}
+		return;
+	}
+
+	ndlp->fc4_xpt_flags |= NLP_XPT_REGD;
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
+
+	if (lpfc_valid_xpt_node(ndlp)) {
+		vport->phba->nport_event_cnt++;
+		/*
+		 * Tell the fc transport about the port, if we haven't
+		 * already. If we have, and it's a scsi entity, be
+		 */
+		lpfc_register_remote_port(vport, ndlp);
+	}
+
+	/* We are done if we do not have any NVME remote node */
+	if (!(ndlp->nlp_fc4_type & NLP_FC4_NVME))
+		return;
+
+	/* Notify the NVME transport of this new rport. */
+	if (vport->phba->sli_rev >= LPFC_SLI_REV4 &&
+			ndlp->nlp_fc4_type & NLP_FC4_NVME) {
+		if (vport->phba->nvmet_support == 0) {
+			/* Register this rport with the transport.
+			 * Only NVME Target Rports are registered with
+			 * the transport.
+			 */
+			if (ndlp->nlp_type & NLP_NVME_TARGET) {
+				vport->phba->nport_event_cnt++;
+				lpfc_nvme_register_port(vport, ndlp);
+			}
+		} else {
+			/* Just take an NDLP ref count since the
+			 * target does not register rports.
+			 */
+			lpfc_nlp_get(ndlp);
+		}
+	}
+}
+
+/* Unregister a node with backend if not already done */
+void
+lpfc_nlp_unreg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+{
+	unsigned long iflags;
+
+	spin_lock_irqsave(&ndlp->lock, iflags);
+	if (!(ndlp->fc4_xpt_flags & NLP_XPT_REGD)) {
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
+		return;
+	}
+
+	ndlp->fc4_xpt_flags &= ~NLP_XPT_REGD;
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
+
+	if (ndlp->rport &&
+	    ndlp->fc4_xpt_flags & SCSI_XPT_REGD) {
+		vport->phba->nport_event_cnt++;
+		lpfc_unregister_remote_port(ndlp);
+	}
+
+	if (ndlp->fc4_xpt_flags & NVME_XPT_REGD) {
+		vport->phba->nport_event_cnt++;
+		if (vport->phba->nvmet_support == 0) {
+			/* Start devloss if target. */
+			if (ndlp->nlp_type & NLP_NVME_TARGET)
+				lpfc_nvme_unregister_port(vport, ndlp);
+		} else {
+			/* NVMET has no upcall. */
+			lpfc_nlp_put(ndlp);
+		}
+	}
+
+}
+
+/*
+ * Adisc state change handling
+ */
+static void
+lpfc_handle_adisc_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+		int new_state)
+{
+	switch (new_state) {
+	/*
+	 * Any state to ADISC_ISSUE
+	 * Do nothing, adisc cmpl handling will trigger state changes
+	 */
+	case NLP_STE_ADISC_ISSUE:
+		break;
+
+	/*
+	 * ADISC_ISSUE to mapped states
+	 * Trigger a registration with backend, it will be nop if
+	 * already registered
+	 */
+	case NLP_STE_UNMAPPED_NODE:
+		ndlp->nlp_type |= NLP_FC_NODE;
+		fallthrough;
+	case NLP_STE_MAPPED_NODE:
+		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
+		lpfc_nlp_reg_node(vport, ndlp);
+		break;
+
+	/*
+	 * ADISC_ISSUE to non-mapped states
+	 * We are moving from ADISC_ISSUE to a non-mapped state because
+	 * ADISC failed, we would have skipped unregistering with
+	 * backend, attempt it now
+	 */
+	case NLP_STE_NPR_NODE:
+		ndlp->nlp_flag &= ~NLP_RCV_PLOGI;
+		fallthrough;
+	default:
+		lpfc_nlp_unreg_node(vport, ndlp);
+		break;
+	}
+
+}
+
 static void
 lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		       int old_state, int new_state)
 {
+	/* Trap ADISC changes here */
+	if (new_state == NLP_STE_ADISC_ISSUE ||
+	    old_state == NLP_STE_ADISC_ISSUE) {
+		lpfc_handle_adisc_state(vport, ndlp, new_state);
+		return;
+	}
+
 	if (new_state == NLP_STE_UNMAPPED_NODE) {
 		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		ndlp->nlp_type |= NLP_FC_NODE;
@@ -4514,60 +4798,20 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (new_state == NLP_STE_NPR_NODE)
 		ndlp->nlp_flag &= ~NLP_RCV_PLOGI;
 
-	/* FCP and NVME Transport interface */
+	/* Reg/Unreg for FCP and NVME Transport interface */
 	if ((old_state == NLP_STE_MAPPED_NODE ||
 	     old_state == NLP_STE_UNMAPPED_NODE)) {
-		if (ndlp->rport &&
-		    lpfc_valid_xpt_node(ndlp)) {
-			vport->phba->nport_event_cnt++;
-			lpfc_unregister_remote_port(ndlp);
-		}
-
-		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
-			vport->phba->nport_event_cnt++;
-			if (vport->phba->nvmet_support == 0) {
-				/* Start devloss if target. */
-				if (ndlp->nlp_type & NLP_NVME_TARGET)
-					lpfc_nvme_unregister_port(vport, ndlp);
-			} else {
-				/* NVMET has no upcall. */
-				lpfc_nlp_put(ndlp);
-			}
-		}
+		/* For nodes marked for ADISC, Handle unreg in ADISC cmpl
+		 * if linkup. In linkdown do unreg_node
+		 */
+		if (!(ndlp->nlp_flag & NLP_NPR_ADISC) ||
+		    !lpfc_is_link_up(vport->phba))
+			lpfc_nlp_unreg_node(vport, ndlp);
 	}
-
-	/* FCP and NVME Transport interfaces */
 
 	if (new_state ==  NLP_STE_MAPPED_NODE ||
-	    new_state == NLP_STE_UNMAPPED_NODE) {
-		if (lpfc_valid_xpt_node(ndlp)) {
-			vport->phba->nport_event_cnt++;
-			/*
-			 * Tell the fc transport about the port, if we haven't
-			 * already. If we have, and it's a scsi entity, be
-			 */
-			lpfc_register_remote_port(vport, ndlp);
-		}
-		/* Notify the NVME transport of this new rport. */
-		if (vport->phba->sli_rev >= LPFC_SLI_REV4 &&
-		    ndlp->nlp_fc4_type & NLP_FC4_NVME) {
-			if (vport->phba->nvmet_support == 0) {
-				/* Register this rport with the transport.
-				 * Only NVME Target Rports are registered with
-				 * the transport.
-				 */
-				if (ndlp->nlp_type & NLP_NVME_TARGET) {
-					vport->phba->nport_event_cnt++;
-					lpfc_nvme_register_port(vport, ndlp);
-				}
-			} else {
-				/* Just take an NDLP ref count since the
-				 * target does not register rports.
-				 */
-				lpfc_nlp_get(ndlp);
-			}
-		}
-	}
+	    new_state == NLP_STE_UNMAPPED_NODE)
+		lpfc_nlp_reg_node(vport, ndlp);
 
 	if ((new_state ==  NLP_STE_MAPPED_NODE) &&
 		(vport->stat_data_enabled)) {
@@ -5114,6 +5358,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 			if (rc == MBX_NOT_FINISHED) {
+				ndlp->nlp_flag &= ~NLP_UNREG_INP;
 				mempool_free(mbox, phba->mbox_mem_pool);
 				acc_plogi = 1;
 			}

@@ -337,6 +337,8 @@
 		#size-cells = <1>;
 		compatible = "micron,n25q256a", "jedec,spi-nor";
 		spi-max-frequency = <29000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
 	};
 };
 
@@ -403,9 +405,9 @@
 	assigned-clocks = <&clk IMX8MQ_CLK_USDHC2>;
 	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc2>;
-	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
-	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
+	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
+	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_gpio>;
+	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_gpio>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	status = "okay";
@@ -423,7 +425,6 @@
 		fsl,pins = <
 			MX8MQ_IOMUXC_GPIO1_IO13_GPIO1_IO13		0x19
 		>;
-
 	};
 
 	pinctrl_fec1: fec1grp {
@@ -480,7 +481,6 @@
 			MX8MQ_IOMUXC_NAND_DATA01_QSPI_A_DATA1	0x82
 			MX8MQ_IOMUXC_NAND_DATA02_QSPI_A_DATA2	0x82
 			MX8MQ_IOMUXC_NAND_DATA03_QSPI_A_DATA3	0x82
-
 		>;
 	};
 
@@ -562,6 +562,12 @@
 			MX8MQ_IOMUXC_SD1_DATA7_USDHC1_DATA7		0xdf
 			MX8MQ_IOMUXC_SD1_STROBE_USDHC1_STROBE		0x9f
 			MX8MQ_IOMUXC_SD1_RESET_B_USDHC1_RESET_B		0xc1
+		>;
+	};
+
+	pinctrl_usdhc2_gpio: usdhc2gpiogrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SD2_CD_B_GPIO2_IO12		0x41
 		>;
 	};
 

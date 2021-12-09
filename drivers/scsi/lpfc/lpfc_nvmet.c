@@ -1797,19 +1797,22 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 		if (ctxp->ctxbuf->sglq->sli4_xritag != xri)
 			continue;
 
-		spin_lock(&ctxp->ctxlock);
+		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock,
+				       iflag);
+
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
 		/* Check if we already received a free context call
 		 * and we have completed processing an abort situation.
 		 */
 		if (ctxp->flag & LPFC_NVME_CTX_RLS &&
 		    !(ctxp->flag & LPFC_NVME_ABORT_OP)) {
+			spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 			list_del_init(&ctxp->list);
+			spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 			released = true;
 		}
 		ctxp->flag &= ~LPFC_NVME_XBUSY;
-		spin_unlock(&ctxp->ctxlock);
-		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock,
-				       iflag);
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 
 		rrq_empty = list_empty(&phba->active_rrq_list);
 		ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
@@ -2705,7 +2708,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	struct ulp_bde64 *bde;
 	dma_addr_t physaddr;
 	int i, cnt, nsegs;
-	int do_pbde;
+	bool use_pbde = false;
 	int xc = 1;
 
 	if (!lpfc_is_link_up(phba)) {
@@ -2813,9 +2816,6 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		if (!xc)
 			bf_set(wqe_xc, &wqe->fcp_tsend.wqe_com, 0);
 
-		/* Word 11 - set sup, irsp, irsplen later */
-		do_pbde = 0;
-
 		/* Word 12 */
 		wqe->fcp_tsend.fcp_data_len = rsp->transfer_length;
 
@@ -2893,12 +2893,13 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		if (!xc)
 			bf_set(wqe_xc, &wqe->fcp_treceive.wqe_com, 0);
 
-		/* Word 11 - set pbde later */
-		if (phba->cfg_enable_pbde) {
-			do_pbde = 1;
+		/* Word 11 - check for pbde */
+		if (nsegs == 1 && phba->cfg_enable_pbde) {
+			use_pbde = true;
+			/* Word 11 - PBDE bit already preset by template */
 		} else {
+			/* Overwrite default template setting */
 			bf_set(wqe_pbde, &wqe->fcp_treceive.wqe_com, 0);
-			do_pbde = 0;
 		}
 
 		/* Word 12 */
@@ -2969,7 +2970,6 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			       ((rsp->rsplen >> 2) - 1));
 			memcpy(&wqe->words[16], rsp->rspaddr, rsp->rsplen);
 		}
-		do_pbde = 0;
 
 		/* Word 12 */
 		wqe->fcp_trsp.rsvd_12_15[0] = 0;
@@ -3004,22 +3004,23 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			bf_set(lpfc_sli4_sge_last, sgl, 1);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl->sge_len = cpu_to_le32(cnt);
-		if (i == 0) {
-			bde = (struct ulp_bde64 *)&wqe->words[13];
-			if (do_pbde) {
-				/* Words 13-15  (PBDE) */
-				bde->addrLow = sgl->addr_lo;
-				bde->addrHigh = sgl->addr_hi;
-				bde->tus.f.bdeSize =
-					le32_to_cpu(sgl->sge_len);
-				bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
-				bde->tus.w = cpu_to_le32(bde->tus.w);
-			} else {
-				memset(bde, 0, sizeof(struct ulp_bde64));
-			}
-		}
 		sgl++;
 		ctxp->offset += cnt;
+	}
+
+	bde = (struct ulp_bde64 *)&wqe->words[13];
+	if (use_pbde) {
+		/* decrement sgl ptr backwards once to first data sge */
+		sgl--;
+
+		/* Words 13-15 (PBDE) */
+		bde->addrLow = sgl->addr_lo;
+		bde->addrHigh = sgl->addr_hi;
+		bde->tus.f.bdeSize = le32_to_cpu(sgl->sge_len);
+		bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+		bde->tus.w = cpu_to_le32(bde->tus.w);
+	} else {
+		memset(bde, 0, sizeof(struct ulp_bde64));
 	}
 	ctxp->state = LPFC_NVME_STE_DATA;
 	ctxp->entry_cnt++;

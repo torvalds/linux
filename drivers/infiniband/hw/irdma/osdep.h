@@ -37,7 +37,6 @@ struct irdma_hw;
 struct irdma_pci_f;
 
 struct ib_device *to_ibdev(struct irdma_sc_dev *dev);
-u8 __iomem *irdma_get_hw_addr(void *dev);
 void irdma_ieq_mpa_crc_ae(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp);
 enum irdma_status_code irdma_vf_wait_vchnl_resp(struct irdma_sc_dev *dev);
 bool irdma_vf_clear_to_send(struct irdma_sc_dev *dev);

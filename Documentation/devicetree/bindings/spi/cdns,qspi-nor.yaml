@@ -11,6 +11,14 @@ maintainers:
 
 allOf:
   - $ref: spi-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: xlnx,versal-ospi-1.0
+    then:
+      required:
+        - power-domains
 
 properties:
   compatible:
@@ -20,6 +28,7 @@ properties:
               - ti,k2g-qspi
               - ti,am654-ospi
               - intel,lgm-qspi
+              - xlnx,versal-ospi-1.0
           - const: cdns,qspi-nor
       - const: cdns,qspi-nor
 
@@ -64,6 +73,9 @@ properties:
       Flag to indicate that QSPI return clock is used to latch the read
       data rather than the QSPI clock. Make sure that QSPI return clock
       is populated on the board before using this property.
+
+  power-domains:
+    maxItems: 1
 
   resets:
     maxItems: 2

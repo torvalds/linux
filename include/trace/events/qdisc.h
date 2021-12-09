@@ -54,6 +54,7 @@ TRACE_EVENT(qdisc_enqueue,
 
 	TP_STRUCT__entry(
 		__field(struct Qdisc *, qdisc)
+		__field(const struct netdev_queue *, txq)
 		__field(void *,	skbaddr)
 		__field(int, ifindex)
 		__field(u32, handle)
@@ -62,6 +63,7 @@ TRACE_EVENT(qdisc_enqueue,
 
 	TP_fast_assign(
 		__entry->qdisc = qdisc;
+		__entry->txq	 = txq;
 		__entry->skbaddr = skb;
 		__entry->ifindex = txq->dev ? txq->dev->ifindex : 0;
 		__entry->handle	 = qdisc->handle;

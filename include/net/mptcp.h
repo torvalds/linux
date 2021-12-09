@@ -12,6 +12,8 @@
 #include <linux/tcp.h>
 #include <linux/types.h>
 
+struct mptcp_info;
+struct mptcp_sock;
 struct seq_file;
 
 /* MPTCP sk_buff extension data */
@@ -58,10 +60,6 @@ struct mptcp_addr_info {
 struct mptcp_out_options {
 #if IS_ENABLED(CONFIG_MPTCP)
 	u16 suboptions;
-	u64 sndr_key;
-	u64 rcvr_key;
-	u64 ahmac;
-	struct mptcp_addr_info addr;
 	struct mptcp_rm_list rm_list;
 	u8 join_id;
 	u8 backup;
@@ -69,11 +67,30 @@ struct mptcp_out_options {
 	   reset_transient:1,
 	   csum_reqd:1,
 	   allow_join_id0:1;
-	u32 nonce;
-	u64 thmac;
-	u32 token;
-	u8 hmac[20];
-	struct mptcp_ext ext_copy;
+	union {
+		struct {
+			u64 sndr_key;
+			u64 rcvr_key;
+			u64 data_seq;
+			u32 subflow_seq;
+			u16 data_len;
+			__sum16 csum;
+		};
+		struct {
+			struct mptcp_addr_info addr;
+			u64 ahmac;
+		};
+		struct {
+			struct mptcp_ext ext_copy;
+			u64 fail_seq;
+		};
+		struct {
+			u32 nonce;
+			u32 token;
+			u64 thmac;
+			u8 hmac[20];
+		};
+	};
 #endif
 };
 
@@ -109,6 +126,8 @@ bool mptcp_incoming_options(struct sock *sk, struct sk_buff *skb);
 
 void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
 			 struct mptcp_out_options *opts);
+
+void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info);
 
 /* move the skb extension owership, with the assumption that 'to' is
  * newly allocated

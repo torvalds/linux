@@ -410,7 +410,7 @@ struct xlgmac_hw_ops {
 	void (*dev_xmit)(struct xlgmac_channel *channel);
 	int (*dev_read)(struct xlgmac_channel *channel);
 
-	int (*set_mac_address)(struct xlgmac_pdata *pdata, u8 *addr);
+	int (*set_mac_address)(struct xlgmac_pdata *pdata, const u8 *addr);
 	int (*config_rx_mode)(struct xlgmac_pdata *pdata);
 	int (*enable_rx_csum)(struct xlgmac_pdata *pdata);
 	int (*disable_rx_csum)(struct xlgmac_pdata *pdata);

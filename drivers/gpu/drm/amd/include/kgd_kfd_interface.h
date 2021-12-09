@@ -44,6 +44,7 @@ struct kgd_mem;
 enum kfd_preempt_type {
 	KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN = 0,
 	KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
+	KFD_PREEMPT_TYPE_WAVEFRONT_SAVE
 };
 
 struct kfd_vm_fault_info {
@@ -298,6 +299,8 @@ struct kfd2kgd_calls {
 
 	void (*get_cu_occupancy)(struct kgd_dev *kgd, int pasid, int *wave_cnt,
 			int *max_waves_per_cu);
+	void (*program_trap_handler_settings)(struct kgd_dev *kgd,
+			uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr);
 };
 
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */

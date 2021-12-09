@@ -51,7 +51,6 @@ msm-y := \
 	disp/mdp5/mdp5_mixer.o \
 	disp/mdp5/mdp5_plane.o \
 	disp/mdp5/mdp5_smp.o \
-	disp/dpu1/dpu_core_irq.o \
 	disp/dpu1/dpu_core_perf.o \
 	disp/dpu1/dpu_crtc.o \
 	disp/dpu1/dpu_encoder.o \
@@ -90,6 +89,7 @@ msm-y := \
 	msm_gem_submit.o \
 	msm_gem_vma.o \
 	msm_gpu.o \
+	msm_gpu_devfreq.o \
 	msm_iommu.o \
 	msm_perf.o \
 	msm_rd.o \

@@ -9,9 +9,10 @@ KCOV_INSTRUMENT := n
 GCOV_PROFILE := n
 UBSAN_SANITIZE := n
 
+OBJECTS := head.o real2.o firmware.o misc.o piggy.o
 targets := vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2
 targets += vmlinux.bin.xz vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.lz4
-targets += misc.o piggy.o sizes.h head.o real2.o firmware.o
+targets += $(OBJECTS) sizes.h
 targets += real2.S firmware.c
 
 KBUILD_CFLAGS := -D__KERNEL__ -O2 -DBOOTLOADER
@@ -23,10 +24,8 @@ ifndef CONFIG_64BIT
 KBUILD_CFLAGS += -mfast-indirect-calls
 endif
 
-OBJECTS += $(obj)/head.o $(obj)/real2.o $(obj)/firmware.o $(obj)/misc.o $(obj)/piggy.o
-
 LDFLAGS_vmlinux := -X -e startup --as-needed -T
-$(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS) $(LIBGCC)
+$(obj)/vmlinux: $(obj)/vmlinux.lds $(addprefix $(obj)/, $(OBJECTS)) $(LIBGCC) FORCE
 	$(call if_changed,ld)
 
 sed-sizes := -e 's/^\([0-9a-fA-F]*\) . \(__bss_start\|_end\|parisc_kernel_start\)$$/\#define SZ\2 0x\1/p'
@@ -34,7 +33,7 @@ sed-sizes := -e 's/^\([0-9a-fA-F]*\) . \(__bss_start\|_end\|parisc_kernel_start\
 quiet_cmd_sizes = GEN $@
       cmd_sizes = $(NM) $< | sed -n $(sed-sizes) > $@
 
-$(obj)/sizes.h: vmlinux
+$(obj)/sizes.h: vmlinux FORCE
 	$(call if_changed,sizes)
 
 AFLAGS_head.o += -I$(objtree)/$(obj) -DBOOTLOADER
@@ -52,8 +51,6 @@ $(obj)/real2.o: $(obj)/real2.S
 $(obj)/real2.S: $(srctree)/arch/$(SRCARCH)/kernel/real2.S
 	$(call cmd,shipped)
 
-$(obj)/misc.o: $(obj)/sizes.h
-
 CPPFLAGS_vmlinux.lds += -I$(objtree)/$(obj) -DBOOTLOADER
 $(obj)/vmlinux.lds: $(obj)/sizes.h
 
@@ -70,19 +67,19 @@ suffix-$(CONFIG_KERNEL_LZMA)  := lzma
 suffix-$(CONFIG_KERNEL_LZO)  := lzo
 suffix-$(CONFIG_KERNEL_XZ)  := xz
 
-$(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y)
+$(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,gzip)
-$(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y)
+$(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,bzip2)
-$(obj)/vmlinux.bin.lz4: $(vmlinux.bin.all-y)
+$(obj)/vmlinux.bin.lz4: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,lz4)
-$(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y)
+$(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,lzma)
-$(obj)/vmlinux.bin.lzo: $(vmlinux.bin.all-y)
+$(obj)/vmlinux.bin.lzo: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,lzo)
-$(obj)/vmlinux.bin.xz: $(vmlinux.bin.all-y)
+$(obj)/vmlinux.bin.xz: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,xzkern)
 
 LDFLAGS_piggy.o := -r --format binary --oformat $(LD_BFD) -T
-$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y)
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y) FORCE
 	$(call if_changed,ld)

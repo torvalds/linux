@@ -142,7 +142,7 @@ struct neigh_table nd_tbl = {
 };
 EXPORT_SYMBOL_GPL(nd_tbl);
 
-void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
+void __ndisc_fill_addr_option(struct sk_buff *skb, int type, const void *data,
 			      int data_len, int pad)
 {
 	int space = __ndisc_opt_addr_space(data_len, pad);
@@ -165,7 +165,7 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
 EXPORT_SYMBOL_GPL(__ndisc_fill_addr_option);
 
 static inline void ndisc_fill_addr_option(struct sk_buff *skb, int type,
-					  void *data, u8 icmp6_type)
+					  const void *data, u8 icmp6_type)
 {
 	__ndisc_fill_addr_option(skb, type, data, skb->dev->addr_len,
 				 ndisc_addr_option_pad(skb->dev->type));
@@ -1391,12 +1391,6 @@ skip_defrtr:
 		}
 	}
 
-	/*
-	 *	Send a notify if RA changed managed/otherconf flags or timer settings
-	 */
-	if (send_ifinfo_notify)
-		inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
-
 skip_linkparms:
 
 	/*
@@ -1496,6 +1490,11 @@ skip_routeinfo:
 		memcpy(&n, ((u8 *)(ndopts.nd_opts_mtu+1))+2, sizeof(mtu));
 		mtu = ntohl(n);
 
+		if (in6_dev->ra_mtu != mtu) {
+			in6_dev->ra_mtu = mtu;
+			send_ifinfo_notify = true;
+		}
+
 		if (mtu < IPV6_MIN_MTU || mtu > skb->dev->mtu) {
 			ND_PRINTK(2, warn, "RA: invalid mtu: %d\n", mtu);
 		} else if (in6_dev->cnf.mtu6 != mtu) {
@@ -1519,6 +1518,12 @@ skip_routeinfo:
 		ND_PRINTK(2, warn, "RA: invalid RA options\n");
 	}
 out:
+	/* Send a notify if RA changed managed/otherconf flags or
+	 * timer settings or ra_mtu value
+	 */
+	if (send_ifinfo_notify)
+		inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
+
 	fib6_info_release(rt);
 	if (neigh)
 		neigh_release(neigh);
@@ -1789,6 +1794,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 	struct netdev_notifier_change_info *change_info;
 	struct net *net = dev_net(dev);
 	struct inet6_dev *idev;
+	bool evict_nocarrier;
 
 	switch (event) {
 	case NETDEV_CHANGEADDR:
@@ -1805,10 +1811,19 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 		in6_dev_put(idev);
 		break;
 	case NETDEV_CHANGE:
+		idev = in6_dev_get(dev);
+		if (!idev)
+			evict_nocarrier = true;
+		else {
+			evict_nocarrier = idev->cnf.ndisc_evict_nocarrier &&
+					  net->ipv6.devconf_all->ndisc_evict_nocarrier;
+			in6_dev_put(idev);
+		}
+
 		change_info = ptr;
 		if (change_info->flags_changed & IFF_NOARP)
 			neigh_changeaddr(&nd_tbl, dev);
-		if (!netif_carrier_ok(dev))
+		if (evict_nocarrier && !netif_carrier_ok(dev))
 			neigh_carrier_down(&nd_tbl, dev);
 		break;
 	case NETDEV_DOWN:

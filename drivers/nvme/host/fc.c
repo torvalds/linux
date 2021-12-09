@@ -16,6 +16,7 @@
 #include <linux/nvme-fc.h>
 #include "fc.h"
 #include <scsi/scsi_transport_fc.h>
+#include <linux/blk-mq-pci.h>
 
 /* *************************** Data Structures/Defines ****************** */
 
@@ -2382,7 +2383,7 @@ nvme_fc_ctrl_free(struct kref *ref)
 	list_del(&ctrl->ctrl_list);
 	spin_unlock_irqrestore(&ctrl->rport->lock, flags);
 
-	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
+	nvme_start_admin_queue(&ctrl->ctrl);
 	blk_cleanup_queue(ctrl->ctrl.admin_q);
 	blk_cleanup_queue(ctrl->ctrl.fabrics_q);
 	blk_mq_free_tag_set(&ctrl->admin_tag_set);
@@ -2487,6 +2488,7 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	 */
 	if (ctrl->ctrl.queue_count > 1) {
 		nvme_stop_queues(&ctrl->ctrl);
+		nvme_sync_io_queues(&ctrl->ctrl);
 		blk_mq_tagset_busy_iter(&ctrl->tag_set,
 				nvme_fc_terminate_exchange, &ctrl->ctrl);
 		blk_mq_tagset_wait_completed_request(&ctrl->tag_set);
@@ -2509,7 +2511,8 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	/*
 	 * clean up the admin queue. Same thing as above.
 	 */
-	blk_mq_quiesce_queue(ctrl->ctrl.admin_q);
+	nvme_stop_admin_queue(&ctrl->ctrl);
+	blk_sync_queue(ctrl->ctrl.admin_q);
 	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
 				nvme_fc_terminate_exchange, &ctrl->ctrl);
 	blk_mq_tagset_wait_completed_request(&ctrl->admin_tag_set);
@@ -2839,6 +2842,28 @@ nvme_fc_complete_rq(struct request *rq)
 	nvme_fc_ctrl_put(ctrl);
 }
 
+static int nvme_fc_map_queues(struct blk_mq_tag_set *set)
+{
+	struct nvme_fc_ctrl *ctrl = set->driver_data;
+	int i;
+
+	for (i = 0; i < set->nr_maps; i++) {
+		struct blk_mq_queue_map *map = &set->map[i];
+
+		if (!map->nr_queues) {
+			WARN_ON(i == HCTX_TYPE_DEFAULT);
+			continue;
+		}
+
+		/* Call LLDD map queue functionality if defined */
+		if (ctrl->lport->ops->map_queues)
+			ctrl->lport->ops->map_queues(&ctrl->lport->localport,
+						     map);
+		else
+			blk_mq_map_queues(map);
+	}
+	return 0;
+}
 
 static const struct blk_mq_ops nvme_fc_mq_ops = {
 	.queue_rq	= nvme_fc_queue_rq,
@@ -2847,6 +2872,7 @@ static const struct blk_mq_ops nvme_fc_mq_ops = {
 	.exit_request	= nvme_fc_exit_request,
 	.init_hctx	= nvme_fc_init_hctx,
 	.timeout	= nvme_fc_timeout,
+	.map_queues	= nvme_fc_map_queues,
 };
 
 static int
@@ -2951,6 +2977,13 @@ nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 	if (ctrl->ctrl.queue_count == 1)
 		return 0;
 
+	if (prior_ioq_cnt != nr_io_queues) {
+		dev_info(ctrl->ctrl.device,
+			"reconnect: revising io queue count from %d to %d\n",
+			prior_ioq_cnt, nr_io_queues);
+		blk_mq_update_nr_hw_queues(&ctrl->tag_set, nr_io_queues);
+	}
+
 	ret = nvme_fc_create_hw_io_queues(ctrl, ctrl->ctrl.sqsize + 1);
 	if (ret)
 		goto out_free_io_queues;
@@ -2958,15 +2991,6 @@ nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 	ret = nvme_fc_connect_io_queues(ctrl, ctrl->ctrl.sqsize + 1);
 	if (ret)
 		goto out_delete_hw_queues;
-
-	if (prior_ioq_cnt != nr_io_queues) {
-		dev_info(ctrl->ctrl.device,
-			"reconnect: revising io queue count from %d to %d\n",
-			prior_ioq_cnt, nr_io_queues);
-		nvme_wait_freeze(&ctrl->ctrl);
-		blk_mq_update_nr_hw_queues(&ctrl->tag_set, nr_io_queues);
-		nvme_unfreeze(&ctrl->ctrl);
-	}
 
 	return 0;
 
@@ -3095,7 +3119,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	ctrl->ctrl.max_hw_sectors = ctrl->ctrl.max_segments <<
 						(ilog2(SZ_4K) - 9);
 
-	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
+	nvme_start_admin_queue(&ctrl->ctrl);
 
 	ret = nvme_init_ctrl_finish(&ctrl->ctrl);
 	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
@@ -3249,7 +3273,7 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 	nvme_fc_free_queue(&ctrl->queues[0]);
 
 	/* re-enable the admin_q so anything new can fast fail */
-	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
+	nvme_start_admin_queue(&ctrl->ctrl);
 
 	/* resume the io queues so that things will fast fail */
 	nvme_start_queues(&ctrl->ctrl);
@@ -3572,7 +3596,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	dev_info(ctrl->ctrl.device,
 		"NVME-FC{%d}: new ctrl: NQN \"%s\"\n",
-		ctrl->cnum, ctrl->ctrl.opts->subsysnqn);
+		ctrl->cnum, nvmf_ctrl_subsysnqn(&ctrl->ctrl));
 
 	return &ctrl->ctrl;
 

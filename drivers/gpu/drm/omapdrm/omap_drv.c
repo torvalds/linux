@@ -290,12 +290,8 @@ static int omap_modeset_init(struct drm_device *dev)
 			ret = drm_bridge_attach(pipe->encoder,
 						pipe->output->bridge, NULL,
 						DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-			if (ret < 0) {
-				dev_err(priv->dev,
-					"unable to attach bridge %pOF\n",
-					pipe->output->bridge->of_node);
+			if (ret < 0)
 				return ret;
-			}
 		}
 
 		id = omap_display_id(pipe->output);
@@ -576,7 +572,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	priv->dss->mgr_ops_priv = priv;
 
 	soc = soc_device_match(omapdrm_soc_devices);
-	priv->omaprev = soc ? (unsigned int)soc->data : 0;
+	priv->omaprev = soc ? (uintptr_t)soc->data : 0;
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
 	mutex_init(&priv->list_lock);

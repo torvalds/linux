@@ -310,8 +310,6 @@ extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
 extern bool sclp_mask_compat_mode;
 
-extern char *sclp_early_sccb;
-
 void sclp_early_wait_irq(void);
 int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);
 unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb);
@@ -335,7 +333,7 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 		"2:\n"
 		EX_TABLE(0b, 2b)
 		EX_TABLE(1b, 2b)
-		: "+&d" (cc) : "d" (command), "a" ((unsigned long)sccb)
+		: "+&d" (cc) : "d" (command), "a" (__pa(sccb))
 		: "cc", "memory");
 	if (cc == 4)
 		return -EINVAL;

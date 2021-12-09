@@ -29,6 +29,7 @@
 #include <linux/export.h>
 #include <linux/dma-buf.h>
 #include <linux/rbtree.h>
+#include <linux/module.h>
 
 #include <drm/drm.h>
 #include <drm/drm_drv.h>
@@ -38,6 +39,8 @@
 #include <drm/drm_prime.h>
 
 #include "drm_internal.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 /**
  * DOC: overview and lifetime rules
@@ -73,7 +76,7 @@
  * Thus the chain of references always flows in one direction, avoiding loops:
  * importing GEM object -> dma-buf -> exported GEM bo. A further complication
  * are the lookup caches for import and export. These are required to guarantee
- * that any given object will always have only one uniqe userspace handle. This
+ * that any given object will always have only one unique userspace handle. This
  * is required to allow userspace to detect duplicated imports, since some GEM
  * drivers do fail command submissions if a given buffer object is listed more
  * than once. These import and export caches in &drm_prime_file_private only
@@ -549,7 +552,7 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  *
  * FIXME: The underlying helper functions are named rather inconsistently.
  *
- * Exporting buffers
+ * Importing buffers
  * ~~~~~~~~~~~~~~~~~
  *
  * Importing dma-bufs using drm_gem_prime_import() relies on
@@ -719,11 +722,13 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	if (obj->funcs && obj->funcs->mmap) {
 		vma->vm_ops = obj->funcs->vm_ops;
 
-		ret = obj->funcs->mmap(obj, vma);
-		if (ret)
-			return ret;
-		vma->vm_private_data = obj;
 		drm_gem_object_get(obj);
+		ret = obj->funcs->mmap(obj, vma);
+		if (ret) {
+			drm_gem_object_put(obj);
+			return ret;
+		}
+		vma->vm_private_data = obj;
 		return 0;
 	}
 
@@ -807,8 +812,8 @@ struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 				       struct page **pages, unsigned int nr_pages)
 {
 	struct sg_table *sg;
-	struct scatterlist *sge;
 	size_t max_segment = 0;
+	int err;
 
 	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!sg)
@@ -818,13 +823,12 @@ struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 		max_segment = dma_max_mapping_size(dev->dev);
 	if (max_segment == 0)
 		max_segment = UINT_MAX;
-	sge = __sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
-					  nr_pages << PAGE_SHIFT,
-					  max_segment,
-					  NULL, 0, GFP_KERNEL);
-	if (IS_ERR(sge)) {
+	err = sg_alloc_table_from_pages_segment(sg, pages, nr_pages, 0,
+						nr_pages << PAGE_SHIFT,
+						max_segment, GFP_KERNEL);
+	if (err) {
 		kfree(sg);
-		sg = ERR_CAST(sge);
+		sg = ERR_PTR(err);
 	}
 	return sg;
 }

@@ -3863,7 +3863,7 @@ static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 
 	et131x_init_send(adapter);
 	et131x_hwaddr_init(adapter);
-	ether_addr_copy(netdev->dev_addr, adapter->addr);
+	eth_hw_addr_set(netdev, adapter->addr);
 
 	/* Init the device with the new settings */
 	et131x_adapter_setup(adapter);
@@ -3882,7 +3882,7 @@ static const struct net_device_ops et131x_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_get_stats		= et131x_stats,
-	.ndo_do_ioctl		= phy_do_ioctl,
+	.ndo_eth_ioctl		= phy_do_ioctl,
 };
 
 static int et131x_pci_setup(struct pci_dev *pdev,
@@ -3966,7 +3966,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 
 	netif_napi_add(netdev, &adapter->napi, et131x_poll, 64);
 
-	ether_addr_copy(netdev->dev_addr, adapter->addr);
+	eth_hw_addr_set(netdev, adapter->addr);
 
 	rc = -ENOMEM;
 

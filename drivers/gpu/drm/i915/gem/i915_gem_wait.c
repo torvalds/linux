@@ -104,8 +104,8 @@ static void fence_set_priority(struct dma_fence *fence,
 	engine = rq->engine;
 
 	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
-	if (engine->schedule)
-		engine->schedule(rq, attr);
+	if (engine->sched_engine->schedule)
+		engine->sched_engine->schedule(rq, attr);
 	rcu_read_unlock();
 }
 
@@ -289,4 +289,23 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	i915_gem_object_put(obj);
 	return ret;
+}
+
+/**
+ * i915_gem_object_wait_migration - Sync an accelerated migration operation
+ * @obj: The migrating object.
+ * @flags: waiting flags. Currently supports only I915_WAIT_INTERRUPTIBLE.
+ *
+ * Wait for any pending async migration operation on the object,
+ * whether it's explicitly (i915_gem_object_migrate()) or implicitly
+ * (swapin, initial clearing) initiated.
+ *
+ * Return: 0 if successful, -ERESTARTSYS if a signal was hit during waiting.
+ */
+int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
+				   unsigned int flags)
+{
+	might_sleep();
+	/* NOP for now. */
+	return 0;
 }

@@ -309,6 +309,7 @@ struct nvmet_fabrics_ops {
 	u16 (*install_queue)(struct nvmet_sq *nvme_sq);
 	void (*discovery_chg)(struct nvmet_port *port);
 	u8 (*get_mdts)(const struct nvmet_ctrl *ctrl);
+	u16 (*get_max_queue_size)(const struct nvmet_ctrl *ctrl);
 };
 
 #define NVMET_MAX_INLINE_BIOVEC	8
@@ -576,13 +577,18 @@ static inline struct nvmet_subsys *nvmet_req_subsys(struct nvmet_req *req)
 	return req->sq->ctrl->subsys;
 }
 
+static inline bool nvmet_is_disc_subsys(struct nvmet_subsys *subsys)
+{
+    return subsys->type != NVME_NQN_NVME;
+}
+
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
 void nvmet_passthru_subsys_free(struct nvmet_subsys *subsys);
 int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys);
 void nvmet_passthru_ctrl_disable(struct nvmet_subsys *subsys);
 u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req);
 u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req);
-static inline struct nvme_ctrl *nvmet_passthru_ctrl(struct nvmet_subsys *subsys)
+static inline bool nvmet_is_passthru_subsys(struct nvmet_subsys *subsys)
 {
 	return subsys->passthru_ctrl;
 }
@@ -601,17 +607,18 @@ static inline u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req)
 {
 	return 0;
 }
-static inline struct nvme_ctrl *nvmet_passthru_ctrl(struct nvmet_subsys *subsys)
+static inline bool nvmet_is_passthru_subsys(struct nvmet_subsys *subsys)
 {
 	return NULL;
 }
 #endif /* CONFIG_NVME_TARGET_PASSTHRU */
 
-static inline struct nvme_ctrl *
-nvmet_req_passthru_ctrl(struct nvmet_req *req)
+static inline bool nvmet_is_passthru_req(struct nvmet_req *req)
 {
-	return nvmet_passthru_ctrl(nvmet_req_subsys(req));
+	return nvmet_is_passthru_subsys(nvmet_req_subsys(req));
 }
+
+void nvmet_passthrough_override_cap(struct nvmet_ctrl *ctrl);
 
 u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
 u16 nvmet_report_invalid_opcode(struct nvmet_req *req);

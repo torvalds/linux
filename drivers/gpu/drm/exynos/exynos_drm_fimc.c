@@ -85,7 +85,6 @@ struct fimc_scaler {
 /*
  * A structure of fimc context.
  *
- * @regs_res: register resources.
  * @regs: memory mapped io registers.
  * @lock: locking of operations.
  * @clocks: fimc clocks.
@@ -103,7 +102,6 @@ struct fimc_context {
 	struct exynos_drm_ipp_formats	*formats;
 	unsigned int			num_formats;
 
-	struct resource	*regs_res;
 	void __iomem	*regs;
 	spinlock_t	lock;
 	struct clk	*clocks[FIMC_CLKS_MAX];
@@ -1327,8 +1325,7 @@ static int fimc_probe(struct platform_device *pdev)
 	ctx->num_formats = num_formats;
 
 	/* resource memory */
-	ctx->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->regs = devm_ioremap_resource(dev, ctx->regs_res);
+	ctx->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->regs))
 		return PTR_ERR(ctx->regs);
 

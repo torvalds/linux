@@ -10,6 +10,7 @@
 / {
 	model = "Sony Xperia Z4 Tablet (LTE)";
 	compatible = "sony,karin-row", "qcom,msm8994";
+	chassis-type = "tablet";
 };
 
 &blsp2_i2c5 {

@@ -127,7 +127,7 @@ static inline struct hclge_dev *hclge_ptp_get_hdev(struct ptp_clock_info *info)
 }
 
 bool hclge_ptp_set_tx_info(struct hnae3_handle *handle, struct sk_buff *skb);
-void hclge_ptp_clean_tx_hwts(struct hclge_dev *dev);
+void hclge_ptp_clean_tx_hwts(struct hclge_dev *hdev);
 void hclge_ptp_get_rx_hwts(struct hnae3_handle *handle, struct sk_buff *skb,
 			   u32 nsec, u32 sec);
 int hclge_ptp_get_cfg(struct hclge_dev *hdev, struct ifreq *ifr);

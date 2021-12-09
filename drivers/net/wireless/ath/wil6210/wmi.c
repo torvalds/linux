@@ -2097,7 +2097,7 @@ int wmi_echo(struct wil6210_priv *wil)
 			WIL_WMI_CALL_GENERAL_TO_MS);
 }
 
-int wmi_set_mac_address(struct wil6210_priv *wil, void *addr)
+int wmi_set_mac_address(struct wil6210_priv *wil, const void *addr)
 {
 	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	struct wmi_set_mac_address_cmd cmd;

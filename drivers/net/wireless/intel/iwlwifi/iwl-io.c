@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2015-2016 Intel Deutschland GmbH
  */
 #include <linux/delay.h>
@@ -213,9 +213,12 @@ void iwl_force_nmi(struct iwl_trans *trans)
 	else if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
 				UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER);
-	else
+	else if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    UREG_DOORBELL_TO_ISR6_NMI_BIT);
+	else
+		iwl_write32(trans, CSR_DOORBELL_VECTOR,
+			    CSR_DOORBELL_VECTOR_NMI);
 }
 IWL_EXPORT_SYMBOL(iwl_force_nmi);
 
@@ -395,9 +398,51 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 	return 0;
 }
 
-int iwl_finish_nic_init(struct iwl_trans *trans,
-			const struct iwl_cfg_trans_params *cfg_trans)
+#define IWL_HOST_MON_BLOCK_PEMON	0x00
+#define IWL_HOST_MON_BLOCK_HIPM		0x22
+
+#define IWL_HOST_MON_BLOCK_PEMON_VEC0	0x00
+#define IWL_HOST_MON_BLOCK_PEMON_VEC1	0x01
+#define IWL_HOST_MON_BLOCK_PEMON_WFPM	0x06
+
+static void iwl_dump_host_monitor_block(struct iwl_trans *trans,
+					u32 block, u32 vec, u32 iter)
 {
+	int i;
+
+	IWL_ERR(trans, "Host monitor block 0x%x vector 0x%x\n", block, vec);
+	iwl_write32(trans, CSR_MONITOR_CFG_REG, (block << 8) | vec);
+	for (i = 0; i < iter; i++)
+		IWL_ERR(trans, "    value [iter %d]: 0x%08x\n",
+			i, iwl_read32(trans, CSR_MONITOR_STATUS_REG));
+}
+
+static void iwl_dump_host_monitor(struct iwl_trans *trans)
+{
+	switch (trans->trans_cfg->device_family) {
+	case IWL_DEVICE_FAMILY_22000:
+	case IWL_DEVICE_FAMILY_AX210:
+		IWL_ERR(trans, "CSR_RESET = 0x%x\n",
+			iwl_read32(trans, CSR_RESET));
+		iwl_dump_host_monitor_block(trans, IWL_HOST_MON_BLOCK_PEMON,
+					    IWL_HOST_MON_BLOCK_PEMON_VEC0, 15);
+		iwl_dump_host_monitor_block(trans, IWL_HOST_MON_BLOCK_PEMON,
+					    IWL_HOST_MON_BLOCK_PEMON_VEC1, 15);
+		iwl_dump_host_monitor_block(trans, IWL_HOST_MON_BLOCK_PEMON,
+					    IWL_HOST_MON_BLOCK_PEMON_WFPM, 15);
+		iwl_dump_host_monitor_block(trans, IWL_HOST_MON_BLOCK_HIPM,
+					    IWL_HOST_MON_BLOCK_PEMON_VEC0, 1);
+		break;
+	default:
+		/* not supported yet */
+		return;
+	}
+}
+
+int iwl_finish_nic_init(struct iwl_trans *trans)
+{
+	const struct iwl_cfg_trans_params *cfg_trans = trans->trans_cfg;
+	u32 poll_ready;
 	int err;
 
 	if (cfg_trans->bisr_workaround) {
@@ -409,7 +454,16 @@ int iwl_finish_nic_init(struct iwl_trans *trans,
 	 * Set "initialization complete" bit to move adapter from
 	 * D0U* --> D0A* (powered-up active) state.
 	 */
-	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	if (cfg_trans->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
+			    CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
+		poll_ready = CSR_GP_CNTRL_REG_FLAG_MAC_STATUS;
+	} else {
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		poll_ready = CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY;
+	}
 
 	if (cfg_trans->device_family == IWL_DEVICE_FAMILY_8000)
 		udelay(2);
@@ -419,12 +473,12 @@ int iwl_finish_nic_init(struct iwl_trans *trans,
 	 * device-internal resources is supported, e.g. iwl_write_prph()
 	 * and accesses to uCode SRAM.
 	 */
-	err = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			   25000);
-	if (err < 0)
+	err = iwl_poll_bit(trans, CSR_GP_CNTRL, poll_ready, poll_ready, 25000);
+	if (err < 0) {
 		IWL_DEBUG_INFO(trans, "Failed to wake NIC\n");
+
+		iwl_dump_host_monitor(trans);
+	}
 
 	if (cfg_trans->bisr_workaround) {
 		/* ensure BISR shift has finished */
@@ -468,5 +522,5 @@ void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
 	if (interrupts_enabled)
 		iwl_trans_interrupts(trans, true);
 
-	iwl_trans_fw_error(trans);
+	iwl_trans_fw_error(trans, false);
 }

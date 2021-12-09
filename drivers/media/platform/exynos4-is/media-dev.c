@@ -464,9 +464,9 @@ static int fimc_md_parse_one_endpoint(struct fimc_md *fmd,
 		return -EINVAL;
 	}
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&fmd->subdev_notifier, of_fwnode_handle(ep),
-		struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&fmd->subdev_notifier,
+					      of_fwnode_handle(ep),
+					      struct v4l2_async_subdev);
 
 	of_node_put(ep);
 
@@ -557,7 +557,7 @@ rpm_put:
 
 cleanup:
 	of_node_put(ports);
-	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
+	v4l2_async_nf_cleanup(&fmd->subdev_notifier);
 	pm_runtime_put(fmd->pmf);
 	return ret;
 }
@@ -1238,8 +1238,8 @@ static const struct media_device_ops fimc_md_ops = {
 	.link_notify = fimc_md_link_notify,
 };
 
-static ssize_t fimc_md_sysfs_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t subdev_conf_mode_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct fimc_md *fmd = dev_get_drvdata(dev);
 
@@ -1249,9 +1249,9 @@ static ssize_t fimc_md_sysfs_show(struct device *dev,
 	return strscpy(buf, "V4L2 video node only API (vid-dev)\n", PAGE_SIZE);
 }
 
-static ssize_t fimc_md_sysfs_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t subdev_conf_mode_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	struct fimc_md *fmd = dev_get_drvdata(dev);
 	bool subdev_api;
@@ -1278,8 +1278,7 @@ static ssize_t fimc_md_sysfs_store(struct device *dev,
  *  sub-dev - for media controller API, subdevs must be configured in user
  *  space before starting streaming.
  */
-static DEVICE_ATTR(subdev_conf_mode, S_IWUSR | S_IRUGO,
-		   fimc_md_sysfs_show, fimc_md_sysfs_store);
+static DEVICE_ATTR_RW(subdev_conf_mode);
 
 static int cam_clk_prepare(struct clk_hw *hw)
 {
@@ -1482,7 +1481,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fmd);
 
-	v4l2_async_notifier_init(&fmd->subdev_notifier);
+	v4l2_async_nf_init(&fmd->subdev_notifier);
 
 	ret = fimc_md_register_platform_entities(fmd, dev->of_node);
 	if (ret)
@@ -1510,8 +1509,8 @@ static int fimc_md_probe(struct platform_device *pdev)
 		fmd->subdev_notifier.ops = &subdev_notifier_ops;
 		fmd->num_sensors = 0;
 
-		ret = v4l2_async_notifier_register(&fmd->v4l2_dev,
-						&fmd->subdev_notifier);
+		ret = v4l2_async_nf_register(&fmd->v4l2_dev,
+					     &fmd->subdev_notifier);
 		if (ret)
 			goto err_clk_p;
 	}
@@ -1523,7 +1522,7 @@ err_clk_p:
 err_attr:
 	device_remove_file(&pdev->dev, &dev_attr_subdev_conf_mode);
 err_cleanup:
-	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
+	v4l2_async_nf_cleanup(&fmd->subdev_notifier);
 err_m_ent:
 	fimc_md_unregister_entities(fmd);
 err_clk:
@@ -1543,8 +1542,8 @@ static int fimc_md_remove(struct platform_device *pdev)
 		return 0;
 
 	fimc_md_unregister_clk_provider(fmd);
-	v4l2_async_notifier_unregister(&fmd->subdev_notifier);
-	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
+	v4l2_async_nf_unregister(&fmd->subdev_notifier);
+	v4l2_async_nf_cleanup(&fmd->subdev_notifier);
 
 	v4l2_device_unregister(&fmd->v4l2_dev);
 	device_remove_file(&pdev->dev, &dev_attr_subdev_conf_mode);

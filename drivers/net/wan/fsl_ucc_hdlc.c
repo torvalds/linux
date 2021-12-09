@@ -674,31 +674,28 @@ static irqreturn_t ucc_hdlc_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int uhdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int uhdlc_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
 	const size_t size = sizeof(te1_settings);
 	te1_settings line;
 	struct ucc_hdlc_private *priv = netdev_priv(dev);
 
-	if (cmd != SIOCWANDEV)
-		return hdlc_ioctl(dev, ifr, cmd);
-
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_GET_IFACE:
-		ifr->ifr_settings.type = IF_IFACE_E1;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+		ifs->type = IF_IFACE_E1;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		memset(&line, 0, sizeof(line));
 		line.clock_type = priv->clocking;
 
-		if (copy_to_user(ifr->ifr_settings.ifs_ifsu.sync, &line, size))
+		if (copy_to_user(ifs->ifs_ifsu.sync, &line, size))
 			return -EFAULT;
 		return 0;
 
 	default:
-		return hdlc_ioctl(dev, ifr, cmd);
+		return hdlc_ioctl(dev, ifs);
 	}
 }
 
@@ -1053,7 +1050,7 @@ static const struct net_device_ops uhdlc_ops = {
 	.ndo_open       = uhdlc_open,
 	.ndo_stop       = uhdlc_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = uhdlc_ioctl,
+	.ndo_siocwandev = uhdlc_ioctl,
 	.ndo_tx_timeout	= uhdlc_tx_timeout,
 };
 

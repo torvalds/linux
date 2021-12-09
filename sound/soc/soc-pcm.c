@@ -449,13 +449,12 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai;
 	struct snd_soc_dai *codec_dai;
-	struct snd_soc_pcm_stream *pcm_codec, *pcm_cpu;
 	int stream = substream->stream;
 	int i;
 	unsigned int bits = 0, cpu_bits = 0;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		pcm_codec = snd_soc_dai_get_pcm_stream(codec_dai, stream);
+		struct snd_soc_pcm_stream *pcm_codec = snd_soc_dai_get_pcm_stream(codec_dai, stream);
 
 		if (pcm_codec->sig_bits == 0) {
 			bits = 0;
@@ -465,7 +464,7 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
 	}
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-		pcm_cpu = snd_soc_dai_get_pcm_stream(cpu_dai, stream);
+		struct snd_soc_pcm_stream *pcm_cpu = snd_soc_dai_get_pcm_stream(cpu_dai, stream);
 
 		if (pcm_cpu->sig_bits == 0) {
 			cpu_bits = 0;
@@ -634,10 +633,10 @@ static int soc_pcm_components_close(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
-	int i, r, ret = 0;
+	int i, ret = 0;
 
 	for_each_rtd_components(rtd, i, component) {
-		r = snd_soc_component_close(component, substream, rollback);
+		int r = snd_soc_component_close(component, substream, rollback);
 		if (r < 0)
 			ret = r; /* use last ret */
 
@@ -880,12 +879,10 @@ static int soc_pcm_hw_clean(struct snd_pcm_substream *substream, int rollback)
 
 	/* clear the corresponding DAIs parameters when going to be inactive */
 	for_each_rtd_dais(rtd, i, dai) {
-		int active = snd_soc_dai_stream_active(dai, substream->stream);
-
 		if (snd_soc_dai_active(dai) == 1)
 			soc_pcm_set_dai_params(dai, NULL);
 
-		if (active == 1)
+		if (snd_soc_dai_stream_active(dai, substream->stream) == 1)
 			snd_soc_dai_digital_mute(dai, 1, substream->stream);
 	}
 
@@ -899,12 +896,9 @@ static int soc_pcm_hw_clean(struct snd_pcm_substream *substream, int rollback)
 	snd_soc_pcm_component_hw_free(substream, rollback);
 
 	/* now free hw params for the DAIs  */
-	for_each_rtd_dais(rtd, i, dai) {
-		if (!snd_soc_dai_stream_valid(dai, substream->stream))
-			continue;
-
-		snd_soc_dai_hw_free(dai, substream, rollback);
-	}
+	for_each_rtd_dais(rtd, i, dai)
+		if (snd_soc_dai_stream_valid(dai, substream->stream))
+			snd_soc_dai_hw_free(dai, substream, rollback);
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return 0;
@@ -1263,8 +1257,7 @@ static int widget_in_list(struct snd_soc_dapm_widget_list *list,
 	return 0;
 }
 
-static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
-		enum snd_soc_dapm_direction dir)
+bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget, enum snd_soc_dapm_direction dir)
 {
 	struct snd_soc_card *card = widget->dapm->card;
 	struct snd_soc_pcm_runtime *rtd;
@@ -1282,6 +1275,7 @@ static bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget,
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(dpcm_end_walk_at_be);
 
 int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list)
@@ -1318,13 +1312,12 @@ void dpcm_path_put(struct snd_soc_dapm_widget_list **list)
 static bool dpcm_be_is_active(struct snd_soc_dpcm *dpcm, int stream,
 			      struct snd_soc_dapm_widget_list *list)
 {
-	struct snd_soc_dapm_widget *widget;
 	struct snd_soc_dai *dai;
 	unsigned int i;
 
 	/* is there a valid DAI widget for this BE */
 	for_each_rtd_dais(dpcm->be, i, dai) {
-		widget = snd_soc_dai_get_widget(dai, stream);
+		struct snd_soc_dapm_widget *widget = snd_soc_dai_get_widget(dai, stream);
 
 		/*
 		 * The BE is pruned only if none of the dai
@@ -1395,6 +1388,16 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 
 		/* don't connect if FE is not running */
 		if (!fe->dpcm[stream].runtime && !fe->fe_compr)
+			continue;
+
+		/*
+		 * Filter for systems with 'component_chaining' enabled.
+		 * This helps to avoid unnecessary re-configuration of an
+		 * already active BE on such systems.
+		 */
+		if (fe->card->component_chaining &&
+		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_NEW) &&
+		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_CLOSE))
 			continue;
 
 		/* newly connected FE and BE */
@@ -1637,7 +1640,6 @@ static void dpcm_runtime_setup_be_chan(struct snd_pcm_substream *substream)
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_soc_pcm_stream *codec_stream;
 		struct snd_soc_pcm_stream *cpu_stream;
 		struct snd_soc_dai *dai;
 		int i;
@@ -1660,7 +1662,8 @@ static void dpcm_runtime_setup_be_chan(struct snd_pcm_substream *substream)
 		 * DAIs connected to a single CPU DAI, use CPU DAI's directly
 		 */
 		if (be->num_codecs == 1) {
-			codec_stream = snd_soc_dai_get_pcm_stream(asoc_rtd_to_codec(be, 0), stream);
+			struct snd_soc_pcm_stream *codec_stream = snd_soc_dai_get_pcm_stream(
+				asoc_rtd_to_codec(be, 0), stream);
 
 			soc_pcm_hw_update_chan(hw, codec_stream);
 		}
@@ -2591,9 +2594,7 @@ open_end:
 static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 				    int *playback, int *capture)
 {
-	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
-	int stream;
 	int i;
 
 	if (rtd->dai_link->dynamic && rtd->num_cpus > 1) {
@@ -2603,6 +2604,8 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	if (rtd->dai_link->dynamic || rtd->dai_link->no_pcm) {
+		int stream;
+
 		if (rtd->dai_link->dpcm_playback) {
 			stream = SNDRV_PCM_STREAM_PLAYBACK;
 
@@ -2637,6 +2640,8 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 			}
 		}
 	} else {
+		struct snd_soc_dai *codec_dai;
+
 		/* Adapt stream for codec2codec links */
 		int cpu_capture = rtd->dai_link->params ?
 			SNDRV_PCM_STREAM_PLAYBACK : SNDRV_PCM_STREAM_CAPTURE;

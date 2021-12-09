@@ -47,11 +47,8 @@ enum cifs_sec_param {
 	Opt_sec_krb5p,
 	Opt_sec_ntlmsspi,
 	Opt_sec_ntlmssp,
-	Opt_ntlm,
-	Opt_sec_ntlmi,
 	Opt_sec_ntlmv2,
 	Opt_sec_ntlmv2i,
-	Opt_sec_lanman,
 	Opt_sec_none,
 
 	Opt_sec_err
@@ -101,6 +98,7 @@ enum cifs_param {
 	Opt_nosharesock,
 	Opt_persistent,
 	Opt_resilient,
+	Opt_tcp_nodelay,
 	Opt_domainauto,
 	Opt_rdma,
 	Opt_modesid,
@@ -169,8 +167,10 @@ struct smb3_fs_context {
 	char *password;
 	char *domainname;
 	char *source;
+	char *server_hostname;
 	char *UNC;
 	char *nodename;
+	char *workstation_name;
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */

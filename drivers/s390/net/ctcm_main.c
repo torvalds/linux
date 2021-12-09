@@ -55,7 +55,7 @@
 
 /* Some common global variables */
 
-/**
+/*
  * The root device for ctcm group devices
  */
 static struct device *ctcm_root_dev;
@@ -65,7 +65,7 @@ static struct device *ctcm_root_dev;
  */
 struct channel *channels;
 
-/**
+/*
  * Unpack a just received skb and hand it over to
  * upper layers.
  *
@@ -180,7 +180,7 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 	}
 }
 
-/**
+/*
  * Release a specific channel in the channel list.
  *
  *  ch		Pointer to channel struct to be released.
@@ -192,7 +192,7 @@ static void channel_free(struct channel *ch)
 	fsm_newstate(ch->fsm, CTC_STATE_IDLE);
 }
 
-/**
+/*
  * Remove a specific channel in the channel list.
  *
  *  ch		Pointer to channel struct to be released.
@@ -240,7 +240,7 @@ static void channel_remove(struct channel *ch)
 			chid, ok ? "OK" : "failed");
 }
 
-/**
+/*
  * Get a specific channel from the channel list.
  *
  *  type	Type of channel we are interested in.
@@ -300,7 +300,7 @@ static long ctcm_check_irb_error(struct ccw_device *cdev, struct irb *irb)
 }
 
 
-/**
+/*
  * Check sense of a unit check.
  *
  *  ch		The channel, the sense code belongs to.
@@ -414,7 +414,7 @@ int ctcm_ch_alloc_buffer(struct channel *ch)
  * Interface API for upper network layers
  */
 
-/**
+/*
  * Open an interface.
  * Called from generic network layer when ifconfig up is run.
  *
@@ -432,7 +432,7 @@ int ctcm_open(struct net_device *dev)
 	return 0;
 }
 
-/**
+/*
  * Close an interface.
  * Called from generic network layer when ifconfig down is run.
  *
@@ -451,7 +451,7 @@ int ctcm_close(struct net_device *dev)
 }
 
 
-/**
+/*
  * Transmit a packet.
  * This is a helper function for ctcm_tx().
  *
@@ -822,7 +822,7 @@ done:
 	return rc;
 }
 
-/**
+/*
  * Start transmission of a packet.
  * Called from generic network device layer.
  *
@@ -975,7 +975,7 @@ done:
 }
 
 
-/**
+/*
  * Sets MTU of an interface.
  *
  *  dev		Pointer to interface struct.
@@ -1007,7 +1007,7 @@ static int ctcm_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-/**
+/*
  * Returns interface statistics of a device.
  *
  *  dev		Pointer to interface struct.
@@ -1144,7 +1144,7 @@ static struct net_device *ctcm_init_netdevice(struct ctcm_priv *priv)
 	return dev;
 }
 
-/**
+/*
  * Main IRQ handler.
  *
  *  cdev	The ccw_device the interrupt is for.
@@ -1257,7 +1257,7 @@ static const struct device_type ctcm_devtype = {
 	.groups = ctcm_attr_groups,
 };
 
-/**
+/*
  * Add ctcm specific attributes.
  * Add ctcm private data.
  *
@@ -1293,7 +1293,7 @@ static int ctcm_probe_device(struct ccwgroup_device *cgdev)
 	return 0;
 }
 
-/**
+/*
  * Add a new channel to the list of channels.
  * Keeps the channel list sorted.
  *
@@ -1343,7 +1343,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	snprintf(ch->id, CTCM_ID_SIZE, "ch-%s", dev_name(&cdev->dev));
 	ch->type = type;
 
-	/**
+	/*
 	 * "static" ccws are used in the following way:
 	 *
 	 * ccw[0..2] (Channel program for generic I/O):
@@ -1471,7 +1471,7 @@ static enum ctcm_channel_types get_channel_type(struct ccw_device_id *id)
 	return type;
 }
 
-/**
+/*
  *
  * Setup an interface.
  *
@@ -1595,7 +1595,7 @@ out_err_result:
 	return result;
 }
 
-/**
+/*
  * Shutdown an interface.
  *
  *  cgdev	Device to be shut down.
@@ -1738,7 +1738,7 @@ static void print_banner(void)
 	pr_info("CTCM driver initialized\n");
 }
 
-/**
+/*
  * Initialize module.
  * This is called just after the module is loaded.
  *

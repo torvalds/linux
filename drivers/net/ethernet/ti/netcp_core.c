@@ -1944,7 +1944,7 @@ static const struct net_device_ops netcp_netdev_ops = {
 	.ndo_stop		= netcp_ndo_stop,
 	.ndo_start_xmit		= netcp_ndo_start_xmit,
 	.ndo_set_rx_mode	= netcp_set_rx_mode,
-	.ndo_do_ioctl           = netcp_ndo_ioctl,
+	.ndo_eth_ioctl           = netcp_ndo_ioctl,
 	.ndo_get_stats64        = netcp_get_stats,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2028,16 +2028,16 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 
 		emac_arch_get_mac_addr(efuse_mac_addr, efuse, efuse_mac);
 		if (is_valid_ether_addr(efuse_mac_addr))
-			ether_addr_copy(ndev->dev_addr, efuse_mac_addr);
+			eth_hw_addr_set(ndev, efuse_mac_addr);
 		else
-			eth_random_addr(ndev->dev_addr);
+			eth_hw_addr_random(ndev);
 
 		devm_iounmap(dev, efuse);
 		devm_release_mem_region(dev, res.start, size);
 	} else {
-		ret = of_get_mac_address(node_interface, ndev->dev_addr);
+		ret = of_get_ethdev_address(node_interface, ndev);
 		if (ret)
-			eth_random_addr(ndev->dev_addr);
+			eth_hw_addr_random(ndev);
 	}
 
 	ret = of_property_read_string(node_interface, "rx-channel",

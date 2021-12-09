@@ -191,6 +191,7 @@
 	no-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
+	disable-wp;
 	status = "disabled";
 };
 

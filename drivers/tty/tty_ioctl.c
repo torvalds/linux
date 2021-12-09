@@ -675,7 +675,6 @@ static int tty_change_softcar(struct tty_struct *tty, int arg)
 /**
  *	tty_mode_ioctl		-	mode related ioctls
  *	@tty: tty for the ioctl
- *	@file: file pointer for the tty
  *	@cmd: command
  *	@arg: ioctl argument
  *
@@ -684,15 +683,12 @@ static int tty_change_softcar(struct tty_struct *tty, int arg)
  *	consistent mode setting.
  */
 
-int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
-			unsigned int cmd, unsigned long arg)
+int tty_mode_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
 	struct tty_struct *real_tty;
 	void __user *p = (void __user *)arg;
 	int ret = 0;
 	struct ktermios kterm;
-
-	BUG_ON(file == NULL);
 
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->driver->subtype == PTY_TYPE_MASTER)
@@ -858,8 +854,8 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 }
 EXPORT_SYMBOL_GPL(tty_perform_flush);
 
-int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+int n_tty_ioctl_helper(struct tty_struct *tty, unsigned int cmd,
+		unsigned long arg)
 {
 	int retval;
 
@@ -904,7 +900,7 @@ int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		return __tty_perform_flush(tty, arg);
 	default:
 		/* Try the mode commands */
-		return tty_mode_ioctl(tty, file, cmd, arg);
+		return tty_mode_ioctl(tty, cmd, arg);
 	}
 }
 EXPORT_SYMBOL(n_tty_ioctl_helper);

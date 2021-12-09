@@ -216,7 +216,7 @@
 		pinctrl-0 = <&pinctrl_reg_usb2>;
 		compatible = "regulator-fixed";
 		regulator-name = "usb_usb2_vbus";
-		gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -255,6 +255,10 @@
 	};
 };
 
+&disp_blk_ctrl {
+	status = "disabled";
+};
+
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi1>;
@@ -282,6 +286,14 @@
 	};
 };
 
+&gpu_2d {
+	status = "disabled";
+};
+
+&gpu_3d {
+	status = "disabled";
+};
+
 &i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
@@ -296,8 +308,6 @@
 		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		adc {
 			compatible = "gw,gsc-adc";
@@ -634,6 +644,18 @@
 	status = "okay";
 };
 
+&pgc_gpu {
+	status = "disabled";
+};
+
+&pgc_gpumix {
+	status = "disabled";
+};
+
+&pgc_mipi {
+	status = "disabled";
+};
+
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>, <&pinctrl_uart1_gpio>;
@@ -824,8 +846,9 @@
 
 	pinctrl_reg_usb2: regusb1grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SAI1_TXD5_GPIO4_IO17	0x41
-			MX8MM_IOMUXC_GPIO1_IO15_USB2_OTG_OC	0x41
+			MX8MM_IOMUXC_SAI1_RXD0_GPIO4_IO2	0x41
+			MX8MM_IOMUXC_SAI1_TXD5_GPIO4_IO17	0x140
+			MX8MM_IOMUXC_GPIO1_IO15_USB2_OTG_OC	0x140
 		>;
 	};
 
@@ -876,9 +899,9 @@
 
 	pinctrl_uart3_gpio: uart3gpiogrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SAI1_RXD4_GPIO4_IO6	0x40000041 /* RS232# */
-			MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7	0x40000041 /* RS422# */
-			MX8MM_IOMUXC_SAI1_RXD6_GPIO4_IO8	0x40000041 /* RS485# */
+			MX8MM_IOMUXC_SAI1_RXD4_GPIO4_IO6	0x40000110 /* RS232# */
+			MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7	0x40000110 /* RS422# */
+			MX8MM_IOMUXC_SAI1_RXD6_GPIO4_IO8	0x40000110 /* RS485# */
 		>;
 	};
 

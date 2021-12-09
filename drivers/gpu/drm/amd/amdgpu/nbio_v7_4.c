@@ -56,12 +56,15 @@
  * These are nbio v7_4_1 registers mask. Temporarily define these here since
  * nbio v7_4_1 header is incomplete.
  */
-#define GPU_HDP_FLUSH_DONE__RSVD_ENG0_MASK	0x00001000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG0_MASK	0x00001000L /* Don't use.  Firmware uses this bit internally */
 #define GPU_HDP_FLUSH_DONE__RSVD_ENG1_MASK	0x00002000L
 #define GPU_HDP_FLUSH_DONE__RSVD_ENG2_MASK	0x00004000L
 #define GPU_HDP_FLUSH_DONE__RSVD_ENG3_MASK	0x00008000L
 #define GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK	0x00010000L
 #define GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK	0x00020000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG6_MASK	0x00040000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG7_MASK	0x00080000L
+#define GPU_HDP_FLUSH_DONE__RSVD_ENG8_MASK	0x00100000L
 
 #define mmBIF_MMSCH1_DOORBELL_RANGE                     0x01dc
 #define mmBIF_MMSCH1_DOORBELL_RANGE_BASE_IDX            2
@@ -84,6 +87,14 @@
 
 #define mmRCC_DEV0_EPF0_STRAP0_ALDE			0x0015
 #define mmRCC_DEV0_EPF0_STRAP0_ALDE_BASE_IDX		2
+
+#define mmBIF_DOORBELL_INT_CNTL_ALDE 			0x00fe
+#define mmBIF_DOORBELL_INT_CNTL_ALDE_BASE_IDX 		2
+#define BIF_DOORBELL_INT_CNTL_ALDE__DOORBELL_INTERRUPT_DISABLE__SHIFT	0x18
+#define BIF_DOORBELL_INT_CNTL_ALDE__DOORBELL_INTERRUPT_DISABLE_MASK	0x01000000L
+
+#define mmBIF_INTR_CNTL_ALDE 				0x0101
+#define mmBIF_INTR_CNTL_ALDE_BASE_IDX 			2
 
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status);
@@ -326,12 +337,27 @@ const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg = {
 	.ref_and_mask_cp9 = GPU_HDP_FLUSH_DONE__CP9_MASK,
 	.ref_and_mask_sdma0 = GPU_HDP_FLUSH_DONE__SDMA0_MASK,
 	.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__SDMA1_MASK,
-	.ref_and_mask_sdma2 = GPU_HDP_FLUSH_DONE__RSVD_ENG0_MASK,
-	.ref_and_mask_sdma3 = GPU_HDP_FLUSH_DONE__RSVD_ENG1_MASK,
-	.ref_and_mask_sdma4 = GPU_HDP_FLUSH_DONE__RSVD_ENG2_MASK,
-	.ref_and_mask_sdma5 = GPU_HDP_FLUSH_DONE__RSVD_ENG3_MASK,
-	.ref_and_mask_sdma6 = GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK,
-	.ref_and_mask_sdma7 = GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK,
+};
+
+const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg_ald = {
+	.ref_and_mask_cp0 = GPU_HDP_FLUSH_DONE__CP0_MASK,
+	.ref_and_mask_cp1 = GPU_HDP_FLUSH_DONE__CP1_MASK,
+	.ref_and_mask_cp2 = GPU_HDP_FLUSH_DONE__CP2_MASK,
+	.ref_and_mask_cp3 = GPU_HDP_FLUSH_DONE__CP3_MASK,
+	.ref_and_mask_cp4 = GPU_HDP_FLUSH_DONE__CP4_MASK,
+	.ref_and_mask_cp5 = GPU_HDP_FLUSH_DONE__CP5_MASK,
+	.ref_and_mask_cp6 = GPU_HDP_FLUSH_DONE__CP6_MASK,
+	.ref_and_mask_cp7 = GPU_HDP_FLUSH_DONE__CP7_MASK,
+	.ref_and_mask_cp8 = GPU_HDP_FLUSH_DONE__CP8_MASK,
+	.ref_and_mask_cp9 = GPU_HDP_FLUSH_DONE__CP9_MASK,
+	.ref_and_mask_sdma0 = GPU_HDP_FLUSH_DONE__RSVD_ENG1_MASK,
+	.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__RSVD_ENG2_MASK,
+	.ref_and_mask_sdma2 = GPU_HDP_FLUSH_DONE__RSVD_ENG3_MASK,
+	.ref_and_mask_sdma3 = GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK,
+	.ref_and_mask_sdma4 = GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK,
+	.ref_and_mask_sdma5 = GPU_HDP_FLUSH_DONE__RSVD_ENG6_MASK,
+	.ref_and_mask_sdma6 = GPU_HDP_FLUSH_DONE__RSVD_ENG7_MASK,
+	.ref_and_mask_sdma7 = GPU_HDP_FLUSH_DONE__RSVD_ENG8_MASK,
 };
 
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
@@ -346,14 +372,21 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 	struct ras_err_data err_data = {0, 0, 0, NULL};
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL_ALDE);
+	else
+		bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+
 	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
 		BIF_DOORBELL_INT_CNTL, RAS_CNTLR_INTERRUPT_STATUS)) {
 		/* driver has to clear the interrupt status when bif ring is disabled */
 		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
 						BIF_DOORBELL_INT_CNTL,
 						RAS_CNTLR_INTERRUPT_CLEAR, 1);
-		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL_ALDE, bif_doorbell_intr_cntl);
+		else
+			WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
 
 		if (!ras->disable_ras_err_cnt_harvest) {
 			/*
@@ -372,13 +405,13 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 						"errors detected in %s block, "
 						"no user action is needed.\n",
 						obj->err_data.ce_count,
-						adev->nbio.ras_if->name);
+						get_ras_block_str(adev->nbio.ras_if));
 
 			if (err_data.ue_count)
 				dev_info(adev->dev, "%ld uncorrectable hardware "
 						"errors detected in %s block\n",
 						obj->err_data.ue_count,
-						adev->nbio.ras_if->name);
+						get_ras_block_str(adev->nbio.ras_if));
 		}
 
 		dev_info(adev->dev, "RAS controller interrupt triggered "
@@ -395,14 +428,22 @@ static void nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_d
 {
 	uint32_t bif_doorbell_intr_cntl;
 
-	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL_ALDE);
+	else
+		bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+
 	if (REG_GET_FIELD(bif_doorbell_intr_cntl,
 		BIF_DOORBELL_INT_CNTL, RAS_ATHUB_ERR_EVENT_INTERRUPT_STATUS)) {
 		/* driver has to clear the interrupt status when bif ring is disabled */
 		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
 						BIF_DOORBELL_INT_CNTL,
 						RAS_ATHUB_ERR_EVENT_INTERRUPT_CLEAR, 1);
-		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL_ALDE, bif_doorbell_intr_cntl);
+		else
+			WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
 
 		amdgpu_ras_global_ras_isr(adev);
 	}
@@ -420,14 +461,23 @@ static int nbio_v7_4_set_ras_controller_irq_state(struct amdgpu_device *adev,
 	 */
 	uint32_t bif_intr_cntl;
 
-	bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL_ALDE);
+	else
+		bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+
 	if (state == AMDGPU_IRQ_STATE_ENABLE) {
 		/* set interrupt vector select bit to 0 to select
 		 * vetcor 1 for bare metal case */
 		bif_intr_cntl = REG_SET_FIELD(bif_intr_cntl,
 					      BIF_INTR_CNTL,
 					      RAS_INTR_VEC_SEL, 0);
-		WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL_ALDE, bif_intr_cntl);
+		else
+			WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+
 	}
 
 	return 0;
@@ -456,14 +506,22 @@ static int nbio_v7_4_set_ras_err_event_athub_irq_state(struct amdgpu_device *ade
 	 */
 	uint32_t bif_intr_cntl;
 
-	bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL_ALDE);
+	else
+		bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+
 	if (state == AMDGPU_IRQ_STATE_ENABLE) {
 		/* set interrupt vector select bit to 0 to select
 		 * vetcor 1 for bare metal case */
 		bif_intr_cntl = REG_SET_FIELD(bif_intr_cntl,
 					      BIF_INTR_CNTL,
 					      RAS_INTR_VEC_SEL, 0);
-		WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL_ALDE, bif_intr_cntl);
+		else
+			WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
 	}
 
 	return 0;
@@ -526,7 +584,9 @@ static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *a
 	return r;
 }
 
-#define smnPARITY_ERROR_STATUS_UNCORR_GRP2	0x13a20030
+#define smnPARITY_ERROR_STATUS_UNCORR_GRP2	    0x13a20030
+#define smnPARITY_ERROR_STATUS_UNCORR_GRP2_ALDE	0x13b20030
+#define smnRAS_GLOBAL_STATUS_LO_ALDE            0x13b20020
 
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
@@ -535,12 +595,20 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t corr, fatal, non_fatal;
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
-	global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO_ALDE);
+	else
+		global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO);
+
 	corr = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrCorr);
 	fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrFatal);
 	non_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
 				ParityErrNonFatal);
-	parity_sts = RREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2);
+
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		parity_sts = RREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2_ALDE);
+	else
+		parity_sts = RREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2);
 
 	if (corr)
 		err_data->ce_count++;
@@ -549,13 +617,21 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 
 	if (corr || fatal || non_fatal) {
 		central_sts = RREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS);
+
 		/* clear error status register */
-		WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO, global_sts);
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO_ALDE, global_sts);
+		else
+			WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO, global_sts);
 
 		if (fatal)
+		{
 			/* clear parity fatal error indication field */
-			WREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2,
-				    parity_sts);
+			if (adev->asic_type == CHIP_ALDEBARAN)
+				WREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2_ALDE, parity_sts);
+			else
+				WREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2, parity_sts);
+		}
 
 		if (REG_GET_FIELD(central_sts, BIFL_RAS_CENTRAL_STATUS,
 				BIFL_RasContller_Intr_Recv)) {
@@ -572,7 +648,11 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 static void nbio_v7_4_enable_doorbell_interrupt(struct amdgpu_device *adev,
 						bool enable)
 {
-	WREG32_FIELD15(NBIO, 0, BIF_DOORBELL_INT_CNTL,
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		WREG32_FIELD15(NBIO, 0, BIF_DOORBELL_INT_CNTL_ALDE,
+		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
+	else
+		WREG32_FIELD15(NBIO, 0, BIF_DOORBELL_INT_CNTL,
 		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 

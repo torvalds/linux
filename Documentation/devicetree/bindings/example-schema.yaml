@@ -119,7 +119,7 @@ properties:
     # valid for this binding.
 
   clock-frequency:
-    # The type is set in the core schema. Per device schema only need to set
+    # The type is set in the core schema. Per-device schema only need to set
     # constraints on the possible values.
     minimum: 100
     maximum: 400000
@@ -133,24 +133,24 @@ properties:
   # *-supply is always a single phandle, so nothing more to define.
   foo-supply: true
 
-  # Vendor specific properties
+  # Vendor-specific properties
   #
-  # Vendor specific properties have slightly different schema requirements than
+  # Vendor-specific properties have slightly different schema requirements than
   # common properties. They must have at least a type definition and
   # 'description'.
   vendor,int-property:
-    description: Vendor specific properties must have a description
+    description: Vendor-specific properties must have a description
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [2, 4, 6, 8, 10]
 
   vendor,bool-property:
-    description: Vendor specific properties must have a description. Boolean
+    description: Vendor-specific properties must have a description. Boolean
       properties are one case where the json-schema 'type' keyword can be used
       directly.
     type: boolean
 
   vendor,string-array-property:
-    description: Vendor specific properties should reference a type in the
+    description: Vendor-specific properties should reference a type in the
       core schema.
     $ref: /schemas/types.yaml#/definitions/string-array
     items:
@@ -158,7 +158,7 @@ properties:
       - enum: [baz, boo]
 
   vendor,property-in-standard-units-microvolt:
-    description: Vendor specific properties having a standard unit suffix
+    description: Vendor-specific properties having a standard unit suffix
       don't need a type.
     enum: [ 100, 200, 300 ]
 

@@ -185,6 +185,29 @@ static const struct rpmpd_desc msm8916_desc = {
 	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
+/* msm8953 RPM Power Domains */
+DEFINE_RPMPD_PAIR(msm8953, vddmd, vddmd_ao, SMPA, LEVEL, 1);
+DEFINE_RPMPD_PAIR(msm8953, vddcx, vddcx_ao, SMPA, LEVEL, 2);
+DEFINE_RPMPD_PAIR(msm8953, vddmx, vddmx_ao, SMPA, LEVEL, 7);
+
+DEFINE_RPMPD_VFL(msm8953, vddcx_vfl, SMPA, 2);
+
+static struct rpmpd *msm8953_rpmpds[] = {
+	[MSM8953_VDDMD] =	&msm8953_vddmd,
+	[MSM8953_VDDMD_AO] =	&msm8953_vddmd_ao,
+	[MSM8953_VDDCX] =	&msm8953_vddcx,
+	[MSM8953_VDDCX_AO] =	&msm8953_vddcx_ao,
+	[MSM8953_VDDCX_VFL] =	&msm8953_vddcx_vfl,
+	[MSM8953_VDDMX] =	&msm8953_vddmx,
+	[MSM8953_VDDMX_AO] =	&msm8953_vddmx_ao,
+};
+
+static const struct rpmpd_desc msm8953_desc = {
+	.rpmpds = msm8953_rpmpds,
+	.num_pds = ARRAY_SIZE(msm8953_rpmpds),
+	.max_state = RPM_SMD_LEVEL_TURBO,
+};
+
 /* msm8976 RPM Power Domains */
 DEFINE_RPMPD_PAIR(msm8976, vddcx, vddcx_ao, SMPA, LEVEL, 2);
 DEFINE_RPMPD_PAIR(msm8976, vddmx, vddmx_ao, SMPA, LEVEL, 6);
@@ -346,16 +369,45 @@ static const struct rpmpd_desc sdm660_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO,
 };
 
+/* sm4250/6115 RPM Power domains */
+DEFINE_RPMPD_PAIR(sm6115, vddcx, vddcx_ao, RWCX, LEVEL, 0);
+DEFINE_RPMPD_VFL(sm6115, vddcx_vfl, RWCX, 0);
+
+DEFINE_RPMPD_PAIR(sm6115, vddmx, vddmx_ao, RWMX, LEVEL, 0);
+DEFINE_RPMPD_VFL(sm6115, vddmx_vfl, RWMX, 0);
+
+DEFINE_RPMPD_LEVEL(sm6115, vdd_lpi_cx, RWLC, 0);
+DEFINE_RPMPD_LEVEL(sm6115, vdd_lpi_mx, RWLM, 0);
+
+static struct rpmpd *sm6115_rpmpds[] = {
+	[SM6115_VDDCX] =		&sm6115_vddcx,
+	[SM6115_VDDCX_AO] =		&sm6115_vddcx_ao,
+	[SM6115_VDDCX_VFL] =		&sm6115_vddcx_vfl,
+	[SM6115_VDDMX] =		&sm6115_vddmx,
+	[SM6115_VDDMX_AO] =		&sm6115_vddmx_ao,
+	[SM6115_VDDMX_VFL] =		&sm6115_vddmx_vfl,
+	[SM6115_VDD_LPI_CX] =		&sm6115_vdd_lpi_cx,
+	[SM6115_VDD_LPI_MX] =		&sm6115_vdd_lpi_mx,
+};
+
+static const struct rpmpd_desc sm6115_desc = {
+	.rpmpds = sm6115_rpmpds,
+	.num_pds = ARRAY_SIZE(sm6115_rpmpds),
+	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
+};
+
 static const struct of_device_id rpmpd_match_table[] = {
 	{ .compatible = "qcom,mdm9607-rpmpd", .data = &mdm9607_desc },
 	{ .compatible = "qcom,msm8916-rpmpd", .data = &msm8916_desc },
 	{ .compatible = "qcom,msm8939-rpmpd", .data = &msm8939_desc },
+	{ .compatible = "qcom,msm8953-rpmpd", .data = &msm8953_desc },
 	{ .compatible = "qcom,msm8976-rpmpd", .data = &msm8976_desc },
 	{ .compatible = "qcom,msm8994-rpmpd", .data = &msm8994_desc },
 	{ .compatible = "qcom,msm8996-rpmpd", .data = &msm8996_desc },
 	{ .compatible = "qcom,msm8998-rpmpd", .data = &msm8998_desc },
 	{ .compatible = "qcom,qcs404-rpmpd", .data = &qcs404_desc },
 	{ .compatible = "qcom,sdm660-rpmpd", .data = &sdm660_desc },
+	{ .compatible = "qcom,sm6115-rpmpd", .data = &sm6115_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmpd_match_table);

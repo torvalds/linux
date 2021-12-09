@@ -5,9 +5,11 @@
 
 /dts-v1/;
 
+#include "sdm630.dtsi"
 #include "sdm630-sony-xperia-nile.dtsi"
 
 / {
 	model = "Sony Xperia XA2 Ultra";
 	compatible = "sony,discovery-row", "qcom,sdm630";
+	chassis-type = "handset";
 };

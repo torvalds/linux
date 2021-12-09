@@ -121,6 +121,10 @@
 
 #define SO_NETNS_COOKIE		0x4045
 
+#define SO_BUF_LOCK		0x4046
+
+#define SO_RESERVE_MEM		0x4047
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

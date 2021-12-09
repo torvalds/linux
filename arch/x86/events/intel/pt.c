@@ -62,7 +62,7 @@ static struct pt_cap_desc {
 	PT_CAP(single_range_output,	0, CPUID_ECX, BIT(2)),
 	PT_CAP(output_subsys,		0, CPUID_ECX, BIT(3)),
 	PT_CAP(payloads_lip,		0, CPUID_ECX, BIT(31)),
-	PT_CAP(num_address_ranges,	1, CPUID_EAX, 0x3),
+	PT_CAP(num_address_ranges,	1, CPUID_EAX, 0x7),
 	PT_CAP(mtc_periods,		1, CPUID_EAX, 0xffff0000),
 	PT_CAP(cycle_thresholds,	1, CPUID_EBX, 0xffff),
 	PT_CAP(psb_periods,		1, CPUID_EBX, 0xffff0000),
@@ -1708,7 +1708,7 @@ static __init int pt_init(void)
 	if (!boot_cpu_has(X86_FEATURE_INTEL_PT))
 		return -ENODEV;
 
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		u64 ctl;
 
@@ -1716,7 +1716,7 @@ static __init int pt_init(void)
 		if (!ret && (ctl & RTIT_CTL_TRACEEN))
 			prior_warn++;
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (prior_warn) {
 		x86_add_exclusive(x86_lbr_exclusive_pt);

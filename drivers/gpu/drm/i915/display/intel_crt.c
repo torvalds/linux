@@ -38,6 +38,7 @@
 #include "intel_crt.h"
 #include "intel_crtc.h"
 #include "intel_ddi.h"
+#include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
@@ -250,7 +251,7 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 
 	intel_crtc_vblank_off(old_crtc_state);
 
-	intel_disable_pipe(old_crtc_state);
+	intel_disable_transcoder(old_crtc_state);
 
 	intel_ddi_disable_transcoder_func(old_crtc_state);
 
@@ -313,7 +314,7 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 
 	intel_ddi_enable_transcoder_func(encoder, crtc_state);
 
-	intel_enable_pipe(crtc_state);
+	intel_enable_transcoder(crtc_state);
 
 	lpt_pch_enable(crtc_state);
 
@@ -1081,6 +1082,8 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		crt->base.enable_clock = hsw_ddi_enable_clock;
 		crt->base.disable_clock = hsw_ddi_disable_clock;
 		crt->base.is_clock_enabled = hsw_ddi_is_clock_enabled;
+
+		intel_ddi_buf_trans_init(&crt->base);
 	} else {
 		if (HAS_PCH_SPLIT(dev_priv)) {
 			crt->base.compute_config = pch_crt_compute_config;

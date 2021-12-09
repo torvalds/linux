@@ -6,7 +6,7 @@
 #include <linux/fs.h>
 #include <drm/drm_print.h>
 
-#include "gt/debugfs_gt.h"
+#include "gt/intel_gt_debugfs.h"
 #include "intel_guc.h"
 #include "intel_guc_log.h"
 #include "intel_guc_log_debugfs.h"
@@ -17,7 +17,7 @@ static int guc_log_dump_show(struct seq_file *m, void *data)
 
 	return intel_guc_log_dump(m->private, &p, false);
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(guc_log_dump);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(guc_log_dump);
 
 static int guc_load_err_log_dump_show(struct seq_file *m, void *data)
 {
@@ -25,7 +25,7 @@ static int guc_load_err_log_dump_show(struct seq_file *m, void *data)
 
 	return intel_guc_log_dump(m->private, &p, true);
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(guc_load_err_log_dump);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(guc_load_err_log_dump);
 
 static int guc_log_level_get(void *data, u64 *val)
 {
@@ -109,7 +109,7 @@ static const struct file_operations guc_log_relay_fops = {
 void intel_guc_log_debugfs_register(struct intel_guc_log *log,
 				    struct dentry *root)
 {
-	static const struct debugfs_gt_file files[] = {
+	static const struct intel_gt_debugfs_file files[] = {
 		{ "guc_log_dump", &guc_log_dump_fops, NULL },
 		{ "guc_load_err_log_dump", &guc_load_err_log_dump_fops, NULL },
 		{ "guc_log_level", &guc_log_level_fops, NULL },

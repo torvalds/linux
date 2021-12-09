@@ -2637,7 +2637,7 @@ static const struct net_device_ops velocity_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_rx_mode	= velocity_set_multi,
 	.ndo_change_mtu		= velocity_change_mtu,
-	.ndo_do_ioctl		= velocity_ioctl,
+	.ndo_eth_ioctl		= velocity_ioctl,
 	.ndo_vlan_rx_add_vid	= velocity_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= velocity_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2767,6 +2767,7 @@ static int velocity_probe(struct device *dev, int irq,
 	struct velocity_info *vptr;
 	struct mac_regs __iomem *regs;
 	int ret = -ENOMEM;
+	u8 addr[ETH_ALEN];
 
 	/* FIXME: this driver, like almost all other ethernet drivers,
 	 * can support more than MAX_UNITS.
@@ -2820,7 +2821,8 @@ static int velocity_probe(struct device *dev, int irq,
 	mac_wol_reset(regs);
 
 	for (i = 0; i < 6; i++)
-		netdev->dev_addr[i] = readb(&regs->PAR[i]);
+		addr[i] = readb(&regs->PAR[i]);
+	eth_hw_addr_set(netdev, addr);
 
 
 	velocity_get_options(&vptr->options, velocity_nics);
@@ -2943,14 +2945,12 @@ static void velocity_pci_remove(struct pci_dev *pdev)
 
 static int velocity_platform_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	const struct velocity_info_tbl *info;
 	int irq;
 
-	of_id = of_match_device(velocity_of_ids, &pdev->dev);
-	if (!of_id)
+	info = of_device_get_match_data(&pdev->dev);
+	if (!info)
 		return -EINVAL;
-	info = of_id->data;
 
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (!irq)
@@ -3520,7 +3520,9 @@ static void set_pending_timer_val(int *val, u32 us)
 
 
 static int velocity_get_coalesce(struct net_device *dev,
-		struct ethtool_coalesce *ecmd)
+				 struct ethtool_coalesce *ecmd,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
@@ -3534,7 +3536,9 @@ static int velocity_get_coalesce(struct net_device *dev,
 }
 
 static int velocity_set_coalesce(struct net_device *dev,
-		struct ethtool_coalesce *ecmd)
+				 struct ethtool_coalesce *ecmd,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	int max_us = 0x3f * 64;

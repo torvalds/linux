@@ -1500,7 +1500,7 @@ static int amd8111e_set_mac_address(struct net_device *dev, void *p)
 	int i;
 	struct sockaddr *addr = p;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	spin_lock_irq(&lp->lock);
 	/* Setting the MAC address to the device */
 	for (i = 0; i < ETH_ALEN; i++)
@@ -1729,7 +1729,7 @@ static const struct net_device_ops amd8111e_netdev_ops = {
 	.ndo_set_rx_mode	= amd8111e_set_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= amd8111e_set_mac_address,
-	.ndo_do_ioctl		= amd8111e_ioctl,
+	.ndo_eth_ioctl		= amd8111e_ioctl,
 	.ndo_change_mtu		= amd8111e_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	 = amd8111e_poll,
@@ -1743,6 +1743,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	unsigned long reg_addr, reg_len;
 	struct amd8111e_priv *lp;
 	struct net_device *dev;
+	u8 addr[ETH_ALEN];
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1809,7 +1810,8 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/* Initializing MAC address */
 	for (i = 0; i < ETH_ALEN; i++)
-		dev->dev_addr[i] = readb(lp->mmio + PADR + i);
+		addr[i] = readb(lp->mmio + PADR + i);
+	eth_hw_addr_set(dev, addr);
 
 	/* Setting user defined parametrs */
 	lp->ext_phy_option = speed_duplex[card_idx];

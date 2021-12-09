@@ -347,7 +347,7 @@ static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int regval, fifo_chan, fifo_val, count;
 
-	if(!wait_for_completion_timeout(&priv->done,
+	if (!wait_for_completion_timeout(&priv->done,
 				msecs_to_jiffies(MESON_SAR_ADC_TIMEOUT)))
 		return -ETIMEDOUT;
 
@@ -497,8 +497,8 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 	if (priv->param->has_bl30_integration) {
 		/* prevent BL30 from using the SAR ADC while we are using it */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
-				MESON_SAR_ADC_DELAY_KERNEL_BUSY,
-				MESON_SAR_ADC_DELAY_KERNEL_BUSY);
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY,
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY);
 
 		/*
 		 * wait until BL30 releases it's lock (so we can use the SAR
@@ -525,7 +525,7 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 	if (priv->param->has_bl30_integration)
 		/* allow BL30 to use the SAR ADC again */
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
-				MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
+				   MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
 
 	mutex_unlock(&indio_dev->mlock);
 }
@@ -791,7 +791,7 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 	 * on the vendor driver), which we don't support at the moment.
 	 */
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG0,
-			MESON_SAR_ADC_REG0_ADC_TEMP_SEN_SEL, 0);
+			   MESON_SAR_ADC_REG0_ADC_TEMP_SEN_SEL, 0);
 
 	/* disable all channels by default */
 	regmap_write(priv->regmap, MESON_SAR_ADC_CHAN_LIST, 0x0);
@@ -1104,6 +1104,14 @@ static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
 	.resolution = 12,
 };
 
+static const struct meson_sar_adc_param meson_sar_adc_g12a_param = {
+	.has_bl30_integration = false,
+	.clock_rate = 1200000,
+	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
+	.resolution = 12,
+};
+
 static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
 	.param = &meson_sar_adc_meson8_param,
 	.name = "meson-meson8-saradc",
@@ -1140,7 +1148,7 @@ static const struct meson_sar_adc_data meson_sar_adc_axg_data = {
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_g12a_data = {
-	.param = &meson_sar_adc_gxl_param,
+	.param = &meson_sar_adc_g12a_param,
 	.name = "meson-g12a-saradc",
 };
 
@@ -1222,35 +1230,31 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 		return ret;
 
 	priv->clkin = devm_clk_get(&pdev->dev, "clkin");
-	if (IS_ERR(priv->clkin)) {
-		dev_err(&pdev->dev, "failed to get clkin\n");
-		return PTR_ERR(priv->clkin);
-	}
+	if (IS_ERR(priv->clkin))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clkin),
+				     "failed to get clkin\n");
 
 	priv->core_clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(priv->core_clk)) {
-		dev_err(&pdev->dev, "failed to get core clk\n");
-		return PTR_ERR(priv->core_clk);
-	}
+	if (IS_ERR(priv->core_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->core_clk),
+				     "failed to get core clk\n");
 
 	priv->adc_clk = devm_clk_get(&pdev->dev, "adc_clk");
 	if (IS_ERR(priv->adc_clk)) {
-		if (PTR_ERR(priv->adc_clk) == -ENOENT) {
+		if (PTR_ERR(priv->adc_clk) == -ENOENT)
 			priv->adc_clk = NULL;
-		} else {
-			dev_err(&pdev->dev, "failed to get adc clk\n");
-			return PTR_ERR(priv->adc_clk);
-		}
+		else
+			return dev_err_probe(&pdev->dev, PTR_ERR(priv->adc_clk),
+					     "failed to get adc clk\n");
 	}
 
 	priv->adc_sel_clk = devm_clk_get(&pdev->dev, "adc_sel");
 	if (IS_ERR(priv->adc_sel_clk)) {
-		if (PTR_ERR(priv->adc_sel_clk) == -ENOENT) {
+		if (PTR_ERR(priv->adc_sel_clk) == -ENOENT)
 			priv->adc_sel_clk = NULL;
-		} else {
-			dev_err(&pdev->dev, "failed to get adc_sel clk\n");
-			return PTR_ERR(priv->adc_sel_clk);
-		}
+		else
+			return dev_err_probe(&pdev->dev, PTR_ERR(priv->adc_sel_clk),
+					     "failed to get adc_sel clk\n");
 	}
 
 	/* on pre-GXBB SoCs the SAR ADC itself provides the ADC clock: */
@@ -1261,10 +1265,9 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	}
 
 	priv->vref = devm_regulator_get(&pdev->dev, "vref");
-	if (IS_ERR(priv->vref)) {
-		dev_err(&pdev->dev, "failed to get vref regulator\n");
-		return PTR_ERR(priv->vref);
-	}
+	if (IS_ERR(priv->vref))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->vref),
+				     "failed to get vref regulator\n");
 
 	priv->calibscale = MILLION;
 

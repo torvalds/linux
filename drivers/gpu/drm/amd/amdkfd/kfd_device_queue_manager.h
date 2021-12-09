@@ -93,7 +93,7 @@ struct device_queue_manager_ops {
 				struct queue *q);
 
 	int	(*update_queue)(struct device_queue_manager *dqm,
-				struct queue *q);
+				struct queue *q, struct mqd_update_info *minfo);
 
 	int	(*register_process)(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
@@ -169,7 +169,7 @@ struct device_queue_manager {
 	struct device_queue_manager_asic_ops asic_ops;
 
 	struct mqd_manager	*mqd_mgrs[KFD_MQD_TYPE_MAX];
-	struct packet_manager	packets;
+	struct packet_manager	packet_mgr;
 	struct kfd_dev		*dev;
 	struct mutex		lock_hidden; /* use dqm_lock/unlock(dqm) */
 	struct list_head	queues;

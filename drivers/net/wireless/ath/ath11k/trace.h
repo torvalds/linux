@@ -79,14 +79,15 @@ TRACE_EVENT(ath11k_htt_ppdu_stats,
 );
 
 TRACE_EVENT(ath11k_htt_rxdesc,
-	    TP_PROTO(struct ath11k *ar, const void *data, size_t len),
+	    TP_PROTO(struct ath11k *ar, const void *data, size_t log_type, size_t len),
 
-	TP_ARGS(ar, data, len),
+	TP_ARGS(ar, data, log_type, len),
 
 	TP_STRUCT__entry(
 		__string(device, dev_name(ar->ab->dev))
 		__string(driver, dev_driver_string(ar->ab->dev))
 		__field(u16, len)
+		__field(u16, log_type)
 		__dynamic_array(u8, rxdesc, len)
 	),
 
@@ -94,14 +95,16 @@ TRACE_EVENT(ath11k_htt_rxdesc,
 		__assign_str(device, dev_name(ar->ab->dev));
 		__assign_str(driver, dev_driver_string(ar->ab->dev));
 		__entry->len = len;
+		__entry->log_type = log_type;
 		memcpy(__get_dynamic_array(rxdesc), data, len);
 	),
 
 	TP_printk(
-		"%s %s rxdesc len %d",
+		"%s %s rxdesc len %d type %d",
 		__get_str(driver),
 		__get_str(device),
-		__entry->len
+		__entry->len,
+		__entry->log_type
 	 )
 );
 

@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 		goto err_out;
 	}
 
-	printf("Get interfaces");
+	printf("Get interfaces:");
 	for (i = 0; i < MAX_IFACE_NUM && argv[optind + i]; i++) {
 		ifaces[i] = if_nametoindex(argv[optind + i]);
 		if (!ifaces[i])
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
 			goto err_out;
 		}
 		if (ifaces[i] > MAX_INDEX_NUM) {
-			printf("Interface index to large\n");
+			printf(" interface index too large\n");
 			goto err_out;
 		}
 		printf(" %d", ifaces[i]);

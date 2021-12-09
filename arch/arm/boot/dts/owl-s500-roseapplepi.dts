@@ -225,6 +225,27 @@
 			bias-pull-down;
 		};
 	};
+
+	ethernet_pins: ethernet-pins {
+		eth_rmii-pinmux {
+			groups = "rmii_txd0_mfp", "rmii_txd1_mfp",
+				 "rmii_rxd0_mfp", "rmii_rxd1_mfp",
+				 "rmii_txen_mfp", "rmii_rxen_mfp",
+				 "rmii_crs_dv_mfp", "rmii_ref_clk_mfp";
+			function = "eth_rmii";
+		};
+
+		phy_clk-pinmux {
+			groups = "clko_25m_mfp";
+			function = "clko_25m";
+		};
+
+		ref_clk-pinconf {
+			groups = "rmii_ref_clk_drv";
+			drive-strength = <2>;
+		};
+
+	};
 };
 
 /* uSD */
@@ -239,6 +260,30 @@
 	bus-width = <4>;
 	vmmc-supply = <&sd_vcc>;
 	vqmmc-supply = <&sd_vcc>;
+};
+
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ethernet_pins>;
+	phy-mode = "rmii";
+	phy-handle = <&eth_phy>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset-gpios = <&pinctrl 88 GPIO_ACTIVE_LOW>; /* GPIOC24 */
+		reset-delay-us = <10000>;
+		reset-post-delay-us = <150000>;
+
+		eth_phy: ethernet-phy@3 {
+			reg = <0x3>;
+			max-speed = <100>;
+			interrupt-parent = <&sirq>;
+			interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
 };
 
 &twd_timer {

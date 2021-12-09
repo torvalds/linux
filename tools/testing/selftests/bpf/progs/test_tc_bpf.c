@@ -5,7 +5,7 @@
 
 /* Dummy prog to test TC-BPF API */
 
-SEC("classifier")
+SEC("tc")
 int cls(struct __sk_buff *skb)
 {
 	return 0;

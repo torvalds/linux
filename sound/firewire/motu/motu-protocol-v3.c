@@ -16,6 +16,7 @@
 #define   V3_CLOCK_SRC_INTERNAL		0x00
 #define   V3_CLOCK_SRC_WORD_ON_BNC	0x01
 #define   V3_CLOCK_SRC_SPH		0x02
+#define   V3_CLOCK_SRC_AESEBU_ON_XLR	0x08
 #define   V3_CLOCK_SRC_SPDIF_ON_COAX	0x10
 #define   V3_CLOCK_SRC_OPT_IFACE_A	0x18
 #define   V3_CLOCK_SRC_OPT_IFACE_B	0x19
@@ -126,6 +127,9 @@ int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
 	case V3_CLOCK_SRC_SPH:
 		*src = SND_MOTU_CLOCK_SOURCE_SPH;
 		break;
+	case V3_CLOCK_SRC_AESEBU_ON_XLR:
+		*src = SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR;
+		break;
 	case V3_CLOCK_SRC_SPDIF_ON_COAX:
 		*src = SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX;
 		break;
@@ -185,7 +189,7 @@ int snd_motu_protocol_v3_switch_fetching_mode(struct snd_motu *motu,
 					  sizeof(reg));
 }
 
-static int detect_packet_formats_828mk3(struct snd_motu *motu, u32 data)
+static int detect_packet_formats_with_opt_ifaces(struct snd_motu *motu, u32 data)
 {
 	if (data & V3_ENABLE_OPT_IN_IFACE_A) {
 		if (data & V3_NO_ADAT_OPT_IN_IFACE_A) {
@@ -255,18 +259,21 @@ int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 	       motu->spec->rx_fixed_pcm_chunks,
 	       sizeof(motu->rx_packet_formats.pcm_chunks));
 
-	if (motu->spec == &snd_motu_spec_828mk3_fw || motu->spec == &snd_motu_spec_828mk3_hybrid)
-		return detect_packet_formats_828mk3(motu, data);
+	if (motu->spec == &snd_motu_spec_828mk3_fw ||
+	    motu->spec == &snd_motu_spec_828mk3_hybrid ||
+	    motu->spec == &snd_motu_spec_traveler_mk3 ||
+	    motu->spec == &snd_motu_spec_track16)
+		return detect_packet_formats_with_opt_ifaces(motu, data);
 	else
 		return 0;
 }
-
 
 const struct snd_motu_spec snd_motu_spec_828mk3_fw = {
 	.name = "828mk3",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
-		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_COMMAND_DSP,
 	.tx_fixed_pcm_chunks = {18, 18, 14},
 	.rx_fixed_pcm_chunks = {14, 14, 10},
 };
@@ -275,16 +282,28 @@ const struct snd_motu_spec snd_motu_spec_828mk3_hybrid = {
 	.name = "828mk3",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
-		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_COMMAND_DSP,
 	.tx_fixed_pcm_chunks = {18, 18, 14},
 	.rx_fixed_pcm_chunks = {14, 14, 14},	// Additional 4 dummy chunks at higher rate.
+};
+
+const struct snd_motu_spec snd_motu_spec_traveler_mk3 = {
+	.name = "TravelerMk3",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
+	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_COMMAND_DSP,
+	.tx_fixed_pcm_chunks = {18, 14, 10},
+	.rx_fixed_pcm_chunks = {14, 14, 10},
 };
 
 const struct snd_motu_spec snd_motu_spec_ultralite_mk3 = {
 	.name = "UltraLiteMk3",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
-		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_COMMAND_DSP,
 	.tx_fixed_pcm_chunks = {18, 14, 10},
 	.rx_fixed_pcm_chunks = {14, 14, 14},
 };
@@ -293,14 +312,26 @@ const struct snd_motu_spec snd_motu_spec_audio_express = {
 	.name = "AudioExpress",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.flags = SND_MOTU_SPEC_RX_MIDI_2ND_Q |
-		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_REGISTER_DSP,
 	.tx_fixed_pcm_chunks = {10, 10, 0},
 	.rx_fixed_pcm_chunks = {10, 10, 0},
+};
+
+const struct snd_motu_spec snd_motu_spec_track16 = {
+	.name = "Track16",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
+	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_COMMAND_DSP,
+	.tx_fixed_pcm_chunks = {14, 14, 14},
+	.rx_fixed_pcm_chunks = {6, 6, 6},
 };
 
 const struct snd_motu_spec snd_motu_spec_4pre = {
 	.name = "4pre",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
+	.flags = SND_MOTU_SPEC_REGISTER_DSP,
 	.tx_fixed_pcm_chunks = {10, 10, 0},
 	.rx_fixed_pcm_chunks = {10, 10, 0},
 };

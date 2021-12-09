@@ -29,9 +29,9 @@
 typedef enum atom_smu9_syspll0_clock_id BIOS_CLKID;
 
 #define GetIndexIntoMasterCmdTable(FieldName) \
-	(((char*)(&((struct atom_master_list_of_command_functions_v2_1*)0)->FieldName)-(char*)0)/sizeof(uint16_t))
+	(offsetof(struct atom_master_list_of_command_functions_v2_1, FieldName) / sizeof(uint16_t))
 #define GetIndexIntoMasterDataTable(FieldName) \
-	(((char*)(&((struct atom_master_list_of_data_tables_v2_1*)0)->FieldName)-(char*)0)/sizeof(uint16_t))
+	(offsetof(struct atom_master_list_of_data_tables_v2_1, FieldName) / sizeof(uint16_t))
 
 #define PP_ATOMFWCTRL_MAX_VOLTAGE_ENTRIES 32
 

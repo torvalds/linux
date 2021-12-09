@@ -217,8 +217,10 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 	 * We are doing an exec().  'current' is the process
 	 * doing the exec and bprm->mm is the new process's mm.
 	 */
+	mmap_read_lock(bprm->mm);
 	ret = get_user_pages_remote(bprm->mm, pos, 1, gup_flags,
 			&page, NULL, NULL);
+	mmap_read_unlock(bprm->mm);
 	if (ret <= 0)
 		return NULL;
 
@@ -574,7 +576,7 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 				}
 
 				if (kmapped_page) {
-					flush_kernel_dcache_page(kmapped_page);
+					flush_dcache_page(kmapped_page);
 					kunmap(kmapped_page);
 					put_arg_page(kmapped_page);
 				}
@@ -592,7 +594,7 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 	ret = 0;
 out:
 	if (kmapped_page) {
-		flush_kernel_dcache_page(kmapped_page);
+		flush_dcache_page(kmapped_page);
 		kunmap(kmapped_page);
 		put_arg_page(kmapped_page);
 	}
@@ -634,7 +636,7 @@ int copy_string_kernel(const char *arg, struct linux_binprm *bprm)
 		kaddr = kmap_atomic(page);
 		flush_arg_page(bprm, pos & PAGE_MASK, page);
 		memcpy(kaddr + offset_in_page(pos), arg, bytes_to_copy);
-		flush_kernel_dcache_page(page);
+		flush_dcache_page(page);
 		kunmap_atomic(kaddr);
 		put_arg_page(page);
 	}
@@ -985,16 +987,14 @@ static int exec_mmap(struct mm_struct *mm)
 
 	if (old_mm) {
 		/*
-		 * Make sure that if there is a core dump in progress
-		 * for the old mm, we get out and die instead of going
-		 * through with the exec.  We must hold mmap_lock around
-		 * checking core_state and changing tsk->mm.
+		 * If there is a pending fatal signal perhaps a signal
+		 * whose default action is to create a coredump get
+		 * out and die instead of going through with the exec.
 		 */
-		mmap_read_lock(old_mm);
-		if (unlikely(old_mm->core_state)) {
-			mmap_read_unlock(old_mm);
+		ret = mmap_read_lock_killable(old_mm);
+		if (ret) {
 			up_write(&tsk->signal->exec_update_lock);
-			return -EINTR;
+			return ret;
 		}
 	}
 
@@ -1270,7 +1270,9 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 * not visibile until then. This also enables the update
 	 * to be lockless.
 	 */
-	set_mm_exe_file(bprm->mm, bprm->file);
+	retval = set_mm_exe_file(bprm->mm, bprm->file);
+	if (retval)
+		goto out;
 
 	/* If the binary is not readable then enforce mm->dumpable=0 */
 	would_dump(bprm, bprm->file);
@@ -1848,7 +1850,7 @@ out:
 	 * SIGSEGV.
 	 */
 	if (bprm->point_of_no_return && !fatal_signal_pending(current))
-		force_sigsegv(SIGSEGV);
+		force_fatal_sig(SIGSEGV);
 
 out_unmark:
 	current->fs->in_exec = 0;
@@ -2070,10 +2072,8 @@ SYSCALL_DEFINE5(execveat,
 		const char __user *const __user *, envp,
 		int, flags)
 {
-	int lookup_flags = (flags & AT_EMPTY_PATH) ? LOOKUP_EMPTY : 0;
-
 	return do_execveat(fd,
-			   getname_flags(filename, lookup_flags, NULL),
+			   getname_uflags(filename, flags),
 			   argv, envp, flags);
 }
 
@@ -2091,10 +2091,8 @@ COMPAT_SYSCALL_DEFINE5(execveat, int, fd,
 		       const compat_uptr_t __user *, envp,
 		       int,  flags)
 {
-	int lookup_flags = (flags & AT_EMPTY_PATH) ? LOOKUP_EMPTY : 0;
-
 	return compat_do_execveat(fd,
-				  getname_flags(filename, lookup_flags, NULL),
+				  getname_uflags(filename, flags),
 				  argv, envp, flags);
 }
 #endif

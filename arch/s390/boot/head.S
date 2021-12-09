@@ -25,12 +25,14 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
-#include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include "boot.h"
+#include <asm/sclp.h>
 
 #define ARCH_OFFSET	4
+
+#define EP_OFFSET	0x10008
+#define EP_STRING	"S390EP"
 
 __HEAD
 
@@ -182,35 +184,23 @@ iplstart:
 	bas	%r14,.Lloader		# load parameter file
 	ltr	%r2,%r2 		# got anything ?
 	bz	.Lnopf
-	chi	%r2,895
-	bnh	.Lnotrunc
-	la	%r2,895
+	l	%r3,MAX_COMMAND_LINE_SIZE+ARCH_OFFSET-PARMAREA(%r12)
+	ahi	%r3,-1
+	clr	%r2,%r3
+	bl	.Lnotrunc
+	lr	%r2,%r3
 .Lnotrunc:
 	l	%r4,.Linitrd
 	clc	0(3,%r4),.L_hdr		# if it is HDRx
 	bz	.Lagain1		# skip dataset header
 	clc	0(3,%r4),.L_eof		# if it is EOFx
 	bz	.Lagain1		# skip dateset trailer
-	la	%r5,0(%r4,%r2)
-	lr	%r3,%r2
-	la	%r3,COMMAND_LINE-PARMAREA(%r12) # load adr. of command line
-	mvc	0(256,%r3),0(%r4)
-	mvc	256(256,%r3),256(%r4)
-	mvc	512(256,%r3),512(%r4)
-	mvc	768(122,%r3),768(%r4)
-	slr	%r0,%r0
-	b	.Lcntlp
-.Ldelspc:
-	ic	%r0,0(%r2,%r3)
-	chi	%r0,0x20		# is it a space ?
-	be	.Lcntlp
-	ahi	%r2,1
-	b	.Leolp
-.Lcntlp:
-	brct	%r2,.Ldelspc
-.Leolp:
-	slr	%r0,%r0
-	stc	%r0,0(%r2,%r3)		# terminate buffer
+
+	lr	%r5,%r2
+	la	%r6,COMMAND_LINE-PARMAREA(%r12)
+	lr	%r7,%r2
+	ahi	%r7,1
+	mvcl	%r6,%r4
 .Lnopf:
 
 #
@@ -275,11 +265,11 @@ iplstart:
 .Lcpuid:.fill	8,1,0
 
 #
-# startup-code at 0x10000, running in absolute addressing mode
+# normal startup-code, running in absolute addressing mode
 # this is called either by the ipl loader or directly by PSW restart
 # or linload or SALIPL
 #
-	.org	0x10000
+	.org	STARTUP_NORMAL_OFFSET
 SYM_CODE_START(startup)
 	j	startup_normal
 	.org	EP_OFFSET
@@ -292,9 +282,9 @@ SYM_CODE_START(startup)
 	.ascii	EP_STRING
 	.byte	0x00,0x01
 #
-# kdump startup-code at 0x10010, running in 64 bit absolute addressing mode
+# kdump startup-code, running in 64 bit absolute addressing mode
 #
-	.org	0x10010
+	.org	STARTUP_KDUMP_OFFSET
 	j	startup_kdump
 SYM_CODE_END(startup)
 SYM_CODE_START_LOCAL(startup_normal)
@@ -320,13 +310,12 @@ SYM_CODE_START_LOCAL(startup_normal)
 	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
-	l	%r15,.Lstack-.LPG0(%r13)
+	larl	%r15,_stack_end-STACK_FRAME_OVERHEAD
+	brasl	%r14,sclp_early_setup_buffer
 	brasl	%r14,verify_facilities
 	brasl	%r14,startup_kernel
 SYM_CODE_END(startup_normal)
 
-.Lstack:
-	.long	BOOT_STACK_OFFSET + BOOT_STACK_SIZE - STACK_FRAME_OVERHEAD
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 .Lext_new_psw:
@@ -337,10 +326,10 @@ SYM_CODE_END(startup_normal)
 	.quad	0x0002000180000000,0x1f0	# disabled wait
 .Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
 	.quad	0			# cr1: primary space segment table
-	.quad	.Lduct			# cr2: dispatchable unit control table
+	.quad	0			# cr2: dispatchable unit control table
 	.quad	0			# cr3: instruction authorization
 	.quad	0xffff			# cr4: instruction authorization
-	.quad	.Lduct			# cr5: primary-aste origin
+	.quad	0			# cr5: primary-aste origin
 	.quad	0			# cr6:	I/O interrupts
 	.quad	0			# cr7:	secondary space segment table
 	.quad	0x0000000000008000	# cr8:	access registers translation
@@ -350,20 +339,7 @@ SYM_CODE_END(startup_normal)
 	.quad	0			# cr12: tracing off
 	.quad	0			# cr13: home space segment table
 	.quad	0xc0000000		# cr14: machine check handling off
-	.quad	.Llinkage_stack		# cr15: linkage stack operations
-
-	.section .dma.data,"aw",@progbits
-.Lduct: .long	0,.Laste,.Laste,0,.Lduald,0,0,0
-	.long	0,0,0,0,0,0,0,0
-.Llinkage_stack:
-	.long	0,0,0x89000000,0,0,0,0x8a000000,0
-	.align 64
-.Laste:	.quad	0,0xffffffffffffffff,0,0,0,0,0,0
-	.align	128
-.Lduald:.rept	8
-	.long	0x80000000,0,0,0	# invalid access-list entries
-	.endr
-	.previous
+	.quad	0			# cr15: linkage stack operations
 
 #include "head_kdump.S"
 
@@ -386,15 +362,13 @@ SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	oi	__LC_RETURN_PSW+1,0x2	# set wait state bit
 	larl	%r9,.Lold_psw_disabled_wait
 	stg	%r9,__LC_PGM_NEW_PSW+8
-	l	%r15,.Ldump_info_stack-.Lold_psw_disabled_wait(%r9)
+	larl	%r15,_dump_info_stack_end-STACK_FRAME_OVERHEAD
 	brasl	%r14,print_pgm_check_info
 .Lold_psw_disabled_wait:
 	la	%r8,4095
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r8)
 	lpswe	__LC_RETURN_PSW		# disabled wait
 SYM_CODE_END(startup_pgm_check_handler)
-.Ldump_info_stack:
-	.long	0x5000 + PAGE_SIZE - STACK_FRAME_OVERHEAD
 
 #
 # params at 10400 (setup.h)
@@ -408,14 +382,10 @@ SYM_DATA_START(parmarea)
 	.quad	0			# OLDMEM_BASE
 	.quad	0			# OLDMEM_SIZE
 	.quad	kernel_version		# points to kernel version string
+	.quad	COMMAND_LINE_SIZE
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"
 	.byte	0
 	.org	PARMAREA+__PARMAREA_SIZE
 SYM_DATA_END(parmarea)
-
-	.org	EARLY_SCCB_OFFSET
-	.fill	4096
-
-	.org	HEAD_END

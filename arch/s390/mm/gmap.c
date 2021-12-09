@@ -27,7 +27,6 @@
 
 /**
  * gmap_alloc - allocate and initialize a guest address space
- * @mm: pointer to the parent mm_struct
  * @limit: maximum address of the gmap address space
  *
  * Returns a guest address space structure.
@@ -504,7 +503,7 @@ EXPORT_SYMBOL_GPL(gmap_translate);
 
 /**
  * gmap_unlink - disconnect a page table from the gmap shadow tables
- * @gmap: pointer to guest mapping meta data structure
+ * @mm: pointer to the parent mm_struct
  * @table: pointer to the host page table
  * @vmaddr: vm address associated with the host page table
  */
@@ -527,7 +526,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *old, pmd_t new,
 			   unsigned long gaddr);
 
 /**
- * gmap_link - set up shadow page tables to connect a host to a guest address
+ * __gmap_link - set up shadow page tables to connect a host to a guest address
  * @gmap: pointer to guest mapping meta data structure
  * @gaddr: guest address
  * @vmaddr: vm address
@@ -673,6 +672,7 @@ EXPORT_SYMBOL_GPL(gmap_fault);
  */
 void __gmap_zap(struct gmap *gmap, unsigned long gaddr)
 {
+	struct vm_area_struct *vma;
 	unsigned long vmaddr;
 	spinlock_t *ptl;
 	pte_t *ptep;
@@ -682,11 +682,17 @@ void __gmap_zap(struct gmap *gmap, unsigned long gaddr)
 						   gaddr >> PMD_SHIFT);
 	if (vmaddr) {
 		vmaddr |= gaddr & ~PMD_MASK;
+
+		vma = vma_lookup(gmap->mm, vmaddr);
+		if (!vma || is_vm_hugetlb_page(vma))
+			return;
+
 		/* Get pointer to the page table entry */
 		ptep = get_locked_pte(gmap->mm, vmaddr, &ptl);
-		if (likely(ptep))
+		if (likely(ptep)) {
 			ptep_zap_unused(gmap->mm, vmaddr, ptep, 0);
-		pte_unmap_unlock(ptep, ptl);
+			pte_unmap_unlock(ptep, ptl);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(__gmap_zap);
@@ -1971,7 +1977,7 @@ out_free:
 EXPORT_SYMBOL_GPL(gmap_shadow_sgt);
 
 /**
- * gmap_shadow_lookup_pgtable - find a shadow page table
+ * gmap_shadow_pgt_lookup - find a shadow page table
  * @sg: pointer to the shadow guest address space structure
  * @saddr: the address in the shadow aguest address space
  * @pgt: parent gmap address of the page table to get shadowed
@@ -2165,7 +2171,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 }
 EXPORT_SYMBOL_GPL(gmap_shadow_page);
 
-/**
+/*
  * gmap_shadow_notify - handle notifications for shadow gmap
  *
  * Called with sg->parent->shadow_lock.
@@ -2225,7 +2231,7 @@ static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
 /**
  * ptep_notify - call all invalidation callbacks for a specific pte.
  * @mm: pointer to the process mm_struct
- * @addr: virtual address in the process address space
+ * @vmaddr: virtual address in the process address space
  * @pte: pointer to the page table entry
  * @bits: bits from the pgste that caused the notify call
  *
@@ -2678,8 +2684,10 @@ static int __s390_reset_acc(pte_t *ptep, unsigned long addr,
 {
 	pte_t pte = READ_ONCE(*ptep);
 
+	/* There is a reference through the mapping */
 	if (pte_present(pte))
-		WARN_ON_ONCE(uv_destroy_page(pte_val(pte) & PAGE_MASK));
+		WARN_ON_ONCE(uv_destroy_owned_page(pte_val(pte) & PAGE_MASK));
+
 	return 0;
 }
 

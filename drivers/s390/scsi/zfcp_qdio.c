@@ -69,10 +69,7 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 {
 	struct zfcp_qdio *qdio = (struct zfcp_qdio *) parm;
 
-	if (unlikely(qdio_err)) {
-		zfcp_qdio_handler_error(qdio, "qdireq1", qdio_err);
-		return;
-	}
+	zfcp_qdio_handler_error(qdio, "qdireq1", qdio_err);
 }
 
 static void zfcp_qdio_request_tasklet(struct tasklet_struct *tasklet)
@@ -387,7 +384,7 @@ free_req_q:
 }
 
 /**
- * zfcp_close_qdio - close qdio queues for an adapter
+ * zfcp_qdio_close - close qdio queues for an adapter
  * @qdio: pointer to structure zfcp_qdio
  */
 void zfcp_qdio_close(struct zfcp_qdio *qdio)

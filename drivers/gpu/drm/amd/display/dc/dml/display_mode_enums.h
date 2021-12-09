@@ -80,11 +80,11 @@ enum dm_swizzle_mode {
 	dm_sw_SPARE_13 = 24,
 	dm_sw_64kb_s_x = 25,
 	dm_sw_64kb_d_x = 26,
-	dm_sw_SPARE_14 = 27,
+	dm_sw_64kb_r_x = 27,
 	dm_sw_SPARE_15 = 28,
 	dm_sw_var_s_x = 29,
 	dm_sw_var_d_x = 30,
-	dm_sw_64kb_r_x,
+	dm_sw_var_r_x = 31,
 	dm_sw_gfx7_2d_thin_l_vp,
 	dm_sw_gfx7_2d_thin_gl,
 };
@@ -109,7 +109,9 @@ enum clock_change_support {
 };
 
 enum output_standard {
-	dm_std_uninitialized = 0, dm_std_cvtr2, dm_std_cvt
+	dm_std_uninitialized = 0,
+	dm_std_cvtr2,
+	dm_std_cvt
 };
 
 enum mpc_combine_affinity {

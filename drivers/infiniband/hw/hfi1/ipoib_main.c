@@ -11,7 +11,7 @@
 #include "ipoib.h"
 #include "hfi.h"
 
-static u32 qpn_from_mac(u8 *mac_arr)
+static u32 qpn_from_mac(const u8 *mac_arr)
 {
 	return (u32)mac_arr[1] << 16 | mac_arr[2] << 8 | mac_arr[3];
 }

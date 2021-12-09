@@ -7,6 +7,7 @@
  * Authors: Kishon Vijay Abraham I <kishon@ti.com>
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -14,7 +15,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_pci.h>
@@ -90,6 +91,7 @@ struct dra7xx_pcie {
 	int			phy_count;	/* DT phy-names count */
 	struct phy		**phy;
 	struct irq_domain	*irq_domain;
+	struct clk              *clk;
 	enum dw_pcie_device_mode mode;
 };
 
@@ -204,7 +206,7 @@ static int dra7xx_pcie_handle_msi(struct pcie_port *pp, int index)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	unsigned long val;
-	int pos, irq;
+	int pos;
 
 	val = dw_pcie_readl_dbi(pci, PCIE_MSI_INTR0_STATUS +
 				   (index * MSI_REG_CTRL_BLOCK_SIZE));
@@ -213,9 +215,8 @@ static int dra7xx_pcie_handle_msi(struct pcie_port *pp, int index)
 
 	pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, 0);
 	while (pos != MAX_MSI_IRQS_PER_CTRL) {
-		irq = irq_find_mapping(pp->irq_domain,
-				       (index * MAX_MSI_IRQS_PER_CTRL) + pos);
-		generic_handle_irq(irq);
+		generic_handle_domain_irq(pp->irq_domain,
+					  (index * MAX_MSI_IRQS_PER_CTRL) + pos);
 		pos++;
 		pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, pos);
 	}
@@ -257,7 +258,7 @@ static void dra7xx_pcie_msi_irq_handler(struct irq_desc *desc)
 	struct dw_pcie *pci;
 	struct pcie_port *pp;
 	unsigned long reg;
-	u32 virq, bit;
+	u32 bit;
 
 	chained_irq_enter(chip, desc);
 
@@ -276,11 +277,8 @@ static void dra7xx_pcie_msi_irq_handler(struct irq_desc *desc)
 	case INTB:
 	case INTC:
 	case INTD:
-		for_each_set_bit(bit, &reg, PCI_NUM_INTX) {
-			virq = irq_find_mapping(dra7xx->irq_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
-		}
+		for_each_set_bit(bit, &reg, PCI_NUM_INTX)
+			generic_handle_domain_irq(dra7xx->irq_domain, bit);
 		break;
 	}
 
@@ -611,6 +609,7 @@ static const struct of_device_id of_dra7xx_pcie_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_dra7xx_pcie_match);
 
 /*
  * dra7xx_pcie_unaligned_memaccess: workaround for AM572x/AM571x Errata i870
@@ -743,6 +742,15 @@ static int dra7xx_pcie_probe(struct platform_device *pdev)
 	link = devm_kcalloc(dev, phy_count, sizeof(*link), GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
+
+	dra7xx->clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(dra7xx->clk))
+		return dev_err_probe(dev, PTR_ERR(dra7xx->clk),
+				     "clock request failed");
+
+	ret = clk_prepare_enable(dra7xx->clk);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < phy_count; i++) {
 		snprintf(name, sizeof(name), "pcie-phy%d", i);
@@ -929,6 +937,8 @@ static void dra7xx_pcie_shutdown(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 	dra7xx_pcie_disable_phy(dra7xx);
+
+	clk_disable_unprepare(dra7xx->clk);
 }
 
 static const struct dev_pm_ops dra7xx_pcie_pm_ops = {
@@ -947,4 +957,8 @@ static struct platform_driver dra7xx_pcie_driver = {
 	},
 	.shutdown = dra7xx_pcie_shutdown,
 };
-builtin_platform_driver(dra7xx_pcie_driver);
+module_platform_driver(dra7xx_pcie_driver);
+
+MODULE_AUTHOR("Kishon Vijay Abraham I <kishon@ti.com>");
+MODULE_DESCRIPTION("PCIe controller driver for TI DRA7xx SoCs");
+MODULE_LICENSE("GPL v2");

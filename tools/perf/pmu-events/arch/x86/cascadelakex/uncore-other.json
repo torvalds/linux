@@ -104,15 +104,6 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "write requests from remote home agent",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x50",
-        "EventName": "UNC_CHA_REQUESTS.WRITES_REMOTE",
-        "PerPkg": "1",
-        "UMask": "0x08",
-        "Unit": "CHA"
-    },
-    {
         "BriefDescription": "UPI interconnect send bandwidth for payload. Derived from unc_upi_txl_flits.all_data",
         "Counter": "0,1,2,3",
         "EventCode": "0x2",
@@ -544,7 +535,7 @@
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD",
         "Filter": "config1=0x40433",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts : DRds issued by iA Cores that Missed the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "PublicDescription": "TOR Inserts : DRds issued by iA Cores that Missed the LLC : Counts the number of entries successfuly inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
         "UMask": "0x21",
         "Unit": "CHA"
     },
@@ -565,6 +556,98 @@
         "EventName": "UNC_IIO_CLOCKTICKS",
         "PerPkg": "1",
         "PublicDescription": "Counts clockticks of the 1GHz trafiic controller clock in the IIO unit.",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART0",
+        "FCMask": "0x4",
+        "PerPkg": "1",
+        "PortMask": "0x01",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0",
+        "UMask": "0x03",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART1",
+        "FCMask": "0x4",
+        "PerPkg": "1",
+        "PortMask": "0x02",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data: Part 1",
+        "UMask": "0x03",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART2",
+        "FCMask": "0x4",
+        "PerPkg": "1",
+        "PortMask": "0x04",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data: Part 2",
+        "UMask": "0x03",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART3",
+        "FCMask": "0x4",
+        "PerPkg": "1",
+        "PortMask": "0x08",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data: Part 3",
+        "UMask": "0x03",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer occupancy of completions with data: Part 0",
+        "Counter": "2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART0",
+        "FCMask": "0x04",
+        "PerPkg": "1",
+        "PublicDescription": "PCIe Completion Buffer occupancy of completions with data: Part 0",
+        "UMask": "0x01",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer occupancy of completions with data: Part 1",
+        "Counter": "2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART1",
+        "FCMask": "0x04",
+        "PerPkg": "1",
+        "PublicDescription": "PCIe Completion Buffer occupancy of completions with data: Part 1",
+        "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer occupancy of completions with data: Part 2",
+        "Counter": "2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART2",
+        "FCMask": "0x04",
+        "PerPkg": "1",
+        "PublicDescription": "PCIe Completion Buffer occupancy of completions with data: Part 2",
+        "UMask": "0x04",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer occupancy of completions with data: Part 3",
+        "Counter": "2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART3",
+        "FCMask": "0x04",
+        "PerPkg": "1",
+        "PublicDescription": "PCIe Completion Buffer occupancy of completions with data: Part 3",
+        "UMask": "0x08",
         "Unit": "IIO"
     },
     {
@@ -1238,6 +1321,64 @@
         "PublicDescription": "Counts every peer to peer write request of up to a 64 byte transaction of data made by IIO Part3 to the MMIO space of an IIO target. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x02",
         "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "Total IRP occupancy of inbound read and write requests.",
+        "Counter": "0,1",
+        "EventCode": "0xF",
+        "EventName": "UNC_I_CACHE_TOTAL_OCCUPANCY.MEM",
+        "PerPkg": "1",
+        "PublicDescription": "Total IRP occupancy of inbound read and write requests.  This is effectively the sum of read occupancy and write occupancy.",
+        "UMask": "0x4",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "PCIITOM request issued by the IRP unit to the mesh with the intention of writing a full cacheline.",
+        "Counter": "0,1",
+        "EventCode": "0x10",
+        "EventName": "UNC_I_COHERENT_OPS.PCITOM",
+        "PerPkg": "1",
+        "PublicDescription": "PCIITOM request issued by the IRP unit to the mesh with the intention of writing a full cacheline to coherent memory, without a RFO.  PCIITOM is a speculative Invalidate to Modified command that requests ownership of the cacheline and does not move data from the mesh to IRP cache.",
+        "UMask": "0x10",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "RFO request issued by the IRP unit to the mesh with the intention of writing a partial cacheline.",
+        "Counter": "0,1",
+        "EventCode": "0x10",
+        "EventName": "UNC_I_COHERENT_OPS.RFO",
+        "PerPkg": "1",
+        "PublicDescription": "RFO request issued by the IRP unit to the mesh with the intention of writing a partial cacheline to coherent memory.  RFO is a Read For Ownership command that requests ownership of the cacheline and moves data from the mesh to IRP cache.",
+        "UMask": "0x8",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound read requests received by the IRP and inserted into the FAF queue.",
+        "Counter": "0,1",
+        "EventCode": "0x18",
+        "EventName": "UNC_I_FAF_INSERTS",
+        "PerPkg": "1",
+        "PublicDescription": "Inbound read requests to coherent memory, received by the IRP and inserted into the Fire and Forget queue (FAF), a queue used for processing inbound reads in the IRP.",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Occupancy of the IRP FAF queue.",
+        "Counter": "0,1",
+        "EventCode": "0x19",
+        "EventName": "UNC_I_FAF_OCCUPANCY",
+        "PerPkg": "1",
+        "PublicDescription": "Occupancy of the IRP Fire and Forget (FAF) queue, a queue used for processing inbound reads in the IRP.",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound write (fast path) requests received by the IRP.",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_I_TRANSACTIONS.WR_PREF",
+        "PerPkg": "1",
+        "PublicDescription": "Inbound write (fast path) requests to coherent memory, received by the IRP resulting in write ownership requests issued by IRP to the mesh.",
+        "UMask": "0x8",
+        "Unit": "IRP"
     },
     {
         "BriefDescription": "Traffic in which the M2M to iMC Bypass was not taken",

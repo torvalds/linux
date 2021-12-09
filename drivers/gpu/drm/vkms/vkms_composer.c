@@ -6,7 +6,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "vkms_drv.h"
@@ -154,24 +153,21 @@ static void compose_plane(struct vkms_composer *primary_composer,
 			  struct vkms_composer *plane_composer,
 			  void *vaddr_out)
 {
-	struct drm_gem_object *plane_obj;
-	struct drm_gem_shmem_object *plane_shmem_obj;
 	struct drm_framebuffer *fb = &plane_composer->fb;
+	void *vaddr;
 	void (*pixel_blend)(const u8 *p_src, u8 *p_dst);
 
-	plane_obj = drm_gem_fb_get_obj(&plane_composer->fb, 0);
-	plane_shmem_obj = to_drm_gem_shmem_obj(plane_obj);
-
-	if (WARN_ON(!plane_shmem_obj->vaddr))
+	if (WARN_ON(dma_buf_map_is_null(&primary_composer->map[0])))
 		return;
+
+	vaddr = plane_composer->map[0].vaddr;
 
 	if (fb->format->format == DRM_FORMAT_ARGB8888)
 		pixel_blend = &alpha_blend;
 	else
 		pixel_blend = &x_blend;
 
-	blend(vaddr_out, plane_shmem_obj->vaddr, primary_composer,
-	      plane_composer, pixel_blend);
+	blend(vaddr_out, vaddr, primary_composer, plane_composer, pixel_blend);
 }
 
 static int compose_active_planes(void **vaddr_out,
@@ -180,21 +176,23 @@ static int compose_active_planes(void **vaddr_out,
 {
 	struct drm_framebuffer *fb = &primary_composer->fb;
 	struct drm_gem_object *gem_obj = drm_gem_fb_get_obj(fb, 0);
-	struct drm_gem_shmem_object *shmem_obj = to_drm_gem_shmem_obj(gem_obj);
+	const void *vaddr;
 	int i;
 
 	if (!*vaddr_out) {
-		*vaddr_out = kzalloc(shmem_obj->base.size, GFP_KERNEL);
+		*vaddr_out = kzalloc(gem_obj->size, GFP_KERNEL);
 		if (!*vaddr_out) {
 			DRM_ERROR("Cannot allocate memory for output frame.");
 			return -ENOMEM;
 		}
 	}
 
-	if (WARN_ON(!shmem_obj->vaddr))
+	if (WARN_ON(dma_buf_map_is_null(&primary_composer->map[0])))
 		return -EINVAL;
 
-	memcpy(*vaddr_out, shmem_obj->vaddr, shmem_obj->base.size);
+	vaddr = primary_composer->map[0].vaddr;
+
+	memcpy(*vaddr_out, vaddr, gem_obj->size);
 
 	/* If there are other planes besides primary, we consider the active
 	 * planes should be in z-order and compose them associatively:
@@ -251,7 +249,7 @@ void vkms_composer_worker(struct work_struct *work)
 
 	if (crtc_state->num_active_planes >= 1) {
 		act_plane = crtc_state->active_planes[0];
-		if (act_plane->base.plane->type == DRM_PLANE_TYPE_PRIMARY)
+		if (act_plane->base.base.plane->type == DRM_PLANE_TYPE_PRIMARY)
 			primary_composer = act_plane->composer;
 	}
 
@@ -259,7 +257,7 @@ void vkms_composer_worker(struct work_struct *work)
 		return;
 
 	if (wb_pending)
-		vaddr_out = crtc_state->active_writeback;
+		vaddr_out = crtc_state->active_writeback->data[0].vaddr;
 
 	ret = compose_active_planes(&vaddr_out, primary_composer,
 				    crtc_state);

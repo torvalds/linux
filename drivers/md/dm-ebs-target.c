@@ -74,7 +74,7 @@ static int __ebs_rw_bvec(struct ebs_c *ec, int rw, struct bio_vec *bv, struct bv
 	if (unlikely(!bv->bv_page || !bv_len))
 		return -EIO;
 
-	pa = page_address(bv->bv_page) + bv->bv_offset;
+	pa = bvec_virt(bv);
 
 	/* Handle overlapping page <-> blocks */
 	while (bv_len) {
@@ -401,6 +401,9 @@ static void ebs_status(struct dm_target *ti, status_type_t type,
 		snprintf(result, maxlen, ec->u_bs_set ? "%s %llu %u %u" : "%s %llu %u",
 			 ec->dev->name, (unsigned long long) ec->start, ec->e_bs, ec->u_bs);
 		break;
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 }
 
@@ -413,7 +416,7 @@ static int ebs_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	*bdev = dev->bdev;
-	return !!(ec->start || ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT);
+	return !!(ec->start || ti->len != bdev_nr_sectors(dev->bdev));
 }
 
 static void ebs_io_hints(struct dm_target *ti, struct queue_limits *limits)

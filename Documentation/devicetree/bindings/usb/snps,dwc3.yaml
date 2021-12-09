@@ -73,15 +73,15 @@ properties:
 
   phys:
     minItems: 1
-    items:
-      - description: USB2/HS PHY
-      - description: USB3/SS PHY
+    maxItems: 2
 
   phy-names:
     minItems: 1
+    maxItems: 2
     items:
-      - const: usb2-phy
-      - const: usb3-phy
+      enum:
+        - usb2-phy
+        - usb3-phy
 
   resets:
     minItems: 1
@@ -252,6 +252,14 @@ properties:
     minimum: 0
     maximum: 0x3f
 
+  snps,ref-clock-period-ns:
+    description:
+      Value for REFCLKPER field of GUCTL register for reference clock period in
+      nanoseconds, when the hardware set default does not match the actual
+      clock.
+    minimum: 1
+    maximum: 0x3ff
+
   snps,rx-thr-num-pkt-prd:
     description:
       Periodic ESS RX packet threshold count (host mode only). Set this and
@@ -289,9 +297,20 @@ properties:
     maximum: 16
 
   tx-fifo-resize:
-    description: Determines if the FIFO *has* to be reallocated
-    deprecated: true
+    description: Determines if the TX fifos can be dynamically resized depending
+      on the number of IN endpoints used and if bursting is supported.  This
+      may help improve bandwidth on platforms with higher system latencies, as
+      increased fifo space allows for the controller to prefetch data into its
+      internal memory.
     type: boolean
+
+  tx-fifo-max-num:
+    description: Specifies the max number of packets the txfifo resizing logic
+      can account for when higher endpoint bursting is used. (bMaxBurst > 6) The
+      higher the number, the more fifo space the txfifo resizing logic will
+      allocate for that endpoint.
+    $ref: /schemas/types.yaml#/definitions/uint8
+    minimum: 3
 
   snps,incr-burst-type-adjustment:
     description:

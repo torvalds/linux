@@ -85,6 +85,8 @@ struct pci_host_bridge;
 int pseries_root_bridge_prepare(struct pci_host_bridge *bridge);
 
 extern struct pci_controller_ops pseries_pci_controller_ops;
+int pseries_msi_allocate_domains(struct pci_controller *phb);
+void pseries_msi_free_domains(struct pci_controller *phb);
 
 unsigned long pseries_memory_block_size(void);
 

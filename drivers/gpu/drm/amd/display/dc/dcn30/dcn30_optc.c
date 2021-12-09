@@ -73,16 +73,23 @@ void optc3_lock_doublebuffer_enable(struct timing_generator *optc)
 		OTG_H_BLANK_END, &h_blank_end);
 
 	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
-		MASTER_UPDATE_LOCK_DB_START_Y, v_blank_start,
-		MASTER_UPDATE_LOCK_DB_END_Y, v_blank_end);
+		MASTER_UPDATE_LOCK_DB_START_Y, v_blank_start - 1,
+		MASTER_UPDATE_LOCK_DB_END_Y, v_blank_start);
 	REG_UPDATE_2(OTG_GLOBAL_CONTROL4,
-		DIG_UPDATE_POSITION_X, 20,
-		DIG_UPDATE_POSITION_Y, v_blank_start);
+		DIG_UPDATE_POSITION_X, h_blank_start - 180 - 1,
+		DIG_UPDATE_POSITION_Y, v_blank_start - 1);
+	// there is a DIG_UPDATE_VCOUNT_MODE and it is 0.
+
 	REG_UPDATE_3(OTG_GLOBAL_CONTROL0,
 		MASTER_UPDATE_LOCK_DB_START_X, h_blank_start - 200 - 1,
-		MASTER_UPDATE_LOCK_DB_END_X, h_blank_end,
+		MASTER_UPDATE_LOCK_DB_END_X, h_blank_start - 180,
 		MASTER_UPDATE_LOCK_DB_EN, 1);
 	REG_UPDATE(OTG_GLOBAL_CONTROL2, GLOBAL_UPDATE_LOCK_EN, 1);
+
+	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, 100,
+		OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, 1);
 }
 
 void optc3_lock_doublebuffer_disable(struct timing_generator *optc)
@@ -109,11 +116,9 @@ void optc3_lock(struct timing_generator *optc)
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 		OTG_MASTER_UPDATE_LOCK, 1);
 
-	/* Should be fast, status does not update on maximus */
-	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
-				UPDATE_LOCK_STATUS, 1,
-				1, 10);
+	REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+			UPDATE_LOCK_STATUS, 1,
+			1, 10);
 }
 
 void optc3_set_out_mux(struct timing_generator *optc, enum otg_out_mux_dest dest)

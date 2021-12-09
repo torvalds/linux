@@ -23,7 +23,7 @@
 #include "pvpanic.h"
 
 MODULE_AUTHOR("Mihai Carabas <mihai.carabas@oracle.com>");
-MODULE_DESCRIPTION("pvpanic device driver ");
+MODULE_DESCRIPTION("pvpanic device driver");
 MODULE_LICENSE("GPL");
 
 static struct list_head pvpanic_list;
@@ -43,8 +43,7 @@ pvpanic_send_event(unsigned int event)
 }
 
 static int
-pvpanic_panic_notify(struct notifier_block *nb, unsigned long code,
-		     void *unused)
+pvpanic_panic_notify(struct notifier_block *nb, unsigned long code, void *unused)
 {
 	unsigned int event = PVPANIC_PANICKED;
 
@@ -58,7 +57,7 @@ pvpanic_panic_notify(struct notifier_block *nb, unsigned long code,
 
 static struct notifier_block pvpanic_panic_nb = {
 	.notifier_call = pvpanic_panic_notify,
-	.priority = 1, /* let this called before broken drm_fb_helper */
+	.priority = 1, /* let this called before broken drm_fb_helper() */
 };
 
 static void pvpanic_remove(void *param)
@@ -85,6 +84,8 @@ int devm_pvpanic_probe(struct device *dev, struct pvpanic_instance *pi)
 	list_add(&pi->list, &pvpanic_list);
 	spin_unlock(&pvpanic_lock);
 
+	dev_set_drvdata(dev, pi);
+
 	return devm_add_action_or_reset(dev, pvpanic_remove, pi);
 }
 EXPORT_SYMBOL_GPL(devm_pvpanic_probe);
@@ -94,18 +95,15 @@ static int pvpanic_init(void)
 	INIT_LIST_HEAD(&pvpanic_list);
 	spin_lock_init(&pvpanic_lock);
 
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &pvpanic_panic_nb);
+	atomic_notifier_chain_register(&panic_notifier_list, &pvpanic_panic_nb);
 
 	return 0;
 }
+module_init(pvpanic_init);
 
 static void pvpanic_exit(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &pvpanic_panic_nb);
+	atomic_notifier_chain_unregister(&panic_notifier_list, &pvpanic_panic_nb);
 
 }
-
-module_init(pvpanic_init);
 module_exit(pvpanic_exit);

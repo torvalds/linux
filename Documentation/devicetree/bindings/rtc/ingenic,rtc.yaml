@@ -72,7 +72,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4740-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
     rtc_dev: rtc@10003000 {
       compatible = "ingenic,jz4740-rtc";
       reg = <0x10003000 0x40>;

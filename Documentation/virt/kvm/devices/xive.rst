@@ -91,7 +91,7 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     Errors:
 
       =======  ==========================================
-      -EINVAL  Value greater than KVM_MAX_VCPU_ID.
+      -EINVAL  Value greater than KVM_MAX_VCPU_IDS.
       -EFAULT  Invalid user pointer for attr->addr.
       -EBUSY   A vCPU is already connected to the device.
       =======  ==========================================

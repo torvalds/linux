@@ -104,16 +104,16 @@
 		#sound-dai-cells = <0>;
 	};
 
-	spi_lcd: spi_lcd {
+	spi_lcd: spi {
 		compatible = "spi-gpio";
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_gpio_pins>;
 
-		gpio-sck = <&gpio1 12 GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio1 18 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
 		cs-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 
@@ -508,6 +508,8 @@
 		pinctrl-0 = <&bmp085_pins>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <17 IRQ_TYPE_EDGE_RISING>; /* GPIO_113 */
+		vdda-supply = <&vio>;
+		vddd-supply = <&vio>;
 	};
 
 	/* accelerometer */
@@ -515,7 +517,7 @@
 		compatible = "bosch,bma180";
 		reg = <0x41>;
 		pinctrl-names = "default";
-		pintcrl-0 = <&bma180_pins>;
+		pinctrl-0 = <&bma180_pins>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <19 IRQ_TYPE_LEVEL_HIGH>; /* GPIO_115 */
 	};
@@ -540,28 +542,29 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		gta04_led0: red_aux@0 {
+		gta04_led0: led@0 {
 			label = "gta04:red:aux";
 			reg = <0x0>;
 		};
 
-		gta04_led1: green_aux@1 {
+		gta04_led1: led@1 {
 			label = "gta04:green:aux";
 			reg = <0x1>;
 		};
 
-		gta04_led3: red_power@3 {
+		gta04_led3: led@3 {
 			label = "gta04:red:power";
 			reg = <0x3>;
 			linux,default-trigger = "default-on";
 		};
 
-		gta04_led4: green_power@4 {
+		gta04_led4: led@4 {
 			label = "gta04:green:power";
 			reg = <0x4>;
 		};
 
-		wifi_reset: wifi_reset@6 { /* reference as <&tca_gpios 0 0> since it is currently the only GPIO */
+		wifi_reset: led@6 {
+			/* reference as <&tca_gpios 0 0> since it is currently the only GPIO */
 			reg = <0x6>;
 			compatible = "gpio";
 		};

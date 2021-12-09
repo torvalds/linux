@@ -1,3 +1,28 @@
+/*
+ * Copyright 2021 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: AMD
+ *
+ */
+
 #include <inc/core_status.h>
 #include <dc_link.h>
 #include <inc/link_hwss.h>
@@ -151,12 +176,15 @@ static void dpcd_reduce_address_range(
 		uint8_t * const reduced_data,
 		const uint32_t reduced_size)
 {
-	const uint32_t reduced_end_address = END_ADDRESS(reduced_address, reduced_size);
-	const uint32_t extended_end_address = END_ADDRESS(extended_address, extended_size);
 	const uint32_t offset = reduced_address - extended_address;
 
-	if (extended_end_address == reduced_end_address && extended_address == reduced_address)
-		return; /* extended and reduced address ranges point to the same data */
+	/*
+	 * If the address is same, address was not extended.
+	 * So we do not need to free any memory.
+	 * The data is in original buffer(reduced_data).
+	 */
+	if (extended_data == reduced_data)
+		return;
 
 	memcpy(&extended_data[offset], reduced_data, reduced_size);
 	kfree(extended_data);

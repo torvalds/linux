@@ -304,7 +304,7 @@ EXPORT_SYMBOL_GPL(pwmchip_add);
  *
  * Returns: 0 on success or a negative error code on failure.
  */
-int pwmchip_remove(struct pwm_chip *chip)
+void pwmchip_remove(struct pwm_chip *chip)
 {
 	pwmchip_sysfs_unexport(chip);
 
@@ -318,8 +318,6 @@ int pwmchip_remove(struct pwm_chip *chip)
 	free_pwms(chip);
 
 	mutex_unlock(&pwm_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(pwmchip_remove);
 
@@ -533,6 +531,15 @@ int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 {
 	struct pwm_chip *chip;
 	int err;
+
+	/*
+	 * Some lowlevel driver's implementations of .apply() make use of
+	 * mutexes, also with some drivers only returning when the new
+	 * configuration is active calling pwm_apply_state() from atomic context
+	 * is a bad idea. So make it explicit that calling this function might
+	 * sleep.
+	 */
+	might_sleep();
 
 	if (!pwm || !state || !state->period ||
 	    state->duty_cycle > state->period)

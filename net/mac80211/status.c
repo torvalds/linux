@@ -305,8 +305,8 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 	memset(rthdr, 0, rtap_len);
 	rthdr->it_len = cpu_to_le16(rtap_len);
 	rthdr->it_present =
-		cpu_to_le32((1 << IEEE80211_RADIOTAP_TX_FLAGS) |
-			    (1 << IEEE80211_RADIOTAP_DATA_RETRIES));
+		cpu_to_le32(BIT(IEEE80211_RADIOTAP_TX_FLAGS) |
+			    BIT(IEEE80211_RADIOTAP_DATA_RETRIES));
 	pos = (unsigned char *)(rthdr + 1);
 
 	/*
@@ -331,7 +331,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 			sband->bitrates[info->status.rates[0].idx].bitrate;
 
 	if (legacy_rate) {
-		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
+		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_RATE));
 		*pos = DIV_ROUND_UP(legacy_rate, 5 * (1 << shift));
 		/* padding for tx flags */
 		pos += 2;
@@ -358,7 +358,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 
 	if (status && status->rate &&
 	    (status->rate->flags & RATE_INFO_FLAGS_MCS)) {
-		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_MCS);
+		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_MCS));
 		pos[0] = IEEE80211_RADIOTAP_MCS_HAVE_MCS |
 			 IEEE80211_RADIOTAP_MCS_HAVE_GI |
 			 IEEE80211_RADIOTAP_MCS_HAVE_BW;
@@ -374,7 +374,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 			(IEEE80211_RADIOTAP_VHT_KNOWN_GI |
 			 IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH);
 
-		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_VHT);
+		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_VHT));
 
 		/* required alignment from rthdr */
 		pos = (u8 *)rthdr + ALIGN(pos - (u8 *)rthdr, 2);
@@ -419,7 +419,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 		   (status->rate->flags & RATE_INFO_FLAGS_HE_MCS)) {
 		struct ieee80211_radiotap_he *he;
 
-		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_HE);
+		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_HE));
 
 		/* required alignment from rthdr */
 		pos = (u8 *)rthdr + ALIGN(pos - (u8 *)rthdr, 2);
@@ -495,7 +495,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_MCS
 	 * IEEE80211_RADIOTAP_VHT */
 	if (info->status.rates[0].flags & IEEE80211_TX_RC_MCS) {
-		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_MCS);
+		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_MCS));
 		pos[0] = IEEE80211_RADIOTAP_MCS_HAVE_MCS |
 			 IEEE80211_RADIOTAP_MCS_HAVE_GI |
 			 IEEE80211_RADIOTAP_MCS_HAVE_BW;
@@ -512,7 +512,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 			(IEEE80211_RADIOTAP_VHT_KNOWN_GI |
 			 IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH);
 
-		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_VHT);
+		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_VHT));
 
 		/* required alignment from rthdr */
 		pos = (u8 *)rthdr + ALIGN(pos - (u8 *)rthdr, 2);
@@ -705,13 +705,26 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 			/* Check to see if packet is a TDLS teardown packet */
 			if (ieee80211_is_data(hdr->frame_control) &&
 			    (ieee80211_get_tdls_action(skb, hdr_size) ==
-			     WLAN_TDLS_TEARDOWN))
+			     WLAN_TDLS_TEARDOWN)) {
 				ieee80211_tdls_td_tx_handle(local, sdata, skb,
 							    info->flags);
-			else
+			} else if (ieee80211_s1g_is_twt_setup(skb)) {
+				if (!acked) {
+					struct sk_buff *qskb;
+
+					qskb = skb_clone(skb, GFP_ATOMIC);
+					if (qskb) {
+						skb_queue_tail(&sdata->status_queue,
+							       qskb);
+						ieee80211_queue_work(&local->hw,
+								     &sdata->work);
+					}
+				}
+			} else {
 				ieee80211_mgd_conn_tx_status(sdata,
 							     hdr->frame_control,
 							     acked);
+			}
 		}
 
 		rcu_read_unlock();

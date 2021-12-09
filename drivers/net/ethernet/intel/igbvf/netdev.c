@@ -1527,8 +1527,7 @@ static void igbvf_reset(struct igbvf_adapter *adapter)
 	spin_unlock_bh(&hw->mbx_lock);
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
-		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
-		       netdev->addr_len);
+		eth_hw_addr_set(netdev, adapter->hw.mac.addr);
 		memcpy(netdev->perm_addr, adapter->hw.mac.addr,
 		       netdev->addr_len);
 	}
@@ -1813,7 +1812,7 @@ static int igbvf_set_mac(struct net_device *netdev, void *p)
 	if (!ether_addr_equal(addr->sa_data, hw->mac.addr))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 
 	return 0;
 }
@@ -2657,7 +2656,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_set_rx_mode	= igbvf_set_rx_mode,
 	.ndo_set_mac_address	= igbvf_set_mac,
 	.ndo_change_mtu		= igbvf_change_mtu,
-	.ndo_do_ioctl		= igbvf_ioctl,
+	.ndo_eth_ioctl		= igbvf_ioctl,
 	.ndo_tx_timeout		= igbvf_tx_timeout,
 	.ndo_vlan_rx_add_vid	= igbvf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= igbvf_vlan_rx_kill_vid,
@@ -2816,8 +2815,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		else if (is_zero_ether_addr(adapter->hw.mac.addr))
 			dev_info(&pdev->dev,
 				 "MAC address not assigned by administrator.\n");
-		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
-		       netdev->addr_len);
+		eth_hw_addr_set(netdev, adapter->hw.mac.addr);
 	}
 
 	spin_unlock_bh(&hw->mbx_lock);

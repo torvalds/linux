@@ -70,22 +70,36 @@ void link_enc_cfg_link_enc_unassign(
  * endpoint.
  */
 bool link_enc_cfg_is_transmitter_mappable(
-		struct dc_state *state,
+		struct dc *dc,
 		struct link_encoder *link_enc);
+
+/* Return stream using DIG link encoder resource. NULL if unused. */
+struct dc_stream_state *link_enc_cfg_get_stream_using_link_enc(
+		struct dc *dc,
+		enum engine_id eng_id);
 
 /* Return link using DIG link encoder resource. NULL if unused. */
 struct dc_link *link_enc_cfg_get_link_using_link_enc(
-		struct dc_state *state,
+		struct dc *dc,
 		enum engine_id eng_id);
 
 /* Return DIG link encoder used by link. NULL if unused. */
 struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
-		struct dc_state *state,
+		struct dc *dc,
 		const struct dc_link *link);
 
 /* Return next available DIG link encoder. NULL if none available. */
-struct link_encoder *link_enc_cfg_get_next_avail_link_enc(
-	const struct dc *dc,
-	const struct dc_state *state);
+struct link_encoder *link_enc_cfg_get_next_avail_link_enc(struct dc *dc);
+
+/* Return DIG link encoder used by stream. NULL if unused. */
+struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
+		struct dc *dc,
+		const struct dc_stream_state *stream);
+
+/* Return true if encoder available to use. */
+bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id, struct dc_link *link);
+
+/* Returns true if encoder assignments in supplied state pass validity checks. */
+bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state);
 
 #endif /* DC_INC_LINK_ENC_CFG_H_ */

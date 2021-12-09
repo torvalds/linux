@@ -271,7 +271,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		return -EINVAL;
 	}
 
-	/* first, see if the ID we're looking for is a clock source already */
+	/* first, see if the ID we're looking at is a clock source already */
 	source = snd_usb_find_clock_source(chip, entity_id, proto);
 	if (source) {
 		entity_id = GET_VAL(source, proto, bClockID);
@@ -297,7 +297,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 			goto find_source;
 		}
 
-		/* the entity ID we are looking for is a selector.
+		/* the entity ID we are looking at is a selector.
 		 * find out what it currently selects */
 		ret = uac_clock_selector_get_val(chip, clock_id);
 		if (ret < 0) {
@@ -324,11 +324,8 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 					      sources[ret - 1],
 					      visited, validate);
 		if (ret > 0) {
-			/*
-			 * For Samsung USBC Headset (AKG), setting clock selector again
-			 * will result in incorrect default clock setting problems
-			 */
-			if (chip->usb_id == USB_ID(0x04e8, 0xa051))
+			/* Skip setting clock selector again for some devices */
+			if (chip->quirk_flags & QUIRK_FLAG_SKIP_CLOCK_SELECTOR)
 				return ret;
 			err = uac_clock_selector_set_val(chip, entity_id, cur);
 			if (err < 0)
@@ -426,7 +423,7 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip,
 
 	/* Don't check the sample rate for devices which we know don't
 	 * support reading */
-	if (snd_usb_get_sample_rate_quirk(chip))
+	if (chip->quirk_flags & QUIRK_FLAG_GET_SAMPLE_RATE)
 		return 0;
 	/* the firmware is likely buggy, don't repeat to fail too many times */
 	if (chip->sample_rate_read_error > 2)
@@ -499,6 +496,10 @@ int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 	union uac23_clock_source_desc *cs_desc;
 
 	cs_desc = snd_usb_find_clock_source(chip, clock, fmt->protocol);
+
+	if (!cs_desc)
+		return 0;
+
 	if (fmt->protocol == UAC_VERSION_3)
 		bmControls = le32_to_cpu(cs_desc->v3.bmControls);
 	else
@@ -541,10 +542,8 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 		 */
 		clock = snd_usb_clock_find_source(chip, fmt, false);
 
-		/* Denon DN-X1600 hardcoded
-		 * Sample rate seems to be set on the hardware itself
-		 */
-		if (chip->usb_id == USB_ID(0x154e, 0x500e))
+		/* Hardcoded sample rates */
+		if (chip->quirk_flags & QUIRK_FLAG_IGNORE_CLOCK_SOURCE)
 			return 0;
 
 		if (clock < 0)

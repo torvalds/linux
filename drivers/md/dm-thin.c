@@ -3212,7 +3212,7 @@ static int metadata_pre_commit_callback(void *context)
 
 static sector_t get_dev_size(struct block_device *bdev)
 {
-	return i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	return bdev_nr_sectors(bdev);
 }
 
 static void warn_if_metadata_device_too_big(struct block_device *bdev)
@@ -4012,6 +4012,10 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 		       (unsigned long long)pt->low_water_blocks);
 		emit_flags(&pt->requested_pf, result, sz, maxlen);
 		break;
+
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 	return;
 
@@ -4422,6 +4426,10 @@ static void thin_status(struct dm_target *ti, status_type_t type,
 			       (unsigned long) tc->dev_id);
 			if (tc->origin_dev)
 				DMEMIT(" %s", format_dev_t(buf, tc->origin_dev->bdev->bd_dev));
+			break;
+
+		case STATUSTYPE_IMA:
+			*result = '\0';
 			break;
 		}
 	}

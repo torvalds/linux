@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only 
 
+#include "util/cgroup.h"
+#include "util/data.h"
 #include "util/debug.h"
 #include "util/dso.h"
 #include "util/event.h"
@@ -16,7 +18,6 @@
 #include "util/synthetic-events.h"
 #include "util/target.h"
 #include "util/time-utils.h"
-#include "util/cgroup.h"
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -714,7 +715,8 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 				      union perf_event *fork_event,
 				      union perf_event *namespaces_event,
 				      pid_t pid, int full, perf_event__handler_t process,
-				      struct perf_tool *tool, struct machine *machine, bool mmap_data)
+				      struct perf_tool *tool, struct machine *machine,
+				      bool needs_mmap, bool mmap_data)
 {
 	char filename[PATH_MAX];
 	struct dirent **dirent;
@@ -738,7 +740,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		 * send mmap only for thread group leader
 		 * see thread__init_maps()
 		 */
-		if (pid == tgid &&
+		if (pid == tgid && needs_mmap &&
 		    perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
 						       process, machine, mmap_data))
 			return -1;
@@ -785,7 +787,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 			break;
 
 		rc = 0;
-		if (_pid == pid && !kernel_thread) {
+		if (_pid == pid && !kernel_thread && needs_mmap) {
 			/* process the parent's maps too */
 			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
 						process, machine, mmap_data);
@@ -805,7 +807,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct perf_thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine,
-				      bool mmap_data)
+				      bool needs_mmap, bool mmap_data)
 {
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	union perf_event *namespaces_event;
@@ -835,7 +837,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 					       fork_event, namespaces_event,
 					       perf_thread_map__pid(threads, thread), 0,
 					       process, tool, machine,
-					       mmap_data)) {
+					       needs_mmap, mmap_data)) {
 			err = -1;
 			break;
 		}
@@ -861,7 +863,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 						       fork_event, namespaces_event,
 						       comm_event->comm.pid, 0,
 						       process, tool, machine,
-						       mmap_data)) {
+						       needs_mmap, mmap_data)) {
 				err = -1;
 				break;
 			}
@@ -881,6 +883,7 @@ out:
 static int __perf_event__synthesize_threads(struct perf_tool *tool,
 					    perf_event__handler_t process,
 					    struct machine *machine,
+					    bool needs_mmap,
 					    bool mmap_data,
 					    struct dirent **dirent,
 					    int start,
@@ -925,7 +928,7 @@ static int __perf_event__synthesize_threads(struct perf_tool *tool,
 		 */
 		__event__synthesize_thread(comm_event, mmap_event, fork_event,
 					   namespaces_event, pid, 1, process,
-					   tool, machine, mmap_data);
+					   tool, machine, needs_mmap, mmap_data);
 	}
 	err = 0;
 
@@ -944,6 +947,7 @@ struct synthesize_threads_arg {
 	struct perf_tool *tool;
 	perf_event__handler_t process;
 	struct machine *machine;
+	bool needs_mmap;
 	bool mmap_data;
 	struct dirent **dirent;
 	int num;
@@ -955,7 +959,8 @@ static void *synthesize_threads_worker(void *arg)
 	struct synthesize_threads_arg *args = arg;
 
 	__perf_event__synthesize_threads(args->tool, args->process,
-					 args->machine, args->mmap_data,
+					 args->machine,
+					 args->needs_mmap, args->mmap_data,
 					 args->dirent,
 					 args->start, args->num);
 	return NULL;
@@ -964,7 +969,7 @@ static void *synthesize_threads_worker(void *arg)
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine,
-				   bool mmap_data,
+				   bool needs_mmap, bool mmap_data,
 				   unsigned int nr_threads_synthesize)
 {
 	struct synthesize_threads_arg *args = NULL;
@@ -993,7 +998,8 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 
 	if (thread_nr <= 1) {
 		err = __perf_event__synthesize_threads(tool, process,
-						       machine, mmap_data,
+						       machine,
+						       needs_mmap, mmap_data,
 						       dirent, base, n);
 		goto free_dirent;
 	}
@@ -1014,6 +1020,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 		args[i].tool = tool;
 		args[i].process = process;
 		args[i].machine = machine;
+		args[i].needs_mmap = needs_mmap;
 		args[i].mmap_data = mmap_data;
 		args[i].dirent = dirent;
 	}
@@ -1774,26 +1781,27 @@ out_err:
 
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
 				  struct target *target, struct perf_thread_map *threads,
-				  perf_event__handler_t process, bool data_mmap,
-				  unsigned int nr_threads_synthesize)
+				  perf_event__handler_t process, bool needs_mmap,
+				  bool data_mmap, unsigned int nr_threads_synthesize)
 {
 	if (target__has_task(target))
-		return perf_event__synthesize_thread_map(tool, threads, process, machine, data_mmap);
+		return perf_event__synthesize_thread_map(tool, threads, process, machine,
+							 needs_mmap, data_mmap);
 	else if (target__has_cpu(target))
-		return perf_event__synthesize_threads(tool, process,
-						      machine, data_mmap,
+		return perf_event__synthesize_threads(tool, process, machine,
+						      needs_mmap, data_mmap,
 						      nr_threads_synthesize);
 	/* command specified */
 	return 0;
 }
 
 int machine__synthesize_threads(struct machine *machine, struct target *target,
-				struct perf_thread_map *threads, bool data_mmap,
-				unsigned int nr_threads_synthesize)
+				struct perf_thread_map *threads, bool needs_mmap,
+				bool data_mmap, unsigned int nr_threads_synthesize)
 {
 	return __machine__synthesize_threads(machine, NULL, target, threads,
-					     perf_event__process, data_mmap,
-					     nr_threads_synthesize);
+					     perf_event__process, needs_mmap,
+					     data_mmap, nr_threads_synthesize);
 }
 
 static struct perf_record_event_update *event_update_event__new(size_t size, u64 type, u64 id)
@@ -2177,5 +2185,83 @@ int perf_event__synthesize_features(struct perf_tool *tool, struct perf_session 
 	ret = process(tool, ff.buf, NULL, NULL);
 
 	free(ff.buf);
+	return ret;
+}
+
+int perf_event__synthesize_for_pipe(struct perf_tool *tool,
+				    struct perf_session *session,
+				    struct perf_data *data,
+				    perf_event__handler_t process)
+{
+	int err;
+	int ret = 0;
+	struct evlist *evlist = session->evlist;
+
+	/*
+	 * We need to synthesize events first, because some
+	 * features works on top of them (on report side).
+	 */
+	err = perf_event__synthesize_attrs(tool, evlist, process);
+	if (err < 0) {
+		pr_err("Couldn't synthesize attrs.\n");
+		return err;
+	}
+	ret += err;
+
+	err = perf_event__synthesize_features(tool, session, evlist, process);
+	if (err < 0) {
+		pr_err("Couldn't synthesize features.\n");
+		return err;
+	}
+	ret += err;
+
+	if (have_tracepoints(&evlist->core.entries)) {
+		int fd = perf_data__fd(data);
+
+		/*
+		 * FIXME err <= 0 here actually means that
+		 * there were no tracepoints so its not really
+		 * an error, just that we don't need to
+		 * synthesize anything.  We really have to
+		 * return this more properly and also
+		 * propagate errors that now are calling die()
+		 */
+		err = perf_event__synthesize_tracing_data(tool,	fd, evlist,
+							  process);
+		if (err <= 0) {
+			pr_err("Couldn't record tracing data.\n");
+			return err;
+		}
+		ret += err;
+	}
+
+	return ret;
+}
+
+int parse_synth_opt(char *synth)
+{
+	char *p, *q;
+	int ret = 0;
+
+	if (synth == NULL)
+		return -1;
+
+	for (q = synth; (p = strsep(&q, ",")); p = q) {
+		if (!strcasecmp(p, "no") || !strcasecmp(p, "none"))
+			return 0;
+
+		if (!strcasecmp(p, "all"))
+			return PERF_SYNTH_ALL;
+
+		if (!strcasecmp(p, "task"))
+			ret |= PERF_SYNTH_TASK;
+		else if (!strcasecmp(p, "mmap"))
+			ret |= PERF_SYNTH_TASK | PERF_SYNTH_MMAP;
+		else if (!strcasecmp(p, "cgroup"))
+			ret |= PERF_SYNTH_CGROUP;
+		else
+			return -1;
+	}
+
 	return ret;
 }

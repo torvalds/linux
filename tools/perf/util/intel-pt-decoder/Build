@@ -18,3 +18,5 @@ CFLAGS_intel-pt-insn-decoder.o += -I$(OUTPUT)util/intel-pt-decoder
 ifeq ($(CC_NO_CLANG), 1)
   CFLAGS_intel-pt-insn-decoder.o += -Wno-override-init
 endif
+
+CFLAGS_intel-pt-insn-decoder.o += -Wno-packed

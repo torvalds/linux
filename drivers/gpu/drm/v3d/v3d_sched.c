@@ -13,7 +13,7 @@
  * jobs when bulk background jobs are queued up, we submit a new job
  * to the HW only when it has completed the last one, instead of
  * filling up the CT[01]Q FIFOs with jobs.  Similarly, we use
- * v3d_job_dependency() to manage the dependency between bin and
+ * drm_sched_job_add_dependency() to manage the dependency between bin and
  * render, instead of having the clients submit jobs using the HW's
  * semaphores to interlock between them.
  */
@@ -55,34 +55,21 @@ to_csd_job(struct drm_sched_job *sched_job)
 }
 
 static void
-v3d_job_free(struct drm_sched_job *sched_job)
+v3d_sched_job_free(struct drm_sched_job *sched_job)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 
-	drm_sched_job_cleanup(sched_job);
-	v3d_job_put(job);
+	v3d_job_cleanup(job);
 }
 
-/*
- * Returns the fences that the job depends on, one by one.
- *
- * If placed in the scheduler's .dependency method, the corresponding
- * .run_job won't be called until all of them have been signaled.
- */
-static struct dma_fence *
-v3d_job_dependency(struct drm_sched_job *sched_job,
-		   struct drm_sched_entity *s_entity)
+static void
+v3d_switch_perfmon(struct v3d_dev *v3d, struct v3d_job *job)
 {
-	struct v3d_job *job = to_v3d_job(sched_job);
+	if (job->perfmon != v3d->active_perfmon)
+		v3d_perfmon_stop(v3d, v3d->active_perfmon, true);
 
-	/* XXX: Wait on a fence for switching the GMP if necessary,
-	 * and then do so.
-	 */
-
-	if (!xa_empty(&job->deps))
-		return xa_erase(&job->deps, job->last_dep++);
-
-	return NULL;
+	if (job->perfmon && v3d->active_perfmon != job->perfmon)
+		v3d_perfmon_start(v3d, job->perfmon);
 }
 
 static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
@@ -119,6 +106,8 @@ static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
 
 	trace_v3d_submit_cl(dev, false, to_v3d_fence(fence)->seqno,
 			    job->start, job->end);
+
+	v3d_switch_perfmon(v3d, &job->base);
 
 	/* Set the current and end address of the control list.
 	 * Writing the end register is what starts the job.
@@ -168,6 +157,8 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 
 	trace_v3d_submit_cl(dev, true, to_v3d_fence(fence)->seqno,
 			    job->start, job->end);
+
+	v3d_switch_perfmon(v3d, &job->base);
 
 	/* XXX: Set the QCFG */
 
@@ -239,6 +230,8 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	job->base.irq_fence = dma_fence_get(fence);
 
 	trace_v3d_submit_csd(dev, to_v3d_fence(fence)->seqno);
+
+	v3d_switch_perfmon(v3d, &job->base);
 
 	for (i = 1; i <= 6; i++)
 		V3D_CORE_WRITE(0, V3D_CSD_QUEUED_CFG0 + 4 * i, job->args.cfg[i]);
@@ -357,38 +350,33 @@ v3d_csd_job_timedout(struct drm_sched_job *sched_job)
 }
 
 static const struct drm_sched_backend_ops v3d_bin_sched_ops = {
-	.dependency = v3d_job_dependency,
 	.run_job = v3d_bin_job_run,
 	.timedout_job = v3d_bin_job_timedout,
-	.free_job = v3d_job_free,
+	.free_job = v3d_sched_job_free,
 };
 
 static const struct drm_sched_backend_ops v3d_render_sched_ops = {
-	.dependency = v3d_job_dependency,
 	.run_job = v3d_render_job_run,
 	.timedout_job = v3d_render_job_timedout,
-	.free_job = v3d_job_free,
+	.free_job = v3d_sched_job_free,
 };
 
 static const struct drm_sched_backend_ops v3d_tfu_sched_ops = {
-	.dependency = v3d_job_dependency,
 	.run_job = v3d_tfu_job_run,
 	.timedout_job = v3d_generic_job_timedout,
-	.free_job = v3d_job_free,
+	.free_job = v3d_sched_job_free,
 };
 
 static const struct drm_sched_backend_ops v3d_csd_sched_ops = {
-	.dependency = v3d_job_dependency,
 	.run_job = v3d_csd_job_run,
 	.timedout_job = v3d_csd_job_timedout,
-	.free_job = v3d_job_free
+	.free_job = v3d_sched_job_free
 };
 
 static const struct drm_sched_backend_ops v3d_cache_clean_sched_ops = {
-	.dependency = v3d_job_dependency,
 	.run_job = v3d_cache_clean_job_run,
 	.timedout_job = v3d_generic_job_timedout,
-	.free_job = v3d_job_free
+	.free_job = v3d_sched_job_free
 };
 
 int
@@ -402,7 +390,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 	ret = drm_sched_init(&v3d->queue[V3D_BIN].sched,
 			     &v3d_bin_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms),
+			     msecs_to_jiffies(hang_limit_ms), NULL,
 			     NULL, "v3d_bin");
 	if (ret) {
 		dev_err(v3d->drm.dev, "Failed to create bin scheduler: %d.", ret);
@@ -412,7 +400,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 	ret = drm_sched_init(&v3d->queue[V3D_RENDER].sched,
 			     &v3d_render_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms),
+			     msecs_to_jiffies(hang_limit_ms), NULL,
 			     NULL, "v3d_render");
 	if (ret) {
 		dev_err(v3d->drm.dev, "Failed to create render scheduler: %d.",
@@ -424,7 +412,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 	ret = drm_sched_init(&v3d->queue[V3D_TFU].sched,
 			     &v3d_tfu_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms),
+			     msecs_to_jiffies(hang_limit_ms), NULL,
 			     NULL, "v3d_tfu");
 	if (ret) {
 		dev_err(v3d->drm.dev, "Failed to create TFU scheduler: %d.",
@@ -437,7 +425,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 		ret = drm_sched_init(&v3d->queue[V3D_CSD].sched,
 				     &v3d_csd_sched_ops,
 				     hw_jobs_limit, job_hang_limit,
-				     msecs_to_jiffies(hang_limit_ms),
+				     msecs_to_jiffies(hang_limit_ms), NULL,
 				     NULL, "v3d_csd");
 		if (ret) {
 			dev_err(v3d->drm.dev, "Failed to create CSD scheduler: %d.",
@@ -449,7 +437,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 		ret = drm_sched_init(&v3d->queue[V3D_CACHE_CLEAN].sched,
 				     &v3d_cache_clean_sched_ops,
 				     hw_jobs_limit, job_hang_limit,
-				     msecs_to_jiffies(hang_limit_ms),
+				     msecs_to_jiffies(hang_limit_ms), NULL,
 				     NULL, "v3d_cache_clean");
 		if (ret) {
 			dev_err(v3d->drm.dev, "Failed to create CACHE_CLEAN scheduler: %d.",

@@ -20,7 +20,7 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	cs-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	m25p80: flash@0 {

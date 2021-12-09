@@ -804,7 +804,6 @@ static int emmaprp_probe(struct platform_device *pdev)
 {
 	struct emmaprp_dev *pcdev;
 	struct video_device *vfd;
-	struct resource *res;
 	int irq, ret;
 
 	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
@@ -822,8 +821,7 @@ static int emmaprp_probe(struct platform_device *pdev)
 	if (IS_ERR(pcdev->clk_emma_ahb))
 		return PTR_ERR(pcdev->clk_emma_ahb);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pcdev->base_emma = devm_ioremap_resource(&pdev->dev, res);
+	pcdev->base_emma = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pcdev->base_emma))
 		return PTR_ERR(pcdev->base_emma);
 

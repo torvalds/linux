@@ -101,4 +101,16 @@ static inline void remap_stack_and_trap(void)
 		"memory");
 }
 
+static __always_inline void *get_stub_page(void)
+{
+	unsigned long ret;
+
+	asm volatile (
+		"movl %%esp,%0 ;"
+		"andl %1,%0"
+		: "=a" (ret)
+		: "g" (~(UM_KERN_PAGE_SIZE - 1)));
+
+	return (void *)ret;
+}
 #endif

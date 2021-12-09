@@ -31,7 +31,6 @@ config NVME_TARGET_PASSTHRU
 config NVME_TARGET_LOOP
 	tristate "NVMe loopback device support"
 	depends on NVME_TARGET
-	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
 	help
@@ -65,7 +64,6 @@ config NVME_TARGET_FC
 config NVME_TARGET_FCLOOP
 	tristate "NVMe over Fabrics FC Transport Loopback Test driver"
 	depends on NVME_TARGET
-	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
 	depends on NVME_FC

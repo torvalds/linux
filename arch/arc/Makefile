@@ -18,8 +18,7 @@ ifeq ($(CONFIG_ARC_TUNE_MCPU),"")
 cflags-y				+= $(tune-mcpu-def-y)
 else
 tune-mcpu				:= $(shell echo $(CONFIG_ARC_TUNE_MCPU))
-tune-mcpu-ok 				:= $(call cc-option-yn, $(tune-mcpu))
-ifeq ($(tune-mcpu-ok),y)
+ifneq ($(call cc-option,$(tune-mcpu)),)
 cflags-y				+= $(tune-mcpu)
 else
 # The flag provided by 'CONFIG_ARC_TUNE_MCPU' option isn't known by this compiler
@@ -113,6 +112,3 @@ uImage: $(uimage-default-y)
 	@$(kecho) '  Image $(boot)/uImage is ready'
 
 CLEAN_FILES += $(boot)/uImage
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)

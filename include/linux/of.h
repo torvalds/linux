@@ -185,7 +185,7 @@ static inline bool of_node_is_root(const struct device_node *node)
 	return node && (node->parent == NULL);
 }
 
-static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
+static inline int of_node_check_flag(const struct device_node *n, unsigned long flag)
 {
 	return test_bit(flag, &n->_flags);
 }
@@ -353,6 +353,7 @@ extern struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 extern struct device_node *of_get_next_cpu_node(struct device_node *prev);
 extern struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
 						 int index);
+extern u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread);
 
 #define for_each_property_of_node(dn, pp) \
 	for (pp = dn->properties; pp != NULL; pp = pp->next)
@@ -896,7 +897,7 @@ static inline int of_parse_phandle_with_fixed_args(const struct device_node *np,
 	return -ENOSYS;
 }
 
-static inline int of_count_phandle_with_args(struct device_node *np,
+static inline int of_count_phandle_with_args(const struct device_node *np,
 					     const char *list_name,
 					     const char *cells_name)
 {
@@ -942,6 +943,11 @@ static inline int of_alias_get_alias_list(const struct of_device_id *matches,
 }
 
 static inline int of_machine_is_compatible(const char *compat)
+{
+	return 0;
+}
+
+static inline int of_add_property(struct device_node *np, struct property *prop)
 {
 	return 0;
 }

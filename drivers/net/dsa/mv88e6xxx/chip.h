@@ -18,7 +18,11 @@
 #include <linux/timecounter.h>
 #include <net/dsa.h>
 
+#define EDSA_HLEN		8
 #define MV88E6XXX_N_FID		4096
+
+#define MV88E6XXX_FID_STANDALONE	0
+#define MV88E6XXX_FID_BRIDGED		1
 
 /* PVT limits for 4-bit port and 5-bit switch */
 #define MV88E6XXX_MAX_PVT_SWITCHES	32
@@ -245,9 +249,15 @@ struct mv88e6xxx_policy {
 	u16 vid;
 };
 
+struct mv88e6xxx_vlan {
+	u16	vid;
+	bool	valid;
+};
+
 struct mv88e6xxx_port {
 	struct mv88e6xxx_chip *chip;
 	int port;
+	struct mv88e6xxx_vlan bridge_pvid;
 	u64 serdes_stats[2];
 	u64 atu_member_violation;
 	u64 atu_miss_violation;

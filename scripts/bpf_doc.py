@@ -537,6 +537,7 @@ class PrinterHelpers(Printer):
             'struct tcp_timewait_sock',
             'struct tcp_request_sock',
             'struct udp6_sock',
+            'struct unix_sock',
             'struct task_struct',
 
             'struct __sk_buff',
@@ -547,6 +548,7 @@ class PrinterHelpers(Printer):
             'struct inode',
             'struct socket',
             'struct file',
+            'struct bpf_timer',
     ]
     known_types = {
             '...',
@@ -588,12 +590,14 @@ class PrinterHelpers(Printer):
             'struct tcp_timewait_sock',
             'struct tcp_request_sock',
             'struct udp6_sock',
+            'struct unix_sock',
             'struct task_struct',
             'struct path',
             'struct btf_ptr',
             'struct inode',
             'struct socket',
             'struct file',
+            'struct bpf_timer',
     }
     mapped_types = {
             'u8': '__u8',

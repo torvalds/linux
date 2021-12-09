@@ -494,7 +494,7 @@ static const struct snd_kcontrol_new rt5514_sto2_dmic_mux =
  */
 static int rt5514_calc_dmic_clk(struct snd_soc_component *component, int rate)
 {
-	int div[] = {2, 3, 4, 8, 12, 16, 24, 32};
+	static const int div[] = {2, 3, 4, 8, 12, 16, 24, 32};
 	int i;
 
 	if (rate < 1000000 * div[0]) {
@@ -936,7 +936,7 @@ static int rt5514_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
 

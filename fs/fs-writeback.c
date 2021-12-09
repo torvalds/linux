@@ -406,6 +406,11 @@ static bool inode_do_switch_wbs(struct inode *inode,
 		inc_wb_stat(new_wb, WB_WRITEBACK);
 	}
 
+	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK)) {
+		atomic_dec(&old_wb->writeback_inodes);
+		atomic_inc(&new_wb->writeback_inodes);
+	}
+
 	wb_get(new_wb);
 
 	/*
@@ -561,7 +566,7 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 	if (atomic_read(&isw_nr_in_flight) > WB_FRN_MAX_IN_FLIGHT)
 		return;
 
-	isw = kzalloc(sizeof(*isw) + 2 * sizeof(struct inode *), GFP_ATOMIC);
+	isw = kzalloc(struct_size(isw, inodes, 2), GFP_ATOMIC);
 	if (!isw)
 		return;
 
@@ -619,8 +624,8 @@ bool cleanup_offline_cgwb(struct bdi_writeback *wb)
 	int nr;
 	bool restart = false;
 
-	isw = kzalloc(sizeof(*isw) + WB_MAX_INODES_PER_ISW *
-		      sizeof(struct inode *), GFP_KERNEL);
+	isw = kzalloc(struct_size(isw, inodes, WB_MAX_INODES_PER_ISW),
+		      GFP_KERNEL);
 	if (!isw)
 		return restart;
 
@@ -1034,20 +1039,20 @@ restart:
  * cgroup_writeback_by_id - initiate cgroup writeback from bdi and memcg IDs
  * @bdi_id: target bdi id
  * @memcg_id: target memcg css id
- * @nr: number of pages to write, 0 for best-effort dirty flushing
  * @reason: reason why some writeback work initiated
  * @done: target wb_completion
  *
  * Initiate flush of the bdi_writeback identified by @bdi_id and @memcg_id
  * with the specified parameters.
  */
-int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr,
+int cgroup_writeback_by_id(u64 bdi_id, int memcg_id,
 			   enum wb_reason reason, struct wb_completion *done)
 {
 	struct backing_dev_info *bdi;
 	struct cgroup_subsys_state *memcg_css;
 	struct bdi_writeback *wb;
 	struct wb_writeback_work *work;
+	unsigned long dirty;
 	int ret;
 
 	/* lookup bdi and memcg */
@@ -1076,24 +1081,22 @@ int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr,
 	}
 
 	/*
-	 * If @nr is zero, the caller is attempting to write out most of
+	 * The caller is attempting to write out most of
 	 * the currently dirty pages.  Let's take the current dirty page
 	 * count and inflate it by 25% which should be large enough to
 	 * flush out most dirty pages while avoiding getting livelocked by
 	 * concurrent dirtiers.
+	 *
+	 * BTW the memcg stats are flushed periodically and this is best-effort
+	 * estimation, so some potential error is ok.
 	 */
-	if (!nr) {
-		unsigned long filepages, headroom, dirty, writeback;
-
-		mem_cgroup_wb_stats(wb, &filepages, &headroom, &dirty,
-				      &writeback);
-		nr = dirty * 10 / 8;
-	}
+	dirty = memcg_page_state(mem_cgroup_from_css(memcg_css), NR_FILE_DIRTY);
+	dirty = dirty * 10 / 8;
 
 	/* issue the writeback work */
 	work = kzalloc(sizeof(*work), GFP_NOWAIT | __GFP_NOWARN);
 	if (work) {
-		work->nr_pages = nr;
+		work->nr_pages = dirty;
 		work->sync_mode = WB_SYNC_NONE;
 		work->range_cyclic = 1;
 		work->reason = reason;
@@ -1890,7 +1893,8 @@ static long writeback_sb_inodes(struct super_block *sb,
 			 * unplug, so get our IOs out the door before we
 			 * give up the CPU.
 			 */
-			blk_flush_plug(current);
+			if (current->plug)
+				blk_flush_plug(current->plug, false);
 			cond_resched();
 		}
 
@@ -1999,7 +2003,6 @@ static long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
 static long wb_writeback(struct bdi_writeback *wb,
 			 struct wb_writeback_work *work)
 {
-	unsigned long wb_start = jiffies;
 	long nr_pages = work->nr_pages;
 	unsigned long dirtied_before = jiffies;
 	struct inode *inode;
@@ -2052,8 +2055,6 @@ static long wb_writeback(struct bdi_writeback *wb,
 		else
 			progress = __writeback_inodes_wb(wb, work);
 		trace_writeback_written(wb, work);
-
-		wb_update_bandwidth(wb, wb_start);
 
 		/*
 		 * Did we write something? Try for more
@@ -2291,7 +2292,7 @@ void wakeup_flusher_threads(enum wb_reason reason)
 	 * If we are expecting writeback progress we must submit plugged IO.
 	 */
 	if (blk_needs_flush_plug(current))
-		blk_schedule_flush_plug(current);
+		blk_flush_plug(current->plug, true);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
@@ -2730,23 +2731,6 @@ int write_inode_now(struct inode *inode, int sync)
 EXPORT_SYMBOL(write_inode_now);
 
 /**
- * sync_inode - write an inode and its pages to disk.
- * @inode: the inode to sync
- * @wbc: controls the writeback mode
- *
- * sync_inode() will write an inode and its pages to disk.  It will also
- * correctly update the inode on its superblock's dirty inode lists and will
- * update inode->i_state.
- *
- * The caller must have a ref on the inode.
- */
-int sync_inode(struct inode *inode, struct writeback_control *wbc)
-{
-	return writeback_single_inode(inode, wbc);
-}
-EXPORT_SYMBOL(sync_inode);
-
-/**
  * sync_inode_metadata - write an inode to disk
  * @inode: the inode to sync
  * @wait: wait for I/O to complete.
@@ -2762,6 +2746,6 @@ int sync_inode_metadata(struct inode *inode, int wait)
 		.nr_to_write = 0, /* metadata-only */
 	};
 
-	return sync_inode(inode, &wbc);
+	return writeback_single_inode(inode, &wbc);
 }
 EXPORT_SYMBOL(sync_inode_metadata);

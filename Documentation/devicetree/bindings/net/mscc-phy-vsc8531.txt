@@ -67,7 +67,7 @@ Example:
                 compatible = "ethernet-phy-id0007.0570";
                 vsc8531,vddmac		= <3300>;
                 vsc8531,edge-slowdown	= <7>;
-                vsc8531,led-0-mode	= <LINK_1000_ACTIVITY>;
-                vsc8531,led-1-mode	= <LINK_100_ACTIVITY>;
+                vsc8531,led-0-mode	= <VSC8531_LINK_1000_ACTIVITY>;
+                vsc8531,led-1-mode	= <VSC8531_LINK_100_ACTIVITY>;
 		load-save-gpios		= <&gpio 10 GPIO_ACTIVE_HIGH>;
         };

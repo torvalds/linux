@@ -21,9 +21,9 @@ TRACE_EVENT(devlink_hwmsg,
 	TP_ARGS(devlink, incoming, type, buf, len),
 
 	TP_STRUCT__entry(
-		__string(bus_name, devlink->dev->bus->name)
-		__string(dev_name, dev_name(devlink->dev))
-		__string(driver_name, devlink->dev->driver->name)
+		__string(bus_name, devlink_to_dev(devlink)->bus->name)
+		__string(dev_name, dev_name(devlink_to_dev(devlink)))
+		__string(driver_name, devlink_to_dev(devlink)->driver->name)
 		__field(bool, incoming)
 		__field(unsigned long, type)
 		__dynamic_array(u8, buf, len)
@@ -31,9 +31,9 @@ TRACE_EVENT(devlink_hwmsg,
 	),
 
 	TP_fast_assign(
-		__assign_str(bus_name, devlink->dev->bus->name);
-		__assign_str(dev_name, dev_name(devlink->dev));
-		__assign_str(driver_name, devlink->dev->driver->name);
+		__assign_str(bus_name, devlink_to_dev(devlink)->bus->name);
+		__assign_str(dev_name, dev_name(devlink_to_dev(devlink)));
+		__assign_str(driver_name, devlink_to_dev(devlink)->driver->name);
 		__entry->incoming = incoming;
 		__entry->type = type;
 		memcpy(__get_dynamic_array(buf), buf, len);
@@ -55,17 +55,17 @@ TRACE_EVENT(devlink_hwerr,
 	TP_ARGS(devlink, err, msg),
 
 	TP_STRUCT__entry(
-		__string(bus_name, devlink->dev->bus->name)
-		__string(dev_name, dev_name(devlink->dev))
-		__string(driver_name, devlink->dev->driver->name)
+		__string(bus_name, devlink_to_dev(devlink)->bus->name)
+		__string(dev_name, dev_name(devlink_to_dev(devlink)))
+		__string(driver_name, devlink_to_dev(devlink)->driver->name)
 		__field(int, err)
 		__string(msg, msg)
 		),
 
 	TP_fast_assign(
-		__assign_str(bus_name, devlink->dev->bus->name);
-		__assign_str(dev_name, dev_name(devlink->dev));
-		__assign_str(driver_name, devlink->dev->driver->name);
+		__assign_str(bus_name, devlink_to_dev(devlink)->bus->name);
+		__assign_str(dev_name, dev_name(devlink_to_dev(devlink)));
+		__assign_str(driver_name, devlink_to_dev(devlink)->driver->name);
 		__entry->err = err;
 		__assign_str(msg, msg);
 		),
@@ -85,17 +85,17 @@ TRACE_EVENT(devlink_health_report,
 	TP_ARGS(devlink, reporter_name, msg),
 
 	TP_STRUCT__entry(
-		__string(bus_name, devlink->dev->bus->name)
-		__string(dev_name, dev_name(devlink->dev))
-		__string(driver_name, devlink->dev->driver->name)
+		__string(bus_name, devlink_to_dev(devlink)->bus->name)
+		__string(dev_name, dev_name(devlink_to_dev(devlink)))
+		__string(driver_name, devlink_to_dev(devlink)->driver->name)
 		__string(reporter_name, msg)
 		__string(msg, msg)
 	),
 
 	TP_fast_assign(
-		__assign_str(bus_name, devlink->dev->bus->name);
-		__assign_str(dev_name, dev_name(devlink->dev));
-		__assign_str(driver_name, devlink->dev->driver->name);
+		__assign_str(bus_name, devlink_to_dev(devlink)->bus->name);
+		__assign_str(dev_name, dev_name(devlink_to_dev(devlink)));
+		__assign_str(driver_name, devlink_to_dev(devlink)->driver->name);
 		__assign_str(reporter_name, reporter_name);
 		__assign_str(msg, msg);
 	),
@@ -116,18 +116,18 @@ TRACE_EVENT(devlink_health_recover_aborted,
 	TP_ARGS(devlink, reporter_name, health_state, time_since_last_recover),
 
 	TP_STRUCT__entry(
-		__string(bus_name, devlink->dev->bus->name)
-		__string(dev_name, dev_name(devlink->dev))
-		__string(driver_name, devlink->dev->driver->name)
+		__string(bus_name, devlink_to_dev(devlink)->bus->name)
+		__string(dev_name, dev_name(devlink_to_dev(devlink)))
+		__string(driver_name, devlink_to_dev(devlink)->driver->name)
 		__string(reporter_name, reporter_name)
 		__field(bool, health_state)
 		__field(u64, time_since_last_recover)
 	),
 
 	TP_fast_assign(
-		__assign_str(bus_name, devlink->dev->bus->name);
-		__assign_str(dev_name, dev_name(devlink->dev));
-		__assign_str(driver_name, devlink->dev->driver->name);
+		__assign_str(bus_name, devlink_to_dev(devlink)->bus->name);
+		__assign_str(dev_name, dev_name(devlink_to_dev(devlink)));
+		__assign_str(driver_name, devlink_to_dev(devlink)->driver->name);
 		__assign_str(reporter_name, reporter_name);
 		__entry->health_state = health_state;
 		__entry->time_since_last_recover = time_since_last_recover;
@@ -150,17 +150,17 @@ TRACE_EVENT(devlink_health_reporter_state_update,
 	TP_ARGS(devlink, reporter_name, new_state),
 
 	TP_STRUCT__entry(
-		__string(bus_name, devlink->dev->bus->name)
-		__string(dev_name, dev_name(devlink->dev))
-		__string(driver_name, devlink->dev->driver->name)
+		__string(bus_name, devlink_to_dev(devlink)->bus->name)
+		__string(dev_name, dev_name(devlink_to_dev(devlink)))
+		__string(driver_name, devlink_to_dev(devlink)->driver->name)
 		__string(reporter_name, reporter_name)
 		__field(u8, new_state)
 	),
 
 	TP_fast_assign(
-		__assign_str(bus_name, devlink->dev->bus->name);
-		__assign_str(dev_name, dev_name(devlink->dev));
-		__assign_str(driver_name, devlink->dev->driver->name);
+		__assign_str(bus_name, devlink_to_dev(devlink)->bus->name);
+		__assign_str(dev_name, dev_name(devlink_to_dev(devlink)));
+		__assign_str(driver_name, devlink_to_dev(devlink)->driver->name);
 		__assign_str(reporter_name, reporter_name);
 		__entry->new_state = new_state;
 	),
@@ -181,9 +181,9 @@ TRACE_EVENT(devlink_trap_report,
 	TP_ARGS(devlink, skb, metadata),
 
 	TP_STRUCT__entry(
-		__string(bus_name, devlink->dev->bus->name)
-		__string(dev_name, dev_name(devlink->dev))
-		__string(driver_name, devlink->dev->driver->name)
+		__string(bus_name, devlink_to_dev(devlink)->bus->name)
+		__string(dev_name, dev_name(devlink_to_dev(devlink)))
+		__string(driver_name, devlink_to_dev(devlink)->driver->name)
 		__string(trap_name, metadata->trap_name)
 		__string(trap_group_name, metadata->trap_group_name)
 		__dynamic_array(char, input_dev_name, IFNAMSIZ)
@@ -192,9 +192,9 @@ TRACE_EVENT(devlink_trap_report,
 	TP_fast_assign(
 		struct net_device *input_dev = metadata->input_dev;
 
-		__assign_str(bus_name, devlink->dev->bus->name);
-		__assign_str(dev_name, dev_name(devlink->dev));
-		__assign_str(driver_name, devlink->dev->driver->name);
+		__assign_str(bus_name, devlink_to_dev(devlink)->bus->name);
+		__assign_str(dev_name, dev_name(devlink_to_dev(devlink)));
+		__assign_str(driver_name, devlink_to_dev(devlink)->driver->name);
 		__assign_str(trap_name, metadata->trap_name);
 		__assign_str(trap_group_name, metadata->trap_group_name);
 		__assign_str(input_dev_name,

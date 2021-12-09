@@ -22,6 +22,7 @@
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
+#include <linux/nmi.h>
 #include <asm/ptrace.h>
 #include <asm/hyperv-tlfs.h>
 
@@ -34,12 +35,26 @@ struct ms_hyperv_info {
 	u32 max_vp_index;
 	u32 max_lp_index;
 	u32 isolation_config_a;
-	u32 isolation_config_b;
+	union {
+		u32 isolation_config_b;
+		struct {
+			u32 cvm_type : 4;
+			u32 reserved1 : 1;
+			u32 shared_gpa_boundary_active : 1;
+			u32 shared_gpa_boundary_bits : 6;
+			u32 reserved2 : 20;
+		};
+	};
+	u64 shared_gpa_boundary;
 };
 extern struct ms_hyperv_info ms_hyperv;
 
+extern void  __percpu  **hyperv_pcpu_input_arg;
+extern void  __percpu  **hyperv_pcpu_output_arg;
+
 extern u64 hv_do_hypercall(u64 control, void *inputaddr, void *outputaddr);
 extern u64 hv_do_fast_hypercall8(u16 control, u64 input8);
+extern bool hv_isolation_type_snp(void);
 
 /* Helper functions that provide a consistent pattern for checking Hyper-V hypercall status. */
 static inline int hv_result(u64 status)
@@ -151,6 +166,8 @@ void hv_remove_crash_handler(void);
 extern int vmbus_interrupt;
 extern int vmbus_irq;
 
+extern bool hv_root_partition;
+
 #if IS_ENABLED(CONFIG_HYPERV)
 /*
  * Hypervisor's notion of virtual processor ID is different from
@@ -161,8 +178,15 @@ extern int vmbus_irq;
 extern u32 *hv_vp_index;
 extern u32 hv_max_vp_index;
 
+extern u64 (*hv_read_reference_counter)(void);
+
 /* Sentinel value for an uninitialized entry in hv_vp_index array */
 #define VP_INVAL	U32_MAX
+
+int __init hv_common_init(void);
+void __init hv_common_free(void);
+int hv_common_cpu_init(unsigned int cpu);
+int hv_common_cpu_die(unsigned int cpu);
 
 void *hv_alloc_hyperv_page(void);
 void *hv_alloc_hyperv_zeroed_page(void);
@@ -184,10 +208,12 @@ static inline int hv_cpu_number_to_vp_number(int cpu_number)
 	return hv_vp_index[cpu_number];
 }
 
-static inline int cpumask_to_vpset(struct hv_vpset *vpset,
-				    const struct cpumask *cpus)
+static inline int __cpumask_to_vpset(struct hv_vpset *vpset,
+				    const struct cpumask *cpus,
+				    bool exclude_self)
 {
 	int cpu, vcpu, vcpu_bank, vcpu_offset, nr_bank = 1;
+	int this_cpu = smp_processor_id();
 
 	/* valid_bank_mask can represent up to 64 banks */
 	if (hv_max_vp_index / 64 >= 64)
@@ -205,6 +231,8 @@ static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 	 * Some banks may end up being empty but this is acceptable.
 	 */
 	for_each_cpu(cpu, cpus) {
+		if (exclude_self && cpu == this_cpu)
+			continue;
 		vcpu = hv_cpu_number_to_vp_number(cpu);
 		if (vcpu == VP_INVAL)
 			return -1;
@@ -219,17 +247,37 @@ static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 	return nr_bank;
 }
 
+static inline int cpumask_to_vpset(struct hv_vpset *vpset,
+				    const struct cpumask *cpus)
+{
+	return __cpumask_to_vpset(vpset, cpus, false);
+}
+
+static inline int cpumask_to_vpset_noself(struct hv_vpset *vpset,
+				    const struct cpumask *cpus)
+{
+	WARN_ON_ONCE(preemptible());
+	return __cpumask_to_vpset(vpset, cpus, true);
+}
+
 void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die);
 bool hv_is_hyperv_initialized(void);
 bool hv_is_hibernation_supported(void);
 enum hv_isolation_type hv_get_isolation_type(void);
 bool hv_is_isolation_supported(void);
+bool hv_isolation_type_snp(void);
+u64 hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_size);
 void hyperv_cleanup(void);
 bool hv_query_ext_cap(u64 cap_query);
 #else /* CONFIG_HYPERV */
 static inline bool hv_is_hyperv_initialized(void) { return false; }
 static inline bool hv_is_hibernation_supported(void) { return false; }
 static inline void hyperv_cleanup(void) {}
+static inline bool hv_is_isolation_supported(void) { return false; }
+static inline enum hv_isolation_type hv_get_isolation_type(void)
+{
+	return HV_ISOLATION_TYPE_NONE;
+}
 #endif /* CONFIG_HYPERV */
 
 #endif

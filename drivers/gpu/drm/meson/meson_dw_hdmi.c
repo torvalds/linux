@@ -978,7 +978,6 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	struct dw_hdmi_plat_data *dw_plat_data;
 	struct drm_bridge *next_bridge;
 	struct drm_encoder *encoder;
-	struct resource *res;
 	int irq;
 	int ret;
 
@@ -1042,8 +1041,7 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 		return PTR_ERR(meson_dw_hdmi->hdmitx_phy);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	meson_dw_hdmi->hdmitx = devm_ioremap_resource(dev, res);
+	meson_dw_hdmi->hdmitx = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(meson_dw_hdmi->hdmitx))
 		return PTR_ERR(meson_dw_hdmi->hdmitx);
 

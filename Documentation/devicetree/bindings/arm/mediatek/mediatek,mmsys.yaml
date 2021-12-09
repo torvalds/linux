@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/arm/mediatek/mediatek,mmsys.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: MediaTek mmsys controller
+
+maintainers:
+  - Matthias Brugger <matthias.bgg@gmail.com>
+
+description:
+  The MediaTek mmsys system controller provides clock control, routing control,
+  and miscellaneous control in mmsys partition.
+
+properties:
+  $nodename:
+    pattern: "^syscon@[0-9a-f]+$"
+
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt2701-mmsys
+              - mediatek,mt2712-mmsys
+              - mediatek,mt6765-mmsys
+              - mediatek,mt6779-mmsys
+              - mediatek,mt6797-mmsys
+              - mediatek,mt8167-mmsys
+              - mediatek,mt8173-mmsys
+              - mediatek,mt8183-mmsys
+              - mediatek,mt8192-mmsys
+              - mediatek,mt8365-mmsys
+          - const: syscon
+      - items:
+          - const: mediatek,mt7623-mmsys
+          - const: mediatek,mt2701-mmsys
+          - const: syscon
+
+  reg:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 1
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - "#clock-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    mmsys: syscon@14000000 {
+        compatible = "mediatek,mt8173-mmsys", "syscon";
+        reg = <0x14000000 0x1000>;
+        #clock-cells = <1>;
+        #reset-cells = <1>;
+    };

@@ -582,8 +582,7 @@ struct net_device *nr_dev_first(void)
 			if (first == NULL || strncmp(dev->name, first->name, 3) < 0)
 				first = dev;
 	}
-	if (first)
-		dev_hold(first);
+	dev_hold(first);
 	rcu_read_unlock();
 
 	return first;
@@ -599,7 +598,7 @@ struct net_device *nr_dev_get(ax25_address *addr)
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
 		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_NETROM &&
-		    ax25cmp(addr, (ax25_address *)dev->dev_addr) == 0) {
+		    ax25cmp(addr, (const ax25_address *)dev->dev_addr) == 0) {
 			dev_hold(dev);
 			goto out;
 		}
@@ -826,7 +825,7 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 
 	ax25s = nr_neigh->ax25;
 	nr_neigh->ax25 = ax25_send_frame(skb, 256,
-					 (ax25_address *)dev->dev_addr,
+					 (const ax25_address *)dev->dev_addr,
 					 &nr_neigh->callsign,
 					 nr_neigh->digipeat, nr_neigh->dev);
 	if (ax25s)

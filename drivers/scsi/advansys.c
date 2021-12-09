@@ -3308,8 +3308,8 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 		   shost->host_no);
 
 	seq_printf(m,
-		   " iop_base 0x%lx, cable_detect: %X, err_code %u\n",
-		   (unsigned long)v->iop_base,
+		   " iop_base 0x%p, cable_detect: %X, err_code %u\n",
+		   v->iop_base,
 		   AdvReadWordRegister(iop_base,IOPW_SCSI_CFG1) & CABLE_DETECT,
 		   v->err_code);
 
@@ -3592,7 +3592,7 @@ static void asc_scsi_done(struct scsi_cmnd *scp)
 {
 	scsi_dma_unmap(scp);
 	ASC_STATS(scp->device->host, done);
-	scp->scsi_done(scp);
+	scsi_done(scp);
 }
 
 static void AscSetBank(PortAddr iop_base, uchar bank)
@@ -7423,7 +7423,7 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	 * Set the srb_tag to the command tag + 1, as
 	 * srb_tag '0' is used internally by the chip.
 	 */
-	srb_tag = scp->request->tag + 1;
+	srb_tag = scsi_cmd_to_rq(scp)->tag + 1;
 	asc_scsi_q->q2.srb_tag = srb_tag;
 
 	/*
@@ -7477,8 +7477,8 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 			return ASC_ERROR;
 		}
 
-		asc_sg_head = kzalloc(sizeof(asc_scsi_q->sg_head) +
-			use_sg * sizeof(struct asc_sg_list), GFP_ATOMIC);
+		asc_sg_head = kzalloc(struct_size(asc_sg_head, sg_list, use_sg),
+				      GFP_ATOMIC);
 		if (!asc_sg_head) {
 			scsi_dma_unmap(scp);
 			set_host_byte(scp, DID_SOFT_ERROR);
@@ -7637,7 +7637,7 @@ static int
 adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	      adv_req_t **adv_reqpp)
 {
-	u32 srb_tag = scp->request->tag;
+	u32 srb_tag = scsi_cmd_to_rq(scp)->tag;
 	adv_req_t *reqp;
 	ADV_SCSI_REQ_Q *scsiqp;
 	int ret;
@@ -8453,14 +8453,12 @@ static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
  * This function always returns 0. Command return status is saved
  * in the 'scp' result field.
  */
-static int
-advansys_queuecommand_lck(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd *))
+static int advansys_queuecommand_lck(struct scsi_cmnd *scp)
 {
 	struct Scsi_Host *shost = scp->device->host;
 	int asc_res, result = 0;
 
 	ASC_STATS(shost, queuecommand);
-	scp->scsi_done = done;
 
 	asc_res = asc_execute_scsi_cmnd(scp);
 

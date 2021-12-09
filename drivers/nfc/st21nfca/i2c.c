@@ -18,8 +18,6 @@
 #include <linux/nfc.h>
 #include <linux/firmware.h>
 
-#include <asm/unaligned.h>
-
 #include <net/nfc/hci.h>
 #include <net/nfc/llc.h>
 #include <net/nfc/nfc.h>
@@ -76,8 +74,8 @@ struct st21nfca_i2c_phy {
 	struct mutex phy_lock;
 };
 
-static u8 len_seq[] = { 16, 24, 12, 29 };
-static u16 wait_tab[] = { 2, 3, 5, 15, 20, 40};
+static const u8 len_seq[] = { 16, 24, 12, 29 };
+static const u16 wait_tab[] = { 2, 3, 5, 15, 20, 40};
 
 #define I2C_DUMP_SKB(info, skb)					\
 do {								\
@@ -423,7 +421,6 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 {
 	struct st21nfca_i2c_phy *phy = phy_id;
-	struct i2c_client *client;
 
 	int r;
 
@@ -431,9 +428,6 @@ static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 		WARN_ON_ONCE(1);
 		return IRQ_NONE;
 	}
-
-	client = phy->i2c_dev;
-	dev_dbg(&client->dev, "IRQ\n");
 
 	if (phy->hard_fault != 0)
 		return IRQ_HANDLED;
@@ -482,7 +476,7 @@ static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 	return IRQ_HANDLED;
 }
 
-static struct nfc_phy_ops i2c_phy_ops = {
+static const struct nfc_phy_ops i2c_phy_ops = {
 	.write = st21nfca_hci_i2c_write,
 	.enable = st21nfca_hci_i2c_enable,
 	.disable = st21nfca_hci_i2c_disable,

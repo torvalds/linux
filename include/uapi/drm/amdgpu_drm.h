@@ -786,13 +786,6 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_VRAM_LOST_COUNTER		0x1F
 /* query ras mask of enabled features*/
 #define AMDGPU_INFO_RAS_ENABLED_FEATURES	0x20
-/* query video encode/decode caps */
-#define AMDGPU_INFO_VIDEO_CAPS			0x21
-	/* Subquery id: Decode */
-	#define AMDGPU_INFO_VIDEO_CAPS_DECODE		0
-	/* Subquery id: Encode */
-	#define AMDGPU_INFO_VIDEO_CAPS_ENCODE		1
-
 /* RAS MASK: UMC (VRAM) */
 #define AMDGPU_INFO_RAS_ENABLED_UMC			(1 << 0)
 /* RAS MASK: SDMA */
@@ -821,6 +814,12 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_RAS_ENABLED_MP1			(1 << 12)
 /* RAS MASK: FUSE */
 #define AMDGPU_INFO_RAS_ENABLED_FUSE			(1 << 13)
+/* query video encode/decode caps */
+#define AMDGPU_INFO_VIDEO_CAPS			0x21
+	/* Subquery id: Decode */
+	#define AMDGPU_INFO_VIDEO_CAPS_DECODE		0
+	/* Subquery id: Encode */
+	#define AMDGPU_INFO_VIDEO_CAPS_ENCODE		1
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff

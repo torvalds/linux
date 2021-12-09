@@ -176,6 +176,14 @@ static void irdma_set_flush_fields(struct irdma_sc_qp *qp,
 	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
 		qp->flush_code = FLUSH_GENERAL_ERR;
 		break;
+	case IRDMA_AE_LLP_TOO_MANY_RETRIES:
+		qp->flush_code = FLUSH_RETRY_EXC_ERR;
+		break;
+	case IRDMA_AE_AMP_MWBIND_INVALID_RIGHTS:
+	case IRDMA_AE_AMP_MWBIND_BIND_DISABLED:
+	case IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS:
+		qp->flush_code = FLUSH_MW_BIND_ERR;
+		break;
 	default:
 		qp->flush_code = FLUSH_FATAL_ERR;
 		break;
@@ -1049,7 +1057,7 @@ static enum irdma_status_code irdma_alloc_set_mac(struct irdma_device *iwdev)
 					     &iwdev->mac_ip_table_idx);
 	if (!status) {
 		status = irdma_add_local_mac_entry(iwdev->rf,
-						   (u8 *)iwdev->netdev->dev_addr,
+						   (const u8 *)iwdev->netdev->dev_addr,
 						   (u8)iwdev->mac_ip_table_idx);
 		if (status)
 			irdma_del_local_mac_entry(iwdev->rf,
@@ -1489,7 +1497,7 @@ void irdma_reinitialize_ieq(struct irdma_sc_vsi *vsi)
 
 	irdma_puda_dele_rsrc(vsi, IRDMA_PUDA_RSRC_TYPE_IEQ, false);
 	if (irdma_initialize_ieq(iwdev)) {
-		iwdev->reset = true;
+		iwdev->rf->reset = true;
 		rf->gen_ops.request_reset(rf);
 	}
 }
@@ -1632,13 +1640,13 @@ void irdma_rt_deinit_hw(struct irdma_device *iwdev)
 	case IEQ_CREATED:
 		if (!iwdev->roce_mode)
 			irdma_puda_dele_rsrc(&iwdev->vsi, IRDMA_PUDA_RSRC_TYPE_IEQ,
-					     iwdev->reset);
+					     iwdev->rf->reset);
 		fallthrough;
 	case ILQ_CREATED:
 		if (!iwdev->roce_mode)
 			irdma_puda_dele_rsrc(&iwdev->vsi,
 					     IRDMA_PUDA_RSRC_TYPE_ILQ,
-					     iwdev->reset);
+					     iwdev->rf->reset);
 		break;
 	default:
 		ibdev_warn(&iwdev->ibdev, "bad init_state = %d\n", iwdev->init_state);
@@ -2183,7 +2191,7 @@ void irdma_del_local_mac_entry(struct irdma_pci_f *rf, u16 idx)
  * @mac_addr: pointer to mac address
  * @idx: the index of the mac ip address to add
  */
-int irdma_add_local_mac_entry(struct irdma_pci_f *rf, u8 *mac_addr, u16 idx)
+int irdma_add_local_mac_entry(struct irdma_pci_f *rf, const u8 *mac_addr, u16 idx)
 {
 	struct irdma_local_mac_entry_info *info;
 	struct irdma_cqp *iwcqp = &rf->cqp;
@@ -2354,7 +2362,8 @@ void irdma_del_apbvt(struct irdma_device *iwdev,
  * @ipv4: flag inicating IPv4
  * @action: add, delete or modify
  */
-void irdma_manage_arp_cache(struct irdma_pci_f *rf, unsigned char *mac_addr,
+void irdma_manage_arp_cache(struct irdma_pci_f *rf,
+			    const unsigned char *mac_addr,
 			    u32 *ip_addr, bool ipv4, u32 action)
 {
 	struct irdma_add_arp_cache_entry_info *info;

@@ -74,11 +74,6 @@ struct sof_dev_desc {
 	int resindex_pcicfg_base;
 	int resindex_imr_base;
 	int irqindex_host_ipc;
-	int resindex_dma_base;
-
-	/* DMA only valid when resindex_dma_base != -1*/
-	int dma_engine;
-	int dma_size;
 
 	/* IPC timeouts in ms */
 	int ipc_timeout;
@@ -101,5 +96,6 @@ struct sof_dev_desc {
 };
 
 int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd);
+int sof_dai_get_bclk(struct snd_soc_pcm_runtime *rtd);
 
 #endif

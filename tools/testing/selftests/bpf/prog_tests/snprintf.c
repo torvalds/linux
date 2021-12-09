@@ -19,7 +19,7 @@
 #define EXP_ADDR_OUT "0000000000000000 ffff00000add4e55 "
 #define EXP_ADDR_RET sizeof(EXP_ADDR_OUT "unknownhashedptr")
 
-#define EXP_STR_OUT  "str1 longstr"
+#define EXP_STR_OUT  "str1         a  b c      d e longstr"
 #define EXP_STR_RET  sizeof(EXP_STR_OUT)
 
 #define EXP_OVER_OUT "%over"
@@ -33,7 +33,7 @@
 
 #define EXP_NO_BUF_RET 29
 
-void test_snprintf_positive(void)
+static void test_snprintf_positive(void)
 {
 	char exp_addr_out[] = EXP_ADDR_OUT;
 	char exp_sym_out[]  = EXP_SYM_OUT;
@@ -103,7 +103,7 @@ static int load_single_snprintf(char *fmt)
 	return ret;
 }
 
-void test_snprintf_negative(void)
+static void test_snprintf_negative(void)
 {
 	ASSERT_OK(load_single_snprintf("valid %d"), "valid usage");
 
@@ -114,6 +114,8 @@ void test_snprintf_negative(void)
 	ASSERT_ERR(load_single_snprintf("%"), "invalid specifier 3");
 	ASSERT_ERR(load_single_snprintf("%12345678"), "invalid specifier 4");
 	ASSERT_ERR(load_single_snprintf("%--------"), "invalid specifier 5");
+	ASSERT_ERR(load_single_snprintf("%lc"), "invalid specifier 6");
+	ASSERT_ERR(load_single_snprintf("%llc"), "invalid specifier 7");
 	ASSERT_ERR(load_single_snprintf("\x80"), "non ascii character");
 	ASSERT_ERR(load_single_snprintf("\x1"), "non printable character");
 }

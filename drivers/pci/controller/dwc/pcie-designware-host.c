@@ -55,7 +55,7 @@ static struct msi_domain_info dw_pcie_msi_domain_info = {
 /* MSI int handler */
 irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 {
-	int i, pos, irq;
+	int i, pos;
 	unsigned long val;
 	u32 status, num_ctrls;
 	irqreturn_t ret = IRQ_NONE;
@@ -74,10 +74,9 @@ irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 		pos = 0;
 		while ((pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL,
 					    pos)) != MAX_MSI_IRQS_PER_CTRL) {
-			irq = irq_find_mapping(pp->irq_domain,
-					       (i * MAX_MSI_IRQS_PER_CTRL) +
-					       pos);
-			generic_handle_irq(irq);
+			generic_handle_domain_irq(pp->irq_domain,
+						  (i * MAX_MSI_IRQS_PER_CTRL) +
+						  pos);
 			pos++;
 		}
 	}
@@ -336,6 +335,16 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (pci->link_gen < 1)
 		pci->link_gen = of_pci_get_max_link_speed(np);
 
+	/* Set default bus ops */
+	bridge->ops = &dw_pcie_ops;
+	bridge->child_ops = &dw_child_pcie_ops;
+
+	if (pp->ops->host_init) {
+		ret = pp->ops->host_init(pp);
+		if (ret)
+			return ret;
+	}
+
 	if (pci_msi_enabled()) {
 		pp->has_msi_ctrl = !(pp->ops->msi_host_init ||
 				     of_property_read_bool(np, "msi-parent") ||
@@ -389,15 +398,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		}
 	}
 
-	/* Set default bus ops */
-	bridge->ops = &dw_pcie_ops;
-	bridge->child_ops = &dw_child_pcie_ops;
-
-	if (pp->ops->host_init) {
-		ret = pp->ops->host_init(pp);
-		if (ret)
-			goto err_free_msi;
-	}
 	dw_pcie_iatu_detect(pci);
 
 	dw_pcie_setup_rc(pp);

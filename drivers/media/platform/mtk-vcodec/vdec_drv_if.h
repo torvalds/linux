@@ -55,6 +55,7 @@ struct vdec_fb_node {
 };
 
 extern const struct vdec_common_if vdec_h264_if;
+extern const struct vdec_common_if vdec_h264_slice_if;
 extern const struct vdec_common_if vdec_vp8_if;
 extern const struct vdec_common_if vdec_vp9_if;
 

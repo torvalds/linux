@@ -89,7 +89,8 @@ static void __dump_stack(const char *log_lvl)
 }
 
 /**
- * dump_stack - dump the current task information and its stack trace
+ * dump_stack_lvl - dump the current task information and its stack trace
+ * @log_lvl: log level
  *
  * Architectures can override this implementation by implementing its own.
  */

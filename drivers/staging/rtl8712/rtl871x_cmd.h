@@ -718,7 +718,7 @@ struct DisconnectCtrlEx_param {
 #define H2C_CMD_OVERFLOW		0x06
 #define H2C_RESERVED			0x07
 
-void r8712_setMacAddr_cmd(struct _adapter *padapter, u8 *mac_addr);
+void r8712_setMacAddr_cmd(struct _adapter *padapter, const u8 *mac_addr);
 u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 			struct ndis_802_11_ssid *pssid);
 int r8712_createbss_cmd(struct _adapter *padapter);

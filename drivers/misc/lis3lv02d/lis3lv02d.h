@@ -271,7 +271,6 @@ struct lis3lv02d {
 	int			regs_size;
 	u8                      *reg_cache;
 	bool			regs_stored;
-	bool			init_required;
 	u8                      odr_mask;  /* ODR bit mask */
 	u8			whoami;    /* indicates measurement precision */
 	s16 (*read_data) (struct lis3lv02d *lis3, int reg);
@@ -313,7 +312,7 @@ int lis3lv02d_joystick_enable(struct lis3lv02d *lis3);
 void lis3lv02d_joystick_disable(struct lis3lv02d *lis3);
 void lis3lv02d_poweroff(struct lis3lv02d *lis3);
 int lis3lv02d_poweron(struct lis3lv02d *lis3);
-int lis3lv02d_remove_fs(struct lis3lv02d *lis3);
+void lis3lv02d_remove_fs(struct lis3lv02d *lis3);
 int lis3lv02d_init_dt(struct lis3lv02d *lis3);
 
 extern struct lis3lv02d lis3_dev;

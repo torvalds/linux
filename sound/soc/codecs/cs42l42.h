@@ -188,6 +188,11 @@
 #define CS42L42_HSDET_COMP2_LVL_SHIFT	4
 #define CS42L42_HSDET_COMP2_LVL_MASK	(15 << CS42L42_HSDET_COMP2_LVL_SHIFT)
 
+#define CS42L42_HSDET_COMP1_LVL_VAL	12 /* 1.25V Comparator */
+#define CS42L42_HSDET_COMP2_LVL_VAL	2  /* 1.75V Comparator */
+#define CS42L42_HSDET_COMP1_LVL_DEFAULT	7  /* 1V Comparator */
+#define CS42L42_HSDET_COMP2_LVL_DEFAULT	7  /* 2V Comparator */
+
 #define CS42L42_HSDET_CTL2		(CS42L42_PAGE_11 + 0x20)
 #define CS42L42_HSDET_AUTO_TIME_SHIFT	0
 #define CS42L42_HSDET_AUTO_TIME_MASK	(3 << CS42L42_HSDET_AUTO_TIME_SHIFT)
@@ -227,6 +232,60 @@
 #define CS42L42_PLUG_OMTP		1
 #define CS42L42_PLUG_HEADPHONE		2
 #define CS42L42_PLUG_INVALID		3
+
+#define CS42L42_HSDET_SW_COMP1		((0 << CS42L42_SW_GNDHS_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_GNDHS_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_FILT_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_FILT_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_REF_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_REF_HS3_SHIFT))
+#define CS42L42_HSDET_SW_COMP2		((1 << CS42L42_SW_GNDHS_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_GNDHS_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_FILT_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_FILT_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_REF_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_REF_HS3_SHIFT))
+#define CS42L42_HSDET_SW_TYPE1		((0 << CS42L42_SW_GNDHS_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_GNDHS_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_FILT_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_FILT_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_REF_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_REF_HS3_SHIFT))
+#define CS42L42_HSDET_SW_TYPE2		((1 << CS42L42_SW_GNDHS_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_GNDHS_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_FILT_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_FILT_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_REF_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_REF_HS3_SHIFT))
+#define CS42L42_HSDET_SW_TYPE3		((1 << CS42L42_SW_GNDHS_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_GNDHS_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_FILT_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_FILT_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_REF_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_REF_HS3_SHIFT))
+#define CS42L42_HSDET_SW_TYPE4		((0 << CS42L42_SW_GNDHS_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_GNDHS_HS3_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_HS4_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_HSB_FILT_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_HSB_FILT_HS3_SHIFT) | \
+					 (0 << CS42L42_SW_REF_HS4_SHIFT) | \
+					 (1 << CS42L42_SW_REF_HS3_SHIFT))
+
+#define CS42L42_HSDET_COMP_TYPE1	1
+#define CS42L42_HSDET_COMP_TYPE2	2
+#define CS42L42_HSDET_COMP_TYPE3	0
+#define CS42L42_HSDET_COMP_TYPE4	3
 
 #define CS42L42_HS_CLAMP_DISABLE	(CS42L42_PAGE_11 + 0x29)
 #define CS42L42_HS_CLAMP_DISABLE_SHIFT	0
@@ -288,6 +347,7 @@
 #define CS42L42_IN_ASRC_CLK		(CS42L42_PAGE_12 + 0x0A)
 #define CS42L42_CLK_IASRC_SEL_SHIFT	0
 #define CS42L42_CLK_IASRC_SEL_MASK	(1 << CS42L42_CLK_IASRC_SEL_SHIFT)
+#define CS42L42_CLK_IASRC_SEL_6		0
 #define CS42L42_CLK_IASRC_SEL_12	1
 
 #define CS42L42_OUT_ASRC_CLK		(CS42L42_PAGE_12 + 0x0B)
@@ -653,6 +713,8 @@
 
 /* Page 0x25 Audio Port Registers */
 #define CS42L42_SP_RX_CH_SEL		(CS42L42_PAGE_25 + 0x01)
+#define CS42L42_SP_RX_CHB_SEL_SHIFT	2
+#define CS42L42_SP_RX_CHB_SEL_MASK	(3 << CS42L42_SP_RX_CHB_SEL_SHIFT)
 
 #define CS42L42_SP_RX_ISOC_CTL		(CS42L42_PAGE_25 + 0x02)
 #define CS42L42_SP_RX_RSYNC_SHIFT	6
@@ -759,6 +821,7 @@
 #define CS42L42_CLOCK_SWITCH_DELAY_US 150
 #define CS42L42_PLL_LOCK_POLL_US	250
 #define CS42L42_PLL_LOCK_TIMEOUT_US	1250
+#define CS42L42_HP_ADC_EN_TIME_US	20000
 
 static const char *const cs42l42_supply_names[CS42L42_NUM_SUPPLIES] = {
 	"VA",
@@ -770,11 +833,12 @@ static const char *const cs42l42_supply_names[CS42L42_NUM_SUPPLIES] = {
 
 struct  cs42l42_private {
 	struct regmap *regmap;
-	struct snd_soc_component *component;
+	struct device *dev;
 	struct regulator_bulk_data supplies[CS42L42_NUM_SUPPLIES];
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;
 	struct snd_soc_jack *jack;
+	int pll_config;
 	int bclk;
 	u32 sclk;
 	u32 srate;
@@ -791,6 +855,7 @@ struct  cs42l42_private {
 	u8 hs_bias_ramp_time;
 	u8 hs_bias_sense_en;
 	u8 stream_use;
+	bool hp_adc_up_pending;
 };
 
 #endif /* __CS42L42_H__ */

@@ -1935,7 +1935,7 @@ static int __init tty3270_init(void)
 	tty_set_operations(driver, &tty3270_ops);
 	ret = tty_register_driver(driver);
 	if (ret) {
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		return ret;
 	}
 	tty3270_driver = driver;
@@ -1952,7 +1952,7 @@ tty3270_exit(void)
 	driver = tty3270_driver;
 	tty3270_driver = NULL;
 	tty_unregister_driver(driver);
-	put_tty_driver(driver);
+	tty_driver_kref_put(driver);
 	tty3270_del_views();
 }
 

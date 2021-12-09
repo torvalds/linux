@@ -1265,8 +1265,10 @@ static void update_curr_dl(struct rq *rq)
 		return;
 	}
 
-	schedstat_set(curr->se.statistics.exec_max,
-		      max(curr->se.statistics.exec_max, delta_exec));
+	schedstat_set(curr->stats.exec_max,
+		      max(curr->stats.exec_max, delta_exec));
+
+	trace_sched_stat_runtime(curr, delta_exec, 0);
 
 	curr->se.sum_exec_runtime += delta_exec;
 	account_group_exec_runtime(curr, delta_exec);
@@ -1472,6 +1474,82 @@ static inline bool __dl_less(struct rb_node *a, const struct rb_node *b)
 	return dl_time_before(__node_2_dle(a)->deadline, __node_2_dle(b)->deadline);
 }
 
+static inline struct sched_statistics *
+__schedstats_from_dl_se(struct sched_dl_entity *dl_se)
+{
+	return &dl_task_of(dl_se)->stats;
+}
+
+static inline void
+update_stats_wait_start_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se)
+{
+	struct sched_statistics *stats;
+
+	if (!schedstat_enabled())
+		return;
+
+	stats = __schedstats_from_dl_se(dl_se);
+	__update_stats_wait_start(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
+}
+
+static inline void
+update_stats_wait_end_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se)
+{
+	struct sched_statistics *stats;
+
+	if (!schedstat_enabled())
+		return;
+
+	stats = __schedstats_from_dl_se(dl_se);
+	__update_stats_wait_end(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
+}
+
+static inline void
+update_stats_enqueue_sleeper_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se)
+{
+	struct sched_statistics *stats;
+
+	if (!schedstat_enabled())
+		return;
+
+	stats = __schedstats_from_dl_se(dl_se);
+	__update_stats_enqueue_sleeper(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
+}
+
+static inline void
+update_stats_enqueue_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se,
+			int flags)
+{
+	if (!schedstat_enabled())
+		return;
+
+	if (flags & ENQUEUE_WAKEUP)
+		update_stats_enqueue_sleeper_dl(dl_rq, dl_se);
+}
+
+static inline void
+update_stats_dequeue_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se,
+			int flags)
+{
+	struct task_struct *p = dl_task_of(dl_se);
+
+	if (!schedstat_enabled())
+		return;
+
+	if ((flags & DEQUEUE_SLEEP)) {
+		unsigned int state;
+
+		state = READ_ONCE(p->__state);
+		if (state & TASK_INTERRUPTIBLE)
+			__schedstat_set(p->stats.sleep_start,
+					rq_clock(rq_of_dl_rq(dl_rq)));
+
+		if (state & TASK_UNINTERRUPTIBLE)
+			__schedstat_set(p->stats.block_start,
+					rq_clock(rq_of_dl_rq(dl_rq)));
+	}
+}
+
 static void __enqueue_dl_entity(struct sched_dl_entity *dl_se)
 {
 	struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
@@ -1501,6 +1579,8 @@ static void
 enqueue_dl_entity(struct sched_dl_entity *dl_se, int flags)
 {
 	BUG_ON(on_dl_rq(dl_se));
+
+	update_stats_enqueue_dl(dl_rq_of_se(dl_se), dl_se, flags);
 
 	/*
 	 * If this is a wakeup or a new instance, the scheduling
@@ -1598,6 +1678,9 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 		return;
 	}
 
+	check_schedstat_required();
+	update_stats_wait_start_dl(dl_rq_of_se(&p->dl), &p->dl);
+
 	enqueue_dl_entity(&p->dl, flags);
 
 	if (!task_current(rq, p) && p->nr_cpus_allowed > 1)
@@ -1606,6 +1689,7 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 
 static void __dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 {
+	update_stats_dequeue_dl(&rq->dl, &p->dl, flags);
 	dequeue_dl_entity(&p->dl);
 	dequeue_pushable_dl_task(rq, p);
 }
@@ -1733,6 +1817,7 @@ static void migrate_task_rq_dl(struct task_struct *p, int new_cpu __maybe_unused
 	 */
 	raw_spin_rq_lock(rq);
 	if (p->dl.dl_non_contending) {
+		update_rq_clock(rq);
 		sub_running_bw(&p->dl, &rq->dl);
 		p->dl.dl_non_contending = 0;
 		/*
@@ -1824,7 +1909,12 @@ static void start_hrtick_dl(struct rq *rq, struct task_struct *p)
 
 static void set_next_task_dl(struct rq *rq, struct task_struct *p, bool first)
 {
+	struct sched_dl_entity *dl_se = &p->dl;
+	struct dl_rq *dl_rq = &rq->dl;
+
 	p->se.exec_start = rq_clock_task(rq);
+	if (on_dl_rq(&p->dl))
+		update_stats_wait_end_dl(dl_rq, dl_se);
 
 	/* You can't push away the running task */
 	dequeue_pushable_dl_task(rq, p);
@@ -1881,6 +1971,12 @@ static struct task_struct *pick_next_task_dl(struct rq *rq)
 
 static void put_prev_task_dl(struct rq *rq, struct task_struct *p)
 {
+	struct sched_dl_entity *dl_se = &p->dl;
+	struct dl_rq *dl_rq = &rq->dl;
+
+	if (on_dl_rq(&p->dl))
+		update_stats_wait_start_dl(dl_rq, dl_se);
+
 	update_curr_dl(rq);
 
 	update_dl_rq_load_avg(rq_clock_pelt(rq), rq, 1);
@@ -2741,7 +2837,7 @@ void __setparam_dl(struct task_struct *p, const struct sched_attr *attr)
 	dl_se->dl_runtime = attr->sched_runtime;
 	dl_se->dl_deadline = attr->sched_deadline;
 	dl_se->dl_period = attr->sched_period ?: dl_se->dl_deadline;
-	dl_se->flags = attr->sched_flags;
+	dl_se->flags = attr->sched_flags & SCHED_DL_FLAGS;
 	dl_se->dl_bw = to_ratio(dl_se->dl_period, dl_se->dl_runtime);
 	dl_se->dl_density = to_ratio(dl_se->dl_deadline, dl_se->dl_runtime);
 }
@@ -2754,7 +2850,8 @@ void __getparam_dl(struct task_struct *p, struct sched_attr *attr)
 	attr->sched_runtime = dl_se->dl_runtime;
 	attr->sched_deadline = dl_se->dl_deadline;
 	attr->sched_period = dl_se->dl_period;
-	attr->sched_flags = dl_se->flags;
+	attr->sched_flags &= ~SCHED_DL_FLAGS;
+	attr->sched_flags |= dl_se->flags;
 }
 
 /*
@@ -2851,7 +2948,7 @@ bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr)
 	if (dl_se->dl_runtime != attr->sched_runtime ||
 	    dl_se->dl_deadline != attr->sched_deadline ||
 	    dl_se->dl_period != attr->sched_period ||
-	    dl_se->flags != attr->sched_flags)
+	    dl_se->flags != (attr->sched_flags & SCHED_DL_FLAGS))
 		return true;
 
 	return false;

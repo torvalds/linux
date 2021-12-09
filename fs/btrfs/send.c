@@ -84,6 +84,8 @@ struct send_ctx {
 	u64 total_send_size;
 	u64 cmd_send_size[BTRFS_SEND_C_MAX + 1];
 	u64 flags;	/* 'flags' member of btrfs_ioctl_send_args is u64 */
+	/* Protocol version compatibility requested */
+	u32 proto;
 
 	struct btrfs_root *send_root;
 	struct btrfs_root *parent_root;
@@ -310,6 +312,16 @@ static void inconsistent_snapshot_error(struct send_ctx *sctx,
 		  sctx->send_root->root_key.objectid,
 		  (sctx->parent_root ?
 		   sctx->parent_root->root_key.objectid : 0));
+}
+
+__maybe_unused
+static bool proto_cmd_ok(const struct send_ctx *sctx, int cmd)
+{
+	switch (sctx->proto) {
+	case 1:	 return cmd < __BTRFS_SEND_C_MAX_V1;
+	case 2:	 return cmd < __BTRFS_SEND_C_MAX_V2;
+	default: return false;
+	}
 }
 
 static int is_waiting_for_move(struct send_ctx *sctx, u64 ino);
@@ -1198,7 +1210,7 @@ struct backref_ctx {
 static int __clone_root_cmp_bsearch(const void *key, const void *elt)
 {
 	u64 root = (u64)(uintptr_t)key;
-	struct clone_root *cr = (struct clone_root *)elt;
+	const struct clone_root *cr = elt;
 
 	if (root < cr->root->root_key.objectid)
 		return -1;
@@ -1209,8 +1221,8 @@ static int __clone_root_cmp_bsearch(const void *key, const void *elt)
 
 static int __clone_root_cmp_sort(const void *e1, const void *e2)
 {
-	struct clone_root *cr1 = (struct clone_root *)e1;
-	struct clone_root *cr2 = (struct clone_root *)e2;
+	const struct clone_root *cr1 = e1;
+	const struct clone_root *cr2 = e2;
 
 	if (cr1->root->root_key.objectid < cr2->root->root_key.objectid)
 		return -1;
@@ -1307,7 +1319,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	u64 flags = 0;
 	struct btrfs_file_extent_item *fi;
 	struct extent_buffer *eb = path->nodes[0];
-	struct backref_ctx *backref_ctx = NULL;
+	struct backref_ctx backref_ctx = {0};
 	struct clone_root *cur_clone_root;
 	struct btrfs_key found_key;
 	struct btrfs_path *tmp_path;
@@ -1321,12 +1333,6 @@ static int find_extent_clone(struct send_ctx *sctx,
 
 	/* We only use this path under the commit sem */
 	tmp_path->need_commit_sem = 0;
-
-	backref_ctx = kmalloc(sizeof(*backref_ctx), GFP_KERNEL);
-	if (!backref_ctx) {
-		ret = -ENOMEM;
-		goto out;
-	}
 
 	if (data_offset >= ino_size) {
 		/*
@@ -1392,12 +1398,12 @@ static int find_extent_clone(struct send_ctx *sctx,
 		cur_clone_root->found_refs = 0;
 	}
 
-	backref_ctx->sctx = sctx;
-	backref_ctx->found = 0;
-	backref_ctx->cur_objectid = ino;
-	backref_ctx->cur_offset = data_offset;
-	backref_ctx->found_itself = 0;
-	backref_ctx->extent_len = num_bytes;
+	backref_ctx.sctx = sctx;
+	backref_ctx.found = 0;
+	backref_ctx.cur_objectid = ino;
+	backref_ctx.cur_offset = data_offset;
+	backref_ctx.found_itself = 0;
+	backref_ctx.extent_len = num_bytes;
 
 	/*
 	 * The last extent of a file may be too large due to page alignment.
@@ -1405,7 +1411,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	 * __iterate_backrefs work.
 	 */
 	if (data_offset + num_bytes >= ino_size)
-		backref_ctx->extent_len = ino_size - data_offset;
+		backref_ctx.extent_len = ino_size - data_offset;
 
 	/*
 	 * Now collect all backrefs.
@@ -1416,12 +1422,12 @@ static int find_extent_clone(struct send_ctx *sctx,
 		extent_item_pos = 0;
 	ret = iterate_extent_inodes(fs_info, found_key.objectid,
 				    extent_item_pos, 1, __iterate_backrefs,
-				    backref_ctx, false);
+				    &backref_ctx, false);
 
 	if (ret < 0)
 		goto out;
 
-	if (!backref_ctx->found_itself) {
+	if (!backref_ctx.found_itself) {
 		/* found a bug in backref code? */
 		ret = -EIO;
 		btrfs_err(fs_info,
@@ -1434,7 +1440,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 		    "find_extent_clone: data_offset=%llu, ino=%llu, num_bytes=%llu, logical=%llu",
 		    data_offset, ino, num_bytes, logical);
 
-	if (!backref_ctx->found)
+	if (!backref_ctx.found)
 		btrfs_debug(fs_info, "no clones found");
 
 	cur_clone_root = NULL;
@@ -1458,7 +1464,6 @@ static int find_extent_clone(struct send_ctx *sctx,
 
 out:
 	btrfs_free_path(tmp_path);
-	kfree(backref_ctx);
 	return ret;
 }
 
@@ -2727,19 +2732,12 @@ static int send_create_inode_if_needed(struct send_ctx *sctx)
 	if (S_ISDIR(sctx->cur_inode_mode)) {
 		ret = did_create_dir(sctx, sctx->cur_ino);
 		if (ret < 0)
-			goto out;
-		if (ret) {
-			ret = 0;
-			goto out;
-		}
+			return ret;
+		else if (ret > 0)
+			return 0;
 	}
 
-	ret = send_create_inode(sctx, sctx->cur_ino);
-	if (ret < 0)
-		goto out;
-
-out:
-	return ret;
+	return send_create_inode(sctx, sctx->cur_ino);
 }
 
 struct recorded_ref {
@@ -7282,6 +7280,17 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	INIT_LIST_HEAD(&sctx->name_cache_list);
 
 	sctx->flags = arg->flags;
+
+	if (arg->flags & BTRFS_SEND_FLAG_VERSION) {
+		if (arg->version > BTRFS_SEND_STREAM_VERSION) {
+			ret = -EPROTO;
+			goto out;
+		}
+		/* Zero means "use the highest version" */
+		sctx->proto = arg->version ?: BTRFS_SEND_STREAM_VERSION;
+	} else {
+		sctx->proto = 1;
+	}
 
 	sctx->send_filp = fget(arg->send_fd);
 	if (!sctx->send_filp) {

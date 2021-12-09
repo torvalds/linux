@@ -29,6 +29,7 @@
 		brightness-levels = <0 16 22 30 40 55 75 102 138 188 255>;
 		default-brightness-level = <8>;
 		enable-gpios = <&gpioi 0 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_panel_bl>;
 		status = "okay";
 	};
 
@@ -110,12 +111,28 @@
 	panel {
 		compatible = "edt,etm0700g0edh6";
 		backlight = <&display_bl>;
+		power-supply = <&reg_panel_bl>;
 
 		port {
 			lcd_panel_in: endpoint {
 				remote-endpoint = <&lcd_display_out>;
 			};
 		};
+	};
+
+	reg_panel_bl: regulator-panel-bl {
+		compatible = "regulator-fixed";
+		regulator-name = "panel_backlight";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_panel_supply>;
+	};
+
+	reg_panel_supply: regulator-panel-supply {
+		compatible = "regulator-fixed";
+		regulator-name = "panel_supply";
+		regulator-min-microvolt = <24000000>;
+		regulator-max-microvolt = <24000000>;
 	};
 
 	sound {
@@ -172,15 +189,15 @@
 			sgtl5000_tx_endpoint: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&sai2a_endpoint>;
-				frame-master;
-				bitclock-master;
+				frame-master = <&sgtl5000_tx_endpoint>;
+				bitclock-master = <&sgtl5000_tx_endpoint>;
 			};
 
 			sgtl5000_rx_endpoint: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&sai2b_endpoint>;
-				frame-master;
-				bitclock-master;
+				frame-master = <&sgtl5000_rx_endpoint>;
+				bitclock-master = <&sgtl5000_rx_endpoint>;
 			};
 		};
 

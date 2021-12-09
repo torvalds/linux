@@ -245,7 +245,7 @@ static void set_multicast_list( struct net_device *dev );
 
 /************************* End of Prototypes **************************/
 
-struct net_device * __init sun3lance_probe(int unit)
+static struct net_device * __init sun3lance_probe(void)
 {
 	struct net_device *dev;
 	static int found;
@@ -272,10 +272,6 @@ struct net_device * __init sun3lance_probe(int unit)
 	dev = alloc_etherdev(sizeof(struct lance_private));
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
 
 	if (!lance_probe(dev))
 		goto out;
@@ -309,7 +305,6 @@ static int __init lance_probe( struct net_device *dev)
 	unsigned long ioaddr;
 
 	struct lance_private	*lp;
-	int 			i;
 	static int 		did_version;
 	volatile unsigned short *ioaddr_probe;
 	unsigned short tmp1, tmp2;
@@ -377,8 +372,7 @@ static int __init lance_probe( struct net_device *dev)
 		   dev->irq);
 
 	/* copy in the ethernet address from the prom */
-	for(i = 0; i < 6 ; i++)
-	     dev->dev_addr[i] = idprom->id_ethaddr[i];
+	eth_hw_addr_set(dev, idprom->id_ethaddr);
 
 	/* tell the card it's ether address, bytes swapped */
 	MEM->init.hwaddr[0] = dev->dev_addr[1];
@@ -924,17 +918,16 @@ static void set_multicast_list( struct net_device *dev )
 }
 
 
-#ifdef MODULE
-
 static struct net_device *sun3lance_dev;
 
-int __init init_module(void)
+static int __init sun3lance_init(void)
 {
-	sun3lance_dev = sun3lance_probe(-1);
+	sun3lance_dev = sun3lance_probe();
 	return PTR_ERR_OR_ZERO(sun3lance_dev);
 }
+module_init(sun3lance_init);
 
-void __exit cleanup_module(void)
+static void __exit sun3lance_cleanup(void)
 {
 	unregister_netdev(sun3lance_dev);
 #ifdef CONFIG_SUN3
@@ -942,6 +935,4 @@ void __exit cleanup_module(void)
 #endif
 	free_netdev(sun3lance_dev);
 }
-
-#endif /* MODULE */
-
+module_exit(sun3lance_cleanup);

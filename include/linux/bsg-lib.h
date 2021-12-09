@@ -12,6 +12,7 @@
 #include <linux/blkdev.h>
 #include <scsi/scsi_request.h>
 
+struct bsg_job;
 struct request;
 struct device;
 struct scatterlist;

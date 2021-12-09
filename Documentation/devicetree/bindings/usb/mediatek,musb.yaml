@@ -19,6 +19,7 @@ properties:
       - enum:
           - mediatek,mt8516-musb
           - mediatek,mt2701-musb
+          - mediatek,mt7623-musb
       - const: mediatek,mtk-musb
 
   reg:

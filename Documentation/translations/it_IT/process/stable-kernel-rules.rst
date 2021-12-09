@@ -41,12 +41,6 @@ Regole sul tipo di patch che vengono o non vengono accettate nei sorgenti
 Procedura per sottomettere patch per i sorgenti -stable
 -------------------------------------------------------
 
- - Se la patch contiene modifiche a dei file nelle cartelle net/ o drivers/net,
-   allora seguite le linee guida descritte in
-   :ref:`Documentation/translations/it_IT/networking/netdev-FAQ.rst <it_netdev-FAQ>`;
-   ma solo dopo aver verificato al seguente indirizzo che la patch non sia
-   già in coda:
-   https://patchwork.kernel.org/bundle/netdev/stable/?state=*
  - Una patch di sicurezza non dovrebbero essere gestite (solamente) dal processo
    di revisione -stable, ma dovrebbe seguire le procedure descritte in
    :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`.

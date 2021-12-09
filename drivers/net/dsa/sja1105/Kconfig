@@ -2,6 +2,7 @@
 config NET_DSA_SJA1105
 tristate "NXP SJA1105 Ethernet switch family support"
 	depends on NET_DSA && SPI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select NET_DSA_TAG_SJA1105
 	select PCS_XPCS
 	select PACKING

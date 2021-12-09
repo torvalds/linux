@@ -796,7 +796,9 @@ static void hip04_tx_timeout_task(struct work_struct *work)
 }
 
 static int hip04_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *ec)
+			      struct ethtool_coalesce *ec,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct hip04_priv *priv = netdev_priv(netdev);
 
@@ -807,7 +809,9 @@ static int hip04_get_coalesce(struct net_device *netdev,
 }
 
 static int hip04_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *ec)
+			      struct ethtool_coalesce *ec,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct hip04_priv *priv = netdev_priv(netdev);
 
@@ -994,7 +998,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 		hip04_config_port(ndev, SPEED_100, DUPLEX_FULL);
 
 	hip04_config_fifo(priv);
-	eth_random_addr(ndev->dev_addr);
+	eth_hw_addr_random(ndev);
 	hip04_update_mac_address(ndev);
 
 	ret = hip04_alloc_ring(ndev, d);

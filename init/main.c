@@ -83,7 +83,6 @@
 #include <linux/ptrace.h>
 #include <linux/pti.h>
 #include <linux/blkdev.h>
-#include <linux/elevator.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
@@ -153,10 +152,10 @@ static char *extra_init_args;
 #ifdef CONFIG_BOOT_CONFIG
 /* Is bootconfig on command line? */
 static bool bootconfig_found;
-static bool initargs_found;
+static size_t initargs_offs;
 #else
 # define bootconfig_found false
-# define initargs_found false
+# define initargs_offs 0
 #endif
 
 static char *execute_command;
@@ -382,6 +381,7 @@ static char * __init xbc_make_cmdline(const char *key)
 	ret = xbc_snprint_cmdline(new_cmdline, len + 1, root);
 	if (ret < 0 || ret > len) {
 		pr_err("Failed to print extra kernel cmdline.\n");
+		memblock_free(new_cmdline, len + 1);
 		return NULL;
 	}
 
@@ -397,13 +397,19 @@ static int __init bootconfig_params(char *param, char *val,
 	return 0;
 }
 
+static int __init warn_bootconfig(char *str)
+{
+	/* The 'bootconfig' has been handled by bootconfig_params(). */
+	return 0;
+}
+
 static void __init setup_boot_config(void)
 {
 	static char tmp_cmdline[COMMAND_LINE_SIZE] __initdata;
 	const char *msg;
 	int pos;
 	u32 size, csum;
-	char *data, *copy, *err;
+	char *data, *err;
 	int ret;
 
 	/* Cut out the bootconfig data even if we have no bootconfig option */
@@ -416,9 +422,9 @@ static void __init setup_boot_config(void)
 	if (IS_ERR(err) || !bootconfig_found)
 		return;
 
-	/* parse_args() stops at '--' and returns an address */
+	/* parse_args() stops at the next param of '--' and returns an address */
 	if (err)
-		initargs_found = true;
+		initargs_offs = err - tmp_cmdline;
 
 	if (!data) {
 		pr_err("'bootconfig' found on command line, but no bootconfig found\n");
@@ -436,16 +442,7 @@ static void __init setup_boot_config(void)
 		return;
 	}
 
-	copy = memblock_alloc(size + 1, SMP_CACHE_BYTES);
-	if (!copy) {
-		pr_err("Failed to allocate memory for bootconfig\n");
-		return;
-	}
-
-	memcpy(copy, data, size);
-	copy[size] = '\0';
-
-	ret = xbc_init(copy, &msg, &pos);
+	ret = xbc_init(data, size, &msg, &pos);
 	if (ret < 0) {
 		if (pos < 0)
 			pr_err("Failed to init bootconfig: %s.\n", msg);
@@ -453,6 +450,7 @@ static void __init setup_boot_config(void)
 			pr_err("Failed to parse bootconfig: %s at %d.\n",
 				msg, pos);
 	} else {
+		xbc_get_info(&ret, NULL);
 		pr_info("Load bootconfig: %d bytes %d nodes\n", size, ret);
 		/* keys starting with "kernel." are passed via cmdline */
 		extra_command_line = xbc_make_cmdline("kernel");
@@ -462,7 +460,12 @@ static void __init setup_boot_config(void)
 	return;
 }
 
-#else
+static void __init exit_boot_config(void)
+{
+	xbc_exit();
+}
+
+#else	/* !CONFIG_BOOT_CONFIG */
 
 static void __init setup_boot_config(void)
 {
@@ -475,9 +478,12 @@ static int __init warn_bootconfig(char *str)
 	pr_warn("WARNING: 'bootconfig' found on the kernel command line but CONFIG_BOOT_CONFIG is not set.\n");
 	return 0;
 }
-early_param("bootconfig", warn_bootconfig);
 
-#endif
+#define exit_boot_config()	do {} while (0)
+
+#endif	/* CONFIG_BOOT_CONFIG */
+
+early_param("bootconfig", warn_bootconfig);
 
 /* Change NUL term back to "=", to make "param" the whole string. */
 static void __init repair_env_string(char *param, char *val)
@@ -641,16 +647,21 @@ static void __init setup_command_line(char *command_line)
 		 * Append supplemental init boot args to saved_command_line
 		 * so that user can check what command line options passed
 		 * to init.
+		 * The order should always be
+		 * " -- "[bootconfig init-param][cmdline init-param]
 		 */
-		len = strlen(saved_command_line);
-		if (initargs_found) {
-			saved_command_line[len++] = ' ';
+		if (initargs_offs) {
+			len = xlen + initargs_offs;
+			strcpy(saved_command_line + len, extra_init_args);
+			len += ilen - 4;	/* strlen(extra_init_args) */
+			strcpy(saved_command_line + len,
+				boot_command_line + initargs_offs - 1);
 		} else {
+			len = strlen(saved_command_line);
 			strcpy(saved_command_line + len, " -- ");
 			len += 4;
+			strcpy(saved_command_line + len, extra_init_args);
 		}
-
-		strcpy(saved_command_line + len, extra_init_args);
 	}
 }
 
@@ -771,6 +782,8 @@ void __init __weak mem_encrypt_init(void) { }
 void __init __weak poking_init(void) { }
 
 void __init __weak pgtable_cache_init(void) { }
+
+void __init __weak trap_init(void) { }
 
 bool initcall_debug;
 core_param(initcall_debug, initcall_debug, bool, 0644);
@@ -902,8 +915,10 @@ static void __init print_unknown_bootoptions(void)
 	for (p = &envp_init[2]; *p; p++)
 		end += sprintf(end, " %s", *p);
 
-	pr_notice("Unknown command line parameters:%s\n", unknown_options);
-	memblock_free(__pa(unknown_options), len);
+	/* Start at unknown_options[1] to skip the initial space */
+	pr_notice("Unknown kernel command line parameters \"%s\", will be passed to user space.\n",
+		&unknown_options[1]);
+	memblock_free(unknown_options, len);
 }
 
 asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
@@ -1387,7 +1402,6 @@ static void __init do_basic_setup(void)
 	driver_init();
 	init_irq_proc();
 	do_ctors();
-	usermodehelper_enable();
 	do_initcalls();
 }
 
@@ -1485,9 +1499,12 @@ static int __ref kernel_init(void *unused)
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
+
+	system_state = SYSTEM_FREEING_INITMEM;
 	kprobe_free_init_mem();
 	ftrace_free_init_mem();
 	kgdb_free_init_mem();
+	exit_boot_config();
 	free_initmem();
 	mark_readonly();
 

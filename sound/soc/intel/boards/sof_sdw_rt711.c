@@ -21,23 +21,23 @@
  * Note this MUST be called before snd_soc_register_card(), so that the props
  * are in place before the codec component driver's probe function parses them.
  */
-static int rt711_add_codec_device_props(const char *sdw_dev_name)
+static int rt711_add_codec_device_props(struct device *sdw_dev)
 {
 	struct property_entry props[MAX_NO_PROPS] = {};
-	struct device *sdw_dev;
+	struct fwnode_handle *fwnode;
 	int ret;
 
-	sdw_dev = bus_find_device_by_name(&sdw_bus_type, NULL, sdw_dev_name);
-	if (!sdw_dev)
-		return -EPROBE_DEFER;
+	if (!SOF_RT711_JDSRC(sof_sdw_quirk))
+		return 0;
+	props[0] = PROPERTY_ENTRY_U32("realtek,jd-src", SOF_RT711_JDSRC(sof_sdw_quirk));
 
-	if (SOF_RT711_JDSRC(sof_sdw_quirk)) {
-		props[0] = PROPERTY_ENTRY_U32("realtek,jd-src",
-					      SOF_RT711_JDSRC(sof_sdw_quirk));
-	}
+	fwnode = fwnode_create_software_node(props, NULL);
+	if (IS_ERR(fwnode))
+		return PTR_ERR(fwnode);
 
-	ret = device_add_properties(sdw_dev, props);
-	put_device(sdw_dev);
+	ret = device_add_software_node(sdw_dev, to_software_node(fwnode));
+
+	fwnode_handle_put(fwnode);
 
 	return ret;
 }
@@ -135,26 +135,24 @@ static int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int sof_sdw_rt711_exit(struct device *dev, struct snd_soc_dai_link *dai_link)
+int sof_sdw_rt711_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
-	struct device *sdw_dev;
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 
-	sdw_dev = bus_find_device_by_name(&sdw_bus_type, NULL,
-					  dai_link->codecs[0].name);
-	if (!sdw_dev)
-		return -EINVAL;
-
-	device_remove_properties(sdw_dev);
-	put_device(sdw_dev);
+	device_remove_software_node(ctx->headset_codec_dev);
+	put_device(ctx->headset_codec_dev);
 
 	return 0;
 }
 
-int sof_sdw_rt711_init(const struct snd_soc_acpi_link_adr *link,
+int sof_sdw_rt711_init(struct snd_soc_card *card,
+		       const struct snd_soc_acpi_link_adr *link,
 		       struct snd_soc_dai_link *dai_links,
 		       struct sof_sdw_codec_info *info,
 		       bool playback)
 {
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+	struct device *sdw_dev;
 	int ret;
 
 	/*
@@ -164,9 +162,16 @@ int sof_sdw_rt711_init(const struct snd_soc_acpi_link_adr *link,
 	if (!playback)
 		return 0;
 
-	ret = rt711_add_codec_device_props(dai_links->codecs[0].name);
-	if (ret < 0)
+	sdw_dev = bus_find_device_by_name(&sdw_bus_type, NULL, dai_links->codecs[0].name);
+	if (!sdw_dev)
+		return -EPROBE_DEFER;
+
+	ret = rt711_add_codec_device_props(sdw_dev);
+	if (ret < 0) {
+		put_device(sdw_dev);
 		return ret;
+	}
+	ctx->headset_codec_dev = sdw_dev;
 
 	dai_links->init = rt711_rtd_init;
 

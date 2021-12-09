@@ -229,6 +229,9 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		return;
 	}
 
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+		WARN_ON_ONCE(in_nmi() || in_hardirq());
+
 	/*
 	 * After the stb, interrupts are unmasked and there are no interrupts
 	 * pending replay. The restart sequence makes this atomic with
@@ -320,6 +323,9 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	irq_soft_mask_set(mask);
 	if (mask)
 		return;
+
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+		WARN_ON_ONCE(in_nmi() || in_hardirq());
 
 	/*
 	 * From this point onward, we can take interrupts, preempt,
@@ -750,7 +756,7 @@ void __do_irq(struct pt_regs *regs)
 	trace_irq_exit(regs);
 }
 
-DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
+void __do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	void *cursp, *irqsp, *sirqsp;
@@ -772,6 +778,11 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
 	call_do_irq(regs, irqsp);
 
 	set_irq_regs(old_regs);
+}
+
+DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
+{
+	__do_IRQ(regs);
 }
 
 static void *__init alloc_vm_stack(void)

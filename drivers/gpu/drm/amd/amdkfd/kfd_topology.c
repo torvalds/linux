@@ -478,6 +478,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			      dev->node_props.simd_per_cu);
 	sysfs_show_32bit_prop(buffer, offs, "max_slots_scratch_cu",
 			      dev->node_props.max_slots_scratch_cu);
+	sysfs_show_32bit_prop(buffer, offs, "gfx_target_version",
+			      dev->node_props.gfx_target_version);
 	sysfs_show_32bit_prop(buffer, offs, "vendor_id",
 			      dev->node_props.vendor_id);
 	sysfs_show_32bit_prop(buffer, offs, "device_id",
@@ -1294,6 +1296,24 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	proximity_domain = atomic_inc_return(&topology_crat_proximity_domain);
 
+	adev = (struct amdgpu_device *)(gpu->kgd);
+
+	/* Include the CPU in xGMI hive if xGMI connected by assigning it the hive ID. */
+	if (gpu->hive_id && adev->gmc.xgmi.connected_to_cpu) {
+		struct kfd_topology_device *top_dev;
+
+		down_read(&topology_lock);
+
+		list_for_each_entry(top_dev, &topology_device_list, list) {
+			if (top_dev->gpu)
+				break;
+
+			top_dev->node_props.hive_id = gpu->hive_id;
+		}
+
+		up_read(&topology_lock);
+	}
+
 	/* Check to see if this gpu device exists in the topology_device_list.
 	 * If so, assign the gpu to that device,
 	 * else create a Virtual CRAT for this gpu device and then parse that
@@ -1360,6 +1380,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.simd_arrays_per_engine =
 		cu_info.num_shader_arrays_per_engine;
 
+	dev->node_props.gfx_target_version = gpu->device_info->gfx_target_version;
 	dev->node_props.vendor_id = gpu->pdev->vendor;
 	dev->node_props.device_id = gpu->pdev->device;
 	dev->node_props.capability |=
@@ -1424,6 +1445,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
 	case CHIP_YELLOW_CARP:
+	case CHIP_CYAN_SKILLFISH:
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
@@ -1453,7 +1475,6 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		dev->node_props.max_waves_per_simd = 10;
 	}
 
-	adev = (struct amdgpu_device *)(dev->gpu->kgd);
 	/* kfd only concerns sram ecc on GFX and HBM ecc on UMC */
 	dev->node_props.capability |=
 		((adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0) ?
@@ -1630,7 +1651,7 @@ int kfd_debugfs_rls_by_device(struct seq_file *m, void *data)
 		}
 
 		seq_printf(m, "Node %u, gpu_id %x:\n", i++, dev->gpu->id);
-		r = pm_debugfs_runlist(m, &dev->gpu->dqm->packets);
+		r = pm_debugfs_runlist(m, &dev->gpu->dqm->packet_mgr);
 		if (r)
 			break;
 	}

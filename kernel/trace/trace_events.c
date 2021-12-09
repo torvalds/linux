@@ -181,6 +181,7 @@ static int trace_define_common_fields(void)
 
 	__common_field(unsigned short, type);
 	__common_field(unsigned char, flags);
+	/* Holds both preempt_count and migrate_disable */
 	__common_field(unsigned char, preempt_count);
 	__common_field(int, pid);
 
@@ -884,10 +885,10 @@ static void __ftrace_clear_event_pids(struct trace_array *tr, int type)
 	tracepoint_synchronize_unregister();
 
 	if ((type & TRACE_PIDS) && pid_list)
-		trace_free_pid_list(pid_list);
+		trace_pid_list_free(pid_list);
 
 	if ((type & TRACE_NO_PIDS) && no_pid_list)
-		trace_free_pid_list(no_pid_list);
+		trace_pid_list_free(no_pid_list);
 }
 
 static void ftrace_clear_event_pids(struct trace_array *tr, int type)
@@ -1966,7 +1967,7 @@ event_pid_write(struct file *filp, const char __user *ubuf,
 
 	if (filtered_pids) {
 		tracepoint_synchronize_unregister();
-		trace_free_pid_list(filtered_pids);
+		trace_pid_list_free(filtered_pids);
 	} else if (pid_list && !other_pids) {
 		register_pid_events(tr);
 	}
@@ -2311,7 +2312,8 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 	/* the ftrace system is special, do not create enable or filter files */
 	if (strcmp(name, "ftrace") != 0) {
 
-		entry = tracefs_create_file("filter", 0644, dir->entry, dir,
+		entry = tracefs_create_file("filter", TRACE_MODE_WRITE,
+					    dir->entry, dir,
 					    &ftrace_subsystem_filter_fops);
 		if (!entry) {
 			kfree(system->filter);
@@ -2319,7 +2321,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 			pr_warn("Could not create tracefs '%s/filter' entry\n", name);
 		}
 
-		trace_create_file("enable", 0644, dir->entry, dir,
+		trace_create_file("enable", TRACE_MODE_WRITE, dir->entry, dir,
 				  &ftrace_system_enable_fops);
 	}
 
@@ -2401,12 +2403,12 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 	}
 
 	if (call->class->reg && !(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE))
-		trace_create_file("enable", 0644, file->dir, file,
+		trace_create_file("enable", TRACE_MODE_WRITE, file->dir, file,
 				  &ftrace_enable_fops);
 
 #ifdef CONFIG_PERF_EVENTS
 	if (call->event.type && call->class->reg)
-		trace_create_file("id", 0444, file->dir,
+		trace_create_file("id", TRACE_MODE_READ, file->dir,
 				  (void *)(long)call->event.type,
 				  &ftrace_event_id_fops);
 #endif
@@ -2422,22 +2424,22 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 	 * triggers or filters.
 	 */
 	if (!(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE)) {
-		trace_create_file("filter", 0644, file->dir, file,
-				  &ftrace_event_filter_fops);
+		trace_create_file("filter", TRACE_MODE_WRITE, file->dir,
+				  file, &ftrace_event_filter_fops);
 
-		trace_create_file("trigger", 0644, file->dir, file,
-				  &event_trigger_fops);
+		trace_create_file("trigger", TRACE_MODE_WRITE, file->dir,
+				  file, &event_trigger_fops);
 	}
 
 #ifdef CONFIG_HIST_TRIGGERS
-	trace_create_file("hist", 0444, file->dir, file,
+	trace_create_file("hist", TRACE_MODE_READ, file->dir, file,
 			  &event_hist_fops);
 #endif
 #ifdef CONFIG_HIST_TRIGGERS_DEBUG
-	trace_create_file("hist_debug", 0444, file->dir, file,
+	trace_create_file("hist_debug", TRACE_MODE_READ, file->dir, file,
 			  &event_hist_debug_fops);
 #endif
-	trace_create_file("format", 0444, file->dir, call,
+	trace_create_file("format", TRACE_MODE_READ, file->dir, call,
 			  &ftrace_event_format_fops);
 
 #ifdef CONFIG_TRACE_EVENT_INJECT
@@ -2525,7 +2527,10 @@ __register_event(struct trace_event_call *call, struct module *mod)
 		return ret;
 
 	list_add(&call->list, &ftrace_events);
-	call->mod = mod;
+	if (call->flags & TRACE_EVENT_FL_DYNAMIC)
+		atomic_set(&call->refcnt, 0);
+	else
+		call->module = mod;
 
 	return 0;
 }
@@ -2839,7 +2844,9 @@ static void trace_module_remove_events(struct module *mod)
 
 	down_write(&trace_event_sem);
 	list_for_each_entry_safe(call, p, &ftrace_events, list) {
-		if (call->mod == mod)
+		if ((call->flags & TRACE_EVENT_FL_DYNAMIC) || !call->module)
+			continue;
+		if (call->module == mod)
 			__trace_remove_event_call(call);
 	}
 	up_write(&trace_event_sem);
@@ -2982,7 +2989,7 @@ struct trace_event_file *trace_get_event_file(const char *instance,
 	}
 
 	/* Don't let event modules unload while in use */
-	ret = try_module_get(file->event_call->mod);
+	ret = trace_event_try_get_ref(file->event_call);
 	if (!ret) {
 		trace_array_put(tr);
 		ret = -EBUSY;
@@ -3012,7 +3019,7 @@ EXPORT_SYMBOL_GPL(trace_get_event_file);
 void trace_put_event_file(struct trace_event_file *file)
 {
 	mutex_lock(&event_mutex);
-	module_put(file->event_call->mod);
+	trace_event_put_ref(file->event_call);
 	mutex_unlock(&event_mutex);
 
 	trace_array_put(file->tr);
@@ -3147,7 +3154,7 @@ static int free_probe_data(void *data)
 	if (!edata->ref) {
 		/* Remove the SOFT_MODE flag */
 		__ftrace_event_enable_disable(edata->file, 0, 1);
-		module_put(edata->file->event_call->mod);
+		trace_event_put_ref(edata->file->event_call);
 		kfree(edata);
 	}
 	return 0;
@@ -3280,7 +3287,7 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 
  out_reg:
 	/* Don't let event modules unload while probe registered */
-	ret = try_module_get(file->event_call->mod);
+	ret = trace_event_try_get_ref(file->event_call);
 	if (!ret) {
 		ret = -EBUSY;
 		goto out_free;
@@ -3310,7 +3317,7 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
  out_disable:
 	__ftrace_event_enable_disable(file, 0, 1);
  out_put:
-	module_put(file->event_call->mod);
+	trace_event_put_ref(file->event_call);
  out_free:
 	kfree(data);
 	goto out;
@@ -3376,7 +3383,8 @@ void __trace_early_add_events(struct trace_array *tr)
 
 	list_for_each_entry(call, &ftrace_events, list) {
 		/* Early boot up should not have any modules loaded */
-		if (WARN_ON_ONCE(call->mod))
+		if (!(call->flags & TRACE_EVENT_FL_DYNAMIC) &&
+		    WARN_ON_ONCE(call->module))
 			continue;
 
 		ret = __trace_early_add_new_event(call, tr);
@@ -3426,7 +3434,7 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 	struct dentry *d_events;
 	struct dentry *entry;
 
-	entry = tracefs_create_file("set_event", 0644, parent,
+	entry = tracefs_create_file("set_event", TRACE_MODE_WRITE, parent,
 				    tr, &ftrace_set_event_fops);
 	if (!entry) {
 		pr_warn("Could not create tracefs 'set_event' entry\n");
@@ -3439,7 +3447,7 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 		return -ENOMEM;
 	}
 
-	entry = trace_create_file("enable", 0644, d_events,
+	entry = trace_create_file("enable", TRACE_MODE_WRITE, d_events,
 				  tr, &ftrace_tr_enable_fops);
 	if (!entry) {
 		pr_warn("Could not create tracefs 'enable' entry\n");
@@ -3448,24 +3456,25 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 
 	/* There are not as crucial, just warn if they are not created */
 
-	entry = tracefs_create_file("set_event_pid", 0644, parent,
+	entry = tracefs_create_file("set_event_pid", TRACE_MODE_WRITE, parent,
 				    tr, &ftrace_set_event_pid_fops);
 	if (!entry)
 		pr_warn("Could not create tracefs 'set_event_pid' entry\n");
 
-	entry = tracefs_create_file("set_event_notrace_pid", 0644, parent,
-				    tr, &ftrace_set_event_notrace_pid_fops);
+	entry = tracefs_create_file("set_event_notrace_pid",
+				    TRACE_MODE_WRITE, parent, tr,
+				    &ftrace_set_event_notrace_pid_fops);
 	if (!entry)
 		pr_warn("Could not create tracefs 'set_event_notrace_pid' entry\n");
 
 	/* ring buffer internal formats */
-	entry = trace_create_file("header_page", 0444, d_events,
+	entry = trace_create_file("header_page", TRACE_MODE_READ, d_events,
 				  ring_buffer_print_page_header,
 				  &ftrace_show_header_fops);
 	if (!entry)
 		pr_warn("Could not create tracefs 'header_page' entry\n");
 
-	entry = trace_create_file("header_event", 0444, d_events,
+	entry = trace_create_file("header_event", TRACE_MODE_READ, d_events,
 				  ring_buffer_print_entry_header,
 				  &ftrace_show_header_fops);
 	if (!entry)
@@ -3682,8 +3691,8 @@ __init int event_trace_init(void)
 	if (!tr)
 		return -ENODEV;
 
-	entry = tracefs_create_file("available_events", 0444, NULL,
-				    tr, &ftrace_avail_fops);
+	entry = tracefs_create_file("available_events", TRACE_MODE_READ,
+				    NULL, tr, &ftrace_avail_fops);
 	if (!entry)
 		pr_warn("Could not create tracefs 'available_events' entry\n");
 

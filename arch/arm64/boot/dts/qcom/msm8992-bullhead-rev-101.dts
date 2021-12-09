@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015, LGE Inc. All rights reserved.
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, Petr Vorel <petr.vorel@gmail.com>
  */
 
 /dts-v1/;
@@ -9,13 +10,21 @@
 #include "pm8994.dtsi"
 #include "pmi8994.dtsi"
 
+/* cont_splash_mem has different memory mapping */
+/delete-node/ &cont_splash_mem;
+
 / {
 	model = "LG Nexus 5X";
 	compatible = "lg,bullhead", "qcom,msm8992";
+	chassis-type = "handset";
+
 	/* required for bootloader to select correct board */
 	qcom,msm-id = <251 0>, <252 0>;
 	qcom,board-id = <0xb64 0>;
 	qcom,pmic-id = <0x10009 0x1000A 0x0 0x0>;
+
+	/* Bullhead firmware doesn't support PSCI */
+	/delete-node/ psci;
 
 	aliases {
 		serial0 = &blsp1_uart2;
@@ -37,6 +46,11 @@
 			record-size = <0x10000>;
 			ftrace-size = <0x10000>;
 			pmsg-size = <0x20000>;
+		};
+
+		cont_splash_mem: memory@3400000 {
+			reg = <0 0x03400000 0 0x1200000>;
+			no-map;
 		};
 	};
 };

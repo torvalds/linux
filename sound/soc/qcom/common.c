@@ -44,7 +44,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		return ret;
 
 	/* Populate links */
-	num_links = of_get_child_count(dev->of_node);
+	num_links = of_get_available_child_count(dev->of_node);
 
 	/* Allocate the DAI link array */
 	card->dai_link = devm_kcalloc(dev, num_links, sizeof(*link), GFP_KERNEL);
@@ -54,7 +54,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 	card->num_links = num_links;
 	link = card->dai_link;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_available_child_of_node(dev->of_node, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc) {
 			ret = -ENOMEM;

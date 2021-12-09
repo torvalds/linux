@@ -33,53 +33,36 @@ enum pci_mmap_api {
 int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vmai,
 		  enum pci_mmap_api mmap_api);
 
-int pci_probe_reset_function(struct pci_dev *dev);
+bool pci_reset_supported(struct pci_dev *dev);
+void pci_init_reset_methods(struct pci_dev *dev);
 int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
 int pci_bus_error_reset(struct pci_dev *dev);
+
+struct pci_cap_saved_data {
+	u16		cap_nr;
+	bool		cap_extended;
+	unsigned int	size;
+	u32		data[];
+};
+
+struct pci_cap_saved_state {
+	struct hlist_node		next;
+	struct pci_cap_saved_data	cap;
+};
+
+void pci_allocate_cap_save_buffers(struct pci_dev *dev);
+void pci_free_cap_save_buffers(struct pci_dev *dev);
+int pci_add_cap_save_buffer(struct pci_dev *dev, char cap, unsigned int size);
+int pci_add_ext_cap_save_buffer(struct pci_dev *dev,
+				u16 cap, unsigned int size);
+struct pci_cap_saved_state *pci_find_saved_cap(struct pci_dev *dev, char cap);
+struct pci_cap_saved_state *pci_find_saved_ext_cap(struct pci_dev *dev,
+						   u16 cap);
 
 #define PCI_PM_D2_DELAY         200	/* usec; see PCIe r4.0, sec 5.9.1 */
 #define PCI_PM_D3HOT_WAIT       10	/* msec */
 #define PCI_PM_D3COLD_WAIT      100	/* msec */
 
-/**
- * struct pci_platform_pm_ops - Firmware PM callbacks
- *
- * @bridge_d3: Does the bridge allow entering into D3
- *
- * @is_manageable: returns 'true' if given device is power manageable by the
- *		   platform firmware
- *
- * @set_state: invokes the platform firmware to set the device's power state
- *
- * @get_state: queries the platform firmware for a device's current power state
- *
- * @refresh_state: asks the platform to refresh the device's power state data
- *
- * @choose_state: returns PCI power state of given device preferred by the
- *		  platform; to be used during system-wide transitions from a
- *		  sleeping state to the working state and vice versa
- *
- * @set_wakeup: enables/disables wakeup capability for the device
- *
- * @need_resume: returns 'true' if the given device (which is currently
- *		 suspended) needs to be resumed to be configured for system
- *		 wakeup.
- *
- * If given platform is generally capable of power managing PCI devices, all of
- * these callbacks are mandatory.
- */
-struct pci_platform_pm_ops {
-	bool (*bridge_d3)(struct pci_dev *dev);
-	bool (*is_manageable)(struct pci_dev *dev);
-	int (*set_state)(struct pci_dev *dev, pci_power_t state);
-	pci_power_t (*get_state)(struct pci_dev *dev);
-	void (*refresh_state)(struct pci_dev *dev);
-	pci_power_t (*choose_state)(struct pci_dev *dev);
-	int (*set_wakeup)(struct pci_dev *dev, bool enable);
-	bool (*need_resume)(struct pci_dev *dev);
-};
-
-int pci_set_platform_pm(const struct pci_platform_pm_ops *ops);
 void pci_update_current_state(struct pci_dev *dev, pci_power_t state);
 void pci_refresh_power_state(struct pci_dev *dev);
 int pci_power_up(struct pci_dev *dev);
@@ -100,11 +83,10 @@ void pci_pm_init(struct pci_dev *dev);
 void pci_ea_init(struct pci_dev *dev);
 void pci_msi_init(struct pci_dev *dev);
 void pci_msix_init(struct pci_dev *dev);
-void pci_allocate_cap_save_buffers(struct pci_dev *dev);
-void pci_free_cap_save_buffers(struct pci_dev *dev);
 bool pci_bridge_d3_possible(struct pci_dev *dev);
 void pci_bridge_d3_update(struct pci_dev *dev);
 void pci_bridge_wait_for_secondary_bus(struct pci_dev *dev);
+void pci_bridge_reconfigure_ltr(struct pci_dev *dev);
 
 static inline void pci_wakeup_event(struct pci_dev *dev)
 {
@@ -597,23 +579,25 @@ static inline void pcie_ecrc_get_policy(char *str) { }
 
 #ifdef CONFIG_PCIE_PTM
 void pci_ptm_init(struct pci_dev *dev);
-int pci_enable_ptm(struct pci_dev *dev, u8 *granularity);
 #else
 static inline void pci_ptm_init(struct pci_dev *dev) { }
-static inline int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
-{ return -EINVAL; }
 #endif
 
 struct pci_dev_reset_methods {
 	u16 vendor;
 	u16 device;
-	int (*reset)(struct pci_dev *dev, int probe);
+	int (*reset)(struct pci_dev *dev, bool probe);
+};
+
+struct pci_reset_fn_method {
+	int (*reset_fn)(struct pci_dev *pdev, bool probe);
+	char *name;
 };
 
 #ifdef CONFIG_PCI_QUIRKS
-int pci_dev_specific_reset(struct pci_dev *dev, int probe);
+int pci_dev_specific_reset(struct pci_dev *dev, bool probe);
 #else
-static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
+static inline int pci_dev_specific_reset(struct pci_dev *dev, bool probe)
 {
 	return -ENOTTY;
 }
@@ -701,15 +685,80 @@ static inline int pci_aer_raw_clear_status(struct pci_dev *dev) { return -EINVAL
 #ifdef CONFIG_ACPI
 int pci_acpi_program_hp_params(struct pci_dev *dev);
 extern const struct attribute_group pci_dev_acpi_attr_group;
+void pci_set_acpi_fwnode(struct pci_dev *dev);
+int pci_dev_acpi_reset(struct pci_dev *dev, bool probe);
+bool acpi_pci_power_manageable(struct pci_dev *dev);
+bool acpi_pci_bridge_d3(struct pci_dev *dev);
+int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state);
+pci_power_t acpi_pci_get_power_state(struct pci_dev *dev);
+void acpi_pci_refresh_power_state(struct pci_dev *dev);
+int acpi_pci_wakeup(struct pci_dev *dev, bool enable);
+bool acpi_pci_need_resume(struct pci_dev *dev);
+pci_power_t acpi_pci_choose_state(struct pci_dev *pdev);
 #else
+static inline int pci_dev_acpi_reset(struct pci_dev *dev, bool probe)
+{
+	return -ENOTTY;
+}
+static inline void pci_set_acpi_fwnode(struct pci_dev *dev) {}
 static inline int pci_acpi_program_hp_params(struct pci_dev *dev)
 {
 	return -ENODEV;
+}
+static inline bool acpi_pci_power_manageable(struct pci_dev *dev)
+{
+	return false;
+}
+static inline bool acpi_pci_bridge_d3(struct pci_dev *dev)
+{
+	return false;
+}
+static inline int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
+{
+	return -ENODEV;
+}
+static inline pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
+{
+	return PCI_UNKNOWN;
+}
+static inline void acpi_pci_refresh_power_state(struct pci_dev *dev) {}
+static inline int acpi_pci_wakeup(struct pci_dev *dev, bool enable)
+{
+	return -ENODEV;
+}
+static inline bool acpi_pci_need_resume(struct pci_dev *dev)
+{
+	return false;
+}
+static inline pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
+{
+	return PCI_POWER_ERROR;
 }
 #endif
 
 #ifdef CONFIG_PCIEASPM
 extern const struct attribute_group aspm_ctrl_attr_group;
+#endif
+
+extern const struct attribute_group pci_dev_reset_method_attr_group;
+
+#ifdef CONFIG_X86_INTEL_MID
+bool pci_use_mid_pm(void);
+int mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state);
+pci_power_t mid_pci_get_power_state(struct pci_dev *pdev);
+#else
+static inline bool pci_use_mid_pm(void)
+{
+	return false;
+}
+static inline int mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state)
+{
+	return -ENODEV;
+}
+static inline pci_power_t mid_pci_get_power_state(struct pci_dev *pdev)
+{
+	return PCI_UNKNOWN;
+}
 #endif
 
 #endif /* DRIVERS_PCI_H */

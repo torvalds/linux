@@ -13,8 +13,8 @@ description:
   channels (N) can be read from a dedicated register.
 
 maintainers:
-  - Fabien Dessenne <fabien.dessenne@st.com>
-  - Arnaud Pouliquen <arnaud.pouliquen@st.com>
+  - Fabien Dessenne <fabien.dessenne@foss.st.com>
+  - Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
 
 properties:
   compatible:

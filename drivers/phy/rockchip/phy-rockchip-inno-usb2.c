@@ -321,7 +321,7 @@ rockchip_usb2phy_clk480m_register(struct rockchip_usb2phy *rphy)
 	struct device_node *node = rphy->dev->of_node;
 	struct clk_init_data init;
 	const char *clk_name;
-	int ret;
+	int ret = 0;
 
 	init.flags = 0;
 	init.name = "clk_usbphy_480m";
@@ -352,15 +352,8 @@ rockchip_usb2phy_clk480m_register(struct rockchip_usb2phy *rphy)
 	if (ret < 0)
 		goto err_clk_provider;
 
-	ret = devm_add_action(rphy->dev, rockchip_usb2phy_clk480m_unregister,
-			      rphy);
-	if (ret < 0)
-		goto err_unreg_action;
+	return devm_add_action_or_reset(rphy->dev, rockchip_usb2phy_clk480m_unregister, rphy);
 
-	return 0;
-
-err_unreg_action:
-	of_clk_del_provider(node);
 err_clk_provider:
 	clk_unregister(rphy->clk480m);
 err_ret:
@@ -1180,8 +1173,10 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 
 next_child:
 		/* to prevent out of boundary */
-		if (++index >= rphy->phy_cfg->num_ports)
+		if (++index >= rphy->phy_cfg->num_ports) {
+			of_node_put(child_np);
 			break;
+		}
 	}
 
 	provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);

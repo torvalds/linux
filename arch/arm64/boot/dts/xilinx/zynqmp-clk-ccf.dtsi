@@ -2,7 +2,7 @@
 /*
  * Clock specification for Xilinx ZynqMP
  *
- * (C) Copyright 2017 - 2019, Xilinx, Inc.
+ * (C) Copyright 2017 - 2021, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  */
@@ -37,6 +37,17 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <27000000>;
+	};
+};
+
+&zynqmp_firmware {
+	zynqmp_clk: clock-controller {
+		#clock-cells = <1>;
+		compatible = "xlnx,zynqmp-clk";
+		clocks = <&pss_ref_clk>, <&video_clk>, <&pss_alt_ref_clk>,
+			 <&aux_ref_clk>, <&gt_crx_ref_clk>;
+		clock-names = "pss_ref_clk", "video_clk", "pss_alt_ref_clk",
+			      "aux_ref_clk", "gt_crx_ref_clk";
 	};
 };
 

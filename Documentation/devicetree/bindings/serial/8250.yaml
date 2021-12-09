@@ -66,6 +66,12 @@ properties:
       - const: nxp,lpc3220-uart
       - items:
           - enum:
+              - exar,xr16l2552
+              - exar,xr16l2551
+              - exar,xr16l2550
+          - const: ns8250
+      - items:
+          - enum:
               - altr,16550-FIFO32
               - altr,16550-FIFO64
               - altr,16550-FIFO128

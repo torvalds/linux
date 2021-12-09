@@ -4,57 +4,21 @@
  *
  * Authors:
  *   Le Jin <le.jin@siemens.com>
- *   Jan Kiszka <jan.kiszk@siemens.com>
+ *   Jan Kiszka <jan.kiszka@siemens.com>
  *
- * AM6548-based (quad-core) IOT2050 Advanced variant
+ * AM6548-based (quad-core) IOT2050 Advanced variant, Product Generation 1
  * 2 GB RAM, 16 GB eMMC, USB-serial converter on connector X30
+ *
+ * Product homepage:
+ * https://new.siemens.com/global/en/products/automation/pc-based/iot-gateways/simatic-iot2050.html
  */
 
 /dts-v1/;
 
-#include "k3-am65-iot2050-common.dtsi"
+#include "k3-am6548-iot2050-advanced-common.dtsi"
+#include "k3-am65-iot2050-common-pg1.dtsi"
 
 / {
 	compatible = "siemens,iot2050-advanced", "ti,am654";
 	model = "SIMATIC IOT2050 Advanced";
-
-	memory@80000000 {
-		device_type = "memory";
-		/* 2G RAM */
-		reg = <0x00000000 0x80000000 0x00000000 0x80000000>;
-	};
-};
-
-&main_pmx0 {
-	main_mmc0_pins_default: main-mmc0-pins-default {
-		pinctrl-single,pins = <
-			AM65X_IOPAD(0x01a8, PIN_INPUT_PULLDOWN, 0)  /* (B25) MMC0_CLK */
-			AM65X_IOPAD(0x01ac, PIN_INPUT_PULLUP,   0)  /* (B27) MMC0_CMD */
-			AM65X_IOPAD(0x01a4, PIN_INPUT_PULLUP,   0)  /* (A26) MMC0_DAT0 */
-			AM65X_IOPAD(0x01a0, PIN_INPUT_PULLUP,   0)  /* (E25) MMC0_DAT1 */
-			AM65X_IOPAD(0x019c, PIN_INPUT_PULLUP,   0)  /* (C26) MMC0_DAT2 */
-			AM65X_IOPAD(0x0198, PIN_INPUT_PULLUP,   0)  /* (A25) MMC0_DAT3 */
-			AM65X_IOPAD(0x0194, PIN_INPUT_PULLUP,   0)  /* (E24) MMC0_DAT4 */
-			AM65X_IOPAD(0x0190, PIN_INPUT_PULLUP,   0)  /* (A24) MMC0_DAT5 */
-			AM65X_IOPAD(0x018c, PIN_INPUT_PULLUP,   0)  /* (B26) MMC0_DAT6 */
-			AM65X_IOPAD(0x0188, PIN_INPUT_PULLUP,   0)  /* (D25) MMC0_DAT7 */
-			AM65X_IOPAD(0x01b8, PIN_OUTPUT_PULLUP,  7)  /* (B23) MMC0_SDWP */
-			AM65X_IOPAD(0x01b4, PIN_INPUT_PULLUP,   0)  /* (A23) MMC0_SDCD */
-			AM65X_IOPAD(0x01b0, PIN_INPUT,          0)  /* (C25) MMC0_DS */
-		>;
-	};
-};
-
-/* eMMC */
-&sdhci0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&main_mmc0_pins_default>;
-	bus-width = <8>;
-	non-removable;
-	ti,driver-strength-ohm = <50>;
-	disable-wp;
-};
-
-&main_uart0 {
-	status = "disabled";
 };

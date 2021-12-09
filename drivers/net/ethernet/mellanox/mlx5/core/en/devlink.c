@@ -24,7 +24,7 @@ int mlx5e_devlink_port_register(struct mlx5e_priv *priv)
 
 	if (mlx5_core_is_pf(priv->mdev)) {
 		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-		attrs.phys.port_number = PCI_FUNC(priv->mdev->pdev->devfn);
+		attrs.phys.port_number = mlx5_get_dev_index(priv->mdev);
 		if (MLX5_ESWITCH_MANAGER(priv->mdev)) {
 			mlx5e_devlink_get_port_parent_id(priv->mdev, &ppid);
 			memcpy(attrs.switch_id.id, ppid.id, ppid.id_len);
@@ -55,19 +55,15 @@ void mlx5e_devlink_port_unregister(struct mlx5e_priv *priv)
 {
 	struct devlink_port *dl_port = mlx5e_devlink_get_dl_port(priv);
 
-	if (dl_port->registered)
-		devlink_port_unregister(dl_port);
+	devlink_port_unregister(dl_port);
 }
 
 struct devlink_port *mlx5e_get_devlink_port(struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct devlink_port *port;
 
 	if (!netif_device_present(dev))
 		return NULL;
-	port = mlx5e_devlink_get_dl_port(priv);
-	if (port->registered)
-		return port;
-	return NULL;
+
+	return mlx5e_devlink_get_dl_port(priv);
 }

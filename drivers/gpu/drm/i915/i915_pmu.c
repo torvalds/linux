@@ -407,7 +407,7 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 
 	if (pmu->enable & config_mask(I915_PMU_REQUESTED_FREQUENCY)) {
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_REQ],
-				intel_gpu_freq(rps, rps->cur_freq),
+				intel_rps_get_requested_frequency(rps),
 				period_ns / 1000);
 	}
 
@@ -1088,7 +1088,7 @@ static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 
 static enum cpuhp_state cpuhp_slot = CPUHP_INVALID;
 
-void i915_pmu_init(void)
+int i915_pmu_init(void)
 {
 	int ret;
 
@@ -1101,6 +1101,8 @@ void i915_pmu_init(void)
 			  ret);
 	else
 		cpuhp_slot = ret;
+
+	return 0;
 }
 
 void i915_pmu_exit(void)

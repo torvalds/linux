@@ -8,6 +8,12 @@
 
 / {
 	soc {
+		bus@c4000000 {
+			compatible = "intel,ixp43x-expansion-bus-controller", "syscon";
+			/* Uses at least up to 0x230 */
+			reg = <0xc4000000 0x1000>;
+		};
+
 		pci@c0000000 {
 			compatible = "intel,ixp43x-pci";
 		};

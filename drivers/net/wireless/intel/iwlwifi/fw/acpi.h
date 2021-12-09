@@ -26,21 +26,40 @@
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
-#define ACPI_SAR_TABLE_SIZE		10
 #define ACPI_SAR_PROFILE_NUM		4
 
-#define ACPI_GEO_TABLE_SIZE		6
 #define ACPI_NUM_GEO_PROFILES		3
+#define ACPI_NUM_GEO_PROFILES_REV3	8
 #define ACPI_GEO_PER_CHAIN_SIZE		3
 
-#define ACPI_SAR_NUM_CHAIN_LIMITS	2
-#define ACPI_SAR_NUM_SUB_BANDS		5
-#define ACPI_SAR_NUM_TABLES		1
+#define ACPI_SAR_NUM_CHAINS_REV0	2
+#define ACPI_SAR_NUM_CHAINS_REV1	2
+#define ACPI_SAR_NUM_CHAINS_REV2	4
+#define ACPI_SAR_NUM_SUB_BANDS_REV0	5
+#define ACPI_SAR_NUM_SUB_BANDS_REV1	11
+#define ACPI_SAR_NUM_SUB_BANDS_REV2	11
 
-#define ACPI_WRDS_WIFI_DATA_SIZE	(ACPI_SAR_TABLE_SIZE + 2)
-#define ACPI_EWRD_WIFI_DATA_SIZE	((ACPI_SAR_PROFILE_NUM - 1) * \
-					 ACPI_SAR_TABLE_SIZE + 3)
-#define ACPI_WGDS_WIFI_DATA_SIZE	19
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV0	(ACPI_SAR_NUM_CHAINS_REV0 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV0 + 2)
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV1	(ACPI_SAR_NUM_CHAINS_REV1 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV1 + 2)
+#define ACPI_WRDS_WIFI_DATA_SIZE_REV2	(ACPI_SAR_NUM_CHAINS_REV2 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV2 + 2)
+#define ACPI_EWRD_WIFI_DATA_SIZE_REV0	((ACPI_SAR_PROFILE_NUM - 1) * \
+					 ACPI_SAR_NUM_CHAINS_REV0 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV0 + 3)
+#define ACPI_EWRD_WIFI_DATA_SIZE_REV1	((ACPI_SAR_PROFILE_NUM - 1) * \
+					 ACPI_SAR_NUM_CHAINS_REV1 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV1 + 3)
+#define ACPI_EWRD_WIFI_DATA_SIZE_REV2	((ACPI_SAR_PROFILE_NUM - 1) * \
+					 ACPI_SAR_NUM_CHAINS_REV2 * \
+					 ACPI_SAR_NUM_SUB_BANDS_REV2 + 3)
+
+/* revision 0 and 1 are identical, except for the semantics in the FW */
+#define ACPI_GEO_NUM_BANDS_REV0		2
+#define ACPI_GEO_NUM_BANDS_REV2		3
+#define ACPI_GEO_NUM_CHAINS		2
+
 #define ACPI_WRDD_WIFI_DATA_SIZE	2
 #define ACPI_SPLC_WIFI_DATA_SIZE	2
 #define ACPI_ECKV_WIFI_DATA_SIZE	2
@@ -50,8 +69,6 @@
  */
 #define APCI_WTAS_BLACK_LIST_MAX	16
 #define ACPI_WTAS_WIFI_DATA_SIZE	(3 + APCI_WTAS_BLACK_LIST_MAX)
-
-#define ACPI_WGDS_TABLE_SIZE		3
 
 #define ACPI_PPAG_WIFI_DATA_SIZE_V1	((IWL_NUM_CHAIN_LIMITS * \
 					  IWL_NUM_SUB_BANDS_V1) + 2)
@@ -64,21 +81,38 @@
 #define ACPI_PPAG_MIN_HB -16
 #define ACPI_PPAG_MAX_HB 40
 
+/*
+ * The profile for revision 2 is a superset of revision 1, which is in
+ * turn a superset of revision 0.  So we can store all revisions
+ * inside revision 2, which is what we represent here.
+ */
+struct iwl_sar_profile_chain {
+	u8 subbands[ACPI_SAR_NUM_SUB_BANDS_REV2];
+};
+
 struct iwl_sar_profile {
 	bool enabled;
-	u8 table[ACPI_SAR_TABLE_SIZE];
+	struct iwl_sar_profile_chain chains[ACPI_SAR_NUM_CHAINS_REV2];
+};
+
+/* Same thing as with SAR, all revisions fit in revision 2 */
+struct iwl_geo_profile_band {
+	u8 max;
+	u8 chains[ACPI_GEO_NUM_CHAINS];
 };
 
 struct iwl_geo_profile {
-	u8 values[ACPI_GEO_TABLE_SIZE];
+	struct iwl_geo_profile_band bands[ACPI_GEO_NUM_BANDS_REV2];
 };
 
 enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_QUERY = 0,
 	DSM_FUNC_DISABLE_SRD = 1,
 	DSM_FUNC_ENABLE_INDONESIA_5G2 = 2,
+	DSM_FUNC_ENABLE_6E = 3,
 	DSM_FUNC_11AX_ENABLEMENT = 6,
-	DSM_FUNC_ENABLE_UNII4_CHAN = 7
+	DSM_FUNC_ENABLE_UNII4_CHAN = 7,
+	DSM_FUNC_ACTIVATE_CHANNEL = 8
 };
 
 enum iwl_dsm_values_srd {
@@ -120,10 +154,11 @@ int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 			 const guid_t *guid, u32 *value);
 
-union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
-					 union acpi_object *data,
-					 int data_size, int *tbl_rev);
-
+union acpi_object *iwl_acpi_get_wifi_pkg_range(struct device *dev,
+					       union acpi_object *data,
+					       int min_data_size,
+					       int max_data_size,
+					       int *tbl_rev);
 /**
  * iwl_acpi_get_mcc - read MCC from ACPI, if available
  *
@@ -160,7 +195,8 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt);
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt);
 
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
-		     struct iwl_per_chain_offset *table, u32 n_bands);
+		     struct iwl_per_chain_offset *table,
+		     u32 n_bands, u32 n_profiles);
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt, __le32 *block_list_array,
 		     int *block_list_size);
@@ -192,10 +228,11 @@ static inline int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 	return -ENOENT;
 }
 
-static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
-						       union acpi_object *data,
-						       int data_size,
-						       int *tbl_rev)
+static inline union acpi_object *
+iwl_acpi_get_wifi_pkg_range(struct device *dev,
+			    union acpi_object *data,
+			    int min_data_size, int max_data_size,
+			    int *tbl_rev)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -234,7 +271,7 @@ static inline int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 
 static inline int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
-	return -ENOENT;
+	return 1;
 }
 
 static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
@@ -255,4 +292,14 @@ static inline __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt
 }
 
 #endif /* CONFIG_ACPI */
+
+static inline union acpi_object *
+iwl_acpi_get_wifi_pkg(struct device *dev,
+		      union acpi_object *data,
+		      int data_size, int *tbl_rev)
+{
+	return iwl_acpi_get_wifi_pkg_range(dev, data, data_size, data_size,
+					   tbl_rev);
+}
+
 #endif /* __iwl_fw_acpi__ */

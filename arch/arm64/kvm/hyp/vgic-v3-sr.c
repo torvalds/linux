@@ -695,9 +695,7 @@ static void __vgic_v3_read_iar(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 		goto spurious;
 
 	lr_val &= ~ICH_LR_STATE;
-	/* No active state for LPIs */
-	if ((lr_val & ICH_LR_VIRTUAL_ID_MASK) <= VGIC_MAX_SPI)
-		lr_val |= ICH_LR_ACTIVE_BIT;
+	lr_val |= ICH_LR_ACTIVE_BIT;
 	__gic_v3_set_lr(lr_val, lr);
 	__vgic_v3_set_active_priority(lr_prio, vmcr, grp);
 	vcpu_set_reg(vcpu, rt, lr_val & ICH_LR_VIRTUAL_ID_MASK);
@@ -764,19 +762,17 @@ static void __vgic_v3_write_eoir(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 	/* Drop priority in any case */
 	act_prio = __vgic_v3_clear_highest_active_priority();
 
-	/* If EOIing an LPI, no deactivate to be performed */
-	if (vid >= VGIC_MIN_LPI)
-		return;
-
-	/* EOImode == 1, nothing to be done here */
-	if (vmcr & ICH_VMCR_EOIM_MASK)
-		return;
-
 	lr = __vgic_v3_find_active_lr(vcpu, vid, &lr_val);
 	if (lr == -1) {
-		__vgic_v3_bump_eoicount();
+		/* Do not bump EOIcount for LPIs that aren't in the LRs */
+		if (!(vid >= VGIC_MIN_LPI))
+			__vgic_v3_bump_eoicount();
 		return;
 	}
+
+	/* EOImode == 1 and not an LPI, nothing to be done here */
+	if ((vmcr & ICH_VMCR_EOIM_MASK) && !(vid >= VGIC_MIN_LPI))
+		return;
 
 	lr_prio = (lr_val & ICH_LR_PRIORITY_MASK) >> ICH_LR_PRIORITY_SHIFT;
 
@@ -987,8 +983,6 @@ static void __vgic_v3_read_ctlr(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 	val = ((vtr >> 29) & 7) << ICC_CTLR_EL1_PRI_BITS_SHIFT;
 	/* IDbits */
 	val |= ((vtr >> 23) & 7) << ICC_CTLR_EL1_ID_BITS_SHIFT;
-	/* SEIS */
-	val |= ((vtr >> 22) & 1) << ICC_CTLR_EL1_SEIS_SHIFT;
 	/* A3V */
 	val |= ((vtr >> 21) & 1) << ICC_CTLR_EL1_A3V_SHIFT;
 	/* EOImode */

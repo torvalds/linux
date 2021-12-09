@@ -24,11 +24,11 @@
 #define APPLE_RDESC_JIS		0x0001
 #define APPLE_IGNORE_MOUSE	0x0002
 #define APPLE_HAS_FN		0x0004
-#define APPLE_HIDDEV		0x0008
-/* 0x0010 reserved, was: APPLE_ISO_KEYBOARD */
+/* 0x0008 reserved, was: APPLE_HIDDEV */
+#define APPLE_ISO_TILDE_QUIRK	0x0010
 #define APPLE_MIGHTYMOUSE	0x0020
 #define APPLE_INVERT_HWHEEL	0x0040
-#define APPLE_IGNORE_HIDINPUT	0x0080
+/* 0x0080 reserved, was: APPLE_IGNORE_HIDINPUT */
 #define APPLE_NUMLOCK_EMULATION	0x0100
 
 #define APPLE_FLAG_FKEY		0x01
@@ -40,10 +40,10 @@ module_param(fnmode, uint, 0644);
 MODULE_PARM_DESC(fnmode, "Mode of fn key on Apple keyboards (0 = disabled, "
 		"[1] = fkeyslast, 2 = fkeysfirst)");
 
-static unsigned int iso_layout = 1;
-module_param(iso_layout, uint, 0644);
-MODULE_PARM_DESC(iso_layout, "Enable/Disable hardcoded ISO-layout of the keyboard. "
-		"(0 = disabled, [1] = enabled)");
+static int iso_layout = -1;
+module_param(iso_layout, int, 0644);
+MODULE_PARM_DESC(iso_layout, "Swap the backtick/tilde and greater-than/less-than keys. "
+		"([-1] = auto, 0 = disabled, 1 = enabled)");
 
 static unsigned int swap_opt_cmd;
 module_param(swap_opt_cmd, uint, 0644);
@@ -187,6 +187,15 @@ static const struct apple_key_translation *apple_find_translation(
 	return NULL;
 }
 
+static void input_event_with_scancode(struct input_dev *input,
+		__u8 type, __u16 code, unsigned int hid, __s32 value)
+{
+	if (type == EV_KEY &&
+	    (!test_bit(code, input->key)) == value)
+		input_event(input, EV_MSC, MSC_SCAN, hid);
+	input_event(input, type, code, value);
+}
+
 static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		struct hid_usage *usage, __s32 value)
 {
@@ -199,7 +208,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 
 	if (usage->code == fn_keycode) {
 		asc->fn_on = !!value;
-		input_event(input, usage->type, KEY_FN, value);
+		input_event_with_scancode(input, usage->type, KEY_FN,
+				usage->hid, value);
 		return 1;
 	}
 
@@ -240,7 +250,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 				code = do_translate ? trans->to : trans->from;
 			}
 
-			input_event(input, usage->type, code, value);
+			input_event_with_scancode(input, usage->type, code,
+					usage->hid, value);
 			return 1;
 		}
 
@@ -258,28 +269,29 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 					clear_bit(usage->code,
 							asc->pressed_numlock);
 
-				input_event(input, usage->type, trans->to,
-						value);
+				input_event_with_scancode(input, usage->type,
+						trans->to, usage->hid, value);
 			}
 
 			return 1;
 		}
 	}
 
-	if (iso_layout) {
-		if (hid->country == HID_COUNTRY_INTERNATIONAL_ISO) {
-			trans = apple_find_translation(apple_iso_keyboard, usage->code);
-			if (trans) {
-				input_event(input, usage->type, trans->to, value);
-				return 1;
-			}
+	if (iso_layout > 0 || (iso_layout < 0 && (asc->quirks & APPLE_ISO_TILDE_QUIRK) &&
+			hid->country == HID_COUNTRY_INTERNATIONAL_ISO)) {
+		trans = apple_find_translation(apple_iso_keyboard, usage->code);
+		if (trans) {
+			input_event_with_scancode(input, usage->type,
+					trans->to, usage->hid, value);
+			return 1;
 		}
 	}
 
 	if (swap_opt_cmd) {
 		trans = apple_find_translation(swapped_option_cmd_keys, usage->code);
 		if (trans) {
-			input_event(input, usage->type, trans->to, value);
+			input_event_with_scancode(input, usage->type,
+					trans->to, usage->hid, value);
 			return 1;
 		}
 	}
@@ -287,7 +299,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	if (swap_fn_leftctrl) {
 		trans = apple_find_translation(swapped_fn_leftctrl_keys, usage->code);
 		if (trans) {
-			input_event(input, usage->type, trans->to, value);
+			input_event_with_scancode(input, usage->type,
+					trans->to, usage->hid, value);
 			return 1;
 		}
 	}
@@ -306,8 +319,8 @@ static int apple_event(struct hid_device *hdev, struct hid_field *field,
 
 	if ((asc->quirks & APPLE_INVERT_HWHEEL) &&
 			usage->code == REL_HWHEEL) {
-		input_event(field->hidinput->input, usage->type, usage->code,
-				-value);
+		input_event_with_scancode(field->hidinput->input, usage->type,
+				usage->code, usage->hid, -value);
 		return 1;
 	}
 
@@ -322,11 +335,18 @@ static int apple_event(struct hid_device *hdev, struct hid_field *field,
 
 /*
  * MacBook JIS keyboard has wrong logical maximum
+ * Magic Keyboard JIS has wrong logical maximum
  */
 static __u8 *apple_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	struct apple_sc *asc = hid_get_drvdata(hdev);
+
+	if(*rsize >=71 && rdesc[70] == 0x65 && rdesc[64] == 0x65) {
+		hid_info(hdev,
+			 "fixing up Magic Keyboard JIS report descriptor\n");
+		rdesc[64] = rdesc[70] = 0xe7;
+	}
 
 	if ((asc->quirks & APPLE_RDESC_JIS) && *rsize >= 60 &&
 			rdesc[53] == 0x65 && rdesc[59] == 0x65) {
@@ -419,7 +439,6 @@ static int apple_probe(struct hid_device *hdev,
 {
 	unsigned long quirks = id->driver_data;
 	struct apple_sc *asc;
-	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 	int ret;
 
 	asc = devm_kzalloc(&hdev->dev, sizeof(*asc), GFP_KERNEL);
@@ -438,12 +457,7 @@ static int apple_probe(struct hid_device *hdev,
 		return ret;
 	}
 
-	if (quirks & APPLE_HIDDEV)
-		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
-	if (quirks & APPLE_IGNORE_HIDINPUT)
-		connect_mask &= ~HID_CONNECT_HIDINPUT;
-
-	ret = hid_hw_start(hdev, connect_mask);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
 		return ret;
@@ -512,9 +526,11 @@ static const struct hid_device_id apple_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_ANSI),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_ISO),
-		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
+		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN |
+			APPLE_ISO_TILDE_QUIRK },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_2011_ISO),
-		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
+		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN |
+			APPLE_ISO_TILDE_QUIRK },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE,
 				USB_DEVICE_ID_APPLE_ALU_WIRELESS_2011_ANSI),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
@@ -523,14 +539,14 @@ static const struct hid_device_id apple_devices[] = {
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_JIS),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_ANSI),
-		.driver_data = APPLE_HAS_FN },
-	{ HID_BLUETOOTH_DEVICE(BT_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_ANSI),
-		.driver_data = APPLE_HAS_FN },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_ANSI),
-		.driver_data = APPLE_HAS_FN },
-	{ HID_BLUETOOTH_DEVICE(BT_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_ANSI),
-		.driver_data = APPLE_HAS_FN },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_2015),
+		.driver_data = APPLE_HAS_FN | APPLE_ISO_TILDE_QUIRK },
+	{ HID_BLUETOOTH_DEVICE(BT_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_2015),
+		.driver_data = APPLE_HAS_FN | APPLE_ISO_TILDE_QUIRK },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_2015),
+		.driver_data = APPLE_HAS_FN | APPLE_ISO_TILDE_QUIRK },
+	{ HID_BLUETOOTH_DEVICE(BT_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_2015),
+		.driver_data = APPLE_HAS_FN | APPLE_ISO_TILDE_QUIRK },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING_ANSI),
 		.driver_data = APPLE_HAS_FN },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING_ISO),
@@ -612,13 +628,18 @@ static const struct hid_device_id apple_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_2009_ANSI),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_2009_ISO),
-		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
+		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN |
+			APPLE_ISO_TILDE_QUIRK },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_2009_JIS),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_2021),
+		.driver_data = APPLE_HAS_FN | APPLE_ISO_TILDE_QUIRK },
+	{ HID_BLUETOOTH_DEVICE(BT_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_2021),
+		.driver_data = APPLE_HAS_FN | APPLE_ISO_TILDE_QUIRK },
 
 	{ }
 };

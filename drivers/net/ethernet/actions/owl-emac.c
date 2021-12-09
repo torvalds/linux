@@ -342,7 +342,7 @@ static u32 owl_emac_dma_cmd_stop(struct owl_emac_priv *priv)
 static void owl_emac_set_hw_mac_addr(struct net_device *netdev)
 {
 	struct owl_emac_priv *priv = netdev_priv(netdev);
-	u8 *mac_addr = netdev->dev_addr;
+	const u8 *mac_addr = netdev->dev_addr;
 	u32 addr_high, addr_low;
 
 	addr_high = mac_addr[0] << 8 | mac_addr[1];
@@ -1173,14 +1173,14 @@ static int owl_emac_ndo_set_mac_addr(struct net_device *netdev, void *addr)
 	if (netif_running(netdev))
 		return -EBUSY;
 
-	memcpy(netdev->dev_addr, skaddr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, skaddr->sa_data);
 	owl_emac_set_hw_mac_addr(netdev);
 
 	return owl_emac_setup_frame_xmit(netdev_priv(netdev));
 }
 
-static int owl_emac_ndo_do_ioctl(struct net_device *netdev,
-				 struct ifreq *req, int cmd)
+static int owl_emac_ndo_eth_ioctl(struct net_device *netdev,
+				  struct ifreq *req, int cmd)
 {
 	if (!netif_running(netdev))
 		return -EINVAL;
@@ -1224,7 +1224,7 @@ static const struct net_device_ops owl_emac_netdev_ops = {
 	.ndo_set_rx_mode	= owl_emac_ndo_set_rx_mode,
 	.ndo_set_mac_address	= owl_emac_ndo_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= owl_emac_ndo_do_ioctl,
+	.ndo_eth_ioctl		= owl_emac_ndo_eth_ioctl,
 	.ndo_tx_timeout         = owl_emac_ndo_tx_timeout,
 	.ndo_get_stats		= owl_emac_ndo_get_stats,
 };
@@ -1385,7 +1385,7 @@ static void owl_emac_get_mac_addr(struct net_device *netdev)
 	struct device *dev = netdev->dev.parent;
 	int ret;
 
-	ret = eth_platform_get_mac_address(dev, netdev->dev_addr);
+	ret = platform_get_ethdev_address(dev, netdev);
 	if (!ret && is_valid_ether_addr(netdev->dev_addr))
 		return;
 

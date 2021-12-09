@@ -498,7 +498,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 	mem_cgroup_swapin_uncharge_swap(entry);
 
 	if (shadow)
-		workingset_refault(page, shadow);
+		workingset_refault(page_folio(page), shadow);
 
 	/* Caller will initiate read into locked page */
 	lru_cache_add(page);
@@ -627,13 +627,6 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 	mask = swapin_nr_pages(offset) - 1;
 	if (!mask)
 		goto skip;
-
-	/* Test swap type to make sure the dereference is safe */
-	if (likely(si->flags & (SWP_BLKDEV | SWP_FS_OPS))) {
-		struct inode *inode = si->swap_file->f_mapping->host;
-		if (inode_read_congested(inode))
-			goto skip;
-	}
 
 	do_poll = false;
 	/* Read a page_cluster sized and aligned cluster around offset. */

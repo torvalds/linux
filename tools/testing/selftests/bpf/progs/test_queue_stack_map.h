@@ -8,8 +8,6 @@
 #include <linux/pkt_cls.h>
 #include <bpf/bpf_helpers.h>
 
-int _version SEC("version") = 1;
-
 struct {
 	__uint(type, MAP_TYPE);
 	__uint(max_entries, 32);

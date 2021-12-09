@@ -532,7 +532,9 @@ static void netsec_et_get_drvinfo(struct net_device *net_device,
 }
 
 static int netsec_et_get_coalesce(struct net_device *net_device,
-				  struct ethtool_coalesce *et_coalesce)
+				  struct ethtool_coalesce *et_coalesce,
+				  struct kernel_ethtool_coalesce *kernel_coal,
+				  struct netlink_ext_ack *extack)
 {
 	struct netsec_priv *priv = netdev_priv(net_device);
 
@@ -542,7 +544,9 @@ static int netsec_et_get_coalesce(struct net_device *net_device,
 }
 
 static int netsec_et_set_coalesce(struct net_device *net_device,
-				  struct ethtool_coalesce *et_coalesce)
+				  struct ethtool_coalesce *et_coalesce,
+				  struct kernel_ethtool_coalesce *kernel_coal,
+				  struct netlink_ext_ack *extack)
 {
 	struct netsec_priv *priv = netdev_priv(net_device);
 
@@ -1544,7 +1548,7 @@ static int netsec_start_gmac(struct netsec_priv *priv)
 	netsec_write(priv, NETSEC_REG_NRM_RX_INTEN_CLR, ~0);
 	netsec_write(priv, NETSEC_REG_NRM_TX_INTEN_CLR, ~0);
 
-	netsec_et_set_coalesce(priv->ndev, &priv->et_coalesce);
+	netsec_et_set_coalesce(priv->ndev, &priv->et_coalesce, NULL, NULL);
 
 	if (netsec_mac_write(priv, GMAC_REG_OMR, value))
 		return -ETIMEDOUT;
@@ -1831,7 +1835,7 @@ static const struct net_device_ops netsec_netdev_ops = {
 	.ndo_set_features	= netsec_netdev_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= phy_do_ioctl,
+	.ndo_eth_ioctl		= phy_do_ioctl,
 	.ndo_xdp_xmit		= netsec_xdp_xmit,
 	.ndo_bpf		= netsec_xdp,
 };
@@ -1856,10 +1860,9 @@ static int netsec_of_probe(struct platform_device *pdev,
 	*phy_addr = of_mdio_parse_addr(&pdev->dev, priv->phy_np);
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL); /* get by 'phy_ref_clk' */
-	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "phy_ref_clk not found\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk),
+				     "phy_ref_clk not found\n");
 	priv->freq = clk_get_rate(priv->clk);
 
 	return 0;
@@ -1882,19 +1885,17 @@ static int netsec_acpi_probe(struct platform_device *pdev,
 	priv->phy_interface = PHY_INTERFACE_MODE_NA;
 
 	ret = device_property_read_u32(&pdev->dev, "phy-channel", phy_addr);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"missing required property 'phy-channel'\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "missing required property 'phy-channel'\n");
 
 	ret = device_property_read_u32(&pdev->dev,
 				       "socionext,phy-clock-frequency",
 				       &priv->freq);
 	if (ret)
-		dev_err(&pdev->dev,
-			"missing required property 'socionext,phy-clock-frequency'\n");
-	return ret;
+		return dev_err_probe(&pdev->dev, ret,
+				     "missing required property 'socionext,phy-clock-frequency'\n");
+	return 0;
 }
 
 static void netsec_unregister_mdio(struct netsec_priv *priv)
@@ -1977,7 +1978,6 @@ static int netsec_register_mdio(struct netsec_priv *priv, u32 phy_addr)
 static int netsec_probe(struct platform_device *pdev)
 {
 	struct resource *mmio_res, *eeprom_res, *irq_res;
-	u8 *mac, macbuf[ETH_ALEN];
 	struct netsec_priv *priv;
 	u32 hw_ver, phy_addr = 0;
 	struct net_device *ndev;
@@ -2033,21 +2033,19 @@ static int netsec_probe(struct platform_device *pdev)
 		goto free_ndev;
 	}
 
-	mac = device_get_mac_address(&pdev->dev, macbuf, sizeof(macbuf));
-	if (mac)
-		ether_addr_copy(ndev->dev_addr, mac);
-
-	if (priv->eeprom_base &&
-	    (!mac || !is_valid_ether_addr(ndev->dev_addr))) {
+	ret = device_get_ethdev_address(&pdev->dev, ndev);
+	if (ret && priv->eeprom_base) {
 		void __iomem *macp = priv->eeprom_base +
 					NETSEC_EEPROM_MAC_ADDRESS;
+		u8 addr[ETH_ALEN];
 
-		ndev->dev_addr[0] = readb(macp + 3);
-		ndev->dev_addr[1] = readb(macp + 2);
-		ndev->dev_addr[2] = readb(macp + 1);
-		ndev->dev_addr[3] = readb(macp + 0);
-		ndev->dev_addr[4] = readb(macp + 7);
-		ndev->dev_addr[5] = readb(macp + 6);
+		addr[0] = readb(macp + 3);
+		addr[1] = readb(macp + 2);
+		addr[2] = readb(macp + 1);
+		addr[3] = readb(macp + 0);
+		addr[4] = readb(macp + 7);
+		addr[5] = readb(macp + 6);
+		eth_hw_addr_set(ndev, addr);
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {

@@ -162,10 +162,14 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 	 */
 
 	mm = get_task_mm(current);
+	if (!mm) {
+		return -EINVAL;
+	}
 	mmap_read_lock(mm);
 
 	if (!cli->svm.svmm) {
 		mmap_read_unlock(mm);
+		mmput(mm);
 		return -EINVAL;
 	}
 
@@ -237,14 +241,11 @@ void
 nouveau_svmm_invalidate(struct nouveau_svmm *svmm, u64 start, u64 limit)
 {
 	if (limit > start) {
-		bool super = svmm->vmm->vmm.object.client->super;
-		svmm->vmm->vmm.object.client->super = true;
 		nvif_object_mthd(&svmm->vmm->vmm.object, NVIF_VMM_V0_PFNCLR,
 				 &(struct nvif_vmm_pfnclr_v0) {
 					.addr = start,
 					.size = limit - start,
 				 }, sizeof(struct nvif_vmm_pfnclr_v0));
-		svmm->vmm->vmm.object.client->super = super;
 	}
 }
 
@@ -634,9 +635,7 @@ static int nouveau_atomic_range_fault(struct nouveau_svmm *svmm,
 		NVIF_VMM_PFNMAP_V0_A |
 		NVIF_VMM_PFNMAP_V0_HOST;
 
-	svmm->vmm->vmm.object.client->super = true;
 	ret = nvif_object_ioctl(&svmm->vmm->vmm.object, args, size, NULL);
-	svmm->vmm->vmm.object.client->super = false;
 	mutex_unlock(&svmm->mutex);
 
 	unlock_page(page);
@@ -702,9 +701,7 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 
 	nouveau_hmm_convert_pfn(drm, &range, args);
 
-	svmm->vmm->vmm.object.client->super = true;
 	ret = nvif_object_ioctl(&svmm->vmm->vmm.object, args, size, NULL);
-	svmm->vmm->vmm.object.client->super = false;
 	mutex_unlock(&svmm->mutex);
 
 out:
@@ -928,10 +925,8 @@ nouveau_pfns_map(struct nouveau_svmm *svmm, struct mm_struct *mm,
 
 	mutex_lock(&svmm->mutex);
 
-	svmm->vmm->vmm.object.client->super = true;
 	ret = nvif_object_ioctl(&svmm->vmm->vmm.object, args, sizeof(*args) +
 				npages * sizeof(args->p.phys[0]), NULL);
-	svmm->vmm->vmm.object.client->super = false;
 
 	mutex_unlock(&svmm->mutex);
 }
@@ -1001,7 +996,7 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 	if (ret)
 		return ret;
 
-	buffer->fault = kvzalloc(sizeof(*buffer->fault) * buffer->entries, GFP_KERNEL);
+	buffer->fault = kvcalloc(sizeof(*buffer->fault), buffer->entries, GFP_KERNEL);
 	if (!buffer->fault)
 		return -ENOMEM;
 

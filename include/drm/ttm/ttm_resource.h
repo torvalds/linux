@@ -40,6 +40,7 @@ struct ttm_resource_manager;
 struct ttm_resource;
 struct ttm_place;
 struct ttm_buffer_object;
+struct ttm_placement;
 struct dma_buf_map;
 struct io_mapping;
 struct sg_table;
@@ -102,10 +103,7 @@ struct ttm_resource_manager_func {
  * struct ttm_resource_manager
  *
  * @use_type: The memory type is enabled.
- * @flags: TTM_MEMTYPE_XX flags identifying the traits of the memory
- * managed by this memory type.
- * @gpu_offset: If used, the GPU offset of the first managed page of
- * fixed memory or the first managed location in an aperture.
+ * @use_tt: If a TT object should be used for the backing store.
  * @size: Size of the managed region.
  * @func: structure pointer implementing the range manager. See above
  * @move_lock: lock for move fence
@@ -143,6 +141,7 @@ struct ttm_resource_manager {
  * @addr:		mapped virtual address
  * @offset:		physical addr
  * @is_iomem:		is this io memory ?
+ * @caching:		See enum ttm_caching
  *
  * Structure indicating the bus placement of an object.
  */
@@ -266,6 +265,8 @@ int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		       const struct ttm_place *place,
 		       struct ttm_resource **res);
 void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res);
+bool ttm_resource_compat(struct ttm_resource *res,
+			 struct ttm_placement *placement);
 
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       unsigned long p_size);

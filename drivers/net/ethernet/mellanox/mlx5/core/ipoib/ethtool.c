@@ -99,7 +99,9 @@ static void mlx5i_get_channels(struct net_device *dev,
 }
 
 static int mlx5i_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 
@@ -107,7 +109,9 @@ static int mlx5i_set_coalesce(struct net_device *netdev,
 }
 
 static int mlx5i_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 
@@ -213,6 +217,32 @@ static int mlx5i_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
+#ifdef CONFIG_MLX5_EN_RXNFC
+static u32 mlx5i_flow_type_mask(u32 flow_type)
+{
+	return flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
+}
+
+static int mlx5i_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(dev);
+	struct ethtool_rx_flow_spec *fs = &cmd->fs;
+
+	if (mlx5i_flow_type_mask(fs->flow_type) == ETHER_FLOW)
+		return -EINVAL;
+
+	return mlx5e_ethtool_set_rxnfc(priv, cmd);
+}
+
+static int mlx5i_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
+			   u32 *rule_locs)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(dev);
+
+	return mlx5e_ethtool_get_rxnfc(priv, info, rule_locs);
+}
+#endif
+
 const struct ethtool_ops mlx5i_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
@@ -229,6 +259,10 @@ const struct ethtool_ops mlx5i_ethtool_ops = {
 	.get_coalesce       = mlx5i_get_coalesce,
 	.set_coalesce       = mlx5i_set_coalesce,
 	.get_ts_info        = mlx5i_get_ts_info,
+#ifdef CONFIG_MLX5_EN_RXNFC
+	.get_rxnfc          = mlx5i_get_rxnfc,
+	.set_rxnfc          = mlx5i_set_rxnfc,
+#endif
 	.get_link_ksettings = mlx5i_get_link_ksettings,
 	.get_link           = ethtool_op_get_link,
 };

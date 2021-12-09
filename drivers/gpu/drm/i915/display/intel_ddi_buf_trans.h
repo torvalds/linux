@@ -12,7 +12,7 @@ struct drm_i915_private;
 struct intel_encoder;
 struct intel_crtc_state;
 
-struct ddi_buf_trans {
+struct hsw_ddi_buf_trans {
 	u32 trans1;	/* balance leg enable, de-emph level */
 	u32 trans2;	/* vref sel, vswing */
 	u8 i_boost;	/* SKL: I_boost; valid: 0x0, 0x1, 0x3, 0x7 */
@@ -25,7 +25,7 @@ struct bxt_ddi_buf_trans {
 	u8 deemphasis;
 };
 
-struct cnl_ddi_buf_trans {
+struct icl_ddi_buf_trans {
 	u8 dw2_swing_sel;
 	u8 dw7_n_scalar;
 	u8 dw4_cursor_coeff;
@@ -34,71 +34,40 @@ struct cnl_ddi_buf_trans {
 };
 
 struct icl_mg_phy_ddi_buf_trans {
-	u32 cri_txdeemph_override_11_6;
-	u32 cri_txdeemph_override_5_0;
-	u32 cri_txdeemph_override_17_12;
+	u8 cri_txdeemph_override_11_6;
+	u8 cri_txdeemph_override_5_0;
+	u8 cri_txdeemph_override_17_12;
 };
 
 struct tgl_dkl_phy_ddi_buf_trans {
-	u32 dkl_vswing_control;
-	u32 dkl_preshoot_control;
-	u32 dkl_de_emphasis_control;
+	u8 vswing;
+	u8 preshoot;
+	u8 de_emphasis;
 };
 
-bool is_hobl_buf_trans(const struct cnl_ddi_buf_trans *table);
+struct dg2_snps_phy_buf_trans {
+	u8 vswing;
+	u8 pre_cursor;
+	u8 post_cursor;
+};
 
-int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *crtc_state,
-			       int *default_entry);
+union intel_ddi_buf_trans_entry {
+	struct hsw_ddi_buf_trans hsw;
+	struct bxt_ddi_buf_trans bxt;
+	struct icl_ddi_buf_trans icl;
+	struct icl_mg_phy_ddi_buf_trans mg;
+	struct tgl_dkl_phy_ddi_buf_trans dkl;
+	struct dg2_snps_phy_buf_trans snps;
+};
 
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries);
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
-			    int *n_entries);
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_hdmi(struct intel_encoder *encoder,
-			     int *n_entries);
-const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_dp(struct intel_encoder *encoder, int *n_entries);
+struct intel_ddi_buf_trans {
+	const union intel_ddi_buf_trans_entry *entries;
+	u8 num_entries;
+	u8 hdmi_default_entry;
+};
 
-const struct bxt_ddi_buf_trans *
-bxt_get_buf_trans(struct intel_encoder *encoder,
-		  const struct intel_crtc_state *crtc_state,
-		  int *n_entries);
+bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table);
 
-const struct tgl_dkl_phy_ddi_buf_trans *
-adlp_get_dkl_buf_trans(struct intel_encoder *encoder,
-		       const struct intel_crtc_state *crtc_state,
-		       int *n_entries);
-const struct cnl_ddi_buf_trans *
-tgl_get_combo_buf_trans(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			int *n_entries);
-const struct tgl_dkl_phy_ddi_buf_trans *
-tgl_get_dkl_buf_trans(struct intel_encoder *encoder,
-		      const struct intel_crtc_state *crtc_state,
-		      int *n_entries);
-const struct cnl_ddi_buf_trans *
-jsl_get_combo_buf_trans(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			int *n_entries);
-const struct cnl_ddi_buf_trans *
-ehl_get_combo_buf_trans(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			int *n_entries);
-const struct cnl_ddi_buf_trans *
-icl_get_combo_buf_trans(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			int *n_entries);
-const struct icl_mg_phy_ddi_buf_trans *
-icl_get_mg_buf_trans(struct intel_encoder *encoder,
-		     const struct intel_crtc_state *crtc_state,
-		     int *n_entries);
-
-const struct cnl_ddi_buf_trans *
-cnl_get_buf_trans(struct intel_encoder *encoder,
-		  const struct intel_crtc_state *crtc_state,
-		  int *n_entries);
+void intel_ddi_buf_trans_init(struct intel_encoder *encoder);
 
 #endif

@@ -928,7 +928,8 @@ static int unregister_cpu_online(unsigned int cpu)
 	struct device_attribute *attrs, *pmc_attrs;
 	int i, nattrs;
 
-	BUG_ON(!c->hotpluggable);
+	if (WARN_RATELIMIT(!c->hotpluggable, "cpu %d can't be offlined\n", cpu))
+		return -EBUSY;
 
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SMT))
@@ -1167,7 +1168,7 @@ static int __init topology_init(void)
 		 * CPU.  For instance, the boot cpu might never be valid
 		 * for hotplugging.
 		 */
-		if (smp_ops->cpu_offline_self)
+		if (smp_ops && smp_ops->cpu_offline_self)
 			c->hotpluggable = 1;
 #endif
 

@@ -22,49 +22,6 @@ struct bnxt_led_cfg {
 	u8 rsvd;
 };
 
-#define COREDUMP_LIST_BUF_LEN		2048
-#define COREDUMP_RETRIEVE_BUF_LEN	4096
-
-struct bnxt_coredump {
-	void		*data;
-	int		data_size;
-	u16		total_segs;
-};
-
-#define BNXT_COREDUMP_BUF_LEN(len) ((len) - sizeof(struct bnxt_coredump_record))
-
-struct bnxt_hwrm_dbg_dma_info {
-	void *dest_buf;
-	int dest_buf_size;
-	u16 dma_len;
-	u16 seq_off;
-	u16 data_len_off;
-	u16 segs;
-	u32 seg_start;
-	u32 buf_len;
-};
-
-struct hwrm_dbg_cmn_input {
-	__le16 req_type;
-	__le16 cmpl_ring;
-	__le16 seq_id;
-	__le16 target_id;
-	__le64 resp_addr;
-	__le64 host_dest_addr;
-	__le32 host_buf_len;
-};
-
-struct hwrm_dbg_cmn_output {
-	__le16 error_code;
-	__le16 req_type;
-	__le16 seq_id;
-	__le16 resp_len;
-	u8 flags;
-	#define HWRM_DBG_CMN_FLAGS_MORE	1
-};
-
-#define BNXT_CRASH_DUMP_LEN	(8 << 20)
-
 #define BNXT_LED_DFLT_ENA				\
 	(PORT_LED_CFG_REQ_ENABLES_LED0_ID |		\
 	 PORT_LED_CFG_REQ_ENABLES_LED0_STATE |		\
@@ -94,8 +51,11 @@ u32 bnxt_fw_to_ethtool_speed(u16);
 u16 bnxt_get_fw_auto_link_speeds(u32);
 int bnxt_hwrm_nvm_get_dev_info(struct bnxt *bp,
 			       struct hwrm_nvm_get_dev_info_output *nvm_dev_info);
+int bnxt_hwrm_firmware_reset(struct net_device *dev, u8 proc_type,
+			     u8 self_reset, u8 flags);
 int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware *fw,
 				   u32 install_type);
+int bnxt_get_pkginfo(struct net_device *dev, char *ver, int size);
 void bnxt_ethtool_init(struct bnxt *bp);
 void bnxt_ethtool_free(struct bnxt *bp);
 

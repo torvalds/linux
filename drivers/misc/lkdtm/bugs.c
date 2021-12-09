@@ -151,6 +151,83 @@ void lkdtm_REPORT_STACK(void)
 	pr_info("Stack offset: %d\n", (int)(stack_addr - (uintptr_t)&magic));
 }
 
+static pid_t stack_canary_pid;
+static unsigned long stack_canary;
+static unsigned long stack_canary_offset;
+
+static noinline void __lkdtm_REPORT_STACK_CANARY(void *stack)
+{
+	int i = 0;
+	pid_t pid = task_pid_nr(current);
+	unsigned long *canary = (unsigned long *)stack;
+	unsigned long current_offset = 0, init_offset = 0;
+
+	/* Do our best to find the canary in a 16 word window ... */
+	for (i = 1; i < 16; i++) {
+		canary = (unsigned long *)stack + i;
+#ifdef CONFIG_STACKPROTECTOR
+		if (*canary == current->stack_canary)
+			current_offset = i;
+		if (*canary == init_task.stack_canary)
+			init_offset = i;
+#endif
+	}
+
+	if (current_offset == 0) {
+		/*
+		 * If the canary doesn't match what's in the task_struct,
+		 * we're either using a global canary or the stack frame
+		 * layout changed.
+		 */
+		if (init_offset != 0) {
+			pr_err("FAIL: global stack canary found at offset %ld (canary for pid %d matches init_task's)!\n",
+			       init_offset, pid);
+		} else {
+			pr_warn("FAIL: did not correctly locate stack canary :(\n");
+			pr_expected_config(CONFIG_STACKPROTECTOR);
+		}
+
+		return;
+	} else if (init_offset != 0) {
+		pr_warn("WARNING: found both current and init_task canaries nearby?!\n");
+	}
+
+	canary = (unsigned long *)stack + current_offset;
+	if (stack_canary_pid == 0) {
+		stack_canary = *canary;
+		stack_canary_pid = pid;
+		stack_canary_offset = current_offset;
+		pr_info("Recorded stack canary for pid %d at offset %ld\n",
+			stack_canary_pid, stack_canary_offset);
+	} else if (pid == stack_canary_pid) {
+		pr_warn("ERROR: saw pid %d again -- please use a new pid\n", pid);
+	} else {
+		if (current_offset != stack_canary_offset) {
+			pr_warn("ERROR: canary offset changed from %ld to %ld!?\n",
+				stack_canary_offset, current_offset);
+			return;
+		}
+
+		if (*canary == stack_canary) {
+			pr_warn("FAIL: canary identical for pid %d and pid %d at offset %ld!\n",
+				stack_canary_pid, pid, current_offset);
+		} else {
+			pr_info("ok: stack canaries differ between pid %d and pid %d at offset %ld.\n",
+				stack_canary_pid, pid, current_offset);
+			/* Reset the test. */
+			stack_canary_pid = 0;
+		}
+	}
+}
+
+void lkdtm_REPORT_STACK_CANARY(void)
+{
+	/* Use default char array length that triggers stack protection. */
+	char data[8] __aligned(sizeof(void *)) = { };
+
+	__lkdtm_REPORT_STACK_CANARY((void *)&data);
+}
+
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
 {
 	static u8 data[5] __attribute__((aligned(4))) = {1, 2, 3, 4, 5};
@@ -267,6 +344,7 @@ void lkdtm_ARRAY_BOUNDS(void)
 	kfree(not_checked);
 	kfree(checked);
 	pr_err("FAIL: survived array bounds overflow!\n");
+	pr_expected_config(CONFIG_UBSAN_BOUNDS);
 }
 
 void lkdtm_CORRUPT_LIST_ADD(void)
@@ -505,54 +583,4 @@ noinline void lkdtm_CORRUPT_PAC(void)
 #else
 	pr_err("XFAIL: this test is arm64-only\n");
 #endif
-}
-
-void lkdtm_FORTIFY_OBJECT(void)
-{
-	struct target {
-		char a[10];
-	} target[2] = {};
-	int result;
-
-	/*
-	 * Using volatile prevents the compiler from determining the value of
-	 * 'size' at compile time. Without that, we would get a compile error
-	 * rather than a runtime error.
-	 */
-	volatile int size = 11;
-
-	pr_info("trying to read past the end of a struct\n");
-
-	result = memcmp(&target[0], &target[1], size);
-
-	/* Print result to prevent the code from being eliminated */
-	pr_err("FAIL: fortify did not catch an object overread!\n"
-	       "\"%d\" was the memcmp result.\n", result);
-}
-
-void lkdtm_FORTIFY_SUBOBJECT(void)
-{
-	struct target {
-		char a[10];
-		char b[10];
-	} target;
-	char *src;
-
-	src = kmalloc(20, GFP_KERNEL);
-	strscpy(src, "over ten bytes", 20);
-
-	pr_info("trying to strcpy past the end of a member of a struct\n");
-
-	/*
-	 * strncpy(target.a, src, 20); will hit a compile error because the
-	 * compiler knows at build time that target.a < 20 bytes. Use strcpy()
-	 * to force a runtime error.
-	 */
-	strcpy(target.a, src);
-
-	/* Use target.a to prevent the code from being eliminated */
-	pr_err("FAIL: fortify did not catch an sub-object overrun!\n"
-	       "\"%s\" was copied.\n", target.a);
-
-	kfree(src);
 }

@@ -1644,6 +1644,10 @@ static void era_status(struct dm_target *ti, status_type_t type,
 		format_dev_t(buf, era->origin_dev->bdev->bd_dev);
 		DMEMIT("%s %u", buf, era->sectors_per_block);
 		break;
+
+	case STATUSTYPE_IMA:
+		*result = '\0';
+		break;
 	}
 
 	return;
@@ -1677,7 +1681,7 @@ static int era_message(struct dm_target *ti, unsigned argc, char **argv,
 
 static sector_t get_dev_size(struct dm_dev *dev)
 {
-	return i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT;
+	return bdev_nr_sectors(dev->bdev);
 }
 
 static int era_iterate_devices(struct dm_target *ti,

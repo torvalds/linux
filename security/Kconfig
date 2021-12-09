@@ -163,20 +163,6 @@ config HARDENED_USERCOPY
 	  or are part of the kernel text. This kills entire classes
 	  of heap overflow exploits and similar kernel memory exposures.
 
-config HARDENED_USERCOPY_FALLBACK
-	bool "Allow usercopy whitelist violations to fallback to object size"
-	depends on HARDENED_USERCOPY
-	default y
-	help
-	  This is a temporary option that allows missing usercopy whitelists
-	  to be discovered via a WARN() to the kernel log, instead of
-	  rejecting the copy, falling back to non-whitelisted hardened
-	  usercopy that checks the slab allocation size instead of the
-	  whitelist size. This option will be removed once it seems like
-	  all missing usercopy whitelists have been identified and fixed.
-	  Booting with "slab_common.usercopy_fallback=Y/N" can change
-	  this setting.
-
 config HARDENED_USERCOPY_PAGESPAN
 	bool "Refuse to copy allocations that span multiple pages"
 	depends on HARDENED_USERCOPY
@@ -191,6 +177,9 @@ config HARDENED_USERCOPY_PAGESPAN
 config FORTIFY_SOURCE
 	bool "Harden common str/mem functions against buffer overflows"
 	depends on ARCH_HAS_FORTIFY_SOURCE
+	# https://bugs.llvm.org/show_bug.cgi?id=50322
+	# https://bugs.llvm.org/show_bug.cgi?id=41459
+	depends on !CC_IS_CLANG
 	help
 	  Detect overflows of buffers in common string and memory functions
 	  where the compiler can determine and validate the buffer sizes.

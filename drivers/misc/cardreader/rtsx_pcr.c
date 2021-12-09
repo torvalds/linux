@@ -1536,7 +1536,7 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 		pci_name(pcidev), (int)pcidev->vendor, (int)pcidev->device,
 		(int)pcidev->revision);
 
-	ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
+	ret = dma_set_mask(&pcidev->dev, DMA_BIT_MASK(32));
 	if (ret < 0)
 		return ret;
 

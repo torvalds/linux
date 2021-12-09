@@ -1332,7 +1332,6 @@ static int xadc_probe(struct platform_device *pdev)
 
 	xadc = iio_priv(indio_dev);
 	xadc->ops = id->data;
-	xadc->irq = irq;
 	init_completion(&xadc->completion);
 	mutex_init(&xadc->mutex);
 	spin_lock_init(&xadc->lock);
@@ -1397,7 +1396,7 @@ static int xadc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_request_irq(dev, xadc->irq, xadc->ops->interrupt_handler, 0,
+	ret = devm_request_irq(dev, irq, xadc->ops->interrupt_handler, 0,
 			       dev_name(dev), indio_dev);
 	if (ret)
 		return ret;
@@ -1407,7 +1406,7 @@ static int xadc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = xadc->ops->setup(pdev, indio_dev, xadc->irq);
+	ret = xadc->ops->setup(pdev, indio_dev, irq);
 	if (ret)
 		return ret;
 

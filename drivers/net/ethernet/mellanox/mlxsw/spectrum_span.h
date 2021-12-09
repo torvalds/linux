@@ -120,6 +120,7 @@ int mlxsw_sp_span_trigger_enable(struct mlxsw_sp_port *mlxsw_sp_port,
 				 enum mlxsw_sp_span_trigger trigger, u8 tc);
 void mlxsw_sp_span_trigger_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 				   enum mlxsw_sp_span_trigger trigger, u8 tc);
+bool mlxsw_sp_span_trigger_is_ingress(enum mlxsw_sp_span_trigger trigger);
 
 extern const struct mlxsw_sp_span_ops mlxsw_sp1_span_ops;
 extern const struct mlxsw_sp_span_ops mlxsw_sp2_span_ops;

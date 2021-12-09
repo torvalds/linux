@@ -87,15 +87,15 @@ static void fsnotify_unmount_inodes(struct super_block *sb)
 
 	if (iput_inode)
 		iput(iput_inode);
-	/* Wait for outstanding inode references from connectors */
-	wait_var_event(&sb->s_fsnotify_inode_refs,
-		       !atomic_long_read(&sb->s_fsnotify_inode_refs));
 }
 
 void fsnotify_sb_delete(struct super_block *sb)
 {
 	fsnotify_unmount_inodes(sb);
 	fsnotify_clear_marks_by_sb(sb);
+	/* Wait for outstanding object references from connectors */
+	wait_var_event(&sb->s_fsnotify_connectors,
+		       !atomic_long_read(&sb->s_fsnotify_connectors));
 }
 
 /*
@@ -250,6 +250,9 @@ static int fsnotify_handle_inode_event(struct fsnotify_group *group,
 	const struct fsnotify_ops *ops = group->ops;
 
 	if (WARN_ON_ONCE(!ops->handle_inode_event))
+		return 0;
+
+	if (WARN_ON_ONCE(!inode && !dir))
 		return 0;
 
 	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
@@ -455,16 +458,16 @@ static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
  *		@file_name is relative to
  * @file_name:	optional file name associated with event
  * @inode:	optional inode associated with event -
- *		either @dir or @inode must be non-NULL.
- *		if both are non-NULL event may be reported to both.
+ *		If @dir and @inode are both non-NULL, event may be
+ *		reported to both.
  * @cookie:	inotify rename cookie
  */
 int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 	     const struct qstr *file_name, struct inode *inode, u32 cookie)
 {
 	const struct path *path = fsnotify_data_path(data, data_type);
+	struct super_block *sb = fsnotify_data_sb(data, data_type);
 	struct fsnotify_iter_info iter_info = {};
-	struct super_block *sb;
 	struct mount *mnt = NULL;
 	struct inode *parent = NULL;
 	int ret = 0;
@@ -483,7 +486,6 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 		 */
 		parent = dir;
 	}
-	sb = inode->i_sb;
 
 	/*
 	 * Optimization: srcu_read_lock() has a memory barrier which can

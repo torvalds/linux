@@ -27,7 +27,6 @@
  * @qi: Mask for query enable signal status of regulators.
  * @modeset_reg: for operating AUTO/PWM mode register.
  * @modeset_mask: MASK for operating modeset register.
- * @modeset_shift: SHIFT for operating modeset register.
  */
 struct mt6359_regulator_info {
 	struct regulator_desc desc;
@@ -35,10 +34,8 @@ struct mt6359_regulator_info {
 	u32 qi;
 	u32 modeset_reg;
 	u32 modeset_mask;
-	u32 modeset_shift;
 	u32 lp_mode_reg;
 	u32 lp_mode_mask;
-	u32 lp_mode_shift;
 };
 
 #define MT6359_BUCK(match, _name, min, max, step,		\
@@ -68,10 +65,8 @@ struct mt6359_regulator_info {
 	.qi = BIT(0),						\
 	.lp_mode_reg = _lp_mode_reg,				\
 	.lp_mode_mask = BIT(_lp_mode_shift),			\
-	.lp_mode_shift = _lp_mode_shift,			\
 	.modeset_reg = _modeset_reg,				\
 	.modeset_mask = BIT(_modeset_shift),			\
-	.modeset_shift = _modeset_shift				\
 }
 
 #define MT6359_LDO_LINEAR(match, _name, min, max, step,		\
@@ -282,8 +277,10 @@ static unsigned int mt6359_regulator_get_mode(struct regulator_dev *rdev)
 		return ret;
 	}
 
-	if ((regval & info->modeset_mask) >> info->modeset_shift ==
-		MT6359_BUCK_MODE_FORCE_PWM)
+	regval &= info->modeset_mask;
+	regval >>= ffs(info->modeset_mask) - 1;
+
+	if (regval == MT6359_BUCK_MODE_FORCE_PWM)
 		return REGULATOR_MODE_FAST;
 
 	ret = regmap_read(rdev->regmap, info->lp_mode_reg, &regval);
@@ -310,7 +307,7 @@ static int mt6359_regulator_set_mode(struct regulator_dev *rdev,
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
 		val = MT6359_BUCK_MODE_FORCE_PWM;
-		val <<= info->modeset_shift;
+		val <<= ffs(info->modeset_mask) - 1;
 		ret = regmap_update_bits(rdev->regmap,
 					 info->modeset_reg,
 					 info->modeset_mask,
@@ -319,14 +316,14 @@ static int mt6359_regulator_set_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_NORMAL:
 		if (curr_mode == REGULATOR_MODE_FAST) {
 			val = MT6359_BUCK_MODE_AUTO;
-			val <<= info->modeset_shift;
+			val <<= ffs(info->modeset_mask) - 1;
 			ret = regmap_update_bits(rdev->regmap,
 						 info->modeset_reg,
 						 info->modeset_mask,
 						 val);
 		} else if (curr_mode == REGULATOR_MODE_IDLE) {
 			val = MT6359_BUCK_MODE_NORMAL;
-			val <<= info->lp_mode_shift;
+			val <<= ffs(info->lp_mode_mask) - 1;
 			ret = regmap_update_bits(rdev->regmap,
 						 info->lp_mode_reg,
 						 info->lp_mode_mask,
@@ -336,7 +333,7 @@ static int mt6359_regulator_set_mode(struct regulator_dev *rdev,
 		break;
 	case REGULATOR_MODE_IDLE:
 		val = MT6359_BUCK_MODE_LP >> 1;
-		val <<= info->lp_mode_shift;
+		val <<= ffs(info->lp_mode_mask) - 1;
 		ret = regmap_update_bits(rdev->regmap,
 					 info->lp_mode_reg,
 					 info->lp_mode_mask,

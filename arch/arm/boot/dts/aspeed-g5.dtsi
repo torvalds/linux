@@ -352,7 +352,6 @@
 				reg = <0x1e780200 0x0100>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
-				ngpios = <8>;
 				bus-frequency = <12000000>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_sgpm_default>;
@@ -490,6 +489,12 @@
 					compatible = "aspeed,ast2500-lpc-reset";
 					reg = <0x98 0x4>;
 					#reset-cells = <1>;
+				};
+
+				uart_routing: uart-routing@9c {
+					compatible = "aspeed,ast2500-uart-routing";
+					reg = <0x9c 0x4>;
+					status = "disabled";
 				};
 
 				lhc: lhc@a0 {

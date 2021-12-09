@@ -13,6 +13,7 @@
 #include "bpf_iter_tcp6.skel.h"
 #include "bpf_iter_udp4.skel.h"
 #include "bpf_iter_udp6.skel.h"
+#include "bpf_iter_unix.skel.h"
 #include "bpf_iter_test_kern1.skel.h"
 #include "bpf_iter_test_kern2.skel.h"
 #include "bpf_iter_test_kern3.skel.h"
@@ -313,6 +314,19 @@ static void test_udp6(void)
 	bpf_iter_udp6__destroy(skel);
 }
 
+static void test_unix(void)
+{
+	struct bpf_iter_unix *skel;
+
+	skel = bpf_iter_unix__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "bpf_iter_unix__open_and_load"))
+		return;
+
+	do_dummy_read(skel->progs.dump_unix);
+
+	bpf_iter_unix__destroy(skel);
+}
+
 /* The expected string is less than 16 bytes */
 static int do_read_with_fd(int iter_fd, const char *expected,
 			   bool read_one_char)
@@ -575,7 +589,7 @@ out:
 
 static void test_bpf_hash_map(void)
 {
-	__u32 expected_key_a = 0, expected_key_b = 0, expected_key_c = 0;
+	__u32 expected_key_a = 0, expected_key_b = 0;
 	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
 	struct bpf_iter_bpf_hash_map *skel;
 	int err, i, len, map_fd, iter_fd;
@@ -624,7 +638,6 @@ static void test_bpf_hash_map(void)
 		val = i + 4;
 		expected_key_a += key.a;
 		expected_key_b += key.b;
-		expected_key_c += key.c;
 		expected_val += val;
 
 		err = bpf_map_update_elem(map_fd, &key, &val, BPF_ANY);
@@ -671,7 +684,7 @@ out:
 
 static void test_bpf_percpu_hash_map(void)
 {
-	__u32 expected_key_a = 0, expected_key_b = 0, expected_key_c = 0;
+	__u32 expected_key_a = 0, expected_key_b = 0;
 	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
 	struct bpf_iter_bpf_percpu_hash_map *skel;
 	int err, i, j, len, map_fd, iter_fd;
@@ -708,7 +721,6 @@ static void test_bpf_percpu_hash_map(void)
 		key.c = i + 3;
 		expected_key_a += key.a;
 		expected_key_b += key.b;
-		expected_key_c += key.c;
 
 		for (j = 0; j < bpf_num_possible_cpus(); j++) {
 			*(__u32 *)(val + j * 8) = i + j;
@@ -1255,6 +1267,8 @@ void test_bpf_iter(void)
 		test_udp4();
 	if (test__start_subtest("udp6"))
 		test_udp6();
+	if (test__start_subtest("unix"))
+		test_unix();
 	if (test__start_subtest("anon"))
 		test_anon_iter(false);
 	if (test__start_subtest("anon-read-one-char"))

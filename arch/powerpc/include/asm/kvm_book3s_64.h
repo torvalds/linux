@@ -39,6 +39,7 @@ struct kvm_nested_guest {
 	pgd_t *shadow_pgtable;		/* our page table for this guest */
 	u64 l1_gr_to_hr;		/* L1's addr of part'n-scoped table */
 	u64 process_table;		/* process table entry for this guest */
+	u64 hfscr;			/* HFSCR that the L1 requested for this nested guest */
 	long refcnt;			/* number of pointers to this struct */
 	struct mutex tlb_lock;		/* serialize page faults and tlbies */
 	struct kvm_nested_guest *next;
@@ -377,6 +378,10 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		rb |= 1;		/* L field */
 		rb |= r & 0xff000 & ((1ul << a_pgshift) - 1); /* LP field */
 	}
+	/*
+	 * This sets both bits of the B field in the PTE. 0b1x values are
+	 * reserved, but those will have been filtered by kvmppc_do_h_enter.
+	 */
 	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/* B field */
 	return rb;
 }

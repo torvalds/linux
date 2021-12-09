@@ -350,7 +350,7 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		int i;
-		u8 *ptr = dev->dev_addr;
+		const u8 *ptr = dev->dev_addr;
 		u64 mac = 0;
 		int index = INDEX(priv->port);
 
@@ -409,7 +409,7 @@ int cvm_oct_common_init(struct net_device *dev)
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	int ret;
 
-	ret = of_get_mac_address(priv->of_node, dev->dev_addr);
+	ret = of_get_ethdev_address(priv->of_node, dev);
 	if (ret)
 		eth_hw_addr_random(dev);
 
@@ -524,7 +524,7 @@ static const struct net_device_ops cvm_oct_npi_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -540,7 +540,7 @@ static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -556,7 +556,7 @@ static const struct net_device_ops cvm_oct_sgmii_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -570,7 +570,7 @@ static const struct net_device_ops cvm_oct_spi_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -586,7 +586,7 @@ static const struct net_device_ops cvm_oct_rgmii_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -599,7 +599,7 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 	.ndo_start_xmit		= cvm_oct_xmit_pow,
 	.ndo_set_rx_mode	= cvm_oct_common_set_multicast_list,
 	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
-	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_eth_ioctl		= cvm_oct_ioctl,
 	.ndo_change_mtu		= cvm_oct_common_change_mtu,
 	.ndo_get_stats		= cvm_oct_common_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER

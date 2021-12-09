@@ -50,11 +50,17 @@ config HAVE_ARCH_BITREVERSE
 	  This option enables the use of hardware bit-reversal instructions on
 	  architectures which support such operations.
 
-config GENERIC_STRNCPY_FROM_USER
+config ARCH_HAS_STRNCPY_FROM_USER
 	bool
 
-config GENERIC_STRNLEN_USER
+config ARCH_HAS_STRNLEN_USER
 	bool
+
+config GENERIC_STRNCPY_FROM_USER
+	def_bool !ARCH_HAS_STRNCPY_FROM_USER
+
+config GENERIC_STRNLEN_USER
+	def_bool !ARCH_HAS_STRNLEN_USER
 
 config GENERIC_NET_UTILS
 	bool

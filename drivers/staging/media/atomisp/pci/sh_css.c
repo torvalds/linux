@@ -3224,24 +3224,22 @@ init_vf_frameinfo_defaults(struct ia_css_pipe *pipe,
 
 #ifdef ISP2401
 static unsigned int
-get_crop_lines_for_bayer_order(
-    const struct ia_css_stream_config *config)
+get_crop_lines_for_bayer_order(const struct ia_css_stream_config *config)
 {
 	assert(config);
-	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_BGGR)
-	    || (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
+	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_BGGR) ||
+	    (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
 		return 1;
 
 	return 0;
 }
 
 static unsigned int
-get_crop_columns_for_bayer_order(
-    const struct ia_css_stream_config *config)
+get_crop_columns_for_bayer_order(const struct ia_css_stream_config *config)
 {
 	assert(config);
-	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_RGGB)
-	    || (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
+	if ((config->input_config.bayer_order == IA_CSS_BAYER_ORDER_RGGB) ||
+	    (config->input_config.bayer_order == IA_CSS_BAYER_ORDER_GBRG))
 		return 1;
 
 	return 0;
@@ -5170,7 +5168,7 @@ sh_css_pipe_get_grid_info(struct ia_css_pipe *pipe,
 	if (binary) {
 		err = ia_css_binary_3a_grid_info(binary, info, pipe);
 		if (err)
-			goto ERR;
+			goto err;
 	} else {
 		memset(&info->s3a_grid, 0, sizeof(info->s3a_grid));
 	}
@@ -5181,10 +5179,7 @@ sh_css_pipe_get_grid_info(struct ia_css_pipe *pipe,
 		ia_css_binary_dvs_grid_info(binary, info, pipe);
 		ia_css_binary_dvs_stat_grid_info(binary, info, pipe);
 	} else {
-		memset(&info->dvs_grid.dvs_grid_info, 0,
-		       sizeof(info->dvs_grid.dvs_grid_info));
-		memset(&info->dvs_grid.dvs_stat_grid_info, 0,
-		       sizeof(info->dvs_grid.dvs_stat_grid_info));
+		memset(&info->dvs_grid, 0, sizeof(info->dvs_grid));
 	}
 
 	if (binary) {
@@ -5195,7 +5190,7 @@ sh_css_pipe_get_grid_info(struct ia_css_pipe *pipe,
 
 	info->vamem_type = IA_CSS_VAMEM_TYPE_2;
 
-ERR :
+err:
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
 }
@@ -5328,14 +5323,15 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 		if (err)
 			return err;
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
-						  sizeof(struct ia_css_binary), GFP_KERNEL);
+		mycs->yuv_scaler_binary = kcalloc(cas_scaler_descr.num_stage,
+						  sizeof(struct ia_css_binary),
+						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
 			err = -ENOMEM;
 			return err;
 		}
-		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage
-						* sizeof(bool), GFP_KERNEL);
+		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
+						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
 			err = -ENOMEM;
 			return err;
@@ -5938,14 +5934,15 @@ static int load_primary_binaries(
 			return err;
 		}
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
-						  sizeof(struct ia_css_binary), GFP_KERNEL);
+		mycs->yuv_scaler_binary = kcalloc(cas_scaler_descr.num_stage,
+						  sizeof(struct ia_css_binary),
+						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
 			err = -ENOMEM;
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
 		}
-		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage *
+		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
 						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
 			err = -ENOMEM;
@@ -6989,14 +6986,14 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 			goto ERR;
 		mycs->num_output = cas_scaler_descr.num_output_stage;
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
+		mycs->yuv_scaler_binary = kcalloc(cas_scaler_descr.num_stage,
 						  sizeof(struct ia_css_binary),
 						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
 			err = -ENOMEM;
 			goto ERR;
 		}
-		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage *
+		mycs->is_output_stage = kcalloc(cas_scaler_descr.num_stage,
 						sizeof(bool), GFP_KERNEL);
 		if (!mycs->is_output_stage) {
 			err = -ENOMEM;
@@ -7097,7 +7094,7 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 
 		mycs->num_vf_pp = 1;
 	}
-	mycs->vf_pp_binary = kzalloc(mycs->num_vf_pp *
+	mycs->vf_pp_binary = kcalloc(mycs->num_vf_pp,
 				     sizeof(struct ia_css_binary),
 				     GFP_KERNEL);
 	if (!mycs->vf_pp_binary) {
@@ -10162,7 +10159,7 @@ ia_css_stop_sp(void)
 		timeout--;
 		udelay(1);
 	}
-	if ((ia_css_spctrl_get_state(SP0_ID) != IA_CSS_SP_SW_TERMINATED))
+	if (ia_css_spctrl_get_state(SP0_ID) != IA_CSS_SP_SW_TERMINATED)
 		IA_CSS_WARNING("SP has not terminated (SW)");
 
 	if (timeout == 0) {

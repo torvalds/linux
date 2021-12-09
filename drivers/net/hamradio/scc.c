@@ -210,7 +210,8 @@ static int scc_net_close(struct net_device *dev);
 static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb);
 static netdev_tx_t scc_net_tx(struct sk_buff *skb,
 			      struct net_device *dev);
-static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+static int scc_net_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				  void __user *data, int cmd);
 static int scc_net_set_mac_address(struct net_device *dev, void *addr);
 static struct net_device_stats * scc_net_get_stats(struct net_device *dev);
 
@@ -1550,7 +1551,7 @@ static const struct net_device_ops scc_netdev_ops = {
 	.ndo_start_xmit	     = scc_net_tx,
 	.ndo_set_mac_address = scc_net_set_mac_address,
 	.ndo_get_stats       = scc_net_get_stats,
-	.ndo_do_ioctl        = scc_net_ioctl,
+	.ndo_siocdevprivate  = scc_net_siocdevprivate,
 };
 
 /* ----> Initialize device <----- */
@@ -1562,9 +1563,6 @@ static void scc_net_setup(struct net_device *dev)
 	dev->netdev_ops	     = &scc_netdev_ops;
 	dev->header_ops      = &ax25_header_ops;
 
-	memcpy(dev->broadcast, &ax25_bcast,  AX25_ADDR_LEN);
-	memcpy(dev->dev_addr,  &ax25_defaddr, AX25_ADDR_LEN);
- 
 	dev->flags      = 0;
 
 	dev->type = ARPHRD_AX25;
@@ -1572,6 +1570,8 @@ static void scc_net_setup(struct net_device *dev)
 	dev->mtu = AX25_DEF_PACLEN;
 	dev->addr_len = AX25_ADDR_LEN;
 
+	memcpy(dev->broadcast, &ax25_bcast,  AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 }
 
 /* ----> open network device <---- */
@@ -1703,7 +1703,8 @@ static netdev_tx_t scc_net_tx(struct sk_buff *skb, struct net_device *dev)
  * SIOCSCCCAL		- send calib. pattern	arg: (struct scc_calibrate *) arg
  */
 
-static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int scc_net_siocdevprivate(struct net_device *dev,
+				  struct ifreq *ifr, void __user *arg, int cmd)
 {
 	struct scc_kiss_cmd kiss_cmd;
 	struct scc_mem_config memcfg;
@@ -1712,8 +1713,6 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 	int chan;
 	unsigned char device_name[IFNAMSIZ];
-	void __user *arg = ifr->ifr_data;
-	
 	
 	if (!Driver_Initialized)
 	{
@@ -1722,6 +1721,9 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			int found = 1;
 
 			if (!capable(CAP_SYS_RAWIO)) return -EPERM;
+			if (in_compat_syscall())
+				return -EOPNOTSUPP;
+
 			if (!arg) return -EFAULT;
 
 			if (Nchips >= SCC_MAXCHIPS) 
@@ -1948,7 +1950,7 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static int scc_net_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *sa = (struct sockaddr *) addr;
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+	dev_addr_set(dev, sa->sa_data);
 	return 0;
 }
 

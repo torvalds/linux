@@ -78,6 +78,7 @@
  */
 #define AK09912_REG_WIA1		0x00
 #define AK09912_REG_WIA2		0x01
+#define AK09916_DEVICE_ID		0x09
 #define AK09912_DEVICE_ID		0x04
 #define AK09911_DEVICE_ID		0x05
 
@@ -208,6 +209,7 @@ enum asahi_compass_chipset {
 	AK8963,
 	AK09911,
 	AK09912,
+	AK09916,
 };
 
 enum ak_ctrl_reg_addr {
@@ -345,6 +347,31 @@ static const struct ak_def ak_def_array[] = {
 			AK09912_REG_HXL,
 			AK09912_REG_HYL,
 			AK09912_REG_HZL},
+	},
+	{
+		.type = AK09916,
+		.raw_to_gauss = ak09912_raw_to_gauss,
+		.range = 32752,
+		.ctrl_regs = {
+			AK09912_REG_ST1,
+			AK09912_REG_ST2,
+			AK09912_REG_CNTL2,
+			AK09912_REG_ASAX,
+			AK09912_MAX_REGS},
+		.ctrl_masks = {
+			AK09912_REG_ST1_DRDY_MASK,
+			AK09912_REG_ST2_HOFL_MASK,
+			0,
+			AK09912_REG_CNTL2_MODE_MASK},
+		.ctrl_modes = {
+			AK09912_REG_CNTL_MODE_POWER_DOWN,
+			AK09912_REG_CNTL_MODE_ONCE,
+			AK09912_REG_CNTL_MODE_SELF_TEST,
+			AK09912_REG_CNTL_MODE_FUSE_ROM},
+		.data_regs = {
+			AK09912_REG_HXL,
+			AK09912_REG_HYL,
+			AK09912_REG_HZL},
 	}
 };
 
@@ -425,6 +452,7 @@ static int ak8975_who_i_am(struct i2c_client *client,
 	/*
 	 * Signature for each device:
 	 * Device   |  WIA1      |  WIA2
+	 * AK09916  |  DEVICE_ID_|  AK09916_DEVICE_ID
 	 * AK09912  |  DEVICE_ID |  AK09912_DEVICE_ID
 	 * AK09911  |  DEVICE_ID |  AK09911_DEVICE_ID
 	 * AK8975   |  DEVICE_ID |  NA
@@ -450,6 +478,10 @@ static int ak8975_who_i_am(struct i2c_client *client,
 		break;
 	case AK09912:
 		if (wia_val[1] == AK09912_DEVICE_ID)
+			return 0;
+		break;
+	case AK09916:
+		if (wia_val[1] == AK09916_DEVICE_ID)
 			return 0;
 		break;
 	default:
@@ -1057,6 +1089,7 @@ static const struct i2c_device_id ak8975_id[] = {
 	{"AK8963", AK8963},
 	{"ak09911", AK09911},
 	{"ak09912", AK09912},
+	{"ak09916", AK09916},
 	{}
 };
 
@@ -1071,6 +1104,8 @@ static const struct of_device_id ak8975_of_match[] = {
 	{ .compatible = "ak09911", },
 	{ .compatible = "asahi-kasei,ak09912", },
 	{ .compatible = "ak09912", },
+	{ .compatible = "asahi-kasei,ak09916", },
+	{ .compatible = "ak09916", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ak8975_of_match);

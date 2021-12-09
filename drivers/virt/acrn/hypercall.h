@@ -41,6 +41,10 @@
 #define HC_RESET_PTDEV_INTR		_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x04)
 #define HC_ASSIGN_PCIDEV		_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x05)
 #define HC_DEASSIGN_PCIDEV		_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x06)
+#define HC_ASSIGN_MMIODEV		_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x07)
+#define HC_DEASSIGN_MMIODEV		_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x08)
+#define HC_CREATE_VDEV			_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x09)
+#define HC_DESTROY_VDEV			_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x0A)
 
 #define HC_ID_PM_BASE			0x80UL
 #define HC_PM_GET_CPU_STATE		_HC_ID(HC_ID, HC_ID_PM_BASE + 0x00)
@@ -192,6 +196,54 @@ static inline long hcall_notify_req_finish(u64 vmid, u64 vcpu)
 static inline long hcall_set_memory_regions(u64 regions_pa)
 {
 	return acrn_hypercall1(HC_VM_SET_MEMORY_REGIONS, regions_pa);
+}
+
+/**
+ * hcall_create_vdev() - Create a virtual device for a User VM
+ * @vmid:	User VM ID
+ * @addr:	Service VM GPA of the &struct acrn_vdev
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_create_vdev(u64 vmid, u64 addr)
+{
+	return acrn_hypercall2(HC_CREATE_VDEV, vmid, addr);
+}
+
+/**
+ * hcall_destroy_vdev() - Destroy a virtual device of a User VM
+ * @vmid:	User VM ID
+ * @addr:	Service VM GPA of the &struct acrn_vdev
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_destroy_vdev(u64 vmid, u64 addr)
+{
+	return acrn_hypercall2(HC_DESTROY_VDEV, vmid, addr);
+}
+
+/**
+ * hcall_assign_mmiodev() - Assign a MMIO device to a User VM
+ * @vmid:	User VM ID
+ * @addr:	Service VM GPA of the &struct acrn_mmiodev
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_assign_mmiodev(u64 vmid, u64 addr)
+{
+	return acrn_hypercall2(HC_ASSIGN_MMIODEV, vmid, addr);
+}
+
+/**
+ * hcall_deassign_mmiodev() - De-assign a PCI device from a User VM
+ * @vmid:	User VM ID
+ * @addr:	Service VM GPA of the &struct acrn_mmiodev
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_deassign_mmiodev(u64 vmid, u64 addr)
+{
+	return acrn_hypercall2(HC_DEASSIGN_MMIODEV, vmid, addr);
 }
 
 /**

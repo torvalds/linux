@@ -1016,7 +1016,7 @@ done:
 	CTCM_PR_DEBUG("exit %s: ch=0x%p id=%s\n", __func__, ch, ch->id);
 }
 
-/**
+/*
  * Unpack a just received skb and hand it over to
  * upper layers.
  * special MPC version of unpack_skb.
@@ -1211,7 +1211,7 @@ done:
 			__func__, dev->name, ch, ch->id);
 }
 
-/**
+/*
  * tasklet helper for mpc's skb unpacking.
  *
  * ch		The channel to work on.
@@ -1320,7 +1320,7 @@ struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv)
  * CTCM_PROTO_MPC only
  */
 
-/**
+/*
  * NOP action for statemachines
  */
 static void mpc_action_nop(fsm_instance *fi, int event, void *arg)
@@ -1426,7 +1426,7 @@ static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg)
 	}
 }
 
-/**
+/*
  * Handle mpc group  action timeout.
  * MPC Group Station FSM action
  * CTCM_PROTO_MPC only
@@ -1773,7 +1773,7 @@ static void mpc_action_side_xid(fsm_instance *fsm, void *arg, int side)
 	CTCM_D3_DUMP((char *)ch->xid, XID2_LENGTH);
 	CTCM_D3_DUMP((char *)ch->xid_id, 4);
 
-	if (!in_irq()) {
+	if (!in_hardirq()) {
 			 /* Such conditional locking is a known problem for
 			  * sparse because its static undeterministic.
 			  * Warnings should be ignored here. */

@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 
 #define AVC_GENERIC_FRAME_MAXIMUM_BYTES	512
-#define READY_TIMEOUT_MS	200
+#define READY_TIMEOUT_MS	600
 
 /*
  * According to datasheet of Oxford Semiconductor:
@@ -153,13 +153,20 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	struct cmp_connection *conn;
 	enum cmp_direction c_dir;
 	enum amdtp_stream_direction s_dir;
-	unsigned int flags = CIP_UNAWARE_SYT;
+	unsigned int flags = 0;
 	int err;
 
 	if (!(oxfw->quirks & SND_OXFW_QUIRK_BLOCKING_TRANSMISSION))
 		flags |= CIP_NONBLOCKING;
 	else
 		flags |= CIP_BLOCKING;
+
+	// OXFW 970/971 has no function to generate playback timing according to the sequence
+	// of value in syt field, thus the packet should include NO_INFO value in the field.
+	// However, some models just ignore data blocks in packet with NO_INFO for audio data
+	// processing.
+	if (!(oxfw->quirks & SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET))
+		flags |= CIP_UNAWARE_SYT;
 
 	if (stream == &oxfw->tx_stream) {
 		conn = &oxfw->out_conn;
@@ -360,6 +367,11 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
 				// Just after changing sampling transfer frequency, many cycles are
 				// skipped for packet transmission.
 				tx_init_skip_cycles = 400;
+			} else if (oxfw->quirks & SND_OXFW_QUIRK_VOLUNTARY_RECOVERY) {
+				// It takes a bit time for target device to adjust event frequency
+				// according to nominal event frequency in isochronous packets from
+				// ALSA oxfw driver.
+				tx_init_skip_cycles = 4000;
 			} else {
 				replay_seq = true;
 			}

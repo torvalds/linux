@@ -89,17 +89,22 @@ struct hantro_h264_dec_reflists {
  * @dpb:	DPB
  * @reflists:	P/B0/B1 reflists
  * @ctrls:	V4L2 controls attached to a run
+ * @dpb_longterm: DPB long-term
+ * @dpb_valid:	  DPB valid
  */
 struct hantro_h264_dec_hw_ctx {
 	struct hantro_aux_buf priv;
 	struct v4l2_h264_dpb_entry dpb[HANTRO_H264_DPB_SIZE];
 	struct hantro_h264_dec_reflists reflists;
 	struct hantro_h264_dec_ctrls ctrls;
+	u32 dpb_longterm;
+	u32 dpb_valid;
 };
 
 /**
  * struct hantro_hevc_dec_ctrls
  * @decode_params: Decode params
+ * @scaling:	Scaling matrix
  * @sps:	SPS info
  * @pps:	PPS info
  * @hevc_hdr_skip_length: the number of data (in bits) to skip in the
@@ -108,6 +113,7 @@ struct hantro_h264_dec_hw_ctx {
  */
 struct hantro_hevc_dec_ctrls {
 	const struct v4l2_ctrl_hevc_decode_params *decode_params;
+	const struct v4l2_ctrl_hevc_scaling_matrix *scaling;
 	const struct v4l2_ctrl_hevc_sps *sps;
 	const struct v4l2_ctrl_hevc_pps *pps;
 	u32 hevc_hdr_skip_length;
@@ -120,6 +126,7 @@ struct hantro_hevc_dec_ctrls {
  * @tile_sao:		Tile SAO buffer
  * @tile_bsd:		Tile BSD control buffer
  * @ref_bufs:		Internal reference buffers
+ * @scaling_lists:	Scaling lists buffer
  * @ref_bufs_poc:	Internal reference buffers picture order count
  * @ref_bufs_used:	Bitfield of used reference buffers
  * @ctrls:		V4L2 controls attached to a run
@@ -131,6 +138,7 @@ struct hantro_hevc_dec_hw_ctx {
 	struct hantro_aux_buf tile_sao;
 	struct hantro_aux_buf tile_bsd;
 	struct hantro_aux_buf ref_bufs[NUM_REF_PICTURES];
+	struct hantro_aux_buf scaling_lists;
 	int ref_bufs_poc[NUM_REF_PICTURES];
 	u32 ref_bufs_used;
 	struct hantro_hevc_dec_ctrls ctrls;
@@ -205,6 +213,7 @@ enum hantro_enc_fmt {
 
 extern const struct hantro_variant imx8mq_vpu_g2_variant;
 extern const struct hantro_variant imx8mq_vpu_variant;
+extern const struct hantro_variant px30_vpu_variant;
 extern const struct hantro_variant rk3036_vpu_variant;
 extern const struct hantro_variant rk3066_vpu_variant;
 extern const struct hantro_variant rk3288_vpu_variant;
@@ -234,7 +243,10 @@ void hantro_jpeg_enc_done(struct hantro_ctx *ctx);
 
 dma_addr_t hantro_h264_get_ref_buf(struct hantro_ctx *ctx,
 				   unsigned int dpb_idx);
+u16 hantro_h264_get_ref_nbr(struct hantro_ctx *ctx,
+			    unsigned int dpb_idx);
 int hantro_h264_dec_prepare_run(struct hantro_ctx *ctx);
+int rockchip_vpu2_h264_dec_run(struct hantro_ctx *ctx);
 int hantro_g1_h264_dec_run(struct hantro_ctx *ctx);
 int hantro_h264_dec_init(struct hantro_ctx *ctx);
 void hantro_h264_dec_exit(struct hantro_ctx *ctx);

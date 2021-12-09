@@ -171,7 +171,7 @@ static void cmd_complete(struct afu_cmd *cmd)
 
 		dev_dbg_ratelimited(dev, "%s:scp=%p result=%08x ioasc=%08x\n",
 				    __func__, scp, scp->result, cmd->sa.ioasc);
-		scp->scsi_done(scp);
+		scsi_done(scp);
 	} else if (cmd->cmd_tmf) {
 		spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
 		cfg->tmf_active = false;
@@ -205,7 +205,7 @@ static void flush_pending_cmds(struct hwq *hwq)
 		if (cmd->scp) {
 			scp = cmd->scp;
 			scp->result = (DID_IMM_RETRY << 16);
-			scp->scsi_done(scp);
+			scsi_done(scp);
 		} else {
 			cmd->cmd_aborted = true;
 
@@ -433,7 +433,7 @@ static u32 cmd_to_target_hwq(struct Scsi_Host *host, struct scsi_cmnd *scp,
 		hwq = afu->hwq_rr_count++ % afu->num_hwqs;
 		break;
 	case HWQ_MODE_TAG:
-		tag = blk_mq_unique_tag(scp->request);
+		tag = blk_mq_unique_tag(scsi_cmd_to_rq(scp));
 		hwq = blk_mq_unique_tag_to_hwq(tag);
 		break;
 	case HWQ_MODE_CPU:
@@ -601,7 +601,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	case STATE_FAILTERM:
 		dev_dbg_ratelimited(dev, "%s: device has failed\n", __func__);
 		scp->result = (DID_NO_CONNECT << 16);
-		scp->scsi_done(scp);
+		scsi_done(scp);
 		rc = 0;
 		goto out;
 	default:
@@ -1629,8 +1629,8 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 {
 	struct device *dev = &cfg->dev->dev;
 	struct pci_dev *pdev = cfg->dev;
-	int rc = 0;
-	int ro_start, ro_size, i, j, k;
+	int i, k, rc = 0;
+	unsigned int kw_size;
 	ssize_t vpd_size;
 	char vpd_data[CXLFLASH_VPD_LEN];
 	char tmp_buf[WWPN_BUF_LEN] = { 0 };
@@ -1648,24 +1648,6 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 		goto out;
 	}
 
-	/* Get the read only section offset */
-	ro_start = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
-	if (unlikely(ro_start < 0)) {
-		dev_err(dev, "%s: VPD Read-only data not found\n", __func__);
-		rc = -ENODEV;
-		goto out;
-	}
-
-	/* Get the read only section size, cap when extends beyond read VPD */
-	ro_size = pci_vpd_lrdt_size(&vpd_data[ro_start]);
-	j = ro_size;
-	i = ro_start + PCI_VPD_LRDT_TAG_SIZE;
-	if (unlikely((i + j) > vpd_size)) {
-		dev_dbg(dev, "%s: Might need to read more VPD (%d > %ld)\n",
-			__func__, (i + j), vpd_size);
-		ro_size = vpd_size - i;
-	}
-
 	/*
 	 * Find the offset of the WWPN tag within the read only
 	 * VPD data and validate the found field (partials are
@@ -1681,11 +1663,9 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	 * ports programmed and operate in an undefined state.
 	 */
 	for (k = 0; k < cfg->num_fc_ports; k++) {
-		j = ro_size;
-		i = ro_start + PCI_VPD_LRDT_TAG_SIZE;
-
-		i = pci_vpd_find_info_keyword(vpd_data, i, j, wwpn_vpd_tags[k]);
-		if (i < 0) {
+		i = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
+						 wwpn_vpd_tags[k], &kw_size);
+		if (i == -ENOENT) {
 			if (wwpn_vpd_required)
 				dev_err(dev, "%s: Port %d WWPN not found\n",
 					__func__, k);
@@ -1693,9 +1673,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 			continue;
 		}
 
-		j = pci_vpd_info_field_size(&vpd_data[i]);
-		i += PCI_VPD_INFO_FLD_HDR_SIZE;
-		if (unlikely((i + j > vpd_size) || (j != WWPN_LEN))) {
+		if (i < 0 || kw_size != WWPN_LEN) {
 			dev_err(dev, "%s: Port %d WWPN incomplete or bad VPD\n",
 				__func__, k);
 			rc = -ENODEV;
@@ -3125,32 +3103,36 @@ static DEVICE_ATTR_RW(irqpoll_weight);
 static DEVICE_ATTR_RW(num_hwqs);
 static DEVICE_ATTR_RW(hwq_mode);
 
-static struct device_attribute *cxlflash_host_attrs[] = {
-	&dev_attr_port0,
-	&dev_attr_port1,
-	&dev_attr_port2,
-	&dev_attr_port3,
-	&dev_attr_lun_mode,
-	&dev_attr_ioctl_version,
-	&dev_attr_port0_lun_table,
-	&dev_attr_port1_lun_table,
-	&dev_attr_port2_lun_table,
-	&dev_attr_port3_lun_table,
-	&dev_attr_irqpoll_weight,
-	&dev_attr_num_hwqs,
-	&dev_attr_hwq_mode,
+static struct attribute *cxlflash_host_attrs[] = {
+	&dev_attr_port0.attr,
+	&dev_attr_port1.attr,
+	&dev_attr_port2.attr,
+	&dev_attr_port3.attr,
+	&dev_attr_lun_mode.attr,
+	&dev_attr_ioctl_version.attr,
+	&dev_attr_port0_lun_table.attr,
+	&dev_attr_port1_lun_table.attr,
+	&dev_attr_port2_lun_table.attr,
+	&dev_attr_port3_lun_table.attr,
+	&dev_attr_irqpoll_weight.attr,
+	&dev_attr_num_hwqs.attr,
+	&dev_attr_hwq_mode.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(cxlflash_host);
 
 /*
  * Device attributes
  */
 static DEVICE_ATTR_RO(mode);
 
-static struct device_attribute *cxlflash_dev_attrs[] = {
-	&dev_attr_mode,
+static struct attribute *cxlflash_dev_attrs[] = {
+	&dev_attr_mode.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(cxlflash_dev);
 
 /*
  * Host template
@@ -3172,8 +3154,8 @@ static struct scsi_host_template driver_template = {
 	.this_id = -1,
 	.sg_tablesize = 1,	/* No scatter gather support */
 	.max_sectors = CXLFLASH_MAX_SECTORS,
-	.shost_attrs = cxlflash_host_attrs,
-	.sdev_attrs = cxlflash_dev_attrs,
+	.shost_groups = cxlflash_host_groups,
+	.sdev_groups = cxlflash_dev_groups,
 };
 
 /*

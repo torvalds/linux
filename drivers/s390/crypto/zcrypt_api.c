@@ -71,7 +71,7 @@ static LIST_HEAD(zcrypt_ops_list);
 /* Zcrypt related debug feature stuff. */
 debug_info_t *zcrypt_dbf_info;
 
-/**
+/*
  * Process a rescan of the transport layer.
  *
  * Returns 1, if the rescan has been processed, otherwise 0.
@@ -82,8 +82,8 @@ static inline int zcrypt_process_rescan(void)
 		atomic_set(&zcrypt_rescan_req, 0);
 		atomic_inc(&zcrypt_rescan_count);
 		ap_bus_force_rescan();
-		ZCRYPT_DBF(DBF_INFO, "rescan count=%07d\n",
-			   atomic_inc_return(&zcrypt_rescan_count));
+		ZCRYPT_DBF_INFO("%s rescan count=%07d\n", __func__,
+				atomic_inc_return(&zcrypt_rescan_count));
 		return 1;
 	}
 	return 0;
@@ -341,8 +341,8 @@ static void zcdn_device_release(struct device *dev)
 {
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
-	ZCRYPT_DBF(DBF_INFO, "releasing zcdn device %d:%d\n",
-		   MAJOR(dev->devt), MINOR(dev->devt));
+	ZCRYPT_DBF_INFO("%s releasing zcdn device %d:%d\n",
+			__func__, MAJOR(dev->devt), MINOR(dev->devt));
 
 	kfree(zcdndev);
 }
@@ -407,8 +407,8 @@ static int zcdn_create(const char *name)
 		goto unlockout;
 	}
 
-	ZCRYPT_DBF(DBF_INFO, "created zcdn device %d:%d\n",
-		   MAJOR(devt), MINOR(devt));
+	ZCRYPT_DBF_INFO("%s created zcdn device %d:%d\n",
+			__func__, MAJOR(devt), MINOR(devt));
 
 unlockout:
 	mutex_unlock(&ap_perms_mutex);
@@ -462,7 +462,7 @@ static void zcdn_destroy_all(void)
 
 #endif
 
-/**
+/*
  * zcrypt_read (): Not supported beyond zcrypt 1.3.1.
  *
  * This function is not supported beyond zcrypt 1.3.1.
@@ -473,7 +473,7 @@ static ssize_t zcrypt_read(struct file *filp, char __user *buf,
 	return -EPERM;
 }
 
-/**
+/*
  * zcrypt_write(): Not allowed.
  *
  * Write is is not allowed
@@ -484,7 +484,7 @@ static ssize_t zcrypt_write(struct file *filp, const char __user *buf,
 	return -EPERM;
 }
 
-/**
+/*
  * zcrypt_open(): Count number of users.
  *
  * Device open function to count number of users.
@@ -512,7 +512,7 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 	return stream_open(inode, filp);
 }
 
-/**
+/*
  * zcrypt_release(): Count number of users.
  *
  * Device close function to count number of users.
@@ -550,9 +550,8 @@ static inline int zcrypt_check_ioctl(struct ap_perms *perms,
 	}
 
 	if (rc)
-		ZCRYPT_DBF(DBF_WARN,
-			   "ioctl check failed: ioctlnr=0x%04x rc=%d\n",
-			   ioctlnr, rc);
+		ZCRYPT_DBF_WARN("%s ioctl check failed: ioctlnr=0x%04x rc=%d\n",
+				__func__, ioctlnr, rc);
 
 	return rc;
 }
@@ -572,14 +571,14 @@ static inline struct zcrypt_queue *zcrypt_pick_queue(struct zcrypt_card *zc,
 						     struct module **pmod,
 						     unsigned int weight)
 {
-	if (!zq || !try_module_get(zq->queue->ap_dev.drv->driver.owner))
+	if (!zq || !try_module_get(zq->queue->ap_dev.device.driver->owner))
 		return NULL;
 	zcrypt_queue_get(zq);
 	get_device(&zq->queue->ap_dev.device);
 	atomic_add(weight, &zc->load);
 	atomic_add(weight, &zq->load);
 	zq->request_count++;
-	*pmod = zq->queue->ap_dev.drv->driver.owner;
+	*pmod = zq->queue->ap_dev.device.driver->owner;
 	return zq;
 }
 
@@ -1446,7 +1445,7 @@ static int icarsamodexpo_ioctl(struct ap_perms *perms, unsigned long arg)
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc) {
-		ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSAMODEXPO rc=%d\n", rc);
+		ZCRYPT_DBF_DBG("ioctl ICARSAMODEXPO rc=%d\n", rc);
 		return rc;
 	}
 	return put_user(mex.outputdatalength, &umex->outputdatalength);
@@ -1491,7 +1490,7 @@ static int icarsacrt_ioctl(struct ap_perms *perms, unsigned long arg)
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc) {
-		ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSACRT rc=%d\n", rc);
+		ZCRYPT_DBF_DBG("ioctl ICARSACRT rc=%d\n", rc);
 		return rc;
 	}
 	return put_user(crt.outputdatalength, &ucrt->outputdatalength);
@@ -1509,12 +1508,12 @@ static int zsecsendcprb_ioctl(struct ap_perms *perms, unsigned long arg)
 		return -EFAULT;
 
 #ifdef CONFIG_ZCRYPT_DEBUG
-	if (xcRB.status & (1U << 31)) {
+	if ((xcRB.status & 0x8000FFFF) == 0x80004649 /* 'FI' */) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		tr.fi.cmd = (u16)(xcRB.status >> 16);
 	}
-	xcRB.status &= 0x0000FFFF;
+	xcRB.status = 0;
 #endif
 
 	do {
@@ -1536,8 +1535,8 @@ static int zsecsendcprb_ioctl(struct ap_perms *perms, unsigned long arg)
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
-		ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d status=0x%x\n",
-			   rc, xcRB.status);
+		ZCRYPT_DBF_DBG("ioctl ZSENDCPRB rc=%d status=0x%x\n",
+			       rc, xcRB.status);
 	if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
 		return -EFAULT;
 	return rc;
@@ -1582,7 +1581,7 @@ static int zsendep11cprb_ioctl(struct ap_perms *perms, unsigned long arg)
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
-		ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDEP11CPRB rc=%d\n", rc);
+		ZCRYPT_DBF_DBG("ioctl ZSENDEP11CPRB rc=%d\n", rc);
 	if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
 		return -EFAULT;
 	return rc;
@@ -1709,7 +1708,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	/* unknown ioctl number */
 	default:
-		ZCRYPT_DBF(DBF_DEBUG, "unknown ioctl 0x%08x\n", cmd);
+		ZCRYPT_DBF_DBG("unknown ioctl 0x%08x\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 }
@@ -2048,16 +2047,14 @@ int zcrypt_wait_api_operational(void)
 			break;
 		case -ETIME:
 			/* timeout */
-			ZCRYPT_DBF(DBF_WARN,
-				   "%s ap_wait_init_apqn_bindings_complete() returned with ETIME\n",
-				   __func__);
+			ZCRYPT_DBF_WARN("%s ap_wait_init_apqn_bindings_complete()=ETIME\n",
+					__func__);
 			zcrypt_wait_api_state = -ETIME;
 			break;
 		default:
 			/* other failure */
-			ZCRYPT_DBF(DBF_DEBUG,
-				   "%s ap_wait_init_apqn_bindings_complete() failure rc=%d\n",
-				   __func__, rc);
+			ZCRYPT_DBF_DBG("%s ap_wait_init_apqn_bindings_complete()=%d\n",
+				       __func__, rc);
 			break;
 		}
 		break;
@@ -2079,7 +2076,7 @@ EXPORT_SYMBOL(zcrypt_wait_api_operational);
 
 int __init zcrypt_debug_init(void)
 {
-	zcrypt_dbf_info = debug_register("zcrypt", 1, 1,
+	zcrypt_dbf_info = debug_register("zcrypt", 2, 1,
 					 DBF_MAX_SPRINTF_ARGS * sizeof(long));
 	debug_register_view(zcrypt_dbf_info, &debug_sprintf_view);
 	debug_set_level(zcrypt_dbf_info, DBF_ERR);
@@ -2153,7 +2150,7 @@ static void zcdn_exit(void)
 
 #endif
 
-/**
+/*
  * zcrypt_api_init(): Module initialization.
  *
  * The module initialization code.
@@ -2191,7 +2188,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * zcrypt_api_exit(): Module termination.
  *
  * The module termination code.

@@ -6,6 +6,7 @@
 #include <linux/prefetch.h>
 #include <linux/mm.h>
 #include <linux/bpf_trace.h>
+#include <net/dsfield.h>
 #include <net/xdp.h>
 #include "ice_txrx_lib.h"
 #include "ice_lib.h"
@@ -13,6 +14,7 @@
 #include "ice_trace.h"
 #include "ice_dcb_lib.h"
 #include "ice_xsk.h"
+#include "ice_eswitch.h"
 
 #define ICE_RX_HDR_SIZE		256
 
@@ -32,7 +34,7 @@ ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
 	struct ice_tx_buf *tx_buf, *first;
 	struct ice_fltr_desc *f_desc;
 	struct ice_tx_desc *tx_desc;
-	struct ice_ring *tx_ring;
+	struct ice_tx_ring *tx_ring;
 	struct device *dev;
 	dma_addr_t dma;
 	u32 td_cmd;
@@ -106,7 +108,7 @@ ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
  * @tx_buf: the buffer to free
  */
 static void
-ice_unmap_and_free_tx_buf(struct ice_ring *ring, struct ice_tx_buf *tx_buf)
+ice_unmap_and_free_tx_buf(struct ice_tx_ring *ring, struct ice_tx_buf *tx_buf)
 {
 	if (tx_buf->skb) {
 		if (tx_buf->tx_flags & ICE_TX_FLAGS_DUMMY_PKT)
@@ -133,7 +135,7 @@ ice_unmap_and_free_tx_buf(struct ice_ring *ring, struct ice_tx_buf *tx_buf)
 	/* tx_buf must be completely set up in the transmit path */
 }
 
-static struct netdev_queue *txring_txq(const struct ice_ring *ring)
+static struct netdev_queue *txring_txq(const struct ice_tx_ring *ring)
 {
 	return netdev_get_tx_queue(ring->netdev, ring->q_index);
 }
@@ -142,8 +144,9 @@ static struct netdev_queue *txring_txq(const struct ice_ring *ring)
  * ice_clean_tx_ring - Free any empty Tx buffers
  * @tx_ring: ring to be cleaned
  */
-void ice_clean_tx_ring(struct ice_ring *tx_ring)
+void ice_clean_tx_ring(struct ice_tx_ring *tx_ring)
 {
+	u32 size;
 	u16 i;
 
 	if (ice_ring_is_xdp(tx_ring) && tx_ring->xsk_pool) {
@@ -162,8 +165,10 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 tx_skip_free:
 	memset(tx_ring->tx_buf, 0, sizeof(*tx_ring->tx_buf) * tx_ring->count);
 
+	size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
+		     PAGE_SIZE);
 	/* Zero out the descriptor ring */
-	memset(tx_ring->desc, 0, tx_ring->size);
+	memset(tx_ring->desc, 0, size);
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
@@ -181,14 +186,18 @@ tx_skip_free:
  *
  * Free all transmit software resources
  */
-void ice_free_tx_ring(struct ice_ring *tx_ring)
+void ice_free_tx_ring(struct ice_tx_ring *tx_ring)
 {
+	u32 size;
+
 	ice_clean_tx_ring(tx_ring);
 	devm_kfree(tx_ring->dev, tx_ring->tx_buf);
 	tx_ring->tx_buf = NULL;
 
 	if (tx_ring->desc) {
-		dmam_free_coherent(tx_ring->dev, tx_ring->size,
+		size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
+			     PAGE_SIZE);
+		dmam_free_coherent(tx_ring->dev, size,
 				   tx_ring->desc, tx_ring->dma);
 		tx_ring->desc = NULL;
 	}
@@ -201,7 +210,7 @@ void ice_free_tx_ring(struct ice_ring *tx_ring)
  *
  * Returns true if there's any budget left (e.g. the clean is finished)
  */
-static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
+static bool ice_clean_tx_irq(struct ice_tx_ring *tx_ring, int napi_budget)
 {
 	unsigned int total_bytes = 0, total_pkts = 0;
 	unsigned int budget = ICE_DFLT_IRQ_WORK;
@@ -238,11 +247,8 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 		total_bytes += tx_buf->bytecount;
 		total_pkts += tx_buf->gso_segs;
 
-		if (ice_ring_is_xdp(tx_ring))
-			page_frag_free(tx_buf->raw_buf);
-		else
-			/* free the skb */
-			napi_consume_skb(tx_buf->skb, napi_budget);
+		/* free the skb */
+		napi_consume_skb(tx_buf->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -298,9 +304,6 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 
 	ice_update_tx_ring_stats(tx_ring, total_pkts, total_bytes);
 
-	if (ice_ring_is_xdp(tx_ring))
-		return !!budget;
-
 	netdev_tx_completed_queue(txring_txq(tx_ring), total_pkts,
 				  total_bytes);
 
@@ -329,9 +332,10 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
  *
  * Return 0 on success, negative on error
  */
-int ice_setup_tx_ring(struct ice_ring *tx_ring)
+int ice_setup_tx_ring(struct ice_tx_ring *tx_ring)
 {
 	struct device *dev = tx_ring->dev;
+	u32 size;
 
 	if (!dev)
 		return -ENOMEM;
@@ -339,19 +343,19 @@ int ice_setup_tx_ring(struct ice_ring *tx_ring)
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(tx_ring->tx_buf);
 	tx_ring->tx_buf =
-		devm_kzalloc(dev, sizeof(*tx_ring->tx_buf) * tx_ring->count,
+		devm_kcalloc(dev, sizeof(*tx_ring->tx_buf), tx_ring->count,
 			     GFP_KERNEL);
 	if (!tx_ring->tx_buf)
 		return -ENOMEM;
 
 	/* round up to nearest page */
-	tx_ring->size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
-			      PAGE_SIZE);
-	tx_ring->desc = dmam_alloc_coherent(dev, tx_ring->size, &tx_ring->dma,
+	size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
+		     PAGE_SIZE);
+	tx_ring->desc = dmam_alloc_coherent(dev, size, &tx_ring->dma,
 					    GFP_KERNEL);
 	if (!tx_ring->desc) {
 		dev_err(dev, "Unable to allocate memory for the Tx descriptor ring, size=%d\n",
-			tx_ring->size);
+			size);
 		goto err;
 	}
 
@@ -370,9 +374,10 @@ err:
  * ice_clean_rx_ring - Free Rx buffers
  * @rx_ring: ring to be cleaned
  */
-void ice_clean_rx_ring(struct ice_ring *rx_ring)
+void ice_clean_rx_ring(struct ice_rx_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
+	u32 size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
@@ -417,7 +422,9 @@ rx_skip_free:
 	memset(rx_ring->rx_buf, 0, sizeof(*rx_ring->rx_buf) * rx_ring->count);
 
 	/* Zero out the descriptor ring */
-	memset(rx_ring->desc, 0, rx_ring->size);
+	size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
+		     PAGE_SIZE);
+	memset(rx_ring->desc, 0, size);
 
 	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
@@ -430,8 +437,10 @@ rx_skip_free:
  *
  * Free all receive software resources
  */
-void ice_free_rx_ring(struct ice_ring *rx_ring)
+void ice_free_rx_ring(struct ice_rx_ring *rx_ring)
 {
+	u32 size;
+
 	ice_clean_rx_ring(rx_ring);
 	if (rx_ring->vsi->type == ICE_VSI_PF)
 		if (xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
@@ -441,7 +450,9 @@ void ice_free_rx_ring(struct ice_ring *rx_ring)
 	rx_ring->rx_buf = NULL;
 
 	if (rx_ring->desc) {
-		dmam_free_coherent(rx_ring->dev, rx_ring->size,
+		size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
+			     PAGE_SIZE);
+		dmam_free_coherent(rx_ring->dev, size,
 				   rx_ring->desc, rx_ring->dma);
 		rx_ring->desc = NULL;
 	}
@@ -453,9 +464,10 @@ void ice_free_rx_ring(struct ice_ring *rx_ring)
  *
  * Return 0 on success, negative on error
  */
-int ice_setup_rx_ring(struct ice_ring *rx_ring)
+int ice_setup_rx_ring(struct ice_rx_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
+	u32 size;
 
 	if (!dev)
 		return -ENOMEM;
@@ -463,19 +475,19 @@ int ice_setup_rx_ring(struct ice_ring *rx_ring)
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(rx_ring->rx_buf);
 	rx_ring->rx_buf =
-		devm_kzalloc(dev, sizeof(*rx_ring->rx_buf) * rx_ring->count,
+		devm_kcalloc(dev, sizeof(*rx_ring->rx_buf), rx_ring->count,
 			     GFP_KERNEL);
 	if (!rx_ring->rx_buf)
 		return -ENOMEM;
 
 	/* round up to nearest page */
-	rx_ring->size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
-			      PAGE_SIZE);
-	rx_ring->desc = dmam_alloc_coherent(dev, rx_ring->size, &rx_ring->dma,
+	size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
+		     PAGE_SIZE);
+	rx_ring->desc = dmam_alloc_coherent(dev, size, &rx_ring->dma,
 					    GFP_KERNEL);
 	if (!rx_ring->desc) {
 		dev_err(dev, "Unable to allocate memory for the Rx descriptor ring, size=%d\n",
-			rx_ring->size);
+			size);
 		goto err;
 	}
 
@@ -499,7 +511,7 @@ err:
 }
 
 static unsigned int
-ice_rx_frame_truesize(struct ice_ring *rx_ring, unsigned int __maybe_unused size)
+ice_rx_frame_truesize(struct ice_rx_ring *rx_ring, unsigned int __maybe_unused size)
 {
 	unsigned int truesize;
 
@@ -519,15 +531,15 @@ ice_rx_frame_truesize(struct ice_ring *rx_ring, unsigned int __maybe_unused size
  * @rx_ring: Rx ring
  * @xdp: xdp_buff used as input to the XDP program
  * @xdp_prog: XDP program to run
+ * @xdp_ring: ring to be used for XDP_TX action
  *
  * Returns any of ICE_XDP_{PASS, CONSUMED, TX, REDIR}
  */
 static int
-ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
-	    struct bpf_prog *xdp_prog)
+ice_run_xdp(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
+	    struct bpf_prog *xdp_prog, struct ice_tx_ring *xdp_ring)
 {
-	struct ice_ring *xdp_ring;
-	int err, result;
+	int err;
 	u32 act;
 
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
@@ -535,11 +547,14 @@ ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
 	case XDP_PASS:
 		return ICE_XDP_PASS;
 	case XDP_TX:
-		xdp_ring = rx_ring->vsi->xdp_rings[smp_processor_id()];
-		result = ice_xmit_xdp_buff(xdp, xdp_ring);
-		if (result == ICE_XDP_CONSUMED)
+		if (static_branch_unlikely(&ice_xdp_locking_key))
+			spin_lock(&xdp_ring->tx_lock);
+		err = ice_xmit_xdp_ring(xdp->data, xdp->data_end - xdp->data, xdp_ring);
+		if (static_branch_unlikely(&ice_xdp_locking_key))
+			spin_unlock(&xdp_ring->tx_lock);
+		if (err == ICE_XDP_CONSUMED)
 			goto out_failure;
-		return result;
+		return err;
 	case XDP_REDIRECT:
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
 		if (err)
@@ -576,7 +591,7 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	struct ice_netdev_priv *np = netdev_priv(dev);
 	unsigned int queue_index = smp_processor_id();
 	struct ice_vsi *vsi = np->vsi;
-	struct ice_ring *xdp_ring;
+	struct ice_tx_ring *xdp_ring;
 	int nxmit = 0, i;
 
 	if (test_bit(ICE_VSI_DOWN, vsi->state))
@@ -588,7 +603,14 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
-	xdp_ring = vsi->xdp_rings[queue_index];
+	if (static_branch_unlikely(&ice_xdp_locking_key)) {
+		queue_index %= vsi->num_xdp_txq;
+		xdp_ring = vsi->xdp_rings[queue_index];
+		spin_lock(&xdp_ring->tx_lock);
+	} else {
+		xdp_ring = vsi->xdp_rings[queue_index];
+	}
+
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
 		int err;
@@ -602,6 +624,9 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	if (unlikely(flags & XDP_XMIT_FLUSH))
 		ice_xdp_ring_update_tail(xdp_ring);
 
+	if (static_branch_unlikely(&ice_xdp_locking_key))
+		spin_unlock(&xdp_ring->tx_lock);
+
 	return nxmit;
 }
 
@@ -614,7 +639,7 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
  * reused.
  */
 static bool
-ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
+ice_alloc_mapped_page(struct ice_rx_ring *rx_ring, struct ice_rx_buf *bi)
 {
 	struct page *page = bi->page;
 	dma_addr_t dma;
@@ -665,7 +690,7 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
  * buffers. Then bump tail at most one time. Grouping like this lets us avoid
  * multiple tail writes per call.
  */
-bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
+bool ice_alloc_rx_bufs(struct ice_rx_ring *rx_ring, u16 cleaned_count)
 {
 	union ice_32b_rx_flex_desc *rx_desc;
 	u16 ntu = rx_ring->next_to_use;
@@ -794,7 +819,7 @@ ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf, int rx_buf_pgcnt)
  * The function will then update the page offset.
  */
 static void
-ice_add_rx_frag(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
+ice_add_rx_frag(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 		struct sk_buff *skb, unsigned int size)
 {
 #if (PAGE_SIZE >= 8192)
@@ -820,7 +845,7 @@ ice_add_rx_frag(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
  * Synchronizes page for reuse by the adapter
  */
 static void
-ice_reuse_rx_page(struct ice_ring *rx_ring, struct ice_rx_buf *old_buf)
+ice_reuse_rx_page(struct ice_rx_ring *rx_ring, struct ice_rx_buf *old_buf)
 {
 	u16 nta = rx_ring->next_to_alloc;
 	struct ice_rx_buf *new_buf;
@@ -851,7 +876,7 @@ ice_reuse_rx_page(struct ice_ring *rx_ring, struct ice_rx_buf *old_buf)
  * for use by the CPU.
  */
 static struct ice_rx_buf *
-ice_get_rx_buf(struct ice_ring *rx_ring, const unsigned int size,
+ice_get_rx_buf(struct ice_rx_ring *rx_ring, const unsigned int size,
 	       int *rx_buf_pgcnt)
 {
 	struct ice_rx_buf *rx_buf;
@@ -888,7 +913,7 @@ ice_get_rx_buf(struct ice_ring *rx_ring, const unsigned int size,
  * to set up the skb correctly and avoid any memcpy overhead.
  */
 static struct sk_buff *
-ice_build_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
+ice_build_skb(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	      struct xdp_buff *xdp)
 {
 	u8 metasize = xdp->data - xdp->data_meta;
@@ -940,7 +965,7 @@ ice_build_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
  * skb correctly.
  */
 static struct sk_buff *
-ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
+ice_construct_skb(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 		  struct xdp_buff *xdp)
 {
 	unsigned int size = xdp->data_end - xdp->data;
@@ -1000,7 +1025,7 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
  * the associated resources.
  */
 static void
-ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
+ice_put_rx_buf(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	       int rx_buf_pgcnt)
 {
 	u16 ntc = rx_ring->next_to_clean + 1;
@@ -1036,7 +1061,7 @@ ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
  * otherwise return true indicating that this is in fact a non-EOP buffer.
  */
 static bool
-ice_is_non_eop(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc)
+ice_is_non_eop(struct ice_rx_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc)
 {
 	/* if we are the last buffer then there is nothing else to do */
 #define ICE_RXD_EOF BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S)
@@ -1060,11 +1085,12 @@ ice_is_non_eop(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc)
  *
  * Returns amount of work completed
  */
-int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
+int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_pkts = 0, frame_sz = 0;
 	u16 cleaned_count = ICE_DESC_UNUSED(rx_ring);
 	unsigned int offset = rx_ring->rx_offset;
+	struct ice_tx_ring *xdp_ring = NULL;
 	unsigned int xdp_res, xdp_xmit = 0;
 	struct sk_buff *skb = rx_ring->skb;
 	struct bpf_prog *xdp_prog = NULL;
@@ -1076,6 +1102,10 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 	frame_sz = ice_rx_frame_truesize(rx_ring, 0);
 #endif
 	xdp_init_buff(&xdp, frame_sz, &rx_ring->xdp_rxq);
+
+	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
+	if (xdp_prog)
+		xdp_ring = rx_ring->xdp_ring;
 
 	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
@@ -1140,11 +1170,10 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		xdp.frame_sz = ice_rx_frame_truesize(rx_ring, size);
 #endif
 
-		xdp_prog = READ_ONCE(rx_ring->xdp_prog);
 		if (!xdp_prog)
 			goto construct_skb;
 
-		xdp_res = ice_run_xdp(rx_ring, &xdp, xdp_prog);
+		xdp_res = ice_run_xdp(rx_ring, &xdp, xdp_prog, xdp_ring);
 		if (!xdp_res)
 			goto construct_skb;
 		if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)) {
@@ -1221,13 +1250,48 @@ construct_skb:
 	failure = ice_alloc_rx_bufs(rx_ring, cleaned_count);
 
 	if (xdp_prog)
-		ice_finalize_xdp_rx(rx_ring, xdp_xmit);
+		ice_finalize_xdp_rx(xdp_ring, xdp_xmit);
 	rx_ring->skb = skb;
 
 	ice_update_rx_ring_stats(rx_ring, total_rx_pkts, total_rx_bytes);
 
 	/* guarantee a trip back through this routine if there was a failure */
 	return failure ? budget : (int)total_rx_pkts;
+}
+
+static void __ice_update_sample(struct ice_q_vector *q_vector,
+				struct ice_ring_container *rc,
+				struct dim_sample *sample,
+				bool is_tx)
+{
+	u64 packets = 0, bytes = 0;
+
+	if (is_tx) {
+		struct ice_tx_ring *tx_ring;
+
+		ice_for_each_tx_ring(tx_ring, *rc) {
+			packets += tx_ring->stats.pkts;
+			bytes += tx_ring->stats.bytes;
+		}
+	} else {
+		struct ice_rx_ring *rx_ring;
+
+		ice_for_each_rx_ring(rx_ring, *rc) {
+			packets += rx_ring->stats.pkts;
+			bytes += rx_ring->stats.bytes;
+		}
+	}
+
+	dim_update_sample(q_vector->total_events, packets, bytes, sample);
+	sample->comp_ctr = 0;
+
+	/* if dim settings get stale, like when not updated for 1
+	 * second or longer, force it to start again. This addresses the
+	 * frequent case of an idle queue being switched to by the
+	 * scheduler. The 1,000 here means 1,000 milliseconds.
+	 */
+	if (ktime_ms_delta(sample->time, rc->dim.start_sample.time) >= 1000)
+		rc->dim.state = DIM_START_MEASURE;
 }
 
 /**
@@ -1245,34 +1309,16 @@ static void ice_net_dim(struct ice_q_vector *q_vector)
 	struct ice_ring_container *rx = &q_vector->rx;
 
 	if (ITR_IS_DYNAMIC(tx)) {
-		struct dim_sample dim_sample = {};
-		u64 packets = 0, bytes = 0;
-		struct ice_ring *ring;
+		struct dim_sample dim_sample;
 
-		ice_for_each_ring(ring, q_vector->tx) {
-			packets += ring->stats.pkts;
-			bytes += ring->stats.bytes;
-		}
-
-		dim_update_sample(q_vector->total_events, packets, bytes,
-				  &dim_sample);
-
+		__ice_update_sample(q_vector, tx, &dim_sample, true);
 		net_dim(&tx->dim, dim_sample);
 	}
 
 	if (ITR_IS_DYNAMIC(rx)) {
-		struct dim_sample dim_sample = {};
-		u64 packets = 0, bytes = 0;
-		struct ice_ring *ring;
+		struct dim_sample dim_sample;
 
-		ice_for_each_ring(ring, q_vector->rx) {
-			packets += ring->stats.pkts;
-			bytes += ring->stats.bytes;
-		}
-
-		dim_update_sample(q_vector->total_events, packets, bytes,
-				  &dim_sample);
-
+		__ice_update_sample(q_vector, rx, &dim_sample, false);
 		net_dim(&rx->dim, dim_sample);
 	}
 }
@@ -1299,15 +1345,14 @@ static u32 ice_buildreg_itr(u16 itr_idx, u16 itr)
 }
 
 /**
- * ice_update_ena_itr - Update ITR moderation and re-enable MSI-X interrupt
+ * ice_enable_interrupt - re-enable MSI-X interrupt
  * @q_vector: the vector associated with the interrupt to enable
  *
- * Update the net_dim() algorithm and re-enable the interrupt associated with
- * this vector.
- *
- * If the VSI is down, the interrupt will not be re-enabled.
+ * If the VSI is down, the interrupt will not be re-enabled. Also,
+ * when enabling the interrupt always reset the wb_on_itr to false
+ * and trigger a software interrupt to clean out internal state.
  */
-static void ice_update_ena_itr(struct ice_q_vector *q_vector)
+static void ice_enable_interrupt(struct ice_q_vector *q_vector)
 {
 	struct ice_vsi *vsi = q_vector->vsi;
 	bool wb_en = q_vector->wb_on_itr;
@@ -1316,25 +1361,25 @@ static void ice_update_ena_itr(struct ice_q_vector *q_vector)
 	if (test_bit(ICE_DOWN, vsi->state))
 		return;
 
-	/* When exiting WB_ON_ITR, let ITR resume its normal
-	 * interrupts-enabled path.
+	/* trigger an ITR delayed software interrupt when exiting busy poll, to
+	 * make sure to catch any pending cleanups that might have been missed
+	 * due to interrupt state transition. If busy poll or poll isn't
+	 * enabled, then don't update ITR, and just enable the interrupt.
 	 */
-	if (wb_en)
+	if (!wb_en) {
+		itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+	} else {
 		q_vector->wb_on_itr = false;
 
-	/* This will do nothing if dynamic updates are not enabled. */
-	ice_net_dim(q_vector);
-
-	/* net_dim() updates ITR out-of-band using a work item */
-	itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
-	/* trigger an immediate software interrupt when exiting
-	 * busy poll, to make sure to catch any pending cleanups
-	 * that might have been missed due to interrupt state
-	 * transition.
-	 */
-	if (wb_en) {
+		/* do two things here with a single write. Set up the third ITR
+		 * index to be used for software interrupt moderation, and then
+		 * trigger a software interrupt with a rate limit of 20K on
+		 * software interrupts, this will help avoid high interrupt
+		 * loads due to frequently polling and exiting polling.
+		 */
+		itr_val = ice_buildreg_itr(ICE_IDX_ITR2, ICE_ITR_20K);
 		itr_val |= GLINT_DYN_CTL_SWINT_TRIG_M |
-			   GLINT_DYN_CTL_SW_ITR_INDX_M |
+			   ICE_IDX_ITR2 << GLINT_DYN_CTL_SW_ITR_INDX_S |
 			   GLINT_DYN_CTL_SW_ITR_INDX_ENA_M;
 	}
 	wr32(&vsi->back->hw, GLINT_DYN_CTL(q_vector->reg_idx), itr_val);
@@ -1387,18 +1432,24 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct ice_q_vector *q_vector =
 				container_of(napi, struct ice_q_vector, napi);
+	struct ice_tx_ring *tx_ring;
+	struct ice_rx_ring *rx_ring;
 	bool clean_complete = true;
-	struct ice_ring *ring;
 	int budget_per_ring;
 	int work_done = 0;
 
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
-	ice_for_each_ring(ring, q_vector->tx) {
-		bool wd = ring->xsk_pool ?
-			  ice_clean_tx_irq_zc(ring, budget) :
-			  ice_clean_tx_irq(ring, budget);
+	ice_for_each_tx_ring(tx_ring, q_vector->tx) {
+		bool wd;
+
+		if (tx_ring->xsk_pool)
+			wd = ice_clean_tx_irq_zc(tx_ring, budget);
+		else if (ice_ring_is_xdp(tx_ring))
+			wd = true;
+		else
+			wd = ice_clean_tx_irq(tx_ring, budget);
 
 		if (!wd)
 			clean_complete = false;
@@ -1419,16 +1470,16 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		/* Max of 1 Rx ring in this q_vector so give it the budget */
 		budget_per_ring = budget;
 
-	ice_for_each_ring(ring, q_vector->rx) {
+	ice_for_each_rx_ring(rx_ring, q_vector->rx) {
 		int cleaned;
 
 		/* A dedicated path for zero-copy allows making a single
 		 * comparison in the irq context instead of many inside the
 		 * ice_clean_rx_irq function and makes the codebase cleaner.
 		 */
-		cleaned = ring->xsk_pool ?
-			  ice_clean_rx_irq_zc(ring, budget_per_ring) :
-			  ice_clean_rx_irq(ring, budget_per_ring);
+		cleaned = rx_ring->xsk_pool ?
+			  ice_clean_rx_irq_zc(rx_ring, budget_per_ring) :
+			  ice_clean_rx_irq(rx_ring, budget_per_ring);
 		work_done += cleaned;
 		/* if we clean as many as budgeted, we must not be done */
 		if (cleaned >= budget_per_ring)
@@ -1447,10 +1498,12 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	/* Exit the polling mode, but don't re-enable interrupts if stack might
 	 * poll us due to busy-polling
 	 */
-	if (likely(napi_complete_done(napi, work_done)))
-		ice_update_ena_itr(q_vector);
-	else
+	if (likely(napi_complete_done(napi, work_done))) {
+		ice_net_dim(q_vector);
+		ice_enable_interrupt(q_vector);
+	} else {
 		ice_set_wb_on_itr(q_vector);
+	}
 
 	return min_t(int, work_done, budget - 1);
 }
@@ -1462,7 +1515,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
  *
  * Returns -EBUSY if a stop is needed, else 0
  */
-static int __ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
+static int __ice_maybe_stop_tx(struct ice_tx_ring *tx_ring, unsigned int size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->q_index);
 	/* Memory barrier before checking head and tail */
@@ -1485,7 +1538,7 @@ static int __ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
  *
  * Returns 0 if stop is not needed
  */
-static int ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
+static int ice_maybe_stop_tx(struct ice_tx_ring *tx_ring, unsigned int size)
 {
 	if (likely(ICE_DESC_UNUSED(tx_ring) >= size))
 		return 0;
@@ -1504,7 +1557,7 @@ static int ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
  * it and the length into the transmit descriptor.
  */
 static void
-ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
+ice_tx_map(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first,
 	   struct ice_tx_offload_params *off)
 {
 	u64 td_offset, td_tag, td_cmd;
@@ -1840,7 +1893,7 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
  * related to VLAN tagging for the HW, such as VLAN, DCB, etc.
  */
 static void
-ice_tx_prepare_vlan_flags(struct ice_ring *tx_ring, struct ice_tx_buf *first)
+ice_tx_prepare_vlan_flags(struct ice_tx_ring *tx_ring, struct ice_tx_buf *first)
 {
 	struct sk_buff *skb = first->skb;
 
@@ -2146,7 +2199,7 @@ static bool ice_chk_linearize(struct sk_buff *skb, unsigned int count)
  * @off: Tx offload parameters
  */
 static void
-ice_tstamp(struct ice_ring *tx_ring, struct sk_buff *skb,
+ice_tstamp(struct ice_tx_ring *tx_ring, struct sk_buff *skb,
 	   struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 {
 	s8 idx;
@@ -2181,7 +2234,7 @@ ice_tstamp(struct ice_ring *tx_ring, struct sk_buff *skb,
  * Returns NETDEV_TX_OK if sent, else an error code
  */
 static netdev_tx_t
-ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
+ice_xmit_frame_ring(struct sk_buff *skb, struct ice_tx_ring *tx_ring)
 {
 	struct ice_tx_offload_params offload = { 0 };
 	struct ice_vsi *vsi = tx_ring->vsi;
@@ -2245,6 +2298,8 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 					ICE_TXD_CTX_QW1_CMD_S);
 
 	ice_tstamp(tx_ring, skb, first, &offload);
+	if (ice_is_switchdev_running(vsi->back))
+		ice_eswitch_set_target_vsi(skb, &offload);
 
 	if (offload.cd_qw1 & ICE_TX_DESC_DTYPE_CTX) {
 		struct ice_tx_ctx_desc *cdesc;
@@ -2282,7 +2337,7 @@ netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
-	struct ice_ring *tx_ring;
+	struct ice_tx_ring *tx_ring;
 
 	tx_ring = vsi->tx_rings[skb->queue_mapping];
 
@@ -2296,10 +2351,43 @@ netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 }
 
 /**
+ * ice_get_dscp_up - return the UP/TC value for a SKB
+ * @dcbcfg: DCB config that contains DSCP to UP/TC mapping
+ * @skb: SKB to query for info to determine UP/TC
+ *
+ * This function is to only be called when the PF is in L3 DSCP PFC mode
+ */
+static u8 ice_get_dscp_up(struct ice_dcbx_cfg *dcbcfg, struct sk_buff *skb)
+{
+	u8 dscp = 0;
+
+	if (skb->protocol == htons(ETH_P_IP))
+		dscp = ipv4_get_dsfield(ip_hdr(skb)) >> 2;
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> 2;
+
+	return dcbcfg->dscp_map[dscp];
+}
+
+u16
+ice_select_queue(struct net_device *netdev, struct sk_buff *skb,
+		 struct net_device *sb_dev)
+{
+	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+	struct ice_dcbx_cfg *dcbcfg;
+
+	dcbcfg = &pf->hw.port_info->qos_cfg.local_dcbx_cfg;
+	if (dcbcfg->pfc_mode == ICE_QOS_MODE_DSCP)
+		skb->priority = ice_get_dscp_up(dcbcfg, skb);
+
+	return netdev_pick_tx(netdev, skb, sb_dev);
+}
+
+/**
  * ice_clean_ctrl_tx_irq - interrupt handler for flow director Tx queue
  * @tx_ring: tx_ring to clean
  */
-void ice_clean_ctrl_tx_irq(struct ice_ring *tx_ring)
+void ice_clean_ctrl_tx_irq(struct ice_tx_ring *tx_ring)
 {
 	struct ice_vsi *vsi = tx_ring->vsi;
 	s16 i = tx_ring->next_to_clean;

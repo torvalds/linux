@@ -30,16 +30,16 @@ config PHY_EXYNOS_PCIE
 	  This driver provides PHY interface for Exynos PCIe controller.
 
 config PHY_SAMSUNG_UFS
-	tristate "SAMSUNG SoC series UFS PHY driver"
+	tristate "Exynos SoC series UFS PHY driver"
 	depends on OF && (ARCH_EXYNOS || COMPILE_TEST)
 	select GENERIC_PHY
 	help
-	  Enable this to support the Samsung UFS PHY driver for
-	  Samsung SoCs. This driver provides the interface for UFS
-	  host controller to do PHY related programming.
+	  Enable this to support the Samsung Exynos SoC UFS PHY driver for
+	  Samsung Exynos SoCs. This driver provides the interface for UFS host
+	  controller to do PHY related programming.
 
 config PHY_SAMSUNG_USB2
-	tristate "Samsung USB 2.0 PHY driver"
+	tristate "S5P/Exynos SoC series USB 2.0 PHY driver"
 	depends on HAS_IOMEM
 	depends on USB_EHCI_EXYNOS || USB_OHCI_EXYNOS || USB_DWC2 || COMPILE_TEST
 	select GENERIC_PHY
@@ -47,9 +47,9 @@ config PHY_SAMSUNG_USB2
 	default ARCH_EXYNOS
 	help
 	  Enable this to support the Samsung USB 2.0 PHY driver for Samsung
-	  SoCs. This driver provides the interface for USB 2.0 PHY. Support
-	  for particular PHYs will be enabled based on the SoC type in addition
-	  to this driver.
+	  S5Pv210 and Exynos SoCs. This driver provides the interface for USB
+	  2.0 PHY. Support for particular PHYs will be enabled based on the SoC
+	  type in addition to this driver.
 
 config PHY_EXYNOS4210_USB2
 	bool

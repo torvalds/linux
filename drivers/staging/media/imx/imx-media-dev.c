@@ -94,7 +94,7 @@ static int imx_media_probe(struct platform_device *pdev)
 	return 0;
 
 cleanup:
-	v4l2_async_notifier_cleanup(&imxmd->notifier);
+	v4l2_async_nf_cleanup(&imxmd->notifier);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_cleanup(&imxmd->md);
 
@@ -113,9 +113,9 @@ static int imx_media_remove(struct platform_device *pdev)
 		imxmd->m2m_vdev = NULL;
 	}
 
-	v4l2_async_notifier_unregister(&imxmd->notifier);
+	v4l2_async_nf_unregister(&imxmd->notifier);
 	imx_media_unregister_ipu_internal_subdevs(imxmd);
-	v4l2_async_notifier_cleanup(&imxmd->notifier);
+	v4l2_async_nf_cleanup(&imxmd->notifier);
 	media_device_unregister(&imxmd->md);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_cleanup(&imxmd->md);

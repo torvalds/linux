@@ -158,7 +158,7 @@ static void bad_segv(struct faultinfo fi, unsigned long ip)
 
 void fatal_sigsegv(void)
 {
-	force_sigsegv(SIGSEGV);
+	force_fatal_sig(SIGSEGV);
 	do_signal(&current->thread.regs);
 	/*
 	 * This is to tell gcc that we're not returning - do_signal
@@ -310,8 +310,4 @@ void bus_handler(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 void winch(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	do_IRQ(WINCH_IRQ, regs);
-}
-
-void trap_init(void)
-{
 }

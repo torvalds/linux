@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Marvell OcteonTx2 RVU Admin Function driver
+/* Marvell RVU Admin Function driver
  *
- * Copyright (C) 2018 Marvell International Ltd.
+ * Copyright (C) 2018 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -419,6 +416,10 @@ exit:
 	rsp->stack_pg_ptrs = (cfg >> 8) & 0xFF;
 	rsp->stack_pg_bytes = cfg & 0xFF;
 	rsp->qints = (cfg >> 28) & 0xFFF;
+	if (!is_rvu_otx2(rvu)) {
+		cfg = rvu_read64(rvu, block->addr, NPA_AF_BATCH_CTL);
+		rsp->cache_lines = (cfg >> 1) & 0x3F;
+	}
 	return rc;
 }
 
@@ -478,6 +479,13 @@ static int npa_aq_init(struct rvu *rvu, struct rvu_block *block)
 #endif
 	rvu_write64(rvu, block->addr, NPA_AF_NDC_CFG, cfg);
 
+	/* For CN10K NPA BATCH DMA set 35 cache lines */
+	if (!is_rvu_otx2(rvu)) {
+		cfg = rvu_read64(rvu, block->addr, NPA_AF_BATCH_CTL);
+		cfg &= ~0x7EULL;
+		cfg |= BIT_ULL(6) | BIT_ULL(2) | BIT_ULL(1);
+		rvu_write64(rvu, block->addr, NPA_AF_BATCH_CTL, cfg);
+	}
 	/* Result structure can be followed by Aura/Pool context at
 	 * RES + 128bytes and a write mask at RES + 256 bytes, depending on
 	 * operation type. Alloc sufficient result memory for all operations.

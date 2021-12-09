@@ -231,7 +231,6 @@ static int st_rc_probe(struct platform_device *pdev)
 	int ret = -EINVAL;
 	struct rc_dev *rdev;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct st_rc_device *rc_dev;
 	struct device_node *np = pdev->dev.of_node;
 	const char *rx_mode;
@@ -274,9 +273,7 @@ static int st_rc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	rc_dev->base = devm_ioremap_resource(dev, res);
+	rc_dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rc_dev->base)) {
 		ret = PTR_ERR(rc_dev->base);
 		goto err;

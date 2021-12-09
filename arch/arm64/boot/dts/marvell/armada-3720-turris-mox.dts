@@ -135,6 +135,23 @@
 	pinctrl-0 = <&pcie_reset_pins &pcie_clkreq_pins>;
 	status = "okay";
 	reset-gpios = <&gpiosb 3 GPIO_ACTIVE_LOW>;
+	/*
+	 * U-Boot port for Turris Mox has a bug which always expects that "ranges" DT property
+	 * contains exactly 2 ranges with 3 (child) address cells, 2 (parent) address cells and
+	 * 2 size cells and also expects that the second range starts at 16 MB offset. If these
+	 * conditions are not met then U-Boot crashes during loading kernel DTB file. PCIe address
+	 * space is 128 MB long, so the best split between MEM and IO is to use fixed 16 MB window
+	 * for IO and the rest 112 MB (64+32+16) for MEM, despite that maximal IO size is just 64 kB.
+	 * This bug is not present in U-Boot ports for other Armada 3700 devices and is fixed in
+	 * U-Boot version 2021.07. See relevant U-Boot commits (the last one contains fix):
+	 * https://source.denx.de/u-boot/u-boot/-/commit/cb2ddb291ee6fcbddd6d8f4ff49089dfe580f5d7
+	 * https://source.denx.de/u-boot/u-boot/-/commit/c64ac3b3185aeb3846297ad7391fc6df8ecd73bf
+	 * https://source.denx.de/u-boot/u-boot/-/commit/4a82fca8e330157081fc132a591ebd99ba02ee33
+	 */
+	#address-cells = <3>;
+	#size-cells = <2>;
+	ranges = <0x81000000 0 0xe8000000   0 0xe8000000   0 0x01000000   /* Port 0 IO */
+		  0x82000000 0 0xe9000000   0 0xe9000000   0 0x07000000>; /* Port 0 MEM */
 
 	/* enabled by U-Boot if PCIe module is present */
 	status = "disabled";

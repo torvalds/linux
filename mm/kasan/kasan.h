@@ -3,6 +3,7 @@
 #define __MM_KASAN_KASAN_H
 
 #include <linux/kasan.h>
+#include <linux/kasan-tags.h>
 #include <linux/kfence.h>
 #include <linux/stackdepot.h>
 
@@ -12,16 +13,28 @@
 #include "../slab.h"
 
 DECLARE_STATIC_KEY_FALSE(kasan_flag_stacktrace);
-extern bool kasan_flag_async __ro_after_init;
+
+enum kasan_mode {
+	KASAN_MODE_SYNC,
+	KASAN_MODE_ASYNC,
+	KASAN_MODE_ASYMM,
+};
+
+extern enum kasan_mode kasan_mode __ro_after_init;
 
 static inline bool kasan_stack_collection_enabled(void)
 {
 	return static_branch_unlikely(&kasan_flag_stacktrace);
 }
 
-static inline bool kasan_async_mode_enabled(void)
+static inline bool kasan_async_fault_possible(void)
 {
-	return kasan_flag_async;
+	return kasan_mode == KASAN_MODE_ASYNC || kasan_mode == KASAN_MODE_ASYMM;
+}
+
+static inline bool kasan_sync_fault_possible(void)
+{
+	return kasan_mode == KASAN_MODE_SYNC || kasan_mode == KASAN_MODE_ASYMM;
 }
 #else
 
@@ -30,15 +43,17 @@ static inline bool kasan_stack_collection_enabled(void)
 	return true;
 }
 
-static inline bool kasan_async_mode_enabled(void)
+static inline bool kasan_async_fault_possible(void)
 {
 	return false;
 }
 
-#endif
+static inline bool kasan_sync_fault_possible(void)
+{
+	return true;
+}
 
-extern bool kasan_flag_panic __ro_after_init;
-extern bool kasan_flag_async __ro_after_init;
+#endif
 
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 #define KASAN_GRANULE_SIZE	(1UL << KASAN_SHADOW_SCALE_SHIFT)
@@ -50,16 +65,6 @@ extern bool kasan_flag_async __ro_after_init;
 #define KASAN_GRANULE_MASK	(KASAN_GRANULE_SIZE - 1)
 
 #define KASAN_MEMORY_PER_SHADOW_PAGE	(KASAN_GRANULE_SIZE << PAGE_SHIFT)
-
-#define KASAN_TAG_KERNEL	0xFF /* native kernel pointers tag */
-#define KASAN_TAG_INVALID	0xFE /* inaccessible memory tag */
-#define KASAN_TAG_MAX		0xFD /* maximum value for random tags */
-
-#ifdef CONFIG_KASAN_HW_TAGS
-#define KASAN_TAG_MIN		0xF0 /* minimum value for random tags */
-#else
-#define KASAN_TAG_MIN		0x00 /* minimum value for random tags */
-#endif
 
 #ifdef CONFIG_KASAN_GENERIC
 #define KASAN_FREE_PAGE         0xFF  /* page was freed */
@@ -261,7 +266,7 @@ void kasan_report_invalid_free(void *object, unsigned long ip);
 
 struct page *kasan_addr_to_page(const void *addr);
 
-depot_stack_handle_t kasan_save_stack(gfp_t flags);
+depot_stack_handle_t kasan_save_stack(gfp_t flags, bool can_alloc);
 void kasan_set_track(struct kasan_track *track, gfp_t flags);
 void kasan_set_free_info(struct kmem_cache *cache, void *object, u8 tag);
 struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
@@ -299,11 +304,8 @@ static inline const void *arch_kasan_set_tag(const void *addr, u8 tag)
 #ifndef arch_enable_tagging_async
 #define arch_enable_tagging_async()
 #endif
-#ifndef arch_init_tags
-#define arch_init_tags(max_tag)
-#endif
-#ifndef arch_set_tagging_report_once
-#define arch_set_tagging_report_once(state)
+#ifndef arch_enable_tagging_asymm
+#define arch_enable_tagging_asymm()
 #endif
 #ifndef arch_force_async_tag_fault
 #define arch_force_async_tag_fault()
@@ -320,8 +322,7 @@ static inline const void *arch_kasan_set_tag(const void *addr, u8 tag)
 
 #define hw_enable_tagging_sync()		arch_enable_tagging_sync()
 #define hw_enable_tagging_async()		arch_enable_tagging_async()
-#define hw_init_tags(max_tag)			arch_init_tags(max_tag)
-#define hw_set_tagging_report_once(state)	arch_set_tagging_report_once(state)
+#define hw_enable_tagging_asymm()		arch_enable_tagging_asymm()
 #define hw_force_async_tag_fault()		arch_force_async_tag_fault()
 #define hw_get_random_tag()			arch_get_random_tag()
 #define hw_get_mem_tag(addr)			arch_get_mem_tag(addr)
@@ -332,19 +333,17 @@ static inline const void *arch_kasan_set_tag(const void *addr, u8 tag)
 
 #define hw_enable_tagging_sync()
 #define hw_enable_tagging_async()
-#define hw_set_tagging_report_once(state)
+#define hw_enable_tagging_asymm()
 
 #endif /* CONFIG_KASAN_HW_TAGS */
 
 #if defined(CONFIG_KASAN_HW_TAGS) && IS_ENABLED(CONFIG_KASAN_KUNIT_TEST)
 
-void kasan_set_tagging_report_once(bool state);
 void kasan_enable_tagging_sync(void);
 void kasan_force_async_fault(void);
 
 #else /* CONFIG_KASAN_HW_TAGS || CONFIG_KASAN_KUNIT_TEST */
 
-static inline void kasan_set_tagging_report_once(bool state) { }
 static inline void kasan_enable_tagging_sync(void) { }
 static inline void kasan_force_async_fault(void) { }
 

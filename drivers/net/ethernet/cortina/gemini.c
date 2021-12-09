@@ -1889,7 +1889,7 @@ static int gmac_set_mac_address(struct net_device *netdev, void *addr)
 {
 	struct sockaddr *sa = addr;
 
-	memcpy(netdev->dev_addr, sa->sa_data, ETH_ALEN);
+	eth_hw_addr_set(netdev, sa->sa_data);
 	gmac_write_mac_address(netdev);
 
 	return 0;
@@ -2144,7 +2144,9 @@ static int gmac_set_ringparam(struct net_device *netdev,
 }
 
 static int gmac_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ecmd)
+			     struct ethtool_coalesce *ecmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct gemini_ethernet_port *port = netdev_priv(netdev);
 
@@ -2156,7 +2158,9 @@ static int gmac_get_coalesce(struct net_device *netdev,
 }
 
 static int gmac_set_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ecmd)
+			     struct ethtool_coalesce *ecmd,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct gemini_ethernet_port *port = netdev_priv(netdev);
 
@@ -2463,13 +2467,13 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 		       DEFAULT_NAPI_WEIGHT);
 
 	if (is_valid_ether_addr((void *)port->mac_addr)) {
-		memcpy(netdev->dev_addr, port->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(netdev, (u8 *)port->mac_addr);
 	} else {
 		dev_dbg(dev, "ethernet address 0x%08x%08x%08x invalid\n",
 			port->mac_addr[0], port->mac_addr[1],
 			port->mac_addr[2]);
 		dev_info(dev, "using a random ethernet address\n");
-		eth_random_addr(netdev->dev_addr);
+		eth_hw_addr_random(netdev);
 	}
 	gmac_write_mac_address(netdev);
 

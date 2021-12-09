@@ -2288,6 +2288,8 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			/* No retry on Vendor, RPA only done on physical port */
 			if (phba->link_flag & LS_CT_VEN_RPA) {
 				phba->link_flag &= ~LS_CT_VEN_RPA;
+				if (phba->cmf_active_mode == LPFC_CFG_OFF)
+					return;
 				lpfc_printf_log(phba, KERN_ERR,
 						LOG_DISCOVERY | LOG_ELS,
 						"6460 VEN FDMI RPA failure\n");
@@ -2332,24 +2334,29 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		break;
 	case SLI_MGMT_RPA:
 		if (vport->port_type == LPFC_PHYSICAL_PORT &&
-		    phba->cfg_enable_mi &&
-		    phba->sli4_hba.pc_sli4_params.mi_ver > LPFC_MIB1_SUPPORT) {
+		    phba->sli4_hba.pc_sli4_params.mi_ver) {
 			/* mi is only for the phyical port, no vports */
 			if (phba->link_flag & LS_CT_VEN_RPA) {
 				lpfc_printf_vlog(vport, KERN_INFO,
-						 LOG_DISCOVERY | LOG_ELS,
+						 LOG_DISCOVERY | LOG_ELS |
+						 LOG_CGN_MGMT,
 						 "6449 VEN RPA FDMI Success\n");
 				phba->link_flag &= ~LS_CT_VEN_RPA;
 				break;
 			}
 
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6210 Issue Vendor MI FDMI %x\n",
+					phba->sli4_hba.pc_sli4_params.mi_ver);
+
+			/* CGN is only for the physical port, no vports */
 			if (lpfc_fdmi_cmd(vport, ndlp, cmd,
 					  LPFC_FDMI_VENDOR_ATTR_mi) == 0)
 				phba->link_flag |= LS_CT_VEN_RPA;
 			lpfc_printf_log(phba, KERN_INFO,
 					LOG_DISCOVERY | LOG_ELS,
 					"6458 Send MI FDMI:%x Flag x%x\n",
-					phba->sli4_hba.pc_sli4_params.mi_value,
+					phba->sli4_hba.pc_sli4_params.mi_ver,
 					phba->link_flag);
 		} else {
 			lpfc_printf_log(phba, KERN_INFO,
@@ -2846,6 +2853,8 @@ lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport,
 
 	ae->un.AttrInt = 0;
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		if (phba->lmt & LMT_256Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_256GFC;
 		if (phba->lmt & LMT_128Gb)
 			ae->un.AttrInt |= HBA_PORTSPEED_128GFC;
 		if (phba->lmt & LMT_64Gb)
@@ -2926,6 +2935,9 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport,
 			break;
 		case LPFC_LINK_SPEED_128GHZ:
 			ae->un.AttrInt = HBA_PORTSPEED_128GFC;
+			break;
+		case LPFC_LINK_SPEED_256GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_256GFC;
 			break;
 		default:
 			ae->un.AttrInt = HBA_PORTSPEED_UNKNOWN;
@@ -3343,7 +3355,7 @@ lpfc_fdmi_vendor_attr_mi(struct lpfc_vport *vport,
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 	memset(ae, 0, 256);
 	sprintf(mibrevision, "ELXE2EM:%04d",
-		phba->sli4_hba.pc_sli4_params.mi_value);
+		phba->sli4_hba.pc_sli4_params.mi_ver);
 	strncpy(ae->un.AttrString, &mibrevision[0], sizeof(ae->un.AttrString));
 	len = strnlen(ae->un.AttrString, sizeof(ae->un.AttrString));
 	len += (len & 3) ? (4 - (len & 3)) : 4;
@@ -3884,9 +3896,8 @@ lpfc_cmpl_ct_cmd_vmid(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 /**
  * lpfc_vmid_cmd - Build and send a FDMI cmd to the specified NPort
  * @vport: pointer to a host virtual N_Port data structure.
- * @ndlp: ndlp to send FDMI cmd to (if NULL use FDMI_DID)
- * cmdcode: FDMI command to send
- * mask: Mask of HBA or PORT Attributes to send
+ * @cmdcode: application server command code to send
+ * @vmid: pointer to vmid info structure
  *
  * Builds and sends a FDMI command using the CT subsystem.
  */

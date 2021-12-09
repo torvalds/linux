@@ -8,8 +8,10 @@
 
 #include <linux/types.h>
 
-struct intel_encoder;
+enum transcoder;
+struct intel_crtc;
 struct intel_crtc_state;
+struct intel_encoder;
 
 bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state);
 void intel_uncompressed_joiner_enable(const struct intel_crtc_state *crtc_state);
@@ -21,7 +23,7 @@ int intel_dsc_compute_params(struct intel_encoder *encoder,
 void intel_uncompressed_joiner_get_config(struct intel_crtc_state *crtc_state);
 void intel_dsc_get_config(struct intel_crtc_state *crtc_state);
 enum intel_display_power_domain
-intel_dsc_power_domain(const struct intel_crtc_state *crtc_state);
+intel_dsc_power_domain(struct intel_crtc *crtc, enum transcoder cpu_transcoder);
 struct intel_crtc *intel_dsc_get_bigjoiner_secondary(const struct intel_crtc *primary_crtc);
 
 #endif /* __INTEL_VDSC_H__ */

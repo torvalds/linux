@@ -95,6 +95,7 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	rpc_auth_unix	cpu_to_be32(RPC_AUTH_UNIX)
 #define	rpc_auth_short	cpu_to_be32(RPC_AUTH_SHORT)
 #define	rpc_auth_gss	cpu_to_be32(RPC_AUTH_GSS)
+#define	rpc_auth_tls	cpu_to_be32(RPC_AUTH_TLS)
 
 #define	rpc_call	cpu_to_be32(RPC_CALL)
 #define	rpc_reply	cpu_to_be32(RPC_REPLY)

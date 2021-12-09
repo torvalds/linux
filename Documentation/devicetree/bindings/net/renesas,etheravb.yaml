@@ -43,23 +43,20 @@ properties:
               - renesas,etheravb-r8a779a0     # R-Car V3U
           - const: renesas,etheravb-rcar-gen3 # R-Car Gen3 and RZ/G2
 
+      - items:
+          - enum:
+              - renesas,r9a07g044-gbeth # RZ/G2{L,LC}
+          - const: renesas,rzg2l-gbeth  # RZ/G2L
+
   reg: true
 
   interrupts: true
 
   interrupt-names: true
 
-  clocks:
-    minItems: 1
-    items:
-      - description: AVB functional clock
-      - description: Optional TXC reference clock
+  clocks: true
 
-  clock-names:
-    minItems: 1
-    items:
-      - const: fck
-      - const: refclk
+  clock-names: true
 
   iommus:
     maxItems: 1
@@ -145,14 +142,20 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,etheravb-rcar-gen2
+            enum:
+              - renesas,etheravb-rcar-gen2
+              - renesas,rzg2l-gbeth
     then:
       properties:
         interrupts:
-          maxItems: 1
+          minItems: 1
+          maxItems: 3
         interrupt-names:
+          minItems: 1
           items:
             - const: mux
+            - const: fil
+            - const: arp_ns
         rx-internal-delay-ps: false
     else:
       properties:
@@ -208,6 +211,36 @@ allOf:
         tx-internal-delay-ps:
           const: 2000
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rzg2l-gbeth
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Main clock
+            - description: Register access clock
+            - description: Reference clock for RGMII
+        clock-names:
+          items:
+            - const: axi
+            - const: chi
+            - const: refclk
+    else:
+      properties:
+        clocks:
+          minItems: 1
+          items:
+            - description: AVB functional clock
+            - description: Optional TXC reference clock
+        clock-names:
+          minItems: 1
+          items:
+            - const: fck
+            - const: refclk
+
 additionalProperties: false
 
 examples:
@@ -254,6 +287,7 @@ examples:
                               "ch13", "ch14", "ch15", "ch16", "ch17", "ch18",
                               "ch19", "ch20", "ch21", "ch22", "ch23", "ch24";
             clocks = <&cpg CPG_MOD 812>;
+            clock-names = "fck";
             iommus = <&ipmmu_ds0 16>;
             power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
             resets = <&cpg 812>;
@@ -265,6 +299,8 @@ examples:
             #size-cells = <0>;
 
             phy0: ethernet-phy@0 {
+                    compatible = "ethernet-phy-id0022.1622",
+                                 "ethernet-phy-ieee802.3-c22";
                     rxc-skew-ps = <1500>;
                     reg = <0>;
                     interrupt-parent = <&gpio2>;

@@ -265,16 +265,15 @@ static int __init init_cr16_clocksource(void)
 			    (cpu0_loc == per_cpu(cpu_data, cpu).cpu_loc))
 				continue;
 
+			/* mark sched_clock unstable */
+			clear_sched_clock_stable();
+
 			clocksource_cr16.name = "cr16_unstable";
 			clocksource_cr16.flags = CLOCK_SOURCE_UNSTABLE;
 			clocksource_cr16.rating = 0;
 			break;
 		}
 	}
-
-	/* XXX: We may want to mark sched_clock stable here if cr16 clocks are
-	 *	in sync:
-	 *	(clocksource_cr16.flags == CLOCK_SOURCE_IS_CONTINUOUS) */
 
 	/* register at clocksource framework */
 	clocksource_register_hz(&clocksource_cr16,

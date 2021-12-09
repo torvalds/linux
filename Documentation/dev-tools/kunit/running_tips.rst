@@ -25,8 +25,8 @@ It can be handy to create a bash function like:
 Running a subset of tests
 -------------------------
 
-``kunit.py run`` accepts an optional glob argument to filter tests. Currently
-this only matches against suite names, but this may change in the future.
+``kunit.py run`` accepts an optional glob argument to filter tests. The format
+is ``"<suite_glob>[.test_glob]"``.
 
 Say that we wanted to run the sysctl tests, we could do so via:
 
@@ -34,6 +34,13 @@ Say that we wanted to run the sysctl tests, we could do so via:
 
 	$ echo -e 'CONFIG_KUNIT=y\nCONFIG_KUNIT_ALL_TESTS=y' > .kunit/.kunitconfig
 	$ ./tools/testing/kunit/kunit.py run 'sysctl*'
+
+We can filter down to just the "write" tests via:
+
+.. code-block:: bash
+
+	$ echo -e 'CONFIG_KUNIT=y\nCONFIG_KUNIT_ALL_TESTS=y' > .kunit/.kunitconfig
+	$ ./tools/testing/kunit/kunit.py run 'sysctl*.*write*'
 
 We're paying the cost of building more tests than we need this way, but it's
 easier than fiddling with ``.kunitconfig`` files or commenting out
@@ -79,6 +86,16 @@ file ``.kunitconfig``, you can just pass in the dir, e.g.
 	One alternative would be to have kunit tool recursively combine configs
 	automagically, but tests could theoretically depend on incompatible
 	options, so handling that would be tricky.
+
+Setting kernel commandline parameters
+-------------------------------------
+
+You can use ``--kernel_args`` to pass arbitrary kernel arguments, e.g.
+
+.. code-block:: bash
+
+	$ ./tools/testing/kunit/kunit.py run --kernel_args=param=42 --kernel_args=param2=false
+
 
 Generating code coverage reports under UML
 ------------------------------------------

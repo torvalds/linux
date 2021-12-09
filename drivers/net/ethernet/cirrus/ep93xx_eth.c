@@ -733,7 +733,7 @@ static const struct net_device_ops ep93xx_netdev_ops = {
 	.ndo_open		= ep93xx_open,
 	.ndo_stop		= ep93xx_close,
 	.ndo_start_xmit		= ep93xx_xmit,
-	.ndo_do_ioctl		= ep93xx_ioctl,
+	.ndo_eth_ioctl		= ep93xx_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
@@ -746,7 +746,7 @@ static struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 	if (dev == NULL)
 		return NULL;
 
-	memcpy(dev->dev_addr, data->dev_addr, ETH_ALEN);
+	eth_hw_addr_set(dev, data->dev_addr);
 
 	dev->ethtool_ops = &ep93xx_ethtool_ops;
 	dev->netdev_ops = &ep93xx_netdev_ops;

@@ -31,6 +31,9 @@
 		serial10 = &main_uart8;
 		serial11 = &main_uart9;
 		ethernet0 = &cpsw_port1;
+		mmc0 = &main_sdhci0;
+		mmc1 = &main_sdhci1;
+		mmc2 = &main_sdhci2;
 	};
 
 	chosen { };

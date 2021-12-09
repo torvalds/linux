@@ -30,6 +30,35 @@ config ADIS16209
 	  To compile this driver as a module, say M here: the module will be
 	  called adis16209.
 
+config ADXL313
+	tristate
+
+config ADXL313_I2C
+	tristate "Analog Devices ADXL313 3-Axis Digital Accelerometer I2C Driver"
+	depends on I2C
+	select ADXL313
+	select REGMAP_I2C
+	help
+	  Say Y here if you want to build i2c support for the Analog Devices
+	  ADXL313 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl313_i2c and you will also get adxl313_core
+	  for the core module.
+
+config ADXL313_SPI
+	tristate "Analog Devices ADXL313 3-Axis Digital Accelerometer SPI Driver"
+	depends on SPI
+	select ADXL313
+	select REGMAP_SPI
+	help
+	  Say Y here if you want to build spi support for the Analog Devices
+	  ADXL313 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl313_spi and you will also get adxl313_core
+	  for the core module.
+
 config ADXL345
 	tristate
 
@@ -59,6 +88,39 @@ config ADXL345_SPI
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called adxl345_spi and you will also get adxl345_core
+	  for the core module.
+
+config ADXL355
+	tristate
+
+config ADXL355_I2C
+	tristate "Analog Devices ADXL355 3-Axis Digital Accelerometer I2C Driver"
+	depends on I2C
+	select ADXL355
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build i2c support for the Analog Devices
+	  ADXL355 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl355_i2c and you will also get adxl355_core
+	  for the core module.
+
+config ADXL355_SPI
+	tristate "Analog Devices ADXL355 3-Axis Digital Accelerometer SPI Driver"
+	depends on SPI
+	select ADXL355
+	select REGMAP_SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build spi support for the Analog Devices
+	  ADXL355 3-axis digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called adxl355_spi and you will also get adxl355_core
 	  for the core module.
 
 config ADXL372
@@ -143,10 +205,11 @@ config BMC150_ACCEL
 	select BMC150_ACCEL_SPI if SPI
 	help
 	  Say yes here to build support for the following Bosch accelerometers:
-	  BMA222, BMA222E, BMA250E, BMA253, BMA254, BMA255, BMA280, BMC150, BMI055.
+	  BMA222, BMA222E, BMA250E, BMA253, BMA254, BMA255, BMA280, BMC150, BMC156
+	  BMI055.
 
 	  Note that some of these are combo modules:
-	    - BMC150: accelerometer and magnetometer
+	    - BMC150/BMC156: accelerometer and magnetometer
 	    - BMI055: accelerometer and gyroscope
 
 	  This driver is only implementing accelerometer part, which has
@@ -231,6 +294,7 @@ config DMARD10
 
 config FXLS8962AF
 	tristate
+	depends on I2C || !I2C # cannot be built-in for modular I2C
 
 config FXLS8962AF_I2C
 	tristate "NXP FXLS8962AF/FXLS8964AF Accelerometer I2C Driver"
@@ -247,6 +311,7 @@ config FXLS8962AF_I2C
 config FXLS8962AF_SPI
 	tristate "NXP FXLS8962AF/FXLS8964AF Accelerometer SPI Driver"
 	depends on SPI
+	depends on I2C || !I2C
 	select FXLS8962AF
 	select REGMAP_SPI
 	help

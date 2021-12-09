@@ -21,6 +21,8 @@
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 
+static struct kmem_cache	*xfs_refcountbt_cur_cache;
+
 static struct xfs_btree_cur *
 xfs_refcountbt_dup_cursor(
 	struct xfs_btree_cur	*cur)
@@ -31,9 +33,9 @@ xfs_refcountbt_dup_cursor(
 
 STATIC void
 xfs_refcountbt_set_root(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr,
-	int			inc)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*ptr,
+	int				inc)
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
@@ -51,10 +53,10 @@ xfs_refcountbt_set_root(
 
 STATIC int
 xfs_refcountbt_alloc_block(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*start,
-	union xfs_btree_ptr	*new,
-	int			*stat)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_ptr	*start,
+	union xfs_btree_ptr		*new,
+	int				*stat)
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
@@ -102,7 +104,7 @@ xfs_refcountbt_free_block(
 	struct xfs_mount	*mp = cur->bc_mp;
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, XFS_BUF_ADDR(bp));
+	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, xfs_buf_daddr(bp));
 	int			error;
 
 	trace_xfs_refcountbt_free_block(cur->bc_mp, cur->bc_ag.pag->pag_agno,
@@ -135,18 +137,18 @@ xfs_refcountbt_get_maxrecs(
 
 STATIC void
 xfs_refcountbt_init_key_from_rec(
-	union xfs_btree_key	*key,
-	union xfs_btree_rec	*rec)
+	union xfs_btree_key		*key,
+	const union xfs_btree_rec	*rec)
 {
 	key->refc.rc_startblock = rec->refc.rc_startblock;
 }
 
 STATIC void
 xfs_refcountbt_init_high_key_from_rec(
-	union xfs_btree_key	*key,
-	union xfs_btree_rec	*rec)
+	union xfs_btree_key		*key,
+	const union xfs_btree_rec	*rec)
 {
-	__u32			x;
+	__u32				x;
 
 	x = be32_to_cpu(rec->refc.rc_startblock);
 	x += be32_to_cpu(rec->refc.rc_blockcount) - 1;
@@ -177,20 +179,20 @@ xfs_refcountbt_init_ptr_from_cur(
 
 STATIC int64_t
 xfs_refcountbt_key_diff(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*key)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key)
 {
 	struct xfs_refcount_irec	*rec = &cur->bc_rec.rc;
-	struct xfs_refcount_key		*kp = &key->refc;
+	const struct xfs_refcount_key	*kp = &key->refc;
 
 	return (int64_t)be32_to_cpu(kp->rc_startblock) - rec->rc_startblock;
 }
 
 STATIC int64_t
 xfs_refcountbt_diff_two_keys(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
 	return (int64_t)be32_to_cpu(k1->refc.rc_startblock) -
 			  be32_to_cpu(k2->refc.rc_startblock);
@@ -209,7 +211,7 @@ xfs_refcountbt_verify(
 	if (!xfs_verify_magic(bp, block->bb_magic))
 		return __this_address;
 
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+	if (!xfs_has_reflink(mp))
 		return __this_address;
 	fa = xfs_btree_sblock_v5hdr_verify(bp);
 	if (fa)
@@ -269,9 +271,9 @@ const struct xfs_buf_ops xfs_refcountbt_buf_ops = {
 
 STATIC int
 xfs_refcountbt_keys_inorder(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_key	*k1,
-	union xfs_btree_key	*k2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*k1,
+	const union xfs_btree_key	*k2)
 {
 	return be32_to_cpu(k1->refc.rc_startblock) <
 	       be32_to_cpu(k2->refc.rc_startblock);
@@ -279,9 +281,9 @@ xfs_refcountbt_keys_inorder(
 
 STATIC int
 xfs_refcountbt_recs_inorder(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_rec	*r1,
-	union xfs_btree_rec	*r2)
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_rec	*r1,
+	const union xfs_btree_rec	*r2)
 {
 	return  be32_to_cpu(r1->refc.rc_startblock) +
 		be32_to_cpu(r1->refc.rc_blockcount) <=
@@ -322,11 +324,8 @@ xfs_refcountbt_init_common(
 
 	ASSERT(pag->pag_agno < mp->m_sb.sb_agcount);
 
-	cur = kmem_cache_zalloc(xfs_btree_cur_zone, GFP_NOFS | __GFP_NOFAIL);
-	cur->bc_tp = tp;
-	cur->bc_mp = mp;
-	cur->bc_btnum = XFS_BTNUM_REFC;
-	cur->bc_blocklog = mp->m_sb.sb_blocklog;
+	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_REFC,
+			mp->m_refc_maxlevels, xfs_refcountbt_cur_cache);
 	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_refcbt_2);
 
 	cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
@@ -396,6 +395,18 @@ xfs_refcountbt_commit_staged_btree(
 	xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_refcountbt_ops);
 }
 
+/* Calculate number of records in a refcount btree block. */
+static inline unsigned int
+xfs_refcountbt_block_maxrecs(
+	unsigned int		blocklen,
+	bool			leaf)
+{
+	if (leaf)
+		return blocklen / sizeof(struct xfs_refcount_rec);
+	return blocklen / (sizeof(struct xfs_refcount_key) +
+			   sizeof(xfs_refcount_ptr_t));
+}
+
 /*
  * Calculate the number of records in a refcount btree block.
  */
@@ -405,11 +416,22 @@ xfs_refcountbt_maxrecs(
 	bool			leaf)
 {
 	blocklen -= XFS_REFCOUNT_BLOCK_LEN;
+	return xfs_refcountbt_block_maxrecs(blocklen, leaf);
+}
 
-	if (leaf)
-		return blocklen / sizeof(struct xfs_refcount_rec);
-	return blocklen / (sizeof(struct xfs_refcount_key) +
-			   sizeof(xfs_refcount_ptr_t));
+/* Compute the max possible height of the maximally sized refcount btree. */
+unsigned int
+xfs_refcountbt_maxlevels_ondisk(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = XFS_MIN_CRC_BLOCKSIZE - XFS_BTREE_SBLOCK_CRC_LEN;
+
+	minrecs[0] = xfs_refcountbt_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_refcountbt_block_maxrecs(blocklen, false) / 2;
+
+	return xfs_btree_compute_maxlevels(minrecs, XFS_MAX_CRC_AG_BLOCKS);
 }
 
 /* Compute the maximum height of a refcount btree. */
@@ -417,8 +439,14 @@ void
 xfs_refcountbt_compute_maxlevels(
 	struct xfs_mount		*mp)
 {
+	if (!xfs_has_reflink(mp)) {
+		mp->m_refc_maxlevels = 0;
+		return;
+	}
+
 	mp->m_refc_maxlevels = xfs_btree_compute_maxlevels(
 			mp->m_refc_mnr, mp->m_sb.sb_agblocks);
+	ASSERT(mp->m_refc_maxlevels <= xfs_refcountbt_maxlevels_ondisk());
 }
 
 /* Calculate the refcount btree size for some records. */
@@ -462,7 +490,7 @@ xfs_refcountbt_calc_reserves(
 	xfs_extlen_t		tree_len;
 	int			error;
 
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+	if (!xfs_has_reflink(mp))
 		return 0;
 
 	error = xfs_alloc_read_agf(mp, tp, pag->pag_agno, 0, &agbp);
@@ -487,4 +515,23 @@ xfs_refcountbt_calc_reserves(
 	*used += tree_len;
 
 	return error;
+}
+
+int __init
+xfs_refcountbt_init_cur_cache(void)
+{
+	xfs_refcountbt_cur_cache = kmem_cache_create("xfs_refcbt_cur",
+			xfs_btree_cur_sizeof(xfs_refcountbt_maxlevels_ondisk()),
+			0, 0, NULL);
+
+	if (!xfs_refcountbt_cur_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void
+xfs_refcountbt_destroy_cur_cache(void)
+{
+	kmem_cache_destroy(xfs_refcountbt_cur_cache);
+	xfs_refcountbt_cur_cache = NULL;
 }

@@ -182,22 +182,28 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_rdma_write_imm);
 
-int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
-				    u32 imm_data, enum ib_send_flags flags,
-				    struct ib_send_wr *head)
+static int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con,
+					  struct ib_cqe *cqe,
+					  u32 imm_data,
+					  struct ib_send_wr *head)
 {
 	struct ib_rdma_wr wr;
+	struct rtrs_sess *sess = con->sess;
+	enum ib_send_flags sflags;
+
+	atomic_dec_if_positive(&con->sq_wr_avail);
+	sflags = (atomic_inc_return(&con->wr_cnt) % sess->signal_interval) ?
+		0 : IB_SEND_SIGNALED;
 
 	wr = (struct ib_rdma_wr) {
 		.wr.wr_cqe	= cqe,
-		.wr.send_flags	= flags,
+		.wr.send_flags	= sflags,
 		.wr.opcode	= IB_WR_RDMA_WRITE_WITH_IMM,
 		.wr.ex.imm_data	= cpu_to_be32(imm_data),
 	};
 
 	return rtrs_post_send(con->qp, head, &wr.wr, NULL);
 }
-EXPORT_SYMBOL_GPL(rtrs_post_rdma_write_imm_empty);
 
 static void qp_event_handler(struct ib_event *ev, void *ctx)
 {
@@ -216,13 +222,23 @@ static void qp_event_handler(struct ib_event *ev, void *ctx)
 	}
 }
 
+static bool is_pollqueue(struct rtrs_con *con)
+{
+	return con->cid >= con->sess->irq_con_num;
+}
+
 static int create_cq(struct rtrs_con *con, int cq_vector, int nr_cqe,
 		     enum ib_poll_context poll_ctx)
 {
 	struct rdma_cm_id *cm_id = con->cm_id;
 	struct ib_cq *cq;
 
-	cq = ib_cq_pool_get(cm_id->device, nr_cqe, cq_vector, poll_ctx);
+	if (is_pollqueue(con))
+		cq = ib_alloc_cq(cm_id->device, con, nr_cqe, cq_vector,
+				 poll_ctx);
+	else
+		cq = ib_cq_pool_get(cm_id->device, nr_cqe, cq_vector, poll_ctx);
+
 	if (IS_ERR(cq)) {
 		rtrs_err(con->sess, "Creating completion queue failed, errno: %ld\n",
 			  PTR_ERR(cq));
@@ -263,6 +279,17 @@ static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
 	return ret;
 }
 
+static void destroy_cq(struct rtrs_con *con)
+{
+	if (con->cq) {
+		if (is_pollqueue(con))
+			ib_free_cq(con->cq);
+		else
+			ib_cq_pool_put(con->cq, con->nr_cqe);
+	}
+	con->cq = NULL;
+}
+
 int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 		       u32 max_send_sge, int cq_vector, int nr_cqe,
 		       u32 max_send_wr, u32 max_recv_wr,
@@ -277,8 +304,7 @@ int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 	err = create_qp(con, sess->dev->ib_pd, max_send_wr, max_recv_wr,
 			max_send_sge);
 	if (err) {
-		ib_cq_pool_put(con->cq, con->nr_cqe);
-		con->cq = NULL;
+		destroy_cq(con);
 		return err;
 	}
 	con->sess = sess;
@@ -293,10 +319,7 @@ void rtrs_cq_qp_destroy(struct rtrs_con *con)
 		rdma_destroy_qp(con->cm_id);
 		con->qp = NULL;
 	}
-	if (con->cq) {
-		ib_cq_pool_put(con->cq, con->nr_cqe);
-		con->cq = NULL;
-	}
+	destroy_cq(con);
 }
 EXPORT_SYMBOL_GPL(rtrs_cq_qp_destroy);
 
@@ -314,8 +337,9 @@ void rtrs_send_hb_ack(struct rtrs_sess *sess)
 
 	imm = rtrs_to_imm(RTRS_HB_ACK_IMM, 0);
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
-					     0, NULL);
+					     NULL);
 	if (err) {
+		rtrs_err(sess, "send HB ACK failed, errno: %d\n", err);
 		sess->hb_err_handler(usr_con);
 		return;
 	}
@@ -333,6 +357,7 @@ static void hb_work(struct work_struct *work)
 	usr_con = sess->con[0];
 
 	if (sess->hb_missed_cnt > sess->hb_missed_max) {
+		rtrs_err(sess, "HB missed max reached.\n");
 		sess->hb_err_handler(usr_con);
 		return;
 	}
@@ -346,8 +371,9 @@ static void hb_work(struct work_struct *work)
 
 	imm = rtrs_to_imm(RTRS_HB_MSG_IMM, 0);
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
-					     0, NULL);
+					     NULL);
 	if (err) {
+		rtrs_err(sess, "HB send failed, errno: %d\n", err);
 		sess->hb_err_handler(usr_con);
 		return;
 	}

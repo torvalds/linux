@@ -72,7 +72,7 @@ void test_btf_split() {
 	d = btf_dump__new(btf2, NULL, &opts, btf_dump_printf);
 	if (!ASSERT_OK_PTR(d, "btf_dump__new"))
 		goto cleanup;
-	for (i = 1; i <= btf__get_nr_types(btf2); i++) {
+	for (i = 1; i < btf__type_cnt(btf2); i++) {
 		err = btf_dump__dump_type(d, i);
 		ASSERT_OK(err, "dump_type_ok");
 	}

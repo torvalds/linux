@@ -16,6 +16,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,pm8018
       - qcom,pm8058
       - qcom,pm8821
       - qcom,pm8921

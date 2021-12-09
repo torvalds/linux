@@ -32,31 +32,6 @@ struct i2c_multi_inst_data {
 	struct i2c_client *clients[];
 };
 
-static int i2c_multi_inst_count(struct acpi_resource *ares, void *data)
-{
-	struct acpi_resource_i2c_serialbus *sb;
-	int *count = data;
-
-	if (i2c_acpi_get_i2c_resource(ares, &sb))
-		*count = *count + 1;
-
-	return 1;
-}
-
-static int i2c_multi_inst_count_resources(struct acpi_device *adev)
-{
-	LIST_HEAD(r);
-	int count = 0;
-	int ret;
-
-	ret = acpi_dev_get_resources(adev, &r, i2c_multi_inst_count, &count);
-	if (ret < 0)
-		return ret;
-
-	acpi_dev_free_resource_list(&r);
-	return count;
-}
-
 static int i2c_multi_inst_probe(struct platform_device *pdev)
 {
 	struct i2c_multi_inst_data *multi;
@@ -76,7 +51,7 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 	adev = ACPI_COMPANION(dev);
 
 	/* Count number of clients to instantiate */
-	ret = i2c_multi_inst_count_resources(adev);
+	ret = i2c_acpi_client_count(adev);
 	if (ret < 0)
 		return ret;
 
@@ -164,29 +139,13 @@ static const struct i2c_inst_data bsg2150_data[]  = {
 	{}
 };
 
-/*
- * Device with _HID INT3515 (TI PD controllers) has some unresolved interrupt
- * issues. The most common problem seen is interrupt flood.
- *
- * There are at least two known causes. Firstly, on some boards, the
- * I2CSerialBus resource index does not match the Interrupt resource, i.e. they
- * are not one-to-one mapped like in the array below. Secondly, on some boards
- * the IRQ line from the PD controller is not actually connected at all. But the
- * interrupt flood is also seen on some boards where those are not a problem, so
- * there are some other problems as well.
- *
- * Because of the issues with the interrupt, the device is disabled for now. If
- * you wish to debug the issues, uncomment the below, and add an entry for the
- * INT3515 device to the i2c_multi_instance_ids table.
- *
- * static const struct i2c_inst_data int3515_data[]  = {
- *	{ "tps6598x", IRQ_RESOURCE_APIC, 0 },
- *	{ "tps6598x", IRQ_RESOURCE_APIC, 1 },
- *	{ "tps6598x", IRQ_RESOURCE_APIC, 2 },
- *	{ "tps6598x", IRQ_RESOURCE_APIC, 3 },
- *	{ }
- * };
- */
+static const struct i2c_inst_data int3515_data[]  = {
+	{ "tps6598x", IRQ_RESOURCE_APIC, 0 },
+	{ "tps6598x", IRQ_RESOURCE_APIC, 1 },
+	{ "tps6598x", IRQ_RESOURCE_APIC, 2 },
+	{ "tps6598x", IRQ_RESOURCE_APIC, 3 },
+	{}
+};
 
 /*
  * Note new device-ids must also be added to i2c_multi_instantiate_ids in
@@ -195,6 +154,7 @@ static const struct i2c_inst_data bsg2150_data[]  = {
 static const struct acpi_device_id i2c_multi_inst_acpi_ids[] = {
 	{ "BSG1160", (unsigned long)bsg1160_data },
 	{ "BSG2150", (unsigned long)bsg2150_data },
+	{ "INT3515", (unsigned long)int3515_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, i2c_multi_inst_acpi_ids);

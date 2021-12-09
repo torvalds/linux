@@ -1420,7 +1420,7 @@ static void __gpio_irq_handler(struct st_gpio_bank *bank)
 					continue;
 			}
 
-			generic_handle_irq(irq_find_mapping(bank->gpio_chip.irq.domain, n));
+			generic_handle_domain_irq(bank->gpio_chip.irq.domain, n);
 		}
 	}
 }
@@ -1588,7 +1588,7 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 
 	st_pctl_dt_child_count(info, np);
 	if (!info->nbanks) {
-		dev_err(&pdev->dev, "you need atleast one gpio bank\n");
+		dev_err(&pdev->dev, "you need at least one gpio bank\n");
 		return -EINVAL;
 	}
 

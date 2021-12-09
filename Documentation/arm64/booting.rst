@@ -207,10 +207,17 @@ Before jumping into the kernel, the following conditions must be met:
   software at a higher exception level to prevent execution in an UNKNOWN
   state.
 
-  - SCR_EL3.FIQ must have the same value across all CPUs the kernel is
-    executing on.
-  - The value of SCR_EL3.FIQ must be the same as the one present at boot
-    time whenever the kernel is executing.
+  For all systems:
+  - If EL3 is present:
+
+    - SCR_EL3.FIQ must have the same value across all CPUs the kernel is
+      executing on.
+    - The value of SCR_EL3.FIQ must be the same as the one present at boot
+      time whenever the kernel is executing.
+
+  - If EL3 is present and the kernel is entered at EL2:
+
+    - SCR_EL3.HCE (bit 8) must be initialised to 0b1.
 
   For systems with a GICv3 interrupt controller to be used in v3 mode:
   - If EL3 is present:
@@ -310,6 +317,38 @@ Before jumping into the kernel, the following conditions must be met:
 
     - ZCR_EL2.LEN must be initialised to the same value for all CPUs the
       kernel will execute on.
+
+  For CPUs with the Scalable Matrix Extension (FEAT_SME):
+
+  - If EL3 is present:
+
+    - CPTR_EL3.ESM (bit 12) must be initialised to 0b1.
+
+    - SCR_EL3.EnTP2 (bit 41) must be initialised to 0b1.
+
+    - SMCR_EL3.LEN must be initialised to the same value for all CPUs the
+      kernel will execute on.
+
+ - If the kernel is entered at EL1 and EL2 is present:
+
+    - CPTR_EL2.TSM (bit 12) must be initialised to 0b0.
+
+    - CPTR_EL2.SMEN (bits 25:24) must be initialised to 0b11.
+
+    - SCTLR_EL2.EnTP2 (bit 60) must be initialised to 0b1.
+
+    - SMCR_EL2.LEN must be initialised to the same value for all CPUs the
+      kernel will execute on.
+
+  For CPUs with the Scalable Matrix Extension FA64 feature (FEAT_SME_FA64)
+
+  - If EL3 is present:
+
+    - SMCR_EL3.FA64 (bit 31) must be initialised to 0b1.
+
+ - If the kernel is entered at EL1 and EL2 is present:
+
+    - SMCR_EL2.FA64 (bit 31) must be initialised to 0b1.
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must

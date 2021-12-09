@@ -175,7 +175,7 @@ int svm_range_split_by_granularity(struct kfd_process *p, struct mm_struct *mm,
 			       unsigned long addr, struct svm_range *parent,
 			       struct svm_range *prange);
 int svm_range_restore_pages(struct amdgpu_device *adev,
-			    unsigned int pasid, uint64_t addr);
+			    unsigned int pasid, uint64_t addr, bool write_fault);
 int svm_range_schedule_evict_svm_bo(struct amdgpu_amdkfd_fence *fence);
 void svm_range_add_list_work(struct svm_range_list *svms,
 			     struct svm_range *prange, struct mm_struct *mm,
@@ -188,6 +188,7 @@ void svm_range_prefault(struct svm_range *prange, struct mm_struct *mm,
 			void *owner);
 struct kfd_process_device *
 svm_range_get_pdd_by_adev(struct svm_range *prange, struct amdgpu_device *adev);
+void svm_range_list_lock_and_flush_work(struct svm_range_list *svms, struct mm_struct *mm);
 
 /* SVM API and HMM page migration work together, device memory type
  * is initialized to not 0 when page migration register device memory.
@@ -209,7 +210,8 @@ static inline void svm_range_list_fini(struct kfd_process *p)
 }
 
 static inline int svm_range_restore_pages(struct amdgpu_device *adev,
-					  unsigned int pasid, uint64_t addr)
+					  unsigned int pasid, uint64_t addr,
+					  bool write_fault)
 {
 	return -EFAULT;
 }

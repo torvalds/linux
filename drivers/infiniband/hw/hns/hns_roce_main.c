@@ -42,7 +42,8 @@
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
 
-static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u32 port, u8 *addr)
+static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u32 port,
+			    const u8 *addr)
 {
 	u8 phy_port;
 	u32 i;
@@ -291,6 +292,79 @@ static int hns_roce_modify_device(struct ib_device *ib_dev, int mask,
 	return 0;
 }
 
+struct hns_user_mmap_entry *
+hns_roce_user_mmap_entry_insert(struct ib_ucontext *ucontext, u64 address,
+				size_t length,
+				enum hns_roce_mmap_type mmap_type)
+{
+	struct hns_user_mmap_entry *entry;
+	int ret;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return NULL;
+
+	entry->address = address;
+	entry->mmap_type = mmap_type;
+
+	ret = rdma_user_mmap_entry_insert_exact(
+		ucontext, &entry->rdma_entry, length,
+		mmap_type == HNS_ROCE_MMAP_TYPE_DB ? 0 : 1);
+	if (ret) {
+		kfree(entry);
+		return NULL;
+	}
+
+	return entry;
+}
+
+static void hns_roce_dealloc_uar_entry(struct hns_roce_ucontext *context)
+{
+	if (context->db_mmap_entry)
+		rdma_user_mmap_entry_remove(
+			&context->db_mmap_entry->rdma_entry);
+
+	if (context->tptr_mmap_entry)
+		rdma_user_mmap_entry_remove(
+			&context->tptr_mmap_entry->rdma_entry);
+}
+
+static int hns_roce_alloc_uar_entry(struct ib_ucontext *uctx)
+{
+	struct hns_roce_ucontext *context = to_hr_ucontext(uctx);
+	struct hns_roce_dev *hr_dev = to_hr_dev(uctx->device);
+	u64 address;
+	int ret;
+
+	address = context->uar.pfn << PAGE_SHIFT;
+	context->db_mmap_entry = hns_roce_user_mmap_entry_insert(
+		uctx, address, PAGE_SIZE, HNS_ROCE_MMAP_TYPE_DB);
+	if (!context->db_mmap_entry)
+		return -ENOMEM;
+
+	if (!hr_dev->tptr_dma_addr || !hr_dev->tptr_size)
+		return 0;
+
+	/*
+	 * FIXME: using io_remap_pfn_range on the dma address returned
+	 * by dma_alloc_coherent is totally wrong.
+	 */
+	context->tptr_mmap_entry =
+		hns_roce_user_mmap_entry_insert(uctx, hr_dev->tptr_dma_addr,
+						hr_dev->tptr_size,
+						HNS_ROCE_MMAP_TYPE_TPTR);
+	if (!context->tptr_mmap_entry) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	return 0;
+
+err:
+	hns_roce_dealloc_uar_entry(context);
+	return ret;
+}
+
 static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 				   struct ib_udata *udata)
 {
@@ -309,6 +383,10 @@ static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 	if (ret)
 		goto error_fail_uar_alloc;
 
+	ret = hns_roce_alloc_uar_entry(uctx);
+	if (ret)
+		goto error_fail_uar_entry;
+
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
 	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB) {
 		INIT_LIST_HEAD(&context->page_list);
@@ -325,7 +403,10 @@ static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 	return 0;
 
 error_fail_copy_to_udata:
-	hns_roce_uar_free(hr_dev, &context->uar);
+	hns_roce_dealloc_uar_entry(context);
+
+error_fail_uar_entry:
+	ida_free(&hr_dev->uar_ida.ida, (int)context->uar.logic_idx);
 
 error_fail_uar_alloc:
 	return ret;
@@ -334,40 +415,45 @@ error_fail_uar_alloc:
 static void hns_roce_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibcontext->device);
 
-	hns_roce_uar_free(to_hr_dev(ibcontext->device), &context->uar);
+	hns_roce_dealloc_uar_entry(context);
+
+	ida_free(&hr_dev->uar_ida.ida, (int)context->uar.logic_idx);
 }
 
-static int hns_roce_mmap(struct ib_ucontext *context,
-			 struct vm_area_struct *vma)
+static int hns_roce_mmap(struct ib_ucontext *uctx, struct vm_area_struct *vma)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(context->device);
+	struct rdma_user_mmap_entry *rdma_entry;
+	struct hns_user_mmap_entry *entry;
+	phys_addr_t pfn;
+	pgprot_t prot;
+	int ret;
 
-	switch (vma->vm_pgoff) {
-	case 0:
-		return rdma_user_mmap_io(context, vma,
-					 to_hr_ucontext(context)->uar.pfn,
-					 PAGE_SIZE,
-					 pgprot_noncached(vma->vm_page_prot),
-					 NULL);
-
-	/* vm_pgoff: 1 -- TPTR */
-	case 1:
-		if (!hr_dev->tptr_dma_addr || !hr_dev->tptr_size)
-			return -EINVAL;
-		/*
-		 * FIXME: using io_remap_pfn_range on the dma address returned
-		 * by dma_alloc_coherent is totally wrong.
-		 */
-		return rdma_user_mmap_io(context, vma,
-					 hr_dev->tptr_dma_addr >> PAGE_SHIFT,
-					 hr_dev->tptr_size,
-					 vma->vm_page_prot,
-					 NULL);
-
-	default:
+	rdma_entry = rdma_user_mmap_entry_get_pgoff(uctx, vma->vm_pgoff);
+	if (!rdma_entry)
 		return -EINVAL;
-	}
+
+	entry = to_hns_mmap(rdma_entry);
+	pfn = entry->address >> PAGE_SHIFT;
+	prot = vma->vm_page_prot;
+
+	if (entry->mmap_type != HNS_ROCE_MMAP_TYPE_TPTR)
+		prot = pgprot_noncached(prot);
+
+	ret = rdma_user_mmap_io(uctx, vma, pfn, rdma_entry->npages * PAGE_SIZE,
+				prot, rdma_entry);
+
+	rdma_user_mmap_entry_put(rdma_entry);
+
+	return ret;
+}
+
+static void hns_roce_free_mmap(struct rdma_user_mmap_entry *rdma_entry)
+{
+	struct hns_user_mmap_entry *entry = to_hns_mmap(rdma_entry);
+
+	kfree(entry);
 }
 
 static int hns_roce_port_immutable(struct ib_device *ib_dev, u32 port_num,
@@ -443,6 +529,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.get_link_layer = hns_roce_get_link_layer,
 	.get_port_immutable = hns_roce_port_immutable,
 	.mmap = hns_roce_mmap,
+	.mmap_free = hns_roce_free_mmap,
 	.modify_device = hns_roce_modify_device,
 	.modify_qp = hns_roce_modify_qp,
 	.query_ah = hns_roce_query_ah,
@@ -454,6 +541,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, hns_roce_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, hns_roce_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, hns_roce_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, hns_roce_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, hns_roce_ucontext, ibucontext),
 };
 
@@ -736,15 +824,17 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		mutex_init(&hr_dev->pgdir_mutex);
 	}
 
-	ret = hns_roce_init_uar_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "Failed to initialize uar table. aborting\n");
-		return ret;
-	}
+	hns_roce_init_uar_table(hr_dev);
 
 	ret = hns_roce_uar_alloc(hr_dev, &hr_dev->priv_uar);
 	if (ret) {
 		dev_err(dev, "Failed to allocate priv_uar.\n");
+		goto err_uar_table_free;
+	}
+
+	ret = hns_roce_init_qp_table(hr_dev);
+	if (ret) {
+		dev_err(dev, "Failed to init qp_table.\n");
 		goto err_uar_table_free;
 	}
 
@@ -757,32 +847,14 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 	hns_roce_init_cq_table(hr_dev);
 
-	hns_roce_init_qp_table(hr_dev);
-
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
-		ret = hns_roce_init_srq_table(hr_dev);
-		if (ret) {
-			dev_err(dev,
-				"Failed to init share receive queue table.\n");
-			goto err_qp_table_free;
-		}
+		hns_roce_init_srq_table(hr_dev);
 	}
 
 	return 0;
 
-err_qp_table_free:
-	hns_roce_cleanup_qp_table(hr_dev);
-	hns_roce_cleanup_cq_table(hr_dev);
-	ida_destroy(&hr_dev->mr_table.mtpt_ida.ida);
-
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
-		ida_destroy(&hr_dev->xrcd_ida.ida);
-
-	ida_destroy(&hr_dev->pd_ida.ida);
-	hns_roce_uar_free(hr_dev, &hr_dev->priv_uar);
-
 err_uar_table_free:
-	hns_roce_cleanup_uar_table(hr_dev);
+	ida_destroy(&hr_dev->uar_ida.ida);
 	return ret;
 }
 

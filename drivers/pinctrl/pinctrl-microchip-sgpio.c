@@ -17,6 +17,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/reset.h>
 
 #include "core.h"
 #include "pinconf.h"
@@ -673,7 +674,7 @@ static void sgpio_irq_handler(struct irq_desc *desc)
 
 		for_each_set_bit(port, &val, SGPIO_BITS_PER_WORD) {
 			gpio = sgpio_addr_to_pin(priv, port, bit);
-			generic_handle_irq(irq_linear_revmap(chip->irq.domain, gpio));
+			generic_handle_domain_irq(chip->irq.domain, gpio);
 		}
 
 		chained_irq_exit(parent_chip, desc);
@@ -803,6 +804,7 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 	int div_clock = 0, ret, port, i, nbanks;
 	struct device *dev = &pdev->dev;
 	struct fwnode_handle *fwnode;
+	struct reset_control *reset;
 	struct sgpio_priv *priv;
 	struct clk *clk;
 	u32 val;
@@ -812,6 +814,11 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->dev = dev;
+
+	reset = devm_reset_control_get_optional_shared(&pdev->dev, "switch");
+	if (IS_ERR(reset))
+		return dev_err_probe(dev, PTR_ERR(reset), "Failed to get reset\n");
+	reset_control_reset(reset);
 
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))

@@ -3,7 +3,7 @@
  * Test module for unwind_for_each_frame
  */
 
-#define pr_fmt(fmt) "test_unwind: " fmt
+#include <kunit/test.h>
 #include <asm/unwind.h>
 #include <linux/completion.h>
 #include <linux/kallsyms.h>
@@ -15,6 +15,8 @@
 #include <linux/kprobes.h>
 #include <linux/wait.h>
 #include <asm/irq.h>
+
+struct kunit *current_test;
 
 #define BT_BUF_SIZE (PAGE_SIZE * 4)
 
@@ -29,7 +31,7 @@ static void print_backtrace(char *bt)
 		p = strsep(&bt, "\n");
 		if (!p)
 			break;
-		pr_err("%s\n", p);
+		kunit_err(current_test, "%s\n", p);
 	}
 }
 
@@ -49,7 +51,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 
 	bt = kmalloc(BT_BUF_SIZE, GFP_ATOMIC);
 	if (!bt) {
-		pr_err("failed to allocate backtrace buffer\n");
+		kunit_err(current_test, "failed to allocate backtrace buffer\n");
 		return -ENOMEM;
 	}
 	/* Unwind. */
@@ -63,7 +65,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 		if (frame_count++ == max_frames)
 			break;
 		if (state.reliable && !addr) {
-			pr_err("unwind state reliable but addr is 0\n");
+			kunit_err(current_test, "unwind state reliable but addr is 0\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -75,7 +77,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 					   stack_type_name(state.stack_info.type),
 					   (void *)state.sp, (void *)state.ip);
 			if (bt_pos >= BT_BUF_SIZE)
-				pr_err("backtrace buffer is too small\n");
+				kunit_err(current_test, "backtrace buffer is too small\n");
 		}
 		frame_count += 1;
 		if (prev_is_func2 && str_has_prefix(sym, "unwindme_func1"))
@@ -85,15 +87,15 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 
 	/* Check the results. */
 	if (unwind_error(&state)) {
-		pr_err("unwind error\n");
+		kunit_err(current_test, "unwind error\n");
 		ret = -EINVAL;
 	}
 	if (!seen_func2_func1) {
-		pr_err("unwindme_func2 and unwindme_func1 not found\n");
+		kunit_err(current_test, "unwindme_func2 and unwindme_func1 not found\n");
 		ret = -EINVAL;
 	}
 	if (frame_count == max_frames) {
-		pr_err("Maximum number of frames exceeded\n");
+		kunit_err(current_test, "Maximum number of frames exceeded\n");
 		ret = -EINVAL;
 	}
 	if (ret)
@@ -166,7 +168,7 @@ static noinline int unwindme_func4(struct unwindme *u)
 		kp.pre_handler = pgm_pre_handler;
 		ret = register_kprobe(&kp);
 		if (ret < 0) {
-			pr_err("register_kprobe failed %d\n", ret);
+			kunit_err(current_test, "register_kprobe failed %d\n", ret);
 			return -EINVAL;
 		}
 
@@ -252,7 +254,7 @@ static int test_unwind_irq(struct unwindme *u)
 }
 
 /* Spawns a task and passes it to test_unwind(). */
-static int test_unwind_task(struct unwindme *u)
+static int test_unwind_task(struct kunit *test, struct unwindme *u)
 {
 	struct task_struct *task;
 	int ret;
@@ -267,7 +269,7 @@ static int test_unwind_task(struct unwindme *u)
 	 */
 	task = kthread_run(unwindme_func1, u, "%s", __func__);
 	if (IS_ERR(task)) {
-		pr_err("kthread_run() failed\n");
+		kunit_err(test, "kthread_run() failed\n");
 		return PTR_ERR(task);
 	}
 	/*
@@ -282,77 +284,98 @@ static int test_unwind_task(struct unwindme *u)
 	return ret;
 }
 
-static int test_unwind_flags(int flags)
+struct test_params {
+	int flags;
+	char *name;
+};
+
+/*
+ * Create required parameter list for tests
+ */
+static const struct test_params param_list[] = {
+	{.flags = UWM_DEFAULT, .name = "UWM_DEFAULT"},
+	{.flags = UWM_SP, .name = "UWM_SP"},
+	{.flags = UWM_REGS, .name = "UWM_REGS"},
+	{.flags = UWM_SWITCH_STACK,
+		.name = "UWM_SWITCH_STACK"},
+	{.flags = UWM_SP | UWM_REGS,
+		.name = "UWM_SP | UWM_REGS"},
+	{.flags = UWM_CALLER | UWM_SP,
+		.name = "WM_CALLER | UWM_SP"},
+	{.flags = UWM_CALLER | UWM_SP | UWM_REGS,
+		.name = "UWM_CALLER | UWM_SP | UWM_REGS"},
+	{.flags = UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK,
+		.name = "UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK"},
+	{.flags = UWM_THREAD, .name = "UWM_THREAD"},
+	{.flags = UWM_THREAD | UWM_SP,
+		.name = "UWM_THREAD | UWM_SP"},
+	{.flags = UWM_THREAD | UWM_CALLER | UWM_SP,
+		.name = "UWM_THREAD | UWM_CALLER | UWM_SP"},
+	{.flags = UWM_IRQ, .name = "UWM_IRQ"},
+	{.flags = UWM_IRQ | UWM_SWITCH_STACK,
+		.name = "UWM_IRQ | UWM_SWITCH_STACK"},
+	{.flags = UWM_IRQ | UWM_SP,
+		.name = "UWM_IRQ | UWM_SP"},
+	{.flags = UWM_IRQ | UWM_REGS,
+		.name = "UWM_IRQ | UWM_REGS"},
+	{.flags = UWM_IRQ | UWM_SP | UWM_REGS,
+		.name = "UWM_IRQ | UWM_SP | UWM_REGS"},
+	{.flags = UWM_IRQ | UWM_CALLER | UWM_SP,
+		.name = "UWM_IRQ | UWM_CALLER | UWM_SP"},
+	{.flags = UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS,
+		.name = "UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS"},
+	{.flags = UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK,
+		.name = "UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK"},
+	#ifdef CONFIG_KPROBES
+	{.flags = UWM_PGM, .name = "UWM_PGM"},
+	{.flags = UWM_PGM | UWM_SP,
+		.name = "UWM_PGM | UWM_SP"},
+	{.flags = UWM_PGM | UWM_REGS,
+		.name = "UWM_PGM | UWM_REGS"},
+	{.flags = UWM_PGM | UWM_SP | UWM_REGS,
+		.name = "UWM_PGM | UWM_SP | UWM_REGS"},
+	#endif
+};
+
+/*
+ * Parameter description generator: required for KUNIT_ARRAY_PARAM()
+ */
+static void get_desc(const struct test_params *params, char *desc)
+{
+	strscpy(desc, params->name, KUNIT_PARAM_DESC_SIZE);
+}
+
+/*
+ * Create test_unwind_gen_params
+ */
+KUNIT_ARRAY_PARAM(test_unwind, param_list, get_desc);
+
+static void test_unwind_flags(struct kunit *test)
 {
 	struct unwindme u;
+	const struct test_params *params;
 
-	u.flags = flags;
+	current_test = test;
+	params = (const struct test_params *)test->param_value;
+	u.flags = params->flags;
 	if (u.flags & UWM_THREAD)
-		return test_unwind_task(&u);
+		KUNIT_EXPECT_EQ(test, 0, test_unwind_task(test, &u));
 	else if (u.flags & UWM_IRQ)
-		return test_unwind_irq(&u);
+		KUNIT_EXPECT_EQ(test, 0, test_unwind_irq(&u));
 	else
-		return unwindme_func1(&u);
+		KUNIT_EXPECT_EQ(test, 0, unwindme_func1(&u));
 }
 
-static int test_unwind_init(void)
-{
-	int failed = 0;
-	int total = 0;
+static struct kunit_case unwind_test_cases[] = {
+	KUNIT_CASE_PARAM(test_unwind_flags, test_unwind_gen_params),
+	{}
+};
 
-#define TEST(flags)							\
-do {									\
-	pr_info("[ RUN      ] " #flags "\n");				\
-	total++;							\
-	if (!test_unwind_flags((flags))) {				\
-		pr_info("[       OK ] " #flags "\n");			\
-	} else {							\
-		pr_err("[  FAILED  ] " #flags "\n");			\
-		failed++;						\
-	}								\
-} while (0)
+static struct kunit_suite test_unwind_suite = {
+	.name = "test_unwind",
+	.test_cases = unwind_test_cases,
+};
 
-	pr_info("running stack unwinder tests");
-	TEST(UWM_DEFAULT);
-	TEST(UWM_SP);
-	TEST(UWM_REGS);
-	TEST(UWM_SWITCH_STACK);
-	TEST(UWM_SP | UWM_REGS);
-	TEST(UWM_CALLER | UWM_SP);
-	TEST(UWM_CALLER | UWM_SP | UWM_REGS);
-	TEST(UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK);
-	TEST(UWM_THREAD);
-	TEST(UWM_THREAD | UWM_SP);
-	TEST(UWM_THREAD | UWM_CALLER | UWM_SP);
-	TEST(UWM_IRQ);
-	TEST(UWM_IRQ | UWM_SWITCH_STACK);
-	TEST(UWM_IRQ | UWM_SP);
-	TEST(UWM_IRQ | UWM_REGS);
-	TEST(UWM_IRQ | UWM_SP | UWM_REGS);
-	TEST(UWM_IRQ | UWM_CALLER | UWM_SP);
-	TEST(UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS);
-	TEST(UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK);
-#ifdef CONFIG_KPROBES
-	TEST(UWM_PGM);
-	TEST(UWM_PGM | UWM_SP);
-	TEST(UWM_PGM | UWM_REGS);
-	TEST(UWM_PGM | UWM_SP | UWM_REGS);
-#endif
-#undef TEST
-	if (failed) {
-		pr_err("%d of %d stack unwinder tests failed", failed, total);
-		WARN(1, "%d of %d stack unwinder tests failed", failed, total);
-	} else {
-		pr_info("all %d stack unwinder tests passed", total);
-	}
+kunit_test_suites(&test_unwind_suite);
 
-	return failed ? -EINVAL : 0;
-}
-
-static void test_unwind_exit(void)
-{
-}
-
-module_init(test_unwind_init);
-module_exit(test_unwind_exit);
 MODULE_LICENSE("GPL");

@@ -294,6 +294,16 @@ static const struct iio_info ad9832_info = {
 	.attrs = &ad9832_attribute_group,
 };
 
+static void ad9832_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
+static void ad9832_clk_disable(void *clk)
+{
+	clk_disable_unprepare(clk);
+}
+
 static int ad9832_probe(struct spi_device *spi)
 {
 	struct ad9832_platform_data *pdata = dev_get_platdata(&spi->dev);
@@ -310,7 +320,6 @@ static int ad9832_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
 
 	st->avdd = devm_regulator_get(&spi->dev, "avdd");
@@ -323,27 +332,35 @@ static int ad9832_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	ret = devm_add_action_or_reset(&spi->dev, ad9832_reg_disable, st->avdd);
+	if (ret)
+		return ret;
+
 	st->dvdd = devm_regulator_get(&spi->dev, "dvdd");
-	if (IS_ERR(st->dvdd)) {
-		ret = PTR_ERR(st->dvdd);
-		goto error_disable_avdd;
-	}
+	if (IS_ERR(st->dvdd))
+		return PTR_ERR(st->dvdd);
 
 	ret = regulator_enable(st->dvdd);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to enable specified DVDD supply\n");
-		goto error_disable_avdd;
+		return ret;
 	}
 
+	ret = devm_add_action_or_reset(&spi->dev, ad9832_reg_disable, st->dvdd);
+	if (ret)
+		return ret;
+
 	st->mclk = devm_clk_get(&spi->dev, "mclk");
-	if (IS_ERR(st->mclk)) {
-		ret = PTR_ERR(st->mclk);
-		goto error_disable_dvdd;
-	}
+	if (IS_ERR(st->mclk))
+		return PTR_ERR(st->mclk);
 
 	ret = clk_prepare_enable(st->mclk);
 	if (ret < 0)
-		goto error_disable_dvdd;
+		return ret;
+
+	ret = devm_add_action_or_reset(&spi->dev, ad9832_clk_disable, st->mclk);
+	if (ret)
+		return ret;
 
 	st->spi = spi;
 	mutex_init(&st->lock);
@@ -394,60 +411,34 @@ static int ad9832_probe(struct spi_device *spi)
 	ret = spi_sync(st->spi, &st->msg);
 	if (ret) {
 		dev_err(&spi->dev, "device init failed\n");
-		goto error_unprepare_mclk;
+		return ret;
 	}
 
 	ret = ad9832_write_frequency(st, AD9832_FREQ0HM, pdata->freq0);
 	if (ret)
-		goto error_unprepare_mclk;
+		return ret;
 
 	ret = ad9832_write_frequency(st, AD9832_FREQ1HM, pdata->freq1);
 	if (ret)
-		goto error_unprepare_mclk;
+		return ret;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE0H, pdata->phase0);
 	if (ret)
-		goto error_unprepare_mclk;
+		return ret;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE1H, pdata->phase1);
 	if (ret)
-		goto error_unprepare_mclk;
+		return ret;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE2H, pdata->phase2);
 	if (ret)
-		goto error_unprepare_mclk;
+		return ret;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE3H, pdata->phase3);
 	if (ret)
-		goto error_unprepare_mclk;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unprepare_mclk;
-
-	return 0;
-
-error_unprepare_mclk:
-	clk_disable_unprepare(st->mclk);
-error_disable_dvdd:
-	regulator_disable(st->dvdd);
-error_disable_avdd:
-	regulator_disable(st->avdd);
-
-	return ret;
-}
-
-static int ad9832_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad9832_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	clk_disable_unprepare(st->mclk);
-	regulator_disable(st->dvdd);
-	regulator_disable(st->avdd);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad9832_id[] = {
@@ -462,7 +453,6 @@ static struct spi_driver ad9832_driver = {
 		.name	= "ad9832",
 	},
 	.probe		= ad9832_probe,
-	.remove		= ad9832_remove,
 	.id_table	= ad9832_id,
 };
 module_spi_driver(ad9832_driver);

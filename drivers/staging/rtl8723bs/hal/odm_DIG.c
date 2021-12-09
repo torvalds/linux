@@ -7,8 +7,6 @@
 
 #include "odm_precomp.h"
 
-#define ADAPTIVITY_VERSION "5.0"
-
 void odm_NHMCounterStatisticsInit(void *pDM_VOID)
 {
 	struct dm_odm_t	*pDM_Odm = (struct dm_odm_t *)pDM_VOID;
@@ -304,8 +302,7 @@ void ODM_Write_DIG(void *pDM_VOID, u8 CurrentIGI)
 		/* 1 Set IGI value */
 		PHY_SetBBReg(pDM_Odm->Adapter, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 
-		if (pDM_Odm->RFType > ODM_1T1R)
-			PHY_SetBBReg(pDM_Odm->Adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
+		PHY_SetBBReg(pDM_Odm->Adapter, ODM_REG(IGI_B, pDM_Odm), ODM_BIT(IGI, pDM_Odm), CurrentIGI);
 
 		pDM_DigTable->CurIGValue = CurrentIGI;
 	}
@@ -547,7 +544,7 @@ void odm_DIG(void *pDM_VOID)
 	/* 1 Adjust initial gain by false alarm */
 	if (pDM_Odm->bLinked && bPerformance) {
 
-		if (bFirstTpTarget || (FirstConnect && bPerformance)) {
+		if (bFirstTpTarget || FirstConnect) {
 			pDM_DigTable->LargeFAHit = 0;
 
 			if (pDM_Odm->RSSI_Min < DIG_MaxOfMin) {

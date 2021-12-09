@@ -351,12 +351,12 @@ static int qedi_init_uio(struct qedi_ctx *qedi)
 static int qedi_alloc_and_init_sb(struct qedi_ctx *qedi,
 				  struct qed_sb_info *sb_info, u16 sb_id)
 {
-	struct status_block_e4 *sb_virt;
+	struct status_block *sb_virt;
 	dma_addr_t sb_phys;
 	int ret;
 
 	sb_virt = dma_alloc_coherent(&qedi->pdev->dev,
-				     sizeof(struct status_block_e4), &sb_phys,
+				     sizeof(struct status_block), &sb_phys,
 				     GFP_KERNEL);
 	if (!sb_virt) {
 		QEDI_ERR(&qedi->dbg_ctx,
@@ -865,7 +865,8 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	qedi->pf_params.iscsi_pf_params.num_uhq_pages_in_ring = num_sq_pages;
 	qedi->pf_params.iscsi_pf_params.num_queues = qedi->num_queues;
 	qedi->pf_params.iscsi_pf_params.debug_mode = qedi_fw_debug;
-	qedi->pf_params.iscsi_pf_params.two_msl_timer = 4000;
+	qedi->pf_params.iscsi_pf_params.two_msl_timer = QED_TWO_MSL_TIMER_DFLT;
+	qedi->pf_params.iscsi_pf_params.tx_sws_timer = QED_TX_SWS_TIMER_DFLT;
 	qedi->pf_params.iscsi_pf_params.max_fin_rt = 2;
 
 	for (log_page_size = 0 ; log_page_size < 32 ; log_page_size++) {
@@ -1259,7 +1260,7 @@ static bool qedi_process_completions(struct qedi_fastpath *fp)
 {
 	struct qedi_ctx *qedi = fp->qedi;
 	struct qed_sb_info *sb_info = fp->sb_info;
-	struct status_block_e4 *sb = sb_info->sb_virt;
+	struct status_block *sb = sb_info->sb_virt;
 	struct qedi_percpu_s *p = NULL;
 	struct global_queue *que;
 	u16 prod_idx;
@@ -1315,7 +1316,7 @@ static bool qedi_fp_has_work(struct qedi_fastpath *fp)
 	struct qedi_ctx *qedi = fp->qedi;
 	struct global_queue *que;
 	struct qed_sb_info *sb_info = fp->sb_info;
-	struct status_block_e4 *sb = sb_info->sb_virt;
+	struct status_block *sb = sb_info->sb_virt;
 	u16 prod_idx;
 
 	barrier();
@@ -1621,7 +1622,7 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 {
 	u32 *list;
 	int i;
-	int status = 0, rc;
+	int status;
 	u32 *pbl;
 	dma_addr_t page;
 	int num_pages;
@@ -1632,14 +1633,14 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 	 */
 	if (!qedi->num_queues) {
 		QEDI_ERR(&qedi->dbg_ctx, "No MSI-X vectors available!\n");
-		return 1;
+		return -ENOMEM;
 	}
 
 	/* Make sure we allocated the PBL that will contain the physical
 	 * addresses of our queues
 	 */
 	if (!qedi->p_cpuq) {
-		status = 1;
+		status = -EINVAL;
 		goto mem_alloc_failure;
 	}
 
@@ -1654,13 +1655,13 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 		  "qedi->global_queues=%p.\n", qedi->global_queues);
 
 	/* Allocate DMA coherent buffers for BDQ */
-	rc = qedi_alloc_bdq(qedi);
-	if (rc)
+	status = qedi_alloc_bdq(qedi);
+	if (status)
 		goto mem_alloc_failure;
 
 	/* Allocate DMA coherent buffers for NVM_ISCSI_CFG */
-	rc = qedi_alloc_nvm_iscsi_cfg(qedi);
-	if (rc)
+	status = qedi_alloc_nvm_iscsi_cfg(qedi);
+	if (status)
 		goto mem_alloc_failure;
 
 	/* Allocate a CQ and an associated PBL for each MSI-X

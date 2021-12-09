@@ -431,6 +431,7 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	const struct sseu_dev_info *sseu = &ee->engine->gt->info.sseu;
 	int slice;
 	int subslice;
+	int iter;
 
 	err_printf(m, "  INSTDONE: 0x%08x\n",
 		   ee->instdone.instdone);
@@ -444,18 +445,37 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	if (GRAPHICS_VER(m->i915) <= 6)
 		return;
 
-	for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
-		err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
-			   slice, subslice,
-			   ee->instdone.sampler[slice][subslice]);
+	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 50)) {
+		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
+			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.sampler[slice][subslice]);
 
-	for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
-		err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
-			   slice, subslice,
-			   ee->instdone.row[slice][subslice]);
+		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
+			err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.row[slice][subslice]);
+	} else {
+		for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
+			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.sampler[slice][subslice]);
+
+		for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
+			err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.row[slice][subslice]);
+	}
 
 	if (GRAPHICS_VER(m->i915) < 12)
 		return;
+
+	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 55)) {
+		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
+			err_printf(m, "  GEOM_SVGUNIT_INSTDONE[%d][%d]: 0x%08x\n",
+				   slice, subslice,
+				   ee->instdone.geom_svg[slice][subslice]);
+	}
 
 	err_printf(m, "  SC_INSTDONE_EXTRA: 0x%08x\n",
 		   ee->instdone.slice_common_extra[0]);
@@ -727,9 +747,19 @@ static void err_print_gt(struct drm_i915_error_state_buf *m,
 	if (GRAPHICS_VER(m->i915) >= 12) {
 		int i;
 
-		for (i = 0; i < GEN12_SFC_DONE_MAX; i++)
+		for (i = 0; i < GEN12_SFC_DONE_MAX; i++) {
+			/*
+			 * SFC_DONE resides in the VD forcewake domain, so it
+			 * only exists if the corresponding VCS engine is
+			 * present.
+			 */
+			if ((gt->_gt->info.sfc_mask & BIT(i)) == 0 ||
+			    !HAS_ENGINE(gt->_gt, _VCS(i * 2)))
+				continue;
+
 			err_printf(m, "  SFC_DONE[%d]: 0x%08x\n", i,
 				   gt->sfc_done[i]);
+		}
 
 		err_printf(m, "  GAM_DONE: 0x%08x\n", gt->gam_done);
 	}
@@ -1039,7 +1069,7 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 			if (ret)
 				break;
 		}
-	} else if (i915_gem_object_is_lmem(vma->obj)) {
+	} else if (__i915_gem_object_is_lmem(vma->obj)) {
 		struct intel_memory_region *mem = vma->obj->mm.region;
 		dma_addr_t dma;
 
@@ -1429,20 +1459,37 @@ capture_engine(struct intel_engine_cs *engine,
 {
 	struct intel_engine_capture_vma *capture = NULL;
 	struct intel_engine_coredump *ee;
-	struct i915_request *rq;
+	struct intel_context *ce;
+	struct i915_request *rq = NULL;
 	unsigned long flags;
 
 	ee = intel_engine_coredump_alloc(engine, GFP_KERNEL);
 	if (!ee)
 		return NULL;
 
-	spin_lock_irqsave(&engine->active.lock, flags);
-	rq = intel_engine_find_active_request(engine);
+	ce = intel_engine_get_hung_context(engine);
+	if (ce) {
+		intel_engine_clear_hung_context(engine);
+		rq = intel_context_find_active_request(ce);
+		if (!rq || !i915_request_started(rq))
+			goto no_request_capture;
+	} else {
+		/*
+		 * Getting here with GuC enabled means it is a forced error capture
+		 * with no actual hang. So, no need to attempt the execlist search.
+		 */
+		if (!intel_uc_uses_guc_submission(&engine->gt->uc)) {
+			spin_lock_irqsave(&engine->sched_engine->lock, flags);
+			rq = intel_engine_execlist_find_hung_request(engine);
+			spin_unlock_irqrestore(&engine->sched_engine->lock,
+					       flags);
+		}
+	}
 	if (rq)
 		capture = intel_engine_coredump_add_request(ee, rq,
 							    ATOMIC_MAYFAIL);
-	spin_unlock_irqrestore(&engine->active.lock, flags);
 	if (!capture) {
+no_request_capture:
 		kfree(ee);
 		return NULL;
 	}
@@ -1581,6 +1628,15 @@ static void gt_record_regs(struct intel_gt_coredump *gt)
 
 	if (GRAPHICS_VER(i915) >= 12) {
 		for (i = 0; i < GEN12_SFC_DONE_MAX; i++) {
+			/*
+			 * SFC_DONE resides in the VD forcewake domain, so it
+			 * only exists if the corresponding VCS engine is
+			 * present.
+			 */
+			if ((gt->_gt->info.sfc_mask & BIT(i)) == 0 ||
+			    !HAS_ENGINE(gt->_gt, _VCS(i * 2)))
+				continue;
+
 			gt->sfc_done[i] =
 				intel_uncore_read(uncore, GEN12_SFC_DONE(i));
 		}

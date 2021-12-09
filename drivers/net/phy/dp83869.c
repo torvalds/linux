@@ -246,7 +246,7 @@ static int dp83869_set_wol(struct phy_device *phydev,
 {
 	struct net_device *ndev = phydev->attached_dev;
 	int val_rxcfg, val_micr;
-	u8 *mac;
+	const u8 *mac;
 	int ret;
 
 	val_rxcfg = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_RXFCFG);
@@ -264,7 +264,7 @@ static int dp83869_set_wol(struct phy_device *phydev,
 
 		if (wol->wolopts & WAKE_MAGIC ||
 		    wol->wolopts & WAKE_MAGICSECURE) {
-			mac = (u8 *)ndev->dev_addr;
+			mac = (const u8 *)ndev->dev_addr;
 
 			if (!is_valid_ether_addr(mac))
 				return -EINVAL;

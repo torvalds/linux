@@ -4,6 +4,8 @@
 
 #include <asm/bug.h>
 #include <asm/book3s/32/mmu-hash.h>
+#include <asm/mmu.h>
+#include <asm/synch.h>
 
 #ifndef __ASSEMBLY__
 
@@ -28,6 +30,15 @@ static inline void kuep_lock(void)
 		return;
 
 	update_user_segments(mfsr(0) | SR_NX);
+	/*
+	 * This isync() shouldn't be necessary as the kernel is not excepted to
+	 * run any instruction in userspace soon after the update of segments,
+	 * but hash based cores (at least G3) seem to exhibit a random
+	 * behaviour when the 'isync' is not there. 603 cores don't have this
+	 * behaviour so don't do the 'isync' as it saves several CPU cycles.
+	 */
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		isync();	/* Context sync required after mtsr() */
 }
 
 static inline void kuep_unlock(void)
@@ -36,6 +47,15 @@ static inline void kuep_unlock(void)
 		return;
 
 	update_user_segments(mfsr(0) & ~SR_NX);
+	/*
+	 * This isync() shouldn't be necessary as a 'rfi' will soon be executed
+	 * to return to userspace, but hash based cores (at least G3) seem to
+	 * exhibit a random behaviour when the 'isync' is not there. 603 cores
+	 * don't have this behaviour so don't do the 'isync' as it saves several
+	 * CPU cycles.
+	 */
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		isync();	/* Context sync required after mtsr() */
 }
 
 #ifdef CONFIG_PPC_KUAP
@@ -114,6 +134,14 @@ static inline void kuap_user_restore(struct pt_regs *regs)
 static inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
 {
 	if (kuap_is_disabled())
+		return;
+
+	if (unlikely(kuap != KUAP_NONE)) {
+		current->thread.kuap = KUAP_NONE;
+		kuap_lock(kuap, false);
+	}
+
+	if (likely(regs->kuap == KUAP_NONE))
 		return;
 
 	current->thread.kuap = regs->kuap;

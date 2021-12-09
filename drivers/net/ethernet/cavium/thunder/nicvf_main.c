@@ -221,8 +221,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->tns_mode = mbx.nic_cfg.tns_mode & 0x7F;
 		nic->node = mbx.nic_cfg.node_id;
 		if (!nic->set_mac_pending)
-			ether_addr_copy(nic->netdev->dev_addr,
-					mbx.nic_cfg.mac_addr);
+			eth_hw_addr_set(nic->netdev, mbx.nic_cfg.mac_addr);
 		nic->sqs_mode = mbx.nic_cfg.sqs_mode;
 		nic->loopback_supported = mbx.nic_cfg.loopback_supported;
 		nic->link_up = false;
@@ -1224,7 +1223,7 @@ static int nicvf_register_misc_interrupt(struct nicvf *nic)
 	if (ret < 0) {
 		netdev_err(nic->netdev,
 			   "Req for #%d msix vectors failed\n", nic->num_vec);
-		return 1;
+		return ret;
 	}
 
 	sprintf(nic->irq_name[irq], "%s Mbox", "NICVF");
@@ -1243,7 +1242,7 @@ static int nicvf_register_misc_interrupt(struct nicvf *nic)
 	if (!nicvf_check_pf_ready(nic)) {
 		nicvf_disable_intr(nic, NICVF_INTR_MBOX, 0);
 		nicvf_unregister_interrupts(nic);
-		return 1;
+		return -EIO;
 	}
 
 	return 0;
@@ -1612,7 +1611,7 @@ static int nicvf_set_mac_address(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 
 	if (nic->pdev->msix_enabled) {
 		if (nicvf_hw_set_mac_addr(nic, netdev))
@@ -2096,7 +2095,7 @@ static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_fix_features       = nicvf_fix_features,
 	.ndo_set_features       = nicvf_set_features,
 	.ndo_bpf		= nicvf_xdp,
-	.ndo_do_ioctl           = nicvf_ioctl,
+	.ndo_eth_ioctl           = nicvf_ioctl,
 	.ndo_set_rx_mode        = nicvf_set_rx_mode,
 };
 
@@ -2119,10 +2118,8 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	err = pci_enable_device(pdev);
-	if (err) {
-		dev_err(dev, "Failed to enable PCI device\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "Failed to enable PCI device\n");
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
@@ -2130,15 +2127,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(48));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (err) {
 		dev_err(dev, "Unable to get usable DMA configuration\n");
-		goto err_release_regions;
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(48));
-	if (err) {
-		dev_err(dev, "unable to get 48-bit DMA for consistent allocations\n");
 		goto err_release_regions;
 	}
 

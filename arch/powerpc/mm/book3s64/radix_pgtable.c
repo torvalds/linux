@@ -679,7 +679,8 @@ void radix__early_init_mmu_secondary(void)
 	mtspr(SPRN_UAMOR, 0);
 }
 
-void radix__mmu_cleanup_all(void)
+/* Called during kexec sequence with MMU off */
+notrace void radix__mmu_cleanup_all(void)
 {
 	unsigned long lpcr;
 
@@ -917,6 +918,13 @@ void __meminit radix__vmemmap_remove_mapping(unsigned long start, unsigned long 
 	remove_pagetable(start, start + page_size);
 }
 #endif
+#endif
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+void radix__kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	pr_warn_once("DEBUG_PAGEALLOC not supported in radix mode\n");
+}
 #endif
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

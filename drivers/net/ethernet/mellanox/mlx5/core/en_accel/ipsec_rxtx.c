@@ -141,8 +141,7 @@ static void mlx5e_ipsec_set_swp(struct sk_buff *skb,
 	 * Pkt: MAC  IP     ESP  IP    L4
 	 *
 	 * Transport Mode:
-	 * SWP:      OutL3       InL4
-	 *           InL3
+	 * SWP:      OutL3       OutL4
 	 * Pkt: MAC  IP     ESP  L4
 	 *
 	 * Tunnel(VXLAN TCP/UDP) over Transport Mode
@@ -171,31 +170,35 @@ static void mlx5e_ipsec_set_swp(struct sk_buff *skb,
 		return;
 
 	if (!xo->inner_ipproto) {
-		eseg->swp_inner_l3_offset = skb_network_offset(skb) / 2;
-		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
-		if (skb->protocol == htons(ETH_P_IPV6))
-			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
-		if (xo->proto == IPPROTO_UDP)
+		switch (xo->proto) {
+		case IPPROTO_UDP:
+			eseg->swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L4_UDP;
+			fallthrough;
+		case IPPROTO_TCP:
+			/* IP | ESP | TCP */
+			eseg->swp_outer_l4_offset = skb_inner_transport_offset(skb) / 2;
+			break;
+		default:
+			break;
+		}
+	} else {
+		/* Tunnel(VXLAN TCP/UDP) over Transport Mode */
+		switch (xo->inner_ipproto) {
+		case IPPROTO_UDP:
 			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_UDP;
-		return;
+			fallthrough;
+		case IPPROTO_TCP:
+			eseg->swp_inner_l3_offset = skb_inner_network_offset(skb) / 2;
+			eseg->swp_inner_l4_offset =
+				(skb->csum_start + skb->head - skb->data) / 2;
+			if (skb->protocol == htons(ETH_P_IPV6))
+				eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
+			break;
+		default:
+			break;
+		}
 	}
 
-	/* Tunnel(VXLAN TCP/UDP) over Transport Mode */
-	switch (xo->inner_ipproto) {
-	case IPPROTO_UDP:
-		eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_UDP;
-		fallthrough;
-	case IPPROTO_TCP:
-		eseg->swp_inner_l3_offset = skb_inner_network_offset(skb) / 2;
-		eseg->swp_inner_l4_offset = (skb->csum_start + skb->head - skb->data) / 2;
-		if (skb->protocol == htons(ETH_P_IPV6))
-			eseg->swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_IPV6;
-		break;
-	default:
-		break;
-	}
-
-	return;
 }
 
 void mlx5e_ipsec_set_iv_esn(struct sk_buff *skb, struct xfrm_state *x,

@@ -365,35 +365,20 @@ out_putf:
 
 int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t count)
 {
-	struct inode *inode;
-	int retval = -EINVAL;
-
-	inode = file_inode(file);
 	if (unlikely((ssize_t) count < 0))
-		return retval;
+		return -EINVAL;
 
-	/*
-	 * ranged mandatory locking does not apply to streams - it makes sense
-	 * only for files where position has a meaning.
-	 */
 	if (ppos) {
 		loff_t pos = *ppos;
 
 		if (unlikely(pos < 0)) {
 			if (!unsigned_offsets(file))
-				return retval;
+				return -EINVAL;
 			if (count >= -pos) /* both values are in 0..LLONG_MAX */
 				return -EOVERFLOW;
 		} else if (unlikely((loff_t) (pos + count) < 0)) {
 			if (!unsigned_offsets(file))
-				return retval;
-		}
-
-		if (unlikely(inode->i_flctx && mandatory_lock(inode))) {
-			retval = locks_mandatory_area(inode, file, pos, pos + count - 1,
-					read_write == READ ? F_RDLCK : F_WRLCK);
-			if (retval < 0)
-				return retval;
+				return -EINVAL;
 		}
 	}
 

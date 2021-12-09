@@ -8,9 +8,6 @@
 /*
  * This file handles the architecture-dependent parts of process handling..
  */
-
-#include <stdarg.h>
-
 #include <linux/elfcore.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -368,16 +365,13 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	return 0;
 }
 
-unsigned long get_wchan(struct task_struct *task)
+unsigned long __get_wchan(struct task_struct *task)
 {
 	unsigned long pc, fp, bias = 0;
 	unsigned long task_base = (unsigned long) task;
         unsigned long ret = 0;
 	struct reg_window32 *rw;
 	int count = 0;
-
-	if (!task || task == current || task_is_running(task))
-		goto out;
 
 	fp = task_thread_info(task)->ksp + bias;
 	do {

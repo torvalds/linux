@@ -184,7 +184,7 @@ do
 		TORTURE_KCONFIG_KASAN_ARG="CONFIG_DEBUG_INFO=y CONFIG_KASAN=y"; export TORTURE_KCONFIG_KASAN_ARG
 		;;
 	--kcsan)
-		TORTURE_KCONFIG_KCSAN_ARG="CONFIG_DEBUG_INFO=y CONFIG_KCSAN=y CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC=n CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY=n CONFIG_KCSAN_REPORT_ONCE_IN_MS=100000 CONFIG_KCSAN_INTERRUPT_WATCHER=y CONFIG_KCSAN_VERBOSE=y CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y"; export TORTURE_KCONFIG_KCSAN_ARG
+		TORTURE_KCONFIG_KCSAN_ARG="CONFIG_DEBUG_INFO=y CONFIG_KCSAN=y CONFIG_KCSAN_STRICT=y CONFIG_KCSAN_REPORT_ONCE_IN_MS=100000 CONFIG_KCSAN_VERBOSE=y CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y"; export TORTURE_KCONFIG_KCSAN_ARG
 		;;
 	--kmake-arg|--kmake-args)
 		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
@@ -430,17 +430,10 @@ then
 	git diff HEAD >> $resdir/$ds/testid.txt
 fi
 ___EOF___
-awk < $T/cfgcpu.pack \
-	-v TORTURE_BUILDONLY="$TORTURE_BUILDONLY" \
-	-v CONFIGDIR="$CONFIGFRAG/" \
-	-v KVM="$KVM" \
-	-v ncpus=$cpus \
-	-v jitter="$jitter" \
-	-v rd=$resdir/$ds/ \
-	-v dur=$dur \
-	-v TORTURE_QEMU_ARG="$TORTURE_QEMU_ARG" \
-	-v TORTURE_BOOTARGS="$TORTURE_BOOTARGS" \
-'BEGIN {
+kvm-assign-cpus.sh /sys/devices/system/node > $T/cpuarray.awk
+kvm-get-cpus-script.sh $T/cpuarray.awk $T/dumpbatches.awk
+cat << '___EOF___' >> $T/dumpbatches.awk
+BEGIN {
 	i = 0;
 }
 
@@ -451,7 +444,7 @@ awk < $T/cfgcpu.pack \
 }
 
 # Dump out the scripting required to run one test batch.
-function dump(first, pastlast, batchnum)
+function dump(first, pastlast, batchnum,  affinitylist)
 {
 	print "echo ----Start batch " batchnum ": `date` | tee -a " rd "log";
 	print "needqemurun="
@@ -483,6 +476,14 @@ function dump(first, pastlast, batchnum)
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` | tee -a " rd "log";
 		print "mkdir " rd cfr[jn] " || :";
 		print "touch " builddir ".wait";
+		affinitylist = "";
+		if (gotcpus()) {
+			affinitylist = nextcpus(cpusr[jn]);
+		}
+		if (affinitylist ~ /^[0-9,-][0-9,-]*$/)
+			print "export TORTURE_AFFINITY=" affinitylist;
+		else
+			print "export TORTURE_AFFINITY=";
 		print "kvm-test-1-run.sh " CONFIGDIR cf[j], rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` | tee -a " rd "log";
 		print "while test -f " builddir ".wait"
@@ -560,7 +561,19 @@ END {
 	# Dump the last batch.
 	if (ncpus != 0)
 		dump(first, i, batchnum);
-}' >> $T/script
+}
+___EOF___
+awk < $T/cfgcpu.pack \
+	-v TORTURE_BUILDONLY="$TORTURE_BUILDONLY" \
+	-v CONFIGDIR="$CONFIGFRAG/" \
+	-v KVM="$KVM" \
+	-v ncpus=$cpus \
+	-v jitter="$jitter" \
+	-v rd=$resdir/$ds/ \
+	-v dur=$dur \
+	-v TORTURE_QEMU_ARG="$TORTURE_QEMU_ARG" \
+	-v TORTURE_BOOTARGS="$TORTURE_BOOTARGS" \
+	-f $T/dumpbatches.awk >> $T/script
 echo kvm-end-run-stats.sh "$resdir/$ds" "$starttime" >> $T/script
 
 # Extract the tests and their batches from the script.

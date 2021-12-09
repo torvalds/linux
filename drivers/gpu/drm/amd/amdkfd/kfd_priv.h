@@ -196,6 +196,7 @@ struct kfd_event_interrupt_class {
 struct kfd_device_info {
 	enum amd_asic_type asic_family;
 	const char *asic_name;
+	uint32_t gfx_target_version;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;
@@ -206,6 +207,7 @@ struct kfd_device_info {
 	bool supports_cwsr;
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
+	uint32_t no_atomic_fw_version;
 	unsigned int num_sdma_engines;
 	unsigned int num_xgmi_sdma_engines;
 	unsigned int num_sdma_queues_per_engine;
@@ -470,15 +472,26 @@ struct queue_properties {
 	uint32_t ctl_stack_size;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
-	/* Relevant for CU */
-	uint32_t cu_mask_count; /* Must be a multiple of 32 */
-	uint32_t *cu_mask;
 };
 
 #define QUEUE_IS_ACTIVE(q) ((q).queue_size > 0 &&	\
 			    (q).queue_address != 0 &&	\
 			    (q).queue_percent > 0 &&	\
 			    !(q).is_evicted)
+
+enum mqd_update_flag {
+	UPDATE_FLAG_CU_MASK = 0,
+};
+
+struct mqd_update_info {
+	union {
+		struct {
+			uint32_t count; /* Must be a multiple of 32 */
+			uint32_t *ptr;
+		} cu_mask;
+	};
+	enum mqd_update_flag update_flag;
+};
 
 /**
  * struct queue
@@ -606,12 +619,14 @@ struct qcm_process_device {
 	uint32_t sh_hidden_private_base;
 
 	/* CWSR memory */
+	struct kgd_mem *cwsr_mem;
 	void *cwsr_kaddr;
 	uint64_t cwsr_base;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
 
 	/* IB memory */
+	struct kgd_mem *ib_mem;
 	uint64_t ib_base;
 	void *ib_kaddr;
 
@@ -751,8 +766,10 @@ struct svm_range_list {
 	struct list_head		deferred_range_list;
 	spinlock_t			deferred_list_lock;
 	atomic_t			evicted_ranges;
+	bool				drain_pagefaults;
 	struct delayed_work		restore_work;
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
+	struct task_struct 		*faulting_task;
 };
 
 /* Process data */
@@ -806,6 +823,7 @@ struct kfd_process {
 	/* Event ID allocator and lookup */
 	struct idr event_idr;
 	/* Event page */
+	u64 signal_handle;
 	struct kfd_signal_page *signal_page;
 	size_t signal_mapped_size;
 	size_t signal_event_count;
@@ -1029,10 +1047,10 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    unsigned int *qid,
 			    uint32_t *p_doorbell_offset_in_process);
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
-int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
+int pqm_update_queue_properties(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
-int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
-			struct queue_properties *p);
+int pqm_update_mqd(struct process_queue_manager *pqm, unsigned int qid,
+			struct mqd_update_info *minfo);
 int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 			void *gws);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
@@ -1194,7 +1212,7 @@ int pm_debugfs_runlist(struct seq_file *m, void *data);
 
 int kfd_debugfs_hang_hws(struct kfd_dev *dev);
 int pm_debugfs_hang_hws(struct packet_manager *pm);
-int dqm_debugfs_execute_queues(struct device_queue_manager *dqm);
+int dqm_debugfs_hang_hws(struct device_queue_manager *dqm);
 
 #else
 

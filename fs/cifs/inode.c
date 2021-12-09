@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/inode.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2010
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -1625,7 +1624,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 		goto unlink_out;
 	}
 
-	cifs_close_all_deferred_files(tcon);
+	cifs_close_deferred_file_under_dentry(tcon, full_path);
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
@@ -2084,6 +2083,7 @@ cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
 	FILE_UNIX_BASIC_INFO *info_buf_target;
 	unsigned int xid;
 	int rc, tmprc;
+	int retry_count = 0;
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
@@ -2113,9 +2113,23 @@ cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
 		goto cifs_rename_exit;
 	}
 
-	cifs_close_all_deferred_files(tcon);
+	cifs_close_deferred_file_under_dentry(tcon, from_name);
+	if (d_inode(target_dentry) != NULL)
+		cifs_close_deferred_file_under_dentry(tcon, to_name);
+
 	rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
 			    to_name);
+
+	if (rc == -EACCES) {
+		while (retry_count < 3) {
+			cifs_close_all_deferred_files(tcon);
+			rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
+					    to_name);
+			if (rc != -EACCES)
+				break;
+			retry_count++;
+		}
+	}
 
 	/*
 	 * No-replace is the natural behavior for CIFS, so skip unlink hacks.
@@ -2282,6 +2296,7 @@ cifs_revalidate_mapping(struct inode *inode)
 {
 	int rc;
 	unsigned long *flags = &CIFS_I(inode)->flags;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
 	/* swapfiles are not supposed to be shared */
 	if (IS_SWAPFILE(inode))
@@ -2293,11 +2308,16 @@ cifs_revalidate_mapping(struct inode *inode)
 		return rc;
 
 	if (test_and_clear_bit(CIFS_INO_INVALID_MAPPING, flags)) {
+		/* for cache=singleclient, do not invalidate */
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE)
+			goto skip_invalidate;
+
 		rc = cifs_invalidate_mapping(inode);
 		if (rc)
 			set_bit(CIFS_INO_INVALID_MAPPING, flags);
 	}
 
+skip_invalidate:
 	clear_bit_unlock(CIFS_INO_LOCK, flags);
 	smp_mb__after_atomic();
 	wake_up_bit(flags, CIFS_INO_LOCK);

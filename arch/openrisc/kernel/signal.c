@@ -28,8 +28,6 @@
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
 
-#define DEBUG_SIG 0
-
 struct rt_sigframe {
 	struct siginfo info;
 	struct ucontext uc;

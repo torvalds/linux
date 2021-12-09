@@ -426,19 +426,19 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 
 u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
 {
-	enum rsnd_mod_type playback_mods[] = {
+	static const enum rsnd_mod_type playback_mods[] = {
 		RSND_MOD_SRC,
 		RSND_MOD_CMD,
 		RSND_MOD_SSIU,
 	};
-	enum rsnd_mod_type capture_mods[] = {
+	static const enum rsnd_mod_type capture_mods[] = {
 		RSND_MOD_CMD,
 		RSND_MOD_SRC,
 		RSND_MOD_SSIU,
 	};
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_mod *tmod = NULL;
-	enum rsnd_mod_type *mods =
+	const enum rsnd_mod_type *mods =
 		rsnd_io_is_play(io) ?
 		playback_mods : capture_mods;
 	int i;
@@ -1225,6 +1225,7 @@ int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name
 		if (i < 0) {
 			dev_err(dev, "strange node numbering (%s)",
 				of_node_full_name(node));
+			of_node_put(np);
 			return 0;
 		}
 		i++;

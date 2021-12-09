@@ -14,12 +14,16 @@ config RAID_ATTRS
 	help
 	  Provides RAID
 
+config SCSI_COMMON
+	tristate
+
 config SCSI
 	tristate "SCSI device support"
 	depends on BLOCK
 	select SCSI_DMA if HAS_DMA
 	select SG_POOL
-	select BLK_SCSI_REQUEST
+	select SCSI_COMMON
+	select BLK_DEV_BSG_COMMON if BLK_DEV_BSG
 	help
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
 	  any other SCSI device under Linux, say Y and make sure that you know
@@ -139,6 +143,18 @@ config CHR_DEV_SG
 	  <file:Documentation/scsi/scsi.rst>. The module will be called sg.
 
 	  If unsure, say N.
+
+config BLK_DEV_BSG
+	bool "/dev/bsg support (SG v4)"
+	depends on SCSI
+	default y
+	help
+	  Saying Y here will enable generic SG (SCSI generic) v4 support
+	  for any SCSI device.
+
+	  This option is required by UDEV to access device serial numbers, etc.
+
+	  If unsure, say Y.
 
 config CHR_DEV_SCH
 	tristate "SCSI media changer support"

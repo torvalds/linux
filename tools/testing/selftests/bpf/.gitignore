@@ -9,8 +9,9 @@ test_tag
 FEATURE-DUMP.libbpf
 fixdep
 test_dev_cgroup
-/test_progs*
-!test_progs.h
+/test_progs
+/test_progs-no_alu32
+/test_progs-bpf_gcc
 test_verifier_log
 feature
 test_sock
@@ -23,7 +24,6 @@ test_skb_cgroup_id_user
 test_cgroup_storage
 test_flow_dissector
 flow_dissector_load
-test_netcnt
 test_tcpnotify_user
 test_libbpf
 test_tcp_check_syncookie_user

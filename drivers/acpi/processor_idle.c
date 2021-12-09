@@ -789,7 +789,8 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 		state->enter = acpi_idle_enter;
 
 		state->flags = 0;
-		if (cx->type == ACPI_STATE_C1 || cx->type == ACPI_STATE_C2) {
+		if (cx->type == ACPI_STATE_C1 || cx->type == ACPI_STATE_C2 ||
+		    cx->type == ACPI_STATE_C3) {
 			state->enter_dead = acpi_idle_play_dead;
 			drv->safe_state_index = count;
 		}
@@ -1301,7 +1302,7 @@ int acpi_processor_power_state_has_changed(struct acpi_processor *pr)
 	if (pr->id == 0 && cpuidle_get_driver() == &acpi_idle_driver) {
 
 		/* Protect against cpu-hotplug */
-		get_online_cpus();
+		cpus_read_lock();
 		cpuidle_pause_and_lock();
 
 		/* Disable all cpuidle devices */
@@ -1330,7 +1331,7 @@ int acpi_processor_power_state_has_changed(struct acpi_processor *pr)
 			}
 		}
 		cpuidle_resume_and_unlock();
-		put_online_cpus();
+		cpus_read_unlock();
 	}
 
 	return 0;

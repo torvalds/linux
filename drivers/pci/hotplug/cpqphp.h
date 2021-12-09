@@ -15,7 +15,7 @@
 #define _CPQPHP_H
 
 #include <linux/interrupt.h>
-#include <asm/io.h>		/* for read? and write? functions */
+#include <linux/io.h>		/* for read? and write? functions */
 #include <linux/delay.h>	/* for delays */
 #include <linux/mutex.h>
 #include <linux/sched/signal.h>	/* for signal_pending() */

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*  Marvell OcteonTx2 RPM driver
+/* Marvell CN10K RPM driver
  *
  * Copyright (C) 2020 Marvell.
+ *
  */
 
 #ifndef LMAC_COMMON_H
@@ -101,6 +102,11 @@ struct mac_ops {
 	void			(*mac_pause_frm_config)(void  *cgxd,
 							int lmac_id,
 							bool enable);
+
+	/* Enable/Disable Inbound PTP */
+	void			(*mac_enadis_ptp_config)(void  *cgxd,
+							 int lmac_id,
+							 bool enable);
 };
 
 struct cgx {

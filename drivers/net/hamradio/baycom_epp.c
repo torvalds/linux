@@ -623,16 +623,16 @@ static int receive(struct net_device *dev, int cnt)
 
 /* --------------------------------------------------------------------- */
 
-#ifdef __i386__
+#if defined(__i386__) && !defined(CONFIG_UML)
 #include <asm/msr.h>
 #define GETTICK(x)						\
 ({								\
 	if (boot_cpu_has(X86_FEATURE_TSC))			\
 		x = (unsigned int)rdtsc();			\
 })
-#else /* __i386__ */
+#else /* __i386__  && !CONFIG_UML */
 #define GETTICK(x)
-#endif /* __i386__ */
+#endif /* __i386__  && !CONFIG_UML */
 
 static void epp_bh(struct work_struct *work)
 {
@@ -791,7 +791,7 @@ static int baycom_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = (struct sockaddr *)addr;
 
 	/* addr is an AX.25 shifted ASCII mac address */
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len); 
+	dev_addr_set(dev, sa->sa_data);
 	return 0;                                         
 }
 
@@ -1005,7 +1005,8 @@ static int baycom_setmode(struct baycom_state *bc, const char *modestr)
 
 /* --------------------------------------------------------------------- */
 
-static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int baycom_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				 void __user *data, int cmd)
 {
 	struct baycom_state *bc = netdev_priv(dev);
 	struct hdlcdrv_ioctl hi;
@@ -1013,7 +1014,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCDEVPRIVATE)
 		return -ENOIOCTLCMD;
 
-	if (copy_from_user(&hi, ifr->ifr_data, sizeof(hi)))
+	if (copy_from_user(&hi, data, sizeof(hi)))
 		return -EFAULT;
 	switch (hi.cmd) {
 	default:
@@ -1104,7 +1105,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return HDLCDRV_PARMASK_IOBASE;
 
 	}
-	if (copy_to_user(ifr->ifr_data, &hi, sizeof(hi)))
+	if (copy_to_user(data, &hi, sizeof(hi)))
 		return -EFAULT;
 	return 0;
 }
@@ -1114,7 +1115,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static const struct net_device_ops baycom_netdev_ops = {
 	.ndo_open	     = epp_open,
 	.ndo_stop	     = epp_close,
-	.ndo_do_ioctl	     = baycom_ioctl,
+	.ndo_siocdevprivate  = baycom_siocdevprivate,
 	.ndo_start_xmit      = baycom_send_packet,
 	.ndo_set_mac_address = baycom_set_mac_address,
 };
@@ -1158,7 +1159,7 @@ static void baycom_probe(struct net_device *dev)
 	dev->mtu = AX25_DEF_PACLEN;        /* eth_mtu is the default */
 	dev->addr_len = AX25_ADDR_LEN;     /* sizeof an ax.25 address */
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, &null_ax25_address, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&null_ax25_address);
 	dev->tx_queue_len = 16;
 
 	/* New style flags */

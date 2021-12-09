@@ -85,12 +85,17 @@ int smu_v13_0_init_microcode(struct smu_context *smu)
 	const struct common_firmware_header *header;
 	struct amdgpu_firmware_info *ucode = NULL;
 
-	switch (adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	/* doesn't need to load smu firmware in IOV mode */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 2):
 		chip_name = "aldebaran";
 		break;
 	default:
-		dev_err(adev->dev, "Unsupported ASIC type %d\n", adev->asic_type);
+		dev_err(adev->dev, "Unsupported IP version 0x%x\n",
+			adev->ip_versions[MP1_HWIP][0]);
 		return -EINVAL;
 	}
 
@@ -206,15 +211,17 @@ int smu_v13_0_check_fw_version(struct smu_context *smu)
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 
-	switch (smu->adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	switch (smu->adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 2):
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_ALDE;
 		break;
-	case CHIP_YELLOW_CARP:
+	case IP_VERSION(13, 0, 1):
+	case IP_VERSION(13, 0, 3):
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_YELLOW_CARP;
 		break;
 	default:
-		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
+		dev_err(smu->adev->dev, "smu unsupported IP version: 0x%x.\n",
+			smu->adev->ip_versions[MP1_HWIP][0]);
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_INV;
 		break;
 	}
@@ -268,51 +275,85 @@ static int smu_v13_0_set_pptable_v2_1(struct smu_context *smu, void **table,
 	return 0;
 }
 
+static int smu_v13_0_get_pptable_from_vbios(struct smu_context *smu, void **table, uint32_t *size)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint16_t atom_table_size;
+	uint8_t frev, crev;
+	int ret, index;
+
+	dev_info(adev->dev, "use vbios provided pptable\n");
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+					    powerplayinfo);
+
+	ret = amdgpu_atombios_get_data_table(adev, index, &atom_table_size, &frev, &crev,
+					     (uint8_t **)table);
+	if (ret)
+		return ret;
+
+	if (size)
+		*size = atom_table_size;
+
+	return 0;
+}
+
+static int smu_v13_0_get_pptable_from_firmware(struct smu_context *smu, void **table, uint32_t *size,
+					       uint32_t pptable_id)
+{
+	const struct smc_firmware_header_v1_0 *hdr;
+	struct amdgpu_device *adev = smu->adev;
+	uint16_t version_major, version_minor;
+	int ret;
+
+	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
+	if (!hdr)
+		return -EINVAL;
+
+	dev_info(adev->dev, "use driver provided pptable %d\n", pptable_id);
+
+	version_major = le16_to_cpu(hdr->header.header_version_major);
+	version_minor = le16_to_cpu(hdr->header.header_version_minor);
+	if (version_major != 2) {
+		dev_err(adev->dev, "Unsupported smu firmware version %d.%d\n",
+			version_major, version_minor);
+		return -EINVAL;
+	}
+
+	switch (version_minor) {
+	case 1:
+		ret = smu_v13_0_set_pptable_v2_1(smu, table, size, pptable_id);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 int smu_v13_0_setup_pptable(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	const struct smc_firmware_header_v1_0 *hdr;
-	int ret, index;
-	uint32_t size = 0;
-	uint16_t atom_table_size;
-	uint8_t frev, crev;
+	uint32_t size = 0, pptable_id = 0;
 	void *table;
-	uint16_t version_major, version_minor;
+	int ret = 0;
 
-
+	/* override pptable_id from driver parameter */
 	if (amdgpu_smu_pptable_id >= 0) {
-		smu->smu_table.boot_values.pp_table_id = amdgpu_smu_pptable_id;
-		dev_info(adev->dev, "override pptable id %d\n", amdgpu_smu_pptable_id);
-	}
-
-	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
-	version_major = le16_to_cpu(hdr->header.header_version_major);
-	version_minor = le16_to_cpu(hdr->header.header_version_minor);
-	if (version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) {
-		dev_info(adev->dev, "use driver provided pptable %d\n", smu->smu_table.boot_values.pp_table_id);
-		switch (version_minor) {
-		case 1:
-			ret = smu_v13_0_set_pptable_v2_1(smu, &table, &size,
-							 smu->smu_table.boot_values.pp_table_id);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-		if (ret)
-			return ret;
-
+		pptable_id = amdgpu_smu_pptable_id;
+		dev_info(adev->dev, "override pptable id %d\n", pptable_id);
 	} else {
-		dev_info(adev->dev, "use vbios provided pptable\n");
-		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-						    powerplayinfo);
-
-		ret = amdgpu_atombios_get_data_table(adev, index, &atom_table_size, &frev, &crev,
-						     (uint8_t **)&table);
-		if (ret)
-			return ret;
-		size = atom_table_size;
+		pptable_id = smu->smu_table.boot_values.pp_table_id;
 	}
+
+	/* force using vbios pptable in sriov mode */
+	if (amdgpu_sriov_vf(adev) || !pptable_id)
+		ret = smu_v13_0_get_pptable_from_vbios(smu, &table, &size);
+	else
+		ret = smu_v13_0_get_pptable_from_firmware(smu, &table, &size, pptable_id);
+
+	if (ret)
+		return ret;
 
 	if (!smu->smu_table.power_play_table)
 		smu->smu_table.power_play_table = table;
@@ -702,8 +743,9 @@ int smu_v13_0_gfx_off_control(struct smu_context *smu, bool enable)
 	int ret = 0;
 	struct amdgpu_device *adev = smu->adev;
 
-	switch (adev->asic_type) {
-	case CHIP_YELLOW_CARP:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 1):
+	case IP_VERSION(13, 0, 3):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
@@ -903,22 +945,27 @@ int smu_v13_0_get_current_power_limit(struct smu_context *smu,
 	return ret;
 }
 
-int smu_v13_0_set_power_limit(struct smu_context *smu, uint32_t n)
+int smu_v13_0_set_power_limit(struct smu_context *smu,
+			      enum smu_ppt_limit_type limit_type,
+			      uint32_t limit)
 {
 	int ret = 0;
+
+	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
+		return -EINVAL;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
 		return -EOPNOTSUPP;
 	}
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n, NULL);
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit, NULL);
 	if (ret) {
 		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
 		return ret;
 	}
 
-	smu->current_power_limit = n;
+	smu->current_power_limit = limit;
 
 	return 0;
 }

@@ -24,8 +24,8 @@ struct {
 int pass1 = 0;
 int pass2 = 0;
 
-SEC("fentry/__htab_map_lookup_elem")
-int BPF_PROG(on_lookup, struct bpf_map *map)
+SEC("fentry/htab_map_delete_elem")
+int BPF_PROG(on_delete, struct bpf_map *map)
 {
 	int key = 0;
 
@@ -35,10 +35,7 @@ int BPF_PROG(on_lookup, struct bpf_map *map)
 	}
 	if (map == (void *)&hash2) {
 		pass2++;
-		/* htab_map_gen_lookup() will inline below call
-		 * into direct call to __htab_map_lookup_elem()
-		 */
-		bpf_map_lookup_elem(&hash2, &key);
+		bpf_map_delete_elem(&hash2, &key);
 		return 0;
 	}
 

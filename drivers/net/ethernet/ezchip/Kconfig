@@ -18,7 +18,7 @@ if NET_VENDOR_EZCHIP
 
 config EZCHIP_NPS_MANAGEMENT_ENET
 	tristate "EZchip NPS management enet support"
-	depends on OF_IRQ && OF_NET
+	depends on OF_IRQ
 	depends on HAS_IOMEM
 	help
 	  Simple LAN device for debug or management purposes.

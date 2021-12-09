@@ -102,6 +102,9 @@
 #define STM32H7_ADC_CALFACT		0xC4
 #define STM32H7_ADC_CALFACT2		0xC8
 
+/* STM32MP1 - ADC2 instance option register */
+#define STM32MP1_ADC2_OR		0xD0
+
 /* STM32H7 - common registers for all ADC instances */
 #define STM32H7_ADC_CSR			(STM32_ADCX_COMN_OFFSET + 0x00)
 #define STM32H7_ADC_CCR			(STM32_ADCX_COMN_OFFSET + 0x08)
@@ -168,10 +171,15 @@ enum stm32h7_adc_dmngt {
 #define STM32H7_EOC_MST			BIT(2)
 
 /* STM32H7_ADC_CCR - bit fields */
+#define STM32H7_VBATEN			BIT(24)
+#define STM32H7_VREFEN			BIT(22)
 #define STM32H7_PRESC_SHIFT		18
 #define STM32H7_PRESC_MASK		GENMASK(21, 18)
 #define STM32H7_CKMODE_SHIFT		16
 #define STM32H7_CKMODE_MASK		GENMASK(17, 16)
+
+/* STM32MP1_ADC2_OR - bit fields */
+#define STM32MP1_VDDCOREEN		BIT(0)
 
 /**
  * struct stm32_adc_common - stm32 ADC driver common data (for all instances)
@@ -179,12 +187,14 @@ enum stm32h7_adc_dmngt {
  * @phys_base:		control registers base physical addr
  * @rate:		clock rate used for analog circuitry
  * @vref_mv:		vref voltage (mv)
+ * @lock:		spinlock
  */
 struct stm32_adc_common {
 	void __iomem			*base;
 	phys_addr_t			phys_base;
 	unsigned long			rate;
 	int				vref_mv;
+	spinlock_t			lock;		/* lock for common register */
 };
 
 #endif

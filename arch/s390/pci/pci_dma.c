@@ -18,6 +18,8 @@
 static struct kmem_cache *dma_region_table_cache;
 static struct kmem_cache *dma_page_table_cache;
 static int s390_iommu_strict;
+static u64 s390_iommu_aperture;
+static u32 s390_iommu_aperture_factor = 1;
 
 static int zpci_refresh_global(struct zpci_dev *zdev)
 {
@@ -487,18 +489,18 @@ static int s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	unsigned int max = dma_get_max_seg_size(dev);
 	unsigned int size = s->offset + s->length;
 	unsigned int offset = s->offset;
-	int count = 0, i;
+	int count = 0, i, ret;
 
 	for (i = 1; i < nr_elements; i++) {
 		s = sg_next(s);
 
-		s->dma_address = DMA_MAPPING_ERROR;
 		s->dma_length = 0;
 
 		if (s->offset || (size & ~PAGE_MASK) ||
 		    size + s->length > max) {
-			if (__s390_dma_map_sg(dev, start, size,
-					      &dma->dma_address, dir))
+			ret = __s390_dma_map_sg(dev, start, size,
+						&dma->dma_address, dir);
+			if (ret)
 				goto unmap;
 
 			dma->dma_address += offset;
@@ -511,7 +513,8 @@ static int s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		}
 		size += s->length;
 	}
-	if (__s390_dma_map_sg(dev, start, size, &dma->dma_address, dir))
+	ret = __s390_dma_map_sg(dev, start, size, &dma->dma_address, dir);
+	if (ret)
 		goto unmap;
 
 	dma->dma_address += offset;
@@ -523,7 +526,7 @@ unmap:
 		s390_dma_unmap_pages(dev, sg_dma_address(s), sg_dma_len(s),
 				     dir, attrs);
 
-	return 0;
+	return ret;
 }
 
 static void s390_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
@@ -564,15 +567,19 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 
 	/*
 	 * Restrict the iommu bitmap size to the minimum of the following:
-	 * - main memory size
+	 * - s390_iommu_aperture which defaults to high_memory
 	 * - 3-level pagetable address limit minus start_dma offset
 	 * - DMA address range allowed by the hardware (clp query pci fn)
 	 *
 	 * Also set zdev->end_dma to the actual end address of the usable
 	 * range, instead of the theoretical maximum as reported by hardware.
+	 *
+	 * This limits the number of concurrently usable DMA mappings since
+	 * for each DMA mapped memory address we need a DMA address including
+	 * extra DMA addresses for multiple mappings of the same memory address.
 	 */
 	zdev->start_dma = PAGE_ALIGN(zdev->start_dma);
-	zdev->iommu_size = min3((u64) high_memory,
+	zdev->iommu_size = min3(s390_iommu_aperture,
 				ZPCI_TABLE_SIZE_RT - zdev->start_dma,
 				zdev->end_dma - zdev->start_dma + 1);
 	zdev->end_dma = zdev->start_dma + zdev->iommu_size - 1;
@@ -590,10 +597,11 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 		}
 
 	}
-	rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-				(u64) zdev->dma_table);
-	if (rc)
+	if (zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
+			       (u64)zdev->dma_table)) {
+		rc = -EIO;
 		goto free_bitmap;
+	}
 
 	return 0;
 free_bitmap:
@@ -608,17 +616,25 @@ out:
 	return rc;
 }
 
-void zpci_dma_exit_device(struct zpci_dev *zdev)
+int zpci_dma_exit_device(struct zpci_dev *zdev)
 {
+	int cc = 0;
+
 	/*
 	 * At this point, if the device is part of an IOMMU domain, this would
 	 * be a strong hint towards a bug in the IOMMU API (common) code and/or
 	 * simultaneous access via IOMMU and DMA API. So let's issue a warning.
 	 */
 	WARN_ON(zdev->s390_domain);
-
-	if (zpci_unregister_ioat(zdev, 0))
-		return;
+	if (zdev_enabled(zdev))
+		cc = zpci_unregister_ioat(zdev, 0);
+	/*
+	 * cc == 3 indicates the function is gone already. This can happen
+	 * if the function was deconfigured/disabled suddenly and we have not
+	 * received a new handle yet.
+	 */
+	if (cc && cc != 3)
+		return -EIO;
 
 	dma_cleanup_tables(zdev->dma_table);
 	zdev->dma_table = NULL;
@@ -626,8 +642,8 @@ void zpci_dma_exit_device(struct zpci_dev *zdev)
 	zdev->iommu_bitmap = NULL;
 	vfree(zdev->lazy_bitmap);
 	zdev->lazy_bitmap = NULL;
-
 	zdev->next_bit = 0;
+	return 0;
 }
 
 static int __init dma_alloc_cpu_table_caches(void)
@@ -650,6 +666,12 @@ static int __init dma_alloc_cpu_table_caches(void)
 
 int __init zpci_dma_init(void)
 {
+	s390_iommu_aperture = (u64)high_memory;
+	if (!s390_iommu_aperture_factor)
+		s390_iommu_aperture = ULONG_MAX;
+	else
+		s390_iommu_aperture *= s390_iommu_aperture_factor;
+
 	return dma_alloc_cpu_table_caches();
 }
 
@@ -682,3 +704,12 @@ static int __init s390_iommu_setup(char *str)
 }
 
 __setup("s390_iommu=", s390_iommu_setup);
+
+static int __init s390_iommu_aperture_setup(char *str)
+{
+	if (kstrtou32(str, 10, &s390_iommu_aperture_factor))
+		s390_iommu_aperture_factor = 1;
+	return 1;
+}
+
+__setup("s390_iommu_aperture=", s390_iommu_aperture_setup);

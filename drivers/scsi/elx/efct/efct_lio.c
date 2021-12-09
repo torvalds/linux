@@ -382,7 +382,7 @@ efct_lio_sg_map(struct efct_io *io)
 	struct efct_scsi_tgt_io *ocp = &io->tgt_io;
 	struct se_cmd *cmd = &ocp->cmd;
 
-	ocp->seg_map_cnt = pci_map_sg(io->efct->pci, cmd->t_data_sg,
+	ocp->seg_map_cnt = dma_map_sg(&io->efct->pci->dev, cmd->t_data_sg,
 				      cmd->t_data_nents, cmd->data_direction);
 	if (ocp->seg_map_cnt == 0)
 		return -EFAULT;
@@ -398,7 +398,7 @@ efct_lio_sg_unmap(struct efct_io *io)
 	if (WARN_ON(!ocp->seg_map_cnt || !cmd->t_data_sg))
 		return;
 
-	pci_unmap_sg(io->efct->pci, cmd->t_data_sg,
+	dma_unmap_sg(&io->efct->pci->dev, cmd->t_data_sg,
 		     ocp->seg_map_cnt, cmd->data_direction);
 	ocp->seg_map_cnt = 0;
 }
@@ -780,7 +780,7 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 {
 	struct efct_lio_vport *lio_vport;
 	struct efct *efct;
-	int ret = -1;
+	int ret;
 	u64 p_wwpn, npiv_wwpn, npiv_wwnn;
 	char *p, *pbuf, tmp[128];
 	struct efct_lio_vport_list_t *vport_list;
@@ -880,10 +880,10 @@ efct_lio_npiv_drop_nport(struct se_wwn *wwn)
 	struct efct *efct = lio_vport->efct;
 	unsigned long flags = 0;
 
-	spin_lock_irqsave(&efct->tgt_efct.efct_lio_lock, flags);
-
 	if (lio_vport->fc_vport)
 		fc_vport_terminate(lio_vport->fc_vport);
+
+	spin_lock_irqsave(&efct->tgt_efct.efct_lio_lock, flags);
 
 	list_for_each_entry_safe(vport, next_vport, &efct->tgt_efct.vport_list,
 				 list_entry) {

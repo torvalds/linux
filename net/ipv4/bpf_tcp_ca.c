@@ -10,6 +10,9 @@
 #include <net/tcp.h>
 #include <net/bpf_sk_storage.h>
 
+/* "extern" is to avoid sparse warning.  It is only used in bpf_struct_ops.c. */
+extern struct bpf_struct_ops bpf_tcp_congestion_ops;
+
 static u32 optional_ops[] = {
 	offsetof(struct tcp_congestion_ops, init),
 	offsetof(struct tcp_congestion_ops, release),
@@ -78,14 +81,7 @@ static bool bpf_tcp_ca_is_valid_access(int off, int size,
 				       const struct bpf_prog *prog,
 				       struct bpf_insn_access_aux *info)
 {
-	if (off < 0 || off >= sizeof(__u64) * MAX_BPF_FUNC_ARGS)
-		return false;
-	if (type != BPF_READ)
-		return false;
-	if (off % size != 0)
-		return false;
-
-	if (!btf_ctx_access(off, size, type, prog, info))
+	if (!bpf_tracing_btf_ctx_access(off, size, type, prog, info))
 		return false;
 
 	if (info->reg_type == PTR_TO_BTF_ID && info->btf_id == sock_id)
@@ -163,6 +159,19 @@ static const struct bpf_func_proto bpf_tcp_send_ack_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
+static u32 prog_ops_moff(const struct bpf_prog *prog)
+{
+	const struct btf_member *m;
+	const struct btf_type *t;
+	u32 midx;
+
+	midx = prog->expected_attach_type;
+	t = bpf_tcp_congestion_ops.type;
+	m = &btf_type_member(t)[midx];
+
+	return btf_member_bit_offset(t, m) / 8;
+}
+
 static const struct bpf_func_proto *
 bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 			  const struct bpf_prog *prog)
@@ -174,6 +183,28 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
+	case BPF_FUNC_setsockopt:
+		/* Does not allow release() to call setsockopt.
+		 * release() is called when the current bpf-tcp-cc
+		 * is retiring.  It is not allowed to call
+		 * setsockopt() to make further changes which
+		 * may potentially allocate new resources.
+		 */
+		if (prog_ops_moff(prog) !=
+		    offsetof(struct tcp_congestion_ops, release))
+			return &bpf_sk_setsockopt_proto;
+		return NULL;
+	case BPF_FUNC_getsockopt:
+		/* Since get/setsockopt is usually expected to
+		 * be available together, disable getsockopt for
+		 * release also to avoid usage surprise.
+		 * The bpf-tcp-cc already has a more powerful way
+		 * to read tcp_sock from the PTR_TO_BTF_ID.
+		 */
+		if (prog_ops_moff(prog) !=
+		    offsetof(struct tcp_congestion_ops, release))
+			return &bpf_sk_getsockopt_proto;
+		return NULL;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -185,41 +216,13 @@ BTF_ID(func, tcp_reno_cong_avoid)
 BTF_ID(func, tcp_reno_undo_cwnd)
 BTF_ID(func, tcp_slow_start)
 BTF_ID(func, tcp_cong_avoid_ai)
-#ifdef CONFIG_X86
-#ifdef CONFIG_DYNAMIC_FTRACE
-#if IS_BUILTIN(CONFIG_TCP_CONG_CUBIC)
-BTF_ID(func, cubictcp_init)
-BTF_ID(func, cubictcp_recalc_ssthresh)
-BTF_ID(func, cubictcp_cong_avoid)
-BTF_ID(func, cubictcp_state)
-BTF_ID(func, cubictcp_cwnd_event)
-BTF_ID(func, cubictcp_acked)
-#endif
-#if IS_BUILTIN(CONFIG_TCP_CONG_DCTCP)
-BTF_ID(func, dctcp_init)
-BTF_ID(func, dctcp_update_alpha)
-BTF_ID(func, dctcp_cwnd_event)
-BTF_ID(func, dctcp_ssthresh)
-BTF_ID(func, dctcp_cwnd_undo)
-BTF_ID(func, dctcp_state)
-#endif
-#if IS_BUILTIN(CONFIG_TCP_CONG_BBR)
-BTF_ID(func, bbr_init)
-BTF_ID(func, bbr_main)
-BTF_ID(func, bbr_sndbuf_expand)
-BTF_ID(func, bbr_undo_cwnd)
-BTF_ID(func, bbr_cwnd_event)
-BTF_ID(func, bbr_ssthresh)
-BTF_ID(func, bbr_min_tso_segs)
-BTF_ID(func, bbr_set_state)
-#endif
-#endif  /* CONFIG_DYNAMIC_FTRACE */
-#endif	/* CONFIG_X86 */
 BTF_SET_END(bpf_tcp_ca_kfunc_ids)
 
-static bool bpf_tcp_ca_check_kfunc_call(u32 kfunc_btf_id)
+static bool bpf_tcp_ca_check_kfunc_call(u32 kfunc_btf_id, struct module *owner)
 {
-	return btf_id_set_contains(&bpf_tcp_ca_kfunc_ids, kfunc_btf_id);
+	if (btf_id_set_contains(&bpf_tcp_ca_kfunc_ids, kfunc_btf_id))
+		return true;
+	return bpf_check_mod_kfunc_call(&bpf_tcp_ca_kfunc_list, kfunc_btf_id, owner);
 }
 
 static const struct bpf_verifier_ops bpf_tcp_ca_verifier_ops = {
@@ -285,9 +288,6 @@ static void bpf_tcp_ca_unreg(void *kdata)
 {
 	tcp_unregister_congestion_control(kdata);
 }
-
-/* Avoid sparse warning.  It is only used in bpf_struct_ops.c. */
-extern struct bpf_struct_ops bpf_tcp_congestion_ops;
 
 struct bpf_struct_ops bpf_tcp_congestion_ops = {
 	.verifier_ops = &bpf_tcp_ca_verifier_ops,

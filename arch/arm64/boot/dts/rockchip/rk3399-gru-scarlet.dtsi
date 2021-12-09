@@ -8,6 +8,8 @@
 #include "rk3399-gru.dtsi"
 
 /{
+	chassis-type = "tablet";
+
 	/* Power tree */
 
 	/* ppvar_sys children, sorted by name */
@@ -387,6 +389,186 @@ camera: &i2c7 {
 		<200000000>,
 		<200000000>,
 		<400000000>;
+};
+
+&gpio0 {
+	gpio-line-names = /* GPIO0 A 0-7 */
+			  "CLK_32K_AP",
+			  "EC_IN_RW_OD",
+			  "SPK_PA_EN",
+			  "WLAN_PERST_1V8_L",
+			  "WLAN_PD_1V8_L",
+			  "WLAN_RF_KILL_1V8_L",
+			  "BIGCPU_DVS_PWM",
+			  "SD_CD_L_JTAG_EN",
+
+			  /* GPIO0 B 0-5 */
+			  "BT_EN_BT_RF_KILL_1V8_L",
+			  "PMUIO2_33_18_L_PP3300_S0_EN",
+			  "TOUCH_RESET_L",
+			  "AP_EC_WARM_RESET_REQ",
+			  "PEN_RESET_L",
+			  /*
+			   * AP_FLASH_WP_L is crossystem ABI. Schematics call
+			   * it AP_FLASH_WP_R_ODL.
+			   */
+			  "AP_FLASH_WP_L";
+};
+
+&gpio1 {
+	gpio-line-names = /* GPIO1 A 0-7 */
+			  "PEN_INT_ODL",
+			  "PEN_EJECT_ODL",
+			  "BT_HOST_WAKE_1V8_L",
+			  "WLAN_HOST_WAKE_1V8_L",
+			  "TOUCH_INT_ODL",
+			  "AP_EC_S3_S0_L",
+			  "AP_EC_OVERTEMP",
+			  "AP_SPI_FLASH_MISO",
+
+			  /* GPIO1 B 0-7 */
+			  "AP_SPI_FLASH_MOSI_R",
+			  "AP_SPI_FLASH_CLK_R",
+			  "AP_SPI_FLASH_CS_L_R",
+			  "SD_CARD_DET_ODL",
+			  "",
+			  "AP_EXPANSION_IO1",
+			  "AP_EXPANSION_IO2",
+			  "AP_I2C_DISP_SDA",
+
+			  /* GPIO1 C 0-7 */
+			  "AP_I2C_DISP_SCL",
+			  "H1_INT_ODL",
+			  "EC_AP_INT_ODL",
+			  "LITCPU_DVS_PWM",
+			  "AP_I2C_AUDIO_SDA",
+			  "AP_I2C_AUDIO_SCL",
+			  "AP_EXPANSION_IO3",
+			  "HEADSET_INT_ODL",
+
+			  /* GPIO1 D0 */
+			  "AP_EXPANSION_IO4";
+};
+
+&gpio2 {
+	gpio-line-names = /* GPIO2 A 0-7 */
+			  "AP_I2C_PEN_SDA",
+			  "AP_I2C_PEN_SCL",
+			  "SD_IO_PWR_EN",
+			  "UCAM_RST_L",
+			  "PP1250_CAM_EN",
+			  "WCAM_RST_L",
+			  "AP_EXPANSION_IO5",
+			  "AP_I2C_CAM_SDA",
+
+			  /* GPIO2 B 0-7 */
+			  "AP_I2C_CAM_SCL",
+			  "AP_H1_SPI_MISO",
+			  "AP_H1_SPI_MOSI",
+			  "AP_H1_SPI_CLK",
+			  "AP_H1_SPI_CS_L",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO2 C 0-7 */
+			  "UART_EXPANSION_TX_AP_RX",
+			  "UART_AP_TX_EXPANSION_RX",
+			  "UART_EXPANSION_RTS_AP_CTS",
+			  "UART_AP_RTS_EXPANSION_CTS",
+			  "AP_SPI_EC_MISO",
+			  "AP_SPI_EC_MOSI",
+			  "AP_SPI_EC_CLK",
+			  "AP_SPI_EC_CS_L",
+
+			  /* GPIO2 D 0-4 */
+			  "PP2800_CAM_EN",
+			  "CLK_24M_CAM",
+			  "WLAN_PCIE_CLKREQ_1V8_L",
+			  "",
+			  "SD_PWR_3000_1800_L";
+};
+
+&gpio3 {
+	gpio-line-names = /* GPIO3 A 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO3 B 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO3 C 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO3 D 0-7 */
+			  "I2S0_SCLK",
+			  "I2S0_LRCK_RX",
+			  "I2S0_LRCK_TX",
+			  "I2S0_SDI_0",
+			  "STRAP_LCDBIAS_L",
+			  "STRAP_FEATURE_1",
+			  "STRAP_FEATURE_2",
+			  "I2S0_SDO_0";
+};
+
+&gpio4 {
+	gpio-line-names = /* GPIO4 A 0-7 */
+			  "I2S_MCLK",
+			  "AP_I2C_EXPANSION_SDA",
+			  "AP_I2C_EXPANSION_SCL",
+			  "DMIC_EN",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO4 B 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO4 C 0-7 */
+			  "AP_I2C_TS_SDA",
+			  "AP_I2C_TS_SCL",
+			  "GPU_DVS_PWM",
+			  "UART_DBG_TX_AP_RX",
+			  "UART_AP_TX_DBG_RX",
+			  "BL_EN",
+			  "BL_PWM",
+			  "",
+
+			  /* GPIO4 D 0-5 */
+			  "",
+			  "DISPLAY_RST_L",
+			  "",
+			  "PPVARP_LCD_EN",
+			  "PPVARN_LCD_EN",
+			  "SD_SLOT_PWR_EN";
 };
 
 &i2c_tunnel {

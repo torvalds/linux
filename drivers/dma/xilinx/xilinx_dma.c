@@ -792,7 +792,7 @@ static void xilinx_vdma_free_tx_segment(struct xilinx_dma_chan *chan,
 }
 
 /**
- * xilinx_dma_tx_descriptor - Allocate transaction descriptor
+ * xilinx_dma_alloc_tx_descriptor - Allocate transaction descriptor
  * @chan: Driver specific DMA channel
  *
  * Return: The allocated descriptor on success and NULL on failure.
@@ -998,14 +998,12 @@ static void xilinx_dma_chan_handle_cyclic(struct xilinx_dma_chan *chan,
 					  struct xilinx_dma_tx_descriptor *desc,
 					  unsigned long *flags)
 {
-	dma_async_tx_callback callback;
-	void *callback_param;
+	struct dmaengine_desc_callback cb;
 
-	callback = desc->async_tx.callback;
-	callback_param = desc->async_tx.callback_param;
-	if (callback) {
+	dmaengine_desc_get_callback(&desc->async_tx, &cb);
+	if (dmaengine_desc_callback_valid(&cb)) {
 		spin_unlock_irqrestore(&chan->lock, *flags);
-		callback(callback_param);
+		dmaengine_desc_callback_invoke(&cb, NULL);
 		spin_lock_irqsave(&chan->lock, *flags);
 	}
 }
@@ -1420,8 +1418,7 @@ static void xilinx_vdma_start_transfer(struct xilinx_dma_chan *chan)
 
 	chan->desc_submitcount++;
 	chan->desc_pendingcount--;
-	list_del(&desc->node);
-	list_add_tail(&desc->node, &chan->active_list);
+	list_move_tail(&desc->node, &chan->active_list);
 	if (chan->desc_submitcount == chan->num_frms)
 		chan->desc_submitcount = 0;
 
@@ -1656,6 +1653,17 @@ static void xilinx_dma_issue_pending(struct dma_chan *dchan)
 	spin_lock_irqsave(&chan->lock, flags);
 	chan->start_transfer(chan);
 	spin_unlock_irqrestore(&chan->lock, flags);
+}
+
+/**
+ * xilinx_dma_device_config - Configure the DMA channel
+ * @dchan: DMA channel
+ * @config: channel configuration
+ */
+static int xilinx_dma_device_config(struct dma_chan *dchan,
+				    struct dma_slave_config *config)
+{
+	return 0;
 }
 
 /**
@@ -2473,7 +2481,7 @@ static void xilinx_dma_synchronize(struct dma_chan *dchan)
 }
 
 /**
- * xilinx_dma_channel_set_config - Configure VDMA channel
+ * xilinx_vdma_channel_set_config - Configure VDMA channel
  * Run-time configuration for Axi VDMA, supports:
  * . halt the channel
  * . configure interrupt coalescing and inter-packet delay threshold
@@ -3077,7 +3085,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 		xdev->ext_addr = false;
 
 	/* Set the dma mask bits */
-	dma_set_mask(xdev->dev, DMA_BIT_MASK(addr_width));
+	dma_set_mask_and_coherent(xdev->dev, DMA_BIT_MASK(addr_width));
 
 	/* Initialize the DMA engine */
 	xdev->common.dev = &pdev->dev;
@@ -3096,6 +3104,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 	xdev->common.device_synchronize = xilinx_dma_synchronize;
 	xdev->common.device_tx_status = xilinx_dma_tx_status;
 	xdev->common.device_issue_pending = xilinx_dma_issue_pending;
+	xdev->common.device_config = xilinx_dma_device_config;
 	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
 		dma_cap_set(DMA_CYCLIC, xdev->common.cap_mask);
 		xdev->common.device_prep_slave_sg = xilinx_dma_prep_slave_sg;

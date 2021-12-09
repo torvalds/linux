@@ -163,7 +163,7 @@ static void mmc_mq_recovery_handler(struct work_struct *work)
 	blk_mq_run_hw_queues(q, true);
 }
 
-static struct scatterlist *mmc_alloc_sg(int sg_len, gfp_t gfp)
+static struct scatterlist *mmc_alloc_sg(unsigned short sg_len, gfp_t gfp)
 {
 	struct scatterlist *sg;
 
@@ -193,52 +193,34 @@ static void mmc_queue_setup_discard(struct request_queue *q,
 		blk_queue_flag_set(QUEUE_FLAG_SECERASE, q);
 }
 
-static unsigned int mmc_get_max_segments(struct mmc_host *host)
+static unsigned short mmc_get_max_segments(struct mmc_host *host)
 {
 	return host->can_dma_map_merge ? MMC_DMA_MAP_MERGE_SEGMENTS :
 					 host->max_segs;
 }
 
-/**
- * mmc_init_request() - initialize the MMC-specific per-request data
- * @mq: the request queue
- * @req: the request
- * @gfp: memory allocation policy
- */
-static int __mmc_init_request(struct mmc_queue *mq, struct request *req,
-			      gfp_t gfp)
+static int mmc_mq_init_request(struct blk_mq_tag_set *set, struct request *req,
+			       unsigned int hctx_idx, unsigned int numa_node)
 {
 	struct mmc_queue_req *mq_rq = req_to_mmc_queue_req(req);
+	struct mmc_queue *mq = set->driver_data;
 	struct mmc_card *card = mq->card;
 	struct mmc_host *host = card->host;
 
-	mq_rq->sg = mmc_alloc_sg(mmc_get_max_segments(host), gfp);
+	mq_rq->sg = mmc_alloc_sg(mmc_get_max_segments(host), GFP_KERNEL);
 	if (!mq_rq->sg)
 		return -ENOMEM;
 
 	return 0;
 }
 
-static void mmc_exit_request(struct request_queue *q, struct request *req)
+static void mmc_mq_exit_request(struct blk_mq_tag_set *set, struct request *req,
+				unsigned int hctx_idx)
 {
 	struct mmc_queue_req *mq_rq = req_to_mmc_queue_req(req);
 
 	kfree(mq_rq->sg);
 	mq_rq->sg = NULL;
-}
-
-static int mmc_mq_init_request(struct blk_mq_tag_set *set, struct request *req,
-			       unsigned int hctx_idx, unsigned int numa_node)
-{
-	return __mmc_init_request(set->driver_data, req, GFP_KERNEL);
-}
-
-static void mmc_mq_exit_request(struct blk_mq_tag_set *set, struct request *req,
-				unsigned int hctx_idx)
-{
-	struct mmc_queue *mq = set->driver_data;
-
-	mmc_exit_request(mq->queue, req);
 }
 
 static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,

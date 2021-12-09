@@ -18,16 +18,6 @@ if NET_DSA
 
 # Drivers must select the appropriate tagging format(s)
 
-config NET_DSA_TAG_8021Q
-	tristate
-	select VLAN_8021Q
-	help
-	  Unlike the other tagging protocols, the 802.1Q config option simply
-	  provides helpers for other tagging implementations that might rely on
-	  VLAN in one way or another. It is not a complete solution.
-
-	  Drivers which use these helpers should select this as dependency.
-
 config NET_DSA_TAG_AR9331
 	tristate "Tag driver for Atheros AR9331 SoC with built-in switch"
 	help
@@ -102,17 +92,8 @@ config NET_DSA_TAG_KSZ
 	  Say Y if you want to enable support for tagging frames for the
 	  Microchip 8795/9477/9893 families of switches.
 
-config NET_DSA_TAG_RTL4_A
-	tristate "Tag driver for Realtek 4 byte protocol A tags"
-	help
-	  Say Y or M if you want to enable support for tagging frames for the
-	  Realtek switches with 4 byte protocol A tags, sich as found in
-	  the Realtek RTL8366RB.
-
 config NET_DSA_TAG_OCELOT
 	tristate "Tag driver for Ocelot family of switches, using NPI port"
-	depends on MSCC_OCELOT_SWITCH_LIB || \
-		   (MSCC_OCELOT_SWITCH_LIB=n && COMPILE_TEST)
 	select PACKING
 	help
 	  Say Y or M if you want to enable NPI tagging for the Ocelot switches
@@ -124,9 +105,6 @@ config NET_DSA_TAG_OCELOT
 
 config NET_DSA_TAG_OCELOT_8021Q
 	tristate "Tag driver for Ocelot family of switches, using VLAN"
-	depends on MSCC_OCELOT_SWITCH_LIB || \
-	          (MSCC_OCELOT_SWITCH_LIB=n && COMPILE_TEST)
-	select NET_DSA_TAG_8021Q
 	help
 	  Say Y or M if you want to enable support for tagging frames with a
 	  custom VLAN-based header. Frames that require timestamping, such as
@@ -141,6 +119,19 @@ config NET_DSA_TAG_QCA
 	  Say Y or M if you want to enable support for tagging frames for
 	  the Qualcomm Atheros QCA8K switches.
 
+config NET_DSA_TAG_RTL4_A
+	tristate "Tag driver for Realtek 4 byte protocol A tags"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  Realtek switches with 4 byte protocol A tags, sich as found in
+	  the Realtek RTL8366RB.
+
+config NET_DSA_TAG_RTL8_4
+	tristate "Tag driver for Realtek 8 byte protocol 4 tags"
+	help
+	  Say Y or M if you want to enable support for tagging frames for Realtek
+	  switches with 8 byte protocol 4 tags, such as the Realtek RTL8365MB-VC.
+
 config NET_DSA_TAG_LAN9303
 	tristate "Tag driver for SMSC/Microchip LAN9303 family of switches"
 	help
@@ -149,7 +140,6 @@ config NET_DSA_TAG_LAN9303
 
 config NET_DSA_TAG_SJA1105
 	tristate "Tag driver for NXP SJA1105 switches"
-	select NET_DSA_TAG_8021Q
 	select PACKING
 	help
 	  Say Y or M if you want to enable support for tagging frames with the

@@ -78,7 +78,7 @@ static int xlgmac_init(struct xlgmac_pdata *pdata)
 	netdev->irq = pdata->dev_irq;
 	netdev->base_addr = (unsigned long)pdata->mac_regs;
 	xlgmac_read_mac_addr(pdata);
-	memcpy(netdev->dev_addr, pdata->mac_addr, netdev->addr_len);
+	eth_hw_addr_set(netdev, pdata->mac_addr);
 
 	/* Set all the function pointers */
 	xlgmac_init_all_ops(pdata);

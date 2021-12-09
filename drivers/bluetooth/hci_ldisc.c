@@ -479,6 +479,9 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 
 	BT_DBG("tty %p", tty);
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	/* Error if the tty has no write op instead of leaving an exploitable
 	 * hole
 	 */
@@ -790,7 +793,7 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 
 	default:
-		err = n_tty_ioctl_helper(tty, file, cmd, arg);
+		err = n_tty_ioctl_helper(tty, cmd, arg);
 		break;
 	}
 

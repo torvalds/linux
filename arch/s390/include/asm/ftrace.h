@@ -17,8 +17,6 @@
 
 void ftrace_caller(void);
 
-extern char ftrace_graph_caller_end;
-extern unsigned long ftrace_plt;
 extern void *ftrace_func;
 
 struct dyn_arch_ftrace { };
@@ -31,10 +29,11 @@ struct dyn_arch_ftrace { };
 
 struct module;
 struct dyn_ftrace;
-/*
- * Either -mhotpatch or -mnop-mcount is used - no explicit init is required
- */
-static inline int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec) { return 0; }
+
+bool ftrace_need_init_nop(void);
+#define ftrace_need_init_nop ftrace_need_init_nop
+
+int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
 #define ftrace_init_nop ftrace_init_nop
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
@@ -42,40 +41,33 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	return addr;
 }
 
-struct ftrace_insn {
-	u16 opc;
-	s32 disp;
-} __packed;
+struct ftrace_regs {
+	struct pt_regs regs;
+};
 
-static inline void ftrace_generate_nop_insn(struct ftrace_insn *insn)
+static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *fregs)
 {
-#ifdef CONFIG_FUNCTION_TRACER
-	/* brcl 0,0 */
-	insn->opc = 0xc004;
-	insn->disp = 0;
-#endif
+	return &fregs->regs;
 }
 
-static inline int is_ftrace_nop(struct ftrace_insn *insn)
+static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *fregs,
+							   unsigned long ip)
 {
-#ifdef CONFIG_FUNCTION_TRACER
-	if (insn->disp == 0)
-		return 1;
-#endif
-	return 0;
+	struct pt_regs *regs = arch_ftrace_get_regs(fregs);
+
+	regs->psw.addr = ip;
 }
 
-static inline void ftrace_generate_call_insn(struct ftrace_insn *insn,
-					     unsigned long ip)
+/*
+ * When an ftrace registered caller is tracing a function that is
+ * also set by a register_ftrace_direct() call, it needs to be
+ * differentiated in the ftrace_caller trampoline. To do this,
+ * place the direct caller in the ORIG_GPR2 part of pt_regs. This
+ * tells the ftrace_caller that there's a direct caller.
+ */
+static inline void arch_ftrace_set_direct_caller(struct pt_regs *regs, unsigned long addr)
 {
-#ifdef CONFIG_FUNCTION_TRACER
-	unsigned long target;
-
-	/* brasl r0,ftrace_caller */
-	target = is_module_addr((void *) ip) ? ftrace_plt : FTRACE_ADDR;
-	insn->opc = 0xc005;
-	insn->disp = (target - ip) / 2;
-#endif
+	regs->orig_gpr2 = addr;
 }
 
 /*
@@ -104,4 +96,32 @@ static inline bool arch_syscall_match_sym_name(const char *sym,
 }
 
 #endif /* __ASSEMBLY__ */
+
+#ifdef CONFIG_FUNCTION_TRACER
+
+#define FTRACE_NOP_INSN .word 0xc004, 0x0000, 0x0000 /* brcl 0,0 */
+
+#ifndef CC_USING_HOTPATCH
+
+#define FTRACE_GEN_MCOUNT_RECORD(name)		\
+	.section __mcount_loc, "a", @progbits;	\
+	.quad name;				\
+	.previous;
+
+#else /* !CC_USING_HOTPATCH */
+
+#define FTRACE_GEN_MCOUNT_RECORD(name)
+
+#endif /* !CC_USING_HOTPATCH */
+
+#define FTRACE_GEN_NOP_ASM(name)		\
+	FTRACE_GEN_MCOUNT_RECORD(name)		\
+	FTRACE_NOP_INSN
+
+#else /* CONFIG_FUNCTION_TRACER */
+
+#define FTRACE_GEN_NOP_ASM(name)
+
+#endif /* CONFIG_FUNCTION_TRACER */
+
 #endif /* _ASM_S390_FTRACE_H */

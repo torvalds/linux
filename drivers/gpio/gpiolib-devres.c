@@ -145,7 +145,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_get_index);
  * In case of error an ERR_PTR() is returned.
  */
 struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
-					      struct device_node *node,
+					      const struct device_node *node,
 					      const char *propname, int index,
 					      enum gpiod_flags dflags,
 					      const char *label)

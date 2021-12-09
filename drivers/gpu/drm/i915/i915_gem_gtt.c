@@ -30,7 +30,7 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 	do {
 		if (dma_map_sg_attrs(obj->base.dev->dev,
 				     pages->sgl, pages->nents,
-				     PCI_DMA_BIDIRECTIONAL,
+				     DMA_BIDIRECTIONAL,
 				     DMA_ATTR_SKIP_CPU_SYNC |
 				     DMA_ATTR_NO_KERNEL_MAPPING |
 				     DMA_ATTR_NO_WARN))
@@ -64,7 +64,7 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 		usleep_range(100, 250);
 
 	dma_unmap_sg(i915->drm.dev, pages->sgl, pages->nents,
-		     PCI_DMA_BIDIRECTIONAL);
+		     DMA_BIDIRECTIONAL);
 }
 
 /**

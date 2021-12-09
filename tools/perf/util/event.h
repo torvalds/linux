@@ -330,6 +330,10 @@ int perf_event__process_itrace_start(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
 				     struct machine *machine);
+int perf_event__process_aux_output_hw_id(struct perf_tool *tool,
+					 union perf_event *event,
+					 struct perf_sample *sample,
+					 struct machine *machine);
 int perf_event__process_switch(struct perf_tool *tool,
 			       union perf_event *event,
 			       struct perf_sample *sample,
@@ -397,6 +401,7 @@ size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_task(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_aux(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_aux_output_hw_id(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp);

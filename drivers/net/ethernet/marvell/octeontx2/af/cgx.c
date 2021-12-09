@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Marvell OcteonTx2 CGX driver
  *
- * Copyright (C) 2018 Marvell International Ltd.
+ * Copyright (C) 2018 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -841,9 +838,6 @@ void cgx_lmac_ptp_config(void *cgxd, int lmac_id, bool enable)
 	if (!cgx)
 		return;
 
-	if (is_dev_rpm(cgx))
-		return;
-
 	if (enable) {
 		/* Enable inbound PTP timestamping */
 		cfg = cgx_read(cgx, lmac_id, CGXX_GMP_GMI_RXX_FRM_CTL);
@@ -1490,7 +1484,7 @@ static int cgx_lmac_init(struct cgx *cgx)
 				MAX_DMAC_ENTRIES_PER_CGX / cgx->lmac_count;
 		err = rvu_alloc_bitmap(&lmac->mac_to_index_bmap);
 		if (err)
-			return err;
+			goto err_name_free;
 
 		/* Reserve first entry for default MAC address */
 		set_bit(0, lmac->mac_to_index_bmap.bmap);
@@ -1500,7 +1494,7 @@ static int cgx_lmac_init(struct cgx *cgx)
 		spin_lock_init(&lmac->event_cb_lock);
 		err = cgx_configure_interrupt(cgx, lmac, lmac->lmac_id, false);
 		if (err)
-			goto err_irq;
+			goto err_bitmap_free;
 
 		/* Add reference */
 		cgx->lmac_idmap[lmac->lmac_id] = lmac;
@@ -1510,7 +1504,9 @@ static int cgx_lmac_init(struct cgx *cgx)
 
 	return cgx_lmac_verify_fwi_version(cgx);
 
-err_irq:
+err_bitmap_free:
+	rvu_free_bitmap(&lmac->mac_to_index_bmap);
+err_name_free:
 	kfree(lmac->name);
 err_lmac_free:
 	kfree(lmac);
@@ -1523,7 +1519,6 @@ static int cgx_lmac_exit(struct cgx *cgx)
 	int i;
 
 	if (cgx->cgx_cmd_workq) {
-		flush_workqueue(cgx->cgx_cmd_workq);
 		destroy_workqueue(cgx->cgx_cmd_workq);
 		cgx->cgx_cmd_workq = NULL;
 	}
@@ -1546,9 +1541,11 @@ static int cgx_lmac_exit(struct cgx *cgx)
 static void cgx_populate_features(struct cgx *cgx)
 {
 	if (is_dev_rpm(cgx))
-		cgx->hw_features =  (RVU_MAC_RPM | RVU_LMAC_FEAT_FC);
+		cgx->hw_features = (RVU_LMAC_FEAT_DMACF | RVU_MAC_RPM |
+				    RVU_LMAC_FEAT_FC | RVU_LMAC_FEAT_PTP);
 	else
-		cgx->hw_features = (RVU_LMAC_FEAT_FC | RVU_LMAC_FEAT_PTP);
+		cgx->hw_features = (RVU_LMAC_FEAT_FC  | RVU_LMAC_FEAT_HIGIG2 |
+				    RVU_LMAC_FEAT_PTP | RVU_LMAC_FEAT_DMACF);
 }
 
 static struct mac_ops	cgx_mac_ops    = {
@@ -1572,6 +1569,7 @@ static struct mac_ops	cgx_mac_ops    = {
 	.mac_get_pause_frm_status =	cgx_lmac_get_pause_frm_status,
 	.mac_enadis_pause_frm =		cgx_lmac_enadis_pause_frm,
 	.mac_pause_frm_config =		cgx_lmac_pause_frm_config,
+	.mac_enadis_ptp_config =	cgx_lmac_ptp_config,
 };
 
 static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)

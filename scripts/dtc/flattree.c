@@ -124,7 +124,8 @@ static void asm_emit_cell(void *e, cell_t val)
 {
 	FILE *f = e;
 
-	fprintf(f, "\t.byte 0x%02x; .byte 0x%02x; .byte 0x%02x; .byte 0x%02x\n",
+	fprintf(f, "\t.byte\t0x%02x\n" "\t.byte\t0x%02x\n"
+		"\t.byte\t0x%02x\n" "\t.byte\t0x%02x\n",
 		(val >> 24) & 0xff, (val >> 16) & 0xff,
 		(val >> 8) & 0xff, val & 0xff);
 }
@@ -134,9 +135,9 @@ static void asm_emit_string(void *e, const char *str, int len)
 	FILE *f = e;
 
 	if (len != 0)
-		fprintf(f, "\t.string\t\"%.*s\"\n", len, str);
+		fprintf(f, "\t.asciz\t\"%.*s\"\n", len, str);
 	else
-		fprintf(f, "\t.string\t\"%s\"\n", str);
+		fprintf(f, "\t.asciz\t\"%s\"\n", str);
 }
 
 static void asm_emit_align(void *e, int a)
@@ -295,7 +296,7 @@ static struct data flatten_reserve_list(struct reserve_info *reservelist,
 {
 	struct reserve_info *re;
 	struct data d = empty_data;
-	int    j;
+	unsigned int j;
 
 	for (re = reservelist; re; re = re->next) {
 		d = data_append_re(d, re->address, re->size);
@@ -438,7 +439,7 @@ static void dump_stringtable_asm(FILE *f, struct data strbuf)
 
 	while (p < (strbuf.val + strbuf.len)) {
 		len = strlen(p);
-		fprintf(f, "\t.string \"%s\"\n", p);
+		fprintf(f, "\t.asciz \"%s\"\n", p);
 		p += len+1;
 	}
 }

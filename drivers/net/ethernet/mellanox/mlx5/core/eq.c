@@ -632,6 +632,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	mlx5_eq_notifier_register(dev, &table->cq_err_nb);
 
 	param = (struct mlx5_eq_param) {
+		.irq_index = MLX5_IRQ_EQ_CTRL,
 		.nent = MLX5_NUM_CMD_EQE,
 		.mask[0] = 1ull << MLX5_EVENT_TYPE_CMD,
 	};
@@ -644,6 +645,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
 
 	param = (struct mlx5_eq_param) {
+		.irq_index = MLX5_IRQ_EQ_CTRL,
 		.nent = MLX5_NUM_ASYNC_EQE,
 	};
 
@@ -653,6 +655,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		goto err2;
 
 	param = (struct mlx5_eq_param) {
+		.irq_index = MLX5_IRQ_EQ_CTRL,
 		.nent = /* TODO: sriov max_vf + */ 1,
 		.mask[0] = 1ull << MLX5_EVENT_TYPE_PAGE_REQUEST,
 	};
@@ -806,8 +809,8 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 	ncomp_eqs = table->num_comp_eqs;
 	nent = MLX5_COMP_EQ_SIZE;
 	for (i = 0; i < ncomp_eqs; i++) {
-		int vecidx = i + MLX5_IRQ_VEC_COMP_BASE;
 		struct mlx5_eq_param param = {};
+		int vecidx = i;
 
 		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
 		if (!eq) {
@@ -855,8 +858,8 @@ clean:
 	return err;
 }
 
-int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
-		    unsigned int *irqn)
+static int vector2eqnirqn(struct mlx5_core_dev *dev, int vector, int *eqn,
+			  unsigned int *irqn)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	struct mlx5_eq_comp *eq, *n;
@@ -865,8 +868,10 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 
 	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
 		if (i++ == vector) {
-			*eqn = eq->core.eqn;
-			*irqn = eq->core.irqn;
+			if (irqn)
+				*irqn = eq->core.irqn;
+			if (eqn)
+				*eqn = eq->core.eqn;
 			err = 0;
 			break;
 		}
@@ -874,7 +879,17 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 
 	return err;
 }
+
+int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn)
+{
+	return vector2eqnirqn(dev, vector, eqn, NULL);
+}
 EXPORT_SYMBOL(mlx5_vector2eqn);
+
+int mlx5_vector2irqn(struct mlx5_core_dev *dev, int vector, unsigned int *irqn)
+{
+	return vector2eqnirqn(dev, vector, NULL, irqn);
+}
 
 unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev)
 {
@@ -941,9 +956,7 @@ static int set_rmap(struct mlx5_core_dev *mdev)
 		goto err_out;
 	}
 
-	vecidx = MLX5_IRQ_VEC_COMP_BASE;
-	for (; vecidx < eq_table->num_comp_eqs + MLX5_IRQ_VEC_COMP_BASE;
-	     vecidx++) {
+	for (vecidx = 0; vecidx < eq_table->num_comp_eqs; vecidx++) {
 		err = irq_cpu_rmap_add(eq_table->rmap,
 				       pci_irq_vector(mdev->pdev, vecidx));
 		if (err) {

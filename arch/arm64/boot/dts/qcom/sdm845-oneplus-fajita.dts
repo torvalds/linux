@@ -10,6 +10,7 @@
 / {
 	model = "OnePlus 6T";
 	compatible = "oneplus,fajita", "qcom,sdm845";
+	chassis-type = "handset";
 };
 
 &display_panel {

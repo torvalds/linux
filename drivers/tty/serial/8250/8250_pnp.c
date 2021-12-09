@@ -13,6 +13,7 @@
 #include <linux/pnp.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/bitops.h>
 
@@ -55,10 +56,6 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"BRI1400",		0	},
 	/* Boca 33.6 Kbps Internal FD34FSVD */
 	{	"BRI3400",		0	},
-	/* Boca 33.6 Kbps Internal FD34FSVD */
-	{	"BRI0A49",		0	},
-	/* Best Data Products Inc. Smart One 336F PnP Modem */
-	{	"BDP3336",		0	},
 	/* Computer Peripherals Inc */
 	/* EuroViVa CommCenter-33.6 SP PnP */
 	{	"CPI4050",		0	},
@@ -475,6 +472,7 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	if (pnp_irq_flags(dev, 0) & IORESOURCE_IRQ_SHAREABLE)
 		uart.port.flags |= UPF_SHARE_IRQ;
 	uart.port.uartclk = 1843200;
+	device_property_read_u32(&dev->dev, "clock-frequency", &uart.port.uartclk);
 	uart.port.dev = &dev->dev;
 
 	line = serial8250_register_8250_port(&uart);

@@ -232,6 +232,7 @@ static inline u32 ib_get_sqpn(struct ib_other_headers *ohdr)
 #define IB_BTH_SE_SHIFT	23
 #define IB_BTH_TVER_MASK	0xf
 #define IB_BTH_TVER_SHIFT	16
+#define IB_BTH_OPCODE_CNP	0x81
 
 static inline u8 ib_bth_get_pad(struct ib_other_headers *ohdr)
 {

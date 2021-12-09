@@ -12,6 +12,7 @@
 
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
+#include <linux/module.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
@@ -19,6 +20,8 @@
 
 #include "drm.h"
 #include "gem.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 static void tegra_bo_put(struct host1x_bo *bo)
 {
@@ -706,4 +709,17 @@ struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,
 		return ERR_CAST(bo);
 
 	return &bo->gem;
+}
+
+struct host1x_bo *tegra_gem_lookup(struct drm_file *file, u32 handle)
+{
+	struct drm_gem_object *gem;
+	struct tegra_bo *bo;
+
+	gem = drm_gem_object_lookup(file, handle);
+	if (!gem)
+		return NULL;
+
+	bo = to_tegra_bo(gem);
+	return &bo->base;
 }

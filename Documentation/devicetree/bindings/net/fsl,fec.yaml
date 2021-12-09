@@ -1,0 +1,244 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,fec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Fast Ethernet Controller (FEC)
+
+maintainers:
+  - Joakim Zhang <qiangqing.zhang@nxp.com>
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx25-fec
+          - fsl,imx27-fec
+          - fsl,imx28-fec
+          - fsl,imx6q-fec
+          - fsl,mvf600-fec
+      - items:
+          - enum:
+              - fsl,imx53-fec
+              - fsl,imx6sl-fec
+          - const: fsl,imx25-fec
+      - items:
+          - enum:
+              - fsl,imx35-fec
+              - fsl,imx51-fec
+          - const: fsl,imx27-fec
+      - items:
+          - enum:
+              - fsl,imx6ul-fec
+              - fsl,imx6sx-fec
+          - const: fsl,imx6q-fec
+      - items:
+          - enum:
+              - fsl,imx7d-fec
+          - const: fsl,imx6sx-fec
+      - items:
+          - const: fsl,imx8mq-fec
+          - const: fsl,imx6sx-fec
+      - items:
+          - enum:
+              - fsl,imx8mm-fec
+              - fsl,imx8mn-fec
+              - fsl,imx8mp-fec
+          - const: fsl,imx8mq-fec
+          - const: fsl,imx6sx-fec
+      - items:
+          - const: fsl,imx8qm-fec
+          - const: fsl,imx6sx-fec
+      - items:
+          - enum:
+              - fsl,imx8qxp-fec
+          - const: fsl,imx8qm-fec
+          - const: fsl,imx6sx-fec
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 4
+
+  interrupt-names:
+    oneOf:
+      - items:
+          - const: int0
+      - items:
+          - const: int0
+          - const: pps
+      - items:
+          - const: int0
+          - const: int1
+          - const: int2
+      - items:
+          - const: int0
+          - const: int1
+          - const: int2
+          - const: pps
+
+  clocks:
+    minItems: 2
+    maxItems: 5
+    description:
+      The "ipg", for MAC ipg_clk_s, ipg_clk_mac_s that are for register accessing.
+      The "ahb", for MAC ipg_clk, ipg_clk_mac that are bus clock.
+      The "ptp"(option), for IEEE1588 timer clock that requires the clock.
+      The "enet_clk_ref"(option), for MAC transmit/receiver reference clock like
+      RGMII TXC clock or RMII reference clock. It depends on board design,
+      the clock is required if RGMII TXC and RMII reference clock source from
+      SOC internal PLL.
+      The "enet_out"(option), output clock for external device, like supply clock
+      for PHY. The clock is required if PHY clock source from SOC.
+      The "enet_2x_txclk"(option), for RGMII sampling clock which fixed at 250Mhz.
+      The clock is required if SoC RGMII enable clock delay.
+
+  clock-names:
+    minItems: 2
+    maxItems: 5
+    items:
+      enum:
+        - ipg
+        - ahb
+        - ptp
+        - enet_clk_ref
+        - enet_out
+        - enet_2x_txclk
+
+  phy-mode: true
+
+  phy-handle: true
+
+  fixed-link: true
+
+  local-mac-address: true
+
+  mac-address: true
+
+  tx-internal-delay-ps:
+    enum: [0, 2000]
+
+  rx-internal-delay-ps:
+    enum: [0, 2000]
+
+  phy-supply:
+    description:
+      Regulator that powers the Ethernet PHY.
+
+  fsl,num-tx-queues:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The property is valid for enet-avb IP, which supports hw multi queues.
+      Should specify the tx queue number, otherwise set tx queue number to 1.
+    enum: [1, 2, 3]
+
+  fsl,num-rx-queues:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The property is valid for enet-avb IP, which supports hw multi queues.
+      Should specify the rx queue number, otherwise set rx queue number to 1.
+    enum: [1, 2, 3]
+
+  fsl,magic-packet:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If present, indicates that the hardware supports waking up via magic packet.
+
+  fsl,err006687-workaround-present:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If present indicates that the system has the hardware workaround for
+      ERR006687 applied and does not need a software workaround.
+
+  fsl,stop-mode:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      Register bits of stop mode control, the format is <&gpr req_gpr req_bit>.
+      gpr is the phandle to general purpose register node.
+      req_gpr is the gpr register offset for ENET stop request.
+      req_bit is the gpr bit offset for ENET stop request.
+
+  mdio:
+    type: object
+    description:
+      Specifies the mdio bus in the FEC, used as a container for phy nodes.
+
+  # Deprecated optional properties:
+  # To avoid these, create a phy node according to ethernet-phy.yaml in the same
+  # directory, and point the FEC's "phy-handle" property to it. Then use
+  # the phy's reset binding, again described by ethernet-phy.yaml.
+
+  phy-reset-gpios:
+    deprecated: true
+    description:
+      Should specify the gpio for phy reset.
+
+  phy-reset-duration:
+    deprecated: true
+    description:
+      Reset duration in milliseconds.  Should present only if property
+      "phy-reset-gpios" is available.  Missing the property will have the
+      duration be 1 millisecond.  Numbers greater than 1000 are invalid
+      and 1 millisecond will be used instead.
+
+  phy-reset-active-high:
+    deprecated: true
+    description:
+      If present then the reset sequence using the GPIO specified in the
+      "phy-reset-gpios" property is reversed (H=reset state, L=operation state).
+
+  phy-reset-post-delay:
+    deprecated: true
+    description:
+      Post reset delay in milliseconds. If present then a delay of phy-reset-post-delay
+      milliseconds will be observed after the phy-reset-gpios has been toggled.
+      Can be omitted thus no delay is observed. Delay is in range of 1ms to 1000ms.
+      Other delays are invalid.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+# FIXME: We had better set additionalProperties to false to avoid invalid or at
+# least undocumented properties. However, PHY may have a deprecated option to
+# place PHY OF properties in the MAC node, such as Micrel PHY, and we can find
+# these boards which is based on i.MX6QDL.
+additionalProperties: false
+
+examples:
+  - |
+    ethernet@83fec000 {
+      compatible = "fsl,imx51-fec", "fsl,imx27-fec";
+      reg = <0x83fec000 0x4000>;
+      interrupts = <87>;
+      phy-mode = "mii";
+      phy-reset-gpios = <&gpio2 14 0>;
+      phy-supply = <&reg_fec_supply>;
+    };
+
+    ethernet@83fed000 {
+      compatible = "fsl,imx51-fec", "fsl,imx27-fec";
+      reg = <0x83fed000 0x4000>;
+      interrupts = <87>;
+      phy-mode = "mii";
+      phy-reset-gpios = <&gpio2 14 0>;
+      phy-supply = <&reg_fec_supply>;
+      phy-handle = <&ethphy0>;
+
+      mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ethphy0: ethernet-phy@0 {
+          compatible = "ethernet-phy-ieee802.3-c22";
+          reg = <0>;
+        };
+      };
+    };

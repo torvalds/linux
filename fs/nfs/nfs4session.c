@@ -511,12 +511,16 @@ void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 		struct nfs4_slot *slot,
 		struct nfs4_sequence_res *res)
 {
+	u32 target_highest_slotid = min(res->sr_target_highest_slotid,
+					NFS4_MAX_SLOTID);
+	u32 highest_slotid = min(res->sr_highest_slotid, NFS4_MAX_SLOTID);
+
 	spin_lock(&tbl->slot_tbl_lock);
-	if (!nfs41_is_outlier_target_slotid(tbl, res->sr_target_highest_slotid))
-		nfs41_set_target_slotid_locked(tbl, res->sr_target_highest_slotid);
+	if (!nfs41_is_outlier_target_slotid(tbl, target_highest_slotid))
+		nfs41_set_target_slotid_locked(tbl, target_highest_slotid);
 	if (tbl->generation == slot->generation)
-		nfs41_set_server_slotid_locked(tbl, res->sr_highest_slotid);
-	nfs41_set_max_slotid_locked(tbl, res->sr_target_highest_slotid);
+		nfs41_set_server_slotid_locked(tbl, highest_slotid);
+	nfs41_set_max_slotid_locked(tbl, target_highest_slotid);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 

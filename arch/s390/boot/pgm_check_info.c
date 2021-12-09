@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
+#include <linux/stdarg.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <asm/stacktrace.h>
@@ -8,7 +9,6 @@
 #include <asm/setup.h>
 #include <asm/sclp.h>
 #include <asm/uv.h>
-#include <stdarg.h>
 #include "boot.h"
 
 const char hex_asc[] = "0123456789abcdef";
@@ -29,7 +29,6 @@ static char *symstart(char *p)
 	return p + 1;
 }
 
-extern char _decompressor_syms_start[], _decompressor_syms_end[];
 static noinline char *findsym(unsigned long ip, unsigned short *off, unsigned short *len)
 {
 	/* symbol entries are in a form "10000 c4 startup\0" */
@@ -126,8 +125,8 @@ out:
 
 static noinline void print_stacktrace(void)
 {
-	struct stack_info boot_stack = { STACK_TYPE_TASK, BOOT_STACK_OFFSET,
-					 BOOT_STACK_OFFSET + BOOT_STACK_SIZE };
+	struct stack_info boot_stack = { STACK_TYPE_TASK, (unsigned long)_stack_start,
+					 (unsigned long)_stack_end };
 	unsigned long sp = S390_lowcore.gpregs_save_area[15];
 	bool first = true;
 
@@ -176,6 +175,6 @@ void print_pgm_check_info(void)
 			    gpregs[12], gpregs[13], gpregs[14], gpregs[15]);
 	print_stacktrace();
 	decompressor_printk("Last Breaking-Event-Address:\n");
-	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)S390_lowcore.breaking_event_addr,
-			    (void *)S390_lowcore.breaking_event_addr);
+	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)S390_lowcore.pgm_last_break,
+			    (void *)S390_lowcore.pgm_last_break);
 }

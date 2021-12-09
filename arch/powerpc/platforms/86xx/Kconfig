@@ -20,12 +20,6 @@ config MPC8641_HPCN
 	help
 	  This option enables support for the MPC8641 HPCN board.
 
-config SBC8641D
-	bool "Wind River SBC8641D"
-	select DEFAULT_UIMAGE
-	help
-	  This option enables support for the WRS SBC8641D board.
-
 config MPC8610_HPCD
 	bool "Freescale MPC8610 HPCD"
 	select DEFAULT_UIMAGE
@@ -74,7 +68,7 @@ config MPC8641
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
-	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A \
+	default y if MPC8641_HPCN || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A \
 			|| MVME7100
 
 config MPC8610

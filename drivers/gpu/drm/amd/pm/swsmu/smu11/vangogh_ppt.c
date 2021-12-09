@@ -256,7 +256,7 @@ static int vangogh_tables_init(struct smu_context *smu)
 	return 0;
 
 err3_out:
-	kfree(smu_table->clocks_table);
+	kfree(smu_table->watermarks_table);
 err2_out:
 	kfree(smu_table->gpu_metrics_table);
 err1_out:
@@ -589,31 +589,33 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 	if (ret)
 		return ret;
 
+	smu_cmn_get_sysfs_buf(&buf, &size);
+
 	switch (clk_type) {
 	case SMU_OD_SCLK:
 		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size = sprintf(buf, "%s:\n", "OD_SCLK");
-			size += sprintf(buf + size, "0: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "%s:\n", "OD_SCLK");
+			size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
 			(smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq);
-			size += sprintf(buf + size, "1: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
 			(smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq);
 		}
 		break;
 	case SMU_OD_CCLK:
 		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size = sprintf(buf, "CCLK_RANGE in Core%d:\n",  smu->cpu_core_id_select);
-			size += sprintf(buf + size, "0: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "CCLK_RANGE in Core%d:\n",  smu->cpu_core_id_select);
+			size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
 			(smu->cpu_actual_soft_min_freq > 0) ? smu->cpu_actual_soft_min_freq : smu->cpu_default_soft_min_freq);
-			size += sprintf(buf + size, "1: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
 			(smu->cpu_actual_soft_max_freq > 0) ? smu->cpu_actual_soft_max_freq : smu->cpu_default_soft_max_freq);
 		}
 		break;
 	case SMU_OD_RANGE:
 		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size = sprintf(buf, "%s:\n", "OD_RANGE");
-			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "%s:\n", "OD_RANGE");
+			size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
 				smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
-			size += sprintf(buf + size, "CCLK: %7uMhz %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "CCLK: %7uMhz %10uMhz\n",
 				smu->cpu_default_soft_min_freq, smu->cpu_default_soft_max_freq);
 		}
 		break;
@@ -656,14 +658,14 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 				return ret;
 			if (!value)
 				continue;
-			size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
 					cur_value == value ? "*" : "");
 			if (cur_value == value)
 				cur_value_match_level = true;
 		}
 
 		if (!cur_value_match_level)
-			size += sprintf(buf + size, "   %uMhz *\n", cur_value);
+			size += sysfs_emit_at(buf, size, "   %uMhz *\n", cur_value);
 		break;
 	default:
 		break;
@@ -688,31 +690,33 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 	if (ret)
 		return ret;
 
+	smu_cmn_get_sysfs_buf(&buf, &size);
+
 	switch (clk_type) {
 	case SMU_OD_SCLK:
 		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size = sprintf(buf, "%s:\n", "OD_SCLK");
-			size += sprintf(buf + size, "0: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "%s:\n", "OD_SCLK");
+			size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
 			(smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq);
-			size += sprintf(buf + size, "1: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
 			(smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq);
 		}
 		break;
 	case SMU_OD_CCLK:
 		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size = sprintf(buf, "CCLK_RANGE in Core%d:\n",  smu->cpu_core_id_select);
-			size += sprintf(buf + size, "0: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "CCLK_RANGE in Core%d:\n",  smu->cpu_core_id_select);
+			size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
 			(smu->cpu_actual_soft_min_freq > 0) ? smu->cpu_actual_soft_min_freq : smu->cpu_default_soft_min_freq);
-			size += sprintf(buf + size, "1: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
 			(smu->cpu_actual_soft_max_freq > 0) ? smu->cpu_actual_soft_max_freq : smu->cpu_default_soft_max_freq);
 		}
 		break;
 	case SMU_OD_RANGE:
 		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size = sprintf(buf, "%s:\n", "OD_RANGE");
-			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "%s:\n", "OD_RANGE");
+			size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
 				smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
-			size += sprintf(buf + size, "CCLK: %7uMhz %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "CCLK: %7uMhz %10uMhz\n",
 				smu->cpu_default_soft_min_freq, smu->cpu_default_soft_max_freq);
 		}
 		break;
@@ -755,14 +759,14 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 				return ret;
 			if (!value)
 				continue;
-			size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
 					cur_value == value ? "*" : "");
 			if (cur_value == value)
 				cur_value_match_level = true;
 		}
 
 		if (!cur_value_match_level)
-			size += sprintf(buf + size, "   %uMhz *\n", cur_value);
+			size += sysfs_emit_at(buf, size, "   %uMhz *\n", cur_value);
 		break;
 	default:
 		break;
@@ -1035,7 +1039,7 @@ static int vangogh_get_power_profile_mode(struct smu_context *smu,
 		if (workload_type < 0)
 			continue;
 
-		size += sprintf(buf + size, "%2d %14s%s\n",
+		size += sysfs_emit_at(buf, size, "%2d %14s%s\n",
 			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
 	}
 
@@ -1382,52 +1386,38 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 	uint32_t soc_mask, mclk_mask, fclk_mask;
 	uint32_t vclk_mask = 0, dclk_mask = 0;
 
+	smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+	smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
-		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_soft_max_freq;
 		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
 
-		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
-		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
 
 		ret = vangogh_force_dpm_limit_value(smu, true);
+		if (ret)
+			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
-		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
-
-		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
-		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_hard_min_freq;
 
 		ret = vangogh_force_dpm_limit_value(smu, false);
+		if (ret)
+			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
 		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
 
-		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
-		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
-
 		ret = vangogh_unforce_dpm_levels(smu);
+		if (ret)
+			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
-		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
-		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
-
-		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
-		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
-
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-					SMU_MSG_SetHardMinGfxClk,
-					VANGOGH_UMD_PSTATE_STANDARD_GFXCLK, NULL);
-		if (ret)
-			return ret;
-
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-					SMU_MSG_SetSoftMaxGfxClk,
-					VANGOGH_UMD_PSTATE_STANDARD_GFXCLK, NULL);
-		if (ret)
-			return ret;
+		smu->gfx_actual_hard_min_freq = VANGOGH_UMD_PSTATE_STANDARD_GFXCLK;
+		smu->gfx_actual_soft_max_freq = VANGOGH_UMD_PSTATE_STANDARD_GFXCLK;
 
 		ret = vangogh_get_profiling_clk_mask(smu, level,
 							&vclk_mask,
@@ -1442,31 +1432,14 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 		vangogh_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
 		vangogh_force_clk_levels(smu, SMU_VCLK, 1 << vclk_mask);
 		vangogh_force_clk_levels(smu, SMU_DCLK, 1 << dclk_mask);
-
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
-		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
-
-		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
-		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
-
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinVcn,
-								VANGOGH_UMD_PSTATE_PEAK_DCLK, NULL);
-		if (ret)
-			return ret;
-
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxVcn,
-								VANGOGH_UMD_PSTATE_PEAK_DCLK, NULL);
-		if (ret)
-			return ret;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_hard_min_freq;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
 		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
-
-		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
-		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
 
 		ret = vangogh_get_profiling_clk_mask(smu, level,
 							NULL,
@@ -1480,29 +1453,29 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 		vangogh_force_clk_levels(smu, SMU_FCLK, 1 << fclk_mask);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
-		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
-		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
-
-		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
-		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
-
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
-				VANGOGH_UMD_PSTATE_PEAK_GFXCLK, NULL);
-		if (ret)
-			return ret;
-
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
-				VANGOGH_UMD_PSTATE_PEAK_GFXCLK, NULL);
-		if (ret)
-			return ret;
+		smu->gfx_actual_hard_min_freq = VANGOGH_UMD_PSTATE_PEAK_GFXCLK;
+		smu->gfx_actual_soft_max_freq = VANGOGH_UMD_PSTATE_PEAK_GFXCLK;
 
 		ret = vangogh_set_peak_clock_by_device(smu);
+		if (ret)
+			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
-		break;
+		return 0;
 	}
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
+					      smu->gfx_actual_hard_min_freq, NULL);
+	if (ret)
+		return ret;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
+					      smu->gfx_actual_soft_max_freq, NULL);
+	if (ret)
+		return ret;
+
 	return ret;
 }
 
@@ -1869,7 +1842,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 		} else {
 			if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
 				dev_err(smu->adev->dev,
-					"The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
+					"The setting minimum sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
 					smu->gfx_actual_hard_min_freq,
 					smu->gfx_actual_soft_max_freq);
 				return -EINVAL;
@@ -2140,11 +2113,12 @@ static int vangogh_get_ppt_limit(struct smu_context *smu,
 	return 0;
 }
 
-static int vangogh_set_power_limit(struct smu_context *smu, uint32_t ppt_limit)
+static int vangogh_set_power_limit(struct smu_context *smu,
+				   enum smu_ppt_limit_type limit_type,
+				   uint32_t ppt_limit)
 {
 	struct smu_11_5_power_context *power_context =
-							smu->smu_power.power_context;
-	uint32_t limit_type = ppt_limit >> 24;
+			smu->smu_power.power_context;
 	int ret = 0;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {

@@ -38,6 +38,8 @@
 #include "clk/clk_11_0_0_offset.h"
 #include "clk/clk_11_0_0_sh_mask.h"
 
+#include "irq/dcn20/irq_service_dcn20.h"
+
 #undef FN
 #define FN(reg_name, field_name) \
 	clk_mgr->clk_mgr_shift->field_name, clk_mgr->clk_mgr_mask->field_name
@@ -221,6 +223,8 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool force_reset = false;
 	bool p_state_change_support;
 	int total_plane_count;
+	int irq_src;
+	uint32_t hpd_state;
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
@@ -238,7 +242,13 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (dc->res_pool->pp_smu)
 		pp_smu = &dc->res_pool->pp_smu->nv_funcs;
 
-	if (display_count == 0)
+	for (irq_src = DC_IRQ_SOURCE_HPD1; irq_src <= DC_IRQ_SOURCE_HPD6; irq_src++) {
+		hpd_state = dc_get_hpd_state_dcn20(dc->res_pool->irqs, irq_src);
+		if (hpd_state)
+			break;
+	}
+
+	if (display_count == 0 && !hpd_state)
 		enter_display_off = true;
 
 	if (enter_display_off == safe_to_lower) {
@@ -253,20 +263,20 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
 		clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
 		if (pp_smu && pp_smu->set_hard_min_dcfclk_by_freq)
-			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, clk_mgr_base->clks.dcfclk_khz / 1000);
+			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_khz));
 	}
 
 	if (should_set_clock(safe_to_lower,
 			new_clocks->dcfclk_deep_sleep_khz, clk_mgr_base->clks.dcfclk_deep_sleep_khz)) {
 		clk_mgr_base->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
 		if (pp_smu && pp_smu->set_min_deep_sleep_dcfclk)
-			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, clk_mgr_base->clks.dcfclk_deep_sleep_khz / 1000);
+			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_deep_sleep_khz));
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->socclk_khz, clk_mgr_base->clks.socclk_khz)) {
 		clk_mgr_base->clks.socclk_khz = new_clocks->socclk_khz;
 		if (pp_smu && pp_smu->set_hard_min_socclk_by_freq)
-			pp_smu->set_hard_min_socclk_by_freq(&pp_smu->pp_smu, clk_mgr_base->clks.socclk_khz / 1000);
+			pp_smu->set_hard_min_socclk_by_freq(&pp_smu->pp_smu, khz_to_mhz_ceil(clk_mgr_base->clks.socclk_khz));
 	}
 
 	total_plane_count = clk_mgr_helper_get_active_plane_cnt(dc, context);
@@ -281,7 +291,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz)) {
 		clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
 		if (pp_smu && pp_smu->set_hard_min_uclk_by_freq)
-			pp_smu->set_hard_min_uclk_by_freq(&pp_smu->pp_smu, clk_mgr_base->clks.dramclk_khz / 1000);
+			pp_smu->set_hard_min_uclk_by_freq(&pp_smu->pp_smu, khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->base.clks.dppclk_khz)) {
@@ -306,7 +316,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		clk_mgr_base->clks.disp_dpp_voltage_level_khz = new_clocks->disp_dpp_voltage_level_khz;
 		if (pp_smu && pp_smu->set_voltage_by_freq)
-			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, clk_mgr_base->clks.disp_dpp_voltage_level_khz / 1000);
+			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.disp_dpp_voltage_level_khz));
 	}
 
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
@@ -502,7 +512,7 @@ static void dcn2_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc
 
 	if (max_phyclk_req != clk_mgr_base->clks.phyclk_khz) {
 		clk_mgr_base->clks.phyclk_khz = max_phyclk_req;
-		pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PHYCLK, clk_mgr_base->clks.phyclk_khz / 1000);
+		pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PHYCLK, khz_to_mhz_ceil(clk_mgr_base->clks.phyclk_khz));
 	}
 }
 

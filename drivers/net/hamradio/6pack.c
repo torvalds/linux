@@ -68,9 +68,9 @@
 #define SIXP_DAMA_OFF		0
 
 /* default level 2 parameters */
-#define SIXP_TXDELAY			(HZ/4)	/* in 1 s */
+#define SIXP_TXDELAY			25	/* 250 ms */
 #define SIXP_PERSIST			50	/* in 256ths */
-#define SIXP_SLOTTIME			(HZ/10)	/* in 1 s */
+#define SIXP_SLOTTIME			10	/* 100 ms */
 #define SIXP_INIT_RESYNC_TIMEOUT	(3*HZ/2) /* in 1 s */
 #define SIXP_RESYNC_TIMEOUT		5*HZ	/* in 1 s */
 
@@ -288,7 +288,7 @@ static int sp_set_mac_address(struct net_device *dev, void *addr)
 
 	netif_tx_lock_bh(dev);
 	netif_addr_lock(dev);
-	memcpy(dev->dev_addr, &sa->sax25_call, AX25_ADDR_LEN);
+	__dev_addr_set(dev, &sa->sax25_call, AX25_ADDR_LEN);
 	netif_addr_unlock(dev);
 	netif_tx_unlock_bh(dev);
 
@@ -317,7 +317,7 @@ static void sp_setup(struct net_device *dev)
 
 	/* Only activated in AX.25 mode */
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 
 	dev->flags		= 0;
 }
@@ -672,11 +672,13 @@ static void sixpack_close(struct tty_struct *tty)
 	del_timer_sync(&sp->tx_t);
 	del_timer_sync(&sp->resync_t);
 
-	/* Free all 6pack frame buffers. */
+	unregister_netdev(sp->dev);
+
+	/* Free all 6pack frame buffers after unreg. */
 	kfree(sp->rbuff);
 	kfree(sp->xbuff);
 
-	unregister_netdev(sp->dev);
+	free_netdev(sp->dev);
 }
 
 /* Perform I/O control on an active 6pack channel. */
@@ -726,13 +728,13 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 			}
 
 			netif_tx_lock_bh(dev);
-			memcpy(dev->dev_addr, &addr, AX25_ADDR_LEN);
+			__dev_addr_set(dev, &addr, AX25_ADDR_LEN);
 			netif_tx_unlock_bh(dev);
 			err = 0;
 			break;
 		}
 	default:
-		err = tty_mode_ioctl(tty, file, cmd, arg);
+		err = tty_mode_ioctl(tty, cmd, arg);
 	}
 
 	sp_put(sp);
@@ -824,6 +826,12 @@ static void decode_data(struct sixpack *sp, unsigned char inbyte)
 	if (sp->rx_count != 3) {
 		sp->raw_buf[sp->rx_count++] = inbyte;
 
+		return;
+	}
+
+	if (sp->rx_count_cooked + 2 >= sizeof(sp->cooked_buf)) {
+		pr_err("6pack: cooked buffer overrun, data loss\n");
+		sp->rx_count = 0;
 		return;
 	}
 

@@ -2,7 +2,7 @@
 /*
  * dts file for Xilinx ZynqMP ZCU102 RevB
  *
- * (C) Copyright 2016 - 2018, Xilinx, Inc.
+ * (C) Copyright 2016 - 2021, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  */
@@ -22,6 +22,7 @@
 		ti,tx-internal-delay = <0xa>;
 		ti,fifo-depth = <0x1>;
 		ti,dp83867-rxctrl-strap-quirk;
+		/* reset-gpios = <&tca6416_u97 6 GPIO_ACTIVE_LOW>; */
 	};
 	/* Cleanup from RevA */
 	/delete-node/ ethernet-phy@21;

@@ -203,6 +203,7 @@ config INIT_LCD
 config MEMORY_RESERVE
 	int "Memory reservation (MiB)"
 	depends on (UCSIMM || UCDIMM)
+	default 0
 	help
 	  Reserve certain memory regions on 68x328 based boards.
 
@@ -465,6 +466,7 @@ config RAMKERNEL
 
 config ROMKERNEL
 	bool "ROM"
+	depends on ROM
 	help
 	  The kernel will be resident in FLASH/ROM when running. This is
 	  often referred to as Execute-in-Place (XIP), since the kernel

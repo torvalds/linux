@@ -1056,8 +1056,10 @@ proto_again:
 							      FLOW_DISSECTOR_KEY_IPV4_ADDRS,
 							      target_container);
 
-			memcpy(&key_addrs->v4addrs, &iph->saddr,
-			       sizeof(key_addrs->v4addrs));
+			memcpy(&key_addrs->v4addrs.src, &iph->saddr,
+			       sizeof(key_addrs->v4addrs.src));
+			memcpy(&key_addrs->v4addrs.dst, &iph->daddr,
+			       sizeof(key_addrs->v4addrs.dst));
 			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 		}
 
@@ -1101,8 +1103,10 @@ proto_again:
 							      FLOW_DISSECTOR_KEY_IPV6_ADDRS,
 							      target_container);
 
-			memcpy(&key_addrs->v6addrs, &iph->saddr,
-			       sizeof(key_addrs->v6addrs));
+			memcpy(&key_addrs->v6addrs.src, &iph->saddr,
+			       sizeof(key_addrs->v6addrs.src));
+			memcpy(&key_addrs->v6addrs.dst, &iph->daddr,
+			       sizeof(key_addrs->v6addrs.dst));
 			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 		}
 
@@ -1192,9 +1196,8 @@ proto_again:
 			break;
 		}
 
-		proto = hdr->proto;
 		nhoff += PPPOE_SES_HLEN;
-		switch (proto) {
+		switch (hdr->proto) {
 		case htons(PPP_IP):
 			proto = htons(ETH_P_IP);
 			fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
@@ -1303,6 +1306,11 @@ ip_proto_again:
 
 	switch (ip_proto) {
 	case IPPROTO_GRE:
+		if (flags & FLOW_DISSECTOR_F_STOP_BEFORE_ENCAP) {
+			fdret = FLOW_DISSECT_RET_OUT_GOOD;
+			break;
+		}
+
 		fdret = __skb_flow_dissect_gre(skb, key_control, flow_dissector,
 					       target_container, data,
 					       &proto, &nhoff, &hlen, flags);
@@ -1360,6 +1368,11 @@ ip_proto_again:
 		break;
 	}
 	case IPPROTO_IPIP:
+		if (flags & FLOW_DISSECTOR_F_STOP_BEFORE_ENCAP) {
+			fdret = FLOW_DISSECT_RET_OUT_GOOD;
+			break;
+		}
+
 		proto = htons(ETH_P_IP);
 
 		key_control->flags |= FLOW_DIS_ENCAPSULATION;
@@ -1372,6 +1385,11 @@ ip_proto_again:
 		break;
 
 	case IPPROTO_IPV6:
+		if (flags & FLOW_DISSECTOR_F_STOP_BEFORE_ENCAP) {
+			fdret = FLOW_DISSECT_RET_OUT_GOOD;
+			break;
+		}
+
 		proto = htons(ETH_P_IPV6);
 
 		key_control->flags |= FLOW_DIS_ENCAPSULATION;

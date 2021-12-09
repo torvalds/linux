@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 hugepage-mmap
+hugepage-mremap
 hugepage-shm
 khugepaged
 map_hugetlb
@@ -27,3 +28,4 @@ hmm-tests
 memfd_secret
 local_config.*
 split_huge_page_test
+ksm_tests

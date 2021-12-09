@@ -325,10 +325,14 @@ static int dr_handle_pending_wc(struct mlx5dr_domain *dmn,
 
 	do {
 		ne = dr_poll_cq(send_ring->cq, 1);
-		if (ne < 0)
+		if (unlikely(ne < 0)) {
+			mlx5_core_warn_once(dmn->mdev, "SMFS QPN 0x%x is disabled/limited",
+					    send_ring->qp->qpn);
+			send_ring->err_state = true;
 			return ne;
-		else if (ne == 1)
+		} else if (ne == 1) {
 			send_ring->pending_wqe -= send_ring->signal_th;
+		}
 	} while (is_drain && send_ring->pending_wqe);
 
 	return 0;
@@ -346,7 +350,7 @@ static void dr_fill_data_segs(struct mlx5dr_send_ring *send_ring,
 	send_info->read.length = send_info->write.length;
 	/* Read into the same write area */
 	send_info->read.addr = (uintptr_t)send_info->write.addr;
-	send_info->read.lkey = send_ring->mr->mkey.key;
+	send_info->read.lkey = send_ring->mr->mkey;
 
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
 		send_info->read.send_flags = IB_SEND_SIGNALED;
@@ -360,6 +364,14 @@ static int dr_postsend_icm_data(struct mlx5dr_domain *dmn,
 	struct mlx5dr_send_ring *send_ring = dmn->send_ring;
 	u32 buff_offset;
 	int ret;
+
+	if (unlikely(dmn->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR ||
+		     send_ring->err_state)) {
+		mlx5_core_dbg_once(dmn->mdev,
+				   "Skipping post send: QP err state: %d, device state: %d\n",
+				   send_ring->err_state, dmn->mdev->state);
+		return 0;
+	}
 
 	spin_lock(&send_ring->lock);
 
@@ -376,7 +388,7 @@ static int dr_postsend_icm_data(struct mlx5dr_domain *dmn,
 		       (void *)(uintptr_t)send_info->write.addr,
 		       send_info->write.length);
 		send_info->write.addr = (uintptr_t)send_ring->mr->dma_addr + buff_offset;
-		send_info->write.lkey = send_ring->mr->mkey.key;
+		send_info->write.lkey = send_ring->mr->mkey;
 	}
 
 	send_ring->tx_head++;
@@ -620,6 +632,7 @@ static int dr_cmd_modify_qp_rtr2rts(struct mlx5_core_dev *mdev,
 
 	MLX5_SET(qpc, qpc, retry_count, attr->retry_cnt);
 	MLX5_SET(qpc, qpc, rnr_retry, attr->rnr_retry);
+	MLX5_SET(qpc, qpc, primary_address_path.ack_timeout, 0x8); /* ~1ms */
 
 	MLX5_SET(rtr2rts_qp_in, in, opcode, MLX5_CMD_OP_RTR2RTS_QP);
 	MLX5_SET(rtr2rts_qp_in, in, qpn, dr_qp->qpn);
@@ -749,7 +762,6 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	struct mlx5_cqe64 *cqe;
 	struct mlx5dr_cq *cq;
 	int inlen, err, eqn;
-	unsigned int irqn;
 	void *cqc, *in;
 	__be64 *pas;
 	int vector;
@@ -782,7 +794,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 		goto err_cqwq;
 
 	vector = raw_smp_processor_id() % mlx5_comp_vectors_count(mdev);
-	err = mlx5_vector2eqn(mdev, vector, &eqn, &irqn);
+	err = mlx5_vector2eqn(mdev, vector, &eqn);
 	if (err) {
 		kvfree(in);
 		goto err_cqwq;
@@ -790,7 +802,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 
 	cqc = MLX5_ADDR_OF(create_cq_in, in, cq_context);
 	MLX5_SET(cqc, cqc, log_cq_size, ilog2(ncqe));
-	MLX5_SET(cqc, cqc, c_eqn, eqn);
+	MLX5_SET(cqc, cqc, c_eqn_or_apu_element, eqn);
 	MLX5_SET(cqc, cqc, uar_page, uar->index);
 	MLX5_SET(cqc, cqc, log_page_size, cq->wq_ctrl.buf.page_shift -
 		 MLX5_ADAPTER_PAGE_SHIFT);
@@ -818,7 +830,6 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	*cq->mcq.arm_db = cpu_to_be32(2 << 28);
 
 	cq->mcq.vector = 0;
-	cq->mcq.irqn = irqn;
 	cq->mcq.uar = uar;
 
 	return cq;
@@ -837,8 +848,7 @@ static void dr_destroy_cq(struct mlx5_core_dev *mdev, struct mlx5dr_cq *cq)
 	kfree(cq);
 }
 
-static int
-dr_create_mkey(struct mlx5_core_dev *mdev, u32 pdn, struct mlx5_core_mkey *mkey)
+static int dr_create_mkey(struct mlx5_core_dev *mdev, u32 pdn, u32 *mkey)
 {
 	u32 in[MLX5_ST_SZ_DW(create_mkey_in)] = {};
 	void *mkc;
@@ -897,7 +907,7 @@ static struct mlx5dr_mr *dr_reg_mr(struct mlx5_core_dev *mdev,
 
 static void dr_dereg_mr(struct mlx5_core_dev *mdev, struct mlx5dr_mr *mr)
 {
-	mlx5_core_destroy_mkey(mdev, &mr->mkey);
+	mlx5_core_destroy_mkey(mdev, mr->mkey);
 	dma_unmap_single(mlx5_core_dma_dev(mdev), mr->dma_addr, mr->size,
 			 DMA_BIDIRECTIONAL);
 	kfree(mr);
@@ -1028,7 +1038,7 @@ int mlx5dr_send_ring_force_drain(struct mlx5dr_domain *dmn)
 	send_info.write.lkey = 0;
 	/* Using the sync_mr in order to write/read */
 	send_info.remote_addr = (uintptr_t)send_ring->sync_mr->addr;
-	send_info.rkey = send_ring->sync_mr->mkey.key;
+	send_info.rkey = send_ring->sync_mr->mkey;
 
 	for (i = 0; i < num_of_sends_req; i++) {
 		ret = dr_postsend_icm_data(dmn, &send_info);

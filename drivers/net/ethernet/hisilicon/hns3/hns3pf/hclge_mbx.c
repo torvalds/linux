@@ -10,7 +10,14 @@
 
 static u16 hclge_errno_to_resp(int errno)
 {
-	return abs(errno);
+	int resp = abs(errno);
+
+	/* The status for pf to vf msg cmd is u16, constrainted by HW.
+	 * We need to keep the same type with it.
+	 * The intput errno is the stander error code, it's safely to
+	 * use a u16 to store the abs(errno).
+	 */
+	return (u16)resp;
 }
 
 /* hclge_gen_resp_to_vf: used to generate a synchronous response to VF when PF
@@ -65,6 +72,8 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 	if (resp_msg->len > 0)
 		memcpy(resp_pf_to_vf->msg.resp_data, resp_msg->data,
 		       resp_msg->len);
+
+	trace_hclge_pf_mbx_send(hdev, resp_pf_to_vf);
 
 	status = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (status)
@@ -557,7 +566,7 @@ static int hclge_reset_vf(struct hclge_vport *vport)
 	struct hclge_dev *hdev = vport->back;
 
 	dev_warn(&hdev->pdev->dev, "PF received VF reset request from VF %u!",
-		 vport->vport_id);
+		 vport->vport_id - HCLGE_VF_VPORT_START_NUM);
 
 	return hclge_func_reset_cmd(hdev, vport->vport_id);
 }
@@ -581,9 +590,17 @@ static void hclge_get_queue_id_in_pf(struct hclge_vport *vport,
 				     struct hclge_mbx_vf_to_pf_cmd *mbx_req,
 				     struct hclge_respond_to_vf_msg *resp_msg)
 {
+	struct hnae3_handle *handle = &vport->nic;
+	struct hclge_dev *hdev = vport->back;
 	u16 queue_id, qid_in_pf;
 
 	memcpy(&queue_id, mbx_req->msg.data, sizeof(queue_id));
+	if (queue_id >= handle->kinfo.num_tqps) {
+		dev_err(&hdev->pdev->dev, "Invalid queue id(%u) from VF %u\n",
+			queue_id, mbx_req->mbx_src_vfid);
+		return;
+	}
+
 	qid_in_pf = hclge_covert_handle_qid_global(&vport->nic, queue_id);
 	memcpy(resp_msg->data, &qid_in_pf, sizeof(qid_in_pf));
 	resp_msg->len = sizeof(qid_in_pf);

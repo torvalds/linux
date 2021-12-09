@@ -169,7 +169,7 @@ bool mt7663_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update)
 	mt7615_mac_sta_poll(dev);
 	mt7615_mutex_release(dev);
 
-	return 0;
+	return false;
 }
 EXPORT_SYMBOL_GPL(mt7663_usb_sdio_tx_status_data);
 

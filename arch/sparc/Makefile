@@ -72,10 +72,8 @@ image zImage uImage tftpboot.img vmlinux.aout: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 install:
-	$(Q)$(MAKE) $(build)=$(boot) $@
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
+	sh $(srctree)/$(boot)/install.sh $(KERNELRELEASE) $(KBUILD_IMAGE) \
+		System.map "$(INSTALL_PATH)"
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/sparc/kernel/syscalls all

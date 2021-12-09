@@ -23,10 +23,6 @@
 
 #include "8250.h"
 
-struct fsl8250_data {
-	int	line;
-};
-
 int fsl8250_handle_irq(struct uart_port *port)
 {
 	unsigned char lsr, orig_lsr;
@@ -90,6 +86,10 @@ int fsl8250_handle_irq(struct uart_port *port)
 EXPORT_SYMBOL_GPL(fsl8250_handle_irq);
 
 #ifdef CONFIG_ACPI
+struct fsl8250_data {
+	int	line;
+};
+
 static int fsl8250_acpi_probe(struct platform_device *pdev)
 {
 	struct fsl8250_data *data;

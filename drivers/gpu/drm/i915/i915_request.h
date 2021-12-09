@@ -139,6 +139,29 @@ enum {
 	 * the GPU. Here we track such boost requests on a per-request basis.
 	 */
 	I915_FENCE_FLAG_BOOST,
+
+	/*
+	 * I915_FENCE_FLAG_SUBMIT_PARALLEL - request with a context in a
+	 * parent-child relationship (parallel submission, multi-lrc) should
+	 * trigger a submission to the GuC rather than just moving the context
+	 * tail.
+	 */
+	I915_FENCE_FLAG_SUBMIT_PARALLEL,
+
+	/*
+	 * I915_FENCE_FLAG_SKIP_PARALLEL - request with a context in a
+	 * parent-child relationship (parallel submission, multi-lrc) that
+	 * hit an error while generating requests in the execbuf IOCTL.
+	 * Indicates this request should be skipped as another request in
+	 * submission / relationship encoutered an error.
+	 */
+	I915_FENCE_FLAG_SKIP_PARALLEL,
+
+	/*
+	 * I915_FENCE_FLAG_COMPOSITE - Indicates fence is part of a composite
+	 * fence (dma_fence_array) and i915 generated for parallel submission.
+	 */
+	I915_FENCE_FLAG_COMPOSITE,
 };
 
 /**
@@ -218,6 +241,11 @@ struct i915_request {
 	};
 	struct llist_head execute_cb;
 	struct i915_sw_fence semaphore;
+	/**
+	 * @submit_work: complete submit fence from an IRQ if needed for
+	 * locking hierarchy reasons.
+	 */
+	struct irq_work submit_work;
 
 	/*
 	 * A list of everyone we wait upon, and everyone who waits upon us.
@@ -284,6 +312,28 @@ struct i915_request {
 		struct llist_node link;
 		struct hrtimer timer;
 	} watchdog;
+
+	/**
+	 * @guc_fence_link: Requests may need to be stalled when using GuC
+	 * submission waiting for certain GuC operations to complete. If that is
+	 * the case, stalled requests are added to a per context list of stalled
+	 * requests. The below list_head is the link in that list. Protected by
+	 * ce->guc_state.lock.
+	 */
+	struct list_head guc_fence_link;
+
+	/**
+	 * @guc_prio: Priority level while the request is in flight. Differs
+	 * from i915 scheduler priority. See comment above
+	 * I915_SCHEDULER_CAP_STATIC_PRIORITY_MAP for details. Protected by
+	 * ce->guc_active.lock. Two special values (GUC_PRIO_INIT and
+	 * GUC_PRIO_FINI) outside the GuC priority range are used to indicate
+	 * if the priority has not been initialized yet or if no more updates
+	 * are possible because the request has completed.
+	 */
+#define	GUC_PRIO_INIT	0xff
+#define	GUC_PRIO_FINI	0xfe
+	u8 guc_prio;
 
 	I915_SELFTEST_DECLARE(struct {
 		struct list_head link;
@@ -352,9 +402,7 @@ int i915_request_await_object(struct i915_request *to,
 int i915_request_await_dma_fence(struct i915_request *rq,
 				 struct dma_fence *fence);
 int i915_request_await_execution(struct i915_request *rq,
-				 struct dma_fence *fence,
-				 void (*hook)(struct i915_request *rq,
-					      struct dma_fence *signal));
+				 struct dma_fence *fence);
 
 void i915_request_add(struct i915_request *rq);
 
@@ -613,7 +661,7 @@ i915_request_active_timeline(const struct i915_request *rq)
 	 * this submission.
 	 */
 	return rcu_dereference_protected(rq->timeline,
-					 lockdep_is_held(&rq->engine->active.lock));
+					 lockdep_is_held(&rq->engine->sched_engine->lock));
 }
 
 static inline u32
@@ -640,5 +688,20 @@ i915_request_active_seqno(const struct i915_request *rq)
 bool
 i915_request_active_engine(struct i915_request *rq,
 			   struct intel_engine_cs **active);
+
+void i915_request_notify_execute_cb_imm(struct i915_request *rq);
+
+enum i915_request_state {
+	I915_REQUEST_UNKNOWN = 0,
+	I915_REQUEST_COMPLETE,
+	I915_REQUEST_PENDING,
+	I915_REQUEST_QUEUED,
+	I915_REQUEST_ACTIVE,
+};
+
+enum i915_request_state i915_test_request_state(struct i915_request *rq);
+
+void i915_request_module_exit(void);
+int i915_request_module_init(void);
 
 #endif /* I915_REQUEST_H */

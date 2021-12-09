@@ -9,7 +9,7 @@
  * Copyright 2009, Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
- * Copyright(c) 2018-2020 Intel Corporation
+ * Copyright(c) 2018-2021 Intel Corporation
  */
 
 #include <linux/delay.h>
@@ -489,7 +489,6 @@ int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	const struct cfg80211_bss_ies *ies;
 	u16 capability = WLAN_CAPABILITY_IBSS;
 	u64 tsf;
-	int ret = 0;
 
 	sdata_assert_lock(sdata);
 
@@ -501,10 +500,8 @@ int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
 				ifibss->ssid_len, IEEE80211_BSS_TYPE_IBSS,
 				IEEE80211_PRIVACY(ifibss->privacy));
 
-	if (WARN_ON(!cbss)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (WARN_ON(!cbss))
+		return -EINVAL;
 
 	rcu_read_lock();
 	ies = rcu_dereference(cbss->ies);
@@ -520,18 +517,14 @@ int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
 					   sdata->vif.bss_conf.basic_rates,
 					   capability, tsf, &ifibss->chandef,
 					   NULL, csa_settings);
-	if (!presp) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!presp)
+		return -ENOMEM;
 
 	rcu_assign_pointer(ifibss->presp, presp);
 	if (old_presp)
 		kfree_rcu(old_presp, rcu_head);
 
 	return BSS_CHANGED_BEACON;
- out:
-	return ret;
 }
 
 int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
@@ -1596,7 +1589,7 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_rx_status *rx_status)
 {
 	size_t baselen;
-	struct ieee802_11_elems elems;
+	struct ieee802_11_elems *elems;
 
 	BUILD_BUG_ON(offsetof(typeof(mgmt->u.probe_resp), variable) !=
 		     offsetof(typeof(mgmt->u.beacon), variable));
@@ -1609,10 +1602,14 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 	if (baselen > len)
 		return;
 
-	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
-			       false, &elems, mgmt->bssid, NULL);
+	elems = ieee802_11_parse_elems(mgmt->u.probe_resp.variable,
+				       len - baselen, false,
+				       mgmt->bssid, NULL);
 
-	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
+	if (elems) {
+		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, elems);
+		kfree(elems);
+	}
 }
 
 void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
@@ -1621,7 +1618,7 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_mgmt *mgmt;
 	u16 fc;
-	struct ieee802_11_elems elems;
+	struct ieee802_11_elems *elems;
 	int ies_len;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
@@ -1658,15 +1655,16 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			if (ies_len < 0)
 				break;
 
-			ieee802_11_parse_elems(
+			elems = ieee802_11_parse_elems(
 				mgmt->u.action.u.chan_switch.variable,
-				ies_len, true, &elems, mgmt->bssid, NULL);
+				ies_len, true, mgmt->bssid, NULL);
 
-			if (elems.parse_error)
-				break;
-
-			ieee80211_rx_mgmt_spectrum_mgmt(sdata, mgmt, skb->len,
-							rx_status, &elems);
+			if (elems && !elems->parse_error)
+				ieee80211_rx_mgmt_spectrum_mgmt(sdata, mgmt,
+								skb->len,
+								rx_status,
+								elems);
+			kfree(elems);
 			break;
 		}
 	}

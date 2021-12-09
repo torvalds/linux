@@ -334,7 +334,7 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	int r;
 	struct dm_block *sblock;
 	struct cache_disk_superblock *disk_super;
-	sector_t bdev_size = i_size_read(cmd->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t bdev_size = bdev_nr_sectors(cmd->bdev);
 
 	/* FIXME: see if we can lose the max sectors limit */
 	if (bdev_size > DM_CACHE_METADATA_MAX_SECTORS)

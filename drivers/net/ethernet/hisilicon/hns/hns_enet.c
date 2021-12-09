@@ -1194,7 +1194,7 @@ static int hns_nic_net_set_mac_address(struct net_device *ndev, void *p)
 		return ret;
 	}
 
-	memcpy(ndev->dev_addr, mac_addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, mac_addr->sa_data);
 
 	return 0;
 }
@@ -1212,7 +1212,7 @@ static void hns_init_mac_addr(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 
-	if (!device_get_mac_address(priv->dev, ndev->dev_addr, ETH_ALEN)) {
+	if (device_get_ethdev_address(priv->dev, ndev)) {
 		eth_hw_addr_random(ndev);
 		dev_warn(priv->dev, "No valid mac, use random mac %pM",
 			 ndev->dev_addr);
@@ -1945,7 +1945,7 @@ static const struct net_device_ops hns_nic_netdev_ops = {
 	.ndo_tx_timeout = hns_nic_net_timeout,
 	.ndo_set_mac_address = hns_nic_net_set_mac_address,
 	.ndo_change_mtu = hns_nic_change_mtu,
-	.ndo_do_ioctl = phy_do_ioctl_running,
+	.ndo_eth_ioctl = phy_do_ioctl_running,
 	.ndo_set_features = hns_nic_set_features,
 	.ndo_fix_features = hns_nic_fix_features,
 	.ndo_get_stats64 = hns_nic_get_stats64,

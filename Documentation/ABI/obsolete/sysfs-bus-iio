@@ -6,6 +6,7 @@ Description:
 
 		Since Kernel 5.11, multiple buffers are supported.
 		so, it is better to use, instead:
+
 			/sys/bus/iio/devices/iio:deviceX/bufferY/length
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/enable
@@ -17,6 +18,7 @@ Description:
 
 		Since Kernel 5.11, multiple buffers are supported.
 		so, it is better to use, instead:
+
 			/sys/bus/iio/devices/iio:deviceX/bufferY/enable
 
 What:		/sys/bus/iio/devices/iio:deviceX/scan_elements
@@ -165,6 +167,7 @@ Description:
 
 		Since Kernel 5.11, multiple buffers are supported.
 		so, it is better to use, instead:
+
 			/sys/bus/iio/devices/iio:deviceX/bufferY/watermark
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/data_available
@@ -179,4 +182,5 @@ Description:
 
 		Since Kernel 5.11, multiple buffers are supported.
 		so, it is better to use, instead:
+
 			/sys/bus/iio/devices/iio:deviceX/bufferY/data_available

@@ -533,7 +533,7 @@ static uint32_t pp_dpm_get_fan_control_mode(void *handle)
 	return mode;
 }
 
-static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
+static int pp_dpm_set_fan_speed_pwm(void *handle, uint32_t speed)
 {
 	struct pp_hwmgr *hwmgr = handle;
 	int ret = 0;
@@ -541,17 +541,17 @@ static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->set_fan_speed_percent == NULL) {
+	if (hwmgr->hwmgr_func->set_fan_speed_pwm == NULL) {
 		pr_info_ratelimited("%s was not implemented.\n", __func__);
 		return 0;
 	}
 	mutex_lock(&hwmgr->smu_lock);
-	ret = hwmgr->hwmgr_func->set_fan_speed_percent(hwmgr, percent);
+	ret = hwmgr->hwmgr_func->set_fan_speed_pwm(hwmgr, speed);
 	mutex_unlock(&hwmgr->smu_lock);
 	return ret;
 }
 
-static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
+static int pp_dpm_get_fan_speed_pwm(void *handle, uint32_t *speed)
 {
 	struct pp_hwmgr *hwmgr = handle;
 	int ret = 0;
@@ -559,13 +559,13 @@ static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->get_fan_speed_percent == NULL) {
+	if (hwmgr->hwmgr_func->get_fan_speed_pwm == NULL) {
 		pr_info_ratelimited("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
 	mutex_lock(&hwmgr->smu_lock);
-	ret = hwmgr->hwmgr_func->get_fan_speed_percent(hwmgr, speed);
+	ret = hwmgr->hwmgr_func->get_fan_speed_pwm(hwmgr, speed);
 	mutex_unlock(&hwmgr->smu_lock);
 	return ret;
 }
@@ -875,34 +875,30 @@ pp_dpm_get_vce_clock_state(void *handle, unsigned idx)
 static int pp_get_power_profile_mode(void *handle, char *buf)
 {
 	struct pp_hwmgr *hwmgr = handle;
+	int ret;
 
-	if (!hwmgr || !hwmgr->pm_en || !buf)
+	if (!hwmgr || !hwmgr->pm_en || !hwmgr->hwmgr_func->get_power_profile_mode)
+		return -EOPNOTSUPP;
+	if (!buf)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->get_power_profile_mode == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return snprintf(buf, PAGE_SIZE, "\n");
-	}
-
-	return hwmgr->hwmgr_func->get_power_profile_mode(hwmgr, buf);
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->get_power_profile_mode(hwmgr, buf);
+	mutex_unlock(&hwmgr->smu_lock);
+	return ret;
 }
 
 static int pp_set_power_profile_mode(void *handle, long *input, uint32_t size)
 {
 	struct pp_hwmgr *hwmgr = handle;
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 
-	if (!hwmgr || !hwmgr->pm_en)
+	if (!hwmgr || !hwmgr->pm_en || !hwmgr->hwmgr_func->set_power_profile_mode)
 		return ret;
-
-	if (hwmgr->hwmgr_func->set_power_profile_mode == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return ret;
-	}
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
 		pr_debug("power profile setting is for manual dpm mode only.\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	mutex_lock(&hwmgr->smu_lock);
@@ -1691,8 +1687,8 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.dispatch_tasks = pp_dpm_dispatch_tasks,
 	.set_fan_control_mode = pp_dpm_set_fan_control_mode,
 	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
-	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
-	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
+	.set_fan_speed_pwm = pp_dpm_set_fan_speed_pwm,
+	.get_fan_speed_pwm = pp_dpm_get_fan_speed_pwm,
 	.get_fan_speed_rpm = pp_dpm_get_fan_speed_rpm,
 	.set_fan_speed_rpm = pp_dpm_set_fan_speed_rpm,
 	.get_pp_num_states = pp_dpm_get_pp_num_states,

@@ -2588,7 +2588,7 @@ static int __init mtk_init(struct net_device *dev)
 	struct mtk_eth *eth = mac->hw;
 	int ret;
 
-	ret = of_get_mac_address(mac->of_node, dev->dev_addr);
+	ret = of_get_ethdev_address(mac->of_node, dev);
 	if (ret) {
 		/* If the mac address is invalid, use random mac address */
 		eth_hw_addr_random(dev);
@@ -2933,7 +2933,7 @@ static const struct net_device_ops mtk_netdev_ops = {
 	.ndo_start_xmit		= mtk_start_xmit,
 	.ndo_set_mac_address	= mtk_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= mtk_do_ioctl,
+	.ndo_eth_ioctl		= mtk_do_ioctl,
 	.ndo_change_mtu		= mtk_change_mtu,
 	.ndo_tx_timeout		= mtk_tx_timeout,
 	.ndo_get_stats64        = mtk_get_stats64,

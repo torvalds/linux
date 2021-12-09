@@ -510,6 +510,8 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			prefix_unmapped(vsie_page);
 		scb_s->ecb |= ECB_TE;
 	}
+	/* specification exception interpretation */
+	scb_s->ecb |= scb_o->ecb & ECB_SPECI;
 	/* branch prediction */
 	if (test_kvm_facility(vcpu->kvm, 82))
 		scb_s->fpf |= scb_o->fpf & FPF_BPBC;

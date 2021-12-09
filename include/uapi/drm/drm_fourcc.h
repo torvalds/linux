@@ -104,6 +104,12 @@ extern "C" {
 /* 8 bpp Red */
 #define DRM_FORMAT_R8		fourcc_code('R', '8', ' ', ' ') /* [7:0] R */
 
+/* 10 bpp Red */
+#define DRM_FORMAT_R10		fourcc_code('R', '1', '0', ' ') /* [15:0] x:R 6:10 little endian */
+
+/* 12 bpp Red */
+#define DRM_FORMAT_R12		fourcc_code('R', '1', '2', ' ') /* [15:0] x:R 4:12 little endian */
+
 /* 16 bpp Red */
 #define DRM_FORMAT_R16		fourcc_code('R', '1', '6', ' ') /* [15:0] R little endian */
 
@@ -372,6 +378,12 @@ extern "C" {
 /* add more to the end as needed */
 
 #define DRM_FORMAT_RESERVED	      ((1ULL << 56) - 1)
+
+#define fourcc_mod_get_vendor(modifier) \
+	(((modifier) >> 56) & 0xff)
+
+#define fourcc_mod_is_vendor(modifier, vendor) \
+	(fourcc_mod_get_vendor(modifier) == DRM_FORMAT_MOD_VENDOR_## vendor)
 
 #define fourcc_mod_code(vendor, val) \
 	((((__u64)DRM_FORMAT_MOD_VENDOR_## vendor) << 56) | ((val) & 0x00ffffffffffffffULL))
@@ -900,9 +912,9 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 
 /*
  * The top 4 bits (out of the 56 bits alloted for specifying vendor specific
- * modifiers) denote the category for modifiers. Currently we have only two
- * categories of modifiers ie AFBC and MISC. We can have a maximum of sixteen
- * different categories.
+ * modifiers) denote the category for modifiers. Currently we have three
+ * categories of modifiers ie AFBC, MISC and AFRC. We can have a maximum of
+ * sixteen different categories.
  */
 #define DRM_FORMAT_MOD_ARM_CODE(__type, __val) \
 	fourcc_mod_code(ARM, ((__u64)(__type) << 52) | ((__val) & 0x000fffffffffffffULL))
@@ -1016,6 +1028,109 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  * superblocks, USM just guarantees it for all.
  */
 #define AFBC_FORMAT_MOD_USM	(1ULL << 12)
+
+/*
+ * Arm Fixed-Rate Compression (AFRC) modifiers
+ *
+ * AFRC is a proprietary fixed rate image compression protocol and format,
+ * designed to provide guaranteed bandwidth and memory footprint
+ * reductions in graphics and media use-cases.
+ *
+ * AFRC buffers consist of one or more planes, with the same components
+ * and meaning as an uncompressed buffer using the same pixel format.
+ *
+ * Within each plane, the pixel/luma/chroma values are grouped into
+ * "coding unit" blocks which are individually compressed to a
+ * fixed size (in bytes). All coding units within a given plane of a buffer
+ * store the same number of values, and have the same compressed size.
+ *
+ * The coding unit size is configurable, allowing different rates of compression.
+ *
+ * The start of each AFRC buffer plane must be aligned to an alignment granule which
+ * depends on the coding unit size.
+ *
+ * Coding Unit Size   Plane Alignment
+ * ----------------   ---------------
+ * 16 bytes           1024 bytes
+ * 24 bytes           512  bytes
+ * 32 bytes           2048 bytes
+ *
+ * Coding units are grouped into paging tiles. AFRC buffer dimensions must be aligned
+ * to a multiple of the paging tile dimensions.
+ * The dimensions of each paging tile depend on whether the buffer is optimised for
+ * scanline (SCAN layout) or rotated (ROT layout) access.
+ *
+ * Layout   Paging Tile Width   Paging Tile Height
+ * ------   -----------------   ------------------
+ * SCAN     16 coding units     4 coding units
+ * ROT      8  coding units     8 coding units
+ *
+ * The dimensions of each coding unit depend on the number of components
+ * in the compressed plane and whether the buffer is optimised for
+ * scanline (SCAN layout) or rotated (ROT layout) access.
+ *
+ * Number of Components in Plane   Layout      Coding Unit Width   Coding Unit Height
+ * -----------------------------   ---------   -----------------   ------------------
+ * 1                               SCAN        16 samples          4 samples
+ * Example: 16x4 luma samples in a 'Y' plane
+ *          16x4 chroma 'V' values, in the 'V' plane of a fully-planar YUV buffer
+ * -----------------------------   ---------   -----------------   ------------------
+ * 1                               ROT         8 samples           8 samples
+ * Example: 8x8 luma samples in a 'Y' plane
+ *          8x8 chroma 'V' values, in the 'V' plane of a fully-planar YUV buffer
+ * -----------------------------   ---------   -----------------   ------------------
+ * 2                               DONT CARE   8 samples           4 samples
+ * Example: 8x4 chroma pairs in the 'UV' plane of a semi-planar YUV buffer
+ * -----------------------------   ---------   -----------------   ------------------
+ * 3                               DONT CARE   4 samples           4 samples
+ * Example: 4x4 pixels in an RGB buffer without alpha
+ * -----------------------------   ---------   -----------------   ------------------
+ * 4                               DONT CARE   4 samples           4 samples
+ * Example: 4x4 pixels in an RGB buffer with alpha
+ */
+
+#define DRM_FORMAT_MOD_ARM_TYPE_AFRC 0x02
+
+#define DRM_FORMAT_MOD_ARM_AFRC(__afrc_mode) \
+	DRM_FORMAT_MOD_ARM_CODE(DRM_FORMAT_MOD_ARM_TYPE_AFRC, __afrc_mode)
+
+/*
+ * AFRC coding unit size modifier.
+ *
+ * Indicates the number of bytes used to store each compressed coding unit for
+ * one or more planes in an AFRC encoded buffer. The coding unit size for chrominance
+ * is the same for both Cb and Cr, which may be stored in separate planes.
+ *
+ * AFRC_FORMAT_MOD_CU_SIZE_P0 indicates the number of bytes used to store
+ * each compressed coding unit in the first plane of the buffer. For RGBA buffers
+ * this is the only plane, while for semi-planar and fully-planar YUV buffers,
+ * this corresponds to the luma plane.
+ *
+ * AFRC_FORMAT_MOD_CU_SIZE_P12 indicates the number of bytes used to store
+ * each compressed coding unit in the second and third planes in the buffer.
+ * For semi-planar and fully-planar YUV buffers, this corresponds to the chroma plane(s).
+ *
+ * For single-plane buffers, AFRC_FORMAT_MOD_CU_SIZE_P0 must be specified
+ * and AFRC_FORMAT_MOD_CU_SIZE_P12 must be zero.
+ * For semi-planar and fully-planar buffers, both AFRC_FORMAT_MOD_CU_SIZE_P0 and
+ * AFRC_FORMAT_MOD_CU_SIZE_P12 must be specified.
+ */
+#define AFRC_FORMAT_MOD_CU_SIZE_MASK 0xf
+#define AFRC_FORMAT_MOD_CU_SIZE_16 (1ULL)
+#define AFRC_FORMAT_MOD_CU_SIZE_24 (2ULL)
+#define AFRC_FORMAT_MOD_CU_SIZE_32 (3ULL)
+
+#define AFRC_FORMAT_MOD_CU_SIZE_P0(__afrc_cu_size) (__afrc_cu_size)
+#define AFRC_FORMAT_MOD_CU_SIZE_P12(__afrc_cu_size) ((__afrc_cu_size) << 4)
+
+/*
+ * AFRC scanline memory layout.
+ *
+ * Indicates if the buffer uses the scanline-optimised layout
+ * for an AFRC encoded buffer, otherwise, it uses the rotation-optimised layout.
+ * The memory layout is the same for all planes.
+ */
+#define AFRC_FORMAT_MOD_LAYOUT_SCAN (1ULL << 8)
 
 /*
  * Arm 16x16 Block U-Interleaved modifier

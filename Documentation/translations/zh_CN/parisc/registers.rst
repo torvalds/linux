@@ -1,7 +1,10 @@
 .. include:: ../disclaimer-zh_CN.rst
 
 :Original: Documentation/parisc/registers.rst
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_parisc_registers:
 

@@ -115,11 +115,22 @@ properties:
           - const: firefly,roc-rk3328-cc
           - const: rockchip,rk3328
 
+      - description: Firefly ROC-RK3328-PC
+        items:
+          - const: firefly,roc-rk3328-pc
+          - const: rockchip,rk3328
+
       - description: Firefly ROC-RK3399-PC
         items:
           - enum:
               - firefly,roc-rk3399-pc
               - firefly,roc-rk3399-pc-mezzanine
+          - const: rockchip,rk3399
+
+      - description: Firefly ROC-RK3399-PC-PLUS
+        items:
+          - enum:
+              - firefly,roc-rk3399-pc-plus
           - const: rockchip,rk3399
 
       - description: FriendlyElec NanoPi R2S
@@ -286,6 +297,34 @@ properties:
           - const: google,veyron-pinky
           - const: google,veyron
           - const: rockchip,rk3288
+
+      - description: Google Scarlet - Dumo (ASUS Chromebook Tablet CT100)
+        items:
+          - const: google,scarlet-rev15-sku0
+          - const: google,scarlet-rev15
+          - const: google,scarlet-rev14-sku0
+          - const: google,scarlet-rev14
+          - const: google,scarlet-rev13-sku0
+          - const: google,scarlet-rev13
+          - const: google,scarlet-rev12-sku0
+          - const: google,scarlet-rev12
+          - const: google,scarlet-rev11-sku0
+          - const: google,scarlet-rev11
+          - const: google,scarlet-rev10-sku0
+          - const: google,scarlet-rev10
+          - const: google,scarlet-rev9-sku0
+          - const: google,scarlet-rev9
+          - const: google,scarlet-rev8-sku0
+          - const: google,scarlet-rev8
+          - const: google,scarlet-rev7-sku0
+          - const: google,scarlet-rev7
+          - const: google,scarlet-rev6-sku0
+          - const: google,scarlet-rev6
+          - const: google,scarlet-rev5-sku0
+          - const: google,scarlet-rev5
+          - const: google,scarlet
+          - const: google,gru
+          - const: rockchip,rk3399
 
       - description: Google Scarlet - Kingdisplay (Acer Chromebook Tab 10)
         items:
@@ -455,16 +494,23 @@ properties:
           - const: pine64,rockpro64
           - const: rockchip,rk3399
 
+      - description: Pine64 Quartz64 Model A
+        items:
+          - const: pine64,quartz64-a
+          - const: rockchip,rk3566
+
       - description: Radxa Rock
         items:
           - const: radxa,rock
           - const: rockchip,rk3188
 
-      - description: Radxa ROCK Pi 4A/B/C
+      - description: Radxa ROCK Pi 4A/A+/B/B+/C
         items:
           - enum:
               - radxa,rockpi4a
+              - radxa,rockpi4a-plus
               - radxa,rockpi4b
+              - radxa,rockpi4b-plus
               - radxa,rockpi4c
           - const: radxa,rockpi4
           - const: rockchip,rk3399

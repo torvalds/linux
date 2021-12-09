@@ -13,11 +13,12 @@
 #include <linux/ktime.h>
 #include <linux/genhd.h>
 #include <linux/blk-mq.h>
-#include <linux/keyslot-manager.h>
+#include <linux/blk-crypto-profile.h>
 
 #include <trace/events/block.h>
 
 #include "dm.h"
+#include "dm-ima.h"
 
 #define DM_RESERVED_MAX_IOS		1024
 
@@ -119,6 +120,10 @@ struct mapped_device {
 	unsigned int nr_zones;
 	unsigned int *zwp_offset;
 #endif
+
+#ifdef CONFIG_IMA
+	struct dm_ima_measurements ima;
+#endif
 };
 
 /*
@@ -195,7 +200,7 @@ struct dm_table {
 	struct dm_md_mempools *mempools;
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
-	struct blk_keyslot_manager *ksm;
+	struct blk_crypto_profile *crypto_profile;
 #endif
 };
 

@@ -222,8 +222,6 @@ static void *vcpu_thread_main(void *arg)
 	int vcpu_id = vcpu_args->vcpu_id;
 	int current_iteration = -1;
 
-	vcpu_args_set(vm, vcpu_id, 1, vcpu_id);
-
 	while (spin_wait_for_next_iteration(&current_iteration)) {
 		switch (READ_ONCE(iteration_work)) {
 		case ITERATION_ACCESS_MEMORY:
@@ -333,7 +331,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	pthread_t *vcpu_threads;
 	int vcpus = params->vcpus;
 
-	vm = perf_test_create_vm(mode, vcpus, params->vcpu_memory_bytes,
+	vm = perf_test_create_vm(mode, vcpus, params->vcpu_memory_bytes, 1,
 				 params->backing_src);
 
 	perf_test_setup_vcpus(vm, vcpus, params->vcpu_memory_bytes,
@@ -373,9 +371,7 @@ static void help(char *name)
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
-	printf(" -s: specify the type of memory that should be used to\n"
-	       "     back the guest data region.\n\n");
-	backing_src_help();
+	backing_src_help("-s");
 	puts("");
 	exit(0);
 }
@@ -383,7 +379,7 @@ static void help(char *name)
 int main(int argc, char *argv[])
 {
 	struct test_params params = {
-		.backing_src = VM_MEM_SRC_ANONYMOUS,
+		.backing_src = DEFAULT_VM_MEM_SRC,
 		.vcpu_memory_bytes = DEFAULT_PER_VCPU_MEM_SIZE,
 		.vcpus = 1,
 	};

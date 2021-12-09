@@ -34,7 +34,7 @@ config LEDS_TRIGGER_ONESHOT
 
 config LEDS_TRIGGER_DISK
 	bool "LED Disk Trigger"
-	depends on IDE_GD_ATA || ATA
+	depends on ATA
 	help
 	  This allows LEDs to be controlled by disk activity.
 	  If unsure, say Y.
@@ -64,6 +64,7 @@ config LEDS_TRIGGER_BACKLIGHT
 
 config LEDS_TRIGGER_CPU
 	bool "LED CPU Trigger"
+	depends on !PREEMPT_RT
 	help
 	  This allows LEDs to be controlled by active CPUs. This shows
 	  the active CPUs across an array of LEDs so you can see which

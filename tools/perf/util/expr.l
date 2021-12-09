@@ -6,6 +6,7 @@
 #include <linux/compiler.h>
 #include "expr.h"
 #include "expr-bison.h"
+#include <math.h>
 
 char *expr_get_text(yyscan_t yyscanner);
 YYSTYPE *expr_get_lval(yyscan_t yyscanner);
@@ -41,11 +42,9 @@ static char *normalize(char *str, int runtime)
 	char *dst = str;
 
 	while (*str) {
-		if (*str == '@')
-			*dst++ = '/';
-		else if (*str == '\\')
+		if (*str == '\\')
 			*dst++ = *++str;
-		 else if (*str == '?') {
+		else if (*str == '?') {
 			char *paramval;
 			int i = 0;
 			int size = asprintf(&paramval, "%d", runtime);
@@ -79,6 +78,17 @@ static int str(yyscan_t scanner, int token, int runtime)
 	yylval->str = normalize(yylval->str, runtime);
 	return token;
 }
+
+static int literal(yyscan_t scanner)
+{
+	YYSTYPE *yylval = expr_get_lval(scanner);
+
+	yylval->num = expr__get_literal(expr_get_text(scanner));
+	if (isnan(yylval->num))
+		return EXPR_ERROR;
+
+	return LITERAL;
+}
 %}
 
 number		([0-9]+\.?[0-9]*|[0-9]*\.?[0-9]+)
@@ -87,25 +97,18 @@ sch		[-,=]
 spec		\\{sch}
 sym		[0-9a-zA-Z_\.:@?]+
 symbol		({spec}|{sym})+
+literal		#[0-9a-zA-Z_\.\-]+
 
 %%
 	struct expr_scanner_ctx *sctx = expr_get_extra(yyscanner);
-
-	{
-		int start_token = sctx->start_token;
-
-		if (sctx->start_token) {
-			sctx->start_token = 0;
-			return start_token;
-		}
-	}
 
 d_ratio		{ return D_RATIO; }
 max		{ return MAX; }
 min		{ return MIN; }
 if		{ return IF; }
 else		{ return ELSE; }
-#smt_on		{ return SMT_ON; }
+source_count	{ return SOURCE_COUNT; }
+{literal}	{ return literal(yyscanner); }
 {number}	{ return value(yyscanner); }
 {symbol}	{ return str(yyscanner, ID, sctx->runtime); }
 "|"		{ return '|'; }

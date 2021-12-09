@@ -189,8 +189,8 @@ cxgbit_tx_data_wr(struct cxgbit_sock *csk, struct sk_buff *skb, u32 dlen,
 	wr_ulp_mode = FW_OFLD_TX_DATA_WR_ULPMODE_V(ULP_MODE_ISCSI) |
 				FW_OFLD_TX_DATA_WR_ULPSUBMODE_V(submode);
 
-	req->tunnel_to_proxy = htonl((wr_ulp_mode) | force |
-		 FW_OFLD_TX_DATA_WR_SHOVE_V(skb_peek(&csk->txq) ? 0 : 1));
+	req->tunnel_to_proxy = htonl(wr_ulp_mode | force |
+				     FW_OFLD_TX_DATA_WR_SHOVE_F);
 }
 
 static void cxgbit_arp_failure_skb_discard(void *handle, struct sk_buff *skb)
@@ -1531,7 +1531,7 @@ out:
 	return ret;
 }
 
-static int cxgbit_rx_lro_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
+static int cxgbit_t5_rx_lro_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
 	struct cxgbit_lro_cb *lro_cb = cxgbit_skb_lro_cb(skb);
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_skb_lro_pdu_cb(skb, 0);
@@ -1557,6 +1557,24 @@ static int cxgbit_rx_lro_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 	return ret;
 }
 
+static int cxgbit_rx_lro_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
+{
+	struct cxgbit_lro_cb *lro_cb = cxgbit_skb_lro_cb(skb);
+	int ret;
+
+	ret = cxgbit_process_lro_skb(csk, skb);
+	if (ret)
+		return ret;
+
+	csk->rx_credits += lro_cb->pdu_totallen;
+	if (csk->rx_credits >= csk->rcv_win) {
+		csk->rx_credits = 0;
+		cxgbit_rx_data_ack(csk);
+	}
+
+	return 0;
+}
+
 static int cxgbit_rx_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
 	struct cxgb4_lld_info *lldi = &csk->com.cdev->lldi;
@@ -1564,9 +1582,9 @@ static int cxgbit_rx_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 	if (likely(cxgbit_skcb_flags(skb) & SKCBF_RX_LRO)) {
 		if (is_t5(lldi->adapter_type))
-			ret = cxgbit_rx_lro_skb(csk, skb);
+			ret = cxgbit_t5_rx_lro_skb(csk, skb);
 		else
-			ret = cxgbit_process_lro_skb(csk, skb);
+			ret = cxgbit_rx_lro_skb(csk, skb);
 	}
 
 	__kfree_skb(skb);

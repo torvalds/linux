@@ -86,7 +86,7 @@ struct smsc47m192_data {
 	struct i2c_client *client;
 	const struct attribute_group *groups[3];
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	u8 in[8];		/* Register value */
@@ -157,7 +157,7 @@ static struct smsc47m192_data *smsc47m192_update_device(struct device *dev)
 						SMSC47M192_REG_ALARM2) << 8);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

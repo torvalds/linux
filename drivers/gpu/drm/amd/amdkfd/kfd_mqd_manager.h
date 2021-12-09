@@ -27,6 +27,7 @@
 #include "kfd_priv.h"
 
 #define KFD_MAX_NUM_SE 8
+#define KFD_MAX_NUM_SH_PER_SE 2
 
 /**
  * struct mqd_manager
@@ -79,7 +80,8 @@ struct mqd_manager {
 				struct mm_struct *mms);
 
 	void	(*update_mqd)(struct mqd_manager *mm, void *mqd,
-				struct queue_properties *q);
+				struct queue_properties *q,
+				struct mqd_update_info *minfo);
 
 	int	(*destroy_mqd)(struct mqd_manager *mm, void *mqd,
 				enum kfd_preempt_type type,

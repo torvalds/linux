@@ -1590,7 +1590,6 @@ MODULE_DEVICE_TABLE(of, jpu_dt_ids);
 static int jpu_probe(struct platform_device *pdev)
 {
 	struct jpu *jpu;
-	struct resource *res;
 	int ret;
 	unsigned int i;
 
@@ -1603,8 +1602,7 @@ static int jpu_probe(struct platform_device *pdev)
 	jpu->dev = &pdev->dev;
 
 	/* memory-mapped registers */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	jpu->regs = devm_ioremap_resource(&pdev->dev, res);
+	jpu->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(jpu->regs))
 		return PTR_ERR(jpu->regs);
 

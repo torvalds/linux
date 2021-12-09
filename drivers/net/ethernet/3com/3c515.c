@@ -407,7 +407,7 @@ MODULE_PARM_DESC(max_interrupt_work, "3c515 maximum events handled per interrupt
 /* we will need locking (and refcounting) if we ever use it for more */
 static LIST_HEAD(root_corkscrew_dev);
 
-int init_module(void)
+static int corkscrew_init_module(void)
 {
 	int found = 0;
 	if (debug >= 0)
@@ -416,6 +416,7 @@ int init_module(void)
 		found++;
 	return found ? 0 : -ENODEV;
 }
+module_init(corkscrew_init_module);
 
 #else
 struct net_device *tc515_probe(int unit)
@@ -566,6 +567,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 {
 	struct corkscrew_private *vp = netdev_priv(dev);
 	unsigned int eeprom[0x40], checksum = 0;	/* EEPROM contents */
+	__be16 addr[ETH_ALEN / 2];
 	int i;
 	int irq;
 
@@ -618,7 +620,6 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	/* Read the station address from the EEPROM. */
 	EL3WINDOW(0);
 	for (i = 0; i < 0x18; i++) {
-		__be16 *phys_addr = (__be16 *) dev->dev_addr;
 		int timer;
 		outw(EEPROM_Read + i, ioaddr + Wn0EepromCmd);
 		/* Pause for at least 162 us. for the read to take place. */
@@ -630,8 +631,9 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 		eeprom[i] = inw(ioaddr + Wn0EepromData);
 		checksum ^= eeprom[i];
 		if (i < 3)
-			phys_addr[i] = htons(eeprom[i]);
+			addr[i] = htons(eeprom[i]);
 	}
+	eth_hw_addr_set(dev, (u8 *)addr);
 	checksum = (checksum ^ (checksum >> 8)) & 0xff;
 	if (checksum != 0x00)
 		pr_cont(" ***INVALID CHECKSUM %4.4x*** ", checksum);
@@ -1049,7 +1051,7 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 #ifdef VORTEX_BUS_MASTER
 	if (vp->bus_master) {
 		/* Set the bus-master controller to transfer the packet. */
-		outl((int) (skb->data), ioaddr + Wn7_MasterAddr);
+		outl(isa_virt_to_bus(skb->data), ioaddr + Wn7_MasterAddr);
 		outw((skb->len + 3) & ~3, ioaddr + Wn7_MasterLen);
 		vp->tx_skb = skb;
 		outw(StartDMADown, ioaddr + EL3_CMD);

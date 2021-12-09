@@ -3,6 +3,8 @@
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  */
 
+#include "drm/drm_bridge_connector.h"
+
 #include "msm_kms.h"
 #include "dsi.h"
 
@@ -21,14 +23,14 @@
 struct msm_dsi_manager {
 	struct msm_dsi *dsi[DSI_MAX];
 
-	bool is_dual_dsi;
+	bool is_bonded_dsi;
 	bool is_sync_needed;
 	int master_dsi_link_id;
 };
 
 static struct msm_dsi_manager msm_dsim_glb;
 
-#define IS_DUAL_DSI()		(msm_dsim_glb.is_dual_dsi)
+#define IS_BONDED_DSI()		(msm_dsim_glb.is_bonded_dsi)
 #define IS_SYNC_NEEDED()	(msm_dsim_glb.is_sync_needed)
 #define IS_MASTER_DSI_LINK(id)	(msm_dsim_glb.master_dsi_link_id == id)
 
@@ -42,18 +44,17 @@ static inline struct msm_dsi *dsi_mgr_get_other_dsi(int id)
 	return msm_dsim_glb.dsi[(id + 1) % DSI_MAX];
 }
 
-static int dsi_mgr_parse_dual_dsi(struct device_node *np, int id)
+static int dsi_mgr_parse_of(struct device_node *np, int id)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
 
-	/* We assume 2 dsi nodes have the same information of dual-dsi and
-	 * sync-mode, and only one node specifies master in case of dual mode.
+	/* We assume 2 dsi nodes have the same information of bonded dsi and
+	 * sync-mode, and only one node specifies master in case of bonded mode.
 	 */
-	if (!msm_dsim->is_dual_dsi)
-		msm_dsim->is_dual_dsi = of_property_read_bool(
-						np, "qcom,dual-dsi-mode");
+	if (!msm_dsim->is_bonded_dsi)
+		msm_dsim->is_bonded_dsi = of_property_read_bool(np, "qcom,dual-dsi-mode");
 
-	if (msm_dsim->is_dual_dsi) {
+	if (msm_dsim->is_bonded_dsi) {
 		if (of_property_read_bool(np, "qcom,master-dsi"))
 			msm_dsim->master_dsi_link_id = id;
 		if (!msm_dsim->is_sync_needed)
@@ -72,7 +73,7 @@ static int dsi_mgr_setup_components(int id)
 	struct msm_dsi *clk_slave_dsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 	int ret;
 
-	if (!IS_DUAL_DSI()) {
+	if (!IS_BONDED_DSI()) {
 		ret = msm_dsi_host_register(msm_dsi->host, true);
 		if (ret)
 			return ret;
@@ -100,7 +101,7 @@ static int dsi_mgr_setup_components(int id)
 		if (ret)
 			return ret;
 
-		/* PLL0 is to drive both 2 DSI link clocks in Dual DSI mode. */
+		/* PLL0 is to drive both 2 DSI link clocks in bonded DSI mode. */
 		msm_dsi_phy_set_usecase(clk_master_dsi->phy,
 					MSM_DSI_PHY_MASTER);
 		msm_dsi_phy_set_usecase(clk_slave_dsi->phy,
@@ -119,12 +120,11 @@ static int enable_phy(struct msm_dsi *msm_dsi,
 {
 	struct msm_dsi_phy_clk_request clk_req;
 	int ret;
-	bool is_dual_dsi = IS_DUAL_DSI();
+	bool is_bonded_dsi = IS_BONDED_DSI();
 
-	msm_dsi_host_get_phy_clk_req(msm_dsi->host, &clk_req, is_dual_dsi);
+	msm_dsi_host_get_phy_clk_req(msm_dsi->host, &clk_req, is_bonded_dsi);
 
-	ret = msm_dsi_phy_enable(msm_dsi->phy, &clk_req);
-	msm_dsi_phy_get_shared_timings(msm_dsi->phy, shared_timings);
+	ret = msm_dsi_phy_enable(msm_dsi->phy, &clk_req, shared_timings);
 
 	return ret;
 }
@@ -138,12 +138,12 @@ dsi_mgr_phy_enable(int id,
 	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 	int ret;
 
-	/* In case of dual DSI, some registers in PHY1 have been programmed
+	/* In case of bonded DSI, some registers in PHY1 have been programmed
 	 * during PLL0 clock's set_rate. The PHY1 reset called by host1 here
 	 * will silently reset those PHY1 registers. Therefore we need to reset
 	 * and enable both PHYs before any PLL clock operation.
 	 */
-	if (IS_DUAL_DSI() && mdsi && sdsi) {
+	if (IS_BONDED_DSI() && mdsi && sdsi) {
 		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
 			msm_dsi_host_reset_phy(mdsi->host);
 			msm_dsi_host_reset_phy(sdsi->host);
@@ -178,11 +178,11 @@ static void dsi_mgr_phy_disable(int id)
 	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 
 	/* disable DSI phy
-	 * In dual-dsi configuration, the phy should be disabled for the
+	 * In bonded dsi configuration, the phy should be disabled for the
 	 * first controller only when the second controller is disabled.
 	 */
 	msm_dsi->phy_enabled = false;
-	if (IS_DUAL_DSI() && mdsi && sdsi) {
+	if (IS_BONDED_DSI() && mdsi && sdsi) {
 		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
 			msm_dsi_phy_disable(sdsi->phy);
 			msm_dsi_phy_disable(mdsi->phy);
@@ -217,24 +217,6 @@ static int dsi_mgr_bridge_get_id(struct drm_bridge *bridge)
 	return dsi_bridge->id;
 }
 
-static bool dsi_mgr_is_cmd_mode(struct msm_dsi *msm_dsi)
-{
-	unsigned long host_flags = msm_dsi_host_get_mode_flags(msm_dsi->host);
-	return !(host_flags & MIPI_DSI_MODE_VIDEO);
-}
-
-void msm_dsi_manager_setup_encoder(int id)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-	struct drm_encoder *encoder = msm_dsi_get_encoder(msm_dsi);
-
-	if (encoder && kms->funcs->set_encoder_mode)
-		kms->funcs->set_encoder_mode(kms, encoder,
-					     dsi_mgr_is_cmd_mode(msm_dsi));
-}
-
 static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
 {
 	struct msm_drm_private *priv = conn->dev->dev_private;
@@ -244,7 +226,7 @@ static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
 	struct msm_dsi *master_dsi, *slave_dsi;
 	struct drm_panel *panel;
 
-	if (IS_DUAL_DSI() && !IS_MASTER_DSI_LINK(id)) {
+	if (IS_BONDED_DSI() && !IS_MASTER_DSI_LINK(id)) {
 		master_dsi = other_dsi;
 		slave_dsi = msm_dsi;
 	} else {
@@ -253,7 +235,7 @@ static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
 	}
 
 	/*
-	 * There is only 1 panel in the global panel list for dual DSI mode.
+	 * There is only 1 panel in the global panel list for bonded DSI mode.
 	 * Therefore slave dsi should get the drm_panel instance from master
 	 * dsi.
 	 */
@@ -264,20 +246,20 @@ static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
 		return PTR_ERR(panel);
 	}
 
-	if (!panel || !IS_DUAL_DSI())
+	if (!panel || !IS_BONDED_DSI())
 		goto out;
 
 	drm_object_attach_property(&conn->base,
 				   conn->dev->mode_config.tile_property, 0);
 
 	/*
-	 * Set split display info to kms once dual DSI panel is connected to
+	 * Set split display info to kms once bonded DSI panel is connected to
 	 * both hosts.
 	 */
 	if (other_dsi && other_dsi->panel && kms->funcs->set_split_display) {
 		kms->funcs->set_split_display(kms, master_dsi->encoder,
 					      slave_dsi->encoder,
-					      dsi_mgr_is_cmd_mode(msm_dsi));
+					      msm_dsi_is_cmd_mode(msm_dsi));
 	}
 
 out:
@@ -317,7 +299,7 @@ static int dsi_mgr_connector_get_modes(struct drm_connector *connector)
 		return 0;
 
 	/*
-	 * In dual DSI mode, we have one connector that can be
+	 * In bonded DSI mode, we have one connector that can be
 	 * attached to the drm_panel.
 	 */
 	num = drm_panel_get_modes(panel, connector);
@@ -366,36 +348,44 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	struct mipi_dsi_host *host = msm_dsi->host;
 	struct drm_panel *panel = msm_dsi->panel;
 	struct msm_dsi_phy_shared_timings phy_shared_timings[DSI_MAX];
-	bool is_dual_dsi = IS_DUAL_DSI();
+	bool is_bonded_dsi = IS_BONDED_DSI();
 	int ret;
 
 	DBG("id=%d", id);
 	if (!msm_dsi_device_connected(msm_dsi))
 		return;
 
-	/* Do nothing with the host if it is slave-DSI in case of dual DSI */
-	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
+	/* Do nothing with the host if it is slave-DSI in case of bonded DSI */
+	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
 	ret = dsi_mgr_phy_enable(id, phy_shared_timings);
 	if (ret)
 		goto phy_en_fail;
 
-	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id], is_dual_dsi);
+	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id], is_bonded_dsi, msm_dsi->phy);
 	if (ret) {
 		pr_err("%s: power on host %d failed, %d\n", __func__, id, ret);
 		goto host_on_fail;
 	}
 
-	if (is_dual_dsi && msm_dsi1) {
+	if (is_bonded_dsi && msm_dsi1) {
 		ret = msm_dsi_host_power_on(msm_dsi1->host,
-				&phy_shared_timings[DSI_1], is_dual_dsi);
+				&phy_shared_timings[DSI_1], is_bonded_dsi, msm_dsi1->phy);
 		if (ret) {
 			pr_err("%s: power on host1 failed, %d\n",
 							__func__, ret);
 			goto host1_on_fail;
 		}
 	}
+
+	/*
+	 * Enable before preparing the panel, disable after unpreparing, so
+	 * that the panel can communicate over the DSI link.
+	 */
+	msm_dsi_host_enable_irq(host);
+	if (is_bonded_dsi && msm_dsi1)
+		msm_dsi_host_enable_irq(msm_dsi1->host);
 
 	/* Always call panel functions once, because even for dual panels,
 	 * there is only one drm_panel instance.
@@ -415,7 +405,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		goto host_en_fail;
 	}
 
-	if (is_dual_dsi && msm_dsi1) {
+	if (is_bonded_dsi && msm_dsi1) {
 		ret = msm_dsi_host_enable(msm_dsi1->host);
 		if (ret) {
 			pr_err("%s: enable host1 failed, %d\n", __func__, ret);
@@ -431,7 +421,11 @@ host_en_fail:
 	if (panel)
 		drm_panel_unprepare(panel);
 panel_prep_fail:
-	if (is_dual_dsi && msm_dsi1)
+	msm_dsi_host_disable_irq(host);
+	if (is_bonded_dsi && msm_dsi1)
+		msm_dsi_host_disable_irq(msm_dsi1->host);
+
+	if (is_bonded_dsi && msm_dsi1)
 		msm_dsi_host_power_off(msm_dsi1->host);
 host1_on_fail:
 	msm_dsi_host_power_off(host);
@@ -441,20 +435,33 @@ phy_en_fail:
 	return;
 }
 
+void msm_dsi_manager_tpg_enable(void)
+{
+	struct msm_dsi *m_dsi = dsi_mgr_get_dsi(DSI_0);
+	struct msm_dsi *s_dsi = dsi_mgr_get_dsi(DSI_1);
+
+	/* if dual dsi, trigger tpg on master first then slave */
+	if (m_dsi) {
+		msm_dsi_host_test_pattern_en(m_dsi->host);
+		if (IS_BONDED_DSI() && s_dsi)
+			msm_dsi_host_test_pattern_en(s_dsi->host);
+	}
+}
+
 static void dsi_mgr_bridge_enable(struct drm_bridge *bridge)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_panel *panel = msm_dsi->panel;
-	bool is_dual_dsi = IS_DUAL_DSI();
+	bool is_bonded_dsi = IS_BONDED_DSI();
 	int ret;
 
 	DBG("id=%d", id);
 	if (!msm_dsi_device_connected(msm_dsi))
 		return;
 
-	/* Do nothing with the host if it is slave-DSI in case of dual DSI */
-	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
+	/* Do nothing with the host if it is slave-DSI in case of bonded DSI */
+	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
 	if (panel) {
@@ -471,15 +478,15 @@ static void dsi_mgr_bridge_disable(struct drm_bridge *bridge)
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_panel *panel = msm_dsi->panel;
-	bool is_dual_dsi = IS_DUAL_DSI();
+	bool is_bonded_dsi = IS_BONDED_DSI();
 	int ret;
 
 	DBG("id=%d", id);
 	if (!msm_dsi_device_connected(msm_dsi))
 		return;
 
-	/* Do nothing with the host if it is slave-DSI in case of dual DSI */
-	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
+	/* Do nothing with the host if it is slave-DSI in case of bonded DSI */
+	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
 	if (panel) {
@@ -497,7 +504,7 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 	struct msm_dsi *msm_dsi1 = dsi_mgr_get_dsi(DSI_1);
 	struct mipi_dsi_host *host = msm_dsi->host;
 	struct drm_panel *panel = msm_dsi->panel;
-	bool is_dual_dsi = IS_DUAL_DSI();
+	bool is_bonded_dsi = IS_BONDED_DSI();
 	int ret;
 
 	DBG("id=%d", id);
@@ -506,18 +513,18 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 		return;
 
 	/*
-	 * Do nothing with the host if it is slave-DSI in case of dual DSI.
+	 * Do nothing with the host if it is slave-DSI in case of bonded DSI.
 	 * It is safe to call dsi_mgr_phy_disable() here because a single PHY
 	 * won't be diabled until both PHYs request disable.
 	 */
-	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
+	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
 		goto disable_phy;
 
 	ret = msm_dsi_host_disable(host);
 	if (ret)
 		pr_err("%s: host %d disable failed, %d\n", __func__, id, ret);
 
-	if (is_dual_dsi && msm_dsi1) {
+	if (is_bonded_dsi && msm_dsi1) {
 		ret = msm_dsi_host_disable(msm_dsi1->host);
 		if (ret)
 			pr_err("%s: host1 disable failed, %d\n", __func__, ret);
@@ -530,6 +537,10 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 								id, ret);
 	}
 
+	msm_dsi_host_disable_irq(host);
+	if (is_bonded_dsi && msm_dsi1)
+		msm_dsi_host_disable_irq(msm_dsi1->host);
+
 	/* Save PHY status if it is a clock source */
 	msm_dsi_phy_pll_save_state(msm_dsi->phy);
 
@@ -537,7 +548,7 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 	if (ret)
 		pr_err("%s: host %d power off failed,%d\n", __func__, id, ret);
 
-	if (is_dual_dsi && msm_dsi1) {
+	if (is_bonded_dsi && msm_dsi1) {
 		ret = msm_dsi_host_power_off(msm_dsi1->host);
 		if (ret)
 			pr_err("%s: host1 power off failed, %d\n",
@@ -556,15 +567,15 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
 	struct mipi_dsi_host *host = msm_dsi->host;
-	bool is_dual_dsi = IS_DUAL_DSI();
+	bool is_bonded_dsi = IS_BONDED_DSI();
 
 	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 
-	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
+	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
 	msm_dsi_host_set_display_mode(host, adjusted_mode);
-	if (is_dual_dsi && other_dsi)
+	if (is_bonded_dsi && other_dsi)
 		msm_dsi_host_set_display_mode(other_dsi->host, adjusted_mode);
 }
 
@@ -640,15 +651,15 @@ fail:
 
 bool msm_dsi_manager_validate_current_config(u8 id)
 {
-	bool is_dual_dsi = IS_DUAL_DSI();
+	bool is_bonded_dsi = IS_BONDED_DSI();
 
 	/*
-	 * For dual DSI, we only have one drm panel. For this
+	 * For bonded DSI, we only have one drm panel. For this
 	 * use case, we register only one bridge/connector.
 	 * Skip bridge/connector initialisation if it is
-	 * slave-DSI for dual DSI configuration.
+	 * slave-DSI for bonded DSI configuration.
 	 */
-	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id)) {
+	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id)) {
 		DBG("Skip bridge registration for slave DSI->id: %d\n", id);
 		return false;
 	}
@@ -695,10 +706,10 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_device *dev = msm_dsi->dev;
+	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_bridge *int_bridge, *ext_bridge;
-	struct drm_connector *connector;
-	struct list_head *connector_list;
+	int ret;
 
 	int_bridge = msm_dsi->bridge;
 	ext_bridge = msm_dsi->external_bridge =
@@ -706,22 +717,44 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 
 	encoder = msm_dsi->encoder;
 
-	/* link the internal dsi bridge to the external bridge */
-	drm_bridge_attach(encoder, ext_bridge, int_bridge, 0);
-
 	/*
-	 * we need the drm_connector created by the external bridge
-	 * driver (or someone else) to feed it to our driver's
-	 * priv->connector[] list, mainly for msm_fbdev_init()
+	 * Try first to create the bridge without it creating its own
+	 * connector.. currently some bridges support this, and others
+	 * do not (and some support both modes)
 	 */
-	connector_list = &dev->mode_config.connector_list;
+	ret = drm_bridge_attach(encoder, ext_bridge, int_bridge,
+			DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	if (ret == -EINVAL) {
+		struct drm_connector *connector;
+		struct list_head *connector_list;
 
-	list_for_each_entry(connector, connector_list, head) {
-		if (drm_connector_has_possible_encoder(connector, encoder))
-			return connector;
+		/* link the internal dsi bridge to the external bridge */
+		drm_bridge_attach(encoder, ext_bridge, int_bridge, 0);
+
+		/*
+		 * we need the drm_connector created by the external bridge
+		 * driver (or someone else) to feed it to our driver's
+		 * priv->connector[] list, mainly for msm_fbdev_init()
+		 */
+		connector_list = &dev->mode_config.connector_list;
+
+		list_for_each_entry(connector, connector_list, head) {
+			if (drm_connector_has_possible_encoder(connector, encoder))
+				return connector;
+		}
+
+		return ERR_PTR(-ENODEV);
 	}
 
-	return ERR_PTR(-ENODEV);
+	connector = drm_bridge_connector_init(dev, encoder);
+	if (IS_ERR(connector)) {
+		DRM_ERROR("Unable to create bridge connector\n");
+		return ERR_CAST(connector);
+	}
+
+	drm_connector_attach_encoder(connector, encoder);
+
+	return connector;
 }
 
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)
@@ -740,7 +773,7 @@ int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg)
 	if (!msg->tx_buf || !msg->tx_len)
 		return 0;
 
-	/* In dual master case, panel requires the same commands sent to
+	/* In bonded master case, panel requires the same commands sent to
 	 * both DSI links. Host issues the command trigger to both links
 	 * when DSI_1 calls the cmd transfer function, no matter it happens
 	 * before or after DSI_0 cmd transfer.
@@ -809,9 +842,9 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 
 	msm_dsim->dsi[id] = msm_dsi;
 
-	ret = dsi_mgr_parse_dual_dsi(msm_dsi->pdev->dev.of_node, id);
+	ret = dsi_mgr_parse_of(msm_dsi->pdev->dev.of_node, id);
 	if (ret) {
-		pr_err("%s: failed to parse dual DSI info\n", __func__);
+		pr_err("%s: failed to parse OF DSI info\n", __func__);
 		goto fail;
 	}
 
@@ -840,3 +873,12 @@ void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi)
 		msm_dsim->dsi[msm_dsi->id] = NULL;
 }
 
+bool msm_dsi_is_bonded_dsi(struct msm_dsi *msm_dsi)
+{
+	return IS_BONDED_DSI();
+}
+
+bool msm_dsi_is_master_dsi(struct msm_dsi *msm_dsi)
+{
+	return IS_MASTER_DSI_LINK(msm_dsi->id);
+}

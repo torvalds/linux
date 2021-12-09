@@ -44,7 +44,16 @@ struct ebt_pernet {
 	struct list_head tables;
 };
 
+struct ebt_template {
+	struct list_head list;
+	char name[EBT_TABLE_MAXNAMELEN];
+	struct module *owner;
+	/* called when table is needed in the given netns */
+	int (*table_init)(struct net *net);
+};
+
 static unsigned int ebt_pernet_id __read_mostly;
+static LIST_HEAD(template_tables);
 static DEFINE_MUTEX(ebt_mutex);
 
 #ifdef CONFIG_NETFILTER_XTABLES_COMPAT
@@ -180,10 +189,10 @@ ebt_get_target_c(const struct ebt_entry *e)
 }
 
 /* Do some firewalling */
-unsigned int ebt_do_table(struct sk_buff *skb,
-			  const struct nf_hook_state *state,
-			  struct ebt_table *table)
+unsigned int ebt_do_table(void *priv, struct sk_buff *skb,
+			  const struct nf_hook_state *state)
 {
+	struct ebt_table *table = priv;
 	unsigned int hook = state->hook;
 	int i, nentries;
 	struct ebt_entry *point;
@@ -309,30 +318,57 @@ letscontinue:
 
 /* If it succeeds, returns element and locks mutex */
 static inline void *
-find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
+find_inlist_lock_noload(struct net *net, const char *name, int *error,
 			struct mutex *mutex)
 {
-	struct {
-		struct list_head list;
-		char name[EBT_FUNCTION_MAXNAMELEN];
-	} *e;
+	struct ebt_pernet *ebt_net = net_generic(net, ebt_pernet_id);
+	struct ebt_template *tmpl;
+	struct ebt_table *table;
 
 	mutex_lock(mutex);
-	list_for_each_entry(e, head, list) {
-		if (strcmp(e->name, name) == 0)
-			return e;
+	list_for_each_entry(table, &ebt_net->tables, list) {
+		if (strcmp(table->name, name) == 0)
+			return table;
 	}
+
+	list_for_each_entry(tmpl, &template_tables, list) {
+		if (strcmp(name, tmpl->name) == 0) {
+			struct module *owner = tmpl->owner;
+
+			if (!try_module_get(owner))
+				goto out;
+
+			mutex_unlock(mutex);
+
+			*error = tmpl->table_init(net);
+			if (*error) {
+				module_put(owner);
+				return NULL;
+			}
+
+			mutex_lock(mutex);
+			module_put(owner);
+			break;
+		}
+	}
+
+	list_for_each_entry(table, &ebt_net->tables, list) {
+		if (strcmp(table->name, name) == 0)
+			return table;
+	}
+
+out:
 	*error = -ENOENT;
 	mutex_unlock(mutex);
 	return NULL;
 }
 
 static void *
-find_inlist_lock(struct list_head *head, const char *name, const char *prefix,
+find_inlist_lock(struct net *net, const char *name, const char *prefix,
 		 int *error, struct mutex *mutex)
 {
 	return try_then_request_module(
-			find_inlist_lock_noload(head, name, error, mutex),
+			find_inlist_lock_noload(net, name, error, mutex),
 			"%s%s", prefix, name);
 }
 
@@ -340,10 +376,7 @@ static inline struct ebt_table *
 find_table_lock(struct net *net, const char *name, int *error,
 		struct mutex *mutex)
 {
-	struct ebt_pernet *ebt_net = net_generic(net, ebt_pernet_id);
-
-	return find_inlist_lock(&ebt_net->tables, name,
-				"ebtable_", error, mutex);
+	return find_inlist_lock(net, name, "ebtable_", error, mutex);
 }
 
 static inline void ebt_free_table_info(struct ebt_table_info *info)
@@ -893,7 +926,9 @@ static int translate_table(struct net *net, const char *name,
 			return -ENOMEM;
 		for_each_possible_cpu(i) {
 			newinfo->chainstack[i] =
-			  vmalloc(array_size(udc_cnt, sizeof(*(newinfo->chainstack[0]))));
+			  vmalloc_node(array_size(udc_cnt,
+					  sizeof(*(newinfo->chainstack[0]))),
+				       cpu_to_node(i));
 			if (!newinfo->chainstack[i]) {
 				while (i)
 					vfree(newinfo->chainstack[--i]);
@@ -1038,7 +1073,7 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 	 */
 	if (repl->num_counters &&
 	   copy_to_user(repl->counters, counterstmp,
-	   repl->num_counters * sizeof(struct ebt_counter))) {
+	   array_size(repl->num_counters, sizeof(struct ebt_counter)))) {
 		/* Silent error, can't fail, new table is already in place */
 		net_warn_ratelimited("ebtables: counters copy to user failed while replacing table\n");
 	}
@@ -1258,6 +1293,54 @@ out:
 	return ret;
 }
 
+int ebt_register_template(const struct ebt_table *t, int (*table_init)(struct net *net))
+{
+	struct ebt_template *tmpl;
+
+	mutex_lock(&ebt_mutex);
+	list_for_each_entry(tmpl, &template_tables, list) {
+		if (WARN_ON_ONCE(strcmp(t->name, tmpl->name) == 0)) {
+			mutex_unlock(&ebt_mutex);
+			return -EEXIST;
+		}
+	}
+
+	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
+	if (!tmpl) {
+		mutex_unlock(&ebt_mutex);
+		return -ENOMEM;
+	}
+
+	tmpl->table_init = table_init;
+	strscpy(tmpl->name, t->name, sizeof(tmpl->name));
+	tmpl->owner = t->me;
+	list_add(&tmpl->list, &template_tables);
+
+	mutex_unlock(&ebt_mutex);
+	return 0;
+}
+EXPORT_SYMBOL(ebt_register_template);
+
+void ebt_unregister_template(const struct ebt_table *t)
+{
+	struct ebt_template *tmpl;
+
+	mutex_lock(&ebt_mutex);
+	list_for_each_entry(tmpl, &template_tables, list) {
+		if (strcmp(t->name, tmpl->name))
+			continue;
+
+		list_del(&tmpl->list);
+		mutex_unlock(&ebt_mutex);
+		kfree(tmpl);
+		return;
+	}
+
+	mutex_unlock(&ebt_mutex);
+	WARN_ON_ONCE(1);
+}
+EXPORT_SYMBOL(ebt_unregister_template);
+
 static struct ebt_table *__ebt_find_table(struct net *net, const char *name)
 {
 	struct ebt_pernet *ebt_net = net_generic(net, ebt_pernet_id);
@@ -1318,7 +1401,8 @@ static int do_update_counters(struct net *net, const char *name,
 		goto unlock_mutex;
 	}
 
-	if (copy_from_user(tmp, counters, num_counters * sizeof(*counters))) {
+	if (copy_from_user(tmp, counters,
+			   array_size(num_counters, sizeof(*counters)))) {
 		ret = -EFAULT;
 		goto unlock_mutex;
 	}
@@ -1451,7 +1535,7 @@ static int copy_counters_to_user(struct ebt_table *t,
 	write_unlock_bh(&t->lock);
 
 	if (copy_to_user(user, counterstmp,
-	   nentries * sizeof(struct ebt_counter)))
+	    array_size(nentries, sizeof(struct ebt_counter))))
 		ret = -EFAULT;
 	vfree(counterstmp);
 	return ret;

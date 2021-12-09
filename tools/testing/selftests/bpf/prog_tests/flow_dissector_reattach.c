@@ -628,7 +628,7 @@ out_close:
 	}
 }
 
-void test_flow_dissector_reattach(void)
+void serial_test_flow_dissector_reattach(void)
 {
 	int err, new_net, saved_net;
 

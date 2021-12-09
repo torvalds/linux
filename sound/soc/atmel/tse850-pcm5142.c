@@ -23,7 +23,7 @@
 //   IN2 +---o--+------------+--o---+ OUT2
 //               loop2 relays
 //
-// The 'loop1' gpio pin controlls two relays, which are either in loop
+// The 'loop1' gpio pin controls two relays, which are either in loop
 // position, meaning that input and output are directly connected, or
 // they are in mixer position, meaning that the signal is passed through
 // the 'Sum' mixer. Similarly for 'loop2'.
@@ -304,7 +304,7 @@ static struct snd_soc_dai_link tse850_dailink = {
 	.stream_name = "TSE-850-PCM",
 	.dai_fmt = SND_SOC_DAIFMT_I2S
 		 | SND_SOC_DAIFMT_NB_NF
-		 | SND_SOC_DAIFMT_CBM_CFS,
+		 | SND_SOC_DAIFMT_CBP_CFC,
 	SND_SOC_DAILINK_REG(pcm),
 };
 

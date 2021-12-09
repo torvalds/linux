@@ -96,7 +96,7 @@ static int omap_abe_dmic_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops omap_abe_dmic_ops = {
+static const struct snd_soc_ops omap_abe_dmic_ops = {
 	.hw_params = omap_abe_dmic_hw_params,
 };
 
@@ -291,11 +291,6 @@ static int omap_abe_probe(struct platform_device *pdev)
 	}
 
 	card->fully_routed = 1;
-
-	if (!priv->mclk_freq) {
-		dev_err(&pdev->dev, "MCLK frequency missing\n");
-		return -ENODEV;
-	}
 
 	card->dai_link = priv->dai_links;
 	card->num_links = num_links;

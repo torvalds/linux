@@ -526,7 +526,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 			oct->irq_name_storage = NULL;
 		}
 		/* Soft reset the octeon device before exiting */
-		if (oct->pci_dev->reset_fn)
+		if (!pcie_reset_flr(oct->pci_dev, PCI_RESET_PROBE))
 			octeon_pci_flr(oct);
 		else
 			cn23xx_vf_ask_pf_to_do_flr(oct);
@@ -843,7 +843,7 @@ static void free_netsgbuf(void *buf)
 	while (frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
-		pci_unmap_page((lio->oct_dev)->pci_dev,
+		dma_unmap_page(&lio->oct_dev->pci_dev->dev,
 			       g->sg[(i >> 2)].ptr[(i & 3)],
 			       skb_frag_size(frag), DMA_TO_DEVICE);
 		i++;
@@ -887,7 +887,7 @@ static void free_netsgbuf_with_resp(void *buf)
 	while (frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
-		pci_unmap_page((lio->oct_dev)->pci_dev,
+		dma_unmap_page(&lio->oct_dev->pci_dev->dev,
 			       g->sg[(i >> 2)].ptr[(i & 3)],
 			       skb_frag_size(frag), DMA_TO_DEVICE);
 		i++;
@@ -1168,7 +1168,7 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		return -EPERM;
 	}
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data);
 
 	return 0;
@@ -1889,7 +1889,7 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_vlan_rx_add_vid    = liquidio_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = liquidio_vlan_rx_kill_vid,
 	.ndo_change_mtu		= liquidio_change_mtu,
-	.ndo_do_ioctl		= liquidio_ioctl,
+	.ndo_eth_ioctl		= liquidio_ioctl,
 	.ndo_fix_features	= liquidio_fix_features,
 	.ndo_set_features	= liquidio_set_features,
 };
@@ -2148,7 +2148,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			mac[j] = *((u8 *)(((u8 *)&lio->linfo.hw_addr) + 2 + j));
 
 		/* Copy MAC Address to OS network device structure */
-		ether_addr_copy(netdev->dev_addr, mac);
+		eth_hw_addr_set(netdev, mac);
 
 		if (liquidio_setup_io_queues(octeon_dev, i,
 					     lio->linfo.num_txpciq,

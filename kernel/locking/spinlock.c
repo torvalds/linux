@@ -124,8 +124,11 @@ void __lockfunc __raw_##op##_lock_bh(locktype##_t *lock)		\
  *         __[spin|read|write]_lock_bh()
  */
 BUILD_LOCK_OPS(spin, raw_spinlock);
+
+#ifndef CONFIG_PREEMPT_RT
 BUILD_LOCK_OPS(read, rwlock);
 BUILD_LOCK_OPS(write, rwlock);
+#endif
 
 #endif
 
@@ -208,6 +211,8 @@ void __lockfunc _raw_spin_unlock_bh(raw_spinlock_t *lock)
 }
 EXPORT_SYMBOL(_raw_spin_unlock_bh);
 #endif
+
+#ifndef CONFIG_PREEMPT_RT
 
 #ifndef CONFIG_INLINE_READ_TRYLOCK
 int __lockfunc _raw_read_trylock(rwlock_t *lock)
@@ -353,6 +358,8 @@ void __lockfunc _raw_write_unlock_bh(rwlock_t *lock)
 EXPORT_SYMBOL(_raw_write_unlock_bh);
 #endif
 
+#endif /* !CONFIG_PREEMPT_RT */
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
 void __lockfunc _raw_spin_lock_nested(raw_spinlock_t *lock, int subclass)
@@ -371,8 +378,7 @@ unsigned long __lockfunc _raw_spin_lock_irqsave_nested(raw_spinlock_t *lock,
 	local_irq_save(flags);
 	preempt_disable();
 	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
-	LOCK_CONTENDED_FLAGS(lock, do_raw_spin_trylock, do_raw_spin_lock,
-				do_raw_spin_lock_flags, &flags);
+	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
 	return flags;
 }
 EXPORT_SYMBOL(_raw_spin_lock_irqsave_nested);

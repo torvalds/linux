@@ -13,7 +13,7 @@
 
 static u64 mcp251xfd_timestamp_read(const struct cyclecounter *cc)
 {
-	struct mcp251xfd_priv *priv;
+	const struct mcp251xfd_priv *priv;
 	u32 timestamp = 0;
 	int err;
 
@@ -39,7 +39,7 @@ static void mcp251xfd_timestamp_work(struct work_struct *work)
 			      MCP251XFD_TIMESTAMP_WORK_DELAY_SEC * HZ);
 }
 
-void mcp251xfd_skb_set_timestamp(struct mcp251xfd_priv *priv,
+void mcp251xfd_skb_set_timestamp(const struct mcp251xfd_priv *priv,
 				 struct sk_buff *skb, u32 timestamp)
 {
 	struct skb_shared_hwtstamps *hwtstamps = skb_hwtstamps(skb);

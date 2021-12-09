@@ -2,6 +2,7 @@
 #ifndef _LINUX_FB_H
 #define _LINUX_FB_H
 
+#include <linux/refcount.h>
 #include <linux/kgdb.h>
 #include <uapi/linux/fb.h>
 
@@ -261,7 +262,7 @@ struct fb_ops {
 
 	/* Draws a rectangle */
 	void (*fb_fillrect) (struct fb_info *info, const struct fb_fillrect *rect);
-	/* Copy data from area to another */
+	/* Copy data from area to another. Obsolete. */
 	void (*fb_copyarea) (struct fb_info *info, const struct fb_copyarea *region);
 	/* Draws a image to the display */
 	void (*fb_imageblit) (struct fb_info *info, const struct fb_image *image);
@@ -435,7 +436,7 @@ struct fb_tile_ops {
 
 
 struct fb_info {
-	atomic_t count;
+	refcount_t count;
 	int node;
 	int flags;
 	/*

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Marvell PTP driver
  *
- * Copyright (C) 2020 Marvell International Ltd.
+ * Copyright (C) 2020 Marvell.
+ *
  */
 
 #ifndef PTP_H
@@ -19,6 +20,7 @@ struct ptp {
 
 struct ptp *ptp_get(void);
 void ptp_put(struct ptp *ptp);
+void ptp_start(struct ptp *ptp, u64 sclk, u32 ext_clk_freq, u32 extts);
 
 extern struct pci_driver ptp_driver;
 

@@ -110,5 +110,5 @@
 		"EventName": "AES_BLOCKED_CYCLES",
 		"BriefDescription": "AES Blocked Cycles",
 		"PublicDescription": "Total number of CPU cycles blocked for the AES functions issued by the CPU because the DEA/AES coprocessor is busy performing a function issued by another CPU"
-	},
+	}
 ]

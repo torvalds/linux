@@ -148,9 +148,9 @@ static int ad1836_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	/* ALCLK,ABCLK are both output, AD1836 can only be master */
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	/* ALCLK,ABCLK are both output, AD1836 can only be provider */
+	case SND_SOC_DAIFMT_CBP_CFP:
 		break;
 	default:
 		return -EINVAL;

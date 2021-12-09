@@ -67,15 +67,15 @@ extern unsigned long zero_page_mask;
 /* TODO: s390 cannot support io_remap_pfn_range... */
 
 #define pte_ERROR(e) \
-	printk("%s:%d: bad pte %p.\n", __FILE__, __LINE__, (void *) pte_val(e))
+	pr_err("%s:%d: bad pte %016lx.\n", __FILE__, __LINE__, pte_val(e))
 #define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %p.\n", __FILE__, __LINE__, (void *) pmd_val(e))
+	pr_err("%s:%d: bad pmd %016lx.\n", __FILE__, __LINE__, pmd_val(e))
 #define pud_ERROR(e) \
-	printk("%s:%d: bad pud %p.\n", __FILE__, __LINE__, (void *) pud_val(e))
+	pr_err("%s:%d: bad pud %016lx.\n", __FILE__, __LINE__, pud_val(e))
 #define p4d_ERROR(e) \
-	printk("%s:%d: bad p4d %p.\n", __FILE__, __LINE__, (void *) p4d_val(e))
+	pr_err("%s:%d: bad p4d %016lx.\n", __FILE__, __LINE__, p4d_val(e))
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %p.\n", __FILE__, __LINE__, (void *) pgd_val(e))
+	pr_err("%s:%d: bad pgd %016lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 /*
  * The vmalloc and module area will always be on the topmost area of the
@@ -583,11 +583,11 @@ static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new
 #define CRDTE_DTT_REGION1	0x1cUL
 
 static inline void crdte(unsigned long old, unsigned long new,
-			 unsigned long table, unsigned long dtt,
+			 unsigned long *table, unsigned long dtt,
 			 unsigned long address, unsigned long asce)
 {
 	union register_pair r1 = { .even = old, .odd = new, };
-	union register_pair r2 = { .even = table | dtt, .odd = address, };
+	union register_pair r2 = { .even = __pa(table) | dtt, .odd = address, };
 
 	asm volatile(".insn rrf,0xb98f0000,%[r1],%[r2],%[asce],0"
 		     : [r1] "+&d" (r1.pair)
@@ -1001,7 +1001,7 @@ static __always_inline void __ptep_ipte(unsigned long address, pte_t *ptep,
 					unsigned long opt, unsigned long asce,
 					int local)
 {
-	unsigned long pto = (unsigned long) ptep;
+	unsigned long pto = __pa(ptep);
 
 	if (__builtin_constant_p(opt) && opt == 0) {
 		/* Invalidation + TLB flush for the pte */
@@ -1023,7 +1023,7 @@ static __always_inline void __ptep_ipte(unsigned long address, pte_t *ptep,
 static __always_inline void __ptep_ipte_range(unsigned long address, int nr,
 					      pte_t *ptep, int local)
 {
-	unsigned long pto = (unsigned long) ptep;
+	unsigned long pto = __pa(ptep);
 
 	/* Invalidate a range of ptes + TLB flush of the ptes */
 	do {
@@ -1074,8 +1074,9 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	pte_t res;
 
 	res = ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
+	/* At this point the reference through the mapping is still present */
 	if (mm_is_protected(mm) && pte_present(res))
-		uv_convert_from_secure(pte_val(res) & PAGE_MASK);
+		uv_convert_owned_from_secure(pte_val(res) & PAGE_MASK);
 	return res;
 }
 
@@ -1091,8 +1092,9 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 	pte_t res;
 
 	res = ptep_xchg_direct(vma->vm_mm, addr, ptep, __pte(_PAGE_INVALID));
+	/* At this point the reference through the mapping is still present */
 	if (mm_is_protected(vma->vm_mm) && pte_present(res))
-		uv_convert_from_secure(pte_val(res) & PAGE_MASK);
+		uv_convert_owned_from_secure(pte_val(res) & PAGE_MASK);
 	return res;
 }
 
@@ -1116,8 +1118,9 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	} else {
 		res = ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
 	}
+	/* At this point the reference through the mapping is still present */
 	if (mm_is_protected(mm) && pte_present(res))
-		uv_convert_from_secure(pte_val(res) & PAGE_MASK);
+		uv_convert_owned_from_secure(pte_val(res) & PAGE_MASK);
 	return res;
 }
 
@@ -1484,7 +1487,7 @@ static __always_inline void __pmdp_idte(unsigned long addr, pmd_t *pmdp,
 {
 	unsigned long sto;
 
-	sto = (unsigned long) pmdp - pmd_index(addr) * sizeof(pmd_t);
+	sto = __pa(pmdp) - pmd_index(addr) * sizeof(pmd_t);
 	if (__builtin_constant_p(opt) && opt == 0) {
 		/* flush without guest asce */
 		asm volatile(
@@ -1510,7 +1513,7 @@ static __always_inline void __pudp_idte(unsigned long addr, pud_t *pudp,
 {
 	unsigned long r3o;
 
-	r3o = (unsigned long) pudp - pud_index(addr) * sizeof(pud_t);
+	r3o = __pa(pudp) - pud_index(addr) * sizeof(pud_t);
 	r3o |= _ASCE_TYPE_REGION3;
 	if (__builtin_constant_p(opt) && opt == 0) {
 		/* flush without guest asce */

@@ -51,6 +51,13 @@ enum {
 	 * the file range, inode's io_tree).
 	 */
 	BTRFS_INODE_NO_DELALLOC_FLUSH,
+	/*
+	 * Set when we are working on enabling verity for a file. Computing and
+	 * writing the whole Merkle tree can take a while so we want to prevent
+	 * races where two separate tasks attempt to simultaneously start verity
+	 * on the same file.
+	 */
+	BTRFS_INODE_VERITY_IN_PROGRESS,
 };
 
 /* in memory btrfs inode */
@@ -131,17 +138,34 @@ struct btrfs_inode {
 	/* a local copy of root's last_log_commit */
 	int last_log_commit;
 
-	/* total number of bytes pending delalloc, used by stat to calc the
-	 * real block usage of the file
-	 */
-	u64 delalloc_bytes;
+	union {
+		/*
+		 * Total number of bytes pending delalloc, used by stat to
+		 * calculate the real block usage of the file. This is used
+		 * only for files.
+		 */
+		u64 delalloc_bytes;
+		/*
+		 * The offset of the last dir item key that was logged.
+		 * This is used only for directories.
+		 */
+		u64 last_dir_item_offset;
+	};
 
-	/*
-	 * Total number of bytes pending delalloc that fall within a file
-	 * range that is either a hole or beyond EOF (and no prealloc extent
-	 * exists in the range). This is always <= delalloc_bytes.
-	 */
-	u64 new_delalloc_bytes;
+	union {
+		/*
+		 * Total number of bytes pending delalloc that fall within a file
+		 * range that is either a hole or beyond EOF (and no prealloc extent
+		 * exists in the range). This is always <= delalloc_bytes and this
+		 * is used only for files.
+		 */
+		u64 new_delalloc_bytes;
+		/*
+		 * The offset of the last dir index key that was logged.
+		 * This is used only for directories.
+		 */
+		u64 last_dir_index_offset;
+	};
 
 	/*
 	 * total number of bytes pending defrag, used by stat to check whether
@@ -189,8 +213,10 @@ struct btrfs_inode {
 	 */
 	u64 csum_bytes;
 
-	/* flags field from the on disk inode */
+	/* Backwards incompatible flags, lower half of inode_item::flags  */
 	u32 flags;
+	/* Read-only compatibility flags, upper half of inode_item::flags */
+	u32 ro_flags;
 
 	/*
 	 * Counters to keep track of the number of extent item's we may use due
@@ -330,7 +356,12 @@ static inline bool btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 
 struct btrfs_dio_private {
 	struct inode *inode;
-	u64 logical_offset;
+
+	/*
+	 * Since DIO can use anonymous page, we cannot use page_offset() to
+	 * grab the file offset, thus need a dedicated member for file offset.
+	 */
+	u64 file_offset;
 	u64 disk_bytenr;
 	/* Used for bio::bi_size */
 	u32 bytes;
@@ -347,6 +378,22 @@ struct btrfs_dio_private {
 	/* Array of checksums */
 	u8 csums[];
 };
+
+/*
+ * btrfs_inode_item stores flags in a u64, btrfs_inode stores them in two
+ * separate u32s. These two functions convert between the two representations.
+ */
+static inline u64 btrfs_inode_combine_flags(u32 flags, u32 ro_flags)
+{
+	return (flags | ((u64)ro_flags << 32));
+}
+
+static inline void btrfs_inode_split_flags(u64 inode_item_flags,
+					   u32 *flags, u32 *ro_flags)
+{
+	*flags = (u32)inode_item_flags;
+	*ro_flags = (u32)(inode_item_flags >> 32);
+}
 
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"

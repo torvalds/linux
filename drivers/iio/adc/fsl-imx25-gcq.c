@@ -172,13 +172,35 @@ static const struct regmap_config mx25_gcq_regconfig = {
 	.reg_stride = 4,
 };
 
+static int mx25_gcq_ext_regulator_setup(struct device *dev,
+					struct mx25_gcq_priv *priv, u32 refp)
+{
+	char reg_name[12];
+	int ret;
+
+	if (priv->vref[refp])
+		return 0;
+
+	ret = snprintf(reg_name, sizeof(reg_name), "vref-%s",
+		       mx25_gcq_refp_names[refp]);
+	if (ret < 0)
+		return ret;
+
+	priv->vref[refp] = devm_regulator_get_optional(dev, reg_name);
+	if (IS_ERR(priv->vref[refp]))
+		return dev_err_probe(dev, PTR_ERR(priv->vref[refp]),
+				     "Error, trying to use external voltage reference without a %s regulator.",
+				     reg_name);
+
+	return 0;
+}
+
 static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			       struct mx25_gcq_priv *priv)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *child;
 	struct device *dev = &pdev->dev;
-	unsigned int refp_used[4] = {};
 	int ret, i;
 
 	/*
@@ -193,19 +215,6 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			     MX25_ADCQ_CFG_REFP_INT |
 			     MX25_ADCQ_CFG_IN(i) |
 			     MX25_ADCQ_CFG_REFN_NGND2);
-
-	/*
-	 * First get all regulators to store them in channel_vref_mv if
-	 * necessary. Later we use that information for proper IIO scale
-	 * information.
-	 */
-	priv->vref[MX25_ADC_REFP_INT] = NULL;
-	priv->vref[MX25_ADC_REFP_EXT] =
-		devm_regulator_get_optional(&pdev->dev, "vref-ext");
-	priv->vref[MX25_ADC_REFP_XP] =
-		devm_regulator_get_optional(&pdev->dev, "vref-xp");
-	priv->vref[MX25_ADC_REFP_YP] =
-		devm_regulator_get_optional(&pdev->dev, "vref-yp");
 
 	for_each_child_of_node(np, child) {
 		u32 reg;
@@ -233,11 +242,10 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 		case MX25_ADC_REFP_EXT:
 		case MX25_ADC_REFP_XP:
 		case MX25_ADC_REFP_YP:
-			if (IS_ERR(priv->vref[refp])) {
-				dev_err(dev, "Error, trying to use external voltage reference without a vref-%s regulator.",
-					mx25_gcq_refp_names[refp]);
+			ret = mx25_gcq_ext_regulator_setup(&pdev->dev, priv, refp);
+			if (ret) {
 				of_node_put(child);
-				return PTR_ERR(priv->vref[refp]);
+				return ret;
 			}
 			priv->channel_vref_mv[reg] =
 				regulator_get_voltage(priv->vref[refp]);
@@ -252,8 +260,6 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			of_node_put(child);
 			return -EINVAL;
 		}
-
-		++refp_used[refp];
 
 		/*
 		 * Shift the read values to the correct positions within the
@@ -285,15 +291,6 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 	regmap_write(priv->regs, MX25_ADCQ_CR,
 		     MX25_ADCQ_CR_PDMSK | MX25_ADCQ_CR_QSM_FQS);
 
-	/* Remove unused regulators */
-	for (i = 0; i != 4; ++i) {
-		if (!refp_used[i]) {
-			if (!IS_ERR_OR_NULL(priv->vref[i]))
-				devm_regulator_put(priv->vref[i]);
-			priv->vref[i] = NULL;
-		}
-	}
-
 	return 0;
 }
 
@@ -307,7 +304,7 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -347,14 +344,11 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 		goto err_vref_disable;
 	}
 
-	priv->irq = platform_get_irq(pdev, 0);
-	if (priv->irq <= 0) {
-		ret = priv->irq;
-		if (!ret)
-			ret = -ENXIO;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
 		goto err_clk_unprepare;
-	}
 
+	priv->irq = ret;
 	ret = request_irq(priv->irq, mx25_gcq_irq, 0, pdev->name, priv);
 	if (ret) {
 		dev_err(dev, "Failed requesting IRQ\n");

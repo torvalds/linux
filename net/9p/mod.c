@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  net/9p/9p.c
- *
  *  9P entry point
  *
  *  Copyright (C) 2007 by Latchesar Ionkov <lucho@ionkov.net>
@@ -12,6 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/kmod.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
@@ -24,13 +23,13 @@
 #include <linux/spinlock.h>
 
 #ifdef CONFIG_NET_9P_DEBUG
-unsigned int p9_debug_level = 0;	/* feature-rific global debug level  */
+unsigned int p9_debug_level;	/* feature-rific global debug level  */
 EXPORT_SYMBOL(p9_debug_level);
 module_param_named(debug, p9_debug_level, uint, 0);
 MODULE_PARM_DESC(debug, "9P debugging level");
 
 void _p9_debug(enum p9_debug_flags level, const char *func,
-		const char *fmt, ...)
+	       const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -53,10 +52,7 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
 EXPORT_SYMBOL(_p9_debug);
 #endif
 
-/*
- * Dynamic Transport Registration Routines
- *
- */
+/* Dynamic Transport Registration Routines */
 
 static DEFINE_SPINLOCK(v9fs_trans_lock);
 static LIST_HEAD(v9fs_trans_list);
@@ -87,12 +83,7 @@ void v9fs_unregister_trans(struct p9_trans_module *m)
 }
 EXPORT_SYMBOL(v9fs_unregister_trans);
 
-/**
- * v9fs_get_trans_by_name - get transport with the matching name
- * @s: string identifying transport
- *
- */
-struct p9_trans_module *v9fs_get_trans_by_name(char *s)
+static struct p9_trans_module *_p9_get_trans_by_name(char *s)
 {
 	struct p9_trans_module *t, *found = NULL;
 
@@ -106,6 +97,28 @@ struct p9_trans_module *v9fs_get_trans_by_name(char *s)
 		}
 
 	spin_unlock(&v9fs_trans_lock);
+
+	return found;
+}
+
+/**
+ * v9fs_get_trans_by_name - get transport with the matching name
+ * @s: string identifying transport
+ *
+ */
+struct p9_trans_module *v9fs_get_trans_by_name(char *s)
+{
+	struct p9_trans_module *found = NULL;
+
+	found = _p9_get_trans_by_name(s);
+
+#ifdef CONFIG_MODULES
+	if (!found) {
+		request_module("9p-%s", s);
+		found = _p9_get_trans_by_name(s);
+	}
+#endif
+
 	return found;
 }
 EXPORT_SYMBOL(v9fs_get_trans_by_name);

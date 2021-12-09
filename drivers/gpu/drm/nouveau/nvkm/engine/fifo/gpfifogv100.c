@@ -226,8 +226,6 @@ gv100_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 				   "runlist %016llx priv %d\n",
 			   args->v0.version, args->v0.vmm, args->v0.ioffset,
 			   args->v0.ilength, args->v0.runlist, args->v0.priv);
-		if (args->v0.priv && !oclass->client->super)
-			return -EINVAL;
 		return gv100_fifo_gpfifo_new_(&gv100_fifo_gpfifo, fifo,
 					      &args->v0.runlist,
 					      &args->v0.chid,

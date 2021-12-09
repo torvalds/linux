@@ -4,6 +4,9 @@
 ##############################################################################
 # Defines
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 # Can be overridden by the configuration file.
 PING=${PING:=ping}
 PING6=${PING6:=ping6}
@@ -20,6 +23,8 @@ MC_CLI=${MC_CLI:=smcroutectl}
 PING_TIMEOUT=${PING_TIMEOUT:=5}
 WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
 INTERFACE_TIMEOUT=${INTERFACE_TIMEOUT:=600}
+REQUIRE_JQ=${REQUIRE_JQ:=yes}
+REQUIRE_MZ=${REQUIRE_MZ:=yes}
 
 relative_path="${BASH_SOURCE%/*}"
 if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
@@ -38,7 +43,7 @@ check_tc_version()
 	tc -j &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing JSON support"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -51,7 +56,7 @@ check_tc_mpls_support()
 		matchall action pipe &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing MPLS support"
-		return 1
+		return $ksft_skip
 	fi
 	tc filter del dev $dev ingress protocol mpls_uc pref 1 handle 1 \
 		matchall
@@ -69,7 +74,7 @@ check_tc_mpls_lse_stats()
 
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc-flower is missing extended MPLS support"
-		return 1
+		return $ksft_skip
 	fi
 
 	tc -j filter show dev $dev ingress protocol mpls_uc | jq . &> /dev/null
@@ -79,7 +84,7 @@ check_tc_mpls_lse_stats()
 
 	if [[ $ret -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc-flower produces invalid json output for extended MPLS filters"
-		return 1
+		return $ksft_skip
 	fi
 }
 
@@ -88,7 +93,7 @@ check_tc_shblock_support()
 	tc filter help 2>&1 | grep block &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing shared block support"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -97,7 +102,7 @@ check_tc_chain_support()
 	tc help 2>&1|grep chain &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing chain support"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -106,7 +111,7 @@ check_tc_action_hw_stats_support()
 	tc actions help 2>&1 | grep -q hw_stats
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing action hw_stats support"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -115,13 +120,13 @@ check_ethtool_lanes_support()
 	ethtool --help 2>&1| grep lanes &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: ethtool too old; it is missing lanes support"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
 if [[ "$CHECK_TC" = "yes" ]]; then
@@ -134,16 +139,20 @@ require_command()
 
 	if [[ ! -x "$(command -v "$cmd")" ]]; then
 		echo "SKIP: $cmd not installed"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
-require_command jq
-require_command $MZ
+if [[ "$REQUIRE_JQ" = "yes" ]]; then
+	require_command jq
+fi
+if [[ "$REQUIRE_MZ" = "yes" ]]; then
+	require_command $MZ
+fi
 
 if [[ ! -v NUM_NETIFS ]]; then
 	echo "SKIP: importer does not define \"NUM_NETIFS\""
-	exit 1
+	exit $ksft_skip
 fi
 
 ##############################################################################
@@ -203,7 +212,7 @@ for ((i = 1; i <= NUM_NETIFS; ++i)); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: could not find all required interfaces"
-		exit 1
+		exit $ksft_skip
 	fi
 done
 
@@ -274,6 +283,15 @@ log_test()
 	fi
 
 	printf "TEST: %-60s  [ OK ]\n" "$test_name $opt_str"
+	return 0
+}
+
+log_test_skip()
+{
+	local test_name=$1
+	local opt_str=$2
+
+	printf "TEST: %-60s  [SKIP]\n" "$test_name $opt_str"
 	return 0
 }
 
@@ -746,6 +764,14 @@ qdisc_parent_stats_get()
 
 	tc -j -s qdisc show dev "$dev" invisible \
 	    | jq '.[] | select(.parent == "'"$parent"'") | '"$selector"
+}
+
+ipv6_stats_get()
+{
+	local dev=$1; shift
+	local stat=$1; shift
+
+	cat /proc/net/dev_snmp6/$dev | grep "^$stat" | cut -f2
 }
 
 humanize()

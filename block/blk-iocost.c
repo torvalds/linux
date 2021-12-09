@@ -2988,34 +2988,29 @@ static void ioc_pd_free(struct blkg_policy_data *pd)
 	kfree(iocg);
 }
 
-static size_t ioc_pd_stat(struct blkg_policy_data *pd, char *buf, size_t size)
+static bool ioc_pd_stat(struct blkg_policy_data *pd, struct seq_file *s)
 {
 	struct ioc_gq *iocg = pd_to_iocg(pd);
 	struct ioc *ioc = iocg->ioc;
-	size_t pos = 0;
 
 	if (!ioc->enabled)
-		return 0;
+		return false;
 
 	if (iocg->level == 0) {
 		unsigned vp10k = DIV64_U64_ROUND_CLOSEST(
 			ioc->vtime_base_rate * 10000,
 			VTIME_PER_USEC);
-		pos += scnprintf(buf + pos, size - pos, " cost.vrate=%u.%02u",
-				  vp10k / 100, vp10k % 100);
+		seq_printf(s, " cost.vrate=%u.%02u", vp10k / 100, vp10k % 100);
 	}
 
-	pos += scnprintf(buf + pos, size - pos, " cost.usage=%llu",
-			 iocg->last_stat.usage_us);
+	seq_printf(s, " cost.usage=%llu", iocg->last_stat.usage_us);
 
 	if (blkcg_debug_stats)
-		pos += scnprintf(buf + pos, size - pos,
-				 " cost.wait=%llu cost.indebt=%llu cost.indelay=%llu",
-				 iocg->last_stat.wait_us,
-				 iocg->last_stat.indebt_us,
-				 iocg->last_stat.indelay_us);
-
-	return pos;
+		seq_printf(s, " cost.wait=%llu cost.indebt=%llu cost.indelay=%llu",
+			iocg->last_stat.wait_us,
+			iocg->last_stat.indebt_us,
+			iocg->last_stat.indelay_us);
+	return true;
 }
 
 static u64 ioc_weight_prfill(struct seq_file *sf, struct blkg_policy_data *pd,
@@ -3061,19 +3056,19 @@ static ssize_t ioc_weight_write(struct kernfs_open_file *of, char *buf,
 		if (v < CGROUP_WEIGHT_MIN || v > CGROUP_WEIGHT_MAX)
 			return -EINVAL;
 
-		spin_lock(&blkcg->lock);
+		spin_lock_irq(&blkcg->lock);
 		iocc->dfl_weight = v * WEIGHT_ONE;
 		hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
 			struct ioc_gq *iocg = blkg_to_iocg(blkg);
 
 			if (iocg) {
-				spin_lock_irq(&iocg->ioc->lock);
+				spin_lock(&iocg->ioc->lock);
 				ioc_now(iocg->ioc, &now);
 				weight_updated(iocg, &now);
-				spin_unlock_irq(&iocg->ioc->lock);
+				spin_unlock(&iocg->ioc->lock);
 			}
 		}
-		spin_unlock(&blkcg->lock);
+		spin_unlock_irq(&blkcg->lock);
 
 		return nbytes;
 	}
@@ -3170,12 +3165,12 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
-	ioc = q_to_ioc(bdev->bd_disk->queue);
+	ioc = q_to_ioc(bdev_get_queue(bdev));
 	if (!ioc) {
-		ret = blk_iocost_init(bdev->bd_disk->queue);
+		ret = blk_iocost_init(bdev_get_queue(bdev));
 		if (ret)
 			goto err;
-		ioc = q_to_ioc(bdev->bd_disk->queue);
+		ioc = q_to_ioc(bdev_get_queue(bdev));
 	}
 
 	spin_lock_irq(&ioc->lock);
@@ -3337,12 +3332,12 @@ static ssize_t ioc_cost_model_write(struct kernfs_open_file *of, char *input,
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
-	ioc = q_to_ioc(bdev->bd_disk->queue);
+	ioc = q_to_ioc(bdev_get_queue(bdev));
 	if (!ioc) {
-		ret = blk_iocost_init(bdev->bd_disk->queue);
+		ret = blk_iocost_init(bdev_get_queue(bdev));
 		if (ret)
 			goto err;
-		ioc = q_to_ioc(bdev->bd_disk->queue);
+		ioc = q_to_ioc(bdev_get_queue(bdev));
 	}
 
 	spin_lock_irq(&ioc->lock);

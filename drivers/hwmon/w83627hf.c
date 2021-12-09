@@ -355,7 +355,7 @@ struct w83627hf_data {
 	enum chips type;
 
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	u8 in[9];		/* Register value */
@@ -448,7 +448,7 @@ static int w83627hf_resume(struct device *dev)
 	w83627hf_write_value(data, W83781D_REG_SCFG2, data->scfg2);
 
 	/* Force re-reading all values */
-	data->valid = 0;
+	data->valid = false;
 	mutex_unlock(&data->update_lock);
 
 	return 0;
@@ -1905,7 +1905,7 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 		    w83627hf_read_value(data, W83781D_REG_BEEP_INTS1) |
 		    w83627hf_read_value(data, W83781D_REG_BEEP_INTS3) << 16;
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

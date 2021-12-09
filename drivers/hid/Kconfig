@@ -259,10 +259,11 @@ config HID_PRODIKEYS
 	  and some additional multimedia keys.
 
 config HID_CMEDIA
-	tristate "CMedia CM6533 HID audio jack controls"
+	tristate "CMedia audio chips"
 	depends on HID
 	help
-	Support for CMedia CM6533 HID audio jack controls.
+	Support for CMedia CM6533 HID audio jack controls
+        and HS100B mute buttons.
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
@@ -466,6 +467,13 @@ config HID_VIEWSONIC
 	depends on HID
 	help
 	  Support for ViewSonic/Signotec PD1011 signature pad.
+
+config HID_XIAOMI
+	tristate "Xiaomi"
+	depends on HID
+	help
+	  Adds support for side buttons of Xiaomi Mi Dual Mode Wireless
+	  Mouse Silent Edition.
 
 config HID_GYRATION
 	tristate "Gyration remote control"
@@ -730,6 +738,30 @@ config HID_MULTITOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-multitouch.
 
+config HID_NINTENDO
+	tristate "Nintendo Joy-Con and Pro Controller support"
+	depends on HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select POWER_SUPPLY
+	help
+	Adds support for the Nintendo Switch Joy-Cons and Pro Controller.
+	All controllers support bluetooth, and the Pro Controller also supports
+	its USB mode.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-nintendo.
+
+config NINTENDO_FF
+	bool "Nintendo Switch controller force feedback support"
+	depends on HID_NINTENDO
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you have a Nintendo Switch controller and want to enable
+	force feedback support for it. This works for both joy-cons and the pro
+	controller. For the pro controller, both rumble motors can be controlled
+	individually.
+
 config HID_NTI
 	tristate "NTI keyboard adapters"
 	help
@@ -867,6 +899,7 @@ config HID_PLANTRONICS
 config HID_PLAYSTATION
 	tristate "PlayStation HID Driver"
 	depends on HID
+	depends on LEDS_CLASS_MULTICOLOR
 	select CRC32
 	select POWER_SUPPLY
 	help
@@ -952,7 +985,7 @@ config HID_SONY
 	  * Buzz controllers
 	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
 	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
-	  * Guitar Hero Live PS3 and Wii U guitar dongles
+	  * Guitar Hero Live PS3, Wii U and PS4 guitar dongles
 	  * Guitar Hero PS3 and PC guitar dongles
 
 config SONY_FF

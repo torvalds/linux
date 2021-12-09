@@ -28,7 +28,7 @@ struct adau1373_dai {
 	unsigned int clk_src;
 	unsigned int sysclk;
 	bool enable_src;
-	bool master;
+	bool clock_provider;
 };
 
 struct adau1373 {
@@ -827,7 +827,7 @@ static int adau1373_check_aif_clk(struct snd_soc_dapm_widget *source,
 
 	dai = sink->name[3] - '1';
 
-	if (!adau1373->dais[dai].master)
+	if (!adau1373->dais[dai].clock_provider)
 		return 0;
 
 	if (adau1373->dais[dai].clk_src == ADAU1373_CLK_SRC_PLL1)
@@ -1102,14 +1102,14 @@ static int adau1373_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct adau1373_dai *adau1373_dai = &adau1373->dais[dai->id];
 	unsigned int ctrl;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		ctrl = ADAU1373_DAI_MASTER;
-		adau1373_dai->master = true;
+		adau1373_dai->clock_provider = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		ctrl = 0;
-		adau1373_dai->master = false;
+		adau1373_dai->clock_provider = false;
 		break;
 	default:
 		return -EINVAL;

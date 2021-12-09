@@ -303,10 +303,7 @@ static enum resp_states get_srq_wqe(struct rxe_qp *qp)
 
 	spin_lock_bh(&srq->rq.consumer_lock);
 
-	if (qp->is_user)
-		wqe = queue_head(q, QUEUE_TYPE_FROM_USER);
-	else
-		wqe = queue_head(q, QUEUE_TYPE_KERNEL);
+	wqe = queue_head(q, QUEUE_TYPE_FROM_CLIENT);
 	if (!wqe) {
 		spin_unlock_bh(&srq->rq.consumer_lock);
 		return RESPST_ERR_RNR;
@@ -322,13 +319,8 @@ static enum resp_states get_srq_wqe(struct rxe_qp *qp)
 	memcpy(&qp->resp.srq_wqe, wqe, size);
 
 	qp->resp.wqe = &qp->resp.srq_wqe.wqe;
-	if (qp->is_user) {
-		advance_consumer(q, QUEUE_TYPE_FROM_USER);
-		count = queue_count(q, QUEUE_TYPE_FROM_USER);
-	} else {
-		advance_consumer(q, QUEUE_TYPE_KERNEL);
-		count = queue_count(q, QUEUE_TYPE_KERNEL);
-	}
+	queue_advance_consumer(q, QUEUE_TYPE_FROM_CLIENT);
+	count = queue_count(q, QUEUE_TYPE_FROM_CLIENT);
 
 	if (srq->limit && srq->ibsrq.event_handler && (count < srq->limit)) {
 		srq->limit = 0;
@@ -357,12 +349,8 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 			qp->resp.status = IB_WC_WR_FLUSH_ERR;
 			return RESPST_COMPLETE;
 		} else if (!srq) {
-			if (qp->is_user)
-				qp->resp.wqe = queue_head(qp->rq.queue,
-						QUEUE_TYPE_FROM_USER);
-			else
-				qp->resp.wqe = queue_head(qp->rq.queue,
-						QUEUE_TYPE_KERNEL);
+			qp->resp.wqe = queue_head(qp->rq.queue,
+					QUEUE_TYPE_FROM_CLIENT);
 			if (qp->resp.wqe) {
 				qp->resp.status = IB_WC_WR_FLUSH_ERR;
 				return RESPST_COMPLETE;
@@ -374,7 +362,7 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 		}
 	}
 
-	if (pkt->mask & RXE_READ_OR_ATOMIC) {
+	if (pkt->mask & RXE_READ_OR_ATOMIC_MASK) {
 		/* it is the requesters job to not send
 		 * too many read/atomic ops, we just
 		 * recycle the responder resource queue
@@ -389,12 +377,8 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 		if (srq)
 			return get_srq_wqe(qp);
 
-		if (qp->is_user)
-			qp->resp.wqe = queue_head(qp->rq.queue,
-					QUEUE_TYPE_FROM_USER);
-		else
-			qp->resp.wqe = queue_head(qp->rq.queue,
-					QUEUE_TYPE_KERNEL);
+		qp->resp.wqe = queue_head(qp->rq.queue,
+				QUEUE_TYPE_FROM_CLIENT);
 		return (qp->resp.wqe) ? RESPST_CHK_LENGTH : RESPST_ERR_RNR;
 	}
 
@@ -429,7 +413,7 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	enum resp_states state;
 	int access;
 
-	if (pkt->mask & (RXE_READ_MASK | RXE_WRITE_MASK)) {
+	if (pkt->mask & RXE_READ_OR_WRITE_MASK) {
 		if (pkt->mask & RXE_RETH_MASK) {
 			qp->resp.va = reth_va(pkt);
 			qp->resp.offset = 0;
@@ -450,7 +434,7 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	}
 
 	/* A zero-byte op is not required to set an addr or rkey. */
-	if ((pkt->mask & (RXE_READ_MASK | RXE_WRITE_OR_SEND)) &&
+	if ((pkt->mask & RXE_READ_OR_WRITE_MASK) &&
 	    (pkt->mask & RXE_RETH_MASK) &&
 	    reth_len(pkt) == 0) {
 		return RESPST_EXECUTE;
@@ -536,7 +520,7 @@ static enum resp_states send_data_in(struct rxe_qp *qp, void *data_addr,
 	int err;
 
 	err = copy_data(qp->pd, IB_ACCESS_LOCAL_WRITE, &qp->resp.wqe->dma,
-			data_addr, data_len, RXE_TO_MR_OBJ, NULL);
+			data_addr, data_len, RXE_TO_MR_OBJ);
 	if (unlikely(err))
 		return (err == -ENOSPC) ? RESPST_ERR_LENGTH
 					: RESPST_ERR_MALFORMED_WQE;
@@ -552,7 +536,7 @@ static enum resp_states write_data_in(struct rxe_qp *qp,
 	int data_len = payload_size(pkt);
 
 	err = rxe_mr_copy(qp->resp.mr, qp->resp.va + qp->resp.offset,
-			  payload_addr(pkt), data_len, RXE_TO_MR_OBJ, NULL);
+			  payload_addr(pkt), data_len, RXE_TO_MR_OBJ);
 	if (err) {
 		rc = RESPST_ERR_RKEY_VIOLATION;
 		goto out;
@@ -613,13 +597,10 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 					  int opcode,
 					  int payload,
 					  u32 psn,
-					  u8 syndrome,
-					  u32 *crcp)
+					  u8 syndrome)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	struct sk_buff *skb;
-	u32 crc = 0;
-	u32 *p;
 	int paylen;
 	int pad;
 	int err;
@@ -651,18 +632,10 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	if (ack->mask & RXE_ATMACK_MASK)
 		atmack_set_orig(ack, qp->resp.atomic_orig);
 
-	err = rxe_prepare(ack, skb, &crc);
+	err = rxe_prepare(ack, skb);
 	if (err) {
 		kfree_skb(skb);
 		return NULL;
-	}
-
-	if (crcp) {
-		/* CRC computation will be continued by the caller */
-		*crcp = crc;
-	} else {
-		p = payload_addr(ack) + payload + bth_pad(ack);
-		*p = ~crc;
 	}
 
 	return skb;
@@ -682,8 +655,6 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	int opcode;
 	int err;
 	struct resp_res *res = qp->resp.res;
-	u32 icrc;
-	u32 *p;
 
 	if (!res) {
 		/* This is the first time we process that request. Get a
@@ -742,24 +713,20 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	payload = min_t(int, res->read.resid, mtu);
 
 	skb = prepare_ack_packet(qp, req_pkt, &ack_pkt, opcode, payload,
-				 res->cur_psn, AETH_ACK_UNLIMITED, &icrc);
+				 res->cur_psn, AETH_ACK_UNLIMITED);
 	if (!skb)
 		return RESPST_ERR_RNR;
 
 	err = rxe_mr_copy(res->read.mr, res->read.va, payload_addr(&ack_pkt),
-			  payload, RXE_FROM_MR_OBJ, &icrc);
+			  payload, RXE_FROM_MR_OBJ);
 	if (err)
 		pr_err("Failed copying memory\n");
 
 	if (bth_pad(&ack_pkt)) {
-		struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 		u8 *pad = payload_addr(&ack_pkt) + payload;
 
 		memset(pad, 0, bth_pad(&ack_pkt));
-		icrc = rxe_crc32(rxe, icrc, pad, bth_pad(&ack_pkt));
 	}
-	p = payload_addr(&ack_pkt) + payload + bth_pad(&ack_pkt);
-	*p = ~icrc;
 
 	err = rxe_xmit_packet(qp, &ack_pkt, skb);
 	if (err) {
@@ -893,7 +860,6 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 		wc->opcode = (pkt->mask & RXE_IMMDT_MASK &&
 				pkt->mask & RXE_WRITE_MASK) ?
 					IB_WC_RECV_RDMA_WITH_IMM : IB_WC_RECV;
-		wc->vendor_err = 0;
 		wc->byte_len = (pkt->mask & RXE_IMMDT_MASK &&
 				pkt->mask & RXE_WRITE_MASK) ?
 					qp->resp.length : wqe->dma.length - wqe->dma.resid;
@@ -913,8 +879,6 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 				uwc->wc_flags |= IB_WC_WITH_INVALIDATE;
 				uwc->ex.invalidate_rkey = ieth_rkey(pkt);
 			}
-
-			uwc->qp_num		= qp->ibqp.qp_num;
 
 			if (pkt->mask & RXE_DETH_MASK)
 				uwc->src_qp = deth_sqp(pkt);
@@ -947,18 +911,13 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 			if (pkt->mask & RXE_DETH_MASK)
 				wc->src_qp = deth_sqp(pkt);
 
-			wc->qp			= &qp->ibqp;
 			wc->port_num		= qp->attr.port_num;
 		}
 	}
 
 	/* have copy for srq and reference for !srq */
-	if (!qp->srq) {
-		if (qp->is_user)
-			advance_consumer(qp->rq.queue, QUEUE_TYPE_FROM_USER);
-		else
-			advance_consumer(qp->rq.queue, QUEUE_TYPE_KERNEL);
-	}
+	if (!qp->srq)
+		queue_advance_consumer(qp->rq.queue, QUEUE_TYPE_FROM_CLIENT);
 
 	qp->resp.wqe = NULL;
 
@@ -984,7 +943,7 @@ static int send_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	struct sk_buff *skb;
 
 	skb = prepare_ack_packet(qp, pkt, &ack_pkt, IB_OPCODE_RC_ACKNOWLEDGE,
-				 0, psn, syndrome, NULL);
+				 0, psn, syndrome);
 	if (!skb) {
 		err = -ENOMEM;
 		goto err1;
@@ -1008,7 +967,7 @@ static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 
 	skb = prepare_ack_packet(qp, pkt, &ack_pkt,
 				 IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE, 0, pkt->psn,
-				 syndrome, NULL);
+				 syndrome);
 	if (!skb) {
 		rc = -ENOMEM;
 		goto out;
@@ -1230,7 +1189,7 @@ static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 		return;
 
 	while (!qp->srq && q && queue_head(q, q->type))
-		advance_consumer(q, q->type);
+		queue_advance_consumer(q, q->type);
 }
 
 int rxe_responder(void *arg)

@@ -33,15 +33,21 @@
 #define I10NM_GET_DIMMMTR(m, i, j)	\
 	readl((m)->mbase + ((m)->hbm_mc ? 0x80c : 0x2080c) + \
 	(i) * (m)->chan_mmio_sz + (j) * 4)
-#define I10NM_GET_MCDDRTCFG(m, i, j)	\
+#define I10NM_GET_MCDDRTCFG(m, i)	\
 	readl((m)->mbase + ((m)->hbm_mc ? 0x970 : 0x20970) + \
-	(i) * (m)->chan_mmio_sz + (j) * 4)
+	(i) * (m)->chan_mmio_sz)
 #define I10NM_GET_MCMTR(m, i)		\
 	readl((m)->mbase + ((m)->hbm_mc ? 0xef8 : 0x20ef8) + \
 	(i) * (m)->chan_mmio_sz)
 #define I10NM_GET_AMAP(m, i)		\
 	readl((m)->mbase + ((m)->hbm_mc ? 0x814 : 0x20814) + \
 	(i) * (m)->chan_mmio_sz)
+#define I10NM_GET_REG32(m, i, offset)	\
+	readl((m)->mbase + (i) * (m)->chan_mmio_sz + (offset))
+#define I10NM_GET_REG64(m, i, offset)	\
+	readq((m)->mbase + (i) * (m)->chan_mmio_sz + (offset))
+#define I10NM_SET_REG32(m, i, offset, v)	\
+	writel(v, (m)->mbase + (i) * (m)->chan_mmio_sz + (offset))
 
 #define I10NM_GET_SCK_MMIO_BASE(reg)	(GET_BITFIELD(reg, 0, 28) << 23)
 #define I10NM_GET_IMC_MMIO_OFFSET(reg)	(GET_BITFIELD(reg, 0, 10) << 12)
@@ -58,7 +64,124 @@
 #define I10NM_SAD_ENABLE(reg)		GET_BITFIELD(reg, 0, 0)
 #define I10NM_SAD_NM_CACHEABLE(reg)	GET_BITFIELD(reg, 5, 5)
 
+#define RETRY_RD_ERR_LOG_UC		BIT(1)
+#define RETRY_RD_ERR_LOG_NOOVER		BIT(14)
+#define RETRY_RD_ERR_LOG_EN		BIT(15)
+#define RETRY_RD_ERR_LOG_NOOVER_UC	(BIT(14) | BIT(1))
+#define RETRY_RD_ERR_LOG_OVER_UC_V	(BIT(2) | BIT(1) | BIT(0))
+
 static struct list_head *i10nm_edac_list;
+
+static struct res_config *res_cfg;
+static int retry_rd_err_log;
+
+static u32 offsets_scrub_icx[]  = {0x22c60, 0x22c54, 0x22c5c, 0x22c58, 0x22c28, 0x20ed8};
+static u32 offsets_scrub_spr[]  = {0x22c60, 0x22c54, 0x22f08, 0x22c58, 0x22c28, 0x20ed8};
+static u32 offsets_demand_icx[] = {0x22e54, 0x22e60, 0x22e64, 0x22e58, 0x22e5c, 0x20ee0};
+static u32 offsets_demand_spr[] = {0x22e54, 0x22e60, 0x22f10, 0x22e58, 0x22e5c, 0x20ee0};
+
+static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable)
+{
+	u32 s, d;
+
+	if (!imc->mbase)
+		return;
+
+	s = I10NM_GET_REG32(imc, chan, res_cfg->offsets_scrub[0]);
+	d = I10NM_GET_REG32(imc, chan, res_cfg->offsets_demand[0]);
+
+	if (enable) {
+		/* Save default configurations */
+		imc->chan[chan].retry_rd_err_log_s = s;
+		imc->chan[chan].retry_rd_err_log_d = d;
+
+		s &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
+		s |=  RETRY_RD_ERR_LOG_EN;
+		d &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
+		d |=  RETRY_RD_ERR_LOG_EN;
+	} else {
+		/* Restore default configurations */
+		if (imc->chan[chan].retry_rd_err_log_s & RETRY_RD_ERR_LOG_UC)
+			s |=  RETRY_RD_ERR_LOG_UC;
+		if (imc->chan[chan].retry_rd_err_log_s & RETRY_RD_ERR_LOG_NOOVER)
+			s |=  RETRY_RD_ERR_LOG_NOOVER;
+		if (!(imc->chan[chan].retry_rd_err_log_s & RETRY_RD_ERR_LOG_EN))
+			s &= ~RETRY_RD_ERR_LOG_EN;
+		if (imc->chan[chan].retry_rd_err_log_d & RETRY_RD_ERR_LOG_UC)
+			d |=  RETRY_RD_ERR_LOG_UC;
+		if (imc->chan[chan].retry_rd_err_log_d & RETRY_RD_ERR_LOG_NOOVER)
+			d |=  RETRY_RD_ERR_LOG_NOOVER;
+		if (!(imc->chan[chan].retry_rd_err_log_d & RETRY_RD_ERR_LOG_EN))
+			d &= ~RETRY_RD_ERR_LOG_EN;
+	}
+
+	I10NM_SET_REG32(imc, chan, res_cfg->offsets_scrub[0], s);
+	I10NM_SET_REG32(imc, chan, res_cfg->offsets_demand[0], d);
+}
+
+static void enable_retry_rd_err_log(bool enable)
+{
+	struct skx_dev *d;
+	int i, j;
+
+	edac_dbg(2, "\n");
+
+	list_for_each_entry(d, i10nm_edac_list, list)
+		for (i = 0; i < I10NM_NUM_IMC; i++)
+			for (j = 0; j < I10NM_NUM_CHANNELS; j++)
+				__enable_retry_rd_err_log(&d->imc[i], j, enable);
+}
+
+static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
+				  int len, bool scrub_err)
+{
+	struct skx_imc *imc = &res->dev->imc[res->imc];
+	u32 log0, log1, log2, log3, log4;
+	u32 corr0, corr1, corr2, corr3;
+	u64 log2a, log5;
+	u32 *offsets;
+	int n;
+
+	if (!imc->mbase)
+		return;
+
+	offsets = scrub_err ? res_cfg->offsets_scrub : res_cfg->offsets_demand;
+
+	log0 = I10NM_GET_REG32(imc, res->channel, offsets[0]);
+	log1 = I10NM_GET_REG32(imc, res->channel, offsets[1]);
+	log3 = I10NM_GET_REG32(imc, res->channel, offsets[3]);
+	log4 = I10NM_GET_REG32(imc, res->channel, offsets[4]);
+	log5 = I10NM_GET_REG64(imc, res->channel, offsets[5]);
+
+	if (res_cfg->type == SPR) {
+		log2a = I10NM_GET_REG64(imc, res->channel, offsets[2]);
+		n = snprintf(msg, len, " retry_rd_err_log[%.8x %.8x %.16llx %.8x %.8x %.16llx]",
+			     log0, log1, log2a, log3, log4, log5);
+	} else {
+		log2 = I10NM_GET_REG32(imc, res->channel, offsets[2]);
+		n = snprintf(msg, len, " retry_rd_err_log[%.8x %.8x %.8x %.8x %.8x %.16llx]",
+			     log0, log1, log2, log3, log4, log5);
+	}
+
+	corr0 = I10NM_GET_REG32(imc, res->channel, 0x22c18);
+	corr1 = I10NM_GET_REG32(imc, res->channel, 0x22c1c);
+	corr2 = I10NM_GET_REG32(imc, res->channel, 0x22c20);
+	corr3 = I10NM_GET_REG32(imc, res->channel, 0x22c24);
+
+	if (len - n > 0)
+		snprintf(msg + n, len - n,
+			 " correrrcnt[%.4x %.4x %.4x %.4x %.4x %.4x %.4x %.4x]",
+			 corr0 & 0xffff, corr0 >> 16,
+			 corr1 & 0xffff, corr1 >> 16,
+			 corr2 & 0xffff, corr2 >> 16,
+			 corr3 & 0xffff, corr3 >> 16);
+
+	/* Clear status bits */
+	if (retry_rd_err_log == 2 && (log0 & RETRY_RD_ERR_LOG_OVER_UC_V)) {
+		log0 &= ~RETRY_RD_ERR_LOG_OVER_UC_V;
+		I10NM_SET_REG32(imc, res->channel, offsets[0], log0);
+	}
+}
 
 static struct pci_dev *pci_get_dev_wrapper(int dom, unsigned int bus,
 					   unsigned int dev, unsigned int fun)
@@ -263,6 +386,8 @@ static struct res_config i10nm_cfg0 = {
 	.ddr_chan_mmio_sz	= 0x4000,
 	.sad_all_devfn		= PCI_DEVFN(29, 0),
 	.sad_all_offset		= 0x108,
+	.offsets_scrub		= offsets_scrub_icx,
+	.offsets_demand		= offsets_demand_icx,
 };
 
 static struct res_config i10nm_cfg1 = {
@@ -272,6 +397,8 @@ static struct res_config i10nm_cfg1 = {
 	.ddr_chan_mmio_sz	= 0x4000,
 	.sad_all_devfn		= PCI_DEVFN(29, 0),
 	.sad_all_offset		= 0x108,
+	.offsets_scrub		= offsets_scrub_icx,
+	.offsets_demand		= offsets_demand_icx,
 };
 
 static struct res_config spr_cfg = {
@@ -283,6 +410,8 @@ static struct res_config spr_cfg = {
 	.support_ddr5		= true,
 	.sad_all_devfn		= PCI_DEVFN(10, 0),
 	.sad_all_offset		= 0x300,
+	.offsets_scrub		= offsets_scrub_spr,
+	.offsets_demand		= offsets_demand_spr,
 };
 
 static const struct x86_cpu_id i10nm_cpuids[] = {
@@ -321,10 +450,10 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci,
 
 		ndimms = 0;
 		amap = I10NM_GET_AMAP(imc, i);
+		mcddrtcfg = I10NM_GET_MCDDRTCFG(imc, i);
 		for (j = 0; j < imc->num_dimms; j++) {
 			dimm = edac_get_dimm(mci, i, j, 0);
 			mtr = I10NM_GET_DIMMMTR(imc, i, j);
-			mcddrtcfg = I10NM_GET_MCDDRTCFG(imc, i, j);
 			edac_dbg(1, "dimmmtr 0x%x mcddrtcfg 0x%x (mc%d ch%d dimm%d)\n",
 				 mtr, mcddrtcfg, imc->mc, i, j);
 
@@ -422,6 +551,7 @@ static int __init i10nm_init(void)
 		return -ENODEV;
 
 	cfg = (struct res_config *)id->driver_data;
+	res_cfg = cfg;
 
 	rc = skx_get_hi_lo(0x09a2, off, &tolm, &tohm);
 	if (rc)
@@ -486,6 +616,12 @@ static int __init i10nm_init(void)
 	mce_register_decode_chain(&i10nm_mce_dec);
 	setup_i10nm_debug();
 
+	if (retry_rd_err_log && res_cfg->offsets_scrub && res_cfg->offsets_demand) {
+		skx_set_decode(NULL, show_retry_rd_err_log);
+		if (retry_rd_err_log == 2)
+			enable_retry_rd_err_log(true);
+	}
+
 	i10nm_printk(KERN_INFO, "%s\n", I10NM_REVISION);
 
 	return 0;
@@ -497,6 +633,13 @@ fail:
 static void __exit i10nm_exit(void)
 {
 	edac_dbg(2, "\n");
+
+	if (retry_rd_err_log && res_cfg->offsets_scrub && res_cfg->offsets_demand) {
+		skx_set_decode(NULL, NULL);
+		if (retry_rd_err_log == 2)
+			enable_retry_rd_err_log(false);
+	}
+
 	teardown_i10nm_debug();
 	mce_unregister_decode_chain(&i10nm_mce_dec);
 	skx_adxl_put();
@@ -505,6 +648,9 @@ static void __exit i10nm_exit(void)
 
 module_init(i10nm_init);
 module_exit(i10nm_exit);
+
+module_param(retry_rd_err_log, int, 0444);
+MODULE_PARM_DESC(retry_rd_err_log, "retry_rd_err_log: 0=off(default), 1=bios(Linux doesn't reset any control bits, but just reports values.), 2=linux(Linux tries to take control and resets mode bits, clear valid/UC bits after reading.)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MC Driver for Intel 10nm server processors");

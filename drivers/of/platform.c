@@ -76,6 +76,7 @@ static void of_device_make_bus_id(struct device *dev)
 	struct device_node *node = dev->of_node;
 	const __be32 *reg;
 	u64 addr;
+	u32 mask;
 
 	/* Construct the name, using parent nodes if necessary to ensure uniqueness */
 	while (node->parent) {
@@ -85,8 +86,13 @@ static void of_device_make_bus_id(struct device *dev)
 		 */
 		reg = of_get_property(node, "reg", NULL);
 		if (reg && (addr = of_translate_address(node, reg)) != OF_BAD_ADDR) {
-			dev_set_name(dev, dev_name(dev) ? "%llx.%pOFn:%s" : "%llx.%pOFn",
-				     addr, node, dev_name(dev));
+			if (!of_property_read_u32(node, "mask", &mask))
+				dev_set_name(dev, dev_name(dev) ? "%llx.%x.%pOFn:%s" : "%llx.%x.%pOFn",
+					     addr, ffs(mask) - 1, node, dev_name(dev));
+
+			else
+				dev_set_name(dev, dev_name(dev) ? "%llx.%pOFn:%s" : "%llx.%pOFn",
+					     addr, node, dev_name(dev));
 			return;
 		}
 
@@ -222,7 +228,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 {
 	struct amba_device *dev;
 	const void *prop;
-	int i, ret;
+	int ret;
 
 	pr_debug("Creating amba device %pOF\n", node);
 
@@ -252,10 +258,6 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	prop = of_get_property(node, "arm,primecell-periphid", NULL);
 	if (prop)
 		dev->periphid = of_read_ulong(prop, 1);
-
-	/* Decode the IRQs and address ranges */
-	for (i = 0; i < AMBA_NR_IRQS; i++)
-		dev->irq[i] = irq_of_parse_and_map(node, i);
 
 	ret = of_address_to_resource(node, 0, &dev->res);
 	if (ret) {
@@ -509,6 +511,7 @@ EXPORT_SYMBOL_GPL(of_platform_default_populate);
 static const struct of_device_id reserved_mem_matches[] = {
 	{ .compatible = "qcom,rmtfs-mem" },
 	{ .compatible = "qcom,cmd-db" },
+	{ .compatible = "qcom,smem" },
 	{ .compatible = "ramoops" },
 	{ .compatible = "nvmem-rmem" },
 	{}

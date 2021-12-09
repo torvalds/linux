@@ -9,7 +9,8 @@
 #include "intel_region_ttm.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
-#include "intel_region_lmem.h"
+#include "gem/i915_gem_ttm.h"
+#include "gt/intel_gt.h"
 
 static int init_fake_lmem_bar(struct intel_memory_region *mem)
 {
@@ -31,7 +32,7 @@ static int init_fake_lmem_bar(struct intel_memory_region *mem)
 	mem->remap_addr = dma_map_resource(i915->drm.dev,
 					   mem->region.start,
 					   mem->fake_mappable.size,
-					   PCI_DMA_BIDIRECTIONAL,
+					   DMA_BIDIRECTIONAL,
 					   DMA_ATTR_FORCE_CONTIGUOUS);
 	if (dma_mapping_error(i915->drm.dev, mem->remap_addr)) {
 		drm_mm_remove_node(&mem->fake_mappable);
@@ -61,7 +62,7 @@ static void release_fake_lmem_bar(struct intel_memory_region *mem)
 	dma_unmap_resource(mem->i915->drm.dev,
 			   mem->remap_addr,
 			   mem->fake_mappable.size,
-			   PCI_DMA_BIDIRECTIONAL,
+			   DMA_BIDIRECTIONAL,
 			   DMA_ATTR_FORCE_CONTIGUOUS);
 }
 
@@ -107,7 +108,7 @@ out_no_io:
 static const struct intel_memory_region_ops intel_region_lmem_ops = {
 	.init = region_lmem_init,
 	.release = region_lmem_release,
-	.init_object = __i915_gem_lmem_object_init,
+	.init_object = __i915_gem_ttm_object_init,
 };
 
 struct intel_memory_region *
@@ -157,7 +158,7 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 static bool get_legacy_lowmem_region(struct intel_uncore *uncore,
 				     u64 *start, u32 *size)
 {
-	if (!IS_DG1_REVID(uncore->i915, DG1_REVID_A0, DG1_REVID_B0))
+	if (!IS_DG1_GT_STEP(uncore->i915, STEP_A0, STEP_C0))
 		return false;
 
 	*start = 0;

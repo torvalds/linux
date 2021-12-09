@@ -106,20 +106,14 @@ void snd_hdac_stream_free_all(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_free_all);
 
-/**
- * snd_hdac_ext_stream_decouple - decouple the hdac stream
- * @bus: HD-audio core bus
- * @stream: HD-audio ext core stream object to initialize
- * @decouple: flag to decouple
- */
-void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
-				struct hdac_ext_stream *stream, bool decouple)
+void snd_hdac_ext_stream_decouple_locked(struct hdac_bus *bus,
+					 struct hdac_ext_stream *stream,
+					 bool decouple)
 {
 	struct hdac_stream *hstream = &stream->hstream;
 	u32 val;
 	int mask = AZX_PPCTL_PROCEN(hstream->index);
 
-	spin_lock_irq(&bus->reg_lock);
 	val = readw(bus->ppcap + AZX_REG_PP_PPCTL) & mask;
 
 	if (decouple && !val)
@@ -128,6 +122,20 @@ void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
 		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, mask, 0);
 
 	stream->decoupled = decouple;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_decouple_locked);
+
+/**
+ * snd_hdac_ext_stream_decouple - decouple the hdac stream
+ * @bus: HD-audio core bus
+ * @stream: HD-audio ext core stream object to initialize
+ * @decouple: flag to decouple
+ */
+void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
+				  struct hdac_ext_stream *stream, bool decouple)
+{
+	spin_lock_irq(&bus->reg_lock);
+	snd_hdac_ext_stream_decouple_locked(bus, stream, decouple);
 	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_decouple);
@@ -252,6 +260,7 @@ hdac_ext_link_stream_assign(struct hdac_bus *bus,
 		return NULL;
 	}
 
+	spin_lock_irq(&bus->reg_lock);
 	list_for_each_entry(stream, &bus->stream_list, list) {
 		struct hdac_ext_stream *hstream = container_of(stream,
 						struct hdac_ext_stream,
@@ -266,17 +275,16 @@ hdac_ext_link_stream_assign(struct hdac_bus *bus,
 		}
 
 		if (!hstream->link_locked) {
-			snd_hdac_ext_stream_decouple(bus, hstream, true);
+			snd_hdac_ext_stream_decouple_locked(bus, hstream, true);
 			res = hstream;
 			break;
 		}
 	}
 	if (res) {
-		spin_lock_irq(&bus->reg_lock);
 		res->link_locked = 1;
 		res->link_substream = substream;
-		spin_unlock_irq(&bus->reg_lock);
 	}
+	spin_unlock_irq(&bus->reg_lock);
 	return res;
 }
 
@@ -292,6 +300,7 @@ hdac_ext_host_stream_assign(struct hdac_bus *bus,
 		return NULL;
 	}
 
+	spin_lock_irq(&bus->reg_lock);
 	list_for_each_entry(stream, &bus->stream_list, list) {
 		struct hdac_ext_stream *hstream = container_of(stream,
 						struct hdac_ext_stream,
@@ -301,18 +310,17 @@ hdac_ext_host_stream_assign(struct hdac_bus *bus,
 
 		if (!stream->opened) {
 			if (!hstream->decoupled)
-				snd_hdac_ext_stream_decouple(bus, hstream, true);
+				snd_hdac_ext_stream_decouple_locked(bus, hstream, true);
 			res = hstream;
 			break;
 		}
 	}
 	if (res) {
-		spin_lock_irq(&bus->reg_lock);
 		res->hstream.opened = 1;
 		res->hstream.running = 0;
 		res->hstream.substream = substream;
-		spin_unlock_irq(&bus->reg_lock);
 	}
+	spin_unlock_irq(&bus->reg_lock);
 
 	return res;
 }
@@ -378,15 +386,17 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *stream, int type)
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_HOST:
+		spin_lock_irq(&bus->reg_lock);
 		if (stream->decoupled && !stream->link_locked)
-			snd_hdac_ext_stream_decouple(bus, stream, false);
+			snd_hdac_ext_stream_decouple_locked(bus, stream, false);
+		spin_unlock_irq(&bus->reg_lock);
 		snd_hdac_stream_release(&stream->hstream);
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_LINK:
-		if (stream->decoupled && !stream->hstream.opened)
-			snd_hdac_ext_stream_decouple(bus, stream, false);
 		spin_lock_irq(&bus->reg_lock);
+		if (stream->decoupled && !stream->hstream.opened)
+			snd_hdac_ext_stream_decouple_locked(bus, stream, false);
 		stream->link_locked = 0;
 		stream->link_substream = NULL;
 		spin_unlock_irq(&bus->reg_lock);

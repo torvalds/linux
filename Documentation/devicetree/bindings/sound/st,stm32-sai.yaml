@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 Serial Audio Interface (SAI)
 
 maintainers:
-  - Olivier Moysan <olivier.moysan@st.com>
+  - Olivier Moysan <olivier.moysan@foss.st.com>
 
 description:
   The SAI interface (Serial Audio Interface) offers a wide set of audio
@@ -180,7 +180,6 @@ examples:
       pinctrl-names = "default", "sleep";
       pinctrl-0 = <&sai2a_pins_a>, <&sai2b_pins_b>;
       pinctrl-1 = <&sai2a_sleep_pins_a>, <&sai2b_sleep_pins_b>;
-      status = "okay";
 
       sai2a: audio-controller@4400b004 {
         #sound-dai-cells = <0>;
@@ -190,7 +189,6 @@ examples:
         dma-names = "tx";
         clocks = <&rcc SAI2_K>;
         clock-names = "sai_ck";
-        status = "okay";
       };
     };
 

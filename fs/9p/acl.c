@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * Copyright IBM Corporation, 2010
  * Author Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2.1 of the GNU Lesser General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
  */
 
 #include <linux/module.h>
@@ -97,9 +89,12 @@ static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
 	return acl;
 }
 
-struct posix_acl *v9fs_iop_get_acl(struct inode *inode, int type)
+struct posix_acl *v9fs_iop_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct v9fs_session_info *v9ses;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	v9ses = v9fs_inode2v9ses(inode);
 	if (((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) ||
@@ -120,6 +115,7 @@ static int v9fs_set_acl(struct p9_fid *fid, int type, struct posix_acl *acl)
 	char *name;
 	size_t size;
 	void *buffer;
+
 	if (!acl)
 		return 0;
 

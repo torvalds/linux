@@ -941,7 +941,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 	struct clk *baud_mux_clk;
 	struct uart_8250_port up;
 	struct resource *irq;
-	void __iomem *membase = 0;
+	void __iomem *membase = NULL;
 	resource_size_t mapbase = 0;
 	u32 clk_rate = 0;
 	int ret;

@@ -1052,7 +1052,7 @@ static const struct net_device_ops boomrang_netdev_ops = {
 	.ndo_tx_timeout		= vortex_tx_timeout,
 	.ndo_get_stats		= vortex_get_stats,
 #ifdef CONFIG_PCI
-	.ndo_do_ioctl 		= vortex_ioctl,
+	.ndo_eth_ioctl		= vortex_ioctl,
 #endif
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_set_mac_address 	= eth_mac_addr,
@@ -1069,7 +1069,7 @@ static const struct net_device_ops vortex_netdev_ops = {
 	.ndo_tx_timeout		= vortex_tx_timeout,
 	.ndo_get_stats		= vortex_get_stats,
 #ifdef CONFIG_PCI
-	.ndo_do_ioctl 		= vortex_ioctl,
+	.ndo_eth_ioctl		= vortex_ioctl,
 #endif
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_set_mac_address 	= eth_mac_addr,
@@ -1091,6 +1091,7 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 	struct vortex_private *vp;
 	int option;
 	unsigned int eeprom[0x40], checksum = 0;		/* EEPROM contents */
+	__be16 addr[ETH_ALEN / 2];
 	int i, step;
 	struct net_device *dev;
 	static int printed_version;
@@ -1284,7 +1285,8 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 	if ((checksum != 0x00) && !(vci->drv_flags & IS_TORNADO))
 		pr_cont(" ***INVALID CHECKSUM %4.4x*** ", checksum);
 	for (i = 0; i < 3; i++)
-		((__be16 *)dev->dev_addr)[i] = htons(eeprom[i + 10]);
+		addr[i] = htons(eeprom[i + 10]);
+	eth_hw_addr_set(dev, (u8 *)addr);
 	if (print_info)
 		pr_cont(" %pM", dev->dev_addr);
 	/* Unfortunately an all zero eeprom passes the checksum and this
@@ -2786,7 +2788,7 @@ static void
 dump_tx_ring(struct net_device *dev)
 {
 	if (vortex_debug > 0) {
-	struct vortex_private *vp = netdev_priv(dev);
+		struct vortex_private *vp = netdev_priv(dev);
 		void __iomem *ioaddr = vp->ioaddr;
 
 		if (vp->full_bus_master_tx) {

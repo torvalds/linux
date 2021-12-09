@@ -197,7 +197,7 @@ void nommu_dump_state(struct pt_regs *regs,
 }
 
 /* This is normally the 'Oops' routine */
-void die(const char *str, struct pt_regs *regs, long err)
+void __noreturn die(const char *str, struct pt_regs *regs, long err)
 {
 
 	console_verbose();
@@ -229,11 +229,6 @@ void unhandled_exception(struct pt_regs *regs, int ea, int vector)
 	printk("Unable to handle exception at EA =0x%x, vector 0x%x",
 	       ea, vector);
 	die("Oops", regs, 9);
-}
-
-void __init trap_init(void)
-{
-	/* Nothing needs to be done */
 }
 
 asmlinkage void do_trap(struct pt_regs *regs, unsigned long address)

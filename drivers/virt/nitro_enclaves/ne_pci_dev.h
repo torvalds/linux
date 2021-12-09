@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2020-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
 
 #ifndef _NE_PCI_DEV_H_
@@ -84,9 +84,13 @@
  */
 
 /**
- * NE_SEND_DATA_SIZE / NE_RECV_DATA_SIZE - 240 bytes for send / recv buffer.
+ * NE_SEND_DATA_SIZE - Size of the send buffer, in bytes.
  */
 #define NE_SEND_DATA_SIZE	(240)
+
+/**
+ * NE_RECV_DATA_SIZE - Size of the receive buffer, in bytes.
+ */
 #define NE_RECV_DATA_SIZE	(240)
 
 /**

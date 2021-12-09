@@ -59,9 +59,9 @@ int handler(const void *ctx)
 	/* Kernel pointers */
 	addr_ret = BPF_SNPRINTF(addr_out, sizeof(addr_out), "%pK %px %p",
 				0, 0xFFFF00000ADD4E55, 0xFFFF00000ADD4E55);
-	/* Strings embedding */
-	str_ret  = BPF_SNPRINTF(str_out, sizeof(str_out), "%s %+05s",
-				str1, longstr);
+	/* Strings and single-byte character embedding */
+	str_ret  = BPF_SNPRINTF(str_out, sizeof(str_out), "%s % 9c %+2c %-3c %04c %0c %+05s",
+				str1, 'a', 'b', 'c', 'd', 'e', longstr);
 	/* Overflow */
 	over_ret = BPF_SNPRINTF(over_out, sizeof(over_out), "%%overflow");
 	/* Padding of fixed width numbers */

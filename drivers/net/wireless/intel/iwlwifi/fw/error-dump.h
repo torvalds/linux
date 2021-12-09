@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2014, 2018-2021 Intel Corporation
  * Copyright (C) 2014-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -305,11 +305,12 @@ struct iwl_fw_ini_error_dump_header {
 /**
  * struct iwl_fw_ini_error_dump - ini region dump
  * @header: the header of this region
- * @ranges: the memory ranges of this region
+ * @data: data of memory ranges in this region,
+ *	see &struct iwl_fw_ini_error_dump_range
  */
 struct iwl_fw_ini_error_dump {
 	struct iwl_fw_ini_error_dump_header header;
-	struct iwl_fw_ini_error_dump_range ranges[];
+	u8 data[];
 } __packed;
 
 /* This bit is used to differentiate between lmac and umac rxf */
@@ -341,10 +342,6 @@ struct iwl_fw_ini_dump_cfg_name {
 #define IWL_AX210_HW_TYPE 0x42
 /* How many bits to roll when adding to the HW type of AX210 HW */
 #define IWL_AX210_HW_TYPE_ADDITION_SHIFT 12
-/* This prph is used to tell apart HW_TYPE == 0x42 NICs */
-#define WFPM_OTP_CFG1_ADDR 0xd03098
-#define WFPM_OTP_CFG1_IS_JACKET_BIT BIT(4)
-#define WFPM_OTP_CFG1_IS_CDB_BIT BIT(5)
 
 /* struct iwl_fw_ini_dump_info - ini dump information
  * @version: dump version
@@ -399,12 +396,13 @@ struct iwl_fw_ini_dump_info {
  * struct iwl_fw_ini_err_table_dump - ini error table dump
  * @header: header of the region
  * @version: error table version
- * @ranges: the memory ranges of this this region
+ * @data: data of memory ranges in this region,
+ *	see &struct iwl_fw_ini_error_dump_range
  */
 struct iwl_fw_ini_err_table_dump {
 	struct iwl_fw_ini_error_dump_header header;
 	__le32 version;
-	struct iwl_fw_ini_error_dump_range ranges[];
+	u8 data[];
 } __packed;
 
 /**
@@ -427,14 +425,15 @@ struct iwl_fw_error_dump_rb {
  * @write_ptr: write pointer position in the buffer
  * @cycle_cnt: cycles count
  * @cur_frag: current fragment in use
- * @ranges: the memory ranges of this this region
+ * @data: data of memory ranges in this region,
+ *	see &struct iwl_fw_ini_error_dump_range
  */
 struct iwl_fw_ini_monitor_dump {
 	struct iwl_fw_ini_error_dump_header header;
 	__le32 write_ptr;
 	__le32 cycle_cnt;
 	__le32 cur_frag;
-	struct iwl_fw_ini_error_dump_range ranges[];
+	u8 data[];
 } __packed;
 
 /**
@@ -442,13 +441,14 @@ struct iwl_fw_ini_monitor_dump {
  * @header: header of the region
  * @type: type of special memory
  * @version: struct special memory version
- * @ranges: the memory ranges of this this region
+ * @data: data of memory ranges in this region,
+ *	see &struct iwl_fw_ini_error_dump_range
  */
 struct iwl_fw_ini_special_device_memory {
 	struct iwl_fw_ini_error_dump_header header;
 	__le16 type;
 	__le16 version;
-	struct iwl_fw_ini_error_dump_range ranges[];
+	u8 data[];
 } __packed;
 
 /**

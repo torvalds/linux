@@ -3575,12 +3575,16 @@ static void gfx_v7_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 {
 	u32 data;
 
+	amdgpu_gfx_off_ctrl(adev, false);
+
 	data = RREG32(mmRLC_SPM_VMID);
 
 	data &= ~RLC_SPM_VMID__RLC_SPM_VMID_MASK;
 	data |= (vmid & RLC_SPM_VMID__RLC_SPM_VMID_MASK) << RLC_SPM_VMID__RLC_SPM_VMID__SHIFT;
 
 	WREG32(mmRLC_SPM_VMID, data);
+
+	amdgpu_gfx_off_ctrl(adev, true);
 }
 
 static void gfx_v7_0_enable_cgcg(struct amdgpu_device *adev, bool enable)
@@ -4198,6 +4202,7 @@ static void gfx_v7_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, u
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_HI);
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_DBG0);
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
+	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_MODE);
 }
 
 static void gfx_v7_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,

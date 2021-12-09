@@ -15,7 +15,7 @@ please direct abuse to Tobin C. Harding <me@tobin.cc>.
 
 Original email thread::
 
-	http://lkml.kernel.org/r/20171114110500.GA21175@kroah.com
+	https://lore.kernel.org/r/20171114110500.GA21175@kroah.com
 
 
 Create Branch

@@ -57,7 +57,7 @@ static int do_pin(int argc, char **argv)
 		goto close_obj;
 	}
 
-	prog = bpf_program__next(NULL, obj);
+	prog = bpf_object__next_program(obj, NULL);
 	if (!prog) {
 		p_err("can't find bpf program in objfile %s", objfile);
 		goto close_obj;
@@ -97,7 +97,9 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %1$s %2$s pin OBJ PATH [map MAP]\n"
 		"       %1$s %2$s help\n"
+		"\n"
 		"       " HELP_SPEC_MAP "\n"
+		"       " HELP_SPEC_OPTIONS " }\n"
 		"",
 		bin_name, "iter");
 

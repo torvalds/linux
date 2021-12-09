@@ -508,3 +508,16 @@ config CPU_SUP_ZHAOXIN
 	  CPU might render the kernel unbootable.
 
 	  If unsure, say N.
+
+config CPU_SUP_VORTEX_32
+	default y
+	bool "Support Vortex processors" if PROCESSOR_SELECT
+	depends on X86_32
+	help
+	  This enables detection, tunings and quirks for Vortex processors
+
+	  You need this enabled if you want your kernel to run on a
+	  Vortex CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller.
+
+	  If unsure, say N.

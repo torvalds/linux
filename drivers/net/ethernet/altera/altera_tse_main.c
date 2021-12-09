@@ -849,7 +849,7 @@ static int init_phy(struct net_device *dev)
 	return 0;
 }
 
-static void tse_update_mac_addr(struct altera_tse_private *priv, u8 *addr)
+static void tse_update_mac_addr(struct altera_tse_private *priv, const u8 *addr)
 {
 	u32 msb;
 	u32 lsb;
@@ -1524,7 +1524,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	priv->rx_dma_buf_sz = ALTERA_RXDMABUFFER_SIZE;
 
 	/* get default MAC address from device tree */
-	ret = of_get_mac_address(pdev->dev.of_node, ndev->dev_addr);
+	ret = of_get_ethdev_address(pdev->dev.of_node, ndev);
 	if (ret)
 		eth_hw_addr_random(ndev);
 

@@ -224,8 +224,8 @@ static void esd_usb2_rx_event(struct esd_usb2_net_priv *priv,
 	if (id == ESD_EV_CAN_ERROR_EXT) {
 		u8 state = msg->msg.rx.data[0];
 		u8 ecc = msg->msg.rx.data[1];
-		u8 txerr = msg->msg.rx.data[2];
-		u8 rxerr = msg->msg.rx.data[3];
+		u8 rxerr = msg->msg.rx.data[2];
+		u8 txerr = msg->msg.rx.data[3];
 
 		skb = alloc_can_err_skb(priv->netdev, &cf);
 		if (skb == NULL) {
@@ -476,7 +476,7 @@ static void esd_usb2_write_bulk_callback(struct urb *urb)
 	netif_trans_update(netdev);
 }
 
-static ssize_t show_firmware(struct device *d,
+static ssize_t firmware_show(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(d);
@@ -487,9 +487,9 @@ static ssize_t show_firmware(struct device *d,
 		       (dev->version >> 8) & 0xf,
 		       dev->version & 0xff);
 }
-static DEVICE_ATTR(firmware, 0444, show_firmware, NULL);
+static DEVICE_ATTR_RO(firmware);
 
-static ssize_t show_hardware(struct device *d,
+static ssize_t hardware_show(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(d);
@@ -500,9 +500,9 @@ static ssize_t show_hardware(struct device *d,
 		       (dev->version >> 24) & 0xf,
 		       (dev->version >> 16) & 0xff);
 }
-static DEVICE_ATTR(hardware, 0444, show_hardware, NULL);
+static DEVICE_ATTR_RO(hardware);
 
-static ssize_t show_nets(struct device *d,
+static ssize_t nets_show(struct device *d,
 			 struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(d);
@@ -510,7 +510,7 @@ static ssize_t show_nets(struct device *d,
 
 	return sprintf(buf, "%d", dev->net_count);
 }
-static DEVICE_ATTR(nets, 0444, show_nets, NULL);
+static DEVICE_ATTR_RO(nets);
 
 static int esd_usb2_send_msg(struct esd_usb2 *dev, struct esd_usb2_msg *msg)
 {

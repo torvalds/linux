@@ -17,3 +17,14 @@
 	firmware-name = "qcom/sc7180-trogdor/modem/mba.mbn",
 			"qcom/sc7180-trogdor/modem/qdsp6sw.mbn";
 };
+
+&ipa {
+	status = "okay";
+
+	/*
+	 * Trogdor doesn't have QHEE (Qualcomm's EL2 blob), so the
+	 * modem needs to cover certain init steps (GSI init), and
+	 * the AP needs to wait for it.
+	 */
+	modem-init;
+};

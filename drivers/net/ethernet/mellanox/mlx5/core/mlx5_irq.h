@@ -8,8 +8,6 @@
 
 #define MLX5_COMP_EQS_PER_SF 8
 
-#define MLX5_IRQ_EQ_CTRL (0)
-
 struct mlx5_irq;
 
 int mlx5_irq_table_init(struct mlx5_core_dev *dev);

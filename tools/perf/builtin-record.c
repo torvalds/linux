@@ -910,7 +910,8 @@ static int record__open(struct record *rec)
 		 * Enable the dummy event when the process is forked for
 		 * initial_delay, immediately for system wide.
 		 */
-		if (opts->initial_delay && !pos->immediate)
+		if (opts->initial_delay && !pos->immediate &&
+		    !target__has_cpu(&opts->target))
 			pos->core.attr.enable_on_exec = 1;
 		else
 			pos->immediate = 1;
@@ -1254,6 +1255,7 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 {
 	int err;
 	struct perf_thread_map *thread_map;
+	bool needs_mmap = rec->opts.synth & PERF_SYNTH_MMAP;
 
 	if (rec->opts.tail_synthesize != tail)
 		return 0;
@@ -1265,6 +1267,7 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 	err = perf_event__synthesize_thread_map(&rec->tool, thread_map,
 						 process_synthesized_event,
 						 &rec->session->machines.host,
+						 needs_mmap,
 						 rec->opts.sample_address);
 	perf_thread_map__put(thread_map);
 	return err;
@@ -1387,7 +1390,6 @@ static int record__synthesize(struct record *rec, bool tail)
 	struct perf_data *data = &rec->data;
 	struct record_opts *opts = &rec->opts;
 	struct perf_tool *tool = &rec->tool;
-	int fd = perf_data__fd(data);
 	int err = 0;
 	event_op f = process_synthesized_event;
 
@@ -1395,41 +1397,12 @@ static int record__synthesize(struct record *rec, bool tail)
 		return 0;
 
 	if (data->is_pipe) {
-		/*
-		 * We need to synthesize events first, because some
-		 * features works on top of them (on report side).
-		 */
-		err = perf_event__synthesize_attrs(tool, rec->evlist,
-						   process_synthesized_event);
-		if (err < 0) {
-			pr_err("Couldn't synthesize attrs.\n");
-			goto out;
-		}
-
-		err = perf_event__synthesize_features(tool, session, rec->evlist,
+		err = perf_event__synthesize_for_pipe(tool, session, data,
 						      process_synthesized_event);
-		if (err < 0) {
-			pr_err("Couldn't synthesize features.\n");
-			return err;
-		}
+		if (err < 0)
+			goto out;
 
-		if (have_tracepoints(&rec->evlist->core.entries)) {
-			/*
-			 * FIXME err <= 0 here actually means that
-			 * there were no tracepoints so its not really
-			 * an error, just that we don't need to
-			 * synthesize anything.  We really have to
-			 * return this more properly and also
-			 * propagate errors that now are calling die()
-			 */
-			err = perf_event__synthesize_tracing_data(tool,	fd, rec->evlist,
-								  process_synthesized_event);
-			if (err <= 0) {
-				pr_err("Couldn't record tracing data.\n");
-				goto out;
-			}
-			rec->bytes_written += err;
-		}
+		rec->bytes_written += err;
 	}
 
 	err = perf_event__synth_time_conv(record__pick_pc(rec), tool,
@@ -1438,7 +1411,7 @@ static int record__synthesize(struct record *rec, bool tail)
 		goto out;
 
 	/* Synthesize id_index before auxtrace_info */
-	if (rec->opts.auxtrace_sample_mode) {
+	if (rec->opts.auxtrace_sample_mode || rec->opts.full_auxtrace) {
 		err = perf_event__synthesize_id_index(tool,
 						      process_synthesized_event,
 						      session->evlist, machine);
@@ -1499,19 +1472,26 @@ static int record__synthesize(struct record *rec, bool tail)
 	if (err < 0)
 		pr_warning("Couldn't synthesize bpf events.\n");
 
-	err = perf_event__synthesize_cgroups(tool, process_synthesized_event,
-					     machine);
-	if (err < 0)
-		pr_warning("Couldn't synthesize cgroup events.\n");
+	if (rec->opts.synth & PERF_SYNTH_CGROUP) {
+		err = perf_event__synthesize_cgroups(tool, process_synthesized_event,
+						     machine);
+		if (err < 0)
+			pr_warning("Couldn't synthesize cgroup events.\n");
+	}
 
 	if (rec->opts.nr_threads_synthesize > 1) {
 		perf_set_multithreaded();
 		f = process_locked_synthesized_event;
 	}
 
-	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->core.threads,
-					    f, opts->sample_address,
-					    rec->opts.nr_threads_synthesize);
+	if (rec->opts.synth & PERF_SYNTH_TASK) {
+		bool needs_mmap = rec->opts.synth & PERF_SYNTH_MMAP;
+
+		err = __machine__synthesize_threads(machine, tool, &opts->target,
+						    rec->evlist->core.threads,
+						    f, needs_mmap, opts->sample_address,
+						    rec->opts.nr_threads_synthesize);
+	}
 
 	if (rec->opts.nr_threads_synthesize > 1)
 		perf_set_singlethreaded();
@@ -1681,7 +1661,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		signal(SIGUSR2, SIG_IGN);
 	}
 
-	session = perf_session__new(data, false, tool);
+	session = perf_session__new(data, tool);
 	if (IS_ERR(session)) {
 		pr_err("Perf session creation failed.\n");
 		return PTR_ERR(session);
@@ -2420,6 +2400,26 @@ static int process_timestamp_boundary(struct perf_tool *tool,
 	return 0;
 }
 
+static int parse_record_synth_option(const struct option *opt,
+				     const char *str,
+				     int unset __maybe_unused)
+{
+	struct record_opts *opts = opt->value;
+	char *p = strdup(str);
+
+	if (p == NULL)
+		return -1;
+
+	opts->synth = parse_synth_opt(p);
+	free(p);
+
+	if (opts->synth < 0) {
+		pr_err("Invalid synth option: %s\n", str);
+		return -1;
+	}
+	return 0;
+}
+
 /*
  * XXX Ideally would be local to cmd_record() and passed to a record__new
  * because we need to have access to it in record__exit, that is called
@@ -2445,6 +2445,7 @@ static struct record record = {
 		.nr_threads_synthesize = 1,
 		.ctl_fd              = -1,
 		.ctl_fd_ack          = -1,
+		.synth               = PERF_SYNTH_ALL,
 	},
 	.tool = {
 		.sample		= process_sample_event,
@@ -2660,6 +2661,8 @@ static struct option __record_options[] = {
 		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.\n"
 		     "\t\t\t  Alternatively, ctl-fifo / ack-fifo will be opened and used as ctl-fd / ack-fd.",
 		      parse_control_option),
+	OPT_CALLBACK(0, "synth", &record.opts, "no|all|task|mmap|cgroup",
+		     "Fine-tune event synthesis: default=all", parse_record_synth_option),
 	OPT_END()
 };
 
@@ -2708,6 +2711,10 @@ int cmd_record(int argc, const char **argv)
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (quiet)
 		perf_quiet_option();
+
+	err = symbol__validate_sym_arguments();
+	if (err)
+		return err;
 
 	/* Make system wide (-a) the default target. */
 	if (!argc && target__none(&rec->opts.target))
@@ -2786,7 +2793,7 @@ int cmd_record(int argc, const char **argv)
 
 	if (rec->opts.affinity != PERF_AFFINITY_SYS) {
 		rec->affinity_mask.nbits = cpu__max_cpu();
-		rec->affinity_mask.bits = bitmap_alloc(rec->affinity_mask.nbits);
+		rec->affinity_mask.bits = bitmap_zalloc(rec->affinity_mask.nbits);
 		if (!rec->affinity_mask.bits) {
 			pr_err("Failed to allocate thread mask for %zd cpus\n", rec->affinity_mask.nbits);
 			err = -ENOMEM;
@@ -2884,6 +2891,13 @@ int cmd_record(int argc, const char **argv)
 	/* Enable ignoring missing threads when -u/-p option is defined. */
 	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX || rec->opts.target.pid;
 
+	if (evlist__fix_hybrid_cpus(rec->evlist, rec->opts.target.cpu_list)) {
+		pr_err("failed to use cpu list %s\n",
+		       rec->opts.target.cpu_list);
+		goto out;
+	}
+
+	rec->opts.target.hybrid = perf_pmu__has_hybrid();
 	err = -ENOMEM;
 	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);

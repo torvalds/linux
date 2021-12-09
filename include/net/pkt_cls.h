@@ -76,12 +76,10 @@ static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 	return block->q;
 }
 
-int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-		 struct tcf_result *res, bool compat_mode);
-int tcf_classify_ingress(struct sk_buff *skb,
-			 const struct tcf_block *ingress_block,
-			 const struct tcf_proto *tp, struct tcf_result *res,
-			 bool compat_mode);
+int tcf_classify(struct sk_buff *skb,
+		 const struct tcf_block *block,
+		 const struct tcf_proto *tp, struct tcf_result *res,
+		 bool compat_mode);
 
 #else
 static inline bool tcf_block_shared(struct tcf_block *block)
@@ -138,16 +136,10 @@ void tc_setup_cb_block_unregister(struct tcf_block *block, flow_setup_cb_t *cb,
 {
 }
 
-static inline int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+static inline int tcf_classify(struct sk_buff *skb,
+			       const struct tcf_block *block,
+			       const struct tcf_proto *tp,
 			       struct tcf_result *res, bool compat_mode)
-{
-	return TC_ACT_UNSPEC;
-}
-
-static inline int tcf_classify_ingress(struct sk_buff *skb,
-				       const struct tcf_block *ingress_block,
-				       const struct tcf_proto *tp,
-				       struct tcf_result *res, bool compat_mode)
 {
 	return TC_ACT_UNSPEC;
 }
@@ -327,7 +319,7 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
-		      struct tcf_exts *exts, bool ovr, bool rtnl_held,
+		      struct tcf_exts *exts, u32 flags,
 		      struct netlink_ext_ack *extack);
 void tcf_exts_destroy(struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_exts *dst, struct tcf_exts *src);
@@ -773,7 +765,7 @@ struct tc_cookie {
 };
 
 struct tc_qopt_offload_stats {
-	struct gnet_stats_basic_packed *bstats;
+	struct gnet_stats_basic_sync *bstats;
 	struct gnet_stats_queue *qstats;
 };
 
@@ -824,10 +816,9 @@ enum tc_htb_command {
 struct tc_htb_qopt_offload {
 	struct netlink_ext_ack *extack;
 	enum tc_htb_command command;
-	u16 classid;
 	u32 parent_classid;
+	u16 classid;
 	u16 qid;
-	u16 moved_qid;
 	u64 rate;
 	u64 ceil;
 };
@@ -894,7 +885,7 @@ struct tc_gred_qopt_offload_params {
 };
 
 struct tc_gred_qopt_offload_stats {
-	struct gnet_stats_basic_packed bstats[MAX_DPs];
+	struct gnet_stats_basic_sync bstats[MAX_DPs];
 	struct gnet_stats_queue qstats[MAX_DPs];
 	struct red_stats *xstats[MAX_DPs];
 };
@@ -986,6 +977,7 @@ enum tc_tbf_command {
 	TC_TBF_REPLACE,
 	TC_TBF_DESTROY,
 	TC_TBF_STATS,
+	TC_TBF_GRAFT,
 };
 
 struct tc_tbf_qopt_offload_replace_params {
@@ -1001,6 +993,7 @@ struct tc_tbf_qopt_offload {
 	union {
 		struct tc_tbf_qopt_offload_replace_params replace_params;
 		struct tc_qopt_offload_stats stats;
+		u32 child_handle;
 	};
 };
 

@@ -40,10 +40,17 @@ description: |
          0x0: FIFO mode with threshold selectable with bit 0-1
          0x1: Direct mode: each DMA request immediately initiates a transfer
               from/to the memory, FIFO is bypassed.
+       -bit 4: alternative DMA request/acknowledge protocol
+         0x0: Use standard DMA ACK management, where ACK signal is maintained
+              up to the removal of request and transfer completion
+         0x1: Use alternative DMA ACK management, where ACK de-assertion does
+              not wait for the de-assertion of the REQuest, ACK is only managed
+              by transfer completion. This must only be used on channels
+              managing transfers for STM32 USART/UART.
 
 
 maintainers:
-  - Amelie Delaunay <amelie.delaunay@st.com>
+  - Amelie Delaunay <amelie.delaunay@foss.st.com>
 
 allOf:
   - $ref: "dma-controller.yaml#"

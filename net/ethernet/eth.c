@@ -51,6 +51,7 @@
 #include <linux/if_ether.h>
 #include <linux/of_net.h>
 #include <linux/pci.h>
+#include <linux/property.h>
 #include <net/dst.h>
 #include <net/arp.h>
 #include <net/sock.h>
@@ -61,8 +62,6 @@
 #include <net/gro.h>
 #include <linux/uaccess.h>
 #include <net/pkt_sched.h>
-
-__setup("ether=", netdev_boot_setup);
 
 /**
  * eth_header - create the Ethernet header
@@ -182,12 +181,8 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 * at all, so we check here whether one of those tagging
 	 * variants has been configured on the receiving interface,
 	 * and if so, set skb->protocol without looking at the packet.
-	 * The DSA tagging protocol may be able to decode some but not all
-	 * traffic (for example only for management). In that case give it the
-	 * option to filter the packets from which it can decode source port
-	 * information.
 	 */
-	if (unlikely(netdev_uses_dsa(dev)) && dsa_can_decode(skb, dev))
+	if (unlikely(netdev_uses_dsa(dev)))
 		return htons(ETH_P_XDSA);
 
 	if (likely(eth_proto_is_802_3(eth->h_proto)))
@@ -310,7 +305,7 @@ void eth_commit_mac_addr_change(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 }
 EXPORT_SYMBOL(eth_commit_mac_addr_change);
 
@@ -529,6 +524,26 @@ int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 EXPORT_SYMBOL(eth_platform_get_mac_address);
 
 /**
+ * platform_get_ethdev_address - Set netdev's MAC address from a given device
+ * @dev:	Pointer to the device
+ * @netdev:	Pointer to netdev to write the address to
+ *
+ * Wrapper around eth_platform_get_mac_address() which writes the address
+ * directly to netdev->dev_addr.
+ */
+int platform_get_ethdev_address(struct device *dev, struct net_device *netdev)
+{
+	u8 addr[ETH_ALEN] __aligned(2);
+	int ret;
+
+	ret = eth_platform_get_mac_address(dev, addr);
+	if (!ret)
+		eth_hw_addr_set(netdev, addr);
+	return ret;
+}
+EXPORT_SYMBOL(platform_get_ethdev_address);
+
+/**
  * nvmem_get_mac_address - Obtain the MAC address from an nvmem cell named
  * 'mac-address' associated with given device.
  *
@@ -563,4 +578,81 @@ int nvmem_get_mac_address(struct device *dev, void *addrbuf)
 
 	return 0;
 }
-EXPORT_SYMBOL(nvmem_get_mac_address);
+
+static int fwnode_get_mac_addr(struct fwnode_handle *fwnode,
+			       const char *name, char *addr)
+{
+	int ret;
+
+	ret = fwnode_property_read_u8_array(fwnode, name, addr, ETH_ALEN);
+	if (ret)
+		return ret;
+
+	if (!is_valid_ether_addr(addr))
+		return -EINVAL;
+	return 0;
+}
+
+/**
+ * fwnode_get_mac_address - Get the MAC from the firmware node
+ * @fwnode:	Pointer to the firmware node
+ * @addr:	Address of buffer to store the MAC in
+ *
+ * Search the firmware node for the best MAC address to use.  'mac-address' is
+ * checked first, because that is supposed to contain to "most recent" MAC
+ * address. If that isn't set, then 'local-mac-address' is checked next,
+ * because that is the default address.  If that isn't set, then the obsolete
+ * 'address' is checked, just in case we're using an old device tree.
+ *
+ * Note that the 'address' property is supposed to contain a virtual address of
+ * the register set, but some DTS files have redefined that property to be the
+ * MAC address.
+ *
+ * All-zero MAC addresses are rejected, because those could be properties that
+ * exist in the firmware tables, but were not updated by the firmware.  For
+ * example, the DTS could define 'mac-address' and 'local-mac-address', with
+ * zero MAC addresses.  Some older U-Boots only initialized 'local-mac-address'.
+ * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
+ * exists but is all zeros.
+ */
+int fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr)
+{
+	if (!fwnode_get_mac_addr(fwnode, "mac-address", addr) ||
+	    !fwnode_get_mac_addr(fwnode, "local-mac-address", addr) ||
+	    !fwnode_get_mac_addr(fwnode, "address", addr))
+		return 0;
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(fwnode_get_mac_address);
+
+/**
+ * device_get_mac_address - Get the MAC for a given device
+ * @dev:	Pointer to the device
+ * @addr:	Address of buffer to store the MAC in
+ */
+int device_get_mac_address(struct device *dev, char *addr)
+{
+	return fwnode_get_mac_address(dev_fwnode(dev), addr);
+}
+EXPORT_SYMBOL(device_get_mac_address);
+
+/**
+ * device_get_ethdev_address - Set netdev's MAC address from a given device
+ * @dev:	Pointer to the device
+ * @netdev:	Pointer to netdev to write the address to
+ *
+ * Wrapper around device_get_mac_address() which writes the address
+ * directly to netdev->dev_addr.
+ */
+int device_get_ethdev_address(struct device *dev, struct net_device *netdev)
+{
+	u8 addr[ETH_ALEN];
+	int ret;
+
+	ret = device_get_mac_address(dev, addr);
+	if (!ret)
+		eth_hw_addr_set(netdev, addr);
+	return ret;
+}
+EXPORT_SYMBOL(device_get_ethdev_address);

@@ -656,7 +656,7 @@ static int hinic_set_mac_addr(struct net_device *netdev, void *addr)
 
 	err = change_mac_addr(netdev, new_mac);
 	if (!err)
-		memcpy(netdev->dev_addr, new_mac, ETH_ALEN);
+		eth_hw_addr_set(netdev, new_mac);
 
 	return err;
 }
@@ -1181,9 +1181,10 @@ static int nic_dev_init(struct pci_dev *pdev)
 	struct net_device *netdev;
 	struct hinic_hwdev *hwdev;
 	struct devlink *devlink;
+	u8 addr[ETH_ALEN];
 	int err, num_qps;
 
-	devlink = hinic_devlink_alloc();
+	devlink = hinic_devlink_alloc(&pdev->dev);
 	if (!devlink) {
 		dev_err(&pdev->dev, "Hinic devlink alloc failed\n");
 		return -ENOMEM;
@@ -1259,11 +1260,12 @@ static int nic_dev_init(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, netdev);
 
-	err = hinic_port_get_mac(nic_dev, netdev->dev_addr);
+	err = hinic_port_get_mac(nic_dev, addr);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to get mac address\n");
 		goto err_get_mac;
 	}
+	eth_hw_addr_set(netdev, addr);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		if (!HINIC_IS_VF(nic_dev->hwdev->hwif)) {
@@ -1379,10 +1381,8 @@ static int hinic_probe(struct pci_dev *pdev,
 {
 	int err = pci_enable_device(pdev);
 
-	if (err) {
-		dev_err(&pdev->dev, "Failed to enable PCI device\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "Failed to enable PCI device\n");
 
 	err = pci_request_regions(pdev, HINIC_DRV_NAME);
 	if (err) {
@@ -1392,25 +1392,13 @@ static int hinic_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_warn(&pdev->dev, "Couldn't set 64-bit DMA mask\n");
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "Failed to set DMA mask\n");
 			goto err_dma_mask;
-		}
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (err) {
-		dev_warn(&pdev->dev,
-			 "Couldn't set 64-bit consistent DMA mask\n");
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev,
-				"Failed to set consistent DMA mask\n");
-			goto err_dma_consistent_mask;
 		}
 	}
 
@@ -1424,7 +1412,6 @@ static int hinic_probe(struct pci_dev *pdev,
 	return 0;
 
 err_nic_dev_init:
-err_dma_consistent_mask:
 err_dma_mask:
 	pci_release_regions(pdev);
 

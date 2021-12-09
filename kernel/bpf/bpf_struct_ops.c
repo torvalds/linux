@@ -28,6 +28,7 @@ struct bpf_struct_ops_value {
 
 struct bpf_struct_ops_map {
 	struct bpf_map map;
+	struct rcu_head rcu;
 	const struct bpf_struct_ops *st_ops;
 	/* protect map_update */
 	struct mutex lock;
@@ -92,6 +93,9 @@ const struct bpf_verifier_ops bpf_struct_ops_verifier_ops = {
 };
 
 const struct bpf_prog_ops bpf_struct_ops_prog_ops = {
+#ifdef CONFIG_NET
+	.test_run = bpf_struct_ops_test_run,
+#endif
 };
 
 static const struct btf_type *module_type;
@@ -311,6 +315,20 @@ static int check_zero_holes(const struct btf_type *t, void *data)
 	return 0;
 }
 
+int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_progs *tprogs,
+				      struct bpf_prog *prog,
+				      const struct btf_func_model *model,
+				      void *image, void *image_end)
+{
+	u32 flags;
+
+	tprogs[BPF_TRAMP_FENTRY].progs[0] = prog;
+	tprogs[BPF_TRAMP_FENTRY].nr_progs = 1;
+	flags = model->ret_size > 0 ? BPF_TRAMP_F_RET_FENTRY_RET : 0;
+	return arch_prepare_bpf_trampoline(NULL, image, image_end,
+					   model, flags, tprogs, NULL);
+}
+
 static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 					  void *value, u64 flags)
 {
@@ -322,7 +340,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	struct bpf_tramp_progs *tprogs = NULL;
 	void *udata, *kdata;
 	int prog_fd, err = 0;
-	void *image;
+	void *image, *image_end;
 	u32 i;
 
 	if (flags)
@@ -362,6 +380,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	udata = &uvalue->data;
 	kdata = &kvalue->data;
 	image = st_map->image;
+	image_end = st_map->image + PAGE_SIZE;
 
 	for_each_member(i, t, member) {
 		const struct btf_type *mtype, *ptype;
@@ -428,12 +447,9 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			goto reset_unlock;
 		}
 
-		tprogs[BPF_TRAMP_FENTRY].progs[0] = prog;
-		tprogs[BPF_TRAMP_FENTRY].nr_progs = 1;
-		err = arch_prepare_bpf_trampoline(NULL, image,
-						  st_map->image + PAGE_SIZE,
-						  &st_ops->func_models[i], 0,
-						  tprogs, NULL);
+		err = bpf_struct_ops_prepare_trampoline(tprogs, prog,
+							&st_ops->func_models[i],
+							image, image_end);
 		if (err < 0)
 			goto reset_unlock;
 
@@ -622,6 +638,14 @@ bool bpf_struct_ops_get(const void *kdata)
 	return refcount_inc_not_zero(&kvalue->refcnt);
 }
 
+static void bpf_struct_ops_put_rcu(struct rcu_head *head)
+{
+	struct bpf_struct_ops_map *st_map;
+
+	st_map = container_of(head, struct bpf_struct_ops_map, rcu);
+	bpf_map_put(&st_map->map);
+}
+
 void bpf_struct_ops_put(const void *kdata)
 {
 	struct bpf_struct_ops_value *kvalue;
@@ -632,6 +656,17 @@ void bpf_struct_ops_put(const void *kdata)
 
 		st_map = container_of(kvalue, struct bpf_struct_ops_map,
 				      kvalue);
-		bpf_map_put(&st_map->map);
+		/* The struct_ops's function may switch to another struct_ops.
+		 *
+		 * For example, bpf_tcp_cc_x->init() may switch to
+		 * another tcp_cc_y by calling
+		 * setsockopt(TCP_CONGESTION, "tcp_cc_y").
+		 * During the switch,  bpf_struct_ops_put(tcp_cc_x) is called
+		 * and its map->refcnt may reach 0 which then free its
+		 * trampoline image while tcp_cc_x is still running.
+		 *
+		 * Thus, a rcu grace period is needed here.
+		 */
+		call_rcu(&st_map->rcu, bpf_struct_ops_put_rcu);
 	}
 }

@@ -292,9 +292,6 @@ EXPORT_SYMBOL(ib_umem_odp_release);
  * @dma_index: index in the umem to add the dma to.
  * @page: the page struct to map and add.
  * @access_mask: access permissions needed for this page.
- * @current_seq: sequence number for synchronization with invalidations.
- *               the sequence number is taken from
- *               umem_odp->notifiers_seq.
  *
  * The function returns -EFAULT if the DMA mapping operation fails.
  *

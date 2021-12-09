@@ -846,9 +846,8 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			set_30 (dev,ltflags);  
 
 			dev->broadcast[0] = 0xFF;
-			dev->dev_addr[0] = aa->s_node;
-
 			dev->addr_len=1;
+			dev_addr_set(dev, &aa->s_node);
    
 			return 0;
 
@@ -1015,7 +1014,7 @@ static const struct net_device_ops ltpc_netdev = {
 	.ndo_set_rx_mode	= set_multicast_list,
 };
 
-struct net_device * __init ltpc_probe(void)
+static struct net_device * __init ltpc_probe(void)
 {
 	struct net_device *dev;
 	int err = -ENOMEM;
@@ -1221,11 +1220,9 @@ static int __init ltpc_setup(char *str)
 }
 
 __setup("ltpc=", ltpc_setup);
-#endif /* MODULE */
+#endif
 
 static struct net_device *dev_ltpc;
-
-#ifdef MODULE
 
 MODULE_LICENSE("GPL");
 module_param(debug, int, 0);
@@ -1244,7 +1241,6 @@ static int __init ltpc_module_init(void)
 	return PTR_ERR_OR_ZERO(dev_ltpc);
 }
 module_init(ltpc_module_init);
-#endif
 
 static void __exit ltpc_cleanup(void)
 {

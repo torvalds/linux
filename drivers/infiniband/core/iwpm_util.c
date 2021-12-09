@@ -48,7 +48,6 @@ static DEFINE_SPINLOCK(iwpm_mapinfo_lock);
 static struct hlist_head *iwpm_reminfo_bucket;
 static DEFINE_SPINLOCK(iwpm_reminfo_lock);
 
-static DEFINE_MUTEX(iwpm_admin_lock);
 static struct iwpm_admin_data iwpm_admin;
 
 /**
@@ -59,39 +58,21 @@ static struct iwpm_admin_data iwpm_admin;
  */
 int iwpm_init(u8 nl_client)
 {
-	int ret = 0;
-	mutex_lock(&iwpm_admin_lock);
-	if (!refcount_read(&iwpm_admin.refcount)) {
-		iwpm_hash_bucket = kcalloc(IWPM_MAPINFO_HASH_SIZE,
-					   sizeof(struct hlist_head),
-					   GFP_KERNEL);
-		if (!iwpm_hash_bucket) {
-			ret = -ENOMEM;
-			goto init_exit;
-		}
-		iwpm_reminfo_bucket = kcalloc(IWPM_REMINFO_HASH_SIZE,
-					      sizeof(struct hlist_head),
-					      GFP_KERNEL);
-		if (!iwpm_reminfo_bucket) {
-			kfree(iwpm_hash_bucket);
-			ret = -ENOMEM;
-			goto init_exit;
-		}
+	iwpm_hash_bucket = kcalloc(IWPM_MAPINFO_HASH_SIZE,
+				   sizeof(struct hlist_head), GFP_KERNEL);
+	if (!iwpm_hash_bucket)
+		return -ENOMEM;
 
-		refcount_set(&iwpm_admin.refcount, 1);
-	} else {
-		refcount_inc(&iwpm_admin.refcount);
+	iwpm_reminfo_bucket = kcalloc(IWPM_REMINFO_HASH_SIZE,
+				      sizeof(struct hlist_head), GFP_KERNEL);
+	if (!iwpm_reminfo_bucket) {
+		kfree(iwpm_hash_bucket);
+		return -ENOMEM;
 	}
 
-init_exit:
-	mutex_unlock(&iwpm_admin_lock);
-	if (!ret) {
-		iwpm_set_valid(nl_client, 1);
-		iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
-		pr_debug("%s: Mapinfo and reminfo tables are created\n",
-				__func__);
-	}
-	return ret;
+	iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
+	pr_debug("%s: Mapinfo and reminfo tables are created\n", __func__);
+	return 0;
 }
 
 static void free_hash_bucket(void);
@@ -105,22 +86,9 @@ static void free_reminfo_bucket(void);
  */
 int iwpm_exit(u8 nl_client)
 {
-
-	if (!iwpm_valid_client(nl_client))
-		return -EINVAL;
-	mutex_lock(&iwpm_admin_lock);
-	if (!refcount_read(&iwpm_admin.refcount)) {
-		mutex_unlock(&iwpm_admin_lock);
-		pr_err("%s Incorrect usage - negative refcount\n", __func__);
-		return -EINVAL;
-	}
-	if (refcount_dec_and_test(&iwpm_admin.refcount)) {
-		free_hash_bucket();
-		free_reminfo_bucket();
-		pr_debug("%s: Resources are destroyed\n", __func__);
-	}
-	mutex_unlock(&iwpm_admin_lock);
-	iwpm_set_valid(nl_client, 0);
+	free_hash_bucket();
+	free_reminfo_bucket();
+	pr_debug("%s: Resources are destroyed\n", __func__);
 	iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
 	return 0;
 }
@@ -145,8 +113,6 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (!iwpm_valid_client(nl_client))
-		return ret;
 	map_info = kzalloc(sizeof(struct iwpm_mapping_info), GFP_KERNEL);
 	if (!map_info)
 		return -ENOMEM;
@@ -306,10 +272,6 @@ int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (!iwpm_valid_client(nl_client)) {
-		pr_info("%s: Invalid client = %u\n", __func__, nl_client);
-		return ret;
-	}
 	spin_lock_irqsave(&iwpm_reminfo_lock, flags);
 	if (iwpm_reminfo_bucket) {
 		hash_bucket_head = get_reminfo_hash_bucket(
@@ -422,16 +384,6 @@ int iwpm_wait_complete_req(struct iwpm_nlmsg_request *nlmsg_request)
 int iwpm_get_nlmsg_seq(void)
 {
 	return atomic_inc_return(&iwpm_admin.nlmsg_seq);
-}
-
-int iwpm_valid_client(u8 nl_client)
-{
-	return iwpm_admin.client_list[nl_client];
-}
-
-void iwpm_set_valid(u8 nl_client, int valid)
-{
-	iwpm_admin.client_list[nl_client] = valid;
 }
 
 /* valid client */
@@ -810,7 +762,7 @@ int iwpm_send_hello(u8 nl_client, int iwpm_pid, u16 abi_version)
 {
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
-	const char *err_str = "";
+	const char *err_str;
 	int ret = -EINVAL;
 
 	skb = iwpm_create_nlmsg(RDMA_NL_IWPM_HELLO, &nlh, nl_client);

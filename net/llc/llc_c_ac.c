@@ -781,7 +781,7 @@ int llc_conn_ac_send_sabme_cmd_p_set_x(struct sock *sk, struct sk_buff *skb)
 
 	if (nskb) {
 		struct llc_sap *sap = llc->sap;
-		u8 *dmac = llc->daddr.mac;
+		const u8 *dmac = llc->daddr.mac;
 
 		if (llc->dev->flags & IFF_LOOPBACK)
 			dmac = llc->dev->dev_addr;

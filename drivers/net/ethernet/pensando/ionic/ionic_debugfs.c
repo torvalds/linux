@@ -143,8 +143,6 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	debugfs_create_u32("qid", 0400, q_dentry, &q->hw_index);
 	debugfs_create_u32("qtype", 0400, q_dentry, &q->hw_type);
 	debugfs_create_u64("drop", 0400, q_dentry, &q->drop);
-	debugfs_create_u64("stop", 0400, q_dentry, &q->stop);
-	debugfs_create_u64("wake", 0400, q_dentry, &q->wake);
 
 	debugfs_create_file("tail", 0400, q_dentry, q, &q_tail_fops);
 	debugfs_create_file("head", 0400, q_dentry, q, &q_head_fops);
@@ -228,6 +226,50 @@ static int netdev_show(struct seq_file *seq, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(netdev);
 
+static int lif_filters_show(struct seq_file *seq, void *v)
+{
+	struct ionic_lif *lif = seq->private;
+	struct ionic_rx_filter *f;
+	struct hlist_head *head;
+	struct hlist_node *tmp;
+	unsigned int i;
+
+	seq_puts(seq, "id      flow        state type  filter\n");
+	spin_lock_bh(&lif->rx_filters.lock);
+	for (i = 0; i < IONIC_RX_FILTER_HLISTS; i++) {
+		head = &lif->rx_filters.by_id[i];
+		hlist_for_each_entry_safe(f, tmp, head, by_id) {
+			switch (le16_to_cpu(f->cmd.match)) {
+			case IONIC_RX_FILTER_MATCH_VLAN:
+				seq_printf(seq, "0x%04x  0x%08x  0x%02x  vlan  0x%04x\n",
+					   f->filter_id, f->flow_id, f->state,
+					   le16_to_cpu(f->cmd.vlan.vlan));
+				break;
+			case IONIC_RX_FILTER_MATCH_MAC:
+				seq_printf(seq, "0x%04x  0x%08x  0x%02x  mac   %pM\n",
+					   f->filter_id, f->flow_id, f->state,
+					   f->cmd.mac.addr);
+				break;
+			case IONIC_RX_FILTER_MATCH_MAC_VLAN:
+				seq_printf(seq, "0x%04x  0x%08x  0x%02x  macvl 0x%04x %pM\n",
+					   f->filter_id, f->flow_id, f->state,
+					   le16_to_cpu(f->cmd.vlan.vlan),
+					   f->cmd.mac.addr);
+				break;
+			case IONIC_RX_FILTER_STEER_PKTCLASS:
+				seq_printf(seq, "0x%04x  0x%08x  0x%02x  rxstr 0x%llx\n",
+					   f->filter_id, f->flow_id, f->state,
+					   le64_to_cpu(f->cmd.pkt_class));
+				break;
+			}
+		}
+	}
+	spin_unlock_bh(&lif->rx_filters.lock);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(lif_filters);
+
 void ionic_debugfs_add_lif(struct ionic_lif *lif)
 {
 	struct dentry *lif_dentry;
@@ -239,6 +281,8 @@ void ionic_debugfs_add_lif(struct ionic_lif *lif)
 
 	debugfs_create_file("netdev", 0400, lif->dentry,
 			    lif->netdev, &netdev_fops);
+	debugfs_create_file("filters", 0400, lif->dentry,
+			    lif, &lif_filters_fops);
 }
 
 void ionic_debugfs_del_lif(struct ionic_lif *lif)

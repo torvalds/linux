@@ -419,7 +419,7 @@ struct netdata_local {
 /*
  * MAC support functions
  */
-static void __lpc_set_mac(struct netdata_local *pldat, u8 *mac)
+static void __lpc_set_mac(struct netdata_local *pldat, const u8 *mac)
 {
 	u32 tmp;
 
@@ -1015,9 +1015,6 @@ static int lpc_eth_close(struct net_device *ndev)
 	napi_disable(&pldat->napi);
 	netif_stop_queue(ndev);
 
-	if (ndev->phydev)
-		phy_stop(ndev->phydev);
-
 	spin_lock_irqsave(&pldat->lock, flags);
 	__lpc_eth_reset(pldat);
 	netif_carrier_off(ndev);
@@ -1025,6 +1022,8 @@ static int lpc_eth_close(struct net_device *ndev)
 	writel(0, LPC_ENET_MAC2(pldat->net_base));
 	spin_unlock_irqrestore(&pldat->lock, flags);
 
+	if (ndev->phydev)
+		phy_stop(ndev->phydev);
 	clk_disable_unprepare(pldat->clk);
 
 	return 0;
@@ -1093,7 +1092,7 @@ static int lpc_set_mac_address(struct net_device *ndev, void *p)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(ndev, addr->sa_data);
 
 	spin_lock_irqsave(&pldat->lock, flags);
 
@@ -1219,7 +1218,7 @@ static const struct net_device_ops lpc_netdev_ops = {
 	.ndo_stop		= lpc_eth_close,
 	.ndo_start_xmit		= lpc_eth_hard_start_xmit,
 	.ndo_set_rx_mode	= lpc_eth_set_multicast_list,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_mac_address	= lpc_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1232,6 +1231,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	dma_addr_t dma_handle;
 	struct resource *res;
+	u8 addr[ETH_ALEN];
 	int irq, ret;
 
 	/* Setup network interface for RMII or MII mode */
@@ -1347,10 +1347,11 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	pldat->phy_node = of_parse_phandle(np, "phy-handle", 0);
 
 	/* Get MAC address from current HW setting (POR state is all zeros) */
-	__lpc_get_mac(pldat, ndev->dev_addr);
+	__lpc_get_mac(pldat, addr);
+	eth_hw_addr_set(ndev, addr);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		of_get_mac_address(np, ndev->dev_addr);
+		of_get_ethdev_address(np, ndev);
 	}
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);

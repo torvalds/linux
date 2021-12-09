@@ -289,7 +289,6 @@ static void fscache_release_retrieval_op(struct fscache_operation *_op)
 	ASSERTIFCMP(op->op.state != FSCACHE_OP_ST_INITIALISED,
 		    atomic_read(&op->n_pages), ==, 0);
 
-	fscache_hist(fscache_retrieval_histogram, op->start_time);
 	if (op->context)
 		fscache_put_context(op->cookie, op->context);
 
@@ -324,7 +323,6 @@ struct fscache_retrieval *fscache_alloc_retrieval(
 	op->mapping	= mapping;
 	op->end_io_func	= end_io_func;
 	op->context	= context;
-	op->start_time	= jiffies;
 	INIT_LIST_HEAD(&op->to_do);
 
 	/* Pin the netfs read context in case we need to do the actual netfs
@@ -340,8 +338,6 @@ struct fscache_retrieval *fscache_alloc_retrieval(
  */
 int fscache_wait_for_deferred_lookup(struct fscache_cookie *cookie)
 {
-	unsigned long jif;
-
 	_enter("");
 
 	if (!test_bit(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags)) {
@@ -351,7 +347,6 @@ int fscache_wait_for_deferred_lookup(struct fscache_cookie *cookie)
 
 	fscache_stat(&fscache_n_retrievals_wait);
 
-	jif = jiffies;
 	if (wait_on_bit(&cookie->flags, FSCACHE_COOKIE_LOOKING_UP,
 			TASK_INTERRUPTIBLE) != 0) {
 		fscache_stat(&fscache_n_retrievals_intr);
@@ -362,7 +357,6 @@ int fscache_wait_for_deferred_lookup(struct fscache_cookie *cookie)
 	ASSERT(!test_bit(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags));
 
 	smp_rmb();
-	fscache_hist(fscache_retrieval_delay_histogram, jif);
 	_leave(" = 0 [dly]");
 	return 0;
 }

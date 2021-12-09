@@ -50,13 +50,11 @@
 #define DRIVER_PATCHLEVEL 0
 
 /* Helper function for mapping the regs on a platform device. */
-void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index)
+void __iomem *vc4_ioremap_regs(struct platform_device *pdev, int index)
 {
-	struct resource *res;
 	void __iomem *map;
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, index);
-	map = devm_ioremap_resource(&dev->dev, res);
+	map = devm_platform_ioremap_resource(pdev, index);
 	if (IS_ERR(map))
 		return map;
 
@@ -168,10 +166,6 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_SYNCOBJ),
 	.open = vc4_open,
 	.postclose = vc4_close,
-	.irq_handler = vc4_irq,
-	.irq_preinstall = vc4_irq_preinstall,
-	.irq_postinstall = vc4_irq_postinstall,
-	.irq_uninstall = vc4_irq_uninstall,
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = vc4_debugfs_init,
@@ -265,7 +259,7 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto unbind_all;
 
-	ret = drm_aperture_remove_framebuffers(false, "vc4drmfb");
+	ret = drm_aperture_remove_framebuffers(false, &vc4_drm_driver);
 	if (ret)
 		goto unbind_all;
 

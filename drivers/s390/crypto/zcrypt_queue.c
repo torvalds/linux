@@ -40,8 +40,8 @@ static ssize_t online_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
+	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 	struct ap_queue *aq = to_ap_queue(dev);
-	struct zcrypt_queue *zq = aq->private;
 	int online = aq->config && zq->online ? 1 : 0;
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", online);
@@ -51,8 +51,8 @@ static ssize_t online_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
+	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 	struct ap_queue *aq = to_ap_queue(dev);
-	struct zcrypt_queue *zq = aq->private;
 	struct zcrypt_card *zc = zq->zcard;
 	int online;
 
@@ -65,10 +65,9 @@ static ssize_t online_store(struct device *dev,
 		return -EINVAL;
 	zq->online = online;
 
-	ZCRYPT_DBF(DBF_INFO, "queue=%02x.%04x online=%d\n",
-		   AP_QID_CARD(zq->queue->qid),
-		   AP_QID_QUEUE(zq->queue->qid),
-		   online);
+	ZCRYPT_DBF_INFO("%s queue=%02x.%04x online=%d\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), online);
 
 	ap_send_online_uevent(&aq->ap_dev, online);
 
@@ -83,7 +82,7 @@ static ssize_t load_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)
 {
-	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&zq->load));
 }
@@ -170,13 +169,14 @@ int zcrypt_queue_register(struct zcrypt_queue *zq)
 	int rc;
 
 	spin_lock(&zcrypt_list_lock);
-	zc = zq->queue->card->private;
+	zc = dev_get_drvdata(&zq->queue->card->ap_dev.device);
 	zcrypt_card_get(zc);
 	zq->zcard = zc;
 	zq->online = 1;	/* New devices are online by default. */
 
-	ZCRYPT_DBF(DBF_INFO, "queue=%02x.%04x register online=1\n",
-		   AP_QID_CARD(zq->queue->qid), AP_QID_QUEUE(zq->queue->qid));
+	ZCRYPT_DBF_INFO("%s queue=%02x.%04x register online=1\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid));
 
 	list_add_tail(&zq->list, &zc->zqueues);
 	spin_unlock(&zcrypt_list_lock);
@@ -215,8 +215,9 @@ void zcrypt_queue_unregister(struct zcrypt_queue *zq)
 {
 	struct zcrypt_card *zc;
 
-	ZCRYPT_DBF(DBF_INFO, "queue=%02x.%04x unregister\n",
-		   AP_QID_CARD(zq->queue->qid), AP_QID_QUEUE(zq->queue->qid));
+	ZCRYPT_DBF_INFO("%s queue=%02x.%04x unregister\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid));
 
 	zc = zq->zcard;
 	spin_lock(&zcrypt_list_lock);

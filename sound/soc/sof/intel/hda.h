@@ -233,7 +233,6 @@
 #define HDA_DSP_REG_ADSPIS2		(HDA_DSP_GEN_BASE + 0x14)
 
 #define HDA_DSP_REG_ADSPIS2_SNDW	BIT(5)
-#define HDA_DSP_REG_SNDW_WAKE_STS      0x2C192
 
 /* Intel HD Audio Inter-Processor Communication Registers */
 #define HDA_DSP_IPC_BASE		0x40
@@ -493,17 +492,8 @@ struct sof_intel_hda_stream {
  */
 int hda_dsp_probe(struct snd_sof_dev *sdev);
 int hda_dsp_remove(struct snd_sof_dev *sdev);
-int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev,
-			     unsigned int core_mask);
-int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev,
-			     unsigned int core_mask);
-int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask);
-int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask);
-int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask);
-bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,
-			     unsigned int core_mask);
 int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 				  unsigned int core_mask);
 void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev);
@@ -573,9 +563,9 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 			       struct hdac_ext_stream *stream,
 			       int enable, u32 size);
 
-void hda_ipc_msg_data(struct snd_sof_dev *sdev,
-		      struct snd_pcm_substream *substream,
-		      void *p, size_t sz);
+int hda_ipc_msg_data(struct snd_sof_dev *sdev,
+		     struct snd_pcm_substream *substream,
+		     void *p, size_t sz);
 int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
 		       struct snd_pcm_substream *substream,
 		       const struct sof_ipc_pcm_params_reply *reply);
@@ -620,8 +610,6 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
  */
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev);
 int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev);
-int hda_dsp_cl_boot_firmware_iccmax_icl(struct snd_sof_dev *sdev);
-int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev);
 
 /* pre and post fw run ops */
 int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev);
@@ -692,25 +680,11 @@ int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd);
 int hda_sdw_startup(struct snd_sof_dev *sdev);
 void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable);
 void hda_sdw_process_wakeen(struct snd_sof_dev *sdev);
+bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev);
 
 #else
 
-static inline int hda_sdw_acpi_scan(struct snd_sof_dev *sdev)
-{
-	return 0;
-}
-
-static inline int hda_sdw_probe(struct snd_sof_dev *sdev)
-{
-	return 0;
-}
-
 static inline int hda_sdw_startup(struct snd_sof_dev *sdev)
-{
-	return 0;
-}
-
-static inline int hda_sdw_exit(struct snd_sof_dev *sdev)
 {
 	return 0;
 }
@@ -719,24 +693,15 @@ static inline void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 {
 }
 
-static inline bool hda_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
-{
-	return false;
-}
-
-static inline irqreturn_t hda_dsp_sdw_thread(int irq, void *context)
-{
-	return IRQ_HANDLED;
-}
-
-static inline bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
-{
-	return false;
-}
-
 static inline void hda_sdw_process_wakeen(struct snd_sof_dev *sdev)
 {
 }
+
+static inline bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
+{
+	return false;
+}
+
 #endif
 
 /* common dai driver */
@@ -767,5 +732,10 @@ void hda_set_mach_params(const struct snd_soc_acpi_mach *mach,
 
 /* PCI driver selection and probe */
 int hda_pci_intel_probe(struct pci_dev *pci, const struct pci_device_id *pci_id);
+
+struct snd_sof_dai;
+struct sof_ipc_dai_config;
+int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w);
+int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w);
 
 #endif

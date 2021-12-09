@@ -293,15 +293,19 @@ static int
 readpage_async_filler(void *data, struct page *page)
 {
 	struct nfs_readdesc *desc = data;
+	struct inode *inode = page_file_mapping(page)->host;
+	unsigned int rsize = NFS_SERVER(inode)->rsize;
 	struct nfs_page *new;
-	unsigned int len;
+	unsigned int len, aligned_len;
 	int error;
 
 	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
 
-	new = nfs_create_request(desc->ctx, page, 0, len);
+	aligned_len = min_t(unsigned int, ALIGN(len, rsize), PAGE_SIZE);
+
+	new = nfs_create_request(desc->ctx, page, 0, aligned_len);
 	if (IS_ERR(new))
 		goto out_error;
 
@@ -333,8 +337,7 @@ int nfs_readpage(struct file *file, struct page *page)
 	struct inode *inode = page_file_mapping(page)->host;
 	int ret;
 
-	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
-		page, PAGE_SIZE, page_index(page));
+	trace_nfs_aop_readpage(inode, page);
 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
 
 	/*
@@ -386,9 +389,11 @@ out_wait:
 	}
 out:
 	put_nfs_open_context(desc.ctx);
+	trace_nfs_aop_readpage_done(inode, page, ret);
 	return ret;
 out_unlock:
 	unlock_page(page);
+	trace_nfs_aop_readpage_done(inode, page, ret);
 	return ret;
 }
 
@@ -399,10 +404,7 @@ int nfs_readpages(struct file *file, struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	int ret;
 
-	dprintk("NFS: nfs_readpages (%s/%Lu %d)\n",
-			inode->i_sb->s_id,
-			(unsigned long long)NFS_FILEID(inode),
-			nr_pages);
+	trace_nfs_aop_readahead(inode, lru_to_page(pages), nr_pages);
 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGES);
 
 	ret = -ESTALE;
@@ -435,6 +437,7 @@ int nfs_readpages(struct file *file, struct address_space *mapping,
 read_complete:
 	put_nfs_open_context(desc.ctx);
 out:
+	trace_nfs_aop_readahead_done(inode, nr_pages, ret);
 	return ret;
 }
 

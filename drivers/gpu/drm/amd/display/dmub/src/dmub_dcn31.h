@@ -114,7 +114,9 @@ struct dmub_srv;
 	DMUB_SR(DMCUB_TIMER_CURRENT) \
 	DMUB_SR(DMCUB_INST_FETCH_FAULT_ADDR) \
 	DMUB_SR(DMCUB_UNDEFINED_ADDRESS_FAULT_ADDR) \
-	DMUB_SR(DMCUB_DATA_WRITE_FAULT_ADDR)
+	DMUB_SR(DMCUB_DATA_WRITE_FAULT_ADDR) \
+	DMUB_SR(DMCUB_INTERRUPT_ENABLE) \
+	DMUB_SR(DMCUB_INTERRUPT_ACK)
 
 #define DMUB_DCN31_FIELDS() \
 	DMUB_SF(DMCUB_CNTL, DMCUB_ENABLE) \
@@ -147,7 +149,9 @@ struct dmub_srv;
 	DMUB_SF(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET) \
 	DMUB_SF(DCN_VM_FB_LOCATION_BASE, FB_BASE) \
 	DMUB_SF(DCN_VM_FB_OFFSET, FB_OFFSET) \
-	DMUB_SF(DMCUB_INBOX0_WPTR, DMCUB_INBOX0_WPTR)
+	DMUB_SF(DMCUB_INBOX0_WPTR, DMCUB_INBOX0_WPTR) \
+	DMUB_SF(DMCUB_INTERRUPT_ENABLE, DMCUB_GPINT_IH_INT_EN) \
+	DMUB_SF(DMCUB_INTERRUPT_ACK, DMCUB_GPINT_IH_INT_ACK)
 
 struct dmub_srv_dcn31_reg_offset {
 #define DMUB_SR(reg) uint32_t reg;
@@ -222,6 +226,8 @@ bool dmub_dcn31_is_gpint_acked(struct dmub_srv *dmub,
 
 uint32_t dmub_dcn31_get_gpint_response(struct dmub_srv *dmub);
 
+uint32_t dmub_dcn31_get_gpint_dataout(struct dmub_srv *dmub);
+
 void dmub_dcn31_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params);
 
 void dmub_dcn31_skip_dmub_panel_power_sequence(struct dmub_srv *dmub, bool skip);
@@ -238,5 +244,7 @@ void dmub_dcn31_set_outbox0_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
 uint32_t dmub_dcn31_get_current_time(struct dmub_srv *dmub);
 
 void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
+
+bool dmub_dcn31_should_detect(struct dmub_srv *dmub);
 
 #endif /* _DMUB_DCN31_H_ */

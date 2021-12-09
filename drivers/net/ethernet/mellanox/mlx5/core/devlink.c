@@ -7,6 +7,7 @@
 #include "fw_reset.h"
 #include "fs_core.h"
 #include "eswitch.h"
+#include "esw/qos.h"
 #include "sf/dev/dev.h"
 #include "sf/sf.h"
 
@@ -135,6 +136,7 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 				    struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct pci_dev *pdev = dev->pdev;
 	bool sf_dev_allocated;
 
 	sf_dev_allocated = mlx5_sf_dev_allocated(dev);
@@ -150,6 +152,10 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 	if (mlx5_lag_is_active(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported in Lag mode");
 		return -EOPNOTSUPP;
+	}
+
+	if (pci_num_vf(pdev)) {
+		NL_SET_ERR_MSG_MOD(extack, "reload while VFs are present is unfavorable");
 	}
 
 	switch (action) {
@@ -292,6 +298,13 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.eswitch_encap_mode_get = mlx5_devlink_eswitch_encap_mode_get,
 	.port_function_hw_addr_get = mlx5_devlink_port_function_hw_addr_get,
 	.port_function_hw_addr_set = mlx5_devlink_port_function_hw_addr_set,
+	.rate_leaf_tx_share_set = mlx5_esw_devlink_rate_leaf_tx_share_set,
+	.rate_leaf_tx_max_set = mlx5_esw_devlink_rate_leaf_tx_max_set,
+	.rate_node_tx_share_set = mlx5_esw_devlink_rate_node_tx_share_set,
+	.rate_node_tx_max_set = mlx5_esw_devlink_rate_node_tx_max_set,
+	.rate_node_new = mlx5_esw_devlink_rate_node_new,
+	.rate_node_del = mlx5_esw_devlink_rate_node_del,
+	.rate_leaf_parent_set = mlx5_esw_devlink_rate_parent_set,
 #endif
 #ifdef CONFIG_MLX5_SF_MANAGER
 	.port_new = mlx5_devlink_sf_port_new,
@@ -359,9 +372,10 @@ int mlx5_devlink_traps_get_action(struct mlx5_core_dev *dev, int trap_id,
 	return 0;
 }
 
-struct devlink *mlx5_devlink_alloc(void)
+struct devlink *mlx5_devlink_alloc(struct device *dev)
 {
-	return devlink_alloc(&mlx5_devlink_ops, sizeof(struct mlx5_core_dev));
+	return devlink_alloc(&mlx5_devlink_ops, sizeof(struct mlx5_core_dev),
+			     dev);
 }
 
 void mlx5_devlink_free(struct devlink *devlink)
@@ -440,7 +454,8 @@ static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	bool new_state = val.vbool;
 
-	if (new_state && !MLX5_CAP_GEN(dev, roce)) {
+	if (new_state && !MLX5_CAP_GEN(dev, roce) &&
+	    !MLX5_CAP_GEN(dev, roce_rw_supported)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support RoCE");
 		return -EOPNOTSUPP;
 	}
@@ -595,6 +610,148 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 #endif
 }
 
+static const struct devlink_param enable_eth_param =
+	DEVLINK_PARAM_GENERIC(ENABLE_ETH, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, NULL);
+
+static int mlx5_devlink_eth_param_register(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	union devlink_param_value value;
+	int err;
+
+	if (!mlx5_eth_supported(dev))
+		return 0;
+
+	err = devlink_param_register(devlink, &enable_eth_param);
+	if (err)
+		return err;
+
+	value.vbool = true;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
+					   value);
+	return 0;
+}
+
+static void mlx5_devlink_eth_param_unregister(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!mlx5_eth_supported(dev))
+		return;
+
+	devlink_param_unregister(devlink, &enable_eth_param);
+}
+
+static int mlx5_devlink_enable_rdma_validate(struct devlink *devlink, u32 id,
+					     union devlink_param_value val,
+					     struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	bool new_state = val.vbool;
+
+	if (new_state && !mlx5_rdma_supported(dev))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+static const struct devlink_param enable_rdma_param =
+	DEVLINK_PARAM_GENERIC(ENABLE_RDMA, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, mlx5_devlink_enable_rdma_validate);
+
+static int mlx5_devlink_rdma_param_register(struct devlink *devlink)
+{
+	union devlink_param_value value;
+	int err;
+
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
+		return 0;
+
+	err = devlink_param_register(devlink, &enable_rdma_param);
+	if (err)
+		return err;
+
+	value.vbool = true;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
+					   value);
+	return 0;
+}
+
+static void mlx5_devlink_rdma_param_unregister(struct devlink *devlink)
+{
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
+		return;
+
+	devlink_param_unregister(devlink, &enable_rdma_param);
+}
+
+static const struct devlink_param enable_vnet_param =
+	DEVLINK_PARAM_GENERIC(ENABLE_VNET, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, NULL);
+
+static int mlx5_devlink_vnet_param_register(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	union devlink_param_value value;
+	int err;
+
+	if (!mlx5_vnet_supported(dev))
+		return 0;
+
+	err = devlink_param_register(devlink, &enable_vnet_param);
+	if (err)
+		return err;
+
+	value.vbool = true;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+					   value);
+	return 0;
+}
+
+static void mlx5_devlink_vnet_param_unregister(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!mlx5_vnet_supported(dev))
+		return;
+
+	devlink_param_unregister(devlink, &enable_vnet_param);
+}
+
+static int mlx5_devlink_auxdev_params_register(struct devlink *devlink)
+{
+	int err;
+
+	err = mlx5_devlink_eth_param_register(devlink);
+	if (err)
+		return err;
+
+	err = mlx5_devlink_rdma_param_register(devlink);
+	if (err)
+		goto rdma_err;
+
+	err = mlx5_devlink_vnet_param_register(devlink);
+	if (err)
+		goto vnet_err;
+	return 0;
+
+vnet_err:
+	mlx5_devlink_rdma_param_unregister(devlink);
+rdma_err:
+	mlx5_devlink_eth_param_unregister(devlink);
+	return err;
+}
+
+static void mlx5_devlink_auxdev_params_unregister(struct devlink *devlink)
+{
+	mlx5_devlink_vnet_param_unregister(devlink);
+	mlx5_devlink_rdma_param_unregister(devlink);
+	mlx5_devlink_eth_param_unregister(devlink);
+}
+
 #define MLX5_TRAP_DROP(_id, _group_id)					\
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				\
 			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id, \
@@ -638,39 +795,43 @@ static void mlx5_devlink_traps_unregister(struct devlink *devlink)
 				       ARRAY_SIZE(mlx5_trap_groups_arr));
 }
 
-int mlx5_devlink_register(struct devlink *devlink, struct device *dev)
+int mlx5_devlink_register(struct devlink *devlink)
 {
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	int err;
-
-	err = devlink_register(devlink, dev);
-	if (err)
-		return err;
 
 	err = devlink_params_register(devlink, mlx5_devlink_params,
 				      ARRAY_SIZE(mlx5_devlink_params));
 	if (err)
-		goto params_reg_err;
+		return err;
+
 	mlx5_devlink_set_params_init_values(devlink);
-	devlink_params_publish(devlink);
+
+	err = mlx5_devlink_auxdev_params_register(devlink);
+	if (err)
+		goto auxdev_reg_err;
 
 	err = mlx5_devlink_traps_register(devlink);
 	if (err)
 		goto traps_reg_err;
 
+	if (!mlx5_core_is_mp_slave(dev))
+		devlink_set_features(devlink, DEVLINK_F_RELOAD);
+
 	return 0;
 
 traps_reg_err:
+	mlx5_devlink_auxdev_params_unregister(devlink);
+auxdev_reg_err:
 	devlink_params_unregister(devlink, mlx5_devlink_params,
 				  ARRAY_SIZE(mlx5_devlink_params));
-params_reg_err:
-	devlink_unregister(devlink);
 	return err;
 }
 
 void mlx5_devlink_unregister(struct devlink *devlink)
 {
 	mlx5_devlink_traps_unregister(devlink);
+	mlx5_devlink_auxdev_params_unregister(devlink);
 	devlink_params_unregister(devlink, mlx5_devlink_params,
 				  ARRAY_SIZE(mlx5_devlink_params));
-	devlink_unregister(devlink);
 }

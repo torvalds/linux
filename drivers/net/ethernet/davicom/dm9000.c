@@ -1372,7 +1372,7 @@ static const struct net_device_ops dm9000_netdev_ops = {
 	.ndo_start_xmit		= dm9000_start_xmit,
 	.ndo_tx_timeout		= dm9000_timeout,
 	.ndo_set_rx_mode	= dm9000_hash_table,
-	.ndo_do_ioctl		= dm9000_ioctl,
+	.ndo_eth_ioctl		= dm9000_ioctl,
 	.ndo_set_features	= dm9000_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -1425,6 +1425,7 @@ dm9000_probe(struct platform_device *pdev)
 	enum of_gpio_flags flags;
 	struct regulator *power;
 	bool inv_mac_addr = false;
+	u8 addr[ETH_ALEN];
 
 	power = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(power)) {
@@ -1666,11 +1667,12 @@ dm9000_probe(struct platform_device *pdev)
 
 	/* try reading the node address from the attached EEPROM */
 	for (i = 0; i < 6; i += 2)
-		dm9000_read_eeprom(db, i / 2, ndev->dev_addr+i);
+		dm9000_read_eeprom(db, i / 2, addr + i);
+	eth_hw_addr_set(ndev, addr);
 
 	if (!is_valid_ether_addr(ndev->dev_addr) && pdata != NULL) {
 		mac_src = "platform data";
-		memcpy(ndev->dev_addr, pdata->dev_addr, ETH_ALEN);
+		eth_hw_addr_set(ndev, pdata->dev_addr);
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
@@ -1678,7 +1680,8 @@ dm9000_probe(struct platform_device *pdev)
 
 		mac_src = "chip";
 		for (i = 0; i < 6; i++)
-			ndev->dev_addr[i] = ior(db, i+DM9000_PAR);
+			addr[i] = ior(db, i + DM9000_PAR);
+		eth_hw_addr_set(ndev, pdata->dev_addr);
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {

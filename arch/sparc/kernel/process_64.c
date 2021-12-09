@@ -9,9 +9,6 @@
 /*
  * This file handles the architecture-dependent parts of process handling..
  */
-
-#include <stdarg.h>
-
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/sched.h>
@@ -458,7 +455,7 @@ static unsigned long clone_stackframe(unsigned long csp, unsigned long psp)
 
 	distance = fp - psp;
 	rval = (csp - distance);
-	if (copy_in_user((void __user *) rval, (void __user *) psp, distance))
+	if (raw_copy_in_user((void __user *)rval, (void __user *)psp, distance))
 		rval = 0;
 	else if (!stack_64bit) {
 		if (put_user(((u32)csp),
@@ -518,7 +515,7 @@ void synchronize_user_stack(void)
 
 static void stack_unaligned(unsigned long sp)
 {
-	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) sp, 0);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) sp);
 }
 
 static const char uwfault32[] = KERN_INFO \
@@ -666,16 +663,13 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	return 0;
 }
 
-unsigned long get_wchan(struct task_struct *task)
+unsigned long __get_wchan(struct task_struct *task)
 {
 	unsigned long pc, fp, bias = 0;
 	struct thread_info *tp;
 	struct reg_window *rw;
         unsigned long ret = 0;
 	int count = 0; 
-
-	if (!task || task == current || task_is_running(task))
-		goto out;
 
 	tp = task_thread_info(task);
 	bias = STACK_BIAS;

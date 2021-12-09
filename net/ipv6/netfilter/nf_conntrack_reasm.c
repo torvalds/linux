@@ -33,7 +33,7 @@
 
 static const char nf_frags_cache_name[] = "nf-frags";
 
-unsigned int nf_frag_pernet_id __read_mostly;
+static unsigned int nf_frag_pernet_id __read_mostly;
 static struct inet_frags nf_frags;
 
 static struct nft_ct_frag6_pernet *nf_frag_pernet(struct net *net)

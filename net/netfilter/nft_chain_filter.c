@@ -310,9 +310,11 @@ static const struct nft_chain_type nft_chain_filter_netdev = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
 	.family		= NFPROTO_NETDEV,
-	.hook_mask	= (1 << NF_NETDEV_INGRESS),
+	.hook_mask	= (1 << NF_NETDEV_INGRESS) |
+			  (1 << NF_NETDEV_EGRESS),
 	.hooks		= {
 		[NF_NETDEV_INGRESS]	= nft_do_chain_netdev,
+		[NF_NETDEV_EGRESS]	= nft_do_chain_netdev,
 	},
 };
 
@@ -342,12 +344,6 @@ static void nft_netdev_event(unsigned long event, struct net_device *dev,
 		return;
 	}
 
-	/* UNREGISTER events are also happening on netns exit.
-	 *
-	 * Although nf_tables core releases all tables/chains, only this event
-	 * handler provides guarantee that hook->ops.dev is still accessible,
-	 * so we cannot skip exiting net namespaces.
-	 */
 	__nft_release_basechain(ctx);
 }
 
@@ -364,6 +360,9 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 
 	if (event != NETDEV_UNREGISTER &&
 	    event != NETDEV_CHANGENAME)
+		return NOTIFY_DONE;
+
+	if (!check_net(ctx.net))
 		return NOTIFY_DONE;
 
 	nft_net = nft_pernet(ctx.net);

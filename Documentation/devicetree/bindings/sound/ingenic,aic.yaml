@@ -71,7 +71,7 @@ required:
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4740-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
     aic: audio-controller@10020000 {
       compatible = "ingenic,jz4740-i2s";
       reg = <0x10020000 0x38>;

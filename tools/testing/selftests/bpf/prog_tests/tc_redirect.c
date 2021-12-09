@@ -13,15 +13,16 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
+#include <linux/if.h>
+#include <linux/if_tun.h>
 #include <linux/limits.h>
 #include <linux/sysctl.h>
-#include <linux/if_tun.h>
-#include <linux/if.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "test_progs.h"
 #include "network_helpers.h"
@@ -173,6 +174,18 @@ static int netns_setup_namespaces(const char *verb)
 		ns++;
 	}
 	return 0;
+}
+
+static void netns_setup_namespaces_nofail(const char *verb)
+{
+	const char * const *ns = namespaces;
+	char cmd[128];
+
+	while (*ns) {
+		snprintf(cmd, sizeof(cmd), "ip netns %s %s > /dev/null 2>&1", verb, *ns);
+		system(cmd);
+		ns++;
+	}
 }
 
 struct netns_setup_result {
@@ -391,9 +404,7 @@ done:
 
 static int test_ping(int family, const char *addr)
 {
-	const char *ping = family == AF_INET6 ? "ping6" : "ping";
-
-	SYS("ip netns exec " NS_SRC " %s " PING_ARGS " %s > /dev/null", ping, addr);
+	SYS("ip netns exec " NS_SRC " %s " PING_ARGS " %s > /dev/null", ping_command(family), addr);
 	return 0;
 fail:
 	return -1;
@@ -634,7 +645,7 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 	struct nstoken *nstoken = NULL;
 	int err;
 	int tunnel_pid = -1;
-	int src_fd, target_fd;
+	int src_fd, target_fd = -1;
 	int ifindex;
 
 	/* Start a L3 TUN/TAP tunnel between the src and dst namespaces.
@@ -763,6 +774,8 @@ fail:
 
 static void *test_tc_redirect_run_tests(void *arg)
 {
+	netns_setup_namespaces_nofail("delete");
+
 	RUN_TEST(tc_redirect_peer);
 	RUN_TEST(tc_redirect_peer_l3);
 	RUN_TEST(tc_redirect_neigh);
@@ -770,7 +783,7 @@ static void *test_tc_redirect_run_tests(void *arg)
 	return NULL;
 }
 
-void test_tc_redirect(void)
+void serial_test_tc_redirect(void)
 {
 	pthread_t test_thread;
 	int err;

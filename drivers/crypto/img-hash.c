@@ -674,14 +674,12 @@ static int img_hash_digest(struct ahash_request *req)
 static int img_hash_cra_init(struct crypto_tfm *tfm, const char *alg_name)
 {
 	struct img_hash_ctx *ctx = crypto_tfm_ctx(tfm);
-	int err = -ENOMEM;
 
 	ctx->fallback = crypto_alloc_ahash(alg_name, 0,
 					   CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback)) {
 		pr_err("img_hash: Could not load fallback driver.\n");
-		err = PTR_ERR(ctx->fallback);
-		goto err;
+		return PTR_ERR(ctx->fallback);
 	}
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct img_hash_request_ctx) +
@@ -689,9 +687,6 @@ static int img_hash_cra_init(struct crypto_tfm *tfm, const char *alg_name)
 				 IMG_HASH_DMA_THRESHOLD);
 
 	return 0;
-
-err:
-	return err;
 }
 
 static int img_hash_cra_md5_init(struct crypto_tfm *tfm)

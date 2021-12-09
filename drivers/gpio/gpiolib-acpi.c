@@ -95,10 +95,7 @@ static bool acpi_gpio_deferred_req_irqs_done;
 
 static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 {
-	if (!gc->parent)
-		return false;
-
-	return ACPI_HANDLE(gc->parent) == data;
+	return gc->parent && device_match_acpi_handle(gc->parent, data);
 }
 
 /**
@@ -313,9 +310,11 @@ static struct gpio_desc *acpi_request_own_gpiod(struct gpio_chip *chip,
 
 	ret = gpio_set_debounce_timeout(desc, agpio->debounce_timeout);
 	if (ret)
-		gpiochip_free_own_desc(desc);
+		dev_warn(chip->parent,
+			 "Failed to set debounce-timeout for pin 0x%04X, err %d\n",
+			 pin, ret);
 
-	return ret ? ERR_PTR(ret) : desc;
+	return desc;
 }
 
 static bool acpi_gpio_in_ignore_list(const char *controller_in, int pin_in)

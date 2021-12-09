@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/intel,keembay-ocs-ecc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel Keem Bay OCS ECC Device Tree Bindings
+
+maintainers:
+  - Daniele Alessandrelli <daniele.alessandrelli@intel.com>
+  - Prabhjot Khurana <prabhjot.khurana@intel.com>
+
+description:
+  The Intel Keem Bay Offload and Crypto Subsystem (OCS) Elliptic Curve
+  Cryptography (ECC) device provides hardware acceleration for elliptic curve
+  cryptography using the NIST P-256 and NIST P-384 elliptic curves.
+
+properties:
+  compatible:
+    const: intel,keembay-ocs-ecc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    crypto@30001000 {
+      compatible = "intel,keembay-ocs-ecc";
+      reg = <0x30001000 0x1000>;
+      interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&scmi_clk 95>;
+    };

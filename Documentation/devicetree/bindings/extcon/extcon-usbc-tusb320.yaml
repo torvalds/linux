@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: ti,tusb320
+    enum:
+      - ti,tusb320
+      - ti,tusb320l
 
   reg:
     maxItems: 1

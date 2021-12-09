@@ -48,7 +48,7 @@ static int altera_spi_probe(struct platform_device *pdev)
 		return err;
 
 	/* setup the master state. */
-	master->bus_num = pdev->id;
+	master->bus_num = -1;
 
 	if (pdata) {
 		if (pdata->num_chipselect > ALTERA_SPI_MAX_CS) {

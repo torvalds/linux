@@ -105,13 +105,12 @@
 			reg = <0>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000	1200000
-				864000	1200000
-				720000	1100000
-				480000	1000000
-				>;
+				<1008000 1200000>,
+				<864000 1200000>,
+				<720000 1100000>,
+				<480000 1000000>;
 			#cooling-cells = <2>;
 		};
 
@@ -121,13 +120,12 @@
 			reg = <1>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000	1200000
-				864000	1200000
-				720000	1100000
-				480000	1000000
-				>;
+				<1008000 1200000>,
+				<864000 1200000>,
+				<720000 1100000>,
+				<480000 1000000>;
 			#cooling-cells = <2>;
 		};
 
@@ -137,13 +135,12 @@
 			reg = <2>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000	1200000
-				864000	1200000
-				720000	1100000
-				480000	1000000
-				>;
+				<1008000 1200000>,
+				<864000 1200000>,
+				<720000 1100000>,
+				<480000 1000000>;
 			#cooling-cells = <2>;
 		};
 
@@ -153,13 +150,12 @@
 			reg = <3>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000	1200000
-				864000	1200000
-				720000	1100000
-				480000	1000000
-				>;
+				<1008000 1200000>,
+				<864000 1200000>,
+				<720000 1100000>,
+				<480000 1000000>;
 			#cooling-cells = <2>;
 		};
 	};

@@ -1088,6 +1088,48 @@ struct ieee80211_ext {
 	} u;
 } __packed __aligned(2);
 
+#define IEEE80211_TWT_CONTROL_NDP			BIT(0)
+#define IEEE80211_TWT_CONTROL_RESP_MODE			BIT(1)
+#define IEEE80211_TWT_CONTROL_NEG_TYPE_BROADCAST	BIT(3)
+#define IEEE80211_TWT_CONTROL_RX_DISABLED		BIT(4)
+#define IEEE80211_TWT_CONTROL_WAKE_DUR_UNIT		BIT(5)
+
+#define IEEE80211_TWT_REQTYPE_REQUEST			BIT(0)
+#define IEEE80211_TWT_REQTYPE_SETUP_CMD			GENMASK(3, 1)
+#define IEEE80211_TWT_REQTYPE_TRIGGER			BIT(4)
+#define IEEE80211_TWT_REQTYPE_IMPLICIT			BIT(5)
+#define IEEE80211_TWT_REQTYPE_FLOWTYPE			BIT(6)
+#define IEEE80211_TWT_REQTYPE_FLOWID			GENMASK(9, 7)
+#define IEEE80211_TWT_REQTYPE_WAKE_INT_EXP		GENMASK(14, 10)
+#define IEEE80211_TWT_REQTYPE_PROTECTION		BIT(15)
+
+enum ieee80211_twt_setup_cmd {
+	TWT_SETUP_CMD_REQUEST,
+	TWT_SETUP_CMD_SUGGEST,
+	TWT_SETUP_CMD_DEMAND,
+	TWT_SETUP_CMD_GROUPING,
+	TWT_SETUP_CMD_ACCEPT,
+	TWT_SETUP_CMD_ALTERNATE,
+	TWT_SETUP_CMD_DICTATE,
+	TWT_SETUP_CMD_REJECT,
+};
+
+struct ieee80211_twt_params {
+	__le16 req_type;
+	__le64 twt;
+	u8 min_twt_dur;
+	__le16 mantissa;
+	u8 channel;
+} __packed;
+
+struct ieee80211_twt_setup {
+	u8 dialog_token;
+	u8 element_id;
+	u8 length;
+	u8 control;
+	u8 params[];
+} __packed;
+
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
@@ -1101,7 +1143,7 @@ struct ieee80211_mgmt {
 			__le16 auth_transaction;
 			__le16 status_code;
 			/* possibly followed by Challenge text */
-			u8 variable[0];
+			u8 variable[];
 		} __packed auth;
 		struct {
 			__le16 reason_code;
@@ -1110,26 +1152,26 @@ struct ieee80211_mgmt {
 			__le16 capab_info;
 			__le16 listen_interval;
 			/* followed by SSID and Supported rates */
-			u8 variable[0];
+			u8 variable[];
 		} __packed assoc_req;
 		struct {
 			__le16 capab_info;
 			__le16 status_code;
 			__le16 aid;
 			/* followed by Supported rates */
-			u8 variable[0];
+			u8 variable[];
 		} __packed assoc_resp, reassoc_resp;
 		struct {
 			__le16 capab_info;
 			__le16 status_code;
-			u8 variable[0];
+			u8 variable[];
 		} __packed s1g_assoc_resp, s1g_reassoc_resp;
 		struct {
 			__le16 capab_info;
 			__le16 listen_interval;
 			u8 current_ap[ETH_ALEN];
 			/* followed by SSID and Supported rates */
-			u8 variable[0];
+			u8 variable[];
 		} __packed reassoc_req;
 		struct {
 			__le16 reason_code;
@@ -1140,11 +1182,11 @@ struct ieee80211_mgmt {
 			__le16 capab_info;
 			/* followed by some of SSID, Supported rates,
 			 * FH Params, DS Params, CF Params, IBSS Params, TIM */
-			u8 variable[0];
+			u8 variable[];
 		} __packed beacon;
 		struct {
 			/* only variable items: SSID, Supported rates */
-			u8 variable[0];
+			DECLARE_FLEX_ARRAY(u8, variable);
 		} __packed probe_req;
 		struct {
 			__le64 timestamp;
@@ -1152,7 +1194,7 @@ struct ieee80211_mgmt {
 			__le16 capab_info;
 			/* followed by some of SSID, Supported rates,
 			 * FH Params, DS Params, CF Params, IBSS Params */
-			u8 variable[0];
+			u8 variable[];
 		} __packed probe_resp;
 		struct {
 			u8 category;
@@ -1161,16 +1203,16 @@ struct ieee80211_mgmt {
 					u8 action_code;
 					u8 dialog_token;
 					u8 status_code;
-					u8 variable[0];
+					u8 variable[];
 				} __packed wme_action;
 				struct{
 					u8 action_code;
-					u8 variable[0];
+					u8 variable[];
 				} __packed chan_switch;
 				struct{
 					u8 action_code;
 					struct ieee80211_ext_chansw_ie data;
-					u8 variable[0];
+					u8 variable[];
 				} __packed ext_chan_switch;
 				struct{
 					u8 action_code;
@@ -1186,7 +1228,7 @@ struct ieee80211_mgmt {
 					__le16 timeout;
 					__le16 start_seq_num;
 					/* followed by BA Extension */
-					u8 variable[0];
+					u8 variable[];
 				} __packed addba_req;
 				struct{
 					u8 action_code;
@@ -1202,11 +1244,11 @@ struct ieee80211_mgmt {
 				} __packed delba;
 				struct {
 					u8 action_code;
-					u8 variable[0];
+					u8 variable[];
 				} __packed self_prot;
 				struct{
 					u8 action_code;
-					u8 variable[0];
+					u8 variable[];
 				} __packed mesh_action;
 				struct {
 					u8 action;
@@ -1250,8 +1292,12 @@ struct ieee80211_mgmt {
 					u8 toa[6];
 					__le16 tod_error;
 					__le16 toa_error;
-					u8 variable[0];
+					u8 variable[];
 				} __packed ftm;
+				struct {
+					u8 action_code;
+					u8 variable[];
+				} __packed s1g;
 			} u;
 		} __packed action;
 	} u;
@@ -1942,6 +1988,44 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 			      int mcs, bool ext_nss_bw_capable,
 			      unsigned int max_vht_nss);
 
+/**
+ * enum ieee80211_ap_reg_power - regulatory power for a Access Point
+ *
+ * @IEEE80211_REG_UNSET_AP: Access Point has no regulatory power mode
+ * @IEEE80211_REG_LPI: Indoor Access Point
+ * @IEEE80211_REG_SP: Standard power Access Point
+ * @IEEE80211_REG_VLP: Very low power Access Point
+ * @IEEE80211_REG_AP_POWER_AFTER_LAST: internal
+ * @IEEE80211_REG_AP_POWER_MAX: maximum value
+ */
+enum ieee80211_ap_reg_power {
+	IEEE80211_REG_UNSET_AP,
+	IEEE80211_REG_LPI_AP,
+	IEEE80211_REG_SP_AP,
+	IEEE80211_REG_VLP_AP,
+	IEEE80211_REG_AP_POWER_AFTER_LAST,
+	IEEE80211_REG_AP_POWER_MAX =
+		IEEE80211_REG_AP_POWER_AFTER_LAST - 1,
+};
+
+/**
+ * enum ieee80211_client_reg_power - regulatory power for a client
+ *
+ * @IEEE80211_REG_UNSET_CLIENT: Client has no regulatory power mode
+ * @IEEE80211_REG_DEFAULT_CLIENT: Default Client
+ * @IEEE80211_REG_SUBORDINATE_CLIENT: Subordinate Client
+ * @IEEE80211_REG_CLIENT_POWER_AFTER_LAST: internal
+ * @IEEE80211_REG_CLIENT_POWER_MAX: maximum value
+ */
+enum ieee80211_client_reg_power {
+	IEEE80211_REG_UNSET_CLIENT,
+	IEEE80211_REG_DEFAULT_CLIENT,
+	IEEE80211_REG_SUBORDINATE_CLIENT,
+	IEEE80211_REG_CLIENT_POWER_AFTER_LAST,
+	IEEE80211_REG_CLIENT_POWER_MAX =
+		IEEE80211_REG_CLIENT_POWER_AFTER_LAST - 1,
+};
+
 /* 802.11ax HE MAC capabilities */
 #define IEEE80211_HE_MAC_CAP0_HTC_HE				0x01
 #define IEEE80211_HE_MAC_CAP0_TWT_REQ				0x02
@@ -2038,6 +2122,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 
 #define IEEE80211_HE_VHT_MAX_AMPDU_FACTOR	20
 #define IEEE80211_HE_HT_MAX_AMPDU_FACTOR	16
+#define IEEE80211_HE_6GHZ_MAX_AMPDU_FACTOR	13
 
 /* 802.11ax HE PHY capabilities */
 #define IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G		0x02
@@ -2266,6 +2351,9 @@ ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
 #define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x40000000
 #define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x80000000
 
+#define IEEE80211_6GHZ_CTRL_REG_LPI_AP	0
+#define IEEE80211_6GHZ_CTRL_REG_SP_AP	1
+
 /**
  * ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
  * @primary: primary channel
@@ -2282,11 +2370,50 @@ struct ieee80211_he_6ghz_oper {
 #define		IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_80MHZ	2
 #define		IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_160MHZ	3
 #define IEEE80211_HE_6GHZ_OPER_CTRL_DUP_BEACON	0x4
+#define IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO	0x38
 	u8 control;
 	u8 ccfs0;
 	u8 ccfs1;
 	u8 minrate;
 } __packed;
+
+/*
+ * In "9.4.2.161 Transmit Power Envelope element" of "IEEE Std 802.11ax-2021",
+ * it show four types in "Table 9-275a-Maximum Transmit Power Interpretation
+ * subfield encoding", and two category for each type in "Table E-12-Regulatory
+ * Info subfield encoding in the United States".
+ * So it it totally max 8 Transmit Power Envelope element.
+ */
+#define IEEE80211_TPE_MAX_IE_COUNT	8
+/*
+ * In "Table 9-277—Meaning of Maximum Transmit Power Count subfield"
+ * of "IEEE Std 802.11ax™‐2021", the max power level is 8.
+ */
+#define IEEE80211_MAX_NUM_PWR_LEVEL	8
+
+#define IEEE80211_TPE_MAX_POWER_COUNT	8
+
+/* transmit power interpretation type of transmit power envelope element */
+enum ieee80211_tx_power_intrpt_type {
+	IEEE80211_TPE_LOCAL_EIRP,
+	IEEE80211_TPE_LOCAL_EIRP_PSD,
+	IEEE80211_TPE_REG_CLIENT_EIRP,
+	IEEE80211_TPE_REG_CLIENT_EIRP_PSD,
+};
+
+/**
+ * struct ieee80211_tx_pwr_env
+ *
+ * This structure represents the "Transmit Power Envelope element"
+ */
+struct ieee80211_tx_pwr_env {
+	u8 tx_power_info;
+	s8 tx_power[IEEE80211_TPE_MAX_POWER_COUNT];
+} __packed;
+
+#define IEEE80211_TX_PWR_ENV_INFO_COUNT 0x7
+#define IEEE80211_TX_PWR_ENV_INFO_INTERPRET 0x38
+#define IEEE80211_TX_PWR_ENV_INFO_CATEGORY 0xC0
 
 /*
  * ieee80211_he_oper_size - calculate 802.11ax HE Operations IE size
@@ -2869,7 +2996,7 @@ enum ieee80211_eid {
 	WLAN_EID_VHT_OPERATION = 192,
 	WLAN_EID_EXTENDED_BSS_LOAD = 193,
 	WLAN_EID_WIDE_BW_CHANNEL_SWITCH = 194,
-	WLAN_EID_VHT_TX_POWER_ENVELOPE = 195,
+	WLAN_EID_TX_POWER_ENVELOPE = 195,
 	WLAN_EID_CHANNEL_SWITCH_WRAPPER = 196,
 	WLAN_EID_AID = 197,
 	WLAN_EID_QUIET_CHANNEL = 198,
@@ -2881,6 +3008,7 @@ enum ieee80211_eid {
 	WLAN_EID_AID_RESPONSE = 211,
 	WLAN_EID_S1G_BCN_COMPAT = 213,
 	WLAN_EID_S1G_SHORT_BCN_INTERVAL = 214,
+	WLAN_EID_S1G_TWT = 216,
 	WLAN_EID_S1G_CAPABILITIES = 217,
 	WLAN_EID_VENDOR_SPECIFIC = 221,
 	WLAN_EID_QOS_PARAMETER = 222,
@@ -2950,6 +3078,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_FST = 18,
 	WLAN_CATEGORY_UNPROT_DMG = 20,
 	WLAN_CATEGORY_VHT = 21,
+	WLAN_CATEGORY_S1G = 22,
 	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
 	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };
@@ -3021,6 +3150,20 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_BIP_CMAC_256 = 32,
 	WLAN_KEY_LEN_BIP_GMAC_128 = 16,
 	WLAN_KEY_LEN_BIP_GMAC_256 = 32,
+};
+
+enum ieee80211_s1g_actioncode {
+	WLAN_S1G_AID_SWITCH_REQUEST,
+	WLAN_S1G_AID_SWITCH_RESPONSE,
+	WLAN_S1G_SYNC_CONTROL,
+	WLAN_S1G_STA_INFO_ANNOUNCE,
+	WLAN_S1G_EDCA_PARAM_SET,
+	WLAN_S1G_EL_OPERATION,
+	WLAN_S1G_TWT_SETUP,
+	WLAN_S1G_TWT_TEARDOWN,
+	WLAN_S1G_SECT_GROUP_ID_LIST,
+	WLAN_S1G_SECT_ID_FEEDBACK,
+	WLAN_S1G_TWT_INFORMATION = 11,
 };
 
 #define IEEE80211_WEP_IV_LEN		4

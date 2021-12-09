@@ -1,10 +1,12 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../core-api/irq/index`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/core-api/index.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_core-api_index.rst:
-
 
 ===========
 核心API文档
@@ -37,12 +39,14 @@
    :maxdepth: 1
 
    kobject
-
-Todolist:
-
    kref
    assoc_array
    xarray
+
+Todolist:
+
+
+
    idr
    circular-buffers
    rbtree
@@ -80,14 +84,17 @@ Todolist:
    :maxdepth: 1
 
    cachetlb
+   cpu_hotplug
+   genericirq
+   memory-hotplug
+   protection-keys
 
 Todolist:
 
 
-   cpu_hotplug
    memory-hotplug
+   cpu_hotplug
    genericirq
-   protection-keys
 
 
 内存管理
@@ -96,19 +103,23 @@ Todolist:
 如何在内核中分配和使用内存。请注意，在
 :doc:`/vm/index` 中有更多的内存管理文档。
 
-Todolist:
+.. toctree::
+   :maxdepth: 1
 
    memory-allocation
    unaligned-memory-access
+   mm-api
+   genalloc
+   boot-time-mm
+   gfp_mask-from-fs-io
+
+Todolist:
+
    dma-api
    dma-api-howto
    dma-attributes
    dma-isa-lpc
-   mm-api
-   genalloc
    pin_user_pages
-   boot-time-mm
-   gfp_mask-from-fs-io
 
 内核调试的接口
 ==============

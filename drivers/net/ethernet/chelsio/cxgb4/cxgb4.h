@@ -84,7 +84,6 @@ extern struct mutex uld_mutex;
 enum {
 	MAX_NPORTS	= 4,     /* max # of ports */
 	SERNUM_LEN	= 24,    /* Serial # length */
-	EC_LEN		= 16,    /* E/C length */
 	ID_LEN		= 16,    /* ID length */
 	PN_LEN		= 16,    /* Part Number length */
 	MACADDR_LEN	= 12,    /* MAC Address length */
@@ -391,7 +390,6 @@ struct tp_params {
 
 struct vpd_params {
 	unsigned int cclk;
-	u8 ec[EC_LEN + 1];
 	u8 sn[SERNUM_LEN + 1];
 	u8 id[ID_LEN + 1];
 	u8 pn[PN_LEN + 1];
@@ -1547,7 +1545,7 @@ static inline void t4_write_reg64(struct adapter *adap, u32 reg_addr, u64 val)
 static inline void t4_set_hw_addr(struct adapter *adapter, int port_idx,
 				  u8 hw_addr[])
 {
-	ether_addr_copy(adapter->port[port_idx]->dev_addr, hw_addr);
+	eth_hw_addr_set(adapter->port[port_idx], hw_addr);
 	ether_addr_copy(adapter->port[port_idx]->perm_addr, hw_addr);
 }
 

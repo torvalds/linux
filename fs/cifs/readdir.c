@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/readdir.c
  *
  *   Directory search handling
  *
@@ -369,7 +368,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
  */
 
 static int
-initiate_cifs_search(const unsigned int xid, struct file *file,
+_initiate_cifs_search(const unsigned int xid, struct file *file,
 		     const char *full_path)
 {
 	__u16 search_flags;
@@ -448,6 +447,27 @@ ffirst_retry:
 	}
 error_exit:
 	cifs_put_tlink(tlink);
+	return rc;
+}
+
+static int
+initiate_cifs_search(const unsigned int xid, struct file *file,
+		     const char *full_path)
+{
+	int rc, retry_count = 0;
+
+	do {
+		rc = _initiate_cifs_search(xid, file, full_path);
+		/*
+		 * If we don't have enough credits to start reading the
+		 * directory just try again after short wait.
+		 */
+		if (rc != -EDEADLK)
+			break;
+
+		usleep_range(512, 2048);
+	} while (retry_count++ < 5);
+
 	return rc;
 }
 

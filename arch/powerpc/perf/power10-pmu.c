@@ -91,8 +91,8 @@ extern u64 PERF_REG_EXTENDED_MASK;
 
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int power10_event_alternatives[][MAX_ALT] = {
-	{ PM_RUN_CYC_ALT,		PM_RUN_CYC },
-	{ PM_RUN_INST_CMPL_ALT,		PM_RUN_INST_CMPL },
+	{ PM_CYC_ALT,			PM_CYC },
+	{ PM_INST_CMPL_ALT,		PM_INST_CMPL },
 };
 
 static int power10_get_alternatives(u64 event, unsigned int flags, u64 alt[])
@@ -118,8 +118,8 @@ static int power10_check_attr_config(struct perf_event *ev)
 	return 0;
 }
 
-GENERIC_EVENT_ATTR(cpu-cycles,			PM_RUN_CYC);
-GENERIC_EVENT_ATTR(instructions,		PM_RUN_INST_CMPL);
+GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
+GENERIC_EVENT_ATTR(instructions,		PM_INST_CMPL);
 GENERIC_EVENT_ATTR(branch-instructions,		PM_BR_CMPL);
 GENERIC_EVENT_ATTR(branch-misses,		PM_BR_MPRED_CMPL);
 GENERIC_EVENT_ATTR(cache-references,		PM_LD_REF_L1);
@@ -148,8 +148,8 @@ CACHE_EVENT_ATTR(dTLB-load-misses,		PM_DTLB_MISS);
 CACHE_EVENT_ATTR(iTLB-load-misses,		PM_ITLB_MISS);
 
 static struct attribute *power10_events_attr_dd1[] = {
-	GENERIC_EVENT_PTR(PM_RUN_CYC),
-	GENERIC_EVENT_PTR(PM_RUN_INST_CMPL),
+	GENERIC_EVENT_PTR(PM_CYC),
+	GENERIC_EVENT_PTR(PM_INST_CMPL),
 	GENERIC_EVENT_PTR(PM_BR_CMPL),
 	GENERIC_EVENT_PTR(PM_BR_MPRED_CMPL),
 	GENERIC_EVENT_PTR(PM_LD_REF_L1),
@@ -173,8 +173,8 @@ static struct attribute *power10_events_attr_dd1[] = {
 };
 
 static struct attribute *power10_events_attr[] = {
-	GENERIC_EVENT_PTR(PM_RUN_CYC),
-	GENERIC_EVENT_PTR(PM_RUN_INST_CMPL),
+	GENERIC_EVENT_PTR(PM_CYC),
+	GENERIC_EVENT_PTR(PM_INST_CMPL),
 	GENERIC_EVENT_PTR(PM_BR_FIN),
 	GENERIC_EVENT_PTR(PM_MPRED_BR_FIN),
 	GENERIC_EVENT_PTR(PM_LD_REF_L1),
@@ -271,8 +271,8 @@ static const struct attribute_group *power10_pmu_attr_groups[] = {
 };
 
 static int power10_generic_events_dd1[] = {
-	[PERF_COUNT_HW_CPU_CYCLES] =			PM_RUN_CYC,
-	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_RUN_INST_CMPL,
+	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
+	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BR_CMPL,
 	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
 	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
@@ -280,8 +280,8 @@ static int power10_generic_events_dd1[] = {
 };
 
 static int power10_generic_events[] = {
-	[PERF_COUNT_HW_CPU_CYCLES] =			PM_RUN_CYC,
-	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_RUN_INST_CMPL,
+	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
+	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BR_FIN,
 	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_MPRED_BR_FIN,
 	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
@@ -548,6 +548,24 @@ static u64 power10_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 
 #undef C
 
+/*
+ * Set the MMCR0[CC56RUN] bit to enable counting for
+ * PMC5 and PMC6 regardless of the state of CTRL[RUN],
+ * so that we can use counters 5 and 6 as PM_INST_CMPL and
+ * PM_CYC.
+ */
+static int power10_compute_mmcr(u64 event[], int n_ev,
+				unsigned int hwc[], struct mmcr_regs *mmcr,
+				struct perf_event *pevents[], u32 flags)
+{
+	int ret;
+
+	ret = isa207_compute_mmcr(event, n_ev, hwc, mmcr, pevents, flags);
+	if (!ret)
+		mmcr->mmcr0 |= MMCR0_C56RUN;
+	return ret;
+}
+
 static struct power_pmu power10_pmu = {
 	.name			= "POWER10",
 	.n_counter		= MAX_PMU_COUNTERS,
@@ -555,7 +573,7 @@ static struct power_pmu power10_pmu = {
 	.test_adder		= ISA207_TEST_ADDER,
 	.group_constraint_mask	= CNST_CACHE_PMC4_MASK,
 	.group_constraint_val	= CNST_CACHE_PMC4_VAL,
-	.compute_mmcr		= isa207_compute_mmcr,
+	.compute_mmcr		= power10_compute_mmcr,
 	.config_bhrb		= power10_config_bhrb,
 	.bhrb_filter_map	= power10_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,

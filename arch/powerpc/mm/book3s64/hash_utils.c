@@ -36,8 +36,8 @@
 #include <linux/hugetlb.h>
 #include <linux/cpu.h>
 #include <linux/pgtable.h>
+#include <linux/debugfs.h>
 
-#include <asm/debugfs.h>
 #include <asm/interrupt.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
@@ -1988,7 +1988,7 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 				     mmu_kernel_ssize, 0);
 }
 
-void __kernel_map_pages(struct page *page, int numpages, int enable)
+void hash__kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long flags, vaddr, lmi;
 	int i;
@@ -2072,7 +2072,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n")
 
 static int __init hash64_debugfs(void)
 {
-	debugfs_create_file("hpt_order", 0600, powerpc_debugfs_root, NULL,
+	debugfs_create_file("hpt_order", 0600, arch_debugfs_dir, NULL,
 			    &fops_hpt_order);
 	return 0;
 }

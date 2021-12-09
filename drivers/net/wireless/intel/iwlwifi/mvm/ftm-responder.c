@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include <linux/etherdevice.h>
@@ -46,8 +46,8 @@ static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
 }
 
 static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
-					   u8 *format_bw,
-					   u8 *ctrl_ch_position)
+					   u8 *format_bw, u8 *ctrl_ch_position,
+					   u8 cmd_ver)
 {
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -68,6 +68,14 @@ static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
 		*format_bw |= IWL_LOCATION_BW_80MHZ << LOCATION_BW_POS;
 		*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
 		break;
+	case NL80211_CHAN_WIDTH_160:
+		if (cmd_ver >= 9) {
+			*format_bw = IWL_LOCATION_FRAME_FORMAT_HE;
+			*format_bw |= IWL_LOCATION_BW_160MHZ << LOCATION_BW_POS;
+			*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
+			break;
+		}
+		fallthrough;
 	default:
 		return -ENOTSUPP;
 	}
@@ -77,7 +85,7 @@ static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
 
 static void
 iwl_mvm_ftm_responder_set_ndp(struct iwl_mvm *mvm,
-			      struct iwl_tof_responder_config_cmd_v8 *cmd)
+			      struct iwl_tof_responder_config_cmd_v9 *cmd)
 {
 	/* Up to 2 R2I STS are allowed on the responder */
 	u32 r2i_max_sts = IWL_MVM_FTM_R2I_MAX_STS < 2 ?
@@ -104,7 +112,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 	 * field interpretation is different), so the same struct can be use
 	 * for all cases.
 	 */
-	struct iwl_tof_responder_config_cmd_v8 cmd = {
+	struct iwl_tof_responder_config_cmd_v9 cmd = {
 		.channel_num = chandef->chan->hw_value,
 		.cmd_valid_fields =
 			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_CHAN_INFO |
@@ -115,15 +123,33 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
 					   TOF_RESPONDER_CONFIG_CMD, 6);
 	int err;
+	int cmd_size;
 
 	lockdep_assert_held(&mvm->mutex);
 
-if (cmd_ver == 8)
+	/* Use a default of bss_color=1 for now */
+	if (cmd_ver == 9) {
+		cmd.cmd_valid_fields |=
+			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_BSS_COLOR |
+				    IWL_TOF_RESPONDER_CMD_VALID_MIN_MAX_TIME_BETWEEN_MSR);
+		cmd.bss_color = 1;
+		cmd.min_time_between_msr =
+			cpu_to_le16(IWL_MVM_FTM_NON_TB_MIN_TIME_BETWEEN_MSR);
+		cmd.max_time_between_msr =
+			cpu_to_le16(IWL_MVM_FTM_NON_TB_MAX_TIME_BETWEEN_MSR);
+		cmd_size = sizeof(struct iwl_tof_responder_config_cmd_v9);
+	} else {
+		/* All versions up to version 8 have the same size */
+		cmd_size = sizeof(struct iwl_tof_responder_config_cmd_v8);
+	}
+
+	if (cmd_ver >= 8)
 		iwl_mvm_ftm_responder_set_ndp(mvm, &cmd);
 
 	if (cmd_ver >= 7)
 		err = iwl_mvm_ftm_responder_set_bw_v2(chandef, &cmd.format_bw,
-						      &cmd.ctrl_ch_position);
+						      &cmd.ctrl_ch_position,
+						      cmd_ver);
 	else
 		err = iwl_mvm_ftm_responder_set_bw_v1(chandef, &cmd.format_bw,
 						      &cmd.ctrl_ch_position);
@@ -137,7 +163,7 @@ if (cmd_ver == 8)
 
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_RESPONDER_CONFIG_CMD,
 						    LOCATION_GROUP, 0),
-				    0, sizeof(cmd), &cmd);
+				    0, cmd_size, &cmd);
 }
 
 static int

@@ -6,6 +6,7 @@
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/ring_buffer.h>
+#include <linux/bitops.h>
 #include <stdbool.h>
 #include <pthread.h> // for cpu_set_t
 #ifdef HAVE_AIO_SUPPORT
@@ -62,5 +63,8 @@ int perf_mmap__push(struct mmap *md, void *to,
 size_t mmap__mmap_len(struct mmap *map);
 
 void mmap_cpu_mask__scnprintf(struct mmap_cpu_mask *mask, const char *tag);
+
+int mmap_cpu_mask__duplicate(struct mmap_cpu_mask *original,
+				struct mmap_cpu_mask *clone);
 
 #endif /*__PERF_MMAP_H */

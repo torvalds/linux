@@ -553,7 +553,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	mutex_lock(&subsys->lock);
 	ret = 0;
 
-	if (nvmet_passthru_ctrl(subsys)) {
+	if (nvmet_is_passthru_subsys(subsys)) {
 		pr_info("cannot enable both passthru and regular namespaces for a single subsystem");
 		goto out_unlock;
 	}
@@ -802,6 +802,7 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 		 * controller teardown as a result of a keep-alive expiration.
 		 */
 		ctrl->reset_tbkas = true;
+		sq->ctrl->sqs[sq->qid] = NULL;
 		nvmet_ctrl_put(ctrl);
 		sq->ctrl = NULL; /* allows reusing the queue later */
 	}
@@ -868,7 +869,7 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	if (unlikely(ret))
 		return ret;
 
-	if (nvmet_req_passthru_ctrl(req))
+	if (nvmet_is_passthru_req(req))
 		return nvmet_parse_passthru_io_cmd(req);
 
 	ret = nvmet_req_find_ns(req);
@@ -1139,7 +1140,7 @@ static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 	 * should verify iosqes,iocqes are zeroed, however that
 	 * would break backwards compatibility, so don't enforce it.
 	 */
-	if (ctrl->subsys->type != NVME_NQN_DISC &&
+	if (!nvmet_is_disc_subsys(ctrl->subsys) &&
 	    (nvmet_cc_iosqes(ctrl->cc) != NVME_NVM_IOSQES ||
 	     nvmet_cc_iocqes(ctrl->cc) != NVME_NVM_IOCQES)) {
 		ctrl->csts = NVME_CSTS_CFS;
@@ -1204,7 +1205,13 @@ static void nvmet_init_cap(struct nvmet_ctrl *ctrl)
 	/* CC.EN timeout in 500msec units: */
 	ctrl->cap |= (15ULL << 24);
 	/* maximum queue entries supported: */
-	ctrl->cap |= NVMET_QUEUE_SIZE - 1;
+	if (ctrl->ops->get_max_queue_size)
+		ctrl->cap |= ctrl->ops->get_max_queue_size(ctrl) - 1;
+	else
+		ctrl->cap |= NVMET_QUEUE_SIZE - 1;
+
+	if (nvmet_is_passthru_subsys(ctrl->subsys))
+		nvmet_passthrough_override_cap(ctrl);
 }
 
 struct nvmet_ctrl *nvmet_ctrl_find_get(const char *subsysnqn,
@@ -1274,7 +1281,7 @@ bool nvmet_host_allowed(struct nvmet_subsys *subsys, const char *hostnqn)
 	if (subsys->allow_any_host)
 		return true;
 
-	if (subsys->type == NVME_NQN_DISC) /* allow all access to disc subsys */
+	if (nvmet_is_disc_subsys(subsys)) /* allow all access to disc subsys */
 		return true;
 
 	list_for_each_entry(p, &subsys->hosts, entry) {
@@ -1362,9 +1369,8 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 		goto out_put_subsystem;
 	mutex_init(&ctrl->lock);
 
-	nvmet_init_cap(ctrl);
-
 	ctrl->port = req->port;
+	ctrl->ops = req->ops;
 
 	INIT_WORK(&ctrl->async_event_work, nvmet_async_event_work);
 	INIT_LIST_HEAD(&ctrl->async_events);
@@ -1377,6 +1383,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 	kref_init(&ctrl->ref);
 	ctrl->subsys = subsys;
+	nvmet_init_cap(ctrl);
 	WRITE_ONCE(ctrl->aen_enabled, NVMET_AEN_CFG_OPTIONAL);
 
 	ctrl->changed_ns_list = kmalloc_array(NVME_MAX_CHANGED_NAMESPACES,
@@ -1402,13 +1409,11 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	}
 	ctrl->cntlid = ret;
 
-	ctrl->ops = req->ops;
-
 	/*
 	 * Discovery controllers may use some arbitrary high value
 	 * in order to cleanup stale discovery sessions
 	 */
-	if ((ctrl->subsys->type == NVME_NQN_DISC) && !kato)
+	if (nvmet_is_disc_subsys(ctrl->subsys) && !kato)
 		kato = NVMET_DISC_KATO_MS;
 
 	/* keep-alive timeout in seconds */
@@ -1488,7 +1493,8 @@ static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
 	if (!port)
 		return NULL;
 
-	if (!strcmp(NVME_DISC_SUBSYS_NAME, subsysnqn)) {
+	if (!strcmp(NVME_DISC_SUBSYS_NAME, subsysnqn) ||
+	    !strcmp(nvmet_disc_subsys->subsysnqn, subsysnqn)) {
 		if (!kref_get_unless_zero(&nvmet_disc_subsys->ref))
 			return NULL;
 		return nvmet_disc_subsys;
@@ -1535,6 +1541,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		subsys->max_qid = NVMET_NR_QUEUES;
 		break;
 	case NVME_NQN_DISC:
+	case NVME_NQN_CURR:
 		subsys->max_qid = 0;
 		break;
 	default:

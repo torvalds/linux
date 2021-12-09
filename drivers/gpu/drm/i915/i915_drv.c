@@ -67,6 +67,8 @@
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_rc6.h"
 
+#include "pxp/intel_pxp_pm.h"
+
 #include "i915_debugfs.h"
 #include "i915_drv.h"
 #include "i915_ioc32.h"
@@ -82,9 +84,9 @@
 #include "intel_dram.h"
 #include "intel_gvt.h"
 #include "intel_memory_region.h"
+#include "intel_pcode.h"
 #include "intel_pm.h"
 #include "intel_region_ttm.h"
-#include "intel_sideband.h"
 #include "vlv_suspend.h"
 
 static const struct drm_driver driver;
@@ -97,7 +99,7 @@ static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 		pci_get_domain_bus_and_slot(domain, 0, PCI_DEVFN(0, 0));
 	if (!dev_priv->bridge_dev) {
 		drm_err(&dev_priv->drm, "bridge device not found\n");
-		return -1;
+		return -EIO;
 	}
 	return 0;
 }
@@ -271,10 +273,11 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 	bool pre = false;
 
 	pre |= IS_HSW_EARLY_SDV(dev_priv);
-	pre |= IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0);
-	pre |= IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST);
-	pre |= IS_KBL_GT_STEP(dev_priv, 0, STEP_A0);
-	pre |= IS_GLK_REVID(dev_priv, 0, GLK_REVID_A2);
+	pre |= IS_SKYLAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x6;
+	pre |= IS_BROXTON(dev_priv) && INTEL_REVID(dev_priv) < 0xA;
+	pre |= IS_KABYLAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x1;
+	pre |= IS_GEMINILAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x3;
+	pre |= IS_ICELAKE(dev_priv) && INTEL_REVID(dev_priv) < 0x7;
 
 	if (pre) {
 		drm_err(&dev_priv->drm, "This is a pre-production stepping. "
@@ -408,8 +411,9 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	if (i915_get_bridge_dev(dev_priv))
-		return -EIO;
+	ret = i915_get_bridge_dev(dev_priv);
+	if (ret < 0)
+		return ret;
 
 	ret = intel_uncore_init_mmio(&dev_priv->uncore);
 	if (ret < 0)
@@ -561,7 +565,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_perf;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "inteldrmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, dev_priv->drm.driver);
 	if (ret)
 		goto err_ggtt;
 
@@ -586,8 +590,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	}
 
 	pci_set_master(pdev);
-
-	intel_gt_init_workarounds(dev_priv);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
 	 * integrated graphics even though the support isn't actually there
@@ -619,7 +621,9 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	intel_opregion_setup(dev_priv);
 
-	intel_pcode_init(dev_priv);
+	ret = intel_pcode_init(dev_priv);
+	if (ret)
+		goto err_msi;
 
 	/*
 	 * Fill the dram structure to get the system dram info. This will be
@@ -1093,9 +1097,7 @@ static int i915_drm_prepare(struct drm_device *dev)
 	 * split out that work and pull it forward so that after point,
 	 * the GPU is not woken again.
 	 */
-	i915_gem_suspend(i915);
-
-	return 0;
+	return i915_gem_backup_suspend(i915);
 }
 
 static int i915_drm_suspend(struct drm_device *dev)
@@ -1229,6 +1231,10 @@ static int i915_drm_resume(struct drm_device *dev)
 	int ret;
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
+
+	ret = intel_pcode_init(dev_priv);
+	if (ret)
+		return ret;
 
 	sanitize_gpu(dev_priv);
 

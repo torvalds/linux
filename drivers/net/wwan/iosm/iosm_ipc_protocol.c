@@ -239,9 +239,9 @@ struct iosm_protocol *ipc_protocol_init(struct iosm_imem *ipc_imem)
 	ipc_protocol->old_msg_tail = 0;
 
 	ipc_protocol->p_ap_shm =
-		pci_alloc_consistent(ipc_protocol->pcie->pci,
-				     sizeof(*ipc_protocol->p_ap_shm),
-				     &ipc_protocol->phy_ap_shm);
+		dma_alloc_coherent(&ipc_protocol->pcie->pci->dev,
+				   sizeof(*ipc_protocol->p_ap_shm),
+				   &ipc_protocol->phy_ap_shm, GFP_KERNEL);
 
 	if (!ipc_protocol->p_ap_shm) {
 		dev_err(ipc_protocol->dev, "pci shm alloc error");
@@ -275,8 +275,8 @@ struct iosm_protocol *ipc_protocol_init(struct iosm_imem *ipc_imem)
 
 void ipc_protocol_deinit(struct iosm_protocol *proto)
 {
-	pci_free_consistent(proto->pcie->pci, sizeof(*proto->p_ap_shm),
-			    proto->p_ap_shm, proto->phy_ap_shm);
+	dma_free_coherent(&proto->pcie->pci->dev, sizeof(*proto->p_ap_shm),
+			  proto->p_ap_shm, proto->phy_ap_shm);
 
 	ipc_pm_deinit(proto);
 	kfree(proto);

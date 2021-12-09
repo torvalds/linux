@@ -20,11 +20,13 @@ struct ocelot_mact_entry {
 	enum macaccess_entry_type type;
 };
 
+/* Caller must hold &ocelot->mact_lock */
 static inline u32 ocelot_mact_read_macaccess(struct ocelot *ocelot)
 {
 	return ocelot_read(ocelot, ANA_TABLES_MACACCESS);
 }
 
+/* Caller must hold &ocelot->mact_lock */
 static inline int ocelot_mact_wait_for_completion(struct ocelot *ocelot)
 {
 	u32 val;
@@ -36,6 +38,7 @@ static inline int ocelot_mact_wait_for_completion(struct ocelot *ocelot)
 		TABLE_UPDATE_SLEEP_US, TABLE_UPDATE_TIMEOUT_US);
 }
 
+/* Caller must hold &ocelot->mact_lock */
 static void ocelot_mact_select(struct ocelot *ocelot,
 			       const unsigned char mac[ETH_ALEN],
 			       unsigned int vid)
@@ -67,6 +70,7 @@ int ocelot_mact_learn(struct ocelot *ocelot, int port,
 		ANA_TABLES_MACACCESS_ENTRYTYPE(type) |
 		ANA_TABLES_MACACCESS_MAC_TABLE_CMD(MACACCESS_CMD_LEARN);
 	unsigned int mc_ports;
+	int err;
 
 	/* Set MAC_CPU_COPY if the CPU port is used by a multicast entry */
 	if (type == ENTRYTYPE_MACv4)
@@ -79,18 +83,28 @@ int ocelot_mact_learn(struct ocelot *ocelot, int port,
 	if (mc_ports & BIT(ocelot->num_phys_ports))
 		cmd |= ANA_TABLES_MACACCESS_MAC_CPU_COPY;
 
+	mutex_lock(&ocelot->mact_lock);
+
 	ocelot_mact_select(ocelot, mac, vid);
 
 	/* Issue a write command */
 	ocelot_write(ocelot, cmd, ANA_TABLES_MACACCESS);
 
-	return ocelot_mact_wait_for_completion(ocelot);
+	err = ocelot_mact_wait_for_completion(ocelot);
+
+	mutex_unlock(&ocelot->mact_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(ocelot_mact_learn);
 
 int ocelot_mact_forget(struct ocelot *ocelot,
 		       const unsigned char mac[ETH_ALEN], unsigned int vid)
 {
+	int err;
+
+	mutex_lock(&ocelot->mact_lock);
+
 	ocelot_mact_select(ocelot, mac, vid);
 
 	/* Issue a forget command */
@@ -98,7 +112,11 @@ int ocelot_mact_forget(struct ocelot *ocelot,
 		     ANA_TABLES_MACACCESS_MAC_TABLE_CMD(MACACCESS_CMD_FORGET),
 		     ANA_TABLES_MACACCESS);
 
-	return ocelot_mact_wait_for_completion(ocelot);
+	err = ocelot_mact_wait_for_completion(ocelot);
+
+	mutex_unlock(&ocelot->mact_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(ocelot_mact_forget);
 
@@ -114,7 +132,9 @@ static void ocelot_mact_init(struct ocelot *ocelot)
 		   | ANA_AGENCTRL_LEARN_IGNORE_VLAN,
 		   ANA_AGENCTRL);
 
-	/* Clear the MAC table */
+	/* Clear the MAC table. We are not concurrent with anyone, so
+	 * holding &ocelot->mact_lock is pointless.
+	 */
 	ocelot_write(ocelot, MACACCESS_CMD_INIT, ANA_TABLES_MACACCESS);
 }
 
@@ -162,48 +182,117 @@ static int ocelot_vlant_set_mask(struct ocelot *ocelot, u16 vid, u32 mask)
 	return ocelot_vlant_wait_for_completion(ocelot);
 }
 
-static void ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
-					struct ocelot_vlan native_vlan)
+static int ocelot_port_num_untagged_vlans(struct ocelot *ocelot, int port)
+{
+	struct ocelot_bridge_vlan *vlan;
+	int num_untagged = 0;
+
+	list_for_each_entry(vlan, &ocelot->vlans, list) {
+		if (!(vlan->portmask & BIT(port)))
+			continue;
+
+		if (vlan->untagged & BIT(port))
+			num_untagged++;
+	}
+
+	return num_untagged;
+}
+
+static int ocelot_port_num_tagged_vlans(struct ocelot *ocelot, int port)
+{
+	struct ocelot_bridge_vlan *vlan;
+	int num_tagged = 0;
+
+	list_for_each_entry(vlan, &ocelot->vlans, list) {
+		if (!(vlan->portmask & BIT(port)))
+			continue;
+
+		if (!(vlan->untagged & BIT(port)))
+			num_tagged++;
+	}
+
+	return num_tagged;
+}
+
+/* We use native VLAN when we have to mix egress-tagged VLANs with exactly
+ * _one_ egress-untagged VLAN (_the_ native VLAN)
+ */
+static bool ocelot_port_uses_native_vlan(struct ocelot *ocelot, int port)
+{
+	return ocelot_port_num_tagged_vlans(ocelot, port) &&
+	       ocelot_port_num_untagged_vlans(ocelot, port) == 1;
+}
+
+static struct ocelot_bridge_vlan *
+ocelot_port_find_native_vlan(struct ocelot *ocelot, int port)
+{
+	struct ocelot_bridge_vlan *vlan;
+
+	list_for_each_entry(vlan, &ocelot->vlans, list)
+		if (vlan->portmask & BIT(port) && vlan->untagged & BIT(port))
+			return vlan;
+
+	return NULL;
+}
+
+/* Keep in sync REW_TAG_CFG_TAG_CFG and, if applicable,
+ * REW_PORT_VLAN_CFG_PORT_VID, with the bridge VLAN table and VLAN awareness
+ * state of the port.
+ */
+static void ocelot_port_manage_port_tag(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	u32 val = 0;
-
-	ocelot_port->native_vlan = native_vlan;
-
-	ocelot_rmw_gix(ocelot, REW_PORT_VLAN_CFG_PORT_VID(native_vlan.vid),
-		       REW_PORT_VLAN_CFG_PORT_VID_M,
-		       REW_PORT_VLAN_CFG, port);
+	enum ocelot_port_tag_config tag_cfg;
+	bool uses_native_vlan = false;
 
 	if (ocelot_port->vlan_aware) {
-		if (native_vlan.valid)
-			/* Tag all frames except when VID == DEFAULT_VLAN */
-			val = REW_TAG_CFG_TAG_CFG(1);
+		uses_native_vlan = ocelot_port_uses_native_vlan(ocelot, port);
+
+		if (uses_native_vlan)
+			tag_cfg = OCELOT_PORT_TAG_NATIVE;
+		else if (ocelot_port_num_untagged_vlans(ocelot, port))
+			tag_cfg = OCELOT_PORT_TAG_DISABLED;
 		else
-			/* Tag all frames */
-			val = REW_TAG_CFG_TAG_CFG(3);
+			tag_cfg = OCELOT_PORT_TAG_TRUNK;
 	} else {
-		/* Port tagging disabled. */
-		val = REW_TAG_CFG_TAG_CFG(0);
+		tag_cfg = OCELOT_PORT_TAG_DISABLED;
 	}
-	ocelot_rmw_gix(ocelot, val,
+
+	ocelot_rmw_gix(ocelot, REW_TAG_CFG_TAG_CFG(tag_cfg),
 		       REW_TAG_CFG_TAG_CFG_M,
 		       REW_TAG_CFG, port);
+
+	if (uses_native_vlan) {
+		struct ocelot_bridge_vlan *native_vlan;
+
+		/* Not having a native VLAN is impossible, because
+		 * ocelot_port_num_untagged_vlans has returned 1.
+		 * So there is no use in checking for NULL here.
+		 */
+		native_vlan = ocelot_port_find_native_vlan(ocelot, port);
+
+		ocelot_rmw_gix(ocelot,
+			       REW_PORT_VLAN_CFG_PORT_VID(native_vlan->vid),
+			       REW_PORT_VLAN_CFG_PORT_VID_M,
+			       REW_PORT_VLAN_CFG, port);
+	}
 }
 
 /* Default vlan to clasify for untagged frames (may be zero) */
 static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
-				 struct ocelot_vlan pvid_vlan)
+				 const struct ocelot_bridge_vlan *pvid_vlan)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	u16 pvid = OCELOT_VLAN_UNAWARE_PVID;
 	u32 val = 0;
 
 	ocelot_port->pvid_vlan = pvid_vlan;
 
-	if (!ocelot_port->vlan_aware)
-		pvid_vlan.vid = 0;
+	if (ocelot_port->vlan_aware && pvid_vlan)
+		pvid = pvid_vlan->vid;
 
 	ocelot_rmw_gix(ocelot,
-		       ANA_PORT_VLAN_CFG_VLAN_VID(pvid_vlan.vid),
+		       ANA_PORT_VLAN_CFG_VLAN_VID(pvid),
 		       ANA_PORT_VLAN_CFG_VLAN_VID_M,
 		       ANA_PORT_VLAN_CFG, port);
 
@@ -212,7 +301,7 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 	 * classified to VLAN 0, but that is always in our RX filter, so it
 	 * would get accepted were it not for this setting.
 	 */
-	if (!pvid_vlan.valid && ocelot_port->vlan_aware)
+	if (!pvid_vlan && ocelot_port->vlan_aware)
 		val = ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
 		      ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA;
 
@@ -222,8 +311,94 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 		       ANA_PORT_DROP_CFG, port);
 }
 
+static struct ocelot_bridge_vlan *ocelot_bridge_vlan_find(struct ocelot *ocelot,
+							  u16 vid)
+{
+	struct ocelot_bridge_vlan *vlan;
+
+	list_for_each_entry(vlan, &ocelot->vlans, list)
+		if (vlan->vid == vid)
+			return vlan;
+
+	return NULL;
+}
+
+static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid,
+				  bool untagged)
+{
+	struct ocelot_bridge_vlan *vlan = ocelot_bridge_vlan_find(ocelot, vid);
+	unsigned long portmask;
+	int err;
+
+	if (vlan) {
+		portmask = vlan->portmask | BIT(port);
+
+		err = ocelot_vlant_set_mask(ocelot, vid, portmask);
+		if (err)
+			return err;
+
+		vlan->portmask = portmask;
+		/* Bridge VLANs can be overwritten with a different
+		 * egress-tagging setting, so make sure to override an untagged
+		 * with a tagged VID if that's going on.
+		 */
+		if (untagged)
+			vlan->untagged |= BIT(port);
+		else
+			vlan->untagged &= ~BIT(port);
+
+		return 0;
+	}
+
+	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
+	if (!vlan)
+		return -ENOMEM;
+
+	portmask = BIT(port);
+
+	err = ocelot_vlant_set_mask(ocelot, vid, portmask);
+	if (err) {
+		kfree(vlan);
+		return err;
+	}
+
+	vlan->vid = vid;
+	vlan->portmask = portmask;
+	if (untagged)
+		vlan->untagged = BIT(port);
+	INIT_LIST_HEAD(&vlan->list);
+	list_add_tail(&vlan->list, &ocelot->vlans);
+
+	return 0;
+}
+
+static int ocelot_vlan_member_del(struct ocelot *ocelot, int port, u16 vid)
+{
+	struct ocelot_bridge_vlan *vlan = ocelot_bridge_vlan_find(ocelot, vid);
+	unsigned long portmask;
+	int err;
+
+	if (!vlan)
+		return 0;
+
+	portmask = vlan->portmask & ~BIT(port);
+
+	err = ocelot_vlant_set_mask(ocelot, vid, portmask);
+	if (err)
+		return err;
+
+	vlan->portmask = portmask;
+	if (vlan->portmask)
+		return 0;
+
+	list_del(&vlan->list);
+	kfree(vlan);
+
+	return 0;
+}
+
 int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
-			       bool vlan_aware)
+			       bool vlan_aware, struct netlink_ext_ack *extack)
 {
 	struct ocelot_vcap_block *block = &ocelot->block[VCAP_IS1];
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
@@ -233,8 +408,8 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 	list_for_each_entry(filter, &block->rules, list) {
 		if (filter->ingress_port_mask & BIT(port) &&
 		    filter->action.vid_replace_ena) {
-			dev_err(ocelot->dev,
-				"Cannot change VLAN state with vlan modify rules active\n");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot change VLAN state with vlan modify rules active");
 			return -EBUSY;
 		}
 	}
@@ -252,24 +427,29 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 		       ANA_PORT_VLAN_CFG, port);
 
 	ocelot_port_set_pvid(ocelot, port, ocelot_port->pvid_vlan);
-	ocelot_port_set_native_vlan(ocelot, port, ocelot_port->native_vlan);
+	ocelot_port_manage_port_tag(ocelot, port);
 
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_port_vlan_filtering);
 
 int ocelot_vlan_prepare(struct ocelot *ocelot, int port, u16 vid, bool pvid,
-			bool untagged)
+			bool untagged, struct netlink_ext_ack *extack)
 {
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
-
-	/* Deny changing the native VLAN, but always permit deleting it */
-	if (untagged && ocelot_port->native_vlan.vid != vid &&
-	    ocelot_port->native_vlan.valid) {
-		dev_err(ocelot->dev,
-			"Port already has a native VLAN: %d\n",
-			ocelot_port->native_vlan.vid);
-		return -EBUSY;
+	if (untagged) {
+		/* We are adding an egress-tagged VLAN */
+		if (ocelot_port_uses_native_vlan(ocelot, port)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Port with egress-tagged VLANs cannot have more than one egress-untagged (native) VLAN");
+			return -EBUSY;
+		}
+	} else {
+		/* We are adding an egress-tagged VLAN */
+		if (ocelot_port_num_untagged_vlans(ocelot, port) > 1) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Port with more than one egress-untagged VLAN cannot have egress-tagged VLANs");
+			return -EBUSY;
+		}
 	}
 
 	return 0;
@@ -279,31 +459,19 @@ EXPORT_SYMBOL(ocelot_vlan_prepare);
 int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 		    bool untagged)
 {
-	int ret;
+	int err;
 
-	/* Make the port a member of the VLAN */
-	ocelot->vlan_mask[vid] |= BIT(port);
-	ret = ocelot_vlant_set_mask(ocelot, vid, ocelot->vlan_mask[vid]);
-	if (ret)
-		return ret;
+	err = ocelot_vlan_member_add(ocelot, port, vid, untagged);
+	if (err)
+		return err;
 
 	/* Default ingress vlan classification */
-	if (pvid) {
-		struct ocelot_vlan pvid_vlan;
-
-		pvid_vlan.vid = vid;
-		pvid_vlan.valid = true;
-		ocelot_port_set_pvid(ocelot, port, pvid_vlan);
-	}
+	if (pvid)
+		ocelot_port_set_pvid(ocelot, port,
+				     ocelot_bridge_vlan_find(ocelot, vid));
 
 	/* Untagged egress vlan clasification */
-	if (untagged) {
-		struct ocelot_vlan native_vlan;
-
-		native_vlan.vid = vid;
-		native_vlan.valid = true;
-		ocelot_port_set_native_vlan(ocelot, port, native_vlan);
-	}
+	ocelot_port_manage_port_tag(ocelot, port);
 
 	return 0;
 }
@@ -312,27 +480,18 @@ EXPORT_SYMBOL(ocelot_vlan_add);
 int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	int ret;
+	int err;
 
-	/* Stop the port from being a member of the vlan */
-	ocelot->vlan_mask[vid] &= ~BIT(port);
-	ret = ocelot_vlant_set_mask(ocelot, vid, ocelot->vlan_mask[vid]);
-	if (ret)
-		return ret;
+	err = ocelot_vlan_member_del(ocelot, port, vid);
+	if (err)
+		return err;
 
 	/* Ingress */
-	if (ocelot_port->pvid_vlan.vid == vid) {
-		struct ocelot_vlan pvid_vlan = {0};
-
-		ocelot_port_set_pvid(ocelot, port, pvid_vlan);
-	}
+	if (ocelot_port->pvid_vlan && ocelot_port->pvid_vlan->vid == vid)
+		ocelot_port_set_pvid(ocelot, port, NULL);
 
 	/* Egress */
-	if (ocelot_port->native_vlan.vid == vid) {
-		struct ocelot_vlan native_vlan = {0};
-
-		ocelot_port_set_native_vlan(ocelot, port, native_vlan);
-	}
+	ocelot_port_manage_port_tag(ocelot, port);
 
 	return 0;
 }
@@ -340,6 +499,7 @@ EXPORT_SYMBOL(ocelot_vlan_del);
 
 static void ocelot_vlan_init(struct ocelot *ocelot)
 {
+	unsigned long all_ports = GENMASK(ocelot->num_phys_ports - 1, 0);
 	u16 port, vid;
 
 	/* Clear VLAN table, by default all ports are members of all VLANs */
@@ -348,23 +508,19 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 	ocelot_vlant_wait_for_completion(ocelot);
 
 	/* Configure the port VLAN memberships */
-	for (vid = 1; vid < VLAN_N_VID; vid++) {
-		ocelot->vlan_mask[vid] = 0;
-		ocelot_vlant_set_mask(ocelot, vid, ocelot->vlan_mask[vid]);
-	}
+	for (vid = 1; vid < VLAN_N_VID; vid++)
+		ocelot_vlant_set_mask(ocelot, vid, 0);
 
 	/* Because VLAN filtering is enabled, we need VID 0 to get untagged
 	 * traffic.  It is added automatically if 8021q module is loaded, but
 	 * we can't rely on it since module may be not loaded.
 	 */
-	ocelot->vlan_mask[0] = GENMASK(ocelot->num_phys_ports - 1, 0);
-	ocelot_vlant_set_mask(ocelot, 0, ocelot->vlan_mask[0]);
+	ocelot_vlant_set_mask(ocelot, OCELOT_VLAN_UNAWARE_PVID, all_ports);
 
 	/* Set vlan ingress filter mask to all ports but the CPU port by
 	 * default.
 	 */
-	ocelot_write(ocelot, GENMASK(ocelot->num_phys_ports - 1, 0),
-		     ANA_VLANMASK);
+	ocelot_write(ocelot, all_ports, ANA_VLANMASK);
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		ocelot_write_gix(ocelot, 0, REW_PORT_VLAN_CFG, port);
@@ -377,7 +533,7 @@ static u32 ocelot_read_eq_avail(struct ocelot *ocelot, int port)
 	return ocelot_read_rix(ocelot, QSYS_SW_STATUS, port);
 }
 
-int ocelot_port_flush(struct ocelot *ocelot, int port)
+static int ocelot_port_flush(struct ocelot *ocelot, int port)
 {
 	unsigned int pause_ena;
 	int err, val;
@@ -429,155 +585,164 @@ int ocelot_port_flush(struct ocelot *ocelot, int port)
 
 	return err;
 }
-EXPORT_SYMBOL(ocelot_port_flush);
 
-void ocelot_adjust_link(struct ocelot *ocelot, int port,
-			struct phy_device *phydev)
+void ocelot_phylink_mac_link_down(struct ocelot *ocelot, int port,
+				  unsigned int link_an_mode,
+				  phy_interface_t interface,
+				  unsigned long quirks)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	int speed, mode = 0;
+	int err;
 
-	switch (phydev->speed) {
+	ocelot_port_rmwl(ocelot_port, 0, DEV_MAC_ENA_CFG_RX_ENA,
+			 DEV_MAC_ENA_CFG);
+
+	ocelot_fields_write(ocelot, port, QSYS_SWITCH_PORT_MODE_PORT_ENA, 0);
+
+	err = ocelot_port_flush(ocelot, port);
+	if (err)
+		dev_err(ocelot->dev, "failed to flush port %d: %d\n",
+			port, err);
+
+	/* Put the port in reset. */
+	if (interface != PHY_INTERFACE_MODE_QSGMII ||
+	    !(quirks & OCELOT_QUIRK_QSGMII_PORTS_MUST_BE_UP))
+		ocelot_port_rmwl(ocelot_port,
+				 DEV_CLOCK_CFG_MAC_TX_RST |
+				 DEV_CLOCK_CFG_MAC_RX_RST,
+				 DEV_CLOCK_CFG_MAC_TX_RST |
+				 DEV_CLOCK_CFG_MAC_RX_RST,
+				 DEV_CLOCK_CFG);
+}
+EXPORT_SYMBOL_GPL(ocelot_phylink_mac_link_down);
+
+void ocelot_phylink_mac_link_up(struct ocelot *ocelot, int port,
+				struct phy_device *phydev,
+				unsigned int link_an_mode,
+				phy_interface_t interface,
+				int speed, int duplex,
+				bool tx_pause, bool rx_pause,
+				unsigned long quirks)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	int mac_speed, mode = 0;
+	u32 mac_fc_cfg;
+
+	/* The MAC might be integrated in systems where the MAC speed is fixed
+	 * and it's the PCS who is performing the rate adaptation, so we have
+	 * to write "1000Mbps" into the LINK_SPEED field of DEV_CLOCK_CFG
+	 * (which is also its default value).
+	 */
+	if ((quirks & OCELOT_QUIRK_PCS_PERFORMS_RATE_ADAPTATION) ||
+	    speed == SPEED_1000) {
+		mac_speed = OCELOT_SPEED_1000;
+		mode = DEV_MAC_MODE_CFG_GIGA_MODE_ENA;
+	} else if (speed == SPEED_2500) {
+		mac_speed = OCELOT_SPEED_2500;
+		mode = DEV_MAC_MODE_CFG_GIGA_MODE_ENA;
+	} else if (speed == SPEED_100) {
+		mac_speed = OCELOT_SPEED_100;
+	} else {
+		mac_speed = OCELOT_SPEED_10;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		mode |= DEV_MAC_MODE_CFG_FDX_ENA;
+
+	ocelot_port_writel(ocelot_port, mode, DEV_MAC_MODE_CFG);
+
+	/* Take port out of reset by clearing the MAC_TX_RST, MAC_RX_RST and
+	 * PORT_RST bits in DEV_CLOCK_CFG.
+	 */
+	ocelot_port_writel(ocelot_port, DEV_CLOCK_CFG_LINK_SPEED(mac_speed),
+			   DEV_CLOCK_CFG);
+
+	switch (speed) {
 	case SPEED_10:
-		speed = OCELOT_SPEED_10;
+		mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(OCELOT_SPEED_10);
 		break;
 	case SPEED_100:
-		speed = OCELOT_SPEED_100;
+		mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(OCELOT_SPEED_100);
 		break;
 	case SPEED_1000:
-		speed = OCELOT_SPEED_1000;
-		mode = DEV_MAC_MODE_CFG_GIGA_MODE_ENA;
-		break;
 	case SPEED_2500:
-		speed = OCELOT_SPEED_2500;
-		mode = DEV_MAC_MODE_CFG_GIGA_MODE_ENA;
+		mac_fc_cfg = SYS_MAC_FC_CFG_FC_LINK_SPEED(OCELOT_SPEED_1000);
 		break;
 	default:
-		dev_err(ocelot->dev, "Unsupported PHY speed on port %d: %d\n",
-			port, phydev->speed);
+		dev_err(ocelot->dev, "Unsupported speed on port %d: %d\n",
+			port, speed);
 		return;
 	}
 
-	phy_print_status(phydev);
+	/* Handle RX pause in all cases, with 2500base-X this is used for rate
+	 * adaptation.
+	 */
+	mac_fc_cfg |= SYS_MAC_FC_CFG_RX_FC_ENA;
 
-	if (!phydev->link)
-		return;
+	if (tx_pause)
+		mac_fc_cfg |= SYS_MAC_FC_CFG_TX_FC_ENA |
+			      SYS_MAC_FC_CFG_PAUSE_VAL_CFG(0xffff) |
+			      SYS_MAC_FC_CFG_FC_LATENCY_CFG(0x7) |
+			      SYS_MAC_FC_CFG_ZERO_PAUSE_ENA;
 
-	/* Only full duplex supported for now */
-	ocelot_port_writel(ocelot_port, DEV_MAC_MODE_CFG_FDX_ENA |
-			   mode, DEV_MAC_MODE_CFG);
+	/* Flow control. Link speed is only used here to evaluate the time
+	 * specification in incoming pause frames.
+	 */
+	ocelot_write_rix(ocelot, mac_fc_cfg, SYS_MAC_FC_CFG, port);
 
-	/* Disable HDX fast control */
-	ocelot_port_writel(ocelot_port, DEV_PORT_MISC_HDX_FAST_DIS,
-			   DEV_PORT_MISC);
+	ocelot_write_rix(ocelot, 0, ANA_POL_FLOWC, port);
 
-	/* SGMII only for now */
-	ocelot_port_writel(ocelot_port, PCS1G_MODE_CFG_SGMII_MODE_ENA,
-			   PCS1G_MODE_CFG);
-	ocelot_port_writel(ocelot_port, PCS1G_SD_CFG_SD_SEL, PCS1G_SD_CFG);
+	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_ENA, tx_pause);
 
-	/* Enable PCS */
-	ocelot_port_writel(ocelot_port, PCS1G_CFG_PCS_ENA, PCS1G_CFG);
-
-	/* No aneg on SGMII */
-	ocelot_port_writel(ocelot_port, 0, PCS1G_ANEG_CFG);
-
-	/* No loopback */
-	ocelot_port_writel(ocelot_port, 0, PCS1G_LB_CFG);
-
-	/* Enable MAC module */
+	/* Undo the effects of ocelot_phylink_mac_link_down:
+	 * enable MAC module
+	 */
 	ocelot_port_writel(ocelot_port, DEV_MAC_ENA_CFG_RX_ENA |
 			   DEV_MAC_ENA_CFG_TX_ENA, DEV_MAC_ENA_CFG);
-
-	/* Take MAC, Port, Phy (intern) and PCS (SGMII/Serdes) clock out of
-	 * reset
-	 */
-	ocelot_port_writel(ocelot_port, DEV_CLOCK_CFG_LINK_SPEED(speed),
-			   DEV_CLOCK_CFG);
-
-	/* No PFC */
-	ocelot_write_gix(ocelot, ANA_PFC_PFC_CFG_FC_LINK_SPEED(speed),
-			 ANA_PFC_PFC_CFG, port);
 
 	/* Core: Enable port for frame transfer */
 	ocelot_fields_write(ocelot, port,
 			    QSYS_SWITCH_PORT_MODE_PORT_ENA, 1);
-
-	/* Flow control */
-	ocelot_write_rix(ocelot, SYS_MAC_FC_CFG_PAUSE_VAL_CFG(0xffff) |
-			 SYS_MAC_FC_CFG_RX_FC_ENA | SYS_MAC_FC_CFG_TX_FC_ENA |
-			 SYS_MAC_FC_CFG_ZERO_PAUSE_ENA |
-			 SYS_MAC_FC_CFG_FC_LATENCY_CFG(0x7) |
-			 SYS_MAC_FC_CFG_FC_LINK_SPEED(speed),
-			 SYS_MAC_FC_CFG, port);
-	ocelot_write_rix(ocelot, 0, ANA_POL_FLOWC, port);
 }
-EXPORT_SYMBOL(ocelot_adjust_link);
+EXPORT_SYMBOL_GPL(ocelot_phylink_mac_link_up);
 
-void ocelot_port_enable(struct ocelot *ocelot, int port,
-			struct phy_device *phy)
-{
-	/* Enable receiving frames on the port, and activate auto-learning of
-	 * MAC addresses.
-	 */
-	ocelot_write_gix(ocelot, ANA_PORT_PORT_CFG_LEARNAUTO |
-			 ANA_PORT_PORT_CFG_RECV_ENA |
-			 ANA_PORT_PORT_CFG_PORTID_VAL(port),
-			 ANA_PORT_PORT_CFG, port);
-}
-EXPORT_SYMBOL(ocelot_port_enable);
-
-void ocelot_port_disable(struct ocelot *ocelot, int port)
+static int ocelot_port_add_txtstamp_skb(struct ocelot *ocelot, int port,
+					struct sk_buff *clone)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	unsigned long flags;
 
-	ocelot_port_writel(ocelot_port, 0, DEV_MAC_ENA_CFG);
-	ocelot_fields_write(ocelot, port, QSYS_SWITCH_PORT_MODE_PORT_ENA, 0);
-}
-EXPORT_SYMBOL(ocelot_port_disable);
+	spin_lock_irqsave(&ocelot->ts_id_lock, flags);
 
-static void ocelot_port_add_txtstamp_skb(struct ocelot *ocelot, int port,
-					 struct sk_buff *clone)
-{
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
-
-	spin_lock(&ocelot_port->ts_id_lock);
+	if (ocelot_port->ptp_skbs_in_flight == OCELOT_MAX_PTP_ID ||
+	    ocelot->ptp_skbs_in_flight == OCELOT_PTP_FIFO_SIZE) {
+		spin_unlock_irqrestore(&ocelot->ts_id_lock, flags);
+		return -EBUSY;
+	}
 
 	skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
 	/* Store timestamp ID in OCELOT_SKB_CB(clone)->ts_id */
 	OCELOT_SKB_CB(clone)->ts_id = ocelot_port->ts_id;
-	ocelot_port->ts_id = (ocelot_port->ts_id + 1) % 4;
+
+	ocelot_port->ts_id++;
+	if (ocelot_port->ts_id == OCELOT_MAX_PTP_ID)
+		ocelot_port->ts_id = 0;
+
+	ocelot_port->ptp_skbs_in_flight++;
+	ocelot->ptp_skbs_in_flight++;
+
 	skb_queue_tail(&ocelot_port->tx_skbs, clone);
 
-	spin_unlock(&ocelot_port->ts_id_lock);
+	spin_unlock_irqrestore(&ocelot->ts_id_lock, flags);
+
+	return 0;
 }
 
-u32 ocelot_ptp_rew_op(struct sk_buff *skb)
-{
-	struct sk_buff *clone = OCELOT_SKB_CB(skb)->clone;
-	u8 ptp_cmd = OCELOT_SKB_CB(skb)->ptp_cmd;
-	u32 rew_op = 0;
-
-	if (ptp_cmd == IFH_REW_OP_TWO_STEP_PTP && clone) {
-		rew_op = ptp_cmd;
-		rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
-	} else if (ptp_cmd == IFH_REW_OP_ORIGIN_PTP) {
-		rew_op = ptp_cmd;
-	}
-
-	return rew_op;
-}
-EXPORT_SYMBOL(ocelot_ptp_rew_op);
-
-static bool ocelot_ptp_is_onestep_sync(struct sk_buff *skb)
+static bool ocelot_ptp_is_onestep_sync(struct sk_buff *skb,
+				       unsigned int ptp_class)
 {
 	struct ptp_header *hdr;
-	unsigned int ptp_class;
 	u8 msgtype, twostep;
-
-	ptp_class = ptp_classify_raw(skb);
-	if (ptp_class == PTP_CLASS_NONE)
-		return false;
 
 	hdr = ptp_parse_header(skb, ptp_class);
 	if (!hdr)
@@ -598,10 +763,20 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u8 ptp_cmd = ocelot_port->ptp_cmd;
+	unsigned int ptp_class;
+	int err;
+
+	/* Don't do anything if PTP timestamping not enabled */
+	if (!ptp_cmd)
+		return 0;
+
+	ptp_class = ptp_classify_raw(skb);
+	if (ptp_class == PTP_CLASS_NONE)
+		return -EINVAL;
 
 	/* Store ptp_cmd in OCELOT_SKB_CB(skb)->ptp_cmd */
 	if (ptp_cmd == IFH_REW_OP_ORIGIN_PTP) {
-		if (ocelot_ptp_is_onestep_sync(skb)) {
+		if (ocelot_ptp_is_onestep_sync(skb, ptp_class)) {
 			OCELOT_SKB_CB(skb)->ptp_cmd = ptp_cmd;
 			return 0;
 		}
@@ -615,8 +790,12 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 		if (!(*clone))
 			return -ENOMEM;
 
-		ocelot_port_add_txtstamp_skb(ocelot, port, *clone);
+		err = ocelot_port_add_txtstamp_skb(ocelot, port, *clone);
+		if (err)
+			return err;
+
 		OCELOT_SKB_CB(skb)->ptp_cmd = ptp_cmd;
+		OCELOT_SKB_CB(*clone)->ptp_class = ptp_class;
 	}
 
 	return 0;
@@ -650,6 +829,17 @@ static void ocelot_get_hwtimestamp(struct ocelot *ocelot,
 	spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
 }
 
+static bool ocelot_validate_ptp_skb(struct sk_buff *clone, u16 seqid)
+{
+	struct ptp_header *hdr;
+
+	hdr = ptp_parse_header(clone, OCELOT_SKB_CB(clone)->ptp_class);
+	if (WARN_ON(!hdr))
+		return false;
+
+	return seqid == ntohs(hdr->sequence_id);
+}
+
 void ocelot_get_txtstamp(struct ocelot *ocelot)
 {
 	int budget = OCELOT_PTP_QUEUE_SZ;
@@ -657,10 +847,10 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 	while (budget--) {
 		struct sk_buff *skb, *skb_tmp, *skb_match = NULL;
 		struct skb_shared_hwtstamps shhwtstamps;
+		u32 val, id, seqid, txport;
 		struct ocelot_port *port;
 		struct timespec64 ts;
 		unsigned long flags;
-		u32 val, id, txport;
 
 		val = ocelot_read(ocelot, SYS_PTP_STATUS);
 
@@ -673,10 +863,17 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 		/* Retrieve the ts ID and Tx port */
 		id = SYS_PTP_STATUS_PTP_MESS_ID_X(val);
 		txport = SYS_PTP_STATUS_PTP_MESS_TXPORT_X(val);
+		seqid = SYS_PTP_STATUS_PTP_MESS_SEQ_ID(val);
 
-		/* Retrieve its associated skb */
 		port = ocelot->ports[txport];
 
+		spin_lock(&ocelot->ts_id_lock);
+		port->ptp_skbs_in_flight--;
+		ocelot->ptp_skbs_in_flight--;
+		spin_unlock(&ocelot->ts_id_lock);
+
+		/* Retrieve its associated skb */
+try_again:
 		spin_lock_irqsave(&port->tx_skbs.lock, flags);
 
 		skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
@@ -689,11 +886,19 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 
 		spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
 
+		if (WARN_ON(!skb_match))
+			continue;
+
+		if (!ocelot_validate_ptp_skb(skb_match, seqid)) {
+			dev_err_ratelimited(ocelot->dev,
+					    "port %d received stale TX timestamp for seqid %d, discarding\n",
+					    txport, seqid);
+			dev_kfree_skb_any(skb);
+			goto try_again;
+		}
+
 		/* Get the h/w timestamp */
 		ocelot_get_hwtimestamp(ocelot, &ts);
-
-		if (unlikely(!skb_match))
-			continue;
 
 		/* Set the timestamp into the skb */
 		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
@@ -883,7 +1088,7 @@ void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
 	ocelot_ifh_set_bypass(ifh, 1);
 	ocelot_ifh_set_dest(ifh, BIT_ULL(port));
 	ocelot_ifh_set_tag_type(ifh, IFH_TAG_TYPE_C);
-	ocelot_ifh_set_vid(ifh, skb_vlan_tag_get(skb));
+	ocelot_ifh_set_vlan_tci(ifh, skb_vlan_tag_get(skb));
 	ocelot_ifh_set_rew_op(ifh, rew_op);
 
 	for (i = 0; i < OCELOT_TAG_LEN / 4; i++)
@@ -985,6 +1190,7 @@ nla_put_failure:
 }
 EXPORT_SYMBOL(ocelot_port_fdb_do_dump);
 
+/* Caller must hold &ocelot->mact_lock */
 static int ocelot_mact_read(struct ocelot *ocelot, int port, int row, int col,
 			    struct ocelot_mact_entry *entry)
 {
@@ -1035,33 +1241,40 @@ static int ocelot_mact_read(struct ocelot *ocelot, int port, int row, int col,
 int ocelot_fdb_dump(struct ocelot *ocelot, int port,
 		    dsa_fdb_dump_cb_t *cb, void *data)
 {
+	int err = 0;
 	int i, j;
+
+	/* We could take the lock just around ocelot_mact_read, but doing so
+	 * thousands of times in a row seems rather pointless and inefficient.
+	 */
+	mutex_lock(&ocelot->mact_lock);
 
 	/* Loop through all the mac tables entries. */
 	for (i = 0; i < ocelot->num_mact_rows; i++) {
 		for (j = 0; j < 4; j++) {
 			struct ocelot_mact_entry entry;
 			bool is_static;
-			int ret;
 
-			ret = ocelot_mact_read(ocelot, port, i, j, &entry);
+			err = ocelot_mact_read(ocelot, port, i, j, &entry);
 			/* If the entry is invalid (wrong port, invalid...),
 			 * skip it.
 			 */
-			if (ret == -EINVAL)
+			if (err == -EINVAL)
 				continue;
-			else if (ret)
-				return ret;
+			else if (err)
+				break;
 
 			is_static = (entry.type == ENTRYTYPE_LOCKED);
 
-			ret = cb(entry.mac, entry.vid, is_static, data);
-			if (ret)
-				return ret;
+			err = cb(entry.mac, entry.vid, is_static, data);
+			if (err)
+				break;
 		}
 	}
 
-	return 0;
+	mutex_unlock(&ocelot->mact_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(ocelot_fdb_dump);
 
@@ -1260,14 +1473,19 @@ static u32 ocelot_get_bond_mask(struct ocelot *ocelot, struct net_device *bond,
 	return mask;
 }
 
-static u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot,
+static u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port,
 				      struct net_device *bridge)
 {
+	struct ocelot_port *ocelot_port = ocelot->ports[src_port];
 	u32 mask = 0;
 	int port;
 
+	if (!ocelot_port || ocelot_port->bridge != bridge ||
+	    ocelot_port->stp_state != BR_STATE_FORWARDING)
+		return 0;
+
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		struct ocelot_port *ocelot_port = ocelot->ports[port];
+		ocelot_port = ocelot->ports[port];
 
 		if (!ocelot_port)
 			continue;
@@ -1333,7 +1551,8 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot)
 			struct net_device *bridge = ocelot_port->bridge;
 			struct net_device *bond = ocelot_port->bond;
 
-			mask = ocelot_get_bridge_fwd_mask(ocelot, bridge);
+			mask = ocelot_get_bridge_fwd_mask(ocelot, port, bridge);
+			mask |= cpu_fwd_mask;
 			mask &= ~BIT(port);
 			if (bond) {
 				mask &= ~ocelot_get_bond_mask(ocelot, bond,
@@ -1606,12 +1825,11 @@ void ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 			      struct net_device *bridge)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	struct ocelot_vlan pvid = {0}, native_vlan = {0};
 
 	ocelot_port->bridge = NULL;
 
-	ocelot_port_set_pvid(ocelot, port, pvid);
-	ocelot_port_set_native_vlan(ocelot, port, native_vlan);
+	ocelot_port_set_pvid(ocelot, port, NULL);
+	ocelot_port_manage_port_tag(ocelot, port);
 	ocelot_apply_bridge_fwd_mask(ocelot);
 }
 EXPORT_SYMBOL(ocelot_port_bridge_leave);
@@ -1909,7 +2127,6 @@ void ocelot_init_port(struct ocelot *ocelot, int port)
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
 	skb_queue_head_init(&ocelot_port->tx_skbs);
-	spin_lock_init(&ocelot_port->ts_id_lock);
 
 	/* Basic L2 initialization */
 
@@ -1956,6 +2173,15 @@ void ocelot_init_port(struct ocelot *ocelot, int port)
 	/* Disable source address learning for standalone mode */
 	ocelot_port_set_learning(ocelot, port, false);
 
+	/* Set the port's initial logical port ID value, enable receiving
+	 * frames on it, and configure the MAC address learning type to
+	 * automatic.
+	 */
+	ocelot_write_gix(ocelot, ANA_PORT_PORT_CFG_LEARNAUTO |
+			 ANA_PORT_PORT_CFG_RECV_ENA |
+			 ANA_PORT_PORT_CFG_PORTID_VAL(port),
+			 ANA_PORT_PORT_CFG, port);
+
 	/* Enable vcap lookups */
 	ocelot_vcap_enable(ocelot, port);
 }
@@ -1989,9 +2215,10 @@ static void ocelot_cpu_port_init(struct ocelot *ocelot)
 			    OCELOT_TAG_PREFIX_NONE);
 
 	/* Configure the CPU port to be VLAN aware */
-	ocelot_write_gix(ocelot, ANA_PORT_VLAN_CFG_VLAN_VID(0) |
-				 ANA_PORT_VLAN_CFG_VLAN_AWARE_ENA |
-				 ANA_PORT_VLAN_CFG_VLAN_POP_CNT(1),
+	ocelot_write_gix(ocelot,
+			 ANA_PORT_VLAN_CFG_VLAN_VID(OCELOT_VLAN_UNAWARE_PVID) |
+			 ANA_PORT_VLAN_CFG_VLAN_AWARE_ENA |
+			 ANA_PORT_VLAN_CFG_VLAN_POP_CNT(1),
 			 ANA_PORT_VLAN_CFG, cpu);
 }
 
@@ -2032,7 +2259,9 @@ int ocelot_init(struct ocelot *ocelot)
 
 	mutex_init(&ocelot->stats_lock);
 	mutex_init(&ocelot->ptp_lock);
+	mutex_init(&ocelot->mact_lock);
 	spin_lock_init(&ocelot->ptp_clock_lock);
+	spin_lock_init(&ocelot->ts_id_lock);
 	snprintf(queue_name, sizeof(queue_name), "%s-stats",
 		 dev_name(ocelot->dev));
 	ocelot->stats_queue = create_singlethread_workqueue(queue_name);
@@ -2047,6 +2276,7 @@ int ocelot_init(struct ocelot *ocelot)
 
 	INIT_LIST_HEAD(&ocelot->multicast);
 	INIT_LIST_HEAD(&ocelot->pgids);
+	INIT_LIST_HEAD(&ocelot->vlans);
 	ocelot_detect_features(ocelot);
 	ocelot_mact_init(ocelot);
 	ocelot_vlan_init(ocelot);

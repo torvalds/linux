@@ -20,6 +20,14 @@
 #define SDX55_MX	1
 #define SDX55_CX	2
 
+/* SM6350 Power Domain Indexes */
+#define SM6350_CX	0
+#define SM6350_GFX	1
+#define SM6350_LCX	2
+#define SM6350_LMX	3
+#define SM6350_MSS	4
+#define SM6350_MX	5
+
 /* SM8150 Power Domain Indexes */
 #define SM8150_MSS	0
 #define SM8150_EBI	1
@@ -133,6 +141,15 @@
 #define MSM8916_VDDMX		3
 #define MSM8916_VDDMX_AO	4
 
+/* MSM8953 Power Domain Indexes */
+#define MSM8953_VDDMD		0
+#define MSM8953_VDDMD_AO	1
+#define MSM8953_VDDCX		2
+#define MSM8953_VDDCX_AO	3
+#define MSM8953_VDDCX_VFL	4
+#define MSM8953_VDDMX		5
+#define MSM8953_VDDMX_AO	6
+
 /* MSM8976 Power Domain Indexes */
 #define MSM8976_VDDCX		0
 #define MSM8976_VDDCX_AO	1
@@ -191,6 +208,16 @@
 #define SDM660_SSCCX_VFL	7
 #define SDM660_SSCMX		8
 #define SDM660_SSCMX_VFL	9
+
+/* SM6115 Power Domains */
+#define SM6115_VDDCX		0
+#define SM6115_VDDCX_AO		1
+#define SM6115_VDDCX_VFL	2
+#define SM6115_VDDMX		3
+#define SM6115_VDDMX_AO		4
+#define SM6115_VDDMX_VFL	5
+#define SM6115_VDD_LPI_CX	6
+#define SM6115_VDD_LPI_MX	7
 
 /* RPM SMD Power Domain performance levels */
 #define RPM_SMD_LEVEL_RETENTION       16

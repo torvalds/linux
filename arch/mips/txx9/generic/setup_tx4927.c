@@ -80,7 +80,7 @@ static int tx4927_be_handler(struct pt_regs *regs, int is_fixup)
 }
 static void __init tx4927_be_init(void)
 {
-	board_be_handler = tx4927_be_handler;
+	mips_set_be_handler(tx4927_be_handler);
 }
 
 static struct resource tx4927_sdram_resource[4];

@@ -427,7 +427,7 @@ static void hisi_femac_free_skb_rings(struct hisi_femac_priv *priv)
 }
 
 static int hisi_femac_set_hw_mac_addr(struct hisi_femac_priv *priv,
-				      unsigned char *mac)
+				      const unsigned char *mac)
 {
 	u32 reg;
 
@@ -555,7 +555,7 @@ static int hisi_femac_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(skaddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, skaddr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, skaddr->sa_data);
 	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	hisi_femac_set_hw_mac_addr(priv, dev->dev_addr);
@@ -685,7 +685,7 @@ static const struct net_device_ops hisi_femac_netdev_ops = {
 	.ndo_open		= hisi_femac_net_open,
 	.ndo_stop		= hisi_femac_net_close,
 	.ndo_start_xmit		= hisi_femac_net_xmit,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_mac_address	= hisi_femac_set_mac_address,
 	.ndo_set_rx_mode	= hisi_femac_net_set_rx_mode,
 };
@@ -841,7 +841,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 			   (unsigned long)phy->phy_id,
 			   phy_modes(phy->interface));
 
-	ret = of_get_mac_address(node, ndev->dev_addr);
+	ret = of_get_ethdev_address(node, ndev);
 	if (ret) {
 		eth_hw_addr_random(ndev);
 		dev_warn(dev, "using random MAC address %pM\n",

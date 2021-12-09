@@ -7,28 +7,26 @@
 #include "gem/i915_gem_pm.h"
 
 #include "i915_drv.h"
-#include "i915_globals.h"
+#include "i915_trace.h"
 
 #include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
 #include "intel_ring.h"
 
-static struct i915_global_context {
-	struct i915_global base;
-	struct kmem_cache *slab_ce;
-} global;
+static struct kmem_cache *slab_ce;
 
 static struct intel_context *intel_context_alloc(void)
 {
-	return kmem_cache_zalloc(global.slab_ce, GFP_KERNEL);
+	return kmem_cache_zalloc(slab_ce, GFP_KERNEL);
 }
 
 static void rcu_context_free(struct rcu_head *rcu)
 {
 	struct intel_context *ce = container_of(rcu, typeof(*ce), rcu);
 
-	kmem_cache_free(global.slab_ce, ce);
+	trace_intel_context_free(ce);
+	kmem_cache_free(slab_ce, ce);
 }
 
 void intel_context_free(struct intel_context *ce)
@@ -46,6 +44,7 @@ intel_context_create(struct intel_engine_cs *engine)
 		return ERR_PTR(-ENOMEM);
 
 	intel_context_init(ce, engine);
+	trace_intel_context_create(ce);
 	return ce;
 }
 
@@ -80,7 +79,7 @@ static int intel_context_active_acquire(struct intel_context *ce)
 
 	__i915_active_acquire(&ce->active);
 
-	if (intel_context_is_barrier(ce))
+	if (intel_context_is_barrier(ce) || intel_engine_uses_guc(ce->engine))
 		return 0;
 
 	/* Preallocate tracking nodes */
@@ -241,6 +240,8 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 	if (err)
 		goto err_post_unpin;
 
+	intel_engine_pm_might_get(ce->engine);
+
 	if (unlikely(intel_context_is_closed(ce))) {
 		err = -ENOENT;
 		goto err_unlock;
@@ -267,6 +268,8 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 	}
 
 	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
+
+	trace_intel_context_do_pin(ce);
 
 err_unlock:
 	mutex_unlock(&ce->pin_mutex);
@@ -306,9 +309,9 @@ retry:
 	return err;
 }
 
-void intel_context_unpin(struct intel_context *ce)
+void __intel_context_do_unpin(struct intel_context *ce, int sub)
 {
-	if (!atomic_dec_and_test(&ce->pin_count))
+	if (!atomic_sub_and_test(sub, &ce->pin_count))
 		return;
 
 	CE_TRACE(ce, "unpin\n");
@@ -323,6 +326,7 @@ void intel_context_unpin(struct intel_context *ce)
 	 */
 	intel_context_get(ce);
 	intel_context_active_release(ce);
+	trace_intel_context_do_unpin(ce);
 	intel_context_put(ce);
 }
 
@@ -360,6 +364,13 @@ static int __intel_context_active(struct i915_active *active)
 	return 0;
 }
 
+static int __i915_sw_fence_call
+sw_fence_dummy_notify(struct i915_sw_fence *sf,
+		      enum i915_sw_fence_notify state)
+{
+	return NOTIFY_DONE;
+}
+
 void
 intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 {
@@ -371,7 +382,8 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 	ce->engine = engine;
 	ce->ops = engine->cops;
 	ce->sseu = engine->sseu;
-	ce->ring = __intel_context_ring_size(SZ_4K);
+	ce->ring = NULL;
+	ce->ring_size = SZ_4K;
 
 	ewma_runtime_init(&ce->runtime.avg);
 
@@ -383,42 +395,58 @@ intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 
 	mutex_init(&ce->pin_mutex);
 
+	spin_lock_init(&ce->guc_state.lock);
+	INIT_LIST_HEAD(&ce->guc_state.fences);
+	INIT_LIST_HEAD(&ce->guc_state.requests);
+
+	ce->guc_id.id = GUC_INVALID_LRC_ID;
+	INIT_LIST_HEAD(&ce->guc_id.link);
+
+	INIT_LIST_HEAD(&ce->destroyed_link);
+
+	INIT_LIST_HEAD(&ce->parallel.child_list);
+
+	/*
+	 * Initialize fence to be complete as this is expected to be complete
+	 * unless there is a pending schedule disable outstanding.
+	 */
+	i915_sw_fence_init(&ce->guc_state.blocked,
+			   sw_fence_dummy_notify);
+	i915_sw_fence_commit(&ce->guc_state.blocked);
+
 	i915_active_init(&ce->active,
 			 __intel_context_active, __intel_context_retire, 0);
 }
 
 void intel_context_fini(struct intel_context *ce)
 {
+	struct intel_context *child, *next;
+
 	if (ce->timeline)
 		intel_timeline_put(ce->timeline);
 	i915_vm_put(ce->vm);
 
+	/* Need to put the creation ref for the children */
+	if (intel_context_is_parent(ce))
+		for_each_child_safe(ce, child, next)
+			intel_context_put(child);
+
 	mutex_destroy(&ce->pin_mutex);
 	i915_active_fini(&ce->active);
+	i915_sw_fence_fini(&ce->guc_state.blocked);
 }
 
-static void i915_global_context_shrink(void)
+void i915_context_module_exit(void)
 {
-	kmem_cache_shrink(global.slab_ce);
+	kmem_cache_destroy(slab_ce);
 }
 
-static void i915_global_context_exit(void)
+int __init i915_context_module_init(void)
 {
-	kmem_cache_destroy(global.slab_ce);
-}
-
-static struct i915_global_context global = { {
-	.shrink = i915_global_context_shrink,
-	.exit = i915_global_context_exit,
-} };
-
-int __init i915_global_context_init(void)
-{
-	global.slab_ce = KMEM_CACHE(intel_context, SLAB_HWCACHE_ALIGN);
-	if (!global.slab_ce)
+	slab_ce = KMEM_CACHE(intel_context, SLAB_HWCACHE_ALIGN);
+	if (!slab_ce)
 		return -ENOMEM;
 
-	i915_global_register(&global.base);
 	return 0;
 }
 
@@ -497,6 +525,55 @@ retry:
 	rq->cookie = lockdep_pin_lock(&ce->timeline->mutex);
 
 	return rq;
+}
+
+struct i915_request *intel_context_find_active_request(struct intel_context *ce)
+{
+	struct intel_context *parent = intel_context_to_parent(ce);
+	struct i915_request *rq, *active = NULL;
+	unsigned long flags;
+
+	GEM_BUG_ON(!intel_engine_uses_guc(ce->engine));
+
+	/*
+	 * We search the parent list to find an active request on the submitted
+	 * context. The parent list contains the requests for all the contexts
+	 * in the relationship so we have to do a compare of each request's
+	 * context.
+	 */
+	spin_lock_irqsave(&parent->guc_state.lock, flags);
+	list_for_each_entry_reverse(rq, &parent->guc_state.requests,
+				    sched.link) {
+		if (rq->context != ce)
+			continue;
+		if (i915_request_completed(rq))
+			break;
+
+		active = rq;
+	}
+	spin_unlock_irqrestore(&parent->guc_state.lock, flags);
+
+	return active;
+}
+
+void intel_context_bind_parent_child(struct intel_context *parent,
+				     struct intel_context *child)
+{
+	/*
+	 * Callers responsibility to validate that this function is used
+	 * correctly but we use GEM_BUG_ON here ensure that they do.
+	 */
+	GEM_BUG_ON(!intel_engine_uses_guc(parent->engine));
+	GEM_BUG_ON(intel_context_is_pinned(parent));
+	GEM_BUG_ON(intel_context_is_child(parent));
+	GEM_BUG_ON(intel_context_is_pinned(child));
+	GEM_BUG_ON(intel_context_is_child(child));
+	GEM_BUG_ON(intel_context_is_parent(child));
+
+	parent->parallel.child_index = parent->parallel.number_children++;
+	list_add_tail(&child->parallel.child_link,
+		      &parent->parallel.child_list);
+	child->parallel.parent = parent;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

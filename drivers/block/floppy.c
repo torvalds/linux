@@ -184,6 +184,7 @@ static int print_unex = 1;
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/major.h>
 #include <linux/platform_device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
@@ -4029,23 +4030,23 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	if (fdc_state[FDC(drive)].rawcmd == 1)
 		fdc_state[FDC(drive)].rawcmd = 2;
 
-	if (mode & (FMODE_READ|FMODE_WRITE)) {
-		drive_state[drive].last_checked = 0;
-		clear_bit(FD_OPEN_SHOULD_FAIL_BIT, &drive_state[drive].flags);
-		if (bdev_check_media_change(bdev))
-			floppy_revalidate(bdev->bd_disk);
-		if (test_bit(FD_DISK_CHANGED_BIT, &drive_state[drive].flags))
-			goto out;
-		if (test_bit(FD_OPEN_SHOULD_FAIL_BIT, &drive_state[drive].flags))
+	if (!(mode & FMODE_NDELAY)) {
+		if (mode & (FMODE_READ|FMODE_WRITE)) {
+			drive_state[drive].last_checked = 0;
+			clear_bit(FD_OPEN_SHOULD_FAIL_BIT,
+				  &drive_state[drive].flags);
+			if (bdev_check_media_change(bdev))
+				floppy_revalidate(bdev->bd_disk);
+			if (test_bit(FD_DISK_CHANGED_BIT, &drive_state[drive].flags))
+				goto out;
+			if (test_bit(FD_OPEN_SHOULD_FAIL_BIT, &drive_state[drive].flags))
+				goto out;
+		}
+		res = -EROFS;
+		if ((mode & FMODE_WRITE) &&
+		    !test_bit(FD_DISK_WRITABLE_BIT, &drive_state[drive].flags))
 			goto out;
 	}
-
-	res = -EROFS;
-
-	if ((mode & FMODE_WRITE) &&
-			!test_bit(FD_DISK_WRITABLE_BIT, &drive_state[drive].flags))
-		goto out;
-
 	mutex_unlock(&open_lock);
 	mutex_unlock(&floppy_mutex);
 	return 0;
@@ -4478,6 +4479,7 @@ static const struct blk_mq_ops floppy_mq_ops = {
 };
 
 static struct platform_device floppy_device[N_DRIVE];
+static bool registered[N_DRIVE];
 
 static bool floppy_available(int drive)
 {
@@ -4526,10 +4528,19 @@ static void floppy_probe(dev_t dev)
 		return;
 
 	mutex_lock(&floppy_probe_lock);
-	if (!disks[drive][type]) {
-		if (floppy_alloc_disk(drive, type) == 0)
-			add_disk(disks[drive][type]);
-	}
+	if (disks[drive][type])
+		goto out;
+	if (floppy_alloc_disk(drive, type))
+		goto out;
+	if (add_disk(disks[drive][type]))
+		goto cleanup_disk;
+out:
+	mutex_unlock(&floppy_probe_lock);
+	return;
+
+cleanup_disk:
+	blk_cleanup_disk(disks[drive][type]);
+	disks[drive][type] = NULL;
 	mutex_unlock(&floppy_probe_lock);
 }
 
@@ -4693,8 +4704,12 @@ static int __init do_floppy_init(void)
 		if (err)
 			goto out_remove_drives;
 
-		device_add_disk(&floppy_device[drive].dev, disks[drive][0],
-				NULL);
+		registered[drive] = true;
+
+		err = device_add_disk(&floppy_device[drive].dev,
+				      disks[drive][0], NULL);
+		if (err)
+			goto out_remove_drives;
 	}
 
 	return 0;
@@ -4703,7 +4718,8 @@ out_remove_drives:
 	while (drive--) {
 		if (floppy_available(drive)) {
 			del_gendisk(disks[drive][0]);
-			platform_device_unregister(&floppy_device[drive]);
+			if (registered[drive])
+				platform_device_unregister(&floppy_device[drive]);
 		}
 	}
 out_release_dma:
@@ -4946,30 +4962,14 @@ static void __exit floppy_module_exit(void)
 				if (disks[drive][i])
 					del_gendisk(disks[drive][i]);
 			}
-			platform_device_unregister(&floppy_device[drive]);
+			if (registered[drive])
+				platform_device_unregister(&floppy_device[drive]);
 		}
 		for (i = 0; i < ARRAY_SIZE(floppy_type); i++) {
 			if (disks[drive][i])
-				blk_cleanup_queue(disks[drive][i]->queue);
+				blk_cleanup_disk(disks[drive][i]);
 		}
 		blk_mq_free_tag_set(&tag_sets[drive]);
-
-		/*
-		 * These disks have not called add_disk().  Don't put down
-		 * queue reference in put_disk().
-		 */
-		if (!(allowed_drive_mask & (1 << drive)) ||
-		    fdc_state[FDC(drive)].version == FDC_NONE) {
-			for (i = 0; i < ARRAY_SIZE(floppy_type); i++) {
-				if (disks[drive][i])
-					disks[drive][i]->queue = NULL;
-			}
-		}
-
-		for (i = 0; i < ARRAY_SIZE(floppy_type); i++) {
-			if (disks[drive][i])
-				put_disk(disks[drive][i]);
-		}
 	}
 
 	cancel_delayed_work_sync(&fd_timeout);

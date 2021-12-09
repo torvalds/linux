@@ -105,7 +105,7 @@ struct vt1211_data {
 	struct device *hwmon_dev;
 
 	struct mutex update_lock;
-	char valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	/* Register values */
@@ -319,7 +319,7 @@ static struct vt1211_data *vt1211_update_device(struct device *dev)
 				vt1211_read8(data, VT1211_REG_ALARM1);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

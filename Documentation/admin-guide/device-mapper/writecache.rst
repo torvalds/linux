@@ -78,13 +78,23 @@ Status:
 2. the number of blocks
 3. the number of free blocks
 4. the number of blocks under writeback
+5. the number of read requests
+6. the number of read requests that hit the cache
+7. the number of write requests
+8. the number of write requests that hit uncommitted block
+9. the number of write requests that hit committed block
+10. the number of write requests that bypass the cache
+11. the number of write requests that are allocated in the cache
+12. the number of write requests that are blocked on the freelist
+13. the number of flush requests
+14. the number of discard requests
 
 Messages:
 	flush
-		flush the cache device. The message returns successfully
+		Flush the cache device. The message returns successfully
 		if the cache device was flushed without an error
 	flush_on_suspend
-		flush the cache device on next suspend. Use this message
+		Flush the cache device on next suspend. Use this message
 		when you are going to remove the cache device. The proper
 		sequence for removing the cache device is:
 
@@ -98,3 +108,5 @@ Messages:
 		6. the cache device is now inactive and it can be deleted
 	cleaner
 		See above "cleaner" constructor documentation.
+	clear_stats
+		Clear the statistics that are reported on the status line

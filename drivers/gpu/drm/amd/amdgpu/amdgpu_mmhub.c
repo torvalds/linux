@@ -41,7 +41,6 @@ int amdgpu_mmhub_ras_late_init(struct amdgpu_device *adev)
 		adev->mmhub.ras_if->block = AMDGPU_RAS_BLOCK__MMHUB;
 		adev->mmhub.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		adev->mmhub.ras_if->sub_block_index = 0;
-		strcpy(adev->mmhub.ras_if->name, "mmhub");
 	}
 	ih_info.head = fs_info.head = *adev->mmhub.ras_if;
 	r = amdgpu_ras_late_init(adev, adev->mmhub.ras_if,

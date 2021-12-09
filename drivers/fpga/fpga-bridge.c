@@ -228,9 +228,9 @@ EXPORT_SYMBOL_GPL(fpga_bridges_put);
  * @info: fpga image specific information
  * @bridge_list: list of FPGA bridges
  *
- * Get an exclusive reference to the bridge and and it to the list.
+ * Get an exclusive reference to the bridge and it to the list.
  *
- * Return 0 for success, error code from of_fpga_bridge_get() othewise.
+ * Return 0 for success, error code from of_fpga_bridge_get() otherwise.
  */
 int of_fpga_bridge_get_to_list(struct device_node *np,
 			       struct fpga_image_info *info,
@@ -258,9 +258,9 @@ EXPORT_SYMBOL_GPL(of_fpga_bridge_get_to_list);
  * @info: fpga image specific information
  * @bridge_list: list of FPGA bridges
  *
- * Get an exclusive reference to the bridge and and it to the list.
+ * Get an exclusive reference to the bridge and it to the list.
  *
- * Return 0 for success, error code from fpga_bridge_get() othewise.
+ * Return 0 for success, error code from fpga_bridge_get() otherwise.
  */
 int fpga_bridge_get_to_list(struct device *dev,
 			    struct fpga_image_info *info,

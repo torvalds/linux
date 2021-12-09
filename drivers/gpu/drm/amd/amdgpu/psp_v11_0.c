@@ -80,6 +80,9 @@ MODULE_FIRMWARE("amdgpu/beige_goby_ta.bin");
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
 
+/* Read USB-PD from LFB */
+#define GFX_CMD_USB_PD_USE_LFB 0x480
+
 static int psp_v11_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -90,35 +93,35 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 
 	DRM_DEBUG("\n");
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(11, 0, 2):
 		chip_name = "vega20";
 		break;
-	case CHIP_NAVI10:
+	case IP_VERSION(11, 0, 0):
 		chip_name = "navi10";
 		break;
-	case CHIP_NAVI14:
+	case IP_VERSION(11, 0, 5):
 		chip_name = "navi14";
 		break;
-	case CHIP_NAVI12:
+	case IP_VERSION(11, 0, 9):
 		chip_name = "navi12";
 		break;
-	case CHIP_ARCTURUS:
+	case IP_VERSION(11, 0, 4):
 		chip_name = "arcturus";
 		break;
-	case CHIP_SIENNA_CICHLID:
+	case IP_VERSION(11, 0, 7):
 		chip_name = "sienna_cichlid";
 		break;
-	case CHIP_NAVY_FLOUNDER:
+	case IP_VERSION(11, 0, 11):
 		chip_name = "navy_flounder";
 		break;
-	case CHIP_VANGOGH:
+	case IP_VERSION(11, 5, 0):
 		chip_name = "vangogh";
 		break;
-	case CHIP_DIMGREY_CAVEFISH:
+	case IP_VERSION(11, 0, 12):
 		chip_name = "dimgrey_cavefish";
 		break;
-	case CHIP_BEIGE_GOBY:
+	case IP_VERSION(11, 0, 13):
 		chip_name = "beige_goby";
 		break;
 	default:
@@ -126,9 +129,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	}
 
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 4):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -148,20 +151,26 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 				goto out2;
 
 			ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
-			adev->psp.ta_xgmi_ucode_version = le32_to_cpu(ta_hdr->ta_xgmi_ucode_version);
-			adev->psp.ta_xgmi_ucode_size = le32_to_cpu(ta_hdr->ta_xgmi_size_bytes);
-			adev->psp.ta_xgmi_start_addr = (uint8_t *)ta_hdr +
+			adev->psp.xgmi_context.context.bin_desc.fw_version =
+				le32_to_cpu(ta_hdr->xgmi.fw_version);
+			adev->psp.xgmi_context.context.bin_desc.size_bytes =
+				le32_to_cpu(ta_hdr->xgmi.size_bytes);
+			adev->psp.xgmi_context.context.bin_desc.start_addr =
+				(uint8_t *)ta_hdr +
 				le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
 			adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
-			adev->psp.ta_ras_ucode_version = le32_to_cpu(ta_hdr->ta_ras_ucode_version);
-			adev->psp.ta_ras_ucode_size = le32_to_cpu(ta_hdr->ta_ras_size_bytes);
-			adev->psp.ta_ras_start_addr = (uint8_t *)adev->psp.ta_xgmi_start_addr +
-				le32_to_cpu(ta_hdr->ta_ras_offset_bytes);
+			adev->psp.ras_context.context.bin_desc.fw_version =
+				le32_to_cpu(ta_hdr->ras.fw_version);
+			adev->psp.ras_context.context.bin_desc.size_bytes =
+				le32_to_cpu(ta_hdr->ras.size_bytes);
+			adev->psp.ras_context.context.bin_desc.start_addr =
+				(uint8_t *)adev->psp.xgmi_context.context.bin_desc.start_addr +
+				le32_to_cpu(ta_hdr->ras.offset_bytes);
 		}
 		break;
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 5):
+	case IP_VERSION(11, 0, 9):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -183,22 +192,31 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 				goto out2;
 
 			ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
-			adev->psp.ta_hdcp_ucode_version = le32_to_cpu(ta_hdr->ta_hdcp_ucode_version);
-			adev->psp.ta_hdcp_ucode_size = le32_to_cpu(ta_hdr->ta_hdcp_size_bytes);
-			adev->psp.ta_hdcp_start_addr = (uint8_t *)ta_hdr +
-				le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+			adev->psp.hdcp_context.context.bin_desc.fw_version =
+				le32_to_cpu(ta_hdr->hdcp.fw_version);
+			adev->psp.hdcp_context.context.bin_desc.size_bytes =
+				le32_to_cpu(ta_hdr->hdcp.size_bytes);
+			adev->psp.hdcp_context.context.bin_desc.start_addr =
+				(uint8_t *)ta_hdr +
+				le32_to_cpu(
+					ta_hdr->header.ucode_array_offset_bytes);
 
 			adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
 
-			adev->psp.ta_dtm_ucode_version = le32_to_cpu(ta_hdr->ta_dtm_ucode_version);
-			adev->psp.ta_dtm_ucode_size = le32_to_cpu(ta_hdr->ta_dtm_size_bytes);
-			adev->psp.ta_dtm_start_addr = (uint8_t *)adev->psp.ta_hdcp_start_addr +
-				le32_to_cpu(ta_hdr->ta_dtm_offset_bytes);
+			adev->psp.dtm_context.context.bin_desc.fw_version =
+				le32_to_cpu(ta_hdr->dtm.fw_version);
+			adev->psp.dtm_context.context.bin_desc.size_bytes =
+				le32_to_cpu(ta_hdr->dtm.size_bytes);
+			adev->psp.dtm_context.context.bin_desc.start_addr =
+				(uint8_t *)adev->psp.hdcp_context.context
+					.bin_desc.start_addr +
+				le32_to_cpu(ta_hdr->dtm.offset_bytes);
 		}
 		break;
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_DIMGREY_CAVEFISH:
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 0, 12):
+	case IP_VERSION(11, 0, 13):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -206,15 +224,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		if (err)
 			return err;
 		break;
-	case CHIP_BEIGE_GOBY:
-		err = psp_init_sos_microcode(psp, chip_name);
-		if (err)
-			return err;
-		err = psp_init_ta_microcode(psp, chip_name);
-		if (err)
-			return err;
-		break;
-	case CHIP_VANGOGH:
+	case IP_VERSION(11, 5, 0):
 		err = psp_init_asd_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -284,7 +294,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 		return ret;
 
 	/* Copy PSP KDB binary to memory */
-	psp_copy_fw(psp, psp->kdb_start_addr, psp->kdb_bin_size);
+	psp_copy_fw(psp, psp->kdb.start_addr, psp->kdb.size_bytes);
 
 	/* Provide the PSP KDB to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
@@ -315,7 +325,7 @@ static int psp_v11_0_bootloader_load_spl(struct psp_context *psp)
 		return ret;
 
 	/* Copy PSP SPL binary to memory */
-	psp_copy_fw(psp, psp->spl_start_addr, psp->spl_bin_size);
+	psp_copy_fw(psp, psp->spl.start_addr, psp->spl.size_bytes);
 
 	/* Provide the PSP SPL to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
@@ -346,7 +356,7 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 		return ret;
 
 	/* Copy PSP System Driver binary to memory */
-	psp_copy_fw(psp, psp->sys_start_addr, psp->sys_bin_size);
+	psp_copy_fw(psp, psp->sys.start_addr, psp->sys.size_bytes);
 
 	/* Provide the sys driver to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
@@ -380,7 +390,7 @@ static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
 		return ret;
 
 	/* Copy Secure OS binary to PSP memory */
-	psp_copy_fw(psp, psp->sos_start_addr, psp->sos_bin_size);
+	psp_copy_fw(psp, psp->sos.start_addr, psp->sos.size_bytes);
 
 	/* Provide the PSP secure OS to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
@@ -688,7 +698,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 			return -ENOMEM;
 		}
 
-		if (drm_dev_enter(&adev->ddev, &idx)) {
+		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 			memcpy_fromio(buf, adev->mman.aper_base_kaddr, sz);
 			ret = psp_v11_0_memory_training_send_msg(psp, PSP_BL__DRAM_LONG_TRAIN);
 			if (ret) {
@@ -753,44 +763,26 @@ static void psp_v11_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, value);
 }
 
-static int psp_v11_0_load_usbc_pd_fw(struct psp_context *psp, dma_addr_t dma_addr)
+static int psp_v11_0_load_usbc_pd_fw(struct psp_context *psp, uint64_t fw_pri_mc_addr)
 {
 	struct amdgpu_device *adev = psp->adev;
 	uint32_t reg_status;
 	int ret, i = 0;
 
-	/* Write lower 32-bit address of the PD Controller FW */
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, lower_32_bits(dma_addr));
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			     0x80000000, 0x80000000, false);
-	if (ret)
-		return ret;
-
-	/* Fireup interrupt so PSP can pick up the lower address */
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, 0x800000);
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			     0x80000000, 0x80000000, false);
-	if (ret)
-		return ret;
-
-	reg_status = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35);
-
-	if ((reg_status & 0xFFFF) != 0) {
-		DRM_ERROR("Lower address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = %02x...\n",
-				reg_status & 0xFFFF);
-		return -EIO;
-	}
-
-	/* Write upper 32-bit address of the PD Controller FW */
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, upper_32_bits(dma_addr));
+	/*
+	 * LFB address which is aligned to 1MB address and has to be
+	 * right-shifted by 20 so that LFB address can be passed on a 32-bit C2P
+	 * register
+	 */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, (fw_pri_mc_addr >> 20));
 
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
 			     0x80000000, 0x80000000, false);
 	if (ret)
 		return ret;
 
-	/* Fireup interrupt so PSP can pick up the upper address */
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, 0x4000000);
+	/* Fireup interrupt so PSP can pick up the address */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, (GFX_CMD_USB_PD_USE_LFB << 16));
 
 	/* FW load takes very long time */
 	do {
@@ -806,7 +798,7 @@ static int psp_v11_0_load_usbc_pd_fw(struct psp_context *psp, dma_addr_t dma_add
 done:
 
 	if ((reg_status & 0xFFFF) != 0) {
-		DRM_ERROR("Upper address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = x%04x\n",
+		DRM_ERROR("Address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = 0x%04x\n",
 				reg_status & 0xFFFF);
 		return -EIO;
 	}

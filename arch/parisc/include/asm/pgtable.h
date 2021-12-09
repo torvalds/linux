@@ -76,6 +76,8 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 	purge_tlb_end(flags);
 }
 
+extern void __update_cache(pte_t pte);
+
 /* Certain architectures need to do special things when PTEs
  * within a page table are directly modified.  Thus, the following
  * hook is made available.
@@ -83,11 +85,14 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define set_pte(pteptr, pteval)			\
 	do {					\
 		*(pteptr) = (pteval);		\
-		barrier();			\
+		mb();				\
 	} while(0)
 
 #define set_pte_at(mm, addr, pteptr, pteval)	\
 	do {					\
+		if (pte_present(pteval) &&	\
+		    pte_user(pteval))		\
+			__update_cache(pteval);	\
 		*(pteptr) = (pteval);		\
 		purge_tlb_entries(mm, addr);	\
 	} while (0)
@@ -112,7 +117,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
 
 #if CONFIG_PGTABLE_LEVELS == 3
-#define PMD_ORDER	1
+#define PMD_TABLE_ORDER	1
 #define PGD_ORDER	0
 #else
 #define PGD_ORDER	1
@@ -131,7 +136,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define PMD_SHIFT       (PLD_SHIFT + BITS_PER_PTE)
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
+#define BITS_PER_PMD	(PAGE_SHIFT + PMD_TABLE_ORDER - BITS_PER_PMD_ENTRY)
 #define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
 #else
 #define BITS_PER_PMD	0
@@ -303,6 +308,7 @@ extern unsigned long *empty_zero_page;
 
 #define pte_none(x)     (pte_val(x) == 0)
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
+#define pte_user(x)	(pte_val(x) & _PAGE_USER)
 #define pte_clear(mm, addr, xp)  set_pte_at(mm, addr, xp, __pte(0))
 
 #define pmd_flag(x)	(pmd_val(x) & PxD_FLAG_MASK)
@@ -410,7 +416,7 @@ extern void paging_init (void);
 
 #define PG_dcache_dirty         PG_arch_1
 
-extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
+#define update_mmu_cache(vms,addr,ptep) __update_cache(*ptep)
 
 /* Encode and de-code a swap entry */
 

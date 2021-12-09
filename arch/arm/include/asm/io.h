@@ -138,6 +138,7 @@ extern void __iomem *__arm_ioremap_caller(phys_addr_t, size_t, unsigned int,
 	void *);
 extern void __iomem *__arm_ioremap_pfn(unsigned long, unsigned long, size_t, unsigned int);
 extern void __iomem *__arm_ioremap_exec(phys_addr_t, size_t, bool cached);
+void __arm_iomem_set_ro(void __iomem *ptr, size_t size);
 extern void __iounmap(volatile void __iomem *addr);
 
 extern void __iomem * (*arch_ioremap_caller)(phys_addr_t, size_t,

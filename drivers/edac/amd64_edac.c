@@ -571,8 +571,8 @@ EDAC_DCT_ATTR_SHOW(dbam0);
 EDAC_DCT_ATTR_SHOW(top_mem);
 EDAC_DCT_ATTR_SHOW(top_mem2);
 
-static ssize_t hole_show(struct device *dev, struct device_attribute *mattr,
-			 char *data)
+static ssize_t dram_hole_show(struct device *dev, struct device_attribute *mattr,
+			      char *data)
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 
@@ -593,7 +593,7 @@ static DEVICE_ATTR(dhar, S_IRUGO, dhar_show, NULL);
 static DEVICE_ATTR(dbam, S_IRUGO, dbam0_show, NULL);
 static DEVICE_ATTR(topmem, S_IRUGO, top_mem_show, NULL);
 static DEVICE_ATTR(topmem2, S_IRUGO, top_mem2_show, NULL);
-static DEVICE_ATTR(dram_hole, S_IRUGO, hole_show, NULL);
+static DEVICE_ATTR_RO(dram_hole);
 
 static struct attribute *dbg_attrs[] = {
 	&dev_attr_dhar.attr,
@@ -802,16 +802,11 @@ static ssize_t inject_write_store(struct device *dev,
  * update NUM_INJ_ATTRS in case you add new members
  */
 
-static DEVICE_ATTR(inject_section, S_IRUGO | S_IWUSR,
-		   inject_section_show, inject_section_store);
-static DEVICE_ATTR(inject_word, S_IRUGO | S_IWUSR,
-		   inject_word_show, inject_word_store);
-static DEVICE_ATTR(inject_ecc_vector, S_IRUGO | S_IWUSR,
-		   inject_ecc_vector_show, inject_ecc_vector_store);
-static DEVICE_ATTR(inject_write, S_IWUSR,
-		   NULL, inject_write_store);
-static DEVICE_ATTR(inject_read,  S_IWUSR,
-		   NULL, inject_read_store);
+static DEVICE_ATTR_RW(inject_section);
+static DEVICE_ATTR_RW(inject_word);
+static DEVICE_ATTR_RW(inject_ecc_vector);
+static DEVICE_ATTR_WO(inject_write);
+static DEVICE_ATTR_WO(inject_read);
 
 static struct attribute *inj_attrs[] = {
 	&dev_attr_inject_section.attr,
@@ -1070,12 +1065,14 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 #define CS_ODD_PRIMARY		BIT(1)
 #define CS_EVEN_SECONDARY	BIT(2)
 #define CS_ODD_SECONDARY	BIT(3)
+#define CS_3R_INTERLEAVE	BIT(4)
 
 #define CS_EVEN			(CS_EVEN_PRIMARY | CS_EVEN_SECONDARY)
 #define CS_ODD			(CS_ODD_PRIMARY | CS_ODD_SECONDARY)
 
 static int f17_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 {
+	u8 base, count = 0;
 	int cs_mode = 0;
 
 	if (csrow_enabled(2 * dimm, ctrl, pvt))
@@ -1087,6 +1084,20 @@ static int f17_get_cs_mode(int dimm, u8 ctrl, struct amd64_pvt *pvt)
 	/* Asymmetric dual-rank DIMM support. */
 	if (csrow_sec_enabled(2 * dimm + 1, ctrl, pvt))
 		cs_mode |= CS_ODD_SECONDARY;
+
+	/*
+	 * 3 Rank inteleaving support.
+	 * There should be only three bases enabled and their two masks should
+	 * be equal.
+	 */
+	for_each_chip_select(base, ctrl, pvt)
+		count += csrow_enabled(base, ctrl, pvt);
+
+	if (count == 3 &&
+	    pvt->csels[ctrl].csmasks[0] == pvt->csels[ctrl].csmasks[1]) {
+		edac_dbg(1, "3R interleaving in use.\n");
+		cs_mode |= CS_3R_INTERLEAVE;
+	}
 
 	return cs_mode;
 }
@@ -1896,10 +1907,14 @@ static int f17_addr_mask_to_cs_size(struct amd64_pvt *pvt, u8 umc,
 	 *
 	 * The MSB is the number of bits in the full mask because BIT[0] is
 	 * always 0.
+	 *
+	 * In the special 3 Rank interleaving case, a single bit is flipped
+	 * without swapping with the most significant bit. This can be handled
+	 * by keeping the MSB where it is and ignoring the single zero bit.
 	 */
 	msb = fls(addr_mask_orig) - 1;
 	weight = hweight_long(addr_mask_orig);
-	num_zero_bits = msb - weight;
+	num_zero_bits = msb - weight - !!(cs_mode & CS_3R_INTERLEAVE);
 
 	/* Take the number of zero bits off from the top of the mask. */
 	addr_mask_deinterleaved = GENMASK_ULL(msb - num_zero_bits, 1);

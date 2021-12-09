@@ -55,7 +55,7 @@ LIST_HEAD(microcode_cache);
  * All non cpu-hotplug-callback call sites use:
  *
  * - microcode_mutex to synchronize with each other;
- * - get/put_online_cpus() to synchronize with
+ * - cpus_read_lock/unlock() to synchronize with
  *   the cpu-hotplug-callback call sites.
  *
  * We guarantee that only a single cpu is being
@@ -138,23 +138,6 @@ static bool __init check_loader_disabled_bsp(void)
 		*res = false;
 
 	return *res;
-}
-
-extern struct builtin_fw __start_builtin_fw[];
-extern struct builtin_fw __end_builtin_fw[];
-
-bool get_builtin_firmware(struct cpio_data *cd, const char *name)
-{
-	struct builtin_fw *b_fw;
-
-	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
-		if (!strcmp(name, b_fw->name)) {
-			cd->size = b_fw->size;
-			cd->data = b_fw->data;
-			return true;
-		}
-	}
-	return false;
 }
 
 void __init load_ucode_bsp(void)
@@ -431,7 +414,7 @@ static ssize_t microcode_write(struct file *file, const char __user *buf,
 		return ret;
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&microcode_mutex);
 
 	if (do_microcode_update(buf, len) == 0)
@@ -441,7 +424,7 @@ static ssize_t microcode_write(struct file *file, const char __user *buf,
 		perf_check_microcode();
 
 	mutex_unlock(&microcode_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return ret;
 }
@@ -629,7 +612,7 @@ static ssize_t reload_store(struct device *dev,
 	if (val != 1)
 		return size;
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	ret = check_online_cpus();
 	if (ret)
@@ -644,7 +627,7 @@ static ssize_t reload_store(struct device *dev,
 	mutex_unlock(&microcode_mutex);
 
 put:
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (ret == 0)
 		ret = size;
@@ -853,14 +836,14 @@ static int __init microcode_init(void)
 	if (IS_ERR(microcode_pdev))
 		return PTR_ERR(microcode_pdev);
 
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&microcode_mutex);
 
 	error = subsys_interface_register(&mc_cpu_interface);
 	if (!error)
 		perf_check_microcode();
 	mutex_unlock(&microcode_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (error)
 		goto out_pdev;
@@ -892,13 +875,13 @@ static int __init microcode_init(void)
 			   &cpu_root_microcode_group);
 
  out_driver:
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&microcode_mutex);
 
 	subsys_interface_unregister(&mc_cpu_interface);
 
 	mutex_unlock(&microcode_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 
  out_pdev:
 	platform_device_unregister(microcode_pdev);

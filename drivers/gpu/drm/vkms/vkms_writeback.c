@@ -65,41 +65,45 @@ static int vkms_wb_connector_get_modes(struct drm_connector *connector)
 static int vkms_wb_prepare_job(struct drm_writeback_connector *wb_connector,
 			       struct drm_writeback_job *job)
 {
-	struct drm_gem_object *gem_obj;
-	struct dma_buf_map map;
+	struct vkms_writeback_job *vkmsjob;
 	int ret;
 
 	if (!job->fb)
 		return 0;
 
-	gem_obj = drm_gem_fb_get_obj(job->fb, 0);
-	ret = drm_gem_shmem_vmap(gem_obj, &map);
+	vkmsjob = kzalloc(sizeof(*vkmsjob), GFP_KERNEL);
+	if (!vkmsjob)
+		return -ENOMEM;
+
+	ret = drm_gem_fb_vmap(job->fb, vkmsjob->map, vkmsjob->data);
 	if (ret) {
 		DRM_ERROR("vmap failed: %d\n", ret);
-		return ret;
+		goto err_kfree;
 	}
 
-	job->priv = map.vaddr;
+	job->priv = vkmsjob;
 
 	return 0;
+
+err_kfree:
+	kfree(vkmsjob);
+	return ret;
 }
 
 static void vkms_wb_cleanup_job(struct drm_writeback_connector *connector,
 				struct drm_writeback_job *job)
 {
-	struct drm_gem_object *gem_obj;
+	struct vkms_writeback_job *vkmsjob = job->priv;
 	struct vkms_device *vkmsdev;
-	struct dma_buf_map map;
 
 	if (!job->fb)
 		return;
 
-	gem_obj = drm_gem_fb_get_obj(job->fb, 0);
-	dma_buf_map_set_vaddr(&map, job->priv);
-	drm_gem_shmem_vunmap(gem_obj, &map);
+	drm_gem_fb_vunmap(job->fb, vkmsjob->map);
 
-	vkmsdev = drm_device_to_vkms_device(gem_obj->dev);
+	vkmsdev = drm_device_to_vkms_device(job->fb->dev);
 	vkms_set_composer(&vkmsdev->output, false);
+	kfree(vkmsjob);
 }
 
 static void vkms_wb_atomic_commit(struct drm_connector *conn,

@@ -785,7 +785,7 @@ static int get_dist_table(struct Qdisc *sch, struct disttable **tbl,
 	if (!n || n > NETEM_DIST_MAX)
 		return -EINVAL;
 
-	d = kvmalloc(sizeof(struct disttable) + n * sizeof(s16), GFP_KERNEL);
+	d = kvmalloc(struct_size(d, table, n), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
 

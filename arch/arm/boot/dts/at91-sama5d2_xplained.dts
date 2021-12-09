@@ -95,37 +95,37 @@
 					spi-rx-bus-width = <4>;
 					m25p,fast-read;
 
-					at91bootstrap@00000000 {
+					at91bootstrap@0 {
 						label = "at91bootstrap";
 						reg = <0x00000000 0x00040000>;
 					};
 
-					bootloader@00040000 {
+					bootloader@40000 {
 						label = "bootloader";
 						reg = <0x00040000 0x000c0000>;
 					};
 
-					bootloaderenvred@00100000 {
+					bootloaderenvred@100000 {
 						label = "bootloader env redundant";
 						reg = <0x00100000 0x00040000>;
 					};
 
-					bootloaderenv@00140000 {
+					bootloaderenv@140000 {
 						label = "bootloader env";
 						reg = <0x00140000 0x00040000>;
 					};
 
-					dtb@00180000 {
+					dtb@180000 {
 						label = "device tree";
 						reg = <0x00180000 0x00080000>;
 					};
 
-					kernel@00200000 {
+					kernel@200000 {
 						label = "kernel";
 						reg = <0x00200000 0x00600000>;
 					};
 
-					misc@00800000 {
+					misc@800000 {
 						label = "misc";
 						reg = <0x00800000 0x00000000>;
 					};
@@ -347,7 +347,7 @@
 			};
 
 			shdwc@f8048010 {
-				atmel,shdwc-debouncer = <976>;
+				debounce-delay-us = <976>;
 				atmel,wakeup-rtc-timer;
 
 				input@0 {

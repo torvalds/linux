@@ -7,7 +7,6 @@
 #include "dm-core.h"
 #include "dm-rq.h"
 
-#include <linux/elevator.h> /* for rq_end_sector() */
 #include <linux/blk-mq.h>
 
 #define DM_MSG_PREFIX "core-rq"
@@ -490,6 +489,14 @@ static blk_status_t dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct mapped_device *md = tio->md;
 	struct dm_target *ti = md->immutable_target;
 
+	/*
+	 * blk-mq's unquiesce may come from outside events, such as
+	 * elevator switch, updating nr_requests or others, and request may
+	 * come during suspend, so simply ask for blk-mq to requeue it.
+	 */
+	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)))
+		return BLK_STS_RESOURCE;
+
 	if (unlikely(!ti)) {
 		int srcu_idx;
 		struct dm_table *map = dm_get_live_table(md, &srcu_idx);
@@ -559,7 +566,6 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 	err = blk_mq_init_allocated_queue(md->tag_set, md->queue);
 	if (err)
 		goto out_tag_set;
-	elevator_init_mq(md->queue);
 	return 0;
 
 out_tag_set:

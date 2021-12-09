@@ -316,12 +316,22 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
+	phy-handle = <&ethphy>;
 	phy-reset-gpios = <&gpio7 18 GPIO_ACTIVE_LOW>;
-	txd0-skew-ps = <0>;
-	txd1-skew-ps = <0>;
-	txd2-skew-ps = <0>;
-	txd3-skew-ps = <0>;
 	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy: ethernet-phy {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			txd0-skew-ps = <0>;
+			txd1-skew-ps = <0>;
+			txd2-skew-ps = <0>;
+			txd3-skew-ps = <0>;
+		};
+	};
 };
 
 &gpmi {

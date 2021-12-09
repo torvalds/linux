@@ -23,7 +23,19 @@
 #include <linux/tracepoint.h>
 #include <trace/events/printk.h>
 
+#include <asm/kfence.h>
+
 #include "kfence.h"
+
+/* May be overridden by <asm/kfence.h>. */
+#ifndef arch_kfence_test_address
+#define arch_kfence_test_address(addr) (addr)
+#endif
+
+#define KFENCE_TEST_REQUIRES(test, cond) do {			\
+	if (!(cond))						\
+		kunit_skip((test), "Test requires: " #cond);	\
+} while (0)
 
 /* Report as observed from console. */
 static struct {
@@ -82,6 +94,7 @@ static const char *get_access_type(const struct expect_report *r)
 /* Check observed report matches information in @r. */
 static bool report_matches(const struct expect_report *r)
 {
+	unsigned long addr = (unsigned long)r->addr;
 	bool ret = false;
 	unsigned long flags;
 	typeof(observed.lines) expect;
@@ -131,22 +144,25 @@ static bool report_matches(const struct expect_report *r)
 	switch (r->type) {
 	case KFENCE_ERROR_OOB:
 		cur += scnprintf(cur, end - cur, "Out-of-bounds %s at", get_access_type(r));
+		addr = arch_kfence_test_address(addr);
 		break;
 	case KFENCE_ERROR_UAF:
 		cur += scnprintf(cur, end - cur, "Use-after-free %s at", get_access_type(r));
+		addr = arch_kfence_test_address(addr);
 		break;
 	case KFENCE_ERROR_CORRUPTION:
 		cur += scnprintf(cur, end - cur, "Corrupted memory at");
 		break;
 	case KFENCE_ERROR_INVALID:
 		cur += scnprintf(cur, end - cur, "Invalid %s at", get_access_type(r));
+		addr = arch_kfence_test_address(addr);
 		break;
 	case KFENCE_ERROR_INVALID_FREE:
 		cur += scnprintf(cur, end - cur, "Invalid free of");
 		break;
 	}
 
-	cur += scnprintf(cur, end - cur, " 0x%p", (void *)r->addr);
+	cur += scnprintf(cur, end - cur, " 0x%p", (void *)addr);
 
 	spin_lock_irqsave(&observed.lock, flags);
 	if (!report_available())
@@ -544,8 +560,7 @@ static void test_init_on_free(struct kunit *test)
 	};
 	int i;
 
-	if (!IS_ENABLED(CONFIG_INIT_ON_FREE_DEFAULT_ON))
-		return;
+	KFENCE_TEST_REQUIRES(test, IS_ENABLED(CONFIG_INIT_ON_FREE_DEFAULT_ON));
 	/* Assume it hasn't been disabled on command line. */
 
 	setup_test_cache(test, size, 0, NULL);
@@ -592,10 +607,8 @@ static void test_gfpzero(struct kunit *test)
 	char *buf1, *buf2;
 	int i;
 
-	if (CONFIG_KFENCE_SAMPLE_INTERVAL > 100) {
-		kunit_warn(test, "skipping ... would take too long\n");
-		return;
-	}
+	/* Skip if we think it'd take too long. */
+	KFENCE_TEST_REQUIRES(test, CONFIG_KFENCE_SAMPLE_INTERVAL <= 100);
 
 	setup_test_cache(test, size, 0, NULL);
 	buf1 = test_alloc(test, size, GFP_KERNEL, ALLOCATE_ANY);
@@ -788,6 +801,9 @@ static int test_init(struct kunit *test)
 {
 	unsigned long flags;
 	int i;
+
+	if (!__kfence_pool)
+		return -EINVAL;
 
 	spin_lock_irqsave(&observed.lock, flags);
 	for (i = 0; i < ARRAY_SIZE(observed.lines); i++)

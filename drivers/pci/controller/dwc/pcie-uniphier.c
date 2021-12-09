@@ -168,30 +168,21 @@ static void uniphier_pcie_irq_enable(struct uniphier_pcie_priv *priv)
 	writel(PCL_RCV_INTX_ALL_ENABLE, priv->base + PCL_RCV_INTX);
 }
 
-static void uniphier_pcie_irq_ack(struct irq_data *d)
-{
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
-	u32 val;
-
-	val = readl(priv->base + PCL_RCV_INTX);
-	val &= ~PCL_RCV_INTX_ALL_STATUS;
-	val |= BIT(irqd_to_hwirq(d) + PCL_RCV_INTX_STATUS_SHIFT);
-	writel(val, priv->base + PCL_RCV_INTX);
-}
-
 static void uniphier_pcie_irq_mask(struct irq_data *d)
 {
 	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	unsigned long flags;
 	u32 val;
 
+	raw_spin_lock_irqsave(&pp->lock, flags);
+
 	val = readl(priv->base + PCL_RCV_INTX);
-	val &= ~PCL_RCV_INTX_ALL_MASK;
 	val |= BIT(irqd_to_hwirq(d) + PCL_RCV_INTX_MASK_SHIFT);
 	writel(val, priv->base + PCL_RCV_INTX);
+
+	raw_spin_unlock_irqrestore(&pp->lock, flags);
 }
 
 static void uniphier_pcie_irq_unmask(struct irq_data *d)
@@ -199,17 +190,20 @@ static void uniphier_pcie_irq_unmask(struct irq_data *d)
 	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
+	unsigned long flags;
 	u32 val;
 
+	raw_spin_lock_irqsave(&pp->lock, flags);
+
 	val = readl(priv->base + PCL_RCV_INTX);
-	val &= ~PCL_RCV_INTX_ALL_MASK;
 	val &= ~BIT(irqd_to_hwirq(d) + PCL_RCV_INTX_MASK_SHIFT);
 	writel(val, priv->base + PCL_RCV_INTX);
+
+	raw_spin_unlock_irqrestore(&pp->lock, flags);
 }
 
 static struct irq_chip uniphier_pcie_irq_chip = {
 	.name = "PCI",
-	.irq_ack = uniphier_pcie_irq_ack,
 	.irq_mask = uniphier_pcie_irq_mask,
 	.irq_unmask = uniphier_pcie_irq_unmask,
 };
@@ -235,7 +229,7 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long reg;
-	u32 val, bit, virq;
+	u32 val, bit;
 
 	/* INT for debug */
 	val = readl(priv->base + PCL_RCV_INT);
@@ -257,10 +251,8 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	val = readl(priv->base + PCL_RCV_INTX);
 	reg = FIELD_GET(PCL_RCV_INTX_ALL_STATUS, val);
 
-	for_each_set_bit(bit, &reg, PCI_NUM_INTX) {
-		virq = irq_linear_revmap(priv->legacy_irq_domain, bit);
-		generic_handle_irq(virq);
-	}
+	for_each_set_bit(bit, &reg, PCI_NUM_INTX)
+		generic_handle_domain_irq(priv->legacy_irq_domain, bit);
 
 	chained_irq_exit(chip, desc);
 }

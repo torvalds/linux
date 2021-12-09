@@ -183,6 +183,28 @@ static void rtw_fw_scan_result(struct rtw_dev *rtwdev, u8 *payload,
 		dm_info->scan_density);
 }
 
+static void rtw_fw_adaptivity_result(struct rtw_dev *rtwdev, u8 *payload,
+				     u8 length)
+{
+	struct rtw_hw_reg_offset *edcca_th = rtwdev->chip->edcca_th;
+	struct rtw_c2h_adaptivity *result = (struct rtw_c2h_adaptivity *)payload;
+
+	rtw_dbg(rtwdev, RTW_DBG_ADAPTIVITY,
+		"Adaptivity: density %x igi %x l2h_th_init %x l2h %x h2l %x option %x\n",
+		result->density, result->igi, result->l2h_th_init, result->l2h,
+		result->h2l, result->option);
+
+	rtw_dbg(rtwdev, RTW_DBG_ADAPTIVITY, "Reg Setting: L2H %x H2L %x\n",
+		rtw_read32_mask(rtwdev, edcca_th[EDCCA_TH_L2H_IDX].hw_reg.addr,
+				edcca_th[EDCCA_TH_L2H_IDX].hw_reg.mask),
+		rtw_read32_mask(rtwdev, edcca_th[EDCCA_TH_H2L_IDX].hw_reg.addr,
+				edcca_th[EDCCA_TH_H2L_IDX].hw_reg.mask));
+
+	rtw_dbg(rtwdev, RTW_DBG_ADAPTIVITY, "EDCCA Flag %s\n",
+		rtw_read32_mask(rtwdev, REG_EDCCA_REPORT, BIT_EDCCA_FLAG) ?
+		"Set" : "Unset");
+}
+
 void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 {
 	struct rtw_c2h_cmd *c2h;
@@ -250,6 +272,10 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 	case C2H_SCAN_RESULT:
 		complete(&rtwdev->fw_scan_density);
 		rtw_fw_scan_result(rtwdev, c2h->payload, len);
+		dev_kfree_skb_any(skb);
+		break;
+	case C2H_ADAPTIVITY:
+		rtw_fw_adaptivity_result(rtwdev, c2h->payload, len);
 		dev_kfree_skb_any(skb);
 		break;
 	default:
@@ -819,7 +845,7 @@ static u16 rtw_get_rsvd_page_probe_req_size(struct rtw_dev *rtwdev,
 			continue;
 		if ((!ssid && !rsvd_pkt->ssid) ||
 		    rtw_ssid_equal(rsvd_pkt->ssid, ssid))
-			size = rsvd_pkt->skb->len;
+			size = rsvd_pkt->probe_req_size;
 	}
 
 	return size;
@@ -1047,6 +1073,8 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 							 ssid->ssid_len, 0);
 		else
 			skb_new = ieee80211_probereq_get(hw, vif->addr, NULL, 0, 0);
+		if (skb_new)
+			rsvd_pkt->probe_req_size = (u16)skb_new->len;
 		break;
 	case RSVD_NLO_INFO:
 		skb_new = rtw_nlo_info_get(hw);
@@ -1554,12 +1582,10 @@ static void rtw_fw_read_fifo_page(struct rtw_dev *rtwdev, u32 offset, u32 size,
 	u32 i;
 	u16 idx = 0;
 	u16 ctl;
-	u8 rcr;
 
-	rcr = rtw_read8(rtwdev, REG_RCR + 2);
 	ctl = rtw_read16(rtwdev, REG_PKTBUF_DBG_CTRL) & 0xf000;
 	/* disable rx clock gate */
-	rtw_write8(rtwdev, REG_RCR, rcr | BIT(3));
+	rtw_write32_set(rtwdev, REG_RCR, BIT_DISGCLK);
 
 	do {
 		rtw_write16(rtwdev, REG_PKTBUF_DBG_CTRL, start_pg | ctl);
@@ -1578,7 +1604,8 @@ static void rtw_fw_read_fifo_page(struct rtw_dev *rtwdev, u32 offset, u32 size,
 
 out:
 	rtw_write16(rtwdev, REG_PKTBUF_DBG_CTRL, ctl);
-	rtw_write8(rtwdev, REG_RCR + 2, rcr);
+	/* restore rx clock gate */
+	rtw_write32_clr(rtwdev, REG_RCR, BIT_DISGCLK);
 }
 
 static void rtw_fw_read_fifo(struct rtw_dev *rtwdev, enum rtw_fw_fifo_sel sel,
@@ -1643,6 +1670,7 @@ int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
 static void __rtw_fw_update_pkt(struct rtw_dev *rtwdev, u8 pkt_id, u16 size,
 				u8 location)
 {
+	struct rtw_chip_info *chip = rtwdev->chip;
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 	u16 total_size = H2C_PKT_HDR_SIZE + H2C_PKT_UPDATE_PKT_LEN;
 
@@ -1653,6 +1681,7 @@ static void __rtw_fw_update_pkt(struct rtw_dev *rtwdev, u8 pkt_id, u16 size,
 	UPDATE_PKT_SET_LOCATION(h2c_pkt, location);
 
 	/* include txdesc size */
+	size += chip->tx_pkt_desc_sz;
 	UPDATE_PKT_SET_SIZE(h2c_pkt, size);
 
 	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
@@ -1662,7 +1691,7 @@ void rtw_fw_update_pkt_probe_req(struct rtw_dev *rtwdev,
 				 struct cfg80211_ssid *ssid)
 {
 	u8 loc;
-	u32 size;
+	u16 size;
 
 	loc = rtw_get_rsvd_page_probe_req_location(rtwdev, ssid);
 	if (!loc) {
@@ -1716,6 +1745,27 @@ void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable)
 	CH_SWITCH_SET_INFO_LOC(h2c_pkt, loc_ch_info);
 
 	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_adaptivity(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	if (!rtw_edcca_enabled) {
+		dm_info->edcca_mode = RTW_EDCCA_NORMAL;
+		rtw_dbg(rtwdev, RTW_DBG_ADAPTIVITY,
+			"EDCCA disabled by debugfs\n");
+	}
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_ADAPTIVITY);
+	SET_ADAPTIVITY_MODE(h2c_pkt, dm_info->edcca_mode);
+	SET_ADAPTIVITY_OPTION(h2c_pkt, 2);
+	SET_ADAPTIVITY_IGI(h2c_pkt, dm_info->igi_history[0]);
+	SET_ADAPTIVITY_L2H(h2c_pkt, dm_info->l2h_th_ini);
+	SET_ADAPTIVITY_DENSITY(h2c_pkt, dm_info->scan_density);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
 void rtw_fw_scan_notify(struct rtw_dev *rtwdev, bool start)

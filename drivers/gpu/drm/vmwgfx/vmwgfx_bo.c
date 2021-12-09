@@ -94,7 +94,6 @@ int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
 	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
-	uint32_t new_flags;
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
 
@@ -103,8 +102,8 @@ int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
 		goto err;
 
 	if (buf->base.pin_count > 0)
-		ret = ttm_bo_mem_compat(placement, bo->resource,
-					&new_flags) == true ? 0 : -EINVAL;
+		ret = ttm_resource_compat(bo->resource, placement)
+			? 0 : -EINVAL;
 	else
 		ret = ttm_bo_validate(bo, placement, &ctx);
 
@@ -136,7 +135,6 @@ int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
-	uint32_t new_flags;
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
 
@@ -145,8 +143,8 @@ int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
 		goto err;
 
 	if (buf->base.pin_count > 0) {
-		ret = ttm_bo_mem_compat(&vmw_vram_gmr_placement, bo->resource,
-					&new_flags) == true ? 0 : -EINVAL;
+		ret = ttm_resource_compat(bo->resource, &vmw_vram_gmr_placement)
+			? 0 : -EINVAL;
 		goto out_unreserve;
 	}
 
@@ -208,7 +206,6 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	struct ttm_placement placement;
 	struct ttm_place place;
 	int ret = 0;
-	uint32_t new_flags;
 
 	place = vmw_vram_placement.placement[0];
 	place.lpfn = bo->resource->num_pages;
@@ -236,8 +233,8 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 	}
 
 	if (buf->base.pin_count > 0)
-		ret = ttm_bo_mem_compat(&placement, bo->resource,
-					&new_flags) == true ? 0 : -EINVAL;
+		ret = ttm_resource_compat(bo->resource, &placement)
+			? 0 : -EINVAL;
 	else
 		ret = ttm_bo_validate(bo, &placement, &ctx);
 
@@ -405,7 +402,7 @@ static size_t vmw_bo_acc_size(struct vmw_private *dev_priv, size_t size,
 			      bool user)
 {
 	static size_t struct_size, user_struct_size;
-	size_t num_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	size_t num_pages = PFN_UP(size);
 	size_t page_array_size = ttm_round_pot(num_pages * sizeof(void *));
 
 	if (unlikely(struct_size == 0)) {
@@ -474,7 +471,6 @@ int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
 			 struct ttm_placement *placement,
 			 struct ttm_buffer_object **p_bo)
 {
-	unsigned npages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	struct ttm_operation_ctx ctx = { false, false };
 	struct ttm_buffer_object *bo;
 	size_t acc_size;
@@ -485,7 +481,7 @@ int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
 		return -ENOMEM;
 
 	acc_size = ttm_round_pot(sizeof(*bo));
-	acc_size += ttm_round_pot(npages * sizeof(void *));
+	acc_size += ttm_round_pot(PFN_UP(size) * sizeof(void *));
 	acc_size += ttm_round_pot(sizeof(struct ttm_tt));
 
 	ret = ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);

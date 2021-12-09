@@ -340,28 +340,35 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 	case AMDGPU_INFO_FW_TA:
 		switch (query_fw->index) {
 		case TA_FW_TYPE_PSP_XGMI:
-			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_xgmi_ucode_version;
+			fw_info->ver = adev->psp.xgmi_context.context.bin_desc.fw_version;
+			fw_info->feature = adev->psp.xgmi_context.context
+						   .bin_desc.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_RAS:
-			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_ras_ucode_version;
+			fw_info->ver = adev->psp.ras_context.context.bin_desc.fw_version;
+			fw_info->feature = adev->psp.ras_context.context
+						   .bin_desc.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_HDCP:
-			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_hdcp_ucode_version;
+			fw_info->ver = adev->psp.hdcp_context.context.bin_desc.fw_version;
+			fw_info->feature = adev->psp.hdcp_context.context
+						   .bin_desc.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_DTM:
-			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_dtm_ucode_version;
+			fw_info->ver = adev->psp.dtm_context.context.bin_desc.fw_version;
+			fw_info->feature = adev->psp.dtm_context.context
+						   .bin_desc.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_RAP:
-			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_rap_ucode_version;
+			fw_info->ver = adev->psp.rap_context.context.bin_desc.fw_version;
+			fw_info->feature = adev->psp.rap_context.context
+						   .bin_desc.feature_version;
 			break;
 		case TA_FW_TYPE_PSP_SECUREDISPLAY:
-			fw_info->ver = adev->psp.ta_fw_version;
-			fw_info->feature = adev->psp.ta_securedisplay_ucode_version;
+			fw_info->ver = adev->psp.securedisplay_context.context.bin_desc.fw_version;
+			fw_info->feature =
+				adev->psp.securedisplay_context.context.bin_desc
+					.feature_version;
 			break;
 		default:
 			return -EINVAL;
@@ -374,12 +381,12 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = adev->sdma.instance[query_fw->index].feature_version;
 		break;
 	case AMDGPU_INFO_FW_SOS:
-		fw_info->ver = adev->psp.sos_fw_version;
-		fw_info->feature = adev->psp.sos_feature_version;
+		fw_info->ver = adev->psp.sos.fw_version;
+		fw_info->feature = adev->psp.sos.feature_version;
 		break;
 	case AMDGPU_INFO_FW_ASD:
-		fw_info->ver = adev->psp.asd_fw_version;
-		fw_info->feature = adev->psp.asd_feature_version;
+		fw_info->ver = adev->psp.asd_context.bin_desc.fw_version;
+		fw_info->feature = adev->psp.asd_context.bin_desc.feature_version;
 		break;
 	case AMDGPU_INFO_FW_DMCU:
 		fw_info->ver = adev->dm.dmcu_fw_version;
@@ -390,8 +397,8 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = 0;
 		break;
 	case AMDGPU_INFO_FW_TOC:
-		fw_info->ver = adev->psp.toc_fw_version;
-		fw_info->feature = adev->psp.toc_feature_version;
+		fw_info->ver = adev->psp.toc.fw_version;
+		fw_info->feature = adev->psp.toc.feature_version;
 		break;
 	default:
 		return -EINVAL;
@@ -1179,9 +1186,13 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		pasid = 0;
 	}
 
-	r = amdgpu_vm_init(adev, &fpriv->vm, pasid);
+	r = amdgpu_vm_init(adev, &fpriv->vm);
 	if (r)
 		goto error_pasid;
+
+	r = amdgpu_vm_set_pasid(adev, &fpriv->vm, pasid);
+	if (r)
+		goto error_vm;
 
 	fpriv->prt_va = amdgpu_vm_bo_add(adev, &fpriv->vm, NULL);
 	if (!fpriv->prt_va) {
@@ -1210,8 +1221,10 @@ error_vm:
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 error_pasid:
-	if (pasid)
+	if (pasid) {
 		amdgpu_pasid_free(pasid);
+		amdgpu_vm_set_pasid(adev, &fpriv->vm, 0);
+	}
 
 	kfree(fpriv);
 
@@ -1410,6 +1423,8 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 	struct drm_amdgpu_info_firmware fw_info;
 	struct drm_amdgpu_query_fw query_fw;
 	struct atom_context *ctx = adev->mode_info.atom_context;
+	uint8_t smu_minor, smu_debug;
+	uint16_t smu_major;
 	int ret, i;
 
 	static const char *ta_fw_name[TA_FW_TYPE_MAX_INDEX] = {
@@ -1555,8 +1570,11 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
 	if (ret)
 		return ret;
-	seq_printf(m, "SMC feature version: %u, firmware version: 0x%08x\n",
-		   fw_info.feature, fw_info.ver);
+	smu_major = (fw_info.ver >> 16) & 0xffff;
+	smu_minor = (fw_info.ver >> 8) & 0xff;
+	smu_debug = (fw_info.ver >> 0) & 0xff;
+	seq_printf(m, "SMC feature version: %u, firmware version: 0x%08x (%d.%d.%d)\n",
+		   fw_info.feature, fw_info.ver, smu_major, smu_minor, smu_debug);
 
 	/* SDMA */
 	query_fw.fw_type = AMDGPU_INFO_FW_SDMA;

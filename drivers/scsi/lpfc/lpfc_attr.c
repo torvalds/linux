@@ -57,6 +57,8 @@
 #define LPFC_MIN_DEVLOSS_TMO	1
 #define LPFC_MAX_DEVLOSS_TMO	255
 
+#define LPFC_MAX_INFO_TMP_LEN	100
+#define LPFC_INFO_MORE_STR	"\nCould be more info...\n"
 /*
  * Write key size should be multiple of 4. If write key is changed
  * make sure that library write key is also changed.
@@ -110,6 +112,183 @@ lpfc_jedec_to_ascii(int incr, char hdw[])
 	}
 	hdw[8] = 0;
 	return;
+}
+
+static ssize_t
+lpfc_cmf_info_show(struct device *dev, struct device_attribute *attr,
+		   char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_cgn_info *cp = NULL;
+	struct lpfc_cgn_stat *cgs;
+	int  len = 0;
+	int cpu;
+	u64 rcv, total;
+	char tmp[LPFC_MAX_INFO_TMP_LEN] = {0};
+
+	if (phba->cgn_i)
+		cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
+
+	scnprintf(tmp, sizeof(tmp),
+		  "Congestion Mgmt Info: E2Eattr %d Ver %d "
+		  "CMF %d cnt %d\n",
+		  phba->sli4_hba.pc_sli4_params.mi_ver,
+		  cp ? cp->cgn_info_version : 0,
+		  phba->sli4_hba.pc_sli4_params.cmf, phba->cmf_timer_cnt);
+
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
+
+	if (!phba->sli4_hba.pc_sli4_params.cmf)
+		goto buffer_done;
+
+	switch (phba->cgn_init_reg_signal) {
+	case EDC_CG_SIG_WARN_ONLY:
+		scnprintf(tmp, sizeof(tmp),
+			  "Register: Init:  Signal:WARN  ");
+		break;
+	case EDC_CG_SIG_WARN_ALARM:
+		scnprintf(tmp, sizeof(tmp),
+			  "Register: Init:  Signal:WARN|ALARM  ");
+		break;
+	default:
+		scnprintf(tmp, sizeof(tmp),
+			  "Register: Init:  Signal:NONE  ");
+		break;
+	}
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
+
+	switch (phba->cgn_init_reg_fpin) {
+	case LPFC_CGN_FPIN_WARN:
+		scnprintf(tmp, sizeof(tmp),
+			  "FPIN:WARN\n");
+		break;
+	case LPFC_CGN_FPIN_ALARM:
+		scnprintf(tmp, sizeof(tmp),
+			  "FPIN:ALARM\n");
+		break;
+	case LPFC_CGN_FPIN_BOTH:
+		scnprintf(tmp, sizeof(tmp),
+			  "FPIN:WARN|ALARM\n");
+		break;
+	default:
+		scnprintf(tmp, sizeof(tmp),
+			  "FPIN:NONE\n");
+		break;
+	}
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
+
+	switch (phba->cgn_reg_signal) {
+	case EDC_CG_SIG_WARN_ONLY:
+		scnprintf(tmp, sizeof(tmp),
+			  "       Current:  Signal:WARN  ");
+		break;
+	case EDC_CG_SIG_WARN_ALARM:
+		scnprintf(tmp, sizeof(tmp),
+			  "       Current:  Signal:WARN|ALARM  ");
+		break;
+	default:
+		scnprintf(tmp, sizeof(tmp),
+			  "       Current:  Signal:NONE  ");
+		break;
+	}
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
+
+	switch (phba->cgn_reg_fpin) {
+	case LPFC_CGN_FPIN_WARN:
+		scnprintf(tmp, sizeof(tmp),
+			  "FPIN:WARN  ACQEcnt:%d\n", phba->cgn_acqe_cnt);
+		break;
+	case LPFC_CGN_FPIN_ALARM:
+		scnprintf(tmp, sizeof(tmp),
+			  "FPIN:ALARM  ACQEcnt:%d\n", phba->cgn_acqe_cnt);
+		break;
+	case LPFC_CGN_FPIN_BOTH:
+		scnprintf(tmp, sizeof(tmp),
+			  "FPIN:WARN|ALARM  ACQEcnt:%d\n", phba->cgn_acqe_cnt);
+		break;
+	default:
+		scnprintf(tmp, sizeof(tmp),
+			  "FPIN:NONE  ACQEcnt:%d\n", phba->cgn_acqe_cnt);
+		break;
+	}
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
+
+	if (phba->cmf_active_mode != phba->cgn_p.cgn_param_mode) {
+		switch (phba->cmf_active_mode) {
+		case LPFC_CFG_OFF:
+			scnprintf(tmp, sizeof(tmp), "Active: Mode:Off\n");
+			break;
+		case LPFC_CFG_MANAGED:
+			scnprintf(tmp, sizeof(tmp), "Active: Mode:Managed\n");
+			break;
+		case LPFC_CFG_MONITOR:
+			scnprintf(tmp, sizeof(tmp), "Active: Mode:Monitor\n");
+			break;
+		default:
+			scnprintf(tmp, sizeof(tmp), "Active: Mode:Unknown\n");
+		}
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
+	}
+
+	switch (phba->cgn_p.cgn_param_mode) {
+	case LPFC_CFG_OFF:
+		scnprintf(tmp, sizeof(tmp), "Config: Mode:Off  ");
+		break;
+	case LPFC_CFG_MANAGED:
+		scnprintf(tmp, sizeof(tmp), "Config: Mode:Managed ");
+		break;
+	case LPFC_CFG_MONITOR:
+		scnprintf(tmp, sizeof(tmp), "Config: Mode:Monitor ");
+		break;
+	default:
+		scnprintf(tmp, sizeof(tmp), "Config: Mode:Unknown ");
+	}
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
+
+	total = 0;
+	rcv = 0;
+	for_each_present_cpu(cpu) {
+		cgs = per_cpu_ptr(phba->cmf_stat, cpu);
+		total += atomic64_read(&cgs->total_bytes);
+		rcv += atomic64_read(&cgs->rcv_bytes);
+	}
+
+	scnprintf(tmp, sizeof(tmp),
+		  "IObusy:%d Info:%d Bytes: Rcv:x%llx Total:x%llx\n",
+		  atomic_read(&phba->cmf_busy),
+		  phba->cmf_active_info, rcv, total);
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
+
+	scnprintf(tmp, sizeof(tmp),
+		  "Port_speed:%d  Link_byte_cnt:%ld  "
+		  "Max_byte_per_interval:%ld\n",
+		  lpfc_sli_port_speed_get(phba),
+		  (unsigned long)phba->cmf_link_byte_count,
+		  (unsigned long)phba->cmf_max_bytes_per_interval);
+	strlcat(buf, tmp, PAGE_SIZE);
+
+buffer_done:
+	len = strnlen(buf, PAGE_SIZE);
+
+	if (unlikely(len >= (PAGE_SIZE - 1))) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"6312 Catching potential buffer "
+				"overflow > PAGE_SIZE = %lu bytes\n",
+				PAGE_SIZE);
+		strscpy(buf + PAGE_SIZE - 1 - sizeof(LPFC_INFO_MORE_STR),
+			LPFC_INFO_MORE_STR, sizeof(LPFC_INFO_MORE_STR) + 1);
+	}
+	return len;
 }
 
 /**
@@ -168,7 +347,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	char *statep;
 	int i;
 	int len = 0;
-	char tmp[LPFC_MAX_NVME_INFO_TMP_LEN] = {0};
+	char tmp[LPFC_MAX_INFO_TMP_LEN] = {0};
 
 	if (!(vport->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
 		len = scnprintf(buf, PAGE_SIZE, "NVME Disabled\n");
@@ -512,9 +691,9 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				"6314 Catching potential buffer "
 				"overflow > PAGE_SIZE = %lu bytes\n",
 				PAGE_SIZE);
-		strlcpy(buf + PAGE_SIZE - 1 - sizeof(LPFC_NVME_INFO_MORE_STR),
-			LPFC_NVME_INFO_MORE_STR,
-			sizeof(LPFC_NVME_INFO_MORE_STR) + 1);
+		strscpy(buf + PAGE_SIZE - 1 - sizeof(LPFC_INFO_MORE_STR),
+			LPFC_INFO_MORE_STR,
+			sizeof(LPFC_INFO_MORE_STR) + 1);
 	}
 
 	return len;
@@ -2248,11 +2427,6 @@ lpfc_sriov_hw_max_virtfn_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", max_nr_virtfn);
 }
 
-static inline bool lpfc_rangecheck(uint val, uint min, uint max)
-{
-	return val >= min && val <= max;
-}
-
 /**
  * lpfc_enable_bbcr_set: Sets an attribute value.
  * @phba: pointer the the adapter structure.
@@ -2641,6 +2815,7 @@ static DEVICE_ATTR_RO(lpfc_sriov_hw_max_virtfn);
 static DEVICE_ATTR(protocol, S_IRUGO, lpfc_sli4_protocol_show, NULL);
 static DEVICE_ATTR(lpfc_xlane_supported, S_IRUGO, lpfc_oas_supported_show,
 		   NULL);
+static DEVICE_ATTR(cmf_info, 0444, lpfc_cmf_info_show, NULL);
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 #define WWN_SZ 8
@@ -4038,6 +4213,7 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 	const char *val_buf = buf;
 	int err;
 	uint32_t prev_val;
+	u8 sli_family, if_type;
 
 	if (!strncmp(buf, "nolip ", strlen("nolip "))) {
 		nolip = 1;
@@ -4061,13 +4237,16 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 		/*
 		 * The 'topology' is not a configurable parameter if :
 		 *   - persistent topology enabled
-		 *   - G7/G6 with no private loop support
+		 *   - ASIC_GEN_NUM >= 0xC, with no private loop support
 		 */
-
+		sli_family = bf_get(lpfc_sli_intf_sli_family,
+				    &phba->sli4_hba.sli_intf);
+		if_type = bf_get(lpfc_sli_intf_if_type,
+				 &phba->sli4_hba.sli_intf);
 		if ((phba->hba_flag & HBA_PERSISTENT_TOPO ||
-		     (!phba->sli4_hba.pc_sli4_params.pls &&
-		     (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC ||
-		     phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC))) &&
+		    (!phba->sli4_hba.pc_sli4_params.pls &&
+		     (sli_family == LPFC_SLI_INTF_FAMILY_G6 ||
+		      if_type == LPFC_SLI_INTF_IF_TYPE_6))) &&
 		    val == 4) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 				"3114 Loop mode not supported\n");
@@ -5412,9 +5591,9 @@ LPFC_VPORT_ATTR_R(fcp_class, 3, 2, 3,
 
 /*
 # lpfc_use_adisc: Use ADISC for FCP rediscovery instead of PLOGI. Value range
-# is [0,1]. Default value is 0.
+# is [0,1]. Default value is 1.
 */
-LPFC_VPORT_ATTR_RW(use_adisc, 0, 0, 1,
+LPFC_VPORT_ATTR_RW(use_adisc, 1, 0, 1,
 		   "Use ADISC on rediscovery to authenticate FCP devices");
 
 /*
@@ -6022,7 +6201,8 @@ lpfc_sg_seg_cnt_show(struct device *dev, struct device_attribute *attr,
 	len = scnprintf(buf, PAGE_SIZE, "SGL sz: %d  total SGEs: %d\n",
 		       phba->cfg_sg_dma_buf_size, phba->cfg_total_seg_cnt);
 
-	len += scnprintf(buf + len, PAGE_SIZE, "Cfg: %d  SCSI: %d  NVME: %d\n",
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			"Cfg: %d  SCSI: %d  NVME: %d\n",
 			phba->cfg_sg_seg_cnt, phba->cfg_scsi_seg_cnt,
 			phba->cfg_nvme_seg_cnt);
 	return len;
@@ -6146,6 +6326,19 @@ LPFC_ATTR_RW(ras_fwlog_func, 0, 0, 7, "Firmware Logging Enabled on Function");
  */
 LPFC_BBCR_ATTR_RW(enable_bbcr, 1, 0, 1, "Enable BBC Recovery");
 
+/* Signaling module parameters */
+int lpfc_fabric_cgn_frequency = 100; /* 100 ms default */
+module_param(lpfc_fabric_cgn_frequency, int, 0444);
+MODULE_PARM_DESC(lpfc_fabric_cgn_frequency, "Congestion signaling fabric freq");
+
+int lpfc_acqe_cgn_frequency = 10; /* 10 sec default */
+module_param(lpfc_acqe_cgn_frequency, int, 0444);
+MODULE_PARM_DESC(lpfc_acqe_cgn_frequency, "Congestion signaling ACQE freq");
+
+int lpfc_use_cgn_signal = 1; /* 0 - only use FPINs, 1 - Use signals if avail  */
+module_param(lpfc_use_cgn_signal, int, 0444);
+MODULE_PARM_DESC(lpfc_use_cgn_signal, "Use Congestion signaling if available");
+
 /*
  * lpfc_enable_dpp: Enable DPP on G7
  *       0  = DPP on G7 disabled
@@ -6201,156 +6394,176 @@ LPFC_ATTR_RW(vmid_priority_tagging, LPFC_VMID_PRIO_TAG_DISABLE,
 	     LPFC_VMID_PRIO_TAG_ALL_TARGETS,
 	     "Enable Priority Tagging VMID support");
 
-struct device_attribute *lpfc_hba_attrs[] = {
-	&dev_attr_nvme_info,
-	&dev_attr_scsi_stat,
-	&dev_attr_bg_info,
-	&dev_attr_bg_guard_err,
-	&dev_attr_bg_apptag_err,
-	&dev_attr_bg_reftag_err,
-	&dev_attr_info,
-	&dev_attr_serialnum,
-	&dev_attr_modeldesc,
-	&dev_attr_modelname,
-	&dev_attr_programtype,
-	&dev_attr_portnum,
-	&dev_attr_fwrev,
-	&dev_attr_hdw,
-	&dev_attr_option_rom_version,
-	&dev_attr_link_state,
-	&dev_attr_num_discovered_ports,
-	&dev_attr_menlo_mgmt_mode,
-	&dev_attr_lpfc_drvr_version,
-	&dev_attr_lpfc_enable_fip,
-	&dev_attr_lpfc_temp_sensor,
-	&dev_attr_lpfc_log_verbose,
-	&dev_attr_lpfc_lun_queue_depth,
-	&dev_attr_lpfc_tgt_queue_depth,
-	&dev_attr_lpfc_hba_queue_depth,
-	&dev_attr_lpfc_peer_port_login,
-	&dev_attr_lpfc_nodev_tmo,
-	&dev_attr_lpfc_devloss_tmo,
-	&dev_attr_lpfc_enable_fc4_type,
-	&dev_attr_lpfc_fcp_class,
-	&dev_attr_lpfc_use_adisc,
-	&dev_attr_lpfc_first_burst_size,
-	&dev_attr_lpfc_ack0,
-	&dev_attr_lpfc_xri_rebalancing,
-	&dev_attr_lpfc_topology,
-	&dev_attr_lpfc_scan_down,
-	&dev_attr_lpfc_link_speed,
-	&dev_attr_lpfc_fcp_io_sched,
-	&dev_attr_lpfc_ns_query,
-	&dev_attr_lpfc_fcp2_no_tgt_reset,
-	&dev_attr_lpfc_cr_delay,
-	&dev_attr_lpfc_cr_count,
-	&dev_attr_lpfc_multi_ring_support,
-	&dev_attr_lpfc_multi_ring_rctl,
-	&dev_attr_lpfc_multi_ring_type,
-	&dev_attr_lpfc_fdmi_on,
-	&dev_attr_lpfc_enable_SmartSAN,
-	&dev_attr_lpfc_max_luns,
-	&dev_attr_lpfc_enable_npiv,
-	&dev_attr_lpfc_fcf_failover_policy,
-	&dev_attr_lpfc_enable_rrq,
-	&dev_attr_lpfc_fcp_wait_abts_rsp,
-	&dev_attr_nport_evt_cnt,
-	&dev_attr_board_mode,
-	&dev_attr_max_vpi,
-	&dev_attr_used_vpi,
-	&dev_attr_max_rpi,
-	&dev_attr_used_rpi,
-	&dev_attr_max_xri,
-	&dev_attr_used_xri,
-	&dev_attr_npiv_info,
-	&dev_attr_issue_reset,
-	&dev_attr_lpfc_poll,
-	&dev_attr_lpfc_poll_tmo,
-	&dev_attr_lpfc_task_mgmt_tmo,
-	&dev_attr_lpfc_use_msi,
-	&dev_attr_lpfc_nvme_oas,
-	&dev_attr_lpfc_nvme_embed_cmd,
-	&dev_attr_lpfc_fcp_imax,
-	&dev_attr_lpfc_force_rscn,
-	&dev_attr_lpfc_cq_poll_threshold,
-	&dev_attr_lpfc_cq_max_proc_limit,
-	&dev_attr_lpfc_fcp_cpu_map,
-	&dev_attr_lpfc_fcp_mq_threshold,
-	&dev_attr_lpfc_hdw_queue,
-	&dev_attr_lpfc_irq_chann,
-	&dev_attr_lpfc_suppress_rsp,
-	&dev_attr_lpfc_nvmet_mrq,
-	&dev_attr_lpfc_nvmet_mrq_post,
-	&dev_attr_lpfc_nvme_enable_fb,
-	&dev_attr_lpfc_nvmet_fb_size,
-	&dev_attr_lpfc_enable_bg,
-	&dev_attr_lpfc_soft_wwnn,
-	&dev_attr_lpfc_soft_wwpn,
-	&dev_attr_lpfc_soft_wwn_enable,
-	&dev_attr_lpfc_enable_hba_reset,
-	&dev_attr_lpfc_enable_hba_heartbeat,
-	&dev_attr_lpfc_EnableXLane,
-	&dev_attr_lpfc_XLanePriority,
-	&dev_attr_lpfc_xlane_lun,
-	&dev_attr_lpfc_xlane_tgt,
-	&dev_attr_lpfc_xlane_vpt,
-	&dev_attr_lpfc_xlane_lun_state,
-	&dev_attr_lpfc_xlane_lun_status,
-	&dev_attr_lpfc_xlane_priority,
-	&dev_attr_lpfc_sg_seg_cnt,
-	&dev_attr_lpfc_max_scsicmpl_time,
-	&dev_attr_lpfc_stat_data_ctrl,
-	&dev_attr_lpfc_aer_support,
-	&dev_attr_lpfc_aer_state_cleanup,
-	&dev_attr_lpfc_sriov_nr_virtfn,
-	&dev_attr_lpfc_req_fw_upgrade,
-	&dev_attr_lpfc_suppress_link_up,
-	&dev_attr_iocb_hw,
-	&dev_attr_pls,
-	&dev_attr_pt,
-	&dev_attr_txq_hw,
-	&dev_attr_txcmplq_hw,
-	&dev_attr_lpfc_sriov_hw_max_virtfn,
-	&dev_attr_protocol,
-	&dev_attr_lpfc_xlane_supported,
-	&dev_attr_lpfc_enable_mds_diags,
-	&dev_attr_lpfc_ras_fwlog_buffsize,
-	&dev_attr_lpfc_ras_fwlog_level,
-	&dev_attr_lpfc_ras_fwlog_func,
-	&dev_attr_lpfc_enable_bbcr,
-	&dev_attr_lpfc_enable_dpp,
-	&dev_attr_lpfc_enable_mi,
-	&dev_attr_lpfc_max_vmid,
-	&dev_attr_lpfc_vmid_inactivity_timeout,
-	&dev_attr_lpfc_vmid_app_header,
-	&dev_attr_lpfc_vmid_priority_tagging,
+static struct attribute *lpfc_hba_attrs[] = {
+	&dev_attr_nvme_info.attr,
+	&dev_attr_scsi_stat.attr,
+	&dev_attr_bg_info.attr,
+	&dev_attr_bg_guard_err.attr,
+	&dev_attr_bg_apptag_err.attr,
+	&dev_attr_bg_reftag_err.attr,
+	&dev_attr_info.attr,
+	&dev_attr_serialnum.attr,
+	&dev_attr_modeldesc.attr,
+	&dev_attr_modelname.attr,
+	&dev_attr_programtype.attr,
+	&dev_attr_portnum.attr,
+	&dev_attr_fwrev.attr,
+	&dev_attr_hdw.attr,
+	&dev_attr_option_rom_version.attr,
+	&dev_attr_link_state.attr,
+	&dev_attr_num_discovered_ports.attr,
+	&dev_attr_menlo_mgmt_mode.attr,
+	&dev_attr_lpfc_drvr_version.attr,
+	&dev_attr_lpfc_enable_fip.attr,
+	&dev_attr_lpfc_temp_sensor.attr,
+	&dev_attr_lpfc_log_verbose.attr,
+	&dev_attr_lpfc_lun_queue_depth.attr,
+	&dev_attr_lpfc_tgt_queue_depth.attr,
+	&dev_attr_lpfc_hba_queue_depth.attr,
+	&dev_attr_lpfc_peer_port_login.attr,
+	&dev_attr_lpfc_nodev_tmo.attr,
+	&dev_attr_lpfc_devloss_tmo.attr,
+	&dev_attr_lpfc_enable_fc4_type.attr,
+	&dev_attr_lpfc_fcp_class.attr,
+	&dev_attr_lpfc_use_adisc.attr,
+	&dev_attr_lpfc_first_burst_size.attr,
+	&dev_attr_lpfc_ack0.attr,
+	&dev_attr_lpfc_xri_rebalancing.attr,
+	&dev_attr_lpfc_topology.attr,
+	&dev_attr_lpfc_scan_down.attr,
+	&dev_attr_lpfc_link_speed.attr,
+	&dev_attr_lpfc_fcp_io_sched.attr,
+	&dev_attr_lpfc_ns_query.attr,
+	&dev_attr_lpfc_fcp2_no_tgt_reset.attr,
+	&dev_attr_lpfc_cr_delay.attr,
+	&dev_attr_lpfc_cr_count.attr,
+	&dev_attr_lpfc_multi_ring_support.attr,
+	&dev_attr_lpfc_multi_ring_rctl.attr,
+	&dev_attr_lpfc_multi_ring_type.attr,
+	&dev_attr_lpfc_fdmi_on.attr,
+	&dev_attr_lpfc_enable_SmartSAN.attr,
+	&dev_attr_lpfc_max_luns.attr,
+	&dev_attr_lpfc_enable_npiv.attr,
+	&dev_attr_lpfc_fcf_failover_policy.attr,
+	&dev_attr_lpfc_enable_rrq.attr,
+	&dev_attr_lpfc_fcp_wait_abts_rsp.attr,
+	&dev_attr_nport_evt_cnt.attr,
+	&dev_attr_board_mode.attr,
+	&dev_attr_max_vpi.attr,
+	&dev_attr_used_vpi.attr,
+	&dev_attr_max_rpi.attr,
+	&dev_attr_used_rpi.attr,
+	&dev_attr_max_xri.attr,
+	&dev_attr_used_xri.attr,
+	&dev_attr_npiv_info.attr,
+	&dev_attr_issue_reset.attr,
+	&dev_attr_lpfc_poll.attr,
+	&dev_attr_lpfc_poll_tmo.attr,
+	&dev_attr_lpfc_task_mgmt_tmo.attr,
+	&dev_attr_lpfc_use_msi.attr,
+	&dev_attr_lpfc_nvme_oas.attr,
+	&dev_attr_lpfc_nvme_embed_cmd.attr,
+	&dev_attr_lpfc_fcp_imax.attr,
+	&dev_attr_lpfc_force_rscn.attr,
+	&dev_attr_lpfc_cq_poll_threshold.attr,
+	&dev_attr_lpfc_cq_max_proc_limit.attr,
+	&dev_attr_lpfc_fcp_cpu_map.attr,
+	&dev_attr_lpfc_fcp_mq_threshold.attr,
+	&dev_attr_lpfc_hdw_queue.attr,
+	&dev_attr_lpfc_irq_chann.attr,
+	&dev_attr_lpfc_suppress_rsp.attr,
+	&dev_attr_lpfc_nvmet_mrq.attr,
+	&dev_attr_lpfc_nvmet_mrq_post.attr,
+	&dev_attr_lpfc_nvme_enable_fb.attr,
+	&dev_attr_lpfc_nvmet_fb_size.attr,
+	&dev_attr_lpfc_enable_bg.attr,
+	&dev_attr_lpfc_soft_wwnn.attr,
+	&dev_attr_lpfc_soft_wwpn.attr,
+	&dev_attr_lpfc_soft_wwn_enable.attr,
+	&dev_attr_lpfc_enable_hba_reset.attr,
+	&dev_attr_lpfc_enable_hba_heartbeat.attr,
+	&dev_attr_lpfc_EnableXLane.attr,
+	&dev_attr_lpfc_XLanePriority.attr,
+	&dev_attr_lpfc_xlane_lun.attr,
+	&dev_attr_lpfc_xlane_tgt.attr,
+	&dev_attr_lpfc_xlane_vpt.attr,
+	&dev_attr_lpfc_xlane_lun_state.attr,
+	&dev_attr_lpfc_xlane_lun_status.attr,
+	&dev_attr_lpfc_xlane_priority.attr,
+	&dev_attr_lpfc_sg_seg_cnt.attr,
+	&dev_attr_lpfc_max_scsicmpl_time.attr,
+	&dev_attr_lpfc_stat_data_ctrl.attr,
+	&dev_attr_lpfc_aer_support.attr,
+	&dev_attr_lpfc_aer_state_cleanup.attr,
+	&dev_attr_lpfc_sriov_nr_virtfn.attr,
+	&dev_attr_lpfc_req_fw_upgrade.attr,
+	&dev_attr_lpfc_suppress_link_up.attr,
+	&dev_attr_iocb_hw.attr,
+	&dev_attr_pls.attr,
+	&dev_attr_pt.attr,
+	&dev_attr_txq_hw.attr,
+	&dev_attr_txcmplq_hw.attr,
+	&dev_attr_lpfc_sriov_hw_max_virtfn.attr,
+	&dev_attr_protocol.attr,
+	&dev_attr_lpfc_xlane_supported.attr,
+	&dev_attr_lpfc_enable_mds_diags.attr,
+	&dev_attr_lpfc_ras_fwlog_buffsize.attr,
+	&dev_attr_lpfc_ras_fwlog_level.attr,
+	&dev_attr_lpfc_ras_fwlog_func.attr,
+	&dev_attr_lpfc_enable_bbcr.attr,
+	&dev_attr_lpfc_enable_dpp.attr,
+	&dev_attr_lpfc_enable_mi.attr,
+	&dev_attr_cmf_info.attr,
+	&dev_attr_lpfc_max_vmid.attr,
+	&dev_attr_lpfc_vmid_inactivity_timeout.attr,
+	&dev_attr_lpfc_vmid_app_header.attr,
+	&dev_attr_lpfc_vmid_priority_tagging.attr,
 	NULL,
 };
 
-struct device_attribute *lpfc_vport_attrs[] = {
-	&dev_attr_info,
-	&dev_attr_link_state,
-	&dev_attr_num_discovered_ports,
-	&dev_attr_lpfc_drvr_version,
-	&dev_attr_lpfc_log_verbose,
-	&dev_attr_lpfc_lun_queue_depth,
-	&dev_attr_lpfc_tgt_queue_depth,
-	&dev_attr_lpfc_nodev_tmo,
-	&dev_attr_lpfc_devloss_tmo,
-	&dev_attr_lpfc_hba_queue_depth,
-	&dev_attr_lpfc_peer_port_login,
-	&dev_attr_lpfc_restrict_login,
-	&dev_attr_lpfc_fcp_class,
-	&dev_attr_lpfc_use_adisc,
-	&dev_attr_lpfc_first_burst_size,
-	&dev_attr_lpfc_max_luns,
-	&dev_attr_nport_evt_cnt,
-	&dev_attr_npiv_info,
-	&dev_attr_lpfc_enable_da_id,
-	&dev_attr_lpfc_max_scsicmpl_time,
-	&dev_attr_lpfc_stat_data_ctrl,
-	&dev_attr_lpfc_static_vport,
+static const struct attribute_group lpfc_hba_attr_group = {
+	.attrs = lpfc_hba_attrs
+};
+
+const struct attribute_group *lpfc_hba_groups[] = {
+	&lpfc_hba_attr_group,
+	NULL
+};
+
+static struct attribute *lpfc_vport_attrs[] = {
+	&dev_attr_info.attr,
+	&dev_attr_link_state.attr,
+	&dev_attr_num_discovered_ports.attr,
+	&dev_attr_lpfc_drvr_version.attr,
+	&dev_attr_lpfc_log_verbose.attr,
+	&dev_attr_lpfc_lun_queue_depth.attr,
+	&dev_attr_lpfc_tgt_queue_depth.attr,
+	&dev_attr_lpfc_nodev_tmo.attr,
+	&dev_attr_lpfc_devloss_tmo.attr,
+	&dev_attr_lpfc_hba_queue_depth.attr,
+	&dev_attr_lpfc_peer_port_login.attr,
+	&dev_attr_lpfc_restrict_login.attr,
+	&dev_attr_lpfc_fcp_class.attr,
+	&dev_attr_lpfc_use_adisc.attr,
+	&dev_attr_lpfc_first_burst_size.attr,
+	&dev_attr_lpfc_max_luns.attr,
+	&dev_attr_nport_evt_cnt.attr,
+	&dev_attr_npiv_info.attr,
+	&dev_attr_lpfc_enable_da_id.attr,
+	&dev_attr_lpfc_max_scsicmpl_time.attr,
+	&dev_attr_lpfc_stat_data_ctrl.attr,
+	&dev_attr_lpfc_static_vport.attr,
+	&dev_attr_cmf_info.attr,
 	NULL,
+};
+
+static const struct attribute_group lpfc_vport_attr_group = {
+	.attrs = lpfc_vport_attrs
+};
+
+const struct attribute_group *lpfc_vport_groups[] = {
+	&lpfc_vport_attr_group,
+	NULL
 };
 
 /**
@@ -6741,6 +6954,9 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 		case LPFC_LINK_SPEED_128GHZ:
 			fc_host_speed(shost) = FC_PORTSPEED_128GBIT;
 			break;
+		case LPFC_LINK_SPEED_256GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_256GBIT;
+			break;
 		default:
 			fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
@@ -6908,6 +7124,9 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	hs->invalid_crc_count = pmb->un.varRdLnk.crcCnt;
 	hs->error_frames = pmb->un.varRdLnk.crcCnt;
 
+	hs->cn_sig_warn = atomic64_read(&phba->cgn_acqe_stat.warn);
+	hs->cn_sig_alarm = atomic64_read(&phba->cgn_acqe_stat.alarm);
+
 	hs->link_failure_count -= lso->link_failure_count;
 	hs->loss_of_sync_count -= lso->loss_of_sync_count;
 	hs->loss_of_signal_count -= lso->loss_of_signal_count;
@@ -7018,6 +7237,12 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 		lso->link_events = (phba->link_events >> 1);
 	else
 		lso->link_events = (phba->fc_eventTag >> 1);
+
+	atomic64_set(&phba->cgn_acqe_stat.warn, 0);
+	atomic64_set(&phba->cgn_acqe_stat.alarm, 0);
+
+	memset(&shost_to_fc_host(shost)->fpin_stats, 0,
+	       sizeof(shost_to_fc_host(shost)->fpin_stats));
 
 	psli->stats_start = ktime_get_seconds();
 
@@ -7451,6 +7676,12 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_enable_bbcr_init(phba, lpfc_enable_bbcr);
 	lpfc_enable_dpp_init(phba, lpfc_enable_dpp);
 	lpfc_enable_mi_init(phba, lpfc_enable_mi);
+
+	phba->cgn_p.cgn_param_mode = LPFC_CFG_OFF;
+	phba->cmf_active_mode = LPFC_CFG_OFF;
+	if (lpfc_fabric_cgn_frequency > EDC_CG_SIGFREQ_CNT_MAX ||
+	   lpfc_fabric_cgn_frequency < EDC_CG_SIGFREQ_CNT_MIN)
+		lpfc_fabric_cgn_frequency = 100; /* 100 ms default */
 
 	if (phba->sli_rev != LPFC_SLI_REV4) {
 		/* NVME only supported on SLI4 */

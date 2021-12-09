@@ -86,12 +86,6 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 	struct nouveau_channel *chan = *pchan;
 	if (chan) {
 		struct nouveau_cli *cli = (void *)chan->user.client;
-		bool super;
-
-		if (cli) {
-			super = cli->base.super;
-			cli->base.super = true;
-		}
 
 		if (chan->fence)
 			nouveau_fence(chan->drm)->context_del(chan);
@@ -111,9 +105,6 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 			nouveau_bo_unpin(chan->push.buffer);
 		nouveau_bo_ref(NULL, &chan->push.buffer);
 		kfree(chan);
-
-		if (cli)
-			cli->base.super = super;
 	}
 	*pchan = NULL;
 }
@@ -259,7 +250,8 @@ static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		    u64 runlist, bool priv, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { TURING_CHANNEL_GPFIFO_A,
+	static const u16 oclasses[] = { AMPERE_CHANNEL_GPFIFO_B,
+					TURING_CHANNEL_GPFIFO_A,
 					VOLTA_CHANNEL_GPFIFO_A,
 					PASCAL_CHANNEL_GPFIFO_A,
 					MAXWELL_CHANNEL_GPFIFO_A,
@@ -395,7 +387,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 	nvif_object_map(&chan->user, NULL, 0);
 
-	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
+	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO &&
+	    chan->user.oclass < AMPERE_CHANNEL_GPFIFO_B) {
 		ret = nvif_notify_ctor(&chan->user, "abi16ChanKilled",
 				       nouveau_channel_killed,
 				       true, NV906F_V0_NTFY_KILLED,
@@ -512,20 +505,16 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 		    struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
-	bool super;
 	int ret;
 
 	/* hack until fencenv50 is fixed, and agp access relaxed */
-	super = cli->base.super;
-	cli->base.super = true;
-
 	ret = nouveau_channel_ind(drm, device, arg0, priv, pchan);
 	if (ret) {
 		NV_PRINTK(dbg, cli, "ib channel create, %d\n", ret);
 		ret = nouveau_channel_dma(drm, device, pchan);
 		if (ret) {
 			NV_PRINTK(dbg, cli, "dma channel create, %d\n", ret);
-			goto done;
+			return ret;
 		}
 	}
 
@@ -533,15 +522,13 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	if (ret) {
 		NV_PRINTK(err, cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
-		goto done;
+		return ret;
 	}
 
 	ret = nouveau_svmm_join((*pchan)->vmm->svmm, (*pchan)->inst);
 	if (ret)
 		nouveau_channel_del(pchan);
 
-done:
-	cli->base.super = super;
 	return ret;
 }
 

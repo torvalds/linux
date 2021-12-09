@@ -72,11 +72,11 @@ additionalProperties: false
 if:
   properties:
     compatible:
-      oneOf:
-        - const: ti,omap2420-i2c
-        - const: ti,omap2430-i2c
-        - const: ti,omap3-i2c
-        - const: ti,omap4-i2c
+      enum:
+        - ti,omap2420-i2c
+        - ti,omap2430-i2c
+        - ti,omap3-i2c
+        - ti,omap4-i2c
 
 then:
   properties:

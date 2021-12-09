@@ -1271,18 +1271,13 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 	/* Always ask for fixed clock rate from a property. */
 	device_property_read_u32(dev, "clock-frequency", &uartclk);
 
-	s->clk = devm_clk_get_optional(dev, "osc");
+	xtal = device_property_match_string(dev, "clock-names", "osc") < 0;
+	if (xtal)
+		s->clk = devm_clk_get_optional(dev, "xtal");
+	else
+		s->clk = devm_clk_get_optional(dev, "osc");
 	if (IS_ERR(s->clk))
 		return PTR_ERR(s->clk);
-	if (s->clk) {
-		xtal = false;
-	} else {
-		s->clk = devm_clk_get_optional(dev, "xtal");
-		if (IS_ERR(s->clk))
-			return PTR_ERR(s->clk);
-
-		xtal = true;
-	}
 
 	ret = clk_prepare_enable(s->clk);
 	if (ret)
@@ -1431,7 +1426,7 @@ out_clk:
 	return ret;
 }
 
-static int max310x_remove(struct device *dev)
+static void max310x_remove(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
 	int i;
@@ -1446,8 +1441,6 @@ static int max310x_remove(struct device *dev)
 	}
 
 	clk_disable_unprepare(s->clk);
-
-	return 0;
 }
 
 static const struct of_device_id __maybe_unused max310x_dt_ids[] = {
@@ -1496,7 +1489,8 @@ static int max310x_spi_probe(struct spi_device *spi)
 
 static int max310x_spi_remove(struct spi_device *spi)
 {
-	return max310x_remove(&spi->dev);
+	max310x_remove(&spi->dev);
+	return 0;
 }
 
 static const struct spi_device_id max310x_id_table[] = {

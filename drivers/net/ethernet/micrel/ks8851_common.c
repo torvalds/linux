@@ -165,6 +165,7 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 	unsigned long flags;
+	u8 addr[ETH_ALEN];
 	u16 reg;
 	int i;
 
@@ -172,9 +173,10 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		reg = ks8851_rdreg16(ks, KS_MAR(i));
-		dev->dev_addr[i] = reg >> 8;
-		dev->dev_addr[i + 1] = reg & 0xff;
+		addr[i] = reg >> 8;
+		addr[i + 1] = reg & 0xff;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	ks8851_unlock(ks, &flags);
 }
@@ -195,7 +197,7 @@ static void ks8851_init_mac(struct ks8851_net *ks, struct device_node *np)
 	struct net_device *dev = ks->netdev;
 	int ret;
 
-	ret = of_get_mac_address(np, dev->dev_addr);
+	ret = of_get_ethdev_address(np, dev);
 	if (!ret) {
 		ks8851_write_mac_addr(dev);
 		return;
@@ -672,7 +674,7 @@ static int ks8851_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, sa->sa_data);
 	return ks8851_write_mac_addr(dev);
 }
 
@@ -689,7 +691,7 @@ static int ks8851_net_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 static const struct net_device_ops ks8851_netdev_ops = {
 	.ndo_open		= ks8851_net_open,
 	.ndo_stop		= ks8851_net_stop,
-	.ndo_do_ioctl		= ks8851_net_ioctl,
+	.ndo_eth_ioctl		= ks8851_net_ioctl,
 	.ndo_start_xmit		= ks8851_start_xmit,
 	.ndo_set_mac_address	= ks8851_set_mac_address,
 	.ndo_set_rx_mode	= ks8851_set_rx_mode,
@@ -1057,6 +1059,7 @@ int ks8851_suspend(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ks8851_suspend);
 
 int ks8851_resume(struct device *dev)
 {
@@ -1070,6 +1073,7 @@ int ks8851_resume(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ks8851_resume);
 #endif
 
 static int ks8851_register_mdiobus(struct ks8851_net *ks, struct device *dev)
@@ -1243,8 +1247,9 @@ err_reg:
 err_reg_io:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ks8851_probe_common);
 
-int ks8851_remove_common(struct device *dev)
+void ks8851_remove_common(struct device *dev)
 {
 	struct ks8851_net *priv = dev_get_drvdata(dev);
 
@@ -1258,6 +1263,9 @@ int ks8851_remove_common(struct device *dev)
 		gpio_set_value(priv->gpio, 0);
 	regulator_disable(priv->vdd_reg);
 	regulator_disable(priv->vdd_io);
-
-	return 0;
 }
+EXPORT_SYMBOL_GPL(ks8851_remove_common);
+
+MODULE_DESCRIPTION("KS8851 Network driver");
+MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
+MODULE_LICENSE("GPL");

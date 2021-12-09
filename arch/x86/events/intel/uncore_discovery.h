@@ -30,7 +30,7 @@
 
 
 #define uncore_discovery_invalid_unit(unit)			\
-	(!unit.table1 || !unit.ctl || !unit.table3 ||	\
+	(!unit.table1 || !unit.ctl || \
 	 unit.table1 == -1ULL || unit.ctl == -1ULL ||	\
 	 unit.table3 == -1ULL)
 
@@ -129,3 +129,24 @@ void intel_uncore_clear_discovery_tables(void);
 void intel_uncore_generic_uncore_cpu_init(void);
 int intel_uncore_generic_uncore_pci_init(void);
 void intel_uncore_generic_uncore_mmio_init(void);
+
+void intel_generic_uncore_msr_init_box(struct intel_uncore_box *box);
+void intel_generic_uncore_msr_disable_box(struct intel_uncore_box *box);
+void intel_generic_uncore_msr_enable_box(struct intel_uncore_box *box);
+
+void intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box);
+void intel_generic_uncore_mmio_disable_box(struct intel_uncore_box *box);
+void intel_generic_uncore_mmio_enable_box(struct intel_uncore_box *box);
+void intel_generic_uncore_mmio_disable_event(struct intel_uncore_box *box,
+					     struct perf_event *event);
+
+void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box);
+void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box);
+void intel_generic_uncore_pci_enable_box(struct intel_uncore_box *box);
+void intel_generic_uncore_pci_disable_event(struct intel_uncore_box *box,
+					    struct perf_event *event);
+u64 intel_generic_uncore_pci_read_counter(struct intel_uncore_box *box,
+					  struct perf_event *event);
+
+struct intel_uncore_type **
+intel_uncore_generic_init_uncores(enum uncore_access_type type_id, int num_extra);

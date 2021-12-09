@@ -798,7 +798,7 @@ static int xlgmac_set_mac_address(struct net_device *netdev, void *addr)
 	if (!is_valid_ether_addr(saddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, saddr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, saddr->sa_data);
 
 	hw_ops->set_mac_address(pdata, netdev->dev_addr);
 
@@ -933,7 +933,7 @@ static const struct net_device_ops xlgmac_netdev_ops = {
 	.ndo_change_mtu		= xlgmac_change_mtu,
 	.ndo_set_mac_address	= xlgmac_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= xlgmac_ioctl,
+	.ndo_eth_ioctl		= xlgmac_ioctl,
 	.ndo_vlan_rx_add_vid	= xlgmac_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= xlgmac_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER

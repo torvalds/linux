@@ -6,7 +6,7 @@
 
 #ifndef CONFIG_DYNAMIC_FTRACE
 extern void (*ftrace_trace_function)(unsigned long, unsigned long,
-				     struct ftrace_ops*, struct pt_regs*);
+				     struct ftrace_ops*, struct ftrace_regs*);
 extern void ftrace_graph_caller(void);
 
 noinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
@@ -82,11 +82,6 @@ void _ftrace_caller(unsigned long parent_ip)
 		"nop			\n\t");
 #endif
 	/* restore all state needed by the compiler epilogue */
-}
-
-int __init ftrace_dyn_arch_init(void)
-{
-	return 0;
 }
 
 static unsigned long gen_sethi_insn(unsigned long addr)

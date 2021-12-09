@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifsglob.h
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -16,11 +15,13 @@
 #include <linux/slab.h>
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
+#include <linux/utsname.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
 #include <crypto/internal/hash.h>
 #include <linux/scatterlist.h>
 #include <uapi/linux/cifs/cifs_mount.h>
+#include "../smbfs_common/smb2pdu.h"
 #include "smb2pdu.h"
 
 #define CIFS_MAGIC_NUMBER 0xFF534D42      /* the first four bytes of SMB PDUs */
@@ -75,7 +76,8 @@
 #define SMB_ECHO_INTERVAL_MAX 600
 #define SMB_ECHO_INTERVAL_DEFAULT 60
 
-/* dns resolution interval in seconds */
+/* dns resolution intervals in seconds */
+#define SMB_DNS_RESOLVE_INTERVAL_MIN     120
 #define SMB_DNS_RESOLVE_INTERVAL_DEFAULT 600
 
 /* maximum number of PDUs in one compound */
@@ -99,6 +101,8 @@
 #define XATTR_DOS_ATTRIB "user.DOSATTRIB"
 #endif
 
+#define CIFS_MAX_WORKSTATION_LEN  (__NEW_UTS_LEN + 1)  /* reasonable max for client */
+
 /*
  * CIFS vfs client Status information (based on what we know.)
  */
@@ -114,8 +118,6 @@ enum statusEnum {
 
 enum securityEnum {
 	Unspecified = 0,	/* not specified */
-	LANMAN,			/* Legacy LANMAN auth */
-	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
 	Kerberos,		/* Kerberos via SPNEGO */
@@ -594,6 +596,7 @@ struct TCP_Server_Info {
 	struct list_head pending_mid_q;
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
+	bool nosharesock;
 	bool tcp_nodelay;
 	unsigned int credits;  /* send no more requests at once */
 	unsigned int max_credits; /* can override large 32000 default at mnt */
@@ -634,7 +637,6 @@ struct TCP_Server_Info {
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
-#define	CIFS_NEGFLAVOR_LANMAN	0	/* wct == 13, LANMAN */
 #define	CIFS_NEGFLAVOR_UNENCAP	1	/* wct == 17, but no ext_sec */
 #define	CIFS_NEGFLAVOR_EXTENDED	2	/* wct == 17, ext_sec bit set */
 	char	negflavor;	/* NEGOTIATE response flavor */
@@ -688,13 +690,34 @@ struct TCP_Server_Info {
 	 */
 	int nr_targets;
 	bool noblockcnt; /* use non-blocking connect() */
-	bool is_channel; /* if a session channel */
+
+	/*
+	 * If this is a session channel,
+	 * primary_server holds the ref-counted
+	 * pointer to primary channel connection for the session.
+	 */
+#define CIFS_SERVER_IS_CHAN(server)	(!!(server)->primary_server)
+	struct TCP_Server_Info *primary_server;
+
 #ifdef CONFIG_CIFS_SWN_UPCALL
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
 #endif
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	bool is_dfs_conn; /* if a dfs connection */
+	struct mutex refpath_lock; /* protects leaf_fullpath */
+	/*
+	 * Canonical DFS full paths that were used to chase referrals in mount and reconnect.
+	 *
+	 * origin_fullpath: first or original referral path
+	 * leaf_fullpath: last referral path (might be changed due to nested links in reconnect)
+	 *
+	 * current_fullpath: pointer to either origin_fullpath or leaf_fullpath
+	 * NOTE: cannot be accessed outside cifs_reconnect() and smb2_reconnect()
+	 *
+	 * format: \\HOST\SHARE\[OPTIONAL PATH]
+	 */
+	char *origin_fullpath, *leaf_fullpath, *current_fullpath;
 #endif
 };
 
@@ -780,7 +803,7 @@ revert_current_mid(struct TCP_Server_Info *server, const unsigned int val)
 
 static inline void
 revert_current_mid_from_hdr(struct TCP_Server_Info *server,
-			    const struct smb2_sync_hdr *shdr)
+			    const struct smb2_hdr *shdr)
 {
 	unsigned int num = le16_to_cpu(shdr->CreditCharge);
 
@@ -911,6 +934,7 @@ struct cifs_ses {
 				   and after mount option parsing we fill it */
 	char *domainName;
 	char *password;
+	char *workstation_name;
 	struct session_key auth_key;
 	struct ntlmssp_auth *ntlmssp; /* ciphertext, flags, server challenge */
 	enum securityEnum sectype; /* what security flavor was specified? */
@@ -936,16 +960,21 @@ struct cifs_ses {
 	 * iface_lock should be taken when accessing any of these fields
 	 */
 	spinlock_t iface_lock;
+	/* ========= begin: protected by iface_lock ======== */
 	struct cifs_server_iface *iface_list;
 	size_t iface_count;
 	unsigned long iface_last_update; /* jiffies */
+	/* ========= end: protected by iface_lock ======== */
 
+	spinlock_t chan_lock;
+	/* ========= begin: protected by chan_lock ======== */
 #define CIFS_MAX_CHANNELS 16
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
 	struct cifs_chan *binding_chan;
 	size_t chan_count;
 	size_t chan_max;
 	atomic_t chan_seq; /* round robin state */
+	/* ========= end: protected by chan_lock ======== */
 };
 
 /*
@@ -1094,7 +1123,6 @@ struct cifs_tcon {
 	struct cached_fid crfid; /* Cached root fid */
 	/* BB add field for back pointer to sb struct(s)? */
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	char *dfs_path; /* canonical DFS path */
 	struct list_head ulist; /* cache update list */
 #endif
 };
@@ -1403,6 +1431,7 @@ struct cifsInodeInfo {
 #define CIFS_INO_INVALID_MAPPING	  (4) /* pagecache is invalid */
 #define CIFS_INO_LOCK			  (5) /* lock bit for synchronization */
 #define CIFS_INO_MODIFIED_ATTR            (6) /* Indicate change in mtime/ctime */
+#define CIFS_INO_CLOSE_ON_LOCK            (7) /* Not to defer the close when lock is set */
 	unsigned long flags;
 	spinlock_t writers_lock;
 	unsigned int writers;		/* Number of writers on this inode */
@@ -1611,6 +1640,11 @@ struct dfs_info3_param {
 	int ttl;
 };
 
+struct file_list {
+	struct list_head list;
+	struct cifsFileInfo *cfile;
+};
+
 /*
  * common struct for holding inode info when searching for or updating an
  * inode with new info
@@ -1729,16 +1763,8 @@ static inline bool is_retryable_error(int error)
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001
-#define   CIFSSEC_MAY_NTLM	0x00002
 #define   CIFSSEC_MAY_NTLMV2	0x00004
 #define   CIFSSEC_MAY_KRB5	0x00008
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define   CIFSSEC_MAY_LANMAN	0x00010
-#define   CIFSSEC_MAY_PLNTXT	0x00020
-#else
-#define   CIFSSEC_MAY_LANMAN    0
-#define   CIFSSEC_MAY_PLNTXT    0
-#endif /* weak passwords */
 #define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
 #define   CIFSSEC_MAY_NTLMSSP	0x00080 /* raw ntlmssp with ntlmv2 */
 
@@ -1746,32 +1772,19 @@ static inline bool is_retryable_error(int error)
 /* note that only one of the following can be set so the
 result of setting MUST flags more than once will be to
 require use of the stronger protocol */
-#define   CIFSSEC_MUST_NTLM	0x02002
 #define   CIFSSEC_MUST_NTLMV2	0x04004
 #define   CIFSSEC_MUST_KRB5	0x08008
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define   CIFSSEC_MUST_LANMAN	0x10010
-#define   CIFSSEC_MUST_PLNTXT	0x20020
-#ifdef CONFIG_CIFS_UPCALL
-#define   CIFSSEC_MASK          0xBF0BF /* allows weak security but also krb5 */
-#else
-#define   CIFSSEC_MASK          0xB70B7 /* current flags supported if weak */
-#endif /* UPCALL */
-#else /* do not allow weak pw hash */
-#define   CIFSSEC_MUST_LANMAN	0
-#define   CIFSSEC_MUST_PLNTXT	0
 #ifdef CONFIG_CIFS_UPCALL
 #define   CIFSSEC_MASK          0x8F08F /* flags supported if no weak allowed */
 #else
 #define	  CIFSSEC_MASK          0x87087 /* flags supported if no weak allowed */
 #endif /* UPCALL */
-#endif /* WEAK_PW_HASH */
 #define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
 #define   CIFSSEC_MUST_NTLMSSP	0x80080 /* raw ntlmssp with ntlmv2 */
 
 #define   CIFSSEC_DEF (CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_NTLMSSP)
-#define   CIFSSEC_MAX (CIFSSEC_MUST_SIGN | CIFSSEC_MUST_NTLMV2)
-#define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_LANMAN | CIFSSEC_MAY_PLNTXT | CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP)
+#define   CIFSSEC_MAX (CIFSSEC_MUST_NTLMV2)
+#define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP)
 /*
  *****************************************************************
  * All constants go here
@@ -1935,10 +1948,6 @@ static inline char *get_security_type_str(enum securityEnum sectype)
 		return "Kerberos";
 	case NTLMv2:
 		return "NTLMv2";
-	case NTLM:
-		return "NTLM";
-	case LANMAN:
-		return "LANMAN";
 	default:
 		return "Unknown";
 	}
@@ -1962,6 +1971,16 @@ static inline bool is_tcon_dfs(struct cifs_tcon *tcon)
 		return false;
 	return is_smb1_server(tcon->ses->server) ? tcon->Flags & SMB_SHARE_IS_IN_DFS :
 		tcon->share_flags & (SHI1005_FLAGS_DFS | SHI1005_FLAGS_DFS_ROOT);
+}
+
+static inline bool cifs_is_referral_server(struct cifs_tcon *tcon,
+					   const struct dfs_info3_param *ref)
+{
+	/*
+	 * Check if all targets are capable of handling DFS referrals as per
+	 * MS-DFSC 2.2.4 RESP_GET_DFS_REFERRAL.
+	 */
+	return is_tcon_dfs(tcon) || (ref && (ref->flags & DFSREF_REFERRAL_SERVER));
 }
 
 #endif	/* _CIFS_GLOB_H */

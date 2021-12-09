@@ -369,9 +369,8 @@ static int xgbe_set_link_ksettings(struct net_device *netdev,
 		  __ETHTOOL_LINK_MODE_MASK_NBITS, cmd->link_modes.advertising,
 		  __ETHTOOL_LINK_MODE_MASK_NBITS, lks->link_modes.supported);
 
-	bitmap_and(advertising,
-		   cmd->link_modes.advertising, lks->link_modes.supported,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(advertising, cmd->link_modes.advertising,
+		     lks->link_modes.supported);
 
 	if ((cmd->base.autoneg == AUTONEG_ENABLE) &&
 	    bitmap_empty(advertising, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
@@ -384,8 +383,7 @@ static int xgbe_set_link_ksettings(struct net_device *netdev,
 	pdata->phy.autoneg = cmd->base.autoneg;
 	pdata->phy.speed = speed;
 	pdata->phy.duplex = cmd->base.duplex;
-	bitmap_copy(lks->link_modes.advertising, advertising,
-		    __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_copy(lks->link_modes.advertising, advertising);
 
 	if (cmd->base.autoneg == AUTONEG_ENABLE)
 		XGBE_SET_ADV(lks, Autoneg);
@@ -428,7 +426,9 @@ static void xgbe_set_msglevel(struct net_device *netdev, u32 msglevel)
 }
 
 static int xgbe_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			     struct ethtool_coalesce *ec,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 
@@ -443,7 +443,9 @@ static int xgbe_get_coalesce(struct net_device *netdev,
 }
 
 static int xgbe_set_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			     struct ethtool_coalesce *ec,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;

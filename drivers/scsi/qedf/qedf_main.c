@@ -986,7 +986,7 @@ static struct scsi_host_template qedf_host_template = {
 	.cmd_per_lun	= 32,
 	.max_sectors 	= 0xffff,
 	.queuecommand 	= qedf_queuecommand,
-	.shost_attrs	= qedf_host_attrs,
+	.shost_groups	= qedf_host_groups,
 	.eh_abort_handler	= qedf_eh_abort,
 	.eh_device_reset_handler = qedf_eh_device_reset, /* lun reset */
 	.eh_target_reset_handler = qedf_eh_target_reset, /* target reset */
@@ -2170,7 +2170,7 @@ static bool qedf_fp_has_work(struct qedf_fastpath *fp)
 	struct qedf_ctx *qedf = fp->qedf;
 	struct global_queue *que;
 	struct qed_sb_info *sb_info = fp->sb_info;
-	struct status_block_e4 *sb = sb_info->sb_virt;
+	struct status_block *sb = sb_info->sb_virt;
 	u16 prod_idx;
 
 	/* Get the pointer to the global CQ this completion is on */
@@ -2197,7 +2197,7 @@ static bool qedf_process_completions(struct qedf_fastpath *fp)
 {
 	struct qedf_ctx *qedf = fp->qedf;
 	struct qed_sb_info *sb_info = fp->sb_info;
-	struct status_block_e4 *sb = sb_info->sb_virt;
+	struct status_block *sb = sb_info->sb_virt;
 	struct global_queue *que;
 	u16 prod_idx;
 	struct fcoe_cqe *cqe;
@@ -2688,12 +2688,12 @@ void qedf_fp_io_handler(struct work_struct *work)
 static int qedf_alloc_and_init_sb(struct qedf_ctx *qedf,
 	struct qed_sb_info *sb_info, u16 sb_id)
 {
-	struct status_block_e4 *sb_virt;
+	struct status_block *sb_virt;
 	dma_addr_t sb_phys;
 	int ret;
 
 	sb_virt = dma_alloc_coherent(&qedf->pdev->dev,
-	    sizeof(struct status_block_e4), &sb_phys, GFP_KERNEL);
+	    sizeof(struct status_block), &sb_phys, GFP_KERNEL);
 
 	if (!sb_virt) {
 		QEDF_ERR(&qedf->dbg_ctx,
@@ -3004,7 +3004,7 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 {
 	u32 *list;
 	int i;
-	int status = 0, rc;
+	int status;
 	u32 *pbl;
 	dma_addr_t page;
 	int num_pages;
@@ -3016,7 +3016,7 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 	 */
 	if (!qedf->num_queues) {
 		QEDF_ERR(&(qedf->dbg_ctx), "No MSI-X vectors available!\n");
-		return 1;
+		return -ENOMEM;
 	}
 
 	/*
@@ -3024,7 +3024,7 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 	 * addresses of our queues
 	 */
 	if (!qedf->p_cpuq) {
-		status = 1;
+		status = -EINVAL;
 		QEDF_ERR(&qedf->dbg_ctx, "p_cpuq is NULL.\n");
 		goto mem_alloc_failure;
 	}
@@ -3040,8 +3040,8 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 		   "qedf->global_queues=%p.\n", qedf->global_queues);
 
 	/* Allocate DMA coherent buffers for BDQ */
-	rc = qedf_alloc_bdq(qedf);
-	if (rc) {
+	status = qedf_alloc_bdq(qedf);
+	if (status) {
 		QEDF_ERR(&qedf->dbg_ctx, "Unable to allocate bdq.\n");
 		goto mem_alloc_failure;
 	}
@@ -3416,7 +3416,9 @@ retry_probe:
 		qedf->devlink = qed_ops->common->devlink_register(qedf->cdev);
 		if (IS_ERR(qedf->devlink)) {
 			QEDF_ERR(&qedf->dbg_ctx, "Cannot register devlink\n");
+			rc = PTR_ERR(qedf->devlink);
 			qedf->devlink = NULL;
+			goto err2;
 		}
 	}
 

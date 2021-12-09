@@ -32,6 +32,7 @@
 #include <linux/perf_event.h>
 #include <linux/extable.h>
 #include <linux/log2.h>
+#include <linux/bpf_verifier.h>
 
 #include <asm/barrier.h>
 #include <asm/unaligned.h>
@@ -389,6 +390,13 @@ static int bpf_adj_branches(struct bpf_prog *prog, u32 pos, s32 end_old,
 			i = end_new;
 			insn = prog->insnsi + end_old;
 		}
+		if (bpf_pseudo_func(insn)) {
+			ret = bpf_adj_delta_to_imm(insn, pos, end_old,
+						   end_new, i, probe_pass);
+			if (ret)
+				return ret;
+			continue;
+		}
 		code = insn->code;
 		if ((BPF_CLASS(code) != BPF_JMP &&
 		     BPF_CLASS(code) != BPF_JMP32) ||
@@ -524,6 +532,7 @@ int bpf_jit_enable   __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_DEFAULT_ON);
 int bpf_jit_kallsyms __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_DEFAULT_ON);
 int bpf_jit_harden   __read_mostly;
 long bpf_jit_limit   __read_mostly;
+long bpf_jit_limit_max __read_mostly;
 
 static void
 bpf_prog_ksym_set_addr(struct bpf_prog *prog)
@@ -817,7 +826,8 @@ u64 __weak bpf_jit_alloc_exec_limit(void)
 static int __init bpf_jit_charge_init(void)
 {
 	/* Only used as heuristic here to derive limit. */
-	bpf_jit_limit = min_t(u64, round_up(bpf_jit_alloc_exec_limit() >> 2,
+	bpf_jit_limit_max = bpf_jit_alloc_exec_limit();
+	bpf_jit_limit = min_t(u64, round_up(bpf_jit_limit_max >> 2,
 					    PAGE_SIZE), LONG_MAX);
 	return 0;
 }
@@ -827,7 +837,7 @@ int bpf_jit_charge_modmem(u32 pages)
 {
 	if (atomic_long_add_return(pages, &bpf_jit_current) >
 	    (bpf_jit_limit >> PAGE_SHIFT)) {
-		if (!capable(CAP_SYS_ADMIN)) {
+		if (!bpf_capable()) {
 			atomic_long_sub(pages, &bpf_jit_current);
 			return -EPERM;
 		}
@@ -1362,11 +1372,13 @@ u64 __weak bpf_probe_read_kernel(void *dst, u32 size, const void *unsafe_ptr)
 }
 
 /**
- *	__bpf_prog_run - run eBPF program on a given context
+ *	___bpf_prog_run - run eBPF program on a given context
  *	@regs: is the array of MAX_BPF_EXT_REG eBPF pseudo-registers
  *	@insn: is the array of eBPF instructions
  *
  * Decode and execute eBPF instructions.
+ *
+ * Return: whatever value is in %BPF_R0 at program exit
  */
 static u64 ___bpf_prog_run(u64 *regs, const struct bpf_insn *insn)
 {
@@ -1819,20 +1831,26 @@ static unsigned int __bpf_prog_ret0_warn(const void *ctx,
 bool bpf_prog_array_compatible(struct bpf_array *array,
 			       const struct bpf_prog *fp)
 {
+	bool ret;
+
 	if (fp->kprobe_override)
 		return false;
 
-	if (!array->aux->type) {
+	spin_lock(&array->aux->owner.lock);
+
+	if (!array->aux->owner.type) {
 		/* There's no owner yet where we could check for
 		 * compatibility.
 		 */
-		array->aux->type  = fp->type;
-		array->aux->jited = fp->jited;
-		return true;
+		array->aux->owner.type  = fp->type;
+		array->aux->owner.jited = fp->jited;
+		ret = true;
+	} else {
+		ret = array->aux->owner.type  == fp->type &&
+		      array->aux->owner.jited == fp->jited;
 	}
-
-	return array->aux->type  == fp->type &&
-	       array->aux->jited == fp->jited;
+	spin_unlock(&array->aux->owner.lock);
+	return ret;
 }
 
 static int bpf_check_tail_call(const struct bpf_prog *fp)
@@ -1877,7 +1895,10 @@ static void bpf_prog_select_func(struct bpf_prog *fp)
  *	@err: pointer to error variable
  *
  * Try to JIT eBPF program, if JIT is not available, use interpreter.
- * The BPF program will be executed via BPF_PROG_RUN() macro.
+ * The BPF program will be executed via bpf_prog_run() function.
+ *
+ * Return: the &fp argument along with &err set to 0 for success or
+ * a negative errno code on failure
  */
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 {
@@ -2114,13 +2135,13 @@ int bpf_prog_array_update_at(struct bpf_prog_array *array, int index,
 int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 			struct bpf_prog *exclude_prog,
 			struct bpf_prog *include_prog,
+			u64 bpf_cookie,
 			struct bpf_prog_array **new_array)
 {
 	int new_prog_cnt, carry_prog_cnt = 0;
-	struct bpf_prog_array_item *existing;
+	struct bpf_prog_array_item *existing, *new;
 	struct bpf_prog_array *array;
 	bool found_exclude = false;
-	int new_prog_idx = 0;
 
 	/* Figure out how many existing progs we need to carry over to
 	 * the new array.
@@ -2157,20 +2178,27 @@ int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 	array = bpf_prog_array_alloc(new_prog_cnt + 1, GFP_KERNEL);
 	if (!array)
 		return -ENOMEM;
+	new = array->items;
 
 	/* Fill in the new prog array */
 	if (carry_prog_cnt) {
 		existing = old_array->items;
-		for (; existing->prog; existing++)
-			if (existing->prog != exclude_prog &&
-			    existing->prog != &dummy_bpf_prog.prog) {
-				array->items[new_prog_idx++].prog =
-					existing->prog;
-			}
+		for (; existing->prog; existing++) {
+			if (existing->prog == exclude_prog ||
+			    existing->prog == &dummy_bpf_prog.prog)
+				continue;
+
+			new->prog = existing->prog;
+			new->bpf_cookie = existing->bpf_cookie;
+			new++;
+		}
 	}
-	if (include_prog)
-		array->items[new_prog_idx++].prog = include_prog;
-	array->items[new_prog_idx].prog = NULL;
+	if (include_prog) {
+		new->prog = include_prog;
+		new->bpf_cookie = bpf_cookie;
+		new++;
+	}
+	new->prog = NULL;
 	*new_array = array;
 	return 0;
 }
@@ -2243,6 +2271,9 @@ static void bpf_prog_free_deferred(struct work_struct *work)
 	int i;
 
 	aux = container_of(work, struct bpf_prog_aux, work);
+#ifdef CONFIG_BPF_SYSCALL
+	bpf_free_kfunc_btf_tab(aux->kfunc_btf_tab);
+#endif
 	bpf_free_used_maps(aux);
 	bpf_free_used_btfs(aux);
 	if (bpf_prog_is_dev_bound(aux))
@@ -2341,6 +2372,11 @@ const struct bpf_func_proto bpf_snprintf_btf_proto __weak;
 const struct bpf_func_proto bpf_seq_printf_btf_proto __weak;
 
 const struct bpf_func_proto * __weak bpf_get_trace_printk_proto(void)
+{
+	return NULL;
+}
+
+const struct bpf_func_proto * __weak bpf_get_trace_vprintk_proto(void)
 {
 	return NULL;
 }

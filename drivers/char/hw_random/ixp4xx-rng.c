@@ -42,13 +42,11 @@ static int ixp4xx_rng_probe(struct platform_device *pdev)
 {
 	void __iomem * rng_base;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 
 	if (!cpu_is_ixp46x()) /* includes IXP455 */
 		return -ENOSYS;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rng_base = devm_ioremap_resource(dev, res);
+	rng_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rng_base))
 		return PTR_ERR(rng_base);
 

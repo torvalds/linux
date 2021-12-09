@@ -90,11 +90,11 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 	unsigned long flags = 0;
 	void *wqe = NULL;
 	__le32 doorbell[2];
+	const u8 *smac;
 	int ret = 0;
 	int loopback;
 	u32 wqe_idx;
 	int nreq;
-	u8 *smac;
 
 	if (unlikely(ibqp->qp_type != IB_QPT_GSI &&
 		ibqp->qp_type != IB_QPT_RC)) {
@@ -154,7 +154,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 				       UD_SEND_WQE_U32_8_DMAC_5_S,
 				       ah->av.mac[5]);
 
-			smac = (u8 *)hr_dev->dev_addr[qp->port];
+			smac = (const u8 *)hr_dev->dev_addr[qp->port];
 			loopback = ether_addr_equal_unaligned(ah->av.mac,
 							      smac) ? 1 : 0;
 			roce_set_bit(ud_sq_wqe->u32_8,
@@ -758,7 +758,7 @@ static struct hns_roce_qp *hns_roce_v1_create_lp_qp(struct hns_roce_dev *hr_dev,
 	init_attr.cap.max_recv_wr	= HNS_ROCE_MIN_WQE_NUM;
 	init_attr.cap.max_send_wr	= HNS_ROCE_MIN_WQE_NUM;
 
-	qp = hns_roce_create_qp(pd, &init_attr, NULL);
+	qp = ib_create_qp(pd, &init_attr);
 	if (IS_ERR(qp)) {
 		dev_err(dev, "Create loop qp for mr free failed!");
 		return NULL;
@@ -923,7 +923,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 create_lp_qp_failed:
 	for (i -= 1; i >= 0; i--) {
 		hr_qp = free_mr->mr_free_qp[i];
-		if (hns_roce_v1_destroy_qp(&hr_qp->ibqp, NULL))
+		if (ib_destroy_qp(&hr_qp->ibqp))
 			dev_err(dev, "Destroy qp %d for mr free failed!\n", i);
 	}
 
@@ -953,7 +953,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 		if (!hr_qp)
 			continue;
 
-		ret = hns_roce_v1_destroy_qp(&hr_qp->ibqp, NULL);
+		ret = ib_destroy_qp(&hr_qp->ibqp);
 		if (ret)
 			dev_err(dev, "Destroy qp %d for mr free failed(%d)!\n",
 				i, ret);
@@ -1782,7 +1782,7 @@ static int hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u32 port,
 }
 
 static int hns_roce_v1_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
-			       u8 *addr)
+			       const u8 *addr)
 {
 	u32 reg_smac_l;
 	u16 reg_smac_h;
@@ -2743,12 +2743,12 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	__le32 doorbell[2] = {0};
 	u64 *mtts_2 = NULL;
 	int ret = -EINVAL;
+	const u8 *smac;
 	u64 sq_ba = 0;
 	u64 rq_ba = 0;
 	u32 port;
 	u32 port_num;
 	u8 *dmac;
-	u8 *smac;
 
 	if (!check_qp_state(cur_state, new_state)) {
 		ibdev_err(ibqp->device,
@@ -2947,7 +2947,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 
 		port = (attr_mask & IB_QP_PORT) ? (attr->port_num - 1) :
 			hr_qp->port;
-		smac = (u8 *)hr_dev->dev_addr[port];
+		smac = (const u8 *)hr_dev->dev_addr[port];
 		/* when dmac equals smac or loop_idc is 1, it should loopback */
 		if (ether_addr_equal_unaligned(dmac, smac) ||
 		    hr_dev->loop_idc == 0x1)

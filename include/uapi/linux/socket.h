@@ -26,4 +26,9 @@ struct __kernel_sockaddr_storage {
 	};
 };
 
+#define SOCK_SNDBUF_LOCK	1
+#define SOCK_RCVBUF_LOCK	2
+
+#define SOCK_BUF_LOCK_MASK (SOCK_SNDBUF_LOCK | SOCK_RCVBUF_LOCK)
+
 #endif /* _UAPI_LINUX_SOCKET_H */

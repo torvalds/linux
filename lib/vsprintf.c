@@ -17,7 +17,7 @@
  * - scnprintf and vscnprintf
  */
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 #include <linux/build_bug.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -53,8 +53,7 @@
 #include <linux/string_helpers.h>
 #include "kstrtox.h"
 
-static unsigned long long simple_strntoull(const char *startp, size_t max_chars,
-					   char **endp, unsigned int base)
+static noinline unsigned long long simple_strntoull(const char *startp, size_t max_chars, char **endp, unsigned int base)
 {
 	const char *cp;
 	unsigned long long result = 0ULL;
@@ -408,8 +407,9 @@ int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 #define SMALL	32		/* use lowercase in hex (must be 32 == 0x20) */
 #define SPECIAL	64		/* prefix hex with "0x", octal with "0" */
 
+static_assert(SIGN == 1);
 static_assert(ZEROPAD == ('0' - ' '));
-static_assert(SMALL == ' ');
+static_assert(SMALL == ('a' ^ 'A'));
 
 enum format_type {
 	FORMAT_TYPE_NONE, /* Just a string part */
@@ -2019,9 +2019,14 @@ static const struct page_flags_fields pff[] = {
 static
 char *format_page_flags(char *buf, char *end, unsigned long flags)
 {
-	unsigned long main_flags = flags & (BIT(NR_PAGEFLAGS) - 1);
+	unsigned long main_flags = flags & PAGEFLAGS_MASK;
 	bool append = false;
 	int i;
+
+	buf = number(buf, end, flags, default_flag_spec);
+	if (buf < end)
+		*buf = '(';
+	buf++;
 
 	/* Page flags from the main area. */
 	if (main_flags) {
@@ -2051,6 +2056,9 @@ char *format_page_flags(char *buf, char *end, unsigned long flags)
 
 		append = true;
 	}
+	if (buf < end)
+		*buf = ')';
+	buf++;
 
 	return buf;
 }

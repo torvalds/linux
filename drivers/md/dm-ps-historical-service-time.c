@@ -27,6 +27,7 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/sched/clock.h>
 
 
 #define DM_MSG_PREFIX	"multipath historical-service-time"
@@ -254,6 +255,9 @@ static int hst_status(struct path_selector *ps, struct dm_path *path,
 			break;
 		case STATUSTYPE_TABLE:
 			DMEMIT("0 ");
+			break;
+		case STATUSTYPE_IMA:
+			*result = '\0';
 			break;
 		}
 	}

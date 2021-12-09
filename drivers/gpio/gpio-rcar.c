@@ -213,8 +213,8 @@ static irqreturn_t gpio_rcar_irq_handler(int irq, void *dev_id)
 			  gpio_rcar_read(p, INTMSK))) {
 		offset = __ffs(pending);
 		gpio_rcar_write(p, INTCLR, BIT(offset));
-		generic_handle_irq(irq_find_mapping(p->gpio_chip.irq.domain,
-						    offset));
+		generic_handle_domain_irq(p->gpio_chip.irq.domain,
+					  offset);
 		irqs_handled++;
 	}
 
@@ -564,9 +564,9 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	}
 
 	if (p->info.has_inen) {
-		pm_runtime_get_sync(p->dev);
+		pm_runtime_get_sync(dev);
 		gpio_rcar_enable_inputs(p);
-		pm_runtime_put(p->dev);
+		pm_runtime_put(dev);
 	}
 
 	dev_info(dev, "driving %d GPIOs\n", npins);

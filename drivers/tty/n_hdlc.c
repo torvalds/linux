@@ -630,7 +630,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 		fallthrough;	/* to default */
 
 	default:
-		error = n_tty_ioctl_helper(tty, file, cmd, arg);
+		error = n_tty_ioctl_helper(tty, cmd, arg);
 		break;
 	}
 	return error;

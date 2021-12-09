@@ -601,7 +601,7 @@ struct mlx4_ib_counters {
 #define MLX4_DIAG_COUNTERS_TYPES 2
 
 struct mlx4_ib_diag_counters {
-	const char **name;
+	struct rdma_stat_desc *descs;
 	u32 *offset;
 	u32 num_counters;
 };
@@ -792,9 +792,8 @@ void mlx4_ib_free_srq_wqe(struct mlx4_ib_srq *srq, int wqe_index);
 int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);
 
-struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
-				struct ib_qp_init_attr *init_attr,
-				struct ib_udata *udata);
+int mlx4_ib_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
+		      struct ib_udata *udata);
 int mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata);
 void mlx4_ib_drain_sq(struct ib_qp *qp);
 void mlx4_ib_drain_rq(struct ib_qp *qp);

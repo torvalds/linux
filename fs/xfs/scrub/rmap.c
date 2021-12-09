@@ -88,7 +88,7 @@ xchk_rmapbt_xref(
 STATIC int
 xchk_rmapbt_rec(
 	struct xchk_btree	*bs,
-	union xfs_btree_rec	*rec)
+	const union xfs_btree_rec *rec)
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
 	struct xfs_rmap_irec	irec;

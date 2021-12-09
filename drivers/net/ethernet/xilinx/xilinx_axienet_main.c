@@ -360,7 +360,7 @@ static void axienet_set_mac_address(struct net_device *ndev,
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	if (address)
-		memcpy(ndev->dev_addr, address, ETH_ALEN);
+		eth_hw_addr_set(ndev, address);
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 
@@ -1227,7 +1227,7 @@ static const struct net_device_ops axienet_netdev_ops = {
 	.ndo_change_mtu	= axienet_change_mtu,
 	.ndo_set_mac_address = netdev_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_do_ioctl = axienet_ioctl,
+	.ndo_eth_ioctl = axienet_ioctl,
 	.ndo_set_rx_mode = axienet_set_multicast_list,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = axienet_poll_controller,
@@ -1400,6 +1400,8 @@ axienet_ethtools_set_pauseparam(struct net_device *ndev,
  * axienet_ethtools_get_coalesce - Get DMA interrupt coalescing count.
  * @ndev:	Pointer to net_device structure
  * @ecoalesce:	Pointer to ethtool_coalesce structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack:	extack for reporting error messages
  *
  * This implements ethtool command for getting the DMA interrupt coalescing
  * count on Tx and Rx paths. Issue "ethtool -c ethX" under linux prompt to
@@ -1407,8 +1409,11 @@ axienet_ethtools_set_pauseparam(struct net_device *ndev,
  *
  * Return: 0 always
  */
-static int axienet_ethtools_get_coalesce(struct net_device *ndev,
-					 struct ethtool_coalesce *ecoalesce)
+static int
+axienet_ethtools_get_coalesce(struct net_device *ndev,
+			      struct ethtool_coalesce *ecoalesce,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	u32 regval = 0;
 	struct axienet_local *lp = netdev_priv(ndev);
@@ -1425,6 +1430,8 @@ static int axienet_ethtools_get_coalesce(struct net_device *ndev,
  * axienet_ethtools_set_coalesce - Set DMA interrupt coalescing count.
  * @ndev:	Pointer to net_device structure
  * @ecoalesce:	Pointer to ethtool_coalesce structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack:	extack for reporting error messages
  *
  * This implements ethtool command for setting the DMA interrupt coalescing
  * count on Tx and Rx paths. Issue "ethtool -C ethX rx-frames 5" under linux
@@ -1432,8 +1439,11 @@ static int axienet_ethtools_get_coalesce(struct net_device *ndev,
  *
  * Return: 0, on success, Non-zero error value on failure.
  */
-static int axienet_ethtools_set_coalesce(struct net_device *ndev,
-					 struct ethtool_coalesce *ecoalesce)
+static int
+axienet_ethtools_set_coalesce(struct net_device *ndev,
+			      struct ethtool_coalesce *ecoalesce,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct axienet_local *lp = netdev_priv(ndev);
 
@@ -1515,7 +1525,7 @@ static void axienet_validate(struct phylink_config *config,
 			netdev_warn(ndev, "Cannot use PHY mode %s, supported: %s\n",
 				    phy_modes(state->interface),
 				    phy_modes(lp->phy_mode));
-			bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+			linkmode_zero(supported);
 			return;
 		}
 	}
@@ -1548,10 +1558,8 @@ static void axienet_validate(struct phylink_config *config,
 		break;
 	}
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static void axienet_mac_pcs_get_state(struct phylink_config *config,

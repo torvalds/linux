@@ -119,7 +119,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 #endif
 
 	if (pci_find_capability(pdev, PCI_CAP_ID_AGP))
-		rdev->agp = radeon_agp_head_init(rdev->ddev);
+		rdev->agp = radeon_agp_head_init(dev);
 	if (rdev->agp) {
 		rdev->agp->agp_mtrr = arch_phys_wc_add(
 			rdev->agp->agp_info.aper_base,

@@ -5279,6 +5279,7 @@ static void gfx_v8_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, u
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_HI);
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_DBG0);
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
+	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_MODE);
 }
 
 static void gfx_v8_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
@@ -5623,6 +5624,8 @@ static void gfx_v8_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 {
 	u32 data;
 
+	amdgpu_gfx_off_ctrl(adev, false);
+
 	if (amdgpu_sriov_is_pp_one_vf(adev))
 		data = RREG32_NO_KIQ(mmRLC_SPM_VMID);
 	else
@@ -5635,6 +5638,8 @@ static void gfx_v8_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 		WREG32_NO_KIQ(mmRLC_SPM_VMID, data);
 	else
 		WREG32(mmRLC_SPM_VMID, data);
+
+	amdgpu_gfx_off_ctrl(adev, true);
 }
 
 static const struct amdgpu_rlc_funcs iceland_rlc_funcs = {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -103,7 +103,7 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 					struct iwl_rx_phy_info *phy_info,
 					struct ieee80211_rx_status *rx_status)
 {
-	int energy_a, energy_b, energy_c, max_energy;
+	int energy_a, energy_b, max_energy;
 	u32 val;
 
 	val =
@@ -114,14 +114,10 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 	energy_b = (val & IWL_RX_INFO_ENERGY_ANT_B_MSK) >>
 						IWL_RX_INFO_ENERGY_ANT_B_POS;
 	energy_b = energy_b ? -energy_b : S8_MIN;
-	energy_c = (val & IWL_RX_INFO_ENERGY_ANT_C_MSK) >>
-						IWL_RX_INFO_ENERGY_ANT_C_POS;
-	energy_c = energy_c ? -energy_c : S8_MIN;
 	max_energy = max(energy_a, energy_b);
-	max_energy = max(max_energy, energy_c);
 
-	IWL_DEBUG_STATS(mvm, "energy In A %d B %d C %d , and max %d\n",
-			energy_a, energy_b, energy_c, max_energy);
+	IWL_DEBUG_STATS(mvm, "energy In A %d B %d  , and max %d\n",
+			energy_a, energy_b, max_energy);
 
 	rx_status->signal = max_energy;
 	rx_status->chains = (le16_to_cpu(phy_info->phy_flags) &
@@ -129,7 +125,6 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 					>> RX_RES_PHY_FLAGS_ANTENNA_POS;
 	rx_status->chain_signal[0] = energy_a;
 	rx_status->chain_signal[1] = energy_b;
-	rx_status->chain_signal[2] = energy_c;
 }
 
 /*
@@ -235,7 +230,7 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 		mdata->rx.airtime += le16_to_cpu(phy_info->frame_time);
 	}
 
-	if (!(rate_n_flags & (RATE_MCS_HT_MSK | RATE_MCS_VHT_MSK)))
+	if (!(rate_n_flags & (RATE_MCS_HT_MSK_V1 | RATE_MCS_VHT_MSK_V1)))
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
@@ -249,10 +244,10 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 	    mvmsta->sta_id != mvmvif->ap_sta_id)
 		return;
 
-	if (rate_n_flags & RATE_MCS_HT_MSK) {
-		thr = thresh_tpt[rate_n_flags & RATE_HT_MCS_RATE_CODE_MSK];
-		thr *= 1 + ((rate_n_flags & RATE_HT_MCS_NSS_MSK) >>
-					RATE_HT_MCS_NSS_POS);
+	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
+		thr = thresh_tpt[rate_n_flags & RATE_HT_MCS_RATE_CODE_MSK_V1];
+		thr *= 1 + ((rate_n_flags & RATE_HT_MCS_NSS_MSK_V1) >>
+					RATE_HT_MCS_NSS_POS_V1);
 	} else {
 		if (WARN_ON((rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK) >=
 				ARRAY_SIZE(thresh_tpt)))
@@ -262,7 +257,7 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 					RATE_VHT_MCS_NSS_POS);
 	}
 
-	thr <<= ((rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) >>
+	thr <<= ((rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK_V1) >>
 				RATE_MCS_CHAN_WIDTH_POS);
 
 	mdata->uapsd_nonagg_detect.rx_bytes += len;
@@ -455,7 +450,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	}
 
 	/* Set up the HT phy flags */
-	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
+	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK_V1) {
 	case RATE_MCS_CHAN_WIDTH_20:
 		break;
 	case RATE_MCS_CHAN_WIDTH_40:
@@ -468,20 +463,20 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->bw = RATE_INFO_BW_160;
 		break;
 	}
-	if (!(rate_n_flags & RATE_MCS_CCK_MSK) &&
-	    rate_n_flags & RATE_MCS_SGI_MSK)
+	if (!(rate_n_flags & RATE_MCS_CCK_MSK_V1) &&
+	    rate_n_flags & RATE_MCS_SGI_MSK_V1)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
 		rx_status->enc_flags |= RX_ENC_FLAG_HT_GF;
-	if (rate_n_flags & RATE_MCS_LDPC_MSK)
+	if (rate_n_flags & RATE_MCS_LDPC_MSK_V1)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
-	if (rate_n_flags & RATE_MCS_HT_MSK) {
+	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
 				RATE_MCS_STBC_POS;
 		rx_status->encoding = RX_ENC_HT;
-		rx_status->rate_idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK;
+		rx_status->rate_idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK_V1;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
-	} else if (rate_n_flags & RATE_MCS_VHT_MSK) {
+	} else if (rate_n_flags & RATE_MCS_VHT_MSK_V1) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
 				RATE_MCS_STBC_POS;
 		rx_status->nss =

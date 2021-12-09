@@ -50,8 +50,7 @@ static irqreturn_t mdss_irq(int irq, void *arg)
 	while (intr) {
 		irq_hw_number_t hwirq = fls(intr) - 1;
 
-		generic_handle_irq(irq_find_mapping(
-				mdp5_mdss->irqcontroller.domain, hwirq));
+		generic_handle_domain_irq(mdp5_mdss->irqcontroller.domain, hwirq);
 		intr &= ~(1 << hwirq);
 	}
 
@@ -137,10 +136,8 @@ static int mdp5_mdss_enable(struct msm_mdss *mdss)
 	DBG("");
 
 	clk_prepare_enable(mdp5_mdss->ahb_clk);
-	if (mdp5_mdss->axi_clk)
-		clk_prepare_enable(mdp5_mdss->axi_clk);
-	if (mdp5_mdss->vsync_clk)
-		clk_prepare_enable(mdp5_mdss->vsync_clk);
+	clk_prepare_enable(mdp5_mdss->axi_clk);
+	clk_prepare_enable(mdp5_mdss->vsync_clk);
 
 	return 0;
 }
@@ -150,10 +147,8 @@ static int mdp5_mdss_disable(struct msm_mdss *mdss)
 	struct mdp5_mdss *mdp5_mdss = to_mdp5_mdss(mdss);
 	DBG("");
 
-	if (mdp5_mdss->vsync_clk)
-		clk_disable_unprepare(mdp5_mdss->vsync_clk);
-	if (mdp5_mdss->axi_clk)
-		clk_disable_unprepare(mdp5_mdss->axi_clk);
+	clk_disable_unprepare(mdp5_mdss->vsync_clk);
+	clk_disable_unprepare(mdp5_mdss->axi_clk);
 	clk_disable_unprepare(mdp5_mdss->ahb_clk);
 
 	return 0;

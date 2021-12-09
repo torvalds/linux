@@ -17,6 +17,8 @@
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
 #include <linux/dma-mapping.h>
+#include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/platform_device.h>
 
 #include "internal.h"
@@ -111,13 +113,10 @@ struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 		return NULL;
 
 	list_for_each_entry(adev, &parent->children, node) {
-		unsigned long long addr;
-		acpi_status status;
+		acpi_bus_address addr = acpi_device_adr(adev);
 		int score;
 
-		status = acpi_evaluate_integer(adev->handle, METHOD_NAME__ADR,
-					       NULL, &addr);
-		if (ACPI_FAILURE(status) || addr != address)
+		if (!adev->pnp.type.bus_address || addr != address)
 			continue;
 
 		if (!ret) {
@@ -285,81 +284,91 @@ int acpi_unbind_one(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(acpi_unbind_one);
 
-static int acpi_device_notify(struct device *dev)
+void acpi_device_notify(struct device *dev)
 {
-	struct acpi_bus_type *type = acpi_get_bus_type(dev);
 	struct acpi_device *adev;
 	int ret;
 
 	ret = acpi_bind_one(dev, NULL);
-	if (ret && type) {
-		struct acpi_device *adev;
+	if (ret) {
+		struct acpi_bus_type *type = acpi_get_bus_type(dev);
+
+		if (!type)
+			goto err;
 
 		adev = type->find_companion(dev);
 		if (!adev) {
-			pr_debug("Unable to get handle for %s\n", dev_name(dev));
-			ret = -ENODEV;
-			goto out;
+			dev_dbg(dev, "ACPI companion not found\n");
+			goto err;
 		}
 		ret = acpi_bind_one(dev, adev);
 		if (ret)
-			goto out;
+			goto err;
+
+		if (type->setup) {
+			type->setup(dev);
+			goto done;
+		}
+	} else {
+		adev = ACPI_COMPANION(dev);
+
+		if (dev_is_pci(dev)) {
+			pci_acpi_setup(dev, adev);
+			goto done;
+		} else if (dev_is_platform(dev)) {
+			acpi_configure_pmsi_domain(dev);
+		}
 	}
-	adev = ACPI_COMPANION(dev);
-	if (!adev)
-		goto out;
 
-	if (dev_is_platform(dev))
-		acpi_configure_pmsi_domain(dev);
-
-	if (type && type->setup)
-		type->setup(dev);
-	else if (adev->handler && adev->handler->bind)
+	if (adev->handler && adev->handler->bind)
 		adev->handler->bind(dev);
 
- out:
-	if (!ret) {
-		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+done:
+	acpi_handle_debug(ACPI_HANDLE(dev), "Bound to device %s\n",
+			  dev_name(dev));
 
-		acpi_get_name(ACPI_HANDLE(dev), ACPI_FULL_PATHNAME, &buffer);
-		pr_debug("Device %s -> %s\n", dev_name(dev), (char *)buffer.pointer);
-		kfree(buffer.pointer);
-	} else {
-		pr_debug("Device %s -> No ACPI support\n", dev_name(dev));
-	}
+	return;
 
-	return ret;
+err:
+	dev_dbg(dev, "No ACPI support\n");
 }
 
-static int acpi_device_notify_remove(struct device *dev)
+void acpi_device_notify_remove(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
-	struct acpi_bus_type *type;
 
 	if (!adev)
-		return 0;
+		return;
 
-	type = acpi_get_bus_type(dev);
-	if (type && type->cleanup)
-		type->cleanup(dev);
+	if (dev_is_pci(dev))
+		pci_acpi_cleanup(dev, adev);
 	else if (adev->handler && adev->handler->unbind)
 		adev->handler->unbind(dev);
 
 	acpi_unbind_one(dev);
-	return 0;
 }
 
-int acpi_platform_notify(struct device *dev, enum kobject_action action)
+int acpi_dev_turn_off_if_unused(struct device *dev, void *not_used)
 {
-	switch (action) {
-	case KOBJ_ADD:
-		acpi_device_notify(dev);
-		break;
-	case KOBJ_REMOVE:
-		acpi_device_notify_remove(dev);
-		break;
-	default:
-		break;
-	}
+	struct acpi_device *adev = to_acpi_device(dev);
+
+	/*
+	 * Skip device objects with device IDs, because they may be in use even
+	 * if they are not companions of any physical device objects.
+	 */
+	if (adev->pnp.type.hardware_id)
+		return 0;
+
+	mutex_lock(&adev->physical_node_lock);
+
+	/*
+	 * Device objects without device IDs are not in use if they have no
+	 * corresponding physical device objects.
+	 */
+	if (list_empty(&adev->physical_node_list))
+		acpi_device_set_power(adev, ACPI_STATE_D3_COLD);
+
+	mutex_unlock(&adev->physical_node_lock);
+
 	return 0;
 }

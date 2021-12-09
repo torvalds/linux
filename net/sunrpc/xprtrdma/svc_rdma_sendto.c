@@ -113,13 +113,6 @@
 
 static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc);
 
-static inline struct svc_rdma_send_ctxt *
-svc_rdma_next_send_ctxt(struct list_head *list)
-{
-	return list_first_entry_or_null(list, struct svc_rdma_send_ctxt,
-					sc_list);
-}
-
 static void svc_rdma_send_cid_init(struct svcxprt_rdma *rdma,
 				   struct rpc_rdma_cid *cid)
 {
@@ -182,9 +175,10 @@ fail0:
 void svc_rdma_send_ctxts_destroy(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_send_ctxt *ctxt;
+	struct llist_node *node;
 
-	while ((ctxt = svc_rdma_next_send_ctxt(&rdma->sc_send_ctxts))) {
-		list_del(&ctxt->sc_list);
+	while ((node = llist_del_first(&rdma->sc_send_ctxts)) != NULL) {
+		ctxt = llist_entry(node, struct svc_rdma_send_ctxt, sc_node);
 		ib_dma_unmap_single(rdma->sc_pd->device,
 				    ctxt->sc_sges[0].addr,
 				    rdma->sc_max_req_size,
@@ -204,12 +198,13 @@ void svc_rdma_send_ctxts_destroy(struct svcxprt_rdma *rdma)
 struct svc_rdma_send_ctxt *svc_rdma_send_ctxt_get(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_send_ctxt *ctxt;
+	struct llist_node *node;
 
 	spin_lock(&rdma->sc_send_lock);
-	ctxt = svc_rdma_next_send_ctxt(&rdma->sc_send_ctxts);
-	if (!ctxt)
+	node = llist_del_first(&rdma->sc_send_ctxts);
+	if (!node)
 		goto out_empty;
-	list_del(&ctxt->sc_list);
+	ctxt = llist_entry(node, struct svc_rdma_send_ctxt, sc_node);
 	spin_unlock(&rdma->sc_send_lock);
 
 out:
@@ -253,9 +248,21 @@ void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 					     ctxt->sc_sges[i].length);
 	}
 
-	spin_lock(&rdma->sc_send_lock);
-	list_add(&ctxt->sc_list, &rdma->sc_send_ctxts);
-	spin_unlock(&rdma->sc_send_lock);
+	llist_add(&ctxt->sc_node, &rdma->sc_send_ctxts);
+}
+
+/**
+ * svc_rdma_wake_send_waiters - manage Send Queue accounting
+ * @rdma: controlling transport
+ * @avail: Number of additional SQEs that are now available
+ *
+ */
+void svc_rdma_wake_send_waiters(struct svcxprt_rdma *rdma, int avail)
+{
+	atomic_add(avail, &rdma->sc_sq_avail);
+	smp_mb__after_atomic();
+	if (unlikely(waitqueue_active(&rdma->sc_send_wait)))
+		wake_up(&rdma->sc_send_wait);
 }
 
 /**
@@ -273,15 +280,21 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	struct svc_rdma_send_ctxt *ctxt =
 		container_of(cqe, struct svc_rdma_send_ctxt, sc_cqe);
 
-	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
-
+	svc_rdma_wake_send_waiters(rdma, 1);
 	complete(&ctxt->sc_done);
 
-	atomic_inc(&rdma->sc_sq_avail);
-	wake_up(&rdma->sc_send_wait);
-
 	if (unlikely(wc->status != IB_WC_SUCCESS))
-		svc_xprt_deferred_close(&rdma->sc_xprt);
+		goto flushed;
+
+	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
+	return;
+
+flushed:
+	if (wc->status != IB_WC_WR_FLUSH_ERR)
+		trace_svcrdma_wc_send_err(wc, &ctxt->sc_cid);
+	else
+		trace_svcrdma_wc_send_flush(wc, &ctxt->sc_cid);
+	svc_xprt_deferred_close(&rdma->sc_xprt);
 }
 
 /**

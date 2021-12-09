@@ -490,9 +490,8 @@ Spectre variant 2
 
    Restricting indirect branch speculation on a user program will
    also prevent the program from launching a variant 2 attack
-   on x86.  All sand-boxed SECCOMP programs have indirect branch
-   speculation restricted by default.  Administrators can change
-   that behavior via the kernel command line and sysfs control files.
+   on x86.  Administrators can change that behavior via the kernel
+   command line and sysfs control files.
    See :ref:`spectre_mitigation_control_command_line`.
 
    Programs that disable their indirect branch speculation will have
@@ -594,60 +593,13 @@ kernel command line.
 		Not specifying this option is equivalent to
 		spectre_v2=auto.
 
-For user space mitigation:
-
-        spectre_v2_user=
-
-		[X86] Control mitigation of Spectre variant 2
-		(indirect branch speculation) vulnerability between
-		user space tasks
-
-		on
-			Unconditionally enable mitigations. Is
-			enforced by spectre_v2=on
-
-		off
-			Unconditionally disable mitigations. Is
-			enforced by spectre_v2=off
-
-		prctl
-			Indirect branch speculation is enabled,
-			but mitigation can be enabled via prctl
-			per thread. The mitigation control state
-			is inherited on fork.
-
-		prctl,ibpb
-			Like "prctl" above, but only STIBP is
-			controlled per thread. IBPB is issued
-			always when switching between different user
-			space processes.
-
-		seccomp
-			Same as "prctl" above, but all seccomp
-			threads will enable the mitigation unless
-			they explicitly opt out.
-
-		seccomp,ibpb
-			Like "seccomp" above, but only STIBP is
-			controlled per thread. IBPB is issued
-			always when switching between different
-			user space processes.
-
-		auto
-			Kernel selects the mitigation depending on
-			the available CPU features and vulnerability.
-
-		Default mitigation:
-		If CONFIG_SECCOMP=y then "seccomp", otherwise "prctl"
-
-		Not specifying this option is equivalent to
-		spectre_v2_user=auto.
-
 		In general the kernel by default selects
 		reasonable mitigations for the current CPU. To
 		disable Spectre variant 2 mitigations, boot with
 		spectre_v2=off. Spectre variant 1 mitigations
 		cannot be disabled.
+
+For spectre_v2_user see :doc:`/admin-guide/kernel-parameters`.
 
 Mitigation selection guide
 --------------------------
@@ -674,9 +626,8 @@ Mitigation selection guide
    off by disabling their indirect branch speculation when they are run
    (See :ref:`Documentation/userspace-api/spec_ctrl.rst <set_spec_ctrl>`).
    This prevents untrusted programs from polluting the branch target
-   buffer.  All programs running in SECCOMP sandboxes have indirect
-   branch speculation restricted by default. This behavior can be
-   changed via the kernel command line and sysfs control files. See
+   buffer.  This behavior can be changed via the kernel command line
+   and sysfs control files. See
    :ref:`spectre_mitigation_control_command_line`.
 
 3. High security mode

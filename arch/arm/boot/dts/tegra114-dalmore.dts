@@ -788,7 +788,7 @@
 			reg = <0x4c>;
 			vcc-supply = <&palmas_ldo6_reg>;
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(O, 4) IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <TEGRA_GPIO(O, 4) IRQ_TYPE_EDGE_FALLING>;
 		};
 	};
 

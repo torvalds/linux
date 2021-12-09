@@ -27,6 +27,7 @@ void flush_cache_vunmap(unsigned long start, unsigned long end);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 void flush_dcache_page(struct page *page);
+void flush_dcache_folio(struct folio *folio);
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long vaddr, void *dst, void *src, int len);
 void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
@@ -36,8 +37,7 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 void flush_anon_page(struct vm_area_struct *vma,
 		     struct page *page, unsigned long vaddr);
 
-#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
-void flush_kernel_dcache_page(struct page *page);
+#define ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE 1
 void flush_kernel_vmap_range(void *addr, int size);
 void invalidate_kernel_vmap_range(void *addr, int size);
 #define flush_dcache_mmap_lock(mapping)   xa_lock_irq(&(mapping)->i_pages)

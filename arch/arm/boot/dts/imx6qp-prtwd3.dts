@@ -123,7 +123,7 @@
 };
 
 &ecspi2 {
-	cs-gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio2 26 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
@@ -189,7 +189,7 @@
 };
 
 &ecspi3 {
-	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	status = "okay";
@@ -208,6 +208,8 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
+	assigned-clocks = <&clks IMX6QDL_CLK_ENET_REF>;
+	assigned-clock-rates = <125000000>;
 	status = "okay";
 
 	phy-mode = "rgmii";

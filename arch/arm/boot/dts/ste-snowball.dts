@@ -17,6 +17,12 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		battery-type = "lithium-ion-polymer";
+		thermistor-on-batctrl;
+	};
+
 	en_3v3_reg: en_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "en-3v3-fixed-supply";
@@ -267,6 +273,8 @@
 		        max-frequency = <100000000>;
 			bus-width = <8>;
 			cap-mmc-highspeed;
+			no-sdio;
+			no-sd;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc4_a_1_default>;

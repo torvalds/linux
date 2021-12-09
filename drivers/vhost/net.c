@@ -467,7 +467,7 @@ static void vhost_tx_batch(struct vhost_net *net,
 		.num = nvq->batched_xdp,
 		.ptr = nvq->xdp,
 	};
-	int err;
+	int i, err;
 
 	if (nvq->batched_xdp == 0)
 		goto signal_used;
@@ -476,6 +476,15 @@ static void vhost_tx_batch(struct vhost_net *net,
 	err = sock->ops->sendmsg(sock, msghdr, 0);
 	if (unlikely(err < 0)) {
 		vq_err(&nvq->vq, "Fail to batch sending packets\n");
+
+		/* free pages owned by XDP; since this is an unlikely error path,
+		 * keep it simple and avoid more complex bulk update for the
+		 * used pages
+		 */
+		for (i = 0; i < nvq->batched_xdp; ++i)
+			put_page(virt_to_head_page(nvq->xdp[i].data));
+		nvq->batched_xdp = 0;
+		nvq->done_idx = 0;
 		return;
 	}
 
@@ -642,8 +651,6 @@ static bool tx_can_batch(struct vhost_virtqueue *vq, size_t total_len)
 	return total_len < VHOST_NET_WEIGHT &&
 	       !vhost_vq_avail_empty(vq->dev, vq);
 }
-
-#define SKB_FRAG_PAGE_ORDER     get_order(32768)
 
 static bool vhost_net_page_frag_refill(struct vhost_net *net, unsigned int sz,
 				       struct page_frag *pfrag, gfp_t gfp)

@@ -78,9 +78,9 @@ struct bnxt_re_srq {
 };
 
 struct bnxt_re_qp {
+	struct ib_qp		ib_qp;
 	struct list_head	list;
 	struct bnxt_re_dev	*rdev;
-	struct ib_qp		ib_qp;
 	spinlock_t		sq_lock;	/* protect sq */
 	spinlock_t		rq_lock;	/* protect rq */
 	struct bnxt_qplib_qp	qplib_qp;
@@ -166,7 +166,6 @@ int bnxt_re_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 int bnxt_re_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 int bnxt_re_create_ah(struct ib_ah *ah, struct rdma_ah_init_attr *init_attr,
 		      struct ib_udata *udata);
-int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_destroy_ah(struct ib_ah *ah, u32 flags);
 int bnxt_re_create_srq(struct ib_srq *srq,
@@ -179,9 +178,8 @@ int bnxt_re_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
 int bnxt_re_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
 int bnxt_re_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *recv_wr,
 			  const struct ib_recv_wr **bad_recv_wr);
-struct ib_qp *bnxt_re_create_qp(struct ib_pd *pd,
-				struct ib_qp_init_attr *qp_init_attr,
-				struct ib_udata *udata);
+int bnxt_re_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *qp_init_attr,
+		      struct ib_udata *udata);
 int bnxt_re_modify_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 		      int qp_attr_mask, struct ib_udata *udata);
 int bnxt_re_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,

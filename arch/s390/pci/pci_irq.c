@@ -365,10 +365,6 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 	for_each_pci_msi_entry(msi, pdev) {
 		if (!msi->irq)
 			continue;
-		if (msi->msi_attrib.is_msix)
-			__pci_msix_desc_mask_irq(msi, 1);
-		else
-			__pci_msi_desc_mask_irq(msi, 1, 1);
 		irq_set_msi_desc(msi->irq, NULL);
 		irq_free_desc(msi->irq);
 		msi->msg.address_lo = 0;
@@ -389,6 +385,15 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 
 	if ((irq_delivery == DIRECTED) && zdev->msi_first_bit != -1U)
 		airq_iv_free(zpci_ibv[0], zdev->msi_first_bit, zdev->msi_nr_irqs);
+}
+
+void arch_restore_msi_irqs(struct pci_dev *pdev)
+{
+	struct zpci_dev *zdev = to_zpci(pdev);
+
+	if (!zdev->irqs_registered)
+		zpci_set_irq(zdev);
+	default_restore_msi_irqs(pdev);
 }
 
 static struct airq_struct zpci_airq = {

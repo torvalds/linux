@@ -6,7 +6,7 @@
 config NET_VENDOR_CIRRUS
 	bool "Cirrus devices"
 	default y
-	depends on ISA || EISA || ARM || MAC
+	depends on ISA || EISA || ARM || MAC || COMPILE_TEST
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -18,9 +18,16 @@ config NET_VENDOR_CIRRUS
 if NET_VENDOR_CIRRUS
 
 config CS89x0
-	tristate "CS89x0 support"
-	depends on ISA || EISA || ARM
+	tristate
+
+config CS89x0_ISA
+	tristate "CS89x0 ISA driver support"
+	depends on HAS_IOPORT_MAP
+	depends on ISA
 	depends on !PPC32
+	depends on CS89x0_PLATFORM=n
+	select NETDEV_LEGACY_INIT
+	select CS89x0
 	help
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the file
@@ -30,15 +37,15 @@ config CS89x0
 	  will be called cs89x0.
 
 config CS89x0_PLATFORM
-	bool "CS89x0 platform driver support" if HAS_IOPORT_MAP
-	default !HAS_IOPORT_MAP
-	depends on CS89x0
+	tristate "CS89x0 platform driver support"
+	depends on ARM || (COMPILE_TEST && !PPC)
+	select CS89x0
 	help
-	  Say Y to compile the cs89x0 driver as a platform driver. This
-	  makes this driver suitable for use on certain evaluation boards
-	  such as the iMX21ADS.
+	  Say Y to compile the cs89x0 platform driver. This makes this driver
+	  suitable for use on certain evaluation boards such as the iMX21ADS.
 
-	  If you are unsure, say N.
+	  To compile this driver as a module, choose M here. The module
+	  will be called cs89x0.
 
 config EP93XX_ETH
 	tristate "EP93xx Ethernet support"

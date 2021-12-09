@@ -33,7 +33,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4780-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
 
     efuse@134100d0 {
         compatible = "ingenic,jz4780-efuse";

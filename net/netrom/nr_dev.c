@@ -108,10 +108,10 @@ static int __must_check nr_set_mac_address(struct net_device *dev, void *addr)
 		if (err)
 			return err;
 
-		ax25_listen_release((ax25_address *)dev->dev_addr, NULL);
+		ax25_listen_release((const ax25_address *)dev->dev_addr, NULL);
 	}
 
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+	dev_addr_set(dev, sa->sa_data);
 
 	return 0;
 }
@@ -120,7 +120,7 @@ static int nr_open(struct net_device *dev)
 {
 	int err;
 
-	err = ax25_listen_register((ax25_address *)dev->dev_addr, NULL);
+	err = ax25_listen_register((const ax25_address *)dev->dev_addr, NULL);
 	if (err)
 		return err;
 
@@ -131,7 +131,7 @@ static int nr_open(struct net_device *dev)
 
 static int nr_close(struct net_device *dev)
 {
-	ax25_listen_release((ax25_address *)dev->dev_addr, NULL);
+	ax25_listen_release((const ax25_address *)dev->dev_addr, NULL);
 	netif_stop_queue(dev);
 	return 0;
 }

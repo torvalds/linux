@@ -49,7 +49,7 @@ struct mlx5e_ktls_offload_context_rx {
 	struct mlx5e_rq_stats *rq_stats;
 	struct mlx5e_tls_sw_stats *sw_stats;
 	struct completion add_ctx;
-	u32 tirn;
+	struct mlx5e_tir tir;
 	u32 key_id;
 	u32 rxq;
 	DECLARE_BITMAP(flags, MLX5E_NUM_PRIV_RX_FLAGS);
@@ -99,31 +99,22 @@ mlx5e_ktls_rx_resync_create_resp_list(void)
 	return resp_list;
 }
 
-static int mlx5e_ktls_create_tir(struct mlx5_core_dev *mdev, u32 *tirn, u32 rqtn)
+static int mlx5e_ktls_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir, u32 rqtn)
 {
-	int err, inlen;
-	void *tirc;
-	u32 *in;
+	struct mlx5e_tir_builder *builder;
+	int err;
 
-	inlen = MLX5_ST_SZ_BYTES(create_tir_in);
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
+	builder = mlx5e_tir_builder_alloc(false);
+	if (!builder)
 		return -ENOMEM;
 
-	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
+	mlx5e_tir_builder_build_rqt(builder, mdev->mlx5e_res.hw_objs.td.tdn, rqtn, false);
+	mlx5e_tir_builder_build_direct(builder);
+	mlx5e_tir_builder_build_tls(builder);
+	err = mlx5e_tir_init(tir, builder, mdev, false);
 
-	MLX5_SET(tirc, tirc, transport_domain, mdev->mlx5e_res.hw_objs.td.tdn);
-	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
-	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_INVERTED_XOR8);
-	MLX5_SET(tirc, tirc, indirect_table, rqtn);
-	MLX5_SET(tirc, tirc, tls_en, 1);
-	MLX5_SET(tirc, tirc, self_lb_block,
-		 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST |
-		 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST);
+	mlx5e_tir_builder_free(builder);
 
-	err = mlx5_core_create_tir(mdev, in, tirn);
-
-	kvfree(in);
 	return err;
 }
 
@@ -139,7 +130,8 @@ static void accel_rule_handle_work(struct work_struct *work)
 		goto out;
 
 	rule = mlx5e_accel_fs_add_sk(accel_rule->priv, priv_rx->sk,
-				     priv_rx->tirn, MLX5_FS_DEFAULT_FLOW_TAG);
+				     mlx5e_tir_get_tirn(&priv_rx->tir),
+				     MLX5_FS_DEFAULT_FLOW_TAG);
 	if (!IS_ERR_OR_NULL(rule))
 		accel_rule->rule = rule;
 out:
@@ -173,8 +165,8 @@ post_static_params(struct mlx5e_icosq *sq,
 	pi = mlx5e_icosq_get_next_pi(sq, num_wqebbs);
 	wqe = MLX5E_TLS_FETCH_SET_STATIC_PARAMS_WQE(sq, pi);
 	mlx5e_ktls_build_static_params(wqe, sq->pc, sq->sqn, &priv_rx->crypto_info,
-				       priv_rx->tirn, priv_rx->key_id,
-				       priv_rx->resync.seq, false,
+				       mlx5e_tir_get_tirn(&priv_rx->tir),
+				       priv_rx->key_id, priv_rx->resync.seq, false,
 				       TLS_OFFLOAD_CTX_DIR_RX);
 	wi = (struct mlx5e_icosq_wqe_info) {
 		.wqe_type = MLX5E_ICOSQ_WQE_UMR_TLS,
@@ -202,8 +194,9 @@ post_progress_params(struct mlx5e_icosq *sq,
 
 	pi = mlx5e_icosq_get_next_pi(sq, num_wqebbs);
 	wqe = MLX5E_TLS_FETCH_SET_PROGRESS_PARAMS_WQE(sq, pi);
-	mlx5e_ktls_build_progress_params(wqe, sq->pc, sq->sqn, priv_rx->tirn, false,
-					 next_record_tcp_sn,
+	mlx5e_ktls_build_progress_params(wqe, sq->pc, sq->sqn,
+					 mlx5e_tir_get_tirn(&priv_rx->tir),
+					 false, next_record_tcp_sn,
 					 TLS_OFFLOAD_CTX_DIR_RX);
 	wi = (struct mlx5e_icosq_wqe_info) {
 		.wqe_type = MLX5E_ICOSQ_WQE_SET_PSV_TLS,
@@ -325,7 +318,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 	psv = &wqe->psv;
 	psv->num_psv      = 1 << 4;
 	psv->l_key        = sq->channel->mkey_be;
-	psv->psv_index[0] = cpu_to_be32(priv_rx->tirn);
+	psv->psv_index[0] = cpu_to_be32(mlx5e_tir_get_tirn(&priv_rx->tir));
 	psv->va           = cpu_to_be64(buf->dma_addr);
 
 	wi = (struct mlx5e_icosq_wqe_info) {
@@ -635,9 +628,9 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	priv_rx->sw_stats = &priv->tls->sw_stats;
 	mlx5e_set_ktls_rx_priv_ctx(tls_ctx, priv_rx);
 
-	rqtn = priv->direct_tir[rxq].rqt.rqtn;
+	rqtn = mlx5e_rx_res_get_rqtn_direct(priv->rx_res, rxq);
 
-	err = mlx5e_ktls_create_tir(mdev, &priv_rx->tirn, rqtn);
+	err = mlx5e_ktls_create_tir(mdev, &priv_rx->tir, rqtn);
 	if (err)
 		goto err_create_tir;
 
@@ -658,7 +651,7 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	return 0;
 
 err_post_wqes:
-	mlx5_core_destroy_tir(mdev, priv_rx->tirn);
+	mlx5e_tir_destroy(&priv_rx->tir);
 err_create_tir:
 	mlx5_ktls_destroy_key(mdev, priv_rx->key_id);
 err_create_key:
@@ -693,7 +686,7 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 	if (priv_rx->rule.rule)
 		mlx5e_accel_fs_del_sk(priv_rx->rule.rule);
 
-	mlx5_core_destroy_tir(mdev, priv_rx->tirn);
+	mlx5e_tir_destroy(&priv_rx->tir);
 	mlx5_ktls_destroy_key(mdev, priv_rx->key_id);
 	/* priv_rx should normally be freed here, but if there is an outstanding
 	 * GET_PSV, deallocation will be delayed until the CQE for GET_PSV is

@@ -42,9 +42,14 @@ enum smc_link_state {			/* possible states of a link */
 };
 
 #define SMC_WR_BUF_SIZE		48	/* size of work request buffer */
+#define SMC_WR_BUF_V2_SIZE	8192	/* size of v2 work request buffer */
 
 struct smc_wr_buf {
 	u8	raw[SMC_WR_BUF_SIZE];
+};
+
+struct smc_wr_v2_buf {
+	u8	raw[SMC_WR_BUF_V2_SIZE];
 };
 
 #define SMC_WR_REG_MR_WAIT_TIME	(5 * HZ)/* wait time for ib_wr_reg_mr result */
@@ -92,23 +97,30 @@ struct smc_link {
 	struct smc_wr_tx_pend	*wr_tx_pends;	/* WR send waiting for CQE */
 	struct completion	*wr_tx_compl;	/* WR send CQE completion */
 	/* above four vectors have wr_tx_cnt elements and use the same index */
+	struct ib_send_wr	*wr_tx_v2_ib;	/* WR send v2 meta data */
+	struct ib_sge		*wr_tx_v2_sge;	/* WR send v2 gather meta data*/
+	struct smc_wr_tx_pend	*wr_tx_v2_pend;	/* WR send v2 waiting for CQE */
 	dma_addr_t		wr_tx_dma_addr;	/* DMA address of wr_tx_bufs */
+	dma_addr_t		wr_tx_v2_dma_addr; /* DMA address of v2 tx buf*/
 	atomic_long_t		wr_tx_id;	/* seq # of last sent WR */
 	unsigned long		*wr_tx_mask;	/* bit mask of used indexes */
 	u32			wr_tx_cnt;	/* number of WR send buffers */
 	wait_queue_head_t	wr_tx_wait;	/* wait for free WR send buf */
+	atomic_t		wr_tx_refcnt;	/* tx refs to link */
 
 	struct smc_wr_buf	*wr_rx_bufs;	/* WR recv payload buffers */
 	struct ib_recv_wr	*wr_rx_ibs;	/* WR recv meta data */
 	struct ib_sge		*wr_rx_sges;	/* WR recv scatter meta data */
 	/* above three vectors have wr_rx_cnt elements and use the same index */
 	dma_addr_t		wr_rx_dma_addr;	/* DMA address of wr_rx_bufs */
+	dma_addr_t		wr_rx_v2_dma_addr; /* DMA address of v2 rx buf*/
 	u64			wr_rx_id;	/* seq # of last recv WR */
 	u32			wr_rx_cnt;	/* number of WR recv buffers */
 	unsigned long		wr_rx_tstamp;	/* jiffies when last buf rx */
 
 	struct ib_reg_wr	wr_reg;		/* WR register memory region */
 	wait_queue_head_t	wr_reg_wait;	/* wait for wr_reg result */
+	atomic_t		wr_reg_refcnt;	/* reg refs to link */
 	enum smc_wr_reg_state	wr_reg_state;	/* state of wr_reg request */
 
 	u8			gid[SMC_GID_SIZE];/* gid matching used vlan id*/
@@ -206,6 +218,7 @@ enum smc_llc_flowtype {
 	SMC_LLC_FLOW_NONE	= 0,
 	SMC_LLC_FLOW_ADD_LINK	= 2,
 	SMC_LLC_FLOW_DEL_LINK	= 4,
+	SMC_LLC_FLOW_REQ_ADD_LINK = 5,
 	SMC_LLC_FLOW_RKEY	= 6,
 };
 
@@ -248,6 +261,10 @@ struct smc_link_group {
 						/* client or server */
 			struct smc_link		lnk[SMC_LINKS_PER_LGR_MAX];
 						/* smc link */
+			struct smc_wr_v2_buf	*wr_rx_buf_v2;
+						/* WR v2 recv payload buffer */
+			struct smc_wr_v2_buf	*wr_tx_buf_v2;
+						/* WR v2 send payload buffer */
 			char			peer_systemid[SMC_SYSTEMID_LEN];
 						/* unique system_id of peer */
 			struct smc_rtoken	rtokens[SMC_RMBS_PER_LGR_MAX]
@@ -286,6 +303,9 @@ struct smc_link_group {
 						/* link keep alive time */
 			u32			llc_termination_rsn;
 						/* rsn code for termination */
+			u8			nexthop_mac[ETH_ALEN];
+			u8			uses_gateway;
+			__be32			saddr;
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
@@ -300,6 +320,31 @@ struct smc_link_group {
 
 struct smc_clc_msg_local;
 
+#define GID_LIST_SIZE	2
+
+struct smc_gidlist {
+	u8			len;
+	u8			list[GID_LIST_SIZE][SMC_GID_SIZE];
+};
+
+struct smc_init_info_smcrv2 {
+	/* Input fields */
+	__be32			saddr;
+	struct sock		*clc_sk;
+	__be32			daddr;
+
+	/* Output fields when saddr is set */
+	struct smc_ib_device	*ib_dev_v2;
+	u8			ib_port_v2;
+	u8			ib_gid_v2[SMC_GID_SIZE];
+
+	/* Additional output fields when clc_sk and daddr is set as well */
+	u8			uses_gateway;
+	u8			nexthop_mac[ETH_ALEN];
+
+	struct smc_gidlist	gidlist;
+};
+
 struct smc_init_info {
 	u8			is_smcd;
 	u8			smc_type_v1;
@@ -308,12 +353,18 @@ struct smc_init_info {
 	u8			first_contact_local;
 	unsigned short		vlan_id;
 	u32			rc;
+	u8			negotiated_eid[SMC_MAX_EID_LEN];
 	/* SMC-R */
-	struct smc_clc_msg_local *ib_lcl;
+	u8			smcr_version;
+	u8			check_smcrv2;
+	u8			peer_gid[SMC_GID_SIZE];
+	u8			peer_mac[ETH_ALEN];
+	u8			peer_systemid[SMC_SYSTEMID_LEN];
 	struct smc_ib_device	*ib_dev;
 	u8			ib_gid[SMC_GID_SIZE];
 	u8			ib_port;
 	u32			ib_clcqpn;
+	struct smc_init_info_smcrv2 smcrv2;
 	/* SMC-D */
 	u64			ism_peer_gid[SMC_MAX_ISM_DEVS + 1];
 	struct smcd_dev		*ism_dev[SMC_MAX_ISM_DEVS + 1];
@@ -444,6 +495,8 @@ void smc_core_exit(void);
 int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 		   u8 link_idx, struct smc_init_info *ini);
 void smcr_link_clear(struct smc_link *lnk, bool log);
+void smc_switch_link_and_count(struct smc_connection *conn,
+			       struct smc_link *to_lnk);
 int smcr_buf_map_lgr(struct smc_link *lnk);
 int smcr_buf_reg_lgr(struct smc_link *lnk);
 void smcr_lgr_set_type(struct smc_link_group *lgr, enum smc_lgr_type new_type);

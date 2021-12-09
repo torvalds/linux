@@ -71,22 +71,29 @@ static const struct dma_fence_ops virtio_gpu_fence_ops = {
 	.timeline_value_str  = virtio_gpu_timeline_value_str,
 };
 
-struct virtio_gpu_fence *virtio_gpu_fence_alloc(struct virtio_gpu_device *vgdev)
+struct virtio_gpu_fence *virtio_gpu_fence_alloc(struct virtio_gpu_device *vgdev,
+						uint64_t base_fence_ctx,
+						uint32_t ring_idx)
 {
+	uint64_t fence_context = base_fence_ctx + ring_idx;
 	struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
 	struct virtio_gpu_fence *fence = kzalloc(sizeof(struct virtio_gpu_fence),
 							GFP_KERNEL);
+
 	if (!fence)
 		return fence;
 
 	fence->drv = drv;
+	fence->ring_idx = ring_idx;
+	fence->emit_fence_info = !(base_fence_ctx == drv->context);
 
 	/* This only partially initializes the fence because the seqno is
 	 * unknown yet.  The fence must not be used outside of the driver
 	 * until virtio_gpu_fence_emit is called.
 	 */
-	dma_fence_init(&fence->f, &virtio_gpu_fence_ops, &drv->lock, drv->context,
-		       0);
+
+	dma_fence_init(&fence->f, &virtio_gpu_fence_ops, &drv->lock,
+		       fence_context, 0);
 
 	return fence;
 }
@@ -108,6 +115,13 @@ void virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 
 	cmd_hdr->flags |= cpu_to_le32(VIRTIO_GPU_FLAG_FENCE);
 	cmd_hdr->fence_id = cpu_to_le64(fence->fence_id);
+
+	/* Only currently defined fence param. */
+	if (fence->emit_fence_info) {
+		cmd_hdr->flags |=
+			cpu_to_le32(VIRTIO_GPU_FLAG_INFO_RING_IDX);
+		cmd_hdr->ring_idx = (u8)fence->ring_idx;
+	}
 }
 
 void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
@@ -138,11 +152,21 @@ void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
 				continue;
 
 			dma_fence_signal_locked(&curr->f);
+			if (curr->e) {
+				drm_send_event(vgdev->ddev, &curr->e->base);
+				curr->e = NULL;
+			}
+
 			list_del(&curr->node);
 			dma_fence_put(&curr->f);
 		}
 
 		dma_fence_signal_locked(&signaled->f);
+		if (signaled->e) {
+			drm_send_event(vgdev->ddev, &signaled->e->base);
+			signaled->e = NULL;
+		}
+
 		list_del(&signaled->node);
 		dma_fence_put(&signaled->f);
 		break;

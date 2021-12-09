@@ -28,8 +28,8 @@ struct btrfs_inode;
 #define	BTRFS_ZLIB_DEFAULT_LEVEL		3
 
 struct compressed_bio {
-	/* number of bios pending for this compressed extent */
-	refcount_t pending_bios;
+	/* Number of sectors with unfinished IO (unsubmitted or unfinished) */
+	refcount_t pending_sectors;
 
 	/* Number of compressed pages in the array */
 	unsigned int nr_pages;
@@ -86,9 +86,8 @@ int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 			 unsigned long *total_out);
 int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 		     unsigned long start_byte, size_t srclen, size_t destlen);
-int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
-			      unsigned long total_out, u64 disk_start,
-			      struct bio *bio);
+int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
+			      struct compressed_bio *cb, u32 decompressed);
 
 blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				  unsigned int len, u64 disk_start,

@@ -13,7 +13,7 @@
 #include <media/dvb_frontend.h>
 #include <media/dvb_math.h>
 #include "cxd2820r.h"
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h> /* For gpio_chip */
 #include <linux/math64.h>
 #include <linux/regmap.h>
 

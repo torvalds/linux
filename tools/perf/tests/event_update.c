@@ -83,7 +83,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__event_update(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct evsel *evsel;
 	struct event_name tmp;
@@ -123,3 +123,5 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 	evlist__delete(evlist);
 	return 0;
 }
+
+DEFINE_SUITE("Synthesize attr update", event_update);

@@ -160,6 +160,12 @@ struct inet_hashinfo {
 					____cacheline_aligned_in_smp;
 };
 
+#define inet_lhash2_for_each_icsk_continue(__icsk) \
+	hlist_for_each_entry_continue(__icsk, icsk_listen_portaddr_node)
+
+#define inet_lhash2_for_each_icsk(__icsk, list) \
+	hlist_for_each_entry(__icsk, list, icsk_listen_portaddr_node)
+
 #define inet_lhash2_for_each_icsk_rcu(__icsk, list) \
 	hlist_for_each_entry_rcu(__icsk, list, icsk_listen_portaddr_node)
 

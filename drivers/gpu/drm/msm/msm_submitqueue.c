@@ -7,10 +7,30 @@
 
 #include "msm_gpu.h"
 
+void __msm_file_private_destroy(struct kref *kref)
+{
+	struct msm_file_private *ctx = container_of(kref,
+		struct msm_file_private, ref);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ctx->entities); i++) {
+		if (!ctx->entities[i])
+			continue;
+
+		drm_sched_entity_destroy(ctx->entities[i]);
+		kfree(ctx->entities[i]);
+	}
+
+	msm_gem_address_space_put(ctx->aspace);
+	kfree(ctx);
+}
+
 void msm_submitqueue_destroy(struct kref *kref)
 {
 	struct msm_gpu_submitqueue *queue = container_of(kref,
 		struct msm_gpu_submitqueue, ref);
+
+	idr_destroy(&queue->fence_idr);
 
 	msm_file_private_put(queue->ctx);
 
@@ -57,14 +77,61 @@ void msm_submitqueue_close(struct msm_file_private *ctx)
 	}
 }
 
+static struct drm_sched_entity *
+get_sched_entity(struct msm_file_private *ctx, struct msm_ringbuffer *ring,
+		 unsigned ring_nr, enum drm_sched_priority sched_prio)
+{
+	static DEFINE_MUTEX(entity_lock);
+	unsigned idx = (ring_nr * NR_SCHED_PRIORITIES) + sched_prio;
+
+	/* We should have already validated that the requested priority is
+	 * valid by the time we get here.
+	 */
+	if (WARN_ON(idx >= ARRAY_SIZE(ctx->entities)))
+		return ERR_PTR(-EINVAL);
+
+	mutex_lock(&entity_lock);
+
+	if (!ctx->entities[idx]) {
+		struct drm_sched_entity *entity;
+		struct drm_gpu_scheduler *sched = &ring->sched;
+		int ret;
+
+		entity = kzalloc(sizeof(*ctx->entities[idx]), GFP_KERNEL);
+
+		ret = drm_sched_entity_init(entity, sched_prio, &sched, 1, NULL);
+		if (ret) {
+			mutex_unlock(&entity_lock);
+			kfree(entity);
+			return ERR_PTR(ret);
+		}
+
+		ctx->entities[idx] = entity;
+	}
+
+	mutex_unlock(&entity_lock);
+
+	return ctx->entities[idx];
+}
+
 int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 		u32 prio, u32 flags, u32 *id)
 {
 	struct msm_drm_private *priv = drm->dev_private;
 	struct msm_gpu_submitqueue *queue;
+	enum drm_sched_priority sched_prio;
+	unsigned ring_nr;
+	int ret;
 
 	if (!ctx)
 		return -ENODEV;
+
+	if (!priv->gpu)
+		return -ENODEV;
+
+	ret = msm_gpu_convert_priority(priv->gpu, prio, &ring_nr, &sched_prio);
+	if (ret)
+		return ret;
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 
@@ -73,14 +140,14 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 
 	kref_init(&queue->ref);
 	queue->flags = flags;
+	queue->ring_nr = ring_nr;
 
-	if (priv->gpu) {
-		if (prio >= priv->gpu->nr_rings) {
-			kfree(queue);
-			return -EINVAL;
-		}
-
-		queue->prio = prio;
+	queue->entity = get_sched_entity(ctx, priv->gpu->rb[ring_nr],
+					 ring_nr, sched_prio);
+	if (IS_ERR(queue->entity)) {
+		ret = PTR_ERR(queue->entity);
+		kfree(queue);
+		return ret;
 	}
 
 	write_lock(&ctx->queuelock);
@@ -91,6 +158,9 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 	if (id)
 		*id = queue->id;
 
+	idr_init(&queue->fence_idr);
+	mutex_init(&queue->lock);
+
 	list_add_tail(&queue->node, &ctx->submitqueues);
 
 	write_unlock(&ctx->queuelock);
@@ -98,24 +168,26 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 	return 0;
 }
 
+/*
+ * Create the default submit-queue (id==0), used for backwards compatibility
+ * for userspace that pre-dates the introduction of submitqueues.
+ */
 int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx)
 {
 	struct msm_drm_private *priv = drm->dev_private;
-	int default_prio;
+	int default_prio, max_priority;
 
-	if (!ctx)
-		return 0;
+	if (!priv->gpu)
+		return -ENODEV;
+
+	max_priority = (priv->gpu->nr_rings * NR_SCHED_PRIORITIES) - 1;
 
 	/*
-	 * Select priority 2 as the "default priority" unless nr_rings is less
-	 * than 2 and then pick the lowest pirority
+	 * Pick a medium priority level as default.  Lower numeric value is
+	 * higher priority, so round-up to pick a priority that is not higher
+	 * than the middle priority level.
 	 */
-	default_prio = priv->gpu ?
-		clamp_t(uint32_t, 2, 0, priv->gpu->nr_rings - 1) : 0;
-
-	INIT_LIST_HEAD(&ctx->submitqueues);
-
-	rwlock_init(&ctx->queuelock);
+	default_prio = DIV_ROUND_UP(max_priority, 2);
 
 	return msm_submitqueue_create(drm, ctx, default_prio, 0, NULL);
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_tx_h__
@@ -81,6 +81,10 @@ enum iwl_tx_cmd_flags {
 	IWL_TX_FLAGS_CMD_RATE		= BIT(0),
 	IWL_TX_FLAGS_ENCRYPT_DIS	= BIT(1),
 	IWL_TX_FLAGS_HIGH_PRI		= BIT(2),
+	/* Use these flags only from
+	 * TX_FLAGS_BITS_API_S_VER_4 and above */
+	IWL_TX_FLAGS_RTS		= BIT(3),
+	IWL_TX_FLAGS_CTS		= BIT(4),
 }; /* TX_FLAGS_BITS_API_S_VER_3 */
 
 /**
@@ -239,8 +243,10 @@ struct iwl_tx_cmd {
 	u8 tid_tspec;
 	__le16 pm_frame_timeout;
 	__le16 reserved4;
-	u8 payload[0];
-	struct ieee80211_hdr hdr[0];
+	union {
+		DECLARE_FLEX_ARRAY(u8, payload);
+		DECLARE_FLEX_ARRAY(struct ieee80211_hdr, hdr);
+	};
 } __packed; /* TX_CMD_API_S_VER_6 */
 
 struct iwl_dram_sec_info {
@@ -267,7 +273,8 @@ struct iwl_tx_cmd_gen2 {
 	struct iwl_dram_sec_info dram_info;
 	__le32 rate_n_flags;
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_7 */
+} __packed; /* TX_CMD_API_S_VER_7,
+	       TX_CMD_API_S_VER_9 */
 
 /**
  * struct iwl_tx_cmd_gen3 - TX command struct to FW for AX210+ devices
@@ -290,7 +297,8 @@ struct iwl_tx_cmd_gen3 {
 	__le32 rate_n_flags;
 	__le64 ttl;
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_8 */
+} __packed; /* TX_CMD_API_S_VER_8,
+	       TX_CMD_API_S_VER_10 */
 
 /*
  * TX response related data
@@ -591,7 +599,8 @@ struct iwl_mvm_tx_resp {
 	__le16 tx_queue;
 	__le16 reserved2;
 	struct agg_tx_status status;
-} __packed; /* TX_RSP_API_S_VER_6 */
+} __packed; /* TX_RSP_API_S_VER_6,
+	       TX_RSP_API_S_VER_7 */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
@@ -713,9 +722,12 @@ struct iwl_mvm_compressed_ba_notif {
 	__le32 tx_rate;
 	__le16 tfd_cnt;
 	__le16 ra_tid_cnt;
-	struct iwl_mvm_compressed_ba_ratid ra_tid[0];
-	struct iwl_mvm_compressed_ba_tfd tfd[];
-} __packed; /* COMPRESSED_BA_RES_API_S_VER_4 */
+	union {
+		DECLARE_FLEX_ARRAY(struct iwl_mvm_compressed_ba_ratid, ra_tid);
+		DECLARE_FLEX_ARRAY(struct iwl_mvm_compressed_ba_tfd, tfd);
+	};
+} __packed; /* COMPRESSED_BA_RES_API_S_VER_4,
+	       COMPRESSED_BA_RES_API_S_VER_5 */
 
 /**
  * struct iwl_mac_beacon_cmd_v6 - beacon template command
@@ -755,12 +767,20 @@ struct iwl_mac_beacon_cmd_v7 {
 	struct ieee80211_hdr frame[];
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_7 */
 
+/* Bit flags for BEACON_TEMPLATE_CMD_API until version 10 */
+enum iwl_mac_beacon_flags_v1 {
+	IWL_MAC_BEACON_CCK_V1	= BIT(8),
+	IWL_MAC_BEACON_ANT_A_V1 = BIT(9),
+	IWL_MAC_BEACON_ANT_B_V1 = BIT(10),
+	IWL_MAC_BEACON_FILS_V1	= BIT(12),
+};
+
+/* Bit flags for BEACON_TEMPLATE_CMD_API version 11 and above */
 enum iwl_mac_beacon_flags {
-	IWL_MAC_BEACON_CCK	= BIT(8),
-	IWL_MAC_BEACON_ANT_A	= BIT(9),
-	IWL_MAC_BEACON_ANT_B	= BIT(10),
-	IWL_MAC_BEACON_ANT_C	= BIT(11),
-	IWL_MAC_BEACON_FILS	= BIT(12),
+	IWL_MAC_BEACON_CCK	= BIT(5),
+	IWL_MAC_BEACON_ANT_A	= BIT(6),
+	IWL_MAC_BEACON_ANT_B	= BIT(7),
+	IWL_MAC_BEACON_FILS	= BIT(8),
 };
 
 /**
@@ -788,7 +808,9 @@ struct iwl_mac_beacon_cmd {
 	__le32 ecsa_offset;
 	__le32 csa_offset;
 	struct ieee80211_hdr frame[];
-} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_10 */
+} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_10,
+	       BEACON_TEMPLATE_CMD_API_S_VER_11,
+	       BEACON_TEMPLATE_CMD_API_S_VER_12 */
 
 struct iwl_beacon_notif {
 	struct iwl_mvm_tx_resp beacon_notify_hdr;

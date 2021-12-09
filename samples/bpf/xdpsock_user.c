@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2017 - 2018 Intel Corporation. */
 
-#include <asm/barrier.h>
 #include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
 #include <linux/bpf.h>
-#include <linux/compiler.h>
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
 #include <linux/if_ether.h>
@@ -653,17 +651,15 @@ out:
 	return result;
 }
 
-__sum16 ip_fast_csum(const void *iph, unsigned int ihl);
-
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  *	This function code has been taken from
  *	Linux kernel lib/checksum.c
  */
-__sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	return (__force __sum16)~do_csum(iph, ihl * 4);
+	return (__sum16)~do_csum(iph, ihl * 4);
 }
 
 /*
@@ -673,11 +669,11 @@ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
  */
 static inline __sum16 csum_fold(__wsum csum)
 {
-	u32 sum = (__force u32)csum;
+	u32 sum = (u32)csum;
 
 	sum = (sum & 0xffff) + (sum >> 16);
 	sum = (sum & 0xffff) + (sum >> 16);
-	return (__force __sum16)~sum;
+	return (__sum16)~sum;
 }
 
 /*
@@ -703,16 +699,16 @@ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 			  __u32 len, __u8 proto, __wsum sum)
 {
-	unsigned long long s = (__force u32)sum;
+	unsigned long long s = (u32)sum;
 
-	s += (__force u32)saddr;
-	s += (__force u32)daddr;
+	s += (u32)saddr;
+	s += (u32)daddr;
 #ifdef __BIG_ENDIAN__
 	s += proto + len;
 #else
 	s += (proto + len) << 8;
 #endif
-	return (__force __wsum)from64to32(s);
+	return (__wsum)from64to32(s);
 }
 
 /*

@@ -8,6 +8,8 @@
 #include "kvm_cache_regs.h"
 #include "kvm_emulate.h"
 
+void kvm_spurious_fault(void);
+
 static __always_inline void kvm_guest_enter_irqoff(void)
 {
 	/*
@@ -340,8 +342,6 @@ extern unsigned int min_timer_period_us;
 extern bool enable_vmware_backdoor;
 
 extern int pi_inject_timer;
-
-extern struct static_key kvm_no_apic_vcpu;
 
 extern bool report_ignored_msrs;
 

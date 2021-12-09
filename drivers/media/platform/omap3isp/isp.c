@@ -2003,7 +2003,7 @@ static int isp_remove(struct platform_device *pdev)
 {
 	struct isp_device *isp = platform_get_drvdata(pdev);
 
-	v4l2_async_notifier_unregister(&isp->notifier);
+	v4l2_async_nf_unregister(&isp->notifier);
 	isp_unregister_entities(isp);
 	isp_cleanup_modules(isp);
 	isp_xclk_cleanup(isp);
@@ -2013,7 +2013,7 @@ static int isp_remove(struct platform_device *pdev)
 	__omap3isp_put(isp, false);
 
 	media_entity_enum_cleanup(&isp->crashed);
-	v4l2_async_notifier_cleanup(&isp->notifier);
+	v4l2_async_nf_cleanup(&isp->notifier);
 
 	kfree(isp);
 
@@ -2037,8 +2037,10 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 	mutex_lock(&isp->media_dev.graph_mutex);
 
 	ret = media_entity_enum_init(&isp->crashed, &isp->media_dev);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&isp->media_dev.graph_mutex);
 		return ret;
+	}
 
 	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
 		if (sd->notifier != &isp->notifier)
@@ -2170,8 +2172,9 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
 
 		if (!ret) {
-			isd = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&isp->notifier, ep, struct isp_async_subdev);
+			isd = v4l2_async_nf_add_fwnode_remote(&isp->notifier,
+							      ep, struct
+							      isp_async_subdev);
 			if (!IS_ERR(isd))
 				isp_parse_of_parallel_endpoint(isp->dev, &vep, &isd->bus);
 		}
@@ -2209,8 +2212,10 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 		}
 
 		if (!ret) {
-			isd = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&isp->notifier, ep, struct isp_async_subdev);
+			isd = v4l2_async_nf_add_fwnode_remote(&isp->notifier,
+							      ep,
+							      struct
+							      isp_async_subdev);
 
 			if (!IS_ERR(isd)) {
 				switch (vep.bus_type) {
@@ -2287,7 +2292,7 @@ static int isp_probe(struct platform_device *pdev)
 
 	mutex_init(&isp->isp_mutex);
 	spin_lock_init(&isp->stat_lock);
-	v4l2_async_notifier_init(&isp->notifier);
+	v4l2_async_nf_init(&isp->notifier);
 	isp->dev = &pdev->dev;
 
 	ret = isp_parse_of_endpoints(isp);
@@ -2416,7 +2421,7 @@ static int isp_probe(struct platform_device *pdev)
 
 	isp->notifier.ops = &isp_subdev_notifier_ops;
 
-	ret = v4l2_async_notifier_register(&isp->v4l2_dev, &isp->notifier);
+	ret = v4l2_async_nf_register(&isp->v4l2_dev, &isp->notifier);
 	if (ret)
 		goto error_register_entities;
 
@@ -2435,7 +2440,7 @@ error_isp:
 	isp_xclk_cleanup(isp);
 	__omap3isp_put(isp, false);
 error:
-	v4l2_async_notifier_cleanup(&isp->notifier);
+	v4l2_async_nf_cleanup(&isp->notifier);
 	mutex_destroy(&isp->isp_mutex);
 error_release_isp:
 	kfree(isp);

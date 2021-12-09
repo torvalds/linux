@@ -543,6 +543,8 @@ The CR-space dump uses vsc interface which is valid even if the FW command
 interface is not functional, which is the case in most FW fatal errors.
 The recover function runs recover flow which reloads the driver and triggers fw
 reset if needed.
+On firmware error, the health buffer is dumped into the dmesg. The log
+level is derived from the error's severity (given in health buffer).
 
 User commands examples:
 
@@ -656,3 +658,105 @@ Bridge offloads tracepoints:
     $ cat /sys/kernel/debug/tracing/trace
     ...
     ip-5387    [000] ...1       573713: mlx5_esw_bridge_vport_cleanup: vport_num=1
+
+Eswitch QoS tracepoints:
+
+- mlx5_esw_vport_qos_create: trace creation of transmit scheduler arbiter for vport::
+
+    $ echo mlx5:mlx5_esw_vport_qos_create >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-23496   [018] .... 73136.838831: mlx5_esw_vport_qos_create: (0000:82:00.0) vport=2 tsar_ix=4 bw_share=0, max_rate=0 group=000000007b576bb3
+
+- mlx5_esw_vport_qos_config: trace configuration of transmit scheduler arbiter for vport::
+
+    $ echo mlx5:mlx5_esw_vport_qos_config >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-26548   [023] .... 75754.223823: mlx5_esw_vport_qos_config: (0000:82:00.0) vport=1 tsar_ix=3 bw_share=34, max_rate=10000 group=000000007b576bb3
+
+- mlx5_esw_vport_qos_destroy: trace deletion of transmit scheduler arbiter for vport::
+
+    $ echo mlx5:mlx5_esw_vport_qos_destroy >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-27418   [004] .... 76546.680901: mlx5_esw_vport_qos_destroy: (0000:82:00.0) vport=1 tsar_ix=3
+
+- mlx5_esw_group_qos_create: trace creation of transmit scheduler arbiter for rate group::
+
+    $ echo mlx5:mlx5_esw_group_qos_create >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-26578   [008] .... 75776.022112: mlx5_esw_group_qos_create: (0000:82:00.0) group=000000008dac63ea tsar_ix=5
+
+- mlx5_esw_group_qos_config: trace configuration of transmit scheduler arbiter for rate group::
+
+    $ echo mlx5:mlx5_esw_group_qos_config >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-27303   [020] .... 76461.455356: mlx5_esw_group_qos_config: (0000:82:00.0) group=000000008dac63ea tsar_ix=5 bw_share=100 max_rate=20000
+
+- mlx5_esw_group_qos_destroy: trace deletion of transmit scheduler arbiter for group::
+
+    $ echo mlx5:mlx5_esw_group_qos_destroy >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    <...>-27418   [006] .... 76547.187258: mlx5_esw_group_qos_destroy: (0000:82:00.0) group=000000007b576bb3 tsar_ix=1
+
+SF tracepoints:
+
+- mlx5_sf_add: trace addition of the SF port::
+
+    $ echo mlx5:mlx5_sf_add >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9363    [031] ..... 24610.188722: mlx5_sf_add: (0000:06:00.0) port_index=32768 controller=0 hw_id=0x8000 sfnum=88
+
+- mlx5_sf_free: trace freeing of the SF port::
+
+    $ echo mlx5:mlx5_sf_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9830    [038] ..... 26300.404749: mlx5_sf_free: (0000:06:00.0) port_index=32768 controller=0 hw_id=0x8000
+
+- mlx5_sf_hwc_alloc: trace allocating of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_alloc >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9775    [031] ..... 26296.385259: mlx5_sf_hwc_alloc: (0000:06:00.0) controller=0 hw_id=0x8000 sfnum=88
+
+- mlx5_sf_hwc_free: trace freeing of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [046] ..... 24625.365771: mlx5_sf_hwc_free: (0000:06:00.0) hw_id=0x8000
+
+- mlx5_sf_hwc_deferred_free : trace deferred freeing of the hardware SF context::
+
+    $ echo mlx5:mlx5_sf_hwc_deferred_free >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-9519    [046] ..... 24624.400271: mlx5_sf_hwc_deferred_free: (0000:06:00.0) hw_id=0x8000
+
+- mlx5_sf_vhca_event: trace SF vhca event and state::
+
+    $ echo mlx5:mlx5_sf_vhca_event >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [046] ..... 24625.365525: mlx5_sf_vhca_event: (0000:06:00.0) hw_id=0x8000 sfnum=88 vhca_state=1
+
+- mlx5_sf_dev_add : trace SF device add event::
+
+    $ echo mlx5:mlx5_sf_dev_add>> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [000] ..... 24616.524495: mlx5_sf_dev_add: (0000:06:00.0) sfdev=00000000fc5d96fd aux_id=4 hw_id=0x8000 sfnum=88
+
+- mlx5_sf_dev_del : trace SF device delete event::
+
+    $ echo mlx5:mlx5_sf_dev_del >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u128:3-9093    [044] ..... 24624.400749: mlx5_sf_dev_del: (0000:06:00.0) sfdev=00000000fc5d96fd aux_id=4 hw_id=0x8000 sfnum=88

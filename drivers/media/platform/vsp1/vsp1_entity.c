@@ -676,9 +676,9 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	 * rectangles.
 	 */
 	entity->config = v4l2_subdev_alloc_state(&entity->subdev);
-	if (entity->config == NULL) {
+	if (IS_ERR(entity->config)) {
 		media_entity_cleanup(&entity->subdev.entity);
-		return -ENOMEM;
+		return PTR_ERR(entity->config);
 	}
 
 	return 0;

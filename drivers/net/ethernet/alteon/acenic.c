@@ -869,6 +869,7 @@ static int ace_init(struct net_device *dev)
 	int board_idx, ecode = 0;
 	short i;
 	unsigned char cache_size;
+	u8 addr[ETH_ALEN];
 
 	ap = netdev_priv(dev);
 	regs = ap->regs;
@@ -988,12 +989,13 @@ static int ace_init(struct net_device *dev)
 	writel(mac1, &regs->MacAddrHi);
 	writel(mac2, &regs->MacAddrLo);
 
-	dev->dev_addr[0] = (mac1 >> 8) & 0xff;
-	dev->dev_addr[1] = mac1 & 0xff;
-	dev->dev_addr[2] = (mac2 >> 24) & 0xff;
-	dev->dev_addr[3] = (mac2 >> 16) & 0xff;
-	dev->dev_addr[4] = (mac2 >> 8) & 0xff;
-	dev->dev_addr[5] = mac2 & 0xff;
+	addr[0] = (mac1 >> 8) & 0xff;
+	addr[1] = mac1 & 0xff;
+	addr[2] = (mac2 >> 24) & 0xff;
+	addr[3] = (mac2 >> 16) & 0xff;
+	addr[4] = (mac2 >> 8) & 0xff;
+	addr[5] = mac2 & 0xff;
+	eth_hw_addr_set(dev, addr);
 
 	printk("MAC: %pM\n", dev->dev_addr);
 
@@ -2712,15 +2714,15 @@ static int ace_set_mac_addr(struct net_device *dev, void *p)
 	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;
 	struct sockaddr *addr=p;
-	u8 *da;
+	const u8 *da;
 	struct cmd cmd;
 
 	if(netif_running(dev))
 		return -EBUSY;
 
-	memcpy(dev->dev_addr, addr->sa_data,dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
-	da = (u8 *)dev->dev_addr;
+	da = (const u8 *)dev->dev_addr;
 
 	writel(da[0] << 8 | da[1], &regs->MacAddrHi);
 	writel((da[2] << 24) | (da[3] << 16) | (da[4] << 8) | da[5],

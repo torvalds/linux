@@ -692,8 +692,8 @@
 		power-domains = <&k3_pds 120 TI_SCI_PD_EXCLUSIVE>;
 		#address-cells = <3>;
 		#size-cells = <2>;
-		ranges = <0x81000000 0 0          0x0 0x10020000 0 0x00010000
-			  0x82000000 0 0x10030000 0x0 0x10030000 0 0x07FD0000>;
+		ranges = <0x81000000 0 0          0x0 0x10020000 0 0x00010000>,
+			 <0x82000000 0 0x10030000 0x0 0x10030000 0 0x07FD0000>;
 		ti,syscon-pcie-id = <&pcie_devid>;
 		ti,syscon-pcie-mode = <&pcie0_mode>;
 		bus-range = <0x0 0xff>;
@@ -725,8 +725,8 @@
 		power-domains = <&k3_pds 121 TI_SCI_PD_EXCLUSIVE>;
 		#address-cells = <3>;
 		#size-cells = <2>;
-		ranges = <0x81000000 0 0          0x0   0x18020000 0 0x00010000
-			  0x82000000 0 0x18030000 0x0   0x18030000 0 0x07FD0000>;
+		ranges = <0x81000000 0 0          0x0   0x18020000 0 0x00010000>,
+			 <0x82000000 0 0x18030000 0x0   0x18030000 0 0x07FD0000>;
 		ti,syscon-pcie-id = <&pcie_devid>;
 		ti,syscon-pcie-mode = <&pcie1_mode>;
 		bus-range = <0x0 0xff>;

@@ -42,16 +42,17 @@ static inline struct v10_sdma_mqd *get_sdma_mqd(void *mqd)
 }
 
 static void update_cu_mask(struct mqd_manager *mm, void *mqd,
-			   struct queue_properties *q)
+			struct mqd_update_info *minfo)
 {
 	struct v10_compute_mqd *m;
 	uint32_t se_mask[4] = {0}; /* 4 is the max # of SEs */
 
-	if (q->cu_mask_count == 0)
+	if (!minfo || (minfo->update_flag != UPDATE_FLAG_CU_MASK) ||
+	    !minfo->cu_mask.ptr)
 		return;
 
 	mqd_symmetrically_map_cu_mask(mm,
-		q->cu_mask, q->cu_mask_count, se_mask);
+		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask);
 
 	m = get_mqd(mqd);
 	m->compute_static_thread_mgmt_se0 = se_mask[0];
@@ -136,7 +137,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = addr;
-	mm->update_mqd(mm, m, q);
+	mm->update_mqd(mm, m, q, NULL);
 }
 
 static int load_mqd(struct mqd_manager *mm, void *mqd,
@@ -162,7 +163,8 @@ static int hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
 }
 
 static void update_mqd(struct mqd_manager *mm, void *mqd,
-		      struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
 	struct v10_compute_mqd *m;
 
@@ -218,7 +220,7 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	if (mm->dev->cwsr_enabled)
 		m->cp_hqd_ctx_save_control = 0;
 
-	update_cu_mask(mm, mqd, q);
+	update_cu_mask(mm, mqd, minfo);
 	set_priority(m, q);
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
@@ -311,7 +313,7 @@ static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 	if (gart_addr)
 		*gart_addr = mqd_mem_obj->gpu_addr;
 
-	mm->update_mqd(mm, m, q);
+	mm->update_mqd(mm, m, q, NULL);
 }
 
 static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
@@ -326,7 +328,8 @@ static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 #define SDMA_RLC_DUMMY_DEFAULT 0xf
 
 static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
-		struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
 	struct v10_sdma_mqd *m;
 

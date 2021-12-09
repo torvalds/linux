@@ -358,6 +358,9 @@ static void batadv_tp_vars_release(struct kref *ref)
  */
 static void batadv_tp_vars_put(struct batadv_tp_vars *tp_vars)
 {
+	if (!tp_vars)
+		return;
+
 	kref_put(&tp_vars->refcount, batadv_tp_vars_release);
 }
 
@@ -628,9 +631,9 @@ static void batadv_tp_recv_ack(struct batadv_priv *bat_priv,
 	struct batadv_orig_node *orig_node = NULL;
 	const struct batadv_icmp_tp_packet *icmp;
 	struct batadv_tp_vars *tp_vars;
+	const unsigned char *dev_addr;
 	size_t packet_len, mss;
 	u32 rtt, recv_ack, cwnd;
-	unsigned char *dev_addr;
 
 	packet_len = BATADV_TP_PLEN;
 	mss = BATADV_TP_PLEN;
@@ -748,12 +751,9 @@ move_twnd:
 
 	wake_up(&tp_vars->more_bytes);
 out:
-	if (likely(primary_if))
-		batadv_hardif_put(primary_if);
-	if (likely(orig_node))
-		batadv_orig_node_put(orig_node);
-	if (likely(tp_vars))
-		batadv_tp_vars_put(tp_vars);
+	batadv_hardif_put(primary_if);
+	batadv_orig_node_put(orig_node);
+	batadv_tp_vars_put(tp_vars);
 }
 
 /**
@@ -882,17 +882,15 @@ static int batadv_tp_send(void *arg)
 	}
 
 out:
-	if (likely(primary_if))
-		batadv_hardif_put(primary_if);
-	if (likely(orig_node))
-		batadv_orig_node_put(orig_node);
+	batadv_hardif_put(primary_if);
+	batadv_orig_node_put(orig_node);
 
 	batadv_tp_sender_end(bat_priv, tp_vars);
 	batadv_tp_sender_cleanup(bat_priv, tp_vars);
 
 	batadv_tp_vars_put(tp_vars);
 
-	do_exit(0);
+	return 0;
 }
 
 /**
@@ -1205,10 +1203,8 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 	ret = 0;
 
 out:
-	if (likely(orig_node))
-		batadv_orig_node_put(orig_node);
-	if (likely(primary_if))
-		batadv_hardif_put(primary_if);
+	batadv_orig_node_put(orig_node);
+	batadv_hardif_put(primary_if);
 
 	return ret;
 }
@@ -1456,8 +1452,7 @@ send_ack:
 	batadv_tp_send_ack(bat_priv, icmp->orig, tp_vars->last_recv,
 			   icmp->timestamp, icmp->session, icmp->uid);
 out:
-	if (likely(tp_vars))
-		batadv_tp_vars_put(tp_vars);
+	batadv_tp_vars_put(tp_vars);
 }
 
 /**

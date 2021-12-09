@@ -1186,15 +1186,13 @@ static int anybus_bus_probe(struct device *dev)
 	return adrv->probe(adev);
 }
 
-static int anybus_bus_remove(struct device *dev)
+static void anybus_bus_remove(struct device *dev)
 {
 	struct anybuss_client_driver *adrv =
 		to_anybuss_client_driver(dev->driver);
 
 	if (adrv->remove)
 		adrv->remove(to_anybuss_client(dev));
-
-	return 0;
 }
 
 static struct bus_type anybus_bus = {
@@ -1320,11 +1318,11 @@ anybuss_host_common_probe(struct device *dev,
 	}
 	/*
 	 * startup sequence:
-	 *   perform dummy IND_AB read to prevent false 'init done' irq
+	 *   a) perform dummy IND_AB read to prevent false 'init done' irq
 	 *     (already done by test_dpram() above)
-	 *   release reset
-	 *   wait for first interrupt
-	 *   interrupt came in: ready to go !
+	 *   b) release reset
+	 *   c) wait for first interrupt
+	 *   d) interrupt came in: ready to go !
 	 */
 	reset_deassert(cd);
 	if (!wait_for_completion_timeout(&cd->card_boot, TIMEOUT)) {

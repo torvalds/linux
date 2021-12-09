@@ -488,7 +488,7 @@ gp100_vmm_fault_cancel(struct nvkm_vmm *vmm, void *argv, u32 argc)
 		struct gp100_vmm_fault_cancel_v0 v0;
 	} *args = argv;
 	int ret = -ENOSYS;
-	u32 inst, aper;
+	u32 aper;
 
 	if ((ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false)))
 		return ret;
@@ -502,7 +502,7 @@ gp100_vmm_fault_cancel(struct nvkm_vmm *vmm, void *argv, u32 argc)
 	args->v0.inst |= 0x80000000;
 
 	if (!WARN_ON(nvkm_gr_ctxsw_pause(device))) {
-		if ((inst = nvkm_gr_ctxsw_inst(device)) == args->v0.inst) {
+		if (nvkm_gr_ctxsw_inst(device) == args->v0.inst) {
 			gf100_vmm_invalidate(vmm, 0x0000001b
 					     /* CANCEL_TARGETED. */ |
 					     (args->v0.hub    << 20) |
@@ -534,15 +534,13 @@ int
 gp100_vmm_mthd(struct nvkm_vmm *vmm,
 	       struct nvkm_client *client, u32 mthd, void *argv, u32 argc)
 {
-	if (client->super) {
-		switch (mthd) {
-		case GP100_VMM_VN_FAULT_REPLAY:
-			return gp100_vmm_fault_replay(vmm, argv, argc);
-		case GP100_VMM_VN_FAULT_CANCEL:
-			return gp100_vmm_fault_cancel(vmm, argv, argc);
-		default:
-			break;
-		}
+	switch (mthd) {
+	case GP100_VMM_VN_FAULT_REPLAY:
+		return gp100_vmm_fault_replay(vmm, argv, argc);
+	case GP100_VMM_VN_FAULT_CANCEL:
+		return gp100_vmm_fault_cancel(vmm, argv, argc);
+	default:
+		break;
 	}
 	return -EINVAL;
 }

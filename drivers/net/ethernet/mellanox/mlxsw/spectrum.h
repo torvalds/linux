@@ -67,6 +67,7 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_COUNTERS_RIF,
 	MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
 	MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
+	MLXSW_SP_RESOURCE_RIF_MAC_PROFILES,
 };
 
 struct mlxsw_sp_port;
@@ -144,8 +145,16 @@ struct mlxsw_sp_mall_entry;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
-	u8 width;
+	u8 width; /* Number of lanes used by the port */
+	u8 module_width; /* Number of lanes in the module (static) */
 	u8 lane;
+};
+
+struct mlxsw_sp_parsing {
+	refcount_t parsing_depth_ref;
+	u16 parsing_depth;
+	u16 vxlan_udp_dport;
+	struct mutex lock; /* Protects parsing configuration */
 };
 
 struct mlxsw_sp {
@@ -173,6 +182,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_counter_pool *counter_pool;
 	struct mlxsw_sp_span *span;
 	struct mlxsw_sp_trap *trap;
+	struct mlxsw_sp_parsing parsing;
 	const struct mlxsw_sp_switchdev_ops *switchdev_ops;
 	const struct mlxsw_sp_kvdl_ops *kvdl_ops;
 	const struct mlxsw_afa_ops *afa_ops;
@@ -276,6 +286,7 @@ struct mlxsw_sp_port_vlan {
 /* No need an internal lock; At worse - miss a single periodic iteration */
 struct mlxsw_sp_port_xstats {
 	u64 ecn;
+	u64 tc_ecn[TC_MAX_QUEUE];
 	u64 wred_drop[TC_MAX_QUEUE];
 	u64 tail_drop[TC_MAX_QUEUE];
 	u64 backlog[TC_MAX_QUEUE];
@@ -337,7 +348,6 @@ struct mlxsw_sp_port {
 		u16 egr_types;
 		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
-	u8 split_base_local_port;
 	int max_mtu;
 	u32 max_speed;
 	struct mlxsw_sp_hdroom *hdroom;
@@ -652,6 +662,10 @@ struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
 void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev);
+int mlxsw_sp_parsing_depth_inc(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_parsing_depth_dec(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_parsing_vxlan_udp_dport_set(struct mlxsw_sp *mlxsw_sp,
+					 __be16 udp_dport);
 
 /* spectrum_dcb.c */
 #ifdef CONFIG_MLXSW_SPECTRUM_DCB
@@ -735,6 +749,7 @@ enum mlxsw_sp_kvdl_entry_type {
 	MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
 	MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
 	MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+	MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS,
 	MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT,
 };
 
@@ -746,6 +761,7 @@ mlxsw_sp_kvdl_entry_size(enum mlxsw_sp_kvdl_entry_type type)
 	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET:
 	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS:
 	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS:
 	case MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT:
 	default:
 		return 1;
@@ -1181,6 +1197,8 @@ int mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct tc_fifo_qopt_offload *p);
 int mlxsw_sp_setup_tc_block_qevent_early_drop(struct mlxsw_sp_port *mlxsw_sp_port,
 					      struct flow_block_offload *f);
+int mlxsw_sp_setup_tc_block_qevent_mark(struct mlxsw_sp_port *mlxsw_sp_port,
+					struct flow_block_offload *f);
 
 /* spectrum_fid.c */
 bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index);

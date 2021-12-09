@@ -25,18 +25,22 @@
  * Note: we hold the dentry use count while the file is open.
  */
 static __be32
-nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp)
+nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp,
+		int mode)
 {
 	__be32		nfserr;
+	int		access;
 	struct svc_fh	fh;
 
 	/* must initialize before using! but maxsize doesn't matter */
 	fh_init(&fh,0);
 	fh.fh_handle.fh_size = f->size;
-	memcpy((char*)&fh.fh_handle.fh_base, f->data, f->size);
+	memcpy(&fh.fh_handle.fh_raw, f->data, f->size);
 	fh.fh_export = NULL;
 
-	nfserr = nfsd_open(rqstp, &fh, S_IFREG, NFSD_MAY_LOCK, filp);
+	access = (mode == O_WRONLY) ? NFSD_MAY_WRITE : NFSD_MAY_READ;
+	access |= NFSD_MAY_LOCK;
+	nfserr = nfsd_open(rqstp, &fh, S_IFREG, access, filp);
 	fh_put(&fh);
  	/* We return nlm error codes as nlm doesn't know
 	 * about nfsd, but nfsd does know about nlm..

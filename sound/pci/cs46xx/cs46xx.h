@@ -1635,7 +1635,6 @@ struct snd_cs46xx_region {
 	unsigned long base;
 	void __iomem *remap_addr;
 	unsigned long size;
-	struct resource *resource;
 };
 
 struct snd_cs46xx {
@@ -1718,8 +1717,7 @@ struct snd_cs46xx {
 
 int snd_cs46xx_create(struct snd_card *card,
 		      struct pci_dev *pci,
-		      int external_amp, int thinkpad,
-		      struct snd_cs46xx **rcodec);
+		      int external_amp, int thinkpad);
 extern const struct dev_pm_ops snd_cs46xx_pm;
 
 int snd_cs46xx_pcm(struct snd_cs46xx *chip, int device);

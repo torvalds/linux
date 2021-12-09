@@ -14,6 +14,7 @@
 #include "i915_gem.h"
 
 struct drm_mm_node;
+struct ttm_resource;
 
 /*
  * Optimised SGL iterator for GEM objects
@@ -145,4 +146,8 @@ bool i915_sg_trim(struct sg_table *orig_st);
 
 struct sg_table *i915_sg_from_mm_node(const struct drm_mm_node *node,
 				      u64 region_start);
+
+struct sg_table *i915_sg_from_buddy_resource(struct ttm_resource *res,
+					     u64 region_start);
+
 #endif

@@ -265,8 +265,6 @@ static void streamzap_callback(struct urb *urb)
 
 	ir_raw_event_handle(sz->rdev);
 	usb_submit_urb(urb, GFP_ATOMIC);
-
-	return;
 }
 
 static struct rc_dev *streamzap_init_rc_dev(struct streamzap_ir *sz)
@@ -295,6 +293,7 @@ static struct rc_dev *streamzap_init_rc_dev(struct streamzap_ir *sz)
 	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rdev->driver_name = DRIVER_NAME;
 	rdev->map_name = RC_MAP_STREAMZAP;
+	rdev->rx_resolution = SZ_RESOLUTION;
 
 	ret = rc_register_device(rdev);
 	if (ret < 0) {

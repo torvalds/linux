@@ -208,9 +208,7 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 
 void fib_nh_common_release(struct fib_nh_common *nhc)
 {
-	if (nhc->nhc_dev)
-		dev_put(nhc->nhc_dev);
-
+	dev_put(nhc->nhc_dev);
 	lwtstate_put(nhc->nhc_lwtstate);
 	rt_fibinfo_free_cpus(nhc->nhc_pcpu_rth_output);
 	rt_fibinfo_free(&nhc->nhc_rth_input);
@@ -260,7 +258,7 @@ EXPORT_SYMBOL_GPL(free_fib_info);
 void fib_release_info(struct fib_info *fi)
 {
 	spin_lock_bh(&fib_info_lock);
-	if (fi && --fi->fib_treeref == 0) {
+	if (fi && refcount_dec_and_test(&fi->fib_treeref)) {
 		hlist_del(&fi->fib_hash);
 		if (fi->fib_prefsrc)
 			hlist_del(&fi->fib_lhash);
@@ -1373,7 +1371,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		if (!cfg->fc_mx) {
 			fi = fib_find_info_nh(net, cfg);
 			if (fi) {
-				fi->fib_treeref++;
+				refcount_inc(&fi->fib_treeref);
 				return fi;
 			}
 		}
@@ -1547,11 +1545,11 @@ link_it:
 	if (ofi) {
 		fi->fib_dead = 1;
 		free_fib_info(fi);
-		ofi->fib_treeref++;
+		refcount_inc(&ofi->fib_treeref);
 		return ofi;
 	}
 
-	fi->fib_treeref++;
+	refcount_set(&fi->fib_treeref, 1);
 	refcount_set(&fi->fib_clntref, 1);
 	spin_lock_bh(&fib_info_lock);
 	hlist_add_head(&fi->fib_hash,
@@ -1663,7 +1661,7 @@ EXPORT_SYMBOL_GPL(fib_nexthop_info);
 
 #if IS_ENABLED(CONFIG_IP_ROUTE_MULTIPATH) || IS_ENABLED(CONFIG_IPV6)
 int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
-		    int nh_weight, u8 rt_family)
+		    int nh_weight, u8 rt_family, u32 nh_tclassid)
 {
 	const struct net_device *dev = nhc->nhc_dev;
 	struct rtnexthop *rtnh;
@@ -1680,6 +1678,9 @@ int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
 		goto nla_put_failure;
 
 	rtnh->rtnh_flags = flags;
+
+	if (nh_tclassid && nla_put_u32(skb, RTA_FLOW, nh_tclassid))
+		goto nla_put_failure;
 
 	/* length of rtnetlink header + attributes */
 	rtnh->rtnh_len = nlmsg_get_pos(skb) - (void *)rtnh;
@@ -1708,14 +1709,13 @@ static int fib_add_multipath(struct sk_buff *skb, struct fib_info *fi)
 	}
 
 	for_nexthops(fi) {
-		if (fib_add_nexthop(skb, &nh->nh_common, nh->fib_nh_weight,
-				    AF_INET) < 0)
-			goto nla_put_failure;
+		u32 nh_tclassid = 0;
 #ifdef CONFIG_IP_ROUTE_CLASSID
-		if (nh->nh_tclassid &&
-		    nla_put_u32(skb, RTA_FLOW, nh->nh_tclassid))
-			goto nla_put_failure;
+		nh_tclassid = nh->nh_tclassid;
 #endif
+		if (fib_add_nexthop(skb, &nh->nh_common, nh->fib_nh_weight,
+				    AF_INET, nh_tclassid) < 0)
+			goto nla_put_failure;
 	} endfor_nexthops(fi);
 
 mp_end:

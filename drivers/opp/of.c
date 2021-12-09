@@ -95,15 +95,7 @@ static struct dev_pm_opp *_find_opp_of_np(struct opp_table *opp_table,
 static struct device_node *of_parse_required_opp(struct device_node *np,
 						 int index)
 {
-	struct device_node *required_np;
-
-	required_np = of_parse_phandle(np, "required-opps", index);
-	if (unlikely(!required_np)) {
-		pr_err("%s: Unable to parse required-opps: %pOF, index: %d\n",
-		       __func__, np, index);
-	}
-
-	return required_np;
+	return of_parse_phandle(np, "required-opps", index);
 }
 
 /* The caller must call dev_pm_opp_put_opp_table() after the table is used */
@@ -178,7 +170,7 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	}
 
 	count = of_count_phandle_with_args(np, "required-opps", NULL);
-	if (!count)
+	if (count <= 0)
 		goto put_np;
 
 	required_opp_tables = kcalloc(count, sizeof(*required_opp_tables),
@@ -929,7 +921,7 @@ free_required_opps:
 free_opp:
 	_opp_free(new_opp);
 
-	return ERR_PTR(ret);
+	return ret ? ERR_PTR(ret) : NULL;
 }
 
 /* Initializes OPP tables based on new bindings */
@@ -964,8 +956,9 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 		}
 	}
 
-	/* There should be one of more OPP defined */
-	if (WARN_ON(!count)) {
+	/* There should be one or more OPPs defined */
+	if (!count) {
+		dev_err(dev, "%s: no supported OPPs", __func__);
 		ret = -ENOENT;
 		goto remove_static_opp;
 	}
@@ -1088,6 +1081,17 @@ static void devm_pm_opp_of_table_release(void *data)
 	dev_pm_opp_of_remove_table(data);
 }
 
+static int _devm_of_add_table_indexed(struct device *dev, int index, bool getclk)
+{
+	int ret;
+
+	ret = _of_add_table_indexed(dev, index, getclk);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, devm_pm_opp_of_table_release, dev);
+}
+
 /**
  * devm_pm_opp_of_add_table() - Initialize opp table from device tree
  * @dev:	device pointer used to lookup OPP table.
@@ -1109,13 +1113,7 @@ static void devm_pm_opp_of_table_release(void *data)
  */
 int devm_pm_opp_of_add_table(struct device *dev)
 {
-	int ret;
-
-	ret = dev_pm_opp_of_add_table(dev);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(dev, devm_pm_opp_of_table_release, dev);
+	return _devm_of_add_table_indexed(dev, 0, true);
 }
 EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table);
 
@@ -1159,6 +1157,19 @@ int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
 
 /**
+ * devm_pm_opp_of_add_table_indexed() - Initialize indexed opp table from device tree
+ * @dev:	device pointer used to lookup OPP table.
+ * @index:	Index number.
+ *
+ * This is a resource-managed variant of dev_pm_opp_of_add_table_indexed().
+ */
+int devm_pm_opp_of_add_table_indexed(struct device *dev, int index)
+{
+	return _devm_of_add_table_indexed(dev, index, true);
+}
+EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table_indexed);
+
+/**
  * dev_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
  *		tree without getting clk for device.
  * @dev:	device pointer used to lookup OPP table.
@@ -1175,6 +1186,20 @@ int dev_pm_opp_of_add_table_noclk(struct device *dev, int index)
 	return _of_add_table_indexed(dev, index, false);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_noclk);
+
+/**
+ * devm_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
+ *		tree without getting clk for device.
+ * @dev:	device pointer used to lookup OPP table.
+ * @index:	Index number.
+ *
+ * This is a resource-managed variant of dev_pm_opp_of_add_table_noclk().
+ */
+int devm_pm_opp_of_add_table_noclk(struct device *dev, int index)
+{
+	return _devm_of_add_table_indexed(dev, index, false);
+}
+EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table_noclk);
 
 /* CPU device specific helpers */
 
@@ -1327,7 +1352,7 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 
 	required_np = of_parse_required_opp(np, index);
 	if (!required_np)
-		return -EINVAL;
+		return -ENODEV;
 
 	opp_table = _find_table_of_opp_np(required_np);
 	if (IS_ERR(opp_table)) {

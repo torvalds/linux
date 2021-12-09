@@ -12,12 +12,6 @@
 #include "super.h"
 #include "cache.h"
 
-struct ceph_aux_inode {
-	u64 	version;
-	u64	mtime_sec;
-	u64	mtime_nsec;
-};
-
 struct fscache_netfs ceph_cache_netfs = {
 	.name		= "ceph",
 	.version	= 0,
@@ -109,20 +103,14 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 	void *cookie_netfs_data, const void *data, uint16_t dlen,
 	loff_t object_size)
 {
-	struct ceph_aux_inode aux;
 	struct ceph_inode_info* ci = cookie_netfs_data;
 	struct inode* inode = &ci->vfs_inode;
 
-	if (dlen != sizeof(aux) ||
+	if (dlen != sizeof(ci->i_version) ||
 	    i_size_read(inode) != object_size)
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
-	memset(&aux, 0, sizeof(aux));
-	aux.version = ci->i_version;
-	aux.mtime_sec = inode->i_mtime.tv_sec;
-	aux.mtime_nsec = inode->i_mtime.tv_nsec;
-
-	if (memcmp(data, &aux, sizeof(aux)) != 0)
+	if (*(u64 *)data != ci->i_version)
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
 	dout("ceph inode 0x%p cached okay\n", ci);
@@ -139,7 +127,6 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_aux_inode aux;
 
 	/* No caching for filesystem */
 	if (!fsc->fscache)
@@ -151,14 +138,10 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 
 	inode_lock_nested(inode, I_MUTEX_CHILD);
 	if (!ci->fscache) {
-		memset(&aux, 0, sizeof(aux));
-		aux.version = ci->i_version;
-		aux.mtime_sec = inode->i_mtime.tv_sec;
-		aux.mtime_nsec = inode->i_mtime.tv_nsec;
 		ci->fscache = fscache_acquire_cookie(fsc->fscache,
 						     &ceph_fscache_inode_object_def,
 						     &ci->i_vino, sizeof(ci->i_vino),
-						     &aux, sizeof(aux),
+						     &ci->i_version, sizeof(ci->i_version),
 						     ci, i_size_read(inode), false);
 	}
 	inode_unlock(inode);

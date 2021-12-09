@@ -33,6 +33,10 @@ extern bool coregroup_enabled;
 extern int cpu_to_chip_id(int cpu);
 extern int *chip_id_lookup_table;
 
+DECLARE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
+DECLARE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
+DECLARE_PER_CPU(cpumask_var_t, thread_group_l3_cache_map);
+
 #ifdef CONFIG_SMP
 
 struct smp_ops_t {
@@ -83,22 +87,7 @@ int is_cpu_dead(unsigned int cpu);
 /* 32-bit */
 extern int smp_hw_index[];
 
-/*
- * This is particularly ugly: it appears we can't actually get the definition
- * of task_struct here, but we need access to the CPU this task is running on.
- * Instead of using task_struct we're using _TASK_CPU which is extracted from
- * asm-offsets.h by kbuild to get the current processor ID.
- *
- * This also needs to be safeguarded when building asm-offsets.s because at
- * that time _TASK_CPU is not defined yet. It could have been guarded by
- * _TASK_CPU itself, but we want the build to fail if _TASK_CPU is missing
- * when building something else than asm-offsets.s
- */
-#ifdef GENERATING_ASM_OFFSETS
-#define raw_smp_processor_id()		(0)
-#else
-#define raw_smp_processor_id()		(*(unsigned int *)((void *)current + _TASK_CPU))
-#endif
+#define raw_smp_processor_id()		(current_thread_info()->cpu)
 #define hard_smp_processor_id() 	(smp_hw_index[smp_processor_id()])
 
 static inline int get_hard_smp_processor_id(int cpu)
@@ -141,6 +130,7 @@ extern int cpu_to_core_id(int cpu);
 
 extern bool has_big_cores;
 extern bool thread_group_shares_l2;
+extern bool thread_group_shares_l3;
 
 #define cpu_smt_mask cpu_smt_mask
 #ifdef CONFIG_SCHED_SMT
@@ -195,6 +185,7 @@ extern void __cpu_die(unsigned int cpu);
 #define hard_smp_processor_id()		get_hard_smp_processor_id(0)
 #define smp_setup_cpu_maps()
 #define thread_group_shares_l2  0
+#define thread_group_shares_l3	0
 static inline void inhibit_secondary_onlining(void) {}
 static inline void uninhibit_secondary_onlining(void) {}
 static inline const struct cpumask *cpu_sibling_mask(int cpu)

@@ -26,6 +26,10 @@ properties:
       - auo,b101uan08.3
         # BOE TV105WUM-NW0 10.5" WUXGA TFT LCD panel
       - boe,tv105wum-nw0
+        # BOE TV110C9M-LL3 10.95" WUXGA TFT LCD panel
+      - boe,tv110c9m-ll3
+        # INX HJ110IZ-01A 10.95" WUXGA TFT LCD panel
+      - innolux,hj110iz-01a
 
   reg:
     description: the virtual channel number of a DSI peripheral
@@ -34,6 +38,9 @@ properties:
     description: a GPIO spec for the enable pin
 
   pp1800-supply:
+    description: core voltage supply
+
+  pp3300-supply:
     description: core voltage supply
 
   avdd-supply:
@@ -70,7 +77,6 @@ examples:
             avee-supply = <&ppvarp_lcd>;
             pp1800-supply = <&pp1800_lcd>;
             backlight = <&backlight_lcd0>;
-            status = "okay";
             port {
                 panel_in: endpoint {
                     remote-endpoint = <&dsi_out>;

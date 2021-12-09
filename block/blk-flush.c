@@ -262,6 +262,11 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 }
 
+bool is_flush_rq(struct request *rq)
+{
+	return rq->end_io == flush_end_io;
+}
+
 /**
  * blk_kick_flush - consider issuing flush request
  * @q: request_queue being kicked
@@ -329,6 +334,14 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	flush_rq->rq_flags |= RQF_FLUSH_SEQ;
 	flush_rq->rq_disk = first_rq->rq_disk;
 	flush_rq->end_io = flush_end_io;
+	/*
+	 * Order WRITE ->end_io and WRITE rq->ref, and its pair is the one
+	 * implied in refcount_inc_not_zero() called from
+	 * blk_mq_find_and_get_req(), which orders WRITE/READ flush_rq->ref
+	 * and READ flush_rq->end_io
+	 */
+	smp_wmb();
+	refcount_set(&flush_rq->ref, 1);
 
 	blk_flush_queue_rq(flush_rq, false);
 }
@@ -366,7 +379,7 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
  * @rq is being submitted.  Analyze what needs to be done and put it on the
  * right queue.
  */
-void blk_insert_flush(struct request *rq)
+bool blk_insert_flush(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	unsigned long fflags = q->queue_flags;	/* may change, cache */
@@ -396,7 +409,7 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if (!policy) {
 		blk_mq_end_request(rq, 0);
-		return;
+		return true;
 	}
 
 	BUG_ON(rq->bio != rq->biotail); /*assumes zero or single bio rq */
@@ -407,10 +420,8 @@ void blk_insert_flush(struct request *rq)
 	 * for normal execution.
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
-	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		blk_mq_request_bypass_insert(rq, false, false);
-		return;
-	}
+	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH)))
+		return false;
 
 	/*
 	 * @rq should go through flush machinery.  Mark it part of flush
@@ -426,6 +437,8 @@ void blk_insert_flush(struct request *rq)
 	spin_lock_irq(&fq->mq_flush_lock);
 	blk_flush_complete_seq(rq, fq, REQ_FSEQ_ACTIONS & ~policy, 0);
 	spin_unlock_irq(&fq->mq_flush_lock);
+
+	return true;
 }
 
 /**

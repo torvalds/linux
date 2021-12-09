@@ -11,10 +11,10 @@
 #include <linux/nospec.h>
 #include <linux/prctl.h>
 #include <linux/seq_buf.h>
+#include <linux/debugfs.h>
 
 #include <asm/asm-prototypes.h>
 #include <asm/code-patching.h>
-#include <asm/debugfs.h>
 #include <asm/security_features.h>
 #include <asm/setup.h>
 #include <asm/inst.h>
@@ -106,7 +106,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_barrier_nospec, barrier_nospec_get,
 static __init int barrier_nospec_debugfs_init(void)
 {
 	debugfs_create_file_unsafe("barrier_nospec", 0600,
-				   powerpc_debugfs_root, NULL,
+				   arch_debugfs_dir, NULL,
 				   &fops_barrier_nospec);
 	return 0;
 }
@@ -114,7 +114,7 @@ device_initcall(barrier_nospec_debugfs_init);
 
 static __init int security_feature_debugfs_init(void)
 {
-	debugfs_create_x64("security_features", 0400, powerpc_debugfs_root,
+	debugfs_create_x64("security_features", 0400, arch_debugfs_dir,
 			   &powerpc_security_features);
 	return 0;
 }
@@ -262,6 +262,11 @@ static int __init handle_no_stf_barrier(char *p)
 }
 
 early_param("no_stf_barrier", handle_no_stf_barrier);
+
+enum stf_barrier_type stf_barrier_type_get(void)
+{
+	return stf_enabled_flush_types;
+}
 
 /* This is the generic flag used by other architectures */
 static int __init handle_ssbd(char *p)
@@ -420,7 +425,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_stf_barrier, stf_barrier_get, stf_barrier_set,
 
 static __init int stf_barrier_debugfs_init(void)
 {
-	debugfs_create_file_unsafe("stf_barrier", 0600, powerpc_debugfs_root,
+	debugfs_create_file_unsafe("stf_barrier", 0600, arch_debugfs_dir,
 				   NULL, &fops_stf_barrier);
 	return 0;
 }
@@ -748,7 +753,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_count_cache_flush, count_cache_flush_get,
 static __init int count_cache_flush_debugfs_init(void)
 {
 	debugfs_create_file_unsafe("count_cache_flush", 0600,
-				   powerpc_debugfs_root, NULL,
+				   arch_debugfs_dir, NULL,
 				   &fops_count_cache_flush);
 	return 0;
 }
@@ -834,9 +839,9 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_uaccess_flush, uaccess_flush_get, uaccess_flush_set
 
 static __init int rfi_flush_debugfs_init(void)
 {
-	debugfs_create_file("rfi_flush", 0600, powerpc_debugfs_root, NULL, &fops_rfi_flush);
-	debugfs_create_file("entry_flush", 0600, powerpc_debugfs_root, NULL, &fops_entry_flush);
-	debugfs_create_file("uaccess_flush", 0600, powerpc_debugfs_root, NULL, &fops_uaccess_flush);
+	debugfs_create_file("rfi_flush", 0600, arch_debugfs_dir, NULL, &fops_rfi_flush);
+	debugfs_create_file("entry_flush", 0600, arch_debugfs_dir, NULL, &fops_entry_flush);
+	debugfs_create_file("uaccess_flush", 0600, arch_debugfs_dir, NULL, &fops_uaccess_flush);
 	return 0;
 }
 device_initcall(rfi_flush_debugfs_init);

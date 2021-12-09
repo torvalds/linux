@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 
@@ -210,6 +211,8 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, fuse);
 	fuse->dev = &pdev->dev;
 
+	pm_runtime_enable(&pdev->dev);
+
 	if (fuse->soc->probe) {
 		err = fuse->soc->probe(fuse);
 		if (err < 0)
@@ -246,14 +249,71 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 	return 0;
 
 restore:
+	fuse->clk = NULL;
 	fuse->base = base;
+	pm_runtime_disable(&pdev->dev);
 	return err;
 }
+
+static int __maybe_unused tegra_fuse_runtime_resume(struct device *dev)
+{
+	int err;
+
+	err = clk_prepare_enable(fuse->clk);
+	if (err < 0) {
+		dev_err(dev, "failed to enable FUSE clock: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused tegra_fuse_runtime_suspend(struct device *dev)
+{
+	clk_disable_unprepare(fuse->clk);
+
+	return 0;
+}
+
+static int __maybe_unused tegra_fuse_suspend(struct device *dev)
+{
+	int ret;
+
+	/*
+	 * Critical for RAM re-repair operation, which must occur on resume
+	 * from LP1 system suspend and as part of CCPLEX cluster switching.
+	 */
+	if (fuse->soc->clk_suspend_on)
+		ret = pm_runtime_resume_and_get(dev);
+	else
+		ret = pm_runtime_force_suspend(dev);
+
+	return ret;
+}
+
+static int __maybe_unused tegra_fuse_resume(struct device *dev)
+{
+	int ret = 0;
+
+	if (fuse->soc->clk_suspend_on)
+		pm_runtime_put(dev);
+	else
+		ret = pm_runtime_force_resume(dev);
+
+	return ret;
+}
+
+static const struct dev_pm_ops tegra_fuse_pm = {
+	SET_RUNTIME_PM_OPS(tegra_fuse_runtime_suspend, tegra_fuse_runtime_resume,
+			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_fuse_suspend, tegra_fuse_resume)
+};
 
 static struct platform_driver tegra_fuse_driver = {
 	.driver = {
 		.name = "tegra-fuse",
 		.of_match_table = tegra_fuse_match,
+		.pm = &tegra_fuse_pm,
 		.suppress_bind_attrs = true,
 	},
 	.probe = tegra_fuse_probe,

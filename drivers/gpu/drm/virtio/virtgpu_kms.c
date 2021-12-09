@@ -65,6 +65,7 @@ static void virtio_gpu_get_capsets(struct virtio_gpu_device *vgdev,
 				   int num_capsets)
 {
 	int i, ret;
+	bool invalid_capset_id = false;
 
 	vgdev->capsets = kcalloc(num_capsets,
 				 sizeof(struct virtio_gpu_drv_capset),
@@ -78,19 +79,34 @@ static void virtio_gpu_get_capsets(struct virtio_gpu_device *vgdev,
 		virtio_gpu_notify(vgdev);
 		ret = wait_event_timeout(vgdev->resp_wq,
 					 vgdev->capsets[i].id > 0, 5 * HZ);
-		if (ret == 0) {
+		/*
+		 * Capability ids are defined in the virtio-gpu spec and are
+		 * between 1 to 63, inclusive.
+		 */
+		if (!vgdev->capsets[i].id ||
+		    vgdev->capsets[i].id > MAX_CAPSET_ID)
+			invalid_capset_id = true;
+
+		if (ret == 0)
 			DRM_ERROR("timed out waiting for cap set %d\n", i);
+		else if (invalid_capset_id)
+			DRM_ERROR("invalid capset id %u", vgdev->capsets[i].id);
+
+		if (ret == 0 || invalid_capset_id) {
 			spin_lock(&vgdev->display_info_lock);
 			kfree(vgdev->capsets);
 			vgdev->capsets = NULL;
 			spin_unlock(&vgdev->display_info_lock);
 			return;
 		}
+
+		vgdev->capset_id_mask |= 1 << vgdev->capsets[i].id;
 		DRM_INFO("cap set %d: id %d, max-version %d, max-size %d\n",
 			 i, vgdev->capsets[i].id,
 			 vgdev->capsets[i].max_version,
 			 vgdev->capsets[i].max_size);
 	}
+
 	vgdev->num_capsets = num_capsets;
 }
 
@@ -175,12 +191,18 @@ int virtio_gpu_init(struct drm_device *dev)
 			    (unsigned long)vgdev->host_visible_region.addr,
 			    (unsigned long)vgdev->host_visible_region.len);
 	}
+	if (virtio_has_feature(vgdev->vdev, VIRTIO_GPU_F_CONTEXT_INIT)) {
+		vgdev->has_context_init = true;
+	}
 
-	DRM_INFO("features: %cvirgl %cedid %cresource_blob %chost_visible\n",
+	DRM_INFO("features: %cvirgl %cedid %cresource_blob %chost_visible",
 		 vgdev->has_virgl_3d    ? '+' : '-',
 		 vgdev->has_edid        ? '+' : '-',
 		 vgdev->has_resource_blob ? '+' : '-',
 		 vgdev->has_host_visible ? '+' : '-');
+
+	DRM_INFO("features: %ccontext_init\n",
+		 vgdev->has_context_init ? '+' : '-');
 
 	ret = virtio_find_vqs(vgdev->vdev, 2, vqs, callbacks, names, NULL);
 	if (ret) {

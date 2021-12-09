@@ -707,6 +707,34 @@
 				status = "disabled";
 			};
 
+			ftm1: pwm@30640000 {
+				compatible = "fsl,vf610-ftm-pwm";
+				reg = <0x30640000 0x10000>;
+				#pwm-cells = <3>;
+				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "ftm_sys", "ftm_ext",
+				"ftm_fix", "ftm_cnt_clk_en";
+				clocks = <&clks IMX7D_FLEXTIMER1_ROOT_CLK>,
+					<&clks IMX7D_FLEXTIMER1_ROOT_CLK>,
+					<&clks IMX7D_FLEXTIMER1_ROOT_CLK>,
+					<&clks IMX7D_FLEXTIMER1_ROOT_CLK>;
+				status = "disabled";
+			};
+
+			ftm2: pwm@30650000 {
+				compatible = "fsl,vf610-ftm-pwm";
+				reg = <0x30650000 0x10000>;
+				#pwm-cells = <3>;
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "ftm_sys", "ftm_ext",
+				"ftm_fix", "ftm_cnt_clk_en";
+				clocks = <&clks IMX7D_FLEXTIMER2_ROOT_CLK>,
+					<&clks IMX7D_FLEXTIMER2_ROOT_CLK>,
+					<&clks IMX7D_FLEXTIMER2_ROOT_CLK>,
+					<&clks IMX7D_FLEXTIMER2_ROOT_CLK>;
+				status = "disabled";
+			};
+
 			pwm1: pwm@30660000 {
 				compatible = "fsl,imx7d-pwm", "fsl,imx27-pwm";
 				reg = <0x30660000 0x10000>;

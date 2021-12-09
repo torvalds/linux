@@ -975,11 +975,10 @@ static int init_hdlc_queues(struct port *port)
 			return -ENOMEM;
 	}
 
-	port->desc_tab = dma_pool_alloc(dma_pool, GFP_KERNEL,
+	port->desc_tab = dma_pool_zalloc(dma_pool, GFP_KERNEL,
 					&port->desc_tab_phys);
 	if (!port->desc_tab)
 		return -ENOMEM;
-	memset(port->desc_tab, 0, POOL_ALLOC_SIZE);
 	memset(port->rx_buff_tab, 0, sizeof(port->rx_buff_tab)); /* tables */
 	memset(port->tx_buff_tab, 0, sizeof(port->tx_buff_tab));
 
@@ -1255,23 +1254,20 @@ static void find_best_clock(u32 timer_freq, u32 rate, u32 *best, u32 *reg)
 	}
 }
 
-static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int hss_hdlc_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
 	const size_t size = sizeof(sync_serial_settings);
 	sync_serial_settings new_line;
-	sync_serial_settings __user *line = ifr->ifr_settings.ifs_ifsu.sync;
+	sync_serial_settings __user *line = ifs->ifs_ifsu.sync;
 	struct port *port = dev_to_port(dev);
 	unsigned long flags;
 	int clk;
 
-	if (cmd != SIOCWANDEV)
-		return hdlc_ioctl(dev, ifr, cmd);
-
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_GET_IFACE:
-		ifr->ifr_settings.type = IF_IFACE_V35;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+		ifs->type = IF_IFACE_V35;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		memset(&new_line, 0, sizeof(new_line));
@@ -1324,7 +1320,7 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	default:
-		return hdlc_ioctl(dev, ifr, cmd);
+		return hdlc_ioctl(dev, ifs);
 	}
 }
 
@@ -1336,7 +1332,7 @@ static const struct net_device_ops hss_hdlc_ops = {
 	.ndo_open       = hss_hdlc_open,
 	.ndo_stop       = hss_hdlc_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = hss_hdlc_ioctl,
+	.ndo_siocwandev = hss_hdlc_ioctl,
 };
 
 static int hss_init_one(struct platform_device *pdev)

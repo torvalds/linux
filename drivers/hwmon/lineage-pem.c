@@ -191,7 +191,7 @@ static struct pem_data *pem_update_device(struct device *dev)
 		i2c_smbus_write_byte(client, PEM_CLEAR_INFO_FLAGS);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 abort:
 	mutex_unlock(&data->update_lock);

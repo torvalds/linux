@@ -1299,7 +1299,7 @@ static void __init print_PIC(void)
 
 	pr_debug("... PIC  ISR: %04x\n", v);
 
-	v = inb(0x4d1) << 8 | inb(0x4d0);
+	v = inb(PIC_ELCR2) << 8 | inb(PIC_ELCR1);
 	pr_debug("... PIC ELCR: %04x\n", v);
 }
 

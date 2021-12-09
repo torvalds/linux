@@ -183,9 +183,11 @@ di Linus:
   affrontare il giudizio di Linus, allora forse potrai usare "%px",
   assicurandosi anche di averne il permesso.
 
-Infine, sappi che un cambio in favore di "%p" con hash `non verrà
-accettato
-<https://lore.kernel.org/lkml/CA+55aFwieC1-nAs+NFq9RTwaR8ef9hWa4MjNBWL41F-8wM49eA@mail.gmail.com/>`_.
+Potete disabilitare temporaneamente l'hashing di "%p" nel caso in cui questa
+funzionalità vi sia d'ostacolo durante una sessione di debug. Per farlo
+aggiungete l'opzione di debug "`no_hash_pointers
+<https://git.kernel.org/linus/5ead723a20e0447bc7db33dc3070b420e5f80aa6>`_" alla
+riga di comando del kernel.
 
 Vettori a dimensione variabile (VLA)
 ------------------------------------

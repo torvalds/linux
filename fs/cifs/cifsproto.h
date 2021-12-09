@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifsproto.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -268,7 +267,11 @@ extern void cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode);
 
 extern void cifs_close_all_deferred_files(struct cifs_tcon *cifs_tcon);
 
-extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb3_fs_context *ctx);
+extern void cifs_close_deferred_file_under_dentry(struct cifs_tcon *cifs_tcon,
+				const char *path);
+extern struct TCP_Server_Info *
+cifs_get_tcp_session(struct smb3_fs_context *ctx,
+		     struct TCP_Server_Info *primary_server);
 extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
 				 int from_reconnect);
 extern void cifs_put_tcon(struct cifs_tcon *tcon);
@@ -498,19 +501,12 @@ extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
 extern int cifs_verify_signature(struct smb_rqst *rqst,
 				 struct TCP_Server_Info *server,
 				__u32 expected_sequence_number);
-extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *,
-			const struct nls_table *);
-extern int setup_ntlm_response(struct cifs_ses *, const struct nls_table *);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
 extern void cifs_crypto_secmech_release(struct TCP_Server_Info *server);
 extern int calc_seckey(struct cifs_ses *);
 extern int generate_smb30signingkey(struct cifs_ses *);
 extern int generate_smb311signingkey(struct cifs_ses *);
 
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-extern int calc_lanman_hash(const char *password, const char *cryptkey,
-				bool encrypt, char *lnm_session_key);
-#endif /* CIFS_WEAK_PW_HASH */
 extern int CIFSSMBCopy(unsigned int xid,
 			struct cifs_tcon *source_tcon,
 			const char *fromName,
@@ -547,11 +543,8 @@ extern int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			      struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr,
 			      const unsigned char *path);
-extern int mdfour(unsigned char *, unsigned char *, int);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 			const struct nls_table *codepage);
-extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
-			unsigned char *p24);
 
 extern int
 cifs_setup_volume_info(struct smb3_fs_context *ctx, const char *mntopts, const char *devname);
@@ -615,7 +608,7 @@ int smb2_parse_query_directory(struct cifs_tcon *tcon, struct kvec *rsp_iov,
 
 struct super_block *cifs_get_tcp_super(struct TCP_Server_Info *server);
 void cifs_put_tcp_super(struct super_block *sb);
-int update_super_prepath(struct cifs_tcon *tcon, char *prefix);
+int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix);
 char *extract_hostname(const char *unc);
 char *extract_sharename(const char *unc);
 
@@ -641,5 +634,8 @@ static inline int cifs_create_options(struct cifs_sb_info *cifs_sb, int options)
 	else
 		return options;
 }
+
+struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon);
+void cifs_put_tcon_super(struct super_block *sb);
 
 #endif			/* _CIFSPROTO_H */

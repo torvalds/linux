@@ -153,10 +153,6 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 {
 	void __iomem *ptr = (void *)cpu_pt_addr;
 	uint64_t value;
-	int idx;
-
-	if (!drm_dev_enter(&adev->ddev, &idx))
-		return 0;
 
 	/*
 	 * The following is for PTE only. GART does not have PDEs.
@@ -164,8 +160,6 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 	value = addr & 0x0000FFFFFFFFF000ULL;
 	value |= flags;
 	writeq(value, ptr + (gpu_page_idx * 8));
-
-	drm_dev_exit(idx);
 
 	return 0;
 }
@@ -471,6 +465,27 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 			return r;
 	}
 
+	if (adev->mca.mp0.ras_funcs &&
+	    adev->mca.mp0.ras_funcs->ras_late_init) {
+		r = adev->mca.mp0.ras_funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	if (adev->mca.mp1.ras_funcs &&
+	    adev->mca.mp1.ras_funcs->ras_late_init) {
+		r = adev->mca.mp1.ras_funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	if (adev->mca.mpio.ras_funcs &&
+	    adev->mca.mpio.ras_funcs->ras_late_init) {
+		r = adev->mca.mpio.ras_funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
 	return 0;
 }
 
@@ -577,7 +592,7 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 		break;
 	default:
 		adev->gmc.tmz_enabled = false;
-		dev_warn(adev->dev,
+		dev_info(adev->dev,
 			 "Trusted Memory Zone (TMZ) feature not supported\n");
 		break;
 	}
@@ -728,6 +743,10 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
 	u64 vram_end = vram_addr + vram_size;
 	u64 gart_ptb_gpu_pa = amdgpu_gmc_vram_pa(adev, adev->gart.bo);
+	int idx;
+
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
+		return;
 
 	flags |= AMDGPU_PTE_VALID | AMDGPU_PTE_READABLE;
 	flags |= AMDGPU_PTE_WRITEABLE;
@@ -749,6 +768,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	flags |= AMDGPU_PDE_BFS(0) | AMDGPU_PTE_SNOOPED;
 	/* Requires gart_ptb_gpu_pa to be 4K aligned */
 	amdgpu_gmc_set_pte_pde(adev, adev->gmc.ptr_pdb0, i, gart_ptb_gpu_pa, flags);
+	drm_dev_exit(idx);
 }
 
 /**

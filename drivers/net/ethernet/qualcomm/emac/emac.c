@@ -377,7 +377,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_start_xmit		= emac_start_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_change_mtu		= emac_change_mtu,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_tx_timeout		= emac_tx_timeout,
 	.ndo_get_stats64	= emac_get_stats64,
 	.ndo_set_features       = emac_set_features,
@@ -545,13 +545,10 @@ static int emac_probe_resources(struct platform_device *pdev,
 				struct emac_adapter *adpt)
 {
 	struct net_device *netdev = adpt->netdev;
-	char maddr[ETH_ALEN];
 	int ret = 0;
 
 	/* get mac address */
-	if (device_get_mac_address(&pdev->dev, maddr, ETH_ALEN))
-		ether_addr_copy(netdev->dev_addr, maddr);
-	else
+	if (device_get_ethdev_address(&pdev->dev, netdev))
 		eth_hw_addr_random(netdev);
 
 	/* Core 0 interrupt */

@@ -423,7 +423,8 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
 void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
 
-struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev);
+struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
+					  u16 if_id);
 
 extern struct bus_type fsl_mc_bus_type;
 
@@ -618,6 +619,20 @@ int dpcon_disable(struct fsl_mc_io *mc_io,
 int dpcon_reset(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
+
+int fsl_mc_obj_open(struct fsl_mc_io *mc_io,
+		    u32 cmd_flags,
+		    int obj_id,
+		    char *obj_type,
+		    u16 *token);
+
+int fsl_mc_obj_close(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token);
+
+int fsl_mc_obj_reset(struct fsl_mc_io *mc_io,
+		     u32 cmd_flags,
+		     u16 token);
 
 /**
  * struct dpcon_attr - Structure representing DPCON attributes

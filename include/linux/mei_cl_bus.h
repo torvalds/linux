@@ -91,12 +91,13 @@ void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv);
 		      mei_cldev_driver_register,\
 		      mei_cldev_driver_unregister)
 
-ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length);
+ssize_t mei_cldev_send(struct mei_cl_device *cldev, const u8 *buf,
+		       size_t length);
 ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length);
 ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
 				size_t length);
-ssize_t mei_cldev_send_vtag(struct mei_cl_device *cldev, u8 *buf, size_t length,
-			    u8 vtag);
+ssize_t mei_cldev_send_vtag(struct mei_cl_device *cldev, const u8 *buf,
+			    size_t length, u8 vtag);
 ssize_t mei_cldev_recv_vtag(struct mei_cl_device *cldev, u8 *buf, size_t length,
 			    u8 *vtag);
 ssize_t mei_cldev_recv_nonblock_vtag(struct mei_cl_device *cldev, u8 *buf,
@@ -114,6 +115,6 @@ void mei_cldev_set_drvdata(struct mei_cl_device *cldev, void *data);
 
 int mei_cldev_enable(struct mei_cl_device *cldev);
 int mei_cldev_disable(struct mei_cl_device *cldev);
-bool mei_cldev_enabled(struct mei_cl_device *cldev);
+bool mei_cldev_enabled(const struct mei_cl_device *cldev);
 
 #endif /* _LINUX_MEI_CL_BUS_H */

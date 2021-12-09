@@ -32,6 +32,7 @@
 
 #include "i915_drv.h"
 #include "intel_atomic.h"
+#include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -39,8 +40,8 @@
 #include "intel_dsi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
-#include "intel_sideband.h"
 #include "skl_scaler.h"
+#include "vlv_sideband.h"
 
 /* return pixels in terms of txbyteclkhs */
 static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
@@ -270,23 +271,19 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
-	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int ret;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
-	if (fixed_mode) {
-		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+	ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+	if (ret)
+		return ret;
 
-		if (HAS_GMCH(dev_priv))
-			ret = intel_gmch_panel_fitting(pipe_config, conn_state);
-		else
-			ret = intel_pch_panel_fitting(pipe_config, conn_state);
-		if (ret)
-			return ret;
-	}
+	ret = intel_panel_fitting(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -780,10 +777,9 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 				 const struct drm_connector_state *conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	struct drm_crtc *crtc = pipe_config->uapi.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	enum port port;
 	u32 val;
 	bool glk_cold_boot = false;
@@ -884,7 +880,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 		intel_dsi_port_enable(encoder, pipe_config);
 	}
 
-	intel_panel_enable_backlight(pipe_config, conn_state);
+	intel_backlight_enable(pipe_config, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
@@ -914,7 +910,7 @@ static void intel_dsi_disable(struct intel_atomic_state *state,
 	drm_dbg_kms(&i915->drm, "\n");
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
-	intel_panel_disable_backlight(old_conn_state);
+	intel_backlight_disable(old_conn_state);
 
 	/*
 	 * According to the spec we should send SHUTDOWN before
@@ -1389,7 +1385,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(encoder));
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	enum port port;
@@ -1397,7 +1393,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 	u32 val, tmp;
 	u16 mode_hdisplay;
 
-	drm_dbg_kms(&dev_priv->drm, "pipe %c\n", pipe_name(intel_crtc->pipe));
+	drm_dbg_kms(&dev_priv->drm, "pipe %c\n", pipe_name(crtc->pipe));
 
 	mode_hdisplay = adjusted_mode->crtc_hdisplay;
 
@@ -1424,7 +1420,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			intel_de_write(dev_priv, MIPI_CTRL(port),
 				       tmp | READ_REQUEST_PRIORITY_HIGH);
 		} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
-			enum pipe pipe = intel_crtc->pipe;
+			enum pipe pipe = crtc->pipe;
 
 			tmp = intel_de_read(dev_priv, MIPI_CTRL(port));
 			tmp &= ~BXT_PIPE_SELECT_MASK;
@@ -1634,25 +1630,21 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 static void vlv_dsi_add_properties(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	u32 allowed_scalers;
 
-	if (connector->panel.fixed_mode) {
-		u32 allowed_scalers;
+	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
+	if (!HAS_GMCH(dev_priv))
+		allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
 
-		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
-		if (!HAS_GMCH(dev_priv))
-			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
+	drm_connector_attach_scaling_mode_property(&connector->base,
+						   allowed_scalers);
 
-		drm_connector_attach_scaling_mode_property(&connector->base,
-								allowed_scalers);
+	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
-		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
-
-		drm_connector_set_panel_orientation_with_quirk(
-				&connector->base,
-				intel_dsi_get_panel_orientation(connector),
-				connector->panel.fixed_mode->hdisplay,
-				connector->panel.fixed_mode->vdisplay);
-	}
+	drm_connector_set_panel_orientation_with_quirk(&connector->base,
+						       intel_dsi_get_panel_orientation(connector),
+						       connector->panel.fixed_mode->hdisplay,
+						       connector->panel.fixed_mode->vdisplay);
 }
 
 #define NS_KHZ_RATIO		1000000
@@ -1877,7 +1869,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
 	intel_encoder->get_config = intel_dsi_get_config;
-	intel_encoder->update_pipe = intel_panel_update_backlight;
+	intel_encoder->update_pipe = intel_backlight_update;
 	intel_encoder->shutdown = intel_dsi_shutdown;
 
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
@@ -1965,7 +1957,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
-	intel_panel_setup_backlight(connector, INVALID_PIPE);
+	intel_backlight_setup(intel_connector, INVALID_PIPE);
 
 	vlv_dsi_add_properties(intel_connector);
 

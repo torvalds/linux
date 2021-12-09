@@ -36,7 +36,7 @@ source "drivers/staging/rtl8723bs/Kconfig"
 
 source "drivers/staging/rtl8712/Kconfig"
 
-source "drivers/staging/rtl8188eu/Kconfig"
+source "drivers/staging/r8188eu/Kconfig"
 
 source "drivers/staging/rts5208/Kconfig"
 
@@ -86,8 +86,6 @@ source "drivers/staging/vc04_services/Kconfig"
 
 source "drivers/staging/pi433/Kconfig"
 
-source "drivers/staging/mt7621-pci/Kconfig"
-
 source "drivers/staging/mt7621-dma/Kconfig"
 
 source "drivers/staging/ralink-gdma/Kconfig"
@@ -101,7 +99,5 @@ source "drivers/staging/fieldbus/Kconfig"
 source "drivers/staging/qlge/Kconfig"
 
 source "drivers/staging/wfx/Kconfig"
-
-source "drivers/staging/hikey9xx/Kconfig"
 
 endif # STAGING

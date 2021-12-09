@@ -119,7 +119,7 @@ config XILINX_PR_DECOUPLER
 	depends on HAS_IOMEM
 	help
 	  Say Y to enable drivers for Xilinx LogiCORE PR Decoupler
-	  or Xilinx Dynamic Function eXchnage AIX Shutdown Manager.
+	  or Xilinx Dynamic Function eXchange AIX Shutdown Manager.
 	  The PR Decoupler exists in the FPGA fabric to isolate one
 	  region of the FPGA from the busses while that region is
 	  being reprogrammed during partial reconfig.
@@ -234,4 +234,13 @@ config FPGA_MGR_ZYNQMP_FPGA
 	  to configure the programmable logic(PL) through PS
 	  on ZynqMP SoC.
 
+config FPGA_MGR_VERSAL_FPGA
+	tristate "Xilinx Versal FPGA"
+	depends on ARCH_ZYNQMP || COMPILE_TEST
+	help
+	  Select this option to enable FPGA manager driver support for
+	  Xilinx Versal SoC. This driver uses the firmware interface to
+	  configure the programmable logic(PL).
+
+	  To compile this as a module, choose M here.
 endif # FPGA

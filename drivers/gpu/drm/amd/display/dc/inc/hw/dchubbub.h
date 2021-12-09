@@ -102,6 +102,15 @@ struct hubbub_addr_config {
 	} default_addrs;
 };
 
+struct dcn_hubbub_state {
+	uint32_t vm_fault_addr_msb;
+	uint32_t vm_fault_addr_lsb;
+	uint32_t vm_error_status;
+	uint32_t vm_error_vmid;
+	uint32_t vm_error_pipe;
+	uint32_t vm_error_mode;
+};
+
 struct hubbub_funcs {
 	void (*update_dchub)(
 			struct hubbub *hubbub,
@@ -148,6 +157,8 @@ struct hubbub_funcs {
 	void (*apply_DEDCN21_147_wa)(struct hubbub *hubbub);
 
 	void (*force_wm_propagate_to_pipes)(struct hubbub *hubbub);
+
+	void (*hubbub_read_state)(struct hubbub *hubbub, struct dcn_hubbub_state *hubbub_state);
 
 	void (*force_pstate_change_control)(struct hubbub *hubbub, bool force, bool allow);
 

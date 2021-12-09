@@ -529,7 +529,8 @@ static void mace_write(mace_private *lp, unsigned int ioaddr, int reg,
 mace_init
 	Resets the MACE chip.
 ---------------------------------------------------------------------------- */
-static int mace_init(mace_private *lp, unsigned int ioaddr, char *enet_addr)
+static int mace_init(mace_private *lp, unsigned int ioaddr,
+		     const char *enet_addr)
 {
   int i;
   int ct = 0;
@@ -635,7 +636,7 @@ static int nmclan_config(struct pcmcia_device *link)
 	  kfree(buf);
 	  goto failed;
   }
-  memcpy(dev->dev_addr, buf, ETH_ALEN);
+  eth_hw_addr_set(dev, buf);
   kfree(buf);
 
   /* Verify configuration by reading the MACE ID. */

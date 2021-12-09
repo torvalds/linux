@@ -710,7 +710,7 @@ static u64 storvsc_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 	 * Cannot return an ID of 0, which is reserved for an unsolicited
 	 * message from Hyper-V.
 	 */
-	return (u64)blk_mq_unique_tag(request->cmd->request) + 1;
+	return (u64)blk_mq_unique_tag(scsi_cmd_to_rq(request->cmd)) + 1;
 }
 
 static void handle_sc_creation(struct vmbus_channel *new_sc)
@@ -1154,7 +1154,7 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 	scsi_set_resid(scmnd,
 		cmd_request->payload->range.len - data_transfer_length);
 
-	scmnd->scsi_done(scmnd);
+	scsi_done(scmnd);
 
 	if (payload_sz >
 		sizeof(struct vmbus_channel_packet_multipage_buffer))
@@ -1199,14 +1199,24 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 		vstor_packet->vm_srb.sense_info_length);
 
 	if (vstor_packet->vm_srb.scsi_status != 0 ||
-	    vstor_packet->vm_srb.srb_status != SRB_STATUS_SUCCESS)
-		storvsc_log(device, STORVSC_LOGGING_ERROR,
+	    vstor_packet->vm_srb.srb_status != SRB_STATUS_SUCCESS) {
+
+		/*
+		 * Log TEST_UNIT_READY errors only as warnings. Hyper-V can
+		 * return errors when detecting devices using TEST_UNIT_READY,
+		 * and logging these as errors produces unhelpful noise.
+		 */
+		int loglevel = (stor_pkt->vm_srb.cdb[0] == TEST_UNIT_READY) ?
+			STORVSC_LOGGING_WARN : STORVSC_LOGGING_ERROR;
+
+		storvsc_log(device, loglevel,
 			"tag#%d cmd 0x%x status: scsi 0x%x srb 0x%x hv 0x%x\n",
-			request->cmd->request->tag,
+			scsi_cmd_to_rq(request->cmd)->tag,
 			stor_pkt->vm_srb.cdb[0],
 			vstor_packet->vm_srb.scsi_status,
 			vstor_packet->vm_srb.srb_status,
 			vstor_packet->status);
+	}
 
 	if (vstor_packet->vm_srb.scsi_status == SAM_STAT_CHECK_CONDITION &&
 	    (vstor_packet->vm_srb.srb_status & SRB_STATUS_AUTOSENSE_VALID))
@@ -1275,11 +1285,15 @@ static void storvsc_on_channel_callback(void *context)
 	foreach_vmbus_pkt(desc, channel) {
 		struct vstor_packet *packet = hv_pkt_data(desc);
 		struct storvsc_cmd_request *request = NULL;
+		u32 pktlen = hv_pkt_datalen(desc);
 		u64 rqst_id = desc->trans_id;
+		u32 minlen = rqst_id ? sizeof(struct vstor_packet) -
+			stor_device->vmscsi_size_delta : sizeof(enum vstor_packet_operation);
 
-		if (hv_pkt_datalen(desc) < sizeof(struct vstor_packet) -
-				stor_device->vmscsi_size_delta) {
-			dev_err(&device->device, "Invalid packet len\n");
+		if (pktlen < minlen) {
+			dev_err(&device->device,
+				"Invalid pkt: id=%llu, len=%u, minlen=%u\n",
+				rqst_id, pktlen, minlen);
 			continue;
 		}
 
@@ -1292,13 +1306,23 @@ static void storvsc_on_channel_callback(void *context)
 			if (rqst_id == 0) {
 				/*
 				 * storvsc_on_receive() looks at the vstor_packet in the message
-				 * from the ring buffer.  If the operation in the vstor_packet is
-				 * COMPLETE_IO, then we call storvsc_on_io_completion(), and
-				 * dereference the guest memory address.  Make sure we don't call
-				 * storvsc_on_io_completion() with a guest memory address that is
-				 * zero if Hyper-V were to construct and send such a bogus packet.
+				 * from the ring buffer.
+				 *
+				 * - If the operation in the vstor_packet is COMPLETE_IO, then
+				 *   we call storvsc_on_io_completion(), and dereference the
+				 *   guest memory address.  Make sure we don't call
+				 *   storvsc_on_io_completion() with a guest memory address
+				 *   that is zero if Hyper-V were to construct and send such
+				 *   a bogus packet.
+				 *
+				 * - If the operation in the vstor_packet is FCHBA_DATA, then
+				 *   we call cache_wwn(), and access the data payload area of
+				 *   the packet (wwn_packet); however, there is no guarantee
+				 *   that the packet is big enough to contain such area.
+				 *   Future-proof the code by rejecting such a bogus packet.
 				 */
-				if (packet->operation == VSTOR_OPERATION_COMPLETE_IO) {
+				if (packet->operation == VSTOR_OPERATION_COMPLETE_IO ||
+				    packet->operation == VSTOR_OPERATION_FCHBA_DATA) {
 					dev_err(&device->device, "Invalid packet with ID of 0\n");
 					continue;
 				}
@@ -1743,7 +1767,7 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 		 * future versions of the host.
 		 */
 		if (!storvsc_scsi_cmd_ok(scmnd)) {
-			scmnd->scsi_done(scmnd);
+			scsi_done(scmnd);
 			return 0;
 		}
 	}

@@ -25,12 +25,14 @@ description: |
   The 'SoC' element must be one of the following strings:
 
         apq8016
+        apq8026
         apq8074
         apq8084
         apq8096
         ipq6018
         ipq8074
         mdm9615
+        msm8226
         msm8916
         msm8974
         msm8992
@@ -43,6 +45,8 @@ description: |
         sdm660
         sdm845
         sdx55
+        sdx65
+        sm7225
         sm8150
         sm8250
         sm8350
@@ -93,6 +97,14 @@ properties:
 
       - items:
           - enum:
+              - lg,lenok
+          - const: qcom,apq8026
+
+      - items:
+          - enum:
+              - asus,nexus7-flo
+              - lg,nexus4-mako
+              - sony,xperia-yuga
               - qcom,apq8064-cm-qs600
               - qcom,apq8064-ifc6410
           - const: qcom,apq8064
@@ -116,6 +128,11 @@ properties:
 
       - items:
           - enum:
+              - samsung,s3ve3g
+          - const: qcom,msm8226
+
+      - items:
+          - enum:
               - qcom,msm8960-cdp
           - const: qcom,msm8960
 
@@ -123,12 +140,15 @@ properties:
           - enum:
               - fairphone,fp2
               - lge,hammerhead
+              - samsung,klte
               - sony,xperia-amami
               - sony,xperia-castor
               - sony,xperia-honami
           - const: qcom,msm8974
 
       - items:
+          - enum:
+              - alcatel,idol347
           - const: qcom,msm8916-mtp/1
           - const: qcom,msm8916-mtp
           - const: qcom,msm8916
@@ -155,6 +175,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,ipq4019-ap-dk01.1-c1
               - qcom,ipq4019-ap-dk04.1-c3
               - qcom,ipq4019-ap-dk07.1-c1
               - qcom,ipq4019-ap-dk07.1-c2
@@ -181,6 +202,8 @@ properties:
       - items:
           - enum:
               - qcom,sc7280-idp
+              - qcom,sc7280-idp2
+              - google,piglin
               - google,senor
           - const: qcom,sc7280
 
@@ -198,6 +221,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sdx65-mtp
+          - const: qcom,sdx65
+
+      - items:
+          - enum:
               - qcom,ipq6018-cp01
               - qcom,ipq6018-cp01-c1
           - const: qcom,ipq6018
@@ -206,6 +234,11 @@ properties:
           - enum:
               - qcom,sa8155p-adp
           - const: qcom,sa8155p
+
+      - items:
+          - enum:
+              - fairphone,fp4
+          - const: qcom,sm7225
 
       - items:
           - enum:

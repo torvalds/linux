@@ -352,11 +352,9 @@ static int __init pdt_initcall(void)
 	if (pdt_type == PDT_NONE)
 		return -ENODEV;
 
-	kpdtd_task = kthread_create(pdt_mainloop, NULL, "kpdtd");
+	kpdtd_task = kthread_run(pdt_mainloop, NULL, "kpdtd");
 	if (IS_ERR(kpdtd_task))
 		return PTR_ERR(kpdtd_task);
-
-	wake_up_process(kpdtd_task);
 
 	return 0;
 }

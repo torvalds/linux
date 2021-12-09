@@ -371,8 +371,7 @@ static int __maybe_unused xgpio_resume(struct device *dev)
 
 static int __maybe_unused xgpio_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct xgpio_instance *gpio = platform_get_drvdata(pdev);
+	struct xgpio_instance *gpio = dev_get_drvdata(dev);
 
 	clk_disable(gpio->clk);
 
@@ -381,8 +380,7 @@ static int __maybe_unused xgpio_runtime_suspend(struct device *dev)
 
 static int __maybe_unused xgpio_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct xgpio_instance *gpio = platform_get_drvdata(pdev);
+	struct xgpio_instance *gpio = dev_get_drvdata(dev);
 
 	return clk_enable(gpio->clk);
 }
@@ -538,7 +536,7 @@ static void xgpio_irqhandler(struct irq_desc *desc)
 
 	for_each_set_bit(bit, all, 64) {
 		irq_offset = xgpio_from_bit(chip, bit);
-		generic_handle_irq(irq_find_mapping(gc->irq.domain, irq_offset));
+		generic_handle_domain_irq(gc->irq.domain, irq_offset);
 	}
 
 	chained_irq_exit(irqchip, desc);

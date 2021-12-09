@@ -3036,10 +3036,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		}
 
 		v->PrefetchAndImmediateFlipSupported =
-				(v->PrefetchModeSupported == true
-						&& ((!v->ImmediateFlipSupport && !v->HostVMEnable
-								&& v->ImmediateFlipRequirement != dm_immediate_flip_required) || v->ImmediateFlipSupported)) ?
-						true : false;
+				(v->PrefetchModeSupported == true && ((!v->ImmediateFlipSupport && !v->HostVMEnable
+				&& v->ImmediateFlipRequirement[0] != dm_immediate_flip_required) ||
+				v->ImmediateFlipSupported)) ? true : false;
 #ifdef __DML_VBA_DEBUG__
 		dml_print("DML::%s: PrefetchModeSupported %d\n", __func__, v->PrefetchModeSupported);
 		dml_print("DML::%s: ImmediateFlipRequirement %d\n", __func__, v->ImmediateFlipRequirement == dm_immediate_flip_required);
@@ -3893,15 +3892,11 @@ static double TruncToValidBPP(
 		MinDSCBPP = 8;
 		MaxDSCBPP = 3 * DSCInputBitPerComponent - 1.0 / 16;
 	} else {
-		if (Output == dm_hdmi) {
-			NonDSCBPP0 = 24;
-			NonDSCBPP1 = 24;
-			NonDSCBPP2 = 24;
-		} else {
-			NonDSCBPP0 = 16;
-			NonDSCBPP1 = 20;
-			NonDSCBPP2 = 24;
-		}
+
+		NonDSCBPP0 = 16;
+		NonDSCBPP1 = 20;
+		NonDSCBPP2 = 24;
+
 		if (Format == dm_n422) {
 			MinDSCBPP = 7;
 			MaxDSCBPP = 2 * DSCInputBitPerComponent - 1.0 / 16.0;
@@ -5103,7 +5098,7 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				v->HostVMMinPageSize,
 				v->HostVMMaxNonCachedPageTableLevels,
 				v->DynamicMetadataVMEnabled,
-				v->ImmediateFlipRequirement,
+				v->ImmediateFlipRequirement[0],
 				v->ProgressiveToInterlaceUnitInOPP,
 				v->MaxAveragePercentOfIdealFabricAndSDPPortBWDisplayCanUseInNormalSystemOperation,
 				v->PercentOfIdealFabricAndSDPPortBWReceivedAfterUrgLatency,
@@ -5399,9 +5394,9 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 					v->MaximumReadBandwidthWithPrefetch =
 							v->MaximumReadBandwidthWithPrefetch
-									+ dml_max4(
-											v->VActivePixelBandwidth[i][j][k],
-											v->VActiveCursorBandwidth[i][j][k]
+									+ dml_max3(
+											v->VActivePixelBandwidth[i][j][k]
+													+ v->VActiveCursorBandwidth[i][j][k]
 													+ v->NoOfDPP[i][j][k]
 															* (v->meta_row_bandwidth[i][j][k]
 																	+ v->dpte_row_bandwidth[i][j][k]),
@@ -5542,7 +5537,8 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				}
 				v->NextPrefetchMode = v->NextPrefetchMode + 1;
 			} while (!((v->PrefetchSupported[i][j] == true && v->DynamicMetadataSupported[i][j] == true && v->VRatioInPrefetchSupported[i][j] == true
-					&& ((v->HostVMEnable == false && v->ImmediateFlipRequirement != dm_immediate_flip_required)
+					&& ((v->HostVMEnable == false &&
+							v->ImmediateFlipRequirement[0] != dm_immediate_flip_required)
 							|| v->ImmediateFlipSupportedForState[i][j] == true))
 					|| (v->NextMaxVStartup == v->MaxMaxVStartup[i][j] && NextPrefetchModeState > MaxPrefetchMode)));
 
@@ -5702,7 +5698,8 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					&& v->PrefetchSupported[i][j] == true && v->DynamicMetadataSupported[i][j] == true
 					&& v->TotalVerticalActiveBandwidthSupport[i][j] == true && v->VRatioInPrefetchSupported[i][j] == true
 					&& v->PTEBufferSizeNotExceeded[i][j] == true && v->NonsupportedDSCInputBPC == false
-					&& ((v->HostVMEnable == false && v->ImmediateFlipRequirement != dm_immediate_flip_required)
+					&& ((v->HostVMEnable == false
+					&& v->ImmediateFlipRequirement[0] != dm_immediate_flip_required)
 							|| v->ImmediateFlipSupportedForState[i][j] == true)
 					&& FMTBufferExceeded == false) {
 				v->ModeSupport[i][j] = true;

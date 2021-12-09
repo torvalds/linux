@@ -1,11 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*  Marvell OcteonTx2 RVU Admin Function driver
+/* Marvell RVU Admin Function driver
  *
- * Copyright (C) 2018 Marvell International Ltd.
+ * Copyright (C) 2018 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef MBOX_H
@@ -87,7 +84,7 @@ struct mbox_msghdr {
 #define OTX2_MBOX_REQ_SIG (0xdead)
 #define OTX2_MBOX_RSP_SIG (0xbeef)
 	u16 sig;         /* Signature, for validating corrupted msgs */
-#define OTX2_MBOX_VERSION (0x0007)
+#define OTX2_MBOX_VERSION (0x000a)
 	u16 ver;         /* Version of msg's structure for this ID */
 	u16 next_msgoff; /* Offset of next msg within mailbox region */
 	int rc;          /* Msg process'ed response code */
@@ -130,6 +127,7 @@ static inline struct mbox_msghdr *otx2_mbox_alloc_msg(struct otx2_mbox *mbox,
 M(READY,		0x001, ready, msg_req, ready_msg_rsp)		\
 M(ATTACH_RESOURCES,	0x002, attach_resources, rsrc_attach, msg_rsp)	\
 M(DETACH_RESOURCES,	0x003, detach_resources, rsrc_detach, msg_rsp)	\
+M(FREE_RSRC_CNT,	0x004, free_rsrc_cnt, msg_req, free_rsrcs_rsp)	\
 M(MSIX_OFFSET,		0x005, msix_offset, msg_req, msix_offset_rsp)	\
 M(VF_FLR,		0x006, vf_flr, msg_req, msg_rsp)		\
 M(PTP_OP,		0x007, ptp_op, ptp_req, ptp_rsp)		\
@@ -156,23 +154,23 @@ M(CGX_PTP_RX_ENABLE,	0x20C, cgx_ptp_rx_enable, msg_req, msg_rsp)	\
 M(CGX_PTP_RX_DISABLE,	0x20D, cgx_ptp_rx_disable, msg_req, msg_rsp)	\
 M(CGX_CFG_PAUSE_FRM,	0x20E, cgx_cfg_pause_frm, cgx_pause_frm_cfg,	\
 			       cgx_pause_frm_cfg)			\
-M(CGX_FEC_SET,		0x210, cgx_set_fec_param, fec_mode, fec_mode)   \
-M(CGX_FEC_STATS,	0x211, cgx_fec_stats, msg_req, cgx_fec_stats_rsp) \
-M(CGX_GET_PHY_FEC_STATS, 0x212, cgx_get_phy_fec_stats, msg_req, msg_rsp) \
-M(CGX_FW_DATA_GET,	0x213, cgx_get_aux_link_info, msg_req, cgx_fw_data) \
-M(CGX_SET_LINK_MODE,	0x214, cgx_set_link_mode, cgx_set_link_mode_req,\
-			       cgx_set_link_mode_rsp)	\
-M(CGX_FEATURES_GET,	0x215, cgx_features_get, msg_req,		\
-			       cgx_features_info_msg)			\
-M(RPM_STATS,		0x216, rpm_stats, msg_req, rpm_stats_rsp)	\
-M(CGX_MAC_ADDR_ADD,	0x217, cgx_mac_addr_add, cgx_mac_addr_add_req,    \
-			       cgx_mac_addr_add_rsp)		\
-M(CGX_MAC_ADDR_DEL,	0x218, cgx_mac_addr_del, cgx_mac_addr_del_req,    \
+M(CGX_FW_DATA_GET,	0x20F, cgx_get_aux_link_info, msg_req, cgx_fw_data) \
+M(CGX_FEC_SET,		0x210, cgx_set_fec_param, fec_mode, fec_mode) \
+M(CGX_MAC_ADDR_ADD,	0x211, cgx_mac_addr_add, cgx_mac_addr_add_req,    \
+				cgx_mac_addr_add_rsp)		\
+M(CGX_MAC_ADDR_DEL,	0x212, cgx_mac_addr_del, cgx_mac_addr_del_req,    \
 			       msg_rsp)		\
-M(CGX_MAC_MAX_ENTRIES_GET, 0x219, cgx_mac_max_entries_get, msg_req,    \
+M(CGX_MAC_MAX_ENTRIES_GET, 0x213, cgx_mac_max_entries_get, msg_req,    \
 				  cgx_max_dmac_entries_get_rsp)		\
-M(CGX_MAC_ADDR_RESET,	0x21A, cgx_mac_addr_reset, msg_req, msg_rsp)	\
-M(CGX_MAC_ADDR_UPDATE,	0x21B, cgx_mac_addr_update, cgx_mac_addr_update_req, \
+M(CGX_FEC_STATS,	0x217, cgx_fec_stats, msg_req, cgx_fec_stats_rsp) \
+M(CGX_SET_LINK_MODE,	0x218, cgx_set_link_mode, cgx_set_link_mode_req,\
+			       cgx_set_link_mode_rsp)	\
+M(CGX_GET_PHY_FEC_STATS, 0x219, cgx_get_phy_fec_stats, msg_req, msg_rsp) \
+M(CGX_FEATURES_GET,	0x21B, cgx_features_get, msg_req,		\
+			       cgx_features_info_msg)			\
+M(RPM_STATS,		0x21C, rpm_stats, msg_req, rpm_stats_rsp)	\
+M(CGX_MAC_ADDR_RESET,	0x21D, cgx_mac_addr_reset, msg_req, msg_rsp)	\
+M(CGX_MAC_ADDR_UPDATE,	0x21E, cgx_mac_addr_update, cgx_mac_addr_update_req, \
 			       msg_rsp)					\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 M(NPA_LF_ALLOC,		0x400, npa_lf_alloc,				\
@@ -188,9 +186,15 @@ M(CPT_LF_ALLOC,		0xA00, cpt_lf_alloc, cpt_lf_alloc_req_msg,	\
 M(CPT_LF_FREE,		0xA01, cpt_lf_free, msg_req, msg_rsp)		\
 M(CPT_RD_WR_REGISTER,	0xA02, cpt_rd_wr_register,  cpt_rd_wr_reg_msg,	\
 			       cpt_rd_wr_reg_msg)			\
+M(CPT_INLINE_IPSEC_CFG,	0xA04, cpt_inline_ipsec_cfg,			\
+			       cpt_inline_ipsec_cfg_msg, msg_rsp)	\
 M(CPT_STATS,            0xA05, cpt_sts, cpt_sts_req, cpt_sts_rsp)	\
 M(CPT_RXC_TIME_CFG,     0xA06, cpt_rxc_time_cfg, cpt_rxc_time_cfg_req,  \
 			       msg_rsp)                                 \
+M(CPT_CTX_CACHE_SYNC,   0xA07, cpt_ctx_cache_sync, msg_req, msg_rsp)    \
+/* SDP mbox IDs (range 0x1000 - 0x11FF) */				\
+M(SET_SDP_CHAN_INFO, 0x1000, set_sdp_chan_info, sdp_chan_info_msg, msg_rsp) \
+M(GET_SDP_CHAN_INFO, 0x1001, get_sdp_chan_info, msg_req, sdp_get_chan_info_msg) \
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
 M(NPC_MCAM_ALLOC_ENTRY,	0x6000, npc_mcam_alloc_entry, npc_mcam_alloc_entry_req,\
 				npc_mcam_alloc_entry_rsp)		\
@@ -228,6 +232,8 @@ M(NPC_DELETE_FLOW,	  0x600e, npc_delete_flow,			\
 M(NPC_MCAM_READ_ENTRY,	  0x600f, npc_mcam_read_entry,			\
 				  npc_mcam_read_entry_req,		\
 				  npc_mcam_read_entry_rsp)		\
+M(NPC_SET_PKIND,        0x6010,   npc_set_pkind,                        \
+				  npc_set_pkind, msg_rsp)               \
 M(NPC_MCAM_READ_BASE_RULE, 0x6011, npc_read_base_steer_rule,            \
 				   msg_req, npc_mcam_read_base_rule_rsp)  \
 M(NPC_MCAM_GET_STATS, 0x6012, npc_mcam_entry_stats,                     \
@@ -243,7 +249,8 @@ M(NIX_HWCTX_DISABLE,	0x8003, nix_hwctx_disable,			\
 M(NIX_TXSCH_ALLOC,	0x8004, nix_txsch_alloc,			\
 				 nix_txsch_alloc_req, nix_txsch_alloc_rsp)   \
 M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free, nix_txsch_free_req, msg_rsp) \
-M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_cfg, nix_txschq_config, msg_rsp)  \
+M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_cfg, nix_txschq_config,	\
+				nix_txschq_config)			\
 M(NIX_STATS_RST,	0x8007, nix_stats_rst, msg_req, msg_rsp)	\
 M(NIX_VTAG_CFG,		0x8008, nix_vtag_cfg, nix_vtag_config,		\
 				 nix_vtag_config_rsp)			\
@@ -268,22 +275,32 @@ M(NIX_BP_ENABLE,	0x8016, nix_bp_enable, nix_bp_cfg_req,	\
 				nix_bp_cfg_rsp)	\
 M(NIX_BP_DISABLE,	0x8017, nix_bp_disable, nix_bp_cfg_req, msg_rsp) \
 M(NIX_GET_MAC_ADDR, 0x8018, nix_get_mac_addr, msg_req, nix_get_mac_addr_rsp) \
-M(NIX_CN10K_AQ_ENQ,	0x8019, nix_cn10k_aq_enq, nix_cn10k_aq_enq_req, \
+M(NIX_INLINE_IPSEC_CFG, 0x8019, nix_inline_ipsec_cfg,			\
+				nix_inline_ipsec_cfg, msg_rsp)		\
+M(NIX_INLINE_IPSEC_LF_CFG, 0x801a, nix_inline_ipsec_lf_cfg,		\
+				nix_inline_ipsec_lf_cfg, msg_rsp)	\
+M(NIX_CN10K_AQ_ENQ,	0x801b, nix_cn10k_aq_enq, nix_cn10k_aq_enq_req, \
 				nix_cn10k_aq_enq_rsp)			\
 M(NIX_GET_HW_INFO,	0x801c, nix_get_hw_info, msg_req, nix_hw_info)	\
 M(NIX_BANDPROF_ALLOC,	0x801d, nix_bandprof_alloc, nix_bandprof_alloc_req, \
 				nix_bandprof_alloc_rsp)			    \
 M(NIX_BANDPROF_FREE,	0x801e, nix_bandprof_free, nix_bandprof_free_req,   \
-				msg_rsp)
+				msg_rsp)				    \
+M(NIX_BANDPROF_GET_HWINFO, 0x801f, nix_bandprof_get_hwinfo, msg_req,		\
+				nix_bandprof_get_hwinfo_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
 M(CGX_LINK_EVENT,	0xC00, cgx_link_event, cgx_link_info_msg, msg_rsp)
 
+#define MBOX_UP_CPT_MESSAGES						\
+M(CPT_INST_LMTST,	0xD00, cpt_inst_lmtst, cpt_inst_lmtst_req, msg_rsp)
+
 enum {
 #define M(_name, _id, _1, _2, _3) MBOX_MSG_ ## _name = _id,
 MBOX_MESSAGES
 MBOX_UP_CGX_MESSAGES
+MBOX_UP_CPT_MESSAGES
 #undef M
 };
 
@@ -363,6 +380,25 @@ struct rsrc_detach {
 	u8 cptlfs:1;
 };
 
+/* Number of resources available to the caller.
+ * In reply to MBOX_MSG_FREE_RSRC_CNT.
+ */
+struct free_rsrcs_rsp {
+	struct mbox_msghdr hdr;
+	u16 schq[NIX_TXSCH_LVL_CNT];
+	u16  sso;
+	u16  tim;
+	u16  ssow;
+	u16  cpt;
+	u8   npa;
+	u8   nix;
+	u16  schq_nix1[NIX_TXSCH_LVL_CNT];
+	u8   nix1;
+	u8   cpt1;
+	u8   ree0;
+	u8   ree1;
+};
+
 #define MSIX_VECTOR_INVALID	0xFFFF
 #define MAX_RVU_BLKLF_CNT	256
 
@@ -370,16 +406,20 @@ struct msix_offset_rsp {
 	struct mbox_msghdr hdr;
 	u16  npa_msixoff;
 	u16  nix_msixoff;
-	u8   sso;
-	u8   ssow;
-	u8   timlfs;
-	u8   cptlfs;
+	u16  sso;
+	u16  ssow;
+	u16  timlfs;
+	u16  cptlfs;
 	u16  sso_msixoff[MAX_RVU_BLKLF_CNT];
 	u16  ssow_msixoff[MAX_RVU_BLKLF_CNT];
 	u16  timlf_msixoff[MAX_RVU_BLKLF_CNT];
 	u16  cptlf_msixoff[MAX_RVU_BLKLF_CNT];
-	u8   cpt1_lfs;
+	u16  cpt1_lfs;
+	u16  ree0_lfs;
+	u16  ree1_lfs;
 	u16  cpt1_lf_msixoff[MAX_RVU_BLKLF_CNT];
+	u16  ree0_lf_msixoff[MAX_RVU_BLKLF_CNT];
+	u16  ree1_lf_msixoff[MAX_RVU_BLKLF_CNT];
 };
 
 struct get_hw_cap_rsp {
@@ -548,10 +588,13 @@ struct cgx_mac_addr_update_req {
 };
 
 #define RVU_LMAC_FEAT_FC		BIT_ULL(0) /* pause frames */
-#define RVU_LMAC_FEAT_PTP		BIT_ULL(1) /* precision time protocol */
-#define RVU_MAC_VERSION			BIT_ULL(2)
-#define RVU_MAC_CGX			BIT_ULL(3)
-#define RVU_MAC_RPM			BIT_ULL(4)
+#define	RVU_LMAC_FEAT_HIGIG2		BIT_ULL(1)
+			/* flow control from physical link higig2 messages */
+#define RVU_LMAC_FEAT_PTP		BIT_ULL(2) /* precison time protocol */
+#define RVU_LMAC_FEAT_DMACF		BIT_ULL(3) /* DMAC FILTER */
+#define RVU_MAC_VERSION			BIT_ULL(4)
+#define RVU_MAC_CGX			BIT_ULL(5)
+#define RVU_MAC_RPM			BIT_ULL(6)
 
 struct cgx_features_info_msg {
 	struct mbox_msghdr hdr;
@@ -564,6 +607,22 @@ struct rpm_stats_rsp {
 #define RPM_TX_STATS_COUNT		34
 	u64 rx_stats[RPM_RX_STATS_COUNT];
 	u64 tx_stats[RPM_TX_STATS_COUNT];
+};
+
+struct npc_set_pkind {
+	struct mbox_msghdr hdr;
+#define OTX2_PRIV_FLAGS_DEFAULT  BIT_ULL(0)
+#define OTX2_PRIV_FLAGS_CUSTOM   BIT_ULL(63)
+	u64 mode;
+#define PKIND_TX		BIT_ULL(0)
+#define PKIND_RX		BIT_ULL(1)
+	u8 dir;
+	u8 pkind; /* valid only in case custom flag */
+	u8 var_len_off; /* Offset of custom header length field.
+			 * Valid only for pkind NPC_RX_CUSTOM_PRE_L2_PKIND
+			 */
+	u8 var_len_off_mask; /* Mask for length with in offset */
+	u8 shift_dir; /* shift direction to get length of the header at var_len_off */
 };
 
 /* NPA mbox message formats */
@@ -594,6 +653,7 @@ struct npa_lf_alloc_rsp {
 	u32 stack_pg_ptrs;  /* No of ptrs per stack page */
 	u32 stack_pg_bytes; /* Size of stack page */
 	u16 qints; /* NPA_AF_CONST::QINTS */
+	u8 cache_lines; /*BATCH ALLOC DMA */
 };
 
 /* NPA AQ enqueue msg */
@@ -670,6 +730,8 @@ enum nix_af_status {
 	NIX_AF_ERR_INVALID_BANDPROF = -426,
 	NIX_AF_ERR_IPOLICER_NOTSUPP = -427,
 	NIX_AF_ERR_BANDPROF_INVAL_REQ  = -428,
+	NIX_AF_ERR_CQ_CTX_WRITE_ERR  = -429,
+	NIX_AF_ERR_AQ_CTX_RETRY_WRITE  = -430,
 };
 
 /* For NIX RX vtag action  */
@@ -698,6 +760,9 @@ struct nix_lf_alloc_req {
 	u16 sso_func;
 	u64 rx_cfg;   /* See NIX_AF_LF(0..127)_RX_CFG */
 	u64 way_mask;
+#define NIX_LF_RSS_TAG_LSB_AS_ADDER BIT_ULL(0)
+#define NIX_LF_LBK_BLK_SEL	    BIT_ULL(1)
+	u64 flags;
 };
 
 struct nix_lf_alloc_rsp {
@@ -717,6 +782,7 @@ struct nix_lf_alloc_rsp {
 	u8	cgx_links;  /* No. of CGX links present in HW */
 	u8	lbk_links;  /* No. of LBK links present in HW */
 	u8	sdp_links;  /* No. of SDP links present in HW */
+	u8	tx_link;    /* Transmit channel link number */
 };
 
 struct nix_lf_free_req {
@@ -835,6 +901,7 @@ struct nix_txsch_free_req {
 struct nix_txschq_config {
 	struct mbox_msghdr hdr;
 	u8 lvl;	/* SMQ/MDQ/TL4/TL3/TL2/TL1 */
+	u8 read;
 #define TXSCHQ_IDX_SHIFT	16
 #define TXSCHQ_IDX_MASK		(BIT_ULL(10) - 1)
 #define TXSCHQ_IDX(reg, shift)	(((reg) >> (shift)) & TXSCHQ_IDX_MASK)
@@ -842,6 +909,8 @@ struct nix_txschq_config {
 #define MAX_REGS_PER_MBOX_MSG	20
 	u64 reg[MAX_REGS_PER_MBOX_MSG];
 	u64 regval[MAX_REGS_PER_MBOX_MSG];
+	/* All 0's => overwrite with new value */
+	u64 regval_mask[MAX_REGS_PER_MBOX_MSG];
 };
 
 struct nix_vtag_config {
@@ -1030,10 +1099,48 @@ struct nix_bp_cfg_rsp {
 	u8	chan_cnt; /* Number of channel for which bpids are assigned */
 };
 
+/* Global NIX inline IPSec configuration */
+struct nix_inline_ipsec_cfg {
+	struct mbox_msghdr hdr;
+	u32 cpt_credit;
+	struct {
+		u8 egrp;
+		u8 opcode;
+		u16 param1;
+		u16 param2;
+	} gen_cfg;
+	struct {
+		u16 cpt_pf_func;
+		u8 cpt_slot;
+	} inst_qsel;
+	u8 enable;
+};
+
+/* Per NIX LF inline IPSec configuration */
+struct nix_inline_ipsec_lf_cfg {
+	struct mbox_msghdr hdr;
+	u64 sa_base_addr;
+	struct {
+		u32 tag_const;
+		u16 lenm1_max;
+		u8 sa_pow2_size;
+		u8 tt;
+	} ipsec_cfg0;
+	struct {
+		u32 sa_idx_max;
+		u8 sa_idx_w;
+	} ipsec_cfg1;
+	u8 enable;
+};
+
 struct nix_hw_info {
 	struct mbox_msghdr hdr;
+	u16 rsvs16;
 	u16 max_mtu;
 	u16 min_mtu;
+	u32 rpm_dwrr_mtu;
+	u32 sdp_dwrr_mtu;
+	u64 rsvd[16]; /* Add reserved fields for future expansion */
 };
 
 struct nix_bandprof_alloc_req {
@@ -1061,6 +1168,12 @@ struct nix_bandprof_free_req {
 	u16 prof_idx[BAND_PROF_NUM_LAYERS][MAX_BANDPROF_PER_PFFUNC];
 };
 
+struct nix_bandprof_get_hwinfo_rsp {
+	struct mbox_msghdr hdr;
+	u16 prof_count[BAND_PROF_NUM_LAYERS];
+	u32 policer_timeunit;
+};
+
 /* NPC mbox message structs */
 
 #define NPC_MCAM_ENTRY_INVALID	0xFFFF
@@ -1074,6 +1187,13 @@ enum npc_af_status {
 	NPC_MCAM_ALLOC_DENIED	= -702,
 	NPC_MCAM_ALLOC_FAILED	= -703,
 	NPC_MCAM_PERM_DENIED	= -704,
+	NPC_FLOW_INTF_INVALID	= -707,
+	NPC_FLOW_CHAN_INVALID	= -708,
+	NPC_FLOW_NO_NIXLF	= -709,
+	NPC_FLOW_NOT_SUPPORTED	= -710,
+	NPC_FLOW_VF_PERM_DENIED	= -711,
+	NPC_FLOW_VF_NOT_INIT	= -712,
+	NPC_FLOW_VF_OVERLAP	= -713,
 };
 
 struct npc_mcam_alloc_entry_req {
@@ -1305,12 +1425,15 @@ struct npc_mcam_get_stats_rsp {
 enum ptp_op {
 	PTP_OP_ADJFINE = 0,
 	PTP_OP_GET_CLOCK = 1,
+	PTP_OP_GET_TSTMP = 2,
+	PTP_OP_SET_THRESH = 3,
 };
 
 struct ptp_req {
 	struct mbox_msghdr hdr;
 	u8 op;
 	s64 scaled_ppm;
+	u64 thresh;
 };
 
 struct ptp_rsp {
@@ -1328,6 +1451,10 @@ struct set_vf_perm  {
 
 struct lmtst_tbl_setup_req {
 	struct mbox_msghdr hdr;
+	u64 dis_sched_early_comp :1;
+	u64 sch_ena		 :1;
+	u64 dis_line_pref	 :1;
+	u64 ssow_pf_func	 :13;
 	u16 base_pcifunc;
 	u8  use_local_lmt_region;
 	u64 lmt_iova;
@@ -1343,7 +1470,9 @@ enum cpt_af_status {
 	CPT_AF_ERR_LF_INVALID		= -903,
 	CPT_AF_ERR_ACCESS_DENIED	= -904,
 	CPT_AF_ERR_SSO_PF_FUNC_INVALID	= -905,
-	CPT_AF_ERR_NIX_PF_FUNC_INVALID	= -906
+	CPT_AF_ERR_NIX_PF_FUNC_INVALID	= -906,
+	CPT_AF_ERR_INLINE_IPSEC_INB_ENA	= -907,
+	CPT_AF_ERR_INLINE_IPSEC_OUT_ENA	= -908
 };
 
 /* CPT mbox message formats */
@@ -1362,6 +1491,22 @@ struct cpt_lf_alloc_req_msg {
 	u16 sso_pf_func;
 	u16 eng_grpmsk;
 	int blkaddr;
+};
+
+#define CPT_INLINE_INBOUND      0
+#define CPT_INLINE_OUTBOUND     1
+
+/* Mailbox message request format for CPT IPsec
+ * inline inbound and outbound configuration.
+ */
+struct cpt_inline_ipsec_cfg_msg {
+	struct mbox_msghdr hdr;
+	u8 enable;
+	u8 slot;
+	u8 dir;
+	u8 sso_pf_func_ovrd;
+	u16 sso_pf_func; /* inbound path SSO_PF_FUNC */
+	u16 nix_pf_func; /* outbound path NIX_PF_FUNC */
 };
 
 /* Mailbox message request and response format for CPT stats. */
@@ -1420,6 +1565,43 @@ struct cpt_rxc_time_cfg_req {
 	u16 zombie_limit;
 	u16 active_thres;
 	u16 active_limit;
+};
+
+/* Mailbox message request format to request for CPT_INST_S lmtst. */
+struct cpt_inst_lmtst_req {
+	struct mbox_msghdr hdr;
+	u64 inst[8];
+	u64 rsvd;
+};
+
+struct sdp_node_info {
+	/* Node to which this PF belons to */
+	u8 node_id;
+	u8 max_vfs;
+	u8 num_pf_rings;
+	u8 pf_srn;
+#define SDP_MAX_VFS	128
+	u8 vf_rings[SDP_MAX_VFS];
+};
+
+struct sdp_chan_info_msg {
+	struct mbox_msghdr hdr;
+	struct sdp_node_info info;
+};
+
+struct sdp_get_chan_info_msg {
+	struct mbox_msghdr hdr;
+	u16 chan_base;
+	u16 num_chan;
+};
+
+/* CGX mailbox error codes
+ * Range 1101 - 1200.
+ */
+enum cgx_af_status {
+	LMAC_AF_ERR_INVALID_PARAM	= -1101,
+	LMAC_AF_ERR_PF_NOT_MAPPED	= -1102,
+	LMAC_AF_ERR_PERM_DENIED		= -1103,
 };
 
 #endif /* MBOX_H */

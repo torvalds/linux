@@ -12,6 +12,10 @@
 #define CIO2_MAX_LANES				4
 #define MAX_NUM_LINK_FREQS			3
 
+/* Values are educated guesses as we don't have a spec */
+#define CIO2_SENSOR_ROTATION_NORMAL		0
+#define CIO2_SENSOR_ROTATION_INVERTED		1
+
 #define CIO2_SENSOR_CONFIG(_HID, _NR, ...)	\
 	(const struct cio2_sensor_config) {	\
 		.hid = _HID,			\
@@ -80,6 +84,7 @@ struct cio2_sensor_ssdb {
 struct cio2_property_names {
 	char clock_frequency[16];
 	char rotation[9];
+	char orientation[12];
 	char bus_type[9];
 	char data_lanes[11];
 	char remote_endpoint[16];
@@ -106,9 +111,11 @@ struct cio2_sensor {
 	struct cio2_node_names node_names;
 
 	struct cio2_sensor_ssdb ssdb;
+	struct acpi_pld_info *pld;
+
 	struct cio2_property_names prop_names;
 	struct property_entry ep_properties[5];
-	struct property_entry dev_properties[3];
+	struct property_entry dev_properties[4];
 	struct property_entry cio2_properties[3];
 	struct software_node_ref_args local_ref[1];
 	struct software_node_ref_args remote_ref[1];

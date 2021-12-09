@@ -79,15 +79,22 @@ pg_set $DEV "flag UDPSRC_RND"
 pg_set $DEV "udp_src_min $UDP_SRC_MIN"
 pg_set $DEV "udp_src_max $UDP_SRC_MAX"
 
+# Run if user hits control-c
+function print_result() {
+    # Print results
+    echo "Result device: $DEV"
+    cat /proc/net/pktgen/$DEV
+}
+# trap keyboard interrupt (Ctrl-C)
+trap true SIGINT
+
 if [ -z "$APPEND" ]; then
     # start_run
     echo "Running... ctrl^C to stop" >&2
     pg_ctrl "start"
     echo "Done" >&2
 
-    # Print results
-    echo "Result device: $DEV"
-    cat /proc/net/pktgen/$DEV
+    print_result
 else
     echo "Append mode: config done. Do more or use 'pg_ctrl start' to run"
 fi

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
-void test_tp_attach_query(void)
+void serial_test_tp_attach_query(void)
 {
 	const int num_progs = 3;
 	int i, j, bytes, efd, err, prog_fd[num_progs], pmu_fd[num_progs];

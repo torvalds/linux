@@ -2017,7 +2017,7 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
  * If the port was already initialised (eg, by a boot loader),
  * try to determine the current setup.
  */
-static void __init
+static void
 imx_uart_console_get_options(struct imx_port *sport, int *baud,
 			     int *parity, int *bits)
 {
@@ -2076,7 +2076,7 @@ imx_uart_console_get_options(struct imx_port *sport, int *baud,
 	}
 }
 
-static int __init
+static int
 imx_uart_console_setup(struct console *co, char *options)
 {
 	struct imx_port *sport;
@@ -2124,12 +2124,24 @@ error_console:
 	return retval;
 }
 
+static int
+imx_uart_console_exit(struct console *co)
+{
+	struct imx_port *sport = imx_uart_ports[co->index];
+
+	clk_disable_unprepare(sport->clk_per);
+	clk_disable_unprepare(sport->clk_ipg);
+
+	return 0;
+}
+
 static struct uart_driver imx_uart_uart_driver;
 static struct console imx_uart_console = {
 	.name		= DEV_NAME,
 	.write		= imx_uart_console_write,
 	.device		= uart_console_device,
 	.setup		= imx_uart_console_setup,
+	.exit		= imx_uart_console_exit,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.data		= &imx_uart_uart_driver,

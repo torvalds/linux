@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AMD MP2 PCIe communication driver
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020-2021 Advanced Micro Devices, Inc.
  *
  * Authors: Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
  *	    Sandeep Singh <Sandeep.singh@amd.com>
+ *	    Basavaraj Natikar <Basavaraj.Natikar@amd.com>
  */
 
 #include <linux/bitops.h>
@@ -13,6 +14,7 @@
 #include <linux/dmi.h>
 #include <linux/interrupt.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -30,6 +32,20 @@
 static int sensor_mask_override = -1;
 module_param_named(sensor_mask, sensor_mask_override, int, 0444);
 MODULE_PARM_DESC(sensor_mask, "override the detected sensors mask");
+
+static int amd_sfh_wait_response_v2(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts)
+{
+	union cmd_response cmd_resp;
+
+	/* Get response with status within a max of 800 ms timeout */
+	if (!readl_poll_timeout(mp2->mmio + AMD_P2C_MSG(0), cmd_resp.resp,
+				(cmd_resp.response_v2.response == sensor_sts &&
+				cmd_resp.response_v2.status == 0 && (sid == 0xff ||
+				cmd_resp.response_v2.sensor_id == sid)), 500, 800000))
+		return cmd_resp.response_v2.response;
+
+	return SENSOR_DISABLED;
+}
 
 static void amd_start_sensor_v2(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
 {
@@ -183,6 +199,7 @@ static const struct amd_mp2_ops amd_sfh_ops_v2 = {
 	.start = amd_start_sensor_v2,
 	.stop = amd_stop_sensor_v2,
 	.stop_all = amd_stop_all_sensor_v2,
+	.response = amd_sfh_wait_response_v2,
 };
 
 static const struct amd_mp2_ops amd_sfh_ops = {
@@ -218,7 +235,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		return -ENOMEM;
 
 	privdata->pdev = pdev;
-	pci_set_drvdata(pdev, privdata);
+	dev_set_drvdata(&pdev->dev, privdata);
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
@@ -229,24 +246,77 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	privdata->mmio = pcim_iomap_table(pdev)[2];
 	pci_set_master(pdev);
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		return rc;
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (rc) {
+			dev_err(&pdev->dev, "failed to set DMA mask\n");
+			return rc;
+		}
 	}
 
 	privdata->cl_data = devm_kzalloc(&pdev->dev, sizeof(struct amdtp_cl_data), GFP_KERNEL);
 	if (!privdata->cl_data)
 		return -ENOMEM;
 
-	rc = devm_add_action_or_reset(&pdev->dev, amd_mp2_pci_remove, privdata);
+	mp2_select_ops(privdata);
+
+	rc = amd_sfh_hid_client_init(privdata);
 	if (rc)
 		return rc;
 
-	mp2_select_ops(privdata);
-
-	return amd_sfh_hid_client_init(privdata);
+	return devm_add_action_or_reset(&pdev->dev, amd_mp2_pci_remove, privdata);
 }
+
+static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
+{
+	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
+	struct amdtp_cl_data *cl_data = mp2->cl_data;
+	struct amd_mp2_sensor_info info;
+	int i, status;
+
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		if (cl_data->sensor_sts[i] == SENSOR_DISABLED) {
+			info.period = AMD_SFH_IDLE_LOOP;
+			info.sensor_idx = cl_data->sensor_idx[i];
+			info.dma_address = cl_data->sensor_dma_addr[i];
+			mp2->mp2_ops->start(mp2, info);
+			status = amd_sfh_wait_for_response
+					(mp2, cl_data->sensor_idx[i], SENSOR_ENABLED);
+			if (status == SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_ENABLED;
+			dev_dbg(dev, "resume sid 0x%x status 0x%x\n",
+				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
+		}
+	}
+
+	return 0;
+}
+
+static int __maybe_unused amd_mp2_pci_suspend(struct device *dev)
+{
+	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
+	struct amdtp_cl_data *cl_data = mp2->cl_data;
+	int i, status;
+
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		if (cl_data->sensor_idx[i] != HPD_IDX &&
+		    cl_data->sensor_sts[i] == SENSOR_ENABLED) {
+			mp2->mp2_ops->stop(mp2, cl_data->sensor_idx[i]);
+			status = amd_sfh_wait_for_response
+					(mp2, cl_data->sensor_idx[i], SENSOR_DISABLED);
+			if (status != SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_DISABLED;
+			dev_dbg(dev, "suspend sid 0x%x status 0x%x\n",
+				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
+		}
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(amd_mp2_pm_ops, amd_mp2_pci_suspend,
+		amd_mp2_pci_resume);
 
 static const struct pci_device_id amd_mp2_pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_MP2) },
@@ -258,6 +328,7 @@ static struct pci_driver amd_mp2_pci_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= amd_mp2_pci_tbl,
 	.probe		= amd_mp2_pci_probe,
+	.driver.pm	= &amd_mp2_pm_ops,
 };
 module_pci_driver(amd_mp2_pci_driver);
 
@@ -265,3 +336,4 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Shyam Sundar S K <Shyam-sundar.S-k@amd.com>");
 MODULE_AUTHOR("Sandeep Singh <Sandeep.singh@amd.com>");
+MODULE_AUTHOR("Basavaraj Natikar <Basavaraj.Natikar@amd.com>");

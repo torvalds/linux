@@ -1,48 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
 /*
  * Copyright(c) 2015 - 2017 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 #if !defined(__HFI1_TRACE_TX_H) || defined(TRACE_HEADER_MULTI_READ)
 #define __HFI1_TRACE_TX_H
@@ -959,20 +917,22 @@ DECLARE_EVENT_CLASS(/* AIP  */
 		__entry->tail = txq->tx_ring.tail;
 		__entry->idx = txq->q_idx;
 		__entry->used =
-			txq->sent_txreqs -
-			atomic64_read(&txq->complete_txreqs);
+			txq->tx_ring.sent_txreqs -
+			txq->tx_ring.complete_txreqs;
 		__entry->flow = txq->flow.as_int;
-		__entry->stops = atomic_read(&txq->stops);
-		__entry->no_desc = atomic_read(&txq->no_desc);
+		__entry->stops = atomic_read(&txq->tx_ring.stops);
+		__entry->no_desc = atomic_read(&txq->tx_ring.no_desc);
 		__entry->stopped =
 		 __netif_subqueue_stopped(txq->priv->netdev, txq->q_idx);
 	),
 	TP_printk(/* print  */
-		"[%s] txq %llx idx %u sde %llx head %lx tail %lx flow %x used %u stops %d no_desc %d stopped %u",
+		"[%s] txq %llx idx %u sde %llx:%u cpu %d head %lx tail %lx flow %x used %u stops %d no_desc %d stopped %u",
 		__get_str(dev),
 		(unsigned long long)__entry->txq,
 		__entry->idx,
 		(unsigned long long)__entry->sde,
+		__entry->sde ? __entry->sde->this_idx : 0,
+		__entry->sde ? __entry->sde->cpu : 0,
 		__entry->head,
 		__entry->tail,
 		__entry->flow,
@@ -1033,6 +993,65 @@ DEFINE_EVENT(/* xmit_stopped */
 
 DEFINE_EVENT(/* xmit_unstopped */
 	hfi1_ipoib_txq_template, hfi1_txq_xmit_unstopped,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DECLARE_EVENT_CLASS(/* AIP  */
+	hfi1_ipoib_tx_template,
+	TP_PROTO(struct ipoib_txreq *tx, u32 idx),
+	TP_ARGS(tx, idx),
+	TP_STRUCT__entry(/* entry */
+		DD_DEV_ENTRY(tx->txq->priv->dd)
+		__field(struct ipoib_txreq *, tx)
+		__field(struct hfi1_ipoib_txq *, txq)
+		__field(struct sk_buff *, skb)
+		__field(ulong, idx)
+	),
+	TP_fast_assign(/* assign */
+		DD_DEV_ASSIGN(tx->txq->priv->dd);
+		__entry->tx = tx;
+		__entry->skb = tx->skb;
+		__entry->txq = tx->txq;
+		__entry->idx = idx;
+	),
+	TP_printk(/* print  */
+		"[%s] tx %llx txq %llx,%u skb %llx idx %lu",
+		__get_str(dev),
+		(unsigned long long)__entry->tx,
+		(unsigned long long)__entry->txq,
+		__entry->txq ? __entry->txq->q_idx : 0,
+		(unsigned long long)__entry->skb,
+		__entry->idx
+	)
+);
+
+DEFINE_EVENT(/* produce */
+	hfi1_ipoib_tx_template, hfi1_tx_produce,
+	TP_PROTO(struct ipoib_txreq *tx, u32 idx),
+	TP_ARGS(tx, idx)
+);
+
+DEFINE_EVENT(/* consume */
+	hfi1_ipoib_tx_template, hfi1_tx_consume,
+	TP_PROTO(struct ipoib_txreq *tx, u32 idx),
+	TP_ARGS(tx, idx)
+);
+
+DEFINE_EVENT(/* alloc_tx */
+	hfi1_ipoib_txq_template, hfi1_txq_alloc_tx,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* poll */
+	hfi1_ipoib_txq_template, hfi1_txq_poll,
+	TP_PROTO(struct hfi1_ipoib_txq *txq),
+	TP_ARGS(txq)
+);
+
+DEFINE_EVENT(/* complete */
+	hfi1_ipoib_txq_template, hfi1_txq_complete,
 	TP_PROTO(struct hfi1_ipoib_txq *txq),
 	TP_ARGS(txq)
 );

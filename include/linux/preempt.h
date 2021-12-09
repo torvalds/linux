@@ -77,6 +77,27 @@
 /* preempt_count() and related functions, depends on PREEMPT_NEED_RESCHED */
 #include <asm/preempt.h>
 
+/**
+ * interrupt_context_level - return interrupt context level
+ *
+ * Returns the current interrupt context level.
+ *  0 - normal context
+ *  1 - softirq context
+ *  2 - hardirq context
+ *  3 - NMI context
+ */
+static __always_inline unsigned char interrupt_context_level(void)
+{
+	unsigned long pc = preempt_count();
+	unsigned char level = 0;
+
+	level += !!(pc & (NMI_MASK));
+	level += !!(pc & (NMI_MASK | HARDIRQ_MASK));
+	level += !!(pc & (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET));
+
+	return level;
+}
+
 #define nmi_count()	(preempt_count() & NMI_MASK)
 #define hardirq_count()	(preempt_count() & HARDIRQ_MASK)
 #ifdef CONFIG_PREEMPT_RT
@@ -121,7 +142,12 @@
 /*
  * The preempt_count offset after spin_lock()
  */
-#define PREEMPT_LOCK_OFFSET	PREEMPT_DISABLE_OFFSET
+#if !defined(CONFIG_PREEMPT_RT)
+#define PREEMPT_LOCK_OFFSET		PREEMPT_DISABLE_OFFSET
+#else
+/* Locks on RT do not disable preemption */
+#define PREEMPT_LOCK_OFFSET		0
+#endif
 
 /*
  * The preempt_count offset needed for things like:

@@ -435,8 +435,10 @@ int ttm_mem_global_init(struct ttm_mem_global *glob, struct device *dev)
 
 	si_meminfo(&si);
 
+	spin_lock(&glob->lock);
 	/* set it as 0 by default to keep original behavior of OOM */
 	glob->lower_mem_limit = 0;
+	spin_unlock(&glob->lock);
 
 	ret = ttm_mem_init_kernel_zone(glob, &si);
 	if (unlikely(ret != 0))
@@ -466,7 +468,6 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	struct ttm_mem_zone *zone;
 	unsigned int i;
 
-	flush_workqueue(glob->swap_queue);
 	destroy_workqueue(glob->swap_queue);
 	glob->swap_queue = NULL;
 	for (i = 0; i < glob->num_zones; ++i) {

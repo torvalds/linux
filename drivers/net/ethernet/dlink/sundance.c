@@ -479,7 +479,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit		= start_tx,
 	.ndo_get_stats 		= get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_do_ioctl 		= netdev_ioctl,
+	.ndo_eth_ioctl		= netdev_ioctl,
 	.ndo_tx_timeout		= tx_timeout,
 	.ndo_change_mtu		= change_mtu,
 	.ndo_set_mac_address 	= sundance_set_mac_addr,
@@ -508,6 +508,7 @@ static int sundance_probe1(struct pci_dev *pdev,
 	int bar = 1;
 #endif
 	int phy, phy_end, phy_idx = 0;
+	__le16 addr[ETH_ALEN / 2];
 
 	if (pci_enable_device(pdev))
 		return -EIO;
@@ -528,8 +529,9 @@ static int sundance_probe1(struct pci_dev *pdev,
 		goto err_out_res;
 
 	for (i = 0; i < 3; i++)
-		((__le16 *)dev->dev_addr)[i] =
+		addr[i] =
 			cpu_to_le16(eeprom_read(ioaddr, i + EEPROM_SA_OFFSET));
+	eth_hw_addr_set(dev, (u8 *)addr);
 
 	np = netdev_priv(dev);
 	np->ndev = dev;
@@ -1611,7 +1613,7 @@ static int sundance_set_mac_addr(struct net_device *dev, void *data)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 	__set_mac_addr(dev);
 
 	return 0;

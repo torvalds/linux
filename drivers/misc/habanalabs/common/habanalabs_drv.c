@@ -141,7 +141,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
 
-	hpriv->taskpid = find_get_pid(current->pid);
+	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
@@ -194,7 +194,6 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
-
 	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	filp->private_data = NULL;
@@ -226,6 +225,17 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	if (!hpriv)
 		return -ENOMEM;
 
+	/* Prevent other routines from reading partial hpriv data by
+	 * initializing hpriv fields before inserting it to the list
+	 */
+	hpriv->hdev = hdev;
+	filp->private_data = hpriv;
+	hpriv->filp = filp;
+	hpriv->is_control = true;
+	nonseekable_open(inode, filp);
+
+	hpriv->taskpid = find_get_pid(current->pid);
+
 	mutex_lock(&hdev->fpriv_list_lock);
 
 	if (!hl_device_operational(hdev, NULL)) {
@@ -239,19 +249,15 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	list_add(&hpriv->dev_node, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
-	hpriv->hdev = hdev;
-	filp->private_data = hpriv;
-	hpriv->filp = filp;
-	hpriv->is_control = true;
-	nonseekable_open(inode, filp);
-
-	hpriv->taskpid = find_get_pid(current->pid);
-
 	return 0;
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
+	filp->private_data = NULL;
+	put_pid(hpriv->taskpid);
+
 	kfree(hpriv);
+
 	return rc;
 }
 
@@ -318,12 +324,16 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		hdev->asic_prop.fw_security_enabled = false;
 
 	/* Assign status description string */
-	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION],
-					"disabled", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_OPERATIONAL],
+					"operational", HL_STR_MAX);
 	strncpy(hdev->status[HL_DEVICE_STATUS_IN_RESET],
 					"in reset", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION],
+					"disabled", HL_STR_MAX);
 	strncpy(hdev->status[HL_DEVICE_STATUS_NEEDS_RESET],
 					"needs reset", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_IN_DEVICE_CREATION],
+					"in device creation", HL_STR_MAX);
 
 	hdev->major = hl_major;
 	hdev->reset_on_lockup = reset_on_lockup;
@@ -336,6 +346,7 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	set_driver_behavior_per_device(hdev);
 
 	hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+	hdev->prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
 
 	if (timeout_locked)
 		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
@@ -532,7 +543,7 @@ hl_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		result = PCI_ERS_RESULT_NONE;
 	}
 
-	hdev->asic_funcs->halt_engines(hdev, true);
+	hdev->asic_funcs->halt_engines(hdev, true, false);
 
 	return result;
 }

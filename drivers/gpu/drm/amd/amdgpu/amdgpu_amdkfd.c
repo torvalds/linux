@@ -21,6 +21,7 @@
  */
 
 #include "amdgpu_amdkfd.h"
+#include "amd_pcie.h"
 #include "amd_shared.h"
 
 #include "amdgpu.h"
@@ -30,6 +31,8 @@
 #include <linux/dma-buf.h>
 #include "amdgpu_xgmi.h"
 #include <uapi/linux/kfd_ioctl.h>
+#include "amdgpu_ras.h"
+#include "amdgpu_umc.h"
 
 /* Total memory size in system memory and all GPU VRAM. Used to
  * estimate worst case amount of memory to reserve for page tables
@@ -69,8 +72,7 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 	if (!kfd_initialized)
 		return;
 
-	adev->kfd.dev = kgd2kfd_probe((struct kgd_dev *)adev,
-				      adev->pdev, adev->asic_type, vf);
+	adev->kfd.dev = kgd2kfd_probe((struct kgd_dev *)adev, vf);
 
 	if (adev->kfd.dev)
 		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
@@ -189,6 +191,16 @@ void amdgpu_amdkfd_suspend(struct amdgpu_device *adev, bool run_pm)
 {
 	if (adev->kfd.dev)
 		kgd2kfd_suspend(adev->kfd.dev, run_pm);
+}
+
+int amdgpu_amdkfd_resume_iommu(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->kfd.dev)
+		r = kgd2kfd_resume_iommu(adev->kfd.dev);
+
+	return r;
 }
 
 int amdgpu_amdkfd_resume(struct amdgpu_device *adev, bool run_pm)
@@ -553,6 +565,88 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 	return  (uint8_t)ret;
 }
 
+int amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(struct kgd_dev *dst, struct kgd_dev *src, bool is_min)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)dst, *peer_adev;
+	int num_links;
+
+	if (adev->asic_type != CHIP_ALDEBARAN)
+		return 0;
+
+	if (src)
+		peer_adev = (struct amdgpu_device *)src;
+
+	/* num links returns 0 for indirect peers since indirect route is unknown. */
+	num_links = is_min ? 1 : amdgpu_xgmi_get_num_links(adev, peer_adev);
+	if (num_links < 0) {
+		DRM_ERROR("amdgpu: failed to get xgmi num links between node %d and %d. ret = %d\n",
+			adev->gmc.xgmi.physical_node_id,
+			peer_adev->gmc.xgmi.physical_node_id, num_links);
+		num_links = 0;
+	}
+
+	/* Aldebaran xGMI DPM is defeatured so assume x16 x 25Gbps for bandwidth. */
+	return (num_links * 16 * 25000)/BITS_PER_BYTE;
+}
+
+int amdgpu_amdkfd_get_pcie_bandwidth_mbytes(struct kgd_dev *dev, bool is_min)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)dev;
+	int num_lanes_shift = (is_min ? ffs(adev->pm.pcie_mlw_mask) :
+							fls(adev->pm.pcie_mlw_mask)) - 1;
+	int gen_speed_shift = (is_min ? ffs(adev->pm.pcie_gen_mask &
+						CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) :
+					fls(adev->pm.pcie_gen_mask &
+						CAIL_PCIE_LINK_SPEED_SUPPORT_MASK)) - 1;
+	uint32_t num_lanes_mask = 1 << num_lanes_shift;
+	uint32_t gen_speed_mask = 1 << gen_speed_shift;
+	int num_lanes_factor = 0, gen_speed_mbits_factor = 0;
+
+	switch (num_lanes_mask) {
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X1:
+		num_lanes_factor = 1;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X2:
+		num_lanes_factor = 2;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X4:
+		num_lanes_factor = 4;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X8:
+		num_lanes_factor = 8;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X12:
+		num_lanes_factor = 12;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X16:
+		num_lanes_factor = 16;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X32:
+		num_lanes_factor = 32;
+		break;
+	}
+
+	switch (gen_speed_mask) {
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1:
+		gen_speed_mbits_factor = 2500;
+		break;
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2:
+		gen_speed_mbits_factor = 5000;
+		break;
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3:
+		gen_speed_mbits_factor = 8000;
+		break;
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4:
+		gen_speed_mbits_factor = 16000;
+		break;
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN5:
+		gen_speed_mbits_factor = 32000;
+		break;
+	}
+
+	return (num_lanes_factor * gen_speed_mbits_factor)/BITS_PER_BYTE;
+}
+
 uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct kgd_dev *kgd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
@@ -631,7 +725,6 @@ int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 	ret = dma_fence_wait(f, false);
 
 err_ib_sched:
-	dma_fence_put(f);
 	amdgpu_job_free(job);
 err:
 	return ret;
@@ -687,4 +780,16 @@ bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd)
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
 	return adev->have_atomics_support;
+}
+
+void amdgpu_amdkfd_ras_poison_consumption_handler(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	struct ras_err_data err_data = {0, 0, 0, NULL};
+
+	/* CPU MCA will handle page retirement if connected_to_cpu is 1 */
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		amdgpu_umc_process_ras_data_cb(adev, &err_data, NULL);
+	else
+		amdgpu_amdkfd_gpu_reset(kgd);
 }

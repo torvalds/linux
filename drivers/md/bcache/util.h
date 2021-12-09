@@ -15,8 +15,6 @@
 
 #include "closure.h"
 
-#define PAGE_SECTORS		(PAGE_SIZE / 512)
-
 struct closure;
 
 #ifdef CONFIG_BCACHE_DEBUG
@@ -342,23 +340,6 @@ static inline int bch_strtoul_h(const char *cp, long *res)
 	_r;								\
 })
 
-#define snprint(buf, size, var)						\
-	snprintf(buf, size,						\
-		__builtin_types_compatible_p(typeof(var), int)		\
-		     ? "%i\n" :						\
-		__builtin_types_compatible_p(typeof(var), unsigned int)	\
-		     ? "%u\n" :						\
-		__builtin_types_compatible_p(typeof(var), long)		\
-		     ? "%li\n" :					\
-		__builtin_types_compatible_p(typeof(var), unsigned long)\
-		     ? "%lu\n" :					\
-		__builtin_types_compatible_p(typeof(var), int64_t)	\
-		     ? "%lli\n" :					\
-		__builtin_types_compatible_p(typeof(var), uint64_t)	\
-		     ? "%llu\n" :					\
-		__builtin_types_compatible_p(typeof(var), const char *)	\
-		     ? "%s\n" : "%i\n", var)
-
 ssize_t bch_hprint(char *buf, int64_t v);
 
 bool bch_is_zero(const char *p, size_t n);
@@ -550,14 +531,6 @@ static inline uint64_t bch_crc64(const void *p, size_t len)
 	return crc ^ 0xffffffffffffffffULL;
 }
 
-static inline uint64_t bch_crc64_update(uint64_t crc,
-					const void *p,
-					size_t len)
-{
-	crc = crc64_be(crc, p, len);
-	return crc;
-}
-
 /*
  * A stepwise-linear pseudo-exponential.  This returns 1 << (x >>
  * frac_bits), with the less-significant bits filled in by linear
@@ -586,8 +559,4 @@ static inline unsigned int fract_exp_two(unsigned int x,
 void bch_bio_map(struct bio *bio, void *base);
 int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask);
 
-static inline sector_t bdev_sectors(struct block_device *bdev)
-{
-	return bdev->bd_inode->i_size >> 9;
-}
 #endif /* _BCACHE_UTIL_H */

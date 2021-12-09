@@ -106,8 +106,7 @@ static void batadv_v_iface_update_mac(struct batadv_hard_iface *hard_iface)
 
 	batadv_v_primary_iface_set(hard_iface);
 out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
+	batadv_hardif_put(primary_if);
 }
 
 static void
@@ -366,8 +365,7 @@ batadv_v_orig_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
 	}
 
  out:
-	if (neigh_node_best)
-		batadv_neigh_node_put(neigh_node_best);
+	batadv_neigh_node_put(neigh_node_best);
 
 	*sub_s = 0;
 	return 0;
@@ -568,10 +566,8 @@ static int batadv_v_gw_throughput_get(struct batadv_gw_node *gw_node, u32 *bw)
 
 	ret = 0;
 out:
-	if (router)
-		batadv_neigh_node_put(router);
-	if (router_ifinfo)
-		batadv_neigh_ifinfo_put(router_ifinfo);
+	batadv_neigh_node_put(router);
+	batadv_neigh_ifinfo_put(router_ifinfo);
 
 	return ret;
 }
@@ -599,8 +595,7 @@ batadv_v_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 		if (curr_gw && bw <= max_bw)
 			goto next;
 
-		if (curr_gw)
-			batadv_gw_node_put(curr_gw);
+		batadv_gw_node_put(curr_gw);
 
 		curr_gw = gw_node;
 		kref_get(&curr_gw->refcount);
@@ -662,10 +657,8 @@ static bool batadv_v_gw_is_eligible(struct batadv_priv *bat_priv,
 
 	ret = true;
 out:
-	if (curr_gw)
-		batadv_gw_node_put(curr_gw);
-	if (orig_gw)
-		batadv_gw_node_put(orig_gw);
+	batadv_gw_node_put(curr_gw);
+	batadv_gw_node_put(orig_gw);
 
 	return ret;
 }
@@ -764,12 +757,9 @@ static int batadv_v_gw_dump_entry(struct sk_buff *msg, u32 portid,
 	ret = 0;
 
 out:
-	if (curr_gw)
-		batadv_gw_node_put(curr_gw);
-	if (router_ifinfo)
-		batadv_neigh_ifinfo_put(router_ifinfo);
-	if (router)
-		batadv_neigh_node_put(router);
+	batadv_gw_node_put(curr_gw);
+	batadv_neigh_ifinfo_put(router_ifinfo);
+	batadv_neigh_node_put(router);
 	return ret;
 }
 

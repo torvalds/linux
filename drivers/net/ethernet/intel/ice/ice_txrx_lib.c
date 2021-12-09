@@ -2,13 +2,15 @@
 /* Copyright (c) 2019, Intel Corporation. */
 
 #include "ice_txrx_lib.h"
+#include "ice_eswitch.h"
+#include "ice_lib.h"
 
 /**
  * ice_release_rx_desc - Store the new tail and head values
  * @rx_ring: ring to bump
  * @val: new head index
  */
-void ice_release_rx_desc(struct ice_ring *rx_ring, u16 val)
+void ice_release_rx_desc(struct ice_rx_ring *rx_ring, u16 val)
 {
 	u16 prev_ntu = rx_ring->next_to_use & ~0x7;
 
@@ -66,7 +68,7 @@ static enum pkt_hash_types ice_ptype_to_htype(u16 ptype)
  * @rx_ptype: the ptype value from the descriptor
  */
 static void
-ice_rx_hash(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
+ice_rx_hash(struct ice_rx_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
 	    struct sk_buff *skb, u16 rx_ptype)
 {
 	struct ice_32b_rx_flex_desc_nic *nic_mdid;
@@ -93,7 +95,7 @@ ice_rx_hash(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
  * skb->protocol must be set before this function is called
  */
 static void
-ice_rx_csum(struct ice_ring *ring, struct sk_buff *skb,
+ice_rx_csum(struct ice_rx_ring *ring, struct sk_buff *skb,
 	    union ice_32b_rx_flex_desc *rx_desc, u16 ptype)
 {
 	struct ice_rx_ptype_decoded decoded;
@@ -178,14 +180,15 @@ checksum_fail:
  * other fields within the skb.
  */
 void
-ice_process_skb_fields(struct ice_ring *rx_ring,
+ice_process_skb_fields(struct ice_rx_ring *rx_ring,
 		       union ice_32b_rx_flex_desc *rx_desc,
 		       struct sk_buff *skb, u16 ptype)
 {
 	ice_rx_hash(rx_ring, rx_desc, skb, ptype);
 
 	/* modifies the skb - consumes the enet header */
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+	skb->protocol = eth_type_trans(skb, ice_eswitch_get_target_netdev
+				       (rx_ring, rx_desc));
 
 	ice_rx_csum(rx_ring, skb, rx_desc, ptype);
 
@@ -203,7 +206,7 @@ ice_process_skb_fields(struct ice_ring *rx_ring,
  * gro receive functions (with/without VLAN tag)
  */
 void
-ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
+ice_receive_skb(struct ice_rx_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
 {
 	if ((rx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    (vlan_tag & VLAN_VID_MASK))
@@ -212,17 +215,66 @@ ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
 }
 
 /**
+ * ice_clean_xdp_irq - Reclaim resources after transmit completes on XDP ring
+ * @xdp_ring: XDP ring to clean
+ */
+static void ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
+{
+	unsigned int total_bytes = 0, total_pkts = 0;
+	u16 ntc = xdp_ring->next_to_clean;
+	struct ice_tx_desc *next_dd_desc;
+	u16 next_dd = xdp_ring->next_dd;
+	struct ice_tx_buf *tx_buf;
+	int i;
+
+	next_dd_desc = ICE_TX_DESC(xdp_ring, next_dd);
+	if (!(next_dd_desc->cmd_type_offset_bsz &
+	    cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)))
+		return;
+
+	for (i = 0; i < ICE_TX_THRESH; i++) {
+		tx_buf = &xdp_ring->tx_buf[ntc];
+
+		total_bytes += tx_buf->bytecount;
+		/* normally tx_buf->gso_segs was taken but at this point
+		 * it's always 1 for us
+		 */
+		total_pkts++;
+
+		page_frag_free(tx_buf->raw_buf);
+		dma_unmap_single(xdp_ring->dev, dma_unmap_addr(tx_buf, dma),
+				 dma_unmap_len(tx_buf, len), DMA_TO_DEVICE);
+		dma_unmap_len_set(tx_buf, len, 0);
+		tx_buf->raw_buf = NULL;
+
+		ntc++;
+		if (ntc >= xdp_ring->count)
+			ntc = 0;
+	}
+
+	next_dd_desc->cmd_type_offset_bsz = 0;
+	xdp_ring->next_dd = xdp_ring->next_dd + ICE_TX_THRESH;
+	if (xdp_ring->next_dd > xdp_ring->count)
+		xdp_ring->next_dd = ICE_TX_THRESH - 1;
+	xdp_ring->next_to_clean = ntc;
+	ice_update_tx_ring_stats(xdp_ring, total_pkts, total_bytes);
+}
+
+/**
  * ice_xmit_xdp_ring - submit single packet to XDP ring for transmission
  * @data: packet data pointer
  * @size: packet data size
  * @xdp_ring: XDP ring for transmission
  */
-int ice_xmit_xdp_ring(void *data, u16 size, struct ice_ring *xdp_ring)
+int ice_xmit_xdp_ring(void *data, u16 size, struct ice_tx_ring *xdp_ring)
 {
 	u16 i = xdp_ring->next_to_use;
 	struct ice_tx_desc *tx_desc;
 	struct ice_tx_buf *tx_buf;
 	dma_addr_t dma;
+
+	if (ICE_DESC_UNUSED(xdp_ring) < ICE_TX_THRESH)
+		ice_clean_xdp_irq(xdp_ring);
 
 	if (!unlikely(ICE_DESC_UNUSED(xdp_ring))) {
 		xdp_ring->tx_stats.tx_busy++;
@@ -244,20 +296,25 @@ int ice_xmit_xdp_ring(void *data, u16 size, struct ice_ring *xdp_ring)
 
 	tx_desc = ICE_TX_DESC(xdp_ring, i);
 	tx_desc->buf_addr = cpu_to_le64(dma);
-	tx_desc->cmd_type_offset_bsz = ice_build_ctob(ICE_TXD_LAST_DESC_CMD, 0,
+	tx_desc->cmd_type_offset_bsz = ice_build_ctob(ICE_TX_DESC_CMD_EOP, 0,
 						      size, 0);
 
-	/* Make certain all of the status bits have been updated
-	 * before next_to_watch is written.
-	 */
-	smp_wmb();
-
 	i++;
-	if (i == xdp_ring->count)
+	if (i == xdp_ring->count) {
 		i = 0;
-
-	tx_buf->next_to_watch = tx_desc;
+		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_rs);
+		tx_desc->cmd_type_offset_bsz |=
+			cpu_to_le64(ICE_TX_DESC_CMD_RS << ICE_TXD_QW1_CMD_S);
+		xdp_ring->next_rs = ICE_TX_THRESH - 1;
+	}
 	xdp_ring->next_to_use = i;
+
+	if (i > xdp_ring->next_rs) {
+		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_rs);
+		tx_desc->cmd_type_offset_bsz |=
+			cpu_to_le64(ICE_TX_DESC_CMD_RS << ICE_TXD_QW1_CMD_S);
+		xdp_ring->next_rs += ICE_TX_THRESH;
+	}
 
 	return ICE_XDP_TX;
 }
@@ -269,7 +326,7 @@ int ice_xmit_xdp_ring(void *data, u16 size, struct ice_ring *xdp_ring)
  *
  * Returns negative on failure, 0 on success.
  */
-int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_ring *xdp_ring)
+int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_tx_ring *xdp_ring)
 {
 	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
 
@@ -281,22 +338,23 @@ int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_ring *xdp_ring)
 
 /**
  * ice_finalize_xdp_rx - Bump XDP Tx tail and/or flush redirect map
- * @rx_ring: Rx ring
+ * @xdp_ring: XDP ring
  * @xdp_res: Result of the receive batch
  *
  * This function bumps XDP Tx tail and/or flush redirect map, and
  * should be called when a batch of packets has been processed in the
  * napi loop.
  */
-void ice_finalize_xdp_rx(struct ice_ring *rx_ring, unsigned int xdp_res)
+void ice_finalize_xdp_rx(struct ice_tx_ring *xdp_ring, unsigned int xdp_res)
 {
 	if (xdp_res & ICE_XDP_REDIR)
 		xdp_do_flush_map();
 
 	if (xdp_res & ICE_XDP_TX) {
-		struct ice_ring *xdp_ring =
-			rx_ring->vsi->xdp_rings[rx_ring->q_index];
-
+		if (static_branch_unlikely(&ice_xdp_locking_key))
+			spin_lock(&xdp_ring->tx_lock);
 		ice_xdp_ring_update_tail(xdp_ring);
+		if (static_branch_unlikely(&ice_xdp_locking_key))
+			spin_unlock(&xdp_ring->tx_lock);
 	}
 }

@@ -27,6 +27,21 @@ static inline struct super_block *fsnotify_conn_sb(
 	return container_of(conn->obj, struct super_block, s_fsnotify_marks);
 }
 
+static inline struct super_block *fsnotify_connector_sb(
+				struct fsnotify_mark_connector *conn)
+{
+	switch (conn->type) {
+	case FSNOTIFY_OBJ_TYPE_INODE:
+		return fsnotify_conn_inode(conn)->i_sb;
+	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
+		return fsnotify_conn_mount(conn)->mnt.mnt_sb;
+	case FSNOTIFY_OBJ_TYPE_SB:
+		return fsnotify_conn_sb(conn);
+	default:
+		return NULL;
+	}
+}
+
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
 

@@ -29,6 +29,8 @@
 #include "dcn20_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
+#include "inc/link_dpcd.h"
+#include "dpcd_defs.h"
 
 #define DC_LOGGER \
 		enc1->base.ctx->logger
@@ -209,7 +211,8 @@ static void enc2_stream_encoder_stop_hdmi_info_packets(
 /* Update GSP7 SDP 128 byte long */
 static void enc2_update_gsp7_128_info_packet(
 	struct dcn10_stream_encoder *enc1,
-	const struct dc_info_packet_128 *info_packet)
+	const struct dc_info_packet_128 *info_packet,
+	bool immediate_update)
 {
 	uint32_t i;
 
@@ -264,7 +267,9 @@ static void enc2_update_gsp7_128_info_packet(
 		REG_WRITE(AFMT_GENERIC_7, *content++);
 	}
 
-	REG_UPDATE(AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC7_FRAME_UPDATE, 1);
+	REG_UPDATE_2(AFMT_VBI_PACKET_CONTROL1,
+			AFMT_GENERIC7_FRAME_UPDATE, !immediate_update,
+			AFMT_GENERIC7_IMMEDIATE_UPDATE, immediate_update);
 }
 
 /* Set DSC-related configuration.
@@ -290,7 +295,8 @@ static void enc2_dp_set_dsc_config(struct stream_encoder *enc,
 
 static void enc2_dp_set_dsc_pps_info_packet(struct stream_encoder *enc,
 					bool enable,
-					uint8_t *dsc_packed_pps)
+					uint8_t *dsc_packed_pps,
+					bool immediate_update)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
@@ -306,7 +312,7 @@ static void enc2_dp_set_dsc_pps_info_packet(struct stream_encoder *enc,
 		pps_sdp.hb2 = 127;
 		pps_sdp.hb3 = 0;
 		memcpy(&pps_sdp.sb[0], dsc_packed_pps, sizeof(pps_sdp.sb));
-		enc2_update_gsp7_128_info_packet(enc1, &pps_sdp);
+		enc2_update_gsp7_128_info_packet(enc1, &pps_sdp, immediate_update);
 
 		/* Enable Generic Stream Packet 7 (GSP) transmission */
 		//REG_UPDATE(DP_SEC_CNTL,
@@ -444,6 +450,7 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 }
 
 void enc2_stream_encoder_dp_unblank(
+		struct dc_link *link,
 		struct stream_encoder *enc,
 		const struct encoder_unblank_param *param)
 {
@@ -522,6 +529,8 @@ void enc2_stream_encoder_dp_unblank(
 	 */
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
+
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
 static void enc2_dp_set_odm_combine(

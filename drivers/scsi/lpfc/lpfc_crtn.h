@@ -58,6 +58,8 @@ void lpfc_request_features(struct lpfc_hba *, struct lpfcMboxq *);
 int lpfc_sli4_mbox_rsrc_extent(struct lpfc_hba *, struct lpfcMboxq *,
 			   uint16_t, uint16_t, bool);
 int lpfc_get_sli4_parameters(struct lpfc_hba *, LPFC_MBOXQ_t *);
+int lpfc_reg_congestion_buf(struct lpfc_hba *phba);
+int lpfc_unreg_congestion_buf(struct lpfc_hba *phba);
 struct lpfc_vport *lpfc_find_vport_by_did(struct lpfc_hba *, uint32_t);
 void lpfc_cleanup_rcv_buffers(struct lpfc_vport *);
 void lpfc_rcv_seq_check_edtov(struct lpfc_vport *);
@@ -74,6 +76,20 @@ int lpfc_init_iocb_list(struct lpfc_hba *phba, int cnt);
 void lpfc_free_iocb_list(struct lpfc_hba *phba);
 int lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 			struct lpfc_queue *drq, int count, int idx);
+uint32_t lpfc_calc_cmf_latency(struct lpfc_hba *phba);
+void lpfc_cmf_signal_init(struct lpfc_hba *phba);
+void lpfc_cmf_start(struct lpfc_hba *phba);
+void lpfc_cmf_stop(struct lpfc_hba *phba);
+void lpfc_init_congestion_stat(struct lpfc_hba *phba);
+void lpfc_init_congestion_buf(struct lpfc_hba *phba);
+int lpfc_sli4_cgn_params_read(struct lpfc_hba *phba);
+uint32_t lpfc_cgn_calc_crc32(void *bufp, uint32_t sz, uint32_t seed);
+int lpfc_config_cgn_signal(struct lpfc_hba *phba);
+int lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total);
+void lpfc_cgn_dump_rxmonitor(struct lpfc_hba *phba);
+void lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag);
+void lpfc_unblock_requests(struct lpfc_hba *phba);
+void lpfc_block_requests(struct lpfc_hba *phba);
 
 void lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -87,6 +103,8 @@ void lpfc_unregister_vfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_enqueue_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_dequeue_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_nlp_set_state(struct lpfc_vport *, struct lpfc_nodelist *, int);
+void lpfc_nlp_reg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp);
+void lpfc_nlp_unreg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp);
 void lpfc_drop_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_set_disctmo(struct lpfc_vport *);
 int  lpfc_can_disctmo(struct lpfc_vport *);
@@ -101,6 +119,8 @@ int lpfc_check_sli_ndlp(struct lpfc_hba *, struct lpfc_sli_ring *,
 struct lpfc_nodelist *lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did);
 struct lpfc_nodelist *lpfc_nlp_get(struct lpfc_nodelist *);
 int  lpfc_nlp_put(struct lpfc_nodelist *);
+void lpfc_check_nlp_post_devloss(struct lpfc_vport *vport,
+				 struct lpfc_nodelist *ndlp);
 void lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			  struct lpfc_iocbq *rspiocb);
 int  lpfc_nlp_not_used(struct lpfc_nodelist *ndlp);
@@ -141,6 +161,8 @@ int lpfc_issue_els_scr(struct lpfc_vport *vport, uint8_t retry);
 int lpfc_issue_els_rscn(struct lpfc_vport *vport, uint8_t retry);
 int lpfc_issue_fabric_reglogin(struct lpfc_vport *);
 int lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry);
+int lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry);
+void lpfc_els_rcv_fpin(struct lpfc_vport *vport, void *p, u32 fpin_length);
 int lpfc_els_free_iocb(struct lpfc_hba *, struct lpfc_iocbq *);
 int lpfc_ct_free_iocb(struct lpfc_hba *, struct lpfc_iocbq *);
 int lpfc_els_rsp_acc(struct lpfc_vport *, uint32_t, struct lpfc_iocbq *,
@@ -185,6 +207,7 @@ void lpfc_delayed_disc_timeout_handler(struct lpfc_vport *);
 int lpfc_config_port_prep(struct lpfc_hba *);
 void lpfc_update_vport_wwn(struct lpfc_vport *vport);
 int lpfc_config_port_post(struct lpfc_hba *);
+int lpfc_sli4_refresh_params(struct lpfc_hba *phba);
 int lpfc_hba_down_prep(struct lpfc_hba *);
 int lpfc_hba_down_post(struct lpfc_hba *);
 void lpfc_hba_init(struct lpfc_hba *, uint32_t *);
@@ -212,6 +235,9 @@ irqreturn_t lpfc_sli_sp_intr_handler(int, void *);
 irqreturn_t lpfc_sli_fp_intr_handler(int, void *);
 irqreturn_t lpfc_sli4_intr_handler(int, void *);
 irqreturn_t lpfc_sli4_hba_intr_handler(int, void *);
+
+int lpfc_read_object(struct lpfc_hba *phba, char *s, uint32_t *datap,
+		     uint32_t len);
 
 void lpfc_sli4_cleanup_poll_list(struct lpfc_hba *phba);
 int lpfc_sli4_poll_eq(struct lpfc_queue *q, uint8_t path);
@@ -405,8 +431,8 @@ void lpfc_get_cfgparam(struct lpfc_hba *);
 void lpfc_get_vport_cfgparam(struct lpfc_vport *);
 int lpfc_alloc_sysfs_attr(struct lpfc_vport *);
 void lpfc_free_sysfs_attr(struct lpfc_vport *);
-extern struct device_attribute *lpfc_hba_attrs[];
-extern struct device_attribute *lpfc_vport_attrs[];
+extern const struct attribute_group *lpfc_hba_groups[];
+extern const struct attribute_group *lpfc_vport_groups[];
 extern struct scsi_host_template lpfc_template;
 extern struct scsi_host_template lpfc_template_nvme;
 extern struct fc_function_template lpfc_transport_functions;
@@ -459,6 +485,9 @@ void lpfc_free_fast_evt(struct lpfc_hba *, struct lpfc_fast_path_event *);
 void lpfc_create_static_vport(struct lpfc_hba *);
 void lpfc_stop_hba_timers(struct lpfc_hba *);
 void lpfc_stop_port(struct lpfc_hba *);
+int lpfc_update_cmf_cmd(struct lpfc_hba *phba, uint32_t sz);
+int lpfc_update_cmf_cmpl(struct lpfc_hba *phba, uint64_t val, uint32_t sz,
+			 struct Scsi_Host *shost);
 void __lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *);
 void lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *);
 void lpfc_parse_fcoe_conf(struct lpfc_hba *, uint8_t *, uint32_t);
@@ -605,6 +634,10 @@ extern int lpfc_enable_nvmet_cnt;
 extern unsigned long long lpfc_enable_nvmet[];
 extern int lpfc_no_hba_reset_cnt;
 extern unsigned long lpfc_no_hba_reset[];
+extern int lpfc_acqe_cgn_frequency;
+extern int lpfc_fabric_cgn_frequency;
+extern int lpfc_use_cgn_signal;
+
 extern union lpfc_wqe128 lpfc_iread_cmd_template;
 extern union lpfc_wqe128 lpfc_iwrite_cmd_template;
 extern union lpfc_wqe128 lpfc_icmnd_cmd_template;

@@ -1193,7 +1193,7 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 		if (DPU_FORMAT_IS_YUV(fmt))
 			_dpu_plane_setup_csc(pdpu);
 		else
-			pdpu->csc_ptr = 0;
+			pdpu->csc_ptr = NULL;
 	}
 
 	_dpu_plane_set_qos_lut(plane, fb);
@@ -1330,7 +1330,7 @@ static void dpu_plane_reset(struct drm_plane *plane)
 	/* remove previous state, if present */
 	if (plane->state) {
 		dpu_plane_destroy_state(plane, plane->state);
-		plane->state = 0;
+		plane->state = NULL;
 	}
 
 	pstate = kzalloc(sizeof(*pstate), GFP_KERNEL);
@@ -1339,9 +1339,7 @@ static void dpu_plane_reset(struct drm_plane *plane)
 		return;
 	}
 
-	pstate->base.plane = plane;
-
-	plane->state = &pstate->base;
+	__drm_atomic_helper_plane_reset(plane, &pstate->base);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1646,6 +1644,12 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 	ret = drm_plane_create_zpos_property(plane, 0, 0, zpos_max);
 	if (ret)
 		DPU_ERROR("failed to install zpos property, rc = %d\n", ret);
+
+	drm_plane_create_alpha_property(plane);
+	drm_plane_create_blend_mode_property(plane,
+			BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+			BIT(DRM_MODE_BLEND_PREMULTI) |
+			BIT(DRM_MODE_BLEND_COVERAGE));
 
 	drm_plane_create_rotation_property(plane,
 			DRM_MODE_ROTATE_0,

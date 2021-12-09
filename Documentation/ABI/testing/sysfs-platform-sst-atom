@@ -1,4 +1,4 @@
-What:		/sys/devices/platform/8086%x:00/firmware_version
+What:		/sys/devices/platform/8086<x>:00/firmware_version
 Date:		November 2016
 KernelVersion:	4.10
 Contact:	"Sebastien Guiriec" <sebastien.guiriec@intel.com>

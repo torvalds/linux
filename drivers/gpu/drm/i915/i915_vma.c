@@ -34,24 +34,20 @@
 #include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
-#include "i915_globals.h"
 #include "i915_sw_fence_work.h"
 #include "i915_trace.h"
 #include "i915_vma.h"
 
-static struct i915_global_vma {
-	struct i915_global base;
-	struct kmem_cache *slab_vmas;
-} global;
+static struct kmem_cache *slab_vmas;
 
 struct i915_vma *i915_vma_alloc(void)
 {
-	return kmem_cache_zalloc(global.slab_vmas, GFP_KERNEL);
+	return kmem_cache_zalloc(slab_vmas, GFP_KERNEL);
 }
 
 void i915_vma_free(struct i915_vma *vma)
 {
-	return kmem_cache_free(global.slab_vmas, vma);
+	return kmem_cache_free(slab_vmas, vma);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_ERRLOG_GEM) && IS_ENABLED(CONFIG_DRM_DEBUG_MM)
@@ -60,8 +56,6 @@ void i915_vma_free(struct i915_vma *vma)
 
 static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 {
-	unsigned long *entries;
-	unsigned int nr_entries;
 	char buf[512];
 
 	if (!vma->node.stack) {
@@ -70,8 +64,7 @@ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 		return;
 	}
 
-	nr_entries = stack_depot_fetch(vma->node.stack, &entries);
-	stack_trace_snprint(buf, sizeof(buf), entries, nr_entries, 0);
+	stack_depot_snprint(vma->node.stack, buf, sizeof(buf), 0);
 	DRM_DEBUG_DRIVER("vma.node [%08llx + %08llx] %s: inserted at %s\n",
 			 vma->node.start, vma->node.size, reason, buf);
 }
@@ -300,14 +293,13 @@ struct i915_vma_work {
 	unsigned int flags;
 };
 
-static int __vma_bind(struct dma_fence_work *work)
+static void __vma_bind(struct dma_fence_work *work)
 {
 	struct i915_vma_work *vw = container_of(work, typeof(*vw), base);
 	struct i915_vma *vma = vw->vma;
 
 	vma->ops->bind_vma(vw->vm, &vw->stash,
 			   vma, vw->cache_level, vw->flags);
-	return 0;
 }
 
 static void __vma_release(struct dma_fence_work *work)
@@ -1239,9 +1231,10 @@ int __i915_vma_move_to_active(struct i915_vma *vma, struct i915_request *rq)
 	return i915_active_add_request(&vma->active, rq);
 }
 
-int i915_vma_move_to_active(struct i915_vma *vma,
-			    struct i915_request *rq,
-			    unsigned int flags)
+int _i915_vma_move_to_active(struct i915_vma *vma,
+			     struct i915_request *rq,
+			     struct dma_fence *fence,
+			     unsigned int flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 	int err;
@@ -1262,9 +1255,11 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 			intel_frontbuffer_put(front);
 		}
 
-		dma_resv_add_excl_fence(vma->resv, &rq->fence);
-		obj->write_domain = I915_GEM_DOMAIN_RENDER;
-		obj->read_domains = 0;
+		if (fence) {
+			dma_resv_add_excl_fence(vma->resv, fence);
+			obj->write_domain = I915_GEM_DOMAIN_RENDER;
+			obj->read_domains = 0;
+		}
 	} else {
 		if (!(flags & __EXEC_OBJECT_NO_RESERVE)) {
 			err = dma_resv_reserve_shared(vma->resv, 1);
@@ -1272,8 +1267,10 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 				return err;
 		}
 
-		dma_resv_add_shared_fence(vma->resv, &rq->fence);
-		obj->write_domain = 0;
+		if (fence) {
+			dma_resv_add_shared_fence(vma->resv, fence);
+			obj->write_domain = 0;
+		}
 	}
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE && vma->fence)
@@ -1415,27 +1412,16 @@ void i915_vma_make_purgeable(struct i915_vma *vma)
 #include "selftests/i915_vma.c"
 #endif
 
-static void i915_global_vma_shrink(void)
+void i915_vma_module_exit(void)
 {
-	kmem_cache_shrink(global.slab_vmas);
+	kmem_cache_destroy(slab_vmas);
 }
 
-static void i915_global_vma_exit(void)
+int __init i915_vma_module_init(void)
 {
-	kmem_cache_destroy(global.slab_vmas);
-}
-
-static struct i915_global_vma global = { {
-	.shrink = i915_global_vma_shrink,
-	.exit = i915_global_vma_exit,
-} };
-
-int __init i915_global_vma_init(void)
-{
-	global.slab_vmas = KMEM_CACHE(i915_vma, SLAB_HWCACHE_ALIGN);
-	if (!global.slab_vmas)
+	slab_vmas = KMEM_CACHE(i915_vma, SLAB_HWCACHE_ALIGN);
+	if (!slab_vmas)
 		return -ENOMEM;
 
-	i915_global_register(&global.base);
 	return 0;
 }

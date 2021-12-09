@@ -29,6 +29,11 @@
 #include <linux/types.h>
 #include <trace/events/printk.h>
 
+#define KCSAN_TEST_REQUIRES(test, cond) do {			\
+	if (!(cond))						\
+		kunit_skip((test), "Test requires: " #cond);	\
+} while (0)
+
 #ifdef CONFIG_CC_HAS_TSAN_COMPOUND_READ_BEFORE_WRITE
 #define __KCSAN_ACCESS_RW(alt) (KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE)
 #else
@@ -205,10 +210,12 @@ static bool report_matches(const struct expect_report *r)
 							"read-write" :
 							"write") :
 					       "read");
+		const bool is_atomic = (ty & KCSAN_ACCESS_ATOMIC);
+		const bool is_scoped = (ty & KCSAN_ACCESS_SCOPED);
 		const char *const access_type_aux =
-			(ty & KCSAN_ACCESS_ATOMIC) ?
-				      " (marked)" :
-				      ((ty & KCSAN_ACCESS_SCOPED) ? " (scoped)" : "");
+				(is_atomic && is_scoped)	? " (marked, scoped)"
+				: (is_atomic			? " (marked)"
+				   : (is_scoped			? " (scoped)" : ""));
 
 		if (i == 1) {
 			/* Access 2 */
@@ -333,7 +340,10 @@ static noinline void test_kernel_assert_bits_nochange(void)
 	ASSERT_EXCLUSIVE_BITS(test_var, ~TEST_CHANGE_BITS);
 }
 
-/* To check that scoped assertions do trigger anywhere in scope. */
+/*
+ * Scoped assertions do trigger anywhere in scope. However, the report should
+ * still only point at the start of the scope.
+ */
 static noinline void test_enter_scope(void)
 {
 	int x = 0;
@@ -414,6 +424,14 @@ static noinline void test_kernel_atomic_builtins(void)
 	__atomic_load_n(&test_var, __ATOMIC_RELAXED);
 }
 
+static noinline void test_kernel_xor_1bit(void)
+{
+	/* Do not report data races between the read-writes. */
+	kcsan_nestable_atomic_begin();
+	test_var ^= 0x10000;
+	kcsan_nestable_atomic_end();
+}
+
 /* ===== Test cases ===== */
 
 /* Simple test with normal data race. */
@@ -480,17 +498,24 @@ static void test_concurrent_races(struct kunit *test)
 __no_kcsan
 static void test_novalue_change(struct kunit *test)
 {
-	const struct expect_report expect = {
+	const struct expect_report expect_rw = {
 		.access = {
 			{ test_kernel_write_nochange, &test_var, sizeof(test_var), KCSAN_ACCESS_WRITE },
 			{ test_kernel_read, &test_var, sizeof(test_var), 0 },
 		},
 	};
+	const struct expect_report expect_ww = {
+		.access = {
+			{ test_kernel_write_nochange, &test_var, sizeof(test_var), KCSAN_ACCESS_WRITE },
+			{ test_kernel_write_nochange, &test_var, sizeof(test_var), KCSAN_ACCESS_WRITE },
+		},
+	};
 	bool match_expect = false;
 
+	test_kernel_write_nochange(); /* Reset value. */
 	begin_test_checks(test_kernel_write_nochange, test_kernel_read);
 	do {
-		match_expect = report_matches(&expect);
+		match_expect = report_matches(&expect_rw) || report_matches(&expect_ww);
 	} while (!end_test_checks(match_expect));
 	if (IS_ENABLED(CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY))
 		KUNIT_EXPECT_FALSE(test, match_expect);
@@ -505,17 +530,24 @@ static void test_novalue_change(struct kunit *test)
 __no_kcsan
 static void test_novalue_change_exception(struct kunit *test)
 {
-	const struct expect_report expect = {
+	const struct expect_report expect_rw = {
 		.access = {
 			{ test_kernel_write_nochange_rcu, &test_var, sizeof(test_var), KCSAN_ACCESS_WRITE },
 			{ test_kernel_read, &test_var, sizeof(test_var), 0 },
 		},
 	};
+	const struct expect_report expect_ww = {
+		.access = {
+			{ test_kernel_write_nochange_rcu, &test_var, sizeof(test_var), KCSAN_ACCESS_WRITE },
+			{ test_kernel_write_nochange_rcu, &test_var, sizeof(test_var), KCSAN_ACCESS_WRITE },
+		},
+	};
 	bool match_expect = false;
 
+	test_kernel_write_nochange_rcu(); /* Reset value. */
 	begin_test_checks(test_kernel_write_nochange_rcu, test_kernel_read);
 	do {
-		match_expect = report_matches(&expect);
+		match_expect = report_matches(&expect_rw) || report_matches(&expect_ww);
 	} while (!end_test_checks(match_expect));
 	KUNIT_EXPECT_TRUE(test, match_expect);
 }
@@ -634,8 +666,7 @@ static void test_read_plain_atomic_write(struct kunit *test)
 	};
 	bool match_expect = false;
 
-	if (IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS))
-		return;
+	KCSAN_TEST_REQUIRES(test, !IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS));
 
 	begin_test_checks(test_kernel_read, test_kernel_write_atomic);
 	do {
@@ -657,8 +688,7 @@ static void test_read_plain_atomic_rmw(struct kunit *test)
 	};
 	bool match_expect = false;
 
-	if (IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS))
-		return;
+	KCSAN_TEST_REQUIRES(test, !IS_ENABLED(CONFIG_KCSAN_IGNORE_ATOMICS));
 
 	begin_test_checks(test_kernel_read, test_kernel_atomic_rmw);
 	do {
@@ -820,22 +850,22 @@ static void test_assert_exclusive_writer_scoped(struct kunit *test)
 			{ test_kernel_write_nochange, &test_var, sizeof(test_var), KCSAN_ACCESS_WRITE },
 		},
 	};
-	const struct expect_report expect_anywhere = {
+	const struct expect_report expect_inscope = {
 		.access = {
 			{ test_enter_scope, &test_var, sizeof(test_var), KCSAN_ACCESS_ASSERT | KCSAN_ACCESS_SCOPED },
 			{ test_kernel_write_nochange, &test_var, sizeof(test_var), KCSAN_ACCESS_WRITE },
 		},
 	};
 	bool match_expect_start = false;
-	bool match_expect_anywhere = false;
+	bool match_expect_inscope = false;
 
 	begin_test_checks(test_kernel_assert_writer_scoped, test_kernel_write_nochange);
 	do {
 		match_expect_start |= report_matches(&expect_start);
-		match_expect_anywhere |= report_matches(&expect_anywhere);
-	} while (!end_test_checks(match_expect_start && match_expect_anywhere));
+		match_expect_inscope |= report_matches(&expect_inscope);
+	} while (!end_test_checks(match_expect_inscope));
 	KUNIT_EXPECT_TRUE(test, match_expect_start);
-	KUNIT_EXPECT_TRUE(test, match_expect_anywhere);
+	KUNIT_EXPECT_FALSE(test, match_expect_inscope);
 }
 
 __no_kcsan
@@ -864,9 +894,9 @@ static void test_assert_exclusive_access_scoped(struct kunit *test)
 	do {
 		match_expect_start |= report_matches(&expect_start1) || report_matches(&expect_start2);
 		match_expect_inscope |= report_matches(&expect_inscope);
-	} while (!end_test_checks(match_expect_start && match_expect_inscope));
+	} while (!end_test_checks(match_expect_inscope));
 	KUNIT_EXPECT_TRUE(test, match_expect_start);
-	KUNIT_EXPECT_TRUE(test, match_expect_inscope);
+	KUNIT_EXPECT_FALSE(test, match_expect_inscope);
 }
 
 /*
@@ -952,6 +982,29 @@ static void test_atomic_builtins(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, match_never);
 }
 
+__no_kcsan
+static void test_1bit_value_change(struct kunit *test)
+{
+	const struct expect_report expect = {
+		.access = {
+			{ test_kernel_read, &test_var, sizeof(test_var), 0 },
+			{ test_kernel_xor_1bit, &test_var, sizeof(test_var), __KCSAN_ACCESS_RW(KCSAN_ACCESS_WRITE) },
+		},
+	};
+	bool match = false;
+
+	begin_test_checks(test_kernel_read, test_kernel_xor_1bit);
+	do {
+		match = IS_ENABLED(CONFIG_KCSAN_PERMISSIVE)
+				? report_available()
+				: report_matches(&expect);
+	} while (!end_test_checks(match));
+	if (IS_ENABLED(CONFIG_KCSAN_PERMISSIVE))
+		KUNIT_EXPECT_FALSE(test, match);
+	else
+		KUNIT_EXPECT_TRUE(test, match);
+}
+
 /*
  * Generate thread counts for all test cases. Values generated are in interval
  * [2, 5] followed by exponentially increasing thread counts from 8 to 32.
@@ -1024,6 +1077,7 @@ static struct kunit_case kcsan_test_cases[] = {
 	KCSAN_KUNIT_CASE(test_jiffies_noreport),
 	KCSAN_KUNIT_CASE(test_seqlock_noreport),
 	KCSAN_KUNIT_CASE(test_atomic_builtins),
+	KCSAN_KUNIT_CASE(test_1bit_value_change),
 	{},
 };
 
@@ -1192,7 +1246,7 @@ static void kcsan_test_exit(void)
 	tracepoint_synchronize_unregister();
 }
 
-late_initcall(kcsan_test_init);
+late_initcall_sync(kcsan_test_init);
 module_exit(kcsan_test_exit);
 
 MODULE_LICENSE("GPL v2");

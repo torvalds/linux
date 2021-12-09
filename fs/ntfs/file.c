@@ -5,6 +5,7 @@
  * Copyright (c) 2001-2015 Anton Altaparmakov and Tuxera Inc.
  */
 
+#include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/gfp.h>
@@ -1829,7 +1830,7 @@ again:
 		 * pages being swapped out between us bringing them into memory
 		 * and doing the actual copying.
 		 */
-		if (unlikely(iov_iter_fault_in_readable(i, bytes))) {
+		if (unlikely(fault_in_iov_iter_readable(i, bytes))) {
 			status = -EFAULT;
 			break;
 		}

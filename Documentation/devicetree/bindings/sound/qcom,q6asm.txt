@@ -14,7 +14,7 @@ used by the apr service device.
 		    from DSP.
 		    example "qcom,q6asm-v2.0"
 
-= ASM DAIs (Digial Audio Interface)
+= ASM DAIs (Digital Audio Interface)
 "dais" subnode of the ASM node represents dai specific configuration
 
 - compatible:

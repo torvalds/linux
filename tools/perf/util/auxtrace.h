@@ -59,6 +59,7 @@ enum itrace_period_type {
 #define AUXTRACE_ERR_FLG_DATA_LOST	(1 << ('l' - 'a'))
 
 #define AUXTRACE_LOG_FLG_ALL_PERF_EVTS	(1 << ('a' - 'a'))
+#define AUXTRACE_LOG_FLG_USE_STDOUT	(1 << ('o' - 'a'))
 
 /**
  * struct itrace_synth_opts - AUX area tracing synthesis options.
@@ -84,6 +85,7 @@ enum itrace_period_type {
  * @thread_stack: feed branches to the thread_stack
  * @last_branch: add branch context to 'instruction' events
  * @add_last_branch: add branch context to existing event records
+ * @approx_ipc: approximate IPC
  * @flc: whether to synthesize first level cache events
  * @llc: whether to synthesize last level cache events
  * @tlb: whether to synthesize TLB events
@@ -127,6 +129,7 @@ struct itrace_synth_opts {
 	bool			thread_stack;
 	bool			last_branch;
 	bool			add_last_branch;
+	bool			approx_ipc;
 	bool			flc;
 	bool			llc;
 	bool			tlb;
@@ -440,52 +443,39 @@ struct auxtrace_cache;
 
 #ifdef HAVE_AUXTRACE_SUPPORT
 
-/*
- * In snapshot mode the mmapped page is read-only which makes using
- * __sync_val_compare_and_swap() problematic.  However, snapshot mode expects
- * the buffer is not updated while the snapshot is made (e.g. Intel PT disables
- * the event) so there is not a race anyway.
- */
-static inline u64 auxtrace_mmap__read_snapshot_head(struct auxtrace_mmap *mm)
+u64 compat_auxtrace_mmap__read_head(struct auxtrace_mmap *mm);
+int compat_auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail);
+
+static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm,
+					   int kernel_is_64_bit __maybe_unused)
 {
 	struct perf_event_mmap_page *pc = mm->userpg;
-	u64 head = READ_ONCE(pc->aux_head);
+	u64 head;
+
+#if BITS_PER_LONG == 32
+	if (kernel_is_64_bit)
+		return compat_auxtrace_mmap__read_head(mm);
+#endif
+	head = READ_ONCE(pc->aux_head);
 
 	/* Ensure all reads are done after we read the head */
 	smp_rmb();
 	return head;
 }
 
-static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
+static inline int auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail,
+					    int kernel_is_64_bit __maybe_unused)
 {
 	struct perf_event_mmap_page *pc = mm->userpg;
-#if BITS_PER_LONG == 64 || !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	u64 head = READ_ONCE(pc->aux_head);
-#else
-	u64 head = __sync_val_compare_and_swap(&pc->aux_head, 0, 0);
+
+#if BITS_PER_LONG == 32
+	if (kernel_is_64_bit)
+		return compat_auxtrace_mmap__write_tail(mm, tail);
 #endif
-
-	/* Ensure all reads are done after we read the head */
-	smp_rmb();
-	return head;
-}
-
-static inline void auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail)
-{
-	struct perf_event_mmap_page *pc = mm->userpg;
-#if BITS_PER_LONG != 64 && defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	u64 old_tail;
-#endif
-
 	/* Ensure all reads are done before we write the tail out */
 	smp_mb();
-#if BITS_PER_LONG == 64 || !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	pc->aux_tail = tail;
-#else
-	do {
-		old_tail = __sync_val_compare_and_swap(&pc->aux_tail, 0, 0);
-	} while (!__sync_bool_compare_and_swap(&pc->aux_tail, old_tail, tail));
-#endif
+	WRITE_ONCE(pc->aux_tail, tail);
+	return 0;
 }
 
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
@@ -652,6 +642,7 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				d[flags]:		create a debug log\n" \
 "							each flag must be preceded by + or -\n" \
 "							log flags are: a (all perf events)\n" \
+"							               o (output to stdout)\n" \
 "				f:	    		synthesize first level cache events\n" \
 "				m:	    		synthesize last level cache events\n" \
 "				t:	    		synthesize TLB events\n" \
@@ -662,6 +653,8 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				L[len]:			synthesize last branch entries on existing event records\n" \
 "				sNUMBER:    		skip initial number of events\n"		\
 "				q:			quicker (less detailed) decoding\n" \
+"				A:			approximate IPC\n" \
+"				Z:			prefer to ignore timestamps (so-called \"timeless\" decoding)\n" \
 "				PERIOD[ns|us|ms|i|t]:   specify period to sample stream\n" \
 "				concatenate multiple options. Default is ibxwpe or cewp\n"
 

@@ -3205,7 +3205,7 @@ static int ucc_geth_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	/*
 	 * If device is not running, we will set mac addr register
@@ -3516,7 +3516,7 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 	.ndo_set_mac_address	= ucc_geth_set_mac_addr,
 	.ndo_set_rx_mode	= ucc_geth_set_multi,
 	.ndo_tx_timeout		= ucc_geth_timeout,
-	.ndo_do_ioctl		= ucc_geth_ioctl,
+	.ndo_eth_ioctl		= ucc_geth_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ucc_netpoll,
 #endif
@@ -3731,7 +3731,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 		goto err_free_netdev;
 	}
 
-	of_get_mac_address(np, dev->dev_addr);
+	of_get_ethdev_address(np, dev);
 
 	ugeth->ug_info = ug_info;
 	ugeth->dev = device;

@@ -12,7 +12,7 @@ struct xfs_icreate_item {
 	struct xfs_icreate_log	ic_format;
 };
 
-extern kmem_zone_t *xfs_icreate_zone;	/* inode create item zone */
+extern struct kmem_cache *xfs_icreate_cache;	/* inode create item */
 
 void xfs_icreate_log(struct xfs_trans *tp, xfs_agnumber_t agno,
 			xfs_agblock_t agbno, unsigned int count,

@@ -1261,7 +1261,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			md_rdev_init(jdev);
 			jdev->mddev = &rs->md;
 			jdev->bdev = rs->journal_dev.dev->bdev;
-			jdev->sectors = to_sector(i_size_read(jdev->bdev->bd_inode));
+			jdev->sectors = bdev_nr_sectors(jdev->bdev);
 			if (jdev->sectors < MIN_RAID456_JOURNAL_SPACE) {
 				rs->ti->error = "No space for raid4/5/6 journal";
 				return -ENOSPC;
@@ -1607,7 +1607,7 @@ static int _check_data_dev_sectors(struct raid_set *rs)
 
 	rdev_for_each(rdev, &rs->md)
 		if (!test_bit(Journal, &rdev->flags) && rdev->bdev) {
-			ds = min(ds, to_sector(i_size_read(rdev->bdev->bd_inode)));
+			ds = min(ds, bdev_nr_sectors(rdev->bdev));
 			if (ds < rs->md.dev_sectors) {
 				rs->ti->error = "Component device(s) too small";
 				return -EINVAL;
@@ -2662,7 +2662,7 @@ static int rs_adjust_data_offsets(struct raid_set *rs)
 	 * Make sure we got a minimum amount of free sectors per device
 	 */
 	if (rs->data_offset &&
-	    to_sector(i_size_read(rdev->bdev->bd_inode)) - rs->md.dev_sectors < MIN_FREE_RESHAPE_SPACE) {
+	    bdev_nr_sectors(rdev->bdev) - rs->md.dev_sectors < MIN_FREE_RESHAPE_SPACE) {
 		rs->ti->error = data_offset ? "No space for forward reshape" :
 					      "No space for backward reshape";
 		return -ENOSPC;
@@ -3671,6 +3671,45 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		for (i = 0; i < rs->raid_disks; i++)
 			DMEMIT(" %s %s", __get_dev_name(rs->dev[i].meta_dev),
 					 __get_dev_name(rs->dev[i].data_dev));
+		break;
+
+	case STATUSTYPE_IMA:
+		rt = get_raid_type_by_ll(mddev->new_level, mddev->new_layout);
+		if (!rt)
+			return;
+
+		DMEMIT_TARGET_NAME_VERSION(ti->type);
+		DMEMIT(",raid_type=%s,raid_disks=%d", rt->name, mddev->raid_disks);
+
+		/* Access most recent mddev properties for status output */
+		smp_rmb();
+		recovery = rs->md.recovery;
+		state = decipher_sync_action(mddev, recovery);
+		DMEMIT(",raid_state=%s", sync_str(state));
+
+		for (i = 0; i < rs->raid_disks; i++) {
+			DMEMIT(",raid_device_%d_status=", i);
+			DMEMIT(__raid_dev_status(rs, &rs->dev[i].rdev));
+		}
+
+		if (rt_is_raid456(rt)) {
+			DMEMIT(",journal_dev_mode=");
+			switch (rs->journal_dev.mode) {
+			case R5C_JOURNAL_MODE_WRITE_THROUGH:
+				DMEMIT("%s",
+				       _raid456_journal_mode[R5C_JOURNAL_MODE_WRITE_THROUGH].param);
+				break;
+			case R5C_JOURNAL_MODE_WRITE_BACK:
+				DMEMIT("%s",
+				       _raid456_journal_mode[R5C_JOURNAL_MODE_WRITE_BACK].param);
+				break;
+			default:
+				DMEMIT("invalid");
+				break;
+			}
+		}
+		DMEMIT(";");
+		break;
 	}
 }
 

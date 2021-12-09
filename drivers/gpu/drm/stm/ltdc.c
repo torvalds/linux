@@ -845,7 +845,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 			LXCFBLR_CFBLL | LXCFBLR_CFBP, val);
 
 	/* Specifies the constant alpha value */
-	val = CONSTA_MAX;
+	val = newstate->alpha >> 8;
 	reg_update_bits(ldev->regs, LTDC_L1CACR + lofs, LXCACR_CONSTA, val);
 
 	/* Specifies the blending factors */
@@ -947,7 +947,6 @@ static const struct drm_plane_funcs ltdc_plane_funcs = {
 };
 
 static const struct drm_plane_helper_funcs ltdc_plane_helper_funcs = {
-	.prepare_fb = drm_gem_plane_helper_prepare_fb,
 	.atomic_check = ltdc_plane_atomic_check,
 	.atomic_update = ltdc_plane_atomic_update,
 	.atomic_disable = ltdc_plane_atomic_disable,
@@ -998,6 +997,8 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 
 	drm_plane_helper_add(plane, &ltdc_plane_helper_funcs);
 
+	drm_plane_create_alpha_property(plane);
+
 	DRM_DEBUG_DRIVER("plane:%d created\n", plane->base.id);
 
 	return plane;
@@ -1025,6 +1026,8 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 		return -EINVAL;
 	}
 
+	drm_plane_create_zpos_immutable_property(primary, 0);
+
 	ret = drm_crtc_init_with_planes(ddev, crtc, primary, NULL,
 					&ltdc_crtc_funcs, NULL);
 	if (ret) {
@@ -1047,6 +1050,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 			DRM_ERROR("Can not create overlay plane %d\n", i);
 			goto cleanup;
 		}
+		drm_plane_create_zpos_immutable_property(overlay, i);
 	}
 
 	return 0;
@@ -1122,8 +1126,9 @@ static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (ret) {
-		drm_encoder_cleanup(encoder);
-		return -EINVAL;
+		if (ret != -EPROBE_DEFER)
+			drm_encoder_cleanup(encoder);
+		return ret;
 	}
 
 	DRM_DEBUG_DRIVER("Bridge encoder:%d created\n", encoder->base.id);
@@ -1266,7 +1271,8 @@ int ltdc_load(struct drm_device *ddev)
 		if (bridge) {
 			ret = ltdc_encoder_init(ddev, bridge);
 			if (ret) {
-				DRM_ERROR("init encoder endpoint %d\n", i);
+				if (ret != -EPROBE_DEFER)
+					DRM_ERROR("init encoder endpoint %d\n", i);
 				goto err;
 			}
 		}
@@ -1338,9 +1344,6 @@ int ltdc_load(struct drm_device *ddev)
 		DRM_ERROR("Failed calling drm_vblank_init()\n");
 		goto err;
 	}
-
-	/* Allow usage of vblank without having to call drm_irq_install */
-	ddev->irq_enabled = 1;
 
 	clk_disable_unprepare(ldev->pixel_clk);
 

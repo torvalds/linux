@@ -78,10 +78,18 @@ struct lpfc_node_rrqs {
 };
 
 enum lpfc_fc4_xpt_flags {
-	NLP_WAIT_FOR_UNREG = 0x1,
-	SCSI_XPT_REGD      = 0x2,
-	NVME_XPT_REGD      = 0x4,
-	NLP_XPT_HAS_HH     = 0x8,
+	NLP_XPT_REGD		= 0x1,
+	SCSI_XPT_REGD		= 0x2,
+	NVME_XPT_REGD		= 0x4,
+	NVME_XPT_UNREG_WAIT	= 0x8,
+	NLP_XPT_HAS_HH		= 0x10
+};
+
+enum lpfc_nlp_save_flags {
+	/* devloss occurred during recovery */
+	NLP_IN_RECOV_POST_DEV_LOSS	= 0x1,
+	/* wait for outstanding LOGO to cmpl */
+	NLP_WAIT_FOR_LOGO		= 0x2,
 };
 
 struct lpfc_nodelist {
@@ -143,8 +151,9 @@ struct lpfc_nodelist {
 	unsigned long *active_rrqs_xri_bitmap;
 	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
 	uint32_t fc4_prli_sent;
-	u32 upcall_flags;
-#define	NLP_WAIT_FOR_LOGO 0x2
+
+	/* flags to keep ndlp alive until special conditions are met */
+	enum lpfc_nlp_save_flags save_flags;
 
 	enum lpfc_fc4_xpt_flags fc4_xpt_flags;
 

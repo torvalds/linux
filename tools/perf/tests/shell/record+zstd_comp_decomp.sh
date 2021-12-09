@@ -12,7 +12,7 @@ skip_if_no_z_record() {
 
 collect_z_record() {
 	echo "Collecting compressed record file:"
-	[[ "$(uname -m)" != s390x ]] && gflag='-g'
+	[ "$(uname -m)" != s390x ] && gflag='-g'
 	$perf_tool record -o $trace_file $gflag -z -F 5000 -- \
 		dd count=500 if=/dev/urandom of=/dev/null
 }
@@ -25,8 +25,8 @@ check_compressed_stats() {
 
 check_compressed_output() {
 	$perf_tool inject -i $trace_file -o $trace_file.decomp &&
-	$perf_tool report -i $trace_file --stdio | head -n -3 > $trace_file.comp.output &&
-	$perf_tool report -i $trace_file.decomp --stdio | head -n -3 > $trace_file.decomp.output &&
+	$perf_tool report -i $trace_file --stdio -F comm,dso,sym | head -n -3 > $trace_file.comp.output &&
+	$perf_tool report -i $trace_file.decomp --stdio -F comm,dso,sym | head -n -3 > $trace_file.decomp.output &&
 	diff $trace_file.comp.output $trace_file.decomp.output
 }
 

@@ -111,6 +111,23 @@ union ctlreg2 {
 	};
 };
 
+union ctlreg5 {
+	unsigned long val;
+	struct {
+		unsigned long	    : 33;
+		unsigned long pasteo: 25;
+		unsigned long	    : 6;
+	};
+};
+
+union ctlreg15 {
+	unsigned long val;
+	struct {
+		unsigned long lsea  : 61;
+		unsigned long	    : 3;
+	};
+};
+
 #define ctl_set_bit(cr, bit) smp_ctl_set_bit(cr, bit)
 #define ctl_clear_bit(cr, bit) smp_ctl_clear_bit(cr, bit)
 

@@ -14,8 +14,8 @@ struct ixp4xx_pata_data {
 	volatile u32	*cs1_cfg;
 	unsigned long	cs0_bits;
 	unsigned long	cs1_bits;
-	void __iomem	*cs0;
-	void __iomem	*cs1;
+	void __iomem	*cmd;
+	void __iomem	*ctl;
 };
 
 #endif

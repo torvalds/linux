@@ -360,13 +360,16 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		 priv->eeprom_CustomerID);
 
 	if (!priv->AutoloadFailFlag) {
+		u8 addr[ETH_ALEN];
+
 		for (i = 0; i < 6; i += 2) {
 			usValue = rtl92e_eeprom_read(dev,
 				 (EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1);
-			*(u16 *)(&dev->dev_addr[i]) = usValue;
+			*(u16 *)(&addr[i]) = usValue;
 		}
+		eth_hw_addr_set(dev, addr);
 	} else {
-		ether_addr_copy(dev->dev_addr, bMac_Tmp_Addr);
+		eth_hw_addr_set(dev, bMac_Tmp_Addr);
 	}
 
 	RT_TRACE(COMP_INIT, "Permanent Address = %pM\n",
@@ -2167,7 +2170,7 @@ rtl92e_init_variables(struct net_device  *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	strcpy(priv->nick, "rtl8192E");
+	strscpy(priv->nick, "rtl8192E", sizeof(priv->nick));
 
 	priv->rtllib->softmac_features  = IEEE_SOFTMAC_SCAN |
 		IEEE_SOFTMAC_ASSOCIATE | IEEE_SOFTMAC_PROBERQ |

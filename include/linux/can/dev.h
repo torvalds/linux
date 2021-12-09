@@ -32,6 +32,12 @@ enum can_mode {
 	CAN_MODE_SLEEP
 };
 
+enum can_termination_gpio {
+	CAN_TERMINATION_GPIO_DISABLED = 0,
+	CAN_TERMINATION_GPIO_ENABLED,
+	CAN_TERMINATION_GPIO_MAX,
+};
+
 /*
  * CAN common private data
  */
@@ -55,6 +61,8 @@ struct can_priv {
 	unsigned int termination_const_cnt;
 	const u16 *termination_const;
 	u16 termination;
+	struct gpio_desc *termination_gpio;
+	u16 termination_gpio_ohms[CAN_TERMINATION_GPIO_MAX];
 
 	enum can_state state;
 
@@ -74,6 +82,7 @@ struct can_priv {
 			    enum can_state *state);
 	int (*do_get_berr_counter)(const struct net_device *dev,
 				   struct can_berr_counter *bec);
+	int (*do_get_auto_tdcv)(const struct net_device *dev, u32 *tdcv);
 
 	unsigned int echo_skb_max;
 	struct sk_buff **echo_skb;
@@ -88,6 +97,39 @@ struct can_priv {
 #endif
 };
 
+static inline bool can_tdc_is_enabled(const struct can_priv *priv)
+{
+	return !!(priv->ctrlmode & CAN_CTRLMODE_TDC_MASK);
+}
+
+/*
+ * can_get_relative_tdco() - TDCO relative to the sample point
+ *
+ * struct can_tdc::tdco represents the absolute offset from TDCV. Some
+ * controllers use instead an offset relative to the Sample Point (SP)
+ * such that:
+ *
+ * SSP = TDCV + absolute TDCO
+ *     = TDCV + SP + relative TDCO
+ *
+ * -+----------- one bit ----------+-- TX pin
+ *  |<--- Sample Point --->|
+ *
+ *                         --+----------- one bit ----------+-- RX pin
+ *  |<-------- TDCV -------->|
+ *                           |<------------------------>| absolute TDCO
+ *                           |<--- Sample Point --->|
+ *                           |                      |<->| relative TDCO
+ *  |<------------- Secondary Sample Point ------------>|
+ */
+static inline s32 can_get_relative_tdco(const struct can_priv *priv)
+{
+	const struct can_bittiming *dbt = &priv->data_bittiming;
+	s32 sample_point_in_tc = (CAN_SYNC_SEG + dbt->prop_seg +
+				  dbt->phase_seg1) * dbt->brp;
+
+	return (s32)priv->tdc.tdco - sample_point_in_tc;
+}
 
 /* helper to define static CAN controller features at device creation time */
 static inline void can_set_static_ctrlmode(struct net_device *dev,

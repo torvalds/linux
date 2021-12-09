@@ -24,27 +24,17 @@ MODULE_DESCRIPTION("ip6tables security table, for MAC rules");
 				(1 << NF_INET_FORWARD) | \
 				(1 << NF_INET_LOCAL_OUT)
 
-static int __net_init ip6table_security_table_init(struct net *net);
-
 static const struct xt_table security_table = {
 	.name		= "security",
 	.valid_hooks	= SECURITY_VALID_HOOKS,
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_IPV6,
 	.priority	= NF_IP6_PRI_SECURITY,
-	.table_init     = ip6table_security_table_init,
 };
-
-static unsigned int
-ip6table_security_hook(void *priv, struct sk_buff *skb,
-		       const struct nf_hook_state *state)
-{
-	return ip6t_do_table(skb, state, priv);
-}
 
 static struct nf_hook_ops *sectbl_ops __read_mostly;
 
-static int __net_init ip6table_security_table_init(struct net *net)
+static int ip6table_security_table_init(struct net *net)
 {
 	struct ip6t_replace *repl;
 	int ret;
@@ -74,29 +64,32 @@ static struct pernet_operations ip6table_security_net_ops = {
 
 static int __init ip6table_security_init(void)
 {
-	int ret;
+	int ret = xt_register_template(&security_table,
+				       ip6table_security_table_init);
 
-	sectbl_ops = xt_hook_ops_alloc(&security_table, ip6table_security_hook);
-	if (IS_ERR(sectbl_ops))
+	if (ret < 0)
+		return ret;
+
+	sectbl_ops = xt_hook_ops_alloc(&security_table, ip6t_do_table);
+	if (IS_ERR(sectbl_ops)) {
+		xt_unregister_template(&security_table);
 		return PTR_ERR(sectbl_ops);
+	}
 
 	ret = register_pernet_subsys(&ip6table_security_net_ops);
 	if (ret < 0) {
 		kfree(sectbl_ops);
+		xt_unregister_template(&security_table);
 		return ret;
 	}
 
-	ret = ip6table_security_table_init(&init_net);
-	if (ret) {
-		unregister_pernet_subsys(&ip6table_security_net_ops);
-		kfree(sectbl_ops);
-	}
 	return ret;
 }
 
 static void __exit ip6table_security_fini(void)
 {
 	unregister_pernet_subsys(&ip6table_security_net_ops);
+	xt_unregister_template(&security_table);
 	kfree(sectbl_ops);
 }
 

@@ -1,11 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*  Marvell OcteonTx2 RVU Admin Function driver
+/* Marvell RVU Admin Function driver
  *
- * Copyright (C) 2018 Marvell International Ltd.
+ * Copyright (C) 2018 Marvell.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef RVU_STRUCT_H
@@ -63,6 +60,24 @@ enum rvu_af_int_vec_e {
 	RVU_AF_INT_VEC_GEN    = 0x3,
 	RVU_AF_INT_VEC_MBOX   = 0x4,
 	RVU_AF_INT_VEC_CNT    = 0x5,
+};
+
+/* CPT Admin function Interrupt Vector Enumeration */
+enum cpt_af_int_vec_e {
+	CPT_AF_INT_VEC_FLT0	= 0x0,
+	CPT_AF_INT_VEC_FLT1	= 0x1,
+	CPT_AF_INT_VEC_RVU	= 0x2,
+	CPT_AF_INT_VEC_RAS	= 0x3,
+	CPT_AF_INT_VEC_CNT	= 0x4,
+};
+
+enum cpt_10k_af_int_vec_e {
+	CPT_10K_AF_INT_VEC_FLT0	= 0x0,
+	CPT_10K_AF_INT_VEC_FLT1	= 0x1,
+	CPT_10K_AF_INT_VEC_FLT2	= 0x2,
+	CPT_10K_AF_INT_VEC_RVU	= 0x3,
+	CPT_10K_AF_INT_VEC_RAS	= 0x4,
+	CPT_10K_AF_INT_VEC_CNT	= 0x5,
 };
 
 /* NPA Admin function Interrupt Vector Enumeration */

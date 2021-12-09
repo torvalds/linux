@@ -55,7 +55,7 @@ struct gadget_info {
 
 static inline struct gadget_info *to_gadget_info(struct config_item *item)
 {
-	 return container_of(to_config_group(item), struct gadget_info, group);
+	return container_of(to_config_group(item), struct gadget_info, group);
 }
 
 struct config_usb_cfg {
@@ -71,6 +71,11 @@ static inline struct config_usb_cfg *to_config_usb_cfg(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct config_usb_cfg,
 			group);
+}
+
+static inline struct gadget_info *cfg_to_gadget_info(struct config_usb_cfg *cfg)
+{
+	return container_of(cfg->c.cdev, struct gadget_info, cdev);
 }
 
 struct gadget_strings {
@@ -365,21 +370,21 @@ static struct configfs_attribute *gadget_root_attrs[] = {
 
 static inline struct gadget_strings *to_gadget_strings(struct config_item *item)
 {
-	 return container_of(to_config_group(item), struct gadget_strings,
+	return container_of(to_config_group(item), struct gadget_strings,
 			 group);
 }
 
 static inline struct gadget_config_name *to_gadget_config_name(
 		struct config_item *item)
 {
-	 return container_of(to_config_group(item), struct gadget_config_name,
+	return container_of(to_config_group(item), struct gadget_config_name,
 			 group);
 }
 
 static inline struct usb_function_instance *to_usb_function_instance(
 		struct config_item *item)
 {
-	 return container_of(to_config_group(item),
+	return container_of(to_config_group(item),
 			 struct usb_function_instance, group);
 }
 
@@ -413,8 +418,7 @@ static int config_usb_cfg_link(
 	struct config_item *usb_func_ci)
 {
 	struct config_usb_cfg *cfg = to_config_usb_cfg(usb_cfg_ci);
-	struct usb_composite_dev *cdev = cfg->c.cdev;
-	struct gadget_info *gi = container_of(cdev, struct gadget_info, cdev);
+	struct gadget_info *gi = cfg_to_gadget_info(cfg);
 
 	struct config_group *group = to_config_group(usb_func_ci);
 	struct usb_function_instance *fi = container_of(group,
@@ -464,8 +468,7 @@ static void config_usb_cfg_unlink(
 	struct config_item *usb_func_ci)
 {
 	struct config_usb_cfg *cfg = to_config_usb_cfg(usb_cfg_ci);
-	struct usb_composite_dev *cdev = cfg->c.cdev;
-	struct gadget_info *gi = container_of(cdev, struct gadget_info, cdev);
+	struct gadget_info *gi = cfg_to_gadget_info(cfg);
 
 	struct config_group *group = to_config_group(usb_func_ci);
 	struct usb_function_instance *fi = container_of(group,
@@ -505,12 +508,15 @@ static struct configfs_item_operations gadget_config_item_ops = {
 static ssize_t gadget_config_desc_MaxPower_show(struct config_item *item,
 		char *page)
 {
-	return sprintf(page, "%u\n", to_config_usb_cfg(item)->c.MaxPower);
+	struct config_usb_cfg *cfg = to_config_usb_cfg(item);
+
+	return sprintf(page, "%u\n", cfg->c.MaxPower);
 }
 
 static ssize_t gadget_config_desc_MaxPower_store(struct config_item *item,
 		const char *page, size_t len)
 {
+	struct config_usb_cfg *cfg = to_config_usb_cfg(item);
 	u16 val;
 	int ret;
 	ret = kstrtou16(page, 0, &val);
@@ -518,20 +524,22 @@ static ssize_t gadget_config_desc_MaxPower_store(struct config_item *item,
 		return ret;
 	if (DIV_ROUND_UP(val, 8) > 0xff)
 		return -ERANGE;
-	to_config_usb_cfg(item)->c.MaxPower = val;
+	cfg->c.MaxPower = val;
 	return len;
 }
 
 static ssize_t gadget_config_desc_bmAttributes_show(struct config_item *item,
 		char *page)
 {
-	return sprintf(page, "0x%02x\n",
-		to_config_usb_cfg(item)->c.bmAttributes);
+	struct config_usb_cfg *cfg = to_config_usb_cfg(item);
+
+	return sprintf(page, "0x%02x\n", cfg->c.bmAttributes);
 }
 
 static ssize_t gadget_config_desc_bmAttributes_store(struct config_item *item,
 		const char *page, size_t len)
 {
+	struct config_usb_cfg *cfg = to_config_usb_cfg(item);
 	u8 val;
 	int ret;
 	ret = kstrtou8(page, 0, &val);
@@ -542,7 +550,7 @@ static ssize_t gadget_config_desc_bmAttributes_store(struct config_item *item,
 	if (val & ~(USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER |
 				USB_CONFIG_ATT_WAKEUP))
 		return -EINVAL;
-	to_config_usb_cfg(item)->c.bmAttributes = val;
+	cfg->c.bmAttributes = val;
 	return len;
 }
 
@@ -1404,6 +1412,10 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 				goto err_purge_funcs;
 			}
 		}
+		ret = usb_gadget_check_config(cdev->gadget);
+		if (ret)
+			goto err_purge_funcs;
+
 		usb_ep_autoconfig_reset(cdev->gadget);
 	}
 	if (cdev->use_os_string) {

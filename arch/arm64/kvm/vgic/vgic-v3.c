@@ -15,6 +15,7 @@
 static bool group0_trap;
 static bool group1_trap;
 static bool common_trap;
+static bool dir_trap;
 static bool gicv4_enable;
 
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
@@ -46,6 +47,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		u32 intid, cpuid;
 		struct vgic_irq *irq;
 		bool is_v2_sgi = false;
+		bool deactivated;
 
 		cpuid = val & GICH_LR_PHYSID_CPUID;
 		cpuid >>= GICH_LR_PHYSID_CPUID_SHIFT;
@@ -68,7 +70,8 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 
 		raw_spin_lock(&irq->irq_lock);
 
-		/* Always preserve the active bit */
+		/* Always preserve the active bit, note deactivation */
+		deactivated = irq->active && !(val & ICH_LR_ACTIVE_BIT);
 		irq->active = !!(val & ICH_LR_ACTIVE_BIT);
 
 		if (irq->active && is_v2_sgi)
@@ -89,36 +92,8 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		if (irq->config == VGIC_CONFIG_LEVEL && !(val & ICH_LR_STATE))
 			irq->pending_latch = false;
 
-		/*
-		 * Level-triggered mapped IRQs are special because we only
-		 * observe rising edges as input to the VGIC.
-		 *
-		 * If the guest never acked the interrupt we have to sample
-		 * the physical line and set the line level, because the
-		 * device state could have changed or we simply need to
-		 * process the still pending interrupt later.
-		 *
-		 * If this causes us to lower the level, we have to also clear
-		 * the physical active state, since we will otherwise never be
-		 * told when the interrupt becomes asserted again.
-		 *
-		 * Another case is when the interrupt requires a helping hand
-		 * on deactivation (no HW deactivation, for example).
-		 */
-		if (vgic_irq_is_mapped_level(irq)) {
-			bool resample = false;
-
-			if (val & ICH_LR_PENDING_BIT) {
-				irq->line_level = vgic_get_phys_line_level(irq);
-				resample = !irq->line_level;
-			} else if (vgic_irq_needs_resampling(irq) &&
-				   !(irq->active || irq->pending_latch)) {
-				resample = true;
-			}
-
-			if (resample)
-				vgic_irq_set_phys_active(irq, false);
-		}
+		/* Handle resampling for mapped interrupts if required */
+		vgic_irq_handle_resampling(irq, deactivated, val & ICH_LR_PENDING_BIT);
 
 		raw_spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
@@ -322,6 +297,8 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 		vgic_v3->vgic_hcr |= ICH_HCR_TALL1;
 	if (common_trap)
 		vgic_v3->vgic_hcr |= ICH_HCR_TC;
+	if (dir_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TDIR;
 }
 
 int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq)
@@ -509,8 +486,10 @@ bool vgic_v3_check_base(struct kvm *kvm)
 		return false;
 
 	list_for_each_entry(rdreg, &d->rd_regions, list) {
-		if (rdreg->base + vgic_v3_rd_region_size(kvm, rdreg) <
-			rdreg->base)
+		size_t sz = vgic_v3_rd_region_size(kvm, rdreg);
+
+		if (vgic_check_iorange(kvm, VGIC_ADDR_UNDEF,
+				       rdreg->base, SZ_64K, sz))
 			return false;
 	}
 
@@ -697,11 +676,23 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 		group1_trap = true;
 	}
 
-	if (group0_trap || group1_trap || common_trap) {
-		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s], reduced performance)\n",
+	if (kvm_vgic_global_state.ich_vtr_el2 & ICH_VTR_SEIS_MASK) {
+		kvm_info("GICv3 with locally generated SEI\n");
+
+		group0_trap = true;
+		group1_trap = true;
+		if (ich_vtr_el2 & ICH_VTR_TDS_MASK)
+			dir_trap = true;
+		else
+			common_trap = true;
+	}
+
+	if (group0_trap || group1_trap || common_trap | dir_trap) {
+		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s%s], reduced performance)\n",
 			 group0_trap ? "G0" : "",
 			 group1_trap ? "G1" : "",
-			 common_trap ? "C"  : "");
+			 common_trap ? "C"  : "",
+			 dir_trap    ? "D"  : "");
 		static_branch_enable(&vgic_v3_cpuif_trap);
 	}
 

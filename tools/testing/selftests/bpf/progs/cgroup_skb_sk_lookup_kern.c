@@ -14,7 +14,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";
 
 __u16 g_serv_port = 0;

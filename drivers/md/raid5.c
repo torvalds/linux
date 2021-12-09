@@ -2437,7 +2437,7 @@ static int resize_chunks(struct r5conf *conf, int new_disks, int new_sectors)
 	    conf->scribble_sectors >= new_sectors)
 		return 0;
 	mddev_suspend(conf->mddev);
-	get_online_cpus();
+	cpus_read_lock();
 
 	for_each_present_cpu(cpu) {
 		struct raid5_percpu *percpu;
@@ -2449,7 +2449,7 @@ static int resize_chunks(struct r5conf *conf, int new_disks, int new_sectors)
 			break;
 	}
 
-	put_online_cpus();
+	cpus_read_unlock();
 	mddev_resume(conf->mddev);
 	if (!err) {
 		conf->scribble_disks = new_disks;
@@ -7732,10 +7732,7 @@ static int raid5_run(struct mddev *mddev)
 		 * discard data disk but write parity disk
 		 */
 		stripe = stripe * PAGE_SIZE;
-		/* Round up to power of 2, as discard handling
-		 * currently assumes that */
-		while ((stripe-1) & stripe)
-			stripe = (stripe | (stripe-1)) + 1;
+		stripe = roundup_pow_of_two(stripe);
 		mddev->queue->limits.discard_alignment = stripe;
 		mddev->queue->limits.discard_granularity = stripe;
 
@@ -8282,7 +8279,7 @@ static int raid5_start_reshape(struct mddev *mddev)
 	}
 	conf->reshape_checkpoint = jiffies;
 	md_wakeup_thread(mddev->sync_thread);
-	md_new_event(mddev);
+	md_new_event();
 	return 0;
 }
 

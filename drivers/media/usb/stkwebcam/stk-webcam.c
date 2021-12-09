@@ -1234,6 +1234,11 @@ static void stk_v4l_dev_release(struct video_device *vd)
 	if (dev->sio_bufs != NULL || dev->isobufs != NULL)
 		pr_err("We are leaking memory\n");
 	usb_put_intf(dev->interface);
+	usb_put_dev(dev->udev);
+
+	v4l2_ctrl_handler_free(&dev->hdl);
+	v4l2_device_unregister(&dev->v4l2_dev);
+	kfree(dev);
 }
 
 static const struct video_device stk_v4l_data = {
@@ -1309,7 +1314,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 	init_waitqueue_head(&dev->wait_frame);
 	dev->first_init = 1; /* webcam LED management */
 
-	dev->udev = udev;
+	dev->udev = usb_get_dev(udev);
 	dev->interface = interface;
 	usb_get_intf(interface);
 
@@ -1346,7 +1351,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 	if (!dev->isoc_ep) {
 		pr_err("Could not find isoc-in endpoint\n");
 		err = -ENODEV;
-		goto error;
+		goto error_put;
 	}
 	dev->vsettings.palette = V4L2_PIX_FMT_RGB565;
 	dev->vsettings.mode = MODE_VGA;
@@ -1359,10 +1364,13 @@ static int stk_camera_probe(struct usb_interface *interface,
 
 	err = stk_register_video_device(dev);
 	if (err)
-		goto error;
+		goto error_put;
 
 	return 0;
 
+error_put:
+	usb_put_intf(interface);
+	usb_put_dev(dev->udev);
 error:
 	v4l2_ctrl_handler_free(hdl);
 	v4l2_device_unregister(&dev->v4l2_dev);
@@ -1383,9 +1391,6 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 		video_device_node_name(&dev->vdev));
 
 	video_unregister_device(&dev->vdev);
-	v4l2_ctrl_handler_free(&dev->hdl);
-	v4l2_device_unregister(&dev->v4l2_dev);
-	kfree(dev);
 }
 
 #ifdef CONFIG_PM

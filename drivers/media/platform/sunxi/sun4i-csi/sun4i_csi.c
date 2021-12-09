@@ -122,7 +122,7 @@ static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
 	struct fwnode_handle *ep;
 	int ret;
 
-	v4l2_async_notifier_init(&csi->notifier);
+	v4l2_async_nf_init(&csi->notifier);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
@@ -135,8 +135,8 @@ static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
 
 	csi->bus = vep.bus.parallel;
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&csi->notifier, ep,
-							   struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
+					      struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out;
@@ -154,7 +154,6 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	struct v4l2_subdev *subdev;
 	struct video_device *vdev;
 	struct sun4i_csi *csi;
-	struct resource *res;
 	int ret;
 	int irq;
 
@@ -179,8 +178,7 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	media_device_init(&csi->mdev);
 	csi->v4l.mdev = &csi->mdev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	csi->regs = devm_ioremap_resource(&pdev->dev, res);
+	csi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi->regs))
 		return PTR_ERR(csi->regs);
 
@@ -244,7 +242,7 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unregister_media;
 
-	ret = v4l2_async_notifier_register(&csi->v4l, &csi->notifier);
+	ret = v4l2_async_nf_register(&csi->v4l, &csi->notifier);
 	if (ret) {
 		dev_err(csi->dev, "Couldn't register our notifier.\n");
 		goto err_unregister_media;
@@ -268,8 +266,8 @@ static int sun4i_csi_remove(struct platform_device *pdev)
 {
 	struct sun4i_csi *csi = platform_get_drvdata(pdev);
 
-	v4l2_async_notifier_unregister(&csi->notifier);
-	v4l2_async_notifier_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->notifier);
+	v4l2_async_nf_cleanup(&csi->notifier);
 	vb2_video_unregister_device(&csi->vdev);
 	media_device_unregister(&csi->mdev);
 	sun4i_csi_dma_unregister(csi);

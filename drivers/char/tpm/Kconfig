@@ -76,7 +76,7 @@ config TCG_TIS_SPI_CR50
 
 config TCG_TIS_SYNQUACER
 	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface (MMIO - SynQuacer)"
-	depends on ARCH_SYNQUACER
+	depends on ARCH_SYNQUACER || COMPILE_TEST
 	select TCG_TIS_CORE
 	help
 	  If you have a TPM security chip that is compliant with the
@@ -89,7 +89,6 @@ config TCG_TIS_SYNQUACER
 config TCG_TIS_I2C_CR50
 	tristate "TPM Interface Specification 2.0 Interface (I2C - CR50)"
 	depends on I2C
-	select TCG_CR50
 	help
 	  This is a driver for the Google cr50 I2C TPM interface which is a
 	  custom microcontroller and requires a custom i2c protocol interface

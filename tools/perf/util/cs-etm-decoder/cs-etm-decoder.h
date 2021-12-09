@@ -37,11 +37,22 @@ struct cs_etmv4_trace_params {
 	u32 reg_traceidr;
 };
 
+struct cs_ete_trace_params {
+	u32 reg_idr0;
+	u32 reg_idr1;
+	u32 reg_idr2;
+	u32 reg_idr8;
+	u32 reg_configr;
+	u32 reg_traceidr;
+	u32 reg_devarch;
+};
+
 struct cs_etm_trace_params {
 	int protocol;
 	union {
 		struct cs_etmv3_trace_params etmv3;
 		struct cs_etmv4_trace_params etmv4;
+		struct cs_ete_trace_params ete;
 	};
 };
 
@@ -65,6 +76,7 @@ enum {
 	CS_ETM_PROTO_ETMV4i,
 	CS_ETM_PROTO_ETMV4d,
 	CS_ETM_PROTO_PTM,
+	CS_ETM_PROTO_ETE
 };
 
 enum cs_etm_decoder_operation {
@@ -92,5 +104,6 @@ int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 			       struct cs_etm_packet *packet);
 
 int cs_etm_decoder__reset(struct cs_etm_decoder *decoder);
+const char *cs_etm_decoder__get_name(struct cs_etm_decoder *decoder);
 
 #endif /* INCLUDE__CS_ETM_DECODER_H__ */

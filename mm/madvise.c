@@ -862,10 +862,12 @@ static long madvise_populate(struct vm_area_struct *vma,
 			switch (pages) {
 			case -EINTR:
 				return -EINTR;
-			case -EFAULT: /* Incompatible mappings / permissions. */
+			case -EINVAL: /* Incompatible mappings / permissions. */
 				return -EINVAL;
 			case -EHWPOISON:
 				return -EHWPOISON;
+			case -EFAULT: /* VM_FAULT_SIGBUS or VM_FAULT_SIGSEGV */
+				return -EFAULT;
 			default:
 				pr_warn_once("%s: unhandled return value: %ld\n",
 					     __func__, pages);
@@ -910,7 +912,7 @@ static long madvise_remove(struct vm_area_struct *vma,
 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
 
 	/*
-	 * Filesystem's fallocate may need to take i_mutex.  We need to
+	 * Filesystem's fallocate may need to take i_rwsem.  We need to
 	 * explicitly grab a reference because the vma (and hence the
 	 * vma's reference to the file) can go away as soon as we drop
 	 * mmap_lock.
@@ -1046,6 +1048,7 @@ process_madvise_behavior_valid(int behavior)
 	switch (behavior) {
 	case MADV_COLD:
 	case MADV_PAGEOUT:
+	case MADV_WILLNEED:
 		return true;
 	default:
 		return false;
@@ -1232,7 +1235,6 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 	struct iovec iovstack[UIO_FASTIOV], iovec;
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
-	struct pid *pid;
 	struct task_struct *task;
 	struct mm_struct *mm;
 	size_t total_len;
@@ -1247,16 +1249,10 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 	if (ret < 0)
 		goto out;
 
-	pid = pidfd_get_pid(pidfd, &f_flags);
-	if (IS_ERR(pid)) {
-		ret = PTR_ERR(pid);
+	task = pidfd_get_task(pidfd, &f_flags);
+	if (IS_ERR(task)) {
+		ret = PTR_ERR(task);
 		goto free_iov;
-	}
-
-	task = get_pid_task(pid, PIDTYPE_PID);
-	if (!task) {
-		ret = -ESRCH;
-		goto put_pid;
 	}
 
 	if (!process_madvise_behavior_valid(behavior)) {
@@ -1298,8 +1294,6 @@ release_mm:
 	mmput(mm);
 release_task:
 	put_task_struct(task);
-put_pid:
-	put_pid(pid);
 free_iov:
 	kfree(iov);
 out:

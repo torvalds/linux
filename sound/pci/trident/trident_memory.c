@@ -31,7 +31,7 @@
 /* fill TLB entrie(s) corresponding to page with ptr */
 #define set_tlb_bus(trident,page,addr) __set_tlb_bus(trident,page,addr)
 /* fill TLB entrie(s) corresponding to page with silence pointer */
-#define set_silent_tlb(trident,page)	__set_tlb_bus(trident, page, trident->tlb.silent_page.addr)
+#define set_silent_tlb(trident,page)	__set_tlb_bus(trident, page, trident->tlb.silent_page->addr)
 /* get aligned page from offset address */
 #define get_aligned_page(offset)	((offset) >> 12)
 /* get offset address from aligned page */
@@ -58,8 +58,8 @@ static inline void set_tlb_bus(struct snd_trident *trident, int page,
 static inline void set_silent_tlb(struct snd_trident *trident, int page)
 {
 	page <<= 1;
-	__set_tlb_bus(trident, page, trident->tlb.silent_page.addr);
-	__set_tlb_bus(trident, page+1, trident->tlb.silent_page.addr);
+	__set_tlb_bus(trident, page, trident->tlb.silent_page->addr);
+	__set_tlb_bus(trident, page+1, trident->tlb.silent_page->addr);
 }
 
 #else
@@ -92,7 +92,7 @@ static inline void set_silent_tlb(struct snd_trident *trident, int page)
 	int i;
 	page *= UNIT_PAGES;
 	for (i = 0; i < UNIT_PAGES; i++, page++)
-		__set_tlb_bus(trident, page, trident->tlb.silent_page.addr);
+		__set_tlb_bus(trident, page, trident->tlb.silent_page->addr);
 }
 
 #endif /* PAGE_SIZE */

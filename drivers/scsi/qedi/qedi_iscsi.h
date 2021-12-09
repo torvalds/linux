@@ -80,6 +80,7 @@ struct qedi_endpoint {
 	u32 handle;
 	u32 fw_cid;
 	void __iomem *p_doorbell;
+	struct iscsi_db_data db_data;
 
 	/* Send queue management */
 	struct iscsi_wqe *sq;
@@ -181,7 +182,7 @@ struct qedi_cmd {
 	struct scsi_cmnd *scsi_cmd;
 	struct scatterlist *sg;
 	struct qedi_io_bdt io_tbl;
-	struct e4_iscsi_task_context request;
+	struct iscsi_task_context request;
 	unsigned char *sense_buffer;
 	dma_addr_t sense_buffer_dma;
 	u16 task_id;

@@ -334,6 +334,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     u8 *buf;
     size_t len;
     u_char buggybuf[32];
+    u8 addr[ETH_ALEN];
 
     dev_dbg(&link->dev, "fmvj18x_config\n");
 
@@ -468,8 +469,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		    goto failed;
 	    }
 	    /* Read MACID from CIS */
-	    for (i = 0; i < 6; i++)
-		    dev->dev_addr[i] = buf[i + 5];
+	    eth_hw_addr_set(dev, &buf[5]);
 	    kfree(buf);
 	} else {
 	    if (pcmcia_get_mac_from_cis(link, dev))
@@ -490,7 +490,8 @@ static int fmvj18x_config(struct pcmcia_device *link)
     case UNGERMANN:
 	/* Read MACID from register */
 	for (i = 0; i < 6; i++) 
-	    dev->dev_addr[i] = inb(ioaddr + UNGERMANN_MAC_ID + i);
+	    addr[i] = inb(ioaddr + UNGERMANN_MAC_ID + i);
+	eth_hw_addr_set(dev, addr);
 	card_name = "Access/CARD";
 	break;
     case XXX10304:
@@ -499,16 +500,15 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    pr_notice("unable to read hardware net address\n");
 	    goto failed;
 	}
-	for (i = 0 ; i < 6; i++) {
-	    dev->dev_addr[i] = buggybuf[i];
-	}
+	eth_hw_addr_set(dev, buggybuf);
 	card_name = "FMV-J182";
 	break;
     case MBH10302:
     default:
 	/* Read MACID from register */
 	for (i = 0; i < 6; i++) 
-	    dev->dev_addr[i] = inb(ioaddr + MAC_ID + i);
+	    addr[i] = inb(ioaddr + MAC_ID + i);
+	eth_hw_addr_set(dev, addr);
 	card_name = "FMV-J181";
 	break;
     }

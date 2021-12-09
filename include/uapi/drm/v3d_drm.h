@@ -38,6 +38,9 @@ extern "C" {
 #define DRM_V3D_GET_BO_OFFSET                     0x05
 #define DRM_V3D_SUBMIT_TFU                        0x06
 #define DRM_V3D_SUBMIT_CSD                        0x07
+#define DRM_V3D_PERFMON_CREATE                    0x08
+#define DRM_V3D_PERFMON_DESTROY                   0x09
+#define DRM_V3D_PERFMON_GET_VALUES                0x0a
 
 #define DRM_IOCTL_V3D_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CL, struct drm_v3d_submit_cl)
 #define DRM_IOCTL_V3D_WAIT_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_WAIT_BO, struct drm_v3d_wait_bo)
@@ -47,8 +50,75 @@ extern "C" {
 #define DRM_IOCTL_V3D_GET_BO_OFFSET       DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_GET_BO_OFFSET, struct drm_v3d_get_bo_offset)
 #define DRM_IOCTL_V3D_SUBMIT_TFU          DRM_IOW(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_TFU, struct drm_v3d_submit_tfu)
 #define DRM_IOCTL_V3D_SUBMIT_CSD          DRM_IOW(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CSD, struct drm_v3d_submit_csd)
+#define DRM_IOCTL_V3D_PERFMON_CREATE      DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_PERFMON_CREATE, \
+						   struct drm_v3d_perfmon_create)
+#define DRM_IOCTL_V3D_PERFMON_DESTROY     DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_PERFMON_DESTROY, \
+						   struct drm_v3d_perfmon_destroy)
+#define DRM_IOCTL_V3D_PERFMON_GET_VALUES  DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_PERFMON_GET_VALUES, \
+						   struct drm_v3d_perfmon_get_values)
 
 #define DRM_V3D_SUBMIT_CL_FLUSH_CACHE             0x01
+#define DRM_V3D_SUBMIT_EXTENSION		  0x02
+
+/* struct drm_v3d_extension - ioctl extensions
+ *
+ * Linked-list of generic extensions where the id identify which struct is
+ * pointed by ext_data. Therefore, DRM_V3D_EXT_ID_* is used on id to identify
+ * the extension type.
+ */
+struct drm_v3d_extension {
+	__u64 next;
+	__u32 id;
+#define DRM_V3D_EXT_ID_MULTI_SYNC		0x01
+	__u32 flags; /* mbz */
+};
+
+/* struct drm_v3d_sem - wait/signal semaphore
+ *
+ * If binary semaphore, it only takes syncobj handle and ignores flags and
+ * point fields. Point is defined for timeline syncobj feature.
+ */
+struct drm_v3d_sem {
+	__u32 handle; /* syncobj */
+	/* rsv below, for future uses */
+	__u32 flags;
+	__u64 point;  /* for timeline sem support */
+	__u64 mbz[2]; /* must be zero, rsv */
+};
+
+/* Enum for each of the V3D queues. */
+enum v3d_queue {
+	V3D_BIN,
+	V3D_RENDER,
+	V3D_TFU,
+	V3D_CSD,
+	V3D_CACHE_CLEAN,
+};
+
+/**
+ * struct drm_v3d_multi_sync - ioctl extension to add support multiples
+ * syncobjs for commands submission.
+ *
+ * When an extension of DRM_V3D_EXT_ID_MULTI_SYNC id is defined, it points to
+ * this extension to define wait and signal dependencies, instead of single
+ * in/out sync entries on submitting commands. The field flags is used to
+ * determine the stage to set wait dependencies.
+ */
+struct drm_v3d_multi_sync {
+	struct drm_v3d_extension base;
+	/* Array of wait and signal semaphores */
+	__u64 in_syncs;
+	__u64 out_syncs;
+
+	/* Number of entries */
+	__u32 in_sync_count;
+	__u32 out_sync_count;
+
+	/* set the stage (v3d_queue) to sync */
+	__u32 wait_stage;
+
+	__u32 pad; /* mbz */
+};
 
 /**
  * struct drm_v3d_submit_cl - ioctl argument for submitting commands to the 3D
@@ -126,7 +196,16 @@ struct drm_v3d_submit_cl {
 	/* Number of BO handles passed in (size is that times 4). */
 	__u32 bo_handle_count;
 
+	/* DRM_V3D_SUBMIT_* properties */
 	__u32 flags;
+
+	/* ID of the perfmon to attach to this job. 0 means no perfmon. */
+	__u32 perfmon_id;
+
+	__u32 pad;
+
+	/* Pointer to an array of ioctl extensions*/
+	__u64 extensions;
 };
 
 /**
@@ -195,6 +274,8 @@ enum drm_v3d_param {
 	DRM_V3D_PARAM_SUPPORTS_TFU,
 	DRM_V3D_PARAM_SUPPORTS_CSD,
 	DRM_V3D_PARAM_SUPPORTS_CACHE_FLUSH,
+	DRM_V3D_PARAM_SUPPORTS_PERFMON,
+	DRM_V3D_PARAM_SUPPORTS_MULTISYNC_EXT,
 };
 
 struct drm_v3d_get_param {
@@ -233,6 +314,11 @@ struct drm_v3d_submit_tfu {
 	__u32 in_sync;
 	/* Sync object to signal when the TFU job is done. */
 	__u32 out_sync;
+
+	__u32 flags;
+
+	/* Pointer to an array of ioctl extensions*/
+	__u64 extensions;
 };
 
 /* Submits a compute shader for dispatch.  This job will block on any
@@ -258,6 +344,134 @@ struct drm_v3d_submit_csd {
 	__u32 in_sync;
 	/* Sync object to signal when the CSD job is done. */
 	__u32 out_sync;
+
+	/* ID of the perfmon to attach to this job. 0 means no perfmon. */
+	__u32 perfmon_id;
+
+	/* Pointer to an array of ioctl extensions*/
+	__u64 extensions;
+
+	__u32 flags;
+
+	__u32 pad;
+};
+
+enum {
+	V3D_PERFCNT_FEP_VALID_PRIMTS_NO_PIXELS,
+	V3D_PERFCNT_FEP_VALID_PRIMS,
+	V3D_PERFCNT_FEP_EZ_NFCLIP_QUADS,
+	V3D_PERFCNT_FEP_VALID_QUADS,
+	V3D_PERFCNT_TLB_QUADS_STENCIL_FAIL,
+	V3D_PERFCNT_TLB_QUADS_STENCILZ_FAIL,
+	V3D_PERFCNT_TLB_QUADS_STENCILZ_PASS,
+	V3D_PERFCNT_TLB_QUADS_ZERO_COV,
+	V3D_PERFCNT_TLB_QUADS_NONZERO_COV,
+	V3D_PERFCNT_TLB_QUADS_WRITTEN,
+	V3D_PERFCNT_PTB_PRIM_VIEWPOINT_DISCARD,
+	V3D_PERFCNT_PTB_PRIM_CLIP,
+	V3D_PERFCNT_PTB_PRIM_REV,
+	V3D_PERFCNT_QPU_IDLE_CYCLES,
+	V3D_PERFCNT_QPU_ACTIVE_CYCLES_VERTEX_COORD_USER,
+	V3D_PERFCNT_QPU_ACTIVE_CYCLES_FRAG,
+	V3D_PERFCNT_QPU_CYCLES_VALID_INSTR,
+	V3D_PERFCNT_QPU_CYCLES_TMU_STALL,
+	V3D_PERFCNT_QPU_CYCLES_SCOREBOARD_STALL,
+	V3D_PERFCNT_QPU_CYCLES_VARYINGS_STALL,
+	V3D_PERFCNT_QPU_IC_HIT,
+	V3D_PERFCNT_QPU_IC_MISS,
+	V3D_PERFCNT_QPU_UC_HIT,
+	V3D_PERFCNT_QPU_UC_MISS,
+	V3D_PERFCNT_TMU_TCACHE_ACCESS,
+	V3D_PERFCNT_TMU_TCACHE_MISS,
+	V3D_PERFCNT_VPM_VDW_STALL,
+	V3D_PERFCNT_VPM_VCD_STALL,
+	V3D_PERFCNT_BIN_ACTIVE,
+	V3D_PERFCNT_RDR_ACTIVE,
+	V3D_PERFCNT_L2T_HITS,
+	V3D_PERFCNT_L2T_MISSES,
+	V3D_PERFCNT_CYCLE_COUNT,
+	V3D_PERFCNT_QPU_CYCLES_STALLED_VERTEX_COORD_USER,
+	V3D_PERFCNT_QPU_CYCLES_STALLED_FRAGMENT,
+	V3D_PERFCNT_PTB_PRIMS_BINNED,
+	V3D_PERFCNT_AXI_WRITES_WATCH_0,
+	V3D_PERFCNT_AXI_READS_WATCH_0,
+	V3D_PERFCNT_AXI_WRITE_STALLS_WATCH_0,
+	V3D_PERFCNT_AXI_READ_STALLS_WATCH_0,
+	V3D_PERFCNT_AXI_WRITE_BYTES_WATCH_0,
+	V3D_PERFCNT_AXI_READ_BYTES_WATCH_0,
+	V3D_PERFCNT_AXI_WRITES_WATCH_1,
+	V3D_PERFCNT_AXI_READS_WATCH_1,
+	V3D_PERFCNT_AXI_WRITE_STALLS_WATCH_1,
+	V3D_PERFCNT_AXI_READ_STALLS_WATCH_1,
+	V3D_PERFCNT_AXI_WRITE_BYTES_WATCH_1,
+	V3D_PERFCNT_AXI_READ_BYTES_WATCH_1,
+	V3D_PERFCNT_TLB_PARTIAL_QUADS,
+	V3D_PERFCNT_TMU_CONFIG_ACCESSES,
+	V3D_PERFCNT_L2T_NO_ID_STALL,
+	V3D_PERFCNT_L2T_COM_QUE_STALL,
+	V3D_PERFCNT_L2T_TMU_WRITES,
+	V3D_PERFCNT_TMU_ACTIVE_CYCLES,
+	V3D_PERFCNT_TMU_STALLED_CYCLES,
+	V3D_PERFCNT_CLE_ACTIVE,
+	V3D_PERFCNT_L2T_TMU_READS,
+	V3D_PERFCNT_L2T_CLE_READS,
+	V3D_PERFCNT_L2T_VCD_READS,
+	V3D_PERFCNT_L2T_TMUCFG_READS,
+	V3D_PERFCNT_L2T_SLC0_READS,
+	V3D_PERFCNT_L2T_SLC1_READS,
+	V3D_PERFCNT_L2T_SLC2_READS,
+	V3D_PERFCNT_L2T_TMU_W_MISSES,
+	V3D_PERFCNT_L2T_TMU_R_MISSES,
+	V3D_PERFCNT_L2T_CLE_MISSES,
+	V3D_PERFCNT_L2T_VCD_MISSES,
+	V3D_PERFCNT_L2T_TMUCFG_MISSES,
+	V3D_PERFCNT_L2T_SLC0_MISSES,
+	V3D_PERFCNT_L2T_SLC1_MISSES,
+	V3D_PERFCNT_L2T_SLC2_MISSES,
+	V3D_PERFCNT_CORE_MEM_WRITES,
+	V3D_PERFCNT_L2T_MEM_WRITES,
+	V3D_PERFCNT_PTB_MEM_WRITES,
+	V3D_PERFCNT_TLB_MEM_WRITES,
+	V3D_PERFCNT_CORE_MEM_READS,
+	V3D_PERFCNT_L2T_MEM_READS,
+	V3D_PERFCNT_PTB_MEM_READS,
+	V3D_PERFCNT_PSE_MEM_READS,
+	V3D_PERFCNT_TLB_MEM_READS,
+	V3D_PERFCNT_GMP_MEM_READS,
+	V3D_PERFCNT_PTB_W_MEM_WORDS,
+	V3D_PERFCNT_TLB_W_MEM_WORDS,
+	V3D_PERFCNT_PSE_R_MEM_WORDS,
+	V3D_PERFCNT_TLB_R_MEM_WORDS,
+	V3D_PERFCNT_TMU_MRU_HITS,
+	V3D_PERFCNT_COMPUTE_ACTIVE,
+	V3D_PERFCNT_NUM,
+};
+
+#define DRM_V3D_MAX_PERF_COUNTERS                 32
+
+struct drm_v3d_perfmon_create {
+	__u32 id;
+	__u32 ncounters;
+	__u8 counters[DRM_V3D_MAX_PERF_COUNTERS];
+};
+
+struct drm_v3d_perfmon_destroy {
+	__u32 id;
+};
+
+/*
+ * Returns the values of the performance counters tracked by this
+ * perfmon (as an array of ncounters u64 values).
+ *
+ * No implicit synchronization is performed, so the user has to
+ * guarantee that any jobs using this perfmon have already been
+ * completed  (probably by blocking on the seqno returned by the
+ * last exec that used the perfmon).
+ */
+struct drm_v3d_perfmon_get_values {
+	__u32 id;
+	__u32 pad;
+	__u64 values_ptr;
 };
 
 #if defined(__cplusplus)

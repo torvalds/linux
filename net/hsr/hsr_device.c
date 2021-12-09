@@ -309,9 +309,9 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	}
 	spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
 
-	hsr_stag->HSR_TLV_type = type;
+	hsr_stag->tlv.HSR_TLV_type = type;
 	/* TODO: Why 12 in HSRv0? */
-	hsr_stag->HSR_TLV_length = hsr->prot_version ?
+	hsr_stag->tlv.HSR_TLV_length = hsr->prot_version ?
 				sizeof(struct hsr_sup_payload) : 12;
 
 	/* Payload: MacAddressA */
@@ -350,8 +350,8 @@ static void send_prp_supervision_frame(struct hsr_port *master,
 	spin_lock_irqsave(&master->hsr->seqnr_lock, irqflags);
 	hsr_stag->sequence_nr = htons(hsr->sup_sequence_nr);
 	hsr->sup_sequence_nr++;
-	hsr_stag->HSR_TLV_type = PRP_TLV_LIFE_CHECK_DD;
-	hsr_stag->HSR_TLV_length = sizeof(struct hsr_sup_payload);
+	hsr_stag->tlv.HSR_TLV_type = PRP_TLV_LIFE_CHECK_DD;
+	hsr_stag->tlv.HSR_TLV_length = sizeof(struct hsr_sup_payload);
 
 	/* Payload: MacAddressA */
 	hsr_sp = skb_put(skb, sizeof(struct hsr_sup_payload));
@@ -493,7 +493,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	INIT_LIST_HEAD(&hsr->self_node_db);
 	spin_lock_init(&hsr->list_lock);
 
-	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
+	eth_hw_addr_set(hsr_dev, slave[0]->dev_addr);
 
 	/* initialize protocol specific functions */
 	if (protocol_version == PRP_V1) {

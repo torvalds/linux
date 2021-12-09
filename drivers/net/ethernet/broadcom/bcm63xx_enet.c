@@ -670,7 +670,7 @@ static int bcm_enet_set_mac_address(struct net_device *dev, void *p)
 	u32 val;
 
 	priv = netdev_priv(dev);
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	/* use perfect match register 0 to store my mac address */
 	val = (dev->dev_addr[2] << 24) | (dev->dev_addr[3] << 16) |
@@ -1699,7 +1699,7 @@ static const struct net_device_ops bcm_enet_ops = {
 	.ndo_start_xmit		= bcm_enet_start_xmit,
 	.ndo_set_mac_address	= bcm_enet_set_mac_address,
 	.ndo_set_rx_mode	= bcm_enet_set_multicast_list,
-	.ndo_do_ioctl		= bcm_enet_ioctl,
+	.ndo_eth_ioctl		= bcm_enet_ioctl,
 	.ndo_change_mtu		= bcm_enet_change_mtu,
 };
 
@@ -1762,7 +1762,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd) {
-		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, pd->mac_addr);
 		priv->has_phy = pd->has_phy;
 		priv->phy_id = pd->phy_id;
 		priv->has_phy_interrupt = pd->has_phy_interrupt;
@@ -2446,7 +2446,7 @@ static const struct net_device_ops bcm_enetsw_ops = {
 	.ndo_stop		= bcm_enetsw_stop,
 	.ndo_start_xmit		= bcm_enet_start_xmit,
 	.ndo_change_mtu		= bcm_enet_change_mtu,
-	.ndo_do_ioctl		= bcm_enetsw_ioctl,
+	.ndo_eth_ioctl		= bcm_enetsw_ioctl,
 };
 
 
@@ -2649,7 +2649,6 @@ static int bcm_enetsw_probe(struct platform_device *pdev)
 	if (!res_mem || irq_rx < 0)
 		return -ENODEV;
 
-	ret = 0;
 	dev = alloc_etherdev(sizeof(*priv));
 	if (!dev)
 		return -ENOMEM;
@@ -2666,7 +2665,7 @@ static int bcm_enetsw_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd) {
-		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, pd->mac_addr);
 		memcpy(priv->used_ports, pd->used_ports,
 		       sizeof(pd->used_ports));
 		priv->num_ports = pd->num_ports;

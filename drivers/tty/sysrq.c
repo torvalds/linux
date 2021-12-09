@@ -258,7 +258,7 @@ static void sysrq_handle_showallcpus(int key)
 	if (!trigger_all_cpu_backtrace()) {
 		struct pt_regs *regs = NULL;
 
-		if (in_irq())
+		if (in_hardirq())
 			regs = get_irq_regs();
 		if (regs) {
 			pr_info("CPU%d:\n", smp_processor_id());
@@ -280,7 +280,7 @@ static void sysrq_handle_showregs(int key)
 {
 	struct pt_regs *regs = NULL;
 
-	if (in_irq())
+	if (in_hardirq())
 		regs = get_irq_regs();
 	if (regs)
 		show_regs(regs);
@@ -296,7 +296,7 @@ static const struct sysrq_key_op sysrq_showregs_op = {
 static void sysrq_handle_showstate(int key)
 {
 	show_state();
-	show_workqueue_state();
+	show_all_workqueues();
 }
 static const struct sysrq_key_op sysrq_showstate_op = {
 	.handler	= sysrq_handle_showstate,
@@ -843,6 +843,8 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 			sysrq->shift = KEY_RESERVED;
 		else if (value != 2)
 			sysrq->shift = code;
+		if (sysrq->active)
+			sysrq->shift_use = sysrq->shift;
 		break;
 
 	case KEY_SYSRQ:

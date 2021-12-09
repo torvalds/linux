@@ -20,7 +20,6 @@ __HEAD
 ENTRY(startup_continue)
 	larl	%r1,tod_clock_base
 	mvc	0(16,%r1),__LC_BOOT_CLOCK
-	larl	%r13,.LPG1		# get base
 #
 # Setup stack
 #

@@ -213,6 +213,7 @@ struct prctl_mm_map {
 /* Speculation control variants */
 # define PR_SPEC_STORE_BYPASS		0
 # define PR_SPEC_INDIRECT_BRANCH	1
+# define PR_SPEC_L1D_FLUSH		2
 /* Return and control values for PR_SET/GET_SPECULATION_CTRL */
 # define PR_SPEC_NOT_AFFECTED		0
 # define PR_SPEC_PRCTL			(1UL << 0)
@@ -234,14 +235,15 @@ struct prctl_mm_map {
 #define PR_GET_TAGGED_ADDR_CTRL		56
 # define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
 /* MTE tag check fault modes */
-# define PR_MTE_TCF_SHIFT		1
-# define PR_MTE_TCF_NONE		(0UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_SYNC		(1UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_ASYNC		(2UL << PR_MTE_TCF_SHIFT)
-# define PR_MTE_TCF_MASK		(3UL << PR_MTE_TCF_SHIFT)
+# define PR_MTE_TCF_NONE		0UL
+# define PR_MTE_TCF_SYNC		(1UL << 1)
+# define PR_MTE_TCF_ASYNC		(1UL << 2)
+# define PR_MTE_TCF_MASK		(PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC)
 /* MTE tag inclusion mask */
 # define PR_MTE_TAG_SHIFT		3
 # define PR_MTE_TAG_MASK		(0xffffUL << PR_MTE_TAG_SHIFT)
+/* Unused; kept only for source compatibility */
+# define PR_MTE_TCF_SHIFT		1
 
 /* Control reclaim behavior when allocating memory */
 #define PR_SET_IO_FLUSHER		57
@@ -266,5 +268,8 @@ struct prctl_mm_map {
 # define PR_SCHED_CORE_SHARE_TO		2 /* push core_sched cookie to pid */
 # define PR_SCHED_CORE_SHARE_FROM	3 /* pull core_sched cookie to pid */
 # define PR_SCHED_CORE_MAX		4
+# define PR_SCHED_CORE_SCOPE_THREAD		0
+# define PR_SCHED_CORE_SCOPE_THREAD_GROUP	1
+# define PR_SCHED_CORE_SCOPE_PROCESS_GROUP	2
 
 #endif /* _LINUX_PRCTL_H */

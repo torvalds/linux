@@ -275,7 +275,7 @@ int adfspart_check_ADFS(struct parsed_partitions *state)
 	/*
 	 * Work out start of non-adfs partition.
 	 */
-	nr_sects = (state->bdev->bd_inode->i_size >> 9) - start_sect;
+	nr_sects = get_capacity(state->disk) - start_sect;
 
 	if (start_sect) {
 		switch (id) {
@@ -540,7 +540,7 @@ int adfspart_check_EESOX(struct parsed_partitions *state)
 	if (i != 0) {
 		sector_t size;
 
-		size = get_capacity(state->bdev->bd_disk);
+		size = get_capacity(state->disk);
 		put_partition(state, slot++, start, size - start);
 		strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	}

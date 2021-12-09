@@ -122,7 +122,6 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	unsigned int sub_pools_count = ARRAY_SIZE(mlxsw_sp_counter_sub_pools);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_sp_counter_pool *pool;
-	unsigned int map_size;
 	int err;
 
 	pool = kzalloc(struct_size(pool, sub_pools, sub_pools_count),
@@ -143,9 +142,7 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	devlink_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_COUNTERS,
 					  mlxsw_sp_counter_pool_occ_get, pool);
 
-	map_size = BITS_TO_LONGS(pool->pool_size) * sizeof(unsigned long);
-
-	pool->usage = kzalloc(map_size, GFP_KERNEL);
+	pool->usage = bitmap_zalloc(pool->pool_size, GFP_KERNEL);
 	if (!pool->usage) {
 		err = -ENOMEM;
 		goto err_usage_alloc;
@@ -158,7 +155,7 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 
 err_sub_pools_init:
-	kfree(pool->usage);
+	bitmap_free(pool->usage);
 err_usage_alloc:
 	devlink_resource_occ_get_unregister(devlink,
 					    MLXSW_SP_RESOURCE_COUNTERS);
@@ -176,7 +173,7 @@ void mlxsw_sp_counter_pool_fini(struct mlxsw_sp *mlxsw_sp)
 	WARN_ON(find_first_bit(pool->usage, pool->pool_size) !=
 			       pool->pool_size);
 	WARN_ON(atomic_read(&pool->active_entries_count));
-	kfree(pool->usage);
+	bitmap_free(pool->usage);
 	devlink_resource_occ_get_unregister(devlink,
 					    MLXSW_SP_RESOURCE_COUNTERS);
 	kfree(pool);

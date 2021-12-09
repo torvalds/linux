@@ -19,7 +19,7 @@ struct xfs_perag;
  * Btree block header size depends on a superblock flag.
  */
 #define XFS_INOBT_BLOCK_LEN(mp) \
-	(xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+	(xfs_has_crc(((mp))) ? \
 		XFS_BTREE_SBLOCK_CRC_LEN : XFS_BTREE_SBLOCK_LEN)
 
 /*
@@ -74,5 +74,10 @@ int xfs_inobt_cur(struct xfs_mount *mp, struct xfs_trans *tp,
 
 void xfs_inobt_commit_staged_btree(struct xfs_btree_cur *cur,
 		struct xfs_trans *tp, struct xfs_buf *agbp);
+
+unsigned int xfs_iallocbt_maxlevels_ondisk(void);
+
+int __init xfs_inobt_init_cur_cache(void);
+void xfs_inobt_destroy_cur_cache(void);
 
 #endif	/* __XFS_IALLOC_BTREE_H__ */

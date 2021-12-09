@@ -133,11 +133,6 @@ static inline void hisi_dma_update_bit(void __iomem *addr, u32 pos, bool val)
 	writel_relaxed(tmp, addr);
 }
 
-static void hisi_dma_free_irq_vectors(void *data)
-{
-	pci_free_irq_vectors(data);
-}
-
 static void hisi_dma_pause_dma(struct hisi_dma_dev *hdma_dev, u32 index,
 			       bool pause)
 {
@@ -524,11 +519,7 @@ static int hisi_dma_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 	}
 
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (ret)
-		return ret;
-
-	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret)
 		return ret;
 
@@ -544,16 +535,13 @@ static int hisi_dma_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, hdma_dev);
 	pci_set_master(pdev);
 
+	/* This will be freed by 'pcim_release()'. See 'pcim_enable_device()' */
 	ret = pci_alloc_irq_vectors(pdev, HISI_DMA_MSI_NUM, HISI_DMA_MSI_NUM,
 				    PCI_IRQ_MSI);
 	if (ret < 0) {
 		dev_err(dev, "Failed to allocate MSI vectors!\n");
 		return ret;
 	}
-
-	ret = devm_add_action_or_reset(dev, hisi_dma_free_irq_vectors, pdev);
-	if (ret)
-		return ret;
 
 	dma_dev = &hdma_dev->dma_dev;
 	dma_cap_set(DMA_MEMCPY, dma_dev->cap_mask);

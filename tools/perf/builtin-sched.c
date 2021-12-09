@@ -1804,7 +1804,7 @@ static int perf_sched__read_events(struct perf_sched *sched)
 	};
 	int rc = -1;
 
-	session = perf_session__new(&data, false, &sched->tool);
+	session = perf_session__new(&data, &sched->tool);
 	if (IS_ERR(session)) {
 		pr_debug("Error creating perf session");
 		return PTR_ERR(session);
@@ -3011,7 +3011,7 @@ static int perf_sched__timehist(struct perf_sched *sched)
 
 	symbol_conf.use_callchain = sched->show_callchain;
 
-	session = perf_session__new(&data, false, &sched->tool);
+	session = perf_session__new(&data, &sched->tool);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -3538,6 +3538,7 @@ int cmd_sched(int argc, const char **argv)
 		.fork_event	    = replay_fork_event,
 	};
 	unsigned int i;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(sched.curr_pid); i++)
 		sched.curr_pid[i] = -1;
@@ -3598,6 +3599,9 @@ int cmd_sched(int argc, const char **argv)
 				parse_options_usage(NULL, timehist_options, "n", true);
 			return -EINVAL;
 		}
+		ret = symbol__validate_sym_arguments();
+		if (ret)
+			return ret;
 
 		return perf_sched__timehist(&sched);
 	} else {

@@ -1916,7 +1916,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "runtime PM get sync failed (%d)\n", ret);
-		return ret;
+		goto err_pm_disable;
 	}
 
 	ret = rcar_dmac_init(dmac);
@@ -1924,7 +1924,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 
 	if (ret) {
 		dev_err(&pdev->dev, "failed to reset device\n");
-		goto error;
+		goto err_pm_disable;
 	}
 
 	/* Initialize engine */
@@ -1958,14 +1958,14 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	for_each_rcar_dmac_chan(i, dmac, chan) {
 		ret = rcar_dmac_chan_probe(dmac, chan);
 		if (ret < 0)
-			goto error;
+			goto err_pm_disable;
 	}
 
 	/* Register the DMAC as a DMA provider for DT. */
 	ret = of_dma_controller_register(pdev->dev.of_node, rcar_dmac_of_xlate,
 					 NULL);
 	if (ret < 0)
-		goto error;
+		goto err_pm_disable;
 
 	/*
 	 * Register the DMA engine device.
@@ -1974,12 +1974,13 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	 */
 	ret = dma_async_device_register(engine);
 	if (ret < 0)
-		goto error;
+		goto err_dma_free;
 
 	return 0;
 
-error:
+err_dma_free:
 	of_dma_controller_free(pdev->dev.of_node);
+err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 	return ret;
 }

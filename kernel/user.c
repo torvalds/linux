@@ -129,6 +129,22 @@ static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
 	return NULL;
 }
 
+static int user_epoll_alloc(struct user_struct *up)
+{
+#ifdef CONFIG_EPOLL
+	return percpu_counter_init(&up->epoll_watches, 0, GFP_KERNEL);
+#else
+	return 0;
+#endif
+}
+
+static void user_epoll_free(struct user_struct *up)
+{
+#ifdef CONFIG_EPOLL
+	percpu_counter_destroy(&up->epoll_watches);
+#endif
+}
+
 /* IRQs are disabled and uidhash_lock is held upon function entry.
  * IRQ state (as stored in flags) is restored and uidhash_lock released
  * upon function exit.
@@ -138,6 +154,7 @@ static void free_user(struct user_struct *up, unsigned long flags)
 {
 	uid_hash_remove(up);
 	spin_unlock_irqrestore(&uidhash_lock, flags);
+	user_epoll_free(up);
 	kmem_cache_free(uid_cachep, up);
 }
 
@@ -185,6 +202,10 @@ struct user_struct *alloc_uid(kuid_t uid)
 
 		new->uid = uid;
 		refcount_set(&new->__count, 1);
+		if (user_epoll_alloc(new)) {
+			kmem_cache_free(uid_cachep, new);
+			return NULL;
+		}
 		ratelimit_state_init(&new->ratelimit, HZ, 100);
 		ratelimit_set_flags(&new->ratelimit, RATELIMIT_MSG_ON_RELEASE);
 
@@ -195,6 +216,7 @@ struct user_struct *alloc_uid(kuid_t uid)
 		spin_lock_irq(&uidhash_lock);
 		up = uid_hash_find(uid, hashent);
 		if (up) {
+			user_epoll_free(new);
 			kmem_cache_free(uid_cachep, new);
 		} else {
 			uid_hash_insert(new, hashent);
@@ -215,6 +237,9 @@ static int __init uid_cache_init(void)
 
 	for(n = 0; n < UIDHASH_SZ; ++n)
 		INIT_HLIST_HEAD(uidhash_table + n);
+
+	if (user_epoll_alloc(&root_user))
+		panic("root_user epoll percpu counter alloc failed");
 
 	/* Insert the root user immediately (init already runs as root) */
 	spin_lock_irq(&uidhash_lock);

@@ -89,7 +89,7 @@ struct mlx5_fw_tracer {
 		void *log_buf;
 		dma_addr_t dma;
 		u32 size;
-		struct mlx5_core_mkey mkey;
+		u32 mkey;
 		u32 consumer_index;
 	} buff;
 

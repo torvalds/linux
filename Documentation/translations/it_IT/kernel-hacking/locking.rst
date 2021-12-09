@@ -1396,7 +1396,19 @@ Riferimento per l'API dei Mutex
 Riferimento per l'API dei Futex
 ===============================
 
-.. kernel-doc:: kernel/futex.c
+.. kernel-doc:: kernel/futex/core.c
+   :internal:
+
+.. kernel-doc:: kernel/futex/futex.h
+   :internal:
+
+.. kernel-doc:: kernel/futex/pi.c
+   :internal:
+
+.. kernel-doc:: kernel/futex/requeue.c
+   :internal:
+
+.. kernel-doc:: kernel/futex/waitwake.c
    :internal:
 
 Approfondimenti
@@ -1459,11 +1471,11 @@ contesto utente
   che hardware.
 
 interruzione hardware
-  Richiesta di interruzione hardware. in_irq() ritorna vero in un
+  Richiesta di interruzione hardware. in_hardirq() ritorna vero in un
   gestore d'interruzioni hardware.
 
 interruzione software / softirq
-  Gestore di interruzioni software: in_irq() ritorna falso;
+  Gestore di interruzioni software: in_hardirq() ritorna falso;
   in_softirq() ritorna vero. I tasklet e le softirq sono entrambi
   considerati 'interruzioni software'.
 

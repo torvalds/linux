@@ -25,12 +25,11 @@
 #include "internals.h"
 
 #if defined(CONFIG_IRQ_FORCED_THREADING) && !defined(CONFIG_PREEMPT_RT)
-__read_mostly bool force_irqthreads;
-EXPORT_SYMBOL_GPL(force_irqthreads);
+DEFINE_STATIC_KEY_FALSE(force_irqthreads_key);
 
 static int __init setup_forced_irqthreads(char *arg)
 {
-	force_irqthreads = true;
+	static_branch_enable(&force_irqthreads_key);
 	return 0;
 }
 early_param("threadirqs", setup_forced_irqthreads);
@@ -1260,8 +1259,10 @@ static int irq_thread(void *data)
 	irqreturn_t (*handler_fn)(struct irq_desc *desc,
 			struct irqaction *action);
 
-	if (force_irqthreads && test_bit(IRQTF_FORCED_THREAD,
-					&action->thread_flags))
+	sched_set_fifo(current);
+
+	if (force_irqthreads() && test_bit(IRQTF_FORCED_THREAD,
+					   &action->thread_flags))
 		handler_fn = irq_forced_thread_fn;
 	else
 		handler_fn = irq_thread_fn;
@@ -1322,7 +1323,7 @@ EXPORT_SYMBOL_GPL(irq_wake_thread);
 
 static int irq_setup_forced_threading(struct irqaction *new)
 {
-	if (!force_irqthreads)
+	if (!force_irqthreads())
 		return 0;
 	if (new->flags & (IRQF_NO_THREAD | IRQF_PERCPU | IRQF_ONESHOT))
 		return 0;
@@ -1424,8 +1425,6 @@ setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 
 	if (IS_ERR(t))
 		return PTR_ERR(t);
-
-	sched_set_fifo(t);
 
 	/*
 	 * We keep the reference to the task struct even if
@@ -2072,9 +2071,9 @@ const void *free_nmi(unsigned int irq, void *dev_id)
  *	request_threaded_irq - allocate an interrupt line
  *	@irq: Interrupt line to allocate
  *	@handler: Function to be called when the IRQ occurs.
- *		  Primary handler for threaded interrupts
- *		  If NULL and thread_fn != NULL the default
- *		  primary handler is installed
+ *		  Primary handler for threaded interrupts.
+ *		  If handler is NULL and thread_fn != NULL
+ *		  the default primary handler is installed.
  *	@thread_fn: Function called from the irq handler thread
  *		    If NULL, no irq thread is created
  *	@irqflags: Interrupt type flags
@@ -2108,7 +2107,7 @@ const void *free_nmi(unsigned int irq, void *dev_id)
  *
  *	IRQF_SHARED		Interrupt is shared
  *	IRQF_TRIGGER_*		Specify active edge(s) or level
- *
+ *	IRQF_ONESHOT		Run thread_fn with interrupt line masked
  */
 int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 			 irq_handler_t thread_fn, unsigned long irqflags,
@@ -2828,7 +2827,7 @@ EXPORT_SYMBOL_GPL(irq_get_irqchip_state);
  *	This call sets the internal irqchip state of an interrupt,
  *	depending on the value of @which.
  *
- *	This function should be called with preemption disabled if the
+ *	This function should be called with migration disabled if the
  *	interrupt controller has per-cpu registers.
  */
 int irq_set_irqchip_state(unsigned int irq, enum irqchip_irq_state which,

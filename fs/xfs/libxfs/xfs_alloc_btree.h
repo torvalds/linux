@@ -20,7 +20,7 @@ struct xbtree_afakeroot;
  * Btree block header size depends on a superblock flag.
  */
 #define XFS_ALLOC_BLOCK_LEN(mp) \
-	(xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+	(xfs_has_crc(((mp))) ? \
 		XFS_BTREE_SBLOCK_CRC_LEN : XFS_BTREE_SBLOCK_LEN)
 
 /*
@@ -59,5 +59,10 @@ extern xfs_extlen_t xfs_allocbt_calc_size(struct xfs_mount *mp,
 
 void xfs_allocbt_commit_staged_btree(struct xfs_btree_cur *cur,
 		struct xfs_trans *tp, struct xfs_buf *agbp);
+
+unsigned int xfs_allocbt_maxlevels_ondisk(void);
+
+int __init xfs_allocbt_init_cur_cache(void);
+void xfs_allocbt_destroy_cur_cache(void);
 
 #endif	/* __XFS_ALLOC_BTREE_H__ */

@@ -396,13 +396,14 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	struct mlx5dr_match_param mask = {};
+	bool allow_empty_match = false;
 	struct mlx5dr_ste_build *sb;
 	bool inner, rx;
 	int idx = 0;
 	int ret, i;
 
 	sb = nic_matcher->ste_builder_arr[outer_ipv][inner_ipv];
-	rx = nic_dmn->ste_type == MLX5DR_STE_TYPE_RX;
+	rx = nic_dmn->type == DR_DOMAIN_NIC_TYPE_RX;
 
 	/* Create a temporary mask to track and clear used mask fields */
 	if (matcher->match_criteria & DR_MATCHER_CRITERIA_OUTER)
@@ -427,6 +428,16 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 					 &matcher->mask, NULL);
 	if (ret)
 		return ret;
+
+	/* Optimize RX pipe by reducing source port match, since
+	 * the FDB RX part is connected only to the wire.
+	 */
+	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB &&
+	    rx && mask.misc.source_port) {
+		mask.misc.source_port = 0;
+		mask.misc.source_eswitch_owner_vhca_id = 0;
+		allow_empty_match = true;
+	}
 
 	/* Outer */
 	if (matcher->match_criteria & (DR_MATCHER_CRITERIA_OUTER |
@@ -619,7 +630,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	}
 
 	/* Empty matcher, takes all */
-	if (matcher->match_criteria == DR_MATCHER_CRITERIA_EMPTY)
+	if ((!idx && allow_empty_match) ||
+	    matcher->match_criteria == DR_MATCHER_CRITERIA_EMPTY)
 		mlx5dr_ste_build_empty_always_hit(&sb[idx++], rx);
 
 	if (idx == 0) {
@@ -863,9 +875,10 @@ uninit_nic_rx:
 static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 			   struct mlx5dr_match_parameters *mask)
 {
+	struct mlx5dr_match_parameters consumed_mask;
 	struct mlx5dr_table *tbl = matcher->tbl;
 	struct mlx5dr_domain *dmn = tbl->dmn;
-	int ret;
+	int i, ret;
 
 	if (matcher->match_criteria >= DR_MATCHER_CRITERIA_MAX) {
 		mlx5dr_err(dmn, "Invalid match criteria attribute\n");
@@ -877,8 +890,16 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 			mlx5dr_err(dmn, "Invalid match size attribute\n");
 			return -EINVAL;
 		}
+
+		consumed_mask.match_buf = kzalloc(mask->match_sz, GFP_KERNEL);
+		if (!consumed_mask.match_buf)
+			return -ENOMEM;
+
+		consumed_mask.match_sz = mask->match_sz;
+		memcpy(consumed_mask.match_buf, mask->match_buf, mask->match_sz);
 		mlx5dr_ste_copy_param(matcher->match_criteria,
-				      &matcher->mask, mask);
+				      &matcher->mask, &consumed_mask,
+				      true);
 	}
 
 	switch (dmn->type) {
@@ -897,9 +918,22 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 		break;
 	default:
 		WARN_ON(true);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto free_consumed_mask;
 	}
 
+	/* Check that all mask data was consumed */
+	for (i = 0; i < consumed_mask.match_sz; i++) {
+		if (consumed_mask.match_buf[i]) {
+			mlx5dr_dbg(dmn, "Match param mask contains unsupported parameters\n");
+			ret = -EOPNOTSUPP;
+			goto free_consumed_mask;
+		}
+	}
+
+	ret =  0;
+free_consumed_mask:
+	kfree(consumed_mask.match_buf);
 	return ret;
 }
 

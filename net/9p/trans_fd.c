@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/fs/9p/trans_fd.c
- *
  * Fd transport layer.  Includes deprecated socket layer.
  *
  *  Copyright (C) 2006 by Russ Cox <rsc@swtch.com>
@@ -34,7 +32,7 @@
 #include <linux/syscalls.h> /* killme */
 
 #define P9_PORT 564
-#define MAX_SOCK_BUF (64*1024)
+#define MAX_SOCK_BUF (1024*1024)
 #define MAXPOLLWADDR	2
 
 static struct p9_trans_module p9_tcp_trans;

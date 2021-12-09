@@ -18,9 +18,11 @@
 #include <sound/soc.h>
 #include <sound/sof.h>
 #include <sound/rt5682.h>
+#include <sound/rt5682s.h>
 #include <sound/soc-acpi.h>
 #include "../../codecs/rt1015.h"
 #include "../../codecs/rt5682.h"
+#include "../../codecs/rt5682s.h"
 #include "../../codecs/hdac_hdmi.h"
 #include "../common/soc-intel-quirks.h"
 #include "hda_dsp_common.h"
@@ -56,6 +58,7 @@
 #define SOF_BT_OFFLOAD_SSP(quirk)	\
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT		BIT(22)
+#define SOF_RT5682S_HEADPHONE_CODEC_PRESENT	BIT(23)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -162,6 +165,20 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
+	{
+		.callback = sof_rt5682_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alder Lake Client Platform"),
+			DMI_MATCH(DMI_OEM_STRING, "AUDIO-ADL_MAX98373_ALC5682I_I2S"),
+		},
+		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_SPEAKER_AMP_PRESENT |
+					SOF_MAX98373_SPEAKER_AMP_PRESENT |
+					SOF_RT5682_SSP_AMP(2) |
+					SOF_RT5682_NUM_HDMIDEV(4)),
+	},
 	{}
 };
 
@@ -194,9 +211,16 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	/* need to enable ASRC function for 24MHz mclk rate */
 	if ((sof_rt5682_quirk & SOF_RT5682_MCLK_EN) &&
 	    (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ)) {
-		rt5682_sel_asrc_clk_src(component, RT5682_DA_STEREO1_FILTER |
-					RT5682_AD_STEREO1_FILTER,
-					RT5682_CLK_SEL_I2S1_ASRC);
+		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
+			rt5682s_sel_asrc_clk_src(component,
+						 RT5682S_DA_STEREO1_FILTER |
+						 RT5682S_AD_STEREO1_FILTER,
+						 RT5682S_CLK_SEL_I2S1_ASRC);
+		else
+			rt5682_sel_asrc_clk_src(component,
+						RT5682_DA_STEREO1_FILTER |
+						RT5682_AD_STEREO1_FILTER,
+						RT5682_CLK_SEL_I2S1_ASRC);
 	}
 
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
@@ -263,7 +287,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-	int clk_id, clk_freq, pll_out, ret;
+	int pll_id, pll_source, pll_in, pll_out, clk_id, ret;
 
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
 		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
@@ -275,35 +299,52 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			}
 		}
 
-		clk_id = RT5682_PLL1_S_MCLK;
+		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
+			pll_source = RT5682S_PLL_S_MCLK;
+		else
+			pll_source = RT5682_PLL1_S_MCLK;
 
 		/* get the tplg configured mclk. */
-		clk_freq = sof_dai_get_mclk(rtd);
+		pll_in = sof_dai_get_mclk(rtd);
 
 		/* mclk from the quirk is the first choice */
 		if (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ) {
-			if (clk_freq != 24000000)
+			if (pll_in != 24000000)
 				dev_warn(rtd->dev, "configure wrong mclk in tplg, please use 24MHz.\n");
-			clk_freq = 24000000;
-		} else if (clk_freq == 0) {
+			pll_in = 24000000;
+		} else if (pll_in == 0) {
 			/* use default mclk if not specified correct in topology */
-			clk_freq = 19200000;
-		} else if (clk_freq < 0) {
-			return clk_freq;
+			pll_in = 19200000;
+		} else if (pll_in < 0) {
+			return pll_in;
 		}
 	} else {
-		clk_id = RT5682_PLL1_S_BCLK1;
-		clk_freq = params_rate(params) * 50;
+		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
+			pll_source = RT5682S_PLL_S_BCLK1;
+		else
+			pll_source = RT5682_PLL1_S_BCLK1;
+
+		pll_in = params_rate(params) * 50;
+	}
+
+	if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT) {
+		pll_id = RT5682S_PLL2;
+		clk_id = RT5682S_SCLK_S_PLL2;
+	} else {
+		pll_id = RT5682_PLL1;
+		clk_id = RT5682_SCLK_S_PLL1;
 	}
 
 	pll_out = params_rate(params) * 512;
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0, clk_id, clk_freq, pll_out);
+	/* Configure pll for codec */
+	ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source, pll_in,
+				  pll_out);
 	if (ret < 0)
 		dev_err(rtd->dev, "snd_soc_dai_set_pll err = %d\n", ret);
 
 	/* Configure sysclk for codec */
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL1,
+	ret = snd_soc_dai_set_sysclk(codec_dai, clk_id,
 				     pll_out, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		dev_err(rtd->dev, "snd_soc_dai_set_sysclk err = %d\n", ret);
@@ -456,19 +497,11 @@ static const struct snd_kcontrol_new sof_controls[] = {
 
 };
 
-static const struct snd_kcontrol_new speaker_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Spk"),
-};
-
 static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_SPK("Left Spk", NULL),
 	SND_SOC_DAPM_SPK("Right Spk", NULL),
-};
-
-static const struct snd_soc_dapm_widget speaker_widgets[] = {
-	SND_SOC_DAPM_SPK("Spk", NULL),
 };
 
 static const struct snd_soc_dapm_widget dmic_widgets[] = {
@@ -482,11 +515,6 @@ static const struct snd_soc_dapm_route sof_map[] = {
 
 	/* other jacks */
 	{ "IN1P", NULL, "Headset Mic" },
-};
-
-static const struct snd_soc_dapm_route speaker_map[] = {
-	/* speaker */
-	{ "Spk", NULL, "Speaker" },
 };
 
 static const struct snd_soc_dapm_route speaker_map_lr[] = {
@@ -503,34 +531,6 @@ static int speaker_codec_init_lr(struct snd_soc_pcm_runtime *rtd)
 {
 	return snd_soc_dapm_add_routes(&rtd->card->dapm, speaker_map_lr,
 				       ARRAY_SIZE(speaker_map_lr));
-}
-
-static int speaker_codec_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_card *card = rtd->card;
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, speaker_widgets,
-					ARRAY_SIZE(speaker_widgets));
-	if (ret) {
-		dev_err(rtd->dev, "unable to add dapm controls, ret %d\n", ret);
-		/* Don't need to add routes if widget addition failed */
-		return ret;
-	}
-
-	ret = snd_soc_add_card_controls(card, speaker_controls,
-					ARRAY_SIZE(speaker_controls));
-	if (ret) {
-		dev_err(rtd->dev, "unable to add card controls, ret %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_add_routes(&card->dapm, speaker_map,
-				      ARRAY_SIZE(speaker_map));
-
-	if (ret)
-		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);
-	return ret;
 }
 
 static int dmic_init(struct snd_soc_pcm_runtime *rtd)
@@ -587,17 +587,17 @@ static struct snd_soc_dai_link_component rt5682_component[] = {
 	}
 };
 
+static struct snd_soc_dai_link_component rt5682s_component[] = {
+	{
+		.name = "i2c-RTL5682:00",
+		.dai_name = "rt5682s-aif1",
+	}
+};
+
 static struct snd_soc_dai_link_component dmic_component[] = {
 	{
 		.name = "dmic-codec",
 		.dai_name = "dmic-hifi",
-	}
-};
-
-static struct snd_soc_dai_link_component max98360a_component[] = {
-	{
-		.name = "MX98360A:00",
-		.dai_name = "HiFi",
 	}
 };
 
@@ -644,8 +644,13 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		goto devm_err;
 
 	links[id].id = id;
-	links[id].codecs = rt5682_component;
-	links[id].num_codecs = ARRAY_SIZE(rt5682_component);
+	if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT) {
+		links[id].codecs = rt5682s_component;
+		links[id].num_codecs = ARRAY_SIZE(rt5682s_component);
+	} else {
+		links[id].codecs = rt5682_component;
+		links[id].num_codecs = ARRAY_SIZE(rt5682_component);
+	}
 	links[id].platforms = platform_component;
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_rt5682_codec_init;
@@ -775,9 +780,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			links[id].dpcm_capture = 1;
 		} else if (sof_rt5682_quirk &
 				SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
-			links[id].codecs = max98360a_component;
-			links[id].num_codecs = ARRAY_SIZE(max98360a_component);
-			links[id].init = speaker_codec_init;
+			max_98360a_dai_link(&links[id]);
 		} else if (sof_rt5682_quirk &
 				SOF_RT1011_SPEAKER_AMP_PRESENT) {
 			sof_rt1011_dai_link(&links[id]);
@@ -860,6 +863,10 @@ static int sof_audio_probe(struct platform_device *pdev)
 	 */
 	if ((sof_rt5682_quirk & SOF_SPEAKER_AMP_PRESENT) && !mach->quirk_data)
 		sof_rt5682_quirk &= ~SOF_SPEAKER_AMP_PRESENT;
+
+	/* Detect the headset codec variant */
+	if (acpi_dev_present("RTL5682", NULL, -1))
+		sof_rt5682_quirk |= SOF_RT5682S_HEADPHONE_CODEC_PRESENT;
 
 	if (soc_intel_is_byt() || soc_intel_is_cht()) {
 		is_legacy_cpu = 1;
@@ -956,7 +963,7 @@ static const struct platform_device_id board_ids[] = {
 		.name = "sof_rt5682",
 	},
 	{
-		.name = "tgl_mx98357a_rt5682",
+		.name = "tgl_mx98357_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
 					SOF_SPEAKER_AMP_PRESENT |
@@ -986,7 +993,7 @@ static const struct platform_device_id board_ids[] = {
 					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
 	{
-		.name = "jsl_rt5682_mx98360a",
+		.name = "jsl_rt5682_mx98360",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_MCLK_24MHZ |
 					SOF_RT5682_SSP_CODEC(0) |
@@ -1036,12 +1043,23 @@ static const struct platform_device_id board_ids[] = {
 					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
 	{
-		.name = "adl_mx98357a_rt5682",
+		.name = "adl_mx98357_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
 					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
+	},
+	{
+		.name = "adl_mx98360_rt5682",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_SPEAKER_AMP_PRESENT |
+					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
+					SOF_RT5682_SSP_AMP(1) |
+					SOF_RT5682_NUM_HDMIDEV(4) |
+					SOF_BT_OFFLOAD_SSP(2) |
+					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
 	{ }
 };

@@ -110,15 +110,11 @@ enum vivid_colorspace {
 #define VIVID_INVALID_SIGNAL(mode) \
 	((mode) == NO_SIGNAL || (mode) == NO_LOCK || (mode) == OUT_OF_RANGE)
 
-struct vivid_cec_work {
-	struct list_head	list;
-	struct delayed_work	work;
+struct vivid_cec_xfer {
 	struct cec_adapter	*adap;
-	struct vivid_dev	*dev;
-	unsigned int		usecs;
-	unsigned int		timeout_ms;
-	u8			tx_status;
-	struct cec_msg		msg;
+	u8			msg[CEC_MAX_MSG_SIZE];
+	u32			len;
+	u32			sft;
 };
 
 struct vivid_dev {
@@ -560,12 +556,13 @@ struct vivid_dev {
 	/* CEC */
 	struct cec_adapter		*cec_rx_adap;
 	struct cec_adapter		*cec_tx_adap[MAX_OUTPUTS];
-	struct workqueue_struct		*cec_workqueue;
-	spinlock_t			cec_slock;
-	struct list_head		cec_work_list;
-	unsigned int			cec_xfer_time_jiffies;
-	unsigned long			cec_xfer_start_jiffies;
 	u8				cec_output2bus_map[MAX_OUTPUTS];
+	struct task_struct		*kthread_cec;
+	wait_queue_head_t		kthread_waitq_cec;
+	struct vivid_cec_xfer	xfers[MAX_OUTPUTS];
+	spinlock_t			cec_xfers_slock; /* read and write cec messages */
+	u32				cec_sft; /* bus signal free time, in bit periods */
+	u8				last_initiator;
 
 	/* CEC OSD String */
 	char				osd[14];
