@@ -619,6 +619,9 @@ static int iomap_write_begin(const struct iomap_iter *iter, loff_t pos,
 	if (fatal_signal_pending(current))
 		return -EINTR;
 
+	if (!mapping_large_folio_support(iter->inode->i_mapping))
+		len = min_t(size_t, len, PAGE_SIZE - offset_in_page(pos));
+
 	if (page_ops && page_ops->page_prepare) {
 		status = page_ops->page_prepare(iter->inode, pos, len);
 		if (status)
@@ -632,6 +635,8 @@ static int iomap_write_begin(const struct iomap_iter *iter, loff_t pos,
 		goto out_no_page;
 	}
 	folio = page_folio(page);
+	if (pos + len > folio_pos(folio) + folio_size(folio))
+		len = folio_pos(folio) + folio_size(folio) - pos;
 
 	if (srcmap->type == IOMAP_INLINE)
 		status = iomap_write_begin_inline(iter, page);
@@ -891,11 +896,13 @@ static s64 __iomap_zero_iter(struct iomap_iter *iter, loff_t pos, u64 length)
 	struct page *page;
 	int status;
 	unsigned offset = offset_in_page(pos);
-	unsigned bytes = min_t(u64, PAGE_SIZE - offset, length);
+	unsigned bytes = min_t(u64, UINT_MAX, length);
 
 	status = iomap_write_begin(iter, pos, bytes, &page);
 	if (status)
 		return status;
+	if (bytes > PAGE_SIZE - offset)
+		bytes = PAGE_SIZE - offset;
 
 	zero_user(page, offset, bytes);
 	mark_page_accessed(page);
