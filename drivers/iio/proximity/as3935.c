@@ -133,7 +133,7 @@ static ssize_t as3935_sensor_sensitivity_store(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	ret = kstrtoul((const char *) buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return -EINVAL;
 
