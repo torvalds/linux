@@ -604,6 +604,9 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  *
  * This function must be called from process context with no mode
  * setting locks held.
+ *
+ * If only a single connector has changed, consider calling
+ * drm_kms_helper_connector_hotplug_event() instead.
  */
 void drm_kms_helper_hotplug_event(struct drm_device *dev)
 {
@@ -615,6 +618,26 @@ void drm_kms_helper_hotplug_event(struct drm_device *dev)
 	drm_client_dev_hotplug(dev);
 }
 EXPORT_SYMBOL(drm_kms_helper_hotplug_event);
+
+/**
+ * drm_kms_helper_connector_hotplug_event - fire off a KMS connector hotplug event
+ * @connector: drm_connector which has changed
+ *
+ * This is the same as drm_kms_helper_hotplug_event(), except it fires a more
+ * fine-grained uevent for a single connector.
+ */
+void drm_kms_helper_connector_hotplug_event(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+
+	/* send a uevent + call fbdev */
+	drm_sysfs_connector_hotplug_event(connector);
+	if (dev->mode_config.funcs->output_poll_changed)
+		dev->mode_config.funcs->output_poll_changed(dev);
+
+	drm_client_dev_hotplug(dev);
+}
+EXPORT_SYMBOL(drm_kms_helper_connector_hotplug_event);
 
 static void output_poll_execute(struct work_struct *work)
 {
@@ -865,7 +888,7 @@ bool drm_connector_helper_hpd_irq_event(struct drm_connector *connector)
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (changed) {
-		drm_kms_helper_hotplug_event(dev);
+		drm_kms_helper_connector_hotplug_event(connector);
 		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Sent hotplug event\n",
 			    connector->base.id,
 			    connector->name);
@@ -904,9 +927,9 @@ EXPORT_SYMBOL(drm_connector_helper_hpd_irq_event);
  */
 bool drm_helper_hpd_irq_event(struct drm_device *dev)
 {
-	struct drm_connector *connector;
+	struct drm_connector *connector, *first_changed_connector = NULL;
 	struct drm_connector_list_iter conn_iter;
-	bool changed = false;
+	int changed = 0;
 
 	if (!dev->mode_config.poll_enabled)
 		return false;
@@ -918,16 +941,25 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		if (!(connector->polled & DRM_CONNECTOR_POLL_HPD))
 			continue;
 
-		if (check_connector_changed(connector))
-			changed = true;
+		if (check_connector_changed(connector)) {
+			if (!first_changed_connector) {
+				drm_connector_get(connector);
+				first_changed_connector = connector;
+			}
+
+			changed++;
+		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (changed) {
+	if (changed == 1)
+		drm_kms_helper_connector_hotplug_event(first_changed_connector);
+	else if (changed > 0)
 		drm_kms_helper_hotplug_event(dev);
-		DRM_DEBUG_KMS("Sent hotplug event\n");
-	}
+
+	if (first_changed_connector)
+		drm_connector_put(first_changed_connector);
 
 	return changed;
 }

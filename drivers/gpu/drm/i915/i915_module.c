@@ -4,7 +4,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <linux/console.h>
+#include <drm/drm_drv.h>
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_object.h"
@@ -31,7 +31,7 @@ static int i915_check_nomodeset(void)
 	if (i915_modparams.modeset == 0)
 		use_kms = false;
 
-	if (vgacon_text_force() && i915_modparams.modeset == -1)
+	if (drm_firmware_drivers_only() && i915_modparams.modeset == -1)
 		use_kms = false;
 
 	if (!use_kms) {

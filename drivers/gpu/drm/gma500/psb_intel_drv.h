@@ -140,7 +140,7 @@ struct gma_crtc {
 	int pipe;
 	int plane;
 	uint32_t cursor_addr;
-	struct gtt_range *cursor_gt;
+	struct psb_gem_object *cursor_pobj;
 	u8 lut_adj[256];
 	struct psb_intel_framebuffer *fbdev_fb;
 	/* a mode_set for fbdev users on this crtc */
