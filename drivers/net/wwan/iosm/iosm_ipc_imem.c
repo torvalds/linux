@@ -181,9 +181,9 @@ void ipc_imem_hrtimer_stop(struct hrtimer *hr_timer)
 bool ipc_imem_ul_write_td(struct iosm_imem *ipc_imem)
 {
 	struct ipc_mem_channel *channel;
+	bool hpda_ctrl_pending = false;
 	struct sk_buff_head *ul_list;
 	bool hpda_pending = false;
-	bool forced_hpdu = false;
 	struct ipc_pipe *pipe;
 	int i;
 
@@ -200,15 +200,19 @@ bool ipc_imem_ul_write_td(struct iosm_imem *ipc_imem)
 		ul_list = &channel->ul_list;
 
 		/* Fill the transfer descriptor with the uplink buffer info. */
-		hpda_pending |= ipc_protocol_ul_td_send(ipc_imem->ipc_protocol,
+		if (!ipc_imem_check_wwan_ips(channel)) {
+			hpda_ctrl_pending |=
+				ipc_protocol_ul_td_send(ipc_imem->ipc_protocol,
 							pipe, ul_list);
-
-		/* forced HP update needed for non data channels */
-		if (hpda_pending && !ipc_imem_check_wwan_ips(channel))
-			forced_hpdu = true;
+		} else {
+			hpda_pending |=
+				ipc_protocol_ul_td_send(ipc_imem->ipc_protocol,
+							pipe, ul_list);
+		}
 	}
 
-	if (forced_hpdu) {
+	/* forced HP update needed for non data channels */
+	if (hpda_ctrl_pending) {
 		hpda_pending = false;
 		ipc_protocol_doorbell_trigger(ipc_imem->ipc_protocol,
 					      IPC_HP_UL_WRITE_TD);
