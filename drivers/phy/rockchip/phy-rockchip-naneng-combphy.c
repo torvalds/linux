@@ -19,7 +19,6 @@
 #include <dt-bindings/phy/phy.h>
 
 #define BIT_WRITEABLE_SHIFT		16
-#define PCIE_NO_MUX_SEL			0xffff
 
 struct rockchip_combphy_priv;
 
@@ -75,7 +74,6 @@ struct rockchip_combphy_cfg {
 
 struct rockchip_combphy_priv {
 	u8 mode;
-	u32 mux_sel_bits[4];
 	void __iomem *mmio;
 	int num_clks;
 	struct clk_bulk_data *clks;
@@ -133,11 +131,6 @@ static u32 rockchip_combphy_is_ready(struct rockchip_combphy_priv *priv)
 static int rockchip_combphy_pcie_init(struct rockchip_combphy_priv *priv)
 {
 	int ret = 0;
-
-	if (priv->mux_sel_bits[0] != PCIE_NO_MUX_SEL)
-		regmap_write(priv->pipe_grf, priv->mux_sel_bits[0],
-			(GENMASK(priv->mux_sel_bits[2], priv->mux_sel_bits[1]) << 16) |
-			priv->mux_sel_bits[3]);
 
 	if (priv->cfg->combphy_cfg) {
 		ret = priv->cfg->combphy_cfg(priv);
@@ -296,6 +289,7 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 {
 	const struct rockchip_combphy_cfg *phy_cfg = priv->cfg;
 	int ret, mac_id;
+	u32 vals[4];
 
 	ret = devm_clk_bulk_get(dev, priv->num_clks, priv->clks);
 	if (ret == -EPROBE_DEFER)
@@ -329,10 +323,10 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 		param_write(priv->pipe_grf, &phy_cfg->grfcfg->pipe_sgmii_mac_sel,
 			    true);
 
-	priv->mux_sel_bits[0] = PCIE_NO_MUX_SEL;
-	device_property_read_u32_array(dev, "rockchip,pcie1ln-sel-bits",
-				       priv->mux_sel_bits,
-				       ARRAY_SIZE(priv->mux_sel_bits));
+	if (!device_property_read_u32_array(dev, "rockchip,pcie1ln-sel-bits",
+					    vals, ARRAY_SIZE(vals)))
+		regmap_write(priv->pipe_grf, vals[0],
+			     (GENMASK(vals[2], vals[1]) << 16) | vals[3]);
 
 	priv->apb_rst = devm_reset_control_get_optional(dev, "combphy-apb");
 	if (IS_ERR(priv->apb_rst)) {
