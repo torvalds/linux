@@ -390,13 +390,21 @@ static int pkvm_vcpu_init_ptrauth(struct pkvm_hyp_vcpu *hyp_vcpu)
 	return ret;
 }
 
-static void pkvm_vcpu_init_psci(struct pkvm_hyp_vcpu *hyp_vcpu)
+static int pkvm_vcpu_init_psci(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct vcpu_reset_state *reset_state = &hyp_vcpu->vcpu.arch.reset_state;
+	struct pkvm_hyp_vm *hyp_vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
 
 	if (test_bit(KVM_ARM_VCPU_POWER_OFF, hyp_vcpu->vcpu.arch.features)) {
 		reset_state->reset = false;
 		hyp_vcpu->power_state = PSCI_0_2_AFFINITY_LEVEL_OFF;
+	} else if (pkvm_hyp_vm_has_pvmfw(hyp_vm)) {
+		if (hyp_vm->pvmfw_entry_vcpu)
+			return -EINVAL;
+
+		hyp_vm->pvmfw_entry_vcpu = hyp_vcpu;
+		reset_state->reset = true;
+		hyp_vcpu->power_state = PSCI_0_2_AFFINITY_LEVEL_ON_PENDING;
 	} else {
 		struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
 
@@ -405,6 +413,8 @@ static void pkvm_vcpu_init_psci(struct pkvm_hyp_vcpu *hyp_vcpu)
 		reset_state->reset = true;
 		hyp_vcpu->power_state = PSCI_0_2_AFFINITY_LEVEL_ON_PENDING;
 	}
+
+	return 0;
 }
 
 static void unpin_host_vcpu(struct kvm_vcpu *host_vcpu)
@@ -486,6 +496,10 @@ static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
 	if (ret)
 		goto done;
 
+	ret = pkvm_vcpu_init_psci(hyp_vcpu);
+	if (ret)
+		goto done;
+
 	if (test_bit(KVM_ARM_VCPU_SVE, hyp_vcpu->vcpu.arch.features)) {
 		size_t sve_state_size;
 		void *sve_state;
@@ -508,7 +522,6 @@ static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
 
 	pkvm_vcpu_init_traps(hyp_vcpu);
 	kvm_reset_pvm_sys_regs(&hyp_vcpu->vcpu);
-	pkvm_vcpu_init_psci(hyp_vcpu);
 done:
 	if (ret)
 		unpin_host_vcpu(host_vcpu);
@@ -881,6 +894,7 @@ void pkvm_clear_pvmfw_pages(void)
 void pkvm_reset_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct vcpu_reset_state *reset_state = &hyp_vcpu->vcpu.arch.reset_state;
+	struct pkvm_hyp_vm *hyp_vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
 
 	WARN_ON(!reset_state->reset);
 
@@ -890,6 +904,25 @@ void pkvm_reset_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 
 	/* Must be done after reseting sys registers. */
 	kvm_reset_vcpu_psci(&hyp_vcpu->vcpu, reset_state);
+	if (hyp_vm->pvmfw_entry_vcpu == hyp_vcpu) {
+		struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+		u64 entry = hyp_vm->kvm.arch.pkvm.pvmfw_load_addr;
+		int i;
+
+		/* X0 - X14 provided by the VMM (preserved) */
+		for (i = 0; i <= 14; ++i) {
+			u64 val = vcpu_get_reg(host_vcpu, i);
+
+			vcpu_set_reg(&hyp_vcpu->vcpu, i, val);
+		}
+
+		/* X15: Boot protocol version */
+		vcpu_set_reg(&hyp_vcpu->vcpu, 15, 0);
+
+		/* PC: IPA of pvmfw base */
+		*vcpu_pc(&hyp_vcpu->vcpu) = entry;
+		hyp_vm->pvmfw_entry_vcpu = NULL;
+	}
 
 	reset_state->reset = false;
 

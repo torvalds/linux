@@ -55,6 +55,9 @@ struct pkvm_hyp_vm {
 	struct hyp_pool pool;
 	hyp_spinlock_t lock;
 
+	/* Primary vCPU pending entry to the pvmfw */
+	struct pkvm_hyp_vcpu *pvmfw_entry_vcpu;
+
 	/*
 	 * The number of vcpus initialized and ready to run.
 	 * Modifying this is protected by 'vm_table_lock'.
