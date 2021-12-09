@@ -82,12 +82,15 @@ enum dsa_tag_protocol {
 };
 
 struct dsa_switch;
+struct dsa_switch_tree;
 
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev);
 	void (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
 			     int *offset);
+	int (*connect)(struct dsa_switch_tree *dst);
+	void (*disconnect)(struct dsa_switch_tree *dst);
 	unsigned int needed_headroom;
 	unsigned int needed_tailroom;
 	const char *name;
@@ -336,6 +339,8 @@ struct dsa_switch {
 	 * structure.
 	 */
 	void *priv;
+
+	void *tagger_data;
 
 	/*
 	 * Configuration data for this switch.
@@ -689,6 +694,13 @@ struct dsa_switch_ops {
 						  enum dsa_tag_protocol mprot);
 	int	(*change_tag_protocol)(struct dsa_switch *ds, int port,
 				       enum dsa_tag_protocol proto);
+	/*
+	 * Method for switch drivers to connect to the tagging protocol driver
+	 * in current use. The switch driver can provide handlers for certain
+	 * types of packets for switch management.
+	 */
+	int	(*connect_tag_protocol)(struct dsa_switch *ds,
+					enum dsa_tag_protocol proto);
 
 	/* Optional switch-wide initialization and destruction methods */
 	int	(*setup)(struct dsa_switch *ds);
