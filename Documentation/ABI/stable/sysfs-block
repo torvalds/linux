@@ -242,7 +242,7 @@ Description:
 
 What:		/sys/block/<disk>/queue/nomerges
 Date:		January 2010
-Contact:
+Contact:	linux-block@vger.kernel.org
 Description:
 		Standard I/O elevator operations include attempts to
 		merge contiguous I/Os. For known random I/O loads these
