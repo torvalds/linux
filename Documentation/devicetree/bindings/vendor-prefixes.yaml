@@ -23,6 +23,8 @@ patternProperties:
   "^(simple-audio-card|st-plgpio|st-spics|ts),.*": true
 
   # Keep list in alphabetical order.
+  "^100ask,.*":
+    description: Baiwen.com (100ask).
   "^70mai,.*":
     description: 70mai Co., Ltd.
   "^8dev,.*":
