@@ -1179,7 +1179,7 @@ again:
 		 */
 		wp = bch2_alloc_sectors_start(c,
 			op->target,
-			op->opts.erasure_code,
+			op->opts.erasure_code && !(op->flags & BCH_WRITE_CACHED),
 			op->write_point,
 			&op->devs_have,
 			op->nr_replicas,

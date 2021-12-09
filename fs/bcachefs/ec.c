@@ -143,8 +143,8 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 /* returns blocknr in stripe that we matched: */
-static int bkey_matches_stripe(struct bch_stripe *s,
-			       struct bkey_s_c k)
+static const struct bch_extent_ptr *bkey_matches_stripe(struct bch_stripe *s,
+						struct bkey_s_c k, unsigned *block)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const struct bch_extent_ptr *ptr;
@@ -153,10 +153,12 @@ static int bkey_matches_stripe(struct bch_stripe *s,
 	bkey_for_each_ptr(ptrs, ptr)
 		for (i = 0; i < nr_data; i++)
 			if (__bch2_ptr_matches_stripe(&s->ptrs[i], ptr,
-						      le16_to_cpu(s->sectors)))
-				return i;
+						      le16_to_cpu(s->sectors))) {
+				*block = i;
+				return ptr;
+			}
 
-	return -1;
+	return NULL;
 }
 
 static bool extent_has_stripe_ptr(struct bkey_s_c k, u64 idx)
@@ -834,6 +836,7 @@ retry:
 	       (k = bch2_btree_iter_peek(&iter)).k &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(bkey_start_pos(k.k), pos->p) < 0) {
+		const struct bch_extent_ptr *ptr_c;
 		struct bch_extent_ptr *ptr, *ec_ptr = NULL;
 
 		if (extent_has_stripe_ptr(k, s->key.k.p.offset)) {
@@ -841,8 +844,12 @@ retry:
 			continue;
 		}
 
-		block = bkey_matches_stripe(&s->key.v, k);
-		if (block < 0) {
+		ptr_c = bkey_matches_stripe(&s->key.v, k, &block);
+		/*
+		 * It doesn't generally make sense to erasure code cached ptrs:
+		 * XXX: should we be incrementing a counter?
+		 */
+		if (!ptr_c || ptr_c->cached) {
 			bch2_btree_iter_advance(&iter);
 			continue;
 		}
