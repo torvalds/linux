@@ -1229,19 +1229,20 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 			if (r)
 				break;
 		}
-		amdgpu_amdkfd_flush_gpu_tlb_pasid(pdd->dev->adev,
-					p->pasid, TLB_FLUSH_HEAVYWEIGHT);
+		kfd_flush_tlb(pdd, TLB_FLUSH_HEAVYWEIGHT);
 	}
 
 	return r;
 }
 
 static int
-svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		     struct svm_range *prange, unsigned long offset,
-		     unsigned long npages, bool readonly, dma_addr_t *dma_addr,
-		     struct amdgpu_device *bo_adev, struct dma_fence **fence)
+svm_range_map_to_gpu(struct kfd_process_device *pdd, struct svm_range *prange,
+		     unsigned long offset, unsigned long npages, bool readonly,
+		     dma_addr_t *dma_addr, struct amdgpu_device *bo_adev,
+		     struct dma_fence **fence)
 {
+	struct amdgpu_device *adev = pdd->dev->adev;
+	struct amdgpu_vm *vm = drm_priv_to_vm(pdd->drm_priv);
 	bool table_freed = false;
 	uint64_t pte_flags;
 	unsigned long last_start;
@@ -1305,12 +1306,8 @@ svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (fence)
 		*fence = dma_fence_get(vm->last_update);
 
-	if (table_freed) {
-		struct kfd_process *p;
-
-		p = container_of(prange->svms, struct kfd_process, svms);
-		amdgpu_amdkfd_flush_gpu_tlb_pasid(adev, p->pasid, TLB_FLUSH_LEGACY);
-	}
+	if (table_freed)
+		kfd_flush_tlb(pdd, TLB_FLUSH_LEGACY);
 out:
 	return r;
 }
@@ -1351,8 +1348,7 @@ svm_range_map_to_gpus(struct svm_range *prange, unsigned long offset,
 			continue;
 		}
 
-		r = svm_range_map_to_gpu(pdd->dev->adev, drm_priv_to_vm(pdd->drm_priv),
-					 prange, offset, npages, readonly,
+		r = svm_range_map_to_gpu(pdd, prange, offset, npages, readonly,
 					 prange->dma_addr[gpuidx],
 					 bo_adev, wait ? &fence : NULL);
 		if (r)
