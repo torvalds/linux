@@ -195,8 +195,9 @@ struct bpf_load_program_attr {
 /* Flags to direct loading requirements */
 #define MAPS_RELAX_COMPAT	0x01
 
-/* Recommend log buffer size */
+/* Recommended log buffer size */
 #define BPF_LOG_BUF_SIZE (UINT32_MAX >> 8) /* verifier maximum in kernels <= 5.1 */
+
 LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_prog_load() instead")
 LIBBPF_API int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 				      char *log_buf, size_t log_buf_sz);

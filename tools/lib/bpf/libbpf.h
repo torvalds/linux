@@ -108,8 +108,47 @@ struct bpf_object_open_opts {
 	 * struct_ops, etc) will need actual kernel BTF at /sys/kernel/btf/vmlinux.
 	 */
 	const char *btf_custom_path;
+	/* Pointer to a buffer for storing kernel logs for applicable BPF
+	 * commands. Valid kernel_log_size has to be specified as well and are
+	 * passed-through to bpf() syscall. Keep in mind that kernel might
+	 * fail operation with -ENOSPC error if provided buffer is too small
+	 * to contain entire log output.
+	 * See the comment below for kernel_log_level for interaction between
+	 * log_buf and log_level settings.
+	 *
+	 * If specified, this log buffer will be passed for:
+	 *   - each BPF progral load (BPF_PROG_LOAD) attempt, unless overriden
+	 *     with bpf_program__set_log() on per-program level, to get
+	 *     BPF verifier log output.
+	 *   - during BPF object's BTF load into kernel (BPF_BTF_LOAD) to get
+	 *     BTF sanity checking log.
+	 *
+	 * Each BPF command (BPF_BTF_LOAD or BPF_PROG_LOAD) will overwrite
+	 * previous contents, so if you need more fine-grained control, set
+	 * per-program buffer with bpf_program__set_log_buf() to preserve each
+	 * individual program's verification log. Keep using kernel_log_buf
+	 * for BTF verification log, if necessary.
+	 */
+	char *kernel_log_buf;
+	size_t kernel_log_size;
+	/*
+	 * Log level can be set independently from log buffer. Log_level=0
+	 * means that libbpf will attempt loading BTF or program without any
+	 * logging requested, but will retry with either its own or custom log
+	 * buffer, if provided, and log_level=1 on any error.
+	 * And vice versa, setting log_level>0 will request BTF or prog
+	 * loading with verbose log from the first attempt (and as such also
+	 * for successfully loaded BTF or program), and the actual log buffer
+	 * could be either libbpf's own auto-allocated log buffer, if
+	 * kernel_log_buffer is NULL, or user-provided custom kernel_log_buf.
+	 * If user didn't provide custom log buffer, libbpf will emit captured
+	 * logs through its print callback.
+	 */
+	__u32 kernel_log_level;
+
+	size_t :0;
 };
-#define bpf_object_open_opts__last_field btf_custom_path
+#define bpf_object_open_opts__last_field kernel_log_level
 
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 
