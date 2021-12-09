@@ -37,6 +37,12 @@
 
 #define SJA1105_HWTS_RX_EN			0
 
+struct sja1105_deferred_xmit_work {
+	struct dsa_port *dp;
+	struct sk_buff *skb;
+	struct kthread_work work;
+};
+
 /* Global tagger data: each struct sja1105_port has a reference to
  * the structure defined in struct sja1105_private.
  */
@@ -52,6 +58,8 @@ struct sja1105_tagger_data {
 	 * 2-step TX timestamps
 	 */
 	struct sk_buff_head skb_txtstamp_queue;
+	struct kthread_worker *xmit_worker;
+	void (*xmit_work_fn)(struct kthread_work *work);
 };
 
 struct sja1105_skb_cb {
@@ -65,9 +73,6 @@ struct sja1105_skb_cb {
 	((struct sja1105_skb_cb *)((skb)->cb))
 
 struct sja1105_port {
-	struct kthread_worker *xmit_worker;
-	struct kthread_work xmit_work;
-	struct sk_buff_head xmit_queue;
 	struct sja1105_tagger_data *data;
 	bool hwts_tx_en;
 };

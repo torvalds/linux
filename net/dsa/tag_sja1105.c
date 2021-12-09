@@ -125,16 +125,29 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 					  struct sk_buff *skb)
 {
+	void (*xmit_work_fn)(struct kthread_work *work);
+	struct sja1105_deferred_xmit_work *xmit_work;
 	struct sja1105_port *sp = dp->priv;
+	struct kthread_worker *xmit_worker;
 
-	if (!dsa_port_is_sja1105(dp))
-		return skb;
+	xmit_work_fn = sp->data->xmit_work_fn;
+	xmit_worker = sp->data->xmit_worker;
 
+	if (!xmit_work_fn || !xmit_worker)
+		return NULL;
+
+	xmit_work = kzalloc(sizeof(*xmit_work), GFP_ATOMIC);
+	if (!xmit_work)
+		return NULL;
+
+	kthread_init_work(&xmit_work->work, xmit_work_fn);
 	/* Increase refcount so the kfree_skb in dsa_slave_xmit
 	 * won't really free the packet.
 	 */
-	skb_queue_tail(&sp->xmit_queue, skb_get(skb));
-	kthread_queue_work(sp->xmit_worker, &sp->xmit_work);
+	xmit_work->dp = dp;
+	xmit_work->skb = skb_get(skb);
+
+	kthread_queue_work(xmit_worker, &xmit_work->work);
 
 	return NULL;
 }
