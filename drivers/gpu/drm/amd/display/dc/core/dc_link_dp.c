@@ -1544,9 +1544,6 @@ static enum link_training_result perform_clock_recovery_sequence(
 		/* 3. wait receiver to lock-on*/
 		wait_time_microsec = lt_settings->cr_pattern_time;
 
-		if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-			wait_time_microsec = TRAINING_AUX_RD_INTERVAL;
-
 		if (link->dc->debug.apply_vendor_specific_lttpr_wa &&
 				(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN)) {
 			wait_time_microsec = 16000;
