@@ -214,6 +214,7 @@ struct bpf_object_load_attr {
 
 /* Load/unload object into/from kernel */
 LIBBPF_API int bpf_object__load(struct bpf_object *obj);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_object__load() instead")
 LIBBPF_API int bpf_object__load_xattr(struct bpf_object_load_attr *attr);
 LIBBPF_DEPRECATED_SINCE(0, 6, "bpf_object__unload() is deprecated, use bpf_object__close() instead")
 LIBBPF_API int bpf_object__unload(struct bpf_object *obj);
