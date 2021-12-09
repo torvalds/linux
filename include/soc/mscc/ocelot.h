@@ -118,6 +118,7 @@ enum ocelot_target {
 	S2,
 	HSIO,
 	PTP,
+	FDMA,
 	GCB,
 	DEV_GMII,
 	TARGET_MAX,
@@ -732,6 +733,8 @@ struct ocelot {
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
 	struct ptp_pin_desc		ptp_pins[OCELOT_PTP_PINS_NUM];
+
+	struct ocelot_fdma		*fdma;
 };
 
 struct ocelot_policer {
