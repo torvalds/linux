@@ -180,10 +180,8 @@ static void put_io_context_active(struct io_context *ioc)
 {
 	struct io_cq *icq;
 
-	if (!atomic_dec_and_test(&ioc->active_ref)) {
-		put_io_context(ioc);
+	if (!atomic_dec_and_test(&ioc->active_ref))
 		return;
-	}
 
 	spin_lock_irq(&ioc->lock);
 	hlist_for_each_entry(icq, &ioc->icq_list, ioc_node) {
@@ -335,7 +333,6 @@ int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
 	 * Share io context with parent, if CLONE_IO is set
 	 */
 	if (clone_flags & CLONE_IO) {
-		atomic_long_inc(&ioc->refcount);
 		atomic_inc(&ioc->active_ref);
 		tsk->io_context = ioc;
 	} else if (ioprio_valid(ioc->ioprio)) {
