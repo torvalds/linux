@@ -20,6 +20,7 @@
 #define APPLE_PMGR_RESET        BIT(31)
 #define APPLE_PMGR_AUTO_ENABLE  BIT(28)
 #define APPLE_PMGR_PS_AUTO      GENMASK(27, 24)
+#define APPLE_PMGR_PS_MIN       GENMASK(19, 16)
 #define APPLE_PMGR_PARENT_OFF   BIT(11)
 #define APPLE_PMGR_DEV_DISABLE  BIT(10)
 #define APPLE_PMGR_WAS_CLKGATED BIT(9)
@@ -42,6 +43,7 @@ struct apple_pmgr_ps {
 	struct reset_controller_dev rcdev;
 	struct regmap *regmap;
 	u32 offset;
+	u32 min_state;
 };
 
 #define genpd_to_apple_pmgr_ps(_genpd) container_of(_genpd, struct apple_pmgr_ps, genpd)
@@ -223,6 +225,11 @@ static int apple_pmgr_ps_probe(struct platform_device *pdev)
 	ps->genpd.name = name;
 	ps->genpd.power_on = apple_pmgr_ps_power_on;
 	ps->genpd.power_off = apple_pmgr_ps_power_off;
+
+	ret = of_property_read_u32(node, "apple,min-state", &ps->min_state);
+	if (ret == 0 && ps->min_state <= APPLE_PMGR_PS_ACTIVE)
+		regmap_update_bits(regmap, ps->offset, APPLE_PMGR_FLAGS | APPLE_PMGR_PS_MIN,
+				   FIELD_PREP(APPLE_PMGR_PS_MIN, ps->min_state));
 
 	active = apple_pmgr_ps_is_active(ps);
 	if (of_property_read_bool(node, "apple,always-on")) {
