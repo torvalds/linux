@@ -2705,6 +2705,21 @@ static void sja1105_port_deferred_xmit(struct kthread_work *work)
 	kfree(xmit_work);
 }
 
+static int sja1105_connect_tag_protocol(struct dsa_switch *ds,
+					enum dsa_tag_protocol proto)
+{
+	struct sja1105_tagger_data *tagger_data;
+
+	switch (proto) {
+	case DSA_TAG_PROTO_SJA1105:
+		tagger_data = sja1105_tagger_data(ds);
+		tagger_data->xmit_work_fn = sja1105_port_deferred_xmit;
+		return 0;
+	default:
+		return -EPROTONOSUPPORT;
+	}
+}
+
 /* The MAXAGE setting belongs to the L2 Forwarding Parameters table,
  * which cannot be reconfigured at runtime. So a switch reset is required.
  */
@@ -3005,38 +3020,6 @@ static int sja1105_port_bridge_flags(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static void sja1105_teardown_ports(struct sja1105_private *priv)
-{
-	struct sja1105_tagger_data *tagger_data = &priv->tagger_data;
-
-	kthread_destroy_worker(tagger_data->xmit_worker);
-}
-
-static int sja1105_setup_ports(struct sja1105_private *priv)
-{
-	struct sja1105_tagger_data *tagger_data = &priv->tagger_data;
-	struct dsa_switch *ds = priv->ds;
-	struct kthread_worker *worker;
-	struct dsa_port *dp;
-
-	worker = kthread_create_worker(0, "dsa%d:%d_xmit", ds->dst->index,
-				       ds->index);
-	if (IS_ERR(worker)) {
-		dev_err(ds->dev,
-			"failed to create deferred xmit thread: %pe\n",
-			worker);
-		return PTR_ERR(worker);
-	}
-
-	tagger_data->xmit_worker = worker;
-	tagger_data->xmit_work_fn = sja1105_port_deferred_xmit;
-
-	dsa_switch_for_each_user_port(dp, ds)
-		dp->priv = tagger_data;
-
-	return 0;
-}
-
 /* The programming model for the SJA1105 switch is "all-at-once" via static
  * configuration tables. Some of these can be dynamically modified at runtime,
  * but not the xMII mode parameters table.
@@ -3081,10 +3064,6 @@ static int sja1105_setup(struct dsa_switch *ds)
 			goto out_static_config_free;
 		}
 	}
-
-	rc = sja1105_setup_ports(priv);
-	if (rc)
-		goto out_static_config_free;
 
 	sja1105_tas_setup(ds);
 	sja1105_flower_setup(ds);
@@ -3142,7 +3121,6 @@ out_ptp_clock_unregister:
 out_flower_teardown:
 	sja1105_flower_teardown(ds);
 	sja1105_tas_teardown(ds);
-	sja1105_teardown_ports(priv);
 out_static_config_free:
 	sja1105_static_config_free(&priv->static_config);
 
@@ -3162,12 +3140,12 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	sja1105_ptp_clock_unregister(ds);
 	sja1105_flower_teardown(ds);
 	sja1105_tas_teardown(ds);
-	sja1105_teardown_ports(priv);
 	sja1105_static_config_free(&priv->static_config);
 }
 
 static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_tag_protocol	= sja1105_get_tag_protocol,
+	.connect_tag_protocol	= sja1105_connect_tag_protocol,
 	.setup			= sja1105_setup,
 	.teardown		= sja1105_teardown,
 	.set_ageing_time	= sja1105_set_ageing_time,

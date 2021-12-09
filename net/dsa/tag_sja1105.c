@@ -125,7 +125,7 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 					  struct sk_buff *skb)
 {
-	struct sja1105_tagger_data *tagger_data = dp->priv;
+	struct sja1105_tagger_data *tagger_data = sja1105_tagger_data(dp->ds);
 	void (*xmit_work_fn)(struct kthread_work *work);
 	struct sja1105_deferred_xmit_work *xmit_work;
 	struct kthread_worker *xmit_worker;
@@ -368,10 +368,10 @@ static struct sk_buff
 	 */
 	if (is_link_local) {
 		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-		struct sja1105_tagger_data *tagger_data = dp->priv;
+		struct sja1105_tagger_data *tagger_data;
+		struct dsa_switch *ds = dp->ds;
 
-		if (unlikely(!dsa_port_is_sja1105(dp)))
-			return skb;
+		tagger_data = sja1105_tagger_data(ds);
 
 		if (!test_bit(SJA1105_HWTS_RX_EN, &tagger_data->state))
 			/* Do normal processing. */
@@ -382,7 +382,7 @@ static struct sk_buff
 		 * that we were expecting?
 		 */
 		if (tagger_data->stampable_skb) {
-			dev_err_ratelimited(dp->ds->dev,
+			dev_err_ratelimited(ds->dev,
 					    "Expected meta frame, is %12llx "
 					    "in the DSA master multicast filter?\n",
 					    SJA1105_META_DMAC);
@@ -406,11 +406,11 @@ static struct sk_buff
 	 */
 	} else if (is_meta) {
 		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-		struct sja1105_tagger_data *tagger_data = dp->priv;
+		struct sja1105_tagger_data *tagger_data;
+		struct dsa_switch *ds = dp->ds;
 		struct sk_buff *stampable_skb;
 
-		if (unlikely(!dsa_port_is_sja1105(dp)))
-			return skb;
+		tagger_data = sja1105_tagger_data(ds);
 
 		/* Drop the meta frame if we're not in the right state
 		 * to process it.
@@ -427,14 +427,14 @@ static struct sk_buff
 		 * that we were expecting?
 		 */
 		if (!stampable_skb) {
-			dev_err_ratelimited(dp->ds->dev,
+			dev_err_ratelimited(ds->dev,
 					    "Unexpected meta frame\n");
 			spin_unlock(&tagger_data->meta_lock);
 			return NULL;
 		}
 
 		if (stampable_skb->dev != skb->dev) {
-			dev_err_ratelimited(dp->ds->dev,
+			dev_err_ratelimited(ds->dev,
 					    "Meta frame on wrong port\n");
 			spin_unlock(&tagger_data->meta_lock);
 			return NULL;
@@ -543,19 +543,13 @@ static void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port,
 					u8 ts_id, enum sja1110_meta_tstamp dir,
 					u64 tstamp)
 {
+	struct sja1105_tagger_data *tagger_data = sja1105_tagger_data(ds);
 	struct sk_buff *skb, *skb_tmp, *skb_match = NULL;
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct sja1105_tagger_data *tagger_data;
 	struct skb_shared_hwtstamps shwt = {0};
-
-	if (!dsa_port_is_sja1105(dp))
-		return;
 
 	/* We don't care about RX timestamps on the CPU port */
 	if (dir == SJA1110_META_TSTAMP_RX)
 		return;
-
-	tagger_data = dp->priv;
 
 	spin_lock(&tagger_data->skb_txtstamp_queue.lock);
 
@@ -737,11 +731,71 @@ static void sja1110_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 	*proto = ((__be16 *)skb->data)[(VLAN_HLEN / 2) - 1];
 }
 
+static void sja1105_disconnect(struct dsa_switch_tree *dst)
+{
+	struct sja1105_tagger_data *tagger_data;
+	struct dsa_port *dp;
+
+	list_for_each_entry(dp, &dst->ports, list) {
+		tagger_data = dp->ds->tagger_data;
+
+		if (!tagger_data)
+			continue;
+
+		if (tagger_data->xmit_worker)
+			kthread_destroy_worker(tagger_data->xmit_worker);
+
+		kfree(tagger_data);
+		dp->ds->tagger_data = NULL;
+	}
+}
+
+static int sja1105_connect(struct dsa_switch_tree *dst)
+{
+	struct sja1105_tagger_data *tagger_data;
+	struct kthread_worker *xmit_worker;
+	struct dsa_port *dp;
+	int err;
+
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->ds->tagger_data)
+			continue;
+
+		tagger_data = kzalloc(sizeof(*tagger_data), GFP_KERNEL);
+		if (!tagger_data) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		/* Only used on SJA1110 */
+		skb_queue_head_init(&tagger_data->skb_txtstamp_queue);
+		spin_lock_init(&tagger_data->meta_lock);
+
+		xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",
+						    dst->index, dp->ds->index);
+		if (IS_ERR(xmit_worker)) {
+			err = PTR_ERR(xmit_worker);
+			goto out;
+		}
+
+		tagger_data->xmit_worker = xmit_worker;
+		dp->ds->tagger_data = tagger_data;
+	}
+
+	return 0;
+
+out:
+	sja1105_disconnect(dst);
+	return err;
+}
+
 static const struct dsa_device_ops sja1105_netdev_ops = {
 	.name = "sja1105",
 	.proto = DSA_TAG_PROTO_SJA1105,
 	.xmit = sja1105_xmit,
 	.rcv = sja1105_rcv,
+	.connect = sja1105_connect,
+	.disconnect = sja1105_disconnect,
 	.needed_headroom = VLAN_HLEN,
 	.flow_dissect = sja1105_flow_dissect,
 	.promisc_on_master = true,
@@ -755,6 +809,8 @@ static const struct dsa_device_ops sja1110_netdev_ops = {
 	.proto = DSA_TAG_PROTO_SJA1110,
 	.xmit = sja1110_xmit,
 	.rcv = sja1110_rcv,
+	.connect = sja1105_connect,
+	.disconnect = sja1105_disconnect,
 	.flow_dissect = sja1110_flow_dissect,
 	.needed_headroom = SJA1110_HEADER_LEN + VLAN_HLEN,
 	.needed_tailroom = SJA1110_RX_TRAILER_LEN + SJA1110_MAX_PADDING_LEN,

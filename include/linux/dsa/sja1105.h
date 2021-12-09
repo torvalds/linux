@@ -84,9 +84,12 @@ static inline s64 sja1105_ticks_to_ns(s64 ticks)
 	return ticks * SJA1105_TICK_NS;
 }
 
-static inline bool dsa_port_is_sja1105(struct dsa_port *dp)
+static inline struct sja1105_tagger_data *
+sja1105_tagger_data(struct dsa_switch *ds)
 {
-	return true;
+	BUG_ON(ds->dst->tag_ops->proto != DSA_TAG_PROTO_SJA1105);
+
+	return ds->tagger_data;
 }
 
 #endif /* _NET_DSA_SJA1105_H */
