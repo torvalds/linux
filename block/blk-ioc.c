@@ -54,6 +54,16 @@ static void ioc_exit_icq(struct io_cq *icq)
 	icq->flags |= ICQ_EXITED;
 }
 
+static void ioc_exit_icqs(struct io_context *ioc)
+{
+	struct io_cq *icq;
+
+	spin_lock_irq(&ioc->lock);
+	hlist_for_each_entry(icq, &ioc->icq_list, ioc_node)
+		ioc_exit_icq(icq);
+	spin_unlock_irq(&ioc->lock);
+}
+
 /*
  * Release an icq. Called with ioc locked for blk-mq, and with both ioc
  * and queue locked for legacy.
@@ -169,32 +179,6 @@ void put_io_context(struct io_context *ioc)
 }
 EXPORT_SYMBOL_GPL(put_io_context);
 
-/**
- * put_io_context_active - put active reference on ioc
- * @ioc: ioc of interest
- *
- * Put an active reference to an ioc.  If active reference reaches zero after
- * put, @ioc can never issue further IOs and ioscheds are notified.
- */
-static void put_io_context_active(struct io_context *ioc)
-{
-	struct io_cq *icq;
-
-	if (!atomic_dec_and_test(&ioc->active_ref))
-		return;
-
-	spin_lock_irq(&ioc->lock);
-	hlist_for_each_entry(icq, &ioc->icq_list, ioc_node) {
-		if (icq->flags & ICQ_EXITED)
-			continue;
-
-		ioc_exit_icq(icq);
-	}
-	spin_unlock_irq(&ioc->lock);
-
-	put_io_context(ioc);
-}
-
 /* Called by the exiting task */
 void exit_io_context(struct task_struct *task)
 {
@@ -205,7 +189,10 @@ void exit_io_context(struct task_struct *task)
 	task->io_context = NULL;
 	task_unlock(task);
 
-	put_io_context_active(ioc);
+	if (atomic_dec_and_test(&ioc->active_ref)) {
+		ioc_exit_icqs(ioc);
+		put_io_context(ioc);
+	}
 }
 
 static void __ioc_clear_queue(struct list_head *icq_list)
