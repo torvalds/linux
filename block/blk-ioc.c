@@ -143,6 +143,24 @@ static void ioc_release_fn(struct work_struct *work)
 	kmem_cache_free(iocontext_cachep, ioc);
 }
 
+/*
+ * Releasing icqs requires reverse order double locking and we may already be
+ * holding a queue_lock.  Do it asynchronously from a workqueue.
+ */
+static bool ioc_delay_free(struct io_context *ioc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ioc->lock, flags);
+	if (!hlist_empty(&ioc->icq_list)) {
+		queue_work(system_power_efficient_wq, &ioc->release_work);
+		spin_unlock_irqrestore(&ioc->lock, flags);
+		return true;
+	}
+	spin_unlock_irqrestore(&ioc->lock, flags);
+	return false;
+}
+
 /**
  * put_io_context - put a reference of io_context
  * @ioc: io_context to put
@@ -152,26 +170,8 @@ static void ioc_release_fn(struct work_struct *work)
  */
 void put_io_context(struct io_context *ioc)
 {
-	unsigned long flags;
-	bool free_ioc = false;
-
 	BUG_ON(atomic_long_read(&ioc->refcount) <= 0);
-
-	/*
-	 * Releasing ioc requires reverse order double locking and we may
-	 * already be holding a queue_lock.  Do it asynchronously from wq.
-	 */
-	if (atomic_long_dec_and_test(&ioc->refcount)) {
-		spin_lock_irqsave(&ioc->lock, flags);
-		if (!hlist_empty(&ioc->icq_list))
-			queue_work(system_power_efficient_wq,
-					&ioc->release_work);
-		else
-			free_ioc = true;
-		spin_unlock_irqrestore(&ioc->lock, flags);
-	}
-
-	if (free_ioc)
+	if (atomic_long_dec_and_test(&ioc->refcount) && !ioc_delay_free(ioc))
 		kmem_cache_free(iocontext_cachep, ioc);
 }
 EXPORT_SYMBOL_GPL(put_io_context);
