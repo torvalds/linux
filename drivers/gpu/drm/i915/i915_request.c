@@ -307,6 +307,7 @@ void i915_request_free_capture_list(struct i915_capture_list *capture)
 		struct i915_capture_list *next = capture->next;
 
 		i915_vma_snapshot_put(capture->vma_snapshot);
+		kfree(capture);
 		capture = next;
 	}
 }
