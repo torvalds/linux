@@ -6662,8 +6662,10 @@ retry_load:
 	ret = bpf_prog_load(prog->type, prog_name, license, insns, insns_cnt, &load_attr);
 
 	if (ret >= 0) {
-		if (log_buf && load_attr.log_level)
-			pr_debug("verifier log:\n%s", log_buf);
+		if (log_buf && load_attr.log_level) {
+			pr_debug("prog '%s': -- BEGIN PROG LOAD LOG --\n%s-- END PROG LOAD LOG --\n",
+				 prog->name, log_buf);
+		}
 
 		if (obj->has_rodata && kernel_supports(obj, FEAT_PROG_BIND_MAP)) {
 			struct bpf_map *map;
@@ -6676,8 +6678,8 @@ retry_load:
 
 				if (bpf_prog_bind_map(ret, bpf_map__fd(map), NULL)) {
 					cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
-					pr_warn("prog '%s': failed to bind .rodata map: %s\n",
-						prog->name, cp);
+					pr_warn("prog '%s': failed to bind map '%s': %s\n",
+						prog->name, map->real_name, cp);
 					/* Don't fail hard if can't bind rodata. */
 				}
 			}
@@ -6691,23 +6693,22 @@ retry_load:
 	if (!log_buf || errno == ENOSPC) {
 		log_buf_size = max((size_t)BPF_LOG_BUF_SIZE,
 				   log_buf_size << 1);
-
 		free(log_buf);
 		goto retry_load;
 	}
 	ret = errno ? -errno : -LIBBPF_ERRNO__LOAD;
 	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
-	pr_warn("load bpf program failed: %s\n", cp);
+	pr_warn("prog '%s': BPF program load failed: %s\n", prog->name, cp);
 	pr_perm_msg(ret);
 
 	if (log_buf && log_buf[0] != '\0') {
 		ret = -LIBBPF_ERRNO__VERIFY;
-		pr_warn("-- BEGIN DUMP LOG ---\n");
-		pr_warn("\n%s\n", log_buf);
-		pr_warn("-- END LOG --\n");
-	} else if (insns_cnt >= BPF_MAXINSNS) {
-		pr_warn("Program too large (%d insns), at most %d insns\n",
-			insns_cnt, BPF_MAXINSNS);
+		pr_warn("prog '%s': -- BEGIN PROG LOAD LOG --\n%s-- END PROG LOAD LOG --\n",
+			prog->name, log_buf);
+	}
+	if (insns_cnt >= BPF_MAXINSNS) {
+		pr_warn("prog '%s': program too large (%d insns), at most %d insns\n",
+			prog->name, insns_cnt, BPF_MAXINSNS);
 		ret = -LIBBPF_ERRNO__PROG2BIG;
 	} else if (prog->type != BPF_PROG_TYPE_KPROBE) {
 		/* Wrong program type? */
@@ -6931,9 +6932,8 @@ static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object
 	return 0;
 }
 
-static struct bpf_object *
-__bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
-		   const struct bpf_object_open_opts *opts)
+static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf, size_t obj_buf_sz,
+					  const struct bpf_object_open_opts *opts)
 {
 	const char *obj_name, *kconfig, *btf_tmp_path;
 	struct bpf_object *obj;
@@ -7033,7 +7033,7 @@ __bpf_object__open_xattr(struct bpf_object_open_attr *attr, int flags)
 		return NULL;
 
 	pr_debug("loading %s\n", attr->file);
-	return __bpf_object__open(attr->file, NULL, 0, &opts);
+	return bpf_object_open(attr->file, NULL, 0, &opts);
 }
 
 struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
@@ -7059,7 +7059,7 @@ bpf_object__open_file(const char *path, const struct bpf_object_open_opts *opts)
 
 	pr_debug("loading %s\n", path);
 
-	return libbpf_ptr(__bpf_object__open(path, NULL, 0, opts));
+	return libbpf_ptr(bpf_object_open(path, NULL, 0, opts));
 }
 
 struct bpf_object *
@@ -7069,7 +7069,7 @@ bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
 	if (!obj_buf || obj_buf_sz == 0)
 		return libbpf_err_ptr(-EINVAL);
 
-	return libbpf_ptr(__bpf_object__open(NULL, obj_buf, obj_buf_sz, opts));
+	return libbpf_ptr(bpf_object_open(NULL, obj_buf, obj_buf_sz, opts));
 }
 
 struct bpf_object *
@@ -7086,7 +7086,7 @@ bpf_object__open_buffer(const void *obj_buf, size_t obj_buf_sz,
 	if (!obj_buf || obj_buf_sz == 0)
 		return errno = EINVAL, NULL;
 
-	return libbpf_ptr(__bpf_object__open(NULL, obj_buf, obj_buf_sz, &opts));
+	return libbpf_ptr(bpf_object_open(NULL, obj_buf, obj_buf_sz, &opts));
 }
 
 static int bpf_object_unload(struct bpf_object *obj)
