@@ -993,10 +993,22 @@ static int guest_complete_donation(u64 addr, const struct pkvm_mem_transition *t
 	enum kvm_pgtable_prot prot = pkvm_mkstate(KVM_PGTABLE_PROT_RWX, PKVM_PAGE_OWNED);
 	struct pkvm_hyp_vcpu *vcpu = tx->completer.guest.hyp_vcpu;
 	struct pkvm_hyp_vm *vm = pkvm_hyp_vcpu_to_hyp_vm(vcpu);
+	phys_addr_t phys = tx->completer.guest.phys;
 	u64 size = tx->nr_pages * PAGE_SIZE;
+	int err;
 
-	return kvm_pgtable_stage2_map(&vm->pgt, addr, size, tx->completer.guest.phys,
-				      prot, &vcpu->vcpu.arch.pkvm_memcache);
+	if (tx->initiator.id == PKVM_ID_HOST &&
+	    pkvm_ipa_in_pvmfw_region(vm, addr)) {
+		if (WARN_ON(!pkvm_hyp_vcpu_is_protected(vcpu)))
+			return -EPERM;
+
+		err = pkvm_load_pvmfw_pages(vm, addr, phys, size);
+		if (err)
+			return err;
+	}
+
+	return kvm_pgtable_stage2_map(&vm->pgt, addr, size, phys, prot,
+				      &vcpu->vcpu.arch.pkvm_memcache);
 }
 
 static int __guest_get_completer_addr(u64 *completer_addr, phys_addr_t phys,

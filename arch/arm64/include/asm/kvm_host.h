@@ -183,6 +183,7 @@ struct kvm_protected_vm {
 	pkvm_handle_t handle;
 	struct kvm_hyp_memcache teardown_mc;
 	struct list_head pinned_pages;
+	gpa_t pvmfw_load_addr;
 	bool enabled;
 };
 
