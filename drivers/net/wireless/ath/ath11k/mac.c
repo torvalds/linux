@@ -3543,6 +3543,12 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 			arg.chan_list[i] = req->channels[i]->center_freq;
 	}
 
+	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		arg.scan_f_add_spoofed_mac_in_probe = 1;
+		ether_addr_copy(arg.mac_addr.addr, req->mac_addr);
+		ether_addr_copy(arg.mac_mask.addr, req->mac_addr_mask);
+	}
+
 	ret = ath11k_start_scan(ar, &arg);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to start hw scan: %d\n", ret);
@@ -5585,6 +5591,14 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 	if (ret) {
 		ath11k_err(ar->ab, "failed to enable dynamic bw: %d\n", ret);
 		goto err;
+	}
+
+	if (test_bit(WMI_TLV_SERVICE_SPOOF_MAC_SUPPORT, ar->wmi->wmi_ab->svc_map)) {
+		ret = ath11k_wmi_scan_prob_req_oui(ar, ar->mac_addr);
+		if (ret) {
+			ath11k_err(ab, "failed to set prob req oui: %i\n", ret);
+			goto err;
+		}
 	}
 
 	ret = ath11k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_ARP_AC_OVERRIDE,
@@ -8182,6 +8196,11 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ar->max_num_peers = TARGET_NUM_PEERS_PDEV;
 
 	ar->hw->wiphy->max_ap_assoc_sta = ar->max_num_stations;
+
+	if (test_bit(WMI_TLV_SERVICE_SPOOF_MAC_SUPPORT, ar->wmi->wmi_ab->svc_map)) {
+		ar->hw->wiphy->features |=
+			NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+	}
 
 	ar->hw->queues = ATH11K_HW_MAX_QUEUES;
 	ar->hw->wiphy->tx_queue_len = ATH11K_QUEUE_LEN;

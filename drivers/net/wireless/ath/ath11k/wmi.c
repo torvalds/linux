@@ -2181,6 +2181,8 @@ int ath11k_wmi_send_scan_start_cmd(struct ath11k *ar,
 	cmd->num_ssids = params->num_ssids;
 	cmd->ie_len = params->extraie.len;
 	cmd->n_probes = params->n_probes;
+	ether_addr_copy(cmd->mac_addr.addr, params->mac_addr.addr);
+	ether_addr_copy(cmd->mac_mask.addr, params->mac_mask.addr);
 
 	ptr += sizeof(*cmd);
 
@@ -7709,4 +7711,32 @@ int ath11k_wmi_wow_enable(struct ath11k *ar)
 	ath11k_dbg(ar->ab, ATH11K_DBG_WMI, "wmi tlv wow enable\n");
 
 	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_WOW_ENABLE_CMDID);
+}
+
+int ath11k_wmi_scan_prob_req_oui(struct ath11k *ar,
+				 const u8 mac_addr[ETH_ALEN])
+{
+	struct sk_buff *skb;
+	struct wmi_scan_prob_req_oui_cmd *cmd;
+	u32 prob_req_oui;
+	int len;
+
+	prob_req_oui = (((u32)mac_addr[0]) << 16) |
+		       (((u32)mac_addr[1]) << 8) | mac_addr[2];
+
+	len = sizeof(*cmd);
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_scan_prob_req_oui_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_SCAN_PROB_REQ_OUI_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->prob_req_oui = prob_req_oui;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI, "wmi scan prob req oui %d\n",
+		   prob_req_oui);
+
+	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_SCAN_PROB_REQ_OUI_CMDID);
 }
