@@ -4494,6 +4494,8 @@ void rtw89_btc_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	u8 *buf = &skb->data[RTW89_C2H_HEADER_LEN];
 
+	len -= RTW89_C2H_HEADER_LEN;
+
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): C2H BT len:%d class:%d fun:%d\n",
 		    __func__, len, class, func);
