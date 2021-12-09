@@ -241,9 +241,11 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 	if (ret)
 		return IRQ_NONE;
 
-	val &= pchan->cmd_complete.status_mask;
-	if (!val)
-		return IRQ_NONE;
+	if (val) { /* Ensure GAS exists and value is non-zero */
+		val &= pchan->cmd_complete.status_mask;
+		if (!val)
+			return IRQ_NONE;
+	}
 
 	ret = pcc_chan_reg_read(&pchan->error, &val);
 	if (ret)
