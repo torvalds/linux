@@ -322,34 +322,34 @@ void __tlb_remove_table(void *_table)
 
 static struct kmem_cache *base_pgt_cache;
 
-static unsigned long base_pgt_alloc(void)
+static unsigned long *base_pgt_alloc(void)
 {
-	u64 *table;
+	unsigned long *table;
 
 	table = kmem_cache_alloc(base_pgt_cache, GFP_KERNEL);
 	if (table)
-		memset64(table, _PAGE_INVALID, PTRS_PER_PTE);
-	return (unsigned long) table;
-}
-
-static void base_pgt_free(unsigned long table)
-{
-	kmem_cache_free(base_pgt_cache, (void *) table);
-}
-
-static unsigned long base_crst_alloc(unsigned long val)
-{
-	unsigned long table;
-
-	table =	 __get_free_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
-	if (table)
-		crst_table_init((unsigned long *)table, val);
+		memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
 	return table;
 }
 
-static void base_crst_free(unsigned long table)
+static void base_pgt_free(unsigned long *table)
 {
-	free_pages(table, CRST_ALLOC_ORDER);
+	kmem_cache_free(base_pgt_cache, table);
+}
+
+static unsigned long *base_crst_alloc(unsigned long val)
+{
+	unsigned long *table;
+
+	table =	(unsigned long *)__get_free_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
+	if (table)
+		crst_table_init(table, val);
+	return table;
+}
+
+static void base_crst_free(unsigned long *table)
+{
+	free_pages((unsigned long)table, CRST_ALLOC_ORDER);
 }
 
 #define BASE_ADDR_END_FUNC(NAME, SIZE)					\
@@ -377,14 +377,14 @@ static inline unsigned long base_lra(unsigned long address)
 	return real;
 }
 
-static int base_page_walk(unsigned long origin, unsigned long addr,
+static int base_page_walk(unsigned long *origin, unsigned long addr,
 			  unsigned long end, int alloc)
 {
 	unsigned long *pte, next;
 
 	if (!alloc)
 		return 0;
-	pte = (unsigned long *) origin;
+	pte = origin;
 	pte += (addr & _PAGE_INDEX) >> _PAGE_SHIFT;
 	do {
 		next = base_page_addr_end(addr, end);
@@ -393,13 +393,13 @@ static int base_page_walk(unsigned long origin, unsigned long addr,
 	return 0;
 }
 
-static int base_segment_walk(unsigned long origin, unsigned long addr,
+static int base_segment_walk(unsigned long *origin, unsigned long addr,
 			     unsigned long end, int alloc)
 {
-	unsigned long *ste, next, table;
+	unsigned long *ste, next, *table;
 	int rc;
 
-	ste = (unsigned long *) origin;
+	ste = origin;
 	ste += (addr & _SEGMENT_INDEX) >> _SEGMENT_SHIFT;
 	do {
 		next = base_segment_addr_end(addr, end);
@@ -411,7 +411,7 @@ static int base_segment_walk(unsigned long origin, unsigned long addr,
 				return -ENOMEM;
 			*ste = __pa(table) | _SEGMENT_ENTRY;
 		}
-		table = (unsigned long)__va(*ste & _SEGMENT_ENTRY_ORIGIN);
+		table = __va(*ste & _SEGMENT_ENTRY_ORIGIN);
 		rc = base_page_walk(table, addr, next, alloc);
 		if (rc)
 			return rc;
@@ -422,13 +422,13 @@ static int base_segment_walk(unsigned long origin, unsigned long addr,
 	return 0;
 }
 
-static int base_region3_walk(unsigned long origin, unsigned long addr,
+static int base_region3_walk(unsigned long *origin, unsigned long addr,
 			     unsigned long end, int alloc)
 {
-	unsigned long *rtte, next, table;
+	unsigned long *rtte, next, *table;
 	int rc;
 
-	rtte = (unsigned long *) origin;
+	rtte = origin;
 	rtte += (addr & _REGION3_INDEX) >> _REGION3_SHIFT;
 	do {
 		next = base_region3_addr_end(addr, end);
@@ -440,7 +440,7 @@ static int base_region3_walk(unsigned long origin, unsigned long addr,
 				return -ENOMEM;
 			*rtte = __pa(table) | _REGION3_ENTRY;
 		}
-		table = (unsigned long)__va(*rtte & _REGION_ENTRY_ORIGIN);
+		table = __va(*rtte & _REGION_ENTRY_ORIGIN);
 		rc = base_segment_walk(table, addr, next, alloc);
 		if (rc)
 			return rc;
@@ -450,13 +450,13 @@ static int base_region3_walk(unsigned long origin, unsigned long addr,
 	return 0;
 }
 
-static int base_region2_walk(unsigned long origin, unsigned long addr,
+static int base_region2_walk(unsigned long *origin, unsigned long addr,
 			     unsigned long end, int alloc)
 {
-	unsigned long *rste, next, table;
+	unsigned long *rste, next, *table;
 	int rc;
 
-	rste = (unsigned long *) origin;
+	rste = origin;
 	rste += (addr & _REGION2_INDEX) >> _REGION2_SHIFT;
 	do {
 		next = base_region2_addr_end(addr, end);
@@ -468,7 +468,7 @@ static int base_region2_walk(unsigned long origin, unsigned long addr,
 				return -ENOMEM;
 			*rste = __pa(table) | _REGION2_ENTRY;
 		}
-		table = (unsigned long)__va(*rste & _REGION_ENTRY_ORIGIN);
+		table = __va(*rste & _REGION_ENTRY_ORIGIN);
 		rc = base_region3_walk(table, addr, next, alloc);
 		if (rc)
 			return rc;
@@ -478,13 +478,13 @@ static int base_region2_walk(unsigned long origin, unsigned long addr,
 	return 0;
 }
 
-static int base_region1_walk(unsigned long origin, unsigned long addr,
+static int base_region1_walk(unsigned long *origin, unsigned long addr,
 			     unsigned long end, int alloc)
 {
-	unsigned long *rfte, next, table;
+	unsigned long *rfte, next, *table;
 	int rc;
 
-	rfte = (unsigned long *) origin;
+	rfte = origin;
 	rfte += (addr & _REGION1_INDEX) >> _REGION1_SHIFT;
 	do {
 		next = base_region1_addr_end(addr, end);
@@ -496,7 +496,7 @@ static int base_region1_walk(unsigned long origin, unsigned long addr,
 				return -ENOMEM;
 			*rfte = __pa(table) | _REGION1_ENTRY;
 		}
-		table = (unsigned long)__va(*rfte & _REGION_ENTRY_ORIGIN);
+		table = __va(*rfte & _REGION_ENTRY_ORIGIN);
 		rc = base_region2_walk(table, addr, next, alloc);
 		if (rc)
 			return rc;
@@ -515,7 +515,7 @@ static int base_region1_walk(unsigned long origin, unsigned long addr,
  */
 void base_asce_free(unsigned long asce)
 {
-	unsigned long table = (unsigned long)__va(asce & _ASCE_ORIGIN);
+	unsigned long *table = __va(asce & _ASCE_ORIGIN);
 
 	if (!asce)
 		return;
@@ -567,7 +567,7 @@ static int base_pgt_cache_init(void)
  */
 unsigned long base_asce_alloc(unsigned long addr, unsigned long num_pages)
 {
-	unsigned long asce, table, end;
+	unsigned long asce, *table, end;
 	int rc;
 
 	if (base_pgt_cache_init())
