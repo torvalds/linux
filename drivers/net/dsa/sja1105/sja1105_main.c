@@ -2617,18 +2617,6 @@ static int sja1105_prechangeupper(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static void sja1105_port_disable(struct dsa_switch *ds, int port)
-{
-	struct sja1105_private *priv = ds->priv;
-	struct sja1105_port *sp = &priv->ports[port];
-
-	if (!dsa_is_user_port(ds, port))
-		return;
-
-	kthread_cancel_work_sync(&sp->xmit_work);
-	skb_queue_purge(&sp->xmit_queue);
-}
-
 static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
 			     struct sk_buff *skb, bool takets)
 {
@@ -3215,7 +3203,6 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_ethtool_stats	= sja1105_get_ethtool_stats,
 	.get_sset_count		= sja1105_get_sset_count,
 	.get_ts_info		= sja1105_get_ts_info,
-	.port_disable		= sja1105_port_disable,
 	.port_fdb_dump		= sja1105_fdb_dump,
 	.port_fdb_add		= sja1105_fdb_add,
 	.port_fdb_del		= sja1105_fdb_del,
