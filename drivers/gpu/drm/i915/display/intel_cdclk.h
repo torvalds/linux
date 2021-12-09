@@ -16,14 +16,6 @@ struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc_state;
 
-struct intel_cdclk_vals {
-	u32 cdclk;
-	u16 refclk;
-	u16 waveform;
-	u8 divider;	/* CD2X divider * 2 */
-	u8 ratio;
-};
-
 struct intel_cdclk_state {
 	struct intel_global_state base;
 
