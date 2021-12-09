@@ -1054,14 +1054,34 @@ static int ocelot_xtr_poll_xfh(struct ocelot *ocelot, int grp, u32 *xfh)
 	return 0;
 }
 
-int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
+void ocelot_ptp_rx_timestamp(struct ocelot *ocelot, struct sk_buff *skb,
+			     u64 timestamp)
 {
 	struct skb_shared_hwtstamps *shhwtstamps;
 	u64 tod_in_ns, full_ts_in_ns;
+	struct timespec64 ts;
+
+	ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
+
+	tod_in_ns = ktime_set(ts.tv_sec, ts.tv_nsec);
+	if ((tod_in_ns & 0xffffffff) < timestamp)
+		full_ts_in_ns = (((tod_in_ns >> 32) - 1) << 32) |
+				timestamp;
+	else
+		full_ts_in_ns = (tod_in_ns & GENMASK_ULL(63, 32)) |
+				timestamp;
+
+	shhwtstamps = skb_hwtstamps(skb);
+	memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
+	shhwtstamps->hwtstamp = full_ts_in_ns;
+}
+EXPORT_SYMBOL(ocelot_ptp_rx_timestamp);
+
+int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
+{
 	u64 timestamp, src_port, len;
 	u32 xfh[OCELOT_TAG_LEN / 4];
 	struct net_device *dev;
-	struct timespec64 ts;
 	struct sk_buff *skb;
 	int sz, buf_len;
 	u32 val, *buf;
@@ -1117,21 +1137,8 @@ int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
 		*buf = val;
 	}
 
-	if (ocelot->ptp) {
-		ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
-
-		tod_in_ns = ktime_set(ts.tv_sec, ts.tv_nsec);
-		if ((tod_in_ns & 0xffffffff) < timestamp)
-			full_ts_in_ns = (((tod_in_ns >> 32) - 1) << 32) |
-					timestamp;
-		else
-			full_ts_in_ns = (tod_in_ns & GENMASK_ULL(63, 32)) |
-					timestamp;
-
-		shhwtstamps = skb_hwtstamps(skb);
-		memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
-		shhwtstamps->hwtstamp = full_ts_in_ns;
-	}
+	if (ocelot->ptp)
+		ocelot_ptp_rx_timestamp(ocelot, skb, timestamp);
 
 	/* Everything we see on an interface that is in the HW bridge
 	 * has already been forwarded.

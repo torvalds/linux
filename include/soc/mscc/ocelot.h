@@ -797,6 +797,8 @@ void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
 void ocelot_ifh_port_set(void *ifh, int port, u32 rew_op, u32 vlan_tag);
 int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **skb);
 void ocelot_drain_cpu_queue(struct ocelot *ocelot, int grp);
+void ocelot_ptp_rx_timestamp(struct ocelot *ocelot, struct sk_buff *skb,
+			     u64 timestamp);
 
 /* Hardware initialization */
 int ocelot_regfields_init(struct ocelot *ocelot,
