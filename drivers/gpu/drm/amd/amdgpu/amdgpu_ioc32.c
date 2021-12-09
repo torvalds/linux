@@ -1,4 +1,4 @@
-/**
+/*
  * \file amdgpu_ioc32.c
  *
  * 32-bit ioctl compatibility routines for the AMDGPU DRM.
