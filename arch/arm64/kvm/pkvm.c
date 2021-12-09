@@ -18,6 +18,8 @@
 #include "hyp_constants.h"
 
 static struct reserved_mem *pkvm_firmware_mem;
+static phys_addr_t *pvmfw_base = &kvm_nvhe_sym(pvmfw_base);
+static phys_addr_t *pvmfw_size = &kvm_nvhe_sym(pvmfw_size);
 
 static struct memblock_region *hyp_memory = kvm_nvhe_sym(hyp_memory);
 static unsigned int *hyp_memblock_nr_ptr = &kvm_nvhe_sym(hyp_memblock_nr);
@@ -283,6 +285,8 @@ static int __init pkvm_firmware_rmem_init(struct reserved_mem *rmem)
 	if (!PAGE_ALIGNED(rmem->size))
 		return pkvm_firmware_rmem_err(rmem, "size is not page-aligned");
 
+	*pvmfw_size = rmem->size;
+	*pvmfw_base = rmem->base;
 	pkvm_firmware_mem = rmem;
 	return 0;
 }
