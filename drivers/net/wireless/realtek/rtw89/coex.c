@@ -540,8 +540,31 @@ static void _update_bt_scbd(struct rtw89_dev *rtwdev, bool only_update);
 static void _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 			 void *param, u16 len)
 {
-	rtw89_fw_h2c_raw_with_hdr(rtwdev, h2c_class, h2c_func, param, len,
-				  false, true);
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
+	struct rtw89_btc_cx *cx = &btc->cx;
+	struct rtw89_btc_wl_info *wl = &cx->wl;
+	int ret;
+
+	if (!wl->status.map.init_ok) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): return by btc not init!!\n", __func__);
+		pfwinfo->cnt_h2c_fail++;
+		return;
+	} else if ((wl->status.map.rf_off_pre == 1 && wl->status.map.rf_off == 1) ||
+		   (wl->status.map.lps_pre == 1 && wl->status.map.lps == 1)) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): return by wl off!!\n", __func__);
+		pfwinfo->cnt_h2c_fail++;
+		return;
+	}
+
+	pfwinfo->cnt_h2c++;
+
+	ret = rtw89_fw_h2c_raw_with_hdr(rtwdev, h2c_class, h2c_func, param, len,
+					false, true);
+	if (ret != 0)
+		pfwinfo->cnt_h2c_fail++;
 }
 
 static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
