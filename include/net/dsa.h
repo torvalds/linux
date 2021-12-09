@@ -277,12 +277,6 @@ struct dsa_port {
 	struct list_head list;
 
 	/*
-	 * Give the switch driver somewhere to hang its per-port private data
-	 * structures (accessible from the tagger).
-	 */
-	void *priv;
-
-	/*
 	 * Original copy of the master netdev ethtool_ops
 	 */
 	const struct ethtool_ops *orig_ethtool_ops;
