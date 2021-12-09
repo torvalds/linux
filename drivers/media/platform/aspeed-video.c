@@ -230,6 +230,7 @@ struct aspeed_video {
 	struct video_device vdev;
 	struct mutex video_lock;	/* v4l2 and videobuf2 lock */
 
+	u32 version;
 	u32 jpeg_mode;
 	u32 comp_size_read;
 
@@ -259,21 +260,25 @@ struct aspeed_video {
 #define to_aspeed_video(x) container_of((x), struct aspeed_video, v4l2_dev)
 
 struct aspeed_video_config {
+	u32 version;
 	u32 jpeg_mode;
 	u32 comp_size_read;
 };
 
 static const struct aspeed_video_config ast2400_config = {
+	.version = 4,
 	.jpeg_mode = AST2400_VE_SEQ_CTRL_JPEG_MODE,
 	.comp_size_read = AST2400_VE_COMP_SIZE_READ_BACK,
 };
 
 static const struct aspeed_video_config ast2500_config = {
+	.version = 5,
 	.jpeg_mode = AST2500_VE_SEQ_CTRL_JPEG_MODE,
 	.comp_size_read = AST2400_VE_COMP_SIZE_READ_BACK,
 };
 
 static const struct aspeed_video_config ast2600_config = {
+	.version = 6,
 	.jpeg_mode = AST2500_VE_SEQ_CTRL_JPEG_MODE,
 	.comp_size_read = AST2600_VE_COMP_SIZE_READ_BACK,
 };
@@ -1810,6 +1815,7 @@ static int aspeed_video_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	config = match->data;
+	video->version = config->version;
 	video->jpeg_mode = config->jpeg_mode;
 	video->comp_size_read = config->comp_size_read;
 
@@ -1833,6 +1839,8 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	}
 
 	aspeed_video_debugfs_create(video);
+
+	dev_info(video->dev, "compatible for g%d\n", config->version);
 
 	return 0;
 }
