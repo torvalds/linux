@@ -1164,6 +1164,18 @@ bool ocelot_can_inject(struct ocelot *ocelot, int grp)
 }
 EXPORT_SYMBOL(ocelot_can_inject);
 
+void ocelot_ifh_port_set(void *ifh, int port, u32 rew_op, u32 vlan_tag)
+{
+	ocelot_ifh_set_bypass(ifh, 1);
+	ocelot_ifh_set_dest(ifh, BIT_ULL(port));
+	ocelot_ifh_set_tag_type(ifh, IFH_TAG_TYPE_C);
+	if (vlan_tag)
+		ocelot_ifh_set_vlan_tci(ifh, vlan_tag);
+	if (rew_op)
+		ocelot_ifh_set_rew_op(ifh, rew_op);
+}
+EXPORT_SYMBOL(ocelot_ifh_port_set);
+
 void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
 			      u32 rew_op, struct sk_buff *skb)
 {
@@ -1173,11 +1185,7 @@ void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
 	ocelot_write_rix(ocelot, QS_INJ_CTRL_GAP_SIZE(1) |
 			 QS_INJ_CTRL_SOF, QS_INJ_CTRL, grp);
 
-	ocelot_ifh_set_bypass(ifh, 1);
-	ocelot_ifh_set_dest(ifh, BIT_ULL(port));
-	ocelot_ifh_set_tag_type(ifh, IFH_TAG_TYPE_C);
-	ocelot_ifh_set_vlan_tci(ifh, skb_vlan_tag_get(skb));
-	ocelot_ifh_set_rew_op(ifh, rew_op);
+	ocelot_ifh_port_set(ifh, port, rew_op, skb_vlan_tag_get(skb));
 
 	for (i = 0; i < OCELOT_TAG_LEN / 4; i++)
 		ocelot_write_rix(ocelot, ifh[i], QS_INJ_WR, grp);
