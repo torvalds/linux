@@ -2791,7 +2791,7 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	/* flush the fragments cache during key (re)install to
 	 * ensure all frags in the new frag list belong to the same key.
 	 */
-	if (peer && cmd == SET_KEY)
+	if (peer && sta && cmd == SET_KEY)
 		ath11k_peer_frags_flush(ar, peer);
 	spin_unlock_bh(&ab->base_lock);
 
