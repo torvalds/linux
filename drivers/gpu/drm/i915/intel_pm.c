@@ -2345,7 +2345,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 	int cwm, srwm = 1;
 	int fifo_size;
 	int planea_wm, planeb_wm;
-	struct intel_crtc *crtc, *enabled = NULL;
+	struct intel_crtc *crtc;
 
 	if (IS_I945GM(dev_priv))
 		wm_info = &i945_wm_info;
@@ -2372,7 +2372,6 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		planea_wm = intel_calculate_wm(crtc->config->pixel_rate,
 					       wm_info, fifo_size, cpp,
 					       pessimal_latency_ns);
-		enabled = crtc;
 	} else {
 		planea_wm = fifo_size - wm_info->guard_size;
 		if (planea_wm > (long)wm_info->max_wm)
@@ -2400,10 +2399,6 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		planeb_wm = intel_calculate_wm(crtc->config->pixel_rate,
 					       wm_info, fifo_size, cpp,
 					       pessimal_latency_ns);
-		if (enabled == NULL)
-			enabled = crtc;
-		else
-			enabled = NULL;
 	} else {
 		planeb_wm = fifo_size - wm_info->guard_size;
 		if (planeb_wm > (long)wm_info->max_wm)
@@ -2413,14 +2408,15 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 	drm_dbg_kms(&dev_priv->drm,
 		    "FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
 
-	if (IS_I915GM(dev_priv) && enabled) {
+	crtc = single_enabled_crtc(dev_priv);
+	if (IS_I915GM(dev_priv) && crtc) {
 		struct drm_i915_gem_object *obj;
 
-		obj = intel_fb_obj(enabled->base.primary->state->fb);
+		obj = intel_fb_obj(crtc->base.primary->state->fb);
 
 		/* self-refresh seems busted with untiled */
 		if (!i915_gem_object_is_tiled(obj))
-			enabled = NULL;
+			crtc = NULL;
 	}
 
 	/*
@@ -2432,16 +2428,16 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 	intel_set_memory_cxsr(dev_priv, false);
 
 	/* Calc sr entries for one plane configs */
-	if (HAS_FW_BLC(dev_priv) && enabled) {
+	if (HAS_FW_BLC(dev_priv) && crtc) {
 		/* self-refresh has much higher latency */
 		static const int sr_latency_ns = 6000;
 		const struct drm_display_mode *pipe_mode =
-			&enabled->config->hw.pipe_mode;
+			&crtc->config->hw.pipe_mode;
 		const struct drm_framebuffer *fb =
-			enabled->base.primary->state->fb;
-		int pixel_rate = enabled->config->pixel_rate;
+			crtc->base.primary->state->fb;
+		int pixel_rate = crtc->config->pixel_rate;
 		int htotal = pipe_mode->crtc_htotal;
-		int width = drm_rect_width(&enabled->base.primary->state->src) >> 16;
+		int width = drm_rect_width(&crtc->base.primary->state->src) >> 16;
 		int cpp;
 		int entries;
 
@@ -2480,7 +2476,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 	intel_uncore_write(&dev_priv->uncore, FW_BLC, fwater_lo);
 	intel_uncore_write(&dev_priv->uncore, FW_BLC2, fwater_hi);
 
-	if (enabled)
+	if (crtc)
 		intel_set_memory_cxsr(dev_priv, true);
 }
 
