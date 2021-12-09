@@ -268,41 +268,9 @@ static struct io_context *create_task_io_context(struct task_struct *task,
 	return ioc;
 }
 
-/**
- * get_task_io_context - get io_context of a task
- * @task: task of interest
- * @gfp_flags: allocation flags, used if allocation is necessary
- * @node: allocation node, used if allocation is necessary
- *
- * Return io_context of @task.  If it doesn't exist, it is created with
- * @gfp_flags and @node.  The returned io_context has its reference count
- * incremented.
- *
- * This function always goes through task_lock() and it's better to use
- * %current->io_context + get_io_context() for %current.
- */
-static struct io_context *get_task_io_context(struct task_struct *task,
-		gfp_t gfp_flags, int node)
-{
-	struct io_context *ioc;
-
-	might_sleep_if(gfpflags_allow_blocking(gfp_flags));
-
-	task_lock(task);
-	ioc = task->io_context;
-	if (unlikely(!ioc)) {
-		task_unlock(task);
-		return create_task_io_context(task, gfp_flags, node);
-	}
-	get_io_context(ioc);
-	task_unlock(task);
-	return ioc;
-}
-
 int set_task_ioprio(struct task_struct *task, int ioprio)
 {
 	int err;
-	struct io_context *ioc;
 	const struct cred *cred = current_cred(), *tcred;
 
 	rcu_read_lock();
@@ -318,13 +286,21 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 	if (err)
 		return err;
 
-	ioc = get_task_io_context(task, GFP_ATOMIC, NUMA_NO_NODE);
-	if (ioc) {
-		ioc->ioprio = ioprio;
-		put_io_context(ioc);
-	}
+	task_lock(task);
+	if (unlikely(!task->io_context)) {
+		struct io_context *ioc;
 
-	return err;
+		task_unlock(task);
+		ioc = create_task_io_context(task, GFP_ATOMIC, NUMA_NO_NODE);
+		if (ioc) {
+			ioc->ioprio = ioprio;
+			put_io_context(ioc);
+		}
+		return 0;
+	}
+	task->io_context->ioprio = ioprio;
+	task_unlock(task);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(set_task_ioprio);
 
