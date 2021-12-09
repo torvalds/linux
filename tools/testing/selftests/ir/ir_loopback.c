@@ -26,7 +26,6 @@
 #include "../kselftest.h"
 
 #define TEST_SCANCODES	10
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define SYSFS_PATH_MAX 256
 #define DNAME_PATH_MAX 256
 
