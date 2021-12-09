@@ -17,6 +17,8 @@ properties:
     enum:
       - atmel,sama5d2-qspi
       - microchip,sam9x60-qspi
+      - microchip,sama7g5-qspi
+      - microchip,sama7g5-ospi
 
   reg:
     items:
@@ -32,16 +34,26 @@ properties:
     minItems: 1
     items:
       - description: peripheral clock
-      - description: system clock, if available
+      - description: system clock or generic clock, if available
 
   clock-names:
     minItems: 1
     items:
       - const: pclk
-      - const: qspick
+      - enum: [ qspick, gclk ]
 
   interrupts:
     maxItems: 1
+
+  dmas:
+    items:
+      - description: tx DMA channel
+      - description: rx DMA channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
 
   '#address-cells':
     const: 1
