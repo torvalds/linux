@@ -24,10 +24,6 @@
 #define DEBUG_LEVEL_4_BIT	(0x0008)
 #define DEBUG_TIMING_BIT	(0x1000)
 
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 /* bit mask of enabled bits to print */
 #define DEBUG 0x0001
 
