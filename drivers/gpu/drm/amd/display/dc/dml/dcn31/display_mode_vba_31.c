@@ -3949,6 +3949,102 @@ static double TruncToValidBPP(
 	return BPP_INVALID;
 }
 
+static noinline void CalculatePrefetchSchedulePerPlane(
+		struct display_mode_lib *mode_lib,
+		double HostVMInefficiencyFactor,
+		int i,
+		unsigned j,
+		unsigned k)
+{
+	struct vba_vars_st *v = &mode_lib->vba;
+	Pipe myPipe;
+
+	myPipe.DPPCLK = v->RequiredDPPCLK[i][j][k];
+	myPipe.DISPCLK = v->RequiredDISPCLK[i][j];
+	myPipe.PixelClock = v->PixelClock[k];
+	myPipe.DCFCLKDeepSleep = v->ProjectedDCFCLKDeepSleep[i][j];
+	myPipe.DPPPerPlane = v->NoOfDPP[i][j][k];
+	myPipe.ScalerEnabled = v->ScalerEnabled[k];
+	myPipe.SourceScan = v->SourceScan[k];
+	myPipe.BlockWidth256BytesY = v->Read256BlockWidthY[k];
+	myPipe.BlockHeight256BytesY = v->Read256BlockHeightY[k];
+	myPipe.BlockWidth256BytesC = v->Read256BlockWidthC[k];
+	myPipe.BlockHeight256BytesC = v->Read256BlockHeightC[k];
+	myPipe.InterlaceEnable = v->Interlace[k];
+	myPipe.NumberOfCursors = v->NumberOfCursors[k];
+	myPipe.VBlank = v->VTotal[k] - v->VActive[k];
+	myPipe.HTotal = v->HTotal[k];
+	myPipe.DCCEnable = v->DCCEnable[k];
+	myPipe.ODMCombineIsEnabled = v->ODMCombineEnablePerState[i][k] == dm_odm_combine_mode_4to1
+		|| v->ODMCombineEnablePerState[i][k] == dm_odm_combine_mode_2to1;
+	myPipe.SourcePixelFormat = v->SourcePixelFormat[k];
+	myPipe.BytePerPixelY = v->BytePerPixelY[k];
+	myPipe.BytePerPixelC = v->BytePerPixelC[k];
+	myPipe.ProgressiveToInterlaceUnitInOPP = v->ProgressiveToInterlaceUnitInOPP;
+	v->NoTimeForPrefetch[i][j][k] = CalculatePrefetchSchedule(
+		mode_lib,
+		HostVMInefficiencyFactor,
+		&myPipe,
+		v->DSCDelayPerState[i][k],
+		v->DPPCLKDelaySubtotal + v->DPPCLKDelayCNVCFormater,
+		v->DPPCLKDelaySCL,
+		v->DPPCLKDelaySCLLBOnly,
+		v->DPPCLKDelayCNVCCursor,
+		v->DISPCLKDelaySubtotal,
+		v->SwathWidthYThisState[k] / v->HRatio[k],
+		v->OutputFormat[k],
+		v->MaxInterDCNTileRepeaters,
+		dml_min(v->MaxVStartup, v->MaximumVStartup[i][j][k]),
+		v->MaximumVStartup[i][j][k],
+		v->GPUVMMaxPageTableLevels,
+		v->GPUVMEnable,
+		v->HostVMEnable,
+		v->HostVMMaxNonCachedPageTableLevels,
+		v->HostVMMinPageSize,
+		v->DynamicMetadataEnable[k],
+		v->DynamicMetadataVMEnabled,
+		v->DynamicMetadataLinesBeforeActiveRequired[k],
+		v->DynamicMetadataTransmittedBytes[k],
+		v->UrgLatency[i],
+		v->ExtraLatency,
+		v->TimeCalc,
+		v->PDEAndMetaPTEBytesPerFrame[i][j][k],
+		v->MetaRowBytes[i][j][k],
+		v->DPTEBytesPerRow[i][j][k],
+		v->PrefetchLinesY[i][j][k],
+		v->SwathWidthYThisState[k],
+		v->PrefillY[k],
+		v->MaxNumSwY[k],
+		v->PrefetchLinesC[i][j][k],
+		v->SwathWidthCThisState[k],
+		v->PrefillC[k],
+		v->MaxNumSwC[k],
+		v->swath_width_luma_ub_this_state[k],
+		v->swath_width_chroma_ub_this_state[k],
+		v->SwathHeightYThisState[k],
+		v->SwathHeightCThisState[k],
+		v->TWait,
+		&v->DSTXAfterScaler[k],
+		&v->DSTYAfterScaler[k],
+		&v->LineTimesForPrefetch[k],
+		&v->PrefetchBW[k],
+		&v->LinesForMetaPTE[k],
+		&v->LinesForMetaAndDPTERow[k],
+		&v->VRatioPreY[i][j][k],
+		&v->VRatioPreC[i][j][k],
+		&v->RequiredPrefetchPixelDataBWLuma[i][j][k],
+		&v->RequiredPrefetchPixelDataBWChroma[i][j][k],
+		&v->NoTimeForDynamicMetadata[i][j][k],
+		&v->Tno_bw[k],
+		&v->prefetch_vmrow_bw[k],
+		&v->dummy7[k],
+		&v->dummy8[k],
+		&v->dummy13[k],
+		&v->VUpdateOffsetPix[k],
+		&v->VUpdateWidthPix[k],
+		&v->VReadyOffsetPix[k]);
+}
+
 void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib)
 {
 	struct vba_vars_st *v = &mode_lib->vba;
@@ -5276,92 +5372,9 @@ void dml31_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						v->SREnterPlusExitTime);
 
 				for (k = 0; k < v->NumberOfActivePlanes; k++) {
-					Pipe myPipe;
-
-					myPipe.DPPCLK = v->RequiredDPPCLK[i][j][k];
-					myPipe.DISPCLK = v->RequiredDISPCLK[i][j];
-					myPipe.PixelClock = v->PixelClock[k];
-					myPipe.DCFCLKDeepSleep = v->ProjectedDCFCLKDeepSleep[i][j];
-					myPipe.DPPPerPlane = v->NoOfDPP[i][j][k];
-					myPipe.ScalerEnabled = v->ScalerEnabled[k];
-					myPipe.SourceScan = v->SourceScan[k];
-					myPipe.BlockWidth256BytesY = v->Read256BlockWidthY[k];
-					myPipe.BlockHeight256BytesY = v->Read256BlockHeightY[k];
-					myPipe.BlockWidth256BytesC = v->Read256BlockWidthC[k];
-					myPipe.BlockHeight256BytesC = v->Read256BlockHeightC[k];
-					myPipe.InterlaceEnable = v->Interlace[k];
-					myPipe.NumberOfCursors = v->NumberOfCursors[k];
-					myPipe.VBlank = v->VTotal[k] - v->VActive[k];
-					myPipe.HTotal = v->HTotal[k];
-					myPipe.DCCEnable = v->DCCEnable[k];
-					myPipe.ODMCombineIsEnabled = v->ODMCombineEnablePerState[i][k] == dm_odm_combine_mode_4to1
-							|| v->ODMCombineEnablePerState[i][k] == dm_odm_combine_mode_2to1;
-					myPipe.SourcePixelFormat = v->SourcePixelFormat[k];
-					myPipe.BytePerPixelY = v->BytePerPixelY[k];
-					myPipe.BytePerPixelC = v->BytePerPixelC[k];
-					myPipe.ProgressiveToInterlaceUnitInOPP = v->ProgressiveToInterlaceUnitInOPP;
-					v->NoTimeForPrefetch[i][j][k] = CalculatePrefetchSchedule(
-							mode_lib,
-							HostVMInefficiencyFactor,
-							&myPipe,
-							v->DSCDelayPerState[i][k],
-							v->DPPCLKDelaySubtotal + v->DPPCLKDelayCNVCFormater,
-							v->DPPCLKDelaySCL,
-							v->DPPCLKDelaySCLLBOnly,
-							v->DPPCLKDelayCNVCCursor,
-							v->DISPCLKDelaySubtotal,
-							v->SwathWidthYThisState[k] / v->HRatio[k],
-							v->OutputFormat[k],
-							v->MaxInterDCNTileRepeaters,
-							dml_min(v->MaxVStartup, v->MaximumVStartup[i][j][k]),
-							v->MaximumVStartup[i][j][k],
-							v->GPUVMMaxPageTableLevels,
-							v->GPUVMEnable,
-							v->HostVMEnable,
-							v->HostVMMaxNonCachedPageTableLevels,
-							v->HostVMMinPageSize,
-							v->DynamicMetadataEnable[k],
-							v->DynamicMetadataVMEnabled,
-							v->DynamicMetadataLinesBeforeActiveRequired[k],
-							v->DynamicMetadataTransmittedBytes[k],
-							v->UrgLatency[i],
-							v->ExtraLatency,
-							v->TimeCalc,
-							v->PDEAndMetaPTEBytesPerFrame[i][j][k],
-							v->MetaRowBytes[i][j][k],
-							v->DPTEBytesPerRow[i][j][k],
-							v->PrefetchLinesY[i][j][k],
-							v->SwathWidthYThisState[k],
-							v->PrefillY[k],
-							v->MaxNumSwY[k],
-							v->PrefetchLinesC[i][j][k],
-							v->SwathWidthCThisState[k],
-							v->PrefillC[k],
-							v->MaxNumSwC[k],
-							v->swath_width_luma_ub_this_state[k],
-							v->swath_width_chroma_ub_this_state[k],
-							v->SwathHeightYThisState[k],
-							v->SwathHeightCThisState[k],
-							v->TWait,
-							&v->DSTXAfterScaler[k],
-							&v->DSTYAfterScaler[k],
-							&v->LineTimesForPrefetch[k],
-							&v->PrefetchBW[k],
-							&v->LinesForMetaPTE[k],
-							&v->LinesForMetaAndDPTERow[k],
-							&v->VRatioPreY[i][j][k],
-							&v->VRatioPreC[i][j][k],
-							&v->RequiredPrefetchPixelDataBWLuma[i][j][k],
-							&v->RequiredPrefetchPixelDataBWChroma[i][j][k],
-							&v->NoTimeForDynamicMetadata[i][j][k],
-							&v->Tno_bw[k],
-							&v->prefetch_vmrow_bw[k],
-							&v->dummy7[k],
-							&v->dummy8[k],
-							&v->dummy13[k],
-							&v->VUpdateOffsetPix[k],
-							&v->VUpdateWidthPix[k],
-							&v->VReadyOffsetPix[k]);
+					CalculatePrefetchSchedulePerPlane(mode_lib,
+									  HostVMInefficiencyFactor,
+									  i, j,	k);
 				}
 
 				for (k = 0; k < v->NumberOfActivePlanes; k++) {
