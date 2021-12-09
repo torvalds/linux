@@ -544,6 +544,18 @@ Description:
 		CONFIG_BLK_DEV_THROTTLING_LOW is enabled.
 
 
+What:		/sys/block/<disk>/queue/virt_boundary_mask
+Date:		April 2021
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] This file shows the I/O segment memory alignment mask for
+		the block device.  I/O requests to this device will be split
+		between segments wherever either the memory address of the end
+		of the previous segment or the memory address of the beginning
+		of the current segment is not aligned to virt_boundary_mask + 1
+		bytes.
+
+
 What:		/sys/block/<disk>/queue/wbt_lat_usec
 Date:		November 2016
 Contact:	linux-block@vger.kernel.org
