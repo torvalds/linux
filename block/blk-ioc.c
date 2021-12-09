@@ -238,36 +238,6 @@ static struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 	return ioc;
 }
 
-static struct io_context *create_task_io_context(struct task_struct *task,
-		gfp_t gfp_flags, int node)
-{
-	struct io_context *ioc;
-
-	ioc = alloc_io_context(gfp_flags, node);
-	if (!ioc)
-		return NULL;
-
-	/*
-	 * Try to install.  ioc shouldn't be installed if someone else
-	 * already did or @task, which isn't %current, is exiting.  Note
-	 * that we need to allow ioc creation on exiting %current as exit
-	 * path may issue IOs from e.g. exit_files().  The exit path is
-	 * responsible for not issuing IO after exit_io_context().
-	 */
-	task_lock(task);
-	if (!task->io_context &&
-	    (task == current || !(task->flags & PF_EXITING)))
-		task->io_context = ioc;
-	else
-		kmem_cache_free(iocontext_cachep, ioc);
-
-	ioc = task->io_context;
-	if (ioc)
-		get_io_context(ioc);
-	task_unlock(task);
-	return ioc;
-}
-
 int set_task_ioprio(struct task_struct *task, int ioprio)
 {
 	int err;
@@ -426,9 +396,20 @@ struct io_cq *ioc_find_get_icq(struct request_queue *q)
 	struct io_cq *icq = NULL;
 
 	if (unlikely(!ioc)) {
-		ioc = create_task_io_context(current, GFP_ATOMIC, q->node);
+		ioc = alloc_io_context(GFP_ATOMIC, q->node);
 		if (!ioc)
 			return NULL;
+
+		task_lock(current);
+		if (current->io_context) {
+			kmem_cache_free(iocontext_cachep, ioc);
+			ioc = current->io_context;
+		} else {
+			current->io_context = ioc;
+		}
+
+		get_io_context(ioc);
+		task_unlock(current);
 	} else {
 		get_io_context(ioc);
 
