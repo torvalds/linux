@@ -289,7 +289,7 @@ pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 	pchan = chan_info + subspace_id;
 	chan = pchan->chan.mchan;
 	if (IS_ERR(chan) || chan->cl) {
-		dev_err(dev, "Channel not found for idx: %d\n", subspace_id);
+		pr_err("Channel not found for idx: %d\n", subspace_id);
 		return ERR_PTR(-EBUSY);
 	}
 	dev = chan->mbox->dev;
