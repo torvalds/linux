@@ -407,7 +407,7 @@ static void bcm2835_gpio_irq_handler(struct irq_desc *desc)
 	struct bcm2835_pinctrl *pc = gpiochip_get_data(chip);
 	struct irq_chip *host_chip = irq_desc_get_chip(desc);
 	int irq = irq_desc_get_irq(desc);
-	int group;
+	int group = 0;
 	int i;
 
 	for (i = 0; i < BCM2835_NUM_IRQS; i++) {
