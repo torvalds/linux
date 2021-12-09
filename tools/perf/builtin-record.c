@@ -111,6 +111,7 @@ struct record {
 	unsigned long long	samples;
 	struct mmap_cpu_mask	affinity_mask;
 	unsigned long		output_max_size;	/* = 0: unlimited */
+	struct perf_debuginfod	debuginfod;
 };
 
 static volatile int done;
@@ -2177,6 +2178,12 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 			rec->opts.nr_cblocks = nr_cblocks_default;
 	}
 #endif
+	if (!strcmp(var, "record.debuginfod")) {
+		rec->debuginfod.urls = strdup(value);
+		if (!rec->debuginfod.urls)
+			return -ENOMEM;
+		rec->debuginfod.set = true;
+	}
 
 	return 0;
 }
@@ -2667,6 +2674,10 @@ static struct option __record_options[] = {
 		      parse_control_option),
 	OPT_CALLBACK(0, "synth", &record.opts, "no|all|task|mmap|cgroup",
 		     "Fine-tune event synthesis: default=all", parse_record_synth_option),
+	OPT_STRING_OPTARG_SET(0, "debuginfod", &record.debuginfod.urls,
+			  &record.debuginfod.set, "debuginfod urls",
+			  "Enable debuginfod data retrieval from DEBUGINFOD_URLS or specified urls",
+			  "system"),
 	OPT_END()
 };
 
@@ -2719,6 +2730,8 @@ int cmd_record(int argc, const char **argv)
 	err = symbol__validate_sym_arguments();
 	if (err)
 		return err;
+
+	perf_debuginfod_setup(&record.debuginfod);
 
 	/* Make system wide (-a) the default target. */
 	if (!argc && target__none(&rec->opts.target))

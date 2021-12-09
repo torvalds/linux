@@ -71,4 +71,10 @@ void test_attr__init(void);
 struct perf_event_attr;
 void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
 		     int fd, int group_fd, unsigned long flags);
+
+struct perf_debuginfod {
+	const char	*urls;
+	bool		 set;
+};
+void perf_debuginfod_setup(struct perf_debuginfod *di);
 #endif /* GIT_COMPAT_UTIL_H */

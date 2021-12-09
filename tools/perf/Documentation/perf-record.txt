@@ -715,6 +715,15 @@ measurements:
 
 include::intel-hybrid.txt[]
 
+--debuginfod[=URLs]::
+	Specify debuginfod URL to be used when cacheing perf.data binaries,
+	it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+	  http://192.168.122.174:8002
+
+	If the URLs is not specified, the value of DEBUGINFOD_URLS
+	system environment variable is used.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1], linkperf:perf-intel-pt[1]
