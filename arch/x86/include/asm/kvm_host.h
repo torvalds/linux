@@ -1545,10 +1545,13 @@ extern struct kvm_x86_ops kvm_x86_ops;
 
 static inline void kvm_ops_static_call_update(void)
 {
-#define KVM_X86_OP(func) \
+#define __KVM_X86_OP(func) \
 	static_call_update(kvm_x86_##func, kvm_x86_ops.func);
-#define KVM_X86_OP_OPTIONAL KVM_X86_OP
+#define KVM_X86_OP(func) \
+	WARN_ON(!kvm_x86_ops.func); __KVM_X86_OP(func)
+#define KVM_X86_OP_OPTIONAL __KVM_X86_OP
 #include <asm/kvm-x86-ops.h>
+#undef __KVM_X86_OP
 }
 
 #define __KVM_HAVE_ARCH_VM_ALLOC
