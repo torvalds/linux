@@ -312,6 +312,10 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 		addr = section->sh_addr + relas[i].r_offset;
 
 		r_type = ELF64_R_TYPE(relas[i].r_info);
+
+		if (r_type == R_390_PLT32DBL)
+			r_type = R_390_PC32DBL;
+
 		ret = arch_kexec_do_relocs(r_type, loc, val, addr);
 		if (ret) {
 			pr_err("Unknown rela relocation: %d\n", r_type);
