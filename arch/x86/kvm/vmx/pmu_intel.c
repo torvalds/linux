@@ -91,7 +91,7 @@ static unsigned intel_find_fixed_event(int idx)
 	u32 event;
 	size_t size = ARRAY_SIZE(fixed_pmc_events);
 
-	if (idx >= size)
+	if (WARN_ON_ONCE(idx >= size))
 		return PERF_COUNT_HW_MAX;
 
 	event = fixed_pmc_events[array_index_nospec(idx, size)];
@@ -500,8 +500,9 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 		pmu->nr_arch_fixed_counters = 0;
 	} else {
 		pmu->nr_arch_fixed_counters =
-			min_t(int, edx.split.num_counters_fixed,
-			      x86_pmu.num_counters_fixed);
+			min3(ARRAY_SIZE(fixed_pmc_events),
+			     (size_t) edx.split.num_counters_fixed,
+			     (size_t) x86_pmu.num_counters_fixed);
 		edx.split.bit_width_fixed = min_t(int,
 			edx.split.bit_width_fixed, x86_pmu.bit_width_fixed);
 		pmu->counter_bitmask[KVM_PMC_FIXED] =
