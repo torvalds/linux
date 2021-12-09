@@ -303,10 +303,6 @@ int bpf_prog_load_v0_6_0(enum bpf_prog_type prog_type,
 	if (log_level && !log_buf)
 		return libbpf_err(-EINVAL);
 
-	attr.log_level = log_level;
-	attr.log_buf = ptr_to_u64(log_buf);
-	attr.log_size = log_size;
-
 	func_info_rec_size = OPTS_GET(opts, func_info_rec_size, 0);
 	func_info = OPTS_GET(opts, func_info, NULL);
 	attr.func_info_rec_size = func_info_rec_size;
@@ -320,6 +316,12 @@ int bpf_prog_load_v0_6_0(enum bpf_prog_type prog_type,
 	attr.line_info_cnt = OPTS_GET(opts, line_info_cnt, 0);
 
 	attr.fd_array = ptr_to_u64(OPTS_GET(opts, fd_array, NULL));
+
+	if (log_level) {
+		attr.log_buf = ptr_to_u64(log_buf);
+		attr.log_size = log_size;
+		attr.log_level = log_level;
+	}
 
 	fd = sys_bpf_prog_load(&attr, sizeof(attr), attempts);
 	if (fd >= 0)
@@ -366,16 +368,17 @@ int bpf_prog_load_v0_6_0(enum bpf_prog_type prog_type,
 			goto done;
 	}
 
-	if (log_level || !log_buf)
-		goto done;
+	if (log_level == 0 && log_buf) {
+		/* log_level == 0 with non-NULL log_buf requires retrying on error
+		 * with log_level == 1 and log_buf/log_buf_size set, to get details of
+		 * failure
+		 */
+		attr.log_buf = ptr_to_u64(log_buf);
+		attr.log_size = log_size;
+		attr.log_level = 1;
 
-	/* Try again with log */
-	log_buf[0] = 0;
-	attr.log_buf = ptr_to_u64(log_buf);
-	attr.log_size = log_size;
-	attr.log_level = 1;
-
-	fd = sys_bpf_prog_load(&attr, sizeof(attr), attempts);
+		fd = sys_bpf_prog_load(&attr, sizeof(attr), attempts);
+	}
 done:
 	/* free() doesn't affect errno, so we don't need to restore it */
 	free(finfo);
