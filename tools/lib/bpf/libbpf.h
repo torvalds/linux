@@ -339,7 +339,31 @@ LIBBPF_DEPRECATED_SINCE(0, 7, "multi-instance bpf_program support is deprecated"
 LIBBPF_API int bpf_program__unpin_instance(struct bpf_program *prog,
 					   const char *path,
 					   int instance);
+
+/**
+ * @brief **bpf_program__pin()** pins the BPF program to a file
+ * in the BPF FS specified by a path. This increments the programs
+ * reference count, allowing it to stay loaded after the process
+ * which loaded it has exited.
+ *
+ * @param prog BPF program to pin, must already be loaded
+ * @param path file path in a BPF file system
+ * @return 0, on success; negative error code, otherwise
+ */
 LIBBPF_API int bpf_program__pin(struct bpf_program *prog, const char *path);
+
+/**
+ * @brief **bpf_program__unpin()** unpins the BPF program from a file
+ * in the BPFFS specified by a path. This decrements the programs
+ * reference count.
+ *
+ * The file pinning the BPF program can also be unlinked by a different
+ * process in which case this function will return an error.
+ *
+ * @param prog BPF program to unpin
+ * @param path file path to the pin in a BPF file system
+ * @return 0, on success; negative error code, otherwise
+ */
 LIBBPF_API int bpf_program__unpin(struct bpf_program *prog, const char *path);
 LIBBPF_API void bpf_program__unload(struct bpf_program *prog);
 
